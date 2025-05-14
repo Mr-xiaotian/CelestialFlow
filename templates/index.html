@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>任务树监控系统</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #f3f4f6; }
+    .header, .nav { background: #1e3a8a; color: white; padding: 10px 20px; }
+    .header { display: flex; justify-content: space-between; align-items: center; }
+    .tabs { display: flex; }
+    .tabs button { padding: 10px 20px; background: #1e3a8a; color: white; border: none; cursor: pointer; }
+    .tabs button.active { background: #374151; border-bottom: 2px solid #3b82f6; }
+    .container { padding: 20px; }
+    .card { background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    .status-green { background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .status-gray { background: #9ca3af; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .bar { height: 8px; background: #e5e7eb; border-radius: 4px; margin-top: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; background: #3b82f6; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
+    th { background: #f9fafb; }
+    select, button { padding: 4px 8px; margin-left: 8px; }
+    pre { background: #f9fafb; padding: 16px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>任务树监控系统</h1>
+  <div>
+    刷新间隔:
+    <select id="refreshRate">
+      <option value="1">1秒</option>
+      <option value="5" selected>5秒</option>
+      <option value="10">10秒</option>
+    </select>
+    <button id="toggleRefresh">暂停刷新</button>
+  </div>
+</div>
+
+<div class="nav tabs">
+  <button class="active" data-tab="dashboard">仪表盘</button>
+  <button data-tab="structure">任务树结构</button>
+  <button data-tab="errors">错误日志</button>
+</div>
+
+<div class="container" id="content"></div>
+
+<script>
+  const nodeStatuses = {
+    RootStage: { active: true, tasks_processed: 45, tasks_pending: 12, tasks_error: 3, start_time: "2025-05-14T10:15:32", execution_mode: "thread" },
+    Splitter: { active: true, tasks_processed: 42, tasks_pending: 15, tasks_error: 0, start_time: "2025-05-14T10:15:33", execution_mode: "thread" },
+    Processor: { active: true, tasks_processed: 150, tasks_pending: 30, tasks_error: 5, start_time: "2025-05-14T10:15:34", execution_mode: "thread" },
+    Validator: { active: true, tasks_processed: 145, tasks_pending: 5, tasks_error: 0, start_time: "2025-05-14T10:15:35", execution_mode: "thread" }
+  };
+
+  const structure = [
+    "+---------------------------------------------------------------+",
+    "| RootStage (stage_mode: process, func: process_task)           |",
+    "| ╘--> Splitter (stage_mode: process, func: split_task)         |",
+    "|   ╘--> Processor (stage_mode: process, func: process_item)    |",
+    "|     ╘--> Validator (stage_mode: process, func: validate_item) |",
+    "+---------------------------------------------------------------+"
+  ];
+
+  let errors = [
+    { error: "TaskError(Could not process task)", node: "RootStage", task_id: "task_001", timestamp: "2025-05-14T10:16:12" },
+    { error: "TaskError(Invalid input format)", node: "RootStage", task_id: "task_015", timestamp: "2025-05-14T10:17:45" },
+    { error: "TaskError(Process timeout)", node: "Processor", task_id: "task_023_split_1", timestamp: "2025-05-14T10:18:02" }
+  ];
+
+  let isRunning = true;
+  let selectedTab = "dashboard";
+  let refreshInterval = 5000;
+  let timer = null;
+
+  const content = document.getElementById("content");
+
+  function render() {
+    if (selectedTab === "dashboard") {
+      renderDashboard();
+    } else if (selectedTab === "structure") {
+      renderStructure();
+    } else if (selectedTab === "errors") {
+      renderErrors();
+    }
+  }
+
+  function renderDashboard() {
+    content.innerHTML = "";
+    const allNodes = Object.entries(nodeStatuses).map(([name, data]) => {
+      const percent = data.tasks_processed + data.tasks_pending > 0 
+        ? Math.round(data.tasks_processed / (data.tasks_processed + data.tasks_pending) * 100)
+        : 100;
+      return `
+        <div class="card">
+          <div style="display:flex; justify-content:space-between;">
+            <h3>${name}</h3>
+            <span class="${data.active ? 'status-green' : 'status-gray'}">
+              ${data.active ? "运行中" : "已停止"}
+            </span>
+          </div>
+          <p>已处理任务: ${data.tasks_processed}</p>
+          <p>等待任务: ${data.tasks_pending}</p>
+          <p>错误任务: <span style="color:red">${data.tasks_error}</span></p>
+          <p>执行模式: ${data.execution_mode}</p>
+          <p>开始时间: ${new Date(data.start_time).toLocaleString()}</p>
+          <div class="bar"><div class="bar-fill" style="width:${percent}%"></div></div>
+        </div>
+      `;
+    }).join("");
+
+    const summary = `
+      <div class="card">
+        <h3>总体状态摘要</h3>
+        <p>总处理任务: ${sumField("tasks_processed")}</p>
+        <p>总等待任务: ${sumField("tasks_pending")}</p>
+        <p>总错误任务: ${sumField("tasks_error")}</p>
+        <p>活动节点数: ${Object.keys(nodeStatuses).length}</p>
+      </div>
+    `;
+
+    content.innerHTML = allNodes + summary;
+  }
+
+  function renderStructure() {
+    content.innerHTML = `<div class="card"><pre>${structure.join("\n")}</pre></div>`;
+  }
+
+  function renderErrors() {
+    const options = Object.keys(nodeStatuses).map(n => `<option>${n}</option>`).join("");
+    const filterHTML = `
+      <label>
+        筛选节点:
+        <select id="filterNode">
+          <option value="">全部</option>
+          ${options}
+        </select>
+      </label>
+    `;
+    const filtered = document.getElementById("filterNode")?.value || "";
+    const displayErrors = filtered ? errors.filter(e => e.node === filtered) : errors;
+
+    const rows = displayErrors.map(e => `
+      <tr>
+        <td style="color:red">${e.error}</td>
+        <td>${e.node}</td>
+        <td>${e.task_id}</td>
+        <td>${new Date(e.timestamp).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    content.innerHTML = `
+      <div class="card">
+        <h3>错误日志</h3>
+        ${filterHTML}
+        <table>
+          <thead>
+            <tr><th>错误信息</th><th>节点</th><th>任务ID</th><th>时间</th></tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="4">无错误记录</td></tr>'}</tbody>
+        </table>
+      </div>
+    `;
+
+    document.getElementById("filterNode").onchange = renderErrors;
+  }
+
+  function sumField(field) {
+    return Object.values(nodeStatuses).reduce((sum, node) => sum + node[field], 0);
+  }
+
+  function simulateRefresh() {
+    Object.keys(nodeStatuses).forEach(node => {
+      const data = nodeStatuses[node];
+      const increment = Math.floor(Math.random() * 5);
+      if (data.tasks_pending > 0) {
+        data.tasks_processed += increment;
+        data.tasks_pending = Math.max(0, data.tasks_pending - increment);
+      }
+      if (node === "Processor" && Math.random() > 0.9) {
+        data.tasks_error += 1;
+        errors.push({
+          error: "TaskError(New random error)",
+          node,
+          task_id: "task_" + Math.floor(Math.random() * 1000),
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+    render();
+  }
+
+  function startTimer() {
+    if (timer) clearInterval(timer);
+    if (isRunning) timer = setInterval(simulateRefresh, refreshInterval);
+  }
+
+  // 事件绑定
+  document.querySelectorAll(".tabs button").forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      selectedTab = btn.dataset.tab;
+      render();
+    };
+  });
+
+  document.getElementById("refreshRate").onchange = (e) => {
+    refreshInterval = parseInt(e.target.value) * 1000;
+    startTimer();
+  };
+
+  document.getElementById("toggleRefresh").onclick = () => {
+    isRunning = !isRunning;
+    document.getElementById("toggleRefresh").innerText = isRunning ? "暂停刷新" : "开始刷新";
+    startTimer();
+  };
+
+  // 初始渲染和启动
+  render();
+  startTimer();
+</script>
+</body>
+</html>
