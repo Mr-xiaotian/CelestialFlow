@@ -1,0 +1,22 @@
+# 忽略日志
+logs/
+*.log
+
+
+# 忽略Byte编译的文件
+__pycache__/
+
+*.py[cod]
+*$py.class
+
+# 忽略IDE文件
+.vscode/
+result.json
+_preview.ipynb
+temp.py
+
+# 忽略临时文件
+profile/
+fallback/
+CelestialFlow.egg-info/
+.pytest_cache
