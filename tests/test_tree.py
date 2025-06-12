@@ -87,7 +87,10 @@ def download(url):
 
 def parse(url):
     num_list = re.findall(r'\d+', url)
-    return int("".join(num_list))
+    parse_num = int("".join(num_list))
+    if parse_num > 100:
+        raise ValueError("Test error for greater than 100")
+    return parse_num
 
 def generate_urls_sleep(x):
     sleep_random_46(5)
@@ -206,14 +209,14 @@ def _test_task_tree_1():
 def _test_task_tree_2():    
     # 定义任务节点
     generate_stage = TaskManager(func=generate_urls, execution_mode='thread', worker_limit=4)
-    logr_stage = TaskManager(func=log_urls, execution_mode='thread', worker_limit=4)
+    logger_stage = TaskManager(func=log_urls, execution_mode='thread', worker_limit=4)
     splitter = TaskSplitter()
     download_stage = TaskManager(func=download, execution_mode='thread', worker_limit=4)
     parse_stage = TaskManager(func=parse, execution_mode='thread', worker_limit=4)
 
     # 设置链关系
-    generate_stage.set_tree_context([logr_stage, splitter], stage_mode='process', stage_name='GenURLs')
-    logr_stage.set_tree_context([], stage_mode='process', stage_name='Loger')
+    generate_stage.set_tree_context([logger_stage, splitter], stage_mode='process', stage_name='GenURLs')
+    logger_stage.set_tree_context([], stage_mode='process', stage_name='Loger')
     splitter.set_tree_context([download_stage, parse_stage], stage_mode='process', stage_name='Splitter')
     download_stage.set_tree_context([], stage_mode='process', stage_name='Downloader')
     parse_stage.set_tree_context([], stage_mode='process', stage_name='Parser')
@@ -237,20 +240,20 @@ def _test_task_tree_2():
             value = pprint.pformat(value)
         logging.info(f"{key}: \n{value}")
 
-def _test_task_tree_3():
+def test_task_tree_3():
     # 定义任务节点
     generate_stage = TaskManager(func=generate_urls_sleep, execution_mode='thread', worker_limit=4)
-    logr_stage = TaskManager(func=log_urls_sleep, execution_mode='thread', worker_limit=4)
+    logger_stage = TaskManager(func=log_urls_sleep, execution_mode='thread', worker_limit=4)
     splitter = TaskSplitter()
     download_stage = TaskManager(func=download_sleep, execution_mode='thread', worker_limit=4)
     parse_stage = TaskManager(func=parse_sleep, execution_mode='thread', worker_limit=4)
 
     # 设置链关系
-    generate_stage.set_tree_context([logr_stage, splitter], stage_mode='process', stage_name='GenURLs')
-    logr_stage.set_tree_context([], stage_mode='process', stage_name='Loger')
+    generate_stage.set_tree_context([logger_stage, splitter], stage_mode='process', stage_name='GenURLs')
+    logger_stage.set_tree_context([], stage_mode='process', stage_name='Loger')
     splitter.set_tree_context([download_stage, parse_stage], stage_mode='process', stage_name='Splitter')
     download_stage.set_tree_context([], stage_mode='process', stage_name='Downloader')
-    parse_stage.set_tree_context([], stage_mode='process', stage_name='Parser')
+    parse_stage.set_tree_context([generate_stage], stage_mode='process', stage_name='Parser')
 
     # download_stage.add_retry_exceptions(ValueError)
 
@@ -260,13 +263,13 @@ def _test_task_tree_3():
 
     tree.start_tree({
         generate_stage.get_stage_tag(): range(10),
-        # logr_stage.get_stage_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
+        # logger_stage.get_stage_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
         # splitter.get_stage_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
         download_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
-        parse_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
+        # parse_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
     }, False)
 
-def test_task_tree_4():
+def _test_task_tree_4():
     root_stage = TaskManager(sleep_1, 'thread', 3)
     redis_transfer = TaskRedisTransfer()
     fibonacci_stage = TaskManager(fibonacci, 'thread')

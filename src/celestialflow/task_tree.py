@@ -103,8 +103,7 @@ class TaskTree:
         设定根节点
         """
         self.root_stage = root_stage
-        self.root_stage.prev_stages = []
-        self.root_stage.add_prev_stages(None)
+        self.root_stage.add_prev_stages(None) if self.root_stage.prev_stages == [] else None
 
     def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
         """
@@ -113,7 +112,7 @@ class TaskTree:
         :param put_termination_signal: 是否放入终止信号
         """
         for tag, tasks in tasks_dict.items():
-            prev_stage = self.stages_status_dict[tag]["stage"].prev_stages[0]
+            prev_stage: TaskManager = self.stages_status_dict[tag]["stage"].prev_stages[0]
             prev_tag = prev_stage.get_stage_tag() if prev_stage else None
             for task in tasks:
                 self.edge_queue_map[(prev_tag, tag)].put(make_hashable(task))
@@ -446,7 +445,7 @@ class TaskTree:
                 if isinstance(prev, TaskSplitter):
                     total_input += self.stage_extra_stats[prev_tag].get("split_output_count", ValueWrapper()).value
                 else:
-                    total_input += status_dict[prev_tag]["tasks_processed"] # if prev_tag in status_dict else 0
+                    total_input += self.stage_success_counter.get(prev_tag, ValueWrapper()).value
 
             status        = stage_status_dict.get("status", StageStatus.NOT_STARTED)
             processed     = self.stage_success_counter.get(tag, ValueWrapper()).value
