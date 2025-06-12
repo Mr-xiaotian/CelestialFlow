@@ -76,7 +76,7 @@ class TaskManager:
 
         self.init_dict()
 
-    def init_dict(self, success_counter=None, success_lock=None, extra_stats=None):
+    def init_dict(self, success_counter=None, error_counter=None, counter_lock=None, extra_stats=None):
         """
         初始化结果字典
         """
@@ -85,7 +85,8 @@ class TaskManager:
         self.retry_time_dict = {}
 
         self.success_counter = success_counter if success_counter is not None else ValueWrapper()
-        self.success_lock = success_lock if success_lock is not None else null_lock
+        self.error_counter = error_counter if error_counter is not None else ValueWrapper()
+        self.counter_lock = counter_lock if counter_lock is not None else null_lock
         self.extra_stats = extra_stats if extra_stats is not None else {}
 
     def init_env(self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None):
@@ -318,16 +319,34 @@ class TaskManager:
             "timestamp": time.time()
         })
 
-    def add_succes_counter(self):
+    def update_succes_counter(self):
         # 加锁方式（保证正确）
-        with self.success_lock:
+        with self.counter_lock:
             self.success_counter.value += 1
+
+    def update_error_counter(self):
+        # 加锁方式（保证正确）
+        with self.counter_lock:
+            self.error_counter.value += 1
 
     def is_duplicate(self, task):
         """
         判断任务是否重复
         """
         return task in self.success_dict or task in self.error_dict
+    
+    def deal_dupliacte(self, task):
+        self.duplicates_num += 1
+        self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task))
+
+        # ⬇️ 关键改动：将结果重新广播给下游
+        if task in self.success_dict:
+            result = self.success_dict[task]
+            self.put_result_queues(result)  # ⬅️ 转发之前的结果
+            self.update_succes_counter() # ⬆️ 计数器加一
+        elif task in self.error_dict:
+            self.update_error_counter()
+            pass
 
     def get_args(self, task):
         """
@@ -407,8 +426,7 @@ class TaskManager:
         processed_result = self.process_result(task, result)
         self.success_dict[task] = processed_result
 
-        self.add_succes_counter()
-
+        self.update_succes_counter()
         self.put_result_queues(processed_result)
         self.task_logger.task_success(
             self.func.__name__,
@@ -443,6 +461,7 @@ class TaskManager:
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
             self.error_dict[task] = exception
+            self.update_error_counter()
             self.put_fail_queue(task, exception)
             self.task_logger.task_error(
                 self.func.__name__, self.get_task_info(task), exception
@@ -474,6 +493,7 @@ class TaskManager:
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
             self.error_dict[task] = exception
+            self.update_error_counter()
             self.put_fail_queue(task, exception)
             self.task_logger.task_error(
                 self.func.__name__, self.get_task_info(task), exception
@@ -606,9 +626,7 @@ class TaskManager:
                 progress_manager.update(1)
                 break
             elif self.is_duplicate(task):
-                self.add_succes_counter()
-                self.duplicates_num += 1
-                self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task))
+                self.deal_dupliacte(task)
                 progress_manager.update(1)
                 continue
             try:
@@ -676,9 +694,7 @@ class TaskManager:
                 progress_manager.update(1)
                 break
             elif self.is_duplicate(task):
-                self.add_succes_counter()
-                self.duplicates_num += 1
-                self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task))
+                self.deal_dupliacte(task)
                 progress_manager.update(1)
                 continue
 
@@ -735,9 +751,7 @@ class TaskManager:
                 progress_manager.update(1)
                 break
             elif self.is_duplicate(task):
-                self.add_succes_counter()
-                self.duplicates_num += 1
-                self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task))
+                self.deal_dupliacte(task)
                 progress_manager.update(1)
                 continue
             async_tasks.append(sem_task(task))  # 使用信号量包裹的任务

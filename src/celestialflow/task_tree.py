@@ -47,6 +47,7 @@ class TaskTree:
         
         self.stage_locks = {}  # 锁，用于控制每个阶段success_counter的并发
         self.stage_success_counter = {}  # 用于保存每个阶段成功处理的任务数
+        self.stage_error_counter = {}  # 用于保存每个阶段失败处理的任务数
         
         self.final_result_dict = {}  # 用于保存初始任务到最终结果的映射
         self.error_timeline_dict: Dict[str, list] = defaultdict(list)  # 用于保存错误到出现该错误任务的映射
@@ -215,10 +216,12 @@ class TaskTree:
 
         if stage.stage_mode == "process":
             self.stage_success_counter[stage_tag] = MPValue("i", 0)
+            self.stage_error_counter[stage_tag] = MPValue("i", 0)
             self.stage_locks[stage_tag] = MPLock()
 
             stage.init_dict(
                 self.stage_success_counter[stage_tag],
+                self.stage_error_counter[stage_tag],
                 self.stage_locks[stage_tag],
                 self.stage_extra_stats[stage_tag]
                 )
@@ -229,9 +232,11 @@ class TaskTree:
             self.processes.append(p)
         else:
             self.stage_success_counter[stage_tag] = ValueWrapper()
+            self.stage_error_counter[stage_tag] = ValueWrapper()
 
             stage.init_dict(
                 self.stage_success_counter[stage_tag], 
+                self.stage_error_counter[stage_tag],
                 None, 
                 self.stage_extra_stats[stage_tag]
                 )
@@ -449,7 +454,7 @@ class TaskTree:
 
             status        = stage_status_dict.get("status", StageStatus.NOT_STARTED)
             processed     = self.stage_success_counter.get(tag, ValueWrapper()).value
-            failed        = len(all_stage_error_dict.get(tag, {}))
+            failed        = self.stage_error_counter.get(tag, ValueWrapper()).value
             pending       = max(0, total_input - processed - failed)
 
             add_processed = processed - last_stage_status_dict.get("tasks_processed", 0)
