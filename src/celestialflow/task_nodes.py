@@ -12,13 +12,13 @@ class TaskSplitter(TaskManager):
         :param split_func: 用于分解任务的函数，默认直接返回原始值
         """
         super().__init__(
-            func=self.split_task,
+            func=self._split_task,
             execution_mode="serial",
             progress_desc="Spliting tasks",
             show_progress=False,
         )
 
-    def split_task(self, *task):
+    def _split_task(self, *task):
         """
         实际上这个函数不执行逻辑，仅用于符合 TaskManager 架构
         """
@@ -68,7 +68,7 @@ class TaskSplitter(TaskManager):
 
 class TaskRedisTransfer(TaskManager):
     def __init__(self, worker_limit=50, host="localhost", port=6379, db=0, timeout=10):
-        super().__init__(self._process_via_redis, "thread", worker_limit)
+        super().__init__(self._trans_redis, "thread", worker_limit)
 
         self.host = host
         self.port = port
@@ -79,7 +79,7 @@ class TaskRedisTransfer(TaskManager):
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(host=self.host, port=self.port, db=self.db, decode_responses=True)
 
-    def _process_via_redis(self, task):
+    def _trans_redis(self, task):
         self.init_redis()
         input_key = f"{self.get_stage_tag()}:input"
         output_key = f"{self.get_stage_tag()}:output"

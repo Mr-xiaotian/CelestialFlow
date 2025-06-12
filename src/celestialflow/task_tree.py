@@ -29,7 +29,6 @@ class TaskTree:
         初始化环境
         """
         self.processes: List[multiprocessing.Process] = []
-        # self.manager = multiprocessing.Manager()
 
         self.init_dict()
         self.init_task_queues()
