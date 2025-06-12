@@ -267,7 +267,7 @@ def _test_task_tree_3():
     }, False)
 
 def test_task_tree_4():
-    root_stage = TaskManager(sleep_1, 'thread')
+    root_stage = TaskManager(sleep_1, 'thread', 3)
     redis_transfer = TaskRedisTransfer()
     fibonacci_stage = TaskManager(fibonacci, 'thread')
 

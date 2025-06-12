@@ -16,12 +16,13 @@ func main() {
 		DB:   0,
 	})
 
-	worker.StartWorker(
+	worker.StartWorkerPool(
 		ctx,
 		rdb,
 		"RedisTransfer[_process_via_redis]:input",  // Redis 中任务输入的 List
 		"RedisTransfer[_process_via_redis]:output", // Redis 中结果写入的 Hash
 		worker.ParseNumberTask,
 		worker.Fibonacci,
+		4,
 	)
 }
