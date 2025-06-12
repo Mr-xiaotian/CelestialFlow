@@ -240,7 +240,7 @@ def _test_task_tree_2():
             value = pprint.pformat(value)
         logging.info(f"{key}: \n{value}")
 
-def test_task_tree_3():
+def _test_task_tree_3():
     # 定义任务节点
     generate_stage = TaskManager(func=generate_urls_sleep, execution_mode='thread', worker_limit=4)
     logger_stage = TaskManager(func=log_urls_sleep, execution_mode='thread', worker_limit=4)
@@ -269,20 +269,24 @@ def test_task_tree_3():
         # parse_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
     }, False)
 
-def _test_task_tree_4():
+def test_task_tree_4():
     root_stage = TaskManager(sleep_1, 'thread', 3)
     redis_transfer = TaskRedisTransfer()
     fibonacci_stage = TaskManager(fibonacci, 'thread')
 
     root_stage.set_tree_context([redis_transfer, fibonacci_stage], stage_mode='serial', stage_name='Root')
-    redis_transfer.set_tree_context([], stage_mode='process', stage_name='RedisTransfer')
+    redis_transfer.set_tree_context([], stage_mode='process', stage_name='GoFibonacci')
     fibonacci_stage.set_tree_context([], stage_mode='process', stage_name='Fibonacci')
 
     tree = TaskTree(root_stage)
     tree.set_reporter(True, host="127.0.0.1", port=5005)
 
+    # 要测试的任务列表
+    test_task_0 = range(25, 37)
+    test_task_1 = list(test_task_0) + [0, 27, None, 0, '']
+
     tree.start_tree({
-        root_stage.get_stage_tag(): range(25, 37),
+        root_stage.get_stage_tag(): test_task_1,
     })
 
 def profile_task_tree():

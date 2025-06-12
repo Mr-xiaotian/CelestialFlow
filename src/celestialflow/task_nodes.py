@@ -95,7 +95,17 @@ class TaskRedisTransfer(TaskManager):
             result = self.redis_client.hget(output_key, task_id)
             if result:
                 self.redis_client.hdel(output_key, task_id)
-                return json.loads(result)
+                try:
+                    result_obj = json.loads(result)
+                except Exception as e:
+                    raise ValueError(f"Invalid JSON from Redis: {result!r}") from e
+
+                if result_obj.get("status") == "success":
+                    return result_obj.get("result")
+                elif result_obj.get("status") == "error":
+                    raise RuntimeError(f"Remote worker error: {result_obj.get('error')}")
+                else:
+                    raise ValueError(f"Unknown result status: {result_obj}")
             elif time.time() - start_time > self.timeout:
                 raise TimeoutError("Redis result not returned in time")
             time.sleep(0.1)

@@ -1,8 +1,12 @@
 package worker
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+	"net/http"
+)
 
-// 示例处理函数
+// Add100 接收整数，返回整数加 100
 func Add100(task interface{}) (interface{}, error) {
 	n, ok := task.(int)
 	if !ok {
@@ -33,4 +37,26 @@ func Fibonacci(task interface{}) (interface{}, error) {
 		return nil, err
 	}
 	return a.(int) + b.(int), nil
+}
+
+// HTTPProcessor 接收字符串 URL，返回响应长度
+func HTTPProcessor(task interface{}) (interface{}, error) {
+	url, ok := task.(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid task type: expected string URL")
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP GET error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 也可以读取内容长度
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read body error: %v", err)
+	}
+
+	return fmt.Sprintf("Status: %d, Length: %d", resp.StatusCode, len(body)), nil
 }

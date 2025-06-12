@@ -39,13 +39,14 @@ func StartWorkerPool(
 		if payload.ID == "TERMINATION_SIGNAL" {
 			// 等所有 goroutine 完成
 			wg.Wait()
-			rdb.HSet(ctx, outputKey, "TERMINATION_SIGNAL", `"Worker exiting"`)
+			_ = rdb.HSet(ctx, outputKey, "TERMINATION_SIGNAL", `{"status": "terminated", "msg": "Worker exiting"}`)
 			fmt.Println("Termination signal received, exiting.")
 			break
 		}
 
 		sem <- struct{}{} // 获取并发令牌
 		wg.Add(1)
+
 		go func(p TaskPayload) {
 			defer func() {
 				<-sem // 释放令牌
@@ -55,17 +56,36 @@ func StartWorkerPool(
 			task, err := parser(p.Task)
 			if err != nil {
 				fmt.Println("Parse Error:", err)
+				resp := map[string]interface{}{
+					"status": "error",
+					"error":  fmt.Sprintf("Parse error: %v", err),
+				}
+				if jsonResp, e := json.Marshal(resp); e == nil {
+					_ = rdb.HSet(ctx, outputKey, p.ID, jsonResp)
+				}
 				return
 			}
 
 			resultVal, err := processor(task)
 			if err != nil {
 				fmt.Println("Processing Error:", err)
+				resp := map[string]interface{}{
+					"status": "error",
+					"error":  fmt.Sprintf("Processing error: %v", err),
+				}
+				if jsonResp, e := json.Marshal(resp); e == nil {
+					_ = rdb.HSet(ctx, outputKey, p.ID, jsonResp)
+				}
 				return
 			}
 
-			resultJSON, _ := json.Marshal(resultVal)
-			rdb.HSet(ctx, outputKey, p.ID, resultJSON)
+			resp := map[string]interface{}{
+				"status": "success",
+				"result": resultVal,
+			}
+			if jsonResp, err := json.Marshal(resp); err == nil {
+				_ = rdb.HSet(ctx, outputKey, p.ID, jsonResp)
+			}
 			fmt.Printf("Processed task %s\n", p.ID)
 		}(payload)
 	}
