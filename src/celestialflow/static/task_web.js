@@ -501,7 +501,7 @@ function extractProgressData(nodeStatuses) {
     if (data.history) {
       result[node] = data.history.map((point) => ({
         x: point.timestamp,
-        y: point.tasks_processed,
+        y: point.tasks_completed,
       }));
     }
   }

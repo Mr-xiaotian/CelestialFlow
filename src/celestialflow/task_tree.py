@@ -434,7 +434,6 @@ class TaskTree:
         status_dict = {}
         now = time.time()
         interval = self.reporter.interval
-        all_stage_error_dict = self.get_all_stage_error_dict()
 
         for tag, stage_status_dict in self.stages_status_dict.items():
             stage: TaskManager = stage_status_dict["stage"]
@@ -492,7 +491,7 @@ class TaskTree:
             history: list = stage_status_dict.get("history", [])
             history.append({
                 "timestamp": now,
-                "tasks_processed": processed,
+                "tasks_completed": processed+failed,
             })
             history.pop(0) if len(history) > 20 else None
             stage_status_dict["history"] = history
