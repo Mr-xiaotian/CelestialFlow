@@ -158,8 +158,7 @@ class TaskTree:
         try:
             self.log_listener.start()
             self.start_time = time.time()
-            structure_list = self.get_structure_list()
-            self.task_logger.start_tree(structure_list)
+            self.task_logger.start_tree(self.get_structure_list())
             self._persist_structure_metadata()
             self.reporter.start() if self.is_report else None
 

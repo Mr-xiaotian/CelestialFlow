@@ -90,6 +90,8 @@ def parse(url):
     parse_num = int("".join(num_list))
     if parse_num > 100:
         raise ValueError("Test error for greater than 100")
+    elif parse_num == 0:
+        raise ValueError("Test error for 0")
     return parse_num
 
 def generate_urls_sleep(x):
@@ -240,7 +242,7 @@ def _test_task_tree_2():
             value = pprint.pformat(value)
         logging.info(f"{key}: \n{value}")
 
-def _test_task_tree_3():
+def test_task_tree_3():
     # 定义任务节点
     generate_stage = TaskManager(func=generate_urls_sleep, execution_mode='thread', worker_limit=4)
     logger_stage = TaskManager(func=log_urls_sleep, execution_mode='thread', worker_limit=4)
@@ -269,7 +271,7 @@ def _test_task_tree_3():
         # parse_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
     }, False)
 
-def test_task_tree_4():
+def _test_task_tree_4():
     root_stage = TaskManager(sleep_1, 'thread', 3)
     redis_transfer = TaskRedisTransfer()
     fibonacci_stage = TaskManager(fibonacci, 'thread')

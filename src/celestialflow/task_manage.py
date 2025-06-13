@@ -336,6 +336,9 @@ class TaskManager:
         return task in self.success_dict or task in self.error_dict
     
     def deal_dupliacte(self, task):
+        """
+        处理重复任务
+        """
         self.duplicates_num += 1
         self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task))
 
