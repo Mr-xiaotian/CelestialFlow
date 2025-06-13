@@ -591,6 +591,7 @@ class TaskChain(TaskTree):
         """
         self.start_tree(init_tasks_dict, put_termination_signal)
 
+
 class TaskLoop(TaskTree):
     def __init__(self, stages: List[TaskManager], chain_mode: str = "serial"):
         """
