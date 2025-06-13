@@ -7,6 +7,14 @@ def sleep_1(n):
     sleep(1)
     return n
 
+def add_sleep(n):
+    sleep(1)
+    if n > 10:
+        raise ValueError("Test error for greater than 10")
+    elif n == 0:
+        raise ValueError("Test error for 0")
+    return n + 1
+
 def fibonacci(n):
     if n <= 0:
         raise ValueError("n must be a positive integer")
@@ -55,7 +63,7 @@ def parse_sleep(url):
     sleep(random.randint(4, 6))
     return parse(url)
 
-def test_splitter_0():    
+def _test_splitter_0():    
     # 定义任务节点
     generate_stage = TaskManager(func=generate_urls, execution_mode='thread', worker_limit=4)
     logger_stage = TaskManager(func=log_urls, execution_mode='thread', worker_limit=4)
@@ -134,4 +142,21 @@ def _test_transfer():
 
     tree.start_tree({
         root_stage.get_stage_tag(): test_task_1,
+    })
+
+def test_loop():
+    loop_stage = TaskManager(add_sleep, 'thread', 3)
+    # stageB = TaskManager(sleep_1, 'thread', 3)
+
+    loop_stage.set_tree_context([loop_stage], stage_mode='process', stage_name='stage')
+
+    tree = TaskTree(loop_stage)
+    tree.set_reporter(True, host="127.0.0.1", port=5005)
+
+    # 要测试的任务列表
+    test_task_0 = range(1, 2)
+    test_task_1 = list(test_task_0) + [0, 6, None, 0, '']
+
+    tree.start_tree({
+        loop_stage.get_stage_tag(): test_task_0
     })

@@ -103,7 +103,7 @@ class TaskTree:
         设定根节点
         """
         self.root_stage = root_stage
-        self.root_stage.add_prev_stages(None) if self.root_stage.prev_stages == [] else None
+        self.root_stage.add_prev_stages(None) # if self.root_stage.prev_stages == [] else None
 
     def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
         """
@@ -117,11 +117,15 @@ class TaskTree:
             for task in tasks:
                 self.edge_queue_map[(prev_tag, tag)].put(make_hashable(task))
                 if isinstance(task, TerminationSignal):
+                    self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {(prev_tag, tag)}")
                     continue
+                self.task_logger._log("TRACE", f"{task} put into {(prev_tag, tag)}")
                 self.stages_status_dict[tag]["init_tasks_num"] = self.stages_status_dict[tag].get("init_tasks_num", 0) + 1
 
-        edge_key = (None, self.root_stage.get_stage_tag())
-        self.edge_queue_map[edge_key].put(TERMINATION_SIGNAL) if put_termination_signal else None
+        if put_termination_signal:
+            edge_key = (None, self.root_stage.get_stage_tag())
+            self.edge_queue_map[edge_key].put(TERMINATION_SIGNAL)
+            self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {edge_key}")
 
     def set_reporter(self, is_report=False, host="127.0.0.1", port=5000):
         """
