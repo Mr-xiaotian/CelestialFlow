@@ -1,8 +1,6 @@
-import pytest, logging, asyncio, pprint, re
-import cProfile, subprocess, random
-from time import time, strftime, localtime, sleep
-from celestialvault.tools.TextTools import format_table
-from celestialflow import TaskManager, TaskTree, TaskSplitter, TaskRedisTransfer
+import pytest, logging
+from time import time
+from celestialflow import TaskManager
 
 def fibonacci(n):
     if n <= 0:
@@ -28,7 +26,7 @@ async def fibonacci_async(n):
         return result_0 + result_1
 
 # 测试 TaskManager 的同步任务
-def test_task_manager():
+def test_manager():
     test_task_0 = range(25, 37)
     test_task_1 = list(range(25,32)) + [0, 27, None, 0, '']
     test_task_2 = (item for item in test_task_1)
@@ -41,7 +39,7 @@ def test_task_manager():
 
 # 测试 TaskManager 的异步任务
 @pytest.mark.asyncio
-async def test_task_manager_async():
+async def test_manager_async():
     test_task_0 = range(25, 37)
     test_task_1 = list(range(25,32)) + [0, 27, None, 0, '']
     test_task_2 = (item for item in test_task_1)
