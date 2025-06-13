@@ -103,7 +103,7 @@ class TaskTree:
         设定根节点
         """
         self.root_stage = root_stage
-        self.root_stage.add_prev_stages(None) # if self.root_stage.prev_stages == [] else None
+        self.root_stage.add_prev_stages(None) if self.root_stage.prev_stages == [] else None
 
     def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
         """
@@ -121,9 +121,9 @@ class TaskTree:
                     continue
                 self.task_logger._log("TRACE", f"{task} put into {(prev_tag, tag)}")
                 self.stages_status_dict[tag]["init_tasks_num"] = self.stages_status_dict[tag].get("init_tasks_num", 0) + 1
-
-        if put_termination_signal:
-            edge_key = (None, self.root_stage.get_stage_tag())
+        
+        edge_key = (None, self.root_stage.get_stage_tag())
+        if put_termination_signal and edge_key in self.edge_queue_map:
             self.edge_queue_map[edge_key].put(TERMINATION_SIGNAL)
             self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {edge_key}")
 
@@ -584,9 +584,31 @@ class TaskChain(TaskTree):
         root_stage = stages[0]
         super().__init__(root_stage)
 
-    def start_chain(self, init_tasks_dict: List[Any], put_termination_signal: bool=True):
+    def start_chain(self, init_tasks_dict: dict, put_termination_signal: bool=True):
         """
         启动任务链
         :param init_tasks_dict: 任务列表
         """
         self.start_tree(init_tasks_dict, put_termination_signal)
+
+class TaskLoop(TaskTree):
+    def __init__(self, stages: List[TaskManager], chain_mode: str = "serial"):
+        """
+        初始化 TaskLoop
+        :param stages: TaskManager 列表
+        :param loop_mode: 链式模式，默认为 'serial'
+        """
+        for num, stage in enumerate(stages):
+            stage_name = f"Stage {num + 1}"
+            next_stages = [stages[num + 1]] if num < len(stages) - 1 else [stages[0]]
+            stage.set_tree_context(next_stages, chain_mode, stage_name)
+
+        root_stage = stages[0]
+        super().__init__(root_stage)
+
+    def start_loop(self, init_tasks_dict: dict):
+        """
+        启动任务环, 环是自锁结构, 能且仅能外部注入式停止
+        :param init_tasks_dict: 任务列表
+        """
+        self.start_tree(init_tasks_dict, False)

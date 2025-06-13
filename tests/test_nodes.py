@@ -1,7 +1,7 @@
 import pytest, logging, re, random, pprint
 from time import sleep
 from celestialvault.tools.TextTools import format_table
-from celestialflow import TaskManager, TaskTree, TaskSplitter, TaskRedisTransfer
+from celestialflow import TaskManager, TaskTree, TaskSplitter, TaskRedisTransfer, TaskLoop
 
 def sleep_1(n):
     sleep(1)
@@ -148,15 +148,13 @@ def test_loop():
     loop_stage = TaskManager(add_sleep, 'thread', 3)
     # stageB = TaskManager(sleep_1, 'thread', 3)
 
-    loop_stage.set_tree_context([loop_stage], stage_mode='process', stage_name='stage')
-
-    tree = TaskTree(loop_stage)
+    tree = TaskLoop([loop_stage])
     tree.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 要测试的任务列表
     test_task_0 = range(1, 2)
     test_task_1 = list(test_task_0) + [0, 6, None, 0, '']
 
-    tree.start_tree({
+    tree.start_loop({
         loop_stage.get_stage_tag(): test_task_0
     })
