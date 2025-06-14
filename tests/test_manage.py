@@ -33,7 +33,7 @@ def test_manager():
 
     manager = TaskManager(fibonacci, worker_limit=6, max_retries = 1, show_progress=True)
     manager.add_retry_exceptions(ValueError)
-    results = manager.test_methods(test_task_1)
+    results = manager.test_methods(test_task_0)
     logging.info(results)
     # manager.start(test_task_1)
 
@@ -47,5 +47,5 @@ async def test_manager_async():
     manager = TaskManager(fibonacci_async, worker_limit=6, max_retries = 1, show_progress=True)
     manager.add_retry_exceptions(ValueError)
     start = time()
-    await manager.start_async(test_task_1)
+    await manager.start_async(test_task_0)
     logging.info(f'run_in_async: {time() - start}')

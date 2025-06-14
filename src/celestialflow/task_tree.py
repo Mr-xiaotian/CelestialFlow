@@ -122,8 +122,8 @@ class TaskTree:
                 self.task_logger._log("TRACE", f"{task} put into {(prev_tag, tag)}")
                 self.stages_status_dict[tag]["init_tasks_num"] = self.stages_status_dict[tag].get("init_tasks_num", 0) + 1
         
-        edge_key = (None, self.root_stage.get_stage_tag())
-        if put_termination_signal and edge_key in self.edge_queue_map:
+        if put_termination_signal:
+            edge_key = (self.root_stage.prev_stages[0].get_stage_tag(), self.root_stage.get_stage_tag())
             self.edge_queue_map[edge_key].put(TERMINATION_SIGNAL)
             self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {edge_key}")
 
@@ -593,16 +593,15 @@ class TaskChain(TaskTree):
 
 
 class TaskLoop(TaskTree):
-    def __init__(self, stages: List[TaskManager], chain_mode: str = "serial"):
+    def __init__(self, stages: List[TaskManager]):
         """
-        初始化 TaskLoop
+        初始化 TaskLoop, 由于环的结构特性, 强制使用 'process' 节点模式
         :param stages: TaskManager 列表
-        :param loop_mode: 链式模式，默认为 'serial'
         """
         for num, stage in enumerate(stages):
             stage_name = f"Stage {num + 1}"
             next_stages = [stages[num + 1]] if num < len(stages) - 1 else [stages[0]]
-            stage.set_tree_context(next_stages, chain_mode, stage_name)
+            stage.set_tree_context(next_stages, "process", stage_name)
 
         root_stage = stages[0]
         super().__init__(root_stage)

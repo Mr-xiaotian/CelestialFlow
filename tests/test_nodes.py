@@ -141,14 +141,15 @@ def _test_transfer():
     test_task_1 = list(test_task_0) + [0, 27, None, 0, '']
 
     tree.start_tree({
-        root_stage.get_stage_tag(): test_task_1,
+        root_stage.get_stage_tag(): test_task_0,
     })
 
 def test_loop():
-    loop_stage = TaskManager(add_sleep, 'thread', 3)
-    # stageB = TaskManager(sleep_1, 'thread', 3)
+    stageA = TaskManager(add_sleep, 'thread', 3)
+    stageB = TaskManager(add_sleep, 'thread', 3)
+    stageC = TaskManager(add_sleep, 'thread', 3)
 
-    tree = TaskLoop([loop_stage])
+    tree = TaskLoop([stageA, stageB, stageC], chain_mode="process")
     tree.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 要测试的任务列表
@@ -156,5 +157,9 @@ def test_loop():
     test_task_1 = list(test_task_0) + [0, 6, None, 0, '']
 
     tree.start_loop({
-        loop_stage.get_stage_tag(): test_task_0
+        stageA.get_stage_tag(): test_task_0
     })
+
+if __name__ == '__main__':
+    # test_splitter_1()
+    pass
