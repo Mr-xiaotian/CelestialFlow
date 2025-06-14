@@ -9,7 +9,7 @@ from queue import Queue as ThreadQueue
 from pathlib import Path
 from queue import Empty
 from asyncio import QueueEmpty as AsyncQueueEmpty
-from typing import TYPE_CHECKING, Dict, Any, List, Optional
+from typing import TYPE_CHECKING, Dict, Any, List, Set, Optional
 
 if TYPE_CHECKING:
     from .task_manage import TaskManager  # 或者用绝对路径，例如 from task_tree.task_manage import TaskManager
@@ -31,15 +31,27 @@ def format_timestamp(timestamp) -> str:
     """将时间戳格式化为 YYYY-MM-DD HH:MM:SS"""
     return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
-def build_structure_tree(task_manager: "TaskManager", visited_stages=None) -> Dict[str, Any]:
+def build_structure_tree(root_stages: List["TaskManager"]) -> List[Dict[str, Any]]:
     """
-    构建任务链的 JSON 树结构
-    :param task_manager: 当前处理的 TaskManager
-    :param visited_stages: 已访问的 TaskManager 集合，避免重复访问
-    :return: JSON 结构的任务树
-    """
-    visited_stages = visited_stages or set()
+    从多个根节点构建任务链的 JSON 树结构
 
+    :param root_stages: 根节点列表
+    :return: 多棵任务树的 JSON 列表
+    """
+    visited_stages: Set[str] = set()
+    trees = []
+
+    for root_stage in root_stages:
+        tree = _build_structure_subtree(root_stage, visited_stages)
+        trees.append(tree)
+
+    return trees
+
+def _build_structure_subtree(task_manager: "TaskManager", visited_stages: Set[str]) -> Dict[str, Any]:
+    """
+    构建单个子树结构
+    """
+    stage_tag = task_manager.get_stage_tag()
     node = {
         "stage_name": task_manager.stage_name,
         "stage_mode": task_manager.stage_mode,
@@ -48,35 +60,32 @@ def build_structure_tree(task_manager: "TaskManager", visited_stages=None) -> Di
         "next_stages": []
     }
 
-    if task_manager.get_stage_tag() in visited_stages:
+    if stage_tag in visited_stages:
         node["visited"] = True
         return node
 
-    visited_stages.add(task_manager.get_stage_tag())
+    visited_stages.add(stage_tag)
 
     for next_stage in task_manager.next_stages:
-        child_node = build_structure_tree(next_stage, visited_stages)
+        child_node = _build_structure_subtree(next_stage, visited_stages)
         node["next_stages"].append(child_node)
 
     return node
 
-def format_structure_list_from_tree(root_root: dict = None, indent=0) -> list:
+def format_structure_list_from_tree(root_roots: List[Dict] = None, indent=0) -> List[str]:
     """
-    从 JSON 树结构直接生成带边框的格式化任务结构文本列表
-    :param root_root: JSON 格式任务树根节点
+    从多个 JSON 树结构生成格式化任务结构文本列表（带边框）
+
+    :param root_roots: JSON 格式任务树根节点列表
     :param indent: 当前缩进级别
     :return: 带边框的格式化字符串列表
     """
-
-    def build_lines(node: dict, current_indent: int):
+    def build_lines(node: Dict, current_indent: int) -> List[str]:
         lines = []
-
-        # 构建当前节点的行文本
         visited_note = " [Visited]" if node.get("visited") else ""
         line = f"{node['stage_name']} (stage_mode: {node['stage_mode']}, func: {node['func_name']}){visited_note}"
         lines.append(line)
 
-        # 递归处理子节点
         for child in node.get("next_stages", []):
             sub_lines = build_lines(child, current_indent + 2)
             arrow_prefix = "  " * current_indent + "╘-->"
@@ -85,14 +94,17 @@ def format_structure_list_from_tree(root_root: dict = None, indent=0) -> list:
 
         return lines
 
-    # 构建原始行列表
-    raw_lines = build_lines(root_root, indent)
+    all_lines = []
+    for root in root_roots or []:
+        if all_lines:
+            all_lines.append("")  # 根之间留空行
+        all_lines.extend(build_lines(root, indent))
 
-    # 计算最大行宽
-    max_length = max(len(line) for line in raw_lines)
+    if not all_lines:
+        return ["+ No stages defined +"]
 
-    # 包装为表格形式
-    content_lines = [f"| {line.ljust(max_length)} |" for line in raw_lines]
+    max_length = max(len(line) for line in all_lines)
+    content_lines = [f"| {line.ljust(max_length)} |" for line in all_lines]
     border = "+" + "-" * (max_length + 2) + "+"
     return [border] + content_lines + [border]
 

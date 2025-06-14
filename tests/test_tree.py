@@ -74,31 +74,6 @@ def square_root(x):
     return x ** 0.5
 
 
-# 测试 TaskManager 的同步任务
-def _test_task_manager():
-    test_task_0 = range(25, 37)
-    test_task_1 = list(range(25,32)) + [0, 27, None, 0, '']
-    test_task_2 = (item for item in test_task_1)
-
-    manager = TaskManager(fibonacci, worker_limit=6, max_retries = 1, show_progress=True)
-    manager.add_retry_exceptions(ValueError)
-    results = manager.test_methods(test_task_1)
-    logging.info(results)
-    # manager.start(test_task_1)
-
-# 测试 TaskManager 的异步任务
-@pytest.mark.asyncio
-async def _test_task_manager_async():
-    test_task_0 = range(25, 37)
-    test_task_1 = list(range(25,32)) + [0, 27, None, 0, '']
-    test_task_2 = (item for item in test_task_1)
-
-    manager = TaskManager(fibonacci_async, worker_limit=6, max_retries = 1, show_progress=True)
-    manager.add_retry_exceptions(ValueError)
-    start = time()
-    await manager.start_async(test_task_1)
-    logging.info(f'run_in_async: {time() - start}')
-
 # 测试 TaskTree 的功能
 def _test_task_tree_0():
     # 定义多个阶段的 TaskManager 实例
@@ -116,7 +91,7 @@ def _test_task_tree_0():
     stage2.add_retry_exceptions(ValueError)
 
     # 初始化 TaskTree
-    tree = TaskTree(root_stage = stage1)
+    tree = TaskTree(root_stages = [stage1])
     tree.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 要测试的任务列表
@@ -153,7 +128,7 @@ def test_task_tree_1():
     F.set_tree_context(next_stages=[], stage_mode='process', stage_name="Stage_F")
 
     # 初始化 TaskTree, 并设置根节点
-    tree = TaskTree(A)
+    tree = TaskTree([A])
     tree.set_reporter(True, host="127.0.0.1", port=5005)
 
     input_tasks = {
@@ -171,8 +146,6 @@ def test_task_tree_1():
         if isinstance(value, dict):
             value = pprint.pformat(value)
         logging.info(f"{key}: \n{value}")
-
-
 
 def profile_task_tree():
     target_func = 'test_task_tree_1'

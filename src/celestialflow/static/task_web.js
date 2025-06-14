@@ -155,10 +155,9 @@ async function loadStatuses() {
 async function loadStructure() {
   try {
     const res = await fetch("/api/get_structure");
-    const data = await res.json(); // 结构是结构化 JSON
+    const data = await res.json(); // 现在是数组格式
 
-    // 判断是否为空对象或空数组
-    if (Object.keys(data).length === 0) {
+    if (!Array.isArray(data) || data.length === 0) {
       return;
     }
 
@@ -168,7 +167,7 @@ async function loadStructure() {
   }
 }
 
-function renderTree(data) {
+function renderTree(forest) {
   const treeContainer = document.getElementById("task-tree");
   treeContainer.innerHTML = "";
 
@@ -209,11 +208,15 @@ function renderTree(data) {
     return html;
   }
 
-  const rootHTML = `${buildTreeHTML(data)}`;
-  treeContainer.innerHTML = rootHTML;
+  // 多棵树处理
+  const treeHTML = forest.map((tree, index) => {
+    return `${buildTreeHTML(tree, `root${index}`)}`;
+  }).join("");
+
+  treeContainer.innerHTML = treeHTML;
 }
 
-// 节点折叠/展开，并保存到 localStorage
+// 折叠状态控制
 function toggleNode(element) {
   const childList = element.nextElementSibling;
   const nodeId = element.dataset.id;
@@ -225,7 +228,6 @@ function toggleNode(element) {
     icon.textContent = isNowHidden ? "+" : "-";
   }
 
-  // 更新本地存储
   if (isNowHidden) {
     collapsedNodeIds.add(nodeId);
   } else {

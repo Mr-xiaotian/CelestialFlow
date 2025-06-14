@@ -72,7 +72,7 @@ def _test_splitter_0():
     parse_stage.set_tree_context([], stage_mode='process', stage_name='Parser')
 
     # 初始化 TaskTree
-    tree = TaskTree(generate_stage)
+    tree = TaskTree([generate_stage])
 
     # 测试输入：生成不同 URL 的任务
     input_tasks = {
@@ -106,7 +106,7 @@ def _test_splitter_1():
     parse_stage.set_tree_context([generate_stage], stage_mode='process', stage_name='Parser')
 
     # 初始化 TaskTree
-    tree = TaskTree(generate_stage)
+    tree = TaskTree([generate_stage])
     tree.set_reporter(True, host="127.0.0.1", port=5005)
 
     tree.start_tree({
@@ -117,16 +117,14 @@ def _test_splitter_1():
         # parse_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
     }, False)
 
-def _test_transfer():
-    root_stage = TaskManager(sleep_1, 'thread', 3)
+def test_transfer():
     redis_transfer = TaskRedisTransfer()
     fibonacci_stage = TaskManager(fibonacci, 'thread')
 
-    root_stage.set_tree_context([redis_transfer, fibonacci_stage], stage_mode='serial', stage_name='Root')
     redis_transfer.set_tree_context([], stage_mode='process', stage_name='GoFibonacci')
     fibonacci_stage.set_tree_context([], stage_mode='process', stage_name='Fibonacci')
 
-    tree = TaskTree(root_stage)
+    tree = TaskTree([redis_transfer, fibonacci_stage])
     tree.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 要测试的任务列表
@@ -134,7 +132,8 @@ def _test_transfer():
     test_task_1 = list(test_task_0) + [0, 27, None, 0, '']
 
     tree.start_tree({
-        root_stage.get_stage_tag(): test_task_0,
+        redis_transfer.get_stage_tag(): test_task_0,
+        fibonacci_stage.get_stage_tag(): test_task_0,
     })
 
 

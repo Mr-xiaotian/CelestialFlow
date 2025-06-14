@@ -13,12 +13,12 @@ from .task_tools import format_duration, format_timestamp, cleanup_mpqueue, make
 
 
 class TaskTree:
-    def __init__(self, root_stage: TaskManager):
+    def __init__(self, root_stages: List[TaskManager]):
         """
         :param root_stage: 任务链的根 TaskManager 节点
         :param start_web_server: 是否启动 web 服务
         """
-        self.set_root_stage(root_stage)
+        self.set_root_stages(root_stages)
 
         self.init_env()
         self.init_structure_tree()
@@ -58,7 +58,7 @@ class TaskTree:
         :param tasks: 待处理的任务列表
         """
         visited_stages = set()
-        queue = deque([self.root_stage])  # BFS 用队列代替递归
+        queue = deque(self.root_stages)  # BFS 用队列代替递归
 
         while queue:
             stage = queue.popleft()
@@ -96,14 +96,17 @@ class TaskTree:
         """
         初始化任务树结构
         """
-        self.structure_tree = build_structure_tree(self.root_stage)
+        self.structure_tree = build_structure_tree(self.root_stages)
 
-    def set_root_stage(self, root_stage: TaskManager):
+    def set_root_stages(self, root_stages: List[TaskManager]):
         """
-        设定根节点
+        设置根节点
+        :param root_stages: 根节点列表
         """
-        self.root_stage = root_stage
-        self.root_stage.add_prev_stages(None) if self.root_stage.prev_stages == [] else None
+        self.root_stages = root_stages
+        for stage in root_stages:
+            if not stage.prev_stages:
+                stage.add_prev_stages(None)
 
     def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
         """
@@ -123,9 +126,11 @@ class TaskTree:
                 self.stages_status_dict[tag]["init_tasks_num"] = self.stages_status_dict[tag].get("init_tasks_num", 0) + 1
         
         if put_termination_signal:
-            edge_key = (self.root_stage.prev_stages[0].get_stage_tag(), self.root_stage.get_stage_tag())
-            self.edge_queue_map[edge_key].put(TERMINATION_SIGNAL)
-            self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {edge_key}")
+            for root_stage in self.root_stages:
+                pre_stage_tag = root_stage.prev_stages[0].get_stage_tag() if root_stage.prev_stages[0] else None
+                edge_key = (pre_stage_tag, root_stage.get_stage_tag())
+                self.edge_queue_map[edge_key].put(TERMINATION_SIGNAL)
+                self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {edge_key}")
 
     def set_reporter(self, is_report=False, host="127.0.0.1", port=5000):
         """
@@ -152,7 +157,8 @@ class TaskTree:
                 set_subsequent_stage_mode(next_stage)
 
         visited_stages = set()
-        set_subsequent_stage_mode(self.root_stage)
+        for root_stage in self.root_stages:
+            set_subsequent_stage_mode(root_stage)
         self.init_structure_tree()
 
     def start_tree(self, init_tasks_dict: dict, put_termination_signal: bool=True):
@@ -288,7 +294,7 @@ class TaskTree:
         
     def process_final_result_dict(self, initial_tasks):
         """
-        查找对应的初始任务并更新 final_result_dict
+        查找对应的初始任务并更新 final_result_dict (已废弃)
 
         :param initial_tasks: 一个包含初始任务的列表
         """
@@ -582,7 +588,7 @@ class TaskChain(TaskTree):
             stage.set_tree_context(next_stages, chain_mode, stage_name)
 
         root_stage = stages[0]
-        super().__init__(root_stage)
+        super().__init__([root_stage])
 
     def start_chain(self, init_tasks_dict: dict, put_termination_signal: bool=True):
         """
@@ -604,7 +610,7 @@ class TaskLoop(TaskTree):
             stage.set_tree_context(next_stages, "process", stage_name)
 
         root_stage = stages[0]
-        super().__init__(root_stage)
+        super().__init__([root_stage])
 
     def start_loop(self, init_tasks_dict: dict):
         """
