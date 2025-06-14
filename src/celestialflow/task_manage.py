@@ -22,8 +22,8 @@ from httpx import (
 )
 
 from .task_progress import ProgressManager
-from .task_support import TERMINATION_SIGNAL, TerminationSignal, LogListener, TaskLogger, null_lock, ValueWrapper
-from .task_tools import cleanup_mpqueue, are_queues_empty, are_queues_empty_async, make_hashable, format_repr
+from .task_support import TERMINATION_SIGNAL, TerminationSignal, LogListener, TaskLogger, ValueWrapper, null_lock
+from .task_tools import are_queues_empty, are_queues_empty_async, make_hashable, format_repr
 
 
 class TaskManager:
@@ -166,7 +166,7 @@ class TaskManager:
 
     def set_next_stages(self, next_stages: List[TaskManager]):
         """
-        设置后续节点列表
+        设置后续节点列表, 并为后续节点添加本节点为前置节点
         """
         self.next_stages = next_stages or []  # 默认为空列表
         for next_stage in self.next_stages:

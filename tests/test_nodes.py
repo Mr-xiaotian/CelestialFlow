@@ -3,17 +3,10 @@ from time import sleep
 from celestialvault.tools.TextTools import format_table
 from celestialflow import TaskManager, TaskTree, TaskSplitter, TaskRedisTransfer, TaskLoop
 
+
 def sleep_1(n):
     sleep(1)
     return n
-
-def add_sleep(n):
-    sleep(1)
-    if n > 10:
-        raise ValueError("Test error for greater than 10")
-    elif n == 0:
-        raise ValueError("Test error for 0")
-    return n + 1
 
 def fibonacci(n):
     if n <= 0:
@@ -144,21 +137,6 @@ def _test_transfer():
         root_stage.get_stage_tag(): test_task_0,
     })
 
-def test_loop():
-    stageA = TaskManager(add_sleep, 'thread', 3)
-    stageB = TaskManager(add_sleep, 'thread', 3)
-    stageC = TaskManager(add_sleep, 'thread', 3)
-
-    tree = TaskLoop([stageA, stageB, stageC], chain_mode="process")
-    tree.set_reporter(True, host="127.0.0.1", port=5005)
-
-    # 要测试的任务列表
-    test_task_0 = range(1, 2)
-    test_task_1 = list(test_task_0) + [0, 6, None, 0, '']
-
-    tree.start_loop({
-        stageA.get_stage_tag(): test_task_0
-    })
 
 if __name__ == '__main__':
     # test_splitter_1()

@@ -2,6 +2,7 @@ import pytest, logging
 from time import time
 from celestialflow import TaskManager
 
+
 def fibonacci(n):
     if n <= 0:
         raise ValueError("n must be a positive integer")

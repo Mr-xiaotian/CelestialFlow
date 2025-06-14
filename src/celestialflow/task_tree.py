@@ -169,12 +169,6 @@ class TaskTree:
             self.put_stage_queue(init_tasks_dict, put_termination_signal)
             self._excute_stages()
 
-            # 等待所有进程结束
-            for p in self.processes:
-                p.join()
-                self.stages_status_dict[p.name]["status"] = StageStatus.STOPPED
-                self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
-
         finally:
             self.finalize_nodes()
             self.reporter.stop()
@@ -187,6 +181,12 @@ class TaskTree:
     def _excute_stages(self):
         for tag in self.stages_status_dict:
             self._execute_stage(self.stages_status_dict[tag]["stage"])
+
+        # 等待所有进程结束
+        for p in self.processes:
+            p.join()
+            self.stages_status_dict[p.name]["status"] = StageStatus.STOPPED
+            self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
 
     def _execute_stage(self, stage: TaskManager):
         """
