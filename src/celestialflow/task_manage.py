@@ -74,19 +74,17 @@ class TaskManager:
             ProxyError,
         )  # 需要重试的异常类型
 
-        self.init_dict()
+        self.init_counter()
 
-    def init_dict(self, success_counter=None, error_counter=None, counter_lock=None, extra_stats=None):
+    def init_counter(self, success_counter=None, error_counter=None, duplicate_counter=None, counter_lock=None, extra_stats=None):
         """
-        初始化结果字典
+        初始化计数器
         """
-        self.success_dict = {}
-        self.error_dict = {}
-        self.retry_time_dict = {}
-
         self.success_counter = success_counter if success_counter is not None else ValueWrapper()
         self.error_counter = error_counter if error_counter is not None else ValueWrapper()
+        self.duplicate_counter = duplicate_counter if duplicate_counter is not None else ValueWrapper()
         self.counter_lock = counter_lock if counter_lock is not None else null_lock
+
         self.extra_stats = extra_stats if extra_stats is not None else {}
 
     def init_env(self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None):
@@ -94,10 +92,9 @@ class TaskManager:
         初始化环境
         """
         self.init_queue(task_queues, result_queues, fail_queue, logger_queue)
+        self.init_dict()
         self.init_pool()
         self.init_logger()
-
-        self.duplicates_num = 0
 
     def init_queue(self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None):
         """
@@ -113,6 +110,14 @@ class TaskManager:
         self.result_queues = result_queues or [ThreadQueue()]
         self.fail_queue = fail_queue or ThreadQueue()
         self.logger_queue = logger_queue or ThreadQueue()
+
+    def init_dict(self):
+        """
+        初始化结果字典
+        """
+        self.success_dict = {}
+        self.error_dict = {}
+        self.retry_time_dict = {}
 
     def init_pool(self):
         """
@@ -136,6 +141,17 @@ class TaskManager:
         """
         self.log_listener = LogListener("INFO")
         self.log_listener.start()
+
+    def init_progress(self, total_tasks, desc, mode):
+        """
+        初始化进度条
+        """
+        self.progress_manager = ProgressManager(
+            total_tasks=total_tasks,
+            desc=desc,
+            mode=mode,
+            show_progress=self.show_progress,
+        )
 
     def set_execution_mode(self, execution_mode):
         """
@@ -329,6 +345,11 @@ class TaskManager:
         with self.counter_lock:
             self.error_counter.value += 1
 
+    def update_duplicate_counter(self):
+        # 加锁方式（保证正确）
+        with self.counter_lock:
+            self.duplicate_counter.value += 1
+
     def is_duplicate(self, task):
         """
         判断任务是否重复
@@ -339,17 +360,8 @@ class TaskManager:
         """
         处理重复任务
         """
-        self.duplicates_num += 1
+        self.update_duplicate_counter()
         self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task))
-
-        # ⬇️ 关键改动：将结果重新广播给下游
-        if task in self.success_dict:
-            result = self.success_dict[task]
-            self.put_result_queues(result)  # ⬅️ 转发之前的结果
-            self.update_succes_counter() # ⬆️ 计数器加一
-        elif task in self.error_dict:
-            self.update_error_counter()
-            pass
 
     def get_args(self, task):
         """
@@ -535,9 +547,9 @@ class TaskManager:
             self.func.__name__,
             self.execution_mode,
             time.time() - start_time,
-            len(self.success_dict),
-            len(self.error_dict),
-            self.duplicates_num,
+            self.success_counter.value,
+            self.error_counter.value,
+            self.duplicate_counter.value,
         )
         self.log_listener.stop()
 
@@ -563,9 +575,9 @@ class TaskManager:
             self.func.__name__,
             self.execution_mode,
             time.time() - start_time,
-            len(self.success_dict),
-            len(self.error_dict),
-            self.duplicates_num,
+            self.success_counter.value,
+            self.error_counter.value,
+            self.duplicate_counter.value,
         )
         self.log_listener.stop()
 
@@ -603,20 +615,19 @@ class TaskManager:
             self.func.__name__,
             self.execution_mode,
             time.time() - start_time,
-            len(self.success_dict),
-            len(self.error_dict),
-            self.duplicates_num,
+            self.success_counter.value,
+            self.error_counter.value,
+            self.duplicate_counter.value,
         )
 
     def run_in_serial(self):
         """
         串行地执行任务
         """
-        progress_manager = ProgressManager(
-            total_tasks=self.task_queues[0].qsize(),
-            desc=f"{self.progress_desc}(serial)",
-            mode="normal",
-            show_progress=self.show_progress,
+        self.init_progress(
+            self.task_queues[0].qsize()-1, 
+            f"{self.progress_desc}(serial)", 
+            "normal"
         )
 
         # 从队列中依次获取任务并执行
@@ -626,11 +637,11 @@ class TaskManager:
                 f"Task {task} is submitted to {self.func.__name__}"
             )
             if isinstance(task, TerminationSignal):
-                progress_manager.update(1)
+                # progress_manager.update(1)
                 break
             elif self.is_duplicate(task):
                 self.deal_dupliacte(task)
-                progress_manager.update(1)
+                self.progress_manager.update(1)
                 continue
             try:
                 start_time = time.time()
@@ -638,9 +649,9 @@ class TaskManager:
                 self.process_task_success(task, result, start_time)
             except Exception as error:
                 self.handle_task_error(task, error)
-            progress_manager.update(1)
+            self.progress_manager.update(1)
 
-        progress_manager.close()
+        self.progress_manager.close()
         self.terminated_queue_set = set()
 
         if not are_queues_empty(self.task_queues):
@@ -662,11 +673,10 @@ class TaskManager:
         all_done_event = Event()
         all_done_event.set()  # 初始为无任务状态，设为完成状态
 
-        progress_manager = ProgressManager(
-            total_tasks=self.task_queues[0].qsize(),
-            desc=f"{self.progress_desc}({self.execution_mode}-{self.worker_limit})",
-            mode="normal",
-            show_progress=self.show_progress,
+        self.init_progress(
+            self.task_queues[0].qsize()-1, 
+            f"{self.progress_desc}({self.execution_mode}-{self.worker_limit})", 
+            "normal"
         )
 
         def on_task_done(future, task, progress_manager: ProgressManager):
@@ -694,11 +704,11 @@ class TaskManager:
 
             if isinstance(task, TerminationSignal):
                 # 收到终止信号后不再提交新任务
-                progress_manager.update(1)
+                # progress_manager.update(1)
                 break
             elif self.is_duplicate(task):
                 self.deal_dupliacte(task)
-                progress_manager.update(1)
+                self.progress_manager.update(1)
                 continue
 
             # 提交新任务时增加in_flight计数，并清除完成事件
@@ -709,14 +719,14 @@ class TaskManager:
             task_start_dict[task] = time.time()
             future = executor.submit(self.func, *self.get_args(task))
             future.add_done_callback(
-                lambda f, t=task: on_task_done(f, t, progress_manager)
+                lambda f, t=task: on_task_done(f, t, self.progress_manager)
             )
 
         # 等待所有已提交任务完成（包括回调）
         all_done_event.wait()
 
         # 所有任务和回调都完成了，现在可以安全关闭进度条
-        progress_manager.close()
+        self.progress_manager.close()
         self.terminated_queue_set = set()
 
         if not are_queues_empty(self.task_queues):
@@ -738,11 +748,10 @@ class TaskManager:
 
         # 创建异步任务列表
         async_tasks = []
-        progress_manager = ProgressManager(
-            total_tasks=self.task_queues[0].qsize(),
-            desc=f"{self.progress_desc}(async-{self.worker_limit})",
-            mode="async",
-            show_progress=self.show_progress,
+        self.init_progress(
+            self.task_queues[0].qsize()-1, 
+            f"{self.progress_desc}(async-{self.worker_limit})", 
+            "async"
         )
 
         while True:
@@ -751,11 +760,11 @@ class TaskManager:
                 f"Task {task} is submitted to {self.func.__name__}"
             )
             if isinstance(task, TerminationSignal):
-                progress_manager.update(1)
+                # progress_manager.update(1)
                 break
             elif self.is_duplicate(task):
                 self.deal_dupliacte(task)
-                progress_manager.update(1)
+                self.progress_manager.update(1)
                 continue
             async_tasks.append(sem_task(task))  # 使用信号量包裹的任务
 
@@ -767,9 +776,9 @@ class TaskManager:
                 self.process_task_success(task, result, start_time)
             else:
                 await self.handle_task_error_async(task, result)
-            progress_manager.update(1)
+            self.progress_manager.update(1)
 
-        progress_manager.close()
+        self.progress_manager.close()
         self.terminated_queue_set = set()
 
         if not await are_queues_empty_async(self.task_queues):

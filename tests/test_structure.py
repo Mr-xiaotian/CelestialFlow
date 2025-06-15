@@ -29,7 +29,7 @@ def _test_loop():
         stageA.get_stage_tag(): test_task_0
     })
 
-def test_forest():
+def test_forest_0():
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -46,6 +46,37 @@ def test_forest():
 
     # 构建 TaskTree（多根）
     tree = TaskTree([stageA, stageB])  # 多根支持
+    tree.set_reporter(True, host="127.0.0.1", port=5005)
+
+    # 初始任务
+    init_tasks = {
+        stageA.get_stage_tag(): range(1, 11),
+        stageB.get_stage_tag(): range(11,21)
+    }
+
+    tree.start_tree(init_tasks)
+
+def _test_forest_1():
+    # 构建 DAG
+    stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+    stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+    stageC = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+    stageD = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+    stageE = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+    stageF = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+    stageG = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+
+    # 设置图结构
+    stageA.set_tree_context(next_stages=[stageD], stage_mode="process", stage_name="A")
+    stageB.set_tree_context(next_stages=[stageD], stage_mode="process", stage_name="B")
+    stageC.set_tree_context(next_stages=[stageD], stage_mode="process", stage_name="C")
+    stageD.set_tree_context(next_stages=[stageE, stageF, stageG], stage_mode="process", stage_name="D")
+    stageE.set_tree_context(next_stages=[], stage_mode="process", stage_name="E")
+    stageF.set_tree_context(next_stages=[], stage_mode="process", stage_name="F")
+    stageG.set_tree_context(next_stages=[], stage_mode="process", stage_name="G")
+
+    # 构建 TaskTree（多根）
+    tree = TaskTree([stageA, stageB, stageC])  # 多根支持
     tree.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 初始任务

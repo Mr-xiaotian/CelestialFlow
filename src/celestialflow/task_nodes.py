@@ -35,22 +35,6 @@ class TaskSplitter(TaskManager):
 
         self.extra_stats["split_output_count"].value += split_count
         return split_count
-    
-    def deal_dupliacte(self, task):
-        """
-        处理重复任务
-        """
-        self.duplicates_num += 1
-        self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task))
-
-        # ⬇️ 关键改动：将结果重新广播给下游
-        if task in self.success_dict:
-            result = self.success_dict[task]
-            self.put_split_result(result)
-            self.update_succes_counter() # ⬆️ 计数器加一
-        elif task in self.error_dict:
-            self.update_error_counter()
-            pass
 
     def process_result(self, task, result):
         """

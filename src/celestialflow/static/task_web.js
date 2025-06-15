@@ -308,8 +308,15 @@ function renderDashboard() {
               data.tasks_failed,
               data.add_tasks_failed
             )}</div></div>
-            <div><div class="stat-label">模式</div><div class="stat-value">${
+            <div><div class="stat-label">重复</div><div class="stat-value text-yellow">${formatWithDelta(
+              data.tasks_duplicated,
+              data.add_tasks_duplicated
+            )}</div></div>
+            <div><div class="stat-label">运行模式</div><div class="stat-value">${
               data.execution_mode
+            }</div></div>
+            <div><div class="stat-label">节点模式</div><div class="stat-value">${
+              data.stage_mode
             }</div></div>
           </div>
           <div class="text-sm text-gray">开始时间: ${data.start_time}</div>

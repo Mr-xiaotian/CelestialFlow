@@ -90,7 +90,7 @@ def _test_splitter_0():
             value = pprint.pformat(value)
         logging.info(f"{key}: \n{value}")
 
-def _test_splitter_1():
+def test_splitter_1():
     # 定义任务节点
     generate_stage = TaskManager(func=generate_urls_sleep, execution_mode='thread', worker_limit=4)
     logger_stage = TaskManager(func=log_urls_sleep, execution_mode='thread', worker_limit=4)
@@ -117,7 +117,7 @@ def _test_splitter_1():
         # parse_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
     }, False)
 
-def test_transfer():
+def _test_transfer():
     redis_transfer = TaskRedisTransfer()
     fibonacci_stage = TaskManager(fibonacci, 'thread')
 

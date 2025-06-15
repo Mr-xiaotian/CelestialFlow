@@ -47,6 +47,7 @@ class TaskTree:
         self.stage_locks = {}  # 锁，用于控制每个阶段success_counter的并发
         self.stage_success_counter = {}  # 用于保存每个阶段成功处理的任务数
         self.stage_error_counter = {}  # 用于保存每个阶段失败处理的任务数
+        self.stage_duplicate_counter = {}  # 用于保存每个阶段重复处理的任务数
         
         self.final_result_dict = {}  # 用于保存初始任务到最终结果的映射
         self.error_timeline_dict: Dict[str, list] = defaultdict(list)  # 用于保存错误到出现该错误任务的映射
@@ -225,14 +226,16 @@ class TaskTree:
         if stage.stage_mode == "process":
             self.stage_success_counter[stage_tag] = MPValue("i", 0)
             self.stage_error_counter[stage_tag] = MPValue("i", 0)
+            self.stage_duplicate_counter[stage_tag] = MPValue("i", 0)
             self.stage_locks[stage_tag] = MPLock()
 
-            stage.init_dict(
+            stage.init_counter(
                 self.stage_success_counter[stage_tag],
                 self.stage_error_counter[stage_tag],
+                self.stage_duplicate_counter[stage_tag],
                 self.stage_locks[stage_tag],
                 self.stage_extra_stats[stage_tag]
-                )
+            )
             p = multiprocessing.Process(
                 target=stage.start_stage, args=(input_queues, output_queues, self.fail_queue, logger_queue), name=stage_tag
             )
@@ -241,13 +244,15 @@ class TaskTree:
         else:
             self.stage_success_counter[stage_tag] = ValueWrapper()
             self.stage_error_counter[stage_tag] = ValueWrapper()
+            self.stage_duplicate_counter[stage_tag] = ValueWrapper()
 
-            stage.init_dict(
+            stage.init_counter(
                 self.stage_success_counter[stage_tag], 
                 self.stage_error_counter[stage_tag],
+                self.stage_duplicate_counter[stage_tag],
                 None, 
                 self.stage_extra_stats[stage_tag]
-                )
+            )
             stage.start_stage(input_queues, output_queues, self.fail_queue, logger_queue)
 
             self.stages_status_dict[stage_tag]["status"]  = StageStatus.STOPPED
@@ -462,10 +467,12 @@ class TaskTree:
             status        = stage_status_dict.get("status", StageStatus.NOT_STARTED)
             processed     = self.stage_success_counter.get(tag, ValueWrapper()).value
             failed        = self.stage_error_counter.get(tag, ValueWrapper()).value
-            pending       = max(0, total_input - processed - failed)
+            duplicated    = self.stage_duplicate_counter.get(tag, ValueWrapper()).value
+            pending       = max(0, total_input - processed - failed - duplicated)
 
             add_processed = processed - last_stage_status_dict.get("tasks_processed", 0)
             add_failed    = failed - last_stage_status_dict.get("tasks_failed", 0)
+            add_duplicated = duplicated - last_stage_status_dict.get("tasks_duplicated", 0)
             add_pending   = pending - last_stage_status_dict.get("tasks_pending", 0)
 
             start_time    = stage_status_dict.get("start_time", 0)
@@ -482,17 +489,17 @@ class TaskTree:
             stage_status_dict["elapsed_time"] = elapsed
 
             # 估算剩余时间
-            remaining = (elapsed / (processed + failed) * pending) if (processed or failed) and pending else 0
+            remaining = (elapsed / (processed + failed + duplicated) * pending) if (processed or failed or duplicated) and pending else 0
 
             # 计算平均时间（秒/任务）并格式化为字符串
-            if processed or failed:
-                avg_time = elapsed / (processed + failed)
+            if processed or failed or duplicated:
+                avg_time = elapsed / (processed + failed + duplicated)
                 if avg_time >= 1.0:
                     # 显示 "X.XX s/it"
                     avg_time_str = f"{avg_time:.2f}s/it"
                 else:
                     # 显示 "X.XX it/s"（取倒数）
-                    its_per_sec = (processed + failed) / elapsed if elapsed else 0
+                    its_per_sec = (processed + failed + duplicated) / elapsed if elapsed else 0
                     avg_time_str = f"{its_per_sec:.2f}it/s"
             else:
                 avg_time_str = "N/A"  # 或 "0.00s/it" 根据需求
@@ -500,7 +507,7 @@ class TaskTree:
             history: list = stage_status_dict.get("history", [])
             history.append({
                 "timestamp": now,
-                "tasks_completed": processed+failed,
+                "tasks_completed": processed+failed+duplicated,
             })
             history.pop(0) if len(history) > 20 else None
             stage_status_dict["history"] = history
@@ -510,9 +517,11 @@ class TaskTree:
                 "status": status,
                 "tasks_processed": processed,
                 "tasks_failed": failed,
+                "tasks_duplicated": duplicated,
                 "tasks_pending": pending,
                 "add_tasks_processed": add_processed,
                 "add_tasks_failed": add_failed,
+                "add_tasks_duplicated": add_duplicated,
                 "add_tasks_pending": add_pending,
                 "start_time": format_timestamp(start_time),
                 "elapsed_time": format_duration(elapsed),
