@@ -138,6 +138,17 @@
 .hidden { display: none; }
 
 /* ================================
+  🌟 任务结构图（Mermaid）
+================================ */
+#mermaid-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  overflow-x: auto; /* 如果图太宽，可以横向滚动 */
+}
+
+/* ================================
   🌟 总体状态摘要
 ================================ */
 .summary-card {

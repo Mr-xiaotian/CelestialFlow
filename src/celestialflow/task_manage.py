@@ -217,8 +217,8 @@ class TaskManager:
         获取当前节点的状态快照
         """
         return {
-            "execution_mode": self.execution_mode if self.execution_mode == "serial" else self.execution_mode + f"-{self.worker_limit}",
             "stage_mode": self.stage_mode,
+            "execution_mode": self.execution_mode if self.execution_mode == "serial" else self.execution_mode + f"-{self.worker_limit}",
             "func_name": self.func.__name__,
             "class_name": self.__class__.__name__,
         }

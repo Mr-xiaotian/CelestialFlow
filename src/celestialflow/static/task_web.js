@@ -161,7 +161,8 @@ async function loadStructure() {
       return;
     }
 
-    renderTree(data);
+    // renderTree(data);
+    renderMermaidFromTaskStructure(data);
   } catch (e) {
     console.error("结构加载失败", e);
   }
@@ -234,6 +235,48 @@ function toggleNode(element) {
     collapsedNodeIds.delete(nodeId);
   }
   localStorage.setItem("collapsedNodes", JSON.stringify([...collapsedNodeIds]));
+}
+
+function renderMermaidFromTaskStructure(forest) {
+  const edges = new Set();
+  const nodeLabels = new Map();
+
+  function getNodeId(node) {
+    return node.stage_name.replace(/\W+/g, "_");
+  }
+
+  function walk(node) {
+    const from = getNodeId(node);
+    nodeLabels.set(from, `${node.stage_name}\\n(${node.func_name})`);
+    for (const child of node.next_stages || []) {
+      const to = getNodeId(child);
+      nodeLabels.set(to, `${child.stage_name}\\n(${child.func_name})`);
+      edges.add(`  ${from} --> ${to}`);
+      walk(child);
+    }
+  }
+
+  forest.forEach(tree => walk(tree));
+
+  const nodeDefs = [...nodeLabels.entries()].map(
+    ([id, label]) => `  ${id}["${label}"]`
+  );
+  const mermaidCode = `graph TD\n${nodeDefs.join("\n")}\n${[...edges].join("\n")}`;
+
+  // 🌟 关键点：完全替换 mermaid 容器
+  const oldContainer = document.getElementById("mermaid-container");
+  const newContainer = document.createElement("div");
+  newContainer.id = "mermaid-container";
+  newContainer.className = "mermaid";
+  newContainer.style.whiteSpace = "pre-line";
+  newContainer.textContent = mermaidCode;
+
+  oldContainer.replaceWith(newContainer); // 替换整个 DOM 节点
+
+  // 重新触发渲染
+  if (window.mermaid) {
+    window.mermaid.run();
+  }
 }
 
 // 切换主题
@@ -312,11 +355,11 @@ function renderDashboard() {
               data.tasks_duplicated,
               data.add_tasks_duplicated
             )}</div></div>
-            <div><div class="stat-label">运行模式</div><div class="stat-value">${
-              data.execution_mode
-            }</div></div>
             <div><div class="stat-label">节点模式</div><div class="stat-value">${
               data.stage_mode
+            }</div></div>
+            <div><div class="stat-label">运行模式</div><div class="stat-value">${
+              data.execution_mode
             }</div></div>
           </div>
           <div class="text-sm text-gray">开始时间: ${data.start_time}</div>

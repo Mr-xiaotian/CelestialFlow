@@ -193,6 +193,7 @@ select {
 ================================ */
 .text-red { color: var(--danger-color); }
 .text-blue { color: var(--primary-color); }
+.text-green { color: var(--success-color); }
 .text-yellow { color: var(--warning-color); }
 .text-sm { font-size: 0.875rem; }
 .text-gray { color: var(--gray-medium); }
