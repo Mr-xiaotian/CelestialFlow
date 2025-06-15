@@ -29,7 +29,7 @@ def _test_loop():
         stageA.get_stage_tag(): test_task_0
     })
 
-def test_forest_0():
+def _test_forest_0():
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -56,12 +56,12 @@ def test_forest_0():
 
     tree.start_tree(init_tasks)
 
-def _test_forest_1():
+def test_forest_1():
     # 构建 DAG
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageC = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
-    stageD = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+    stageD = TaskManager(add_sleep, execution_mode="serial", worker_limit=2)
     stageE = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageF = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageG = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -81,8 +81,9 @@ def _test_forest_1():
 
     # 初始任务
     init_tasks = {
-        stageA.get_stage_tag(): range(10),
-        stageB.get_stage_tag(): range(11,21)
+        stageA.get_stage_tag(): range(1, 11),
+        stageB.get_stage_tag(): range(6, 16),
+        stageC.get_stage_tag(): range(11, 21),
     }
 
     tree.start_tree(init_tasks)

@@ -138,7 +138,6 @@ def test_task_tree_1():
     execution_modes = ['serial', 'thread']
 
     # 开始任务链
-    sleep(5)
     result = tree.test_methods(input_tasks, stage_modes, execution_modes)
     test_table_list, execution_modes, stage_modes, index_header = result["Time table"]
     result["Time table"] = format_table(test_table_list, column_names = execution_modes, row_names = stage_modes, index_header = index_header)

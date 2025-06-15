@@ -252,38 +252,49 @@ function renderMermaidFromTaskStructure(forest) {
     return node.stage_name.replace(/\W+/g, "_");
   }
 
+  function getShapeWrappedLabel(label, shape = "box") {
+    switch (shape) {
+      case "circle": return `((${label}))`;
+      case "round": return `(${label})`;
+      case "rhombus": return `{${label}}`;
+      case "subgraph": return `[[${label}]]`;
+      case "arrow": return `>${label}<`;
+      default: return `[${label}]`;  // 默认 box
+    }
+  }
+
   function walk(node) {
-    const from = getNodeId(node);
-    nodeLabels.set(from, `${node.stage_name}\\n(${node.func_name})`);
+    const id = getNodeId(node);
+    const label = `${node.stage_name}\n【${node.func_name}】`;
+
+    // 选择形状：你可以基于 node.stage_mode 或 node.class_name 决定
+    let shape = "box";
+    if (node.func_name === "_split_task") shape = "round";
+    else if (node.func_name === "_trans_redis") shape = "subgraph";
+
+    nodeLabels.set(id, getShapeWrappedLabel(label, shape));
+
     for (const child of node.next_stages || []) {
-      const to = getNodeId(child);
-      nodeLabels.set(to, `${child.stage_name}\\n(${child.func_name})`);
-      edges.add(`  ${from} --> ${to}`);
+      const toId = getNodeId(child);
+      edges.add(`  ${id} --> ${toId}`);
       walk(child);
     }
   }
 
   forest.forEach(tree => walk(tree));
 
-  const nodeDefs = [...nodeLabels.entries()].map(
-    ([id, label]) => `  ${id}["${label}"]`
-  );
-  const mermaidCode = `graph TD\n${nodeDefs.join("\n")}\n${[...edges].join("\n")}`;
+  const defs = [...nodeLabels.entries()].map(([id, shapeLabel]) => `  ${id}${shapeLabel}`);
+  const mermaidCode = `graph TD\n${defs.join("\n")}\n${[...edges].join("\n")}`;
 
-  // 🌟 关键点：完全替换 mermaid 容器
-  const oldContainer = document.getElementById("mermaid-container");
-  const newContainer = document.createElement("div");
-  newContainer.id = "mermaid-container";
-  newContainer.className = "mermaid";
-  newContainer.style.whiteSpace = "pre-line";
-  newContainer.textContent = mermaidCode;
+  const old = document.getElementById("mermaid-container");
+  const newDiv = document.createElement("div");
+  newDiv.id = "mermaid-container";
+  newDiv.className = "mermaid";
+  newDiv.style.whiteSpace = "pre-line";
+  newDiv.textContent = mermaidCode;
 
-  oldContainer.replaceWith(newContainer); // 替换整个 DOM 节点
-
-  // 重新触发渲染
-  if (window.mermaid) {
-    window.mermaid.run();
-  }
+  old.replaceWith(newDiv);
+  window.mermaid.run();
 }
 
 // 切换主题
@@ -409,7 +420,7 @@ function updateSummary() {
     processed += s.tasks_processed;
     pending += s.tasks_pending;
     error += s.tasks_failed;
-    if (s.active) active++;
+    if (s.status === 1) active++;
   });
   totalProcessed.textContent = processed;
   totalPending.textContent = pending;

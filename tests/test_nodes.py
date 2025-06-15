@@ -113,11 +113,11 @@ def test_splitter_1():
         generate_stage.get_stage_tag(): range(10),
         # logger_stage.get_stage_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
         # splitter.get_stage_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
-        download_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
+        # download_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
         # parse_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
     }, False)
 
-def _test_transfer():
+def test_transfer():
     redis_transfer = TaskRedisTransfer()
     fibonacci_stage = TaskManager(fibonacci, 'thread')
 
