@@ -28,8 +28,15 @@ let collapsedNodeIds = new Set(
 );
 
 document.addEventListener("DOMContentLoaded", async () => {
+  const savedRate = parseInt(localStorage.getItem("refreshRate"));
+  if (!isNaN(savedRate)) {
+    refreshRate = savedRate;
+    refreshSelect.value = savedRate.toString();
+  }
+  
   refreshSelect.addEventListener("change", () => {
     refreshRate = parseInt(refreshSelect.value);
+    localStorage.setItem("refreshRate", refreshRate);  // ✅ 保存设置
     clearInterval(refreshIntervalId);
     refreshIntervalId = setInterval(refreshAll, refreshRate);
     pushRefreshRate(); // ✅ 立即同步到后端
