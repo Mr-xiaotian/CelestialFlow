@@ -270,7 +270,7 @@ print("Final Results:", final_results)
 |--------------------------|-------------------------------------------------------------|
 | ✅ TaskSplitter          | 已完成，fan-out 成功                                        |
 | 🔄 TaskRouter（分支控制）| 根据条件将任务路由到不同的 stage                            |
-| 📦 TaskMerger            | 将多个结果聚合后处理（fan-in）                              |
+| 📦 TaskFanInr            | 将多个结果聚合后处理（fan-in）                              |
 | 🔍 TaskTracer / Inspector| 给每个任务标记 trace_id、路径                               |
 | 📊 ChainVisualizer       | 结构图（networkx / graphviz）可视化链路                    |
 | 🖥️ Web UI                | 用 Flask / FastAPI + Vue 做一个小监控界面                   |

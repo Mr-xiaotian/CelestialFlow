@@ -1,7 +1,7 @@
 import pytest, logging
 import math
 from time import sleep
-from celestialflow import TaskManager, TaskTree, TaskLoop, TaskStar, TaskComplete
+from celestialflow import TaskManager, TaskTree, TaskLoop, TaskStar, TaskFanIn, TaskCross, TaskComplete
 
 
 def add_sleep(n):
@@ -198,11 +198,28 @@ def test_star():
     side3 = TaskManager(func=add_15)
 
     # 构造 TaskStar
-    star = TaskStar(core_stage=core, side_stages=[side1, side2, side3], star_mode="serial")
+    star = TaskStar(core_stage=core, side_stages=[side1, side2, side3])
     star.set_reporter(True, host="127.0.0.1", port=5005)
 
     star.start_star({
         core.get_stage_tag(): range(1,11)
+    })
+
+def test_fanin():
+    # 创建 3 个节点，每个节点有不同偏移
+    source1 = TaskManager(func=add_5)
+    source2 = TaskManager(func=add_10)
+    source3 = TaskManager(func=square)
+    merge = TaskManager(func=add_sleep)
+
+    # 构造 TaskFanIn
+    fainin = TaskFanIn([source1, source2, source3], merge_stage=merge)
+    fainin.set_reporter(True, host="127.0.0.1", port=5005)
+
+    fainin.start_fanin({
+        source1.get_stage_tag(): range(1, 11),
+        source2.get_stage_tag(): range(11, 21),
+        source3.get_stage_tag(): range(21, 31),
     })
 
 def _test_complete():
