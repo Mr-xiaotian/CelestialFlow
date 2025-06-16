@@ -44,9 +44,9 @@
 }
 
 /* ================================
-  🌟 树形结构样式
+  🌟 图形结构样式
 ================================ */
-.tree-container {
+.graph-container {
   background-color: white;
   border-radius: 8px;
   padding: 20px;
@@ -55,37 +55,37 @@
   max-height: 80vh;
 }
 
-.tree {
+.graph {
   margin: 0;
   padding: 0;
 }
 
-.tree ul {
+.graph ul {
   border-left: 2px solid #e0e0e0; /* 清晰的父子线 */
   padding-left: 20px;
   margin: 0;
 }
 
-.tree li {
+.graph li {
   list-style-type: none;
   margin: 10px 0;
   padding-left: 25px;
 }
 
-.tree li:last-child::after {
+.graph li:last-child::after {
   height: 12px;
 }
 
-.tree li:first-child::after {
+.graph li:first-child::after {
   top: 12px;
   height: calc(100% - 12px);
 }
 
-.tree li:only-child::after {
+.graph li:only-child::after {
   display: none;
 }
 
-.tree-node {
+.graph-node {
   display: inline-block;
   border-radius: 5px;
   padding: 8px 12px;
@@ -96,7 +96,7 @@
   cursor: pointer;
 }
 
-.tree-node:hover {
+.graph-node:hover {
   background-color: #d0e1fd;
   transform: translateY(-2px);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -121,7 +121,7 @@
   font-size: 12px;
 }
 
-/* 树展开/折叠 */
+/* 图展开/折叠 */
 .collapsible { cursor: pointer; }
 .collapse-icon {
   display: inline-block;
@@ -408,17 +408,17 @@
   background-color: #3b82f6;
 }
 
-.dark-theme .tree-container {
+.dark-theme .graph-container {
   background-color: #2d2d2d;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
-.dark-theme .tree-node {
+.dark-theme .graph-node {
   background-color: #3a3a3a;
   border-left: 4px solid #5e91ff;
 }
 
-.dark-theme .tree-node:hover {
+.dark-theme .graph-node:hover {
   background-color: #454545;
 }
 

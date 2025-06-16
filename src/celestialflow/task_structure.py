@@ -1,10 +1,10 @@
 from typing import List
 
 from .task_manage import TaskManager
-from .task_tree import TaskTree
+from .task_graph import TaskGraph
 
 
-class TaskChain(TaskTree):
+class TaskChain(TaskGraph):
     def __init__(self, stages: List[TaskManager], chain_mode: str = "serial"):
         """
         初始化 TaskChain
@@ -14,7 +14,7 @@ class TaskChain(TaskTree):
         for num, stage in enumerate(stages):
             stage_name = f"Stage {num + 1}"
             next_stages = [stages[num + 1]] if num < len(stages) - 1 else []
-            stage.set_tree_context(next_stages, chain_mode, stage_name)
+            stage.set_graph_context(next_stages, chain_mode, stage_name)
 
         root_stage = stages[0]
         super().__init__([root_stage])
@@ -24,10 +24,10 @@ class TaskChain(TaskTree):
         启动任务链
         :param init_tasks_dict: 任务列表
         """
-        self.start_tree(init_tasks_dict, put_termination_signal)
+        self.start_graph(init_tasks_dict, put_termination_signal)
 
 
-class TaskLoop(TaskTree):
+class TaskLoop(TaskGraph):
     def __init__(self, stages: List[TaskManager]):
         """
         初始化 TaskLoop, 由于环的结构特性, 强制使用 'process' 节点模式
@@ -36,7 +36,7 @@ class TaskLoop(TaskTree):
         for num, stage in enumerate(stages):
             stage_name = f"Stage {num + 1}"
             next_stages = [stages[num + 1]] if num < len(stages) - 1 else [stages[0]]
-            stage.set_tree_context(next_stages, "process", stage_name)
+            stage.set_graph_context(next_stages, "process", stage_name)
 
         root_stage = stages[0]
         super().__init__([root_stage])
@@ -46,10 +46,10 @@ class TaskLoop(TaskTree):
         启动任务环, 环是自锁结构, 能且仅能外部注入式停止
         :param init_tasks_dict: 任务列表
         """
-        self.start_tree(init_tasks_dict, False)
+        self.start_graph(init_tasks_dict, False)
 
 
-class TaskStar(TaskTree):
+class TaskStar(TaskGraph):
     def __init__(self, core_stage: TaskManager, side_stages: List[TaskManager], star_mode: str = "serial"):
         """
         TaskStar: 一个中心节点连接多个子节点（旁点）
@@ -57,10 +57,10 @@ class TaskStar(TaskTree):
         :param side_stages: 所有旁支节点列表
         """
         # 设置核心节点指向所有旁支
-        core_stage.set_tree_context(side_stages, star_mode, "Core Stage")
+        core_stage.set_graph_context(side_stages, star_mode, "Core Stage")
 
         for idx, side in enumerate(side_stages):
-            side.set_tree_context(stage_mode="process", stage_name=f"Side Stage {idx + 1}")
+            side.set_graph_context(stage_mode="process", stage_name=f"Side Stage {idx + 1}")
 
         super().__init__([core_stage])
 
@@ -69,11 +69,11 @@ class TaskStar(TaskTree):
         启动任务星
         :param init_tasks_dict: 任务列表
         """
-        self.start_tree(init_tasks_dict, put_termination_signal)
+        self.start_graph(init_tasks_dict, put_termination_signal)
 
 
-class TaskFanIn(TaskTree):
-    def __init__(self, source_stages: List[TaskManager], merge_stage: TaskManager, fanin_mode="serial"):
+class TaskFanIn(TaskGraph):
+    def __init__(self, source_stages: List[TaskManager], merge_stage: TaskManager):
         """
         TaskFanIn: 多源输入 → 单节点聚合
         :param source_stages: 输入 TaskManager 节点列表
@@ -81,19 +81,19 @@ class TaskFanIn(TaskTree):
         :param sink_mode: 聚合节点执行模式（默认为 serial）
         """
         for idx, source in enumerate(source_stages):
-            source.set_tree_context(next_stages=[merge_stage], stage_mode="process", stage_name=f"Source {idx+1}")
-        merge_stage.set_tree_context(stage_mode=fanin_mode, stage_name="Merge Stage")
+            source.set_graph_context(next_stages=[merge_stage], stage_mode="process", stage_name=f"Source {idx+1}")
+        merge_stage.set_graph_context(stage_mode="serial", stage_name="Merge Stage")
 
         super().__init__(source_stages)
 
     def start_fanin(self, init_tasks_dict: dict, put_termination_signal: bool=True):
         """
-        启动 Fan-In 结构任务树
+        启动 Fan-In 结构任务图
         """
-        self.start_tree(init_tasks_dict, put_termination_signal)
+        self.start_graph(init_tasks_dict, put_termination_signal)
 
 
-class TaskCross(TaskTree):
+class TaskCross(TaskGraph):
     def __init__(self, layers: List[List[TaskManager]]):
         """
         TaskCross: 多层交叉结构
@@ -101,18 +101,18 @@ class TaskCross(TaskTree):
         """
         for i in range(len(layers) - 1):
             for stage in layers[i]:
-                stage.set_tree_context(layers[i+1], "process", f"Layer{i+1}-{stage.func.__name__}")
+                stage.set_graph_context(layers[i+1], "process", f"Layer{i+1}-{stage.func.__name__}")
 
         super().__init__(layers[0])
 
     def start_cross(self, init_tasks_dict: dict, put_termination_signal: bool=True):
         """
-        启动多层交叉结构任务树
+        启动多层交叉结构任务图
         """
-        self.start_tree(init_tasks_dict, put_termination_signal)
+        self.start_graph(init_tasks_dict, put_termination_signal)
 
 
-class TaskComplete(TaskTree):
+class TaskComplete(TaskGraph):
     def __init__(self, stages: List[TaskManager]):
         """
         TaskComplete: 完全图结构，每个节点都连向除自己以外的所有其他节点
@@ -120,7 +120,7 @@ class TaskComplete(TaskTree):
         """
         for i, stage in enumerate(stages):
             next_stages = [s for j, s in enumerate(stages) if i != j]
-            stage.set_tree_context(next_stages=next_stages, stage_mode="process", stage_name=f"Node {i + 1}")
+            stage.set_graph_context(next_stages=next_stages, stage_mode="process", stage_name=f"Node {i + 1}")
 
         super().__init__(stages)
 
@@ -129,4 +129,4 @@ class TaskComplete(TaskTree):
         启动任务完全图
         :param init_tasks_dict: 任务列表
         """
-        self.start_tree(init_tasks_dict, False)
+        self.start_graph(init_tasks_dict, False)

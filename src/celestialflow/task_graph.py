@@ -9,10 +9,10 @@ from typing import Any, Dict, List, Tuple
 from .task_manage import TaskManager
 from .task_nodes import TaskSplitter
 from .task_support import TERMINATION_SIGNAL, TaskError, TaskReporter, LogListener, TaskLogger, ValueWrapper, TerminationSignal, StageStatus
-from .task_tools import format_duration, format_timestamp, cleanup_mpqueue, make_hashable, build_structure_tree, format_structure_list_from_tree, append_jsonl_log
+from .task_tools import format_duration, format_timestamp, cleanup_mpqueue, make_hashable, build_structure_graph, format_structure_list_from_graph, append_jsonl_log
 
 
-class TaskTree:
+class TaskGraph:
     def __init__(self, root_stages: List[TaskManager]):
         """
         :param root_stage: 任务链的根 TaskManager 节点
@@ -21,7 +21,7 @@ class TaskTree:
         self.set_root_stages(root_stages)
 
         self.init_env()
-        self.init_structure_tree()
+        self.init_structure_graph()
         self.set_reporter()
 
     def init_env(self):
@@ -93,11 +93,11 @@ class TaskTree:
         self.log_listener = LogListener(level = "INFO")
         self.task_logger = TaskLogger(self.log_listener.get_queue())
 
-    def init_structure_tree(self):
+    def init_structure_graph(self):
         """
-        初始化任务树结构
+        初始化任务图结构
         """
-        self.structure_tree = build_structure_tree(self.root_stages)
+        self.structure_graph = build_structure_graph(self.root_stages)
 
     def set_root_stages(self, root_stages: List[TaskManager]):
         """
@@ -140,7 +140,7 @@ class TaskTree:
         self.is_report = is_report
         self.reporter = TaskReporter(self, self.log_listener.get_queue(), host, port)
 
-    def set_tree_mode(self, stage_mode: str, execution_mode: str):
+    def set_graph_mode(self, stage_mode: str, execution_mode: str):
         """
         设置任务链的执行模式
         :param stage_mode: 节点执行模式, 可选值为 'serial' 或 'process'
@@ -160,16 +160,16 @@ class TaskTree:
         visited_stages = set()
         for root_stage in self.root_stages:
             set_subsequent_stage_mode(root_stage)
-        self.init_structure_tree()
+        self.init_structure_graph()
 
-    def start_tree(self, init_tasks_dict: dict, put_termination_signal: bool=True):
+    def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool=True):
         """
         启动任务链
         """
         try:
             self.log_listener.start()
             self.start_time = time.time()
-            self.task_logger.start_tree(self.get_structure_list())
+            self.task_logger.start_graph(self.get_structure_list())
             self._persist_structure_metadata()
             self.reporter.start() if self.is_report else None
 
@@ -182,7 +182,7 @@ class TaskTree:
             self.handle_fail_queue()
             self.release_resources()
 
-            self.task_logger.end_tree(time.time() - self.start_time)
+            self.task_logger.end_graph(time.time() - self.start_time)
             self.log_listener.stop()
 
     def _excute_stages(self):
@@ -378,7 +378,7 @@ class TaskTree:
         """
         log_item = {
             "timestamp": datetime.now().isoformat(),
-            "structure": self.get_structure_tree(),
+            "structure": self.get_structure_graph(),
         }
         append_jsonl_log(log_item, self.start_time, "./fallback", "realtime_errors", self.task_logger)
 
@@ -534,15 +534,15 @@ class TaskTree:
 
         return status_dict
     
-    def get_structure_tree(self):
-        return self.structure_tree
+    def get_structure_graph(self):
+        return self.structure_graph
     
     def get_structure_list(self):
-        return format_structure_list_from_tree(self.structure_tree)
+        return format_structure_list_from_graph(self.structure_graph)
 
     def test_methods(self, init_tasks_dict: Dict[str, List], stage_modes: list=None, execution_modes: list=None) -> Dict[str, Any]:
         """
-        测试 TaskTree 在 'serial' 和 'process' 模式下的执行时间。
+        测试 TaskGraph 在 'serial' 和 'process' 模式下的执行时间。
 
         :param init_tasks_dict: 初始化任务字典
         :param stage_modes: 阶段模式列表，默认为 ['serial', 'process']
@@ -562,8 +562,8 @@ class TaskTree:
             for execution_mode in execution_modes:
                 start_time = time.time()
                 self.init_env()
-                self.set_tree_mode(stage_mode, execution_mode)
-                self.start_tree(init_tasks_dict)
+                self.set_graph_mode(stage_mode, execution_mode)
+                self.start_graph(init_tasks_dict)
 
                 time_list.append(time.time() - start_time)
                 # final_result_dict.update(self.get_final_result_dict())

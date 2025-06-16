@@ -98,13 +98,13 @@ class TaskLogger:
             f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
-    def start_tree(self, stage_structure):
-        self._log("INFO", f"Starting TaskTree stages. Tree structure:")
+    def start_graph(self, stage_structure):
+        self._log("INFO", f"Starting TaskGraph stages. Graph structure:")
         for line in stage_structure:
             self._log("INFO", line)
 
-    def end_tree(self, use_time):
-        self._log("INFO", f"TaskTree end. Use {use_time:.2f} second.")
+    def end_graph(self, use_time):
+        self._log("INFO", f"TaskGraph end. Use {use_time:.2f} second.")
 
     def task_success(self, func_name, task_info, execution_mode, result_info, use_time):
         self._log("SUCCESS", f"In '{func_name}', Task {task_info} completed by {execution_mode}. Result is {result_info}. Used {use_time:.2f} seconds.")
@@ -173,10 +173,10 @@ class BroadcastQueueManager:
 
 
 class TaskReporter:
-    def __init__(self, task_tree, logger_queue, host="127.0.0.1", port=5000):
-        from .task_tree import TaskTree
+    def __init__(self, task_graph, logger_queue, host="127.0.0.1", port=5000):
+        from .task_graph import TaskGraph
 
-        self.task_tree: TaskTree = task_tree
+        self.task_graph: TaskGraph = task_graph
         self.logger = TaskLogger(logger_queue)
         self.base_url = f"http://{host}:{port}"
         self._stop_flag = threading.Event()
@@ -230,22 +230,22 @@ class TaskReporter:
                     target_node = task.get("node")
                     task_datas = task.get("task_datas")
 
-                    if target_node not in self.task_tree.stages_status_dict:
+                    if target_node not in self.task_graph.stages_status_dict:
                         self.logger._log("WARNING", f"[Reporter] Task injection target node {target_node} not found.")
                         continue
 
                     # 这里你可以按需注入到不同的节点
                     task_datas = [task if task != "TERMINATION_SIGNAL" else TERMINATION_SIGNAL for task in task_datas]
-                    self.task_tree.put_stage_queue({target_node: task_datas}, put_termination_signal=False)
+                    self.task_graph.put_stage_queue({target_node: task_datas}, put_termination_signal=False)
                     self.logger._log("INFO", f"[Reporter] 注入任务到 {target_node}: {task_datas}")
         except Exception as e:
             self.logger._log("WARNING", f"[Reporter] Task injection fetch failed: {type(e).__name__}({e}).")
 
     def _push_errors(self):
         try:
-            self.task_tree.handle_fail_queue()
+            self.task_graph.handle_fail_queue()
             error_data = []
-            for (err, tag), task_list in self.task_tree.get_error_timeline_dict().items():
+            for (err, tag), task_list in self.task_graph.get_error_timeline_dict().items():
                 for task, ts in task_list:
                     error_data.append({
                         "error": err,
@@ -259,14 +259,14 @@ class TaskReporter:
 
     def _push_status(self):
         try:
-            status_data = self.task_tree.get_status_dict()
+            status_data = self.task_graph.get_status_dict()
             requests.post(f"{self.base_url}/api/push_status", json=status_data, timeout=1)
         except Exception as e:
             self.logger._log("WARNING", f"[Reporter] Status push failed: {type(e).__name__}({e}).")
 
     def _push_structure(self):
         try:
-            structure = self.task_tree.get_structure_tree()
+            structure = self.task_graph.get_structure_graph()
             requests.post(f"{self.base_url}/api/push_structure", json=structure, timeout=1)
         except Exception as e:
             self.logger._log("WARNING", f"[Reporter] Structure push failed: {type(e).__name__}({e})")

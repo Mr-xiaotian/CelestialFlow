@@ -1,7 +1,7 @@
 import pytest, logging, re, random, pprint
 from time import sleep
 from celestialvault.tools.TextTools import format_table
-from celestialflow import TaskManager, TaskTree, TaskSplitter, TaskRedisTransfer, TaskLoop
+from celestialflow import TaskManager, TaskGraph, TaskSplitter, TaskRedisTransfer, TaskLoop
 
 
 def sleep_1(n):
@@ -65,14 +65,14 @@ def _test_splitter_0():
     parse_stage = TaskManager(func=parse, execution_mode='thread', worker_limit=4)
 
     # 设置链关系
-    generate_stage.set_tree_context([logger_stage, splitter], stage_mode='process', stage_name='GenURLs')
-    logger_stage.set_tree_context([], stage_mode='process', stage_name='Loger')
-    splitter.set_tree_context([download_stage, parse_stage], stage_mode='process', stage_name='Splitter')
-    download_stage.set_tree_context([], stage_mode='process', stage_name='Downloader')
-    parse_stage.set_tree_context([], stage_mode='process', stage_name='Parser')
+    generate_stage.set_graph_context([logger_stage, splitter], stage_mode='process', stage_name='GenURLs')
+    logger_stage.set_graph_context([], stage_mode='process', stage_name='Loger')
+    splitter.set_graph_context([download_stage, parse_stage], stage_mode='process', stage_name='Splitter')
+    download_stage.set_graph_context([], stage_mode='process', stage_name='Downloader')
+    parse_stage.set_graph_context([], stage_mode='process', stage_name='Parser')
 
-    # 初始化 TaskTree
-    tree = TaskTree([generate_stage])
+    # 初始化 TaskGraph
+    graph = TaskGraph([generate_stage])
 
     # 测试输入：生成不同 URL 的任务
     input_tasks = {
@@ -81,7 +81,7 @@ def _test_splitter_0():
     stage_modes = ['serial', 'process']
     execution_modes = ['serial', 'thread']
 
-    result = tree.test_methods(input_tasks, stage_modes, execution_modes)
+    result = graph.test_methods(input_tasks, stage_modes, execution_modes)
     test_table_list, execution_modes, stage_modes, index_header = result["Time table"]
     result["Time table"] = format_table(test_table_list, column_names = execution_modes, row_names = stage_modes, index_header = index_header)
 
@@ -99,17 +99,17 @@ def test_splitter_1():
     parse_stage = TaskManager(func=parse_sleep, execution_mode='thread', worker_limit=4)
 
     # 设置链关系
-    generate_stage.set_tree_context([logger_stage, splitter], stage_mode='process', stage_name='GenURLs')
-    logger_stage.set_tree_context([], stage_mode='process', stage_name='Loger')
-    splitter.set_tree_context([download_stage, parse_stage], stage_mode='process', stage_name='Splitter')
-    download_stage.set_tree_context([], stage_mode='process', stage_name='Downloader')
-    parse_stage.set_tree_context([generate_stage], stage_mode='process', stage_name='Parser')
+    generate_stage.set_graph_context([logger_stage, splitter], stage_mode='process', stage_name='GenURLs')
+    logger_stage.set_graph_context([], stage_mode='process', stage_name='Loger')
+    splitter.set_graph_context([download_stage, parse_stage], stage_mode='process', stage_name='Splitter')
+    download_stage.set_graph_context([], stage_mode='process', stage_name='Downloader')
+    parse_stage.set_graph_context([generate_stage], stage_mode='process', stage_name='Parser')
 
-    # 初始化 TaskTree
-    tree = TaskTree([generate_stage])
-    tree.set_reporter(True, host="127.0.0.1", port=5005)
+    # 初始化 TaskGraph
+    graph = TaskGraph([generate_stage])
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
 
-    tree.start_tree({
+    graph.start_graph({
         generate_stage.get_stage_tag(): range(10),
         # logger_stage.get_stage_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
         # splitter.get_stage_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
@@ -121,17 +121,17 @@ def test_transfer():
     redis_transfer = TaskRedisTransfer()
     fibonacci_stage = TaskManager(fibonacci, 'thread')
 
-    redis_transfer.set_tree_context([], stage_mode='process', stage_name='GoFibonacci')
-    fibonacci_stage.set_tree_context([], stage_mode='process', stage_name='Fibonacci')
+    redis_transfer.set_graph_context([], stage_mode='process', stage_name='GoFibonacci')
+    fibonacci_stage.set_graph_context([], stage_mode='process', stage_name='Fibonacci')
 
-    tree = TaskTree([redis_transfer, fibonacci_stage])
-    tree.set_reporter(True, host="127.0.0.1", port=5005)
+    graph = TaskGraph([redis_transfer, fibonacci_stage])
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 要测试的任务列表
     test_task_0 = range(25, 37)
     test_task_1 = list(test_task_0) + [0, 27, None, 0, '']
 
-    tree.start_tree({
+    graph.start_graph({
         redis_transfer.get_stage_tag(): test_task_0,
         fibonacci_stage.get_stage_tag(): test_task_0,
     })

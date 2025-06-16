@@ -1,7 +1,7 @@
 import pytest, logging
 import math
 from time import sleep
-from celestialflow import TaskManager, TaskTree, TaskLoop, TaskStar, TaskFanIn, TaskCross, TaskComplete
+from celestialflow import TaskManager, TaskGraph, TaskLoop, TaskStar, TaskFanIn, TaskCross, TaskComplete
 
 
 def add_sleep(n):
@@ -45,14 +45,14 @@ def _test_loop():
     stageB = TaskManager(add_sleep, 'thread', 3)
     stageC = TaskManager(add_sleep, 'thread', 3)
 
-    tree = TaskLoop([stageA, stageB, stageC])
-    tree.set_reporter(True, host="127.0.0.1", port=5005)
+    graph = TaskLoop([stageA, stageB, stageC])
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 要测试的任务列表
     test_task_0 = range(1, 2)
     test_task_1 = list(test_task_0) + [0, 6, None, 0, '']
 
-    tree.start_loop({
+    graph.start_loop({
         stageA.get_stage_tag(): test_task_0
     })
 
@@ -65,15 +65,15 @@ def _test_forest_0():
     stageE = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
 
     # 设置图结构
-    stageA.set_tree_context(next_stages=[stageC], stage_mode="process", stage_name="A")
-    stageB.set_tree_context(next_stages=[stageD], stage_mode="process", stage_name="B")
-    stageC.set_tree_context(next_stages=[stageE], stage_mode="process", stage_name="C")
-    stageD.set_tree_context(next_stages=[stageE], stage_mode="process", stage_name="D")
-    stageE.set_tree_context(stage_mode="process", stage_name="E")
+    stageA.set_graph_context(next_stages=[stageC], stage_mode="process", stage_name="A")
+    stageB.set_graph_context(next_stages=[stageD], stage_mode="process", stage_name="B")
+    stageC.set_graph_context(next_stages=[stageE], stage_mode="process", stage_name="C")
+    stageD.set_graph_context(next_stages=[stageE], stage_mode="process", stage_name="D")
+    stageE.set_graph_context(stage_mode="process", stage_name="E")
 
-    # 构建 TaskTree（多根）
-    tree = TaskTree([stageA, stageB])  # 多根支持
-    tree.set_reporter(True, host="127.0.0.1", port=5005)
+    # 构建 TaskGraph（多根）
+    graph = TaskGraph([stageA, stageB])  # 多根支持
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 初始任务
     init_tasks = {
@@ -81,7 +81,7 @@ def _test_forest_0():
         stageB.get_stage_tag(): range(11,21)
     }
 
-    tree.start_tree(init_tasks)
+    graph.start_graph(init_tasks)
 
 def _test_forest_1():
     # 构建 DAG
@@ -94,17 +94,17 @@ def _test_forest_1():
     stageG = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
 
     # 设置图结构
-    stageA.set_tree_context(next_stages=[stageD], stage_mode="process", stage_name="A")
-    stageB.set_tree_context(next_stages=[stageD], stage_mode="process", stage_name="B")
-    stageC.set_tree_context(next_stages=[stageD], stage_mode="process", stage_name="C")
-    stageD.set_tree_context(next_stages=[stageE, stageF, stageG], stage_mode="process", stage_name="D")
-    stageE.set_tree_context(next_stages=[], stage_mode="process", stage_name="E")
-    stageF.set_tree_context(next_stages=[], stage_mode="process", stage_name="F")
-    stageG.set_tree_context(next_stages=[], stage_mode="process", stage_name="G")
+    stageA.set_graph_context(next_stages=[stageD], stage_mode="process", stage_name="A")
+    stageB.set_graph_context(next_stages=[stageD], stage_mode="process", stage_name="B")
+    stageC.set_graph_context(next_stages=[stageD], stage_mode="process", stage_name="C")
+    stageD.set_graph_context(next_stages=[stageE, stageF, stageG], stage_mode="process", stage_name="D")
+    stageE.set_graph_context(next_stages=[], stage_mode="process", stage_name="E")
+    stageF.set_graph_context(next_stages=[], stage_mode="process", stage_name="F")
+    stageG.set_graph_context(next_stages=[], stage_mode="process", stage_name="G")
 
-    # 构建 TaskTree（多根）
-    tree = TaskTree([stageA, stageB, stageC])  # 多根支持
-    tree.set_reporter(True, host="127.0.0.1", port=5005)
+    # 构建 TaskGraph（多根）
+    graph = TaskGraph([stageA, stageB, stageC])  # 多根支持
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 初始任务
     init_tasks = {
@@ -113,7 +113,7 @@ def _test_forest_1():
         stageC.get_stage_tag(): range(11, 21),
     }
 
-    tree.start_tree(init_tasks)
+    graph.start_graph(init_tasks)
 
 def _test_neural_net_0():
     # 输入层
@@ -129,18 +129,18 @@ def _test_neural_net_0():
     C = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
 
     # 设置连接关系（像神经网络中的全连接）
-    A1.set_tree_context(next_stages=[B1, B2, B3], stage_mode="process", stage_name="A1")
-    A2.set_tree_context(next_stages=[B1, B2, B3], stage_mode="process", stage_name="A2")
+    A1.set_graph_context(next_stages=[B1, B2, B3], stage_mode="process", stage_name="A1")
+    A2.set_graph_context(next_stages=[B1, B2, B3], stage_mode="process", stage_name="A2")
     
-    B1.set_tree_context(next_stages=[C], stage_mode="process", stage_name="B1")
-    B2.set_tree_context(next_stages=[C], stage_mode="process", stage_name="B2")
-    B3.set_tree_context(next_stages=[C], stage_mode="process", stage_name="B3")
+    B1.set_graph_context(next_stages=[C], stage_mode="process", stage_name="B1")
+    B2.set_graph_context(next_stages=[C], stage_mode="process", stage_name="B2")
+    B3.set_graph_context(next_stages=[C], stage_mode="process", stage_name="B3")
 
-    C.set_tree_context(stage_mode="process", stage_name="C")
+    C.set_graph_context(stage_mode="process", stage_name="C")
 
-    # 构建任务树
-    tree = TaskTree([A1, A2])
-    tree.set_reporter(True, host="127.0.0.1", port=5005)
+    # 构建任务图
+    graph = TaskGraph([A1, A2])
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 初始任务（输入层）
     init_tasks = {
@@ -148,7 +148,7 @@ def _test_neural_net_0():
         A2.get_stage_tag(): range(11, 21),
     }
 
-    tree.start_tree(init_tasks)
+    graph.start_graph(init_tasks)
 
 def _test_neural_net_1():
     # 输入层
@@ -167,20 +167,20 @@ def _test_neural_net_1():
     D2 = TaskManager(neuron_activation, execution_mode="thread", worker_limit=2)
 
     # 构建拓扑结构（残差连接 A2 ➝ C1）
-    A1.set_tree_context(next_stages=[B1], stage_mode="process", stage_name="A1")
-    A2.set_tree_context(next_stages=[B2, C1], stage_mode="process", stage_name="A2")
+    A1.set_graph_context(next_stages=[B1], stage_mode="process", stage_name="A1")
+    A2.set_graph_context(next_stages=[B2, C1], stage_mode="process", stage_name="A2")
 
-    B1.set_tree_context(next_stages=[C1], stage_mode="process", stage_name="B1")
-    B2.set_tree_context(next_stages=[C1], stage_mode="process", stage_name="B2")
+    B1.set_graph_context(next_stages=[C1], stage_mode="process", stage_name="B1")
+    B2.set_graph_context(next_stages=[C1], stage_mode="process", stage_name="B2")
 
-    C1.set_tree_context(next_stages=[D1, D2], stage_mode="process", stage_name="C1")
+    C1.set_graph_context(next_stages=[D1, D2], stage_mode="process", stage_name="C1")
 
-    D1.set_tree_context(stage_mode="process", stage_name="D1")
-    D2.set_tree_context(stage_mode="process", stage_name="D2")
+    D1.set_graph_context(stage_mode="process", stage_name="D1")
+    D2.set_graph_context(stage_mode="process", stage_name="D2")
 
     # 构建任务图
-    tree = TaskTree([A1, A2])
-    tree.set_reporter(True, host="127.0.0.1", port=5005)
+    graph = TaskGraph([A1, A2])
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 初始任务输入
     init_tasks = {
@@ -188,7 +188,7 @@ def _test_neural_net_1():
         A2.get_stage_tag(): [1.1, 1.5, 2.0],
     }
 
-    tree.start_tree(init_tasks)
+    graph.start_graph(init_tasks)
 
 def test_star():
     # 定义核心与边节点函数

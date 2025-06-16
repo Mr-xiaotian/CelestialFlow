@@ -168,23 +168,23 @@ async function loadStructure() {
       return;
     }
 
-    // renderTree(data);
+    // renderGraph(data);
     renderMermaidFromTaskStructure(data);
   } catch (e) {
     console.error("结构加载失败", e);
   }
 }
 
-function renderTree(forest) {
-  const treeContainer = document.getElementById("task-tree");
-  treeContainer.innerHTML = "";
+function renderGraph(forest) {
+  const graphContainer = document.getElementById("task-graph");
+  graphContainer.innerHTML = "";
 
-  function buildTreeHTML(node, path = "") {
+  function buildGraphHTML(node, path = "") {
     const nodeId = path ? `${path}/${node.stage_name}` : node.stage_name;
     let html = "<li>";
 
     // 节点展示内容
-    html += `<div class="tree-node collapsible" data-id="${nodeId}" onclick="toggleNode(this)">`;
+    html += `<div class="graph-node collapsible" data-id="${nodeId}" onclick="toggleNode(this)">`;
 
     if (node.next_stages && node.next_stages.length > 0) {
       html += `<span class="collapse-icon">${
@@ -207,7 +207,7 @@ function renderTree(forest) {
       const isCollapsed = collapsedNodeIds.has(nodeId);
       html += `<ul ${isCollapsed ? 'class="hidden"' : ""}>`;
       node.next_stages.forEach((childNode) => {
-        html += buildTreeHTML(childNode, nodeId);
+        html += buildGraphHTML(childNode, nodeId);
       });
       html += "</ul>";
     }
@@ -216,12 +216,12 @@ function renderTree(forest) {
     return html;
   }
 
-  // 多棵树处理
-  const treeHTML = forest.map((tree, index) => {
-    return `${buildTreeHTML(tree, `root${index}`)}`;
+  // 多棵图处理
+  const graphHTML = forest.map((graph, index) => {
+    return `${buildGraphHTML(graph, `root${index}`)}`;
   }).join("");
 
-  treeContainer.innerHTML = treeHTML;
+  graphContainer.innerHTML = graphHTML;
 }
 
 // 折叠状态控制
@@ -281,7 +281,7 @@ function renderMermaidFromTaskStructure(forest) {
     }
   }
 
-  forest.forEach(tree => walk(tree));
+  forest.forEach(graph => walk(graph));
 
   const defs = [...nodeLabels.entries()].map(([id, shapeLabel]) => `  ${id}${shapeLabel}`);
   const mermaidCode = `graph TD\n${defs.join("\n")}\n${[...edges].join("\n")}`;
