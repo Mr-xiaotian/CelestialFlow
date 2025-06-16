@@ -247,6 +247,11 @@ function toggleNode(element) {
 function renderMermaidFromTaskStructure(forest) {
   const edges = new Set();
   const nodeLabels = new Map();
+  const classDefs = [];  // class A whiteNode;
+  const shapeDefs = [];  // A[...]
+  const styleBlock = `
+classDef whiteNode fill:#ffffff,stroke:#333,stroke-width:1px;
+`;
 
   function getNodeId(node) {
     return node.stage_name.replace(/\W+/g, "_");
@@ -259,7 +264,7 @@ function renderMermaidFromTaskStructure(forest) {
       case "rhombus": return `{${label}}`;
       case "subgraph": return `[[${label}]]`;
       case "arrow": return `>${label}<`;
-      default: return `[${label}]`;  // 默认 box
+      default: return `[${label}]`; // 默认 box
     }
   }
 
@@ -267,12 +272,13 @@ function renderMermaidFromTaskStructure(forest) {
     const id = getNodeId(node);
     const label = `${node.stage_name}\n【${node.func_name}】`;
 
-    // 选择形状：你可以基于 node.stage_mode 或 node.class_name 决定
+    // 🧠 自动判断节点形状
     let shape = "box";
     if (node.func_name === "_split_task") shape = "round";
     else if (node.func_name === "_trans_redis") shape = "subgraph";
 
     nodeLabels.set(id, getShapeWrappedLabel(label, shape));
+    classDefs.push(`  class ${id} whiteNode;`);
 
     for (const child of node.next_stages || []) {
       const toId = getNodeId(child);
@@ -284,7 +290,8 @@ function renderMermaidFromTaskStructure(forest) {
   forest.forEach(graph => walk(graph));
 
   const defs = [...nodeLabels.entries()].map(([id, shapeLabel]) => `  ${id}${shapeLabel}`);
-  const mermaidCode = `graph TD\n${defs.join("\n")}\n${[...edges].join("\n")}`;
+  const mermaidCode =
+    `graph TD\n${defs.join("\n")}\n${[...edges].join("\n")}\n${classDefs.join("\n")}\n${styleBlock}`;
 
   const old = document.getElementById("mermaid-container");
   const newDiv = document.createElement("div");

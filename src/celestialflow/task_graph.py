@@ -15,8 +15,7 @@ from .task_tools import format_duration, format_timestamp, cleanup_mpqueue, make
 class TaskGraph:
     def __init__(self, root_stages: List[TaskManager]):
         """
-        :param root_stage: 任务链的根 TaskManager 节点
-        :param start_web_server: 是否启动 web 服务
+        :param root_stages: 任务链的根 TaskManager 节点
         """
         self.set_root_stages(root_stages)
 
