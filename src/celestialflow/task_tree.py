@@ -627,3 +627,46 @@ class TaskLoop(TaskTree):
         :param init_tasks_dict: 任务列表
         """
         self.start_tree(init_tasks_dict, False)
+
+
+class TaskStar(TaskTree):
+    def __init__(self, core_stage: TaskManager, side_stages: List[TaskManager], star_mode: str = "serial"):
+        """
+        TaskStar: 一个中心节点连接多个子节点（旁点）
+        :param core_stage: 核心 TaskManager 节点
+        :param side_stages: 所有旁支节点列表
+        """
+        # 设置核心节点指向所有旁支
+        core_stage.set_tree_context(side_stages, star_mode, "Core Stage")
+
+        for idx, side in enumerate(side_stages):
+            side.set_tree_context(stage_mode="process", stage_name=f"Side Stage {idx + 1}")
+
+        super().__init__([core_stage])
+
+    def start_star(self, init_tasks_dict: dict, put_termination_signal: bool=True):
+        """
+        启动任务星
+        :param init_tasks_dict: 任务列表
+        """
+        self.start_tree(init_tasks_dict, put_termination_signal)
+
+
+class TaskComplete(TaskTree):
+    def __init__(self, stages: List[TaskManager]):
+        """
+        TaskComplete: 完全图结构，每个节点都连向除自己以外的所有其他节点
+        :param stages: 所有 TaskManager 节点
+        """
+        for i, stage in enumerate(stages):
+            next_stages = [s for j, s in enumerate(stages) if i != j]
+            stage.set_tree_context(next_stages=next_stages, stage_mode="process", stage_name=f"Node {i + 1}")
+
+        super().__init__(stages)
+
+    def start_complete(self, init_tasks_dict: dict):
+        """
+        启动任务完全图
+        :param init_tasks_dict: 任务列表
+        """
+        self.start_tree(init_tasks_dict, False)

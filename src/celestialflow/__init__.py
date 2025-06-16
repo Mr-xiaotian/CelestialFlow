@@ -8,13 +8,15 @@ from .task_manage import TaskManager
 from .task_nodes import TaskSplitter, TaskRedisTransfer
 from .task_support import BroadcastQueueManager, TerminationSignal
 from .task_tools import load_task_by_stage, load_task_by_error, make_hashable
-from .task_tree import TaskChain, TaskTree, TaskLoop
+from .task_tree import TaskChain, TaskTree, TaskLoop, TaskStar, TaskComplete
 from .task_web import TaskWebServer
 
 __all__ = [
     "TaskTree",
     "TaskChain",
     "TaskLoop",
+    "TaskStar",
+    "TaskComplete",
     "TaskManager",
     "TaskSplitter",
     "TaskRedisTransfer",
