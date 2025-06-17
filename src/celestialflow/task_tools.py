@@ -12,10 +12,10 @@ from asyncio import QueueEmpty as AsyncQueueEmpty
 from typing import TYPE_CHECKING, Dict, Any, List, Set, Optional
 
 if TYPE_CHECKING:
-    from .task_manage import TaskManager  # 或者用绝对路径，例如 from task_tree.task_manage import TaskManager
+    from .task_manage import TaskManager
 
 
-# ========调用于task_tree.py========
+# ========调用于task_graph.py========
 def format_duration(seconds):
     """将秒数格式化为 HH:MM:SS 或 MM:SS（自动省略前导零）"""
     seconds = int(seconds)
@@ -31,25 +31,25 @@ def format_timestamp(timestamp) -> str:
     """将时间戳格式化为 YYYY-MM-DD HH:MM:SS"""
     return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
-def build_structure_tree(root_stages: List["TaskManager"]) -> List[Dict[str, Any]]:
+def build_structure_graph(root_stages: List["TaskManager"]) -> List[Dict[str, Any]]:
     """
-    从多个根节点构建任务链的 JSON 树结构
+    从多个根节点构建任务链的 JSON 图结构
 
     :param root_stages: 根节点列表
-    :return: 多棵任务树的 JSON 列表
+    :return: 多棵任务图的 JSON 列表
     """
     visited_stages: Set[str] = set()
-    trees = []
+    graphs = []
 
     for root_stage in root_stages:
-        tree = _build_structure_subtree(root_stage, visited_stages)
-        trees.append(tree)
+        graph = _build_structure_subgraph(root_stage, visited_stages)
+        graphs.append(graph)
 
-    return trees
+    return graphs
 
-def _build_structure_subtree(task_manager: "TaskManager", visited_stages: Set[str]) -> Dict[str, Any]:
+def _build_structure_subgraph(task_manager: "TaskManager", visited_stages: Set[str]) -> Dict[str, Any]:
     """
-    构建单个子树结构
+    构建单个子图结构
     """
     stage_tag = task_manager.get_stage_tag()
     node = {
@@ -67,16 +67,16 @@ def _build_structure_subtree(task_manager: "TaskManager", visited_stages: Set[st
     visited_stages.add(stage_tag)
 
     for next_stage in task_manager.next_stages:
-        child_node = _build_structure_subtree(next_stage, visited_stages)
+        child_node = _build_structure_subgraph(next_stage, visited_stages)
         node["next_stages"].append(child_node)
 
     return node
 
-def format_structure_list_from_tree(root_roots: List[Dict] = None, indent=0) -> List[str]:
+def format_structure_list_from_graph(root_roots: List[Dict] = None, indent=0) -> List[str]:
     """
-    从多个 JSON 树结构生成格式化任务结构文本列表（带边框）
+    从多个 JSON 图结构生成格式化任务结构文本列表（带边框）
 
-    :param root_roots: JSON 格式任务树根节点列表
+    :param root_roots: JSON 格式任务图根节点列表
     :param indent: 当前缩进级别
     :return: 带边框的格式化字符串列表
     """

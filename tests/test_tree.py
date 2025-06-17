@@ -2,7 +2,7 @@ import pytest, logging, pprint, re
 import cProfile, subprocess, random
 from time import time, strftime, localtime, sleep
 from celestialvault.tools.TextTools import format_table
-from celestialflow import TaskManager, TaskTree
+from celestialflow import TaskManager, TaskGraph
 
 
 def sleep_1(n):
@@ -74,25 +74,25 @@ def square_root(x):
     return x ** 0.5
 
 
-# 测试 TaskTree 的功能
-def _test_task_tree_0():
+# 测试 TaskGraph 的功能
+def _test_tree_0():
     # 定义多个阶段的 TaskManager 实例
     stage1 = TaskManager(fibonacci, execution_mode='thread', worker_limit=4, max_retries=1, show_progress=False)
     stage2 = TaskManager(square, execution_mode='thread', worker_limit=4, max_retries=1, show_progress=False)
     stage3 = TaskManager(sleep_1, execution_mode='thread', worker_limit=4, show_progress=False)
     stage4 = TaskManager(divide_by_two, execution_mode='thread', worker_limit=4, show_progress=False)
 
-    stage1.set_tree_context([stage2, stage3], 'process', stage_name='stage1')
-    stage2.set_tree_context([stage4], 'process', stage_name='stage2')
-    stage3.set_tree_context([], 'process', stage_name='stage3')
-    stage4.set_tree_context([], 'process', stage_name='stage4')
+    stage1.set_graph_context([stage2, stage3], 'process', stage_name='stage1')
+    stage2.set_graph_context([stage4], 'process', stage_name='stage2')
+    stage3.set_graph_context([], 'process', stage_name='stage3')
+    stage4.set_graph_context([], 'process', stage_name='stage4')
 
     stage1.add_retry_exceptions(TypeError)
     stage2.add_retry_exceptions(ValueError)
 
-    # 初始化 TaskTree
-    tree = TaskTree(root_stages = [stage1])
-    tree.set_reporter(True, host="127.0.0.1", port=5005)
+    # 初始化 TaskGraph
+    graph = TaskGraph(root_stages = [stage1])
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 要测试的任务列表
     test_task_0 = range(25, 37)
@@ -100,7 +100,7 @@ def _test_task_tree_0():
     # test_task_2 = (item for item in test_task_1)
 
     # 开始任务链
-    result = tree.test_methods({
+    result = graph.test_methods({
         stage1.get_stage_tag(): test_task_0,
     })
     test_table_list, execution_modes, stage_modes, index_header = result["Time table"]
@@ -110,7 +110,7 @@ def _test_task_tree_0():
             value = pprint.pformat(value)
         logging.info(f"{key}: \n{value}")
 
-def test_task_tree_1():
+def test_tree_1():
     # 定义任务节点
     A = TaskManager(func=sleep_random_A, execution_mode='thread')
     B = TaskManager(func=sleep_random_B, execution_mode='serial')
@@ -120,16 +120,16 @@ def test_task_tree_1():
     F = TaskManager(func=sleep_random_F, execution_mode='serial')
 
     # 设置链式上下文
-    A.set_tree_context(next_stages=[B, C], stage_mode='process', stage_name="Stage_A")
-    B.set_tree_context(next_stages=[D, E], stage_mode='process', stage_name="Stage_B")
-    C.set_tree_context(next_stages=[E], stage_mode='process', stage_name="Stage_C")
-    D.set_tree_context(next_stages=[F], stage_mode='process', stage_name="Stage_D")
-    E.set_tree_context(next_stages=[], stage_mode='process', stage_name="Stage_E")
-    F.set_tree_context(next_stages=[], stage_mode='process', stage_name="Stage_F")
+    A.set_graph_context(next_stages=[B, C], stage_mode='process', stage_name="Stage_A")
+    B.set_graph_context(next_stages=[D, E], stage_mode='process', stage_name="Stage_B")
+    C.set_graph_context(next_stages=[E], stage_mode='process', stage_name="Stage_C")
+    D.set_graph_context(next_stages=[F], stage_mode='process', stage_name="Stage_D")
+    E.set_graph_context(next_stages=[], stage_mode='process', stage_name="Stage_E")
+    F.set_graph_context(next_stages=[], stage_mode='process', stage_name="Stage_F")
 
-    # 初始化 TaskTree, 并设置根节点
-    tree = TaskTree([A])
-    tree.set_reporter(True, host="127.0.0.1", port=5005)
+    # 初始化 TaskGraph, 并设置根节点
+    graph = TaskGraph([A])
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     input_tasks = {
         A.get_stage_tag(): range(10),
@@ -138,7 +138,7 @@ def test_task_tree_1():
     execution_modes = ['serial', 'thread']
 
     # 开始任务链
-    result = tree.test_methods(input_tasks, stage_modes, execution_modes)
+    result = graph.test_methods(input_tasks, stage_modes, execution_modes)
     test_table_list, execution_modes, stage_modes, index_header = result["Time table"]
     result["Time table"] = format_table(test_table_list, column_names = execution_modes, row_names = stage_modes, index_header = index_header)
     for key, value in result.items():
@@ -146,8 +146,8 @@ def test_task_tree_1():
             value = pprint.pformat(value)
         logging.info(f"{key}: \n{value}")
 
-def profile_task_tree():
-    target_func = 'test_task_tree_1'
+def profile_task_graph():
+    target_func = 'test_task_graph_1'
     now_time = strftime("%m-%d-%H-%M", localtime())
     output_file = f'profile/{target_func}({now_time}).prof'
     cProfile.run(target_func + '()', output_file)
@@ -156,5 +156,5 @@ def profile_task_tree():
 
 # 在主函数或脚本中调用此函数，而不是在测试中
 if __name__ == "__main__":
-    test_task_tree_1()
+    # test_task_graph_1()
     pass

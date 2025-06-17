@@ -164,14 +164,14 @@ class TaskManager:
             else "serial"
         )
 
-    def set_tree_context(
+    def set_graph_context(
         self,
         next_stages: List[TaskManager] = None,
         stage_mode: str = None,
         stage_name: str = None,
     ):
         """
-        设置链式上下文(仅限组成tree时)
+        设置链式上下文(仅限组成graph时)
         :param next_stages: 后续节点列表
         :param stage_mode: 当前节点执行模式, 可以是 'serial'（串行）或 'process'（并行）
         :param name: 当前节点名称
@@ -190,7 +190,7 @@ class TaskManager:
 
     def set_stage_mode(self, stage_mode: str):
         """
-        设置当前节点在tree中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
+        设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
         """
         self.stage_mode = stage_mode if stage_mode == "process" else "serial"
 
@@ -208,7 +208,7 @@ class TaskManager:
 
     def get_stage_tag(self):
         """
-        获取当前节点在tree中的标签
+        获取当前节点在graph中的标签
         """
         return f"{self.stage_name}[{self.func.__name__}]"
     
