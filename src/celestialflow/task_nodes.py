@@ -9,13 +9,12 @@ from .task_tools import object_to_str_hash
 class TaskSplitter(TaskManager):
     def __init__(self):
         """
-        :param split_func: 用于分解任务的函数，默认直接返回原始值
+        初始化 TaskSplitter
         """
         super().__init__(
             func=self._split_task,
             execution_mode="serial",
-            progress_desc="Spliting tasks",
-            show_progress=False,
+            max_retries=0,
         )
 
     def _split_task(self, *task):
@@ -71,6 +70,14 @@ class TaskSplitter(TaskManager):
 
 class TaskRedisTransfer(TaskManager):
     def __init__(self, worker_limit=50, host="localhost", port=6379, db=0, timeout=10):
+        """
+        初始化 TaskRedisTransfer
+        :param worker_limit: 并行工作线程数
+        :param host: Redis 主机地址
+        :param port: Redis 端口
+        :param db: Redis 数据库
+        :param timeout: Redis 操作超时时间
+        """
         super().__init__(self._trans_redis, "thread", worker_limit)
 
         self.host = host
@@ -79,10 +86,14 @@ class TaskRedisTransfer(TaskManager):
         self.timeout = timeout
 
     def init_redis(self):
+        """初始化 Redis 客户端"""
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(host=self.host, port=self.port, db=self.db, decode_responses=True)
 
     def _trans_redis(self, task):
+        """
+        将任务写入 Redis, 并等待结果
+        """
         self.init_redis()
         input_key = f"{self.get_stage_tag()}:input"
         output_key = f"{self.get_stage_tag()}:output"
