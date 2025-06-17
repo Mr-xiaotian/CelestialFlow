@@ -2,7 +2,7 @@ from typing import List
 
 from .task_manage import TaskManager
 from .task_graph import TaskGraph
-
+from .task_support import StageStatus
 
 class TaskChain(TaskGraph):
     def __init__(self, stages: List[TaskManager], chain_mode: str = "serial"):
@@ -49,67 +49,68 @@ class TaskLoop(TaskGraph):
         self.start_graph(init_tasks_dict, False)
 
 
-class TaskStar(TaskGraph):
-    def __init__(self, core_stage: TaskManager, side_stages: List[TaskManager], star_mode: str = "serial"):
-        """
-        TaskStar: 一个中心节点连接多个子节点（旁点）
-        :param core_stage: 核心 TaskManager 节点
-        :param side_stages: 所有旁支节点列表
-        """
-        # 设置核心节点指向所有旁支
-        core_stage.set_graph_context(side_stages, star_mode, "Core Stage")
-
-        for idx, side in enumerate(side_stages):
-            side.set_graph_context(stage_mode="process", stage_name=f"Side Stage {idx + 1}")
-
-        super().__init__([core_stage])
-
-    def start_star(self, init_tasks_dict: dict, put_termination_signal: bool=True):
-        """
-        启动任务星
-        :param init_tasks_dict: 任务列表
-        """
-        self.start_graph(init_tasks_dict, put_termination_signal)
-
-
-class TaskFanIn(TaskGraph):
-    def __init__(self, source_stages: List[TaskManager], merge_stage: TaskManager):
-        """
-        TaskFanIn: 多源输入 → 单节点聚合
-        :param source_stages: 输入 TaskManager 节点列表
-        :param sink_stage: 聚合节点
-        :param sink_mode: 聚合节点执行模式（默认为 serial）
-        """
-        for idx, source in enumerate(source_stages):
-            source.set_graph_context(next_stages=[merge_stage], stage_mode="process", stage_name=f"Source {idx+1}")
-        merge_stage.set_graph_context(stage_mode="serial", stage_name="Merge Stage")
-
-        super().__init__(source_stages)
-
-    def start_fanin(self, init_tasks_dict: dict, put_termination_signal: bool=True):
-        """
-        启动 Fan-In 结构任务图
-        """
-        self.start_graph(init_tasks_dict, put_termination_signal)
-
-
 class TaskCross(TaskGraph):
-    def __init__(self, layers: List[List[TaskManager]]):
+    def __init__(self, layers: List[List[TaskManager]], layout_mode: str = "serial"):
         """
-        TaskCross: 多层交叉结构
-        :param layers: 每层 TaskManager 节点列表
-        """
-        for i in range(len(layers) - 1):
-            for stage in layers[i]:
-                stage.set_graph_context(layers[i+1], "process", f"Layer{i+1}-{stage.func.__name__}")
+        TaskCross: 多层任务交叉结构
 
+        该结构将任务按“层”组织，每层可以包含多个并行执行的 TaskManager 节点，
+        不同层之间通过依赖关系连接，形成跨层的数据流图。
+
+        :param layers: List[List[TaskManager]]
+            按层划分的任务节点列表。每个子列表代表一层，列表中的 TaskManager 将并行执行。
+            相邻层之间的所有节点将建立全连接依赖（即每个上一层节点都连接到下一层所有节点）。
+
+        :param layout_mode: str, default = 'serial'
+            控制任务图的调度布局模式：
+            - 'serial'：逐层顺序执行，上一层全部完成后才启动下一层；
+            - 'process'：所有层并行启动，执行顺序由依赖关系自动调度。
+        """
+        for i in range(len(layers)):
+            curr_layer = layers[i]
+            next_layer = layers[i + 1] if i < len(layers) - 1 else []
+            for index, stage in enumerate(curr_layer[:]):
+                # 非最后一层连接为并行
+                stage.set_graph_context(
+                    next_stages=next_layer,
+                    stage_mode="process",
+                    stage_name=f"Layer{i+1}-{index+1}"
+                )
         super().__init__(layers[0])
 
-    def start_cross(self, init_tasks_dict: dict, put_termination_signal: bool=True):
+        self.layers = layers
+        self.layout_mode = layout_mode
+
+    def start_cross(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动多层交叉结构任务图
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
+
+    def _excute_stages(self):
+        if self.layout_mode == "process":
+            # 默认逻辑：一次性执行所有节点
+            for tag in self.stages_status_dict:
+                self._execute_stage(self.stages_status_dict[tag]["stage"])
+
+            for p in self.processes:
+                p.join()
+                self.stages_status_dict[p.name]["status"] = StageStatus.STOPPED
+                self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
+        else:
+            # serial layout_mode：一层层地顺序执行
+            for layer in self.layers:
+                processes = []
+                for stage in layer:
+                    self._execute_stage(stage)
+                    if stage.stage_mode == "process":
+                        processes.append(self.processes[-1])  # 最新的进程
+
+                # join 当前层的所有进程（如果有）
+                for p in processes:
+                    p.join()
+                    self.stages_status_dict[p.name]["status"] = StageStatus.STOPPED
+                    self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
 
 
 class TaskComplete(TaskGraph):

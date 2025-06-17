@@ -1,7 +1,7 @@
 import pytest, logging
 import math
 from time import sleep
-from celestialflow import TaskManager, TaskGraph, TaskLoop, TaskStar, TaskFanIn, TaskCross, TaskComplete
+from celestialflow import TaskManager, TaskGraph, TaskLoop, TaskCross, TaskComplete
 
 
 def add_sleep(n):
@@ -83,7 +83,7 @@ def _test_forest_0():
 
     graph.start_graph(init_tasks)
 
-def _test_forest_1():
+def test_cross_0():
     # 构建 DAG
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -93,18 +93,9 @@ def _test_forest_1():
     stageF = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageG = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
 
-    # 设置图结构
-    stageA.set_graph_context(next_stages=[stageD], stage_mode="process", stage_name="A")
-    stageB.set_graph_context(next_stages=[stageD], stage_mode="process", stage_name="B")
-    stageC.set_graph_context(next_stages=[stageD], stage_mode="process", stage_name="C")
-    stageD.set_graph_context(next_stages=[stageE, stageF, stageG], stage_mode="process", stage_name="D")
-    stageE.set_graph_context(next_stages=[], stage_mode="process", stage_name="E")
-    stageF.set_graph_context(next_stages=[], stage_mode="process", stage_name="F")
-    stageG.set_graph_context(next_stages=[], stage_mode="process", stage_name="G")
-
-    # 构建 TaskGraph（多根）
-    graph = TaskGraph([stageA, stageB, stageC])  # 多根支持
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
+    # 构建 TaskCross
+    cross = TaskCross([[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]])  # 多根支持
+    cross.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 初始任务
     init_tasks = {
@@ -113,9 +104,9 @@ def _test_forest_1():
         stageC.get_stage_tag(): range(11, 21),
     }
 
-    graph.start_graph(init_tasks)
+    cross.start_cross(init_tasks)
 
-def _test_neural_net_0():
+def test_cross_1():
     # 输入层
     A1 = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     A2 = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -128,19 +119,9 @@ def _test_neural_net_0():
     # 输出层
     C = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
 
-    # 设置连接关系（像神经网络中的全连接）
-    A1.set_graph_context(next_stages=[B1, B2, B3], stage_mode="process", stage_name="A1")
-    A2.set_graph_context(next_stages=[B1, B2, B3], stage_mode="process", stage_name="A2")
-    
-    B1.set_graph_context(next_stages=[C], stage_mode="process", stage_name="B1")
-    B2.set_graph_context(next_stages=[C], stage_mode="process", stage_name="B2")
-    B3.set_graph_context(next_stages=[C], stage_mode="process", stage_name="B3")
-
-    C.set_graph_context(stage_mode="process", stage_name="C")
-
     # 构建任务图
-    graph = TaskGraph([A1, A2])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
+    cross = TaskCross([[A1, A2], [B1, B2, B3], [C]])
+    cross.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 初始任务（输入层）
     init_tasks = {
@@ -148,7 +129,39 @@ def _test_neural_net_0():
         A2.get_stage_tag(): range(11, 21),
     }
 
-    graph.start_graph(init_tasks)
+    cross.start_cross(init_tasks)
+
+def test_star():
+    # 定义核心与边节点函数
+    core = TaskManager(func=square)
+    side1 = TaskManager(func=add_5)
+    side2 = TaskManager(func=add_10)
+    side3 = TaskManager(func=add_15)
+
+    # 构造 TaskCross
+    star = TaskCross([[core], [side1, side2, side3]], "process")
+    star.set_reporter(True, host="127.0.0.1", port=5005)
+
+    star.start_cross({
+        core.get_stage_tag(): range(1,11)
+    })
+
+def test_fanin():
+    # 创建 3 个节点，每个节点有不同偏移
+    source1 = TaskManager(func=add_5)
+    source2 = TaskManager(func=add_10)
+    source3 = TaskManager(func=square)
+    merge = TaskManager(func=add_sleep)
+
+    # 构造 TaskCross
+    fainin = TaskCross([[source1, source2, source3], [merge]], "process")
+    fainin.set_reporter(True, host="127.0.0.1", port=5005)
+
+    fainin.start_cross({
+        source1.get_stage_tag(): range(1, 11),
+        source2.get_stage_tag(): range(11, 21),
+        source3.get_stage_tag(): range(21, 31),
+    })
 
 def _test_neural_net_1():
     # 输入层
@@ -190,38 +203,6 @@ def _test_neural_net_1():
 
     graph.start_graph(init_tasks)
 
-def test_star():
-    # 定义核心与边节点函数
-    core = TaskManager(func=square)
-    side1 = TaskManager(func=add_5)
-    side2 = TaskManager(func=add_10)
-    side3 = TaskManager(func=add_15)
-
-    # 构造 TaskStar
-    star = TaskStar(core_stage=core, side_stages=[side1, side2, side3])
-    star.set_reporter(True, host="127.0.0.1", port=5005)
-
-    star.start_star({
-        core.get_stage_tag(): range(1,11)
-    })
-
-def test_fanin():
-    # 创建 3 个节点，每个节点有不同偏移
-    source1 = TaskManager(func=add_5)
-    source2 = TaskManager(func=add_10)
-    source3 = TaskManager(func=square)
-    merge = TaskManager(func=add_sleep)
-
-    # 构造 TaskFanIn
-    fainin = TaskFanIn([source1, source2, source3], merge_stage=merge)
-    fainin.set_reporter(True, host="127.0.0.1", port=5005)
-
-    fainin.start_fanin({
-        source1.get_stage_tag(): range(1, 11),
-        source2.get_stage_tag(): range(11, 21),
-        source3.get_stage_tag(): range(21, 31),
-    })
-
 def _test_complete():
     # 创建 3 个节点，每个节点有不同偏移
     n1 = TaskManager(func=add_5)
@@ -237,3 +218,8 @@ def _test_complete():
         n2.get_stage_tag(): range(11, 21),
         n3.get_stage_tag(): range(21, 31),
     })
+
+
+if __name__ == "__main__":
+    # test_cross_0()
+    pass

@@ -9,15 +9,13 @@ from .task_nodes import TaskSplitter, TaskRedisTransfer
 from .task_support import BroadcastQueueManager, TerminationSignal
 from .task_tools import load_task_by_stage, load_task_by_error, make_hashable
 from .task_graph import TaskGraph
-from .task_structure import TaskChain, TaskLoop, TaskStar, TaskFanIn, TaskCross, TaskComplete
+from .task_structure import TaskChain, TaskLoop, TaskCross, TaskComplete
 from .task_web import TaskWebServer
 
 __all__ = [
     "TaskGraph",
     "TaskChain",
     "TaskLoop",
-    "TaskStar",
-    "TaskFanIn",
     "TaskCross",
     "TaskComplete",
     "TaskManager",
