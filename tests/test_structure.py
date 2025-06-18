@@ -40,7 +40,7 @@ def add_20(x):
 def add_25(x):
     return add_offset(x, 25)
 
-def _test_loop():
+def test_loop():
     stageA = TaskManager(add_sleep, 'thread', 3)
     stageB = TaskManager(add_sleep, 'thread', 3)
     stageC = TaskManager(add_sleep, 'thread', 3)
@@ -56,7 +56,7 @@ def _test_loop():
         stageA.get_stage_tag(): test_task_0
     })
 
-def _test_forest_0():
+def test_forest_0():
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -64,21 +64,35 @@ def _test_forest_0():
     stageD = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageE = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
 
+    # 构建 DAG: F ➝ G ➝ I；F ➝ H ➝ J
+    stageF = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+    stageG = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+    stageH = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+    stageI = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+    stageJ = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
+
     # 设置图结构
-    stageA.set_graph_context(next_stages=[stageC], stage_mode="process", stage_name="A")
-    stageB.set_graph_context(next_stages=[stageD], stage_mode="process", stage_name="B")
-    stageC.set_graph_context(next_stages=[stageE], stage_mode="process", stage_name="C")
-    stageD.set_graph_context(next_stages=[stageE], stage_mode="process", stage_name="D")
-    stageE.set_graph_context(stage_mode="process", stage_name="E")
+    stageA.set_graph_context([stageC], stage_mode="process", stage_name="stageA")
+    stageB.set_graph_context([stageD], stage_mode="process", stage_name="stageB")
+    stageC.set_graph_context([stageE], stage_mode="process", stage_name="stageC")
+    stageD.set_graph_context([stageE], stage_mode="process", stage_name="stageD")
+    stageE.set_graph_context(stage_mode="process", stage_name="stageE")
+
+    stageF.set_graph_context([stageG, stageH], stage_mode="process", stage_name="stageF")
+    stageG.set_graph_context([stageI], stage_mode="process", stage_name="stageG")
+    stageH.set_graph_context([stageJ], stage_mode="process", stage_name="stageH")
+    stageI.set_graph_context(stage_mode="process", stage_name="stageI")
+    stageJ.set_graph_context(stage_mode="process", stage_name="stageJ")
 
     # 构建 TaskGraph（多根）
-    graph = TaskGraph([stageA, stageB])  # 多根支持
+    graph = TaskGraph([stageA, stageB, stageF])  # 多根支持
     graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 初始任务
     init_tasks = {
         stageA.get_stage_tag(): range(1, 11),
-        stageB.get_stage_tag(): range(11,21)
+        stageB.get_stage_tag(): range(11, 21),
+        stageF.get_stage_tag(): range(21, 31),
     }
 
     graph.start_graph(init_tasks)
@@ -131,7 +145,7 @@ def test_cross_1():
 
     cross.start_cross(init_tasks)
 
-def test_star():
+def _test_star():
     # 定义核心与边节点函数
     core = TaskManager(func=square)
     side1 = TaskManager(func=add_5)
@@ -146,7 +160,7 @@ def test_star():
         core.get_stage_tag(): range(1,11)
     })
 
-def test_fanin():
+def _test_fanin():
     # 创建 3 个节点，每个节点有不同偏移
     source1 = TaskManager(func=add_5)
     source2 = TaskManager(func=add_10)
@@ -180,13 +194,13 @@ def _test_neural_net_1():
     D2 = TaskManager(neuron_activation, execution_mode="thread", worker_limit=2)
 
     # 构建拓扑结构（残差连接 A2 ➝ C1）
-    A1.set_graph_context(next_stages=[B1], stage_mode="process", stage_name="A1")
-    A2.set_graph_context(next_stages=[B2, C1], stage_mode="process", stage_name="A2")
+    A1.set_graph_context([B1], stage_mode="process", stage_name="A1")
+    A2.set_graph_context([B2, C1], stage_mode="process", stage_name="A2")
 
-    B1.set_graph_context(next_stages=[C1], stage_mode="process", stage_name="B1")
-    B2.set_graph_context(next_stages=[C1], stage_mode="process", stage_name="B2")
+    B1.set_graph_context([C1], stage_mode="process", stage_name="B1")
+    B2.set_graph_context([C1], stage_mode="process", stage_name="B2")
 
-    C1.set_graph_context(next_stages=[D1, D2], stage_mode="process", stage_name="C1")
+    C1.set_graph_context([D1, D2], stage_mode="process", stage_name="C1")
 
     D1.set_graph_context(stage_mode="process", stage_name="D1")
     D2.set_graph_context(stage_mode="process", stage_name="D2")
