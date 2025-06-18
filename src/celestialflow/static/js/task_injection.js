@@ -42,7 +42,7 @@ function setupEventListeners() {
     .addEventListener("change", handleFileUpload);
 }
 
-function renderNodeList(searchTerm = "") {
+function renderNodeList() {
   const nodeListHTML = Object.keys(nodeStatuses)
     .map((nodeName) => {
       // ✅ 根据 status 值确定样式和文本

@@ -1,4 +1,5 @@
 let nodeStatuses = {};
+let previousNodeStatusesJSON = "";
 let progressChart = null;
 let draggingNodeName = null;
 let hiddenNodes = new Set(

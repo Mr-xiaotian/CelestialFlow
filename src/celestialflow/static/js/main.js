@@ -7,11 +7,6 @@ const tabButtons = document.querySelectorAll(".tab-btn");
 const tabContents = document.querySelectorAll(".tab-content");
 const shutdownBtn = document.getElementById("shutdown-btn");
 
-// 初始化折叠节点记录
-let collapsedNodeIds = new Set(
-  JSON.parse(localStorage.getItem("collapsedNodes") || "[]")
-);
-
 document.addEventListener("DOMContentLoaded", async () => {
   const savedRate = parseInt(localStorage.getItem("refreshRate"));
   if (!isNaN(savedRate)) {
@@ -92,26 +87,37 @@ async function refreshAll() {
     loadErrors()      // 获取最新错误记录，更新 errors[]
   ]);
 
-  // 2️⃣ 渲染任务结构图（Mermaid 图），使用 nodeStatuses 和结构图数据
-  renderMermaidFromTaskStructure();
+  const currentStructureJSON = JSON.stringify(structureData);
+  const currentStatusesJSON = JSON.stringify(nodeStatuses);
+  const currentErrorsJSON = JSON.stringify(errors);
 
-  // 3️⃣ 更新顶部摘要数字（总处理、等待、错误、活跃节点数）
-  updateSummary();
+  const structureChanged = currentStructureJSON !== previousStructureDataJSON;
+  const statusesChanged = currentStatusesJSON !== previousNodeStatusesJSON;
+  const errorsChanged = currentErrorsJSON !== previousErrorsJSON;
 
-  // 4️⃣ 渲染节点状态仪表盘（左中面板中的每个节点卡片）
-  renderDashboard();
+  if (structureChanged || statusesChanged) {
+    previousStructureDataJSON = currentStructureJSON;
+    previousNodeStatusesJSON = currentStatusesJSON;
 
-  // 5️⃣ 更新右侧折线图（任务完成数量随时间变化）
-  updateChartData();
+    renderMermaidFromTaskStructure(); // 结构图依赖两者都必须最新
+  }
 
-  // 6️⃣ 渲染错误表格页面中的内容
-  renderErrors();
+  if (statusesChanged) {
+    previousNodeStatusesJSON = currentStatusesJSON;
 
-  // 7️⃣ 更新错误筛选下拉框（选项为所有节点名称）
-  populateNodeFilter();
+    updateSummary();        // 左下汇总数据
+    renderDashboard();      // 中间节点状态卡片
+    updateChartData();      // 右侧折线图
+    populateNodeFilter();   // 错误筛选器
+    renderNodeList(); // 注入页节点列表
+  }
 
-  // 8️⃣ 渲染任务注入页面中的节点选择列表（带运行状态）
-  renderNodeList();
+  if (errorsChanged) {
+    previousErrorsJSON = currentErrorsJSON;
+
+    renderErrors();         // 错误表格
+  }
+  
 }
 
 // 切换主题

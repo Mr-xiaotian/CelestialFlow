@@ -1,4 +1,5 @@
 let structureData = {};
+let previousStructureDataJSON = "";
 
 async function loadStructure() {
   try {
@@ -89,6 +90,11 @@ classDef blueNode fill:#e0f2fe,stroke:#0ea5e9,stroke-width:2px;
   old.replaceWith(newDiv);
   window.mermaid.run();
 }
+
+// 初始化折叠节点记录; 已弃用
+let collapsedNodeIds = new Set(
+  JSON.parse(localStorage.getItem("collapsedNodes") || "[]")
+);
 
 // 渲染任务结构图; 已弃用
 function renderGraph(graphs) {

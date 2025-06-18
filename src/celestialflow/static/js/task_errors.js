@@ -1,4 +1,5 @@
 let errors = [];
+let previousErrorsJSON = "";
 let currentPage = 1;
 const pageSize = 5;
 
