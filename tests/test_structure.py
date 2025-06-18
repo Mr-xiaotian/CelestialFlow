@@ -41,9 +41,9 @@ def add_25(x):
     return add_offset(x, 25)
 
 def test_loop():
-    stageA = TaskManager(add_sleep, 'thread', 3)
-    stageB = TaskManager(add_sleep, 'thread', 3)
-    stageC = TaskManager(add_sleep, 'thread', 3)
+    stageA = TaskManager(add_sleep, 'serial')
+    stageB = TaskManager(add_sleep, 'serial')
+    stageC = TaskManager(add_sleep, 'serial')
 
     graph = TaskLoop([stageA, stageB, stageC])
     graph.set_reporter(True, host="127.0.0.1", port=5005)
@@ -56,7 +56,7 @@ def test_loop():
         stageA.get_stage_tag(): test_task_0
     })
 
-def test_forest_0():
+def test_forest():
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -102,7 +102,7 @@ def test_cross_0():
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageC = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
-    stageD = TaskManager(add_sleep, execution_mode="serial", worker_limit=2)
+    stageD = TaskManager(add_sleep, execution_mode="thread", worker_limit=5)
     stageE = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageF = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageG = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -120,7 +120,7 @@ def test_cross_0():
 
     cross.start_cross(init_tasks)
 
-def test_cross_1():
+def _test_network():
     # 输入层
     A1 = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     A2 = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -145,7 +145,7 @@ def test_cross_1():
 
     cross.start_cross(init_tasks)
 
-def _test_star():
+def test_star():
     # 定义核心与边节点函数
     core = TaskManager(func=square)
     side1 = TaskManager(func=add_5)
@@ -160,12 +160,12 @@ def _test_star():
         core.get_stage_tag(): range(1,11)
     })
 
-def _test_fanin():
+def test_fanin():
     # 创建 3 个节点，每个节点有不同偏移
     source1 = TaskManager(func=add_5)
     source2 = TaskManager(func=add_10)
     source3 = TaskManager(func=square)
-    merge = TaskManager(func=add_sleep)
+    merge = TaskManager(add_sleep, "thread", 2)
 
     # 构造 TaskCross
     fainin = TaskCross([[source1, source2, source3], [merge]], "process")

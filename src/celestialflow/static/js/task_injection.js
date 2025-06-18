@@ -167,22 +167,6 @@ function fillTermination() {
   hideError("json-error");
 }
 
-function validateJSON(text) {
-  if (!text.trim()) {
-    hideError("json-error");
-    return true;
-  }
-
-  try {
-    JSON.parse(text);
-    hideError("json-error");
-    return true;
-  } catch (e) {
-    showError("json-error", "JSON 格式不合法");
-    return false;
-  }
-}
-
 function handleFileUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
