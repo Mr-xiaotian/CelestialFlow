@@ -1,7 +1,10 @@
 let errors = [];
+let currentPage = 1;
+const pageSize = 5;
 
 const nodeFilter = document.getElementById("node-filter");
 const errorsTableBody = document.querySelector("#errors-table tbody");
+const paginationContainer = document.getElementById("pagination-container");
 
 async function loadErrors() {
   try {
@@ -16,32 +19,69 @@ function renderErrors() {
   const filter = nodeFilter.value;
   const filtered = filter ? errors.filter((e) => e.node === filter) : errors;
 
-  errorsTableBody.innerHTML = "";
-  if (!filtered.length) {
-    errorsTableBody.innerHTML = `<tr><td colspan="4" class="no-errors">没有错误记录</td></tr>`;
-    return;
-  }
-
-  // 按时间戳降序排序（最新的错误排在最前面）
   const sortedByTime = [...filtered].sort((a, b) => b.timestamp - a.timestamp);
+  const totalPages = Math.ceil(sortedByTime.length / pageSize);
 
-  for (const e of sortedByTime) {
-    const row = document.createElement("tr");
-    row.innerHTML = `
-          <td class="error-message">${e.error}</td>
-          <td>${e.node}</td>
-          <td>${e.task_id}</td>
-          <td>${formatTimestamp(e.timestamp)}</td>
-        `;
-    errorsTableBody.appendChild(row);
+  // 处理边界（例如当前页大于最大页）
+  currentPage = Math.min(currentPage, totalPages || 1);
+
+  const startIndex = (currentPage - 1) * pageSize;
+  const pageItems = sortedByTime.slice(startIndex, startIndex + pageSize);
+
+  errorsTableBody.innerHTML = "";
+
+  if (!pageItems.length) {
+    errorsTableBody.innerHTML = `<tr><td colspan="4" class="no-errors">没有错误记录</td></tr>`;
+  } else {
+    for (const e of pageItems) {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td class="error-message">${e.error}</td>
+        <td>${e.node}</td>
+        <td>${e.task_id}</td>
+        <td>${formatTimestamp(e.timestamp)}</td>
+      `;
+      errorsTableBody.appendChild(row);
+    }
   }
+
+  renderPaginationControls(totalPages);
+}
+
+function renderPaginationControls(totalPages) {
+  paginationContainer.innerHTML = "";
+
+  if (totalPages <= 1) return;
+
+  const prevBtn = document.createElement("button");
+  prevBtn.textContent = "上一页";
+  prevBtn.disabled = currentPage === 1;
+  prevBtn.onclick = () => {
+    currentPage--;
+    renderErrors();
+  };
+
+  const nextBtn = document.createElement("button");
+  nextBtn.textContent = "下一页";
+  nextBtn.disabled = currentPage === totalPages;
+  nextBtn.onclick = () => {
+    currentPage++;
+    renderErrors();
+  };
+
+  const info = document.createElement("span");
+  info.className = "pagination-info";
+  info.textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
+
+  paginationContainer.appendChild(prevBtn);
+  paginationContainer.appendChild(info);
+  paginationContainer.appendChild(nextBtn);
 }
 
 function populateNodeFilter() {
   const nodes = Object.keys(nodeStatuses);
-  const previousValue = nodeFilter.value; // 记住当前选中值
+  const previousValue = nodeFilter.value;
 
-  // 重新填充选项
   nodeFilter.innerHTML = `<option value="">全部节点</option>`;
   for (const node of nodes) {
     const option = document.createElement("option");
@@ -50,14 +90,14 @@ function populateNodeFilter() {
     nodeFilter.appendChild(option);
   }
 
-  // 尝试恢复之前的选中项
   if (nodes.includes(previousValue)) {
     nodeFilter.value = previousValue;
   } else {
-    nodeFilter.value = ""; // 默认选“全部节点”
+    nodeFilter.value = "";
   }
 }
 
 nodeFilter.addEventListener("change", () => {
+  currentPage = 1; // 切换节点时回到第一页
   renderErrors();
 });

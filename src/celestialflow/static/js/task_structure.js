@@ -4,13 +4,6 @@ async function loadStructure() {
   try {
     const res = await fetch("/api/get_structure");
     structureData = await res.json(); // 现在是数组格式
-
-    if (!Array.isArray(structureData) || structureData.length === 0) {
-      return;
-    }
-
-    // renderGraph(data);
-    // renderMermaidFromTaskStructure(structureData);
   } catch (e) {
     console.error("结构加载失败", e);
   }

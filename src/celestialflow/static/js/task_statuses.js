@@ -214,7 +214,8 @@ function initChart() {
   });
 }
 
-function updateChartData(nodeDataMap) {
+function updateChartData() {
+  const nodeDataMap = extractProgressData(nodeStatuses);
   const datasets = Object.entries(nodeDataMap).map(([node, data], index) => ({
     label: node,
     data: data,

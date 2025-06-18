@@ -80,22 +80,38 @@ async function pushRefreshRate() {
   }
 }
 
+// 主刷新函数：每次调用时会拉取最新状态、结构、错误信息，并更新所有 UI 部件
 async function refreshAll() {
-  await Promise.all([loadStatuses(), loadStructure(), loadErrors()]);
-  renderDashboard();
-  updateSummary();
+  // 1️⃣ 并行获取节点状态、任务结构、错误日志（注意是异步 API 请求）
+  // - nodeStatuses 会被 loadStatuses 更新
+  // - 结构数据会被 loadStructure 使用来渲染 Mermaid 图
+  // - errors 会被 loadErrors 更新后用于错误列表渲染
+  await Promise.all([
+    loadStatuses(),   // 从后端拉取节点运行状态（处理数、等待数、失败数等），更新 nodeStatuses
+    loadStructure(),  // 拉取任务结构（有向图），内部调用 renderMermaidFromTaskStructure(...)
+    loadErrors()      // 获取最新错误记录，更新 errors[]
+  ]);
+
+  // 2️⃣ 渲染任务结构图（Mermaid 图），使用 nodeStatuses 和结构图数据
   renderMermaidFromTaskStructure();
+
+  // 3️⃣ 更新顶部摘要数字（总处理、等待、错误、活跃节点数）
+  updateSummary();
+
+  // 4️⃣ 渲染节点状态仪表盘（左中面板中的每个节点卡片）
+  renderDashboard();
+
+  // 5️⃣ 更新右侧折线图（任务完成数量随时间变化）
+  updateChartData();
+
+  // 6️⃣ 渲染错误表格页面中的内容
   renderErrors();
+
+  // 7️⃣ 更新错误筛选下拉框（选项为所有节点名称）
   populateNodeFilter();
 
-  // 新增: 更新任务注入页面的节点列表
-  if (typeof renderNodeList === "function") {
-    renderNodeList();
-  }
-
-  // 在这里调用折线图更新
-  const progressData = extractProgressData(nodeStatuses);
-  updateChartData(progressData);
+  // 8️⃣ 渲染任务注入页面中的节点选择列表（带运行状态）
+  renderNodeList();
 }
 
 // 切换主题
