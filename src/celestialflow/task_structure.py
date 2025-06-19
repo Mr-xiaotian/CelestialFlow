@@ -113,6 +113,44 @@ class TaskCross(TaskGraph):
                     self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
 
 
+class TaskWheel(TaskGraph):
+    def __init__(self, center: TaskManager, ring: List[TaskManager]):
+        # 中心连向环
+        center.set_graph_context(ring, "process", "Center")
+        # 环相连（成闭环）
+        for i, node in enumerate(ring):
+            next_stage = ring[(i + 1) % len(ring)]
+            node.set_graph_context([next_stage], "process", f"Ring-{i+1}")
+        super().__init__([center])
+
+    def start_wheel(self, init_tasks_dict: dict):
+        """
+        启动任务轮结构
+        :param init_tasks_dict: 任务列表
+        """
+        self.start_graph(init_tasks_dict, False)
+
+
+class TaskGrid(TaskGraph):
+    def __init__(self, grid: List[List[TaskManager]], grid_mode: str = "serial"):
+        rows, cols = len(grid), len(grid[0])
+        for i in range(rows):
+            for j in range(cols):
+                curr = grid[i][j]
+                nexts = []
+                if i + 1 < rows: nexts.append(grid[i+1][j])  # down
+                if j + 1 < cols: nexts.append(grid[i][j+1])  # right
+                curr.set_graph_context(nexts, grid_mode, f"Grid-{i+1}-{j+1}")
+        super().__init__([grid[0][0]])  # 起点为左上角
+
+    def start_grid(self, init_tasks_dict: dict, put_termination_signal: bool=True):
+        """
+        启动任务网格结构
+        :param init_tasks_dict: 任务列表
+        """
+        self.start_graph(init_tasks_dict, put_termination_signal)
+
+
 class TaskComplete(TaskGraph):
     def __init__(self, stages: List[TaskManager]):
         """

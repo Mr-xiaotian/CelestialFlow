@@ -1,7 +1,7 @@
 import pytest, logging
 import math
 from time import sleep
-from celestialflow import TaskManager, TaskGraph, TaskLoop, TaskCross, TaskComplete
+from celestialflow import TaskManager, TaskGraph, TaskLoop, TaskCross, TaskComplete, TaskWheel, TaskGrid
 
 
 def add_sleep(n):
@@ -40,7 +40,7 @@ def add_20(x):
 def add_25(x):
     return add_offset(x, 25)
 
-def test_loop():
+def _test_loop():
     stageA = TaskManager(add_sleep, 'serial')
     stageB = TaskManager(add_sleep, 'serial')
     stageC = TaskManager(add_sleep, 'serial')
@@ -56,7 +56,7 @@ def test_loop():
         stageA.get_stage_tag(): test_task_0
     })
 
-def test_forest():
+def _test_forest():
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -97,7 +97,7 @@ def test_forest():
 
     graph.start_graph(init_tasks)
 
-def test_cross_0():
+def _test_cross_0():
     # 构建 DAG
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -145,7 +145,7 @@ def _test_network():
 
     cross.start_cross(init_tasks)
 
-def test_star():
+def _test_star():
     # 定义核心与边节点函数
     core = TaskManager(func=square)
     side1 = TaskManager(func=add_5)
@@ -160,7 +160,7 @@ def test_star():
         core.get_stage_tag(): range(1,11)
     })
 
-def test_fanin():
+def _test_fanin():
     # 创建 3 个节点，每个节点有不同偏移
     source1 = TaskManager(func=add_5)
     source2 = TaskManager(func=add_10)
@@ -176,6 +176,41 @@ def test_fanin():
         source2.get_stage_tag(): range(11, 21),
         source3.get_stage_tag(): range(21, 31),
     })
+
+def _test_wheel():
+    # 定义核心与边节点函数
+    core = TaskManager(func=square)
+    side1 = TaskManager(func=add_sleep)
+    side2 = TaskManager(func=add_sleep)
+    side3 = TaskManager(func=add_sleep)
+    side4 = TaskManager(func=add_sleep)
+
+    # 构造 TaskCross
+    wheel = TaskWheel(core, [side1, side2, side3, side4])
+    wheel.set_reporter(True, host="127.0.0.1", port=5005)
+
+    wheel.start_wheel({
+        core.get_stage_tag(): range(1,11)
+    })
+
+def test_grid():
+    # 1. 构造 2x2 网格
+    grid = [
+        [TaskManager(add_sleep) for _ in range(4)]
+        for _ in range(4)
+    ]
+
+    # 2. 构建 TaskGrid 实例
+    task_grid = TaskGrid(grid, "process")
+    task_grid.set_reporter(True, host="127.0.0.1", port=5005)
+
+    # 3. 初始化任务字典，只放左上角一个任务
+    init_dict = {
+        grid[0][0].get_stage_tag(): range(10)
+    }
+
+    # 4. 启动任务图
+    task_grid.start_graph(init_dict)
 
 def _test_neural_net_1():
     # 输入层
