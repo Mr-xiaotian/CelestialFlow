@@ -65,6 +65,7 @@ th {
   border: none;
   border-radius: 4px;
   background-color: #e5e7eb;
+  color: #111827;
   cursor: pointer;
 }
 
@@ -129,3 +130,21 @@ th {
   border: 1px solid #555;
 }
 
+.dark-theme .pagination-container button {
+  background-color: #374151; /* 深灰背景 */
+  color: #f3f4f6;             /* 浅灰文字 */
+}
+
+.dark-theme .pagination-container button:hover:not(:disabled) {
+  background-color: #4b5563;
+}
+
+.dark-theme .pagination-container button:disabled {
+  background-color: #1f2937;
+  color: #9ca3af;
+  opacity: 0.6;
+}
+
+.dark-theme .pagination-info {
+  color: #d1d5db;
+}

@@ -242,8 +242,7 @@ select {
   border: 1px solid #4b5563;
 }
 
-/* .dark-theme .btn-stop { background-color: #b91c1c; }
-.dark-theme .btn-stop:hover { background-color: #991b1b; } */
+.dark-theme .btn-stop:hover { background-color: #4b5563; }
 
 .dark-theme #theme-toggle {
   background-color: #3b6fd9;

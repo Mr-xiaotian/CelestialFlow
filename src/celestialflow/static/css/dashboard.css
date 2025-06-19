@@ -360,6 +360,10 @@
 /* ================================
   🌟 暗黑模式适配
 ================================ */
+.dark-theme .mermaid span {
+  color: #d1d5db!important;
+}
+
 .dark-theme .summary-item.blue {
   background-color: #1e3a8a;
 }

@@ -1,11 +1,11 @@
 let refreshRate = 5000;
 let refreshIntervalId = null;
 
-const themeToggleBtn = document.getElementById("theme-toggle");
 const refreshSelect = document.getElementById("refresh-interval");
+const themeToggleBtn = document.getElementById("theme-toggle");
+const shutdownBtn = document.getElementById("shutdown-btn");
 const tabButtons = document.querySelectorAll(".tab-btn");
 const tabContents = document.querySelectorAll(".tab-content");
-const shutdownBtn = document.getElementById("shutdown-btn");
 
 document.addEventListener("DOMContentLoaded", async () => {
   const savedRate = parseInt(localStorage.getItem("refreshRate"));
@@ -23,9 +23,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   themeToggleBtn.addEventListener("click", () => {
-    const isDark = document.body.classList.toggle("dark-theme");
+    const isDark = toggleDarkTheme();
     localStorage.setItem("theme", isDark ? "dark" : "light");
     themeToggleBtn.textContent = isDark ? "🌞 白天模式" : "🌙 夜间模式";
+    renderMermaidFromTaskStructure(); // 主题切换后重新渲染 Mermaid 图
   });
 
   tabButtons.forEach((button) => {
@@ -77,7 +78,7 @@ async function pushRefreshRate() {
 
 // 主刷新函数：每次调用时会拉取最新状态、结构、错误信息，并更新所有 UI 部件
 async function refreshAll() {
-  // 1️⃣ 并行获取节点状态、任务结构、错误日志（注意是异步 API 请求）
+  // 并行获取节点状态、任务结构、错误日志（注意是异步 API 请求）
   // - nodeStatuses 会被 loadStatuses 更新
   // - 结构数据会被 loadStructure 使用来渲染 Mermaid 图
   // - errors 会被 loadErrors 更新后用于错误列表渲染
@@ -87,20 +88,13 @@ async function refreshAll() {
     loadErrors()      // 获取最新错误记录，更新 errors[]
   ]);
 
-  const currentStructureJSON = JSON.stringify(structureData);
   const currentStatusesJSON = JSON.stringify(nodeStatuses);
+  const currentStructureJSON = JSON.stringify(structureData);
   const currentErrorsJSON = JSON.stringify(errors);
 
-  const structureChanged = currentStructureJSON !== previousStructureDataJSON;
   const statusesChanged = currentStatusesJSON !== previousNodeStatusesJSON;
+  const structureChanged = currentStructureJSON !== previousStructureDataJSON;
   const errorsChanged = currentErrorsJSON !== previousErrorsJSON;
-
-  if (structureChanged || statusesChanged) {
-    previousStructureDataJSON = currentStructureJSON;
-    previousNodeStatusesJSON = currentStatusesJSON;
-
-    renderMermaidFromTaskStructure(); // 结构图依赖两者都必须最新
-  }
 
   if (statusesChanged) {
     previousNodeStatusesJSON = currentStatusesJSON;
@@ -109,7 +103,14 @@ async function refreshAll() {
     renderDashboard();      // 中间节点状态卡片
     updateChartData();      // 右侧折线图
     populateNodeFilter();   // 错误筛选器
-    renderNodeList(); // 注入页节点列表
+    renderNodeList();       // 注入页节点列表
+  }
+
+  if (structureChanged || statusesChanged) {
+    previousStructureDataJSON = currentStructureJSON;
+    previousNodeStatusesJSON = currentStatusesJSON;
+
+    renderMermaidFromTaskStructure(); // 结构图依赖两者都必须最新
   }
 
   if (errorsChanged) {
@@ -118,9 +119,4 @@ async function refreshAll() {
     renderErrors();         // 错误表格
   }
   
-}
-
-// 切换主题
-function toggleTheme() {
-  document.body.classList.toggle("dark-theme");
 }

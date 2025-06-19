@@ -58,3 +58,7 @@ function validateJSON(text) {
     return false;
   }
 }
+
+function toggleDarkTheme() {
+  return document.body.classList.toggle("dark-theme");
+}

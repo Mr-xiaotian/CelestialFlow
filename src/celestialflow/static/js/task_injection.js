@@ -81,7 +81,7 @@ function selectNode(nodeName) {
   };
 
   selectedNodes = [node];
-  console.log("选中的节点列表:", selectedNodes);
+  // console.log("选中的节点列表:", selectedNodes);
   updateSelectedNodes();
 }
 

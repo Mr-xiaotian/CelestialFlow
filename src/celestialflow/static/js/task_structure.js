@@ -36,11 +36,24 @@ function renderMermaidFromTaskStructure() {
   const nodeLabels = new Map();
   const classDefs = [];
 
-  const styleBlock = `
+  // ✅ 判断是否是暗黑主题
+  const isDark = document.body.classList.contains("dark-theme");
+
+  // ✅ 样式区块：根据主题切换
+  const styleBlock = isDark
+    ? `
+classDef whiteNode fill:#1f2937,stroke:#e5e7eb,stroke-width:1px;
+classDef greyNode fill:#374151,stroke:#9ca3af,stroke-width:1px;
+classDef greenNode fill:#14532d,stroke:#22c55e,stroke-width:2px;
+classDef blueNode fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px;
+linkStyle default stroke:#9ca3af,stroke-width:1.5px;
+`
+    : `
 classDef whiteNode fill:#ffffff,stroke:#333,stroke-width:1px;
 classDef greyNode fill:#f3f4f6,stroke:#999,stroke-width:1px;
 classDef greenNode fill:#dcfce7,stroke:#16a34a,stroke-width:2px;
 classDef blueNode fill:#e0f2fe,stroke:#0ea5e9,stroke-width:2px;
+linkStyle default stroke:#999,stroke-width:1.5px;
 `;
 
   function walk(node) {
