@@ -1,6 +1,7 @@
 import json, ast
 import hashlib
 import pickle
+import networkx as nx
 from collections import defaultdict
 from datetime import datetime
 from multiprocessing import Queue as MPQueue
@@ -107,6 +108,33 @@ def format_structure_list_from_graph(root_roots: List[Dict] = None, indent=0) ->
     content_lines = [f"| {line.ljust(max_length)} |" for line in all_lines]
     border = "+" + "-" * (max_length + 2) + "+"
     return [border] + content_lines + [border]
+
+def format_networkx_graph(structure_graph: List[Dict[str, Any]]) -> nx.DiGraph:
+    """
+    将结构图（由 build_structure_graph 生成）转换为 networkx 有向图（DiGraph）
+
+    :param structure_graph: JSON 格式的任务结构图，List[Dict]
+    :return: 构建好的 networkx.DiGraph
+    """
+    G = nx.DiGraph()
+
+    def add_node_and_edges(node: Dict[str, Any]):
+        node_id = node["stage_name"]
+        G.add_node(node_id, **{
+            "func": node.get("func_name"),
+            "mode": node.get("stage_mode")
+        })
+
+        for child in node.get("next_stages", []):
+            child_id = child["stage_name"]
+            G.add_edge(node_id, child_id)
+            # 递归添加子节点
+            add_node_and_edges(child)
+
+    for root in structure_graph:
+        add_node_and_edges(root)
+
+    return G
 
 def append_jsonl_log(log_data: dict, start_time: float, base_path: str, prefix: str, logger=None):
     """

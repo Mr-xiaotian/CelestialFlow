@@ -9,7 +9,16 @@ from typing import Any, Dict, List, Tuple
 from .task_manage import TaskManager
 from .task_nodes import TaskSplitter
 from .task_support import TERMINATION_SIGNAL, TaskError, TaskReporter, LogListener, TaskLogger, ValueWrapper, TerminationSignal, StageStatus
-from .task_tools import format_duration, format_timestamp, cleanup_mpqueue, make_hashable, build_structure_graph, format_structure_list_from_graph, append_jsonl_log
+from .task_tools import (
+    format_duration,
+    format_timestamp,
+    cleanup_mpqueue,
+    make_hashable,
+    build_structure_graph,
+    format_structure_list_from_graph,
+    append_jsonl_log,
+    format_networkx_graph,
+)
 
 
 class TaskGraph:
@@ -538,6 +547,9 @@ class TaskGraph:
     
     def get_structure_list(self):
         return format_structure_list_from_graph(self.structure_graph)
+    
+    def get_networkx_graph(self):
+        return format_networkx_graph(self.structure_graph)
 
     def test_methods(self, init_tasks_dict: Dict[str, List], stage_modes: list=None, execution_modes: list=None) -> Dict[str, Any]:
         """

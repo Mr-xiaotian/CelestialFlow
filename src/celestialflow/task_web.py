@@ -1,5 +1,3 @@
-# inst_task/task_web.py
-
 import os, sys
 import threading
 from flask import Flask, jsonify, render_template, request
