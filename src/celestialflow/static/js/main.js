@@ -27,6 +27,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     localStorage.setItem("theme", isDark ? "dark" : "light");
     themeToggleBtn.textContent = isDark ? "🌞 白天模式" : "🌙 夜间模式";
     renderMermaidFromTaskStructure(); // 主题切换后重新渲染 Mermaid 图
+    initChart(); // 主题切换后重新渲染折线图
+    updateChartData();
   });
 
   tabButtons.forEach((button) => {

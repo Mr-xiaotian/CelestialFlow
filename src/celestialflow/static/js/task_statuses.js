@@ -164,6 +164,18 @@ function updateSummary() {
 
 function initChart() {
   const ctx = document.getElementById("node-progress-chart").getContext("2d");
+
+  // ✅ 销毁旧实例（关键）
+  if (progressChart) {
+    progressChart.destroy();
+  }
+
+  const isDark = document.body.classList.contains("dark-theme");
+
+  const textColor = isDark ? "#e5e7eb" : "#111827"; // 字体颜色
+  const gridColor = isDark ? "#4b5563" : "#e5e7eb"; // 网格线颜色
+  const borderColor = isDark ? "#6b7280" : "#d1d5db"; // 轴线颜色
+
   progressChart = new Chart(ctx, {
     type: "line",
     data: {
@@ -171,29 +183,25 @@ function initChart() {
       datasets: [],
     },
     options: {
-      animation: false, // 直接关掉所有动画
+      animation: false,
       responsive: true,
       plugins: {
         legend: {
-          display: true,
+          labels: {
+            color: textColor, // 图例文字颜色
+          },
           onClick: (e, legendItem, legend) => {
             const index = legendItem.datasetIndex;
             const nodeName = progressChart.data.datasets[index].label;
 
-            // 更新隐藏集合
             if (hiddenNodes.has(nodeName)) {
               hiddenNodes.delete(nodeName);
             } else {
               hiddenNodes.add(nodeName);
             }
 
-            // 持久化保存到 localStorage
-            localStorage.setItem(
-              "hiddenNodes",
-              JSON.stringify([...hiddenNodes])
-            );
+            localStorage.setItem("hiddenNodes", JSON.stringify([...hiddenNodes]));
 
-            // 继续默认 Chart.js 的隐藏逻辑
             const meta = legend.chart.getDatasetMeta(index);
             meta.hidden =
               meta.hidden === null
@@ -208,8 +216,18 @@ function initChart() {
         mode: "index",
       },
       scales: {
-        x: { display: true, title: { display: true, text: "时间" } },
-        y: { display: true, title: { display: true, text: "完成任务数" } },
+        x: {
+          ticks: { color: textColor },
+          grid: { color: gridColor },
+          title: { display: true, text: "时间", color: textColor },
+          border: { color: borderColor },
+        },
+        y: {
+          ticks: { color: textColor },
+          grid: { color: gridColor },
+          title: { display: true, text: "完成任务数", color: textColor },
+          border: { color: borderColor },
+        },
       },
     },
   });

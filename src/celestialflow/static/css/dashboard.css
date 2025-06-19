@@ -360,6 +360,10 @@
 /* ================================
   🌟 暗黑模式适配
 ================================ */
+.dark-theme .mermaid .arrowMarkerPath {
+  fill: #e5e7eb; /* 浅灰箭头 */
+}
+
 .dark-theme .mermaid span {
   color: #d1d5db!important;
 }
