@@ -69,9 +69,14 @@ th {
   cursor: pointer;
 }
 
+.pagination-container button:hover:not(:disabled) {
+  background-color: #d1d5db;
+}
+
 .pagination-container button:disabled {
-  opacity: 0.5;
+  color: #9ca3af;
   cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .pagination-info {

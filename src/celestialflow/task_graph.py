@@ -18,6 +18,8 @@ from .task_tools import (
     format_structure_list_from_graph,
     append_jsonl_log,
     format_networkx_graph,
+    is_directed_acyclic_graph,
+    compute_node_levels,
 )
 
 
@@ -30,6 +32,7 @@ class TaskGraph:
 
         self.init_env()
         self.init_structure_graph()
+        self.analyze_graph()
         self.set_reporter()
 
     def init_env(self):
@@ -550,6 +553,13 @@ class TaskGraph:
     
     def get_networkx_graph(self):
         return format_networkx_graph(self.structure_graph)
+    
+    def analyze_graph(self):
+        networkx_graph = self.get_networkx_graph()
+
+        self.is_directed = is_directed_acyclic_graph(networkx_graph)
+        if self.is_directed:
+            self.stage_level_dict = compute_node_levels(networkx_graph)
 
     def test_methods(self, init_tasks_dict: Dict[str, List], stage_modes: list=None, execution_modes: list=None) -> Dict[str, Any]:
         """

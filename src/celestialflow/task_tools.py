@@ -2,6 +2,7 @@ import json, ast
 import hashlib
 import pickle
 import networkx as nx
+from networkx import is_directed_acyclic_graph
 from collections import defaultdict
 from datetime import datetime
 from multiprocessing import Queue as MPQueue
@@ -109,33 +110,6 @@ def format_structure_list_from_graph(root_roots: List[Dict] = None, indent=0) ->
     border = "+" + "-" * (max_length + 2) + "+"
     return [border] + content_lines + [border]
 
-def format_networkx_graph(structure_graph: List[Dict[str, Any]]) -> nx.DiGraph:
-    """
-    将结构图（由 build_structure_graph 生成）转换为 networkx 有向图（DiGraph）
-
-    :param structure_graph: JSON 格式的任务结构图，List[Dict]
-    :return: 构建好的 networkx.DiGraph
-    """
-    G = nx.DiGraph()
-
-    def add_node_and_edges(node: Dict[str, Any]):
-        node_id = node["stage_name"]
-        G.add_node(node_id, **{
-            "func": node.get("func_name"),
-            "mode": node.get("stage_mode")
-        })
-
-        for child in node.get("next_stages", []):
-            child_id = child["stage_name"]
-            G.add_edge(node_id, child_id)
-            # 递归添加子节点
-            add_node_and_edges(child)
-
-    for root in structure_graph:
-        add_node_and_edges(root)
-
-    return G
-
 def append_jsonl_log(log_data: dict, start_time: float, base_path: str, prefix: str, logger=None):
     """
     将日志字典写入指定目录下的 JSONL 文件。
@@ -157,6 +131,52 @@ def append_jsonl_log(log_data: dict, start_time: float, base_path: str, prefix: 
     except Exception as e:
         if logger:
             logger._log("WARNING", f"[Persist] 写入日志失败: {e}")
+
+# ========(图论分析)========
+def format_networkx_graph(structure_graph: List[Dict[str, Any]]) -> nx.DiGraph:
+    """
+    将结构图（由 build_structure_graph 生成）转换为 networkx 有向图（DiGraph）
+
+    :param structure_graph: JSON 格式的任务结构图，List[Dict]
+    :return: 构建好的 networkx.DiGraph
+    """
+    G = nx.DiGraph()
+
+    def add_node_and_edges(node: Dict[str, Any]):
+        node_id = f'{node["stage_name"]}({node.get("func_name")})'
+        G.add_node(node_id, **{
+            "func": node.get("func_name"),
+            "mode": node.get("stage_mode")
+        })
+
+        for child in node.get("next_stages", []):
+            child_id = child["stage_name"]
+            G.add_edge(node_id, child_id)
+            # 递归添加子节点
+            add_node_and_edges(child)
+
+    for root in structure_graph:
+        add_node_and_edges(root)
+
+    return G
+
+def compute_node_levels(G: nx.DiGraph) -> Dict[str, int]:
+    """
+    计算 DAG 中每个节点的层级（最早执行阶段）
+    前提：图必须是有向无环图（DAG）
+
+    返回: dict[node] = level (int)
+    """
+    if not nx.is_directed_acyclic_graph(G):
+        raise ValueError("该图不是 DAG，无法进行层级划分")
+
+    level = {node: 0 for node in G.nodes}  # 初始层级为 0
+
+    for node in nx.topological_sort(G):  # 按拓扑顺序遍历
+        for succ in G.successors(node):
+            level[succ] = max(level[succ], level[node] + 1)
+
+    return level
 
 
 # ========调用于task_manage.py========
