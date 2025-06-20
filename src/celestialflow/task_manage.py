@@ -212,7 +212,7 @@ class TaskManager:
         """
         return f"{self.stage_name}[{self.func.__name__}]"
     
-    def get_status_snapshot(self) -> dict:
+    def get_stage_summary(self) -> dict:
         """
         获取当前节点的状态快照
         """

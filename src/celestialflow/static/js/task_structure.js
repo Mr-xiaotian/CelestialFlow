@@ -1,5 +1,7 @@
-let structureData = {};
+let structureData = [];
 let previousStructureDataJSON = "";
+
+const mermaidTitle = document.getElementById("mermaid-title");
 
 async function loadStructure() {
   try {
@@ -35,6 +37,7 @@ function renderMermaidFromTaskStructure() {
   const edges = new Set();
   const nodeLabels = new Map();
   const classDefs = [];
+  const tagToId = {}; // "Grid_1_1[load_func]" -> "Grid_1_1"
 
   // ✅ 判断是否是暗黑主题
   const isDark = document.body.classList.contains("dark-theme");
@@ -56,9 +59,14 @@ classDef blueNode fill:#e0f2fe,stroke:#0ea5e9,stroke-width:2px;
 linkStyle default stroke:#999,stroke-width:1.5px;
 `;
 
+const structureClassName = topologyData.class_name || "Mermaid";
+mermaidTitle.textContent = `任务结构图（${structureClassName}）`;
+
   function walk(node) {
     const id = getNodeId(node);
     const label = `${node.stage_name}`;
+    const tag = `${node.stage_name}[${node.func_name}]`;
+    tagToId[tag] = id; // 保存 tag 到 ID 的映射
 
     let shape = "box";
     if (node.func_name === "_split_task") shape = "round";
@@ -67,7 +75,6 @@ linkStyle default stroke:#999,stroke-width:1.5px;
     nodeLabels.set(id, getShapeWrappedLabel(label, shape));
 
     // 🧠 找对应状态 class
-    const tag = `${node.stage_name}[${node.func_name}]`;
     const statusInfo = nodeStatuses?.[tag];
     let statusClass = "whiteNode";
     if (statusInfo) {
@@ -88,6 +95,26 @@ linkStyle default stroke:#999,stroke-width:1.5px;
   }
 
   structureData.forEach((graph) => walk(graph));
+
+  // let defs = [];
+
+  // if (topologyData.layout_mode === "serial") {
+  //   const layers = topologyData.layers_dict || {};
+  //   const sortedLayerKeys = Object.keys(layers).sort((a, b) => Number(a) - Number(b));
+  //   for (const layer of sortedLayerKeys) {
+  //     defs.push(`  subgraph layer_${layer}`);
+  //     for (const tag of layers[layer]) {
+  //       const id = tagToId[tag];
+  //       const label = nodeLabels.get(id);
+  //       if (id && label) {
+  //         defs.push(`    ${id}${label}`);
+  //       }
+  //     }
+  //     defs.push("  end");
+  //   }
+  // } else {
+  //   defs = [...nodeLabels.entries()].map(([id, label]) => `  ${id}${label}`);
+  // }
 
   const defs = [...nodeLabels.entries()].map(
     ([id, shapeLabel]) => `  ${id}${shapeLabel}`

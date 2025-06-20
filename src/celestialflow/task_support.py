@@ -212,11 +212,15 @@ class TaskReporter:
             self._stop_flag.wait(self.interval)
 
     def push_once(self):
+        # 拉取逻辑
         self._pull_interval()
-        self._pull_and_inject_tasks()  # 新增的注入逻辑
+        self._pull_and_inject_tasks()
+
+        # 推送逻辑
         self._push_errors()
         self._push_status()
         self._push_structure()
+        self._push_topology()
 
     def _pull_interval(self):
         try:
@@ -272,10 +276,17 @@ class TaskReporter:
 
     def _push_structure(self):
         try:
-            structure = self.task_graph.get_structure_graph()
+            structure = self.task_graph.get_structure_json()
             requests.post(f"{self.base_url}/api/push_structure", json=structure, timeout=1)
         except Exception as e:
             self.logger._log("WARNING", f"[Reporter] Structure push failed: {type(e).__name__}({e})")
+
+    def _push_topology(self):
+        try:
+            topology = self.task_graph.get_graph_topology()
+            requests.post(f"{self.base_url}/api/push_topology", json=topology, timeout=1)
+        except Exception as e:
+            self.logger._log("WARNING", f"[Reporter] Topology push failed: {type(e).__name__}({e}).")
 
 
 class NoOpContext:

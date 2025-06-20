@@ -449,7 +449,7 @@ class TaskGraph:
         """
         log_item = {
             "timestamp": datetime.now().isoformat(),
-            "structure": self.get_structure_graph(),
+            "structure": self.get_structure_json(),
         }
         append_jsonl_log(log_item, self.start_time, "./fallback", "realtime_errors", self.task_logger)
 
@@ -535,18 +535,18 @@ class TaskGraph:
                 else:
                     total_input += self.stage_success_counter.get(prev_tag, ValueWrapper()).value
 
-            status        = stage_status_dict.get("status", StageStatus.NOT_STARTED)
-            processed     = self.stage_success_counter.get(tag, ValueWrapper()).value
-            failed        = self.stage_error_counter.get(tag, ValueWrapper()).value
-            duplicated    = self.stage_duplicate_counter.get(tag, ValueWrapper()).value
-            pending       = max(0, total_input - processed - failed - duplicated)
+            status         = stage_status_dict.get("status", StageStatus.NOT_STARTED)
+            processed      = self.stage_success_counter.get(tag, ValueWrapper()).value
+            failed         = self.stage_error_counter.get(tag, ValueWrapper()).value
+            duplicated     = self.stage_duplicate_counter.get(tag, ValueWrapper()).value
+            pending        = max(0, total_input - processed - failed - duplicated)
 
-            add_processed = processed - last_stage_status_dict.get("tasks_processed", 0)
-            add_failed    = failed - last_stage_status_dict.get("tasks_failed", 0)
+            add_processed  = processed - last_stage_status_dict.get("tasks_processed", 0)
+            add_failed     = failed - last_stage_status_dict.get("tasks_failed", 0)
             add_duplicated = duplicated - last_stage_status_dict.get("tasks_duplicated", 0)
-            add_pending   = pending - last_stage_status_dict.get("tasks_pending", 0)
+            add_pending    = pending - last_stage_status_dict.get("tasks_pending", 0)
 
-            start_time    = stage_status_dict.get("start_time", 0)
+            start_time     = stage_status_dict.get("start_time", 0)
             # 更新时间消耗（仅在 pending 非 0 时刷新）
             if start_time:
                 elapsed = stage_status_dict.get("elapsed_time", 0)
@@ -584,7 +584,7 @@ class TaskGraph:
             stage_status_dict["history"] = history
 
             status_dict[tag] = {
-                **stage.get_status_snapshot(),
+                **stage.get_stage_summary(),
                 "status": status,
                 "tasks_processed": processed,
                 "tasks_failed": failed,
@@ -605,7 +605,15 @@ class TaskGraph:
 
         return status_dict
     
-    def get_structure_graph(self):
+    def get_graph_topology(self):
+        return {
+            "isDAG": self.isDAG,
+            "layout_mode": self.layout_mode,
+            "class_name": self.__class__.__name__,
+            "layers_dict": self.layers_dict,
+        }
+    
+    def get_structure_json(self):
         return self.structure_graph
     
     def get_structure_list(self):
@@ -616,6 +624,7 @@ class TaskGraph:
     
     def analyze_graph(self):
         networkx_graph = self.get_networkx_graph()
+        self.layers_dict = {}
 
         self.isDAG = is_directed_acyclic_graph(networkx_graph)
         if self.isDAG:

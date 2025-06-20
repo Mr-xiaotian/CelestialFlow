@@ -56,7 +56,7 @@ def _test_loop():
         stageA.get_stage_tag(): test_task_0
     })
 
-def test_forest():
+def _test_forest():
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -97,7 +97,7 @@ def test_forest():
 
     graph.start_graph(init_tasks)
 
-def _test_cross():
+def test_cross():
     # 构建 DAG
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)

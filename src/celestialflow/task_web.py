@@ -14,6 +14,7 @@ class TaskWebServer:
         self.status_store = {}
         self.structure_store = []
         self.error_store = []
+        self.topology_store = {}
         self.pending_injection_tasks = []  # 存储前端注入任务
 
         self.report_interval = 5
@@ -38,6 +39,10 @@ class TaskWebServer:
         @app.route("/api/get_errors")
         def get_errors():
             return jsonify(self.error_store)
+        
+        @app.route("/api/get_topology")
+        def get_topology():
+            return jsonify(self.topology_store)
         
         @app.route("/api/get_interval", methods=["GET"])
         def get_interval():
@@ -66,6 +71,11 @@ class TaskWebServer:
         @app.route("/api/push_errors", methods=["POST"])
         def push_errors():
             self.error_store = request.json
+            return jsonify({"ok": True})
+        
+        @app.route("/api/push_topology", methods=["POST"])
+        def push_topology():
+            self.topology_store = request.json
             return jsonify({"ok": True})
         
         @app.route("/api/push_interval", methods=["POST"])

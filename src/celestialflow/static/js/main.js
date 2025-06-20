@@ -86,17 +86,20 @@ async function refreshAll() {
   // - errors 会被 loadErrors 更新后用于错误列表渲染
   await Promise.all([
     loadStatuses(),   // 从后端拉取节点运行状态（处理数、等待数、失败数等），更新 nodeStatuses
-    loadStructure(),  // 拉取任务结构（有向图），内部调用 renderMermaidFromTaskStructure(...)
-    loadErrors()      // 获取最新错误记录，更新 errors[]
+    loadStructure(),  // 拉取任务结构（有向图），更新 structureData
+    loadErrors(),     // 获取最新错误记录，更新 errors[]
+    loadTopology(),   // 获取最新拓扑信息，更新 TopologyData
   ]);
 
   const currentStatusesJSON = JSON.stringify(nodeStatuses);
   const currentStructureJSON = JSON.stringify(structureData);
   const currentErrorsJSON = JSON.stringify(errors);
+  const currentTopologyJSON = JSON.stringify(topologyData);
 
   const statusesChanged = currentStatusesJSON !== previousNodeStatusesJSON;
   const structureChanged = currentStructureJSON !== previousStructureDataJSON;
   const errorsChanged = currentErrorsJSON !== previousErrorsJSON;
+  const topologyChanged = currentTopologyJSON !== previousTopologyDataJSON;
 
   if (statusesChanged) {
     previousNodeStatusesJSON = currentStatusesJSON;
@@ -108,9 +111,10 @@ async function refreshAll() {
     renderNodeList();       // 注入页节点列表
   }
 
-  if (structureChanged || statusesChanged) {
-    previousStructureDataJSON = currentStructureJSON;
+  if (statusesChanged || structureChanged || topologyChanged) {
     previousNodeStatusesJSON = currentStatusesJSON;
+    previousStructureDataJSON = currentStructureJSON;
+    previousTopologyDataJSON = currentTopologyJSON;
 
     renderMermaidFromTaskStructure(); // 结构图依赖两者都必须最新
   }
