@@ -50,7 +50,7 @@ class TaskLoop(TaskGraph):
 
 
 class TaskCross(TaskGraph):
-    def __init__(self, layers: List[List[TaskManager]], layout_mode: str = "serial"):
+    def __init__(self, layers: List[List[TaskManager]], layout_mode: str = "process"):
         """
         TaskCross: 多层任务交叉结构
 
@@ -61,7 +61,7 @@ class TaskCross(TaskGraph):
             按层划分的任务节点列表。每个子列表代表一层，列表中的 TaskManager 将并行执行。
             相邻层之间的所有节点将建立全连接依赖（即每个上一层节点都连接到下一层所有节点）。
 
-        :param layout_mode: str, default = 'serial'
+        :param layout_mode: str, default = 'process'
             控制任务图的调度布局模式：
             - 'serial'：逐层顺序执行，上一层全部完成后才启动下一层；
             - 'process'：所有层并行启动，执行顺序由依赖关系自动调度。
@@ -76,41 +76,13 @@ class TaskCross(TaskGraph):
                     stage_mode="process",
                     stage_name=f"Layer{i+1}-{index+1}"
                 )
-        super().__init__(layers[0])
-
-        self.layers = layers
-        self.layout_mode = layout_mode
+        super().__init__(layers[0], layout_mode)
 
     def start_cross(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动多层交叉结构任务图
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
-
-    def _excute_stages(self):
-        if self.layout_mode == "process":
-            # 默认逻辑：一次性执行所有节点
-            for tag in self.stages_status_dict:
-                self._execute_stage(self.stages_status_dict[tag]["stage"])
-
-            for p in self.processes:
-                p.join()
-                self.stages_status_dict[p.name]["status"] = StageStatus.STOPPED
-                self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
-        else:
-            # serial layout_mode：一层层地顺序执行
-            for layer in self.layers:
-                processes = []
-                for stage in layer:
-                    self._execute_stage(stage)
-                    if stage.stage_mode == "process":
-                        processes.append(self.processes[-1])  # 最新的进程
-
-                # join 当前层的所有进程（如果有）
-                for p in processes:
-                    p.join()
-                    self.stages_status_dict[p.name]["status"] = StageStatus.STOPPED
-                    self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
 
 
 class TaskWheel(TaskGraph):
@@ -132,7 +104,7 @@ class TaskWheel(TaskGraph):
 
 
 class TaskGrid(TaskGraph):
-    def __init__(self, grid: List[List[TaskManager]], grid_mode: str = "serial"):
+    def __init__(self, grid: List[List[TaskManager]], layout_mode: str = "process"):
         rows, cols = len(grid), len(grid[0])
         for i in range(rows):
             for j in range(cols):
@@ -140,8 +112,8 @@ class TaskGrid(TaskGraph):
                 nexts = []
                 if i + 1 < rows: nexts.append(grid[i+1][j])  # down
                 if j + 1 < cols: nexts.append(grid[i][j+1])  # right
-                curr.set_graph_context(nexts, grid_mode, f"Grid-{i+1}-{j+1}")
-        super().__init__([grid[0][0]])  # 起点为左上角
+                curr.set_graph_context(nexts, "process", f"Grid-{i+1}-{j+1}")
+        super().__init__([grid[0][0]], layout_mode)  # 起点为左上角
 
     def start_grid(self, init_tasks_dict: dict, put_termination_signal: bool=True):
         """

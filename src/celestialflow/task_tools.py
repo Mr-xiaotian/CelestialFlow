@@ -132,6 +132,18 @@ def append_jsonl_log(log_data: dict, start_time: float, base_path: str, prefix: 
         if logger:
             logger._log("WARNING", f"[Persist] 写入日志失败: {e}")
 
+def cluster_by_value_sorted(input_dict: Dict[str, int]) -> Dict[int, List[str]]:
+    """
+    按值聚类，并确保按 value（键）升序排序
+    """
+    from collections import defaultdict
+
+    clusters = defaultdict(list)
+    for key, val in input_dict.items():
+        clusters[val].append(key)
+
+    return dict(sorted(clusters.items()))  # ✅ 按键排序
+
 # ========(图论分析)========
 def format_networkx_graph(structure_graph: List[Dict[str, Any]]) -> nx.DiGraph:
     """
@@ -143,14 +155,13 @@ def format_networkx_graph(structure_graph: List[Dict[str, Any]]) -> nx.DiGraph:
     G = nx.DiGraph()
 
     def add_node_and_edges(node: Dict[str, Any]):
-        node_id = f'{node["stage_name"]}({node.get("func_name")})'
+        node_id = f'{node["stage_name"]}[{node["func_name"]}]'
         G.add_node(node_id, **{
-            "func": node.get("func_name"),
             "mode": node.get("stage_mode")
         })
 
         for child in node.get("next_stages", []):
-            child_id = child["stage_name"]
+            child_id = f'{child["stage_name"]}[{child["func_name"]}]'
             G.add_edge(node_id, child_id)
             # 递归添加子节点
             add_node_and_edges(child)
@@ -269,6 +280,7 @@ def cleanup_mpqueue(queue: MPQueue):
     """
     queue.close()
     queue.join_thread()  # 确保队列的后台线程正确终止
+
 
 # ========外部调用========
 def load_jsonl_grouped_by_keys(

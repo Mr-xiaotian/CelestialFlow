@@ -20,19 +20,48 @@ from .task_tools import (
     format_networkx_graph,
     is_directed_acyclic_graph,
     compute_node_levels,
+    cluster_by_value_sorted,
 )
 
 
 class TaskGraph:
-    def __init__(self, root_stages: List[TaskManager]):
+    def __init__(self, root_stages: List[TaskManager], layout_mode: str = "process"):
         """
-        :param root_stages: 任务链的根 TaskManager 节点
+        初始化 TaskGraph 实例。
+
+        TaskGraph 表示一组 TaskManager 节点所构成的任务图，可用于构建并行、串行、
+        分层等多种形式的任务执行流程。通过分析图结构和调度布局策略，实现灵活的
+        DAG 任务调度控制。
+
+        Parameters
+        ----------
+        root_stages : List[TaskManager]
+            根节点 TaskManager 列表，用于构建任务图的入口节点。
+            支持多根节点（森林结构），系统将自动构建整个任务依赖图。
+
+        layout_mode : str, optional, default = 'process'
+            控制任务图的调度布局模式，支持以下两种策略：
+            
+            - 'process'：
+                默认模式。所有节点一次性调度并发执行，依赖关系通过队列流自动控制。
+                适用于最大化并行度的执行场景。
+            
+            - 'serial'：
+                分层执行模式。任务图必须为有向无环图（DAG）。
+                节点按层级顺序逐层启动，确保上层所有任务完成后再启动下一层。
+                更利于调试、性能分析和阶段性资源控制。
+
+        Raises
+        ------
+        ValueError
+            如果输入图不合法或 layout_mode 参数错误。
         """
         self.set_root_stages(root_stages)
 
         self.init_env()
         self.init_structure_graph()
         self.analyze_graph()
+        self.set_layout_mode(layout_mode)
         self.set_reporter()
 
     def init_env(self):
@@ -120,29 +149,15 @@ class TaskGraph:
             if not stage.prev_stages:
                 stage.add_prev_stages(None)
 
-    def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
+    def set_layout_mode(self, layout_mode: str):
         """
-        将任务放入队列
-        :param tasks_dict: 待处理的任务字典
-        :param put_termination_signal: 是否放入终止信号
+        设置任务链的执行模式
+        :param layout_mode: 节点执行模式, 可选值为 'serial' 或 'process'
         """
-        for tag, tasks in tasks_dict.items():
-            prev_stage: TaskManager = self.stages_status_dict[tag]["stage"].prev_stages[0]
-            prev_tag = prev_stage.get_stage_tag() if prev_stage else None
-            for task in tasks:
-                self.edge_queue_map[(prev_tag, tag)].put(make_hashable(task))
-                if isinstance(task, TerminationSignal):
-                    self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {(prev_tag, tag)}")
-                    continue
-                self.task_logger._log("TRACE", f"{task} put into {(prev_tag, tag)}")
-                self.stages_status_dict[tag]["init_tasks_num"] = self.stages_status_dict[tag].get("init_tasks_num", 0) + 1
-        
-        if put_termination_signal:
-            for root_stage in self.root_stages:
-                pre_stage_tag = root_stage.prev_stages[0].get_stage_tag() if root_stage.prev_stages[0] else None
-                edge_key = (pre_stage_tag, root_stage.get_stage_tag())
-                self.edge_queue_map[edge_key].put(TERMINATION_SIGNAL)
-                self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {edge_key}")
+        if layout_mode == "serial" and self.isDAG:
+            self.layout_mode = "serial"
+        else:
+            self.layout_mode = "process"
 
     def set_reporter(self, is_report=False, host="127.0.0.1", port=5000):
         """
@@ -173,6 +188,30 @@ class TaskGraph:
             set_subsequent_stage_mode(root_stage)
         self.init_structure_graph()
 
+    def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
+        """
+        将任务放入队列
+        :param tasks_dict: 待处理的任务字典
+        :param put_termination_signal: 是否放入终止信号
+        """
+        for tag, tasks in tasks_dict.items():
+            prev_stage: TaskManager = self.stages_status_dict[tag]["stage"].prev_stages[0]
+            prev_tag = prev_stage.get_stage_tag() if prev_stage else None
+            for task in tasks:
+                self.edge_queue_map[(prev_tag, tag)].put(make_hashable(task))
+                if isinstance(task, TerminationSignal):
+                    self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {(prev_tag, tag)}")
+                    continue
+                self.task_logger._log("TRACE", f"{task} put into {(prev_tag, tag)}")
+                self.stages_status_dict[tag]["init_tasks_num"] = self.stages_status_dict[tag].get("init_tasks_num", 0) + 1
+        
+        if put_termination_signal:
+            for root_stage in self.root_stages:
+                pre_stage_tag = root_stage.prev_stages[0].get_stage_tag() if root_stage.prev_stages[0] else None
+                edge_key = (pre_stage_tag, root_stage.get_stage_tag())
+                self.edge_queue_map[edge_key].put(TERMINATION_SIGNAL)
+                self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {edge_key}")
+
     def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool=True):
         """
         启动任务链
@@ -197,14 +236,31 @@ class TaskGraph:
             self.log_listener.stop()
 
     def _excute_stages(self):
-        for tag in self.stages_status_dict:
-            self._execute_stage(self.stages_status_dict[tag]["stage"])
+        if self.layout_mode == "process":
+            # 默认逻辑：一次性执行所有节点
+            for tag in self.stages_status_dict:
+                self._execute_stage(self.stages_status_dict[tag]["stage"])
 
-        # 等待所有进程结束
-        for p in self.processes:
-            p.join()
-            self.stages_status_dict[p.name]["status"] = StageStatus.STOPPED
-            self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
+            for p in self.processes:
+                p.join()
+                self.stages_status_dict[p.name]["status"] = StageStatus.STOPPED
+                self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
+        else:
+            # serial layout_mode：一层层地顺序执行
+            for layer_num, layer in self.layers_dict.items():
+                self.task_logger._log("INFO", f"Start executing layer {layer_num}: {layer}")
+                processes = []
+                for stage_tag in layer:
+                    stage: TaskManager = self.stages_status_dict[stage_tag]["stage"]
+                    self._execute_stage(stage)
+                    if stage.stage_mode == "process":
+                        processes.append(self.processes[-1])  # 最新的进程
+
+                # join 当前层的所有进程（如果有）
+                for p in processes:
+                    p.join()
+                    self.stages_status_dict[p.name]["status"] = StageStatus.STOPPED
+                    self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
 
     def _execute_stage(self, stage: TaskManager):
         """
@@ -557,9 +613,10 @@ class TaskGraph:
     def analyze_graph(self):
         networkx_graph = self.get_networkx_graph()
 
-        self.is_directed = is_directed_acyclic_graph(networkx_graph)
-        if self.is_directed:
+        self.isDAG = is_directed_acyclic_graph(networkx_graph)
+        if self.isDAG:
             self.stage_level_dict = compute_node_levels(networkx_graph)
+            self.layers_dict = cluster_by_value_sorted(self.stage_level_dict)
 
     def test_methods(self, init_tasks_dict: Dict[str, List], stage_modes: list=None, execution_modes: list=None) -> Dict[str, Any]:
         """

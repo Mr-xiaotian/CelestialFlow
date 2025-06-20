@@ -56,7 +56,7 @@ def _test_loop():
         stageA.get_stage_tag(): test_task_0
     })
 
-def _test_forest():
+def test_forest():
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -97,7 +97,7 @@ def _test_forest():
 
     graph.start_graph(init_tasks)
 
-def _test_cross_0():
+def _test_cross():
     # 构建 DAG
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -108,7 +108,7 @@ def _test_cross_0():
     stageG = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
 
     # 构建 TaskCross
-    cross = TaskCross([[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]])  # 多根支持
+    cross = TaskCross([[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]], "serial")  # 多根支持
     cross.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 初始任务
@@ -196,14 +196,13 @@ def _test_wheel():
 def test_grid():
     # 1. 构造 4x4 网格
     grid = [
-        [TaskManager(add_sleep) for _ in range(4)]
+        [TaskManager(add_sleep, "thread") for _ in range(4)]
         for _ in range(4)
     ]
 
     # 2. 构建 TaskGrid 实例
-    task_grid = TaskGrid(grid, "process")
+    task_grid = TaskGrid(grid, "serial")
     task_grid.set_reporter(True, host="127.0.0.1", port=5005)
-    print(task_grid.stage_level_dict)
 
     # 3. 初始化任务字典，只放左上角一个任务
     init_dict = {
@@ -271,5 +270,5 @@ def _test_complete():
 
 
 if __name__ == "__main__":
-    # test_cross_0()
+    # test_cross()
     pass
