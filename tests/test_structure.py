@@ -203,6 +203,7 @@ def test_grid():
     # 2. 构建 TaskGrid 实例
     task_grid = TaskGrid(grid, "process")
     task_grid.set_reporter(True, host="127.0.0.1", port=5005)
+    print(task_grid.stage_level_dict)
 
     # 3. 初始化任务字典，只放左上角一个任务
     init_dict = {
