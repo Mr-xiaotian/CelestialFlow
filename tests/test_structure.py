@@ -194,7 +194,7 @@ def _test_wheel():
     })
 
 def test_grid():
-    # 1. 构造 2x2 网格
+    # 1. 构造 4x4 网格
     grid = [
         [TaskManager(add_sleep) for _ in range(4)]
         for _ in range(4)
