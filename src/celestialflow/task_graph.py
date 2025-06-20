@@ -247,8 +247,10 @@ class TaskGraph:
                 self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
         else:
             # serial layout_mode：一层层地顺序执行
-            for layer_num, layer in self.layers_dict.items():
-                self.task_logger._log("INFO", f"Start executing layer {layer_num}: {layer}")
+            for layer_level, layer in self.layers_dict.items():
+                self.task_logger.start_layer(layer, layer_level)
+                start_time = time.time()
+
                 processes = []
                 for stage_tag in layer:
                     stage: TaskManager = self.stages_status_dict[stage_tag]["stage"]
@@ -261,6 +263,8 @@ class TaskGraph:
                     p.join()
                     self.stages_status_dict[p.name]["status"] = StageStatus.STOPPED
                     self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
+
+                self.task_logger.end_layer(layer, time.time() - start_time)
 
     def _execute_stage(self, stage: TaskManager):
         """

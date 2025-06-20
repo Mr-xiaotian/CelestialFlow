@@ -98,6 +98,12 @@ class TaskLogger:
             f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
+    def start_layer(self, layer: List[str], layer_level: int):
+        self._log("INFO", f"Layer {layer} start. Layer level: {layer_level}")
+    
+    def end_layer(self, layer: List[str], use_time: float):
+        self._log("INFO", f"Layer {layer} end. Use {use_time:.2f} second.")
+
     def start_graph(self, stage_structure):
         self._log("INFO", f"Starting TaskGraph stages. Graph structure:")
         for line in stage_structure:
