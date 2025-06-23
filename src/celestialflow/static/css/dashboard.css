@@ -148,6 +148,13 @@
   overflow-x: auto; /* 如果图太宽，可以横向滚动 */
 }
 
+/* #mermaid-container rect {
+  fill: #ffffff !important;
+  stroke: #cccccc !important;     
+  stroke-width: 1.5px !important;  
+  rx: 4px !important;             
+} */
+
 /* ================================
   🌟 总体状态摘要
 ================================ */
@@ -367,6 +374,13 @@
 .dark-theme .mermaid span {
   color: #d1d5db!important;
 }
+
+/* .dark-theme #mermaid-container rect {
+  fill: #2a2a2a !important;         
+  stroke: #4b5563 !important;       
+  stroke-width: 1.5px !important;
+  rx: 4px !important;             
+} */
 
 .dark-theme .summary-item.blue {
   background-color: #1e3a8a;

@@ -90,7 +90,7 @@ class TaskRedisTransfer(TaskManager):
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(host=self.host, port=self.port, db=self.db, decode_responses=True)
 
-    def _trans_redis(self, task):
+    def _trans_redis(self, *task):
         """
         将任务写入 Redis, 并等待结果
         """

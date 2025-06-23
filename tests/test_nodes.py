@@ -1,8 +1,17 @@
 import pytest, logging, re, random, pprint
 from time import sleep
 from celestialvault.tools.TextTools import format_table
-from celestialflow import TaskManager, TaskGraph, TaskSplitter, TaskRedisTransfer, TaskLoop
+from celestialflow import TaskManager, TaskGraph, TaskSplitter, TaskRedisTransfer
 
+
+class SumTransfer(TaskRedisTransfer):
+    def get_args(self, task):
+        return task
+
+
+class SumManager(TaskManager):
+    def get_args(self, task):
+        return task
 
 def sleep_1(n):
     sleep(1)
@@ -56,6 +65,9 @@ def parse_sleep(url):
     sleep(random.randint(4, 6))
     return parse(url)
 
+def sum_int(*num):
+    return sum(num)
+
 def _test_splitter_0():    
     # 定义任务节点
     generate_stage = TaskManager(func=generate_urls, execution_mode='thread', worker_limit=4)
@@ -90,7 +102,7 @@ def _test_splitter_0():
             value = pprint.pformat(value)
         logging.info(f"{key}: \n{value}")
 
-def test_splitter_1():
+def _test_splitter_1():
     # 定义任务节点
     generate_stage = TaskManager(func=generate_urls_sleep, execution_mode='thread', worker_limit=4)
     logger_stage = TaskManager(func=log_urls_sleep, execution_mode='thread', worker_limit=4)
@@ -117,14 +129,16 @@ def test_splitter_1():
         # parse_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
     }, False)
 
-def _test_transfer():
+def _test_transfer_0():
+    start_stage = TaskManager(sleep_1, execution_mode='thread', worker_limit=4)
     redis_transfer = TaskRedisTransfer()
     fibonacci_stage = TaskManager(fibonacci, 'thread')
 
+    start_stage.set_graph_context([redis_transfer, fibonacci_stage], stage_mode='serial', stage_name='Start')
     redis_transfer.set_graph_context([], stage_mode='process', stage_name='GoFibonacci')
     fibonacci_stage.set_graph_context([], stage_mode='process', stage_name='Fibonacci')
 
-    graph = TaskGraph([redis_transfer, fibonacci_stage])
+    graph = TaskGraph([start_stage])
     graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 要测试的任务列表
@@ -132,8 +146,26 @@ def _test_transfer():
     test_task_1 = list(test_task_0) + [0, 27, None, 0, '']
 
     graph.start_graph({
-        redis_transfer.get_stage_tag(): test_task_0,
-        fibonacci_stage.get_stage_tag(): test_task_0,
+        start_stage.get_stage_tag(): test_task_0,
+    })
+
+def test_transfer_1():
+    start_stage = TaskManager(sleep_1, execution_mode='thread', worker_limit=4)
+    redis_transfer = SumTransfer()
+    sum_stage = SumManager(sum_int, execution_mode='thread', worker_limit=4)    
+
+    start_stage.set_graph_context([redis_transfer, sum_stage], stage_mode='serial', stage_name='Start')
+    redis_transfer.set_graph_context([], stage_mode='process', stage_name='GoSum')
+    sum_stage.set_graph_context([], stage_mode='process', stage_name='Sum')
+
+    graph = TaskGraph([start_stage])
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
+
+    # 要测试的任务列表
+    test_task_0 = [(random.randint(1, 100), random.randint(1, 100)) for _ in range(12)]
+
+    graph.start_graph({
+        start_stage.get_stage_tag(): test_task_0,
     })
 
 

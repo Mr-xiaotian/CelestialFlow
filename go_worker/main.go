@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Mr-xiaotian/CelestialFlow/go_worker/worker"
 
@@ -16,13 +17,15 @@ func main() {
 		DB:   0,
 	})
 
+	fmt.Println("Go Worker Start")
+
 	worker.StartWorkerPool(
 		ctx,
 		rdb,
-		"GoFibonacci[_trans_redis]:input",  // Redis 中任务输入的 List
-		"GoFibonacci[_trans_redis]:output", // Redis 中结果写入的 Hash
-		worker.ParseNumberTask,
-		worker.Fibonacci,
+		"GoSum[_trans_redis]:input",  // Redis 中任务输入的 List
+		"GoSum[_trans_redis]:output", // Redis 中结果写入的 Hash
+		worker.ParseListTask,
+		worker.Sum,
 		4,
 	)
 }
