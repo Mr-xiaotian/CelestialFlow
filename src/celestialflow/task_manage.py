@@ -107,7 +107,7 @@ class TaskManager:
             "serial": ThreadQueue,
         }
         self.task_queues: List[ThreadQueue|MPQueue] = task_queues or [queue_map[self.execution_mode]()]
-        self.result_queues = result_queues or [ThreadQueue()]
+        self.result_queues: List[ThreadQueue|MPQueue] = result_queues or [queue_map[self.execution_mode]()]
         self.fail_queue = fail_queue or ThreadQueue()
         self.logger_queue = logger_queue or ThreadQueue()
 
@@ -324,6 +324,13 @@ class TaskManager:
         for result_queue in self.result_queues:
             result_queue.put(result)
 
+    async def put_result_queues_async(self, result):
+        """
+        将结果放入所有结果队列(async模式)
+        """
+        for queue in self.result_queues:
+            await queue.put(result)
+
     def put_fail_queue(self, task, error):
         """
         将失败的任务放入失败队列
@@ -335,10 +342,13 @@ class TaskManager:
             "timestamp": time.time()
         })
 
-    def update_succes_counter(self):
+    def update_success_counter(self):
         # 加锁方式（保证正确）
         with self.counter_lock:
             self.success_counter.value += 1
+
+    async def update_success_counter_async(self):
+        await asyncio.to_thread(self.update_success_counter)
 
     def update_error_counter(self):
         # 加锁方式（保证正确）
@@ -441,8 +451,29 @@ class TaskManager:
         processed_result = self.process_result(task, result)
         self.success_dict[task] = processed_result
 
-        self.update_succes_counter()
+        self.update_success_counter()
         self.put_result_queues(processed_result)
+        self.task_logger.task_success(
+            self.func.__name__,
+            self.get_task_info(task),
+            self.execution_mode,
+            self.get_result_info(result),
+            time.time() - start_time,
+        )
+
+    async def process_task_success_async(self, task, result, start_time):
+        """
+        异步版本：统一处理成功任务
+
+        :param task: 完成的任务
+        :param result: 任务的结果
+        :param start_time: 任务开始时间
+        """
+        processed_result = self.process_result(task, result)
+        self.success_dict[task] = processed_result
+
+        await self.update_success_counter_async()
+        await self.put_result_queues_async(processed_result)
         self.task_logger.task_success(
             self.func.__name__,
             self.get_task_info(task),
@@ -773,7 +804,7 @@ class TaskManager:
             *async_tasks, return_exceptions=True
         ):
             if not isinstance(result, Exception):
-                self.process_task_success(task, result, start_time)
+                await self.process_task_success_async(task, result, start_time)
             else:
                 await self.handle_task_error_async(task, result)
             self.progress_manager.update(1)

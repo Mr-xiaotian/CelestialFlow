@@ -3,7 +3,7 @@ from enum import IntEnum
 from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue, Empty
 from threading import Thread
-from time import localtime, strftime, sleep
+from time import localtime, strftime
 from typing import List, Union
 
 import requests
@@ -69,9 +69,9 @@ class TaskLogger:
     """
 
     def __init__(self, log_queue=None):
-        self.log_queue = log_queue
+        self.log_queue: MPQueue = log_queue
 
-    def _log(self, level, message):
+    def _log(self, level: str, message: str):
         self.log_queue.put({"level": level.upper(), "message": message})
 
     def start_manager(self, func_name, task_num, execution_mode, worker_limit):
