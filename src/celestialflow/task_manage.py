@@ -34,6 +34,7 @@ class TaskManager:
         worker_limit=50,
         max_retries=3,
         max_info=50,
+        unpack_task_args=False,
         progress_desc="Processing",
         show_progress=False,
     ):
@@ -52,6 +53,7 @@ class TaskManager:
         self.worker_limit = worker_limit
         self.max_retries = max_retries
         self.max_info = max_info
+        self.unpack_task_args = unpack_task_args
 
         self.progress_desc = progress_desc
         self.show_progress = show_progress
@@ -375,10 +377,12 @@ class TaskManager:
 
     def get_args(self, task):
         """
-        从 obj 中获取参数S
+        从 obj 中获取参数
 
-        在这个示例中，我们假设 obj 是一个整数，并将其作为参数返回
+        在这个示例中，我们假设 obj 是一个参数，并将其打包为元组返回
         """
+        if self.unpack_task_args and isinstance(task, tuple):
+            return task
         return (task,)
 
     def process_result(self, task, result):

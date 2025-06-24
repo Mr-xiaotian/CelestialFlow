@@ -1,18 +1,20 @@
 import pytest, logging, re, random, pprint
 import requests
 from time import sleep
+
 from celestialvault.tools.TextTools import format_table
 from celestialflow import TaskManager, TaskGraph, TaskSplitter, TaskRedisTransfer
 
-
-class MultiArgsRedisTransfer(TaskRedisTransfer):
+class DownloadRedisTransfer(TaskRedisTransfer):
     def get_args(self, task):
-        return task
+        url, path = task
+        return url, path.replace("/tmp/", "Q:/Project/test/download_go/")
 
 
-class MultiArgsManager(TaskManager):
+class DownloadManager(TaskManager):
     def get_args(self, task):
-        return task
+        url, path = task
+        return url, path.replace("/tmp/", "Q:/Project/test/download_py/")
 
 
 def sleep_1(n):
@@ -165,8 +167,8 @@ def _test_transfer_0():
 
 def _test_transfer_1():
     start_stage = TaskManager(sleep_1, execution_mode='thread', worker_limit=4)
-    redis_transfer = MultiArgsRedisTransfer()
-    sum_stage = MultiArgsManager(sum_int, execution_mode='thread', worker_limit=4)    
+    redis_transfer = TaskRedisTransfer(unpack_task_args=True)
+    sum_stage = TaskManager(sum_int, execution_mode='thread', worker_limit=4, unpack_task_args=True)    
 
     start_stage.set_graph_context([redis_transfer, sum_stage], stage_mode='serial', stage_name='Start')
     redis_transfer.set_graph_context([], stage_mode='process', stage_name='GoSum')
@@ -183,13 +185,15 @@ def _test_transfer_1():
     })
 
 def test_transfer_2():
-    redis_transfer = MultiArgsRedisTransfer()
-    download_stage = MultiArgsManager(download_to_file, execution_mode='thread', worker_limit=4)    
+    start_stage = TaskManager(sleep_1, execution_mode='thread', worker_limit=4)
+    redis_transfer = DownloadRedisTransfer()
+    download_stage = DownloadManager(download_to_file, execution_mode='thread', worker_limit=4)    
 
+    start_stage.set_graph_context([redis_transfer, download_stage], stage_mode='serial', stage_name='Start')
     redis_transfer.set_graph_context([], stage_mode='process', stage_name='GoDownload')
     download_stage.set_graph_context([], stage_mode='process', stage_name='Download')
 
-    graph = TaskGraph([redis_transfer, download_stage])
+    graph = TaskGraph([start_stage])
     graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     download_links = [
@@ -209,8 +213,7 @@ def test_transfer_2():
     ]
 
     graph.start_graph({
-        redis_transfer.get_stage_tag(): [(url, path.replace("/tmp/", "Q:/Project/test/download_go/")) for url, path in download_links],
-        download_stage.get_stage_tag(): [(url, path.replace("/tmp/", "Q:/Project/test/download_py/")) for url, path in download_links]
+        start_stage.get_stage_tag(): download_links
     })
 
 if __name__ == '__main__':

@@ -69,16 +69,22 @@ class TaskSplitter(TaskManager):
 
 
 class TaskRedisTransfer(TaskManager):
-    def __init__(self, worker_limit=50, host="localhost", port=6379, db=0, timeout=10):
+    def __init__(self, worker_limit=50, unpack_task_args=False, host="localhost", port=6379, db=0, timeout=10):
         """
         初始化 TaskRedisTransfer
         :param worker_limit: 并行工作线程数
+        :param unpack_task_args: 是否将任务参数解包
         :param host: Redis 主机地址
         :param port: Redis 端口
         :param db: Redis 数据库
         :param timeout: Redis 操作超时时间
         """
-        super().__init__(self._trans_redis, "thread", worker_limit)
+        super().__init__(
+            func=self._trans_redis, 
+            execution_mode="thread", 
+            worker_limit=worker_limit, 
+            unpack_task_args=unpack_task_args
+        )
 
         self.host = host
         self.port = port
