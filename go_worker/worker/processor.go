@@ -1,11 +1,15 @@
 package worker
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 )
 
 // Add100 接收一个整数参数，返回该整数加 100
-func Add100(args []interface{}) (interface{}, error) {
+func Add100(args []any) (any, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("Add100 expects 1 argument, got %d", len(args))
 	}
@@ -19,7 +23,7 @@ func Add100(args []interface{}) (interface{}, error) {
 }
 
 // Fibonacci 计算第 n 个斐波那契数（递归版）
-func Fibonacci(args []interface{}) (interface{}, error) {
+func Fibonacci(args []any) (any, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("Fibonacci expects 1 argument, got %d", len(args))
 	}
@@ -37,18 +41,18 @@ func Fibonacci(args []interface{}) (interface{}, error) {
 		return 1, nil
 	}
 
-	a, err := Fibonacci([]interface{}{float64(n - 1)})
+	a, err := Fibonacci([]any{float64(n - 1)})
 	if err != nil {
 		return nil, err
 	}
-	b, err := Fibonacci([]interface{}{float64(n - 2)})
+	b, err := Fibonacci([]any{float64(n - 2)})
 	if err != nil {
 		return nil, err
 	}
 	return a.(int) + b.(int), nil
 }
 
-func Sum(args []interface{}) (interface{}, error) {
+func Sum(args []any) (any, error) {
 	var sum int
 
 	for i, arg := range args {
@@ -61,4 +65,46 @@ func Sum(args []interface{}) (interface{}, error) {
 	}
 
 	return sum, nil
+}
+
+// DownloadToFile 下载指定 URL 内容并保存到指定本地文件路径
+func DownloadToFile(args []any) (any, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("DownloadToFile expects 2 arguments, got %d", len(args))
+	}
+
+	// 类型断言为 string
+	url, ok1 := args[0].(string)
+	path, ok2 := args[1].(string)
+
+	if !ok1 || !ok2 {
+		return nil, errors.New("DownloadToFile: both arguments must be strings")
+	}
+
+	// 发送 HTTP GET 请求
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 检查响应码
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP error: status code %d", resp.StatusCode)
+	}
+
+	// 创建目标文件
+	file, err := os.Create(path)
+	if err != nil {
+		return nil, fmt.Errorf("file creation failed: %v", err)
+	}
+	defer file.Close()
+
+	// 将响应内容复制到文件
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("file write failed: %v", err)
+	}
+
+	return fmt.Sprintf("Downloaded %s", path), nil
 }

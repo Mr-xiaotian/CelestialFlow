@@ -56,7 +56,7 @@ func StartWorkerPool(
 			task, err := parser(p.Task)
 			if err != nil {
 				fmt.Println("Parse Error:", err)
-				resp := map[string]interface{}{
+				resp := map[string]any{
 					"status": "error",
 					"error":  fmt.Sprintf("Parse error: %v", err),
 				}
@@ -69,7 +69,7 @@ func StartWorkerPool(
 			resultVal, err := processor(task)
 			if err != nil {
 				fmt.Println("Processing Error:", err)
-				resp := map[string]interface{}{
+				resp := map[string]any{
 					"status": "error",
 					"error":  fmt.Sprintf("Processing error: %v", err),
 				}
@@ -79,7 +79,7 @@ func StartWorkerPool(
 				return
 			}
 
-			resp := map[string]interface{}{
+			resp := map[string]any{
 				"status": "success",
 				"result": resultVal,
 			}

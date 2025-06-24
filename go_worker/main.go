@@ -22,10 +22,10 @@ func main() {
 	worker.StartWorkerPool(
 		ctx,
 		rdb,
-		"GoSum[_trans_redis]:input",  // Redis 中任务输入的 List
-		"GoSum[_trans_redis]:output", // Redis 中结果写入的 Hash
+		"GoDownload[_trans_redis]:input",  // Redis 中任务输入的 List
+		"GoDownload[_trans_redis]:output", // Redis 中结果写入的 Hash
 		worker.ParseListTask,
-		worker.Sum,
+		worker.DownloadToFile,
 		4,
 	)
 }

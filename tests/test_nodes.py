@@ -1,17 +1,19 @@
 import pytest, logging, re, random, pprint
+import requests
 from time import sleep
 from celestialvault.tools.TextTools import format_table
 from celestialflow import TaskManager, TaskGraph, TaskSplitter, TaskRedisTransfer
 
 
-class SumTransfer(TaskRedisTransfer):
+class MultiArgsRedisTransfer(TaskRedisTransfer):
     def get_args(self, task):
         return task
 
 
-class SumManager(TaskManager):
+class MultiArgsManager(TaskManager):
     def get_args(self, task):
         return task
+
 
 def sleep_1(n):
     sleep(1)
@@ -67,6 +69,18 @@ def parse_sleep(url):
 
 def sum_int(*num):
     return sum(num)
+
+def download_to_file(url: str, file_path: str) -> str:
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()  # 如果状态码不是 200 会抛出异常
+
+        with open(file_path, "wb") as f:
+            f.write(response.content)
+
+        return f"Downloaded {url} → {file_path}"
+    except Exception as e:
+        raise RuntimeError(f"Download failed: {e}")
 
 def _test_splitter_0():    
     # 定义任务节点
@@ -149,10 +163,10 @@ def _test_transfer_0():
         start_stage.get_stage_tag(): test_task_0,
     })
 
-def test_transfer_1():
+def _test_transfer_1():
     start_stage = TaskManager(sleep_1, execution_mode='thread', worker_limit=4)
-    redis_transfer = SumTransfer()
-    sum_stage = SumManager(sum_int, execution_mode='thread', worker_limit=4)    
+    redis_transfer = MultiArgsRedisTransfer()
+    sum_stage = MultiArgsManager(sum_int, execution_mode='thread', worker_limit=4)    
 
     start_stage.set_graph_context([redis_transfer, sum_stage], stage_mode='serial', stage_name='Start')
     redis_transfer.set_graph_context([], stage_mode='process', stage_name='GoSum')
@@ -168,6 +182,36 @@ def test_transfer_1():
         start_stage.get_stage_tag(): test_task_0,
     })
 
+def test_transfer_2():
+    redis_transfer = MultiArgsRedisTransfer()
+    download_stage = MultiArgsManager(download_to_file, execution_mode='thread', worker_limit=4)    
+
+    redis_transfer.set_graph_context([], stage_mode='process', stage_name='GoDownload')
+    download_stage.set_graph_context([], stage_mode='process', stage_name='Download')
+
+    graph = TaskGraph([redis_transfer, download_stage])
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
+
+    download_links = [
+        # 小型 HTML 页面
+        ["https://example.com", "/tmp/example.html"],
+        ["https://www.iana.org/domains/example", "/tmp/iana.html"],
+
+        # 文本文件（GitHub RAW）
+        ["https://raw.githubusercontent.com/github/gitignore/main/Python.gitignore", "/tmp/python.gitignore"],
+
+        # 小图片
+        # ["https://via.placeholder.com/1.png", "/tmp/1x1.png"],
+        # ["https://via.placeholder.com/150", "/tmp/150x150.jpg"],
+
+        # JSON 示例（可保存为 .json 文件）
+        ["https://jsonplaceholder.typicode.com/todos/1", "/tmp/todo1.json"],
+    ]
+
+    graph.start_graph({
+        redis_transfer.get_stage_tag(): [(url, path.replace("/tmp/", "Q:/Project/test/download_go/")) for url, path in download_links],
+        download_stage.get_stage_tag(): [(url, path.replace("/tmp/", "Q:/Project/test/download_py/")) for url, path in download_links]
+    })
 
 if __name__ == '__main__':
     # test_splitter_1()
