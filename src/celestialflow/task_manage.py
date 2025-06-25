@@ -23,7 +23,7 @@ from httpx import (
 
 from .task_progress import ProgressManager
 from .task_support import TERMINATION_SIGNAL, TerminationSignal, LogListener, TaskLogger, ValueWrapper, null_lock
-from .task_tools import are_queues_empty, are_queues_empty_async, make_hashable, format_repr
+from .task_tools import are_queues_empty, are_queues_empty_async, make_hashable, format_repr, object_to_str_hash
 
 
 class TaskManager:
@@ -35,6 +35,7 @@ class TaskManager:
         max_retries=3,
         max_info=50,
         unpack_task_args=False,
+        enable_result_cache=False,
         progress_desc="Processing",
         show_progress=False,
     ):
@@ -54,6 +55,7 @@ class TaskManager:
         self.max_retries = max_retries
         self.max_info = max_info
         self.unpack_task_args = unpack_task_args
+        self.enable_result_cache = enable_result_cache
 
         self.progress_desc = progress_desc
         self.show_progress = show_progress
@@ -94,7 +96,7 @@ class TaskManager:
         初始化环境
         """
         self.init_queue(task_queues, result_queues, fail_queue, logger_queue)
-        self.init_dict()
+        self.init_state()
         self.init_pool()
         self.init_logger()
 
@@ -113,13 +115,18 @@ class TaskManager:
         self.fail_queue = fail_queue or ThreadQueue()
         self.logger_queue = logger_queue or ThreadQueue()
 
-    def init_dict(self):
+    def init_state(self):
         """
-        初始化结果字典
+        初始化任务状态：
+        - success_dict / error_dict：缓存执行结果
+        - retry_time_dict：记录重试次数
+        - processed_set：用于重复检测
         """
         self.success_dict = {}
         self.error_dict = {}
-        self.retry_time_dict = {}
+        self.retry_time_dict = {} # task_id -> retry_time
+
+        self.processed_set = set()
 
     def init_pool(self):
         """
@@ -366,7 +373,8 @@ class TaskManager:
         """
         判断任务是否重复
         """
-        return task in self.success_dict or task in self.error_dict
+        task_id = object_to_str_hash(task)
+        return task_id in self.processed_set
     
     def deal_dupliacte(self, task):
         """
@@ -453,7 +461,12 @@ class TaskManager:
         :param start_time: 任务开始时间
         """
         processed_result = self.process_result(task, result)
-        self.success_dict[task] = processed_result
+
+        task_id = object_to_str_hash(task)
+        self.processed_set.add(task_id)
+
+        if self.enable_result_cache:
+            self.success_dict[task] = processed_result
 
         self.update_success_counter()
         self.put_result_queues(processed_result)
@@ -474,7 +487,12 @@ class TaskManager:
         :param start_time: 任务开始时间
         """
         processed_result = self.process_result(task, result)
-        self.success_dict[task] = processed_result
+
+        task_id = object_to_str_hash(task)
+        self.processed_set.add(task_id)
+
+        if self.enable_result_cache:
+            self.success_dict[task] = processed_result
 
         await self.update_success_counter_async()
         await self.put_result_queues_async(processed_result)
@@ -494,7 +512,8 @@ class TaskManager:
         :param exception: 捕获的异常
         :return 是否需要重试
         """
-        retry_time = self.retry_time_dict.setdefault(task, 0)
+        task_id = object_to_str_hash(task)
+        retry_time = self.retry_time_dict.setdefault(task_id, 0)
 
         # 基于异常类型决定重试策略
         if (
@@ -502,15 +521,17 @@ class TaskManager:
             and retry_time < self.max_retries
         ):
             self.task_queues[0].put(task) # 只在第一个队列存放retry task
-            self.retry_time_dict[task] += 1
-            # delay_time = 2 ** retry_time
-            # sleep(delay_time)  # 指数退避
+            self.retry_time_dict[task_id] += 1
             self.task_logger.task_retry(
-                self.func.__name__, self.get_task_info(task), self.retry_time_dict[task]
+                self.func.__name__, self.get_task_info(task), self.retry_time_dict[task_id], exception
             )
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
-            self.error_dict[task] = exception
+            self.processed_set.add(task_id)
+
+            if self.enable_result_cache:
+                self.error_dict[task] = exception
+
             self.update_error_counter()
             self.put_fail_queue(task, exception)
             self.task_logger.task_error(
@@ -525,31 +546,31 @@ class TaskManager:
         :param exception: 捕获的异常
         :return 是否需要重试
         """
-        retry_time = self.retry_time_dict.setdefault(task, 0)
-        will_try = False
+        task_id = object_to_str_hash(task)
+        retry_time = self.retry_time_dict.setdefault(task_id, 0)
 
         # 基于异常类型决定重试策略
         if (
             isinstance(exception, self.retry_exceptions)
             and retry_time < self.max_retries
-        ):  # isinstance(exception, self.retry_exceptions) and
+        ):
             await self.task_queues[0].put(task) # 只在第一个队列存放retry task
-            self.retry_time_dict[task] += 1
-            # delay_time = 2 ** retry_time
+            self.retry_time_dict[task_id] += 1
             self.task_logger.task_retry(
-                self.func.__name__, self.get_task_info(task), self.retry_time_dict[task]
+                self.func.__name__, self.get_task_info(task), self.retry_time_dict[task_id], exception
             )
-            # sleep(delay_time)  # 指数退避
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
-            self.error_dict[task] = exception
+            self.processed_set.add(task_id)
+
+            if self.enable_result_cache:
+                self.error_dict[task] = exception
+                
             self.update_error_counter()
             self.put_fail_queue(task, exception)
             self.task_logger.task_error(
                 self.func.__name__, self.get_task_info(task), exception
             )
-
-        return will_try
 
     def start(self, task_source: Iterable):
         """
@@ -867,7 +888,7 @@ class TaskManager:
         """
         start = time.time()
         self.set_execution_mode(execution_mode)
-        self.init_dict()
+        self.init_state()
         self.start(task_list)
         return time.time() - start
 

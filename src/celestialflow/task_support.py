@@ -99,7 +99,7 @@ class TaskLogger:
         )
 
     def start_layer(self, layer: List[str], layer_level: int):
-        self._log("INFO", f"Layer {layer} start. Layer level: {layer_level}")
+        self._log("INFO", f"Layer {layer} start. Layer level: {layer_level}.")
     
     def end_layer(self, layer: List[str], use_time: float):
         self._log("INFO", f"Layer {layer} end. Use {use_time:.2f} second.")
@@ -115,8 +115,8 @@ class TaskLogger:
     def task_success(self, func_name, task_info, execution_mode, result_info, use_time):
         self._log("SUCCESS", f"In '{func_name}', Task {task_info} completed by {execution_mode}. Result is {result_info}. Used {use_time:.2f} seconds.")
 
-    def task_retry(self, func_name, task_info, retry_times):
-        self._log("WARNING", f"In '{func_name}', Task {task_info} failed {retry_times} times and will retry.")
+    def task_retry(self, func_name, task_info, retry_times, exception):
+        self._log("WARNING", f"In '{func_name}', Task {task_info} failed {retry_times} times and will retry: ({type(exception).__name__}).")
 
     def task_error(self, func_name, task_info, exception):
         self._log("ERROR", f"In '{func_name}', Task {task_info} failed and can't retry: ({type(exception).__name__}){exception}.")

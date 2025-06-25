@@ -55,9 +55,14 @@ class TaskSplitter(TaskManager):
         :param start_time: 任务开始时间
         """
         processed_result = self.process_result(task, result)
-        self.success_dict[task] = processed_result
+        
+        task_id = object_to_str_hash(task)
+        self.processed_set.add(task_id)
 
-        self.update_succes_counter()
+        if self.enable_result_cache:
+            self.success_dict[task] = processed_result
+
+        self.update_success_counter()
         split_count = self.put_split_result(result)
 
         self.task_logger.splitter_success(
