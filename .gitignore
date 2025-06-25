@@ -21,3 +21,4 @@ example/
 result.json
 _preview.ipynb
 temp.py
+*.exe
