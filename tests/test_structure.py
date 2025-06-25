@@ -196,7 +196,7 @@ def _test_wheel():
 def test_grid():
     # 1. 构造网格
     grid = [
-        [TaskManager(add_sleep, "serial") for _ in range(4)]
+        [TaskManager(add_sleep, "thread", 2) for _ in range(4)]
         for _ in range(4)
     ]
 

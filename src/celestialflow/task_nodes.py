@@ -55,11 +55,12 @@ class TaskSplitter(TaskManager):
         """
         processed_result = self.process_result(task, result)
         
-        task_id = self.get_task_id(task)
-        self.processed_set.add(task_id)
-
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
+
+        # ✅ 清理 retry_time_dict
+        task_id = self.get_task_id(task)
+        self.retry_time_dict.pop(task_id, None)
 
         self.update_success_counter()
         split_count = self.put_split_result(result)

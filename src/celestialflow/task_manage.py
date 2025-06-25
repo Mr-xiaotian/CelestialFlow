@@ -231,12 +231,6 @@ class TaskManager:
             "func_name": self.func.__name__,
             "class_name": self.__class__.__name__,
         }
-    
-    def get_task_id(self, task):
-        """
-        获取任务ID
-        """
-        return object_to_str_hash(task)
 
     def add_retry_exceptions(self, *exceptions):
         """
@@ -375,11 +369,10 @@ class TaskManager:
         with self.counter_lock:
             self.duplicate_counter.value += 1
 
-    def is_duplicate(self, task):
+    def is_duplicate(self, task_id):
         """
         判断任务是否重复
         """
-        task_id = self.get_task_id(task)
         return task_id in self.processed_set
     
     def deal_dupliacte(self, task):
@@ -431,6 +424,12 @@ class TaskManager:
             error_groups[error].append(task)
 
         return dict(error_groups)  # 转换回普通字典
+    
+    def get_task_id(self, task):
+        """
+        获取任务ID
+        """
+        return object_to_str_hash(task)
 
     def get_task_info(self, task):
         """
@@ -468,11 +467,12 @@ class TaskManager:
         """
         processed_result = self.process_result(task, result)
 
-        task_id = self.get_task_id(task)
-        self.processed_set.add(task_id)
-
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
+
+        # ✅ 清理 retry_time_dict
+        task_id = self.get_task_id(task)
+        self.retry_time_dict.pop(task_id, None)
 
         self.update_success_counter()
         self.put_result_queues(processed_result)
@@ -494,11 +494,12 @@ class TaskManager:
         """
         processed_result = self.process_result(task, result)
 
-        task_id = self.get_task_id(task)
-        self.processed_set.add(task_id)
-
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
+
+        # ✅ 清理 retry_time_dict
+        task_id = self.get_task_id(task)
+        self.retry_time_dict.pop(task_id, None)
 
         await self.update_success_counter_async()
         await self.put_result_queues_async(processed_result)
@@ -533,10 +534,11 @@ class TaskManager:
             )
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
-            self.processed_set.add(task_id)
-
             if self.enable_result_cache:
                 self.error_dict[task] = exception
+
+            # ✅ 清理 retry_time_dict
+            self.retry_time_dict.pop(task_id, None)
 
             self.update_error_counter()
             self.put_fail_queue(task, exception)
@@ -567,10 +569,11 @@ class TaskManager:
             )
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
-            self.processed_set.add(task_id)
-
             if self.enable_result_cache:
                 self.error_dict[task] = exception
+
+            # ✅ 清理 retry_time_dict
+            self.retry_time_dict.pop(task_id, None)
 
             self.update_error_counter()
             self.put_fail_queue(task, exception)
@@ -695,16 +698,18 @@ class TaskManager:
         # 从队列中依次获取任务并执行
         while True:
             task = self.get_task_queues()
+            task_id = self.get_task_id(task)
             self.task_logger._log("TRACE",
                 f"Task {task} is submitted to {self.func.__name__}"
             )
             if isinstance(task, TerminationSignal):
                 # progress_manager.update(1)
                 break
-            elif self.is_duplicate(task):
+            elif self.is_duplicate(task_id):
                 self.deal_dupliacte(task)
                 self.progress_manager.update(1)
                 continue
+            self.processed_set.add(task_id)
             try:
                 start_time = time.time()
                 result = self.func(*self.get_args(task))
@@ -760,6 +765,7 @@ class TaskManager:
         # 从任务队列中提交任务到执行池
         while True:
             task = self.get_task_queues()
+            task_id = self.get_task_id(task)
             self.task_logger._log("TRACE",
                 f"Task {task} is submitted to {self.func.__name__}"
             )
@@ -768,10 +774,11 @@ class TaskManager:
                 # 收到终止信号后不再提交新任务
                 # progress_manager.update(1)
                 break
-            elif self.is_duplicate(task):
+            elif self.is_duplicate(task_id):
                 self.deal_dupliacte(task)
                 self.progress_manager.update(1)
                 continue
+            self.processed_set.add(task_id)
 
             # 提交新任务时增加in_flight计数，并清除完成事件
             with in_flight_lock:
@@ -818,16 +825,18 @@ class TaskManager:
 
         while True:
             task = await self.get_task_queues_async()
+            task_id = self.get_task_id(task)
             self.task_logger._log("TRACE",
                 f"Task {task} is submitted to {self.func.__name__}"
             )
             if isinstance(task, TerminationSignal):
                 # progress_manager.update(1)
                 break
-            elif self.is_duplicate(task):
+            elif self.is_duplicate(task_id):
                 self.deal_dupliacte(task)
                 self.progress_manager.update(1)
                 continue
+            self.processed_set.add(task_id)
             async_tasks.append(sem_task(task))  # 使用信号量包裹的任务
 
         # 并发运行所有任务
