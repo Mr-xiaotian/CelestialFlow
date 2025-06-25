@@ -74,11 +74,11 @@ function renderDashboard() {
 
     // ✅ 计算进度
     const progress =
-      data.tasks_processed + data.tasks_pending === 0
+      data.tasks_successed + data.tasks_pending === 0
         ? 0
         : Math.floor(
-            ((data.tasks_processed + data.tasks_failed) /
-              (data.tasks_processed + data.tasks_failed + data.tasks_pending)) *
+            ((data.tasks_successed + data.tasks_failed) /
+              (data.tasks_successed + data.tasks_failed + data.tasks_pending)) *
               100
           );
 
@@ -101,9 +101,9 @@ function renderDashboard() {
             <span class="badge ${badgeClass}">${badgeText}</span>
           </div>
           <div class="stats-grid">
-            <div><div class="stat-label">已处理</div><div class="stat-value">${formatWithDelta(
-              data.tasks_processed,
-              data.add_tasks_processed
+            <div><div class="stat-label">已成功</div><div class="stat-value">${formatWithDelta(
+              data.tasks_successed,
+              data.add_tasks_successed
             )}</div></div>
             <div><div class="stat-label">等待中</div><div class="stat-value">${formatWithDelta(
               data.tasks_pending,
@@ -151,7 +151,7 @@ function updateSummary() {
     error = 0,
     active = 0;
   Object.values(nodeStatuses).forEach((s) => {
-    processed += s.tasks_processed;
+    processed += s.tasks_successed;
     pending += s.tasks_pending;
     error += s.tasks_failed;
     if (s.status === 1) active++;

@@ -86,7 +86,7 @@ mermaidTitle.textContent = `任务结构图（${structureClassName}）`;
     for (const child of node.next_stages || []) {
       const toId = getNodeId(child);
       const fromTag = `${node.stage_name}[${node.func_name}]`;
-      const addNum = nodeStatuses?.[fromTag]?.add_tasks_processed || 0;
+      const addNum = nodeStatuses?.[fromTag]?.add_tasks_successed || 0;
       const edgeLabel = addNum > 0 ? `|+${addNum}|` : "";
 
       edges.add(`  ${id} -->${""} ${toId}`);

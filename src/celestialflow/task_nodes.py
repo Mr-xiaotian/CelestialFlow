@@ -3,7 +3,6 @@ import time
 import redis
 
 from .task_manage import TaskManager
-from .task_tools import object_to_str_hash
 
 
 class TaskSplitter(TaskManager):
@@ -56,7 +55,7 @@ class TaskSplitter(TaskManager):
         """
         processed_result = self.process_result(task, result)
         
-        task_id = object_to_str_hash(task)
+        task_id = self.get_task_id(task)
         self.processed_set.add(task_id)
 
         if self.enable_result_cache:
@@ -110,7 +109,7 @@ class TaskRedisTransfer(TaskManager):
         output_key = f"{self.get_stage_tag()}:output"
 
         # 将任务写入 redis（如 list 或 stream）
-        task_id = object_to_str_hash(task)
+        task_id = self.get_task_id(task)
         payload = json.dumps({"id": task_id, "task": task})
         self.redis_client.rpush(input_key, payload)
 

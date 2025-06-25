@@ -231,6 +231,12 @@ class TaskManager:
             "func_name": self.func.__name__,
             "class_name": self.__class__.__name__,
         }
+    
+    def get_task_id(self, task):
+        """
+        获取任务ID
+        """
+        return object_to_str_hash(task)
 
     def add_retry_exceptions(self, *exceptions):
         """
@@ -373,7 +379,7 @@ class TaskManager:
         """
         判断任务是否重复
         """
-        task_id = object_to_str_hash(task)
+        task_id = self.get_task_id(task)
         return task_id in self.processed_set
     
     def deal_dupliacte(self, task):
@@ -462,7 +468,7 @@ class TaskManager:
         """
         processed_result = self.process_result(task, result)
 
-        task_id = object_to_str_hash(task)
+        task_id = self.get_task_id(task)
         self.processed_set.add(task_id)
 
         if self.enable_result_cache:
@@ -488,7 +494,7 @@ class TaskManager:
         """
         processed_result = self.process_result(task, result)
 
-        task_id = object_to_str_hash(task)
+        task_id = self.get_task_id(task)
         self.processed_set.add(task_id)
 
         if self.enable_result_cache:
@@ -512,7 +518,7 @@ class TaskManager:
         :param exception: 捕获的异常
         :return 是否需要重试
         """
-        task_id = object_to_str_hash(task)
+        task_id = self.get_task_id(task)
         retry_time = self.retry_time_dict.setdefault(task_id, 0)
 
         # 基于异常类型决定重试策略
@@ -546,7 +552,7 @@ class TaskManager:
         :param exception: 捕获的异常
         :return 是否需要重试
         """
-        task_id = object_to_str_hash(task)
+        task_id = self.get_task_id(task)
         retry_time = self.retry_time_dict.setdefault(task_id, 0)
 
         # 基于异常类型决定重试策略
@@ -565,7 +571,7 @@ class TaskManager:
 
             if self.enable_result_cache:
                 self.error_dict[task] = exception
-                
+
             self.update_error_counter()
             self.put_fail_queue(task, exception)
             self.task_logger.task_error(

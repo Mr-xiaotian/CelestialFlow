@@ -56,7 +56,7 @@ def _test_loop():
         stageA.get_stage_tag(): test_task_0
     })
 
-def test_forest():
+def _test_forest():
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -120,7 +120,7 @@ def _test_cross():
 
     cross.start_cross(init_tasks)
 
-def test_network():
+def _test_network():
     # 输入层
     A1 = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     A2 = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
@@ -193,10 +193,10 @@ def _test_wheel():
         core.get_stage_tag(): range(1,11)
     })
 
-def _test_grid():
-    # 1. 构造 4x4 网格
+def test_grid():
+    # 1. 构造网格
     grid = [
-        [TaskManager(add_sleep, "thread") for _ in range(4)]
+        [TaskManager(add_sleep, "serial") for _ in range(4)]
         for _ in range(4)
     ]
 
@@ -271,4 +271,5 @@ def _test_complete():
 
 if __name__ == "__main__":
     # test_cross()
+    test_grid()
     pass

@@ -536,12 +536,12 @@ class TaskGraph:
                     total_input += self.stage_success_counter.get(prev_tag, ValueWrapper()).value
 
             status         = stage_status_dict.get("status", StageStatus.NOT_STARTED)
-            processed      = self.stage_success_counter.get(tag, ValueWrapper()).value
+            successed      = self.stage_success_counter.get(tag, ValueWrapper()).value
             failed         = self.stage_error_counter.get(tag, ValueWrapper()).value
             duplicated     = self.stage_duplicate_counter.get(tag, ValueWrapper()).value
-            pending        = max(0, total_input - processed - failed - duplicated)
+            pending        = max(0, total_input - successed - failed - duplicated)
 
-            add_processed  = processed - last_stage_status_dict.get("tasks_processed", 0)
+            add_successed  = successed - last_stage_status_dict.get("tasks_successed", 0)
             add_failed     = failed - last_stage_status_dict.get("tasks_failed", 0)
             add_duplicated = duplicated - last_stage_status_dict.get("tasks_duplicated", 0)
             add_pending    = pending - last_stage_status_dict.get("tasks_pending", 0)
@@ -560,17 +560,17 @@ class TaskGraph:
             stage_status_dict["elapsed_time"] = elapsed
 
             # 估算剩余时间
-            remaining = (elapsed / (processed + failed + duplicated) * pending) if (processed or failed or duplicated) and pending else 0
+            remaining = (elapsed / (successed + failed + duplicated) * pending) if (successed or failed or duplicated) and pending else 0
 
             # 计算平均时间（秒/任务）并格式化为字符串
-            if processed or failed or duplicated:
-                avg_time = elapsed / (processed + failed + duplicated)
+            if successed or failed or duplicated:
+                avg_time = elapsed / (successed + failed + duplicated)
                 if avg_time >= 1.0:
                     # 显示 "X.XX s/it"
                     avg_time_str = f"{avg_time:.2f}s/it"
                 else:
                     # 显示 "X.XX it/s"（取倒数）
-                    its_per_sec = (processed + failed + duplicated) / elapsed if elapsed else 0
+                    its_per_sec = (successed + failed + duplicated) / elapsed if elapsed else 0
                     avg_time_str = f"{its_per_sec:.2f}it/s"
             else:
                 avg_time_str = "N/A"  # 或 "0.00s/it" 根据需求
@@ -578,7 +578,7 @@ class TaskGraph:
             history: list = stage_status_dict.get("history", [])
             history.append({
                 "timestamp": now,
-                "tasks_completed": processed+failed+duplicated,
+                "tasks_processed": successed+failed+duplicated,
             })
             history.pop(0) if len(history) > 20 else None
             stage_status_dict["history"] = history
@@ -586,19 +586,22 @@ class TaskGraph:
             status_dict[tag] = {
                 **stage.get_stage_summary(),
                 "status": status,
-                "tasks_processed": processed,
+
+                "tasks_successed": successed,
                 "tasks_failed": failed,
                 "tasks_duplicated": duplicated,
                 "tasks_pending": pending,
-                "add_tasks_processed": add_processed,
+
+                "add_tasks_successed": add_successed,
                 "add_tasks_failed": add_failed,
                 "add_tasks_duplicated": add_duplicated,
                 "add_tasks_pending": add_pending,
+
                 "start_time": format_timestamp(start_time),
                 "elapsed_time": format_duration(elapsed),
                 "remaining_time": format_duration(remaining),
                 "task_avg_time": avg_time_str,
-                "history": history  # ✅ 新增历史数据
+                "history": history
             }
 
         self.last_status_dict = status_dict
