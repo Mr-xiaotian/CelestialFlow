@@ -22,10 +22,10 @@ func main() {
 	worker.StartWorkerPool(
 		ctx,
 		rdb,
-		"GoDownload[_trans_redis]:input",  // Redis 中任务输入的 List
-		"GoDownload[_trans_redis]:output", // Redis 中结果写入的 Hash
+		"GoFibonacci[_trans_redis]:input",  // Redis 中任务输入的 List
+		"GoFibonacci[_trans_redis]:output", // Redis 中结果写入的 Hash
 		worker.ParseListTask,
-		worker.DownloadToFile,
+		worker.Fibonacci,
 		4,
 	)
 }

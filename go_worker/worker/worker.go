@@ -86,7 +86,7 @@ func StartWorkerPool(
 			if jsonResp, err := json.Marshal(resp); err == nil {
 				_ = rdb.HSet(ctx, outputKey, p.ID, jsonResp)
 			}
-			fmt.Printf("Processed task %s\n", p.ID)
+			fmt.Printf("Processed task: %+v, result: %+v\n", task, resultVal)
 		}(payload)
 	}
 }

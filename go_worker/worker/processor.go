@@ -16,7 +16,7 @@ func Add100(args []any) (any, error) {
 
 	num, ok := args[0].(float64) // JSON 解析为 float64
 	if !ok {
-		return nil, fmt.Errorf("Add100: argument is not a number")
+		return nil, fmt.Errorf("argument is not a number")
 	}
 
 	return int(num) + 100, nil
@@ -30,12 +30,12 @@ func Fibonacci(args []any) (any, error) {
 
 	num, ok := args[0].(float64)
 	if !ok {
-		return nil, fmt.Errorf("Fibonacci: argument is not a number")
+		return nil, fmt.Errorf("argument is not a number")
 	}
 
 	n := int(num)
 	if n <= 0 {
-		return nil, fmt.Errorf("Fibonacci: n must be a positive integer")
+		return nil, fmt.Errorf("n must be a positive integer")
 	}
 	if n == 1 || n == 2 {
 		return 1, nil
@@ -78,7 +78,7 @@ func DownloadToFile(args []any) (any, error) {
 	path, ok2 := args[1].(string)
 
 	if !ok1 || !ok2 {
-		return nil, errors.New("DownloadToFile: both arguments must be strings")
+		return nil, errors.New("both arguments must be strings")
 	}
 
 	// 发送 HTTP GET 请求

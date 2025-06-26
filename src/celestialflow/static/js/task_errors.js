@@ -1,7 +1,7 @@
 let errors = [];
 let previousErrorsJSON = "";
 let currentPage = 1;
-const pageSize = 5;
+const pageSize = 10;
 
 const nodeFilter = document.getElementById("node-filter");
 const errorsTableBody = document.querySelector("#errors-table tbody");

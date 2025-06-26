@@ -145,7 +145,7 @@ def _test_splitter_1():
         # parse_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
     }, False)
 
-def _test_transfer_0():
+def test_transfer_0():
     start_stage = TaskManager(sleep_1, execution_mode='thread', worker_limit=4)
     redis_transfer = TaskRedisTransfer()
     fibonacci_stage = TaskManager(fibonacci, 'thread')
@@ -162,7 +162,7 @@ def _test_transfer_0():
     test_task_1 = list(test_task_0) + [0, 27, None, 0, '']
 
     graph.start_graph({
-        start_stage.get_stage_tag(): test_task_0,
+        start_stage.get_stage_tag(): test_task_1,
     })
 
 def _test_transfer_1():
@@ -184,7 +184,7 @@ def _test_transfer_1():
         start_stage.get_stage_tag(): test_task_0,
     })
 
-def test_transfer_2():
+def _test_transfer_2():
     start_stage = TaskManager(sleep_1, execution_mode='thread', worker_limit=4)
     redis_transfer = DownloadRedisTransfer()
     download_stage = DownloadManager(download_to_file, execution_mode='thread', worker_limit=4)    
