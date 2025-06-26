@@ -7,7 +7,7 @@ let hiddenNodes = new Set(
 );
 
 const dashboardGrid = document.getElementById("dashboard-grid");
-const totalProcessed = document.getElementById("total-processed");
+const totalSuccessed = document.getElementById("total-successed");
 const totalPending = document.getElementById("total-pending");
 const totalErrors = document.getElementById("total-errors");
 const totalNodes = document.getElementById("total-nodes");
@@ -74,11 +74,11 @@ function renderDashboard() {
 
     // ✅ 计算进度
     const progress =
-      data.tasks_successed + data.tasks_pending === 0
+      data.tasks_processed + data.tasks_pending === 0
         ? 0
         : Math.floor(
-            ((data.tasks_successed + data.tasks_failed) /
-              (data.tasks_successed + data.tasks_failed + data.tasks_pending)) *
+            ((data.tasks_processed) /
+              (data.tasks_processed + data.tasks_pending)) *
               100
           );
 
@@ -146,17 +146,17 @@ function renderDashboard() {
 }
 
 function updateSummary() {
-  let processed = 0,
+  let successed = 0,
     pending = 0,
     error = 0,
     active = 0;
   Object.values(nodeStatuses).forEach((s) => {
-    processed += s.tasks_successed;
+    successed += s.tasks_successed;
     pending += s.tasks_pending;
     error += s.tasks_failed;
     if (s.status === 1) active++;
   });
-  totalProcessed.textContent = processed;
+  totalSuccessed.textContent = successed;
   totalPending.textContent = pending;
   totalErrors.textContent = error;
   totalNodes.textContent = active;

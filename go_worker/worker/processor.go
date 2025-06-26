@@ -106,5 +106,5 @@ func DownloadToFile(args []any) (any, error) {
 		return nil, fmt.Errorf("file write failed: %v", err)
 	}
 
-	return fmt.Sprintf("Downloaded %s", path), nil
+	return "Downloaded success", nil
 }

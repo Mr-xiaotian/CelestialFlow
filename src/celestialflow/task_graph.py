@@ -590,11 +590,13 @@ class TaskGraph:
                 "tasks_successed": successed,
                 "tasks_failed": failed,
                 "tasks_duplicated": duplicated,
+                "tasks_processed": successed+failed+duplicated,
                 "tasks_pending": pending,
 
                 "add_tasks_successed": add_successed,
                 "add_tasks_failed": add_failed,
                 "add_tasks_duplicated": add_duplicated,
+                "add_tasks_processed": add_successed+add_failed+add_duplicated,
                 "add_tasks_pending": add_pending,
 
                 "start_time": format_timestamp(start_time),
