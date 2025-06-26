@@ -77,9 +77,7 @@ function renderDashboard() {
       data.tasks_processed + data.tasks_pending === 0
         ? 0
         : Math.floor(
-            ((data.tasks_processed) /
-              (data.tasks_processed + data.tasks_pending)) *
-              100
+            (data.tasks_processed / (data.tasks_processed + data.tasks_pending)) * 100
           );
 
     // ✅ 根据 status 决定 badge 样式和文本
@@ -200,7 +198,10 @@ function initChart() {
               hiddenNodes.add(nodeName);
             }
 
-            localStorage.setItem("hiddenNodes", JSON.stringify([...hiddenNodes]));
+            localStorage.setItem(
+              "hiddenNodes",
+              JSON.stringify([...hiddenNodes])
+            );
 
             const meta = legend.chart.getDatasetMeta(index);
             meta.hidden =

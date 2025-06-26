@@ -8,13 +8,13 @@ from celestialflow import TaskManager, TaskGraph, TaskSplitter, TaskRedisTransfe
 class DownloadRedisTransfer(TaskRedisTransfer):
     def get_args(self, task):
         url, path = task
-        return url, path.replace("/tmp/", "Q:/Project/test/download_go/")
+        return url, path.replace("/tmp/", "X:/Download/download_go/")
 
 
 class DownloadManager(TaskManager):
     def get_args(self, task):
         url, path = task
-        return url, path.replace("/tmp/", "Q:/Project/test/download_py/")
+        return url, path.replace("/tmp/", "X:/Download/download_py/")
 
 
 def sleep_1(n):
@@ -145,7 +145,7 @@ def _test_splitter_1():
         # parse_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
     }, False)
 
-def test_transfer_0():
+def _test_transfer_0():
     start_stage = TaskManager(sleep_1, execution_mode='thread', worker_limit=4)
     redis_transfer = TaskRedisTransfer()
     fibonacci_stage = TaskManager(fibonacci, 'thread')
@@ -184,9 +184,9 @@ def _test_transfer_1():
         start_stage.get_stage_tag(): test_task_0,
     })
 
-def _test_transfer_2():
+def test_transfer_2():
     start_stage = TaskManager(sleep_1, execution_mode='thread', worker_limit=4)
-    redis_transfer = DownloadRedisTransfer()
+    redis_transfer = DownloadRedisTransfer(port=50001)
     download_stage = DownloadManager(download_to_file, execution_mode='thread', worker_limit=4)    
 
     start_stage.set_graph_context([redis_transfer, download_stage], stage_mode='serial', stage_name='Start')
@@ -197,19 +197,19 @@ def _test_transfer_2():
     graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     download_links = [
-        # 小型 HTML 页面
-        ["https://example.com", "/tmp/example.html"],
-        ["https://www.iana.org/domains/example", "/tmp/iana.html"],
+        # # 小型 HTML 页面
+        # ["https://example.com", "/tmp/example.html"],
+        # ["https://www.iana.org/domains/example", "/tmp/iana.html"],
 
-        # 文本文件（GitHub RAW）
-        ["https://raw.githubusercontent.com/github/gitignore/main/Python.gitignore", "/tmp/python.gitignore"],
+        # # 文本文件（GitHub RAW）
+        # ["https://raw.githubusercontent.com/github/gitignore/main/Python.gitignore", "/tmp/python.gitignore"],
 
         # 小图片
-        # ["https://via.placeholder.com/1.png", "/tmp/1x1.png"],
-        # ["https://via.placeholder.com/150", "/tmp/150x150.jpg"],
+        # ["https://img.4khd.com/-IaKPu2ONWz8/aEhVCP-4Wsl/AAAAAAADirM/2Fg5CujCaKk7PqPY3I6DELSmidZE3ofqgCNcBGAsHYQ/w1300-rw/orts-shoes-4khd.com-001.webp?w=1300", "/tmp/orts-shoes-4khd.com-001.png"],
+        ["https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2949210/ss_a2792205c92812f5be3321f2e685135b402e5a72.600x338.jpg?t=1714466877", "/tmp/steam_2949210.jpg"],
 
         # JSON 示例（可保存为 .json 文件）
-        ["https://jsonplaceholder.typicode.com/todos/1", "/tmp/todo1.json"],
+        # ["https://jsonplaceholder.typicode.com/todos/1", "/tmp/todo1.json"],
     ]
 
     graph.start_graph({

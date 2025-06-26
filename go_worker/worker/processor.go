@@ -81,6 +81,12 @@ func DownloadToFile(args []any) (any, error) {
 		return nil, errors.New("both arguments must be strings")
 	}
 
+	// 检查文件是否已经存在
+	if _, err := os.Stat(path); err == nil {
+		// 文件已存在
+		return "File already exists, skipping download", nil
+	}
+
 	// 发送 HTTP GET 请求
 	resp, err := http.Get(url)
 	if err != nil {
@@ -106,5 +112,5 @@ func DownloadToFile(args []any) (any, error) {
 		return nil, fmt.Errorf("file write failed: %v", err)
 	}
 
-	return "Downloaded success", nil
+	return "Downloaded successfully", nil
 }
