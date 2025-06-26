@@ -119,7 +119,8 @@ class TaskLogger:
         self._log("WARNING", f"In '{func_name}', Task {task_info} failed {retry_times} times and will retry: ({type(exception).__name__}).")
 
     def task_error(self, func_name, task_info, exception):
-        self._log("ERROR", f"In '{func_name}', Task {task_info} failed and can't retry: ({type(exception).__name__}){exception}.")
+        exception_text = str(exception).replace('\n', ' ')
+        self._log("ERROR", f"In '{func_name}', Task {task_info} failed and can't retry: ({type(exception).__name__}){exception_text}.")
 
     def task_duplicate(self, func_name, task_info):
         self._log("SUCCESS", f"In '{func_name}', Task {task_info} has been duplicated.")

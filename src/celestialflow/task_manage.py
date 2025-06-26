@@ -527,6 +527,7 @@ class TaskManager:
             isinstance(exception, self.retry_exceptions)
             and retry_time < self.max_retries
         ):
+            self.processed_set.remove(task_id)
             self.task_queues[0].put(task) # 只在第一个队列存放retry task
             self.retry_time_dict[task_id] += 1
             self.task_logger.task_retry(
@@ -562,6 +563,7 @@ class TaskManager:
             isinstance(exception, self.retry_exceptions)
             and retry_time < self.max_retries
         ):
+            self.processed_set.remove(task_id)
             await self.task_queues[0].put(task) # 只在第一个队列存放retry task
             self.retry_time_dict[task_id] += 1
             self.task_logger.task_retry(
