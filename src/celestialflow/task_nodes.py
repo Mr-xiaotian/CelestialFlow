@@ -78,7 +78,16 @@ class TaskSplitter(TaskManager):
 
 
 class TaskRedisTransfer(TaskManager):
-    def __init__(self, worker_limit=50, unpack_task_args=False, host="localhost", port=6379, db=0, timeout=10):
+    def __init__(
+            self, 
+            worker_limit=50, 
+            unpack_task_args=False, 
+            host="localhost", 
+            port=6379, 
+            db=0, 
+            fetch_timeout=10, 
+            result_timeout=10
+        ):
         """
         初始化 TaskRedisTransfer
         :param worker_limit: 并行工作线程数
@@ -86,7 +95,8 @@ class TaskRedisTransfer(TaskManager):
         :param host: Redis 主机地址
         :param port: Redis 端口
         :param db: Redis 数据库
-        :param timeout: Redis 操作超时时间
+        :param fetch_timeout: Redis 任务等待超时时间
+        :param result_timeout: Redis 结果等待超时时间
         """
         super().__init__(
             func=self._trans_redis, 
@@ -98,7 +108,8 @@ class TaskRedisTransfer(TaskManager):
         self.host = host
         self.port = port
         self.db = db
-        self.timeout = timeout
+        self.fetch_timeout = fetch_timeout
+        self.result_timeout = result_timeout
 
     def init_redis(self):
         """初始化 Redis 客户端"""
@@ -113,28 +124,33 @@ class TaskRedisTransfer(TaskManager):
         input_key = f"{self.get_stage_tag()}:input"
         output_key = f"{self.get_stage_tag()}:output"
 
-        # 将任务写入 redis（如 list 或 stream）
+        # 提交任务
         task_id = self.get_task_id(task)
         payload = json.dumps({"id": task_id, "task": task})
         self.redis_client.rpush(input_key, payload)
 
-        # 等待结果（可以阻塞，或轮询）
+        # ✅ 等待任务被 BLPOP 拿走（不在 list 中）
+        wait_start = time.time()
+        while True:
+            if self.redis_client.lpos(input_key, payload) is None:  # 已被取走
+                break
+            if time.time() - wait_start > self.fetch_timeout:
+                raise TimeoutError("Task not fetched from Redis in time")
+            time.sleep(0.1)
+
+        # ✅ 被取走后再进入结果等待阶段
         start_time = time.time()
         while True:
             result = self.redis_client.hget(output_key, task_id)
             if result:
                 self.redis_client.hdel(output_key, task_id)
-                try:
-                    result_obj = json.loads(result)
-                except Exception as e:
-                    raise ValueError(f"Invalid JSON from Redis: {result!r}") from e
-
+                result_obj = json.loads(result)
                 if result_obj.get("status") == "success":
                     return result_obj.get("result")
                 elif result_obj.get("status") == "error":
                     raise RemoteWorkerError(f"{result_obj.get('error')}")
                 else:
                     raise ValueError(f"Unknown result status: {result_obj}")
-            elif time.time() - start_time > self.timeout:
-                raise TimeoutError("Redis result not returned in time")
+            if time.time() - start_time > self.result_timeout:
+                raise TimeoutError("Redis result not returned in time after being fetched")
             time.sleep(0.1)

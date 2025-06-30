@@ -105,15 +105,17 @@ class TaskManager:
         初始化队列
         """
         queue_map = {
-            "process": MPQueue,
+            "process": ThreadQueue, #MPqueue
             "async": AsyncQueue,
             "thread": ThreadQueue,
             "serial": ThreadQueue,
         }
-        self.task_queues: List[ThreadQueue|MPQueue] = task_queues or [queue_map[self.execution_mode]()]
-        self.result_queues: List[ThreadQueue|MPQueue] = result_queues or [queue_map[self.execution_mode]()]
-        self.fail_queue = fail_queue or ThreadQueue()
-        self.logger_queue = logger_queue or ThreadQueue()
+
+        # task_queues, result_queues与fail_queue只会在节点进程内运行, 因此如果不涉及多个进程的节点间通信, 可以全部使用ThreadQueue
+        self.task_queues: List[ThreadQueue|MPQueue|AsyncQueue]   = task_queues or [queue_map[self.execution_mode]()]
+        self.result_queues: List[ThreadQueue|MPQueue|AsyncQueue] = result_queues or [queue_map[self.execution_mode]()]
+        self.fail_queue: ThreadQueue|MPQueue|AsyncQueue          = fail_queue or queue_map[self.execution_mode]()
+        self.logger_queue: ThreadQueue|MPQueue                   = logger_queue or ThreadQueue()
 
     def init_state(self):
         """
@@ -351,6 +353,17 @@ class TaskManager:
             "timestamp": time.time()
         })
 
+    async def put_fail_queue_async(self, task, error):
+        """
+        将失败的任务放入失败队列（异步版本）
+        """
+        await self.fail_queue.put({
+            "stage_tag": self.get_stage_tag(),
+            "task": str(task),
+            "error_info": f"{type(error).__name__}({error})",
+            "timestamp": time.time()
+        })
+
     def update_success_counter(self):
         # 加锁方式（保证正确）
         with self.counter_lock:
@@ -578,7 +591,7 @@ class TaskManager:
             self.retry_time_dict.pop(task_id, None)
 
             self.update_error_counter()
-            self.put_fail_queue(task, exception)
+            await self.put_fail_queue_async(task, exception)
             self.task_logger.task_error(
                 self.func.__name__, self.get_task_info(task), exception
             )
@@ -666,10 +679,6 @@ class TaskManager:
         # 根据模式运行对应的任务处理函数
         if self.execution_mode == "thread":
             self.run_with_executor(self.thread_pool)
-        elif self.execution_mode == "process":
-            self.run_with_executor(self.process_pool)
-        elif self.execution_mode == "async":
-            asyncio.run(self.run_in_async())
         else:
             self.run_in_serial()
 

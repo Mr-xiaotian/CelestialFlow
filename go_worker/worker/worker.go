@@ -36,14 +36,6 @@ func StartWorkerPool(
 			continue
 		}
 
-		if payload.ID == "TERMINATION_SIGNAL" {
-			// 等所有 goroutine 完成
-			wg.Wait()
-			_ = rdb.HSet(ctx, outputKey, "TERMINATION_SIGNAL", `{"status": "terminated", "msg": "Worker exiting"}`)
-			fmt.Println("Termination signal received, exiting.")
-			break
-		}
-
 		sem <- struct{}{} // 获取并发令牌
 		wg.Add(1)
 
