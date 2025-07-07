@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -45,6 +46,8 @@ func StartWorkerPool(
 				wg.Done()
 			}()
 
+			startTime := time.Now() // 记录开始时间
+
 			task, err := parser(p.Task)
 			if err != nil {
 				fmt.Println("Parse Error:", err)
@@ -60,7 +63,7 @@ func StartWorkerPool(
 
 			resultVal, err := processor(task)
 			if err != nil {
-				fmt.Println("Processing Error:", err)
+				fmt.Printf("[ERROR] Task: %+v, Error: %v\n", task, err)
 				resp := map[string]any{
 					"status": "error",
 					"error":  fmt.Sprintf("Processing error: %v", err),
@@ -78,7 +81,10 @@ func StartWorkerPool(
 			if jsonResp, err := json.Marshal(resp); err == nil {
 				_ = rdb.HSet(ctx, outputKey, p.ID, jsonResp)
 			}
-			fmt.Printf("Processed task: %+v, result: %+v\n", task, resultVal)
+
+			endTime := time.Now() // 记录结束时间
+			duration := endTime.Sub(startTime)
+			fmt.Printf("[SUCCESS] Task: %+v, Result: %+v, Duration: %s\n", task, resultVal, duration)
 		}(payload)
 	}
 }
