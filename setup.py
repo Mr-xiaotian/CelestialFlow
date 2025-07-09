@@ -9,12 +9,13 @@ setup(
     packages=find_packages(where="src"),
     include_package_data=True,
     install_requires=[
-        "flask",
+        "fastapi",
+        "uvicorn",           # 作为 FastAPI 的运行服务器
         "redis",
         "pytest",
         "multiprocess",
         "rich",
-        # 其他依赖...
+        "jinja2",            # HTML 模板
     ],
     python_requires=">=3.8",
 )

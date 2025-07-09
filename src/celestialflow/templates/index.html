@@ -4,22 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>任务图监控系统</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+    <link rel="icon" href="{{ request.url_for('static', path='favicon.ico') }}">
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/base.css') }}"
+      href="{{ request.url_for('static', path='css/base.css') }}"
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/dashboard.css') }}"
+      href="{{ request.url_for('static', path='css/dashboard.css') }}"
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/errors.css') }}"
+      href="{{ request.url_for('static', path='css/errors.css') }}"
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/inject.css') }}"
+      href="{{ request.url_for('static', path='css/inject.css') }}"
     />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
@@ -351,12 +351,12 @@
       </div>
     </main>
 
-    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/task_statuses.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/task_structure.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/task_errors.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/task_topology.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/task_injection.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ request.url_for('static', path='js/utils.js') }}"></script>
+    <script src="{{ request.url_for('static', path='js/task_statuses.js') }}"></script>
+    <script src="{{ request.url_for('static', path='js/task_structure.js') }}"></script>
+    <script src="{{ request.url_for('static', path='js/task_errors.js') }}"></script>
+    <script src="{{ request.url_for('static', path='js/task_topology.js') }}"></script>
+    <script src="{{ request.url_for('static', path='js/task_injection.js') }}"></script>
+    <script src="{{ request.url_for('static', path='js/main.js') }}"></script>
   </body>
 </html>
