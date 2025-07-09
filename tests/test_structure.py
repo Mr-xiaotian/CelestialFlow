@@ -40,7 +40,7 @@ def add_20(x):
 def add_25(x):
     return add_offset(x, 25)
 
-def _test_loop():
+def test_loop():
     stageA = TaskManager(add_sleep, 'serial')
     stageB = TaskManager(add_sleep, 'serial')
     stageC = TaskManager(add_sleep, 'serial')
@@ -193,7 +193,7 @@ def _test_wheel():
         core.get_stage_tag(): range(1,11)
     })
 
-def test_grid():
+def _test_grid():
     # 1. 构造网格
     grid = [
         [TaskManager(add_sleep, "thread", 2) for _ in range(4)]
@@ -271,5 +271,5 @@ def _test_complete():
 
 if __name__ == "__main__":
     # test_cross()
-    test_grid()
+    # test_grid()
     pass

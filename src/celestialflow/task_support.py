@@ -264,28 +264,32 @@ class TaskReporter:
                         "task_id": task if len(task) < 100 else task[:100]+"...",
                         "timestamp": ts,
                     })
-            requests.post(f"{self.base_url}/api/push_errors", json=error_data, timeout=1)
+            payload = {"errors": error_data}
+            requests.post(f"{self.base_url}/api/push_errors", json=payload, timeout=1)
         except Exception as e:
             self.logger._log("WARNING", f"[Reporter] Error push failed: {type(e).__name__}({e}).")
 
     def _push_status(self):
         try:
             status_data = self.task_graph.get_status_dict()
-            requests.post(f"{self.base_url}/api/push_status", json=status_data, timeout=1)
+            payload = {"status": status_data}
+            requests.post(f"{self.base_url}/api/push_status", json=payload, timeout=1)
         except Exception as e:
             self.logger._log("WARNING", f"[Reporter] Status push failed: {type(e).__name__}({e}).")
 
     def _push_structure(self):
         try:
             structure = self.task_graph.get_structure_json()
-            requests.post(f"{self.base_url}/api/push_structure", json=structure, timeout=1)
+            payload = {"items": structure}
+            requests.post(f"{self.base_url}/api/push_structure", json=payload, timeout=1)
         except Exception as e:
             self.logger._log("WARNING", f"[Reporter] Structure push failed: {type(e).__name__}({e})")
 
     def _push_topology(self):
         try:
             topology = self.task_graph.get_graph_topology()
-            requests.post(f"{self.base_url}/api/push_topology", json=topology, timeout=1)
+            payload = {"topology": topology}
+            requests.post(f"{self.base_url}/api/push_topology", json=payload, timeout=1)
         except Exception as e:
             self.logger._log("WARNING", f"[Reporter] Topology push failed: {type(e).__name__}({e}).")
 

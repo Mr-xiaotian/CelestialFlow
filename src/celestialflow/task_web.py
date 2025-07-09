@@ -6,7 +6,36 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+from typing import List, Dict, Any
+from datetime import datetime
 import uvicorn
+
+
+class StructureModel(BaseModel):
+    items: List[Dict[str, Any]]  
+
+class StatusModel(BaseModel):
+    status: Dict[str, dict]
+
+class ErrorItem(BaseModel):
+    error: str
+    node: str
+    task_id: str
+    timestamp: float 
+
+class ErrorsModel(BaseModel):
+    errors: List[ErrorItem]
+
+class TopologyModel(BaseModel):
+    topology: Dict[str, Any]
+
+class IntervalModel(BaseModel):
+    interval: float
+
+class TaskInjectionModel(BaseModel):
+    node: str
+    task_datas: List[Any]
+    timestamp: datetime
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -75,40 +104,39 @@ class TaskWebServer:
 
         # ---- 接收接口 ----
         @app.post("/api/push_structure")
-        async def push_structure(payload: list = Body(...)):
-            self.structure_store = payload
+        async def push_structure(data: StructureModel):
+            self.structure_store = data.items
             return {"ok": True}
 
         @app.post("/api/push_status")
-        async def push_status(payload: dict = Body(...)):
-            self.status_store = payload
+        async def push_status(data: StatusModel):
+            self.status_store = data.status
             return {"ok": True}
 
         @app.post("/api/push_errors")
-        async def push_errors(payload: list = Body(...)):
-            self.error_store = payload
+        async def push_errors(data: ErrorsModel):
+            self.error_store = data.errors
             return {"ok": True}
 
         @app.post("/api/push_topology")
-        async def push_topology(payload: dict = Body(...)):
-            self.topology_store = payload
+        async def push_topology(data: TopologyModel):
+            self.topology_store = data.topology
             return {"ok": True}
 
         @app.post("/api/push_interval")
-        async def push_interval(payload: dict = Body(...)):
+        async def push_interval(data: IntervalModel):
             try:
-                interval = float(payload.get("interval", 5.0))
-                self.report_interval = max(1.0, min(interval / 1000.0, 60.0))
+                self.report_interval = max(1.0, min(data.interval / 1000.0, 60.0))
                 return {"message": "Interval updated"}
             except Exception as e:
                 return JSONResponse(content={"error": str(e)}, status_code=400)
 
         @app.post("/api/push_task_injection")
-        async def push_task_injection(payload: dict = Body(...)):
+        async def push_task_injection(data: TaskInjectionModel):
             try:
-                print(f"[任务注入]: {payload}")
+                print(f"[任务注入]: {data}")
                 with self._task_injection_lock:
-                    self.pending_injection_tasks.append(payload)
+                    self.pending_injection_tasks.append(data.model_dump())
                 return {"ok": True}
             except Exception as e:
                 return JSONResponse(content={"ok": False, "msg": f"任务注入失败: {e}"}, status_code=500)
@@ -116,6 +144,7 @@ class TaskWebServer:
         @app.route("/shutdown", methods=["POST"])
         def shutdown():
             os._exit(0)
+
     def start_server(self):
         uvicorn.run(self.app, host=self.host, port=self.port, log_level="info")
 

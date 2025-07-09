@@ -512,7 +512,7 @@ class TaskGraph:
             for stage, inner_dict in self.get_all_stage_error_dict().items()
         }
     
-    def get_status_dict(self) -> dict:
+    def get_status_dict(self) -> Dict[str, dict]:
         """
         获取任务链的状态字典
         """
