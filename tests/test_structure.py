@@ -120,7 +120,7 @@ def _test_cross():
 
     cross.start_cross(init_tasks)
 
-def _test_network():
+def test_network():
     # 输入层
     A1 = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     A2 = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
