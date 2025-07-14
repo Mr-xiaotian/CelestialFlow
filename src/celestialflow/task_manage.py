@@ -63,6 +63,7 @@ class TaskManager:
         self.thread_pool = None
         self.process_pool = None
 
+        self.current_index = 0  # 记录起始队列索引
         self.terminated_queue_set = set()
 
         self.prev_stages: List[TaskManager] = []
@@ -248,7 +249,6 @@ class TaskManager:
         :return: 获取到的任务，或 TerminationSignal 表示所有队列已终止
         """
         total_queues = len(self.task_queues)
-        current_index = 0  # 记录起始队列索引
 
         if total_queues == 1:
             # ✅ 只有一个队列时，使用阻塞式 get，提高效率
@@ -262,7 +262,7 @@ class TaskManager:
 
         while True:
             for i in range(total_queues):
-                idx = (current_index + i) % total_queues  # 轮转访问
+                idx = (self.current_index + i) % total_queues  # 轮转访问
                 if idx in self.terminated_queue_set:
                     continue
                 queue = self.task_queues[idx]
@@ -272,7 +272,7 @@ class TaskManager:
                         self.terminated_queue_set.add(idx)
                         self.task_logger._log("TRACE", f"get_task_queues: queue[{idx}] terminated")
                         continue
-                    current_index = (idx + 1) % total_queues  # 下一轮从下一个队列开始
+                    self.current_index = (idx + 1) % total_queues  # 下一轮从下一个队列开始
                     return item
                 except Empty:
                     continue
@@ -295,7 +295,6 @@ class TaskManager:
         :return: task 或 TerminationSignal
         """
         total_queues = len(self.task_queues)
-        current_index = 0  # 与同步逻辑保持一致
 
         if total_queues == 1:
             # ✅ 单队列直接 await 阻塞等待
@@ -309,7 +308,7 @@ class TaskManager:
 
         while True:
             for i in range(total_queues):
-                idx = (current_index + i) % total_queues
+                idx = (self.current_index + i) % total_queues
                 if idx in self.terminated_queue_set:
                     continue
                 queue = self.task_queues[idx]
@@ -319,7 +318,7 @@ class TaskManager:
                         self.terminated_queue_set.add(idx)
                         self.task_logger._log("TRACE", f"get_task_queues_async: queue[{idx}] terminated")
                         continue
-                    current_index = (idx + 1) % total_queues
+                    self.current_index = (idx + 1) % total_queues
                     return task
                 except QueueEmpty:
                     continue

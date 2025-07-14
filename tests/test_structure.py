@@ -40,7 +40,7 @@ def add_20(x):
 def add_25(x):
     return add_offset(x, 25)
 
-def test_loop():
+def _test_loop():
     stageA = TaskManager(add_sleep, 'serial')
     stageB = TaskManager(add_sleep, 'serial')
     stageC = TaskManager(add_sleep, 'serial')
@@ -97,7 +97,7 @@ def _test_forest():
 
     graph.start_graph(init_tasks)
 
-def _test_cross():
+def test_cross():
     # 构建 DAG
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
