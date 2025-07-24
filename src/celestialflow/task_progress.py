@@ -29,21 +29,22 @@ class ProgressManager:
 
     def update(self, n=1):
         """更新进度条"""
-        if self.show_progress and self.progress_bar:
+        if self.show_progress:
             self.progress_bar.update(n)
 
     def close(self):
         """关闭进度条"""
-        if self.show_progress and self.progress_bar:
+        if self.show_progress:
             self.progress_bar.close()
 
     def refresh_total(self, total):
         """动态调整进度条的总任务数"""
-        if self.show_progress and self.progress_bar:
+        if self.show_progress:
             self.progress_bar.total = total
             self.progress_bar.refresh()
 
     def add_total(self, add_num):
         """动态增加进度条的总任务数"""
-        total = self.progress_bar.total + add_num
-        self.refresh_total(total)
+        if self.show_progress:
+            total = self.progress_bar.total + add_num
+            self.refresh_total(total)

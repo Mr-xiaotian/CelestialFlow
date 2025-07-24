@@ -154,14 +154,17 @@ class TaskManager:
         self.log_listener = LogListener("INFO")
         self.log_listener.start()
 
-    def init_progress(self, total_tasks, desc, mode):
+    def init_progress(self):
         """
         初始化进度条
         """
+        extra_desc = f"{self.execution_mode}-{self.worker_limit}" if self.execution_mode != "serial" else "serial"
+        progress_mode = "normal" if self.execution_mode != "async" else "async"
+
         self.progress_manager = ProgressManager(
-            total_tasks=total_tasks,
-            desc=desc,
-            mode=mode,
+            total_tasks=0,
+            desc=f"{self.progress_desc}({extra_desc})",
+            mode=progress_mode,
             show_progress=self.show_progress,
         )
 
@@ -338,6 +341,7 @@ class TaskManager:
         task_num = 0
         for item in task_source:
             self.task_queues[0].put(make_hashable(item))
+            self.progress_manager.add_total(1)
             task_num += 1
         for queue in self.task_queues:
             queue.put(TERMINATION_SIGNAL)  # 添加一个哨兵任务，用于结束任务队列
@@ -350,6 +354,7 @@ class TaskManager:
         task_num = 0
         for item in task_source:
             await self.task_queues[0].put(make_hashable(item))
+            self.progress_manager.add_total(1)
             task_num += 1
         for queue in self.task_queues:
             await queue.put(TERMINATION_SIGNAL)  # 添加一个哨兵任务，用于结束任务队列
@@ -569,6 +574,8 @@ class TaskManager:
         ):
             self.processed_set.remove(task_id)
             self.task_queues[0].put(task) # 只在第一个队列存放retry task
+            
+            self.progress_manager.add_total(1)
             self.retry_time_dict[task_id] += 1
             self.task_logger.task_retry(
                 self.func.__name__, self.get_task_info(task), self.retry_time_dict[task_id], exception
@@ -605,6 +612,8 @@ class TaskManager:
         ):
             self.processed_set.remove(task_id)
             await self.task_queues[0].put(task) # 只在第一个队列存放retry task
+            
+            self.progress_manager.add_total(1)
             self.retry_time_dict[task_id] += 1
             self.task_logger.task_retry(
                 self.func.__name__, self.get_task_info(task), self.retry_time_dict[task_id], exception
@@ -631,6 +640,7 @@ class TaskManager:
         """
         start_time = time.time()
         self.init_listener()
+        self.init_progress()
         self.init_env(logger_queue=self.log_listener.get_queue())
 
         total_tasks = self.put_task_queues(task_source)
@@ -650,6 +660,7 @@ class TaskManager:
             self.set_execution_mode("serial")
             self.run_in_serial()
 
+        self.progress_manager.close()
         self.task_logger.end_manager(
             self.func.__name__,
             self.execution_mode,
@@ -669,6 +680,7 @@ class TaskManager:
         start_time = time.time()
         self.set_execution_mode("async")
         self.init_listener()
+        self.init_progress()
         self.init_env(logger_queue=self.log_listener.get_queue())
 
         total_tasks = await self.put_task_queues_async(task_source)
@@ -678,6 +690,7 @@ class TaskManager:
 
         await self.run_in_async()
 
+        self.progress_manager.close()
         self.task_logger.end_manager(
             self.func.__name__,
             self.execution_mode,
@@ -698,6 +711,7 @@ class TaskManager:
         """
         start_time = time.time()
         self.active = True
+        self.init_progress()
         self.init_env(input_queues, output_queues, fail_queue, logger_queue)
         self.task_logger.start_stage(
             self.stage_name, self.func.__name__, self.execution_mode, self.worker_limit
@@ -727,11 +741,6 @@ class TaskManager:
         """
         串行地执行任务
         """
-        self.init_progress(
-            self.task_queues[0].qsize()-1, 
-            f"{self.progress_desc}(serial)", 
-            "normal"
-        )
 
         # 从队列中依次获取任务并执行
         while True:
@@ -756,7 +765,6 @@ class TaskManager:
                 self.handle_task_error(task, error)
             self.progress_manager.update(1)
 
-        self.progress_manager.close()
         self.terminated_queue_set = set()
 
         if not are_queues_empty(self.task_queues):
@@ -777,12 +785,6 @@ class TaskManager:
         in_flight_lock = Lock()
         all_done_event = Event()
         all_done_event.set()  # 初始为无任务状态，设为完成状态
-
-        self.init_progress(
-            self.task_queues[0].qsize()-1, 
-            f"{self.progress_desc}({self.execution_mode}-{self.worker_limit})", 
-            "normal"
-        )
 
         def on_task_done(future, task, progress_manager: ProgressManager):
             # 回调函数中处理任务结果
@@ -833,7 +835,6 @@ class TaskManager:
         all_done_event.wait()
 
         # 所有任务和回调都完成了，现在可以安全关闭进度条
-        self.progress_manager.close()
         self.terminated_queue_set = set()
 
         if not are_queues_empty(self.task_queues):
@@ -855,11 +856,6 @@ class TaskManager:
 
         # 创建异步任务列表
         async_tasks = []
-        self.init_progress(
-            self.task_queues[0].qsize()-1, 
-            f"{self.progress_desc}(async-{self.worker_limit})", 
-            "async"
-        )
 
         while True:
             task = await self.get_task_queues_async()
@@ -868,7 +864,6 @@ class TaskManager:
                 f"Task {task} is submitted to {self.func.__name__}"
             )
             if isinstance(task, TerminationSignal):
-                # progress_manager.update(1)
                 break
             elif self.is_duplicate(task_id):
                 self.deal_dupliacte(task)
@@ -887,7 +882,6 @@ class TaskManager:
                 await self.handle_task_error_async(task, result)
             self.progress_manager.update(1)
 
-        self.progress_manager.close()
         self.terminated_queue_set = set()
 
         if not await are_queues_empty_async(self.task_queues):
