@@ -341,10 +341,8 @@ class TaskManager:
         task_num = 0
         for item in task_source:
             self.task_queues[0].put(make_hashable(item))
-            self.progress_manager.add_total(1)
             task_num += 1
-        for queue in self.task_queues:
-            queue.put(TERMINATION_SIGNAL)  # 添加一个哨兵任务，用于结束任务队列
+        self.progress_manager.add_total(task_num)
         return task_num
 
     async def put_task_queues_async(self, task_source) -> int:
@@ -354,11 +352,23 @@ class TaskManager:
         task_num = 0
         for item in task_source:
             await self.task_queues[0].put(make_hashable(item))
-            self.progress_manager.add_total(1)
             task_num += 1
+        self.progress_manager.add_total(task_num)
+        return task_num
+
+    def terminate_task_queues(self):
+        """
+        终止所有任务队列
+        """
+        for queue in self.task_queues:
+            queue.put(TERMINATION_SIGNAL)  # 添加一个哨兵任务，用于结束任务队列
+    
+    async def terminate_task_queues_async(self):
+        """
+        终止所有任务队列(async模式)
+        """
         for queue in self.task_queues:
             await queue.put(TERMINATION_SIGNAL)  # 添加一个哨兵任务，用于结束任务队列
-        return task_num
 
     def put_result_queues(self, result):
         """
@@ -644,6 +654,7 @@ class TaskManager:
         self.init_env(logger_queue=self.log_listener.get_queue())
 
         total_tasks = self.put_task_queues(task_source)
+        self.terminate_task_queues()
         self.task_logger.start_manager(
             self.func.__name__, total_tasks, self.execution_mode, self.worker_limit
         )
@@ -684,6 +695,7 @@ class TaskManager:
         self.init_env(logger_queue=self.log_listener.get_queue())
 
         total_tasks = await self.put_task_queues_async(task_source)
+        await self.terminate_task_queues_async()
         self.task_logger.start_manager(
             self.func.__name__, total_tasks, "async(await)", self.worker_limit
         )
@@ -726,7 +738,8 @@ class TaskManager:
         # cleanup_mpqueue(input_queues) # 会影响之后finalize_nodes
         self.release_pool()
         self.put_result_queues(TERMINATION_SIGNAL)
-
+        
+        self.progress_manager.close()
         self.task_logger.end_stage(
             self.stage_name,
             self.func.__name__,
@@ -769,7 +782,7 @@ class TaskManager:
 
         if not are_queues_empty(self.task_queues):
             self.task_logger._log("DEBUG", f"Retrying tasks for '{self.func.__name__}'")
-            self.put_task_queues([])
+            self.terminate_task_queues()
             self.run_in_serial()
 
     def run_with_executor(self, executor: ThreadPoolExecutor | ProcessPoolExecutor):
@@ -839,7 +852,7 @@ class TaskManager:
 
         if not are_queues_empty(self.task_queues):
             self.task_logger._log("DEBUG", f"Retrying tasks for '{self.func.__name__}'")
-            self.put_task_queues([])
+            self.terminate_task_queues()
             self.run_with_executor(executor)
 
     async def run_in_async(self):
@@ -886,7 +899,7 @@ class TaskManager:
 
         if not await are_queues_empty_async(self.task_queues):
             self.task_logger._log("DEBUG", f"Retrying tasks for '{self.func.__name__}'")
-            await self.put_task_queues_async([])
+            await self.terminate_task_queues_async()
             await self.run_in_async()
 
     async def _run_single_task(self, task):
