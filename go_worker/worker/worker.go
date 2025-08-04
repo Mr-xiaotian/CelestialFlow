@@ -24,14 +24,14 @@ func StartWorkerPool(
 	sem := make(chan struct{}, concurrency) // 控制并发数
 
 	for {
-		result, err := rdb.BLPop(ctx, 0, inputKey).Result()
+		redisData, err := rdb.BLPop(ctx, 0, inputKey).Result()
 		if err != nil {
 			fmt.Println("BLPop Error:", err)
 			continue
 		}
 
 		var payload TaskPayload
-		err = json.Unmarshal([]byte(result[1]), &payload)
+		err = json.Unmarshal([]byte(redisData[1]), &payload)
 		if err != nil {
 			fmt.Println("JSON Parse Error:", err)
 			continue

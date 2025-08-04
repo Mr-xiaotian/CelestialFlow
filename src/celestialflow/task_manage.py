@@ -46,6 +46,9 @@ class TaskManager:
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'process', 'async'
         :param worker_limit: 同时处理数量
         :param max_retries: 任务的最大重试次数
+        :param max_info: 日志最大条数
+        :param unpack_task_args: 是否将任务参数解包
+        :param enable_result_cache: 是否启用结果缓存
         :param progress_desc: 进度条显示名称
         :param show_progress: 进度条显示与否
         """
@@ -233,7 +236,7 @@ class TaskManager:
         """
         return {
             "stage_mode": self.stage_mode,
-            "execution_mode": self.execution_mode if self.execution_mode == "serial" else self.execution_mode + f"-{self.worker_limit}",
+            "execution_mode": self.execution_mode if self.execution_mode == "serial" else f"{self.execution_mode}-{self.worker_limit}",
             "func_name": self.func.__name__,
             "class_name": self.__class__.__name__,
         }
@@ -339,10 +342,14 @@ class TaskManager:
         将任务放入任务队列
         """
         task_num = 0
+        progress_num = 0
         for item in task_source:
             self.task_queues[0].put(make_hashable(item))
             task_num += 1
-        self.progress_manager.add_total(task_num)
+            if task_num % 100 == 0:
+                self.progress_manager.add_total(100)
+                progress_num += 100
+        self.progress_manager.add_total(task_num - progress_num)
         return task_num
 
     async def put_task_queues_async(self, task_source) -> int:
@@ -350,10 +357,14 @@ class TaskManager:
         将任务放入任务队列(async模式)
         """
         task_num = 0
+        progress_num = 0
         for item in task_source:
             await self.task_queues[0].put(make_hashable(item))
             task_num += 1
-        self.progress_manager.add_total(task_num)
+            if task_num % 100 == 0:
+                self.progress_manager.add_total(100)
+                progress_num += 100
+        self.progress_manager.add_total(task_num - progress_num)
         return task_num
 
     def terminate_task_queues(self):
