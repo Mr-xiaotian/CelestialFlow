@@ -2,6 +2,13 @@ from tqdm import tqdm
 from tqdm.asyncio import tqdm as tqdm_asy
 
 
+class NullProgress:
+    def update(self, n=1): pass
+    def close(self): pass
+    def refresh_total(self, total): pass
+    def add_total(self, add_num): pass
+
+
 class ProgressManager:
     def __init__(
         self,
@@ -24,27 +31,24 @@ class ProgressManager:
             else:
                 self.progress_bar = tqdm(total=total_tasks, desc=desc)
         else:
-            self.progress_bar = None
-        self.show_progress = show_progress
+            self.progress_bar = NullProgress()
 
     def update(self, n=1):
         """更新进度条"""
-        if self.show_progress:
-            self.progress_bar.update(n)
+        self.progress_bar.update(n)
 
     def close(self):
         """关闭进度条"""
-        if self.show_progress:
-            self.progress_bar.close()
+        self.progress_bar.close()
 
     def refresh_total(self, total):
         """动态调整进度条的总任务数"""
-        if self.show_progress:
-            self.progress_bar.total = total
-            self.progress_bar.refresh()
+        self.progress_bar.total = total
+        self.progress_bar.refresh()
 
     def add_total(self, add_num):
         """动态增加进度条的总任务数"""
-        if self.show_progress:
-            total = self.progress_bar.total + add_num
-            self.refresh_total(total)
+        if not add_num:
+            return
+        total = self.progress_bar.total + add_num
+        self.refresh_total(total)
