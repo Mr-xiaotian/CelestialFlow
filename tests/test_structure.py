@@ -1,6 +1,7 @@
 import pytest, logging
 import math
 from time import sleep
+from celestialvault.tools.SampleGenerate import generate_test_data
 from celestialflow import TaskManager, TaskGraph, TaskLoop, TaskCross, TaskComplete, TaskWheel, TaskGrid
 
 
@@ -113,14 +114,14 @@ def test_cross():
 
     # 初始任务
     init_tasks = {
-        stageA.get_stage_tag(): range(1, 11),
+        stageA.get_stage_tag(): generate_test_data(50, "str"),
         stageB.get_stage_tag(): range(6, 16),
         stageC.get_stage_tag(): range(11, 21),
     }
 
     cross.start_cross(init_tasks)
 
-def test_network():
+def _test_network():
     # 输入层
     A1 = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     A2 = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)

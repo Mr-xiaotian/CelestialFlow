@@ -74,8 +74,40 @@ function renderPaginationControls(totalPages) {
   info.className = "pagination-info";
   info.textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
 
+  // 🔹 页码输入框
+  const pageInput = document.createElement("input");
+  pageInput.type = "number";
+  pageInput.min = 1;
+  pageInput.max = totalPages;
+  pageInput.value = currentPage;
+  pageInput.className = "page-input";
+  pageInput.style.width = "50px";
+  pageInput.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      jumpToPage();
+    }
+  };
+
+  // 🔹 跳转按钮
+  const jumpBtn = document.createElement("button");
+  jumpBtn.textContent = "跳转";
+  jumpBtn.onclick = jumpToPage;
+
+  function jumpToPage() {
+    let targetPage = parseInt(pageInput.value, 10);
+    if (!isNaN(targetPage)) {
+      targetPage = Math.max(1, Math.min(totalPages, targetPage)); // 限制范围
+      if (targetPage !== currentPage) {
+        currentPage = targetPage;
+        renderErrors();
+      }
+    }
+  }
+
   paginationContainer.appendChild(prevBtn);
   paginationContainer.appendChild(info);
+  paginationContainer.appendChild(pageInput);
+  paginationContainer.appendChild(jumpBtn);
   paginationContainer.appendChild(nextBtn);
 }
 
