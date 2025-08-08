@@ -15,7 +15,6 @@ class ProgressManager:
         total_tasks: int,
         desc: str = "Processing",
         mode: str = "normal",
-        show_progress: bool = False,
     ):
         """
         初始化进度条管理器
@@ -25,13 +24,10 @@ class ProgressManager:
         :param mode: 任务模式，可选 "async", other
         :param show_progress: 是否显示进度条
         """
-        if show_progress:
-            if mode == "async":
-                self.progress_bar = tqdm_asy(total=total_tasks, desc=desc)
-            else:
-                self.progress_bar = tqdm(total=total_tasks, desc=desc)
+        if mode == "async":
+            self.progress_bar = tqdm_asy(total=total_tasks, desc=desc)
         else:
-            self.progress_bar = NullProgress()
+            self.progress_bar = tqdm(total=total_tasks, desc=desc)
 
     def update(self, n=1):
         """更新进度条"""

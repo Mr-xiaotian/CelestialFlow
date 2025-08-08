@@ -21,7 +21,7 @@ from httpx import (
     RequestError,
 )
 
-from .task_progress import ProgressManager
+from .task_progress import ProgressManager, NullProgress
 from .task_support import TERMINATION_SIGNAL, TerminationSignal, LogListener, TaskLogger, ValueWrapper, null_lock
 from .task_tools import are_queues_empty, are_queues_empty_async, make_hashable, format_repr, object_to_str_hash
 
@@ -161,6 +161,10 @@ class TaskManager:
         """
         初始化进度条
         """
+        if not self.show_progress:
+            self.progress_manager = NullProgress()
+            return
+        
         extra_desc = f"{self.execution_mode}-{self.worker_limit}" if self.execution_mode != "serial" else "serial"
         progress_mode = "normal" if self.execution_mode != "async" else "async"
 
@@ -168,7 +172,6 @@ class TaskManager:
             total_tasks=0,
             desc=f"{self.progress_desc}({extra_desc})",
             mode=progress_mode,
-            show_progress=self.show_progress,
         )
 
     def set_execution_mode(self, execution_mode):
