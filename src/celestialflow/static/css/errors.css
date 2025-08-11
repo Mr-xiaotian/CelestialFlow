@@ -86,6 +86,62 @@ th {
 }
 
 /* ================================
+  🌟 公共按钮样式
+================================ */
+.pager-btn {
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #555;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.pager-btn:hover:not(:disabled) {
+  background-color: #e0e0e0;
+  border-color: #999;
+  color: #333;
+}
+
+.pager-btn:disabled {
+  background-color: #f9f9f9;
+  border-color: #ddd;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+/* ================================
+  🌟 数字部分（灰色系）
+================================ */
+.pager {
+  display: inline-flex;
+  gap: 8px;
+  margin: 0 8px;
+}
+
+.pager .page-link {
+  cursor: pointer;
+  color: #888;
+  transition: color 0.2s;
+}
+
+.pager .page-link:hover {
+  color: #555;
+}
+
+.pager .page-current {
+  font-weight: bold;
+  color: #333;
+  cursor: default;
+}
+
+.pager .dots {
+  color: #aaa;
+}
+
+/* ================================
   🌟 空提示样式
 ================================ */
 .no-errors {

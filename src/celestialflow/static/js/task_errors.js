@@ -49,65 +49,61 @@ function renderErrors() {
   renderPaginationControls(totalPages);
 }
 
+function buildPageList(current, total) {
+  // 想显示哪些关键页：首尾、当前、前后1-2页
+  const pages = new Set([1, total, current, current-1, current+1, current-2, current+2]);
+  const list = [...pages].filter(p => p >= 1 && p <= total).sort((a,b)=>a-b);
+
+  const out = [];
+  for (let i = 0; i < list.length; i++) {
+    out.push(list[i]);
+    if (i < list.length - 1 && list[i+1] - list[i] > 1) out.push("…"); // 插入省略号
+  }
+  return out;
+}
+
 function renderPaginationControls(totalPages) {
   paginationContainer.innerHTML = "";
-
   if (totalPages <= 1) return;
 
+  // 上一页
   const prevBtn = document.createElement("button");
   prevBtn.textContent = "上一页";
+  prevBtn.className = "pager-btn";
   prevBtn.disabled = currentPage === 1;
-  prevBtn.onclick = () => {
-    currentPage--;
-    renderErrors();
-  };
+  prevBtn.onclick = () => { currentPage = Math.max(1, currentPage - 1); renderErrors(); };
 
+  // 数字页码区
+  const pageBar = document.createElement("div");
+  pageBar.className = "pager";
+
+  const pages = buildPageList(currentPage, totalPages);
+  pages.forEach(p => {
+    const span = document.createElement("span");
+    span.textContent = p;
+    if (p === "…") {
+      span.className = "dots";
+    } else if (p === currentPage) {
+      span.className = "page-current"; // 当前页样式
+    } else {
+      span.className = "page-link";    // 普通页可点击
+      span.onclick = () => {
+        currentPage = p;
+        renderErrors();
+      };
+    }
+    pageBar.appendChild(span);
+  });
+
+  // 下一页
   const nextBtn = document.createElement("button");
   nextBtn.textContent = "下一页";
+  nextBtn.className = "pager-btn";
   nextBtn.disabled = currentPage === totalPages;
-  nextBtn.onclick = () => {
-    currentPage++;
-    renderErrors();
-  };
-
-  const info = document.createElement("span");
-  info.className = "pagination-info";
-  info.textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
-
-  // 🔹 页码输入框
-  const pageInput = document.createElement("input");
-  pageInput.type = "number";
-  pageInput.min = 1;
-  pageInput.max = totalPages;
-  pageInput.value = currentPage;
-  pageInput.className = "page-input";
-  pageInput.style.width = "50px";
-  pageInput.onkeydown = (e) => {
-    if (e.key === "Enter") {
-      jumpToPage();
-    }
-  };
-
-  // 🔹 跳转按钮
-  const jumpBtn = document.createElement("button");
-  jumpBtn.textContent = "跳转";
-  jumpBtn.onclick = jumpToPage;
-
-  function jumpToPage() {
-    let targetPage = parseInt(pageInput.value, 10);
-    if (!isNaN(targetPage)) {
-      targetPage = Math.max(1, Math.min(totalPages, targetPage)); // 限制范围
-      if (targetPage !== currentPage) {
-        currentPage = targetPage;
-        renderErrors();
-      }
-    }
-  }
+  nextBtn.onclick = () => { currentPage = Math.min(totalPages, currentPage + 1); renderErrors(); };
 
   paginationContainer.appendChild(prevBtn);
-  paginationContainer.appendChild(info);
-  paginationContainer.appendChild(pageInput);
-  paginationContainer.appendChild(jumpBtn);
+  paginationContainer.appendChild(pageBar);
   paginationContainer.appendChild(nextBtn);
 }
 
