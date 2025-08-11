@@ -209,3 +209,30 @@ th {
 .dark-theme .pagination-info {
   color: #d1d5db;
 }
+
+/* 暗色主题下的分页样式 */
+.dark-theme .pager {
+  display: inline-flex;
+  gap: 8px;
+  margin: 0 8px;
+}
+
+.dark-theme .pager .page-link {
+  cursor: pointer;
+  color: #bbb;               /* 默认浅灰（亮一些） */
+  transition: color 0.2s;
+}
+
+.dark-theme .pager .page-link:hover {
+  color: #eee;               /* 悬停更亮的灰白 */
+}
+
+.dark-theme .pager .page-current {
+  font-weight: bold;
+  color: #fff;               /* 当前页白色，最亮 */
+  cursor: default;
+}
+
+.dark-theme .pager .dots {
+  color: #888;               /* 省略号中灰 */
+}

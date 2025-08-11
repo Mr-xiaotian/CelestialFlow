@@ -114,7 +114,7 @@ def test_cross():
 
     # 初始任务
     init_tasks = {
-        stageA.get_stage_tag(): generate_test_data(50, "str"),
+        stageA.get_stage_tag(): generate_test_data(100, "str"),
         stageB.get_stage_tag(): range(6, 16),
         stageC.get_stage_tag(): range(11, 21),
     }
