@@ -1,4 +1,41 @@
 /* ================================
+  🌟 错误日志关键词搜索框
+================================ */
+.error-search-input {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 14px;
+  color: #333;
+  outline: none;
+  transition: all 0.2s ease;
+  height: 30px;
+}
+
+.error-search-input:focus {
+  border-color: #999;
+  background-color: #fafafa;
+}
+
+/* 🔹 在 filter-container 里，搜索框和 label 间距 */
+.filter-container .error-search-input {
+  margin-right: 0.5rem;
+}
+
+/* 🌙 暗黑模式下搜索框 */
+.dark-theme .error-search-input {
+  background-color: #2c2c2c;
+  border: 1px solid #555;
+  color: #e0e0e0;
+}
+
+.dark-theme .error-search-input:focus {
+  border-color: #888;
+  background-color: #3a3a3a;
+}
+
+/* ================================
   🌟 错误日志筛选器 & 过滤器
 ================================ */
 .filter-container {

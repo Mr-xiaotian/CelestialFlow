@@ -95,10 +95,11 @@ button {
 
 select {
   background-color: white;
+  height: 30px;
 }
 
 /* 按钮样式 */
-.btn-stop { background-color: var(--danger-color); color: white; }
+.btn-stop { background-color: var(--danger-color); color: white; height: 30px; }
 .btn-stop:hover { background-color: #dc2626; }
 
 /* 主题切换按钮 */

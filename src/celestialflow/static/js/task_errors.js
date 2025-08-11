@@ -3,6 +3,7 @@ let previousErrorsJSON = "";
 let currentPage = 1;
 const pageSize = 10;
 
+const searchInput = document.getElementById("error-search");
 const nodeFilter = document.getElementById("node-filter");
 const errorsTableBody = document.querySelector("#errors-table tbody");
 const paginationContainer = document.getElementById("pagination-container");
@@ -17,12 +18,20 @@ async function loadErrors() {
 }
 
 function renderErrors() {
-  const filter = nodeFilter.value;
-  const filtered = filter ? errors.filter((e) => e.node === filter) : errors;
+  const filter = nodeFilter.value.trim();
+  const keyword = (searchInput.value || "").trim().toLowerCase();
+
+  const filtered = errors.filter(e => {
+    const matchNode = !filter || e.node === filter;
+    const matchKeyword = !keyword ||
+      (e.error && e.error.toLowerCase().includes(keyword)) ||
+      (e.task_id && e.task_id.toLowerCase().includes(keyword));
+    return matchNode && matchKeyword;
+  });
 
   const sortedByTime = [...filtered].sort((a, b) => b.timestamp - a.timestamp);
   const totalPages = Math.ceil(sortedByTime.length / pageSize);
-
+  
   // 处理边界（例如当前页大于最大页）
   currentPage = Math.min(currentPage, totalPages || 1);
 
@@ -125,6 +134,11 @@ function populateNodeFilter() {
     nodeFilter.value = "";
   }
 }
+
+searchInput.addEventListener("input", () => {
+  currentPage = 1;
+  renderErrors();
+});
 
 nodeFilter.addEventListener("change", () => {
   currentPage = 1; // 切换节点时回到第一页
