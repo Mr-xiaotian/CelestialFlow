@@ -29,7 +29,7 @@ class TaskSplitter(TaskManager):
     def get_args(self, task):
         return task
     
-    def put_split_result(self, result):
+    def put_split_result(self, result: tuple):
         split_count = 0
         for item in result:
             self.put_result_queues(item)

@@ -22,13 +22,35 @@ func StartWorkerPool(
 ) {
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, concurrency) // 控制并发数
+	backoff := time.Second                  // 初始退避 1s
+	maxBackoff := time.Minute
 
 	for {
+		if ctx.Err() != nil {
+			wg.Wait()
+			return
+		}
+
 		redisData, err := rdb.BLPop(ctx, 0, inputKey).Result()
 		if err != nil {
+			// 如果是连接错误或者超时
 			fmt.Println("BLPop Error:", err)
+
+			// 等待 backoff 时间
+			time.Sleep(backoff)
+
+			// 逐步翻倍，封顶
+			if backoff < maxBackoff {
+				backoff *= 2
+				if backoff > maxBackoff {
+					backoff = maxBackoff
+				}
+			}
 			continue
 		}
+
+		// 一旦成功，重置 backoff
+		backoff = time.Second
 
 		var payload TaskPayload
 		err = json.Unmarshal([]byte(redisData[1]), &payload)

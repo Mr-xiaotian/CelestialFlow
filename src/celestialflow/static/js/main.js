@@ -116,7 +116,7 @@ async function refreshAll() {
     previousStructureDataJSON = currentStructureJSON;
     previousTopologyDataJSON = currentTopologyJSON;
 
-    renderMermaidFromTaskStructure(); // 结构图依赖两者都必须最新
+    renderMermaidFromTaskStructure(); // 结构图依赖节点信息 结构信息与拓扑信息
   }
 
   if (errorsChanged) {
