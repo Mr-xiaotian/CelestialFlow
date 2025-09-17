@@ -84,13 +84,15 @@ class TaskManager:
 
         self.init_counter()
 
-    def init_counter(self, success_counter=None, error_counter=None, duplicate_counter=None, counter_lock=None, extra_stats=None):
+    def init_counter(self, task_counter=None, success_counter=None, error_counter=None, duplicate_counter=None, counter_lock=None, extra_stats=None):
         """
         初始化计数器
         """
+        self.task_counter = task_counter if task_counter is not None else ValueWrapper()
         self.success_counter = success_counter if success_counter is not None else ValueWrapper()
         self.error_counter = error_counter if error_counter is not None else ValueWrapper()
         self.duplicate_counter = duplicate_counter if duplicate_counter is not None else ValueWrapper()
+        
         self.counter_lock = counter_lock if counter_lock is not None else null_lock
 
         self.extra_stats = extra_stats if extra_stats is not None else {}
@@ -340,35 +342,31 @@ class TaskManager:
 
             await asyncio.sleep(poll_interval)
 
-    def put_task_queues(self, task_source) -> int:
+    def put_task_queues(self, task_source):
         """
         将任务放入任务队列
         """
-        task_num = 0
         progress_num = 0
         for item in task_source:
             self.task_queues[0].put(make_hashable(item))
-            task_num += 1
-            if task_num % 100 == 0:
+            self.update_task_counter()
+            if self.task_counter.value % 100 == 0:
                 self.progress_manager.add_total(100)
                 progress_num += 100
-        self.progress_manager.add_total(task_num - progress_num)
-        return task_num
+        self.progress_manager.add_total(self.task_counter.value - progress_num)
 
-    async def put_task_queues_async(self, task_source) -> int:
+    async def put_task_queues_async(self, task_source):
         """
         将任务放入任务队列(async模式)
         """
-        task_num = 0
         progress_num = 0
         for item in task_source:
             await self.task_queues[0].put(make_hashable(item))
-            task_num += 1
-            if task_num % 100 == 0:
+            self.update_task_counter()
+            if self.task_counter.value % 100 == 0:
                 self.progress_manager.add_total(100)
                 progress_num += 100
-        self.progress_manager.add_total(task_num - progress_num)
-        return task_num
+        self.progress_manager.add_total(self.task_counter.value - progress_num)
 
     def terminate_task_queues(self):
         """
@@ -420,6 +418,11 @@ class TaskManager:
             "timestamp": time.time()
         })
 
+    def update_task_counter(self):
+        # 加锁方式（保证正确）
+        with self.counter_lock:
+            self.task_counter.value += 1
+
     def update_success_counter(self):
         # 加锁方式（保证正确）
         with self.counter_lock:
@@ -437,6 +440,17 @@ class TaskManager:
         # 加锁方式（保证正确）
         with self.counter_lock:
             self.duplicate_counter.value += 1
+
+    def is_tasks_finished(self) -> bool:
+        """
+        判断任务是否完成
+        """
+        processed = (
+            self.success_counter.value +
+            self.error_counter.value +
+            self.duplicate_counter.value
+        )
+        return self.task_counter.value == processed
 
     def is_duplicate(self, task_id):
         """
@@ -667,10 +681,10 @@ class TaskManager:
         self.init_progress()
         self.init_env(logger_queue=self.log_listener.get_queue())
 
-        total_tasks = self.put_task_queues(task_source)
+        self.put_task_queues(task_source)
         self.terminate_task_queues()
         self.task_logger.start_manager(
-            self.func.__name__, total_tasks, self.execution_mode, self.worker_limit
+            self.func.__name__, self.task_counter.value, self.execution_mode, self.worker_limit
         )
 
         # 根据模式运行对应的任务处理函数
@@ -708,10 +722,10 @@ class TaskManager:
         self.init_progress()
         self.init_env(logger_queue=self.log_listener.get_queue())
 
-        total_tasks = await self.put_task_queues_async(task_source)
+        await self.put_task_queues_async(task_source)
         await self.terminate_task_queues_async()
         self.task_logger.start_manager(
-            self.func.__name__, total_tasks, "async(await)", self.worker_limit
+            self.func.__name__, self.task_counter.value, "async(await)", self.worker_limit
         )
 
         await self.run_in_async()
@@ -768,7 +782,6 @@ class TaskManager:
         """
         串行地执行任务
         """
-
         # 从队列中依次获取任务并执行
         while True:
             task = self.get_task_queues()
@@ -794,7 +807,7 @@ class TaskManager:
 
         self.terminated_queue_set = set()
 
-        if not are_queues_empty(self.task_queues):
+        if not self.is_tasks_finished():
             self.task_logger._log("DEBUG", f"Retrying tasks for '{self.func.__name__}'")
             self.terminate_task_queues()
             self.run_in_serial()
@@ -864,7 +877,7 @@ class TaskManager:
         # 所有任务和回调都完成了，现在可以安全关闭进度条
         self.terminated_queue_set = set()
 
-        if not are_queues_empty(self.task_queues):
+        if not self.is_tasks_finished():
             self.task_logger._log("DEBUG", f"Retrying tasks for '{self.func.__name__}'")
             self.terminate_task_queues()
             self.run_with_executor(executor)
@@ -911,7 +924,7 @@ class TaskManager:
 
         self.terminated_queue_set = set()
 
-        if not await are_queues_empty_async(self.task_queues):
+        if not self.is_tasks_finished():
             self.task_logger._log("DEBUG", f"Retrying tasks for '{self.func.__name__}'")
             await self.terminate_task_queues_async()
             await self.run_in_async()
@@ -962,6 +975,7 @@ class TaskManager:
         """
         start = time.time()
         self.set_execution_mode(execution_mode)
+        self.init_counter()
         self.init_state()
         self.start(task_list)
         return time.time() - start

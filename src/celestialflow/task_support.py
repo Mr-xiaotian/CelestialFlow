@@ -1,6 +1,6 @@
 import threading
 from enum import IntEnum
-from multiprocessing import Queue as MPQueue
+from multiprocessing import Queue as MPQueue, Value as MPValue
 from queue import Queue as ThreadQueue, Empty
 from threading import Thread
 from time import localtime, strftime
@@ -304,6 +304,22 @@ class NoOpContext:
 class ValueWrapper:
     def __init__(self, value=0):
         self.value = value
+
+
+class SumCounter:
+    def __init__(self):
+        self.init_value = MPValue("i", 0)
+        self.counters = []
+    
+    def add_init_value(self, value):
+        self.init_value.value += value
+    
+    def add_counter(self, counter):
+        self.counters.append(counter)
+
+    @property
+    def value(self):
+        return self.init_value.value + sum(c.value for c in self.counters) if self.counters else self.init_value.value
 
 
 class StageStatus(IntEnum):

@@ -109,12 +109,12 @@ def test_cross():
     stageG = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
 
     # 构建 TaskCross
-    cross = TaskCross([[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]], "serial")  # 多根支持
+    cross = TaskCross([[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]], "serial") 
     cross.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 初始任务
     init_tasks = {
-        stageA.get_stage_tag(): generate_test_data(100, "str"),
+        stageA.get_stage_tag(): range(1, 11), # generate_test_data(100, "str"),
         stageB.get_stage_tag(): range(6, 16),
         stageC.get_stage_tag(): range(11, 21),
     }
@@ -271,6 +271,7 @@ def _test_complete():
 
 
 if __name__ == "__main__":
+    # test_loop()
     # test_cross()
     # test_grid()
     pass

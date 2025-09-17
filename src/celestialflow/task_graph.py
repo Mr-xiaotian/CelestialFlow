@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Tuple
 
 from .task_manage import TaskManager
 from .task_nodes import TaskSplitter
-from .task_support import TERMINATION_SIGNAL, TaskError, TaskReporter, LogListener, TaskLogger, ValueWrapper, TerminationSignal, StageStatus
+from .task_support import TERMINATION_SIGNAL, TaskError, TaskReporter, LogListener, TaskLogger, ValueWrapper, TerminationSignal, StageStatus, SumCounter
 from .task_tools import (
     format_duration,
     format_timestamp,
@@ -85,6 +85,7 @@ class TaskGraph:
         self.edge_queue_map: Dict[Tuple[str, str], MPQueue] = {}  # 用于保存每个节点到下一个节点的队列
         
         self.stage_locks = {}  # 锁，用于控制每个阶段success_counter的并发
+        self.stage_task_counter = {}  # 用于保存每个阶段处理的任务数
         self.stage_success_counter = {}  # 用于保存每个阶段成功处理的任务数
         self.stage_error_counter = {}  # 用于保存每个阶段失败处理的任务数
         self.stage_duplicate_counter = {}  # 用于保存每个阶段重复处理的任务数
@@ -203,7 +204,8 @@ class TaskGraph:
                     self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {(prev_tag, tag)}")
                     continue
                 self.task_logger._log("TRACE", f"{task} put into {(prev_tag, tag)}")
-                self.stages_status_dict[tag]["init_tasks_num"] = self.stages_status_dict[tag].get("init_tasks_num", 0) + 1
+                self.stage_task_counter[tag] = self.stage_task_counter.get(tag, SumCounter())
+                self.stage_task_counter[tag].add_init_value(1)
         
         if put_termination_signal:
             for root_stage in self.root_stages:
@@ -271,11 +273,20 @@ class TaskGraph:
         递归地执行节点任务
         """
         stage_tag = stage.get_stage_tag()
+        self.stage_task_counter[stage_tag] = self.stage_task_counter.get(stage_tag, SumCounter())
 
         input_queues = []
         for prev_stage in stage.prev_stages:
             prev_tag = prev_stage.get_stage_tag() if prev_stage else None
             input_queues.append(self.edge_queue_map[(prev_tag, stage_tag)])
+
+            if isinstance(prev_stage, TaskSplitter):
+                self.stage_extra_stats[prev_tag] = self.stage_extra_stats.get(prev_tag, {})
+                self.stage_extra_stats[prev_tag]["split_output_count"] = self.stage_extra_stats[prev_tag].get("split_output_count", MPValue("i", 0))
+                self.stage_task_counter[stage_tag].add_counter(self.stage_extra_stats[prev_tag]["split_output_count"])
+            else:
+                self.stage_success_counter[prev_tag] = self.stage_success_counter.get(prev_tag, MPValue("i", 0))
+                self.stage_task_counter[stage_tag].add_counter(self.stage_success_counter[prev_tag])
 
         if not stage.next_stages:
             output_queues = []
@@ -289,18 +300,18 @@ class TaskGraph:
         self.stages_status_dict[stage_tag]["status"] = StageStatus.RUNNING
         self.stages_status_dict[stage_tag]["start_time"] = time.time()
 
+        self.stage_extra_stats[stage_tag] = self.stage_extra_stats.get(stage_tag, {})
         if isinstance(stage, TaskSplitter):
-            self.stage_extra_stats[stage_tag]["split_output_count"] = MPValue("i", 0)
-        else:
-            self.stage_extra_stats[stage_tag] = {}
+            self.stage_extra_stats[stage_tag]["split_output_count"] = self.stage_extra_stats[prev_tag].get("split_output_count", MPValue("i", 0))
 
         if stage.stage_mode == "process":
-            self.stage_success_counter[stage_tag] = MPValue("i", 0)
+            self.stage_success_counter[stage_tag] = self.stage_success_counter.get(stage_tag, MPValue("i", 0))
             self.stage_error_counter[stage_tag] = MPValue("i", 0)
             self.stage_duplicate_counter[stage_tag] = MPValue("i", 0)
             self.stage_locks[stage_tag] = MPLock()
 
             stage.init_counter(
+                self.stage_task_counter[stage_tag],
                 self.stage_success_counter[stage_tag],
                 self.stage_error_counter[stage_tag],
                 self.stage_duplicate_counter[stage_tag],
@@ -524,24 +535,14 @@ class TaskGraph:
             stage: TaskManager = stage_status_dict["stage"]
             last_stage_status_dict: dict = self.last_status_dict.get(tag, {})
 
-            total_input = stage_status_dict.get("init_tasks_num", 0)
-            
-            for prev in stage.prev_stages:
-                if not prev:
-                    break
-                prev_tag = prev.get_stage_tag()
-                if isinstance(prev, TaskSplitter):
-                    total_input += self.stage_extra_stats[prev_tag].get("split_output_count", ValueWrapper()).value
-                else:
-                    total_input += self.stage_success_counter.get(prev_tag, ValueWrapper()).value
-
             status         = stage_status_dict.get("status", StageStatus.NOT_STARTED)
 
+            input          = self.stage_task_counter.get(tag, SumCounter()).value
             successed      = self.stage_success_counter.get(tag, ValueWrapper()).value
             failed         = self.stage_error_counter.get(tag, ValueWrapper()).value
             duplicated     = self.stage_duplicate_counter.get(tag, ValueWrapper()).value
             processed      = successed + failed + duplicated
-            pending        = max(0, total_input - processed)
+            pending        = max(0, input - processed)
 
             add_successed  = successed  - last_stage_status_dict.get("tasks_successed", 0)
             add_failed     = failed     - last_stage_status_dict.get("tasks_failed", 0)
