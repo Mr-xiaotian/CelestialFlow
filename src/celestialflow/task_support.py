@@ -328,5 +328,4 @@ class StageStatus(IntEnum):
     STOPPED = 2
 
 
-null_lock = NoOpContext()
 TERMINATION_SIGNAL = TerminationSignal()

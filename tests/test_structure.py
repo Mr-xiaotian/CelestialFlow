@@ -41,7 +41,7 @@ def add_20(x):
 def add_25(x):
     return add_offset(x, 25)
 
-def _test_loop():
+def test_loop():
     stageA = TaskManager(add_sleep, 'serial')
     stageB = TaskManager(add_sleep, 'serial')
     stageC = TaskManager(add_sleep, 'serial')
@@ -57,7 +57,7 @@ def _test_loop():
         stageA.get_stage_tag(): test_task_0
     })
 
-def _test_forest():
+def test_forest():
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
     stageA = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_sleep, execution_mode="thread", worker_limit=2)

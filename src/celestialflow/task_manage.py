@@ -22,8 +22,8 @@ from httpx import (
 )
 
 from .task_progress import ProgressManager, NullProgress
-from .task_support import TERMINATION_SIGNAL, TerminationSignal, LogListener, TaskLogger, ValueWrapper, null_lock
-from .task_tools import are_queues_empty, are_queues_empty_async, make_hashable, format_repr, object_to_str_hash
+from .task_support import TERMINATION_SIGNAL, TerminationSignal, LogListener, TaskLogger, ValueWrapper, NoOpContext
+from .task_tools import make_hashable, format_repr, object_to_str_hash
 
 
 class TaskManager:
@@ -92,8 +92,8 @@ class TaskManager:
         self.success_counter = success_counter if success_counter is not None else ValueWrapper()
         self.error_counter = error_counter if error_counter is not None else ValueWrapper()
         self.duplicate_counter = duplicate_counter if duplicate_counter is not None else ValueWrapper()
-        
-        self.counter_lock = counter_lock if counter_lock is not None else null_lock
+
+        self.counter_lock = counter_lock if counter_lock is not None else NoOpContext()
 
         self.extra_stats = extra_stats if extra_stats is not None else {}
 

@@ -71,7 +71,7 @@ class TaskGraph:
         self.processes: List[multiprocessing.Process] = []
 
         self.init_dict()
-        self.init_task_queues()
+        self.init_stage_resources()
         self.init_log()
 
     def init_dict(self):
@@ -94,10 +94,9 @@ class TaskGraph:
         self.error_timeline_dict: Dict[str, list] = defaultdict(list)  # 用于保存错误到出现该错误任务的映射
         self.all_stage_error_dict: Dict[str, dict] = defaultdict(dict)  # 用于保存节点到节点失败任务的映射
 
-    def init_task_queues(self):
+    def init_stage_resources(self):
         """
-        初始化任务队列
-        :param tasks: 待处理的任务列表
+        初始化每个阶段资源
         """
         visited_stages = set()
         queue = deque(self.root_stages)  # BFS 用队列代替递归
@@ -111,10 +110,34 @@ class TaskGraph:
             # 记录节点
             self.stages_status_dict[stage_tag]["stage"] = stage
 
+            # 初始化 counters（全部用 MPValue）
+            self.stage_task_counter[stage_tag] = SumCounter()
+            self.stage_success_counter[stage_tag] = self.stage_success_counter.get(stage_tag, MPValue("i", 0))
+            self.stage_error_counter[stage_tag] = MPValue("i", 0)
+            self.stage_duplicate_counter[stage_tag] = MPValue("i", 0)
+            self.stage_locks[stage_tag] = MPLock()
+            
+            self.stage_extra_stats[stage_tag] = self.stage_extra_stats.get(stage_tag, {})
+            if isinstance(stage, TaskSplitter):
+                self.stage_extra_stats[stage_tag].setdefault("split_output_count", MPValue("i", 0))
+
             # 为每个边 (prev -> stage) 创建队列
             for prev_stage in stage.prev_stages:
                 prev_tag = prev_stage.get_stage_tag() if prev_stage else None
                 self.edge_queue_map[(prev_tag, stage_tag)] = MPQueue()
+
+                if isinstance(prev_stage, TaskSplitter):
+                    self.stage_extra_stats[prev_tag] = self.stage_extra_stats.get(prev_tag, {})
+                    self.stage_extra_stats[prev_tag].setdefault("split_output_count", MPValue("i", 0))
+                    self.stage_task_counter[stage_tag].add_counter(
+                        self.stage_extra_stats[prev_tag]["split_output_count"]
+                    )
+                else:
+                    # 确保上游 success_counter 已存在
+                    self.stage_success_counter[prev_tag] = self.stage_success_counter.get(prev_tag, MPValue("i", 0))
+                    self.stage_task_counter[stage_tag].add_counter(
+                        self.stage_success_counter[prev_tag]
+                    )
 
             if not stage.prev_stages:
                 # 起点节点
@@ -269,75 +292,44 @@ class TaskGraph:
                 self.task_logger.end_layer(layer, time.time() - start_time)
 
     def _execute_stage(self, stage: TaskManager):
-        """
-        递归地执行节点任务
-        """
         stage_tag = stage.get_stage_tag()
-        self.stage_task_counter[stage_tag] = self.stage_task_counter.get(stage_tag, SumCounter())
 
-        input_queues = []
-        for prev_stage in stage.prev_stages:
-            prev_tag = prev_stage.get_stage_tag() if prev_stage else None
-            input_queues.append(self.edge_queue_map[(prev_tag, stage_tag)])
+        # 输入输出队列
+        input_queues = [
+            self.edge_queue_map[(prev.get_stage_tag() if prev else None, stage_tag)]
+            for prev in stage.prev_stages
+        ]
+        output_queues = [
+            self.edge_queue_map[(stage_tag, next_stage.get_stage_tag())]
+            for next_stage in stage.next_stages
+        ] if stage.next_stages else []
 
-            if isinstance(prev_stage, TaskSplitter):
-                self.stage_extra_stats[prev_tag] = self.stage_extra_stats.get(prev_tag, {})
-                self.stage_extra_stats[prev_tag]["split_output_count"] = self.stage_extra_stats[prev_tag].get("split_output_count", MPValue("i", 0))
-                self.stage_task_counter[stage_tag].add_counter(self.stage_extra_stats[prev_tag]["split_output_count"])
-            else:
-                self.stage_success_counter[prev_tag] = self.stage_success_counter.get(prev_tag, MPValue("i", 0))
-                self.stage_task_counter[stage_tag].add_counter(self.stage_success_counter[prev_tag])
-
-        if not stage.next_stages:
-            output_queues = []
-        else:
-            output_queues = [
-                self.edge_queue_map[(stage_tag, next_stage.get_stage_tag())]
-                for next_stage in stage.next_stages
-            ]
         logger_queue = self.log_listener.get_queue()
 
         self.stages_status_dict[stage_tag]["status"] = StageStatus.RUNNING
         self.stages_status_dict[stage_tag]["start_time"] = time.time()
 
-        self.stage_extra_stats[stage_tag] = self.stage_extra_stats.get(stage_tag, {})
-        if isinstance(stage, TaskSplitter):
-            self.stage_extra_stats[stage_tag]["split_output_count"] = self.stage_extra_stats[prev_tag].get("split_output_count", MPValue("i", 0))
+        # counter 都在 init_stage_resources 里初始化完了，这里直接用
+        stage.init_counter(
+            self.stage_task_counter[stage_tag],
+            self.stage_success_counter[stage_tag],
+            self.stage_error_counter[stage_tag],
+            self.stage_duplicate_counter[stage_tag],
+            self.stage_locks[stage_tag],
+            self.stage_extra_stats[stage_tag],
+        )
 
         if stage.stage_mode == "process":
-            self.stage_success_counter[stage_tag] = self.stage_success_counter.get(stage_tag, MPValue("i", 0))
-            self.stage_error_counter[stage_tag] = MPValue("i", 0)
-            self.stage_duplicate_counter[stage_tag] = MPValue("i", 0)
-            self.stage_locks[stage_tag] = MPLock()
-
-            stage.init_counter(
-                self.stage_task_counter[stage_tag],
-                self.stage_success_counter[stage_tag],
-                self.stage_error_counter[stage_tag],
-                self.stage_duplicate_counter[stage_tag],
-                self.stage_locks[stage_tag],
-                self.stage_extra_stats[stage_tag]
-            )
             p = multiprocessing.Process(
-                target=stage.start_stage, args=(input_queues, output_queues, self.fail_queue, logger_queue), name=stage_tag
+                target=stage.start_stage,
+                args=(input_queues, output_queues, self.fail_queue, logger_queue),
+                name=stage_tag,
             )
             p.start()
             self.processes.append(p)
         else:
-            self.stage_success_counter[stage_tag] = ValueWrapper()
-            self.stage_error_counter[stage_tag] = ValueWrapper()
-            self.stage_duplicate_counter[stage_tag] = ValueWrapper()
-
-            stage.init_counter(
-                self.stage_success_counter[stage_tag], 
-                self.stage_error_counter[stage_tag],
-                self.stage_duplicate_counter[stage_tag],
-                None, 
-                self.stage_extra_stats[stage_tag]
-            )
             stage.start_stage(input_queues, output_queues, self.fail_queue, logger_queue)
-
-            self.stages_status_dict[stage_tag]["status"]  = StageStatus.STOPPED
+            self.stages_status_dict[stage_tag]["status"] = StageStatus.STOPPED
 
     def finalize_nodes(self):
         """
