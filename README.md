@@ -1,5 +1,9 @@
 # CelestialFlow
 
+## 页面样式
+
+![](img/页面样式.png)
+
 ## Structure
 
 - chain

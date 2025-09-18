@@ -116,7 +116,7 @@ class TaskGraph:
             self.stage_error_counter[stage_tag] = MPValue("i", 0)
             self.stage_duplicate_counter[stage_tag] = MPValue("i", 0)
             self.stage_locks[stage_tag] = MPLock()
-            
+
             self.stage_extra_stats[stage_tag] = self.stage_extra_stats.get(stage_tag, {})
             if isinstance(stage, TaskSplitter):
                 self.stage_extra_stats[stage_tag].setdefault("split_output_count", MPValue("i", 0))
@@ -529,7 +529,7 @@ class TaskGraph:
 
             status         = stage_status_dict.get("status", StageStatus.NOT_STARTED)
 
-            input          = self.stage_task_counter.get(tag, SumCounter()).value
+            input          = self.stage_task_counter.get(tag, ValueWrapper()).value
             successed      = self.stage_success_counter.get(tag, ValueWrapper()).value
             failed         = self.stage_error_counter.get(tag, ValueWrapper()).value
             duplicated     = self.stage_duplicate_counter.get(tag, ValueWrapper()).value
