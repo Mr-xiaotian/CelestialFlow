@@ -90,7 +90,6 @@ class TaskGraph:
         self.stage_error_counter = {}  # 用于保存每个阶段失败处理的任务数
         self.stage_duplicate_counter = {}  # 用于保存每个阶段重复处理的任务数
         
-        self.final_result_dict = {}  # 用于保存初始任务到最终结果的映射
         self.error_timeline_dict: Dict[str, list] = defaultdict(list)  # 用于保存错误到出现该错误任务的映射
         self.all_stage_error_dict: Dict[str, dict] = defaultdict(dict)  # 用于保存节点到节点失败任务的映射
 
@@ -371,61 +370,6 @@ class TaskGraph:
 
         cleanup_mpqueue(self.fail_queue)
         
-    def process_final_result_dict(self, initial_tasks):
-        """
-        查找对应的初始任务并更新 final_result_dict (已废弃)
-
-        :param initial_tasks: 一个包含初始任务的列表
-        """
-
-        def update_final_result_dict(stage_task, stage: TaskManager):
-            stage_success_dict = stage.get_success_dict()
-            stage_error_dict = all_stage_error_dict.get(stage.get_stage_tag(), {})
-            visited_stages.add(stage)
-
-            final_list = []
-            if stage_task in stage_success_dict:
-                stage_task = stage_success_dict[stage_task]
-            elif stage_task in stage_error_dict:
-                stage_task = stage_error_dict[stage_task]
-                task_execution_status[initial_task] = False
-                return [(stage_task, stage.get_stage_tag())]
-            else:
-                dispear_exception = TaskError(f"({stage_task}) not found.")
-                task_execution_status[initial_task] = False
-                return [(dispear_exception, stage.get_stage_tag())]
-
-            if not stage.next_stages:
-                return [(stage_task, stage.get_stage_tag())]
-
-            for next_stage in stage.next_stages:
-                if next_stage in visited_stages:
-                    continue
-                elif not isinstance(stage, TaskSplitter):
-                    next_stage_final_list = update_final_result_dict(
-                        stage_task, next_stage
-                    )
-                    final_list.extend(next_stage_final_list)
-                    continue
-
-                # 如果是 TaskSplitter，则递归处理每个子任务
-                for split_task in stage_task:
-                    next_stage_final_list = update_final_result_dict(
-                        split_task, next_stage
-                    )
-                    final_list.extend(next_stage_final_list)
-
-            return final_list
-
-        task_execution_status = {}
-        all_stage_error_dict = self.get_all_stage_error_dict()
-        for initial_task in initial_tasks:
-            visited_stages = set()
-            task_execution_status[initial_task] = True
-            self.final_result_dict[initial_task] = update_final_result_dict(
-                initial_task, self.root_stage
-            )
-
     def handle_fail_queue(self):
         """
         消费 fail_queue, 构建失败字典
@@ -478,18 +422,6 @@ class TaskGraph:
             "task": str(task)
         }
         append_jsonl_log(log_item, self.start_time, "./fallback", "leftover_tasks", self.task_logger)
-
-    def get_stages_status_dict(self):
-        """
-        返回节点状态字典
-        """
-        return dict(self.stages_status_dict)
-
-    def get_final_result_dict(self):
-        """
-        返回最终结果字典
-        """
-        return self.final_result_dict
 
     def get_error_timeline_dict(self):
         """
@@ -643,7 +575,6 @@ class TaskGraph:
         """
         results = {}
         test_table_list = []
-        # final_result_dict = {}
         fail_by_error_dict = {}
         fail_by_stage_dict = {}
 
@@ -658,7 +589,6 @@ class TaskGraph:
                 self.start_graph(init_tasks_dict)
 
                 time_list.append(time.time() - start_time)
-                # final_result_dict.update(self.get_final_result_dict())
                 fail_by_error_dict.update(self.get_fail_by_error_dict())
                 fail_by_stage_dict.update(self.get_fail_by_stage_dict())
 
@@ -670,7 +600,6 @@ class TaskGraph:
             stage_modes,
             r"stage\execution",
         )
-        # results["Final result dict"] = final_result_dict
         results["Fail error dict"] = fail_by_error_dict
         results["Fail stage dict"] = fail_by_stage_dict
         return results

@@ -980,7 +980,7 @@ class TaskManager:
         self.start(task_list)
         return time.time() - start
 
-    def test_methods(self, task_source: list | tuple | set) -> dict:
+    def test_methods(self, task_source: Iterable) -> dict:
         """
         测试多种方法
         """

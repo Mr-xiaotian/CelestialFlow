@@ -12,13 +12,11 @@ from loguru import logger as loguru_logger
 
 class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
-
     pass
 
 
 class TaskError(Exception):
     """用于标记任务执行错误的异常类"""
-
     pass
 
 
