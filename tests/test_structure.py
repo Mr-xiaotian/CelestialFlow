@@ -1,7 +1,7 @@
 import pytest, logging
 import math
 from time import sleep
-from celestialvault.tools.SampleGenerate import generate_test_data, generate_tuples
+from celestialvault.tools.SampleGenerate import random_values, gapped_range_tuples
 from celestialflow import TaskManager, TaskGraph, TaskChain, TaskLoop, TaskCross, TaskComplete, TaskWheel, TaskGrid
 
 
@@ -61,7 +61,7 @@ def test_chain():
     chain.set_reporter(True, host="127.0.0.1", port=5005)
 
     chain.start_chain({
-        stageA.get_stage_tag(): generate_tuples(10, 2),
+        stageA.get_stage_tag(): gapped_range_tuples(10, 2),
     })
 
 def _test_forest():
@@ -121,7 +121,7 @@ def _test_cross():
 
     # 初始任务
     init_tasks = {
-        stageA.get_stage_tag(): range(1, 11), # generate_test_data(100, "str"),
+        stageA.get_stage_tag(): range(1, 11), # random_values(100, "str"),
         stageB.get_stage_tag(): range(6, 16),
         stageC.get_stage_tag(): range(11, 21),
     }
