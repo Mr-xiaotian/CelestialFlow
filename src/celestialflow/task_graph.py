@@ -71,7 +71,7 @@ class TaskGraph:
         self.processes: List[multiprocessing.Process] = []
 
         self.init_dict()
-        self.init_stage_resources()
+        self.init_resources()
         self.init_log()
 
     def init_dict(self):
@@ -93,10 +93,12 @@ class TaskGraph:
         self.error_timeline_dict: Dict[str, list] = defaultdict(list)  # 用于保存错误到出现该错误任务的映射
         self.all_stage_error_dict: Dict[str, dict] = defaultdict(dict)  # 用于保存节点到节点失败任务的映射
 
-    def init_stage_resources(self):
+    def init_resources(self):
         """
         初始化每个阶段资源
         """
+        self.fail_queue = MPQueue()
+        
         visited_stages = set()
         queue = deque(self.root_stages)  # BFS 用队列代替递归
 
@@ -146,8 +148,6 @@ class TaskGraph:
 
             for next_stage in stage.next_stages:
                 queue.append(next_stage)
-
-        self.fail_queue = MPQueue()
 
     def init_log(self):
         """
@@ -308,7 +308,7 @@ class TaskGraph:
         self.stages_status_dict[stage_tag]["status"] = StageStatus.RUNNING
         self.stages_status_dict[stage_tag]["start_time"] = time.time()
 
-        # counter 都在 init_stage_resources 里初始化完了，这里直接用
+        # counter 都在 init_resources 里初始化完了，这里直接用
         stage.init_counter(
             self.stage_task_counter[stage_tag],
             self.stage_success_counter[stage_tag],

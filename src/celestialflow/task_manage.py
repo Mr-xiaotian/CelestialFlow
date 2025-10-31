@@ -227,6 +227,8 @@ class TaskManager:
         """
         添加前置节点
         """
+        if prev_stage in self.prev_stages:
+            return
         self.prev_stages.append(prev_stage)
 
     def get_stage_tag(self):
