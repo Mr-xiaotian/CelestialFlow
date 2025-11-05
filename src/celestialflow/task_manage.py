@@ -22,7 +22,7 @@ from httpx import (
 )
 
 from .task_progress import ProgressManager, NullProgress
-from .task_support import LogListener, TaskLogger
+from .task_logging import LogListener, TaskLogger
 from .task_types import ValueWrapper, NoOpContext, TerminationSignal, TERMINATION_SIGNAL
 from .task_tools import make_hashable, format_repr, object_to_str_hash
 
