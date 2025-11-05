@@ -1,34 +1,25 @@
-import threading
-from enum import IntEnum
-from multiprocessing import Queue as MPQueue, Value as MPValue
+from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue, Empty
-from threading import Thread
+from threading import Event, Thread
 from time import localtime, strftime
 from typing import List, Union
 
 import requests
 from loguru import logger as loguru_logger
 
-
-class TerminationSignal:
-    """用于标记任务队列终止的哨兵对象"""
-
-    pass
-
-
-class TaskError(Exception):
-    """用于标记任务执行错误的异常类"""
-
-    pass
+from .task_types import TerminationSignal, TERMINATION_SIGNAL
 
 
 class LogListener:
+    """
+    日志监听进程，用于将日志写入文件
+    """
     def __init__(self, level="INFO"):
         now = strftime("%Y-%m-%d", localtime())
         self.log_path = f"logs/task_logger({now}).log"
         self.level = level
         self.log_queue = MPQueue()
-        self._thread = threading.Thread(target=self._listen, daemon=True)
+        self._thread = Thread(target=self._listen, daemon=True)
 
     def start(self):
         # 配置 loguru 的两个 handler，stdout + file
@@ -58,7 +49,7 @@ class LogListener:
         return self.log_queue
 
     def stop(self):
-        self.log_queue.put(TerminationSignal())
+        self.log_queue.put(TERMINATION_SIGNAL)
         self._thread.join()
         loguru_logger.debug("LogListener stopped.")
 
@@ -156,6 +147,7 @@ class TaskLogger:
     def task_duplicate(self, func_name, task_info):
         self._log("SUCCESS", f"In '{func_name}', Task {task_info} has been duplicated.")
 
+    # ==== splitter task ====
     def splitter_success(self, func_name, task_info, split_count, use_time):
         self._log(
             "SUCCESS",
@@ -215,20 +207,28 @@ class BroadcastQueueManager:
 
 
 class TaskReporter:
+    """
+    周期性向远程服务推送任务运行状态的上报器。
+
+    - 定时从服务器拉取配置（如上报间隔、任务注入信息）
+    - 将任务图中的状态、错误、结构、拓扑等信息推送到后端接口
+    - 以后台线程方式运行，可随时 start()/stop()
+    - 主要用于可视化监控、任务远程控制与 Web UI 同步
+    """
     def __init__(self, task_graph, logger_queue, host="127.0.0.1", port=5000):
         from .task_graph import TaskGraph
 
         self.task_graph: TaskGraph = task_graph
         self.logger = TaskLogger(logger_queue)
         self.base_url = f"http://{host}:{port}"
-        self._stop_flag = threading.Event()
+        self._stop_flag = Event()
         self._thread = None
         self.interval = 5
 
     def start(self):
         if self._thread is None or not self._thread.is_alive():
             self._stop_flag.clear()
-            self._thread = threading.Thread(target=self._loop, daemon=True)
+            self._thread = Thread(target=self._loop, daemon=True)
             self._thread.start()
 
     def stop(self):
@@ -360,44 +360,3 @@ class TaskReporter:
                 "WARNING", f"[Reporter] Topology push failed: {type(e).__name__}({e})."
             )
 
-
-class NoOpContext:
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-
-
-class ValueWrapper:
-    def __init__(self, value=0):
-        self.value = value
-
-
-class SumCounter:
-    def __init__(self):
-        self.init_value = MPValue("i", 0)
-        self.counters = []
-
-    def add_init_value(self, value):
-        self.init_value.value += value
-
-    def add_counter(self, counter):
-        self.counters.append(counter)
-
-    @property
-    def value(self):
-        return (
-            self.init_value.value + sum(c.value for c in self.counters)
-            if self.counters
-            else self.init_value.value
-        )
-
-
-class StageStatus(IntEnum):
-    NOT_STARTED = 0
-    RUNNING = 1
-    STOPPED = 2
-
-
-TERMINATION_SIGNAL = TerminationSignal()

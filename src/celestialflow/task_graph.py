@@ -9,14 +9,16 @@ from typing import Any, Dict, List, Tuple
 from .task_manage import TaskManager
 from .task_nodes import TaskSplitter
 from .task_support import (
-    TERMINATION_SIGNAL,
     TaskReporter,
-    ValueWrapper,
     LogListener, 
     TaskLogger,
-    TerminationSignal,
-    StageStatus,
-    SumCounter,
+)
+from .task_types import (
+    StageStatus, 
+    ValueWrapper, 
+    SumCounter, 
+    TerminationSignal, 
+    TERMINATION_SIGNAL
 )
 from .task_tools import (
     format_duration,
