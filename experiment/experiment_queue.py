@@ -4,11 +4,13 @@ from queue import Queue as ThreadQueue
 from multiprocessing import Queue as MPQueue
 import redis
 
+
 @pytest.fixture(scope="module")
 def redis_client():
     r = redis.Redis(decode_responses=True)
     r.flushdb()
     return r
+
 
 @pytest.mark.parametrize("count", [100_000])
 def test_threadqueue_perf(count):
@@ -40,6 +42,7 @@ def test_threadqueue_perf(count):
     print(f"  qsize:  {size_duration:.6f}s ")
     print(f"  empty:  {empty_duration:.6f}s")
 
+
 @pytest.mark.parametrize("count", [100_000])
 def test_mpqueue_perf(count):
     q = MPQueue()
@@ -70,6 +73,7 @@ def test_mpqueue_perf(count):
     print(f"  qsize:  {size_duration:.6f}s ")
     print(f"  empty:  {empty_duration:.6f}s")
 
+
 @pytest.mark.parametrize("count", [100_000])
 def test_redis_list_perf(redis_client, count):
     key = "redis_queue"
@@ -93,7 +97,7 @@ def test_redis_list_perf(redis_client, count):
 
     start_empty = time.time()
     for _ in range(count):
-        _ = (r.llen(key) == 0)
+        _ = r.llen(key) == 0
     empty_duration = time.time() - start_empty
 
     print(f"\nRedis List ({count} items):")
@@ -101,6 +105,7 @@ def test_redis_list_perf(redis_client, count):
     print(f"  rpop:   {get_duration:.4f}s")
     print(f"  llen:   {size_duration:.6f}s")
     print(f"  empty:  {empty_duration:.6f}s")
+
 
 @pytest.mark.parametrize("count", [100_000])
 def test_redis_stream_perf(redis_client, count):
@@ -133,7 +138,7 @@ def test_redis_stream_perf(redis_client, count):
 
     start_empty = time.time()
     for _ in range(count):
-        _ = (r.xlen(key) == 0)
+        _ = r.xlen(key) == 0
     empty_duration = time.time() - start_empty
 
     print(f"\nRedis Stream ({count} items):")

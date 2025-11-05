@@ -10,12 +10,12 @@ setup(
     include_package_data=True,
     install_requires=[
         "fastapi",
-        "uvicorn",           # 作为 FastAPI 的运行服务器
+        "uvicorn",  # 作为 FastAPI 的运行服务器
         "redis",
         "pytest",
         "multiprocess",
         "rich",
-        "jinja2",            # HTML 模板
+        "jinja2",  # HTML 模板
     ],
     python_requires=">=3.8",
 )

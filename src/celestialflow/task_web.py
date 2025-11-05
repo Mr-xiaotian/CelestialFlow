@@ -12,25 +12,31 @@ import uvicorn
 
 
 class StructureModel(BaseModel):
-    items: List[Dict[str, Any]]  
+    items: List[Dict[str, Any]]
+
 
 class StatusModel(BaseModel):
     status: Dict[str, dict]
+
 
 class ErrorItem(BaseModel):
     error: str
     node: str
     task_id: str
-    timestamp: float 
+    timestamp: float
+
 
 class ErrorsModel(BaseModel):
     errors: List[ErrorItem]
 
+
 class TopologyModel(BaseModel):
     topology: Dict[str, Any]
 
+
 class IntervalModel(BaseModel):
     interval: float
+
 
 class TaskInjectionModel(BaseModel):
     node: str
@@ -42,6 +48,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 static_path = os.path.join(BASE_DIR, "static")
 templates_path = os.path.join(BASE_DIR, "templates")
+
 
 class TaskWebServer:
     def __init__(self, host="0.0.0.0", port=5000):
@@ -139,7 +146,9 @@ class TaskWebServer:
                     self.pending_injection_tasks.append(data.model_dump())
                 return {"ok": True}
             except Exception as e:
-                return JSONResponse(content={"ok": False, "msg": f"任务注入失败: {e}"}, status_code=500)
+                return JSONResponse(
+                    content={"ok": False, "msg": f"任务注入失败: {e}"}, status_code=500
+                )
 
         @app.route("/shutdown", methods=["POST"])
         def shutdown():
@@ -147,6 +156,7 @@ class TaskWebServer:
 
     def start_server(self):
         uvicorn.run(self.app, host=self.host, port=self.port, log_level="info")
+
 
 # 运行入口
 if __name__ == "__main__":

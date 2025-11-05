@@ -8,7 +8,16 @@ from typing import Any, Dict, List, Tuple
 
 from .task_manage import TaskManager
 from .task_nodes import TaskSplitter
-from .task_support import TERMINATION_SIGNAL, TaskError, TaskReporter, LogListener, TaskLogger, ValueWrapper, TerminationSignal, StageStatus, SumCounter
+from .task_support import (
+    TERMINATION_SIGNAL,
+    TaskReporter,
+    ValueWrapper,
+    LogListener, 
+    TaskLogger,
+    TerminationSignal,
+    StageStatus,
+    SumCounter,
+)
 from .task_tools import (
     format_duration,
     format_timestamp,
@@ -41,11 +50,11 @@ class TaskGraph:
 
         layout_mode : str, optional, default = 'process'
             控制任务图的调度布局模式，支持以下两种策略：
-            
+
             - 'process'：
                 默认模式。所有节点一次性调度并发执行，依赖关系通过队列流自动控制。
                 适用于最大化并行度的执行场景。
-            
+
             - 'serial'：
                 分层执行模式。任务图必须为有向无环图（DAG）。
                 节点按层级顺序逐层启动，确保上层所有任务完成后再启动下一层。
@@ -78,27 +87,35 @@ class TaskGraph:
         """
         初始化字典
         """
-        self.stages_status_dict: Dict[str, dict] = defaultdict(dict) # 用于保存每个节点的状态信息
-        self.stage_extra_stats = defaultdict(dict) # 用于保存每个阶段的额外统计信息
+        self.stages_status_dict: Dict[str, dict] = defaultdict(
+            dict
+        )  # 用于保存每个节点的状态信息
+        self.stage_extra_stats = defaultdict(dict)  # 用于保存每个阶段的额外统计信息
         self.last_status_dict = {}  # 用于保存每个节点的最后状态信息
 
-        self.edge_queue_map: Dict[Tuple[str, str], MPQueue] = {}  # 用于保存每个节点到下一个节点的队列
-        
+        self.edge_queue_map: Dict[Tuple[str, str], MPQueue] = (
+            {}
+        )  # 用于保存每个节点到下一个节点的队列
+
         self.stage_locks = {}  # 锁，用于控制每个阶段success_counter的并发
         self.stage_task_counter = {}  # 用于保存每个阶段处理的任务数
         self.stage_success_counter = {}  # 用于保存每个阶段成功处理的任务数
         self.stage_error_counter = {}  # 用于保存每个阶段失败处理的任务数
         self.stage_duplicate_counter = {}  # 用于保存每个阶段重复处理的任务数
-        
-        self.error_timeline_dict: Dict[str, list] = defaultdict(list)  # 用于保存错误到出现该错误任务的映射
-        self.all_stage_error_dict: Dict[str, dict] = defaultdict(dict)  # 用于保存节点到节点失败任务的映射
+
+        self.error_timeline_dict: Dict[str, list] = defaultdict(
+            list
+        )  # 用于保存错误到出现该错误任务的映射
+        self.all_stage_error_dict: Dict[str, dict] = defaultdict(
+            dict
+        )  # 用于保存节点到节点失败任务的映射
 
     def init_resources(self):
         """
         初始化每个阶段资源
         """
         self.fail_queue = MPQueue()
-        
+
         visited_stages = set()
         queue = deque(self.root_stages)  # BFS 用队列代替递归
 
@@ -113,14 +130,20 @@ class TaskGraph:
 
             # 初始化 counters（全部用 MPValue）
             self.stage_task_counter[stage_tag] = SumCounter()
-            self.stage_success_counter[stage_tag] = self.stage_success_counter.get(stage_tag, MPValue("i", 0))
+            self.stage_success_counter[stage_tag] = self.stage_success_counter.get(
+                stage_tag, MPValue("i", 0)
+            )
             self.stage_error_counter[stage_tag] = MPValue("i", 0)
             self.stage_duplicate_counter[stage_tag] = MPValue("i", 0)
             self.stage_locks[stage_tag] = MPLock()
 
-            self.stage_extra_stats[stage_tag] = self.stage_extra_stats.get(stage_tag, {})
+            self.stage_extra_stats[stage_tag] = self.stage_extra_stats.get(
+                stage_tag, {}
+            )
             if isinstance(stage, TaskSplitter):
-                self.stage_extra_stats[stage_tag].setdefault("split_output_count", MPValue("i", 0))
+                self.stage_extra_stats[stage_tag].setdefault(
+                    "split_output_count", MPValue("i", 0)
+                )
 
             # 为每个边 (prev -> stage) 创建队列
             for prev_stage in stage.prev_stages:
@@ -128,14 +151,20 @@ class TaskGraph:
                 self.edge_queue_map[(prev_tag, stage_tag)] = MPQueue()
 
                 if isinstance(prev_stage, TaskSplitter):
-                    self.stage_extra_stats[prev_tag] = self.stage_extra_stats.get(prev_tag, {})
-                    self.stage_extra_stats[prev_tag].setdefault("split_output_count", MPValue("i", 0))
+                    self.stage_extra_stats[prev_tag] = self.stage_extra_stats.get(
+                        prev_tag, {}
+                    )
+                    self.stage_extra_stats[prev_tag].setdefault(
+                        "split_output_count", MPValue("i", 0)
+                    )
                     self.stage_task_counter[stage_tag].add_counter(
                         self.stage_extra_stats[prev_tag]["split_output_count"]
                     )
                 else:
                     # 确保上游 success_counter 已存在
-                    self.stage_success_counter[prev_tag] = self.stage_success_counter.get(prev_tag, MPValue("i", 0))
+                    self.stage_success_counter[prev_tag] = (
+                        self.stage_success_counter.get(prev_tag, MPValue("i", 0))
+                    )
                     self.stage_task_counter[stage_tag].add_counter(
                         self.stage_success_counter[prev_tag]
                     )
@@ -153,7 +182,7 @@ class TaskGraph:
         """
         初始化日志
         """
-        self.log_listener = LogListener(level = "INFO")
+        self.log_listener = LogListener(level="INFO")
         self.task_logger = TaskLogger(self.log_listener.get_queue())
 
     def init_structure_graph(self):
@@ -218,25 +247,37 @@ class TaskGraph:
         :param put_termination_signal: 是否放入终止信号
         """
         for tag, tasks in tasks_dict.items():
-            prev_stage: TaskManager = self.stages_status_dict[tag]["stage"].prev_stages[0]
+            prev_stage: TaskManager = self.stages_status_dict[tag]["stage"].prev_stages[
+                0
+            ]
             prev_tag = prev_stage.get_stage_tag() if prev_stage else None
             for task in tasks:
                 self.edge_queue_map[(prev_tag, tag)].put(make_hashable(task))
                 if isinstance(task, TerminationSignal):
-                    self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {(prev_tag, tag)}")
+                    self.task_logger._log(
+                        "TRACE", f"TERMINATION_SIGNAL put into {(prev_tag, tag)}"
+                    )
                     continue
                 self.task_logger._log("TRACE", f"{task} put into {(prev_tag, tag)}")
-                self.stage_task_counter[tag] = self.stage_task_counter.get(tag, SumCounter())
+                self.stage_task_counter[tag] = self.stage_task_counter.get(
+                    tag, SumCounter()
+                )
                 self.stage_task_counter[tag].add_init_value(1)
-        
+
         if put_termination_signal:
             for root_stage in self.root_stages:
-                pre_stage_tag = root_stage.prev_stages[0].get_stage_tag() if root_stage.prev_stages[0] else None
+                pre_stage_tag = (
+                    root_stage.prev_stages[0].get_stage_tag()
+                    if root_stage.prev_stages[0]
+                    else None
+                )
                 edge_key = (pre_stage_tag, root_stage.get_stage_tag())
                 self.edge_queue_map[edge_key].put(TERMINATION_SIGNAL)
-                self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {edge_key}")
+                self.task_logger._log(
+                    "TRACE", f"TERMINATION_SIGNAL put into {edge_key}"
+                )
 
-    def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool=True):
+    def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动任务链
         """
@@ -298,10 +339,14 @@ class TaskGraph:
             self.edge_queue_map[(prev.get_stage_tag() if prev else None, stage_tag)]
             for prev in stage.prev_stages
         ]
-        output_queues = [
-            self.edge_queue_map[(stage_tag, next_stage.get_stage_tag())]
-            for next_stage in stage.next_stages
-        ] if stage.next_stages else []
+        output_queues = (
+            [
+                self.edge_queue_map[(stage_tag, next_stage.get_stage_tag())]
+                for next_stage in stage.next_stages
+            ]
+            if stage.next_stages
+            else []
+        )
 
         logger_queue = self.log_listener.get_queue()
 
@@ -327,7 +372,9 @@ class TaskGraph:
             p.start()
             self.processes.append(p)
         else:
-            stage.start_stage(input_queues, output_queues, self.fail_queue, logger_queue)
+            stage.start_stage(
+                input_queues, output_queues, self.fail_queue, logger_queue
+            )
             self.stages_status_dict[stage_tag]["status"] = StageStatus.STOPPED
 
     def finalize_nodes(self):
@@ -338,7 +385,9 @@ class TaskGraph:
         # 1️⃣ 确保所有进程安全结束（不一定要 terminate，但如果没结束就强制）
         for p in self.processes:
             if p.is_alive():
-                self.task_logger._log("WARNING", f"检测到进程 {p.name} 仍在运行, 尝试终止")
+                self.task_logger._log(
+                    "WARNING", f"检测到进程 {p.name} 仍在运行, 尝试终止"
+                )
                 p.terminate()
                 p.join(timeout=5)
                 if p.is_alive():
@@ -369,7 +418,7 @@ class TaskGraph:
             stage_status_dict["stage"].release_queue()
 
         cleanup_mpqueue(self.fail_queue)
-        
+
     def handle_fail_queue(self):
         """
         消费 fail_queue, 构建失败字典
@@ -398,7 +447,9 @@ class TaskGraph:
             "timestamp": datetime.now().isoformat(),
             "structure": self.get_structure_json(),
         }
-        append_jsonl_log(log_item, self.start_time, "./fallback", "realtime_errors", self.task_logger)
+        append_jsonl_log(
+            log_item, self.start_time, "./fallback", "realtime_errors", self.task_logger
+        )
 
     def _persist_single_failure(self, task_str, error_info, stage_tag, timestamp):
         """
@@ -410,7 +461,9 @@ class TaskGraph:
             "error": error_info,
             "task": task_str,
         }
-        append_jsonl_log(log_item, self.start_time, "./fallback", "realtime_errors", self.task_logger)
+        append_jsonl_log(
+            log_item, self.start_time, "./fallback", "realtime_errors", self.task_logger
+        )
 
     def _persist_unconsumed_task(self, stage_tag, task):
         """
@@ -419,9 +472,11 @@ class TaskGraph:
         log_item = {
             "timestamp": datetime.now().isoformat(),
             "stage": stage_tag,
-            "task": str(task)
+            "task": str(task),
         }
-        append_jsonl_log(log_item, self.start_time, "./fallback", "leftover_tasks", self.task_logger)
+        append_jsonl_log(
+            log_item, self.start_time, "./fallback", "leftover_tasks", self.task_logger
+        )
 
     def get_error_timeline_dict(self):
         """
@@ -434,7 +489,7 @@ class TaskGraph:
         返回最终失败字典
         """
         return dict(self.all_stage_error_dict)
-    
+
     def get_fail_by_error_dict(self):
         return {
             key: [a for a, _ in tuple_list]
@@ -446,7 +501,7 @@ class TaskGraph:
             stage: list(inner_dict.keys())
             for stage, inner_dict in self.get_all_stage_error_dict().items()
         }
-    
+
     def get_status_dict(self) -> Dict[str, dict]:
         """
         获取任务链的状态字典
@@ -459,22 +514,24 @@ class TaskGraph:
             stage: TaskManager = stage_status_dict["stage"]
             last_stage_status_dict: dict = self.last_status_dict.get(tag, {})
 
-            status         = stage_status_dict.get("status", StageStatus.NOT_STARTED)
+            status = stage_status_dict.get("status", StageStatus.NOT_STARTED)
 
-            input          = self.stage_task_counter.get(tag, ValueWrapper()).value
-            successed      = self.stage_success_counter.get(tag, ValueWrapper()).value
-            failed         = self.stage_error_counter.get(tag, ValueWrapper()).value
-            duplicated     = self.stage_duplicate_counter.get(tag, ValueWrapper()).value
-            processed      = successed + failed + duplicated
-            pending        = max(0, input - processed)
+            input = self.stage_task_counter.get(tag, ValueWrapper()).value
+            successed = self.stage_success_counter.get(tag, ValueWrapper()).value
+            failed = self.stage_error_counter.get(tag, ValueWrapper()).value
+            duplicated = self.stage_duplicate_counter.get(tag, ValueWrapper()).value
+            processed = successed + failed + duplicated
+            pending = max(0, input - processed)
 
-            add_successed  = successed  - last_stage_status_dict.get("tasks_successed", 0)
-            add_failed     = failed     - last_stage_status_dict.get("tasks_failed", 0)
-            add_duplicated = duplicated - last_stage_status_dict.get("tasks_duplicated", 0)
-            add_processed  = processed  - last_stage_status_dict.get("tasks_processed", 0)
-            add_pending    = pending    - last_stage_status_dict.get("tasks_pending", 0)
+            add_successed = successed - last_stage_status_dict.get("tasks_successed", 0)
+            add_failed = failed - last_stage_status_dict.get("tasks_failed", 0)
+            add_duplicated = duplicated - last_stage_status_dict.get(
+                "tasks_duplicated", 0
+            )
+            add_processed = processed - last_stage_status_dict.get("tasks_processed", 0)
+            add_pending = pending - last_stage_status_dict.get("tasks_pending", 0)
 
-            start_time     = stage_status_dict.get("start_time", 0)
+            start_time = stage_status_dict.get("start_time", 0)
             # 更新时间消耗（仅在 pending 非 0 时刷新）
             if start_time:
                 elapsed = stage_status_dict.get("elapsed_time", 0)
@@ -504,40 +561,39 @@ class TaskGraph:
                 avg_time_str = "N/A"  # 或 "0.00s/it"
 
             history: list = stage_status_dict.get("history", [])
-            history.append({
-                "timestamp": now,
-                "tasks_processed": processed,
-            })
+            history.append(
+                {
+                    "timestamp": now,
+                    "tasks_processed": processed,
+                }
+            )
             history.pop(0) if len(history) > 20 else None
             stage_status_dict["history"] = history
 
             status_dict[tag] = {
                 **stage.get_stage_summary(),
                 "status": status,
-
                 "tasks_successed": successed,
                 "tasks_failed": failed,
                 "tasks_duplicated": duplicated,
                 "tasks_processed": processed,
                 "tasks_pending": pending,
-
                 "add_tasks_successed": add_successed,
                 "add_tasks_failed": add_failed,
                 "add_tasks_duplicated": add_duplicated,
                 "add_tasks_processed": add_processed,
                 "add_tasks_pending": add_pending,
-
                 "start_time": format_timestamp(start_time),
                 "elapsed_time": format_duration(elapsed),
                 "remaining_time": format_duration(remaining),
                 "task_avg_time": avg_time_str,
-                "history": history
+                "history": history,
             }
 
         self.last_status_dict = status_dict
 
         return status_dict
-    
+
     def get_graph_topology(self):
         return {
             "isDAG": self.isDAG,
@@ -545,16 +601,16 @@ class TaskGraph:
             "class_name": self.__class__.__name__,
             "layers_dict": self.layers_dict,
         }
-    
+
     def get_structure_json(self):
         return self.structure_graph
-    
+
     def get_structure_list(self):
         return format_structure_list_from_graph(self.structure_graph)
-    
+
     def get_networkx_graph(self):
         return format_networkx_graph(self.structure_graph)
-    
+
     def analyze_graph(self):
         networkx_graph = self.get_networkx_graph()
         self.layers_dict = {}
@@ -564,7 +620,12 @@ class TaskGraph:
             self.stage_level_dict = compute_node_levels(networkx_graph)
             self.layers_dict = cluster_by_value_sorted(self.stage_level_dict)
 
-    def test_methods(self, init_tasks_dict: Dict[str, List], stage_modes: list=None, execution_modes: list=None) -> Dict[str, Any]:
+    def test_methods(
+        self,
+        init_tasks_dict: Dict[str, List],
+        stage_modes: list = None,
+        execution_modes: list = None,
+    ) -> Dict[str, Any]:
         """
         测试 TaskGraph 在 'serial' 和 'process' 模式下的执行时间。
 

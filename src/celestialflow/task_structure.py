@@ -20,7 +20,7 @@ class TaskChain(TaskGraph):
         root_stage = stages[0]
         super().__init__([root_stage])
 
-    def start_chain(self, init_tasks_dict: dict, put_termination_signal: bool=True):
+    def start_chain(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动任务链
         :param init_tasks_dict: 任务列表
@@ -53,7 +53,7 @@ class TaskCross(TaskGraph):
                 stage.set_graph_context(
                     next_stages=next_layer,
                     stage_mode="process",
-                    stage_name=f"Layer{i+1}-{index+1}"
+                    stage_name=f"Layer{i+1}-{index+1}",
                 )
         super().__init__(layers[0], layout_mode)
 
@@ -71,12 +71,14 @@ class TaskGrid(TaskGraph):
             for j in range(cols):
                 curr = grid[i][j]
                 nexts = []
-                if i + 1 < rows: nexts.append(grid[i+1][j])  # down
-                if j + 1 < cols: nexts.append(grid[i][j+1])  # right
+                if i + 1 < rows:
+                    nexts.append(grid[i + 1][j])  # down
+                if j + 1 < cols:
+                    nexts.append(grid[i][j + 1])  # right
                 curr.set_graph_context(nexts, "process", f"Grid-{i+1}-{j+1}")
         super().__init__([grid[0][0]], layout_mode)  # 起点为左上角
 
-    def start_grid(self, init_tasks_dict: dict, put_termination_signal: bool=True):
+    def start_grid(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动任务网格结构
         :param init_tasks_dict: 任务列表
@@ -133,7 +135,11 @@ class TaskComplete(TaskGraph):
         """
         for i, stage in enumerate(stages):
             next_stages = [s for j, s in enumerate(stages) if i != j]
-            stage.set_graph_context(next_stages=next_stages, stage_mode="process", stage_name=f"Node {i + 1}")
+            stage.set_graph_context(
+                next_stages=next_stages,
+                stage_mode="process",
+                stage_name=f"Node {i + 1}",
+            )
 
         super().__init__(stages)
 

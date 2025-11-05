@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio, time
 from asyncio import Queue as AsyncQueue, QueueEmpty
 from collections import defaultdict
-from collections.abc import Iterable  
+from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue, Empty
@@ -22,7 +22,14 @@ from httpx import (
 )
 
 from .task_progress import ProgressManager, NullProgress
-from .task_support import TERMINATION_SIGNAL, TerminationSignal, LogListener, TaskLogger, ValueWrapper, NoOpContext
+from .task_support import (
+    TERMINATION_SIGNAL,
+    TerminationSignal,
+    LogListener, 
+    TaskLogger,
+    ValueWrapper,
+    NoOpContext,
+)
 from .task_tools import make_hashable, format_repr, object_to_str_hash
 
 
@@ -84,20 +91,36 @@ class TaskManager:
 
         self.init_counter()
 
-    def init_counter(self, task_counter=None, success_counter=None, error_counter=None, duplicate_counter=None, counter_lock=None, extra_stats=None):
+    def init_counter(
+        self,
+        task_counter=None,
+        success_counter=None,
+        error_counter=None,
+        duplicate_counter=None,
+        counter_lock=None,
+        extra_stats=None,
+    ):
         """
         初始化计数器
         """
         self.task_counter = task_counter if task_counter is not None else ValueWrapper()
-        self.success_counter = success_counter if success_counter is not None else ValueWrapper()
-        self.error_counter = error_counter if error_counter is not None else ValueWrapper()
-        self.duplicate_counter = duplicate_counter if duplicate_counter is not None else ValueWrapper()
+        self.success_counter = (
+            success_counter if success_counter is not None else ValueWrapper()
+        )
+        self.error_counter = (
+            error_counter if error_counter is not None else ValueWrapper()
+        )
+        self.duplicate_counter = (
+            duplicate_counter if duplicate_counter is not None else ValueWrapper()
+        )
 
         self.counter_lock = counter_lock if counter_lock is not None else NoOpContext()
 
         self.extra_stats = extra_stats if extra_stats is not None else {}
 
-    def init_env(self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None):
+    def init_env(
+        self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None
+    ):
         """
         初始化环境
         """
@@ -106,22 +129,30 @@ class TaskManager:
         self.init_pool()
         self.init_logger()
 
-    def init_queue(self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None):
+    def init_queue(
+        self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None
+    ):
         """
         初始化队列
         """
         queue_map = {
-            "process": ThreadQueue, #MPqueue
+            "process": ThreadQueue,  # MPqueue
             "async": AsyncQueue,
             "thread": ThreadQueue,
             "serial": ThreadQueue,
         }
 
         # task_queues, result_queues与fail_queue只会在节点进程内运行, 因此如果不涉及多个进程的节点间通信, 可以全部使用ThreadQueue
-        self.task_queues: List[ThreadQueue|MPQueue|AsyncQueue]   = task_queues or [queue_map[self.execution_mode]()]
-        self.result_queues: List[ThreadQueue|MPQueue|AsyncQueue] = result_queues or [queue_map[self.execution_mode]()]
-        self.fail_queue: ThreadQueue|MPQueue|AsyncQueue          = fail_queue or queue_map[self.execution_mode]()
-        self.logger_queue: ThreadQueue|MPQueue                   = logger_queue or ThreadQueue()
+        self.task_queues: List[ThreadQueue | MPQueue | AsyncQueue] = task_queues or [
+            queue_map[self.execution_mode]()
+        ]
+        self.result_queues: List[ThreadQueue | MPQueue | AsyncQueue] = (
+            result_queues or [queue_map[self.execution_mode]()]
+        )
+        self.fail_queue: ThreadQueue | MPQueue | AsyncQueue = (
+            fail_queue or queue_map[self.execution_mode]()
+        )
+        self.logger_queue: ThreadQueue | MPQueue = logger_queue or ThreadQueue()
 
     def init_state(self):
         """
@@ -132,7 +163,7 @@ class TaskManager:
         """
         self.success_dict = {}
         self.error_dict = {}
-        self.retry_time_dict = {} # task_id -> retry_time
+        self.retry_time_dict = {}  # task_id -> retry_time
 
         self.processed_set = set()
 
@@ -166,8 +197,12 @@ class TaskManager:
         if not self.show_progress:
             self.progress_manager = NullProgress()
             return
-        
-        extra_desc = f"{self.execution_mode}-{self.worker_limit}" if self.execution_mode != "serial" else "serial"
+
+        extra_desc = (
+            f"{self.execution_mode}-{self.worker_limit}"
+            if self.execution_mode != "serial"
+            else "serial"
+        )
         progress_mode = "normal" if self.execution_mode != "async" else "async"
 
         self.progress_manager = ProgressManager(
@@ -236,14 +271,18 @@ class TaskManager:
         获取当前节点在graph中的标签
         """
         return f"{self.stage_name}[{self.func.__name__}]"
-    
+
     def get_stage_summary(self) -> dict:
         """
         获取当前节点的状态快照
         """
         return {
             "stage_mode": self.stage_mode,
-            "execution_mode": self.execution_mode if self.execution_mode == "serial" else f"{self.execution_mode}-{self.worker_limit}",
+            "execution_mode": (
+                self.execution_mode
+                if self.execution_mode == "serial"
+                else f"{self.execution_mode}-{self.worker_limit}"
+            ),
             "func_name": self.func.__name__,
             "class_name": self.__class__.__name__,
         }
@@ -283,14 +322,21 @@ class TaskManager:
                     item = queue.get_nowait()
                     if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
-                        self.task_logger._log("TRACE", f"get_task_queues: queue[{idx}] terminated")
+                        self.task_logger._log(
+                            "TRACE", f"get_task_queues: queue[{idx}] terminated"
+                        )
                         continue
-                    self.current_index = (idx + 1) % total_queues  # 下一轮从下一个队列开始
+                    self.current_index = (
+                        idx + 1
+                    ) % total_queues  # 下一轮从下一个队列开始
                     return item
                 except Empty:
                     continue
                 except Exception as e:
-                    self.task_logger._log("WARNING", f"get_task_queues: Error from queue[{idx}]: {type(e).__name__}({e})")
+                    self.task_logger._log(
+                        "WARNING",
+                        f"get_task_queues: Error from queue[{idx}]: {type(e).__name__}({e})",
+                    )
                     continue
 
             # 所有队列都终止了
@@ -315,7 +361,9 @@ class TaskManager:
             task = await queue.get()
             if isinstance(task, TerminationSignal):
                 self.terminated_queue_set.add(0)
-                self.task_logger._log("TRACE", "get_task_queues_async: queue[0] terminated")
+                self.task_logger._log(
+                    "TRACE", "get_task_queues_async: queue[0] terminated"
+                )
                 return TERMINATION_SIGNAL
             return task
 
@@ -329,14 +377,19 @@ class TaskManager:
                     task = queue.get_nowait()
                     if isinstance(task, TerminationSignal):
                         self.terminated_queue_set.add(idx)
-                        self.task_logger._log("TRACE", f"get_task_queues_async: queue[{idx}] terminated")
+                        self.task_logger._log(
+                            "TRACE", f"get_task_queues_async: queue[{idx}] terminated"
+                        )
                         continue
                     self.current_index = (idx + 1) % total_queues
                     return task
                 except QueueEmpty:
                     continue
                 except Exception as e:
-                    self.task_logger._log("WARNING", f"get_task_queues_async: queue[{idx}] error: {type(e).__name__}({e})")
+                    self.task_logger._log(
+                        "WARNING",
+                        f"get_task_queues_async: queue[{idx}] error: {type(e).__name__}({e})",
+                    )
                     continue
 
             if len(self.terminated_queue_set) == total_queues:
@@ -376,7 +429,7 @@ class TaskManager:
         """
         for queue in self.task_queues:
             queue.put(TERMINATION_SIGNAL)  # 添加一个哨兵任务，用于结束任务队列
-    
+
     async def terminate_task_queues_async(self):
         """
         终止所有任务队列(async模式)
@@ -402,23 +455,27 @@ class TaskManager:
         """
         将失败的任务放入失败队列
         """
-        self.fail_queue.put({
-            "stage_tag": self.get_stage_tag(),
-            "task": str(task),
-            "error_info": f"{type(error).__name__}({error})",
-            "timestamp": time.time()
-        })
+        self.fail_queue.put(
+            {
+                "stage_tag": self.get_stage_tag(),
+                "task": str(task),
+                "error_info": f"{type(error).__name__}({error})",
+                "timestamp": time.time(),
+            }
+        )
 
     async def put_fail_queue_async(self, task, error):
         """
         将失败的任务放入失败队列（异步版本）
         """
-        await self.fail_queue.put({
-            "stage_tag": self.get_stage_tag(),
-            "task": str(task),
-            "error_info": f"{type(error).__name__}({error})",
-            "timestamp": time.time()
-        })
+        await self.fail_queue.put(
+            {
+                "stage_tag": self.get_stage_tag(),
+                "task": str(task),
+                "error_info": f"{type(error).__name__}({error})",
+                "timestamp": time.time(),
+            }
+        )
 
     def update_task_counter(self):
         # 加锁方式（保证正确）
@@ -448,9 +505,9 @@ class TaskManager:
         判断任务是否完成
         """
         processed = (
-            self.success_counter.value +
-            self.error_counter.value +
-            self.duplicate_counter.value
+            self.success_counter.value
+            + self.error_counter.value
+            + self.duplicate_counter.value
         )
         return self.task_counter.value == processed
 
@@ -459,7 +516,7 @@ class TaskManager:
         判断任务是否重复
         """
         return task_id in self.processed_set
-    
+
     def deal_dupliacte(self, task):
         """
         处理重复任务
@@ -509,7 +566,7 @@ class TaskManager:
             error_groups[error].append(task)
 
         return dict(error_groups)  # 转换回普通字典
-    
+
     def get_task_id(self, task):
         """
         获取任务ID
@@ -613,12 +670,15 @@ class TaskManager:
             and retry_time < self.max_retries
         ):
             self.processed_set.remove(task_id)
-            self.task_queues[0].put(task) # 只在第一个队列存放retry task
-            
+            self.task_queues[0].put(task)  # 只在第一个队列存放retry task
+
             self.progress_manager.add_total(1)
             self.retry_time_dict[task_id] += 1
             self.task_logger.task_retry(
-                self.func.__name__, self.get_task_info(task), self.retry_time_dict[task_id], exception
+                self.func.__name__,
+                self.get_task_info(task),
+                self.retry_time_dict[task_id],
+                exception,
             )
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
@@ -651,12 +711,15 @@ class TaskManager:
             and retry_time < self.max_retries
         ):
             self.processed_set.remove(task_id)
-            await self.task_queues[0].put(task) # 只在第一个队列存放retry task
-            
+            await self.task_queues[0].put(task)  # 只在第一个队列存放retry task
+
             self.progress_manager.add_total(1)
             self.retry_time_dict[task_id] += 1
             self.task_logger.task_retry(
-                self.func.__name__, self.get_task_info(task), self.retry_time_dict[task_id], exception
+                self.func.__name__,
+                self.get_task_info(task),
+                self.retry_time_dict[task_id],
+                exception,
             )
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
@@ -686,7 +749,10 @@ class TaskManager:
         self.put_task_queues(task_source)
         self.terminate_task_queues()
         self.task_logger.start_manager(
-            self.func.__name__, self.task_counter.value, self.execution_mode, self.worker_limit
+            self.func.__name__,
+            self.task_counter.value,
+            self.execution_mode,
+            self.worker_limit,
         )
 
         # 根据模式运行对应的任务处理函数
@@ -727,7 +793,10 @@ class TaskManager:
         await self.put_task_queues_async(task_source)
         await self.terminate_task_queues_async()
         self.task_logger.start_manager(
-            self.func.__name__, self.task_counter.value, "async(await)", self.worker_limit
+            self.func.__name__,
+            self.task_counter.value,
+            "async(await)",
+            self.worker_limit,
         )
 
         await self.run_in_async()
@@ -743,7 +812,13 @@ class TaskManager:
         )
         self.log_listener.stop()
 
-    def start_stage(self, input_queues: List[MPQueue], output_queues: List[MPQueue], fail_queue: MPQueue, logger_queue: MPQueue):
+    def start_stage(
+        self,
+        input_queues: List[MPQueue],
+        output_queues: List[MPQueue],
+        fail_queue: MPQueue,
+        logger_queue: MPQueue,
+    ):
         """
         根据 start_type 的值，选择串行、并行执行任务
 
@@ -768,7 +843,7 @@ class TaskManager:
         # cleanup_mpqueue(input_queues) # 会影响之后finalize_nodes
         self.release_pool()
         self.put_result_queues(TERMINATION_SIGNAL)
-        
+
         self.progress_manager.close()
         self.task_logger.end_stage(
             self.stage_name,
@@ -788,8 +863,8 @@ class TaskManager:
         while True:
             task = self.get_task_queues()
             task_id = self.get_task_id(task)
-            self.task_logger._log("TRACE",
-                f"Task {task} is submitted to {self.func.__name__}"
+            self.task_logger._log(
+                "TRACE", f"Task {task} is submitted to {self.func.__name__}"
             )
             if isinstance(task, TerminationSignal):
                 # progress_manager.update(1)
@@ -848,8 +923,8 @@ class TaskManager:
         while True:
             task = self.get_task_queues()
             task_id = self.get_task_id(task)
-            self.task_logger._log("TRACE",
-                f"Task {task} is submitted to {self.func.__name__}"
+            self.task_logger._log(
+                "TRACE", f"Task {task} is submitted to {self.func.__name__}"
             )
 
             if isinstance(task, TerminationSignal):
@@ -902,8 +977,8 @@ class TaskManager:
         while True:
             task = await self.get_task_queues_async()
             task_id = self.get_task_id(task)
-            self.task_logger._log("TRACE",
-                f"Task {task} is submitted to {self.func.__name__}"
+            self.task_logger._log(
+                "TRACE", f"Task {task} is submitted to {self.func.__name__}"
             )
             if isinstance(task, TerminationSignal):
                 break

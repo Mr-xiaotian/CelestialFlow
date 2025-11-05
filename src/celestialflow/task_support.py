@@ -12,11 +12,13 @@ from loguru import logger as loguru_logger
 
 class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
+
     pass
 
 
 class TaskError(Exception):
     """用于标记任务执行错误的异常类"""
+
     pass
 
 
@@ -56,7 +58,7 @@ class LogListener:
         return self.log_queue
 
     def stop(self):
-        self.log_queue.put(TERMINATION_SIGNAL)  # 通知线程退出
+        self.log_queue.put(TerminationSignal())
         self._thread.join()
         loguru_logger.debug("LogListener stopped.")
 
@@ -72,36 +74,57 @@ class TaskLogger:
     def _log(self, level: str, message: str):
         self.log_queue.put({"level": level.upper(), "message": message})
 
+    # ==== manager ====
     def start_manager(self, func_name, task_num, execution_mode, worker_limit):
         text = f"'{func_name}' start {task_num} tasks by {execution_mode}"
         text += f"({worker_limit} workers)." if execution_mode != "serial" else "."
         self._log("INFO", text)
 
-    def end_manager(self, func_name, execution_mode, use_time, success_num, failed_num, duplicated_num):
+    def end_manager(
+        self,
+        func_name,
+        execution_mode,
+        use_time,
+        success_num,
+        failed_num,
+        duplicated_num,
+    ):
         self._log(
             "INFO",
             f"'{func_name}' end tasks by {execution_mode}. Use {use_time:.2f} second. "
             f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
+    # ==== stage ====
     def start_stage(self, stage_name, func_name, execution_mode, worker_limit):
         text = f"The {stage_name} in '{func_name}' start tasks by {execution_mode}"
         text += f"({worker_limit} workers)." if execution_mode != "serial" else "."
         self._log("INFO", text)
 
-    def end_stage(self, stage_name, func_name, execution_mode, use_time, success_num, failed_num, duplicated_num):
+    def end_stage(
+        self,
+        stage_name,
+        func_name,
+        execution_mode,
+        use_time,
+        success_num,
+        failed_num,
+        duplicated_num,
+    ):
         self._log(
             "INFO",
             f"The {stage_name} in '{func_name}' end tasks by {execution_mode}. Use {use_time:.2f} second. "
             f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
+    # ==== layer ====
     def start_layer(self, layer: List[str], layer_level: int):
         self._log("INFO", f"Layer {layer} start. Layer level: {layer_level}.")
-    
+
     def end_layer(self, layer: List[str], use_time: float):
         self._log("INFO", f"Layer {layer} end. Use {use_time:.2f} second.")
 
+    # ==== graph ====
     def start_graph(self, stage_structure):
         self._log("INFO", f"Starting TaskGraph stages. Graph structure:")
         for line in stage_structure:
@@ -110,21 +133,34 @@ class TaskLogger:
     def end_graph(self, use_time):
         self._log("INFO", f"TaskGraph end. Use {use_time:.2f} second.")
 
+    # ==== task ====
     def task_success(self, func_name, task_info, execution_mode, result_info, use_time):
-        self._log("SUCCESS", f"In '{func_name}', Task {task_info} completed by {execution_mode}. Result is {result_info}. Used {use_time:.2f} seconds.")
+        self._log(
+            "SUCCESS",
+            f"In '{func_name}', Task {task_info} completed by {execution_mode}. Result is {result_info}. Used {use_time:.2f} seconds.",
+        )
 
     def task_retry(self, func_name, task_info, retry_times, exception):
-        self._log("WARNING", f"In '{func_name}', Task {task_info} failed {retry_times} times and will retry: ({type(exception).__name__}).")
+        self._log(
+            "WARNING",
+            f"In '{func_name}', Task {task_info} failed {retry_times} times and will retry: ({type(exception).__name__}).",
+        )
 
     def task_error(self, func_name, task_info, exception):
-        exception_text = str(exception).replace('\n', ' ')
-        self._log("ERROR", f"In '{func_name}', Task {task_info} failed and can't retry: ({type(exception).__name__}){exception_text}.")
+        exception_text = str(exception).replace("\n", " ")
+        self._log(
+            "ERROR",
+            f"In '{func_name}', Task {task_info} failed and can't retry: ({type(exception).__name__}){exception_text}.",
+        )
 
     def task_duplicate(self, func_name, task_info):
         self._log("SUCCESS", f"In '{func_name}', Task {task_info} has been duplicated.")
 
     def splitter_success(self, func_name, task_info, split_count, use_time):
-        self._log("SUCCESS", f"In '{func_name}', Task {task_info} has split into {split_count} parts. Used {use_time:.2f} seconds.")
+        self._log(
+            "SUCCESS",
+            f"In '{func_name}', Task {task_info} has split into {split_count} parts. Used {use_time:.2f} seconds.",
+        )
 
 
 class BroadcastQueueManager:
@@ -133,7 +169,7 @@ class BroadcastQueueManager:
         input_queue: Union[MPQueue, ThreadQueue],
         target_queues: List[Union[MPQueue, ThreadQueue]],
         func_name: str,
-        logger_queue: MPQueue
+        logger_queue: MPQueue,
     ):
         """
         广播队列管理器
@@ -143,7 +179,7 @@ class BroadcastQueueManager:
         self.input_queue = input_queue
         self.target_queues = target_queues
         self.func_name = func_name
-        self.log = TaskLogger(logger_queue)
+        self.logger = TaskLogger(logger_queue)
 
     def start(self):
         """开始广播线程"""
@@ -163,15 +199,16 @@ class BroadcastQueueManager:
                     break
                 self._broadcast_to_all(item)
             except Exception as e:
-                self.log._log("ERROR",
-                    f"{self.func_name} broadcast thread error: {type(e).__name__}({e})"
+                self.logger._log(
+                    "ERROR",
+                    f"{self.func_name} broadcast thread error: {type(e).__name__}({e})",
                 )
         self._broadcast_to_all(TERMINATION_SIGNAL)
 
     def _broadcast_to_all(self, item):
         """广播数据到所有目标队列"""
-        self.log._log("TRACE",
-            f"{self.func_name} broadcasting {item} to all target queues."
+        self.logger._log(
+            "TRACE", f"{self.func_name} broadcasting {item} to all target queues."
         )
         for queue in self.target_queues:
             queue.put(item)
@@ -193,7 +230,7 @@ class TaskReporter:
             self._stop_flag.clear()
             self._thread = threading.Thread(target=self._loop, daemon=True)
             self._thread.start()
-            
+
     def stop(self):
         if self._thread:
             self.push_once()  # 最后一次
@@ -207,7 +244,9 @@ class TaskReporter:
             try:
                 self.push_once()
             except Exception as e:
-                self.logger._log("ERROR", f"[Reporter] Push error: {type(e).__name__}({e}).")
+                self.logger._log(
+                    "ERROR", f"[Reporter] Push error: {type(e).__name__}({e})."
+                )
             self._stop_flag.wait(self.interval)
 
     def push_once(self):
@@ -228,7 +267,9 @@ class TaskReporter:
                 interval = res.json().get("interval", 5)
                 self.interval = max(1.0, min(interval, 60.0))
         except Exception as e:
-            self.logger._log("WARNING", f"[Reporter] Interval fetch failed: {type(e).__name__}({e}).")
+            self.logger._log(
+                "WARNING", f"[Reporter] Interval fetch failed: {type(e).__name__}({e})."
+            )
 
     def _pull_and_inject_tasks(self):
         try:
@@ -240,32 +281,52 @@ class TaskReporter:
                     task_datas = task.get("task_datas")
 
                     if target_node not in self.task_graph.stages_status_dict:
-                        self.logger._log("WARNING", f"[Reporter] Task injection target node {target_node} not found.")
+                        self.logger._log(
+                            "WARNING",
+                            f"[Reporter] Task injection target node {target_node} not found.",
+                        )
                         continue
 
                     # 这里你可以按需注入到不同的节点
-                    task_datas = [task if task != "TERMINATION_SIGNAL" else TERMINATION_SIGNAL for task in task_datas]
-                    self.task_graph.put_stage_queue({target_node: task_datas}, put_termination_signal=False)
-                    self.logger._log("INFO", f"[Reporter] 注入任务到 {target_node}: {task_datas}")
+                    task_datas = [
+                        task if task != "TERMINATION_SIGNAL" else TERMINATION_SIGNAL
+                        for task in task_datas
+                    ]
+                    self.task_graph.put_stage_queue(
+                        {target_node: task_datas}, put_termination_signal=False
+                    )
+                    self.logger._log(
+                        "INFO", f"[Reporter] 注入任务到 {target_node}: {task_datas}"
+                    )
         except Exception as e:
-            self.logger._log("WARNING", f"[Reporter] Task injection fetch failed: {type(e).__name__}({e}).")
+            self.logger._log(
+                "WARNING",
+                f"[Reporter] Task injection fetch failed: {type(e).__name__}({e}).",
+            )
 
     def _push_errors(self):
         try:
             self.task_graph.handle_fail_queue()
             error_data = []
-            for (err, tag), task_list in self.task_graph.get_error_timeline_dict().items():
+            for (
+                err,
+                tag,
+            ), task_list in self.task_graph.get_error_timeline_dict().items():
                 for task, ts in task_list:
-                    error_data.append({
-                        "error": err,
-                        "node": tag,
-                        "task_id": task if len(task) < 100 else task[:100]+"...",
-                        "timestamp": ts,
-                    })
+                    error_data.append(
+                        {
+                            "error": err,
+                            "node": tag,
+                            "task_id": task if len(task) < 100 else task[:100] + "...",
+                            "timestamp": ts,
+                        }
+                    )
             payload = {"errors": error_data}
             requests.post(f"{self.base_url}/api/push_errors", json=payload, timeout=1)
         except Exception as e:
-            self.logger._log("WARNING", f"[Reporter] Error push failed: {type(e).__name__}({e}).")
+            self.logger._log(
+                "WARNING", f"[Reporter] Error push failed: {type(e).__name__}({e})."
+            )
 
     def _push_status(self):
         try:
@@ -273,15 +334,21 @@ class TaskReporter:
             payload = {"status": status_data}
             requests.post(f"{self.base_url}/api/push_status", json=payload, timeout=1)
         except Exception as e:
-            self.logger._log("WARNING", f"[Reporter] Status push failed: {type(e).__name__}({e}).")
+            self.logger._log(
+                "WARNING", f"[Reporter] Status push failed: {type(e).__name__}({e})."
+            )
 
     def _push_structure(self):
         try:
             structure = self.task_graph.get_structure_json()
             payload = {"items": structure}
-            requests.post(f"{self.base_url}/api/push_structure", json=payload, timeout=1)
+            requests.post(
+                f"{self.base_url}/api/push_structure", json=payload, timeout=1
+            )
         except Exception as e:
-            self.logger._log("WARNING", f"[Reporter] Structure push failed: {type(e).__name__}({e})")
+            self.logger._log(
+                "WARNING", f"[Reporter] Structure push failed: {type(e).__name__}({e})"
+            )
 
     def _push_topology(self):
         try:
@@ -289,12 +356,15 @@ class TaskReporter:
             payload = {"topology": topology}
             requests.post(f"{self.base_url}/api/push_topology", json=payload, timeout=1)
         except Exception as e:
-            self.logger._log("WARNING", f"[Reporter] Topology push failed: {type(e).__name__}({e}).")
+            self.logger._log(
+                "WARNING", f"[Reporter] Topology push failed: {type(e).__name__}({e})."
+            )
 
 
 class NoOpContext:
     def __enter__(self):
         return self
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
@@ -308,16 +378,20 @@ class SumCounter:
     def __init__(self):
         self.init_value = MPValue("i", 0)
         self.counters = []
-    
+
     def add_init_value(self, value):
         self.init_value.value += value
-    
+
     def add_counter(self, counter):
         self.counters.append(counter)
 
     @property
     def value(self):
-        return self.init_value.value + sum(c.value for c in self.counters) if self.counters else self.init_value.value
+        return (
+            self.init_value.value + sum(c.value for c in self.counters)
+            if self.counters
+            else self.init_value.value
+        )
 
 
 class StageStatus(IntEnum):

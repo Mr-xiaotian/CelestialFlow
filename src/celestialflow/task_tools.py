@@ -23,15 +23,17 @@ def format_duration(seconds):
     seconds = int(seconds)
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
-    
+
     if hours > 0:
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
     else:
         return f"{minutes:02d}:{seconds:02d}"
 
+
 def format_timestamp(timestamp) -> str:
     """将时间戳格式化为 YYYY-MM-DD HH:MM:SS"""
-    return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
 
 def build_structure_graph(root_stages: List["TaskManager"]) -> List[Dict[str, Any]]:
     """
@@ -49,7 +51,10 @@ def build_structure_graph(root_stages: List["TaskManager"]) -> List[Dict[str, An
 
     return graphs
 
-def _build_structure_subgraph(task_manager: "TaskManager", visited_stages: Set[str]) -> Dict[str, Any]:
+
+def _build_structure_subgraph(
+    task_manager: "TaskManager", visited_stages: Set[str]
+) -> Dict[str, Any]:
     """
     构建单个子图结构
     """
@@ -59,7 +64,7 @@ def _build_structure_subgraph(task_manager: "TaskManager", visited_stages: Set[s
         "stage_mode": task_manager.stage_mode,
         "func_name": task_manager.func.__name__,
         "visited": False,
-        "next_stages": []
+        "next_stages": [],
     }
 
     if stage_tag in visited_stages:
@@ -74,7 +79,10 @@ def _build_structure_subgraph(task_manager: "TaskManager", visited_stages: Set[s
 
     return node
 
-def format_structure_list_from_graph(root_roots: List[Dict] = None, indent=0) -> List[str]:
+
+def format_structure_list_from_graph(
+    root_roots: List[Dict] = None, indent=0
+) -> List[str]:
     """
     从多个 JSON 图结构生成格式化任务结构文本列表（带边框）
 
@@ -82,6 +90,7 @@ def format_structure_list_from_graph(root_roots: List[Dict] = None, indent=0) ->
     :param indent: 当前缩进级别
     :return: 带边框的格式化字符串列表
     """
+
     def build_lines(node: Dict, current_indent: int) -> List[str]:
         lines = []
         visited_note = " [Visited]" if node.get("visited") else ""
@@ -110,7 +119,10 @@ def format_structure_list_from_graph(root_roots: List[Dict] = None, indent=0) ->
     border = "+" + "-" * (max_length + 2) + "+"
     return [border] + content_lines + [border]
 
-def append_jsonl_log(log_data: dict, start_time: float, base_path: str, prefix: str, logger=None):
+
+def append_jsonl_log(
+    log_data: dict, start_time: float, base_path: str, prefix: str, logger=None
+):
     """
     将日志字典写入指定目录下的 JSONL 文件。
 
@@ -132,6 +144,7 @@ def append_jsonl_log(log_data: dict, start_time: float, base_path: str, prefix: 
         if logger:
             logger._log("WARNING", f"[Persist] 写入日志失败: {e}")
 
+
 def cluster_by_value_sorted(input_dict: Dict[str, int]) -> Dict[int, List[str]]:
     """
     按值聚类，并确保按 value（键）升序排序
@@ -143,6 +156,7 @@ def cluster_by_value_sorted(input_dict: Dict[str, int]) -> Dict[int, List[str]]:
         clusters[val].append(key)
 
     return dict(sorted(clusters.items()))  # ✅ 按键排序
+
 
 # ========(图论分析)========
 def format_networkx_graph(structure_graph: List[Dict[str, Any]]) -> nx.DiGraph:
@@ -156,9 +170,7 @@ def format_networkx_graph(structure_graph: List[Dict[str, Any]]) -> nx.DiGraph:
 
     def add_node_and_edges(node: Dict[str, Any]):
         node_id = f'{node["stage_name"]}[{node["func_name"]}]'
-        G.add_node(node_id, **{
-            "mode": node.get("stage_mode")
-        })
+        G.add_node(node_id, **{"mode": node.get("stage_mode")})
 
         for child in node.get("next_stages", []):
             child_id = f'{child["stage_name"]}[{child["func_name"]}]'
@@ -170,6 +182,7 @@ def format_networkx_graph(structure_graph: List[Dict[str, Any]]) -> nx.DiGraph:
         add_node_and_edges(root)
 
     return G
+
 
 def compute_node_levels(G: nx.DiGraph) -> Dict[str, int]:
     """
@@ -201,7 +214,8 @@ def is_queue_empty(q: ThreadQueue) -> bool:
         return False
     except Empty:
         return True
-    
+
+
 async def is_queue_empty_async(q: AsyncQueue) -> bool:
     """
     判断队列是否为空
@@ -212,7 +226,8 @@ async def is_queue_empty_async(q: AsyncQueue) -> bool:
         return False
     except AsyncQueueEmpty:
         return True
-    
+
+
 def are_queues_empty(queues: List[ThreadQueue]) -> bool:
     """
     判断多个同步队列是否都为空。
@@ -223,6 +238,7 @@ def are_queues_empty(queues: List[ThreadQueue]) -> bool:
             return False
     return True
 
+
 async def are_queues_empty_async(queues: List[AsyncQueue]) -> bool:
     """
     判断多个异步队列是否都为空。
@@ -232,6 +248,7 @@ async def are_queues_empty_async(queues: List[AsyncQueue]) -> bool:
         if not await is_queue_empty_async(q):
             return False
     return True
+
 
 def format_repr(obj: Any, max_length: int) -> str:
     """
@@ -246,8 +263,9 @@ def format_repr(obj: Any, max_length: int) -> str:
         return obj_str
     # 截断逻辑（前 2/3 + ... + 后 1/3）
     first_part = obj_str[: int(max_length * 2 / 3)]
-    last_part = obj_str[-int(max_length / 3):]
+    last_part = obj_str[-int(max_length / 3) :]
     return f"{first_part}...{last_part}"
+
 
 def object_to_str_hash(obj) -> str:
     """
@@ -266,13 +284,16 @@ def make_hashable(obj):
         return tuple(make_hashable(e) for e in obj)
     elif isinstance(obj, dict):
         # dict 转换成 (key, value) 对的元组，且按 key 排序以确保哈希结果一致
-        return tuple(sorted((make_hashable(k), make_hashable(v)) for k, v in obj.items()))
+        return tuple(
+            sorted((make_hashable(k), make_hashable(v)) for k, v in obj.items())
+        )
     elif isinstance(obj, set):
         # set 转换成排序后的 tuple
         return tuple(sorted(make_hashable(e) for e in obj))
     else:
         # 基本类型直接返回
         return obj
+
 
 def cleanup_mpqueue(queue: MPQueue):
     """
@@ -315,7 +336,11 @@ def load_jsonl_grouped_by_keys(
 
             # 组合分组 key
             group_values = tuple(item.get(k, "") for k in group_keys)
-            group_key = f"({', '.join(map(str, group_values))})" if len(group_values) > 1 else group_values[0]
+            group_key = (
+                f"({', '.join(map(str, group_values))})"
+                if len(group_values) > 1
+                else group_values[0]
+            )
 
             # 字段反序列化（仅 eval_fields）
             if eval_fields:
@@ -342,16 +367,15 @@ def load_jsonl_grouped_by_keys(
 
     return dict(result_dict)
 
+
 def load_task_by_stage(jsonl_path):
     """
     加载错误记录，按 stage 分类
     """
     return load_jsonl_grouped_by_keys(
-        jsonl_path,
-        group_keys=["stage"],
-        extract_fields=["task"],
-        eval_fields=["task"]
+        jsonl_path, group_keys=["stage"], extract_fields=["task"], eval_fields=["task"]
     )
+
 
 def load_task_by_error(jsonl_path):
     """
@@ -361,5 +385,5 @@ def load_task_by_error(jsonl_path):
         jsonl_path,
         group_keys=["error", "stage"],
         extract_fields=["task"],
-        eval_fields=["task"]
+        eval_fields=["task"],
     )

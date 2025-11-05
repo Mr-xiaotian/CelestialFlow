@@ -3,10 +3,17 @@ from tqdm.asyncio import tqdm as tqdm_asy
 
 
 class NullProgress:
-    def update(self, n=1): pass
-    def close(self): pass
-    def refresh_total(self, total): pass
-    def add_total(self, add_num): pass
+    def update(self, n=1):
+        pass
+
+    def close(self):
+        pass
+
+    def refresh_total(self, total):
+        pass
+
+    def add_total(self, add_num):
+        pass
 
 
 class ProgressManager:

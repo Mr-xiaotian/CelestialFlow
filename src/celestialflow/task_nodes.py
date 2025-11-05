@@ -28,7 +28,7 @@ class TaskSplitter(TaskManager):
 
     def get_args(self, task):
         return task
-    
+
     def put_split_result(self, result: tuple):
         split_count = 0
         for item in result:
@@ -58,7 +58,7 @@ class TaskSplitter(TaskManager):
         :param start_time: 任务开始时间
         """
         processed_result = self.process_result(task, result)
-        
+
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
 
@@ -79,15 +79,15 @@ class TaskSplitter(TaskManager):
 
 class TaskRedisTransfer(TaskManager):
     def __init__(
-            self, 
-            worker_limit=50, 
-            unpack_task_args=False, 
-            host="localhost", 
-            port=6379, 
-            db=0, 
-            fetch_timeout=10, 
-            result_timeout=10
-        ):
+        self,
+        worker_limit=50,
+        unpack_task_args=False,
+        host="localhost",
+        port=6379,
+        db=0,
+        fetch_timeout=10,
+        result_timeout=10,
+    ):
         """
         初始化 TaskRedisTransfer
         :param worker_limit: 并行工作线程数
@@ -99,10 +99,10 @@ class TaskRedisTransfer(TaskManager):
         :param result_timeout: Redis 结果等待超时时间
         """
         super().__init__(
-            func=self._trans_redis, 
-            execution_mode="thread", 
-            worker_limit=worker_limit, 
-            unpack_task_args=unpack_task_args
+            func=self._trans_redis,
+            execution_mode="thread",
+            worker_limit=worker_limit,
+            unpack_task_args=unpack_task_args,
         )
 
         self.host = host
@@ -114,7 +114,9 @@ class TaskRedisTransfer(TaskManager):
     def init_redis(self):
         """初始化 Redis 客户端"""
         if not hasattr(self, "redis_client"):
-            self.redis_client = redis.Redis(host=self.host, port=self.port, db=self.db, decode_responses=True)
+            self.redis_client = redis.Redis(
+                host=self.host, port=self.port, db=self.db, decode_responses=True
+            )
 
     def _trans_redis(self, *task):
         """
@@ -152,5 +154,7 @@ class TaskRedisTransfer(TaskManager):
                 else:
                     raise ValueError(f"Unknown result status: {result_obj}")
             if time.time() - start_time > self.result_timeout:
-                raise TimeoutError("Redis result not returned in time after being fetched")
+                raise TimeoutError(
+                    "Redis result not returned in time after being fetched"
+                )
             time.sleep(0.1)
