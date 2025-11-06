@@ -275,6 +275,33 @@ def object_to_str_hash(obj) -> str:
     return hashlib.md5(obj_bytes).hexdigest()
 
 
+# ========调用于tests========
+def format_table(data: list, column_names: list, row_names: list, index_header: str = "#") -> str:
+    """
+    格式化表格数据为字符串(CelestialVault.TextTools中同名函数的简化版)。
+    """
+    header = [index_header] + column_names
+    
+    cols = list(zip(row_names, *data))
+    col_widths = [max(len(str(item)) for item in col) for col in zip(header, *cols)]
+    
+    def build_sep():
+        return "+" + "+".join("-" * (w + 2) for w in col_widths) + "+"
+    
+    sep = build_sep()
+    
+    def build_row(items):
+        return "| " + " | ".join(str(item).ljust(w) for item, w in zip(items, col_widths)) + " |"
+    
+    lines = [sep, build_row(header), sep]
+    
+    for rname, row in zip(row_names, data):
+        lines.append(build_row([rname] + row))
+    lines.append(sep)
+    
+    return "\n".join(lines)
+
+
 # ========公共函数========
 def make_hashable(obj):
     """
