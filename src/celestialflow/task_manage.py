@@ -1051,17 +1051,19 @@ class TaskManager:
         self.start(task_list)
         return time.time() - start
 
-    def test_methods(self, task_source: Iterable) -> dict:
+    def test_methods(self, task_source: Iterable, execution_modes: list = None) -> list:
         """
         测试多种方法
         """
         # 如果 task_source 是生成器或一次性可迭代对象，需要提前转化成列表
         # 确保对不同模式的测试使用同一批任务数据
         task_list = list(task_source)
+        execution_modes = execution_modes or ["serial", "thread", "process"]
 
-        results = {}
-        for mode in ["serial", "thread", "process"]:
-            results[f"run_in_{mode}"] = self.test_method(mode, task_list)
+        results = []
+        for mode in execution_modes:
+            result = self.test_method(mode, task_list)
+            results.append([result])
         return results
 
     def __exit__(self, exc_type, exc_val, exc_tb):

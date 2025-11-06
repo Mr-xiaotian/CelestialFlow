@@ -37,8 +37,11 @@ def test_manager():
 
     manager = TaskManager(fibonacci, worker_limit=6, max_retries=1, show_progress=True)
     manager.add_retry_exceptions(ValueError)
+
+    execution_modes = ["serial", "thread", "process"]
     results = manager.test_methods(test_task_1)
-    logging.info(results)
+    table_results = format_table(results, column_names=["Time"], row_names=execution_modes)
+    logging.info("\n" + table_results)
 
 
 # 测试 TaskManager 的异步任务

@@ -3,6 +3,7 @@ import hashlib
 import pickle
 import networkx as nx
 from networkx import is_directed_acyclic_graph
+from itertools import zip_longest
 from collections import defaultdict
 from datetime import datetime
 from multiprocessing import Queue as MPQueue
@@ -303,30 +304,115 @@ def cleanup_mpqueue(queue: MPQueue):
     queue.join_thread()  # 确保队列的后台线程正确终止
 
 
-def format_table(data: list, column_names: list, row_names: list, index_header: str = "#") -> str:
+def format_table(
+    data: list,
+    column_names: list = None,
+    row_names: list = None,
+    index_header: str = "#",
+    fill_value: str = "N/A",
+    align: str = "left",
+) -> str:
     """
     格式化表格数据为字符串(CelestialVault.TextTools中同名函数的简化版)。
     """
-    header = [index_header] + column_names
-    
-    cols = list(zip(row_names, *data))
-    col_widths = [max(len(str(item)) for item in col) for col in zip(header, *cols)]
-    
-    def build_sep():
-        return "+" + "+".join("-" * (w + 2) for w in col_widths) + "+"
-    
-    sep = build_sep()
-    
-    def build_row(items):
-        return "| " + " | ".join(str(item).ljust(w) for item, w in zip(items, col_widths)) + " |"
-    
-    lines = [sep, build_row(header), sep]
-    
-    for rname, row in zip(row_names, data):
-        lines.append(build_row([rname] + row))
-    lines.append(sep)
-    
-    return "\n".join(lines)
+
+    def _generate_excel_column_names(n: int, start_index: int = 0) -> list[str]:
+        """
+        生成 Excel 风格列名（A, B, ..., Z, AA, AB, ...）
+        支持从指定起始索引开始生成。
+        """
+        names = []
+        for i in range(start_index, start_index + n):
+            name = ""
+            x = i
+            while True:
+                name = chr(ord("A") + (x % 26)) + name
+                x = x // 26 - 1
+                if x < 0:
+                    break
+            names.append(name)
+        return names
+
+    if not data:
+        return "表格数据为空！"
+
+    # 计算列数
+    max_cols = max(map(len, data))
+
+    # 生成列名
+    if column_names is None:
+        column_names = _generate_excel_column_names(max_cols)
+    elif len(column_names) < max_cols:
+        start = len(column_names)  # 从当前列名数量继续命名
+        column_names.extend(
+            _generate_excel_column_names(max_cols - len(column_names), start)
+        )
+
+    # 生成行名
+    if row_names is None:
+        row_names = range(len(data))
+    elif len(row_names) < len(data):
+        row_names.extend([i for i in range(len(row_names), len(data))])
+
+    # 添加行号列
+    column_names = [index_header] + column_names
+    num_columns = len(column_names)
+
+    # 处理行号
+    formatted_data = []
+    for i, row in enumerate(data):
+        row_label = row_names[i] if row_names else i
+        formatted_data.append([row_label] + list(row))
+
+    # 统一填充数据行，确保所有行长度一致
+    formatted_data = zip_longest(*formatted_data, fillvalue=fill_value)
+    formatted_data = list(zip(*formatted_data))  # 转置回来
+
+    # 计算每列的最大宽度
+    col_widths = [
+        max(len(str(item)) for item in col)
+        for col in zip(column_names, *formatted_data)
+    ]
+
+    # 选择对齐方式
+    align_funcs = {
+        "left": lambda text, width: f"{text:<{width}}",
+        "right": lambda text, width: f"{text:>{width}}",
+        "center": lambda text, width: f"{text:^{width}}",
+    }
+    align_func = align_funcs.get(align, align_funcs["left"])  # 默认左对齐
+
+    # 生成表格
+    separator = "+" + "+".join(["-" * (width + 2) for width in col_widths]) + "+"
+    header = (
+        "| "
+        + " | ".join(
+            [
+                f"{align_func(name, col_widths[i])}"
+                for i, name in enumerate(column_names)
+            ]
+        )
+        + " |"
+    )
+
+    # 生成行
+    rows_list = []
+    for row in formatted_data:
+        rows_list.append(
+            "| "
+            + " | ".join(
+                [
+                    f"{align_func(str(row[i]), col_widths[i])}"
+                    for i in range(num_columns)
+                ]
+            )
+            + " |"
+        )
+    rows = "\n".join(rows_list)
+
+    # 拼接表格
+    table = f"{separator}\n{header}\n{separator}\n{rows}\n{separator}"
+    return table
 
 
 # ========外部调用========
