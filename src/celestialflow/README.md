@@ -263,7 +263,7 @@ final_results = task_graph.get_final_result_dict()
 print("Final Results:", final_results)
 ```
 
-# 其他节点
+# TaskNodes
 
 ## 下一步扩展方向
 | 模块                     | 功能                                                        |
@@ -276,6 +276,15 @@ print("Final Results:", final_results)
 | 🖥️ Web UI                | 用 Flask / FastAPI + Vue 做一个小监控界面                   |
 | 💾 持久化支持            | Redis / SQLite 存 task 状态，支持断点恢复                   |
 
+# TaskStructure
+
+## Structure
+
+- chain
+- tree
+- forest
+- loop
+- complete
 
 # 贡献
 欢迎对本项目提出改进建议或提交 PR。如有任何问题，请提交 issues。
