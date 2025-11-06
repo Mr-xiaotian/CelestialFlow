@@ -142,13 +142,7 @@ def test_graph_0():
             stage1.get_stage_tag(): test_task_0,
         }
     )
-    test_table_list, execution_modes, stage_modes, index_header = result["Time table"]
-    result["Time table"] = format_table(
-        test_table_list,
-        column_names=execution_modes,
-        row_names=stage_modes,
-        index_header=index_header,
-    )
+    result["Time table"] = format_table(*result["Time table"])
     for key, value in result.items():
         if isinstance(value, dict):
             value = pprint.pformat(value)
@@ -184,13 +178,7 @@ def test_graph_1():
 
     # 开始任务链
     result = graph.test_methods(input_tasks, stage_modes, execution_modes)
-    test_table_list, execution_modes, stage_modes, index_header = result["Time table"]
-    result["Time table"] = format_table(
-        test_table_list,
-        column_names=execution_modes,
-        row_names=stage_modes,
-        index_header=index_header,
-    )
+    result["Time table"] = format_table(*result["Time table"])
     for key, value in result.items():
         if isinstance(value, dict):
             value = pprint.pformat(value)

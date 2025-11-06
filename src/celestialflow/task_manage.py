@@ -1064,7 +1064,7 @@ class TaskManager:
         for mode in execution_modes:
             result = self.test_method(mode, task_list)
             results.append([result])
-        return results
+        return results, execution_modes, ["Time"]
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.release_queue()

@@ -306,8 +306,8 @@ def cleanup_mpqueue(queue: MPQueue):
 
 def format_table(
     data: list,
-    column_names: list = None,
     row_names: list = None,
+    column_names: list = None,
     index_header: str = "#",
     fill_value: str = "N/A",
     align: str = "left",
