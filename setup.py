@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="CelestialFlow",
-    version="0.1.0",
+    version="3.0.1",
     description="A DAG-based multiprocessing task framework",
     author="Xiaotian",
     package_dir={"": "src"},
