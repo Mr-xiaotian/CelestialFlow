@@ -2,8 +2,7 @@ import pytest, logging, re, random, pprint
 import requests
 from time import sleep
 
-from celestialflow import TaskManager, TaskGraph, TaskSplitter, TaskRedisTransfer
-from celestialflow.task_tools import format_table
+from celestialflow import TaskManager, TaskGraph, TaskSplitter, TaskRedisTransfer, format_table
 
 
 class DownloadRedisTransfer(TaskRedisTransfer):

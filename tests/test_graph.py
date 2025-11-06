@@ -2,8 +2,7 @@ import pytest, logging, pprint
 import cProfile, subprocess, random
 from time import strftime, localtime, sleep
 
-from celestialflow import TaskManager, TaskGraph
-from celestialflow.task_tools import format_table
+from celestialflow import TaskManager, TaskGraph, format_table
 
 
 def sleep_1(n):
