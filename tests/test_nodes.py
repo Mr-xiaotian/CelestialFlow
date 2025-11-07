@@ -2,7 +2,7 @@ import pytest, logging, re, random, pprint
 import requests
 from time import sleep
 
-from celestialflow import TaskManager, TaskGraph, TaskSplitter, TaskRedisTransfer, format_table
+from celestialflow import TaskManager, TaskGraph, TaskChain, TaskSplitter, TaskRedisTransfer, format_table
 
 
 class DownloadRedisTransfer(TaskRedisTransfer):
@@ -15,6 +15,10 @@ class DownloadManager(TaskManager):
     def get_args(self, task):
         url, path = task
         return url, path.replace("/tmp/", "X:/Download/download_py/")
+
+
+def no_op(n):
+    return n
 
 
 def sleep_1(n):
@@ -177,6 +181,19 @@ def test_splitter_1():
         },
         False,
     )
+
+
+def test_splitter_2():
+    # 定义任务节点
+    task_splitter = TaskSplitter()
+    process_stage = TaskManager(no_op, execution_mode="thread", worker_limit=50)
+
+    chain = TaskChain([task_splitter, process_stage], "process")
+    chain.set_reporter(True, host="127.0.0.1", port=5005)
+
+    chain.start_chain({
+        task_splitter.get_stage_tag(): [range(int(1e5))],
+    })
 
 
 def test_transfer_0():

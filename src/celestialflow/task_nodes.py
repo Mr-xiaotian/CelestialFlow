@@ -66,8 +66,8 @@ class TaskSplitter(TaskManager):
         task_id = self.get_task_id(task)
         self.retry_time_dict.pop(task_id, None)
 
-        self.update_success_counter()
         split_count = self.put_split_result(result)
+        self.update_success_counter()
 
         self.task_logger.splitter_success(
             self.func.__name__,
