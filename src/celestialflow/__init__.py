@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # 版本 3.01
-# 作者：晓天, GPT-4o, GPT-5
+# 作者：Mr-xiaotian, GPT-4o, GPT-5
 # 时间：11/5/2025
 # Github: https://github.com/Mr-xiaotian/CelestialFlow
 

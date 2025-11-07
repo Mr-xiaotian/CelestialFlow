@@ -17,8 +17,8 @@ fallback/
 CelestialFlow.egg-info/
 .pytest_cache
 
-example/
+examples/
 result.json
-_preview.ipynb
-temp.py
 *.exe
+
+dist/

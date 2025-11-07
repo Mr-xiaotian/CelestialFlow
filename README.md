@@ -83,6 +83,17 @@ pytest tests/test_graph.py::test_graph_1
 pytest tests/test_nodes.py::test_splitter_1
 ```
 
+为了保证测试正常运行, 请先安装必要的测试库:
+```bash
+pip install pytest pytest-asyncio
+```
+
+- test_nodes_1() 在一个简单的树状任务模型下，对比了四种运行组合（节点模式：serial / process × 执行模式：serial / thread），以测试不同调度策略下的整体性能差异。图结构如下:
+    ```
+    +----------------------------------------------------------------------+
+    | Stage_A (stage_mode: serial, func: sleep_random_A)                   |
+    | ╘-->Stage_B (stage_mode: serial, func: sleep_random_B)               |
+
 - test_graph_1() 在一个简单的树状任务模型下，对比了四种运行组合（节点模式：serial / process × 执行模式：serial / thread），以测试不同调度策略下的整体性能差异。图结构如下:
     ```
     +----------------------------------------------------------------------+
@@ -243,6 +254,6 @@ if __name__ == "__main__":
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 作者
-Author: Xiaotian 
+Author: Mr-xiaotian 
 Email: mingxiaomingtian@gmail.com  
 Project Link: [https://github.com/Mr-xiaotian/CelestialFlow](https://github.com/Mr-xiaotian/CelestialFlow)

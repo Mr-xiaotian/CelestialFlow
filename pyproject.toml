@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "celestialflow"                   
+version = "3.0.1"                         
+description = "A flexible DAG-based task orchestration framework."
+readme = "README.md"               
+license = { file = "LICENSE" }    
+authors = [{ name = "Mr-xiaotian", email = "mingxiaomingtian@gmail.com " }]
+keywords = ["workflow", "task", "graph", "async", "CelestialFlow"]
+requires-python = ">=3.8"
+
+dependencies = [
+    "tqdm",
+    "loguru",
+    "fastapi",
+    "uvicorn",
+    "requests",
+    "networkx",
+    "redis",
+    "httpx",
+    "jinja2",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/Mr-xiaotian/CelestialFlow"
+"Bug Tracker" = "https://github.com/Mr-xiaotian/CelestialFlow/issues"

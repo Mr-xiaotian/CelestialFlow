@@ -42,6 +42,8 @@ def square(x):
 
 
 def add_offset(x, offset=10):
+    if x > 30:
+        raise ValueError("Test error for greater than 30")
     sleep(1)
     return x + offset
 
@@ -227,37 +229,6 @@ def test_fanin():
     )
 
 
-# ========有环图========
-def test_loop():
-    stageA = TaskManager(add_one_sleep, "serial")
-    stageB = TaskManager(add_one_sleep, "serial")
-    stageC = TaskManager(add_one_sleep, "serial")
-
-    graph = TaskLoop([stageA, stageB, stageC])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
-
-    # 要测试的任务列表
-    test_task_0 = range(1, 2)
-    test_task_1 = list(test_task_0) + [0, 6, None, 0, ""]
-
-    graph.start_loop({stageA.get_stage_tag(): test_task_0})
-
-
-def test_wheel():
-    # 定义核心与边节点函数
-    core = TaskManager(func=square)
-    side1 = TaskManager(func=add_one_sleep)
-    side2 = TaskManager(func=add_one_sleep)
-    side3 = TaskManager(func=add_one_sleep)
-    side4 = TaskManager(func=add_one_sleep)
-
-    # 构造 TaskCross
-    wheel = TaskWheel(core, [side1, side2, side3, side4])
-    wheel.set_reporter(True, host="127.0.0.1", port=5005)
-
-    wheel.start_wheel({core.get_stage_tag(): range(1, 11)})
-
-
 def test_grid():
     # 1. 构造网格
     grid = [
@@ -316,11 +287,42 @@ def test_neural_net_1():
     graph.start_graph(init_tasks)
 
 
-def test_complete():
+# ========有环图========
+def test_loop():
+    stageA = TaskManager(add_one_sleep, "serial")
+    stageB = TaskManager(add_one_sleep, "serial")
+    stageC = TaskManager(add_one_sleep, "serial")
+
+    graph = TaskLoop([stageA, stageB, stageC])
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
+
+    # 要测试的任务列表
+    test_task_0 = range(1, 2)
+    test_task_1 = list(test_task_0) + [0, 6, None, 0, ""]
+
+    graph.start_loop({stageA.get_stage_tag(): test_task_0})
+
+
+def _test_wheel():
+    # 定义核心与边节点函数
+    core = TaskManager(func=square)
+    side1 = TaskManager(func=add_one_sleep)
+    side2 = TaskManager(func=add_one_sleep)
+    side3 = TaskManager(func=add_one_sleep)
+    side4 = TaskManager(func=add_one_sleep)
+
+    # 构造 TaskCross
+    wheel = TaskWheel(core, [side1, side2, side3, side4])
+    wheel.set_reporter(True, host="127.0.0.1", port=5005)
+
+    wheel.start_wheel({core.get_stage_tag(): range(1, 11)})
+
+
+def _test_complete():
     # 创建 3 个节点，每个节点有不同偏移
-    n1 = TaskManager(func=add_5)
-    n2 = TaskManager(func=add_10)
-    n3 = TaskManager(func=square)
+    n1 = TaskManager(func=add_5, execution_mode="thread", worker_limit=5)
+    n2 = TaskManager(func=add_10, execution_mode="thread", worker_limit=5)
+    n3 = TaskManager(func=square, execution_mode="thread", worker_limit=5)
 
     # 构造 TaskComplete
     complete = TaskComplete([n1, n2, n3])
