@@ -26,17 +26,12 @@ TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支
 
 本节将引导你快速安装并运行 **TaskGraph**，通过示例体验其任务图调度机制。
 
+### （可选）创建独立虚拟环境
 
-### 克隆项目并创建虚拟环境
-
-首先从 GitHub 拉取代码仓库，并创建隔离环境以防依赖冲突。
+建议在独立环境中使用，以避免与其他项目依赖冲突。
 
 ```bash
-# 克隆项目
-git clone https://github.com/yourname/TaskGraph.git
-cd TaskGraph
-
-# (可选) 用mamba创建虚拟环境
+# 使用 mamba 创建环境
 mamba create -n celestialflow_env python=3.10
 mamba activate celestialflow_env
 ```
@@ -45,16 +40,14 @@ mamba activate celestialflow_env
 
 👉 [miniforge/Releases](https://github.com/conda-forge/miniforge/releases)
 
-### 安装依赖与环境初始化
+### 安装 CelestialFlow
+
+CelestialFlow 已发布至 [PyPI](https://pypi.org/project/celestialflow/)，
+可以直接通过 `pip` 安装，无需克隆源码。
 
 ```bash
-pip install .
-```
-
-或开发模式安装（如果你打算修改代码并实时看到结果）：
-
-```bash
-pip install -e .
+# 直接安装最新版
+pip install celestialflow
 ```
 
 ### 启动 Web 可视化（可选）
@@ -62,6 +55,9 @@ pip install -e .
 Web监视界面并不是必须的，但页面设计还不错，推荐使用:
 
 ```bash
+celestialflow-web 5005
+
+# 如果你直接clone并cd进入项目目录，那么可以直接使用
 python src/celestialflow/task_web.py 5005 
 ```
 
@@ -123,6 +119,7 @@ pip install pytest pytest-asyncio
 ### 我还想了解更多
 
 你可以继续运行更多的测试代码，这里有介绍每个测试文件与里面的测试函数:
+
 [Test RREADME.md](tests/README.md)
 
 你也可以了解具体的项目文件，以下文档会帮助你:
@@ -158,18 +155,21 @@ if __name__ == "__main__":
 
 ## 环境要求（Requirements）
 
-**CelestialFlow** 依赖以下主要组件，请确保你的环境满足最低版本要求。
+**CelestialFlow** 基于 Python 3.8+，并依赖以下核心组件。  
+请确保你的环境能够正常安装这些依赖（`pip install celestialflow` 会自动安装）。
 
-| 依赖包              | 说明                                  |
-| ---------------- | ----------------------------------- |
-| **Python ≥ 3.8** | 运行环境                                |
-| **fastapi**      | Web 服务接口框架                          |
-| **uvicorn**      | FastAPI 的高性能 ASGI 服务器               |
-| **redis**        | 可选组件，用于分布式任务通信（TaskRedisTransfer） |
-| **pytest**       | 单元测试框架                              |
-| **multiprocess** | 多进程支持库                              |
-| **rich**         | 终端输出与日志美化                           |
-| **jinja2**       | FastAPI 模板引擎                        |
+| 依赖包           | 说明 |
+| ---------------- | ---- |
+| **Python ≥ 3.8** | 运行环境，建议使用 3.10 及以上版本 |
+| **tqdm**         | 控制台进度条显示，用于任务执行可视化 |
+| **loguru**       | 高性能日志系统，支持多进程安全输出 |
+| **fastapi**      | Web 服务接口框架（用于任务可视化与远程控制） |
+| **uvicorn**      | FastAPI 的高性能 ASGI 服务器 |
+| **requests**     | HTTP 客户端库，用于任务状态上报与远程调用 |
+| **httpx**        | 异步 HTTP 客户端，支持更高性能的并发请求 |
+| **networkx**     | 任务图（TaskGraph）结构与依赖分析 |
+| **redis**        | 可选组件，用于分布式任务通信（`TaskRedisTransfer` 模块） |
+| **jinja2**       | FastAPI 模板引擎，用于 Web 可视化界面渲染 |
 
 ## 项目结构（Project Structure）
 

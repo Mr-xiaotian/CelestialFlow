@@ -158,6 +158,19 @@ class TaskWebServer:
         uvicorn.run(self.app, host=self.host, port=self.port, log_level="info")
 
 
+def main_entry():
+    import sys
+    port = 5000  # 默认端口
+    if len(sys.argv) > 1:
+        try:
+            port = int(sys.argv[1])
+        except ValueError:
+            print(f"无效端口号: {sys.argv[1]}，使用默认端口 {port}")
+
+    server = TaskWebServer(port=port)
+    server.start_server()
+    
+
 # 运行入口
 if __name__ == "__main__":
     port = 5000

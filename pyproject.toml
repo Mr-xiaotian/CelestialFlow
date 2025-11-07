@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "celestialflow"                   
-version = "3.0.1"                         
-description = "A flexible DAG-based task orchestration framework."
+version = "3.0.2"                         
+description = "A flexible GRAPH-based task orchestration framework."
 readme = "README.md"               
 license = { file = "LICENSE" }    
 authors = [{ name = "Mr-xiaotian", email = "mingxiaomingtian@gmail.com " }]
@@ -27,3 +27,12 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://github.com/Mr-xiaotian/CelestialFlow"
 "Bug Tracker" = "https://github.com/Mr-xiaotian/CelestialFlow/issues"
+
+[project.scripts]
+celestialflow-web = "celestialflow.task_web:main_entry"
+
+[tool.setuptools]
+license-files = []
+
+[tool.setuptools.package-data]
+"celestialflow" = ["templates/*.html", "static/**/*"]
