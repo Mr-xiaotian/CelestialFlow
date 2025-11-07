@@ -1,7 +1,6 @@
 import pytest, logging
 import math
 from time import sleep
-from celestialvault.tools.SampleGenerate import random_values, gapped_range_tuples
 from celestialflow import (
     TaskManager,
     TaskGraph,
@@ -93,12 +92,12 @@ def test_chain():
 
     chain.start_chain(
         {
-            stageA.get_stage_tag(): gapped_range_tuples(10, 2),
+            stageA.get_stage_tag(): [(0, 6), (3, 7), (6, 8), (9, 12), (12, 16), (15, 25), (18, 26), (21, 29), (24, 30), (27, 32)],
         }
     )
 
 
-def _test_forest():
+def test_forest():
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
     stageA = TaskManager(add_one_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_one_sleep, execution_mode="thread", worker_limit=2)
@@ -142,7 +141,7 @@ def _test_forest():
     graph.start_graph(init_tasks)
 
 
-def _test_cross():
+def test_cross():
     # 构建 DAG
     stageA = TaskManager(add_one_sleep, execution_mode="thread", worker_limit=2)
     stageB = TaskManager(add_one_sleep, execution_mode="thread", worker_limit=2)
@@ -168,7 +167,7 @@ def _test_cross():
     cross.start_cross(init_tasks)
 
 
-def _test_network():
+def test_network():
     # 输入层
     A1 = TaskManager(add_one_sleep, execution_mode="thread", worker_limit=2)
     A2 = TaskManager(add_one_sleep, execution_mode="thread", worker_limit=2)
@@ -194,7 +193,7 @@ def _test_network():
     cross.start_cross(init_tasks)
 
 
-def _test_star():
+def test_star():
     # 定义核心与边节点函数
     core = TaskManager(func=square)
     side1 = TaskManager(func=add_5)
@@ -208,7 +207,7 @@ def _test_star():
     star.start_cross({core.get_stage_tag(): range(1, 11)})
 
 
-def _test_fanin():
+def test_fanin():
     # 创建 3 个节点，每个节点有不同偏移
     source1 = TaskManager(func=add_5)
     source2 = TaskManager(func=add_10)
@@ -229,7 +228,7 @@ def _test_fanin():
 
 
 # ========有环图========
-def _test_loop():
+def test_loop():
     stageA = TaskManager(add_one_sleep, "serial")
     stageB = TaskManager(add_one_sleep, "serial")
     stageC = TaskManager(add_one_sleep, "serial")
@@ -244,7 +243,7 @@ def _test_loop():
     graph.start_loop({stageA.get_stage_tag(): test_task_0})
 
 
-def _test_wheel():
+def test_wheel():
     # 定义核心与边节点函数
     core = TaskManager(func=square)
     side1 = TaskManager(func=add_one_sleep)
@@ -259,7 +258,7 @@ def _test_wheel():
     wheel.start_wheel({core.get_stage_tag(): range(1, 11)})
 
 
-def _test_grid():
+def test_grid():
     # 1. 构造网格
     grid = [
         [TaskManager(add_one_sleep, "thread", 2) for _ in range(4)] for _ in range(4)
@@ -276,7 +275,7 @@ def _test_grid():
     task_grid.start_graph(init_dict)
 
 
-def _test_neural_net_1():
+def test_neural_net_1():
     # 输入层
     A1 = TaskManager(neuron_activation, execution_mode="thread", worker_limit=2)
     A2 = TaskManager(neuron_activation, execution_mode="thread", worker_limit=2)
@@ -317,7 +316,7 @@ def _test_neural_net_1():
     graph.start_graph(init_tasks)
 
 
-def _test_complete():
+def test_complete():
     # 创建 3 个节点，每个节点有不同偏移
     n1 = TaskManager(func=add_5)
     n2 = TaskManager(func=add_10)

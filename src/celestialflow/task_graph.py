@@ -656,8 +656,8 @@ class TaskGraph:
 
         results["Time table"] = (
             test_table_list,
-            execution_modes,
             stage_modes,
+            execution_modes,
             r"stage\execution",
         )
         results["Fail error dict"] = fail_by_error_dict

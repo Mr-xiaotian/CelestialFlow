@@ -1,8 +1,8 @@
-import pytest, logging, pprint, re
+import pytest, logging, pprint
 import cProfile, subprocess, random
-from time import time, strftime, localtime, sleep
-from celestialvault.tools.TextTools import format_table
-from celestialflow import TaskManager, TaskGraph
+from time import strftime, localtime, sleep
+
+from celestialflow import TaskManager, TaskGraph, format_table
 
 
 def sleep_1(n):
@@ -96,7 +96,7 @@ def square_root(x):
 
 
 # 测试 TaskGraph 的功能
-def _test_graph_0():
+def test_graph_0():
     # 定义多个阶段的 TaskManager 实例
     stage1 = TaskManager(
         fibonacci,
@@ -142,13 +142,7 @@ def _test_graph_0():
             stage1.get_stage_tag(): test_task_0,
         }
     )
-    test_table_list, execution_modes, stage_modes, index_header = result["Time table"]
-    result["Time table"] = format_table(
-        test_table_list,
-        column_names=execution_modes,
-        row_names=stage_modes,
-        index_header=index_header,
-    )
+    result["Time table"] = format_table(*result["Time table"])
     for key, value in result.items():
         if isinstance(value, dict):
             value = pprint.pformat(value)
@@ -184,29 +178,14 @@ def test_graph_1():
 
     # 开始任务链
     result = graph.test_methods(input_tasks, stage_modes, execution_modes)
-    test_table_list, execution_modes, stage_modes, index_header = result["Time table"]
-    result["Time table"] = format_table(
-        test_table_list,
-        column_names=execution_modes,
-        row_names=stage_modes,
-        index_header=index_header,
-    )
+    result["Time table"] = format_table(*result["Time table"])
     for key, value in result.items():
         if isinstance(value, dict):
             value = pprint.pformat(value)
         logging.info(f"{key}: \n{value}")
 
 
-def profile_task_graph():
-    target_func = "test_task_graph_1"
-    now_time = strftime("%m-%d-%H-%M", localtime())
-    output_file = f"profile/{target_func}({now_time}).prof"
-    cProfile.run(target_func + "()", output_file)
-
-    subprocess.run(["snakeviz", output_file])
-
-
 # 在主函数或脚本中调用此函数，而不是在测试中
 if __name__ == "__main__":
-    # test_task_graph_1()
+    # test_graph_1()
     pass

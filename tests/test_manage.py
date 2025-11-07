@@ -1,6 +1,7 @@
 import pytest, logging
 from time import time
-from celestialflow import TaskManager
+
+from celestialflow import TaskManager, format_table
 
 
 def fibonacci(n):
@@ -28,7 +29,7 @@ async def fibonacci_async(n):
         return result_0 + result_1
 
 
-# 测试 TaskManager 的同步任务
+# 测试 TaskManager 的单线程/多线程/多进程任务
 def test_manager():
     test_task_0 = range(25, 37)
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
@@ -36,9 +37,10 @@ def test_manager():
 
     manager = TaskManager(fibonacci, worker_limit=6, max_retries=1, show_progress=True)
     manager.add_retry_exceptions(ValueError)
+
     results = manager.test_methods(test_task_1)
-    logging.info(results)
-    # manager.start(test_task_1)
+    table_results = format_table(*results)
+    logging.info("\n" + table_results)
 
 
 # 测试 TaskManager 的异步任务

@@ -2,8 +2,7 @@ import pytest, logging, re, random, pprint
 import requests
 from time import sleep
 
-from celestialvault.tools.TextTools import format_table
-from celestialflow import TaskManager, TaskGraph, TaskSplitter, TaskRedisTransfer
+from celestialflow import TaskManager, TaskGraph, TaskSplitter, TaskRedisTransfer, format_table
 
 
 class DownloadRedisTransfer(TaskRedisTransfer):
@@ -97,7 +96,7 @@ def download_to_file(url: str, file_path: str) -> str:
         raise RuntimeError(f"Download failed: {e}")
 
 
-def _test_splitter_0():
+def test_splitter_0():
     # 定义任务节点
     generate_stage = TaskManager(
         func=generate_urls, execution_mode="thread", worker_limit=4
@@ -129,13 +128,7 @@ def _test_splitter_0():
     execution_modes = ["serial", "thread"]
 
     result = graph.test_methods(input_tasks, stage_modes, execution_modes)
-    test_table_list, execution_modes, stage_modes, index_header = result["Time table"]
-    result["Time table"] = format_table(
-        test_table_list,
-        column_names=execution_modes,
-        row_names=stage_modes,
-        index_header=index_header,
-    )
+    result["Time table"] = format_table(*result["Time table"])
 
     for key, value in result.items():
         if isinstance(value, dict):
@@ -186,7 +179,7 @@ def test_splitter_1():
     )
 
 
-def _test_transfer_0():
+def test_transfer_0():
     start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
     redis_transfer = TaskRedisTransfer()
     fibonacci_stage = TaskManager(fibonacci, "thread")
@@ -211,7 +204,7 @@ def _test_transfer_0():
     )
 
 
-def _test_transfer_1():
+def test_transfer_1():
     start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
     redis_transfer = TaskRedisTransfer(unpack_task_args=True)
     sum_stage = TaskManager(
@@ -237,7 +230,7 @@ def _test_transfer_1():
     )
 
 
-def _test_transfer_2():
+def test_transfer_2():
     start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
     redis_transfer = DownloadRedisTransfer(port=50001)
     download_stage = DownloadManager(

@@ -1,7 +1,5 @@
 # CelestialFlow ——一个轻量级、可并行、基于图结构的 Python 任务调度框架
 
----
-
 ![](img/startup.png)
 
 **CelestialFlow**是一个基于节点拼接的任务流调度框架。
@@ -23,8 +21,6 @@
 TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支持传统的有向无环图（DAG），也能灵活表达 **环形（loop）** 与 **复杂交叉** 的任务依赖。
 
 在次基础上项目支持 Web 可视化与通过 Redis 外接go代码，弥补 Python 在cpu密集任务上表现欠佳的问题。
-
----
 
 ## 快速开始（Quick Start）
 
@@ -149,8 +145,6 @@ if __name__ == "__main__":
 
 请不要在.ipynb中运行。
 
----
-
 ## 环境要求（Requirements）
 
 **CelestialFlow** 依赖以下主要组件，请确保你的环境满足最低版本要求。
@@ -165,8 +159,6 @@ if __name__ == "__main__":
 | **multiprocess** | 多进程支持库                              |
 | **rich**         | 终端输出与日志美化                           |
 | **jinja2**       | FastAPI 模板引擎                        |
-
----
 
 ## 项目结构（Project Structure）
 
@@ -233,8 +225,6 @@ if __name__ == "__main__":
     🐍 setup.py  	(550B)
 ```
 
----
-
 ## 更新日志（Change Log）
 
 - [2021] 建立一个支持多线程与单线程处理函数的类
@@ -249,12 +239,8 @@ if __name__ == "__main__":
 - [6/14/2025] 支持forest结构, 即可有多个根节点
 - [6/16/2025] 多轮评测后, 当前框架已支持完整有向图结构, 故将TaskTree改名为TaskGraph
 
----
-
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
 
 ## 作者
 Author: Xiaotian 
