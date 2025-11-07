@@ -20,7 +20,7 @@
 
 TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支持传统的有向无环图（DAG），也能灵活表达 **环形（loop）** 与 **复杂交叉** 的任务依赖。
 
-这种设计使得开发者可以以最小的代码代价，快速搭建高并发、可扩展且可视化的任务调度系统。
+在次基础上项目支持 Web 可视化与通过 Redis 外接go代码，弥补 Python 在cpu密集任务上表现欠佳的问题。
 
 ## 快速开始（Quick Start）
 
@@ -41,7 +41,7 @@ mamba create -n celestialflow_env python=3.10
 mamba activate celestialflow_env
 ```
 
-如果你了解python的包管理工具Anaconda，那么mamba就是将其用C++实现的版本，非常好用。你可以在这里获取它的最新版:
+如果你了解python的包管理工具Anaconda，那么mamba就是将其用C++实现的版本，相比原版有明显的速度提升。你可以在这里获取它的最新版:
 
 👉 [miniforge/Releases](https://github.com/conda-forge/miniforge/releases)
 
@@ -83,7 +83,7 @@ pytest tests/test_graph.py::test_graph_1
 pytest tests/test_nodes.py::test_splitter_1
 ```
 
-- test_graph_1() 在一个更简单的树状任务模型下，对比了四种运行组合（节点模式：serial / process × 执行模式：serial / thread），以测试不同调度策略下的整体性能差异。图结构如下:
+- test_graph_1() 在一个简单的树状任务模型下，对比了四种运行组合（节点模式：serial / process × 执行模式：serial / thread），以测试不同调度策略下的整体性能差异。图结构如下:
     ```
     +----------------------------------------------------------------------+
     | Stage_A (stage_mode: serial, func: sleep_random_A)                   |
@@ -95,7 +95,7 @@ pytest tests/test_nodes.py::test_splitter_1
     |     ╘-->Stage_E (stage_mode: serial, func: sleep_random_E) [Visited] |
     +----------------------------------------------------------------------+
     ```
-- test_splitter_1() 模拟了一个爬虫程序的执行流程：从入口页面开始抓取，并在解析过程中动态生成新的爬取任务；下游节点负责数据清洗与结果处理。图结构如下:
+- test_splitter_1() 模拟了一个爬虫程序的执行流程：从入口页面开始抓取，并在解析过程中动态生成新的爬取任务并返回上游抓取节点；下游节点负责数据清洗与结果处理。图结构如下:
     ```
     +--------------------------------------------------------------------------------+
     | GenURLs (stage_mode: process, func: generate_urls_sleep)                       |
@@ -129,17 +129,21 @@ def add(x, y):
 def square(x): 
     return x ** 2
 
-# 定义两个任务节点
-stage1 = TaskManager(add, execution_mode="thread")
-stage2 = TaskManager(square, execution_mode="thread")
+if __name__ == "__main__":
+    # 定义两个任务节点
+    stage1 = TaskManager(add, execution_mode="thread", unpack_task_args=True)
+    stage2 = TaskManager(square, execution_mode="thread")
 
-# 构建任务图结构
-stage1.set_graph_context([stage2], stage_mode="process", stage_name="Adder")
-graph = TaskGraph([stage1])
+    # 构建任务图结构
+    stage1.set_graph_context([stage2], stage_mode="process", stage_name="Adder")
+    stage2.set_graph_context([], stage_mode="process", stage_name="Squarer")
+    graph = TaskGraph([stage1])
 
-# 初始化任务并启动
-graph.start_graph({stage1.get_stage_tag(): [(1, 2), (3, 4), (5, 6)]})
+    # 初始化任务并启动
+    graph.start_graph({stage1.get_stage_tag(): [(1, 2), (3, 4), (5, 6)]})
 ```
+
+请不要在.ipynb中运行。
 
 ## 环境要求（Requirements）
 
