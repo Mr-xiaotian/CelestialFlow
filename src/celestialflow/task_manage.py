@@ -10,17 +10,6 @@ from queue import Queue as ThreadQueue, Empty
 from threading import Event, Lock
 from typing import List
 
-from httpx import (
-    ConnectError,
-    ConnectTimeout,
-    PoolTimeout,
-    ProtocolError,
-    ReadError,
-    ReadTimeout,
-    ProxyError,
-    RequestError,
-)
-
 from .task_progress import ProgressManager, NullProgress
 from .task_logging import LogListener, TaskLogger
 from .task_types import ValueWrapper, NoOpContext, TerminationSignal, TERMINATION_SIGNAL
@@ -73,15 +62,7 @@ class TaskManager:
         self.prev_stages: List[TaskManager] = []
         self.set_stage_name(None)
 
-        self.retry_exceptions = (
-            ConnectTimeout,
-            ProtocolError,
-            ReadError,
-            ConnectError,
-            PoolTimeout,
-            ReadTimeout,
-            ProxyError,
-        )  # 需要重试的异常类型
+        self.retry_exceptions = tuple()  # 需要重试的异常类型
 
         self.init_counter()
 

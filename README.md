@@ -1,6 +1,15 @@
 # CelestialFlow ——一个轻量级、可并行、基于图结构的 Python 任务调度框架
 
-![](img/startup.png)
+<p align="center">
+  <img src="img/startup.png" width="1080" alt="CelestialFlow Logo">
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/celestialflow/"><img src="https://badge.fury.io/py/celestialflow.svg"></a>
+  <a href="https://pepy.tech/projects/celestialflow"><img src="https://static.pepy.tech/personalized-badge/celestialflow?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads"></a>
+  <!-- <a href="https://pypi.org/project/celestialflow/"><img src="https://img.shields.io/pypi/l/celestialflow.svg"></a>
+  <a href="https://pypi.org/project/celestialflow/"><img src="https://img.shields.io/pypi/pyversions/celestialflow.svg"></a> -->
+</p>
 
 **CelestialFlow**是一个基于节点拼接的任务流调度框架。
 
@@ -170,7 +179,6 @@ if __name__ == "__main__":
 | **fastapi**      | Web 服务接口框架（用于任务可视化与远程控制） |
 | **uvicorn**      | FastAPI 的高性能 ASGI 服务器 |
 | **requests**     | HTTP 客户端库，用于任务状态上报与远程调用 |
-| **httpx**        | 异步 HTTP 客户端，支持更高性能的并发请求 |
 | **networkx**     | 任务图（TaskGraph）结构与依赖分析 |
 | **redis**        | 可选组件，用于分布式任务通信（`TaskRedisTransfer` 模块） |
 | **jinja2**       | FastAPI 模板引擎，用于 Web 可视化界面渲染 |
@@ -253,6 +261,10 @@ if __name__ == "__main__":
 - [6/13/2025] 支持loop结构, 即节点可指向自己
 - [6/14/2025] 支持forest结构, 即可有多个根节点
 - [6/16/2025] 多轮评测后, 当前框架已支持完整有向图结构, 故将TaskTree改名为TaskGraph
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Mr-xiaotian/CelestialFlow&type=Date)](https://star-history.com/#Mr-xiaotian/CelestialFlow&Date)
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -7,8 +7,8 @@ name = "celestialflow"
 version = "3.0.2"                         
 description = "A flexible GRAPH-based task orchestration framework."
 readme = "README.md"               
-license = { file = "LICENSE" }    
-authors = [{ name = "Mr-xiaotian", email = "mingxiaomingtian@gmail.com " }]
+license = { text = "MIT" }    
+authors = [{ name = "Mr-xiaotian", email = "mingxiaomingtian@gmail.com" }]
 keywords = ["workflow", "task", "graph", "async", "CelestialFlow"]
 requires-python = ">=3.8"
 
@@ -20,8 +20,15 @@ dependencies = [
     "requests",
     "networkx",
     "redis",
-    "httpx",
     "jinja2",
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Framework :: FastAPI",
+    "Topic :: Software Development :: Libraries",
 ]
 
 [project.urls]
