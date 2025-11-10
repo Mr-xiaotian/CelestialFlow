@@ -50,14 +50,24 @@ CelestialFlow 已发布至 [PyPI](https://pypi.org/project/celestialflow/)，
 pip install celestialflow
 ```
 
-### 启动 Web 可视化（可选）
-
-Web监视界面并不是必须的，但页面设计还不错，推荐使用:
+不过如果你想要运行之后的测试代码，亦或者想使用基于Go语言的go_worker程序，那么还是需要clone项目
 
 ```bash
+# 克隆项目
+git clone https://github.com/yourname/TaskGraph.git
+cd TaskGraph
+pip install .
+```
+
+### 启动 Web 可视化（可选）
+
+Web监视界面并不是必须的，但可以通过网页获得任务运行的更多信息，推荐使用:
+
+```bash
+# 如果你pip了项目，可以在当前虚拟环境下可以直接使用命令celestialflow-web
 celestialflow-web 5005
 
-# 如果你直接clone并cd进入项目目录，那么可以直接使用
+# 如果你直接clone并cd进入项目目录，那么需要运行py文件
 python src/celestialflow/task_web.py 5005 
 ```
 
@@ -83,12 +93,6 @@ pytest tests/test_nodes.py::test_splitter_1
 ```bash
 pip install pytest pytest-asyncio
 ```
-
-- test_nodes_1() 在一个简单的树状任务模型下，对比了四种运行组合（节点模式：serial / process × 执行模式：serial / thread），以测试不同调度策略下的整体性能差异。图结构如下:
-    ```
-    +----------------------------------------------------------------------+
-    | Stage_A (stage_mode: serial, func: sleep_random_A)                   |
-    | ╘-->Stage_B (stage_mode: serial, func: sleep_random_B)               |
 
 - test_graph_1() 在一个简单的树状任务模型下，对比了四种运行组合（节点模式：serial / process × 执行模式：serial / thread），以测试不同调度策略下的整体性能差异。图结构如下:
     ```
@@ -120,11 +124,11 @@ pip install pytest pytest-asyncio
 
 你可以继续运行更多的测试代码，这里有介绍每个测试文件与里面的测试函数:
 
-[Test RREADME.md](tests/README.md)
+[Test RREADME.md(完善中)](tests/README.md)
 
 你也可以了解具体的项目文件，以下文档会帮助你:
 
-[Src README.md](src\celestialflow/README.md)
+[Src README.md(完善中)](src\celestialflow/README.md)
 
 如果你想得到一个最简单的可运行代码:
 
@@ -172,8 +176,6 @@ if __name__ == "__main__":
 | **jinja2**       | FastAPI 模板引擎，用于 Web 可视化界面渲染 |
 
 ## 项目结构（Project Structure）
-
-以下视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file生成。
 
 ```
 📁 CelestialFlow	(24MB 349KB 185B)
@@ -235,6 +237,8 @@ if __name__ == "__main__":
     📝 README.md 	(1KB 124B)
     🐍 setup.py  	(550B)
 ```
+
+(该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file生成。)
 
 ## 更新日志（Change Log）
 
