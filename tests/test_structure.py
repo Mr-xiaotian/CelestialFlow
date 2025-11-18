@@ -303,7 +303,7 @@ def test_loop():
     graph.start_loop({stageA.get_stage_tag(): test_task_0})
 
 
-def _test_wheel():
+def test_wheel():
     # 定义核心与边节点函数
     core = TaskManager(func=square)
     side1 = TaskManager(func=add_one_sleep)
@@ -318,7 +318,7 @@ def _test_wheel():
     wheel.start_wheel({core.get_stage_tag(): range(1, 11)})
 
 
-def _test_complete():
+def test_complete():
     # 创建 3 个节点，每个节点有不同偏移
     n1 = TaskManager(func=add_5, execution_mode="thread", worker_limit=5)
     n2 = TaskManager(func=add_10, execution_mode="thread", worker_limit=5)

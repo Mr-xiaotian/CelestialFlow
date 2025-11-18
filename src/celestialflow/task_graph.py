@@ -177,11 +177,11 @@ class TaskGraph:
             for next_stage in stage.next_stages:
                 queue.append(next_stage)
 
-    def init_log(self):
+    def init_log(self, level="INFO"):
         """
         初始化日志
         """
-        self.log_listener = LogListener(level="INFO")
+        self.log_listener = LogListener(level)
         self.task_logger = TaskLogger(self.log_listener.get_queue())
 
     def init_structure_graph(self):
@@ -239,6 +239,18 @@ class TaskGraph:
             set_subsequent_stage_mode(root_stage)
         self.init_structure_graph()
 
+    def put_termination(self, tag):
+        """
+        放入终止信号
+        :param tag: 阶段标签
+        """
+        preg_stages: List[TaskManager] = self.stages_status_dict[tag]["stage"].prev_stages
+        
+        for prev_stage in preg_stages:
+            prev_tag = prev_stage.get_stage_tag() if prev_stage else None
+            self.edge_queue_map[(prev_tag, tag)].put(TERMINATION_SIGNAL)
+            self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {(prev_tag, tag)}")
+
     def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
         """
         将任务放入队列
@@ -251,12 +263,11 @@ class TaskGraph:
             ]
             prev_tag = prev_stage.get_stage_tag() if prev_stage else None
             for task in tasks:
-                self.edge_queue_map[(prev_tag, tag)].put(make_hashable(task))
                 if isinstance(task, TerminationSignal):
-                    self.task_logger._log(
-                        "TRACE", f"TERMINATION_SIGNAL put into {(prev_tag, tag)}"
-                    )
+                    self.put_termination(tag)
                     continue
+
+                self.edge_queue_map[(prev_tag, tag)].put(make_hashable(task))
                 self.task_logger._log("TRACE", f"{task} put into {(prev_tag, tag)}")
                 self.stage_task_counter[tag] = self.stage_task_counter.get(
                     tag, SumCounter()
@@ -265,16 +276,8 @@ class TaskGraph:
 
         if put_termination_signal:
             for root_stage in self.root_stages:
-                pre_stage_tag = (
-                    root_stage.prev_stages[0].get_stage_tag()
-                    if root_stage.prev_stages[0]
-                    else None
-                )
-                edge_key = (pre_stage_tag, root_stage.get_stage_tag())
-                self.edge_queue_map[edge_key].put(TERMINATION_SIGNAL)
-                self.task_logger._log(
-                    "TRACE", f"TERMINATION_SIGNAL put into {edge_key}"
-                )
+                root_stage_tag = root_stage.get_stage_tag()
+                self.put_termination(root_stage_tag)
 
     def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """

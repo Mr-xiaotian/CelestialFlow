@@ -283,7 +283,7 @@ class TaskManager:
             item = queue.get()  # 阻塞等待，无需 sleep
             if isinstance(item, TerminationSignal):
                 self.terminated_queue_set.add(0)
-                self.task_logger._log("TRACE", f"get_task_queues: queue[0] terminated")
+                self.task_logger._log("TRACE", f"queue[0](only) terminated in {self.get_stage_tag()}")
                 return TERMINATION_SIGNAL
             return item
 
@@ -298,7 +298,7 @@ class TaskManager:
                     if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
                         self.task_logger._log(
-                            "TRACE", f"get_task_queues: queue[{idx}] terminated"
+                            "TRACE", f"queue[{idx}] terminated in {self.get_stage_tag()}"
                         )
                         continue
                     self.current_index = (
@@ -310,7 +310,7 @@ class TaskManager:
                 except Exception as e:
                     self.task_logger._log(
                         "WARNING",
-                        f"get_task_queues: Error from queue[{idx}]: {type(e).__name__}({e})",
+                        f"Error from queue[{idx}]: {type(e).__name__}({e}) in {self.get_stage_tag()}",
                     )
                     continue
 
