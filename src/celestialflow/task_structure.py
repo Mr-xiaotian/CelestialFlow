@@ -8,9 +8,8 @@ from .task_graph import TaskGraph
 class TaskChain(TaskGraph):
     def __init__(self, stages: List[TaskManager], chain_mode: str = "serial"):
         """
-        初始化 TaskChain
-        :param stages: TaskManager 列表
-        :param chain_mode: 链式模式，默认为 'serial'
+        TaskChain: 线性任务链结构
+        该结构将多个 TaskManager 节点按顺序连接，形成一个线性的数据流图。
         """
         for num, stage in enumerate(stages):
             stage_name = f"Stage {num + 1}"
@@ -23,7 +22,6 @@ class TaskChain(TaskGraph):
     def start_chain(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动任务链
-        :param init_tasks_dict: 任务列表
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
 
@@ -32,7 +30,6 @@ class TaskCross(TaskGraph):
     def __init__(self, layers: List[List[TaskManager]], layout_mode: str = "process"):
         """
         TaskCross: 多层任务交叉结构
-
         该结构将任务按“层”组织，每层可以包含多个并行执行的 TaskManager 节点，
         不同层之间通过依赖关系连接，形成跨层的数据流图。
 
@@ -66,6 +63,11 @@ class TaskCross(TaskGraph):
 
 class TaskGrid(TaskGraph):
     def __init__(self, grid: List[List[TaskManager]], layout_mode: str = "process"):
+        """
+        TaskGrid: 任务网格结构
+        该结构将任务节点组织成二维网格形式，每个节点连接其右侧和下方的节点，
+        形成一个网格状的数据流图。
+        """
         rows, cols = len(grid), len(grid[0])
         for i in range(rows):
             for j in range(cols):
@@ -81,7 +83,6 @@ class TaskGrid(TaskGraph):
     def start_grid(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动任务网格结构
-        :param init_tasks_dict: 任务列表
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
 
@@ -98,8 +99,7 @@ class TaskLoop(TaskGraph):
             next_stages = [stages[num + 1]] if num < len(stages) - 1 else [stages[0]]
             stage.set_graph_context(next_stages, "process", stage_name)
 
-        root_stage = stages[0]
-        super().__init__([root_stage])
+        super().__init__([stages[0]])
 
     def start_loop(self, init_tasks_dict: dict):
         """
@@ -110,6 +110,7 @@ class TaskLoop(TaskGraph):
 
 
 class TaskWheel(TaskGraph):
+    """wheel是特殊的有环图, 他有结构意义上的起点, 中心节点连向环, 环相连成闭环"""
     def __init__(self, center: TaskManager, ring: List[TaskManager]):
         # 中心连向环
         center.set_graph_context(ring, "process", "Center")
@@ -119,12 +120,13 @@ class TaskWheel(TaskGraph):
             node.set_graph_context([next_stage], "process", f"Ring-{i+1}")
         super().__init__([center])
 
-    def start_wheel(self, init_tasks_dict: dict):
+    def start_wheel(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动任务轮结构
         :param init_tasks_dict: 任务列表
+        :param put_termination_signal: 是否注入终止信号
         """
-        self.start_graph(init_tasks_dict, False)
+        self.start_graph(init_tasks_dict, put_termination_signal)
 
 
 class TaskComplete(TaskGraph):

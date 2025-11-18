@@ -41,27 +41,21 @@ class TaskGraph:
         分层等多种形式的任务执行流程。通过分析图结构和调度布局策略，实现灵活的
         DAG 任务调度控制。
 
-        Parameters
-        ----------
-        root_stages : List[TaskManager]
+        :param root_stages : List[TaskManager]
             根节点 TaskManager 列表，用于构建任务图的入口节点。
             支持多根节点（森林结构），系统将自动构建整个任务依赖图。
 
-        layout_mode : str, optional, default = 'process'
+        :param layout_mode : str, optional, default = 'process'
             控制任务图的调度布局模式，支持以下两种策略：
-
             - 'process'：
                 默认模式。所有节点一次性调度并发执行，依赖关系通过队列流自动控制。
                 适用于最大化并行度的执行场景。
-
             - 'serial'：
                 分层执行模式。任务图必须为有向无环图（DAG）。
                 节点按层级顺序逐层启动，确保上层所有任务完成后再启动下一层。
                 更利于调试、性能分析和阶段性资源控制。
 
-        Raises
-        ------
-        ValueError
+        :return ValueError
             如果输入图不合法或 layout_mode 参数错误。
         """
         self.set_root_stages(root_stages)
@@ -180,6 +174,8 @@ class TaskGraph:
     def init_log(self, level="INFO"):
         """
         初始化日志
+
+        :param level: 日志级别, 默认为 "INFO"
         """
         self.log_listener = LogListener(level)
         self.task_logger = TaskLogger(self.log_listener.get_queue())
@@ -193,6 +189,7 @@ class TaskGraph:
     def set_root_stages(self, root_stages: List[TaskManager]):
         """
         设置根节点
+
         :param root_stages: 根节点列表
         """
         self.root_stages = root_stages
@@ -203,6 +200,7 @@ class TaskGraph:
     def set_layout_mode(self, layout_mode: str):
         """
         设置任务链的执行模式
+
         :param layout_mode: 节点执行模式, 可选值为 'serial' 或 'process'
         """
         if layout_mode == "serial" and self.isDAG:
@@ -213,6 +211,10 @@ class TaskGraph:
     def set_reporter(self, is_report=False, host="127.0.0.1", port=5000):
         """
         设定报告器
+
+        :param is_report: 是否启用报告器
+        :param host: 报告器主机地址
+        :param port: 报告器端口
         """
         self.is_report = is_report
         self.reporter = TaskReporter(self, self.log_listener.get_queue(), host, port)
@@ -220,6 +222,7 @@ class TaskGraph:
     def set_graph_mode(self, stage_mode: str, execution_mode: str):
         """
         设置任务链的执行模式
+
         :param stage_mode: 节点执行模式, 可选值为 'serial' 或 'process'
         :param execution_mode: 节点内部执行模式, 可选值为 'serial' 或 'thread''
         """
@@ -242,6 +245,7 @@ class TaskGraph:
     def put_termination(self, tag):
         """
         放入终止信号
+
         :param tag: 阶段标签
         """
         preg_stages: List[TaskManager] = self.stages_status_dict[tag]["stage"].prev_stages
@@ -254,6 +258,7 @@ class TaskGraph:
     def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
         """
         将任务放入队列
+
         :param tasks_dict: 待处理的任务字典
         :param put_termination_signal: 是否放入终止信号
         """
@@ -282,6 +287,9 @@ class TaskGraph:
     def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动任务链
+
+        :param init_tasks_dict: 任务列表
+        :param put_termination_signal: 是否注入终止信号
         """
         try:
             self.log_listener.start()
@@ -303,6 +311,9 @@ class TaskGraph:
             self.log_listener.stop()
 
     def _excute_stages(self):
+        """
+        执行所有节点
+        """
         if self.layout_mode == "process":
             # 默认逻辑：一次性执行所有节点
             for tag in self.stages_status_dict:
@@ -334,6 +345,11 @@ class TaskGraph:
                 self.task_logger.end_layer(layer, time.time() - start_time)
 
     def _execute_stage(self, stage: TaskManager):
+        """
+        执行单个节点
+        
+        :param stage: 节点
+        """
         stage_tag = stage.get_stage_tag()
 
         # 输入输出队列
@@ -382,7 +398,6 @@ class TaskGraph:
     def finalize_nodes(self):
         """
         确保所有子进程安全结束，更新节点状态，并导出每个节点队列剩余任务。
-        返回: dict, {stage_tag: [剩余任务列表]}
         """
         # 1️⃣ 确保所有进程安全结束（不一定要 terminate，但如果没结束就强制）
         for p in self.processes:
@@ -456,6 +471,11 @@ class TaskGraph:
     def _persist_single_failure(self, task_str, error_info, stage_tag, timestamp):
         """
         增量写入单条错误日志到每日文件中
+
+        :param task_str: 任务字符串
+        :param error_info: 错误信息
+        :param stage_tag: 阶段标签
+        :param timestamp: 错误时间戳
         """
         log_item = {
             "timestamp": datetime.fromtimestamp(timestamp).isoformat(),
@@ -470,6 +490,9 @@ class TaskGraph:
     def _persist_unconsumed_task(self, stage_tag, task):
         """
         写入单个未消费任务到 JSONL 文件
+
+        :param stage_tag: 阶段标签
+        :param task: 任务对象
         """
         log_item = {
             "timestamp": datetime.now().isoformat(),
@@ -507,6 +530,8 @@ class TaskGraph:
     def get_status_dict(self) -> Dict[str, dict]:
         """
         获取任务链的状态字典
+
+        :return: 任务链状态字典
         """
         status_dict = {}
         now = time.time()
@@ -597,6 +622,9 @@ class TaskGraph:
         return status_dict
 
     def get_graph_topology(self):
+        """
+        获取任务图的拓扑信息
+        """
         return {
             "isDAG": self.isDAG,
             "layout_mode": self.layout_mode,
@@ -614,6 +642,9 @@ class TaskGraph:
         return format_networkx_graph(self.structure_graph)
 
     def analyze_graph(self):
+        """
+        分析任务图，计算 DAG 属性和层级信息
+        """
         networkx_graph = self.get_networkx_graph()
         self.layers_dict = {}
 

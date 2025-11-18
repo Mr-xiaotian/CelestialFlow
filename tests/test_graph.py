@@ -1,6 +1,6 @@
 import pytest, logging, pprint
-import cProfile, subprocess, random
-from time import strftime, localtime, sleep
+import random
+from time import sleep
 
 from celestialflow import TaskManager, TaskGraph, format_table
 

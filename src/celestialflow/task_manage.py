@@ -77,6 +77,13 @@ class TaskManager:
     ):
         """
         初始化计数器
+
+        :param task_counter: 任务总数计数器
+        :param success_counter: 成功任务计数器
+        :param error_counter: 失败任务计数器
+        :param duplicate_counter: 重复任务计数器
+        :param counter_lock: 计数器锁
+        :param extra_stats: 额外统计信息
         """
         self.task_counter = task_counter if task_counter is not None else ValueWrapper()
         self.success_counter = (
@@ -98,6 +105,11 @@ class TaskManager:
     ):
         """
         初始化环境
+
+        :param task_queues: 任务队列列表
+        :param result_queues: 结果队列列表
+        :param fail_queue: 失败队列
+        :param logger_queue: 日志队列
         """
         self.init_queue(task_queues, result_queues, fail_queue, logger_queue)
         self.init_state()
@@ -109,6 +121,11 @@ class TaskManager:
     ):
         """
         初始化队列
+
+        :param task_queues: 任务队列列表
+        :param result_queues: 结果队列列表
+        :param fail_queue: 失败队列
+        :param logger_queue: 日志队列
         """
         queue_map = {
             "process": ThreadQueue,  # MPqueue
@@ -189,6 +206,7 @@ class TaskManager:
     def set_execution_mode(self, execution_mode):
         """
         设置执行模式
+
         :param execution_mode: 执行模式，可以是 'thread'（线程）, 'process'（进程）, 'async'（异步）, 'serial'（串行）
         """
         self.execution_mode = (
@@ -205,6 +223,7 @@ class TaskManager:
     ):
         """
         设置链式上下文(仅限组成graph时)
+
         :param next_stages: 后续节点列表
         :param stage_mode: 当前节点执行模式, 可以是 'serial'（串行）或 'process'（并行）
         :param name: 当前节点名称
@@ -216,6 +235,8 @@ class TaskManager:
     def set_next_stages(self, next_stages: List[TaskManager]):
         """
         设置后续节点列表, 并为后续节点添加本节点为前置节点
+
+        :param next_stages: 后续节点列表
         """
         self.next_stages = next_stages or []  # 默认为空列表
         for next_stage in self.next_stages:
@@ -224,32 +245,42 @@ class TaskManager:
     def set_stage_mode(self, stage_mode: str):
         """
         设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
+
+        :param stage_mode: 当前节点执行模式
         """
         self.stage_mode = stage_mode if stage_mode == "process" else "serial"
 
     def set_stage_name(self, name: str):
         """
         设置当前节点名称
+
+        :param name: 当前节点名称
         """
         self.stage_name = name or id(self)
 
     def add_prev_stages(self, prev_stage: TaskManager):
         """
         添加前置节点
+
+        :param prev_stage: 前置节点
         """
         if prev_stage in self.prev_stages:
             return
         self.prev_stages.append(prev_stage)
 
-    def get_stage_tag(self):
+    def get_stage_tag(self) -> str:
         """
         获取当前节点在graph中的标签
+
+        :return: 当前节点标签
         """
         return f"{self.stage_name}[{self.func.__name__}]"
 
     def get_stage_summary(self) -> dict:
         """
         获取当前节点的状态快照
+
+        :return: 当前节点状态快照
         """
         return {
             "stage_mode": self.stage_mode,
@@ -265,10 +296,12 @@ class TaskManager:
     def add_retry_exceptions(self, *exceptions):
         """
         添加需要重试的异常类型
+
+        :param exceptions: 异常类型
         """
         self.retry_exceptions = self.retry_exceptions + tuple(exceptions)
 
-    def get_task_queues(self, poll_interval: float = 0.01):
+    def get_task_queues(self, poll_interval: float = 0.01) -> object:
         """
         从多个队列中轮询获取任务。
 
@@ -321,7 +354,7 @@ class TaskManager:
             # 所有队列都暂时无数据，避免 busy-wait
             time.sleep(poll_interval)
 
-    async def get_task_queues_async(self, poll_interval=0.01):
+    async def get_task_queues_async(self, poll_interval=0.01) -> object:
         """
         异步轮询多个 AsyncQueue，获取任务。
 
@@ -375,6 +408,8 @@ class TaskManager:
     def put_task_queues(self, task_source):
         """
         将任务放入任务队列
+
+        :param task_source: 任务源（可迭代对象）
         """
         progress_num = 0
         for item in task_source:
@@ -388,6 +423,8 @@ class TaskManager:
     async def put_task_queues_async(self, task_source):
         """
         将任务放入任务队列(async模式)
+
+        :param task_source: 任务源（可迭代对象）
         """
         progress_num = 0
         for item in task_source:
@@ -415,6 +452,8 @@ class TaskManager:
     def put_result_queues(self, result):
         """
         将结果放入所有结果队列
+
+        :param result: 任务结果
         """
         for result_queue in self.result_queues:
             result_queue.put(result)
@@ -422,6 +461,8 @@ class TaskManager:
     async def put_result_queues_async(self, result):
         """
         将结果放入所有结果队列(async模式)
+
+        :param result: 任务结果
         """
         for queue in self.result_queues:
             await queue.put(result)
@@ -429,6 +470,9 @@ class TaskManager:
     def put_fail_queue(self, task, error):
         """
         将失败的任务放入失败队列
+
+        :param task: 失败的任务
+        :param error: 任务失败的异常
         """
         self.fail_queue.put(
             {
@@ -442,6 +486,9 @@ class TaskManager:
     async def put_fail_queue_async(self, task, error):
         """
         将失败的任务放入失败队列（异步版本）
+
+        :param task: 失败的任务
+        :param error: 任务失败的异常
         """
         await self.fail_queue.put(
             {
@@ -545,12 +592,17 @@ class TaskManager:
     def get_task_id(self, task):
         """
         获取任务ID
+
+        :param task: 任务对象
         """
         return object_to_str_hash(task)
 
-    def get_task_info(self, task):
+    def get_task_info(self, task) -> str:
         """
         获取任务参数信息的可读字符串表示。
+
+        :param task: 任务对象
+        :return: 任务参数信息字符串
         """
         args = self.get_args(task)
 
@@ -571,6 +623,9 @@ class TaskManager:
     def get_result_info(self, result):
         """
         获取结果信息
+
+        :param result: 任务结果
+        :return: 结果信息字符串
         """
         return format_repr(result, self.max_info)
 

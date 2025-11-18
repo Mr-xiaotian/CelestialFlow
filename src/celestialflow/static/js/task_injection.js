@@ -2,22 +2,6 @@ let selectedNodes = [];
 let currentInputMethod = "json";
 let uploadedFile = null;
 
-const exampleTask = {
-  task_id: "task_001",
-  task_name: "数据处理任务",
-  priority: "high",
-  parameters: {
-    input_source: "/data/input.csv",
-    output_path: "/data/output/",
-    batch_size: 1000,
-    timeout: 3600,
-  },
-  schedule: {
-    type: "immediate",
-    retry_count: 3,
-  },
-};
-
 document.addEventListener("DOMContentLoaded", async function () {
   renderNodeList();
   setupEventListeners();
