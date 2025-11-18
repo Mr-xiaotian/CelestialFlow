@@ -126,9 +126,16 @@ function updateSelectedNodes() {
 }
 
 function selectAllNodes() {
-  const searchTerm = document.getElementById("search-input").value;
-  const filteredNodes = nodeStatuses.filter((node) =>
-    node.name.toLowerCase().includes(searchTerm.toLowerCase())
+  // const searchTerm = document.getElementById("search-input").value;
+
+  const nodesArray = Object.keys(nodeStatuses).map(name => ({
+    name,
+    type: nodeStatuses[name].execution_mode,
+    status: nodeStatuses[name].status
+  }));
+
+  const filteredNodes = nodesArray.filter(node =>
+    node.status !== 2
   );
 
   filteredNodes.forEach((node) => {

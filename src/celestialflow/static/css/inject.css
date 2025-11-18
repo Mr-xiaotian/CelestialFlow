@@ -43,7 +43,9 @@
 }
 
 #task-injection .card {
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);    
+  display: flex;
+  flex-direction: column;
 }
 
 #task-injection .card-title {
@@ -191,6 +193,11 @@
 }
 
 /* 已选节点区 */
+#task-injection .selected-list {
+  overflow-y: auto;
+  max-height: 87px;
+}
+
 #task-injection .selected-nodes {
   margin-top: 16px;
 }
@@ -277,6 +284,12 @@
 /* ================================
   🌟 JSON输入区 & 文件上传区
 ================================ */
+#task-injection .json-input-section{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 /* JSON输入区 */
 #task-injection .json-section {
   margin-bottom: 16px;
@@ -315,8 +328,9 @@
   font-family: "Monaco", "Menlo", monospace;
   font-size: 12px;
   resize: vertical;
-  min-height: 300px;
+  min-height: 250px;
   outline: none;
+  flex: 1;
 }
 
 #task-injection .json-textarea:focus {
@@ -334,6 +348,11 @@
 #task-injection #file-input-section {
   border: 2px dashed #d1d5db;
   border-radius: 8px;
+  min-height: 250px;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 #task-injection .upload-area {
@@ -397,6 +416,7 @@
 ================================ */
 #task-injection .submit-section {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
 }
@@ -461,10 +481,6 @@
   100% {
     transform: rotate(360deg);
   }
-}
-
-#task-injection .hidden {
-  display: none;
 }
 
 /* ================================

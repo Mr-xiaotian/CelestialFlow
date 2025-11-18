@@ -192,7 +192,7 @@ def test_network():
         A2.get_stage_tag(): range(11, 21),
     }
 
-    cross.start_cross(init_tasks)
+    cross.start_cross(init_tasks, False)
 
 
 def test_star():
@@ -244,47 +244,6 @@ def test_grid():
 
     # 4. 启动任务图
     task_grid.start_graph(init_dict)
-
-
-def test_neural_net_1():
-    # 输入层
-    A1 = TaskManager(neuron_activation, execution_mode="thread", worker_limit=2)
-    A2 = TaskManager(neuron_activation, execution_mode="thread", worker_limit=2)
-
-    # 隐藏层1
-    B1 = TaskManager(neuron_activation, execution_mode="thread", worker_limit=2)
-    B2 = TaskManager(neuron_activation, execution_mode="thread", worker_limit=2)
-
-    # 隐藏层2
-    C1 = TaskManager(neuron_activation, execution_mode="thread", worker_limit=2)
-
-    # 输出层
-    D1 = TaskManager(neuron_activation, execution_mode="thread", worker_limit=2)
-    D2 = TaskManager(neuron_activation, execution_mode="thread", worker_limit=2)
-
-    # 构建拓扑结构（残差连接 A2 ➝ C1）
-    A1.set_graph_context([B1], stage_mode="process", stage_name="A1")
-    A2.set_graph_context([B2, C1], stage_mode="process", stage_name="A2")
-
-    B1.set_graph_context([C1], stage_mode="process", stage_name="B1")
-    B2.set_graph_context([C1], stage_mode="process", stage_name="B2")
-
-    C1.set_graph_context([D1, D2], stage_mode="process", stage_name="C1")
-
-    D1.set_graph_context(stage_mode="process", stage_name="D1")
-    D2.set_graph_context(stage_mode="process", stage_name="D2")
-
-    # 构建任务图
-    graph = TaskGraph([A1, A2])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
-
-    # 初始任务输入
-    init_tasks = {
-        A1.get_stage_tag(): [0.1, 0.5, 0.9],
-        A2.get_stage_tag(): [1.1, 1.5, 2.0],
-    }
-
-    graph.start_graph(init_tasks)
 
 
 # ========有环图========
