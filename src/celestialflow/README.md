@@ -313,6 +313,3 @@ print("Final Results:", final_results)
 - loop
 - complete
 
-# 贡献
-欢迎对本项目提出改进建议或提交 PR。如有任何问题，请提交 issues。
-

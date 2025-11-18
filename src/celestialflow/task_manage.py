@@ -742,7 +742,9 @@ class TaskManager:
             self.set_execution_mode("serial")
             self.run_in_serial()
 
+        self.release_pool()
         self.progress_manager.close()
+
         self.task_logger.end_manager(
             self.func.__name__,
             self.execution_mode,
@@ -776,7 +778,9 @@ class TaskManager:
 
         await self.run_in_async()
 
+        self.release_pool()
         self.progress_manager.close()
+        
         self.task_logger.end_manager(
             self.func.__name__,
             self.execution_mode,
