@@ -1,4 +1,3 @@
-let nodes = [];
 let selectedNodes = [];
 let currentInputMethod = "json";
 let uploadedFile = null;
@@ -75,13 +74,19 @@ function renderNodeList() {
 }
 
 function selectNode(nodeName) {
-  const node = {
-    name: nodeName,
-    type: nodeStatuses[nodeName].execution_mode || "unknown",
-  };
+  const existing = selectedNodes.find((n) => n.name === nodeName);
 
-  selectedNodes = [node];
-  // console.log("选中的节点列表:", selectedNodes);
+  if (existing) {
+    // 点击已选节点 = 取消选中
+    selectedNodes = selectedNodes.filter((n) => n.name !== nodeName);
+  } else {
+    // 新选节点
+    selectedNodes.push({
+      name: nodeName,
+      type: nodeStatuses[nodeName].execution_mode || "unknown",
+    });
+  }
+
   updateSelectedNodes();
 }
 
@@ -122,7 +127,7 @@ function updateSelectedNodes() {
 
 function selectAllNodes() {
   const searchTerm = document.getElementById("search-input").value;
-  const filteredNodes = nodes.filter((node) =>
+  const filteredNodes = nodeStatuses.filter((node) =>
     node.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -251,18 +256,21 @@ async function handleSubmit() {
   setButtonLoading(true);
 
   try {
-    const response = await fetch("/api/push_task_injection", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        node: selectedNodes[0].name,
-        task_datas: taskData,
-        timestamp: new Date().toISOString(),
-      }),
-    });
+    for (const node of selectedNodes) {
+      const response = await fetch("/api/push_task_injection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          node: node.name,
+          task_datas: taskData,
+          timestamp: new Date().toISOString(),
+        }),
+      });
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    showStatus("任务注入成功", true);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    }
+
+    showStatus("任务已成功注入到所有选定节点", true);
     clearForm();
   } catch (e) {
     console.error(e);

@@ -541,6 +541,10 @@
 /* ================================
   🌙 暗黑模式：节点列表 & 已选节点
 ================================ */
+.dark-theme #task-injection .selected-title {
+  color: #f3f4f6;
+}
+
 .dark-theme #task-injection .node-item {
   background-color: #374151;
   border: 1px solid #4b5563;
