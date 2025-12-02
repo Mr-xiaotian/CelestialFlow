@@ -79,16 +79,10 @@ class TaskManager:
         self.error_counter = MPValue("i", 0)
         self.duplicate_counter = MPValue("i", 0)
 
+        self.counter_lock = Lock()
+
         if isinstance(self, TaskSplitter):
             self.split_output_counter = MPValue("i", 0)
-
-    def set_counter_lock(self, counter_lock):
-        """
-        设置计数器锁
-
-        :param counter_lock: 计数器锁
-        """
-        self.counter_lock = counter_lock
 
     def init_env(
         self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None

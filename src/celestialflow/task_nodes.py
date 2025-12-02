@@ -35,7 +35,7 @@ class TaskSplitter(TaskManager):
             self.put_result_queues(item)
             split_count += 1
 
-        self.extra_stats["split_output_count"].value += split_count
+        self.split_output_counter.value += split_count
         return split_count
 
     def process_result(self, task, result):

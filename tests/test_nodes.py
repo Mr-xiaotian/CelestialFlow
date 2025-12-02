@@ -103,46 +103,6 @@ def download_to_file(url: str, file_path: str) -> str:
 def test_splitter_0():
     # 定义任务节点
     generate_stage = TaskManager(
-        func=generate_urls, execution_mode="thread", worker_limit=4
-    )
-    logger_stage = TaskManager(func=log_urls, execution_mode="thread", worker_limit=4)
-    splitter = TaskSplitter()
-    download_stage = TaskManager(func=download, execution_mode="thread", worker_limit=4)
-    parse_stage = TaskManager(func=parse, execution_mode="thread", worker_limit=4)
-
-    # 设置链关系
-    generate_stage.set_graph_context(
-        [logger_stage, splitter], stage_mode="process", stage_name="GenURLs"
-    )
-    logger_stage.set_graph_context([], stage_mode="process", stage_name="Loger")
-    splitter.set_graph_context(
-        [download_stage, parse_stage], stage_mode="process", stage_name="Splitter"
-    )
-    download_stage.set_graph_context([], stage_mode="process", stage_name="Downloader")
-    parse_stage.set_graph_context([], stage_mode="process", stage_name="Parser")
-
-    # 初始化 TaskGraph
-    graph = TaskGraph([generate_stage])
-
-    # 测试输入：生成不同 URL 的任务
-    input_tasks = {
-        generate_stage.get_stage_tag(): range(10),
-    }
-    stage_modes = ["serial", "process"]
-    execution_modes = ["serial", "thread"]
-
-    result = graph.test_methods(input_tasks, stage_modes, execution_modes)
-    result["Time table"] = format_table(*result["Time table"])
-
-    for key, value in result.items():
-        if isinstance(value, dict):
-            value = pprint.pformat(value)
-        logging.info(f"{key}: \n{value}")
-
-
-def test_splitter_1():
-    # 定义任务节点
-    generate_stage = TaskManager(
         func=generate_urls_sleep, execution_mode="thread", worker_limit=4
     )
     logger_stage = TaskManager(
@@ -183,7 +143,7 @@ def test_splitter_1():
     )
 
 
-def test_splitter_2():
+def test_splitter_1():
     # 定义任务节点
     task_splitter = TaskSplitter()
     process_stage = TaskManager(no_op, execution_mode="thread", worker_limit=50)

@@ -2,7 +2,6 @@ import time
 import multiprocessing
 from collections import defaultdict, deque
 from datetime import datetime
-from multiprocessing import Lock as MPLock
 from multiprocessing import Queue as MPQueue
 from typing import Any, Dict, List, Tuple
 
@@ -99,7 +98,6 @@ class TaskGraph:
         初始化每个阶段资源
         """
         self.fail_queue = MPQueue()
-        self.counter_lock = MPLock()
 
         visited_stages = set()
         queue = deque(self.root_stages)  # BFS 用队列代替递归
@@ -109,6 +107,9 @@ class TaskGraph:
             stage_tag = stage.get_stage_tag()
             if stage_tag in visited_stages:
                 continue
+            
+            # 刷新所有 counter
+            stage.reset_counter()
 
             # 记录节点
             self.stages_status_dict[stage_tag]["stage"] = stage
@@ -324,8 +325,6 @@ class TaskGraph:
 
         self.stages_status_dict[stage_tag]["status"] = StageStatus.RUNNING
         self.stages_status_dict[stage_tag]["start_time"] = time.time()
-
-        stage.set_counter_lock(self.counter_lock)
 
         if stage.stage_mode == "process":
             p = multiprocessing.Process(
