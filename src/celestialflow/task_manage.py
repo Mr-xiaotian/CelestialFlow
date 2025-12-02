@@ -5,6 +5,7 @@ from asyncio import Queue as AsyncQueue, QueueEmpty
 from collections import defaultdict
 from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue, Empty
 from threading import Event, Lock
@@ -12,7 +13,7 @@ from typing import List
 
 from .task_progress import ProgressManager, NullProgress
 from .task_logging import LogListener, TaskLogger
-from .task_types import ValueWrapper, NoOpContext, TerminationSignal, TERMINATION_SIGNAL
+from .task_types import NoOpContext, SumCounter, TerminationSignal, TERMINATION_SIGNAL
 from .task_tools import make_hashable, format_repr, object_to_str_hash
 
 
@@ -65,40 +66,29 @@ class TaskManager:
         self.retry_exceptions = tuple()  # 需要重试的异常类型
 
         self.init_counter()
+        self.counter_lock = NoOpContext()
 
-    def init_counter(
-        self,
-        task_counter=None,
-        success_counter=None,
-        error_counter=None,
-        duplicate_counter=None,
-        counter_lock=None,
-        extra_stats=None,
-    ):
+    def init_counter(self):
         """
         初始化计数器
-
-        :param task_counter: 任务总数计数器
-        :param success_counter: 成功任务计数器
-        :param error_counter: 失败任务计数器
-        :param duplicate_counter: 重复任务计数器
-        :param counter_lock: 计数器锁
-        :param extra_stats: 额外统计信息
         """
-        self.task_counter = task_counter if task_counter is not None else ValueWrapper()
-        self.success_counter = (
-            success_counter if success_counter is not None else ValueWrapper()
-        )
-        self.error_counter = (
-            error_counter if error_counter is not None else ValueWrapper()
-        )
-        self.duplicate_counter = (
-            duplicate_counter if duplicate_counter is not None else ValueWrapper()
-        )
+        from .task_nodes import TaskSplitter
 
-        self.counter_lock = counter_lock if counter_lock is not None else NoOpContext()
+        self.task_counter = SumCounter()
+        self.success_counter = MPValue("i", 0)
+        self.error_counter = MPValue("i", 0)
+        self.duplicate_counter = MPValue("i", 0)
 
-        self.extra_stats = extra_stats if extra_stats is not None else {}
+        if isinstance(self, TaskSplitter):
+            self.split_output_counter = MPValue("i", 0)
+
+    def set_counter_lock(self, counter_lock):
+        """
+        设置计数器锁
+
+        :param counter_lock: 计数器锁
+        """
+        self.counter_lock = counter_lock
 
     def init_env(
         self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None
@@ -264,9 +254,18 @@ class TaskManager:
 
         :param prev_stage: 前置节点
         """
+        from .task_nodes import TaskSplitter
         if prev_stage in self.prev_stages:
             return
         self.prev_stages.append(prev_stage)
+
+        if prev_stage is None:
+            return
+        
+        if isinstance(prev_stage, TaskSplitter):
+            self.task_counter.add_counter(prev_stage.split_output_counter)
+        else:
+            self.task_counter.add_counter(prev_stage.success_counter)
 
     def get_stage_tag(self) -> str:
         """
@@ -502,7 +501,7 @@ class TaskManager:
     def update_task_counter(self):
         # 加锁方式（保证正确）
         with self.counter_lock:
-            self.task_counter.value += 1
+            self.task_counter.add_init_value(1)
 
     def update_success_counter(self):
         # 加锁方式（保证正确）
