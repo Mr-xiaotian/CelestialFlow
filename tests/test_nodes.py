@@ -56,8 +56,8 @@ def download(url):
 def parse(url):
     num_list = re.findall(r"\d+", url)
     parse_num = int("".join(num_list))
-    if parse_num > 100:
-        raise ValueError("Test error for greater than 100")
+    if parse_num%2 == 0:
+        raise ValueError("Test error for even number")
     elif parse_num == 0:
         raise ValueError("Test error for 0")
     return parse_num

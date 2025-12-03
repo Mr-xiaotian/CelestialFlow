@@ -32,7 +32,7 @@ class TaskSplitter(TaskManager):
     def put_split_result(self, result: tuple):
         split_count = 0
         for item in result:
-            self.put_result_queues(item)
+            self.result_queues.put(item)
             split_count += 1
 
         self.split_output_counter.value += split_count

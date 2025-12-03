@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Tuple
 from .task_manage import TaskManager
 from .task_report import TaskReporter
 from .task_logging import LogListener, TaskLogger
+from .task_queue import TaskQueue
 from .task_types import (
     StageStatus, 
     TerminationSignal, 
@@ -307,17 +308,17 @@ class TaskGraph:
         """
         stage_tag = stage.get_stage_tag()
 
+        logger_queue = self.log_listener.get_queue()
+
         # 输入输出队列
-        input_queues = [
+        input_queues = TaskQueue([
             self.edge_queue_map[(prev.get_stage_tag() if prev else None, stage_tag)]
             for prev in stage.prev_stages
-        ]
-        output_queues = [
+        ], logger_queue, stage_tag)
+        output_queues = TaskQueue([
             self.edge_queue_map[(stage_tag, next_stage.get_stage_tag())]
             for next_stage in stage.next_stages
-        ]
-
-        logger_queue = self.log_listener.get_queue()
+        ], logger_queue, stage_tag)
 
         self.stages_status_dict[stage_tag]["status"] = StageStatus.RUNNING
         self.stages_status_dict[stage_tag]["start_time"] = time.time()
