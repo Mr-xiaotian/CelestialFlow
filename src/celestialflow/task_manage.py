@@ -58,9 +58,6 @@ class TaskManager:
         self.thread_pool = None
         self.process_pool = None
 
-        self.current_index = 0  # 记录起始队列索引
-        self.terminated_queue_set = set()
-
         self.next_stages: List[TaskManager] = []
         self.prev_stages: List[TaskManager] = []
         self.set_stage_name(None)
@@ -559,7 +556,7 @@ class TaskManager:
             and retry_time < self.max_retries
         ):
             self.processed_set.remove(task_id)
-            self.task_queues.queue_list[0].put(task)  # 只在第一个队列存放retry task
+            self.task_queues.put_first(task)  # 只在第一个队列存放retry task
 
             self.progress_manager.add_total(1)
             self.retry_time_dict[task_id] += 1
@@ -600,7 +597,7 @@ class TaskManager:
             and retry_time < self.max_retries
         ):
             self.processed_set.remove(task_id)
-            await self.task_queues.queue_list[0].put(task)  # 只在第一个队列存放retry task
+            await self.task_queues.put_first_async(task)  # 只在第一个队列存放retry task
 
             self.progress_manager.add_total(1)
             self.retry_time_dict[task_id] += 1
@@ -774,7 +771,7 @@ class TaskManager:
                 self.handle_task_error(task, error)
             self.progress_manager.update(1)
 
-        self.terminated_queue_set = set()
+        self.task_queues.reset()
 
         if not self.is_tasks_finished():
             self.task_logger._log("DEBUG", f"Retrying tasks for '{self.func.__name__}'")
@@ -843,7 +840,7 @@ class TaskManager:
         all_done_event.wait()
 
         # 所有任务和回调都完成了，现在可以安全关闭进度条
-        self.terminated_queue_set = set()
+        self.task_queues.reset()
 
         if not self.is_tasks_finished():
             self.task_logger._log("DEBUG", f"Retrying tasks for '{self.func.__name__}'")
@@ -890,7 +887,7 @@ class TaskManager:
                 await self.handle_task_error_async(task, result)
             self.progress_manager.update(1)
 
-        self.terminated_queue_set = set()
+        self.task_queues.reset()
 
         if not self.is_tasks_finished():
             self.task_logger._log("DEBUG", f"Retrying tasks for '{self.func.__name__}'")

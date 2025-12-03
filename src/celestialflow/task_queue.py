@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import asyncio, time
 from typing import List
-from asyncio import Queue as AsyncQueue, QueueEmpty
+from asyncio import Queue as AsyncQueue, QueueEmpty as AsyncEmpty
 from multiprocessing import Queue as MPQueue
-from queue import Queue as ThreadQueue, Empty
+from queue import Queue as ThreadQueue, Empty as SyncEmpty
 
 from .task_types import TerminationSignal, TERMINATION_SIGNAL
 from .task_logging import TaskLogger
@@ -15,8 +15,46 @@ class TaskQueue:
         self.task_logger = TaskLogger(logger_queue)
         self.stage_tag = stage_tag
 
-        self.current_index = 0
+        self.current_index = 0 # 记录起始队列索引，用于轮询
         self.terminated_queue_set = set()
+
+    def reset(self):
+        self.current_index = 0
+        self.terminated_queue_set.clear()
+
+    def put(self, source):
+        """
+        将结果放入所有结果队列
+
+        :param source: 任务结果
+        """
+        for queue in self.queue_list:
+            queue.put(source)
+
+    async def put_async(self, source):
+        """
+        将结果放入所有结果队列(async模式)
+
+        :param source: 任务结果
+        """
+        for queue in self.queue_list:
+            await queue.put(source)
+
+    def put_first(self, source):
+        """
+        将结果放入第一个结果队列
+
+        :param source: 任务结果
+        """
+        self.queue_list[0].put(source)
+
+    async def put_first_async(self, source):
+        """
+        将结果放入第一个结果队列(async模式)
+
+        :param source: 任务结果
+        """
+        await self.queue_list[0].put(source)
 
     def get(self, poll_interval: float = 0.01) -> object:
         """
@@ -55,7 +93,7 @@ class TaskQueue:
                         idx + 1
                     ) % total_queues  # 下一轮从下一个队列开始
                     return item
-                except Empty:
+                except SyncEmpty:
                     continue
                 except Exception as e:
                     self.task_logger._log(
@@ -108,7 +146,7 @@ class TaskQueue:
                         continue
                     self.current_index = (idx + 1) % total_queues
                     return task
-                except QueueEmpty:
+                except AsyncEmpty:
                     continue
                 except Exception as e:
                     self.task_logger._log(
@@ -122,23 +160,4 @@ class TaskQueue:
 
             await asyncio.sleep(poll_interval)
 
-    def put(self, result):
-        """
-        将结果放入所有结果队列
 
-        :param result: 任务结果
-        """
-        for result_queue in self.queue_list:
-            result_queue.put(result)
-
-    async def put_async(self, result):
-        """
-        将结果放入所有结果队列(async模式)
-
-        :param result: 任务结果
-        """
-        for queue in self.queue_list:
-            await queue.put(result)
-
-
-    
