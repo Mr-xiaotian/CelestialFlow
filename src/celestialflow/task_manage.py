@@ -60,6 +60,7 @@ class TaskManager:
         self.current_index = 0  # 记录起始队列索引
         self.terminated_queue_set = set()
 
+        self.next_stages: List[TaskManager] = []
         self.prev_stages: List[TaskManager] = []
         self.set_stage_name(None)
 
@@ -222,7 +223,7 @@ class TaskManager:
 
         :param next_stages: 后续节点列表
         """
-        self.next_stages = next_stages or []  # 默认为空列表
+        self.next_stages = next_stages
         for next_stage in self.next_stages:
             next_stage.add_prev_stages(self)
 

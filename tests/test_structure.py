@@ -192,7 +192,7 @@ def test_network():
         A2.get_stage_tag(): range(11, 21),
     }
 
-    cross.start_cross(init_tasks, False)
+    cross.start_cross(init_tasks, True)
 
 
 def test_star():
@@ -274,7 +274,7 @@ def test_wheel():
     wheel = TaskWheel(core, [side1, side2, side3, side4])
     wheel.set_reporter(True, host="127.0.0.1", port=5005)
 
-    wheel.start_wheel({core.get_stage_tag(): range(1, 11)})
+    wheel.start_wheel({core.get_stage_tag(): range(1, 11)}, True)
 
 
 def test_complete():

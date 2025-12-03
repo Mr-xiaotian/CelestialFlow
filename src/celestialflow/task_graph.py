@@ -109,7 +109,7 @@ class TaskGraph:
                 continue
             
             # 刷新所有 counter
-            stage.reset_counter()
+            # stage.reset_counter()
 
             # 记录节点
             self.stages_status_dict[stage_tag]["stage"] = stage
@@ -312,14 +312,10 @@ class TaskGraph:
             self.edge_queue_map[(prev.get_stage_tag() if prev else None, stage_tag)]
             for prev in stage.prev_stages
         ]
-        output_queues = (
-            [
-                self.edge_queue_map[(stage_tag, next_stage.get_stage_tag())]
-                for next_stage in stage.next_stages
-            ]
-            if stage.next_stages
-            else []
-        )
+        output_queues = [
+            self.edge_queue_map[(stage_tag, next_stage.get_stage_tag())]
+            for next_stage in stage.next_stages
+        ]
 
         logger_queue = self.log_listener.get_queue()
 
