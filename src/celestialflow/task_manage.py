@@ -83,6 +83,19 @@ class TaskManager:
         if isinstance(self, TaskSplitter):
             self.split_output_counter = MPValue("i", 0)
 
+    def reset_counter(self):
+        """
+        重置计数器
+        """
+        from .task_nodes import TaskSplitter
+        
+        self.success_counter.value = 0
+        self.error_counter.value = 0
+        self.duplicate_counter.value = 0
+
+        if isinstance(self, TaskSplitter):
+            self.split_output_counter.value = 0
+
     def init_env(
         self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None
     ):
@@ -119,10 +132,10 @@ class TaskManager:
 
         # task_queues, result_queues与fail_queue只会在节点进程内运行, 因此如果不涉及多个进程的节点间通信, 可以全部使用ThreadQueue
         self.task_queues: TaskQueue = (
-            task_queues or TaskQueue([queue_map[self.execution_mode]()], self.logger_queue, self.get_stage_tag())
+            task_queues or TaskQueue([queue_map[self.execution_mode]()], [None], self.logger_queue, self.get_stage_tag(), "in")
         )
         self.result_queues: TaskQueue = (
-            result_queues or TaskQueue([queue_map[self.execution_mode]()], self.logger_queue, self.get_stage_tag())
+            result_queues or TaskQueue([queue_map[self.execution_mode]()], [None], self.logger_queue, self.get_stage_tag(), "out")
         )
         self.fail_queue: ThreadQueue | MPQueue | AsyncQueue = (
             fail_queue or queue_map[self.execution_mode]()

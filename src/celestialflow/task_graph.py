@@ -70,8 +70,8 @@ class TaskGraph:
         self.processes: List[multiprocessing.Process] = []
 
         self.init_dict()
-        self.init_resources()
         self.init_log()
+        self.init_resources()
 
     def init_dict(self):
         """
@@ -80,12 +80,7 @@ class TaskGraph:
         self.stages_status_dict: Dict[str, dict] = defaultdict(
             dict
         )  # 用于保存每个节点的状态信息
-        self.stage_extra_stats = defaultdict(dict)  # 用于保存每个阶段的额外统计信息
         self.last_status_dict = {}  # 用于保存每个节点的最后状态信息
-
-        self.edge_queue_map: Dict[Tuple[str, str], MPQueue] = (
-            {}
-        )  # 用于保存每个节点到下一个节点的队列
 
         self.error_timeline_dict: Dict[str, list] = defaultdict(
             list
@@ -101,8 +96,9 @@ class TaskGraph:
         self.fail_queue = MPQueue()
 
         visited_stages = set()
-        queue = deque(self.root_stages)  # BFS 用队列代替递归
+        queue = deque(self.root_stages) 
 
+        # BFS 连接
         while queue:
             stage = queue.popleft()
             stage_tag = stage.get_stage_tag()
@@ -114,20 +110,41 @@ class TaskGraph:
 
             # 记录节点
             self.stages_status_dict[stage_tag]["stage"] = stage
+            self.stages_status_dict[stage_tag]["in_queue"] = TaskQueue(
+                queue_list=[],
+                queue_tag=[],
+                logger_queue=self.log_listener.get_queue(),
+                stage_tag=stage_tag,
+                direction = "in"
+            )
 
-            # 为每个边 (prev -> stage) 创建队列
-            for prev_stage in stage.prev_stages:
-                prev_tag = prev_stage.get_stage_tag() if prev_stage else None
-                self.edge_queue_map[(prev_tag, stage_tag)] = MPQueue()
-
-            if not stage.prev_stages:
-                # 起点节点
-                self.edge_queue_map[(None, stage_tag)] = MPQueue()
-
+            self.stages_status_dict[stage_tag]["out_queue"] = TaskQueue(
+                queue_list=[],
+                queue_tag=[],
+                logger_queue=self.log_listener.get_queue(),
+                stage_tag=stage_tag,
+                direction = "out"
+            )
             visited_stages.add(stage_tag)
 
-            for next_stage in stage.next_stages:
-                queue.append(next_stage)
+            queue.extend(stage.next_stages)
+
+        for stage_tag in self.stages_status_dict:
+            stage: TaskManager = self.stages_status_dict[stage_tag]["stage"]
+            in_queue: TaskQueue = self.stages_status_dict[stage_tag]["in_queue"]
+
+            # 遍历每个前驱，创建边队列
+            for prev_stage in stage.prev_stages:
+                prev_stage_tag = prev_stage.get_stage_tag() if prev_stage else None
+                q = MPQueue()
+
+                # sink side
+                in_queue.add_queue(q, prev_stage_tag)
+
+                # source side
+                if prev_stage is not None:
+                    self.stages_status_dict[prev_stage_tag]["out_queue"].add_queue(q, stage_tag)
+
 
     def init_log(self, level="INFO"):
         """
@@ -200,19 +217,6 @@ class TaskGraph:
             set_subsequent_stage_mode(root_stage)
         self.init_structure_graph()
 
-    def put_termination(self, tag):
-        """
-        放入终止信号
-
-        :param tag: 阶段标签
-        """
-        preg_stages: List[TaskManager] = self.stages_status_dict[tag]["stage"].prev_stages
-        
-        for prev_stage in preg_stages:
-            prev_tag = prev_stage.get_stage_tag() if prev_stage else None
-            self.edge_queue_map[(prev_tag, tag)].put(TERMINATION_SIGNAL)
-            self.task_logger._log("TRACE", f"TERMINATION_SIGNAL put into {(prev_tag, tag)}")
-
     def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
         """
         将任务放入队列
@@ -221,24 +225,22 @@ class TaskGraph:
         :param put_termination_signal: 是否放入终止信号
         """
         for tag, tasks in tasks_dict.items():
-            cur_stage: TaskManager = self.stages_status_dict[tag]["stage"]
-            prev_stage: TaskManager = cur_stage.prev_stages[0]
+            stage: TaskManager = self.stages_status_dict[tag]["stage"]
+            in_queue: TaskQueue = self.stages_status_dict[tag]["in_queue"]
 
-            prev_tag = prev_stage.get_stage_tag() if prev_stage else None
             for task in tasks:
                 if isinstance(task, TerminationSignal):
-                    self.put_termination(tag)
+                    in_queue.put(TERMINATION_SIGNAL)
                     continue
 
-                self.edge_queue_map[(prev_tag, tag)].put(make_hashable(task))
-                self.task_logger._log("TRACE", f"{task} put into {(prev_tag, tag)}")
-
-                cur_stage.task_counter.add_init_value(1)
+                in_queue.put_first(make_hashable(task))
+                stage.task_counter.add_init_value(1)
 
         if put_termination_signal:
             for root_stage in self.root_stages:
                 root_stage_tag = root_stage.get_stage_tag()
-                self.put_termination(root_stage_tag)
+                root_in_queue: TaskQueue = self.stages_status_dict[root_stage_tag]["in_queue"]
+                root_in_queue.put(TERMINATION_SIGNAL)
 
     def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
@@ -311,14 +313,8 @@ class TaskGraph:
         logger_queue = self.log_listener.get_queue()
 
         # 输入输出队列
-        input_queues = TaskQueue([
-            self.edge_queue_map[(prev.get_stage_tag() if prev else None, stage_tag)]
-            for prev in stage.prev_stages
-        ], logger_queue, stage_tag)
-        output_queues = TaskQueue([
-            self.edge_queue_map[(stage_tag, next_stage.get_stage_tag())]
-            for next_stage in stage.next_stages
-        ], logger_queue, stage_tag)
+        input_queues = self.stages_status_dict[stage_tag]["in_queue"]
+        output_queues = self.stages_status_dict[stage_tag]["out_queue"]
 
         self.stages_status_dict[stage_tag]["status"] = StageStatus.RUNNING
         self.stages_status_dict[stage_tag]["start_time"] = time.time()

@@ -9,14 +9,30 @@ from queue import Queue as ThreadQueue, Empty as SyncEmpty
 from .task_types import TerminationSignal, TERMINATION_SIGNAL
 from .task_logging import TaskLogger
 
+
 class TaskQueue:
-    def __init__(self, queue_list: List[ThreadQueue | MPQueue | AsyncQueue], logger_queue: ThreadQueue | MPQueue, stage_tag: str):
+    def __init__(self, 
+                 queue_list: List[ThreadQueue | MPQueue | AsyncQueue], 
+                 queue_tag: List[str], 
+                 logger_queue: ThreadQueue | MPQueue, 
+                 stage_tag: str, 
+                 direction: str
+        ):
+        if len(queue_list) != len(queue_tag):
+            raise ValueError("queue_list and queue_tag must have the same length")
+        
         self.queue_list = queue_list
+        self.queue_tag = queue_tag
         self.task_logger = TaskLogger(logger_queue)
         self.stage_tag = stage_tag
+        self.direction = direction
 
         self.current_index = 0 # 记录起始队列索引，用于轮询
         self.terminated_queue_set = set()
+
+    def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
+        self.queue_list.append(queue)
+        self.queue_tag.append(tag)
 
     def reset(self):
         self.current_index = 0
@@ -28,8 +44,9 @@ class TaskQueue:
 
         :param source: 任务结果
         """
-        for queue in self.queue_list:
+        for queue, queue_tag in zip(self.queue_list, self.queue_tag):
             queue.put(source)
+            self.task_logger._log("TRACE", f"{source} put into {(queue_tag, self.stage_tag)}")
 
     async def put_async(self, source):
         """
@@ -37,8 +54,9 @@ class TaskQueue:
 
         :param source: 任务结果
         """
-        for queue in self.queue_list:
+        for queue, queue_tag in zip(self.queue_list, self.queue_tag):
             await queue.put(source)
+            self.task_logger._log("TRACE", f"{source} put into {(queue_tag, self.stage_tag)}")
 
     def put_first(self, source):
         """
@@ -47,6 +65,7 @@ class TaskQueue:
         :param source: 任务结果
         """
         self.queue_list[0].put(source)
+        self.task_logger._log("TRACE", f"{source} put into {(self.queue_tag[0], self.stage_tag)}")
 
     async def put_first_async(self, source):
         """
@@ -55,6 +74,7 @@ class TaskQueue:
         :param source: 任务结果
         """
         await self.queue_list[0].put(source)
+        self.task_logger._log("TRACE", f"{source} put into {(self.queue_tag[0], self.stage_tag)}")
 
     def get(self, poll_interval: float = 0.01) -> object:
         """
