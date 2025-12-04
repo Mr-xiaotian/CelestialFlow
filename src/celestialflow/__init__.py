@@ -10,7 +10,12 @@ from .task_structure import (
     TaskGrid,
 )
 from .task_types import TerminationSignal
-from .task_tools import load_task_by_stage, load_task_by_error, make_hashable, format_table
+from .task_tools import (
+    load_task_by_stage,
+    load_task_by_error,
+    make_hashable,
+    format_table,
+)
 from .task_web import TaskWebServer
 
 __all__ = [

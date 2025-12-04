@@ -111,6 +111,7 @@ class TaskLoop(TaskGraph):
 
 class TaskWheel(TaskGraph):
     """wheel是特殊的有环图, 他有结构意义上的起点, 中心节点连向环, 环相连成闭环"""
+
     def __init__(self, center: TaskManager, ring: List[TaskManager]):
         # 中心连向环
         center.set_graph_context(ring, "process", "Center")

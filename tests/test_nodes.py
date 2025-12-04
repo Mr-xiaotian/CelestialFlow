@@ -2,7 +2,14 @@ import pytest, logging, re, random, pprint
 import requests
 from time import sleep
 
-from celestialflow import TaskManager, TaskGraph, TaskChain, TaskSplitter, TaskRedisTransfer, format_table
+from celestialflow import (
+    TaskManager,
+    TaskGraph,
+    TaskChain,
+    TaskSplitter,
+    TaskRedisTransfer,
+    format_table,
+)
 
 
 class DownloadRedisTransfer(TaskRedisTransfer):
@@ -56,7 +63,7 @@ def download(url):
 def parse(url):
     num_list = re.findall(r"\d+", url)
     parse_num = int("".join(num_list))
-    if parse_num%2 == 0:
+    if parse_num % 2 == 0:
         raise ValueError("Test error for even number")
     elif parse_num == 0:
         raise ValueError("Test error for 0")
@@ -151,9 +158,11 @@ def test_splitter_1():
     chain = TaskChain([task_splitter, process_stage], "process")
     chain.set_reporter(True, host="127.0.0.1", port=5005)
 
-    chain.start_chain({
-        task_splitter.get_stage_tag(): [range(int(1e5))],
-    })
+    chain.start_chain(
+        {
+            task_splitter.get_stage_tag(): [range(int(1e5))],
+        }
+    )
 
 
 def test_transfer_0():

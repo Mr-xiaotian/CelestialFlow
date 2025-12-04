@@ -12,6 +12,7 @@ N = 10000
 # Worker functions (must be global for Windows)
 # =======================
 
+
 def mpqueue_worker(q):
     t0 = time.time()
     for i in range(N):
@@ -47,6 +48,7 @@ def value_worker(val):
 # Redis connection helper
 # =======================
 
+
 def get_redis_connection():
     try:
         r = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
@@ -60,6 +62,7 @@ def get_redis_connection():
 # =======================
 # Tests
 # =======================
+
 
 def test_builtin_dict():
     d = {}
@@ -170,7 +173,9 @@ def test_redis_multithread_plain(r, num_threads=10):
         t.join()
     t2 = time.time()
 
-    print(f"Redis (multi-thread x{num_threads}, no pipeline): set={t1 - t0:.4f}s, get={t2 - t1:.4f}s")
+    print(
+        f"Redis (multi-thread x{num_threads}, no pipeline): set={t1 - t0:.4f}s, get={t2 - t1:.4f}s"
+    )
 
 
 def test_redis_hash(r):

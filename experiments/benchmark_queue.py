@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
     # Manager queue benchmark
     test_manager_queue_perf(COUNT)
-    
+
     # Redis benchmarks (if redis server exists)
     try:
         redis_client = redis.Redis(decode_responses=True)

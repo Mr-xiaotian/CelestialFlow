@@ -15,6 +15,7 @@ class TaskReporter:
     - 以后台线程方式运行，可随时 start()/stop()
     - 主要用于可视化监控、任务远程控制与 Web UI 同步
     """
+
     def __init__(self, task_graph, logger_queue, host="127.0.0.1", port=5000):
         from .task_graph import TaskGraph
 
@@ -159,4 +160,3 @@ class TaskReporter:
             self.logger._log(
                 "WARNING", f"[Reporter] Topology push failed: {type(e).__name__}({e})."
             )
-

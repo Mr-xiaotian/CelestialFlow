@@ -9,11 +9,7 @@ from .task_manage import TaskManager
 from .task_report import TaskReporter
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
-from .task_types import (
-    StageStatus, 
-    TerminationSignal, 
-    TERMINATION_SIGNAL
-)
+from .task_types import StageStatus, TerminationSignal, TERMINATION_SIGNAL
 from .task_tools import (
     format_duration,
     format_timestamp,
@@ -96,7 +92,7 @@ class TaskGraph:
         self.fail_queue = MPQueue()
 
         visited_stages = set()
-        queue = deque(self.root_stages) 
+        queue = deque(self.root_stages)
 
         # BFS 连接
         while queue:
@@ -104,7 +100,7 @@ class TaskGraph:
             stage_tag = stage.get_stage_tag()
             if stage_tag in visited_stages:
                 continue
-            
+
             # 刷新所有 counter
             stage.reset_counter()
 
@@ -115,7 +111,7 @@ class TaskGraph:
                 queue_tag=[],
                 logger_queue=self.log_listener.get_queue(),
                 stage_tag=stage_tag,
-                direction = "in"
+                direction="in",
             )
 
             self.stages_status_dict[stage_tag]["out_queue"] = TaskQueue(
@@ -123,7 +119,7 @@ class TaskGraph:
                 queue_tag=[],
                 logger_queue=self.log_listener.get_queue(),
                 stage_tag=stage_tag,
-                direction = "out"
+                direction="out",
             )
             visited_stages.add(stage_tag)
 
@@ -143,8 +139,9 @@ class TaskGraph:
 
                 # source side
                 if prev_stage is not None:
-                    self.stages_status_dict[prev_stage_tag]["out_queue"].add_queue(q, stage_tag)
-
+                    self.stages_status_dict[prev_stage_tag]["out_queue"].add_queue(
+                        q, stage_tag
+                    )
 
     def init_log(self, level="INFO"):
         """
@@ -239,7 +236,9 @@ class TaskGraph:
         if put_termination_signal:
             for root_stage in self.root_stages:
                 root_stage_tag = root_stage.get_stage_tag()
-                root_in_queue: TaskQueue = self.stages_status_dict[root_stage_tag]["in_queue"]
+                root_in_queue: TaskQueue = self.stages_status_dict[root_stage_tag][
+                    "in_queue"
+                ]
                 root_in_queue.put(TERMINATION_SIGNAL)
 
     def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True):
@@ -305,7 +304,7 @@ class TaskGraph:
     def _execute_stage(self, stage: TaskManager):
         """
         执行单个节点
-        
+
         :param stage: 节点
         """
         stage_tag = stage.get_stage_tag()

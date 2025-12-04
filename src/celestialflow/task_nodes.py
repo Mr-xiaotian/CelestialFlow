@@ -90,7 +90,7 @@ class TaskRedisTransfer(TaskManager):
     ):
         """
         初始化 TaskRedisTransfer
-        
+
         :param worker_limit: 并行工作线程数
         :param unpack_task_args: 是否将任务参数解包
         :param host: Redis 主机地址

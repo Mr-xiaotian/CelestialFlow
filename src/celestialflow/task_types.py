@@ -21,6 +21,7 @@ class TaskError(Exception):
 
 class NoOpContext:
     """空上下文管理器，可用于禁用 with 逻辑"""
+
     def __enter__(self):
         return self
 
@@ -30,12 +31,14 @@ class NoOpContext:
 
 class ValueWrapper:
     """简单包装一个数值，用于进程间共享"""
+
     def __init__(self, value=0):
         self.value = value
 
 
 class SumCounter:
     """累加多个 ValueWrapper / MPValue"""
+
     def __init__(self):
         self.init_value = MPValue("i", 0)
         self.counters: List[ValueWrapper] = []

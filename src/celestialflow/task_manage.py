@@ -88,7 +88,7 @@ class TaskManager:
         重置计数器
         """
         from .task_nodes import TaskSplitter
-        
+
         self.task_counter.reset()
         self.success_counter.value = 0
         self.error_counter.value = 0
@@ -113,9 +113,7 @@ class TaskManager:
         self.init_logger(logger_queue)
         self.init_queue(task_queues, result_queues, fail_queue)
 
-    def init_queue(
-        self, task_queues=None, result_queues=None, fail_queue=None
-    ):
+    def init_queue(self, task_queues=None, result_queues=None, fail_queue=None):
         """
         初始化队列
 
@@ -132,11 +130,19 @@ class TaskManager:
         }
 
         # task_queues, result_queues与fail_queue只会在节点进程内运行, 因此如果不涉及多个进程的节点间通信, 可以全部使用ThreadQueue
-        self.task_queues: TaskQueue = (
-            task_queues or TaskQueue([queue_map[self.execution_mode]()], [None], self.logger_queue, self.get_stage_tag(), "in")
+        self.task_queues: TaskQueue = task_queues or TaskQueue(
+            [queue_map[self.execution_mode]()],
+            [None],
+            self.logger_queue,
+            self.get_stage_tag(),
+            "in",
         )
-        self.result_queues: TaskQueue = (
-            result_queues or TaskQueue([queue_map[self.execution_mode]()], [None], self.logger_queue, self.get_stage_tag(), "out")
+        self.result_queues: TaskQueue = result_queues or TaskQueue(
+            [queue_map[self.execution_mode]()],
+            [None],
+            self.logger_queue,
+            self.get_stage_tag(),
+            "out",
         )
         self.fail_queue: ThreadQueue | MPQueue | AsyncQueue = (
             fail_queue or queue_map[self.execution_mode]()
@@ -262,13 +268,14 @@ class TaskManager:
         :param prev_stage: 前置节点
         """
         from .task_nodes import TaskSplitter
+
         if prev_stage in self.prev_stages:
             return
         self.prev_stages.append(prev_stage)
 
         if prev_stage is None:
             return
-        
+
         if isinstance(prev_stage, TaskSplitter):
             self.task_counter.add_counter(prev_stage.split_output_counter)
         else:
@@ -705,7 +712,7 @@ class TaskManager:
 
         self.release_pool()
         self.progress_manager.close()
-        
+
         self.task_logger.end_manager(
             self.func.__name__,
             self.execution_mode,

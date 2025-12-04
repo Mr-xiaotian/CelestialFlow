@@ -13,6 +13,7 @@ class LogListener:
     """
     日志监听进程，用于将日志写入文件
     """
+
     def __init__(self, level="INFO"):
         now = strftime("%Y-%m-%d", localtime())
         self.log_path = f"logs/task_logger({now}).log"
