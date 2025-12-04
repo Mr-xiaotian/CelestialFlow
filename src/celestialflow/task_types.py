@@ -46,6 +46,11 @@ class SumCounter:
     def add_counter(self, counter):
         self.counters.append(counter)
 
+    def reset(self):
+        self.init_value.value = 0
+        for c in self.counters:
+            c.value = 0
+
     @property
     def value(self):
         return (

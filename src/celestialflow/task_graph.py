@@ -106,7 +106,7 @@ class TaskGraph:
                 continue
             
             # 刷新所有 counter
-            # stage.reset_counter()
+            stage.reset_counter()
 
             # 记录节点
             self.stages_status_dict[stage_tag]["stage"] = stage

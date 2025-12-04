@@ -137,16 +137,16 @@ def test_graph_0():
     # test_task_2 = (item for item in test_task_1)
 
     # 开始任务链
-    graph.start_graph(
+    result = graph.test_methods(
         {
             stage1.get_stage_tag(): test_task_1,
         }
     )
-    # result["Time table"] = format_table(*result["Time table"])
-    # for key, value in result.items():
-    #     if isinstance(value, dict):
-    #         value = pprint.pformat(value)
-    #     logging.info(f"{key}: \n{value}")
+    result["Time table"] = format_table(*result["Time table"])
+    for key, value in result.items():
+        if isinstance(value, dict):
+            value = pprint.pformat(value)
+        logging.info(f"{key}: \n{value}")
 
 
 def test_graph_1():
@@ -177,12 +177,12 @@ def test_graph_1():
     execution_modes = ["serial", "thread"]
 
     # 开始任务链
-    graph.start_graph(input_tasks, stage_modes, execution_modes)
-    # result["Time table"] = format_table(*result["Time table"])
-    # for key, value in result.items():
-    #     if isinstance(value, dict):
-    #         value = pprint.pformat(value)
-    #     logging.info(f"{key}: \n{value}")
+    result = graph.test_methods(input_tasks, stage_modes, execution_modes)
+    result["Time table"] = format_table(*result["Time table"])
+    for key, value in result.items():
+        if isinstance(value, dict):
+            value = pprint.pformat(value)
+        logging.info(f"{key}: \n{value}")
 
 
 # 在主函数或脚本中调用此函数，而不是在测试中

@@ -89,6 +89,7 @@ class TaskManager:
         """
         from .task_nodes import TaskSplitter
         
+        self.task_counter.reset()
         self.success_counter.value = 0
         self.error_counter.value = 0
         self.duplicate_counter.value = 0
