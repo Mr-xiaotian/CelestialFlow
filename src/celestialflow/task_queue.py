@@ -47,8 +47,12 @@ class TaskQueue:
         """
         for queue, queue_tag in zip(self.queue_list, self.queue_tag):
             queue.put(source)
+            
+            edge = f"{queue_tag} -> {self.stage_tag}" if self.direction == "in" else f"{self.stage_tag} -> {queue_tag}"
+            if isinstance(source, TerminationSignal):
+                source = "TerminationSignal"
             self.task_logger._log(
-                "TRACE", f"{source} put into {(queue_tag, self.stage_tag)}"
+                "TRACE", f"Put {source} into Edge({edge})."
             )
 
     async def put_async(self, source):
@@ -59,8 +63,12 @@ class TaskQueue:
         """
         for queue, queue_tag in zip(self.queue_list, self.queue_tag):
             await queue.put(source)
+
+            edge = f"{queue_tag} -> {self.stage_tag}" if self.direction == "in" else f"{self.stage_tag} -> {queue_tag}"
+            if isinstance(source, TerminationSignal):
+                source = "TerminationSignal"
             self.task_logger._log(
-                "TRACE", f"{source} put into {(queue_tag, self.stage_tag)}"
+                "TRACE", f"Put {source} into Edge({edge})."
             )
 
     def put_first(self, source):
@@ -70,8 +78,12 @@ class TaskQueue:
         :param source: 任务结果
         """
         self.queue_list[0].put(source)
+
+        edge = f"{self.queue_tag[0]} -> {self.stage_tag}" if self.direction == "in" else f"{self.stage_tag} -> {self.queue_tag[0]}"
+        if isinstance(source, TerminationSignal):
+            source = "TerminationSignal"
         self.task_logger._log(
-            "TRACE", f"{source} put into {(self.queue_tag[0], self.stage_tag)}"
+            "TRACE", f"Put {source} into Edge({edge})."
         )
 
     async def put_first_async(self, source):
@@ -81,8 +93,12 @@ class TaskQueue:
         :param source: 任务结果
         """
         await self.queue_list[0].put(source)
+
+        edge = f"{self.queue_tag[0]} -> {self.stage_tag}" if self.direction == "in" else f"{self.stage_tag} -> {self.queue_tag[0]}"
+        if isinstance(source, TerminationSignal):
+            source = "TerminationSignal"
         self.task_logger._log(
-            "TRACE", f"{source} put into {(self.queue_tag[0], self.stage_tag)}"
+            "TRACE", f"Put {source} into Edge({edge})."
         )
 
     def get(self, poll_interval: float = 0.01) -> object:
@@ -97,13 +113,18 @@ class TaskQueue:
         if total_queues == 1:
             # ✅ 只有一个队列时，使用阻塞式 get，提高效率
             queue = self.queue_list[0]
-            item = queue.get()  # 阻塞等待，无需 sleep
+            item = queue.get()  # 阻塞等待，无需 sleep   
+
             if isinstance(item, TerminationSignal):
-                self.terminated_queue_set.add(0)
+                self.terminated_queue_set.add(0)  
                 self.task_logger._log(
-                    "TRACE", f"queue[0](only) terminated in {self.stage_tag}"
+                    "TRACE", f"Get TerminationSignal from Edge({self.queue_tag[0]} -> {self.stage_tag})"
                 )
                 return TERMINATION_SIGNAL
+            
+            self.task_logger._log(
+                "TRACE", f"Get {item} from Edge({self.queue_tag[0]} -> {self.stage_tag})"
+            )
             return item
 
         while True:
@@ -111,15 +132,16 @@ class TaskQueue:
                 idx = (self.current_index + i) % total_queues  # 轮转访问
                 if idx in self.terminated_queue_set:
                     continue
+
                 queue = self.queue_list[idx]
                 try:
                     item = queue.get_nowait()
                     if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
-                        self.task_logger._log(
-                            "TRACE", f"queue[{idx}] terminated in {self.stage_tag}"
-                        )
                         continue
+                    self.task_logger._log(
+                        "TRACE", f"Get {item} from Edge({self.queue_tag[idx]} -> {self.stage_tag})"
+                    )
                     self.current_index = (
                         idx + 1
                     ) % total_queues  # 下一轮从下一个队列开始
@@ -129,12 +151,15 @@ class TaskQueue:
                 except Exception as e:
                     self.task_logger._log(
                         "WARNING",
-                        f"Error from queue[{idx}]: {type(e).__name__}({e}) in {self.stage_tag}",
+                        f"Error get from Edge({self.queue_tag[idx]} -> {self.stage_tag}): {type(e).__name__}({e})",
                     )
                     continue
 
             # 所有队列都终止了
             if len(self.terminated_queue_set) == total_queues:
+                self.task_logger._log(
+                    "TRACE", f"Get TerminationSignal from Edge({self.queue_tag[0]} -> {self.stage_tag})"
+                )
                 return TERMINATION_SIGNAL
 
             # 所有队列都暂时无数据，避免 busy-wait
@@ -152,41 +177,50 @@ class TaskQueue:
         if total_queues == 1:
             # ✅ 单队列直接 await 阻塞等待
             queue = self.queue_list[0]
-            task = await queue.get()
-            if isinstance(task, TerminationSignal):
+            item = await queue.get()
+
+            if isinstance(item, TerminationSignal):
                 self.terminated_queue_set.add(0)
                 self.task_logger._log(
-                    "TRACE", "get_queue_list_async: queue[0] terminated"
+                    "TRACE", f"Get TerminationSignal from Edge({self.queue_tag[0]} -> {self.stage_tag})"
                 )
                 return TERMINATION_SIGNAL
-            return task
+            
+            self.task_logger._log(
+                "TRACE", f"Get {item} from Edge({self.queue_tag[0]} -> {self.stage_tag})"
+            )
+            return item
 
         while True:
             for i in range(total_queues):
                 idx = (self.current_index + i) % total_queues
                 if idx in self.terminated_queue_set:
                     continue
+
                 queue = self.queue_list[idx]
                 try:
-                    task = queue.get_nowait()
-                    if isinstance(task, TerminationSignal):
+                    item = queue.get_nowait()
+                    if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
-                        self.task_logger._log(
-                            "TRACE", f"get_queue_list_async: queue[{idx}] terminated"
-                        )
                         continue
+                    self.task_logger._log(
+                        "TRACE", f"Get {item} from Edge({self.queue_tag[idx]} -> {self.stage_tag})"
+                    )
                     self.current_index = (idx + 1) % total_queues
-                    return task
+                    return item
                 except AsyncEmpty:
                     continue
                 except Exception as e:
                     self.task_logger._log(
                         "WARNING",
-                        f"get_queue_list_async: queue[{idx}] error: {type(e).__name__}({e})",
+                        f"Error get from Edge({self.queue_tag[idx]} -> {self.stage_tag}): {type(e).__name__}({e})",
                     )
                     continue
 
             if len(self.terminated_queue_set) == total_queues:
+                self.task_logger._log(
+                    "TRACE", f"Get TerminationSignal from Edge({self.queue_tag[0]} -> {self.stage_tag})"
+                )
                 return TERMINATION_SIGNAL
 
             await asyncio.sleep(poll_interval)

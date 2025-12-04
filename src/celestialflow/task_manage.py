@@ -178,11 +178,11 @@ class TaskManager:
         self.logger_queue = logger_queue or ThreadQueue()
         self.task_logger = TaskLogger(self.logger_queue)
 
-    def init_listener(self):
+    def init_listener(self, log_level="INFO"):
         """
         初始化监听器
         """
-        self.log_listener = LogListener("INFO")
+        self.log_listener = LogListener(log_level)
         self.log_listener.start()
 
     def init_progress(self):
@@ -774,9 +774,6 @@ class TaskManager:
         while True:
             task = self.task_queues.get()
             task_id = self.get_task_id(task)
-            self.task_logger._log(
-                "TRACE", f"Task {task} is submitted to {self.func.__name__}"
-            )
             if isinstance(task, TerminationSignal):
                 break
             elif self.is_duplicate(task_id):
@@ -833,9 +830,6 @@ class TaskManager:
         while True:
             task = self.task_queues.get()
             task_id = self.get_task_id(task)
-            self.task_logger._log(
-                "TRACE", f"Task {task} is submitted to {self.func.__name__}"
-            )
 
             if isinstance(task, TerminationSignal):
                 # 收到终止信号后不再提交新任务
@@ -886,9 +880,6 @@ class TaskManager:
         while True:
             task = await self.task_queues.get_async()
             task_id = self.get_task_id(task)
-            self.task_logger._log(
-                "TRACE", f"Task {task} is submitted to {self.func.__name__}"
-            )
             if isinstance(task, TerminationSignal):
                 break
             elif self.is_duplicate(task_id):
