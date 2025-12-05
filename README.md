@@ -1,7 +1,7 @@
 # CelestialFlow ——一个轻量级、可并行、基于图结构的 Python 任务调度框架
 
 <p align="center">
-  <img src="img/startup.png" width="1080" alt="CelestialFlow Logo">
+  <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
 </p>
 
 <p align="center">
@@ -86,7 +86,7 @@ python src/celestialflow/task_web.py 5005
 
 可查看任务结构、执行状态、错误日志、以及实时注入任务等功能。
 
-![](img/web_display.png)
+![web_display.png](https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/web_display.png)
 
 ### 运行测试示例
 
