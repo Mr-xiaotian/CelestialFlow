@@ -67,7 +67,7 @@ class TaskLogger:
 
     # ==== manager ====
     def start_manager(self, func_name, task_num, execution_mode, worker_limit):
-        text = f"'{func_name}' start {task_num} tasks by {execution_mode}"
+        text = f"'Manager[{func_name}]' start {task_num} tasks by {execution_mode}"
         text += f"({worker_limit} workers)." if execution_mode != "serial" else "."
         self._log("INFO", text)
 
@@ -82,20 +82,19 @@ class TaskLogger:
     ):
         self._log(
             "INFO",
-            f"'{func_name}' end tasks by {execution_mode}. Use {use_time:.2f} second. "
+            f"'Manager[{func_name}]' end tasks by {execution_mode}. Use {use_time:.2f} second. "
             f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
     # ==== stage ====
-    def start_stage(self, stage_name, func_name, execution_mode, worker_limit):
-        text = f"The {stage_name} in '{func_name}' start tasks by {execution_mode}"
+    def start_stage(self, stage_tag, execution_mode, worker_limit):
+        text = f"'{stage_tag}' start tasks by {execution_mode}"
         text += f"({worker_limit} workers)." if execution_mode != "serial" else "."
         self._log("INFO", text)
 
     def end_stage(
         self,
-        stage_name,
-        func_name,
+        stage_tag,
         execution_mode,
         use_time,
         success_num,
@@ -104,7 +103,7 @@ class TaskLogger:
     ):
         self._log(
             "INFO",
-            f"The {stage_name} in '{func_name}' end tasks by {execution_mode}. Use {use_time:.2f} second. "
+            f"'{stage_tag}' end tasks by {execution_mode}. Use {use_time:.2f} second. "
             f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
@@ -152,4 +151,25 @@ class TaskLogger:
         self._log(
             "SUCCESS",
             f"In '{func_name}', Task {task_info} has split into {split_count} parts. Used {use_time:.2f} seconds.",
+        )
+
+    # ==== queue ====
+    def put_source(self, source, queue_tag, stage_tag, direction):
+        if isinstance(source, TerminationSignal):
+            source = "TerminationSignal"
+
+        edge = f"'{queue_tag}' -> '{stage_tag}'" if direction == "in" else f"'{stage_tag}' -> '{queue_tag}'"
+        self._log(
+            "TRACE", 
+            f"Put {source} into Edge({edge})."
+        )
+
+    def get_source(self, source, queue_tag, stage_tag):
+        if isinstance(source, TerminationSignal):
+            source = "TerminationSignal"
+
+        edge = f"'{queue_tag}' -> '{stage_tag}'"
+        self._log(
+            "TRACE", 
+            f"Get {source} from Edge({edge})"
         )

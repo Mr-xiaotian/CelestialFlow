@@ -47,13 +47,7 @@ class TaskQueue:
         """
         for queue, queue_tag in zip(self.queue_list, self.queue_tag):
             queue.put(source)
-            
-            edge = f"{queue_tag} -> {self.stage_tag}" if self.direction == "in" else f"{self.stage_tag} -> {queue_tag}"
-            if isinstance(source, TerminationSignal):
-                source = "TerminationSignal"
-            self.task_logger._log(
-                "TRACE", f"Put {source} into Edge({edge})."
-            )
+            self.task_logger.put_source(source, queue_tag, self.stage_tag, self.direction)
 
     async def put_async(self, source):
         """
@@ -63,13 +57,7 @@ class TaskQueue:
         """
         for queue, queue_tag in zip(self.queue_list, self.queue_tag):
             await queue.put(source)
-
-            edge = f"{queue_tag} -> {self.stage_tag}" if self.direction == "in" else f"{self.stage_tag} -> {queue_tag}"
-            if isinstance(source, TerminationSignal):
-                source = "TerminationSignal"
-            self.task_logger._log(
-                "TRACE", f"Put {source} into Edge({edge})."
-            )
+            self.task_logger.put_source(source, queue_tag, self.stage_tag, self.direction)
 
     def put_first(self, source):
         """
@@ -78,13 +66,7 @@ class TaskQueue:
         :param source: 任务结果
         """
         self.queue_list[0].put(source)
-
-        edge = f"{self.queue_tag[0]} -> {self.stage_tag}" if self.direction == "in" else f"{self.stage_tag} -> {self.queue_tag[0]}"
-        if isinstance(source, TerminationSignal):
-            source = "TerminationSignal"
-        self.task_logger._log(
-            "TRACE", f"Put {source} into Edge({edge})."
-        )
+        self.task_logger.put_source(source, self.queue_tag[0], self.stage_tag, self.direction)
 
     async def put_first_async(self, source):
         """
@@ -93,13 +75,7 @@ class TaskQueue:
         :param source: 任务结果
         """
         await self.queue_list[0].put(source)
-
-        edge = f"{self.queue_tag[0]} -> {self.stage_tag}" if self.direction == "in" else f"{self.stage_tag} -> {self.queue_tag[0]}"
-        if isinstance(source, TerminationSignal):
-            source = "TerminationSignal"
-        self.task_logger._log(
-            "TRACE", f"Put {source} into Edge({edge})."
-        )
+        self.task_logger.put_source(source, self.queue_tag[0], self.stage_tag, self.direction)
 
     def get(self, poll_interval: float = 0.01) -> object:
         """
@@ -113,19 +89,13 @@ class TaskQueue:
         if total_queues == 1:
             # ✅ 只有一个队列时，使用阻塞式 get，提高效率
             queue = self.queue_list[0]
-            item = queue.get()  # 阻塞等待，无需 sleep   
+            source = queue.get()  # 阻塞等待，无需 sleep    
+            self.task_logger.get_source(source, self.queue_tag[0], self.stage_tag)
 
-            if isinstance(item, TerminationSignal):
-                self.terminated_queue_set.add(0)  
-                self.task_logger._log(
-                    "TRACE", f"Get TerminationSignal from Edge({self.queue_tag[0]} -> {self.stage_tag})"
-                )
+            if isinstance(source, TerminationSignal):
+                self.terminated_queue_set.add(0)
                 return TERMINATION_SIGNAL
-            
-            self.task_logger._log(
-                "TRACE", f"Get {item} from Edge({self.queue_tag[0]} -> {self.stage_tag})"
-            )
-            return item
+            return source
 
         while True:
             for i in range(total_queues):
@@ -135,17 +105,17 @@ class TaskQueue:
 
                 queue = self.queue_list[idx]
                 try:
-                    item = queue.get_nowait()
-                    if isinstance(item, TerminationSignal):
+                    source = queue.get_nowait()
+                    self.task_logger.get_source(source, self.queue_tag[idx], self.stage_tag)
+
+                    if isinstance(source, TerminationSignal):
                         self.terminated_queue_set.add(idx)
                         continue
-                    self.task_logger._log(
-                        "TRACE", f"Get {item} from Edge({self.queue_tag[idx]} -> {self.stage_tag})"
-                    )
+                    
                     self.current_index = (
                         idx + 1
                     ) % total_queues  # 下一轮从下一个队列开始
-                    return item
+                    return source
                 except SyncEmpty:
                     continue
                 except Exception as e:
@@ -157,9 +127,6 @@ class TaskQueue:
 
             # 所有队列都终止了
             if len(self.terminated_queue_set) == total_queues:
-                self.task_logger._log(
-                    "TRACE", f"Get TerminationSignal from Edge({self.queue_tag[0]} -> {self.stage_tag})"
-                )
                 return TERMINATION_SIGNAL
 
             # 所有队列都暂时无数据，避免 busy-wait
@@ -177,19 +144,14 @@ class TaskQueue:
         if total_queues == 1:
             # ✅ 单队列直接 await 阻塞等待
             queue = self.queue_list[0]
-            item = await queue.get()
+            source = await queue.get()
+            self.task_logger.get_source(source, self.queue_tag[0], self.stage_tag)
 
-            if isinstance(item, TerminationSignal):
+            if isinstance(source, TerminationSignal):
                 self.terminated_queue_set.add(0)
-                self.task_logger._log(
-                    "TRACE", f"Get TerminationSignal from Edge({self.queue_tag[0]} -> {self.stage_tag})"
-                )
                 return TERMINATION_SIGNAL
             
-            self.task_logger._log(
-                "TRACE", f"Get {item} from Edge({self.queue_tag[0]} -> {self.stage_tag})"
-            )
-            return item
+            return source
 
         while True:
             for i in range(total_queues):
@@ -199,15 +161,15 @@ class TaskQueue:
 
                 queue = self.queue_list[idx]
                 try:
-                    item = queue.get_nowait()
-                    if isinstance(item, TerminationSignal):
+                    source = queue.get_nowait()
+                    self.task_logger.get_source(source, self.queue_tag[idx], self.stage_tag)
+
+                    if isinstance(source, TerminationSignal):
                         self.terminated_queue_set.add(idx)
                         continue
-                    self.task_logger._log(
-                        "TRACE", f"Get {item} from Edge({self.queue_tag[idx]} -> {self.stage_tag})"
-                    )
+
                     self.current_index = (idx + 1) % total_queues
-                    return item
+                    return source
                 except AsyncEmpty:
                     continue
                 except Exception as e:
@@ -218,9 +180,6 @@ class TaskQueue:
                     continue
 
             if len(self.terminated_queue_set) == total_queues:
-                self.task_logger._log(
-                    "TRACE", f"Get TerminationSignal from Edge({self.queue_tag[0]} -> {self.stage_tag})"
-                )
                 return TERMINATION_SIGNAL
 
             await asyncio.sleep(poll_interval)

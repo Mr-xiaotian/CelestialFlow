@@ -18,6 +18,26 @@ def operate_sleep(a, b):
     return a + b, a * b
 
 
+def operate_sleep_A(a, b):
+    return operate_sleep(a, b)
+
+
+def operate_sleep_B(a, b):
+    return operate_sleep(a, b)
+
+
+def operate_sleep_C(a, b):
+    return operate_sleep(a, b)
+
+
+def operate_sleep_D(a, b):
+    return operate_sleep(a, b)
+
+
+def operate_sleep_E(a, b):
+    return operate_sleep(a, b)
+
+
 def add_one_sleep(n):
     sleep(1)
     if n > 30:
@@ -73,19 +93,19 @@ def add_25(x):
 def test_chain():
     # 构建 DAG: A ➝ B ➝ C ➝ D ➝ E
     stageA = TaskManager(
-        operate_sleep, execution_mode="serial", worker_limit=2, unpack_task_args=True
+        operate_sleep_A, execution_mode="serial", worker_limit=2, unpack_task_args=True
     )
     stageB = TaskManager(
-        operate_sleep, execution_mode="serial", worker_limit=2, unpack_task_args=True
+        operate_sleep_B, execution_mode="serial", worker_limit=2, unpack_task_args=True
     )
     stageC = TaskManager(
-        operate_sleep, execution_mode="serial", worker_limit=2, unpack_task_args=True
+        operate_sleep_C, execution_mode="serial", worker_limit=2, unpack_task_args=True
     )
     stageD = TaskManager(
-        operate_sleep, execution_mode="serial", worker_limit=2, unpack_task_args=True
+        operate_sleep_D, execution_mode="serial", worker_limit=2, unpack_task_args=True
     )
     stageE = TaskManager(
-        operate_sleep, execution_mode="serial", worker_limit=2, unpack_task_args=True
+        operate_sleep_E, execution_mode="serial", worker_limit=2, unpack_task_args=True
     )
 
     # 设置图结构

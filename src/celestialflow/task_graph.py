@@ -3,7 +3,7 @@ import multiprocessing
 from collections import defaultdict, deque
 from datetime import datetime
 from multiprocessing import Queue as MPQueue
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 from .task_manage import TaskManager
 from .task_report import TaskReporter

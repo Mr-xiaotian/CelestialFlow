@@ -60,12 +60,11 @@ class TaskManager:
 
         self.next_stages: List[TaskManager] = []
         self.prev_stages: List[TaskManager] = []
-        self.set_stage_name(None)
+        self.set_stage_name()
 
         self.retry_exceptions = tuple()  # 需要重试的异常类型
 
         self.init_counter()
-        self.counter_lock = NoOpContext()
 
     def init_counter(self):
         """
@@ -78,7 +77,7 @@ class TaskManager:
         self.error_counter = MPValue("i", 0)
         self.duplicate_counter = MPValue("i", 0)
 
-        self.counter_lock = Lock()
+        self.counter_lock = NoOpContext() # Lock()
 
         if isinstance(self, TaskSplitter):
             self.split_output_counter = MPValue("i", 0)
@@ -112,6 +111,36 @@ class TaskManager:
         self.init_pool()
         self.init_logger(logger_queue)
         self.init_queue(task_queues, result_queues, fail_queue)
+
+    def init_state(self):
+        """
+        初始化任务状态：
+        - success_dict / error_dict：缓存执行结果
+        - retry_time_dict：记录重试次数
+        - processed_set：用于重复检测
+        """
+        self.success_dict = {}
+        self.error_dict = {}
+        self.retry_time_dict = {}  # task_id -> retry_time
+
+        self.processed_set = set()
+
+    def init_pool(self):
+        """
+        初始化线程池或进程池
+        """
+        # 可以复用的线程池或进程池
+        if self.execution_mode == "thread" and self.thread_pool is None:
+            self.thread_pool = ThreadPoolExecutor(max_workers=self.worker_limit)
+        elif self.execution_mode == "process" and self.process_pool is None:
+            self.process_pool = ProcessPoolExecutor(max_workers=self.worker_limit)
+
+    def init_logger(self, logger_queue):
+        """
+        初始化日志器
+        """
+        self.logger_queue = logger_queue or ThreadQueue()
+        self.task_logger = TaskLogger(self.logger_queue)
 
     def init_queue(self, task_queues=None, result_queues=None, fail_queue=None):
         """
@@ -147,36 +176,6 @@ class TaskManager:
         self.fail_queue: ThreadQueue | MPQueue | AsyncQueue = (
             fail_queue or queue_map[self.execution_mode]()
         )
-
-    def init_state(self):
-        """
-        初始化任务状态：
-        - success_dict / error_dict：缓存执行结果
-        - retry_time_dict：记录重试次数
-        - processed_set：用于重复检测
-        """
-        self.success_dict = {}
-        self.error_dict = {}
-        self.retry_time_dict = {}  # task_id -> retry_time
-
-        self.processed_set = set()
-
-    def init_pool(self):
-        """
-        初始化线程池或进程池
-        """
-        # 可以复用的线程池或进程池
-        if self.execution_mode == "thread" and self.thread_pool is None:
-            self.thread_pool = ThreadPoolExecutor(max_workers=self.worker_limit)
-        elif self.execution_mode == "process" and self.process_pool is None:
-            self.process_pool = ProcessPoolExecutor(max_workers=self.worker_limit)
-
-    def init_logger(self, logger_queue):
-        """
-        初始化日志器
-        """
-        self.logger_queue = logger_queue or ThreadQueue()
-        self.task_logger = TaskLogger(self.logger_queue)
 
     def init_listener(self, log_level="INFO"):
         """
@@ -253,7 +252,7 @@ class TaskManager:
         """
         self.stage_mode = stage_mode if stage_mode == "process" else "serial"
 
-    def set_stage_name(self, name: str):
+    def set_stage_name(self, name: str = None):
         """
         设置当前节点名称
 
@@ -287,7 +286,10 @@ class TaskManager:
 
         :return: 当前节点标签
         """
-        return f"{self.stage_name}[{self.func.__name__}]"
+        if hasattr(self, "_stage_tag"):
+            return self._stage_tag
+        self._stage_tag = f"{self.stage_name}[{self.func.__name__}]"
+        return self._stage_tag
 
     def get_stage_summary(self) -> dict:
         """
@@ -302,7 +304,7 @@ class TaskManager:
                 if self.execution_mode == "serial"
                 else f"{self.execution_mode}-{self.worker_limit}"
             ),
-            "func_name": self.func.__name__,
+            "func_name": self.get_stage_tag(),
             "class_name": self.__class__.__name__,
         }
 
@@ -742,7 +744,7 @@ class TaskManager:
         self.init_progress()
         self.init_env(input_queues, output_queues, fail_queue, logger_queue)
         self.task_logger.start_stage(
-            self.stage_name, self.func.__name__, self.execution_mode, self.worker_limit
+            self.get_stage_tag(), self.execution_mode, self.worker_limit
         )
 
         # 根据模式运行对应的任务处理函数
@@ -757,8 +759,7 @@ class TaskManager:
 
         self.progress_manager.close()
         self.task_logger.end_stage(
-            self.stage_name,
-            self.func.__name__,
+            self.get_stage_tag(),
             self.execution_mode,
             time.time() - start_time,
             self.success_counter.value,
@@ -792,7 +793,7 @@ class TaskManager:
         self.task_queues.reset()
 
         if not self.is_tasks_finished():
-            self.task_logger._log("DEBUG", f"Retrying tasks for '{self.func.__name__}'")
+            self.task_logger._log("DEBUG", f"Retrying tasks for '{self.get_stage_tag()}'")
             self.task_queues.put(TERMINATION_SIGNAL)
             self.run_in_serial()
 
@@ -858,7 +859,7 @@ class TaskManager:
         self.task_queues.reset()
 
         if not self.is_tasks_finished():
-            self.task_logger._log("DEBUG", f"Retrying tasks for '{self.func.__name__}'")
+            self.task_logger._log("DEBUG", f"Retrying tasks for '{self.get_stage_tag()}'")
             self.task_queues.put(TERMINATION_SIGNAL)
             self.run_with_executor(executor)
 
@@ -902,7 +903,7 @@ class TaskManager:
         self.task_queues.reset()
 
         if not self.is_tasks_finished():
-            self.task_logger._log("DEBUG", f"Retrying tasks for '{self.func.__name__}'")
+            self.task_logger._log("DEBUG", f"Retrying tasks for '{self.get_stage_tag()}'")
             await self.task_queues.put_async(TERMINATION_SIGNAL)
             await self.run_in_async()
 
