@@ -34,7 +34,7 @@ class TaskReporter:
 
     def stop(self):
         if self._thread:
-            self.push_once()  # 最后一次
+            self.report_cycle()  # 最后一次
             self._stop_flag.set()
             self._thread.join(timeout=2)
             self._thread = None
@@ -43,14 +43,14 @@ class TaskReporter:
     def _loop(self):
         while not self._stop_flag.is_set():
             try:
-                self.push_once()
+                self.report_cycle()
             except Exception as e:
                 self.logger._log(
                     "ERROR", f"[Reporter] Push error: {type(e).__name__}({e})."
                 )
             self._stop_flag.wait(self.interval)
 
-    def push_once(self):
+    def report_cycle(self):
         # 拉取逻辑
         self._pull_interval()
         self._pull_and_inject_tasks()
@@ -108,20 +108,7 @@ class TaskReporter:
     def _push_errors(self):
         try:
             self.task_graph.handle_fail_queue()
-            error_data = []
-            for (
-                err,
-                tag,
-            ), task_list in self.task_graph.get_error_timeline_dict().items():
-                for task, ts in task_list:
-                    error_data.append(
-                        {
-                            "error": err,
-                            "node": tag,
-                            "task_id": task if len(task) < 100 else task[:100] + "...",
-                            "timestamp": ts,
-                        }
-                    )
+            error_data = self.task_graph.get_error_data()
             payload = {"errors": error_data}
             requests.post(f"{self.base_url}/api/push_errors", json=payload, timeout=1)
         except Exception as e:

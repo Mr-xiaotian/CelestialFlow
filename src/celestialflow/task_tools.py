@@ -122,7 +122,7 @@ def format_structure_list_from_graph(
 
 
 def append_jsonl_log(
-    log_data: dict, start_time: float, base_path: str, prefix: str, logger=None
+    log_data: dict, file_path: str, logger=None
 ):
     """
     将日志字典写入指定目录下的 JSONL 文件。
@@ -134,9 +134,7 @@ def append_jsonl_log(
     :param logger: 可选的日志对象用于记录失败信息
     """
     try:
-        date_str = datetime.fromtimestamp(start_time).strftime("%Y-%m-%d")
-        time_str = datetime.fromtimestamp(start_time).strftime("%H-%M-%S-%f")[:-3]
-        file_path = Path(base_path) / date_str / f"{prefix}({time_str}).jsonl"
+        file_path: Path = Path(file_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(file_path, "a", encoding="utf-8") as f:
@@ -480,7 +478,7 @@ def load_jsonl_grouped_by_keys(
     return dict(result_dict)
 
 
-def load_task_by_stage(jsonl_path):
+def load_task_by_stage(jsonl_path) -> Dict[str, list]:
     """
     加载错误记录，按 stage 分类
     """
@@ -489,7 +487,7 @@ def load_task_by_stage(jsonl_path):
     )
 
 
-def load_task_by_error(jsonl_path):
+def load_task_by_error(jsonl_path) -> Dict[str, list]:
     """
     加载错误记录，按 error 和 stage 分类
     """

@@ -1,4 +1,4 @@
-import pytest, logging, re, random, pprint
+import pytest, logging, re, random
 import requests
 from time import sleep
 
@@ -8,7 +8,6 @@ from celestialflow import (
     TaskChain,
     TaskSplitter,
     TaskRedisTransfer,
-    format_table,
 )
 
 

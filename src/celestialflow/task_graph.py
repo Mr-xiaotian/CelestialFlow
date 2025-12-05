@@ -22,6 +22,8 @@ from .task_tools import (
     is_directed_acyclic_graph,
     compute_node_levels,
     cluster_by_value_sorted,
+    load_task_by_stage,
+    load_task_by_error
 )
 
 
@@ -76,14 +78,11 @@ class TaskGraph:
         self.stages_status_dict: Dict[str, dict] = defaultdict(
             dict
         )  # 用于保存每个节点的状态信息
-        self.last_status_dict = {}  # 用于保存每个节点的最后状态信息
-
-        self.error_timeline_dict: Dict[str, list] = defaultdict(
-            list
-        )  # 用于保存错误到出现该错误任务的映射
-        self.all_stage_error_dict: Dict[str, dict] = defaultdict(
+        self.last_status_dict: Dict[str, dict] = defaultdict(
             dict
-        )  # 用于保存节点到节点失败任务的映射
+        )  # 用于保存每个节点的上一次状态信息
+
+        self.error_data: List[dict] = [] 
 
     def init_resources(self):
         """
@@ -156,7 +155,7 @@ class TaskGraph:
         """
         初始化任务图结构
         """
-        self.structure_graph = build_structure_graph(self.root_stages)
+        self.structure_json = build_structure_graph(self.root_stages)
 
     def set_root_stages(self, root_stages: List[TaskManager]):
         """
@@ -383,13 +382,13 @@ class TaskGraph:
             task_str = item["task"]
             error_info = item["error_info"]
             timestamp = item["timestamp"]
-            error_key = (error_info, stage_tag)
 
-            if task_str not in self.error_timeline_dict[error_key]:
-                self.error_timeline_dict[error_key].append((task_str, timestamp))
-
-            if task_str not in self.all_stage_error_dict[stage_tag]:
-                self.all_stage_error_dict[stage_tag][task_str] = error_key
+            self.error_data.append({
+                "timestamp": timestamp,
+                "node": stage_tag,
+                "error": error_info,
+                "task_id": task_str if len(task_str) < 100 else task_str[:100] + "...",
+            })
 
             self._persist_single_failure(task_str, error_info, stage_tag, timestamp)
 
@@ -397,12 +396,16 @@ class TaskGraph:
         """
         在运行开始时写入任务结构元信息到 jsonl 文件
         """
+        date_str = datetime.fromtimestamp(self.start_time).strftime("%Y-%m-%d")
+        time_str = datetime.fromtimestamp(self.start_time).strftime("%H-%M-%S-%f")[:-3]
+        self.error_jsonl_path = f"./fallback/{date_str}/realtime_errors({time_str}).jsonl"
+
         log_item = {
             "timestamp": datetime.now().isoformat(),
             "structure": self.get_structure_json(),
         }
         append_jsonl_log(
-            log_item, self.start_time, "./fallback", "realtime_errors", self.task_logger
+            log_item, self.error_jsonl_path, self.task_logger
         )
 
     def _persist_single_failure(self, task_str, error_info, stage_tag, timestamp):
@@ -421,7 +424,7 @@ class TaskGraph:
             "task": task_str,
         }
         append_jsonl_log(
-            log_item, self.start_time, "./fallback", "realtime_errors", self.task_logger
+            log_item, self.error_jsonl_path, self.task_logger
         )
 
     def _persist_unconsumed_task(self, stage_tag, task):
@@ -437,32 +440,20 @@ class TaskGraph:
             "task": str(task),
         }
         append_jsonl_log(
-            log_item, self.start_time, "./fallback", "leftover_tasks", self.task_logger
+            log_item, self.error_jsonl_path, self.task_logger
         )
 
-    def get_error_timeline_dict(self):
+    def get_error_data(self):
         """
-        返回最终错误字典
+        返回错误数据
         """
-        return dict(self.error_timeline_dict)
-
-    def get_all_stage_error_dict(self):
-        """
-        返回最终失败字典
-        """
-        return dict(self.all_stage_error_dict)
-
-    def get_fail_by_error_dict(self):
-        return {
-            key: [a for a, _ in tuple_list]
-            for key, tuple_list in self.get_error_timeline_dict().items()
-        }
+        return self.error_data
 
     def get_fail_by_stage_dict(self):
-        return {
-            stage: list(inner_dict.keys())
-            for stage, inner_dict in self.get_all_stage_error_dict().items()
-        }
+        return load_task_by_stage(self.error_jsonl_path)
+
+    def get_fail_by_error_dict(self):
+        return load_task_by_error(self.error_jsonl_path)
 
     def get_status_dict(self) -> Dict[str, dict]:
         """
@@ -570,13 +561,13 @@ class TaskGraph:
         }
 
     def get_structure_json(self):
-        return self.structure_graph
+        return self.structure_json
 
     def get_structure_list(self):
-        return format_structure_list_from_graph(self.structure_graph)
+        return format_structure_list_from_graph(self.structure_json)
 
     def get_networkx_graph(self):
-        return format_networkx_graph(self.structure_graph)
+        return format_networkx_graph(self.structure_json)
 
     def analyze_graph(self):
         """
@@ -587,8 +578,8 @@ class TaskGraph:
 
         self.isDAG = is_directed_acyclic_graph(networkx_graph)
         if self.isDAG:
-            self.stage_level_dict = compute_node_levels(networkx_graph)
-            self.layers_dict = cluster_by_value_sorted(self.stage_level_dict)
+            stage_level_dict = compute_node_levels(networkx_graph)
+            self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
     def test_methods(
         self,
@@ -618,10 +609,10 @@ class TaskGraph:
                 self.init_env()
                 self.set_graph_mode(stage_mode, execution_mode)
                 self.start_graph(init_tasks_dict)
+                fail_by_stage_dict.update(self.get_fail_by_stage_dict())
+                fail_by_error_dict.update(self.get_fail_by_error_dict())
 
                 time_list.append(time.time() - start_time)
-                fail_by_error_dict.update(self.get_fail_by_error_dict())
-                fail_by_stage_dict.update(self.get_fail_by_stage_dict())
 
             test_table_list.append(time_list)
 
@@ -631,6 +622,6 @@ class TaskGraph:
             execution_modes,
             r"stage\execution",
         )
-        results["Fail error dict"] = fail_by_error_dict
         results["Fail stage dict"] = fail_by_stage_dict
+        results["Fail error dict"] = fail_by_error_dict
         return results

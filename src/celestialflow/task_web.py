@@ -20,10 +20,10 @@ class StatusModel(BaseModel):
 
 
 class ErrorItem(BaseModel):
-    error: str
-    node: str
-    task_id: str
     timestamp: float
+    node: str
+    error: str
+    task_id: str
 
 
 class ErrorsModel(BaseModel):
