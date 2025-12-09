@@ -31,6 +31,78 @@ TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支
 
 在次基础上项目支持 Web 可视化与通过 Redis 外接go代码，弥补 Python 在cpu密集任务上表现欠佳的问题。
 
+## 项目结构（Project Structure）
+
+```mermaid
+flowchart LR
+
+    %% ===== TaskGraph =====
+    subgraph TG[TaskGraph]
+        direction LR
+
+        S1[TaskStage A]
+        S2[TaskStage B]
+        S3[TaskStage C]
+        S4[TaskStage D]
+
+        TS[[TaskSplitter]]
+        TR[/TaskRedisTransfer/]
+
+        RE[(Redis)]
+        G1((GoWorker))
+
+        S1 --> S2
+        S2 --> S3
+        S1 --> S4
+        S3 --> S1
+
+        T1[Last Stage] -->|1 task| TS
+        TS -->|N task| T2[Next Stage]
+
+        TR -->RE --> G1
+        G1 -->RE --> TR
+
+    end
+
+    %% 美化 TaskGraph 外框
+    style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
+
+    %% 美化 TaskStages
+    style S1 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+    style S2 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+    style S3 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+    style S4 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+    
+    style T1 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+    style T2 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+
+    style TS fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+    style TR fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+
+    style RE fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+    style G1 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+
+    %% ===== WebUI =====
+    subgraph W[WebUI]
+        JS
+        HTML
+    end
+
+    style W fill:#ffeaf0,stroke:#d66b8c,stroke-width:2px,rx:10px,ry:10px
+    style JS fill:#ffffff,stroke:#d66b8c,rx:5px,ry:5px
+    style HTML fill:#ffffff,stroke:#d66b8c,rx:5px,ry:5px
+
+    R[TaskReporter]
+    style R fill:#f0e9ff,stroke:#8a6bc9,stroke-width:2px,rx:8px,ry:8px
+
+    %% ===== Links =====
+    TG --> R 
+    R --> TG 
+    R --> W
+    W --> R
+
+```
+
 ## 快速开始（Quick Start）
 
 本节将引导你快速安装并运行 **TaskGraph**，通过示例体验其任务图调度机制。
@@ -183,7 +255,7 @@ if __name__ == "__main__":
 | **redis**        | 可选组件，用于分布式任务通信（`TaskRedisTransfer` 模块） |
 | **jinja2**       | FastAPI 模板引擎，用于 Web 可视化界面渲染 |
 
-## 项目结构（Project Structure）
+## 文件结构（File Structure）
 
 ```
 📁 CelestialFlow	(24MB 349KB 185B)

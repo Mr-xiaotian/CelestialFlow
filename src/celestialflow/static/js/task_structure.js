@@ -18,20 +18,38 @@ function getNodeId(node) {
 
 function getShapeWrappedLabel(label, shape = "box") {
   switch (shape) {
-    case "circle":
+    case "circle":        // Circle nodes
       return `((${label}))`;
-    case "round":
+
+    case "round":         // Rounded box
       return `(${label})`;
-    case "rhombus":
-      return `{${label}}`;
-    case "subgraph":
+
+    case "rhombus":       // Diamond (decision)
+      return `{{${label}}}`;
+
+    case "subgraph":      // Subroutine / Module block
       return `[[${label}]]`;
-    case "arrow":
-      return `>${label}<`;
-    default:
-      return `[${label}]`; // 默认 box
+
+    case "parallelogram": // IO style block
+      return `[/ ${label} /]`.replace(/\s+/g, "");
+
+    case "db":            // Database cylinder
+      return `[( ${label} )]`;
+
+    case "cloud":
+      return `(${label}):::cloud`; // requires styling externally
+
+    case "hex":
+      return `{{{${label}}}}`; // triple braces style
+
+    case "arrow":         // non-standard, custom arrow-like node
+      return `>${label}]`;
+
+    default:              // Default rectangular box
+      return `[${label}]`;
   }
 }
+
 
 function renderMermaidFromTaskStructure() {
   const edges = new Set();
@@ -69,8 +87,8 @@ mermaidTitle.textContent = `任务结构图（${structureClassName}）`;
     tagToId[tag] = id; // 保存 tag 到 ID 的映射
 
     let shape = "box";
-    if (node.func_name === "_split_task") shape = "round";
-    else if (node.func_name === "_trans_redis") shape = "subgraph";
+    if (node.func_name === "_split_task") shape = "subgraph";
+    else if (node.func_name === "_trans_redis") shape = "parallelogram";
 
     nodeLabels.set(id, getShapeWrappedLabel(label, shape));
 

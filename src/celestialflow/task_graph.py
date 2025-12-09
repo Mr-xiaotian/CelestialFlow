@@ -365,7 +365,7 @@ class TaskGraph:
             # 持久化逻辑（写日志 / 存储到全局 structure）
             for source in remaining_sources:
                 task_str = str(source)
-                error_info = f"(UnconsumeError)任务 {task_str} 在节点 {stage_tag} 中未消费"
+                error_info = "UnconsumeError"
                 timestamp = time.time()
 
                 self._persist_single_failure(task_str, error_info, stage_tag, timestamp)
