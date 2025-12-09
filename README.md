@@ -7,8 +7,8 @@
 <p align="center">
   <a href="https://pypi.org/project/celestialflow/"><img src="https://badge.fury.io/py/celestialflow.svg"></a>
   <a href="https://pepy.tech/projects/celestialflow"><img src="https://static.pepy.tech/personalized-badge/celestialflow?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads"></a>
-  <!-- <a href="https://pypi.org/project/celestialflow/"><img src="https://img.shields.io/pypi/l/celestialflow.svg"></a>
-  <a href="https://pypi.org/project/celestialflow/"><img src="https://img.shields.io/pypi/pyversions/celestialflow.svg"></a> -->
+  <a href="https://pypi.org/project/celestialflow/"><img src="https://img.shields.io/pypi/l/celestialflow.svg"></a>
+  <a href="https://pypi.org/project/celestialflow/"><img src="https://img.shields.io/pypi/pyversions/celestialflow.svg"></a>
 </p>
 
 **CelestialFlow**是一个基于节点拼接的任务流调度框架。
@@ -29,7 +29,7 @@
 
 TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支持传统的有向无环图（DAG），也能灵活表达 **环形（loop）** 与 **复杂交叉** 的任务依赖。
 
-在次基础上项目支持 Web 可视化与通过 Redis 外接go代码，弥补 Python 在cpu密集任务上表现欠佳的问题。
+在此基础上项目支持 Web 可视化与通过 Redis 外接go代码，弥补 Python 在cpu密集任务上速度过慢的问题。
 
 ## 项目结构（Project Structure）
 
@@ -76,9 +76,11 @@ flowchart LR
     style T1 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
     style T2 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
 
+    %% 美化 特殊Stage
     style TS fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
     style TR fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
 
+    %% 美化 外部结构
     style RE fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
     style G1 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
 
@@ -117,14 +119,13 @@ mamba create -n celestialflow_env python=3.10
 mamba activate celestialflow_env
 ```
 
-如果你了解python的包管理工具Anaconda，那么mamba就是将其用C++实现的版本，相比原版有明显的速度提升。你可以在这里获取它的最新版:
+可将mamba语句改为conda，如果你更习惯后者。如果你想尝试Mamba，你可以在这里获取它的最新版:
 
 👉 [miniforge/Releases](https://github.com/conda-forge/miniforge/releases)
 
 ### 安装 CelestialFlow
 
-CelestialFlow 已发布至 [PyPI](https://pypi.org/project/celestialflow/)，
-可以直接通过 `pip` 安装，无需克隆源码。
+CelestialFlow 已发布至 [PyPI](https://pypi.org/project/celestialflow/)，可以直接通过 `pip` 安装，无需克隆源码。
 
 ```bash
 # 直接安装最新版
@@ -135,8 +136,8 @@ pip install celestialflow
 
 ```bash
 # 克隆项目
-git clone https://github.com/yourname/TaskGraph.git
-cd TaskGraph
+git clone https://github.com/Mr-xiaotian/CelestialFlow.git
+cd CelestialFlow
 pip install .
 ```
 
@@ -258,10 +259,13 @@ if __name__ == "__main__":
 ## 文件结构（File Structure）
 
 ```
-📁 CelestialFlow	(24MB 349KB 185B)
-    📁 experiment   	(9KB 455B)
-        🐍 experiment_queue.py	(4KB 1B)
-        🐍 experiment_redis.py	(5KB 454B)
+📁 CelestialFlow	(205MB 169KB 76B)
+    📁 experiments  	(14KB 536B)
+        🐍 benchmark_datastructures.py	(5KB 796B)
+        🐍 benchmark_hash.py          	(1KB 284B)
+        🐍 benchmark_queue.py         	(5KB 185B)
+        🐍 benchmark_tqdm.py          	(1KB 160B)
+        🐍 experiment_tqdm.py         	(1KB 135B)
     📁 go_worker    	(6MB 967KB 64B)
         📁 worker	(5KB 684B)
             🌀 parser.go   	(394B)
@@ -272,50 +276,59 @@ if __name__ == "__main__":
         ❓ go.sum       	(591B)
         ❓ go_worker.exe	(6MB 960KB)
         🌀 main.go      	(579B)
-    📁 img          	(129KB 545B)
-        📷 startup.png	    (836KB)
+    📁 img          	(966KB 63B)
+        📷 logo.png       	(836KB 542B)
         📷 web_display.png	(129KB 545B)
-    📁 src          	(1MB 855KB 679B)
-        📁 celestialflow         	(1MB 854KB 576B)
-            📁 static     	(1MB 418KB 529B)
-                📁 css	(32KB 164B)
-                    🎨 base.css     	(6KB 114B)
-                    🎨 dashboard.css	(8KB 463B)
+    📁 src          	(1MB 884KB 224B)
+        📁 celestialflow         	(1MB 869KB 480B)
+            📁 static     	(1MB 419KB 510B)
+                📁 css	(32KB 568B)
+                    🎨 base.css     	(6KB 155B)
+                    🎨 dashboard.css	(8KB 435B)
                     🎨 errors.css   	(5KB 168B)
-                    🎨 inject.css   	(12KB 443B)
-                📁 js 	(34KB 267B)
+                    🎨 inject.css   	(12KB 834B)
+                📁 js 	(34KB 868B)
                     📜 main.js          	(4KB 973B)
                     📜 task_errors.js   	(4KB 544B)
-                    📜 task_injection.js	(8KB 437B)
+                    📜 task_injection.js	(8KB 491B)
                     📜 task_statuses.js 	(8KB 63B)
-                    📜 task_structure.js	(6KB 620B)
+                    📜 task_structure.js	(7KB 143B)
                     📜 task_topology.js 	(261B)
                     📜 utils.js         	(1KB 441B)
                 ❓ favicon.ico	(1MB 352KB 98B)
-            📁 templates  	(12KB 924B)
-                🌐 index.html	(12KB 924B)
-            📝 README.md        	(11KB 385B)
-            🐍 task_graph.py    	(25KB 477B)
-            🐍 task_logging.py  	(5KB 369B)
-            🐍 task_manage.py   	(36KB 81B)
-            🐍 task_nodes.py    	(4KB 964B)
+            📁 templates  	(12KB 973B)
+                🌐 index.html	(12KB 973B)
+            📁 [1项排除的目录]	(314KB 710B)
+            📝 README.md        	(13KB 131B)
+            🐍 task_graph.py    	(22KB 530B)
+            🐍 task_logging.py  	(6KB 291B)
+            🐍 task_manage.py   	(32KB 66B)
+            🐍 task_nodes.py    	(4KB 953B)
             🐍 task_progress.py 	(1KB 477B)
-            🐍 task_report.py   	(5KB 996B)
-            🐍 task_structure.py	(5KB 776B)
-            🐍 task_tools.py    	(12KB 72B)
-            🐍 task_types.py    	(1KB 338B)
-            🐍 task_web.py      	(4KB 1015B)
-            🐍 __init__.py      	(910B)
-    📁 tests        	(97KB 158B)
-        🐍 test_graph.py    	(5KB 763B)
-        🐍 test_manage.py   	(1KB 721B)
-        🐍 test_nodes.py    	(9KB 173B)
-        🐍 test_structure.py	(10KB 827B)
-    ❓ .gitignore	(271B)
-    ❓ Makefile  	(501B)
-    ⚙️ pytest.ini	(254B)
-    📝 README.md 	(1KB 124B)
-    🐍 setup.py  	(550B)
+            🐍 task_queue.py    	(7KB 896B)
+            🐍 task_report.py   	(5KB 511B)
+            🐍 task_structure.py	(6KB 93B)
+            🐍 task_tools.py    	(15KB 182B)
+            🐍 task_types.py    	(1KB 461B)
+            🐍 task_web.py      	(5KB 47B)
+            🐍 __init__.py      	(817B)
+        📁 celestialflow.egg-info	(14KB 768B)
+            ❓ PKG-INFO            	(13KB 363B)
+            📄 [5项排除的文件]	(1KB 405B)
+    📁 tests        	(113KB 510B)
+        📁 [1项排除的目录]	(81KB 604B)
+        📝 README.md        	(7KB 231B)
+        🐍 test_graph.py    	(5KB 83B)
+        🐍 test_manage.py   	(1KB 785B)
+        🐍 test_nodes.py    	(7KB 864B)
+        🐍 test_structure.py	(9KB 1015B)
+    📁 [6项排除的目录]	(195MB 276KB 932B)
+    ❓ .gitignore    	(264B)
+    ❓ LICENSE       	(1KB 65B)
+    ❓ Makefile      	(501B)
+    ❓ pyproject.toml	(1KB 223B)
+    ⚙️ pytest.ini    	(254B)
+    📝 README.md     	(15KB 536B)
 ```
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file生成。)
@@ -334,14 +347,16 @@ if __name__ == "__main__":
 - [6/14/2025] 支持forest结构, 即可有多个根节点
 - [6/16/2025] 多轮评测后, 当前框架已支持完整有向图结构, 故将TaskTree改名为TaskGraph
 
-## Star History
+## 星历史（Star History）
+
+如果对项目感兴趣的话，还请star。
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Mr-xiaotian/CelestialFlow&type=Date)](https://star-history.com/#Mr-xiaotian/CelestialFlow&Date)
 
-## License
+## 许可（License）
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 作者(Author)
+## 作者（Author）
 Author: Mr-xiaotian 
 Email: mingxiaomingtian@gmail.com  
 Project Link: [https://github.com/Mr-xiaotian/CelestialFlow](https://github.com/Mr-xiaotian/CelestialFlow)
