@@ -136,12 +136,14 @@ def test_graph_0():
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
     # test_task_2 = (item for item in test_task_1)
 
+    input_tasks = {
+        stage1.get_stage_tag(): test_task_1,
+    }
+    stage_modes = ["process"]
+    execution_modes = ["serial"]
+
     # 开始任务链
-    result = graph.test_methods(
-        {
-            stage1.get_stage_tag(): test_task_1,
-        }
-    )
+    result = graph.test_methods(input_tasks, stage_modes, execution_modes)
     result["Time table"] = format_table(*result["Time table"])
     for key, value in result.items():
         if isinstance(value, dict):

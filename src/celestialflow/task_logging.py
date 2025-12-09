@@ -173,3 +173,10 @@ class TaskLogger:
             "TRACE", 
             f"Get {source} from Edge({edge})"
         )
+
+    def get_source_error(self, queue_tag, stage_tag, exception):
+        exception_text = str(exception).replace("\n", " ")
+        self._log(
+            "WARNING",
+            f"Error get from Edge({queue_tag} -> {stage_tag}): ({type(exception).__name__}){exception_text}",
+        )

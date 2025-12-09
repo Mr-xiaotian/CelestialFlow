@@ -352,16 +352,23 @@ class TaskGraph:
             stage_status["status"] = StageStatus.STOPPED  # 已停止
 
         # 3️⃣ 收集并持久化每个 stage 中未消费的任务
-        # for stage_tag, stage_status in self.stages_status_dict.items():
-        #     queue: MPQueue = stage_status["task_queue"]
-        #     while not queue.empty():
-        #         try:
-        #             task = queue.get_nowait()
-        #             self.task_logger._log("DEBUG", f"获取 {stage_tag} 剩余任务: {task}")
+        for stage_tag, stage_status in self.stages_status_dict.items():
+            in_queue: TaskQueue = stage_status["in_queue"]
 
-        #             self._persist_unconsumed_task(stage_tag, task)
-        #         except Exception as e:
-        #             self.task_logger._log("WARNING", f"获取 {stage_tag} 剩余任务失败: {e}")
+            # 用你刚才统一的 drain() 提取当前剩余任务
+            remaining_sources = in_queue.drain()
+
+            # 如无剩余，跳过
+            if not remaining_sources:
+                continue
+
+            # 持久化逻辑（写日志 / 存储到全局 structure）
+            for source in remaining_sources:
+                task_str = str(source)
+                error_info = f"(UnconsumeError)任务 {task_str} 在节点 {stage_tag} 中未消费"
+                timestamp = time.time()
+
+                self._persist_single_failure(task_str, error_info, stage_tag, timestamp)
 
     def release_resources(self):
         """
@@ -410,7 +417,7 @@ class TaskGraph:
 
     def _persist_single_failure(self, task_str, error_info, stage_tag, timestamp):
         """
-        增量写入单条错误日志到每日文件中
+        增量写入单条错误日志到 jsonl 文件中
 
         :param task_str: 任务字符串
         :param error_info: 错误信息
@@ -422,22 +429,6 @@ class TaskGraph:
             "stage": stage_tag,
             "error": error_info,
             "task": task_str,
-        }
-        append_jsonl_log(
-            log_item, self.error_jsonl_path, self.task_logger
-        )
-
-    def _persist_unconsumed_task(self, stage_tag, task):
-        """
-        写入单个未消费任务到 JSONL 文件
-
-        :param stage_tag: 阶段标签
-        :param task: 任务对象
-        """
-        log_item = {
-            "timestamp": datetime.now().isoformat(),
-            "stage": stage_tag,
-            "task": str(task),
         }
         append_jsonl_log(
             log_item, self.error_jsonl_path, self.task_logger

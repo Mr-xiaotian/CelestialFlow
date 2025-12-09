@@ -13,7 +13,7 @@ from .task_logging import TaskLogger
 class TaskQueue:
     def __init__(
         self,
-        queue_list: List[ThreadQueue | MPQueue | AsyncQueue],
+        queue_list: List[ThreadQueue] | List[MPQueue] | List[AsyncQueue],
         queue_tag: List[str],
         logger_queue: ThreadQueue | MPQueue,
         stage_tag: str,
@@ -39,15 +39,17 @@ class TaskQueue:
         self.current_index = 0
         self.terminated_queue_set.clear()
 
+    def is_empty(self):
+        return all([queue.empty() for queue in self.queue_list])
+
     def put(self, source):
         """
         将结果放入所有结果队列
 
         :param source: 任务结果
         """
-        for queue, queue_tag in zip(self.queue_list, self.queue_tag):
-            queue.put(source)
-            self.task_logger.put_source(source, queue_tag, self.stage_tag, self.direction)
+        for index in range(len(self.queue_list)):
+            self.put_channel(source, index)
 
     async def put_async(self, source):
         """
@@ -55,9 +57,8 @@ class TaskQueue:
 
         :param source: 任务结果
         """
-        for queue, queue_tag in zip(self.queue_list, self.queue_tag):
-            await queue.put(source)
-            self.task_logger.put_source(source, queue_tag, self.stage_tag, self.direction)
+        for index in range(len(self.queue_list)):
+            await self.put_channel_async(source, index)
 
     def put_first(self, source):
         """
@@ -65,8 +66,7 @@ class TaskQueue:
 
         :param source: 任务结果
         """
-        self.queue_list[0].put(source)
-        self.task_logger.put_source(source, self.queue_tag[0], self.stage_tag, self.direction)
+        self.put_channel(source, 0)
 
     async def put_first_async(self, source):
         """
@@ -74,8 +74,27 @@ class TaskQueue:
 
         :param source: 任务结果
         """
-        await self.queue_list[0].put(source)
-        self.task_logger.put_source(source, self.queue_tag[0], self.stage_tag, self.direction)
+        await self.put_channel_async(source, 0)
+
+    def put_channel(self, source, channel_index: int):
+        """
+        将结果放入指定队列
+
+        :param source: 任务结果
+        :param channel_index: 队列索引
+        """
+        self.queue_list[channel_index].put(source)
+        self.task_logger.put_source(source, self.queue_tag[channel_index], self.stage_tag, self.direction)
+
+    async def put_channel_async(self, source, channel_index: int):
+        """
+        将结果放入指定队列(async模式)
+
+        :param source: 任务结果
+        :param channel_index: 队列索引
+        """
+        await self.queue_list[channel_index].put(source)
+        self.task_logger.put_source(source, self.queue_tag[channel_index], self.stage_tag, self.direction)
 
     def get(self, poll_interval: float = 0.01) -> object:
         """
@@ -95,6 +114,7 @@ class TaskQueue:
             if isinstance(source, TerminationSignal):
                 self.terminated_queue_set.add(0)
                 return TERMINATION_SIGNAL
+
             return source
 
         while True:
@@ -119,10 +139,7 @@ class TaskQueue:
                 except SyncEmpty:
                     continue
                 except Exception as e:
-                    self.task_logger._log(
-                        "WARNING",
-                        f"Error get from Edge({self.queue_tag[idx]} -> {self.stage_tag}): {type(e).__name__}({e})",
-                    )
+                    self.task_logger.get_source_error(self.queue_tag[idx], self.stage_tag, e)
                     continue
 
             # 所有队列都终止了
@@ -173,13 +190,38 @@ class TaskQueue:
                 except AsyncEmpty:
                     continue
                 except Exception as e:
-                    self.task_logger._log(
-                        "WARNING",
-                        f"Error get from Edge({self.queue_tag[idx]} -> {self.stage_tag}): {type(e).__name__}({e})",
-                    )
+                    self.task_logger.get_source_error(self.queue_tag[idx], self.stage_tag, e)
                     continue
 
             if len(self.terminated_queue_set) == total_queues:
                 return TERMINATION_SIGNAL
 
             await asyncio.sleep(poll_interval)
+
+    def drain(self) -> List[object]:
+        """提取所有队列中当前剩余的 source（非阻塞）。"""
+        results = []
+        total_queues = len(self.queue_list)
+
+        for idx in range(total_queues):
+            if idx in self.terminated_queue_set:
+                continue
+            
+            queue = self.queue_list[idx]
+            while True:
+                try:
+                    source = queue.get_nowait()
+                    self.task_logger.get_source(source, self.queue_tag[idx], self.stage_tag)
+
+                    if isinstance(source, TerminationSignal):
+                        self.terminated_queue_set.add(idx)
+                        break
+
+                    results.append(source)
+                except (SyncEmpty, AsyncEmpty):
+                    break
+                except Exception as e:
+                    self.task_logger.get_source_error(self.queue_tag[idx], self.stage_tag, e)
+                    break
+
+        return results
