@@ -94,7 +94,7 @@ flowchart LR
     style JS fill:#ffffff,stroke:#d66b8c,rx:5px,ry:5px
     style HTML fill:#ffffff,stroke:#d66b8c,rx:5px,ry:5px
 
-    R[TaskReporter]
+    R[TaskWeb]
     style R fill:#f0e9ff,stroke:#8a6bc9,stroke-width:2px,rx:8px,ry:8px
 
     %% ===== Links =====
@@ -109,7 +109,7 @@ flowchart LR
 
 本节将引导你快速安装并运行 **TaskGraph**，通过示例体验其任务图调度机制。
 
-### （可选）创建独立虚拟环境
+### 创建独立虚拟环境
 
 建议在独立环境中使用，以避免与其他项目依赖冲突。
 
@@ -141,7 +141,7 @@ cd CelestialFlow
 pip install .
 ```
 
-### 启动 Web 可视化（可选）
+### （可选）启动 Web 可视化
 
 Web监视界面并不是必须的，但可以通过网页获得任务运行的更多信息，推荐使用:
 
@@ -159,7 +159,19 @@ python src/celestialflow/task_web.py 5005
 
 可查看任务结构、执行状态、错误日志、以及实时注入任务等功能。
 
-![web_display.png](https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/web_display.png)
+![WebUI](https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/web_ui.gif)
+
+注意: 如果你没有启动Web窗口，同时设置了
+
+```python
+graph.set_reporter(True, host="127.0.0.1", port=5005)
+```
+
+那么日志中会有一些`WARNING`，那是 TaskReporter 在提示无法连接 TaskWeb。但这并不影响使用。
+
+```log
+2025-12-10 08:57:13 WARNING [Reporter] Task injection fetch failed: ConnectTimeout
+```
 
 ### 运行测试示例
 
@@ -206,7 +218,7 @@ pip install pytest pytest-asyncio
 
 你可以继续运行更多的测试代码，这里有介绍每个测试文件与里面的测试函数:
 
-[Test RREADME.md(完善中)](tests/README.md)
+[Test README.md(完善中)](tests/README.md)
 
 你也可以了解具体的项目文件，以下文档会帮助你:
 
