@@ -8,9 +8,7 @@
 
 本测试文件通过递归计算 Fibonacci 数列的示例函数，验证了 TaskManager 在 **单线程（serial）**、**多线程（thread）**、**多进程（process）** 与 **异步（async）** 四种执行模式下的正确性、稳定性与性能表现。
 
----
-
-## 🔹 test_manager()
+## test_manager()
 
 测试 **TaskManager** 在同步执行环境中的运行行为。
 
@@ -25,7 +23,7 @@
   2. 异常任务能否被正确识别与重试；
   3. `test_methods()` 是否能准确统计不同模式下的执行时间与性能差异。
 
-## 🔹 test_manager_async()
+## test_manager_async()
 
 测试 TaskManager 在异步模式下的行为。
 
@@ -39,8 +37,6 @@
   1. 异步任务能否在高并发下正确完成；
   2. 异常捕获与重试机制是否在协程环境下正常；
   3. 异步执行相对于同步执行的性能对比。
-
----
 
 运行方式：
 ```bash
@@ -67,13 +63,13 @@ pytest tests/test_manage.py::test_manager_async
 
 两者不同之处在于test_splitter_0()使用test_methods测试了所有的运行模式，这在添加新特性时时有用的，正常只需要运行test_splitter_1()。
 
-## 🔹 test_splitter_2()
+## test_splitter_2()
 
 这个测试函数模拟了一个特殊的情况: 有时候输入root节点的任务数过大, 比如range(int(1e10)), 那么所有节点都会一直等待, 这是因为当前`task_graph.put_stage_queue`的运行机制。为了解决这个问题可以在最初放一个 `TaskSplitter` 节点, 给它传被列表打包的任务组，这样下游就可以不断接受并处理上游的数据，即便数据量非常庞大(比如`range(int(1e8))`)。
 
 运行这个测试函数时可能出现stage 2已经处理所有任务，但程序没有中止的情况，这是因为 `task_logging` 设计中日志记录与写入文件是分离的，当stage 2处理完任务时日志还没有被全部写入文件，等待片刻就好。
 
-## 🔹 test_transfer_0()
+## test_transfer_0()
 
 这个测试文件对比了计算fibonacci时，直接用py计算与使用Redis外接go_worker计算间的时间差异。从结果来看，即便Redis传输耗费了大量时间，但Go强大的性能依旧让使用go_worker成为CPU密集计算时的好选择。
 
@@ -120,11 +116,11 @@ make run_go_worker
 
 go_worker启动并开始监听 Redis 队列, 此时可以正常运行pytest。
 
-## 🔹 test_transfer_1()
+## test_transfer_1()
 
 这个测试文件测试了传递多参数的情景，同时也可以直观看出对于`sum`这种几乎0运算时间的函数，使用 Redis 的通信消耗会远远超过Go高性能省下的时间。
 
-## 🔹 test_transfer_2()
+## test_transfer_2()
 
 这个测试函数测试了进行网络请求并下载数据时使用python原生函数与go_worker的差距。
 
