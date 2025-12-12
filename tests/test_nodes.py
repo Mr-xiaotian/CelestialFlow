@@ -8,6 +8,8 @@ from celestialflow import (
     TaskChain,
     TaskSplitter,
     TaskRedisTransfer,
+    RedisSinkNode,
+    RedisSourceNode,
 )
 
 
@@ -91,6 +93,14 @@ def parse_sleep(url):
 
 def sum_int(*num):
     return sum(num)
+
+
+def add_one(num):
+    return num + 1
+
+
+def sqrt(num):
+    return num ** 0.5
 
 
 def download_to_file(url: str, file_path: str) -> str:
@@ -248,6 +258,31 @@ def test_transfer_2():
     ]
 
     graph.start_graph({start_stage.get_stage_tag(): download_links})
+
+
+def test_redis_sink_source_0():
+    sleep_stage_0 = TaskManager(sleep_1, execution_mode="serial")
+    redis_sink = RedisSinkNode("test_redis", host="127.0.0.1")
+    redis_source = RedisSourceNode("test_redis", host="127.0.0.1")
+    sleep_stage_1 = TaskManager(sleep_1, execution_mode="serial")
+
+    sleep_stage_0.set_graph_context([redis_sink], stage_mode="process", stage_name="Sleep0")
+    redis_sink.set_graph_context([], stage_mode="process", stage_name="GoSink")
+    redis_source.set_graph_context([sleep_stage_1], stage_mode="process", stage_name="Source")
+    sleep_stage_1.set_graph_context([], stage_mode="process", stage_name="Sleep1")
+
+    graph = TaskGraph([sleep_stage_0, redis_source])
+    graph.set_reporter(True, host="127.0.0.1", port=5005)
+
+    # 要测试的任务列表
+    test_task_0 = range(25, 37)
+
+    graph.start_graph(
+        {
+            sleep_stage_0.get_stage_tag(): test_task_0,
+            redis_source.get_stage_tag(): range(12),
+        }
+    )
 
 
 if __name__ == "__main__":

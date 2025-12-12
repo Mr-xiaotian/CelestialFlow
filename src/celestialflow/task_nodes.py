@@ -80,13 +80,14 @@ class TaskSplitter(TaskManager):
 class TaskRedisTransfer(TaskManager):
     def __init__(
         self,
-        worker_limit=50,
-        unpack_task_args=False,
         host="localhost",
         port=6379,
         db=0,
+        password=None,
         fetch_timeout=10,
         result_timeout=10,
+        worker_limit=50,
+        unpack_task_args=False,
     ):
         """
         初始化 TaskRedisTransfer
@@ -109,6 +110,8 @@ class TaskRedisTransfer(TaskManager):
         self.host = host
         self.port = port
         self.db = db
+        self.password = password
+
         self.fetch_timeout = fetch_timeout
         self.result_timeout = result_timeout
 
@@ -116,7 +119,7 @@ class TaskRedisTransfer(TaskManager):
         """初始化 Redis 客户端"""
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(
-                host=self.host, port=self.port, db=self.db, decode_responses=True
+                host=self.host, port=self.port, db=self.db, password=self.password, decode_responses=True
             )
 
     def _trans_redis(self, *task):
@@ -168,6 +171,7 @@ class RedisSinkNode(TaskManager):
         host="localhost",
         port=6379,
         db=0,
+        password=None,
         unpack_task_args=False,
     ):
         super().__init__(
@@ -180,12 +184,13 @@ class RedisSinkNode(TaskManager):
         self.host = host
         self.port = port
         self.db = db
+        self.password = password
 
     def init_redis(self):
         """初始化 Redis 客户端"""
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(
-                host=self.host, port=self.port, db=self.db, decode_responses=True
+                host=self.host, port=self.port, db=self.db, password=self.password, decode_responses=True
             )
 
     def _sink(self, *task):
@@ -200,3 +205,52 @@ class RedisSinkNode(TaskManager):
         self.redis_client.rpush(self.key, payload)
 
         return task_id
+
+
+class RedisSourceNode(TaskManager):
+    def __init__(
+        self,
+        key,
+        host="localhost",
+        port=6379,
+        db=0,
+        password=None,
+        timeout=10,
+    ):
+        super().__init__(
+            func=self._source,
+            execution_mode="serial",  # source 本身不需要并行
+        )
+        self.key = key
+        self.host = host
+        self.port = port
+        self.db = db
+        self.password = password
+        self._timeout = timeout
+
+    def init_redis(self):
+        if not hasattr(self, "redis_client"):
+            self.redis_client = redis.Redis(
+                host=self.host, port=self.port, db=self.db, password=self.password, decode_responses=True
+            )
+
+    def _source(self, *_):
+        """
+        忽略输入 task，仅作为启动信号
+        从 Redis 拉取数据并注入下游
+        """
+        self.init_redis()
+
+        start_time = time.time()
+        while True:
+            item = self.redis_client.lpop(self.key)
+            if item:
+                item_obj:dict = json.loads(item)
+                task = tuple(item_obj.get("task"))
+                return task
+            
+            if time.time() - start_time > self._timeout:
+                raise TimeoutError(
+                    "Redis item not returned in time after being fetched"
+                )
+            time.sleep(0.1)
