@@ -53,8 +53,11 @@ flowchart LR
 
         TS[[TaskSplitter]]
         TR[/TaskRedisTransfer/]
+        TRSI[/RedisSinkNode/]
+        TRSO[/RedisSourceNode/]
 
-        RE[(Redis)]
+        RE1[(Redis)]
+        RE2[(Redis)]
         G1((GoWorker))
 
         S1 --> S2 --> S3 --> S1
@@ -63,30 +66,27 @@ flowchart LR
         T1 -->|1 task| TS
         TS -->|N task| T2
 
-        TR -->RE --> G1
-        G1 -->RE --> TR
+        TR -.->RE1 -.-> G1
+        G1 -.->RE1 -.-> TR
+
+        TRSI -.-> RE2 -.->  TRSO
 
     end
 
     %% 美化 TaskGraph 外框
     style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
 
+    classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
+
     %% 美化 TaskStages
-    style S1 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
-    style S2 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
-    style S3 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
-    style S4 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
-    
-    style T1 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
-    style T2 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+    class S1,S2,S3,S4 blueNode;
+    class T1,T2 blueNode;
 
     %% 美化 特殊Stage
-    style TS fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
-    style TR fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+    class TS,TR,TRSI,TRSO blueNode;
 
     %% 美化 外部结构
-    style RE fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
-    style G1 fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px
+    class RE1,RE2,G1 blueNode;
 
     %% ===== WebUI =====
     subgraph W[WebUI]

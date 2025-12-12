@@ -89,6 +89,8 @@ mermaidTitle.textContent = `任务结构图（${structureClassName}）`;
     let shape = "box";
     if (node.func_name === "_split_task") shape = "subgraph";
     else if (node.func_name === "_trans_redis") shape = "parallelogram";
+    else if (node.func_name === "_sink") shape = "parallelogram";
+    else if (node.func_name === "_source") shape = "parallelogram";
 
     nodeLabels.set(id, getShapeWrappedLabel(label, shape));
 

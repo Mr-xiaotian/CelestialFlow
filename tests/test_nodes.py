@@ -267,8 +267,8 @@ def test_redis_sink_source_0():
     sleep_stage_1 = TaskManager(sleep_1, execution_mode="serial")
 
     sleep_stage_0.set_graph_context([redis_sink], stage_mode="process", stage_name="Sleep0")
-    redis_sink.set_graph_context([], stage_mode="process", stage_name="GoSink")
-    redis_source.set_graph_context([sleep_stage_1], stage_mode="process", stage_name="Source")
+    redis_sink.set_graph_context([], stage_mode="process", stage_name="RedisSink")
+    redis_source.set_graph_context([sleep_stage_1], stage_mode="process", stage_name="RedisSource")
     sleep_stage_1.set_graph_context([], stage_mode="process", stage_name="Sleep1")
 
     graph = TaskGraph([sleep_stage_0, redis_source])
