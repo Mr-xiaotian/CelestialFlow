@@ -159,3 +159,44 @@ class TaskRedisTransfer(TaskManager):
                     "Redis result not returned in time after being fetched"
                 )
             time.sleep(0.1)
+
+
+class RedisSinkNode(TaskManager):
+    def __init__(
+        self,
+        key,
+        host="localhost",
+        port=6379,
+        db=0,
+        unpack_task_args=False,
+    ):
+        super().__init__(
+            func=self._sink,
+            execution_mode="thread",
+            worker_limit=4, # 允许 1~2 个线程偶发阻塞，但不会导致整体阻塞
+            unpack_task_args=unpack_task_args,
+        )
+        self.key = key
+        self.host = host
+        self.port = port
+        self.db = db
+
+    def init_redis(self):
+        """初始化 Redis 客户端"""
+        if not hasattr(self, "redis_client"):
+            self.redis_client = redis.Redis(
+                host=self.host, port=self.port, db=self.db, decode_responses=True
+            )
+
+    def _sink(self, *task):
+        self.init_redis()
+
+        task_id = self.get_task_id(task)
+        payload = json.dumps({
+            "id": task_id,
+            "task": task,
+            "emit_ts": time.time(),
+        })
+        self.redis_client.rpush(self.key, payload)
+
+        return task_id

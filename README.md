@@ -57,10 +57,8 @@ flowchart LR
         RE[(Redis)]
         G1((GoWorker))
 
-        S1 --> S2
-        S2 --> S3
+        S1 --> S2 --> S3 --> S1
         S1 --> S4
-        S3 --> S1
 
         T1 -->|1 task| TS
         TS -->|N task| T2

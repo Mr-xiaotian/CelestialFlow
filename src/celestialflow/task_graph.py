@@ -23,7 +23,8 @@ from .task_tools import (
     compute_node_levels,
     cluster_by_value_sorted,
     load_task_by_stage,
-    load_task_by_error
+    load_task_by_error,
+    format_repr,
 )
 
 
@@ -394,7 +395,7 @@ class TaskGraph:
                 "timestamp": timestamp,
                 "node": stage_tag,
                 "error": error_info,
-                "task_id": task_str if len(task_str) < 100 else task_str[:100] + "...",
+                "task_id": format_repr(task_str, 100),
             })
 
             self._persist_single_failure(task_str, error_info, stage_tag, timestamp)

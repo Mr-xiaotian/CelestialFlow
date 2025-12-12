@@ -7,11 +7,7 @@ from itertools import zip_longest
 from collections import defaultdict
 from datetime import datetime
 from multiprocessing import Queue as MPQueue
-from asyncio import Queue as AsyncQueue
-from queue import Queue as ThreadQueue
 from pathlib import Path
-from queue import Empty
-from asyncio import QueueEmpty as AsyncQueueEmpty
 from typing import TYPE_CHECKING, Dict, Any, List, Set, Optional
 
 if TYPE_CHECKING:
@@ -203,69 +199,6 @@ def compute_node_levels(G: nx.DiGraph) -> Dict[str, int]:
 
 
 # ========调用于task_manage.py========
-def is_queue_empty(q: ThreadQueue) -> bool:
-    """
-    判断队列是否为空
-    """
-    try:
-        item = q.get_nowait()
-        q.put(item)  # optional: put it back
-        return False
-    except Empty:
-        return True
-
-
-async def is_queue_empty_async(q: AsyncQueue) -> bool:
-    """
-    判断队列是否为空
-    """
-    try:
-        item = q.get_nowait()
-        await q.put(item)  # ✅ 修复点
-        return False
-    except AsyncQueueEmpty:
-        return True
-
-
-def are_queues_empty(queues: List[ThreadQueue]) -> bool:
-    """
-    判断多个同步队列是否都为空。
-    所有队列都为空才返回 True。
-    """
-    for q in queues:
-        if not is_queue_empty(q):
-            return False
-    return True
-
-
-async def are_queues_empty_async(queues: List[AsyncQueue]) -> bool:
-    """
-    判断多个异步队列是否都为空。
-    所有队列都为空才返回 True。
-    """
-    for q in queues:
-        if not await is_queue_empty_async(q):
-            return False
-    return True
-
-
-def format_repr(obj: Any, max_length: int) -> str:
-    """
-    将对象格式化为字符串，自动转义换行、截断超长文本。
-
-    :param obj: 任意对象
-    :param max_length: 显示的最大字符数（超出将被截断）
-    :return: 格式化字符串
-    """
-    obj_str = str(obj).replace("\\", "\\\\").replace("\n", "\\n")
-    if max_length <= 0 or len(obj_str) <= max_length:
-        return obj_str
-    # 截断逻辑（前 2/3 + ... + 后 1/3）
-    first_part = obj_str[: int(max_length * 2 / 3)]
-    last_part = obj_str[-int(max_length / 3) :]
-    return f"{first_part}...{last_part}"
-
-
 def object_to_str_hash(obj) -> str:
     """
     将任意对象转换为 MD5 字符串。
@@ -300,6 +233,27 @@ def cleanup_mpqueue(queue: MPQueue):
     """
     queue.close()
     queue.join_thread()  # 确保队列的后台线程正确终止
+
+
+def format_repr(obj: Any, max_length: int) -> str:
+    """
+    将对象格式化为字符串，自动转义换行、截断超长文本。
+
+    :param obj: 任意对象
+    :param max_length: 显示的最大字符数（超出将被截断）
+    :return: 格式化字符串
+    """
+    obj_str = str(obj).replace("\\", "\\\\").replace("\n", "\\n")
+    if max_length <= 0 or len(obj_str) <= max_length:
+        return obj_str
+    
+    # 截断逻辑（前 2/3 + ... + 后 1/3）
+    segment_len = max(1, max_length // 3)
+
+    first_part = obj_str[: segment_len * 2]
+    last_part = obj_str[-segment_len :]
+    
+    return f"{first_part}...{last_part}"
 
 
 def format_table(
