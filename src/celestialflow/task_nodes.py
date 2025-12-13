@@ -220,6 +220,7 @@ class RedisSourceNode(TaskManager):
         super().__init__(
             func=self._source,
             execution_mode="serial",  # source 本身不需要并行
+            enable_duplicate_check=False,
         )
         self.key = key
         self.host = host
@@ -246,8 +247,10 @@ class RedisSourceNode(TaskManager):
             item = self.redis_client.lpop(self.key)
             if item:
                 item_obj:dict = json.loads(item)
-                task = tuple(item_obj.get("task"))
-                return task
+                task = item_obj.get("task")
+                if len(task) == 1:
+                    return task[0]
+                return tuple(task)
             
             if time.time() - start_time > self._timeout:
                 raise TimeoutError(

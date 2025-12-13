@@ -76,6 +76,7 @@ flowchart LR
     %% 美化 TaskGraph 外框
     style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
 
+    %% 统一美化格式
     classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
 
     %% 美化 TaskStages

@@ -28,6 +28,7 @@ class TaskManager:
         max_info=50,
         unpack_task_args=False,
         enable_result_cache=False,
+        enable_duplicate_check=True,
         progress_desc="Processing",
         show_progress=False,
     ):
@@ -41,6 +42,7 @@ class TaskManager:
         :param max_info: 日志最大条数
         :param unpack_task_args: 是否将任务参数解包
         :param enable_result_cache: 是否启用结果缓存
+        :param enable_duplicate_check: 是否启用重复检查
         :param progress_desc: 进度条显示名称
         :param show_progress: 进度条显示与否
         """
@@ -51,6 +53,7 @@ class TaskManager:
         self.max_info = max_info
         self.unpack_task_args = unpack_task_args
         self.enable_result_cache = enable_result_cache
+        self.enable_duplicate_check = enable_duplicate_check
 
         self.progress_desc = progress_desc
         self.show_progress = show_progress
@@ -416,6 +419,8 @@ class TaskManager:
         """
         判断任务是否重复
         """
+        if not self.enable_duplicate_check:
+            return False
         return task_id in self.processed_set
 
     def deal_dupliacte(self, task):
