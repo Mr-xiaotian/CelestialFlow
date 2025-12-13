@@ -1,4 +1,4 @@
-import pytest, logging, re, random
+import pytest, logging, re, random, os
 import requests
 from time import sleep
 
@@ -11,6 +11,12 @@ from celestialflow import (
     RedisSinkNode,
     RedisSourceNode,
 )
+from dotenv import load_dotenv
+
+
+load_dotenv()
+redis_host = os.getenv("REDIS_HOST")
+redis_passward = os.getenv("REDIS_PASSWORD")
 
 
 class DownloadRedisTransfer(TaskRedisTransfer):
@@ -176,7 +182,7 @@ def test_splitter_1():
 
 def test_transfer_0():
     start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
-    redis_transfer = TaskRedisTransfer()
+    redis_transfer = TaskRedisTransfer(host=redis_host, password=redis_passward)
     fibonacci_stage = TaskManager(fibonacci, "thread")
 
     start_stage.set_graph_context(
@@ -201,7 +207,7 @@ def test_transfer_0():
 
 def test_transfer_1():
     start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
-    redis_transfer = TaskRedisTransfer(unpack_task_args=True)
+    redis_transfer = TaskRedisTransfer(host=redis_host, password=redis_passward, unpack_task_args=True)
     sum_stage = TaskManager(
         sum_int, execution_mode="thread", worker_limit=4, unpack_task_args=True
     )
@@ -262,17 +268,17 @@ def test_transfer_2():
 
 def test_redis_sink_source_0():
     sleep_stage_0 = TaskManager(sleep_1, execution_mode="serial")
-    redis_sink = RedisSinkNode("test_redis", host="127.0.0.1")
-    redis_source = RedisSourceNode("test_redis", host="127.0.0.1")
+    redis_sink_stage = RedisSinkNode("test_redis", host=redis_host, password=redis_passward)
+    redis_source_stage = RedisSourceNode("test_redis", host=redis_host, password=redis_passward)
     sleep_stage_1 = TaskManager(sleep_1, execution_mode="serial")
 
-    sleep_stage_0.set_graph_context([redis_sink], stage_mode="process", stage_name="Sleep0")
-    redis_sink.set_graph_context([], stage_mode="process", stage_name="RedisSink")
-    redis_source.set_graph_context([sleep_stage_1], stage_mode="process", stage_name="RedisSource")
+    sleep_stage_0.set_graph_context([redis_sink_stage], stage_mode="process", stage_name="Sleep0")
+    redis_sink_stage.set_graph_context([], stage_mode="process", stage_name="RedisSink")
+    redis_source_stage.set_graph_context([sleep_stage_1], stage_mode="process", stage_name="RedisSource")
     sleep_stage_1.set_graph_context([], stage_mode="process", stage_name="Sleep1")
 
-    graph = TaskGraph([sleep_stage_0, redis_source])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
+    graph = TaskGraph([sleep_stage_0, redis_source_stage])
+    graph.set_reporter(True, host="192.168.31.149", port=5000)
 
     # 要测试的任务列表
     test_task_0 = range(25, 37)
@@ -280,7 +286,7 @@ def test_redis_sink_source_0():
     graph.start_graph(
         {
             sleep_stage_0.get_stage_tag(): test_task_0,
-            redis_source.get_stage_tag(): range(12),
+            redis_source_stage.get_stage_tag(): range(12),
         }
     )
 

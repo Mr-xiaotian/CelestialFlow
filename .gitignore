@@ -23,3 +23,5 @@ result.json
 
 dist/
 build/
+
+.env
