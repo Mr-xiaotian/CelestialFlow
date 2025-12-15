@@ -92,13 +92,13 @@ class TaskRedisTransfer(TaskManager):
         """
         初始化 TaskRedisTransfer
 
-        :param worker_limit: 并行工作线程数
-        :param unpack_task_args: 是否将任务参数解包
         :param host: Redis 主机地址
         :param port: Redis 端口
         :param db: Redis 数据库
         :param fetch_timeout: Redis 任务等待超时时间
         :param result_timeout: Redis 结果等待超时时间
+        :param worker_limit: 并行工作线程数
+        :param unpack_task_args: 是否将任务参数解包
         """
         super().__init__(
             func=self._trans_redis,
@@ -174,6 +174,16 @@ class RedisSinkNode(TaskManager):
         password=None,
         unpack_task_args=False,
     ):
+        """
+        初始化 RedisSinkNode
+
+        :param key: Redis list key
+        :param host: Redis 主机地址
+        :param port: Redis 端口
+        :param db: Redis 数据库
+        :param password: Redis 密码
+        :param unpack_task_args: 是否将任务参数解包
+        """
         super().__init__(
             func=self._sink,
             execution_mode="thread",
@@ -217,6 +227,16 @@ class RedisSourceNode(TaskManager):
         password=None,
         timeout=10,
     ):
+        """
+        初始化 RedisSourceNode
+
+        :param key: Redis list key
+        :param host: Redis 主机地址
+        :param port: Redis 端口
+        :param db: Redis 数据库
+        :param password: Redis 密码
+        :param timeout: Redis 超时时间, 设为0则无限等待
+        """
         super().__init__(
             func=self._source,
             execution_mode="serial",  # source 本身不需要并行
@@ -242,18 +262,15 @@ class RedisSourceNode(TaskManager):
         """
         self.init_redis()
 
-        start_time = time.time()
-        while True:
-            item = self.redis_client.lpop(self.key)
-            if item:
-                item_obj:dict = json.loads(item)
-                task = item_obj.get("task")
-                if len(task) == 1:
-                    return task[0]
-                return tuple(task)
-            
-            if time.time() - start_time > self._timeout:
-                raise TimeoutError(
-                    "Redis item not returned in time after being fetched"
-                )
-            time.sleep(0.1)
+        res = self.redis_client.blpop(self.key, timeout=self._timeout)
+        if res is None:
+            raise TimeoutError("Redis item not returned in time after being fetched")
+        _, item = res
+        item_obj:dict = json.loads(item)
+
+        task = item_obj.get("task")
+        if len(task) == 1:
+            return task[0]
+        
+        return tuple(task)
+

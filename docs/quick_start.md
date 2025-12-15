@@ -41,7 +41,7 @@ Web监视界面并不是必须的，但可以通过网页获得任务运行的�
 ```env
 # .env
 # TaskWeb的监听地址
-REPORT_HOST="127.0.0.1"
+REPORT_HOST=127.0.0.1
 # TaskWeb的监听端口
 REPORT_PORT=5005
 ```
