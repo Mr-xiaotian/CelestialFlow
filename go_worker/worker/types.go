@@ -2,9 +2,9 @@ package worker
 
 // 标准任务结构
 type TaskPayload struct {
-	ID     string `json:"id"`
-	Task   any    `json:"task"`
-	EmitTs int64  `json:"emit_ts"` // 任务创建时间
+	ID     string  `json:"id"`
+	Task   any     `json:"task"`
+	EmitTs float64 `json:"emit_ts"` // 任务创建时间
 }
 
 // 函数签名定义

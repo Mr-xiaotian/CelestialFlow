@@ -39,10 +39,10 @@ func main() {
 	worker.StartWorkerPool(
 		ctx,
 		rdb,
-		"GoSum[_trans_redis]:input",  // Redis 中任务输入的 List
-		"GoSum[_trans_redis]:output", // Redis 中结果写入的 Hash
+		"testFibonacci:input",  // Redis 中任务输入的 List
+		"testFibonacci:output", // Redis 中结果写入的 Hash
 		worker.ParseListTask,
-		worker.Sum,
+		worker.Fibonacci,
 		4,
 	)
 }
