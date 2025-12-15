@@ -3,18 +3,34 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/Mr-xiaotian/CelestialFlow/go_worker/worker"
 
+	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No .env file found, using system env")
+	}
+
+	redisHost := os.Getenv("REDIS_HOST")
+	redisPort := os.Getenv("REDIS_PORT")
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+
+	if redisHost == "" || redisPort == "" {
+		panic("REDIS_HOST or REDIS_PORT not set")
+	}
+
 	ctx := context.Background()
 
 	rdb := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-		DB:   0,
+		Addr:     redisHost + ":" + redisPort,
+		Password: redisPassword,
+		DB:       0,
 	})
 
 	fmt.Println("Go Worker Start")

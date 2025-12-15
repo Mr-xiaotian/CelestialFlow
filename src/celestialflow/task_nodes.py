@@ -77,94 +77,7 @@ class TaskSplitter(TaskManager):
         )
 
 
-class TaskRedisTransfer(TaskManager):
-    def __init__(
-        self,
-        host="localhost",
-        port=6379,
-        db=0,
-        password=None,
-        fetch_timeout=10,
-        result_timeout=10,
-        worker_limit=50,
-        unpack_task_args=False,
-    ):
-        """
-        初始化 TaskRedisTransfer
-
-        :param host: Redis 主机地址
-        :param port: Redis 端口
-        :param db: Redis 数据库
-        :param fetch_timeout: Redis 任务等待超时时间
-        :param result_timeout: Redis 结果等待超时时间
-        :param worker_limit: 并行工作线程数
-        :param unpack_task_args: 是否将任务参数解包
-        """
-        super().__init__(
-            func=self._trans_redis,
-            execution_mode="thread",
-            worker_limit=worker_limit,
-            unpack_task_args=unpack_task_args,
-        )
-
-        self.host = host
-        self.port = port
-        self.db = db
-        self.password = password
-
-        self.fetch_timeout = fetch_timeout
-        self.result_timeout = result_timeout
-
-    def init_redis(self):
-        """初始化 Redis 客户端"""
-        if not hasattr(self, "redis_client"):
-            self.redis_client = redis.Redis(
-                host=self.host, port=self.port, db=self.db, password=self.password, decode_responses=True
-            )
-
-    def _trans_redis(self, *task):
-        """
-        将任务写入 Redis, 并等待结果
-        """
-        self.init_redis()
-        input_key = f"{self.get_stage_tag()}:input"
-        output_key = f"{self.get_stage_tag()}:output"
-
-        # 提交任务
-        task_id = self.get_task_id(task)
-        payload = json.dumps({"id": task_id, "task": task})
-        self.redis_client.rpush(input_key, payload)
-
-        # ✅ 等待任务被 BLPOP 拿走（不在 list 中）
-        wait_start = time.time()
-        while True:
-            if self.redis_client.lpos(input_key, payload) is None:  # 已被取走
-                break
-            if time.time() - wait_start > self.fetch_timeout:
-                raise TimeoutError("Task not fetched from Redis in time")
-            time.sleep(0.1)
-
-        # ✅ 被取走后再进入结果等待阶段
-        start_time = time.time()
-        while True:
-            result = self.redis_client.hget(output_key, task_id)
-            if result:
-                self.redis_client.hdel(output_key, task_id)
-                result_obj = json.loads(result)
-                if result_obj.get("status") == "success":
-                    return result_obj.get("result")
-                elif result_obj.get("status") == "error":
-                    raise RemoteWorkerError(f"{result_obj.get('error')}")
-                else:
-                    raise ValueError(f"Unknown result status: {result_obj}")
-            if time.time() - start_time > self.result_timeout:
-                raise TimeoutError(
-                    "Redis result not returned in time after being fetched"
-                )
-            time.sleep(0.1)
-
-
-class RedisSinkNode(TaskManager):
+class TaskRedisSink(TaskManager):
     def __init__(
         self,
         key,
@@ -175,7 +88,7 @@ class RedisSinkNode(TaskManager):
         unpack_task_args=False,
     ):
         """
-        初始化 RedisSinkNode
+        初始化 TaskRedisSink
 
         :param key: Redis list key
         :param host: Redis 主机地址
@@ -217,7 +130,7 @@ class RedisSinkNode(TaskManager):
         return task_id
 
 
-class RedisSourceNode(TaskManager):
+class TaskRedisSource(TaskManager):
     def __init__(
         self,
         key,
@@ -228,7 +141,7 @@ class RedisSourceNode(TaskManager):
         timeout=10,
     ):
         """
-        初始化 RedisSourceNode
+        初始化 TaskRedisSource
 
         :param key: Redis list key
         :param host: Redis 主机地址
@@ -274,3 +187,92 @@ class RedisSourceNode(TaskManager):
         
         return tuple(task)
 
+
+class TaskRedisAck(TaskManager):
+    def __init__(
+        self,
+        key,
+        host="localhost",
+        port=6379,
+        db=0,
+        password=None,
+        timeout=10,
+    ):
+        """
+        TaskRedisAck: 远端任务完成确认节点（Ack）
+
+        :param key: Redis 结果 key 前缀（通常与 TaskRedisSink 对应）
+        :param host: Redis 主机地址
+        :param port: Redis 端口
+        :param db: Redis 数据库
+        :param password: Redis 密码
+        :param timeout: 等待结果的超时时间（秒），0 表示无限等待
+        """
+        super().__init__(
+            func=self._ack,
+            execution_mode="serial",          # Ack 是顺序语义
+            enable_duplicate_check=False,     # task_id 天然唯一
+        )
+
+        self.key = key
+        self.host = host
+        self.port = port
+        self.db = db
+        self.password = password
+        self._timeout = timeout
+
+    def init_redis(self):
+        if not hasattr(self, "redis_client"):
+            self.redis_client = redis.Redis(
+                host=self.host,
+                port=self.port,
+                db=self.db,
+                password=self.password,
+                decode_responses=True,
+            )
+
+    def _ack(self, task_id: str):
+        """
+        接收 task_id，等待远端 worker 的执行结果
+
+        :param task_id: 来自 TaskRedisSink 的 task_id
+        :return: 远端执行结果
+        """
+        self.init_redis()
+
+        start_time = time.time()
+
+        while True:
+            result = self.redis_client.hget(self.key, task_id)
+
+            if result:
+                # ✅ 取到结果即删除，保证 Ack 语义一次性
+                self.redis_client.hdel(self.key, task_id)
+
+                result_obj: dict = json.loads(result)
+                status = result_obj.get("status")
+
+                if status == "success":
+                    result = result_obj.get("result")
+                    if not hasattr(result, "__iter__") or isinstance(result, (str, bytes)):
+                        return result
+                    elif isinstance(result, list):
+                        if len(result) == 1:
+                            return result[0]
+                        return tuple(result)
+                    else:
+                        return result
+                
+                elif status == "error":
+                    raise RemoteWorkerError(result_obj.get("error"))
+                
+                else:
+                    raise ValueError(f"Unknown ack status: {result_obj}")
+
+            # 超时控制
+            if self._timeout and (time.time() - start_time) > self._timeout:
+                raise TimeoutError(
+                    f"TaskRedisAck timeout: task_id={task_id} not acknowledged"
+                )
+
+            time.sleep(0.1)

@@ -1,10 +1,10 @@
 from .task_graph import TaskGraph
 from .task_manage import TaskManager
 from .task_nodes import (
-    TaskSplitter, 
-    TaskRedisTransfer,   
-    RedisSinkNode,
-    RedisSourceNode,
+    TaskSplitter,  
+    TaskRedisSink,
+    TaskRedisSource,
+    TaskRedisAck,
 )
 from .task_structure import (
     TaskChain,
@@ -33,9 +33,9 @@ __all__ = [
     "TaskGrid",
     "TaskManager",
     "TaskSplitter",
-    "TaskRedisTransfer",
-    "RedisSinkNode",
-    "RedisSourceNode",
+    "TaskRedisSink",
+    "TaskRedisSource",
+    "TaskRedisAck",
     "TerminationSignal",
     "TaskWebServer",
     "load_task_by_stage",

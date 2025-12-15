@@ -53,8 +53,8 @@ flowchart LR
 
         TS[[TaskSplitter]]
         TR[/TaskRedisTransfer/]
-        TRSI[/RedisSinkNode/]
-        TRSO[/RedisSourceNode/]
+        TRSI[/TaskRedisSink/]
+        TRSO[/TaskRedisSource/]
 
         RE1[(Redis)]
         RE2[(Redis)]
