@@ -1,6 +1,8 @@
-import pytest, logging
+import pytest, logging, os
 import math
 from time import sleep
+from dotenv import load_dotenv
+
 from celestialflow import (
     TaskManager,
     TaskGraph,
@@ -11,6 +13,11 @@ from celestialflow import (
     TaskWheel,
     TaskGrid,
 )
+
+
+load_dotenv()
+report_host = os.getenv("REPORT_HOST")
+report_port = os.getenv("REPORT_PORT")
 
 
 def operate_sleep(a, b):
@@ -110,7 +117,7 @@ def test_chain():
 
     # 设置图结构
     chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "process")
-    chain.set_reporter(True, host="127.0.0.1", port=5005)
+    chain.set_reporter(True, host=report_host, port=report_port)
 
     chain.start_chain(
         {
@@ -162,7 +169,7 @@ def test_forest():
 
     # 构建 TaskGraph（多根）
     graph = TaskGraph([stageA, stageB, stageF])  # 多根支持
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
+    graph.set_reporter(True, host=report_host, port=report_port)
 
     # 初始任务
     init_tasks = {
@@ -188,7 +195,7 @@ def test_cross():
     cross = TaskCross(
         [[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]], "serial"
     )
-    cross.set_reporter(True, host="127.0.0.1", port=5005)
+    cross.set_reporter(True, host=report_host, port=report_port)
 
     # 初始任务
     init_tasks = {
@@ -215,7 +222,7 @@ def test_network():
 
     # 构建任务图
     cross = TaskCross([[A1, A2], [B1, B2, B3], [C]])
-    cross.set_reporter(True, host="127.0.0.1", port=5005)
+    cross.set_reporter(True, host=report_host, port=report_port)
 
     # 初始任务（输入层）
     init_tasks = {
@@ -235,7 +242,7 @@ def test_star():
 
     # 构造 TaskCross
     star = TaskCross([[core], [side1, side2, side3]], "process")
-    star.set_reporter(True, host="127.0.0.1", port=5005)
+    star.set_reporter(True, host=report_host, port=report_port)
 
     star.start_cross({core.get_stage_tag(): range(1, 11)})
 
@@ -249,7 +256,7 @@ def test_fanin():
 
     # 构造 TaskCross
     fainin = TaskCross([[source1, source2, source3], [merge]], "process")
-    fainin.set_reporter(True, host="127.0.0.1", port=5005)
+    fainin.set_reporter(True, host=report_host, port=report_port)
 
     fainin.start_cross(
         {
@@ -268,7 +275,7 @@ def test_grid():
 
     # 2. 构建 TaskGrid 实例
     task_grid = TaskGrid(grid, "serial")
-    task_grid.set_reporter(True, host="127.0.0.1", port=5005)
+    task_grid.set_reporter(True, host=report_host, port=report_port)
 
     # 3. 初始化任务字典，只放左上角一个任务
     init_dict = {grid[0][0].get_stage_tag(): range(10)}
@@ -284,7 +291,7 @@ def test_loop():
     stageC = TaskManager(add_one_sleep, "serial")
 
     graph = TaskLoop([stageA, stageB, stageC])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
+    graph.set_reporter(True, host=report_host, port=report_port)
 
     # 要测试的任务列表
     test_task_0 = range(1, 2)
@@ -303,7 +310,7 @@ def test_wheel():
 
     # 构造 TaskCross
     wheel = TaskWheel(core, [side1, side2, side3, side4])
-    wheel.set_reporter(True, host="127.0.0.1", port=5005)
+    wheel.set_reporter(True, host=report_host, port=report_port)
 
     wheel.start_wheel({core.get_stage_tag(): range(1, 11)}, True)
 
@@ -316,7 +323,7 @@ def test_complete():
 
     # 构造 TaskComplete
     complete = TaskComplete([n1, n2, n3])
-    complete.set_reporter(True, host="127.0.0.1", port=5005)
+    complete.set_reporter(True, host=report_host, port=report_port)
 
     complete.start_complete(
         {

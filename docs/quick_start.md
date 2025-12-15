@@ -32,9 +32,21 @@ cd CelestialFlow
 pip install .
 ```
 
-## （可选）启动 Web 可视化
+## （可选）设置.env && 启动 Web 可视化
 
-Web监视界面并不是必须的，但可以通过网页获得任务运行的更多信息，推荐使用:
+Web监视界面并不是必须的，但可以通过网页获得任务运行的更多信息，推荐使用。
+
+首先，在项目根目录下创建一个 `.env` 文件，并填入以下内容：
+
+```env
+# .env
+# TaskWeb的监听地址
+REPORT_HOST="127.0.0.1"
+# TaskWeb的监听端口
+REPORT_PORT=5005
+```
+
+之后，你可以通过以下命令启动Web服务：
 
 ```bash
 # 如果你pip了项目，可以在当前虚拟环境下可以直接使用命令celestialflow-web
@@ -50,7 +62,7 @@ python src/celestialflow/task_web.py 5005
 
 可查看任务结构、执行状态、错误日志、以及实时注入任务等功能。
 
-下图为运行test_graph_1时web页面的显示情况：
+下图为运行test_graph_1时web页面的显示情况, 非默认打开样式：
 
 ![WebUI](https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/web_ui.gif)
 <p align="center"><em>gif图压缩了过多细节(｡•́︿•̀｡)</em></p>
@@ -61,7 +73,7 @@ python src/celestialflow/task_web.py 5005
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 ```
 
-那么日志中会有一些`WARNING`，那是 TaskReporter 在提示无法连接 TaskWeb。但这并不影响使用。
+那么[日志](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_logging.md)中会有一些`WARNING`，那是 TaskReporter 在提示无法连接 TaskWeb。但这并不影响使用。
 
 ```log
 2025-12-10 08:57:13 WARNING [Reporter] Task injection fetch failed: ConnectTimeout
@@ -95,7 +107,7 @@ pytest tests/test_nodes.py::test_splitter_1
     |     ╘-->Stage_E (stage_mode: serial, func: sleep_random_E) [Visited] |
     +----------------------------------------------------------------------+
     ```
-- test_splitter_1() 模拟了一个爬虫程序的执行流程：从入口页面开始抓取，并在解析过程中动态生成新的爬取任务并返回上游抓取节点；下游节点负责数据清洗与结果处理。图结构如下:
+- test_splitter_0() 模拟了一个爬虫程序的执行流程：从入口页面开始抓取，并在解析过程中动态生成新的爬取任务并返回上游抓取节点；下游节点负责数据清洗与结果处理。图结构如下:
     ```
     +--------------------------------------------------------------------------------+
     | GenURLs (stage_mode: process, func: generate_urls_sleep)                       |

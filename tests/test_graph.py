@@ -1,8 +1,14 @@
-import pytest, logging, pprint
+import pytest, logging, pprint, os
 import random
 from time import sleep
+from dotenv import load_dotenv
 
 from celestialflow import TaskManager, TaskGraph, format_table
+
+
+load_dotenv()
+report_host = os.getenv("REPORT_HOST")
+report_port = os.getenv("REPORT_PORT")
 
 
 def sleep_1(n):
@@ -129,7 +135,7 @@ def test_graph_0():
 
     # 初始化 TaskGraph
     graph = TaskGraph(root_stages=[stage1])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
+    graph.set_reporter(True, host=report_host, port=report_port)
 
     # 要测试的任务列表
     test_task_0 = range(25, 37)
@@ -170,7 +176,7 @@ def test_graph_1():
 
     # 初始化 TaskGraph, 并设置根节点
     graph = TaskGraph([A])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
+    graph.set_reporter(True, host=report_host, port=report_port)
 
     input_tasks = {
         A.get_stage_tag(): range(10),

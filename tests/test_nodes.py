@@ -1,6 +1,7 @@
 import pytest, logging, re, random, os
 import requests
 from time import sleep
+from dotenv import load_dotenv
 
 from celestialflow import (
     TaskManager,
@@ -11,10 +12,11 @@ from celestialflow import (
     RedisSinkNode,
     RedisSourceNode,
 )
-from dotenv import load_dotenv
 
 
 load_dotenv()
+report_host = os.getenv("REPORT_HOST")
+report_port = os.getenv("REPORT_PORT")
 redis_host = os.getenv("REDIS_HOST")
 redis_passward = os.getenv("REDIS_PASSWORD")
 
@@ -71,7 +73,9 @@ def parse(url):
     num_list = re.findall(r"\d+", url)
     parse_num = int("".join(num_list))
     if parse_num % 2 == 0:
-        raise ValueError("Test error for even number")
+        raise ValueError("Test error for even")
+    elif parse_num % 3 == 0:
+        raise ValueError("Test error for multiple of 3")
     elif parse_num == 0:
         raise ValueError("Test error for 0")
     return parse_num
@@ -151,7 +155,7 @@ def test_splitter_0():
 
     # 初始化 TaskGraph
     graph = TaskGraph([generate_stage])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
+    graph.set_reporter(True, host=report_host, port=report_port)
 
     graph.start_graph(
         {
@@ -171,7 +175,7 @@ def test_splitter_1():
     process_stage = TaskManager(no_op, execution_mode="thread", worker_limit=50)
 
     chain = TaskChain([task_splitter, process_stage], "process")
-    chain.set_reporter(True, host="127.0.0.1", port=5005)
+    chain.set_reporter(True, host=report_host, port=report_port)
 
     chain.start_chain(
         {
@@ -192,7 +196,7 @@ def test_transfer_0():
     fibonacci_stage.set_graph_context([], stage_mode="process", stage_name="Fibonacci")
 
     graph = TaskGraph([start_stage])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
+    graph.set_reporter(True, host=report_host, port=report_port)
 
     # 要测试的任务列表
     test_task_0 = range(25, 37)
@@ -219,7 +223,7 @@ def test_transfer_1():
     sum_stage.set_graph_context([], stage_mode="process", stage_name="Sum")
 
     graph = TaskGraph([start_stage])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
+    graph.set_reporter(True, host=report_host, port=report_port)
 
     # 要测试的任务列表
     test_task_0 = [(random.randint(1, 100), random.randint(1, 100)) for _ in range(12)]
@@ -233,7 +237,7 @@ def test_transfer_1():
 
 def test_transfer_2():
     start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
-    redis_transfer = DownloadRedisTransfer(port=50001)
+    redis_transfer = DownloadRedisTransfer()
     download_stage = DownloadManager(
         download_to_file, execution_mode="thread", worker_limit=4
     )
@@ -245,7 +249,7 @@ def test_transfer_2():
     download_stage.set_graph_context([], stage_mode="process", stage_name="Download")
 
     graph = TaskGraph([start_stage])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
+    graph.set_reporter(True, host=report_host, port=report_port)
 
     download_links = [
         # # 小型 HTML 页面
@@ -278,7 +282,7 @@ def test_redis_sink_source_0():
     sleep_stage_1.set_graph_context([], stage_mode="process", stage_name="Sleep1")
 
     graph = TaskGraph([sleep_stage_0, redis_source_stage])
-    graph.set_reporter(True, host="192.168.31.149", port=5000)
+    graph.set_reporter(True, host=report_host, port=report_port)
 
     # 要测试的任务列表
     test_task_0 = range(25, 37)
