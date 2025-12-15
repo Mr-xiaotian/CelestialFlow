@@ -51,11 +51,11 @@ pytest tests/test_manage.py::test_manager_async
 
 # test_nodes.py
 
-该文件主要用于测试[task_nodes.py](..\src\celestialflow\task_nodes.py)中定义的两个特殊节点 `TaskSplitter` 与 `TaskRedisTransfer`，两者都继承自 `TaskManager`。
+该文件主要用于测试[task_nodes.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/src/celestialflow/task_nodes.py)中定义的两个特殊节点 `TaskSplitter` 与 `TaskRedis*`，两者都继承自 `TaskManager`。
 
-`TaskSplitter`用于将迭代器形式的多个任务数据(List[Task])拆成单独任务(Task)传给下游，因此在 Web 页面可以看到 `TaskSplitter` 下游获取的数据会比 `TaskSplitter` 处理成功的数据更多； `TaskRedisTransfer` 用于将传入的任务传给 Redis, 如果此时开启go_worker，go_worker会从 Redis 中接受数据并在处理后将答案传回 Redis，之后`TaskRedisTransfer`再提取答案并传给下游。
+`TaskSplitter`用于将迭代器形式的多个任务数据(List[Task])拆成单独任务(Task)传给下游，因此在 Web 页面可以看到 `TaskSplitter` 下游获取的数据会比 `TaskSplitter` 处理成功的数据更多； `TaskRedisSink` 用于将传入的任务传给 Redis, 如果此时开启go_worker，go_worker会从 Redis 中接受数据并在处理后将答案传回 Redis，之后 `TaskRedisAck` 再提取答案并传给下游； 如果想直接从 Redis 中重新读取任务, 可以使用`TaskRedisSource`, 一般用于跨设备/跨TaskGraph传输任务。
 
-对于两节点更详细的描述请看[Src README.md](..\src\celestialflow\README.md)。
+对于两节点更详细的描述请看[task_nodes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/task_nodes.md)。
 
 ## test_splitter_0() 与 test_splitter_1()
 
@@ -69,58 +69,17 @@ pytest tests/test_manage.py::test_manager_async
 
 运行这个测试函数时可能出现stage 2已经处理所有任务，但程序没有中止的情况，这是因为 `task_logging` 设计中日志记录与写入文件是分离的，当stage 2处理完任务时日志还没有被全部写入文件，等待片刻就好。
 
-## test_transfer_0()
+## test_redis_ack_0()
 
 这个测试文件对比了计算fibonacci时，直接用py计算与使用Redis外接go_worker计算间的时间差异。从结果来看，即便Redis传输耗费了大量时间，但Go强大的性能依旧让使用go_worker成为CPU密集计算时的好选择。
 
-需要注意的是, 在运行`test_transfer_*`系函数时, 需要先启动 Redis 服务, 然后设置 `TaskRedisTransfer` 中 Redis 端口与节点名称(如这里的 `GoFibonacci`)。
+需要注意的是, 在使用 `TaskRedis*` 系列节点前需要进行[前期设置](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/task_nodes.md#前期设置)。
 
-```python
-class TaskRedisTransfer(
-    worker_limit: int = 50,
-    unpack_task_args: bool = False,
-    host: str = "localhost",
-    port: int = 6379,
-    db: int = 0,
-    fetch_timeout: int = 10,
-    result_timeout: int = 10
-)
+## test_redis_1()
 
-redis_transfer.set_graph_context([], stage_mode="process", stage_name="GoFibonacci")
-```
+这个测试文件测试了传递多参数的情景，同时也可以直观看出对于 `sum` 这种几乎0运算时间的函数，使用 Redis 的通信消耗会远远超过Go高性能省下的时间。
 
-再在[go_worker main.go](../go_worker/main.go)中配置 Redis 接口, 保证传入传出列表的 key 值与 `TaskRedisTransfer` 的 stage_name 相同。同时在[go_worker processor.go](../go_worker/worker/processor.go)中选择你要使用的 Go 函数, 这里我们使用 worker.Fibonacci。
-
-```go
-rdb := redis.NewClient(&redis.Options{
-  Addr: "localhost:6379",
-  DB:   0,
-})
-
-worker.StartWorkerPool(
-  ctx,
-  rdb,
-  "GoFibonacci[_trans_redis]:input",  // Redis 中任务输入的 List
-  "GoFibonacci[_trans_redis]:output", // Redis 中结果写入的 Hash
-  worker.ParseListTask,
-  worker.Fibonacci,
-  4,
-)
-```
-
-然后运行
-
-```bash
-make run_go_worker
-```
-
-go_worker启动并开始监听 Redis 队列, 此时可以正常运行pytest。
-
-## test_transfer_1()
-
-这个测试文件测试了传递多参数的情景，同时也可以直观看出对于`sum`这种几乎0运算时间的函数，使用 Redis 的通信消耗会远远超过Go高性能省下的时间。
-
-## test_transfer_2()
+## test_redis_2()
 
 这个测试函数测试了进行网络请求并下载数据时使用python原生函数与go_worker的差距。
 

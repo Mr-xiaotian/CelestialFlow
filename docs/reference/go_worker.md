@@ -9,6 +9,65 @@ Go Worker 是一个 **轻量级、可并发扩展、基于 Redis 的任务消费
 这个组件常作为 **TaskGraph 的跨语言执行节点** 使用：
 Python 的 TaskGraph 负责生成任务、决定调度逻辑，而 Go Worker 专注于执行计算密集或 IO 密集的步骤。不过，两者完全独立；go-worker 可以单独运行，也可以被其他系统复用。
 
+## 前期设置
+
+1. 启动 Redis 服务
+在运行`TaskRedis*`系节点时, 需要先启动 Redis 服务
+
+2. 设置环境变量
+然后在根目录下建立一个.env文件, 按以下格式填入:
+
+```env
+# .env
+# Redis 服务地址
+REDIS_HOST=127.0.0.1
+# Redis 服务端口
+REDIS_PORT=6379
+# Redis 服务密码, 没有则留空
+REDIS_PASSWORD=your_redis_password
+```
+
+3. 
+
+再在[go_worker main.go](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/go_worker/main.go)中配置 Redis 接口, 保证传入传出列表的 key 值与 `TaskRedis*` 的 stage_name 相同。同时在[go_worker processor.go](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/go_worker/worker/processor.go)中选择你要使用的 Go 函数, 这里我们以运行test_redis_ack_0时的设置为例子。
+
+```go
+err := godotenv.Load()
+if err != nil {
+    fmt.Println("No .env file found, using system env")
+}
+
+redisHost := os.Getenv("REDIS_HOST")
+redisPort := os.Getenv("REDIS_PORT")
+redisPassword := os.Getenv("REDIS_PASSWORD")
+
+rdb := redis.NewClient(&redis.Options{
+    Addr:     redisHost + ":" + redisPort,
+    Password: redisPassword,
+    DB:       0,
+})
+
+worker.StartWorkerPool(
+  ctx,
+  rdb,
+  "testFibonacci:input",  // Redis 中任务输入的 List
+  "testFibonacci:output", // Redis 中结果写入的 Hash
+  worker.ParseListTask,
+  worker.Fibonacci,
+  4,
+)
+```
+
+4. 运行go_worker
+
+然后运行
+
+```bash
+make run_go_worker
+```
+
+go_worker启动并开始监听 Redis 队列, 此时可以正常运行pytest。
+
 ## ✨ 功能特性
 
 * **Worker Pool 并发执行**，使用 `chan` + `WaitGroup` 控制最大并发

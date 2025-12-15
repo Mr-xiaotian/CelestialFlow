@@ -52,13 +52,15 @@ flowchart LR
         T2[Next Stage]
 
         TS[[TaskSplitter]]
-        TR[/TaskRedisTransfer/]
-        TRSI[/TaskRedisSink/]
+        TRSI1[/TaskRedisSink/]
+        TRSI2[/TaskRedisSink/]
         TRSO[/TaskRedisSource/]
+        TRA[/TaskRedisAck/]
 
         RE1[(Redis)]
         RE2[(Redis)]
         G1((GoWorker))
+        G2((GoWorker))
 
         S1 --> S2 --> S3 --> S1
         S1 --> S4
@@ -66,10 +68,9 @@ flowchart LR
         T1 -->|1 task| TS
         TS -->|N task| T2
 
-        TR -.->RE1 -.-> G1
-        G1 -.->RE1 -.-> TR
-
-        TRSI -.-> RE2 -.->  TRSO
+        TRSI1 -.-> RE1 -.->  TRSO
+        TRSI2 -.->|task| RE2 -.->|task| G1
+        G2 -.->|result| RE2 -.->|result| TRA
 
     end
 
@@ -84,10 +85,10 @@ flowchart LR
     class T1,T2 blueNode;
 
     %% 美化 特殊Stage
-    class TS,TR,TRSI,TRSO blueNode;
+    class TS,TRA,TRSI1,TRSI2,TRSO blueNode;
 
     %% 美化 外部结构
-    class RE1,RE2,G1 blueNode;
+    class RE1,RE2,G1,G2 blueNode;
 
     %% ===== WebUI =====
     subgraph W[WebUI]
@@ -205,7 +206,7 @@ flowchart TD
 | **uvicorn**      | FastAPI 的高性能 ASGI 服务器 |
 | **requests**     | HTTP 客户端库，用于任务状态上报与远程调用 |
 | **networkx**     | 任务图（TaskGraph）结构与依赖分析 |
-| **redis**        | 可选组件，用于分布式任务通信（`TaskRedisTransfer` 模块） |
+| **redis**        | 可选组件，用于分布式任务通信（`TaskRedis*` 系列模块） |
 | **jinja2**       | FastAPI 模板引擎，用于 Web 可视化界面渲染 |
 
 ## 文件结构（File Structure）

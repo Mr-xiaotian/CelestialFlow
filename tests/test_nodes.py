@@ -281,16 +281,16 @@ def test_redis_ack_2():
 
 def test_redis_source_0():
     sleep_stage_0 = TaskManager(sleep_1, execution_mode="serial")
-    redis_sink_stage = TaskRedisSink("test_redis", host=redis_host, password=redis_passward)
-    redis_source_stage = TaskRedisSource("test_redis", host=redis_host, password=redis_passward)
+    redis_sink = TaskRedisSink("test_redis", host=redis_host, password=redis_passward)
+    redis_source = TaskRedisSource("test_redis", host=redis_host, password=redis_passward)
     sleep_stage_1 = TaskManager(sleep_1, execution_mode="serial")
 
-    sleep_stage_0.set_graph_context([redis_sink_stage], stage_mode="process", stage_name="Sleep0")
-    redis_sink_stage.set_graph_context([], stage_mode="process", stage_name="RedisSink")
-    redis_source_stage.set_graph_context([sleep_stage_1], stage_mode="process", stage_name="RedisSource")
+    sleep_stage_0.set_graph_context([redis_sink], stage_mode="process", stage_name="Sleep0")
+    redis_sink.set_graph_context([], stage_mode="process", stage_name="RedisSink")
+    redis_source.set_graph_context([sleep_stage_1], stage_mode="process", stage_name="RedisSource")
     sleep_stage_1.set_graph_context([], stage_mode="process", stage_name="Sleep1")
 
-    graph = TaskGraph([sleep_stage_0, redis_source_stage])
+    graph = TaskGraph([sleep_stage_0, redis_source])
     graph.set_reporter(True, host=report_host, port=report_port)
 
     # 要测试的任务列表
@@ -299,7 +299,7 @@ def test_redis_source_0():
     graph.start_graph(
         {
             sleep_stage_0.get_stage_tag(): test_task_0,
-            redis_source_stage.get_stage_tag(): range(12),
+            redis_source.get_stage_tag(): range(12),
         }
     )
 
