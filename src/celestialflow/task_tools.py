@@ -143,9 +143,10 @@ def append_jsonl_log(
 def cluster_by_value_sorted(input_dict: Dict[str, int]) -> Dict[int, List[str]]:
     """
     按值聚类，并确保按 value（键）升序排序
-    """
-    from collections import defaultdict
 
+    :param input_dict: 输入字典
+    :return: 聚类后的字典，键为值，值为键的列表
+    """
     clusters = defaultdict(list)
     for key, val in input_dict.items():
         clusters[val].append(key)
@@ -184,7 +185,8 @@ def compute_node_levels(G: nx.DiGraph) -> Dict[str, int]:
     计算 DAG 中每个节点的层级（最早执行阶段）
     前提：图必须是有向无环图（DAG）
 
-    返回: dict[node] = level (int)
+    :param G: networkx 有向图（DiGraph）
+    :return: dict[node] = level (int)
     """
     if not nx.is_directed_acyclic_graph(G):
         raise ValueError("该图不是 DAG，无法进行层级划分")
@@ -202,13 +204,16 @@ def compute_node_levels(G: nx.DiGraph) -> Dict[str, int]:
 def object_to_str_hash(obj) -> str:
     """
     将任意对象转换为 MD5 字符串。
+
+    :param obj: 任意对象
+    :return: MD5 字符串
     """
     obj_bytes = pickle.dumps(obj)  # 序列化对象
     return hashlib.md5(obj_bytes).hexdigest()
 
 
 # ========公共函数========
-def make_hashable(obj):
+def make_hashable(obj) -> Any:
     """
     把 obj 转换成可哈希的形式。
     """

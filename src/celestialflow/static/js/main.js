@@ -85,10 +85,12 @@ async function refreshAll() {
   // - 结构数据会被 loadStructure 使用来渲染 Mermaid 图
   // - errors 会被 loadErrors 更新后用于错误列表渲染
   await Promise.all([
-    loadStatuses(),   // 从后端拉取节点运行状态（处理数、等待数、失败数等），更新 nodeStatuses
-    loadStructure(),  // 拉取任务结构（有向图），更新 structureData
-    loadErrors(),     // 获取最新错误记录，更新 errors[]
-    loadTopology(),   // 获取最新拓扑信息，更新 TopologyData
+    loadStatuses(),    // 从后端拉取节点运行状态（处理数、等待数、失败数等），更新 nodeStatuses
+    loadStructure(),   // 拉取任务结构（有向图），更新 structureData
+    loadErrors(),      // 获取最新错误记录，更新 errors[]
+    loadTopology(),    // 获取最新拓扑信息，更新 TopologyData
+
+    pushRefreshRate(), // 每次轮询时推送刷新频率到后端
   ]);
 
   const currentStatusesJSON = JSON.stringify(nodeStatuses);

@@ -34,7 +34,7 @@ class TaskReporter:
 
     def stop(self):
         if self._thread:
-            self.report_cycle()  # 最后一次
+            self._refresh_all()  # 最后一次
             self._stop_flag.set()
             self._thread.join(timeout=2)
             self._thread = None
@@ -43,14 +43,14 @@ class TaskReporter:
     def _loop(self):
         while not self._stop_flag.is_set():
             try:
-                self.report_cycle()
+                self._refresh_all()
             except Exception as e:
                 self.logger._log(
                     "ERROR", f"[Reporter] Push error: {type(e).__name__}({e})."
                 )
             self._stop_flag.wait(self.interval)
 
-    def report_cycle(self):
+    def _refresh_all(self):
         # 拉取逻辑
         self._pull_interval()
         self._pull_and_inject_tasks()

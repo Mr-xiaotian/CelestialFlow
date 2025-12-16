@@ -81,7 +81,7 @@ class TaskWebServer:
         def index(request: Request):
             return templates.TemplateResponse("index.html", {"request": request})
 
-        # ---- 展示接口 ----
+        # ---- 接收接口 ----
         @app.get("/api/get_structure")
         def get_structure():
             return self.structure_store
@@ -109,7 +109,7 @@ class TaskWebServer:
                 self.pending_injection_tasks.clear()
             return tasks_to_send
 
-        # ---- 接收接口 ----
+        # ---- 发送接口 ----
         @app.post("/api/push_structure")
         async def push_structure(data: StructureModel):
             self.structure_store = data.items

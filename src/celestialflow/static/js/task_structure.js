@@ -18,22 +18,22 @@ function getNodeId(node) {
 
 function getShapeWrappedLabel(label, shape = "box") {
   switch (shape) {
-    case "circle":        // Circle nodes
+    case "circle": // Circle nodes
       return `((${label}))`;
 
-    case "round":         // Rounded box
+    case "round": // Rounded box
       return `(${label})`;
 
-    case "rhombus":       // Diamond (decision)
+    case "rhombus": // Diamond (decision)
       return `{{${label}}}`;
 
-    case "subgraph":      // Subroutine / Module block
+    case "subgraph": // Subroutine / Module block
       return `[[${label}]]`;
 
     case "parallelogram": // IO style block
       return `[/ ${label} /]`.replace(/\s+/g, "");
 
-    case "db":            // Database cylinder
+    case "db": // Database cylinder
       return `[( ${label} )]`;
 
     case "cloud":
@@ -42,14 +42,13 @@ function getShapeWrappedLabel(label, shape = "box") {
     case "hex":
       return `{{{${label}}}}`; // triple braces style
 
-    case "arrow":         // non-standard, custom arrow-like node
+    case "arrow": // non-standard, custom arrow-like node
       return `>${label}]`;
 
-    default:              // Default rectangular box
+    default: // Default rectangular box
       return `[${label}]`;
   }
 }
-
 
 function renderMermaidFromTaskStructure() {
   const edges = new Set();
@@ -77,8 +76,8 @@ classDef blueNode fill:#e0f2fe,stroke:#0ea5e9,stroke-width:2px;
 linkStyle default stroke:#999,stroke-width:1.5px;
 `;
 
-const structureClassName = topologyData.class_name || "Mermaid";
-mermaidTitle.textContent = `任务结构图（${structureClassName}）`;
+  const structureClassName = topologyData.class_name || "Mermaid";
+  mermaidTitle.textContent = `任务结构图（${structureClassName}）`;
 
   function walk(node) {
     const id = getNodeId(node);
@@ -105,8 +104,7 @@ mermaidTitle.textContent = `任务结构图（${structureClassName}）`;
 
     for (const child of node.next_stages || []) {
       const toId = getNodeId(child);
-      const fromTag = `${node.stage_name}[${node.func_name}]`;
-      const addNum = nodeStatuses?.[fromTag]?.add_tasks_successed || 0;
+      const addNum = statusInfo?.add_tasks_successed || 0;
       const edgeLabel = addNum > 0 ? `|+${addNum}|` : "";
 
       edges.add(`  ${id} -->${""} ${toId}`);
@@ -154,81 +152,3 @@ mermaidTitle.textContent = `任务结构图（${structureClassName}）`;
   old.replaceWith(newDiv);
   window.mermaid.run();
 }
-
-// 初始化折叠节点记录; 已弃用
-let collapsedNodeIds = new Set(
-  JSON.parse(localStorage.getItem("collapsedNodes") || "[]")
-);
-
-// 渲染任务结构图; 已弃用
-function renderGraph(graphs) {
-  const graphContainer = document.getElementById("task-graph");
-  graphContainer.innerHTML = "";
-
-  function buildGraphHTML(node, path = "") {
-    const nodeId = path ? `${path}/${node.stage_name}` : node.stage_name;
-    let html = "<li>";
-
-    // 节点展示内容
-    html += `<div class="graph-node collapsible" data-id="${nodeId}" onclick="toggleNode(this)">`;
-
-    if (node.next_stages && node.next_stages.length > 0) {
-      html += `<span class="collapse-icon">${
-        collapsedNodeIds.has(nodeId) ? "+" : "-"
-      }</span>`;
-    }
-
-    html += `<span class="stage-name">${node.stage_name}</span>`;
-    html += `<span class="stage-mode">(stage_mode: ${node.stage_mode})</span>`;
-    html += `<span class="stage-func">func: ${node.func_name}</span>`;
-
-    if (node.visited) {
-      html += `<span class="visited-mark">visited</span>`;
-    }
-
-    html += "</div>";
-
-    // 子节点递归渲染
-    if (node.next_stages && node.next_stages.length > 0) {
-      const isCollapsed = collapsedNodeIds.has(nodeId);
-      html += `<ul ${isCollapsed ? 'class="hidden"' : ""}>`;
-      node.next_stages.forEach((childNode) => {
-        html += buildGraphHTML(childNode, nodeId);
-      });
-      html += "</ul>";
-    }
-
-    html += "</li>";
-    return html;
-  }
-
-  // 多棵图处理
-  const graphHTML = graphs
-    .map((graph, index) => {
-      return `${buildGraphHTML(graph, `root${index}`)}`;
-    })
-    .join("");
-
-  graphContainer.innerHTML = graphHTML;
-}
-
-// 折叠状态控制; 已弃用
-function toggleNode(element) {
-  const childList = element.nextElementSibling;
-  const nodeId = element.dataset.id;
-  if (!nodeId || !childList || childList.tagName !== "UL") return;
-
-  const isNowHidden = childList.classList.toggle("hidden");
-  const icon = element.querySelector(".collapse-icon");
-  if (icon) {
-    icon.textContent = isNowHidden ? "+" : "-";
-  }
-
-  if (isNowHidden) {
-    collapsedNodeIds.add(nodeId);
-  } else {
-    collapsedNodeIds.delete(nodeId);
-  }
-  localStorage.setItem("collapsedNodes", JSON.stringify([...collapsedNodeIds]));
-}
-
