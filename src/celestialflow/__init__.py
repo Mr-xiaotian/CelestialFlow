@@ -1,7 +1,7 @@
 from .task_graph import TaskGraph
 from .task_manage import TaskManager
 from .task_nodes import (
-    TaskSplitter,  
+    TaskSplitter,
     TaskRedisSink,
     TaskRedisSource,
     TaskRedisAck,

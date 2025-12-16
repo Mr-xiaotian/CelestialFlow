@@ -110,7 +110,7 @@ def add_one(num):
 
 
 def sqrt(num):
-    return num ** 0.5
+    return num**0.5
 
 
 def download_to_file(url: str, file_path: str) -> str:
@@ -186,14 +186,20 @@ def test_splitter_1():
 
 def test_redis_ack_0():
     start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
-    redis_sink = TaskRedisSink(key="testFibonacci:input", host=redis_host, password=redis_passward)
-    redis_ack = TaskRedisAck(key="testFibonacci:output", host=redis_host, password=redis_passward)
+    redis_sink = TaskRedisSink(
+        key="testFibonacci:input", host=redis_host, password=redis_passward
+    )
+    redis_ack = TaskRedisAck(
+        key="testFibonacci:output", host=redis_host, password=redis_passward
+    )
     fibonacci_stage = TaskManager(fibonacci, "thread")
 
     start_stage.set_graph_context(
         [redis_sink, fibonacci_stage], stage_mode="serial", stage_name="Start"
     )
-    redis_sink.set_graph_context([redis_ack], stage_mode="process", stage_name="RedisSink")
+    redis_sink.set_graph_context(
+        [redis_ack], stage_mode="process", stage_name="RedisSink"
+    )
     redis_ack.set_graph_context([], stage_mode="process", stage_name="RedisAck")
     fibonacci_stage.set_graph_context([], stage_mode="process", stage_name="Fibonacci")
 
@@ -213,8 +219,15 @@ def test_redis_ack_0():
 
 def test_redis_ack_1():
     start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
-    redis_sink = TaskRedisSink(key="testSum:input", host=redis_host, password=redis_passward, unpack_task_args=True)
-    redis_ack = TaskRedisAck(key="testSum:output", host=redis_host, password=redis_passward)
+    redis_sink = TaskRedisSink(
+        key="testSum:input",
+        host=redis_host,
+        password=redis_passward,
+        unpack_task_args=True,
+    )
+    redis_ack = TaskRedisAck(
+        key="testSum:output", host=redis_host, password=redis_passward
+    )
     sum_stage = TaskManager(
         sum_int, execution_mode="thread", worker_limit=4, unpack_task_args=True
     )
@@ -222,7 +235,9 @@ def test_redis_ack_1():
     start_stage.set_graph_context(
         [redis_sink, sum_stage], stage_mode="serial", stage_name="Start"
     )
-    redis_sink.set_graph_context([redis_ack], stage_mode="process", stage_name="RedisSink")
+    redis_sink.set_graph_context(
+        [redis_ack], stage_mode="process", stage_name="RedisSink"
+    )
     redis_ack.set_graph_context([], stage_mode="process", stage_name="RedisAck")
     sum_stage.set_graph_context([], stage_mode="process", stage_name="Sum")
 
@@ -241,8 +256,15 @@ def test_redis_ack_1():
 
 def test_redis_ack_2():
     start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
-    redis_sink = DownloadRedisSink(key="testDownload:input", host=redis_host, password=redis_passward, unpack_task_args=True)
-    redis_ack = TaskRedisAck(key="testDownload:output", host=redis_host, password=redis_passward)
+    redis_sink = DownloadRedisSink(
+        key="testDownload:input",
+        host=redis_host,
+        password=redis_passward,
+        unpack_task_args=True,
+    )
+    redis_ack = TaskRedisAck(
+        key="testDownload:output", host=redis_host, password=redis_passward
+    )
     download_stage = DownloadManager(
         download_to_file, execution_mode="thread", worker_limit=4
     )
@@ -250,7 +272,9 @@ def test_redis_ack_2():
     start_stage.set_graph_context(
         [redis_sink, download_stage], stage_mode="serial", stage_name="Start"
     )
-    redis_sink.set_graph_context([redis_ack], stage_mode="process", stage_name="RedisSink")
+    redis_sink.set_graph_context(
+        [redis_ack], stage_mode="process", stage_name="RedisSink"
+    )
     redis_ack.set_graph_context([], stage_mode="process", stage_name="RedisAck")
     download_stage.set_graph_context([], stage_mode="process", stage_name="Download")
 
@@ -265,8 +289,8 @@ def test_redis_ack_2():
         # ["https://raw.githubusercontent.com/github/gitignore/main/Python.gitignore", "/tmp/python.gitignore"],
         # 小图片
         [
-            "https://img.4khd.com/-IaKPu2ONWz8/aEhVCP-4Wsl/AAAAAAADirM/2Fg5CujCaKk7PqPY3I6DELSmidZE3ofqgCNcBGAsHYQ/w1300-rw/orts-shoes-4khd.com-001.webp?w=1300", 
-            "/tmp/orts-shoes-4khd.com-001.png"
+            "https://img.4khd.com/-IaKPu2ONWz8/aEhVCP-4Wsl/AAAAAAADirM/2Fg5CujCaKk7PqPY3I6DELSmidZE3ofqgCNcBGAsHYQ/w1300-rw/orts-shoes-4khd.com-001.webp?w=1300",
+            "/tmp/orts-shoes-4khd.com-001.png",
         ],
         [
             "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2949210/ss_a2792205c92812f5be3321f2e685135b402e5a72.600x338.jpg?t=1714466877",
@@ -282,12 +306,18 @@ def test_redis_ack_2():
 def test_redis_source_0():
     sleep_stage_0 = TaskManager(sleep_1, execution_mode="serial")
     redis_sink = TaskRedisSink("test_redis", host=redis_host, password=redis_passward)
-    redis_source = TaskRedisSource("test_redis", host=redis_host, password=redis_passward)
+    redis_source = TaskRedisSource(
+        "test_redis", host=redis_host, password=redis_passward
+    )
     sleep_stage_1 = TaskManager(sleep_1, execution_mode="serial")
 
-    sleep_stage_0.set_graph_context([redis_sink], stage_mode="process", stage_name="Sleep0")
+    sleep_stage_0.set_graph_context(
+        [redis_sink], stage_mode="process", stage_name="Sleep0"
+    )
     redis_sink.set_graph_context([], stage_mode="process", stage_name="RedisSink")
-    redis_source.set_graph_context([sleep_stage_1], stage_mode="process", stage_name="RedisSource")
+    redis_source.set_graph_context(
+        [sleep_stage_1], stage_mode="process", stage_name="RedisSource"
+    )
     sleep_stage_1.set_graph_context([], stage_mode="process", stage_name="Sleep1")
 
     graph = TaskGraph([sleep_stage_0, redis_source])

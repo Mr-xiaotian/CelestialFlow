@@ -100,7 +100,7 @@ class TaskRedisSink(TaskManager):
         super().__init__(
             func=self._sink,
             execution_mode="thread",
-            worker_limit=4, # 允许 1~2 个线程偶发阻塞，但不会导致整体阻塞
+            worker_limit=4,  # 允许 1~2 个线程偶发阻塞，但不会导致整体阻塞
             unpack_task_args=unpack_task_args,
         )
         self.key = key
@@ -113,18 +113,24 @@ class TaskRedisSink(TaskManager):
         """初始化 Redis 客户端"""
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(
-                host=self.host, port=self.port, db=self.db, password=self.password, decode_responses=True
+                host=self.host,
+                port=self.port,
+                db=self.db,
+                password=self.password,
+                decode_responses=True,
             )
 
     def _sink(self, *task):
         self.init_redis()
 
         task_id = self.get_task_id(task)
-        payload = json.dumps({
-            "id": task_id,
-            "task": task,
-            "emit_ts": time.time(),
-        })
+        payload = json.dumps(
+            {
+                "id": task_id,
+                "task": task,
+                "emit_ts": time.time(),
+            }
+        )
         self.redis_client.rpush(self.key, payload)
 
         return task_id
@@ -165,7 +171,11 @@ class TaskRedisSource(TaskManager):
     def init_redis(self):
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(
-                host=self.host, port=self.port, db=self.db, password=self.password, decode_responses=True
+                host=self.host,
+                port=self.port,
+                db=self.db,
+                password=self.password,
+                decode_responses=True,
             )
 
     def _source(self, *_):
@@ -179,12 +189,12 @@ class TaskRedisSource(TaskManager):
         if res is None:
             raise TimeoutError("Redis item not returned in time after being fetched")
         _, item = res
-        item_obj:dict = json.loads(item)
+        item_obj: dict = json.loads(item)
 
         task = item_obj.get("task")
         if len(task) == 1:
             return task[0]
-        
+
         return tuple(task)
 
 
@@ -210,8 +220,8 @@ class TaskRedisAck(TaskManager):
         """
         super().__init__(
             func=self._ack,
-            execution_mode="serial",          # Ack 是顺序语义
-            enable_duplicate_check=False,     # task_id 天然唯一
+            execution_mode="serial",  # Ack 是顺序语义
+            enable_duplicate_check=False,  # task_id 天然唯一
         )
 
         self.key = key
@@ -254,7 +264,9 @@ class TaskRedisAck(TaskManager):
 
                 if status == "success":
                     result = result_obj.get("result")
-                    if not hasattr(result, "__iter__") or isinstance(result, (str, bytes)):
+                    if not hasattr(result, "__iter__") or isinstance(
+                        result, (str, bytes)
+                    ):
                         return result
                     elif isinstance(result, list):
                         if len(result) == 1:
@@ -262,10 +274,10 @@ class TaskRedisAck(TaskManager):
                         return tuple(result)
                     else:
                         return result
-                
+
                 elif status == "error":
                     raise RemoteWorkerError(result_obj.get("error"))
-                
+
                 else:
                     raise ValueError(f"Unknown ack status: {result_obj}")
 

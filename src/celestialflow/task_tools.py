@@ -117,9 +117,7 @@ def format_structure_list_from_graph(
     return [border] + content_lines + [border]
 
 
-def append_jsonl_log(
-    log_data: dict, file_path: str, logger=None
-):
+def append_jsonl_log(log_data: dict, file_path: str, logger=None):
     """
     将日志字典写入指定目录下的 JSONL 文件。
 
@@ -251,13 +249,13 @@ def format_repr(obj: Any, max_length: int) -> str:
     obj_str = str(obj).replace("\\", "\\\\").replace("\n", "\\n")
     if max_length <= 0 or len(obj_str) <= max_length:
         return obj_str
-    
+
     # 截断逻辑（前 2/3 + ... + 后 1/3）
     segment_len = max(1, max_length // 3)
 
     first_part = obj_str[: segment_len * 2]
-    last_part = obj_str[-segment_len :]
-    
+    last_part = obj_str[-segment_len:]
+
     return f"{first_part}...{last_part}"
 
 

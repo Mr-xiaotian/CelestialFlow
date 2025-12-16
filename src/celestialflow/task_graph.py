@@ -83,7 +83,7 @@ class TaskGraph:
             dict
         )  # 用于保存每个节点的上一次状态信息
 
-        self.error_data: List[dict] = [] 
+        self.error_data: List[dict] = []
 
     def init_resources(self):
         """
@@ -391,12 +391,14 @@ class TaskGraph:
             error_info = item["error_info"]
             timestamp = item["timestamp"]
 
-            self.error_data.append({
-                "timestamp": timestamp,
-                "node": stage_tag,
-                "error": error_info,
-                "task_id": format_repr(task_str, 100),
-            })
+            self.error_data.append(
+                {
+                    "timestamp": timestamp,
+                    "node": stage_tag,
+                    "error": error_info,
+                    "task_id": format_repr(task_str, 100),
+                }
+            )
 
             self._persist_single_failure(task_str, error_info, stage_tag, timestamp)
 
@@ -406,15 +408,15 @@ class TaskGraph:
         """
         date_str = datetime.fromtimestamp(self.start_time).strftime("%Y-%m-%d")
         time_str = datetime.fromtimestamp(self.start_time).strftime("%H-%M-%S-%f")[:-3]
-        self.error_jsonl_path = f"./fallback/{date_str}/realtime_errors({time_str}).jsonl"
+        self.error_jsonl_path = (
+            f"./fallback/{date_str}/realtime_errors({time_str}).jsonl"
+        )
 
         log_item = {
             "timestamp": datetime.now().isoformat(),
             "structure": self.get_structure_json(),
         }
-        append_jsonl_log(
-            log_item, self.error_jsonl_path, self.task_logger
-        )
+        append_jsonl_log(log_item, self.error_jsonl_path, self.task_logger)
 
     def _persist_single_failure(self, task_str, error_info, stage_tag, timestamp):
         """
@@ -431,9 +433,7 @@ class TaskGraph:
             "error": error_info,
             "task": task_str,
         }
-        append_jsonl_log(
-            log_item, self.error_jsonl_path, self.task_logger
-        )
+        append_jsonl_log(log_item, self.error_jsonl_path, self.task_logger)
 
     def get_error_data(self):
         """

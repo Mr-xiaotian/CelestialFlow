@@ -80,7 +80,7 @@ class TaskManager:
         self.error_counter = MPValue("i", 0)
         self.duplicate_counter = MPValue("i", 0)
 
-        self.counter_lock = NoOpContext() # Lock()
+        self.counter_lock = NoOpContext()  # Lock()
 
         if isinstance(self, TaskSplitter):
             self.split_output_counter = MPValue("i", 0)
@@ -798,7 +798,9 @@ class TaskManager:
         self.task_queues.reset()
 
         if not self.is_tasks_finished():
-            self.task_logger._log("DEBUG", f"Retrying tasks for '{self.get_stage_tag()}'")
+            self.task_logger._log(
+                "DEBUG", f"Retrying tasks for '{self.get_stage_tag()}'"
+            )
             self.task_queues.put(TERMINATION_SIGNAL)
             self.run_in_serial()
 
@@ -864,7 +866,9 @@ class TaskManager:
         self.task_queues.reset()
 
         if not self.is_tasks_finished():
-            self.task_logger._log("DEBUG", f"Retrying tasks for '{self.get_stage_tag()}'")
+            self.task_logger._log(
+                "DEBUG", f"Retrying tasks for '{self.get_stage_tag()}'"
+            )
             self.task_queues.put(TERMINATION_SIGNAL)
             self.run_with_executor(executor)
 
@@ -908,7 +912,9 @@ class TaskManager:
         self.task_queues.reset()
 
         if not self.is_tasks_finished():
-            self.task_logger._log("DEBUG", f"Retrying tasks for '{self.get_stage_tag()}'")
+            self.task_logger._log(
+                "DEBUG", f"Retrying tasks for '{self.get_stage_tag()}'"
+            )
             await self.task_queues.put_async(TERMINATION_SIGNAL)
             await self.run_in_async()
 

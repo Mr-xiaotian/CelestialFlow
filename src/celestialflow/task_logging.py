@@ -158,21 +158,19 @@ class TaskLogger:
         if isinstance(source, TerminationSignal):
             source = "TerminationSignal"
 
-        edge = f"'{queue_tag}' -> '{stage_tag}'" if direction == "in" else f"'{stage_tag}' -> '{queue_tag}'"
-        self._log(
-            "TRACE", 
-            f"Put {source} into Edge({edge})."
+        edge = (
+            f"'{queue_tag}' -> '{stage_tag}'"
+            if direction == "in"
+            else f"'{stage_tag}' -> '{queue_tag}'"
         )
+        self._log("TRACE", f"Put {source} into Edge({edge}).")
 
     def get_source(self, source, queue_tag, stage_tag):
         if isinstance(source, TerminationSignal):
             source = "TerminationSignal"
 
         edge = f"'{queue_tag}' -> '{stage_tag}'"
-        self._log(
-            "TRACE", 
-            f"Get {source} from Edge({edge})"
-        )
+        self._log("TRACE", f"Get {source} from Edge({edge})")
 
     def get_source_error(self, queue_tag, stage_tag, exception):
         exception_text = str(exception).replace("\n", " ")

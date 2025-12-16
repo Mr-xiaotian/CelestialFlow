@@ -84,7 +84,9 @@ class TaskQueue:
         :param channel_index: 队列索引
         """
         self.queue_list[channel_index].put(source)
-        self.task_logger.put_source(source, self.queue_tag[channel_index], self.stage_tag, self.direction)
+        self.task_logger.put_source(
+            source, self.queue_tag[channel_index], self.stage_tag, self.direction
+        )
 
     async def put_channel_async(self, source, channel_index: int):
         """
@@ -94,7 +96,9 @@ class TaskQueue:
         :param channel_index: 队列索引
         """
         await self.queue_list[channel_index].put(source)
-        self.task_logger.put_source(source, self.queue_tag[channel_index], self.stage_tag, self.direction)
+        self.task_logger.put_source(
+            source, self.queue_tag[channel_index], self.stage_tag, self.direction
+        )
 
     def get(self, poll_interval: float = 0.01) -> object:
         """
@@ -108,7 +112,7 @@ class TaskQueue:
         if total_queues == 1:
             # ✅ 只有一个队列时，使用阻塞式 get，提高效率
             queue = self.queue_list[0]
-            source = queue.get()  # 阻塞等待，无需 sleep    
+            source = queue.get()  # 阻塞等待，无需 sleep
             self.task_logger.get_source(source, self.queue_tag[0], self.stage_tag)
 
             if isinstance(source, TerminationSignal):
@@ -126,12 +130,14 @@ class TaskQueue:
                 queue = self.queue_list[idx]
                 try:
                     source = queue.get_nowait()
-                    self.task_logger.get_source(source, self.queue_tag[idx], self.stage_tag)
+                    self.task_logger.get_source(
+                        source, self.queue_tag[idx], self.stage_tag
+                    )
 
                     if isinstance(source, TerminationSignal):
                         self.terminated_queue_set.add(idx)
                         continue
-                    
+
                     self.current_index = (
                         idx + 1
                     ) % total_queues  # 下一轮从下一个队列开始
@@ -139,7 +145,9 @@ class TaskQueue:
                 except SyncEmpty:
                     continue
                 except Exception as e:
-                    self.task_logger.get_source_error(self.queue_tag[idx], self.stage_tag, e)
+                    self.task_logger.get_source_error(
+                        self.queue_tag[idx], self.stage_tag, e
+                    )
                     continue
 
             # 所有队列都终止了
@@ -167,7 +175,7 @@ class TaskQueue:
             if isinstance(source, TerminationSignal):
                 self.terminated_queue_set.add(0)
                 return TERMINATION_SIGNAL
-            
+
             return source
 
         while True:
@@ -179,7 +187,9 @@ class TaskQueue:
                 queue = self.queue_list[idx]
                 try:
                     source = queue.get_nowait()
-                    self.task_logger.get_source(source, self.queue_tag[idx], self.stage_tag)
+                    self.task_logger.get_source(
+                        source, self.queue_tag[idx], self.stage_tag
+                    )
 
                     if isinstance(source, TerminationSignal):
                         self.terminated_queue_set.add(idx)
@@ -190,7 +200,9 @@ class TaskQueue:
                 except AsyncEmpty:
                     continue
                 except Exception as e:
-                    self.task_logger.get_source_error(self.queue_tag[idx], self.stage_tag, e)
+                    self.task_logger.get_source_error(
+                        self.queue_tag[idx], self.stage_tag, e
+                    )
                     continue
 
             if len(self.terminated_queue_set) == total_queues:
@@ -206,12 +218,14 @@ class TaskQueue:
         for idx in range(total_queues):
             if idx in self.terminated_queue_set:
                 continue
-            
+
             queue = self.queue_list[idx]
             while True:
                 try:
                     source = queue.get_nowait()
-                    self.task_logger.get_source(source, self.queue_tag[idx], self.stage_tag)
+                    self.task_logger.get_source(
+                        source, self.queue_tag[idx], self.stage_tag
+                    )
 
                     if isinstance(source, TerminationSignal):
                         self.terminated_queue_set.add(idx)
@@ -221,7 +235,9 @@ class TaskQueue:
                 except (SyncEmpty, AsyncEmpty):
                     break
                 except Exception as e:
-                    self.task_logger.get_source_error(self.queue_tag[idx], self.stage_tag, e)
+                    self.task_logger.get_source_error(
+                        self.queue_tag[idx], self.stage_tag, e
+                    )
                     break
 
         return results
