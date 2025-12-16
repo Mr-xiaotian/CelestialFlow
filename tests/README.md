@@ -73,7 +73,7 @@ pytest tests/test_manage.py::test_manager_async
 
 这个测试文件对比了计算fibonacci时，直接用py计算与使用Redis外接go_worker计算间的时间差异。从结果来看，即便Redis传输耗费了大量时间，但Go强大的性能依旧让使用go_worker成为CPU密集计算时的好选择。
 
-需要注意的是, 在使用 `TaskRedis*` 系列节点前需要进行[前期设置](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/task_nodes.md#前期设置)。
+需要注意的是, 在使用外部节点 `Go Worker` 系列节点前需要进行[前期设置](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/go_worker.md#前期设置)。
 
 ## test_redis_1()
 

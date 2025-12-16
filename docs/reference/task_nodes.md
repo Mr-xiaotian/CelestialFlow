@@ -28,6 +28,8 @@ REDIS_PORT=6379
 REDIS_PASSWORD=your_redis_password
 ```
 
+3. 设置 TaskRedis*节点
+
 然后直接通过读取.env中内容来设置 `TaskRedis*` 中 Redis 端口 节点名称与密码。
 
 ```python

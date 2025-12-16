@@ -27,9 +27,9 @@ REDIS_PORT=6379
 REDIS_PASSWORD=your_redis_password
 ```
 
-3. 
+3. 设置 go_worker
 
-再在[go_worker main.go](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/go_worker/main.go)中配置 Redis 接口, 保证传入传出列表的 key 值与 `TaskRedis*` 的 stage_name 相同。同时在[go_worker processor.go](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/go_worker/worker/processor.go)中选择你要使用的 Go 函数, 这里我们以运行test_redis_ack_0时的设置为例子。
+然后打开[go_worker main.go](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/go_worker/main.go)。其中redis的host与port会自动读取环境变量中的设置, 我们需要设置的只有任务输入的key与结果输出的key, 以及选择要使用的执行函数。
 
 ```go
 err := godotenv.Load()
@@ -57,6 +57,16 @@ worker.StartWorkerPool(
   4,
 )
 ```
+
+这里我们以运行 test_redis_ack_0 时的设置为例, 其中的`testFibonacci:input`与`testFibonacci:output`需要与 test_redis_ack_0 中 `TaskRedis*` dekey值相同。
+
+```python
+# test_redis_ack_0
+redis_sink = TaskRedisSink(key="testFibonacci:input", host=redis_host, password=redis_passward)
+redis_ack = TaskRedisAck(key="testFibonacci:output", host=redis_host, password=redis_passward)
+```
+
+同时在[go_worker processor.go](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/go_worker/worker/processor.go)中选择你要使用的 Go 函数。
 
 4. 运行go_worker
 
