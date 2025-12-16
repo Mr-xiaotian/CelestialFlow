@@ -1,8 +1,6 @@
 let structureData = [];
 let previousStructureDataJSON = "";
 
-const mermaidTitle = document.getElementById("mermaid-title");
-
 async function loadStructure() {
   try {
     const res = await fetch("/api/get_structure");
@@ -75,9 +73,6 @@ classDef greenNode fill:#dcfce7,stroke:#16a34a,stroke-width:2px;
 classDef blueNode fill:#e0f2fe,stroke:#0ea5e9,stroke-width:2px;
 linkStyle default stroke:#999,stroke-width:1.5px;
 `;
-
-  const structureClassName = topologyData.class_name || "Mermaid";
-  mermaidTitle.textContent = `任务结构图（${structureClassName}）`;
 
   function walk(node) {
     const id = getNodeId(node);

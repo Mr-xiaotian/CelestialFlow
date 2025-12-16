@@ -4,7 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>任务图监控系统</title>
-    <link rel="icon" href="{{ request.url_for('static', path='favicon.ico') }}">
+    <link
+      rel="icon"
+      href="{{ request.url_for('static', path='favicon.ico') }}"
+    />
     <link
       rel="stylesheet"
       href="{{ request.url_for('static', path='css/base.css') }}"
@@ -55,22 +58,17 @@
         <button class="tab-btn active" data-tab="dashboard">仪表盘</button>
         <button class="tab-btn" data-tab="errors">错误日志</button>
         <button class="tab-btn" data-tab="task-injection">任务注入</button>
-        <!-- 新 tab -->
+        <!-- TODO: 新 tab -->
       </div>
 
       <div id="dashboard" class="tab-content active">
         <div class="three-column-container">
           <!-- 左侧: 图结构 -->
           <div class="left-panel">
-            <!-- <div class="card">
-              <h2 class="card-title">任务图结构</h2>
-              <div class="graph-container">
-                <div class="graph" id="task-graph">加载中...</div>
-              </div>
-            </div> -->
-
             <div class="card">
-              <h2 class="card-title" id="mermaid-title">任务结构图（Mermaid）</h2>
+              <h2 class="card-title" id="mermaid-title">
+                任务结构图（Mermaid）
+              </h2>
               <div
                 id="mermaid-container"
                 class="mermaid"
@@ -79,30 +77,15 @@
                 graph TD
               </div>
             </div>
-            
-            <div class="card summary-card">
-            <h2 class="card-title">总体状态摘要</h2>
-            <div class="summary-grid">
-              <div class="summary-item blue">
-                <div id="total-successed" class="summary-value blue">0</div>
-                <div class="summary-label">总成功任务</div>
-              </div>
-              <div class="summary-item yellow">
-                <div id="total-pending" class="summary-value yellow">0</div>
-                <div class="summary-label">总等待任务</div>
-              </div>
-              <div class="summary-item red">
-                <div id="total-errors" class="summary-value red">0</div>
-                <div class="summary-label">总错误任务</div>
-              </div>
-              <div class="summary-item green">
-                <div id="total-nodes" class="summary-value green">0</div>
-                <div class="summary-label">活动节点</div>
+
+            <div class="card topology-card" id="topology-card">
+              <h2 class="card-title">图拓扑信息</h2>
+              <div id="topology-info" class="topology-info">
+                <div class="placeholder">暂无拓扑信息</div>
               </div>
             </div>
           </div>
-          </div>
-          
+
           <!-- 中间: 节点卡片 -->
           <div class="middle-panel">
             <div class="card">
@@ -120,6 +103,28 @@
               <h2 class="card-title">节点完成走向</h2>
               <canvas id="node-progress-chart"></canvas>
             </div>
+
+            <div class="card summary-card">
+              <h2 class="card-title">总体状态摘要</h2>
+              <div class="summary-grid">
+                <div class="summary-item blue">
+                  <div id="total-successed" class="summary-value blue">0</div>
+                  <div class="summary-label">总成功任务</div>
+                </div>
+                <div class="summary-item yellow">
+                  <div id="total-pending" class="summary-value yellow">0</div>
+                  <div class="summary-label">总等待任务</div>
+                </div>
+                <div class="summary-item red">
+                  <div id="total-errors" class="summary-value red">0</div>
+                  <div class="summary-label">总错误任务</div>
+                </div>
+                <div class="summary-item green">
+                  <div id="total-nodes" class="summary-value green">0</div>
+                  <div class="summary-label">活动节点</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -130,7 +135,12 @@
             <h2 class="card-title">错误日志</h2>
             <div>
               <span class="filter-label">关键词搜索:</span>
-              <input type="text" id="error-search" class="error-search-input" placeholder="搜索错误或任务">
+              <input
+                type="text"
+                id="error-search"
+                class="error-search-input"
+                placeholder="搜索错误或任务"
+              />
               <span class="filter-label">按节点筛选:</span>
               <select id="node-filter">
                 <option value="">全部节点</option>

@@ -103,22 +103,27 @@ async function refreshAll() {
   const errorsChanged = currentErrorsJSON !== previousErrorsJSON;
   const topologyChanged = currentTopologyJSON !== previousTopologyDataJSON;
 
+  if (statusesChanged || structureChanged) {
+    previousNodeStatusesJSON = currentStatusesJSON;
+    previousStructureDataJSON = currentStructureJSON;
+
+    renderMermaidFromTaskStructure(); // 结构图依赖节点信息与结构信息
+  }
+
+  if (topologyChanged) {
+    previousTopologyDataJSON = currentTopologyJSON;
+
+    renderTopologyInfo(); // 渲染拓扑信息
+  }
+
   if (statusesChanged) {
     previousNodeStatusesJSON = currentStatusesJSON;
 
-    updateSummary();        // 左下汇总数据
     renderDashboard();      // 中间节点状态卡片
-    updateChartData();      // 右侧折线图
+    updateChartData();      // 右上折线图
+    updateSummary();        // 右下汇总数据
     populateNodeFilter();   // 错误筛选器
     renderNodeList();       // 注入页节点列表
-  }
-
-  if (statusesChanged || structureChanged || topologyChanged) {
-    previousNodeStatusesJSON = currentStatusesJSON;
-    previousStructureDataJSON = currentStructureJSON;
-    previousTopologyDataJSON = currentTopologyJSON;
-
-    renderMermaidFromTaskStructure(); // 结构图依赖节点信息 结构信息与拓扑信息
   }
 
   if (errorsChanged) {
