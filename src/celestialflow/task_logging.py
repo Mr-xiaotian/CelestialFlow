@@ -22,7 +22,6 @@ class LogListener:
         self._thread = Thread(target=self._listen, daemon=True)
 
     def start(self):
-        # 配置 loguru 的两个 handler，stdout + file
         loguru_logger.remove()
         loguru_logger.add(
             self.log_path,
@@ -31,7 +30,7 @@ class LogListener:
             enqueue=True,
         )
         self._thread.start()
-        loguru_logger.debug("LogListener started.")
+        loguru_logger.debug("[Listener] Started.")
 
     def _listen(self):
         while True:
@@ -43,7 +42,7 @@ class LogListener:
             except Empty:
                 continue
             # except Exception as e:
-            #     loguru_logger.error(f"LogListener thread error: {type(e).__name__}({e})")
+            #     loguru_logger.error(f"[Listener] thread error: {type(e).__name__}({e})")
 
     def get_queue(self):
         return self.log_queue
@@ -51,7 +50,7 @@ class LogListener:
     def stop(self):
         self.log_queue.put(TERMINATION_SIGNAL)
         self._thread.join()
-        loguru_logger.debug("LogListener stopped.")
+        loguru_logger.debug("[Listener] Stopped.")
 
 
 class TaskLogger:
@@ -146,7 +145,7 @@ class TaskLogger:
     def task_duplicate(self, func_name, task_info):
         self._log("SUCCESS", f"In '{func_name}', Task {task_info} has been duplicated.")
 
-    # ==== splitter task ====
+    # ==== splitter ====
     def splitter_success(self, func_name, task_info, split_count, use_time):
         self._log(
             "SUCCESS",
@@ -170,11 +169,68 @@ class TaskLogger:
             source = "TerminationSignal"
 
         edge = f"'{queue_tag}' -> '{stage_tag}'"
-        self._log("TRACE", f"Get {source} from Edge({edge})")
+        self._log("TRACE", f"Get {source} from Edge({edge}).")
 
     def get_source_error(self, queue_tag, stage_tag, exception):
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "WARNING",
-            f"Error get from Edge({queue_tag} -> {stage_tag}): ({type(exception).__name__}){exception_text}",
+            f"Error get from Edge({queue_tag} -> {stage_tag}): ({type(exception).__name__}){exception_text}.",
+        )
+
+    # ==== reporter ====
+    def stop_reporter(self):
+        self._log("DEBUG", "[Reporter] Stopped.")
+
+    def loop_failed(self, exception):
+        self._log(
+            "ERROR",
+            f"[Reporter] Loop error: {type(exception).__name__}({exception}).",
+        )
+
+    def pull_interval_failed(self, exception):
+        self._log(
+            "WARNING",
+            f"[Reporter] Interval fetch failed: {type(exception).__name__}({exception}).",
+        )
+
+    def pull_tasks_failed(self, exception):
+        self._log(
+            "WARNING",
+            f"[Reporter] Task injection fetch failed: {type(exception).__name__}({exception}).",
+        )
+
+    def inject_tasks_success(self, target_node, task_datas):
+        self._log(
+            "INFO", f"[Reporter] Inject tasks into {target_node}: {task_datas}."
+        )
+
+    def inject_tasks_failed(self, target_node, task_datas, exception):
+        self._log(
+            "WARNING",
+            f"[Reporter] Inject tasks into {target_node} failed: {task_datas}. "
+            f"Error: {type(exception).__name__}({exception}).",
+        )
+
+    def push_errors_failed(self, exception):
+        self._log(
+            "WARNING",
+            f"[Reporter] Error push failed: {type(exception).__name__}({exception}).",
+        )
+
+    def push_status_failed(self, exception):
+        self._log(
+            "WARNING",
+            f"[Reporter] Status push failed: {type(exception).__name__}({exception}).",
+        )
+
+    def push_structure_failed(self, exception):
+        self._log(
+            "WARNING",
+            f"[Reporter] Structure push failed: {type(exception).__name__}({exception}).",
+        )
+
+    def push_topology_failed(self, exception):
+        self._log(
+            "WARNING", f"[Reporter] Topology push failed: {type(exception).__name__}({exception})."
         )

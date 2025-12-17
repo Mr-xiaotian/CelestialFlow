@@ -11,6 +11,13 @@
   <a href="https://pypi.org/project/celestialflow/"><img src="https://img.shields.io/pypi/pyversions/celestialflow.svg"></a>
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Task%20Graph-DAG-blueviolet">
+  <img src="https://img.shields.io/badge/Workflow-Orchestrator-7c3aed">
+  <img src="https://img.shields.io/badge/IPC-Redis%20Ready-red">
+  <img src="https://img.shields.io/badge/Distributed-Worker%20Friendly-orange">
+</p>
+
 **CelestialFlow** 是一个轻量级但功能完全体的任务流框架，适合需要“灵活拓扑 + 多执行模式 + 可视化监控”的中/大型 Python 任务系统。
 
 - 相比 Airflow/Dagster 更轻、更快开始

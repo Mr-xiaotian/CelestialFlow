@@ -38,16 +38,14 @@ class TaskReporter:
             self._stop_flag.set()
             self._thread.join(timeout=2)
             self._thread = None
-            self.logger._log("DEBUG", "[Reporter] Stopped.")
+            self.logger.stop_reporter()
 
     def _loop(self):
         while not self._stop_flag.is_set():
             try:
                 self._refresh_all()
             except Exception as e:
-                self.logger._log(
-                    "ERROR", f"[Reporter] Push error: {type(e).__name__}({e})."
-                )
+                self.logger.loop_failed(e)
             self._stop_flag.wait(self.interval)
 
     def _refresh_all(self):
@@ -68,9 +66,7 @@ class TaskReporter:
                 interval = res.json().get("interval", 5)
                 self.interval = max(1.0, min(interval, 60.0))
         except Exception as e:
-            self.logger._log(
-                "WARNING", f"[Reporter] Interval fetch failed: {type(e).__name__}({e})."
-            )
+            self.logger.pull_interval_failed(e)
 
     def _pull_and_inject_tasks(self):
         try:
@@ -81,29 +77,20 @@ class TaskReporter:
                     target_node = task.get("node")
                     task_datas = task.get("task_datas")
 
-                    if target_node not in self.task_graph.stages_status_dict:
-                        self.logger._log(
-                            "WARNING",
-                            f"[Reporter] Task injection target node {target_node} not found.",
-                        )
-                        continue
-
                     # 这里你可以按需注入到不同的节点
                     task_datas = [
                         task if task != "TERMINATION_SIGNAL" else TERMINATION_SIGNAL
                         for task in task_datas
                     ]
-                    self.task_graph.put_stage_queue(
-                        {target_node: task_datas}, put_termination_signal=False
-                    )
-                    self.logger._log(
-                        "INFO", f"[Reporter] 注入任务到 {target_node}: {task_datas}"
-                    )
+                    try:
+                        self.task_graph.put_stage_queue(
+                            {target_node: task_datas}, put_termination_signal=False
+                        )
+                        self.logger.inject_tasks_success(target_node, task_datas)
+                    except Exception as e:
+                        self.logger.inject_tasks_failed(target_node, task_datas, e)
         except Exception as e:
-            self.logger._log(
-                "WARNING",
-                f"[Reporter] Task injection fetch failed: {type(e).__name__}({e}).",
-            )
+            self.logger.pull_tasks_failed(e)
 
     def _push_errors(self):
         try:
@@ -112,9 +99,7 @@ class TaskReporter:
             payload = {"errors": error_data}
             requests.post(f"{self.base_url}/api/push_errors", json=payload, timeout=1)
         except Exception as e:
-            self.logger._log(
-                "WARNING", f"[Reporter] Error push failed: {type(e).__name__}({e})."
-            )
+            self.logger.push_errors_failed(e)
 
     def _push_status(self):
         try:
@@ -122,9 +107,7 @@ class TaskReporter:
             payload = {"status": status_data}
             requests.post(f"{self.base_url}/api/push_status", json=payload, timeout=1)
         except Exception as e:
-            self.logger._log(
-                "WARNING", f"[Reporter] Status push failed: {type(e).__name__}({e})."
-            )
+            self.logger.push_status_failed(e)
 
     def _push_structure(self):
         try:
@@ -134,9 +117,7 @@ class TaskReporter:
                 f"{self.base_url}/api/push_structure", json=payload, timeout=1
             )
         except Exception as e:
-            self.logger._log(
-                "WARNING", f"[Reporter] Structure push failed: {type(e).__name__}({e})"
-            )
+            self.logger.push_structure_failed(e)
 
     def _push_topology(self):
         try:
@@ -144,6 +125,4 @@ class TaskReporter:
             payload = {"topology": topology}
             requests.post(f"{self.base_url}/api/push_topology", json=payload, timeout=1)
         except Exception as e:
-            self.logger._log(
-                "WARNING", f"[Reporter] Topology push failed: {type(e).__name__}({e})."
-            )
+            self.logger.push_topology_failed(e)
