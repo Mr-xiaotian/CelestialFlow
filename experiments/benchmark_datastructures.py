@@ -1,12 +1,17 @@
-import time
+import time, os
 import queue
 import redis
 import threading
 import multiprocessing
 from multiprocessing import Manager, Process, Value
+from dotenv import load_dotenv
 
 N = 10000
 
+load_dotenv()
+redis_host = os.getenv("REDIS_HOST")
+redis_port = os.getenv("REDIS_PORT")
+redis_passward = os.getenv("REDIS_PASSWORD")
 
 # =======================
 # Worker functions (must be global for Windows)
@@ -51,7 +56,7 @@ def value_worker(val):
 
 def get_redis_connection():
     try:
-        r = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+        r = redis.Redis(host=redis_host, port=redis_port, db=0, password=redis_passward, decode_responses=True)
         r.ping()
         return r
     except Exception as e:

@@ -1,9 +1,15 @@
-import time
+import time, os
 from queue import Queue as ThreadQueue
 from multiprocessing import Queue as MPQueue
 from multiprocessing import Manager
 import redis
+from dotenv import load_dotenv
 
+
+load_dotenv()
+redis_host = os.getenv("REDIS_HOST")
+redis_port = os.getenv("REDIS_PORT")
+redis_passward = os.getenv("REDIS_PASSWORD")
 
 def test_threadqueue_perf(count):
     q = ThreadQueue()
@@ -180,7 +186,7 @@ if __name__ == "__main__":
 
     # Redis benchmarks (if redis server exists)
     try:
-        redis_client = redis.Redis(decode_responses=True)
+        redis_client = redis.Redis(host=redis_host, port=redis_port, db=0, password=redis_passward, decode_responses=True)
         redis_client.ping()
         redis_client.flushdb()
 

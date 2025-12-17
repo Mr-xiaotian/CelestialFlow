@@ -18,10 +18,10 @@
   <img src="https://img.shields.io/badge/Distributed-Worker%20Friendly-orange">
 </p>
 
-**CelestialFlow** 是一个轻量级但功能完全体的任务流框架，适合需要“灵活拓扑 + 多执行模式 + 可视化监控”的中/大型 Python 任务系统。
+**CelestialFlow** 是一个轻量级但功能完全的任务流框架，适合需要 **复杂依赖关系**、**灵活执行模型**、**跨设备运行**与**实时可视化监控** 的中/大型 Python 任务系统。
 
 - 相比 Airflow/Dagster 更轻、更快开始
-- 相比 multiprocessing/threading 更结构化，可直接表达 loop / complete graph 等复杂依赖
+- 相比 multiprocessing/threading 更结构化，可直接表达 loop / complete graph 等复杂依赖模式
 
 框架的基本单元为 **TaskStage**（由 `TaskManager` 派生），每个 stage 内部绑定一个独立的执行函数，并支持四种运行模式：
 
@@ -30,16 +30,16 @@
 * **多进程（process）**
 * **协程（async）**
 
-每个 stage 均可独立运行，也可作为节点互相连接，形成具有上游与下游依赖关系的任务图（**TaskGraph**）。下游 stage 会自动接收上游执行完成的结果作为输入，从而实现数据的流动与传递。
+每个 stage 均可独立运行，也可作为节点互相连接，形成具有上游与下游依赖关系的任务图（**TaskGraph**）。下游 stage 会自动接收上游执行完成的结果作为输入，从而形成明确的数据流。
 
-在图级别上，TaskGraph 支持两种布局模式：
+在图级别上，每个 Stage 支持两种上下文模式：
 
-* **线性执行（serial layout）**：前一节点执行完毕后再启动下一节点（下游节点可提前接收任务但不会立即执行）。
-* **并行执行（process layout）**：所有节点同时启动运行，由队列自动协调任务传递与依赖顺序。
+* **线性执行（serial layout）**：当前节点执行完毕再启动下一节点（下游节点可提前接收任务但不会立即执行）。
+* **并行执行（process layout）**：当前节点启动后立刻前去启动下一节点。
 
-TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支持传统的有向无环图（DAG），也能灵活表达 **环形（loop）** 与 **复杂交叉** 的任务依赖。
+TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支持传统的有向无环图（DAG），也能灵活表达 **树形（Tree）**、**环形（loop）** 乃至于 **完全图(Complete Graph)** 形式的任务依赖。
 
-在此基础上项目支持 Web 可视化与通过 Redis 外接go代码，弥补 Python 在cpu密集任务上速度过慢的问题。
+在此基础上，CelestialFlow 支持 Web 可视化监控，并可通过 Redis 实现跨进程、跨设备协作；同时引入基于 Go 的外部 worker（通过 Redis 通信），用于承载 CPU 密集型任务，弥补 Python 在该场景下的性能瓶颈。
 
 ## 项目结构（Project Structure）
 
@@ -295,21 +295,21 @@ flowchart TD
 
 ## 更新日志（Change Log）
 
-- [2021] 建立一个支持多线程与单线程处理函数的类
-- [2023] 在GPT4帮助下添加多进程与携程运行模式 
-- [5/9/2024] 将原有的处理类抽象为节点, 添加TaskChain类, 可以线性连接多个节点, 并设定节点在Chain中的运行模式, 支持serial和process两种, 后者Chain所有节点同时运行
-- [12/12/2024-12/16/2024] 在原有链式结构基础上允许节点有复数下级节点, 实现Tree结构; 将原有TaskChain改名为TaskTree
-- [3/16/2025] 支持Web端任务完成情况可视化
-- [6/9/2025] 支持节点拥有复数上级节点, 脱离纯Tree结构, 为之后循环图做准备
-- [6/11/2025] 自[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)项目instances.inst_task迁入
-- [6/12/2025] 支持循环图, 下级节点可指向上级节点
-- [6/13/2025] 支持loop结构, 即节点可指向自己
-- [6/14/2025] 支持forest结构, 即可有多个根节点
-- [6/16/2025] 多轮评测后, 当前框架已支持完整有向图结构, 故将TaskTree改名为TaskGraph
+- 2021: 建立一个支持多线程与单线程处理函数的类
+- 2023: 在GPT4帮助下添加多进程与携程运行模式 
+- 5/9/2024: 将原有的处理类抽象为节点, 添加TaskChain类, 可以线性连接多个节点, 并设定节点在Chain中的运行模式, 支持serial和process两种, 后者Chain所有节点同时运行
+- 12/12/2024-12/16/2024: 在原有链式结构基础上允许节点有复数下级节点, 实现Tree结构; 将原有TaskChain改名为TaskTree
+- 3/16/2025: 支持Web端任务完成情况可视化
+- 6/9/2025: 支持节点拥有复数上级节点, 脱离纯Tree结构, 为之后循环图做准备
+- 6/11/2025: 自[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)项目instances.inst_task迁入
+- 6/12/2025: 支持循环图, 下级节点可指向上级节点
+- 6/13/2025: 支持loop结构, 即节点可指向自己
+- 6/14/2025: 支持forest结构, 即可有多个根节点
+- 6/16/2025: 多轮评测后, 当前框架已支持完整有向图结构, 将TaskTree改名为TaskGraph
 
 ## Star 历史趋势（Star History）
 
-如果对项目感兴趣的话，还请star。
+如果对项目感兴趣的话，欢迎star。如果有问题或者建议的话, 欢迎提交[Issues](https://github.com/Mr-xiaotian/CelestialFlow/issues)或者在[Discussion](https://github.com/Mr-xiaotian/CelestialFlow/discussions)中告诉我。
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Mr-xiaotian/CelestialFlow&type=Date)](https://star-history.com/#Mr-xiaotian/CelestialFlow&Date)
 
