@@ -39,9 +39,9 @@ class TaskManager:
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'process', 'async'
         :param worker_limit: 同时处理数量
         :param max_retries: 任务的最大重试次数
-        :param max_info: 日志最大条数
+        :param max_info: 日志中每条信息的最大长度
         :param unpack_task_args: 是否将任务参数解包
-        :param enable_result_cache: 是否启用结果缓存
+        :param enable_result_cache: 是否启用结果缓存, 将成功与失败结果保存在 success_dict 与 error_dict 中
         :param enable_duplicate_check: 是否启用重复检查
         :param progress_desc: 进度条显示名称
         :param show_progress: 进度条显示与否
@@ -419,6 +419,8 @@ class TaskManager:
         """
         判断任务是否重复
         """
+        # 我认为只要在add_processed_set中控制processed_set的流入就可以了
+        # 但gpt强烈建议我加上
         if not self.enable_duplicate_check:
             return False
         return task_id in self.processed_set
@@ -430,11 +432,20 @@ class TaskManager:
         self.update_duplicate_counter()
         self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task))
 
+    def add_processed_set(self, task_id):
+        """
+        将任务ID添加到已处理集合中
+
+        :param task_id: 任务ID
+        """
+        if self.enable_duplicate_check:
+            self.processed_set.add(task_id) 
+
     def get_args(self, task):
         """
-        从 obj 中获取参数
+        从 obj 中获取参数, 可根据需要覆写
 
-        在这个示例中，我们假设 obj 是一个参数，并将其打包为元组返回
+        在这个示例中，我们根据 unpack_task_args 决定是否解包参数
         """
         if self.unpack_task_args and isinstance(task, tuple):
             return task
@@ -442,7 +453,7 @@ class TaskManager:
 
     def process_result(self, task, result):
         """
-        从结果队列中获取结果，并进行处理
+        从结果队列中获取结果，并进行处理, 可根据需要覆写
 
         在这个示例中，我们只是简单地返回结果
         """
@@ -583,7 +594,7 @@ class TaskManager:
             isinstance(exception, self.retry_exceptions)
             and retry_time < self.max_retries
         ):
-            self.processed_set.remove(task_id)
+            self.processed_set.discard(task_id)
             self.task_queues.put_first(task)  # 只在第一个队列存放retry task
 
             self.progress_manager.add_total(1)
@@ -624,7 +635,7 @@ class TaskManager:
             isinstance(exception, self.retry_exceptions)
             and retry_time < self.max_retries
         ):
-            self.processed_set.remove(task_id)
+            self.processed_set.discard(task_id)
             await self.task_queues.put_first_async(task)  # 只在第一个队列存放retry task
 
             self.progress_manager.add_total(1)
@@ -786,7 +797,7 @@ class TaskManager:
                 self.deal_dupliacte(task)
                 self.progress_manager.update(1)
                 continue
-            self.processed_set.add(task_id)
+            self.add_processed_set(task_id)
             try:
                 start_time = time.time()
                 result = self.func(*self.get_args(task))
@@ -818,14 +829,15 @@ class TaskManager:
         all_done_event = Event()
         all_done_event.set()  # 初始为无任务状态，设为完成状态
 
-        def on_task_done(future, task, progress_manager: ProgressManager):
+        def on_task_done(future, task, task_id, progress_manager: ProgressManager):
             # 回调函数中处理任务结果
             progress_manager.update(1)
             try:
                 result = future.result()
-                start_time = task_start_dict[task]
+                start_time = task_start_dict.pop(task_id, None)
                 self.process_task_success(task, result, start_time)
             except Exception as error:
+                task_start_dict.pop(task_id, None)
                 self.handle_task_error(task, error)
             # 任务完成后减少in_flight计数
             with in_flight_lock:
@@ -846,17 +858,17 @@ class TaskManager:
                 self.deal_dupliacte(task)
                 self.progress_manager.update(1)
                 continue
-            self.processed_set.add(task_id)
+            self.add_processed_set(task_id)
 
             # 提交新任务时增加in_flight计数，并清除完成事件
             with in_flight_lock:
                 in_flight += 1
                 all_done_event.clear()
 
-            task_start_dict[task] = time.time()
+            task_start_dict[task_id] = time.time()
             future = executor.submit(self.func, *self.get_args(task))
             future.add_done_callback(
-                lambda f, t=task: on_task_done(f, t, self.progress_manager)
+                lambda f, t=task, tid=task_id: on_task_done(f, t, tid, self.progress_manager)
             )
 
         # 等待所有已提交任务完成（包括回调）
@@ -896,7 +908,7 @@ class TaskManager:
                 self.deal_dupliacte(task)
                 self.progress_manager.update(1)
                 continue
-            self.processed_set.add(task_id)
+            self.add_processed_set(task_id)
             async_tasks.append(sem_task(task))  # 使用信号量包裹的任务
 
         # 并发运行所有任务
