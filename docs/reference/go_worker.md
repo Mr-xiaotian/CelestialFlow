@@ -62,8 +62,8 @@ worker.StartWorkerPool(
 
 ```python
 # test_redis_ack_0
-redis_sink = TaskRedisSink(key="testFibonacci:input", host=redis_host, password=redis_passward)
-redis_ack = TaskRedisAck(key="testFibonacci:output", host=redis_host, password=redis_passward)
+redis_sink = TaskRedisSink(key="testFibonacci:input", host=redis_host, password=redis_password)
+redis_ack = TaskRedisAck(key="testFibonacci:output", host=redis_host, password=redis_password)
 ```
 
 同时在[go_worker processor.go](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/go_worker/worker/processor.go)中选择你要使用的 Go 函数。

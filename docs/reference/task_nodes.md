@@ -38,15 +38,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 redis_host = os.getenv("REDIS_HOST")
-redis_passward = os.getenv("REDIS_PASSWORD")
+redis_password = os.getenv("REDIS_PASSWORD")
 
 # test_redis_ack_0
-redis_sink = TaskRedisSink(key="testFibonacci:input", host=redis_host, password=redis_passward)
-redis_ack = TaskRedisAck(key="testFibonacci:output", host=redis_host, password=redis_passward)
+redis_sink = TaskRedisSink(key="testFibonacci:input", host=redis_host, password=redis_password)
+redis_ack = TaskRedisAck(key="testFibonacci:output", host=redis_host, password=redis_password)
 
 # test_redis_source_0
-redis_sink = TaskRedisSink("test_redis", host=redis_host, password=redis_passward)
-redis_source = TaskRedisSource("test_redis", host=redis_host, password=redis_passward)
+redis_sink = TaskRedisSink("test_redis", host=redis_host, password=redis_password)
+redis_source = TaskRedisSource("test_redis", host=redis_host, password=redis_password)
 ```
 
 ## 下一步扩展方向

@@ -18,7 +18,7 @@ load_dotenv()
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
 redis_host = os.getenv("REDIS_HOST")
-redis_passward = os.getenv("REDIS_PASSWORD")
+redis_password = os.getenv("REDIS_PASSWORD")
 
 
 class DownloadRedisSink(TaskRedisSink):
@@ -187,10 +187,10 @@ def test_splitter_1():
 def test_redis_ack_0():
     start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
     redis_sink = TaskRedisSink(
-        key="testFibonacci:input", host=redis_host, password=redis_passward
+        key="testFibonacci:input", host=redis_host, password=redis_password
     )
     redis_ack = TaskRedisAck(
-        key="testFibonacci:output", host=redis_host, password=redis_passward
+        key="testFibonacci:output", host=redis_host, password=redis_password
     )
     fibonacci_stage = TaskManager(fibonacci, "thread")
 
@@ -222,11 +222,11 @@ def test_redis_ack_1():
     redis_sink = TaskRedisSink(
         key="testSum:input",
         host=redis_host,
-        password=redis_passward,
+        password=redis_password,
         unpack_task_args=True,
     )
     redis_ack = TaskRedisAck(
-        key="testSum:output", host=redis_host, password=redis_passward
+        key="testSum:output", host=redis_host, password=redis_password
     )
     sum_stage = TaskManager(
         sum_int, execution_mode="thread", worker_limit=4, unpack_task_args=True
@@ -259,11 +259,11 @@ def test_redis_ack_2():
     redis_sink = DownloadRedisSink(
         key="testDownload:input",
         host=redis_host,
-        password=redis_passward,
+        password=redis_password,
         unpack_task_args=True,
     )
     redis_ack = TaskRedisAck(
-        key="testDownload:output", host=redis_host, password=redis_passward
+        key="testDownload:output", host=redis_host, password=redis_password
     )
     download_stage = DownloadManager(
         download_to_file, execution_mode="thread", worker_limit=4
@@ -305,9 +305,9 @@ def test_redis_ack_2():
 
 def test_redis_source_0():
     sleep_stage_0 = TaskManager(sleep_1, execution_mode="serial")
-    redis_sink = TaskRedisSink("test_redis", host=redis_host, password=redis_passward)
+    redis_sink = TaskRedisSink("test_redis", host=redis_host, password=redis_password)
     redis_source = TaskRedisSource(
-        "test_redis", host=redis_host, password=redis_passward
+        "test_redis", host=redis_host, password=redis_password
     )
     sleep_stage_1 = TaskManager(sleep_1, execution_mode="serial")
 
