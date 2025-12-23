@@ -198,19 +198,7 @@ def compute_node_levels(G: nx.DiGraph) -> Dict[str, int]:
     return level
 
 
-# ========调用于task_manage.py========
-def object_to_str_hash(obj) -> str:
-    """
-    将任意对象转换为 MD5 字符串。
-
-    :param obj: 任意对象
-    :return: MD5 字符串
-    """
-    obj_bytes = pickle.dumps(obj)  # 序列化对象
-    return hashlib.md5(obj_bytes).hexdigest()
-
-
-# ========公共函数========
+# ========调用于task_types.py========
 def make_hashable(obj) -> Any:
     """
     把 obj 转换成可哈希的形式。
@@ -227,9 +215,21 @@ def make_hashable(obj) -> Any:
         return tuple(sorted(make_hashable(e) for e in obj))
     else:
         # 基本类型直接返回
-        return obj
+        return 
+    
+    
+def object_to_str_hash(obj) -> str:
+    """
+    将任意对象转换为 MD5 字符串。
+
+    :param obj: 任意对象
+    :return: MD5 字符串
+    """
+    obj_bytes = pickle.dumps(obj)  # 序列化对象
+    return hashlib.md5(obj_bytes).hexdigest()
 
 
+# ========公共函数========
 def cleanup_mpqueue(queue: MPQueue):
     """
     清理队列

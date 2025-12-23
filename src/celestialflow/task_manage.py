@@ -15,7 +15,7 @@ from .task_progress import ProgressManager, NullProgress
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import NoOpContext, SumCounter, TaskEnvelope, TerminationSignal, TERMINATION_SIGNAL
-from .task_tools import make_hashable, format_repr
+from .task_tools import format_repr
 
 
 class TaskManager:
