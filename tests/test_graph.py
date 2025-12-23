@@ -195,5 +195,6 @@ def test_graph_1():
 
 # 在主函数或脚本中调用此函数，而不是在测试中
 if __name__ == "__main__":
+    test_graph_0
     # test_graph_1()
     pass

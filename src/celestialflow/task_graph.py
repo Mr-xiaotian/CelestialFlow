@@ -9,12 +9,11 @@ from .task_manage import TaskManager
 from .task_report import TaskReporter
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
-from .task_types import StageStatus, TerminationSignal, TERMINATION_SIGNAL
+from .task_types import TaskEnvelope, StageStatus, TerminationSignal, TERMINATION_SIGNAL
 from .task_tools import (
     format_duration,
     format_timestamp,
     cleanup_mpqueue,
-    make_hashable,
     build_structure_graph,
     format_structure_list_from_graph,
     append_jsonl_log,
@@ -24,7 +23,7 @@ from .task_tools import (
     cluster_by_value_sorted,
     load_task_by_stage,
     load_task_by_error,
-    format_repr,
+    format_repr
 )
 
 
@@ -229,8 +228,9 @@ class TaskGraph:
                 if isinstance(task, TerminationSignal):
                     in_queue.put(TERMINATION_SIGNAL)
                     continue
-
-                in_queue.put_first(make_hashable(task))
+                
+                envelope = TaskEnvelope.wrap(task)
+                in_queue.put_first(envelope)
                 stage.task_counter.add_init_value(1)
 
         if put_termination_signal:

@@ -6,7 +6,7 @@ from asyncio import Queue as AsyncQueue, QueueEmpty as AsyncEmpty
 from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue, Empty as SyncEmpty
 
-from .task_types import TerminationSignal, TERMINATION_SIGNAL
+from .task_types import TaskEnvelope, TerminationSignal, TERMINATION_SIGNAL
 from .task_logging import TaskLogger
 
 
@@ -100,7 +100,7 @@ class TaskQueue:
             source, self.queue_tag[channel_index], self.stage_tag, self.direction
         )
 
-    def get(self, poll_interval: float = 0.01) -> object:
+    def get(self, poll_interval: float = 0.01) -> TaskEnvelope | TerminationSignal:
         """
         从多个队列中轮询获取任务。
 
@@ -157,7 +157,7 @@ class TaskQueue:
             # 所有队列都暂时无数据，避免 busy-wait
             time.sleep(poll_interval)
 
-    async def get_async(self, poll_interval=0.01) -> object:
+    async def get_async(self, poll_interval=0.01) -> TaskEnvelope | TerminationSignal:
         """
         异步轮询多个 AsyncQueue，获取任务。
 

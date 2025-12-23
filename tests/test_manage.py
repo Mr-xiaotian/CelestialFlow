@@ -38,7 +38,9 @@ def test_manager():
     manager = TaskManager(fibonacci, worker_limit=6, max_retries=1, show_progress=True)
     manager.add_retry_exceptions(ValueError)
 
-    results = manager.test_methods(test_task_1)
+    execution_modes = ["serial", "thread", "process"]
+
+    results = manager.test_methods(test_task_1, execution_modes)
     table_results = format_table(*results)
     logging.info("\n" + table_results)
 

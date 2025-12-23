@@ -14,8 +14,8 @@ from typing import List
 from .task_progress import ProgressManager, NullProgress
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
-from .task_types import NoOpContext, SumCounter, TerminationSignal, TERMINATION_SIGNAL
-from .task_tools import make_hashable, format_repr, object_to_str_hash
+from .task_types import NoOpContext, SumCounter, TaskEnvelope, TerminationSignal, TERMINATION_SIGNAL
+from .task_tools import make_hashable, format_repr
 
 
 class TaskManager:
@@ -326,8 +326,9 @@ class TaskManager:
         :param task_source: 任务源（可迭代对象）
         """
         progress_num = 0
-        for item in task_source:
-            self.task_queues.put(make_hashable(item))
+        for task in task_source:
+            envelope = TaskEnvelope.wrap(task)
+            self.task_queues.put_first(envelope)
             self.update_task_counter()
             if self.task_counter.value % 100 == 0:
                 self.progress_manager.add_total(100)
@@ -341,8 +342,9 @@ class TaskManager:
         :param task_source: 任务源（可迭代对象）
         """
         progress_num = 0
-        for item in task_source:
-            await self.task_queues.put_async(make_hashable(item))
+        for task in task_source:
+            envelope = TaskEnvelope.wrap(task)
+            await self.task_queues.put_first_async(envelope)
             self.update_task_counter()
             if self.task_counter.value % 100 == 0:
                 self.progress_manager.add_total(100)
@@ -484,14 +486,6 @@ class TaskManager:
 
         return dict(error_groups)  # 转换回普通字典
 
-    def get_task_id(self, task):
-        """
-        获取任务ID
-
-        :param task: 任务对象
-        """
-        return object_to_str_hash(task)
-
     def get_task_info(self, task) -> str:
         """
         获取任务参数信息的可读字符串表示。
@@ -524,25 +518,27 @@ class TaskManager:
         """
         return format_repr(result, self.max_info)
 
-    def process_task_success(self, task, result, start_time):
+    def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):
         """
         统一处理成功任务
 
-        :param task: 完成的任务
+        :param task_envelope: 完成的任务
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        processed_result = self.process_result(task, result)
+        task = task_envelope.task
+        task_id = task_envelope.id
 
+        processed_result = self.process_result(task, result)
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
+        result_envelope = TaskEnvelope.wrap(result)
 
         # ✅ 清理 retry_time_dict
-        task_id = self.get_task_id(task)
         self.retry_time_dict.pop(task_id, None)
 
         self.update_success_counter()
-        self.result_queues.put(processed_result)
+        self.result_queues.put(result_envelope)
         self.task_logger.task_success(
             self.func.__name__,
             self.get_task_info(task),
@@ -551,25 +547,27 @@ class TaskManager:
             time.time() - start_time,
         )
 
-    async def process_task_success_async(self, task, result, start_time):
+    async def process_task_success_async(self, task_envelope: TaskEnvelope, result, start_time):
         """
         异步版本：统一处理成功任务
 
-        :param task: 完成的任务
+        :param task_envelope: 完成的任务
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        processed_result = self.process_result(task, result)
+        task = task_envelope.task
+        task_id = task_envelope.id
 
+        processed_result = self.process_result(task, result)
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
+        result_envelope = TaskEnvelope.wrap(result)
 
         # ✅ 清理 retry_time_dict
-        task_id = self.get_task_id(task)
         self.retry_time_dict.pop(task_id, None)
 
         await self.update_success_counter_async()
-        await self.result_queues.put_async(processed_result)
+        await self.result_queues.put_async(result_envelope)
         self.task_logger.task_success(
             self.func.__name__,
             self.get_task_info(task),
@@ -578,15 +576,17 @@ class TaskManager:
             time.time() - start_time,
         )
 
-    def handle_task_error(self, task, exception: Exception):
+    def handle_task_error(self, task_envelope: TaskEnvelope, exception: Exception):
         """
         统一处理异常任务
 
-        :param task: 发生异常的任务
+        :param task_envelope: 发生异常的任务
         :param exception: 捕获的异常
         :return 是否需要重试
         """
-        task_id = self.get_task_id(task)
+        task = task_envelope.task
+        task_id = task_envelope.id
+
         retry_time = self.retry_time_dict.setdefault(task_id, 0)
 
         # 基于异常类型决定重试策略
@@ -595,7 +595,7 @@ class TaskManager:
             and retry_time < self.max_retries
         ):
             self.processed_set.discard(task_id)
-            self.task_queues.put_first(task)  # 只在第一个队列存放retry task
+            self.task_queues.put_first(task_envelope)  # 只在第一个队列存放retry task
 
             self.progress_manager.add_total(1)
             self.retry_time_dict[task_id] += 1
@@ -619,15 +619,17 @@ class TaskManager:
                 self.func.__name__, self.get_task_info(task), exception
             )
 
-    async def handle_task_error_async(self, task, exception: Exception):
+    async def handle_task_error_async(self, task_envelope: TaskEnvelope, exception: Exception):
         """
         统一处理任务异常, 异步版本
 
-        :param task: 发生异常的任务
+        :param task_envelope: 发生异常的任务
         :param exception: 捕获的异常
         :return 是否需要重试
         """
-        task_id = self.get_task_id(task)
+        task = task_envelope.task
+        task_id = task_envelope.id
+
         retry_time = self.retry_time_dict.setdefault(task_id, 0)
 
         # 基于异常类型决定重试策略
@@ -636,7 +638,7 @@ class TaskManager:
             and retry_time < self.max_retries
         ):
             self.processed_set.discard(task_id)
-            await self.task_queues.put_first_async(task)  # 只在第一个队列存放retry task
+            await self.task_queues.put_first_async(task_envelope)  # 只在第一个队列存放retry task
 
             self.progress_manager.add_total(1)
             self.retry_time_dict[task_id] += 1
@@ -789,11 +791,14 @@ class TaskManager:
         """
         # 从队列中依次获取任务并执行
         while True:
-            task = self.task_queues.get()
-            task_id = self.get_task_id(task)
-            if isinstance(task, TerminationSignal):
+            envelope = self.task_queues.get()
+            if isinstance(envelope, TerminationSignal):
                 break
-            elif self.is_duplicate(task_id):
+
+            task = envelope.task
+            task_id = envelope.id
+
+            if self.is_duplicate(task_id):
                 self.deal_dupliacte(task)
                 self.progress_manager.update(1)
                 continue
@@ -801,9 +806,9 @@ class TaskManager:
             try:
                 start_time = time.time()
                 result = self.func(*self.get_args(task))
-                self.process_task_success(task, result, start_time)
+                self.process_task_success(envelope, result, start_time)
             except Exception as error:
-                self.handle_task_error(task, error)
+                self.handle_task_error(envelope, error)
             self.progress_manager.update(1)
 
         self.task_queues.reset()
@@ -829,16 +834,18 @@ class TaskManager:
         all_done_event = Event()
         all_done_event.set()  # 初始为无任务状态，设为完成状态
 
-        def on_task_done(future, task, task_id, progress_manager: ProgressManager):
+        def on_task_done(future, envelope: TaskEnvelope, progress_manager: ProgressManager):
             # 回调函数中处理任务结果
             progress_manager.update(1)
+            task_id = envelope.id
+
             try:
                 result = future.result()
                 start_time = task_start_dict.pop(task_id, None)
-                self.process_task_success(task, result, start_time)
+                self.process_task_success(envelope, result, start_time)
             except Exception as error:
                 task_start_dict.pop(task_id, None)
-                self.handle_task_error(task, error)
+                self.handle_task_error(envelope, error)
             # 任务完成后减少in_flight计数
             with in_flight_lock:
                 nonlocal in_flight
@@ -848,8 +855,12 @@ class TaskManager:
 
         # 从任务队列中提交任务到执行池
         while True:
-            task = self.task_queues.get()
-            task_id = self.get_task_id(task)
+            envelope = self.task_queues.get()
+            if isinstance(envelope, TerminationSignal):
+                break
+
+            task = envelope.task
+            task_id = envelope.id
 
             if isinstance(task, TerminationSignal):
                 # 收到终止信号后不再提交新任务
@@ -868,7 +879,7 @@ class TaskManager:
             task_start_dict[task_id] = time.time()
             future = executor.submit(self.func, *self.get_args(task))
             future.add_done_callback(
-                lambda f, t=task, tid=task_id: on_task_done(f, t, tid, self.progress_manager)
+                lambda f, t=envelope: on_task_done(f, t, self.progress_manager)
             )
 
         # 等待所有已提交任务完成（包括回调）
@@ -890,35 +901,38 @@ class TaskManager:
         """
         semaphore = asyncio.Semaphore(self.worker_limit)  # 限制并发数量
 
-        async def sem_task(task):
+        async def sem_task(envelope):
             start_time = time.time()  # 记录任务开始时间
             async with semaphore:  # 使用信号量限制并发
-                result = await self._run_single_task(task)
-                return task, result, start_time  # 返回 task, result 和 start_time
+                result = await self._run_single_task(envelope.task)
+                return envelope, result, start_time  # 返回 task, result 和 start_time
 
         # 创建异步任务列表
         async_tasks = []
 
         while True:
-            task = await self.task_queues.get_async()
-            task_id = self.get_task_id(task)
-            if isinstance(task, TerminationSignal):
+            envelope = await self.task_queues.get_async()
+            if isinstance(envelope, TerminationSignal):
                 break
-            elif self.is_duplicate(task_id):
+
+            task = envelope.task
+            task_id = envelope.id
+
+            if self.is_duplicate(task_id):
                 self.deal_dupliacte(task)
                 self.progress_manager.update(1)
                 continue
             self.add_processed_set(task_id)
-            async_tasks.append(sem_task(task))  # 使用信号量包裹的任务
+            async_tasks.append(sem_task(envelope))  # 使用信号量包裹的任务
 
         # 并发运行所有任务
-        for task, result, start_time in await asyncio.gather(
+        for envelope, result, start_time in await asyncio.gather(
             *async_tasks, return_exceptions=True
         ):
             if not isinstance(result, Exception):
-                await self.process_task_success_async(task, result, start_time)
+                await self.process_task_success_async(envelope, result, start_time)
             else:
-                await self.handle_task_error_async(task, result)
+                await self.handle_task_error_async(envelope, result)
             self.progress_manager.update(1)
 
         self.task_queues.reset()

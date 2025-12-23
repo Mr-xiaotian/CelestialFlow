@@ -67,3 +67,28 @@ class StageStatus(IntEnum):
     NOT_STARTED = 0
     RUNNING = 1
     STOPPED = 2
+
+
+class TaskEnvelope:
+    __slots__ = ("task", "id")
+
+    def __init__(self, task, id):
+        self.task = task
+        self.id = id
+
+    @classmethod
+    def wrap(cls, task):
+        """
+        将原始 task 包装为 TaskEnvelope。
+        当前 id 为 hash，未来可在此注入 ExecutionContext / CelestialTree。
+        """
+        from .task_tools import make_hashable, object_to_str_hash
+
+        hashable_task = make_hashable(task)
+        id = object_to_str_hash(task)
+        return cls(hashable_task, id)
+
+    def unwrap(self):
+        """取出原始 task（给用户函数用）"""
+        return self.task
+
