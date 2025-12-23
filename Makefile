@@ -8,14 +8,14 @@ GO_WORKER_SOURCES = $(wildcard go_worker/*.go) $(wildcard go_worker/worker/*.go)
 .PHONY: all
 all: run_go_worker
 
-# 构建目标
-$(GO_WORKER_EXE): $(GO_WORKER_SOURCES)
-	cd go_worker && go build -o go_worker.exe
-
 # 运行目标
 .PHONY: run_go_worker
 run_go_worker: $(GO_WORKER_EXE)
 	@$(GO_WORKER_EXE)
+
+# 构建目标
+$(GO_WORKER_EXE): $(GO_WORKER_SOURCES)
+	cd go_worker && go build -o go_worker.exe
 
 # 清理目标
 .PHONY: clean
