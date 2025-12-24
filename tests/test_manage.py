@@ -35,7 +35,9 @@ def test_manager():
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
     test_task_2 = (item for item in test_task_1)
 
-    manager = TaskManager(fibonacci, worker_limit=6, max_retries=1, show_progress=True)
+    manager = TaskManager(
+        fibonacci, worker_limit=6, max_retries=1, show_progress=True, enable_celestialtree=True
+    )
     manager.add_retry_exceptions(ValueError)
 
     execution_modes = ["serial", "thread", "process"]
@@ -53,7 +55,7 @@ async def test_manager_async():
     test_task_2 = (item for item in test_task_1)
 
     manager = TaskManager(
-        fibonacci_async, worker_limit=6, max_retries=1, show_progress=True
+        fibonacci_async, worker_limit=6, max_retries=1, show_progress=True, enable_celestialtree=True
     )
     manager.add_retry_exceptions(ValueError)
     start = time()

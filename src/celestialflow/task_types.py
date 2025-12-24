@@ -70,23 +70,25 @@ class StageStatus(IntEnum):
 
 
 class TaskEnvelope:
-    __slots__ = ("task", "id")
+    __slots__ = ("task", "hash", "id")
 
-    def __init__(self, task, id):
+    def __init__(self, task, hash, id):
         self.task = task
+        self.hash = hash
         self.id = id
 
     @classmethod
-    def wrap(cls, task, id=None):
+    def wrap(cls, task, task_id=None):
         """
         将原始 task 包装为 TaskEnvelope。
-        当前 id 为 hash，未来可在此注入 ExecutionContext / CelestialTree。
+        当前 task_id 为 hash，未来可在此注入 ExecutionContext / CelestialTree。
         """
         from .task_tools import make_hashable, object_to_str_hash
 
         hashable_task = task # make_hashable(task)
-        id = object_to_str_hash(task) or id
-        return cls(hashable_task, id)
+        task_hash = object_to_str_hash(hashable_task)
+        task_id = task_id or task_hash
+        return cls(hashable_task, task_hash, task_id)
 
     def unwrap(self):
         """取出原始 task（给用户函数用）"""

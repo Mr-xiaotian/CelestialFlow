@@ -136,3 +136,23 @@ class Client:
         t = threading.Thread(target=_run, daemon=daemon)
         t.start()
         return t
+
+
+class NullClient:
+    def emit(self, *args, **kwargs):
+        return None
+
+    def get_event(self, *args, **kwargs):
+        return None
+
+    def children(self, *args, **kwargs):
+        return []
+
+    def descendants(self, *args, **kwargs):
+        return None
+
+    def heads(self):
+        return []
+
+    def subscribe(self, *args, **kwargs):
+        return None

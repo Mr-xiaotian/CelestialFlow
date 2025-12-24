@@ -9,6 +9,8 @@ from celestialflow import TaskManager, TaskGraph, format_table
 load_dotenv()
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
+ctree_host = os.getenv("CTREE_HOST")
+ctree_port = os.getenv("CTREE_PORT")
 
 
 def sleep_1(n):
@@ -110,6 +112,7 @@ def test_graph_0():
         worker_limit=4,
         max_retries=1,
         show_progress=False,
+        enable_celestialtree=True
     )
     stage2 = TaskManager(
         square,
@@ -117,18 +120,19 @@ def test_graph_0():
         worker_limit=4,
         max_retries=1,
         show_progress=False,
+        enable_celestialtree=True
     )
     stage3 = TaskManager(
-        sleep_1, execution_mode="thread", worker_limit=4, show_progress=False
+        sleep_1, execution_mode="thread", worker_limit=4, show_progress=False, enable_celestialtree=True
     )
     stage4 = TaskManager(
-        divide_by_two, execution_mode="thread", worker_limit=4, show_progress=False
+        divide_by_two, execution_mode="thread", worker_limit=4, show_progress=False, enable_celestialtree=True
     )
 
-    stage1.set_graph_context([stage2, stage3], "process", stage_name="stage1")
-    stage2.set_graph_context([stage4], "process", stage_name="stage2")
-    stage3.set_graph_context([], "process", stage_name="stage3")
-    stage4.set_graph_context([], "process", stage_name="stage4")
+    stage1.set_graph_context([stage2, stage3], "process", stage_name="stageA")
+    stage2.set_graph_context([stage4], "process", stage_name="stageB.1")
+    stage3.set_graph_context([], "process", stage_name="stageB.2")
+    stage4.set_graph_context([], "process", stage_name="stageC")
 
     stage1.add_retry_exceptions(ValueError)
     stage2.add_retry_exceptions(ValueError)
@@ -136,6 +140,7 @@ def test_graph_0():
     # 初始化 TaskGraph
     graph = TaskGraph(root_stages=[stage1])
     graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_ctreeclient(True, host=ctree_host, port=ctree_port)
 
     # 要测试的任务列表
     test_task_0 = range(25, 37)
@@ -195,6 +200,6 @@ def test_graph_1():
 
 # 在主函数或脚本中调用此函数，而不是在测试中
 if __name__ == "__main__":
-    test_graph_0
+    test_graph_0()
     # test_graph_1()
     pass

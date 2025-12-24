@@ -16,6 +16,7 @@ from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import NoOpContext, SumCounter, TaskEnvelope, TerminationSignal, TERMINATION_SIGNAL
 from .task_tools import format_repr
+from .adapters.celestialtree import Client as CelestialTreeClient, NullClient as NullCelestialTreeClient
 
 
 class TaskManager:
@@ -31,6 +32,7 @@ class TaskManager:
         enable_duplicate_check=True,
         progress_desc="Processing",
         show_progress=False,
+        enable_celestialtree=False,
     ):
         """
         初始化 TaskManager
@@ -45,6 +47,7 @@ class TaskManager:
         :param enable_duplicate_check: 是否启用重复检查
         :param progress_desc: 进度条显示名称
         :param show_progress: 进度条显示与否
+        :param enable_celestialtree: 是否启用 CelestialTree 相关操作
         """
         self.func = func
         self.execution_mode = execution_mode
@@ -57,6 +60,8 @@ class TaskManager:
 
         self.progress_desc = progress_desc
         self.show_progress = show_progress
+
+        self.enable_celestialtree = enable_celestialtree
 
         self.thread_pool = None
         self.process_pool = None
@@ -114,6 +119,7 @@ class TaskManager:
         self.init_pool()
         self.init_logger(logger_queue)
         self.init_queue(task_queues, result_queues, fail_queue)
+        self.init_ctreeclient()
 
     def init_state(self):
         """
@@ -179,6 +185,19 @@ class TaskManager:
         self.fail_queue: ThreadQueue | MPQueue | AsyncQueue = (
             fail_queue or queue_map[self.execution_mode]()
         )
+
+    def init_ctreeclient(self, host="127.0.0.1", port: int = 7777):
+        if hasattr(self, "ctree_client"):
+            return
+
+        self._ct_enabled = self.enable_celestialtree
+        self._ct_addr = f"{host}:{port}"
+
+        if self.enable_celestialtree:
+            base_url = f"http://{host}:{port}"
+            self.ctree_client = CelestialTreeClient(base_url)
+        else:
+            self.ctree_client = NullCelestialTreeClient()
 
     def init_listener(self, log_level="INFO"):
         """
@@ -327,7 +346,8 @@ class TaskManager:
         """
         progress_num = 0
         for task in task_source:
-            envelope = TaskEnvelope.wrap(task)
+            task_id = self.ctree_client.emit("task.input")
+            envelope = TaskEnvelope.wrap(task, task_id)
             self.task_queues.put_first(envelope)
             self.update_task_counter()
             if self.task_counter.value % 100 == 0:
@@ -343,7 +363,8 @@ class TaskManager:
         """
         progress_num = 0
         for task in task_source:
-            envelope = TaskEnvelope.wrap(task)
+            task_id = self.ctree_client.emit("task.input")
+            envelope = TaskEnvelope.wrap(task, task_id)
             await self.task_queues.put_first_async(envelope)
             self.update_task_counter()
             if self.task_counter.value % 100 == 0:
@@ -417,7 +438,7 @@ class TaskManager:
         )
         return self.task_counter.value == processed
 
-    def is_duplicate(self, task_id):
+    def is_duplicate(self, task_hash):
         """
         判断任务是否重复
         """
@@ -425,14 +446,7 @@ class TaskManager:
         # 但gpt强烈建议我加上
         if not self.enable_duplicate_check:
             return False
-        return task_id in self.processed_set
-
-    def deal_dupliacte(self, task):
-        """
-        处理重复任务
-        """
-        self.update_duplicate_counter()
-        self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task))
+        return task_hash in self.processed_set
 
     def add_processed_set(self, task_id):
         """
@@ -486,14 +500,14 @@ class TaskManager:
 
         return dict(error_groups)  # 转换回普通字典
 
-    def get_task_info(self, task) -> str:
+    def get_task_info(self, envelope: TaskEnvelope) -> str:
         """
         获取任务参数信息的可读字符串表示。
 
-        :param task: 任务对象
+        :param envelope: 任务对象
         :return: 任务参数信息字符串
         """
-        args = self.get_args(task)
+        args = self.get_args(envelope.task)
 
         # 格式化每个参数
         def format_args_list(args_list):
@@ -507,16 +521,17 @@ class TaskManager:
             tail = format_args_list([args[-1]])
             formatted_args = head + ["..."] + tail
 
-        return f"({', '.join(formatted_args)})"
+        return f"({', '.join(formatted_args)})[id:{envelope.id}]"
 
-    def get_result_info(self, result):
+    def get_result_info(self, result_envelope: TaskEnvelope):
         """
         获取结果信息
 
         :param result: 任务结果
         :return: 结果信息字符串
         """
-        return format_repr(result, self.max_info)
+        formatted_result = format_repr(result_envelope.task, self.max_info)
+        return f"({formatted_result})[id:{result_envelope.id}]"
 
     def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):
         """
@@ -532,7 +547,9 @@ class TaskManager:
         processed_result = self.process_result(task, result)
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
-        result_envelope = TaskEnvelope.wrap(result)
+        
+        result_id = self.ctree_client.emit("task.success", parents=[task_id])
+        result_envelope = TaskEnvelope.wrap(result, result_id)
 
         # ✅ 清理 retry_time_dict
         self.retry_time_dict.pop(task_id, None)
@@ -541,9 +558,9 @@ class TaskManager:
         self.result_queues.put(result_envelope)
         self.task_logger.task_success(
             self.func.__name__,
-            self.get_task_info(task),
+            self.get_task_info(task_envelope),
             self.execution_mode,
-            self.get_result_info(result),
+            self.get_result_info(result_envelope),
             time.time() - start_time,
         )
 
@@ -561,7 +578,9 @@ class TaskManager:
         processed_result = self.process_result(task, result)
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
-        result_envelope = TaskEnvelope.wrap(result)
+        
+        result_id = self.ctree_client.emit("task.success", parents=[task_id])
+        result_envelope = TaskEnvelope.wrap(result, result_id)
 
         # ✅ 清理 retry_time_dict
         self.retry_time_dict.pop(task_id, None)
@@ -570,9 +589,9 @@ class TaskManager:
         await self.result_queues.put_async(result_envelope)
         self.task_logger.task_success(
             self.func.__name__,
-            self.get_task_info(task),
+            self.get_task_info(task_envelope),
             self.execution_mode,
-            self.get_result_info(result),
+            self.get_result_info(result_envelope),
             time.time() - start_time,
         )
 
@@ -601,7 +620,7 @@ class TaskManager:
             self.retry_time_dict[task_id] += 1
             self.task_logger.task_retry(
                 self.func.__name__,
-                self.get_task_info(task),
+                self.get_task_info(task_envelope),
                 self.retry_time_dict[task_id],
                 exception,
             )
@@ -610,13 +629,15 @@ class TaskManager:
             if self.enable_result_cache:
                 self.error_dict[task] = exception
 
+            result_id = self.ctree_client.emit("task.error", parents=[task_id])
+
             # ✅ 清理 retry_time_dict
             self.retry_time_dict.pop(task_id, None)
 
             self.update_error_counter()
             self.put_fail_queue(task, exception)
             self.task_logger.task_error(
-                self.func.__name__, self.get_task_info(task), exception
+                self.func.__name__, self.get_task_info(task_envelope), exception
             )
 
     async def handle_task_error_async(self, task_envelope: TaskEnvelope, exception: Exception):
@@ -644,7 +665,7 @@ class TaskManager:
             self.retry_time_dict[task_id] += 1
             self.task_logger.task_retry(
                 self.func.__name__,
-                self.get_task_info(task),
+                self.get_task_info(task_envelope),
                 self.retry_time_dict[task_id],
                 exception,
             )
@@ -653,14 +674,24 @@ class TaskManager:
             if self.enable_result_cache:
                 self.error_dict[task] = exception
 
+            result_id = self.ctree_client.emit("task.error", parents=[task_id])
+
             # ✅ 清理 retry_time_dict
             self.retry_time_dict.pop(task_id, None)
 
             self.update_error_counter()
             await self.put_fail_queue_async(task, exception)
             self.task_logger.task_error(
-                self.func.__name__, self.get_task_info(task), exception
+                self.func.__name__, self.get_task_info(task_envelope), exception
             )
+
+    def deal_dupliacte(self, task_envelope):
+        """
+        处理重复任务
+        """
+        self.update_duplicate_counter()
+        self.ctree_client.emit("task.duplicate", parents=[task_envelope.id])
+        self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task_envelope))
 
     def start(self, task_source: Iterable):
         """
@@ -796,13 +827,13 @@ class TaskManager:
                 break
 
             task = envelope.task
-            task_id = envelope.id
+            task_hash = envelope.hash
 
-            if self.is_duplicate(task_id):
-                self.deal_dupliacte(task)
+            if self.is_duplicate(task_hash):
+                self.deal_dupliacte(envelope)
                 self.progress_manager.update(1)
                 continue
-            self.add_processed_set(task_id)
+            self.add_processed_set(task_hash)
             try:
                 start_time = time.time()
                 result = self.func(*self.get_args(task))
@@ -860,16 +891,17 @@ class TaskManager:
                 break
 
             task = envelope.task
+            task_hash = envelope.hash
             task_id = envelope.id
 
             if isinstance(task, TerminationSignal):
                 # 收到终止信号后不再提交新任务
                 break
-            elif self.is_duplicate(task_id):
-                self.deal_dupliacte(task)
+            elif self.is_duplicate(task_hash):
+                self.deal_dupliacte(envelope)
                 self.progress_manager.update(1)
                 continue
-            self.add_processed_set(task_id)
+            self.add_processed_set(task_hash)
 
             # 提交新任务时增加in_flight计数，并清除完成事件
             with in_flight_lock:
@@ -916,13 +948,13 @@ class TaskManager:
                 break
 
             task = envelope.task
-            task_id = envelope.id
+            task_hash = envelope.hash
 
-            if self.is_duplicate(task_id):
-                self.deal_dupliacte(task)
+            if self.is_duplicate(task_hash):
+                self.deal_dupliacte(envelope)
                 self.progress_manager.update(1)
                 continue
-            self.add_processed_set(task_id)
+            self.add_processed_set(task_hash)
             async_tasks.append(sem_task(envelope))  # 使用信号量包裹的任务
 
         # 并发运行所有任务

@@ -6,7 +6,7 @@ from multiprocessing import Queue as MPQueue
 from typing import Any, Dict, List
 
 from .task_manage import TaskManager
-from .task_report import TaskReporter
+from .task_report import TaskReporter, NullTaskReporter
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import TaskEnvelope, StageStatus, TerminationSignal, TERMINATION_SIGNAL
@@ -25,6 +25,7 @@ from .task_tools import (
     load_task_by_error,
     format_repr
 )
+from .adapters.celestialtree import Client as CelestialTreeClient, NullClient as NullCelestialTreeClient
 
 
 class TaskGraph:
@@ -60,6 +61,7 @@ class TaskGraph:
         self.analyze_graph()
         self.set_layout_mode(layout_mode)
         self.set_reporter()
+        self.set_ctreeclient()
 
     def init_env(self):
         """
@@ -187,8 +189,27 @@ class TaskGraph:
         :param host: 报告器主机地址
         :param port: 报告器端口
         """
-        self.is_report = is_report
-        self.reporter = TaskReporter(self, self.log_listener.get_queue(), host, port)
+        if is_report:
+            self.reporter = TaskReporter(self, self.log_listener.get_queue(), host, port)
+        else:
+            self.reporter = NullTaskReporter()
+
+    def set_ctreeclient(self, is_ctree=False, host="127.0.0.1", port=7777):
+        """
+        Docstring for set_ctreeclient
+        
+        :param self: Description
+        :param is_ctree: Description
+        :param host: Description
+        :param port: Description
+        """
+        self._ct_addr = f"{host}:{port}"
+
+        if is_ctree:
+            base_url = f"http://{host}:{port}"
+            self.ctree_client = CelestialTreeClient(base_url)
+        else:
+            self.ctree_client = NullCelestialTreeClient()
 
     def set_graph_mode(self, stage_mode: str, execution_mode: str):
         """
@@ -229,7 +250,8 @@ class TaskGraph:
                     in_queue.put(TERMINATION_SIGNAL)
                     continue
                 
-                envelope = TaskEnvelope.wrap(task)
+                task_id = self.ctree_client.emit("task.input")
+                envelope = TaskEnvelope.wrap(task, task_id)
                 in_queue.put_first(envelope)
                 stage.task_counter.add_init_value(1)
 
@@ -253,7 +275,7 @@ class TaskGraph:
             self.start_time = time.time()
             self.task_logger.start_graph(self.get_structure_list())
             self._persist_structure_metadata()
-            self.reporter.start() if self.is_report else None
+            self.reporter.start()
 
             self.put_stage_queue(init_tasks_dict, put_termination_signal)
             self._excute_stages()

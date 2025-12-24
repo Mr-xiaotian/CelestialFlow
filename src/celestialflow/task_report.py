@@ -126,3 +126,14 @@ class TaskReporter:
             requests.post(f"{self.base_url}/api/push_topology", json=payload, timeout=1)
         except Exception as e:
             self.logger.push_topology_failed(e)
+
+
+class NullTaskReporter:
+    interval = 0
+    
+    def start():
+        return None
+
+    def stop():
+        return None
+    
