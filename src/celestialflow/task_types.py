@@ -87,7 +87,7 @@ class TaskEnvelope:
 
         hashable_task = task # make_hashable(task)
         task_hash = object_to_str_hash(hashable_task)
-        task_id = task_id or task_hash
+        task_id = task_id if task_id is not None else task_hash
         return cls(hashable_task, task_hash, task_id)
 
     def unwrap(self):

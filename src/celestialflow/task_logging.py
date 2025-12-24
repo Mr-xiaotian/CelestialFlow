@@ -123,27 +123,27 @@ class TaskLogger:
         self._log("INFO", f"TaskGraph end. Use {use_time:.2f} second.")
 
     # ==== task ====
-    def task_success(self, func_name, task_info, execution_mode, result_info, use_time):
+    def task_success(self, func_name, task_info, execution_mode, result_info, use_time, event_trace):
         self._log(
             "SUCCESS",
-            f"In '{func_name}', Task {task_info} completed by {execution_mode}. Result is {result_info}. Used {use_time:.2f} seconds.",
+            f"In '{func_name}', Task {task_info} completed by {execution_mode}. Result is {result_info}. Used {use_time:.2f} seconds. {event_trace}",
         )
 
-    def task_retry(self, func_name, task_info, retry_times, exception):
+    def task_retry(self, func_name, task_info, retry_times, exception, event_trace):
         self._log(
             "WARNING",
-            f"In '{func_name}', Task {task_info} failed {retry_times} times and will retry: ({type(exception).__name__}).",
+            f"In '{func_name}', Task {task_info} failed {retry_times} times and will retry: ({type(exception).__name__}). {event_trace}",
         )
 
-    def task_error(self, func_name, task_info, exception):
+    def task_error(self, func_name, task_info, exception, event_trace):
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "ERROR",
-            f"In '{func_name}', Task {task_info} failed and can't retry: ({type(exception).__name__}){exception_text}.",
+            f"In '{func_name}', Task {task_info} failed and can't retry: ({type(exception).__name__}){exception_text}. {event_trace}",
         )
 
-    def task_duplicate(self, func_name, task_info):
-        self._log("SUCCESS", f"In '{func_name}', Task {task_info} has been duplicated.")
+    def task_duplicate(self, func_name, task_info, event_trace):
+        self._log("SUCCESS", f"In '{func_name}', Task {task_info} has been duplicated. {event_trace}")
 
     # ==== splitter ====
     def splitter_success(self, func_name, task_info, split_count, use_time):

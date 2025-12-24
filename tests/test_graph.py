@@ -127,10 +127,10 @@ def test_graph_0():
         divide_by_two, execution_mode="thread", worker_limit=4, show_progress=False, 
     )
 
-    stage1.set_graph_context([stage2, stage3], "process", stage_name="stageA")
-    stage2.set_graph_context([stage4], "process", stage_name="stageB.1")
-    stage3.set_graph_context([], "process", stage_name="stageB.2")
-    stage4.set_graph_context([], "process", stage_name="stageC")
+    stage1.set_graph_context([stage2, stage3], "process", stage_name="stage A")
+    stage2.set_graph_context([stage4], "process", stage_name="stage B.1")
+    stage3.set_graph_context([], "process", stage_name="stage B.2")
+    stage4.set_graph_context([], "process", stage_name="stage C")
 
     stage1.add_retry_exceptions(ValueError)
     stage2.add_retry_exceptions(ValueError)
@@ -138,7 +138,7 @@ def test_graph_0():
     # 初始化 TaskGraph
     graph = TaskGraph(root_stages=[stage1])
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(True, host=ctree_host, port=ctree_port)
+    graph.set_ctree(False, host=ctree_host, port=ctree_port)
 
     # 要测试的任务列表
     test_task_0 = range(25, 37)

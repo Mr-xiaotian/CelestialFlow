@@ -242,6 +242,7 @@ class TaskGraph:
         :param tasks_dict: 待处理的任务字典
         :param put_termination_signal: 是否放入终止信号
         """
+        task_num = 0
         for tag, tasks in tasks_dict.items():
             stage: TaskManager = self.stages_status_dict[tag]["stage"]
             in_queue: TaskQueue = self.stages_status_dict[tag]["in_queue"]
@@ -251,10 +252,11 @@ class TaskGraph:
                     in_queue.put(TERMINATION_SIGNAL)
                     continue
                 
-                task_id = self.ctree_client.emit("task.input")
+                task_id = self.ctree_client.emit("task.input") or task_num
                 envelope = TaskEnvelope.wrap(task, task_id)
                 in_queue.put_first(envelope)
                 stage.task_counter.add_init_value(1)
+                task_num += 1
 
         if put_termination_signal:
             for root_stage in self.root_stages:

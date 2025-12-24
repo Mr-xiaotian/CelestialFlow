@@ -114,7 +114,7 @@ class TaskManager:
         self.error_dict = {}
         self.retry_time_dict = {}  # task_id -> retry_time
 
-        self.processed_set = set()
+        self.processed_set = set() # task_hash
 
     def init_pool(self):
         """
@@ -338,8 +338,8 @@ class TaskManager:
         :param task_source: 任务源（可迭代对象）
         """
         progress_num = 0
-        for task in task_source:
-            task_id = self.ctree_client.emit("task.input")
+        for index, task in enumerate(task_source):
+            task_id = self.ctree_client.emit("task.input") or index
             envelope = TaskEnvelope.wrap(task, task_id)
             self.task_queues.put_first(envelope)
             self.update_task_counter()
@@ -355,8 +355,8 @@ class TaskManager:
         :param task_source: 任务源（可迭代对象）
         """
         progress_num = 0
-        for task in task_source:
-            task_id = self.ctree_client.emit("task.input")
+        for index, task in enumerate(task_source):
+            task_id = self.ctree_client.emit("task.input") or index
             envelope = TaskEnvelope.wrap(task, task_id)
             await self.task_queues.put_first_async(envelope)
             self.update_task_counter()
@@ -441,14 +441,14 @@ class TaskManager:
             return False
         return task_hash in self.processed_set
 
-    def add_processed_set(self, task_id):
+    def add_processed_set(self, task_hash):
         """
         将任务ID添加到已处理集合中
 
-        :param task_id: 任务ID
+        :param task_hash: 任务hash
         """
         if self.enable_duplicate_check:
-            self.processed_set.add(task_id) 
+            self.processed_set.add(task_hash) 
 
     def get_args(self, task):
         """
@@ -493,14 +493,14 @@ class TaskManager:
 
         return dict(error_groups)  # 转换回普通字典
 
-    def get_task_info(self, envelope: TaskEnvelope) -> str:
+    def get_task_info(self, task) -> str:
         """
         获取任务参数信息的可读字符串表示。
 
-        :param envelope: 任务对象
+        :param task: 任务对象
         :return: 任务参数信息字符串
         """
-        args = self.get_args(envelope.task)
+        args = self.get_args(task)
 
         # 格式化每个参数
         def format_args_list(args_list):
@@ -514,17 +514,17 @@ class TaskManager:
             tail = format_args_list([args[-1]])
             formatted_args = head + ["..."] + tail
 
-        return f"({', '.join(formatted_args)})[id:{envelope.id}]"
+        return f"({', '.join(formatted_args)})"
 
-    def get_result_info(self, result_envelope: TaskEnvelope):
+    def get_result_info(self, result):
         """
         获取结果信息
 
         :param result: 任务结果
         :return: 结果信息字符串
         """
-        formatted_result = format_repr(result_envelope.task, self.max_info)
-        return f"{formatted_result}[id:{result_envelope.id}]"
+        formatted_result = format_repr(result, self.max_info)
+        return f"{formatted_result}"
 
     def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):
         """
@@ -551,10 +551,11 @@ class TaskManager:
         self.result_queues.put(result_envelope)
         self.task_logger.task_success(
             self.func.__name__,
-            self.get_task_info(task_envelope),
+            self.get_task_info(task),
             self.execution_mode,
-            self.get_result_info(result_envelope),
+            self.get_result_info(result),
             time.time() - start_time,
+            f"[{task_id}->{result_envelope.id}]",
         )
 
     async def process_task_success_async(self, task_envelope: TaskEnvelope, result, start_time):
@@ -582,10 +583,11 @@ class TaskManager:
         await self.result_queues.put_async(result_envelope)
         self.task_logger.task_success(
             self.func.__name__,
-            self.get_task_info(task_envelope),
+            self.get_task_info(task),
             self.execution_mode,
-            self.get_result_info(result_envelope),
+            self.get_result_info(result),
             time.time() - start_time,
+            f"[{task_id}->{result_envelope.id}]",
         )
 
     def handle_task_error(self, task_envelope: TaskEnvelope, exception: Exception):
@@ -597,6 +599,7 @@ class TaskManager:
         :return 是否需要重试
         """
         task = task_envelope.task
+        task_hash = task_envelope.hash
         task_id = task_envelope.id
 
         retry_time = self.retry_time_dict.setdefault(task_id, 0)
@@ -606,23 +609,25 @@ class TaskManager:
             isinstance(exception, self.retry_exceptions)
             and retry_time < self.max_retries
         ):
-            self.processed_set.discard(task_id)
+            self.processed_set.discard(task_hash)
             self.task_queues.put_first(task_envelope)  # 只在第一个队列存放retry task
+            duplicate_id = self.ctree_client.emit("task.retry", parents=[task_id])
 
             self.progress_manager.add_total(1)
             self.retry_time_dict[task_id] += 1
             self.task_logger.task_retry(
                 self.func.__name__,
-                self.get_task_info(task_envelope),
+                self.get_task_info(task),
                 self.retry_time_dict[task_id],
                 exception,
+                f"[{task_id}->{duplicate_id}]",
             )
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
             if self.enable_result_cache:
                 self.error_dict[task] = exception
 
-            result_id = self.ctree_client.emit("task.error", parents=[task_id])
+            error_id = self.ctree_client.emit("task.error", parents=[task_id])
 
             # ✅ 清理 retry_time_dict
             self.retry_time_dict.pop(task_id, None)
@@ -630,7 +635,7 @@ class TaskManager:
             self.update_error_counter()
             self.put_fail_queue(task, exception)
             self.task_logger.task_error(
-                self.func.__name__, self.get_task_info(task_envelope), exception
+                self.func.__name__, self.get_task_info(task), exception, f"[{task_id}->{error_id}]",
             )
 
     async def handle_task_error_async(self, task_envelope: TaskEnvelope, exception: Exception):
@@ -642,6 +647,7 @@ class TaskManager:
         :return 是否需要重试
         """
         task = task_envelope.task
+        task_hash = task_envelope.hash
         task_id = task_envelope.id
 
         retry_time = self.retry_time_dict.setdefault(task_id, 0)
@@ -651,23 +657,25 @@ class TaskManager:
             isinstance(exception, self.retry_exceptions)
             and retry_time < self.max_retries
         ):
-            self.processed_set.discard(task_id)
+            self.processed_set.discard(task_hash)
             await self.task_queues.put_first_async(task_envelope)  # 只在第一个队列存放retry task
+            duplicate_id = self.ctree_client.emit("task.retry", parents=[task_id])
 
             self.progress_manager.add_total(1)
             self.retry_time_dict[task_id] += 1
             self.task_logger.task_retry(
                 self.func.__name__,
-                self.get_task_info(task_envelope),
+                self.get_task_info(task),
                 self.retry_time_dict[task_id],
                 exception,
+                f"[{task_id}->{duplicate_id}]",
             )
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
             if self.enable_result_cache:
                 self.error_dict[task] = exception
 
-            result_id = self.ctree_client.emit("task.error", parents=[task_id])
+            error_id = self.ctree_client.emit("task.error", parents=[task_id])
 
             # ✅ 清理 retry_time_dict
             self.retry_time_dict.pop(task_id, None)
@@ -675,16 +683,19 @@ class TaskManager:
             self.update_error_counter()
             await self.put_fail_queue_async(task, exception)
             self.task_logger.task_error(
-                self.func.__name__, self.get_task_info(task_envelope), exception
+                self.func.__name__, self.get_task_info(task), exception, f"[{task_id}->{error_id}]",
             )
 
-    def deal_dupliacte(self, task_envelope):
+    def deal_dupliacte(self, task_envelope: TaskEnvelope):
         """
         处理重复任务
         """
+        task = task_envelope.task
+        task_id = task_envelope.id
+
         self.update_duplicate_counter()
-        self.ctree_client.emit("task.duplicate", parents=[task_envelope.id])
-        self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task_envelope))
+        duplicate_id = self.ctree_client.emit("task.duplicate", parents=[task_envelope.id])
+        self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task), f"[{task_id}->{duplicate_id}]")
 
     def start(self, task_source: Iterable):
         """
