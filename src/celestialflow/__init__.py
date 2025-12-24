@@ -22,7 +22,7 @@ from .task_tools import (
     format_table,
 )
 from .task_web import TaskWebServer
-from .adapters.celestialtree import Client as CelestialTreeClient
+from .adapters.celestialtree import Client as CelestialTreeClient, format_tree_root
 
 __all__ = [
     "TaskGraph",
@@ -40,6 +40,7 @@ __all__ = [
     "TerminationSignal",
     "TaskWebServer",
     "CelestialTreeClient",
+    "format_tree_root",
     "load_task_by_stage",
     "load_task_by_error",
     "make_hashable",
