@@ -84,7 +84,7 @@ class TaskEnvelope:
         """
         from .task_tools import make_hashable, object_to_str_hash
 
-        hashable_task = make_hashable(task)
+        hashable_task = task # make_hashable(task)
         id = object_to_str_hash(task) or id
         return cls(hashable_task, id)
 
