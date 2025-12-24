@@ -32,7 +32,6 @@ class TaskManager:
         enable_duplicate_check=True,
         progress_desc="Processing",
         show_progress=False,
-        enable_celestialtree=False,
     ):
         """
         初始化 TaskManager
@@ -47,7 +46,6 @@ class TaskManager:
         :param enable_duplicate_check: 是否启用重复检查
         :param progress_desc: 进度条显示名称
         :param show_progress: 进度条显示与否
-        :param enable_celestialtree: 是否启用 CelestialTree 相关操作
         """
         self.func = func
         self.execution_mode = execution_mode
@@ -61,8 +59,6 @@ class TaskManager:
         self.progress_desc = progress_desc
         self.show_progress = show_progress
 
-        self.enable_celestialtree = enable_celestialtree
-
         self.thread_pool = None
         self.process_pool = None
 
@@ -71,6 +67,7 @@ class TaskManager:
         self.set_stage_name()
 
         self.retry_exceptions = tuple()  # 需要重试的异常类型
+        self.ctree_client = NullCelestialTreeClient()
 
         self.init_counter()
 
@@ -90,20 +87,6 @@ class TaskManager:
         if isinstance(self, TaskSplitter):
             self.split_output_counter = MPValue("i", 0)
 
-    def reset_counter(self):
-        """
-        重置计数器
-        """
-        from .task_nodes import TaskSplitter
-
-        self.task_counter.reset()
-        self.success_counter.value = 0
-        self.error_counter.value = 0
-        self.duplicate_counter.value = 0
-
-        if isinstance(self, TaskSplitter):
-            self.split_output_counter.value = 0
-
     def init_env(
         self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None
     ):
@@ -119,7 +102,6 @@ class TaskManager:
         self.init_pool()
         self.init_logger(logger_queue)
         self.init_queue(task_queues, result_queues, fail_queue)
-        self.init_ctreeclient()
 
     def init_state(self):
         """
@@ -185,19 +167,6 @@ class TaskManager:
         self.fail_queue: ThreadQueue | MPQueue | AsyncQueue = (
             fail_queue or queue_map[self.execution_mode]()
         )
-
-    def init_ctreeclient(self, host="127.0.0.1", port: int = 7777):
-        if hasattr(self, "ctree_client"):
-            return
-
-        self._ct_enabled = self.enable_celestialtree
-        self._ct_addr = f"{host}:{port}"
-
-        if self.enable_celestialtree:
-            base_url = f"http://{host}:{port}"
-            self.ctree_client = CelestialTreeClient(base_url)
-        else:
-            self.ctree_client = NullCelestialTreeClient()
 
     def init_listener(self, log_level="INFO"):
         """
@@ -301,6 +270,30 @@ class TaskManager:
             self.task_counter.add_counter(prev_stage.split_output_counter)
         else:
             self.task_counter.add_counter(prev_stage.success_counter)
+
+    def set_ctree(self, host="127.0.0.1", port=7777):
+        """
+        设置CelestialTreeClient
+
+        :param host: CelestialTreeClient host
+        :param port: CelestialTreeClient port
+        """
+        base_url = f"http://{host}:{port}"
+        self.ctree_client = CelestialTreeClient(base_url)
+
+    def reset_counter(self):
+        """
+        重置计数器
+        """
+        from .task_nodes import TaskSplitter
+
+        self.task_counter.reset()
+        self.success_counter.value = 0
+        self.error_counter.value = 0
+        self.duplicate_counter.value = 0
+
+        if isinstance(self, TaskSplitter):
+            self.split_output_counter.value = 0
 
     def get_stage_tag(self) -> str:
         """
@@ -531,7 +524,7 @@ class TaskManager:
         :return: 结果信息字符串
         """
         formatted_result = format_repr(result_envelope.task, self.max_info)
-        return f"({formatted_result})[id:{result_envelope.id}]"
+        return f"{formatted_result}[id:{result_envelope.id}]"
 
     def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):
         """

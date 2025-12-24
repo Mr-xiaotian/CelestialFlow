@@ -12,6 +12,11 @@ class Client:
     def __init__(self, base_url: str, timeout: float = 5.0):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+
+    def init_session(self):
+        if hasattr(self, "session"):
+            return
+        
         self.session = requests.Session()
         self.session.headers.update({
             "Content-Type": "application/json",
@@ -30,6 +35,8 @@ class Client:
         """
         Emit a new event into CelestialTree.
         """
+        self.init_session()
+            
         body = {
             "type": type_,
             "parents": parents or [],
@@ -55,6 +62,8 @@ class Client:
         return r.json()["id"]
 
     def get_event(self, event_id: int) -> Dict[str, Any]:
+        self.init_session()
+            
         r = self.session.get(
             f"{self.base_url}/event/{event_id}",
             timeout=self.timeout,
@@ -63,6 +72,8 @@ class Client:
         return r.json()
 
     def children(self, event_id: int) -> List[int]:
+        self.init_session()
+            
         r = self.session.get(
             f"{self.base_url}/children/{event_id}",
             timeout=self.timeout,
@@ -71,6 +82,8 @@ class Client:
         return r.json()["children"]
 
     def descendants(self, event_id: int) -> Dict[str, Any]:
+        self.init_session()
+            
         r = self.session.get(
             f"{self.base_url}/descendants/{event_id}",
             timeout=self.timeout,
@@ -79,6 +92,8 @@ class Client:
         return r.json()
 
     def heads(self) -> List[int]:
+        self.init_session()
+            
         r = self.session.get(
             f"{self.base_url}/heads",
             timeout=self.timeout,
@@ -87,6 +102,8 @@ class Client:
         return r.json()["heads"]
 
     def health(self) -> bool:
+        self.init_session()
+            
         r = self.session.get(
             f"{self.base_url}/healthz",
             timeout=self.timeout,
@@ -94,6 +111,8 @@ class Client:
         return r.status_code == 200
 
     def version(self) -> Dict[str, Any]:
+        self.init_session()
+            
         r = self.session.get(
             f"{self.base_url}/version",
             timeout=self.timeout,
@@ -133,6 +152,8 @@ class Client:
                         except Exception:
                             pass
 
+        self.init_session()
+            
         t = threading.Thread(target=_run, daemon=daemon)
         t.start()
         return t

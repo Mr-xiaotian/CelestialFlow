@@ -61,7 +61,7 @@ class TaskGraph:
         self.analyze_graph()
         self.set_layout_mode(layout_mode)
         self.set_reporter()
-        self.set_ctreeclient()
+        self.set_ctree()
 
     def init_env(self):
         """
@@ -194,18 +194,19 @@ class TaskGraph:
         else:
             self.reporter = NullTaskReporter()
 
-    def set_ctreeclient(self, is_ctree=False, host="127.0.0.1", port=7777):
+    def set_ctree(self, use_ctree=False, host="127.0.0.1", port=7777):
         """
-        Docstring for set_ctreeclient
-        
-        :param self: Description
-        :param is_ctree: Description
-        :param host: Description
-        :param port: Description
-        """
-        self._ct_addr = f"{host}:{port}"
+        设定事件树客户端
 
-        if is_ctree:
+        :param use_ctree: 是否使用事件树
+        :param host: 事件树主机地址
+        :param port: 事件树端口
+        """
+        self._use_ctree = use_ctree
+        self._ctree_host = host
+        self._ctree_port = port
+
+        if use_ctree:
             base_url = f"http://{host}:{port}"
             self.ctree_client = CelestialTreeClient(base_url)
         else:
@@ -339,6 +340,9 @@ class TaskGraph:
 
         self.stages_status_dict[stage_tag]["status"] = StageStatus.RUNNING
         self.stages_status_dict[stage_tag]["start_time"] = time.time()
+
+        if self._use_ctree:
+            stage.set_ctree(self._ctree_host, self._ctree_port)
 
         if stage.stage_mode == "process":
             p = multiprocessing.Process(

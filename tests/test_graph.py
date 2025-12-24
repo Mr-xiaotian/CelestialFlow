@@ -112,7 +112,6 @@ def test_graph_0():
         worker_limit=4,
         max_retries=1,
         show_progress=False,
-        enable_celestialtree=True
     )
     stage2 = TaskManager(
         square,
@@ -120,13 +119,12 @@ def test_graph_0():
         worker_limit=4,
         max_retries=1,
         show_progress=False,
-        enable_celestialtree=True
     )
     stage3 = TaskManager(
-        sleep_1, execution_mode="thread", worker_limit=4, show_progress=False, enable_celestialtree=True
+        sleep_1, execution_mode="thread", worker_limit=4, show_progress=False, 
     )
     stage4 = TaskManager(
-        divide_by_two, execution_mode="thread", worker_limit=4, show_progress=False, enable_celestialtree=True
+        divide_by_two, execution_mode="thread", worker_limit=4, show_progress=False, 
     )
 
     stage1.set_graph_context([stage2, stage3], "process", stage_name="stageA")
@@ -140,7 +138,7 @@ def test_graph_0():
     # 初始化 TaskGraph
     graph = TaskGraph(root_stages=[stage1])
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctreeclient(True, host=ctree_host, port=ctree_port)
+    graph.set_ctree(True, host=ctree_host, port=ctree_port)
 
     # 要测试的任务列表
     test_task_0 = range(25, 37)
