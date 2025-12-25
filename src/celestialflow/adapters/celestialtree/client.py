@@ -160,7 +160,7 @@ class Client:
 
 
 class NullClient:
-    event_id = -1
+    event_id = 0
     def emit(self, *args, **kwargs):
         self.event_id += 1
         return self.event_id

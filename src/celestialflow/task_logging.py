@@ -123,6 +123,12 @@ class TaskLogger:
         self._log("INFO", f"TaskGraph end. Use {use_time:.2f} second.")
 
     # ==== task ====
+    def task_inject(self, func_name, task_info, source, event_trace):
+        self._log(
+            "DEBUG",
+            f"In '{func_name}', Task {task_info} injected into {source}. {event_trace}",
+        )
+
     def task_success(self, func_name, task_info, execution_mode, result_info, use_time, event_trace):
         self._log(
             "SUCCESS",
