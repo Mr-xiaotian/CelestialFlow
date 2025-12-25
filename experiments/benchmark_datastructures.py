@@ -56,7 +56,13 @@ def value_worker(val):
 
 def get_redis_connection():
     try:
-        r = redis.Redis(host=redis_host, port=redis_port, db=0, password=redis_password, decode_responses=True)
+        r = redis.Redis(
+            host=redis_host,
+            port=redis_port,
+            db=0,
+            password=redis_password,
+            decode_responses=True,
+        )
         r.ping()
         return r
     except Exception as e:

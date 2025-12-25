@@ -16,12 +16,14 @@ class Client:
     def init_session(self):
         if hasattr(self, "session"):
             return
-        
+
         self.session = requests.Session()
-        self.session.headers.update({
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        })
+        self.session.headers.update(
+            {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            }
+        )
 
     # ---------- Core APIs ----------
 
@@ -30,13 +32,13 @@ class Client:
         type_: str,
         parents: Optional[List[int]] = None,
         message: Optional[str] = None,
-        payload: Optional[bytes | dict] = None
+        payload: Optional[bytes | dict] = None,
     ) -> int:
         """
         Emit a new event into CelestialTree.
         """
         self.init_session()
-            
+
         body = {
             "type": type_,
             "parents": parents or [],
@@ -63,7 +65,7 @@ class Client:
 
     def get_event(self, event_id: int) -> Dict[str, Any]:
         self.init_session()
-            
+
         r = self.session.get(
             f"{self.base_url}/event/{event_id}",
             timeout=self.timeout,
@@ -73,7 +75,7 @@ class Client:
 
     def children(self, event_id: int) -> List[int]:
         self.init_session()
-            
+
         r = self.session.get(
             f"{self.base_url}/children/{event_id}",
             timeout=self.timeout,
@@ -83,7 +85,7 @@ class Client:
 
     def descendants(self, event_id: int) -> Dict[str, Any]:
         self.init_session()
-            
+
         r = self.session.get(
             f"{self.base_url}/descendants/{event_id}",
             timeout=self.timeout,
@@ -93,7 +95,7 @@ class Client:
 
     def heads(self) -> List[int]:
         self.init_session()
-            
+
         r = self.session.get(
             f"{self.base_url}/heads",
             timeout=self.timeout,
@@ -103,7 +105,7 @@ class Client:
 
     def health(self) -> bool:
         self.init_session()
-            
+
         r = self.session.get(
             f"{self.base_url}/healthz",
             timeout=self.timeout,
@@ -112,7 +114,7 @@ class Client:
 
     def version(self) -> Dict[str, Any]:
         self.init_session()
-            
+
         r = self.session.get(
             f"{self.base_url}/version",
             timeout=self.timeout,
@@ -145,7 +147,7 @@ class Client:
                         continue
 
                     if line.startswith("data:"):
-                        data = line[len("data:"):].strip()
+                        data = line[len("data:") :].strip()
                         try:
                             ev = json.loads(data)
                             on_event(ev)
@@ -153,7 +155,7 @@ class Client:
                             pass
 
         self.init_session()
-            
+
         t = threading.Thread(target=_run, daemon=daemon)
         t.start()
         return t
@@ -161,6 +163,7 @@ class Client:
 
 class NullClient:
     event_id = 0
+
     def emit(self, *args, **kwargs):
         self.event_id += 1
         return self.event_id

@@ -28,7 +28,7 @@ async def fibonacci_async(n):
         result_0 = await fibonacci_async(n - 1)
         result_1 = await fibonacci_async(n - 2)
         return result_0 + result_1
-    
+
 
 def sleep_1(_):
     time.sleep(1)
@@ -47,9 +47,7 @@ def test_manager_fibonacci():
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
     test_task_2 = (item for item in test_task_1)
 
-    manager = TaskManager(
-        fibonacci, worker_limit=6, max_retries=1, show_progress=True
-    )
+    manager = TaskManager(fibonacci, worker_limit=6, max_retries=1, show_progress=True)
     manager.add_retry_exceptions(ValueError)
 
     execution_modes = ["serial", "thread", "process"]

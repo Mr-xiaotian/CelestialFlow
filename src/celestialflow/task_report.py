@@ -130,10 +130,9 @@ class TaskReporter:
 
 class NullTaskReporter:
     interval = 0
-    
+
     def start():
         return None
 
     def stop():
         return None
-    

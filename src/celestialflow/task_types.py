@@ -85,7 +85,7 @@ class TaskEnvelope:
         """
         from .task_tools import make_hashable, object_to_str_hash
 
-        hashable_task = task # make_hashable(task)
+        hashable_task = task  # make_hashable(task)
         task_hash = object_to_str_hash(hashable_task)
         task_id = task_id
         return cls(hashable_task, task_hash, task_id)
@@ -93,4 +93,3 @@ class TaskEnvelope:
     def unwrap(self):
         """取出原始 task（给用户函数用）"""
         return self.task
-

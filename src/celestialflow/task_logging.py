@@ -129,7 +129,9 @@ class TaskLogger:
             f"In '{func_name}', Task {task_info} injected into {source}. {event_trace}",
         )
 
-    def task_success(self, func_name, task_info, execution_mode, result_info, use_time, event_trace):
+    def task_success(
+        self, func_name, task_info, execution_mode, result_info, use_time, event_trace
+    ):
         self._log(
             "SUCCESS",
             f"In '{func_name}', Task {task_info} completed by {execution_mode}. Result is {result_info}. Used {use_time:.2f} seconds. {event_trace}",
@@ -149,7 +151,10 @@ class TaskLogger:
         )
 
     def task_duplicate(self, func_name, task_info, event_trace):
-        self._log("SUCCESS", f"In '{func_name}', Task {task_info} has been duplicated. {event_trace}")
+        self._log(
+            "SUCCESS",
+            f"In '{func_name}', Task {task_info} has been duplicated. {event_trace}",
+        )
 
     # ==== splitter ====
     def splitter_success(self, func_name, task_info, split_count, use_time):
@@ -207,9 +212,7 @@ class TaskLogger:
         )
 
     def inject_tasks_success(self, target_node, task_datas):
-        self._log(
-            "INFO", f"[Reporter] Inject tasks into {target_node}: {task_datas}."
-        )
+        self._log("INFO", f"[Reporter] Inject tasks into {target_node}: {task_datas}.")
 
     def inject_tasks_failed(self, target_node, task_datas, exception):
         self._log(
@@ -238,5 +241,6 @@ class TaskLogger:
 
     def push_topology_failed(self, exception):
         self._log(
-            "WARNING", f"[Reporter] Topology push failed: {type(exception).__name__}({exception})."
+            "WARNING",
+            f"[Reporter] Topology push failed: {type(exception).__name__}({exception}).",
         )

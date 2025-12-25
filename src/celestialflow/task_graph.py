@@ -23,9 +23,12 @@ from .task_tools import (
     cluster_by_value_sorted,
     load_task_by_stage,
     load_task_by_error,
-    format_repr
+    format_repr,
 )
-from .adapters.celestialtree import Client as CelestialTreeClient, NullClient as NullCelestialTreeClient
+from .adapters.celestialtree import (
+    Client as CelestialTreeClient,
+    NullClient as NullCelestialTreeClient,
+)
 
 
 class TaskGraph:
@@ -190,7 +193,9 @@ class TaskGraph:
         :param port: 报告器端口
         """
         if is_report:
-            self.reporter = TaskReporter(self, self.log_listener.get_queue(), host, port)
+            self.reporter = TaskReporter(
+                self, self.log_listener.get_queue(), host, port
+            )
         else:
             self.reporter = NullTaskReporter()
 
@@ -250,8 +255,10 @@ class TaskGraph:
                 if isinstance(task, TerminationSignal):
                     in_queue.put(TERMINATION_SIGNAL)
                     continue
-                
-                task_id = self.ctree_client.emit("task.input", message=f"In '{stage.get_stage_tag()}'")
+
+                task_id = self.ctree_client.emit(
+                    "task.input", message=f"In '{stage.get_stage_tag()}'"
+                )
                 envelope = TaskEnvelope.wrap(task, task_id)
                 in_queue.put_first(envelope)
                 stage.task_counter.add_init_value(1)
@@ -259,7 +266,7 @@ class TaskGraph:
                     stage.get_func_name(),
                     stage.get_task_info(task),
                     stage.get_stage_tag(),
-                    f"[{task_id}]"
+                    f"[{task_id}]",
                 )
 
         if put_termination_signal:

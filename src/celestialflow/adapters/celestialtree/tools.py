@@ -21,6 +21,7 @@ def format_tree(node: dict, prefix: str = "", is_last: bool = True) -> str:
 
     return "\n".join(lines)
 
+
 def format_tree_root(tree: dict) -> str:
     """
     格式化整棵树（根节点无连接符）

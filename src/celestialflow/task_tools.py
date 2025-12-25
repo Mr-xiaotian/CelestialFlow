@@ -215,9 +215,9 @@ def make_hashable(obj) -> Any:
         return tuple(sorted(make_hashable(e) for e in obj))
     else:
         # 基本类型直接返回
-        return 
-    
-    
+        return
+
+
 def object_to_str_hash(obj) -> str:
     """
     将任意对象转换为 MD5 字符串。

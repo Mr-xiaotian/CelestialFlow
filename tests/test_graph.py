@@ -121,10 +121,16 @@ def test_graph_0():
         show_progress=False,
     )
     stage3 = TaskManager(
-        sleep_1, execution_mode="thread", worker_limit=4, show_progress=False, 
+        sleep_1,
+        execution_mode="thread",
+        worker_limit=4,
+        show_progress=False,
     )
     stage4 = TaskManager(
-        divide_by_two, execution_mode="thread", worker_limit=4, show_progress=False, 
+        divide_by_two,
+        execution_mode="thread",
+        worker_limit=4,
+        show_progress=False,
     )
 
     stage1.set_graph_context([stage2, stage3], "process", stage_name="stage A")
