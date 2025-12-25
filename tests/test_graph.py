@@ -138,7 +138,7 @@ def test_graph_0():
     # 初始化 TaskGraph
     graph = TaskGraph(root_stages=[stage1])
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(False, host=ctree_host, port=ctree_port)
+    graph.set_ctree(True, host=ctree_host, port=ctree_port)
 
     # 要测试的任务列表
     test_task_0 = range(25, 37)

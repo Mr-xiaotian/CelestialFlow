@@ -339,7 +339,7 @@ class TaskManager:
         """
         progress_num = 0
         for task in task_source:
-            task_id = self.ctree_client.emit("task.input", message=self.get_stage_tag())
+            task_id = self.ctree_client.emit("task.input", message=f"In '{self.get_stage_tag()}'")
             envelope = TaskEnvelope.wrap(task, task_id)
             self.task_queues.put_first(envelope)
             self.update_task_counter()
@@ -356,7 +356,7 @@ class TaskManager:
         """
         progress_num = 0
         for task in task_source:
-            task_id = self.ctree_client.emit("task.input", message=self.get_stage_tag())
+            task_id = self.ctree_client.emit("task.input", message=f"In '{self.get_stage_tag()}'")
             envelope = TaskEnvelope.wrap(task, task_id)
             await self.task_queues.put_first_async(envelope)
             self.update_task_counter()
@@ -542,7 +542,7 @@ class TaskManager:
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
         
-        result_id = self.ctree_client.emit("task.success", parents=[task_id], message=self.get_stage_tag())
+        result_id = self.ctree_client.emit("task.success", parents=[task_id], message=f"In '{self.get_stage_tag()}'")
         result_envelope = TaskEnvelope.wrap(result, result_id)
 
         # ✅ 清理 retry_time_dict
@@ -575,7 +575,7 @@ class TaskManager:
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
         
-        result_id = self.ctree_client.emit("task.success", parents=[task_id], message=self.get_stage_tag())
+        result_id = self.ctree_client.emit("task.success", parents=[task_id], message=f"In '{self.get_stage_tag()}'")
         result_envelope = TaskEnvelope.wrap(result, result_id)
 
         # ✅ 清理 retry_time_dict
@@ -613,7 +613,7 @@ class TaskManager:
         ):
             self.processed_set.discard(task_hash)
             self.task_queues.put_first(task_envelope)  # 只在第一个队列存放retry task
-            duplicate_id = self.ctree_client.emit("task.retry", parents=[task_id], message=self.get_stage_tag())
+            duplicate_id = self.ctree_client.emit("task.retry", parents=[task_id], message=f"In '{self.get_stage_tag()}'")
 
             self.progress_manager.add_total(1)
             self.retry_time_dict[task_hash] += 1
@@ -629,7 +629,7 @@ class TaskManager:
             if self.enable_result_cache:
                 self.error_dict[task] = exception
 
-            error_id = self.ctree_client.emit("task.error", parents=[task_id], message=self.get_stage_tag())
+            error_id = self.ctree_client.emit("task.error", parents=[task_id], message=f"In '{self.get_stage_tag()}'")
 
             # ✅ 清理 retry_time_dict
             self.retry_time_dict.pop(task_hash, None)
@@ -661,7 +661,7 @@ class TaskManager:
         ):
             self.processed_set.discard(task_hash)
             await self.task_queues.put_first_async(task_envelope)  # 只在第一个队列存放retry task
-            duplicate_id = self.ctree_client.emit("task.retry", parents=[task_id], message=self.get_stage_tag())
+            duplicate_id = self.ctree_client.emit("task.retry", parents=[task_id], message=f"In '{self.get_stage_tag()}'")
 
             self.progress_manager.add_total(1)
             self.retry_time_dict[task_hash] += 1
@@ -677,7 +677,7 @@ class TaskManager:
             if self.enable_result_cache:
                 self.error_dict[task] = exception
 
-            error_id = self.ctree_client.emit("task.error", parents=[task_id], message=self.get_stage_tag())
+            error_id = self.ctree_client.emit("task.error", parents=[task_id], message=f"In '{self.get_stage_tag()}'")
 
             # ✅ 清理 retry_time_dict
             self.retry_time_dict.pop(task_hash, None)
@@ -696,7 +696,7 @@ class TaskManager:
         task_id = task_envelope.id
 
         self.update_duplicate_counter()
-        duplicate_id = self.ctree_client.emit("task.duplicate", parents=[task_envelope.id], message=self.get_stage_tag())
+        duplicate_id = self.ctree_client.emit("task.duplicate", parents=[task_envelope.id], message=f"In '{self.get_stage_tag()}'")
         self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task), f"[{task_id}->{duplicate_id}]")
 
     def start(self, task_source: Iterable):
@@ -726,6 +726,7 @@ class TaskManager:
             self.run_with_executor(self.process_pool)
             # cleanup_mpqueue(self.task_queues)
         elif self.execution_mode == "async":
+            # don't suggest, please use start_async
             asyncio.run(self.run_in_async())
         else:
             self.set_execution_mode("serial")
