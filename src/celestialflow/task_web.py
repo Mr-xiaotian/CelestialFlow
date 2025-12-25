@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 from datetime import datetime
 import uvicorn
+import argparse
 
 
 class StructureModel(BaseModel):
@@ -51,10 +52,11 @@ templates_path = os.path.join(BASE_DIR, "templates")
 
 
 class TaskWebServer:
-    def __init__(self, host="0.0.0.0", port=5000):
+    def __init__(self, host="0.0.0.0", port=5000, log_level="info"):
         self.app = FastAPI()
         self.host = host
         self.port = port
+        self.log_level = log_level
 
         if os.path.isdir(static_path):
             self.app.mount("/static", StaticFiles(directory=static_path), name="static")
@@ -155,18 +157,48 @@ class TaskWebServer:
             os._exit(0)
 
     def start_server(self):
-        uvicorn.run(self.app, host=self.host, port=self.port, log_level="info")
+        uvicorn.run(self.app, host=self.host, port=self.port, log_level=self.log_level)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog="task-web",
+        description="CelestialFlow Task Web Monitor Server",
+    )
+
+    parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Bind host (default: 0.0.0.0)",
+    )
+
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=5000,
+        help="Bind port (default: 5000)",
+    )
+
+    parser.add_argument(
+        "--log-level",
+        default="info",
+        type=lambda s: s.lower(),
+        choices=["critical", "error", "warning", "info", "debug", "trace"],
+        help="Uvicorn log level",
+    )
+
+    return parser.parse_args()
 
 
 def main_entry():
-    port = 5000  # 默认端口
-    if len(sys.argv) > 1:
-        try:
-            port = int(sys.argv[1])
-        except ValueError:
-            print(f"无效端口号: {sys.argv[1]}，使用默认端口 {port}")
+    args = parse_args()
 
-    server = TaskWebServer(port=port)
+    server = TaskWebServer(
+        host=args.host,
+        port=args.port,
+        log_level=args.log_level,
+    )
+
     server.start_server()
 
 
