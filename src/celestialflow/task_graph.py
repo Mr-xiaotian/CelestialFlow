@@ -251,7 +251,7 @@ class TaskGraph:
                     in_queue.put(TERMINATION_SIGNAL)
                     continue
                 
-                task_id = self.ctree_client.emit("task.input", message="In 'TaskGraph'")
+                task_id = self.ctree_client.emit("task.input", message=f"In '{stage.get_stage_tag()}'")
                 envelope = TaskEnvelope.wrap(task, task_id)
                 in_queue.put_first(envelope)
                 stage.task_counter.add_init_value(1)

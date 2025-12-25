@@ -306,6 +306,10 @@ flowchart TD
 - 6/13/2025: 支持loop结构, 即节点可指向自己
 - 6/14/2025: 支持forest结构, 即可有多个根节点
 - 6/16/2025: 多轮评测后, 当前框架已支持完整有向图结构, 将TaskTree改名为TaskGraph
+- 3.0.1: 上线Pypi, 可喜可贺
+- 3.0.4: 新增一个抽象结构TaskQueue, 用于表示节点的所有"入边"与"出边"; 恢复未消费任务的保存功能
+- 3.0.5: 删除原有的TaskRedisTransfer节点, 并增添三种新的redis交互节点TaskRedisSink TaskRedisSource TaskRedisAck, 用于跨语言 跨进程 跨设备处理任务; 并在Web页面添加展示拓扑信息的卡片
+- 3.0.6: 添加对[CelestialTree](https://github.com/Mr-xiaotian/CelestialTree)系统的支持, 现在可以追踪单个任务的流向
 
 ## Star 历史趋势（Star History）
 
