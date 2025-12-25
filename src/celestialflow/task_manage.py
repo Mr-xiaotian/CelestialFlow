@@ -338,8 +338,8 @@ class TaskManager:
         :param task_source: 任务源（可迭代对象）
         """
         progress_num = 0
-        for index, task in enumerate(task_source):
-            task_id = self.ctree_client.emit("task.input") or index
+        for task in task_source:
+            task_id = self.ctree_client.emit("task.input", message=self.get_stage_tag())
             envelope = TaskEnvelope.wrap(task, task_id)
             self.task_queues.put_first(envelope)
             self.update_task_counter()
@@ -355,8 +355,8 @@ class TaskManager:
         :param task_source: 任务源（可迭代对象）
         """
         progress_num = 0
-        for index, task in enumerate(task_source):
-            task_id = self.ctree_client.emit("task.input") or index
+        for task in task_source:
+            task_id = self.ctree_client.emit("task.input", message=self.get_stage_tag())
             envelope = TaskEnvelope.wrap(task, task_id)
             await self.task_queues.put_first_async(envelope)
             self.update_task_counter()
@@ -535,17 +535,18 @@ class TaskManager:
         :param start_time: 任务开始时间
         """
         task = task_envelope.task
+        task_hash = task_envelope.hash
         task_id = task_envelope.id
 
         processed_result = self.process_result(task, result)
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
         
-        result_id = self.ctree_client.emit("task.success", parents=[task_id])
+        result_id = self.ctree_client.emit("task.success", parents=[task_id], message=self.get_stage_tag())
         result_envelope = TaskEnvelope.wrap(result, result_id)
 
         # ✅ 清理 retry_time_dict
-        self.retry_time_dict.pop(task_id, None)
+        self.retry_time_dict.pop(task_hash, None)
 
         self.update_success_counter()
         self.result_queues.put(result_envelope)
@@ -567,17 +568,18 @@ class TaskManager:
         :param start_time: 任务开始时间
         """
         task = task_envelope.task
+        task_hash = task_envelope.hash
         task_id = task_envelope.id
 
         processed_result = self.process_result(task, result)
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
         
-        result_id = self.ctree_client.emit("task.success", parents=[task_id])
+        result_id = self.ctree_client.emit("task.success", parents=[task_id], message=self.get_stage_tag())
         result_envelope = TaskEnvelope.wrap(result, result_id)
 
         # ✅ 清理 retry_time_dict
-        self.retry_time_dict.pop(task_id, None)
+        self.retry_time_dict.pop(task_hash, None)
 
         await self.update_success_counter_async()
         await self.result_queues.put_async(result_envelope)
@@ -602,7 +604,7 @@ class TaskManager:
         task_hash = task_envelope.hash
         task_id = task_envelope.id
 
-        retry_time = self.retry_time_dict.setdefault(task_id, 0)
+        retry_time = self.retry_time_dict.setdefault(task_hash, 0)
 
         # 基于异常类型决定重试策略
         if (
@@ -611,14 +613,14 @@ class TaskManager:
         ):
             self.processed_set.discard(task_hash)
             self.task_queues.put_first(task_envelope)  # 只在第一个队列存放retry task
-            duplicate_id = self.ctree_client.emit("task.retry", parents=[task_id])
+            duplicate_id = self.ctree_client.emit("task.retry", parents=[task_id], message=self.get_stage_tag())
 
             self.progress_manager.add_total(1)
-            self.retry_time_dict[task_id] += 1
+            self.retry_time_dict[task_hash] += 1
             self.task_logger.task_retry(
                 self.func.__name__,
                 self.get_task_info(task),
-                self.retry_time_dict[task_id],
+                self.retry_time_dict[task_hash],
                 exception,
                 f"[{task_id}->{duplicate_id}]",
             )
@@ -627,10 +629,10 @@ class TaskManager:
             if self.enable_result_cache:
                 self.error_dict[task] = exception
 
-            error_id = self.ctree_client.emit("task.error", parents=[task_id])
+            error_id = self.ctree_client.emit("task.error", parents=[task_id], message=self.get_stage_tag())
 
             # ✅ 清理 retry_time_dict
-            self.retry_time_dict.pop(task_id, None)
+            self.retry_time_dict.pop(task_hash, None)
 
             self.update_error_counter()
             self.put_fail_queue(task, exception)
@@ -650,7 +652,7 @@ class TaskManager:
         task_hash = task_envelope.hash
         task_id = task_envelope.id
 
-        retry_time = self.retry_time_dict.setdefault(task_id, 0)
+        retry_time = self.retry_time_dict.setdefault(task_hash, 0)
 
         # 基于异常类型决定重试策略
         if (
@@ -659,14 +661,14 @@ class TaskManager:
         ):
             self.processed_set.discard(task_hash)
             await self.task_queues.put_first_async(task_envelope)  # 只在第一个队列存放retry task
-            duplicate_id = self.ctree_client.emit("task.retry", parents=[task_id])
+            duplicate_id = self.ctree_client.emit("task.retry", parents=[task_id], message=self.get_stage_tag())
 
             self.progress_manager.add_total(1)
-            self.retry_time_dict[task_id] += 1
+            self.retry_time_dict[task_hash] += 1
             self.task_logger.task_retry(
                 self.func.__name__,
                 self.get_task_info(task),
-                self.retry_time_dict[task_id],
+                self.retry_time_dict[task_hash],
                 exception,
                 f"[{task_id}->{duplicate_id}]",
             )
@@ -675,10 +677,10 @@ class TaskManager:
             if self.enable_result_cache:
                 self.error_dict[task] = exception
 
-            error_id = self.ctree_client.emit("task.error", parents=[task_id])
+            error_id = self.ctree_client.emit("task.error", parents=[task_id], message=self.get_stage_tag())
 
             # ✅ 清理 retry_time_dict
-            self.retry_time_dict.pop(task_id, None)
+            self.retry_time_dict.pop(task_hash, None)
 
             self.update_error_counter()
             await self.put_fail_queue_async(task, exception)
@@ -694,7 +696,7 @@ class TaskManager:
         task_id = task_envelope.id
 
         self.update_duplicate_counter()
-        duplicate_id = self.ctree_client.emit("task.duplicate", parents=[task_envelope.id])
+        duplicate_id = self.ctree_client.emit("task.duplicate", parents=[task_envelope.id], message=self.get_stage_tag())
         self.task_logger.task_duplicate(self.func.__name__, self.get_task_info(task), f"[{task_id}->{duplicate_id}]")
 
     def start(self, task_source: Iterable):
