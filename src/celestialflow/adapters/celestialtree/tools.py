@@ -10,7 +10,12 @@ def format_tree(node: dict, prefix: str = "", is_last: bool = True) -> str:
     lines = []
 
     connector = "└── " if is_last else "├── "
-    lines.append(f"{prefix}{connector}{node['id']}")
+
+    label = str(node["id"])
+    if node.get("is_ref"):
+        label += " (ref)"
+
+    lines.append(f"{prefix}{connector}{label}")
 
     children = node.get("children", [])
     if children:

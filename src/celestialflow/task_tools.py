@@ -60,12 +60,12 @@ def _build_structure_subgraph(
         "stage_name": task_manager.stage_name,
         "stage_mode": task_manager.stage_mode,
         "func_name": task_manager.func.__name__,
-        "visited": False,
+        "is_ref": False,
         "next_stages": [],
     }
 
     if stage_tag in visited_stages:
-        node["visited"] = True
+        node["is_ref"] = True
         return node
 
     visited_stages.add(stage_tag)
@@ -90,7 +90,7 @@ def format_structure_list_from_graph(
 
     def build_lines(node: Dict, current_indent: int) -> List[str]:
         lines = []
-        visited_note = " [Visited]" if node.get("visited") else ""
+        visited_note = " [Ref]" if node.get("is_ref") else ""
         line = f"{node['stage_name']} (stage_mode: {node['stage_mode']}, func: {node['func_name']}){visited_note}"
         lines.append(line)
 

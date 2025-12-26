@@ -18,6 +18,8 @@ from celestialflow import (
 load_dotenv()
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
+ctree_host = os.getenv("CTREE_HOST")
+ctree_port = os.getenv("CTREE_PORT")
 
 
 def operate_sleep(a, b):
@@ -290,14 +292,15 @@ def test_loop():
     stageB = TaskManager(add_one_sleep, "serial")
     stageC = TaskManager(add_one_sleep, "serial")
 
-    graph = TaskLoop([stageA, stageB, stageC])
-    graph.set_reporter(True, host=report_host, port=report_port)
+    loop = TaskLoop([stageA, stageB, stageC])
+    loop.set_reporter(True, host=report_host, port=report_port)
+    loop.set_ctree(True, host=ctree_host, port=ctree_port)
 
     # 要测试的任务列表
     test_task_0 = range(1, 2)
     test_task_1 = list(test_task_0) + [0, 6, None, 0, ""]
 
-    graph.start_loop({stageA.get_stage_tag(): test_task_0})
+    loop.start_loop({stageA.get_stage_tag(): test_task_0})
 
 
 def test_wheel():
