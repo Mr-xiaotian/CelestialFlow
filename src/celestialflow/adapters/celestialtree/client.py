@@ -9,8 +9,8 @@ class Client:
     Python client for CelestialTree HTTP API.
     """
 
-    def __init__(self, base_url: str, timeout: float = 5.0):
-        self.base_url = base_url.rstrip("/")
+    def __init__(self, host: str="127.0.0.1", port: int=7777, timeout: float = 5.0):
+        self.base_url = f"http://{host}:{port}"
         self.timeout = timeout
 
     def init_session(self):
@@ -60,7 +60,9 @@ class Client:
             data=json.dumps(body),
             timeout=self.timeout,
         )
-        r.raise_for_status()
+
+        if not (200 <= r.status_code < 300):
+            raise RuntimeError(r.json()["error"])
         return r.json()["id"]
 
     def get_event(self, event_id: int) -> Dict[str, Any]:
@@ -70,7 +72,9 @@ class Client:
             f"{self.base_url}/event/{event_id}",
             timeout=self.timeout,
         )
-        r.raise_for_status()
+
+        if not (200 <= r.status_code < 300):
+            raise RuntimeError(r.json()["error"])
         return r.json()
 
     def children(self, event_id: int) -> List[int]:
@@ -80,7 +84,9 @@ class Client:
             f"{self.base_url}/children/{event_id}",
             timeout=self.timeout,
         )
-        r.raise_for_status()
+
+        if not (200 <= r.status_code < 300):
+            raise RuntimeError(r.json()["error"])
         return r.json()["children"]
 
     def descendants(self, event_id: int) -> Dict[str, Any]:
@@ -90,7 +96,9 @@ class Client:
             f"{self.base_url}/descendants/{event_id}",
             timeout=self.timeout,
         )
-        r.raise_for_status()
+
+        if not (200 <= r.status_code < 300):
+            raise RuntimeError(r.json()["error"])
         return r.json()
 
     def heads(self) -> List[int]:
@@ -100,17 +108,21 @@ class Client:
             f"{self.base_url}/heads",
             timeout=self.timeout,
         )
-        r.raise_for_status()
+
+        if not (200 <= r.status_code < 300):
+            raise RuntimeError(r.json()["error"])
         return r.json()["heads"]
 
     def health(self) -> bool:
         self.init_session()
-
-        r = self.session.get(
-            f"{self.base_url}/healthz",
-            timeout=self.timeout,
-        )
-        return r.status_code == 200
+        try:
+            r = self.session.get(
+                f"{self.base_url}/healthz",
+                timeout=self.timeout,
+            )
+            return r.status_code == 200
+        except Exception:
+            return False
 
     def version(self) -> Dict[str, Any]:
         self.init_session()
@@ -119,7 +131,9 @@ class Client:
             f"{self.base_url}/version",
             timeout=self.timeout,
         )
-        r.raise_for_status()
+
+        if not (200 <= r.status_code < 300):
+            raise RuntimeError(r.json()["error"])
         return r.json()
 
     # ---------- SSE Subscribe ----------

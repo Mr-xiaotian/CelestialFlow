@@ -287,8 +287,9 @@ class TaskManager:
         :param host: CelestialTreeClient host
         :param port: CelestialTreeClient port
         """
-        base_url = f"http://{host}:{port}"
-        self.ctree_client = CelestialTreeClient(base_url)
+        self.ctree_client = CelestialTreeClient(host=host, port=port)
+        if not self.ctree_client.health():
+            self.ctree_client = NullCelestialTreeClient()
 
     def reset_counter(self):
         """

@@ -212,8 +212,10 @@ class TaskGraph:
         self._ctree_port = port
 
         if use_ctree:
-            base_url = f"http://{host}:{port}"
-            self.ctree_client = CelestialTreeClient(base_url)
+            self.ctree_client = CelestialTreeClient(host=host, port=port)
+            if not self.ctree_client.health():
+                self._use_ctree = False
+                self.ctree_client = NullCelestialTreeClient()
         else:
             self.ctree_client = NullCelestialTreeClient()
 
