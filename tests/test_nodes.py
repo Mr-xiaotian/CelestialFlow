@@ -4,7 +4,7 @@ from time import sleep
 from dotenv import load_dotenv
 
 from celestialflow import (
-    TaskManager,
+    TaskStage,
     TaskGraph,
     TaskChain,
     TaskSplitter,
@@ -17,8 +17,12 @@ from celestialflow import (
 load_dotenv()
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
+
 redis_host = os.getenv("REDIS_HOST")
 redis_password = os.getenv("REDIS_PASSWORD")
+
+ctree_host = os.getenv("CTREE_HOST")
+ctree_port = os.getenv("CTREE_PORT")
 
 
 class DownloadRedisSink(TaskRedisSink):
@@ -27,7 +31,7 @@ class DownloadRedisSink(TaskRedisSink):
         return url, path.replace("/tmp/", "X:/Download/download_go/")
 
 
-class DownloadManager(TaskManager):
+class DownloadStage(TaskStage):
     def get_args(self, task):
         url, path = task
         return url, path.replace("/tmp/", "X:/Download/download_py/")
@@ -128,17 +132,17 @@ def download_to_file(url: str, file_path: str) -> str:
 
 def test_splitter_0():
     # 定义任务节点
-    generate_stage = TaskManager(
+    generate_stage = TaskStage(
         func=generate_urls_sleep, execution_mode="thread", worker_limit=4
     )
-    logger_stage = TaskManager(
+    logger_stage = TaskStage(
         func=log_urls_sleep, execution_mode="thread", worker_limit=4
     )
     splitter = TaskSplitter()
-    download_stage = TaskManager(
+    download_stage = TaskStage(
         func=download_sleep, execution_mode="thread", worker_limit=4
     )
-    parse_stage = TaskManager(func=parse_sleep, execution_mode="thread", worker_limit=4)
+    parse_stage = TaskStage(func=parse_sleep, execution_mode="thread", worker_limit=4)
 
     # 设置链关系
     generate_stage.set_graph_context(
@@ -172,7 +176,7 @@ def test_splitter_0():
 def test_splitter_1():
     # 定义任务节点
     task_splitter = TaskSplitter()
-    process_stage = TaskManager(no_op, execution_mode="thread", worker_limit=50)
+    process_stage = TaskStage(no_op, execution_mode="thread", worker_limit=50)
 
     chain = TaskChain([task_splitter, process_stage], "process")
     chain.set_reporter(True, host=report_host, port=report_port)
@@ -185,14 +189,14 @@ def test_splitter_1():
 
 
 def test_redis_ack_0():
-    start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
+    start_stage = TaskStage(sleep_1, execution_mode="thread", worker_limit=4)
     redis_sink = TaskRedisSink(
         key="testFibonacci:input", host=redis_host, password=redis_password
     )
     redis_ack = TaskRedisAck(
         key="testFibonacci:output", host=redis_host, password=redis_password
     )
-    fibonacci_stage = TaskManager(fibonacci, "thread")
+    fibonacci_stage = TaskStage(fibonacci, "thread")
 
     start_stage.set_graph_context(
         [redis_sink, fibonacci_stage], stage_mode="serial", stage_name="Start"
@@ -218,7 +222,7 @@ def test_redis_ack_0():
 
 
 def test_redis_ack_1():
-    start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
+    start_stage = TaskStage(sleep_1, execution_mode="thread", worker_limit=4)
     redis_sink = TaskRedisSink(
         key="testSum:input",
         host=redis_host,
@@ -228,7 +232,7 @@ def test_redis_ack_1():
     redis_ack = TaskRedisAck(
         key="testSum:output", host=redis_host, password=redis_password
     )
-    sum_stage = TaskManager(
+    sum_stage = TaskStage(
         sum_int, execution_mode="thread", worker_limit=4, unpack_task_args=True
     )
 
@@ -255,7 +259,7 @@ def test_redis_ack_1():
 
 
 def test_redis_ack_2():
-    start_stage = TaskManager(sleep_1, execution_mode="thread", worker_limit=4)
+    start_stage = TaskStage(sleep_1, execution_mode="thread", worker_limit=4)
     redis_sink = DownloadRedisSink(
         key="testDownload:input",
         host=redis_host,
@@ -265,7 +269,7 @@ def test_redis_ack_2():
     redis_ack = TaskRedisAck(
         key="testDownload:output", host=redis_host, password=redis_password
     )
-    download_stage = DownloadManager(
+    download_stage = DownloadStage(
         download_to_file, execution_mode="thread", worker_limit=4
     )
 
@@ -304,12 +308,12 @@ def test_redis_ack_2():
 
 
 def test_redis_source_0():
-    sleep_stage_0 = TaskManager(sleep_1, execution_mode="serial")
+    sleep_stage_0 = TaskStage(sleep_1, execution_mode="serial")
     redis_sink = TaskRedisSink("test_redis", host=redis_host, password=redis_password)
     redis_source = TaskRedisSource(
         "test_redis", host=redis_host, password=redis_password
     )
-    sleep_stage_1 = TaskManager(sleep_1, execution_mode="serial")
+    sleep_stage_1 = TaskStage(sleep_1, execution_mode="serial")
 
     sleep_stage_0.set_graph_context(
         [redis_sink], stage_mode="process", stage_name="Sleep0"

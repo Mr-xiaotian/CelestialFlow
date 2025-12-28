@@ -2,14 +2,17 @@ import json
 import time
 import redis
 
-from .task_manage import TaskManager
+from .task_stage import TaskStage
+from .task_types import (
+    TaskEnvelope,
+)
 
 
 class RemoteWorkerError(Exception):
     pass
 
 
-class TaskSplitter(TaskManager):
+class TaskSplitter(TaskStage):
     def __init__(self):
         """
         初始化 TaskSplitter
@@ -22,17 +25,22 @@ class TaskSplitter(TaskManager):
 
     def _split_task(self, *task):
         """
-        实际上这个函数不执行逻辑，仅用于符合 TaskManager 架构
+        实际上这个函数不执行逻辑，仅用于符合 TaskStage 架构
         """
         return task
 
     def get_args(self, task):
         return task
 
-    def put_split_result(self, result: tuple):
+    def put_split_result(self, result: tuple, task_id: int):
         split_count = 0
         for item in result:
-            self.result_queues.put(item)
+            splited_id = self.ctree_client.emit(
+                "task.split", parents=[task_id], message=f"In '{self.get_stage_tag()}'"
+            )
+            splitted_envelope = TaskEnvelope.wrap(item, splited_id)
+
+            self.result_queues.put(splitted_envelope)
             split_count += 1
 
         self.split_output_counter.value += split_count
@@ -49,7 +57,7 @@ class TaskSplitter(TaskManager):
 
         return result
 
-    def process_task_success(self, task, result, start_time):
+    def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):
         """
         统一处理成功任务
 
@@ -57,16 +65,19 @@ class TaskSplitter(TaskManager):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
+        task = task_envelope.task
+        task_hash = task_envelope.hash
+        task_id = task_envelope.id
+
         processed_result = self.process_result(task, result)
 
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
 
         # ✅ 清理 retry_time_dict
-        task_id = self.get_task_id(task)
-        self.retry_time_dict.pop(task_id, None)
+        self.retry_time_dict.pop(task_hash, None)
 
-        split_count = self.put_split_result(result)
+        split_count = self.put_split_result(result, task_id)
         self.update_success_counter()
 
         self.task_logger.splitter_success(
@@ -77,7 +88,7 @@ class TaskSplitter(TaskManager):
         )
 
 
-class TaskRedisSink(TaskManager):
+class TaskRedisSink(TaskStage):
     def __init__(
         self,
         key,
@@ -136,7 +147,7 @@ class TaskRedisSink(TaskManager):
         return task_id
 
 
-class TaskRedisSource(TaskManager):
+class TaskRedisSource(TaskStage):
     def __init__(
         self,
         key,
@@ -198,7 +209,7 @@ class TaskRedisSource(TaskManager):
         return tuple(task)
 
 
-class TaskRedisAck(TaskManager):
+class TaskRedisAck(TaskStage):
     def __init__(
         self,
         key,

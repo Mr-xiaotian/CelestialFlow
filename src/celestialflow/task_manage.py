@@ -73,7 +73,7 @@ class TaskManager:
 
         self.next_stages: List[TaskManager] = []
         self.prev_stages: List[TaskManager] = []
-        self.set_stage_name()
+        self.set_stage_name()  # 设置默认名称
 
         self.retry_exceptions = tuple()  # 需要重试的异常类型
         self.ctree_client = NullCelestialTreeClient()
@@ -217,41 +217,6 @@ class TaskManager:
             else "serial"
         )
 
-    def set_graph_context(
-        self,
-        next_stages: List[TaskManager] = None,
-        stage_mode: str = None,
-        stage_name: str = None,
-    ):
-        """
-        设置链式上下文(仅限组成graph时)
-
-        :param next_stages: 后续节点列表
-        :param stage_mode: 当前节点执行模式, 可以是 'serial'（串行）或 'process'（并行）
-        :param name: 当前节点名称
-        """
-        self.set_next_stages(next_stages)
-        self.set_stage_mode(stage_mode)
-        self.set_stage_name(stage_name)
-
-    def set_next_stages(self, next_stages: List[TaskManager]):
-        """
-        设置后续节点列表, 并为后续节点添加本节点为前置节点
-
-        :param next_stages: 后续节点列表
-        """
-        self.next_stages = next_stages
-        for next_stage in self.next_stages:
-            next_stage.add_prev_stages(self)
-
-    def set_stage_mode(self, stage_mode: str):
-        """
-        设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
-
-        :param stage_mode: 当前节点执行模式
-        """
-        self.stage_mode = stage_mode if stage_mode == "process" else "serial"
-
     def set_stage_name(self, name: str = None):
         """
         设置当前节点名称
@@ -259,26 +224,6 @@ class TaskManager:
         :param name: 当前节点名称
         """
         self.stage_name = name or id(self)
-
-    def add_prev_stages(self, prev_stage: TaskManager):
-        """
-        添加前置节点
-
-        :param prev_stage: 前置节点
-        """
-        from .task_nodes import TaskSplitter
-
-        if prev_stage in self.prev_stages:
-            return
-        self.prev_stages.append(prev_stage)
-
-        if prev_stage is None:
-            return
-
-        if isinstance(prev_stage, TaskSplitter):
-            self.task_counter.add_counter(prev_stage.split_output_counter)
-        else:
-            self.task_counter.add_counter(prev_stage.success_counter)
 
     def set_ctree(self, host="127.0.0.1", port=7777):
         """
@@ -305,6 +250,14 @@ class TaskManager:
         if isinstance(self, TaskSplitter):
             self.split_output_counter.value = 0
 
+    def get_func_name(self) -> str:
+        """
+        获取当前节点函数名
+
+        :return: 当前节点函数名
+        """
+        return self.func.__name__
+
     def get_stage_tag(self) -> str:
         """
         获取当前节点在graph中的标签
@@ -315,31 +268,6 @@ class TaskManager:
             return self._stage_tag
         self._stage_tag = f"{self.stage_name}[{self.func.__name__}]"
         return self._stage_tag
-
-    def get_stage_summary(self) -> dict:
-        """
-        获取当前节点的状态快照
-
-        :return: 当前节点状态快照
-        """
-        return {
-            "stage_mode": self.stage_mode,
-            "execution_mode": (
-                self.execution_mode
-                if self.execution_mode == "serial"
-                else f"{self.execution_mode}-{self.worker_limit}"
-            ),
-            "func_name": self.get_stage_tag(),
-            "class_name": self.__class__.__name__,
-        }
-
-    def get_func_name(self) -> str:
-        """
-        获取当前节点函数名
-
-        :return: 当前节点函数名
-        """
-        return self.func.__name__
 
     def add_retry_exceptions(self, *exceptions):
         """
@@ -854,48 +782,6 @@ class TaskManager:
             self.duplicate_counter.value,
         )
         self.log_listener.stop()
-
-    def start_stage(
-        self,
-        input_queues: List[MPQueue],
-        output_queues: List[MPQueue],
-        fail_queue: MPQueue,
-        logger_queue: MPQueue,
-    ):
-        """
-        根据 start_type 的值，选择串行、并行执行任务
-
-        :param input_queues: 输入队列
-        :param output_queue: 输出队列
-        :param fail_queue: 失败队列
-        """
-        start_time = time.time()
-        self.active = True
-        self.init_progress()
-        self.init_env(input_queues, output_queues, fail_queue, logger_queue)
-        self.task_logger.start_stage(
-            self.get_stage_tag(), self.execution_mode, self.worker_limit
-        )
-
-        # 根据模式运行对应的任务处理函数
-        if self.execution_mode == "thread":
-            self.run_with_executor(self.thread_pool)
-        else:
-            self.run_in_serial()
-
-        # cleanup_mpqueue(input_queues) # 会影响之后finalize_nodes
-        self.release_pool()
-        self.result_queues.put(TERMINATION_SIGNAL)
-
-        self.progress_manager.close()
-        self.task_logger.end_stage(
-            self.get_stage_tag(),
-            self.execution_mode,
-            time.time() - start_time,
-            self.success_counter.value,
-            self.error_counter.value,
-            self.duplicate_counter.value,
-        )
 
     def run_in_serial(self):
         """

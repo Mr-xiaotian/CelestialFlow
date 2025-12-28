@@ -5,7 +5,7 @@ from datetime import datetime
 from multiprocessing import Queue as MPQueue
 from typing import Any, Dict, List
 
-from .task_manage import TaskManager
+from .task_stage import TaskStage
 from .task_report import TaskReporter, NullTaskReporter
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
@@ -32,16 +32,16 @@ from .adapters.celestialtree import (
 
 
 class TaskGraph:
-    def __init__(self, root_stages: List[TaskManager], layout_mode: str = "process"):
+    def __init__(self, root_stages: List[TaskStage], layout_mode: str = "process"):
         """
         初始化 TaskGraph 实例。
 
-        TaskGraph 表示一组 TaskManager 节点所构成的任务图，可用于构建并行、串行、
+        TaskGraph 表示一组 TaskStage 节点所构成的任务图，可用于构建并行、串行、
         分层等多种形式的任务执行流程。通过分析图结构和调度布局策略，实现灵活的
         DAG 任务调度控制。
 
-        :param root_stages : List[TaskManager]
-            根节点 TaskManager 列表，用于构建任务图的入口节点。
+        :param root_stages : List[TaskStage]
+            根节点 TaskStage 列表，用于构建任务图的入口节点。
             支持多根节点（森林结构），系统将自动构建整个任务依赖图。
 
         :param layout_mode : str, optional, default = 'process'
@@ -130,7 +130,7 @@ class TaskGraph:
             queue.extend(stage.next_stages)
 
         for stage_tag in self.stages_status_dict:
-            stage: TaskManager = self.stages_status_dict[stage_tag]["stage"]
+            stage: TaskStage = self.stages_status_dict[stage_tag]["stage"]
             in_queue: TaskQueue = self.stages_status_dict[stage_tag]["in_queue"]
 
             # 遍历每个前驱，创建边队列
@@ -162,7 +162,7 @@ class TaskGraph:
         """
         self.structure_json = build_structure_graph(self.root_stages)
 
-    def set_root_stages(self, root_stages: List[TaskManager]):
+    def set_root_stages(self, root_stages: List[TaskStage]):
         """
         设置根节点
 
@@ -227,7 +227,7 @@ class TaskGraph:
         :param execution_mode: 节点内部执行模式, 可选值为 'serial' 或 'thread''
         """
 
-        def set_subsequent_stage_mode(stage: TaskManager):
+        def set_subsequent_stage_mode(stage: TaskStage):
             stage.set_stage_mode(stage_mode)
             stage.set_execution_mode(execution_mode)
             visited_stages.add(stage)
@@ -250,7 +250,7 @@ class TaskGraph:
         :param put_termination_signal: 是否放入终止信号
         """
         for tag, tasks in tasks_dict.items():
-            stage: TaskManager = self.stages_status_dict[tag]["stage"]
+            stage: TaskStage = self.stages_status_dict[tag]["stage"]
             in_queue: TaskQueue = self.stages_status_dict[tag]["in_queue"]
 
             for task in tasks:
@@ -326,7 +326,7 @@ class TaskGraph:
 
                 processes = []
                 for stage_tag in layer:
-                    stage: TaskManager = self.stages_status_dict[stage_tag]["stage"]
+                    stage: TaskStage = self.stages_status_dict[stage_tag]["stage"]
                     self._execute_stage(stage)
                     if stage.stage_mode == "process":
                         processes.append(self.processes[-1])  # 最新的进程
@@ -339,7 +339,7 @@ class TaskGraph:
 
                 self.task_logger.end_layer(layer, time.time() - start_time)
 
-    def _execute_stage(self, stage: TaskManager):
+    def _execute_stage(self, stage: TaskStage):
         """
         执行单个节点
 
@@ -499,7 +499,7 @@ class TaskGraph:
         interval = self.reporter.interval
 
         for tag, stage_status_dict in self.stages_status_dict.items():
-            stage: TaskManager = stage_status_dict["stage"]
+            stage: TaskStage = stage_status_dict["stage"]
             last_stage_status_dict: dict = self.last_status_dict.get(tag, {})
 
             status = stage_status_dict.get("status", StageStatus.NOT_STARTED)

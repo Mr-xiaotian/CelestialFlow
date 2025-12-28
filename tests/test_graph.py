@@ -3,7 +3,7 @@ import random
 from time import sleep
 from dotenv import load_dotenv
 
-from celestialflow import TaskManager, TaskGraph, format_table
+from celestialflow import TaskStage, TaskGraph, format_table
 
 
 load_dotenv()
@@ -105,28 +105,28 @@ def square_root(x):
 
 # 测试 TaskGraph 的功能
 def test_graph_0():
-    # 定义多个阶段的 TaskManager 实例
-    stage1 = TaskManager(
+    # 定义多个阶段的 TaskStage 实例
+    stage1 = TaskStage(
         fibonacci,
         execution_mode="thread",
         worker_limit=4,
         max_retries=1,
         show_progress=False,
     )
-    stage2 = TaskManager(
+    stage2 = TaskStage(
         square,
         execution_mode="thread",
         worker_limit=4,
         max_retries=1,
         show_progress=False,
     )
-    stage3 = TaskManager(
+    stage3 = TaskStage(
         sleep_1,
         execution_mode="thread",
         worker_limit=4,
         show_progress=False,
     )
-    stage4 = TaskManager(
+    stage4 = TaskStage(
         divide_by_two,
         execution_mode="thread",
         worker_limit=4,
@@ -168,12 +168,12 @@ def test_graph_0():
 
 def test_graph_1():
     # 定义任务节点
-    A = TaskManager(func=sleep_random_A, execution_mode="thread")
-    B = TaskManager(func=sleep_random_B, execution_mode="serial")
-    C = TaskManager(func=sleep_random_C, execution_mode="serial")
-    D = TaskManager(func=sleep_random_D, execution_mode="thread")
-    E = TaskManager(func=sleep_random_E, execution_mode="thread")
-    F = TaskManager(func=sleep_random_F, execution_mode="serial")
+    A = TaskStage(func=sleep_random_A, execution_mode="thread")
+    B = TaskStage(func=sleep_random_B, execution_mode="serial")
+    C = TaskStage(func=sleep_random_C, execution_mode="serial")
+    D = TaskStage(func=sleep_random_D, execution_mode="thread")
+    E = TaskStage(func=sleep_random_E, execution_mode="thread")
+    F = TaskStage(func=sleep_random_F, execution_mode="serial")
 
     # 设置链式上下文
     A.set_graph_context(next_stages=[B, C], stage_mode="process", stage_name="Stage_A")

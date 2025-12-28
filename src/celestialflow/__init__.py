@@ -1,5 +1,6 @@
 from .task_graph import TaskGraph
 from .task_manage import TaskManager
+from .task_stage import TaskStage
 from .task_nodes import (
     TaskSplitter,
     TaskRedisSink,
@@ -33,6 +34,7 @@ __all__ = [
     "TaskWheel",
     "TaskGrid",
     "TaskManager",
+    "TaskStage",
     "TaskSplitter",
     "TaskRedisSink",
     "TaskRedisSource",
