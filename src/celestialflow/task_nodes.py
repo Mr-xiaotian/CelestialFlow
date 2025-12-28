@@ -3,9 +3,7 @@ import time
 import redis
 
 from .task_stage import TaskStage
-from .task_types import (
-    TaskEnvelope,
-)
+from .task_types import TaskEnvelope
 
 
 class RemoteWorkerError(Exception):
