@@ -14,6 +14,7 @@ class TaskStage(TaskManager):
 
         self.next_stages: List[TaskStage] = []
         self.prev_stages: List[TaskStage] = []
+        self._pending_prev_bindings = []
 
     def set_graph_context(
         self,
@@ -28,9 +29,10 @@ class TaskStage(TaskManager):
         :param stage_mode: 当前节点执行模式, 可以是 'serial'（串行）或 'process'（并行）
         :param name: 当前节点名称
         """
-        self.set_stage_name(stage_name)
         self.set_next_stages(next_stages)
         self.set_stage_mode(stage_mode)
+        self.set_stage_name(stage_name)
+        self._finalize_prev_bindings()
 
     def set_next_stages(self, next_stages: List[TaskStage]):
         """
@@ -68,12 +70,23 @@ class TaskStage(TaskManager):
         if isinstance(prev_stage, TaskSplitter):
             self.task_counter.add_counter(prev_stage.split_output_counter)
         elif isinstance(prev_stage, TaskRouter):
-            key = self.get_stage_tag()
-            prev_stage.route_output_counters.setdefault(key, MPValue("i", 0))
-            output_counter = prev_stage.route_output_counters[key]
-            self.task_counter.add_counter(output_counter)
+            self._pending_prev_bindings.append(prev_stage)
         else:
             self.task_counter.add_counter(prev_stage.success_counter)
+
+    def _finalize_prev_bindings(self):
+        from .task_nodes import TaskRouter
+
+        if not self._pending_prev_bindings:
+            return
+
+        for prev_stage in self._pending_prev_bindings:
+            if isinstance(prev_stage, TaskRouter):
+                key = self.get_stage_tag()  # 现在已经稳定了
+                prev_stage.route_output_counters.setdefault(key, MPValue("i", 0))
+                self.task_counter.add_counter(prev_stage.route_output_counters[key])
+
+        self._pending_prev_bindings.clear()
 
     def get_stage_summary(self) -> dict:
         """

@@ -3,7 +3,7 @@ import time
 import redis
 
 from .task_stage import TaskStage
-from .task_types import TaskEnvelope, RouteTask  
+from .task_types import TaskEnvelope  
 
 
 class RemoteWorkerError(Exception):
@@ -306,13 +306,13 @@ class TaskRouter(TaskStage):
         # 每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
         self.route_output_counters: dict = {}
 
-    def _route(self, routed: RouteTask) -> RouteTask:
-        if not isinstance(routed, RouteTask):
+    def _route(self, routed: tuple) -> tuple:
+        if not (isinstance(routed, tuple) and len(routed) == 2):
             raise TypeError(
-                f"TaskRouter expects RouteTask, got {type(routed).__name__}"
+                f"TaskRouter expects tuple, got {type(routed).__name__}"
             )
-        if routed.target not in self.route_output_counters:
-            raise ValueError(f"Unknown target: {routed.target}")
+        if routed[0] not in self.route_output_counters:
+            raise ValueError(f"Unknown target: {routed[0]}")
         return routed
     
     def update_output_counter(self, target: str):
@@ -326,18 +326,19 @@ class TaskRouter(TaskStage):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        routed: RouteTask = task_envelope.task
+        target, task = task_envelope.task
         task_hash = task_envelope.hash
         task_id = task_envelope.id
-
-        target = routed.target
-        task = routed.task
 
         # 清理 retry_time_dict
         self.retry_time_dict.pop(task_hash, None)
 
         idx = self.result_queues.get_tag_idx(target)
-        self.result_queues.put_channel(task, idx)
+        routed_id = self.ctree_client.emit(
+            "task.route", parents=[task_id], message=f"In '{self.get_stage_tag()}'"
+        )
+        routed_envelope = TaskEnvelope.wrap(task, routed_id)
+        self.result_queues.put_channel(routed_envelope, idx)
 
         self.update_success_counter()
         self.update_output_counter(target)

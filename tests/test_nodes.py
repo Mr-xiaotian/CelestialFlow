@@ -11,6 +11,7 @@ from celestialflow import (
     TaskRedisSink,
     TaskRedisSource,
     TaskRedisAck,
+    TaskRouter,
 )
 
 
@@ -338,6 +339,33 @@ def test_redis_source_0():
     )
 
 
+def test_router_0():
+    router = TaskRouter()
+    stage_a = TaskStage(func=sleep_1, execution_mode="thread", worker_limit=2)
+    stage_b = TaskStage(func=sleep_1, execution_mode="thread", worker_limit=2)
+
+    router.set_graph_context([stage_a, stage_b], stage_mode="serial", stage_name="Router")
+    stage_a.set_graph_context([], stage_mode="process", stage_name="Stage A")
+    stage_b.set_graph_context([], stage_mode="process", stage_name="Stage B")
+
+    a_tag = stage_a.get_stage_tag()
+    b_tag = stage_b.get_stage_tag()
+
+    def to_route_task(n: int) -> tuple:
+        target = a_tag if (n % 2 == 0) else b_tag
+        return (target, n)
+
+    graph = TaskGraph([router])
+    graph.set_reporter(True, host=report_host, port=report_port)
+
+    graph.start_graph(
+        {
+            router.get_stage_tag(): [to_route_task(i) for i in range(20)],
+        }
+    )
+
+
 if __name__ == "__main__":
     # test_splitter_1()
+    test_router_0()
     pass
