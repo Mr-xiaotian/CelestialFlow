@@ -3,7 +3,7 @@ import time
 import redis
 
 from .task_stage import TaskStage
-from .task_types import TaskEnvelope
+from .task_types import TaskEnvelope, RouteTask  
 
 
 class RemoteWorkerError(Exception):
@@ -59,7 +59,7 @@ class TaskSplitter(TaskStage):
         """
         统一处理成功任务
 
-        :param task: 完成的任务
+        :param task_envelope: 完成的任务
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
@@ -69,13 +69,10 @@ class TaskSplitter(TaskStage):
 
         processed_result = self.process_result(task, result)
 
-        if self.enable_result_cache:
-            self.success_dict[task] = processed_result
-
-        # ✅ 清理 retry_time_dict
+        # 清理 retry_time_dict
         self.retry_time_dict.pop(task_hash, None)
 
-        split_count = self.put_split_result(result, task_id)
+        split_count = self.put_split_result(processed_result, task_id)
         self.update_success_counter()
 
         self.task_logger.splitter_success(
@@ -297,3 +294,59 @@ class TaskRedisAck(TaskStage):
                 )
 
             time.sleep(0.1)
+
+
+class TaskRouter(TaskStage):
+    def __init__(self):
+        super().__init__(
+            func=self._route,          
+            execution_mode="serial", 
+            max_retries=0,
+        )
+        # 每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
+        self.route_output_counters: dict = {}
+
+    def _route(self, routed: RouteTask) -> RouteTask:
+        if not isinstance(routed, RouteTask):
+            raise TypeError(
+                f"TaskRouter expects RouteTask, got {type(routed).__name__}"
+            )
+        if routed.target not in self.route_output_counters:
+            raise ValueError(f"Unknown target: {routed.target}")
+        return routed
+    
+    def update_output_counter(self, target: str):
+        self.route_output_counters[target].value += 1
+
+    def process_task_success(self, task_envelope: TaskEnvelope, _, start_time):
+        """
+        统一处理成功任务
+
+        :param task_envelope: 完成的任务
+        :param result: 任务的结果
+        :param start_time: 任务开始时间
+        """
+        routed: RouteTask = task_envelope.task
+        task_hash = task_envelope.hash
+        task_id = task_envelope.id
+
+        target = routed.target
+        task = routed.task
+
+        # 清理 retry_time_dict
+        self.retry_time_dict.pop(task_hash, None)
+
+        idx = self.result_queues.get_tag_idx(target)
+        self.result_queues.put_channel(task, idx)
+
+        self.update_success_counter()
+        self.update_output_counter(target)
+
+        self.task_logger.router_success(
+            self.get_func_name(), 
+            self.get_task_info(task), 
+            target, 
+            time.time() - start_time,
+        )
+
+        

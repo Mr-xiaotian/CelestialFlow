@@ -6,6 +6,7 @@ from .task_nodes import (
     TaskRedisSink,
     TaskRedisSource,
     TaskRedisAck,
+    TaskRouter,
 )
 from .task_structure import (
     TaskChain,
@@ -39,6 +40,7 @@ __all__ = [
     "TaskRedisSink",
     "TaskRedisSource",
     "TaskRedisAck",
+    "TaskRouter",
     "TerminationSignal",
     "TaskWebServer",
     "CelestialTreeClient",

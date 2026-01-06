@@ -9,7 +9,6 @@ from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue
 from threading import Event, Lock
-from typing import List
 
 from .task_progress import ProgressManager, NullProgress
 from .task_logging import LogListener, TaskLogger
@@ -71,8 +70,6 @@ class TaskManager:
         self.thread_pool = None
         self.process_pool = None
 
-        self.next_stages: List[TaskManager] = []
-        self.prev_stages: List[TaskManager] = []
         self.set_stage_name()  # 设置默认名称
 
         self.retry_exceptions = tuple()  # 需要重试的异常类型

@@ -163,6 +163,13 @@ class TaskLogger:
             f"In '{func_name}', Task {task_info} has split into {split_count} parts. Used {use_time:.2f} seconds.",
         )
 
+    # ==== router ====
+    def router_success(self, func_name, task_info, target_node, use_time):
+        self._log(
+            "SUCCESS",
+            f"In '{func_name}', Task {task_info} has routed to {target_node}. Used {use_time:.2f} seconds.",
+        )
+
     # ==== queue ====
     def put_source(self, source, queue_tag, stage_tag, direction):
         if isinstance(source, TerminationSignal):

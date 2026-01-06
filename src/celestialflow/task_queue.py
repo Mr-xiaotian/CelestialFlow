@@ -31,6 +31,9 @@ class TaskQueue:
         self.current_index = 0  # 记录起始队列索引，用于轮询
         self.terminated_queue_set = set()
 
+    def get_tag_idx(self, tag: str) -> int:
+        return self.queue_tag.index(tag)
+
     def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
         self.queue_list.append(queue)
         self.queue_tag.append(tag)

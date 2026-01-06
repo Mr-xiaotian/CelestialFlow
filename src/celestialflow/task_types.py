@@ -1,5 +1,6 @@
 from enum import IntEnum
-from typing import List
+from typing import List, Any
+from dataclasses import dataclass
 from multiprocessing import Value as MPValue
 
 
@@ -81,7 +82,6 @@ class TaskEnvelope:
     def wrap(cls, task, task_id):
         """
         将原始 task 包装为 TaskEnvelope。
-        当前 task_id 为 hash，未来可在此注入 ExecutionContext / CelestialTree。
         """
         from .task_tools import make_hashable, object_to_str_hash
 
@@ -93,3 +93,14 @@ class TaskEnvelope:
     def unwrap(self):
         """取出原始 task（给用户函数用）"""
         return self.task
+
+
+@dataclass(frozen=True, slots=True)
+class RouteTask:
+    """
+    路由器专用任务：
+    - target: 指向的节点（用 stage_tag 字符串，保证可序列化/可跨进程）
+    - task: 真正需要传递的任务
+    """
+    target: str
+    task: Any
