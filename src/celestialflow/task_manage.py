@@ -70,8 +70,6 @@ class TaskManager:
         self.thread_pool = None
         self.process_pool = None
 
-        self.set_stage_name()  # 设置默认名称
-
         self.retry_exceptions = tuple()  # 需要重试的异常类型
         self.ctree_client = NullCelestialTreeClient()
 
@@ -160,14 +158,14 @@ class TaskManager:
             [queue_map[self.execution_mode]()],
             [None],
             self.logger_queue,
-            self.get_stage_tag(),
+            self.get_manager_tag(),
             "in",
         )
         self.result_queues: TaskQueue = result_queues or TaskQueue(
             [queue_map[self.execution_mode]()],
             [None],
             self.logger_queue,
-            self.get_stage_tag(),
+            self.get_manager_tag(),
             "out",
         )
         self.fail_queue: ThreadQueue | MPQueue | AsyncQueue = (
@@ -214,14 +212,6 @@ class TaskManager:
             else "serial"
         )
 
-    def set_stage_name(self, name: str = None):
-        """
-        设置当前节点名称
-
-        :param name: 当前节点名称
-        """
-        self.stage_name = name or id(self)
-
     def set_ctree(self, host="127.0.0.1", port=7777):
         """
         设置CelestialTreeClient
@@ -254,17 +244,17 @@ class TaskManager:
         :return: 当前节点函数名
         """
         return self.func.__name__
-
-    def get_stage_tag(self) -> str:
+    
+    def get_manager_tag(self) -> str:
         """
-        获取当前节点在graph中的标签
+        获取当前节点管理器标签
 
-        :return: 当前节点标签
+        :return: 当前节点管理器标签
         """
-        if hasattr(self, "_stage_tag"):
-            return self._stage_tag
-        self._stage_tag = f"{self.stage_name}[{self.func.__name__}]"
-        return self._stage_tag
+        if hasattr(self, "_manager_tag"):
+            return self._manager_tag
+        self._manager_tag = f"Manager[{self.func.__name__}]"
+        return self._manager_tag
 
     def add_retry_exceptions(self, *exceptions):
         """
@@ -283,7 +273,7 @@ class TaskManager:
         progress_num = 0
         for task in task_source:
             task_id = self.ctree_client.emit(
-                "task.input", message=f"In '{self.get_stage_tag()}'"
+                "task.input"
             )
             envelope = TaskEnvelope.wrap(task, task_id)
             self.task_queues.put_first(envelope)
@@ -291,7 +281,7 @@ class TaskManager:
             self.task_logger.task_inject(
                 self.get_func_name(),
                 self.get_task_info(task),
-                self.get_stage_tag(),
+                self.get_manager_tag(),
                 f"[{task_id}]",
             )
 
@@ -309,7 +299,7 @@ class TaskManager:
         progress_num = 0
         for task in task_source:
             task_id = self.ctree_client.emit(
-                "task.input", message=f"In '{self.get_stage_tag()}'"
+                "task.input"
             )
             envelope = TaskEnvelope.wrap(task, task_id)
             await self.task_queues.put_first_async(envelope)
@@ -317,7 +307,7 @@ class TaskManager:
             self.task_logger.task_inject(
                 self.get_func_name(),
                 self.get_task_info(task),
-                self.get_stage_tag(),
+                self.get_manager_tag(),
                 f"[{task_id}]",
             )
 
@@ -335,7 +325,6 @@ class TaskManager:
         """
         self.fail_queue.put(
             {
-                "stage_tag": self.get_stage_tag(),
                 "task": str(task),
                 "error_info": f"{type(error).__name__}({error})",
                 "timestamp": time.time(),
@@ -351,7 +340,6 @@ class TaskManager:
         """
         await self.fail_queue.put(
             {
-                "stage_tag": self.get_stage_tag(),
                 "task": str(task),
                 "error_info": f"{type(error).__name__}({error})",
                 "timestamp": time.time(),
@@ -504,7 +492,7 @@ class TaskManager:
             self.success_dict[task] = processed_result
 
         result_id = self.ctree_client.emit(
-            "task.success", parents=[task_id], message=f"In '{self.get_stage_tag()}'"
+            "task.success", parents=[task_id]
         )
         result_envelope = TaskEnvelope.wrap(result, result_id)
 
@@ -541,7 +529,7 @@ class TaskManager:
             self.success_dict[task] = processed_result
 
         result_id = self.ctree_client.emit(
-            "task.success", parents=[task_id], message=f"In '{self.get_stage_tag()}'"
+            "task.success", parents=[task_id]
         )
         result_envelope = TaskEnvelope.wrap(result, result_id)
 
@@ -586,7 +574,6 @@ class TaskManager:
             retry_id = self.ctree_client.emit(
                 f"task.retry.{self.retry_time_dict[task_hash]}",
                 parents=[task_id],
-                message=f"In '{self.get_stage_tag()}'",
             )
 
             self.task_logger.task_retry(
@@ -602,7 +589,7 @@ class TaskManager:
                 self.error_dict[task] = exception
 
             error_id = self.ctree_client.emit(
-                "task.error", parents=[task_id], message=f"In '{self.get_stage_tag()}'"
+                "task.error", parents=[task_id]
             )
 
             # ✅ 清理 retry_time_dict
@@ -648,7 +635,6 @@ class TaskManager:
             retry_id = self.ctree_client.emit(
                 f"task.retry.{self.retry_time_dict[task_hash]}",
                 parents=[task_id],
-                message=f"In '{self.get_stage_tag()}'",
             )
 
             self.task_logger.task_retry(
@@ -664,7 +650,7 @@ class TaskManager:
                 self.error_dict[task] = exception
 
             error_id = self.ctree_client.emit(
-                "task.error", parents=[task_id], message=f"In '{self.get_stage_tag()}'"
+                "task.error", parents=[task_id]
             )
 
             # ✅ 清理 retry_time_dict
@@ -690,7 +676,6 @@ class TaskManager:
         duplicate_id = self.ctree_client.emit(
             "task.duplicate",
             parents=[task_envelope.id],
-            message=f"In '{self.get_stage_tag()}'",
         )
         self.task_logger.task_duplicate(
             self.get_func_name(),
@@ -810,7 +795,7 @@ class TaskManager:
 
         if not self.is_tasks_finished():
             self.task_logger._log(
-                "DEBUG", f"Retrying tasks for '{self.get_stage_tag()}'"
+                "DEBUG", f"Retrying tasks"
             )
             self.task_queues.put(TERMINATION_SIGNAL)
             self.run_in_serial()
@@ -888,7 +873,7 @@ class TaskManager:
 
         if not self.is_tasks_finished():
             self.task_logger._log(
-                "DEBUG", f"Retrying tasks for '{self.get_stage_tag()}'"
+                "DEBUG", f"Retrying tasks"
             )
             self.task_queues.put(TERMINATION_SIGNAL)
             self.run_with_executor(executor)
@@ -937,7 +922,7 @@ class TaskManager:
 
         if not self.is_tasks_finished():
             self.task_logger._log(
-                "DEBUG", f"Retrying tasks for '{self.get_stage_tag()}'"
+                "DEBUG", f"Retrying tasks"
             )
             await self.task_queues.put_async(TERMINATION_SIGNAL)
             await self.run_in_async()

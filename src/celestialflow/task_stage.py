@@ -12,6 +12,8 @@ class TaskStage(TaskManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.set_stage_name()  # 设置默认名称
+
         self.next_stages: List[TaskStage] = []
         self.prev_stages: List[TaskStage] = []
         self._pending_prev_bindings = []
@@ -74,6 +76,14 @@ class TaskStage(TaskManager):
         else:
             self.task_counter.add_counter(prev_stage.success_counter)
 
+    def set_stage_name(self, name: str = None):
+        """
+        设置当前节点名称
+
+        :param name: 当前节点名称
+        """
+        self.stage_name = name or id(self)
+
     def _finalize_prev_bindings(self):
         from .task_nodes import TaskRouter
 
@@ -87,6 +97,17 @@ class TaskStage(TaskManager):
                 self.task_counter.add_counter(prev_stage.route_output_counters[key])
 
         self._pending_prev_bindings.clear()
+
+    def get_stage_tag(self) -> str:
+        """
+        获取当前节点在graph中的标签
+
+        :return: 当前节点标签
+        """
+        if hasattr(self, "_stage_tag"):
+            return self._stage_tag
+        self._stage_tag = f"{self.stage_name}[{self.func.__name__}]"
+        return self._stage_tag
 
     def get_stage_summary(self) -> dict:
         """
@@ -104,6 +125,22 @@ class TaskStage(TaskManager):
             "func_name": self.get_stage_tag(),
             "class_name": self.__class__.__name__,
         }
+
+    def put_fail_queue(self, task, error):
+        """
+        将失败的任务放入失败队列
+
+        :param task: 失败的任务
+        :param error: 任务失败的异常
+        """
+        self.fail_queue.put(
+            {
+                "stage_tag": self.get_stage_tag(),
+                "task": str(task),
+                "error_info": f"{type(error).__name__}({error})",
+                "timestamp": time.time(),
+            }
+        )
 
     def start_stage(
         self,
