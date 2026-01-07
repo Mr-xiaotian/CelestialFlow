@@ -71,7 +71,7 @@ class TaskStage(TaskManager):
             return
 
         if isinstance(prev_stage, TaskSplitter):
-            self.task_counter.add_counter(prev_stage.split_output_counter)
+            self.task_counter.add_counter(prev_stage.split_counter)
         elif isinstance(prev_stage, TaskRouter):
             self._pending_prev_bindings.append(prev_stage)
         else:
@@ -94,8 +94,8 @@ class TaskStage(TaskManager):
         for prev_stage in self._pending_prev_bindings:
             if isinstance(prev_stage, TaskRouter):
                 key = self.get_stage_tag()  # 现在已经稳定了
-                prev_stage.route_output_counters.setdefault(key, MPValue("i", 0))
-                self.task_counter.add_counter(prev_stage.route_output_counters[key])
+                prev_stage.route_counters.setdefault(key, MPValue("i", 0))
+                self.task_counter.add_counter(prev_stage.route_counters[key])
 
         self._pending_prev_bindings.clear()
 
@@ -123,7 +123,7 @@ class TaskStage(TaskManager):
                 if self.execution_mode == "serial"
                 else f"{self.execution_mode}-{self.worker_limit}"
             ),
-            "func_name": self.get_stage_tag(),
+            "func_name": self.get_func_name(),
             "class_name": self.__class__.__name__,
         }
 

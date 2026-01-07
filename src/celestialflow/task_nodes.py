@@ -41,7 +41,7 @@ class TaskSplitter(TaskStage):
             self.result_queues.put(splitted_envelope)
             split_count += 1
 
-        self.split_output_counter.value += split_count
+        self.split_counter.value += split_count
         return split_count
 
     def process_result(self, task, result):
@@ -304,17 +304,17 @@ class TaskRouter(TaskStage):
             max_retries=0,
         )
         # 每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
-        self.route_output_counters: dict = {}
+        self.route_counters: dict = {}
 
     def _route(self, routed: tuple) -> tuple:
         if not (isinstance(routed, tuple) and len(routed) == 2):
             raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
-        if routed[0] not in self.route_output_counters:
+        if routed[0] not in self.route_counters:
             raise ValueError(f"Unknown target: {routed[0]}")
         return routed
 
     def update_output_counter(self, target: str):
-        self.route_output_counters[target].value += 1
+        self.route_counters[target].value += 1
 
     def process_task_success(self, task_envelope: TaskEnvelope, _, start_time):
         """

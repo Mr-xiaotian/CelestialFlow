@@ -55,6 +55,9 @@ class TaskManager:
         :param progress_desc: 进度条显示名称
         :param show_progress: 进度条显示与否
         """
+        if enable_result_cache == True and enable_duplicate_check == False:
+            raise ValueError("enable_duplicate_check must be True if enable_result_cache is True")
+    
         self.func = func
         self.execution_mode = execution_mode
         self.worker_limit = worker_limit
@@ -89,7 +92,7 @@ class TaskManager:
         self.counter_lock = NoOpContext()  # Lock()
 
         if isinstance(self, TaskSplitter):
-            self.split_output_counter = MPValue("i", 0)
+            self.split_counter = MPValue("i", 0)
 
     def init_env(
         self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None
@@ -235,7 +238,7 @@ class TaskManager:
         self.duplicate_counter.value = 0
 
         if isinstance(self, TaskSplitter):
-            self.split_output_counter.value = 0
+            self.split_counter.value = 0
 
     def get_func_name(self) -> str:
         """
