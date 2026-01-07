@@ -136,10 +136,10 @@ class TaskStage(TaskManager):
         """
         self.fail_queue.put(
             {
-                "stage_tag": self.get_stage_tag(),
-                "task": str(task),
-                "error_info": f"{type(error).__name__}({error})",
                 "timestamp": time.time(),
+                "stage_tag": self.get_stage_tag(),
+                "error_info": f"{type(error).__name__}({error})",
+                "task": str(task),
             }
         )
 

@@ -42,10 +42,10 @@ class TaskQueue:
         self.current_index = 0
         self.terminated_queue_set.clear()
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         return all([queue.empty() for queue in self.queue_list])
 
-    def put(self, source):
+    def put(self, source: TaskEnvelope):
         """
         将结果放入所有结果队列
 
@@ -54,7 +54,7 @@ class TaskQueue:
         for index in range(len(self.queue_list)):
             self.put_channel(source, index)
 
-    async def put_async(self, source):
+    async def put_async(self, source: TaskEnvelope):
         """
         将结果放入所有结果队列(async模式)
 
@@ -63,7 +63,7 @@ class TaskQueue:
         for index in range(len(self.queue_list)):
             await self.put_channel_async(source, index)
 
-    def put_first(self, source):
+    def put_first(self, source: TaskEnvelope):
         """
         将结果放入第一个结果队列
 
@@ -71,7 +71,7 @@ class TaskQueue:
         """
         self.put_channel(source, 0)
 
-    async def put_first_async(self, source):
+    async def put_first_async(self, source: TaskEnvelope):
         """
         将结果放入第一个结果队列(async模式)
 
@@ -79,7 +79,7 @@ class TaskQueue:
         """
         await self.put_channel_async(source, 0)
 
-    def put_channel(self, source, channel_index: int):
+    def put_channel(self, source: TaskEnvelope, channel_index: int):
         """
         将结果放入指定队列
 
@@ -91,7 +91,7 @@ class TaskQueue:
             source, self.queue_tag[channel_index], self.stage_tag, self.direction
         )
 
-    async def put_channel_async(self, source, channel_index: int):
+    async def put_channel_async(self, source: TaskEnvelope, channel_index: int):
         """
         将结果放入指定队列(async模式)
 
@@ -213,7 +213,7 @@ class TaskQueue:
 
             await asyncio.sleep(poll_interval)
 
-    def drain(self) -> List[object]:
+    def drain(self) -> List[TaskEnvelope]:
         """提取所有队列中当前剩余的 source（非阻塞）。"""
         results = []
         total_queues = len(self.queue_list)

@@ -1,5 +1,6 @@
 import time
 import multiprocessing
+from collections.abc import Iterable
 from collections import defaultdict, deque
 from datetime import datetime
 from multiprocessing import Queue as MPQueue
@@ -17,6 +18,7 @@ from .task_tools import (
     build_structure_graph,
     format_structure_list_from_graph,
     append_jsonl_log,
+    append_jsonl_logs,
     format_networkx_graph,
     is_directed_acyclic_graph,
     compute_node_levels,
@@ -297,9 +299,9 @@ class TaskGraph:
             self._excute_stages()
 
         finally:
-            self.finalize_nodes()
             self.reporter.stop()
             self.handle_fail_queue()
+            self.finalize_nodes()
             self.release_resources()
 
             self.task_logger.end_graph(time.time() - self.start_time)
@@ -377,7 +379,7 @@ class TaskGraph:
         """
         确保所有子进程安全结束，更新节点状态，并导出每个节点队列剩余任务。
         """
-        # 1️⃣ 确保所有进程安全结束（不一定要 terminate，但如果没结束就强制）
+        # 确保所有进程安全结束（不一定要 terminate，但如果没结束就强制）
         for p in self.processes:
             if p.is_alive():
                 self.task_logger._log(
@@ -389,28 +391,22 @@ class TaskGraph:
                     self.task_logger._log("WARNING", f"进程 {p.name} 仍未完全退出")
                 self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
 
-        # 2️⃣ 更新所有节点状态为“已停止”
+        # 更新所有节点状态为“已停止”
         for stage_tag, stage_status in self.stages_status_dict.items():
             stage_status["status"] = StageStatus.STOPPED  # 已停止
 
-        # 3️⃣ 收集并持久化每个 stage 中未消费的任务
+        # 收集并持久化每个 stage 中未消费的任务
         for stage_tag, stage_status in self.stages_status_dict.items():
             in_queue: TaskQueue = stage_status["in_queue"]
-
-            # 用你刚才统一的 drain() 提取当前剩余任务
             remaining_sources = in_queue.drain()
 
-            # 如无剩余，跳过
             if not remaining_sources:
                 continue
 
-            # 持久化逻辑（写日志 / 存储到全局 structure）
-            for source in remaining_sources:
-                task_str = str(source)
-                error_info = "UnconsumeError"
-                timestamp = time.time()
-
-                self._persist_single_failure(task_str, error_info, stage_tag, timestamp)
+            # 持久化逻辑
+            ts = time.time()
+            failures = [(ts, stage_tag, "UnconsumedError", str(source.task)) for source in remaining_sources]
+            self._persist_failures(failures)
 
     def release_resources(self):
         """
@@ -425,12 +421,16 @@ class TaskGraph:
         """
         消费 fail_queue, 构建失败字典
         """
-        while not self.fail_queue.empty():
-            item: dict = self.fail_queue.get_nowait()
-            stage_tag = item["stage_tag"]
-            task_str = item["task"]
-            error_info = item["error_info"]
+        while True:
+            try:
+                item: dict = self.fail_queue.get_nowait()
+            except Exception:
+                break
+            
             timestamp = item["timestamp"]
+            stage_tag = item["stage_tag"]
+            error_info = item["error_info"]
+            task_str = item["task"]
 
             self.error_data.append(
                 {
@@ -441,7 +441,7 @@ class TaskGraph:
                 }
             )
 
-            self._persist_single_failure(task_str, error_info, stage_tag, timestamp)
+            self._persist_single_failure(timestamp, stage_tag, error_info, task_str)
 
     def _persist_structure_metadata(self):
         """
@@ -450,7 +450,7 @@ class TaskGraph:
         date_str = datetime.fromtimestamp(self.start_time).strftime("%Y-%m-%d")
         time_str = datetime.fromtimestamp(self.start_time).strftime("%H-%M-%S-%f")[:-3]
         self.error_jsonl_path = (
-            f"./fallback/{date_str}/realtime_errors({time_str}).jsonl"
+            f"./fallback/{date_str}/graph_errors({time_str}).jsonl"
         )
 
         log_item = {
@@ -459,14 +459,14 @@ class TaskGraph:
         }
         append_jsonl_log(log_item, self.error_jsonl_path, self.task_logger)
 
-    def _persist_single_failure(self, task_str, error_info, stage_tag, timestamp):
+    def _persist_single_failure(self, timestamp, stage_tag, error_info, task_str):
         """
         增量写入单条错误日志到 jsonl 文件中
 
-        :param task_str: 任务字符串
-        :param error_info: 错误信息
-        :param stage_tag: 阶段标签
         :param timestamp: 错误时间戳
+        :param stage_tag: 阶段标签
+        :param error_info: 错误信息
+        :param task_str: 任务字符串
         """
         log_item = {
             "timestamp": datetime.fromtimestamp(timestamp).isoformat(),
@@ -475,6 +475,23 @@ class TaskGraph:
             "task": task_str,
         }
         append_jsonl_log(log_item, self.error_jsonl_path, self.task_logger)
+
+    def _persist_failures(self, failures: Iterable[tuple]):
+        """
+        批量写入多条错误日志到 jsonl 文件中
+
+        :param failures: 错误日志列表
+        """
+        log_items = (
+            {
+                "timestamp": datetime.fromtimestamp(ts).isoformat(),
+                "stage": stage,
+                "error": err,
+                "task": task,
+            }
+            for ts, stage, err, task in failures
+        )
+        append_jsonl_logs(log_items, self.error_jsonl_path, self.task_logger)
 
     def get_error_data(self):
         """

@@ -5,6 +5,7 @@ import networkx as nx
 from networkx import is_directed_acyclic_graph
 from itertools import zip_longest
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import datetime
 from multiprocessing import Queue as MPQueue
 from pathlib import Path
@@ -136,6 +137,31 @@ def append_jsonl_log(log_data: dict, file_path: str, logger=None):
     except Exception as e:
         if logger:
             logger._log("WARNING", f"[Persist] 写入日志失败: {e}")
+
+
+def append_jsonl_logs(log_items: Iterable[dict], file_path: str, logger=None):
+    """
+    将多条日志一次性写入 JSONL 文件（batch 追加）。
+
+    :param log_items: Iterable[dict]，每个元素写成一行 JSON
+    :param file_path: JSONL 文件路径
+    :param logger: 可选日志对象
+    """
+    try:
+        if not isinstance(log_items, Iterable):
+            raise TypeError("log_items must be an iterable of dict")
+
+        file_path: Path = Path(file_path)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(file_path, "a", encoding="utf-8") as f:
+            for item in log_items:
+                if not isinstance(item, dict):
+                    raise TypeError(f"each log item must be dict, got {type(item)}")
+                f.write(json.dumps(item, ensure_ascii=False) + "\n")
+    except Exception as e:
+        if logger:
+            logger._log("WARNING", f"[Persist] 批量写入日志失败: {e}")
 
 
 def cluster_by_value_sorted(input_dict: Dict[str, int]) -> Dict[int, List[str]]:
@@ -404,7 +430,7 @@ def load_jsonl_grouped_by_keys(
             # 组合分组 key
             group_values = tuple(item.get(k, "") for k in group_keys)
             group_key = (
-                f"({', '.join(map(str, group_values))})"
+                group_values
                 if len(group_values) > 1
                 else group_values[0]
             )
