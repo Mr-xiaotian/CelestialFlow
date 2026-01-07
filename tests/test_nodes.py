@@ -344,7 +344,9 @@ def test_router_0():
     stage_a = TaskStage(func=sleep_1, execution_mode="thread", worker_limit=2)
     stage_b = TaskStage(func=sleep_1, execution_mode="thread", worker_limit=2)
 
-    router.set_graph_context([stage_a, stage_b], stage_mode="serial", stage_name="Router")
+    router.set_graph_context(
+        [stage_a, stage_b], stage_mode="serial", stage_name="Router"
+    )
     stage_a.set_graph_context([], stage_mode="process", stage_name="Stage A")
     stage_b.set_graph_context([], stage_mode="process", stage_name="Stage B")
 

@@ -8,6 +8,7 @@ from typing import List
 from .task_manage import TaskManager
 from .task_types import TERMINATION_SIGNAL
 
+
 class TaskStage(TaskManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

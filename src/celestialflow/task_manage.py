@@ -244,7 +244,7 @@ class TaskManager:
         :return: 当前节点函数名
         """
         return self.func.__name__
-    
+
     def get_manager_tag(self) -> str:
         """
         获取当前节点管理器标签
@@ -272,9 +272,7 @@ class TaskManager:
         """
         progress_num = 0
         for task in task_source:
-            task_id = self.ctree_client.emit(
-                "task.input"
-            )
+            task_id = self.ctree_client.emit("task.input")
             envelope = TaskEnvelope.wrap(task, task_id)
             self.task_queues.put_first(envelope)
             self.update_task_counter()
@@ -298,9 +296,7 @@ class TaskManager:
         """
         progress_num = 0
         for task in task_source:
-            task_id = self.ctree_client.emit(
-                "task.input"
-            )
+            task_id = self.ctree_client.emit("task.input")
             envelope = TaskEnvelope.wrap(task, task_id)
             await self.task_queues.put_first_async(envelope)
             self.update_task_counter()
@@ -491,9 +487,7 @@ class TaskManager:
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
 
-        result_id = self.ctree_client.emit(
-            "task.success", parents=[task_id]
-        )
+        result_id = self.ctree_client.emit("task.success", parents=[task_id])
         result_envelope = TaskEnvelope.wrap(result, result_id)
 
         # ✅ 清理 retry_time_dict
@@ -528,9 +522,7 @@ class TaskManager:
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
 
-        result_id = self.ctree_client.emit(
-            "task.success", parents=[task_id]
-        )
+        result_id = self.ctree_client.emit("task.success", parents=[task_id])
         result_envelope = TaskEnvelope.wrap(result, result_id)
 
         # ✅ 清理 retry_time_dict
@@ -588,9 +580,7 @@ class TaskManager:
             if self.enable_result_cache:
                 self.error_dict[task] = exception
 
-            error_id = self.ctree_client.emit(
-                "task.error", parents=[task_id]
-            )
+            error_id = self.ctree_client.emit("task.error", parents=[task_id])
 
             # ✅ 清理 retry_time_dict
             self.retry_time_dict.pop(task_hash, None)
@@ -649,9 +639,7 @@ class TaskManager:
             if self.enable_result_cache:
                 self.error_dict[task] = exception
 
-            error_id = self.ctree_client.emit(
-                "task.error", parents=[task_id]
-            )
+            error_id = self.ctree_client.emit("task.error", parents=[task_id])
 
             # ✅ 清理 retry_time_dict
             self.retry_time_dict.pop(task_hash, None)
@@ -794,9 +782,7 @@ class TaskManager:
         self.task_queues.reset()
 
         if not self.is_tasks_finished():
-            self.task_logger._log(
-                "DEBUG", f"Retrying tasks"
-            )
+            self.task_logger._log("DEBUG", f"Retrying tasks")
             self.task_queues.put(TERMINATION_SIGNAL)
             self.run_in_serial()
 
@@ -872,9 +858,7 @@ class TaskManager:
         self.task_queues.reset()
 
         if not self.is_tasks_finished():
-            self.task_logger._log(
-                "DEBUG", f"Retrying tasks"
-            )
+            self.task_logger._log("DEBUG", f"Retrying tasks")
             self.task_queues.put(TERMINATION_SIGNAL)
             self.run_with_executor(executor)
 
@@ -921,9 +905,7 @@ class TaskManager:
         self.task_queues.reset()
 
         if not self.is_tasks_finished():
-            self.task_logger._log(
-                "DEBUG", f"Retrying tasks"
-            )
+            self.task_logger._log("DEBUG", f"Retrying tasks")
             await self.task_queues.put_async(TERMINATION_SIGNAL)
             await self.run_in_async()
 

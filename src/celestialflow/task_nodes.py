@@ -3,7 +3,7 @@ import time
 import redis
 
 from .task_stage import TaskStage
-from .task_types import TaskEnvelope  
+from .task_types import TaskEnvelope
 
 
 class RemoteWorkerError(Exception):
@@ -299,8 +299,8 @@ class TaskRedisAck(TaskStage):
 class TaskRouter(TaskStage):
     def __init__(self):
         super().__init__(
-            func=self._route,          
-            execution_mode="serial", 
+            func=self._route,
+            execution_mode="serial",
             max_retries=0,
         )
         # 每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
@@ -308,13 +308,11 @@ class TaskRouter(TaskStage):
 
     def _route(self, routed: tuple) -> tuple:
         if not (isinstance(routed, tuple) and len(routed) == 2):
-            raise TypeError(
-                f"TaskRouter expects tuple, got {type(routed).__name__}"
-            )
+            raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
         if routed[0] not in self.route_output_counters:
             raise ValueError(f"Unknown target: {routed[0]}")
         return routed
-    
+
     def update_output_counter(self, target: str):
         self.route_output_counters[target].value += 1
 
@@ -344,10 +342,8 @@ class TaskRouter(TaskStage):
         self.update_output_counter(target)
 
         self.task_logger.router_success(
-            self.get_func_name(), 
-            self.get_task_info(task), 
-            target, 
+            self.get_func_name(),
+            self.get_task_info(task),
+            target,
             time.time() - start_time,
         )
-
-        

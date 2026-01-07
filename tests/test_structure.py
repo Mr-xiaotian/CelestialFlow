@@ -272,9 +272,7 @@ def test_fanin():
 
 def test_grid():
     # 1. 构造网格
-    grid = [
-        [TaskStage(add_one_sleep, "thread", 2) for _ in range(4)] for _ in range(4)
-    ]
+    grid = [[TaskStage(add_one_sleep, "thread", 2) for _ in range(4)] for _ in range(4)]
 
     # 2. 构建 TaskGrid 实例
     task_grid = TaskGrid(grid, "serial")
