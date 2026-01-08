@@ -358,7 +358,10 @@ class TaskGraph:
         self.stages_status_dict[stage_tag]["status"] = StageStatus.RUNNING
         self.stages_status_dict[stage_tag]["start_time"] = time.time()
 
-        stage.ctree_client = self.ctree_client
+        if self._use_ctree:
+            stage.set_ctree(self._ctree_host, self._ctree_port)
+        else:
+            stage.set_nullctree(self.ctree_client.event_id, self.ctree_client.event_lock)
 
         if stage.stage_mode == "process":
             p = multiprocessing.Process(

@@ -191,8 +191,8 @@ def test_graph_1():
     input_tasks = {
         A.get_stage_tag(): range(10),
     }
-    stage_modes = ["process"]
-    execution_modes = ["thread"]
+    stage_modes = ["serial", "process"]
+    execution_modes = ["serial", "thread"]
 
     # 开始任务链
     result = graph.test_methods(input_tasks, stage_modes, execution_modes)

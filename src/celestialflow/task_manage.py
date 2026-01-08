@@ -229,6 +229,15 @@ class TaskManager:
         if not self.ctree_client.health():
             self.ctree_client = NullCelestialTreeClient()
 
+    def set_nullctree(self, event_id=None, event_lock=None):
+        """
+        设置NullCelestialTreeClient
+
+        :param event_id: 事件ID
+        :param event_lock: 事件锁
+        """
+        self.ctree_client = NullCelestialTreeClient(event_id, event_lock)
+
     def reset_counter(self):
         """
         重置计数器
