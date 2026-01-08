@@ -190,9 +190,10 @@ class TaskLogger:
 
     def get_source_error(self, queue_tag, stage_tag, exception):
         exception_text = str(exception).replace("\n", " ")
+        edge = f"'{queue_tag}' -> '{stage_tag}'"
         self._log(
             "WARNING",
-            f"Error get from Edge({queue_tag} -> {stage_tag}): ({type(exception).__name__}){exception_text}.",
+            f"Get from Edge({edge}): ({type(exception).__name__}){exception_text}.",
         )
 
     # ==== reporter ====

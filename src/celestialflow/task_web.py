@@ -1,5 +1,4 @@
 import os
-import sys
 import threading
 from fastapi import FastAPI, Request, Body
 from fastapi.responses import JSONResponse, HTMLResponse

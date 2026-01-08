@@ -186,12 +186,13 @@ def test_graph_1():
     # 初始化 TaskGraph, 并设置根节点
     graph = TaskGraph([A])
     graph.set_reporter(True, host=report_host, port=report_port)
+    # graph.set_ctree(True, host=ctree_host, port=ctree_port)
 
     input_tasks = {
         A.get_stage_tag(): range(10),
     }
-    stage_modes = ["serial", "process"]
-    execution_modes = ["serial", "thread"]
+    stage_modes = ["process"]
+    execution_modes = ["thread"]
 
     # 开始任务链
     result = graph.test_methods(input_tasks, stage_modes, execution_modes)

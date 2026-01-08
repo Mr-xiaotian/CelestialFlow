@@ -1,6 +1,7 @@
 import json
 import threading
 import requests
+from multiprocessing import Value as MPValue, Lock as MPLock
 from typing import List, Optional, Dict, Any, Callable
 
 
@@ -176,11 +177,13 @@ class Client:
 
 
 class NullClient:
-    event_id = 0
+    event_id = MPValue("i", 0)
+    event_lock = MPLock()
 
     def emit(self, *args, **kwargs):
-        self.event_id += 1
-        return self.event_id
+        with self.event_lock:
+            self.event_id.value += 1
+            return self.event_id.value
 
     def get_event(self, *args, **kwargs):
         return None

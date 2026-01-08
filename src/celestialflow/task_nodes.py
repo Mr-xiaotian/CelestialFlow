@@ -1,6 +1,7 @@
 import json
 import time
 import redis
+from multiprocessing import Value as MPValue
 
 from .task_stage import TaskStage
 from .task_types import TaskEnvelope
@@ -20,6 +21,12 @@ class TaskSplitter(TaskStage):
             execution_mode="serial",
             max_retries=0,
         )
+
+    def init_extra_counter(self):
+        self.split_counter = MPValue("i", 0)
+
+    def reset_extra_counter(self):
+        self.split_counter.value = 0
 
     def _split_task(self, *task):
         """
@@ -79,6 +86,65 @@ class TaskSplitter(TaskStage):
             self.func.__name__,
             self.get_task_info(task),
             split_count,
+            time.time() - start_time,
+        )
+
+
+class TaskRouter(TaskStage):
+    def __init__(self):
+        super().__init__(
+            func=self._route,
+            execution_mode="serial",
+            max_retries=0,
+        )
+
+    def init_extra_counter(self):
+        # 每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
+        self.route_counters: dict = {}
+
+    def reset_extra_counter(self):
+        for counter in self.route_counters.values():
+            counter.value = 0
+
+    def _route(self, routed: tuple) -> tuple:
+        if not (isinstance(routed, tuple) and len(routed) == 2):
+            raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
+        if routed[0] not in self.route_counters:
+            raise ValueError(f"Unknown target: {routed[0]}")
+        return routed
+
+    def update_output_counter(self, target: str):
+        self.route_counters[target].value += 1
+
+    def process_task_success(self, task_envelope: TaskEnvelope, _, start_time):
+        """
+        统一处理成功任务
+
+        :param task_envelope: 完成的任务
+        :param result: 任务的结果
+        :param start_time: 任务开始时间
+        """
+        target, task = task_envelope.task
+        task_hash = task_envelope.hash
+        task_id = task_envelope.id
+
+        # 清理 retry_time_dict
+        self.retry_time_dict.pop(task_hash, None)
+
+        idx = self.result_queues.get_tag_idx(target)
+        routed_id = self.ctree_client.emit(
+            "task.route", parents=[task_id], message=f"In '{self.get_stage_tag()}'"
+        )
+        routed_envelope = TaskEnvelope.wrap(task, routed_id)
+        self.result_queues.put_channel(routed_envelope, idx)
+
+        self.update_success_counter()
+        self.update_output_counter(target)
+
+        self.task_logger.router_success(
+            self.get_func_name(),
+            self.get_task_info(task),
+            target,
             time.time() - start_time,
         )
 
@@ -294,56 +360,3 @@ class TaskRedisAck(TaskStage):
                 )
 
             time.sleep(0.1)
-
-
-class TaskRouter(TaskStage):
-    def __init__(self):
-        super().__init__(
-            func=self._route,
-            execution_mode="serial",
-            max_retries=0,
-        )
-        # 每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
-        self.route_counters: dict = {}
-
-    def _route(self, routed: tuple) -> tuple:
-        if not (isinstance(routed, tuple) and len(routed) == 2):
-            raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
-        if routed[0] not in self.route_counters:
-            raise ValueError(f"Unknown target: {routed[0]}")
-        return routed
-
-    def update_output_counter(self, target: str):
-        self.route_counters[target].value += 1
-
-    def process_task_success(self, task_envelope: TaskEnvelope, _, start_time):
-        """
-        统一处理成功任务
-
-        :param task_envelope: 完成的任务
-        :param result: 任务的结果
-        :param start_time: 任务开始时间
-        """
-        target, task = task_envelope.task
-        task_hash = task_envelope.hash
-        task_id = task_envelope.id
-
-        # 清理 retry_time_dict
-        self.retry_time_dict.pop(task_hash, None)
-
-        idx = self.result_queues.get_tag_idx(target)
-        routed_id = self.ctree_client.emit(
-            "task.route", parents=[task_id], message=f"In '{self.get_stage_tag()}'"
-        )
-        routed_envelope = TaskEnvelope.wrap(task, routed_id)
-        self.result_queues.put_channel(routed_envelope, idx)
-
-        self.update_success_counter()
-        self.update_output_counter(target)
-
-        self.task_logger.router_success(
-            self.get_func_name(),
-            self.get_task_info(task),
-            target,
-            time.time() - start_time,
-        )

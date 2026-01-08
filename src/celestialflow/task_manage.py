@@ -82,8 +82,6 @@ class TaskManager:
         """
         初始化计数器
         """
-        from .task_nodes import TaskSplitter
-
         self.task_counter = SumCounter()
         self.success_counter = MPValue("i", 0)
         self.error_counter = MPValue("i", 0)
@@ -91,8 +89,13 @@ class TaskManager:
 
         self.counter_lock = NoOpContext()  # Lock()
 
-        if isinstance(self, TaskSplitter):
-            self.split_counter = MPValue("i", 0)
+        self.init_extra_counter()
+
+    def init_extra_counter(self):
+        """
+        初始化额外计数器, 用于有特殊需要的task_node
+        """
+        pass
 
     def init_env(
         self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None
@@ -230,15 +233,18 @@ class TaskManager:
         """
         重置计数器
         """
-        from .task_nodes import TaskSplitter
-
         self.task_counter.reset()
         self.success_counter.value = 0
         self.error_counter.value = 0
         self.duplicate_counter.value = 0
 
-        if isinstance(self, TaskSplitter):
-            self.split_counter.value = 0
+        self.reset_extra_counter()
+
+    def reset_extra_counter(self):
+        """
+        重置额外计数器, 用于有特殊需要的task_node
+        """
+        pass
 
     def get_func_name(self) -> str:
         """
@@ -258,7 +264,7 @@ class TaskManager:
             return self._manager_tag
         self._manager_tag = f"Manager[{self.func.__name__}]"
         return self._manager_tag
-    
+
     def get_execution_mode_desc(self) -> str:
         """
         获取当前节点执行模式
