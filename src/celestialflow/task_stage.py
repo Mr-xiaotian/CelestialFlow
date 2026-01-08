@@ -118,11 +118,7 @@ class TaskStage(TaskManager):
         """
         return {
             "stage_mode": self.stage_mode,
-            "execution_mode": (
-                self.execution_mode
-                if self.execution_mode == "serial"
-                else f"{self.execution_mode}-{self.worker_limit}"
-            ),
+            "execution_mode": self.get_execution_mode_desc(),
             "func_name": self.get_func_name(),
             "class_name": self.__class__.__name__,
         }
@@ -158,29 +154,30 @@ class TaskStage(TaskManager):
         :param fail_queue: 失败队列
         """
         start_time = time.time()
-        self.active = True
         self.init_progress()
         self.init_env(input_queues, output_queues, fail_queue, logger_queue)
         self.task_logger.start_stage(
             self.get_stage_tag(), self.execution_mode, self.worker_limit
         )
 
-        # 根据模式运行对应的任务处理函数
-        if self.execution_mode == "thread":
-            self.run_with_executor(self.thread_pool)
-        else:
-            self.run_in_serial()
+        try:
+            # 根据模式运行对应的任务处理函数
+            if self.execution_mode == "thread":
+                self.run_with_executor(self.thread_pool)
+            else:
+                self.run_in_serial()
 
-        # cleanup_mpqueue(input_queues) # 会影响之后finalize_nodes
-        self.release_pool()
-        self.result_queues.put(TERMINATION_SIGNAL)
+        finally:
+            # cleanup_mpqueue(input_queues) # 会影响之后finalize_nodes
+            self.result_queues.put(TERMINATION_SIGNAL)
+            self.release_pool()
 
-        self.progress_manager.close()
-        self.task_logger.end_stage(
-            self.get_stage_tag(),
-            self.execution_mode,
-            time.time() - start_time,
-            self.success_counter.value,
-            self.error_counter.value,
-            self.duplicate_counter.value,
-        )
+            self.progress_manager.close()
+            self.task_logger.end_stage(
+                self.get_stage_tag(),
+                self.execution_mode,
+                time.time() - start_time,
+                self.success_counter.value,
+                self.error_counter.value,
+                self.duplicate_counter.value,
+            )

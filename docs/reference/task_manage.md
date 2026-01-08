@@ -54,7 +54,7 @@ TaskManager 将根据设定的执行模式并发或异步地执行任务，并�
 ### 3. 获取任务结果
 任务执行完成后，可以通过 get_success_dict 方法获取执行结果，或通过 get_error_dict 获取失败的任务及其对应的异常。
 
-注意: 只有在`enable_result_cache=True`时才会记录结果信息， 否则 get_success_dict 和 get_error_dict返回值为空。
+注意: 只有在`enable_result_cache=True`时才会记录结果信息， 否则 get_success_dict 和 get_error_dict 返回值为空。
 
 ```python
 # 获取成功的结果
@@ -120,18 +120,13 @@ class ExampleTaskManager(TaskManager):
     def process_result_dict():
         # 这个函数大多数情况下是不需要的, 但有时我们需要跟踪每一个任务的处理情况
         # 这里用的是默认实现
-        success_dict = self.get_success_dict()
-        error_dict = self.get_error_dict()
-
-        return {**success_dict, **error_dict}
+        return {**self.success_dict, **self.error_dict}
 
     def handle_error_dict(self):
         # 同样的, 这个函数大多数也用不到, 除非你想得到更系统的错误返回形式
         # 这里用的是默认实现
-        error_dict = self.get_error_dict()
-
         error_groups = defaultdict(list)
-        for task, error in error_dict.items():
+        for task, error in self.error_dict.items():
             error_groups[error].append(task)
 
         return dict(error_groups)

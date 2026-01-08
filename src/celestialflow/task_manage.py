@@ -258,6 +258,14 @@ class TaskManager:
             return self._manager_tag
         self._manager_tag = f"Manager[{self.func.__name__}]"
         return self._manager_tag
+    
+    def get_execution_mode_desc(self) -> str:
+        """
+        获取当前节点执行模式
+
+        :return: 当前节点执行模式
+        """
+        return self.execution_mode if self.execution_mode == "serial" else f"{self.execution_mode}-{self.worker_limit}"
 
     def add_retry_exceptions(self, *exceptions):
         """
@@ -400,7 +408,7 @@ class TaskManager:
 
     def get_args(self, task):
         """
-        从 obj 中获取参数, 可根据需要覆写
+        从 obj 中获取参数。可根据需要覆写
 
         在这个示例中，我们根据 unpack_task_args 决定是否解包参数
         """
@@ -410,7 +418,7 @@ class TaskManager:
 
     def process_result(self, task, result):
         """
-        从结果队列中获取结果，并进行处理, 可根据需要覆写
+        从结果队列中获取结果，并进行处理。可根据需要覆写
 
         在这个示例中，我们只是简单地返回结果
         """
@@ -418,32 +426,27 @@ class TaskManager:
 
     def process_result_dict(self):
         """
-        处理结果字典
+        处理结果字典。可根据需要覆写
 
         在这个示例中，我们合并了字典并返回
         """
-        success_dict = self.get_success_dict()
-        error_dict = self.get_error_dict()
-
-        return {**success_dict, **error_dict}
+        return {**self.success_dict, **self.error_dict}
 
     def handle_error_dict(self):
         """
-        处理错误字典
+        处理错误字典。可根据需要覆写
 
         在这个示例中，我们将列表合并为错误组
         """
-        error_dict = self.get_error_dict()
-
         error_groups = defaultdict(list)
-        for task, error in error_dict.items():
+        for task, error in self.error_dict.items():
             error_groups[error].append(task)
 
         return dict(error_groups)  # 转换回普通字典
 
     def get_task_info(self, task) -> str:
         """
-        获取任务参数信息的可读字符串表示。
+        获取任务参数信息的可读字符串表示
 
         :param task: 任务对象
         :return: 任务参数信息字符串
@@ -493,7 +496,7 @@ class TaskManager:
         result_id = self.ctree_client.emit("task.success", parents=[task_id])
         result_envelope = TaskEnvelope.wrap(result, result_id)
 
-        # ✅ 清理 retry_time_dict
+        # 清理 retry_time_dict
         self.retry_time_dict.pop(task_hash, None)
 
         self.update_success_counter()
@@ -511,7 +514,7 @@ class TaskManager:
         self, task_envelope: TaskEnvelope, result, start_time
     ):
         """
-        异步版本：统一处理成功任务
+        统一处理成功任务, 异步版本
 
         :param task_envelope: 完成的任务
         :param result: 任务的结果
@@ -528,7 +531,7 @@ class TaskManager:
         result_id = self.ctree_client.emit("task.success", parents=[task_id])
         result_envelope = TaskEnvelope.wrap(result, result_id)
 
-        # ✅ 清理 retry_time_dict
+        # 清理 retry_time_dict
         self.retry_time_dict.pop(task_hash, None)
 
         await self.update_success_counter_async()
@@ -585,7 +588,7 @@ class TaskManager:
 
             error_id = self.ctree_client.emit("task.error", parents=[task_id])
 
-            # ✅ 清理 retry_time_dict
+            # 清理 retry_time_dict
             self.retry_time_dict.pop(task_hash, None)
 
             self.update_error_counter()
@@ -644,7 +647,7 @@ class TaskManager:
 
             error_id = self.ctree_client.emit("task.error", parents=[task_id])
 
-            # ✅ 清理 retry_time_dict
+            # 清理 retry_time_dict
             self.retry_time_dict.pop(task_hash, None)
 
             self.update_error_counter()
@@ -690,35 +693,36 @@ class TaskManager:
         self.task_logger.start_manager(
             self.get_func_name(),
             self.task_counter.value,
-            self.execution_mode,
-            self.worker_limit,
+            self.get_execution_mode_desc(),
         )
 
-        # 根据模式运行对应的任务处理函数
-        if self.execution_mode == "thread":
-            self.run_with_executor(self.thread_pool)
-        elif self.execution_mode == "process":
-            self.run_with_executor(self.process_pool)
-            # cleanup_mpqueue(self.task_queues)
-        elif self.execution_mode == "async":
-            # don't suggest, please use start_async
-            asyncio.run(self.run_in_async())
-        else:
-            self.set_execution_mode("serial")
-            self.run_in_serial()
+        try:
+            # 根据模式运行对应的任务处理函数
+            if self.execution_mode == "thread":
+                self.run_with_executor(self.thread_pool)
+            elif self.execution_mode == "process":
+                self.run_with_executor(self.process_pool)
+                # cleanup_mpqueue(self.task_queues)
+            elif self.execution_mode == "async":
+                # don't suggest, please use start_async
+                asyncio.run(self.run_in_async())
+            else:
+                self.set_execution_mode("serial")
+                self.run_in_serial()
 
-        self.release_pool()
-        self.progress_manager.close()
+        finally: 
+            self.release_pool()
+            self.progress_manager.close()
 
-        self.task_logger.end_manager(
-            self.get_func_name(),
-            self.execution_mode,
-            time.time() - start_time,
-            self.success_counter.value,
-            self.error_counter.value,
-            self.duplicate_counter.value,
-        )
-        self.log_listener.stop()
+            self.task_logger.end_manager(
+                self.get_func_name(),
+                self.execution_mode,
+                time.time() - start_time,
+                self.success_counter.value,
+                self.error_counter.value,
+                self.duplicate_counter.value,
+            )
+            self.log_listener.stop()
 
     async def start_async(self, task_source: Iterable):
         """
@@ -737,24 +741,25 @@ class TaskManager:
         self.task_logger.start_manager(
             self.get_func_name(),
             self.task_counter.value,
-            "async(await)",
-            self.worker_limit,
+            self.get_execution_mode_desc(),
         )
 
-        await self.run_in_async()
+        try:
+            await self.run_in_async()
 
-        self.release_pool()
-        self.progress_manager.close()
+        finally:
+            self.release_pool()
+            self.progress_manager.close()
 
-        self.task_logger.end_manager(
-            self.get_func_name(),
-            self.execution_mode,
-            time.time() - start_time,
-            self.success_counter.value,
-            self.error_counter.value,
-            self.duplicate_counter.value,
-        )
-        self.log_listener.stop()
+            self.task_logger.end_manager(
+                self.get_func_name(),
+                self.execution_mode,
+                time.time() - start_time,
+                self.success_counter.value,
+                self.error_counter.value,
+                self.duplicate_counter.value,
+            )
+            self.log_listener.stop()
 
     def run_in_serial(self):
         """
@@ -785,7 +790,7 @@ class TaskManager:
         self.task_queues.reset()
 
         if not self.is_tasks_finished():
-            self.task_logger._log("DEBUG", f"Retrying tasks")
+            self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
             self.task_queues.put(TERMINATION_SIGNAL)
             self.run_in_serial()
 
@@ -851,7 +856,7 @@ class TaskManager:
             task_start_dict[task_id] = time.time()
             future = executor.submit(self.func, *self.get_args(task))
             future.add_done_callback(
-                lambda f, t=envelope: on_task_done(f, t, self.progress_manager)
+                lambda f, t_e=envelope: on_task_done(f, t_e, self.progress_manager)
             )
 
         # 等待所有已提交任务完成（包括回调）
@@ -861,7 +866,7 @@ class TaskManager:
         self.task_queues.reset()
 
         if not self.is_tasks_finished():
-            self.task_logger._log("DEBUG", f"Retrying tasks")
+            self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
             self.task_queues.put(TERMINATION_SIGNAL)
             self.run_with_executor(executor)
 
@@ -871,7 +876,7 @@ class TaskManager:
         """
         semaphore = asyncio.Semaphore(self.worker_limit)  # 限制并发数量
 
-        async def sem_task(envelope):
+        async def sem_task(envelope: TaskEnvelope):
             start_time = time.time()  # 记录任务开始时间
             async with semaphore:  # 使用信号量限制并发
                 result = await self._run_single_task(envelope.task)
@@ -908,7 +913,7 @@ class TaskManager:
         self.task_queues.reset()
 
         if not self.is_tasks_finished():
-            self.task_logger._log("DEBUG", f"Retrying tasks")
+            self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
             await self.task_queues.put_async(TERMINATION_SIGNAL)
             await self.run_in_async()
 

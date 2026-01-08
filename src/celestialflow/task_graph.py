@@ -396,6 +396,7 @@ class TaskGraph:
             stage_status["status"] = StageStatus.STOPPED  # 已停止
 
         # 收集并持久化每个 stage 中未消费的任务
+        failures = []
         for stage_tag, stage_status in self.stages_status_dict.items():
             in_queue: TaskQueue = stage_status["in_queue"]
             remaining_sources = in_queue.drain()
@@ -405,8 +406,8 @@ class TaskGraph:
 
             # 持久化逻辑
             ts = time.time()
-            failures = [(ts, stage_tag, "UnconsumedError", str(source.task)) for source in remaining_sources]
-            self._persist_failures(failures)
+            failures.extend([(ts, stage_tag, "UnconsumedError", str(source.task)) for source in remaining_sources])
+        self._persist_failures(failures)
 
     def release_resources(self):
         """
@@ -421,6 +422,7 @@ class TaskGraph:
         """
         消费 fail_queue, 构建失败字典
         """
+        failures = []
         while True:
             try:
                 item: dict = self.fail_queue.get_nowait()
@@ -440,8 +442,8 @@ class TaskGraph:
                     "task_id": format_repr(task_str, 100),
                 }
             )
-
-            self._persist_single_failure(timestamp, stage_tag, error_info, task_str)
+            failures.append((timestamp, stage_tag, error_info, task_str))
+        self._persist_failures(failures)
 
     def _persist_structure_metadata(self):
         """
@@ -459,28 +461,11 @@ class TaskGraph:
         }
         append_jsonl_log(log_item, self.error_jsonl_path, self.task_logger)
 
-    def _persist_single_failure(self, timestamp, stage_tag, error_info, task_str):
-        """
-        增量写入单条错误日志到 jsonl 文件中
-
-        :param timestamp: 错误时间戳
-        :param stage_tag: 阶段标签
-        :param error_info: 错误信息
-        :param task_str: 任务字符串
-        """
-        log_item = {
-            "timestamp": datetime.fromtimestamp(timestamp).isoformat(),
-            "stage": stage_tag,
-            "error": error_info,
-            "task": task_str,
-        }
-        append_jsonl_log(log_item, self.error_jsonl_path, self.task_logger)
-
     def _persist_failures(self, failures: Iterable[tuple]):
         """
         批量写入多条错误日志到 jsonl 文件中
 
-        :param failures: 错误日志列表
+        :param failures: 错误日志列表(错误时间戳, 阶段标签, 错误信息, 任务字符串)
         """
         log_items = (
             {

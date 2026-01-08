@@ -65,9 +65,8 @@ class TaskLogger:
         self.log_queue.put({"level": level.upper(), "message": message})
 
     # ==== manager ====
-    def start_manager(self, func_name, task_num, execution_mode, worker_limit):
-        text = f"'Manager[{func_name}]' start {task_num} tasks by {execution_mode}"
-        text += f"({worker_limit} workers)." if execution_mode != "serial" else "."
+    def start_manager(self, func_name, task_num, execution_mode_desc):
+        text = f"'Manager[{func_name}]' start {task_num} tasks by {execution_mode_desc}."
         self._log("INFO", text)
 
     def end_manager(
