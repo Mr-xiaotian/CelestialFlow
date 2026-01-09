@@ -34,6 +34,12 @@ class TaskSplitter(TaskStage):
         实际上这个函数不执行逻辑，仅用于符合 TaskStage 架构
         """
         return task
+
+    def process_result(self, task, result):
+        """
+        处理不可迭代的任务结果
+        """
+        return tuple(result)
     
     def update_split_counter(self, add_value):
         self.split_counter.value += add_value
@@ -49,7 +55,6 @@ class TaskSplitter(TaskStage):
 
             self.task_logger.split_trace(
                 self.func.__name__,
-                self.get_task_info(item),
                 idx+1,
                 split_count,
                 task_id,
@@ -116,7 +121,7 @@ class TaskRouter(TaskStage):
     def update_route_counter(self, target: str):
         self.route_counters[target].value += 1
 
-    def process_task_success(self, task_envelope: TaskEnvelope, _, start_time):
+    def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):
         """
         统一处理成功任务
 
@@ -128,6 +133,8 @@ class TaskRouter(TaskStage):
         task_hash = task_envelope.hash
         task_id = task_envelope.id
 
+        processed_result = self.process_result(task, result)
+
         # 清理 retry_time_dict
         self.retry_time_dict.pop(task_hash, None)
 
@@ -135,7 +142,7 @@ class TaskRouter(TaskStage):
         route_id = self.ctree_client.emit(
             "task.route", parents=[task_id], message=f"In '{self.get_tag()}'"
         )
-        routed_envelope = TaskEnvelope.wrap(task, route_id)
+        routed_envelope = TaskEnvelope.wrap(processed_result, route_id)
         self.result_queues.put_channel(routed_envelope, idx)
 
         self.update_success_counter()

@@ -424,7 +424,7 @@ class TaskManager:
 
         在这个示例中，我们根据 unpack_task_args 决定是否解包参数
         """
-        if self.unpack_task_args and isinstance(task, tuple):
+        if self.unpack_task_args:
             return task
         return (task,)
 
@@ -506,7 +506,7 @@ class TaskManager:
             self.success_dict[task] = processed_result
 
         result_id = self.ctree_client.emit("task.success", parents=[task_id], message=f"In '{self.get_tag()}'")
-        result_envelope = TaskEnvelope.wrap(result, result_id)
+        result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
         # 清理 retry_time_dict
         self.retry_time_dict.pop(task_hash, None)
@@ -542,7 +542,7 @@ class TaskManager:
             self.success_dict[task] = processed_result
 
         result_id = self.ctree_client.emit("task.success", parents=[task_id], message=f"In '{self.get_tag()}'")
-        result_envelope = TaskEnvelope.wrap(result, result_id)
+        result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
         # 清理 retry_time_dict
         self.retry_time_dict.pop(task_hash, None)

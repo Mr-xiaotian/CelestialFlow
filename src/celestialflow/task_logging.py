@@ -156,10 +156,10 @@ class TaskLogger:
         )
 
     # ==== splitter ====
-    def split_trace(self, func_name, task_info, part_index, part_total, parent_id, split_id):
+    def split_trace(self, func_name, part_index, part_total, parent_id, split_id):
         self._log(
             "TRACE",
-            f"In '{func_name}', Task {task_info} split part {part_index}/{part_total}. [{parent_id}->{split_id}*]",
+            f"In '{func_name}', Task split part {part_index}/{part_total}. [{parent_id}->{split_id}*]",
     )
 
     def split_success(self, func_name, task_info, split_count, use_time):
