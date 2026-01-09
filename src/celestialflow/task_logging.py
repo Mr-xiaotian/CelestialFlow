@@ -176,23 +176,15 @@ class TaskLogger:
         )
 
     # ==== queue ====
-    def put_source(self, source, queue_tag, stage_tag, direction):
-        if isinstance(source, TerminationSignal):
-            source = "TerminationSignal"
+    def put_source(self, source_id, queue_tag, stage_tag, direction):
+        left, right = (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
+        edge = f"'{left}' -> '{right}'"
+        self._log("TRACE", f"Put task#{source_id} into Edge({edge}).")
 
-        edge = (
-            f"'{queue_tag}' -> '{stage_tag}'"
-            if direction == "in"
-            else f"'{stage_tag}' -> '{queue_tag}'"
-        )
-        self._log("TRACE", f"Put {source} into Edge({edge}).")
-
-    def get_source(self, source, queue_tag, stage_tag):
-        if isinstance(source, TerminationSignal):
-            source = "TerminationSignal"
-
-        edge = f"'{queue_tag}' -> '{stage_tag}'"
-        self._log("TRACE", f"Get {source} from Edge({edge}).")
+    def get_source(self, source_id, queue_tag, stage_tag, direction="in"):
+        left, right = (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
+        edge = f"'{left}' -> '{right}'"
+        self._log("TRACE", f"Get task#{source_id} from Edge({edge}).")
 
     def get_source_error(self, queue_tag, stage_tag, exception):
         exception_text = str(exception).replace("\n", " ")

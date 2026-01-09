@@ -149,7 +149,7 @@ def test_splitter_0():
     generate_stage.set_graph_context(
         [logger_stage, splitter], stage_mode="process", stage_name="GenURLs"
     )
-    logger_stage.set_graph_context([], stage_mode="process", stage_name="Loger")
+    logger_stage.set_graph_context([], stage_mode="process", stage_name="Logger")
     splitter.set_graph_context(
         [download_stage, parse_stage], stage_mode="process", stage_name="Splitter"
     )
@@ -161,6 +161,7 @@ def test_splitter_0():
     # 初始化 TaskGraph
     graph = TaskGraph([generate_stage])
     graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_ctree(True, host=ctree_host, port=ctree_port)
 
     graph.start_graph(
         {

@@ -50,7 +50,7 @@ class TaskSplitter(TaskStage):
             self.task_logger.split_trace(
                 self.func.__name__,
                 self.get_task_info(item),
-                idx,
+                idx+1,
                 split_count,
                 f"[{task_id}->{splited_id}*]"
             )

@@ -88,7 +88,7 @@ class TaskQueue:
         """
         self.queue_list[channel_index].put(source)
         self.task_logger.put_source(
-            source, self.queue_tag[channel_index], self.stage_tag, self.direction
+            source.id, self.queue_tag[channel_index], self.stage_tag, self.direction
         )
 
     async def put_channel_async(self, source: TaskEnvelope, channel_index: int):
@@ -100,7 +100,7 @@ class TaskQueue:
         """
         await self.queue_list[channel_index].put(source)
         self.task_logger.put_source(
-            source, self.queue_tag[channel_index], self.stage_tag, self.direction
+            source.id, self.queue_tag[channel_index], self.stage_tag, self.direction
         )
 
     def get(self, poll_interval: float = 0.01) -> TaskEnvelope | TerminationSignal:
@@ -115,8 +115,8 @@ class TaskQueue:
         if total_queues == 1:
             # ✅ 只有一个队列时，使用阻塞式 get，提高效率
             queue = self.queue_list[0]
-            source = queue.get()  # 阻塞等待，无需 sleep
-            self.task_logger.get_source(source, self.queue_tag[0], self.stage_tag)
+            source: TaskEnvelope | TerminationSignal = queue.get()  # 阻塞等待，无需 sleep
+            self.task_logger.get_source(source.id, self.queue_tag[0], self.stage_tag)
 
             if isinstance(source, TerminationSignal):
                 self.terminated_queue_set.add(0)
@@ -134,7 +134,7 @@ class TaskQueue:
                 try:
                     source = queue.get_nowait()
                     self.task_logger.get_source(
-                        source, self.queue_tag[idx], self.stage_tag
+                        source.id, self.queue_tag[idx], self.stage_tag
                     )
 
                     if isinstance(source, TerminationSignal):
@@ -172,8 +172,8 @@ class TaskQueue:
         if total_queues == 1:
             # ✅ 单队列直接 await 阻塞等待
             queue = self.queue_list[0]
-            source = await queue.get()
-            self.task_logger.get_source(source, self.queue_tag[0], self.stage_tag)
+            source: TaskEnvelope | TerminationSignal = await queue.get()
+            self.task_logger.get_source(source.id, self.queue_tag[0], self.stage_tag)
 
             if isinstance(source, TerminationSignal):
                 self.terminated_queue_set.add(0)
@@ -189,9 +189,9 @@ class TaskQueue:
 
                 queue = self.queue_list[idx]
                 try:
-                    source = queue.get_nowait()
+                    source: TaskEnvelope | TerminationSignal = queue.get_nowait()
                     self.task_logger.get_source(
-                        source, self.queue_tag[idx], self.stage_tag
+                        source.id, self.queue_tag[idx], self.stage_tag
                     )
 
                     if isinstance(source, TerminationSignal):
@@ -225,9 +225,9 @@ class TaskQueue:
             queue = self.queue_list[idx]
             while True:
                 try:
-                    source = queue.get_nowait()
+                    source: TaskEnvelope | TerminationSignal = queue.get_nowait()
                     self.task_logger.get_source(
-                        source, self.queue_tag[idx], self.stage_tag
+                        source.id, self.queue_tag[idx], self.stage_tag
                     )
 
                     if isinstance(source, TerminationSignal):

@@ -5,7 +5,7 @@ from multiprocessing import Value as MPValue
 
 class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
-
+    id = "__TERMINATION_SIGNAL__"
     pass
 
 
