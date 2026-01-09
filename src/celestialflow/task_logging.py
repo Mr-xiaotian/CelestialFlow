@@ -122,44 +122,44 @@ class TaskLogger:
         self._log("INFO", f"TaskGraph end. Use {use_time:.2f} second.")
 
     # ==== task ====
-    def task_inject(self, func_name, task_info, source, event_trace):
+    def task_input(self, func_name, task_info, source, input_id):
         self._log(
             "DEBUG",
-            f"In '{func_name}', Task {task_info} injected into {source}. {event_trace}",
+            f"In '{func_name}', Task {task_info} input into {source}. [{input_id}*]",
         )
 
     def task_success(
-        self, func_name, task_info, execution_mode, result_info, use_time, event_trace
+        self, func_name, task_info, execution_mode, result_info, use_time, parent_id, success_id
     ):
         self._log(
             "SUCCESS",
-            f"In '{func_name}', Task {task_info} completed by {execution_mode}. Result is {result_info}. Used {use_time:.2f} seconds. {event_trace}",
+            f"In '{func_name}', Task {task_info} completed by {execution_mode}. Result is {result_info}. Used {use_time:.2f} seconds. [{parent_id}->{success_id}*]",
         )
 
-    def task_retry(self, func_name, task_info, retry_times, exception, event_trace):
+    def task_retry(self, func_name, task_info, retry_times, exception, parent_id, retry_id):
         self._log(
             "WARNING",
-            f"In '{func_name}', Task {task_info} failed {retry_times} times and will retry: ({type(exception).__name__}). {event_trace}",
+            f"In '{func_name}', Task {task_info} failed {retry_times} times and will retry: ({type(exception).__name__}). [{parent_id}->{retry_id}*]",
         )
 
-    def task_error(self, func_name, task_info, exception, event_trace):
+    def task_error(self, func_name, task_info, exception, parent_id, error_id):
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "ERROR",
-            f"In '{func_name}', Task {task_info} failed and can't retry: ({type(exception).__name__}){exception_text}. {event_trace}",
+            f"In '{func_name}', Task {task_info} failed and can't retry: ({type(exception).__name__}){exception_text}. [{parent_id}->{error_id}*]",
         )
 
-    def task_duplicate(self, func_name, task_info, event_trace):
+    def task_duplicate(self, func_name, task_info, parent_id, duplicate_id):
         self._log(
             "SUCCESS",
-            f"In '{func_name}', Task {task_info} has been duplicated. {event_trace}",
+            f"In '{func_name}', Task {task_info} has been duplicated. [{parent_id}->{duplicate_id}*]",
         )
 
     # ==== splitter ====
-    def split_trace(self, func_name, task_info, part_index, part_total, event_trace):
+    def split_trace(self, func_name, task_info, part_index, part_total, parent_id, split_id):
         self._log(
             "TRACE",
-            f"In '{func_name}', Task {task_info} split part {part_index}/{part_total}. {event_trace}",
+            f"In '{func_name}', Task {task_info} split part {part_index}/{part_total}. [{parent_id}->{split_id}*]",
     )
 
     def split_success(self, func_name, task_info, split_count, use_time):
@@ -169,10 +169,10 @@ class TaskLogger:
         )
 
     # ==== router ====
-    def route_success(self, func_name, task_info, target_node, use_time, event_trace):
+    def route_success(self, func_name, task_info, target_node, use_time, parent_id, route_id):
         self._log(
             "SUCCESS",
-            f"In '{func_name}', Task {task_info} has routed to {target_node}. Used {use_time:.2f} seconds. {event_trace}",
+            f"In '{func_name}', Task {task_info} has routed to {target_node}. Used {use_time:.2f} seconds. [{parent_id}->{route_id}*]",
         )
 
     # ==== queue ====

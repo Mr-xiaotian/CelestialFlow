@@ -41,10 +41,10 @@ class TaskSplitter(TaskStage):
     def put_split_result(self, result: tuple, task_id: int) -> int:
         split_count = len(result)
         for idx, item in enumerate(result):
-            splited_id = self.ctree_client.emit(
+            split_id = self.ctree_client.emit(
                 "task.split", parents=[task_id], message=f"In '{self.get_tag()}'"
             )
-            splitted_envelope = TaskEnvelope.wrap(item, splited_id)
+            splitted_envelope = TaskEnvelope.wrap(item, split_id)
             self.result_queues.put(splitted_envelope)
 
             self.task_logger.split_trace(
@@ -52,7 +52,8 @@ class TaskSplitter(TaskStage):
                 self.get_task_info(item),
                 idx+1,
                 split_count,
-                f"[{task_id}->{splited_id}*]"
+                task_id,
+                split_id,
             )
 
         return split_count
@@ -131,10 +132,10 @@ class TaskRouter(TaskStage):
         self.retry_time_dict.pop(task_hash, None)
 
         idx = self.result_queues.get_tag_idx(target)
-        routed_id = self.ctree_client.emit(
+        route_id = self.ctree_client.emit(
             "task.route", parents=[task_id], message=f"In '{self.get_tag()}'"
         )
-        routed_envelope = TaskEnvelope.wrap(task, routed_id)
+        routed_envelope = TaskEnvelope.wrap(task, route_id)
         self.result_queues.put_channel(routed_envelope, idx)
 
         self.update_success_counter()
@@ -145,7 +146,8 @@ class TaskRouter(TaskStage):
             self.get_task_info(task),
             target,
             time.time() - start_time,
-            f"[{task_id}->{routed_id}*]"
+            task_id,
+            route_id,
         )
 
 

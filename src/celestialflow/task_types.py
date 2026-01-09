@@ -93,3 +93,6 @@ class TaskEnvelope:
     def unwrap(self):
         """取出原始 task（给用户函数用）"""
         return self.task
+
+    def change_id(self, new_id):
+        self.id = new_id
