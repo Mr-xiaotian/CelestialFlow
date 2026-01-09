@@ -148,7 +148,7 @@ if __name__ == "__main__":
     graph = TaskGraph([stage1])
 
     # 初始化任务并启动
-    graph.start_graph({stage1.get_stage_tag(): [(1, 2), (3, 4), (5, 6)]})
+    graph.start_graph({stage1.get_tag(): [(1, 2), (3, 4), (5, 6)]})
 ```
 
 注意不要在.ipynb中运行。

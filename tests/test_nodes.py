@@ -164,11 +164,11 @@ def test_splitter_0():
 
     graph.start_graph(
         {
-            generate_stage.get_stage_tag(): range(10),
-            # logger_stage.get_stage_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
-            # splitter.get_stage_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
-            # download_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
-            # parse_stage.get_stage_tag(): [f"url_{x}_5" for x in range(10, 20)],
+            generate_stage.get_tag(): range(10),
+            # logger_stage.get_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
+            # splitter.get_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
+            # download_stage.get_tag(): [f"url_{x}_5" for x in range(10, 20)],
+            # parse_stage.get_tag(): [f"url_{x}_5" for x in range(10, 20)],
         },
         False,
     )
@@ -184,7 +184,7 @@ def test_splitter_1():
 
     chain.start_chain(
         {
-            task_splitter.get_stage_tag(): [range(int(1e5))],
+            task_splitter.get_tag(): [range(int(1e5))],
         }
     )
 
@@ -217,7 +217,7 @@ def test_redis_ack_0():
 
     graph.start_graph(
         {
-            start_stage.get_stage_tag(): test_task_1,
+            start_stage.get_tag(): test_task_1,
         }
     )
 
@@ -254,7 +254,7 @@ def test_redis_ack_1():
 
     graph.start_graph(
         {
-            start_stage.get_stage_tag(): test_task_0,
+            start_stage.get_tag(): test_task_0,
         }
     )
 
@@ -305,7 +305,7 @@ def test_redis_ack_2():
         # ["https://jsonplaceholder.typicode.com/todos/1", "/tmp/todo1.json"],
     ]
 
-    graph.start_graph({start_stage.get_stage_tag(): download_links})
+    graph.start_graph({start_stage.get_tag(): download_links})
 
 
 def test_redis_source_0():
@@ -333,8 +333,8 @@ def test_redis_source_0():
 
     graph.start_graph(
         {
-            sleep_stage_0.get_stage_tag(): test_task_0,
-            redis_source.get_stage_tag(): range(12),
+            sleep_stage_0.get_tag(): test_task_0,
+            redis_source.get_tag(): range(12),
         }
     )
 
@@ -350,8 +350,8 @@ def test_router_0():
     stage_a.set_graph_context([], stage_mode="process", stage_name="Stage A")
     stage_b.set_graph_context([], stage_mode="process", stage_name="Stage B")
 
-    a_tag = stage_a.get_stage_tag()
-    b_tag = stage_b.get_stage_tag()
+    a_tag = stage_a.get_tag()
+    b_tag = stage_b.get_tag()
 
     def to_route_task(n: int) -> tuple:
         target = a_tag if (n % 2 == 0) else b_tag
@@ -362,7 +362,7 @@ def test_router_0():
 
     graph.start_graph(
         {
-            router.get_stage_tag(): [to_route_task(i) for i in range(20)],
+            router.get_tag(): [to_route_task(i) for i in range(20)],
         }
     )
 

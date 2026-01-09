@@ -56,7 +56,7 @@ def _build_structure_subgraph(
     """
     构建单个子图结构
     """
-    stage_tag = task_manager.get_stage_tag()
+    stage_tag = task_manager.get_tag()
     node = {
         "stage_name": task_manager.stage_name,
         "stage_mode": task_manager.stage_mode,

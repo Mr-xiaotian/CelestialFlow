@@ -152,7 +152,7 @@ def test_graph_0():
     # test_task_2 = (item for item in test_task_1)
 
     input_tasks = {
-        stage1.get_stage_tag(): test_task_1,
+        stage1.get_tag(): test_task_1,
     }
     stage_modes = ["serial", "process"]
     execution_modes = ["serial", "thread"]
@@ -189,7 +189,7 @@ def test_graph_1():
     # graph.set_ctree(True, host=ctree_host, port=ctree_port)
 
     input_tasks = {
-        A.get_stage_tag(): range(10),
+        A.get_tag(): range(10),
     }
     stage_modes = ["serial", "process"]
     execution_modes = ["serial", "thread"]

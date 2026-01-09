@@ -44,7 +44,7 @@ class TaskSplitter(TaskStage):
         split_count = 0
         for item in result:
             splited_id = self.ctree_client.emit(
-                "task.split", parents=[task_id], message=f"In '{self.get_stage_tag()}'"
+                "task.split", parents=[task_id], message=f"In '{self.get_tag()}'"
             )
             splitted_envelope = TaskEnvelope.wrap(item, splited_id)
 
@@ -135,7 +135,7 @@ class TaskRouter(TaskStage):
 
         idx = self.result_queues.get_tag_idx(target)
         routed_id = self.ctree_client.emit(
-            "task.route", parents=[task_id], message=f"In '{self.get_stage_tag()}'"
+            "task.route", parents=[task_id], message=f"In '{self.get_tag()}'"
         )
         routed_envelope = TaskEnvelope.wrap(task, routed_id)
         self.result_queues.put_channel(routed_envelope, idx)

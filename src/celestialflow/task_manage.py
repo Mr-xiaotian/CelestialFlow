@@ -27,6 +27,7 @@ from .adapters.celestialtree import (
 
 
 class TaskManager:
+    _name = "Manager"
     def __init__(
         self,
         func,
@@ -161,14 +162,14 @@ class TaskManager:
             [queue_map[self.execution_mode]()],
             [None],
             self.logger_queue,
-            self.get_manager_tag(),
+            self.get_tag(),
             "in",
         )
         self.result_queues: TaskQueue = result_queues or TaskQueue(
             [queue_map[self.execution_mode]()],
             [None],
             self.logger_queue,
-            self.get_manager_tag(),
+            self.get_tag(),
             "out",
         )
         self.fail_queue: ThreadQueue | MPQueue | AsyncQueue = (
@@ -260,16 +261,16 @@ class TaskManager:
         """
         return self.func.__name__
 
-    def get_manager_tag(self) -> str:
+    def get_tag(self) -> str:
         """
-        获取当前节点管理器标签
+        获取当前节点/管理器标签
 
-        :return: 当前节点管理器标签
+        :return: 当前节点/管理器标签
         """
-        if hasattr(self, "_manager_tag"):
-            return self._manager_tag
-        self._manager_tag = f"Manager[{self.func.__name__}]"
-        return self._manager_tag
+        if hasattr(self, "_tag"):
+            return self._tag
+        self._tag = f"{self._name}[{self.func.__name__}]"
+        return self._tag
 
     def get_execution_mode_desc(self) -> str:
         """
@@ -302,7 +303,7 @@ class TaskManager:
             self.task_logger.task_inject(
                 self.get_func_name(),
                 self.get_task_info(task),
-                self.get_manager_tag(),
+                self.get_tag(),
                 f"[{task_id}]",
             )
 
@@ -326,7 +327,7 @@ class TaskManager:
             self.task_logger.task_inject(
                 self.get_func_name(),
                 self.get_task_info(task),
-                self.get_manager_tag(),
+                self.get_tag(),
                 f"[{task_id}]",
             )
 

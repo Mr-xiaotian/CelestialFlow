@@ -124,7 +124,7 @@ def test_chain():
 
     chain.start_chain(
         {
-            stageA.get_stage_tag(): [
+            stageA.get_tag(): [
                 (0, 6),
                 (3, 7),
                 (6, 8),
@@ -176,9 +176,9 @@ def test_forest():
 
     # 初始任务
     init_tasks = {
-        stageA.get_stage_tag(): range(1, 11),
-        stageB.get_stage_tag(): range(11, 21),
-        stageF.get_stage_tag(): range(21, 31),
+        stageA.get_tag(): range(1, 11),
+        stageB.get_tag(): range(11, 21),
+        stageF.get_tag(): range(21, 31),
     }
 
     graph.start_graph(init_tasks)
@@ -202,9 +202,9 @@ def test_cross():
 
     # 初始任务
     init_tasks = {
-        stageA.get_stage_tag(): range(1, 11),  # random_values(100, "str"),
-        stageB.get_stage_tag(): range(6, 16),
-        stageC.get_stage_tag(): range(11, 21),
+        stageA.get_tag(): range(1, 11),  # random_values(100, "str"),
+        stageB.get_tag(): range(6, 16),
+        stageC.get_tag(): range(11, 21),
     }
 
     cross.start_cross(init_tasks)
@@ -229,8 +229,8 @@ def test_network():
 
     # 初始任务（输入层）
     init_tasks = {
-        A1.get_stage_tag(): range(1, 11),
-        A2.get_stage_tag(): range(11, 21),
+        A1.get_tag(): range(1, 11),
+        A2.get_tag(): range(11, 21),
     }
 
     cross.start_cross(init_tasks, True)
@@ -247,7 +247,7 @@ def test_star():
     star = TaskCross([[core], [side1, side2, side3]], "process")
     star.set_reporter(True, host=report_host, port=report_port)
 
-    star.start_cross({core.get_stage_tag(): range(1, 11)})
+    star.start_cross({core.get_tag(): range(1, 11)})
 
 
 def test_fanin():
@@ -263,9 +263,9 @@ def test_fanin():
 
     fainin.start_cross(
         {
-            source1.get_stage_tag(): range(1, 11),
-            source2.get_stage_tag(): range(11, 21),
-            source3.get_stage_tag(): range(21, 31),
+            source1.get_tag(): range(1, 11),
+            source2.get_tag(): range(11, 21),
+            source3.get_tag(): range(21, 31),
         }
     )
 
@@ -279,7 +279,7 @@ def test_grid():
     task_grid.set_reporter(True, host=report_host, port=report_port)
 
     # 3. 初始化任务字典，只放左上角一个任务
-    init_dict = {grid[0][0].get_stage_tag(): range(10)}
+    init_dict = {grid[0][0].get_tag(): range(10)}
 
     # 4. 启动任务图
     task_grid.start_graph(init_dict)
@@ -299,7 +299,7 @@ def test_loop():
     test_task_0 = range(1, 2)
     test_task_1 = list(test_task_0) + [0, 6, None, 0, ""]
 
-    loop.start_loop({stageA.get_stage_tag(): test_task_0})
+    loop.start_loop({stageA.get_tag(): test_task_0})
 
 
 def test_wheel():
@@ -314,7 +314,7 @@ def test_wheel():
     wheel = TaskWheel(core, [side1, side2, side3, side4])
     wheel.set_reporter(True, host=report_host, port=report_port)
 
-    wheel.start_wheel({core.get_stage_tag(): range(1, 11)}, True)
+    wheel.start_wheel({core.get_tag(): range(1, 11)}, True)
 
 
 def test_complete():
@@ -329,9 +329,9 @@ def test_complete():
 
     complete.start_complete(
         {
-            n1.get_stage_tag(): range(1, 11),
-            n2.get_stage_tag(): range(11, 21),
-            n3.get_stage_tag(): range(21, 31),
+            n1.get_tag(): range(1, 11),
+            n2.get_tag(): range(11, 21),
+            n3.get_tag(): range(21, 31),
         }
     )
 

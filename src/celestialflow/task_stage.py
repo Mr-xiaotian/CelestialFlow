@@ -10,10 +10,9 @@ from .task_types import TERMINATION_SIGNAL
 
 
 class TaskStage(TaskManager):
+    _name = "Stage"
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self.set_stage_name()  # 设置默认名称
 
         self.next_stages: List[TaskStage] = []
         self.prev_stages: List[TaskStage] = []
@@ -83,7 +82,7 @@ class TaskStage(TaskManager):
 
         :param name: 当前节点名称
         """
-        self.stage_name = name or id(self)
+        self._name = name
 
     def _finalize_prev_bindings(self):
         """
@@ -96,22 +95,11 @@ class TaskStage(TaskManager):
 
         for prev_stage in self._pending_prev_bindings:
             if isinstance(prev_stage, TaskRouter):
-                key = self.get_stage_tag()  # 现在已经稳定了
+                key = self.get_tag()  # 现在已经稳定了
                 prev_stage.route_counters.setdefault(key, MPValue("i", 0))
                 self.task_counter.append_counter(prev_stage.route_counters[key])
 
         self._pending_prev_bindings.clear()
-
-    def get_stage_tag(self) -> str:
-        """
-        获取当前节点在graph中的标签
-
-        :return: 当前节点标签
-        """
-        if hasattr(self, "_stage_tag"):
-            return self._stage_tag
-        self._stage_tag = f"{self.stage_name}[{self.func.__name__}]"
-        return self._stage_tag
 
     def get_stage_summary(self) -> dict:
         """
@@ -136,7 +124,7 @@ class TaskStage(TaskManager):
         self.fail_queue.put(
             {
                 "timestamp": time.time(),
-                "stage_tag": self.get_stage_tag(),
+                "stage_tag": self.get_tag(),
                 "error_info": f"{type(error).__name__}({error})",
                 "task": str(task),
             }
@@ -161,7 +149,7 @@ class TaskStage(TaskManager):
         self.init_progress()
         self.init_env(input_queues, output_queues, fail_queue, logger_queue)
         self.task_logger.start_stage(
-            self.get_stage_tag(), self.execution_mode, self.worker_limit
+            self.get_tag(), self.execution_mode, self.worker_limit
         )
 
         try:
@@ -178,7 +166,7 @@ class TaskStage(TaskManager):
 
             self.progress_manager.close()
             self.task_logger.end_stage(
-                self.get_stage_tag(),
+                self.get_tag(),
                 self.execution_mode,
                 time.time() - start_time,
                 self.success_counter.value,

@@ -103,7 +103,7 @@ class TaskGraph:
         # BFS 连接
         while queue:
             stage = queue.popleft()
-            stage_tag = stage.get_stage_tag()
+            stage_tag = stage.get_tag()
             if stage_tag in visited_stages:
                 continue
 
@@ -137,7 +137,7 @@ class TaskGraph:
 
             # 遍历每个前驱，创建边队列
             for prev_stage in stage.prev_stages:
-                prev_stage_tag = prev_stage.get_stage_tag() if prev_stage else None
+                prev_stage_tag = prev_stage.get_tag() if prev_stage else None
                 q = MPQueue()
 
                 # sink side
@@ -261,7 +261,7 @@ class TaskGraph:
                     continue
 
                 task_id = self.ctree_client.emit(
-                    "task.input", message=f"In '{stage.get_stage_tag()}'"
+                    "task.input", message=f"In '{stage.get_tag()}'"
                 )
                 envelope = TaskEnvelope.wrap(task, task_id)
                 in_queue.put_first(envelope)
@@ -269,13 +269,13 @@ class TaskGraph:
                 self.task_logger.task_inject(
                     stage.get_func_name(),
                     stage.get_task_info(task),
-                    stage.get_stage_tag(),
+                    stage.get_tag(),
                     f"[{task_id}]",
                 )
 
         if put_termination_signal:
             for root_stage in self.root_stages:
-                root_stage_tag = root_stage.get_stage_tag()
+                root_stage_tag = root_stage.get_tag()
                 root_in_queue: TaskQueue = self.stages_status_dict[root_stage_tag][
                     "in_queue"
                 ]
@@ -347,7 +347,7 @@ class TaskGraph:
 
         :param stage: 节点
         """
-        stage_tag = stage.get_stage_tag()
+        stage_tag = stage.get_tag()
 
         logger_queue = self.log_listener.get_queue()
 
