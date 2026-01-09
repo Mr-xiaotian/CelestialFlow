@@ -304,7 +304,7 @@ class TaskManager:
                 self.get_func_name(),
                 self.get_task_info(task),
                 self.get_tag(),
-                f"[{task_id}]",
+                f"[{task_id}*]",
             )
 
             if self.task_counter.value % 100 == 0:
@@ -328,7 +328,7 @@ class TaskManager:
                 self.get_func_name(),
                 self.get_task_info(task),
                 self.get_tag(),
-                f"[{task_id}]",
+                f"[{task_id}*]",
             )
 
             if self.task_counter.value % 100 == 0:
@@ -519,7 +519,7 @@ class TaskManager:
             self.execution_mode,
             self.get_result_info(result),
             time.time() - start_time,
-            f"[{task_id}->{result_envelope.id}]",
+            f"[{task_id}->{result_id}*]",
         )
 
     async def process_task_success_async(
@@ -554,7 +554,7 @@ class TaskManager:
             self.execution_mode,
             self.get_result_info(result),
             time.time() - start_time,
-            f"[{task_id}->{result_envelope.id}]",
+            f"[{task_id}->{result_id}*]",
         )
 
     def handle_task_error(self, task_envelope: TaskEnvelope, exception: Exception):
@@ -592,7 +592,7 @@ class TaskManager:
                 self.get_task_info(task),
                 self.retry_time_dict[task_hash],
                 exception,
-                f"[{task_id}->{retry_id}]",
+                f"[{task_id}->{retry_id}*]",
             )
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
@@ -610,7 +610,7 @@ class TaskManager:
                 self.get_func_name(),
                 self.get_task_info(task),
                 exception,
-                f"[{task_id}->{error_id}]",
+                f"[{task_id}->{error_id}*]",
             )
 
     async def handle_task_error_async(
@@ -652,7 +652,7 @@ class TaskManager:
                 self.get_task_info(task),
                 self.retry_time_dict[task_hash],
                 exception,
-                f"[{task_id}->{retry_id}]",
+                f"[{task_id}->{retry_id}*]",
             )
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
@@ -670,7 +670,7 @@ class TaskManager:
                 self.get_func_name(),
                 self.get_task_info(task),
                 exception,
-                f"[{task_id}->{error_id}]",
+                f"[{task_id}->{error_id}*]",
             )
 
     def deal_dupliacte(self, task_envelope: TaskEnvelope):
@@ -689,7 +689,7 @@ class TaskManager:
         self.task_logger.task_duplicate(
             self.get_func_name(),
             self.get_task_info(task),
-            f"[{task_id}->{duplicate_id}]",
+            f"[{task_id}->{duplicate_id}*]",
         )
 
     def start(self, task_source: Iterable):

@@ -270,7 +270,7 @@ class TaskGraph:
                     stage.get_func_name(),
                     stage.get_task_info(task),
                     stage.get_tag(),
-                    f"[{task_id}]",
+                    f"[{task_id}*]",
                 )
 
         if put_termination_signal:

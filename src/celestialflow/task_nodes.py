@@ -20,6 +20,7 @@ class TaskSplitter(TaskStage):
             func=self._split_task,
             execution_mode="serial",
             max_retries=0,
+            unpack_task_args=True,
         )
 
     def init_extra_counter(self):
@@ -33,36 +34,28 @@ class TaskSplitter(TaskStage):
         实际上这个函数不执行逻辑，仅用于符合 TaskStage 架构
         """
         return task
-
-    def get_args(self, task):
-        return task
     
     def update_split_counter(self, add_value):
         self.split_counter.value += add_value
 
-    def put_split_result(self, result: tuple, task_id: int):
-        split_count = 0
-        for item in result:
+    def put_split_result(self, result: tuple, task_id: int) -> int:
+        split_count = len(result)
+        for idx, item in enumerate(result):
             splited_id = self.ctree_client.emit(
                 "task.split", parents=[task_id], message=f"In '{self.get_tag()}'"
             )
             splitted_envelope = TaskEnvelope.wrap(item, splited_id)
-
             self.result_queues.put(splitted_envelope)
-            split_count += 1
 
-        self.update_split_counter(split_count)
+            self.task_logger.split_trace(
+                self.func.__name__,
+                self.get_task_info(item),
+                idx,
+                split_count,
+                f"[{task_id}->{splited_id}*]"
+            )
+
         return split_count
-
-    def process_result(self, task, result):
-        """
-        处理不可迭代的任务结果
-        """
-        if not hasattr(result, "__iter__") or isinstance(result, (str, bytes)):
-            result = (result,)
-        elif isinstance(result, list):
-            result = tuple(result)
-        return result
 
     def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):
         """
@@ -83,8 +76,9 @@ class TaskSplitter(TaskStage):
 
         split_count = self.put_split_result(processed_result, task_id)
         self.update_success_counter()
+        self.update_split_counter(split_count)
 
-        self.task_logger.splitter_success(
+        self.task_logger.split_success(
             self.func.__name__,
             self.get_task_info(task),
             split_count,
@@ -109,13 +103,16 @@ class TaskRouter(TaskStage):
             counter.value = 0
 
     def _route(self, routed: tuple) -> tuple:
+        """
+        实际上这个函数不执行逻辑，仅用于符合 TaskStage 架构
+        """
         if not (isinstance(routed, tuple) and len(routed) == 2):
             raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
         if routed[0] not in self.route_counters:
             raise ValueError(f"Unknown target: {routed[0]}")
         return routed
 
-    def update_output_counter(self, target: str):
+    def update_route_counter(self, target: str):
         self.route_counters[target].value += 1
 
     def process_task_success(self, task_envelope: TaskEnvelope, _, start_time):
@@ -141,13 +138,14 @@ class TaskRouter(TaskStage):
         self.result_queues.put_channel(routed_envelope, idx)
 
         self.update_success_counter()
-        self.update_output_counter(target)
+        self.update_route_counter(target)
 
-        self.task_logger.router_success(
+        self.task_logger.route_success(
             self.get_func_name(),
             self.get_task_info(task),
             target,
             time.time() - start_time,
+            f"[{task_id}->{routed_id}*]"
         )
 
 

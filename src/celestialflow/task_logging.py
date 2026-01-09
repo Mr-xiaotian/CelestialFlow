@@ -156,17 +156,23 @@ class TaskLogger:
         )
 
     # ==== splitter ====
-    def splitter_success(self, func_name, task_info, split_count, use_time):
+    def split_trace(self, func_name, task_info, part_index, part_total, event_trace):
+        self._log(
+            "TRACE",
+            f"In '{func_name}', Task {task_info} split part {part_index}/{part_total}. {event_trace}",
+    )
+
+    def split_success(self, func_name, task_info, split_count, use_time):
         self._log(
             "SUCCESS",
             f"In '{func_name}', Task {task_info} has split into {split_count} parts. Used {use_time:.2f} seconds.",
         )
 
     # ==== router ====
-    def router_success(self, func_name, task_info, target_node, use_time):
+    def route_success(self, func_name, task_info, target_node, use_time, event_trace):
         self._log(
             "SUCCESS",
-            f"In '{func_name}', Task {task_info} has routed to {target_node}. Used {use_time:.2f} seconds.",
+            f"In '{func_name}', Task {task_info} has routed to {target_node}. Used {use_time:.2f} seconds. {event_trace}",
         )
 
     # ==== queue ====
