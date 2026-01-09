@@ -14,7 +14,6 @@ from .task_progress import ProgressManager, NullProgress
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import (
-    NoOpContext,
     SumCounter,
     TaskEnvelope,
     TerminationSignal,
@@ -86,8 +85,6 @@ class TaskManager:
         self.success_counter = MPValue("i", 0)
         self.error_counter = MPValue("i", 0)
         self.duplicate_counter = MPValue("i", 0)
-
-        self.counter_lock = NoOpContext()  # Lock()
 
         self.init_extra_counter()
 
@@ -370,12 +367,11 @@ class TaskManager:
 
     def update_task_counter(self):
         # 加锁方式（保证正确）
-        with self.counter_lock:
-            self.task_counter.add_init_value(1)
+        self.task_counter.add_init_value(1)
 
     def update_success_counter(self):
         # 加锁方式（保证正确）
-        with self.counter_lock:
+        with self.success_counter.get_lock():
             self.success_counter.value += 1
 
     async def update_success_counter_async(self):
@@ -383,12 +379,12 @@ class TaskManager:
 
     def update_error_counter(self):
         # 加锁方式（保证正确）
-        with self.counter_lock:
+        with self.error_counter.get_lock():
             self.error_counter.value += 1
 
     def update_duplicate_counter(self):
         # 加锁方式（保证正确）
-        with self.counter_lock:
+        with self.duplicate_counter.get_lock():
             self.duplicate_counter.value += 1
 
     def is_tasks_finished(self) -> bool:

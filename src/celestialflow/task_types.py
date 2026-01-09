@@ -44,9 +44,10 @@ class SumCounter:
         self.counters: List[ValueWrapper] = []
 
     def add_init_value(self, value):
-        self.init_value.value += value
+        with self.init_value.get_lock():    
+            self.init_value.value += value
 
-    def add_counter(self, counter):
+    def append_counter(self, counter):
         self.counters.append(counter)
 
     def reset(self):

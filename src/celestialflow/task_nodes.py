@@ -36,6 +36,9 @@ class TaskSplitter(TaskStage):
 
     def get_args(self, task):
         return task
+    
+    def update_split_counter(self, add_value):
+        self.split_counter.value += add_value
 
     def put_split_result(self, result: tuple, task_id: int):
         split_count = 0
@@ -48,7 +51,7 @@ class TaskSplitter(TaskStage):
             self.result_queues.put(splitted_envelope)
             split_count += 1
 
-        self.split_counter.value += split_count
+        self.update_split_counter(split_count)
         return split_count
 
     def process_result(self, task, result):
@@ -59,7 +62,6 @@ class TaskSplitter(TaskStage):
             result = (result,)
         elif isinstance(result, list):
             result = tuple(result)
-
         return result
 
     def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import time
+from typing import List
 from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
-from typing import List
 
 from .task_manage import TaskManager
 from .task_types import TERMINATION_SIGNAL
@@ -71,11 +71,11 @@ class TaskStage(TaskManager):
             return
 
         if isinstance(prev_stage, TaskSplitter):
-            self.task_counter.add_counter(prev_stage.split_counter)
+            self.task_counter.append_counter(prev_stage.split_counter)
         elif isinstance(prev_stage, TaskRouter):
             self._pending_prev_bindings.append(prev_stage)
         else:
-            self.task_counter.add_counter(prev_stage.success_counter)
+            self.task_counter.append_counter(prev_stage.success_counter)
 
     def set_stage_name(self, name: str = None):
         """
@@ -86,6 +86,9 @@ class TaskStage(TaskManager):
         self.stage_name = name or id(self)
 
     def _finalize_prev_bindings(self):
+        """
+        绑定前置节点
+        """
         from .task_nodes import TaskRouter
 
         if not self._pending_prev_bindings:
@@ -95,7 +98,7 @@ class TaskStage(TaskManager):
             if isinstance(prev_stage, TaskRouter):
                 key = self.get_stage_tag()  # 现在已经稳定了
                 prev_stage.route_counters.setdefault(key, MPValue("i", 0))
-                self.task_counter.add_counter(prev_stage.route_counters[key])
+                self.task_counter.append_counter(prev_stage.route_counters[key])
 
         self._pending_prev_bindings.clear()
 
@@ -152,6 +155,7 @@ class TaskStage(TaskManager):
         :param input_queues: 输入队列
         :param output_queue: 输出队列
         :param fail_queue: 失败队列
+        :param logger_queue: 日志队列
         """
         start_time = time.time()
         self.init_progress()
