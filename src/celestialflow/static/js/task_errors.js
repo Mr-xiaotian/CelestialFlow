@@ -25,7 +25,7 @@ function renderErrors() {
     const matchNode = !filter || e.node === filter;
     const matchKeyword = !keyword ||
       (e.error && e.error.toLowerCase().includes(keyword)) ||
-      (e.task_id && e.task_id.toLowerCase().includes(keyword));
+      (e.task_repr && e.task_repr.toLowerCase().includes(keyword));
     return matchNode && matchKeyword;
   });
 
@@ -48,7 +48,7 @@ function renderErrors() {
       row.innerHTML = `
         <td class="error-message">${e.error}</td>
         <td>${e.node}</td>
-        <td>${e.task_id}</td>
+        <td>${e.task_repr}</td>
         <td>${formatTimestamp(e.timestamp)}</td>
       `;
       errorsTableBody.appendChild(row);

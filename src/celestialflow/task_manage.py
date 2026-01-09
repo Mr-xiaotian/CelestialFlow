@@ -32,7 +32,7 @@ class TaskManager:
         self,
         func,
         execution_mode="serial",
-        worker_limit=50,
+        worker_limit=20,
         max_retries=3,
         max_info=50,
         unpack_task_args=False,
@@ -296,7 +296,7 @@ class TaskManager:
         """
         progress_num = 0
         for task in task_source:
-            task_id = self.ctree_client.emit("task.input")
+            task_id = self.ctree_client.emit("task.input", message=f"In '{self.get_tag()}'")
             envelope = TaskEnvelope.wrap(task, task_id)
             self.task_queues.put_first(envelope)
             self.update_task_counter()
@@ -320,7 +320,7 @@ class TaskManager:
         """
         progress_num = 0
         for task in task_source:
-            task_id = self.ctree_client.emit("task.input")
+            task_id = self.ctree_client.emit("task.input", message=f"In '{self.get_tag()}'")
             envelope = TaskEnvelope.wrap(task, task_id)
             await self.task_queues.put_first_async(envelope)
             self.update_task_counter()
@@ -505,7 +505,7 @@ class TaskManager:
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
 
-        result_id = self.ctree_client.emit("task.success", parents=[task_id])
+        result_id = self.ctree_client.emit("task.success", parents=[task_id], message=f"In '{self.get_tag()}'")
         result_envelope = TaskEnvelope.wrap(result, result_id)
 
         # 清理 retry_time_dict
@@ -540,7 +540,7 @@ class TaskManager:
         if self.enable_result_cache:
             self.success_dict[task] = processed_result
 
-        result_id = self.ctree_client.emit("task.success", parents=[task_id])
+        result_id = self.ctree_client.emit("task.success", parents=[task_id], message=f"In '{self.get_tag()}'")
         result_envelope = TaskEnvelope.wrap(result, result_id)
 
         # 清理 retry_time_dict
@@ -584,6 +584,7 @@ class TaskManager:
             retry_id = self.ctree_client.emit(
                 f"task.retry.{self.retry_time_dict[task_hash]}",
                 parents=[task_id],
+                message=f"In '{self.get_tag()}'"
             )
 
             self.task_logger.task_retry(
@@ -598,7 +599,7 @@ class TaskManager:
             if self.enable_result_cache:
                 self.error_dict[task] = exception
 
-            error_id = self.ctree_client.emit("task.error", parents=[task_id])
+            error_id = self.ctree_client.emit("task.error", parents=[task_id], message=f"In '{self.get_tag()}'")
 
             # 清理 retry_time_dict
             self.retry_time_dict.pop(task_hash, None)
@@ -643,6 +644,7 @@ class TaskManager:
             retry_id = self.ctree_client.emit(
                 f"task.retry.{self.retry_time_dict[task_hash]}",
                 parents=[task_id],
+                message=f"In '{self.get_tag()}'"
             )
 
             self.task_logger.task_retry(
@@ -657,7 +659,7 @@ class TaskManager:
             if self.enable_result_cache:
                 self.error_dict[task] = exception
 
-            error_id = self.ctree_client.emit("task.error", parents=[task_id])
+            error_id = self.ctree_client.emit("task.error", parents=[task_id], message=f"In '{self.get_tag()}'")
 
             # 清理 retry_time_dict
             self.retry_time_dict.pop(task_hash, None)
@@ -682,6 +684,7 @@ class TaskManager:
         duplicate_id = self.ctree_client.emit(
             "task.duplicate",
             parents=[task_envelope.id],
+            message=f"In '{self.get_tag()}'"
         )
         self.task_logger.task_duplicate(
             self.get_func_name(),

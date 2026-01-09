@@ -168,12 +168,12 @@ def test_graph_0():
 
 def test_graph_1():
     # 定义任务节点
-    A = TaskStage(func=sleep_random_A, execution_mode="thread")
-    B = TaskStage(func=sleep_random_B, execution_mode="serial")
-    C = TaskStage(func=sleep_random_C, execution_mode="serial")
-    D = TaskStage(func=sleep_random_D, execution_mode="thread")
-    E = TaskStage(func=sleep_random_E, execution_mode="thread")
-    F = TaskStage(func=sleep_random_F, execution_mode="serial")
+    A = TaskStage(func=sleep_random_A, execution_mode="thread", worker_limit=5)
+    B = TaskStage(func=sleep_random_B, execution_mode="serial", worker_limit=5)
+    C = TaskStage(func=sleep_random_C, execution_mode="serial", worker_limit=5)
+    D = TaskStage(func=sleep_random_D, execution_mode="thread", worker_limit=5)
+    E = TaskStage(func=sleep_random_E, execution_mode="thread", worker_limit=5)
+    F = TaskStage(func=sleep_random_F, execution_mode="serial", worker_limit=5)
 
     # 设置链式上下文
     A.set_graph_context(next_stages=[B, C], stage_mode="process", stage_name="Stage_A")
@@ -186,7 +186,7 @@ def test_graph_1():
     # 初始化 TaskGraph, 并设置根节点
     graph = TaskGraph([A])
     graph.set_reporter(True, host=report_host, port=report_port)
-    # graph.set_ctree(True, host=ctree_host, port=ctree_port)
+    graph.set_ctree(True, host=ctree_host, port=ctree_port)
 
     input_tasks = {
         A.get_tag(): range(10),

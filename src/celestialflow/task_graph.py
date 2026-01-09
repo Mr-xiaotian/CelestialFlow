@@ -441,7 +441,7 @@ class TaskGraph:
                     "timestamp": timestamp,
                     "node": stage_tag,
                     "error": error_info,
-                    "task_id": format_repr(task_str, 100),
+                    "task_repr": format_repr(task_str, 100),
                 }
             )
             failures.append((timestamp, stage_tag, error_info, task_str))

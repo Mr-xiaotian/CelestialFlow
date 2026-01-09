@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Set, Optional
 
 if TYPE_CHECKING:
-    from .task_manage import TaskManager
+    from .task_stage import TaskStage
 
 
 # ========调用于task_graph.py========
@@ -33,7 +33,7 @@ def format_timestamp(timestamp) -> str:
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def build_structure_graph(root_stages: List["TaskManager"]) -> List[Dict[str, Any]]:
+def build_structure_graph(root_stages: List["TaskStage"]) -> List[Dict[str, Any]]:
     """
     从多个根节点构建任务链的 JSON 图结构
 
@@ -51,16 +51,16 @@ def build_structure_graph(root_stages: List["TaskManager"]) -> List[Dict[str, An
 
 
 def _build_structure_subgraph(
-    task_manager: "TaskManager", visited_stages: Set[str]
+    task_stage: "TaskStage", visited_stages: Set[str]
 ) -> Dict[str, Any]:
     """
     构建单个子图结构
     """
-    stage_tag = task_manager.get_tag()
+    stage_tag = task_stage.get_tag()
     node = {
-        "stage_name": task_manager.stage_name,
-        "stage_mode": task_manager.stage_mode,
-        "func_name": task_manager.func.__name__,
+        "stage_name": task_stage._name,
+        "stage_mode": task_stage.stage_mode,
+        "func_name": task_stage.func.__name__,
         "is_ref": False,
         "next_stages": [],
     }
@@ -71,7 +71,7 @@ def _build_structure_subgraph(
 
     visited_stages.add(stage_tag)
 
-    for next_stage in task_manager.next_stages:
+    for next_stage in task_stage.next_stages:
         child_node = _build_structure_subgraph(next_stage, visited_stages)
         node["next_stages"].append(child_node)
 
