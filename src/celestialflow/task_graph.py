@@ -361,7 +361,7 @@ class TaskGraph:
         if self._use_ctree:
             stage.set_ctree(self._ctree_host, self._ctree_port)
         else:
-            stage.set_nullctree(self.ctree_client.event_id, self.ctree_client.event_lock)
+            stage.set_nullctree(self.ctree_client.event_id)
 
         if stage.stage_mode == "process":
             p = multiprocessing.Process(

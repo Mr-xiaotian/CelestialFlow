@@ -33,7 +33,7 @@ class TaskManager:
         func,
         execution_mode="serial",
         worker_limit=20,
-        max_retries=3,
+        max_retries=1,
         max_info=50,
         unpack_task_args=False,
         enable_result_cache=False,
@@ -227,14 +227,14 @@ class TaskManager:
         if not self.ctree_client.health():
             self.ctree_client = NullCelestialTreeClient()
 
-    def set_nullctree(self, event_id=None, event_lock=None):
+    def set_nullctree(self, event_id=None):
         """
         设置NullCelestialTreeClient
 
         :param event_id: 事件ID
         :param event_lock: 事件锁
         """
-        self.ctree_client = NullCelestialTreeClient(event_id, event_lock)
+        self.ctree_client = NullCelestialTreeClient(event_id)
 
     def reset_counter(self):
         """

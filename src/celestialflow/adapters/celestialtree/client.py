@@ -177,12 +177,11 @@ class Client:
 
 
 class NullClient:
-    def __init__(self, event_id=None, event_lock=None):
+    def __init__(self, event_id=None):
         self.event_id = event_id if event_id is not None else MPValue("i", 0)
-        self.event_lock = event_lock if event_lock is not None else MPLock()
 
     def emit(self, *args, **kwargs):
-        with self.event_lock:
+        with self.event_id.get_lock():
             self.event_id.value += 1
             return self.event_id.value
 
