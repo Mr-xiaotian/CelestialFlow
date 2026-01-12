@@ -429,11 +429,7 @@ def load_jsonl_grouped_by_keys(
 
             # 组合分组 key
             group_values = tuple(item.get(k, "") for k in group_keys)
-            group_key = (
-                group_values
-                if len(group_values) > 1
-                else group_values[0]
-            )
+            group_key = group_values if len(group_values) > 1 else group_values[0]
 
             # 字段反序列化（仅 eval_fields）
             if eval_fields:

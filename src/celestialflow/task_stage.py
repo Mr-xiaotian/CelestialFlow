@@ -11,6 +11,7 @@ from .task_types import TERMINATION_SIGNAL
 
 class TaskStage(TaskManager):
     _name = "Stage"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

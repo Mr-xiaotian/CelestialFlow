@@ -86,7 +86,7 @@ class TaskGraph:
             dict
         )  # 用于保存每个节点的上一次get_status_dict()返回的结果
 
-        self.web_display_error: List[dict] = [] # 用于web端展示错误信息
+        self.web_display_error: List[dict] = []  # 用于web端展示错误信息
 
     def init_resources(self):
         """
@@ -407,7 +407,12 @@ class TaskGraph:
 
             # 持久化逻辑
             ts = time.time()
-            failures.extend([(ts, stage_tag, "UnconsumedError", str(source.task)) for source in remaining_sources])
+            failures.extend(
+                [
+                    (ts, stage_tag, "UnconsumedError", str(source.task))
+                    for source in remaining_sources
+                ]
+            )
         self._persist_failures(failures)
 
     def release_resources(self):
@@ -429,7 +434,7 @@ class TaskGraph:
                 item: dict = self.fail_queue.get_nowait()
             except Exception:
                 break
-            
+
             timestamp = item["timestamp"]
             stage_tag = item["stage_tag"]
             error_info = item["error_info"]
@@ -452,9 +457,7 @@ class TaskGraph:
         """
         date_str = datetime.fromtimestamp(self.start_time).strftime("%Y-%m-%d")
         time_str = datetime.fromtimestamp(self.start_time).strftime("%H-%M-%S-%f")[:-3]
-        self.error_jsonl_path = (
-            f"./fallback/{date_str}/graph_errors({time_str}).jsonl"
-        )
+        self.error_jsonl_path = f"./fallback/{date_str}/graph_errors({time_str}).jsonl"
 
         log_item = {
             "timestamp": datetime.now().isoformat(),

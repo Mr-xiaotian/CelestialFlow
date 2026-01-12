@@ -40,7 +40,7 @@ class TaskSplitter(TaskStage):
         处理不可迭代的任务结果
         """
         return tuple(result)
-    
+
     def update_split_counter(self, add_value):
         self.split_counter.value += add_value
 
@@ -55,7 +55,7 @@ class TaskSplitter(TaskStage):
 
             self.task_logger.split_trace(
                 self.func.__name__,
-                idx+1,
+                idx + 1,
                 split_count,
                 task_id,
                 split_id,

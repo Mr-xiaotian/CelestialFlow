@@ -5,6 +5,7 @@ from multiprocessing import Value as MPValue
 
 class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
+
     id = "__TERMINATION_SIGNAL__"
     pass
 
@@ -44,7 +45,7 @@ class SumCounter:
         self.counters: List[ValueWrapper] = []
 
     def add_init_value(self, value):
-        with self.init_value.get_lock():    
+        with self.init_value.get_lock():
             self.init_value.value += value
 
     def append_counter(self, counter):

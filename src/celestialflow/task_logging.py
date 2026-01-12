@@ -66,7 +66,9 @@ class TaskLogger:
 
     # ==== manager ====
     def start_manager(self, func_name, task_num, execution_mode_desc):
-        text = f"'Manager[{func_name}]' start {task_num} tasks by {execution_mode_desc}."
+        text = (
+            f"'Manager[{func_name}]' start {task_num} tasks by {execution_mode_desc}."
+        )
         self._log("INFO", text)
 
     def end_manager(
@@ -129,14 +131,23 @@ class TaskLogger:
         )
 
     def task_success(
-        self, func_name, task_info, execution_mode, result_info, use_time, parent_id, success_id
+        self,
+        func_name,
+        task_info,
+        execution_mode,
+        result_info,
+        use_time,
+        parent_id,
+        success_id,
     ):
         self._log(
             "SUCCESS",
             f"In '{func_name}', Task {task_info} completed by {execution_mode}. Result is {result_info}. Used {use_time:.2f} seconds. [{parent_id}->{success_id}*]",
         )
 
-    def task_retry(self, func_name, task_info, retry_times, exception, parent_id, retry_id):
+    def task_retry(
+        self, func_name, task_info, retry_times, exception, parent_id, retry_id
+    ):
         self._log(
             "WARNING",
             f"In '{func_name}', Task {task_info} failed {retry_times} times and will retry: ({type(exception).__name__}). [{parent_id}->{retry_id}*]",
@@ -160,7 +171,7 @@ class TaskLogger:
         self._log(
             "TRACE",
             f"In '{func_name}', Task split part {part_index}/{part_total}. [{parent_id}->{split_id}*]",
-    )
+        )
 
     def split_success(self, func_name, task_info, split_count, use_time):
         self._log(
@@ -169,7 +180,9 @@ class TaskLogger:
         )
 
     # ==== router ====
-    def route_success(self, func_name, task_info, target_node, use_time, parent_id, route_id):
+    def route_success(
+        self, func_name, task_info, target_node, use_time, parent_id, route_id
+    ):
         self._log(
             "SUCCESS",
             f"In '{func_name}', Task {task_info} has routed to {target_node}. Used {use_time:.2f} seconds. [{parent_id}->{route_id}*]",
@@ -177,12 +190,16 @@ class TaskLogger:
 
     # ==== queue ====
     def put_source(self, source_id, queue_tag, stage_tag, direction):
-        left, right = (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
+        left, right = (
+            (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
+        )
         edge = f"'{left}' -> '{right}'"
         self._log("TRACE", f"Put task#{source_id} into Edge({edge}).")
 
     def get_source(self, source_id, queue_tag, stage_tag, direction="in"):
-        left, right = (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
+        left, right = (
+            (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
+        )
         edge = f"'{left}' -> '{right}'"
         self._log("TRACE", f"Get task#{source_id} from Edge({edge}).")
 
