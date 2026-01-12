@@ -1,15 +1,15 @@
 from typing import List
 
-from .task_manage import TaskManager
+from .task_stage import TaskStage
 from .task_graph import TaskGraph
 
 
 # ========有向无环图(DAG)========
 class TaskChain(TaskGraph):
-    def __init__(self, stages: List[TaskManager], chain_mode: str = "serial"):
+    def __init__(self, stages: List[TaskStage], chain_mode: str = "serial"):
         """
         TaskChain: 线性任务链结构
-        该结构将多个 TaskManager 节点按顺序连接，形成一个线性的数据流图。
+        该结构将多个 TaskStage 节点按顺序连接，形成一个线性的数据流图。
         """
         for num, stage in enumerate(stages):
             stage_name = f"Stage {num + 1}"
@@ -27,20 +27,17 @@ class TaskChain(TaskGraph):
 
 
 class TaskCross(TaskGraph):
-    def __init__(self, layers: List[List[TaskManager]], schedule_mode: str = "process"):
+    def __init__(self, layers: List[List[TaskStage]], schedule_mode: str = "eager"):
         """
         TaskCross: 多层任务交叉结构
-        该结构将任务按“层”组织，每层可以包含多个并行执行的 TaskManager 节点，
+        该结构将任务按“层”组织，每层可以包含多个并行执行的 TaskStage 节点，
         不同层之间通过依赖关系连接，形成跨层的数据流图。
 
-        :param layers: List[List[TaskManager]]
-            按层划分的任务节点列表。每个子列表代表一层，列表中的 TaskManager 将并行执行。
+        :param layers: List[List[TaskStage]]
+            按层划分的任务节点列表。每个子列表代表一层，列表中的 TaskStage 将并行执行。
             相邻层之间的所有节点将建立全连接依赖（即每个上一层节点都连接到下一层所有节点）。
-
-        :param schedule_mode: str, default = 'process'
-            控制任务图的调度布局模式：
-            - 'serial'：逐层顺序执行，上一层全部完成后才启动下一层；
-            - 'process'：所有层并行启动，执行顺序由依赖关系自动调度。
+        :param schedule_mode: str
+            控制任务图的调度布局模式
         """
         for i in range(len(layers)):
             curr_layer = layers[i]
@@ -62,7 +59,7 @@ class TaskCross(TaskGraph):
 
 
 class TaskGrid(TaskGraph):
-    def __init__(self, grid: List[List[TaskManager]], schedule_mode: str = "process"):
+    def __init__(self, grid: List[List[TaskStage]], schedule_mode: str = "eager"):
         """
         TaskGrid: 任务网格结构
         该结构将任务节点组织成二维网格形式，每个节点连接其右侧和下方的节点，
@@ -89,10 +86,12 @@ class TaskGrid(TaskGraph):
 
 # ========有环图========
 class TaskLoop(TaskGraph):
-    def __init__(self, stages: List[TaskManager]):
+    def __init__(self, stages: List[TaskStage]):
         """
-        初始化 TaskLoop, 由于环的结构特性, 强制使用 'process' 节点模式
-        :param stages: TaskManager 列表
+        TaskLoop:  任务环结构
+        由于环的结构特性, 强制使用 'eager' 节点模式
+
+        :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点, 形成一个闭环
         """
         for num, stage in enumerate(stages):
             stage_name = f"Stage {num + 1}"
@@ -110,9 +109,10 @@ class TaskLoop(TaskGraph):
 
 
 class TaskWheel(TaskGraph):
-    """wheel是特殊的有环图, 他有结构意义上的起点, 中心节点连向环, 环相连成闭环"""
-
-    def __init__(self, center: TaskManager, ring: List[TaskManager]):
+    def __init__(self, center: TaskStage, ring: List[TaskStage]):
+        """
+        wheel: 特殊的有环图, 他有结构意义上的起点, 中心节点连向环, 环相连成闭环
+        """
         # 中心连向环
         center.set_graph_context(ring, "process", "Center")
         # 环相连（成闭环）
@@ -124,6 +124,7 @@ class TaskWheel(TaskGraph):
     def start_wheel(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动任务轮结构
+
         :param init_tasks_dict: 任务列表
         :param put_termination_signal: 是否注入终止信号
         """
@@ -131,10 +132,11 @@ class TaskWheel(TaskGraph):
 
 
 class TaskComplete(TaskGraph):
-    def __init__(self, stages: List[TaskManager]):
+    def __init__(self, stages: List[TaskStage]):
         """
         TaskComplete: 完全图结构，每个节点都连向除自己以外的所有其他节点
-        :param stages: 所有 TaskManager 节点
+
+        :param stages: 所有 TaskStage 节点
         """
         for i, stage in enumerate(stages):
             next_stages = [s for j, s in enumerate(stages) if i != j]
@@ -149,6 +151,7 @@ class TaskComplete(TaskGraph):
     def start_complete(self, init_tasks_dict: dict):
         """
         启动任务完全图
+
         :param init_tasks_dict: 任务列表
         """
         self.start_graph(init_tasks_dict, False)
