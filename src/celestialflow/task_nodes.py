@@ -17,7 +17,7 @@ class TaskSplitter(TaskStage):
         初始化 TaskSplitter
         """
         super().__init__(
-            func=self._split_task,
+            func=self._split,
             execution_mode="serial",
             max_retries=0,
             unpack_task_args=True,
@@ -29,20 +29,14 @@ class TaskSplitter(TaskStage):
     def reset_extra_counter(self):
         self.split_counter.value = 0
 
-    def _split_task(self, *task):
+    def update_split_counter(self, add_value):
+        self.split_counter.value += add_value
+
+    def _split(self, *task):
         """
         实际上这个函数不执行逻辑，仅用于符合 TaskStage 架构
         """
         return task
-
-    def process_result(self, task, result):
-        """
-        处理不可迭代的任务结果
-        """
-        return tuple(result)
-
-    def update_split_counter(self, add_value):
-        self.split_counter.value += add_value
 
     def put_split_result(self, result: tuple, task_id: int) -> int:
         split_count = len(result)
@@ -108,18 +102,18 @@ class TaskRouter(TaskStage):
         for counter in self.route_counters.values():
             counter.value = 0
 
+    def update_route_counter(self, target: str):
+        self.route_counters[target].value += 1
+
     def _route(self, routed: tuple) -> tuple:
         """
-        实际上这个函数不执行逻辑，仅用于符合 TaskStage 架构
+        实际上这个函数不执行逻辑，仅用于符合 TaskStage 架构, 以及提前报错
         """
         if not (isinstance(routed, tuple) and len(routed) == 2):
             raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
         if routed[0] not in self.route_counters:
             raise ValueError(f"Unknown target: {routed[0]}")
         return routed
-
-    def update_route_counter(self, target: str):
-        self.route_counters[target].value += 1
 
     def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):
         """

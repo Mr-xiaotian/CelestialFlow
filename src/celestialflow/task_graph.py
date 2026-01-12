@@ -71,13 +71,13 @@ class TaskGraph:
         """
         self.processes: List[multiprocessing.Process] = []
 
-        self.init_dict()
+        self.init_state()
         self.init_log()
         self.init_resources()
 
-    def init_dict(self):
+    def init_state(self):
         """
-        初始化字典
+        初始化状态
         """
         self.stage_runtime_dict: Dict[str, dict] = defaultdict(
             dict

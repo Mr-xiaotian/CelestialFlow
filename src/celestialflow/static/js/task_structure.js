@@ -81,10 +81,11 @@ linkStyle default stroke:#999,stroke-width:1.5px;
     tagToId[tag] = id; // 保存 tag 到 ID 的映射
 
     let shape = "box";
-    if (node.func_name === "_split_task") shape = "subgraph";
-    else if (node.func_name === "_trans_redis") shape = "parallelogram";
+    if (node.func_name === "_split") shape = "subgraph";
+    else if (node.func_name === "_route") shape = "rhombus";
     else if (node.func_name === "_sink") shape = "parallelogram";
     else if (node.func_name === "_source") shape = "parallelogram";
+    else if (node.func_name === "_ack") shape = "parallelogram";
 
     nodeLabels.set(id, getShapeWrappedLabel(label, shape));
 

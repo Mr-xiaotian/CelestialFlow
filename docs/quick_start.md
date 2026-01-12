@@ -112,7 +112,7 @@ pytest tests/test_nodes.py::test_splitter_1
     +--------------------------------------------------------------------------------+
     | GenURLs (stage_mode: process, func: generate_urls_sleep)                       |
     | ╘-->Loger (stage_mode: process, func: log_urls_sleep)                          |
-    | ╘-->Splitter (stage_mode: process, func: _split_task)                          |
+    | ╘-->Splitter (stage_mode: process, func: _split)                          |
     |     ╘-->Downloader (stage_mode: process, func: download_sleep)                 |
     |     ╘-->Parser (stage_mode: process, func: parse_sleep)                        |
     |         ╘-->GenURLs (stage_mode: process, func: generate_urls_sleep) [Visited] |
