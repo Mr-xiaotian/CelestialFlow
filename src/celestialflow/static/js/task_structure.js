@@ -111,7 +111,7 @@ linkStyle default stroke:#999,stroke-width:1.5px;
 
   // let defs = [];
 
-  // if (topologyData.layout_mode === "serial") {
+  // if (topologyData.schedule_mode=== "staged") {
   //   const layers = topologyData.layers_dict || {};
   //   const sortedLayerKeys = Object.keys(layers).sort((a, b) => Number(a) - Number(b));
   //   for (const layer of sortedLayerKeys) {

@@ -95,8 +95,8 @@ class TaskReporter:
     def _push_errors(self):
         try:
             self.task_graph.handle_fail_queue()
-            error_data = self.task_graph.get_error_data()
-            payload = {"errors": error_data}
+            web_display_error = self.task_graph.get_web_display_error()
+            payload = {"errors": web_display_error}
             requests.post(f"{self.base_url}/api/push_errors", json=payload, timeout=1)
         except Exception as e:
             self.logger.push_errors_failed(e)

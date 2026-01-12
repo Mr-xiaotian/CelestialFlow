@@ -21,7 +21,7 @@ function renderTopologyInfo() {
 
   const {
     isDAG,
-    layout_mode,
+    schedule_mode,
     class_name,
     layers_dict = {},
   } = topologyData;
@@ -43,7 +43,7 @@ function renderTopologyInfo() {
 
     <div class="topology-row">
       <span class="label">调度模式</span>
-      <span class="value">${layout_mode}</span>
+      <span class="value">${schedule_mode}</span>
     </div>
 
     <div class="topology-row">
