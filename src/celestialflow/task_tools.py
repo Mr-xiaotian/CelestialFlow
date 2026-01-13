@@ -60,6 +60,7 @@ def _build_structure_subgraph(
     node = {
         "stage_name": task_stage._name,
         "stage_mode": task_stage.stage_mode,
+        "execution_mode": task_stage.execution_mode,
         "func_name": task_stage.func.__name__,
         "is_ref": False,
         "next_stages": [],
@@ -79,35 +80,53 @@ def _build_structure_subgraph(
 
 
 def format_structure_list_from_graph(
-    root_roots: List[Dict] = None, indent=0
+    root_roots: List[Dict] = None
 ) -> List[str]:
     """
     从多个 JSON 图结构生成格式化任务结构文本列表（带边框）
 
     :param root_roots: JSON 格式任务图根节点列表
-    :param indent: 当前缩进级别
     :return: 带边框的格式化字符串列表
     """
 
-    def build_lines(node: Dict, current_indent: int) -> List[str]:
-        lines = []
+    def node_label(node: Dict) -> str:
         visited_note = " [Ref]" if node.get("is_ref") else ""
-        line = f"{node['stage_name']} (stage_mode: {node['stage_mode']}, func: {node['func_name']}){visited_note}"
-        lines.append(line)
+        N = node.get("stage_name", "?")      # N
+        S = node.get("stage_mode", "?")      # S
+        E = node.get("execution_mode", "?")  # E
+        F = node.get("func_name", "?")       # F
 
-        for child in node.get("next_stages", []):
-            sub_lines = build_lines(child, current_indent + 2)
-            arrow_prefix = "  " * current_indent + "╘-->"
-            sub_lines[0] = f"{arrow_prefix}{sub_lines[0]}"
-            lines.extend(sub_lines)
+        return (
+            f"{N}::{F} "
+            f"(S:{S}, E:{E})"
+            f"{visited_note}"
+        )
 
+    # 只渲染“子节点”（有父节点）——保证一定画连接符
+    def build_child_lines(node: Dict, prefix: str, is_last: bool) -> List[str]:
+        connector = "╘-->" if is_last else "╞-->"
+        lines = [f"{prefix}{connector}{node_label(node)}"]
+
+        next_stages = node.get("next_stages", []) or []
+        # 子节点的 prefix 取决于当前节点是不是 last：last -> 空白，否则竖线延续
+        child_prefix = prefix + ("    " if is_last else "│   ")
+        for i, child in enumerate(next_stages):
+            lines.extend(build_child_lines(child, child_prefix, i == len(next_stages) - 1))
+        return lines
+
+    # 专门处理 root：不画连接符，不产生祖先竖线
+    def build_root_lines(root: Dict) -> List[str]:
+        lines = [node_label(root)]
+        next_stages = root.get("next_stages", []) or []
+        for i, child in enumerate(next_stages):
+            lines.extend(build_child_lines(child, "", i == len(next_stages) - 1))
         return lines
 
     all_lines = []
     for root in root_roots or []:
         if all_lines:
             all_lines.append("")  # 根之间留空行
-        all_lines.extend(build_lines(root, indent))
+        all_lines.extend(build_root_lines(root))
 
     if not all_lines:
         return ["+ No stages defined +"]
