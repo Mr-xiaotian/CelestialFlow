@@ -110,6 +110,7 @@ class TaskGraph:
 
             # 记录节点
             stage_runtime["stage"] = stage
+
             stage_runtime["in_queue"] = TaskQueue(
                 queue_list=[],
                 queue_tag=[],
@@ -117,7 +118,6 @@ class TaskGraph:
                 stage_tag=stage_tag,
                 direction="in",
             )
-
             stage_runtime["out_queue"] = TaskQueue(
                 queue_list=[],
                 queue_tag=[],
@@ -125,8 +125,8 @@ class TaskGraph:
                 stage_tag=stage_tag,
                 direction="out",
             )
-            visited_stages.add(stage_tag)
 
+            visited_stages.add(stage_tag)
             queue.extend(stage.next_stages)
 
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():

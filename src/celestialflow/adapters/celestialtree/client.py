@@ -1,7 +1,7 @@
 import json
 import threading
 import requests
-from multiprocessing import Value as MPValue, Lock as MPLock
+from multiprocessing import Value as MPValue
 from typing import List, Optional, Dict, Any, Callable
 
 
@@ -25,6 +25,10 @@ class Client:
                 "Accept": "application/json",
             }
         )
+
+    def raise_for_status(self, r: requests.Response):
+        if not (200 <= r.status_code < 300):
+            raise RuntimeError(r.json()["error"])
 
     # ---------- Core APIs ----------
 
@@ -62,8 +66,7 @@ class Client:
             timeout=self.timeout,
         )
 
-        if not (200 <= r.status_code < 300):
-            raise RuntimeError(r.json()["error"])
+        self.raise_for_status(r)
         return r.json()["id"]
 
     def get_event(self, event_id: int) -> Dict[str, Any]:
@@ -74,8 +77,7 @@ class Client:
             timeout=self.timeout,
         )
 
-        if not (200 <= r.status_code < 300):
-            raise RuntimeError(r.json()["error"])
+        self.raise_for_status(r)
         return r.json()
 
     def children(self, event_id: int) -> List[int]:
@@ -86,20 +88,42 @@ class Client:
             timeout=self.timeout,
         )
 
-        if not (200 <= r.status_code < 300):
-            raise RuntimeError(r.json()["error"])
-        return r.json()["children"]
+        self.raise_for_status(r)
+        return r.json()
 
-    def descendants(self, event_id: int) -> Dict[str, Any]:
+    def descendants(self, event_id: int, view: str = "struct") -> Dict[str, Any]:
         self.init_session()
+
+        params = None
+        if view and view != "struct":
+            # 默认 struct 不传参，保持最干净也最兼容
+            params = {"view": view}
 
         r = self.session.get(
             f"{self.base_url}/descendants/{event_id}",
+            params=params,
             timeout=self.timeout,
         )
 
         if not (200 <= r.status_code < 300):
-            raise RuntimeError(r.json()["error"])
+            # 有些错误响应可能不是 json，稍微做个兜底
+            try:
+                err = r.json().get("error", r.text)
+            except Exception:
+                err = r.text
+            raise RuntimeError(err)
+
+        return r.json()
+    
+    def ancestors(self, event_id: int) -> Dict[str, Any]:
+        self.init_session()
+
+        r = self.session.get(
+            f"{self.base_url}/ancestors/{event_id}",
+            timeout=self.timeout,
+        )
+
+        self.raise_for_status(r)
         return r.json()
 
     def heads(self) -> List[int]:
@@ -110,8 +134,7 @@ class Client:
             timeout=self.timeout,
         )
 
-        if not (200 <= r.status_code < 300):
-            raise RuntimeError(r.json()["error"])
+        self.raise_for_status(r)
         return r.json()["heads"]
 
     def health(self) -> bool:
@@ -133,8 +156,7 @@ class Client:
             timeout=self.timeout,
         )
 
-        if not (200 <= r.status_code < 300):
-            raise RuntimeError(r.json()["error"])
+        self.raise_for_status(r)
         return r.json()
 
     # ---------- SSE Subscribe ----------
