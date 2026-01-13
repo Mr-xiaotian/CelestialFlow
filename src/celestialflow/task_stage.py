@@ -43,8 +43,8 @@ class TaskStage(TaskManager):
 
         :param next_stages: 后续节点列表
         """
-        self.next_stages = next_stages
-        for next_stage in next_stages:
+        self.next_stages = next_stages or []
+        for next_stage in self.next_stages:
             next_stage.add_prev_stages(self)
 
     def set_stage_mode(self, stage_mode: str):
