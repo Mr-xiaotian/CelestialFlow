@@ -83,7 +83,7 @@ class TaskStage(TaskManager):
 
         :param name: 当前节点名称
         """
-        self._name = name
+        self._name = name or f"Stage{id(self)}"
 
     def _finalize_prev_bindings(self):
         """

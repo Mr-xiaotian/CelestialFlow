@@ -19,12 +19,12 @@ def _node_label(node: Dict[str, Any]) -> str:
 
     # ref 标记
     if node.get("is_ref"):
-        label += " (ref)"
+        label += " [Ref]"
 
     # 可选 meta：type / time_unix_nano
     ntype = node.get("type")
     if ntype:
-        label += f" [{ntype}]"
+        label += f" ({ntype})"
 
     ts = node.get("time_unix_nano")
     if ts is not None:
@@ -42,7 +42,7 @@ def format_tree(node: Dict[str, Any], prefix: str = "", is_last: bool = True) ->
       - meta view:   {"id": x, "type": "...", "time_unix_nano": 123, "children": [...], "is_ref": bool?}
     """
     lines = []
-    connector = "└── " if is_last else "├── "
+    connector = "╘-->" if is_last else "╞-->"
 
     lines.append(f"{prefix}{connector}{_node_label(node)}")
 

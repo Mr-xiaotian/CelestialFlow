@@ -115,7 +115,7 @@ class Client:
 
         return r.json()
     
-    def ancestors(self, event_id: int) -> Dict[str, Any]:
+    def ancestors(self, event_id: int) -> List[int]:
         self.init_session()
 
         r = self.session.get(
@@ -135,7 +135,7 @@ class Client:
         )
 
         self.raise_for_status(r)
-        return r.json()["heads"]
+        return r.json()
 
     def health(self) -> bool:
         self.init_session()

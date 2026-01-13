@@ -110,6 +110,7 @@ class TaskGraph:
 
             # 记录节点
             stage_runtime["stage"] = stage
+            stage_runtime["input_ids"] = set()
 
             stage_runtime["in_queue"] = TaskQueue(
                 queue_list=[],
@@ -214,8 +215,7 @@ class TaskGraph:
         if use_ctree:
             self.ctree_client = CelestialTreeClient(host=host, port=port)
             if not self.ctree_client.health():
-                self._use_ctree = False
-                self.ctree_client = NullCelestialTreeClient()
+                raise Exception("CelestialTreeClient is not available")
         else:
             self.ctree_client = NullCelestialTreeClient()
 
@@ -250,8 +250,9 @@ class TaskGraph:
         :param put_termination_signal: 是否放入终止信号
         """
         for tag, tasks in tasks_dict.items():
-            stage: TaskStage = self.stage_runtime_dict[tag]["stage"]
+            stage: TaskStage    = self.stage_runtime_dict[tag]["stage"]
             in_queue: TaskQueue = self.stage_runtime_dict[tag]["in_queue"]
+            input_ids: set      = self.stage_runtime_dict[tag]["input_ids"]
 
             for task in tasks:
                 if isinstance(task, TerminationSignal):
@@ -263,6 +264,8 @@ class TaskGraph:
                 )
                 envelope = TaskEnvelope.wrap(task, input_id)
                 in_queue.put_first(envelope)
+                input_ids.add(input_id)
+
                 stage.task_counter.add_init_value(1)
                 self.task_logger.task_input(
                     stage.get_func_name(),
@@ -607,6 +610,11 @@ class TaskGraph:
 
     def get_networkx_graph(self):
         return format_networkx_graph(self.structure_json)
+    
+    def get_input_descendants(self, input_id: int) -> dict:
+        if not self._use_ctree:
+            return {}
+        return self.ctree_client.descendants(input_id)
 
     def analyze_graph(self):
         """
