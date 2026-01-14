@@ -80,7 +80,7 @@
 }
 
 .topology-row .label {
-  color: #6b7280;
+  color: var(--gray-slate);
 }
 
 .topology-row .value {
@@ -328,6 +328,10 @@
   rx: 4px !important;             
 } */
 
+.dark-theme .topology-row .label {
+  color: var(--gray-medium);
+}
+
 .dark-theme .summary-item.blue {
   background-color: #1e3a8a;
 }
@@ -365,7 +369,7 @@
 }
 
 .dark-theme .stat-label {
-  color: #a1a1aa;
+  color: var(--gray-medium);
 }
 
 .dark-theme .progress-bar {

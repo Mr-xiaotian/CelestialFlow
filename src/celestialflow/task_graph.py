@@ -300,9 +300,9 @@ class TaskGraph:
             self._excute_stages()
 
         finally:
-            self.reporter.stop()
-            self.handle_fail_queue()
             self.finalize_nodes()
+            self.handle_fail_queue()
+            self.reporter.stop()
             self.release_resources()
 
             self.task_logger.end_graph(time.time() - self.start_time)
@@ -400,30 +400,23 @@ class TaskGraph:
             stage_runtime["status"] = StageStatus.STOPPED  # 已停止
 
         # 收集并持久化每个 stage 中未消费的任务
-        failures = []
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
+            stage: TaskStage = stage_runtime["stage"]
             in_queue: TaskQueue = stage_runtime["in_queue"]
             remaining_sources = in_queue.drain()
 
-            if not remaining_sources:
-                continue
-
             # 持久化逻辑
-            ts = time.time()
-            failures.extend(
-                [
-                    (ts, stage_tag, "UnconsumedError", str(source.task))
-                    for source in remaining_sources
-                ]
-            )
-        self._persist_failures(failures)
+            for source in remaining_sources:
+                error_id = self.ctree_client.emit("task.error", [source.id], f"In '{stage_tag}'")
+                stage.put_fail_queue(source.task, Exception("UnconsumedError"), error_id)
 
     def release_resources(self):
         """
         释放资源
         """
         for stage_runtime in self.stage_runtime_dict.values():
-            stage_runtime["stage"].release_queue()
+            stage: TaskStage = stage_runtime["stage"]
+            stage.release_queue()
 
         cleanup_mpqueue(self.fail_queue)
 
@@ -441,6 +434,7 @@ class TaskGraph:
             timestamp = item["timestamp"]
             stage_tag = item["stage_tag"]
             error_info = item["error_info"]
+            error_id = item["error_id"]
             task_str = item["task"]
 
             self.web_display_error.append(
@@ -448,10 +442,11 @@ class TaskGraph:
                     "timestamp": timestamp,
                     "node": stage_tag,
                     "error": error_info,
+                    "error_id": error_id,
                     "task_repr": format_repr(task_str, 100),
                 }
             )
-            failures.append((timestamp, stage_tag, error_info, task_str))
+            failures.append((timestamp, stage_tag, error_info, error_id, task_str))
         self._persist_failures(failures)
 
     def _persist_structure_metadata(self):
@@ -479,9 +474,10 @@ class TaskGraph:
                 "timestamp": datetime.fromtimestamp(ts).isoformat(),
                 "stage": stage,
                 "error": err,
+                "error_id": err_id,
                 "task": task,
             }
-            for ts, stage, err, task in failures
+            for ts, stage, err, err_id, task in failures
         )
         append_jsonl_logs(log_items, self.error_jsonl_path, self.task_logger)
 

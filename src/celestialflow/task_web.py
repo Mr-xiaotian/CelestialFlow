@@ -23,6 +23,7 @@ class ErrorItem(BaseModel):
     timestamp: float
     node: str
     error: str
+    error_id: int
     task_repr: str
 
 

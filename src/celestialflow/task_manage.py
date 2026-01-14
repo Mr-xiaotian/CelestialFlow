@@ -347,7 +347,7 @@ class TaskManager:
                 progress_num += 100
         self.progress_manager.add_total(self.task_counter.value - progress_num)
 
-    def put_fail_queue(self, task, error):
+    def put_fail_queue(self, task, error, error_id):
         """
         将失败的任务放入失败队列
 
@@ -356,13 +356,14 @@ class TaskManager:
         """
         self.fail_queue.put(
             {
+                "timestamp": time.time(),
                 "task": str(task),
                 "error_info": f"{type(error).__name__}({error})",
-                "timestamp": time.time(),
+                "error_id": error_id,
             }
         )
 
-    async def put_fail_queue_async(self, task, error):
+    async def put_fail_queue_async(self, task, error, error_id):
         """
         将失败的任务放入失败队列（异步版本）
 
@@ -371,9 +372,10 @@ class TaskManager:
         """
         await self.fail_queue.put(
             {
+                "timestamp": time.time(),
                 "task": str(task),
                 "error_info": f"{type(error).__name__}({error})",
-                "timestamp": time.time(),
+                "error_id": error_id,
             }
         )
 
@@ -626,7 +628,7 @@ class TaskManager:
             self.retry_time_dict.pop(task_hash, None)
 
             self.update_error_counter()
-            self.put_fail_queue(task, exception)
+            self.put_fail_queue(task, exception, error_id)
             self.task_logger.task_error(
                 self.get_func_name(),
                 self.get_task_info(task),
@@ -691,7 +693,7 @@ class TaskManager:
             self.retry_time_dict.pop(task_hash, None)
 
             self.update_error_counter()
-            await self.put_fail_queue_async(task, exception)
+            await self.put_fail_queue_async(task, exception, error_id)
             self.task_logger.task_error(
                 self.get_func_name(),
                 self.get_task_info(task),

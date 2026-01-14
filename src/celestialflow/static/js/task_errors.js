@@ -41,11 +41,12 @@ function renderErrors() {
   errorsTableBody.innerHTML = "";
 
   if (!pageItems.length) {
-    errorsTableBody.innerHTML = `<tr><td colspan="4" class="no-errors">没有错误记录</td></tr>`;
+    errorsTableBody.innerHTML = `<tr><td colspan="5" class="no-errors">没有错误记录</td></tr>`;
   } else {
     for (const e of pageItems) {
       const row = document.createElement("tr");
       row.innerHTML = `
+        <td class="error-id">${e.error_id}</td>
         <td class="error-message">${e.error}</td>
         <td>${e.node}</td>
         <td>${e.task_repr}</td>

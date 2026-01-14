@@ -80,6 +80,10 @@ th {
   font-size: 0.875rem;
 } */
 
+.error-id {
+  color: var(--gray-mudium);
+}
+
 .error-message {
   color: var(--danger-color);
   font-family: monospace;
