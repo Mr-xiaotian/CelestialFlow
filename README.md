@@ -349,6 +349,6 @@ flowchart TD
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 作者（Author）
-Author: Mr-xiaotian 
-Email: mingxiaomingtian@gmail.com  
+Author: Mr-xiaotian
+Email: mingxiaomingtian@gmail.com
 Project Link: [https://github.com/Mr-xiaotian/CelestialFlow](https://github.com/Mr-xiaotian/CelestialFlow)

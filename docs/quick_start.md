@@ -50,10 +50,10 @@ REPORT_PORT=5005
 
 ```bash
 # 如果你pip了项目，可以在当前虚拟环境下可以直接使用命令celestialflow-web
-celestialflow-web 5005
+celestialflow-web --port 5005
 
-# 如果你直接clone并cd进入项目目录，那么需要运行py文件
-python src/celestialflow/task_web.py 5005 
+# 如果你直接clone并cd进入项目目录，那么需要运行task_web.py文件
+python src/celestialflow/task_web.py --port 5005 
 ```
 
 默认监听端口 `5000`，但为了避免冲突，测试代码中使用的都是端口 `5005`，访问：
@@ -97,25 +97,25 @@ pytest tests/test_nodes.py::test_splitter_1
 
 - test_graph_1() 在一个简单的树状任务模型下，对比了四种运行组合（节点模式：serial / process × 执行模式：serial / thread），以测试不同调度策略下的整体性能差异。图结构如下:
     ```
-    +----------------------------------------------------------------------+
-    | Stage_A (stage_mode: serial, func: sleep_random_A)                   |
-    | ╘-->Stage_B (stage_mode: serial, func: sleep_random_B)               |
-    |     ╘-->Stage_D (stage_mode: serial, func: sleep_random_D)           |
-    |         ╘-->Stage_F (stage_mode: serial, func: sleep_random_F)       |
-    |     ╘-->Stage_E (stage_mode: serial, func: sleep_random_E)           |
-    | ╘-->Stage_C (stage_mode: serial, func: sleep_random_C)               |
-    |     ╘-->Stage_E (stage_mode: serial, func: sleep_random_E) [Visited] |
-    +----------------------------------------------------------------------+
+    +------------------------------------------------------------+
+    | Stage_A::sleep_random_A (S:serial, E:serial)               |
+    | ╞-->Stage_B::sleep_random_B (S:serial, E:serial)           |
+    | │   ╞-->Stage_D::sleep_random_D (S:serial, E:serial)       |
+    | │   │   ╘-->Stage_F::sleep_random_F (S:serial, E:serial)   |
+    | │   ╘-->Stage_E::sleep_random_E (S:serial, E:serial)       |
+    | ╘-->Stage_C::sleep_random_C (S:serial, E:serial)           |
+    |     ╘-->Stage_E::sleep_random_E (S:serial, E:serial) [Ref] |
+    +------------------------------------------------------------+
     ```
 - test_splitter_0() 模拟了一个爬虫程序的执行流程：从入口页面开始抓取，并在解析过程中动态生成新的爬取任务并返回上游抓取节点；下游节点负责数据清洗与结果处理。图结构如下:
     ```
     +--------------------------------------------------------------------------------+
-    | GenURLs (stage_mode: process, func: generate_urls_sleep)                       |
-    | ╘-->Loger (stage_mode: process, func: log_urls_sleep)                          |
-    | ╘-->Splitter (stage_mode: process, func: _split)                          |
-    |     ╘-->Downloader (stage_mode: process, func: download_sleep)                 |
-    |     ╘-->Parser (stage_mode: process, func: parse_sleep)                        |
-    |         ╘-->GenURLs (stage_mode: process, func: generate_urls_sleep) [Visited] |
+    | GenURLs::generate_urls_sleep (S:process, E:serial)                             |
+    | ╞-->Loger::log_urls_sleep (S:process, E:serial)                                |
+    | ╘-->Splitter::_split (S:process, E:serial)                                     |
+    |     ╞-->Downloader::download_sleep (S:process, E:serial)                       |
+    |     ╘-->Parser::parse_sleep (S:process, E:serial)                              |
+    |         ╘-->GenURLs::generate_urls_sleep (S:process, E:serial) [Ref]           |
     +--------------------------------------------------------------------------------+
     ```
 
