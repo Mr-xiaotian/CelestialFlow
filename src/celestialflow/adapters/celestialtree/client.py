@@ -105,14 +105,7 @@ class Client:
             timeout=self.timeout,
         )
 
-        if not (200 <= r.status_code < 300):
-            # 有些错误响应可能不是 json，稍微做个兜底
-            try:
-                err = r.json().get("error", r.text)
-            except Exception:
-                err = r.text
-            raise RuntimeError(err)
-
+        self.raise_for_status(r)
         return r.json()
     
     def ancestors(self, event_id: int) -> List[int]:
@@ -120,6 +113,22 @@ class Client:
 
         r = self.session.get(
             f"{self.base_url}/ancestors/{event_id}",
+            timeout=self.timeout,
+        )
+
+        self.raise_for_status(r)
+        return r.json()
+    
+    def provenance(self, event_id: int, view: str = "struct") -> Dict[str, Any]:
+        self.init_session()
+
+        params = None
+        if view and view != "struct":
+            params = {"view": view}
+
+        r = self.session.get(
+            f"{self.base_url}/provenance/{event_id}",
+            params=params,
             timeout=self.timeout,
         )
 
@@ -214,6 +223,12 @@ class NullClient:
         return []
 
     def descendants(self, *args, **kwargs):
+        return None
+    
+    def ancestors(self, *args, **kwargs):
+        return []
+    
+    def provenance(self, *args, **kwargs):
         return None
 
     def heads(self):

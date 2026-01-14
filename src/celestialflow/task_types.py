@@ -96,4 +96,5 @@ class TaskEnvelope:
         return self.task
 
     def change_id(self, new_id):
+        """修改 id"""
         self.id = new_id
