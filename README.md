@@ -199,6 +199,10 @@ flowchart TD
 
 [📘案例教程](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/tutorial.md)
 
+如果你对3.0.7版本加入的ctree_client与其功能感兴趣, 可以看看这一篇:
+
+[📚CelestialTreeClient](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/ctree_client.md)
+
 ## 环境要求（Requirements）
 
 **CelestialFlow** 基于 Python 3.8+，并依赖以下核心组件。  
