@@ -2,13 +2,135 @@
 
 ## TaskSplitter
 
+```mermaid
+flowchart LR
+    subgraph TG[TaskSplitter]
+        direction LR
+
+        T1[Last Stage]
+        T2[Next Stage]
+
+        TS[[TaskSplitter]]
+
+        T1 -->|1 task| TS
+        TS -->|N task| T2
+
+    end
+
+    %% 美化 TaskGraph 外框
+    style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
+
+    %% 统一美化格式
+    classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
+
+    %% 美化 TaskStages
+    class T1,T2 blueNode;
+
+    %% 美化 特殊Stage
+    class TS blueNode;
+
+```
+
+## TaskRouter
+
+
+```mermaid
+flowchart LR
+    subgraph TG[TaskRouter]
+        direction LR
+
+        T1[Last Stage]
+        T2[Next Stage 1]
+        T3[Next Stage 2]
+
+        TR{{TaskRouter}}
+
+        T1 -->|2 task| TR
+        TR -->|1 task| T2
+        TR -->|1 task| T3
+
+    end
+
+    %% 美化 TaskGraph 外框
+    style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
+
+    %% 统一美化格式
+    classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
+
+    %% 美化 TaskStages
+    class T1,T2,T3 blueNode;
+
+    %% 美化 特殊Stage
+    class TR blueNode;
+
+```
+
 ## TaskRedis*系列节点
 
-### TaskRedisSink
+### TaskRedisSink & TaskRedisSource
 
-### TaskRedisSource
+
+```mermaid
+flowchart LR
+    subgraph TG[TaskRedis*]
+        direction LR
+
+        TRSI[/TaskRedisSink/]
+        TRSO[/TaskRedisSource/]
+
+        RE[(Redis)]
+
+        TRSI -.-> RE -.->  TRSO
+
+    end
+
+    %% 美化 TaskGraph 外框
+    style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
+
+    %% 统一美化格式
+    classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
+
+    %% 美化 特殊Stage
+    class TRSI,TRSO blueNode;
+
+    %% 美化 外部结构
+    class RE blueNode;
+
+```
 
 ### TaskRedisAck
+
+
+```mermaid
+flowchart LR
+    subgraph TG[TaskRedis*]
+        direction LR
+
+        TRSI[/TaskRedisSink/]
+        TRA[/TaskRedisAck/]
+
+        RE[(Redis)]
+        G1((GoWorker))
+        G2((GoWorker))
+
+        TRSI -.->|task| RE -.->|task| G1
+        G2 -.->|result| RE -.->|result| TRA
+
+    end
+
+    %% 美化 TaskGraph 外框
+    style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
+
+    %% 统一美化格式
+    classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
+
+    %% 美化 特殊Stage
+    class TRSI,TRA blueNode;
+
+    %% 美化 外部结构
+    class RE,G1,G2 blueNode;
+
+```
 
 ### 前期设置
 

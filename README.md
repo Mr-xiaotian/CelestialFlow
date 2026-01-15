@@ -23,21 +23,30 @@
 - 相比 Airflow/Dagster 更轻、更快开始
 - 相比 multiprocessing/threading 更结构化，可直接表达 loop / complete graph 等复杂依赖模式
 
-框架的基本单元为 **TaskStage**（由 `TaskManager` 派生），每个 stage 内部绑定一个独立的执行函数，并支持四种运行模式：
+框架的基本单元为 **TaskManager**，可独立运行，并支持四种执行模式：
 
 * **线性（serial）**
 * **多线程（thread）**
 * **多进程（process）**
 * **协程（async）**
 
-每个 stage 均可独立运行，也可作为节点互相连接，形成具有上游与下游依赖关系的任务图（**TaskGraph**）。下游 stage 会自动接收上游执行完成的结果作为输入，从而形成明确的数据流。
+TaskManager 实现了对任务的结果缓存，任务去重，进度条显示，多执行模式比较等功能，单独使用也很好用。
+
+但除去直接使用 TaskManager，更重要的是使用其子类**TaskStage**。TaskStage 可以互相连接，形成具有上游与下游依赖关系的任务图（**TaskGraph**）。下游 stage 会自动接收上游执行完成的结果作为输入，从而形成明确的数据流。
+
+TaskStage 的任务执行模式只有两种：
+
+* **线性（serial）**
+* **多线程（thread）**
 
 在图级别上，每个 Stage 支持两种上下文模式：
 
 * **线性执行（serial layout）**：当前节点执行完毕再启动下一节点（下游节点可提前接收任务但不会立即执行）。
 * **并行执行（process layout）**：当前节点启动后立刻前去启动下一节点。
 
-TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支持传统的有向无环图（DAG），也能灵活表达 **树形（Tree）**、**环形（loop）** 乃至于 **完全图(Complete Graph)** 形式的任务依赖。
+TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支持传统的有向无环图（DAG），也能灵活表达 **树形（Tree）**、**环形（loop）** 乃至于 **完全图（Complete Graph）** 形式的任务依赖。
+
+在执行与调度之外，CelestialFlow 进一步引入 **CelestialTree（简称: ctree） 事件追踪系统**，为每一个任务及其衍生行为（成功、失败、重试、拆分、路由等）记录明确的因果关系。借助 ctree，可以从任意一个初始任务出发，完整还原其在 TaskGraph 中的传播路径与执行轨迹，使任务系统可以进行完整的**追溯、分析、解释**。
 
 在此基础上，CelestialFlow 支持 Web 可视化监控，并可通过 Redis 实现跨进程、跨设备协作；同时引入基于 Go 的外部 worker（通过 Redis 通信），用于承载 CPU 密集型任务，弥补 Python 在该场景下的性能瓶颈。
 
@@ -55,29 +64,8 @@ flowchart LR
         S3[TaskStage C]
         S4[TaskStage D]
 
-        T1[Last Stage]
-        T2[Next Stage]
-
-        TS[[TaskSplitter]]
-        TRSI1[/TaskRedisSink/]
-        TRSI2[/TaskRedisSink/]
-        TRSO[/TaskRedisSource/]
-        TRA[/TaskRedisAck/]
-
-        RE1[(Redis)]
-        RE2[(Redis)]
-        G1((GoWorker))
-        G2((GoWorker))
-
         S1 --> S2 --> S3 --> S1
         S1 --> S4
-
-        T1 -->|1 task| TS
-        TS -->|N task| T2
-
-        TRSI1 -.-> RE1 -.->  TRSO
-        TRSI2 -.->|task| RE2 -.->|task| G1
-        G2 -.->|result| RE2 -.->|result| TRA
 
     end
 
@@ -89,13 +77,6 @@ flowchart LR
 
     %% 美化 TaskStages
     class S1,S2,S3,S4 blueNode;
-    class T1,T2 blueNode;
-
-    %% 美化 特殊Stage
-    class TS,TRA,TRSI1,TRSI2,TRSO blueNode;
-
-    %% 美化 外部结构
-    class RE1,RE2,G1,G2 blueNode;
 
     %% ===== WebUI =====
     subgraph W[WebUI]
@@ -339,7 +320,7 @@ flowchart TD
 - 3.0.1: 上线Pypi, 可喜可贺
 - 3.0.4: 新增一个抽象结构TaskQueue, 用于表示节点的所有"入边"与"出边"; 恢复未消费任务的保存功能
 - 3.0.5: 删除原有的TaskRedisTransfer节点, 并增添三种新的redis交互节点TaskRedisSink TaskRedisSource TaskRedisAck, 用于跨语言 跨进程 跨设备处理任务; 并在Web页面添加展示拓扑信息的卡片
-- 3.0.6: 添加对[CelestialTree](https://github.com/Mr-xiaotian/CelestialTree)(简称: ctree)系统的支持, 现在可以追踪单个任务的流向
+- 3.0.6: 添加对[CelestialTree](https://github.com/Mr-xiaotian/CelestialTree)系统的支持, 现在可以追踪单个任务的流向
 - 3.0.7: 将TaskStage从TaskManager中单独抽出来作为一个子类; 增加新节点TaskRouter, 可以将传入的任务选择的传给不同的下游节点, 而不是进行广播
 - 3.0.8: 在ctree逻辑上将"任务重试"事件后的"任务成功/失败/重试"事件视为因果关系, 而非之前的并行关系; 重构错误搜集部分逻辑; 修复大量3.0.6与3.07版本引入的bug; 优化部分log表现
 

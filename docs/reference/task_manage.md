@@ -35,7 +35,9 @@ task_manager = TaskManager(
     max_retries=3,              # 最大重试次数
     max_info=50,                # 日志中单个信息的最大显示量
     unpack_task_args=True,      # 是否解包参数
-    enable_result_cache=True,   # 是否存储结果信息
+    enable_success_cache=False, # 是否启用成功结果缓存
+    enable_error_cache=False,   # 是否启用失败结果缓存
+    enable_duplicate_check=True,# 是否启用重复检查
     progress_desc="Processing", # 进度条信息
     show_progress=True,         # 是否显示进度
 )
@@ -54,7 +56,7 @@ TaskManager 将根据设定的执行模式并发或异步地执行任务，并�
 ### 3. 获取任务结果
 任务执行完成后，可以通过 get_success_dict 方法获取执行结果，或通过 get_error_dict 获取失败的任务及其对应的异常。
 
-注意: 只有在`enable_result_cache=True`时才会记录结果信息， 否则 get_success_dict 和 get_error_dict 返回值为空。
+注意: 只有在`enable_success_cache=True || enable_error_cache=True`时才会记录结果信息， 否则 get_success_dict 和 get_error_dict 返回值为空。
 
 ```python
 # 获取成功的结果
@@ -75,7 +77,9 @@ worker_limit: 最大并发任务数，适用于并发和异步执行模式, 一�
 max_retries: 任务失败时的最大重试次数。
 max_info: 日志中单个信息的最大显示量
 unpack_task_args: 是否解包参数, 当输入参数多于一个时使用(但还有一种更方便的模式, 之后介绍)
-enable_result_cache: 是否存储结果信息
+enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_dict 中
+enable_error_cache: 是否启用失败结果缓存, 将失败结果保存在 error_dict 中
+enable_duplicate_check: 是否启用重复检查
 show_progress: 是否显示任务进度条，默认不显示。
 progress_desc: 进度条的描述文字，用于标识任务类型。
 
@@ -140,7 +144,8 @@ example_task_manager = ExampleTaskManager(
     execution_mode='thread', 
     worker_limit=50,         
     unpack_task_args=False,     # 因为我们已经在 get_args 进行了解包, 这里选False
-    enable_result_cache=True,   # 因为要运行 process_result_dict 和 handle_error_dict, 这里必须为True
+    enable_success_cache=True,  # 因为要运行 process_result_dict 和 handle_error_dict, 这里必须为True
+    enable_error_cache=True,   
     progress_desc="Example Processing", 
     show_progress=True,         # 默认为False, 因为开启会影响性能, 具体可看experiments\benchmark_tqdm.py
 )
