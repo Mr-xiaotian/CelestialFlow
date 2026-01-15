@@ -1,5 +1,6 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 from datetime import datetime, timezone
+
 
 def format_unix_nano(ts: int) -> str:
     """
@@ -36,7 +37,7 @@ def _node_label(node: Dict[str, Any]) -> str:
 
 def format_descendants(node: Dict[str, Any], prefix: str = "", is_last: bool = True) -> str:
     """
-    将树结构格式化为树状文本。
+    将 descendants 树结构格式化为树状文本。
     兼容:
       - struct view: {"id": x, "children": [...], "is_ref": bool?}
       - meta view:   {"id": x, "type": "...", "time_unix_nano": 123, "children": [...], "is_ref": bool?}
@@ -57,13 +58,25 @@ def format_descendants(node: Dict[str, Any], prefix: str = "", is_last: bool = T
 
 def format_descendants_root(tree: Dict[str, Any]) -> str:
     """
-    格式化整棵树（根节点无连接符）
+    格式化 descendants 树（根节点无连接符）
     """
     lines = [_node_label(tree)]
 
     children = tree.get("children") or []
     for i, child in enumerate(children):
         lines.append(format_descendants(child, "", i == len(children) - 1))
+
+    return "\n".join(lines)
+
+
+def format_descendants_forest(forest: List[Dict[str, Any]]) -> str:
+    """
+    格式化 descendants 森林（多棵树）
+    """
+    lines = []
+    for i, tree in enumerate(forest):
+        lines.append(format_descendants_root(tree))
+        lines.append("")
 
     return "\n".join(lines)
 
@@ -118,3 +131,16 @@ def format_provenance_root(tree: Dict[str, Any]) -> str:
         )
 
     return "\n".join(lines)
+
+
+def format_provenance_forest(forest: List[Dict[str, Any]]) -> str:
+    """
+    格式化 provenance 森林（多棵树）
+    """
+    lines = []
+    for i, tree in enumerate(forest):
+        lines.append(format_provenance_root(tree))
+        lines.append("")
+
+    return "\n".join(lines)
+

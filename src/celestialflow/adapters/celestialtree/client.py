@@ -90,6 +90,17 @@ class Client:
 
         self.raise_for_status(r)
         return r.json()
+    
+    def ancestors(self, event_id: int) -> List[int]:
+        self.init_session()
+
+        r = self.session.get(
+            f"{self.base_url}/ancestors/{event_id}",
+            timeout=self.timeout,
+        )
+
+        self.raise_for_status(r)
+        return r.json()
 
     def descendants(self, event_id: int, view: str = "struct") -> Dict[str, Any]:
         self.init_session()
@@ -108,11 +119,25 @@ class Client:
         self.raise_for_status(r)
         return r.json()
     
-    def ancestors(self, event_id: int) -> List[int]:
+    def descendants_batch(self, event_ids: List[int], view: str = "struct") -> List[Dict[str, Any]]:
+        """
+        Batch descendants.
+        POST /descendants
+        body: {"ids":[...], "view":"struct|meta"}
+        response: [tree, tree, ...]
+        """
         self.init_session()
 
-        r = self.session.get(
-            f"{self.base_url}/ancestors/{event_id}",
+        if not event_ids:
+            raise ValueError("event_ids is required")
+
+        body: Dict[str, Any] = {"ids": event_ids}
+        if view and view != "struct":
+            body["view"] = view
+
+        r = self.session.post(
+            f"{self.base_url}/descendants",
+            data=json.dumps(body),
             timeout=self.timeout,
         )
 
@@ -129,6 +154,31 @@ class Client:
         r = self.session.get(
             f"{self.base_url}/provenance/{event_id}",
             params=params,
+            timeout=self.timeout,
+        )
+
+        self.raise_for_status(r)
+        return r.json()
+    
+    def provenance_batch(self, event_ids: List[int], view: str = "struct") -> List[Dict[str, Any]]:
+        """
+        Batch provenance (parents tree).
+        POST /provenance
+        body: {"ids":[...], "view":"struct|meta"}
+        response: [tree, tree, ...]
+        """
+        self.init_session()
+
+        if not event_ids:
+            raise ValueError("event_ids is required")
+
+        body: Dict[str, Any] = {"ids": event_ids}
+        if view and view != "struct":
+            body["view"] = view
+
+        r = self.session.post(
+            f"{self.base_url}/provenance",
+            data=json.dumps(body),
             timeout=self.timeout,
         )
 
@@ -221,14 +271,20 @@ class NullClient:
 
     def children(self, *args, **kwargs):
         return []
+    
+    def ancestors(self, *args, **kwargs):
+        return []
 
     def descendants(self, *args, **kwargs):
         return None
     
-    def ancestors(self, *args, **kwargs):
-        return []
+    def descendants_batch(self, *args, **kwargs):
+        return None
     
     def provenance(self, *args, **kwargs):
+        return None
+    
+    def provenance_batch(self, *args, **kwargs):
         return None
 
     def heads(self):
