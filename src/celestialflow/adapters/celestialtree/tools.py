@@ -74,7 +74,7 @@ def format_descendants_forest(forest: List[Dict[str, Any]]) -> str:
     格式化 descendants 森林（多棵树）
     """
     lines = []
-    for i, tree in enumerate(forest):
+    for tree in forest:
         lines.append(format_descendants_root(tree))
         lines.append("")
 
@@ -138,7 +138,7 @@ def format_provenance_forest(forest: List[Dict[str, Any]]) -> str:
     格式化 provenance 森林（多棵树）
     """
     lines = []
-    for i, tree in enumerate(forest):
+    for tree in forest:
         lines.append(format_provenance_root(tree))
         lines.append("")
 

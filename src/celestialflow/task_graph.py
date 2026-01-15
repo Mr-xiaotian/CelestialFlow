@@ -301,10 +301,9 @@ class TaskGraph:
 
         finally:
             self.finalize_nodes()
-            self.handle_fail_queue()
+
             self.reporter.stop()
             self.release_resources()
-
             self.task_logger.end_graph(time.time() - self.start_time)
             self.log_listener.stop()
 
@@ -313,7 +312,7 @@ class TaskGraph:
         执行所有节点
         """
         if self.schedule_mode == "eager":
-            # 默认逻辑：一次性执行所有节点
+            # eager schedule_mode：一次性执行所有节点
             for stage_runtime in self.stage_runtime_dict.values():
                 self._execute_stage(stage_runtime["stage"])
 
@@ -354,8 +353,8 @@ class TaskGraph:
         logger_queue = self.log_listener.get_queue()
 
         # 输入输出队列
-        input_queues = stage_runtime["in_queue"]
-        output_queues = stage_runtime["out_queue"]
+        input_queues: TaskQueue  = stage_runtime["in_queue"]
+        output_queues: TaskQueue = stage_runtime["out_queue"]
 
         stage_runtime["status"] = StageStatus.RUNNING
         stage_runtime["start_time"] = time.time()
@@ -401,14 +400,19 @@ class TaskGraph:
 
         # 收集并持久化每个 stage 中未消费的任务
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
-            stage: TaskStage = stage_runtime["stage"]
             in_queue: TaskQueue = stage_runtime["in_queue"]
             remaining_sources = in_queue.drain()
 
             # 持久化逻辑
             for source in remaining_sources:
                 error_id = self.ctree_client.emit("task.error", [source.id], f"In '{stage_tag}'")
-                stage.put_fail_queue(source.task, Exception("UnconsumedError"), error_id)
+                self.fail_queue.put({
+                    "timestamp": time.time(),
+                    "stage_tag": stage_tag,
+                    "error_info": "Exception('UnconsumedError')",
+                    "error_id": error_id,
+                    "task": str(source.task),
+                })
 
     def release_resources(self):
         """
@@ -607,10 +611,12 @@ class TaskGraph:
     def get_networkx_graph(self):
         return format_networkx_graph(self.structure_json)
     
-    def get_input_descendants(self, input_id: int) -> dict:
+    def get_stage_descendants(self, stage_tag: int) -> List[dict]:
         if not self._use_ctree:
             return {}
-        return self.ctree_client.descendants(input_id)
+        
+        input_ids: set = self.stage_runtime_dict[stage_tag]["input_ids"]
+        return self.ctree_client.descendants_batch(list(input_ids))
 
     def analyze_graph(self):
         """

@@ -28,7 +28,9 @@ class Client:
 
     def raise_for_status(self, r: requests.Response):
         if not (200 <= r.status_code < 300):
-            raise RuntimeError(r.json()["error"])
+            error = r.json().get("error", "request failed")
+            detail = r.json().get("detail", None)
+            raise RuntimeError(f"{error} ({detail})" if detail else error)
 
     # ---------- Core APIs ----------
 

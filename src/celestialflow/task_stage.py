@@ -6,6 +6,7 @@ from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 
 from .task_manage import TaskManager
+from .task_queue import TaskQueue
 from .task_types import TERMINATION_SIGNAL
 
 
@@ -134,8 +135,8 @@ class TaskStage(TaskManager):
 
     def start_stage(
         self,
-        input_queues: List[MPQueue],
-        output_queues: List[MPQueue],
+        input_queues: TaskQueue,
+        output_queues: TaskQueue,
         fail_queue: MPQueue,
         logger_queue: MPQueue,
     ):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio, time
+import warnings
 from asyncio import Queue as AsyncQueue
 from collections import defaultdict
 from collections.abc import Iterable
@@ -37,7 +38,8 @@ class TaskManager:
         max_retries=1,
         max_info=50,
         unpack_task_args=False,
-        enable_result_cache=False,
+        enable_success_cache=False,
+        enable_error_cache=False,
         enable_duplicate_check=True,
         progress_desc="Processing",
         show_progress=False,
@@ -51,14 +53,18 @@ class TaskManager:
         :param max_retries: 任务的最大重试次数
         :param max_info: 日志中每条信息的最大长度
         :param unpack_task_args: 是否将任务参数解包
-        :param enable_result_cache: 是否启用结果缓存, 将成功与失败结果保存在 success_dict 与 error_dict 中
+        :param enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_dict 中
+        :param enable_error_cache: 是否启用失败结果缓存, 将失败结果保存在 error_dict 中
         :param enable_duplicate_check: 是否启用重复检查
         :param progress_desc: 进度条显示名称
         :param show_progress: 进度条显示与否
         """
-        if enable_result_cache == True and enable_duplicate_check == False:
-            raise ValueError(
-                "enable_duplicate_check must be True if enable_result_cache is True"
+        if (enable_success_cache == True or enable_error_cache == True) and enable_duplicate_check == False:
+            warnings.warn(
+                "Result cache is enabled while duplicate check is disabled. "
+                "This may cause the number of cached results to differ from the number of input tasks "
+                "due to duplicated task execution.",
+                RuntimeWarning,
             )
 
         self.func = func
@@ -66,8 +72,10 @@ class TaskManager:
         self.worker_limit = worker_limit
         self.max_retries = max_retries
         self.max_info = max_info
+
         self.unpack_task_args = unpack_task_args
-        self.enable_result_cache = enable_result_cache
+        self.enable_success_cache = enable_success_cache
+        self.enable_error_cache = enable_error_cache
         self.enable_duplicate_check = enable_duplicate_check
 
         self.progress_desc = progress_desc
@@ -144,7 +152,7 @@ class TaskManager:
         self.logger_queue = logger_queue or ThreadQueue()
         self.task_logger = TaskLogger(self.logger_queue)
 
-    def init_queue(self, task_queues=None, result_queues=None, fail_queue=None):
+    def init_queue(self, task_queues: TaskQueue=None, result_queues: TaskQueue=None, fail_queue: TaskQueue=None):
         """
         初始化队列
 
@@ -161,14 +169,14 @@ class TaskManager:
         }
 
         # task_queues, result_queues与fail_queue只会在节点进程内运行, 因此如果不涉及多个进程的节点间通信, 可以全部使用ThreadQueue
-        self.task_queues: TaskQueue = task_queues or TaskQueue(
+        self.task_queues = task_queues or TaskQueue(
             [queue_map[self.execution_mode]()],
             [None],
             self.logger_queue,
             self.get_tag(),
             "in",
         )
-        self.result_queues: TaskQueue = result_queues or TaskQueue(
+        self.result_queues = result_queues or TaskQueue(
             [queue_map[self.execution_mode]()],
             [None],
             self.logger_queue,
@@ -515,7 +523,7 @@ class TaskManager:
         task_id = task_envelope.id
 
         processed_result = self.process_result(task, result)
-        if self.enable_result_cache:
+        if self.enable_success_cache:
             self.success_dict[task] = processed_result
 
         result_id = self.ctree_client.emit(
@@ -553,7 +561,7 @@ class TaskManager:
         task_id = task_envelope.id
 
         processed_result = self.process_result(task, result)
-        if self.enable_result_cache:
+        if self.enable_success_cache:
             self.success_dict[task] = processed_result
 
         result_id = self.ctree_client.emit(
@@ -617,7 +625,7 @@ class TaskManager:
             )
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
-            if self.enable_result_cache:
+            if self.enable_error_cache:
                 self.error_dict[task] = exception
 
             error_id = self.ctree_client.emit(
@@ -682,7 +690,7 @@ class TaskManager:
             )
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
-            if self.enable_result_cache:
+            if self.enable_error_cache:
                 self.error_dict[task] = exception
 
             error_id = self.ctree_client.emit(
