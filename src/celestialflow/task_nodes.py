@@ -80,7 +80,7 @@ class TaskSplitter(TaskStage):
 
         self.task_logger.split_success(
             self.func.__name__,
-            self.get_task_info(task),
+            self.get_task_repr(task),
             split_count,
             time.time() - start_time,
         )
@@ -144,7 +144,7 @@ class TaskRouter(TaskStage):
 
         self.task_logger.route_success(
             self.get_func_name(),
-            self.get_task_info(task),
+            self.get_task_repr(task),
             target,
             time.time() - start_time,
             task_id,

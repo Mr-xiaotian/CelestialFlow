@@ -269,7 +269,7 @@ class TaskGraph:
                 stage.task_counter.add_init_value(1)
                 self.task_logger.task_input(
                     stage.get_func_name(),
-                    stage.get_task_info(task),
+                    stage.get_task_repr(task),
                     stage.get_tag(),
                     input_id,
                 )

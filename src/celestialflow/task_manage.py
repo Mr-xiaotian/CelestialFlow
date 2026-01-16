@@ -319,7 +319,7 @@ class TaskManager:
             self.update_task_counter()
             self.task_logger.task_input(
                 self.get_func_name(),
-                self.get_task_info(task),
+                self.get_task_repr(task),
                 self.get_tag(),
                 input_id,
             )
@@ -345,7 +345,7 @@ class TaskManager:
             self.update_task_counter()
             self.task_logger.task_input(
                 self.get_func_name(),
-                self.get_task_info(task),
+                self.get_task_repr(task),
                 self.get_tag(),
                 input_id,
             )
@@ -477,7 +477,7 @@ class TaskManager:
 
         return dict(error_groups)  # 转换回普通字典
 
-    def get_task_info(self, task) -> str:
+    def get_task_repr(self, task) -> str:
         """
         获取任务参数信息的可读字符串表示
 
@@ -500,7 +500,7 @@ class TaskManager:
 
         return f"({', '.join(formatted_args)})"
 
-    def get_result_info(self, result):
+    def get_result_repr(self, result):
         """
         获取结果信息
 
@@ -538,9 +538,9 @@ class TaskManager:
         self.result_queues.put(result_envelope)
         self.task_logger.task_success(
             self.get_func_name(),
-            self.get_task_info(task),
+            self.get_task_repr(task),
             self.execution_mode,
-            self.get_result_info(result),
+            self.get_result_repr(result),
             time.time() - start_time,
             task_id,
             result_id,
@@ -576,9 +576,9 @@ class TaskManager:
         await self.result_queues.put_async(result_envelope)
         self.task_logger.task_success(
             self.get_func_name(),
-            self.get_task_info(task),
+            self.get_task_repr(task),
             self.execution_mode,
-            self.get_result_info(result),
+            self.get_result_repr(result),
             time.time() - start_time,
             task_id,
             result_id,
@@ -617,7 +617,7 @@ class TaskManager:
 
             self.task_logger.task_retry(
                 self.get_func_name(),
-                self.get_task_info(task),
+                self.get_task_repr(task),
                 self.retry_time_dict[task_hash],
                 exception,
                 task_id,
@@ -639,7 +639,7 @@ class TaskManager:
             self.put_fail_queue(task, exception, error_id)
             self.task_logger.task_error(
                 self.get_func_name(),
-                self.get_task_info(task),
+                self.get_task_repr(task),
                 exception,
                 task_id,
                 error_id,
@@ -682,7 +682,7 @@ class TaskManager:
 
             self.task_logger.task_retry(
                 self.get_func_name(),
-                self.get_task_info(task),
+                self.get_task_repr(task),
                 self.retry_time_dict[task_hash],
                 exception,
                 task_id,
@@ -704,7 +704,7 @@ class TaskManager:
             await self.put_fail_queue_async(task, exception, error_id)
             self.task_logger.task_error(
                 self.get_func_name(),
-                self.get_task_info(task),
+                self.get_task_repr(task),
                 exception,
                 task_id,
                 error_id,
@@ -725,7 +725,7 @@ class TaskManager:
         )
         self.task_logger.task_duplicate(
             self.get_func_name(),
-            self.get_task_info(task),
+            self.get_task_repr(task),
             task_id,
             duplicate_id,
         )
