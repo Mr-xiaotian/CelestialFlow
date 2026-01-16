@@ -6,6 +6,11 @@ from datetime import datetime
 from multiprocessing import Queue as MPQueue
 from typing import Any, Dict, List
 
+from celestialtree import (
+    Client as CelestialTreeClient,
+    NullClient as NullCelestialTreeClient,
+)
+
 from .task_stage import TaskStage
 from .task_report import TaskReporter, NullTaskReporter
 from .task_logging import LogListener, TaskLogger
@@ -26,10 +31,6 @@ from .task_tools import (
     load_task_by_stage,
     load_task_by_error,
     format_repr,
-)
-from .adapters.celestialtree import (
-    Client as CelestialTreeClient,
-    NullClient as NullCelestialTreeClient,
 )
 
 

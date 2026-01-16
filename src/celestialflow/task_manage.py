@@ -11,6 +11,11 @@ from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue
 from threading import Event, Lock
 
+from celestialtree import (
+    Client as CelestialTreeClient,
+    NullClient as NullCelestialTreeClient,
+)
+
 from .task_progress import ProgressManager, NullProgress
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
@@ -21,10 +26,6 @@ from .task_types import (
     TERMINATION_SIGNAL,
 )
 from .task_tools import format_repr
-from .adapters.celestialtree import (
-    Client as CelestialTreeClient,
-    NullClient as NullCelestialTreeClient,
-)
 
 
 class TaskManager:

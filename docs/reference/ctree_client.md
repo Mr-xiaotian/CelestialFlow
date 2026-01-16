@@ -1,6 +1,6 @@
 # CelestialTreeClient
 
-ctree_client 是[CelestialTree](https://github.com/Mr-xiaotian/CelestialTree)(简称: ctree)的py客户端, 在3.0.7引入, 预计在3.1.0版本单独作为一个库而移出CelestialFlow。
+ctree_client 是[CelestialTree](https://github.com/Mr-xiaotian/CelestialTree)(简称: ctree)的py客户端, 在3.0.7引入, 并在3.0.9版本单独作为一个库而移出CelestialFlow。
 
 CelestialTree 是一套高性能, 用于管理事件因果关系的系统框架, 在当前项目中 CelestialTree 用于跟踪任务及因其而诞生任务的完成情况, 例如在tests/test_nodes.py::test_splitter_1中, 我在节点`GenURLs`中注入一个任务, 注入事件(task.input)的id被记为 268, 同样在`GenURLs`中, 该任务被成功处理并诞生新任务, 该事件(task.success)id为278。随后新任务又在`GenURLs`的下游节点中得到处理, 如此往复。不难注意到, 一个正常结束的 TaskGraph 中, 事件树的叶子节点事件必为task.success, task.error, 以及之后会介绍的task.duplicate三种。
 

@@ -190,16 +190,17 @@ flowchart TD
 请确保你的环境能够正常安装这些依赖（`pip install celestialflow` 会自动安装）。
 
 | 依赖包           | 说明 |
-| ---------------- | ---- |
-| **Python ≥ 3.8** | 运行环境，建议使用 3.10 及以上版本 |
-| **tqdm**         | 控制台进度条显示，用于任务执行可视化 |
-| **loguru**       | 高性能日志系统，支持多进程安全输出 |
-| **fastapi**      | Web 服务接口框架（用于任务可视化与远程控制） |
-| **uvicorn**      | FastAPI 的高性能 ASGI 服务器 |
-| **requests**     | HTTP 客户端库，用于任务状态上报与远程调用 |
-| **networkx**     | 任务图（TaskGraph）结构与依赖分析 |
-| **redis**        | 可选组件，用于分布式任务通信（`TaskRedis*` 系列模块） |
-| **jinja2**       | FastAPI 模板引擎，用于 Web 可视化界面渲染 |
+| ----------------- | ---- |
+| **Python ≥ 3.8**  | 运行环境，建议使用 3.10 及以上版本 |
+| **tqdm**          | 控制台进度条显示，用于任务执行可视化 |
+| **loguru**        | 高性能日志系统，支持多进程安全输出 |
+| **fastapi**       | Web 服务接口框架（用于任务可视化与远程控制） |
+| **uvicorn**       | FastAPI 的高性能 ASGI 服务器 |
+| **requests**      | HTTP 客户端库，用于任务状态上报与远程调用 |
+| **networkx**      | 任务图（TaskGraph）结构与依赖分析 |
+| **jinja2**        | FastAPI 模板引擎，用于 Web 可视化界面渲染 |
+| **redis**         | 可选组件，用于分布式任务通信（`TaskRedis*` 系列模块） |
+| **celestialtree** | 可选组件，用于任务状态上报与远程调用（`ctree_client`） |
 
 ## 文件结构（File Structure）
 
