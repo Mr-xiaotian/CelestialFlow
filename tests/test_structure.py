@@ -1,7 +1,6 @@
 import pytest, logging, os
 import math
 from time import sleep
-from dotenv import load_dotenv
 
 from celestialflow import (
     TaskStage,
@@ -15,7 +14,6 @@ from celestialflow import (
 )
 
 
-load_dotenv()
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
 

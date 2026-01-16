@@ -1,12 +1,10 @@
 import pytest, logging, pprint, os
 import random
 from time import sleep
-from dotenv import load_dotenv
 
 from celestialflow import TaskStage, TaskGraph, format_table
 
 
-load_dotenv()
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
 ctree_host = os.getenv("CTREE_HOST")
