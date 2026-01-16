@@ -156,18 +156,18 @@ if __name__ == "__main__":
 flowchart TD
     classDef whiteNode fill:#ffffff,stroke:#000000,color:#000000;
 
-    TM[TaskManage] --> TG[TaskGraph]
-    TM --> TP[TaskProgress]
+    TM[TaskManage.md] --> TS[TaskStage.md] --> TG[TaskGraph.md]
+    TM --> TP[TaskProgress.md]
 
-    TG --> TQ[TaskQueue]
-    TG --> TN[TaskNodes]
-    TG --> TR[TaskReport]
-    TG --> TS[TaskStructure]
+    TG --> TQ[TaskQueue.md]
+    TG --> TN[TaskNodes.md]
+    TG --> TR[TaskReport.md]
+    TG --> TSR[TaskStructure.md]
 
-    TR --> TW[TaskWeb]
-    TN --> GW[Go Worker]
+    TR --> TW[TaskWeb.md]
+    TN --> GW[Go Worker.md]
 
-    class TM,TG,TP,TQ,TN,TR,TS,TW,GW whiteNode;
+    class TM,TG,TP,TQ,TN,TR,TS,TW,GW,TSR whiteNode;
 ```
 
 以下三篇可以作为补充阅读:
