@@ -18,6 +18,7 @@ from .task_structure import (
 )
 from .task_types import TerminationSignal
 from .task_tools import (
+    load_jsonl_logs,
     load_task_by_stage,
     load_task_by_error,
     make_hashable,
@@ -42,6 +43,7 @@ __all__ = [
     "TaskRouter",
     "TerminationSignal",
     "TaskWebServer",
+    "load_jsonl_logs",
     "load_task_by_stage",
     "load_task_by_error",
     "make_hashable",

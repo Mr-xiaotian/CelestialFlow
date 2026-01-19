@@ -481,6 +481,7 @@ class TaskGraph:
                 "error": err,
                 "error_id": err_id,
                 "task": task,
+                "ts": ts,
             }
             for ts, stage, err, err_id, task in failures
         )
