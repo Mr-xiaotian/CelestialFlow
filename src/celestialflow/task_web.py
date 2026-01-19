@@ -10,6 +10,8 @@ from datetime import datetime
 import uvicorn
 import argparse
 
+from .task_tools import load_jsonl_logs
+
 
 class StructureModel(BaseModel):
     items: List[Dict[str, Any]]
@@ -19,16 +21,8 @@ class StatusModel(BaseModel):
     status: Dict[str, dict]
 
 
-class ErrorItem(BaseModel):
-    timestamp: float
-    node: str
-    error: str
-    error_id: int
-    task_repr: str
-
-
-class ErrorsModel(BaseModel):
-    errors: List[ErrorItem]
+class ErrorsMetaModel(BaseModel):
+    jsonl_path: str
 
 
 class TopologyModel(BaseModel):
@@ -68,7 +62,7 @@ class TaskWebServer:
         self.structure_store = []
         self.error_store = []
         self.topology_store = {}
-        self.pending_injection_tasks = []  # 存储前端注入任务
+        self.injection_tasks = []  # 存储前端注入任务
 
         self.report_interval = 5
         self._task_injection_lock = threading.Lock()
@@ -107,8 +101,8 @@ class TaskWebServer:
         @app.get("/api/get_task_injection")
         def get_task_injection():
             with self._task_injection_lock:
-                tasks_to_send = self.pending_injection_tasks.copy()
-                self.pending_injection_tasks.clear()
+                tasks_to_send = self.injection_tasks.copy()
+                self.injection_tasks.clear()
             return tasks_to_send
 
         # ---- 发送接口 ----
@@ -122,9 +116,9 @@ class TaskWebServer:
             self.status_store = data.status
             return {"ok": True}
 
-        @app.post("/api/push_errors")
-        async def push_errors(data: ErrorsModel):
-            self.error_store = data.errors
+        @app.post("/api/push_errors_meta")
+        async def push_errors_meta(data: ErrorsMetaModel):
+            self.error_store = load_jsonl_logs(data.jsonl_path)
             return {"ok": True}
 
         @app.post("/api/push_topology")
@@ -140,12 +134,11 @@ class TaskWebServer:
             except Exception as e:
                 return JSONResponse(content={"error": str(e)}, status_code=400)
 
-        @app.post("/api/push_task_injection")
-        async def push_task_injection(data: TaskInjectionModel):
+        @app.post("/api/push_injection_tasks")
+        async def push_injection_tasks(data: TaskInjectionModel):
             try:
-                print(f"[任务注入]: {data}")
                 with self._task_injection_lock:
-                    self.pending_injection_tasks.append(data.model_dump())
+                    self.injection_tasks.append(data.model_dump())
                 return {"ok": True}
             except Exception as e:
                 return JSONResponse(

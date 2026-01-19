@@ -22,14 +22,14 @@ function renderErrors() {
   const keyword = (searchInput.value || "").trim().toLowerCase();
 
   const filtered = errors.filter(e => {
-    const matchNode = !filter || e.node === filter;
+    const matchNode = !filter || e.stage === filter;
     const matchKeyword = !keyword ||
       (e.error && e.error.toLowerCase().includes(keyword)) ||
       (e.task_repr && e.task_repr.toLowerCase().includes(keyword));
     return matchNode && matchKeyword;
   });
 
-  const sortedByTime = [...filtered].sort((a, b) => b.timestamp - a.timestamp);
+  const sortedByTime = [...filtered].sort((a, b) => b.ts - a.ts);
   const totalPages = Math.ceil(sortedByTime.length / pageSize);
   
   // 处理边界（例如当前页大于最大页）
@@ -48,9 +48,9 @@ function renderErrors() {
       row.innerHTML = `
         <td class="error-id">${e.error_id}</td>
         <td class="error-message">${e.error}</td>
-        <td>${e.node}</td>
+        <td>${e.stage}</td>
         <td>${e.task_repr}</td>
-        <td>${formatTimestamp(e.timestamp)}</td>
+        <td>${formatTimestamp(e.ts)}</td>
       `;
       errorsTableBody.appendChild(row);
     }

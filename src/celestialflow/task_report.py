@@ -54,7 +54,7 @@ class TaskReporter:
         self._pull_and_inject_tasks()
 
         # 推送逻辑
-        self._push_errors()
+        self._push_errors_meta()
         self._push_status()
         self._push_structure()
         self._push_topology()
@@ -92,12 +92,11 @@ class TaskReporter:
         except Exception as e:
             self.logger.pull_tasks_failed(e)
 
-    def _push_errors(self):
+    def _push_errors_meta(self):
         try:
             self.task_graph.handle_fail_queue()
-            web_display_error = self.task_graph.get_web_display_error()
-            payload = {"errors": web_display_error}
-            requests.post(f"{self.base_url}/api/push_errors", json=payload, timeout=1)
+            payload = {"jsonl_path": self.task_graph.get_error_jsonl_path()}
+            requests.post(f"{self.base_url}/api/push_errors_meta", json=payload, timeout=1)
         except Exception as e:
             self.logger.push_errors_failed(e)
 

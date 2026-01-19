@@ -1,4 +1,4 @@
-import time
+import time, os
 import multiprocessing
 from collections.abc import Iterable
 from collections import defaultdict, deque
@@ -86,8 +86,6 @@ class TaskGraph:
         self.last_status_dict: Dict[str, dict] = defaultdict(
             dict
         )  # 用于保存每个节点的上一次get_status_dict()返回的结果
-
-        self.web_display_error: List[dict] = []  # 用于web端展示错误信息
 
     def init_resources(self):
         """
@@ -408,7 +406,7 @@ class TaskGraph:
             for source in remaining_sources:
                 error_id = self.ctree_client.emit("task.error", [source.id], f"In '{stage_tag}'")
                 self.fail_queue.put({
-                    "timestamp": time.time(),
+                    "ts": time.time(),
                     "stage_tag": stage_tag,
                     "error_info": "Exception('UnconsumedError')",
                     "error_id": error_id,
@@ -433,25 +431,16 @@ class TaskGraph:
         while True:
             try:
                 item: dict = self.fail_queue.get_nowait()
-            except Exception:
+            except Exception as e:
                 break
 
-            timestamp = item["timestamp"]
+            ts = item["ts"]
             stage_tag = item["stage_tag"]
             error_info = item["error_info"]
             error_id = item["error_id"]
             task_str = item["task"]
 
-            self.web_display_error.append(
-                {
-                    "timestamp": timestamp,
-                    "node": stage_tag,
-                    "error": error_info,
-                    "error_id": error_id,
-                    "task_repr": format_repr(task_str, 100),
-                }
-            )
-            failures.append((timestamp, stage_tag, error_info, error_id, task_str))
+            failures.append((ts, stage_tag, error_info, error_id, task_str))
         self._persist_failures(failures)
 
     def _persist_structure_metadata(self):
@@ -480,18 +469,13 @@ class TaskGraph:
                 "stage": stage,
                 "error": err,
                 "error_id": err_id,
+                "task_repr": format_repr(task, 100),
                 "task": task,
                 "ts": ts,
             }
             for ts, stage, err, err_id, task in failures
         )
         append_jsonl_logs(log_items, self.error_jsonl_path, self.task_logger)
-
-    def get_web_display_error(self):
-        """
-        返回错误数据
-        """
-        return self.web_display_error
 
     def get_fail_by_stage_dict(self):
         return load_task_by_stage(self.error_jsonl_path)
@@ -612,6 +596,9 @@ class TaskGraph:
 
     def get_networkx_graph(self):
         return format_networkx_graph(self.structure_json)
+    
+    def get_error_jsonl_path(self):
+        return os.path.abspath(self.error_jsonl_path)
     
     def get_stage_descendants(self, stage_tag: int) -> List[dict]:
         if not self._use_ctree:

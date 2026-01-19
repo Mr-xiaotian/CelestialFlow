@@ -365,7 +365,7 @@ class TaskManager:
         """
         self.fail_queue.put(
             {
-                "timestamp": time.time(),
+                "ts": time.time(),
                 "task": str(task),
                 "error_info": f"{type(error).__name__}({error})",
                 "error_id": error_id,
@@ -381,7 +381,7 @@ class TaskManager:
         """
         await self.fail_queue.put(
             {
-                "timestamp": time.time(),
+                "ts": time.time(),
                 "task": str(task),
                 "error_info": f"{type(error).__name__}({error})",
                 "error_id": error_id,

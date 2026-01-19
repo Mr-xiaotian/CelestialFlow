@@ -367,6 +367,6 @@ def test_router_0():
 
 
 if __name__ == "__main__":
-    # test_splitter_1()
-    test_router_0()
+    test_splitter_0()
+    # test_router_0()
     pass

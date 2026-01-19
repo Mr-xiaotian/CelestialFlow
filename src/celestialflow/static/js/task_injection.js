@@ -248,7 +248,7 @@ async function handleSubmit() {
 
   try {
     for (const node of selectedNodes) {
-      const response = await fetch("/api/push_task_injection", {
+      const response = await fetch("/api/push_injection_tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
