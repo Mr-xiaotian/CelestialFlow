@@ -95,7 +95,7 @@ class TaskReporter:
     def _push_errors_meta(self):
         try:
             self.task_graph.handle_fail_queue()
-            payload = {"jsonl_path": self.task_graph.get_error_jsonl_path()}
+            payload = {"jsonl_path": self.task_graph.get_error_jsonl_path(), "rev": self.task_graph.total_error_num}
             requests.post(f"{self.base_url}/api/push_errors_meta", json=payload, timeout=1)
         except Exception as e:
             self.logger.push_errors_failed(e)

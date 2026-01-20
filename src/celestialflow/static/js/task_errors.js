@@ -24,7 +24,7 @@ function renderErrors() {
   const filtered = errors.filter(e => {
     const matchNode = !filter || e.stage === filter;
     const matchKeyword = !keyword ||
-      (e.error && e.error.toLowerCase().includes(keyword)) ||
+      (e.error_repr && e.error_repr.toLowerCase().includes(keyword)) ||
       (e.task_repr && e.task_repr.toLowerCase().includes(keyword));
     return matchNode && matchKeyword;
   });
@@ -47,7 +47,7 @@ function renderErrors() {
       const row = document.createElement("tr");
       row.innerHTML = `
         <td class="error-id">${e.error_id}</td>
-        <td class="error-message">${e.error}</td>
+        <td class="error-message">${e.error_repr}</td>
         <td>${e.stage}</td>
         <td>${e.task_repr}</td>
         <td>${formatTimestamp(e.ts)}</td>

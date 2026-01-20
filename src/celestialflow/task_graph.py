@@ -87,6 +87,8 @@ class TaskGraph:
             dict
         )  # 用于保存每个节点的上一次get_status_dict()返回的结果
 
+        self.total_error_num = 0
+
     def init_resources(self):
         """
         初始化每个阶段资源
@@ -408,7 +410,7 @@ class TaskGraph:
                 self.fail_queue.put({
                     "ts": time.time(),
                     "stage_tag": stage_tag,
-                    "error_info": "Exception('UnconsumedError')",
+                    "error_message": "Exception('UnconsumedError')",
                     "error_id": error_id,
                     "task": str(source.task),
                 })
@@ -436,11 +438,13 @@ class TaskGraph:
 
             ts = item["ts"]
             stage_tag = item["stage_tag"]
-            error_info = item["error_info"]
+            error_message = item["error_message"]
             error_id = item["error_id"]
             task_str = item["task"]
 
-            failures.append((ts, stage_tag, error_info, error_id, task_str))
+            failures.append((ts, stage_tag, error_message, error_id, task_str))
+            self.total_error_num += 1
+
         self._persist_failures(failures)
 
     def _persist_structure_metadata(self):
@@ -463,14 +467,18 @@ class TaskGraph:
 
         :param failures: 错误日志列表(错误时间戳, 阶段标签, 错误信息, 任务字符串)
         """
+        if not failures:
+            return
+        
         log_items = (
             {
                 "timestamp": datetime.fromtimestamp(ts).isoformat(),
                 "stage": stage,
-                "error": err,
-                "error_id": err_id,
+                "error_repr": format_repr(err, 100),
                 "task_repr": format_repr(task, 100),
+                "error": err,
                 "task": task,
+                "error_id": err_id,
                 "ts": ts,
             }
             for ts, stage, err, err_id, task in failures

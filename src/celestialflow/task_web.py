@@ -1,5 +1,7 @@
 import os
 import threading
+import uvicorn
+import argparse
 from fastapi import FastAPI, Request, Body
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -7,8 +9,6 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import List, Dict, Any
 from datetime import datetime
-import uvicorn
-import argparse
 
 from .task_tools import load_jsonl_logs
 
@@ -23,6 +23,7 @@ class StatusModel(BaseModel):
 
 class ErrorsMetaModel(BaseModel):
     jsonl_path: str
+    rev: int
 
 
 class TopologyModel(BaseModel):
@@ -66,6 +67,9 @@ class TaskWebServer:
 
         self.report_interval = 5
         self._task_injection_lock = threading.Lock()
+
+        self._errors_meta_rev: str | None = None
+        self._errors_meta_path: str | None = None
 
         self._setup_routes()
 
@@ -118,8 +122,21 @@ class TaskWebServer:
 
         @app.post("/api/push_errors_meta")
         async def push_errors_meta(data: ErrorsMetaModel):
-            self.error_store = load_jsonl_logs(data.jsonl_path)
-            return {"ok": True}
+            # 命中缓存：path 和 rev 都没变 -> 不重新读取
+            if (
+                data.jsonl_path == self._errors_meta_path
+                and data.rev == self._errors_meta_rev
+            ):
+                return {"ok": True, "cached": True}
+
+            # 不命中：更新 key 并全量加载
+            self._errors_meta_path = data.jsonl_path
+            self._errors_meta_rev = data.rev
+            self.error_store = load_jsonl_logs(
+                path=data.jsonl_path,
+                keys=["ts", "error_id", "error_repr", "stage", "task_repr"]
+            )
+            return {"ok": True, "cached": False}
 
         @app.post("/api/push_topology")
         async def push_topology(data: TopologyModel):

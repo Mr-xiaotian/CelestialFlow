@@ -127,7 +127,7 @@ class TaskStage(TaskManager):
             {
                 "ts": time.time(),
                 "stage_tag": self.get_tag(),
-                "error_info": f"{type(error).__name__}({error})",
+                "error_message": f"{type(error).__name__}({error})",
                 "error_id": error_id,
                 "task": str(task),
             }

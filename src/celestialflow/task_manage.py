@@ -367,7 +367,7 @@ class TaskManager:
             {
                 "ts": time.time(),
                 "task": str(task),
-                "error_info": f"{type(error).__name__}({error})",
+                "error_message": f"{type(error).__name__}({error})",
                 "error_id": error_id,
             }
         )
@@ -383,7 +383,7 @@ class TaskManager:
             {
                 "ts": time.time(),
                 "task": str(task),
-                "error_info": f"{type(error).__name__}({error})",
+                "error_message": f"{type(error).__name__}({error})",
                 "error_id": error_id,
             }
         )

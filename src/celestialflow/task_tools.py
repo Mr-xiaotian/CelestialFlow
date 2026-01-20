@@ -419,18 +419,22 @@ def append_jsonl_logs(log_items: Iterable[dict], file_path: str, logger=None):
 def load_jsonl_logs(
     path: str,
     start_seq: int = 1,
+    keys: Optional[List[str]] = None,
 ) -> List[Dict]:
     """
-    从 jsonl 文件中读取数据
+    从 jsonl 文件中读取数据（可选择性读取字段）
 
     :param path: jsonl 文件路径
     :param start_seq: 起始序列号（行号，0-based）
+    :param keys: 只保留这些键；None 表示保留全部
     :return: 从 start_seq 开始的 list[dict]
     """
     results: List[Dict] = []
 
     if start_seq < 0:
         start_seq = 0
+
+    keyset = set(keys) if keys else None
 
     with open(path, "r", encoding="utf-8") as f:
         for idx, line in enumerate(f):
@@ -442,9 +446,15 @@ def load_jsonl_logs(
                 continue
 
             try:
-                results.append(json.loads(line))
+                obj: dict = json.loads(line)
+
+                if keyset is not None:
+                    obj = {k: obj.get(k) for k in keyset}
+
+                results.append(obj)
+
             except json.JSONDecodeError:
-                # 遇到脏行直接跳过，fallback 文件容错优先
+                # 脏行直接跳过，日志系统讲究“活着”
                 continue
 
     return results
