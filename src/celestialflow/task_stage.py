@@ -54,7 +54,12 @@ class TaskStage(TaskManager):
 
         :param stage_mode: 当前节点执行模式
         """
-        self.stage_mode = stage_mode if stage_mode == "process" else "serial"
+        if stage_mode == "process":
+            self.execution_mode = "process"
+        elif stage_mode == "serial":
+            self.execution_mode = "serial"
+        else:
+            raise ValueError(f"Invalid stage mode: {stage_mode}")
 
     def add_prev_stages(self, prev_stage: TaskStage):
         """

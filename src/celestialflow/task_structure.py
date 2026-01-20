@@ -10,6 +10,9 @@ class TaskChain(TaskGraph):
         """
         TaskChain: 线性任务链结构
         该结构将多个 TaskStage 节点按顺序连接，形成一个线性的数据流图。
+
+        :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点
+        :param chain_mode: 控制任务链中各节点同时运行(process), 亦或者依次运行(serial)
         """
         for num, stage in enumerate(stages):
             stage_name = f"Stage {num + 1}"
@@ -22,6 +25,9 @@ class TaskChain(TaskGraph):
     def start_chain(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动任务链
+
+        :param init_tasks_dict: 初始化任务字典
+        :param put_termination_signal: 是否在任务完成后发送终止信号
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
 
@@ -33,10 +39,10 @@ class TaskCross(TaskGraph):
         该结构将任务按“层”组织，每层可以包含多个并行执行的 TaskStage 节点，
         不同层之间通过依赖关系连接，形成跨层的数据流图。
 
-        :param layers: List[List[TaskStage]]
+        :param layers: 
             按层划分的任务节点列表。每个子列表代表一层，列表中的 TaskStage 将并行执行。
             相邻层之间的所有节点将建立全连接依赖（即每个上一层节点都连接到下一层所有节点）。
-        :param schedule_mode: str
+        :param schedule_mode: 
             控制任务图的调度布局模式
         """
         for i in range(len(layers)):
@@ -54,6 +60,9 @@ class TaskCross(TaskGraph):
     def start_cross(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动多层交叉结构任务图
+
+        :param init_tasks_dict: 初始化任务字典
+        :param put_termination_signal: 是否在任务完成后发送终止信号
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
 
@@ -64,6 +73,11 @@ class TaskGrid(TaskGraph):
         TaskGrid: 任务网格结构
         该结构将任务节点组织成二维网格形式，每个节点连接其右侧和下方的节点，
         形成一个网格状的数据流图。
+
+        :param grid: 
+            任务网格，每个子列表代表一行，列表中的 TaskStage 将按行并行执行。
+            每个节点将连接到其右侧和下方的节点。
+        :param schedule_mode: 控制任务图的调度布局模式
         """
         rows, cols = len(grid), len(grid[0])
         for i in range(rows):
@@ -80,6 +94,9 @@ class TaskGrid(TaskGraph):
     def start_grid(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
         启动任务网格结构
+
+        :param init_tasks_dict: 初始化任务字典
+        :param put_termination_signal: 是否在任务完成后发送终止信号
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
 
@@ -100,18 +117,24 @@ class TaskLoop(TaskGraph):
 
         super().__init__([stages[0]])
 
-    def start_loop(self, init_tasks_dict: dict):
+    def start_loop(self, init_tasks_dict: dict, put_termination_signal: bool = False):
         """
-        启动任务环, 环是自锁结构, 能且仅能外部注入式停止
+        启动任务环, 环是自锁结构, 建议外部注入式停止
+
         :param init_tasks_dict: 任务列表
+        :param put_termination_signal: 是否在任务完成后发送终止信号
         """
-        self.start_graph(init_tasks_dict, False)
+        self.start_graph(init_tasks_dict, put_termination_signal)
 
 
 class TaskWheel(TaskGraph):
     def __init__(self, center: TaskStage, ring: List[TaskStage]):
         """
         wheel: 特殊的有环图, 他有结构意义上的起点, 中心节点连向环, 环相连成闭环
+        由于环的结构特性, 强制使用 'eager' 节点模式
+
+        :param center: 中心节点
+        :param ring: 环节点
         """
         # 中心连向环
         center.set_graph_context(ring, "process", "Center")
@@ -148,10 +171,11 @@ class TaskComplete(TaskGraph):
 
         super().__init__(stages)
 
-    def start_complete(self, init_tasks_dict: dict):
+    def start_complete(self, init_tasks_dict: dict, put_termination_signal: bool = False):
         """
-        启动任务完全图
+        启动任务完全图, 建议外部注入式停止
 
         :param init_tasks_dict: 任务列表
+        :param put_termination_signal: 是否在任务完成后发送终止信号
         """
-        self.start_graph(init_tasks_dict, False)
+        self.start_graph(init_tasks_dict, put_termination_signal)

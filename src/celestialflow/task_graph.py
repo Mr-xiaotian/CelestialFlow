@@ -1,4 +1,5 @@
 import time, os
+import warnings
 import multiprocessing
 from collections.abc import Iterable
 from collections import defaultdict, deque
@@ -183,8 +184,12 @@ class TaskGraph:
         """
         if schedule_mode == "staged" and self.isDAG:
             self.schedule_mode = "staged"
-        else:
+        elif schedule_mode == "staged" and not self.isDAG:
+            raise Exception("The task graph is not a DAG, cannot use staged mode")
+        elif schedule_mode == "eager":
             self.schedule_mode = "eager"
+        else:
+            raise Exception(f"Invalid schedule mode: {schedule_mode}")
 
     def set_reporter(self, is_report=False, host="127.0.0.1", port=5000):
         """
@@ -290,6 +295,17 @@ class TaskGraph:
         :param init_tasks_dict: 任务列表
         :param put_termination_signal: 是否注入终止信号
         """
+        if self.isDAG == False and put_termination_signal == True:
+            warnings.warn(
+                "Early injection of termination signals in a non-DAG graph may cause "
+                "some nodes (including root nodes) to shut down as soon as their current "
+                "tasks are exhausted, preventing them from consuming tasks that arrive "
+                "later from other nodes. It is recommended to set put_termination_signal=False "
+                "and manually inject termination signals via the web interface at an "
+                "appropriate time.",
+                RuntimeWarning,
+            )
+
         try:
             self.log_listener.start()
             self.start_time = time.time()
@@ -401,8 +417,11 @@ class TaskGraph:
 
         # 收集并持久化每个 stage 中未消费的任务
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
+            stage: TaskStage = stage_runtime["stage"]
             in_queue: TaskQueue = stage_runtime["in_queue"]
+
             remaining_sources = in_queue.drain()
+            stage.error_counter.value += len(remaining_sources)
 
             # 持久化逻辑
             for source in remaining_sources:
@@ -410,7 +429,7 @@ class TaskGraph:
                 self.fail_queue.put({
                     "ts": time.time(),
                     "stage_tag": stage_tag,
-                    "error_message": "Exception('UnconsumedError')",
+                    "error_message": "Exception(UnconsumedError)",
                     "error_id": error_id,
                     "task": str(source.task),
                 })

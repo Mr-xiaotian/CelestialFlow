@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .task_stage import TaskStage
 
 
-# ========调用于task_graph.py========
+# ======== 调用于task_graph.py ========
 def format_duration(seconds):
     """将秒数格式化为 HH:MM:SS 或 MM:SS（自动省略前导零）"""
     seconds = int(seconds)
@@ -151,7 +151,7 @@ def cluster_by_value_sorted(input_dict: Dict[str, int]) -> Dict[int, List[str]]:
     return dict(sorted(clusters.items()))  # ✅ 按键排序
 
 
-# ========(图论分析)========
+# ======== (图论分析) ========
 def format_networkx_graph(structure_graph: List[Dict[str, Any]]) -> nx.DiGraph:
     """
     将结构图（由 build_structure_graph 生成）转换为 networkx 有向图（DiGraph）
@@ -197,7 +197,7 @@ def compute_node_levels(G: nx.DiGraph) -> Dict[str, int]:
     return level
 
 
-# ========调用于task_types.py========
+# ======== 调用于task_types.py ========
 def make_hashable(obj) -> Any:
     """
     把 obj 转换成可哈希的形式。
@@ -228,7 +228,7 @@ def object_to_str_hash(obj) -> str:
     return hashlib.md5(obj_bytes).hexdigest()
 
 
-# ========公共函数========
+# ======== 公共函数 ========
 def cleanup_mpqueue(queue: MPQueue):
     """
     清理队列
@@ -369,7 +369,7 @@ def format_table(
     return table
 
 
-# ======== 处理jsonl文件 ========
+# ======== jsonl文件处理 ========
 def append_jsonl_log(log_data: dict, file_path: str, logger=None):
     """
     将日志字典写入指定目录下的 JSONL 文件。

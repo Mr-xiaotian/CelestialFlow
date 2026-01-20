@@ -760,9 +760,11 @@ class TaskManager:
             elif self.execution_mode == "async":
                 # don't suggest, please use start_async
                 asyncio.run(self.run_in_async())
-            else:
+            elif self.execution_mode == "serial":
                 self.set_execution_mode("serial")
                 self.run_in_serial()
+            else:
+                raise ValueError(f"Invalid execution mode: {self.execution_mode}")
 
         finally:
             self.release_pool()
