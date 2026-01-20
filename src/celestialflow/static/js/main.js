@@ -16,10 +16,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   refreshSelect.addEventListener("change", () => {
     refreshRate = parseInt(refreshSelect.value);
-    localStorage.setItem("refreshRate", refreshRate); // ✅ 保存设置
+    localStorage.setItem("refreshRate", refreshRate); // 保存设置
     clearInterval(refreshIntervalId);
     refreshIntervalId = setInterval(refreshAll, refreshRate);
-    pushRefreshRate(); // ✅ 立即同步到后端
+    pushRefreshRate(); // 立即同步到后端
   });
 
   themeToggleBtn.addEventListener("click", () => {
@@ -59,7 +59,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   initSortableDashboard(); // 初始化拖拽
   refreshAll(); // 启动轮询
-  pushRefreshRate(); // ✅ 初次加载也推送一次
+  pushRefreshRate(); // 初次加载也推送一次
   initChart(); // 初始化折线图
   refreshIntervalId = setInterval(refreshAll, refreshRate);
 });

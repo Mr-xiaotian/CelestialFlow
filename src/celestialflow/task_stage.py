@@ -55,11 +55,14 @@ class TaskStage(TaskManager):
         :param stage_mode: 当前节点执行模式
         """
         if stage_mode == "process":
-            self.execution_mode = "process"
+            self.stage_mode = "process"
         elif stage_mode == "serial":
-            self.execution_mode = "serial"
+            self.stage_mode = "serial"
         else:
-            raise ValueError(f"Invalid stage mode: {stage_mode}")
+            raise ValueError(
+                f"Invalid stage mode: {stage_mode}. "
+                "Valid options are 'serial' and 'process'"
+            )
 
     def add_prev_stages(self, prev_stage: TaskStage):
         """
@@ -164,8 +167,13 @@ class TaskStage(TaskManager):
             # 根据模式运行对应的任务处理函数
             if self.execution_mode == "thread":
                 self.run_with_executor(self.thread_pool)
-            else:
+            elif self.execution_mode == "serial":
                 self.run_in_serial()
+            else:
+                raise ValueError(
+                    f"Invalid execution mode: {self.execution_mode}. " 
+                    "Valid options are 'thread' and 'serial'."
+                )
 
         finally:
             # cleanup_mpqueue(input_queues) # 会影响之后finalize_nodes

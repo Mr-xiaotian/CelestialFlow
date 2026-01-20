@@ -72,7 +72,7 @@ function renderDashboard() {
   for (const [node, data] of orderedEntries) {
     if (node === draggingNodeName) continue; // 正在拖动时，不渲染它
 
-    // ✅ 计算进度
+    // 计算进度
     const progress =
       data.tasks_processed + data.tasks_pending === 0
         ? 0
@@ -80,7 +80,7 @@ function renderDashboard() {
             (data.tasks_processed / (data.tasks_processed + data.tasks_pending)) * 100
           );
 
-    // ✅ 根据 status 决定 badge 样式和文本
+    // 根据 status 决定 badge 样式和文本
     let badgeClass = "badge-inactive";
     let badgeText = "未运行";
     if (data.status === 1) {
@@ -163,7 +163,7 @@ function updateSummary() {
 function initChart() {
   const ctx = document.getElementById("node-progress-chart").getContext("2d");
 
-  // ✅ 销毁旧实例（关键）
+  // 销毁旧实例（关键）
   if (progressChart) {
     progressChart.destroy();
   }

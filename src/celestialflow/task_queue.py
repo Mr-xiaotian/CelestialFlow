@@ -113,7 +113,7 @@ class TaskQueue:
         total_queues = len(self.queue_list)
 
         if total_queues == 1:
-            # ✅ 只有一个队列时，使用阻塞式 get，提高效率
+            # 只有一个队列时，使用阻塞式 get，提高效率
             queue = self.queue_list[0]
             source: TaskEnvelope | TerminationSignal = (
                 queue.get()
@@ -172,7 +172,7 @@ class TaskQueue:
         total_queues = len(self.queue_list)
 
         if total_queues == 1:
-            # ✅ 单队列直接 await 阻塞等待
+            # 单队列直接 await 阻塞等待
             queue = self.queue_list[0]
             source: TaskEnvelope | TerminationSignal = await queue.get()
             self.task_logger.get_source(source.id, self.queue_tag[0], self.stage_tag)

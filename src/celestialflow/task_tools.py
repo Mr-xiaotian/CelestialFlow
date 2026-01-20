@@ -148,7 +148,7 @@ def cluster_by_value_sorted(input_dict: Dict[str, int]) -> Dict[int, List[str]]:
     for key, val in input_dict.items():
         clusters[val].append(key)
 
-    return dict(sorted(clusters.items()))  # ✅ 按键排序
+    return dict(sorted(clusters.items()))  # 按键排序
 
 
 # ======== (图论分析) ========

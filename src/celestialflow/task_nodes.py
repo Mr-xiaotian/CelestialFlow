@@ -331,7 +331,7 @@ class TaskRedisAck(TaskStage):
             result = self.redis_client.hget(self.key, task_id)
 
             if result:
-                # ✅ 取到结果即删除，保证 Ack 语义一次性
+                # 取到结果即删除，保证 Ack 语义一次性
                 self.redis_client.hdel(self.key, task_id)
 
                 result_obj: dict = json.loads(result)

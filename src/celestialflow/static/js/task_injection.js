@@ -28,7 +28,7 @@ function setupEventListeners() {
 function renderNodeList() {
   const nodeListHTML = Object.keys(nodeStatuses)
     .map((nodeName) => {
-      // ✅ 根据 status 值确定样式和文本
+      // 根据 status 值确定样式和文本
       const status = nodeStatuses[nodeName].status;
       let badgeClass = "badge-inactive";
       let badgeText = "未运行";
@@ -40,7 +40,7 @@ function renderNodeList() {
         badgeText = "已停止";
       }
 
-      // ✅ 禁止点击已停止的节点
+      // 禁止点击已停止的节点
       const clickable = status === 2 ? "" : `onclick="selectNode('${nodeName}')"`
       const disabledClass = status === 2 ? "disabled-node" : "";
 

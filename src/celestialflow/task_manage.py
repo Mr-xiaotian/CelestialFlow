@@ -764,7 +764,10 @@ class TaskManager:
                 self.set_execution_mode("serial")
                 self.run_in_serial()
             else:
-                raise ValueError(f"Invalid execution mode: {self.execution_mode}")
+                raise ValueError(
+                    f"Invalid execution mode: {self.execution_mode}. "
+                    "Valid options are 'thread', 'process', 'async', 'serial'."
+                )
 
         finally:
             self.release_pool()

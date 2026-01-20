@@ -182,14 +182,17 @@ class TaskGraph:
 
         :param schedule_mode: 节点执行模式, 可选值为 'eager' 或 'staged'
         """
-        if schedule_mode == "staged" and self.isDAG:
+        if schedule_mode == "eager":
+            self.schedule_mode = "eager"
+        elif schedule_mode == "staged" and self.isDAG:
             self.schedule_mode = "staged"
         elif schedule_mode == "staged" and not self.isDAG:
             raise Exception("The task graph is not a DAG, cannot use staged mode")
-        elif schedule_mode == "eager":
-            self.schedule_mode = "eager"
         else:
-            raise Exception(f"Invalid schedule mode: {schedule_mode}")
+            raise Exception(
+                f"Invalid schedule mode: {schedule_mode}. " 
+                "Valid options are 'eager' or 'staged'"
+            )
 
     def set_reporter(self, is_report=False, host="127.0.0.1", port=5000):
         """

@@ -54,10 +54,10 @@ function renderMermaidFromTaskStructure() {
   const classDefs = [];
   const tagToId = {}; // "Grid_1_1[load_func]" -> "Grid_1_1"
 
-  // ✅ 判断是否是暗黑主题
+  // 判断是否是暗黑主题
   const isDark = document.body.classList.contains("dark-theme");
 
-  // ✅ 样式区块：根据主题切换
+  // 样式区块：根据主题切换
   const styleBlock = isDark
     ? `
 classDef whiteNode fill:#1f2937,stroke:#e5e7eb,stroke-width:1px;
