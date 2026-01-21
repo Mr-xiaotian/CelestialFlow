@@ -1016,7 +1016,7 @@ class TaskManager:
         self.thread_pool = None
         self.process_pool = None
 
-    def test_method(self, execution_mode: str, task_list: list) -> float:
+    def test_method(self, task_list: list, execution_mode: str) -> float:
         """
         测试方法
         """
@@ -1038,7 +1038,7 @@ class TaskManager:
 
         results = []
         for mode in execution_modes:
-            result = self.test_method(mode, task_list)
+            result = self.test_method(task_list, mode)
             results.append([result])
         return results, execution_modes, ["Time"]
 

@@ -196,6 +196,17 @@ class TaskLogger:
         edge = f"'{left}' -> '{right}'"
         self._log("TRACE", f"Put task#{source_id} into Edge({edge}).")
 
+    def put_source_error(self, queue_tag, stage_tag, direction, exception):
+        exception_text = str(exception).replace("\n", " ")
+        left, right = (
+            (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
+        )
+        edge = f"'{left}' -> '{right}'"
+        self._log(
+            "WARNING",
+            f"Put into Edge({edge}): ({type(exception).__name__}){exception_text}.",
+        )
+
     def get_source(self, source_id, queue_tag, stage_tag, direction="in"):
         left, right = (
             (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)

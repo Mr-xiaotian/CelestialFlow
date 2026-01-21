@@ -14,16 +14,16 @@ class TaskQueue:
     def __init__(
         self,
         queue_list: List[ThreadQueue] | List[MPQueue] | List[AsyncQueue],
-        queue_tag: List[str],
+        queue_tags: List[str],
         logger_queue: ThreadQueue | MPQueue,
         stage_tag: str,
         direction: str,
     ):
-        if len(queue_list) != len(queue_tag):
-            raise ValueError("queue_list and queue_tag must have the same length")
+        if len(queue_list) != len(queue_tags):
+            raise ValueError("queue_list and queue_tags must have the same length")
 
         self.queue_list = queue_list
-        self.queue_tag = queue_tag
+        self.queue_tags = queue_tags
         self.task_logger = TaskLogger(logger_queue)
         self.stage_tag = stage_tag
         self.direction = direction
@@ -32,11 +32,11 @@ class TaskQueue:
         self.terminated_queue_set = set()
 
     def get_tag_idx(self, tag: str) -> int:
-        return self.queue_tag.index(tag)
+        return self.queue_tags.index(tag)
 
     def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
         self.queue_list.append(queue)
-        self.queue_tag.append(tag)
+        self.queue_tags.append(tag)
 
     def reset(self):
         self.current_index = 0
@@ -86,11 +86,17 @@ class TaskQueue:
         :param source: 任务结果
         :param channel_index: 队列索引
         """
-        self.queue_list[channel_index].put(source)
-        self.task_logger.put_source(
-            source.id, self.queue_tag[channel_index], self.stage_tag, self.direction
-        )
+        try:
+            self.queue_list[channel_index].put(source)
+            self.task_logger.put_source(
+                source.id, self.queue_tags[channel_index], self.stage_tag, self.direction
+            )
 
+        except Exception as e:
+            self.task_logger.put_source_error(
+                self.queue_tags[channel_index], self.stage_tag, self.direction, e
+            )
+        
     async def put_channel_async(self, source: TaskEnvelope, channel_index: int):
         """
         将结果放入指定队列(async模式)
@@ -98,10 +104,16 @@ class TaskQueue:
         :param source: 任务结果
         :param channel_index: 队列索引
         """
-        await self.queue_list[channel_index].put(source)
-        self.task_logger.put_source(
-            source.id, self.queue_tag[channel_index], self.stage_tag, self.direction
-        )
+        try:
+            await self.queue_list[channel_index].put(source)
+            self.task_logger.put_source(
+                source.id, self.queue_tags[channel_index], self.stage_tag, self.direction
+            )
+
+        except Exception as e:
+            self.task_logger.put_source_error(
+                self.queue_tags[channel_index], self.stage_tag, self.direction, e
+            )
 
     def get(self, poll_interval: float = 0.01) -> TaskEnvelope | TerminationSignal:
         """
@@ -118,7 +130,7 @@ class TaskQueue:
             source: TaskEnvelope | TerminationSignal = (
                 queue.get()
             )  # 阻塞等待，无需 sleep
-            self.task_logger.get_source(source.id, self.queue_tag[0], self.stage_tag)
+            self.task_logger.get_source(source.id, self.queue_tags[0], self.stage_tag)
 
             if isinstance(source, TerminationSignal):
                 self.terminated_queue_set.add(0)
@@ -136,7 +148,7 @@ class TaskQueue:
                 try:
                     source = queue.get_nowait()
                     self.task_logger.get_source(
-                        source.id, self.queue_tag[idx], self.stage_tag
+                        source.id, self.queue_tags[idx], self.stage_tag
                     )
 
                     if isinstance(source, TerminationSignal):
@@ -151,7 +163,7 @@ class TaskQueue:
                     continue
                 except Exception as e:
                     self.task_logger.get_source_error(
-                        self.queue_tag[idx], self.stage_tag, e
+                        self.queue_tags[idx], self.stage_tag, e
                     )
                     continue
 
@@ -175,7 +187,7 @@ class TaskQueue:
             # 单队列直接 await 阻塞等待
             queue = self.queue_list[0]
             source: TaskEnvelope | TerminationSignal = await queue.get()
-            self.task_logger.get_source(source.id, self.queue_tag[0], self.stage_tag)
+            self.task_logger.get_source(source.id, self.queue_tags[0], self.stage_tag)
 
             if isinstance(source, TerminationSignal):
                 self.terminated_queue_set.add(0)
@@ -193,7 +205,7 @@ class TaskQueue:
                 try:
                     source: TaskEnvelope | TerminationSignal = queue.get_nowait()
                     self.task_logger.get_source(
-                        source.id, self.queue_tag[idx], self.stage_tag
+                        source.id, self.queue_tags[idx], self.stage_tag
                     )
 
                     if isinstance(source, TerminationSignal):
@@ -206,7 +218,7 @@ class TaskQueue:
                     continue
                 except Exception as e:
                     self.task_logger.get_source_error(
-                        self.queue_tag[idx], self.stage_tag, e
+                        self.queue_tags[idx], self.stage_tag, e
                     )
                     continue
 
@@ -229,7 +241,7 @@ class TaskQueue:
                 try:
                     source: TaskEnvelope | TerminationSignal = queue.get_nowait()
                     self.task_logger.get_source(
-                        source.id, self.queue_tag[idx], self.stage_tag
+                        source.id, self.queue_tags[idx], self.stage_tag
                     )
 
                     if isinstance(source, TerminationSignal):
@@ -241,7 +253,7 @@ class TaskQueue:
                     break
                 except Exception as e:
                     self.task_logger.get_source_error(
-                        self.queue_tag[idx], self.stage_tag, e
+                        self.queue_tags[idx], self.stage_tag, e
                     )
                     break
 
