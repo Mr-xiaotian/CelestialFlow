@@ -50,7 +50,7 @@ class TaskManager:
         初始化 TaskManager
 
         :param func: 可调用对象
-        :param execution_mode: 执行模式，可选 'serial', 'thread', 'process', 'async'
+        :param execution_mode: 执行模式，可选 'serial', 'thread', 'process', 'async' (组合为 'TaskGraph' 时不可用 'process' 和 'async' 模式)
         :param worker_limit: 同时处理数量
         :param max_retries: 任务的最大重试次数
         :param max_info: 日志中每条信息的最大长度
@@ -70,7 +70,7 @@ class TaskManager:
             )
 
         self.func = func
-        self.execution_mode = execution_mode
+        self.set_execution_mode(execution_mode)
         self.worker_limit = worker_limit
         self.max_retries = max_retries
         self.max_info = max_info
@@ -82,7 +82,7 @@ class TaskManager:
 
         self.show_progress = show_progress
         self.progress_desc = progress_desc
-        self.log_level = log_level
+        self.set_log_level(log_level)
 
         self.thread_pool = None
         self.process_pool = None
@@ -221,7 +221,7 @@ class TaskManager:
             mode=progress_mode,
         )
 
-    def set_execution_mode(self, execution_mode):
+    def set_execution_mode(self, execution_mode: str):
         """
         设置执行模式
 
@@ -235,7 +235,7 @@ class TaskManager:
                 "Valid options are 'thread', 'process', 'async', 'serial'."
             )
 
-    def set_ctree(self, host="127.0.0.1", port=7777):
+    def set_ctree(self, host: str="127.0.0.1", port: int=7777):
         """
         设置CelestialTreeClient
 
@@ -251,7 +251,6 @@ class TaskManager:
         设置NullCelestialTreeClient
 
         :param event_id: 事件ID
-        :param event_lock: 事件锁
         """
         self.ctree_client = NullCelestialTreeClient(event_id)
 
@@ -261,7 +260,14 @@ class TaskManager:
 
         :param log_level: 日志级别
         """
-        self.log_level = log_level.upper()
+        log_level = log_level.upper()
+        if log_level in ["TRACE", "DEBUG", "SUCCESS", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+            self.log_level = log_level
+        else:
+            raise ValueError(
+                f"Invalid log level: {log_level}. "
+                "Valid options are 'TRACE', 'DEBUG', 'SUCCESS', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'."
+            )
 
     def reset_counter(self):
         """

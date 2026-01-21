@@ -20,6 +20,20 @@ class TaskStage(TaskManager):
         self.prev_stages: List[TaskStage] = []
         self._pending_prev_bindings = []
 
+    def set_execution_mode(self, execution_mode: str):
+        """
+        设置执行模式
+
+        :param execution_mode: 执行模式，可以是 'thread'（线程）, 'serial'（串行）
+        """
+        if execution_mode in ["thread", "serial"]:
+            self.execution_mode = execution_mode
+        else:
+            raise ValueError(
+                f"Invalid execution mode: {execution_mode}. "
+                "Valid options are 'thread', 'serial'."
+            )
+
     def set_graph_context(
         self,
         next_stages: List[TaskStage] = None,
