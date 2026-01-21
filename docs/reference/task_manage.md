@@ -30,16 +30,17 @@ from celestialflow import TaskManager
 # 创建TaskManager实例
 task_manager = TaskManager(
     func=example_task,
-    execution_mode='thread',    # 可选：serial, thread, process, async
-    worker_limit=5,             # 最大并发限制
-    max_retries=3,              # 最大重试次数
-    max_info=50,                # 日志中单个信息的最大显示量
-    unpack_task_args=True,      # 是否解包参数
-    enable_success_cache=False, # 是否启用成功结果缓存
-    enable_error_cache=False,   # 是否启用失败结果缓存
-    enable_duplicate_check=True,# 是否启用重复检查
-    progress_desc="Processing", # 进度条信息
-    show_progress=True,         # 是否显示进度
+    execution_mode='thread',     # 可选：serial, thread, process, async
+    worker_limit=5,              # 最大并发限制
+    max_retries=3,               # 最大重试次数
+    max_info=50,                 # 日志中单个信息的最大显示量
+    unpack_task_args=True,       # 是否解包参数
+    enable_success_cache=False,  # 是否启用成功结果缓存
+    enable_error_cache=False,    # 是否启用失败结果缓存
+    enable_duplicate_check=True, # 是否启用重复检查
+    show_progress=True,          # 是否显示进度
+    progress_desc="Processing",  # 进度条信息
+    log_level="INFO",            # 日志级别
 )
 ```
 
@@ -82,6 +83,7 @@ enable_error_cache: 是否启用失败结果缓存, 将失败结果保存在 err
 enable_duplicate_check: 是否启用重复检查
 show_progress: 是否显示任务进度条，默认不显示。
 progress_desc: 进度条的描述文字，用于标识任务类型。
+log_level: 日志级别，默认为 'INFO'。
 
 ### 常用方法
 start(task_list: List): 启动任务执行，task_list 是任务列表，每个任务的格式取决于你在 get_args 中如何定义。
@@ -146,8 +148,8 @@ example_task_manager = ExampleTaskManager(
     unpack_task_args=False,     # 因为我们已经在 get_args 进行了解包, 这里选False
     enable_success_cache=True,  # 因为要运行 process_result_dict 和 handle_error_dict, 这里必须为True
     enable_error_cache=True,   
-    progress_desc="Example Processing", 
     show_progress=True,         # 默认为False, 因为开启会影响性能, 具体可看experiments\benchmark_tqdm.py
+    progress_desc="Example Processing", 
 )
 ```
 

@@ -76,6 +76,7 @@ class TaskGraph:
 
         self.init_env()
         self.init_structure_graph()
+        
         self.analyze_graph()
 
     def init_env(self):

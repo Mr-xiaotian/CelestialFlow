@@ -42,8 +42,9 @@ class TaskManager:
         enable_success_cache=False,
         enable_error_cache=False,
         enable_duplicate_check=True,
-        progress_desc="Processing",
         show_progress=False,
+        progress_desc="Processing",
+        log_level="INFO",
     ):
         """
         初始化 TaskManager
@@ -79,15 +80,15 @@ class TaskManager:
         self.enable_error_cache = enable_error_cache
         self.enable_duplicate_check = enable_duplicate_check
 
-        self.progress_desc = progress_desc
         self.show_progress = show_progress
+        self.progress_desc = progress_desc
+        self.log_level = log_level
 
         self.thread_pool = None
         self.process_pool = None
 
         self.retry_exceptions = tuple()  # 需要重试的异常类型
         self.ctree_client = NullCelestialTreeClient()
-        self.log_level = "INFO"
 
         self.init_counter()
 
@@ -150,6 +151,8 @@ class TaskManager:
     def init_logger(self, log_queue):
         """
         初始化日志器
+
+        :param log_queue: 日志队列
         """
         self.log_queue = log_queue or ThreadQueue()
         self.task_logger = TaskLogger(self.log_queue, self.log_level)
@@ -161,7 +164,6 @@ class TaskManager:
         :param task_queues: 任务队列列表
         :param result_queues: 结果队列列表
         :param fail_queue: 失败队列
-        :param log_queue: 日志队列
         """
         queue_map = {
             "process": ThreadQueue,  # MPqueue
@@ -225,11 +227,13 @@ class TaskManager:
 
         :param execution_mode: 执行模式，可以是 'thread'（线程）, 'process'（进程）, 'async'（异步）, 'serial'（串行）
         """
-        self.execution_mode = (
-            execution_mode
-            if execution_mode in ["thread", "process", "async", "serial"]
-            else "serial"
-        )
+        if execution_mode in ["thread", "process", "async", "serial"]:
+            self.execution_mode = execution_mode
+        else:
+            raise ValueError(
+                f"Invalid execution mode: {execution_mode}. "
+                "Valid options are 'thread', 'process', 'async', 'serial'."
+            )
 
     def set_ctree(self, host="127.0.0.1", port=7777):
         """

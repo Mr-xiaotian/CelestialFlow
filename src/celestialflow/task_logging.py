@@ -8,6 +8,7 @@ from loguru import logger as loguru_logger
 
 from .task_types import TerminationSignal, TERMINATION_SIGNAL
 
+
 # 日志级别字典
 LEVEL_DICT = {
     "TRACE": 0,
@@ -18,6 +19,7 @@ LEVEL_DICT = {
     "ERROR": 40,
     "CRITICAL": 50,
 }
+
 class LogListener:
     """
     日志监听进程，用于将日志写入文件
@@ -79,6 +81,8 @@ class TaskLogger:
 
     def _log(self, level: str, message: str):
         level_upper = level.upper()
+        if level_upper not in LEVEL_DICT:
+            return
         if LEVEL_DICT[level_upper] < LEVEL_DICT[self.log_level]:
             return
         self.log_queue.put({"level": level_upper, "message": message})
