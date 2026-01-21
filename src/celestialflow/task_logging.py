@@ -212,34 +212,37 @@ class TaskLogger:
         )
 
     # ==== queue ====
-    def put_source(self, source_id, queue_tag, stage_tag, direction):
+    def put_item(self, item_type, item_id, queue_tag, stage_tag, direction):
         left, right = (
             (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
         )
         edge = f"'{left}' -> '{right}'"
-        self._log("TRACE", f"Put task#{source_id} into Edge({edge}).")
+        self._log("TRACE", f"Put {item_type}#{item_id} into Edge({edge}).")
 
-    def put_source_error(self, queue_tag, stage_tag, direction, exception):
-        exception_text = str(exception).replace("\n", " ")
+    def put_item_error(self, queue_tag, stage_tag, direction, exception):
         left, right = (
             (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
         )
         edge = f"'{left}' -> '{right}'"
+        exception_text = str(exception).replace("\n", " ")
         self._log(
             "WARNING",
             f"Put into Edge({edge}): ({type(exception).__name__}){exception_text}.",
         )
 
-    def get_source(self, source_id, queue_tag, stage_tag, direction="in"):
+    def get_item(self, item_type, item_id, queue_tag, stage_tag, direction="in"):
         left, right = (
             (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
         )
         edge = f"'{left}' -> '{right}'"
-        self._log("TRACE", f"Get task#{source_id} from Edge({edge}).")
+        self._log("TRACE", f"Get {item_type}#{item_id} from Edge({edge}).")
 
-    def get_source_error(self, queue_tag, stage_tag, exception):
+    def get_item_error(self, queue_tag, stage_tag, direction="in", *, exception: Exception):
+        left, right = (
+            (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
+        )
+        edge = f"'{left}' -> '{right}'"
         exception_text = str(exception).replace("\n", " ")
-        edge = f"'{queue_tag}' -> '{stage_tag}'"
         self._log(
             "WARNING",
             f"Get from Edge({edge}): ({type(exception).__name__}){exception_text}.",

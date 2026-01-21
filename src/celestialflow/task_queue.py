@@ -46,73 +46,83 @@ class TaskQueue:
     def is_empty(self) -> bool:
         return all([queue.empty() for queue in self.queue_list])
 
-    def put(self, source: TaskEnvelope):
+    def put(self, item: TaskEnvelope | TerminationSignal):
         """
         将结果放入所有结果队列
 
-        :param source: 任务结果
+        :param item: 任务结果
         """
         for index in range(len(self.queue_list)):
-            self.put_channel(source, index)
+            self.put_channel(item, index)
 
-    async def put_async(self, source: TaskEnvelope):
+    async def put_async(self, item: TaskEnvelope | TerminationSignal):
         """
         将结果放入所有结果队列(async模式)
 
-        :param source: 任务结果
+        :param item: 任务结果
         """
         for index in range(len(self.queue_list)):
-            await self.put_channel_async(source, index)
+            await self.put_channel_async(item, index)
 
-    def put_first(self, source: TaskEnvelope):
+    def put_first(self, item: TaskEnvelope | TerminationSignal):
         """
         将结果放入第一个结果队列
 
-        :param source: 任务结果
+        :param item: 任务结果
         """
-        self.put_channel(source, 0)
+        self.put_channel(item, 0)
 
-    async def put_first_async(self, source: TaskEnvelope):
+    async def put_first_async(self, item: TaskEnvelope | TerminationSignal):
         """
         将结果放入第一个结果队列(async模式)
 
-        :param source: 任务结果
+        :param item: 任务结果
         """
-        await self.put_channel_async(source, 0)
+        await self.put_channel_async(item, 0)
 
-    def put_channel(self, source: TaskEnvelope, channel_index: int):
+    def put_channel(self, item: TaskEnvelope | TerminationSignal, channel_index: int):
         """
         将结果放入指定队列
 
-        :param source: 任务结果
+        :param item: 任务结果
         :param channel_index: 队列索引
         """
         try:
-            self.queue_list[channel_index].put(source)
-            self.task_logger.put_source(
-                source.id, self.queue_tags[channel_index], self.stage_tag, self.direction
-            )
+            self.queue_list[channel_index].put(item)
+            if isinstance(item, TaskEnvelope):
+                self.task_logger.put_item(
+                    "task", item.id, self.queue_tags[channel_index], self.stage_tag, self.direction
+                )
+            elif isinstance(item, TerminationSignal):
+                self.task_logger.put_item(
+                    "termination", item.id, self.queue_tags[channel_index], self.stage_tag, self.direction
+                )
 
         except Exception as e:
-            self.task_logger.put_source_error(
+            self.task_logger.put_item_error(
                 self.queue_tags[channel_index], self.stage_tag, self.direction, e
             )
         
-    async def put_channel_async(self, source: TaskEnvelope, channel_index: int):
+    async def put_channel_async(self, item: TaskEnvelope | TerminationSignal, channel_index: int):
         """
         将结果放入指定队列(async模式)
 
-        :param source: 任务结果
+        :param item: 任务结果
         :param channel_index: 队列索引
         """
         try:
-            await self.queue_list[channel_index].put(source)
-            self.task_logger.put_source(
-                source.id, self.queue_tags[channel_index], self.stage_tag, self.direction
-            )
+            await self.queue_list[channel_index].put(item)
+            if isinstance(item, TaskEnvelope):
+                self.task_logger.put_item(
+                    "task", item.id, self.queue_tags[channel_index], self.stage_tag, self.direction
+                )
+            elif isinstance(item, TerminationSignal):
+                self.task_logger.put_item(
+                    "termination", item.id, self.queue_tags[channel_index], self.stage_tag, self.direction
+                )
 
         except Exception as e:
-            self.task_logger.put_source_error(
+            self.task_logger.put_item_error(
                 self.queue_tags[channel_index], self.stage_tag, self.direction, e
             )
 
@@ -128,16 +138,17 @@ class TaskQueue:
         if total_queues == 1:
             # 只有一个队列时，使用阻塞式 get，提高效率
             queue = self.queue_list[0]
-            source: TaskEnvelope | TerminationSignal = (
+            item: TaskEnvelope | TerminationSignal = (
                 queue.get()
             )  # 阻塞等待，无需 sleep
-            self.task_logger.get_source(source.id, self.queue_tags[0], self.stage_tag)
 
-            if isinstance(source, TerminationSignal):
+            if isinstance(item, TerminationSignal):
                 self.terminated_queue_set.add(0)
+                self.task_logger.get_item("termination", item.id, self.queue_tags[0], self.stage_tag)
                 return TERMINATION_SIGNAL
 
-            return source
+            self.task_logger.get_item("task", item.id, self.queue_tags[0], self.stage_tag)
+            return item
 
         while True:
             for i in range(total_queues):
@@ -147,24 +158,25 @@ class TaskQueue:
 
                 queue = self.queue_list[idx]
                 try:
-                    source = queue.get_nowait()
-                    self.task_logger.get_source(
-                        source.id, self.queue_tags[idx], self.stage_tag
-                    )
+                    item = queue.get_nowait()
 
-                    if isinstance(source, TerminationSignal):
+                    if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
+                        self.task_logger.get_item(
+                            "termination", item.id, self.queue_tags[idx], self.stage_tag
+                        )
                         continue
 
-                    self.current_index = (
-                        idx + 1
-                    ) % total_queues  # 下一轮从下一个队列开始
-                    return source
+                    self.task_logger.get_item(
+                        "task", item.id, self.queue_tags[idx], self.stage_tag
+                    )
+                    self.current_index = (idx + 1) % total_queues
+                    return item
                 except SyncEmpty:
                     continue
                 except Exception as e:
-                    self.task_logger.get_source_error(
-                        self.queue_tags[idx], self.stage_tag, e
+                    self.task_logger.get_item_error(
+                        self.queue_tags[idx], self.stage_tag, exception=e
                     )
                     continue
 
@@ -187,14 +199,15 @@ class TaskQueue:
         if total_queues == 1:
             # 单队列直接 await 阻塞等待
             queue = self.queue_list[0]
-            source: TaskEnvelope | TerminationSignal = await queue.get()
-            self.task_logger.get_source(source.id, self.queue_tags[0], self.stage_tag)
+            item: TaskEnvelope | TerminationSignal = await queue.get()
 
-            if isinstance(source, TerminationSignal):
+            if isinstance(item, TerminationSignal):
                 self.terminated_queue_set.add(0)
+                self.task_logger.get_item("termination", item.id, self.queue_tags[0], self.stage_tag)
                 return TERMINATION_SIGNAL
 
-            return source
+            self.task_logger.get_item("task", item.id, self.queue_tags[0], self.stage_tag)
+            return item
 
         while True:
             for i in range(total_queues):
@@ -204,22 +217,25 @@ class TaskQueue:
 
                 queue = self.queue_list[idx]
                 try:
-                    source: TaskEnvelope | TerminationSignal = queue.get_nowait()
-                    self.task_logger.get_source(
-                        source.id, self.queue_tags[idx], self.stage_tag
-                    )
+                    item: TaskEnvelope | TerminationSignal = queue.get_nowait()
 
-                    if isinstance(source, TerminationSignal):
+                    if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
+                        self.task_logger.get_item(
+                            "termination", item.id, self.queue_tags[idx], self.stage_tag
+                        )
                         continue
 
+                    self.task_logger.get_item(
+                        "task", item.id, self.queue_tags[idx], self.stage_tag
+                    )
                     self.current_index = (idx + 1) % total_queues
-                    return source
+                    return item
                 except AsyncEmpty:
                     continue
                 except Exception as e:
-                    self.task_logger.get_source_error(
-                        self.queue_tags[idx], self.stage_tag, e
+                    self.task_logger.get_item_error(
+                        self.queue_tags[idx], self.stage_tag, exception=e
                     )
                     continue
 
@@ -229,7 +245,7 @@ class TaskQueue:
             await asyncio.sleep(poll_interval)
 
     def drain(self) -> List[TaskEnvelope]:
-        """提取所有队列中当前剩余的 source（非阻塞）。"""
+        """提取所有队列中当前剩余的 item（非阻塞）。"""
         results = []
         total_queues = len(self.queue_list)
 
@@ -240,21 +256,24 @@ class TaskQueue:
             queue = self.queue_list[idx]
             while True:
                 try:
-                    source: TaskEnvelope | TerminationSignal = queue.get_nowait()
-                    self.task_logger.get_source(
-                        source.id, self.queue_tags[idx], self.stage_tag
-                    )
+                    item: TaskEnvelope | TerminationSignal = queue.get_nowait()
 
-                    if isinstance(source, TerminationSignal):
+                    if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
+                        self.task_logger.get_item(
+                            "termination", item.id, self.queue_tags[idx], self.stage_tag
+                        )
                         break
 
-                    results.append(source)
+                    self.task_logger.get_item(
+                        "task", item.id, self.queue_tags[idx], self.stage_tag
+                    )
+                    results.append(item)
                 except (SyncEmpty, AsyncEmpty):
                     break
                 except Exception as e:
-                    self.task_logger.get_source_error(
-                        self.queue_tags[idx], self.stage_tag, e
+                    self.task_logger.get_item_error(
+                        self.queue_tags[idx], self.stage_tag, self.direction, exception=e
                     )
                     break
 
