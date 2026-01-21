@@ -36,7 +36,7 @@ from .task_tools import (
 
 
 class TaskGraph:
-    def __init__(self, root_stages: List[TaskStage], schedule_mode: str = "eager"):
+    def __init__(self, root_stages: List[TaskStage], schedule_mode: str = "eager", log_level: str = "INFO"):
         """
         初始化 TaskGraph 实例。
 
@@ -57,15 +57,26 @@ class TaskGraph:
                 分层执行模式。任务图必须为有向无环图（DAG）。
                 节点按层级顺序逐层启动，确保上层所有任务完成后再启动下一层。
                 更利于调试、性能分析和阶段性资源控制。
+        
+        :param log_level: str, optional, default = 'INFO'
+            日志级别，支持以下级别：
+            - 'TRACE'
+            - 'DEBUG'
+            - 'SUCCESS'
+            - 'INFO'
+            - 'WARNING'
+            - 'ERROR'
+            - 'CRITICAL'
         """
         self.set_root_stages(root_stages)
+        self.set_schedule_mode(schedule_mode)
+        self.set_log_level(log_level)
+        self.set_reporter()
+        self.set_ctree()
 
         self.init_env()
         self.init_structure_graph()
         self.analyze_graph()
-        self.set_schedule_mode(schedule_mode)
-        self.set_reporter()
-        self.set_ctree()
 
     def init_env(self):
         """
@@ -116,15 +127,17 @@ class TaskGraph:
 
             stage_runtime["in_queue"] = TaskQueue(
                 queue_list=[],
-                queue_tag=[],
-                logger_queue=self.log_listener.get_queue(),
+                queue_tags=[],
+                log_queue=self.log_listener.get_queue(),
+                log_level=self.log_level,
                 stage_tag=stage_tag,
                 direction="in",
             )
             stage_runtime["out_queue"] = TaskQueue(
                 queue_list=[],
-                queue_tag=[],
-                logger_queue=self.log_listener.get_queue(),
+                queue_tags=[],
+                log_queue=self.log_listener.get_queue(),
+                log_level=self.log_level,
                 stage_tag=stage_tag,
                 direction="out",
             )
@@ -150,14 +163,12 @@ class TaskGraph:
                         q, stage_tag
                     )
 
-    def init_log(self, level="INFO"):
+    def init_log(self):
         """
         初始化日志
-
-        :param level: 日志级别, 默认为 "INFO"
         """
-        self.log_listener = LogListener(level)
-        self.task_logger = TaskLogger(self.log_listener.get_queue())
+        self.log_listener = LogListener(self.log_level)
+        self.task_logger = TaskLogger(self.log_listener.get_queue(), self.log_level)
 
     def init_structure_graph(self):
         """
@@ -204,7 +215,11 @@ class TaskGraph:
         """
         if is_report:
             self.reporter = TaskReporter(
-                self, self.log_listener.get_queue(), host, port
+                task_graph=self, 
+                log_queue=self.log_listener.get_queue(), 
+                log_level=self.log_level, 
+                host=host, 
+                port=port,
             )
         else:
             self.reporter = NullTaskReporter()
@@ -227,6 +242,14 @@ class TaskGraph:
                 raise Exception("CelestialTreeClient is not available")
         else:
             self.ctree_client = NullCelestialTreeClient()
+
+    def set_log_level(self, level="INFO"):
+        """
+        设置日志级别
+
+        :param level: 日志级别, 默认为 "INFO"
+        """
+        self.log_level = level.upper()
 
     def set_graph_mode(self, stage_mode: str, execution_mode: str):
         """
@@ -370,7 +393,7 @@ class TaskGraph:
         stage_tag = stage.get_tag()
         stage_runtime = self.stage_runtime_dict[stage_tag]
 
-        logger_queue = self.log_listener.get_queue()
+        log_queue = self.log_listener.get_queue()
 
         # 输入输出队列
         input_queues: TaskQueue  = stage_runtime["in_queue"]
@@ -384,17 +407,19 @@ class TaskGraph:
         else:
             stage.set_nullctree(self.ctree_client.event_id)
 
+        stage.set_log_level(self.log_level)
+
         if stage.stage_mode == "process":
             p = multiprocessing.Process(
                 target=stage.start_stage,
-                args=(input_queues, output_queues, self.fail_queue, logger_queue),
+                args=(input_queues, output_queues, self.fail_queue, log_queue),
                 name=stage_tag,
             )
             p.start()
             self.processes.append(p)
         else:
             stage.start_stage(
-                input_queues, output_queues, self.fail_queue, logger_queue
+                input_queues, output_queues, self.fail_queue, log_queue
             )
             stage_runtime["status"] = StageStatus.STOPPED
 

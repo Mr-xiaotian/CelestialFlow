@@ -87,6 +87,7 @@ class TaskManager:
 
         self.retry_exceptions = tuple()  # 需要重试的异常类型
         self.ctree_client = NullCelestialTreeClient()
+        self.log_level = "INFO"
 
         self.init_counter()
 
@@ -108,7 +109,7 @@ class TaskManager:
         pass
 
     def init_env(
-        self, task_queues=None, result_queues=None, fail_queue=None, logger_queue=None
+        self, task_queues=None, result_queues=None, fail_queue=None, log_queue=None
     ):
         """
         初始化环境
@@ -116,11 +117,11 @@ class TaskManager:
         :param task_queues: 任务队列列表
         :param result_queues: 结果队列列表
         :param fail_queue: 失败队列
-        :param logger_queue: 日志队列
+        :param log_queue: 日志队列
         """
         self.init_state()
         self.init_pool()
-        self.init_logger(logger_queue)
+        self.init_logger(log_queue)
         self.init_queue(task_queues, result_queues, fail_queue)
 
     def init_state(self):
@@ -146,12 +147,12 @@ class TaskManager:
         elif self.execution_mode == "process" and self.process_pool is None:
             self.process_pool = ProcessPoolExecutor(max_workers=self.worker_limit)
 
-    def init_logger(self, logger_queue):
+    def init_logger(self, log_queue):
         """
         初始化日志器
         """
-        self.logger_queue = logger_queue or ThreadQueue()
-        self.task_logger = TaskLogger(self.logger_queue)
+        self.log_queue = log_queue or ThreadQueue()
+        self.task_logger = TaskLogger(self.log_queue, self.log_level)
 
     def init_queue(self, task_queues: TaskQueue=None, result_queues: TaskQueue=None, fail_queue: TaskQueue=None):
         """
@@ -160,7 +161,7 @@ class TaskManager:
         :param task_queues: 任务队列列表
         :param result_queues: 结果队列列表
         :param fail_queue: 失败队列
-        :param logger_queue: 日志队列
+        :param log_queue: 日志队列
         """
         queue_map = {
             "process": ThreadQueue,  # MPqueue
@@ -171,28 +172,30 @@ class TaskManager:
 
         # task_queues, result_queues与fail_queue只会在节点进程内运行, 因此如果不涉及多个进程的节点间通信, 可以全部使用ThreadQueue
         self.task_queues = task_queues or TaskQueue(
-            [queue_map[self.execution_mode]()],
-            [None],
-            self.logger_queue,
-            self.get_tag(),
-            "in",
+            queue_list=[queue_map[self.execution_mode]()],
+            queue_tags=[None],
+            log_queue=self.log_queue,
+            log_level=self.log_level,
+            stage_tag=self.get_tag(),
+            direction="in",
         )
         self.result_queues = result_queues or TaskQueue(
-            [queue_map[self.execution_mode]()],
-            [None],
-            self.logger_queue,
-            self.get_tag(),
-            "out",
+            queue_list=[queue_map[self.execution_mode]()],
+            queue_tags=[None],
+            log_queue=self.log_queue,
+            log_level=self.log_level,
+            stage_tag=self.get_tag(),
+            direction="out",
         )
         self.fail_queue: ThreadQueue | MPQueue | AsyncQueue = (
             fail_queue or queue_map[self.execution_mode]()
         )
 
-    def init_listener(self, log_level="INFO"):
+    def init_listener(self):
         """
         初始化监听器
         """
-        self.log_listener = LogListener(log_level)
+        self.log_listener = LogListener(self.log_level)
         self.log_listener.start()
 
     def init_progress(self):
@@ -247,6 +250,14 @@ class TaskManager:
         :param event_lock: 事件锁
         """
         self.ctree_client = NullCelestialTreeClient(event_id)
+
+    def set_log_level(self, log_level: str):
+        """
+        设置日志级别
+
+        :param log_level: 日志级别
+        """
+        self.log_level = log_level.upper()
 
     def reset_counter(self):
         """
@@ -740,7 +751,9 @@ class TaskManager:
         start_time = time.time()
         self.init_listener()
         self.init_progress()
-        self.init_env(logger_queue=self.log_listener.get_queue())
+        self.init_env(
+            log_queue=self.log_listener.get_queue()
+        )
 
         self.put_task_queues(task_source)
         self.task_queues.put(TERMINATION_SIGNAL)
@@ -793,7 +806,9 @@ class TaskManager:
         self.set_execution_mode("async")
         self.init_listener()
         self.init_progress()
-        self.init_env(logger_queue=self.log_listener.get_queue())
+        self.init_env(
+            log_queue=self.log_listener.get_queue()
+        )
 
         await self.put_task_queues_async(task_source)
         await self.task_queues.put_async(TERMINATION_SIGNAL)

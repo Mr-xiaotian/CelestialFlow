@@ -16,11 +16,11 @@ class TaskReporter:
     - 主要用于可视化监控、任务远程控制与 Web UI 同步
     """
 
-    def __init__(self, task_graph, logger_queue, host="127.0.0.1", port=5000):
+    def __init__(self, task_graph, log_queue, log_level, host="127.0.0.1", port=5000):
         from .task_graph import TaskGraph
 
         self.task_graph: TaskGraph = task_graph
-        self.logger = TaskLogger(logger_queue)
+        self.logger = TaskLogger(log_queue, log_level)
         self.base_url = f"http://{host}:{port}"
         self._stop_flag = Event()
         self._thread = None

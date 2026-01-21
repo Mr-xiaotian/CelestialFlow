@@ -15,7 +15,8 @@ class TaskQueue:
         self,
         queue_list: List[ThreadQueue] | List[MPQueue] | List[AsyncQueue],
         queue_tags: List[str],
-        logger_queue: ThreadQueue | MPQueue,
+        log_queue: ThreadQueue | MPQueue,
+        log_level: str,
         stage_tag: str,
         direction: str,
     ):
@@ -24,7 +25,7 @@ class TaskQueue:
 
         self.queue_list = queue_list
         self.queue_tags = queue_tags
-        self.task_logger = TaskLogger(logger_queue)
+        self.task_logger = TaskLogger(log_queue, log_level)
         self.stage_tag = stage_tag
         self.direction = direction
 

@@ -8,7 +8,16 @@ from loguru import logger as loguru_logger
 
 from .task_types import TerminationSignal, TERMINATION_SIGNAL
 
-
+# 日志级别字典
+LEVEL_DICT = {
+    "TRACE": 0,
+    "DEBUG": 10,
+    "SUCCESS": 20,
+    "INFO": 20,
+    "WARNING": 30,
+    "ERROR": 40,
+    "CRITICAL": 50,
+}
 class LogListener:
     """
     日志监听进程，用于将日志写入文件
@@ -17,9 +26,12 @@ class LogListener:
     def __init__(self, level="INFO"):
         now = strftime("%Y-%m-%d", localtime())
         self.log_path = f"logs/task_logger({now}).log"
-        self.level = level
+        self.level = level.upper()
         self.log_queue = MPQueue()
         self._thread = Thread(target=self._listen, daemon=True)
+
+        if self.level not in LEVEL_DICT:
+            raise ValueError(f"Invalid log level: {self.level}")
 
     def start(self):
         loguru_logger.remove()
@@ -58,11 +70,18 @@ class TaskLogger:
     多进程安全日志包装类，所有日志通过队列发送到监听进程写入
     """
 
-    def __init__(self, log_queue=None):
+    def __init__(self, log_queue, log_level="INFO"):
         self.log_queue: MPQueue = log_queue
+        self.log_level: str = log_level.upper()
+
+        if self.log_level not in LEVEL_DICT:
+            raise ValueError(f"Invalid log level: {self.level}")
 
     def _log(self, level: str, message: str):
-        self.log_queue.put({"level": level.upper(), "message": message})
+        level_upper = level.upper()
+        if LEVEL_DICT[level_upper] < LEVEL_DICT[self.log_level]:
+            return
+        self.log_queue.put({"level": level_upper, "message": message})
 
     # ==== manager ====
     def start_manager(self, func_name, task_num, execution_mode_desc):
@@ -116,7 +135,7 @@ class TaskLogger:
 
     # ==== graph ====
     def start_graph(self, stage_structure):
-        self._log("INFO", f"Starting TaskGraph stages. Graph structure:")
+        self._log("INFO", f"Starting TaskGraph. Graph structure:")
         for line in stage_structure:
             self._log("INFO", line)
 

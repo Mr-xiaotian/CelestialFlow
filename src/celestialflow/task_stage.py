@@ -146,7 +146,7 @@ class TaskStage(TaskManager):
         input_queues: TaskQueue,
         output_queues: TaskQueue,
         fail_queue: MPQueue,
-        logger_queue: MPQueue,
+        log_queue: MPQueue,
     ):
         """
         根据 start_type 的值，选择串行、并行执行任务
@@ -154,11 +154,11 @@ class TaskStage(TaskManager):
         :param input_queues: 输入队列
         :param output_queue: 输出队列
         :param fail_queue: 失败队列
-        :param logger_queue: 日志队列
+        :param log_queue: 日志队列
         """
         start_time = time.time()
         self.init_progress()
-        self.init_env(input_queues, output_queues, fail_queue, logger_queue)
+        self.init_env(input_queues, output_queues, fail_queue, log_queue)
         self.task_logger.start_stage(
             self.get_tag(), self.execution_mode, self.worker_limit
         )
