@@ -14,8 +14,8 @@ class TerminationSignal:
 TERMINATION_SIGNAL = TerminationSignal()
 
 
-class TaskError(Exception):
-    """用于标记任务执行错误的异常类"""
+class UnconsumedError(Exception):
+    """用于标记任务未消费的异常类"""
 
     pass
 

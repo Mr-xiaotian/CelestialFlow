@@ -50,7 +50,7 @@ class TaskQueue:
         """
         将结果放入所有结果队列
 
-        :param item: 任务结果
+        :param item: 任务或终止符
         """
         for index in range(len(self.queue_list)):
             self.put_channel(item, index)
@@ -59,7 +59,7 @@ class TaskQueue:
         """
         将结果放入所有结果队列(async模式)
 
-        :param item: 任务结果
+        :param item: 任务或终止符
         """
         for index in range(len(self.queue_list)):
             await self.put_channel_async(item, index)
@@ -68,7 +68,7 @@ class TaskQueue:
         """
         将结果放入第一个结果队列
 
-        :param item: 任务结果
+        :param item: 任务或终止符
         """
         self.put_channel(item, 0)
 
@@ -76,15 +76,33 @@ class TaskQueue:
         """
         将结果放入第一个结果队列(async模式)
 
-        :param item: 任务结果
+        :param item: 任务或终止符
         """
         await self.put_channel_async(item, 0)
+
+    def put_target(self, item: TaskEnvelope | TerminationSignal, tag: str):
+        """
+        将结果放入指定结果队列
+
+        :param item: 任务或终止符
+        :param tag: 队列标签
+        """
+        self.put_channel(item, self.get_tag_idx(tag))
+
+    async def put_target_async(self, item: TaskEnvelope | TerminationSignal, tag: str):
+        """
+        将结果放入指定结果队列(async模式)
+
+        :param item: 任务或终止符
+        :param tag: 队列标签
+        """
+        await self.put_channel_async(item, self.get_tag_idx(tag))
 
     def put_channel(self, item: TaskEnvelope | TerminationSignal, channel_index: int):
         """
         将结果放入指定队列
 
-        :param item: 任务结果
+        :param item: 任务或终止符
         :param channel_index: 队列索引
         """
         try:
@@ -107,7 +125,7 @@ class TaskQueue:
         """
         将结果放入指定队列(async模式)
 
-        :param item: 任务结果
+        :param item: 任务或终止符
         :param channel_index: 队列索引
         """
         try:
@@ -145,9 +163,9 @@ class TaskQueue:
             if isinstance(item, TerminationSignal):
                 self.terminated_queue_set.add(0)
                 self.task_logger.get_item("termination", item.id, self.queue_tags[0], self.stage_tag)
-                return TERMINATION_SIGNAL
+            else:
+                self.task_logger.get_item("task", item.id, self.queue_tags[0], self.stage_tag)
 
-            self.task_logger.get_item("task", item.id, self.queue_tags[0], self.stage_tag)
             return item
 
         while True:
@@ -204,9 +222,9 @@ class TaskQueue:
             if isinstance(item, TerminationSignal):
                 self.terminated_queue_set.add(0)
                 self.task_logger.get_item("termination", item.id, self.queue_tags[0], self.stage_tag)
-                return TERMINATION_SIGNAL
-
-            self.task_logger.get_item("task", item.id, self.queue_tags[0], self.stage_tag)
+            else:
+                self.task_logger.get_item("task", item.id, self.queue_tags[0], self.stage_tag)
+                
             return item
 
         while True:

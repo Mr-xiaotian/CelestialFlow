@@ -334,7 +334,7 @@ class TaskManager:
         progress_num = 0
         for task in task_source:
             input_id = self.ctree_client.emit(
-                "task.input", message=f"In '{self.get_tag()}'"
+                "task.input", payload={"stage_tag": self.get_tag()}
             )
             envelope = TaskEnvelope.wrap(task, input_id)
             self.task_queues.put_first(envelope)
@@ -360,7 +360,7 @@ class TaskManager:
         progress_num = 0
         for task in task_source:
             input_id = self.ctree_client.emit(
-                "task.input", message=f"In '{self.get_tag()}'"
+                "task.input", payload={"stage_tag": self.get_tag()}
             )
             envelope = TaskEnvelope.wrap(task, input_id)
             await self.task_queues.put_first_async(envelope)
@@ -549,7 +549,7 @@ class TaskManager:
             self.success_dict[task] = processed_result
 
         result_id = self.ctree_client.emit(
-            "task.success", parents=[task_id], message=f"In '{self.get_tag()}'"
+            "task.success", parents=[task_id], payload={"stage_tag": self.get_tag()}
         )
         result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
@@ -587,7 +587,7 @@ class TaskManager:
             self.success_dict[task] = processed_result
 
         result_id = self.ctree_client.emit(
-            "task.success", parents=[task_id], message=f"In '{self.get_tag()}'"
+            "task.success", parents=[task_id], payload={"stage_tag": self.get_tag()}
         )
         result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
@@ -632,7 +632,7 @@ class TaskManager:
             retry_id = self.ctree_client.emit(
                 f"task.retry.{retry_time+1}",
                 parents=[task_id],
-                message=f"In '{self.get_tag()}'",
+                payload={"stage_tag": self.get_tag()},
             )
             task_envelope.change_id(retry_id)
             self.task_queues.put_first(task_envelope)  # 只在第一个队列存放retry task
@@ -651,7 +651,7 @@ class TaskManager:
                 self.error_dict[task] = exception
 
             error_id = self.ctree_client.emit(
-                "task.error", parents=[task_id], message=f"In '{self.get_tag()}'"
+                "task.error", parents=[task_id], payload={"stage_tag": self.get_tag()}
             )
 
             # 清理 retry_time_dict
@@ -695,7 +695,7 @@ class TaskManager:
             retry_id = self.ctree_client.emit(
                 f"task.retry.{retry_time+1}",
                 parents=[task_id],
-                message=f"In '{self.get_tag()}'",
+                payload={"stage_tag": self.get_tag()},
             )
             task_envelope.change_id(retry_id)
             await self.task_queues.put_first_async(
@@ -716,7 +716,7 @@ class TaskManager:
                 self.error_dict[task] = exception
 
             error_id = self.ctree_client.emit(
-                "task.error", parents=[task_id], message=f"In '{self.get_tag()}'"
+                "task.error", parents=[task_id], payload={"stage_tag": self.get_tag()}
             )
 
             # 清理 retry_time_dict
@@ -743,7 +743,7 @@ class TaskManager:
         duplicate_id = self.ctree_client.emit(
             "task.duplicate",
             parents=[task_envelope.id],
-            message=f"In '{self.get_tag()}'",
+            payload={"stage_tag": self.get_tag()},
         )
         self.task_logger.task_duplicate(
             self.get_func_name(),

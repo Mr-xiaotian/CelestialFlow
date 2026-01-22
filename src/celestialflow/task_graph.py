@@ -16,7 +16,7 @@ from .task_stage import TaskStage
 from .task_report import TaskReporter, NullTaskReporter
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
-from .task_types import TaskEnvelope, StageStatus, TerminationSignal, TERMINATION_SIGNAL
+from .task_types import TaskEnvelope, StageStatus, UnconsumedError, TerminationSignal, TERMINATION_SIGNAL
 from .task_tools import (
     format_duration,
     format_timestamp,
@@ -293,7 +293,7 @@ class TaskGraph:
                     continue
 
                 input_id = self.ctree_client.emit(
-                    "task.input", message=f"In '{stage.get_tag()}'"
+                    "task.input", payload={"stage_tag": stage.get_tag()}
                 )
                 envelope = TaskEnvelope.wrap(task, input_id)
                 in_queue.put_first(envelope)
@@ -454,14 +454,24 @@ class TaskGraph:
 
             # 持久化逻辑
             for source in remaining_sources:
-                error_id = self.ctree_client.emit("task.error", [source.id], f"In '{stage_tag}'")
+                task = source.task
+                task_id = source.id
+                error_id = self.ctree_client.emit("task.error", [task_id], payload={"stage_tag": stage_tag})
+
                 self.fail_queue.put({
                     "ts": time.time(),
                     "stage_tag": stage_tag,
-                    "error_message": "Exception(UnconsumedError)",
+                    "error_message": "(UnconsumedError)",
                     "error_id": error_id,
-                    "task": str(source.task),
+                    "task": str(task),
                 })
+                self.task_logger.task_error(
+                    stage.get_func_name(),
+                    stage.get_task_repr(task),
+                    UnconsumedError(),
+                    task_id,
+                    error_id,
+                )
 
     def release_resources(self):
         """
