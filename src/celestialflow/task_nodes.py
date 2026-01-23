@@ -42,7 +42,7 @@ class TaskSplitter(TaskStage):
         split_count = len(result)
         for idx, item in enumerate(result):
             split_id = self.ctree_client.emit(
-                "task.split", parents=[task_id], payload={"stage_tag": self.get_tag()}
+                "task.split", parents=[task_id], payload={"actor_name": self.get_name(), "func_name": self.get_func_name()}
             )
             splitted_envelope = TaskEnvelope.wrap(item, split_id)
             self.result_queues.put(splitted_envelope)
@@ -133,7 +133,7 @@ class TaskRouter(TaskStage):
         self.retry_time_dict.pop(task_hash, None)
 
         route_id = self.ctree_client.emit(
-            "task.route", parents=[task_id], payload={"stage_tag": self.get_tag()}
+            "task.route", parents=[task_id], payload={"actor_name": self.get_name(), "func_name": self.get_func_name()}
         )
         routed_envelope = TaskEnvelope.wrap(processed_result, route_id)
         self.result_queues.put_target(routed_envelope, target)
