@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 from .task_tools import load_jsonl_logs
@@ -23,6 +23,11 @@ class StatusModel(BaseModel):
 
 class ErrorsMetaModel(BaseModel):
     jsonl_path: str
+    rev: int
+
+
+class ErrorsContentModel(BaseModel):
+    errors: list[dict]
     rev: int
 
 
@@ -68,8 +73,8 @@ class TaskWebServer:
         self.report_interval = 5
         self._task_injection_lock = threading.Lock()
 
-        self._errors_meta_rev: str | None = None
-        self._errors_meta_path: str | None = None
+        self._errors_meta_rev: Optional[int] = None
+        self._errors_meta_path: Optional[str] = None
 
         self._setup_routes()
 
@@ -129,14 +134,26 @@ class TaskWebServer:
             ):
                 return {"ok": True, "cached": True}
 
-            # 不命中：更新 key 并全量加载
-            self._errors_meta_path = data.jsonl_path
-            self._errors_meta_rev = data.rev
-            self.error_store = load_jsonl_logs(
-                path=data.jsonl_path,
-                keys=["ts", "error_id", "error_repr", "stage", "task_repr"],
-            )
-            return {"ok": True, "cached": False}
+            try:
+                # 不命中：更新 key 并全量加载
+                self.error_store = load_jsonl_logs(
+                    path=data.jsonl_path,
+                    keys=["ts", "error_id", "error_repr", "stage", "task_repr"],
+                )
+                self._errors_meta_path = data.jsonl_path
+                self._errors_meta_rev = data.rev
+                return {"ok": True, "cached": False}
+            except Exception as e:
+                 return {"ok": False, "fallback": "need_content", "reason": type(e).__name__, "msg": str(e)}
+            
+        @app.post("/api/push_errors_content")
+        async def push_errors_content(data: ErrorsContentModel):
+            try:
+                self.error_store = data.errors
+                self._errors_meta_rev = data.rev
+                return {"ok": True, "cached": False}
+            except Exception as e:
+                return {"ok": False, "fallback": "content_error", "reason": type(e).__name__, "msg": str(e)}
 
         @app.post("/api/push_topology")
         async def push_topology(data: TopologyModel):

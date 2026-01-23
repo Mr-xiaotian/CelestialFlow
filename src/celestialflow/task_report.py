@@ -3,6 +3,7 @@ from threading import Event, Thread
 import requests
 
 from .task_logging import TaskLogger
+from .task_tools import load_jsonl_logs
 from .task_types import TERMINATION_SIGNAL
 
 
@@ -54,7 +55,7 @@ class TaskReporter:
         self._pull_and_inject_tasks()
 
         # 推送逻辑
-        self._push_errors_meta()
+        self._push_errors()
         self._push_status()
         self._push_structure()
         self._push_topology()
@@ -92,18 +93,51 @@ class TaskReporter:
         except Exception as e:
             self.logger.pull_tasks_failed(e)
 
-    def _push_errors_meta(self):
+    def _push_errors(self):
         try:
             self.task_graph.handle_fail_queue()
-            payload = {
-                "jsonl_path": self.task_graph.get_error_jsonl_path(),
-                "rev": self.task_graph.total_error_num,
-            }
-            requests.post(
-                f"{self.base_url}/api/push_errors_meta", json=payload, timeout=1
-            )
+
+            resp = self._push_errors_meta()
+            if resp.get("ok"):
+                return
+            if resp.get("fallback") == "need_content":
+                self._push_errors_content()
+            else:
+                raise Exception(resp.get("msg"))
+
         except Exception as e:
             self.logger.push_errors_failed(e)
+
+    def _push_errors_meta(self) -> dict:
+        jsonl_path = self.task_graph.get_error_jsonl_path()
+        rev = self.task_graph.total_error_num
+
+        payload = {
+            # "jsonl_path": jsonl_path,
+            "jsonl_path": "666",
+            "rev": rev,
+        }
+        response = requests.post(
+            f"{self.base_url}/api/push_errors_meta", json=payload, timeout=1
+        )
+        return response.json()
+
+    def _push_errors_content(self):
+        jsonl_path = self.task_graph.get_error_jsonl_path()
+        rev = self.task_graph.total_error_num
+
+        error_store = load_jsonl_logs(
+            path=jsonl_path,
+            keys=["ts", "error_id", "error_repr", "stage", "task_repr"],
+        )
+        payload = {
+            "errors": error_store,
+            "rev": rev,
+        }
+        response=requests.post(
+            f"{self.base_url}/api/push_errors_content", json=payload, timeout=1
+        )
+        return response.json()
 
     def _push_status(self):
         try:
