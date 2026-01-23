@@ -134,7 +134,7 @@ class TaskWebServer:
             self._errors_meta_rev = data.rev
             self.error_store = load_jsonl_logs(
                 path=data.jsonl_path,
-                keys=["ts", "error_id", "error_repr", "stage", "task_repr"]
+                keys=["ts", "error_id", "error_repr", "stage", "task_repr"],
             )
             return {"ok": True, "cached": False}
 

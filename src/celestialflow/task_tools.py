@@ -79,9 +79,7 @@ def _build_structure_subgraph(
     return node
 
 
-def format_structure_list_from_graph(
-    root_roots: List[Dict] = None
-) -> List[str]:
+def format_structure_list_from_graph(root_roots: List[Dict] = None) -> List[str]:
     """
     从多个 JSON 图结构生成格式化任务结构文本列表（带边框）
 
@@ -91,16 +89,12 @@ def format_structure_list_from_graph(
 
     def node_label(node: Dict) -> str:
         visited_note = " [Ref]" if node.get("is_ref") else ""
-        N = node.get("stage_name", "?")      # N
-        S = node.get("stage_mode", "?")      # S
+        N = node.get("stage_name", "?")  # N
+        S = node.get("stage_mode", "?")  # S
         E = node.get("execution_mode", "?")  # E
-        F = node.get("func_name", "?")       # F
+        F = node.get("func_name", "?")  # F
 
-        return (
-            f"{N}::{F} "
-            f"(S:{S}, E:{E})"
-            f"{visited_note}"
-        )
+        return f"{N}::{F} " f"(S:{S}, E:{E})" f"{visited_note}"
 
     # 只渲染“子节点”（有父节点）——保证一定画连接符
     def build_child_lines(node: Dict, prefix: str, is_last: bool) -> List[str]:
@@ -111,7 +105,9 @@ def format_structure_list_from_graph(
         # 子节点的 prefix 取决于当前节点是不是 last：last -> 空白，否则竖线延续
         child_prefix = prefix + ("    " if is_last else "│   ")
         for i, child in enumerate(next_stages):
-            lines.extend(build_child_lines(child, child_prefix, i == len(next_stages) - 1))
+            lines.extend(
+                build_child_lines(child, child_prefix, i == len(next_stages) - 1)
+            )
         return lines
 
     # 专门处理 root：不画连接符，不产生祖先竖线

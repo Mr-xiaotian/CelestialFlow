@@ -20,6 +20,7 @@ LEVEL_DICT = {
     "CRITICAL": 50,
 }
 
+
 class LogListener:
     """
     日志监听进程，用于将日志写入文件
@@ -237,7 +238,9 @@ class TaskLogger:
         edge = f"'{left}' -> '{right}'"
         self._log("TRACE", f"Get {item_type}#{item_id} from Edge({edge}).")
 
-    def get_item_error(self, queue_tag, stage_tag, direction="in", *, exception: Exception):
+    def get_item_error(
+        self, queue_tag, stage_tag, direction="in", *, exception: Exception
+    ):
         left, right = (
             (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
         )

@@ -109,19 +109,29 @@ class TaskQueue:
             self.queue_list[channel_index].put(item)
             if isinstance(item, TaskEnvelope):
                 self.task_logger.put_item(
-                    "task", item.id, self.queue_tags[channel_index], self.stage_tag, self.direction
+                    "task",
+                    item.id,
+                    self.queue_tags[channel_index],
+                    self.stage_tag,
+                    self.direction,
                 )
             elif isinstance(item, TerminationSignal):
                 self.task_logger.put_item(
-                    "termination", item.id, self.queue_tags[channel_index], self.stage_tag, self.direction
+                    "termination",
+                    item.id,
+                    self.queue_tags[channel_index],
+                    self.stage_tag,
+                    self.direction,
                 )
 
         except Exception as e:
             self.task_logger.put_item_error(
                 self.queue_tags[channel_index], self.stage_tag, self.direction, e
             )
-        
-    async def put_channel_async(self, item: TaskEnvelope | TerminationSignal, channel_index: int):
+
+    async def put_channel_async(
+        self, item: TaskEnvelope | TerminationSignal, channel_index: int
+    ):
         """
         将结果放入指定队列(async模式)
 
@@ -132,11 +142,19 @@ class TaskQueue:
             await self.queue_list[channel_index].put(item)
             if isinstance(item, TaskEnvelope):
                 self.task_logger.put_item(
-                    "task", item.id, self.queue_tags[channel_index], self.stage_tag, self.direction
+                    "task",
+                    item.id,
+                    self.queue_tags[channel_index],
+                    self.stage_tag,
+                    self.direction,
                 )
             elif isinstance(item, TerminationSignal):
                 self.task_logger.put_item(
-                    "termination", item.id, self.queue_tags[channel_index], self.stage_tag, self.direction
+                    "termination",
+                    item.id,
+                    self.queue_tags[channel_index],
+                    self.stage_tag,
+                    self.direction,
                 )
 
         except Exception as e:
@@ -156,15 +174,17 @@ class TaskQueue:
         if total_queues == 1:
             # 只有一个队列时，使用阻塞式 get，提高效率
             queue = self.queue_list[0]
-            item: TaskEnvelope | TerminationSignal = (
-                queue.get()
-            )  # 阻塞等待，无需 sleep
+            item: TaskEnvelope | TerminationSignal = queue.get()  # 阻塞等待，无需 sleep
 
             if isinstance(item, TerminationSignal):
                 self.terminated_queue_set.add(0)
-                self.task_logger.get_item("termination", item.id, self.queue_tags[0], self.stage_tag)
+                self.task_logger.get_item(
+                    "termination", item.id, self.queue_tags[0], self.stage_tag
+                )
             else:
-                self.task_logger.get_item("task", item.id, self.queue_tags[0], self.stage_tag)
+                self.task_logger.get_item(
+                    "task", item.id, self.queue_tags[0], self.stage_tag
+                )
 
             return item
 
@@ -221,10 +241,14 @@ class TaskQueue:
 
             if isinstance(item, TerminationSignal):
                 self.terminated_queue_set.add(0)
-                self.task_logger.get_item("termination", item.id, self.queue_tags[0], self.stage_tag)
+                self.task_logger.get_item(
+                    "termination", item.id, self.queue_tags[0], self.stage_tag
+                )
             else:
-                self.task_logger.get_item("task", item.id, self.queue_tags[0], self.stage_tag)
-                
+                self.task_logger.get_item(
+                    "task", item.id, self.queue_tags[0], self.stage_tag
+                )
+
             return item
 
         while True:
@@ -291,7 +315,10 @@ class TaskQueue:
                     break
                 except Exception as e:
                     self.task_logger.get_item_error(
-                        self.queue_tags[idx], self.stage_tag, self.direction, exception=e
+                        self.queue_tags[idx],
+                        self.stage_tag,
+                        self.direction,
+                        exception=e,
                     )
                     break
 

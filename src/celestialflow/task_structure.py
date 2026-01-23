@@ -39,10 +39,10 @@ class TaskCross(TaskGraph):
         该结构将任务按“层”组织，每层可以包含多个并行执行的 TaskStage 节点，
         不同层之间通过依赖关系连接，形成跨层的数据流图。
 
-        :param layers: 
+        :param layers:
             按层划分的任务节点列表。每个子列表代表一层，列表中的 TaskStage 将并行执行。
             相邻层之间的所有节点将建立全连接依赖（即每个上一层节点都连接到下一层所有节点）。
-        :param schedule_mode: 
+        :param schedule_mode:
             控制任务图的调度布局模式
         """
         for i in range(len(layers)):
@@ -74,7 +74,7 @@ class TaskGrid(TaskGraph):
         该结构将任务节点组织成二维网格形式，每个节点连接其右侧和下方的节点，
         形成一个网格状的数据流图。
 
-        :param grid: 
+        :param grid:
             任务网格，每个子列表代表一行，列表中的 TaskStage 将按行并行执行。
             每个节点将连接到其右侧和下方的节点。
         :param schedule_mode: 控制任务图的调度布局模式
@@ -171,7 +171,9 @@ class TaskComplete(TaskGraph):
 
         super().__init__(stages)
 
-    def start_complete(self, init_tasks_dict: dict, put_termination_signal: bool = False):
+    def start_complete(
+        self, init_tasks_dict: dict, put_termination_signal: bool = False
+    ):
         """
         启动任务完全图, 建议外部注入式停止
 

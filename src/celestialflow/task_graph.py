@@ -16,7 +16,13 @@ from .task_stage import TaskStage
 from .task_report import TaskReporter, NullTaskReporter
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
-from .task_types import TaskEnvelope, StageStatus, UnconsumedError, TerminationSignal, TERMINATION_SIGNAL
+from .task_types import (
+    TaskEnvelope,
+    StageStatus,
+    UnconsumedError,
+    TerminationSignal,
+    TERMINATION_SIGNAL,
+)
 from .task_tools import (
     format_duration,
     format_timestamp,
@@ -36,7 +42,12 @@ from .task_tools import (
 
 
 class TaskGraph:
-    def __init__(self, root_stages: List[TaskStage], schedule_mode: str = "eager", log_level: str = "INFO"):
+    def __init__(
+        self,
+        root_stages: List[TaskStage],
+        schedule_mode: str = "eager",
+        log_level: str = "INFO",
+    ):
         """
         初始化 TaskGraph 实例。
 
@@ -57,7 +68,7 @@ class TaskGraph:
                 分层执行模式。任务图必须为有向无环图（DAG）。
                 节点按层级顺序逐层启动，确保上层所有任务完成后再启动下一层。
                 更利于调试、性能分析和阶段性资源控制。
-        
+
         :param log_level: str, optional, default = 'INFO'
             日志级别，支持以下级别：
             - 'TRACE'
@@ -76,7 +87,7 @@ class TaskGraph:
 
         self.init_env()
         self.init_structure_graph()
-        
+
         self.analyze_graph()
 
     def init_env(self):
@@ -202,7 +213,7 @@ class TaskGraph:
             raise Exception("The task graph is not a DAG, cannot use staged mode")
         else:
             raise Exception(
-                f"Invalid schedule mode: {schedule_mode}. " 
+                f"Invalid schedule mode: {schedule_mode}. "
                 "Valid options are 'eager' or 'staged'"
             )
 
@@ -216,10 +227,10 @@ class TaskGraph:
         """
         if is_report:
             self.reporter = TaskReporter(
-                task_graph=self, 
-                log_queue=self.log_listener.get_queue(), 
-                log_level=self.log_level, 
-                host=host, 
+                task_graph=self,
+                log_queue=self.log_listener.get_queue(),
+                log_level=self.log_level,
+                host=host,
                 port=port,
             )
         else:
@@ -283,9 +294,9 @@ class TaskGraph:
         :param put_termination_signal: 是否放入终止信号
         """
         for tag, tasks in tasks_dict.items():
-            stage: TaskStage    = self.stage_runtime_dict[tag]["stage"]
+            stage: TaskStage = self.stage_runtime_dict[tag]["stage"]
             in_queue: TaskQueue = self.stage_runtime_dict[tag]["in_queue"]
-            input_ids: set      = self.stage_runtime_dict[tag]["input_ids"]
+            input_ids: set = self.stage_runtime_dict[tag]["input_ids"]
 
             for task in tasks:
                 if isinstance(task, TerminationSignal):
@@ -293,7 +304,11 @@ class TaskGraph:
                     continue
 
                 input_id = self.ctree_client.emit(
-                    "task.input", payload={"actor_name": stage.get_name(), "func_name": stage.get_func_name()}
+                    "task.input",
+                    payload={
+                        "actor_name": stage.get_name(),
+                        "func_name": stage.get_func_name(),
+                    },
                 )
                 envelope = TaskEnvelope.wrap(task, input_id)
                 in_queue.put_first(envelope)
@@ -397,7 +412,7 @@ class TaskGraph:
         log_queue = self.log_listener.get_queue()
 
         # 输入输出队列
-        input_queues: TaskQueue  = stage_runtime["in_queue"]
+        input_queues: TaskQueue = stage_runtime["in_queue"]
         output_queues: TaskQueue = stage_runtime["out_queue"]
 
         stage_runtime["status"] = StageStatus.RUNNING
@@ -419,9 +434,7 @@ class TaskGraph:
             p.start()
             self.processes.append(p)
         else:
-            stage.start_stage(
-                input_queues, output_queues, self.fail_queue, log_queue
-            )
+            stage.start_stage(input_queues, output_queues, self.fail_queue, log_queue)
             stage_runtime["status"] = StageStatus.STOPPED
 
     def finalize_nodes(self):
@@ -457,18 +470,23 @@ class TaskGraph:
                 task = source.task
                 task_id = source.id
                 error_id = self.ctree_client.emit(
-                    "task.error", 
-                    [task_id], 
-                    payload={"actor_name": stage.get_name(), "func_name": stage.get_func_name()}
+                    "task.error",
+                    [task_id],
+                    payload={
+                        "actor_name": stage.get_name(),
+                        "func_name": stage.get_func_name(),
+                    },
                 )
 
-                self.fail_queue.put({
-                    "ts": time.time(),
-                    "stage_tag": stage_tag,
-                    "error_message": "(UnconsumedError)",
-                    "error_id": error_id,
-                    "task": str(task),
-                })
+                self.fail_queue.put(
+                    {
+                        "ts": time.time(),
+                        "stage_tag": stage_tag,
+                        "error_message": "(UnconsumedError)",
+                        "error_id": error_id,
+                        "task": str(task),
+                    }
+                )
                 self.task_logger.task_error(
                     stage.get_func_name(),
                     stage.get_task_repr(task),
@@ -531,7 +549,7 @@ class TaskGraph:
         """
         if not failures:
             return
-        
+
         log_items = (
             {
                 "timestamp": datetime.fromtimestamp(ts).isoformat(),
@@ -666,14 +684,14 @@ class TaskGraph:
 
     def get_networkx_graph(self):
         return format_networkx_graph(self.structure_json)
-    
+
     def get_error_jsonl_path(self):
         return os.path.abspath(self.error_jsonl_path)
-    
+
     def get_stage_descendants(self, stage_tag: int) -> List[dict]:
         if not self._use_ctree:
             return {}
-        
+
         input_ids: set = self.stage_runtime_dict[stage_tag]["input_ids"]
         return self.ctree_client.descendants_batch(list(input_ids))
 

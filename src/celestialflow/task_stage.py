@@ -185,7 +185,7 @@ class TaskStage(TaskManager):
                 self.run_in_serial()
             else:
                 raise ValueError(
-                    f"Invalid execution mode: {self.execution_mode}. " 
+                    f"Invalid execution mode: {self.execution_mode}. "
                     "Valid options are 'thread' and 'serial'."
                 )
 
