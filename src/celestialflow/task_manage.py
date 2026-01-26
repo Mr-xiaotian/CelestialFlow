@@ -831,7 +831,6 @@ class TaskManager:
                 self.run_with_executor(self.thread_pool)
             elif self.execution_mode == "process":
                 self.run_with_executor(self.process_pool)
-                # cleanup_mpqueue(self.task_queues)
             elif self.execution_mode == "async":
                 # don't suggest, please use start_async
                 asyncio.run(self.run_in_async())
@@ -1064,18 +1063,20 @@ class TaskManager:
     def get_success_dict(self) -> dict:
         """
         获取成功任务的字典
+        需要enable_success_cache=True
         """
         return dict(self.success_dict)
 
     def get_error_dict(self) -> dict:
         """
         获取出错任务的字典
+        需要enable_error_cache=True
         """
         return dict(self.error_dict)
 
     def release_queue(self):
         """
-        清理环境
+        清理队列
         """
         self.task_queues = None
         self.result_queues = None

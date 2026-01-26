@@ -24,7 +24,7 @@ class TaskStage(TaskManager):
         """
         设置执行模式
 
-        :param execution_mode: 执行模式，可以是 'thread'（线程）, 'serial'（串行）
+        :param execution_mode: 执行模式，在 stage 中可以是 'thread'（线程）, 'serial'（串行）
         """
         if execution_mode in ["thread", "serial"]:
             self.execution_mode = execution_mode
@@ -107,6 +107,10 @@ class TaskStage(TaskManager):
         :param name: 当前节点名称
         """
         self._name = name or f"Stage{id(self)}"
+        
+        # name 变了，tag 必须失效
+        if hasattr(self, "_tag"):
+            delattr(self, "_tag")
 
     def _finalize_prev_bindings(self):
         """
@@ -188,7 +192,6 @@ class TaskStage(TaskManager):
                 )
 
         finally:
-            # cleanup_mpqueue(input_queues) # 会影响之后finalize_nodes
             self.result_queues.put(TERMINATION_SIGNAL)
             self.release_pool()
 

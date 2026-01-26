@@ -110,7 +110,7 @@ pip install celestialflow
 一个简单的可运行代码:
 
 ```python
-from celestialflow import TaskManager, TaskGraph
+from celestialflow import TaskStage, TaskGraph
 
 def add(x, y): 
     return x + y
@@ -120,8 +120,8 @@ def square(x):
 
 if __name__ == "__main__":
     # 定义两个任务节点
-    stage1 = TaskManager(add, execution_mode="thread", unpack_task_args=True)
-    stage2 = TaskManager(square, execution_mode="thread")
+    stage1 = TaskStage(add, execution_mode="thread", unpack_task_args=True)
+    stage2 = TaskStage(square, execution_mode="thread")
 
     # 构建任务图结构
     stage1.set_graph_context([stage2], stage_mode="process", stage_name="Adder")
@@ -146,8 +146,9 @@ if __name__ == "__main__":
 
 若你想了解框架的整体结构与核心组件，下面的参考文档会对你有帮助：
 
-- [🔧TaskManage/TaskStage概念](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_manage.md)
-- [🌐TaskGrapg概念](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_graph.md)
+- [🔧TaskManage概念](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_manage.md)
+- [🔧TaskStage概念](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_stage.md)
+- [🌐TaskGraph概念](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_graph.md)
 - [📚Go Worker概念](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/go_worker.md)
 
 推荐阅读顺序:
@@ -318,9 +319,9 @@ flowchart TD
 - 3.0.6: 添加对[CelestialTree](https://github.com/Mr-xiaotian/CelestialTree)系统的支持, 现在可以追踪单个任务的流向
 - 3.0.7: 将TaskStage从TaskManager中单独抽出来作为一个子类; 增加新节点TaskRouter, 可以将传入的任务选择的传给不同的下游节点, 而不是进行广播
 - 3.0.8: 在ctree逻辑上将"任务重试"事件后的"任务成功/失败/重试"事件视为因果关系, 而非之前的并行关系; 重构错误搜集部分逻辑; 修复大量3.0.6与3.07版本引入的bug; 优化部分log表现
-- 3.0.9: 1/23/2026
+- 3.0.9: 
   - 更新前端mermaid显示中部分节点图标; 
-  - 对ctree_client的大量修改; 
+  - 对ctree_client进行匹配CelestialTree的大量修改; 
   - 将ctree_client移出为单独的project; 
   - 在前端中添加error_id的显示, 为之后显示provenance_tree做准备; 
   - 增加大量warning与error, 用于提醒不规范设置; 

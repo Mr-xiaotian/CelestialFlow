@@ -1,11 +1,14 @@
 from threading import Event, Thread
-from typing import List
+from typing import TYPE_CHECKING, List
 
 import requests
 
 from .task_logging import TaskLogger
 from .task_tools import load_jsonl_logs
 from .task_types import TERMINATION_SIGNAL
+
+if TYPE_CHECKING:
+    from .task_graph import TaskGraph
 
 
 class TaskReporter:
@@ -19,8 +22,6 @@ class TaskReporter:
     """
 
     def __init__(self, task_graph, log_queue, log_level, host="127.0.0.1", port=5000):
-        from .task_graph import TaskGraph
-
         self.task_graph: TaskGraph = task_graph
         self.logger = TaskLogger(log_queue, log_level)
         self.base_url = f"http://{host}:{port}"
