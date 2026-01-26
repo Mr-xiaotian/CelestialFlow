@@ -1,3 +1,4 @@
+import anyio
 import os
 import threading
 import uvicorn
@@ -28,6 +29,7 @@ class ErrorsMetaModel(BaseModel):
 
 class ErrorsContentModel(BaseModel):
     errors: list[dict]
+    jsonl_path: str
     rev: int
 
 
@@ -136,7 +138,8 @@ class TaskWebServer:
 
             try:
                 # 不命中：更新 key 并全量加载
-                self.error_store = load_jsonl_logs(
+                self.error_store = await anyio.to_thread.run_sync(
+                    load_jsonl_logs,
                     path=data.jsonl_path,
                     keys=["ts", "error_id", "error_repr", "stage", "task_repr"],
                 )
@@ -144,16 +147,24 @@ class TaskWebServer:
                 self._errors_meta_rev = data.rev
                 return {"ok": True, "cached": False}
             except Exception as e:
-                 return {"ok": False, "fallback": "need_content", "reason": type(e).__name__, "msg": str(e)}
+                return {"ok": False, "fallback": "need_content", "reason": type(e).__name__, "msg": str(e)}
             
         @app.post("/api/push_errors_content")
         async def push_errors_content(data: ErrorsContentModel):
+            # 命中缓存：path 和 rev 都没变 -> 不重新读取
+            if (
+                data.jsonl_path == self._errors_meta_path
+                and data.rev == self._errors_meta_rev
+            ):
+                return {"ok": True, "cached": True}
+            
             try:
                 self.error_store = data.errors
+                self._errors_meta_path = data.jsonl_path
                 self._errors_meta_rev = data.rev
                 return {"ok": True, "cached": False}
             except Exception as e:
-                return {"ok": False, "fallback": "content_error", "reason": type(e).__name__, "msg": str(e)}
+                return {"ok": False, "fallback": "none", "reason": type(e).__name__, "msg": str(e)}
 
         @app.post("/api/push_topology")
         async def push_topology(data: TopologyModel):
@@ -181,7 +192,8 @@ class TaskWebServer:
 
         @app.route("/shutdown", methods=["POST"])
         def shutdown():
-            os._exit(0)
+            # os._exit(0)
+            pass
 
     def start_server(self):
         uvicorn.run(self.app, host=self.host, port=self.port, log_level=self.log_level)

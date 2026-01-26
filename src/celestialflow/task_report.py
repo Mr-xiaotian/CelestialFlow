@@ -1,4 +1,5 @@
 from threading import Event, Thread
+from typing import List
 
 import requests
 
@@ -23,8 +24,11 @@ class TaskReporter:
         self.task_graph: TaskGraph = task_graph
         self.logger = TaskLogger(log_queue, log_level)
         self.base_url = f"http://{host}:{port}"
+
         self._stop_flag = Event()
         self._thread = None
+        self._push_errors_mode = "meta"
+
         self.interval = 5
 
     def start(self):
@@ -40,6 +44,12 @@ class TaskReporter:
             self._thread.join(timeout=2)
             self._thread = None
             self.logger.stop_reporter()
+
+    def _pull_timeout(self) -> float:
+        return max(1.0, min(self.interval * 0.2, 5.0))
+
+    def _push_timeout(self) -> float:
+        return max(1.0, min(self.interval * 0.2, 3.0))
 
     def _loop(self):
         while not self._stop_flag.is_set():
@@ -62,7 +72,7 @@ class TaskReporter:
 
     def _pull_interval(self):
         try:
-            res = requests.get(f"{self.base_url}/api/get_interval", timeout=1)
+            res = requests.get(f"{self.base_url}/api/get_interval", timeout=self._pull_timeout())
             if res.ok:
                 interval = res.json().get("interval", 5)
                 self.interval = max(1.0, min(interval, 60.0))
@@ -71,9 +81,9 @@ class TaskReporter:
 
     def _pull_and_inject_tasks(self):
         try:
-            res = requests.get(f"{self.base_url}/api/get_task_injection", timeout=2)
+            res = requests.get(f"{self.base_url}/api/get_task_injection", timeout=self._pull_timeout())
             if res.ok:
-                tasks_list = res.json()
+                tasks_list: List[dict] = res.json()
                 for task in tasks_list:
                     target_node = task.get("node")
                     task_datas = task.get("task_datas")
@@ -97,13 +107,21 @@ class TaskReporter:
         try:
             self.task_graph.handle_fail_queue()
 
-            resp = self._push_errors_meta()
-            if resp.get("ok"):
-                return
-            if resp.get("fallback") == "need_content":
-                self._push_errors_content()
-            else:
-                raise Exception(resp.get("msg"))
+            if self._push_errors_mode == "meta":
+                resp = self._push_errors_meta()
+                if resp.get("ok"):
+                    return
+                if resp.get("fallback") == "need_content":
+                    self._push_errors_mode = "content"
+
+                raise RuntimeError(f"push_errors_meta failed: {resp.get('msg')}")
+            
+            elif self._push_errors_mode == "content":
+                resp = self._push_errors_content()
+                if resp.get("ok"):
+                    return
+                
+                raise RuntimeError(f"push_errors_content failed: {resp.get('msg')}")
 
         except Exception as e:
             self.logger.push_errors_failed(e)
@@ -113,16 +131,15 @@ class TaskReporter:
         rev = self.task_graph.total_error_num
 
         payload = {
-            # "jsonl_path": jsonl_path,
-            "jsonl_path": "666",
+            "jsonl_path": jsonl_path,
             "rev": rev,
         }
         response = requests.post(
-            f"{self.base_url}/api/push_errors_meta", json=payload, timeout=1
+            f"{self.base_url}/api/push_errors_meta", json=payload, timeout=self._push_timeout()
         )
         return response.json()
 
-    def _push_errors_content(self):
+    def _push_errors_content(self) -> dict:
         jsonl_path = self.task_graph.get_error_jsonl_path()
         rev = self.task_graph.total_error_num
 
@@ -132,10 +149,11 @@ class TaskReporter:
         )
         payload = {
             "errors": error_store,
+            "jsonl_path": jsonl_path,
             "rev": rev,
         }
-        response=requests.post(
-            f"{self.base_url}/api/push_errors_content", json=payload, timeout=1
+        response = requests.post(
+            f"{self.base_url}/api/push_errors_content", json=payload, timeout=self._push_timeout()
         )
         return response.json()
 
@@ -143,7 +161,7 @@ class TaskReporter:
         try:
             status_data = self.task_graph.get_status_dict()
             payload = {"status": status_data}
-            requests.post(f"{self.base_url}/api/push_status", json=payload, timeout=1)
+            requests.post(f"{self.base_url}/api/push_status", json=payload, timeout=self._push_timeout())
         except Exception as e:
             self.logger.push_status_failed(e)
 
@@ -152,7 +170,7 @@ class TaskReporter:
             structure = self.task_graph.get_structure_json()
             payload = {"items": structure}
             requests.post(
-                f"{self.base_url}/api/push_structure", json=payload, timeout=1
+                f"{self.base_url}/api/push_structure", json=payload, timeout=self._push_timeout()
             )
         except Exception as e:
             self.logger.push_structure_failed(e)
@@ -161,7 +179,7 @@ class TaskReporter:
         try:
             topology = self.task_graph.get_graph_topology()
             payload = {"topology": topology}
-            requests.post(f"{self.base_url}/api/push_topology", json=payload, timeout=1)
+            requests.post(f"{self.base_url}/api/push_topology", json=payload, timeout=self._push_timeout())
         except Exception as e:
             self.logger.push_topology_failed(e)
 
