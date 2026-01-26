@@ -305,10 +305,7 @@ class TaskGraph:
 
                 input_id = self.ctree_client.emit(
                     "task.input",
-                    payload={
-                        "actor_name": stage.get_name(),
-                        "func_name": stage.get_func_name(),
-                    },
+                    payload=stage.get_summary(),
                 )
                 envelope = TaskEnvelope.wrap(task, input_id)
                 in_queue.put_first(envelope)
@@ -472,10 +469,7 @@ class TaskGraph:
                 error_id = self.ctree_client.emit(
                     "task.error",
                     [task_id],
-                    payload={
-                        "actor_name": stage.get_name(),
-                        "func_name": stage.get_func_name(),
-                    },
+                    payload=stage.get_summary(),
                 )
 
                 self.fail_queue.put(

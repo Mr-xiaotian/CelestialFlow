@@ -325,8 +325,16 @@ class TaskManager:
         """
         if hasattr(self, "_tag"):
             return self._tag
-        self._tag = f"{self._name}[{self.func.__name__}]"
+        self._tag = f"{self.get_name()}[{self.get_func_name()}]"
         return self._tag
+    
+    def get_class_name(self) -> str:
+        """
+        获取当前节点类名
+
+        :return: 当前节点类名
+        """
+        return self.__class__.__name__
 
     def get_execution_mode_desc(self) -> str:
         """
@@ -339,6 +347,19 @@ class TaskManager:
             if self.execution_mode == "serial"
             else f"{self.execution_mode}-{self.worker_limit}"
         )
+
+    def get_summary(self) -> dict:
+        """
+        获取当前节点的状态快照
+
+        :return: 当前节点状态快照
+        """
+        return {
+            "actor_name": self.get_name(),
+            "func_name": self.get_func_name(),
+            "class_name": self.get_class_name(),
+            "execution_mode": self.get_execution_mode_desc(),
+        }
 
     def add_retry_exceptions(self, *exceptions):
         """
@@ -358,10 +379,7 @@ class TaskManager:
         for task in task_source:
             input_id = self.ctree_client.emit(
                 "task.input",
-                payload={
-                    "actor_name": self.get_name(),
-                    "func_name": self.get_func_name(),
-                },
+                payload=self.get_summary(),
             )
             envelope = TaskEnvelope.wrap(task, input_id)
             self.task_queues.put_first(envelope)
@@ -388,10 +406,7 @@ class TaskManager:
         for task in task_source:
             input_id = self.ctree_client.emit(
                 "task.input",
-                payload={
-                    "actor_name": self.get_name(),
-                    "func_name": self.get_func_name(),
-                },
+                payload=self.get_summary(),
             )
             envelope = TaskEnvelope.wrap(task, input_id)
             await self.task_queues.put_first_async(envelope)
@@ -582,7 +597,7 @@ class TaskManager:
         result_id = self.ctree_client.emit(
             "task.success",
             parents=[task_id],
-            payload={"actor_name": self.get_name(), "func_name": self.get_func_name()},
+            payload=self.get_summary(),
         )
         result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
@@ -622,7 +637,7 @@ class TaskManager:
         result_id = self.ctree_client.emit(
             "task.success",
             parents=[task_id],
-            payload={"actor_name": self.get_name(), "func_name": self.get_func_name()},
+            payload=self.get_summary(),
         )
         result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
@@ -667,10 +682,7 @@ class TaskManager:
             retry_id = self.ctree_client.emit(
                 f"task.retry.{retry_time+1}",
                 parents=[task_id],
-                payload={
-                    "actor_name": self.get_name(),
-                    "func_name": self.get_func_name(),
-                },
+                payload=self.get_summary(),
             )
             task_envelope.change_id(retry_id)
             self.task_queues.put_first(task_envelope)  # 只在第一个队列存放retry task
@@ -691,10 +703,7 @@ class TaskManager:
             error_id = self.ctree_client.emit(
                 "task.error",
                 parents=[task_id],
-                payload={
-                    "actor_name": self.get_name(),
-                    "func_name": self.get_func_name(),
-                },
+                payload=self.get_summary(),
             )
 
             # 清理 retry_time_dict
@@ -738,10 +747,7 @@ class TaskManager:
             retry_id = self.ctree_client.emit(
                 f"task.retry.{retry_time+1}",
                 parents=[task_id],
-                payload={
-                    "actor_name": self.get_name(),
-                    "func_name": self.get_func_name(),
-                },
+                payload=self.get_summary(),
             )
             task_envelope.change_id(retry_id)
             await self.task_queues.put_first_async(
@@ -764,10 +770,7 @@ class TaskManager:
             error_id = self.ctree_client.emit(
                 "task.error",
                 parents=[task_id],
-                payload={
-                    "actor_name": self.get_name(),
-                    "func_name": self.get_func_name(),
-                },
+                payload=self.get_summary(),
             )
 
             # 清理 retry_time_dict
@@ -794,7 +797,7 @@ class TaskManager:
         duplicate_id = self.ctree_client.emit(
             "task.duplicate",
             parents=[task_envelope.id],
-            payload={"actor_name": self.get_name(), "func_name": self.get_func_name()},
+            payload=self.get_summary(),
         )
         self.task_logger.task_duplicate(
             self.get_func_name(),

@@ -132,10 +132,8 @@ class TaskStage(TaskManager):
         :return: 当前节点状态快照
         """
         return {
+            **self.get_summary(),
             "stage_mode": self.stage_mode,
-            "execution_mode": self.get_execution_mode_desc(),
-            "func_name": self.get_func_name(),
-            "class_name": self.__class__.__name__,
         }
 
     def put_fail_queue(self, task, error, error_id):
