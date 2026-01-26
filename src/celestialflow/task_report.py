@@ -187,8 +187,8 @@ class TaskReporter:
 class NullTaskReporter:
     interval = 0
 
-    def start():
+    def start(self):
         return None
 
-    def stop():
+    def stop(self):
         return None
