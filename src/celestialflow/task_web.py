@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request, Body
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from functools import partial
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from datetime import datetime
@@ -139,9 +140,11 @@ class TaskWebServer:
             try:
                 # 不命中：更新 key 并全量加载
                 self.error_store = await anyio.to_thread.run_sync(
-                    load_jsonl_logs,
-                    path=data.jsonl_path,
-                    keys=["ts", "error_id", "error_repr", "stage", "task_repr"],
+                    partial(
+                        load_jsonl_logs,
+                        path=data.jsonl_path,
+                        keys=["ts", "error_id", "error_repr", "stage", "task_repr"],
+                    )
                 )
                 self._errors_meta_path = data.jsonl_path
                 self._errors_meta_rev = data.rev

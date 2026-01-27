@@ -38,6 +38,7 @@ from .task_tools import (
     load_task_by_stage,
     load_task_by_error,
     format_repr,
+    format_event_forest,
 )
 
 
@@ -476,7 +477,7 @@ class TaskGraph:
                     {
                         "ts": time.time(),
                         "stage_tag": stage_tag,
-                        "error_message": "(UnconsumedError)",
+                        "error_message": "UnconsumedError()",
                         "error_id": error_id,
                         "task": str(task),
                     }
@@ -547,7 +548,7 @@ class TaskGraph:
         log_items = (
             {
                 "timestamp": datetime.fromtimestamp(ts).isoformat(),
-                "stage": stage,
+                "stage": stage_tag,
                 "error_repr": format_repr(err, 100),
                 "task_repr": format_repr(task, 100),
                 "error": err,
@@ -555,7 +556,7 @@ class TaskGraph:
                 "error_id": err_id,
                 "ts": ts,
             }
-            for ts, stage, err, err_id, task in failures
+            for ts, stage_tag, err, err_id, task in failures
         )
         append_jsonl_logs(log_items, self.error_jsonl_path, self.task_logger)
 
@@ -682,12 +683,13 @@ class TaskGraph:
     def get_error_jsonl_path(self):
         return os.path.abspath(self.error_jsonl_path)
 
-    def get_stage_descendants(self, stage_tag: int) -> List[dict]:
+    def get_stage_input_trace(self, stage_tag: str) -> List[dict]:
         if not self._use_ctree:
             return {}
 
         input_ids: set = self.stage_runtime_dict[stage_tag]["input_ids"]
-        return self.ctree_client.descendants_batch(list(input_ids))
+        descendants = self.ctree_client.descendants_batch(list(input_ids), "meta")
+        return format_event_forest(descendants)
 
     def analyze_graph(self):
         """

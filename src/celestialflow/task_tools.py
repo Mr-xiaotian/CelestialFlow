@@ -11,28 +11,13 @@ from multiprocessing import Queue as MPQueue
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Set, Optional
 
+from celestialtree import NodeLabelStyle, format_descendants_forest, format_provenance_forest
+
 if TYPE_CHECKING:
     from .task_stage import TaskStage
 
 
-# ======== 调用于task_graph.py ========
-def format_duration(seconds):
-    """将秒数格式化为 HH:MM:SS 或 MM:SS（自动省略前导零）"""
-    seconds = int(seconds)
-    hours, remainder = divmod(seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-
-    if hours > 0:
-        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-    else:
-        return f"{minutes:02d}:{seconds:02d}"
-
-
-def format_timestamp(timestamp) -> str:
-    """将时间戳格式化为 YYYY-MM-DD HH:MM:SS"""
-    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
-
-
+# ======== 处理图结构 ========
 def build_structure_graph(root_stages: List["TaskStage"]) -> List[Dict[str, Any]]:
     """
     从多个根节点构建任务链的 JSON 图结构
@@ -193,7 +178,7 @@ def compute_node_levels(G: nx.DiGraph) -> Dict[str, int]:
     return level
 
 
-# ======== 调用于task_types.py ========
+# ======== 处理任务 ========
 def make_hashable(obj) -> Any:
     """
     把 obj 转换成可哈希的形式。
@@ -363,6 +348,28 @@ def format_table(
     # 拼接表格
     table = f"{separator}\n{header}\n{separator}\n{rows}\n{separator}"
     return table
+
+
+def format_duration(seconds):
+    """将秒数格式化为 HH:MM:SS 或 MM:SS（自动省略前导零）"""
+    seconds = int(seconds)
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    else:
+        return f"{minutes:02d}:{seconds:02d}"
+
+
+def format_timestamp(timestamp) -> str:
+    """将时间戳格式化为 YYYY-MM-DD HH:MM:SS"""
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def format_event_forest(event_forest: List[Dict]):
+    style = NodeLabelStyle(template="{base}  {payload.actor_name}  ‹{type}›", missing="-")
+    return format_descendants_forest(event_forest, style)
 
 
 # ======== jsonl文件处理 ========

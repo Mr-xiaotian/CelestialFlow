@@ -172,6 +172,9 @@ def test_splitter_0():
         True,
     )
 
+    # print()
+    # print(graph.get_stage_input_trace(generate_stage.get_tag()))
+
 
 def test_splitter_1():
     # 定义任务节点
