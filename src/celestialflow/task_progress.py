@@ -16,11 +16,11 @@ class NullProgress:
         pass
 
 
-class ProgressManager:
+class TaskProgress:
     def __init__(
         self,
         total_tasks: int,
-        desc: str = "Processing",
+        desc: str,
         mode: str = "normal",
     ):
         """

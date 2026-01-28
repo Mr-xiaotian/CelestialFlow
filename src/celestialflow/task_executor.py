@@ -43,7 +43,7 @@ class TaskExecutor:
         enable_error_cache=False,
         enable_duplicate_check=True,
         show_progress=False,
-        progress_desc="Processing",
+        progress_desc="Executing",
         log_level="INFO",
     ):
         """
@@ -212,7 +212,7 @@ class TaskExecutor:
         初始化进度条
         """
         if not self.show_progress:
-            self.progress_manager = NullProgress()
+            self.task_progress = NullProgress()
             return
 
         extra_desc = (
@@ -222,7 +222,7 @@ class TaskExecutor:
         )
         progress_mode = "normal" if self.execution_mode != "async" else "async"
 
-        self.progress_manager = TaskProgress(
+        self.task_progress = TaskProgress(
             total_tasks=0,
             desc=f"{self.progress_desc}({extra_desc})",
             mode=progress_mode,
@@ -392,9 +392,9 @@ class TaskExecutor:
             )
 
             if self.task_counter.value % 100 == 0:
-                self.progress_manager.add_total(100)
+                self.task_progress.add_total(100)
                 progress_num += 100
-        self.progress_manager.add_total(self.task_counter.value - progress_num)
+        self.task_progress.add_total(self.task_counter.value - progress_num)
 
     async def put_task_queues_async(self, task_source):
         """
@@ -419,9 +419,9 @@ class TaskExecutor:
             )
 
             if self.task_counter.value % 100 == 0:
-                self.progress_manager.add_total(100)
+                self.task_progress.add_total(100)
                 progress_num += 100
-        self.progress_manager.add_total(self.task_counter.value - progress_num)
+        self.task_progress.add_total(self.task_counter.value - progress_num)
 
     def put_fail_queue(self, task, error, error_id):
         """
@@ -675,7 +675,7 @@ class TaskExecutor:
             isinstance(exception, self.retry_exceptions)
             and retry_time < self.max_retries
         ):
-            self.progress_manager.add_total(1)
+            self.task_progress.add_total(1)
             self.processed_set.discard(task_hash)
             self.retry_time_dict[task_hash] += 1
 
@@ -740,7 +740,7 @@ class TaskExecutor:
             isinstance(exception, self.retry_exceptions)
             and retry_time < self.max_retries
         ):
-            self.progress_manager.add_total(1)
+            self.task_progress.add_total(1)
             self.processed_set.discard(task_hash)
             self.retry_time_dict[task_hash] += 1
 
@@ -819,7 +819,7 @@ class TaskExecutor:
 
         self.put_task_queues(task_source)
         self.task_queues.put(TERMINATION_SIGNAL)
-        self.task_logger.start_manager(
+        self.task_logger.start_executor(
             self.get_func_name(),
             self.task_counter.value,
             self.get_execution_mode_desc(),
@@ -845,9 +845,9 @@ class TaskExecutor:
 
         finally:
             self.release_pool()
-            self.progress_manager.close()
+            self.task_progress.close()
 
-            self.task_logger.end_manager(
+            self.task_logger.end_executor(
                 self.get_func_name(),
                 self.execution_mode,
                 time.time() - start_time,
@@ -871,7 +871,7 @@ class TaskExecutor:
 
         await self.put_task_queues_async(task_source)
         await self.task_queues.put_async(TERMINATION_SIGNAL)
-        self.task_logger.start_manager(
+        self.task_logger.start_executor(
             self.get_func_name(),
             self.task_counter.value,
             self.get_execution_mode_desc(),
@@ -882,9 +882,9 @@ class TaskExecutor:
 
         finally:
             self.release_pool()
-            self.progress_manager.close()
+            self.task_progress.close()
 
-            self.task_logger.end_manager(
+            self.task_logger.end_executor(
                 self.get_func_name(),
                 self.execution_mode,
                 time.time() - start_time,
@@ -909,7 +909,7 @@ class TaskExecutor:
 
             if self.is_duplicate(task_hash):
                 self.deal_dupliacte(envelope)
-                self.progress_manager.update(1)
+                self.task_progress.update(1)
                 continue
             self.add_processed_set(task_hash)
             try:
@@ -918,7 +918,7 @@ class TaskExecutor:
                 self.process_task_success(envelope, result, start_time)
             except Exception as error:
                 self.handle_task_error(envelope, error)
-            self.progress_manager.update(1)
+            self.task_progress.update(1)
 
         self.task_queues.reset()
 
@@ -942,10 +942,10 @@ class TaskExecutor:
         all_done_event.set()  # 初始为无任务状态，设为完成状态
 
         def on_task_done(
-            future, envelope: TaskEnvelope, progress_manager: TaskProgress
+            future, envelope: TaskEnvelope, task_progress: TaskProgress
         ):
             # 回调函数中处理任务结果
-            progress_manager.update(1)
+            task_progress.update(1)
             task_id = envelope.id
 
             try:
@@ -977,7 +977,7 @@ class TaskExecutor:
                 break
             elif self.is_duplicate(task_hash):
                 self.deal_dupliacte(envelope)
-                self.progress_manager.update(1)
+                self.task_progress.update(1)
                 continue
             self.add_processed_set(task_hash)
 
@@ -989,7 +989,7 @@ class TaskExecutor:
             task_start_dict[task_id] = time.time()
             future = executor.submit(self.func, *self.get_args(task))
             future.add_done_callback(
-                lambda f, t_e=envelope: on_task_done(f, t_e, self.progress_manager)
+                lambda f, t_e=envelope: on_task_done(f, t_e, self.task_progress)
             )
 
         # 等待所有已提交任务完成（包括回调）
@@ -1028,7 +1028,7 @@ class TaskExecutor:
 
             if self.is_duplicate(task_hash):
                 self.deal_dupliacte(envelope)
-                self.progress_manager.update(1)
+                self.task_progress.update(1)
                 continue
             self.add_processed_set(task_hash)
             async_tasks.append(sem_task(envelope))  # 使用信号量包裹的任务
@@ -1041,7 +1041,7 @@ class TaskExecutor:
                 await self.process_task_success_async(envelope, result, start_time)
             else:
                 await self.handle_task_error_async(envelope, result)
-            self.progress_manager.update(1)
+            self.task_progress.update(1)
 
         self.task_queues.reset()
 

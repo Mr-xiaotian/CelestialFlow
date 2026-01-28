@@ -195,7 +195,7 @@ class TaskStage(TaskExecutor):
             self.result_queues.put(TERMINATION_SIGNAL)
             self.release_pool()
 
-            self.progress_manager.close()
+            self.task_progress.close()
             self.task_logger.end_stage(
                 self.get_tag(),
                 self.execution_mode,
