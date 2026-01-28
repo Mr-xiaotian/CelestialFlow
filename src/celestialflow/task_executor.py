@@ -16,16 +16,17 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
-from .task_progress import TaskProgress, NullProgress
+from .task_progress import TaskProgress, NullTaskProgress
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import (
     SumCounter,
+    ValueWrapper,
     TaskEnvelope,
     TerminationSignal,
     TERMINATION_SIGNAL,
 )
-from .task_tools import format_repr
+from .task_tools import format_repr, make_counter
 
 
 class TaskExecutor:
@@ -96,12 +97,17 @@ class TaskExecutor:
 
     def init_counter(self):
         """
-        初始化计数器
+        初始化计数器（按 execution_mode 选择实现）
         """
-        self.task_counter = SumCounter()
-        self.success_counter = MPValue("i", 0)
-        self.error_counter = MPValue("i", 0)
-        self.duplicate_counter = MPValue("i", 0)
+        mode = getattr(self, "execution_mode", "serial")
+
+        # thread 模式下，让三个 counter 共用同一把锁（减少开销，也更一致）
+        lock = Lock() if mode == "thread" else None
+
+        self.task_counter = SumCounter(mode=mode)
+        self.success_counter = make_counter(mode, lock=lock)
+        self.error_counter = make_counter(mode, lock=lock)
+        self.duplicate_counter = make_counter(mode, lock=lock)
 
         self.init_extra_counter()
 
@@ -212,7 +218,7 @@ class TaskExecutor:
         初始化进度条
         """
         if not self.show_progress:
-            self.task_progress = NullProgress()
+            self.task_progress = NullTaskProgress()
             return
 
         extra_desc = (

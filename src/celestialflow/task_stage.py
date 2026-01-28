@@ -7,7 +7,7 @@ from multiprocessing import Queue as MPQueue
 
 from .task_executor import TaskExecutor
 from .task_queue import TaskQueue
-from .task_types import StageStatus, TERMINATION_SIGNAL
+from .task_types import StageStatus, SumCounter, TERMINATION_SIGNAL
 
 
 class TaskStage(TaskExecutor):
@@ -21,6 +21,17 @@ class TaskStage(TaskExecutor):
         self._pending_prev_bindings = []
 
         self.init_status()
+
+    def init_counter(self):
+        """
+        初始化计数器
+        """
+        self.task_counter = SumCounter(mode="process")
+        self.success_counter = MPValue("i", 0)
+        self.error_counter = MPValue("i", 0)
+        self.duplicate_counter = MPValue("i", 0)
+
+        self.init_extra_counter()
 
     def init_status(self):
         """

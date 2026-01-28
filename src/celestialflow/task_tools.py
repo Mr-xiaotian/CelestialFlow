@@ -8,11 +8,17 @@ from collections import defaultdict
 from collections.abc import Iterable
 from datetime import datetime
 from multiprocessing import Queue as MPQueue
+from multiprocessing import Value as MPValue
+from _thread import LockType
+from threading import Lock
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Set, Optional
 
 from celestialtree import NodeLabelStyle, format_descendants_forest, format_provenance_forest
 
+from .task_types import (
+    ValueWrapper,
+)
 if TYPE_CHECKING:
     from .task_stage import TaskStage
 
@@ -542,3 +548,18 @@ def load_task_by_error(jsonl_path) -> Dict[str, list]:
         extract_fields=["task"],
         eval_fields=["task"],
     )
+
+
+# ==== 函数工厂 ====
+def make_counter(mode: str, *, lock: LockType | None = None, init: int = 0) -> ValueWrapper:
+    """
+    返回一个 counter：ValueWrapper(±lock) 或 MPValue
+    """
+    if mode == "process":
+        return MPValue("i", init)
+
+    if mode == "thread":
+        return ValueWrapper(init, lock=lock or Lock())
+
+    # serial / async
+    return ValueWrapper(init)

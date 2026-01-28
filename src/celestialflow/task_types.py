@@ -1,5 +1,6 @@
 from enum import IntEnum
 from typing import List
+from threading import Lock
 from multiprocessing import Value as MPValue
 
 
@@ -31,38 +32,60 @@ class NoOpContext:
 
 
 class ValueWrapper:
-    """简单包装一个数值，用于进程间共享"""
-
-    def __init__(self, value=0):
+    """线程内/单进程的计数器包装，可选线程锁。"""
+    def __init__(self, value=0, lock=None):
         self.value = value
+        self._lock = lock
+
+    def get_lock(self):
+        return self._lock or NoOpContext()
 
 
 class SumCounter:
-    """累加多个 ValueWrapper / MPValue"""
+    """累加多个 counter（ValueWrapper / MPValue）"""
 
-    def __init__(self):
-        self.init_value = MPValue("i", 0)
+    def __init__(self, mode: str = "serial"):
+        self.mode = mode
+
+        if mode == "thread":
+            self._lock = Lock()
+            self.init_value = ValueWrapper(0, lock=self._lock)
+        elif mode == "process":
+            self._lock = None
+            self.init_value = MPValue("i", 0)
+        else:
+            self._lock = None
+            self.init_value = ValueWrapper(0)
+
         self.counters: List[ValueWrapper] = []
 
-    def add_init_value(self, value):
+    def add_init_value(self, value: int) -> None:
         with self.init_value.get_lock():
             self.init_value.value += value
 
-    def append_counter(self, counter):
+    def append_counter(self, counter: ValueWrapper) -> None:
         self.counters.append(counter)
 
-    def reset(self):
-        self.init_value.value = 0
+    def reset(self) -> None:
+        # reset 也最好带锁（至少 thread 模式）
+        with self.init_value.get_lock():
+            self.init_value.value = 0
+
         for c in self.counters:
-            c.value = 0
+            with c.get_lock():
+                c.value = 0
 
     @property
-    def value(self):
-        return (
-            self.init_value.value + sum(c.value for c in self.counters)
-            if self.counters
-            else self.init_value.value
-        )
+    def value(self) -> int:
+        # 读也建议加锁，thread 模式更稳
+        with self.init_value.get_lock():
+            base = int(self.init_value.value)
+
+        total = base
+        for c in self.counters:
+            with c.get_lock():
+                total += int(c.value)
+        return total
 
 
 class StageStatus(IntEnum):

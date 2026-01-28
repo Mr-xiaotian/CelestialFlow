@@ -2,20 +2,6 @@ from tqdm import tqdm
 from tqdm.asyncio import tqdm as tqdm_asy
 
 
-class NullProgress:
-    def update(self, n=1):
-        pass
-
-    def close(self):
-        pass
-
-    def refresh_total(self, total):
-        pass
-
-    def add_total(self, add_num):
-        pass
-
-
 class TaskProgress:
     def __init__(
         self,
@@ -55,3 +41,17 @@ class TaskProgress:
             return
         total = self.progress_bar.total + add_num
         self.refresh_total(total)
+
+
+class NullTaskProgress:
+    def update(self, n=1):
+        pass
+
+    def close(self):
+        pass
+
+    def refresh_total(self, total):
+        pass
+
+    def add_total(self, add_num):
+        pass
