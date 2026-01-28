@@ -3,7 +3,7 @@ let refreshIntervalId = null;
 
 const refreshSelect = document.getElementById("refresh-interval");
 const themeToggleBtn = document.getElementById("theme-toggle");
-const shutdownBtn = document.getElementById("shutdown-btn");
+// const shutdownBtn = document.getElementById("shutdown-btn");
 const tabButtons = document.querySelectorAll(".tab-btn");
 const tabContents = document.querySelectorAll(".tab-content");
 
@@ -41,13 +41,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
-  shutdownBtn.addEventListener("click", async () => {
-    if (confirm("确认要关闭 Web 服务吗？")) {
-      const res = await fetch("/shutdown", { method: "POST" });
-      const text = await res.text();
-      alert(text);
-    }
-  });
+  // shutdownBtn.addEventListener("click", async () => {
+  //   if (confirm("确认要关闭 Web 服务吗？")) {
+  //     const res = await fetch("/shutdown", { method: "POST" });
+  //     const text = await res.text();
+  //     alert(text);
+  //   }
+  // });
 
   // 初始化时应用之前选择的主题
   if (localStorage.getItem("theme") === "dark") {
