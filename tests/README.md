@@ -1,19 +1,19 @@
-# test_manage.py
+# test_executor.py
 
-本文件用于测试 CelestialFlow 框架中 **TaskManager** 的基本功能与运行模式。
+本文件用于测试 CelestialFlow 框架中 **TaskExecutor** 的基本功能与运行模式。
 
-**TaskManager** 是 CelestialFlow 框架中最基础的任务执行单元，在本测试中，它以**独立运行模式（Standalone Mode）**运行，与作为节点被嵌入到 **TaskGraph** 中的“stage 模式”不同。
+**TaskExecutor** 是 CelestialFlow 框架中最基础的任务执行单元，在本测试中，它以**独立运行模式（Standalone Mode）**运行，与作为节点被嵌入到 **TaskGraph** 中的“stage 模式”不同。
 
-在独立模式下，TaskManager 自行负责任务调度、异常重试、计数与并发控制，无需依赖图结构即可完成完整的任务生命周期管理。
+在独立模式下，TaskExecutor 自行负责任务调度、异常重试、计数与并发控制，无需依赖图结构即可完成完整的任务生命周期管理。
 
-本测试文件通过递归计算 Fibonacci 数列的示例函数，验证了 TaskManager 在 **单线程（serial）**、**多线程（thread）**、**多进程（process）** 与 **异步（async）** 四种执行模式下的正确性、稳定性与性能表现。
+本测试文件通过递归计算 Fibonacci 数列的示例函数，验证了 TaskExecutor 在 **单线程（serial）**、**多线程（thread）**、**多进程（process）** 与 **异步（async）** 四种执行模式下的正确性、稳定性与性能表现。
 
-## test_manager()
+## test_executor()
 
-测试 **TaskManager** 在同步执行环境中的运行行为。
+测试 **TaskExecutor** 在同步执行环境中的运行行为。
 
 - **任务函数**：`fibonacci(n)`（递归计算第 n 个 Fibonacci 数）
-- **运行模式**：单线程、线程池、多进程（通过 `manager.test_methods()` 自动测试三种模式）
+- **运行模式**：单线程、线程池、多进程（通过 `executor.test_methods()` 自动测试三种模式）
 - **测试特性**：
   - 输入数据包含非法值（`0`、`None`、空字符串），用于验证异常捕获与重试逻辑；
   - 设置 `max_retries=1`，并允许对 `ValueError` 异常进行重试；
@@ -23,15 +23,15 @@
   2. 异常任务能否被正确识别与重试；
   3. `test_methods()` 是否能准确统计不同模式下的执行时间与性能差异。
 
-## test_manager_async()
+## test_executor_async()
 
-测试 TaskManager 在异步模式下的行为。
+测试 TaskExecutor 在异步模式下的行为。
 
 - **任务函数**：`fibonacci_async(n)`（递归计算的异步版本）
 - **执行模式**：`async`（协程并发执行）
 - **任务特性**：
   - 与同步测试相同的数据输入与错误设计；
-  - 使用 `await manager.start_async()` 启动任务；
+  - 使用 `await executor.start_async()` 启动任务；
   - 记录整个任务批次的总执行时间。
 - **主要验证点**：
   1. 异步任务能否在高并发下正确完成；
@@ -46,12 +46,12 @@ pytest tests/test_manage.py
 或单独运行异步测试：
 
 ```bash
-pytest tests/test_manage.py::test_manager_async
+pytest tests/test_manage.py::test_executor_async
 ```
 
 # test_nodes.py
 
-该文件主要用于测试[task_nodes.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/src/celestialflow/task_nodes.py)中定义的两个特殊节点 `TaskSplitter` 与 `TaskRedis*`，两者都继承自 `TaskManager`。
+该文件主要用于测试[task_nodes.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/src/celestialflow/task_nodes.py)中定义的两个特殊节点 `TaskSplitter` 与 `TaskRedis*`，两者都继承自 `TaskStage`。
 
 `TaskSplitter`用于将迭代器形式的多个任务数据(List[Task])拆成单独任务(Task)传给下游，因此在 Web 页面可以看到 `TaskSplitter` 下游获取的数据会比 `TaskSplitter` 处理成功的数据更多； `TaskRedisSink` 用于将传入的任务传给 Redis, 如果此时开启go_worker，go_worker会从 Redis 中接受数据并在处理后将答案传回 Redis，之后 `TaskRedisAck` 再提取答案并传给下游； 如果想直接从 Redis 中重新读取任务, 可以使用`TaskRedisSource`, 一般用于跨设备/跨TaskGraph传输任务。
 

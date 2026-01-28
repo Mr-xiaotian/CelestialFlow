@@ -90,7 +90,7 @@ CelestialTree 是一套高性能, 用于管理事件因果关系的系统框架,
 
 1. task.input
    
-- "任务注入事件", 发生于 task_manager 的 put_task_queues/put_task_queues_async 方法, 或者 task_graph 的 put_stage_queue 方法中, 是唯一一种非框架内部的任务诞生方式。
+- "任务注入事件", 发生于 task_executor 的 put_task_queues/put_task_queues_async 方法, 或者 task_graph 的 put_stage_queue 方法中, 是唯一一种非框架内部的任务诞生方式。
 - 无父事件。
 
 2. task.success
