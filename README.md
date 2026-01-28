@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
 若你想了解框架的整体结构与核心组件，下面的参考文档会对你有帮助：
 
-- [🔧TaskManage概念](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_manage.md)
+- [🔧TaskExecutor概念](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_executor.md)
 - [🔧TaskStage概念](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_stage.md)
 - [🌐TaskGraph概念](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_graph.md)
 - [📚Go Worker概念](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/go_worker.md)
@@ -157,7 +157,7 @@ if __name__ == "__main__":
 flowchart TD
     classDef whiteNode fill:#ffffff,stroke:#000000,color:#000000;
 
-    TM[TaskManage.md] --> TS[TaskStage.md] --> TG[TaskGraph.md]
+    TM[TaskExecutor.md] --> TS[TaskStage.md] --> TG[TaskGraph.md]
     TM --> TP[TaskProgress.md]
 
     TG --> TQ[TaskQueue.md]

@@ -40,13 +40,13 @@
 
 运行方式：
 ```bash
-pytest tests/test_manage.py
+pytest tests/test_executor.py
 ```
 
 或单独运行异步测试：
 
 ```bash
-pytest tests/test_manage.py::test_executor_async
+pytest tests/test_executor.py::test_executor_async
 ```
 
 # test_nodes.py
