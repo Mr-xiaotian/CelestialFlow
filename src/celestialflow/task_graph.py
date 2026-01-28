@@ -660,7 +660,7 @@ class TaskGraph:
 
         return status_dict
 
-    def get_graph_topology(self):
+    def get_graph_topology(self) -> dict:
         """
         获取任务图的拓扑信息
         """
@@ -671,21 +671,21 @@ class TaskGraph:
             "layers_dict": self.layers_dict,
         }
 
-    def get_structure_json(self):
+    def get_structure_json(self) -> List[dict]:
         return self.structure_json
 
-    def get_structure_list(self):
+    def get_structure_list(self) -> List[str]:
         return format_structure_list_from_graph(self.structure_json)
 
     def get_networkx_graph(self):
         return format_networkx_graph(self.structure_json)
 
-    def get_error_jsonl_path(self):
+    def get_error_jsonl_path(self) -> str:
         return os.path.abspath(self.error_jsonl_path)
 
-    def get_stage_input_trace(self, stage_tag: str) -> List[dict]:
+    def get_stage_input_trace(self, stage_tag: str) -> str:
         if not self._use_ctree:
-            return {}
+            return ""
 
         input_ids: set = self.stage_runtime_dict[stage_tag]["input_ids"]
         descendants = self.ctree_client.descendants_batch(list(input_ids), "meta")

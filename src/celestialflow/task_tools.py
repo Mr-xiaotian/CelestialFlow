@@ -367,7 +367,7 @@ def format_timestamp(timestamp) -> str:
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def format_event_forest(event_forest: List[Dict]):
+def format_event_forest(event_forest: List[Dict]) -> str:
     style = NodeLabelStyle(template="{base}  {payload.actor_name}  ‹{type}›", missing="-")
     return format_descendants_forest(event_forest, style)
 

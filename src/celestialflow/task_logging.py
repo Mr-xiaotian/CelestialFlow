@@ -78,7 +78,7 @@ class TaskLogger:
         self.log_level: str = log_level.upper()
 
         if self.log_level not in LEVEL_DICT:
-            raise ValueError(f"Invalid log level: {self.level}")
+            raise ValueError(f"Invalid log level: {self.log_level}")
 
     def _log(self, level: str, message: str):
         level_upper = level.upper()
@@ -274,12 +274,12 @@ class TaskLogger:
         )
 
     def inject_tasks_success(self, target_node, task_datas):
-        self._log("INFO", f"[Reporter] Inject tasks into {target_node}: {task_datas}.")
+        self._log("INFO", f"[Reporter] Inject tasks {task_datas} into '{target_node}'.")
 
     def inject_tasks_failed(self, target_node, task_datas, exception):
         self._log(
             "WARNING",
-            f"[Reporter] Inject tasks into {target_node} failed: {task_datas}. "
+            f"[Reporter] Inject tasks {task_datas} into '{target_node}' failed. "
             f"Error: {type(exception).__name__}({exception}).",
         )
 

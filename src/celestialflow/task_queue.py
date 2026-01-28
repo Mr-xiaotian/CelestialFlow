@@ -22,6 +22,8 @@ class TaskQueue:
     ):
         if len(queue_list) != len(queue_tags):
             raise ValueError("queue_list and queue_tags must have the same length")
+        if direction not in ["in", "out"]:
+            raise ValueError("direction must be 'in' or 'out'")
 
         self.queue_list = queue_list
         self.queue_tags = queue_tags
