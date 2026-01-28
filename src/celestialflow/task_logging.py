@@ -147,6 +147,25 @@ class TaskLogger:
     def end_graph(self, use_time):
         self._log("INFO", f"TaskGraph end. Use {use_time:.2f} second.")
 
+    # ==== process ====
+    def process_termination_attempt(self, process_name): 
+        self._log(
+            "WARNING",
+            f"Process '{process_name}' is still running; attempting graceful termination."
+        )
+
+    def process_termination_timeout(self, process_name): 
+        self._log(
+                "WARNING",
+                f"Process '{process_name}' did not exit within the termination timeout."
+            )
+        
+    def process_exit(self, process_name, exitcode): 
+        self._log(
+            "DEBUG",
+            f"Process '{process_name}' exited with exit code {exitcode}."
+        )
+
     # ==== task ====
     def task_input(self, func_name, task_info, source, input_id):
         self._log(

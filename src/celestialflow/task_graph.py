@@ -375,8 +375,7 @@ class TaskGraph:
 
             for p in self.processes:
                 p.join()
-                self.stage_runtime_dict[p.name]["status"] = StageStatus.STOPPED
-                self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
+                self.task_logger.process_exit(p.name, p.exitcode)
         else:
             # staged schedule_mode：一层层地顺序执行
             for layer_level, layer in self.layers_dict.items():
@@ -393,8 +392,7 @@ class TaskGraph:
                 # join 当前层的所有进程（如果有）
                 for p in processes:
                     p.join()
-                    self.stage_runtime_dict[p.name]["status"] = StageStatus.STOPPED
-                    self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
+                    self.task_logger.process_exit(p.name, p.exitcode)
 
                 self.task_logger.end_layer(layer, time.time() - start_time)
 
@@ -413,7 +411,6 @@ class TaskGraph:
         input_queues: TaskQueue = stage_runtime["in_queue"]
         output_queues: TaskQueue = stage_runtime["out_queue"]
 
-        stage_runtime["status"] = StageStatus.RUNNING
         stage_runtime["start_time"] = time.time()
 
         if self._use_ctree:
@@ -433,7 +430,6 @@ class TaskGraph:
             self.processes.append(p)
         else:
             stage.start_stage(input_queues, output_queues, self.fail_queue, log_queue)
-            stage_runtime["status"] = StageStatus.STOPPED
 
     def finalize_nodes(self):
         """
@@ -442,18 +438,17 @@ class TaskGraph:
         # 确保所有进程安全结束（不一定要 terminate，但如果没结束就强制）
         for p in self.processes:
             if p.is_alive():
-                self.task_logger._log(
-                    "WARNING", f"检测到进程 {p.name} 仍在运行, 尝试终止"
-                )
+                self.task_logger.process_termination_attempt(p.name)
                 p.terminate()
                 p.join(timeout=5)
                 if p.is_alive():
-                    self.task_logger._log("WARNING", f"进程 {p.name} 仍未完全退出")
-                self.task_logger._log("DEBUG", f"{p.name} exitcode: {p.exitcode}")
+                    self.task_logger.process_termination_timeout(p.name)
+                self.task_logger.process_exit(p.name, p.exitcode)
 
         # 更新所有节点状态为“已停止”
         for stage_runtime in self.stage_runtime_dict.values():
-            stage_runtime["status"] = StageStatus.STOPPED  # 已停止
+            stage: TaskStage = stage_runtime["stage"]
+            stage.mark_stopped()
 
         # 收集并持久化每个 stage 中未消费的任务
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
@@ -580,7 +575,7 @@ class TaskGraph:
             stage: TaskStage = stage_runtime["stage"]
             last_stage_status_dict: dict = self.last_status_dict.get(stage_tag, {})
 
-            status = stage_runtime.get("status", StageStatus.NOT_STARTED)
+            status = stage.get_status()
 
             input = stage.task_counter.value
             successed = stage.success_counter.value

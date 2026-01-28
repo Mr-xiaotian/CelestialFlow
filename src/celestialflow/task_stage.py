@@ -7,7 +7,7 @@ from multiprocessing import Queue as MPQueue
 
 from .task_executor import TaskExecutor
 from .task_queue import TaskQueue
-from .task_types import TERMINATION_SIGNAL
+from .task_types import StageStatus, TERMINATION_SIGNAL
 
 
 class TaskStage(TaskExecutor):
@@ -19,6 +19,16 @@ class TaskStage(TaskExecutor):
         self.next_stages: List[TaskStage] = []
         self.prev_stages: List[TaskStage] = []
         self._pending_prev_bindings = []
+
+        self.init_status()
+
+    def init_status(self):
+        """
+        初始化 stage 共享状态（跨进程可见）。
+        建议在 __init__ 里调用一次。
+        """
+        if not hasattr(self, "_status"):
+            self._status = MPValue("i", int(StageStatus.NOT_STARTED))
 
     def set_execution_mode(self, execution_mode: str):
         """
@@ -157,6 +167,25 @@ class TaskStage(TaskExecutor):
             }
         )
 
+    def mark_running(self) -> None:
+        """标记：stage 正在运行。"""
+        self.init_status()
+        with self._status.get_lock():
+            self._status.value = int(StageStatus.RUNNING)
+
+    def mark_stopped(self) -> None:
+        """标记：stage 已停止（正常结束时在 finally 里调用）。"""
+        self.init_status()
+        with self._status.get_lock():
+            self._status.value = int(StageStatus.STOPPED)
+
+    def get_status(self) -> StageStatus:
+        """读取当前状态（返回 StageStatus 枚举）。"""
+        self.init_status()
+        # 读取也加锁，避免极端情况下读到中间态（虽然 int 很短，但习惯好）
+        with self._status.get_lock():
+            return StageStatus(self._status.value)
+
     def start_stage(
         self,
         input_queues: TaskQueue,
@@ -178,6 +207,7 @@ class TaskStage(TaskExecutor):
         self.task_logger.start_stage(
             self.get_tag(), self.execution_mode, self.worker_limit
         )
+        self.mark_running()
 
         try:
             # 根据模式运行对应的任务处理函数
@@ -192,6 +222,7 @@ class TaskStage(TaskExecutor):
                 )
 
         finally:
+            self.mark_stopped()
             self.result_queues.put(TERMINATION_SIGNAL)
             self.release_pool()
 
