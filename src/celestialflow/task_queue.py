@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio, time
 from typing import List
-from asyncio import Queue as AsyncQueue, QueueEmpty as AsyncEmpty
 from multiprocessing import Queue as MPQueue
+from asyncio import Queue as AsyncQueue, QueueEmpty as AsyncEmpty
 from queue import Queue as ThreadQueue, Empty as SyncEmpty
 
 from .task_types import TaskEnvelope, TerminationSignal, TERMINATION_SIGNAL
@@ -34,10 +34,27 @@ class TaskQueue:
         self.current_index = 0  # 记录起始队列索引，用于轮询
         self.terminated_queue_set = set()
 
+        self._tag_to_idx = {tag: i for i, tag in enumerate(queue_tags)}
+
+    def _log_put(self, item, idx: int):
+        if isinstance(item, TaskEnvelope): t="task"
+        elif isinstance(item, TerminationSignal): t="termination"
+        else: t="unknown"
+        self.task_logger.put_item(t, item.id, self.queue_tags[idx], self.stage_tag, self.direction)
+
+    def _log_get(self, item, idx: int):
+        if isinstance(item, TaskEnvelope): t="task"
+        elif isinstance(item, TerminationSignal): t="termination"
+        else: t="unknown"
+        self.task_logger.get_item(t, item.id, self.queue_tags[idx], self.stage_tag)
+
     def get_tag_idx(self, tag: str) -> int:
-        return self.queue_tags.index(tag)
+        return self._tag_to_idx[tag]
 
     def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
+        if tag in self._tag_to_idx:
+            raise ValueError(f"duplicate queue tag: {tag}")
+        self._tag_to_idx[tag] = len(self.queue_list)
         self.queue_list.append(queue)
         self.queue_tags.append(tag)
 
@@ -100,69 +117,31 @@ class TaskQueue:
         """
         await self.put_channel_async(item, self.get_tag_idx(tag))
 
-    def put_channel(self, item: TaskEnvelope | TerminationSignal, channel_index: int):
+    def put_channel(self, item, idx: int):
         """
         将结果放入指定队列
 
         :param item: 任务或终止符
-        :param channel_index: 队列索引
+        :param idx: 队列索引
         """
         try:
-            self.queue_list[channel_index].put(item)
-            if isinstance(item, TaskEnvelope):
-                self.task_logger.put_item(
-                    "task",
-                    item.id,
-                    self.queue_tags[channel_index],
-                    self.stage_tag,
-                    self.direction,
-                )
-            elif isinstance(item, TerminationSignal):
-                self.task_logger.put_item(
-                    "termination",
-                    item.id,
-                    self.queue_tags[channel_index],
-                    self.stage_tag,
-                    self.direction,
-                )
-
+            self.queue_list[idx].put(item)
+            self._log_put(item, idx)
         except Exception as e:
-            self.task_logger.put_item_error(
-                self.queue_tags[channel_index], self.stage_tag, self.direction, e
-            )
+            self.task_logger.put_item_error(self.queue_tags[idx], self.stage_tag, self.direction, e)
 
-    async def put_channel_async(
-        self, item: TaskEnvelope | TerminationSignal, channel_index: int
-    ):
+    async def put_channel_async(self, item, idx: int):
         """
         将结果放入指定队列(async模式)
 
         :param item: 任务或终止符
-        :param channel_index: 队列索引
+        :param idx: 队列索引
         """
         try:
-            await self.queue_list[channel_index].put(item)
-            if isinstance(item, TaskEnvelope):
-                self.task_logger.put_item(
-                    "task",
-                    item.id,
-                    self.queue_tags[channel_index],
-                    self.stage_tag,
-                    self.direction,
-                )
-            elif isinstance(item, TerminationSignal):
-                self.task_logger.put_item(
-                    "termination",
-                    item.id,
-                    self.queue_tags[channel_index],
-                    self.stage_tag,
-                    self.direction,
-                )
-
+            await self.queue_list[idx].put(item)
+            self._log_put(item, idx)
         except Exception as e:
-            self.task_logger.put_item_error(
-                self.queue_tags[channel_index], self.stage_tag, self.direction, e
-            )
+            self.task_logger.put_item_error(self.queue_tags[idx], self.stage_tag, self.direction, e)
 
     def get(self, poll_interval: float = 0.01) -> TaskEnvelope | TerminationSignal:
         """
@@ -177,16 +156,10 @@ class TaskQueue:
             # 只有一个队列时，使用阻塞式 get，提高效率
             queue = self.queue_list[0]
             item: TaskEnvelope | TerminationSignal = queue.get()  # 阻塞等待，无需 sleep
+            self._log_get(item, 0)
 
             if isinstance(item, TerminationSignal):
                 self.terminated_queue_set.add(0)
-                self.task_logger.get_item(
-                    "termination", item.id, self.queue_tags[0], self.stage_tag
-                )
-            else:
-                self.task_logger.get_item(
-                    "task", item.id, self.queue_tags[0], self.stage_tag
-                )
 
             return item
 
@@ -199,19 +172,16 @@ class TaskQueue:
                 queue = self.queue_list[idx]
                 try:
                     item = queue.get_nowait()
+                    self._log_get(item, idx)
 
                     if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
-                        self.task_logger.get_item(
-                            "termination", item.id, self.queue_tags[idx], self.stage_tag
-                        )
                         continue
-
-                    self.task_logger.get_item(
-                        "task", item.id, self.queue_tags[idx], self.stage_tag
-                    )
-                    self.current_index = (idx + 1) % total_queues
-                    return item
+                    
+                    elif isinstance(item, TaskEnvelope):
+                        self.current_index = (idx + 1) % total_queues
+                        return item
+                    
                 except SyncEmpty:
                     continue
                 except Exception as e:
@@ -243,14 +213,8 @@ class TaskQueue:
 
             if isinstance(item, TerminationSignal):
                 self.terminated_queue_set.add(0)
-                self.task_logger.get_item(
-                    "termination", item.id, self.queue_tags[0], self.stage_tag
-                )
-            else:
-                self.task_logger.get_item(
-                    "task", item.id, self.queue_tags[0], self.stage_tag
-                )
 
+            self._log_get(item, 0)
             return item
 
         while True:
@@ -262,19 +226,16 @@ class TaskQueue:
                 queue = self.queue_list[idx]
                 try:
                     item: TaskEnvelope | TerminationSignal = queue.get_nowait()
+                    self._log_get(item, idx)
 
                     if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
-                        self.task_logger.get_item(
-                            "termination", item.id, self.queue_tags[idx], self.stage_tag
-                        )
                         continue
-
-                    self.task_logger.get_item(
-                        "task", item.id, self.queue_tags[idx], self.stage_tag
-                    )
-                    self.current_index = (idx + 1) % total_queues
-                    return item
+                    
+                    elif isinstance(item, TaskEnvelope):
+                        self.current_index = (idx + 1) % total_queues
+                        return item
+                    
                 except AsyncEmpty:
                     continue
                 except Exception as e:
@@ -301,19 +262,16 @@ class TaskQueue:
             while True:
                 try:
                     item: TaskEnvelope | TerminationSignal = queue.get_nowait()
+                    self._log_get(item, idx)
 
                     if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
-                        self.task_logger.get_item(
-                            "termination", item.id, self.queue_tags[idx], self.stage_tag
-                        )
                         break
-
-                    self.task_logger.get_item(
-                        "task", item.id, self.queue_tags[idx], self.stage_tag
-                    )
-                    results.append(item)
-                except (SyncEmpty, AsyncEmpty):
+                    
+                    elif isinstance(item, TaskEnvelope):
+                        results.append(item)
+                        
+                except SyncEmpty:
                     break
                 except Exception as e:
                     self.task_logger.get_item_error(
