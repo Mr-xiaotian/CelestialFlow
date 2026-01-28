@@ -88,14 +88,14 @@ class TaskLogger:
             return
         self.log_queue.put({"level": level_upper, "message": message})
 
-    # ==== manager ====
-    def start_manager(self, func_name, task_num, execution_mode_desc):
+    # ==== executor ====
+    def start_executor(self, func_name, task_num, execution_mode_desc):
         text = (
-            f"'Manager[{func_name}]' start {task_num} tasks by {execution_mode_desc}."
+            f"'Executor[{func_name}]' start {task_num} tasks by {execution_mode_desc}."
         )
         self._log("INFO", text)
 
-    def end_manager(
+    def end_executor(
         self,
         func_name,
         execution_mode,
@@ -106,7 +106,7 @@ class TaskLogger:
     ):
         self._log(
             "INFO",
-            f"'Manager[{func_name}]' end tasks by {execution_mode}. Use {use_time:.2f} second. "
+            f"'Executor[{func_name}]' end tasks by {execution_mode}. Use {use_time:.2f} second. "
             f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 

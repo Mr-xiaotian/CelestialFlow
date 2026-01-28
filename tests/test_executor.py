@@ -2,7 +2,7 @@ import pytest, logging
 import time
 import asyncio
 
-from celestialflow import TaskManager, format_table
+from celestialflow import TaskExecutor, format_table
 
 
 def fibonacci(n):
@@ -38,50 +38,50 @@ async def sleep_1_async(_):
     await asyncio.sleep(1)
 
 
-# 测试 TaskManager 的单线程/多线程/多进程任务
-def test_manager_fibonacci():
+# 测试 TaskExecutor 的单线程/多线程/多进程任务
+def test_executor_fibonacci():
     """
-    测试 TaskManager 的单线程/多线程/多进程任务
+    测试 TaskExecutor 的单线程/多线程/多进程任务
     """
     test_task_0 = range(25, 37)
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
     test_task_2 = (item for item in test_task_1)
 
-    manager = TaskManager(fibonacci, worker_limit=6, max_retries=1, show_progress=True)
-    manager.add_retry_exceptions(ValueError)
+    executor = TaskExecutor(fibonacci, worker_limit=6, max_retries=1, show_progress=True)
+    executor.add_retry_exceptions(ValueError)
 
     execution_modes = ["serial", "thread", "process"]
 
-    results = manager.test_methods(test_task_1, execution_modes)
+    results = executor.test_methods(test_task_1, execution_modes)
     table_results = format_table(*results)
     logging.info("\n" + table_results)
 
 
-# 测试 TaskManager 的异步任务
+# 测试 TaskExecutor 的异步任务
 @pytest.mark.asyncio
-async def test_manager_fibonacci_async():
+async def test_executor_fibonacci_async():
     """
-    测试 TaskManager 的异步任务
+    测试 TaskExecutor 的异步任务
     """
     test_task_0 = range(25, 37)
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
     test_task_2 = (item for item in test_task_1)
 
-    manager = TaskManager(
+    executor = TaskExecutor(
         fibonacci_async, worker_limit=6, max_retries=1, show_progress=True
     )
-    manager.add_retry_exceptions(ValueError)
+    executor.add_retry_exceptions(ValueError)
     start = time.time()
-    await manager.start_async(test_task_1)
+    await executor.start_async(test_task_1)
     logging.info(f"run_in_async: {time.time() - start}")
 
 
-def test_manager_sleep():
+def test_executor_sleep():
     """
     测试 sleep(1) 在 serial / thread / process 下的调度性能
     这是一个典型 I/O-bound benchmark
     """
-    manager = TaskManager(
+    executor = TaskExecutor(
         sleep_1,
         worker_limit=12,
         max_retries=0,
@@ -91,17 +91,17 @@ def test_manager_sleep():
 
     execution_modes = ["serial", "thread", "process"]
 
-    results = manager.test_methods(tasks, execution_modes)
+    results = executor.test_methods(tasks, execution_modes)
     table_results = format_table(*results)
     logging.info("\n" + table_results)
 
 
 @pytest.mark.asyncio
-async def test_manager_sleep_async():
+async def test_executor_sleep_async():
     """
-    测试 asyncio.sleep(1) 在 async TaskManager 下的调度性能
+    测试 asyncio.sleep(1) 在 async TaskExecutor 下的调度性能
     """
-    manager = TaskManager(
+    executor = TaskExecutor(
         sleep_1_async,
         worker_limit=12,
         max_retries=0,
@@ -110,10 +110,10 @@ async def test_manager_sleep_async():
     tasks = list(range(12))
 
     start = time.time()
-    await manager.start_async(tasks)
+    await executor.start_async(tasks)
     logging.info(f"run_in_async: {time.time() - start}")
 
 
 if __name__ == "__main__":
-    test_manager_fibonacci()
-    # test_manager_async()
+    test_executor_fibonacci()
+    # test_executor_async()

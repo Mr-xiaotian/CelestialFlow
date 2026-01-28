@@ -5,12 +5,12 @@ from typing import List
 from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 
-from .task_manage import TaskManager
+from .task_executor import TaskExecutor
 from .task_queue import TaskQueue
 from .task_types import TERMINATION_SIGNAL
 
 
-class TaskStage(TaskManager):
+class TaskStage(TaskExecutor):
     _name = "Stage"
 
     def __init__(self, *args, **kwargs):

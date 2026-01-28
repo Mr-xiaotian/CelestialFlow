@@ -16,7 +16,7 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
-from .task_progress import ProgressManager, NullProgress
+from .task_progress import TaskProgress, NullProgress
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import (
@@ -28,8 +28,8 @@ from .task_types import (
 from .task_tools import format_repr
 
 
-class TaskManager:
-    _name = "Manager"
+class TaskExecutor:
+    _name = "Executor"
 
     def __init__(
         self,
@@ -47,7 +47,7 @@ class TaskManager:
         log_level="INFO",
     ):
         """
-        初始化 TaskManager
+        初始化 TaskExecutor
 
         :param func: 可调用对象
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'process', 'async' (组合为 'TaskGraph' 时不可用 'process' 和 'async' 模式)
@@ -222,7 +222,7 @@ class TaskManager:
         )
         progress_mode = "normal" if self.execution_mode != "async" else "async"
 
-        self.progress_manager = ProgressManager(
+        self.progress_manager = TaskProgress(
             total_tasks=0,
             desc=f"{self.progress_desc}({extra_desc})",
             mode=progress_mode,
@@ -942,7 +942,7 @@ class TaskManager:
         all_done_event.set()  # 初始为无任务状态，设为完成状态
 
         def on_task_done(
-            future, envelope: TaskEnvelope, progress_manager: ProgressManager
+            future, envelope: TaskEnvelope, progress_manager: TaskProgress
         ):
             # 回调函数中处理任务结果
             progress_manager.update(1)
