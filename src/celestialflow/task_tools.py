@@ -7,6 +7,8 @@ from itertools import zip_longest
 from collections import defaultdict
 from collections.abc import Iterable
 from datetime import datetime
+from asyncio import Queue as AsyncQueue
+from queue import Queue as ThreadQueue
 from multiprocessing import Queue as MPQueue
 from multiprocessing import Value as MPValue
 from _thread import LockType
@@ -19,6 +21,7 @@ from celestialtree import NodeLabelStyle, format_descendants_forest, format_prov
 from .task_types import (
     ValueWrapper,
 )
+from .task_queue import TaskQueue
 if TYPE_CHECKING:
     from .task_stage import TaskStage
 
@@ -563,3 +566,30 @@ def make_counter(mode: str, *, lock: LockType | None = None, init: int = 0) -> V
 
     # serial / async
     return ValueWrapper(init)
+
+
+def make_queue_backend(mode: str):
+    """
+    返回一个“队列类/构造器”，用于创建单通道队列。
+
+    说明：
+    - 你当前实现里，process 也用 ThreadQueue（因为节点内使用，不跨进程）。
+    - 如果未来需要节点间跨进程通信，把 process 改为 MPQueue 即可。
+    """
+    if mode == "async":
+        return AsyncQueue
+    if mode in ("thread", "serial", "process"):
+        return ThreadQueue  # 未来可改为: mode=="process" -> MPQueue
+    return ThreadQueue
+
+
+def make_taskqueue(*, mode: str, log_queue, log_level: str, stage_tag: str, direction: str):
+    Q = make_queue_backend(mode)
+    return TaskQueue(
+        queue_list=[Q()],
+        queue_tags=[None],
+        log_queue=log_queue,
+        log_level=log_level,
+        stage_tag=stage_tag,
+        direction=direction,
+    )

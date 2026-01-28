@@ -131,8 +131,8 @@ def test_graph_0():
         show_progress=False,
     )
 
-    stage1.set_graph_context([stage2, stage4], "process", stage_name="stage A")
-    stage2.set_graph_context([stage3], "process", stage_name="stage B.1")
+    stage1.set_graph_context([stage2, stage3], "process", stage_name="stage A")
+    stage2.set_graph_context([stage4], "process", stage_name="stage B.1")
     stage3.set_graph_context([], "process", stage_name="stage B.2")
     stage4.set_graph_context([], "process", stage_name="stage C")
 

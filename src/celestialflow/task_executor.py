@@ -2,13 +2,9 @@ from __future__ import annotations
 
 import asyncio, time
 import warnings
-from asyncio import Queue as AsyncQueue
 from collections import defaultdict
 from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from multiprocessing import Value as MPValue
-from multiprocessing import Queue as MPQueue
-from queue import Queue as ThreadQueue
 from threading import Event, Lock
 
 from celestialtree import (
@@ -21,12 +17,11 @@ from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import (
     SumCounter,
-    ValueWrapper,
     TaskEnvelope,
     TerminationSignal,
     TERMINATION_SIGNAL,
 )
-from .task_tools import format_repr, make_counter
+from .task_tools import format_repr, make_counter, make_queue_backend, make_taskqueue
 
 
 class TaskExecutor:
@@ -162,7 +157,7 @@ class TaskExecutor:
 
         :param log_queue: 日志队列
         """
-        self.log_queue = log_queue or ThreadQueue()
+        self.log_queue = log_queue or make_queue_backend("serial")
         self.task_logger = TaskLogger(self.log_queue, self.log_level)
 
     def init_queue(
@@ -178,33 +173,18 @@ class TaskExecutor:
         :param result_queues: 结果队列列表
         :param fail_queue: 失败队列
         """
-        queue_map = {
-            "process": ThreadQueue,  # MPqueue
-            "async": AsyncQueue,
-            "thread": ThreadQueue,
-            "serial": ThreadQueue,
-        }
+        mode = self.execution_mode
+        stage_tag = self.get_tag()
 
-        # task_queues, result_queues与fail_queue只会在节点进程内运行, 因此如果不涉及多个进程的节点间通信, 可以全部使用ThreadQueue
-        self.task_queues = task_queues or TaskQueue(
-            queue_list=[queue_map[self.execution_mode]()],
-            queue_tags=[None],
-            log_queue=self.log_queue,
-            log_level=self.log_level,
-            stage_tag=self.get_tag(),
-            direction="in",
+        self.task_queues = task_queues or make_taskqueue(
+            mode=mode, log_queue=self.log_queue, log_level=self.log_level, stage_tag=stage_tag, direction="in"
         )
-        self.result_queues = result_queues or TaskQueue(
-            queue_list=[queue_map[self.execution_mode]()],
-            queue_tags=[None],
-            log_queue=self.log_queue,
-            log_level=self.log_level,
-            stage_tag=self.get_tag(),
-            direction="out",
+        self.result_queues = result_queues or make_taskqueue(
+            mode=mode, log_queue=self.log_queue, log_level=self.log_level, stage_tag=stage_tag, direction="out"
         )
-        self.fail_queue: ThreadQueue | MPQueue | AsyncQueue = (
-            fail_queue or queue_map[self.execution_mode]()
-        )
+
+        Q = make_queue_backend(mode)
+        self.fail_queue = fail_queue or Q()
 
     def init_listener(self):
         """
