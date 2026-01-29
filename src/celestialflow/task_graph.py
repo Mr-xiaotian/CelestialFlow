@@ -18,7 +18,6 @@ from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import (
     TaskEnvelope,
-    StageStatus,
     UnconsumedError,
     TerminationSignal,
     TERMINATION_SIGNAL,
@@ -619,7 +618,7 @@ class TaskGraph:
                     its_per_sec = processed / elapsed if elapsed else 0
                     avg_time_str = f"{its_per_sec:.2f}it/s"
             else:
-                avg_time_str = "N/A"  # 或 "0.00s/it"
+                avg_time_str = "N/A"  
 
             history: list = stage_runtime.get("history", [])
             history.append(

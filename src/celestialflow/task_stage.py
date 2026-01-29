@@ -155,6 +155,7 @@ class TaskStage(TaskExecutor):
         获取当前节点的状态快照
 
         :return: 当前节点状态快照
+        包括节点名称(actor_name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)、节点模式(stage_mode)
         """
         return {
             **self.get_summary(),

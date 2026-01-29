@@ -52,10 +52,7 @@ def _build_structure_subgraph(
     """
     stage_tag = task_stage.get_tag()
     node = {
-        "stage_name": task_stage._name,
-        "stage_mode": task_stage.stage_mode,
-        "execution_mode": task_stage.execution_mode,
-        "func_name": task_stage.func.__name__,
+        **task_stage.get_stage_summary(),
         "is_ref": False,
         "next_stages": [],
     }
@@ -83,10 +80,10 @@ def format_structure_list_from_graph(root_roots: List[Dict] = None) -> List[str]
 
     def node_label(node: Dict) -> str:
         visited_note = " [Ref]" if node.get("is_ref") else ""
-        N = node.get("stage_name", "?")  # N
-        S = node.get("stage_mode", "?")  # S
+        N = node.get("actor_name", "?")      # N
+        F = node.get("func_name", "?")       # F
+        S = node.get("stage_mode", "?")      # S
         E = node.get("execution_mode", "?")  # E
-        F = node.get("func_name", "?")  # F
 
         return f"{N}::{F} " f"(S:{S}, E:{E})" f"{visited_note}"
 
