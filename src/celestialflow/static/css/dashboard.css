@@ -18,7 +18,6 @@
   margin-left: calc(-50vw + 50%); /* 左侧“负 margin”抵消 container 居中限制 */
   margin-right: calc(-50vw + 50%);
   justify-content: space-evenly;
-  gap: 1rem;
 }
 
 .left-panel {
@@ -276,6 +275,7 @@
     width: 100%;
     margin-left: 0;
     margin-right: 0;
+    gap: 2rem;
   }
   .left-panel,
   .middle-panel,
