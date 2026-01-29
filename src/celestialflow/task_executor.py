@@ -347,6 +347,28 @@ class TaskExecutor:
             "class_name": self.get_class_name(),
             "execution_mode": self.get_execution_mode_desc(),
         }
+    
+    def get_counts(self) -> dict:
+        """
+        获取当前节点的计数器
+
+        :return: 当前节点计数器
+        包括任务总数(total)、成功数(success)、错误数(error)、重复数(duplicate)
+        """
+        input = self.task_counter.value
+        successed = self.success_counter.value
+        failed = self.error_counter.value
+        duplicated = self.duplicate_counter.value
+        processed = successed + failed + duplicated
+        pending = max(0, input - processed)
+        
+        return {
+                "tasks_successed": successed,
+                "tasks_failed": failed,
+                "tasks_duplicated": duplicated,
+                "tasks_processed": processed,
+                "tasks_pending": pending,
+            }
 
     def add_retry_exceptions(self, *exceptions):
         """

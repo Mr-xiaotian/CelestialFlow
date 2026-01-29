@@ -215,15 +215,7 @@ def object_to_str_hash(obj) -> str:
     return hashlib.md5(obj_bytes).hexdigest()
 
 
-# ======== 公共函数 ========
-def cleanup_mpqueue(queue: MPQueue):
-    """
-    清理队列
-    """
-    queue.close()
-    queue.join_thread()  # 确保队列的后台线程正确终止
-
-
+# ======== format函数 ========
 def format_repr(obj: Any, max_length: int) -> str:
     """
     将对象格式化为字符串，自动转义换行、截断超长文本。
@@ -376,6 +368,22 @@ def format_timestamp(timestamp) -> str:
 def format_event_forest(event_forest: List[Dict]) -> str:
     style = NodeLabelStyle(template="{base}  {payload.actor_name}  ‹{type}›", missing="-")
     return format_descendants_forest(event_forest, style)
+
+
+def format_avg_time(elapsed: float, processed: int) -> str:
+    if elapsed and processed:
+        avg_time = elapsed / processed
+        if avg_time >= 1.0:
+            # 显示 "X.XX s/it"
+            avg_time_str = f"{avg_time:.2f}s/it"
+        else:
+            # 显示 "X.XX it/s"（取倒数）
+            its_per_sec = processed / elapsed if elapsed else 0
+            avg_time_str = f"{its_per_sec:.2f}it/s"
+    else:
+        avg_time_str = "N/A"  
+
+    return avg_time_str
 
 
 # ======== jsonl文件处理 ========
@@ -590,3 +598,17 @@ def make_taskqueue(*, mode: str, log_queue, log_level: str, stage_tag: str, dire
         stage_tag=stage_tag,
         direction=direction,
     )
+
+# ==== other ====
+def cleanup_mpqueue(queue: MPQueue):
+    """
+    清理队列
+    """
+    queue.close()
+    queue.join_thread()  # 确保队列的后台线程正确终止
+
+
+def calc_remaining(elapsed: float, pending: int, processed: int) -> float:
+    if processed and pending:
+        return pending / processed * elapsed
+    return 0

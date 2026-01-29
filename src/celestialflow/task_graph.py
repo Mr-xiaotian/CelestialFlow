@@ -12,6 +12,7 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
+from . import task_tools
 from .task_stage import TaskStage
 from .task_report import TaskReporter, NullTaskReporter
 from .task_logging import LogListener, TaskLogger
@@ -571,39 +572,36 @@ class TaskGraph:
         now = time.time()
         interval = self.reporter.interval
 
-        total_successed = 0
-        total_pending = 0
-        total_failed = 0
-        total_duplicated = 0
-        total_nodes = 0
-        total_remain = 0
+        totals = {
+            "total_successed": 0,
+            "total_pending": 0,
+            "total_failed": 0,
+            "total_duplicated": 0,
+            "total_nodes": 0,   # running nodes
+            "total_remain": 0.0,
+        }
 
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
             stage: TaskStage = stage_runtime["stage"]
             last_stage_status_dict: dict = self.last_status_dict.get(stage_tag, {})
 
             status = stage.get_status()
-            total_nodes += 1 if status == StageStatus.RUNNING else 0
+            totals["total_nodes"] += 1 if status == StageStatus.RUNNING else 0
 
-            input = stage.task_counter.value
-            successed = stage.success_counter.value
-            failed = stage.error_counter.value
-            duplicated = stage.duplicate_counter.value
-            processed = successed + failed + duplicated
-            pending = max(0, input - processed)
+            stage_counts = stage.get_counts()
 
-            total_successed += successed
-            total_pending += pending
-            total_failed += failed
-            total_duplicated += duplicated
+            totals["total_successed"] += stage_counts["tasks_successed"]
+            totals["total_pending"] += stage_counts["tasks_pending"]
+            totals["total_failed"] += stage_counts["tasks_failed"]
+            totals["total_duplicated"] += stage_counts["tasks_duplicated"]
 
-            add_successed = successed - last_stage_status_dict.get("tasks_successed", 0)
-            add_failed = failed - last_stage_status_dict.get("tasks_failed", 0)
-            add_duplicated = duplicated - last_stage_status_dict.get(
+            add_successed = stage_counts["tasks_successed"] - last_stage_status_dict.get("tasks_successed", 0)
+            add_failed = stage_counts["tasks_failed"] - last_stage_status_dict.get("tasks_failed", 0)
+            add_duplicated = stage_counts["tasks_duplicated"] - last_stage_status_dict.get(
                 "tasks_duplicated", 0
             )
-            add_processed = processed - last_stage_status_dict.get("tasks_processed", 0)
-            add_pending = pending - last_stage_status_dict.get("tasks_pending", 0)
+            add_processed = stage_counts["tasks_processed"] - last_stage_status_dict.get("tasks_processed", 0)
+            add_pending = stage_counts["tasks_pending"] - last_stage_status_dict.get("tasks_pending", 0)
 
             start_time = stage_runtime.get("start_time", 0)
             # 更新时间消耗（仅在 pending 非 0 时刷新）
@@ -619,40 +617,25 @@ class TaskGraph:
             stage_runtime["elapsed_time"] = elapsed
 
             # 估算剩余时间
-            remaining = (pending / processed * elapsed) if processed and pending else 0
-            total_remain += remaining
+            remaining = task_tools.calc_remaining(elapsed, stage_counts["tasks_pending"], stage_counts["tasks_processed"])
+            totals["total_remain"] = max(remaining, totals["total_remain"])
 
             # 计算平均时间（秒/任务）并格式化为字符串
-            if processed:
-                avg_time = elapsed / processed
-                if avg_time >= 1.0:
-                    # 显示 "X.XX s/it"
-                    avg_time_str = f"{avg_time:.2f}s/it"
-                else:
-                    # 显示 "X.XX it/s"（取倒数）
-                    its_per_sec = processed / elapsed if elapsed else 0
-                    avg_time_str = f"{its_per_sec:.2f}it/s"
-            else:
-                avg_time_str = "N/A"  
+            avg_time_str = task_tools.format_avg_time(elapsed, stage_counts["tasks_processed"])
 
-            history: list = stage_runtime.get("history", [])
+            history: list = last_stage_status_dict.get("history", [])
             history.append(
                 {
                     "timestamp": now,
-                    "tasks_processed": processed,
+                    "tasks_processed": stage_counts["tasks_processed"],
                 }
             )
             history.pop(0) if len(history) > 20 else None
-            stage_runtime["history"] = history
 
             status_dict[stage_tag] = {
                 **stage.get_stage_summary(),
                 "status": status,
-                "tasks_successed": successed,
-                "tasks_failed": failed,
-                "tasks_duplicated": duplicated,
-                "tasks_processed": processed,
-                "tasks_pending": pending,
+                **stage_counts,
                 "add_tasks_successed": add_successed,
                 "add_tasks_failed": add_failed,
                 "add_tasks_duplicated": add_duplicated,
@@ -667,12 +650,12 @@ class TaskGraph:
 
         self.last_status_dict = status_dict
         self.summary_dict = {
-            "total_nodes": total_nodes,
-            "total_successed": total_successed,
-            "total_pending": total_pending,
-            "total_failed": total_failed,
-            "total_duplicated": total_duplicated,  
-            "total_remain": format_duration(total_remain),
+            "total_nodes": totals["total_nodes"],
+            "total_successed": totals["total_successed"],
+            "total_pending": totals["total_pending"],
+            "total_failed": totals["total_failed"],
+            "total_duplicated": totals["total_duplicated"],
+            "total_remain": format_duration(totals["total_remain"]),
         }
 
         return status_dict
