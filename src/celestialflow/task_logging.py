@@ -325,3 +325,9 @@ class TaskLogger:
             "WARNING",
             f"[Reporter] Topology push failed: {type(exception).__name__}({exception}).",
         )
+
+    def push_summary_failed(self, exception):
+        self._log(
+            "WARNING",
+            f"[Reporter] Summary push failed: {type(exception).__name__}({exception}).",
+        )

@@ -18,6 +18,7 @@ from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import (
     TaskEnvelope,
+    StageStatus,
     UnconsumedError,
     TerminationSignal,
     TERMINATION_SIGNAL,
@@ -570,11 +571,19 @@ class TaskGraph:
         now = time.time()
         interval = self.reporter.interval
 
+        total_successed = 0
+        total_pending = 0
+        total_failed = 0
+        total_duplicated = 0
+        total_nodes = 0
+        total_remain = 0
+
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
             stage: TaskStage = stage_runtime["stage"]
             last_stage_status_dict: dict = self.last_status_dict.get(stage_tag, {})
 
             status = stage.get_status()
+            total_nodes += 1 if status == StageStatus.RUNNING else 0
 
             input = stage.task_counter.value
             successed = stage.success_counter.value
@@ -582,6 +591,11 @@ class TaskGraph:
             duplicated = stage.duplicate_counter.value
             processed = successed + failed + duplicated
             pending = max(0, input - processed)
+
+            total_successed += successed
+            total_pending += pending
+            total_failed += failed
+            total_duplicated += duplicated
 
             add_successed = successed - last_stage_status_dict.get("tasks_successed", 0)
             add_failed = failed - last_stage_status_dict.get("tasks_failed", 0)
@@ -606,6 +620,7 @@ class TaskGraph:
 
             # 估算剩余时间
             remaining = (pending / processed * elapsed) if processed and pending else 0
+            total_remain += remaining
 
             # 计算平均时间（秒/任务）并格式化为字符串
             if processed:
@@ -651,8 +666,19 @@ class TaskGraph:
             }
 
         self.last_status_dict = status_dict
+        self.summary_dict = {
+            "total_nodes": total_nodes,
+            "total_successed": total_successed,
+            "total_pending": total_pending,
+            "total_failed": total_failed,
+            "total_duplicated": total_duplicated,  
+            "total_remain": format_duration(total_remain),
+        }
 
         return status_dict
+    
+    def get_summary_dict(self) -> dict:
+        return self.summary_dict
 
     def get_graph_topology(self) -> dict:
         """

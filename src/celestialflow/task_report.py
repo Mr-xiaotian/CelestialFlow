@@ -70,6 +70,7 @@ class TaskReporter:
         self._push_status()
         self._push_structure()
         self._push_topology()
+        self._push_summary()
 
     def _pull_interval(self):
         try:
@@ -183,6 +184,14 @@ class TaskReporter:
             requests.post(f"{self.base_url}/api/push_topology", json=payload, timeout=self._push_timeout())
         except Exception as e:
             self.logger.push_topology_failed(e)
+
+    def _push_summary(self):
+        try:
+            summary = self.task_graph.get_summary_dict()
+            payload = {"summary": summary}
+            requests.post(f"{self.base_url}/api/push_summary", json=payload, timeout=self._push_timeout())
+        except Exception as e:
+            self.logger.push_summary_failed(e)
 
 
 class NullTaskReporter:

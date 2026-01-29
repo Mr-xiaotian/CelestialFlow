@@ -38,6 +38,10 @@ class TopologyModel(BaseModel):
     topology: Dict[str, Any]
 
 
+class SummaryModel(BaseModel):
+    summary: Dict[str, Any]
+
+
 class IntervalModel(BaseModel):
     interval: float
 
@@ -71,6 +75,7 @@ class TaskWebServer:
         self.structure_store = []
         self.error_store = []
         self.topology_store = {}
+        self.summary_store = {}
         self.injection_tasks = []  # 存储前端注入任务
 
         self.report_interval = 5
@@ -105,6 +110,10 @@ class TaskWebServer:
         @app.get("/api/get_topology")
         def get_topology():
             return self.topology_store
+        
+        @app.get("/api/get_summary")
+        def get_summary():
+            return self.summary_store
 
         @app.get("/api/get_interval")
         def get_interval():
@@ -172,6 +181,11 @@ class TaskWebServer:
         @app.post("/api/push_topology")
         async def push_topology(data: TopologyModel):
             self.topology_store = data.topology
+            return {"ok": True}
+        
+        @app.post("/api/push_summary")
+        async def push_summary(data: SummaryModel):
+            self.summary_store = data.summary
             return {"ok": True}
 
         @app.post("/api/push_interval")
