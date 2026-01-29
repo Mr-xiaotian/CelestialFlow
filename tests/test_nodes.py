@@ -169,7 +169,7 @@ def test_splitter_0():
             # download_stage.get_tag(): [f"url_{x}_5" for x in range(10, 20)],
             # parse_stage.get_tag(): [f"url_{x}_5" for x in range(10, 20)],
         },
-        False,
+        True,
     )
 
     # print()

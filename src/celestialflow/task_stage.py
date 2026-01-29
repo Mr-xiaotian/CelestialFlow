@@ -159,6 +159,7 @@ class TaskStage(TaskExecutor):
         """
         return {
             **self.get_summary(),
+            "stage_name": self.get_name(),
             "stage_mode": self.stage_mode,
         }
 

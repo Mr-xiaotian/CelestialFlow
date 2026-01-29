@@ -10,6 +10,40 @@
   --gray-medium: #9ca3af;
   --gray-dark: #4b5563;
   --gray-slate: #6b7280;
+
+    /* ================================
+     Summary palette (light mode)
+  ================================ */
+  --summary-blue-bg: #dbeafe;
+  --summary-orange-bg: #fed7aa;
+  --summary-yellow-bg: #fef3c7;
+  --summary-red-bg: #fee2e2;
+  --summary-green-bg: #d1fae5;
+  --summary-purple-bg: #e9d5ff;
+
+  --summary-blue-value: #2563eb;
+  --summary-orange-value: #ea580c;
+  --summary-yellow-value: #d97706;
+  --summary-red-value: #dc2626;
+  --summary-green-value: #059669;
+  --summary-purple-value: #7c3aed;
+
+  /* ================================
+     Summary palette (dark mode)
+  ================================ */
+  --summary-blue-bg-dark: #1e3a8a;
+  --summary-orange-bg-dark: #7c2d12;
+  --summary-yellow-bg-dark: #78350f;
+  --summary-red-bg-dark: #7f1d1d;
+  --summary-green-bg-dark: #14532d;
+  --summary-purple-bg-dark: #4c1d95;
+
+  --summary-blue-value-dark: #60a5fa;
+  --summary-orange-value-dark: #fdba74;
+  --summary-yellow-value-dark: #facc15;
+  --summary-red-value-dark: #f87171;
+  --summary-green-value-dark: #34d399;
+  --summary-purple-value-dark: #c4b5fd;
 }
 
 /* ================================

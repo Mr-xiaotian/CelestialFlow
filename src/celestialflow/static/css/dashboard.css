@@ -174,8 +174,12 @@
   font-family: monospace;
 }
 
-.time-estimate .elapsed { color: var(--success-color); }
-.time-estimate .remaining { color: var(--warning-color); }
+.time-estimate .elapsed {
+  color: var(--success-color);
+}
+.time-estimate .remaining {
+  color: var(--warning-color);
+}
 
 /* ================================
   节点运行状态: 节点运行状态样式
@@ -235,44 +239,27 @@
   text-align: center;
   padding: 1rem;
   border-radius: 0.5rem;
-}
 
-.summary-item.blue {
-  background-color: #dbeafe;
-}
-
-.summary-item.yellow {
-  background-color: #fef3c7;
-}
-
-.summary-item.red {
-  background-color: #fee2e2;
-}
-
-.summary-item.green {
-  background-color: #d1fae5;
+  &.blue   { background-color: var(--summary-blue-bg);   .dark-theme & { background-color: var(--summary-blue-bg-dark); } }
+  &.orange { background-color: var(--summary-orange-bg); .dark-theme & { background-color: var(--summary-orange-bg-dark); } }
+  &.yellow { background-color: var(--summary-yellow-bg); .dark-theme & { background-color: var(--summary-yellow-bg-dark); } }
+  &.red    { background-color: var(--summary-red-bg);    .dark-theme & { background-color: var(--summary-red-bg-dark); } }
+  &.green  { background-color: var(--summary-green-bg);  .dark-theme & { background-color: var(--summary-green-bg-dark); } }
+  &.purple { background-color: var(--summary-purple-bg); .dark-theme & { background-color: var(--summary-purple-bg-dark); } }
 }
 
 .summary-value {
   font-size: 1.875rem;
   font-weight: 700;
+
+  &.blue   { color: var(--summary-blue-value);   .dark-theme & { color: var(--summary-blue-value-dark); } }
+  &.orange { color: var(--summary-orange-value); .dark-theme & { color: var(--summary-orange-value-dark); } }
+  &.yellow { color: var(--summary-yellow-value); .dark-theme & { color: var(--summary-yellow-value-dark); } }
+  &.red    { color: var(--summary-red-value);    .dark-theme & { color: var(--summary-red-value-dark); } }
+  &.green  { color: var(--summary-green-value);  .dark-theme & { color: var(--summary-green-value-dark); } }
+  &.purple { color: var(--summary-purple-value); .dark-theme & { color: var(--summary-purple-value-dark); } }
 }
 
-.summary-value.blue {
-  color: #2563eb;
-}
-
-.summary-value.yellow {
-  color: #d97706;
-}
-
-.summary-value.red {
-  color: #dc2626;
-}
-
-.summary-value.green {
-  color: #059669;
-}
 
 .summary-label {
   font-size: 0.875rem;
@@ -318,7 +305,7 @@
 }
 
 .dark-theme .mermaid span {
-  color: #d1d5db!important;
+  color: #d1d5db !important;
 }
 
 /* .dark-theme #mermaid-container rect {
@@ -330,38 +317,6 @@
 
 .dark-theme .topology-row .label {
   color: var(--gray-medium);
-}
-
-.dark-theme .summary-item.blue {
-  background-color: #1e3a8a;
-}
-
-.dark-theme .summary-item.yellow {
-  background-color: #78350f;
-}
-
-.dark-theme .summary-item.red {
-  background-color: #7f1d1d;
-}
-
-.dark-theme .summary-item.green {
-  background-color: #14532d;
-}
-
-.dark-theme .summary-value.blue {
-  color: #60a5fa;
-}
-
-.dark-theme .summary-value.yellow {
-  color: #facc15;
-}
-
-.dark-theme .summary-value.red {
-  color: #f87171;
-}
-
-.dark-theme .summary-value.green {
-  color: #34d399;
 }
 
 .dark-theme .summary-label {
@@ -394,8 +349,17 @@
   background-color: #454545;
 }
 
-.dark-theme .stage-name { color: #7eaeff; }
-.dark-theme .stage-mode { color: #b0b0b0; }
-.dark-theme .stage-func { background-color: #333; color: #ff6090; }
-.dark-theme .visited-mark { background-color: #4a2424; color: #ff6b6b; }
-
+.dark-theme .stage-name {
+  color: #7eaeff;
+}
+.dark-theme .stage-mode {
+  color: #b0b0b0;
+}
+.dark-theme .stage-func {
+  background-color: #333;
+  color: #ff6090;
+}
+.dark-theme .visited-mark {
+  background-color: #4a2424;
+  color: #ff6b6b;
+}

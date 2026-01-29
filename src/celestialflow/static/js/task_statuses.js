@@ -9,8 +9,10 @@ let hiddenNodes = new Set(
 const dashboardGrid = document.getElementById("dashboard-grid");
 const totalSuccessed = document.getElementById("total-successed");
 const totalPending = document.getElementById("total-pending");
-const totalErrors = document.getElementById("total-errors");
+const totalDuplicated = document.getElementById("total-duplicated");
+const totalFailed = document.getElementById("total-failed");
 const totalNodes = document.getElementById("total-nodes");
+const totalRemain = document.getElementById("total-remain");
 
 async function loadStatuses() {
   try {
@@ -146,17 +148,20 @@ function renderDashboard() {
 function updateSummary() {
   let successed = 0,
     pending = 0,
-    error = 0,
+    failed = 0,
+    duplicated = 0,
     active = 0;
   Object.values(nodeStatuses).forEach((s) => {
     successed += s.tasks_successed;
     pending += s.tasks_pending;
-    error += s.tasks_failed;
+    failed += s.tasks_failed;
+    duplicated += s.tasks_duplicated;
     if (s.status === 1) active++;
   });
   totalSuccessed.textContent = successed;
   totalPending.textContent = pending;
-  totalErrors.textContent = error;
+  totalFailed.textContent = failed;
+  totalDuplicated.textContent = duplicated;
   totalNodes.textContent = active;
 }
 
