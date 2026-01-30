@@ -184,6 +184,30 @@ def compute_node_levels(G: nx.DiGraph) -> Dict[str, int]:
     return level
 
 
+def calc_global_remain_dag_maxplus(G: nx.DiGraph, remaining_map: Dict[str, float]) -> float:
+    """
+    用 DAG 关键路径（max-plus DP）估算全局剩余时间：
+      finish[n] = remaining[n] + max(finish[p] for p in preds(n), default=0)
+
+    若图非 DAG 或异常，回退为 max(remaining_map.values())。
+    """
+    try:
+        if not nx.is_directed_acyclic_graph(G):
+            return max(remaining_map.values(), default=0.0)
+
+        finish: Dict[str, float] = {}
+        for n in nx.topological_sort(G):
+            r = float(remaining_map.get(n, 0.0) or 0.0)
+            best_pred = 0.0
+            for p in G.predecessors(n):
+                best_pred = max(best_pred, finish.get(p, 0.0))
+            finish[n] = best_pred + r
+
+        return max(finish.values(), default=0.0)
+    except Exception:
+        return max(remaining_map.values(), default=0.0)
+    
+
 # ======== 处理任务 ========
 def make_hashable(obj) -> Any:
     """

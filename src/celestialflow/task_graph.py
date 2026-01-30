@@ -564,6 +564,8 @@ class TaskGraph:
             "total_remain": 0.0,
         }
 
+        running_remaining_map: Dict[str, float] = {}
+
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
             stage: TaskStage = stage_runtime["stage"]
             last_stage_status_dict: dict = self.last_status_dict.get(stage_tag, {})
@@ -590,7 +592,7 @@ class TaskGraph:
             
             if status == StageStatus.RUNNING:
                 totals["total_nodes"] += 1
-                totals["total_remain"] = max(remaining, totals["total_remain"])
+                running_remaining_map[stage_tag] = float(remaining or 0.0)
 
             # 计算平均时间（秒/任务）并格式化为字符串
             avg_time_str = task_tools.format_avg_time(elapsed, stage_counts["tasks_processed"])
@@ -615,21 +617,15 @@ class TaskGraph:
                 "task_avg_time": avg_time_str,
                 "history": list(history),
             }
+        totals["total_remain"] = task_tools.calc_global_remain_dag_maxplus(self.get_networkx_graph(), running_remaining_map)
 
         self.last_status_dict = status_dict
-        self.summary_dict = {
-            "total_nodes": totals["total_nodes"],
-            "total_successed": totals["total_successed"],
-            "total_pending": totals["total_pending"],
-            "total_failed": totals["total_failed"],
-            "total_duplicated": totals["total_duplicated"],
-            "total_remain": totals["total_remain"],
-        }
+        self.graph_summary = dict(totals)
 
         return status_dict
     
-    def get_summary_dict(self) -> dict:
-        return self.summary_dict
+    def get_graph_summary(self) -> dict:
+        return self.graph_summary
 
     def get_graph_topology(self) -> dict:
         """

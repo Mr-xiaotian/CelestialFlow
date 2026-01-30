@@ -187,7 +187,7 @@ class TaskReporter:
 
     def _push_summary(self):
         try:
-            summary = self.task_graph.get_summary_dict()
+            summary = self.task_graph.get_graph_summary()
             payload = {"summary": summary}
             requests.post(f"{self.base_url}/api/push_summary", json=payload, timeout=self._push_timeout())
         except Exception as e:
