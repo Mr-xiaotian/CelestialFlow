@@ -18,10 +18,19 @@ async function loadSummary() {
 }
 
 function renderSummary() {
-  totalSuccessed.textContent = summaryData.total_successed;
-  totalPending.textContent = summaryData.total_pending;
-  totalFailed.textContent = summaryData.total_failed;
-  totalDuplicated.textContent = summaryData.total_duplicated;
-  totalNodes.textContent = summaryData.total_nodes;
-  totalRemain.textContent = summaryData.total_remain;
+  const {
+    total_successed = 0,
+    total_pending = 0,
+    total_failed = 0,
+    total_duplicated = 0,
+    total_nodes = 0,
+    total_remain = 0,
+  } = summaryData || {};
+
+  totalSuccessed.textContent = total_successed;
+  totalPending.textContent = total_pending;
+  totalFailed.textContent = total_failed;
+  totalDuplicated.textContent = total_duplicated;
+  totalNodes.textContent = total_nodes;
+  totalRemain.textContent = formatDuration(total_remain);
 }

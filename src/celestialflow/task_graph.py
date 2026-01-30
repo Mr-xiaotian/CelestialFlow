@@ -581,11 +581,9 @@ class TaskGraph:
             deltas = {f"add_{k}": stage_counts[k] - last_stage_status_dict.get(k, 0) for k in keys}
 
             start_time = stage_runtime.get("start_time", 0)
-            last_elapsed = stage_runtime.get("elapsed_time", 0)
+            last_elapsed = last_stage_status_dict.get("elapsed_time", 0)
             last_pending = last_stage_status_dict.get("tasks_pending", 0)
             elapsed = task_tools.calc_elapsed(start_time, last_elapsed, last_pending, interval)
-
-            stage_runtime["elapsed_time"] = elapsed
 
             # 估算剩余时间
             remaining = task_tools.calc_remaining(elapsed, stage_counts["tasks_pending"], stage_counts["tasks_processed"])
@@ -611,9 +609,9 @@ class TaskGraph:
                 "status": status,
                 **stage_counts,
                 **deltas,
-                "start_time": task_tools.format_timestamp(start_time),
-                "elapsed_time": task_tools.format_duration(elapsed),
-                "remaining_time": task_tools.format_duration(remaining),
+                "start_time": start_time,
+                "elapsed_time": elapsed,
+                "remaining_time": remaining,
                 "task_avg_time": avg_time_str,
                 "history": list(history),
             }
@@ -625,7 +623,7 @@ class TaskGraph:
             "total_pending": totals["total_pending"],
             "total_failed": totals["total_failed"],
             "total_duplicated": totals["total_duplicated"],
-            "total_remain": task_tools.format_duration(totals["total_remain"]),
+            "total_remain": totals["total_remain"],
         }
 
         return status_dict

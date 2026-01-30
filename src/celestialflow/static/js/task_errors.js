@@ -50,7 +50,7 @@ function renderErrors() {
         <td class="error-message">${e.error_repr}</td>
         <td>${e.stage}</td>
         <td>${e.task_repr}</td>
-        <td>${formatTimestamp(e.ts)}</td>
+        <td>${renderLocalTime(e.ts)}</td>
       `;
       errorsTableBody.appendChild(row);
     }

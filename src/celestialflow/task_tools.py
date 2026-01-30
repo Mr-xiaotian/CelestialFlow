@@ -348,7 +348,7 @@ def format_table(
     return table
 
 
-def format_duration(seconds):
+def format_duration(seconds: int) -> str:
     """将秒数格式化为 HH:MM:SS 或 MM:SS（自动省略前导零）"""
     seconds = int(seconds)
     hours, remainder = divmod(seconds, 3600)

@@ -118,14 +118,14 @@ function renderDashboard() {
               data.execution_mode
             }</div></div>
           </div>
-          <div class="text-sm text-gray">开始时间: ${data.start_time}</div>
+          <div class="text-sm text-gray">开始时间: ${formatTimestamp(data.start_time)}</div>
           <div class="progress-container">
             <div class="progress-header">
               <span>任务完成率</span>
               <span class="time-estimate">
-                <span class="elapsed">${data.elapsed_time}</span>
+                <span class="elapsed">${formatDuration(data.elapsed_time)}</span>
                 &lt; 
-                <span class="remaining">${data.remaining_time}</span>, 
+                <span class="remaining">${formatDuration(data.remaining_time)}</span>, 
                 <span class="task-avg-time">${data.task_avg_time}</span>, 
                 <span>${progress}%</span>
               </span>

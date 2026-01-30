@@ -1,5 +1,5 @@
 // task_web.js
-function formatTimestamp(timestamp) {
+function renderLocalTime(timestamp) {
   return new Date(timestamp * 1000).toLocaleString();
 }
 
@@ -61,4 +61,37 @@ function validateJSON(text) {
 
 function toggleDarkTheme() {
   return document.body.classList.toggle("dark-theme");
+}
+
+// task_statuses.js
+function formatDuration(seconds) {
+  seconds = Math.floor(seconds);
+
+  const hours = Math.floor(seconds / 3600);
+  const remainder = seconds % 3600;
+  const minutes = Math.floor(remainder / 60);
+  const secs = remainder % 60;
+
+  const pad = (n) => String(n).padStart(2, "0");
+
+  if (hours > 0) {
+    return `${pad(hours)}:${pad(minutes)}:${pad(secs)}`;
+  } else {
+    return `${pad(minutes)}:${pad(secs)}`;
+  }
+}
+
+function formatTimestamp(timestamp) {
+  const d = new Date(timestamp * 1000);
+
+  const pad = (n) => String(n).padStart(2, "0");
+
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hour = pad(d.getHours());
+  const minute = pad(d.getMinutes());
+  const second = pad(d.getSeconds());
+
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
