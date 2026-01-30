@@ -361,14 +361,15 @@ class TaskExecutor:
         duplicated = self.duplicate_counter.value
         processed = successed + failed + duplicated
         pending = max(0, input - processed)
-        
+
         return {
-                "tasks_successed": successed,
-                "tasks_failed": failed,
-                "tasks_duplicated": duplicated,
-                "tasks_processed": processed,
-                "tasks_pending": pending,
-            }
+            "tasks_input": input,
+            "tasks_successed": successed,
+            "tasks_failed": failed,
+            "tasks_duplicated": duplicated,
+            "tasks_processed": processed,
+            "tasks_pending": pending,
+        }
 
     def add_retry_exceptions(self, *exceptions):
         """

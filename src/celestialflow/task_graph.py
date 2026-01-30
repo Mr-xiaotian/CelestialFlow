@@ -577,13 +577,8 @@ class TaskGraph:
             totals["total_failed"] += stage_counts["tasks_failed"]
             totals["total_duplicated"] += stage_counts["tasks_duplicated"]
 
-            add_successed = stage_counts["tasks_successed"] - last_stage_status_dict.get("tasks_successed", 0)
-            add_failed = stage_counts["tasks_failed"] - last_stage_status_dict.get("tasks_failed", 0)
-            add_duplicated = stage_counts["tasks_duplicated"] - last_stage_status_dict.get(
-                "tasks_duplicated", 0
-            )
-            add_processed = stage_counts["tasks_processed"] - last_stage_status_dict.get("tasks_processed", 0)
-            add_pending = stage_counts["tasks_pending"] - last_stage_status_dict.get("tasks_pending", 0)
+            keys = ["tasks_successed","tasks_pending","tasks_failed","tasks_duplicated","tasks_processed"]
+            deltas = {f"add_{k}": stage_counts[k] - last_stage_status_dict.get(k, 0) for k in keys}
 
             start_time = stage_runtime.get("start_time", 0)
             last_elapsed = stage_runtime.get("elapsed_time", 0)
@@ -602,7 +597,7 @@ class TaskGraph:
             # 计算平均时间（秒/任务）并格式化为字符串
             avg_time_str = task_tools.format_avg_time(elapsed, stage_counts["tasks_processed"])
 
-            history: list = last_stage_status_dict.get("history", [])
+            history: list = list(last_stage_status_dict.get("history", []))
             history.append(
                 {
                     "timestamp": now,
@@ -615,11 +610,7 @@ class TaskGraph:
                 **stage.get_stage_summary(),
                 "status": status,
                 **stage_counts,
-                "add_tasks_successed": add_successed,
-                "add_tasks_failed": add_failed,
-                "add_tasks_duplicated": add_duplicated,
-                "add_tasks_processed": add_processed,
-                "add_tasks_pending": add_pending,
+                **deltas,
                 "start_time": task_tools.format_timestamp(start_time),
                 "elapsed_time": task_tools.format_duration(elapsed),
                 "remaining_time": task_tools.format_duration(remaining),
