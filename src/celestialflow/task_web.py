@@ -110,7 +110,7 @@ class TaskWebServer:
         @app.get("/api/get_topology")
         def get_topology():
             return self.topology_store
-        
+
         @app.get("/api/get_summary")
         def get_summary():
             return self.summary_store
@@ -159,8 +159,13 @@ class TaskWebServer:
                 self._errors_meta_rev = data.rev
                 return {"ok": True, "cached": False}
             except Exception as e:
-                return {"ok": False, "fallback": "need_content", "reason": type(e).__name__, "msg": str(e)}
-            
+                return {
+                    "ok": False,
+                    "fallback": "need_content",
+                    "reason": type(e).__name__,
+                    "msg": str(e),
+                }
+
         @app.post("/api/push_errors_content")
         async def push_errors_content(data: ErrorsContentModel):
             # 命中缓存：path 和 rev 都没变 -> 不重新读取
@@ -169,20 +174,25 @@ class TaskWebServer:
                 and data.rev == self._errors_meta_rev
             ):
                 return {"ok": True, "cached": True}
-            
+
             try:
                 self.error_store = data.errors
                 self._errors_meta_path = data.jsonl_path
                 self._errors_meta_rev = data.rev
                 return {"ok": True, "cached": False}
             except Exception as e:
-                return {"ok": False, "fallback": "none", "reason": type(e).__name__, "msg": str(e)}
+                return {
+                    "ok": False,
+                    "fallback": "none",
+                    "reason": type(e).__name__,
+                    "msg": str(e),
+                }
 
         @app.post("/api/push_topology")
         async def push_topology(data: TopologyModel):
             self.topology_store = data.topology
             return {"ok": True}
-        
+
         @app.post("/api/push_summary")
         async def push_summary(data: SummaryModel):
             self.summary_store = data.summary

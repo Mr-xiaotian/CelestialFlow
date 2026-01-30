@@ -47,7 +47,9 @@ def test_executor_fibonacci():
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
     test_task_2 = (item for item in test_task_1)
 
-    executor = TaskExecutor(fibonacci, worker_limit=6, max_retries=1, show_progress=True)
+    executor = TaskExecutor(
+        fibonacci, worker_limit=6, max_retries=1, show_progress=True
+    )
     executor.add_retry_exceptions(ValueError)
 
     execution_modes = ["serial", "thread", "process"]

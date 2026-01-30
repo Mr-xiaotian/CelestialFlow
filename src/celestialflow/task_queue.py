@@ -37,15 +37,23 @@ class TaskQueue:
         self._tag_to_idx = {tag: i for i, tag in enumerate(queue_tags)}
 
     def _log_put(self, item, idx: int):
-        if isinstance(item, TaskEnvelope): t="task"
-        elif isinstance(item, TerminationSignal): t="termination"
-        else: t="unknown"
-        self.task_logger.put_item(t, item.id, self.queue_tags[idx], self.stage_tag, self.direction)
+        if isinstance(item, TaskEnvelope):
+            t = "task"
+        elif isinstance(item, TerminationSignal):
+            t = "termination"
+        else:
+            t = "unknown"
+        self.task_logger.put_item(
+            t, item.id, self.queue_tags[idx], self.stage_tag, self.direction
+        )
 
     def _log_get(self, item, idx: int):
-        if isinstance(item, TaskEnvelope): t="task"
-        elif isinstance(item, TerminationSignal): t="termination"
-        else: t="unknown"
+        if isinstance(item, TaskEnvelope):
+            t = "task"
+        elif isinstance(item, TerminationSignal):
+            t = "termination"
+        else:
+            t = "unknown"
         self.task_logger.get_item(t, item.id, self.queue_tags[idx], self.stage_tag)
 
     def get_tag_idx(self, tag: str) -> int:
@@ -128,7 +136,9 @@ class TaskQueue:
             self.queue_list[idx].put(item)
             self._log_put(item, idx)
         except Exception as e:
-            self.task_logger.put_item_error(self.queue_tags[idx], self.stage_tag, self.direction, e)
+            self.task_logger.put_item_error(
+                self.queue_tags[idx], self.stage_tag, self.direction, e
+            )
 
     async def put_channel_async(self, item, idx: int):
         """
@@ -141,7 +151,9 @@ class TaskQueue:
             await self.queue_list[idx].put(item)
             self._log_put(item, idx)
         except Exception as e:
-            self.task_logger.put_item_error(self.queue_tags[idx], self.stage_tag, self.direction, e)
+            self.task_logger.put_item_error(
+                self.queue_tags[idx], self.stage_tag, self.direction, e
+            )
 
     def get(self, poll_interval: float = 0.01) -> TaskEnvelope | TerminationSignal:
         """
@@ -177,11 +189,11 @@ class TaskQueue:
                     if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
                         continue
-                    
+
                     elif isinstance(item, TaskEnvelope):
                         self.current_index = (idx + 1) % total_queues
                         return item
-                    
+
                 except SyncEmpty:
                     continue
                 except Exception as e:
@@ -231,11 +243,11 @@ class TaskQueue:
                     if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
                         continue
-                    
+
                     elif isinstance(item, TaskEnvelope):
                         self.current_index = (idx + 1) % total_queues
                         return item
-                    
+
                 except AsyncEmpty:
                     continue
                 except Exception as e:
@@ -267,10 +279,10 @@ class TaskQueue:
                     if isinstance(item, TerminationSignal):
                         self.terminated_queue_set.add(idx)
                         break
-                    
+
                     elif isinstance(item, TaskEnvelope):
                         results.append(item)
-                        
+
                 except SyncEmpty:
                     break
                 except Exception as e:

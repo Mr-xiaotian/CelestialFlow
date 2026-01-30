@@ -177,10 +177,18 @@ class TaskExecutor:
         stage_tag = self.get_tag()
 
         self.task_queues = task_queues or make_taskqueue(
-            mode=mode, log_queue=self.log_queue, log_level=self.log_level, stage_tag=stage_tag, direction="in"
+            mode=mode,
+            log_queue=self.log_queue,
+            log_level=self.log_level,
+            stage_tag=stage_tag,
+            direction="in",
         )
         self.result_queues = result_queues or make_taskqueue(
-            mode=mode, log_queue=self.log_queue, log_level=self.log_level, stage_tag=stage_tag, direction="out"
+            mode=mode,
+            log_queue=self.log_queue,
+            log_level=self.log_level,
+            stage_tag=stage_tag,
+            direction="out",
         )
 
         Q = make_queue_backend(mode)
@@ -313,7 +321,7 @@ class TaskExecutor:
             return self._tag
         self._tag = f"{self.get_name()}[{self.get_func_name()}]"
         return self._tag
-    
+
     def get_class_name(self) -> str:
         """
         获取当前节点类名
@@ -347,7 +355,7 @@ class TaskExecutor:
             "class_name": self.get_class_name(),
             "execution_mode": self.get_execution_mode_desc(),
         }
-    
+
     def get_counts(self) -> dict:
         """
         获取当前节点的计数器
@@ -951,9 +959,7 @@ class TaskExecutor:
         all_done_event = Event()
         all_done_event.set()  # 初始为无任务状态，设为完成状态
 
-        def on_task_done(
-            future, envelope: TaskEnvelope, task_progress: TaskProgress
-        ):
+        def on_task_done(future, envelope: TaskEnvelope, task_progress: TaskProgress):
             # 回调函数中处理任务结果
             task_progress.update(1)
             task_id = envelope.id

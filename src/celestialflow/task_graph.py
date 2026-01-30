@@ -560,7 +560,7 @@ class TaskGraph:
             "total_pending": 0,
             "total_failed": 0,
             "total_duplicated": 0,
-            "total_nodes": 0,   # running nodes
+            "total_nodes": 0,  # running nodes
             "total_remain": 0.0,
         }
 
@@ -579,23 +579,38 @@ class TaskGraph:
             totals["total_failed"] += stage_counts["tasks_failed"]
             totals["total_duplicated"] += stage_counts["tasks_duplicated"]
 
-            keys = ["tasks_successed","tasks_pending","tasks_failed","tasks_duplicated","tasks_processed"]
-            deltas = {f"add_{k}": stage_counts[k] - last_stage_status_dict.get(k, 0) for k in keys}
+            keys = [
+                "tasks_successed",
+                "tasks_pending",
+                "tasks_failed",
+                "tasks_duplicated",
+                "tasks_processed",
+            ]
+            deltas = {
+                f"add_{k}": stage_counts[k] - last_stage_status_dict.get(k, 0)
+                for k in keys
+            }
 
             start_time = stage_runtime.get("start_time", 0)
             last_elapsed = last_stage_status_dict.get("elapsed_time", 0)
             last_pending = last_stage_status_dict.get("tasks_pending", 0)
-            elapsed = task_tools.calc_elapsed(start_time, last_elapsed, last_pending, interval)
+            elapsed = task_tools.calc_elapsed(
+                start_time, last_elapsed, last_pending, interval
+            )
 
             # 估算剩余时间
-            remaining = task_tools.calc_remaining(elapsed, stage_counts["tasks_pending"], stage_counts["tasks_processed"])
-            
+            remaining = task_tools.calc_remaining(
+                elapsed, stage_counts["tasks_pending"], stage_counts["tasks_processed"]
+            )
+
             if status == StageStatus.RUNNING:
                 totals["total_nodes"] += 1
                 running_remaining_map[stage_tag] = float(remaining or 0.0)
 
             # 计算平均时间（秒/任务）并格式化为字符串
-            avg_time_str = task_tools.format_avg_time(elapsed, stage_counts["tasks_processed"])
+            avg_time_str = task_tools.format_avg_time(
+                elapsed, stage_counts["tasks_processed"]
+            )
 
             history: list = list(last_stage_status_dict.get("history", []))
             history.append(
@@ -617,13 +632,15 @@ class TaskGraph:
                 "task_avg_time": avg_time_str,
                 "history": list(history),
             }
-        totals["total_remain"] = task_tools.calc_global_remain_dag_maxplus(self.get_networkx_graph(), running_remaining_map)
+        totals["total_remain"] = task_tools.calc_global_remain_dag_maxplus(
+            self.get_networkx_graph(), running_remaining_map
+        )
 
         self.last_status_dict = status_dict
         self.graph_summary = dict(totals)
 
         return status_dict
-    
+
     def get_graph_summary(self) -> dict:
         return self.graph_summary
 

@@ -128,7 +128,7 @@ class TaskStage(TaskExecutor):
         :param name: 当前节点名称
         """
         self._name = name or f"Stage{id(self)}"
-        
+
         # name 变了，tag 必须失效
         if hasattr(self, "_tag"):
             delattr(self, "_tag")

@@ -33,6 +33,7 @@ class NoOpContext:
 
 class ValueWrapper:
     """线程内/单进程的计数器包装，可选线程锁。"""
+
     def __init__(self, value=0, lock=None):
         self.value = value
         self._lock = lock

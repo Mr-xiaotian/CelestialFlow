@@ -16,12 +16,17 @@ from threading import Lock
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Set, Optional
 
-from celestialtree import NodeLabelStyle, format_descendants_forest, format_provenance_forest
+from celestialtree import (
+    NodeLabelStyle,
+    format_descendants_forest,
+    format_provenance_forest,
+)
 
 from .task_types import (
     ValueWrapper,
 )
 from .task_queue import TaskQueue
+
 if TYPE_CHECKING:
     from .task_stage import TaskStage
 
@@ -80,9 +85,9 @@ def format_structure_list_from_graph(root_roots: List[Dict] = None) -> List[str]
 
     def node_label(node: Dict) -> str:
         visited_note = " [Ref]" if node.get("is_ref") else ""
-        N = node.get("actor_name", "?")      # N
-        F = node.get("func_name", "?")       # F
-        S = node.get("stage_mode", "?")      # S
+        N = node.get("actor_name", "?")  # N
+        F = node.get("func_name", "?")  # F
+        S = node.get("stage_mode", "?")  # S
         E = node.get("execution_mode", "?")  # E
 
         return f"{N}::{F} " f"(S:{S}, E:{E})" f"{visited_note}"
@@ -184,7 +189,9 @@ def compute_node_levels(G: nx.DiGraph) -> Dict[str, int]:
     return level
 
 
-def calc_global_remain_dag_maxplus(G: nx.DiGraph, remaining_map: Dict[str, float]) -> float:
+def calc_global_remain_dag_maxplus(
+    G: nx.DiGraph, remaining_map: Dict[str, float]
+) -> float:
     """
     用 DAG 关键路径（max-plus DP）估算全局剩余时间：
       finish[n] = remaining[n] + max(finish[p] for p in preds(n), default=0)
@@ -206,7 +213,7 @@ def calc_global_remain_dag_maxplus(G: nx.DiGraph, remaining_map: Dict[str, float
         return max(finish.values(), default=0.0)
     except Exception:
         return max(remaining_map.values(), default=0.0)
-    
+
 
 # ======== 处理任务 ========
 def make_hashable(obj) -> Any:
@@ -390,7 +397,9 @@ def format_timestamp(timestamp) -> str:
 
 
 def format_event_forest(event_forest: List[Dict]) -> str:
-    style = NodeLabelStyle(template="{base}  {payload.actor_name}  ‹{type}›", missing="-")
+    style = NodeLabelStyle(
+        template="{base}  {payload.actor_name}  ‹{type}›", missing="-"
+    )
     return format_descendants_forest(event_forest, style)
 
 
@@ -405,7 +414,7 @@ def format_avg_time(elapsed: float, processed: int) -> str:
             its_per_sec = processed / elapsed if elapsed else 0
             avg_time_str = f"{its_per_sec:.2f}it/s"
     else:
-        avg_time_str = "N/A"  
+        avg_time_str = "N/A"
 
     return avg_time_str
 
@@ -583,7 +592,9 @@ def load_task_by_error(jsonl_path) -> Dict[str, list]:
 
 
 # ==== 函数工厂 ====
-def make_counter(mode: str, *, lock: LockType | None = None, init: int = 0) -> ValueWrapper:
+def make_counter(
+    mode: str, *, lock: LockType | None = None, init: int = 0
+) -> ValueWrapper:
     """
     返回一个 counter：ValueWrapper(±lock) 或 MPValue
     """
@@ -612,7 +623,9 @@ def make_queue_backend(mode: str):
     return ThreadQueue
 
 
-def make_taskqueue(*, mode: str, log_queue, log_level: str, stage_tag: str, direction: str):
+def make_taskqueue(
+    *, mode: str, log_queue, log_level: str, stage_tag: str, direction: str
+):
     Q = make_queue_backend(mode)
     return TaskQueue(
         queue_list=[Q()],
@@ -631,7 +644,9 @@ def calc_remaining(elapsed: float, pending: int, processed: int) -> float:
     return 0
 
 
-def calc_elapsed(start_time: float, last_elapsed: float, last_pending: int, interval: float) -> float:
+def calc_elapsed(
+    start_time: float, last_elapsed: float, last_pending: int, interval: float
+) -> float:
     """更新时间消耗（仅在 pending 非 0 时刷新）"""
     if start_time:
         elapsed = last_elapsed
@@ -643,6 +658,7 @@ def calc_elapsed(start_time: float, last_elapsed: float, last_pending: int, inte
         elapsed = 0
 
     return elapsed
+
 
 # ==== other ====
 def cleanup_mpqueue(queue: MPQueue):
