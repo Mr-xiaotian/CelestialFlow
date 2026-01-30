@@ -599,6 +599,27 @@ def make_taskqueue(*, mode: str, log_queue, log_level: str, stage_tag: str, dire
         direction=direction,
     )
 
+
+# ==== calculate ====
+def calc_remaining(elapsed: float, pending: int, processed: int) -> float:
+    if processed and pending:
+        return pending / processed * elapsed
+    return 0
+
+
+def calc_elapsed(start_time: float, last_elapsed: float, last_pending: int, interval: float) -> float:
+    """更新时间消耗（仅在 pending 非 0 时刷新）"""
+    if start_time:
+        elapsed = last_elapsed
+        # 如果上一次是 pending，则累计时间
+        if last_pending:
+            # 如果上一次活跃, 那么无论当前状况，累计一次更新时间
+            elapsed += interval
+    else:
+        elapsed = 0
+
+    return elapsed
+
 # ==== other ====
 def cleanup_mpqueue(queue: MPQueue):
     """
@@ -606,9 +627,3 @@ def cleanup_mpqueue(queue: MPQueue):
     """
     queue.close()
     queue.join_thread()  # 确保队列的后台线程正确终止
-
-
-def calc_remaining(elapsed: float, pending: int, processed: int) -> float:
-    if processed and pending:
-        return pending / processed * elapsed
-    return 0

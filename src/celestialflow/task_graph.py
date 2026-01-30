@@ -24,23 +24,6 @@ from .task_types import (
     TerminationSignal,
     TERMINATION_SIGNAL,
 )
-from .task_tools import (
-    format_duration,
-    format_timestamp,
-    cleanup_mpqueue,
-    build_structure_graph,
-    format_structure_list_from_graph,
-    append_jsonl_log,
-    append_jsonl_logs,
-    format_networkx_graph,
-    is_directed_acyclic_graph,
-    compute_node_levels,
-    cluster_by_value_sorted,
-    load_task_by_stage,
-    load_task_by_error,
-    format_repr,
-    format_event_forest,
-)
 
 
 class TaskGraph:
@@ -188,7 +171,7 @@ class TaskGraph:
         """
         初始化任务图结构
         """
-        self.structure_json = build_structure_graph(self.root_stages)
+        self.structure_json = task_tools.build_structure_graph(self.root_stages)
 
     def set_root_stages(self, root_stages: List[TaskStage]):
         """
@@ -494,7 +477,7 @@ class TaskGraph:
             stage: TaskStage = stage_runtime["stage"]
             stage.release_queue()
 
-        cleanup_mpqueue(self.fail_queue)
+        task_tools.cleanup_mpqueue(self.fail_queue)
 
     def handle_fail_queue(self):
         """
@@ -530,7 +513,7 @@ class TaskGraph:
             "timestamp": datetime.now().isoformat(),
             "structure": self.get_structure_json(),
         }
-        append_jsonl_log(log_item, self.error_jsonl_path, self.task_logger)
+        task_tools.append_jsonl_log(log_item, self.error_jsonl_path, self.task_logger)
 
     def _persist_failures(self, failures: Iterable[tuple]):
         """
@@ -545,8 +528,8 @@ class TaskGraph:
             {
                 "timestamp": datetime.fromtimestamp(ts).isoformat(),
                 "stage": stage_tag,
-                "error_repr": format_repr(err, 100),
-                "task_repr": format_repr(task, 100),
+                "error_repr": task_tools.format_repr(err, 100),
+                "task_repr": task_tools.format_repr(task, 100),
                 "error": err,
                 "task": task,
                 "error_id": err_id,
@@ -554,13 +537,13 @@ class TaskGraph:
             }
             for ts, stage_tag, err, err_id, task in failures
         )
-        append_jsonl_logs(log_items, self.error_jsonl_path, self.task_logger)
+        task_tools.append_jsonl_logs(log_items, self.error_jsonl_path, self.task_logger)
 
     def get_fail_by_stage_dict(self):
-        return load_task_by_stage(self.error_jsonl_path)
+        return task_tools.load_task_by_stage(self.error_jsonl_path)
 
     def get_fail_by_error_dict(self):
-        return load_task_by_error(self.error_jsonl_path)
+        return task_tools.load_task_by_error(self.error_jsonl_path)
 
     def get_status_dict(self) -> Dict[str, dict]:
         """
@@ -586,7 +569,6 @@ class TaskGraph:
             last_stage_status_dict: dict = self.last_status_dict.get(stage_tag, {})
 
             status = stage.get_status()
-            totals["total_nodes"] += 1 if status == StageStatus.RUNNING else 0
 
             stage_counts = stage.get_counts()
 
@@ -604,21 +586,18 @@ class TaskGraph:
             add_pending = stage_counts["tasks_pending"] - last_stage_status_dict.get("tasks_pending", 0)
 
             start_time = stage_runtime.get("start_time", 0)
-            # 更新时间消耗（仅在 pending 非 0 时刷新）
-            if start_time:
-                elapsed = stage_runtime.get("elapsed_time", 0)
-                # 如果上一次是 pending，则累计时间
-                if last_stage_status_dict.get("tasks_pending", 0):
-                    # 如果上一次活跃, 那么无论当前状况，累计一次更新时间
-                    elapsed += interval
-            else:
-                elapsed = 0
+            last_elapsed = stage_runtime.get("elapsed_time", 0)
+            last_pending = last_stage_status_dict.get("tasks_pending", 0)
+            elapsed = task_tools.calc_elapsed(start_time, last_elapsed, last_pending, interval)
 
             stage_runtime["elapsed_time"] = elapsed
 
             # 估算剩余时间
             remaining = task_tools.calc_remaining(elapsed, stage_counts["tasks_pending"], stage_counts["tasks_processed"])
-            totals["total_remain"] = max(remaining, totals["total_remain"])
+            
+            if status == StageStatus.RUNNING:
+                totals["total_nodes"] += 1
+                totals["total_remain"] = max(remaining, totals["total_remain"])
 
             # 计算平均时间（秒/任务）并格式化为字符串
             avg_time_str = task_tools.format_avg_time(elapsed, stage_counts["tasks_processed"])
@@ -641,9 +620,9 @@ class TaskGraph:
                 "add_tasks_duplicated": add_duplicated,
                 "add_tasks_processed": add_processed,
                 "add_tasks_pending": add_pending,
-                "start_time": format_timestamp(start_time),
-                "elapsed_time": format_duration(elapsed),
-                "remaining_time": format_duration(remaining),
+                "start_time": task_tools.format_timestamp(start_time),
+                "elapsed_time": task_tools.format_duration(elapsed),
+                "remaining_time": task_tools.format_duration(remaining),
                 "task_avg_time": avg_time_str,
                 "history": list(history),
             }
@@ -655,7 +634,7 @@ class TaskGraph:
             "total_pending": totals["total_pending"],
             "total_failed": totals["total_failed"],
             "total_duplicated": totals["total_duplicated"],
-            "total_remain": format_duration(totals["total_remain"]),
+            "total_remain": task_tools.format_duration(totals["total_remain"]),
         }
 
         return status_dict
@@ -678,10 +657,10 @@ class TaskGraph:
         return self.structure_json
 
     def get_structure_list(self) -> List[str]:
-        return format_structure_list_from_graph(self.structure_json)
+        return task_tools.format_structure_list_from_graph(self.structure_json)
 
     def get_networkx_graph(self):
-        return format_networkx_graph(self.structure_json)
+        return task_tools.format_networkx_graph(self.structure_json)
 
     def get_error_jsonl_path(self) -> str:
         return os.path.abspath(self.error_jsonl_path)
@@ -692,7 +671,7 @@ class TaskGraph:
 
         input_ids: set = self.stage_runtime_dict[stage_tag]["input_ids"]
         descendants = self.ctree_client.descendants_batch(list(input_ids), "meta")
-        return format_event_forest(descendants)
+        return task_tools.format_event_forest(descendants)
 
     def analyze_graph(self):
         """
@@ -701,10 +680,10 @@ class TaskGraph:
         networkx_graph = self.get_networkx_graph()
         self.layers_dict = {}
 
-        self.isDAG = is_directed_acyclic_graph(networkx_graph)
+        self.isDAG = task_tools.is_directed_acyclic_graph(networkx_graph)
         if self.isDAG:
-            stage_level_dict = compute_node_levels(networkx_graph)
-            self.layers_dict = cluster_by_value_sorted(stage_level_dict)
+            stage_level_dict = task_tools.compute_node_levels(networkx_graph)
+            self.layers_dict = task_tools.cluster_by_value_sorted(stage_level_dict)
 
     def test_methods(
         self,
