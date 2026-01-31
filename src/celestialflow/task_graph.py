@@ -564,6 +564,10 @@ class TaskGraph:
             "total_remain": 0.0,
         }
 
+        # 为全局预计 remaining 收集
+        running_elapsed_map: Dict[str, float] = {}
+        running_processed_map: Dict[str, int] = {}
+        running_pending_map: Dict[str, int] = {}
         running_remaining_map: Dict[str, float] = {}
 
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
@@ -595,7 +599,7 @@ class TaskGraph:
             last_elapsed = last_stage_status_dict.get("elapsed_time", 0)
             last_pending = last_stage_status_dict.get("tasks_pending", 0)
             elapsed = task_tools.calc_elapsed(
-                start_time, last_elapsed, last_pending, interval
+                status, start_time, last_elapsed, last_pending, interval
             )
 
             # 估算剩余时间
@@ -605,6 +609,9 @@ class TaskGraph:
 
             if status == StageStatus.RUNNING:
                 totals["total_nodes"] += 1
+                running_elapsed_map[stage_tag] = float(elapsed or 0.0)
+                running_processed_map[stage_tag] = int(stage_counts["tasks_processed"] or 0)
+                running_pending_map[stage_tag] = int(stage_counts["tasks_pending"] or 0)
                 running_remaining_map[stage_tag] = float(remaining or 0.0)
 
             # 计算平均时间（秒/任务）并格式化为字符串
@@ -632,9 +639,15 @@ class TaskGraph:
                 "task_avg_time": avg_time_str,
                 "history": list(history),
             }
-        totals["total_remain"] = task_tools.calc_global_remain_dag_maxplus(
-            self.get_networkx_graph(), running_remaining_map
-        )
+
+        if not self.isDAG:
+            totals["total_remain"] = max(running_remaining_map.values())
+        else:
+            G = self.get_networkx_graph()
+            global_remain = task_tools.calc_global_remain_equal_pred(
+                G, running_processed_map, running_pending_map, running_elapsed_map
+            )
+            totals["total_remain"] = global_remain
 
         self.last_status_dict = status_dict
         self.graph_summary = dict(totals)
