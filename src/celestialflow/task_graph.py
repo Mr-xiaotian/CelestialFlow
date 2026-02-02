@@ -92,12 +92,12 @@ class TaskGraph:
         self.stage_runtime_dict: Dict[str, dict] = defaultdict(
             dict
         )  # 用于保存每个节点的运行信息
-        self.last_status_dict: Dict[str, dict] = defaultdict(
+        self.status_dict: Dict[str, dict] = defaultdict(
             dict
-        )  # 用于保存每个节点的上一次get_status_dict()返回的结果
+        )  # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
+        self.graph_summary: Dict[str, int | float] = {}
 
         self.total_error_num = 0
-        self.graph_summary = {}
 
     def init_resources(self):
         """
@@ -478,11 +478,12 @@ class TaskGraph:
             stage: TaskStage = stage_runtime["stage"]
             stage.release_queue()
 
+        self.handle_fail_queue()
         task_tools.cleanup_mpqueue(self.fail_queue)
 
     def handle_fail_queue(self):
         """
-        消费 fail_queue, 构建失败字典
+        消费 fail_queue, 存储错误数据到fallback
         """
         failures = []
         while True:
@@ -501,56 +502,10 @@ class TaskGraph:
             self.total_error_num += 1
 
         self._persist_failures(failures)
-
-    def _persist_structure_metadata(self):
+    
+    def collect_runtime_snapshot(self):
         """
-        在运行开始时写入任务结构元信息到 jsonl 文件
-        """
-        date_str = datetime.fromtimestamp(self.start_time).strftime("%Y-%m-%d")
-        time_str = datetime.fromtimestamp(self.start_time).strftime("%H-%M-%S-%f")[:-3]
-        self.error_jsonl_path = f"./fallback/{date_str}/graph_errors({time_str}).jsonl"
-
-        log_item = {
-            "timestamp": datetime.now().isoformat(),
-            "structure": self.get_structure_json(),
-        }
-        task_tools.append_jsonl_log(log_item, self.error_jsonl_path, self.task_logger)
-
-    def _persist_failures(self, failures: Iterable[tuple]):
-        """
-        批量写入多条错误日志到 jsonl 文件中
-
-        :param failures: 错误日志列表(错误时间戳, 阶段标签, 错误信息, 任务字符串)
-        """
-        if not failures:
-            return
-
-        log_items = (
-            {
-                "timestamp": datetime.fromtimestamp(ts).isoformat(),
-                "stage": stage_tag,
-                "error_repr": task_tools.format_repr(err, 100),
-                "task_repr": task_tools.format_repr(task, 100),
-                "error": err,
-                "task": task,
-                "error_id": err_id,
-                "ts": ts,
-            }
-            for ts, stage_tag, err, err_id, task in failures
-        )
-        task_tools.append_jsonl_logs(log_items, self.error_jsonl_path, self.task_logger)
-
-    def get_fail_by_stage_dict(self):
-        return task_tools.load_task_by_stage(self.error_jsonl_path)
-
-    def get_fail_by_error_dict(self):
-        return task_tools.load_task_by_error(self.error_jsonl_path)
-
-    def get_status_dict(self) -> Dict[str, dict]:
-        """
-        获取任务链的状态字典
-
-        :return: 任务链状态字典
+        收集运行时快照
         """
         status_dict = {}
         now = time.time()
@@ -573,7 +528,7 @@ class TaskGraph:
 
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
             stage: TaskStage = stage_runtime["stage"]
-            last_stage_status_dict: dict = self.last_status_dict.get(stage_tag, {})
+            last_stage_status_dict: dict = self.status_dict.get(stage_tag, {})
 
             status = stage.get_status()
 
@@ -650,11 +605,61 @@ class TaskGraph:
             )
             totals["total_remain"] = global_remain
 
-        self.last_status_dict = status_dict
+        self.status_dict = status_dict
         self.graph_summary = dict(totals)
 
-        return status_dict
+    def _persist_structure_metadata(self):
+        """
+        在运行开始时写入任务结构元信息到 jsonl 文件
+        """
+        date_str = datetime.fromtimestamp(self.start_time).strftime("%Y-%m-%d")
+        time_str = datetime.fromtimestamp(self.start_time).strftime("%H-%M-%S-%f")[:-3]
+        self.error_jsonl_path = f"./fallback/{date_str}/graph_errors({time_str}).jsonl"
 
+        log_item = {
+            "timestamp": datetime.now().isoformat(),
+            "structure": self.get_structure_json(),
+        }
+        task_tools.append_jsonl_log(log_item, self.error_jsonl_path, self.task_logger)
+
+    def _persist_failures(self, failures: Iterable[tuple]):
+        """
+        批量写入多条错误日志到 jsonl 文件中
+
+        :param failures: 错误日志列表(错误时间戳, 阶段标签, 错误信息, 任务字符串)
+        """
+        if not failures:
+            return
+
+        log_items = (
+            {
+                "timestamp": datetime.fromtimestamp(ts).isoformat(),
+                "stage": stage_tag,
+                "error_repr": task_tools.format_repr(err, 100),
+                "task_repr": task_tools.format_repr(task, 100),
+                "error": err,
+                "task": task,
+                "error_id": err_id,
+                "ts": ts,
+            }
+            for ts, stage_tag, err, err_id, task in failures
+        )
+        task_tools.append_jsonl_logs(log_items, self.error_jsonl_path, self.task_logger)
+
+    def get_fail_by_stage_dict(self):
+        return task_tools.load_task_by_stage(self.error_jsonl_path)
+
+    def get_fail_by_error_dict(self):
+        return task_tools.load_task_by_error(self.error_jsonl_path)
+
+    def get_status_dict(self) -> Dict[str, dict]:
+        """
+        获取任务链的状态字典
+
+        :return: 任务链状态字典
+        """
+        return self.status_dict
+    
     def get_graph_summary(self) -> dict:
         return self.graph_summary
 

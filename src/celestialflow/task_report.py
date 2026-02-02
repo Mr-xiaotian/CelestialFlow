@@ -169,6 +169,7 @@ class TaskReporter:
 
     def _push_status(self):
         try:
+            self.task_graph.collect_runtime_snapshot()
             status_data = self.task_graph.get_status_dict()
             payload = {"status": status_data}
             requests.post(
