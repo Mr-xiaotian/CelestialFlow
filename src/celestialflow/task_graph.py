@@ -97,6 +97,7 @@ class TaskGraph:
         )  # 用于保存每个节点的上一次get_status_dict()返回的结果
 
         self.total_error_num = 0
+        self.graph_summary = {}
 
     def init_resources(self):
         """
@@ -641,7 +642,7 @@ class TaskGraph:
             }
 
         if not self.isDAG:
-            totals["total_remain"] = max(running_remaining_map.values())
+            totals["total_remain"] = max(running_remaining_map.values(), default=0.0)
         else:
             G = self.get_networkx_graph()
             global_remain = task_tools.calc_global_remain_equal_pred(

@@ -283,13 +283,13 @@ class TaskLogger:
     def pull_interval_failed(self, exception):
         self._log(
             "WARNING",
-            f"[Reporter] Interval fetch failed: {type(exception).__name__}({exception}).",
+            f"[Reporter] Pull 'interval' failed: {type(exception).__name__}({exception}).",
         )
 
     def pull_tasks_failed(self, exception):
         self._log(
             "WARNING",
-            f"[Reporter] Task injection fetch failed: {type(exception).__name__}({exception}).",
+            f"[Reporter] Pull 'task injection' failed: {type(exception).__name__}({exception}).",
         )
 
     def inject_tasks_success(self, target_node, task_datas):
@@ -305,29 +305,29 @@ class TaskLogger:
     def push_errors_failed(self, exception):
         self._log(
             "WARNING",
-            f"[Reporter] Error push failed: {type(exception).__name__}({exception}).",
+            f"[Reporter] Push 'error' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_status_failed(self, exception):
         self._log(
             "WARNING",
-            f"[Reporter] Status push failed: {type(exception).__name__}({exception}).",
+            f"[Reporter] Push 'status' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_structure_failed(self, exception):
         self._log(
             "WARNING",
-            f"[Reporter] Structure push failed: {type(exception).__name__}({exception}).",
+            f"[Reporter] Push 'structure' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_topology_failed(self, exception):
         self._log(
             "WARNING",
-            f"[Reporter] Topology push failed: {type(exception).__name__}({exception}).",
+            f"[Reporter] Push 'topology' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_summary_failed(self, exception):
         self._log(
             "WARNING",
-            f"[Reporter] Summary push failed: {type(exception).__name__}({exception}).",
+            f"[Reporter] Push 'summary' failed: {type(exception).__name__}({exception}).",
         )
