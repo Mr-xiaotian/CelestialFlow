@@ -176,6 +176,7 @@ flowchart TD
 - [TaskTools](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_tools.md)
 - [TaskTypes](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_types.md)
 - [TaskLogging](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_logging.md)
+- [TaskErrors](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_errors.md)
 
 如果你更喜欢通过完整案例理解框架的运行方式，可以参考这篇从零开始构建 TaskGraph 的教程：
 
@@ -211,7 +212,7 @@ flowchart TD
   <em>celestial-flow 3.1.0</em>
 </p>
 
-(该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。)
+(该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 更新日志（Change Log）
 

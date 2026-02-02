@@ -110,11 +110,11 @@ from celestialflow import TaskExecutor
 
 class ExampleTaskExecutor(TaskExecutor):
     def get_args(task):
-        # 可以在 get_args 中对输入参数进行筛选, 或者预处理
+        # 可以在 get_args 中对输入参数进行预处理
         # 在组成 TaskGraph 时这一点尤其重要, 因为上游传递的任务未必是自己需要的形式
         num1, num2 = task
-        if num1 < 0 or num2 < 0>:
-            raise ValueError("num must large than 0.") 
+        num1 = num1 if num1 < 0 else 0
+        num2 = num2 if num2 > 0 else 0
         return num1, num2 # get_args返回的必须是一个可迭代对象, 默认为(task, )
 
     def process_result(task, result):
