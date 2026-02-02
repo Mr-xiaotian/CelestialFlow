@@ -6,6 +6,7 @@ from multiprocessing import Queue as MPQueue
 from asyncio import Queue as AsyncQueue, QueueEmpty as AsyncEmpty
 from queue import Queue as ThreadQueue, Empty as SyncEmpty
 
+from .task_errors import InvalidOptionError
 from .task_types import TaskEnvelope, TerminationSignal, TERMINATION_SIGNAL
 from .task_logging import TaskLogger
 
@@ -22,8 +23,10 @@ class TaskQueue:
     ):
         if len(queue_list) != len(queue_tags):
             raise ValueError("queue_list and queue_tags must have the same length")
-        if direction not in ["in", "out"]:
-            raise ValueError("direction must be 'in' or 'out'")
+        
+        valid_dirextions = ("in", "out")
+        if direction not in valid_dirextions:
+            raise InvalidOptionError("direction", direction, valid_dirextions)
 
         self.queue_list = queue_list
         self.queue_tags = queue_tags

@@ -5,6 +5,7 @@ from typing import List
 from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 
+from .task_errors import ExecutionModeError, StageModeError
 from .task_executor import TaskExecutor
 from .task_queue import TaskQueue
 from .task_types import StageStatus, SumCounter, TERMINATION_SIGNAL
@@ -47,13 +48,11 @@ class TaskStage(TaskExecutor):
 
         :param execution_mode: 执行模式，在 stage 中可以是 'thread'（线程）, 'serial'（串行）
         """
-        if execution_mode in ["thread", "serial"]:
+        valid_modes = ("thread", "serial")
+        if execution_mode in valid_modes:
             self.execution_mode = execution_mode
         else:
-            raise ValueError(
-                f"Invalid execution mode: {execution_mode}. "
-                "Valid options are 'thread', 'serial'."
-            )
+            raise ExecutionModeError(execution_mode, valid_modes)
 
     def set_graph_context(
         self,
@@ -94,10 +93,7 @@ class TaskStage(TaskExecutor):
         elif stage_mode == "serial":
             self.stage_mode = "serial"
         else:
-            raise ValueError(
-                f"Invalid stage mode: {stage_mode}. "
-                "Valid options are 'serial' and 'process'"
-            )
+            raise StageModeError(stage_mode)
 
     def add_prev_stages(self, prev_stage: TaskStage):
         """
@@ -150,15 +146,17 @@ class TaskStage(TaskExecutor):
 
         self._pending_prev_bindings.clear()
 
-    def get_stage_summary(self) -> dict:
+    def get_summary(self) -> dict:
         """
         获取当前节点的状态快照
+            - actor_name / execution_mode 等来自 TaskExecutor（执行实体视角）
+            - stage_name / stage_mode 表示任务图中的逻辑节点语义
 
         :return: 当前节点状态快照
-        包括节点名称(actor_name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)、节点模式(stage_mode)
+        包括执行器名称(actor_name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)、节点名称(stage_name)、节点模式(stage_mode)
         """
         return {
-            **self.get_summary(),
+            **super().get_summary(),
             "stage_name": self.get_name(),
             "stage_mode": self.stage_mode,
         }
@@ -229,10 +227,7 @@ class TaskStage(TaskExecutor):
             elif self.execution_mode == "serial":
                 self.run_in_serial()
             else:
-                raise ValueError(
-                    f"Invalid execution mode: {self.execution_mode}. "
-                    "Valid options are 'thread' and 'serial'."
-                )
+                raise ExecutionModeError(self.execution_mode)
 
         finally:
             self.mark_stopped()

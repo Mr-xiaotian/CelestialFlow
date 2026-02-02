@@ -12,6 +12,7 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
+from .task_errors import ExecutionModeError
 from .task_progress import TaskProgress, NullTaskProgress
 from .task_logging import LogListener, TaskLogger
 from .task_queue import TaskQueue
@@ -228,13 +229,11 @@ class TaskExecutor:
 
         :param execution_mode: 执行模式，可以是 'thread'（线程）, 'process'（进程）, 'async'（异步）, 'serial'（串行）
         """
-        if execution_mode in ["thread", "process", "async", "serial"]:
+        valid_modes = ("serial", "process", "thread", "async")
+        if execution_mode in valid_modes:
             self.execution_mode = execution_mode
         else:
-            raise ValueError(
-                f"Invalid execution mode: {execution_mode}. "
-                "Valid options are 'thread', 'process', 'async', 'serial'."
-            )
+            raise ExecutionModeError(execution_mode)
 
     def set_ctree(self, host: str = "127.0.0.1", port: int = 7777):
         """
@@ -261,22 +260,7 @@ class TaskExecutor:
 
         :param log_level: 日志级别
         """
-        log_level = log_level.upper()
-        if log_level in [
-            "TRACE",
-            "DEBUG",
-            "SUCCESS",
-            "INFO",
-            "WARNING",
-            "ERROR",
-            "CRITICAL",
-        ]:
-            self.log_level = log_level
-        else:
-            raise ValueError(
-                f"Invalid log level: {log_level}. "
-                "Valid options are 'TRACE', 'DEBUG', 'SUCCESS', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'."
-            )
+        self.log_level = log_level.upper()
 
     def reset_counter(self):
         """
@@ -347,7 +331,7 @@ class TaskExecutor:
         获取当前节点的状态快照
 
         :return: 当前节点状态快照
-        包括节点名称(actor_name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)
+        包括执行器名称(actor_name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)
         """
         return {
             "actor_name": self.get_name(),
@@ -856,10 +840,7 @@ class TaskExecutor:
                 self.set_execution_mode("serial")
                 self.run_in_serial()
             else:
-                raise ValueError(
-                    f"Invalid execution mode: {self.execution_mode}. "
-                    "Valid options are 'thread', 'process', 'async', 'serial'."
-                )
+                raise ExecutionModeError(self.execution_mode)
 
         finally:
             self.release_pool()

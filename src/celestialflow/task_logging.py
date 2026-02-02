@@ -6,6 +6,7 @@ from typing import List
 
 from loguru import logger as loguru_logger
 
+from .task_errors import LogLevelError
 from .task_types import TerminationSignal, TERMINATION_SIGNAL
 
 
@@ -34,7 +35,7 @@ class LogListener:
         self._thread = Thread(target=self._listen, daemon=True)
 
         if self.level not in LEVEL_DICT:
-            raise ValueError(f"Invalid log level: {self.level}")
+            raise LogLevelError(self.level)
 
     def start(self):
         loguru_logger.remove()
@@ -78,7 +79,7 @@ class TaskLogger:
         self.log_level: str = log_level.upper()
 
         if self.log_level not in LEVEL_DICT:
-            raise ValueError(f"Invalid log level: {self.log_level}")
+            raise LogLevelError(self.log_level)
 
     def _log(self, level: str, message: str):
         level_upper = level.upper()

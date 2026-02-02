@@ -57,7 +57,7 @@ def _build_structure_subgraph(
     """
     stage_tag = task_stage.get_tag()
     node = {
-        **task_stage.get_stage_summary(),
+        **task_stage.get_summary(),
         "is_ref": False,
         "next_stages": [],
     }

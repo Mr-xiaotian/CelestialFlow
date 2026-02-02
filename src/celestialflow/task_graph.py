@@ -629,7 +629,7 @@ class TaskGraph:
             history.pop(0) if len(history) > 20 else None
 
             status_dict[stage_tag] = {
-                **stage.get_stage_summary(),
+                **stage.get_summary(),
                 "status": status,
                 **stage_counts,
                 **deltas,

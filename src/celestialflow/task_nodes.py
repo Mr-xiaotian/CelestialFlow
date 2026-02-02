@@ -3,12 +3,9 @@ import time
 import redis
 from multiprocessing import Value as MPValue
 
+from .task_errors import RemoteWorkerError, InvalidOptionError
 from .task_stage import TaskStage
 from .task_types import TaskEnvelope
-
-
-class RemoteWorkerError(Exception):
-    pass
 
 
 class TaskSplitter(TaskStage):
@@ -114,7 +111,7 @@ class TaskRouter(TaskStage):
         if not (isinstance(routed, tuple) and len(routed) == 2):
             raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
         if routed[0] not in self.route_counters:
-            raise ValueError(f"Unknown target: {routed[0]}")
+            raise InvalidOptionError("Unknown target", routed[0], self.route_counters.keys())
         return routed
 
     def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):
@@ -357,7 +354,7 @@ class TaskRedisAck(TaskStage):
                     raise RemoteWorkerError(result_obj.get("error"))
 
                 else:
-                    raise ValueError(f"Unknown ack status: {result_obj}")
+                    raise RemoteWorkerError(f"Unknown ack status: {result_obj}")
 
             # 超时控制
             if self._timeout and (time.time() - start_time) > self._timeout:
