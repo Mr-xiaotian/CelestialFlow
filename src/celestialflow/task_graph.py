@@ -563,15 +563,16 @@ class TaskGraph:
 
             # 估算剩余时间
             remaining = task_tools.calc_remaining(
-                elapsed, stage_counts["tasks_pending"], stage_counts["tasks_processed"]
+                stage_counts["tasks_processed"], stage_counts["tasks_pending"], elapsed
             )
 
             if status == StageStatus.RUNNING:
                 totals["total_nodes"] += 1
-                running_elapsed_map[stage_tag] = float(elapsed or 0.0)
-                running_processed_map[stage_tag] = int(stage_counts["tasks_processed"] or 0)
-                running_pending_map[stage_tag] = int(stage_counts["tasks_pending"] or 0)
-                running_remaining_map[stage_tag] = float(remaining or 0.0)
+
+            running_processed_map[stage_tag] = int(stage_counts["tasks_processed"] or 0)
+            running_pending_map[stage_tag] = int(stage_counts["tasks_pending"] or 0)
+            running_elapsed_map[stage_tag] = float(elapsed or 0.0)
+            running_remaining_map[stage_tag] = float(remaining or 0.0)
 
             # 计算平均时间（秒/任务）并格式化为字符串
             avg_time_str = task_tools.format_avg_time(
@@ -603,10 +604,10 @@ class TaskGraph:
             totals["total_remain"] = max(running_remaining_map.values(), default=0.0)
         else:
             G = self.get_networkx_graph()
-            global_remain = task_tools.calc_global_remain_equal_pred(
+            expected_pending_map = task_tools.calc_global_remain_equal_pred(
                 G, running_processed_map, running_pending_map, running_elapsed_map
             )
-            totals["total_remain"] = global_remain
+            totals["total_remain"] = max(expected_pending_map.values(), default=0.0)
 
         self.status_dict = status_dict
         self.graph_summary = dict(totals)
