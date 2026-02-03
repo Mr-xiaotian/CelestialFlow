@@ -3,6 +3,8 @@ from typing import List
 from threading import Lock
 from multiprocessing import Value as MPValue
 
+from celestialtree import NodeLabelStyle
+
 
 class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
@@ -122,3 +124,8 @@ class TaskEnvelope:
     def change_id(self, new_id):
         """修改 id"""
         self.id = new_id
+
+
+STAGE_STYLE = NodeLabelStyle(
+    template="{base}  {payload.actor_name}  ‹{type}›", missing="-"
+)

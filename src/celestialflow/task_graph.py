@@ -10,6 +10,8 @@ from typing import Any, Dict, List
 from celestialtree import (
     Client as CelestialTreeClient,
     NullClient as NullCelestialTreeClient,
+    format_descendants_forest,
+    format_provenance_forest,
 )
 
 from . import task_tools
@@ -23,6 +25,7 @@ from .task_types import (
     UnconsumedError,
     TerminationSignal,
     TERMINATION_SIGNAL,
+    STAGE_STYLE,
 )
 
 
@@ -96,6 +99,7 @@ class TaskGraph:
             dict
         )  # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
         self.graph_summary: Dict[str, int | float] = {}
+        self.input_ids: Dict[str, set] = defaultdict(set)
 
         self.total_error_num = 0
 
@@ -121,7 +125,6 @@ class TaskGraph:
 
             # 记录节点
             stage_runtime["stage"] = stage
-            stage_runtime["input_ids"] = set()
 
             stage_runtime["in_queue"] = TaskQueue(
                 queue_list=[],
@@ -282,7 +285,7 @@ class TaskGraph:
         for tag, tasks in tasks_dict.items():
             stage: TaskStage = self.stage_runtime_dict[tag]["stage"]
             in_queue: TaskQueue = self.stage_runtime_dict[tag]["in_queue"]
-            input_ids: set = self.stage_runtime_dict[tag]["input_ids"]
+            input_ids: set = self.input_ids[tag]
 
             for task in tasks:
                 if isinstance(task, TerminationSignal):
@@ -690,9 +693,13 @@ class TaskGraph:
         if not self._use_ctree:
             return ""
 
-        input_ids: set = self.stage_runtime_dict[stage_tag]["input_ids"]
+        input_ids: set = self.input_ids[stage_tag]
         descendants = self.ctree_client.descendants_batch(list(input_ids), "meta")
-        return task_tools.format_event_forest(descendants)
+        return format_descendants_forest(descendants, STAGE_STYLE)
+    
+    def get_error_trace(self, error_id):
+        provenance = self.ctree_client.provenance(error_id)
+        return format_provenance_forest(provenance, STAGE_STYLE)
 
     def analyze_graph(self):
         """

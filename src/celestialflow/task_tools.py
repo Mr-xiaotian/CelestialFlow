@@ -16,15 +16,7 @@ from threading import Lock
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Set, Optional
 
-from celestialtree import (
-    NodeLabelStyle,
-    format_descendants_forest,
-    format_provenance_forest,
-)
-
-from .task_types import (
-    ValueWrapper,
-)
+from .task_types import ValueWrapper
 from .task_queue import TaskQueue
 
 if TYPE_CHECKING:
@@ -368,13 +360,6 @@ def format_duration(seconds: int) -> str:
 def format_timestamp(timestamp) -> str:
     """将时间戳格式化为 YYYY-MM-DD HH:MM:SS"""
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
-
-
-def format_event_forest(event_forest: List[Dict]) -> str:
-    style = NodeLabelStyle(
-        template="{base}  {payload.actor_name}  ‹{type}›", missing="-"
-    )
-    return format_descendants_forest(event_forest, style)
 
 
 def format_avg_time(elapsed: float, processed: int) -> str:
