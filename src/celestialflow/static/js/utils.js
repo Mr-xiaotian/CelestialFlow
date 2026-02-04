@@ -65,7 +65,7 @@ function toggleDarkTheme() {
 
 // task_statuses.js
 function formatDuration(seconds) {
-  seconds = Math.floor(seconds);
+  seconds = seconds > 0 ? Math.max(1, Math.floor(seconds)) : 0;
 
   const hours = Math.floor(seconds / 3600);
   const remainder = seconds % 3600;

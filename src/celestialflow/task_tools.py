@@ -597,7 +597,7 @@ def make_taskqueue(
 
 
 # ==== calculate ====
-def calc_remaining(elapsed: float, pending: int, processed: int) -> float:
+def calc_remaining(processed: int, pending: int, elapsed: float) -> float:
     if processed and pending:
         return pending / processed * elapsed
     return 0
@@ -624,7 +624,7 @@ def calc_global_remain_equal_pred(
     processed_map: Dict[str, int],
     pending_map: Dict[str, int],
     elapsed_map: Dict[str, float],
-) -> float:
+) -> Dict[str, float]:
     """
     基于任务图（DAG）估算全局剩余执行时间（偏保守 / 拥塞放大型）。
 
@@ -684,9 +684,9 @@ def calc_global_remain_equal_pred(
     :param pending_map   : 每个节点当前剩余的任务数量
     :param elapsed_map   : 每个节点已消耗的执行时间（秒）
 
-    :return: global_remain_seconds : 估算得到的全局剩余执行时间（秒）
+    :return: expected_pending_map : 估算得到的全局剩余执行时间（秒）
     """
-    expected_remain_time: Dict[str, float] = {}
+    expected_pending_map: Dict[str, float] = {}
 
     # 每个节点的 scale（上游放大系数）
     scale: Dict[str, float] = {}
@@ -694,6 +694,7 @@ def calc_global_remain_equal_pred(
     for v in nx.topological_sort(G):
         proc_v = float(processed_map.get(v, 0) or 0)
         pend_v = float(pending_map.get(v, 0) or 0)
+        elapsed_v = float(elapsed_map.get(v, 0.0) or 0.0)
         seen_v = proc_v + pend_v
 
         preds = list(G.predecessors(v))
@@ -708,20 +709,12 @@ def calc_global_remain_equal_pred(
                 total_v += obs_each * scale.get(u, 1.0)
 
         scale[v] = total_v / max(1.0, proc_v)  # 下游放大系数
-        remain_tasks_v = max(0.0, total_v - proc_v)
+        expect_pend_v = max(0.0, total_v - proc_v)
 
         # 时间估算：需要 avg time（秒/任务）
-        elapsed_v = float(elapsed_map.get(v, 0.0) or 0.0)
-        if proc_v > 0 and elapsed_v > 0:
-            avg = elapsed_v / proc_v
-            expected_remain_time[v] = remain_tasks_v * avg
-        else:
-            expected_remain_time[v] = 0  # 还没处理过任务，无法估（先标 0）
+        expected_pending_map[v] = calc_remaining(proc_v, expect_pend_v, elapsed_v)
 
-    # 全局：取可用的最大值
-    global_remain = max(expected_remain_time.values(), default=0.0)
-
-    return global_remain
+    return expected_pending_map
 
 
 # ==== other ====

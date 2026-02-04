@@ -101,39 +101,28 @@ def add_25(x):
 def test_chain():
     # 构建 DAG: A ➝ B ➝ C ➝ D ➝ E
     stageA = TaskStage(
-        operate_sleep_A, execution_mode="serial", worker_limit=2, unpack_task_args=True
+        square, execution_mode="serial", worker_limit=2
     )
     stageB = TaskStage(
-        operate_sleep_B, execution_mode="serial", worker_limit=2, unpack_task_args=True
+        square, execution_mode="serial", worker_limit=2
     )
     stageC = TaskStage(
-        operate_sleep_C, execution_mode="serial", worker_limit=2, unpack_task_args=True
+        square, execution_mode="serial", worker_limit=2
     )
     stageD = TaskStage(
-        operate_sleep_D, execution_mode="serial", worker_limit=2, unpack_task_args=True
+        square, execution_mode="serial", worker_limit=2
     )
     stageE = TaskStage(
-        operate_sleep_E, execution_mode="serial", worker_limit=2, unpack_task_args=True
+        square, execution_mode="serial", worker_limit=2
     )
 
     # 设置图结构
     chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "process")
-    chain.set_reporter(True, host=report_host, port=report_port)
+    chain.set_reporter(True, host="127.0.0.1", port="5005")
 
     chain.start_chain(
         {
-            stageA.get_tag(): [
-                (0, 6),
-                (3, 7),
-                (6, 8),
-                (9, 12),
-                (12, 16),
-                (15, 25),
-                (18, 26),
-                (21, 29),
-                (24, 30),
-                (27, 32),
-            ],
+            stageA.get_tag(): range(20),
         }
     )
 
