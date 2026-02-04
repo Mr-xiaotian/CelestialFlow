@@ -15,10 +15,10 @@ LEVEL_DICT = {
     "TRACE": 0,
     "DEBUG": 10,
     "SUCCESS": 20,
-    "INFO": 20,
-    "WARNING": 30,
-    "ERROR": 40,
-    "CRITICAL": 50,
+    "INFO": 30,
+    "WARNING": 40,
+    "ERROR": 50,
+    "CRITICAL": 60,
 }
 
 
@@ -27,7 +27,7 @@ class LogListener:
     日志监听进程，用于将日志写入文件
     """
 
-    def __init__(self, level="INFO"):
+    def __init__(self, level="SUCCESS"):
         now = strftime("%Y-%m-%d", localtime())
         self.log_path = f"logs/task_logger({now}).log"
         self.level = level.upper()
@@ -74,7 +74,7 @@ class TaskLogger:
     多进程安全日志包装类，所有日志通过队列发送到监听进程写入
     """
 
-    def __init__(self, log_queue, log_level="INFO"):
+    def __init__(self, log_queue, log_level="SUCCESS"):
         self.log_queue: MPQueue = log_queue
         self.log_level: str = log_level.upper()
 

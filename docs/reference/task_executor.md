@@ -40,7 +40,7 @@ task_executor = TaskExecutor(
     enable_duplicate_check=True, # 是否启用重复检查
     show_progress=True,          # 是否显示进度
     progress_desc="Processing",  # 进度条信息
-    log_level="INFO",            # 日志级别
+    log_level="SUCCESS",         # 日志级别
 )
 ```
 

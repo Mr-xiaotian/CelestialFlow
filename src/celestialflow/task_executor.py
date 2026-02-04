@@ -41,7 +41,7 @@ class TaskExecutor:
         enable_duplicate_check=True,
         show_progress=False,
         progress_desc="Executing",
-        log_level="INFO",
+        log_level="SUCCESS",
     ):
         """
         初始化 TaskExecutor

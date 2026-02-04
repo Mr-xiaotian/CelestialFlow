@@ -6,7 +6,7 @@ from .task_graph import TaskGraph
 
 # ========有向无环图(DAG)========
 class TaskChain(TaskGraph):
-    def __init__(self, stages: List[TaskStage], chain_mode: str = "serial", log_levle: str = "INFO"):
+    def __init__(self, stages: List[TaskStage], chain_mode: str = "serial", log_level: str = "SUCCESS"):
         """
         TaskChain: 线性任务链结构
         该结构将多个 TaskStage 节点按顺序连接，形成一个线性的数据流图。
@@ -20,7 +20,7 @@ class TaskChain(TaskGraph):
             stage.set_graph_context(next_stages, chain_mode, stage_name)
 
         root_stage = stages[0]
-        super().__init__(root_stages=[root_stage], log_level=log_levle)
+        super().__init__(root_stages=[root_stage], log_level=log_level)
 
     def start_chain(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
@@ -33,7 +33,7 @@ class TaskChain(TaskGraph):
 
 
 class TaskCross(TaskGraph):
-    def __init__(self, layers: List[List[TaskStage]], schedule_mode: str = "eager", log_levle: str = "INFO"):
+    def __init__(self, layers: List[List[TaskStage]], schedule_mode: str = "eager", log_level: str = "SUCCESS"):
         """
         TaskCross: 多层任务交叉结构
         该结构将任务按“层”组织，每层可以包含多个并行执行的 TaskStage 节点，
@@ -55,7 +55,7 @@ class TaskCross(TaskGraph):
                     stage_mode="process",
                     stage_name=f"Layer{i+1}-{index+1}",
                 )
-        super().__init__(root_stages=layers[0], schedule_mode=schedule_mode, log_level=log_levle)
+        super().__init__(root_stages=layers[0], schedule_mode=schedule_mode, log_level=log_level)
 
     def start_cross(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
@@ -68,7 +68,7 @@ class TaskCross(TaskGraph):
 
 
 class TaskGrid(TaskGraph):
-    def __init__(self, grid: List[List[TaskStage]], schedule_mode: str = "eager", log_levle: str = "INFO"):
+    def __init__(self, grid: List[List[TaskStage]], schedule_mode: str = "eager", log_level: str = "SUCCESS"):
         """
         TaskGrid: 任务网格结构
         该结构将任务节点组织成二维网格形式，每个节点连接其右侧和下方的节点，
@@ -89,7 +89,7 @@ class TaskGrid(TaskGraph):
                 if j + 1 < cols:
                     nexts.append(grid[i][j + 1])  # right
                 curr.set_graph_context(nexts, "process", f"Grid-{i+1}-{j+1}")
-        super().__init__(root_stages=[grid[0][0]], schedule_mode=schedule_mode, log_level=log_levle)  # 起点为左上角
+        super().__init__(root_stages=[grid[0][0]], schedule_mode=schedule_mode, log_level=log_level)  # 起点为左上角
 
     def start_grid(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
@@ -103,7 +103,7 @@ class TaskGrid(TaskGraph):
 
 # ========有环图========
 class TaskLoop(TaskGraph):
-    def __init__(self, stages: List[TaskStage], log_levle: str = "INFO"):
+    def __init__(self, stages: List[TaskStage], log_level: str = "SUCCESS"):
         """
         TaskLoop:  任务环结构
         由于环的结构特性, 强制使用 'eager' 节点模式
@@ -115,7 +115,7 @@ class TaskLoop(TaskGraph):
             next_stages = [stages[num + 1]] if num < len(stages) - 1 else [stages[0]]
             stage.set_graph_context(next_stages, "process", stage_name)
 
-        super().__init__(root_stages=[stages[0]], log_level=log_levle)
+        super().__init__(root_stages=[stages[0]], log_level=log_level)
 
     def start_loop(self, init_tasks_dict: dict, put_termination_signal: bool = False):
         """
@@ -128,7 +128,7 @@ class TaskLoop(TaskGraph):
 
 
 class TaskWheel(TaskGraph):
-    def __init__(self, center: TaskStage, ring: List[TaskStage], log_levle: str = "INFO"):
+    def __init__(self, center: TaskStage, ring: List[TaskStage], log_level: str = "SUCCESS"):
         """
         wheel: 特殊的有环图, 他有结构意义上的起点, 中心节点连向环, 环相连成闭环
         由于环的结构特性, 强制使用 'eager' 节点模式
@@ -142,7 +142,7 @@ class TaskWheel(TaskGraph):
         for i, node in enumerate(ring):
             next_stage = ring[(i + 1) % len(ring)]
             node.set_graph_context([next_stage], "process", f"Ring-{i+1}")
-        super().__init__(root_stages=[center], log_level=log_levle)
+        super().__init__(root_stages=[center], log_level=log_level)
 
     def start_wheel(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
@@ -155,7 +155,7 @@ class TaskWheel(TaskGraph):
 
 
 class TaskComplete(TaskGraph):
-    def __init__(self, stages: List[TaskStage], log_levle: str = "INFO"):
+    def __init__(self, stages: List[TaskStage], log_level: str = "SUCCESS"):
         """
         TaskComplete: 完全图结构，每个节点都连向除自己以外的所有其他节点
 
@@ -169,7 +169,7 @@ class TaskComplete(TaskGraph):
                 stage_name=f"Node {i + 1}",
             )
 
-        super().__init__(root_stages=stages, log_level=log_levle)
+        super().__init__(root_stages=stages, log_level=log_level)
 
     def start_complete(
         self, init_tasks_dict: dict, put_termination_signal: bool = False

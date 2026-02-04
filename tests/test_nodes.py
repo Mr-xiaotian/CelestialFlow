@@ -179,10 +179,10 @@ def test_splitter_0():
 
 def test_splitter_1():
     # 定义任务节点
-    task_splitter = TaskSplitter(log_level="ERROR")
+    task_splitter = TaskSplitter()
     process_stage = TaskStage(no_op, execution_mode="thread", worker_limit=50)
 
-    chain = TaskChain([task_splitter, process_stage], "process")
+    chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(True, host=ctree_host, port=ctree_port, grpc_port=ctree_grpc_port)
 

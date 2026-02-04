@@ -34,7 +34,7 @@ class TaskGraph:
         self,
         root_stages: List[TaskStage],
         schedule_mode: str = "eager",
-        log_level: str = "INFO",
+        log_level: str = "SUCCESS",
     ):
         """
         初始化 TaskGraph 实例。
@@ -245,11 +245,11 @@ class TaskGraph:
         else:
             self.ctree_client = NullCelestialTreeClient()
 
-    def set_log_level(self, level="INFO"):
+    def set_log_level(self, level="SUCCESS"):
         """
         设置日志级别
 
-        :param level: 日志级别, 默认为 "INFO"
+        :param level: 日志级别, 默认为 "SUCCESS"
         """
         self.log_level = level.upper()
 
