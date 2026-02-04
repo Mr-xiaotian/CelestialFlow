@@ -38,7 +38,7 @@ class TaskSplitter(TaskStage):
     def put_split_result(self, result: tuple, task_id: int) -> int:
         split_count = len(result)
         for idx, item in enumerate(result):
-            split_id = self.ctree_client.emit(
+            split_id = self.ctree_client.emit_grpc(
                 "task.split",
                 parents=[task_id],
                 payload=self.get_summary(),
@@ -131,7 +131,7 @@ class TaskRouter(TaskStage):
         # 清理 retry_time_dict
         self.retry_time_dict.pop(task_hash, None)
 
-        route_id = self.ctree_client.emit(
+        route_id = self.ctree_client.emit_grpc(
             "task.route",
             parents=[task_id],
             payload=self.get_summary(),

@@ -22,6 +22,7 @@ redis_password = os.getenv("REDIS_PASSWORD")
 
 ctree_host = os.getenv("CTREE_HOST")
 ctree_port = os.getenv("CTREE_PORT")
+ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
 
 
 class DownloadRedisSink(TaskRedisSink):
@@ -178,11 +179,12 @@ def test_splitter_0():
 
 def test_splitter_1():
     # 定义任务节点
-    task_splitter = TaskSplitter()
+    task_splitter = TaskSplitter(log_level="ERROR")
     process_stage = TaskStage(no_op, execution_mode="thread", worker_limit=50)
 
     chain = TaskChain([task_splitter, process_stage], "process")
     chain.set_reporter(True, host=report_host, port=report_port)
+    chain.set_ctree(True, host=ctree_host, port=ctree_port, grpc_port=ctree_grpc_port)
 
     chain.start_chain(
         {

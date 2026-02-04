@@ -235,14 +235,14 @@ class TaskExecutor:
         else:
             raise ExecutionModeError(execution_mode)
 
-    def set_ctree(self, host: str = "127.0.0.1", port: int = 7777):
+    def set_ctree(self, host: str = "127.0.0.1", port: int = 7777, grpc_port: int = 7778):
         """
         设置CelestialTreeClient
 
         :param host: CelestialTreeClient host
         :param port: CelestialTreeClient port
         """
-        self.ctree_client = CelestialTreeClient(host=host, port=port)
+        self.ctree_client = CelestialTreeClient(host=host, port=port, grpc_port=grpc_port)
         if not self.ctree_client.health():
             self.ctree_client = NullCelestialTreeClient()
 
@@ -379,7 +379,7 @@ class TaskExecutor:
         """
         progress_num = 0
         for task in task_source:
-            input_id = self.ctree_client.emit(
+            input_id = self.ctree_client.emit_grpc(
                 "task.input",
                 payload=self.get_summary(),
             )
@@ -406,7 +406,7 @@ class TaskExecutor:
         """
         progress_num = 0
         for task in task_source:
-            input_id = self.ctree_client.emit(
+            input_id = self.ctree_client.emit_grpc(
                 "task.input",
                 payload=self.get_summary(),
             )
@@ -596,7 +596,7 @@ class TaskExecutor:
         if self.enable_success_cache:
             self.success_dict[task] = processed_result
 
-        result_id = self.ctree_client.emit(
+        result_id = self.ctree_client.emit_grpc(
             "task.success",
             parents=[task_id],
             payload=self.get_summary(),
@@ -636,7 +636,7 @@ class TaskExecutor:
         if self.enable_success_cache:
             self.success_dict[task] = processed_result
 
-        result_id = self.ctree_client.emit(
+        result_id = self.ctree_client.emit_grpc(
             "task.success",
             parents=[task_id],
             payload=self.get_summary(),
@@ -681,7 +681,7 @@ class TaskExecutor:
             self.processed_set.discard(task_hash)
             self.retry_time_dict[task_hash] += 1
 
-            retry_id = self.ctree_client.emit(
+            retry_id = self.ctree_client.emit_grpc(
                 f"task.retry.{retry_time+1}",
                 parents=[task_id],
                 payload=self.get_summary(),
@@ -702,7 +702,7 @@ class TaskExecutor:
             if self.enable_error_cache:
                 self.error_dict[task] = exception
 
-            error_id = self.ctree_client.emit(
+            error_id = self.ctree_client.emit_grpc(
                 "task.error",
                 parents=[task_id],
                 payload=self.get_summary(),
@@ -746,7 +746,7 @@ class TaskExecutor:
             self.processed_set.discard(task_hash)
             self.retry_time_dict[task_hash] += 1
 
-            retry_id = self.ctree_client.emit(
+            retry_id = self.ctree_client.emit_grpc(
                 f"task.retry.{retry_time+1}",
                 parents=[task_id],
                 payload=self.get_summary(),
@@ -769,7 +769,7 @@ class TaskExecutor:
             if self.enable_error_cache:
                 self.error_dict[task] = exception
 
-            error_id = self.ctree_client.emit(
+            error_id = self.ctree_client.emit_grpc(
                 "task.error",
                 parents=[task_id],
                 payload=self.get_summary(),
@@ -796,7 +796,7 @@ class TaskExecutor:
         task_id = task_envelope.id
 
         self.update_duplicate_counter()
-        duplicate_id = self.ctree_client.emit(
+        duplicate_id = self.ctree_client.emit_grpc(
             "task.duplicate",
             parents=[task_envelope.id],
             payload=self.get_summary(),
