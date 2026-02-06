@@ -83,7 +83,7 @@ enable_error_cache: 是否启用失败结果缓存, 将失败结果保存在 err
 enable_duplicate_check: 是否启用重复检查
 show_progress: 是否显示任务进度条，默认不显示。
 progress_desc: 进度条的描述文字，用于标识任务类型。
-log_level: 日志级别，默认为 'INFO'。
+log_level: 日志级别，默认为 'SUCCESS'。
 
 ### 常用方法
 start(task_list: List): 启动任务执行，task_list 是任务列表，每个任务的格式取决于你在 get_args 中如何定义。

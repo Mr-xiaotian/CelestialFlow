@@ -57,7 +57,7 @@ class TaskGraph:
                 节点按层级顺序逐层启动，确保上层所有任务完成后再启动下一层。
                 更利于调试、性能分析和阶段性资源控制。
 
-        :param log_level: str, optional, default = 'INFO'
+        :param log_level: str, optional, default = 'SUCCESS'
             日志级别，支持以下级别：
             - 'TRACE'
             - 'DEBUG'
@@ -239,7 +239,7 @@ class TaskGraph:
         self._ctree_grpc_port = grpc_port
 
         if use_ctree:
-            self.ctree_client = CelestialTreeClient(host=host, port=port, grpc_port=grpc_port)
+            self.ctree_client = CelestialTreeClient(host=host, port=port, grpc_port=grpc_port, transport="grpc")
             if not self.ctree_client.health():
                 raise Exception("CelestialTreeClient is not available")
         else:
@@ -293,7 +293,7 @@ class TaskGraph:
                     in_queue.put(TERMINATION_SIGNAL)
                     continue
 
-                input_id = self.ctree_client.emit_grpc(
+                input_id = self.ctree_client.emit(
                     "task.input",
                     payload=stage.get_summary(),
                 )
@@ -451,7 +451,7 @@ class TaskGraph:
             for source in remaining_sources:
                 task = source.task
                 task_id = source.id
-                error_id = self.ctree_client.emit_grpc(
+                error_id = self.ctree_client.emit(
                     "task.error",
                     [task_id],
                     payload=stage.get_summary(),
