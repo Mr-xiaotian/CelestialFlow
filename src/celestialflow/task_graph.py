@@ -225,7 +225,7 @@ class TaskGraph:
         else:
             self.reporter = NullTaskReporter()
 
-    def set_ctree(self, use_ctree=False, host="127.0.0.1", port=7777, grpc_port=7778):
+    def set_ctree(self, use_ctree=False, host="127.0.0.1", http_port=7777, grpc_port=7778):
         """
         设定事件树客户端
 
@@ -235,11 +235,11 @@ class TaskGraph:
         """
         self._use_ctree = use_ctree
         self._ctree_host = host
-        self._ctree_port = port
+        self._CTREE_HTTP_PORT = http_port
         self._ctree_grpc_port = grpc_port
 
         if use_ctree:
-            self.ctree_client = CelestialTreeClient(host=host, port=port, grpc_port=grpc_port, transport="grpc")
+            self.ctree_client = CelestialTreeClient(host=host, http_port=http_port, grpc_port=grpc_port, transport="grpc")
             if not self.ctree_client.health():
                 raise Exception("CelestialTreeClient is not available")
         else:
@@ -403,7 +403,7 @@ class TaskGraph:
         stage_runtime["start_time"] = time.time()
 
         if self._use_ctree:
-            stage.set_ctree(self._ctree_host, self._ctree_port, self._ctree_grpc_port)
+            stage.set_ctree(self._ctree_host, self._CTREE_HTTP_PORT, self._ctree_grpc_port)
         else:
             stage.set_nullctree(self.ctree_client.event_id)
 

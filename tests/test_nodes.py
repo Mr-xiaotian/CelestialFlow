@@ -21,7 +21,7 @@ redis_host = os.getenv("REDIS_HOST")
 redis_password = os.getenv("REDIS_PASSWORD")
 
 ctree_host = os.getenv("CTREE_HOST")
-ctree_port = os.getenv("CTREE_PORT")
+ctree_http_port = os.getenv("CTREE_HTTP_PORT")
 ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
 
 
@@ -160,7 +160,7 @@ def test_splitter_0():
     # 初始化 TaskGraph
     graph = TaskGraph([generate_stage])
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(True, host=ctree_host, port=ctree_port)
+    graph.set_ctree(True, host=ctree_host, http_port=ctree_http_port)
 
     graph.start_graph(
         {
@@ -184,7 +184,7 @@ def test_splitter_1():
 
     chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
     chain.set_reporter(True, host=report_host, port=report_port)
-    chain.set_ctree(True, host=ctree_host, port=ctree_port, grpc_port=ctree_grpc_port)
+    chain.set_ctree(True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port)
 
     chain.start_chain(
         {

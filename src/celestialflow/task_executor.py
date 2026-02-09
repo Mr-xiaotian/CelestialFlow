@@ -235,14 +235,14 @@ class TaskExecutor:
         else:
             raise ExecutionModeError(execution_mode)
 
-    def set_ctree(self, host: str = "127.0.0.1", port: int = 7777, grpc_port: int = 7778):
+    def set_ctree(self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778):
         """
         设置CelestialTreeClient
 
         :param host: CelestialTreeClient host
         :param port: CelestialTreeClient port
         """
-        self.ctree_client = CelestialTreeClient(host=host, port=port, grpc_port=grpc_port, transport="grpc")
+        self.ctree_client = CelestialTreeClient(host=host, http_port=http_port, grpc_port=grpc_port, transport="grpc")
         if not self.ctree_client.health():
             self.ctree_client = NullCelestialTreeClient()
 
