@@ -214,11 +214,10 @@ class TaskGraph:
         """
         if is_report:
             self.reporter = TaskReporter(
-                task_graph=self,
-                log_queue=self.log_listener.get_queue(),
-                log_level=self.log_level,
                 host=host,
                 port=port,
+                task_graph=self,
+                task_logger=self.task_logger,
             )
         else:
             self.reporter = NullTaskReporter()

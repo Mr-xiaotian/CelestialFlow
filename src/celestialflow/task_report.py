@@ -21,10 +21,16 @@ class TaskReporter:
     - 主要用于可视化监控、任务远程控制与 Web UI 同步
     """
 
-    def __init__(self, task_graph, log_queue, log_level, host="127.0.0.1", port=5000):
-        self.task_graph: TaskGraph = task_graph
-        self.logger = TaskLogger(log_queue, log_level)
+    def __init__(
+            self, 
+            host: str, 
+            port: int,
+            task_graph, 
+            task_logger: TaskLogger,
+        ):
         self.base_url = f"http://{host}:{port}"
+        self.task_graph: TaskGraph = task_graph
+        self.task_logger = task_logger
 
         self._stop_flag = Event()
         self._thread = None
@@ -44,7 +50,7 @@ class TaskReporter:
             self._stop_flag.set()
             self._thread.join(timeout=2)
             self._thread = None
-            self.logger.stop_reporter()
+            self.task_logger.stop_reporter()
 
     def _pull_timeout(self) -> float:
         return max(1.0, min(self.interval * 0.2, 5.0))
@@ -57,7 +63,7 @@ class TaskReporter:
             try:
                 self._refresh_all()
             except Exception as e:
-                self.logger.loop_failed(e)
+                self.task_logger.loop_failed(e)
             self._stop_flag.wait(self.interval)
 
     def _refresh_all(self):
@@ -81,7 +87,7 @@ class TaskReporter:
                 interval = res.json().get("interval", 5)
                 self.interval = max(1.0, min(interval, 60.0))
         except Exception as e:
-            self.logger.pull_interval_failed(e)
+            self.task_logger.pull_interval_failed(e)
 
     def _pull_and_inject_tasks(self):
         try:
@@ -103,11 +109,11 @@ class TaskReporter:
                         self.task_graph.put_stage_queue(
                             {target_node: task_datas}, put_termination_signal=False
                         )
-                        self.logger.inject_tasks_success(target_node, task_datas)
+                        self.task_logger.inject_tasks_success(target_node, task_datas)
                     except Exception as e:
-                        self.logger.inject_tasks_failed(target_node, task_datas, e)
+                        self.task_logger.inject_tasks_failed(target_node, task_datas, e)
         except Exception as e:
-            self.logger.pull_tasks_failed(e)
+            self.task_logger.pull_tasks_failed(e)
 
     def _push_errors(self):
         try:
@@ -130,7 +136,7 @@ class TaskReporter:
                 raise RuntimeError(f"push_errors_content failed: {resp.get('msg')}")
 
         except Exception as e:
-            self.logger.push_errors_failed(e)
+            self.task_logger.push_errors_failed(e)
 
     def _push_errors_meta(self) -> dict:
         jsonl_path = self.task_graph.get_error_jsonl_path()
@@ -178,7 +184,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.logger.push_status_failed(e)
+            self.task_logger.push_status_failed(e)
 
     def _push_structure(self):
         try:
@@ -190,7 +196,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.logger.push_structure_failed(e)
+            self.task_logger.push_structure_failed(e)
 
     def _push_topology(self):
         try:
@@ -202,7 +208,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.logger.push_topology_failed(e)
+            self.task_logger.push_topology_failed(e)
 
     def _push_summary(self):
         try:
@@ -214,7 +220,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.logger.push_summary_failed(e)
+            self.task_logger.push_summary_failed(e)
 
 
 class NullTaskReporter:
