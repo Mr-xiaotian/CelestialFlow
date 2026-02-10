@@ -16,6 +16,7 @@ from threading import Lock
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Set, Optional
 
+from .task_logger import TaskLogger
 from .task_types import ValueWrapper
 from .task_queue import TaskQueue
 
@@ -583,16 +584,15 @@ def make_queue_backend(mode: str):
 
 
 def make_taskqueue(
-    *, mode: str, log_queue, log_level: str, stage_tag: str, direction: str
+    *, mode: str, stage_tag: str, direction: str, task_logger: TaskLogger, 
 ):
     Q = make_queue_backend(mode)
     return TaskQueue(
         queue_list=[Q()],
         queue_tags=[None],
-        log_queue=log_queue,
-        log_level=log_level,
         stage_tag=stage_tag,
         direction=direction,
+        task_logger=task_logger,
     )
 
 

@@ -14,7 +14,7 @@ from celestialtree import (
 
 from .task_errors import ExecutionModeError
 from .task_progress import TaskProgress, NullTaskProgress
-from .task_logging import LogListener, TaskLogger
+from .task_logger import LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import (
     SumCounter,
@@ -179,17 +179,15 @@ class TaskExecutor:
 
         self.task_queues = task_queues or make_taskqueue(
             mode=mode,
-            log_queue=self.log_queue,
-            log_level=self.log_level,
             stage_tag=stage_tag,
             direction="in",
+            task_logger=self.task_logger,
         )
         self.result_queues = result_queues or make_taskqueue(
             mode=mode,
-            log_queue=self.log_queue,
-            log_level=self.log_level,
             stage_tag=stage_tag,
             direction="out",
+            task_logger=self.task_logger,
         )
 
         Q = make_queue_backend(mode)

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, List
 
 import requests
 
-from .task_logging import TaskLogger
+from .task_logger import TaskLogger
 from .task_tools import load_jsonl_logs
 from .task_types import TERMINATION_SIGNAL
 

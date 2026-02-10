@@ -17,7 +17,7 @@ from celestialtree import (
 from . import task_tools
 from .task_stage import TaskStage
 from .task_report import TaskReporter, NullTaskReporter
-from .task_logging import LogListener, TaskLogger
+from .task_logger import LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import (
     TaskEnvelope,
@@ -85,7 +85,7 @@ class TaskGraph:
         self.processes: List[multiprocessing.Process] = []
 
         self.init_state()
-        self.init_log()
+        self.init_logger()
         self.init_resources()
 
     def init_state(self):
@@ -129,18 +129,16 @@ class TaskGraph:
             stage_runtime["in_queue"] = TaskQueue(
                 queue_list=[],
                 queue_tags=[],
-                log_queue=self.log_listener.get_queue(),
-                log_level=self.log_level,
                 stage_tag=stage_tag,
                 direction="in",
+                task_logger=self.task_logger,            
             )
             stage_runtime["out_queue"] = TaskQueue(
                 queue_list=[],
                 queue_tags=[],
-                log_queue=self.log_listener.get_queue(),
-                log_level=self.log_level,
                 stage_tag=stage_tag,
                 direction="out",
+                task_logger=self.task_logger,
             )
 
             visited_stages.add(stage_tag)
@@ -164,7 +162,7 @@ class TaskGraph:
                         q, stage_tag
                     )
 
-    def init_log(self):
+    def init_logger(self):
         """
         初始化日志
         """

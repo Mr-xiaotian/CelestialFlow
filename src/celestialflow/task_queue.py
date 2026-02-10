@@ -8,7 +8,7 @@ from queue import Queue as ThreadQueue, Empty as SyncEmpty
 
 from .task_errors import InvalidOptionError
 from .task_types import TaskEnvelope, TerminationSignal, TERMINATION_SIGNAL
-from .task_logging import TaskLogger
+from .task_logger import TaskLogger
 
 
 class TaskQueue:
@@ -16,10 +16,9 @@ class TaskQueue:
         self,
         queue_list: List[ThreadQueue] | List[MPQueue] | List[AsyncQueue],
         queue_tags: List[str],
-        log_queue: ThreadQueue | MPQueue,
-        log_level: str,
         stage_tag: str,
         direction: str,
+        task_logger: TaskLogger,
     ):
         if len(queue_list) != len(queue_tags):
             raise ValueError("queue_list and queue_tags must have the same length")
@@ -30,9 +29,9 @@ class TaskQueue:
 
         self.queue_list = queue_list
         self.queue_tags = queue_tags
-        self.task_logger = TaskLogger(log_queue, log_level)
         self.stage_tag = stage_tag
         self.direction = direction
+        self.task_logger = task_logger
 
         self.current_index = 0  # 记录起始队列索引，用于轮询
         self.terminated_queue_set = set()
