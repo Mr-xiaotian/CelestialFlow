@@ -27,26 +27,22 @@ class LogListener:
     日志监听进程，用于将日志写入文件
     """
 
-    def __init__(self, level="SUCCESS"):
+    def __init__(self):
         now = strftime("%Y-%m-%d", localtime())
         self.log_path = f"logs/task_logger({now}).log"
-        self.level = level.upper()
         self.log_queue = MPQueue()
         self._thread = Thread(target=self._listen, daemon=True)
-
-        if self.level not in LEVEL_DICT:
-            raise LogLevelError(self.level)
 
     def start(self):
         loguru_logger.remove()
         loguru_logger.add(
             self.log_path,
-            level=self.level,
+            level="TRACE",
             format="{time:YYYY-MM-DD HH:mm:ss} {level} {message}",
             enqueue=True,
         )
         self._thread.start()
-        loguru_logger.debug("[Listener] Started.")
+        # self.log_queue.put({"level": "DEBUG", "message": "[Listener] Started."})
 
     def _listen(self):
         while True:
@@ -66,7 +62,7 @@ class LogListener:
     def stop(self):
         self.log_queue.put(TERMINATION_SIGNAL)
         self._thread.join()
-        loguru_logger.debug("[Listener] Stopped.")
+        # self.log_queue.put({"level": "DEBUG", "message": "[Listener] Stopped."})
 
 
 class TaskLogger:

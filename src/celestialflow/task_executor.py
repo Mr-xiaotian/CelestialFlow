@@ -197,7 +197,7 @@ class TaskExecutor:
         """
         初始化监听器
         """
-        self.log_listener = LogListener(self.log_level)
+        self.log_listener = LogListener()
         self.log_listener.start()
 
     def init_progress(self):

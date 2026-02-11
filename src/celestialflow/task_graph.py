@@ -167,7 +167,7 @@ class TaskGraph:
         """
         初始化日志
         """
-        self.log_listener = LogListener(self.log_level)
+        self.log_listener = LogListener()
         self.task_logger = TaskLogger(self.log_listener.get_queue(), self.log_level)
 
     def init_structure_graph(self):
