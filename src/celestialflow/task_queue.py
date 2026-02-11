@@ -6,8 +6,12 @@ from multiprocessing import Queue as MPQueue
 from asyncio import Queue as AsyncQueue, QueueEmpty as AsyncEmpty
 from queue import Queue as ThreadQueue, Empty as SyncEmpty
 
+from celestialtree import (
+    Client as CelestialTreeClient,
+)
+
 from .task_errors import InvalidOptionError
-from .task_types import TaskEnvelope, TerminationSignal, TERMINATION_SIGNAL
+from .task_types import TaskEnvelope, TerminationSignal
 from .task_logger import TaskLogger
 
 
@@ -19,6 +23,7 @@ class TaskQueue:
         stage_tag: str,
         direction: str,
         task_logger: TaskLogger,
+        ctree_client: CelestialTreeClient,
     ):
         if len(queue_list) != len(queue_tags):
             raise ValueError("queue_list and queue_tags must have the same length")
@@ -32,9 +37,10 @@ class TaskQueue:
         self.stage_tag = stage_tag
         self.direction = direction
         self.task_logger = task_logger
+        self.ctree_client = ctree_client
 
         self.current_index = 0  # 记录起始队列索引，用于轮询
-        self.terminated_queue_set = set()
+        self.termination_dict = {}
 
         self._tag_to_idx = {tag: i for i, tag in enumerate(queue_tags)}
 
@@ -70,7 +76,7 @@ class TaskQueue:
 
     def reset(self):
         self.current_index = 0
-        self.terminated_queue_set.clear()
+        self.termination_dict = {}
 
     def is_empty(self) -> bool:
         return all([queue.empty() for queue in self.queue_list])
@@ -173,14 +179,14 @@ class TaskQueue:
             self._log_get(item, 0)
 
             if isinstance(item, TerminationSignal):
-                self.terminated_queue_set.add(0)
+                self.termination_dict[0] = item.id
 
             return item
 
         while True:
             for i in range(total_queues):
                 idx = (self.current_index + i) % total_queues  # 轮转访问
-                if idx in self.terminated_queue_set:
+                if idx in self.termination_dict:
                     continue
 
                 queue = self.queue_list[idx]
@@ -189,7 +195,7 @@ class TaskQueue:
                     self._log_get(item, idx)
 
                     if isinstance(item, TerminationSignal):
-                        self.terminated_queue_set.add(idx)
+                        self.termination_dict[idx] = item.id
                         continue
 
                     elif isinstance(item, TaskEnvelope):
@@ -205,8 +211,12 @@ class TaskQueue:
                     continue
 
             # 所有队列都终止了
-            if len(self.terminated_queue_set) == total_queues:
-                return TERMINATION_SIGNAL
+            if len(self.termination_dict) == total_queues:
+                termination_id = self.ctree_client.emit(
+                    "termination.input",
+                    parents = list(self.termination_dict.values())
+                )
+                return TerminationSignal(termination_id)
 
             # 所有队列都暂时无数据，避免 busy-wait
             time.sleep(poll_interval)
@@ -226,7 +236,7 @@ class TaskQueue:
             item: TaskEnvelope | TerminationSignal = await queue.get()
 
             if isinstance(item, TerminationSignal):
-                self.terminated_queue_set.add(0)
+                self.termination_dict[0] = item.id
 
             self._log_get(item, 0)
             return item
@@ -234,7 +244,7 @@ class TaskQueue:
         while True:
             for i in range(total_queues):
                 idx = (self.current_index + i) % total_queues
-                if idx in self.terminated_queue_set:
+                if idx in self.termination_dict:
                     continue
 
                 queue = self.queue_list[idx]
@@ -243,7 +253,7 @@ class TaskQueue:
                     self._log_get(item, idx)
 
                     if isinstance(item, TerminationSignal):
-                        self.terminated_queue_set.add(idx)
+                        self.termination_dict[idx] = item.id
                         continue
 
                     elif isinstance(item, TaskEnvelope):
@@ -258,8 +268,12 @@ class TaskQueue:
                     )
                     continue
 
-            if len(self.terminated_queue_set) == total_queues:
-                return TERMINATION_SIGNAL
+            if len(self.termination_dict) == total_queues:
+                termination_id = self.ctree_client.emit(
+                    "termination.input",
+                    parents = list(self.termination_dict.values())
+                )
+                return TerminationSignal(termination_id)
 
             await asyncio.sleep(poll_interval)
 
@@ -269,7 +283,7 @@ class TaskQueue:
         total_queues = len(self.queue_list)
 
         for idx in range(total_queues):
-            if idx in self.terminated_queue_set:
+            if idx in self.termination_dict:
                 continue
 
             queue = self.queue_list[idx]
@@ -279,7 +293,7 @@ class TaskQueue:
                     self._log_get(item, idx)
 
                     if isinstance(item, TerminationSignal):
-                        self.terminated_queue_set.add(idx)
+                        self.termination_dict[idx] = item.id
                         break
 
                     elif isinstance(item, TaskEnvelope):

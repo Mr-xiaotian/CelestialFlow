@@ -8,7 +8,7 @@ from multiprocessing import Queue as MPQueue
 from .task_errors import ExecutionModeError, StageModeError
 from .task_executor import TaskExecutor
 from .task_queue import TaskQueue
-from .task_types import StageStatus, SumCounter, TERMINATION_SIGNAL
+from .task_types import StageStatus, SumCounter
 
 
 class TaskStage(TaskExecutor):

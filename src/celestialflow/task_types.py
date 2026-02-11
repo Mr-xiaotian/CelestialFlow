@@ -9,8 +9,8 @@ from celestialtree import NodeLabelStyle
 class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
 
-    id = -1
-    pass
+    def __init__(self, _id: int = -1):
+        self.id = _id
 
 
 # 单例 termination signal

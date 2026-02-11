@@ -20,7 +20,6 @@ from .task_types import (
     SumCounter,
     TaskEnvelope,
     TerminationSignal,
-    TERMINATION_SIGNAL,
 )
 from .task_tools import format_repr, make_counter, make_queue_backend, make_taskqueue
 
@@ -87,7 +86,6 @@ class TaskExecutor:
         self.process_pool = None
 
         self.retry_exceptions = tuple()  # 需要重试的异常类型
-        self.ctree_client = NullCelestialTreeClient()
 
         self.init_counter()
 
@@ -182,12 +180,14 @@ class TaskExecutor:
             stage_tag=stage_tag,
             direction="in",
             task_logger=self.task_logger,
+            ctree_client=self.ctree_client,
         )
         self.result_queues = result_queues or make_taskqueue(
             mode=mode,
             stage_tag=stage_tag,
             direction="out",
             task_logger=self.task_logger,
+            ctree_client=self.ctree_client,
         )
 
         Q = make_queue_backend(mode)
@@ -396,6 +396,13 @@ class TaskExecutor:
                 progress_num += 100
         self.task_progress.add_total(self.task_counter.value - progress_num)
 
+        # 注入终止符
+        termination_id = self.ctree_client.emit(
+            "termination.input",
+            payload=self.get_summary(),
+        )
+        self.task_queues.put(TerminationSignal(termination_id))
+
     async def put_task_queues_async(self, task_source):
         """
         将任务放入任务队列(async模式)
@@ -422,6 +429,13 @@ class TaskExecutor:
                 self.task_progress.add_total(100)
                 progress_num += 100
         self.task_progress.add_total(self.task_counter.value - progress_num)
+
+        # 注入终止符
+        termination_id = self.ctree_client.emit(
+            "termination.input",
+            payload=self.get_summary(),
+        )
+        await self.task_queues.put_async(TerminationSignal(termination_id))
 
     def put_fail_queue(self, task, error, error_id):
         """
@@ -813,12 +827,12 @@ class TaskExecutor:
         :param task_source: 任务迭代器或者生成器
         """
         start_time = time.time()
+        self.set_nullctree()
         self.init_listener()
         self.init_progress()
         self.init_env(log_queue=self.log_listener.get_queue())
 
         self.put_task_queues(task_source)
-        self.task_queues.put(TERMINATION_SIGNAL)
         self.task_logger.start_executor(
             self.get_func_name(),
             self.task_counter.value,
@@ -862,13 +876,13 @@ class TaskExecutor:
         :param task_source: 任务迭代器或者生成器
         """
         start_time = time.time()
+        self.set_nullctree()
         self.set_execution_mode("async")
         self.init_listener()
         self.init_progress()
         self.init_env(log_queue=self.log_listener.get_queue())
 
         await self.put_task_queues_async(task_source)
-        await self.task_queues.put_async(TERMINATION_SIGNAL)
         self.task_logger.start_executor(
             self.get_func_name(),
             self.task_counter.value,
@@ -901,6 +915,7 @@ class TaskExecutor:
         while True:
             envelope = self.task_queues.get()
             if isinstance(envelope, TerminationSignal):
+                termination_signal = envelope
                 break
 
             task = envelope.task
@@ -922,11 +937,11 @@ class TaskExecutor:
         self.task_queues.reset()
 
         if self.is_tasks_finished():
-            self.result_queues.put(TERMINATION_SIGNAL)
+            self.result_queues.put(termination_signal)
             return
 
         self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
-        self.task_queues.put(TERMINATION_SIGNAL)
+        self.task_queues.put(termination_signal)
         self.run_in_serial()
 
     def run_with_executor(self, executor: ThreadPoolExecutor | ProcessPoolExecutor):
@@ -966,6 +981,7 @@ class TaskExecutor:
         while True:
             envelope = self.task_queues.get()
             if isinstance(envelope, TerminationSignal):
+                termination_signal = envelope
                 break
 
             task = envelope.task
@@ -996,11 +1012,11 @@ class TaskExecutor:
         self.task_queues.reset()
 
         if self.is_tasks_finished():
-            self.result_queues.put(TERMINATION_SIGNAL)
+            self.result_queues.put(termination_signal)
             return
 
         self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
-        self.task_queues.put(TERMINATION_SIGNAL)
+        self.task_queues.put(termination_signal)
         self.run_with_executor(executor)
 
     async def run_in_async(self):
@@ -1021,6 +1037,7 @@ class TaskExecutor:
         while True:
             envelope = await self.task_queues.get_async()
             if isinstance(envelope, TerminationSignal):
+                termination_signal = envelope
                 break
 
             task = envelope.task
@@ -1046,11 +1063,11 @@ class TaskExecutor:
         self.task_queues.reset()
 
         if self.is_tasks_finished():
-            await self.result_queues.put_async(TERMINATION_SIGNAL)
+            await self.result_queues.put_async(termination_signal)
             return
 
         self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
-        await self.task_queues.put_async(TERMINATION_SIGNAL)
+        await self.task_queues.put_async(termination_signal)
         await self.run_in_async()
 
     async def _run_single_task(self, task):

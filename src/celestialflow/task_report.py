@@ -95,10 +95,10 @@ class TaskReporter:
                 f"{self.base_url}/api/get_task_injection", timeout=self._pull_timeout()
             )
             if res.ok:
-                tasks_list: List[dict] = res.json()
-                for task in tasks_list:
-                    target_node = task.get("node")
-                    task_datas = task.get("task_datas")
+                injection_tasks: List[dict] = res.json()
+                for injection in injection_tasks:
+                    target_stage = injection.get("node")
+                    task_datas = injection.get("task_datas")
 
                     # 这里你可以按需注入到不同的节点
                     task_datas = [
@@ -107,11 +107,11 @@ class TaskReporter:
                     ]
                     try:
                         self.task_graph.put_stage_queue(
-                            {target_node: task_datas}, put_termination_signal=False
+                            {target_stage: task_datas}, put_termination_signal=False
                         )
-                        self.task_logger.inject_tasks_success(target_node, task_datas)
+                        self.task_logger.inject_tasks_success(target_stage, task_datas)
                     except Exception as e:
-                        self.task_logger.inject_tasks_failed(target_node, task_datas, e)
+                        self.task_logger.inject_tasks_failed(target_stage, task_datas, e)
         except Exception as e:
             self.task_logger.pull_tasks_failed(e)
 

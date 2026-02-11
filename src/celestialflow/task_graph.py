@@ -24,7 +24,6 @@ from .task_types import (
     StageStatus,
     UnconsumedError,
     TerminationSignal,
-    TERMINATION_SIGNAL,
     STAGE_STYLE,
 )
 
@@ -131,7 +130,8 @@ class TaskGraph:
                 queue_tags=[],
                 stage_tag=stage_tag,
                 direction="in",
-                task_logger=self.task_logger,            
+                task_logger=self.task_logger,
+                ctree_client=self.ctree_client,       
             )
             stage_runtime["out_queue"] = TaskQueue(
                 queue_list=[],
@@ -139,6 +139,7 @@ class TaskGraph:
                 stage_tag=stage_tag,
                 direction="out",
                 task_logger=self.task_logger,
+                ctree_client=self.ctree_client,
             )
 
             visited_stages.add(stage_tag)
@@ -287,7 +288,11 @@ class TaskGraph:
 
             for task in tasks:
                 if isinstance(task, TerminationSignal):
-                    in_queue.put(TERMINATION_SIGNAL)
+                    termination_id = self.ctree_client.emit(
+                        "termination.input",
+                        payload=stage.get_summary(),
+                    )
+                    in_queue.put(TerminationSignal(termination_id))
                     continue
 
                 input_id = self.ctree_client.emit(
@@ -312,7 +317,12 @@ class TaskGraph:
                 root_in_queue: TaskQueue = self.stage_runtime_dict[root_stage_tag][
                     "in_queue"
                 ]
-                root_in_queue.put(TERMINATION_SIGNAL)
+                
+                termination_id = self.ctree_client.emit(
+                    "termination.input",
+                    payload=stage.get_summary(),
+                )
+                root_in_queue.put(TerminationSignal(termination_id))
 
     def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """

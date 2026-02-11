@@ -16,6 +16,10 @@ from threading import Lock
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Set, Optional
 
+from celestialtree import (
+    Client as CelestialTreeClient,
+)
+
 from .task_logger import TaskLogger
 from .task_types import ValueWrapper
 from .task_queue import TaskQueue
@@ -584,7 +588,7 @@ def make_queue_backend(mode: str):
 
 
 def make_taskqueue(
-    *, mode: str, stage_tag: str, direction: str, task_logger: TaskLogger, 
+    *, mode: str, stage_tag: str, direction: str, task_logger: TaskLogger, ctree_client: CelestialTreeClient,
 ):
     Q = make_queue_backend(mode)
     return TaskQueue(
@@ -593,6 +597,7 @@ def make_taskqueue(
         stage_tag=stage_tag,
         direction=direction,
         task_logger=task_logger,
+        ctree_client=ctree_client,
     )
 
 
