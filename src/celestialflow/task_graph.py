@@ -131,7 +131,7 @@ class TaskGraph:
                 direction="in",
                 stage=stage,
                 task_logger=self.task_logger,
-                ctree_client=self.ctree_client, 
+                ctree_client=None, 
             )
             stage_runtime["out_queue"] = TaskQueue(
                 queue_list=[],
@@ -139,7 +139,7 @@ class TaskGraph:
                 direction="out",
                 stage=stage,
                 task_logger=self.task_logger,
-                ctree_client=self.ctree_client, 
+                ctree_client=None, 
             )
 
             visited_stages.add(stage_tag)

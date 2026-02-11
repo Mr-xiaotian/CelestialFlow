@@ -236,8 +236,6 @@ class TaskExecutor:
         :param port: CelestialTreeClient port
         """
         self.ctree_client = CelestialTreeClient(host=host, http_port=http_port, grpc_port=grpc_port, transport="grpc")
-        if not self.ctree_client.health():
-            raise Exception("CelestialTreeClient is not available")
 
     def set_nullctree(self, event_id=None):
         """
