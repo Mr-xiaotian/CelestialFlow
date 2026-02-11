@@ -919,10 +919,13 @@ class TaskExecutor:
 
         self.task_queues.reset()
 
-        if not self.is_tasks_finished():
-            self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
-            self.task_queues.put(TERMINATION_SIGNAL)
-            self.run_in_serial()
+        if self.is_tasks_finished():
+            self.result_queues.put(TERMINATION_SIGNAL)
+            return
+
+        self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
+        self.task_queues.put(TERMINATION_SIGNAL)
+        self.run_in_serial()
 
     def run_with_executor(self, executor: ThreadPoolExecutor | ProcessPoolExecutor):
         """
@@ -967,10 +970,7 @@ class TaskExecutor:
             task_hash = envelope.hash
             task_id = envelope.id
 
-            if isinstance(task, TerminationSignal):
-                # 收到终止信号后不再提交新任务
-                break
-            elif self.is_duplicate(task_hash):
+            if self.is_duplicate(task_hash):
                 self.deal_dupliacte(envelope)
                 self.task_progress.update(1)
                 continue
@@ -993,10 +993,13 @@ class TaskExecutor:
         # 所有任务和回调都完成了，现在可以安全关闭进度条
         self.task_queues.reset()
 
-        if not self.is_tasks_finished():
-            self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
-            self.task_queues.put(TERMINATION_SIGNAL)
-            self.run_with_executor(executor)
+        if self.is_tasks_finished():
+            self.result_queues.put(TERMINATION_SIGNAL)
+            return
+
+        self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
+        self.task_queues.put(TERMINATION_SIGNAL)
+        self.run_with_executor(executor)
 
     async def run_in_async(self):
         """
@@ -1040,10 +1043,13 @@ class TaskExecutor:
 
         self.task_queues.reset()
 
-        if not self.is_tasks_finished():
-            self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
-            await self.task_queues.put_async(TERMINATION_SIGNAL)
-            await self.run_in_async()
+        if self.is_tasks_finished():
+            await self.result_queues.put_async(TERMINATION_SIGNAL)
+            return
+
+        self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
+        await self.task_queues.put_async(TERMINATION_SIGNAL)
+        await self.run_in_async()
 
     async def _run_single_task(self, task):
         """
@@ -1086,6 +1092,9 @@ class TaskExecutor:
                 pool.shutdown(wait=True)
         self.thread_pool = None
         self.process_pool = None
+
+    def release_client(self):
+        self.ctree_client = None
 
     def test_method(self, task_list: list, execution_mode: str) -> float:
         """
