@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio, time
-from typing import List
+from typing import TYPE_CHECKING, List
 from multiprocessing import Queue as MPQueue
 from asyncio import Queue as AsyncQueue, QueueEmpty as AsyncEmpty
 from queue import Queue as ThreadQueue, Empty as SyncEmpty
@@ -14,14 +14,16 @@ from .task_errors import InvalidOptionError
 from .task_types import TaskEnvelope, TerminationSignal
 from .task_logger import TaskLogger
 
+if TYPE_CHECKING:
+    from .task_stage import TaskStage
 
 class TaskQueue:
     def __init__(
         self,
         queue_list: List[ThreadQueue] | List[MPQueue] | List[AsyncQueue],
         queue_tags: List[str],
-        stage_tag: str,
         direction: str,
+        stage: TaskStage,
         task_logger: TaskLogger,
         ctree_client: CelestialTreeClient,
     ):
@@ -34,8 +36,10 @@ class TaskQueue:
 
         self.queue_list = queue_list
         self.queue_tags = queue_tags
-        self.stage_tag = stage_tag
         self.direction = direction
+
+        self.stage_tag = stage.get_tag()
+        self.stage_summary = stage.get_summary()
         self.task_logger = task_logger
         self.ctree_client = ctree_client
 
@@ -43,6 +47,9 @@ class TaskQueue:
         self.termination_dict = {}
 
         self._tag_to_idx = {tag: i for i, tag in enumerate(queue_tags)}
+
+    def set_ctree(self, ctree_client):
+        self.ctree_client = ctree_client
 
     def _log_put(self, item, idx: int):
         if isinstance(item, TaskEnvelope):
@@ -180,6 +187,12 @@ class TaskQueue:
 
             if isinstance(item, TerminationSignal):
                 self.termination_dict[0] = item.id
+                termination_id = self.ctree_client.emit(
+                    "termination.merge",
+                    parents = [item.id],
+                    payload = self.stage_summary,
+                )
+                return TerminationSignal(termination_id)
 
             return item
 
@@ -213,8 +226,9 @@ class TaskQueue:
             # 所有队列都终止了
             if len(self.termination_dict) == total_queues:
                 termination_id = self.ctree_client.emit(
-                    "termination.input",
-                    parents = list(self.termination_dict.values())
+                    "termination.merge",
+                    parents = list(self.termination_dict.values()),
+                    payload = self.stage_summary,
                 )
                 return TerminationSignal(termination_id)
 
@@ -234,11 +248,17 @@ class TaskQueue:
             # 单队列直接 await 阻塞等待
             queue = self.queue_list[0]
             item: TaskEnvelope | TerminationSignal = await queue.get()
+            self._log_get(item, 0)
 
             if isinstance(item, TerminationSignal):
                 self.termination_dict[0] = item.id
+                termination_id = self.ctree_client.emit(
+                    "termination.merge",
+                    parents = [item.id],
+                    payload = self.stage_summary,
+                )
+                return TerminationSignal(termination_id)
 
-            self._log_get(item, 0)
             return item
 
         while True:
@@ -270,8 +290,9 @@ class TaskQueue:
 
             if len(self.termination_dict) == total_queues:
                 termination_id = self.ctree_client.emit(
-                    "termination.input",
-                    parents = list(self.termination_dict.values())
+                    "termination.merge",
+                    parents = list(self.termination_dict.values()),
+                    payload = self.stage_summary,
                 )
                 return TerminationSignal(termination_id)
 

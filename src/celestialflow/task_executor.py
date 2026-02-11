@@ -173,21 +173,16 @@ class TaskExecutor:
         :param fail_queue: 失败队列
         """
         mode = self.execution_mode
-        stage_tag = self.get_tag()
 
         self.task_queues = task_queues or make_taskqueue(
             mode=mode,
-            stage_tag=stage_tag,
             direction="in",
-            task_logger=self.task_logger,
-            ctree_client=self.ctree_client,
+            stage=self,
         )
         self.result_queues = result_queues or make_taskqueue(
             mode=mode,
-            stage_tag=stage_tag,
             direction="out",
-            task_logger=self.task_logger,
-            ctree_client=self.ctree_client,
+            stage=self,
         )
 
         Q = make_queue_backend(mode)
@@ -242,7 +237,7 @@ class TaskExecutor:
         """
         self.ctree_client = CelestialTreeClient(host=host, http_port=http_port, grpc_port=grpc_port, transport="grpc")
         if not self.ctree_client.health():
-            self.ctree_client = NullCelestialTreeClient()
+            raise Exception("CelestialTreeClient is not available")
 
     def set_nullctree(self, event_id=None):
         """

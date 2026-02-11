@@ -588,16 +588,16 @@ def make_queue_backend(mode: str):
 
 
 def make_taskqueue(
-    *, mode: str, stage_tag: str, direction: str, task_logger: TaskLogger, ctree_client: CelestialTreeClient,
+    *, mode: str, direction: str, stage: "TaskStage",
 ):
     Q = make_queue_backend(mode)
     return TaskQueue(
         queue_list=[Q()],
         queue_tags=[None],
-        stage_tag=stage_tag,
         direction=direction,
-        task_logger=task_logger,
-        ctree_client=ctree_client,
+        stage=stage,
+        task_logger=stage.task_logger,
+        ctree_client=stage.ctree_client,
     )
 
 
