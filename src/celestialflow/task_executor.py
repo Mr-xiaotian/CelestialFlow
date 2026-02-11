@@ -842,6 +842,7 @@ class TaskExecutor:
 
         finally:
             self.release_pool()
+            self.release_client()
             self.task_progress.close()
 
             self.task_logger.end_executor(
@@ -879,6 +880,7 @@ class TaskExecutor:
 
         finally:
             self.release_pool()
+            self.release_client()
             self.task_progress.close()
 
             self.task_logger.end_executor(
