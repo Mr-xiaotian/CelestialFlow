@@ -67,15 +67,14 @@ class TaskGraph:
             - 'CRITICAL'
         """
         self.set_root_stages(root_stages)
-        self.set_schedule_mode(schedule_mode)
         self.set_log_level(log_level)
         self.set_reporter()
         self.set_ctree()
 
         self.init_env()
         self.init_structure_graph()
-
         self.analyze_graph()
+        self.set_schedule_mode(schedule_mode)
 
     def init_env(self):
         """

@@ -118,7 +118,7 @@ def test_chain():
     )
 
     # 设置图结构
-    chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "process")
+    chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "eager")
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
 
@@ -186,7 +186,7 @@ def test_cross():
 
     # 构建 TaskCross
     cross = TaskCross(
-        [[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]], "serial"
+        [[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]], "staged"
     )
     cross.set_reporter(True, host=report_host, port=report_port)
     cross.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
@@ -236,7 +236,7 @@ def test_star():
     side3 = TaskStage(func=add_15)
 
     # 构造 TaskCross
-    star = TaskCross([[core], [side1, side2, side3]], "process")
+    star = TaskCross([[core], [side1, side2, side3]], "eager")
     star.set_reporter(True, host=report_host, port=report_port)
     star.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
 
@@ -251,7 +251,7 @@ def test_fanin():
     merge = TaskStage(add_one_sleep, "thread", 2)
 
     # 构造 TaskCross
-    fainin = TaskCross([[source1, source2, source3], [merge]], "process")
+    fainin = TaskCross([[source1, source2, source3], [merge]], "eager")
     fainin.set_reporter(True, host=report_host, port=report_port)
     fainin.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
 
@@ -269,7 +269,7 @@ def test_grid():
     grid = [[TaskStage(add_one_sleep, "thread", 2) for _ in range(4)] for _ in range(4)]
 
     # 2. 构建 TaskGrid 实例
-    task_grid = TaskGrid(grid, "serial")
+    task_grid = TaskGrid(grid, "staged")
     task_grid.set_reporter(True, host=report_host, port=report_port)
     task_grid.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
 
