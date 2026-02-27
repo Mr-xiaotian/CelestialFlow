@@ -30,7 +30,7 @@ class LogListener:
         now = strftime("%Y-%m-%d", localtime())
         self.log_path = f"logs/task_logger({now}).log"
         self.log_queue = MPQueue()
-        self._thread = Thread(target=self._listen, daemon=True)
+        self._thread = None
 
     def start(self):
         loguru_logger.remove()
@@ -40,7 +40,9 @@ class LogListener:
             format="{time:YYYY-MM-DD HH:mm:ss} {level} {message}",
             enqueue=True,
         )
-        self._thread.start()
+        if self._thread is None or not self._thread.is_alive():
+            self._thread = Thread(target=self._listen, daemon=True)
+            self._thread.start()
         # self.log_queue.put({"level": "DEBUG", "message": "[Listener] Started."})
 
     def _listen(self):
@@ -59,8 +61,12 @@ class LogListener:
         return self.log_queue
 
     def stop(self):
+        if self._thread is None:
+            return
+
         self.log_queue.put(TERMINATION_SIGNAL)
         self._thread.join()
+        self._thread = None
         # self.log_queue.put({"level": "DEBUG", "message": "[Listener] Stopped."})
 
 

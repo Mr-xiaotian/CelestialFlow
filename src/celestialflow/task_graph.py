@@ -323,7 +323,7 @@ class TaskGraph:
 
                 termination_id = self.ctree_client.emit(
                     "termination.input",
-                    payload=stage.get_summary(),
+                    payload=root_stage.get_summary(),
                 )
                 root_in_queue.put(TerminationSignal(termination_id))
 

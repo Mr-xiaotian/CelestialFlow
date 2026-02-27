@@ -156,7 +156,7 @@ class TaskExecutor:
 
         :param log_queue: 日志队列
         """
-        self.log_queue = log_queue or make_queue_backend("serial")
+        self.log_queue = log_queue or make_queue_backend("serial")()
         self.task_logger = TaskLogger(self.log_queue, self.log_level)
 
     def init_queue(
@@ -908,38 +908,38 @@ class TaskExecutor:
         """
         串行地执行任务
         """
-        # 从队列中依次获取任务并执行
         while True:
-            envelope = self.task_queues.get()
-            if isinstance(envelope, TerminationSignal):
-                termination_signal = envelope
-                break
+            # 从队列中依次获取任务并执行
+            while True:
+                envelope = self.task_queues.get()
+                if isinstance(envelope, TerminationSignal):
+                    termination_signal = envelope
+                    break
 
-            task = envelope.task
-            task_hash = envelope.hash
+                task = envelope.task
+                task_hash = envelope.hash
 
-            if self.is_duplicate(task_hash):
-                self.deal_dupliacte(envelope)
+                if self.is_duplicate(task_hash):
+                    self.deal_dupliacte(envelope)
+                    self.task_progress.update(1)
+                    continue
+                self.add_processed_set(task_hash)
+                try:
+                    start_time = time.time()
+                    result = self.func(*self.get_args(task))
+                    self.process_task_success(envelope, result, start_time)
+                except Exception as error:
+                    self.handle_task_error(envelope, error)
                 self.task_progress.update(1)
-                continue
-            self.add_processed_set(task_hash)
-            try:
-                start_time = time.time()
-                result = self.func(*self.get_args(task))
-                self.process_task_success(envelope, result, start_time)
-            except Exception as error:
-                self.handle_task_error(envelope, error)
-            self.task_progress.update(1)
 
-        self.task_queues.reset()
+            self.task_queues.reset()
 
-        if self.is_tasks_finished():
-            self.result_queues.put(termination_signal)
-            return
+            if self.is_tasks_finished():
+                self.result_queues.put(termination_signal)
+                return
 
-        self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
-        self.task_queues.put(termination_signal)
-        self.run_in_serial()
+            self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
+            self.task_queues.put(termination_signal)
 
     def run_with_executor(self, executor: ThreadPoolExecutor | ProcessPoolExecutor):
         """
@@ -947,125 +947,125 @@ class TaskExecutor:
 
         :param executor: 线程池或进程池
         """
-        task_start_dict = {}  # 用于存储任务开始时间
-
-        # 用于追踪进行中任务数的计数器和事件
-        in_flight = 0
-        in_flight_lock = Lock()
-        all_done_event = Event()
-        all_done_event.set()  # 初始为无任务状态，设为完成状态
-
-        def on_task_done(future, envelope: TaskEnvelope, task_progress: TaskProgress):
-            # 回调函数中处理任务结果
-            task_progress.update(1)
-            task_id = envelope.id
-
-            try:
-                result = future.result()
-                start_time = task_start_dict.pop(task_id, None)
-                self.process_task_success(envelope, result, start_time)
-            except Exception as error:
-                task_start_dict.pop(task_id, None)
-                self.handle_task_error(envelope, error)
-            # 任务完成后减少in_flight计数
-            with in_flight_lock:
-                nonlocal in_flight
-                in_flight -= 1
-                if in_flight == 0:
-                    all_done_event.set()
-
-        # 从任务队列中提交任务到执行池
         while True:
-            envelope = self.task_queues.get()
-            if isinstance(envelope, TerminationSignal):
-                termination_signal = envelope
-                break
+            task_start_dict = {}  # 用于存储任务开始时间
 
-            task = envelope.task
-            task_hash = envelope.hash
-            task_id = envelope.id
+            # 用于追踪进行中任务数的计数器和事件
+            in_flight = 0
+            in_flight_lock = Lock()
+            all_done_event = Event()
+            all_done_event.set()  # 初始为无任务状态，设为完成状态
 
-            if self.is_duplicate(task_hash):
-                self.deal_dupliacte(envelope)
-                self.task_progress.update(1)
-                continue
-            self.add_processed_set(task_hash)
+            def on_task_done(future, envelope: TaskEnvelope, task_progress: TaskProgress):
+                # 回调函数中处理任务结果
+                task_progress.update(1)
+                task_id = envelope.id
 
-            # 提交新任务时增加in_flight计数，并清除完成事件
-            with in_flight_lock:
-                in_flight += 1
-                all_done_event.clear()
+                try:
+                    result = future.result()
+                    start_time = task_start_dict.pop(task_id, None)
+                    self.process_task_success(envelope, result, start_time)
+                except Exception as error:
+                    task_start_dict.pop(task_id, None)
+                    self.handle_task_error(envelope, error)
+                # 任务完成后减少in_flight计数
+                with in_flight_lock:
+                    nonlocal in_flight
+                    in_flight -= 1
+                    if in_flight == 0:
+                        all_done_event.set()
 
-            task_start_dict[task_id] = time.time()
-            future = executor.submit(self.func, *self.get_args(task))
-            future.add_done_callback(
-                lambda f, t_e=envelope: on_task_done(f, t_e, self.task_progress)
-            )
+            # 从任务队列中提交任务到执行池
+            while True:
+                envelope = self.task_queues.get()
+                if isinstance(envelope, TerminationSignal):
+                    termination_signal = envelope
+                    break
 
-        # 等待所有已提交任务完成（包括回调）
-        all_done_event.wait()
+                task = envelope.task
+                task_hash = envelope.hash
+                task_id = envelope.id
 
-        # 所有任务和回调都完成了，现在可以安全关闭进度条
-        self.task_queues.reset()
+                if self.is_duplicate(task_hash):
+                    self.deal_dupliacte(envelope)
+                    self.task_progress.update(1)
+                    continue
+                self.add_processed_set(task_hash)
 
-        if self.is_tasks_finished():
-            self.result_queues.put(termination_signal)
-            return
+                # 提交新任务时增加in_flight计数，并清除完成事件
+                with in_flight_lock:
+                    in_flight += 1
+                    all_done_event.clear()
 
-        self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
-        self.task_queues.put(termination_signal)
-        self.run_with_executor(executor)
+                task_start_dict[task_id] = time.time()
+                future = executor.submit(self.func, *self.get_args(task))
+                future.add_done_callback(
+                    lambda f, t_e=envelope: on_task_done(f, t_e, self.task_progress)
+                )
+
+            # 等待所有已提交任务完成（包括回调）
+            all_done_event.wait()
+
+            # 所有任务和回调都完成了，现在可以安全关闭进度条
+            self.task_queues.reset()
+
+            if self.is_tasks_finished():
+                self.result_queues.put(termination_signal)
+                return
+
+            self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
+            self.task_queues.put(termination_signal)
 
     async def run_in_async(self):
         """
         异步地执行任务，限制并发数量
         """
-        semaphore = asyncio.Semaphore(self.worker_limit)  # 限制并发数量
-
-        async def sem_task(envelope: TaskEnvelope):
-            start_time = time.time()  # 记录任务开始时间
-            async with semaphore:  # 使用信号量限制并发
-                result = await self._run_single_task(envelope.task)
-                return envelope, result, start_time  # 返回 task, result 和 start_time
-
-        # 创建异步任务列表
-        async_tasks = []
-
         while True:
-            envelope = await self.task_queues.get_async()
-            if isinstance(envelope, TerminationSignal):
-                termination_signal = envelope
-                break
+            semaphore = asyncio.Semaphore(self.worker_limit)  # 限制并发数量
 
-            task = envelope.task
-            task_hash = envelope.hash
+            async def sem_task(envelope: TaskEnvelope):
+                start_time = time.time()  # 记录任务开始时间
+                async with semaphore:  # 使用信号量限制并发
+                    result = await self._run_single_task(envelope.task)
+                    return envelope, result, start_time  # 返回 task, result 和 start_time
 
-            if self.is_duplicate(task_hash):
-                self.deal_dupliacte(envelope)
+            # 创建异步任务列表
+            async_tasks = []
+
+            while True:
+                envelope = await self.task_queues.get_async()
+                if isinstance(envelope, TerminationSignal):
+                    termination_signal = envelope
+                    break
+
+                task = envelope.task
+                task_hash = envelope.hash
+
+                if self.is_duplicate(task_hash):
+                    self.deal_dupliacte(envelope)
+                    self.task_progress.update(1)
+                    continue
+                self.add_processed_set(task_hash)
+                async_tasks.append(sem_task(envelope))  # 使用信号量包裹的任务
+
+            # 并发运行所有任务
+            for envelope, result, start_time in await asyncio.gather(
+                *async_tasks, return_exceptions=True
+            ):
+                if not isinstance(result, Exception):
+                    await self.process_task_success_async(envelope, result, start_time)
+                else:
+                    await self.handle_task_error_async(envelope, result)
                 self.task_progress.update(1)
-                continue
-            self.add_processed_set(task_hash)
-            async_tasks.append(sem_task(envelope))  # 使用信号量包裹的任务
 
-        # 并发运行所有任务
-        for envelope, result, start_time in await asyncio.gather(
-            *async_tasks, return_exceptions=True
-        ):
-            if not isinstance(result, Exception):
-                await self.process_task_success_async(envelope, result, start_time)
-            else:
-                await self.handle_task_error_async(envelope, result)
-            self.task_progress.update(1)
+            self.task_queues.reset()
 
-        self.task_queues.reset()
+            if self.is_tasks_finished():
+                await self.result_queues.put_async(termination_signal)
+                return
 
-        if self.is_tasks_finished():
-            await self.result_queues.put_async(termination_signal)
-            return
-
-        self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
-        await self.task_queues.put_async(termination_signal)
-        await self.run_in_async()
+            self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
+            await self.task_queues.put_async(termination_signal)
 
     async def _run_single_task(self, task):
         """

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "celestialflow"                   
-version = "3.1.1"                         
+version = "3.1.2"                         
 description = "A flexible GRAPH-based task orchestration framework."
 readme = "README.md"               
 license = { text = "MIT" }    
