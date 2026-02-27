@@ -7,20 +7,25 @@
 建议在独立环境中使用，以避免与其他项目依赖冲突。
 
 ```bash
-# 使用 mamba 创建环境
-mamba create -n celestialflow_env python=3.10
-mamba activate celestialflow_env
+# 创建项目虚拟环境（默认生成 .venv）
+uv venv --python 3.10
+
+# 激活环境（Windows）
+. .\.venv\Scripts\Activate.ps1
+
+# 激活环境（Linux/macOS）
+source .venv/bin/activate
 ```
 
-可将mamba语句改为conda，如果你更习惯后者。如果你想尝试Mamba，你可以在这里获取它的最新版安装包 [miniforge/Releases](https://github.com/conda-forge/miniforge/releases)。
+建议在独立虚拟环境中使用。CelestialFlow 推荐使用 `uv` 管理依赖与环境。
 
 ## 安装 CelestialFlow
 
-CelestialFlow 已发布至 [PyPI](https://pypi.org/project/celestialflow/)，可以直接通过 `pip` 安装，无需克隆源码。
+CelestialFlow 已发布至 [PyPI](https://pypi.org/project/celestialflow/)，可以直接通过 `pip` / `uv pip` 安装，无需克隆源码。
 
 ```bash
 # 直接安装最新版
-pip install celestialflow
+uv pip install celestialflow
 ```
 
 不过如果你想要运行之后的测试代码，亦或者想使用基于Go语言的go_worker程序，那么还是需要clone项目
@@ -29,7 +34,7 @@ pip install celestialflow
 # 克隆项目
 git clone https://github.com/Mr-xiaotian/CelestialFlow.git
 cd CelestialFlow
-pip install .
+uv pip install .
 ```
 
 ## （可选）设置.env && 启动 Web 可视化
@@ -85,7 +90,7 @@ graph.set_reporter(True, host="127.0.0.1", port=5005)
 
 为了保证测试正常运行, 请先安装必要的测试库:
 ```bash
-pip install pytest pytest-asyncio
+uv pip install pytest pytest-asyncio
 ```
 
 之后推荐先运行以下两个示例：

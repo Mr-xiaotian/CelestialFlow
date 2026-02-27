@@ -104,7 +104,11 @@ flowchart LR
 安装 CelestialFlow:
 
 ```bash
-pip install celestialflow
+# 推荐使用 `uv` 管理依赖与环境
+uv pip install celestialflow
+
+# 不过也可以直接使用 `pip`
+uv pip install celestialflow
 ```
 
 一个简单的可运行代码:
