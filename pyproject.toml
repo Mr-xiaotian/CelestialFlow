@@ -58,3 +58,9 @@ filterwarnings = [
 ]
 
 asyncio_default_fixture_loop_scope = "function"
+
+[dependency-groups]
+dev = [
+    "build>=1.2.2.post1",
+    "twine>=6.1.0",
+]
