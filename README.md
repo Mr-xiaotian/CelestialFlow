@@ -213,7 +213,7 @@ flowchart TD
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.1.0</em>
+  <em>celestial-flow 3.1.1</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
@@ -252,6 +252,18 @@ flowchart TD
   - 修复:
     - 3.0.9版本下当web端与celestialflow运行端不同时, error数据无法传递的问题;
     - 修复NullTaskReporter使用问题;
+- 3.1.1:
+  - 新增:
+    - [Important] CelestialTree中引入grpc, 这大大减少了emit操作的耗时;
+    - [Important] 为TerminationSignal添加id, 并可以像task一样通过CelestialTree进行跟踪;
+    - 优化task_graph与task_executor的log分级, 现在默认为"SUCCESS"级;
+    - 将go_worker部分分离为单独project: [celestialflow-goworker]https://github.com/Mr-xiaotian/celestialflow-goworker
+    - 在readme中使用svg图片来展示文件夹结构;
+    - 优化全局剩余时间的计算;
+    - 优化部分代码结构;
+  - 修复:
+    - 修复节点剩余时间在小于1s时显示0的问题(这很影响判断);
+    - 在task_graph中使用"staged"模式时会报错的问题;
 
 ## Star 历史趋势（Star History）
 
