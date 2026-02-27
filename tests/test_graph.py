@@ -4,7 +4,6 @@ from time import sleep
 
 from celestialflow import TaskStage, TaskGraph, format_table
 
-
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
 
@@ -144,7 +143,9 @@ def test_graph_0():
     # 初始化 TaskGraph
     graph = TaskGraph(root_stages=[stage1])
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
+    graph.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
 
     # 要测试的任务列表
     test_task_0 = range(25, 37)
@@ -154,8 +155,14 @@ def test_graph_0():
     input_tasks = {
         stage1.get_tag(): test_task_1,
     }
-    stage_modes = ["serial", "process", ]
-    execution_modes = ["serial", "thread", ]
+    stage_modes = [
+        "serial",
+        "process",
+    ]
+    execution_modes = [
+        "serial",
+        "thread",
+    ]
 
     # 开始任务链
     result = graph.test_methods(input_tasks, stage_modes, execution_modes)
@@ -186,7 +193,9 @@ def test_graph_1():
     # 初始化 TaskGraph, 并设置根节点
     graph = TaskGraph([A])
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
+    graph.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
 
     input_tasks = {
         A.get_tag(): range(10),

@@ -196,7 +196,7 @@ class TaskStage(TaskExecutor):
         # 读取也加锁，避免极端情况下读到中间态（虽然 int 很短，但习惯好）
         with self._status.get_lock():
             return StageStatus(self._status.value)
-        
+
     def set_queue_ctree(self):
         self.task_queues.set_ctree(self.ctree_client)
         self.result_queues.set_ctree(self.ctree_client)

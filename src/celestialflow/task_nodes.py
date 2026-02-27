@@ -111,7 +111,9 @@ class TaskRouter(TaskStage):
         if not (isinstance(routed, tuple) and len(routed) == 2):
             raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
         if routed[0] not in self.route_counters:
-            raise InvalidOptionError("Unknown target", routed[0], self.route_counters.keys())
+            raise InvalidOptionError(
+                "Unknown target", routed[0], self.route_counters.keys()
+            )
         return routed
 
     def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):

@@ -588,7 +588,10 @@ def make_queue_backend(mode: str):
 
 
 def make_taskqueue(
-    *, mode: str, direction: str, stage: "TaskStage",
+    *,
+    mode: str,
+    direction: str,
+    stage: "TaskStage",
 ):
     Q = make_queue_backend(mode)
     return TaskQueue(
@@ -609,7 +612,11 @@ def calc_remaining(processed: int, pending: int, elapsed: float) -> float:
 
 
 def calc_elapsed(
-    status: bool, start_time: float, last_elapsed: float, last_pending: int, interval: float
+    status: bool,
+    start_time: float,
+    last_elapsed: float,
+    last_pending: int,
+    interval: float,
 ) -> float:
     """更新时间消耗（仅在 pending 非 0 时刷新）"""
     if status and start_time:

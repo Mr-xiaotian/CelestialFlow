@@ -6,7 +6,12 @@ from .task_graph import TaskGraph
 
 # ========有向无环图(DAG)========
 class TaskChain(TaskGraph):
-    def __init__(self, stages: List[TaskStage], chain_mode: str = "serial", log_level: str = "SUCCESS"):
+    def __init__(
+        self,
+        stages: List[TaskStage],
+        chain_mode: str = "serial",
+        log_level: str = "SUCCESS",
+    ):
         """
         TaskChain: 线性任务链结构
         该结构将多个 TaskStage 节点按顺序连接，形成一个线性的数据流图。
@@ -33,7 +38,12 @@ class TaskChain(TaskGraph):
 
 
 class TaskCross(TaskGraph):
-    def __init__(self, layers: List[List[TaskStage]], schedule_mode: str = "eager", log_level: str = "SUCCESS"):
+    def __init__(
+        self,
+        layers: List[List[TaskStage]],
+        schedule_mode: str = "eager",
+        log_level: str = "SUCCESS",
+    ):
         """
         TaskCross: 多层任务交叉结构
         该结构将任务按“层”组织，每层可以包含多个并行执行的 TaskStage 节点，
@@ -55,7 +65,9 @@ class TaskCross(TaskGraph):
                     stage_mode="process",
                     stage_name=f"Layer{i+1}-{index+1}",
                 )
-        super().__init__(root_stages=layers[0], schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(
+            root_stages=layers[0], schedule_mode=schedule_mode, log_level=log_level
+        )
 
     def start_cross(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
@@ -68,7 +80,12 @@ class TaskCross(TaskGraph):
 
 
 class TaskGrid(TaskGraph):
-    def __init__(self, grid: List[List[TaskStage]], schedule_mode: str = "eager", log_level: str = "SUCCESS"):
+    def __init__(
+        self,
+        grid: List[List[TaskStage]],
+        schedule_mode: str = "eager",
+        log_level: str = "SUCCESS",
+    ):
         """
         TaskGrid: 任务网格结构
         该结构将任务节点组织成二维网格形式，每个节点连接其右侧和下方的节点，
@@ -89,7 +106,9 @@ class TaskGrid(TaskGraph):
                 if j + 1 < cols:
                     nexts.append(grid[i][j + 1])  # right
                 curr.set_graph_context(nexts, "process", f"Grid-{i+1}-{j+1}")
-        super().__init__(root_stages=[grid[0][0]], schedule_mode=schedule_mode, log_level=log_level)  # 起点为左上角
+        super().__init__(
+            root_stages=[grid[0][0]], schedule_mode=schedule_mode, log_level=log_level
+        )  # 起点为左上角
 
     def start_grid(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
@@ -128,7 +147,9 @@ class TaskLoop(TaskGraph):
 
 
 class TaskWheel(TaskGraph):
-    def __init__(self, center: TaskStage, ring: List[TaskStage], log_level: str = "SUCCESS"):
+    def __init__(
+        self, center: TaskStage, ring: List[TaskStage], log_level: str = "SUCCESS"
+    ):
         """
         wheel: 特殊的有环图, 他有结构意义上的起点, 中心节点连向环, 环相连成闭环
         由于环的结构特性, 强制使用 'eager' 节点模式

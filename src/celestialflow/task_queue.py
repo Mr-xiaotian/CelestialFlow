@@ -17,6 +17,7 @@ from .task_logger import TaskLogger
 if TYPE_CHECKING:
     from .task_stage import TaskStage
 
+
 class TaskQueue:
     def __init__(
         self,
@@ -29,7 +30,7 @@ class TaskQueue:
     ):
         if len(queue_list) != len(queue_tags):
             raise ValueError("queue_list and queue_tags must have the same length")
-        
+
         valid_dirextions = ("in", "out")
         if direction not in valid_dirextions:
             raise InvalidOptionError("direction", direction, valid_dirextions)
@@ -189,8 +190,8 @@ class TaskQueue:
                 self.termination_dict[0] = item.id
                 termination_id = self.ctree_client.emit(
                     "termination.merge",
-                    parents = [item.id],
-                    payload = self.stage_summary,
+                    parents=[item.id],
+                    payload=self.stage_summary,
                 )
                 return TerminationSignal(termination_id)
 
@@ -227,8 +228,8 @@ class TaskQueue:
             if len(self.termination_dict) == total_queues:
                 termination_id = self.ctree_client.emit(
                     "termination.merge",
-                    parents = list(self.termination_dict.values()),
-                    payload = self.stage_summary,
+                    parents=list(self.termination_dict.values()),
+                    payload=self.stage_summary,
                 )
                 return TerminationSignal(termination_id)
 
@@ -254,8 +255,8 @@ class TaskQueue:
                 self.termination_dict[0] = item.id
                 termination_id = self.ctree_client.emit(
                     "termination.merge",
-                    parents = [item.id],
-                    payload = self.stage_summary,
+                    parents=[item.id],
+                    payload=self.stage_summary,
                 )
                 return TerminationSignal(termination_id)
 
@@ -291,8 +292,8 @@ class TaskQueue:
             if len(self.termination_dict) == total_queues:
                 termination_id = self.ctree_client.emit(
                     "termination.merge",
-                    parents = list(self.termination_dict.values()),
-                    payload = self.stage_summary,
+                    parents=list(self.termination_dict.values()),
+                    payload=self.stage_summary,
                 )
                 return TerminationSignal(termination_id)
 

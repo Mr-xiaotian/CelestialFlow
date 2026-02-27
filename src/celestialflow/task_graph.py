@@ -130,7 +130,7 @@ class TaskGraph:
                 direction="in",
                 stage=stage,
                 task_logger=self.task_logger,
-                ctree_client=None, 
+                ctree_client=None,
             )
             stage_runtime["out_queue"] = TaskQueue(
                 queue_list=[],
@@ -138,7 +138,7 @@ class TaskGraph:
                 direction="out",
                 stage=stage,
                 task_logger=self.task_logger,
-                ctree_client=None, 
+                ctree_client=None,
             )
 
             visited_stages.add(stage_tag)
@@ -222,7 +222,9 @@ class TaskGraph:
         else:
             self.reporter = NullTaskReporter()
 
-    def set_ctree(self, use_ctree=False, host="127.0.0.1", http_port=7777, grpc_port=7778):
+    def set_ctree(
+        self, use_ctree=False, host="127.0.0.1", http_port=7777, grpc_port=7778
+    ):
         """
         设定事件树客户端
 
@@ -236,7 +238,9 @@ class TaskGraph:
         self._ctree_grpc_port = grpc_port
 
         if use_ctree:
-            self.ctree_client = CelestialTreeClient(host=host, http_port=http_port, grpc_port=grpc_port, transport="grpc")
+            self.ctree_client = CelestialTreeClient(
+                host=host, http_port=http_port, grpc_port=grpc_port, transport="grpc"
+            )
             if not self.ctree_client.health():
                 raise Exception("CelestialTreeClient is not available")
         else:
@@ -316,7 +320,7 @@ class TaskGraph:
                 root_in_queue: TaskQueue = self.stage_runtime_dict[root_stage_tag][
                     "in_queue"
                 ]
-                
+
                 termination_id = self.ctree_client.emit(
                     "termination.input",
                     payload=stage.get_summary(),
@@ -409,7 +413,9 @@ class TaskGraph:
         stage_runtime["start_time"] = time.time()
 
         if self._use_ctree:
-            stage.set_ctree(self._ctree_host, self._CTREE_HTTP_PORT, self._ctree_grpc_port)
+            stage.set_ctree(
+                self._ctree_host, self._CTREE_HTTP_PORT, self._ctree_grpc_port
+            )
         else:
             stage.set_nullctree(self.ctree_client.event_id)
 
@@ -512,7 +518,7 @@ class TaskGraph:
             self.total_error_num += 1
 
         self._persist_failures(failures)
-    
+
     def collect_runtime_snapshot(self):
         """
         收集运行时快照
@@ -670,7 +676,7 @@ class TaskGraph:
         :return: 任务链状态字典
         """
         return self.status_dict
-    
+
     def get_graph_summary(self) -> dict:
         return self.graph_summary
 
@@ -704,7 +710,7 @@ class TaskGraph:
         input_ids: set = self.input_ids[stage_tag]
         descendants = self.ctree_client.descendants_batch(list(input_ids), "meta")
         return format_descendants_forest(descendants, STAGE_STYLE)
-    
+
     def get_error_trace(self, error_id):
         provenance = self.ctree_client.provenance(error_id)
         return format_provenance_forest(provenance, STAGE_STYLE)

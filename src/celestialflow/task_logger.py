@@ -9,7 +9,6 @@ from loguru import logger as loguru_logger
 from .task_errors import LogLevelError
 from .task_types import TerminationSignal, TERMINATION_SIGNAL
 
-
 # 日志级别字典
 LEVEL_DICT = {
     "TRACE": 0,

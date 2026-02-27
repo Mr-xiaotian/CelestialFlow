@@ -13,7 +13,6 @@ from celestialflow import (
     TaskGrid,
 )
 
-
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
 
@@ -101,26 +100,18 @@ def add_25(x):
 # ========有向无环图(DAG)========
 def test_chain():
     # 构建 DAG: A ➝ B ➝ C ➝ D ➝ E
-    stageA = TaskStage(
-        square, execution_mode="serial", worker_limit=2
-    )
-    stageB = TaskStage(
-        square, execution_mode="serial", worker_limit=2
-    )
-    stageC = TaskStage(
-        square, execution_mode="serial", worker_limit=2
-    )
-    stageD = TaskStage(
-        square, execution_mode="serial", worker_limit=2
-    )
-    stageE = TaskStage(
-        square, execution_mode="serial", worker_limit=2
-    )
+    stageA = TaskStage(square, execution_mode="serial", worker_limit=2)
+    stageB = TaskStage(square, execution_mode="serial", worker_limit=2)
+    stageC = TaskStage(square, execution_mode="serial", worker_limit=2)
+    stageD = TaskStage(square, execution_mode="serial", worker_limit=2)
+    stageE = TaskStage(square, execution_mode="serial", worker_limit=2)
 
     # 设置图结构
     chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "eager")
     chain.set_reporter(True, host=report_host, port=report_port)
-    chain.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
+    chain.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
 
     chain.start_chain(
         {
@@ -162,7 +153,9 @@ def test_forest():
     # 构建 TaskGraph（多根）
     graph = TaskGraph([stageA, stageB, stageF])  # 多根支持
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
+    graph.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
 
     # 初始任务
     init_tasks = {
@@ -189,7 +182,9 @@ def test_cross():
         [[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]], "staged"
     )
     cross.set_reporter(True, host=report_host, port=report_port)
-    cross.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
+    cross.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
 
     # 初始任务
     init_tasks = {
@@ -217,7 +212,9 @@ def test_network():
     # 构建任务图
     cross = TaskCross([[A1, A2], [B1, B2, B3], [C]])
     cross.set_reporter(True, host=report_host, port=report_port)
-    cross.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
+    cross.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
 
     # 初始任务（输入层）
     init_tasks = {
@@ -238,7 +235,9 @@ def test_star():
     # 构造 TaskCross
     star = TaskCross([[core], [side1, side2, side3]], "eager")
     star.set_reporter(True, host=report_host, port=report_port)
-    star.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
+    star.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
 
     star.start_cross({core.get_tag(): range(1, 11)})
 
@@ -253,7 +252,9 @@ def test_fanin():
     # 构造 TaskCross
     fainin = TaskCross([[source1, source2, source3], [merge]], "eager")
     fainin.set_reporter(True, host=report_host, port=report_port)
-    fainin.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
+    fainin.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
 
     fainin.start_cross(
         {
@@ -271,7 +272,9 @@ def test_grid():
     # 2. 构建 TaskGrid 实例
     task_grid = TaskGrid(grid, "staged")
     task_grid.set_reporter(True, host=report_host, port=report_port)
-    task_grid.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
+    task_grid.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
 
     # 3. 初始化任务字典，只放左上角一个任务
     init_dict = {grid[0][0].get_tag(): range(10)}
@@ -288,7 +291,9 @@ def test_loop():
 
     loop = TaskLoop([stageA, stageB, stageC])
     loop.set_reporter(True, host=report_host, port=report_port)
-    loop.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
+    loop.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
 
     # 要测试的任务列表
     test_task_0 = range(1, 2)
@@ -308,7 +313,9 @@ def test_wheel():
     # 构造 TaskCross
     wheel = TaskWheel(core, [side1, side2, side3, side4])
     wheel.set_reporter(True, host=report_host, port=report_port)
-    wheel.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
+    wheel.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
 
     wheel.start_wheel({core.get_tag(): range(1, 11)}, True)
 
@@ -322,7 +329,9 @@ def test_complete():
     # 构造 TaskComplete
     complete = TaskComplete([n1, n2, n3])
     complete.set_reporter(True, host=report_host, port=report_port)
-    complete.set_ctree(True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port)
+    complete.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
 
     complete.start_complete(
         {

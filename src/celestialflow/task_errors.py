@@ -4,11 +4,13 @@ from typing import Iterable, Tuple, Any
 
 class CelestialFlowError(Exception):
     """CelestialFlow 所有自定义异常的基类"""
+
     pass
 
 
 class ConfigurationError(CelestialFlowError):
     """配置错误（参数非法、组合不支持等）"""
+
     pass
 
 
@@ -36,6 +38,7 @@ class InvalidOptionError(ConfigurationError):
 
 class ExecutionModeError(InvalidOptionError):
     """非法的 execution_mode 配置错误"""
+
     def __init__(self, execution_mode: str, valid_modes=None):
         valid_modes = valid_modes or ("serial", "process", "thread", "async")
         super().__init__("execution mode", execution_mode, valid_modes)
@@ -45,6 +48,7 @@ class ExecutionModeError(InvalidOptionError):
 
 class StageModeError(InvalidOptionError):
     """非法的 stage_mode 配置错误"""
+
     def __init__(self, stage_mode: str, valid_modes=None):
         valid_modes = valid_modes or ("serial", "process")
         super().__init__("stage mode", stage_mode, valid_modes)
@@ -54,9 +58,16 @@ class StageModeError(InvalidOptionError):
 
 class LogLevelError(InvalidOptionError):
     """非法的 log_level 配置错误"""
+
     def __init__(self, log_level: str, valid_levels=None):
         valid_levels = valid_levels or (
-            "TRACE", "DEBUG", "SUCCESS", "INFO", "WARNING", "ERROR", "CRITICAL"
+            "TRACE",
+            "DEBUG",
+            "SUCCESS",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "CRITICAL",
         )
         super().__init__("log level", log_level, valid_levels)
         self.log_level = log_level

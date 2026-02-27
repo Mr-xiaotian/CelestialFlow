@@ -22,12 +22,12 @@ class TaskReporter:
     """
 
     def __init__(
-            self, 
-            host: str, 
-            port: int,
-            task_graph, 
-            task_logger: TaskLogger,
-        ):
+        self,
+        host: str,
+        port: int,
+        task_graph,
+        task_logger: TaskLogger,
+    ):
         self.base_url = f"http://{host}:{port}"
         self.task_graph: TaskGraph = task_graph
         self.task_logger = task_logger
@@ -111,7 +111,9 @@ class TaskReporter:
                         )
                         self.task_logger.inject_tasks_success(target_stage, task_datas)
                     except Exception as e:
-                        self.task_logger.inject_tasks_failed(target_stage, task_datas, e)
+                        self.task_logger.inject_tasks_failed(
+                            target_stage, task_datas, e
+                        )
         except Exception as e:
             self.task_logger.pull_tasks_failed(e)
 

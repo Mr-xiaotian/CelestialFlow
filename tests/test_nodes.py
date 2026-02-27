@@ -13,7 +13,6 @@ from celestialflow import (
     TaskRouter,
 )
 
-
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
 
@@ -160,7 +159,9 @@ def test_splitter_0():
     # 初始化 TaskGraph
     graph = TaskGraph([generate_stage], log_level="INFO")
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port)
+    graph.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port
+    )
 
     graph.start_graph(
         {
@@ -184,7 +185,9 @@ def test_splitter_1():
 
     chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
     chain.set_reporter(True, host=report_host, port=report_port)
-    chain.set_ctree(True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port)
+    chain.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port
+    )
 
     chain.start_chain(
         {
