@@ -1,27 +1,66 @@
-# 忽略日志
-logs/
-*.log
-
-# 忽略Byte编译的文件
+# ===============================
+# Python bytecode / cache
+# ===============================
 __pycache__/
-
 *.py[cod]
 *$py.class
 
-# 忽略IDE文件
-.vscode/
+# ===============================
+# Virtual environments
+# ===============================
+.venv/
+venv/
+env/
 
-# 忽略临时文件
+# ===============================
+# Build / packaging
+# ===============================
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# ===============================
+# Test / coverage
+# ===============================
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ===============================
+# Logs
+# ===============================
+logs/
+*.log
+
+# ===============================
+# Environment variables
+# ===============================
+.env
+.env.*
+!.env.example
+
+# ===============================
+# IDE / Editor
+# ===============================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===============================
+# OS files
+# ===============================
+.DS_Store
+Thumbs.db
+
+# ===============================
+# Project specific
+# ===============================
 profile/
 fallback/
-CelestialFlow.egg-info/
-.pytest_cache
-
 examples/
 result.json
 *.exe
-
-dist/
-build/
-
-.env
