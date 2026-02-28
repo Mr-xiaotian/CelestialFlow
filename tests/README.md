@@ -49,13 +49,50 @@ pytest tests/test_executor.py
 pytest tests/test_executor.py::test_executor_async
 ```
 
+# test_graph.py
+
+该文件用于测试 **TaskGraph** 的核心调度与执行功能。TaskGraph 是框架的调度中心，负责构建任务依赖图、管理节点（TaskStage）生命周期以及控制并发执行。
+
+## test_graph_0()
+
+构建一个基础的分支 DAG 结构，包含计算密集型（Fibonacci）、IO 密集型（Sleep）与异常处理场景。
+
+- **拓扑结构**：
+  - Stage A (Fibonacci) -> Stage B.1 (Square) -> Stage C (Divide)
+  - Stage A -> Stage B.2 (Sleep)
+- **测试特性**：
+  - 混合了 `serial` 和 `process` 两种 Stage 模式；
+  - 混合了 `serial` 和 `thread` 两种 Execution 模式；
+  - 验证了异常捕获与重试机制（针对 `ValueError`）；
+  - 集成了 `TaskReporter` 和 `CelestialTreeClient`（需外部服务支持）。
+- **主要验证点**：
+  1. 图结构的正确构建与拓扑排序；
+  2. 多节点间的任务流转与依赖控制；
+  3. 不同并发模式下的执行稳定性。
+
+## test_graph_1()
+
+构建一个更复杂的 DAG 结构，模拟多层级、多分支的依赖关系。
+
+- **拓扑结构**：
+  - A -> B, C
+  - B -> D, E
+  - C -> E
+  - D -> F
+- **测试特性**：
+  - 使用随机睡眠函数模拟不同耗时的任务；
+  - 验证了多前驱节点（如 E 节点依赖 B 和 C）的数据汇聚与同步机制。
+- **主要验证点**：
+  1. 复杂依赖关系下的任务调度正确性；
+  2. 验证 DAG 的层级执行与资源分配。
+
 # test_nodes.py
 
 该文件主要用于测试[task_nodes.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/src/celestialflow/task_nodes.py)中定义的两个特殊节点 `TaskSplitter` 与 `TaskRedis*`，两者都继承自 `TaskStage`。
 
 `TaskSplitter`用于将迭代器形式的多个任务数据(List[Task])拆成单独任务(Task)传给下游，因此在 Web 页面可以看到 `TaskSplitter` 下游获取的数据会比 `TaskSplitter` 处理成功的数据更多； `TaskRedisSink` 用于将传入的任务传给 Redis, 如果此时开启go_worker，go_worker会从 Redis 中接受数据并在处理后将答案传回 Redis，之后 `TaskRedisAck` 再提取答案并传给下游； 如果想直接从 Redis 中重新读取任务, 可以使用`TaskRedisSource`, 一般用于跨设备/跨TaskGraph传输任务。
 
-对于两节点更详细的描述请看[task_nodes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/task_nodes.md)。
+对于两节点更详细的描述请看[task_nodes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_nodes.md)。
 
 ## test_splitter_0() 与 test_splitter_1()
 
@@ -83,7 +120,7 @@ pytest tests/test_executor.py::test_executor_async
 
 这个测试函数测试了进行网络请求并下载数据时使用python原生函数与go_worker的差距。
 
-# test_structur.py
+# test_structure.py
 
 该文件主要用于测试[task_structure.py](..\src\celestialflow\task_structure.py)中预设的几种图结构，包括作为无环图(DAG)的:
 
@@ -97,11 +134,10 @@ pytest tests/test_executor.py::test_executor_async
 - TaskWheel: 在TaskLoop的基础上存在一个中心节点, 中心节点连向其他每一个节点。
 - TaskComplete: 完全图, 所有节点两两相连。
 
-对于结构详细的描述请看[Src README.md](..\src\celestialflow\README.md)。
+对于结构详细的描述请看[task_structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_structure.md)。
 
 除了 `task_structure.py` 中预设的几种结构, 还包括类似:
 
 - forest: 多个互不相关的 Tree 状结构, 用 TaskGraph 实现
 - star: 一个root节点指向多个互不关联的节点, 用TaskCross实现
 - fanin: 多个root节点指向一个节点, 用TaskCross实现
-

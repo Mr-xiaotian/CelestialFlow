@@ -159,10 +159,15 @@ if __name__ == "__main__":
 
 ```mermaid
 flowchart TD
-    classDef whiteNode fill:#ffffff,stroke:#000000,color:#000000;
+    classDef core fill:#e6efff,stroke:#3b82f6,color:#1e3a8a;
+    classDef runtime fill:#e9f8ef,stroke:#22c55e,color:#14532d;
+    classDef structure fill:#fff6e6,stroke:#f59e0b,color:#78350f;
+    classDef execution fill:#f3e8ff,stroke:#a855f7,color:#581c87;
+    classDef web fill:#ffeaea,stroke:#ef4444,color:#7f1d1d;
 
     TM[TaskExecutor.md] --> TS[TaskStage.md] --> TG[TaskGraph.md]
     TM --> TP[TaskProgress.md]
+    TM --> TME[TaskMetrics.md]
 
     TG --> TQ[TaskQueue.md]
     TG --> TN[TaskNodes.md]
@@ -172,7 +177,11 @@ flowchart TD
     TR --> TW[TaskWeb.md]
     TN --> GW[Go Worker.md]
 
-    class TM,TG,TP,TQ,TN,TR,TS,TW,GW,TSR whiteNode;
+    class TM,TS,TG core;
+    class TP,TME runtime;
+    class TSR structure;
+    class TQ,TN,GW execution;
+    class TR,TW web;
 ```
 
 以下三篇可以作为补充阅读:
