@@ -13,6 +13,7 @@ from celestialtree import (
 )
 
 from .task_errors import ExecutionModeError
+from .task_metrics import TaskMetrics
 from .task_progress import TaskProgress, NullTaskProgress
 from .task_logger import LogListener, TaskLogger
 from .task_queue import TaskQueue
@@ -84,10 +85,8 @@ class TaskExecutor:
 
         self.thread_pool = None
         self.process_pool = None
-
-        self.retry_exceptions = tuple()  # 需要重试的异常类型
-
         self.init_counter()
+        self.metrics = TaskMetrics(self)
 
     def init_counter(self):
         """
@@ -134,11 +133,9 @@ class TaskExecutor:
         - retry_time_dict：记录重试次数
         - processed_set：用于重复检测
         """
-        self.success_dict = {}  # task -> result
-        self.error_dict = {}  # task -> exception
-
-        self.retry_time_dict = {}  # task_hash -> retry_time
-        self.processed_set = set()  # task_hash
+        self.success_dict = {} # task -> result
+        self.error_dict = {}   # task -> exception
+        self.metrics.reset_state()
 
     def init_pool(self):
         """
@@ -342,21 +339,7 @@ class TaskExecutor:
         :return: 当前节点计数器
         包括任务总数(total)、成功数(success)、错误数(error)、重复数(duplicate)
         """
-        input = self.task_counter.value
-        successed = self.success_counter.value
-        failed = self.error_counter.value
-        duplicated = self.duplicate_counter.value
-        processed = successed + failed + duplicated
-        pending = max(0, input - processed)
-
-        return {
-            "tasks_input": input,
-            "tasks_successed": successed,
-            "tasks_failed": failed,
-            "tasks_duplicated": duplicated,
-            "tasks_processed": processed,
-            "tasks_pending": pending,
-        }
+        return self.metrics.get_counts()
 
     def add_retry_exceptions(self, *exceptions):
         """
@@ -364,7 +347,7 @@ class TaskExecutor:
 
         :param exceptions: 异常类型
         """
-        self.retry_exceptions = self.retry_exceptions + tuple(exceptions)
+        self.metrics.add_retry_exceptions(*exceptions)
 
     def put_task_queues(self, task_source):
         """
@@ -467,47 +450,31 @@ class TaskExecutor:
         )
 
     def update_task_counter(self):
-        # 加锁方式（保证正确）
-        self.task_counter.add_init_value(1)
+        self.metrics.update_task_counter()
 
     def update_success_counter(self):
-        # 加锁方式（保证正确）
-        with self.success_counter.get_lock():
-            self.success_counter.value += 1
+        self.metrics.update_success_counter()
 
     async def update_success_counter_async(self):
-        await asyncio.to_thread(self.update_success_counter)
+        await self.metrics.update_success_counter_async()
 
     def update_error_counter(self):
-        # 加锁方式（保证正确）
-        with self.error_counter.get_lock():
-            self.error_counter.value += 1
+        self.metrics.update_error_counter()
 
     def update_duplicate_counter(self):
-        # 加锁方式（保证正确）
-        with self.duplicate_counter.get_lock():
-            self.duplicate_counter.value += 1
+        self.metrics.update_duplicate_counter()
 
     def is_tasks_finished(self) -> bool:
         """
         判断任务是否完成
         """
-        processed = (
-            self.success_counter.value
-            + self.error_counter.value
-            + self.duplicate_counter.value
-        )
-        return self.task_counter.value == processed
+        return self.metrics.is_tasks_finished()
 
     def is_duplicate(self, task_hash):
         """
         判断任务是否重复
         """
-        # 我认为只要在add_processed_set中控制processed_set的流入就可以了
-        # 但gpt强烈建议我加上
-        if not self.enable_duplicate_check:
-            return False
-        return task_hash in self.processed_set
+        return self.metrics.is_duplicate(task_hash)
 
     def add_processed_set(self, task_hash):
         """
@@ -515,8 +482,7 @@ class TaskExecutor:
 
         :param task_hash: 任务hash
         """
-        if self.enable_duplicate_check:
-            self.processed_set.add(task_hash)
+        self.metrics.add_processed_set(task_hash)
 
     def get_args(self, task):
         """
@@ -612,8 +578,7 @@ class TaskExecutor:
         )
         result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
-        # 清理 retry_time_dict
-        self.retry_time_dict.pop(task_hash, None)
+        self.metrics.retry_time_dict.pop(task_hash, None)
 
         self.update_success_counter()
         self.result_queues.put(result_envelope)
@@ -652,8 +617,7 @@ class TaskExecutor:
         )
         result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
-        # 清理 retry_time_dict
-        self.retry_time_dict.pop(task_hash, None)
+        self.metrics.retry_time_dict.pop(task_hash, None)
 
         await self.update_success_counter_async()
         await self.result_queues.put_async(result_envelope)
@@ -679,16 +643,16 @@ class TaskExecutor:
         task_hash = task_envelope.hash
         task_id = task_envelope.id
 
-        retry_time = self.retry_time_dict.setdefault(task_hash, 0)
+        retry_time = self.metrics.retry_time_dict.setdefault(task_hash, 0)
 
         # 基于异常类型决定重试策略
         if (
-            isinstance(exception, self.retry_exceptions)
+            isinstance(exception, self.metrics.retry_exceptions)
             and retry_time < self.max_retries
         ):
             self.task_progress.add_total(1)
-            self.processed_set.discard(task_hash)
-            self.retry_time_dict[task_hash] += 1
+            self.metrics.processed_set.discard(task_hash)
+            self.metrics.retry_time_dict[task_hash] += 1
 
             retry_id = self.ctree_client.emit(
                 f"task.retry.{retry_time+1}",
@@ -701,7 +665,7 @@ class TaskExecutor:
             self.task_logger.task_retry(
                 self.get_func_name(),
                 self.get_task_repr(task),
-                self.retry_time_dict[task_hash],
+                self.metrics.retry_time_dict[task_hash],
                 exception,
                 task_id,
                 retry_id,
@@ -717,8 +681,7 @@ class TaskExecutor:
                 payload=self.get_summary(),
             )
 
-            # 清理 retry_time_dict
-            self.retry_time_dict.pop(task_hash, None)
+            self.metrics.retry_time_dict.pop(task_hash, None)
 
             self.update_error_counter()
             self.put_fail_queue(task, exception, error_id)
@@ -744,16 +707,16 @@ class TaskExecutor:
         task_hash = task_envelope.hash
         task_id = task_envelope.id
 
-        retry_time = self.retry_time_dict.setdefault(task_hash, 0)
+        retry_time = self.metrics.retry_time_dict.setdefault(task_hash, 0)
 
         # 基于异常类型决定重试策略
         if (
-            isinstance(exception, self.retry_exceptions)
+            isinstance(exception, self.metrics.retry_exceptions)
             and retry_time < self.max_retries
         ):
             self.task_progress.add_total(1)
-            self.processed_set.discard(task_hash)
-            self.retry_time_dict[task_hash] += 1
+            self.metrics.processed_set.discard(task_hash)
+            self.metrics.retry_time_dict[task_hash] += 1
 
             retry_id = self.ctree_client.emit(
                 f"task.retry.{retry_time+1}",
@@ -768,7 +731,7 @@ class TaskExecutor:
             self.task_logger.task_retry(
                 self.get_func_name(),
                 self.get_task_repr(task),
-                self.retry_time_dict[task_hash],
+                self.metrics.retry_time_dict[task_hash],
                 exception,
                 task_id,
                 retry_id,
@@ -784,8 +747,7 @@ class TaskExecutor:
                 payload=self.get_summary(),
             )
 
-            # 清理 retry_time_dict
-            self.retry_time_dict.pop(task_hash, None)
+            self.metrics.retry_time_dict.pop(task_hash, None)
 
             self.update_error_counter()
             await self.put_fail_queue_async(task, exception, error_id)
@@ -854,7 +816,6 @@ class TaskExecutor:
         finally:
             self.release_pool()
             self.release_client()
-            self.task_progress.close()
 
             self.task_logger.end_executor(
                 self.get_func_name(),
@@ -892,7 +853,6 @@ class TaskExecutor:
         finally:
             self.release_pool()
             self.release_client()
-            self.task_progress.close()
 
             self.task_logger.end_executor(
                 self.get_func_name(),
@@ -909,7 +869,6 @@ class TaskExecutor:
         串行地执行任务
         """
         while True:
-            # 从队列中依次获取任务并执行
             while True:
                 envelope = self.task_queues.get()
                 if isinstance(envelope, TerminationSignal):
@@ -919,11 +878,11 @@ class TaskExecutor:
                 task = envelope.task
                 task_hash = envelope.hash
 
-                if self.is_duplicate(task_hash):
+                if self.metrics.is_duplicate(task_hash):
                     self.deal_dupliacte(envelope)
                     self.task_progress.update(1)
                     continue
-                self.add_processed_set(task_hash)
+                self.metrics.add_processed_set(task_hash)
                 try:
                     start_time = time.time()
                     result = self.func(*self.get_args(task))
@@ -934,8 +893,9 @@ class TaskExecutor:
 
             self.task_queues.reset()
 
-            if self.is_tasks_finished():
+            if self.metrics.is_tasks_finished():
                 self.result_queues.put(termination_signal)
+                self.task_progress.close()
                 return
 
             self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
@@ -986,11 +946,11 @@ class TaskExecutor:
                 task_hash = envelope.hash
                 task_id = envelope.id
 
-                if self.is_duplicate(task_hash):
+                if self.metrics.is_duplicate(task_hash):
                     self.deal_dupliacte(envelope)
                     self.task_progress.update(1)
                     continue
-                self.add_processed_set(task_hash)
+                self.metrics.add_processed_set(task_hash)
 
                 # 提交新任务时增加in_flight计数，并清除完成事件
                 with in_flight_lock:
@@ -1009,8 +969,9 @@ class TaskExecutor:
             # 所有任务和回调都完成了，现在可以安全关闭进度条
             self.task_queues.reset()
 
-            if self.is_tasks_finished():
+            if self.metrics.is_tasks_finished():
                 self.result_queues.put(termination_signal)
+                self.task_progress.close()
                 return
 
             self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
@@ -1041,11 +1002,11 @@ class TaskExecutor:
                 task = envelope.task
                 task_hash = envelope.hash
 
-                if self.is_duplicate(task_hash):
+                if self.metrics.is_duplicate(task_hash):
                     self.deal_dupliacte(envelope)
                     self.task_progress.update(1)
                     continue
-                self.add_processed_set(task_hash)
+                self.metrics.add_processed_set(task_hash)
                 async_tasks.append(sem_task(envelope))  # 使用信号量包裹的任务
 
             # 并发运行所有任务
@@ -1060,8 +1021,9 @@ class TaskExecutor:
 
             self.task_queues.reset()
 
-            if self.is_tasks_finished():
+            if self.metrics.is_tasks_finished():
                 await self.result_queues.put_async(termination_signal)
+                self.task_progress.close()
                 return
 
             self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")

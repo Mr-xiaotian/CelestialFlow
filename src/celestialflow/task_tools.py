@@ -16,11 +16,6 @@ from threading import Lock
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Set, Optional
 
-from celestialtree import (
-    Client as CelestialTreeClient,
-)
-
-from .task_logger import TaskLogger
 from .task_types import ValueWrapper
 from .task_queue import TaskQueue
 

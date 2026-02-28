@@ -70,8 +70,7 @@ class TaskSplitter(TaskStage):
 
         processed_result = self.process_result(task, result)
 
-        # 清理 retry_time_dict
-        self.retry_time_dict.pop(task_hash, None)
+        self.metrics.retry_time_dict.pop(task_hash, None)
 
         split_count = self.put_split_result(processed_result, task_id)
         self.update_success_counter()
@@ -130,8 +129,7 @@ class TaskRouter(TaskStage):
 
         processed_result = self.process_result(task, result)
 
-        # 清理 retry_time_dict
-        self.retry_time_dict.pop(task_hash, None)
+        self.metrics.retry_time_dict.pop(task_hash, None)
 
         route_id = self.ctree_client.emit(
             "task.route",
