@@ -1,165 +1,73 @@
 # TaskExecutor
 
-TaskExecutor 是一个用于管理和执行任务的灵活框架，支持串行、并行、异步及多进程的任务执行方式。它具有强大的重试机制、日志记录功能、进度管理，以及多种执行模式的兼容性。
+`TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
-## 特性
-- **多种执行模式**：支持串行（serial）、线程池（thread）、进程池（process）以及异步（async）执行。
-- **重试机制**：对于指定的异常类型任务，可以自动重试，支持指数退避策略。
-- **日志记录**：使用 loguru 记录任务执行过程中的成功、失败、重试等情况。
-- **进度管理**：支持通过 TaskProgress 动态显示任务进度。
-- **任务结果管理**：任务的执行结果和错误信息被统一记录并可获取。
-- **任务去重**：支持任务去重，防止重复任务的执行。
-- **资源释放**：自动管理线程池和进程池资源的创建和关闭，防止资源泄漏。
-- **可组成图结构**: 可以单独运行, 也可以组成为图结构, 实现任务的流操作。
-
-## 快速上手
-
-### 1. 初始化 TaskExecutor
-首先，定义一个你想要并行执行的任务函数。任务函数接受的参数形式可以自由定义，稍后你需要在 TaskExecutor 中实现如何获取这些参数。
+## 初始化
 
 ```python
-def example_task(x, y):
-    return x + y
+class TaskExecutor:
+    def __init__(
+        self,
+        func,
+        execution_mode="serial",
+        worker_limit=20,
+        max_retries=1,
+        max_info=50,
+        unpack_task_args=False,
+        enable_success_cache=False,
+        enable_error_cache=False,
+        enable_duplicate_check=True,
+        show_progress=False,
+        progress_desc="Executing",
+        log_level="SUCCESS",
+    ):
+        ...
 ```
 
-然后，创建一个 TaskExecutor 实例，并指定你的任务函数、执行模式和其他配置参数：
+### 参数说明
+
+- **func**: 实际执行任务的可调用对象（函数）。
+- **execution_mode**: 执行模式。
+  - `serial`: 串行执行。
+  - `thread`: 多线程执行。
+  - `process`: 多进程执行（注意：作为 `TaskGraph` 的一部分时通常不使用此模式，而是由 `TaskStage` 管理）。
+  - `async`: 异步执行 (`asyncio`)。
+- **worker_limit**: 并发数量限制（线程数/进程数/协程数）。
+- **max_retries**: 任务失败后的最大重试次数。
+- **unpack_task_args**: 是否将任务参数解包 (`*args`) 传给函数。
+- **enable_success_cache**: 是否缓存成功结果。
+- **enable_error_cache**: 是否缓存失败异常。
+- **enable_duplicate_check**: 是否启用基于任务哈希的重复检查。
+- **show_progress**: 是否显示进度条。
+
+## 核心方法
+
+### start
 
 ```python
-from celestialflow import TaskExecutor
-
-# 创建TaskExecutor实例
-task_executor = TaskExecutor(
-    func=example_task,
-    execution_mode='thread',     # 可选：serial, thread, process, async
-    worker_limit=5,              # 最大并发限制
-    max_retries=3,               # 最大重试次数
-    max_info=50,                 # 日志中单个信息的最大显示量
-    unpack_task_args=True,       # 是否解包参数
-    enable_success_cache=False,  # 是否启用成功结果缓存
-    enable_error_cache=False,    # 是否启用失败结果缓存
-    enable_duplicate_check=True, # 是否启用重复检查
-    show_progress=True,          # 是否显示进度
-    progress_desc="Processing",  # 进度条信息
-    log_level="SUCCESS",         # 日志级别
-)
+def start(self, task_source: Iterable):
+    """
+    启动执行器，处理 task_source 中的所有任务。
+    会根据 execution_mode 选择相应的运行策略。
+    """
 ```
 
-### 2. 启动任务
-准备好任务列表后，可以通过 start 方法启动任务执行：
+### start_async
 
 ```python
-tasks = [(1, 2), (3, 4), (5, 6), (7, 8)]
-task_executor.start(tasks)
+async def start_async(self, task_source: Iterable):
+    """
+    异步启动执行器（用于 async 模式）。
+    """
 ```
 
-TaskExecutor 将根据设定的执行模式并发或异步地执行任务，并自动处理任务的成功、失败和重试逻辑。
+## 错误处理
 
-### 3. 获取任务结果
-任务执行完成后，可以通过 get_success_dict 方法获取执行结果，或通过 get_error_dict 获取失败的任务及其对应的异常。
+`TaskExecutor` 会捕获任务执行中的异常：
+- 如果异常在 `retry_exceptions` 列表中且未达到最大重试次数，会将任务重新放入队列重试。
+- 否则，将任务标记为失败，记录错误日志，并放入 `fail_queue`。
 
-注意: 只有在`enable_success_cache=True || enable_error_cache=True`时才会记录结果信息， 否则 get_success_dict 和 get_error_dict 返回值为空。
+## 结果处理
 
-```python
-# 获取成功的结果
-results = task_executor.get_success_dict()
-print("Results:", results)
-
-# 获取失败的任务及其异常
-errors = task_executor.get_error_dict()
-print("Errors:", errors)
-```
-
-## 主要参数和方法说明
-
-### TaskExecutor 类
-func: 任务执行函数，必须是可调用对象。
-execution_mode: 执行模式，支持 'serial'、'thread'、'process' 和 'async'。
-worker_limit: 最大并发任务数，适用于并发和异步执行模式, 一般<=50。
-max_retries: 任务失败时的最大重试次数。
-max_info: 日志中单个信息的最大显示量
-unpack_task_args: 是否解包参数, 当输入参数多于一个时使用(但还有一种更方便的模式, 之后介绍)
-enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_dict 中
-enable_error_cache: 是否启用失败结果缓存, 将失败结果保存在 error_dict 中
-enable_duplicate_check: 是否启用重复检查
-show_progress: 是否显示任务进度条，默认不显示。
-progress_desc: 进度条的描述文字，用于标识任务类型。
-log_level: 日志级别，默认为 'SUCCESS'。
-
-### 常用方法
-start(task_list: List): 启动任务执行，task_list 是任务列表，每个任务的格式取决于你在 get_args 中如何定义。
-start_async(task_list: List): 异步地执行任务。
-get_success_dict() -> dict: 返回任务执行的结果字典，键是任务对象，值是任务结果。
-get_error_dict() -> dict: 返回任务执行失败的字典，键是任务对象，值是异常信息。
-
-### 自定义方法
-你可以通过继承 TaskExecutor 并实现以下方法，来自定义任务处理的逻辑：
-
-get_args(task): 从任务对象中提取执行函数的参数。根据任务对象的结构，自定义参数提取逻辑。
-process_result(task, result): 处理任务的执行结果。可以对结果进行处理、格式化或存储。
-
-process_result_dict(): 运行结束后执行, 可以统一处理所有结果。
-handle_error_dict(): 运行结束后执行, 可以统一处理所有错误。
-
-**示例**
-
-以刚才的例子为蓝本, 我们可以通过定义 `get_args` `process_result` `process_result_dict` `handle_error_dict` 来获得更个性化的控制。
-
-```python
-from collections import defaultdict
-from celestialflow import TaskExecutor
-
-class ExampleTaskExecutor(TaskExecutor):
-    def get_args(task):
-        # 可以在 get_args 中对输入参数进行预处理
-        # 在组成 TaskGraph 时这一点尤其重要, 因为上游传递的任务未必是自己需要的形式
-        num1, num2 = task
-        num1 = num1 if num1 < 0 else 0
-        num2 = num2 if num2 > 0 else 0
-        return num1, num2 # get_args返回的必须是一个可迭代对象, 默认为(task, )
-
-    def process_result(task, result):
-        # 可以在 process_result 中对函数结果进行处理
-        # 同样在组成 TaskGraph 时非常重要
-        num1, num2 = task
-        return f"{num1} + {num2} = {result}"
-
-    def process_result_dict():
-        # 这个函数大多数情况下是不需要的, 但有时我们需要跟踪每一个任务的处理情况
-        # 这里用的是默认实现
-        return {**self.success_dict, **self.error_dict}
-
-    def handle_error_dict(self):
-        # 同样的, 这个函数大多数也用不到, 除非你想得到更系统的错误返回形式
-        # 这里用的是默认实现
-        error_groups = defaultdict(list)
-        for task, error in self.error_dict.items():
-            error_groups[error].append(task)
-
-        return dict(error_groups)
-
-
-def example_task(x, y):
-    return x + y
-
-example_task_executor = ExampleTaskExecutor(
-    func=example_task,
-    execution_mode='thread', 
-    worker_limit=50,         
-    unpack_task_args=False,     # 因为我们已经在 get_args 进行了解包, 这里选False
-    enable_success_cache=True,  # 因为要运行 process_result_dict 和 handle_error_dict, 这里必须为True
-    enable_error_cache=True,   
-    show_progress=True,         # 默认为False, 因为开启会影响性能, 具体可看experiments\benchmark_tqdm.py
-    progress_desc="Example Processing", 
-)
-```
-
-## 日志
-TaskExecutor 使用 loguru 进行日志记录，默认将日志保存到 logs/ 目录下。
-
-## 进阶
-
-### 自定义任务参数
-见 自定义方法 一节。
-
-### 重试机制
-对于定义的 retry_exceptions，如 TimeoutError 或 ConnectionError，TaskExecutor 将自动重试这些任务。如果你有自定义的异常类型，可以通过设置 self.retry_exceptions 来扩展重试逻辑。
+- **process_result**: 可重写此方法以自定义结果处理逻辑。
+- **get_args**: 可重写此方法以自定义参数提取逻辑。
