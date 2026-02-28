@@ -52,6 +52,23 @@ class TaskQueue:
     def set_ctree(self, ctree_client):
         self.ctree_client = ctree_client
 
+    def _merge_termination_single(self, idx: int, item_id: str) -> TerminationSignal:
+        self.termination_dict[idx] = item_id
+        termination_id = self.ctree_client.emit(
+            "termination.merge",
+            parents=[item_id],
+            payload=self.stage_summary,
+        )
+        return TerminationSignal(termination_id)
+
+    def _merge_all_terminations(self) -> TerminationSignal:
+        termination_id = self.ctree_client.emit(
+            "termination.merge",
+            parents=list(self.termination_dict.values()),
+            payload=self.stage_summary,
+        )
+        return TerminationSignal(termination_id)
+
     def _log_put(self, item, idx: int):
         if isinstance(item, TaskEnvelope):
             t = "task"
@@ -87,7 +104,7 @@ class TaskQueue:
         self.termination_dict = {}
 
     def is_empty(self) -> bool:
-        return all([queue.empty() for queue in self.queue_list])
+        return all(queue.empty() for queue in self.queue_list)
 
     def put(self, item: TaskEnvelope | TerminationSignal):
         """
@@ -95,7 +112,7 @@ class TaskQueue:
 
         :param item: 任务或终止符
         """
-        for index in range(len(self.queue_list)):
+        for index, _ in enumerate(self.queue_list):
             self.put_channel(item, index)
 
     async def put_async(self, item: TaskEnvelope | TerminationSignal):
@@ -104,7 +121,7 @@ class TaskQueue:
 
         :param item: 任务或终止符
         """
-        for index in range(len(self.queue_list)):
+        for index, _ in enumerate(self.queue_list):
             await self.put_channel_async(item, index)
 
     def put_first(self, item: TaskEnvelope | TerminationSignal):
@@ -171,6 +188,34 @@ class TaskQueue:
                 self.queue_tags[idx], self.stage_tag, self.direction, e
             )
 
+    def _try_get_from_idx(
+        self, idx: int, empty_exc
+    ) -> TaskEnvelope | None:
+        if idx in self.termination_dict:
+            return None
+
+        queue = self.queue_list[idx]
+        try:
+            item = queue.get_nowait()
+            self._log_get(item, idx)
+
+            if isinstance(item, TerminationSignal):
+                self.termination_dict[idx] = item.id
+                return None
+
+            if isinstance(item, TaskEnvelope):
+                self.current_index = (idx + 1) % len(self.queue_list)
+                return item
+
+            return None
+        except empty_exc:
+            return None
+        except Exception as e:
+            self.task_logger.get_item_error(
+                self.queue_tags[idx], self.stage_tag, exception=e
+            )
+            return None
+
     def get(self, poll_interval: float = 0.01) -> TaskEnvelope | TerminationSignal:
         """
         从多个队列中轮询获取任务。
@@ -181,59 +226,25 @@ class TaskQueue:
         total_queues = len(self.queue_list)
 
         if total_queues == 1:
-            # 只有一个队列时，使用阻塞式 get，提高效率
             queue = self.queue_list[0]
-            item: TaskEnvelope | TerminationSignal = queue.get()  # 阻塞等待，无需 sleep
+            item: TaskEnvelope | TerminationSignal = queue.get()
             self._log_get(item, 0)
 
             if isinstance(item, TerminationSignal):
-                self.termination_dict[0] = item.id
-                termination_id = self.ctree_client.emit(
-                    "termination.merge",
-                    parents=[item.id],
-                    payload=self.stage_summary,
-                )
-                return TerminationSignal(termination_id)
+                return self._merge_termination_single(0, item.id)
 
             return item
 
         while True:
             for i in range(total_queues):
-                idx = (self.current_index + i) % total_queues  # 轮转访问
-                if idx in self.termination_dict:
-                    continue
+                idx = (self.current_index + i) % total_queues
+                item = self._try_get_from_idx(idx, SyncEmpty)
+                if isinstance(item, TaskEnvelope):
+                    return item
 
-                queue = self.queue_list[idx]
-                try:
-                    item = queue.get_nowait()
-                    self._log_get(item, idx)
-
-                    if isinstance(item, TerminationSignal):
-                        self.termination_dict[idx] = item.id
-                        continue
-
-                    elif isinstance(item, TaskEnvelope):
-                        self.current_index = (idx + 1) % total_queues
-                        return item
-
-                except SyncEmpty:
-                    continue
-                except Exception as e:
-                    self.task_logger.get_item_error(
-                        self.queue_tags[idx], self.stage_tag, exception=e
-                    )
-                    continue
-
-            # 所有队列都终止了
             if len(self.termination_dict) == total_queues:
-                termination_id = self.ctree_client.emit(
-                    "termination.merge",
-                    parents=list(self.termination_dict.values()),
-                    payload=self.stage_summary,
-                )
-                return TerminationSignal(termination_id)
+                return self._merge_all_terminations()
 
-            # 所有队列都暂时无数据，避免 busy-wait
             time.sleep(poll_interval)
 
     async def get_async(self, poll_interval=0.01) -> TaskEnvelope | TerminationSignal:
@@ -246,56 +257,24 @@ class TaskQueue:
         total_queues = len(self.queue_list)
 
         if total_queues == 1:
-            # 单队列直接 await 阻塞等待
             queue = self.queue_list[0]
             item: TaskEnvelope | TerminationSignal = await queue.get()
             self._log_get(item, 0)
 
             if isinstance(item, TerminationSignal):
-                self.termination_dict[0] = item.id
-                termination_id = self.ctree_client.emit(
-                    "termination.merge",
-                    parents=[item.id],
-                    payload=self.stage_summary,
-                )
-                return TerminationSignal(termination_id)
+                return self._merge_termination_single(0, item.id)
 
             return item
 
         while True:
             for i in range(total_queues):
                 idx = (self.current_index + i) % total_queues
-                if idx in self.termination_dict:
-                    continue
-
-                queue = self.queue_list[idx]
-                try:
-                    item: TaskEnvelope | TerminationSignal = queue.get_nowait()
-                    self._log_get(item, idx)
-
-                    if isinstance(item, TerminationSignal):
-                        self.termination_dict[idx] = item.id
-                        continue
-
-                    elif isinstance(item, TaskEnvelope):
-                        self.current_index = (idx + 1) % total_queues
-                        return item
-
-                except AsyncEmpty:
-                    continue
-                except Exception as e:
-                    self.task_logger.get_item_error(
-                        self.queue_tags[idx], self.stage_tag, exception=e
-                    )
-                    continue
+                item = self._try_get_from_idx(idx, AsyncEmpty)
+                if isinstance(item, TaskEnvelope):
+                    return item
 
             if len(self.termination_dict) == total_queues:
-                termination_id = self.ctree_client.emit(
-                    "termination.merge",
-                    parents=list(self.termination_dict.values()),
-                    payload=self.stage_summary,
-                )
-                return TerminationSignal(termination_id)
+                return self._merge_all_terminations()
 
             await asyncio.sleep(poll_interval)
 
