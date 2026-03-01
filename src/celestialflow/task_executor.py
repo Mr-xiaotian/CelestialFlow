@@ -424,14 +424,7 @@ class TaskExecutor:
         :param task: 失败的任务
         :param error: 任务失败的异常
         """
-        self.fail_queue.put(
-            {
-                "ts": time.time(),
-                "task": str(task),
-                "error_message": f"{type(error).__name__}({error})",
-                "error_id": error_id,
-            }
-        )
+        self.fail_queue.put(self._build_fail_payload(task, error, error_id))
 
     async def put_fail_queue_async(self, task, error, error_id):
         """
@@ -440,14 +433,15 @@ class TaskExecutor:
         :param task: 失败的任务
         :param error: 任务失败的异常
         """
-        await self.fail_queue.put(
-            {
-                "ts": time.time(),
-                "task": str(task),
-                "error_message": f"{type(error).__name__}({error})",
-                "error_id": error_id,
-            }
-        )
+        await self.fail_queue.put(self._build_fail_payload(task, error, error_id))
+
+    def _build_fail_payload(self, task, error, error_id):
+        return {
+            "ts": time.time(),
+            "task": str(task),
+            "error_message": f"{type(error).__name__}({error})",
+            "error_id": error_id,
+        }
 
     def update_task_counter(self):
         self.metrics.update_task_counter()
@@ -563,22 +557,9 @@ class TaskExecutor:
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        task = task_envelope.task
-        task_hash = task_envelope.hash
-        task_id = task_envelope.id
-
-        processed_result = self.process_result(task, result)
-        if self.enable_success_cache:
-            self.success_dict[task] = processed_result
-
-        result_id = self.ctree_client.emit(
-            "task.success",
-            parents=[task_id],
-            payload=self.get_summary(),
+        task, task_id, result_id, result_envelope = self._prepare_success(
+            task_envelope, result
         )
-        result_envelope = TaskEnvelope.wrap(processed_result, result_id)
-
-        self.metrics.retry_time_dict.pop(task_hash, None)
 
         self.update_success_counter()
         self.result_queues.put(result_envelope)
@@ -602,6 +583,23 @@ class TaskExecutor:
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
+        task, task_id, result_id, result_envelope = self._prepare_success(
+            task_envelope, result
+        )
+
+        await self.update_success_counter_async()
+        await self.result_queues.put_async(result_envelope)
+        self.task_logger.task_success(
+            self.get_func_name(),
+            self.get_task_repr(task),
+            self.execution_mode,
+            self.get_result_repr(result),
+            time.time() - start_time,
+            task_id,
+            result_id,
+        )
+
+    def _prepare_success(self, task_envelope: TaskEnvelope, result):
         task = task_envelope.task
         task_hash = task_envelope.hash
         task_id = task_envelope.id
@@ -618,18 +616,7 @@ class TaskExecutor:
         result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
         self.metrics.retry_time_dict.pop(task_hash, None)
-
-        await self.update_success_counter_async()
-        await self.result_queues.put_async(result_envelope)
-        self.task_logger.task_success(
-            self.get_func_name(),
-            self.get_task_repr(task),
-            self.execution_mode,
-            self.get_result_repr(result),
-            time.time() - start_time,
-            task_id,
-            result_id,
-        )
+        return task, task_id, result_id, result_envelope
 
     def handle_task_error(self, task_envelope: TaskEnvelope, exception: Exception):
         """
