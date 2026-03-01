@@ -8,6 +8,10 @@ let hiddenNodes = new Set(
 
 const dashboardGrid = document.getElementById("dashboard-grid");
 
+/**
+ * 异步加载最新的节点状态数据
+ * 从后端 API 获取节点状态并更新全局变量 nodeStatuses
+ */
 async function loadStatuses() {
   try {
     const res = await fetch("/api/get_status");
@@ -17,6 +21,10 @@ async function loadStatuses() {
   }
 }
 
+/**
+ * 初始化仪表盘的拖拽排序功能
+ * 如果是移动端则跳过初始化
+ */
 function initSortableDashboard() {
   if (isMobile()) {
     console.log("移动端，禁用拖动功能");
@@ -40,6 +48,9 @@ function initSortableDashboard() {
   });
 }
 
+/**
+ * 保存仪表盘卡片的排序顺序到本地存储
+ */
 function saveDashboardOrder() {
   const order = Array.from(
     document.querySelectorAll("#dashboard-grid .card-title")
@@ -47,10 +58,18 @@ function saveDashboardOrder() {
   localStorage.setItem("dashboardOrder", JSON.stringify(order));
 }
 
+/**
+ * 从本地存储获取仪表盘卡片的排序顺序
+ * @returns {Array<string>} 节点名称数组
+ */
 function getDashboardOrder() {
   return JSON.parse(localStorage.getItem("dashboardOrder") || "[]");
 }
 
+/**
+ * 渲染仪表盘节点状态卡片
+ * 根据排序顺序和节点状态生成 HTML，显示进度条、统计数据等
+ */
 function renderDashboard() {
   dashboardGrid.innerHTML = "";
 
@@ -139,6 +158,10 @@ function renderDashboard() {
   }
 }
 
+/**
+ * 初始化节点进度折线图
+ * 创建 Chart.js 实例，配置图表选项、图例点击事件等
+ */
 function initChart() {
   const ctx = document.getElementById("node-progress-chart").getContext("2d");
 
@@ -213,6 +236,10 @@ function initChart() {
   });
 }
 
+/**
+ * 更新折线图数据
+ * 提取节点进度历史数据，更新 Chart.js 实例的数据集并重绘
+ */
 function updateChartData() {
   const nodeDataMap = extractProgressData(nodeStatuses);
   const datasets = Object.entries(nodeDataMap).map(([node, data], index) => ({

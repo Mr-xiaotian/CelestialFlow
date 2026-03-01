@@ -8,6 +8,10 @@ const totalFailed = document.getElementById("total-failed");
 const totalNodes = document.getElementById("total-nodes");
 const totalRemain = document.getElementById("total-remain");
 
+/**
+ * 异步加载最新的汇总数据
+ * 从后端 API 获取任务汇总信息并更新全局变量 summaryData
+ */
 async function loadSummary() {
   try {
     const res = await fetch("/api/get_summary");
@@ -17,6 +21,10 @@ async function loadSummary() {
   }
 }
 
+/**
+ * 渲染汇总数据面板
+ * 更新页面上的总成功数、等待数、失败数、重复数、节点数和剩余时间
+ */
 function renderSummary() {
   const {
     total_successed = 0,

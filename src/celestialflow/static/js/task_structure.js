@@ -1,6 +1,10 @@
 let structureData = [];
 let previousStructureDataJSON = "";
 
+/**
+ * 异步加载最新的任务结构数据
+ * 从后端 API 获取任务结构图数据并更新全局变量 structureData
+ */
 async function loadStructure() {
   try {
     const res = await fetch("/api/get_structure");
@@ -10,10 +14,21 @@ async function loadStructure() {
   }
 }
 
+/**
+ * 获取节点的唯一标识符 ID
+ * @param {Object} node - 节点对象
+ * @returns {string} 替换非单词字符后的节点 ID
+ */
 function getNodeId(node) {
   return node.stage_name.replace(/\W+/g, "_");
 }
 
+/**
+ * 根据节点形状类型生成 Mermaid 语法的标签
+ * @param {string} label - 节点显示的文本
+ * @param {string} shape - 形状类型 (box, circle, round, rhombus, subgraph, parallelogram, db, cloud, hex, arrow)
+ * @returns {string} 包含形状定义的 Mermaid 节点标签
+ */
 function getShapeWrappedLabel(label, shape = "box") {
   switch (shape) {
     case "circle": // Circle nodes
@@ -48,6 +63,10 @@ function getShapeWrappedLabel(label, shape = "box") {
   }
 }
 
+/**
+ * 根据任务结构数据渲染 Mermaid 图表
+ * 构建 Mermaid 流程图代码，根据节点状态应用样式，并更新 DOM
+ */
 function renderMermaidFromTaskStructure() {
   const edges = new Set();
   const nodeLabels = new Map();

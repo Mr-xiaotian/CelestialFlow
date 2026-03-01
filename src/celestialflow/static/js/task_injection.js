@@ -7,6 +7,10 @@ document.addEventListener("DOMContentLoaded", async function () {
   setupEventListeners();
 });
 
+/**
+ * 设置页面元素的事件监听器
+ * 包括搜索输入、JSON 输入验证、文件上传和提交按钮
+ */
 function setupEventListeners() {
   document
     .getElementById("search-input")
@@ -29,6 +33,10 @@ function setupEventListeners() {
     .addEventListener("click", handleSubmit);
 }
 
+/**
+ * 渲染任务注入页面的节点列表
+ * @param {string} searchTerm - 搜索关键词，用于过滤节点
+ */
 function renderNodeList(searchTerm = "") {
   const nodeListEl = document.getElementById("node-list");
   if (!nodeListEl) return;
@@ -70,6 +78,10 @@ function renderNodeList(searchTerm = "") {
   document.getElementById("node-list").innerHTML = nodeListHTML;
 }
 
+/**
+ * 选择或取消选择节点
+ * @param {string} nodeName - 节点名称
+ */
 function selectNode(nodeName) {
   const existing = selectedNodes.find((n) => n.name === nodeName);
 
@@ -87,11 +99,19 @@ function selectNode(nodeName) {
   updateSelectedNodes();
 }
 
+/**
+ * 从已选列表中移除节点
+ * @param {string} nodeName - 节点名称
+ */
 function removeNode(nodeName) {
   selectedNodes = selectedNodes.filter((n) => n.name !== nodeName);
   updateSelectedNodes();
 }
 
+/**
+ * 更新已选节点列表的 UI 显示
+ * 显示已选数量和节点列表，如果为空则隐藏相关区域
+ */
 function updateSelectedNodes() {
   const selectedSection = document.getElementById("selected-section");
   const selectedList = document.getElementById("selected-list");
@@ -122,6 +142,9 @@ function updateSelectedNodes() {
   selectedList.innerHTML = selectedHTML;
 }
 
+/**
+ * 全选所有可用节点（排除已停止的节点）
+ */
 function selectAllNodes() {
   // const searchTerm = document.getElementById("search-input").value;
 
@@ -144,11 +167,18 @@ function selectAllNodes() {
   updateSelectedNodes();
 }
 
+/**
+ * 清空所有已选节点
+ */
 function clearSelection() {
   selectedNodes = [];
   updateSelectedNodes();
 }
 
+/**
+ * 切换任务数据输入方式（JSON文本或文件上传）
+ * @param {string} method - 输入方式 'json' 或 'file'
+ */
 function switchInputMethod(method) {
   currentInputMethod = method;
 
@@ -167,6 +197,9 @@ function switchInputMethod(method) {
     .classList.toggle("hidden", method !== "file");
 }
 
+/**
+ * 填充预定义的终止信号 JSON
+ */
 function fillTermination() {
   document.getElementById("json-textarea").value = JSON.stringify(
     ["TERMINATION_SIGNAL"],
@@ -176,6 +209,11 @@ function fillTermination() {
   hideError("json-error");
 }
 
+/**
+ * 处理文件上传事件
+ * 读取 JSON 文件内容并验证格式
+ * @param {Event} e - 文件选择事件
+ */
 function handleFileUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -204,16 +242,30 @@ function handleFileUpload(e) {
   reader.readAsText(file);
 }
 
+/**
+ * 显示错误信息
+ * @param {string} elementId - 错误信息容器 ID
+ * @param {string} message - 错误文本
+ */
 function showError(elementId, message) {
   const errorDiv = document.getElementById(elementId);
   errorDiv.textContent = message;
   errorDiv.style.display = "block";
 }
 
+/**
+ * 隐藏错误信息
+ * @param {string} elementId - 错误信息容器 ID
+ */
 function hideError(elementId) {
   document.getElementById(elementId).style.display = "none";
 }
 
+/**
+ * 显示操作状态提示（成功或失败）
+ * @param {string} message - 提示信息
+ * @param {boolean} isSuccess - 是否成功
+ */
 function showStatus(message, isSuccess = false) {
   const statusDiv = document.getElementById("status-message");
   const iconSVG = isSuccess
@@ -231,6 +283,10 @@ function showStatus(message, isSuccess = false) {
   }, 3000);
 }
 
+/**
+ * 处理任务注入提交
+ * 验证输入，遍历选定节点并发送注入请求
+ */
 async function handleSubmit() {
   if (selectedNodes.length === 0) {
     showStatus("请选择至少一个节点", false);
@@ -284,6 +340,10 @@ async function handleSubmit() {
   }
 }
 
+/**
+ * 设置提交按钮的加载状态
+ * @param {boolean} loading - 是否正在加载
+ */
 function setButtonLoading(loading) {
   const btn = document.getElementById("submit-btn");
   if (loading) {
@@ -295,6 +355,10 @@ function setButtonLoading(loading) {
   }
 }
 
+/**
+ * 重置任务注入表单
+ * 清空选择、输入框和错误信息
+ */
 function clearForm() {
   selectedNodes = [];
   updateSelectedNodes();

@@ -1,6 +1,10 @@
 let topologyData = [];
 let previousTopologyDataJSON = "";
 
+/**
+ * 异步加载最新的拓扑数据
+ * 从后端 API 获取拓扑信息并更新全局变量 topologyData
+ */
 async function loadTopology() {
   try {
     const res = await fetch("/api/get_topology");
@@ -10,6 +14,10 @@ async function loadTopology() {
   }
 }
 
+/**
+ * 渲染拓扑信息面板
+ * 根据 topologyData 在页面上显示结构类型、DAG 状态、调度模式和层级数量等信息
+ */
 function renderTopologyInfo() {
   const container = document.getElementById("topology-info");
   if (!container) return;
