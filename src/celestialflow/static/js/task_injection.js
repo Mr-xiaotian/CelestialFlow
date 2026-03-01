@@ -23,10 +23,23 @@ function setupEventListeners() {
   document
     .getElementById("file-input")
     .addEventListener("change", handleFileUpload);
+
+  document
+    .getElementById("submit-btn")
+    .addEventListener("click", handleSubmit);
 }
 
-function renderNodeList() {
+function renderNodeList(searchTerm = "") {
+  const nodeListEl = document.getElementById("node-list");
+  if (!nodeListEl) return;
+
+  const normalizedSearch = searchTerm.toLowerCase().trim();
+
   const nodeListHTML = Object.keys(nodeStatuses)
+    .filter((nodeName) => {
+      if (!normalizedSearch) return true;
+      return nodeName.toLowerCase().includes(normalizedSearch);
+    })
     .map((nodeName) => {
       // 根据 status 值确定样式和文本
       const status = nodeStatuses[nodeName].status;
