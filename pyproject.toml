@@ -10,7 +10,7 @@ readme = "README.md"
 license = { text = "MIT" }    
 authors = [{ name = "Mr-xiaotian", email = "mingxiaomingtian@gmail.com" }]
 keywords = ["workflow", "task", "graph", "async", "CelestialFlow"]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 
 dependencies = [
     "tqdm",
@@ -63,4 +63,8 @@ asyncio_default_fixture_loop_scope = "function"
 dev = [
     "build>=1.2.2.post1",
     "twine>=6.1.0",
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.3",
+    "httpx>=0.28.1",
+    "python-dotenv>=1.2.2",
 ]
