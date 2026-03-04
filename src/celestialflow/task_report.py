@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, List
 
 import requests
 
-from .persistence import TaskLogger
+from .persistence import LogSinker
 from .task_tools import load_jsonl_logs
 from .task_types import TERMINATION_SIGNAL
 
@@ -26,11 +26,11 @@ class TaskReporter:
         host: str,
         port: int,
         task_graph,
-        task_logger: TaskLogger,
+        log_sinker: LogSinker,
     ):
         self.base_url = f"http://{host}:{port}"
         self.task_graph: TaskGraph = task_graph
-        self.task_logger = task_logger
+        self.log_sinker = log_sinker
 
         self._stop_flag = Event()
         self._thread = None
@@ -50,7 +50,7 @@ class TaskReporter:
             self._stop_flag.set()
             self._thread.join(timeout=2)
             self._thread = None
-            self.task_logger.stop_reporter()
+            self.log_sinker.stop_reporter()
 
     def _pull_timeout(self) -> float:
         return max(1.0, min(self.interval * 0.2, 5.0))
@@ -63,7 +63,7 @@ class TaskReporter:
             try:
                 self._refresh_all()
             except Exception as e:
-                self.task_logger.loop_failed(e)
+                self.log_sinker.loop_failed(e)
             self._stop_flag.wait(self.interval)
 
     def _refresh_all(self):
@@ -87,7 +87,7 @@ class TaskReporter:
                 interval = res.json().get("interval", 5)
                 self.interval = max(1.0, min(interval, 60.0))
         except Exception as e:
-            self.task_logger.pull_interval_failed(e)
+            self.log_sinker.pull_interval_failed(e)
 
     def _pull_and_inject_tasks(self):
         try:
@@ -109,13 +109,13 @@ class TaskReporter:
                         self.task_graph.put_stage_queue(
                             {target_stage: task_datas}, put_termination_signal=False
                         )
-                        self.task_logger.inject_tasks_success(target_stage, task_datas)
+                        self.log_sinker.inject_tasks_success(target_stage, task_datas)
                     except Exception as e:
-                        self.task_logger.inject_tasks_failed(
+                        self.log_sinker.inject_tasks_failed(
                             target_stage, task_datas, e
                         )
         except Exception as e:
-            self.task_logger.pull_tasks_failed(e)
+            self.log_sinker.pull_tasks_failed(e)
 
     def _push_errors(self):
         try:
@@ -136,7 +136,7 @@ class TaskReporter:
                 raise RuntimeError(f"push_errors_content failed: {resp.get('msg')}")
 
         except Exception as e:
-            self.task_logger.push_errors_failed(e)
+            self.log_sinker.push_errors_failed(e)
 
     def _push_errors_meta(self) -> dict:
         jsonl_path = self.task_graph.get_fallback_path()
@@ -184,7 +184,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.task_logger.push_status_failed(e)
+            self.log_sinker.push_status_failed(e)
 
     def _push_structure(self):
         try:
@@ -196,7 +196,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.task_logger.push_structure_failed(e)
+            self.log_sinker.push_structure_failed(e)
 
     def _push_topology(self):
         try:
@@ -208,7 +208,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.task_logger.push_topology_failed(e)
+            self.log_sinker.push_topology_failed(e)
 
     def _push_summary(self):
         try:
@@ -220,7 +220,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.task_logger.push_summary_failed(e)
+            self.log_sinker.push_summary_failed(e)
 
 
 class NullTaskReporter:

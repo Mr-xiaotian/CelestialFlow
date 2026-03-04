@@ -12,7 +12,7 @@ from celestialtree import (
 
 from .task_errors import InvalidOptionError
 from .task_types import TaskEnvelope, TerminationSignal
-from .persistence import TaskLogger
+from .persistence import LogSinker
 
 if TYPE_CHECKING:
     from .task_stage import TaskStage
@@ -25,7 +25,7 @@ class TaskQueue:
         queue_tags: List[str],
         direction: str,
         stage: TaskStage,
-        task_logger: TaskLogger,
+        log_sinker: LogSinker,
         ctree_client: CelestialTreeClient,
     ):
         if len(queue_list) != len(queue_tags):
@@ -41,7 +41,7 @@ class TaskQueue:
 
         self.stage_tag = stage.get_tag()
         self.stage_summary = stage.get_summary()
-        self.task_logger = task_logger
+        self.log_sinker = log_sinker
         self.ctree_client = ctree_client
 
         self.current_index = 0  # 记录起始队列索引，用于轮询
@@ -76,7 +76,7 @@ class TaskQueue:
             t = "termination"
         else:
             t = "unknown"
-        self.task_logger.put_item(
+        self.log_sinker.put_item(
             t, item.id, self.queue_tags[idx], self.stage_tag, self.direction
         )
 
@@ -87,7 +87,7 @@ class TaskQueue:
             t = "termination"
         else:
             t = "unknown"
-        self.task_logger.get_item(t, item.id, self.queue_tags[idx], self.stage_tag)
+        self.log_sinker.get_item(t, item.id, self.queue_tags[idx], self.stage_tag)
 
     def get_tag_idx(self, tag: str) -> int:
         return self._tag_to_idx[tag]
@@ -169,7 +169,7 @@ class TaskQueue:
             self.queue_list[idx].put(item)
             self._log_put(item, idx)
         except Exception as e:
-            self.task_logger.put_item_error(
+            self.log_sinker.put_item_error(
                 self.queue_tags[idx], self.stage_tag, self.direction, e
             )
 
@@ -184,7 +184,7 @@ class TaskQueue:
             await self.queue_list[idx].put(item)
             self._log_put(item, idx)
         except Exception as e:
-            self.task_logger.put_item_error(
+            self.log_sinker.put_item_error(
                 self.queue_tags[idx], self.stage_tag, self.direction, e
             )
 
@@ -211,7 +211,7 @@ class TaskQueue:
         except empty_exc:
             return None
         except Exception as e:
-            self.task_logger.get_item_error(
+            self.log_sinker.get_item_error(
                 self.queue_tags[idx], self.stage_tag, exception=e
             )
             return None
@@ -303,7 +303,7 @@ class TaskQueue:
                 except SyncEmpty:
                     break
                 except Exception as e:
-                    self.task_logger.get_item_error(
+                    self.log_sinker.get_item_error(
                         self.queue_tags[idx],
                         self.stage_tag,
                         self.direction,

@@ -12,7 +12,7 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
-from .persistence import FailListener, FailSinker, LogListener, TaskLogger
+from .persistence import FailListener, FailSinker, LogListener, LogSinker
 from .task_errors import ExecutionModeError
 from .task_metrics import TaskMetrics
 from .task_progress import TaskProgress, NullTaskProgress
@@ -164,7 +164,7 @@ class TaskExecutor:
         :param log_queue: 日志队列
         """
         self.log_queue = log_queue or make_queue_backend("serial")()
-        self.task_logger = TaskLogger(self.log_queue, self.log_level)
+        self.log_sinker = LogSinker(self.log_queue, self.log_level)
 
     def init_queue(
         self,
@@ -373,7 +373,7 @@ class TaskExecutor:
             envelope = TaskEnvelope.wrap(task, input_id)
             self.task_queues.put_first(envelope)
             self.update_task_counter()
-            self.task_logger.task_input(
+            self.log_sinker.task_input(
                 self.get_func_name(),
                 self.get_task_repr(task),
                 self.get_tag(),
@@ -407,7 +407,7 @@ class TaskExecutor:
             envelope = TaskEnvelope.wrap(task, input_id)
             await self.task_queues.put_first_async(envelope)
             self.update_task_counter()
-            self.task_logger.task_input(
+            self.log_sinker.task_input(
                 self.get_func_name(),
                 self.get_task_repr(task),
                 self.get_tag(),
@@ -559,7 +559,7 @@ class TaskExecutor:
 
         self.update_success_counter()
         self.result_queues.put(result_envelope)
-        self.task_logger.task_success(
+        self.log_sinker.task_success(
             self.get_func_name(),
             self.get_task_repr(task),
             self.execution_mode,
@@ -598,7 +598,7 @@ class TaskExecutor:
 
         await self.update_success_counter_async()
         await self.result_queues.put_async(result_envelope)
-        self.task_logger.task_success(
+        self.log_sinker.task_success(
             self.get_func_name(),
             self.get_task_repr(task),
             self.execution_mode,
@@ -639,7 +639,7 @@ class TaskExecutor:
             task_envelope.change_id(retry_id)
             self.task_queues.put_first(task_envelope)  # 只在第一个队列存放retry task
 
-            self.task_logger.task_retry(
+            self.log_sinker.task_retry(
                 self.get_func_name(),
                 self.get_task_repr(task),
                 self.metrics.retry_time_dict[task_hash],
@@ -662,7 +662,7 @@ class TaskExecutor:
 
             self.update_error_counter()
             self.fail_sinker.task_error(time.time(), self.get_tag(), exception, error_id, task)
-            self.task_logger.task_error(
+            self.log_sinker.task_error(
                 self.get_func_name(),
                 self.get_task_repr(task),
                 exception,
@@ -705,7 +705,7 @@ class TaskExecutor:
                 task_envelope
             )  # 只在第一个队列存放retry task
 
-            self.task_logger.task_retry(
+            self.log_sinker.task_retry(
                 self.get_func_name(),
                 self.get_task_repr(task),
                 self.metrics.retry_time_dict[task_hash],
@@ -728,7 +728,7 @@ class TaskExecutor:
 
             self.update_error_counter()
             self.fail_sinker.task_error(time.time(), self.get_tag(), exception, error_id, task)
-            self.task_logger.task_error(
+            self.log_sinker.task_error(
                 self.get_func_name(),
                 self.get_task_repr(task),
                 exception,
@@ -749,7 +749,7 @@ class TaskExecutor:
             parents=[task_envelope.id],
             payload=self.get_summary(),
         )
-        self.task_logger.task_duplicate(
+        self.log_sinker.task_duplicate(
             self.get_func_name(),
             self.get_task_repr(task),
             task_id,
@@ -770,7 +770,7 @@ class TaskExecutor:
 
         self.put_task_queues(task_source)
         self.fail_sinker.start_executor(self.get_tag())
-        self.task_logger.start_executor(
+        self.log_sinker.start_executor(
             self.get_func_name(),
             self.task_counter.value,
             self.get_execution_mode_desc(),
@@ -795,7 +795,7 @@ class TaskExecutor:
             self.release_pool()
             self.release_client()
 
-            self.task_logger.end_executor(
+            self.log_sinker.end_executor(
                 self.get_func_name(),
                 self.execution_mode,
                 time.time() - start_time,
@@ -820,7 +820,7 @@ class TaskExecutor:
         self.init_env(log_queue=self.log_listener.get_queue())
 
         await self.put_task_queues_async(task_source)
-        self.task_logger.start_executor(
+        self.log_sinker.start_executor(
             self.get_func_name(),
             self.task_counter.value,
             self.get_execution_mode_desc(),
@@ -833,7 +833,7 @@ class TaskExecutor:
             self.release_pool()
             self.release_client()
 
-            self.task_logger.end_executor(
+            self.log_sinker.end_executor(
                 self.get_func_name(),
                 self.execution_mode,
                 time.time() - start_time,
@@ -877,7 +877,7 @@ class TaskExecutor:
                 self.task_progress.close()
                 return
 
-            self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
+            self.log_sinker._log("DEBUG", f"{self.get_func_name()} is not finished.")
             self.task_queues.put(termination_signal)
 
     def run_with_executor(self, executor: ThreadPoolExecutor | ProcessPoolExecutor):
@@ -953,7 +953,7 @@ class TaskExecutor:
                 self.task_progress.close()
                 return
 
-            self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
+            self.log_sinker._log("DEBUG", f"{self.get_func_name()} is not finished.")
             self.task_queues.put(termination_signal)
 
     async def run_in_async(self):
@@ -1005,7 +1005,7 @@ class TaskExecutor:
                 self.task_progress.close()
                 return
 
-            self.task_logger._log("DEBUG", f"{self.get_func_name()} is not finished.")
+            self.log_sinker._log("DEBUG", f"{self.get_func_name()} is not finished.")
             await self.task_queues.put_async(termination_signal)
 
     async def _run_single_task(self, task):

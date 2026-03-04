@@ -26,7 +26,7 @@ class LogListener:
 
     def __init__(self):
         now = strftime("%Y-%m-%d", localtime())
-        self.log_path = f"logs/task_logger({now}).log"
+        self.log_path = f"logs/log_sinker({now}).log"
         self.log_queue = MPQueue()
         self._thread = None
 

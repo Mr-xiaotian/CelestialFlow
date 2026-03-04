@@ -5,7 +5,7 @@ from ..task_errors import LogLevelError
 from .constant import LEVEL_DICT
 
 
-class TaskLogger:
+class LogSinker:
     """
     多进程安全日志包装类，所有日志通过队列发送到监听进程写入
     """

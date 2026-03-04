@@ -203,7 +203,7 @@ class TaskStage(TaskExecutor):
         self.init_progress()
         self.init_env(input_queues, output_queues, fail_queue, log_queue)
         self.set_queue_ctree()
-        self.task_logger.start_stage(
+        self.log_sinker.start_stage(
             self.get_tag(), self.execution_mode, self.worker_limit
         )
         self.mark_running()
@@ -223,7 +223,7 @@ class TaskStage(TaskExecutor):
             self.release_client()
 
             self.task_progress.close()
-            self.task_logger.end_stage(
+            self.log_sinker.end_stage(
                 self.get_tag(),
                 self.execution_mode,
                 time.time() - start_time,

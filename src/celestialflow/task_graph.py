@@ -15,7 +15,7 @@ from celestialtree import (
 from . import task_tools
 from .task_stage import TaskStage
 from .task_report import TaskReporter, NullTaskReporter
-from .persistence import FailListener, FailSinker, LogListener, TaskLogger
+from .persistence import FailListener, FailSinker, LogListener, LogSinker
 from .task_queue import TaskQueue
 from .task_types import (
     TaskEnvelope,
@@ -103,7 +103,7 @@ class TaskGraph:
         初始化日志
         """
         self.log_listener = LogListener()
-        self.task_logger = TaskLogger(self.log_listener.get_queue(), self.log_level)
+        self.log_sinker = LogSinker(self.log_listener.get_queue(), self.log_level)
 
     def init_fainker(self):
         """
@@ -138,7 +138,7 @@ class TaskGraph:
                 queue_tags=[],
                 direction="in",
                 stage=stage,
-                task_logger=self.task_logger,
+                log_sinker=self.log_sinker,
                 ctree_client=None,
             )
             stage_runtime["out_queue"] = TaskQueue(
@@ -146,7 +146,7 @@ class TaskGraph:
                 queue_tags=[],
                 direction="out",
                 stage=stage,
-                task_logger=self.task_logger,
+                log_sinker=self.log_sinker,
                 ctree_client=None,
             )
 
@@ -219,7 +219,7 @@ class TaskGraph:
                 host=host,
                 port=port,
                 task_graph=self,
-                task_logger=self.task_logger,
+                log_sinker=self.log_sinker,
             )
         else:
             self.reporter = NullTaskReporter()
@@ -309,7 +309,7 @@ class TaskGraph:
                 input_ids.add(input_id)
 
                 stage.task_counter.add_init_value(1)
-                self.task_logger.task_input(
+                self.log_sinker.task_input(
                     stage.get_func_name(),
                     stage.get_task_repr(task),
                     stage.get_tag(),
@@ -351,7 +351,7 @@ class TaskGraph:
             start_time = time.time()
             self.fail_listener.start()
             self.log_listener.start()
-            self.task_logger.start_graph(self.get_structure_list())
+            self.log_sinker.start_graph(self.get_structure_list())
             self.fail_sinker.start_graph(self.get_structure_json())
             self.reporter.start()
 
@@ -363,7 +363,7 @@ class TaskGraph:
 
             self.reporter.stop()
             self.release_resources()
-            self.task_logger.end_graph(time.time() - start_time)
+            self.log_sinker.end_graph(time.time() - start_time)
             self.fail_listener.stop()
             self.log_listener.stop()
 
@@ -378,11 +378,11 @@ class TaskGraph:
 
             for p in self.processes:
                 p.join()
-                self.task_logger.process_exit(p.name, p.exitcode)
+                self.log_sinker.process_exit(p.name, p.exitcode)
         else:
             # staged schedule_mode：一层层地顺序执行
             for layer_level, layer in self.layers_dict.items():
-                self.task_logger.start_layer(layer, layer_level)
+                self.log_sinker.start_layer(layer, layer_level)
                 start_time = time.time()
 
                 processes = []
@@ -395,9 +395,9 @@ class TaskGraph:
                 # join 当前层的所有进程（如果有）
                 for p in processes:
                     p.join()
-                    self.task_logger.process_exit(p.name, p.exitcode)
+                    self.log_sinker.process_exit(p.name, p.exitcode)
 
-                self.task_logger.end_layer(layer, time.time() - start_time)
+                self.log_sinker.end_layer(layer, time.time() - start_time)
 
     def _execute_stage(self, stage: TaskStage):
         """
@@ -444,12 +444,12 @@ class TaskGraph:
         # 确保所有进程安全结束（不一定要 terminate，但如果没结束就强制）
         for p in self.processes:
             if p.is_alive():
-                self.task_logger.process_termination_attempt(p.name)
+                self.log_sinker.process_termination_attempt(p.name)
                 p.terminate()
                 p.join(timeout=5)
                 if p.is_alive():
-                    self.task_logger.process_termination_timeout(p.name)
-                self.task_logger.process_exit(p.name, p.exitcode)
+                    self.log_sinker.process_termination_timeout(p.name)
+                self.log_sinker.process_exit(p.name, p.exitcode)
 
         # 更新所有节点状态为“已停止”
         for stage_runtime in self.stage_runtime_dict.values():
@@ -478,7 +478,7 @@ class TaskGraph:
                     time.time(), stage_tag, UnconsumedError(), error_id, task
                 )
 
-                self.task_logger.task_error(
+                self.log_sinker.task_error(
                     stage.get_func_name(),
                     stage.get_task_repr(task),
                     UnconsumedError(),

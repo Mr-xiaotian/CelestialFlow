@@ -544,7 +544,7 @@ def make_taskqueue(
         queue_tags=[None],
         direction=direction,
         stage=stage,
-        task_logger=stage.task_logger,
+        log_sinker=stage.log_sinker,
         ctree_client=stage.ctree_client,
     )
 
