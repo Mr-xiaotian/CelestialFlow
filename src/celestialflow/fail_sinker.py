@@ -9,18 +9,19 @@ from .task_types import TerminationSignal, TERMINATION_SIGNAL
 
 
 class FailListener:
-    def __init__(self):
+    def __init__(self, error_source: str):
+        self.error_source = error_source
         self.fail_queue = MPQueue()
         self._thread = None
         self.fallback_path = ""
         self.total_error_num = 0
         self._counter_lock = Lock()
 
-    def start(self, error_source="graph_errors"):
+    def start(self):
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%H-%M-%S-%f")[:-3]
-        self.fallback_path = f"./fallback/{date_str}/{error_source}({time_str}).jsonl"
+        self.fallback_path = f"./fallback/{date_str}/{self.error_source}({time_str}).jsonl"
         self.total_error_num = 0
 
         if self._thread is None or not self._thread.is_alive():
@@ -71,6 +72,16 @@ class FailSinker:
         meta_item = {
             "timestamp": datetime.now().isoformat(),
             "structure": structure_json,
+        }
+        self._sink(meta_item)
+
+    def start_executor(self, executor_tag: str):
+        """
+        在运行开始时写入执行器元信息到 jsonl 文件
+        """
+        meta_item = {
+            "timestamp": datetime.now().isoformat(),
+            "executor": executor_tag,
         }
         self._sink(meta_item)
 

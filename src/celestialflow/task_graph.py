@@ -83,7 +83,7 @@ class TaskGraph:
 
         self.init_state()
         self.init_logger()
-        self.init_sinker()
+        self.init_fainker()
         self.init_resources()
 
     def init_state(self):
@@ -106,11 +106,11 @@ class TaskGraph:
         self.log_listener = LogListener()
         self.task_logger = TaskLogger(self.log_listener.get_queue(), self.log_level)
 
-    def init_sinker(self):
+    def init_fainker(self):
         """
         初始化失败监听器
         """
-        self.fail_listener = FailListener()
+        self.fail_listener = FailListener("graph_errors")
         self.fail_sinker = FailSinker(self.fail_listener.get_queue())
 
     def init_resources(self):

@@ -124,7 +124,7 @@ class TaskExecutor:
         """
         self.init_state()
         self.init_pool()
-        self.init_sinker(fail_queue)
+        self.init_fainker(fail_queue)
         self.init_logger(log_queue)
         self.init_queue(task_queues, result_queues)
 
@@ -149,7 +149,7 @@ class TaskExecutor:
         elif self.execution_mode == "process" and self.process_pool is None:
             self.process_pool = ProcessPoolExecutor(max_workers=self.worker_limit)
 
-    def init_sinker(self, fail_queue):
+    def init_fainker(self, fail_queue):
         """
         初始化失败队列
 
@@ -196,7 +196,10 @@ class TaskExecutor:
         """
         初始化监听器
         """
+        self.fail_listener = FailListener("executor_errors")
         self.log_listener = LogListener()
+
+        self.fail_listener.start()
         self.log_listener.start()
 
     def init_progress(self):
@@ -764,9 +767,10 @@ class TaskExecutor:
         self.set_nullctree()
         self.init_listener()
         self.init_progress()
-        self.init_env(log_queue=self.log_listener.get_queue())
+        self.init_env(log_queue=self.log_listener.get_queue(), fail_queue=self.fail_listener.get_queue())
 
         self.put_task_queues(task_source)
+        self.fail_sinker.start_executor(self.get_tag())
         self.task_logger.start_executor(
             self.get_func_name(),
             self.task_counter.value,
@@ -801,6 +805,7 @@ class TaskExecutor:
                 self.duplicate_counter.value,
             )
             self.log_listener.stop()
+            self.fail_listener.stop()
 
     async def start_async(self, task_source: Iterable):
         """
