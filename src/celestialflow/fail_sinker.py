@@ -1,13 +1,10 @@
-import time, os
+import os
+from datetime import datetime
 from multiprocessing import Queue as MPQueue
 from queue import Empty
-from threading import Thread
-from time import localtime, strftime
-from collections.abc import Iterable
-from datetime import datetime
+from threading import Lock, Thread
 
-from .task_errors import LogLevelError
-from .task_tools import append_jsonl_log, append_jsonl_logs, format_repr, cleanup_mpqueue
+from .task_tools import append_jsonl_log, cleanup_mpqueue, format_repr
 from .task_types import TerminationSignal, TERMINATION_SIGNAL
 
 
@@ -15,12 +12,16 @@ class FailListener:
     def __init__(self):
         self.fail_queue = MPQueue()
         self._thread = None
+        self.fallback_path = ""
+        self.total_error_num = 0
+        self._counter_lock = Lock()
 
     def start(self, error_source="graph_errors"):
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%H-%M-%S-%f")[:-3]
         self.fallback_path = f"./fallback/{date_str}/{error_source}({time_str}).jsonl"
+        self.total_error_num = 0
 
         if self._thread is None or not self._thread.is_alive():
             self._thread = Thread(target=self._listen, daemon=True)
@@ -33,6 +34,9 @@ class FailListener:
                 if isinstance(record, TerminationSignal):
                     break
                 append_jsonl_log(record, self.fallback_path)
+                if isinstance(record, dict) and record.get("error_id") is not None:
+                    with self._counter_lock:
+                        self.total_error_num += 1
             except Empty:
                 continue
 
@@ -56,11 +60,9 @@ class FailSinker:
 
     def __init__(self, fail_queue):
         self.fail_queue: MPQueue = fail_queue
-        self.total_error_num = 0
 
     def _sink(self, record: dict):
         self.fail_queue.put(record)
-        self.total_error_num += 1
 
     def start_graph(self, structure_json):
         """

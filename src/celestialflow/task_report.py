@@ -140,7 +140,7 @@ class TaskReporter:
 
     def _push_errors_meta(self) -> dict:
         jsonl_path = self.task_graph.get_fallback_path()
-        rev = self.task_graph.fail_sinker.total_error_num
+        rev = self.task_graph.fail_listener.total_error_num
 
         payload = {
             "jsonl_path": jsonl_path,
@@ -155,7 +155,7 @@ class TaskReporter:
 
     def _push_errors_content(self) -> dict:
         jsonl_path = self.task_graph.get_fallback_path()
-        rev = self.task_graph.fail_sinker.total_error_num
+        rev = self.task_graph.fail_listener.total_error_num
 
         error_store = load_jsonl_logs(
             path=jsonl_path,
