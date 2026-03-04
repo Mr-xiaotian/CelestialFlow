@@ -196,6 +196,12 @@ class TaskRedisSink(TaskStage):
             )
 
     def _sink(self, *task):
+        """
+        将任务元组转换为 JSON 字符串并写入 Redis list
+
+        :param task: 任务元组
+        :return: 任务 ID
+        """
         self.init_redis()
 
         task_id = self.get_task_id(task)

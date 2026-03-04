@@ -12,7 +12,7 @@ from celestialtree import (
 
 from .task_errors import InvalidOptionError
 from .task_types import TaskEnvelope, TerminationSignal
-from .task_logger import TaskLogger
+from .persistence import TaskLogger
 
 if TYPE_CHECKING:
     from .task_stage import TaskStage

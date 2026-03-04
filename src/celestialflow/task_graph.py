@@ -15,8 +15,7 @@ from celestialtree import (
 from . import task_tools
 from .task_stage import TaskStage
 from .task_report import TaskReporter, NullTaskReporter
-from .task_logger import LogListener, TaskLogger
-from .fail_sinker import FailListener, FailSinker
+from .persistence import FailListener, FailSinker, LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import (
     TaskEnvelope,

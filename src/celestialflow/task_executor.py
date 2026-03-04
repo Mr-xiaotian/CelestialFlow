@@ -12,11 +12,10 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
-from .fail_sinker import FailListener, FailSinker
+from .persistence import FailListener, FailSinker, LogListener, TaskLogger
 from .task_errors import ExecutionModeError
 from .task_metrics import TaskMetrics
 from .task_progress import TaskProgress, NullTaskProgress
-from .task_logger import LogListener, TaskLogger
 from .task_queue import TaskQueue
 from .task_types import (
     SumCounter,
