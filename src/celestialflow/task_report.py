@@ -119,8 +119,6 @@ class TaskReporter:
 
     def _push_errors(self):
         try:
-            self.task_graph.handle_fail_queue()
-
             if self._push_errors_mode == "meta":
                 resp = self._push_errors_meta()
                 if resp.get("ok"):
@@ -141,8 +139,8 @@ class TaskReporter:
             self.task_logger.push_errors_failed(e)
 
     def _push_errors_meta(self) -> dict:
-        jsonl_path = self.task_graph.get_error_jsonl_path()
-        rev = self.task_graph.total_error_num
+        jsonl_path = self.task_graph.get_fallback_path()
+        rev = self.task_graph.fail_sinker.total_error_num
 
         payload = {
             "jsonl_path": jsonl_path,
@@ -156,8 +154,8 @@ class TaskReporter:
         return response.json()
 
     def _push_errors_content(self) -> dict:
-        jsonl_path = self.task_graph.get_error_jsonl_path()
-        rev = self.task_graph.total_error_num
+        jsonl_path = self.task_graph.get_fallback_path()
+        rev = self.task_graph.fail_sinker.total_error_num
 
         error_store = load_jsonl_logs(
             path=jsonl_path,

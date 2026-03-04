@@ -141,9 +141,9 @@ class TaskLogger:
         self._log("INFO", f"Layer {layer} end. Use {use_time:.2f} second.")
 
     # ==== graph ====
-    def start_graph(self, stage_structure):
+    def start_graph(self, structure_list):
         self._log("INFO", f"Starting TaskGraph. Graph structure:")
-        for line in stage_structure:
+        for line in structure_list:
             self._log("INFO", line)
 
     def end_graph(self, use_time):

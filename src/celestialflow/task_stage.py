@@ -161,23 +161,6 @@ class TaskStage(TaskExecutor):
             "stage_mode": self.stage_mode,
         }
 
-    def put_fail_queue(self, task, error, error_id):
-        """
-        将失败的任务放入失败队列
-
-        :param task: 失败的任务
-        :param error: 任务失败的异常
-        """
-        self.fail_queue.put(
-            {
-                "ts": time.time(),
-                "stage_tag": self.get_tag(),
-                "error_message": f"{type(error).__name__}({error})",
-                "error_id": error_id,
-                "task": str(task),
-            }
-        )
-
     def mark_running(self) -> None:
         """标记：stage 正在运行。"""
         self.init_status()

@@ -1,9 +1,7 @@
 import time, os
 import warnings
 import multiprocessing
-from collections.abc import Iterable
 from collections import defaultdict, deque
-from datetime import datetime
 from multiprocessing import Queue as MPQueue
 from typing import Any, Dict, List
 
@@ -18,6 +16,7 @@ from . import task_tools
 from .task_stage import TaskStage
 from .task_report import TaskReporter, NullTaskReporter
 from .task_logger import LogListener, TaskLogger
+from .fail_sinker import FailListener, FailSinker
 from .task_queue import TaskQueue
 from .task_types import (
     TaskEnvelope,
@@ -84,6 +83,7 @@ class TaskGraph:
 
         self.init_state()
         self.init_logger()
+        self.init_sinker()
         self.init_resources()
 
     def init_state(self):
@@ -99,14 +99,24 @@ class TaskGraph:
         self.graph_summary: Dict[str, int | float] = {}
         self.input_ids: Dict[str, set] = defaultdict(set)
 
-        self.total_error_num = 0
+    def init_logger(self):
+        """
+        初始化日志
+        """
+        self.log_listener = LogListener()
+        self.task_logger = TaskLogger(self.log_listener.get_queue(), self.log_level)
+
+    def init_sinker(self):
+        """
+        初始化失败监听器
+        """
+        self.fail_listener = FailListener()
+        self.fail_sinker = FailSinker(self.fail_listener.get_queue())
 
     def init_resources(self):
         """
         初始化每个阶段资源
         """
-        self.fail_queue = MPQueue()
-
         visited_stages = set()
         queue = deque(self.root_stages)
 
@@ -161,13 +171,6 @@ class TaskGraph:
                     self.stage_runtime_dict[prev_stage_tag]["out_queue"].add_queue(
                         q, stage_tag
                     )
-
-    def init_logger(self):
-        """
-        初始化日志
-        """
-        self.log_listener = LogListener()
-        self.task_logger = TaskLogger(self.log_listener.get_queue(), self.log_level)
 
     def init_structure_graph(self):
         """
@@ -346,10 +349,11 @@ class TaskGraph:
             )
 
         try:
+            start_time = time.time()
+            self.fail_listener.start()
             self.log_listener.start()
-            self.start_time = time.time()
             self.task_logger.start_graph(self.get_structure_list())
-            self._persist_structure_metadata()
+            self.fail_sinker.start_graph(self.get_structure_json())
             self.reporter.start()
 
             self.put_stage_queue(init_tasks_dict, put_termination_signal)
@@ -360,7 +364,8 @@ class TaskGraph:
 
             self.reporter.stop()
             self.release_resources()
-            self.task_logger.end_graph(time.time() - self.start_time)
+            self.task_logger.end_graph(time.time() - start_time)
+            self.fail_listener.stop()
             self.log_listener.stop()
 
     def _excute_stages(self):
@@ -404,6 +409,7 @@ class TaskGraph:
         stage_tag = stage.get_tag()
         stage_runtime = self.stage_runtime_dict[stage_tag]
 
+        fail_queue = self.fail_listener.get_queue()
         log_queue = self.log_listener.get_queue()
 
         # 输入输出队列
@@ -424,13 +430,13 @@ class TaskGraph:
         if stage.stage_mode == "process":
             p = multiprocessing.Process(
                 target=stage.start_stage,
-                args=(input_queues, output_queues, self.fail_queue, log_queue),
+                args=(input_queues, output_queues, fail_queue, log_queue),
                 name=stage_tag,
             )
             p.start()
             self.processes.append(p)
         else:
-            stage.start_stage(input_queues, output_queues, self.fail_queue, log_queue)
+            stage.start_stage(input_queues, output_queues, fail_queue, log_queue)
 
     def finalize_nodes(self):
         """
@@ -469,15 +475,10 @@ class TaskGraph:
                     payload=stage.get_summary(),
                 )
 
-                self.fail_queue.put(
-                    {
-                        "ts": time.time(),
-                        "stage_tag": stage_tag,
-                        "error_message": "UnconsumedError()",
-                        "error_id": error_id,
-                        "task": str(task),
-                    }
+                self.fail_sinker.task_error(
+                    time.time(), stage_tag, UnconsumedError(), error_id, task
                 )
+
                 self.task_logger.task_error(
                     stage.get_func_name(),
                     stage.get_task_repr(task),
@@ -493,31 +494,6 @@ class TaskGraph:
         for stage_runtime in self.stage_runtime_dict.values():
             stage: TaskStage = stage_runtime["stage"]
             stage.release_queue()
-
-        self.handle_fail_queue()
-        task_tools.cleanup_mpqueue(self.fail_queue)
-
-    def handle_fail_queue(self):
-        """
-        消费 fail_queue, 存储错误数据到fallback
-        """
-        failures = []
-        while True:
-            try:
-                item: dict = self.fail_queue.get_nowait()
-            except Exception as e:
-                break
-
-            ts = item["ts"]
-            stage_tag = item["stage_tag"]
-            error_message = item["error_message"]
-            error_id = item["error_id"]
-            task_str = item["task"]
-
-            failures.append((ts, stage_tag, error_message, error_id, task_str))
-            self.total_error_num += 1
-
-        self._persist_failures(failures)
 
     def collect_runtime_snapshot(self):
         """
@@ -625,49 +601,11 @@ class TaskGraph:
         self.status_dict = status_dict
         self.graph_summary = dict(totals)
 
-    def _persist_structure_metadata(self):
-        """
-        在运行开始时写入任务结构元信息到 jsonl 文件
-        """
-        date_str = datetime.fromtimestamp(self.start_time).strftime("%Y-%m-%d")
-        time_str = datetime.fromtimestamp(self.start_time).strftime("%H-%M-%S-%f")[:-3]
-        self.error_jsonl_path = f"./fallback/{date_str}/graph_errors({time_str}).jsonl"
-
-        log_item = {
-            "timestamp": datetime.now().isoformat(),
-            "structure": self.get_structure_json(),
-        }
-        task_tools.append_jsonl_log(log_item, self.error_jsonl_path, self.task_logger)
-
-    def _persist_failures(self, failures: Iterable[tuple]):
-        """
-        批量写入多条错误日志到 jsonl 文件中
-
-        :param failures: 错误日志列表(错误时间戳, 阶段标签, 错误信息, 任务字符串)
-        """
-        if not failures:
-            return
-
-        log_items = (
-            {
-                "timestamp": datetime.fromtimestamp(ts).isoformat(),
-                "stage": stage_tag,
-                "error_repr": task_tools.format_repr(err, 100),
-                "task_repr": task_tools.format_repr(task, 100),
-                "error": err,
-                "task": task,
-                "error_id": err_id,
-                "ts": ts,
-            }
-            for ts, stage_tag, err, err_id, task in failures
-        )
-        task_tools.append_jsonl_logs(log_items, self.error_jsonl_path, self.task_logger)
-
     def get_fail_by_stage_dict(self):
-        return task_tools.load_task_by_stage(self.error_jsonl_path)
+        return task_tools.load_task_by_stage(self.fail_listener.fallback_path)
 
     def get_fail_by_error_dict(self):
-        return task_tools.load_task_by_error(self.error_jsonl_path)
+        return task_tools.load_task_by_error(self.fail_listener.fallback_path)
 
     def get_status_dict(self) -> Dict[str, dict]:
         """
@@ -700,8 +638,8 @@ class TaskGraph:
     def get_networkx_graph(self):
         return task_tools.format_networkx_graph(self.structure_json)
 
-    def get_error_jsonl_path(self) -> str:
-        return os.path.abspath(self.error_jsonl_path)
+    def get_fallback_path(self) -> str:
+        return self.fail_listener.get_fallback_path()
 
     def get_stage_input_trace(self, stage_tag: str) -> str:
         if not self._use_ctree:

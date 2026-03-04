@@ -12,6 +12,7 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
+from .fail_sinker import FailListener, FailSinker
 from .task_errors import ExecutionModeError
 from .task_metrics import TaskMetrics
 from .task_progress import TaskProgress, NullTaskProgress
@@ -123,8 +124,9 @@ class TaskExecutor:
         """
         self.init_state()
         self.init_pool()
+        self.init_sinker(fail_queue)
         self.init_logger(log_queue)
-        self.init_queue(task_queues, result_queues, fail_queue)
+        self.init_queue(task_queues, result_queues)
 
     def init_state(self):
         """
@@ -147,6 +149,15 @@ class TaskExecutor:
         elif self.execution_mode == "process" and self.process_pool is None:
             self.process_pool = ProcessPoolExecutor(max_workers=self.worker_limit)
 
+    def init_sinker(self, fail_queue):
+        """
+        初始化失败队列
+
+        :param fail_queue: 失败队列
+        """
+        self.fail_queue = fail_queue or make_queue_backend("serial")()
+        self.fail_sinker = FailSinker(self.fail_queue)
+
     def init_logger(self, log_queue):
         """
         初始化日志器
@@ -160,7 +171,6 @@ class TaskExecutor:
         self,
         task_queues: TaskQueue = None,
         result_queues: TaskQueue = None,
-        fail_queue: TaskQueue = None,
     ):
         """
         初始化队列
@@ -181,9 +191,6 @@ class TaskExecutor:
             direction="out",
             stage=self,
         )
-
-        Q = make_queue_backend(mode)
-        self.fail_queue = fail_queue or Q()
 
     def init_listener(self):
         """
@@ -416,38 +423,6 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
         await self.task_queues.put_async(TerminationSignal(termination_id))
-
-    def put_fail_queue(self, task, error, error_id):
-        """
-        将失败的任务放入失败队列
-
-        :param task: 失败的任务
-        :param error: 任务失败的异常
-        """
-        self.fail_queue.put(
-            {
-                "ts": time.time(),
-                "task": str(task),
-                "error_message": f"{type(error).__name__}({error})",
-                "error_id": error_id,
-            }
-        )
-
-    async def put_fail_queue_async(self, task, error, error_id):
-        """
-        将失败的任务放入失败队列（异步版本）
-
-        :param task: 失败的任务
-        :param error: 任务失败的异常
-        """
-        await self.fail_queue.put(
-            {
-                "ts": time.time(),
-                "task": str(task),
-                "error_message": f"{type(error).__name__}({error})",
-                "error_id": error_id,
-            }
-        )
 
     def update_task_counter(self):
         self.metrics.update_task_counter()
@@ -684,7 +659,7 @@ class TaskExecutor:
             self.metrics.retry_time_dict.pop(task_hash, None)
 
             self.update_error_counter()
-            self.put_fail_queue(task, exception, error_id)
+            self.fail_sinker.task_error(time.time(), self.get_tag(), exception, error_id, task)
             self.task_logger.task_error(
                 self.get_func_name(),
                 self.get_task_repr(task),
@@ -750,7 +725,7 @@ class TaskExecutor:
             self.metrics.retry_time_dict.pop(task_hash, None)
 
             self.update_error_counter()
-            await self.put_fail_queue_async(task, exception, error_id)
+            self.fail_sinker.task_error(time.time(), self.get_tag(), exception, error_id, task)
             self.task_logger.task_error(
                 self.get_func_name(),
                 self.get_task_repr(task),
