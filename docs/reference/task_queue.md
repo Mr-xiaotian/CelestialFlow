@@ -7,7 +7,7 @@
 - **多后端支持**: 支持 `queue.Queue` (Thread), `multiprocessing.Queue` (Process), `asyncio.Queue` (Async)。
 - **多通道**: 一个 `TaskQueue` 实例可以管理多个底层队列（Channels），用于支持复杂的拓扑结构（如 Router 分发）。
 - **终止信号传递**: 自动处理 `TerminationSignal`，当所有上游队列都发送了终止信号后，才向下游传递终止信号。
-- **日志与监控**: 记录入队/出队操作，通过 `TaskLogger` 上报。
+- **日志与监控**: 记录入队/出队操作，通过 `LogSinker` 上报。
 
 ## 初始化
 
@@ -19,7 +19,7 @@ class TaskQueue:
         queue_tags: List[str],
         direction: str,  # "in" or "out"
         stage: TaskStage,
-        task_logger: TaskLogger,
+        log_sinker: LogSinker,
         ctree_client: CelestialTreeClient,
     ):
         ...

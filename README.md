@@ -195,8 +195,9 @@ flowchart TD
 
 - [TaskTools.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_tools.md)
 - [TaskTypes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_types.md)
-- [TaskLogging.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_logging.md)
 - [TaskErrors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_errors.md)
+- [persistence/Fail.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/fail.md)
+- [persistence/Log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/log.md)
 
 如果你更喜欢通过完整案例理解框架的运行方式，可以参考这篇从零开始构建 TaskGraph 的教程：
 
@@ -260,7 +261,7 @@ flowchart TD
   - 在前端中添加error_id的显示, 为之后显示provenance_tree做准备; 
   - 增加大量warning与error, 用于提醒不规范设置; 
   - 优化前后端中错误数据的传输方式, 在大量错误数据时减少内存消耗; 
-  - 优化TaskLogger中log队列的准入机制; 
+  - 优化LogSinker中log队列的准入机制; 
   - 修改部分Bug;
 - 3.1.0:
   - 新增:
