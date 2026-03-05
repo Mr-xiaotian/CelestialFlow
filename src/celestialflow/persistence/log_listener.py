@@ -6,17 +6,7 @@ from time import localtime, strftime
 from loguru import logger as loguru_logger
 
 from ..task_types import TerminationSignal, TERMINATION_SIGNAL
-
-# 日志级别字典
-LEVEL_DICT = {
-    "TRACE": 0,
-    "DEBUG": 10,
-    "SUCCESS": 20,
-    "INFO": 30,
-    "WARNING": 40,
-    "ERROR": 50,
-    "CRITICAL": 60,
-}
+from .tools import cleanup_mpqueue
 
 
 class LogListener:
@@ -26,7 +16,7 @@ class LogListener:
 
     def __init__(self):
         now = strftime("%Y-%m-%d", localtime())
-        self.log_path = f"logs/log_sinker({now}).log"
+        self.log_path = f"logs/task_logger({now}).log"
         self.log_queue = MPQueue()
         self._thread = None
 
@@ -65,4 +55,5 @@ class LogListener:
         self.log_queue.put(TERMINATION_SIGNAL)
         self._thread.join()
         self._thread = None
+        cleanup_mpqueue(self.log_queue)
         # self.log_queue.put({"level": "DEBUG", "message": "[Listener] Stopped."})

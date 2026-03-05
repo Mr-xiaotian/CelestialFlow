@@ -81,8 +81,8 @@ class TaskGraph:
         self.processes: List[multiprocessing.Process] = []
 
         self.init_state()
-        self.init_logger()
-        self.init_fainker()
+        self.init_listener()
+        self.init_sinker()
         self.init_resources()
 
     def init_state(self):
@@ -98,18 +98,18 @@ class TaskGraph:
         self.graph_summary: Dict[str, int | float] = {}
         self.input_ids: Dict[str, set] = defaultdict(set)
 
-    def init_logger(self):
+    def init_listener(self):
         """
-        初始化日志
+        初始化监听器
         """
         self.log_listener = LogListener()
-        self.log_sinker = LogSinker(self.log_listener.get_queue(), self.log_level)
-
-    def init_fainker(self):
-        """
-        初始化失败监听器
-        """
         self.fail_listener = FailListener("graph_errors")
+
+    def init_sinker(self):
+        """
+        初始化收集器
+        """
+        self.log_sinker = LogSinker(self.log_listener.get_queue(), self.log_level)
         self.fail_sinker = FailSinker(self.fail_listener.get_queue())
 
     def init_resources(self):

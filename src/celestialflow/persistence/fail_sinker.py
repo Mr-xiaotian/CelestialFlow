@@ -5,6 +5,9 @@ from .tools import format_repr
 
 
 class FailSinker:
+    """
+    多进程安全失败记录包装类，所有失败记录通过队列发送到监听进程写入
+    """
 
     def __init__(self, fail_queue):
         self.fail_queue: MPQueue = fail_queue

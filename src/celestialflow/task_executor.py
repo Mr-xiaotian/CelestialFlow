@@ -123,8 +123,7 @@ class TaskExecutor:
         """
         self.init_state()
         self.init_pool()
-        self.init_fainker(fail_queue)
-        self.init_logger(log_queue)
+        self.init_sinker(fail_queue, log_queue)
         self.init_queue(task_queues, result_queues)
 
     def init_state(self):
@@ -148,21 +147,16 @@ class TaskExecutor:
         elif self.execution_mode == "process" and self.process_pool is None:
             self.process_pool = ProcessPoolExecutor(max_workers=self.worker_limit)
 
-    def init_fainker(self, fail_queue):
+    def init_sinker(self, fail_queue, log_queue):
         """
-        初始化失败队列
+        初始化收集器
 
         :param fail_queue: 失败队列
+        :param log_queue: 日志队列
         """
         self.fail_queue = fail_queue or make_queue_backend("serial")()
         self.fail_sinker = FailSinker(self.fail_queue)
 
-    def init_logger(self, log_queue):
-        """
-        初始化日志器
-
-        :param log_queue: 日志队列
-        """
         self.log_queue = log_queue or make_queue_backend("serial")()
         self.log_sinker = LogSinker(self.log_queue, self.log_level)
 
@@ -736,7 +730,7 @@ class TaskExecutor:
                 error_id,
             )
 
-    def deal_dupliacte(self, task_envelope: TaskEnvelope):
+    def deal_duplicate(self, task_envelope: TaskEnvelope):
         """
         处理重复任务
         """
@@ -858,7 +852,7 @@ class TaskExecutor:
                 task_hash = envelope.hash
 
                 if self.metrics.is_duplicate(task_hash):
-                    self.deal_dupliacte(envelope)
+                    self.deal_duplicate(envelope)
                     self.task_progress.update(1)
                     continue
                 self.metrics.add_processed_set(task_hash)
@@ -926,7 +920,7 @@ class TaskExecutor:
                 task_id = envelope.id
 
                 if self.metrics.is_duplicate(task_hash):
-                    self.deal_dupliacte(envelope)
+                    self.deal_duplicate(envelope)
                     self.task_progress.update(1)
                     continue
                 self.metrics.add_processed_set(task_hash)
@@ -982,7 +976,7 @@ class TaskExecutor:
                 task_hash = envelope.hash
 
                 if self.metrics.is_duplicate(task_hash):
-                    self.deal_dupliacte(envelope)
+                    self.deal_duplicate(envelope)
                     self.task_progress.update(1)
                     continue
                 self.metrics.add_processed_set(task_hash)
