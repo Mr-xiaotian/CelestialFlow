@@ -37,7 +37,7 @@ classifiers = [
 "Bug Tracker" = "https://github.com/Mr-xiaotian/CelestialFlow/issues"
 
 [project.scripts]
-celestialflow-web = "celestialflow.task_web:main_entry"
+celestialflow-web = "celestialflow.web.server:main_entry"
 
 [tool.setuptools]
 license-files = []

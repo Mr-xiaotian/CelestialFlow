@@ -42,13 +42,13 @@ listener = LogListener()
 listener.start()
 ```
 
-启动后，日志将写入 `logs/log_sinker({date}).log` 文件。
+启动后，日志将写入 `logs/task_logger({date}).log` 文件。
 
 ### 文件路径
 
 ```text
 logs/
-└── log_sinker(2023-10-27).log
+└── task_logger(2023-10-27).log
 ```
 
 ## LogSinker

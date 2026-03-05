@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from .task_tools import load_jsonl_logs
+from ..task_tools import load_jsonl_logs
 
 
 class StructureModel(BaseModel):

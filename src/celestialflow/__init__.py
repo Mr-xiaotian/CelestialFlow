@@ -24,7 +24,7 @@ from .task_tools import (
     make_hashable,
     format_table,
 )
-from .task_web import TaskWebServer
+from .web.server import TaskWebServer
 
 __all__ = [
     "TaskGraph",

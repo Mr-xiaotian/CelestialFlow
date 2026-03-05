@@ -1,7 +1,5 @@
-from .fail_listener import FailListener
-from .fail_sinker import FailSinker
-from .log_listener import LogListener
-from .log_sinker import LogSinker
+from .fail import FailListener, FailSinker
+from .log import LogListener, LogSinker
 
 __all__ = [
     "FailListener",
