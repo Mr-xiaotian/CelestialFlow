@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Dict, Any, List, Set, Optional
 
 if TYPE_CHECKING:
-    from .task_stage import TaskStage
+    from .stage import TaskStage
 
 
 # ======== 处理图结构 ========

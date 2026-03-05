@@ -1,14 +1,14 @@
-from .task_graph import TaskGraph
-from .task_executor import TaskExecutor
-from .task_stage import TaskStage
-from .task_nodes import (
+from .stage import (
+    TaskExecutor,
+    TaskStage,
     TaskSplitter,
     TaskRedisSink,
     TaskRedisSource,
     TaskRedisAck,
     TaskRouter,
 )
-from .task_structure import (
+from .graph import (
+    TaskGraph,
     TaskChain,
     TaskLoop,
     TaskCross,

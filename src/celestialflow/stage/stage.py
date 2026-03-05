@@ -5,10 +5,10 @@ from typing import List
 from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 
-from .runtime import TaskQueue
-from .task_errors import ExecutionModeError, StageModeError
-from .task_executor import TaskExecutor
-from .runtime.types import StageStatus, SumCounter
+from ..runtime import TaskQueue
+from ..runtime.types import StageStatus, SumCounter
+from ..task_errors import ExecutionModeError, StageModeError
+from .executor import TaskExecutor
 
 
 class TaskStage(TaskExecutor):
@@ -101,7 +101,7 @@ class TaskStage(TaskExecutor):
 
         :param prev_stage: 前置节点
         """
-        from .task_nodes import TaskSplitter, TaskRouter
+        from .nodes import TaskSplitter, TaskRouter
 
         if prev_stage in self.prev_stages:
             return
@@ -133,7 +133,7 @@ class TaskStage(TaskExecutor):
         """
         绑定前置节点
         """
-        from .task_nodes import TaskRouter
+        from .nodes import TaskRouter
 
         if not self._pending_prev_bindings:
             return

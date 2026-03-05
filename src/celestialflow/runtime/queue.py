@@ -10,12 +10,12 @@ from celestialtree import (
     Client as CelestialTreeClient,
 )
 
-from ..persistence import LogSinker
 from ..task_errors import InvalidOptionError
 from .types import TaskEnvelope, TerminationSignal
 
 if TYPE_CHECKING:
-    from ..task_stage import TaskStage
+    from ..persistence import LogSinker
+    from ..stage import TaskStage
 
 
 class TaskQueue:
@@ -25,7 +25,7 @@ class TaskQueue:
         queue_tags: List[str],
         direction: str,
         stage: TaskStage,
-        log_sinker: LogSinker,
+        log_sinker: "LogSinker",
         ctree_client: CelestialTreeClient,
     ):
         if len(queue_list) != len(queue_tags):

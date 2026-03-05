@@ -8,7 +8,7 @@ from .task_tools import load_jsonl_logs
 from .runtime.types import TERMINATION_SIGNAL
 
 if TYPE_CHECKING:
-    from .task_graph import TaskGraph
+    from .graph import TaskGraph
 
 
 class TaskReporter:

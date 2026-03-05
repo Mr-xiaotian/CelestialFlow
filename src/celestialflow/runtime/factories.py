@@ -9,7 +9,7 @@ from .types import ValueWrapper
 from .queue import TaskQueue
 
 if TYPE_CHECKING:
-    from ..task_stage import TaskStage
+    from ..stage import TaskStage
 
 
 # ==== 函数工厂 ====

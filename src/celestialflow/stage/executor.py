@@ -12,22 +12,22 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
-from .persistence import FailListener, FailSinker, LogListener, LogSinker
-from .task_errors import ExecutionModeError
-from .runtime import (
+from ..persistence import FailListener, FailSinker, LogListener, LogSinker
+from ..task_errors import ExecutionModeError
+from ..runtime import (
     make_counter,
     make_queue_backend,
     make_taskqueue,
 )
-from .runtime.metrics import TaskMetrics
-from .runtime.progress import TaskProgress, NullTaskProgress
-from .runtime.queue import TaskQueue
-from .runtime.types import (
+from ..runtime.metrics import TaskMetrics
+from ..runtime.progress import TaskProgress, NullTaskProgress
+from ..runtime.queue import TaskQueue
+from ..runtime.types import (
     SumCounter,
     TaskEnvelope,
     TerminationSignal,
 )
-from .task_tools import format_repr
+from ..task_tools import format_repr
 
 
 class TaskExecutor:
