@@ -16,7 +16,7 @@ from .task_structure import (
     TaskWheel,
     TaskGrid,
 )
-from .task_types import TerminationSignal
+from .runtime.types import TerminationSignal
 from .task_tools import (
     load_jsonl_logs,
     load_task_by_stage,

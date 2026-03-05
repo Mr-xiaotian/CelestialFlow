@@ -76,3 +76,9 @@ class LogLevelError(InvalidOptionError):
 
 class RemoteWorkerError(CelestialFlowError):
     pass
+
+
+class UnconsumedError(Exception):
+    """用于标记任务未消费的异常类"""
+
+    pass

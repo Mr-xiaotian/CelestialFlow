@@ -5,10 +5,10 @@ from typing import List
 from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 
+from .runtime import TaskQueue
 from .task_errors import ExecutionModeError, StageModeError
 from .task_executor import TaskExecutor
-from .task_queue import TaskQueue
-from .task_types import StageStatus, SumCounter
+from .runtime.types import StageStatus, SumCounter
 
 
 class TaskStage(TaskExecutor):

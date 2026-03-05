@@ -1,4 +1,4 @@
-import time, os
+import time
 import warnings
 import multiprocessing
 from collections import defaultdict, deque
@@ -13,14 +13,14 @@ from celestialtree import (
 )
 
 from . import task_tools
+from .task_errors import UnconsumedError
 from .task_stage import TaskStage
 from .task_report import TaskReporter, NullTaskReporter
 from .persistence import FailListener, FailSinker, LogListener, LogSinker
-from .task_queue import TaskQueue
-from .task_types import (
+from .runtime import TaskQueue
+from .runtime.types import (
     TaskEnvelope,
     StageStatus,
-    UnconsumedError,
     TerminationSignal,
     STAGE_STYLE,
 )

@@ -7,7 +7,7 @@ from time import localtime, strftime
 from loguru import logger as loguru_logger
 
 from ..task_errors import LogLevelError
-from ..task_types import TerminationSignal, TERMINATION_SIGNAL
+from ..runtime.types import TerminationSignal, TERMINATION_SIGNAL
 from .constant import LEVEL_DICT
 from .tools import cleanup_mpqueue
 

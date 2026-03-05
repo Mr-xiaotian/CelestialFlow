@@ -4,8 +4,9 @@ from multiprocessing import Queue as MPQueue
 from queue import Empty
 from threading import Lock, Thread
 
-from ..task_types import TerminationSignal, TERMINATION_SIGNAL
-from .tools import append_jsonl_log, cleanup_mpqueue, format_repr
+from ..runtime.types import TerminationSignal, TERMINATION_SIGNAL
+from ..task_tools import format_repr
+from .tools import append_jsonl_log, cleanup_mpqueue
 
 
 class FailListener:

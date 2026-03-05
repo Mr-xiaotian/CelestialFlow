@@ -5,7 +5,7 @@ from multiprocessing import Value as MPValue
 
 from .task_errors import RemoteWorkerError, InvalidOptionError
 from .task_stage import TaskStage
-from .task_types import TaskEnvelope
+from .runtime.types import TaskEnvelope
 
 
 class TaskSplitter(TaskStage):

@@ -59,25 +59,3 @@ def append_jsonl_logs(log_items: Iterable[dict], file_path: str, logger=None):
     except Exception as e:
         if logger:
             logger._log("WARNING", f"[Persist] 批量写入日志失败: {e}")
-
-
-# ======== format函数 ========
-def format_repr(obj: Any, max_length: int) -> str:
-    """
-    将对象格式化为字符串，自动转义换行、截断超长文本。
-
-    :param obj: 任意对象
-    :param max_length: 显示的最大字符数（超出将被截断）
-    :return: 格式化字符串
-    """
-    obj_str = str(obj).replace("\\", "\\\\").replace("\n", "\\n")
-    if max_length <= 0 or len(obj_str) <= max_length:
-        return obj_str
-
-    # 截断逻辑（前 2/3 + ... + 后 1/3）
-    segment_len = max(1, max_length // 3)
-
-    first_part = obj_str[: segment_len * 2]
-    last_part = obj_str[-segment_len:]
-
-    return f"{first_part}...{last_part}"

@@ -10,12 +10,12 @@ from celestialtree import (
     Client as CelestialTreeClient,
 )
 
-from .task_errors import InvalidOptionError
-from .task_types import TaskEnvelope, TerminationSignal
-from .persistence import LogSinker
+from ..persistence import LogSinker
+from ..task_errors import InvalidOptionError
+from .types import TaskEnvelope, TerminationSignal
 
 if TYPE_CHECKING:
-    from .task_stage import TaskStage
+    from ..task_stage import TaskStage
 
 
 class TaskQueue:

@@ -5,7 +5,7 @@ import requests
 
 from .persistence import LogSinker
 from .task_tools import load_jsonl_logs
-from .task_types import TERMINATION_SIGNAL
+from .runtime.types import TERMINATION_SIGNAL
 
 if TYPE_CHECKING:
     from .task_graph import TaskGraph

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .task_executor import TaskExecutor
+    from ..task_executor import TaskExecutor
 
 class TaskMetrics:
     """

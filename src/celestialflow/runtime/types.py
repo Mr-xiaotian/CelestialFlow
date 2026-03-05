@@ -17,12 +17,6 @@ class TerminationSignal:
 TERMINATION_SIGNAL = TerminationSignal()
 
 
-class UnconsumedError(Exception):
-    """用于标记任务未消费的异常类"""
-
-    pass
-
-
 class NoOpContext:
     """空上下文管理器，可用于禁用 with 逻辑"""
 
@@ -110,7 +104,7 @@ class TaskEnvelope:
         """
         将原始 task 包装为 TaskEnvelope。
         """
-        from .task_tools import make_hashable, object_to_str_hash
+        from ..task_tools import make_hashable, object_to_str_hash
 
         hashable_task = task  # make_hashable(task)
         task_hash = object_to_str_hash(hashable_task)
