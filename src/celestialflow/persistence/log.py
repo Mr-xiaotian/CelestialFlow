@@ -61,6 +61,7 @@ class LogListener:
         cleanup_mpqueue(self.log_queue)
         # self.log_queue.put({"level": "DEBUG", "message": "[Listener] Stopped."})
 
+
 class LogSinker:
     """
     多进程安全日志包装类，所有日志通过队列发送到监听进程写入

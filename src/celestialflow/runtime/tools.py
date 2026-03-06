@@ -11,4 +11,3 @@ def cleanup_mpqueue(queue: MPQueue):
     """
     queue.close()
     queue.join_thread()  # 确保队列的后台线程正确终止
-

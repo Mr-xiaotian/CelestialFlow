@@ -148,7 +148,7 @@ def format_table(
 def format_duration(seconds: int) -> str:
     """
     将秒数格式化为 HH:MM:SS 或 MM:SS（自动省略前导零）
-    
+
     :param seconds: 秒数
     :return: 格式化后的时间字符串
     """
@@ -165,7 +165,7 @@ def format_duration(seconds: int) -> str:
 def format_timestamp(timestamp) -> str:
     """
     将时间戳格式化为 YYYY-MM-DD HH:MM:SS
-    
+
     :param timestamp: 时间戳（秒）
     :return: 格式化后的时间字符串
     """

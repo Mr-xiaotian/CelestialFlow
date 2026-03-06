@@ -2,9 +2,9 @@
 import asyncio
 from typing import TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from ..stage import TaskExecutor
+
 
 class TaskMetrics:
     """
@@ -13,6 +13,7 @@ class TaskMetrics:
     负责管理任务执行过程中的各项指标统计，包括成功、失败、重复任务的计数，
     以及重试异常的管理和去重逻辑。
     """
+
     def __init__(self, executor: "TaskExecutor"):
         """
         初始化 TaskMetrics

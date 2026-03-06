@@ -8,6 +8,7 @@ from celestialtree import NodeLabelStyle
 
 from ..runtime.hash import make_hashable, object_to_str_hash
 
+
 class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
 

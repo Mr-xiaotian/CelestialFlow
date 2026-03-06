@@ -24,7 +24,9 @@ class FailListener:
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%H-%M-%S-%f")[:-3]
-        self.fallback_path = f"./fallback/{date_str}/{self.error_source}({time_str}).jsonl"
+        self.fallback_path = (
+            f"./fallback/{date_str}/{self.error_source}({time_str}).jsonl"
+        )
         self.total_error_num = 0
 
         if self._thread is None or not self._thread.is_alive():
@@ -102,14 +104,14 @@ class FailSinker:
         :param task: 任务字符串
         """
         error_message = f"{type(error).__name__}({error})"
-        fail_item =  {
-                "timestamp": datetime.fromtimestamp(ts).isoformat(),
-                "stage": stage_tag,
-                "error_repr": format_repr(error_message, 100),
-                "task_repr": format_repr(task, 100),
-                "error": error_message,
-                "task": task,
-                "error_id": err_id,
-                "ts": ts,
-            }
+        fail_item = {
+            "timestamp": datetime.fromtimestamp(ts).isoformat(),
+            "stage": stage_tag,
+            "error_repr": format_repr(error_message, 100),
+            "task_repr": format_repr(task, 100),
+            "error": error_message,
+            "task": task,
+            "error_id": err_id,
+            "ts": ts,
+        }
         self._sink(fail_item)

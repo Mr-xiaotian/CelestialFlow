@@ -101,4 +101,3 @@ def format_structure_list_from_graph(root_roots: List[Dict] = None) -> List[str]
     content_lines = [f"| {line.ljust(max_length)} |" for line in all_lines]
     border = "+" + "-" * (max_length + 2) + "+"
     return [border] + content_lines + [border]
-

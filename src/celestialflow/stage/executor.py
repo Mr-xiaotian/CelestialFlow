@@ -138,8 +138,8 @@ class TaskExecutor:
         - retry_time_dict：记录重试次数
         - processed_set：用于重复检测
         """
-        self.success_dict = {} # task -> result
-        self.error_dict = {}   # task -> exception
+        self.success_dict = {}  # task -> result
+        self.error_dict = {}  # task -> exception
         self.metrics.reset_state()
 
     def init_pool(self):
@@ -668,7 +668,9 @@ class TaskExecutor:
             self.metrics.retry_time_dict.pop(task_hash, None)
 
             self.update_error_counter()
-            self.fail_sinker.task_error(time.time(), self.get_tag(), exception, error_id, task)
+            self.fail_sinker.task_error(
+                time.time(), self.get_tag(), exception, error_id, task
+            )
             self.log_sinker.task_error(
                 self.get_func_name(),
                 self.get_task_repr(task),
@@ -734,7 +736,9 @@ class TaskExecutor:
             self.metrics.retry_time_dict.pop(task_hash, None)
 
             self.update_error_counter()
-            self.fail_sinker.task_error(time.time(), self.get_tag(), exception, error_id, task)
+            self.fail_sinker.task_error(
+                time.time(), self.get_tag(), exception, error_id, task
+            )
             self.log_sinker.task_error(
                 self.get_func_name(),
                 self.get_task_repr(task),
@@ -773,7 +777,10 @@ class TaskExecutor:
         self.set_nullctree()
         self.init_listener()
         self.init_progress()
-        self.init_env(log_queue=self.log_listener.get_queue(), fail_queue=self.fail_listener.get_queue())
+        self.init_env(
+            log_queue=self.log_listener.get_queue(),
+            fail_queue=self.fail_listener.get_queue(),
+        )
 
         self.put_task_queues(task_source)
         self.fail_sinker.start_executor(self.get_tag())
@@ -902,7 +909,9 @@ class TaskExecutor:
             all_done_event = Event()
             all_done_event.set()  # 初始为无任务状态，设为完成状态
 
-            def on_task_done(future, envelope: TaskEnvelope, task_progress: TaskProgress):
+            def on_task_done(
+                future, envelope: TaskEnvelope, task_progress: TaskProgress
+            ):
                 # 回调函数中处理任务结果
                 task_progress.update(1)
                 task_id = envelope.id
@@ -974,7 +983,11 @@ class TaskExecutor:
                 start_time = time.time()  # 记录任务开始时间
                 async with semaphore:  # 使用信号量限制并发
                     result = await self._run_single_task(envelope.task)
-                    return envelope, result, start_time  # 返回 task, result 和 start_time
+                    return (
+                        envelope,
+                        result,
+                        start_time,
+                    )  # 返回 task, result 和 start_time
 
             # 创建异步任务列表
             async_tasks = []

@@ -48,4 +48,3 @@ def compute_node_levels(G: nx.DiGraph) -> Dict[str, int]:
             level[succ] = max(level[succ], level[node] + 1)
 
     return level
-

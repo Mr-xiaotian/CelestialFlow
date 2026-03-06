@@ -14,7 +14,11 @@ from celestialtree import (
 )
 
 from ..runtime import TaskQueue
-from ..runtime.estimators import calc_elapsed, calc_remaining, calc_global_remain_equal_pred
+from ..runtime.estimators import (
+    calc_elapsed,
+    calc_remaining,
+    calc_global_remain_equal_pred,
+)
 from ..runtime.errors import UnconsumedError
 from ..runtime.types import (
     TaskEnvelope,
@@ -28,7 +32,11 @@ from ..persistence import FailListener, FailSinker, LogListener, LogSinker
 from ..persistence.jsonl import load_task_by_stage, load_task_by_error
 from ..utils.collections import cluster_by_value_sorted
 from ..utils.format import format_avg_time
-from .analysis import format_networkx_graph, compute_node_levels, is_directed_acyclic_graph
+from .analysis import (
+    format_networkx_graph,
+    compute_node_levels,
+    is_directed_acyclic_graph,
+)
 from .serialize import build_structure_graph, format_structure_list_from_graph
 
 
@@ -569,9 +577,7 @@ class TaskGraph:
             running_remaining_map[stage_tag] = float(remaining or 0.0)
 
             # 计算平均时间（秒/任务）并格式化为字符串
-            avg_time_str = format_avg_time(
-                elapsed, stage_counts["tasks_processed"]
-            )
+            avg_time_str = format_avg_time(elapsed, stage_counts["tasks_processed"])
 
             history: list = list(last_stage_status_dict.get("history", []))
             history.append(

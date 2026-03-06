@@ -112,9 +112,7 @@ class TaskReporter:
                         )
                         self.log_sinker.inject_tasks_success(target_stage, task_datas)
                     except Exception as e:
-                        self.log_sinker.inject_tasks_failed(
-                            target_stage, task_datas, e
-                        )
+                        self.log_sinker.inject_tasks_failed(target_stage, task_datas, e)
         except Exception as e:
             self.log_sinker.pull_tasks_failed(e)
 

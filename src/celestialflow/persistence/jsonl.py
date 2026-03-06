@@ -177,4 +177,3 @@ def load_task_by_error(jsonl_path) -> Dict[str, list]:
         extract_fields=["task"],
         eval_fields=["task"],
     )
-

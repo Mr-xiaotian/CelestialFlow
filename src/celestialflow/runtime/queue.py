@@ -189,9 +189,7 @@ class TaskQueue:
                 self.queue_tags[idx], self.stage_tag, self.direction, e
             )
 
-    def _try_get_from_idx(
-        self, idx: int, empty_exc
-    ) -> TaskEnvelope | None:
+    def _try_get_from_idx(self, idx: int, empty_exc) -> TaskEnvelope | None:
         if idx in self.termination_dict:
             return None
 
