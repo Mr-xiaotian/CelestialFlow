@@ -22,7 +22,7 @@ from ..runtime.types import (
     STAGE_STYLE,
 )
 from ..stage import TaskStage
-from ..task_report import TaskReporter, NullTaskReporter
+from ..observability import TaskReporter, NullTaskReporter
 from ..persistence import FailListener, FailSinker, LogListener, LogSinker
 from ..persistence.jsonl import load_task_by_stage, load_task_by_error
 from ..utils.collections import cluster_by_value_sorted
