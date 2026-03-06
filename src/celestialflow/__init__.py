@@ -17,11 +17,9 @@ from .graph import (
     TaskGrid,
 )
 from .runtime.types import TerminationSignal
-from .task_tools import (
-    make_hashable,
-)
+from .runtime.hash import make_hashable
 from .utils.format import format_table
-from .utils.jsonl import (
+from .persistence.jsonl import (
     load_jsonl_logs,
     load_task_by_stage,
     load_task_by_error,

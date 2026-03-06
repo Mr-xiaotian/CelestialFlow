@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, List
 import requests
 
 from .persistence import LogSinker
+from .persistence.jsonl import load_jsonl_logs
 from .runtime.types import TERMINATION_SIGNAL
-from .utils.jsonl import load_jsonl_logs
 
 if TYPE_CHECKING:
     from .graph import TaskGraph
@@ -25,11 +25,11 @@ class TaskReporter:
         self,
         host: str,
         port: int,
-        task_graph,
+        task_graph: "TaskGraph",
         log_sinker: LogSinker,
     ):
         self.base_url = f"http://{host}:{port}"
-        self.task_graph: TaskGraph = task_graph
+        self.task_graph = task_graph
         self.log_sinker = log_sinker
 
         self._stop_flag = Event()

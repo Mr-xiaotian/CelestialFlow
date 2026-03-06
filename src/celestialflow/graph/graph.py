@@ -12,8 +12,8 @@ from celestialtree import (
     format_provenance_forest,
 )
 
-from .. import task_tools
 from ..runtime import TaskQueue
+from ..runtime.estimators import calc_elapsed, calc_remaining, calc_global_remain_equal_pred
 from ..runtime.errors import UnconsumedError
 from ..runtime.types import (
     TaskEnvelope,
@@ -24,8 +24,11 @@ from ..runtime.types import (
 from ..stage import TaskStage
 from ..task_report import TaskReporter, NullTaskReporter
 from ..persistence import FailListener, FailSinker, LogListener, LogSinker
+from ..persistence.jsonl import load_task_by_stage, load_task_by_error
+from ..utils.collections import cluster_by_value_sorted
 from ..utils.format import format_avg_time
-from ..utils.jsonl import load_task_by_stage, load_task_by_error
+from .analysis import format_networkx_graph, compute_node_levels, is_directed_acyclic_graph
+from .serialize import build_structure_graph, format_structure_list_from_graph
 
 
 class TaskGraph:
@@ -177,7 +180,7 @@ class TaskGraph:
         """
         初始化任务图结构
         """
-        self.structure_json = task_tools.build_structure_graph(self.root_stages)
+        self.structure_json = build_structure_graph(self.root_stages)
 
     def set_root_stages(self, root_stages: List[TaskStage]):
         """
@@ -547,12 +550,12 @@ class TaskGraph:
             start_time = stage_runtime.get("start_time", 0)
             last_elapsed = last_stage_status_dict.get("elapsed_time", 0)
             last_pending = last_stage_status_dict.get("tasks_pending", 0)
-            elapsed = task_tools.calc_elapsed(
+            elapsed = calc_elapsed(
                 status, start_time, last_elapsed, last_pending, interval
             )
 
             # 估算剩余时间
-            remaining = task_tools.calc_remaining(
+            remaining = calc_remaining(
                 stage_counts["tasks_processed"], stage_counts["tasks_pending"], elapsed
             )
 
@@ -594,7 +597,7 @@ class TaskGraph:
             totals["total_remain"] = max(running_remaining_map.values(), default=0.0)
         else:
             G = self.get_networkx_graph()
-            expected_pending_map = task_tools.calc_global_remain_equal_pred(
+            expected_pending_map = calc_global_remain_equal_pred(
                 G, running_processed_map, running_pending_map, running_elapsed_map
             )
             totals["total_remain"] = max(expected_pending_map.values(), default=0.0)
@@ -634,10 +637,10 @@ class TaskGraph:
         return self.structure_json
 
     def get_structure_list(self) -> List[str]:
-        return task_tools.format_structure_list_from_graph(self.structure_json)
+        return format_structure_list_from_graph(self.structure_json)
 
     def get_networkx_graph(self):
-        return task_tools.format_networkx_graph(self.structure_json)
+        return format_networkx_graph(self.structure_json)
 
     def get_fallback_path(self) -> str:
         return self.fail_listener.get_fallback_path()
@@ -661,10 +664,10 @@ class TaskGraph:
         networkx_graph = self.get_networkx_graph()
         self.layers_dict = {}
 
-        self.isDAG = task_tools.is_directed_acyclic_graph(networkx_graph)
+        self.isDAG = is_directed_acyclic_graph(networkx_graph)
         if self.isDAG:
-            stage_level_dict = task_tools.compute_node_levels(networkx_graph)
-            self.layers_dict = task_tools.cluster_by_value_sorted(stage_level_dict)
+            stage_level_dict = compute_node_levels(networkx_graph)
+            self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
     def test_methods(
         self,

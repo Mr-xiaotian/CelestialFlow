@@ -1,4 +1,3 @@
-from multiprocessing import Queue as MPQueue
 from typing import List
 from multiprocessing import Queue as MPQueue
 from queue import Empty
@@ -7,9 +6,9 @@ from time import localtime, strftime
 from loguru import logger as loguru_logger
 
 from ..runtime.errors import LogLevelError
+from ..runtime.tools import cleanup_mpqueue
 from ..runtime.types import TerminationSignal, TERMINATION_SIGNAL
 from .constant import LEVEL_DICT
-from .tools import cleanup_mpqueue
 
 
 class LogListener:

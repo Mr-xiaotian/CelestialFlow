@@ -5,6 +5,7 @@ from multiprocessing import Value as MPValue
 
 from celestialtree import NodeLabelStyle
 
+from ..runtime.hash import make_hashable, object_to_str_hash
 
 class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
@@ -104,8 +105,6 @@ class TaskEnvelope:
         """
         将原始 task 包装为 TaskEnvelope。
         """
-        from ..task_tools import make_hashable, object_to_str_hash
-
         hashable_task = task  # make_hashable(task)
         task_hash = object_to_str_hash(hashable_task)
         task_id = task_id

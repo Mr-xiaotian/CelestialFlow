@@ -4,10 +4,10 @@ from multiprocessing import Queue as MPQueue
 from queue import Empty
 from threading import Lock, Thread
 
+from ..runtime.tools import cleanup_mpqueue
 from ..runtime.types import TerminationSignal, TERMINATION_SIGNAL
 from ..utils.format import format_repr
-from ..utils.jsonl import append_jsonl_log
-from .tools import cleanup_mpqueue
+from .jsonl import append_jsonl_log
 
 
 class FailListener:

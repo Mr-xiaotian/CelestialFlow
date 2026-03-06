@@ -53,7 +53,6 @@ def append_jsonl_logs(log_items: Iterable[dict], file_path: str, logger=None):
             logger._log("WARNING", f"[Persist] 批量写入日志失败: {e}")
 
 
-
 def load_jsonl_logs(
     path: str,
     start_seq: int = 1,
