@@ -18,11 +18,13 @@ from .graph import (
 )
 from .runtime.types import TerminationSignal
 from .task_tools import (
+    make_hashable,
+)
+from .utils.format import format_table
+from .utils.jsonl import (
     load_jsonl_logs,
     load_task_by_stage,
     load_task_by_error,
-    make_hashable,
-    format_table,
 )
 from .web.server import TaskWebServer
 

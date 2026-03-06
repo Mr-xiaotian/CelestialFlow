@@ -5,8 +5,9 @@ from queue import Empty
 from threading import Lock, Thread
 
 from ..runtime.types import TerminationSignal, TERMINATION_SIGNAL
-from ..task_tools import format_repr
-from .tools import append_jsonl_log, cleanup_mpqueue
+from ..utils.format import format_repr
+from ..utils.jsonl import append_jsonl_log
+from .tools import cleanup_mpqueue
 
 
 class FailListener:

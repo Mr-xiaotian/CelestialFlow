@@ -13,21 +13,19 @@ from celestialtree import (
 )
 
 from ..persistence import FailListener, FailSinker, LogListener, LogSinker
-from ..task_errors import ExecutionModeError
-from ..runtime import (
+from ..runtime import TaskMetrics, TaskProgress, NullTaskProgress, TaskQueue
+from ..runtime.errors import ExecutionModeError
+from ..runtime.factories import (
     make_counter,
     make_queue_backend,
     make_taskqueue,
 )
-from ..runtime.metrics import TaskMetrics
-from ..runtime.progress import TaskProgress, NullTaskProgress
-from ..runtime.queue import TaskQueue
 from ..runtime.types import (
     SumCounter,
     TaskEnvelope,
     TerminationSignal,
 )
-from ..task_tools import format_repr
+from ..utils.format import format_repr
 
 
 class TaskExecutor:

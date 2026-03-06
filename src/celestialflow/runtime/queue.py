@@ -10,7 +10,7 @@ from celestialtree import (
     Client as CelestialTreeClient,
 )
 
-from ..task_errors import InvalidOptionError
+from .errors import InvalidOptionError
 from .types import TaskEnvelope, TerminationSignal
 
 if TYPE_CHECKING:

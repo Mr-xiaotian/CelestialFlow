@@ -3,7 +3,7 @@ import time
 import redis
 from multiprocessing import Value as MPValue
 
-from ..task_errors import RemoteWorkerError, InvalidOptionError
+from ..runtime.errors import RemoteWorkerError, InvalidOptionError
 from ..runtime.types import TaskEnvelope
 from .stage import TaskStage
 

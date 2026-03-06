@@ -6,8 +6,8 @@ from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 
 from ..runtime import TaskQueue
+from ..runtime.errors import ExecutionModeError, StageModeError
 from ..runtime.types import StageStatus, SumCounter
-from ..task_errors import ExecutionModeError, StageModeError
 from .executor import TaskExecutor
 
 

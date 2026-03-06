@@ -13,17 +13,19 @@ from celestialtree import (
 )
 
 from .. import task_tools
-from ..stage import TaskStage
-from ..task_errors import UnconsumedError
-from ..task_report import TaskReporter, NullTaskReporter
-from ..persistence import FailListener, FailSinker, LogListener, LogSinker
 from ..runtime import TaskQueue
+from ..runtime.errors import UnconsumedError
 from ..runtime.types import (
     TaskEnvelope,
     StageStatus,
     TerminationSignal,
     STAGE_STYLE,
 )
+from ..stage import TaskStage
+from ..task_report import TaskReporter, NullTaskReporter
+from ..persistence import FailListener, FailSinker, LogListener, LogSinker
+from ..utils.format import format_avg_time
+from ..utils.jsonl import load_task_by_stage, load_task_by_error
 
 
 class TaskGraph:
@@ -563,7 +565,7 @@ class TaskGraph:
             running_remaining_map[stage_tag] = float(remaining or 0.0)
 
             # 计算平均时间（秒/任务）并格式化为字符串
-            avg_time_str = task_tools.format_avg_time(
+            avg_time_str = format_avg_time(
                 elapsed, stage_counts["tasks_processed"]
             )
 
@@ -601,10 +603,10 @@ class TaskGraph:
         self.graph_summary = dict(totals)
 
     def get_fail_by_stage_dict(self):
-        return task_tools.load_task_by_stage(self.fail_listener.fallback_path)
+        return load_task_by_stage(self.fail_listener.fallback_path)
 
     def get_fail_by_error_dict(self):
-        return task_tools.load_task_by_error(self.fail_listener.fallback_path)
+        return load_task_by_error(self.fail_listener.fallback_path)
 
     def get_status_dict(self) -> Dict[str, dict]:
         """
