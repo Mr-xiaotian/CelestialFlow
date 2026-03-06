@@ -281,6 +281,18 @@ flowchart TD
   - 修复:
     - 修复节点剩余时间在小于1s时显示0的问题(这很影响判断);
     - 在task_graph中使用"staged"模式时会报错的问题;
+- 3.1.2:
+  - feat:
+    - [Important] 模仿已有Logger逻辑, 建立新的组合结构FailListener和FailSinker, 将原有绑定于TaskReporter的fail持久化在线程中实现; 
+    - 借此让TaskExecutor也可以进行fail持久化, 文件为fallback/{date_str}/{executor_errors}({time_str}).jsonl";
+    - 重构整体项目结构, 现在更加清晰;
+    - 补全docs/reference中全部文档, 并令其符合项目重构后结构
+    - 引入uv进行环境管理;
+    - 将executor中技术逻辑分离为runtime/metrics.py;
+    - 整合TaskQueue中重复逻辑;
+  - fix
+    - 修复前端renderNodeList中参数设置错误;
+    - 修复其他微小bug;
 
 ## Star 历史趋势（Star History）
 
