@@ -88,11 +88,11 @@ pytest tests/test_executor.py::test_executor_async
 
 # test_nodes.py
 
-该文件主要用于测试[task_nodes.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/src/celestialflow/task_nodes.py)中定义的两个特殊节点 `TaskSplitter` 与 `TaskRedis*`，两者都继承自 `TaskStage`。
+该文件主要用于测试[nodes.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/src/celestialflow/stage/nodes.py)中定义的两个特殊节点 `TaskSplitter` 与 `TaskRedis*`，两者都继承自 `TaskStage`。
 
 `TaskSplitter`用于将迭代器形式的多个任务数据(List[Task])拆成单独任务(Task)传给下游，因此在 Web 页面可以看到 `TaskSplitter` 下游获取的数据会比 `TaskSplitter` 处理成功的数据更多； `TaskRedisSink` 用于将传入的任务传给 Redis, 如果此时开启go_worker，go_worker会从 Redis 中接受数据并在处理后将答案传回 Redis，之后 `TaskRedisAck` 再提取答案并传给下游； 如果想直接从 Redis 中重新读取任务, 可以使用`TaskRedisSource`, 一般用于跨设备/跨TaskGraph传输任务。
 
-对于两节点更详细的描述请看[task_nodes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_nodes.md)。
+对于两节点更详细的描述请看[nodes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/stage/nodes.md)。
 
 ## test_splitter_0() 与 test_splitter_1()
 
@@ -110,7 +110,7 @@ pytest tests/test_executor.py::test_executor_async
 
 这个测试文件对比了计算fibonacci时，直接用py计算与使用Redis外接go_worker计算间的时间差异。从结果来看，即便Redis传输耗费了大量时间，但Go强大的性能依旧让使用go_worker成为CPU密集计算时的好选择。
 
-需要注意的是, 在使用外部节点 `Go Worker` 系列节点前需要进行[前期设置](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/go_worker.md#前期设置)。
+需要注意的是, 在使用外部节点 `Go Worker` 系列节点前需要进行[前期设置](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/other/go_worker.md#前期设置)。
 
 ## test_redis_1()
 
@@ -122,7 +122,7 @@ pytest tests/test_executor.py::test_executor_async
 
 # test_structure.py
 
-该文件主要用于测试[task_structure.py](..\src\celestialflow\task_structure.py)中预设的几种图结构，包括作为无环图(DAG)的:
+该文件主要用于测试[structure.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/src/celestialflow/graph/structure.py)中预设的几种图结构，包括作为无环图(DAG)的:
 
 - TaskChain: 所有节点串联
 - TaskCross: Graph 分为多层, 每一层有多个节点。每一层内部节点互不相连, 同时链接下一层所有节点。
@@ -134,9 +134,9 @@ pytest tests/test_executor.py::test_executor_async
 - TaskWheel: 在TaskLoop的基础上存在一个中心节点, 中心节点连向其他每一个节点。
 - TaskComplete: 完全图, 所有节点两两相连。
 
-对于结构详细的描述请看[task_structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/task_structure.md)。
+对于结构详细的描述请看[structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/graph/structure.md)。
 
-除了 `task_structure.py` 中预设的几种结构, 还包括类似:
+除了 `structure.py` 中预设的几种结构, 还包括类似:
 
 - forest: 多个互不相关的 Tree 状结构, 用 TaskGraph 实现
 - star: 一个root节点指向多个互不关联的节点, 用TaskCross实现
