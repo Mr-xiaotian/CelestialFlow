@@ -1,0 +1,365 @@
+/* ================================
+  🌟 仪表盘
+================================ */
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* ================================
+  🌟 三栏布局（仪表盘主体）
+================================ */
+.three-column-container {
+  display: flex;
+  width: 100vw; /* 全屏宽度 */
+  margin-left: calc(-50vw + 50%); /* 左侧“负 margin”抵消 container 居中限制 */
+  margin-right: calc(-50vw + 50%);
+  justify-content: space-evenly;
+}
+
+.left-panel {
+  flex: 0 0 30%;
+  max-width: 25%;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.middle-panel {
+  flex: 0 0 40%;
+  max-width: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.right-panel {
+  flex: 0 0 30%;
+  max-width: 25%;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* ================================
+  🌟 任务结构图（Mermaid）
+================================ */
+#mermaid-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  overflow-x: auto; /* 如果图太宽，可以横向滚动 */
+}
+
+/* #mermaid-container rect {
+  fill: #ffffff !important;
+  stroke: #cccccc !important;     
+  stroke-width: 1.5px !important;  
+  rx: 4px !important;             
+} */
+
+/* ================================
+  🌟 图拓扑信息
+================================ */
+.topology-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.topology-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.topology-row .label {
+  color: var(--gray-slate);
+}
+
+.topology-row .value {
+  font-weight: 500;
+}
+
+.topology-row .value.ok {
+  color: #16a34a;
+}
+
+.topology-row .value.warn {
+  color: #dc2626;
+}
+
+.placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* ================================
+  🌟 节点运行状态
+================================ */
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.grid-cols-1 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grid-cols-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ================================
+  节点运行状态: 统计格子 & 摘要卡片
+================================ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: var(--gray-dark);
+}
+
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+/* ================================
+  节点运行状态: 进度条 & 任务进度样式
+================================ */
+.progress-container {
+  margin-top: 0.75rem;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 0.5rem;
+  background-color: var(--gray-light);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.progress-value {
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 0.25rem;
+}
+
+.time-estimate {
+  font-family: monospace;
+}
+
+.time-estimate .elapsed {
+  color: var(--success-color);
+}
+.time-estimate .remaining {
+  color: var(--warning-color);
+}
+
+/* ================================
+  节点运行状态: 节点运行状态样式
+================================ */
+#dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+#dashboard-grid .card {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  margin: 0.5rem;
+  cursor: pointer;
+  padding: 1rem;
+}
+
+#dashboard-grid .card:hover {
+  transform: translateY(-4px);
+}
+
+#dashboard-grid .card-title {
+  padding-bottom: 0;
+}
+
+.dragging {
+  opacity: 0.5;
+}
+
+/* 滑动卡片 */
+.sortable-ghost {
+  opacity: 0.4;
+  transform: rotate(1.5deg);
+}
+.sortable-chosen {
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  cursor: grabbing;
+}
+
+/* ================================
+  🌟 总体状态摘要
+================================ */
+.summary-card {
+  grid-column: span 2;
+  /* margin-top: 1rem; */
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.summary-item {
+  text-align: center;
+  padding: 1rem;
+  border-radius: 0.5rem;
+
+  &.blue   { background-color: var(--summary-blue-bg);   .dark-theme & { background-color: var(--summary-blue-bg-dark); } }
+  &.orange { background-color: var(--summary-orange-bg); .dark-theme & { background-color: var(--summary-orange-bg-dark); } }
+  &.yellow { background-color: var(--summary-yellow-bg); .dark-theme & { background-color: var(--summary-yellow-bg-dark); } }
+  &.red    { background-color: var(--summary-red-bg);    .dark-theme & { background-color: var(--summary-red-bg-dark); } }
+  &.green  { background-color: var(--summary-green-bg);  .dark-theme & { background-color: var(--summary-green-bg-dark); } }
+  &.purple { background-color: var(--summary-purple-bg); .dark-theme & { background-color: var(--summary-purple-bg-dark); } }
+}
+
+.summary-value {
+  font-size: 1.875rem;
+  font-weight: 700;
+
+  &.blue   { color: var(--summary-blue-value);   .dark-theme & { color: var(--summary-blue-value-dark); } }
+  &.orange { color: var(--summary-orange-value); .dark-theme & { color: var(--summary-orange-value-dark); } }
+  &.yellow { color: var(--summary-yellow-value); .dark-theme & { color: var(--summary-yellow-value-dark); } }
+  &.red    { color: var(--summary-red-value);    .dark-theme & { color: var(--summary-red-value-dark); } }
+  &.green  { color: var(--summary-green-value);  .dark-theme & { color: var(--summary-green-value-dark); } }
+  &.purple { color: var(--summary-purple-value); .dark-theme & { color: var(--summary-purple-value-dark); } }
+}
+
+
+.summary-label {
+  font-size: 0.875rem;
+  color: var(--gray-dark);
+  margin-top: 0.25rem;
+}
+
+/* ================================
+  🌟 响应式：小屏布局
+================================ */
+@media (max-width: 2048px) {
+  .three-column-container {
+    flex-direction: column;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    gap: 2rem;
+  }
+  .left-panel,
+  .middle-panel,
+  .right-panel {
+    max-width: 100%;
+    flex: 1 1 auto;
+  }
+  #dashboard-grid {
+    grid-template-columns: 1fr !important;
+    max-height: none;
+    overflow: visible;
+  }
+  .card-header {
+    flex-wrap: wrap;
+    word-break: break-word; /* 如果标题很长，强制换行 */
+  }
+  .card-title {
+    flex: 1 1 100%; /* 让标题独占一行（可选） */
+  }
+}
+
+/* ================================
+  🌟 暗黑模式适配
+================================ */
+.dark-theme .mermaid .arrowMarkerPath {
+  fill: #e5e7eb; /* 浅灰箭头 */
+}
+
+.dark-theme .mermaid span {
+  color: #d1d5db !important;
+}
+
+/* .dark-theme #mermaid-container rect {
+  fill: #2a2a2a !important;         
+  stroke: #4b5563 !important;       
+  stroke-width: 1.5px !important;
+  rx: 4px !important;             
+} */
+
+.dark-theme .topology-row .label {
+  color: var(--gray-medium);
+}
+
+.dark-theme .summary-label {
+  color: #9ca3af;
+}
+
+.dark-theme .stat-label {
+  color: var(--gray-medium);
+}
+
+.dark-theme .progress-bar {
+  background-color: #374151;
+}
+
+.dark-theme .progress-value {
+  background-color: #3b82f6;
+}
+
+.dark-theme .graph-container {
+  background-color: #2d2d2d;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .graph-node {
+  background-color: #3a3a3a;
+  border-left: 4px solid #5e91ff;
+}
+
+.dark-theme .graph-node:hover {
+  background-color: #454545;
+}
+
+.dark-theme .stage-name {
+  color: #7eaeff;
+}
+.dark-theme .stage-mode {
+  color: #b0b0b0;
+}
+.dark-theme .stage-func {
+  background-color: #333;
+  color: #ff6090;
+}
+.dark-theme .visited-mark {
+  background-color: #4a2424;
+  color: #ff6b6b;
+}
