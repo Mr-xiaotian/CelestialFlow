@@ -1,3 +1,4 @@
+# stage/__init__.py
 from .executor import TaskExecutor
 from .stage import TaskStage
 from .nodes import (

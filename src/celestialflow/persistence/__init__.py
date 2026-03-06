@@ -1,3 +1,4 @@
+# persistence/__init__.py
 from .fail import FailListener, FailSinker
 from .log import LogListener, LogSinker
 

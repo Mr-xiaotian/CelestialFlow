@@ -1,3 +1,4 @@
+# persistence/constant.py
 # 日志级别字典
 LEVEL_DICT = {
     "TRACE": 0,

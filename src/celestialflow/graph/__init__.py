@@ -1,3 +1,4 @@
+# graph/__init__.py
 from .graph import TaskGraph
 from .structure import (
     TaskChain,
