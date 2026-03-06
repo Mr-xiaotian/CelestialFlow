@@ -1,5 +1,6 @@
 # stage/stage.py
 from __future__ import annotations
+from typing import Callable
 
 import time
 from typing import List
@@ -7,8 +8,9 @@ from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 
 from ..runtime import TaskQueue
-from ..runtime.errors import ExecutionModeError, StageModeError
+from ..runtime.errors import ExecutionModeError, StageModeError, PickleError
 from ..runtime.types import StageStatus, SumCounter
+from ..utils.debug import find_unpickleable
 from .executor import TaskExecutor
 
 
@@ -42,6 +44,16 @@ class TaskStage(TaskExecutor):
         """
         if not hasattr(self, "_status"):
             self._status = MPValue("i", int(StageStatus.NOT_STARTED))
+
+    def set_func(self, func: Callable):
+        """
+        设置执行函数
+
+        :param func: 执行函数
+        """
+        if find_unpickleable(func):
+            raise PickleError(func)
+        self.func = func
 
     def set_execution_mode(self, execution_mode: str):
         """

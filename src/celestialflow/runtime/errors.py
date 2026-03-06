@@ -79,7 +79,20 @@ class RemoteWorkerError(CelestialFlowError):
     pass
 
 
-class UnconsumedError(Exception):
+class UnconsumedError(CelestialFlowError):
     """用于标记任务未消费的异常类"""
 
     pass
+
+
+class PickleError(CelestialFlowError):
+    """
+    任务函数或参数无法 pickle 序列化的错误。
+    """
+
+    def __init__(self, obj: Any):
+        message = f"Object of type {type(obj).__name__} is not pickleable."
+        super().__init__(message)
+        self.obj = obj
+        self.type = type(obj).__name__
+        self.message = message

@@ -1,5 +1,6 @@
 # stage/executor.py
 from __future__ import annotations
+from typing import Callable
 
 import asyncio, time
 import warnings
@@ -72,7 +73,7 @@ class TaskExecutor:
                 RuntimeWarning,
             )
 
-        self.func = func
+        self.set_func(func)
         self.set_execution_mode(execution_mode)
         self.worker_limit = worker_limit
         self.max_retries = max_retries
@@ -219,6 +220,14 @@ class TaskExecutor:
             desc=f"{self.progress_desc}({extra_desc})",
             mode=progress_mode,
         )
+
+    def set_func(self, func: Callable):
+        """
+        设置执行函数
+
+        :param func: 执行函数
+        """
+        self.func = func
 
     def set_execution_mode(self, execution_mode: str):
         """
