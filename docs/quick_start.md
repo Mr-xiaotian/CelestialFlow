@@ -88,9 +88,9 @@ graph.set_reporter(True, host="127.0.0.1", port=5005)
 
 项目提供了多个位于 `tests/` 目录下的示例文件，用于快速了解框架特性。
 
-为了保证测试正常运行, 请先安装必要的测试库:
+为了保证测试正常运行, 请先安装必要的测试库与dotenv库:
 ```bash
-uv pip install pytest pytest-asyncio
+uv pip install pytest pytest-asyncio dotenv
 ```
 
 之后推荐先运行以下两个示例：
