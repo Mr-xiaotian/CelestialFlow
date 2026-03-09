@@ -14,14 +14,13 @@ requires-python = ">=3.10"
 
 dependencies = [
     "tqdm",
-    "loguru",
     "fastapi",
     "uvicorn",
     "requests",
     "networkx",
     "redis",
     "jinja2",
-    "celestialtree",
+    "celestialtree>=0.1.2",
 ]
 
 classifiers = [

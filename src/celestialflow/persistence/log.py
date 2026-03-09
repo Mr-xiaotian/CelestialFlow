@@ -1,7 +1,7 @@
 # persistence/log.py
 from typing import List
+from pathlib import Path
 from time import localtime, strftime
-from loguru import logger as loguru_logger
 
 from ..runtime.errors import LogLevelError
 from .base import BaseListener, BaseSinker
@@ -10,27 +10,41 @@ from .constant import LEVEL_DICT
 
 class LogListener(BaseListener):
     """
-    日志监听进程，用于将日志写入文件
+    日志监听线程，用于将日志写入文件
     """
 
     def __init__(self):
         super().__init__()
+
         now = strftime("%Y-%m-%d", localtime())
-        self.log_path = f"logs/task_logger({now}).log"
+        self.log_path = Path(f"logs/task_logger({now}).log")
+
         self.log_queue = self.queue
+        self._file = None
 
     def _before_start(self):
-        loguru_logger.remove()
-        loguru_logger.add(
-            self.log_path,
-            level="TRACE",
-            format="{time:YYYY-MM-DD HH:mm:ss} {level} {message}",
-            enqueue=True,
-        )
+        # 创建 logs 目录
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # 打开日志文件
+        self._file = self.log_path.open("a", encoding="utf-8")
 
     def _handle_record(self, record):
-        loguru_logger.log(record["level"], record["message"])
+        timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime())
+        level = record["level"]
+        message = record["message"]
 
+        line = f"{timestamp} {level} {message}\n"
+
+        self._file.write(line)
+        self._file.flush()
+
+    def _after_stop(self):
+        if self._file:
+            self._file.flush()
+            self._file.close()
+            self._file = None
+            
 
 class LogSinker(BaseSinker):
     """

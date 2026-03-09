@@ -579,7 +579,7 @@ class TaskExecutor:
 
         await self.update_success_counter_async()
         await self.result_queues.put_async(result_envelope)
-        self.task_logger.task_success(
+        self.log_sinker.task_success(
             self.get_func_name(),
             self.get_task_repr(task),
             self.execution_mode,
@@ -606,18 +606,7 @@ class TaskExecutor:
         result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
         self.metrics.retry_time_dict.pop(task_hash, None)
-
-        await self.update_success_counter_async()
-        await self.result_queues.put_async(result_envelope)
-        self.log_sinker.task_success(
-            self.get_func_name(),
-            self.get_task_repr(task),
-            self.execution_mode,
-            self.get_result_repr(result),
-            time.time() - start_time,
-            task_id,
-            result_id,
-        )
+        return task, task_id, result_id, result_envelope
 
     def handle_task_error(self, task_envelope: TaskEnvelope, exception: Exception):
         """
