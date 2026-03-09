@@ -393,7 +393,7 @@ class TaskGraph:
             for p in self.processes:
                 p.join()
                 self.log_sinker.process_exit(p.name, p.exitcode)
-        else:
+        elif self.schedule_mode == "staged":
             # staged schedule_mode：一层层地顺序执行
             for layer_level, layer in self.layers_dict.items():
                 self.log_sinker.start_layer(layer, layer_level)

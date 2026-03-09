@@ -891,7 +891,7 @@ class TaskExecutor:
                 self.task_progress.close()
                 return
 
-            self.log_sinker._log("DEBUG", f"{self.get_func_name()} is not finished.")
+            self.log_sinker._sink("DEBUG", f"{self.get_func_name()} is not finished.")
             self.task_queues.put(termination_signal)
 
     def run_with_executor(self, executor: ThreadPoolExecutor | ProcessPoolExecutor):
@@ -969,7 +969,7 @@ class TaskExecutor:
                 self.task_progress.close()
                 return
 
-            self.log_sinker._log("DEBUG", f"{self.get_func_name()} is not finished.")
+            self.log_sinker._sink("DEBUG", f"{self.get_func_name()} is not finished.")
             self.task_queues.put(termination_signal)
 
     async def run_in_async(self):
@@ -1025,7 +1025,7 @@ class TaskExecutor:
                 self.task_progress.close()
                 return
 
-            self.log_sinker._log("DEBUG", f"{self.get_func_name()} is not finished.")
+            self.log_sinker._sink("DEBUG", f"{self.get_func_name()} is not finished.")
             await self.task_queues.put_async(termination_signal)
 
     async def _run_single_task(self, task):

@@ -26,7 +26,7 @@ def append_jsonl_log(log_data: dict, file_path: str, logger=None):
             f.write(json.dumps(log_data, ensure_ascii=False) + "\n")
     except Exception as e:
         if logger:
-            logger._log("WARNING", f"[Persist] 写入日志失败: {e}")
+            logger._sink("WARNING", f"[Persist] 写入日志失败: {e}")
 
 
 def append_jsonl_logs(log_items: Iterable[dict], file_path: str, logger=None):
@@ -51,7 +51,7 @@ def append_jsonl_logs(log_items: Iterable[dict], file_path: str, logger=None):
                 f.write(json.dumps(item, ensure_ascii=False) + "\n")
     except Exception as e:
         if logger:
-            logger._log("WARNING", f"[Persist] 批量写入日志失败: {e}")
+            logger._sink("WARNING", f"[Persist] 批量写入日志失败: {e}")
 
 
 def load_jsonl_logs(

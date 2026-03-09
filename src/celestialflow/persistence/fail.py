@@ -1,26 +1,23 @@
 # persistence/fail.py
 import os
 from datetime import datetime
-from multiprocessing import Queue as MPQueue
-from queue import Empty
-from threading import Lock, Thread
+from threading import Lock
 
-from ..runtime.tools import cleanup_mpqueue
-from ..runtime.types import TerminationSignal, TERMINATION_SIGNAL
 from ..utils.format import format_repr
+from .base import BaseListener, BaseSinker
 from .jsonl import append_jsonl_log
 
 
-class FailListener:
+class FailListener(BaseListener):
     def __init__(self, error_source: str):
+        super().__init__()
         self.error_source = error_source
-        self.fail_queue = MPQueue()
-        self._thread = None
+        self.fail_queue = self.queue
         self.fallback_path = ""
         self.total_error_num = 0
         self._counter_lock = Lock()
 
-    def start(self):
+    def _before_start(self):
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%H-%M-%S-%f")[:-3]
@@ -29,49 +26,24 @@ class FailListener:
         )
         self.total_error_num = 0
 
-        if self._thread is None or not self._thread.is_alive():
-            self._thread = Thread(target=self._listen, daemon=True)
-            self._thread.start()
-
-    def _listen(self):
-        while True:
-            try:
-                record = self.fail_queue.get(timeout=0.5)
-                if isinstance(record, TerminationSignal):
-                    break
-                append_jsonl_log(record, self.fallback_path)
-                if isinstance(record, dict) and record.get("error_id") is not None:
-                    with self._counter_lock:
-                        self.total_error_num += 1
-            except Empty:
-                continue
-
-    def get_queue(self):
-        return self.fail_queue
+    def _handle_record(self, record):
+        append_jsonl_log(record, self.fallback_path)
+        if isinstance(record, dict) and record.get("error_id") is not None:
+            with self._counter_lock:
+                self.total_error_num += 1
 
     def get_fallback_path(self) -> str:
         return os.path.abspath(self.fallback_path)
 
-    def stop(self):
-        if self._thread is None:
-            return
 
-        self.fail_queue.put(TERMINATION_SIGNAL)
-        self._thread.join()
-        self._thread = None
-        cleanup_mpqueue(self.fail_queue)
-
-
-class FailSinker:
+class FailSinker(BaseSinker):
     """
     多进程安全失败记录包装类，所有失败记录通过队列发送到监听进程写入
     """
 
     def __init__(self, fail_queue):
-        self.fail_queue: MPQueue = fail_queue
-
-    def _sink(self, record: dict):
-        self.fail_queue.put(record)
+        super().__init__(fail_queue)
+        self.fail_queue = self.queue
 
     def start_graph(self, structure_json):
         """
