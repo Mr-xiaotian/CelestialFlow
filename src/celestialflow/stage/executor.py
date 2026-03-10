@@ -1066,31 +1066,30 @@ class TaskExecutor:
     def release_client(self):
         self.ctree_client = None
 
-    def test_method(self, task_list: list, execution_mode: str) -> float:
+    def _get_clone_init_kwargs(self) -> dict:
         """
-        测试方法
+        获取克隆执行器的初始化参数
         """
-        start = time.time()
-        self.set_execution_mode(execution_mode)
-        self.init_counter()
-        self.init_state()
-        self.start(task_list)
-        return time.time() - start
+        return {
+            "func": self.func,
+            "execution_mode": self.execution_mode,
+            "worker_limit": self.worker_limit,
+            "max_retries": self.max_retries,
+            "max_info": self.max_info,
+            "unpack_task_args": self.unpack_task_args,
+            "enable_success_cache": self.enable_success_cache,
+            "enable_error_cache": self.enable_error_cache,
+            "enable_duplicate_check": self.enable_duplicate_check,
+            "show_progress": self.show_progress,
+            "progress_desc": self.progress_desc,
+            "log_level": self.log_level,
+        }
 
-    def test_methods(self, task_source: Iterable, execution_modes: list = None) -> list:
+    def clone(self):
         """
-        测试多种方法
+        克隆当前执行器
         """
-        # 如果 task_source 是生成器或一次性可迭代对象，需要提前转化成列表
-        # 确保对不同模式的测试使用同一批任务数据
-        task_list = list(task_source)
-        execution_modes = execution_modes or ["serial", "thread", "process"]
-
-        results = []
-        for mode in execution_modes:
-            result = self.test_method(task_list, mode)
-            results.append([result])
-        return results, execution_modes, ["Time"]
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.release_queue()
+        cloned = self.__class__(**self._get_clone_init_kwargs())
+        if hasattr(self, "metrics") and self.metrics.retry_exceptions:
+            cloned.add_retry_exceptions(*self.metrics.retry_exceptions)
+        return cloned

@@ -4,7 +4,7 @@ import warnings
 import multiprocessing
 from collections import defaultdict, deque
 from multiprocessing import Queue as MPQueue
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from celestialtree import (
     Client as CelestialTreeClient,
@@ -228,6 +228,9 @@ class TaskGraph:
         :param host: 报告器主机地址
         :param port: 报告器端口
         """
+        self._is_report = is_report
+        self._report_host = host
+        self._report_port = port
         if is_report:
             self.reporter = TaskReporter(
                 host=host,
@@ -676,47 +679,57 @@ class TaskGraph:
             stage_level_dict = compute_node_levels(networkx_graph)
             self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
-    def test_methods(
-        self,
-        init_tasks_dict: Dict[str, List],
-        stage_modes: list = None,
-        execution_modes: list = None,
-    ) -> Dict[str, Any]:
+    def clone(self):
         """
-        测试 TaskGraph 在 'serial' 和 'process' 模式下的执行时间。
-
-        :param init_tasks_dict: 初始化任务字典
-        :param stage_modes: 阶段模式列表，默认为 ['serial', 'process']
-        :param execution_modes: 执行模式列表，默认为 ['serial', 'thread']
-        :return: 包含两种执行模式下的执行时间的字典
+        克隆当前任务图
         """
-        results = {}
-        test_table_list = []
-        fail_by_error_dict = {}
-        fail_by_stage_dict = {}
+        visited = set()
+        ordered_stages: List[TaskStage] = []
+        queue = deque(self.root_stages)
+        while queue:
+            stage = queue.popleft()
+            if id(stage) in visited:
+                continue
+            visited.add(id(stage))
+            ordered_stages.append(stage)
+            queue.extend(stage.next_stages)
 
-        stage_modes = stage_modes or ["serial", "process"]
-        execution_modes = execution_modes or ["serial", "thread"]
-        for stage_mode in stage_modes:
-            time_list = []
-            for execution_mode in execution_modes:
-                start_time = time.time()
-                self.init_env()
-                self.set_graph_mode(stage_mode, execution_mode)
-                self.start_graph(init_tasks_dict)
-                fail_by_stage_dict.update(self.get_fail_by_stage_dict())
-                fail_by_error_dict.update(self.get_fail_by_error_dict())
+        stage_map = {id(stage): stage.clone() for stage in ordered_stages}
 
-                time_list.append(time.time() - start_time)
+        for stage in ordered_stages:
+            cloned_stage = stage_map[id(stage)]
+            cloned_stage.next_stages = []
+            cloned_stage.prev_stages = []
+            cloned_stage._pending_prev_bindings = []
 
-            test_table_list.append(time_list)
+        for stage in ordered_stages:
+            cloned_stage = stage_map[id(stage)]
+            cloned_next_stages = [stage_map[id(next_stage)] for next_stage in stage.next_stages]
+            cloned_stage.set_next_stages(cloned_next_stages)
 
-        results["Time table"] = (
-            test_table_list,
-            stage_modes,
-            execution_modes,
-            r"stage\execution",
+        for stage in ordered_stages:
+            stage_map[id(stage)]._finalize_prev_bindings()
+
+        cloned_root_stages = [stage_map[id(stage)] for stage in self.root_stages]
+        cloned_graph = self.__class__(
+            root_stages=cloned_root_stages,
+            schedule_mode=self.schedule_mode,
+            log_level=self.log_level,
         )
-        results["Fail stage dict"] = fail_by_stage_dict
-        results["Fail error dict"] = fail_by_error_dict
-        return results
+
+        if self._use_ctree:
+            cloned_graph.set_ctree(
+                use_ctree=True,
+                host=self._ctree_host,
+                http_port=self._CTREE_HTTP_PORT,
+                grpc_port=self._ctree_grpc_port,
+            )
+        if self._is_report:
+            cloned_graph.set_reporter(
+                is_report=True,
+                host=self._report_host,
+                port=self._report_port,
+            )
+
+        return cloned_graph
+

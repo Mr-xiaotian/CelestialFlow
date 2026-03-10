@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import Callable
 
+import inspect
 import time
 from typing import List
 from multiprocessing import Value as MPValue
@@ -243,3 +244,14 @@ class TaskStage(TaskExecutor):
                 self.error_counter.value,
                 self.duplicate_counter.value,
             )
+
+    def clone(self):
+        """
+        克隆当前节点
+        """
+        cloned = super().clone()
+        
+        if hasattr(self, "stage_mode"):
+            cloned.set_stage_mode(self.stage_mode)
+        cloned.set_stage_name(self.get_name())
+        return cloned
