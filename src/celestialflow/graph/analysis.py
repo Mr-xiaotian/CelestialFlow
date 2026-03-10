@@ -15,11 +15,11 @@ def format_networkx_graph(structure_graph: List[Dict[str, Any]]) -> nx.DiGraph:
     G = nx.DiGraph()
 
     def add_node_and_edges(node: Dict[str, Any]):
-        node_id = f'{node["stage_name"]}[{node["func_name"]}]'
+        node_id = f'{node["name"]}[{node["func_name"]}]'
         G.add_node(node_id, **{"mode": node.get("stage_mode")})
 
         for child in node.get("next_stages", []):
-            child_id = f'{child["stage_name"]}[{child["func_name"]}]'
+            child_id = f'{child["name"]}[{child["func_name"]}]'
             G.add_edge(node_id, child_id)
             # 递归添加子节点
             add_node_and_edges(child)

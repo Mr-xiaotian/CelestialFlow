@@ -20,7 +20,7 @@ async function loadStructure() {
  * @returns {string} 替换非单词字符后的节点 ID
  */
 function getNodeId(node) {
-  return node.stage_name.replace(/\W+/g, "_");
+  return node.name.replace(/\W+/g, "_");
 }
 
 /**
@@ -95,8 +95,8 @@ linkStyle default stroke:#999,stroke-width:1.5px;
 
   function walk(node) {
     const id = getNodeId(node);
-    const label = `${node.stage_name}`;
-    const tag = `${node.stage_name}[${node.func_name}]`;
+    const label = `${node.name}`;
+    const tag = `${node.name}[${node.func_name}]`;
     tagToId[tag] = id; // 保存 tag 到 ID 的映射
 
     let shape = "box";

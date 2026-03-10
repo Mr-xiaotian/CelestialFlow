@@ -122,5 +122,5 @@ class TaskEnvelope:
 
 
 STAGE_STYLE = NodeLabelStyle(
-    template="{base}  {payload.actor_name}  ‹{type}›", missing="-"
+    template="{base}  {payload.name}  ‹{type}›", missing="-"
 )

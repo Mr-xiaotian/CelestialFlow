@@ -339,10 +339,10 @@ class TaskExecutor:
         获取当前节点的状态快照
 
         :return: 当前节点状态快照
-        包括执行器名称(actor_name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)
+        包括执行器名称(name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)
         """
         return {
-            "actor_name": self.get_name(),
+            "name": self.get_name(),
             "func_name": self.get_func_name(),
             "class_name": self.get_class_name(),
             "execution_mode": self.get_execution_mode_desc(),

@@ -162,15 +162,14 @@ class TaskStage(TaskExecutor):
     def get_summary(self) -> dict:
         """
         获取当前节点的状态快照
-            - actor_name / execution_mode 等来自 TaskExecutor（执行实体视角）
-            - stage_name / stage_mode 表示任务图中的逻辑节点语义
+            - name / execution_mode 等来自 TaskExecutor（执行实体视角）
+            - stage_mode 表示任务图中的逻辑节点语义
 
         :return: 当前节点状态快照
-        包括执行器名称(actor_name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)、节点名称(stage_name)、节点模式(stage_mode)
+        包括执行器名称(name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)、节点模式(stage_mode)
         """
         return {
             **super().get_summary(),
-            "stage_name": self.get_name(),
             "stage_mode": self.stage_mode,
         }
 

@@ -59,7 +59,7 @@ def format_structure_list_from_graph(root_roots: List[Dict] = None) -> List[str]
 
     def node_label(node: Dict) -> str:
         visited_note = " [Ref]" if node.get("is_ref") else ""
-        N = node.get("actor_name", "?")  # N
+        N = node.get("name", "?")  # N
         F = node.get("func_name", "?")  # F
         S = node.get("stage_mode", "?")  # S
         E = node.get("execution_mode", "?")  # E
