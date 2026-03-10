@@ -1,4 +1,4 @@
-import logging, pprint, os
+import os
 import random
 from dotenv import load_dotenv
 from time import sleep

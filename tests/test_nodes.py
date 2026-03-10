@@ -186,7 +186,7 @@ def test_splitter_1():
     chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port
+        True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port, transport="grpc"
     )
 
     chain.start_chain(
