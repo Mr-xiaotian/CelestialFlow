@@ -14,15 +14,16 @@ class TaskMetrics:
     以及重试异常的管理和去重逻辑。
     """
 
-    def __init__(self, executor: "TaskExecutor"):
+    def __init__(self, executor: "TaskExecutor", max_retries: int = 1):
         """
         初始化 TaskMetrics
 
-        Args:
-            executor (TaskExecutor): 关联的任务执行器实例
+        :param executor: 关联的任务执行器实例
+        :param max_retries: 最大重试次数，默认值为 1
         """
         self.executor = executor
         self.retry_exceptions = tuple()
+        self.max_retries = max_retries
         self.reset_state()
 
     def reset_state(self):
@@ -38,8 +39,7 @@ class TaskMetrics:
         """
         添加需要重试的异常类型
 
-        Args:
-            *exceptions: 异常类列表
+        :param *exceptions: 异常类列表
         """
         self.retry_exceptions = self.retry_exceptions + tuple(exceptions)
 
@@ -106,11 +106,8 @@ class TaskMetrics:
         """
         检查任务是否重复
 
-        Args:
-            task_hash: 任务的哈希值
-
-        Returns:
-            bool: 如果启用了去重检查且任务哈希存在于已处理集合中，返回 True；否则返回 False。
+        :param task_hash: 任务的哈希值
+        :return: 如果启用了去重检查且任务哈希存在于已处理集合中，返回 True；否则返回 False。
         """
         if not self.executor.enable_duplicate_check:
             return False
@@ -122,18 +119,72 @@ class TaskMetrics:
 
         用于后续的去重检查。
 
-        Args:
-            task_hash: 任务的哈希值
+        :param task_hash: 任务的哈希值
         """
         if self.executor.enable_duplicate_check:
             self.processed_set.add(task_hash)
+
+    def discard_processed_set(self, task_hash):
+        """
+        从已处理集合中移除任务
+
+        用于在任务处理完成后，从去重集合中移除已处理任务。
+
+        :param task_hash: 任务的哈希值
+        """
+        if self.executor.enable_duplicate_check:
+            self.processed_set.discard(task_hash)
+
+    def is_retry_able(self, task_hash, exception):
+        """
+        检查任务是否可重试
+
+        :param task_hash: 任务的哈希值
+        :param exception: 任务执行过程中抛出的异常实例
+        :return: 如果任务是可重试异常且重试次数未超过最大重试次数，返回 True；否则返回 False。
+        """
+        retry_time = self.get_retry_time(task_hash)
+
+        # 基于异常类型决定重试策略
+        is_retry_exception = isinstance(exception, self.retry_exceptions)
+        is_retry_time_able = retry_time < self.max_retries
+        return is_retry_exception and is_retry_time_able
+
+    def get_retry_time(self, task_hash):
+        """
+        获取任务的重试时间
+
+        :param task_hash: 任务的哈希值
+        :return: 对应任务的重试次数（如果存在），否则返回 0。
+        """
+        return self.retry_time_dict.setdefault(task_hash, 0)
+    
+    def add_retry_time(self, task_hash, retry_time=1) -> int:
+        """
+        增加任务的重试时间
+
+        :param task_hash: 任务的哈希值
+        :param retry_time: 增加的重试次数，默认值为 1。
+        :return: 任务的新重试次数。
+        """
+        self.retry_time_dict.setdefault(task_hash, 0)
+        self.retry_time_dict[task_hash] += retry_time
+        return self.retry_time_dict[task_hash]
+
+    def pop_retry_time(self, task_hash):
+        """
+        弹出任务的重试时间
+
+        :param task_hash: 任务的哈希值
+        :return: 对应任务的重试时间（如果存在），否则返回 None。
+        """
+        return self.retry_time_dict.pop(task_hash, None)
 
     def get_counts(self) -> dict:
         """
         获取当前的统计数据字典
 
-        Returns:
-            dict: 包含以下字段的字典：
+        :return: 包含以下字段的字典：
                 - tasks_input: 输入任务总数
                 - tasks_successed: 成功任务数
                 - tasks_failed: 失败任务数

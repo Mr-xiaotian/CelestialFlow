@@ -74,7 +74,7 @@ class TaskSplitter(TaskStage):
         self.metrics.retry_time_dict.pop(task_hash, None)
 
         split_count = self.put_split_result(processed_result, task_id)
-        self.update_success_counter()
+        self.metrics.update_success_counter()
         self.update_split_counter(split_count)
 
         self.log_sinker.split_success(
@@ -140,7 +140,7 @@ class TaskRouter(TaskStage):
         routed_envelope = TaskEnvelope.wrap(processed_result, route_id)
         self.result_queues.put_target(routed_envelope, target)
 
-        self.update_success_counter()
+        self.metrics.update_success_counter()
         self.update_route_counter(target)
 
         self.log_sinker.route_success(

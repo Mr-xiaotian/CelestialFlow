@@ -91,7 +91,7 @@ class TaskExecutor:
         self.thread_pool = None
         self.process_pool = None
         self.init_counter()
-        self.metrics = TaskMetrics(self)
+        self.metrics = TaskMetrics(self, max_retries=self.max_retries)
 
     def init_counter(self):
         """
@@ -139,7 +139,7 @@ class TaskExecutor:
         - processed_set：用于重复检测
         """
         self.success_dict = {}  # task -> result
-        self.error_dict = {}  # task -> exception
+        self.error_dict = {}    # task -> exception
         self.metrics.reset_state()
 
     def init_pool(self):
@@ -379,7 +379,7 @@ class TaskExecutor:
             )
             envelope = TaskEnvelope.wrap(task, input_id)
             self.task_queues.put_first(envelope)
-            self.update_task_counter()
+            self.metrics.update_task_counter()
             self.log_sinker.task_input(
                 self.get_func_name(),
                 self.get_task_repr(task),
@@ -413,7 +413,7 @@ class TaskExecutor:
             )
             envelope = TaskEnvelope.wrap(task, input_id)
             await self.task_queues.put_first_async(envelope)
-            self.update_task_counter()
+            self.metrics.update_task_counter()
             self.log_sinker.task_input(
                 self.get_func_name(),
                 self.get_task_repr(task),
@@ -432,41 +432,6 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
         await self.task_queues.put_async(TerminationSignal(termination_id))
-
-    def update_task_counter(self):
-        self.metrics.update_task_counter()
-
-    def update_success_counter(self):
-        self.metrics.update_success_counter()
-
-    async def update_success_counter_async(self):
-        await self.metrics.update_success_counter_async()
-
-    def update_error_counter(self):
-        self.metrics.update_error_counter()
-
-    def update_duplicate_counter(self):
-        self.metrics.update_duplicate_counter()
-
-    def is_tasks_finished(self) -> bool:
-        """
-        判断任务是否完成
-        """
-        return self.metrics.is_tasks_finished()
-
-    def is_duplicate(self, task_hash):
-        """
-        判断任务是否重复
-        """
-        return self.metrics.is_duplicate(task_hash)
-
-    def add_processed_set(self, task_hash):
-        """
-        将任务ID添加到已处理集合中
-
-        :param task_hash: 任务hash
-        """
-        self.metrics.add_processed_set(task_hash)
 
     def get_args(self, task):
         """
@@ -547,21 +512,12 @@ class TaskExecutor:
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        task, task_id, result_id, result_envelope = self._prepare_success(
-            task_envelope, result
+        result_envelope = self._prepare_result_envelope(
+            task_envelope, result, start_time
         )
 
-        self.update_success_counter()
+        self.metrics.update_success_counter()
         self.result_queues.put(result_envelope)
-        self.log_sinker.task_success(
-            self.get_func_name(),
-            self.get_task_repr(task),
-            self.execution_mode,
-            self.get_result_repr(result),
-            time.time() - start_time,
-            task_id,
-            result_id,
-        )
 
     async def process_task_success_async(
         self, task_envelope: TaskEnvelope, result, start_time
@@ -573,23 +529,22 @@ class TaskExecutor:
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        task, task_id, result_id, result_envelope = self._prepare_success(
-            task_envelope, result
+        result_envelope = self._prepare_result_envelope(
+            task_envelope, result, start_time
         )
 
-        await self.update_success_counter_async()
+        await self.metrics.update_success_counter_async()
         await self.result_queues.put_async(result_envelope)
-        self.log_sinker.task_success(
-            self.get_func_name(),
-            self.get_task_repr(task),
-            self.execution_mode,
-            self.get_result_repr(result),
-            time.time() - start_time,
-            task_id,
-            result_id,
-        )
 
-    def _prepare_success(self, task_envelope: TaskEnvelope, result):
+    def _prepare_result_envelope(self, task_envelope: TaskEnvelope, result, start_time):
+        """
+        准备成功任务的结果信封
+
+        :param task_envelope: 完成的任务
+        :param result: 任务的结果
+        :param start_time: 任务开始时间
+        :return: 成功任务的结果信封
+        """
         task = task_envelope.task
         task_hash = task_envelope.hash
         task_id = task_envelope.id
@@ -605,8 +560,17 @@ class TaskExecutor:
         )
         result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
-        self.metrics.retry_time_dict.pop(task_hash, None)
-        return task, task_id, result_id, result_envelope
+        self.metrics.pop_retry_time(task_hash)
+        self.log_sinker.task_success(
+            self.get_func_name(),
+            self.get_task_repr(task),
+            self.execution_mode,
+            self.get_result_repr(result),
+            time.time() - start_time,
+            task_id,
+            result_id,
+        )
+        return result_envelope
 
     def handle_task_error(self, task_envelope: TaskEnvelope, exception: Exception):
         """
@@ -614,63 +578,19 @@ class TaskExecutor:
 
         :param task_envelope: 发生异常的任务
         :param exception: 捕获的异常
-        :return 是否需要重试
         """
-        task = task_envelope.task
         task_hash = task_envelope.hash
-        task_id = task_envelope.id
-
-        retry_time = self.metrics.retry_time_dict.setdefault(task_hash, 0)
 
         # 基于异常类型决定重试策略
         if (
-            isinstance(exception, self.metrics.retry_exceptions)
-            and retry_time < self.max_retries
+            self.metrics.is_retry_able(task_hash, exception)
         ):
-            self.task_progress.add_total(1)
-            self.metrics.processed_set.discard(task_hash)
-            self.metrics.retry_time_dict[task_hash] += 1
-
-            retry_id = self.ctree_client.emit(
-                f"task.retry.{retry_time+1}",
-                parents=[task_id],
-                payload=self.get_summary(),
-            )
-            task_envelope.change_id(retry_id)
-            self.task_queues.put_first(task_envelope)  # 只在第一个队列存放retry task
-
-            self.log_sinker.task_retry(
-                self.get_func_name(),
-                self.get_task_repr(task),
-                self.metrics.retry_time_dict[task_hash],
-                exception,
-                task_id,
-                retry_id,
-            )
+            # 如果是可重试的异常，将任务重新放入队列
+            retry_envelope = self._prepare_retry_envelope(task_envelope, exception)
+            self.task_queues.put_first(retry_envelope)  # 只在第一个队列存放retry task
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
-            if self.enable_error_cache:
-                self.error_dict[task] = exception
-
-            error_id = self.ctree_client.emit(
-                "task.error",
-                parents=[task_id],
-                payload=self.get_summary(),
-            )
-
-            self.metrics.retry_time_dict.pop(task_hash, None)
-
-            self.update_error_counter()
-            self.fail_sinker.task_error(
-                time.time(), self.get_tag(), exception, error_id, task
-            )
-            self.log_sinker.task_error(
-                self.get_func_name(),
-                self.get_task_repr(task),
-                exception,
-                task_id,
-                error_id,
-            )
+            fail_envelope = self._prepare_fail_envelope(task_envelope, exception)
 
     async def handle_task_error_async(
         self, task_envelope: TaskEnvelope, exception: Exception
@@ -680,65 +600,91 @@ class TaskExecutor:
 
         :param task_envelope: 发生异常的任务
         :param exception: 捕获的异常
-        :return 是否需要重试
         """
-        task = task_envelope.task
         task_hash = task_envelope.hash
-        task_id = task_envelope.id
-
-        retry_time = self.metrics.retry_time_dict.setdefault(task_hash, 0)
 
         # 基于异常类型决定重试策略
         if (
-            isinstance(exception, self.metrics.retry_exceptions)
-            and retry_time < self.max_retries
+            self.metrics.is_retry_able(task_hash, exception)
         ):
-            self.task_progress.add_total(1)
-            self.metrics.processed_set.discard(task_hash)
-            self.metrics.retry_time_dict[task_hash] += 1
-
-            retry_id = self.ctree_client.emit(
-                f"task.retry.{retry_time+1}",
-                parents=[task_id],
-                payload=self.get_summary(),
-            )
-            task_envelope.change_id(retry_id)
+            # 如果是可重试的异常，将任务重新放入队列
+            retry_envelope = self._prepare_retry_envelope(task_envelope, exception)
             await self.task_queues.put_first_async(
-                task_envelope
+                retry_envelope
             )  # 只在第一个队列存放retry task
-
-            self.log_sinker.task_retry(
-                self.get_func_name(),
-                self.get_task_repr(task),
-                self.metrics.retry_time_dict[task_hash],
-                exception,
-                task_id,
-                retry_id,
-            )
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
-            if self.enable_error_cache:
-                self.error_dict[task] = exception
+            fail_envelope = self._prepare_fail_envelope(task_envelope, exception)
 
-            error_id = self.ctree_client.emit(
-                "task.error",
-                parents=[task_id],
-                payload=self.get_summary(),
-            )
+    def _prepare_retry_envelope(
+            self,
+            task_envelope: TaskEnvelope,
+            exception: Exception,
+    ):
+        """
+        准备重试任务的信封
 
-            self.metrics.retry_time_dict.pop(task_hash, None)
+        :param task_envelope: 发生异常的任务
+        :param exception: 捕获的异常
+        :return: 重试任务的信封
+        """
+        self.task_progress.add_total(1)
+        self.metrics.discard_processed_set(task_envelope.hash)
+        new_retry_time = self.metrics.add_retry_time(task_envelope.hash)
 
-            self.update_error_counter()
-            self.fail_sinker.task_error(
-                time.time(), self.get_tag(), exception, error_id, task
-            )
-            self.log_sinker.task_error(
-                self.get_func_name(),
-                self.get_task_repr(task),
-                exception,
-                task_id,
-                error_id,
-            )
+        retry_id = self.ctree_client.emit(
+            f"task.retry.{new_retry_time}",
+            parents=[task_envelope.id],
+            payload=self.get_summary(),
+        )
+        task_envelope.change_id(retry_id)
+
+        self.log_sinker.task_retry(
+            self.get_func_name(),
+            self.get_task_repr(task_envelope.task),
+            new_retry_time,
+            exception,
+            task_envelope.id,
+            retry_id,
+        )
+
+        return task_envelope
+    
+    def _prepare_fail_envelope(
+            self,
+            task_envelope: TaskEnvelope,
+            exception: Exception,
+    ):
+        """
+        准备失败任务的结果信封
+
+        :param task_envelope: 失败的任务
+        :param exception: 捕获的异常
+        :return: 失败任务的结果信封
+        """
+        if self.enable_error_cache:
+            self.error_dict[task_envelope.task] = exception
+
+        error_id = self.ctree_client.emit(
+            "task.error",
+            parents=[task_envelope.id],
+            payload=self.get_summary(),
+        )
+
+        self.metrics.pop_retry_time(task_envelope.hash)
+        self.metrics.update_error_counter()
+
+        self.fail_sinker.task_error(
+            time.time(), self.get_tag(), exception, error_id, task_envelope.task
+        )
+        self.log_sinker.task_error(
+            self.get_func_name(),
+            self.get_task_repr(task_envelope.task),
+            exception,
+            task_envelope.id,
+            error_id,
+        )
+        return task_envelope
 
     def deal_duplicate(self, task_envelope: TaskEnvelope):
         """
@@ -747,7 +693,7 @@ class TaskExecutor:
         task = task_envelope.task
         task_id = task_envelope.id
 
-        self.update_duplicate_counter()
+        self.metrics.update_duplicate_counter()
         duplicate_id = self.ctree_client.emit(
             "task.duplicate",
             parents=[task_envelope.id],
