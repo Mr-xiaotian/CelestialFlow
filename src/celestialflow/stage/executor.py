@@ -628,13 +628,13 @@ class TaskExecutor:
         :return: 重试任务的信封
         """
         self.task_progress.add_total(1)
-        self.metrics.discard_processed_set(task_envelope.hash)
-        new_retry_time = self.metrics.add_retry_time(task_envelope.hash)
+        _, task_hash, task_id = task_envelope.unwrap()
+        self.metrics.discard_processed_set(task_hash)
+        new_retry_time = self.metrics.add_retry_time(task_hash)
 
-        task_id = task_envelope.id
         retry_id = self.ctree_client.emit(
             f"task.retry.{new_retry_time}",
-            parents=[task_envelope.id],
+            parents=[task_id],
             payload=self.get_summary(),
         )
         task_envelope.change_id(retry_id)
@@ -671,7 +671,8 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
 
-        self.metrics.pop_retry_time(task_envelope.hash)
+        _, task_hash, task_id = task_envelope.unwrap()
+        self.metrics.pop_retry_time(task_hash)
         self.metrics.update_error_counter()
 
         self.fail_sinker.task_error(
@@ -681,7 +682,7 @@ class TaskExecutor:
             self.get_func_name(),
             self.get_task_repr(task_envelope.task),
             exception,
-            task_envelope.id,
+            task_id,
             error_id,
         )
         return task_envelope
@@ -692,13 +693,12 @@ class TaskExecutor:
 
         :param task_envelope: 重复的任务
         """
-        task = task_envelope.task
-        task_id = task_envelope.id
+        task, _, task_id = task_envelope.unwrap()
 
         self.metrics.update_duplicate_counter()
         duplicate_id = self.ctree_client.emit(
             "task.duplicate",
-            parents=[task_envelope.id],
+            parents=[task_id],
             payload=self.get_summary(),
         )
         self.log_sinker.task_duplicate(
@@ -809,8 +809,7 @@ class TaskExecutor:
                     termination_signal = envelope
                     break
 
-                task = envelope.task
-                task_hash = envelope.hash
+                task, task_hash, _ = envelope.unwrap()
 
                 if self.metrics.is_duplicate(task_hash):
                     self.deal_duplicate(envelope)
@@ -878,9 +877,7 @@ class TaskExecutor:
                     termination_signal = envelope
                     break
 
-                task = envelope.task
-                task_hash = envelope.hash
-                task_id = envelope.id
+                task, task_hash, task_id = envelope.unwrap()
 
                 if self.metrics.is_duplicate(task_hash):
                     self.deal_duplicate(envelope)
@@ -939,8 +936,7 @@ class TaskExecutor:
                     termination_signal = envelope
                     break
 
-                task = envelope.task
-                task_hash = envelope.hash
+                _, task_hash, _ = envelope.unwrap()
 
                 if self.metrics.is_duplicate(task_hash):
                     self.deal_duplicate(envelope)

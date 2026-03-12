@@ -4,8 +4,8 @@ import time
 import redis
 from multiprocessing import Value as MPValue
 
+from ..runtime import TaskEnvelope
 from ..runtime.errors import RemoteWorkerError, InvalidOptionError
-from ..runtime.types import TaskEnvelope
 from .stage import TaskStage
 
 
@@ -65,9 +65,7 @@ class TaskSplitter(TaskStage):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        task = task_envelope.task
-        task_hash = task_envelope.hash
-        task_id = task_envelope.id
+        task, task_hash, task_id = task_envelope.unwrap()
 
         processed_result = self.process_result(task, result)
 
@@ -124,9 +122,7 @@ class TaskRouter(TaskStage):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        target, task = task_envelope.task
-        task_hash = task_envelope.hash
-        task_id = task_envelope.id
+        (target, task), task_hash, task_id = task_envelope.unwrap()
 
         processed_result = self.process_result(task, result)
 
