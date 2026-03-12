@@ -4,118 +4,27 @@ from __future__ import annotations
 import time
 import pprint
 from collections.abc import Iterable
-from typing import List, Any
-from collections import deque
+from typing import Any
 
 from ..graph import TaskGraph
-from ..stage import TaskExecutor, TaskStage
+from ..stage import TaskExecutor
+from .clone import clone_executor, clone_graph
 from .format import format_table
-
-
-def _get_clone_init_kwargs(executor: TaskExecutor) -> dict:
-    """
-    获取克隆执行器的初始化参数
-    """
-    return {
-        "func": executor.func,
-        "execution_mode": executor.execution_mode,
-        "worker_limit": executor.worker_limit,
-        "max_retries": executor.max_retries,
-        "max_info": executor.max_info,
-        "unpack_task_args": executor.unpack_task_args,
-        "enable_success_cache": executor.enable_success_cache,
-        "enable_error_cache": executor.enable_error_cache,
-        "enable_duplicate_check": executor.enable_duplicate_check,
-        "show_progress": executor.show_progress,
-        "progress_desc": executor.progress_desc,
-        "log_level": executor.log_level,
-    }
-
-
-def clone_executor(executor: TaskExecutor) -> TaskExecutor:
-    """
-    克隆当前执行器
-    """
-    cloned = TaskExecutor(**_get_clone_init_kwargs(executor))
-    if hasattr(executor, "metrics") and executor.metrics.retry_exceptions:
-        cloned.add_retry_exceptions(*executor.metrics.retry_exceptions)
-    return cloned
-
-
-def clone_stage(stage: TaskStage) -> TaskStage:
-    """
-    克隆当前节点
-    """
-    cloned = TaskStage(**_get_clone_init_kwargs(stage))
-    
-    if hasattr(stage, "metrics") and stage.metrics.retry_exceptions:
-        cloned.add_retry_exceptions(*stage.metrics.retry_exceptions)
-    if hasattr(stage, "stage_mode"):
-        cloned.set_stage_mode(stage.stage_mode)
-    cloned.set_stage_name(stage.get_name())
-    return cloned
-
-
-def clone_graph(graph: TaskGraph) -> TaskGraph:
-    """
-    克隆当前任务图
-    """
-    visited = set()
-    ordered_stages: List[TaskStage] = []
-    queue = deque(graph.root_stages)
-    while queue:
-        stage = queue.popleft()
-        if id(stage) in visited:
-            continue
-        visited.add(id(stage))
-        ordered_stages.append(stage)
-        queue.extend(stage.next_stages)
-
-    stage_map = {id(stage): clone_stage(stage) for stage in ordered_stages}
-
-    for stage in ordered_stages:
-        cloned_stage = stage_map[id(stage)]
-        cloned_stage.next_stages = []
-        cloned_stage.prev_stages = []
-        cloned_stage._pending_prev_bindings = []
-
-    for stage in ordered_stages:
-        cloned_stage = stage_map[id(stage)]
-        cloned_next_stages = [stage_map[id(next_stage)] for next_stage in stage.next_stages]
-        cloned_stage.set_next_stages(cloned_next_stages)
-
-    for stage in ordered_stages:
-        stage_map[id(stage)]._finalize_prev_bindings()
-
-    cloned_root_stages = [stage_map[id(stage)] for stage in graph.root_stages]
-    cloned_graph = TaskGraph(
-        root_stages=cloned_root_stages,
-        schedule_mode=graph.schedule_mode,
-        log_level=graph.log_level,
-    )
-
-    if graph._use_ctree:
-        cloned_graph.set_ctree(
-            use_ctree=True,
-            host=graph._ctree_host,
-            http_port=graph._CTREE_HTTP_PORT,
-            grpc_port=graph._ctree_grpc_port,
-        )
-    if graph._is_report:
-        cloned_graph.set_reporter(
-            is_report=True,
-            host=graph._report_host,
-            port=graph._report_port,
-        )
-
-    return cloned_graph
 
 
 def benchmark_executor(
     executor: TaskExecutor,
     task_source: Iterable,
     execution_modes: list[str] | None = None,
-):
+) -> dict[str, Any]:
+    """
+    对执行器进行基准测试
+
+    :param executor: 要测试的执行器
+    :param task_source: 任务源，用于生成任务列表
+    :param execution_modes: 要测试的执行模式列表，默认包括 "serial", "thread", "process"
+    :return: 包含测试结果的字典
+    """
     task_list = list(task_source)
     execution_modes = execution_modes or ["serial", "thread", "process"]
 
@@ -138,6 +47,15 @@ def benchmark_graph(
     stage_modes: list[str] | None = None,
     execution_modes: list[str] | None = None,
 ) -> dict[str, Any]:
+    """
+    对任务图进行基准测试
+
+    :param graph: 要测试的任务图
+    :param init_tasks_dict: 初始任务字典，键为任务标签，值为任务列表
+    :param stage_modes: 要测试的节点执行模式列表，默认包括 "serial", "process"
+    :param execution_modes: 要测试的执行模式列表，默认包括 "serial", "thread"
+    :return: 包含测试结果的字典
+    """
     stage_modes = stage_modes or ["serial", "process"]
     execution_modes = execution_modes or ["serial", "thread"]
 

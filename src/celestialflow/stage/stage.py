@@ -160,6 +160,16 @@ class TaskStage(TaskExecutor):
 
         self._pending_prev_bindings.clear()
 
+    def get_stage_mode(self) -> str:
+        """
+        获取当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
+
+        :return: 当前节点执行模式
+        """
+        if not hasattr(self, "stage_mode"):
+            return "serial"
+        return self.stage_mode
+
     def get_summary(self) -> dict:
         """
         获取当前节点的状态快照

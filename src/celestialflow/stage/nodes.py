@@ -201,7 +201,7 @@ class TaskRedisTransport(TaskStage):
         """
         self.init_redis()
 
-        task_id = -1
+        task_id = id(task)
         payload = json.dumps(
             {
                 "id": task_id,
