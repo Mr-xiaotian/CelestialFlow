@@ -20,7 +20,7 @@ class BaseListener:
     def _handle_record(self, record):
         raise NotImplementedError
     
-    def after_stop(self):
+    def _after_stop(self):
         return None
 
     def start(self):
@@ -50,7 +50,7 @@ class BaseListener:
         self._thread.join()
         self._thread = None
         cleanup_mpqueue(self.queue)
-        self.after_stop()
+        self._after_stop()
 
 
 class BaseSinker:
