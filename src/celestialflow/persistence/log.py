@@ -30,7 +30,7 @@ class LogListener(BaseListener):
         self._file = self.log_path.open("a", encoding="utf-8")
 
     def _handle_record(self, record):
-        timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime())
+        timestamp = record["timestamp"]
         level = record["level"]
         message = record["message"]
 
@@ -60,12 +60,13 @@ class LogSinker(BaseSinker):
             raise LogLevelError(self.log_level)
 
     def _sink(self, level: str, message: str):
+        timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime())
         level_upper = level.upper()
         if level_upper not in LEVEL_DICT:
             return
         if LEVEL_DICT[level_upper] < LEVEL_DICT[self.log_level]:
             return
-        super()._sink({"level": level_upper, "message": message})
+        super()._sink({"timestamp": timestamp, "level": level_upper, "message": message})
 
     # ==== executor ====
     def start_executor(self, func_name, task_num, execution_mode_desc):

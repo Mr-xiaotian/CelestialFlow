@@ -113,8 +113,8 @@ class TaskEnvelope:
         return cls(hashable_task, task_hash, task_id)
 
     def unwrap(self):
-        """取出原始 task（给用户函数用）"""
-        return self.task
+        """取出原始 task, 任务哈希, 任务 id（给用户函数用）"""
+        return self.task, self.hash, self.id
 
     def change_id(self, new_id):
         """修改 id"""

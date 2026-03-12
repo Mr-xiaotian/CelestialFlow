@@ -607,9 +607,8 @@ class TaskGraph:
         if not self.isDAG:
             totals["total_remain"] = max(running_remaining_map.values(), default=0.0)
         else:
-            G = self.get_networkx_graph()
             expected_pending_map = calc_global_remain_equal_pred(
-                G, running_processed_map, running_pending_map, running_elapsed_map
+                self.networkx_graph, running_processed_map, running_pending_map, running_elapsed_map
             )
             totals["total_remain"] = max(expected_pending_map.values(), default=0.0)
 
@@ -651,7 +650,12 @@ class TaskGraph:
         return format_structure_list_from_graph(self.structure_json)
 
     def get_networkx_graph(self):
-        return format_networkx_graph(self.structure_json)
+        """
+        获取任务图的 networkx 有向图（DiGraph）
+        """
+        if self.networkx_graph is None:
+            self.networkx_graph = format_networkx_graph(self.structure_json)
+        return self.networkx_graph
 
     def get_fallback_path(self) -> str:
         return self.fail_listener.get_fallback_path()
@@ -672,12 +676,12 @@ class TaskGraph:
         """
         分析任务图，计算 DAG 属性和层级信息
         """
-        networkx_graph = self.get_networkx_graph()
+        self.networkx_graph = self.get_networkx_graph()
         self.layers_dict = {}
 
-        self.isDAG = is_directed_acyclic_graph(networkx_graph)
+        self.isDAG = is_directed_acyclic_graph(self.networkx_graph)
         if self.isDAG:
-            stage_level_dict = compute_node_levels(networkx_graph)
+            stage_level_dict = compute_node_levels(self.networkx_graph)
             self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
     def clone(self):

@@ -516,7 +516,6 @@ class TaskExecutor:
             task_envelope, result, start_time
         )
 
-        self.metrics.update_success_counter()
         self.result_queues.put(result_envelope)
 
     async def process_task_success_async(
@@ -533,7 +532,6 @@ class TaskExecutor:
             task_envelope, result, start_time
         )
 
-        await self.metrics.update_success_counter_async()
         await self.result_queues.put_async(result_envelope)
 
     def _prepare_result_envelope(self, task_envelope: TaskEnvelope, result, start_time):
@@ -560,7 +558,9 @@ class TaskExecutor:
         )
         result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
+        self.metrics.update_success_counter()
         self.metrics.pop_retry_time(task_hash)
+
         self.log_sinker.task_success(
             self.get_func_name(),
             self.get_task_repr(task),
@@ -632,6 +632,7 @@ class TaskExecutor:
         self.metrics.discard_processed_set(task_envelope.hash)
         new_retry_time = self.metrics.add_retry_time(task_envelope.hash)
 
+        task_id = task_envelope.id
         retry_id = self.ctree_client.emit(
             f"task.retry.{new_retry_time}",
             parents=[task_envelope.id],
@@ -644,7 +645,7 @@ class TaskExecutor:
             self.get_task_repr(task_envelope.task),
             new_retry_time,
             exception,
-            task_envelope.id,
+            task_id,
             retry_id,
         )
 
@@ -689,6 +690,8 @@ class TaskExecutor:
     def deal_duplicate(self, task_envelope: TaskEnvelope):
         """
         处理重复任务
+
+        :param task_envelope: 重复的任务
         """
         task = task_envelope.task
         task_id = task_envelope.id
@@ -1011,31 +1014,3 @@ class TaskExecutor:
 
     def release_client(self):
         self.ctree_client = None
-
-    def _get_clone_init_kwargs(self) -> dict:
-        """
-        获取克隆执行器的初始化参数
-        """
-        return {
-            "func": self.func,
-            "execution_mode": self.execution_mode,
-            "worker_limit": self.worker_limit,
-            "max_retries": self.max_retries,
-            "max_info": self.max_info,
-            "unpack_task_args": self.unpack_task_args,
-            "enable_success_cache": self.enable_success_cache,
-            "enable_error_cache": self.enable_error_cache,
-            "enable_duplicate_check": self.enable_duplicate_check,
-            "show_progress": self.show_progress,
-            "progress_desc": self.progress_desc,
-            "log_level": self.log_level,
-        }
-
-    def clone(self):
-        """
-        克隆当前执行器
-        """
-        cloned = self.__class__(**self._get_clone_init_kwargs())
-        if hasattr(self, "metrics") and self.metrics.retry_exceptions:
-            cloned.add_retry_exceptions(*self.metrics.retry_exceptions)
-        return cloned
