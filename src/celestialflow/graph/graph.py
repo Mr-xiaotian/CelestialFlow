@@ -13,7 +13,7 @@ from celestialtree import (
     format_provenance_forest,
 )
 
-from ..runtime import TaskQueue
+from ..runtime import TaskQueue, TaskEnvelope
 from ..runtime.estimators import (
     calc_elapsed,
     calc_remaining,
@@ -21,7 +21,6 @@ from ..runtime.estimators import (
 )
 from ..runtime.errors import UnconsumedError
 from ..runtime.types import (
-    TaskEnvelope,
     StageStatus,
     TerminationSignal,
     STAGE_STYLE,
@@ -653,9 +652,7 @@ class TaskGraph:
         """
         获取任务图的 networkx 有向图（DiGraph）
         """
-        if self.networkx_graph is None:
-            self.networkx_graph = format_networkx_graph(self.structure_json)
-        return self.networkx_graph
+        return format_networkx_graph(self.structure_json)
 
     def get_fallback_path(self) -> str:
         return self.fail_listener.get_fallback_path()
@@ -683,58 +680,4 @@ class TaskGraph:
         if self.isDAG:
             stage_level_dict = compute_node_levels(self.networkx_graph)
             self.layers_dict = cluster_by_value_sorted(stage_level_dict)
-
-    def clone(self):
-        """
-        克隆当前任务图
-        """
-        visited = set()
-        ordered_stages: List[TaskStage] = []
-        queue = deque(self.root_stages)
-        while queue:
-            stage = queue.popleft()
-            if id(stage) in visited:
-                continue
-            visited.add(id(stage))
-            ordered_stages.append(stage)
-            queue.extend(stage.next_stages)
-
-        stage_map = {id(stage): stage.clone() for stage in ordered_stages}
-
-        for stage in ordered_stages:
-            cloned_stage = stage_map[id(stage)]
-            cloned_stage.next_stages = []
-            cloned_stage.prev_stages = []
-            cloned_stage._pending_prev_bindings = []
-
-        for stage in ordered_stages:
-            cloned_stage = stage_map[id(stage)]
-            cloned_next_stages = [stage_map[id(next_stage)] for next_stage in stage.next_stages]
-            cloned_stage.set_next_stages(cloned_next_stages)
-
-        for stage in ordered_stages:
-            stage_map[id(stage)]._finalize_prev_bindings()
-
-        cloned_root_stages = [stage_map[id(stage)] for stage in self.root_stages]
-        cloned_graph = self.__class__(
-            root_stages=cloned_root_stages,
-            schedule_mode=self.schedule_mode,
-            log_level=self.log_level,
-        )
-
-        if self._use_ctree:
-            cloned_graph.set_ctree(
-                use_ctree=True,
-                host=self._ctree_host,
-                http_port=self._CTREE_HTTP_PORT,
-                grpc_port=self._ctree_grpc_port,
-            )
-        if self._is_report:
-            cloned_graph.set_reporter(
-                is_report=True,
-                host=self._report_host,
-                port=self._report_port,
-            )
-
-        return cloned_graph
 

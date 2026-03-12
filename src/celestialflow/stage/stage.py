@@ -244,14 +244,3 @@ class TaskStage(TaskExecutor):
                 self.error_counter.value,
                 self.duplicate_counter.value,
             )
-
-    def clone(self):
-        """
-        克隆当前节点
-        """
-        cloned = super().clone()
-        
-        if hasattr(self, "stage_mode"):
-            cloned.set_stage_mode(self.stage_mode)
-        cloned.set_stage_name(self.get_name())
-        return cloned

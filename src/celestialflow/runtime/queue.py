@@ -11,8 +11,9 @@ from celestialtree import (
     Client as CelestialTreeClient,
 )
 
+from .envelope import TaskEnvelope
 from .errors import InvalidOptionError
-from .types import TaskEnvelope, TerminationSignal
+from .types import TerminationSignal
 
 if TYPE_CHECKING:
     from ..persistence import LogSinker

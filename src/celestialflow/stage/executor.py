@@ -15,7 +15,7 @@ from celestialtree import (
 )
 
 from ..persistence import FailListener, FailSinker, LogListener, LogSinker
-from ..runtime import TaskMetrics, TaskProgress, NullTaskProgress, TaskQueue
+from ..runtime import TaskEnvelope, TaskMetrics, TaskProgress, NullTaskProgress, TaskQueue
 from ..runtime.errors import ExecutionModeError
 from ..runtime.factories import (
     make_counter,
@@ -24,7 +24,6 @@ from ..runtime.factories import (
 )
 from ..runtime.types import (
     SumCounter,
-    TaskEnvelope,
     TerminationSignal,
 )
 from ..utils.format import format_repr
