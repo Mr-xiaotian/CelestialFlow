@@ -222,7 +222,7 @@ class TaskStage(TaskExecutor):
         :param fail_queue: 失败队列
         :param log_queue: 日志队列
         """
-        start_time = time.time()
+        start_time = time.perf_counter()
         self.init_progress()
         self.init_env(input_queues, output_queues, fail_queue, log_queue)
         self.set_queue_ctree()
@@ -249,7 +249,7 @@ class TaskStage(TaskExecutor):
             self.log_sinker.end_stage(
                 self.get_tag(),
                 self.execution_mode,
-                time.time() - start_time,
+                time.perf_counter() - start_time,
                 self.success_counter.value,
                 self.error_counter.value,
                 self.duplicate_counter.value,

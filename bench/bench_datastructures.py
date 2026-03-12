@@ -19,33 +19,33 @@ redis_password = os.getenv("REDIS_PASSWORD")
 
 
 def mpqueue_worker(q):
-    t0 = time.time()
+    t0 = time.perf_counter()
     for i in range(N):
         q.put(i)
-    t1 = time.time()
+    t1 = time.perf_counter()
     for i in range(N):
         _ = q.get()
-    t2 = time.time()
+    t2 = time.perf_counter()
     print(f"MPQueue: put={t1 - t0:.4f}s, get={t2 - t1:.4f}s")
 
 
 def manager_dict_worker(d):
-    t0 = time.time()
+    t0 = time.perf_counter()
     for i in range(N):
         d[i] = i
-    t1 = time.time()
+    t1 = time.perf_counter()
     for i in range(N):
         _ = d[i]
-    t2 = time.time()
+    t2 = time.perf_counter()
     print(f"Manager.dict: put={t1 - t0:.4f}s, get={t2 - t1:.4f}s")
 
 
 def value_worker(val):
-    t0 = time.time()
+    t0 = time.perf_counter()
     for _ in range(N):
         with val.get_lock():
             val.value += 1
-    t1 = time.time()
+    t1 = time.perf_counter()
     print(f"Value (number): inc={t1 - t0:.4f}s")
 
 
@@ -77,25 +77,25 @@ def get_redis_connection():
 
 def test_builtin_dict():
     d = {}
-    t0 = time.time()
+    t0 = time.perf_counter()
     for i in range(N):
         d[i] = i
-    t1 = time.time()
+    t1 = time.perf_counter()
     for i in range(N):
         _ = d[i]
-    t2 = time.time()
+    t2 = time.perf_counter()
     print(f"Built-in dict: put={t1 - t0:.4f}s, get={t2 - t1:.4f}s")
 
 
 def test_queue_thread():
     q = queue.Queue()
-    t0 = time.time()
+    t0 = time.perf_counter()
     for i in range(N):
         q.put(i)
-    t1 = time.time()
+    t1 = time.perf_counter()
     for i in range(N):
         _ = q.get()
-    t2 = time.time()
+    t2 = time.perf_counter()
     print(f"Queue (thread): put={t1 - t0:.4f}s, get={t2 - t1:.4f}s")
 
 
@@ -122,29 +122,29 @@ def test_value_number():
 
 
 def test_redis_plain(r):
-    t0 = time.time()
+    t0 = time.perf_counter()
     for i in range(N):
         r.set(f"plain_key{i}", i)
-    t1 = time.time()
+    t1 = time.perf_counter()
     for i in range(N):
         _ = r.get(f"plain_key{i}")
-    t2 = time.time()
+    t2 = time.perf_counter()
     print(f"Redis (plain): set={t1 - t0:.4f}s, get={t2 - t1:.4f}s")
 
 
 def test_redis_pipeline(r):
-    t0 = time.time()
+    t0 = time.perf_counter()
     pipe = r.pipeline()
     for i in range(N):
         pipe.set(f"pipe_key{i}", i)
     pipe.execute()
-    t1 = time.time()
+    t1 = time.perf_counter()
 
     pipe = r.pipeline()
     for i in range(N):
         pipe.get(f"pipe_key{i}")
     _ = pipe.execute()
-    t2 = time.time()
+    t2 = time.perf_counter()
 
     print(f"Redis (pipeline): set={t1 - t0:.4f}s, get={t2 - t1:.4f}s")
 
@@ -157,7 +157,7 @@ def test_redis_multithread_plain(r, num_threads=10):
         for i in range(count_per_thread):
             r.set(f"mt_key{tid}_{i+base}", i)
 
-    t0 = time.time()
+    t0 = time.perf_counter()
     for t_id in range(num_threads):
         base = t_id * count_per_thread
         thread = threading.Thread(target=writer, args=(t_id, base))
@@ -166,7 +166,7 @@ def test_redis_multithread_plain(r, num_threads=10):
 
     for t in threads:
         t.join()
-    t1 = time.time()
+    t1 = time.perf_counter()
 
     threads = []
 
@@ -182,7 +182,7 @@ def test_redis_multithread_plain(r, num_threads=10):
 
     for t in threads:
         t.join()
-    t2 = time.time()
+    t2 = time.perf_counter()
 
     print(
         f"Redis (multi-thread x{num_threads}, no pipeline): set={t1 - t0:.4f}s, get={t2 - t1:.4f}s"
@@ -190,49 +190,49 @@ def test_redis_multithread_plain(r, num_threads=10):
 
 
 def test_redis_hash(r):
-    t0 = time.time()
+    t0 = time.perf_counter()
     for i in range(N):
         r.hset("hash_test", f"field{i}", i)
-    t1 = time.time()
+    t1 = time.perf_counter()
     for i in range(N):
         _ = r.hget("hash_test", f"field{i}")
-    t2 = time.time()
+    t2 = time.perf_counter()
     print(f"Redis (hash): hset={t1 - t0:.4f}s, hget={t2 - t1:.4f}s")
 
 
 def test_redis_list(r):
     r.delete("list_test")
-    t0 = time.time()
+    t0 = time.perf_counter()
     for i in range(N):
         r.rpush("list_test", i)
-    t1 = time.time()
+    t1 = time.perf_counter()
     for i in range(N):
         _ = r.lindex("list_test", i)
-    t2 = time.time()
+    t2 = time.perf_counter()
     print(f"Redis (list): rpush={t1 - t0:.4f}s, lindex={t2 - t1:.4f}s")
 
 
 def test_redis_set(r):
     r.delete("set_test")
-    t0 = time.time()
+    t0 = time.perf_counter()
     for i in range(N):
         r.sadd("set_test", i)
-    t1 = time.time()
+    t1 = time.perf_counter()
     for i in range(N):
         _ = r.sismember("set_test", i)
-    t2 = time.time()
+    t2 = time.perf_counter()
     print(f"Redis (set): sadd={t1 - t0:.4f}s, sismember={t2 - t1:.4f}s")
 
 
 def test_redis_zset(r):
     r.delete("zset_test")
-    t0 = time.time()
+    t0 = time.perf_counter()
     for i in range(N):
         r.zadd("zset_test", {f"item{i}": i})
-    t1 = time.time()
+    t1 = time.perf_counter()
     for i in range(N):
         _ = r.zscore("zset_test", f"item{i}")
-    t2 = time.time()
+    t2 = time.perf_counter()
     print(f"Redis (zset): zadd={t1 - t0:.4f}s, zscore={t2 - t1:.4f}s")
 
 

@@ -79,7 +79,7 @@ class TaskSplitter(TaskStage):
             self.get_func_name(),
             self.get_task_repr(task),
             split_count,
-            time.time() - start_time,
+            time.perf_counter() - start_time,
         )
 
 
@@ -143,7 +143,7 @@ class TaskRouter(TaskStage):
             self.get_func_name(),
             self.get_task_repr(task),
             target,
-            time.time() - start_time,
+            time.perf_counter() - start_time,
             task_id,
             route_id,
         )
@@ -328,7 +328,7 @@ class TaskRedisAck(TaskStage):
         """
         self.init_redis()
 
-        start_time = time.time()
+        start_time = time.perf_counter()
 
         while True:
             result = self.redis_client.hget(self.key, task_id)
@@ -360,7 +360,7 @@ class TaskRedisAck(TaskStage):
                     raise RemoteWorkerError(f"Unknown ack status: {result_obj}")
 
             # 超时控制
-            if self._timeout and (time.time() - start_time) > self._timeout:
+            if self._timeout and (time.perf_counter() - start_time) > self._timeout:
                 raise TimeoutError(
                     f"TaskRedisAck timeout: task_id={task_id} not acknowledged"
                 )

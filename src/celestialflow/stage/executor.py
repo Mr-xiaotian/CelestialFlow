@@ -565,7 +565,7 @@ class TaskExecutor:
             self.get_task_repr(task),
             self.execution_mode,
             self.get_result_repr(result),
-            time.time() - start_time,
+            time.perf_counter() - start_time,
             task_id,
             result_id,
         )
@@ -714,7 +714,7 @@ class TaskExecutor:
 
         :param task_source: 任务迭代器或者生成器
         """
-        start_time = time.time()
+        start_time = time.perf_counter()
         self.set_nullctree()
         self.init_listener()
         self.init_progress()
@@ -753,7 +753,7 @@ class TaskExecutor:
             self.log_sinker.end_executor(
                 self.get_func_name(),
                 self.execution_mode,
-                time.time() - start_time,
+                time.perf_counter() - start_time,
                 self.success_counter.value,
                 self.error_counter.value,
                 self.duplicate_counter.value,
@@ -767,7 +767,7 @@ class TaskExecutor:
 
         :param task_source: 任务迭代器或者生成器
         """
-        start_time = time.time()
+        start_time = time.perf_counter()
         self.set_nullctree()
         self.set_execution_mode("async")
         self.init_listener()
@@ -791,7 +791,7 @@ class TaskExecutor:
             self.log_sinker.end_executor(
                 self.get_func_name(),
                 self.execution_mode,
-                time.time() - start_time,
+                time.perf_counter() - start_time,
                 self.success_counter.value,
                 self.error_counter.value,
                 self.duplicate_counter.value,
@@ -817,7 +817,7 @@ class TaskExecutor:
                     continue
                 self.metrics.add_processed_set(task_hash)
                 try:
-                    start_time = time.time()
+                    start_time = time.perf_counter()
                     result = self.func(*self.get_args(task))
                     self.process_task_success(envelope, result, start_time)
                 except Exception as error:
@@ -890,7 +890,7 @@ class TaskExecutor:
                     in_flight += 1
                     all_done_event.clear()
 
-                task_start_dict[task_id] = time.time()
+                task_start_dict[task_id] = time.perf_counter()
                 future = executor.submit(self.func, *self.get_args(task))
                 future.add_done_callback(
                     lambda f, t_e=envelope: on_task_done(f, t_e, self.task_progress)
@@ -918,7 +918,7 @@ class TaskExecutor:
             semaphore = asyncio.Semaphore(self.worker_limit)  # 限制并发数量
 
             async def sem_task(envelope: TaskEnvelope):
-                start_time = time.time()  # 记录任务开始时间
+                start_time = time.perf_counter()  # 记录任务开始时间
                 async with semaphore:  # 使用信号量限制并发
                     result = await self._run_single_task(envelope.task)
                     return (

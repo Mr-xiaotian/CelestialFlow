@@ -6,7 +6,7 @@ def test_tqdm_performance(use_tqdm=True, data_size=10_000_000):
     print(f"\nTesting with tqdm = {use_tqdm}, data_size = {data_size}")
 
     # 阶段一：数据准备
-    start_prepare = time.time()
+    start_prepare = time.perf_counter()
     if use_tqdm:
         pbar = tqdm(total=0, desc="Preparing and Processing", dynamic_ncols=True)
     data = []
@@ -14,10 +14,10 @@ def test_tqdm_performance(use_tqdm=True, data_size=10_000_000):
         data.append(i)
     if use_tqdm:
         pbar.total = len(data)
-    end_prepare = time.time()
+    end_prepare = time.perf_counter()
 
     # 阶段二：数据处理
-    start_process = time.time()
+    start_process = time.perf_counter()
     for item in data:
         _ = item * 2  # 模拟处理
         # time.sleep(0.00001)
@@ -25,7 +25,7 @@ def test_tqdm_performance(use_tqdm=True, data_size=10_000_000):
             pbar.update(1)
     if use_tqdm:
         pbar.close()
-    end_process = time.time()
+    end_process = time.perf_counter()
 
     print(f"Preparation time: {end_prepare - start_prepare:.4f} seconds")
     print(f"Processing time:  {end_process - start_process:.4f} seconds")

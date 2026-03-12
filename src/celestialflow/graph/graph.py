@@ -365,7 +365,7 @@ class TaskGraph:
             )
 
         try:
-            start_time = time.time()
+            start_time = time.perf_counter()
             self.fail_listener.start()
             self.log_listener.start()
             self.log_sinker.start_graph(self.get_structure_list())
@@ -380,7 +380,7 @@ class TaskGraph:
 
             self.reporter.stop()
             self.release_resources()
-            self.log_sinker.end_graph(time.time() - start_time)
+            self.log_sinker.end_graph(time.perf_counter() - start_time)
             self.fail_listener.stop()
             self.log_listener.stop()
 
@@ -400,7 +400,7 @@ class TaskGraph:
             # staged schedule_mode：一层层地顺序执行
             for layer_level, layer in self.layers_dict.items():
                 self.log_sinker.start_layer(layer, layer_level)
-                start_time = time.time()
+                start_time = time.perf_counter()
 
                 processes = []
                 for stage_tag in layer:
@@ -414,7 +414,7 @@ class TaskGraph:
                     p.join()
                     self.log_sinker.process_exit(p.name, p.exitcode)
 
-                self.log_sinker.end_layer(layer, time.time() - start_time)
+                self.log_sinker.end_layer(layer, time.perf_counter() - start_time)
 
     def _execute_stage(self, stage: TaskStage):
         """
