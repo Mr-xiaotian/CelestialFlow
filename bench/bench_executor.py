@@ -1,7 +1,7 @@
 import time
 import asyncio
 
-from celestialflow import TaskExecutor, format_table, benchmark_executor
+from celestialflow import TaskExecutor, benchmark_executor
 
 
 def fibonacci(n):
@@ -36,7 +36,7 @@ async def sleep_1_async(_):
     await asyncio.sleep(1)
 
 
-def test_executor_fibonacci():
+async def test_executor_fibonacci():
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
 
     executor = TaskExecutor(
@@ -44,54 +44,40 @@ def test_executor_fibonacci():
     )
     executor.add_retry_exceptions(ValueError)
 
-    execution_modes = ["serial", "thread", "process"]
-    benchmark_executor(executor, test_task_1, execution_modes)
-
-
-async def test_executor_fibonacci_async():
-    test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
-
-    executor = TaskExecutor(
+    executor_async = TaskExecutor(
         fibonacci_async, worker_limit=6, max_retries=1, show_progress=True
     )
-    executor.add_retry_exceptions(ValueError)
-    start = time.time()
-    await executor.start_async(test_task_1)
-    print(f"run_in_async: {time.time() - start}")
+    executor_async.add_retry_exceptions(ValueError)
+
+    sync_modes = ["serial", "thread", "process"]
+    async_modes = ["async"]
+    await benchmark_executor(executor, executor_async, test_task_1, sync_modes, async_modes) 
 
 
-def test_executor_sleep():
+async def test_executor_sleep():
+    task_list = list(range(12))
+
     executor = TaskExecutor(
         sleep_1,
         worker_limit=12,
         max_retries=0,
         show_progress=True,
     )
-    tasks = list(range(12))
-
-    execution_modes = ["serial", "thread", "process"]
-    benchmark_executor(executor, tasks, execution_modes)
-
-
-async def test_executor_sleep_async():
-    executor = TaskExecutor(
+    executor_async = TaskExecutor(
         sleep_1_async,
         worker_limit=12,
         max_retries=0,
         show_progress=True,
     )
-    tasks = list(range(12))
 
-    start = time.time()
-    await executor.start_async(tasks)
-    print(f"run_in_async: {time.time() - start}")
+    sync_modes = ["serial", "thread", "process"]
+    async_modes = ["async"]
+    await benchmark_executor(executor, executor_async, task_list, sync_modes, async_modes)
 
 
 async def main():
-    test_executor_fibonacci()
-    await test_executor_fibonacci_async()
-    test_executor_sleep()
-    await test_executor_sleep_async()
+    await test_executor_fibonacci()
+    await test_executor_sleep()
 
 
 if __name__ == "__main__":

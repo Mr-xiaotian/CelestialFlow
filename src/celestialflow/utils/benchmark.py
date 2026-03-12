@@ -12,10 +12,12 @@ from .clone import clone_executor, clone_graph
 from .format import format_table
 
 
-def benchmark_executor(
-    executor: TaskExecutor,
+async def benchmark_executor(
+    sync_executor: TaskExecutor,
+    async_executor: TaskExecutor,
     task_source: Iterable,
-    execution_modes: list[str] | None = None,
+    sync_modes: list[str] | None = None,
+    async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     对执行器进行基准测试
@@ -26,18 +28,27 @@ def benchmark_executor(
     :return: 包含测试结果的字典
     """
     task_list = list(task_source)
-    execution_modes = execution_modes or ["serial", "thread", "process"]
+    sync_modes = sync_modes or ["serial", "thread", "process"]
+    async_modes = async_modes or ["async"]
 
     results = []
-    for mode in execution_modes:
-        cloned_executor = clone_executor(executor)
+    for mode in sync_modes:
+        cloned_executor = clone_executor(sync_executor)
         cloned_executor.set_execution_mode(mode)
 
-        start = time.time()
+        start = time.perf_counter()
         cloned_executor.start(task_list)
-        results.append([time.time() - start])
+        results.append([time.perf_counter() - start])
+
+    for mode in async_modes:
+        cloned_executor = clone_executor(async_executor)
+        cloned_executor.set_execution_mode(mode)
+
+        start = time.perf_counter()
+        await cloned_executor.start_async(task_list)
+        results.append([time.perf_counter() - start])
     
-    table_results = format_table(results, execution_modes, ["Time"])
+    table_results = format_table(results, sync_modes + async_modes, ["Time"])   
     print("\n" + table_results)
 
 
@@ -72,9 +83,9 @@ def benchmark_graph(
             cloned_graph.set_graph_mode(stage_mode, execution_mode)
 
             run_tasks = {tag: list(tasks) for tag, tasks in base_tasks.items()}
-            start_time = time.time()
+            start_time = time.perf_counter()
             cloned_graph.start_graph(run_tasks)
-            time_list.append(time.time() - start_time)
+            time_list.append(time.perf_counter() - start_time)
 
             fail_by_stage_dict.update(cloned_graph.get_fail_by_stage_dict())
             fail_by_error_dict.update(cloned_graph.get_fail_by_error_dict())
