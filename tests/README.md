@@ -90,7 +90,7 @@ pytest tests/test_executor.py::test_executor_async
 
 该文件主要用于测试[nodes.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/src/celestialflow/stage/nodes.py)中定义的两个特殊节点 `TaskSplitter` 与 `TaskRedis*`，两者都继承自 `TaskStage`。
 
-`TaskSplitter`用于将迭代器形式的多个任务数据(List[Task])拆成单独任务(Task)传给下游，因此在 Web 页面可以看到 `TaskSplitter` 下游获取的数据会比 `TaskSplitter` 处理成功的数据更多； `TaskRedisSink` 用于将传入的任务传给 Redis, 如果此时开启go_worker，go_worker会从 Redis 中接受数据并在处理后将答案传回 Redis，之后 `TaskRedisAck` 再提取答案并传给下游； 如果想直接从 Redis 中重新读取任务, 可以使用`TaskRedisSource`, 一般用于跨设备/跨TaskGraph传输任务。
+`TaskSplitter`用于将迭代器形式的多个任务数据(List[Task])拆成单独任务(Task)传给下游，因此在 Web 页面可以看到 `TaskSplitter` 下游获取的数据会比 `TaskSplitter` 处理成功的数据更多； `TaskRedisTransport` 用于将传入的任务传给 Redis, 如果此时开启go_worker，go_worker会从 Redis 中接受数据并在处理后将答案传回 Redis，之后 `TaskRedisAck` 再提取答案并传给下游； 如果想直接从 Redis 中重新读取任务, 可以使用`TaskRedisSource`, 一般用于跨设备/跨TaskGraph传输任务。
 
 对于两节点更详细的描述请看[nodes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/stage/nodes.md)。
 

@@ -106,7 +106,7 @@ flowchart LR
     subgraph TG[TaskRedis*]
         direction LR
 
-        TRSI[/TaskRedisSink/]
+        TRSI[/TaskRedisTransport/]
         TRSO[/TaskRedisSource/]
 
         RE[(Redis)]
@@ -131,7 +131,7 @@ flowchart LR
 
 提供与 Redis 交互的节点，常用于跨语言/跨进程协作（如配合 Go Worker）。
 
-### TaskRedisSink
+### TaskRedisTransport
 
 将任务推送到 Redis List。
 
@@ -152,7 +152,7 @@ flowchart LR
     subgraph TG[TaskRedis*]
         direction LR
 
-        TRSI[/TaskRedisSink/]
+        TRSI[/TaskRedisTransport/]
         TRA[/TaskRedisAck/]
 
         RE[(Redis)]
@@ -215,11 +215,11 @@ redis_host = os.getenv("REDIS_HOST", "127.0.0.1")
 redis_password = os.getenv("REDIS_PASSWORD", "")
 
 # test_redis_ack_0
-redis_sink = TaskRedisSink(key="testFibonacci:input", host=redis_host, password=redis_password)
+redis_sink = TaskRedisTransport(key="testFibonacci:input", host=redis_host, password=redis_password)
 redis_ack = TaskRedisAck(key="testFibonacci:output", host=redis_host, password=redis_password)
 
 # test_redis_source_0
-redis_sink = TaskRedisSink("test_redis", host=redis_host, password=redis_password)
+redis_sink = TaskRedisTransport("test_redis", host=redis_host, password=redis_password)
 redis_source = TaskRedisSource("test_redis", host=redis_host, password=redis_password)
 ```
 

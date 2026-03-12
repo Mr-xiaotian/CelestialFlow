@@ -7,7 +7,7 @@ from celestialflow import (
     TaskGraph,
     TaskChain,
     TaskSplitter,
-    TaskRedisSink,
+    TaskRedisTransport,
     TaskRedisSource,
     TaskRedisAck,
     TaskRouter,
@@ -24,7 +24,7 @@ ctree_http_port = os.getenv("CTREE_HTTP_PORT")
 ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
 
 
-class DownloadRedisSink(TaskRedisSink):
+class DownloadRedisSink(TaskRedisTransport):
     def get_args(self, task):
         url, path = task
         return url, path.replace("/tmp/", "X:/Download/download_go/")
@@ -198,7 +198,7 @@ def test_splitter_1():
 
 def test_redis_ack_0():
     start_stage = TaskStage(sleep_1, execution_mode="thread", worker_limit=4)
-    redis_sink = TaskRedisSink(
+    redis_sink = TaskRedisTransport(
         key="testFibonacci:input", host=redis_host, password=redis_password
     )
     redis_ack = TaskRedisAck(
@@ -231,7 +231,7 @@ def test_redis_ack_0():
 
 def test_redis_ack_1():
     start_stage = TaskStage(sleep_1, execution_mode="thread", worker_limit=4)
-    redis_sink = TaskRedisSink(
+    redis_sink = TaskRedisTransport(
         key="testSum:input",
         host=redis_host,
         password=redis_password,
@@ -317,7 +317,7 @@ def test_redis_ack_2():
 
 def test_redis_source_0():
     sleep_stage_0 = TaskStage(sleep_1, execution_mode="serial")
-    redis_sink = TaskRedisSink("test_redis", host=redis_host, password=redis_password)
+    redis_sink = TaskRedisTransport("test_redis", host=redis_host, password=redis_password)
     redis_source = TaskRedisSource(
         "test_redis", host=redis_host, password=redis_password
     )

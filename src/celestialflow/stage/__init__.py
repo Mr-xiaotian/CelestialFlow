@@ -3,7 +3,7 @@ from .executor import TaskExecutor
 from .stage import TaskStage
 from .nodes import (
     TaskSplitter,
-    TaskRedisSink,
+    TaskRedisTransport,
     TaskRedisSource,
     TaskRedisAck,
     TaskRouter,
@@ -13,7 +13,7 @@ __all__ = [
     "TaskExecutor",
     "TaskStage",
     "TaskSplitter",
-    "TaskRedisSink",
+    "TaskRedisTransport",
     "TaskRedisSource",
     "TaskRedisAck",
     "TaskRouter",

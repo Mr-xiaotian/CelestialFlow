@@ -149,7 +149,7 @@ class TaskRouter(TaskStage):
         )
 
 
-class TaskRedisSink(TaskStage):
+class TaskRedisTransport(TaskStage):
     def __init__(
         self,
         key,
@@ -160,7 +160,7 @@ class TaskRedisSink(TaskStage):
         unpack_task_args=False,
     ):
         """
-        初始化 TaskRedisSink
+        初始化 TaskRedisTransport
 
         :param key: Redis list key
         :param host: Redis 主机地址
@@ -170,7 +170,7 @@ class TaskRedisSink(TaskStage):
         :param unpack_task_args: 是否将任务参数解包
         """
         super().__init__(
-            func=self._sink,
+            func=self._transport,
             execution_mode="thread",
             worker_limit=4,  # 允许 1~2 个线程偶发阻塞，但不会导致整体阻塞
             unpack_task_args=unpack_task_args,
@@ -192,7 +192,7 @@ class TaskRedisSink(TaskStage):
                 decode_responses=True,
             )
 
-    def _sink(self, *task):
+    def _transport(self, *task):
         """
         将任务元组转换为 JSON 字符串并写入 Redis list
 
@@ -201,7 +201,7 @@ class TaskRedisSink(TaskStage):
         """
         self.init_redis()
 
-        task_id = self.get_task_id(task)
+        task_id = -1
         payload = json.dumps(
             {
                 "id": task_id,
@@ -289,7 +289,7 @@ class TaskRedisAck(TaskStage):
         """
         TaskRedisAck: 远端任务完成确认节点（Ack）
 
-        :param key: Redis 结果 key 前缀（通常与 TaskRedisSink 对应）
+        :param key: Redis 结果 key 前缀（通常与 TaskRedisTransport 对应）
         :param host: Redis 主机地址
         :param port: Redis 端口
         :param db: Redis 数据库
@@ -323,7 +323,7 @@ class TaskRedisAck(TaskStage):
         """
         接收 task_id，等待远端 worker 的执行结果
 
-        :param task_id: 来自 TaskRedisSink 的 task_id
+        :param task_id: 来自 TaskRedisTransport 的 task_id
         :return: 远端执行结果
         """
         self.init_redis()
