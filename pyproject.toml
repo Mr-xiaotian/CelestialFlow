@@ -42,7 +42,12 @@ celestialflow-web = "celestialflow.web.server:main_entry"
 license-files = []
 
 [tool.setuptools.package-data]
-"celestialflow" = ["templates/*.html", "static/**/*"]
+celestialflow = [
+    "web/templates/*.html",
+    "web/templates/**/*.html",
+    "web/static/*",
+    "web/static/**/*",
+]
 
 [tool.pytest.ini_options]
 addopts = "-s"

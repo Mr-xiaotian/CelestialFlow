@@ -663,7 +663,7 @@ class TaskGraph:
         return format_networkx_graph(self.structure_json)
 
     def get_fallback_path(self) -> str:
-        return self.fail_listener.get_fallback_path()
+        return str(self.fail_listener.jsonl_path.resolve())
 
     def get_stage_input_trace(self, stage_tag: str) -> str:
         if not self._use_ctree:
