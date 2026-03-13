@@ -19,7 +19,7 @@ class BaseListener:
 
     def _handle_record(self, record):
         raise NotImplementedError
-    
+
     def _after_stop(self):
         return None
 

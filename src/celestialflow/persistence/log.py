@@ -17,7 +17,7 @@ class LogListener(BaseListener):
         super().__init__()
 
         self.log_queue = self.queue
-        self.log_path : Path | None = None
+        self.log_path: Path | None = None
         self._file = None
 
     def _before_start(self):
@@ -44,7 +44,7 @@ class LogListener(BaseListener):
             self._file.flush()
             self._file.close()
             self._file = None
-            
+
 
 class LogSinker(BaseSinker):
     """
@@ -66,7 +66,9 @@ class LogSinker(BaseSinker):
             return
         if LEVEL_DICT[level_upper] < LEVEL_DICT[self.log_level]:
             return
-        super()._sink({"timestamp": timestamp, "level": level_upper, "message": message})
+        super()._sink(
+            {"timestamp": timestamp, "level": level_upper, "message": message}
+        )
 
     # ==== executor ====
     def start_executor(self, func_name, task_num, execution_mode_desc):
@@ -272,7 +274,9 @@ class LogSinker(BaseSinker):
         )
 
     def inject_tasks_success(self, target_node, task_datas):
-        self._sink("INFO", f"[Reporter] Inject tasks {task_datas} into '{target_node}'.")
+        self._sink(
+            "INFO", f"[Reporter] Inject tasks {task_datas} into '{target_node}'."
+        )
 
     def inject_tasks_failed(self, target_node, task_datas, exception):
         self._sink(

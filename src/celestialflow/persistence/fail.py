@@ -13,7 +13,7 @@ class FailListener(BaseListener):
 
         self.error_source = error_source
         self.fail_queue = self.queue
-        self.jsonl_path : Path | None = None
+        self.jsonl_path: Path | None = None
 
         self.total_error_num = 0
         self._file = None

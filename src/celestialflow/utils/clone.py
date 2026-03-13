@@ -51,7 +51,7 @@ def clone_stage(stage: TaskStage) -> TaskStage:
     :return: 克隆节点
     """
     cloned = TaskStage(**_get_clone_init_kwargs(stage))
-    
+
     cloned.add_retry_exceptions(*stage.metrics.retry_exceptions)
     cloned.set_stage_mode(stage.get_stage_mode())
     cloned.set_stage_name(stage.get_name())
@@ -86,7 +86,9 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
 
     for stage in ordered_stages:
         cloned_stage = stage_map[id(stage)]
-        cloned_next_stages = [stage_map[id(next_stage)] for next_stage in stage.next_stages]
+        cloned_next_stages = [
+            stage_map[id(next_stage)] for next_stage in stage.next_stages
+        ]
         cloned_stage.set_next_stages(cloned_next_stages)
 
     for stage in ordered_stages:

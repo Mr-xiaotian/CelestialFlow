@@ -15,7 +15,13 @@ from celestialtree import (
 )
 
 from ..persistence import FailListener, FailSinker, LogListener, LogSinker
-from ..runtime import TaskEnvelope, TaskMetrics, TaskProgress, NullTaskProgress, TaskQueue
+from ..runtime import (
+    TaskEnvelope,
+    TaskMetrics,
+    TaskProgress,
+    NullTaskProgress,
+    TaskQueue,
+)
 from ..runtime.errors import ExecutionModeError
 from ..runtime.factories import (
     make_counter,
@@ -138,7 +144,7 @@ class TaskExecutor:
         - processed_set：用于重复检测
         """
         self.success_dict = {}  # task -> result
-        self.error_dict = {}    # task -> exception
+        self.error_dict = {}  # task -> exception
         self.metrics.reset_state()
 
     def init_pool(self):
@@ -581,9 +587,7 @@ class TaskExecutor:
         task_hash = task_envelope.hash
 
         # 基于异常类型决定重试策略
-        if (
-            self.metrics.is_retry_able(task_hash, exception)
-        ):
+        if self.metrics.is_retry_able(task_hash, exception):
             # 如果是可重试的异常，将任务重新放入队列
             retry_envelope = self._prepare_retry_envelope(task_envelope, exception)
             self.task_queues.put_first(retry_envelope)  # 只在第一个队列存放retry task
@@ -603,9 +607,7 @@ class TaskExecutor:
         task_hash = task_envelope.hash
 
         # 基于异常类型决定重试策略
-        if (
-            self.metrics.is_retry_able(task_hash, exception)
-        ):
+        if self.metrics.is_retry_able(task_hash, exception):
             # 如果是可重试的异常，将任务重新放入队列
             retry_envelope = self._prepare_retry_envelope(task_envelope, exception)
             await self.task_queues.put_first_async(
@@ -616,9 +618,9 @@ class TaskExecutor:
             fail_envelope = self._prepare_fail_envelope(task_envelope, exception)
 
     def _prepare_retry_envelope(
-            self,
-            task_envelope: TaskEnvelope,
-            exception: Exception,
+        self,
+        task_envelope: TaskEnvelope,
+        exception: Exception,
     ):
         """
         准备重试任务的信封
@@ -649,11 +651,11 @@ class TaskExecutor:
         )
 
         return task_envelope
-    
+
     def _prepare_fail_envelope(
-            self,
-            task_envelope: TaskEnvelope,
-            exception: Exception,
+        self,
+        task_envelope: TaskEnvelope,
+        exception: Exception,
     ):
         """
         准备失败任务的结果信封

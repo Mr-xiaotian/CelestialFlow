@@ -47,8 +47,8 @@ async def benchmark_executor(
         start = time.perf_counter()
         await cloned_executor.start_async(task_list)
         results.append([time.perf_counter() - start])
-    
-    table_results = format_table(results, sync_modes + async_modes, ["Time"])   
+
+    table_results = format_table(results, sync_modes + async_modes, ["Time"])
     print("\n" + table_results)
 
 
@@ -93,12 +93,11 @@ def benchmark_graph(
         test_table_list.append(time_list)
 
     time_table = format_table(
-            test_table_list,
-            stage_modes,
-            execution_modes,
-            r"stage\execution",
-        )
+        test_table_list,
+        stage_modes,
+        execution_modes,
+        r"stage\execution",
+    )
     print(f"Time table:\n{time_table}")
     print(f"Fail stage dict: \n{pprint.pformat(fail_by_stage_dict)}")
     print(f"Fail error dict: \n{pprint.pformat(fail_by_error_dict)}")
-

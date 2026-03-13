@@ -241,7 +241,12 @@ class TaskGraph:
             self.reporter = NullTaskReporter()
 
     def set_ctree(
-        self, use_ctree=False, host="127.0.0.1", http_port=7777, grpc_port=7778, transport="grpc"
+        self,
+        use_ctree=False,
+        host="127.0.0.1",
+        http_port=7777,
+        grpc_port=7778,
+        transport="grpc",
     ):
         """
         设定事件树客户端
@@ -607,7 +612,10 @@ class TaskGraph:
             totals["total_remain"] = max(running_remaining_map.values(), default=0.0)
         else:
             expected_pending_map = calc_global_remain_equal_pred(
-                self.networkx_graph, running_processed_map, running_pending_map, running_elapsed_map
+                self.networkx_graph,
+                running_processed_map,
+                running_pending_map,
+                running_elapsed_map,
             )
             totals["total_remain"] = max(expected_pending_map.values(), default=0.0)
 
@@ -680,4 +688,3 @@ class TaskGraph:
         if self.isDAG:
             stage_level_dict = compute_node_levels(self.networkx_graph)
             self.layers_dict = cluster_by_value_sorted(stage_level_dict)
-

@@ -33,7 +33,7 @@ class TaskMetrics:
         清空重试时间记录和已处理任务集合。
         """
         self.retry_time_dict = {}  # task_hash: retry_time
-        self.processed_set = set() # task_hash
+        self.processed_set = set()  # task_hash
 
     def is_duplicate(self, task_hash) -> bool:
         """
@@ -98,7 +98,7 @@ class TaskMetrics:
         :return: 对应任务的重试次数（如果存在），否则返回 0。
         """
         return self.retry_time_dict.setdefault(task_hash, 0)
-    
+
     def add_retry_time(self, task_hash, retry_time=1) -> int:
         """
         增加任务的重试时间

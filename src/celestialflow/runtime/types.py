@@ -92,6 +92,4 @@ class StageStatus(IntEnum):
     STOPPED = 2
 
 
-STAGE_STYLE = NodeLabelStyle(
-    template="{base}  {payload.name}  ‹{type}›", missing="-"
-)
+STAGE_STYLE = NodeLabelStyle(template="{base}  {payload.name}  ‹{type}›", missing="-")

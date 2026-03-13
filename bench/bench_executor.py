@@ -51,7 +51,9 @@ async def test_executor_fibonacci():
 
     sync_modes = ["serial", "thread", "process"]
     async_modes = ["async"]
-    await benchmark_executor(executor, executor_async, test_task_1, sync_modes, async_modes) 
+    await benchmark_executor(
+        executor, executor_async, test_task_1, sync_modes, async_modes
+    )
 
 
 async def test_executor_sleep():
@@ -72,7 +74,9 @@ async def test_executor_sleep():
 
     sync_modes = ["serial", "thread", "process"]
     async_modes = ["async"]
-    await benchmark_executor(executor, executor_async, task_list, sync_modes, async_modes)
+    await benchmark_executor(
+        executor, executor_async, task_list, sync_modes, async_modes
+    )
 
 
 async def main():
