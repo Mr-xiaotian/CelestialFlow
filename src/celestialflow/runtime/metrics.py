@@ -1,6 +1,14 @@
 # runtime/metrics.py
 import asyncio
+from threading import Lock
 from typing import TYPE_CHECKING
+
+from ..runtime.factories import (
+    make_counter,
+)
+from ..runtime.types import (
+    SumCounter,
+)
 
 if TYPE_CHECKING:
     from ..stage import TaskExecutor
@@ -14,7 +22,7 @@ class TaskMetrics:
     以及重试异常的管理和去重逻辑。
     """
 
-    def __init__(self, executor: "TaskExecutor", max_retries: int = 1):
+    def __init__(self, executor: "TaskExecutor", execution_mode: str, max_retries: int = 1):
         """
         初始化 TaskMetrics
 
@@ -22,9 +30,35 @@ class TaskMetrics:
         :param max_retries: 最大重试次数，默认值为 1
         """
         self.executor = executor
-        self.retry_exceptions = tuple()
+        self.execution_mode = execution_mode
         self.max_retries = max_retries
+
+        self.retry_exceptions = tuple()
+        self.init_counter()
         self.reset_state()
+
+    def init_counter(self):
+        """
+        初始化计数器（按 execution_mode 选择实现）
+        """
+        mode = self.execution_mode
+
+        # thread 模式下，让三个 counter 共用同一把锁（减少开销，也更一致）
+        lock = Lock() if mode == "thread" else None
+
+        self.task_counter = SumCounter(mode=mode)
+        self.success_counter = make_counter(mode, lock=lock)
+        self.error_counter = make_counter(mode, lock=lock)
+        self.duplicate_counter = make_counter(mode, lock=lock)
+
+    def reset_counter(self):
+        """
+        重置计数器
+        """
+        self.task_counter.reset()
+        self.success_counter.value = 0
+        self.error_counter.value = 0
+        self.duplicate_counter.value = 0
 
     def reset_state(self):
         """
@@ -121,48 +155,64 @@ class TaskMetrics:
         return self.retry_time_dict.pop(task_hash, None)
 
     # counter
-    def update_task_counter(self):
+    def append_task_counter(self, counter: SumCounter):
+        """
+        添加任务总数计数器
+
+        :param counter: 任务总数计数器实例
+        """
+        self.task_counter.append_counter(counter)
+
+    def add_task_count(self, add_count: int = 1):
         """
         更新任务总数计数器
 
         增加已接收到的任务总数。
         """
-        self.executor.task_counter.add_init_value(1)
+        self.task_counter.add_init_value(add_count)
 
-    def update_success_counter(self):
+    def add_success_count(self, count: int = 1):
         """
         更新成功任务计数器
 
         线程安全地增加成功任务的数量。
-        """
-        with self.executor.success_counter.get_lock():
-            self.executor.success_counter.value += 1
 
-    async def update_success_counter_async(self):
+        :param count: 增加的成功任务数量，默认值为 1。
+        """
+        with self.success_counter.get_lock():
+            self.success_counter.value += count
+
+    async def add_success_count_async(self, count: int = 1):
         """
         异步更新成功任务计数器
 
-        在独立线程中执行 update_success_counter，避免阻塞事件循环。
-        """
-        await asyncio.to_thread(self.update_success_counter)
+        在独立线程中执行 add_success_count，避免阻塞事件循环。
 
-    def update_error_counter(self):
+        :param count: 增加的成功任务数量，默认值为 1。
+        """
+        await asyncio.to_thread(self.add_success_count, count)
+
+    def add_error_count(self, count: int = 1):
         """
         更新失败任务计数器
 
         线程安全地增加失败任务的数量。
-        """
-        with self.executor.error_counter.get_lock():
-            self.executor.error_counter.value += 1
 
-    def update_duplicate_counter(self):
+        :param count: 增加的失败任务数量，默认值为 1。
+        """
+        with self.error_counter.get_lock():
+            self.error_counter.value += count
+
+    def add_duplicate_count(self, count: int = 1):
         """
         更新重复任务计数器
 
         线程安全地增加重复任务的数量。
+
+        :param count: 增加的重复任务数量，默认值为 1。
         """
-        with self.executor.duplicate_counter.get_lock():
-            self.executor.duplicate_counter.value += 1
+        with self.duplicate_counter.get_lock():
+            self.duplicate_counter.value += count
 
     def is_tasks_finished(self) -> bool:
         """
@@ -174,11 +224,43 @@ class TaskMetrics:
             bool: 如果所有任务都已处理完毕，返回 True；否则返回 False。
         """
         processed = (
-            self.executor.success_counter.value
-            + self.executor.error_counter.value
-            + self.executor.duplicate_counter.value
+            self.success_counter.value
+            + self.error_counter.value
+            + self.duplicate_counter.value
         )
-        return self.executor.task_counter.value == processed
+        return self.task_counter.value == processed
+    
+    def get_task_count(self) -> int:
+        """
+        获取当前的任务总数
+
+        :return: 当前的任务总数
+        """
+        return self.task_counter.value
+    
+    def get_success_count(self) -> int:
+        """
+        获取当前的成功任务数
+
+        :return: 当前的成功任务数
+        """
+        return self.success_counter.value
+
+    def get_error_count(self) -> int:
+        """
+        获取当前的失败任务数
+
+        :return: 当前的失败任务数
+        """
+        return self.error_counter.value
+
+    def get_duplicate_count(self) -> int:
+        """
+        获取当前的重复任务数
+
+        :return: 当前的重复任务数
+        """
+        return self.duplicate_counter.value
 
     def get_counts(self) -> dict:
         """
@@ -192,10 +274,10 @@ class TaskMetrics:
                 - tasks_processed: 已处理任务总数
                 - tasks_pending: 等待处理任务数
         """
-        input_count = self.executor.task_counter.value
-        successed = self.executor.success_counter.value
-        failed = self.executor.error_counter.value
-        duplicated = self.executor.duplicate_counter.value
+        input_count = self.task_counter.value
+        successed = self.success_counter.value
+        failed = self.error_counter.value
+        duplicated = self.duplicate_counter.value
         processed = successed + failed + duplicated
         pending = max(0, input_count - processed)
 

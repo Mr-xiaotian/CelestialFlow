@@ -24,12 +24,10 @@ from ..runtime import (
 )
 from ..runtime.errors import ExecutionModeError
 from ..runtime.factories import (
-    make_counter,
     make_queue_backend,
     make_taskqueue,
 )
 from ..runtime.types import (
-    SumCounter,
     TerminationSignal,
 )
 from ..utils.format import format_repr
@@ -95,30 +93,13 @@ class TaskExecutor:
 
         self.thread_pool = None
         self.process_pool = None
-        self.init_counter()
-        self.metrics = TaskMetrics(self, max_retries=self.max_retries)
+        self.init_metrics()
 
-    def init_counter(self):
+    def init_metrics(self):
         """
-        初始化计数器（按 execution_mode 选择实现）
+        初始化任务指标
         """
-        mode = getattr(self, "execution_mode", "serial")
-
-        # thread 模式下，让三个 counter 共用同一把锁（减少开销，也更一致）
-        lock = Lock() if mode == "thread" else None
-
-        self.task_counter = SumCounter(mode=mode)
-        self.success_counter = make_counter(mode, lock=lock)
-        self.error_counter = make_counter(mode, lock=lock)
-        self.duplicate_counter = make_counter(mode, lock=lock)
-
-        self.init_extra_counter()
-
-    def init_extra_counter(self):
-        """
-        初始化额外计数器, 用于有特殊需要的task_node
-        """
-        pass
+        self.metrics = TaskMetrics(self, execution_mode=self.execution_mode, max_retries=self.max_retries)
 
     def init_env(
         self, task_queues=None, result_queues=None, fail_queue=None, log_queue=None
@@ -275,23 +256,6 @@ class TaskExecutor:
         """
         self.log_level = log_level.upper()
 
-    def reset_counter(self):
-        """
-        重置计数器
-        """
-        self.task_counter.reset()
-        self.success_counter.value = 0
-        self.error_counter.value = 0
-        self.duplicate_counter.value = 0
-
-        self.reset_extra_counter()
-
-    def reset_extra_counter(self):
-        """
-        重置额外计数器, 用于有特殊需要的task_node
-        """
-        pass
-
     def get_name(self) -> str:
         """
         获取当前节点/管理器名称
@@ -384,7 +348,7 @@ class TaskExecutor:
             )
             envelope = TaskEnvelope.wrap(task, input_id)
             self.task_queues.put_first(envelope)
-            self.metrics.update_task_counter()
+            self.metrics.add_task_count()
             self.log_sinker.task_input(
                 self.get_func_name(),
                 self.get_task_repr(task),
@@ -392,10 +356,10 @@ class TaskExecutor:
                 input_id,
             )
 
-            if self.task_counter.value % 100 == 0:
+            if self.metrics.get_task_count() % 100 == 0:
                 self.task_progress.add_total(100)
                 progress_num += 100
-        self.task_progress.add_total(self.task_counter.value - progress_num)
+        self.task_progress.add_total(self.metrics.get_task_count() - progress_num)
 
         # 注入终止符
         termination_id = self.ctree_client.emit(
@@ -418,7 +382,7 @@ class TaskExecutor:
             )
             envelope = TaskEnvelope.wrap(task, input_id)
             await self.task_queues.put_first_async(envelope)
-            self.metrics.update_task_counter()
+            self.metrics.add_task_count()
             self.log_sinker.task_input(
                 self.get_func_name(),
                 self.get_task_repr(task),
@@ -426,10 +390,10 @@ class TaskExecutor:
                 input_id,
             )
 
-            if self.task_counter.value % 100 == 0:
+            if self.metrics.get_task_count() % 100 == 0:
                 self.task_progress.add_total(100)
                 progress_num += 100
-        self.task_progress.add_total(self.task_counter.value - progress_num)
+        self.task_progress.add_total(self.metrics.get_task_count() - progress_num)
 
         # 注入终止符
         termination_id = self.ctree_client.emit(
@@ -563,7 +527,7 @@ class TaskExecutor:
         )
         result_envelope = TaskEnvelope.wrap(processed_result, result_id)
 
-        self.metrics.update_success_counter()
+        self.metrics.add_success_count()
         self.metrics.pop_retry_time(task_hash)
 
         self.log_sinker.task_success(
@@ -675,7 +639,7 @@ class TaskExecutor:
 
         _, task_hash, task_id = task_envelope.unwrap()
         self.metrics.pop_retry_time(task_hash)
-        self.metrics.update_error_counter()
+        self.metrics.add_error_count()
 
         self.fail_sinker.task_error(
             self.get_tag(), exception, error_id, task_envelope.task
@@ -697,7 +661,7 @@ class TaskExecutor:
         """
         task, _, task_id = task_envelope.unwrap()
 
-        self.metrics.update_duplicate_counter()
+        self.metrics.add_duplicate_count()
         duplicate_id = self.ctree_client.emit(
             "task.duplicate",
             parents=[task_id],
@@ -729,7 +693,7 @@ class TaskExecutor:
         self.fail_sinker.start_executor(self.get_tag())
         self.log_sinker.start_executor(
             self.get_func_name(),
-            self.task_counter.value,
+            self.metrics.get_task_count(),
             self.get_execution_mode_desc(),
         )
 
@@ -756,9 +720,9 @@ class TaskExecutor:
                 self.get_func_name(),
                 self.execution_mode,
                 time.perf_counter() - start_time,
-                self.success_counter.value,
-                self.error_counter.value,
-                self.duplicate_counter.value,
+                self.metrics.get_success_count(),
+                self.metrics.get_error_count(),
+                self.metrics.get_duplicate_count(),
             )
             self.log_listener.stop()
             self.fail_listener.stop()
@@ -779,7 +743,7 @@ class TaskExecutor:
         await self.put_task_queues_async(task_source)
         self.log_sinker.start_executor(
             self.get_func_name(),
-            self.task_counter.value,
+            self.metrics.get_task_count(),
             self.get_execution_mode_desc(),
         )
 
@@ -794,9 +758,9 @@ class TaskExecutor:
                 self.get_func_name(),
                 self.execution_mode,
                 time.perf_counter() - start_time,
-                self.success_counter.value,
-                self.error_counter.value,
-                self.duplicate_counter.value,
+                self.metrics.get_success_count(),
+                self.metrics.get_error_count(),
+                self.metrics.get_duplicate_count(),
             )
             self.log_listener.stop()
 

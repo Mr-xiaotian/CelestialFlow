@@ -141,7 +141,7 @@ class TaskGraph:
             stage_runtime = self.stage_runtime_dict[stage_tag]
 
             # 刷新所有 counter
-            stage.reset_counter()
+            stage.metrics.reset_counter()
 
             # 记录节点
             stage_runtime["stage"] = stage
@@ -330,7 +330,7 @@ class TaskGraph:
                 in_queue.put_first(envelope)
                 input_ids.add(input_id)
 
-                stage.task_counter.add_init_value(1)
+                stage.metrics.add_task_count()
                 self.log_sinker.task_input(
                     stage.get_func_name(),
                     stage.get_task_repr(task),
@@ -484,7 +484,7 @@ class TaskGraph:
             in_queue: TaskQueue = stage_runtime["in_queue"]
 
             remaining_sources = in_queue.drain()
-            stage.error_counter.value += len(remaining_sources)
+            stage.metrics.add_error_count(len(remaining_sources))
 
             # 持久化逻辑
             for source in remaining_sources:

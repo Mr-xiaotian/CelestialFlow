@@ -7,9 +7,9 @@ from typing import List
 from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 
-from ..runtime import TaskQueue
+from ..runtime import TaskQueue, TaskMetrics
 from ..runtime.errors import ExecutionModeError, StageModeError, PickleError
-from ..runtime.types import StageStatus, SumCounter
+from ..runtime.types import StageStatus
 from ..utils.debug import find_unpickleable
 from .executor import TaskExecutor
 
@@ -26,16 +26,11 @@ class TaskStage(TaskExecutor):
 
         self.init_status()
 
-    def init_counter(self):
+    def init_metrics(self):
         """
-        初始化计数器
+        初始化任务指标
         """
-        self.task_counter = SumCounter(mode="process")
-        self.success_counter = MPValue("i", 0)
-        self.error_counter = MPValue("i", 0)
-        self.duplicate_counter = MPValue("i", 0)
-
-        self.init_extra_counter()
+        self.metrics = TaskMetrics(self, execution_mode="process", max_retries=self.max_retries)
 
     def init_status(self):
         """
@@ -124,11 +119,11 @@ class TaskStage(TaskExecutor):
             return
 
         if isinstance(prev_stage, TaskSplitter):
-            self.task_counter.append_counter(prev_stage.split_counter)
+            self.metrics.append_task_counter(prev_stage.split_counter)
         elif isinstance(prev_stage, TaskRouter):
             self._pending_prev_bindings.append(prev_stage)
         else:
-            self.task_counter.append_counter(prev_stage.success_counter)
+            self.metrics.append_task_counter(prev_stage.metrics.success_counter)
 
     def set_stage_name(self, name: str = None):
         """
@@ -155,7 +150,7 @@ class TaskStage(TaskExecutor):
             if isinstance(prev_stage, TaskRouter):
                 key = self.get_tag()  # 现在已经稳定了
                 prev_stage.route_counters.setdefault(key, MPValue("i", 0))
-                self.task_counter.append_counter(prev_stage.route_counters[key])
+                self.metrics.append_task_counter(prev_stage.route_counters[key])
 
         self._pending_prev_bindings.clear()
 
@@ -249,7 +244,7 @@ class TaskStage(TaskExecutor):
                 self.get_tag(),
                 self.execution_mode,
                 time.perf_counter() - start_time,
-                self.success_counter.value,
-                self.error_counter.value,
-                self.duplicate_counter.value,
+                self.metrics.get_success_count(),
+                self.metrics.get_error_count(),
+                self.metrics.get_duplicate_count(),
             )

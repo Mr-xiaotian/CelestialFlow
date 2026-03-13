@@ -17,10 +17,10 @@ class TaskMetrics:
 
 TaskMetrics 提供了一系列方法来安全地更新计数器（通常在多线程/多进程环境下使用锁）。
 
-- `update_task_counter()`: 增加输入任务计数。
-- `update_success_counter()`: 增加成功任务计数。
-- `update_error_counter()`: 增加失败任务计数。
-- `update_duplicate_counter()`: 增加重复任务计数。
+- `add_task_count()`: 增加输入任务计数。
+- `add_success_count()`: 增加成功任务计数。
+- `add_error_count()`: 增加失败任务计数。
+- `add_duplicate_count()`: 增加重复任务计数。
 
 ## 状态查询
 
