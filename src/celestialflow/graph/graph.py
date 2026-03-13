@@ -615,10 +615,10 @@ class TaskGraph:
         self.graph_summary = dict(totals)
 
     def get_fail_by_stage_dict(self):
-        return load_task_by_stage(self.fail_listener.fallback_path)
+        return load_task_by_stage(self.fail_listener.jsonl_path)
 
     def get_fail_by_error_dict(self):
-        return load_task_by_error(self.fail_listener.fallback_path)
+        return load_task_by_error(self.fail_listener.jsonl_path)
 
     def get_status_dict(self) -> Dict[str, dict]:
         """

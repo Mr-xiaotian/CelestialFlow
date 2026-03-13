@@ -16,14 +16,14 @@ class LogListener(BaseListener):
     def __init__(self):
         super().__init__()
 
-        now = strftime("%Y-%m-%d", localtime())
-        self.log_path = Path(f"logs/task_logger({now}).log")
-
         self.log_queue = self.queue
+        self.log_path : Path | None = None
         self._file = None
 
     def _before_start(self):
         # 创建 logs 目录
+        now = strftime("%Y-%m-%d", localtime())
+        self.log_path = Path(f"logs/task_logger({now}).log")
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
         # 打开日志文件

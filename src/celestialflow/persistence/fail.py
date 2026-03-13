@@ -1,39 +1,53 @@
 # persistence/fail.py
-import os
+import json
+from pathlib import Path
 from datetime import datetime
-from threading import Lock
 
 from ..utils.format import format_repr
 from .base import BaseListener, BaseSinker
-from .jsonl import append_jsonl_log
 
 
 class FailListener(BaseListener):
     def __init__(self, error_source: str):
         super().__init__()
+
         self.error_source = error_source
         self.fail_queue = self.queue
-        self.fallback_path = ""
+        self.jsonl_path : Path | None = None
+
         self.total_error_num = 0
-        self._counter_lock = Lock()
+        self._file = None
 
     def _before_start(self):
+        # 创建 fallback 目录
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%H-%M-%S-%f")[:-3]
-        self.fallback_path = (
+        self.jsonl_path = Path(
             f"./fallback/{date_str}/{self.error_source}({time_str}).jsonl"
         )
+        self.jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # 打开失败记录文件
+        self._file = self.jsonl_path.open("a", encoding="utf-8")
+
+        # 初始化错误计数器
         self.total_error_num = 0
 
     def _handle_record(self, record):
-        append_jsonl_log(record, self.fallback_path)
-        if isinstance(record, dict) and record.get("error_id") is not None:
-            with self._counter_lock:
-                self.total_error_num += 1
+        jsonl_record = json.dumps(record, ensure_ascii=False)
 
-    def get_fallback_path(self) -> str:
-        return os.path.abspath(self.fallback_path)
+        self._file.write(f"{jsonl_record}\n")
+        self._file.flush()
+
+        if isinstance(record, dict) and record.get("error_id") is not None:
+            self.total_error_num += 1
+
+    def _after_stop(self):
+        if self._file:
+            self._file.flush()
+            self._file.close()
+            self._file = None
 
 
 class FailSinker(BaseSinker):

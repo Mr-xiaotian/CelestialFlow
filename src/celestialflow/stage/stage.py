@@ -2,7 +2,6 @@
 from __future__ import annotations
 from typing import Callable
 
-import inspect
 import time
 from typing import List
 from multiprocessing import Value as MPValue
