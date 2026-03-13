@@ -229,7 +229,7 @@ flowchart TD
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.1.1</em>
+  <em>celestial-flow 3.1.3</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
@@ -292,6 +292,15 @@ flowchart TD
   - fix
     - 修复前端renderNodeList中参数设置错误;
     - 修复其他微小bug;
+- 3.1.3
+  - feat:
+    - 抽象出BaseListener与BaseSinker;
+    - 移除loguru, 完全由LogListener和LogSinker实现log记录; 
+    - 将bench相关代码从TaskExecutor和TaskGraph中抽离, 不再作为方法, 而是单独bench函数; 
+    - 重构TaskExecutor部分代码, 以尽量瘦身; 
+    - 优化log处理代码中对时间戳的处理, 现在更加准确;
+  - fix:
+    - 修复一些影响性能的小问题;
 
 ## Star 历史趋势（Star History）
 
