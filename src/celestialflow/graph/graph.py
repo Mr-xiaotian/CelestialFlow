@@ -497,7 +497,7 @@ class TaskGraph:
                 )
 
                 self.fail_sinker.task_error(
-                    time.time(), stage_tag, UnconsumedError(), error_id, task
+                    stage_tag, UnconsumedError(), error_id, task
                 )
 
                 self.log_sinker.task_error(

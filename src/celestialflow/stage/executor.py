@@ -678,7 +678,7 @@ class TaskExecutor:
         self.metrics.update_error_counter()
 
         self.fail_sinker.task_error(
-            time.time(), self.get_tag(), exception, error_id, task_envelope.task
+            self.get_tag(), exception, error_id, task_envelope.task
         )
         self.log_sinker.task_error(
             self.get_func_name(),

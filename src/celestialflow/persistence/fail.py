@@ -79,25 +79,25 @@ class FailSinker(BaseSinker):
         }
         self._sink(meta_item)
 
-    def task_error(self, ts, stage_tag, error, err_id, task):
+    def task_error(self, stage_tag, error, err_id, task):
         """
         写入错误日志到 jsonl 文件中
 
-        :param ts: 错误时间戳
         :param stage_tag: 阶段标签
         :param error: 错误信息
         :param err_id: 错误ID
         :param task: 任务字符串
         """
+        now = datetime.now()
         error_message = f"{type(error).__name__}({error})"
         fail_item = {
-            "timestamp": datetime.fromtimestamp(ts).isoformat(),
+            "timestamp": now.isoformat(),
             "stage": stage_tag,
             "error_repr": format_repr(error_message, 100),
             "task_repr": format_repr(task, 100),
             "error": error_message,
             "task": task,
             "error_id": err_id,
-            "ts": ts,
+            "ts": now.timestamp(),
         }
         self._sink(fail_item)
