@@ -99,7 +99,7 @@ class TaskExecutor:
         """
         初始化任务指标
         """
-        self.metrics = TaskMetrics(self, execution_mode=self.execution_mode, max_retries=self.max_retries)
+        self.metrics = TaskMetrics(execution_mode=self.execution_mode, max_retries=self.max_retries, enable_duplicate_check=self.enable_duplicate_check)
 
     def init_env(
         self, task_queues=None, result_queues=None, fail_queue=None, log_queue=None

@@ -1,17 +1,11 @@
 # runtime/metrics.py
 import asyncio
 from threading import Lock
-from typing import TYPE_CHECKING
 
 from ..runtime.factories import (
     make_counter,
 )
-from ..runtime.types import (
-    SumCounter,
-)
-
-if TYPE_CHECKING:
-    from ..stage import TaskExecutor
+from ..runtime.types import SumCounter
 
 
 class TaskMetrics:
@@ -22,16 +16,17 @@ class TaskMetrics:
     以及重试异常的管理和去重逻辑。
     """
 
-    def __init__(self, executor: "TaskExecutor", execution_mode: str, max_retries: int = 1):
+    def __init__(self, execution_mode: str, max_retries: int = 1, enable_duplicate_check: bool = False):
         """
         初始化 TaskMetrics
 
-        :param executor: 关联的任务执行器实例
+        :param execution_mode: 任务执行模式，可选值为 "thread" 或 "async"
         :param max_retries: 最大重试次数，默认值为 1
+        :param enable_duplicate_check: 是否启用重复任务检查，默认值为 False
         """
-        self.executor = executor
         self.execution_mode = execution_mode
         self.max_retries = max_retries
+        self.enable_duplicate_check = enable_duplicate_check
 
         self.retry_exceptions = tuple()
         self.init_counter()
@@ -76,7 +71,7 @@ class TaskMetrics:
         :param task_hash: 任务的哈希值
         :return: 如果启用了去重检查且任务哈希存在于已处理集合中，返回 True；否则返回 False。
         """
-        if not self.executor.enable_duplicate_check:
+        if not self.enable_duplicate_check:
             return False
         return task_hash in self.processed_set
 
@@ -87,7 +82,7 @@ class TaskMetrics:
 
         :param task_hash: 任务的哈希值
         """
-        if self.executor.enable_duplicate_check:
+        if self.enable_duplicate_check:
             self.processed_set.add(task_hash)
 
     def discard_processed_set(self, task_hash):
@@ -97,7 +92,7 @@ class TaskMetrics:
 
         :param task_hash: 任务的哈希值
         """
-        if self.executor.enable_duplicate_check:
+        if self.enable_duplicate_check:
             self.processed_set.discard(task_hash)
 
     # retry

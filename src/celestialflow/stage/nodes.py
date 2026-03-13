@@ -34,7 +34,7 @@ class TaskSplitter(TaskStage):
 
     def _split(self, *task):
         """
-        实际上这个函数不执行逻辑，仅用于符合 TaskStage 架构
+        这个函数不执行逻辑，仅用于符合 TaskStage 架构
         """
         return task
 
@@ -93,6 +93,8 @@ class TaskRouter(TaskStage):
             max_retries=0,
         )
 
+        self.init_extra_counter()
+
     def init_extra_counter(self):
         # 每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
         self.route_counters: dict = {}
@@ -106,7 +108,7 @@ class TaskRouter(TaskStage):
 
     def _route(self, routed: tuple) -> tuple:
         """
-        实际上这个函数不执行逻辑，仅用于符合 TaskStage 架构, 以及提前报错
+        这个函数仅用于提前报错
         """
         if not (isinstance(routed, tuple) and len(routed) == 2):
             raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
