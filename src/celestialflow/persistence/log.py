@@ -70,10 +70,48 @@ class LogSinker(BaseSinker):
             {"timestamp": timestamp, "level": level_upper, "message": message}
         )
 
+    # ==== graph ====
+    def start_graph(self, structure_list):
+        self._sink("INFO", f"Starting TaskGraph. Graph structure:")
+        for line in structure_list:
+            self._sink("INFO", line)
+
+    def end_graph(self, use_time):
+        self._sink("INFO", f"TaskGraph end. Use {use_time:.2f} second.")
+
+    # ==== layer ====
+    def start_layer(self, layer: List[str], layer_level: int):
+        self._sink("INFO", f"Layer {layer} start. Layer level: {layer_level}.")
+
+    def end_layer(self, layer: List[str], use_time: float):
+        self._sink("INFO", f"Layer {layer} end. Use {use_time:.2f} second.")
+
+    # ==== stage ====
+    def start_stage(self, stage_tag, stage_mode, execution_mode, worker_limit):
+        worker_repr = f"({worker_limit} workers)" if execution_mode != "serial" else ""
+        text = f"'{stage_tag}' start in {stage_mode}; execute tasks by {execution_mode}{worker_repr}."
+        self._sink("INFO", text)
+
+    def end_stage(
+        self,
+        stage_tag,
+        stage_mode,
+        execution_mode,
+        use_time,
+        success_num,
+        failed_num,
+        duplicated_num,
+    ):
+        self._sink(
+            "INFO",
+            f"'{stage_tag}' end in {stage_mode}; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
+            f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
+        )
+
     # ==== executor ====
     def start_executor(self, func_name, task_num, execution_mode_desc):
         text = (
-            f"'Executor[{func_name}]' start {task_num} tasks by {execution_mode_desc}."
+            f"'Executor[{func_name}]' start; execute {task_num} tasks by {execution_mode_desc}."
         )
         self._sink("INFO", text)
 
@@ -88,46 +126,9 @@ class LogSinker(BaseSinker):
     ):
         self._sink(
             "INFO",
-            f"'Executor[{func_name}]' end tasks by {execution_mode}. Use {use_time:.2f} second. "
+            f"'Executor[{func_name}]' end; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
             f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
-
-    # ==== stage ====
-    def start_stage(self, stage_tag, execution_mode, worker_limit):
-        text = f"'{stage_tag}' start tasks by {execution_mode}"
-        text += f"({worker_limit} workers)." if execution_mode != "serial" else "."
-        self._sink("INFO", text)
-
-    def end_stage(
-        self,
-        stage_tag,
-        execution_mode,
-        use_time,
-        success_num,
-        failed_num,
-        duplicated_num,
-    ):
-        self._sink(
-            "INFO",
-            f"'{stage_tag}' end tasks by {execution_mode}. Use {use_time:.2f} second. "
-            f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
-        )
-
-    # ==== layer ====
-    def start_layer(self, layer: List[str], layer_level: int):
-        self._sink("INFO", f"Layer {layer} start. Layer level: {layer_level}.")
-
-    def end_layer(self, layer: List[str], use_time: float):
-        self._sink("INFO", f"Layer {layer} end. Use {use_time:.2f} second.")
-
-    # ==== graph ====
-    def start_graph(self, structure_list):
-        self._sink("INFO", f"Starting TaskGraph. Graph structure:")
-        for line in structure_list:
-            self._sink("INFO", line)
-
-    def end_graph(self, use_time):
-        self._sink("INFO", f"TaskGraph end. Use {use_time:.2f} second.")
 
     # ==== process ====
     def process_termination_attempt(self, process_name):
@@ -210,6 +211,19 @@ class LogSinker(BaseSinker):
         self._sink(
             "SUCCESS",
             f"In '{func_name}', Task {task_info} has routed to {target_node}. Used {use_time:.2f} seconds. [{parent_id}->{route_id}*]",
+        )
+
+    # ==== termination ====
+    def termination_input(self, func_name, source, termination_id):
+        self._sink(
+            "DEBUG",
+            f"In '{func_name}', Termination input into {source}. [{termination_id}*]",
+        )
+
+    def termination_merge(self, func_name, parent_ids, termination_id):
+        self._sink(
+            "TRACE",
+            f"In '{func_name}', Termination merge. [{parent_ids}->{termination_id}*]",
         )
 
     # ==== queue ====

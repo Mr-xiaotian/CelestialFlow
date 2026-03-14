@@ -365,6 +365,11 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
         self.task_queues.put(TerminationSignal(termination_id, source="input"))
+        self.log_sinker.termination_input(
+            self.get_func_name(),
+            self.get_tag(),
+            termination_id,
+        )
 
     async def put_task_queues_async(self, task_source):
         """

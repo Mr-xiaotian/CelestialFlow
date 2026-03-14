@@ -342,6 +342,11 @@ class TaskGraph:
                     payload=root_stage.get_summary(),
                 )
                 root_in_queue.put(TerminationSignal(termination_id, source="input"))
+                self.log_sinker.termination_input(
+                    root_stage.get_func_name(),
+                    root_stage.get_tag(),
+                    termination_id,
+                )
 
     def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """

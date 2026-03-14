@@ -216,7 +216,7 @@ class TaskStage(TaskExecutor):
         self.init_progress()
         self.init_env(input_queues, output_queues, fail_queue, log_queue)
         self.log_sinker.start_stage(
-            self.get_tag(), self.execution_mode, self.worker_limit
+            self.get_tag(), self.stage_mode, self.execution_mode, self.worker_limit
         )
         self.mark_running()
 
@@ -236,6 +236,7 @@ class TaskStage(TaskExecutor):
             self.task_progress.close()
             self.log_sinker.end_stage(
                 self.get_tag(),
+                self.stage_mode,
                 self.execution_mode,
                 time.perf_counter() - start_time,
                 self.metrics.get_success_count(),

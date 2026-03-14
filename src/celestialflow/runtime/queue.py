@@ -225,6 +225,7 @@ class TaskOutQueue:
         self.queue_tags = queue_tags
         self.stage_tag = stage_tag
         self.log_sinker = log_sinker
+
         self._tag_to_idx = {tag: i for i, tag in enumerate(queue_tags)}
 
     def _log_put(self, item, idx: int):
@@ -240,7 +241,7 @@ class TaskOutQueue:
             t = "termination"
         else:
             t = "unknown"
-        self.log_sinker.put_item(t, item.id, self.queue_tags[idx], self.stage_tag)
+        self.log_sinker.put_item(t, item.id, self.stage_tag, self.queue_tags[idx])
 
     def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
         """

@@ -36,15 +36,19 @@ class TaskRunner:
         """
         处理终止信号，生成 merge 事件
         """
-        if signal.parents:
+        parent_ids = signal.parents
+        if parent_ids:
             termination_id = self.task_executor.ctree_client.emit(
                 "termination.merge",
-                parents=signal.parents,
+                parents=parent_ids,
                 payload=self.task_executor.get_summary(),
             )
-            return TerminationSignal(
+            signal = TerminationSignal(
                 termination_id,
                 source=self.task_executor.get_tag(),
+            )
+            self.task_executor.log_sinker.termination_merge(
+                self.task_executor.get_func_name(), parent_ids, termination_id
             )
         return signal
 
