@@ -8,7 +8,7 @@ from threading import Event, Lock
 from typing import TYPE_CHECKING
 
 from . import TaskEnvelope, TaskProgress
-from .types import TerminationSignal
+from .types import TerminationSignal, TerminationIdPool
 
 if TYPE_CHECKING:
     from ..stage.executor import TaskExecutor
@@ -32,24 +32,23 @@ class TaskRunner:
         elif self.execution_mode == "process" and self._pool is None:
             self._pool = ProcessPoolExecutor(max_workers=self.worker_limit)
 
-    def process_termination_signal(self, signal: TerminationSignal) -> TerminationSignal:
+    def process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
         """
         处理终止信号，生成 merge 事件
         """
-        parent_ids = signal.parents
-        if parent_ids:
-            termination_id = self.task_executor.ctree_client.emit(
-                "termination.merge",
-                parents=parent_ids,
-                payload=self.task_executor.get_summary(),
-            )
-            signal = TerminationSignal(
-                termination_id,
-                source=self.task_executor.get_tag(),
-            )
-            self.task_executor.log_sinker.termination_merge(
-                self.task_executor.get_func_name(), parent_ids, termination_id
-            )
+        parent_ids = termination_pool.ids
+        termination_id = self.task_executor.ctree_client.emit(
+            "termination.merge",
+            parents=parent_ids,
+            payload=self.task_executor.get_summary(),
+        )
+        signal = TerminationSignal(
+            termination_id,
+            source=self.task_executor.get_tag(),
+        )
+        self.task_executor.log_sinker.termination_merge(
+            self.task_executor.get_func_name(), parent_ids, termination_id
+        )
         return signal
 
     def run_in_serial(self):
@@ -59,7 +58,7 @@ class TaskRunner:
         while True:
             while True:
                 envelope = self.task_executor.task_queues.get()
-                if isinstance(envelope, TerminationSignal):
+                if isinstance(envelope, TerminationIdPool):
                     termination_signal = self.process_termination_signal(envelope)
                     break
 
@@ -127,7 +126,7 @@ class TaskRunner:
             # 从任务队列中提交任务到执行池
             while True:
                 envelope = self.task_executor.task_queues.get()
-                if isinstance(envelope, TerminationSignal):
+                if isinstance(envelope, TerminationIdPool):
                     termination_signal = self.process_termination_signal(envelope)
                     break
 
@@ -196,7 +195,7 @@ class TaskRunner:
 
             while True:
                 envelope = await self.task_executor.task_queues.get_async()
-                if isinstance(envelope, TerminationSignal):
+                if isinstance(envelope, TerminationIdPool):
                     termination_signal = self.process_termination_signal(envelope)
                     break
 

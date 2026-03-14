@@ -7,7 +7,7 @@ from asyncio import Queue as AsyncQueue
 from queue import Queue as ThreadQueue, Empty as SyncEmpty
 
 from .envelope import TaskEnvelope
-from .types import TerminationSignal
+from .types import TerminationSignal, TerminationIdPool
 
 if TYPE_CHECKING:
     from ..persistence import LogSinker
@@ -89,15 +89,14 @@ class TaskInQueue:
         """
         return len(self.termination_dict) == len(self.queue_tags)
 
-    def _merge_termination(self):
+    def _merge_termination(self) -> TerminationIdPool:
         """
         合并所有入队标签的终止信号
 
         :return: 合并后的终止信号
         """
-        return TerminationSignal(
-            parents=list(self.termination_dict.values()),
-            source=self.stage_tag,
+        return TerminationIdPool(
+            ids=list(self.termination_dict.values()),
         )
 
     def _record_termination(self, signal: TerminationSignal):
@@ -132,11 +131,11 @@ class TaskInQueue:
         except Exception as e:
             self.log_sinker.put_item_error(item.source, self.stage_tag, e)
 
-    def get(self) -> TaskEnvelope | TerminationSignal:
+    def get(self) -> TaskEnvelope | TerminationIdPool:
         """
-        出队任务或终止信号
+        出队任务或终止符号id池
 
-        :return: 出队的任务或终止信号
+        :return: 出队的任务或终止符号id池
         """
         while True:
             item: TaskEnvelope | TerminationSignal = self.queue.get()
@@ -153,11 +152,11 @@ class TaskInQueue:
 
             raise ValueError(f"unexpected item type: {type(item)}")
 
-    async def get_async(self) -> TaskEnvelope | TerminationSignal:
+    async def get_async(self) -> TaskEnvelope | TerminationIdPool:
         """
-        异步出队任务或终止信号
+        异步出队任务或终止符号id池
 
-        :return: 出队的任务或终止信号
+        :return: 出队的任务或终止符号id池
         """
         while True:
             if isinstance(self.queue, AsyncQueue):

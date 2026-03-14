@@ -11,15 +11,21 @@ class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
 
     def __init__(
-        self, _id: int = -1, parents: List[int] = None, source: str = "input"
+        self, _id: int = -1, source: str = "input"
     ):
         self.id = _id
-        self.parents = parents or []
         self.source = source
 
 
 # 单例 termination signal
 TERMINATION_SIGNAL = TerminationSignal()
+
+
+class TerminationIdPool:
+    """终止信号id池，用于存储所有已接收的终止信号"""
+
+    def __init__(self, ids: List[int]):
+        self.ids = ids
 
 
 class NoOpContext:
