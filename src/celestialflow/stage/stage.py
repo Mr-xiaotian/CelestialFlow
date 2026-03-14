@@ -228,15 +228,14 @@ class TaskStage(TaskExecutor):
         try:
             # 根据模式运行对应的任务处理函数
             if self.execution_mode == "thread":
-                self.run_with_executor(self.thread_pool)
+                self.runner.run_with_pool()
             elif self.execution_mode == "serial":
-                self.run_in_serial()
+                self.runner.run_in_serial()
             else:
                 raise ExecutionModeError(self.execution_mode)
 
         finally:
             self.mark_stopped()
-            self.release_pool()
             self.release_client()
 
             self.task_progress.close()
