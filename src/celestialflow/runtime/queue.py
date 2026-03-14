@@ -24,6 +24,15 @@ class TaskQueue:
         stage_tag: str,
         log_sinker: "LogSinker",
     ):
+        """
+        初始化任务队列
+
+        :param queue_list: 队列列表
+        :param queue_tags: 队列标签列表
+        :param direction: 队列方向，"in" 或 "out"
+        :param stage_tag: 阶段标签
+        :param log_sinker: 日志记录器
+        """
         if len(queue_list) != len(queue_tags):
             raise ValueError("queue_list and queue_tags must have the same length")
 
@@ -44,6 +53,12 @@ class TaskQueue:
         self._tag_to_idx = {tag: i for i, tag in enumerate(queue_tags)}
 
     def _log_put(self, item, idx: int):
+        """
+        记录放入队列的项
+
+        :param item: 放入队列的项
+        :param idx: 队列索引
+        """
         if isinstance(item, TaskEnvelope):
             t = "task"
         elif isinstance(item, TerminationSignal):
@@ -55,6 +70,12 @@ class TaskQueue:
         )
 
     def _log_get(self, item, idx: int):
+        """
+        记录从队列获取的项
+
+        :param item: 从队列获取的项
+        :param idx: 队列索引
+        """
         if isinstance(item, TaskEnvelope):
             t = "task"
         elif isinstance(item, TerminationSignal):
@@ -64,6 +85,12 @@ class TaskQueue:
         self.log_sinker.get_item(t, item.id, self.queue_tags[idx], self.stage_tag)
 
     def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
+        """
+        添加队列到任务队列
+
+        :param queue: 队列对象
+        :param tag: 队列标签
+        """
         if tag in self._tag_to_idx:
             raise ValueError(f"duplicate queue tag: {tag}")
         self._tag_to_idx[tag] = len(self.queue_list)
@@ -71,11 +98,19 @@ class TaskQueue:
         self.queue_tags.append(tag)
 
     def reset(self):
+        """
+        重置任务队列
+        """
         self.current_index = 0
         self.termination_dict = {}
 
-    def is_empty(self) -> bool:
-        return all(queue.empty() for queue in self.queue_list)
+    def _get_terminal_ids(self) -> List[str]:
+        """
+        获取所有终止符的任务ID列表
+
+        :return: 包含所有终止符任务ID的列表
+        """
+        return list(self.termination_dict.values())
 
     def put(self, item: TaskEnvelope | TerminationSignal):
         """
@@ -160,6 +195,13 @@ class TaskQueue:
             )
 
     def _try_get_from_idx(self, idx: int, empty_exc) -> TaskEnvelope | None:
+        """
+        尝试从指定索引的队列中获取项
+
+        :param idx: 队列索引
+        :param empty_exc: 队列为空时抛出的异常类型
+        :return: 获取到的项，或 None 表示队列为空或已终止
+        """
         if idx in self.termination_dict:
             return None
 
@@ -176,7 +218,7 @@ class TaskQueue:
                 self.current_index = (idx + 1) % len(self.queue_list)
                 return item
 
-            return None
+            raise ValueError(f"unexpected item type: {type(item)}")
         except empty_exc:
             return None
         except Exception as e:
@@ -213,7 +255,9 @@ class TaskQueue:
                     return item
 
             if len(self.termination_dict) == total_queues:
-                return TerminationSignal(parents=list(self.termination_dict.values()))
+                return TerminationSignal(
+                    parents=self._get_terminal_ids()
+                )
 
             time.sleep(poll_interval)
 
@@ -245,12 +289,18 @@ class TaskQueue:
                     return item
 
             if len(self.termination_dict) == total_queues:
-                return TerminationSignal(parents=list(self.termination_dict.values()))
+                return TerminationSignal(
+                    parents=self._get_terminal_ids()
+                )
 
             await asyncio.sleep(poll_interval)
 
     def drain(self) -> List[TaskEnvelope]:
-        """提取所有队列中当前剩余的 item（非阻塞）。"""
+        """
+        提取所有队列中当前剩余的 item（非阻塞）。
+
+        :return: 包含所有剩余任务的列表
+        """
         results = []
         total_queues = len(self.queue_list)
 
