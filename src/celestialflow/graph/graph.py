@@ -13,7 +13,7 @@ from celestialtree import (
     format_provenance_forest,
 )
 
-from ..runtime import TaskQueue, TaskEnvelope
+from ..runtime import TaskInQueue, TaskOutQueue, TaskEnvelope
 from ..runtime.estimators import (
     calc_elapsed,
     calc_remaining,
@@ -146,17 +146,15 @@ class TaskGraph:
             # 记录节点
             stage_runtime["stage"] = stage
 
-            stage_runtime["in_queue"] = TaskQueue(
-                queue_list=[],
+            stage_runtime["in_queue"] = TaskInQueue(
+                queue=MPQueue(),
                 queue_tags=[],
-                direction="in",
                 stage_tag=stage.get_tag(),
                 log_sinker=self.log_sinker,
             )
-            stage_runtime["out_queue"] = TaskQueue(
+            stage_runtime["out_queue"] = TaskOutQueue(
                 queue_list=[],
                 queue_tags=[],
-                direction="out",
                 stage_tag=stage.get_tag(),
                 log_sinker=self.log_sinker,
             )
@@ -166,20 +164,17 @@ class TaskGraph:
 
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
             stage: TaskStage = stage_runtime["stage"]
-            in_queue: TaskQueue = stage_runtime["in_queue"]
+            in_queue: TaskInQueue = stage_runtime["in_queue"]
 
             # 遍历每个前驱，创建边队列
             for prev_stage in stage.prev_stages:
                 prev_stage_tag = prev_stage.get_tag() if prev_stage else None
-                q = MPQueue()
-
-                # sink side
-                in_queue.add_queue(q, prev_stage_tag)
+                in_queue.add_source_tag(prev_stage_tag)
 
                 # source side
                 if prev_stage is not None:
                     self.stage_runtime_dict[prev_stage_tag]["out_queue"].add_queue(
-                        q, stage_tag
+                        in_queue.queue, stage_tag
                     )
 
     def init_structure_graph(self):
@@ -308,7 +303,7 @@ class TaskGraph:
         """
         for tag, tasks in tasks_dict.items():
             stage: TaskStage = self.stage_runtime_dict[tag]["stage"]
-            in_queue: TaskQueue = self.stage_runtime_dict[tag]["in_queue"]
+            in_queue: TaskInQueue = self.stage_runtime_dict[tag]["in_queue"]
             input_ids: set = self.input_ids[tag]
 
             for task in tasks:
@@ -317,15 +312,15 @@ class TaskGraph:
                         "termination.input",
                         payload=stage.get_summary(),
                     )
-                    in_queue.put(TerminationSignal(termination_id))
+                    in_queue.put(TerminationSignal(termination_id, source="input"))
                     continue
 
                 input_id = self.ctree_client.emit(
                     "task.input",
                     payload=stage.get_summary(),
                 )
-                envelope = TaskEnvelope.wrap(task, input_id)
-                in_queue.put_first(envelope)
+                envelope = TaskEnvelope.wrap(task, input_id, source="input")
+                in_queue.put(envelope)
                 input_ids.add(input_id)
 
                 stage.metrics.add_task_count()
@@ -339,7 +334,7 @@ class TaskGraph:
         if put_termination_signal:
             for root_stage in self.root_stages:
                 root_stage_tag = root_stage.get_tag()
-                root_in_queue: TaskQueue = self.stage_runtime_dict[root_stage_tag][
+                root_in_queue: TaskInQueue = self.stage_runtime_dict[root_stage_tag][
                     "in_queue"
                 ]
 
@@ -347,7 +342,7 @@ class TaskGraph:
                     "termination.input",
                     payload=root_stage.get_summary(),
                 )
-                root_in_queue.put(TerminationSignal(termination_id))
+                root_in_queue.put(TerminationSignal(termination_id, source="input"))
 
     def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True):
         """
@@ -432,8 +427,8 @@ class TaskGraph:
         log_queue = self.log_listener.get_queue()
 
         # 输入输出队列
-        input_queues: TaskQueue = stage_runtime["in_queue"]
-        output_queues: TaskQueue = stage_runtime["out_queue"]
+        input_queues: TaskInQueue = stage_runtime["in_queue"]
+        output_queues: TaskOutQueue = stage_runtime["out_queue"]
 
         stage_runtime["start_time"] = time.time()
 
@@ -479,7 +474,7 @@ class TaskGraph:
         # 收集并持久化每个 stage 中未消费的任务
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
             stage: TaskStage = stage_runtime["stage"]
-            in_queue: TaskQueue = stage_runtime["in_queue"]
+            in_queue: TaskInQueue = stage_runtime["in_queue"]
 
             remaining_sources = in_queue.drain()
             stage.metrics.add_error_count(len(remaining_sources))

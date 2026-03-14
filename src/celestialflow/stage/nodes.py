@@ -46,7 +46,11 @@ class TaskSplitter(TaskStage):
                 parents=[task_id],
                 payload=self.get_summary(),
             )
-            splitted_envelope = TaskEnvelope.wrap(item, split_id)
+            splitted_envelope = TaskEnvelope.wrap(
+                item,
+                split_id,
+                source=self.get_tag(),
+            )
             self.result_queues.put(splitted_envelope)
 
             self.log_sinker.split_trace(
@@ -67,7 +71,7 @@ class TaskSplitter(TaskStage):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        task, task_hash, task_id = task_envelope.unwrap()
+        task, task_hash, task_id, _ = task_envelope.unwrap()
 
         processed_result = self.process_result(task, result)
 
@@ -126,7 +130,7 @@ class TaskRouter(TaskStage):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        (target, task), task_hash, task_id = task_envelope.unwrap()
+        (target, task), task_hash, task_id, _ = task_envelope.unwrap()
 
         processed_result = self.process_result(task, result)
 
@@ -137,7 +141,11 @@ class TaskRouter(TaskStage):
             parents=[task_id],
             payload=self.get_summary(),
         )
-        routed_envelope = TaskEnvelope.wrap(processed_result, route_id)
+        routed_envelope = TaskEnvelope.wrap(
+            processed_result,
+            route_id,
+            source=self.get_tag(),
+        )
         self.result_queues.put_target(routed_envelope, target)
 
         self.metrics.add_success_count()

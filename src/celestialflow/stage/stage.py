@@ -7,7 +7,7 @@ from typing import List
 from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 
-from ..runtime import TaskQueue, TaskMetrics
+from ..runtime import TaskInQueue, TaskOutQueue, TaskMetrics
 from ..runtime.errors import ExecutionModeError, StageModeError, PickleError
 from ..runtime.types import StageStatus
 from ..utils.debug import find_unpickleable
@@ -199,8 +199,8 @@ class TaskStage(TaskExecutor):
 
     def start_stage(
         self,
-        input_queues: TaskQueue,
-        output_queues: TaskQueue,
+        input_queues: TaskInQueue,
+        output_queues: TaskOutQueue,
         fail_queue: MPQueue,
         log_queue: MPQueue,
     ):

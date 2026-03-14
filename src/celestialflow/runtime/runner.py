@@ -41,7 +41,10 @@ class TaskRunner:
                 parents=signal.parents,
                 payload=self.task_executor.get_summary(),
             )
-            return TerminationSignal(termination_id)
+            return TerminationSignal(
+                termination_id,
+                source=self.task_executor.get_tag(),
+            )
         return signal
 
     def run_in_serial(self):
@@ -55,7 +58,7 @@ class TaskRunner:
                     termination_signal = self.process_termination_signal(envelope)
                     break
 
-                task, task_hash, _ = envelope.unwrap()
+                task, task_hash, _, _ = envelope.unwrap()
 
                 if self.task_executor.metrics.is_duplicate(task_hash):
                     self.task_executor.deal_duplicate(envelope)
@@ -123,7 +126,7 @@ class TaskRunner:
                     termination_signal = self.process_termination_signal(envelope)
                     break
 
-                task, task_hash, task_id = envelope.unwrap()
+                task, task_hash, task_id, _ = envelope.unwrap()
 
                 if self.task_executor.metrics.is_duplicate(task_hash):
                     self.task_executor.deal_duplicate(envelope)
@@ -192,7 +195,7 @@ class TaskRunner:
                     termination_signal = self.process_termination_signal(envelope)
                     break
 
-                _, task_hash, _ = envelope.unwrap()
+                _, task_hash, _, _ = envelope.unwrap()
 
                 if self.task_executor.metrics.is_duplicate(task_hash):
                     self.task_executor.deal_duplicate(envelope)

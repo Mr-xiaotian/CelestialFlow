@@ -2,7 +2,7 @@
 from .envelope import TaskEnvelope
 from .metrics import TaskMetrics
 from .progress import TaskProgress, NullTaskProgress
-from .queue import TaskQueue
+from .queue import TaskInQueue, TaskOutQueue
 from .runner import TaskRunner
 
 __all__ = [
@@ -10,6 +10,7 @@ __all__ = [
     "TaskMetrics",
     "TaskProgress",
     "NullTaskProgress",
-    "TaskQueue",
+    "TaskInQueue",
+    "TaskOutQueue",
     "TaskRunner",
 ]

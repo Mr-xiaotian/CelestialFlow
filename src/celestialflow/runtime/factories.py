@@ -7,7 +7,7 @@ from threading import Lock
 from typing import TYPE_CHECKING
 
 from .types import ValueWrapper
-from .queue import TaskQueue
+from .queue import TaskInQueue, TaskOutQueue
 
 if TYPE_CHECKING:
     from ..stage import TaskStage
@@ -45,17 +45,29 @@ def make_queue_backend(mode: str):
     return ThreadQueue
 
 
-def make_taskqueue(
+def make_task_in_queue(
     *,
     mode: str,
-    direction: str,
     stage: "TaskStage",
 ):
     Q = make_queue_backend(mode)
-    return TaskQueue(
+    return TaskInQueue(
+        queue=Q(),
+        queue_tags=[None],
+        stage_tag=stage.get_tag(),
+        log_sinker=stage.log_sinker,
+    )
+
+
+def make_task_out_queue(
+    *,
+    mode: str,
+    stage: "TaskStage",
+):
+    Q = make_queue_backend(mode)
+    return TaskOutQueue(
         queue_list=[Q()],
         queue_tags=[None],
-        direction=direction,
         stage_tag=stage.get_tag(),
         log_sinker=stage.log_sinker,
     )

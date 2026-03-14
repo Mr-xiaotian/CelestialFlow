@@ -18,13 +18,15 @@ from ..runtime import (
     TaskMetrics,
     TaskProgress,
     NullTaskProgress,
-    TaskQueue,
+    TaskInQueue,
+    TaskOutQueue,
     TaskRunner,
 )
 from ..runtime.errors import ExecutionModeError
 from ..runtime.factories import (
     make_queue_backend,
-    make_taskqueue,
+    make_task_in_queue,
+    make_task_out_queue,
 )
 from ..runtime.types import (
     TerminationSignal,
@@ -151,8 +153,8 @@ class TaskExecutor:
 
     def init_queue(
         self,
-        task_queues: TaskQueue = None,
-        result_queues: TaskQueue = None,
+        task_queues: TaskInQueue = None,
+        result_queues: TaskOutQueue = None,
     ):
         """
         初始化队列
@@ -163,14 +165,12 @@ class TaskExecutor:
         """
         mode = self.execution_mode
 
-        self.task_queues = task_queues or make_taskqueue(
+        self.task_queues = task_queues or make_task_in_queue(
             mode=mode,
-            direction="in",
             stage=self,
         )
-        self.result_queues = result_queues or make_taskqueue(
+        self.result_queues = result_queues or make_task_out_queue(
             mode=mode,
-            direction="out",
             stage=self,
         )
 
@@ -344,8 +344,8 @@ class TaskExecutor:
                 "task.input",
                 payload=self.get_summary(),
             )
-            envelope = TaskEnvelope.wrap(task, input_id)
-            self.task_queues.put_first(envelope)
+            envelope = TaskEnvelope.wrap(task, input_id, source="input")
+            self.task_queues.put(envelope)
             self.metrics.add_task_count()
             self.log_sinker.task_input(
                 self.get_func_name(),
@@ -364,7 +364,7 @@ class TaskExecutor:
             "termination.input",
             payload=self.get_summary(),
         )
-        self.task_queues.put(TerminationSignal(termination_id))
+        self.task_queues.put(TerminationSignal(termination_id, source="input"))
 
     async def put_task_queues_async(self, task_source):
         """
@@ -378,8 +378,8 @@ class TaskExecutor:
                 "task.input",
                 payload=self.get_summary(),
             )
-            envelope = TaskEnvelope.wrap(task, input_id)
-            await self.task_queues.put_first_async(envelope)
+            envelope = TaskEnvelope.wrap(task, input_id, source="input")
+            await self.task_queues.put_async(envelope)
             self.metrics.add_task_count()
             self.log_sinker.task_input(
                 self.get_func_name(),
@@ -398,7 +398,9 @@ class TaskExecutor:
             "termination.input",
             payload=self.get_summary(),
         )
-        await self.task_queues.put_async(TerminationSignal(termination_id))
+        await self.task_queues.put_async(
+            TerminationSignal(termination_id, source="input")
+        )
 
     def get_args(self, task):
         """
@@ -523,7 +525,11 @@ class TaskExecutor:
             parents=[task_id],
             payload=self.get_summary(),
         )
-        result_envelope = TaskEnvelope.wrap(processed_result, result_id)
+        result_envelope = TaskEnvelope.wrap(
+            processed_result,
+            result_id,
+            source=self.get_tag(),
+        )
 
         self.metrics.add_success_count()
         self.metrics.pop_retry_time(task_hash)
@@ -592,7 +598,7 @@ class TaskExecutor:
         :return: 重试任务的信封
         """
         self.task_progress.add_total(1)
-        _, task_hash, task_id = task_envelope.unwrap()
+        _, task_hash, task_id, _ = task_envelope.unwrap()
         self.metrics.discard_processed_set(task_hash)
         new_retry_time = self.metrics.add_retry_time(task_hash)
 
@@ -635,7 +641,7 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
 
-        _, task_hash, task_id = task_envelope.unwrap()
+        _, task_hash, task_id, _ = task_envelope.unwrap()
         self.metrics.pop_retry_time(task_hash)
         self.metrics.add_error_count()
 
@@ -657,7 +663,7 @@ class TaskExecutor:
 
         :param task_envelope: 重复的任务
         """
-        task, _, task_id = task_envelope.unwrap()
+        task, _, task_id, _ = task_envelope.unwrap()
 
         self.metrics.add_duplicate_count()
         duplicate_id = self.ctree_client.emit(

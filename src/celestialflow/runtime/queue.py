@@ -1,64 +1,172 @@
-# runtime/queue.py
 from __future__ import annotations
 
-import asyncio, time
 from typing import TYPE_CHECKING, List
 from multiprocessing import Queue as MPQueue
-from asyncio import Queue as AsyncQueue, QueueEmpty as AsyncEmpty
+from asyncio import Queue as AsyncQueue
 from queue import Queue as ThreadQueue, Empty as SyncEmpty
 
 from .envelope import TaskEnvelope
-from .errors import InvalidOptionError
 from .types import TerminationSignal
 
 if TYPE_CHECKING:
     from ..persistence import LogSinker
 
 
-class TaskQueue:
+class TaskInQueue:
+    def __init__(
+        self,
+        queue: ThreadQueue | MPQueue | AsyncQueue,
+        queue_tags: List[str],
+        stage_tag: str,
+        log_sinker: "LogSinker",
+    ):
+        self.queue = queue
+        self.queue_tags = queue_tags
+        self.stage_tag = stage_tag
+        self.log_sinker = log_sinker
+        self.direction = "in"
+        self.termination_dict = {}
+
+    def _log_put(self, item):
+        if isinstance(item, TaskEnvelope):
+            t = "task"
+        elif isinstance(item, TerminationSignal):
+            t = "termination"
+        else:
+            t = "unknown"
+        self.log_sinker.put_item(t, item.id, item.source, self.stage_tag, self.direction)
+
+    def _log_get(self, item):
+        if isinstance(item, TaskEnvelope):
+            t = "task"
+        elif isinstance(item, TerminationSignal):
+            t = "termination"
+        else:
+            t = "unknown"
+        self.log_sinker.get_item(t, item.id, item.source, self.stage_tag)
+
+    def add_source_tag(self, tag: str):
+        if tag in self.queue_tags:
+            raise ValueError(f"duplicate queue tag: {tag}")
+        self.queue_tags.append(tag)
+
+    def reset(self):
+        self.termination_dict = {}
+
+    def _normalize_source(self, source: str):
+        if source == "input" and None in self.queue_tags:
+            return None
+        return source
+
+    def _is_all_terminated(self) -> bool:
+        return len(self.termination_dict) == len(self.queue_tags)
+
+    def _merge_termination(self):
+        return TerminationSignal(
+            parents=list(self.termination_dict.values()),
+            source=self.stage_tag,
+        )
+
+    def _record_termination(self, signal: TerminationSignal):
+        source = self._normalize_source(signal.source)
+        self.termination_dict[source] = signal.id
+
+    def put(self, item: TaskEnvelope | TerminationSignal):
+        try:
+            self.queue.put(item)
+            self._log_put(item)
+        except Exception as e:
+            self.log_sinker.put_item_error("in", self.stage_tag, self.direction, e)
+
+    async def put_async(self, item: TaskEnvelope | TerminationSignal):
+        try:
+            if isinstance(self.queue, AsyncQueue):
+                await self.queue.put(item)
+            else:
+                self.queue.put(item)
+            self._log_put(item)
+        except Exception as e:
+            self.log_sinker.put_item_error("in", self.stage_tag, self.direction, e)
+
+    def put_first(self, item: TaskEnvelope | TerminationSignal):
+        self.put(item)
+
+    async def put_first_async(self, item: TaskEnvelope | TerminationSignal):
+        await self.put_async(item)
+
+    def get(self) -> TaskEnvelope | TerminationSignal:
+        while True:
+            item: TaskEnvelope | TerminationSignal = self.queue.get()
+            self._log_get(item)
+
+            if isinstance(item, TaskEnvelope):
+                return item
+
+            if isinstance(item, TerminationSignal):
+                self._record_termination(item)
+                if self._is_all_terminated():
+                    return self._merge_termination()
+                continue
+
+            raise ValueError(f"unexpected item type: {type(item)}")
+
+    async def get_async(self) -> TaskEnvelope | TerminationSignal:
+        while True:
+            if isinstance(self.queue, AsyncQueue):
+                item: TaskEnvelope | TerminationSignal = await self.queue.get()
+            else:
+                item = self.queue.get()
+
+            self._log_get(item)
+
+            if isinstance(item, TaskEnvelope):
+                return item
+
+            if isinstance(item, TerminationSignal):
+                self._record_termination(item)
+                if self._is_all_terminated():
+                    return self._merge_termination()
+                continue
+
+            raise ValueError(f"unexpected item type: {type(item)}")
+
+    def drain(self) -> List[TaskEnvelope]:
+        results = []
+        while True:
+            try:
+                item: TaskEnvelope | TerminationSignal = self.queue.get_nowait()
+                self._log_get(item)
+                if isinstance(item, TaskEnvelope):
+                    results.append(item)
+                elif isinstance(item, TerminationSignal):
+                    self._record_termination(item)
+            except SyncEmpty:
+                break
+            except Exception as e:
+                self.log_sinker.get_item_error("in", self.stage_tag, self.direction, exception=e)
+                break
+        return results
+
+
+class TaskOutQueue:
     def __init__(
         self,
         queue_list: List[ThreadQueue] | List[MPQueue] | List[AsyncQueue],
         queue_tags: List[str],
-        direction: str,
         stage_tag: str,
         log_sinker: "LogSinker",
     ):
-        """
-        初始化任务队列
-
-        :param queue_list: 队列列表
-        :param queue_tags: 队列标签列表
-        :param direction: 队列方向，"in" 或 "out"
-        :param stage_tag: 阶段标签
-        :param log_sinker: 日志记录器
-        """
         if len(queue_list) != len(queue_tags):
             raise ValueError("queue_list and queue_tags must have the same length")
 
-        valid_directions = ("in", "out")
-        if direction not in valid_directions:
-            raise InvalidOptionError("direction", direction, valid_directions)
-
         self.queue_list = queue_list
         self.queue_tags = queue_tags
-        self.direction = direction
-
         self.stage_tag = stage_tag
         self.log_sinker = log_sinker
-
-        self.current_index = 0  # 记录起始队列索引，用于轮询
-        self.termination_dict = {}
-
+        self.direction = "out"
         self._tag_to_idx = {tag: i for i, tag in enumerate(queue_tags)}
 
     def _log_put(self, item, idx: int):
-        """
-        记录放入队列的项
-
-        :param item: 放入队列的项
-        :param idx: 队列索引
-        """
         if isinstance(item, TaskEnvelope):
             t = "task"
         elif isinstance(item, TerminationSignal):
@@ -69,108 +177,28 @@ class TaskQueue:
             t, item.id, self.queue_tags[idx], self.stage_tag, self.direction
         )
 
-    def _log_get(self, item, idx: int):
-        """
-        记录从队列获取的项
-
-        :param item: 从队列获取的项
-        :param idx: 队列索引
-        """
-        if isinstance(item, TaskEnvelope):
-            t = "task"
-        elif isinstance(item, TerminationSignal):
-            t = "termination"
-        else:
-            t = "unknown"
-        self.log_sinker.get_item(t, item.id, self.queue_tags[idx], self.stage_tag)
-
     def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
-        """
-        添加队列到任务队列
-
-        :param queue: 队列对象
-        :param tag: 队列标签
-        """
         if tag in self._tag_to_idx:
             raise ValueError(f"duplicate queue tag: {tag}")
         self._tag_to_idx[tag] = len(self.queue_list)
         self.queue_list.append(queue)
         self.queue_tags.append(tag)
 
-    def reset(self):
-        """
-        重置任务队列
-        """
-        self.current_index = 0
-        self.termination_dict = {}
-
-    def _get_terminal_ids(self) -> List[str]:
-        """
-        获取所有终止符的任务ID列表
-
-        :return: 包含所有终止符任务ID的列表
-        """
-        return list(self.termination_dict.values())
-
     def put(self, item: TaskEnvelope | TerminationSignal):
-        """
-        将结果放入所有结果队列
-
-        :param item: 任务或终止符
-        """
         for index, _ in enumerate(self.queue_list):
             self.put_channel(item, index)
 
     async def put_async(self, item: TaskEnvelope | TerminationSignal):
-        """
-        将结果放入所有结果队列(async模式)
-
-        :param item: 任务或终止符
-        """
         for index, _ in enumerate(self.queue_list):
             await self.put_channel_async(item, index)
 
-    def put_first(self, item: TaskEnvelope | TerminationSignal):
-        """
-        将结果放入第一个结果队列
-
-        :param item: 任务或终止符
-        """
-        self.put_channel(item, 0)
-
-    async def put_first_async(self, item: TaskEnvelope | TerminationSignal):
-        """
-        将结果放入第一个结果队列(async模式)
-
-        :param item: 任务或终止符
-        """
-        await self.put_channel_async(item, 0)
-
     def put_target(self, item: TaskEnvelope | TerminationSignal, tag: str):
-        """
-        将结果放入指定结果队列
-
-        :param item: 任务或终止符
-        :param tag: 队列标签
-        """
         self.put_channel(item, self._tag_to_idx[tag])
 
     async def put_target_async(self, item: TaskEnvelope | TerminationSignal, tag: str):
-        """
-        将结果放入指定结果队列(async模式)
-
-        :param item: 任务或终止符
-        :param tag: 队列标签
-        """
         await self.put_channel_async(item, self._tag_to_idx[tag])
 
     def put_channel(self, item, idx: int):
-        """
-        将结果放入指定队列
-
-        :param item: 任务或终止符
-        :param idx: 队列索引
-        """
         try:
             self.queue_list[idx].put(item)
             self._log_put(item, idx)
@@ -180,156 +208,13 @@ class TaskQueue:
             )
 
     async def put_channel_async(self, item, idx: int):
-        """
-        将结果放入指定队列(async模式)
-
-        :param item: 任务或终止符
-        :param idx: 队列索引
-        """
         try:
-            await self.queue_list[idx].put(item)
+            if isinstance(self.queue_list[idx], AsyncQueue):
+                await self.queue_list[idx].put(item)
+            else:
+                self.queue_list[idx].put(item)
             self._log_put(item, idx)
         except Exception as e:
             self.log_sinker.put_item_error(
                 self.queue_tags[idx], self.stage_tag, self.direction, e
             )
-
-    def _try_get_from_idx(self, idx: int, empty_exc) -> TaskEnvelope | None:
-        """
-        尝试从指定索引的队列中获取项
-
-        :param idx: 队列索引
-        :param empty_exc: 队列为空时抛出的异常类型
-        :return: 获取到的项，或 None 表示队列为空或已终止
-        """
-        if idx in self.termination_dict:
-            return None
-
-        queue = self.queue_list[idx]
-        try:
-            item = queue.get_nowait()
-            self._log_get(item, idx)
-
-            if isinstance(item, TerminationSignal):
-                self.termination_dict[idx] = item.id
-                return None
-
-            if isinstance(item, TaskEnvelope):
-                self.current_index = (idx + 1) % len(self.queue_list)
-                return item
-
-            raise ValueError(f"unexpected item type: {type(item)}")
-        except empty_exc:
-            return None
-        except Exception as e:
-            self.log_sinker.get_item_error(
-                self.queue_tags[idx], self.stage_tag, exception=e
-            )
-            return None
-
-    def get(self, poll_interval: float = 0.01) -> TaskEnvelope | TerminationSignal:
-        """
-        从多个队列中轮询获取任务。
-
-        :param poll_interval: 每轮遍历后的等待时间（秒）
-        :return: 获取到的任务，或 TerminationSignal 表示所有队列已终止
-        """
-        total_queues = len(self.queue_list)
-
-        if total_queues == 1:
-            queue = self.queue_list[0]
-            item: TaskEnvelope | TerminationSignal = queue.get()
-            self._log_get(item, 0)
-
-            if isinstance(item, TerminationSignal):
-                self.termination_dict[0] = item.id
-                return TerminationSignal(parents=[item.id])
-
-            return item
-
-        while True:
-            for i in range(total_queues):
-                idx = (self.current_index + i) % total_queues
-                item = self._try_get_from_idx(idx, SyncEmpty)
-                if isinstance(item, TaskEnvelope):
-                    return item
-
-            if len(self.termination_dict) == total_queues:
-                return TerminationSignal(
-                    parents=self._get_terminal_ids()
-                )
-
-            time.sleep(poll_interval)
-
-    async def get_async(self, poll_interval=0.01) -> TaskEnvelope | TerminationSignal:
-        """
-        异步轮询多个 AsyncQueue，获取任务。
-
-        :param poll_interval: 全部为空时的 sleep 间隔（秒）
-        :return: task 或 TerminationSignal
-        """
-        total_queues = len(self.queue_list)
-
-        if total_queues == 1:
-            queue = self.queue_list[0]
-            item: TaskEnvelope | TerminationSignal = await queue.get()
-            self._log_get(item, 0)
-
-            if isinstance(item, TerminationSignal):
-                self.termination_dict[0] = item.id
-                return TerminationSignal(parents=[item.id])
-
-            return item
-
-        while True:
-            for i in range(total_queues):
-                idx = (self.current_index + i) % total_queues
-                item = self._try_get_from_idx(idx, AsyncEmpty)
-                if isinstance(item, TaskEnvelope):
-                    return item
-
-            if len(self.termination_dict) == total_queues:
-                return TerminationSignal(
-                    parents=self._get_terminal_ids()
-                )
-
-            await asyncio.sleep(poll_interval)
-
-    def drain(self) -> List[TaskEnvelope]:
-        """
-        提取所有队列中当前剩余的 item（非阻塞）。
-
-        :return: 包含所有剩余任务的列表
-        """
-        results = []
-        total_queues = len(self.queue_list)
-
-        for idx in range(total_queues):
-            if idx in self.termination_dict:
-                continue
-
-            queue = self.queue_list[idx]
-            while True:
-                try:
-                    item: TaskEnvelope | TerminationSignal = queue.get_nowait()
-                    self._log_get(item, idx)
-
-                    if isinstance(item, TerminationSignal):
-                        self.termination_dict[idx] = item.id
-                        break
-
-                    elif isinstance(item, TaskEnvelope):
-                        results.append(item)
-
-                except SyncEmpty:
-                    break
-                except Exception as e:
-                    self.log_sinker.get_item_error(
-                        self.queue_tags[idx],
-                        self.stage_tag,
-                        self.direction,
-                        exception=e,
-                    )
-                    break
-
-        return results
