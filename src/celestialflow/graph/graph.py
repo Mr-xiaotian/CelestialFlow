@@ -173,9 +173,8 @@ class TaskGraph:
 
                 # source side
                 if prev_stage is not None:
-                    self.stage_runtime_dict[prev_stage_tag]["out_queue"].add_queue(
-                        in_queue.queue, stage_tag
-                    )
+                    prev_out_queue: TaskOutQueue = self.stage_runtime_dict[prev_stage_tag]["out_queue"]
+                    prev_out_queue.add_queue(in_queue.queue, stage_tag)
 
     def init_structure_graph(self):
         """

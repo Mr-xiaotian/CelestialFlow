@@ -213,38 +213,26 @@ class LogSinker(BaseSinker):
         )
 
     # ==== queue ====
-    def put_item(self, item_type, item_id, queue_tag, stage_tag, direction):
-        left, right = (
-            (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
-        )
-        edge = f"'{left}' -> '{right}'"
+    def put_item(self, item_type, item_id, left_tag, right_tag):
+        edge = f"'{left_tag}' -> '{right_tag}'"
         self._sink("TRACE", f"Put {item_type}#{item_id} into Edge({edge}).")
 
-    def put_item_error(self, queue_tag, stage_tag, direction, exception):
-        left, right = (
-            (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
-        )
-        edge = f"'{left}' -> '{right}'"
+    def put_item_error(self, left_tag, right_tag, exception):
+        edge = f"'{left_tag}' -> '{right_tag}'"
         exception_text = str(exception).replace("\n", " ")
         self._sink(
             "WARNING",
             f"Put into Edge({edge}): ({type(exception).__name__}){exception_text}.",
         )
 
-    def get_item(self, item_type, item_id, queue_tag, stage_tag, direction="in"):
-        left, right = (
-            (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
-        )
-        edge = f"'{left}' -> '{right}'"
+    def get_item(self, item_type, item_id, left_tag, right_tag):
+        edge = f"'{left_tag}' -> '{right_tag}'"
         self._sink("TRACE", f"Get {item_type}#{item_id} from Edge({edge}).")
 
     def get_item_error(
-        self, queue_tag, stage_tag, direction="in", *, exception: Exception
+        self, left_tag, right_tag, exception: Exception
     ):
-        left, right = (
-            (queue_tag, stage_tag) if direction == "in" else (stage_tag, queue_tag)
-        )
-        edge = f"'{left}' -> '{right}'"
+        edge = f"'{left_tag}' -> '{right_tag}'"
         exception_text = str(exception).replace("\n", " ")
         self._sink(
             "WARNING",

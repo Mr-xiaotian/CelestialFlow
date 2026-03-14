@@ -558,7 +558,7 @@ class TaskExecutor:
         if self.metrics.is_retry_able(task_hash, exception):
             # 如果是可重试的异常，将任务重新放入队列
             retry_envelope = self._prepare_retry_envelope(task_envelope, exception)
-            self.task_queues.put_first(retry_envelope)  # 只在第一个队列存放retry task
+            self.task_queues.put(retry_envelope)  # 只在第一个队列存放retry task
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
             self._prepare_fail_envelope(task_envelope, exception)
@@ -578,7 +578,7 @@ class TaskExecutor:
         if self.metrics.is_retry_able(task_hash, exception):
             # 如果是可重试的异常，将任务重新放入队列
             retry_envelope = self._prepare_retry_envelope(task_envelope, exception)
-            await self.task_queues.put_first_async(
+            await self.task_queues.put_async(
                 retry_envelope
             )  # 只在第一个队列存放retry task
         else:
