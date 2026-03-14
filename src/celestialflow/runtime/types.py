@@ -10,8 +10,9 @@ from celestialtree import NodeLabelStyle
 class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
 
-    def __init__(self, _id: int = -1):
+    def __init__(self, _id: int = -1, parents: List[int] = None):
         self.id = _id
+        self.parents = parents or []
 
 
 # 单例 termination signal

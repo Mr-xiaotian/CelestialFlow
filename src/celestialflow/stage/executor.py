@@ -89,7 +89,8 @@ class TaskExecutor:
         self.show_progress = show_progress
         self.progress_desc = progress_desc
         self.set_log_level(log_level)
-
+        
+        self.ctree_client = None
         self.init_metrics()
         self.init_runner()
 

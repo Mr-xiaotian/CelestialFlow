@@ -197,10 +197,6 @@ class TaskStage(TaskExecutor):
         with self._status.get_lock():
             return StageStatus(self._status.value)
 
-    def set_queue_ctree(self):
-        self.task_queues.set_ctree(self.ctree_client)
-        self.result_queues.set_ctree(self.ctree_client)
-
     def start_stage(
         self,
         input_queues: TaskQueue,
@@ -219,7 +215,6 @@ class TaskStage(TaskExecutor):
         start_time = time.perf_counter()
         self.init_progress()
         self.init_env(input_queues, output_queues, fail_queue, log_queue)
-        self.set_queue_ctree()
         self.log_sinker.start_stage(
             self.get_tag(), self.execution_mode, self.worker_limit
         )

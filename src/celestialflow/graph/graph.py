@@ -150,17 +150,15 @@ class TaskGraph:
                 queue_list=[],
                 queue_tags=[],
                 direction="in",
-                stage=stage,
+                stage_tag=stage.get_tag(),
                 log_sinker=self.log_sinker,
-                ctree_client=None,
             )
             stage_runtime["out_queue"] = TaskQueue(
                 queue_list=[],
                 queue_tags=[],
                 direction="out",
-                stage=stage,
+                stage_tag=stage.get_tag(),
                 log_sinker=self.log_sinker,
-                ctree_client=None,
             )
 
             visited_stages.add(stage_tag)

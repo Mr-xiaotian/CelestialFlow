@@ -31,6 +31,19 @@ class TaskRunner:
         elif self.execution_mode == "process" and self._pool is None:
             self._pool = ProcessPoolExecutor(max_workers=self.worker_limit)
 
+    def process_termination_signal(self, signal: TerminationSignal) -> TerminationSignal:
+        """
+        处理终止信号，生成 merge 事件
+        """
+        if signal.parents:
+            termination_id = self.task_executor.ctree_client.emit(
+                "termination.merge",
+                parents=signal.parents,
+                payload=self.task_executor.get_summary(),
+            )
+            return TerminationSignal(termination_id)
+        return signal
+
     def run_in_serial(self):
         """
         串行地执行任务
@@ -39,7 +52,7 @@ class TaskRunner:
             while True:
                 envelope = self.task_executor.task_queues.get()
                 if isinstance(envelope, TerminationSignal):
-                    termination_signal = envelope
+                    termination_signal = self.process_termination_signal(envelope)
                     break
 
                 task, task_hash, _ = envelope.unwrap()
@@ -107,7 +120,7 @@ class TaskRunner:
             while True:
                 envelope = self.task_executor.task_queues.get()
                 if isinstance(envelope, TerminationSignal):
-                    termination_signal = envelope
+                    termination_signal = self.process_termination_signal(envelope)
                     break
 
                 task, task_hash, task_id = envelope.unwrap()
@@ -176,7 +189,7 @@ class TaskRunner:
             while True:
                 envelope = await self.task_executor.task_queues.get_async()
                 if isinstance(envelope, TerminationSignal):
-                    termination_signal = envelope
+                    termination_signal = self.process_termination_signal(envelope)
                     break
 
                 _, task_hash, _ = envelope.unwrap()
