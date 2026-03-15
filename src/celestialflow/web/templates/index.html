@@ -65,7 +65,7 @@
         <div class="three-column-container">
           <!-- 左侧: 图结构 -->
           <div class="left-panel">
-            <div class="card">
+            <div class="card mermaid-card" style="display: none;">
               <h2 class="card-title" id="mermaid-title">
                 任务结构图
               </h2>
@@ -78,7 +78,7 @@
               </div>
             </div>
 
-            <div class="card topology-card" id="topology-card">
+            <div class="card topology-card" id="topology-card" style="display: none;">
               <h2 class="card-title">图拓扑信息</h2>
               <div id="topology-info" class="topology-info">
                 <div class="placeholder">暂无拓扑信息</div>
@@ -88,7 +88,7 @@
 
           <!-- 中间: 节点卡片 -->
           <div class="middle-panel">
-            <div class="card">
+            <div class="card status-card" style="display: none;">
               <h2 class="card-title">节点运行状态</h2>
               <div
                 id="dashboard-grid"
@@ -99,12 +99,12 @@
 
           <!-- 右侧: 总体状态 -->
           <div class="right-panel">
-            <div class="card">
+            <div class="card progress-card" style="display: none;">
               <h2 class="card-title">节点完成走向</h2>
               <canvas id="node-progress-chart"></canvas>
             </div>
 
-            <div class="card summary-card">
+            <div class="card summary-card" style="display: none;">
               <h2 class="card-title">总体状态摘要</h2>
               <div class="summary-grid">
                 <div class="summary-item green">

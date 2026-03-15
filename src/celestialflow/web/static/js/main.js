@@ -1,3 +1,5 @@
+// 全局配置对象
+let webConfig = null;
 let refreshRate = 5000;
 let refreshIntervalId = null;
 
@@ -7,61 +9,217 @@ const themeToggleBtn = document.getElementById("theme-toggle");
 const tabButtons = document.querySelectorAll(".tab-btn");
 const tabContents = document.querySelectorAll(".tab-content");
 
+const PANEL_SELECTOR_MAP = {
+    left: ".left-panel",
+    middle: ".middle-panel",
+    right: ".right-panel",
+};
+
+/**
+ * 从后端加载配置
+ */
+async function loadWebConfig() {
+    try {
+        const res = await fetch("/api/get_config");
+        if (res.ok) {
+            webConfig = await res.json();
+            console.log("配置加载成功:", webConfig);
+            return true;
+        }
+    } catch (e) {
+        console.warn("配置加载失败:", e);
+    }
+    return false;
+}
+
+/**
+ * 保存配置到后端
+ */
+async function saveWebConfig() {
+    try {
+        const res = await fetch("/api/save_config", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(webConfig),
+        });
+        if (res.ok) {
+            console.log("配置保存成功");
+            return true;
+        }
+    } catch (e) {
+        console.warn("配置保存失败:", e);
+    }
+    return false;
+}
+
+/**
+ * 部分更新配置
+ */
+async function updateWebConfig(partialConfig) {
+    // 合并配置
+    Object.assign(webConfig, partialConfig);
+    return await saveWebConfig();
+}
+
+/**
+ * 应用配置到界面
+ */
+function applyConfig() {
+    // 应用主题
+    if (webConfig.theme === "dark") {
+        document.body.classList.add("dark-theme");
+        themeToggleBtn.textContent = "🌞 白天模式";
+    } else {
+        document.body.classList.remove("dark-theme");
+        themeToggleBtn.textContent = "🌙 夜间模式";
+    }
+    
+    // 应用刷新间隔
+    const interval = Number(webConfig.refreshInterval);
+    refreshRate = Number.isFinite(interval) && interval > 0 ? interval : 5000;
+    webConfig.refreshInterval = refreshRate;
+    refreshSelect.value = refreshRate.toString();
+
+    if (typeof hiddenNodes !== "undefined" && hiddenNodes instanceof Set) {
+        hiddenNodes = new Set(webConfig.hiddenNodes);
+        localStorage.setItem("hiddenNodes", JSON.stringify([...hiddenNodes]));
+    }
+    
+    // 应用仪表盘布局
+    applyDashboardLayout();
+}
+
+/**
+ * 应用仪表盘布局配置
+ */
+function applyDashboardLayout() {
+    const dashboard = webConfig.dashboard;
+    const cards = webConfig.cards;
+    const allCardKeys = Array.from(
+        new Set([
+            ...Object.keys(cards),
+            ...(dashboard.left || []),
+            ...(dashboard.middle || []),
+            ...(dashboard.right || []),
+        ])
+    );
+    const cardElements = Object.fromEntries(
+        allCardKeys.map((key) => [key, document.querySelector(`.${key}-card`)])
+    );
+    const panelElements = Object.fromEntries(
+        Object.entries(PANEL_SELECTOR_MAP).map(([key, selector]) => [key, document.querySelector(selector)])
+    );
+    const assigned = new Set();
+
+    // 1) 先把所有已知卡片隐藏，避免卡片从旧布局残留在错误栏位
+    for (const cardEl of Object.values(cardElements)) {
+        if (cardEl) cardEl.style.display = "none";
+    }
+
+    // 2) 按配置中的 left/middle/right 顺序遍历栏位
+    //    每个栏位内部再按数组顺序依次 appendChild，实现“任意栏位 + 任意顺序”
+    for (const panelKey of Object.keys(PANEL_SELECTOR_MAP)) {
+        const panelEl = panelElements[panelKey];
+        const panelCardKeys = dashboard[panelKey] || [];
+        if (!panelEl) continue;
+
+        // 3) 对当前栏位中的每一张卡片：
+        //    - 通过 .{key}-card 找到真实 DOM
+        //    - 移动到目标栏位
+        //    - 应用 title 等配置
+        for (const cardKey of panelCardKeys) {
+            const cardEl = cardElements[cardKey];
+            const cardConfig = cards[cardKey] || {};
+            if (!cardEl || !cardConfig) continue;
+
+            panelEl.appendChild(cardEl);
+            cardEl.style.display = "";
+
+            const titleEl = cardEl.querySelector(".card-title");
+            if (titleEl && cardConfig.title) titleEl.textContent = cardConfig.title;
+
+            assigned.add(cardKey);
+        }
+    }
+
+    // 4) 兜底：没有被任何栏位接收的卡片统一隐藏
+    //    防止“配置里删掉某卡片但 DOM 还存在”时出现幽灵卡片
+    for (const cardKey of Object.keys(cardElements)) {
+        if (assigned.has(cardKey)) continue;
+        const cardEl = cardElements[cardKey];
+        if (cardEl) cardEl.style.display = "none";
+    }
+}
+
+/**
+ * 切换卡片在面板中的显示
+ * @param {string} panelKey - 面板键名 (left/middle/right)
+ * @param {string} cardKey - 卡片键名
+ */
+async function toggleCardInPanel(panelKey, cardKey) {
+    if (!webConfig.dashboard?.[panelKey]) return;
+    
+    const index = webConfig.dashboard[panelKey].indexOf(cardKey);
+    if (index > -1) {
+        webConfig.dashboard[panelKey].splice(index, 1);
+    } else {
+        webConfig.dashboard[panelKey].push(cardKey);
+    }
+    await saveWebConfig();
+    applyDashboardLayout();
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
-  const savedRate = parseInt(localStorage.getItem("refreshRate"));
-  if (!isNaN(savedRate)) {
-    refreshRate = savedRate;
-    refreshSelect.value = savedRate.toString();
-  }
+    const loaded = await loadWebConfig();
+    if (!loaded) return;
+    
+    // 应用配置
+    applyConfig();
 
-  refreshSelect.addEventListener("change", () => {
-    refreshRate = parseInt(refreshSelect.value);
-    localStorage.setItem("refreshRate", refreshRate); // 保存设置
-    clearInterval(refreshIntervalId);
-    refreshIntervalId = setInterval(refreshAll, refreshRate);
-    pushRefreshRate(); // 立即同步到后端
-  });
-
-  themeToggleBtn.addEventListener("click", () => {
-    const isDark = toggleDarkTheme();
-    localStorage.setItem("theme", isDark ? "dark" : "light");
-    themeToggleBtn.textContent = isDark ? "🌞 白天模式" : "🌙 夜间模式";
-    renderMermaidFromTaskStructure(); // 主题切换后重新渲染 Mermaid 图
-    initChart(); // 主题切换后重新渲染折线图
-    updateChartData(); // 由于initChart会重新建立图标实例, 需要重新注入数据
-  });
-
-  tabButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const tab = button.getAttribute("data-tab");
-      tabButtons.forEach((b) => b.classList.remove("active"));
-      tabContents.forEach((c) => c.classList.remove("active"));
-      button.classList.add("active");
-      document.getElementById(tab).classList.add("active");
+    refreshSelect.addEventListener("change", () => {
+        refreshRate = parseInt(refreshSelect.value);
+        webConfig.refreshInterval = refreshRate;
+        saveWebConfig(); // 保存配置
+        clearInterval(refreshIntervalId);
+        refreshIntervalId = setInterval(refreshAll, refreshRate);
+        pushRefreshRate(); // 立即同步到后端
     });
-  });
 
-  // shutdownBtn.addEventListener("click", async () => {
-  //   if (confirm("确认要关闭 Web 服务吗？")) {
-  //     const res = await fetch("/shutdown", { method: "POST" });
-  //     const text = await res.text();
-  //     alert(text);
-  //   }
-  // });
+    themeToggleBtn.addEventListener("click", () => {
+        const isDark = toggleDarkTheme();
+        webConfig.theme = isDark ? "dark" : "light";
+        saveWebConfig(); // 保存配置
+        themeToggleBtn.textContent = isDark ? "🌞 白天模式" : "🌙 夜间模式";
+        renderMermaidFromTaskStructure(); // 主题切换后重新渲染 Mermaid 图
+        initChart(); // 主题切换后重新渲染折线图
+        updateChartData(); // 由于initChart会重新建立图标实例, 需要重新注入数据
+    });
 
-  // 初始化时应用之前选择的主题
-  if (localStorage.getItem("theme") === "dark") {
-    document.body.classList.add("dark-theme");
-    themeToggleBtn.textContent = "🌞 白天模式";
-  } else {
-    themeToggleBtn.textContent = "🌙 夜间模式";
-  }
+    tabButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            const tab = button.getAttribute("data-tab");
+            tabButtons.forEach((b) => b.classList.remove("active"));
+            tabContents.forEach((c) => c.classList.remove("active"));
+            button.classList.add("active");
+            document.getElementById(tab).classList.add("active");
+        });
+    });
 
-  initSortableDashboard(); // 初始化拖拽
-  refreshAll(); // 启动轮询
-  pushRefreshRate(); // 初次加载也推送一次
-  initChart(); // 初始化折线图
-  refreshIntervalId = setInterval(refreshAll, refreshRate);
+    // shutdownBtn.addEventListener("click", async () => {
+    //   if (confirm("确认要关闭 Web 服务吗？")) {
+    //     const res = await fetch("/shutdown", { method: "POST" });
+    //     const text = await res.text();
+    //     alert(text);
+    //   }
+    // });
+
+    initSortableDashboard(); // 初始化拖拽
+    refreshAll(); // 启动轮询
+    pushRefreshRate(); // 初次加载也推送一次
+    initChart(); // 初始化折线图
+    refreshIntervalId = setInterval(refreshAll, refreshRate);
 });
 
 /**

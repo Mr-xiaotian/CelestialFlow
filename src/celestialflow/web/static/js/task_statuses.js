@@ -42,49 +42,17 @@ function initSortableDashboard() {
       draggingNodeName = title;
     },
     onEnd: function (evt) {
-      saveDashboardOrder();
       draggingNodeName = null;
     },
   });
 }
-
 /**
- * 保存仪表盘卡片的排序顺序到本地存储
- */
-function saveDashboardOrder() {
-  const order = Array.from(
-    document.querySelectorAll("#dashboard-grid .card-title")
-  ).map((el) => el.textContent);
-  localStorage.setItem("dashboardOrder", JSON.stringify(order));
-}
-
-/**
- * 从本地存储获取仪表盘卡片的排序顺序
- * @returns {Array<string>} 节点名称数组
- */
-function getDashboardOrder() {
-  return JSON.parse(localStorage.getItem("dashboardOrder") || "[]");
-}
-
-/**
- * 渲染仪表盘节点状态卡片
  * 根据排序顺序和节点状态生成 HTML，显示进度条、统计数据等
  */
 function renderDashboard() {
   dashboardGrid.innerHTML = "";
 
-  // 获取用户排序顺序
-  const order = getDashboardOrder();
-  const orderedEntries = Object.entries(nodeStatuses).sort((a, b) => {
-    const indexA = order.indexOf(a[0]);
-    const indexB = order.indexOf(b[0]);
-    if (indexA === -1 && indexB === -1) return 0;
-    if (indexA === -1) return 1;
-    if (indexB === -1) return -1;
-    return indexA - indexB;
-  });
-
-  for (const [node, data] of orderedEntries) {
+  for (const [node, data] of Object.entries(nodeStatuses)) {
     if (node === draggingNodeName) continue; // 正在拖动时，不渲染它
 
     // 计算进度
@@ -211,10 +179,17 @@ function initChart() {
               hiddenNodes.add(nodeName);
             }
 
+            // 保存到 localStorage 和后端配置
             localStorage.setItem(
               "hiddenNodes",
               JSON.stringify([...hiddenNodes])
             );
+            
+            // 保存到后端配置
+            if (typeof saveWebConfig === 'function') {
+              webConfig.hiddenNodes = [...hiddenNodes];
+              saveWebConfig();
+            }
 
             const meta = legend.chart.getDatasetMeta(index);
             meta.hidden =

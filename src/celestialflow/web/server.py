@@ -1,10 +1,11 @@
 # web/server.py
 import anyio
 import os
+import json
 import threading
 import uvicorn
 import argparse
-from fastapi import FastAPI, Request, Body
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -53,10 +54,48 @@ class TaskInjectionModel(BaseModel):
     timestamp: datetime
 
 
+class CardConfigModel(BaseModel):
+    title: str
+
+
+class DashboardConfigModel(BaseModel):
+    left: List[str]
+    middle: List[str]
+    right: List[str]
+
+
+class WebConfigModel(BaseModel):
+    theme: str
+    refreshInterval: int
+    dashboard: DashboardConfigModel
+    hiddenNodes: List[str]
+    cards: Dict[str, CardConfigModel]
+
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_PATH = os.path.join(BASE_DIR, "web_config.json")
 
 static_path = os.path.join(BASE_DIR, "static")
 templates_path = os.path.join(BASE_DIR, "templates")
+
+
+def load_config() -> dict:
+    if not os.path.exists(CONFIG_PATH):
+        raise FileNotFoundError(f"config file not found: {CONFIG_PATH}")
+    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return WebConfigModel.model_validate(data).model_dump()
+
+
+def save_config(config: dict) -> bool:
+    """Save configuration to JSON file."""
+    try:
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Error: Failed to save config: {e}")
+        return False
 
 
 class TaskWebServer:
@@ -79,11 +118,16 @@ class TaskWebServer:
         self.summary_store = {}
         self.injection_tasks = []  # 存储前端注入任务
 
-        self.report_interval = 5
         self._task_injection_lock = threading.Lock()
 
         self._errors_meta_rev: Optional[int] = None
         self._errors_meta_path: Optional[str] = None
+
+        # 加载配置
+        self.config = load_config()
+        refresh_interval = self.config["refreshInterval"]
+        self.report_interval = max(1.0, min(float(refresh_interval) / 1000.0, 60.0))
+        self._config_lock = threading.Lock()
 
         self._setup_routes()
 
@@ -94,6 +138,55 @@ class TaskWebServer:
         @app.get("/", response_class=HTMLResponse)
         def index(request: Request):
             return templates.TemplateResponse("index.html", {"request": request})
+
+        # ---- 配置接口 ----
+        @app.get("/api/get_config")
+        def get_config():
+            """获取前端配置"""
+            with self._config_lock:
+                return self.config
+
+        @app.post("/api/save_config")
+        async def save_config_api(data: WebConfigModel):
+            """保存前端配置"""
+            with self._config_lock:
+                self.config = data.model_dump()
+                success = save_config(self.config)
+                if success:
+                    return {"ok": True}
+                else:
+                    return JSONResponse(
+                        content={"ok": False, "error": "Failed to save config"},
+                        status_code=500,
+                    )
+
+        @app.post("/api/update_config")
+        async def update_config_api(data: Dict[str, Any]):
+            """部分更新前端配置"""
+            with self._config_lock:
+                # 递归更新配置
+                def deep_update(base: dict, update: dict) -> dict:
+                    for key, value in update.items():
+                        if (
+                            key in base
+                            and isinstance(base[key], dict)
+                            and isinstance(value, dict)
+                        ):
+                            deep_update(base[key], value)
+                        else:
+                            base[key] = value
+                    return base
+
+                next_config = deep_update(dict(self.config), data)
+                self.config = WebConfigModel.model_validate(next_config).model_dump()
+                success = save_config(self.config)
+                if success:
+                    return {"ok": True}
+                else:
+                    return JSONResponse(
+                        content={"ok": False, "error": "Failed to save config"},
+                        status_code=500,
+                    )
 
         # ---- 接收接口 ----
         @app.get("/api/get_structure")

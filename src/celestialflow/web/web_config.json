@@ -1,0 +1,35 @@
+{
+    "theme": "dark",
+    "refreshInterval": 2000,
+    "dashboard": {
+        "left": [
+            "mermaid",
+            "topology"
+        ],
+        "middle": [
+            "status"
+        ],
+        "right": [
+            "progress",
+            "summary"
+        ]
+    },
+    "hiddenNodes": [],
+    "cards": {
+        "mermaid": {
+            "title": "任务结构图"
+        },
+        "topology": {
+            "title": "图拓扑信息"
+        },
+        "status": {
+            "title": "节点运行状态"
+        },
+        "progress": {
+            "title": "节点完成走向"
+        },
+        "summary": {
+            "title": "总体状态摘要"
+        }
+    }
+}
