@@ -149,13 +149,13 @@ class TaskGraph:
             stage_runtime["in_queue"] = TaskInQueue(
                 queue=MPQueue(),
                 queue_tags=[],
-                stage_tag=stage.get_tag(),
+                out_tag=stage.get_tag(),
                 log_sinker=self.log_sinker,
             )
             stage_runtime["out_queue"] = TaskOutQueue(
                 queue_list=[],
                 queue_tags=[],
-                stage_tag=stage.get_tag(),
+                in_tag=stage.get_tag(),
                 log_sinker=self.log_sinker,
             )
 

@@ -18,7 +18,7 @@ class TaskInQueue:
         self,
         queue: ThreadQueue | MPQueue | AsyncQueue,
         queue_tags: List[str],
-        stage_tag: str,
+        out_tag: str,
         log_sinker: "LogSinker",
     ):
         """
@@ -26,15 +26,15 @@ class TaskInQueue:
 
         :param queue: 队列对象
         :param queue_tags: 队列标签列表
-        :param stage_tag: 任务节点标签
+        :param out_tag: 任务节点标签
         :param log_sinker: 日志记录器
         """
         self.queue = queue
-        self.queue_tags = queue_tags
-        self.stage_tag = stage_tag
+        self.queue_tags = list(queue_tags)
+        self.out_tag = out_tag
         self.log_sinker = log_sinker
 
-        self.termination_dict = {}
+        self.termination_dict: dict[str, str] = {}
 
     def _log_put(self, item):
         """
@@ -46,9 +46,7 @@ class TaskInQueue:
             t = "task"
         elif isinstance(item, TerminationSignal):
             t = "termination"
-        else:
-            t = "unknown"
-        self.log_sinker.put_item(t, item.id, item.source, self.stage_tag)
+        self.log_sinker.put_item(t, item.id, item.source, self.out_tag)
 
     def _log_get(self, item):
         """
@@ -60,9 +58,7 @@ class TaskInQueue:
             t = "task"
         elif isinstance(item, TerminationSignal):
             t = "termination"
-        else:
-            t = "unknown"
-        self.log_sinker.get_item(t, item.id, item.source, self.stage_tag)
+        self.log_sinker.get_item(t, item.id, item.source, self.out_tag)
 
     def add_source_tag(self, tag: str):
         """
@@ -81,22 +77,6 @@ class TaskInQueue:
         """
         self.termination_dict = {}
 
-    def _is_all_terminated(self) -> bool:
-        """
-        判断是否所有入队标签都已收到终止信号
-
-        :return: 如果所有入队标签都已收到终止信号，则返回 True，否则返回 False
-        """
-        return all(tag in self.termination_dict for tag in self.queue_tags)
-
-    def _merge_termination(self) -> TerminationIdPool:
-        """
-        合并所有入队标签的终止信号
-
-        :return: 合并后的终止信号
-        """
-        return TerminationIdPool(ids=[self.termination_dict[tag] for tag in self.queue_tags])
-
     def _record_termination(self, signal: TerminationSignal):
         """
         记录入队标签的终止信号
@@ -104,9 +84,34 @@ class TaskInQueue:
         :param signal: 入队标签的终止信号
         """
         source = signal.source
-        if source not in self.queue_tags:
+
+        valid_sources = set(self.queue_tags) | {"input", self.out_tag}
+        if source not in valid_sources:
             raise ValueError(f"unknown queue tag: {source}")
+
         self.termination_dict[source] = signal.id
+
+    def _can_merge_termination(self) -> bool:
+        """
+        判断是否可以合并普通输入队列的终止信号
+        """
+        return all(tag in self.termination_dict for tag in self.queue_tags)
+
+    def _merge_termination(self) -> TerminationIdPool:
+        """
+        合并所有输入队列的终止信号
+
+        这里只合并来自 queue_tags 的 termination，不处理：
+        - input 注入的直接终止
+        - self.out_tag 的 merge 后终止
+
+        :return: 合并后的终止信号池
+        """
+        missing_tags = [tag for tag in self.queue_tags if tag not in self.termination_dict]
+        if missing_tags:
+            raise ValueError(f"cannot merge termination, missing queue tags: {missing_tags}")
+
+        return TerminationIdPool(ids=[self.termination_dict[tag] for tag in self.queue_tags])
 
     def put(self, item: TaskEnvelope | TerminationSignal):
         """
@@ -118,7 +123,7 @@ class TaskInQueue:
             self.queue.put(item)
             self._log_put(item)
         except Exception as e:
-            self.log_sinker.put_item_error(item.source, self.stage_tag, e)
+            self.log_sinker.put_item_error(item.source, self.out_tag, e)
 
     async def put_async(self, item: TaskEnvelope | TerminationSignal):
         """
@@ -130,7 +135,7 @@ class TaskInQueue:
             await self.queue.put(item)
             self._log_put(item)
         except Exception as e:
-            self.log_sinker.put_item_error(item.source, self.stage_tag, e)
+            self.log_sinker.put_item_error(item.source, self.out_tag, e)
 
     def get(self) -> TaskEnvelope | TerminationIdPool:
         """
@@ -147,7 +152,11 @@ class TaskInQueue:
 
             if isinstance(item, TerminationSignal):
                 self._record_termination(item)
-                if self._is_all_terminated():
+                if "input" in self.termination_dict:
+                    return TerminationIdPool(ids=[self.termination_dict["input"]])
+                elif self.out_tag in self.termination_dict:
+                    return TerminationIdPool(ids=[self.termination_dict[self.out_tag]])
+                elif self._can_merge_termination():
                     return self._merge_termination()
                 continue
 
@@ -172,7 +181,11 @@ class TaskInQueue:
 
             if isinstance(item, TerminationSignal):
                 self._record_termination(item)
-                if self._is_all_terminated():
+                if "input" in self.termination_dict:
+                    return TerminationIdPool(ids=[self.termination_dict["input"]])
+                elif self.out_tag in self.termination_dict:
+                    return TerminationIdPool(ids=[self.termination_dict[self.out_tag]])
+                elif self._can_merge_termination():
                     return self._merge_termination()
                 continue
 
@@ -181,6 +194,8 @@ class TaskInQueue:
     def drain(self) -> List[TaskEnvelope]:
         """
         清空队列中的所有任务，返回所有任务列表
+        并记录 termination 状态，但不返回 TerminationIdPool
+        (只在同步环境下使用)
 
         :return: 包含所有任务的列表
         """
@@ -193,10 +208,7 @@ class TaskInQueue:
                     results.append(item)
                 elif isinstance(item, TerminationSignal):
                     self._record_termination(item)
-            except SyncEmpty:
-                break
-            except Exception as e:
-                self.log_sinker.get_item_error(item.source, self.stage_tag, exception=e)
+            except Exception:
                 break
         return results
 
@@ -206,7 +218,7 @@ class TaskOutQueue:
         self,
         queue_list: List[ThreadQueue] | List[MPQueue] | List[AsyncQueue],
         queue_tags: List[str],
-        stage_tag: str,
+        in_tag: str,
         log_sinker: "LogSinker",
     ):
         """
@@ -214,7 +226,7 @@ class TaskOutQueue:
 
         :param queue_list: 输出队列列表，每个元素为一个线程队列、进程队列或异步队列
         :param queue_tags: 队列标签列表，用于标识每个队列
-        :param stage_tag: 任务节点标签，用于记录日志
+        :param in_tag: 任务节点标签，用于记录日志
         :param log_sinker: 日志记录器，用于记录入队出队日志
         :raises ValueError: 如果队列列表和标签列表长度不一致
         """
@@ -223,7 +235,7 @@ class TaskOutQueue:
 
         self.queue_list = queue_list
         self.queue_tags = queue_tags
-        self.stage_tag = stage_tag
+        self.in_tag = in_tag
         self.log_sinker = log_sinker
 
         self._tag_to_idx = {tag: i for i, tag in enumerate(queue_tags)}
@@ -239,9 +251,7 @@ class TaskOutQueue:
             t = "task"
         elif isinstance(item, TerminationSignal):
             t = "termination"
-        else:
-            t = "unknown"
-        self.log_sinker.put_item(t, item.id, self.stage_tag, self.queue_tags[idx])
+        self.log_sinker.put_item(t, item.id, self.in_tag, self.queue_tags[idx])
 
     def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
         """
@@ -296,7 +306,7 @@ class TaskOutQueue:
             self._log_put(item, idx)
         except Exception as e:
             self.log_sinker.put_item_error(
-                item.source, self.stage_tag, e
+                item.source, self.in_tag, e
             )
 
     async def put_channel_async(self, item: TaskEnvelope | TerminationSignal, idx: int):
@@ -314,5 +324,5 @@ class TaskOutQueue:
             self._log_put(item, idx)
         except Exception as e:
             self.log_sinker.put_item_error(
-                item.source, self.stage_tag, e
+                item.source, self.in_tag, e
             )

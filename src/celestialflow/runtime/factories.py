@@ -10,7 +10,7 @@ from .types import ValueWrapper
 from .queue import TaskInQueue, TaskOutQueue
 
 if TYPE_CHECKING:
-    from ..stage import TaskStage
+    from ..stage import TaskExecutor
 
 
 # ==== 函数工厂 ====
@@ -48,26 +48,26 @@ def make_queue_backend(mode: str):
 def make_task_in_queue(
     *,
     mode: str,
-    stage: "TaskStage",
+    executor: "TaskExecutor",
 ):
     Q = make_queue_backend(mode)
     return TaskInQueue(
         queue=Q(),
-        queue_tags=[None],
-        stage_tag=stage.get_tag(),
-        log_sinker=stage.log_sinker,
+        queue_tags=[],
+        out_tag=executor.get_tag(),
+        log_sinker=executor.log_sinker,
     )
 
 
 def make_task_out_queue(
     *,
     mode: str,
-    stage: "TaskStage",
+    executor: "TaskExecutor",
 ):
     Q = make_queue_backend(mode)
     return TaskOutQueue(
         queue_list=[Q()],
         queue_tags=[None],
-        stage_tag=stage.get_tag(),
-        log_sinker=stage.log_sinker,
+        in_tag=executor.get_tag(),
+        log_sinker=executor.log_sinker,
     )

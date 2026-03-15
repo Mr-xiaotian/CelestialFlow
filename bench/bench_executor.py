@@ -36,8 +36,8 @@ async def sleep_1_async(_):
     await asyncio.sleep(1)
 
 
-async def test_executor_fibonacci():
-    test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
+async def bench_executor_fibonacci():
+    bench_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
 
     executor = TaskExecutor(
         fibonacci, worker_limit=6, max_retries=1, show_progress=True
@@ -52,11 +52,11 @@ async def test_executor_fibonacci():
     sync_modes = ["serial", "thread", "process"]
     async_modes = ["async"]
     await benchmark_executor(
-        executor, executor_async, test_task_1, sync_modes, async_modes
+        executor, executor_async, bench_task_1, sync_modes, async_modes
     )
 
 
-async def test_executor_sleep():
+async def bench_executor_sleep():
     task_list = list(range(12))
 
     executor = TaskExecutor(
@@ -80,8 +80,8 @@ async def test_executor_sleep():
 
 
 async def main():
-    await test_executor_fibonacci()
-    await test_executor_sleep()
+    await bench_executor_fibonacci()
+    await bench_executor_sleep()
 
 
 if __name__ == "__main__":

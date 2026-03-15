@@ -167,11 +167,11 @@ class TaskExecutor:
 
         self.task_queues = task_queues or make_task_in_queue(
             mode=mode,
-            stage=self,
+            executor=self,
         )
         self.result_queues = result_queues or make_task_out_queue(
             mode=mode,
-            stage=self,
+            executor=self,
         )
 
     def init_listener(self):
