@@ -15,26 +15,36 @@ if TYPE_CHECKING:
 
 
 class TaskRunner:
-    def __init__(self, task_executor: TaskExecutor, execution_mode: str, worker_limit: int):
+    def __init__(self, task_executor: TaskExecutor, worker_limit: int):
+        """
+        初始化任务运行器
+
+        :param task_executor: 任务执行器
+        :param worker_limit: 工作线程或进程数量限制
+        """
         self.task_executor = task_executor
-        self.execution_mode = execution_mode
         self.worker_limit = worker_limit
 
         self._pool: ThreadPoolExecutor | ProcessPoolExecutor | None = None
 
-    def init_pool(self):
+    def init_pool(self, execution_mode):
         """
-        初始化线程池或进程池
+        初始化线程池或进程池，根据执行模式和当前是否为空来判断是否初始化
+
+        :param execution_mode: 执行模式，"thread" 或 "process"
         """
         # 可以复用的线程池或进程池
-        if self.execution_mode == "thread" and self._pool is None:
+        if execution_mode == "thread" and self._pool is None:
             self._pool = ThreadPoolExecutor(max_workers=self.worker_limit)
-        elif self.execution_mode == "process" and self._pool is None:
+        elif execution_mode == "process" and self._pool is None:
             self._pool = ProcessPoolExecutor(max_workers=self.worker_limit)
 
     def process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
         """
         处理终止信号，生成 merge 事件
+
+        :param termination_pool: 包含多个终止信号 ID 的池
+        :return: 合并后的终止信号
         """
         parent_ids = termination_pool.ids
         termination_id = self.task_executor.ctree_client.emit(
@@ -76,8 +86,8 @@ class TaskRunner:
                 except Exception as error:
                     self.task_executor.handle_task_error(envelope, error)
                 self.task_executor.task_progress.update(1)
-
-                self.task_executor.task_queues.reset()
+            
+            self.task_executor.task_queues.reset()
 
             if self.task_executor.metrics.is_tasks_finished():
                 self.task_executor.result_queues.put(termination_signal)
@@ -87,11 +97,13 @@ class TaskRunner:
             self.task_executor.log_sinker._sink("DEBUG", f"{self.task_executor.get_func_name()} is not finished.")
             self.task_executor.task_queues.put(termination_signal)
 
-    def run_with_pool(self):
+    def run_with_pool(self, execution_mode: str):
         """
         使用指定的执行池（线程池或进程池）来并行执行任务。
+
+        :param execution_mode: 执行模式，"thread" 或 "process"
         """
-        self.init_pool()
+        self.init_pool(execution_mode)
 
         while True:
             task_start_dict = {}  # 用于存储任务开始时间
@@ -231,6 +243,9 @@ class TaskRunner:
     async def _run_single_task(self, task):
         """
         运行单个任务并捕获异常
+
+        :param task: 要运行的任务
+        :return: 任务的结果或异常
         """
         try:
             result = await self.task_executor.func(*self.task_executor.get_args(task))

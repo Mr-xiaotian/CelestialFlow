@@ -87,7 +87,7 @@ class TaskInQueue:
 
         :return: 如果所有入队标签都已收到终止信号，则返回 True，否则返回 False
         """
-        return len(self.termination_dict) == len(self.queue_tags)
+        return all(tag in self.termination_dict for tag in self.queue_tags)
 
     def _merge_termination(self) -> TerminationIdPool:
         """
@@ -95,9 +95,7 @@ class TaskInQueue:
 
         :return: 合并后的终止信号
         """
-        return TerminationIdPool(
-            ids=list(self.termination_dict.values()),
-        )
+        return TerminationIdPool(ids=[self.termination_dict[tag] for tag in self.queue_tags])
 
     def _record_termination(self, signal: TerminationSignal):
         """
@@ -105,7 +103,10 @@ class TaskInQueue:
 
         :param signal: 入队标签的终止信号
         """
-        self.termination_dict[signal.source] = signal.id
+        source = signal.source
+        if source not in self.queue_tags:
+            raise ValueError(f"unknown queue tag: {source}")
+        self.termination_dict[source] = signal.id
 
     def put(self, item: TaskEnvelope | TerminationSignal):
         """

@@ -64,6 +64,15 @@ class TaskMetrics:
         self.retry_time_dict = {}  # task_hash: retry_time
         self.processed_set = set()  # task_hash
 
+    def set_execution_mode(self, execution_mode: str):
+        """
+        设置任务执行模式
+
+        :param execution_mode: 任务执行模式，可选值为 "thread" 或 "async"
+        """
+        self.execution_mode = execution_mode
+        self.init_counter()
+
     def is_duplicate(self, task_hash) -> bool:
         """
         检查任务是否重复

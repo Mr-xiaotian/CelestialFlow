@@ -110,7 +110,7 @@ class TaskExecutor:
         """
         初始化任务运行器
         """
-        self.runner = TaskRunner(self, self.execution_mode, self.worker_limit)
+        self.runner = TaskRunner(self, self.worker_limit)
 
     def init_env(
         self, task_queues=None, result_queues=None, fail_queue=None, log_queue=None
@@ -224,6 +224,9 @@ class TaskExecutor:
             self.execution_mode = execution_mode
         else:
             raise ExecutionModeError(execution_mode)
+        
+        if hasattr(self, "metrics"):
+            self.metrics.set_execution_mode(execution_mode)
 
     def set_ctree(
         self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778
@@ -709,7 +712,7 @@ class TaskExecutor:
         try:
             # 根据模式运行对应的任务处理函数
             if self.execution_mode in  ["thread", "process"]:
-                self.runner.run_with_pool()
+                self.runner.run_with_pool(self.execution_mode)
             elif self.execution_mode == "async":
                 # don't suggest, please use start_async
                 asyncio.run(self.runner.run_in_async())
@@ -743,7 +746,10 @@ class TaskExecutor:
         self.set_execution_mode("async")
         self.init_listener()
         self.init_progress()
-        self.init_env(log_queue=self.log_listener.get_queue())
+        self.init_env(
+            log_queue=self.log_listener.get_queue(),
+            fail_queue=self.fail_listener.get_queue(),
+        )
 
         await self.put_task_queues_async(task_source)
         self.log_sinker.start_executor(
@@ -751,6 +757,7 @@ class TaskExecutor:
             self.metrics.get_task_count(),
             self.get_execution_mode_desc(),
         )
+        self.fail_sinker.start_executor(self.get_tag())
 
         try:
             await self.runner.run_in_async()
@@ -767,6 +774,7 @@ class TaskExecutor:
                 self.metrics.get_duplicate_count(),
             )
             self.log_listener.stop()
+            self.fail_listener.stop()
 
     def get_success_dict(self) -> dict:
         """
