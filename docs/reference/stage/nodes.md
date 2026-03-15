@@ -35,15 +35,33 @@ flowchart LR
 
 将单个输入任务分裂为多个输出任务。适用于一对多的场景。
 
-- **机制**: 输入一个任务，返回一个元组/列表。每个元素会被包装成独立的 `TaskEnvelope` 发送给下游。
-- **计数**: 内部维护 `split_counter` 统计分裂出的总任务数。
+### 初始化
+
+```python
+class TaskSplitter(TaskStage):
+    def __init__(self):
+        """
+        初始化 TaskSplitter。
+        默认：execution_mode="serial", max_retries=0, unpack_task_args=True
+        """
+```
+
+### 使用方式
 
 ```python
 class MySplitter(TaskSplitter):
-    def _split(self, data):
-        # 将输入数据分裂为两部分
-        return part1, part2
+    def _split(self, *task):
+        # 将输入数据分裂为多个部分
+        return task[0], task[1]  # 返回元组，每个元素成为独立任务
 ```
+
+### 特性
+
+- **机制**: 输入一个任务，返回一个元组/列表。每个元素会被包装成独立的 `TaskEnvelope` 发送给下游。
+- **计数**: 内部维护 `split_counter` 统计分裂出的总任务数。
+- **默认配置**: `execution_mode="serial"`, `max_retries=0`, `unpack_task_args=True`
+
+---
 
 ## TaskRouter (路由器)
 
@@ -80,24 +98,43 @@ flowchart LR
 
 根据条件将任务分发到不同的下游路径。
 
-- **机制**: 接收 `(target_tag, data)` 形式的元组。根据 `target_tag` 将 `data` 发送到对应的下游 Stage。
-- **配置**: 下游 Stage 在连接时需指定 `target` 参数。
+### 初始化
 
 ```python
-# 路由函数
+class TaskRouter(TaskStage):
+    def __init__(self):
+        """
+        初始化 TaskRouter。
+        默认：execution_mode="serial", max_retries=0
+        """
+```
+
+### 使用方式
+
+路由任务需要返回 `(target_tag, data)` 格式的元组：
+
+```python
+# 定义上游任务生成路由元组
 def route_logic(data):
     if data > 0:
-        return "positive", data
+        return ("positive_stage", data)
     else:
-        return "negative", data
+        return ("negative_stage", data)
 
+# 创建路由节点
 router = TaskRouter()
-router.set_source(route_logic)
 
-# 连接下游
-router.connect(pos_stage, target="positive")
-router.connect(neg_stage, target="negative")
+# 连接下游（target 必须与路由逻辑中的 tag 匹配）
+router.set_graph_context([pos_stage, neg_stage], stage_mode="process", stage_name="Router")
 ```
+
+### 特性
+
+- **机制**: 接收 `(target_tag, data)` 形式的元组。根据 `target_tag` 将 `data` 发送到对应的下游 Stage。
+- **计数**: 为每个目标维护独立的计数器 `route_counters`。
+- **错误处理**: 如果 `target_tag` 不存在于下游列表中，会抛出 `InvalidOptionError`。
+
+---
 
 ## Redis Integration
 
@@ -135,15 +172,41 @@ flowchart LR
 
 将任务推送到 Redis List。
 
-- **参数**: `key` (List名称), `host`, `port`, `db`, `password`
-- **行为**: 将任务序列化为 JSON 并 `rpush` 到 Redis。
+```python
+class TaskRedisTransport(TaskStage):
+    def __init__(
+        self,
+        key,                    # Redis List 名称
+        host="localhost",       # Redis 主机地址
+        port=6379,              # Redis 端口
+        db=0,                   # Redis 数据库编号
+        password=None,          # Redis 密码
+        unpack_task_args=False, # 是否解包任务参数
+    ):
+        ...
+```
+
+**行为**: 将任务序列化为 JSON 并 `rpush` 到 Redis List。
 
 ### TaskRedisSource
 
 从 Redis List 拉取任务作为输入源。
 
-- **参数**: `key`, `host`, `port`, `db`, `password`, `timeout`
-- **行为**: 使用 `blpop` 阻塞式拉取任务。
+```python
+class TaskRedisSource(TaskStage):
+    def __init__(
+        self,
+        key,                # Redis List 名称
+        host="localhost",   # Redis 主机地址
+        port=6379,          # Redis 端口
+        db=0,               # Redis 数据库编号
+        password=None,      # Redis 密码
+        timeout=10,         # 阻塞超时时间（秒），0 表示无限等待
+    ):
+        ...
+```
+
+**行为**: 使用 `blpop` 阻塞式拉取任务。
 
 ### TaskRedisAck
 
@@ -180,16 +243,33 @@ flowchart LR
 
 等待远端 Worker 的执行结果。
 
-- **参数**: `key` (结果Hash表名), `host`, `port`, ...
-- **行为**: 轮询或阻塞等待 Redis Hash 中出现对应的 `task_id` 结果。支持处理成功结果或抛出 `RemoteWorkerError`。
+```python
+class TaskRedisAck(TaskStage):
+    def __init__(
+        self,
+        key,                # Redis Hash 名称（存储结果）
+        host="localhost",   # Redis 主机地址
+        port=6379,          # Redis 端口
+        db=0,               # Redis 数据库编号
+        password=None,      # Redis 密码
+        timeout=10,         # 等待超时时间（秒），0 表示无限等待
+    ):
+        ...
+```
+
+**行为**: 轮询 Redis Hash 等待对应的 `task_id` 结果。支持处理成功结果或抛出 `RemoteWorkerError`。
+
+---
 
 ## 前期设置
 
-1. 启动 Redis 服务
-在运行`TaskRedis*`系节点时, 需要先启动 Redis 服务
+### 1. 启动 Redis 服务
 
-2. 设置环境变量(可选)
-然后在根目录下建立一个.env文件, 按以下格式填入:
+在运行 `TaskRedis*` 系节点时，需要先启动 Redis 服务。
+
+### 2. 设置环境变量（可选）
+
+在项目根目录创建 `.env` 文件：
 
 ```env
 # .env
@@ -197,29 +277,79 @@ flowchart LR
 REDIS_HOST=127.0.0.1
 # Redis 服务端口
 REDIS_PORT=6379
-# Redis 服务密码, 没有则留空
+# Redis 服务密码，没有则留空
 REDIS_PASSWORD=your_redis_password
 ```
 
-3. 设置 TaskRedis*节点
-
-然后直接通过读取.env中内容来设置 `TaskRedis*` 中 Redis 端口 节点名称与密码。
+### 3. 配置节点
 
 ```python
 import os
 from dotenv import load_dotenv
+from celestialflow import TaskRedisTransport, TaskRedisAck, TaskRedisSource
 
-# 如果没有.env文件, 则使用默认值
+# 加载环境变量
 load_dotenv()
+
 redis_host = os.getenv("REDIS_HOST", "127.0.0.1")
 redis_password = os.getenv("REDIS_PASSWORD", "")
 
-# test_redis_ack_0
-redis_sink = TaskRedisTransport(key="testFibonacci:input", host=redis_host, password=redis_password)
-redis_ack = TaskRedisAck(key="testFibonacci:output", host=redis_host, password=redis_password)
+# Transport + Ack 组合（推送到 Redis 并等待结果）
+redis_sink = TaskRedisTransport(
+    key="testFibonacci:input",
+    host=redis_host,
+    password=redis_password
+)
+redis_ack = TaskRedisAck(
+    key="testFibonacci:output",
+    host=redis_host,
+    password=redis_password
+)
 
-# test_redis_source_0
-redis_sink = TaskRedisTransport("test_redis", host=redis_host, password=redis_password)
-redis_source = TaskRedisSource("test_redis", host=redis_host, password=redis_password)
+# Source 组合（从 Redis 拉取任务）
+redis_source = TaskRedisSource(
+    key="test_redis",
+    host=redis_host,
+    password=redis_password
+)
 ```
 
+---
+
+## Redis 数据格式
+
+### TaskRedisTransport 推送格式
+
+```json
+{
+    "id": 12345678,
+    "task": ["arg1", "arg2"],
+    "emit_ts": 1703001234.567
+}
+```
+
+### TaskRedisAck 期望结果格式
+
+```json
+{
+    "status": "success",
+    "result": "computed_value"
+}
+```
+
+或错误格式：
+```json
+{
+    "status": "error",
+    "error": "Error message"
+}
+```
+
+---
+
+## 注意事项
+
+1. **连接管理**: Redis 客户端在首次使用时延迟初始化。
+2. **超时处理**: `TaskRedisSource` 和 `TaskRedisAck` 支持超时配置，超时会抛出 `TimeoutError`。
+3. **错误传播**: 远端 Worker 返回的错误会通过 `RemoteWorkerError` 传播。
+4. **幂等性**: `TaskRedisAck` 获取结果后会删除 Redis 中的记录，保证一次性消费。
