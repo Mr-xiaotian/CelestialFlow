@@ -2,17 +2,70 @@
   🌟 变量定义（全局色彩、间距等）
 ================================ */
 :root {
+  /* ================================
+     基础颜色
+  ================================ */
+  --color-white: #ffffff;
+  --color-black: #000000;
+  
+  /* ================================
+     灰度色阶
+  ================================ */
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  
+  /* ================================
+     语义颜色
+  ================================ */
   --primary-color: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-light: #3b6fd9;
+  
   --success-color: #10b981;
+  --success-dark: #16a34a;
+  --success-light: #22c55e;
+  
   --warning-color: #f59e0b;
+  
   --danger-color: #ef4444;
-  --gray-light: #f3f4f6;
-  --gray-medium: #9ca3af;
-  --gray-dark: #4b5563;
-  --gray-slate: #6b7280;
-
-    /* ================================
-     Summary palette (light mode)
+  --danger-dark: #dc2626;
+  --danger-light: #f87171;
+  
+  /* ================================
+     文本颜色
+  ================================ */
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-tertiary: #6b7280;
+  --text-muted: #9ca3af;
+  --text-inverse: #ffffff;
+  
+  /* ================================
+     背景颜色
+  ================================ */
+  --bg-body: #f9fafb;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+  --bg-hover: #f3f4f6;
+  
+  /* ================================
+     边框颜色
+  ================================ */
+  --border-light: #e5e7eb;
+  --border-medium: #d1d5db;
+  --border-dark: #9ca3af;
+  
+  /* ================================
+     Summary 调色板 (亮色模式)
   ================================ */
   --summary-blue-bg: #dbeafe;
   --summary-orange-bg: #fed7aa;
@@ -29,7 +82,22 @@
   --summary-purple-value: #7c3aed;
 
   /* ================================
-     Summary palette (dark mode)
+     暗黑模式变量（将被 .dark-theme 覆盖）
+  ================================ */
+  --dark-bg-body: #1a1a1a;
+  --dark-bg-card: #2a2a2a;
+  --dark-bg-input: #374151;
+  --dark-bg-elevated: #3a3a3a;
+  
+  --dark-text-primary: #f3f4f6;
+  --dark-text-secondary: #e5e7eb;
+  --dark-text-muted: #9ca3af;
+  
+  --dark-border: #4b5563;
+  --dark-border-light: #6b7280;
+
+  /* ================================
+     Summary 调色板 (暗色模式)
   ================================ */
   --summary-blue-bg-dark: #1e3a8a;
   --summary-orange-bg-dark: #7c2d12;
@@ -44,6 +112,75 @@
   --summary-red-value-dark: #f87171;
   --summary-green-value-dark: #34d399;
   --summary-purple-value-dark: #c4b5fd;
+  
+  /* ================================
+     特殊用途颜色
+  ================================ */
+  --color-ok: #16a34a;
+  --color-warn: #dc2626;
+  --color-link: #3b82f6;
+  --color-link-hover: #1d4ed8;
+  
+  /* Mermaid 图表 */
+  --mermaid-arrow: #e5e7eb;
+  --mermaid-text: #d1d5db;
+  
+  /* 图节点 */
+  --graph-node-bg: #3a3a3a;
+  --graph-node-border: #5e91ff;
+  --graph-node-hover: #454545;
+  --stage-name: #7eaeff;
+  --stage-mode: #b0b0b0;
+  --stage-func-bg: #333333;
+  --stage-func-text: #ff6090;
+  --visited-mark-bg: #4a2424;
+  --visited-mark-text: #ff6b6b;
+  
+  /* 节点类型标签 */
+  --type-processing-bg: #dcfce7;
+  --type-processing-text: #166534;
+  --type-analysis-bg: #dbeafe;
+  --type-analysis-text: #1e40af;
+  --type-storage-bg: #f3e8ff;
+  --type-storage-text: #7c3aed;
+  --type-compute-bg: #fed7aa;
+  --type-compute-text: #c2410c;
+  --type-network-bg: #fef3c7;
+  --type-network-text: #a16207;
+  --type-monitoring-bg: #fecaca;
+  --type-monitoring-text: #dc2626;
+  
+  /* 文件上传成功 */
+  --file-success-bg: #dcfce7;
+  --file-success-border: #bbf7d0;
+  --file-success-text: #166534;
+  --file-success-icon: #16a34a;
+  
+  /* 兼容旧变量名 */
+  --gray-light: var(--gray-100);
+  --gray-medium: var(--gray-400);
+  --gray-dark: var(--gray-600);
+  --gray-slate: var(--gray-500);
+}
+
+/* ================================
+  🌟 暗黑模式颜色覆盖
+================================ */
+.dark-theme {
+  --bg-body: var(--dark-bg-body);
+  --bg-card: var(--dark-bg-card);
+  --bg-input: var(--dark-bg-input);
+  --bg-hover: var(--dark-bg-elevated);
+  
+  --text-primary: var(--dark-text-primary);
+  --text-secondary: var(--dark-text-secondary);
+  --text-muted: var(--dark-text-muted);
+  
+  --border-light: var(--dark-border);
+  --border-medium: var(--dark-border-light);
+  
+  --mermaid-arrow: var(--dark-text-secondary);
+  /* --mermaid-text: var(--dark-text-muted); */
 }
 
 /* ================================
@@ -57,7 +194,7 @@
 }
 
 body {
-  background-color: #f9fafb;
+  background-color: var(--bg-body);
   line-height: 1.5;
 }
 
@@ -74,7 +211,7 @@ body {
 ================================ */
 header {
   background-color: var(--primary-color);
-  color: white;
+  color: var(--text-inverse);
   padding: 1rem 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
@@ -83,8 +220,8 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap; /* 小屏自动换行 */
-  gap: 0.5rem; /* 可选：元素间距 */
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 
@@ -95,12 +232,12 @@ h1 {
   font-size: 1.5rem;
   font-weight: 700;
   text-align: center;
-  color: #fff;
+  color: var(--text-inverse);
   margin-bottom: 30px;
 }
 
 /* ================================
-  🌟 标题 & 文本
+  🌟 控制面板
 ================================ */
 .control-panel {
   display: flex;
@@ -125,26 +262,32 @@ select {
 }
 
 button {
-  color: white;
+  color: var(--text-inverse);
   font-size: 0.875rem;
   transition: background-color 0.2s;
 }
 
 select {
-  background-color: white;
+  background-color: var(--bg-card);
   height: 30px;
 }
 
 /* 按钮样式 */
-.btn-stop { background-color: var(--danger-color); color: white; height: 30px; }
-.btn-stop:hover { background-color: #dc2626; }
+.btn-stop { 
+  background-color: var(--danger-color); 
+  color: var(--text-inverse); 
+  height: 30px; 
+}
+.btn-stop:hover { 
+  background-color: var(--danger-dark); 
+}
 
 /* 主题切换按钮 */
 #theme-toggle {
   position: absolute;
   right: 20px;
-  background-color: #374151;
-  color: white;
+  background-color: var(--gray-700);
+  color: var(--text-inverse);
   border: none;
   border-radius: 20px;
   padding: 5px 15px;
@@ -153,7 +296,7 @@ select {
 }
 
 #theme-toggle:hover {
-  background-color: #3b6fd9;
+  background-color: var(--primary-light);
 }
 
 /* ================================
@@ -161,7 +304,7 @@ select {
 ================================ */
 .tabs {
   display: flex;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-light);
   margin: 1rem 0;
 }
 
@@ -180,14 +323,14 @@ select {
 }
 
 .tab-btn:hover {
-  background-color: #f9fafb;
+  background-color: var(--gray-50);
 }
 
 /* ================================
   🌟 卡片布局样式
 ================================ */
 .card {
-  background-color: white;
+  background-color: var(--bg-card);
   border-radius: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: 24px;
@@ -219,7 +362,7 @@ select {
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
   font-size: 0.75rem;
-  color: white;
+  color: var(--text-inverse);
 }
 
 .badge-inactive { background-color: var(--gray-medium); }
@@ -242,11 +385,11 @@ select {
 @media (max-width: 2048px) {
   h1 {
     width: 100%;
-    text-align: center; /* 或 center */
+    text-align: center;
   }
   #theme-toggle {
-    position: static; /* 取消绝对定位 */
-    order: 3; /* 小屏下放到最后 */
+    position: static;
+    order: 3;
   }
 }
 
@@ -254,75 +397,83 @@ select {
   🌟 暗黑模式
 ================================ */
 .dark-theme {
-  background-color: #1a1a1a;
-  color: #e0e0e0;
+  background-color: var(--dark-bg-body);
+  color: var(--dark-text-secondary);
 }
 
 .dark-theme body,
 .dark-theme .container {
-  background-color: #1a1a1a;
-  color: #e0e0e0;
+  background-color: var(--dark-bg-body);
+  color: var(--dark-text-secondary);
 }
 
 .dark-theme header {
-  background-color: #1a1a1a; /* 深蓝灰 */
-  color: #f3f4f6;
+  background-color: var(--dark-bg-body);
+  color: var(--dark-text-primary);
 }
 
 .dark-theme h1 {
-  color: #f3f4f6;
+  color: var(--dark-text-primary);
 }
 
 .dark-theme .control-panel select,
 .dark-theme .control-panel button {
-  background-color: #374151;
-  color: #f3f4f6;
-  border: 1px solid #4b5563;
+  background-color: var(--gray-700);
+  color: var(--dark-text-primary);
+  border: 1px solid var(--dark-border);
 }
 
-.dark-theme .btn-stop:hover { background-color: #4b5563; }
+.dark-theme .btn-stop:hover { 
+  background-color: var(--dark-border); 
+}
 
 .dark-theme #theme-toggle {
-  background-color: #3b6fd9;
-  color: #f3f4f6;
-  border: 1px solid #4b5563;
+  background-color: var(--primary-light);
+  color: var(--dark-text-primary);
+  border: 1px solid var(--dark-border);
 }
 
 .dark-theme #theme-toggle:hover {
-  background-color: #4b5563;
+  background-color: var(--dark-border);
 }
 
 .dark-theme .tabs {
-  border-bottom: 2px solid #374151;
+  border-bottom: 2px solid var(--gray-700);
 }
 
 .dark-theme .tab-btn {
-  color: #cbd5e1;
+  color: var(--gray-300);
 }
 
 .dark-theme .tab-btn.active {
-  color: #3b82f6;
+  color: var(--primary-color);
   border-bottom: none;
 }
 
 .dark-theme .tab-btn:hover {
-  background-color: #2a2a2a;
+  background-color: var(--dark-bg-card);
 }
 
 .dark-theme .card {
-  background-color: #2a2a2a;
-  color: #e0e0e0;
+  background-color: var(--dark-bg-card);
+  color: var(--dark-text-secondary);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 .dark-theme .card-title {
-  color: #f3f4f6;
+  color: var(--dark-text-primary);
 }
 
-.dark-theme .badge-running { background-color: #16a34a; }
-.dark-theme .badge-inactive { background-color: #6b7280; }
+.dark-theme .badge-running { 
+  background-color: var(--success-dark); 
+}
+.dark-theme .badge-inactive { 
+  background-color: var(--gray-500); 
+}
 
-.dark-theme .text-gray { color: #9ca3af; }
+.dark-theme .text-gray { 
+  color: var(--gray-400); 
+}
 
 /* ================================
   🌟 可选：全局辅助样式

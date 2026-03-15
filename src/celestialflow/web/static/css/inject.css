@@ -2,8 +2,8 @@
   🌟 提示区域
 ================================ */
 #task-injection .tip-section {
-  background: #dbeafe;
-  border-left: 4px solid #3b82f6;
+  background: var(--summary-blue-bg);
+  border-left: 4px solid var(--primary-color);
   padding: 16px;
   margin-bottom: 32px;
   border-radius: 0 8px 8px 0;
@@ -17,12 +17,12 @@
 #task-injection .tip-icon {
   width: 20px;
   height: 20px;
-  color: #3b82f6;
+  color: var(--primary-color);
   margin-right: 12px;
 }
 
 #task-injection .tip-text {
-  color: #1e40af;
+  color: var(--summary-blue-value);
   font-size: 14px;
 }
 
@@ -51,7 +51,7 @@
 #task-injection .card-title {
   font-size: 18px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--gray-800);
   margin-bottom: 16px;
 }
 
@@ -66,7 +66,7 @@
 #task-injection .search-input {
   width: 100%;
   padding: 8px 12px 8px 40px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-medium);
   border-radius: 8px;
   font-size: 14px;
   outline: none;
@@ -74,7 +74,6 @@
 }
 
 #task-injection .search-input:focus {
-  /* ring: 2px solid #3b82f6; */
   border-color: transparent;
 }
 
@@ -85,7 +84,7 @@
   transform: translateY(-50%);
   width: 16px;
   height: 16px;
-  color: #9ca3af;
+  color: var(--gray-400);
 }
 
 /* ================================
@@ -107,21 +106,21 @@
 }
 
 #task-injection .btn-select {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--summary-blue-bg);
+  color: var(--summary-blue-value);
 }
 
 #task-injection .btn-select:hover {
-  background: #bfdbfe;
+  background: var(--gray-200);
 }
 
 #task-injection .btn-clear {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--gray-100);
+  color: var(--gray-700);
 }
 
 #task-injection .btn-clear:hover {
-  background: #e5e7eb;
+  background: var(--border-light);
 }
 
 /* ================================
@@ -136,7 +135,7 @@
   display: flex;
   align-items: center;
   padding: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   margin-bottom: 8px;
   cursor: pointer;
@@ -145,18 +144,18 @@
 }
 
 #task-injection .node-item:hover {
-  background: #f9fafb;
+  background: var(--gray-50);
 }
 
 #task-injection .node-name {
   font-weight: 500;
-  color: #1f2937;
+  color: var(--gray-800);
   margin-bottom: 4px;
 }
 
 #task-injection .node-id {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--gray-500);
 }
 
 #task-injection .node-type {
@@ -168,28 +167,28 @@
 
 /* 节点类型样式 */
 #task-injection .type-processing {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--type-processing-bg);
+  color: var(--type-processing-text);
 }
 #task-injection .type-analysis {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--type-analysis-bg);
+  color: var(--type-analysis-text);
 }
 #task-injection .type-storage {
-  background: #f3e8ff;
-  color: #7c3aed;
+  background: var(--type-storage-bg);
+  color: var(--type-storage-text);
 }
 #task-injection .type-compute {
-  background: #fed7aa;
-  color: #c2410c;
+  background: var(--type-compute-bg);
+  color: var(--type-compute-text);
 }
 #task-injection .type-network {
-  background: #fef3c7;
-  color: #a16207;
+  background: var(--type-network-bg);
+  color: var(--type-network-text);
 }
 #task-injection .type-monitoring {
-  background: #fecaca;
-  color: #dc2626;
+  background: var(--type-monitoring-bg);
+  color: var(--type-monitoring-text);
 }
 
 /* 已选节点区 */
@@ -204,7 +203,7 @@
 
 #task-injection .selected-title {
   font-weight: 500;
-  color: #1f2937;
+  color: var(--gray-800);
   margin-bottom: 8px;
 }
 
@@ -212,7 +211,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #dbeafe;
+  background: var(--summary-blue-bg);
   padding: 8px 12px;
   border-radius: 8px;
   margin-bottom: 4px;
@@ -220,25 +219,25 @@
 
 #task-injection .selected-name {
   font-size: 14px;
-  color: #1e40af;
+  color: var(--summary-blue-value);
 }
 
 #task-injection .remove-btn {
   background: none;
   border: none;
-  color: #3b82f6;
+  color: var(--primary-color);
   cursor: pointer;
   padding: 2px;
   border-radius: 4px;
 }
 
 #task-injection .remove-btn:hover {
-  color: #1d4ed8;
+  color: var(--primary-dark);
 }
 
 .disabled-node {
   opacity: 0.5;
-  pointer-events: none; /* 禁止点击 */
+  pointer-events: none;
   cursor: not-allowed;
 }
 
@@ -247,7 +246,7 @@
 ================================ */
 #task-injection .input-toggle {
   display: flex;
-  background: #f3f4f6;
+  background: var(--gray-100);
   border-radius: 8px;
   padding: 4px;
   margin-bottom: 16px;
@@ -265,13 +264,13 @@
   font-weight: 500;
   cursor: pointer;
   background: transparent;
-  color: #6b7280;
+  color: var(--gray-500);
   transition: all 0.2s;
 }
 
 #task-injection .toggle-btn.active {
-  background: white;
-  color: #1f2937;
+  background: var(--bg-card);
+  color: var(--gray-800);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -305,25 +304,25 @@
 #task-injection .json-label {
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--gray-700);
 }
 
 #task-injection .example-btn {
   font-size: 14px;
-  color: #3b82f6;
+  color: var(--primary-color);
   background: none;
   border: none;
   cursor: pointer;
 }
 
 #task-injection .example-btn:hover {
-  color: #1d4ed8;
+  color: var(--primary-dark);
 }
 
 #task-injection .json-textarea {
   width: 100%;
   padding: 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-medium);
   border-radius: 8px;
   font-family: "Monaco", "Menlo", monospace;
   font-size: 12px;
@@ -334,19 +333,18 @@
 }
 
 #task-injection .json-textarea:focus {
-  /* ring: 2px solid #3b82f6; */
   border-color: transparent;
 }
 
 #task-injection .error-message {
   margin-top: 4px;
   font-size: 12px;
-  color: #dc2626;
+  color: var(--danger-dark);
 }
 
 /* 文件上传区 */
 #task-injection #file-input-section {
-  border: 2px dashed #d1d5db;
+  border: 2px dashed var(--border-medium);
   border-radius: 8px;
   min-height: 250px;
   flex: 1;
@@ -363,25 +361,25 @@
 }
 
 #task-injection .upload-area:hover {
-  border-color: #9ca3af;
+  border-color: var(--gray-400);
 }
 
 #task-injection .upload-icon {
   width: 48px;
   height: 48px;
-  color: #9ca3af;
+  color: var(--gray-400);
   margin: 0 auto 16px;
 }
 
 #task-injection .upload-text {
   font-weight: 500;
-  color: #1f2937;
+  color: var(--gray-800);
   margin-bottom: 4px;
 }
 
 #task-injection .upload-hint {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--gray-500);
 }
 
 #task-injection .file-input {
@@ -392,8 +390,8 @@
 #task-injection .file-info {
   margin-top: 16px;
   padding: 12px;
-  background: #dcfce7;
-  border: 1px solid #bbf7d0;
+  background: var(--file-success-bg);
+  border: 1px solid var(--file-success-border);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -402,13 +400,13 @@
 #task-injection .file-icon {
   width: 20px;
   height: 20px;
-  color: #16a34a;
+  color: var(--file-success-icon);
   margin-right: 8px;
 }
 
 #task-injection .file-name {
   font-size: 14px;
-  color: #166534;
+  color: var(--file-success-text);
 }
 
 /* ================================
@@ -435,16 +433,16 @@
 }
 
 #task-injection .status-success {
-  color: #16a34a;
+  color: var(--success-dark);
 }
 #task-injection .status-error {
-  color: #dc2626;
+  color: var(--danger-dark);
 }
 
 #task-injection .submit-btn {
   padding: 12px 24px;
-  background: #3b82f6;
-  color: white;
+  background: var(--primary-color);
+  color: var(--text-inverse);
   border: none;
   border-radius: 8px;
   font-weight: 500;
@@ -454,12 +452,12 @@
 }
 
 #task-injection .submit-btn:hover {
-  background: #2563eb;
+  background: var(--primary-hover);
   transform: translateY(-1px);
 }
 
 #task-injection .submit-btn:disabled {
-  background: #9ca3af;
+  background: var(--gray-400);
   cursor: not-allowed;
   transform: none;
 }
@@ -467,7 +465,7 @@
 #task-injection .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--text-inverse);
   border-top: 2px solid transparent;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -500,88 +498,88 @@
   🌙 暗黑模式：提示区域
 ================================ */
 .dark-theme #task-injection .tip-section {
-  background: #1e3a8a;
-  border-left: 4px solid #3b82f6;
+  background: var(--summary-blue-bg-dark);
+  border-left: 4px solid var(--primary-color);
 }
 
 .dark-theme #task-injection .tip-text {
-  color: #c7d2fe;
+  color: var(--gray-300);
 }
 
 /* ================================
   🌙 暗黑模式：卡片 & 标题
 ================================ */
 .dark-theme #task-injection .card {
-  background-color: #2a2a2a;
-  color: #e0e0e0;
+  background-color: var(--dark-bg-card);
+  color: var(--dark-text-secondary);
 }
 
 .dark-theme #task-injection .card-title {
-  color: #f3f4f6;
+  color: var(--dark-text-primary);
 }
 
 /* ================================
   🌙 暗黑模式：搜索框
 ================================ */
 .dark-theme #task-injection .search-input {
-  background-color: #374151;
-  border: 1px solid #4b5563;
-  color: #f3f4f6;
+  background-color: var(--dark-bg-input);
+  border: 1px solid var(--dark-border);
+  color: var(--dark-text-primary);
 }
 
 .dark-theme #task-injection .search-icon {
-  color: #9ca3af;
+  color: var(--gray-400);
 }
 
 /* ================================
   🌙 暗黑模式：按钮组
 ================================ */
 .dark-theme #task-injection .btn-select {
-  background: #3b82f6;
-  color: #ffffff;
+  background: var(--primary-color);
+  color: var(--text-inverse);
 }
 
 .dark-theme #task-injection .btn-select:hover {
-  background: #2563eb;
+  background: var(--primary-hover);
 }
 
 .dark-theme #task-injection .btn-clear {
-  background: #4b5563;
-  color: #f3f4f6;
+  background: var(--dark-border);
+  color: var(--dark-text-primary);
 }
 
 .dark-theme #task-injection .btn-clear:hover {
-  background: #374151;
+  background: var(--dark-bg-input);
 }
 
 /* ================================
   🌙 暗黑模式：节点列表 & 已选节点
 ================================ */
 .dark-theme #task-injection .selected-title {
-  color: #f3f4f6;
+  color: var(--dark-text-primary);
 }
 
 .dark-theme #task-injection .node-item {
-  background-color: #374151;
-  border: 1px solid #4b5563;
-  color: #e0e0e0;
+  background-color: var(--dark-bg-input);
+  border: 1px solid var(--dark-border);
+  color: var(--dark-text-secondary);
 }
 
 .dark-theme #task-injection .node-item:hover {
-  background-color: #4b5563;
+  background-color: var(--dark-border);
 }
 
 .dark-theme #task-injection .selected-item {
-  background: #3b82f6;
-  color: #ffffff;
+  background: var(--primary-color);
+  color: var(--text-inverse);
 }
 
 .dark-theme #task-injection .selected-name {
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
 .dark-theme #task-injection .node-name {
-    color: #f3f4f6;
+    color: var(--dark-text-primary);
 }
 /* 节点类型在暗黑模式下仍然保留背景色彩（保持视觉层次） */
 
@@ -589,80 +587,79 @@
   🌙 暗黑模式：输入方式切换
 ================================ */
 .dark-theme #task-injection .input-toggle {
-  background: #374151;
+  background: var(--dark-bg-input);
 }
 
 .dark-theme #task-injection .toggle-btn {
-  color: #9ca3af;
+  color: var(--gray-400);
 }
 
 .dark-theme #task-injection .toggle-btn.active {
-  background: #4b5563;
-  color: #f3f4f6;
+  background: var(--dark-border);
+  color: var(--dark-text-primary);
 }
 
 /* ================================
   🌙 暗黑模式：JSON输入 & 文件上传区
 ================================ */
 .dark-theme #task-injection .json-textarea {
-  background: #374151;
-  border: 1px solid #4b5563;
-  color: #f3f4f6;
+  background: var(--dark-bg-input);
+  border: 1px solid var(--dark-border);
+  color: var(--dark-text-primary);
 }
 
 .dark-theme #task-injection .json-label {
-  color: #f3f4f6;
+  color: var(--dark-text-primary);
 }
 
 .dark-theme #task-injection .upload-area {
-  border: 2px dashed #4b5563;
-  color: #e5e7eb;
+  border: 2px dashed var(--dark-border);
+  color: var(--dark-text-secondary);
 }
 
 .dark-theme #task-injection .upload-area:hover {
-  border-color: #6b7280;
+  border-color: var(--gray-500);
 }
 
 .dark-theme #task-injection .upload-text {
-  color: #e5e7eb;
+  color: var(--dark-text-secondary);
 }
 
 .dark-theme #task-injection .upload-hint {
-  color: #9ca3af;
+  color: var(--gray-400);
 }
 
 .dark-theme #task-injection .file-info {
-  background: #166534;
-  border-color: #14532d;
-  color: #d1fae5;
+  background: var(--summary-green-bg-dark);
+  border-color: var(--summary-green-bg-dark);
+  color: var(--summary-green-value-dark);
 }
 
 .dark-theme #task-injection .file-name {
-  color: #d1fae5;
+  color: var(--summary-green-value-dark);
 }
 
 /* ================================
   🌙 暗黑模式：提交区域 & 状态提示
 ================================ */
 .dark-theme #task-injection .submit-btn {
-  background: #2563eb;
-  color: #f3f4f6;
+  background: var(--primary-hover);
+  color: var(--dark-text-primary);
 }
 
 .dark-theme #task-injection .submit-btn:hover {
-  background: #1d4ed8;
+  background: var(--primary-dark);
 }
 
 .dark-theme #task-injection .submit-btn:disabled {
-  background: #6b7280;
-  color: #d1d5db;
+  background: var(--gray-500);
+  color: var(--gray-300);
 }
 
 .dark-theme #task-injection .status-success {
-  color: #22c55e;
+  color: var(--success-light);
 }
 
 .dark-theme #task-injection .status-error {
-  color: #f87171;
+  color: var(--danger-light);
 }
-

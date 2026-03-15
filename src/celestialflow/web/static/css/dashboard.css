@@ -14,8 +14,8 @@
 ================================ */
 .three-column-container {
   display: flex;
-  width: 100vw; /* 全屏宽度 */
-  margin-left: calc(-50vw + 50%); /* 左侧“负 margin”抵消 container 居中限制 */
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
   margin-right: calc(-50vw + 50%);
   justify-content: space-evenly;
 }
@@ -52,15 +52,8 @@
   justify-content: center;
   align-items: center;
   padding: 1rem;
-  overflow-x: auto; /* 如果图太宽，可以横向滚动 */
+  overflow-x: auto;
 }
-
-/* #mermaid-container rect {
-  fill: #ffffff !important;
-  stroke: #cccccc !important;     
-  stroke-width: 1.5px !important;  
-  rx: 4px !important;             
-} */
 
 /* ================================
   🌟 图拓扑信息
@@ -87,15 +80,15 @@
 }
 
 .topology-row .value.ok {
-  color: #16a34a;
+  color: var(--color-ok);
 }
 
 .topology-row .value.warn {
-  color: #dc2626;
+  color: var(--color-warn);
 }
 
 .placeholder {
-  color: #9ca3af;
+  color: var(--gray-400);
   font-style: italic;
 }
 
@@ -224,7 +217,6 @@
 ================================ */
 .summary-card {
   grid-column: span 2;
-  /* margin-top: 1rem; */
 }
 
 .summary-grid {
@@ -258,7 +250,6 @@
   &.purple { color: var(--summary-purple-value); .dark-theme & { color: var(--summary-purple-value-dark); } }
 }
 
-
 .summary-label {
   font-size: 0.875rem;
   color: var(--gray-dark);
@@ -289,10 +280,10 @@
   }
   .card-header {
     flex-wrap: wrap;
-    word-break: break-word; /* 如果标题很长，强制换行 */
+    word-break: break-word;
   }
   .card-title {
-    flex: 1 1 100%; /* 让标题独占一行（可选） */
+    flex: 1 1 100%;
   }
 }
 
@@ -300,26 +291,19 @@
   🌟 暗黑模式适配
 ================================ */
 .dark-theme .mermaid .arrowMarkerPath {
-  fill: #e5e7eb; /* 浅灰箭头 */
+  fill: var(--mermaid-arrow);
 }
 
 .dark-theme .mermaid span {
-  color: #d1d5db !important;
+  color: var(--mermaid-text) !important;
 }
-
-/* .dark-theme #mermaid-container rect {
-  fill: #2a2a2a !important;         
-  stroke: #4b5563 !important;       
-  stroke-width: 1.5px !important;
-  rx: 4px !important;             
-} */
 
 .dark-theme .topology-row .label {
   color: var(--gray-medium);
 }
 
 .dark-theme .summary-label {
-  color: #9ca3af;
+  color: var(--gray-400);
 }
 
 .dark-theme .stat-label {
@@ -327,40 +311,40 @@
 }
 
 .dark-theme .progress-bar {
-  background-color: #374151;
+  background-color: var(--gray-700);
 }
 
 .dark-theme .progress-value {
-  background-color: #3b82f6;
+  background-color: var(--primary-color);
 }
 
 .dark-theme .graph-container {
-  background-color: #2d2d2d;
+  background-color: var(--dark-bg-elevated);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .dark-theme .graph-node {
-  background-color: #3a3a3a;
-  border-left: 4px solid #5e91ff;
+  background-color: var(--graph-node-bg);
+  border-left: 4px solid var(--graph-node-border);
 }
 
 .dark-theme .graph-node:hover {
-  background-color: #454545;
+  background-color: var(--graph-node-hover);
 }
 
 .dark-theme .stage-name {
-  color: #7eaeff;
+  color: var(--stage-name);
 }
 .dark-theme .stage-mode {
-  color: #b0b0b0;
+  color: var(--stage-mode);
 }
 .dark-theme .stage-func {
-  background-color: #333;
-  color: #ff6090;
+  background-color: var(--stage-func-bg);
+  color: var(--stage-func-text);
 }
 .dark-theme .visited-mark {
-  background-color: #4a2424;
-  color: #ff6b6b;
+  background-color: var(--visited-mark-bg);
+  color: var(--visited-mark-text);
 }
 
 /* ================================
