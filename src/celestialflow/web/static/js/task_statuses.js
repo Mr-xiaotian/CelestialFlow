@@ -122,7 +122,7 @@ function renderDashboard() {
               data.tasks_pending,
               data.add_tasks_pending
             )}</div></div>
-            <div><div class="stat-label">错误</div><div class="stat-value text-red">${formatWithDelta(
+            <div><div class="stat-label">错误</div><div class="stat-value text-red error-clickable" data-node="${node}">${formatWithDelta(
               data.tasks_failed,
               data.add_tasks_failed
             )}</div></div>
@@ -154,6 +154,17 @@ function renderDashboard() {
             </div>
           </div>
         `;
+    
+    // 为错误数添加点击事件（跳转到错误日志页面并筛选该节点）
+    const errorValue = card.querySelector(".error-clickable");
+    if (errorValue) {
+      errorValue.addEventListener("click", (e) => {
+        e.stopPropagation(); // 阻止事件冒泡
+        const nodeName = errorValue.getAttribute("data-node");
+        jumpToErrorsTab(nodeName);
+      });
+    }
+    
     dashboardGrid.appendChild(card);
   }
 }
@@ -258,4 +269,34 @@ function updateChartData() {
   progressChart.data.datasets = datasets;
 
   progressChart.update();
+}
+
+/**
+ * 跳转到错误日志标签页并筛选指定节点
+ * @param {string} nodeName - 要筛选的节点名称
+ */
+function jumpToErrorsTab(nodeName) {
+  // 1. 切换到错误日志标签页
+  const tabButtons = document.querySelectorAll(".tab-btn");
+  const tabContents = document.querySelectorAll(".tab-content");
+  
+  tabButtons.forEach((b) => b.classList.remove("active"));
+  tabContents.forEach((c) => c.classList.remove("active"));
+  
+  // 激活错误日志标签
+  const errorsTabBtn = document.querySelector('.tab-btn[data-tab="errors"]');
+  const errorsTabContent = document.getElementById("errors");
+  
+  if (errorsTabBtn && errorsTabContent) {
+    errorsTabBtn.classList.add("active");
+    errorsTabContent.classList.add("active");
+  }
+  
+  // 2. 设置节点筛选器的值并触发筛选
+  const nodeFilter = document.getElementById("node-filter");
+  if (nodeFilter) {
+    nodeFilter.value = nodeName;
+    // 触发 change 事件
+    nodeFilter.dispatchEvent(new Event("change"));
+  }
 }

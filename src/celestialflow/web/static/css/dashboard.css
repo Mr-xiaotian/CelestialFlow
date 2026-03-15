@@ -194,7 +194,6 @@
 #dashboard-grid .card {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   margin: 0.5rem;
-  cursor: pointer;
   padding: 1rem;
 }
 
@@ -362,4 +361,14 @@
 .dark-theme .visited-mark {
   background-color: #4a2424;
   color: #ff6b6b;
+}
+
+/* ================================
+  🌟 错误数交互样式
+================================ */
+
+/* 错误数可点击提示（节点卡片和摘要卡片） */
+.stat-value.error-clickable,
+.summary-value.error-clickable {
+  cursor: pointer;
 }
