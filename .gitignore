@@ -64,3 +64,4 @@ fallback/
 examples/
 result.json
 *.exe
+node_modules/

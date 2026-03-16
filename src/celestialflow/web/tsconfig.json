@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "none",
+    "lib": ["ES2020", "DOM"],
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "rootDir": "static/ts",
+    "outDir": "static/js"
+  },
+  "include": ["static/ts/**/*.ts", "static/ts/**/*.d.ts"]
+}
