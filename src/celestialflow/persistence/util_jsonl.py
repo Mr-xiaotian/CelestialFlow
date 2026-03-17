@@ -1,4 +1,4 @@
-# persistence/jsonl.py
+# persistence/util_jsonl.py
 import json
 import ast
 from collections import defaultdict

@@ -1,4 +1,4 @@
-# graph/analysis.py
+# graph/util_analysis.py
 import networkx as nx
 from networkx import is_directed_acyclic_graph
 from typing import Dict, Any, List

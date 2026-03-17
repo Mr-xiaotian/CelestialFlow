@@ -1,4 +1,4 @@
-# persistence/base.py
+# persistence/core_base.py
 from __future__ import annotations
 
 from multiprocessing import Queue as MPQueue

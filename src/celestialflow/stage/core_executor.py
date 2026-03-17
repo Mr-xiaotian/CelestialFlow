@@ -1,4 +1,4 @@
-# stage/executor.py
+# stage/core_executor.py
 from __future__ import annotations
 from typing import Callable
 

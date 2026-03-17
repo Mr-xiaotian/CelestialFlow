@@ -1,4 +1,4 @@
-# graph/structure.py
+# graph/core_structure.py
 from typing import List
 
 from ..stage import TaskStage
