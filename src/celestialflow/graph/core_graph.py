@@ -83,33 +83,36 @@ class TaskGraph:
         self.set_ctree()
 
         self.init_env()
-        self.init_structure_graph()
-        self.analyze_graph()
         self.set_schedule_mode(schedule_mode)
 
     def init_env(self):
         """
         初始化环境
         """
-        self.processes: List[multiprocessing.Process] = []
-
         self.init_state()
         self.init_listener()
         self.init_sinker()
         self.init_resources()
+        self.init_analyze()
 
     def init_state(self):
         """
         初始化状态
         """
+        # 用于保存所有子进程的引用
+        self.processes: List[multiprocessing.Process] = []  
+        # 用于保存每个节点的运行信息
         self.stage_runtime_dict: Dict[str, dict] = defaultdict(
             dict
-        )  # 用于保存每个节点的运行信息
+        )  
+        # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
         self.status_dict: Dict[str, dict] = defaultdict(
             dict
-        )  # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
-        self.graph_summary: Dict[str, int | float] = {}
-        self.input_ids: Dict[str, set] = defaultdict(set)
+        )  
+        # 用于保存任务图的摘要信息
+        self.graph_summary: Dict[str, int | float] = {} 
+        # 用于保存每个节点的输入任务ID集合 
+        self.input_ids: Dict[str, set] = defaultdict(set)  
 
     def init_listener(self):
         """
@@ -176,11 +179,19 @@ class TaskGraph:
                     prev_out_queue: TaskOutQueue = self.stage_runtime_dict[prev_stage_tag]["out_queue"]
                     prev_out_queue.add_queue(in_queue.queue, stage_tag)
 
-    def init_structure_graph(self):
+    def init_analyze(self):
         """
-        初始化任务图结构
+        分析任务图，计算 DAG 属性和层级信息
         """
         self.structure_json = build_structure_graph(self.root_stages)
+        self.structure_list = format_structure_list_from_graph(self.structure_json)
+        self.networkx_graph = format_networkx_graph(self.structure_json)
+
+        self.isDAG = is_directed_acyclic_graph(self.networkx_graph)
+        self.layers_dict = {}
+        if self.isDAG:
+            stage_level_dict = compute_node_levels(self.networkx_graph)
+            self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
     def set_root_stages(self, root_stages: List[TaskStage]):
         """
@@ -648,21 +659,33 @@ class TaskGraph:
         }
 
     def get_structure_json(self) -> List[dict]:
+        """
+        获取任务图的 JSON 结构
+        """
         return self.structure_json
 
     def get_structure_list(self) -> List[str]:
-        return format_structure_list_from_graph(self.structure_json)
+        """
+        获取任务图的结构列表
+        """
+        return self.structure_list
 
     def get_networkx_graph(self):
         """
         获取任务图的 networkx 有向图（DiGraph）
         """
-        return format_networkx_graph(self.structure_json)
+        return self.networkx_graph
 
     def get_fallback_path(self) -> str:
+        """
+        获取失败任务的回退路径
+        """
         return str(self.fail_listener.jsonl_path.resolve())
 
     def get_stage_input_trace(self, stage_tag: str) -> str:
+        """
+        获取任务节点的输入依赖关系树
+        """
         if not self._use_ctree:
             return ""
 
@@ -671,17 +694,8 @@ class TaskGraph:
         return format_descendants_forest(descendants, STAGE_STYLE)
 
     def get_error_trace(self, error_id):
+        """
+        获取错误任务的依赖关系树
+        """
         provenance = self.ctree_client.provenance(error_id)
         return format_provenance_forest(provenance, STAGE_STYLE)
-
-    def analyze_graph(self):
-        """
-        分析任务图，计算 DAG 属性和层级信息
-        """
-        self.networkx_graph = self.get_networkx_graph()
-        self.layers_dict = {}
-
-        self.isDAG = is_directed_acyclic_graph(self.networkx_graph)
-        if self.isDAG:
-            stage_level_dict = compute_node_levels(self.networkx_graph)
-            self.layers_dict = cluster_by_value_sorted(stage_level_dict)
