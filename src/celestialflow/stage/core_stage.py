@@ -109,7 +109,7 @@ class TaskStage(TaskExecutor):
 
         :param prev_stage: 前置节点
         """
-        from .core_nodes import TaskSplitter, TaskRouter
+        from .core_stages import TaskSplitter, TaskRouter
 
         if prev_stage in self.prev_stages:
             return
@@ -141,7 +141,7 @@ class TaskStage(TaskExecutor):
         """
         绑定前置节点
         """
-        from .core_nodes import TaskRouter
+        from .core_stages import TaskRouter
 
         if not self._pending_prev_bindings:
             return
