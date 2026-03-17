@@ -26,10 +26,10 @@ def make_hashable(obj) -> Any:
 
 def object_to_str_hash(obj) -> str:
     """
-    将任意对象转换为 MD5 字符串。
+    将任意对象转换为 SHA1 字符串。
 
     :param obj: 任意对象
-    :return: MD5 字符串
+    :return: SHA1 字符串
     """
-    obj_bytes = pickle.dumps(obj)  # 序列化对象
-    return hashlib.md5(obj_bytes).hexdigest()
+    obj_bytes = pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL)
+    return hashlib.sha1(obj_bytes).hexdigest()
