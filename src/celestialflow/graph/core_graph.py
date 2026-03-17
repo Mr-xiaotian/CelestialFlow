@@ -14,13 +14,13 @@ from celestialtree import (
 )
 
 from ..runtime import TaskInQueue, TaskOutQueue, TaskEnvelope
-from ..runtime.estimators import (
+from ..runtime.util_estimators import (
     calc_elapsed,
     calc_remaining,
     calc_global_remain_equal_pred,
 )
-from ..runtime.errors import UnconsumedError
-from ..runtime.types import (
+from ..runtime.util_errors import UnconsumedError
+from ..runtime.util_types import (
     StageStatus,
     TerminationSignal,
     STAGE_STYLE,
@@ -28,15 +28,15 @@ from ..runtime.types import (
 from ..stage import TaskStage
 from ..observability import TaskReporter, NullTaskReporter
 from ..persistence import FailListener, FailSinker, LogListener, LogSinker
-from ..persistence.jsonl import load_task_by_stage, load_task_by_error
-from ..utils.collections import cluster_by_value_sorted
-from ..utils.format import format_avg_time
-from .analysis import (
+from ..persistence.util_jsonl import load_task_by_stage, load_task_by_error
+from ..utils.util_collections import cluster_by_value_sorted
+from ..utils.util_format import format_avg_time
+from .util_analysis import (
     format_networkx_graph,
     compute_node_levels,
     is_directed_acyclic_graph,
 )
-from .serialize import build_structure_graph, format_structure_list_from_graph
+from .util_serialize import build_structure_graph, format_structure_list_from_graph
 
 
 class TaskGraph:

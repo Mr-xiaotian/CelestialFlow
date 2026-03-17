@@ -8,10 +8,10 @@ from threading import Event, Lock
 from typing import TYPE_CHECKING
 
 from . import TaskEnvelope, TaskProgress
-from .types import TerminationSignal, TerminationIdPool
+from .util_types import TerminationSignal, TerminationIdPool
 
 if TYPE_CHECKING:
-    from ..stage.executor import TaskExecutor
+    from ..stage.core_executor import TaskExecutor
 
 
 class TaskRunner:

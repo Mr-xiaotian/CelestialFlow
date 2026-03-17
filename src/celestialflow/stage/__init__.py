@@ -1,7 +1,7 @@
 # stage/__init__.py
-from .executor import TaskExecutor
-from .stage import TaskStage
-from .nodes import (
+from .core_executor import TaskExecutor
+from .core_stage import TaskStage
+from .core_nodes import (
     TaskSplitter,
     TaskRedisTransport,
     TaskRedisSource,

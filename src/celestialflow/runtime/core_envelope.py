@@ -1,5 +1,5 @@
 # runtime/envelope.py
-from ..runtime.hash import make_hashable, object_to_str_hash
+from .util_hash import make_hashable, object_to_str_hash
 
 
 class TaskEnvelope:

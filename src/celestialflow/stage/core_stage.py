@@ -8,10 +8,10 @@ from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 
 from ..runtime import TaskInQueue, TaskOutQueue, TaskMetrics
-from ..runtime.errors import ExecutionModeError, StageModeError, PickleError
-from ..runtime.types import StageStatus
-from ..utils.debug import find_unpickleable
-from .executor import TaskExecutor
+from ..runtime.util_errors import ExecutionModeError, StageModeError, PickleError
+from ..runtime.util_types import StageStatus
+from ..utils.util_debug import find_unpickleable
+from .core_executor import TaskExecutor
 
 
 class TaskStage(TaskExecutor):
@@ -109,7 +109,7 @@ class TaskStage(TaskExecutor):
 
         :param prev_stage: 前置节点
         """
-        from .nodes import TaskSplitter, TaskRouter
+        from .core_nodes import TaskSplitter, TaskRouter
 
         if prev_stage in self.prev_stages:
             return
@@ -141,7 +141,7 @@ class TaskStage(TaskExecutor):
         """
         绑定前置节点
         """
-        from .nodes import TaskRouter
+        from .core_nodes import TaskRouter
 
         if not self._pending_prev_bindings:
             return

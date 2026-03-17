@@ -8,8 +8,8 @@ from typing import Any
 
 from ..graph import TaskGraph
 from ..stage import TaskExecutor
-from .clone import clone_executor, clone_graph
-from .format import format_table
+from .util_clone import clone_executor, clone_graph
+from .util_format import format_table
 
 
 async def benchmark_executor(

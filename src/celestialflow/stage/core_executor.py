@@ -22,16 +22,16 @@ from ..runtime import (
     TaskOutQueue,
     TaskRunner,
 )
-from ..runtime.errors import ExecutionModeError
-from ..runtime.factories import (
+from ..runtime.util_errors import ExecutionModeError
+from ..runtime.util_factories import (
     make_queue_backend,
     make_task_in_queue,
     make_task_out_queue,
 )
-from ..runtime.types import (
+from ..runtime.util_types import (
     TerminationSignal,
 )
-from ..utils.format import format_repr
+from ..utils.util_format import format_repr
 
 
 class TaskExecutor:

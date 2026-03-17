@@ -1,6 +1,6 @@
 # graph/__init__.py
-from .graph import TaskGraph
-from .structure import (
+from .core_graph import TaskGraph
+from .core_structure import (
     TaskChain,
     TaskLoop,
     TaskCross,

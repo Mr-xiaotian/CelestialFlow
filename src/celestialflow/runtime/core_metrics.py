@@ -2,10 +2,10 @@
 import asyncio
 from threading import Lock
 
-from ..runtime.factories import (
+from .util_factories import (
     make_counter,
 )
-from ..runtime.types import SumCounter
+from .util_types import SumCounter
 
 
 class TaskMetrics:

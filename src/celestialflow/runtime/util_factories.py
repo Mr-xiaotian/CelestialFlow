@@ -6,8 +6,8 @@ from _thread import LockType
 from threading import Lock
 from typing import TYPE_CHECKING
 
-from .types import ValueWrapper
-from .queue import TaskInQueue, TaskOutQueue
+from .util_types import ValueWrapper
+from .core_queue import TaskInQueue, TaskOutQueue
 
 if TYPE_CHECKING:
     from ..stage import TaskExecutor

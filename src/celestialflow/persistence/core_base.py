@@ -5,8 +5,8 @@ from multiprocessing import Queue as MPQueue
 from queue import Empty
 from threading import Thread
 
-from ..runtime.tools import cleanup_mpqueue
-from ..runtime.types import TerminationSignal, TERMINATION_SIGNAL
+from ..runtime.util_tools import cleanup_mpqueue
+from ..runtime.util_types import TerminationSignal, TERMINATION_SIGNAL
 
 
 class BaseListener:

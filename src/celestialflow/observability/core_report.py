@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, List
 import requests
 
 from ..persistence import LogSinker
-from ..persistence.jsonl import load_jsonl_logs
-from ..runtime.types import TERMINATION_SIGNAL
+from ..persistence.util_jsonl import load_jsonl_logs
+from ..runtime.util_types import TERMINATION_SIGNAL
 
 if TYPE_CHECKING:
     from ..graph import TaskGraph

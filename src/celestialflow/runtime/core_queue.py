@@ -6,8 +6,8 @@ from multiprocessing import Queue as MPQueue
 from asyncio import Queue as AsyncQueue
 from queue import Queue as ThreadQueue, Empty as SyncEmpty
 
-from .envelope import TaskEnvelope
-from .types import TerminationSignal, TerminationIdPool
+from .core_envelope import TaskEnvelope
+from .util_types import TerminationSignal, TerminationIdPool
 
 if TYPE_CHECKING:
     from ..persistence import LogSinker

@@ -2,7 +2,7 @@
 from typing import List
 
 from ..stage import TaskStage
-from .graph import TaskGraph
+from .core_graph import TaskGraph
 
 
 # ========有向无环图(DAG)========

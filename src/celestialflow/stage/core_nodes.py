@@ -5,8 +5,8 @@ import redis
 from multiprocessing import Value as MPValue
 
 from ..runtime import TaskEnvelope
-from ..runtime.errors import RemoteWorkerError, InvalidOptionError
-from .stage import TaskStage
+from ..runtime.util_errors import RemoteWorkerError, InvalidOptionError
+from .core_stage import TaskStage
 
 
 class TaskSplitter(TaskStage):
