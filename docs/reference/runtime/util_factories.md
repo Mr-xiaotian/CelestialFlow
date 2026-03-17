@@ -122,7 +122,7 @@ return TaskOutQueue(
 ### 在 TaskExecutor 中使用
 
 ```python
-from celestialflow.runtime.factories import (
+from celestialflow.runtime.util_factories import (
     make_counter,
     make_queue_backend,
     make_task_in_queue,

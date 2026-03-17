@@ -15,7 +15,7 @@ class StageStatus(IntEnum):
 
 使用示例：
 ```python
-from celestialflow.runtime.types import StageStatus
+from celestialflow.runtime.util_types import StageStatus
 
 status = stage.get_status()
 if status == StageStatus.RUNNING:
@@ -39,7 +39,7 @@ TERMINATION_SIGNAL = TerminationSignal()
 ### 使用场景
 
 ```python
-from celestialflow import TerminationSignal
+from celestialflow.runtime import TerminationSignal
 
 # 注入终止信号
 queue.put(TerminationSignal())
@@ -128,7 +128,7 @@ def value(self) -> int
 ### 使用示例
 
 ```python
-from celestialflow.runtime.types import SumCounter, ValueWrapper
+from celestialflow.runtime.util_types import SumCounter, ValueWrapper
 
 # 线程模式
 counter = SumCounter(mode="thread")
