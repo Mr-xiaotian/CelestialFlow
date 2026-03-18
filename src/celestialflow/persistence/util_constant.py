@@ -1,4 +1,4 @@
-# persistence/constant.py
+# persistence/util_constant.py
 
 # 日志级别字典
 LEVEL_DICT = {

@@ -1,4 +1,4 @@
-# persistence/fail.py
+# persistence/core_fail.py
 import json
 from pathlib import Path
 from datetime import datetime

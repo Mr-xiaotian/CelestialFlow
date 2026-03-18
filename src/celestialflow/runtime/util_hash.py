@@ -1,4 +1,4 @@
-# runtime/hash.py
+# runtime/util_hash.py
 import hashlib
 import pickle
 from typing import Any

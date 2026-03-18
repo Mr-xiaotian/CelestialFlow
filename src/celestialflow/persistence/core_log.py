@@ -1,4 +1,4 @@
-# persistence/log.py
+# persistence/core_log.py
 from typing import List
 from pathlib import Path
 from time import localtime, strftime

@@ -1,4 +1,4 @@
-# runtime/envelope.py
+# runtime/core_envelope.py
 from .util_hash import make_hashable, object_to_str_hash
 
 
