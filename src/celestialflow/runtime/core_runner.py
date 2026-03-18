@@ -1,11 +1,11 @@
-# runtime/runner.py
+# runtime/core_runner.py
 from __future__ import annotations
 
 import asyncio
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from threading import Event, Lock
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from . import TaskEnvelope, TaskProgress
 from .util_types import TerminationSignal, TerminationIdPool
@@ -15,19 +15,21 @@ if TYPE_CHECKING:
 
 
 class TaskRunner:
-    def __init__(self, task_executor: TaskExecutor, worker_limit: int):
+    def __init__(self, task_executor: TaskExecutor, func, worker_limit: int):
         """
         初始化任务运行器
 
         :param task_executor: 任务执行器
+        :param func: 任务函数
         :param worker_limit: 工作线程或进程数量限制
         """
         self.task_executor = task_executor
+        self.func = func
         self.worker_limit = worker_limit
 
         self._pool: ThreadPoolExecutor | ProcessPoolExecutor | None = None
 
-    def init_pool(self, execution_mode):
+    def init_pool(self, execution_mode: str) -> None:
         """
         初始化线程池或进程池，根据执行模式和当前是否为空来判断是否初始化
 
@@ -61,7 +63,7 @@ class TaskRunner:
         )
         return signal
 
-    def run_in_serial(self):
+    def run_in_serial(self) -> None:
         """
         串行地执行任务
         """
@@ -81,7 +83,7 @@ class TaskRunner:
                 self.task_executor.metrics.add_processed_set(task_hash)
                 try:
                     start_time = time.perf_counter()
-                    result = self.task_executor.func(*self.task_executor.get_args(task))
+                    result = self.func(*self.task_executor.get_args(task))
                     self.task_executor.process_task_success(envelope, result, start_time)
                 except Exception as error:
                     self.task_executor.handle_task_error(envelope, error)
@@ -97,7 +99,7 @@ class TaskRunner:
             self.task_executor.log_sinker._sink("DEBUG", f"{self.task_executor.get_func_name()} is not finished.")
             self.task_executor.task_queues.put(termination_signal)
 
-    def run_with_pool(self, execution_mode: str):
+    def run_with_pool(self, execution_mode: str) -> None:
         """
         使用指定的执行池（线程池或进程池）来并行执行任务。
 
@@ -156,7 +158,7 @@ class TaskRunner:
                     all_done_event.clear()
 
                 task_start_dict[task_id] = time.perf_counter()
-                future = self._pool.submit(self.task_executor.func, *self.task_executor.get_args(task))
+                future = self._pool.submit(self.func, *self.task_executor.get_args(task))
                 future.add_done_callback(
                     lambda f, t_e=envelope: on_task_done(f, t_e, self.task_executor.task_progress)
                 )
@@ -177,15 +179,14 @@ class TaskRunner:
 
         self.release_pool()
 
-    def release_pool(self):
+    def release_pool(self) -> None:
         """
         关闭线程池和进程池，释放资源
         """
         self._pool.shutdown(wait=True)
         self._pool = None
         
-    async def run_in_async(self):
-        
+    async def run_in_async(self) -> None:
         """
         异步地执行任务，限制并发数量
         """
@@ -240,7 +241,7 @@ class TaskRunner:
             self.task_executor.log_sinker._sink("DEBUG", f"{self.task_executor.get_func_name()} is not finished.")
             await self.task_executor.task_queues.put_async(termination_signal)
 
-    async def _run_single_task(self, task):
+    async def _run_single_task(self, task: Any) -> Any:
         """
         运行单个任务并捕获异常
 
@@ -248,7 +249,7 @@ class TaskRunner:
         :return: 任务的结果或异常
         """
         try:
-            result = await self.task_executor.func(*self.task_executor.get_args(task))
+            result = await self.func(*self.task_executor.get_args(task))
             return result
         except Exception as error:
             return error

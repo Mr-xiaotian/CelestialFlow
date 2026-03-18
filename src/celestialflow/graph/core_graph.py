@@ -1,10 +1,9 @@
-# graph/graph.py
+# graph/core_graph.py
 import time
 import warnings
 import multiprocessing
 from collections import defaultdict, deque
 from multiprocessing import Queue as MPQueue
-from typing import Dict, List
 
 from celestialtree import (
     Client as CelestialTreeClient,
@@ -23,7 +22,9 @@ from ..runtime.util_errors import UnconsumedError
 from ..runtime.util_types import (
     StageStatus,
     TerminationSignal,
+    NullPrevStage,
     STAGE_STYLE,
+    NULL_PREV_STAGE,
 )
 from ..stage import TaskStage
 from ..observability import TaskReporter, NullTaskReporter
@@ -42,10 +43,10 @@ from .util_serialize import build_structure_graph, format_structure_list_from_gr
 class TaskGraph:
     def __init__(
         self,
-        root_stages: List[TaskStage],
+        root_stages: list[TaskStage],
         schedule_mode: str = "eager",
         log_level: str = "SUCCESS",
-    ):
+    ) -> None:
         """
         初始化 TaskGraph 实例。
 
@@ -85,7 +86,7 @@ class TaskGraph:
         self.init_env()
         self.set_schedule_mode(schedule_mode)
 
-    def init_env(self):
+    def init_env(self) -> None:
         """
         初始化环境
         """
@@ -93,42 +94,42 @@ class TaskGraph:
         self.init_listener()
         self.init_sinker()
         self.init_resources()
-        self.init_analyze()
+        self.init_analysis()
 
-    def init_state(self):
+    def init_state(self) -> None:
         """
         初始化状态
         """
         # 用于保存所有子进程的引用
-        self.processes: List[multiprocessing.Process] = []  
+        self.processes: list[multiprocessing.Process] = []
         # 用于保存每个节点的运行信息
-        self.stage_runtime_dict: Dict[str, dict] = defaultdict(
+        self.stage_runtime_dict: dict[str, dict] = defaultdict(
             dict
-        )  
+        )
         # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
-        self.status_dict: Dict[str, dict] = defaultdict(
+        self.status_dict: dict[str, dict] = defaultdict(
             dict
-        )  
+        )
         # 用于保存任务图的摘要信息
-        self.graph_summary: Dict[str, int | float] = {} 
-        # 用于保存每个节点的输入任务ID集合 
-        self.input_ids: Dict[str, set] = defaultdict(set)  
+        self.graph_summary: dict[str, int | float] = {}
+        # 用于保存每个节点的输入任务ID集合
+        self.input_ids: dict[str, set] = defaultdict(set)
 
-    def init_listener(self):
+    def init_listener(self) -> None:
         """
         初始化监听器
         """
         self.log_listener = LogListener()
         self.fail_listener = FailListener("graph_errors")
 
-    def init_sinker(self):
+    def init_sinker(self) -> None:
         """
         初始化收集器
         """
         self.log_sinker = LogSinker(self.log_listener.get_queue(), self.log_level)
         self.fail_sinker = FailSinker(self.fail_listener.get_queue())
 
-    def init_resources(self):
+    def init_resources(self) -> None:
         """
         初始化每个阶段资源
         """
@@ -171,15 +172,15 @@ class TaskGraph:
 
             # 遍历每个前驱，创建边队列
             for prev_stage in stage.prev_stages:
-                prev_stage_tag = prev_stage.get_tag() if prev_stage else None
+                prev_stage_tag = prev_stage.get_tag()
                 in_queue.add_source_tag(prev_stage_tag)
 
                 # source side
-                if prev_stage is not None:
+                if prev_stage != NULL_PREV_STAGE:
                     prev_out_queue: TaskOutQueue = self.stage_runtime_dict[prev_stage_tag]["out_queue"]
                     prev_out_queue.add_queue(in_queue.queue, stage_tag)
 
-    def init_analyze(self):
+    def init_analysis(self) -> None:
         """
         分析任务图，计算 DAG 属性和层级信息
         """
@@ -193,7 +194,7 @@ class TaskGraph:
             stage_level_dict = compute_node_levels(self.networkx_graph)
             self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
-    def set_root_stages(self, root_stages: List[TaskStage]):
+    def set_root_stages(self, root_stages: list[TaskStage]) -> None:
         """
         设置根节点
 
@@ -202,9 +203,9 @@ class TaskGraph:
         self.root_stages = root_stages
         for stage in root_stages:
             if not stage.prev_stages:
-                stage.add_prev_stages(None)
+                stage.add_prev_stages(NULL_PREV_STAGE)
 
-    def set_schedule_mode(self, schedule_mode: str):
+    def set_schedule_mode(self, schedule_mode: str) -> None:
         """
         设置任务链的执行模式
 
@@ -222,7 +223,7 @@ class TaskGraph:
                 "Valid options are 'eager' or 'staged'"
             )
 
-    def set_reporter(self, is_report=False, host="127.0.0.1", port=5000):
+    def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000) -> None:
         """
         设定报告器
 
@@ -245,12 +246,12 @@ class TaskGraph:
 
     def set_ctree(
         self,
-        use_ctree=False,
-        host="127.0.0.1",
-        http_port=7777,
-        grpc_port=7778,
-        transport="grpc",
-    ):
+        use_ctree: bool = False,
+        host: str = "127.0.0.1",
+        http_port: int = 7777,
+        grpc_port: int = 7778,
+        transport: str = "grpc",
+    ) -> None:
         """
         设定事件树客户端
 
@@ -273,7 +274,7 @@ class TaskGraph:
         else:
             self.ctree_client = NullCelestialTreeClient()
 
-    def set_log_level(self, level="SUCCESS"):
+    def set_log_level(self, level: str = "SUCCESS") -> None:
         """
         设置日志级别
 
@@ -281,7 +282,7 @@ class TaskGraph:
         """
         self.log_level = level.upper()
 
-    def set_graph_mode(self, stage_mode: str, execution_mode: str):
+    def set_graph_mode(self, stage_mode: str, execution_mode: str) -> None:
         """
         设置任务链的执行模式
 
@@ -302,9 +303,9 @@ class TaskGraph:
         visited_stages = set()
         for root_stage in self.root_stages:
             set_subsequent_stage_mode(root_stage)
-        self.init_structure_graph()
+        self.init_analysis()
 
-    def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
+    def put_stage_queue(self, tasks_dict: dict, put_termination_signal: bool = True) -> None:
         """
         将任务放入队列
 
@@ -359,7 +360,7 @@ class TaskGraph:
                     termination_id,
                 )
 
-    def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True):
+    def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True) -> None:
         """
         启动任务链
 
@@ -397,7 +398,7 @@ class TaskGraph:
             self.fail_listener.stop()
             self.log_listener.stop()
 
-    def _excute_stages(self):
+    def _excute_stages(self) -> None:
         """
         执行所有节点
         """
@@ -429,7 +430,7 @@ class TaskGraph:
 
                 self.log_sinker.end_layer(layer, time.perf_counter() - start_time)
 
-    def _execute_stage(self, stage: TaskStage):
+    def _execute_stage(self, stage: TaskStage) -> None:
         """
         执行单个节点
 
@@ -467,7 +468,7 @@ class TaskGraph:
         else:
             stage.start_stage(input_queues, output_queues, fail_queue, log_queue)
 
-    def finalize_nodes(self):
+    def finalize_nodes(self) -> None:
         """
         确保所有子进程安全结束，更新节点状态，并导出每个节点队列剩余任务。
         """
@@ -516,7 +517,7 @@ class TaskGraph:
                     error_id,
                 )
 
-    def release_resources(self):
+    def release_resources(self) -> None:
         """
         释放资源
         """
@@ -524,7 +525,7 @@ class TaskGraph:
             stage: TaskStage = stage_runtime["stage"]
             stage.release_queue()
 
-    def collect_runtime_snapshot(self):
+    def collect_runtime_snapshot(self) -> None:
         """
         收集运行时快照
         """
@@ -542,10 +543,10 @@ class TaskGraph:
         }
 
         # 为全局预计 remaining 收集
-        running_elapsed_map: Dict[str, float] = {}
-        running_processed_map: Dict[str, int] = {}
-        running_pending_map: Dict[str, int] = {}
-        running_remaining_map: Dict[str, float] = {}
+        running_elapsed_map: dict[str, float] = {}
+        running_processed_map: dict[str, int] = {}
+        running_pending_map: dict[str, int] = {}
+        running_remaining_map: dict[str, float] = {}
 
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
             stage: TaskStage = stage_runtime["stage"]
@@ -630,13 +631,13 @@ class TaskGraph:
         self.status_dict = status_dict
         self.graph_summary = dict(totals)
 
-    def get_fail_by_stage_dict(self):
+    def get_fail_by_stage_dict(self) -> dict:
         return load_task_by_stage(self.fail_listener.jsonl_path)
 
-    def get_fail_by_error_dict(self):
+    def get_fail_by_error_dict(self) -> dict:
         return load_task_by_error(self.fail_listener.jsonl_path)
 
-    def get_status_dict(self) -> Dict[str, dict]:
+    def get_status_dict(self) -> dict[str, dict]:
         """
         获取任务链的状态字典
 
@@ -658,19 +659,19 @@ class TaskGraph:
             "layers_dict": self.layers_dict,
         }
 
-    def get_structure_json(self) -> List[dict]:
+    def get_structure_json(self) -> list[dict]:
         """
         获取任务图的 JSON 结构
         """
         return self.structure_json
 
-    def get_structure_list(self) -> List[str]:
+    def get_structure_list(self) -> list[str]:
         """
         获取任务图的结构列表
         """
         return self.structure_list
 
-    def get_networkx_graph(self):
+    def get_networkx_graph(self): # returns nx.DiGraph
         """
         获取任务图的 networkx 有向图（DiGraph）
         """
@@ -693,7 +694,7 @@ class TaskGraph:
         descendants = self.ctree_client.descendants_batch(list(input_ids), "meta")
         return format_descendants_forest(descendants, STAGE_STYLE)
 
-    def get_error_trace(self, error_id):
+    def get_error_trace(self, error_id: int) -> str:
         """
         获取错误任务的依赖关系树
         """

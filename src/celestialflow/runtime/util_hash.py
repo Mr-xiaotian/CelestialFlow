@@ -1,11 +1,11 @@
-# runtime/hash.py
+# runtime/util_hash.py
 import hashlib
 import pickle
 from typing import Any
 
 
 # ======== 处理hash任务 ========
-def make_hashable(obj) -> Any:
+def make_hashable(obj: Any) -> Any:
     """
     把 obj 转换成可哈希的形式。
     """

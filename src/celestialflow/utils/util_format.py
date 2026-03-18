@@ -1,4 +1,4 @@
-# utils/format.py
+# utils/util_format.py
 from itertools import zip_longest
 from datetime import datetime
 from typing import Any
@@ -28,8 +28,8 @@ def format_repr(obj: Any, max_length: int) -> str:
 
 def format_table(
     data: list,
-    row_names: list = None,
-    column_names: list = None,
+    row_names: list | None = None,
+    column_names: list | None = None,
     index_header: str = "#",
     fill_value: str = "N/A",
     align: str = "left",

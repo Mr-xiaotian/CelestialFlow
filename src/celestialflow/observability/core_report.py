@@ -1,6 +1,6 @@
-# observability/report.py
+# observability/core_report.py
 from threading import Event, Thread
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 import requests
 
@@ -28,7 +28,7 @@ class TaskReporter:
         port: int,
         task_graph: "TaskGraph",
         log_sinker: LogSinker,
-    ):
+    ) -> None:
         self.base_url = f"http://{host}:{port}"
         self.task_graph = task_graph
         self.log_sinker = log_sinker
@@ -39,13 +39,13 @@ class TaskReporter:
 
         self.interval = 5
 
-    def start(self):
+    def start(self) -> None:
         if self._thread is None or not self._thread.is_alive():
             self._stop_flag.clear()
             self._thread = Thread(target=self._loop, daemon=True)
             self._thread.start()
 
-    def stop(self):
+    def stop(self) -> None:
         if self._thread:
             self._refresh_all()  # 最后一次
             self._stop_flag.set()
@@ -59,7 +59,7 @@ class TaskReporter:
     def _push_timeout(self) -> float:
         return max(1.0, min(self.interval * 0.2, 3.0))
 
-    def _loop(self):
+    def _loop(self) -> None:
         while not self._stop_flag.is_set():
             try:
                 self._refresh_all()
@@ -67,7 +67,7 @@ class TaskReporter:
                 self.log_sinker.loop_failed(e)
             self._stop_flag.wait(self.interval)
 
-    def _refresh_all(self):
+    def _refresh_all(self) -> None:
         # 拉取逻辑
         self._pull_interval()
         self._pull_and_inject_tasks()
@@ -79,7 +79,7 @@ class TaskReporter:
         self._push_topology()
         self._push_summary()
 
-    def _pull_interval(self):
+    def _pull_interval(self) -> None:
         try:
             res = requests.get(
                 f"{self.base_url}/api/get_interval", timeout=self._pull_timeout()
@@ -90,7 +90,7 @@ class TaskReporter:
         except Exception as e:
             self.log_sinker.pull_interval_failed(e)
 
-    def _pull_and_inject_tasks(self):
+    def _pull_and_inject_tasks(self) -> None:
         try:
             res = requests.get(
                 f"{self.base_url}/api/get_task_injection", timeout=self._pull_timeout()
@@ -116,7 +116,7 @@ class TaskReporter:
         except Exception as e:
             self.log_sinker.pull_tasks_failed(e)
 
-    def _push_errors(self):
+    def _push_errors(self) -> None:
         try:
             if self._push_errors_mode == "meta":
                 resp = self._push_errors_meta()
@@ -172,7 +172,7 @@ class TaskReporter:
         )
         return response.json()
 
-    def _push_status(self):
+    def _push_status(self) -> None:
         try:
             self.task_graph.collect_runtime_snapshot()
             status_data = self.task_graph.get_status_dict()
@@ -185,7 +185,7 @@ class TaskReporter:
         except Exception as e:
             self.log_sinker.push_status_failed(e)
 
-    def _push_structure(self):
+    def _push_structure(self) -> None:
         try:
             structure = self.task_graph.get_structure_json()
             payload = {"items": structure}
@@ -197,7 +197,7 @@ class TaskReporter:
         except Exception as e:
             self.log_sinker.push_structure_failed(e)
 
-    def _push_topology(self):
+    def _push_topology(self) -> None:
         try:
             topology = self.task_graph.get_graph_topology()
             payload = {"topology": topology}
@@ -209,7 +209,7 @@ class TaskReporter:
         except Exception as e:
             self.log_sinker.push_topology_failed(e)
 
-    def _push_summary(self):
+    def _push_summary(self) -> None:
         try:
             summary = self.task_graph.get_graph_summary()
             payload = {"summary": summary}
@@ -225,8 +225,8 @@ class TaskReporter:
 class NullTaskReporter:
     interval = 0
 
-    def start(self):
+    def start(self) -> None:
         return None
 
-    def stop(self):
+    def stop(self) -> None:
         return None

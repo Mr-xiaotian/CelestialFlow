@@ -142,8 +142,8 @@ class PickleError(CelestialFlowError):
 在 `TaskStage.set_func()` 中，会检查函数是否可 pickle：
 
 ```python
-from celestialflow.runtime.errors import PickleError
-from celestialflow.utils.debug import find_unpickleable
+from celestialflow.runtime.util_errors import PickleError
+from celestialflow.utils.util_debug import find_unpickleable
 
 if find_unpickleable(func):
     raise PickleError(func)

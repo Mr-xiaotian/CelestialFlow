@@ -1,4 +1,4 @@
-# persistence/fail.py
+# persistence/core_fail.py
 import json
 from pathlib import Path
 from datetime import datetime
@@ -8,7 +8,7 @@ from .core_base import BaseListener, BaseSinker
 
 
 class FailListener(BaseListener):
-    def __init__(self, error_source: str):
+    def __init__(self, error_source: str) -> None:
         super().__init__()
 
         self.error_source = error_source
@@ -18,7 +18,7 @@ class FailListener(BaseListener):
         self.total_error_num = 0
         self._file = None
 
-    def _before_start(self):
+    def _before_start(self) -> None:
         # 创建 fallback 目录
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
@@ -34,7 +34,7 @@ class FailListener(BaseListener):
         # 初始化错误计数器
         self.total_error_num = 0
 
-    def _handle_record(self, record):
+    def _handle_record(self, record: dict) -> None:
         jsonl_record = json.dumps(record, ensure_ascii=False)
 
         self._file.write(f"{jsonl_record}\n")
@@ -43,7 +43,7 @@ class FailListener(BaseListener):
         if isinstance(record, dict) and record.get("error_id") is not None:
             self.total_error_num += 1
 
-    def _after_stop(self):
+    def _after_stop(self) -> None:
         if self._file:
             self._file.flush()
             self._file.close()
@@ -55,11 +55,11 @@ class FailSinker(BaseSinker):
     多进程安全失败记录包装类，所有失败记录通过队列发送到监听进程写入
     """
 
-    def __init__(self, fail_queue):
+    def __init__(self, fail_queue) -> None:
         super().__init__(fail_queue)
         self.fail_queue = self.queue
 
-    def start_graph(self, structure_json):
+    def start_graph(self, structure_json: list) -> None:
         """
         在运行开始时写入任务结构元信息到 jsonl 文件
         """
@@ -69,7 +69,7 @@ class FailSinker(BaseSinker):
         }
         self._sink(meta_item)
 
-    def start_executor(self, executor_tag: str):
+    def start_executor(self, executor_tag: str) -> None:
         """
         在运行开始时写入执行器元信息到 jsonl 文件
         """
@@ -79,7 +79,7 @@ class FailSinker(BaseSinker):
         }
         self._sink(meta_item)
 
-    def task_error(self, stage_tag, error, err_id, task):
+    def task_error(self, stage_tag: str, error: Exception, err_id: int, task) -> None:
         """
         写入错误日志到 jsonl 文件中
 

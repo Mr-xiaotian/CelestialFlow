@@ -1,10 +1,10 @@
-# runtime/queue.py
+# runtime/core_queue.py
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 from multiprocessing import Queue as MPQueue
 from asyncio import Queue as AsyncQueue
-from queue import Queue as ThreadQueue, Empty as SyncEmpty
+from queue import Queue as ThreadQueue
 
 from .core_envelope import TaskEnvelope
 from .util_types import TerminationSignal, TerminationIdPool
@@ -17,10 +17,10 @@ class TaskInQueue:
     def __init__(
         self,
         queue: ThreadQueue | MPQueue | AsyncQueue,
-        queue_tags: List[str],
+        queue_tags: list[str],
         out_tag: str,
         log_sinker: "LogSinker",
-    ):
+    ) -> None:
         """
         初始化任务入队
 
@@ -36,7 +36,7 @@ class TaskInQueue:
 
         self.termination_dict: dict[str, str] = {}
 
-    def _log_put(self, item):
+    def _log_put(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
         记录任务入队日志
 
@@ -48,7 +48,7 @@ class TaskInQueue:
             t = "termination"
         self.log_sinker.put_item(t, item.id, item.source, self.out_tag)
 
-    def _log_get(self, item):
+    def _log_get(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
         记录任务出队日志
 
@@ -60,7 +60,7 @@ class TaskInQueue:
             t = "termination"
         self.log_sinker.get_item(t, item.id, item.source, self.out_tag)
 
-    def add_source_tag(self, tag: str):
+    def add_source_tag(self, tag: str) -> None:
         """
         添加入队标签
 
@@ -71,13 +71,13 @@ class TaskInQueue:
             raise ValueError(f"duplicate queue tag: {tag}")
         self.queue_tags.append(tag)
 
-    def reset(self):
+    def reset(self) -> None:
         """
         重置任务入队状态
         """
         self.termination_dict = {}
 
-    def _record_termination(self, signal: TerminationSignal):
+    def _record_termination(self, signal: TerminationSignal) -> None:
         """
         记录入队标签的终止信号
 
@@ -113,7 +113,7 @@ class TaskInQueue:
 
         return TerminationIdPool(ids=[self.termination_dict[tag] for tag in self.queue_tags])
 
-    def put(self, item: TaskEnvelope | TerminationSignal):
+    def put(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
         入队任务或终止信号
 
@@ -125,7 +125,7 @@ class TaskInQueue:
         except Exception as e:
             self.log_sinker.put_item_error(item.source, self.out_tag, e)
 
-    async def put_async(self, item: TaskEnvelope | TerminationSignal):
+    async def put_async(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
         异步入队任务或终止信号
 
@@ -191,7 +191,7 @@ class TaskInQueue:
 
             raise ValueError(f"unexpected item type: {type(item)}")
 
-    def drain(self) -> List[TaskEnvelope]:
+    def drain(self) -> list[TaskEnvelope]:
         """
         清空队列中的所有任务，返回所有任务列表
         并记录 termination 状态，但不返回 TerminationIdPool
@@ -216,11 +216,11 @@ class TaskInQueue:
 class TaskOutQueue:
     def __init__(
         self,
-        queue_list: List[ThreadQueue] | List[MPQueue] | List[AsyncQueue],
-        queue_tags: List[str],
+        queue_list: list[ThreadQueue] | list[MPQueue] | list[AsyncQueue],
+        queue_tags: list[str],
         in_tag: str,
         log_sinker: "LogSinker",
-    ):
+    ) -> None:
         """
         任务输出队列类，用于管理多个输出队列
 
@@ -240,7 +240,7 @@ class TaskOutQueue:
 
         self._tag_to_idx = {tag: i for i, tag in enumerate(queue_tags)}
 
-    def _log_put(self, item, idx: int):
+    def _log_put(self, item: TaskEnvelope | TerminationSignal, idx: int) -> None:
         """
         记录入队日志
 
@@ -253,7 +253,7 @@ class TaskOutQueue:
             t = "termination"
         self.log_sinker.put_item(t, item.id, self.in_tag, self.queue_tags[idx])
 
-    def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
+    def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str) -> None:
         """
         添加一个输出队列到队列列表中
 
@@ -267,7 +267,7 @@ class TaskOutQueue:
         self.queue_list.append(queue)
         self.queue_tags.append(tag)
 
-    def put(self, item: TaskEnvelope | TerminationSignal):
+    def put(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
         入队任务或终止信号到所有输出队列通道
 
@@ -276,7 +276,7 @@ class TaskOutQueue:
         for index, _ in enumerate(self.queue_list):
             self.put_channel(item, index)
 
-    async def put_async(self, item: TaskEnvelope | TerminationSignal):
+    async def put_async(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
         异步入队任务或终止信号到所有输出队列通道
 
@@ -285,7 +285,7 @@ class TaskOutQueue:
         for index, _ in enumerate(self.queue_list):
             await self.put_channel_async(item, index)
 
-    def put_target(self, item: TaskEnvelope | TerminationSignal, tag: str):
+    def put_target(self, item: TaskEnvelope | TerminationSignal, tag: str) -> None:
         """
         入队任务或终止信号到指定的输出队列标签
 
@@ -294,7 +294,7 @@ class TaskOutQueue:
         """
         self.put_channel(item, self._tag_to_idx[tag])
 
-    def put_channel(self, item: TaskEnvelope | TerminationSignal, idx: int):
+    def put_channel(self, item: TaskEnvelope | TerminationSignal, idx: int) -> None:
         """
         入队任务或终止信号到指定的输出队列通道
 
@@ -309,7 +309,7 @@ class TaskOutQueue:
                 item.source, self.in_tag, e
             )
 
-    async def put_channel_async(self, item: TaskEnvelope | TerminationSignal, idx: int):
+    async def put_channel_async(self, item: TaskEnvelope | TerminationSignal, idx: int) -> None:
         """
         异步入队任务或终止信号到指定的输出队列通道
 

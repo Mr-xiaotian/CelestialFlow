@@ -1,4 +1,4 @@
-# persistence/base.py
+# persistence/core_base.py
 from __future__ import annotations
 
 from multiprocessing import Queue as MPQueue
@@ -10,26 +10,26 @@ from ..runtime.util_types import TerminationSignal, TERMINATION_SIGNAL
 
 
 class BaseListener:
-    def __init__(self):
+    def __init__(self) -> None:
         self.queue = MPQueue()
         self._thread: Thread | None = None
 
-    def _before_start(self):
+    def _before_start(self) -> None:
         return None
 
-    def _handle_record(self, record):
+    def _handle_record(self, record) -> None:
         raise NotImplementedError
 
-    def _after_stop(self):
+    def _after_stop(self) -> None:
         return None
 
-    def start(self):
+    def start(self) -> None:
         self._before_start()
         if self._thread is None or not self._thread.is_alive():
             self._thread = Thread(target=self._listen, daemon=True)
             self._thread.start()
 
-    def _listen(self):
+    def _listen(self) -> None:
         while True:
             try:
                 record = self.queue.get(timeout=0.5)
@@ -39,10 +39,10 @@ class BaseListener:
             except Empty:
                 continue
 
-    def get_queue(self):
+    def get_queue(self) -> MPQueue:
         return self.queue
 
-    def stop(self):
+    def stop(self) -> None:
         if self._thread is None:
             return
 
@@ -54,8 +54,8 @@ class BaseListener:
 
 
 class BaseSinker:
-    def __init__(self, queue):
+    def __init__(self, queue: MPQueue) -> None:
         self.queue: MPQueue = queue
 
-    def _sink(self, record):
+    def _sink(self, record) -> None:
         self.queue.put(record)

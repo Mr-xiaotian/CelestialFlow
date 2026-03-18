@@ -1,6 +1,7 @@
-# stage/executor.py
+# stage/core_executor.py
 from __future__ import annotations
-from typing import Callable
+from typing import Any, Callable
+from multiprocessing import Queue as MPQueue
 
 import asyncio, time
 import warnings
@@ -94,9 +95,8 @@ class TaskExecutor:
         
         self.ctree_client = None
         self.init_metrics()
-        self.init_runner()
 
-    def init_metrics(self):
+    def init_metrics(self) -> None:
         """
         初始化任务指标
         """
@@ -106,15 +106,13 @@ class TaskExecutor:
             enable_duplicate_check=self.enable_duplicate_check,
         )
 
-    def init_runner(self):
-        """
-        初始化任务运行器
-        """
-        self.runner = TaskRunner(self, self.worker_limit)
-
     def init_env(
-        self, task_queues=None, result_queues=None, fail_queue=None, log_queue=None
-    ):
+        self,
+        task_queues: TaskInQueue | None = None,
+        result_queues: TaskOutQueue | None = None,
+        fail_queue=None,
+        log_queue=None,
+    ) -> None:
         """
         初始化环境
 
@@ -126,8 +124,9 @@ class TaskExecutor:
         self.init_state()
         self.init_sinker(fail_queue, log_queue)
         self.init_queue(task_queues, result_queues)
+        self.init_runner()
 
-    def init_state(self):
+    def init_state(self) -> None:
         """
         初始化任务状态：
         - success_dict / error_dict：缓存执行结果
@@ -138,7 +137,7 @@ class TaskExecutor:
         self.error_dict = {}  # task -> exception
         self.metrics.reset_state()
 
-    def init_sinker(self, fail_queue, log_queue):
+    def init_sinker(self, fail_queue: MPQueue, log_queue: MPQueue) -> None:
         """
         初始化收集器
 
@@ -153,9 +152,9 @@ class TaskExecutor:
 
     def init_queue(
         self,
-        task_queues: TaskInQueue = None,
-        result_queues: TaskOutQueue = None,
-    ):
+        task_queues: TaskInQueue | None = None,
+        result_queues: TaskOutQueue | None = None,
+    ) -> None:
         """
         初始化队列
 
@@ -174,7 +173,13 @@ class TaskExecutor:
             executor=self,
         )
 
-    def init_listener(self):
+    def init_runner(self) -> None:
+        """
+        初始化任务运行器
+        """
+        self.runner = TaskRunner(self, self.func, self.worker_limit)
+
+    def init_listener(self) -> None:
         """
         初始化监听器
         """
@@ -184,7 +189,7 @@ class TaskExecutor:
         self.fail_listener.start()
         self.log_listener.start()
 
-    def init_progress(self):
+    def init_progress(self) -> None:
         """
         初始化进度条
         """
@@ -212,8 +217,9 @@ class TaskExecutor:
         :param func: 执行函数
         """
         self.func = func
+        self._func_name = func.__name__
 
-    def set_execution_mode(self, execution_mode: str):
+    def set_execution_mode(self, execution_mode: str) -> None:
         """
         设置执行模式
 
@@ -230,7 +236,7 @@ class TaskExecutor:
 
     def set_ctree(
         self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778
-    ):
+    ) -> None:
         """
         设置CelestialTreeClient
 
@@ -241,7 +247,7 @@ class TaskExecutor:
             host=host, http_port=http_port, grpc_port=grpc_port, transport="grpc"
         )
 
-    def set_nullctree(self, event_id=None):
+    def set_nullctree(self, event_id: int | None = None) -> None:
         """
         设置NullCelestialTreeClient
 
@@ -249,7 +255,7 @@ class TaskExecutor:
         """
         self.ctree_client = NullCelestialTreeClient(event_id)
 
-    def set_log_level(self, log_level: str):
+    def set_log_level(self, log_level: str) -> None:
         """
         设置日志级别
 
@@ -271,7 +277,7 @@ class TaskExecutor:
 
         :return: 当前节点函数名
         """
-        return self.func.__name__
+        return self._func_name
 
     def get_tag(self) -> str:
         """
@@ -327,7 +333,7 @@ class TaskExecutor:
         """
         return self.metrics.get_counts()
 
-    def add_retry_exceptions(self, *exceptions):
+    def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
         """
         添加需要重试的异常类型
 
@@ -335,7 +341,7 @@ class TaskExecutor:
         """
         self.metrics.add_retry_exceptions(*exceptions)
 
-    def put_task_queues(self, task_source):
+    def put_task_queues(self, task_source: Iterable) -> None:
         """
         将任务放入任务队列
 
@@ -374,7 +380,7 @@ class TaskExecutor:
             termination_id,
         )
 
-    async def put_task_queues_async(self, task_source):
+    async def put_task_queues_async(self, task_source: Iterable) -> None:
         """
         将任务放入任务队列(async模式)
 
@@ -410,7 +416,7 @@ class TaskExecutor:
             TerminationSignal(termination_id, source="input")
         )
 
-    def get_args(self, task):
+    def get_args(self, task: Any) -> tuple:
         """
         从 obj 中获取参数。可根据需要覆写
 
@@ -420,7 +426,7 @@ class TaskExecutor:
             return task
         return (task,)
 
-    def process_result(self, task, result):
+    def process_result(self, task: Any, result: Any) -> Any:
         """
         从结果队列中获取结果，并进行处理。可根据需要覆写
 
@@ -428,7 +434,7 @@ class TaskExecutor:
         """
         return result
 
-    def process_result_dict(self):
+    def process_result_dict(self) -> dict[Any, Any]:
         """
         处理结果字典。可根据需要覆写
 
@@ -436,7 +442,7 @@ class TaskExecutor:
         """
         return {**self.success_dict, **self.error_dict}
 
-    def handle_error_dict(self):
+    def handle_error_dict(self) -> dict[Any, list]:
         """
         处理错误字典。可根据需要覆写
 
@@ -481,7 +487,9 @@ class TaskExecutor:
         formatted_result = format_repr(result, self.max_info)
         return f"{formatted_result}"
 
-    def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):
+    def process_task_success(
+        self, task_envelope: TaskEnvelope, result: Any, start_time: float
+    ) -> None:
         """
         统一处理成功任务
 
@@ -496,8 +504,8 @@ class TaskExecutor:
         self.result_queues.put(result_envelope)
 
     async def process_task_success_async(
-        self, task_envelope: TaskEnvelope, result, start_time
-    ):
+        self, task_envelope: TaskEnvelope, result: Any, start_time: float
+    ) -> None:
         """
         统一处理成功任务, 异步版本
 
@@ -511,7 +519,9 @@ class TaskExecutor:
 
         await self.result_queues.put_async(result_envelope)
 
-    def _prepare_result_envelope(self, task_envelope: TaskEnvelope, result, start_time):
+    def _prepare_result_envelope(
+        self, task_envelope: TaskEnvelope, result: Any, start_time: float
+    ) -> TaskEnvelope:
         """
         准备成功任务的结果信封
 
@@ -553,7 +563,9 @@ class TaskExecutor:
         )
         return result_envelope
 
-    def handle_task_error(self, task_envelope: TaskEnvelope, exception: Exception):
+    def handle_task_error(
+        self, task_envelope: TaskEnvelope, exception: Exception
+    ) -> None:
         """
         统一处理异常任务
 
@@ -573,7 +585,7 @@ class TaskExecutor:
 
     async def handle_task_error_async(
         self, task_envelope: TaskEnvelope, exception: Exception
-    ):
+    ) -> None:
         """
         统一处理任务异常, 异步版本
 
@@ -597,7 +609,7 @@ class TaskExecutor:
         self,
         task_envelope: TaskEnvelope,
         exception: Exception,
-    ):
+    ) -> TaskEnvelope:
         """
         准备重试任务的信封
 
@@ -632,7 +644,7 @@ class TaskExecutor:
         self,
         task_envelope: TaskEnvelope,
         exception: Exception,
-    ):
+    ) -> TaskEnvelope:
         """
         准备失败任务的结果信封
 
@@ -665,7 +677,7 @@ class TaskExecutor:
         )
         return task_envelope
 
-    def deal_duplicate(self, task_envelope: TaskEnvelope):
+    def deal_duplicate(self, task_envelope: TaskEnvelope) -> None:
         """
         处理重复任务
 
@@ -776,21 +788,21 @@ class TaskExecutor:
             self.log_listener.stop()
             self.fail_listener.stop()
 
-    def get_success_dict(self) -> dict:
+    def get_success_dict(self) -> dict[Any, Any]:
         """
         获取成功任务的字典
         需要enable_success_cache=True
         """
         return dict(self.success_dict)
 
-    def get_error_dict(self) -> dict:
+    def get_error_dict(self) -> dict[Any, Exception]:
         """
         获取出错任务的字典
         需要enable_error_cache=True
         """
         return dict(self.error_dict)
 
-    def release_queue(self):
+    def release_queue(self) -> None:
         """
         清理队列
         """
@@ -798,5 +810,5 @@ class TaskExecutor:
         self.result_queues = None
         self.fail_queue = None
 
-    def release_client(self):
+    def release_client(self) -> None:
         self.ctree_client = None
