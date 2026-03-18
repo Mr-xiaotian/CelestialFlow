@@ -88,7 +88,7 @@ linkStyle default stroke:#999,stroke-width:1.5px;
             shape = "subgraph";
         else if (node.func_name === "_route")
             shape = "rhombus";
-        else if (node.func_name === "_sink")
+        else if (node.func_name === "_transport")
             shape = "parallelogram";
         else if (node.func_name === "_source")
             shape = "parallelogram";

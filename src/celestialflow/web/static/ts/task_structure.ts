@@ -102,7 +102,7 @@ linkStyle default stroke:#999,stroke-width:1.5px;
     let shape = "box";
     if (node.func_name === "_split") shape = "subgraph";
     else if (node.func_name === "_route") shape = "rhombus";
-    else if (node.func_name === "_sink") shape = "parallelogram";
+    else if (node.func_name === "_transport") shape = "parallelogram";
     else if (node.func_name === "_source") shape = "parallelogram";
     else if (node.func_name === "_ack") shape = "parallelogram";
 
