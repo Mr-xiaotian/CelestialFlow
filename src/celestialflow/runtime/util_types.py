@@ -102,4 +102,14 @@ class StageStatus(IntEnum):
     STOPPED = 2
 
 
+class NullPrevStage:
+    """
+    空前置节点，用于表示没有前置节点的情况
+    """
+
+    def get_tag(self) -> str:
+        return "input"
+
+
+NULL_PREV_STAGE = NullPrevStage()
 STAGE_STYLE = NodeLabelStyle(template="{base}  {payload.name}  ‹{type}›", missing="-")

@@ -9,7 +9,7 @@ from multiprocessing import Queue as MPQueue
 
 from ..runtime import TaskInQueue, TaskOutQueue, TaskMetrics
 from ..runtime.util_errors import ExecutionModeError, StageModeError, PickleError
-from ..runtime.util_types import StageStatus
+from ..runtime.util_types import StageStatus, NullPrevStage
 from ..utils.util_debug import find_unpickleable
 from .core_executor import TaskExecutor
 
@@ -115,7 +115,7 @@ class TaskStage(TaskExecutor):
             return
         self.prev_stages.append(prev_stage)
 
-        if prev_stage is None:
+        if isinstance(prev_stage, NullPrevStage):
             return
 
         if isinstance(prev_stage, TaskSplitter):
@@ -178,13 +178,13 @@ class TaskStage(TaskExecutor):
             "stage_mode": self.stage_mode,
         }
 
-    def mark_running(self) -> None:
+    def mark_running(self):
         """标记：stage 正在运行。"""
         self.init_status()
         with self._status.get_lock():
             self._status.value = int(StageStatus.RUNNING)
 
-    def mark_stopped(self) -> None:
+    def mark_stopped(self):
         """标记：stage 已停止（正常结束时在 finally 里调用）。"""
         self.init_status()
         with self._status.get_lock():

@@ -187,7 +187,7 @@ class LogSinker(BaseSinker):
 
     def task_duplicate(self, func_name, task_info, parent_id, duplicate_id):
         self._sink(
-            "SUCCESS",
+            "WARNING",
             f"In '{func_name}', Task {task_info} has been duplicated. [{parent_id}->{duplicate_id}*]",
         )
 
