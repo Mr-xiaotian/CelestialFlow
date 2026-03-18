@@ -23,7 +23,9 @@ from ..runtime.util_errors import UnconsumedError
 from ..runtime.util_types import (
     StageStatus,
     TerminationSignal,
+    NullPrevStage,
     STAGE_STYLE,
+    NULL_PREV_STAGE,
 )
 from ..stage import TaskStage
 from ..observability import TaskReporter, NullTaskReporter
@@ -93,7 +95,7 @@ class TaskGraph:
         self.init_listener()
         self.init_sinker()
         self.init_resources()
-        self.init_analyze()
+        self.init_analysis()
 
     def init_state(self):
         """
@@ -171,15 +173,15 @@ class TaskGraph:
 
             # 遍历每个前驱，创建边队列
             for prev_stage in stage.prev_stages:
-                prev_stage_tag = prev_stage.get_tag() if prev_stage else None
+                prev_stage_tag = prev_stage.get_tag()
                 in_queue.add_source_tag(prev_stage_tag)
 
                 # source side
-                if prev_stage is not None:
+                if prev_stage != NULL_PREV_STAGE:
                     prev_out_queue: TaskOutQueue = self.stage_runtime_dict[prev_stage_tag]["out_queue"]
                     prev_out_queue.add_queue(in_queue.queue, stage_tag)
 
-    def init_analyze(self):
+    def init_analysis(self):
         """
         分析任务图，计算 DAG 属性和层级信息
         """
@@ -202,7 +204,7 @@ class TaskGraph:
         self.root_stages = root_stages
         for stage in root_stages:
             if not stage.prev_stages:
-                stage.add_prev_stages(None)
+                stage.add_prev_stages(NULL_PREV_STAGE)
 
     def set_schedule_mode(self, schedule_mode: str):
         """
@@ -302,7 +304,7 @@ class TaskGraph:
         visited_stages = set()
         for root_stage in self.root_stages:
             set_subsequent_stage_mode(root_stage)
-        self.init_structure_graph()
+        self.init_analysis()
 
     def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
         """

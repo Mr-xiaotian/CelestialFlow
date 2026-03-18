@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List
 from multiprocessing import Queue as MPQueue
 from asyncio import Queue as AsyncQueue
-from queue import Queue as ThreadQueue, Empty as SyncEmpty
+from queue import Queue as ThreadQueue
 
 from .core_envelope import TaskEnvelope
 from .util_types import TerminationSignal, TerminationIdPool

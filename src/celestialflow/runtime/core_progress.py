@@ -4,6 +4,9 @@ from tqdm.asyncio import tqdm as tqdm_asy
 
 
 class TaskProgress:
+    """
+    任务进度条管理器
+    """
     def __init__(
         self,
         total_tasks: int,
@@ -45,6 +48,9 @@ class TaskProgress:
 
 
 class NullTaskProgress:
+    """
+    空进度条管理器，用于在不需要进度条的场景下占位
+    """
     def update(self, n=1):
         pass
 
