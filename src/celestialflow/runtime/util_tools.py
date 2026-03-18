@@ -3,7 +3,7 @@ from multiprocessing import Queue as MPQueue
 
 
 # ======== 队列处理 ========
-def cleanup_mpqueue(queue: MPQueue):
+def cleanup_mpqueue(queue: MPQueue) -> None:
     """
     清理队列，关闭队列并等待后台线程终止。
 

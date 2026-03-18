@@ -30,7 +30,7 @@ def make_counter(
     return ValueWrapper(init)
 
 
-def make_queue_backend(mode: str):
+def make_queue_backend(mode: str) -> type:
     """
     返回一个“队列类/构造器”，用于创建单通道队列。
 
@@ -49,7 +49,7 @@ def make_task_in_queue(
     *,
     mode: str,
     executor: "TaskExecutor",
-):
+) -> TaskInQueue:
     Q = make_queue_backend(mode)
     return TaskInQueue(
         queue=Q(),
@@ -63,7 +63,7 @@ def make_task_out_queue(
     *,
     mode: str,
     executor: "TaskExecutor",
-):
+) -> TaskOutQueue:
     Q = make_queue_backend(mode)
     return TaskOutQueue(
         queue_list=[Q()],

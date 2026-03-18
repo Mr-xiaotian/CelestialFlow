@@ -2,6 +2,7 @@
 import json
 import time
 import redis
+from typing import Any
 from multiprocessing import Value as MPValue
 
 from ..runtime import TaskEnvelope
@@ -23,16 +24,16 @@ class TaskSplitter(TaskStage):
 
         self.init_extra_counter()
 
-    def init_extra_counter(self):
+    def init_extra_counter(self) -> None:
         self.split_counter = MPValue("i", 0)
 
-    def reset_extra_counter(self):
+    def reset_extra_counter(self) -> None:
         self.split_counter.value = 0
 
-    def update_split_counter(self, add_value):
+    def update_split_counter(self, add_value: int) -> None:
         self.split_counter.value += add_value
 
-    def _split(self, *task):
+    def _split(self, *task: Any) -> tuple:
         """
         这个函数不执行逻辑，仅用于符合 TaskStage 架构
         """
@@ -63,7 +64,9 @@ class TaskSplitter(TaskStage):
 
         return split_count
 
-    def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):
+    def process_task_success(
+        self, task_envelope: TaskEnvelope, result: Any, start_time: float
+    ) -> None:
         """
         统一处理成功任务
 
@@ -99,15 +102,15 @@ class TaskRouter(TaskStage):
 
         self.init_extra_counter()
 
-    def init_extra_counter(self):
+    def init_extra_counter(self) -> None:
         # 每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
         self.route_counters: dict = {}
 
-    def reset_extra_counter(self):
+    def reset_extra_counter(self) -> None:
         for counter in self.route_counters.values():
             counter.value = 0
 
-    def update_route_counter(self, target: str):
+    def update_route_counter(self, target: str) -> None:
         self.route_counters[target].value += 1
 
     def _route(self, routed: tuple) -> tuple:
@@ -122,7 +125,9 @@ class TaskRouter(TaskStage):
             )
         return routed
 
-    def process_task_success(self, task_envelope: TaskEnvelope, result, start_time):
+    def process_task_success(
+        self, task_envelope: TaskEnvelope, result: Any, start_time: float
+    ) -> None:
         """
         统一处理成功任务
 
@@ -164,12 +169,12 @@ class TaskRouter(TaskStage):
 class TaskRedisTransport(TaskStage):
     def __init__(
         self,
-        key,
-        host="localhost",
-        port=6379,
-        db=0,
-        password=None,
-        unpack_task_args=False,
+        key: str,
+        host: str = "localhost",
+        port: int = 6379,
+        db: int = 0,
+        password: str | None = None,
+        unpack_task_args: bool = False,
     ):
         """
         初始化 TaskRedisTransport
@@ -193,7 +198,7 @@ class TaskRedisTransport(TaskStage):
         self.db = db
         self.password = password
 
-    def init_redis(self):
+    def init_redis(self) -> None:
         """初始化 Redis 客户端"""
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(
@@ -204,7 +209,7 @@ class TaskRedisTransport(TaskStage):
                 decode_responses=True,
             )
 
-    def _transport(self, *task):
+    def _transport(self, *task: Any) -> int:
         """
         将任务元组转换为 JSON 字符串并写入 Redis list
 
@@ -229,12 +234,12 @@ class TaskRedisTransport(TaskStage):
 class TaskRedisSource(TaskStage):
     def __init__(
         self,
-        key,
-        host="localhost",
-        port=6379,
-        db=0,
-        password=None,
-        timeout=10,
+        key: str,
+        host: str = "localhost",
+        port: int = 6379,
+        db: int = 0,
+        password: str | None = None,
+        timeout: int = 10,
     ):
         """
         初始化 TaskRedisSource
@@ -258,7 +263,7 @@ class TaskRedisSource(TaskStage):
         self.password = password
         self._timeout = timeout
 
-    def init_redis(self):
+    def init_redis(self) -> None:
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(
                 host=self.host,
@@ -268,7 +273,7 @@ class TaskRedisSource(TaskStage):
                 decode_responses=True,
             )
 
-    def _source(self, *_):
+    def _source(self, *_: Any) -> Any:
         """
         忽略输入 task，仅作为启动信号
         从 Redis 拉取数据并注入下游
@@ -291,12 +296,12 @@ class TaskRedisSource(TaskStage):
 class TaskRedisAck(TaskStage):
     def __init__(
         self,
-        key,
-        host="localhost",
-        port=6379,
-        db=0,
-        password=None,
-        timeout=10,
+        key: str,
+        host: str = "localhost",
+        port: int = 6379,
+        db: int = 0,
+        password: str | None = None,
+        timeout: int = 10,
     ):
         """
         TaskRedisAck: 远端任务完成确认节点（Ack）
@@ -321,7 +326,7 @@ class TaskRedisAck(TaskStage):
         self.password = password
         self._timeout = timeout
 
-    def init_redis(self):
+    def init_redis(self) -> None:
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(
                 host=self.host,
@@ -331,7 +336,7 @@ class TaskRedisAck(TaskStage):
                 decode_responses=True,
             )
 
-    def _ack(self, task_id: str):
+    def _ack(self, task_id: str) -> Any:
         """
         接收 task_id，等待远端 worker 的执行结果
 

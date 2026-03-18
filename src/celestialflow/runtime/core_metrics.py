@@ -32,7 +32,7 @@ class TaskMetrics:
         self.init_counter()
         self.reset_state()
 
-    def init_counter(self):
+    def init_counter(self) -> None:
         """
         初始化计数器（按 execution_mode 选择实现）
         """
@@ -46,7 +46,7 @@ class TaskMetrics:
         self.error_counter = make_counter(mode, lock=lock)
         self.duplicate_counter = make_counter(mode, lock=lock)
 
-    def reset_counter(self):
+    def reset_counter(self) -> None:
         """
         重置计数器
         """
@@ -55,7 +55,7 @@ class TaskMetrics:
         self.error_counter.value = 0
         self.duplicate_counter.value = 0
 
-    def reset_state(self):
+    def reset_state(self) -> None:
         """
         重置统计状态
 
@@ -64,7 +64,7 @@ class TaskMetrics:
         self.retry_time_dict = {}  # task_hash: retry_time
         self.processed_set = set()  # task_hash
 
-    def set_execution_mode(self, execution_mode: str):
+    def set_execution_mode(self, execution_mode: str) -> None:
         """
         设置任务执行模式
 
@@ -73,7 +73,7 @@ class TaskMetrics:
         self.execution_mode = execution_mode
         self.init_counter()
 
-    def is_duplicate(self, task_hash) -> bool:
+    def is_duplicate(self, task_hash: str) -> bool:
         """
         检查任务是否重复
 
@@ -84,7 +84,7 @@ class TaskMetrics:
             return False
         return task_hash in self.processed_set
 
-    def add_processed_set(self, task_hash):
+    def add_processed_set(self, task_hash: str) -> None:
         """
         将任务添加到已处理集合
         用于后续的去重检查。
@@ -94,7 +94,7 @@ class TaskMetrics:
         if self.enable_duplicate_check:
             self.processed_set.add(task_hash)
 
-    def discard_processed_set(self, task_hash):
+    def discard_processed_set(self, task_hash: str) -> None:
         """
         从已处理集合中移除任务
         用于在任务处理完成后，从去重集合中移除已处理任务。
@@ -105,7 +105,7 @@ class TaskMetrics:
             self.processed_set.discard(task_hash)
 
     # retry
-    def add_retry_exceptions(self, *exceptions):
+    def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
         """
         添加需要重试的异常类型
 
@@ -113,7 +113,7 @@ class TaskMetrics:
         """
         self.retry_exceptions = self.retry_exceptions + tuple(exceptions)
 
-    def is_retry_able(self, task_hash, exception):
+    def is_retry_able(self, task_hash: str, exception: Exception) -> bool:
         """
         检查任务是否可重试
 
@@ -128,7 +128,7 @@ class TaskMetrics:
         is_retry_time_able = retry_time < self.max_retries
         return is_retry_exception and is_retry_time_able
 
-    def get_retry_time(self, task_hash):
+    def get_retry_time(self, task_hash: str) -> int:
         """
         获取任务的重试时间
 
@@ -137,7 +137,7 @@ class TaskMetrics:
         """
         return self.retry_time_dict.setdefault(task_hash, 0)
 
-    def add_retry_time(self, task_hash, retry_time=1) -> int:
+    def add_retry_time(self, task_hash: str, retry_time: int = 1) -> int:
         """
         增加任务的重试时间
 
@@ -149,7 +149,7 @@ class TaskMetrics:
         self.retry_time_dict[task_hash] += retry_time
         return self.retry_time_dict[task_hash]
 
-    def pop_retry_time(self, task_hash):
+    def pop_retry_time(self, task_hash: str) -> int | None:
         """
         弹出任务的重试时间
 
@@ -159,7 +159,7 @@ class TaskMetrics:
         return self.retry_time_dict.pop(task_hash, None)
 
     # counter
-    def append_task_counter(self, counter: SumCounter):
+    def append_task_counter(self, counter: SumCounter) -> None:
         """
         添加任务总数计数器
 
@@ -266,7 +266,7 @@ class TaskMetrics:
         """
         return self.duplicate_counter.value
 
-    def get_counts(self) -> dict:
+    def get_counts(self) -> dict[str, int]:
         """
         获取当前的统计数据字典
 

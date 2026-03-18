@@ -1,9 +1,8 @@
 # stage/core_stage.py
 from __future__ import annotations
-from typing import Callable
 
 import time
-from typing import List
+from collections.abc import Callable
 from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
 
@@ -20,19 +19,19 @@ class TaskStage(TaskExecutor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.next_stages: List[TaskStage] = []
-        self.prev_stages: List[TaskStage] = []
+        self.next_stages: list[TaskStage] = []
+        self.prev_stages: list[TaskStage] = []
         self._pending_prev_bindings = []
 
         self.init_status()
 
-    def init_metrics(self):
+    def init_metrics(self) -> None:
         """
         初始化任务指标
         """
         self.metrics = TaskMetrics(execution_mode="process", max_retries=self.max_retries, enable_duplicate_check=self.enable_duplicate_check)
 
-    def init_status(self):
+    def init_status(self) -> None:
         """
         初始化 stage 共享状态（跨进程可见）。
         建议在 __init__ 里调用一次。
@@ -49,8 +48,9 @@ class TaskStage(TaskExecutor):
         if find_unpickleable(func):
             raise PickleError(func)
         self.func = func
+        self._func_name = func.__name__
 
-    def set_execution_mode(self, execution_mode: str):
+    def set_execution_mode(self, execution_mode: str) -> None:
         """
         设置执行模式
 
@@ -64,7 +64,7 @@ class TaskStage(TaskExecutor):
 
     def set_graph_context(
         self,
-        next_stages: List[TaskStage] = None,
+        next_stages: list[TaskStage] = None,
         stage_mode: str = None,
         stage_name: str = None,
     ):
@@ -80,7 +80,7 @@ class TaskStage(TaskExecutor):
         self.set_stage_name(stage_name)
         self._finalize_prev_bindings()
 
-    def set_next_stages(self, next_stages: List[TaskStage]):
+    def set_next_stages(self, next_stages: list[TaskStage] | None) -> None:
         """
         设置后续节点列表, 并为后续节点添加本节点为前置节点
 
@@ -90,7 +90,7 @@ class TaskStage(TaskExecutor):
         for next_stage in self.next_stages:
             next_stage.add_prev_stages(self)
 
-    def set_stage_mode(self, stage_mode: str):
+    def set_stage_mode(self, stage_mode: str) -> None:
         """
         设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
 
@@ -103,7 +103,7 @@ class TaskStage(TaskExecutor):
         else:
             raise StageModeError(stage_mode)
 
-    def add_prev_stages(self, prev_stage: TaskStage):
+    def add_prev_stages(self, prev_stage: TaskStage) -> None:
         """
         添加前置节点
 
@@ -125,7 +125,7 @@ class TaskStage(TaskExecutor):
         else:
             self.metrics.append_task_counter(prev_stage.metrics.success_counter)
 
-    def set_stage_name(self, name: str = None):
+    def set_stage_name(self, name: str | None = None) -> None:
         """
         设置当前节点名称
 
@@ -137,7 +137,7 @@ class TaskStage(TaskExecutor):
         if hasattr(self, "_tag"):
             delattr(self, "_tag")
 
-    def _finalize_prev_bindings(self):
+    def _finalize_prev_bindings(self) -> None:
         """
         绑定前置节点
         """
@@ -178,13 +178,13 @@ class TaskStage(TaskExecutor):
             "stage_mode": self.stage_mode,
         }
 
-    def mark_running(self):
+    def mark_running(self) -> None:
         """标记：stage 正在运行。"""
         self.init_status()
         with self._status.get_lock():
             self._status.value = int(StageStatus.RUNNING)
 
-    def mark_stopped(self):
+    def mark_stopped(self) -> None:
         """标记：stage 已停止（正常结束时在 finally 里调用）。"""
         self.init_status()
         with self._status.get_lock():

@@ -1,6 +1,5 @@
 # runtime/util_estimators.py
 import networkx as nx
-from typing import Dict
 
 
 # ==== calculate ====
@@ -32,10 +31,10 @@ def calc_elapsed(
 
 def calc_global_remain_equal_pred(
     G: nx.DiGraph,
-    processed_map: Dict[str, int],
-    pending_map: Dict[str, int],
-    elapsed_map: Dict[str, float],
-) -> Dict[str, float]:
+    processed_map: dict[str, int],
+    pending_map: dict[str, int],
+    elapsed_map: dict[str, float],
+) -> dict[str, float]:
     """
     基于任务图（DAG）估算全局剩余执行时间（偏保守 / 拥塞放大型）。
 
@@ -97,10 +96,10 @@ def calc_global_remain_equal_pred(
 
     :return: expected_pending_map : 估算得到的全局剩余执行时间（秒）
     """
-    expected_pending_map: Dict[str, float] = {}
+    expected_pending_map: dict[str, float] = {}
 
     # 每个节点的 scale（上游放大系数）
-    scale: Dict[str, float] = {}
+    scale: dict[str, float] = {}
 
     for v in nx.topological_sort(G):
         proc_v = float(processed_map.get(v, 0) or 0)

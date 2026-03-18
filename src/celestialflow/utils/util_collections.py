@@ -1,9 +1,8 @@
 # utils/util_collections.py
 from collections import defaultdict
-from typing import Dict, List
 
 
-def cluster_by_value_sorted(input_dict: Dict[str, int]) -> Dict[int, List[str]]:
+def cluster_by_value_sorted(input_dict: dict[str, int]) -> dict[int, list[str]]:
     """
     按值聚类，并确保按 value（键）升序排序
 

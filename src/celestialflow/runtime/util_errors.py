@@ -1,6 +1,7 @@
 # runtime/util_errors.py
 from __future__ import annotations
-from typing import Iterable, Tuple, Any
+from collections.abc import Iterable
+from typing import Any
 
 
 class CelestialFlowError(Exception):
@@ -28,7 +29,7 @@ class InvalidOptionError(ConfigurationError):
         *,
         prefix: str = "Invalid",
     ):
-        allowed_tuple: Tuple[Any, ...] = tuple(allowed)
+        allowed_tuple: tuple[Any, ...] = tuple(allowed)
         message = f"{prefix} {field}: {value}. Valid options are {allowed_tuple}."
         super().__init__(message)
 

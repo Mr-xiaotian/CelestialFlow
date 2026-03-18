@@ -1,6 +1,5 @@
 # runtime/util_types.py
 from enum import IntEnum
-from typing import List
 from threading import Lock
 from multiprocessing import Value as MPValue
 
@@ -12,7 +11,7 @@ class TerminationSignal:
 
     def __init__(
         self, _id: int = -1, source: str = "input"
-    ):
+    ) -> None:
         self.id = _id
         self.source = source
 
@@ -24,28 +23,28 @@ TERMINATION_SIGNAL = TerminationSignal()
 class TerminationIdPool:
     """终止信号id池，用于存储所有已接收的终止信号"""
 
-    def __init__(self, ids: List[int]):
+    def __init__(self, ids: list[int]) -> None:
         self.ids = ids
 
 
 class NoOpContext:
     """空上下文管理器，可用于禁用 with 逻辑"""
 
-    def __enter__(self):
+    def __enter__(self) -> "NoOpContext":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         pass
 
 
 class ValueWrapper:
     """线程内/单进程的计数器包装，可选线程锁。"""
 
-    def __init__(self, value=0, lock=None):
+    def __init__(self, value: int = 0, lock = None) -> None:
         self.value = value
         self._lock = lock
 
-    def get_lock(self):
+    def get_lock(self) -> NoOpContext:
         return self._lock or NoOpContext()
 
 
@@ -65,14 +64,13 @@ class SumCounter:
             self._lock = None
             self.init_value = ValueWrapper(0)
 
-        self.counters: List[ValueWrapper] = []
+        self.counters: list[ValueWrapper] = []
 
     def add_init_value(self, value: int) -> None:
         with self.init_value.get_lock():
             self.init_value.value += value
 
-    def append_counter(self, counter: ValueWrapper) -> None:
-        self.counters.append(counter)
+    def append_counter(self, counter: ValueWrapper) -> None:        self.counters.append(counter)
 
     def reset(self) -> None:
         # reset 也最好带锁（至少 thread 模式）

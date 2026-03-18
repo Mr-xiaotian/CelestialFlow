@@ -1,7 +1,6 @@
 # utils/util_clone.py
 from __future__ import annotations
 
-from typing import List
 from collections import deque
 
 from ..graph import TaskGraph
@@ -66,7 +65,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     :return: 克隆任务图
     """
     visited = set()
-    ordered_stages: List[TaskStage] = []
+    ordered_stages: list[TaskStage] = []
     queue = deque(graph.root_stages)
     while queue:
         stage = queue.popleft()

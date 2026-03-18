@@ -26,20 +26,20 @@ class TaskProgress:
         else:
             self.progress_bar = tqdm(total=total_tasks, desc=desc)
 
-    def update(self, n=1):
+    def update(self, n: int = 1) -> None:
         """更新进度条"""
         self.progress_bar.update(n)
 
-    def close(self):
+    def close(self) -> None:
         """关闭进度条"""
         self.progress_bar.close()
 
-    def refresh_total(self, total):
+    def refresh_total(self, total: int) -> None:
         """动态调整进度条的总任务数"""
         self.progress_bar.total = total
         self.progress_bar.refresh()
 
-    def add_total(self, add_num):
+    def add_total(self, add_num: int) -> None:
         """动态增加进度条的总任务数"""
         if not add_num:
             return
@@ -51,14 +51,14 @@ class NullTaskProgress:
     """
     空进度条管理器，用于在不需要进度条的场景下占位
     """
-    def update(self, n=1):
+    def update(self, n: int = 1) -> None:
         pass
 
-    def close(self):
+    def close(self) -> None:
         pass
 
-    def refresh_total(self, total):
+    def refresh_total(self, total: int) -> None:
         pass
 
-    def add_total(self, add_num):
+    def add_total(self, add_num: int) -> None:
         pass
