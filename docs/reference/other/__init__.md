@@ -34,7 +34,7 @@ graph.set_ctree(
 
 # 查询溯源信息
 trace_str = graph.get_stage_input_trace(stage_tag="Stage1")
-error_trace = graph.get_error_trace(error_id="...")
+error_trace = graph.get_error_trace(error_id=12345)
 ```
 
 ### 2. go_worker.md - Go Worker 任务消费者
@@ -130,7 +130,7 @@ CelestialTree Client → CelestialTree Service
 graph.set_ctree(use_ctree=True)
 
 # 运行任务图
-graph.run()
+graph.start_graph(init_tasks)
 
 # 查询任务溯源
 trace = graph.get_stage_input_trace("ProcessingStage")

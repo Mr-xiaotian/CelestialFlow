@@ -176,17 +176,17 @@ flowchart LR
 class TaskRedisTransport(TaskStage):
     def __init__(
         self,
-        key,                    # Redis List 名称
-        host="localhost",       # Redis 主机地址
-        port=6379,              # Redis 端口
-        db=0,                   # Redis 数据库编号
-        password=None,          # Redis 密码
-        unpack_task_args=False, # 是否解包任务参数
+        key: str,                       # Redis List 名称
+        host: str = "localhost",        # Redis 主机地址
+        port: int = 6379,               # Redis 端口
+        db: int = 0,                    # Redis 数据库编号
+        password: str | None = None,    # Redis 密码
+        unpack_task_args: bool = False, # 是否解包任务参数
     ):
         ...
 ```
 
-**行为**: 将任务序列化为 JSON 并 `rpush` 到 Redis List。
+**行为**: 将任务序列化为 JSON 并 `rpush` 到 Redis List。内部使用 `execution_mode="thread"` 和 `worker_limit=4` 并发写入。
 
 ### TaskRedisSource
 
@@ -196,17 +196,17 @@ class TaskRedisTransport(TaskStage):
 class TaskRedisSource(TaskStage):
     def __init__(
         self,
-        key,                # Redis List 名称
-        host="localhost",   # Redis 主机地址
-        port=6379,          # Redis 端口
-        db=0,               # Redis 数据库编号
-        password=None,      # Redis 密码
-        timeout=10,         # 阻塞超时时间（秒），0 表示无限等待
+        key: str,                    # Redis List 名称
+        host: str = "localhost",     # Redis 主机地址
+        port: int = 6379,            # Redis 端口
+        db: int = 0,                 # Redis 数据库编号
+        password: str | None = None, # Redis 密码
+        timeout: int = 10,           # 阻塞超时时间（秒），0 表示无限等待
     ):
         ...
 ```
 
-**行为**: 使用 `blpop` 阻塞式拉取任务。
+**行为**: 使用 `blpop` 阻塞式拉取任务。内部使用 `execution_mode="serial"`，适合作为流水线入口节点。
 
 ### TaskRedisAck
 
@@ -247,12 +247,12 @@ flowchart LR
 class TaskRedisAck(TaskStage):
     def __init__(
         self,
-        key,                # Redis Hash 名称（存储结果）
-        host="localhost",   # Redis 主机地址
-        port=6379,          # Redis 端口
-        db=0,               # Redis 数据库编号
-        password=None,      # Redis 密码
-        timeout=10,         # 等待超时时间（秒），0 表示无限等待
+        key: str,                    # Redis Hash 名称（存储结果）
+        host: str = "localhost",     # Redis 主机地址
+        port: int = 6379,            # Redis 端口
+        db: int = 0,                 # Redis 数据库编号
+        password: str | None = None, # Redis 密码
+        timeout: int = 10,           # 等待超时时间（秒），0 表示无限等待
     ):
         ...
 ```

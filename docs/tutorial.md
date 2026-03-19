@@ -516,4 +516,4 @@ graph.put_stage_queue({
 
 - 尝试使用 `TaskRouter` 实现条件分发
 - 探索 `TaskRedisTransport` 实现跨语言协作
-- 阅读其他 [API 参考](reference/stage/executor.md) 了解更多功能
+- 阅读其他 [API 参考](reference/stage/core_executor.md) 了解更多功能

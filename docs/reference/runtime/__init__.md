@@ -73,7 +73,7 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
    - **包含类型**:
      - `TerminationSignal`: 任务队列终止的哨兵对象
      - `TerminationIdPool`: 终止信号 ID 池
-     - `StageStatus`: Stage 状态枚举（IDLE, RUNNING, FINISHED, ERROR）
+     - `StageStatus`: Stage 状态枚举（NOT_STARTED, RUNNING, STOPPED）
      - `STAGE_STYLE`: Stage 样式枚举
      - `NodeLabelStyle`: 节点标签样式（来自 CelestialTree）
    - **关键功能**: 类型定义、枚举管理、数据结构、类型安全

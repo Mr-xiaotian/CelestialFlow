@@ -55,6 +55,6 @@ print(trace_str)
 获取特定错误 ID 的溯源树。
 
 ```python
-trace_str = graph.get_error_trace(error_id="...")
+trace_str = graph.get_error_trace(error_id=12345)
 print(trace_str)
 ```

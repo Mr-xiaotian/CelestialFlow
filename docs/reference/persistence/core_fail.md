@@ -62,10 +62,9 @@ listener.stop()
 
 ```python
 sinker.task_error(
-    ts=time.time(),
     stage_tag="MyStage",
     error=ValueError("Invalid input"),
-    err_id="err-12345",
+    err_id=12345,
     task=[1, 2, 3]
 )
 ```
@@ -93,4 +92,4 @@ sinker.start_graph({...})
 
 ## 数据恢复
 
-由于错误日志采用标准的 JSONL 格式，你可以轻松编写脚本读取这些文件，提取失败的任务数据进行重试或分析。框架提供的 `celestialflow.task_tools.load_jsonl_logs` 函数可以辅助读取。
+由于错误日志采用标准的 JSONL 格式，你可以轻松编写脚本读取这些文件，提取失败的任务数据进行重试或分析。框架提供的 `celestialflow.persistence.util_jsonl.load_jsonl_logs` 函数可以辅助读取。

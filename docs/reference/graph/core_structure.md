@@ -36,7 +36,7 @@ chain = TaskChain(
 )
 
 # 启动
-chain.start_chain(init_tasks_dict={stage1: [data]})
+chain.start_chain(init_tasks_dict={stage1.get_tag(): [data]})
 ```
 
 ## Cross (交叉层)

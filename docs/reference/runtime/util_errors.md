@@ -172,7 +172,7 @@ if find_unpickleable(func):
 ### 捕获特定异常
 
 ```python
-from celestialflow.runtime.errors import (
+from celestialflow.runtime.util_errors import (
     ExecutionModeError,
     StageModeError,
     RemoteWorkerError,

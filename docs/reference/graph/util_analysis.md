@@ -1,6 +1,6 @@
 # GraphAnalysis
 
-`graph/analysis.py` 提供基于 `networkx` 的图分析工具。
+`graph/util_analysis.py` 提供基于 `networkx` 的图分析工具。
 
 ## 主要能力
 

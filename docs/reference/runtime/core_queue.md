@@ -22,7 +22,7 @@ class TaskInQueue:
     def __init__(
         self,
         queue: ThreadQueue | MPQueue | AsyncQueue,
-        queue_tags: List[str],
+        queue_tags: list[str],
         out_tag: str,
         log_sinker: "LogSinker",
     ):
@@ -78,7 +78,7 @@ async def get_async(self) -> TaskEnvelope | TerminationIdPool:
 #### drain
 
 ```python
-def drain(self) -> List[TaskEnvelope]:
+def drain(self) -> list[TaskEnvelope]:
     """
     清空队列中的所有任务，返回任务列表。
     记录终止信号状态，但不返回 TerminationIdPool。
@@ -116,8 +116,8 @@ def reset(self):
 class TaskOutQueue:
     def __init__(
         self,
-        queue_list: List[ThreadQueue] | List[MPQueue] | List[AsyncQueue],
-        queue_tags: List[str],
+        queue_list: list[ThreadQueue] | list[MPQueue] | list[AsyncQueue],
+        queue_tags: list[str],
         in_tag: str,
         log_sinker: "LogSinker",
     ):

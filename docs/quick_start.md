@@ -78,7 +78,7 @@ python src/celestialflow/task_web.py --port 5005
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 ```
 
-那么[日志](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/log.md)中会有一些`WARNING`，那是 TaskReporter 在提示无法连接 TaskWeb。但这并不影响使用。
+那么[日志](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/core_log.md)中会有一些`WARNING`，那是 TaskReporter 在提示无法连接 TaskWeb。但这并不影响使用。
 
 ```log
 2025-12-10 08:57:13 WARNING [Reporter] Task injection fetch failed: ConnectTimeout
@@ -90,7 +90,7 @@ graph.set_reporter(True, host="127.0.0.1", port=5005)
 
 为了保证测试正常运行, 请先安装必要的测试库与dotenv库:
 ```bash
-uv pip install pytest pytest-asyncio dotenv
+uv pip install pytest pytest-asyncio python-dotenv
 ```
 
 之后推荐先运行以下两个示例：

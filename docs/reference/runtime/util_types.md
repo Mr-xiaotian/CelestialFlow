@@ -55,7 +55,7 @@ if isinstance(record, TerminationSignal):
 
 ```python
 class TerminationIdPool:
-    def __init__(self, ids: List[int]):
+    def __init__(self, ids: list[int]):
         self.ids = ids
 ```
 
@@ -156,7 +156,7 @@ STAGE_STYLE = NodeLabelStyle(
 
 ## 异常类
 
-异常类定义在 `runtime/errors.py` 中：
+异常类定义在 `runtime/util_errors.py` 中：
 
 | 异常类 | 说明 |
 |--------|------|

@@ -127,7 +127,7 @@ def set_log_level(self, level="SUCCESS"):
 
 ```python
 # 获取节点状态字典
-def get_status_dict(self) -> Dict[str, dict]:
+def get_status_dict(self) -> dict[str, dict]:
     """返回每个节点的实时状态。"""
 
 # 获取图摘要
@@ -143,11 +143,11 @@ def get_graph_topology(self) -> dict:
     """返回 isDAG, schedule_mode, layers_dict 等信息。"""
 
 # 获取结构 JSON
-def get_structure_json(self) -> List[dict]:
+def get_structure_json(self) -> list[dict]:
     """返回图结构的 JSON 表示。"""
 
 # 获取结构列表
-def get_structure_list(self) -> List[str]:
+def get_structure_list(self) -> list[str]:
     """返回格式化的结构列表。"""
 ```
 
@@ -185,7 +185,7 @@ def get_stage_input_trace(self, stage_tag: str) -> str:
     """获取指定节点的输入事件追踪（需要启用 ctree）。"""
 
 # 获取错误追踪
-def get_error_trace(self, error_id):
+def get_error_trace(self, error_id: int):
     """获取指定错误的追踪信息。"""
 ```
 
