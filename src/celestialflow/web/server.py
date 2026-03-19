@@ -100,6 +100,10 @@ def save_config(config: dict) -> bool:
     except Exception as e:
         print(f"Error: Failed to save config: {e}")
         return False
+    
+
+def cal_interval(refresh_interval: int) -> float:
+    return max(1.0, min(float(refresh_interval) / 1000.0, 60.0))
 
 
 class TaskWebServer:
@@ -130,8 +134,7 @@ class TaskWebServer:
 
         # 加载配置
         self.config = load_config()
-        refresh_interval = self.config["refreshInterval"]
-        self.report_interval = max(1.0, min(float(refresh_interval) / 1000.0, 60.0))
+        self.report_interval = cal_interval(self.config["refreshInterval"])
         self._config_lock = threading.Lock()
 
         self._setup_routes()
@@ -144,56 +147,14 @@ class TaskWebServer:
         def index(request: Request):
             return templates.TemplateResponse("index.html", {"request": request})
 
-        # ---- 配置接口 ----
+
+        # ---- 接收接口 ----
         @app.get("/api/pull_config")
         def pull_config():
             """获取前端配置"""
             with self._config_lock:
                 return self.config
-
-        @app.post("/api/save_config")
-        async def save_config_api(data: WebConfigModel):
-            """保存前端配置"""
-            with self._config_lock:
-                self.config = data.model_dump()
-                success = save_config(self.config)
-                if success:
-                    return {"ok": True}
-                else:
-                    return JSONResponse(
-                        content={"ok": False, "error": "Failed to save config"},
-                        status_code=500,
-                    )
-
-        @app.post("/api/update_config")
-        async def update_config_api(data: dict[str, Any]):
-            """部分更新前端配置"""
-            with self._config_lock:
-                # 递归更新配置
-                def deep_update(base: dict, update: dict) -> dict:
-                    for key, value in update.items():
-                        if (
-                            key in base
-                            and isinstance(base[key], dict)
-                            and isinstance(value, dict)
-                        ):
-                            deep_update(base[key], value)
-                        else:
-                            base[key] = value
-                    return base
-
-                next_config = deep_update(dict(self.config), data)
-                self.config = WebConfigModel.model_validate(next_config).model_dump()
-                success = save_config(self.config)
-                if success:
-                    return {"ok": True}
-                else:
-                    return JSONResponse(
-                        content={"ok": False, "error": "Failed to save config"},
-                        status_code=500,
-                    )
-
-        # ---- 接收接口 ----
+            
         @app.get("/api/pull_structure")
         def pull_structure():
             return self.structure_store
@@ -229,7 +190,23 @@ class TaskWebServer:
                 self.injection_tasks.clear()
             return tasks_to_send
 
+
         # ---- 发送接口 ----
+        @app.post("/api/push_config")
+        async def push_config(data: WebConfigModel):
+            """保存前端配置"""
+            with self._config_lock:
+                self.config = data.model_dump()
+                self.report_interval = cal_interval(self.config["refreshInterval"])
+                success = save_config(self.config)
+                if success:
+                    return {"ok": True}
+                else:
+                    return JSONResponse(
+                        content={"ok": False, "error": "Failed to save config"},
+                        status_code=500,
+                    )
+                
         @app.post("/api/push_structure")
         async def push_structure(data: StructureModel):
             self.structure_store = data.items
@@ -305,14 +282,6 @@ class TaskWebServer:
         async def push_history(data: HistoryModel):
             self.history_store = data.history
             return {"ok": True}
-
-        @app.post("/api/push_interval")
-        async def push_interval(data: IntervalModel):
-            try:
-                self.report_interval = max(1.0, min(data.interval / 1000.0, 60.0))
-                return {"message": "Interval updated"}
-            except Exception as e:
-                return JSONResponse(content={"error": str(e)}, status_code=400)
 
         @app.post("/api/push_injection_tasks")
         async def push_injection_tasks(data: TaskInjectionModel):
