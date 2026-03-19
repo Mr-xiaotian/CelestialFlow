@@ -55,6 +55,18 @@
   overflow-x: auto;
 }
 
+.mermaid .arrowMarkerPath {
+  .dark-theme & {
+    fill: var(--mermaid-arrow);
+  }
+}
+
+.mermaid span {
+  .dark-theme & {
+    color: var(--mermaid-text) !important;
+  }
+}
+
 /* ================================
   🌟 图拓扑信息
 ================================ */
@@ -69,22 +81,26 @@
   display: flex;
   justify-content: space-between;
   padding: 4px 0;
-}
 
-.topology-row .label {
-  color: var(--gray-slate);
-}
+  .label {
+    color: var(--gray-slate);
 
-.topology-row .value {
-  font-weight: 500;
-}
+    .dark-theme & {
+      color: var(--gray-medium);
+    }
+  }
 
-.topology-row .value.ok {
-  color: var(--color-ok);
-}
+  .value {
+    font-weight: 500;
 
-.topology-row .value.warn {
-  color: var(--color-warn);
+    &.ok {
+      color: var(--color-ok);
+    }
+
+    &.warn {
+      color: var(--color-warn);
+    }
+  }
 }
 
 .placeholder {
@@ -127,6 +143,10 @@
 .stat-label {
   font-size: 0.875rem;
   color: var(--gray-dark);
+
+  .dark-theme & {
+    color: var(--gray-medium);
+  }
 }
 
 .stat-value {
@@ -154,6 +174,10 @@
   background-color: var(--gray-light);
   border-radius: 0.25rem;
   overflow: hidden;
+
+  .dark-theme & {
+    background-color: var(--gray-700);
+  }
 }
 
 .progress-value {
@@ -164,13 +188,14 @@
 
 .time-estimate {
   font-family: monospace;
-}
 
-.time-estimate .elapsed {
-  color: var(--success-color);
-}
-.time-estimate .remaining {
-  color: var(--warning-color);
+  .elapsed {
+    color: var(--success-color);
+  }
+
+  .remaining {
+    color: var(--warning-color);
+  }
 }
 
 /* ================================
@@ -182,20 +207,20 @@
   gap: 1.5rem;
   max-height: 80vh;
   overflow: auto;
-}
 
-#dashboard-grid .card {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  margin: 0.5rem;
-  padding: 1rem;
-}
+  .card {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    margin: 0.5rem;
+    padding: 1rem;
 
-#dashboard-grid .card:hover {
-  transform: translateY(-4px);
-}
+    &:hover {
+      transform: translateY(-4px);
+    }
+  }
 
-#dashboard-grid .card-title {
-  padding-bottom: 0;
+  .card-title {
+    padding-bottom: 0;
+  }
 }
 
 .dragging {
@@ -254,6 +279,53 @@
   font-size: 0.875rem;
   color: var(--gray-dark);
   margin-top: 0.25rem;
+
+  .dark-theme & {
+    color: var(--gray-400);
+  }
+}
+
+/* ================================
+  🌟 图节点
+================================ */
+.graph-container {
+  .dark-theme & {
+    background-color: var(--dark-bg-elevated);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.graph-node {
+  .dark-theme & {
+    background-color: var(--graph-node-bg);
+    border-left: 4px solid var(--graph-node-border);
+
+    &:hover {
+      background-color: var(--graph-node-hover);
+    }
+  }
+}
+
+.stage-name {
+  .dark-theme & { color: var(--stage-name); }
+}
+
+.stage-mode {
+  .dark-theme & { color: var(--stage-mode); }
+}
+
+.stage-func {
+  .dark-theme & {
+    background-color: var(--stage-func-bg);
+    color: var(--stage-func-text);
+  }
+}
+
+.visited-mark {
+  .dark-theme & {
+    background-color: var(--visited-mark-bg);
+    color: var(--visited-mark-text);
+  }
 }
 
 /* ================================
@@ -288,70 +360,8 @@
 }
 
 /* ================================
-  🌟 暗黑模式适配
-================================ */
-.dark-theme .mermaid .arrowMarkerPath {
-  fill: var(--mermaid-arrow);
-}
-
-.dark-theme .mermaid span {
-  color: var(--mermaid-text) !important;
-}
-
-.dark-theme .topology-row .label {
-  color: var(--gray-medium);
-}
-
-.dark-theme .summary-label {
-  color: var(--gray-400);
-}
-
-.dark-theme .stat-label {
-  color: var(--gray-medium);
-}
-
-.dark-theme .progress-bar {
-  background-color: var(--gray-700);
-}
-
-.dark-theme .progress-value {
-  background-color: var(--primary-color);
-}
-
-.dark-theme .graph-container {
-  background-color: var(--dark-bg-elevated);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-}
-
-.dark-theme .graph-node {
-  background-color: var(--graph-node-bg);
-  border-left: 4px solid var(--graph-node-border);
-}
-
-.dark-theme .graph-node:hover {
-  background-color: var(--graph-node-hover);
-}
-
-.dark-theme .stage-name {
-  color: var(--stage-name);
-}
-.dark-theme .stage-mode {
-  color: var(--stage-mode);
-}
-.dark-theme .stage-func {
-  background-color: var(--stage-func-bg);
-  color: var(--stage-func-text);
-}
-.dark-theme .visited-mark {
-  background-color: var(--visited-mark-bg);
-  color: var(--visited-mark-text);
-}
-
-/* ================================
   🌟 错误数交互样式
 ================================ */
-
-/* 错误数可点击提示（节点卡片和摘要卡片） */
 .stat-value.error-clickable,
 .summary-value.error-clickable {
   cursor: pointer;

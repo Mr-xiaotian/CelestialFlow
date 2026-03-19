@@ -11,28 +11,27 @@
   outline: none;
   transition: all 0.2s ease;
   height: 30px;
-}
 
-.error-search-input:focus {
-  border-color: var(--border-dark);
-  background-color: var(--gray-50);
+  &:focus {
+    border-color: var(--border-dark);
+    background-color: var(--gray-50);
+
+    .dark-theme & {
+      border-color: var(--dark-border-light);
+      background-color: var(--dark-bg-elevated);
+    }
+  }
+
+  .dark-theme & {
+    background-color: var(--dark-bg-input);
+    border: 1px solid var(--dark-border);
+    color: var(--dark-text-secondary);
+  }
 }
 
 /* 在 filter-container 里，搜索框和 label 间距 */
 .filter-container .error-search-input {
   margin-right: 0.5rem;
-}
-
-/* 暗黑模式下搜索框 */
-.dark-theme .error-search-input {
-  background-color: var(--dark-bg-input);
-  border: 1px solid var(--dark-border);
-  color: var(--dark-text-secondary);
-}
-
-.dark-theme .error-search-input:focus {
-  border-color: var(--dark-border-light);
-  background-color: var(--dark-bg-elevated);
 }
 
 /* ================================
@@ -43,6 +42,14 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+
+  select {
+    .dark-theme & {
+      background-color: var(--dark-bg-input);
+      color: var(--dark-text-secondary);
+      border: 1px solid var(--dark-border);
+    }
+  }
 }
 
 .filter-label {
@@ -59,6 +66,11 @@
 table {
   width: 100%;
   border-collapse: collapse;
+
+  .dark-theme & {
+    background-color: var(--gray-800);
+    color: var(--dark-text-secondary);
+  }
 }
 
 th,
@@ -66,6 +78,10 @@ td {
   text-align: left;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-light);
+
+  .dark-theme & {
+    border-bottom: 1px solid var(--gray-700);
+  }
 }
 
 th {
@@ -74,6 +90,11 @@ th {
   font-weight: 600;
   text-transform: uppercase;
   color: var(--gray-dark);
+
+  .dark-theme & {
+    background-color: var(--gray-700);
+    color: var(--gray-300);
+  }
 }
 
 .error-id {
@@ -83,6 +104,10 @@ th {
 .error-message {
   color: var(--danger-color);
   font-family: monospace;
+
+  .dark-theme & {
+    color: var(--danger-light);
+  }
 }
 
 /* ================================
@@ -94,32 +119,51 @@ th {
   align-items: center;
   gap: 12px;
   margin-top: 1rem;
-}
 
-.pagination-container button {
-  margin: 0 8px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  background-color: var(--border-light);
-  color: var(--text-primary);
-  cursor: pointer;
-}
+  button {
+    margin: 0 8px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    background-color: var(--border-light);
+    color: var(--text-primary);
+    cursor: pointer;
 
-.pagination-container button:hover:not(:disabled) {
-  background-color: var(--border-medium);
-}
+    &:hover:not(:disabled) {
+      background-color: var(--border-medium);
 
-.pagination-container button:disabled {
-  color: var(--gray-400);
-  cursor: not-allowed;
-  opacity: 0.5;
+      .dark-theme & {
+        background-color: var(--dark-border);
+      }
+    }
+
+    &:disabled {
+      color: var(--gray-400);
+      cursor: not-allowed;
+      opacity: 0.5;
+
+      .dark-theme & {
+        background-color: var(--gray-800);
+        color: var(--gray-400);
+        opacity: 0.6;
+      }
+    }
+
+    .dark-theme & {
+      background-color: var(--gray-700);
+      color: var(--dark-text-primary);
+    }
+  }
 }
 
 .pagination-info {
   margin: 0 12px;
   font-size: 14px;
   color: var(--text-tertiary);
+
+  .dark-theme & {
+    color: var(--gray-300);
+  }
 }
 
 /* ================================
@@ -134,19 +178,19 @@ th {
   color: var(--text-tertiary);
   font-size: 14px;
   transition: all 0.2s;
-}
 
-.pager-btn:hover:not(:disabled) {
-  background-color: var(--gray-200);
-  border-color: var(--border-dark);
-  color: var(--text-primary);
-}
+  &:hover:not(:disabled) {
+    background-color: var(--gray-200);
+    border-color: var(--border-dark);
+    color: var(--text-primary);
+  }
 
-.pager-btn:disabled {
-  background-color: var(--gray-50);
-  border-color: var(--border-light);
-  color: var(--gray-400);
-  cursor: not-allowed;
+  &:disabled {
+    background-color: var(--gray-50);
+    border-color: var(--border-light);
+    color: var(--gray-400);
+    cursor: not-allowed;
+  }
 }
 
 /* ================================
@@ -156,26 +200,42 @@ th {
   display: inline-flex;
   gap: 8px;
   margin: 0 8px;
-}
 
-.pager .page-link {
-  cursor: pointer;
-  color: var(--text-tertiary);
-  transition: color 0.2s;
-}
+  .page-link {
+    cursor: pointer;
+    color: var(--text-tertiary);
+    transition: color 0.2s;
 
-.pager .page-link:hover {
-  color: var(--text-tertiary);
-}
+    &:hover {
+      color: var(--text-tertiary);
 
-.pager .page-current {
-  font-weight: bold;
-  color: var(--text-primary);
-  cursor: default;
-}
+      .dark-theme & {
+        color: var(--gray-100);
+      }
+    }
 
-.pager .dots {
-  color: var(--gray-400);
+    .dark-theme & {
+      color: var(--gray-300);
+    }
+  }
+
+  .page-current {
+    font-weight: bold;
+    color: var(--text-primary);
+    cursor: default;
+
+    .dark-theme & {
+      color: var(--text-inverse);
+    }
+  }
+
+  .dots {
+    color: var(--gray-400);
+
+    .dark-theme & {
+      color: var(--gray-500);
+    }
+  }
 }
 
 /* ================================
@@ -185,6 +245,10 @@ th {
   text-align: center;
   color: var(--gray-medium);
   padding: 2rem;
+
+  .dark-theme & {
+    color: var(--gray-400);
+  }
 }
 
 /* ================================
@@ -194,82 +258,4 @@ th {
   th, td {
     padding: 0.5rem;
   }
-}
-
-/* ================================
-  🌟 暗黑模式适配
-================================ */
-.dark-theme table {
-  background-color: var(--gray-800);
-  color: var(--dark-text-secondary);
-}
-
-.dark-theme th {
-  background-color: var(--gray-700);
-  color: var(--gray-300);
-}
-
-.dark-theme th,
-.dark-theme td {
-  border-bottom: 1px solid var(--gray-700);
-}
-
-.dark-theme .error-message {
-  color: var(--danger-light);
-}
-
-.dark-theme .no-errors {
-  color: var(--gray-400);
-}
-
-.dark-theme .filter-container select {
-  background-color: var(--dark-bg-input);
-  color: var(--dark-text-secondary);
-  border: 1px solid var(--dark-border);
-}
-
-.dark-theme .pagination-container button {
-  background-color: var(--gray-700);
-  color: var(--dark-text-primary);
-}
-
-.dark-theme .pagination-container button:hover:not(:disabled) {
-  background-color: var(--dark-border);
-}
-
-.dark-theme .pagination-container button:disabled {
-  background-color: var(--gray-800);
-  color: var(--gray-400);
-  opacity: 0.6;
-}
-
-.dark-theme .pagination-info {
-  color: var(--gray-300);
-}
-
-/* 暗色主题下的分页样式 */
-.dark-theme .pager {
-  display: inline-flex;
-  gap: 8px;
-  margin: 0 8px;
-}
-
-.dark-theme .pager .page-link {
-  cursor: pointer;
-  color: var(--gray-300);
-  transition: color 0.2s;
-}
-
-.dark-theme .pager .page-link:hover {
-  color: var(--gray-100);
-}
-
-.dark-theme .pager .page-current {
-  font-weight: bold;
-  color: var(--text-inverse);
-  cursor: default;
-}
-
-.dark-theme .pager .dots {
-  color: var(--gray-500);
 }
