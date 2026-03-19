@@ -145,22 +145,7 @@ class TaskInQueue:
         """
         while True:
             item: TaskEnvelope | TerminationSignal = self.queue.get()
-            self._log_get(item)
-
-            if isinstance(item, TaskEnvelope):
-                return item
-
-            if isinstance(item, TerminationSignal):
-                self._record_termination(item)
-                if "input" in self.termination_dict:
-                    return TerminationIdPool(ids=[self.termination_dict["input"]])
-                elif self.out_tag in self.termination_dict:
-                    return TerminationIdPool(ids=[self.termination_dict[self.out_tag]])
-                elif self._can_merge_termination():
-                    return self._merge_termination()
-                continue
-
-            raise ValueError(f"unexpected item type: {type(item)}")
+            return self._deal_get_item(item)
 
     async def get_async(self) -> TaskEnvelope | TerminationIdPool:
         """
@@ -169,27 +154,31 @@ class TaskInQueue:
         :return: 出队的任务或终止符号id池
         """
         while True:
-            if isinstance(self.queue, AsyncQueue):
-                item: TaskEnvelope | TerminationSignal = await self.queue.get()
-            else:
-                item = self.queue.get()
+            item: TaskEnvelope | TerminationSignal = await self.queue.get()
+            return self._deal_get_item(item)
+        
+    def _deal_get_item(self, item: TaskEnvelope | TerminationSignal) -> TaskEnvelope | TerminationIdPool:
+        """
+        处理出队的任务或终止符号
 
-            self._log_get(item)
+        :param item: 出队的任务或终止信号
+        :return: 处理后的任务或终止符号id池
+        """
+        self._log_get(item)
 
-            if isinstance(item, TaskEnvelope):
-                return item
+        if isinstance(item, TaskEnvelope):
+            return item
 
-            if isinstance(item, TerminationSignal):
-                self._record_termination(item)
-                if "input" in self.termination_dict:
-                    return TerminationIdPool(ids=[self.termination_dict["input"]])
-                elif self.out_tag in self.termination_dict:
-                    return TerminationIdPool(ids=[self.termination_dict[self.out_tag]])
-                elif self._can_merge_termination():
-                    return self._merge_termination()
-                continue
-
-            raise ValueError(f"unexpected item type: {type(item)}")
+        if isinstance(item, TerminationSignal):
+            self._record_termination(item)
+            if "input" in self.termination_dict:
+                return TerminationIdPool(ids=[self.termination_dict["input"]])
+            elif self.out_tag in self.termination_dict:
+                return TerminationIdPool(ids=[self.termination_dict[self.out_tag]])
+            elif self._can_merge_termination():
+                return self._merge_termination()
+        
+        raise ValueError(f"unexpected item type: {type(item)}")
 
     def drain(self) -> list[TaskEnvelope]:
         """
