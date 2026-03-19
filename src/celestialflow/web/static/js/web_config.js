@@ -61,10 +61,6 @@ function applyConfig() {
     refreshRate = Number.isFinite(interval) && interval > 0 ? interval : 5000;
     webConfig.refreshInterval = refreshRate;
     refreshSelect.value = refreshRate.toString();
-    if (typeof hiddenNodes !== "undefined" && hiddenNodes instanceof Set) {
-        hiddenNodes = new Set(webConfig.hiddenNodes);
-        localStorage.setItem("hiddenNodes", JSON.stringify([...hiddenNodes]));
-    }
     // 应用仪表盘布局
     applyDashboardLayout();
 }

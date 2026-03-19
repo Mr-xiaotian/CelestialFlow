@@ -93,7 +93,7 @@ function renderDashboard() {
     card.className = "card";
     card.innerHTML = `
           <div class="card-header">
-            <h3 class="card-title">${node}</h3>
+            <h3 class="card-title">${escapeHtml(node)}</h3>
             <span class="badge ${badgeClass}">${badgeText}</span>
           </div>
           <div class="stats-grid">
@@ -105,7 +105,7 @@ function renderDashboard() {
               data.tasks_pending,
               data.add_tasks_pending
             )}</div></div>
-            <div><div class="stat-label">错误</div><div class="stat-value text-red error-clickable" data-node="${node}">${formatWithDelta(
+            <div><div class="stat-label">错误</div><div class="stat-value text-red error-clickable" data-node="${escapeHtml(node)}">${formatWithDelta(
               data.tasks_failed,
               data.add_tasks_failed
             )}</div></div>
@@ -113,12 +113,8 @@ function renderDashboard() {
               data.tasks_duplicated,
               data.add_tasks_duplicated
             )}</div></div>
-            <div><div class="stat-label">节点模式</div><div class="stat-value">${
-              data.stage_mode
-            }</div></div>
-            <div><div class="stat-label">运行模式</div><div class="stat-value">${
-              data.execution_mode
-            }</div></div>
+            <div><div class="stat-label">节点模式</div><div class="stat-value">${escapeHtml(data.stage_mode)}</div></div>
+            <div><div class="stat-label">运行模式</div><div class="stat-value">${escapeHtml(data.execution_mode)}</div></div>
           </div>
           <div class="text-sm text-gray">开始时间: ${formatTimestamp(data.start_time)}</div>
           <div class="progress-container">
@@ -126,9 +122,9 @@ function renderDashboard() {
               <span>任务完成率</span>
               <span class="time-estimate">
                 <span class="elapsed">${formatDuration(data.elapsed_time)}</span>
-                &lt; 
-                <span class="remaining">${formatDuration(data.remaining_time)}</span>, 
-                <span class="task-avg-time">${data.task_avg_time}</span>, 
+                &lt;
+                <span class="remaining">${formatDuration(data.remaining_time)}</span>,
+                <span class="task-avg-time">${data.task_avg_time}</span>,
                 <span>${progress}%</span>
               </span>
             </div>
@@ -137,14 +133,13 @@ function renderDashboard() {
             </div>
           </div>
         `;
-    
+
     // 为错误数添加点击事件（跳转到错误日志页面并筛选该节点）
     const errorValue = card.querySelector(".error-clickable");
     if (errorValue) {
       errorValue.addEventListener("click", (e) => {
         e.stopPropagation(); // 阻止事件冒泡
-        const nodeName = errorValue.getAttribute("data-node");
-        switchToErrorsTab(nodeName);
+        switchToErrorsTab(node); // 使用原始 node 值（非转义）作为筛选器的值
       });
     }
     

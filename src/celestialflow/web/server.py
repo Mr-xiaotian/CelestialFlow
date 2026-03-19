@@ -72,12 +72,11 @@ class WebConfigModel(BaseModel):
     theme: str
     refreshInterval: int
     dashboard: DashboardConfigModel
-    hiddenNodes: list[str]
     cards: dict[str, CardConfigModel]
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_PATH = os.path.join(BASE_DIR, "web_config.json")
+CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 
 static_path = os.path.join(BASE_DIR, "static")
 templates_path = os.path.join(BASE_DIR, "templates")

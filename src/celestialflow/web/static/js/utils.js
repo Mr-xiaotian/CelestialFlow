@@ -82,6 +82,18 @@ function validateJSON(text) {
     }
 }
 /**
+ * 转义 HTML 特殊字符，防止 XSS
+ * @param {string} str - 原始字符串
+ * @returns {string} 转义后的安全字符串
+ */
+function escapeHtml(str) {
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+/**
  * 切换页面暗黑/明亮主题
  * @returns {boolean} 切换后是否为暗黑模式
  */

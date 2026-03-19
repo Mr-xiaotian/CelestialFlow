@@ -62,23 +62,14 @@ function initChart() {
               hiddenNodes.add(nodeName);
             }
 
-            // 保存到 localStorage 和后端配置
+            // 保存到 localStorage
             localStorage.setItem(
               "hiddenNodes",
               JSON.stringify([...hiddenNodes])
             );
-            
-            // 保存到后端配置
-            if (typeof saveWebConfig === 'function') {
-              webConfig.hiddenNodes = [...hiddenNodes];
-              saveWebConfig();
-            }
 
             const meta = legend.chart.getDatasetMeta(index);
-            meta.hidden =
-              meta.hidden === null
-                ? !legend.chart.data.datasets[index].hidden
-                : null;
+            meta.hidden = !meta.hidden;
             legend.chart.update();
           },
         },

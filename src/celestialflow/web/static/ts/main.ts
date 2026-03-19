@@ -100,8 +100,6 @@ async function refreshAll() {
   }
 
   if (statusesChanged) {
-    previousNodeStatusesJSON = currentStatusesJSON;
-
     renderDashboard();      // 中间节点状态卡片
     populateNodeFilter();   // 错误筛选器
     renderNodeList();       // 注入页节点列表

@@ -86,7 +86,6 @@ async function refreshAll() {
         renderTopologyInfo(); // 左下拓扑信息
     }
     if (statusesChanged) {
-        previousNodeStatusesJSON = currentStatusesJSON;
         renderDashboard(); // 中间节点状态卡片
         populateNodeFilter(); // 错误筛选器
         renderNodeList(); // 注入页节点列表
