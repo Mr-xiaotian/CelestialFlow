@@ -103,8 +103,7 @@ function applyDashboardLayout() {
             panelEl.appendChild(cardEl);
             cardEl.style.display = "";
             const titleEl = cardEl.querySelector(".card-title");
-            if (titleEl && cardConfig.title)
-                titleEl.textContent = cardConfig.title;
+            // if (titleEl && cardConfig.title) titleEl.textContent = cardConfig.title;
             assigned.add(cardKey);
         }
     }

@@ -268,6 +268,12 @@ class LogSinker(BaseSinker):
             f"[Reporter] Pull 'interval' failed: {type(exception).__name__}({exception}).",
         )
 
+    def pull_history_limit_failed(self, exception: Exception) -> None:
+        self._sink(
+            "WARNING",
+            f"[Reporter] Pull 'history limit' failed: {type(exception).__name__}({exception}).",
+        )
+
     def pull_tasks_failed(self, exception: Exception) -> None:
         self._sink(
             "WARNING",

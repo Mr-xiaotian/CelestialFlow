@@ -534,6 +534,7 @@ class TaskGraph:
         status_dict = {}
         now = time.time()
         interval = self.reporter.interval
+        history_limit = self.reporter.history_limit
 
         totals = {
             "total_successed": 0,
@@ -607,7 +608,7 @@ class TaskGraph:
                     "tasks_processed": stage_counts["tasks_processed"],
                 }
             )
-            history.pop(0) if len(history) > 20 else None
+            history.pop(0) if len(history) > history_limit else None
             history_dict[stage_tag] = history
 
             status_dict[stage_tag] = {

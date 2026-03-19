@@ -71,6 +71,7 @@ class DashboardConfigModel(BaseModel):
 class WebConfigModel(BaseModel):
     theme: str
     refreshInterval: int
+    historyLimit: int
     dashboard: DashboardConfigModel
     cards: dict[str, CardConfigModel]
 
@@ -134,6 +135,7 @@ class TaskWebServer:
         # 加载配置
         self.config = load_config()
         self.report_interval = cal_interval(self.config["refreshInterval"])
+        self.history_limit = self.config.get("historyLimit", 20)
         self._config_lock = threading.Lock()
 
         self._setup_routes()
@@ -181,6 +183,10 @@ class TaskWebServer:
         @app.get("/api/pull_interval")
         def pull_interval():
             return {"interval": self.report_interval}
+        
+        @app.get("/api/pull_history_limit")
+        def pull_history_limit():
+            return {"historyLimit": self.history_limit}
 
         @app.get("/api/pull_task_injection")
         def pull_task_injection():
@@ -197,6 +203,7 @@ class TaskWebServer:
             with self._config_lock:
                 self.config = data.model_dump()
                 self.report_interval = cal_interval(self.config["refreshInterval"])
+                self.history_limit = self.config.get("historyLimit", 20)
                 success = save_config(self.config)
                 if success:
                     return {"ok": True}

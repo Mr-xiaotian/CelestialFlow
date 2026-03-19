@@ -1,4 +1,17 @@
-let webConfig: any = null;
+type WebConfig = {
+    theme: "light" | "dark";
+    refreshInterval: number;
+    historyLimit: number;
+    dashboard: {
+        left: string[];
+        middle: string[];
+        right: string[];
+    };
+    cards: Record<string, { title: string }>;
+};
+
+
+let webConfig: WebConfig | null = null;
 
 const PANEL_SELECTOR_MAP = {
     left: ".left-panel",
@@ -115,7 +128,7 @@ function applyDashboardLayout() {
             cardEl.style.display = "";
 
             const titleEl = cardEl.querySelector(".card-title") as HTMLElement | null;
-            if (titleEl && cardConfig.title) titleEl.textContent = cardConfig.title;
+            // if (titleEl && cardConfig.title) titleEl.textContent = cardConfig.title;
 
             assigned.add(cardKey);
         }
