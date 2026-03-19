@@ -249,6 +249,7 @@ async function refreshAll() {
     loadErrors(),      // 获取最新错误记录，更新 errors[]
     loadTopology(),    // 获取最新拓扑信息，更新 TopologyData
     loadSummary(),     // 获取最新汇总数据，更新 summaryData
+    loadHistories(),   // 获取节点进度历史数据，更新 nodeHistories
 
     pushRefreshRate(), // 每次轮询时推送刷新频率到后端
   ]);
@@ -258,12 +259,14 @@ async function refreshAll() {
   const currentErrorsJSON = JSON.stringify(errors);
   const currentTopologyJSON = JSON.stringify(topologyData);
   const currentSummaryJSON = JSON.stringify(summaryData);
+  const currentHistoriesJSON = JSON.stringify(nodeHistories);
 
   const statusesChanged = currentStatusesJSON !== previousNodeStatusesJSON;
   const structureChanged = currentStructureJSON !== previousStructureDataJSON;
   const errorsChanged = currentErrorsJSON !== previousErrorsJSON;
   const topologyChanged = currentTopologyJSON !== previousTopologyDataJSON;
   const summaryChanged = currentSummaryJSON !== previousSummaryDataJSON;
+  const historiesChanged = currentHistoriesJSON !== previousNodeHistoriesJSON;
 
   if (statusesChanged || structureChanged) {
     previousNodeStatusesJSON = currentStatusesJSON;
@@ -284,11 +287,16 @@ async function refreshAll() {
     renderSummary(); // 右下汇总数据
   }
 
+  if (historiesChanged) {
+    previousNodeHistoriesJSON = currentHistoriesJSON;
+
+    updateChartData();      // 右上折线图
+  }
+
   if (statusesChanged) {
     previousNodeStatusesJSON = currentStatusesJSON;
 
     renderDashboard();      // 中间节点状态卡片
-    updateChartData();      // 右上折线图
     populateNodeFilter();   // 错误筛选器
     renderNodeList();       // 注入页节点列表
   }

@@ -39,19 +39,17 @@ function getColor(index) {
     return colors[index % colors.length];
 }
 /**
- * 从节点状态中提取历史进度数据，用于图表显示
- * @param {Object} nodeStatuses - 节点状态对象
+ * 从节点历史数据中提取进度数据，用于图表显示
+ * @param {Object} nodeHistories - 节点历史数据对象
  * @returns {Object} 包含各节点历史数据的对象
  */
-function extractProgressData(nodeStatuses) {
+function extractProgressData(nodeHistories) {
     const result = {};
-    for (const [node, data] of Object.entries(nodeStatuses)) {
-        if (data.history) {
-            result[node] = data.history.map((point) => ({
-                x: point.timestamp,
-                y: point.tasks_processed,
-            }));
-        }
+    for (const [node, data] of Object.entries(nodeHistories)) {
+        result[node] = data.map((point) => ({
+            x: point.timestamp,
+            y: point.tasks_processed,
+        }));
     }
     return result;
 }

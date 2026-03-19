@@ -78,6 +78,7 @@ class TaskReporter:
         self._push_structure()
         self._push_topology()
         self._push_summary()
+        self._push_history()
 
     def _pull_interval(self) -> None:
         try:
@@ -220,6 +221,18 @@ class TaskReporter:
             )
         except Exception as e:
             self.log_sinker.push_summary_failed(e)
+
+    def _push_history(self) -> None:
+        try:
+            history = self.task_graph.get_stage_history()
+            payload = {"history": history}
+            requests.post(
+                f"{self.base_url}/api/push_history",
+                json=payload,
+                timeout=self._push_timeout(),
+            )
+        except Exception as e:
+            self.log_sinker.push_history_failed(e)
 
 
 class NullTaskReporter:

@@ -315,3 +315,9 @@ class LogSinker(BaseSinker):
             "WARNING",
             f"[Reporter] Push 'summary' failed: {type(exception).__name__}({exception}).",
         )
+
+    def push_history_failed(self, exception: Exception) -> None:
+        self._sink(
+            "WARNING",
+            f"[Reporter] Push 'history' failed: {type(exception).__name__}({exception}).",
+        )

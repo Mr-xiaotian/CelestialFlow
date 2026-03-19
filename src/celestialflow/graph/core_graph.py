@@ -112,6 +112,8 @@ class TaskGraph:
         )
         # 用于保存任务图的摘要信息
         self.graph_summary: dict[str, int | float] = {}
+        # 用于保存每个节点的历史状态信息列表（仅保留最近20条）
+        self.stage_history: dict[str, list[dict]] = {}
         # 用于保存每个节点的输入任务ID集合
         self.input_ids: dict[str, set] = defaultdict(set)
 
@@ -548,6 +550,8 @@ class TaskGraph:
         running_pending_map: dict[str, int] = {}
         running_remaining_map: dict[str, float] = {}
 
+        history_dict: dict[str, list[dict]] = {}
+
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
             stage: TaskStage = stage_runtime["stage"]
             last_stage_status_dict: dict = self.status_dict.get(stage_tag, {})
@@ -596,7 +600,7 @@ class TaskGraph:
             # 计算平均时间（秒/任务）并格式化为字符串
             avg_time_str = format_avg_time(elapsed, stage_counts["tasks_processed"])
 
-            history: list = list(last_stage_status_dict.get("history", []))
+            history: list = list(self.stage_history.get(stage_tag, []))
             history.append(
                 {
                     "timestamp": now,
@@ -604,6 +608,7 @@ class TaskGraph:
                 }
             )
             history.pop(0) if len(history) > 20 else None
+            history_dict[stage_tag] = history
 
             status_dict[stage_tag] = {
                 **stage.get_summary(),
@@ -614,7 +619,6 @@ class TaskGraph:
                 "elapsed_time": elapsed,
                 "remaining_time": remaining,
                 "task_avg_time": avg_time_str,
-                "history": list(history),
             }
 
         if not self.isDAG:
@@ -630,6 +634,7 @@ class TaskGraph:
 
         self.status_dict = status_dict
         self.graph_summary = dict(totals)
+        self.stage_history = dict(history_dict)
 
     def get_fail_by_stage_dict(self) -> dict:
         return load_task_by_stage(self.fail_listener.jsonl_path)
@@ -646,7 +651,12 @@ class TaskGraph:
         return self.status_dict
 
     def get_graph_summary(self) -> dict:
+        """获取任务链的摘要信息字典"""
         return self.graph_summary
+    
+    def get_stage_history(self) -> dict[str, list[dict]]:
+        """获取任务链的历史状态信息字典"""
+        return self.stage_history
 
     def get_graph_topology(self) -> dict:
         """

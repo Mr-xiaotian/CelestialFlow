@@ -44,6 +44,10 @@ class SummaryModel(BaseModel):
     summary: dict[str, Any]
 
 
+class HistoryModel(BaseModel):
+    history: dict[str, list[dict]]
+
+
 class IntervalModel(BaseModel):
     interval: float
 
@@ -116,6 +120,7 @@ class TaskWebServer:
         self.error_store = []
         self.topology_store = {}
         self.summary_store = {}
+        self.history_store = {}
         self.injection_tasks = []  # 存储前端注入任务
 
         self._task_injection_lock = threading.Lock()
@@ -208,6 +213,10 @@ class TaskWebServer:
         @app.get("/api/get_summary")
         def get_summary():
             return self.summary_store
+        
+        @app.get("/api/get_history")
+        def get_history():
+            return self.history_store
 
         @app.get("/api/get_interval")
         def get_interval():
@@ -290,6 +299,11 @@ class TaskWebServer:
         @app.post("/api/push_summary")
         async def push_summary(data: SummaryModel):
             self.summary_store = data.summary
+            return {"ok": True}
+        
+        @app.post("/api/push_history")
+        async def push_history(data: HistoryModel):
+            self.history_store = data.history
             return {"ok": True}
 
         @app.post("/api/push_interval")
