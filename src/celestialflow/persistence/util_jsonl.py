@@ -2,7 +2,7 @@
 import json
 import ast
 from collections import defaultdict
-from typing import Dict, Any, List, Optional
+from typing import Any, Optional
 
 # ======== jsonl文件处理 ========
 
@@ -10,8 +10,8 @@ from typing import Dict, Any, List, Optional
 def load_jsonl_logs(
     path: str,
     start_seq: int = 1,
-    keys: Optional[List[str]] = None,
-) -> List[Dict]:
+    keys: Optional[list[str]] = None,
+) -> list[dict]:
     """
     从 jsonl 文件中读取数据（可选择性读取字段）
 
@@ -20,7 +20,7 @@ def load_jsonl_logs(
     :param keys: 只保留这些键；None 表示保留全部
     :return: 从 start_seq 开始的 list[dict]
     """
-    results: List[Dict] = []
+    results: list[dict] = []
 
     if start_seq < 0:
         start_seq = 0
@@ -53,11 +53,11 @@ def load_jsonl_logs(
 
 def load_jsonl_grouped_by_keys(
     jsonl_path: str,
-    group_keys: List[str],
-    extract_fields: Optional[List[str]] = None,
-    eval_fields: Optional[List[str]] = None,
+    group_keys: list[str],
+    extract_fields: Optional[list[str]] = None,
+    eval_fields: Optional[list[str]] = None,
     skip_if_missing: bool = True,
-) -> Dict[str, List[Any]]:
+) -> dict[str, list[Any]]:
     """
     加载 JSONL 文件内容并按多个 key 分组。
 
@@ -111,7 +111,7 @@ def load_jsonl_grouped_by_keys(
     return dict(result_dict)
 
 
-def load_task_by_stage(jsonl_path) -> Dict[str, list]:
+def load_task_by_stage(jsonl_path) -> dict[str, list]:
     """
     加载错误记录，按 stage 分类
     """
@@ -120,7 +120,7 @@ def load_task_by_stage(jsonl_path) -> Dict[str, list]:
     )
 
 
-def load_task_by_error(jsonl_path) -> Dict[str, list]:
+def load_task_by_error(jsonl_path) -> dict[str, list]:
     """
     加载错误记录，按 error 和 stage 分类
     """

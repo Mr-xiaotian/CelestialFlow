@@ -96,7 +96,7 @@ class TaskReporter:
                 f"{self.base_url}/api/get_task_injection", timeout=self._pull_timeout()
             )
             if res.ok:
-                injection_tasks: List[dict] = res.json()
+                injection_tasks: list[dict] = res.json()
                 for injection in injection_tasks:
                     target_stage = injection.get("node")
                     task_datas = injection.get("task_datas")

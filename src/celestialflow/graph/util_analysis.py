@@ -1,20 +1,20 @@
 # graph/util_analysis.py
 import networkx as nx
 from networkx import is_directed_acyclic_graph
-from typing import Dict, Any, List
+from typing import Any
 
 
 # ======== (图论分析) ========
-def format_networkx_graph(structure_graph: List[Dict[str, Any]]) -> nx.DiGraph:
+def format_networkx_graph(structure_graph: list[dict[str, Any]]) -> nx.DiGraph:
     """
     将结构图（由 build_structure_graph 生成）转换为 networkx 有向图（DiGraph）
 
-    :param structure_graph: JSON 格式的任务结构图，List[Dict]
+    :param structure_graph: JSON 格式的任务结构图，list[dict]
     :return: 构建好的 networkx.DiGraph
     """
     G = nx.DiGraph()
 
-    def add_node_and_edges(node: Dict[str, Any]):
+    def add_node_and_edges(node: dict[str, Any]):
         node_id = f'{node["name"]}[{node["func_name"]}]'
         G.add_node(node_id, **{"mode": node.get("stage_mode")})
 
@@ -30,7 +30,7 @@ def format_networkx_graph(structure_graph: List[Dict[str, Any]]) -> nx.DiGraph:
     return G
 
 
-def compute_node_levels(G: nx.DiGraph) -> Dict[str, int]:
+def compute_node_levels(G: nx.DiGraph) -> dict[str, int]:
     """
     计算 DAG 中每个节点的层级（最早执行阶段）
     前提：图必须是有向无环图（DAG）

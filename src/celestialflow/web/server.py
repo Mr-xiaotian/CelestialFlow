@@ -11,18 +11,18 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from functools import partial
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 from datetime import datetime
 
 from ..persistence.util_jsonl import load_jsonl_logs
 
 
 class StructureModel(BaseModel):
-    items: List[Dict[str, Any]]
+    items: list[dict[str, Any]]
 
 
 class StatusModel(BaseModel):
-    status: Dict[str, dict]
+    status: dict[str, dict]
 
 
 class ErrorsMetaModel(BaseModel):
@@ -37,11 +37,11 @@ class ErrorsContentModel(BaseModel):
 
 
 class TopologyModel(BaseModel):
-    topology: Dict[str, Any]
+    topology: dict[str, Any]
 
 
 class SummaryModel(BaseModel):
-    summary: Dict[str, Any]
+    summary: dict[str, Any]
 
 
 class IntervalModel(BaseModel):
@@ -50,7 +50,7 @@ class IntervalModel(BaseModel):
 
 class TaskInjectionModel(BaseModel):
     node: str
-    task_datas: List[Any]
+    task_datas: list[Any]
     timestamp: datetime
 
 
@@ -59,17 +59,17 @@ class CardConfigModel(BaseModel):
 
 
 class DashboardConfigModel(BaseModel):
-    left: List[str]
-    middle: List[str]
-    right: List[str]
+    left: list[str]
+    middle: list[str]
+    right: list[str]
 
 
 class WebConfigModel(BaseModel):
     theme: str
     refreshInterval: int
     dashboard: DashboardConfigModel
-    hiddenNodes: List[str]
-    cards: Dict[str, CardConfigModel]
+    hiddenNodes: list[str]
+    cards: dict[str, CardConfigModel]
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -161,7 +161,7 @@ class TaskWebServer:
                     )
 
         @app.post("/api/update_config")
-        async def update_config_api(data: Dict[str, Any]):
+        async def update_config_api(data: dict[str, Any]):
             """部分更新前端配置"""
             with self._config_lock:
                 # 递归更新配置

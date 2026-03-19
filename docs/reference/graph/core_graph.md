@@ -8,7 +8,7 @@
 class TaskGraph:
     def __init__(
         self,
-        root_stages: List[TaskStage],
+        root_stages: list[TaskStage],
         schedule_mode: str = "eager",
         log_level: str = "SUCCESS",
     ):
