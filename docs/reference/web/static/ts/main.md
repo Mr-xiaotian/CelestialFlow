@@ -47,7 +47,7 @@ DOMContentLoaded
 
 | 变化条件 | 触发渲染 |
 |----------|---------|
-| `statusesChanged \|\| structureChanged` | `renderMermaidFromTaskStructure()` |
+| `statusesChanged \|\| structureChanged` | `renderMermaidStructure()` |
 | `topologyChanged` | `renderTopologyInfo()` |
 | `summaryChanged` | `renderSummary()` |
 | `historiesChanged` | `updateChartData()` |
@@ -63,7 +63,7 @@ DOMContentLoaded
 - **web_config.ts** — `loadWebConfig`, `saveWebConfig`, `applyConfig`, `webConfig`, `applyDashboardLayout`
 - **task_history.ts** — `loadHistories`, `nodeHistories`, `previousNodeHistoriesJSON`, `initChart`, `updateChartData`
 - **task_statuses.ts** — `loadStatuses`, `nodeStatuses`, `previousNodeStatusesJSON`, `renderDashboard`, `initSortableDashboard`
-- **task_structure.ts** — `loadStructure`, `structureData`, `previousStructureDataJSON`, `renderMermaidFromTaskStructure`
+- **task_structure.ts** — `loadStructure`, `structureData`, `previousStructureDataJSON`, `renderMermaidStructure`
 - **task_errors.ts** — `loadErrors`, `errors`, `previousErrorsJSON`, `renderErrors`, `populateNodeFilter`
 - **task_topology.ts** — `loadTopology`, `topologyData`, `previousTopologyDataJSON`, `renderTopologyInfo`
 - **task_summary.ts** — `loadSummary`, `summaryData`, `previousSummaryDataJSON`, `renderSummary`

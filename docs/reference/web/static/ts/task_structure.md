@@ -41,7 +41,7 @@
 
 ---
 
-### `renderMermaidFromTaskStructure()`
+### `renderMermaidStructure()`
 
 从 `structureData` 和 `nodeStatuses` 构建 Mermaid 代码并渲染到 DOM。
 

@@ -88,6 +88,21 @@ function validateJSON(text) {
 function toggleDarkTheme() {
     return document.body.classList.toggle("dark-theme");
 }
+/**
+ * 切换到错误标签页，并可选地设置节点筛选器
+ * @param {string} [nodeFilter] - 节点筛选值，不传或传空字符串则显示全部
+ */
+function switchToErrorsTab(nodeFilter = "") {
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+    document.querySelector(`.tab-btn[data-tab="errors"]`)?.classList.add("active");
+    document.getElementById("errors")?.classList.add("active");
+    const filterEl = document.getElementById("node-filter");
+    if (filterEl) {
+        filterEl.value = nodeFilter;
+        filterEl.dispatchEvent(new Event("change"));
+    }
+}
 // task_statuses.js
 /**
  * 格式化持续时间为 HH:MM:SS 或 MM:SS 格式

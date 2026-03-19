@@ -67,7 +67,7 @@ function getShapeWrappedLabel(label, shape = "box") {
  * 根据任务结构数据渲染 Mermaid 图表
  * 构建 Mermaid 流程图代码，根据节点状态应用样式，并更新 DOM
  */
-function renderMermaidFromTaskStructure() {
+function renderMermaidStructure() {
   const edges = new Set();
   const nodeLabels = new Map();
   const classDefs = [];

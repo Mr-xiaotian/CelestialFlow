@@ -3,7 +3,6 @@ let refreshRate = 5000;
 let refreshIntervalId = null;
 const refreshSelect = document.getElementById("refresh-interval");
 const themeToggleBtn = document.getElementById("theme-toggle");
-// const shutdownBtn = document.getElementById("shutdown-btn");
 const tabButtons = document.querySelectorAll(".tab-btn");
 const tabContents = document.querySelectorAll(".tab-content");
 document.addEventListener("DOMContentLoaded", async () => {
@@ -25,7 +24,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         webConfig.theme = isDark ? "dark" : "light";
         saveWebConfig(); // 保存配置
         themeToggleBtn.textContent = isDark ? "🌞 白天模式" : "🌙 夜间模式";
-        renderMermaidFromTaskStructure(); // 主题切换后重新渲染 Mermaid 图
+        renderMermaidStructure(); // 主题切换后重新渲染 Mermaid 图
         initChart(); // 主题切换后重新渲染折线图
         updateChartData(); // 由于initChart会重新建立图标实例, 需要重新注入数据
     });
@@ -40,13 +39,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
     });
-    // shutdownBtn.addEventListener("click", async () => {
-    //   if (confirm("确认要关闭 Web 服务吗？")) {
-    //     const res = await fetch("/shutdown", { method: "POST" });
-    //     const text = await res.text();
-    //     alert(text);
-    //   }
-    // });
     // ==== 启动流程 ====
     initSortableDashboard(); // 初始化拖拽
     refreshAll(); // 启动轮询
@@ -87,25 +79,25 @@ async function refreshAll() {
     if (statusesChanged || structureChanged) {
         previousNodeStatusesJSON = currentStatusesJSON;
         previousStructureDataJSON = currentStructureJSON;
-        renderMermaidFromTaskStructure(); // 结构图依赖节点信息与结构信息
+        renderMermaidStructure(); // 左上结构图, 依赖节点信息与结构信息
     }
     if (topologyChanged) {
         previousTopologyDataJSON = currentTopologyJSON;
-        renderTopologyInfo(); // 渲染拓扑信息
-    }
-    if (summaryChanged) {
-        previousSummaryDataJSON = currentSummaryJSON;
-        renderSummary(); // 右下汇总数据
-    }
-    if (historiesChanged) {
-        previousNodeHistoriesJSON = currentHistoriesJSON;
-        updateChartData(); // 右上折线图
+        renderTopologyInfo(); // 左下拓扑信息
     }
     if (statusesChanged) {
         previousNodeStatusesJSON = currentStatusesJSON;
         renderDashboard(); // 中间节点状态卡片
         populateNodeFilter(); // 错误筛选器
         renderNodeList(); // 注入页节点列表
+    }
+    if (historiesChanged) {
+        previousNodeHistoriesJSON = currentHistoriesJSON;
+        updateChartData(); // 右上折线图
+    }
+    if (summaryChanged) {
+        previousSummaryDataJSON = currentSummaryJSON;
+        renderSummary(); // 右下汇总数据
     }
     if (errorsChanged) {
         previousErrorsJSON = currentErrorsJSON;

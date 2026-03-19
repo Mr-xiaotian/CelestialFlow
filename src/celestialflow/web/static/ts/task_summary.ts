@@ -45,36 +45,10 @@ function renderSummary() {
   // 为错误数添加可点击样式和事件
   if (total_failed > 0) {
     totalFailed.classList.add("error-clickable");
-    totalFailed.onclick = () => jumpToErrorsTabNoFilter();
+    totalFailed.onclick = () => switchToErrorsTab();
   } else {
     totalFailed.classList.remove("error-clickable");
     totalFailed.onclick = null;
   }
 }
 
-/**
- * 跳转到错误日志标签页（不筛选节点）
- */
-function jumpToErrorsTabNoFilter() {
-  // 切换到错误日志标签页
-  const tabButtons = document.querySelectorAll(".tab-btn");
-  const tabContents = document.querySelectorAll(".tab-content");
-  
-  tabButtons.forEach((b) => b.classList.remove("active"));
-  tabContents.forEach((c) => c.classList.remove("active"));
-  
-  const errorsTabBtn = document.querySelector('.tab-btn[data-tab="errors"]');
-  const errorsTabContent = document.getElementById("errors");
-  
-  if (errorsTabBtn && errorsTabContent) {
-    errorsTabBtn.classList.add("active");
-    errorsTabContent.classList.add("active");
-  }
-  
-  // 清除节点筛选（显示全部）
-  const nodeFilter = document.getElementById("node-filter") as HTMLSelectElement;
-  if (nodeFilter) {
-    nodeFilter.value = "";
-    nodeFilter.dispatchEvent(new Event("change"));
-  }
-}
