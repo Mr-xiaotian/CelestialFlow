@@ -6,7 +6,7 @@ let previousStructureDataJSON = "";
  */
 async function loadStructure() {
     try {
-        const res = await fetch("/api/get_structure");
+        const res = await fetch("/api/pull_structure");
         structureData = await res.json(); // 现在是数组格式
     }
     catch (e) {

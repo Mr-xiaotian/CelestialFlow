@@ -8,7 +8,7 @@ const errorsTableBody = document.querySelector("#errors-table tbody");
 const paginationContainer = document.getElementById("pagination-container");
 async function loadErrors() {
     try {
-        const res = await fetch("/api/get_errors");
+        const res = await fetch("/api/pull_errors");
         errors = await res.json();
     }
     catch (e) {

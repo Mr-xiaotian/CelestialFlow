@@ -29,7 +29,7 @@ const dashboardGrid = document.getElementById("dashboard-grid") as HTMLElement;
  */
 async function loadStatuses() {
   try {
-    const res = await fetch("/api/get_status");
+    const res = await fetch("/api/pull_status");
     nodeStatuses = await res.json();
   } catch (e) {
     console.error("状态加载失败", e);

@@ -14,7 +14,7 @@ const totalRemain = document.getElementById("total-remain") as HTMLElement;
  */
 async function loadSummary() {
   try {
-    const res = await fetch("/api/get_summary");
+    const res = await fetch("/api/pull_summary");
     summaryData = await res.json();
   } catch (e) {
     console.error("合计数据加载失败", e);

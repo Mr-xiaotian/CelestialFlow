@@ -23,8 +23,8 @@ graph.set_reporter(True, host="127.0.0.1", port=5005)
 
 Reporter 会与以下 Web API 交互：
 
-- `GET /api/get_interval`: 获取上报间隔。
-- `GET /api/get_task_injection`: 获取注入的任务。
+- `GET /api/pull_interval`: 获取上报间隔。
+- `GET /api/pull_task_injection`: 获取注入的任务。
 - `POST /api/push_status`: 推送运行时状态快照。
 - `POST /api/push_structure`: 推送图结构信息。
 - `POST /api/push_topology`: 推送拓扑连接信息。

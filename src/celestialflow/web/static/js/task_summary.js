@@ -12,7 +12,7 @@ const totalRemain = document.getElementById("total-remain");
  */
 async function loadSummary() {
     try {
-        const res = await fetch("/api/get_summary");
+        const res = await fetch("/api/pull_summary");
         summaryData = await res.json();
     }
     catch (e) {

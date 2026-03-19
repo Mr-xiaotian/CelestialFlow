@@ -8,7 +8,7 @@ const dashboardGrid = document.getElementById("dashboard-grid");
  */
 async function loadStatuses() {
     try {
-        const res = await fetch("/api/get_status");
+        const res = await fetch("/api/pull_status");
         nodeStatuses = await res.json();
     }
     catch (e) {

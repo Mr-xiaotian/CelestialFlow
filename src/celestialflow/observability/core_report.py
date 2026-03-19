@@ -83,7 +83,7 @@ class TaskReporter:
     def _pull_interval(self) -> None:
         try:
             res = requests.get(
-                f"{self.base_url}/api/get_interval", timeout=self._pull_timeout()
+                f"{self.base_url}/api/pull_interval", timeout=self._pull_timeout()
             )
             if res.ok:
                 interval = res.json().get("interval", 5)
@@ -94,7 +94,7 @@ class TaskReporter:
     def _pull_and_inject_tasks(self) -> None:
         try:
             res = requests.get(
-                f"{self.base_url}/api/get_task_injection", timeout=self._pull_timeout()
+                f"{self.base_url}/api/pull_task_injection", timeout=self._pull_timeout()
             )
             if res.ok:
                 injection_tasks: list[dict] = res.json()

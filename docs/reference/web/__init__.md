@@ -93,7 +93,7 @@ celestialflow-web --host 0.0.0.0 --port 5080
 import requests
 
 # 获取任务图状态
-response = requests.get("http://localhost:5000/api/get_status")
+response = requests.get("http://localhost:5000/api/pull_status")
 status = response.json()
 
 # 注入新任务（先 POST 到 push_injection_tasks，再由 TaskGraph 拉取）

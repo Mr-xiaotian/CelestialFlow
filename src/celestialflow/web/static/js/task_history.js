@@ -8,7 +8,7 @@ let previousNodeHistoriesJSON = "";
  */
 async function loadHistories() {
     try {
-        const res = await fetch("/api/get_history");
+        const res = await fetch("/api/pull_history");
         nodeHistories = await res.json();
     }
     catch (e) {

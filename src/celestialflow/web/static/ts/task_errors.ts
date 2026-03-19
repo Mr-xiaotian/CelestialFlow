@@ -10,7 +10,7 @@ const paginationContainer = document.getElementById("pagination-container") as H
 
 async function loadErrors() {
   try {
-    const res = await fetch("/api/get_errors");
+    const res = await fetch("/api/pull_errors");
     errors = await res.json();
   } catch (e) {
     console.error("错误日志加载失败", e);

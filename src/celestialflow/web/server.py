@@ -145,8 +145,8 @@ class TaskWebServer:
             return templates.TemplateResponse("index.html", {"request": request})
 
         # ---- 配置接口 ----
-        @app.get("/api/get_config")
-        def get_config():
+        @app.get("/api/pull_config")
+        def pull_config():
             """获取前端配置"""
             with self._config_lock:
                 return self.config
@@ -194,36 +194,36 @@ class TaskWebServer:
                     )
 
         # ---- 接收接口 ----
-        @app.get("/api/get_structure")
-        def get_structure():
+        @app.get("/api/pull_structure")
+        def pull_structure():
             return self.structure_store
 
-        @app.get("/api/get_status")
-        def get_status():
+        @app.get("/api/pull_status")
+        def pull_status():
             return self.status_store
 
-        @app.get("/api/get_errors")
-        def get_errors():
+        @app.get("/api/pull_errors")
+        def pull_errors():
             return self.error_store
 
-        @app.get("/api/get_topology")
-        def get_topology():
+        @app.get("/api/pull_topology")
+        def pull_topology():
             return self.topology_store
 
-        @app.get("/api/get_summary")
-        def get_summary():
+        @app.get("/api/pull_summary")
+        def pull_summary():
             return self.summary_store
         
-        @app.get("/api/get_history")
-        def get_history():
+        @app.get("/api/pull_history")
+        def pull_history():
             return self.history_store
 
-        @app.get("/api/get_interval")
-        def get_interval():
+        @app.get("/api/pull_interval")
+        def pull_interval():
             return {"interval": self.report_interval}
 
-        @app.get("/api/get_task_injection")
-        def get_task_injection():
+        @app.get("/api/pull_task_injection")
+        def pull_task_injection():
             with self._task_injection_lock:
                 tasks_to_send = self.injection_tasks.copy()
                 self.injection_tasks.clear()

@@ -17,7 +17,7 @@ const PANEL_SELECTOR_MAP = {
  */
 async function loadWebConfig() {
     try {
-        const res = await fetch("/api/get_config");
+        const res = await fetch("/api/pull_config");
         if (res.ok) {
             webConfig = await res.json();
             console.log("配置加载成功:", webConfig);

@@ -6,7 +6,7 @@ let previousTopologyDataJSON = "";
  */
 async function loadTopology() {
     try {
-        const res = await fetch("/api/get_topology");
+        const res = await fetch("/api/pull_topology");
         topologyData = await res.json();
     }
     catch (e) {
