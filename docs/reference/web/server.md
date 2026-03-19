@@ -52,7 +52,7 @@ server.start_server()
 ### 主题支持
 
 - 支持日间/夜间主题切换
-- 主题设置持久化保存至后端 `web_config.json`
+- 主题设置持久化保存至后端 `config.json`
 
 ## API 接口
 
@@ -171,7 +171,7 @@ class CardConfigModel(BaseModel):
 
 ## 配置管理
 
-Web 服务的配置持久化保存在 `web/web_config.json`。
+Web 服务的配置持久化保存在 `web/config.json`。
 
 - `load_config()` — 启动时读取并通过 `WebConfigModel` 验证
 - `save_config(config)` — 保存配置到 JSON 文件，线程安全（使用 `_config_lock`）

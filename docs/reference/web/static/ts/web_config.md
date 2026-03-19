@@ -74,4 +74,4 @@
 }
 ```
 
-配置持久化在后端 `web/web_config.json`，前端修改后通过 `saveWebConfig()` 同步。
+配置持久化在后端 `web/config.json`，前端修改后通过 `saveWebConfig()` 同步。

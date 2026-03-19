@@ -104,8 +104,8 @@ function renderPaginationControls(totalPages) {
     paginationContainer.appendChild(pageBar);
     paginationContainer.appendChild(nextBtn);
 }
-function populateNodeFilter() {
-    const nodes = Object.keys(nodeStatuses);
+function populateNodeFilter(statuses) {
+    const nodes = Object.keys(statuses);
     const previousValue = nodeFilter.value;
     nodeFilter.innerHTML = `<option value="">全部节点</option>`;
     for (const node of nodes) {

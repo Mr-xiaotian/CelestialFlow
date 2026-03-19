@@ -97,6 +97,30 @@ function initChart() {
 }
 
 /**
+ * 更新折线图主题颜色（切换深色/浅色模式时调用，无需重建实例）
+ */
+function updateChartTheme() {
+  if (!progressChart) return;
+
+  const isDark = document.body.classList.contains("dark-theme");
+  const textColor = isDark ? "#e5e7eb" : "#111827";
+  const gridColor = isDark ? "#4b5563" : "#e5e7eb";
+  const borderColor = isDark ? "#6b7280" : "#d1d5db";
+
+  progressChart.options.plugins.legend.labels.color = textColor;
+  progressChart.options.scales.x.ticks.color = textColor;
+  progressChart.options.scales.x.grid.color = gridColor;
+  progressChart.options.scales.x.title.color = textColor;
+  progressChart.options.scales.x.border.color = borderColor;
+  progressChart.options.scales.y.ticks.color = textColor;
+  progressChart.options.scales.y.grid.color = gridColor;
+  progressChart.options.scales.y.title.color = textColor;
+  progressChart.options.scales.y.border.color = borderColor;
+
+  progressChart.update();
+}
+
+/**
  * 更新折线图数据
  * 提取节点进度历史数据，更新 Chart.js 实例的数据集并重绘
  */
