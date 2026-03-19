@@ -24,7 +24,7 @@ ctree_http_port = os.getenv("CTREE_HTTP_PORT")
 ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
 
 
-class DownloadRedisSink(TaskRedisTransport):
+class DownloadRedisTransport(TaskRedisTransport):
     def get_args(self, task):
         url, path = task
         return url, path.replace("/tmp/", "X:/Download/download_go/")
@@ -202,7 +202,7 @@ def test_splitter_1():
 
 def test_redis_ack_0():
     start_stage = TaskStage(sleep_1, execution_mode="thread", worker_limit=4)
-    redis_sink = TaskRedisTransport(
+    redis_tranport = TaskRedisTransport(
         key="testFibonacci:input", host=redis_host, password=redis_password
     )
     redis_ack = TaskRedisAck(
@@ -211,10 +211,10 @@ def test_redis_ack_0():
     fibonacci_stage = TaskStage(fibonacci, "thread")
 
     start_stage.set_graph_context(
-        [redis_sink, fibonacci_stage], stage_mode="serial", stage_name="Start"
+        [redis_tranport, fibonacci_stage], stage_mode="serial", stage_name="Start"
     )
-    redis_sink.set_graph_context(
-        [redis_ack], stage_mode="process", stage_name="RedisSink"
+    redis_tranport.set_graph_context(
+        [redis_ack], stage_mode="process", stage_name="RedisTransport"
     )
     redis_ack.set_graph_context([], stage_mode="process", stage_name="RedisAck")
     fibonacci_stage.set_graph_context([], stage_mode="process", stage_name="Fibonacci")
@@ -235,7 +235,7 @@ def test_redis_ack_0():
 
 def test_redis_ack_1():
     start_stage = TaskStage(sleep_1, execution_mode="thread", worker_limit=4)
-    redis_sink = TaskRedisTransport(
+    redis_tranport = TaskRedisTransport(
         key="testSum:input",
         host=redis_host,
         password=redis_password,
@@ -249,10 +249,10 @@ def test_redis_ack_1():
     )
 
     start_stage.set_graph_context(
-        [redis_sink, sum_stage], stage_mode="serial", stage_name="Start"
+        [redis_tranport, sum_stage], stage_mode="serial", stage_name="Start"
     )
-    redis_sink.set_graph_context(
-        [redis_ack], stage_mode="process", stage_name="RedisSink"
+    redis_tranport.set_graph_context(
+        [redis_ack], stage_mode="process", stage_name="RedisTransport"
     )
     redis_ack.set_graph_context([], stage_mode="process", stage_name="RedisAck")
     sum_stage.set_graph_context([], stage_mode="process", stage_name="Sum")
@@ -272,7 +272,7 @@ def test_redis_ack_1():
 
 def test_redis_ack_2():
     start_stage = TaskStage(sleep_1, execution_mode="thread", worker_limit=4)
-    redis_sink = DownloadRedisSink(
+    redis_tranport = DownloadRedisTransport(
         key="testDownload:input",
         host=redis_host,
         password=redis_password,
@@ -286,10 +286,10 @@ def test_redis_ack_2():
     )
 
     start_stage.set_graph_context(
-        [redis_sink, download_stage], stage_mode="serial", stage_name="Start"
+        [redis_tranport, download_stage], stage_mode="serial", stage_name="Start"
     )
-    redis_sink.set_graph_context(
-        [redis_ack], stage_mode="process", stage_name="RedisSink"
+    redis_tranport.set_graph_context(
+        [redis_ack], stage_mode="process", stage_name="RedisTransport"
     )
     redis_ack.set_graph_context([], stage_mode="process", stage_name="RedisAck")
     download_stage.set_graph_context([], stage_mode="process", stage_name="Download")
@@ -321,7 +321,7 @@ def test_redis_ack_2():
 
 def test_redis_source_0():
     sleep_stage_0 = TaskStage(sleep_1, execution_mode="serial")
-    redis_sink = TaskRedisTransport(
+    redis_tranport = TaskRedisTransport(
         "test_redis", host=redis_host, password=redis_password
     )
     redis_source = TaskRedisSource(
@@ -330,9 +330,9 @@ def test_redis_source_0():
     sleep_stage_1 = TaskStage(sleep_1, execution_mode="serial")
 
     sleep_stage_0.set_graph_context(
-        [redis_sink], stage_mode="process", stage_name="Sleep0"
+        [redis_tranport], stage_mode="process", stage_name="Sleep0"
     )
-    redis_sink.set_graph_context([], stage_mode="process", stage_name="RedisSink")
+    redis_tranport.set_graph_context([], stage_mode="process", stage_name="RedisTransport")
     redis_source.set_graph_context(
         [sleep_stage_1], stage_mode="process", stage_name="RedisSource"
     )
