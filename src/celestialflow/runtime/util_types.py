@@ -9,9 +9,7 @@ from celestialtree import NodeLabelStyle
 class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
 
-    def __init__(
-        self, _id: int = -1, source: str = "input"
-    ) -> None:
+    def __init__(self, _id: int = -1, source: str = "input") -> None:
         self.id = _id
         self.source = source
 
@@ -40,7 +38,7 @@ class NoOpContext:
 class ValueWrapper:
     """线程内/单进程的计数器包装，可选线程锁。"""
 
-    def __init__(self, value: int = 0, lock = None) -> None:
+    def __init__(self, value: int = 0, lock=None) -> None:
         self.value = value
         self._lock = lock
 

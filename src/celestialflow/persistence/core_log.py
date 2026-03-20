@@ -86,7 +86,9 @@ class LogSinker(BaseSinker):
         self._sink("INFO", f"Layer {layer} end. Use {use_time:.2f} second.")
 
     # ==== stage ====
-    def start_stage(self, stage_tag: str, stage_mode: str, execution_mode: str, worker_limit: int) -> None:
+    def start_stage(
+        self, stage_tag: str, stage_mode: str, execution_mode: str, worker_limit: int
+    ) -> None:
         worker_repr = f"({worker_limit} workers)" if execution_mode != "serial" else ""
         text = f"'{stage_tag}' start in {stage_mode}; execute tasks by {execution_mode}{worker_repr}."
         self._sink("INFO", text)
@@ -108,10 +110,10 @@ class LogSinker(BaseSinker):
         )
 
     # ==== executor ====
-    def start_executor(self, func_name: str, task_num: int, execution_mode_desc: str) -> None:
-        text = (
-            f"'Executor[{func_name}]' start; execute {task_num} tasks by {execution_mode_desc}."
-        )
+    def start_executor(
+        self, func_name: str, task_num: int, execution_mode_desc: str
+    ) -> None:
+        text = f"'Executor[{func_name}]' start; execute {task_num} tasks by {execution_mode_desc}."
         self._sink("INFO", text)
 
     def end_executor(
@@ -148,7 +150,9 @@ class LogSinker(BaseSinker):
         )
 
     # ==== task ====
-    def task_input(self, func_name: str, task_info: str, source: str, input_id: int) -> None:
+    def task_input(
+        self, func_name: str, task_info: str, source: str, input_id: int
+    ) -> None:
         self._sink(
             "DEBUG",
             f"In '{func_name}', Task {task_info} input into {source}. [{input_id}*]",
@@ -170,34 +174,58 @@ class LogSinker(BaseSinker):
         )
 
     def task_retry(
-        self, func_name: str, task_info: str, retry_times: int, exception: Exception, parent_id: int, retry_id: int
+        self,
+        func_name: str,
+        task_info: str,
+        retry_times: int,
+        exception: Exception,
+        parent_id: int,
+        retry_id: int,
     ) -> None:
         self._sink(
             "WARNING",
             f"In '{func_name}', Task {task_info} failed {retry_times} times and will retry: ({type(exception).__name__}). [{parent_id}->{retry_id}*]",
         )
 
-    def task_error(self, func_name: str, task_info: str, exception: Exception, parent_id: int, error_id: int) -> None:
+    def task_error(
+        self,
+        func_name: str,
+        task_info: str,
+        exception: Exception,
+        parent_id: int,
+        error_id: int,
+    ) -> None:
         exception_text = str(exception).replace("\n", " ")
         self._sink(
             "ERROR",
             f"In '{func_name}', Task {task_info} failed and can't retry: ({type(exception).__name__}){exception_text}. [{parent_id}->{error_id}*]",
         )
 
-    def task_duplicate(self, func_name: str, task_info: str, parent_id: int, duplicate_id: int) -> None:
+    def task_duplicate(
+        self, func_name: str, task_info: str, parent_id: int, duplicate_id: int
+    ) -> None:
         self._sink(
             "WARNING",
             f"In '{func_name}', Task {task_info} has been duplicated. [{parent_id}->{duplicate_id}*]",
         )
 
     # ==== splitter ====
-    def split_trace(self, func_name: str, part_index: int, part_total: int, parent_id: int, split_id: int) -> None:
+    def split_trace(
+        self,
+        func_name: str,
+        part_index: int,
+        part_total: int,
+        parent_id: int,
+        split_id: int,
+    ) -> None:
         self._sink(
             "TRACE",
             f"In '{func_name}', Task split part {part_index}/{part_total}. [{parent_id}->{split_id}*]",
         )
 
-    def split_success(self, func_name: str, task_info: str, split_count: int, use_time: float) -> None:
+    def split_success(
+        self, func_name: str, task_info: str, split_count: int, use_time: float
+    ) -> None:
         self._sink(
             "SUCCESS",
             f"In '{func_name}', Task {task_info} has split into {split_count} parts. Used {use_time:.2f} seconds.",
@@ -205,7 +233,13 @@ class LogSinker(BaseSinker):
 
     # ==== router ====
     def route_success(
-        self, func_name: str, task_info: str, target_node: str, use_time: float, parent_id: int, route_id: int
+        self,
+        func_name: str,
+        task_info: str,
+        target_node: str,
+        use_time: float,
+        parent_id: int,
+        route_id: int,
     ) -> None:
         self._sink(
             "SUCCESS",
@@ -213,24 +247,32 @@ class LogSinker(BaseSinker):
         )
 
     # ==== termination ====
-    def termination_input(self, func_name: str, source: str, termination_id: int) -> None:
+    def termination_input(
+        self, func_name: str, source: str, termination_id: int
+    ) -> None:
         self._sink(
             "DEBUG",
             f"In '{func_name}', Termination input into {source}. [{termination_id}*]",
         )
 
-    def termination_merge(self, func_name: str, parent_ids: list[int], termination_id: int) -> None:
+    def termination_merge(
+        self, func_name: str, parent_ids: list[int], termination_id: int
+    ) -> None:
         self._sink(
             "TRACE",
             f"In '{func_name}', Termination merge. [{parent_ids}->{termination_id}*]",
         )
 
     # ==== queue ====
-    def put_item(self, item_type: str, item_id: int, left_tag: str, right_tag: str) -> None:
+    def put_item(
+        self, item_type: str, item_id: int, left_tag: str, right_tag: str
+    ) -> None:
         edge = f"'{left_tag}' -> '{right_tag}'"
         self._sink("TRACE", f"Put {item_type}#{item_id} into Edge({edge}).")
 
-    def put_item_error(self, left_tag: str, right_tag: str, exception: Exception) -> None:
+    def put_item_error(
+        self, left_tag: str, right_tag: str, exception: Exception
+    ) -> None:
         edge = f"'{left_tag}' -> '{right_tag}'"
         exception_text = str(exception).replace("\n", " ")
         self._sink(
@@ -238,7 +280,9 @@ class LogSinker(BaseSinker):
             f"Put into Edge({edge}): ({type(exception).__name__}){exception_text}.",
         )
 
-    def get_item(self, item_type: str, item_id: int, left_tag: str, right_tag: str) -> None:
+    def get_item(
+        self, item_type: str, item_id: int, left_tag: str, right_tag: str
+    ) -> None:
         edge = f"'{left_tag}' -> '{right_tag}'"
         self._sink("TRACE", f"Get {item_type}#{item_id} from Edge({edge}).")
 
@@ -285,7 +329,9 @@ class LogSinker(BaseSinker):
             "INFO", f"[Reporter] Inject tasks {task_datas} into '{target_node}'."
         )
 
-    def inject_tasks_failed(self, target_node: str, task_datas, exception: Exception) -> None:
+    def inject_tasks_failed(
+        self, target_node: str, task_datas, exception: Exception
+    ) -> None:
         self._sink(
             "WARNING",
             f"[Reporter] Inject tasks {task_datas} into '{target_node}' failed. "

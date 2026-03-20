@@ -103,13 +103,9 @@ class TaskGraph:
         # 用于保存所有子进程的引用
         self.processes: list[multiprocessing.Process] = []
         # 用于保存每个节点的运行信息
-        self.stage_runtime_dict: dict[str, dict] = defaultdict(
-            dict
-        )
+        self.stage_runtime_dict: dict[str, dict] = defaultdict(dict)
         # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
-        self.status_dict: dict[str, dict] = defaultdict(
-            dict
-        )
+        self.status_dict: dict[str, dict] = defaultdict(dict)
         # 用于保存任务图的摘要信息
         self.graph_summary: dict[str, int | float] = {}
         # 用于保存每个节点的历史状态信息列表（仅保留最近20条）
@@ -179,7 +175,9 @@ class TaskGraph:
 
                 # source side
                 if prev_stage != NULL_PREV_STAGE:
-                    prev_out_queue: TaskOutQueue = self.stage_runtime_dict[prev_stage_tag]["out_queue"]
+                    prev_out_queue: TaskOutQueue = self.stage_runtime_dict[
+                        prev_stage_tag
+                    ]["out_queue"]
                     prev_out_queue.add_queue(in_queue.queue, stage_tag)
 
     def init_analysis(self) -> None:
@@ -225,7 +223,9 @@ class TaskGraph:
                 "Valid options are 'eager' or 'staged'"
             )
 
-    def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000) -> None:
+    def set_reporter(
+        self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000
+    ) -> None:
         """
         设定报告器
 
@@ -307,7 +307,9 @@ class TaskGraph:
             set_subsequent_stage_mode(root_stage)
         self.init_analysis()
 
-    def put_stage_queue(self, tasks_dict: dict, put_termination_signal: bool = True) -> None:
+    def put_stage_queue(
+        self, tasks_dict: dict, put_termination_signal: bool = True
+    ) -> None:
         """
         将任务放入队列
 
@@ -362,7 +364,9 @@ class TaskGraph:
                     termination_id,
                 )
 
-    def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True) -> None:
+    def start_graph(
+        self, init_tasks_dict: dict, put_termination_signal: bool = True
+    ) -> None:
         """
         启动任务链
 
@@ -654,7 +658,7 @@ class TaskGraph:
     def get_graph_summary(self) -> dict:
         """获取任务链的摘要信息字典"""
         return self.graph_summary
-    
+
     def get_stage_history(self) -> dict[str, list[dict]]:
         """获取任务链的历史状态信息字典"""
         return self.stage_history
@@ -682,7 +686,7 @@ class TaskGraph:
         """
         return self.structure_list
 
-    def get_networkx_graph(self): # returns nx.DiGraph
+    def get_networkx_graph(self):  # returns nx.DiGraph
         """
         获取任务图的 networkx 有向图（DiGraph）
         """

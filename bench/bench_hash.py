@@ -9,7 +9,6 @@ from typing import Any, Callable
 
 from celestialflow import format_table
 
-
 # =========================
 # 测试对象
 # =========================
@@ -184,7 +183,9 @@ METHODS: dict[str, Callable[[Any], str]] = {
 # =========================
 # Benchmark 核心
 # =========================
-def benchmark_one(func: Callable[[Any], str], obj: Any, repeat: int = 7, number: int = 10000) -> tuple[float, float]:
+def benchmark_one(
+    func: Callable[[Any], str], obj: Any, repeat: int = 7, number: int = 10000
+) -> tuple[float, float]:
     """
     返回:
     - 平均每次耗时（微秒）
@@ -199,7 +200,9 @@ def benchmark_one(func: Callable[[Any], str], obj: Any, repeat: int = 7, number:
             gc.enable()
 
     per_call_us = [s / number * 1_000_000 for s in samples]
-    return statistics.mean(per_call_us), statistics.stdev(per_call_us) if len(per_call_us) > 1 else 0.0
+    return statistics.mean(per_call_us), (
+        statistics.stdev(per_call_us) if len(per_call_us) > 1 else 0.0
+    )
 
 
 def verify_methods() -> None:
@@ -232,11 +235,13 @@ def run_benchmark() -> None:
 
         for method_name, mean_us, std_us in raw_results:
             ratio = mean_us / best_mean if best_mean else 1.0
-            rows.append([
-                f"{mean_us:.3f} us",
-                f"{std_us:.3f} us",
-                f"{ratio:.2f}x",
-            ])
+            rows.append(
+                [
+                    f"{mean_us:.3f} us",
+                    f"{std_us:.3f} us",
+                    f"{ratio:.2f}x",
+                ]
+            )
 
         print(f"\n=== Case: {case_name} ===")
         print(

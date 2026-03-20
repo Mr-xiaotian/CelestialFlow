@@ -41,7 +41,9 @@ class TaskRunner:
         elif execution_mode == "process" and self._pool is None:
             self._pool = ProcessPoolExecutor(max_workers=self.worker_limit)
 
-    def process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
+    def process_termination_signal(
+        self, termination_pool: TerminationIdPool
+    ) -> TerminationSignal:
         """
         处理终止信号，生成 merge 事件
 
@@ -84,11 +86,13 @@ class TaskRunner:
                 try:
                     start_time = time.perf_counter()
                     result = self.func(*self.task_executor.get_args(task))
-                    self.task_executor.process_task_success(envelope, result, start_time)
+                    self.task_executor.process_task_success(
+                        envelope, result, start_time
+                    )
                 except Exception as error:
                     self.task_executor.handle_task_error(envelope, error)
                 self.task_executor.task_progress.update(1)
-            
+
             self.task_executor.task_queues.reset()
 
             if self.task_executor.metrics.is_tasks_finished():
@@ -96,7 +100,9 @@ class TaskRunner:
                 self.task_executor.task_progress.close()
                 return
 
-            self.task_executor.log_sinker._sink("DEBUG", f"{self.task_executor.get_func_name()} is not finished.")
+            self.task_executor.log_sinker._sink(
+                "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
+            )
             self.task_executor.task_queues.put(termination_signal)
 
     def run_with_pool(self, execution_mode: str) -> None:
@@ -126,7 +132,9 @@ class TaskRunner:
                 try:
                     result = future.result()
                     start_time = task_start_dict.pop(task_id, None)
-                    self.task_executor.process_task_success(envelope, result, start_time)
+                    self.task_executor.process_task_success(
+                        envelope, result, start_time
+                    )
                 except Exception as error:
                     task_start_dict.pop(task_id, None)
                     self.task_executor.handle_task_error(envelope, error)
@@ -158,9 +166,13 @@ class TaskRunner:
                     all_done_event.clear()
 
                 task_start_dict[task_id] = time.perf_counter()
-                future = self._pool.submit(self.func, *self.task_executor.get_args(task))
+                future = self._pool.submit(
+                    self.func, *self.task_executor.get_args(task)
+                )
                 future.add_done_callback(
-                    lambda f, t_e=envelope: on_task_done(f, t_e, self.task_executor.task_progress)
+                    lambda f, t_e=envelope: on_task_done(
+                        f, t_e, self.task_executor.task_progress
+                    )
                 )
 
             # 等待所有已提交任务完成（包括回调）
@@ -174,7 +186,9 @@ class TaskRunner:
                 self.task_executor.task_progress.close()
                 break
 
-            self.task_executor.log_sinker._sink("DEBUG", f"{self.task_executor.get_func_name()} is not finished.")
+            self.task_executor.log_sinker._sink(
+                "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
+            )
             self.task_executor.task_queues.put(termination_signal)
 
         self.release_pool()
@@ -185,13 +199,15 @@ class TaskRunner:
         """
         self._pool.shutdown(wait=True)
         self._pool = None
-        
+
     async def run_in_async(self) -> None:
         """
         异步地执行任务，限制并发数量
         """
         while True:
-            semaphore = asyncio.Semaphore(self.task_executor.worker_limit)  # 限制并发数量
+            semaphore = asyncio.Semaphore(
+                self.task_executor.worker_limit
+            )  # 限制并发数量
 
             async def sem_task(envelope: TaskEnvelope):
                 start_time = time.perf_counter()  # 记录任务开始时间
@@ -218,7 +234,7 @@ class TaskRunner:
                     self.task_executor.deal_duplicate(envelope)
                     self.task_executor.task_progress.update(1)
                     continue
-                self.task_executor.metrics.add_processed_set(task_hash) 
+                self.task_executor.metrics.add_processed_set(task_hash)
                 async_tasks.append(sem_task(envelope))  # 使用信号量包裹的任务
 
             # 并发运行所有任务
@@ -226,7 +242,9 @@ class TaskRunner:
                 *async_tasks, return_exceptions=True
             ):
                 if not isinstance(result, Exception):
-                    await self.task_executor.process_task_success_async(envelope, result, start_time)
+                    await self.task_executor.process_task_success_async(
+                        envelope, result, start_time
+                    )
                 else:
                     await self.task_executor.handle_task_error_async(envelope, result)
                 self.task_executor.task_progress.update(1)
@@ -238,7 +256,9 @@ class TaskRunner:
                 self.task_executor.task_progress.close()
                 return
 
-            self.task_executor.log_sinker._sink("DEBUG", f"{self.task_executor.get_func_name()} is not finished.")
+            self.task_executor.log_sinker._sink(
+                "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
+            )
             await self.task_executor.task_queues.put_async(termination_signal)
 
     async def _run_single_task(self, task: Any) -> Any:

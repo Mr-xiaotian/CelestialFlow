@@ -26,7 +26,9 @@ class TaskChain(TaskGraph):
         root_stage = stages[0]
         super().__init__(root_stages=[root_stage], log_level=log_level)
 
-    def start_chain(self, init_tasks_dict: dict, put_termination_signal: bool = True) -> None:
+    def start_chain(
+        self, init_tasks_dict: dict, put_termination_signal: bool = True
+    ) -> None:
         """
         启动任务链
 
@@ -68,7 +70,9 @@ class TaskCross(TaskGraph):
             root_stages=layers[0], schedule_mode=schedule_mode, log_level=log_level
         )
 
-    def start_cross(self, init_tasks_dict: dict, put_termination_signal: bool = True) -> None:
+    def start_cross(
+        self, init_tasks_dict: dict, put_termination_signal: bool = True
+    ) -> None:
         """
         启动多层交叉结构任务图
 
@@ -109,7 +113,9 @@ class TaskGrid(TaskGraph):
             root_stages=[grid[0][0]], schedule_mode=schedule_mode, log_level=log_level
         )  # 起点为左上角
 
-    def start_grid(self, init_tasks_dict: dict, put_termination_signal: bool = True) -> None:
+    def start_grid(
+        self, init_tasks_dict: dict, put_termination_signal: bool = True
+    ) -> None:
         """
         启动任务网格结构
 
@@ -135,7 +141,9 @@ class TaskLoop(TaskGraph):
 
         super().__init__(root_stages=[stages[0]], log_level=log_level)
 
-    def start_loop(self, init_tasks_dict: dict, put_termination_signal: bool = False) -> None:
+    def start_loop(
+        self, init_tasks_dict: dict, put_termination_signal: bool = False
+    ) -> None:
         """
         启动任务环, 环是自锁结构, 建议外部注入式停止
 
@@ -164,7 +172,9 @@ class TaskWheel(TaskGraph):
             node.set_graph_context([next_stage], "process", f"Ring-{i+1}")
         super().__init__(root_stages=[center], log_level=log_level)
 
-    def start_wheel(self, init_tasks_dict: dict, put_termination_signal: bool = True) -> None:
+    def start_wheel(
+        self, init_tasks_dict: dict, put_termination_signal: bool = True
+    ) -> None:
         """
         启动任务轮结构
 

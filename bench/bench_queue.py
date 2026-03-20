@@ -5,7 +5,6 @@ from multiprocessing import Queue as MPQueue
 from multiprocessing import Manager
 from dotenv import load_dotenv
 
-
 load_dotenv()
 redis_host = os.getenv("REDIS_HOST")
 redis_port = os.getenv("REDIS_PORT")

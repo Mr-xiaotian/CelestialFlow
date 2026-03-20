@@ -332,7 +332,9 @@ def test_redis_source_0():
     sleep_stage_0.set_graph_context(
         [redis_tranport], stage_mode="process", stage_name="Sleep0"
     )
-    redis_tranport.set_graph_context([], stage_mode="process", stage_name="RedisTransport")
+    redis_tranport.set_graph_context(
+        [], stage_mode="process", stage_name="RedisTransport"
+    )
     redis_source.set_graph_context(
         [sleep_stage_1], stage_mode="process", stage_name="RedisSource"
     )

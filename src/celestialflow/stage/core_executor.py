@@ -92,7 +92,7 @@ class TaskExecutor:
         self.show_progress = show_progress
         self.progress_desc = progress_desc
         self.set_log_level(log_level)
-        
+
         self.ctree_client = None
         self.init_metrics()
 
@@ -230,7 +230,7 @@ class TaskExecutor:
             self.execution_mode = execution_mode
         else:
             raise ExecutionModeError(execution_mode)
-        
+
         if hasattr(self, "metrics"):
             self.metrics.set_execution_mode(execution_mode)
 
@@ -723,7 +723,7 @@ class TaskExecutor:
 
         try:
             # 根据模式运行对应的任务处理函数
-            if self.execution_mode in  ["thread", "process"]:
+            if self.execution_mode in ["thread", "process"]:
                 self.runner.run_with_pool(self.execution_mode)
             elif self.execution_mode == "async":
                 # don't suggest, please use start_async

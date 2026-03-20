@@ -31,7 +31,7 @@ class TaskReporter:
     ) -> None:
         """
         初始化任务上报器
-        
+
         :param host: 远程服务主机地址
         :param port: 远程服务端口
         :param task_graph: 任务图实例

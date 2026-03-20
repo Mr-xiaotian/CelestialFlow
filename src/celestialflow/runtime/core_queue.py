@@ -107,11 +107,17 @@ class TaskInQueue:
 
         :return: 合并后的终止信号池
         """
-        missing_tags = [tag for tag in self.queue_tags if tag not in self.termination_dict]
+        missing_tags = [
+            tag for tag in self.queue_tags if tag not in self.termination_dict
+        ]
         if missing_tags:
-            raise ValueError(f"cannot merge termination, missing queue tags: {missing_tags}")
+            raise ValueError(
+                f"cannot merge termination, missing queue tags: {missing_tags}"
+            )
 
-        return TerminationIdPool(ids=[self.termination_dict[tag] for tag in self.queue_tags])
+        return TerminationIdPool(
+            ids=[self.termination_dict[tag] for tag in self.queue_tags]
+        )
 
     def put(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
@@ -160,8 +166,10 @@ class TaskInQueue:
             result = self._deal_get_item(item)
             if result is not None:
                 return result
-        
-    def _deal_get_item(self, item: TaskEnvelope | TerminationSignal) -> TaskEnvelope | TerminationIdPool:
+
+    def _deal_get_item(
+        self, item: TaskEnvelope | TerminationSignal
+    ) -> TaskEnvelope | TerminationIdPool:
         """
         处理出队的任务或终止符号
 
@@ -300,11 +308,11 @@ class TaskOutQueue:
             self.queue_list[idx].put(item)
             self._log_put(item, idx)
         except Exception as e:
-            self.log_sinker.put_item_error(
-                item.source, self.in_tag, e
-            )
+            self.log_sinker.put_item_error(item.source, self.in_tag, e)
 
-    async def put_channel_async(self, item: TaskEnvelope | TerminationSignal, idx: int) -> None:
+    async def put_channel_async(
+        self, item: TaskEnvelope | TerminationSignal, idx: int
+    ) -> None:
         """
         异步入队任务或终止信号到指定的输出队列通道
 
@@ -318,6 +326,4 @@ class TaskOutQueue:
                 self.queue_list[idx].put(item)
             self._log_put(item, idx)
         except Exception as e:
-            self.log_sinker.put_item_error(
-                item.source, self.in_tag, e
-            )
+            self.log_sinker.put_item_error(item.source, self.in_tag, e)

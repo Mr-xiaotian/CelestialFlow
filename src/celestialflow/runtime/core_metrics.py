@@ -16,7 +16,12 @@ class TaskMetrics:
     以及重试异常的管理和去重逻辑。
     """
 
-    def __init__(self, execution_mode: str, max_retries: int = 1, enable_duplicate_check: bool = False):
+    def __init__(
+        self,
+        execution_mode: str,
+        max_retries: int = 1,
+        enable_duplicate_check: bool = False,
+    ):
         """
         初始化 TaskMetrics
 
@@ -233,7 +238,7 @@ class TaskMetrics:
             + self.duplicate_counter.value
         )
         return self.task_counter.value == processed
-    
+
     def get_task_count(self) -> int:
         """
         获取当前的任务总数
@@ -241,7 +246,7 @@ class TaskMetrics:
         :return: 当前的任务总数
         """
         return self.task_counter.value
-    
+
     def get_success_count(self) -> int:
         """
         获取当前的成功任务数

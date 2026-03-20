@@ -100,7 +100,7 @@ def save_config(config: dict) -> bool:
     except Exception as e:
         print(f"Error: Failed to save config: {e}")
         return False
-    
+
 
 def cal_interval(refresh_interval: int) -> float:
     return max(1.0, min(float(refresh_interval) / 1000.0, 60.0))
@@ -148,14 +148,13 @@ class TaskWebServer:
         def index(request: Request):
             return templates.TemplateResponse("index.html", {"request": request})
 
-
         # ---- 接收接口 ----
         @app.get("/api/pull_config")
         def pull_config():
             """获取前端配置"""
             with self._config_lock:
                 return self.config
-            
+
         @app.get("/api/pull_structure")
         def pull_structure():
             return self.structure_store
@@ -175,7 +174,7 @@ class TaskWebServer:
         @app.get("/api/pull_summary")
         def pull_summary():
             return self.summary_store
-        
+
         @app.get("/api/pull_history")
         def pull_history():
             return self.history_store
@@ -183,7 +182,7 @@ class TaskWebServer:
         @app.get("/api/pull_interval")
         def pull_interval():
             return {"interval": self.report_interval}
-        
+
         @app.get("/api/pull_history_limit")
         def pull_history_limit():
             return {"historyLimit": self.history_limit}
@@ -194,7 +193,6 @@ class TaskWebServer:
                 tasks_to_send = self.injection_tasks.copy()
                 self.injection_tasks.clear()
             return tasks_to_send
-
 
         # ---- 发送接口 ----
         @app.post("/api/push_config")
@@ -212,7 +210,7 @@ class TaskWebServer:
                         content={"ok": False, "error": "Failed to save config"},
                         status_code=500,
                     )
-                
+
         @app.post("/api/push_structure")
         async def push_structure(data: StructureModel):
             self.structure_store = data.items
@@ -275,7 +273,7 @@ class TaskWebServer:
         async def push_summary(data: SummaryModel):
             self.summary_store = data.summary
             return {"ok": True}
-        
+
         @app.post("/api/push_history")
         async def push_history(data: HistoryModel):
             self.history_store = data.history
