@@ -229,78 +229,29 @@ flowchart TD
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.1.3</em>
+  <em>celestial-flow 3.1.4</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
-## 更新日志（Change Log）
-
-- 2021: 建立一个支持多线程与单线程处理函数的类
-- 2023: 在GPT4帮助下添加多进程与携程运行模式 
-- 5/9/2024: 将原有的处理类抽象为节点, 添加TaskChain类, 可以线性连接多个节点, 并设定节点在Chain中的运行模式, 支持serial和process两种, 后者Chain所有节点同时运行
-- 12/12/2024-12/16/2024: 在原有链式结构基础上允许节点有复数下级节点, 实现Tree结构; 将原有TaskChain改名为TaskTree
-- 3/16/2025: 支持Web端任务完成情况可视化
-- 6/9/2025: 支持节点拥有复数上级节点, 脱离纯Tree结构, 为之后循环图做准备
-- 6/11/2025: 自[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)项目instances.inst_task迁出
-- 6/12/2025: 支持循环图, 下级节点可指向上级节点
-- 6/13/2025: 支持loop结构, 即节点可指向自己
-- 6/14/2025: 支持forest结构, 即可有多个根节点
-- 6/16/2025: 多轮评测后, 当前框架已支持完整有向图结构, 将TaskTree改名为TaskGraph
-- 3.0.1: 上线Pypi, 可喜可贺
-- 3.0.4: 新增一个抽象结构TaskQueue, 用于表示节点的所有"入边"与"出边"; 恢复未消费任务的保存功能
-- 3.0.5: 删除原有的TaskRedisTransfer节点, 并增添三种新的redis交互节点TaskRedisTransport TaskRedisSource TaskRedisAck, 用于跨语言 跨进程 跨设备处理任务; 并在Web页面添加展示拓扑信息的卡片
-- 3.0.6: 添加对[CelestialTree](https://github.com/Mr-xiaotian/CelestialTree)系统的支持, 现在可以追踪单个任务的流向
-- 3.0.7: 将TaskStage从TaskExecutor中单独抽出来作为一个子类; 增加新节点TaskRouter, 可以将传入的任务选择的传给不同的下游节点, 而不是进行广播
-- 3.0.8: 在ctree逻辑上将"任务重试"事件后的"任务成功/失败/重试"事件视为因果关系, 而非之前的并行关系; 重构错误搜集部分逻辑; 修复大量3.0.6与3.07版本引入的bug; 优化部分log表现
-- 3.0.9: 
-  - 更新前端mermaid显示中部分节点图标; 
-  - 对ctree_client进行匹配CelestialTree的大量修改; 
-  - 将ctree_client移出为单独的project; 
-  - 在前端中添加error_id的显示, 为之后显示provenance_tree做准备; 
-  - 增加大量warning与error, 用于提醒不规范设置; 
-  - 优化前后端中错误数据的传输方式, 在大量错误数据时减少内存消耗; 
-  - 优化LogSinker中log队列的准入机制; 
-  - 修改部分Bug;
-- 3.1.0:
-  - 新增:
-    - 优化web端仪表盘页面的"总体状态摘要"卡片, 新增"总重复任务"与"总剩余市场", 后者由节点间拓扑关系计算而成, 后续还需要优化;
-  - 修复:
-    - 3.0.9版本下当web端与celestialflow运行端不同时, error数据无法传递的问题;
-    - 修复NullTaskReporter使用问题;
-- 3.1.1:
-  - 新增:
-    - [Important] CelestialTree中引入grpc, 这大大减少了emit操作的耗时;
-    - [Important] 为TerminationSignal添加id, 并可以像task一样通过CelestialTree进行跟踪;
-    - 优化task_graph与task_executor的log分级, 现在默认为"SUCCESS"级;
-    - 将go_worker部分分离为单独project: [celestialflow-goworker]https://github.com/Mr-xiaotian/celestialflow-goworker
-    - 在readme中使用svg图片来展示文件夹结构;
-    - 优化全局剩余时间的计算;
-    - 优化部分代码结构;
-  - 修复:
-    - 修复节点剩余时间在小于1s时显示0的问题(这很影响判断);
-    - 在task_graph中使用"staged"模式时会报错的问题;
-- 3.1.2:
+## 版本日志（Version Log）
+- 3.1.4:
   - feat:
-    - [Important] 模仿已有Logger逻辑, 建立新的组合结构FailListener和FailSinker, 将原有绑定于TaskReporter的fail持久化在线程中实现; 
-    - 借此让TaskExecutor也可以进行fail持久化, 文件为fallback/{date_str}/{executor_errors}({time_str}).jsonl";
-    - 重构整体项目结构, 现在更加清晰;
-    - 补全docs/reference中全部文档, 并令其符合项目重构后结构
-    - 引入uv进行环境管理;
-    - 将executor中技术逻辑分离为runtime/metrics.py;
-    - 整合TaskQueue中重复逻辑;
-  - fix
-    - 修复前端renderNodeList中参数设置错误;
-    - 修复其他微小bug;
-- 3.1.3
-  - feat:
-    - 抽象出BaseListener与BaseSinker;
-    - 移除loguru, 完全由LogListener和LogSinker实现log记录; 
-    - 将bench相关代码从TaskExecutor和TaskGraph中抽离, 不再作为方法, 而是单独bench函数; 
-    - 重构TaskExecutor部分代码, 以尽量瘦身; 
-    - 优化log处理代码中对时间戳的处理, 现在更加准确;
+    - 添加前端设置文件config.json, 包含主题(白天与黑夜), 刷新时间, 历史长度, 卡片种类, 仪表盘布局;
+    - 完善对termination_signal在ctree上的事件管理;
+    - 新添termination_*系日志, 同时优化部分原有日志;
+    - 在前端的错误数字上(包括单个stage的卡片与summary卡片)绑定跳转事件, 可以跳转到ErrorLog页面, 并显示对应的错误;
+    - 修复部分原有的文档错误, 并添加新的前端代码文档;
+  - refactor:
+    - fail_sinker.task_error中不必再传时间, 方法会自己补充;
+    - 将所有counter放入TaskMetrics管理, 断绝对TAskExecutor的调用依赖;
+    - 将run_*函数分离并移入TaskRunner类, 同时将pool管理也迁入; 
+    - 将TaskQueue分离为更具体的TaskInQueue与TaskOutQueue, 同时TAskInQueue只接受一个MPQueue以避免原有的轮询逻辑, 减少CPU运算消耗;
+    - 前端代码换用ts;
+    - 重命名所有代码文件, 现在用core_与util_前缀来区分核心代码与辅助代码;
+    - 将history数据从status中移出, 使用单独的/api/*_history端口;
   - fix:
-    - 修复一些影响性能的小问题;
+    - TaskRedisTransport节点在mermaid中没有展示为parallelogram;
 
 ## Star 历史趋势（Star History）
 
