@@ -1,9 +1,10 @@
 import time, os
+import redis
 from queue import Queue as ThreadQueue
 from multiprocessing import Queue as MPQueue
 from multiprocessing import Manager
-import redis
 from dotenv import load_dotenv
+
 
 load_dotenv()
 redis_host = os.getenv("REDIS_HOST")

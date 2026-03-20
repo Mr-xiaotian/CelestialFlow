@@ -1,6 +1,8 @@
 # runtime/util_estimators.py
 import networkx as nx
 
+from .util_types import StageStatus
+
 
 # ==== calculate ====
 def calc_remaining(processed: int, pending: int, elapsed: float) -> float:
@@ -10,14 +12,14 @@ def calc_remaining(processed: int, pending: int, elapsed: float) -> float:
 
 
 def calc_elapsed(
-    status: bool,
+    status: StageStatus,
     start_time: float,
     last_elapsed: float,
     last_pending: int,
     interval: float,
 ) -> float:
-    """更新时间消耗（仅在 pending 非 0 时刷新）"""
-    if status and start_time:
+    """更新时间消耗（仅在 RUNNING 且 pending 非 0 时刷新）"""
+    if status == StageStatus.RUNNING and start_time:
         elapsed = last_elapsed
         # 如果上一次是 pending，则累计时间
         if last_pending:

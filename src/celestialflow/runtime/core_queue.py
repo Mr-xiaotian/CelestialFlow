@@ -145,7 +145,9 @@ class TaskInQueue:
         """
         while True:
             item: TaskEnvelope | TerminationSignal = self.queue.get()
-            return self._deal_get_item(item)
+            result = self._deal_get_item(item)
+            if result is not None:
+                return result
 
     async def get_async(self) -> TaskEnvelope | TerminationIdPool:
         """
@@ -155,7 +157,9 @@ class TaskInQueue:
         """
         while True:
             item: TaskEnvelope | TerminationSignal = await self.queue.get()
-            return self._deal_get_item(item)
+            result = self._deal_get_item(item)
+            if result is not None:
+                return result
         
     def _deal_get_item(self, item: TaskEnvelope | TerminationSignal) -> TaskEnvelope | TerminationIdPool:
         """
@@ -177,7 +181,9 @@ class TaskInQueue:
                 return TerminationIdPool(ids=[self.termination_dict[self.out_tag]])
             elif self._can_merge_termination():
                 return self._merge_termination()
-        
+            # 信号已记录但尚未集齐所有上游，继续等待
+            return None
+
         raise ValueError(f"unexpected item type: {type(item)}")
 
     def drain(self) -> list[TaskEnvelope]:

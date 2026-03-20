@@ -70,7 +70,8 @@ class SumCounter:
         with self.init_value.get_lock():
             self.init_value.value += value
 
-    def append_counter(self, counter: ValueWrapper) -> None:        self.counters.append(counter)
+    def append_counter(self, counter: ValueWrapper) -> None:
+        self.counters.append(counter)
 
     def reset(self) -> None:
         # reset 也最好带锁（至少 thread 模式）

@@ -261,18 +261,10 @@ class TaskWebServer:
             ):
                 return {"ok": True, "cached": True}
 
-            try:
-                self.error_store = data.errors
-                self._errors_meta_path = data.jsonl_path
-                self._errors_meta_rev = data.rev
-                return {"ok": True, "cached": False}
-            except Exception as e:
-                return {
-                    "ok": False,
-                    "fallback": "none",
-                    "reason": type(e).__name__,
-                    "msg": str(e),
-                }
+            self.error_store = data.errors
+            self._errors_meta_path = data.jsonl_path
+            self._errors_meta_rev = data.rev
+            return {"ok": True, "cached": False}
 
         @app.post("/api/push_topology")
         async def push_topology(data: TopologyModel):
@@ -293,17 +285,12 @@ class TaskWebServer:
         async def push_injection_tasks(data: TaskInjectionModel):
             try:
                 with self._task_injection_lock:
-                    self.injection_tasks.append(data.model_dump())
+                    self.injection_tasks.append(data.model_dump(mode="json"))
                 return {"ok": True}
             except Exception as e:
                 return JSONResponse(
                     content={"ok": False, "msg": f"任务注入失败: {e}"}, status_code=500
                 )
-
-        @app.route("/shutdown", methods=["POST"])
-        def shutdown():
-            # os._exit(0)
-            pass
 
     def start_server(self):
         uvicorn.run(self.app, host=self.host, port=self.port, log_level=self.log_level)

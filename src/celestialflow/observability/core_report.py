@@ -156,10 +156,10 @@ class TaskReporter:
                     return
                 if resp.get("fallback") == "need_content":
                     self._push_errors_mode = "content"
+                else:
+                    raise RuntimeError(f"push_errors_meta failed: {resp.get('msg')}")
 
-                raise RuntimeError(f"push_errors_meta failed: {resp.get('msg')}")
-
-            elif self._push_errors_mode == "content":
+            if self._push_errors_mode == "content":
                 resp = self._push_errors_content()
                 if resp.get("ok"):
                     return
@@ -275,6 +275,7 @@ class TaskReporter:
 
 class NullTaskReporter:
     interval = 0
+    history_limit = 20
 
     def start(self) -> None:
         """启动上报器线程"""

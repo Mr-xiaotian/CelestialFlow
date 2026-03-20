@@ -160,8 +160,6 @@ class TaskStage(TaskExecutor):
 
         :return: 当前节点执行模式
         """
-        if not hasattr(self, "stage_mode"):
-            return "serial"
         return self.stage_mode
 
     def get_summary(self) -> dict:
@@ -175,7 +173,7 @@ class TaskStage(TaskExecutor):
         """
         return {
             **super().get_summary(),
-            "stage_mode": self.stage_mode,
+            "stage_mode": self.get_stage_mode(),
         }
 
     def mark_running(self) -> None:
