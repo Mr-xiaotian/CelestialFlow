@@ -43,10 +43,9 @@ license-files = []
 
 [tool.setuptools.package-data]
 celestialflow = [
-    "web/templates/*.html",
     "web/templates/**/*.html",
-    "web/static/*",
     "web/static/**/*",
+    "web/config.json"
 ]
 
 [tool.pytest.ini_options]
