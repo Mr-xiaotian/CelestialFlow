@@ -1,40 +1,7 @@
 import pytest
-import time
-import asyncio
 
 from celestialflow import TaskExecutor
-
-
-def fibonacci(n):
-    if n <= 0:
-        raise ValueError("n must be a positive integer")
-    elif n == 1:
-        return 1
-    elif n == 2:
-        return 1
-    else:
-        return fibonacci(n - 1) + fibonacci(n - 2)
-
-
-async def fibonacci_async(n):
-    if n <= 0:
-        raise ValueError("n must be a positive integer")
-    elif n == 1:
-        return 1
-    elif n == 2:
-        return 1
-    else:
-        result_0 = await fibonacci_async(n - 1)
-        result_1 = await fibonacci_async(n - 2)
-        return result_0 + result_1
-
-
-def sleep_1(_):
-    time.sleep(1)
-
-
-async def sleep_1_async(_):
-    await asyncio.sleep(1)
+from tests.test_utils import fibonacci, fibonacci_async
 
 
 def test_fibonacci_serial():
