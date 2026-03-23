@@ -6,6 +6,10 @@ from .util_types import StageStatus
 
 # ==== calculate ====
 def calc_remaining(processed: int, pending: int, elapsed: float) -> float:
+    """
+    基于已处理任务,剩余任务以及已消耗时间来计算剩余时间.
+    不要瞧不起均值,在大规模数据下它可能是最有效的.
+    """
     if processed and pending:
         return pending / processed * elapsed
     return 0
@@ -13,15 +17,15 @@ def calc_remaining(processed: int, pending: int, elapsed: float) -> float:
 
 def calc_elapsed(
     status: StageStatus,
-    start_time: float,
     last_elapsed: float,
     last_pending: int,
     interval: float,
 ) -> float:
-    """更新时间消耗（仅在 RUNNING 且 pending 非 0 时刷新）"""
-    if status == StageStatus.RUNNING and start_time:
+    """
+    更新时间消耗
+    """
+    if status in (StageStatus.RUNNING, StageStatus.STOPPED):
         elapsed = last_elapsed
-        # 如果上一次是 pending，则累计时间
         if last_pending:
             # 如果上一次活跃, 那么无论当前状况，累计一次更新时间
             elapsed += interval
@@ -120,8 +124,8 @@ def calc_global_remain_equal_pred(
             for u in preds:
                 total_v += obs_each * scale.get(u, 1.0)
 
-        scale[v] = total_v / max(1.0, proc_v)  # 下游放大系数
-        expect_pend_v = max(0.0, total_v - proc_v)
+        scale[v] = total_v / max(1.0, proc_v)      # 下游放大系数
+        expect_pend_v = max(0.0, total_v - proc_v) # 理论上expect_pend_v >= pend_v
 
         # 时间估算：需要 avg time（秒/任务）
         expected_pending_map[v] = calc_remaining(proc_v, expect_pend_v, elapsed_v)
