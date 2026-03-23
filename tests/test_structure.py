@@ -1,6 +1,4 @@
 import pytest, logging, os
-import math
-from time import sleep
 
 from celestialflow import (
     TaskStage,
@@ -12,6 +10,13 @@ from celestialflow import (
     TaskWheel,
     TaskGrid,
 )
+from tests.test_utils import (
+    add_one_sleep,
+    square,
+    add_5,
+    add_10,
+    add_15,
+)
 
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
@@ -19,82 +24,6 @@ report_port = os.getenv("REPORT_PORT")
 ctree_host = os.getenv("CTREE_HOST")
 ctree_http_host = os.getenv("CTREE_HTTP_PORT")
 ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
-
-
-def operate_sleep(a, b):
-    sleep(1)
-    return a + b, a * b
-
-
-def operate_sleep_A(a, b):
-    return operate_sleep(a, b)
-
-
-def operate_sleep_B(a, b):
-    return operate_sleep(a, b)
-
-
-def operate_sleep_C(a, b):
-    return operate_sleep(a, b)
-
-
-def operate_sleep_D(a, b):
-    return operate_sleep(a, b)
-
-
-def operate_sleep_E(a, b):
-    return operate_sleep(a, b)
-
-
-def add_one_sleep(n):
-    sleep(1)
-    if n > 30:
-        raise ValueError("Test error for greater than 30")
-    elif n == 0:
-        raise ValueError("Test error for 0")
-    elif n == None:
-        raise ValueError("Test error for None")
-    return n + 1
-
-
-def neuron_activation(x):
-    if not isinstance(x, (int, float)):
-        raise ValueError("Invalid input type")
-    sleep(1)  # 模拟计算延迟
-    return 1 / (1 + math.exp(-x))  # sigmoid 激活函数
-
-
-def square(x):
-    sleep(1)
-    return x * x
-
-
-def add_offset(x, offset=10):
-    if x > 30:
-        raise ValueError("Test error for greater than 30")
-    sleep(1)
-    return x + offset
-
-
-# 创建带偏移的函数
-def add_5(x):
-    return add_offset(x, 5)
-
-
-def add_10(x):
-    return add_offset(x, 10)
-
-
-def add_15(x):
-    return add_offset(x, 15)
-
-
-def add_20(x):
-    return add_offset(x, 20)
-
-
-def add_25(x):
-    return add_offset(x, 25)
 
 
 # ========有向无环图(DAG)========
@@ -107,7 +36,7 @@ def test_chain():
     stageE = TaskStage(square, execution_mode="serial", worker_limit=2)
 
     # 设置图结构
-    chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "eager")
+    chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "process")
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port

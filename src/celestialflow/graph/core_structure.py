@@ -17,6 +17,7 @@ class TaskChain(TaskGraph):
 
         :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点
         :param chain_mode: 控制任务链中各节点同时运行(process), 亦或者依次运行(serial)
+        :param log_level: 日志级别
         """
         for num, stage in enumerate(stages):
             stage_name = f"Stage {num + 1}"
@@ -24,7 +25,7 @@ class TaskChain(TaskGraph):
             stage.set_graph_context(next_stages, chain_mode, stage_name)
 
         root_stage = stages[0]
-        super().__init__(root_stages=[root_stage], log_level=log_level)
+        super().__init__(root_stages=[root_stage], schedule_mode="eager", log_level=log_level)
 
     def start_chain(
         self, init_tasks_dict: dict, put_termination_signal: bool = True
@@ -53,8 +54,8 @@ class TaskCross(TaskGraph):
         :param layers:
             按层划分的任务节点列表。每个子列表代表一层，列表中的 TaskStage 将并行执行。
             相邻层之间的所有节点将建立全连接依赖（即每个上一层节点都连接到下一层所有节点）。
-        :param schedule_mode:
-            控制任务图的调度布局模式
+        :param schedule_mode: 控制任务图的调度布局模式
+        :param log_level: 日志级别
         """
         for i in range(len(layers)):
             curr_layer = layers[i]
@@ -98,6 +99,7 @@ class TaskGrid(TaskGraph):
             任务网格，每个子列表代表一行，列表中的 TaskStage 将按行并行执行。
             每个节点将连接到其右侧和下方的节点。
         :param schedule_mode: 控制任务图的调度布局模式
+        :param log_level: 日志级别
         """
         rows, cols = len(grid), len(grid[0])
         for i in range(rows):
@@ -133,6 +135,7 @@ class TaskLoop(TaskGraph):
         由于环的结构特性, 强制使用 'eager' 节点模式
 
         :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点, 形成一个闭环
+        :param log_level: 日志级别
         """
         for num, stage in enumerate(stages):
             stage_name = f"Stage {num + 1}"
@@ -163,6 +166,7 @@ class TaskWheel(TaskGraph):
 
         :param center: 中心节点
         :param ring: 环节点
+        :param log_level: 日志级别
         """
         # 中心连向环
         center.set_graph_context(ring, "process", "Center")
@@ -190,6 +194,7 @@ class TaskComplete(TaskGraph):
         TaskComplete: 完全图结构，每个节点都连向除自己以外的所有其他节点
 
         :param stages: 所有 TaskStage 节点
+        :param log_level: 日志级别
         """
         for i, stage in enumerate(stages):
             next_stages = [s for j, s in enumerate(stages) if i != j]
