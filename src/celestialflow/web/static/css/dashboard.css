@@ -204,18 +204,29 @@
 #dashboard-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
+  gap: 0.5rem;
   max-height: 80vh;
   overflow: auto;
+}
 
-  .card {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    margin: 0.5rem;
-    padding: 1rem;
+/* ================================
+  节点卡片（node-card）
+================================ */
+.node-card {
+  background-color: var(--bg-card);
+  border-radius: 1rem;
+  box-shadow: none;
+  border: 1px solid var(--border-light);
+  padding: 1rem;
+  margin: 0.5rem;
 
-    &:hover {
-      transform: translateY(-4px);
-    }
+  &:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .dark-theme & {
+    border-color: var(--dark-border);
   }
 
   .card-title {
@@ -233,7 +244,7 @@
   transform: rotate(1.5deg);
 }
 .sortable-chosen {
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
   cursor: grabbing;
 }
 

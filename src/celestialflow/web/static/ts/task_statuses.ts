@@ -90,7 +90,7 @@ function renderDashboard() {
     }
 
     const card = document.createElement("div");
-    card.className = "card";
+    card.className = "node-card";
     card.innerHTML = `
           <div class="card-header">
             <h3 class="card-title">${escapeHtml(node)}</h3>
