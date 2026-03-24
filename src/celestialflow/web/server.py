@@ -146,7 +146,7 @@ class TaskWebServer:
 
         @app.get("/", response_class=HTMLResponse)
         def index(request: Request):
-            return templates.TemplateResponse("index.html", {"request": request})
+            return templates.TemplateResponse(request=request, name="index.html")
 
         # ---- 接收接口 ----
         @app.get("/api/pull_config")
