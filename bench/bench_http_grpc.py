@@ -22,7 +22,7 @@ ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
 def bench_no_ctree():
     # 定义任务节点
     task_splitter = TaskSplitter()
-    process_stage = TaskStage(no_op, execution_mode="thread", worker_limit=50)
+    process_stage = TaskStage(no_op, execution_mode="thread", max_workers=50)
 
     chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
     chain.set_ctree(False)
@@ -40,7 +40,7 @@ def bench_no_ctree():
 def bench_http_ctree():
     # 定义任务节点
     task_splitter = TaskSplitter()
-    process_stage = TaskStage(no_op, execution_mode="thread", worker_limit=50)
+    process_stage = TaskStage(no_op, execution_mode="thread", max_workers=50)
 
     chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
     chain.set_ctree(
@@ -64,7 +64,7 @@ def bench_http_ctree():
 def bench_grpc_ctree():
     # 定义任务节点
     task_splitter = TaskSplitter()
-    process_stage = TaskStage(no_op, execution_mode="thread", worker_limit=50)
+    process_stage = TaskStage(no_op, execution_mode="thread", max_workers=50)
 
     chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
     chain.set_ctree(

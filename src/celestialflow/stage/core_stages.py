@@ -189,7 +189,7 @@ class TaskRedisTransport(TaskStage):
         super().__init__(
             func=self._transport,
             execution_mode="thread",
-            worker_limit=4,  # 允许 1~2 个线程偶发阻塞，但不会导致整体阻塞
+            max_workers=4,  # 允许 1~2 个线程偶发阻塞，但不会导致整体阻塞
             unpack_task_args=unpack_task_args,
         )
         self.key = key

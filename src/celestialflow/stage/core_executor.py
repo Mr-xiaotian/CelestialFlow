@@ -42,7 +42,7 @@ class TaskExecutor:
         self,
         func,
         execution_mode="serial",
-        worker_limit=20,
+        max_workers=20,
         max_retries=1,
         max_info=50,
         unpack_task_args=False,
@@ -58,7 +58,7 @@ class TaskExecutor:
 
         :param func: 可调用对象
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'process', 'async' (组合为 'TaskGraph' 时不可用 'process' 和 'async' 模式)
-        :param worker_limit: 同时处理数量
+        :param max_workers: 同时处理数量
         :param max_retries: 任务的最大重试次数
         :param max_info: 日志中每条信息的最大长度
         :param unpack_task_args: 是否将任务参数解包
@@ -80,7 +80,7 @@ class TaskExecutor:
 
         self.set_func(func)
         self.set_execution_mode(execution_mode)
-        self.worker_limit = worker_limit
+        self.max_workers = max_workers
         self.max_retries = max_retries
         self.max_info = max_info
 
@@ -177,7 +177,7 @@ class TaskExecutor:
         """
         初始化任务运行器
         """
-        self.runner = TaskRunner(self, self.func, self.worker_limit)
+        self.runner = TaskRunner(self, self.func, self.max_workers)
 
     def init_listener(self) -> None:
         """
@@ -198,7 +198,7 @@ class TaskExecutor:
             return
 
         extra_desc = (
-            f"{self.execution_mode}-{self.worker_limit}"
+            f"{self.execution_mode}-{self.max_workers}"
             if self.execution_mode != "serial"
             else "serial"
         )
@@ -307,7 +307,7 @@ class TaskExecutor:
         return (
             self.execution_mode
             if self.execution_mode == "serial"
-            else f"{self.execution_mode}-{self.worker_limit}"
+            else f"{self.execution_mode}-{self.max_workers}"
         )
 
     def get_summary(self) -> dict:

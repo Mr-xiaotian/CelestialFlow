@@ -15,17 +15,17 @@ if TYPE_CHECKING:
 
 
 class TaskRunner:
-    def __init__(self, task_executor: TaskExecutor, func, worker_limit: int):
+    def __init__(self, task_executor: TaskExecutor, func, max_workers: int):
         """
         初始化任务运行器
 
         :param task_executor: 任务执行器
         :param func: 任务函数
-        :param worker_limit: 工作线程或进程数量限制
+        :param max_workers: 工作线程或进程数量限制
         """
         self.task_executor = task_executor
         self.func = func
-        self.worker_limit = worker_limit
+        self.max_workers = max_workers
 
         self._pool: ThreadPoolExecutor | ProcessPoolExecutor | None = None
 
@@ -37,9 +37,9 @@ class TaskRunner:
         """
         # 可以复用的线程池或进程池
         if execution_mode == "thread" and self._pool is None:
-            self._pool = ThreadPoolExecutor(max_workers=self.worker_limit)
+            self._pool = ThreadPoolExecutor(max_workers=self.max_workers)
         elif execution_mode == "process" and self._pool is None:
-            self._pool = ProcessPoolExecutor(max_workers=self.worker_limit)
+            self._pool = ProcessPoolExecutor(max_workers=self.max_workers)
 
     def process_termination_signal(
         self, termination_pool: TerminationIdPool
@@ -206,7 +206,7 @@ class TaskRunner:
         """
         while True:
             semaphore = asyncio.Semaphore(
-                self.task_executor.worker_limit
+                self.task_executor.max_workers
             )  # 限制并发数量
 
             async def sem_task(envelope: TaskEnvelope):

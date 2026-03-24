@@ -87,9 +87,9 @@ class LogSinker(BaseSinker):
 
     # ==== stage ====
     def start_stage(
-        self, stage_tag: str, stage_mode: str, execution_mode: str, worker_limit: int
+        self, stage_tag: str, stage_mode: str, execution_mode: str, max_workers: int
     ) -> None:
-        worker_repr = f"({worker_limit} workers)" if execution_mode != "serial" else ""
+        worker_repr = f"({max_workers} workers)" if execution_mode != "serial" else ""
         text = f"'{stage_tag}' start in {stage_mode}; execute tasks by {execution_mode}{worker_repr}."
         self._sink("INFO", text)
 

@@ -10,7 +10,7 @@ def test_fibonacci_serial():
     executor = TaskExecutor(
         fibonacci,
         execution_mode="serial",
-        worker_limit=6,
+        max_workers=6,
         max_retries=1,
         show_progress=False,
     )
@@ -25,7 +25,7 @@ def test_fibonacci_thread():
     executor = TaskExecutor(
         fibonacci,
         execution_mode="thread",
-        worker_limit=6,
+        max_workers=6,
         max_retries=1,
         show_progress=False,
     )
@@ -40,7 +40,7 @@ def test_fibonacci_process():
     executor = TaskExecutor(
         fibonacci,
         execution_mode="process",
-        worker_limit=6,
+        max_workers=6,
         max_retries=1,
         show_progress=False,
     )
@@ -56,7 +56,7 @@ async def test_fibonacci_async():
     executor = TaskExecutor(
         fibonacci_async,
         execution_mode="async",
-        worker_limit=6,
+        max_workers=6,
         max_retries=1,
         show_progress=False,
     )

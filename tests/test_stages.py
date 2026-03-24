@@ -48,16 +48,16 @@ class DownloadStage(TaskStage):
 def test_splitter_0():
     # 定义任务节点
     generate_stage = TaskStage(
-        func=generate_urls_sleep, execution_mode="thread", worker_limit=4
+        func=generate_urls_sleep, execution_mode="thread", max_workers=4
     )
     logger_stage = TaskStage(
-        func=log_urls_sleep, execution_mode="thread", worker_limit=4
+        func=log_urls_sleep, execution_mode="thread", max_workers=4
     )
     splitter = TaskSplitter()
     download_stage = TaskStage(
-        func=download_sleep, execution_mode="thread", worker_limit=4
+        func=download_sleep, execution_mode="thread", max_workers=4
     )
-    parse_stage = TaskStage(func=parse_sleep, execution_mode="thread", worker_limit=4)
+    parse_stage = TaskStage(func=parse_sleep, execution_mode="thread", max_workers=4)
 
     # 设置链关系
     generate_stage.set_graph_context(
@@ -97,7 +97,7 @@ def test_splitter_0():
 def test_splitter_1():
     # 定义任务节点
     task_splitter = TaskSplitter()
-    process_stage = TaskStage(no_op, execution_mode="thread", worker_limit=50)
+    process_stage = TaskStage(no_op, execution_mode="thread", max_workers=50)
 
     chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
     chain.set_reporter(True, host=report_host, port=report_port)
@@ -117,7 +117,7 @@ def test_splitter_1():
 
 
 def test_redis_ack_0():
-    start_stage = TaskStage(sleep_1, execution_mode="thread", worker_limit=4)
+    start_stage = TaskStage(sleep_1, execution_mode="thread", max_workers=4)
     redis_tranport = TaskRedisTransport(
         key="testFibonacci:input", host=redis_host, password=redis_password
     )
@@ -150,7 +150,7 @@ def test_redis_ack_0():
 
 
 def test_redis_ack_1():
-    start_stage = TaskStage(sleep_1, execution_mode="thread", worker_limit=4)
+    start_stage = TaskStage(sleep_1, execution_mode="thread", max_workers=4)
     redis_tranport = TaskRedisTransport(
         key="testSum:input",
         host=redis_host,
@@ -161,7 +161,7 @@ def test_redis_ack_1():
         key="testSum:output", host=redis_host, password=redis_password
     )
     sum_stage = TaskStage(
-        sum_int, execution_mode="thread", worker_limit=4, unpack_task_args=True
+        sum_int, execution_mode="thread", max_workers=4, unpack_task_args=True
     )
 
     start_stage.set_graph_context(
@@ -187,7 +187,7 @@ def test_redis_ack_1():
 
 
 def test_redis_ack_2():
-    start_stage = TaskStage(sleep_1, execution_mode="thread", worker_limit=4)
+    start_stage = TaskStage(sleep_1, execution_mode="thread", max_workers=4)
     redis_tranport = DownloadRedisTransport(
         key="testDownload:input",
         host=redis_host,
@@ -198,7 +198,7 @@ def test_redis_ack_2():
         key="testDownload:output", host=redis_host, password=redis_password
     )
     download_stage = DownloadStage(
-        download_to_file, execution_mode="thread", worker_limit=4
+        download_to_file, execution_mode="thread", max_workers=4
     )
 
     start_stage.set_graph_context(
@@ -272,8 +272,8 @@ def test_redis_source_0():
 
 def test_router_0():
     router = TaskRouter()
-    stage_a = TaskStage(func=sleep_1, execution_mode="thread", worker_limit=2)
-    stage_b = TaskStage(func=sleep_1, execution_mode="thread", worker_limit=2)
+    stage_a = TaskStage(func=sleep_1, execution_mode="thread", max_workers=2)
+    stage_b = TaskStage(func=sleep_1, execution_mode="thread", max_workers=2)
 
     router.set_graph_context(
         [stage_a, stage_b], stage_mode="serial", stage_name="Router"

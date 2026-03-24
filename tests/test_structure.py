@@ -29,11 +29,11 @@ ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
 # ========有向无环图(DAG)========
 def test_chain():
     # 构建 DAG: A ➝ B ➝ C ➝ D ➝ E
-    stageA = TaskStage(square, execution_mode="serial", worker_limit=2)
-    stageB = TaskStage(square, execution_mode="serial", worker_limit=2)
-    stageC = TaskStage(square, execution_mode="serial", worker_limit=2)
-    stageD = TaskStage(square, execution_mode="serial", worker_limit=2)
-    stageE = TaskStage(square, execution_mode="serial", worker_limit=2)
+    stageA = TaskStage(square, execution_mode="serial", max_workers=2)
+    stageB = TaskStage(square, execution_mode="serial", max_workers=2)
+    stageC = TaskStage(square, execution_mode="serial", max_workers=2)
+    stageD = TaskStage(square, execution_mode="serial", max_workers=2)
+    stageE = TaskStage(square, execution_mode="serial", max_workers=2)
 
     # 设置图结构
     chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "process")
@@ -51,18 +51,18 @@ def test_chain():
 
 def test_forest():
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
-    stageA = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageB = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageC = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageD = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageE = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
+    stageA = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageB = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageC = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageD = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageE = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 构建 DAG: F ➝ G ➝ I；F ➝ H ➝ J
-    stageF = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageG = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageH = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageI = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageJ = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
+    stageF = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageG = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageH = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageI = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageJ = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 设置图结构
     stageA.set_graph_context([stageC], stage_mode="process", stage_name="stageA")
@@ -98,13 +98,13 @@ def test_forest():
 
 def test_cross():
     # 构建 DAG
-    stageA = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageB = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageC = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageD = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=5)
-    stageE = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageF = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    stageG = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
+    stageA = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageB = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageC = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageD = TaskStage(add_one_sleep, execution_mode="thread", max_workers=5)
+    stageE = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageF = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageG = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 构建 TaskCross
     cross = TaskCross(
@@ -127,16 +127,16 @@ def test_cross():
 
 def test_network():
     # 输入层
-    A1 = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    A2 = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
+    A1 = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    A2 = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 隐藏层
-    B1 = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    B2 = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
-    B3 = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
+    B1 = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    B2 = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    B3 = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 输出层
-    C = TaskStage(add_one_sleep, execution_mode="thread", worker_limit=2)
+    C = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 构建任务图
     cross = TaskCross([[A1, A2], [B1, B2, B3], [C]])
@@ -251,9 +251,9 @@ def test_wheel():
 
 def test_complete():
     # 创建 3 个节点，每个节点有不同偏移
-    n1 = TaskStage(func=add_5, execution_mode="thread", worker_limit=5)
-    n2 = TaskStage(func=add_10, execution_mode="thread", worker_limit=5)
-    n3 = TaskStage(func=square, execution_mode="thread", worker_limit=5)
+    n1 = TaskStage(func=add_5, execution_mode="thread", max_workers=5)
+    n2 = TaskStage(func=add_10, execution_mode="thread", max_workers=5)
+    n3 = TaskStage(func=square, execution_mode="thread", max_workers=5)
 
     # 构造 TaskComplete
     complete = TaskComplete([n1, n2, n3])
