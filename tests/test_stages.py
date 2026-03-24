@@ -10,7 +10,7 @@ from celestialflow import (
     TaskRedisAck,
     TaskRouter,
 )
-from tests.test_utils import (
+from test_utils import (
     no_op,
     sleep_1_ret as sleep_1,
     fibonacci,

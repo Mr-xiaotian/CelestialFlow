@@ -10,7 +10,7 @@ from celestialflow import (
     TaskWheel,
     TaskGrid,
 )
-from tests.test_utils import (
+from test_utils import (
     add_one_sleep,
     square,
     add_5,
