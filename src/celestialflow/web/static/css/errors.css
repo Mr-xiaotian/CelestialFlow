@@ -3,21 +3,21 @@
 ================================ */
 .error-search-input {
   padding: 6px 10px;
-  border: 1px solid var(--mist-300);
+  border: 1px solid var(--gray-300);
   border-radius: 4px;
   background-color: var(--frost-0);
   font-size: 14px;
-  color: var(--ink-900);
+  color: var(--gray-900);
   outline: none;
   transition: all 0.2s ease;
   height: 30px;
 
   &:focus {
-    border-color: var(--ink-400);
+    border-color: var(--gray-400);
     background-color: var(--gray-50);
 
     .dark-theme & {
-      border-color: var(--carbon-500);
+      border-color: var(--carbon-600);
       background-color: var(--carbon-750);
     }
   }
@@ -77,7 +77,7 @@ th,
 td {
   text-align: left;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--mist-200);
+  border-bottom: 1px solid var(--gray-200);
 
   .dark-theme & {
     border-bottom: 1px solid var(--gray-700);
@@ -125,12 +125,12 @@ th {
     padding: 6px 12px;
     border: none;
     border-radius: 4px;
-    background-color: var(--mist-200);
-    color: var(--ink-900);
+    background-color: var(--gray-200);
+    color: var(--gray-900);
     cursor: pointer;
 
     &:hover:not(:disabled) {
-      background-color: var(--mist-300);
+      background-color: var(--gray-300);
 
       .dark-theme & {
         background-color: var(--carbon-600);
@@ -159,7 +159,7 @@ th {
 .pagination-info {
   margin: 0 12px;
   font-size: 14px;
-  color: var(--ink-500);
+  color: var(--gray-500);
 
   .dark-theme & {
     color: var(--gray-300);
@@ -171,23 +171,23 @@ th {
 ================================ */
 .pager-btn {
   background-color: var(--gray-100);
-  border: 1px solid var(--mist-300);
+  border: 1px solid var(--gray-300);
   padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
-  color: var(--ink-500);
+  color: var(--gray-500);
   font-size: 14px;
   transition: all 0.2s;
 
   &:hover:not(:disabled) {
     background-color: var(--gray-200);
-    border-color: var(--ink-400);
-    color: var(--ink-900);
+    border-color: var(--gray-400);
+    color: var(--gray-900);
   }
 
   &:disabled {
     background-color: var(--gray-50);
-    border-color: var(--mist-200);
+    border-color: var(--gray-200);
     color: var(--gray-400);
     cursor: not-allowed;
   }
@@ -221,11 +221,11 @@ th {
 
   .page-link {
     cursor: pointer;
-    color: var(--ink-500);
+    color: var(--gray-500);
     transition: color 0.2s;
 
     &:hover {
-      color: var(--ink-500);
+      color: var(--gray-500);
 
       .dark-theme & {
         color: var(--gray-100);
@@ -239,7 +239,7 @@ th {
 
   .page-current {
     font-weight: bold;
-    color: var(--ink-900);
+    color: var(--gray-900);
     cursor: default;
 
     .dark-theme & {

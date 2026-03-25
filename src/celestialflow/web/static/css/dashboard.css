@@ -57,13 +57,13 @@
 
 .mermaid .arrowMarkerPath {
   .dark-theme & {
-    fill: var(--mermaid-arrow);
+    fill: var(--gray-200);
   }
 }
 
 .mermaid span {
   .dark-theme & {
-    color: var(--mermaid-text) !important;
+    color: var(--gray-300) !important;
   }
 }
 
@@ -216,7 +216,7 @@
   background-color: var(--frost-0);
   border-radius: 1rem;
   box-shadow: none;
-  border: 1px solid var(--mist-200);
+  border: 1px solid var(--gray-200);
   padding: 1rem;
   margin: 0.5rem;
 
@@ -267,24 +267,24 @@
   padding: 1rem;
   border-radius: 0.5rem;
 
-  &.blue   { background-color: var(--summary-blue-bg);   .dark-theme & { background-color: var(--summary-blue-bg-dark); } }
-  &.orange { background-color: var(--summary-orange-bg); .dark-theme & { background-color: var(--summary-orange-bg-dark); } }
-  &.yellow { background-color: var(--summary-yellow-bg); .dark-theme & { background-color: var(--summary-yellow-bg-dark); } }
-  &.red    { background-color: var(--summary-red-bg);    .dark-theme & { background-color: var(--summary-red-bg-dark); } }
-  &.green  { background-color: var(--summary-green-bg);  .dark-theme & { background-color: var(--summary-green-bg-dark); } }
-  &.purple { background-color: var(--summary-purple-bg); .dark-theme & { background-color: var(--summary-purple-bg-dark); } }
+  &.blue   { background-color: var(--cornflower-50);  .dark-theme & { background-color: var(--cornflower-900); } }
+  &.orange { background-color: var(--amber-100);      .dark-theme & { background-color: var(--amber-900); } }
+  &.yellow { background-color: var(--marigold-50);    .dark-theme & { background-color: var(--marigold-900); } }
+  &.red    { background-color: var(--crimson-50);     .dark-theme & { background-color: var(--crimson-900); } }
+  &.green  { background-color: var(--jade-50);        .dark-theme & { background-color: var(--jade-900); } }
+  &.purple { background-color: var(--violet-100);     .dark-theme & { background-color: var(--violet-900); } }
 }
 
 .summary-value {
   font-size: 1.875rem;
   font-weight: 700;
 
-  &.blue   { color: var(--summary-blue-value);   .dark-theme & { color: var(--summary-blue-value-dark); } }
-  &.orange { color: var(--summary-orange-value); .dark-theme & { color: var(--summary-orange-value-dark); } }
-  &.yellow { color: var(--summary-yellow-value); .dark-theme & { color: var(--summary-yellow-value-dark); } }
-  &.red    { color: var(--summary-red-value);    .dark-theme & { color: var(--summary-red-value-dark); } }
-  &.green  { color: var(--summary-green-value);  .dark-theme & { color: var(--summary-green-value-dark); } }
-  &.purple { color: var(--summary-purple-value); .dark-theme & { color: var(--summary-purple-value-dark); } }
+  &.blue   { color: var(--cornflower-600); .dark-theme & { color: var(--cornflower-300); } }
+  &.orange { color: var(--amber-600);      .dark-theme & { color: var(--amber-300); } }
+  &.yellow { color: var(--marigold-600);   .dark-theme & { color: var(--marigold-300); } }
+  &.red    { color: var(--crimson-600);    .dark-theme & { color: var(--crimson-400); } }
+  &.green  { color: var(--jade-700);       .dark-theme & { color: var(--jade-300); } }
+  &.purple { color: var(--violet-600);     .dark-theme & { color: var(--violet-300); } }
 }
 
 .summary-label {
@@ -309,34 +309,34 @@
 
 .graph-node {
   .dark-theme & {
-    background-color: var(--graph-node-bg);
-    border-left: 4px solid var(--graph-node-border);
+    background-color: var(--carbon-750);
+    border-left: 4px solid var(--cornflower-400);
 
     &:hover {
-      background-color: var(--graph-node-hover);
+      background-color: var(--carbon-700);
     }
   }
 }
 
 .stage-name {
-  .dark-theme & { color: var(--stage-name); }
+  .dark-theme & { color: var(--cornflower-300); }
 }
 
 .stage-mode {
-  .dark-theme & { color: var(--stage-mode); }
+  .dark-theme & { color: var(--gray-400); }
 }
 
 .stage-func {
   .dark-theme & {
-    background-color: var(--stage-func-bg);
-    color: var(--stage-func-text);
+    background-color: var(--carbon-800);
+    color: var(--rose-400);
   }
 }
 
 .visited-mark {
   .dark-theme & {
-    background-color: var(--visited-mark-bg);
-    color: var(--visited-mark-text);
+    background-color: var(--crimson-900);
+    color: var(--rose-500);
   }
 }
 

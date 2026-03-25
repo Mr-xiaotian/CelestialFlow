@@ -3,15 +3,9 @@
 ================================ */
 :root {
   /* ================================
-     基础颜色
+     灰度（Gray）
   ================================ */
-  --color-white: #ffffff;
-  --color-black: #000000;
-
-  /* ================================
-     灰度色阶
-  ================================ */
-  --gray-50: #f9fafb;
+  --gray-50:  #f9fafb;
   --gray-100: #f3f4f6;
   --gray-200: #e5e7eb;
   --gray-300: #d1d5db;
@@ -23,58 +17,13 @@
   --gray-900: #111827;
 
   /* ================================
-     矢车菊蓝（Cornflower）
-  ================================ */
-  --cornflower-400: #3b6fd9;
-  --cornflower-500: #3b82f6;
-  --cornflower-600: #2563eb;
-  --cornflower-700: #1d4ed8;
-
-  /* ================================
-     翡翠绿（Jade）
-  ================================ */
-  --jade-400: #22c55e;
-  --jade-500: #10b981;
-  --jade-600: #16a34a;
-
-  /* ================================
-     金盏菊黄（Marigold）
-  ================================ */
-  --marigold-400: #fbbf24;
-  --marigold-500: #f59e0b;
-
-  /* ================================
-     深红（Crimson）
-  ================================ */
-  --crimson-400: #f87171;
-  --crimson-500: #ef4444;
-  --crimson-600: #dc2626;
-
-  /* ================================
-     墨色（Ink）
-  ================================ */
-  --ink-400: #9ca3af;
-  --ink-500: #6b7280;
-  --ink-700: #374151;
-  --ink-900: #111827;
-
-  /* ================================
      霜白（Frost）
   ================================ */
-  --frost-0:   #ffffff;
-  --frost-50:  #f9fafb;
-  --frost-100: #f3f4f6;
-
-  /* ================================
-     薄雾（Mist）
-  ================================ */
-  --mist-200: #e5e7eb;
-  --mist-300: #d1d5db;
+  --frost-0: #ffffff;
 
   /* ================================
      碳黑（Carbon）
   ================================ */
-  --carbon-500: #6b7280;
   --carbon-600: #4b5563;
   --carbon-700: #374151;
   --carbon-750: #3a3a3a;
@@ -82,79 +31,72 @@
   --carbon-900: #1a1a1a;
 
   /* ================================
-     Summary 调色板 (亮色模式)
+     矢车菊蓝（Cornflower）
   ================================ */
-  --summary-blue-bg: #dbeafe;
-  --summary-orange-bg: #fed7aa;
-  --summary-yellow-bg: #fef3c7;
-  --summary-red-bg: #fee2e2;
-  --summary-green-bg: #d1fae5;
-  --summary-purple-bg: #e9d5ff;
-
-  --summary-blue-value: #2563eb;
-  --summary-orange-value: #ea580c;
-  --summary-yellow-value: #d97706;
-  --summary-red-value: #dc2626;
-  --summary-green-value: #059669;
-  --summary-purple-value: #7c3aed;
+  --cornflower-50:  #dbeafe;
+  --cornflower-100: #bfdbfe;
+  --cornflower-300: #60a5fa;
+  --cornflower-400: #3b6fd9;
+  --cornflower-500: #3b82f6;
+  --cornflower-600: #2563eb;
+  --cornflower-700: #1d4ed8;
+  --cornflower-800: #1e40af;
+  --cornflower-900: #1e3a8a;
 
   /* ================================
-     Summary 调色板 (暗色模式)
+     翡翠绿（Jade）
   ================================ */
-  --summary-blue-bg-dark: #1e3a8a;
-  --summary-orange-bg-dark: #7c2d12;
-  --summary-yellow-bg-dark: #78350f;
-  --summary-red-bg-dark: #7f1d1d;
-  --summary-green-bg-dark: #14532d;
-  --summary-purple-bg-dark: #4c1d95;
-
-  --summary-blue-value-dark: #60a5fa;
-  --summary-orange-value-dark: #fdba74;
-  --summary-yellow-value-dark: #facc15;
-  --summary-red-value-dark: #f87171;
-  --summary-green-value-dark: #34d399;
-  --summary-purple-value-dark: #c4b5fd;
+  --jade-50:  #d1fae5;
+  --jade-100: #bbf7d0;
+  --jade-300: #34d399;
+  --jade-400: #22c55e;
+  --jade-500: #10b981;
+  --jade-600: #16a34a;
+  --jade-700: #059669;
+  --jade-800: #166534;
+  --jade-900: #14532d;
 
   /* ================================
-     Mermaid 图表
+     金盏菊黄（Marigold）
   ================================ */
-  --mermaid-arrow: #e5e7eb;
-  --mermaid-text: #d1d5db;
+  --marigold-50:  #fef3c7;
+  --marigold-300: #facc15;
+  --marigold-400: #fbbf24;
+  --marigold-500: #f59e0b;
+  --marigold-600: #d97706;
+  --marigold-700: #a16207;
+  --marigold-900: #78350f;
 
   /* ================================
-     图节点
+     琥珀橙（Amber）
   ================================ */
-  --graph-node-bg: #3a3a3a;
-  --graph-node-border: #5e91ff;
-  --graph-node-hover: #454545;
-  --stage-name: #7eaeff;
-  --stage-mode: #b0b0b0;
-  --stage-func-bg: #333333;
-  --stage-func-text: #ff6090;
-  --visited-mark-bg: #4a2424;
-  --visited-mark-text: #ff6b6b;
+  --amber-100: #fed7aa;
+  --amber-300: #fdba74;
+  --amber-600: #ea580c;
+  --amber-700: #c2410c;
+  --amber-900: #7c2d12;
 
   /* ================================
-     节点类型标签
+     深红（Crimson）
   ================================ */
-  --type-processing-bg: #dcfce7;
-  --type-processing-text: #166534;
-  --type-analysis-bg: #dbeafe;
-  --type-analysis-text: #1e40af;
-  --type-storage-bg: #f3e8ff;
-  --type-storage-text: #7c3aed;
-  --type-compute-bg: #fed7aa;
-  --type-compute-text: #c2410c;
-  --type-network-bg: #fef3c7;
-  --type-network-text: #a16207;
-  --type-monitoring-bg: #fecaca;
-  --type-monitoring-text: #dc2626;
+  --crimson-50:  #fee2e2;
+  --crimson-100: #fecaca;
+  --crimson-400: #f87171;
+  --crimson-500: #ef4444;
+  --crimson-600: #dc2626;
+  --crimson-900: #7f1d1d;
 
   /* ================================
-     文件上传成功
+     紫罗兰（Violet）
   ================================ */
-  --file-success-bg: #dcfce7;
-  --file-success-border: #bbf7d0;
-  --file-success-text: #166534;
-  --file-success-icon: #16a34a;
+  --violet-100: #e9d5ff;
+  --violet-300: #c4b5fd;
+  --violet-600: #7c3aed;
+  --violet-900: #4c1d95;
+
+  /* ================================
+     玫瑰（Rose）
+  ================================ */
+  --rose-400: #ff6090;
+  --rose-500: #ff6b6b;
 }

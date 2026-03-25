@@ -9,7 +9,7 @@
 }
 
 body {
-  background-color: var(--frost-50);
+  background-color: var(--gray-50);
   line-height: 1.5;
 
   &.dark-theme {
@@ -168,7 +168,7 @@ select {
 ================================ */
 .tabs {
   display: flex;
-  border-bottom: 1px solid var(--mist-200);
+  border-bottom: 1px solid var(--gray-200);
   margin: 1rem 0;
 
   .dark-theme & {
