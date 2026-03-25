@@ -100,20 +100,18 @@ def neuron_activation(x):
 
 # =========================
 # sleep 变体
-#   sleep_1       — 纯延迟，无返回值（test_executor 用）
-#   sleep_1_ret   — 延迟后透传输入（test_stages 用）
+#   sleep_1       — 纯延迟，有返回值（test_executor 用）
+#   sleep_1_async — 纯延迟，有返回值的异步版本（test_executor 用）
 # =========================
 
-def sleep_1(_):
-    time.sleep(1)
 
-
-async def sleep_1_async(_):
-    await asyncio.sleep(1)
-
-
-def sleep_1_ret(n):
+def sleep_1(n):
     sleep(1)
+    return n
+
+
+async def sleep_1_async(n):
+    await asyncio.sleep(1)
     return n
 
 
@@ -218,3 +216,19 @@ def download_to_file(url: str, file_path: str) -> str:
         return f"Downloaded {url} → {file_path}"
     except Exception as e:
         raise RuntimeError(f"Download failed: {e}")
+
+
+# =========================
+# 其他
+# =========================
+
+class RouterWrapper:
+    def __init__(self, a_tag, b_tag):
+        self.a_tag = a_tag
+        self.b_tag = b_tag
+        self.__name__ = "RouterWrapper" # 框架需要这个属性
+
+    def __call__(self, n: int) -> tuple:
+        target = self.a_tag if (n % 2 == 0) else self.b_tag
+        return (target, n)
+

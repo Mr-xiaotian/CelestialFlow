@@ -1,4 +1,5 @@
 import pytest, logging, random, os
+import dill
 
 from celestialflow import (
     TaskStage,
@@ -12,7 +13,7 @@ from celestialflow import (
 )
 from test_utils import (
     no_op,
-    sleep_1_ret as sleep_1,
+    sleep_1,
     fibonacci,
     sum_int,
     generate_urls_sleep,
@@ -20,6 +21,7 @@ from test_utils import (
     download_sleep,
     parse_sleep,
     download_to_file,
+    RouterWrapper,
 )
 
 report_host = os.getenv("REPORT_HOST")
@@ -284,21 +286,21 @@ def test_router_0():
     a_tag = stage_a.get_tag()
     b_tag = stage_b.get_tag()
 
-    def to_route_task(n: int) -> tuple:
-        target = a_tag if (n % 2 == 0) else b_tag
-        return (target, n)
+    source_stage = TaskStage(RouterWrapper(a_tag, b_tag), execution_mode="thread", max_workers=4)
 
-    graph = TaskGraph([router])
+    source_stage.set_graph_context([router], stage_mode="serial", stage_name="Origin")
+
+    graph = TaskGraph([source_stage])
     graph.set_reporter(True, host=report_host, port=report_port)
 
     graph.start_graph(
         {
-            router.get_tag(): [to_route_task(i) for i in range(20)],
+            source_stage.get_tag(): range(20),
         }
     )
 
 
 if __name__ == "__main__":
-    test_splitter_0()
-    # test_router_0()
+    # test_splitter_0()
+    test_router_0()
     pass
