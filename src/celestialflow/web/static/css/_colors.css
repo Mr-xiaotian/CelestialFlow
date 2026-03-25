@@ -23,47 +23,66 @@
   --gray-900: #111827;
 
   /* ================================
-     语义颜色
+     矢车菊蓝（Cornflower）
   ================================ */
-  --primary-color: #3b82f6;
-  --primary-hover: #2563eb;
-  --primary-dark: #1d4ed8;
-  --primary-light: #3b6fd9;
-
-  --success-color: #10b981;
-  --success-dark: #16a34a;
-  --success-light: #22c55e;
-
-  --warning-color: #f59e0b;
-  --warning-light: #fbbf24;
-
-  --danger-color: #ef4444;
-  --danger-dark: #dc2626;
-  --danger-light: #f87171;
+  --cornflower-400: #3b6fd9;
+  --cornflower-500: #3b82f6;
+  --cornflower-600: #2563eb;
+  --cornflower-700: #1d4ed8;
 
   /* ================================
-     文本颜色
+     翡翠绿（Jade）
   ================================ */
-  --text-primary: #111827;
-  --text-secondary: #374151;
-  --text-tertiary: #6b7280;
-  --text-muted: #9ca3af;
-  --text-inverse: #ffffff;
+  --jade-400: #22c55e;
+  --jade-500: #10b981;
+  --jade-600: #16a34a;
 
   /* ================================
-     背景颜色
+     金盏菊黄（Marigold）
   ================================ */
-  --bg-body: #f9fafb;
-  --bg-card: #ffffff;
-  --bg-input: #ffffff;
-  --bg-hover: #f3f4f6;
+  --marigold-400: #fbbf24;
+  --marigold-500: #f59e0b;
 
   /* ================================
-     边框颜色
+     深红（Crimson）
   ================================ */
-  --border-light: #e5e7eb;
-  --border-medium: #d1d5db;
-  --border-dark: #9ca3af;
+  --crimson-400: #f87171;
+  --crimson-500: #ef4444;
+  --crimson-600: #dc2626;
+
+  /* ================================
+     墨色（Ink）—— 亮色主题文字 & 通用边框深色
+     在暗色主题中被 .dark-theme 覆盖为浅色
+  ================================ */
+  --ink-400: #9ca3af;
+  --ink-500: #6b7280;
+  --ink-700: #374151;
+  --ink-900: #111827;
+
+  /* ================================
+     霜白（Frost）—— 亮色主题背景
+     在暗色主题中被 .dark-theme 覆盖为碳黑
+  ================================ */
+  --frost-0:   #ffffff;
+  --frost-50:  #f9fafb;
+  --frost-100: #f3f4f6;
+
+  /* ================================
+     薄雾（Mist）—— 亮色主题边框
+     在暗色主题中被 .dark-theme 覆盖为碳黑色阶
+  ================================ */
+  --mist-200: #e5e7eb;
+  --mist-300: #d1d5db;
+
+  /* ================================
+     碳黑（Carbon）—— 暗色主题原始色值（不覆盖）
+  ================================ */
+  --carbon-500: #6b7280;
+  --carbon-600: #4b5563;
+  --carbon-700: #374151;
+  --carbon-750: #3a3a3a;
+  --carbon-800: #2a2a2a;
+  --carbon-900: #1a1a1a;
 
   /* ================================
      Summary 调色板 (亮色模式)
@@ -83,21 +102,6 @@
   --summary-purple-value: #7c3aed;
 
   /* ================================
-     暗黑模式原始值
-  ================================ */
-  --dark-bg-body: #1a1a1a;
-  --dark-bg-card: #2a2a2a;
-  --dark-bg-input: #374151;
-  --dark-bg-elevated: #3a3a3a;
-
-  --dark-text-primary: #f3f4f6;
-  --dark-text-secondary: #e5e7eb;
-  --dark-text-muted: #9ca3af;
-
-  --dark-border: #4b5563;
-  --dark-border-light: #6b7280;
-
-  /* ================================
      Summary 调色板 (暗色模式)
   ================================ */
   --summary-blue-bg-dark: #1e3a8a;
@@ -115,18 +119,14 @@
   --summary-purple-value-dark: #c4b5fd;
 
   /* ================================
-     特殊用途颜色
+     Mermaid 图表
   ================================ */
-  --color-ok: #16a34a;
-  --color-warn: #dc2626;
-  --color-link: #3b82f6;
-  --color-link-hover: #1d4ed8;
-
-  /* Mermaid 图表 */
   --mermaid-arrow: #e5e7eb;
   --mermaid-text: #d1d5db;
 
-  /* 图节点 */
+  /* ================================
+     图节点
+  ================================ */
   --graph-node-bg: #3a3a3a;
   --graph-node-border: #5e91ff;
   --graph-node-hover: #454545;
@@ -137,7 +137,9 @@
   --visited-mark-bg: #4a2424;
   --visited-mark-text: #ff6b6b;
 
-  /* 节点类型标签 */
+  /* ================================
+     节点类型标签
+  ================================ */
   --type-processing-bg: #dcfce7;
   --type-processing-text: #166534;
   --type-analysis-bg: #dbeafe;
@@ -151,34 +153,29 @@
   --type-monitoring-bg: #fecaca;
   --type-monitoring-text: #dc2626;
 
-  /* 文件上传成功 */
+  /* ================================
+     文件上传成功
+  ================================ */
   --file-success-bg: #dcfce7;
   --file-success-border: #bbf7d0;
   --file-success-text: #166534;
   --file-success-icon: #16a34a;
-
-  /* 兼容旧变量名 */
-  --gray-light: var(--gray-100);
-  --gray-medium: var(--gray-400);
-  --gray-dark: var(--gray-600);
-  --gray-slate: var(--gray-500);
 }
 
 /* ================================
-  🌟 暗黑模式语义变量覆盖
+  🌟 暗黑模式动态色阶覆盖
 ================================ */
 .dark-theme {
-  --bg-body: var(--dark-bg-body);
-  --bg-card: var(--dark-bg-card);
-  --bg-input: var(--dark-bg-input);
-  --bg-hover: var(--dark-bg-elevated);
+  --frost-0:   #2a2a2a;  /* carbon-800 */
+  --frost-50:  #1a1a1a;  /* carbon-900 */
+  --frost-100: #3a3a3a;  /* carbon-750 */
 
-  --text-primary: var(--dark-text-primary);
-  --text-secondary: var(--dark-text-secondary);
-  --text-muted: var(--dark-text-muted);
+  --mist-200: #4b5563;   /* carbon-600 */
+  --mist-300: #6b7280;   /* carbon-500 */
 
-  --border-light: var(--dark-border);
-  --border-medium: var(--dark-border-light);
+  --ink-900: #f3f4f6;    /* gray-100 */
+  --ink-700: #e5e7eb;    /* gray-200 */
+  --ink-400: #9ca3af;    /* gray-400（不变） */
 
-  --mermaid-arrow: var(--dark-text-secondary);
+  --mermaid-arrow: #e5e7eb;
 }

@@ -14,11 +14,11 @@ function renderLocalTime(timestamp) {
  * @param {string} deltaClass - 增量数值的 CSS 类名（可选，默认 "text-green-light"）
  * @returns {string} 包含数值和带颜色增量的 HTML 字符串
  */
-function formatWithDelta(value, delta, deltaClass = "text-green-light") {
+function formatWithDelta(value, delta, deltaClass = "text-green-500") {
     if (!delta || delta === 0)
         return `${value}`;
     const sign = delta > 0 ? "+" : "-";
-    const cls = delta > 0 ? deltaClass : "text-red-light";
+    const cls = delta > 0 ? deltaClass : "text-red-400";
     return `${value}<small class="${cls}" style="margin-left: 4px;">${sign}${Math.abs(delta)}</small>`;
 }
 /**

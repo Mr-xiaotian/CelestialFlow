@@ -3,14 +3,14 @@
 ================================ */
 #task-injection .tip-section {
   background: var(--summary-blue-bg);
-  border-left: 4px solid var(--primary-color);
+  border-left: 4px solid var(--cornflower-500);
   padding: 16px;
   margin-bottom: 32px;
   border-radius: 0 8px 8px 0;
 
   .dark-theme & {
     background: var(--summary-blue-bg-dark);
-    border-left: 4px solid var(--primary-color);
+    border-left: 4px solid var(--cornflower-500);
   }
 }
 
@@ -22,7 +22,7 @@
 #task-injection .tip-icon {
   width: 20px;
   height: 20px;
-  color: var(--primary-color);
+  color: var(--cornflower-500);
   margin-right: 12px;
 }
 
@@ -57,8 +57,8 @@
   flex-direction: column;
 
   .dark-theme & {
-    background-color: var(--dark-bg-card);
-    color: var(--dark-text-secondary);
+    background-color: var(--carbon-800);
+    color: var(--ink-700);
   }
 }
 
@@ -69,7 +69,7 @@
   margin-bottom: 16px;
 
   .dark-theme & {
-    color: var(--dark-text-primary);
+    color: var(--ink-900);
   }
 }
 
@@ -84,7 +84,7 @@
 #task-injection .search-input {
   width: 100%;
   padding: 8px 12px 8px 40px;
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--mist-300);
   border-radius: 8px;
   font-size: 14px;
   outline: none;
@@ -95,9 +95,9 @@
   }
 
   .dark-theme & {
-    background-color: var(--dark-bg-input);
-    border: 1px solid var(--dark-border);
-    color: var(--dark-text-primary);
+    background-color: var(--carbon-700);
+    border: 1px solid var(--mist-200);
+    color: var(--ink-900);
   }
 }
 
@@ -138,11 +138,11 @@
   }
 
   .dark-theme & {
-    background: var(--primary-color);
-    color: var(--text-inverse);
+    background: var(--cornflower-500);
+    color: var(--frost-0);
 
     &:hover {
-      background: var(--primary-hover);
+      background: var(--cornflower-600);
     }
   }
 }
@@ -152,15 +152,15 @@
   color: var(--gray-700);
 
   &:hover {
-    background: var(--border-light);
+    background: var(--mist-200);
   }
 
   .dark-theme & {
-    background: var(--dark-border);
-    color: var(--dark-text-primary);
+    background: var(--mist-200);
+    color: var(--ink-900);
 
     &:hover {
-      background: var(--dark-bg-input);
+      background: var(--carbon-700);
     }
   }
 }
@@ -177,7 +177,7 @@
   display: flex;
   align-items: center;
   padding: 12px;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--mist-200);
   border-radius: 8px;
   margin-bottom: 8px;
   cursor: pointer;
@@ -188,14 +188,14 @@
     background: var(--gray-50);
 
     .dark-theme & {
-      background-color: var(--dark-border);
+      background-color: var(--mist-200);
     }
   }
 
   .dark-theme & {
-    background-color: var(--dark-bg-input);
-    border: 1px solid var(--dark-border);
-    color: var(--dark-text-secondary);
+    background-color: var(--carbon-700);
+    border: 1px solid var(--mist-200);
+    color: var(--ink-700);
   }
 }
 
@@ -205,7 +205,7 @@
   margin-bottom: 4px;
 
   .dark-theme & {
-    color: var(--dark-text-primary);
+    color: var(--ink-900);
   }
 }
 
@@ -264,7 +264,7 @@
   margin-bottom: 8px;
 
   .dark-theme & {
-    color: var(--dark-text-primary);
+    color: var(--ink-900);
   }
 }
 
@@ -278,8 +278,8 @@
   margin-bottom: 4px;
 
   .dark-theme & {
-    background: var(--primary-color);
-    color: var(--text-inverse);
+    background: var(--cornflower-500);
+    color: var(--frost-0);
   }
 }
 
@@ -288,20 +288,20 @@
   color: var(--summary-blue-value);
 
   .dark-theme & {
-    color: var(--text-inverse);
+    color: var(--frost-0);
   }
 }
 
 #task-injection .remove-btn {
   background: none;
   border: none;
-  color: var(--primary-color);
+  color: var(--cornflower-500);
   cursor: pointer;
   padding: 2px;
   border-radius: 4px;
 
   &:hover {
-    color: var(--primary-dark);
+    color: var(--cornflower-700);
   }
 }
 
@@ -322,7 +322,7 @@
   margin-bottom: 16px;
 
   .dark-theme & {
-    background: var(--dark-bg-input);
+    background: var(--carbon-700);
   }
 }
 
@@ -342,13 +342,13 @@
   transition: all 0.2s;
 
   &.active {
-    background: var(--bg-card);
+    background: var(--frost-0);
     color: var(--gray-800);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
     .dark-theme & {
-      background: var(--dark-border);
-      color: var(--dark-text-primary);
+      background: var(--mist-200);
+      color: var(--ink-900);
     }
   }
 
@@ -390,26 +390,26 @@
   color: var(--gray-700);
 
   .dark-theme & {
-    color: var(--dark-text-primary);
+    color: var(--ink-900);
   }
 }
 
 #task-injection .example-btn {
   font-size: 14px;
-  color: var(--primary-color);
+  color: var(--cornflower-500);
   background: none;
   border: none;
   cursor: pointer;
 
   &:hover {
-    color: var(--primary-dark);
+    color: var(--cornflower-700);
   }
 }
 
 #task-injection .json-textarea {
   width: 100%;
   padding: 12px;
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--mist-300);
   border-radius: 8px;
   font-family: "Monaco", "Menlo", monospace;
   font-size: 12px;
@@ -423,21 +423,21 @@
   }
 
   .dark-theme & {
-    background: var(--dark-bg-input);
-    border: 1px solid var(--dark-border);
-    color: var(--dark-text-primary);
+    background: var(--carbon-700);
+    border: 1px solid var(--mist-200);
+    color: var(--ink-900);
   }
 }
 
 #task-injection .error-message {
   margin-top: 4px;
   font-size: 12px;
-  color: var(--danger-dark);
+  color: var(--crimson-600);
 }
 
 /* 文件上传区 */
 #task-injection #file-input-section {
-  border: 2px dashed var(--border-medium);
+  border: 2px dashed var(--mist-300);
   border-radius: 8px;
   min-height: 250px;
   flex: 1;
@@ -457,8 +457,8 @@
   }
 
   .dark-theme & {
-    border: 2px dashed var(--dark-border);
-    color: var(--dark-text-secondary);
+    border: 2px dashed var(--mist-200);
+    color: var(--ink-700);
 
     &:hover {
       border-color: var(--gray-500);
@@ -479,7 +479,7 @@
   margin-bottom: 4px;
 
   .dark-theme & {
-    color: var(--dark-text-secondary);
+    color: var(--ink-700);
   }
 }
 
@@ -553,25 +553,25 @@
 }
 
 #task-injection .status-success {
-  color: var(--success-dark);
+  color: var(--jade-600);
 
   .dark-theme & {
-    color: var(--success-light);
+    color: var(--jade-400);
   }
 }
 
 #task-injection .status-error {
-  color: var(--danger-dark);
+  color: var(--crimson-600);
 
   .dark-theme & {
-    color: var(--danger-light);
+    color: var(--crimson-400);
   }
 }
 
 #task-injection .submit-btn {
   padding: 12px 24px;
-  background: var(--primary-color);
-  color: var(--text-inverse);
+  background: var(--cornflower-500);
+  color: var(--frost-0);
   border: none;
   border-radius: 8px;
   font-weight: 500;
@@ -580,11 +580,11 @@
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 
   &:hover {
-    background: var(--primary-hover);
+    background: var(--cornflower-600);
     transform: translateY(-1px);
 
     .dark-theme & {
-      background: var(--primary-dark);
+      background: var(--cornflower-700);
     }
   }
 
@@ -600,15 +600,15 @@
   }
 
   .dark-theme & {
-    background: var(--primary-hover);
-    color: var(--dark-text-primary);
+    background: var(--cornflower-600);
+    color: var(--ink-900);
   }
 }
 
 #task-injection .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid var(--text-inverse);
+  border: 2px solid var(--frost-0);
   border-top: 2px solid transparent;
   border-radius: 50%;
   animation: spin 1s linear infinite;

@@ -9,12 +9,12 @@
 }
 
 body {
-  background-color: var(--bg-body);
+  background-color: var(--frost-50);
   line-height: 1.5;
 
   .dark-theme & {
-    background-color: var(--dark-bg-body);
-    color: var(--dark-text-secondary);
+    background-color: var(--carbon-900);
+    color: var(--ink-700);
   }
 }
 
@@ -24,8 +24,8 @@ body {
   padding: 0 1rem;
 
   .dark-theme & {
-    background-color: var(--dark-bg-body);
-    color: var(--dark-text-secondary);
+    background-color: var(--carbon-900);
+    color: var(--ink-700);
   }
 }
 
@@ -35,14 +35,14 @@ body {
   🌟 头部样式
 ================================ */
 header {
-  background-color: var(--primary-color);
-  color: var(--text-inverse);
+  background-color: var(--cornflower-500);
+  color: var(--frost-0);
   padding: 1rem 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 
   .dark-theme & {
-    background-color: var(--dark-bg-body);
-    color: var(--dark-text-primary);
+    background-color: var(--carbon-900);
+    color: var(--ink-900);
   }
 }
 
@@ -61,11 +61,11 @@ h1 {
   font-size: 1.5rem;
   font-weight: 700;
   text-align: center;
-  color: var(--text-inverse);
+  color: var(--frost-0);
   margin-bottom: 30px;
 
   .dark-theme & {
-    color: var(--dark-text-primary);
+    color: var(--ink-900);
   }
 }
 
@@ -81,8 +81,8 @@ h1 {
   button {
     .dark-theme & {
       background-color: var(--gray-700);
-      color: var(--dark-text-primary);
-      border: 1px solid var(--dark-border);
+      color: var(--ink-900);
+      border: 1px solid var(--mist-200);
     }
   }
 }
@@ -101,31 +101,31 @@ select {
   cursor: pointer;
   padding: 0.25rem 0.75rem;
   border-radius: 0.25rem;
-  border: 1px solid var(--gray-medium);
+  border: 1px solid var(--gray-400);
 }
 
 button {
-  color: var(--text-inverse);
+  color: var(--frost-0);
   font-size: 0.875rem;
   transition: background-color 0.2s;
 }
 
 select {
-  background-color: var(--bg-card);
+  background-color: var(--frost-0);
   height: 30px;
 }
 
 /* 按钮样式 */
 .btn-stop {
-  background-color: var(--danger-color);
-  color: var(--text-inverse);
+  background-color: var(--crimson-500);
+  color: var(--frost-0);
   height: 30px;
 
   &:hover {
-    background-color: var(--danger-dark);
+    background-color: var(--crimson-600);
 
     .dark-theme & {
-      background-color: var(--dark-border);
+      background-color: var(--mist-200);
     }
   }
 }
@@ -135,7 +135,7 @@ select {
   position: absolute;
   right: 20px;
   background-color: var(--gray-700);
-  color: var(--text-inverse);
+  color: var(--frost-0);
   border: none;
   border-radius: 20px;
   padding: 5px 15px;
@@ -143,17 +143,17 @@ select {
   transition: all 0.3s ease;
 
   &:hover {
-    background-color: var(--primary-light);
+    background-color: var(--cornflower-400);
 
     .dark-theme & {
-      background-color: var(--dark-border);
+      background-color: var(--mist-200);
     }
   }
 
   .dark-theme & {
-    background-color: var(--primary-light);
-    color: var(--dark-text-primary);
-    border: 1px solid var(--dark-border);
+    background-color: var(--cornflower-400);
+    color: var(--ink-900);
+    border: 1px solid var(--mist-200);
   }
 }
 
@@ -162,7 +162,7 @@ select {
 ================================ */
 .tabs {
   display: flex;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--mist-200);
   margin: 1rem 0;
 
   .dark-theme & {
@@ -173,17 +173,17 @@ select {
 .tab-btn {
   background: transparent;
   border: none;
-  color: var(--gray-dark);
+  color: var(--gray-600);
   padding: 0.5rem 1rem;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
 
   &.active {
-    color: var(--primary-color);
-    border-bottom-color: var(--primary-color);
+    color: var(--cornflower-500);
+    border-bottom-color: var(--cornflower-500);
 
     .dark-theme & {
-      color: var(--primary-color);
+      color: var(--cornflower-500);
       border-bottom: none;
     }
   }
@@ -192,7 +192,7 @@ select {
     background-color: var(--gray-50);
 
     .dark-theme & {
-      background-color: var(--dark-bg-card);
+      background-color: var(--carbon-800);
     }
   }
 
@@ -205,7 +205,7 @@ select {
   🌟 卡片布局样式
 ================================ */
 .card {
-  background-color: var(--bg-card);
+  background-color: var(--frost-0);
   border-radius: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: 24px;
@@ -217,8 +217,8 @@ select {
   }
 
   .dark-theme & {
-    background-color: var(--dark-bg-card);
-    color: var(--dark-text-secondary);
+    background-color: var(--carbon-800);
+    color: var(--ink-700);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
   }
 }
@@ -236,7 +236,7 @@ select {
   padding-bottom: 1rem;
 
   .dark-theme & {
-    color: var(--dark-text-primary);
+    color: var(--ink-900);
   }
 }
 
@@ -247,11 +247,11 @@ select {
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
   font-size: 0.75rem;
-  color: var(--text-inverse);
+  color: var(--frost-0);
 }
 
 .badge-inactive {
-  background-color: var(--gray-medium);
+  background-color: var(--gray-400);
 
   .dark-theme & {
     background-color: var(--gray-500);
@@ -259,29 +259,29 @@ select {
 }
 
 .badge-running {
-  background-color: var(--success-color);
+  background-color: var(--jade-500);
 
   .dark-theme & {
-    background-color: var(--success-dark);
+    background-color: var(--jade-600);
   }
 }
 
-.badge-completed { background-color: var(--gray-medium); }
+.badge-completed { background-color: var(--gray-400); }
 
 /* ================================
   🌟 文字颜色辅助类
 ================================ */
-.text-red { color: var(--danger-color); }
-.text-blue { color: var(--primary-color); }
-.text-green { color: var(--success-color); }
-.text-yellow { color: var(--warning-color); }
-.text-green-light { color: var(--success-light); }
-.text-red-light { color: var(--danger-light); }
-.text-yellow-light { color: var(--warning-light); }
+.text-red    { color: var(--crimson-500); }
+.text-blue   { color: var(--cornflower-500); }
+.text-green  { color: var(--jade-500); }
+.text-yellow { color: var(--marigold-500); }
+.text-green-500  { color: var(--jade-400); }
+.text-red-400    { color: var(--crimson-400); }
+.text-amber-400  { color: var(--marigold-400); }
 .text-sm { font-size: 0.875rem; }
 
 .text-gray {
-  color: var(--gray-medium);
+  color: var(--gray-400);
 
   .dark-theme & {
     color: var(--gray-400);

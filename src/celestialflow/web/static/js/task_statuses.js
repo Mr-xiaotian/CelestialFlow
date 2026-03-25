@@ -70,10 +70,10 @@ function renderDashboard() {
             <span class="badge ${badgeClass}">${badgeText}</span>
           </div>
           <div class="stats-grid">
-            <div><div class="stat-label">成功</div><div class="stat-value text-green">${formatWithDelta(data.tasks_successed, data.add_tasks_successed, "text-green-light")}</div></div>
+            <div><div class="stat-label">成功</div><div class="stat-value text-green">${formatWithDelta(data.tasks_successed, data.add_tasks_successed, "text-green-500")}</div></div>
             <div><div class="stat-label">等待中</div><div class="stat-value">${formatWithDelta(data.tasks_pending, data.add_tasks_pending)}</div></div>
-            <div><div class="stat-label">错误</div><div class="stat-value text-red error-clickable" data-node="${escapeHtml(node)}">${formatWithDelta(data.tasks_failed, data.add_tasks_failed, "text-red-light")}</div></div>
-            <div><div class="stat-label">重复</div><div class="stat-value text-yellow">${formatWithDelta(data.tasks_duplicated, data.add_tasks_duplicated, "text-yellow-light")}</div></div>
+            <div><div class="stat-label">错误</div><div class="stat-value text-red error-clickable" data-node="${escapeHtml(node)}">${formatWithDelta(data.tasks_failed, data.add_tasks_failed, "text-red-400")}</div></div>
+            <div><div class="stat-label">重复</div><div class="stat-value text-yellow">${formatWithDelta(data.tasks_duplicated, data.add_tasks_duplicated, "text-amber-400")}</div></div>
             <div><div class="stat-label">节点模式</div><div class="stat-value">${escapeHtml(data.stage_mode)}</div></div>
             <div><div class="stat-label">运行模式</div><div class="stat-value">${escapeHtml(data.execution_mode)}</div></div>
           </div>

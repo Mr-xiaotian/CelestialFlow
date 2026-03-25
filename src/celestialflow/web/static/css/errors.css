@@ -3,29 +3,29 @@
 ================================ */
 .error-search-input {
   padding: 6px 10px;
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--mist-300);
   border-radius: 4px;
-  background-color: var(--bg-input);
+  background-color: var(--frost-0);
   font-size: 14px;
-  color: var(--text-primary);
+  color: var(--ink-900);
   outline: none;
   transition: all 0.2s ease;
   height: 30px;
 
   &:focus {
-    border-color: var(--border-dark);
+    border-color: var(--ink-400);
     background-color: var(--gray-50);
 
     .dark-theme & {
-      border-color: var(--dark-border-light);
-      background-color: var(--dark-bg-elevated);
+      border-color: var(--carbon-500);
+      background-color: var(--carbon-750);
     }
   }
 
   .dark-theme & {
-    background-color: var(--dark-bg-input);
-    border: 1px solid var(--dark-border);
-    color: var(--dark-text-secondary);
+    background-color: var(--carbon-700);
+    border: 1px solid var(--mist-200);
+    color: var(--ink-700);
   }
 }
 
@@ -45,9 +45,9 @@
 
   select {
     .dark-theme & {
-      background-color: var(--dark-bg-input);
-      color: var(--dark-text-secondary);
-      border: 1px solid var(--dark-border);
+      background-color: var(--carbon-700);
+      color: var(--ink-700);
+      border: 1px solid var(--mist-200);
     }
   }
 }
@@ -69,7 +69,7 @@ table {
 
   .dark-theme & {
     background-color: var(--gray-800);
-    color: var(--dark-text-secondary);
+    color: var(--ink-700);
   }
 }
 
@@ -77,7 +77,7 @@ th,
 td {
   text-align: left;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--mist-200);
 
   .dark-theme & {
     border-bottom: 1px solid var(--gray-700);
@@ -89,7 +89,7 @@ th {
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--gray-dark);
+  color: var(--gray-600);
 
   .dark-theme & {
     background-color: var(--gray-700);
@@ -102,11 +102,11 @@ th {
 }
 
 .error-message {
-  color: var(--danger-color);
+  color: var(--crimson-500);
   font-family: monospace;
 
   .dark-theme & {
-    color: var(--danger-light);
+    color: var(--crimson-400);
   }
 }
 
@@ -125,15 +125,15 @@ th {
     padding: 6px 12px;
     border: none;
     border-radius: 4px;
-    background-color: var(--border-light);
-    color: var(--text-primary);
+    background-color: var(--mist-200);
+    color: var(--ink-900);
     cursor: pointer;
 
     &:hover:not(:disabled) {
-      background-color: var(--border-medium);
+      background-color: var(--mist-300);
 
       .dark-theme & {
-        background-color: var(--dark-border);
+        background-color: var(--mist-200);
       }
     }
 
@@ -151,7 +151,7 @@ th {
 
     .dark-theme & {
       background-color: var(--gray-700);
-      color: var(--dark-text-primary);
+      color: var(--ink-900);
     }
   }
 }
@@ -159,7 +159,7 @@ th {
 .pagination-info {
   margin: 0 12px;
   font-size: 14px;
-  color: var(--text-tertiary);
+  color: var(--ink-500);
 
   .dark-theme & {
     color: var(--gray-300);
@@ -171,23 +171,23 @@ th {
 ================================ */
 .pager-btn {
   background-color: var(--gray-100);
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--mist-300);
   padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
-  color: var(--text-tertiary);
+  color: var(--ink-500);
   font-size: 14px;
   transition: all 0.2s;
 
   &:hover:not(:disabled) {
     background-color: var(--gray-200);
-    border-color: var(--border-dark);
-    color: var(--text-primary);
+    border-color: var(--ink-400);
+    color: var(--ink-900);
   }
 
   &:disabled {
     background-color: var(--gray-50);
-    border-color: var(--border-light);
+    border-color: var(--mist-200);
     color: var(--gray-400);
     cursor: not-allowed;
   }
@@ -203,11 +203,11 @@ th {
 
   .page-link {
     cursor: pointer;
-    color: var(--text-tertiary);
+    color: var(--ink-500);
     transition: color 0.2s;
 
     &:hover {
-      color: var(--text-tertiary);
+      color: var(--ink-500);
 
       .dark-theme & {
         color: var(--gray-100);
@@ -221,11 +221,11 @@ th {
 
   .page-current {
     font-weight: bold;
-    color: var(--text-primary);
+    color: var(--ink-900);
     cursor: default;
 
     .dark-theme & {
-      color: var(--text-inverse);
+      color: var(--frost-0);
     }
   }
 
@@ -243,7 +243,7 @@ th {
 ================================ */
 .no-errors {
   text-align: center;
-  color: var(--gray-medium);
+  color: var(--gray-400);
   padding: 2rem;
 
   .dark-theme & {
