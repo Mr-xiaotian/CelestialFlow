@@ -12,12 +12,14 @@ function renderLocalTime(timestamp: number) {
  * 格式化数值及其增量变化
  * @param {number} value - 当前数值
  * @param {number} delta - 增量数值
+ * @param {string} deltaClass - 增量数值的 CSS 类名（可选，默认 "text-green-light"）
  * @returns {string} 包含数值和带颜色增量的 HTML 字符串
  */
-function formatWithDelta(value: number, delta: number) {
+function formatWithDelta(value: number, delta: number, deltaClass: string = "text-green-light") {
   if (!delta || delta === 0) return `${value}`;
   const sign = delta > 0 ? "+" : "-";
-  return `${value}<small style="color: ${delta > 0 ? "green" : "red"}; margin-left: 4px;">${sign}${Math.abs(delta)}</small>`;
+  const cls = delta > 0 ? deltaClass : "text-red-light";
+  return `${value}<small class="${cls}" style="margin-left: 4px;">${sign}${Math.abs(delta)}</small>`;
 }
 
 /**

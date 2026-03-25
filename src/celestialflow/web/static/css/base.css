@@ -275,6 +275,9 @@ select {
 .text-blue { color: var(--primary-color); }
 .text-green { color: var(--success-color); }
 .text-yellow { color: var(--warning-color); }
+.text-green-light { color: var(--success-light); }
+.text-red-light { color: var(--danger-light); }
+.text-yellow-light { color: var(--warning-light); }
 .text-sm { font-size: 0.875rem; }
 
 .text-gray {
