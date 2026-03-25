@@ -25,12 +25,15 @@ class TaskSplitter(TaskStage):
         self.init_extra_counter()
 
     def init_extra_counter(self) -> None:
+        """初始化额外的计数器"""
         self.split_counter = MPValue("i", 0)
 
     def reset_extra_counter(self) -> None:
+        """重置额外的计数器"""
         self.split_counter.value = 0
 
     def update_split_counter(self, add_value: int) -> None:
+        """更新 split 计数器"""
         self.split_counter.value += add_value
 
     def _split(self, *task: Any) -> tuple:
@@ -40,6 +43,13 @@ class TaskSplitter(TaskStage):
         return task
 
     def put_split_result(self, result: tuple, task_id: int) -> int:
+        """
+        将 split 结果放入队列，并发出对应事件
+        
+        :param result: split 的结果，必须是一个可迭代对象
+        :param task_id: 原始任务 ID，用于事件关联
+        :return: split 的子任务数量
+        """
         split_count = len(result)
         for idx, item in enumerate(result):
             split_id = self.ctree_client.emit(
@@ -94,6 +104,7 @@ class TaskSplitter(TaskStage):
 
 class TaskRouter(TaskStage):
     def __init__(self):
+        """初始化 TaskRouter"""
         super().__init__(
             func=self._route,
             execution_mode="serial",
@@ -103,14 +114,17 @@ class TaskRouter(TaskStage):
         self.init_extra_counter()
 
     def init_extra_counter(self) -> None:
+        """初始化额外的计数器"""
         # 每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
         self.route_counters: dict = {}
 
     def reset_extra_counter(self) -> None:
+        """重置额外的计数器"""
         for counter in self.route_counters.values():
             counter.value = 0
 
     def update_route_counter(self, target: str) -> None:
+        """更新 route 计数器"""
         self.route_counters[target].value += 1
 
     def _route(self, routed: tuple) -> tuple:
