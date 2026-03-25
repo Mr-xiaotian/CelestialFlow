@@ -226,7 +226,8 @@
   }
 
   .dark-theme & {
-    border-color: var(--mist-200);
+    background-color: var(--carbon-800);
+    border-color: var(--carbon-600);
   }
 
   .card-title {
