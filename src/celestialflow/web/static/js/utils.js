@@ -8,6 +8,19 @@ function renderLocalTime(timestamp) {
     return new Date(timestamp * 1000).toLocaleString();
 }
 /**
+ * 将大数格式化为模糊科学计数法 HTML，小数不处理
+ * 例如：1234567890 → "~1.23×10<sup>9</sup>"
+ * @param {number} n - 数值
+ * @returns {string} 格式化后的字符串或 HTML
+ */
+function formatLargeNumber(n) {
+    if (n < 10000)
+        return `${n}`;
+    const exp = Math.floor(Math.log10(n));
+    const coeff = (n / Math.pow(10, exp)).toFixed(2);
+    return `~${coeff}×10<sup>${exp}</sup>`;
+}
+/**
  * 格式化数值及其增量变化
  * @param {number} value - 当前数值
  * @param {number} delta - 增量数值
@@ -15,11 +28,12 @@ function renderLocalTime(timestamp) {
  * @returns {string} 包含数值和带颜色增量的 HTML 字符串
  */
 function formatWithDelta(value, delta, deltaClass = "text-green-500") {
+    const fmtValue = formatLargeNumber(value);
     if (!delta || delta === 0)
-        return `${value}`;
+        return fmtValue;
     const sign = delta > 0 ? "+" : "-";
     const cls = delta > 0 ? deltaClass : "text-red-400";
-    return `${value}<small class="${cls}" style="margin-left: 4px;">${sign}${Math.abs(delta)}</small>`;
+    return `${fmtValue}<small class="${cls}" style="margin-left: 4px;">${sign}${formatLargeNumber(Math.abs(delta))}</small>`;
 }
 /**
  * 根据索引获取预定义的颜色

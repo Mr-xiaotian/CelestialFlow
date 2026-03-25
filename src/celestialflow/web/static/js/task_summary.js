@@ -25,11 +25,11 @@ async function loadSummary() {
  */
 function renderSummary() {
     const { total_successed = 0, total_pending = 0, total_failed = 0, total_duplicated = 0, total_nodes = 0, total_remain = 0, } = summaryData || {};
-    totalSuccessed.textContent = total_successed;
-    totalPending.textContent = total_pending;
-    totalFailed.textContent = total_failed;
-    totalDuplicated.textContent = total_duplicated;
-    totalNodes.textContent = total_nodes;
+    totalSuccessed.innerHTML = formatLargeNumber(total_successed);
+    totalPending.innerHTML = formatLargeNumber(total_pending);
+    totalFailed.innerHTML = formatLargeNumber(total_failed);
+    totalDuplicated.innerHTML = formatLargeNumber(total_duplicated);
+    totalNodes.innerHTML = formatLargeNumber(total_nodes);
     totalRemain.textContent = formatDuration(total_remain);
     // 为错误数添加可点击样式和事件
     if (total_failed > 0) {
