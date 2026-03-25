@@ -1,5 +1,5 @@
 let summaryData = {};
-let previousSummaryDataJSON = "";
+let summaryRev = -1;
 const totalSuccessed = document.getElementById("total-successed");
 const totalPending = document.getElementById("total-pending");
 const totalDuplicated = document.getElementById("total-duplicated");
@@ -12,11 +12,17 @@ const totalRemain = document.getElementById("total-remain");
  */
 async function loadSummary() {
     try {
-        const res = await fetch("/api/pull_summary");
-        summaryData = await res.json();
+        const res = await fetch(`/api/pull_summary?known_rev=${summaryRev}`);
+        const body = await res.json();
+        if (body.data === null)
+            return false;
+        summaryData = body.data;
+        summaryRev = body.rev;
+        return true;
     }
     catch (e) {
         console.error("合计数据加载失败", e);
+        return false;
     }
 }
 /**

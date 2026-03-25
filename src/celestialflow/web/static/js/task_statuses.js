@@ -1,5 +1,5 @@
 let nodeStatuses = {};
-let previousNodeStatusesJSON = "";
+let statusRev = -1;
 let draggingNodeName = null;
 const dashboardGrid = document.getElementById("dashboard-grid");
 /**
@@ -8,11 +8,17 @@ const dashboardGrid = document.getElementById("dashboard-grid");
  */
 async function loadStatuses() {
     try {
-        const res = await fetch("/api/pull_status");
-        nodeStatuses = await res.json();
+        const res = await fetch(`/api/pull_status?known_rev=${statusRev}`);
+        const body = await res.json();
+        if (body.data === null)
+            return false;
+        nodeStatuses = body.data;
+        statusRev = body.rev;
+        return true;
     }
     catch (e) {
         console.error("状态加载失败", e);
+        return false;
     }
 }
 /**

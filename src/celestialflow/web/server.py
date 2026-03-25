@@ -132,6 +132,15 @@ class TaskWebServer:
         self._errors_meta_rev: Optional[int] = None
         self._errors_meta_path: Optional[str] = None
 
+        # 每次 push 时递增，pull 时对比，无变化则返回 null data
+        self._store_revs: dict[str, int] = {
+            "status": 0,
+            "structure": 0,
+            "topology": 0,
+            "summary": 0,
+            "history": 0,
+        }
+
         # 加载配置
         self.config = load_config()
         self.report_interval = cal_interval(self.config["refreshInterval"])
@@ -156,28 +165,47 @@ class TaskWebServer:
                 return self.config
 
         @app.get("/api/pull_structure")
-        def pull_structure():
-            return self.structure_store
+        def pull_structure(known_rev: int = -1):
+            rev = self._store_revs["structure"]
+            if known_rev == rev:
+                return {"rev": rev, "data": None}
+            return {"rev": rev, "data": self.structure_store}
 
         @app.get("/api/pull_status")
-        def pull_status():
-            return self.status_store
+        def pull_status(known_rev: int = -1):
+            rev = self._store_revs["status"]
+            if known_rev == rev:
+                return {"rev": rev, "data": None}
+            return {"rev": rev, "data": self.status_store}
 
         @app.get("/api/pull_errors")
-        def pull_errors():
-            return self.error_store
+        def pull_errors(offset: int = 0):
+            store = self.error_store
+            total = len(store)
+            if offset > total:
+                offset = 0
+            return {"total": total, "items": store[offset:]}
 
         @app.get("/api/pull_topology")
-        def pull_topology():
-            return self.topology_store
+        def pull_topology(known_rev: int = -1):
+            rev = self._store_revs["topology"]
+            if known_rev == rev:
+                return {"rev": rev, "data": None}
+            return {"rev": rev, "data": self.topology_store}
 
         @app.get("/api/pull_summary")
-        def pull_summary():
-            return self.summary_store
+        def pull_summary(known_rev: int = -1):
+            rev = self._store_revs["summary"]
+            if known_rev == rev:
+                return {"rev": rev, "data": None}
+            return {"rev": rev, "data": self.summary_store}
 
         @app.get("/api/pull_history")
-        def pull_history():
-            return self.history_store
+        def pull_history(known_rev: int = -1):
+            rev = self._store_revs["history"]
+            if known_rev == rev:
+                return {"rev": rev, "data": None}
+            return {"rev": rev, "data": self.history_store}
 
         @app.get("/api/pull_interval")
         def pull_interval():
@@ -214,11 +242,13 @@ class TaskWebServer:
         @app.post("/api/push_structure")
         async def push_structure(data: StructureModel):
             self.structure_store = data.items
+            self._store_revs["structure"] += 1
             return {"ok": True}
 
         @app.post("/api/push_status")
         async def push_status(data: StatusModel):
             self.status_store = data.status
+            self._store_revs["status"] += 1
             return {"ok": True}
 
         @app.post("/api/push_errors_meta")
@@ -267,16 +297,19 @@ class TaskWebServer:
         @app.post("/api/push_topology")
         async def push_topology(data: TopologyModel):
             self.topology_store = data.topology
+            self._store_revs["topology"] += 1
             return {"ok": True}
 
         @app.post("/api/push_summary")
         async def push_summary(data: SummaryModel):
             self.summary_store = data.summary
+            self._store_revs["summary"] += 1
             return {"ok": True}
 
         @app.post("/api/push_history")
         async def push_history(data: HistoryModel):
             self.history_store = data.history
+            self._store_revs["history"] += 1
             return {"ok": True}
 
         @app.post("/api/push_injection_tasks")

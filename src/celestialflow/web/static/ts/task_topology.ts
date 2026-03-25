@@ -1,16 +1,21 @@
 let topologyData: Record<string, any> = {};
-let previousTopologyDataJSON = "";
+let topologyRev = -1;
 
 /**
  * 异步加载最新的拓扑数据
  * 从后端 API 获取拓扑信息并更新全局变量 topologyData
  */
-async function loadTopology() {
+async function loadTopology(): Promise<boolean> {
   try {
-    const res = await fetch("/api/pull_topology");
-    topologyData = await res.json();
+    const res = await fetch(`/api/pull_topology?known_rev=${topologyRev}`);
+    const body = await res.json();
+    if (body.data === null) return false;
+    topologyData = body.data;
+    topologyRev = body.rev;
+    return true;
   } catch (e) {
     console.error("拓扑加载失败", e);
+    return false;
   }
 }
 

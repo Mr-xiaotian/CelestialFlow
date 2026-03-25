@@ -1,5 +1,5 @@
 let errors: any[] = [];
-let previousErrorsJSON = "";
+let errorsOffset = 0;
 let currentPage = 1;
 const pageSize = 10;
 
@@ -8,12 +8,26 @@ const nodeFilter = document.getElementById("node-filter") as HTMLSelectElement;
 const errorsTableBody = document.querySelector("#errors-table tbody") as HTMLTableSectionElement;
 const paginationContainer = document.getElementById("pagination-container") as HTMLElement;
 
-async function loadErrors() {
+async function loadErrors(): Promise<boolean> {
   try {
-    const res = await fetch("/api/pull_errors");
-    errors = await res.json();
+    const res = await fetch(`/api/pull_errors?offset=${errorsOffset}`);
+    const data = await res.json();
+    const newItems: any[] = data.items;
+    if (data.total < errorsOffset) {
+      // server 重启，error_store 已清空，全量重新同步
+      errors = newItems;
+      errorsOffset = data.total;
+      return newItems.length > 0;
+    }
+    if (newItems.length > 0) {
+      errors = errors.concat(newItems);
+      errorsOffset = data.total;
+      return true;
+    }
+    return false;
   } catch (e) {
     console.error("错误日志加载失败", e);
+    return false;
   }
 }
 

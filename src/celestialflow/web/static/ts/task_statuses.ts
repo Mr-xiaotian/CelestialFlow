@@ -18,7 +18,7 @@ type NodeStatus = {
 };
 
 let nodeStatuses: Record<string, NodeStatus> = {};
-let previousNodeStatusesJSON = "";
+let statusRev = -1;
 let draggingNodeName: string | null = null;
 
 const dashboardGrid = document.getElementById("dashboard-grid") as HTMLElement;
@@ -27,12 +27,17 @@ const dashboardGrid = document.getElementById("dashboard-grid") as HTMLElement;
  * 异步加载最新的节点状态数据
  * 从后端 API 获取节点状态并更新全局变量 nodeStatuses
  */
-async function loadStatuses() {
+async function loadStatuses(): Promise<boolean> {
   try {
-    const res = await fetch("/api/pull_status");
-    nodeStatuses = await res.json();
+    const res = await fetch(`/api/pull_status?known_rev=${statusRev}`);
+    const body = await res.json();
+    if (body.data === null) return false;
+    nodeStatuses = body.data;
+    statusRev = body.rev;
+    return true;
   } catch (e) {
     console.error("状态加载失败", e);
+    return false;
   }
 }
 

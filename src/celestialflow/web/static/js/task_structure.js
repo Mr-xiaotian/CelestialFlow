@@ -1,16 +1,22 @@
 let structureData = [];
-let previousStructureDataJSON = "";
+let structureRev = -1;
 /**
  * 异步加载最新的任务结构数据
  * 从后端 API 获取任务结构图数据并更新全局变量 structureData
  */
 async function loadStructure() {
     try {
-        const res = await fetch("/api/pull_structure");
-        structureData = await res.json(); // 现在是数组格式
+        const res = await fetch(`/api/pull_structure?known_rev=${structureRev}`);
+        const body = await res.json();
+        if (body.data === null)
+            return false;
+        structureData = body.data;
+        structureRev = body.rev;
+        return true;
     }
     catch (e) {
         console.error("结构加载失败", e);
+        return false;
     }
 }
 /**

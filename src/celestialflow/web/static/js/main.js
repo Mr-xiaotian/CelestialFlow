@@ -54,34 +54,18 @@ async function refreshAll() {
     // - nodeStatuses 会被 loadStatuses 更新
     // - 结构数据会被 loadStructure 使用来渲染 Mermaid 图
     // - errors 会被 loadErrors 更新后用于错误列表渲染
-    await Promise.all([
+    const [statusesChanged, structureChanged, errorsChanged, topologyChanged, summaryChanged, historiesChanged] = await Promise.all([
         loadStatuses(), // 从后端拉取节点运行状态（处理数、等待数、失败数等），更新 nodeStatuses
         loadStructure(), // 拉取任务结构（有向图），更新 structureData
-        loadErrors(), // 获取最新错误记录，更新 errors[]
+        loadErrors(), // 获取新增错误记录，append 到 errors[]，返回是否有新数据
         loadTopology(), // 获取最新拓扑信息，更新 TopologyData
         loadSummary(), // 获取最新汇总数据，更新 summaryData
         loadHistories(), // 获取节点进度历史数据，更新 nodeHistories
     ]);
-    // 将当前数据转换为 JSON 字符串进行对比，判断哪些数据发生了变化
-    const currentStatusesJSON = JSON.stringify(nodeStatuses);
-    const currentStructureJSON = JSON.stringify(structureData);
-    const currentErrorsJSON = JSON.stringify(errors);
-    const currentTopologyJSON = JSON.stringify(topologyData);
-    const currentSummaryJSON = JSON.stringify(summaryData);
-    const currentHistoriesJSON = JSON.stringify(nodeHistories);
-    const statusesChanged = currentStatusesJSON !== previousNodeStatusesJSON;
-    const structureChanged = currentStructureJSON !== previousStructureDataJSON;
-    const errorsChanged = currentErrorsJSON !== previousErrorsJSON;
-    const topologyChanged = currentTopologyJSON !== previousTopologyDataJSON;
-    const summaryChanged = currentSummaryJSON !== previousSummaryDataJSON;
-    const historiesChanged = currentHistoriesJSON !== previousNodeHistoriesJSON;
     if (statusesChanged || structureChanged) {
-        previousNodeStatusesJSON = currentStatusesJSON;
-        previousStructureDataJSON = currentStructureJSON;
         renderMermaidStructure(nodeStatuses); // 左上结构图, 依赖节点信息与结构信息
     }
     if (topologyChanged) {
-        previousTopologyDataJSON = currentTopologyJSON;
         renderTopologyInfo(); // 左下拓扑信息
     }
     if (statusesChanged) {
@@ -90,15 +74,12 @@ async function refreshAll() {
         renderNodeList(); // 注入页节点列表
     }
     if (historiesChanged) {
-        previousNodeHistoriesJSON = currentHistoriesJSON;
         updateChartData(); // 右上折线图
     }
     if (summaryChanged) {
-        previousSummaryDataJSON = currentSummaryJSON;
         renderSummary(); // 右下汇总数据
     }
     if (errorsChanged) {
-        previousErrorsJSON = currentErrorsJSON;
         renderErrors(); // 错误表格
     }
 }

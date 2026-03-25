@@ -5,18 +5,23 @@ let progressChart = null;
 let hiddenNodes = new Set<string>(
   JSON.parse(localStorage.getItem("hiddenNodes") || "[]")
 );
-let previousNodeHistoriesJSON = "";
+let historyRev = -1;
 
 /**
  * 异步加载最新的节点状态数据
  * 从后端 API 获取节点状态并更新全局变量 nodeHistories
  */
-async function loadHistories() {
+async function loadHistories(): Promise<boolean> {
   try {
-    const res = await fetch("/api/pull_history");
-    nodeHistories = await res.json();
+    const res = await fetch(`/api/pull_history?known_rev=${historyRev}`);
+    const body = await res.json();
+    if (body.data === null) return false;
+    nodeHistories = body.data;
+    historyRev = body.rev;
+    return true;
   } catch (e) {
     console.error("状态加载失败", e);
+    return false;
   }
 }
 
