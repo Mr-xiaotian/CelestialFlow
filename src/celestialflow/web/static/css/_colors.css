@@ -33,10 +33,11 @@
   /* ================================
      矢车菊蓝（Cornflower）
   ================================ */
-  --cornflower-50:  #dbeafe;
-  --cornflower-100: #bfdbfe;
-  --cornflower-300: #60a5fa;
-  --cornflower-400: #3b6fd9;
+  --cornflower-50:  #eff6ff;
+  --cornflower-100: #dbeafe;
+  --cornflower-200: #bfdbfe;
+  --cornflower-300: #93c5fd;
+  --cornflower-400: #60a5fa;
   --cornflower-500: #3b82f6;
   --cornflower-600: #2563eb;
   --cornflower-700: #1d4ed8;
@@ -46,57 +47,84 @@
   /* ================================
      翡翠绿（Jade）
   ================================ */
-  --jade-50:  #d1fae5;
-  --jade-100: #bbf7d0;
-  --jade-300: #34d399;
-  --jade-400: #22c55e;
+  --jade-50:  #ecfdf5;
+  --jade-100: #d1fae5;
+  --jade-200: #a7f3d0;
+  --jade-300: #6ee7b7;
+  --jade-400: #34d399;
   --jade-500: #10b981;
-  --jade-600: #16a34a;
-  --jade-700: #059669;
-  --jade-800: #166534;
-  --jade-900: #14532d;
+  --jade-600: #059669;
+  --jade-700: #047857;
+  --jade-800: #065f46;
+  --jade-900: #064e3b;
 
   /* ================================
      金盏菊黄（Marigold）
   ================================ */
-  --marigold-50:  #fef3c7;
-  --marigold-300: #facc15;
+  --marigold-50:  #fffbeb;
+  --marigold-100: #fef3c7;
+  --marigold-200: #fde68a;
+  --marigold-300: #fcd34d;
   --marigold-400: #fbbf24;
   --marigold-500: #f59e0b;
   --marigold-600: #d97706;
-  --marigold-700: #a16207;
+  --marigold-700: #b45309;
+  --marigold-800: #92400e;
   --marigold-900: #78350f;
 
   /* ================================
      琥珀橙（Amber）
   ================================ */
-  --amber-100: #fed7aa;
+  --amber-50:  #fff7ed;
+  --amber-100: #ffedd5;
+  --amber-200: #fed7aa;
   --amber-300: #fdba74;
+  --amber-400: #fb923c;
+  --amber-500: #f97316;
   --amber-600: #ea580c;
   --amber-700: #c2410c;
+  --amber-800: #9a3412;
   --amber-900: #7c2d12;
 
   /* ================================
      深红（Crimson）
   ================================ */
-  --crimson-50:  #fee2e2;
-  --crimson-100: #fecaca;
+  --crimson-50:  #fef2f2;
+  --crimson-100: #fee2e2;
+  --crimson-200: #fecaca;
+  --crimson-300: #fca5a5;
   --crimson-400: #f87171;
   --crimson-500: #ef4444;
   --crimson-600: #dc2626;
+  --crimson-700: #b91c1c;
+  --crimson-800: #991b1b;
   --crimson-900: #7f1d1d;
 
   /* ================================
      紫罗兰（Violet）
   ================================ */
-  --violet-100: #e9d5ff;
+  --violet-50:  #f5f3ff;
+  --violet-100: #ede9fe;
+  --violet-200: #ddd6fe;
   --violet-300: #c4b5fd;
+  --violet-400: #a78bfa;
+  --violet-500: #8b5cf6;
   --violet-600: #7c3aed;
+  --violet-700: #6d28d9;
+  --violet-800: #5b21b6;
   --violet-900: #4c1d95;
 
   /* ================================
      玫瑰（Rose）
   ================================ */
-  --rose-400: #ff6090;
-  --rose-500: #ff6b6b;
+  --rose-50:  #fff1f2;
+  --rose-100: #ffe4e6;
+  --rose-200: #fecdd3;
+  --rose-300: #fda4af;
+  --rose-400: #fb7185;
+  --rose-500: #f43f5e;
+  --rose-600: #e11d48;
+  --rose-700: #be123c;
+  --rose-800: #9f1239;
+  --rose-900: #881337;
 }

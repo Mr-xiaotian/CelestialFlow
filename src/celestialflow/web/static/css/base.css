@@ -281,12 +281,12 @@ select {
 .text-success   { color: var(--jade-500); }
 .text-pending   { color: var(--marigold-500); }
 .text-error     { color: var(--crimson-500); }
-.text-duplicate { color: var(--amber-600); .dark-theme & { color: var(--amber-300); } }
+.text-duplicate { color: var(--amber-500);}
 /* 增量数字颜色（比主色浅一档） */
 .text-delta-pos       { color: var(--jade-300); }
 .text-delta-neg       { color: var(--crimson-300); }
-.text-delta-pending   { color: var(--marigold-400); }
-.text-delta-duplicate { color: var(--amber-300); .dark-theme & { color: var(--amber-100); } }
+.text-delta-pending   { color: var(--marigold-300); }
+.text-delta-duplicate { color: var(--amber-300);}
 .text-sm { font-size: 0.875rem; }
 
 .text-gray {

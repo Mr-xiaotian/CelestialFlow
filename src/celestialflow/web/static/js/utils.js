@@ -24,10 +24,11 @@ function formatLargeNumber(n) {
  * 格式化数值及其增量变化
  * @param {number} value - 当前数值
  * @param {number} delta - 增量数值
- * @param {string} deltaClass - 增量数值的 CSS 类名（可选，默认 "text-green-light"）
+ * @param {string} deltaClass - 增量数值的 CSS 类名
+ * @param {string} negClass - 负增量数值的 CSS 类名
  * @returns {string} 包含数值和带颜色增量的 HTML 字符串
  */
-function formatWithDelta(value, delta, deltaClass = "text-delta-pos", negClass = "text-delta-neg") {
+function formatWithDelta(value, delta, deltaClass, negClass) {
     const fmtValue = formatLargeNumber(value);
     if (!delta || delta === 0)
         return fmtValue;
