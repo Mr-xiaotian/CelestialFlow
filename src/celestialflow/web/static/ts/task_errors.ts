@@ -6,7 +6,7 @@ const pageSize = 10;
 const searchInput = document.getElementById("error-search") as HTMLInputElement;
 const nodeFilter = document.getElementById("node-filter") as HTMLSelectElement;
 const errorsTableBody = document.querySelector("#errors-table tbody") as HTMLTableSectionElement;
-const paginationContainer = document.getElementById("pagination-container") as HTMLElement;
+const paginationContainer = document.getElementById("pager-container") as HTMLElement;
 
 async function loadErrors(): Promise<boolean> {
   try {
@@ -108,9 +108,9 @@ function renderPaginationControls(totalPages) {
     if (p === "…") {
       span.className = "dots";
     } else if (p === currentPage) {
-      span.className = "page-current"; // 当前页样式
+      span.className = "pager-current";
     } else {
-      span.className = "page-link";    // 普通页可点击
+      span.className = "pager-link";
       span.onclick = () => {
         currentPage = p;
         renderErrors();

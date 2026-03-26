@@ -113,7 +113,7 @@ th {
 /* ================================
   🌟 分页样式
 ================================ */
-.pagination-container {
+.pager-container {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -156,7 +156,7 @@ th {
   }
 }
 
-.pagination-info {
+.pager-info {
   margin: 0 12px;
   font-size: 14px;
   color: var(--gray-500);
@@ -219,7 +219,7 @@ th {
   gap: 8px;
   margin: 0 8px;
 
-  .page-link {
+  .pager-link {
     cursor: pointer;
     color: var(--gray-500);
     transition: color 0.2s;
@@ -237,7 +237,7 @@ th {
     }
   }
 
-  .page-current {
+  .pager-current {
     font-weight: bold;
     color: var(--gray-900);
     cursor: default;

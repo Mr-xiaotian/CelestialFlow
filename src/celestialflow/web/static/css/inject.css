@@ -292,7 +292,7 @@
   }
 }
 
-#task-injection .remove-btn {
+#task-injection .btn-remove {
   background: none;
   border: none;
   color: var(--cornflower-500);
@@ -326,7 +326,7 @@
   }
 }
 
-#task-injection .toggle-btn {
+#task-injection .btn-toggle {
   flex: 1;
   display: flex;
   align-items: center;
@@ -572,7 +572,7 @@
   }
 }
 
-#task-injection .submit-btn {
+#task-injection .btn-submit {
   padding: 12px 24px;
   background: var(--cornflower-500);
   color: var(--frost-0);

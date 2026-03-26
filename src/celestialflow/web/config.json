@@ -1,5 +1,5 @@
 {
-    "theme": "light",
+    "theme": "dark",
     "refreshInterval": 2000,
     "historyLimit": 20,
     "dashboard": {

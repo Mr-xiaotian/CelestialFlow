@@ -5,7 +5,7 @@ const pageSize = 10;
 const searchInput = document.getElementById("error-search");
 const nodeFilter = document.getElementById("node-filter");
 const errorsTableBody = document.querySelector("#errors-table tbody");
-const paginationContainer = document.getElementById("pagination-container");
+const paginationContainer = document.getElementById("pager-container");
 async function loadErrors() {
     try {
         const res = await fetch(`/api/pull_errors?offset=${errorsOffset}`);
@@ -97,10 +97,10 @@ function renderPaginationControls(totalPages) {
             span.className = "dots";
         }
         else if (p === currentPage) {
-            span.className = "page-current"; // 当前页样式
+            span.className = "pager-current";
         }
         else {
-            span.className = "page-link"; // 普通页可点击
+            span.className = "pager-link";
             span.onclick = () => {
                 currentPage = p;
                 renderErrors();

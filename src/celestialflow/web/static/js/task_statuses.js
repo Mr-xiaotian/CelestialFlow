@@ -36,6 +36,7 @@ function initSortableDashboard() {
         easing: "cubic-bezier(0.25, 1, 0.5, 1)",
         ghostClass: "sortable-ghost",
         chosenClass: "sortable-chosen",
+        dragClass: "sortable-dragging",
         onStart: function (evt) {
             const title = evt.item.querySelector(".card-title").textContent;
             draggingNodeName = title;
@@ -79,7 +80,7 @@ function renderDashboard() {
             <h3 class="card-title">${escapeHtml(node)}</h3>
             <span class="badge ${badgeClass}">${badgeText}</span>
           </div>
-          <div class="stats-grid">
+          <div class="stat-grid">
             <div><div class="stat-label">成功</div><div class="stat-value text-success">${formatWithDelta(data.tasks_successed, data.add_tasks_successed, "text-delta-pos", "text-delta-neg")}</div></div>
             <div><div class="stat-label">等待中</div><div class="stat-value text-pending">${formatWithDelta(data.tasks_pending, data.add_tasks_pending, "text-delta-pending", "text-delta-pending")}</div></div>
             <div><div class="stat-label">错误</div><div class="stat-value text-error error-clickable" data-node="${escapeHtml(node)}">${formatWithDelta(data.tasks_failed, data.add_tasks_failed, "text-delta-neg", "text-delta-pos")}</div></div>

@@ -133,7 +133,7 @@
 /* ================================
   节点运行状态: 统计格子 & 摘要卡片
 ================================ */
-.stats-grid {
+.stat-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 0.5rem;
@@ -238,7 +238,7 @@
   }
 }
 
-.dragging {
+.sortable-dragging {
   opacity: 0.5;
 }
 
