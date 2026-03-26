@@ -76,12 +76,14 @@ function renderDashboard() {
     if (node === draggingNodeName) continue; // 正在拖动时，不渲染它
 
     // 计算进度
-    const progress =
-      data.tasks_processed + data.tasks_pending === 0
-        ? 0
-        : Math.floor(
-            (data.tasks_processed / (data.tasks_processed + data.tasks_pending)) * 100
-          );
+    const total = data.tasks_processed + data.tasks_pending;
+    const progress = total === 0 ? 0 : Math.floor((data.tasks_processed / total) * 100);
+
+    // 计算四段进度条宽度百分比
+    const pctSuccess   = total === 0 ? 0 : (data.tasks_successed  / total) * 100;
+    const pctError     = total === 0 ? 0 : (data.tasks_failed     / total) * 100;
+    const pctDuplicate = total === 0 ? 0 : (data.tasks_duplicated / total) * 100;
+    const pctPending   = total === 0 ? 0 : (data.tasks_pending    / total) * 100;
 
     // 根据 status 决定 badge 样式和文本
     let badgeClass = "badge-inactive";
@@ -142,7 +144,10 @@ function renderDashboard() {
               </span>
             </div>
             <div class="progress-bar">
-              <div class="progress-value" style="width: ${progress}%"></div>
+              <div class="progress-segment seg-success"   style="width: ${pctSuccess.toFixed(1)}%"></div>
+              <div class="progress-segment seg-error"     style="width: ${pctError.toFixed(1)}%"></div>
+              <div class="progress-segment seg-duplicate" style="width: ${pctDuplicate.toFixed(1)}%"></div>
+              <div class="progress-segment seg-pending"   style="width: ${pctPending.toFixed(1)}%"></div>
             </div>
           </div>
         `;
