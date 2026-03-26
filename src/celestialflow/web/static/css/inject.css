@@ -223,28 +223,28 @@
 
 /* 节点类型样式 */
 #task-injection .type-processing {
-  background: var(--jade-50);
-  color: var(--jade-800);
+  background: var(--jade-100);
+  color: var(--jade-700);
 }
 #task-injection .type-analysis {
-  background: var(--cornflower-50);
-  color: var(--cornflower-800);
+  background: var(--cornflower-100);
+  color: var(--cornflower-700);
 }
 #task-injection .type-storage {
   background: var(--violet-100);
-  color: var(--violet-600);
+  color: var(--violet-700);
 }
 #task-injection .type-compute {
   background: var(--amber-100);
   color: var(--amber-700);
 }
 #task-injection .type-network {
-  background: var(--marigold-50);
+  background: var(--marigold-100);
   color: var(--marigold-700);
 }
 #task-injection .type-monitoring {
   background: var(--crimson-100);
-  color: var(--crimson-600);
+  color: var(--crimson-700);
 }
 /* 节点类型在暗黑模式下仍然保留背景色彩（保持视觉层次） */
 

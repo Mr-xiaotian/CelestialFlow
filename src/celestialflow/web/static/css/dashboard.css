@@ -199,7 +199,7 @@
 }
 
 /* ================================
-  节点运行状态: 节点运行状态样式
+  🌟 节点运行状态样式
 ================================ */
 #dashboard-grid {
   display: grid;
@@ -267,13 +267,13 @@
   padding: 1rem;
   border-radius: 0.5rem;
 
-  &.blue   { background-color: var(--cornflower-50);  .dark-theme & { background-color: var(--cornflower-900); } }
+  &.blue   { background-color: var(--cornflower-100);  .dark-theme & { background-color: var(--cornflower-900); } }
   &.orange { background-color: var(--amber-100);      .dark-theme & { background-color: var(--amber-900); } }
-  &.yellow { background-color: var(--marigold-50);    .dark-theme & { background-color: var(--marigold-900); } }
-  &.red    { background-color: var(--crimson-50);     .dark-theme & { background-color: var(--crimson-900); } }
-  &.green  { background-color: var(--jade-50);        .dark-theme & { background-color: var(--jade-900); } }
+  &.yellow { background-color: var(--marigold-100);    .dark-theme & { background-color: var(--marigold-900); } }
+  &.red    { background-color: var(--crimson-100);     .dark-theme & { background-color: var(--crimson-900); } }
+  &.green  { background-color: var(--jade-100);        .dark-theme & { background-color: var(--jade-900); } }
   &.purple { background-color: var(--violet-100);     .dark-theme & { background-color: var(--violet-900); } }
-  &.gray   { background-color: var(--gray-100);       .dark-theme & { background-color: var(--gray-700); } }
+  &.gray   { background-color: var(--gray-100);       .dark-theme & { background-color: var(--gray-900); } }
 }
 
 .summary-value {
@@ -283,10 +283,10 @@
   &.blue   { color: var(--cornflower-600); .dark-theme & { color: var(--cornflower-300); } }
   &.orange { color: var(--amber-600);      .dark-theme & { color: var(--amber-300); } }
   &.yellow { color: var(--marigold-600);   .dark-theme & { color: var(--marigold-300); } }
-  &.red    { color: var(--crimson-600);    .dark-theme & { color: var(--crimson-400); } }
-  &.green  { color: var(--jade-700);       .dark-theme & { color: var(--jade-300); } }
+  &.red    { color: var(--crimson-600);    .dark-theme & { color: var(--crimson-300); } }
+  &.green  { color: var(--jade-600);       .dark-theme & { color: var(--jade-300); } }
   &.purple { color: var(--violet-600);     .dark-theme & { color: var(--violet-300); } }
-  &.gray   { color: var(--gray-700);       .dark-theme & { color: var(--gray-200); } }
+  &.gray   { color: var(--gray-600);       .dark-theme & { color: var(--gray-300); } }
 }
 
 .summary-label {
