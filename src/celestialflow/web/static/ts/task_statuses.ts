@@ -98,7 +98,13 @@ function renderDashboard() {
     }
 
     const card = document.createElement("div");
-    card.className = "node-card";
+    if (data.status === 1) {
+      card.className = "node-card status-running";
+    } else if (data.status === 2) {
+      card.className = "node-card status-stopped";
+    } else {
+      card.className = "node-card";
+    }
     card.innerHTML = `
           <div class="card-header">
             <h3 class="card-title">${escapeHtml(node)}</h3>

@@ -210,6 +210,7 @@
   border-radius: 1rem;
   box-shadow: none;
   border: 1px solid var(--gray-200);
+  border-left: 3px solid var(--gray-300);
   padding: 1rem;
   margin: 0.5rem;
 
@@ -218,13 +219,28 @@
     box-shadow: none;
   }
 
+  &.status-running {
+    border-left-color: var(--cornflower-400);
+    .dark-theme & { border-left-color: var(--cornflower-500); }
+  }
+
+  &.status-stopped {
+    border-left-color: var(--gray-400);
+    .dark-theme & { border-left-color: var(--gray-500); }
+  }
+
   .dark-theme & {
     background-color: var(--carbon-800);
     border-color: var(--carbon-600);
+    border-left-color: var(--gray-600);
   }
 
   .card-title {
     padding-bottom: 0;
+  }
+
+  .badge {
+    display: none;
   }
 }
 
