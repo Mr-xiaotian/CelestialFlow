@@ -209,45 +209,6 @@
   }
 }
 
-#task-injection .node-id {
-  font-size: 12px;
-  color: var(--gray-500);
-}
-
-#task-injection .node-type {
-  padding: 2px 8px;
-  font-size: 10px;
-  border-radius: 12px;
-  font-weight: 500;
-}
-
-/* 节点类型样式 */
-#task-injection .type-processing {
-  background: var(--jade-100);
-  color: var(--jade-700);
-}
-#task-injection .type-analysis {
-  background: var(--cornflower-100);
-  color: var(--cornflower-700);
-}
-#task-injection .type-storage {
-  background: var(--violet-100);
-  color: var(--violet-700);
-}
-#task-injection .type-compute {
-  background: var(--amber-100);
-  color: var(--amber-700);
-}
-#task-injection .type-network {
-  background: var(--marigold-100);
-  color: var(--marigold-700);
-}
-#task-injection .type-monitoring {
-  background: var(--crimson-100);
-  color: var(--crimson-700);
-}
-/* 节点类型在暗黑模式下仍然保留背景色彩（保持视觉层次） */
-
 /* 已选节点区 */
 #task-injection .selected-list {
   overflow-y: auto;
@@ -373,10 +334,6 @@
 }
 
 /* JSON输入区 */
-#task-injection .json-section {
-  margin-bottom: 16px;
-}
-
 #task-injection .json-header {
   display: flex;
   justify-content: space-between;

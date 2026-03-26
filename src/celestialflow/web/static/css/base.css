@@ -121,21 +121,6 @@ select {
   }
 }
 
-/* 按钮样式 */
-.btn-stop {
-  background-color: var(--crimson-500);
-  color: var(--frost-0);
-  height: 30px;
-
-  &:hover {
-    background-color: var(--crimson-600);
-
-    .dark-theme & {
-      background-color: var(--carbon-600);
-    }
-  }
-}
-
 /* 主题切换按钮 */
 #theme-toggle {
   position: absolute;

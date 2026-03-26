@@ -120,16 +120,6 @@
   grid-template-columns: 1fr;
 }
 
-@media (min-width: 768px) {
-  .grid-cols-2 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .grid-cols-4 {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
 /* ================================
   节点运行状态: 统计格子 & 摘要卡片
 ================================ */
@@ -297,49 +287,6 @@
 
   .dark-theme & {
     color: var(--gray-300);
-  }
-}
-
-/* ================================
-  🌟 图节点
-================================ */
-.graph-container {
-  .dark-theme & {
-    background-color: var(--carbon-750);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  }
-}
-
-.graph-node {
-  .dark-theme & {
-    background-color: var(--carbon-750);
-    border-left: 4px solid var(--cornflower-400);
-
-    &:hover {
-      background-color: var(--carbon-700);
-    }
-  }
-}
-
-.stage-name {
-  .dark-theme & { color: var(--cornflower-300); }
-}
-
-.stage-mode {
-  .dark-theme & { color: var(--gray-400); }
-}
-
-.stage-func {
-  .dark-theme & {
-    background-color: var(--carbon-800);
-    color: var(--rose-400);
-  }
-}
-
-.visited-mark {
-  .dark-theme & {
-    background-color: var(--crimson-900);
-    color: var(--rose-500);
   }
 }
 
