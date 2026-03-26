@@ -277,19 +277,16 @@ select {
 /* ================================
   🌟 文字颜色辅助类
 ================================ */
-.text-red    { color: var(--crimson-500); }
-.text-blue   { color: var(--cornflower-500); }
-.text-green  { color: var(--jade-500); }
-.text-yellow { color: var(--marigold-500); }
-.text-amber  { color: var(--amber-600); .dark-theme & { color: var(--amber-300); } }
-.text-green-500  { color: var(--jade-400); }
-.text-red-400    { color: var(--crimson-400); }
-.text-amber-400  { color: var(--marigold-400); }
-/* 增量专用浅色（比主数字颜色浅一档） */
-.text-green-light   { color: var(--jade-300); }
-.text-red-light     { color: var(--crimson-300); }
-.text-amber-light   { color: var(--amber-300); .dark-theme & { color: var(--amber-100); } }
-.text-yellow-light  { color: var(--marigold-400); }
+/* 节点卡片统计数字主色 */
+.text-success   { color: var(--jade-500); }
+.text-pending   { color: var(--marigold-500); }
+.text-error     { color: var(--crimson-500); }
+.text-duplicate { color: var(--amber-600); .dark-theme & { color: var(--amber-300); } }
+/* 增量数字颜色（比主色浅一档） */
+.text-delta-pos       { color: var(--jade-300); }
+.text-delta-neg       { color: var(--crimson-300); }
+.text-delta-pending   { color: var(--marigold-400); }
+.text-delta-duplicate { color: var(--amber-300); .dark-theme & { color: var(--amber-100); } }
 .text-sm { font-size: 0.875rem; }
 
 .text-gray {

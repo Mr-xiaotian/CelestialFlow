@@ -27,7 +27,7 @@ function formatLargeNumber(n) {
  * @param {string} deltaClass - 增量数值的 CSS 类名（可选，默认 "text-green-light"）
  * @returns {string} 包含数值和带颜色增量的 HTML 字符串
  */
-function formatWithDelta(value, delta, deltaClass = "text-green-light", negClass = "text-red-light") {
+function formatWithDelta(value, delta, deltaClass = "text-delta-pos", negClass = "text-delta-neg") {
     const fmtValue = formatLargeNumber(value);
     if (!delta || delta === 0)
         return fmtValue;
