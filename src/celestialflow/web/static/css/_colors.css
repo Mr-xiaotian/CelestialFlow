@@ -31,20 +31,6 @@
   --carbon-900: #1a1a1a;
 
   /* ================================
-     矢车菊蓝（Cornflower）
-  ================================ */
-  --cornflower-50:  #eff6ff;
-  --cornflower-100: #dbeafe;
-  --cornflower-200: #bfdbfe;
-  --cornflower-300: #93c5fd;
-  --cornflower-400: #60a5fa;
-  --cornflower-500: #3b82f6;
-  --cornflower-600: #2563eb;
-  --cornflower-700: #1d4ed8;
-  --cornflower-800: #1e40af;
-  --cornflower-900: #1e3a8a;
-
-  /* ================================
      翡翠绿（Jade）
   ================================ */
   --jade-50:  #ecfdf5;
@@ -101,20 +87,6 @@
   --crimson-900: #7f1d1d;
 
   /* ================================
-     紫罗兰（Violet）
-  ================================ */
-  --violet-50:  #f5f3ff;
-  --violet-100: #ede9fe;
-  --violet-200: #ddd6fe;
-  --violet-300: #c4b5fd;
-  --violet-400: #a78bfa;
-  --violet-500: #8b5cf6;
-  --violet-600: #7c3aed;
-  --violet-700: #6d28d9;
-  --violet-800: #5b21b6;
-  --violet-900: #4c1d95;
-
-  /* ================================
      玫瑰（Rose）
   ================================ */
   --rose-50:  #fff1f2;
@@ -127,4 +99,32 @@
   --rose-700: #be123c;
   --rose-800: #9f1239;
   --rose-900: #881337;
+
+  /* ================================
+     矢车菊蓝（Cornflower）
+  ================================ */
+  --cornflower-50:  #eff6ff;
+  --cornflower-100: #dbeafe;
+  --cornflower-200: #bfdbfe;
+  --cornflower-300: #93c5fd;
+  --cornflower-400: #60a5fa;
+  --cornflower-500: #3b82f6;
+  --cornflower-600: #2563eb;
+  --cornflower-700: #1d4ed8;
+  --cornflower-800: #1e40af;
+  --cornflower-900: #1e3a8a;
+
+  /* ================================
+     紫罗兰（Violet）
+  ================================ */
+  --violet-50:  #f5f3ff;
+  --violet-100: #ede9fe;
+  --violet-200: #ddd6fe;
+  --violet-300: #c4b5fd;
+  --violet-400: #a78bfa;
+  --violet-500: #8b5cf6;
+  --violet-600: #7c3aed;
+  --violet-700: #6d28d9;
+  --violet-800: #5b21b6;
+  --violet-900: #4c1d95;
 }
