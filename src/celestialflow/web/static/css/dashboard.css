@@ -273,6 +273,7 @@
   &.red    { background-color: var(--crimson-50);     .dark-theme & { background-color: var(--crimson-900); } }
   &.green  { background-color: var(--jade-50);        .dark-theme & { background-color: var(--jade-900); } }
   &.purple { background-color: var(--violet-100);     .dark-theme & { background-color: var(--violet-900); } }
+  &.gray   { background-color: var(--gray-100);       .dark-theme & { background-color: var(--gray-700); } }
 }
 
 .summary-value {
@@ -285,6 +286,7 @@
   &.red    { color: var(--crimson-600);    .dark-theme & { color: var(--crimson-400); } }
   &.green  { color: var(--jade-700);       .dark-theme & { color: var(--jade-300); } }
   &.purple { color: var(--violet-600);     .dark-theme & { color: var(--violet-300); } }
+  &.gray   { color: var(--gray-700);       .dark-theme & { color: var(--gray-200); } }
 }
 
 .summary-label {

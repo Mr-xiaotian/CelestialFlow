@@ -105,21 +105,26 @@ function renderDashboard() {
             <div><div class="stat-label">成功</div><div class="stat-value text-green">${formatWithDelta(
               data.tasks_successed,
               data.add_tasks_successed,
-              "text-green-500"
+              "text-green-light",
+              "text-red-light"
             )}</div></div>
-            <div><div class="stat-label">等待中</div><div class="stat-value">${formatWithDelta(
+            <div><div class="stat-label">等待中</div><div class="stat-value text-yellow">${formatWithDelta(
               data.tasks_pending,
-              data.add_tasks_pending
+              data.add_tasks_pending,
+              "text-yellow-light",
+              "text-yellow-light"
             )}</div></div>
             <div><div class="stat-label">错误</div><div class="stat-value text-red error-clickable" data-node="${escapeHtml(node)}">${formatWithDelta(
               data.tasks_failed,
               data.add_tasks_failed,
-              "text-red-400"
+              "text-red-light",
+              "text-green-light"
             )}</div></div>
-            <div><div class="stat-label">重复</div><div class="stat-value text-yellow">${formatWithDelta(
+            <div><div class="stat-label">重复</div><div class="stat-value text-amber">${formatWithDelta(
               data.tasks_duplicated,
               data.add_tasks_duplicated,
-              "text-amber-400"
+              "text-amber-light",
+              "text-amber-light"
             )}</div></div>
             <div><div class="stat-label">节点模式</div><div class="stat-value">${escapeHtml(data.stage_mode)}</div></div>
             <div><div class="stat-label">运行模式</div><div class="stat-value">${escapeHtml(data.execution_mode)}</div></div>

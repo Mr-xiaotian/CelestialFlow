@@ -281,9 +281,15 @@ select {
 .text-blue   { color: var(--cornflower-500); }
 .text-green  { color: var(--jade-500); }
 .text-yellow { color: var(--marigold-500); }
+.text-amber  { color: var(--amber-600); .dark-theme & { color: var(--amber-300); } }
 .text-green-500  { color: var(--jade-400); }
 .text-red-400    { color: var(--crimson-400); }
 .text-amber-400  { color: var(--marigold-400); }
+/* 增量专用浅色（比主数字颜色浅一档） */
+.text-green-light   { color: var(--jade-300); }
+.text-red-light     { color: var(--crimson-300); }
+.text-amber-light   { color: var(--amber-300); .dark-theme & { color: var(--amber-100); } }
+.text-yellow-light  { color: var(--marigold-400); }
 .text-sm { font-size: 0.875rem; }
 
 .text-gray {
