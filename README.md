@@ -235,23 +235,16 @@ flowchart TD
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.1.4:
-  - feat:
-    - 添加前端设置文件config.json, 包含主题(白天与黑夜), 刷新时间, 历史长度, 卡片种类, 仪表盘布局;
-    - 完善对termination_signal在ctree上的事件管理;
-    - 新添termination_*系日志, 同时优化部分原有日志;
-    - 在前端的错误数字上(包括单个stage的卡片与summary卡片)绑定跳转事件, 可以跳转到ErrorLog页面, 并显示对应的错误;
-    - 修复部分原有的文档错误, 并添加新的前端代码文档;
-  - refactor:
-    - fail_sinker.task_error中不必再传时间, 方法会自己补充;
-    - 将所有counter放入TaskMetrics管理, 断绝对TAskExecutor的调用依赖;
-    - 将run_*函数分离并移入TaskRunner类, 同时将pool管理也迁入; 
-    - 将TaskQueue分离为更具体的TaskInQueue与TaskOutQueue, 同时TAskInQueue只接受一个MPQueue以避免原有的轮询逻辑, 减少CPU运算消耗;
-    - 前端代码换用ts;
-    - 重命名所有代码文件, 现在用core_与util_前缀来区分核心代码与辅助代码;
-    - 将history数据从status中移出, 使用单独的/api/*_history端口;
-  - fix:
-    - TaskRedisTransport节点在mermaid中没有展示为parallelogram;
+- 3.1.5
+  - feat
+    - 大幅修改节点状态卡片的色彩视觉设计. 包括: 取消原本的悬浮设计, 改为平面化设计; 让进度条更直接的显示不同任务完成状态的比例; 使用左边框来显示节点是否在运行中. 而非原本的badge;
+    - 前端的error数据拉取不再每次都全量拉取, 而是只拉取自己当前没有的数据;
+  - refactor
+    - 大幅重构前端代码中的色彩管理, 现在色彩的一致性更好;
+    - 修改前端代码中的数据更新判断, 现在相关判断交给serve.py;
+  - fix
+    - 修复节点已运行时间在节点完成后显示为0的问题
+    - 修复在最新fastapi版本下TemplateResponse参数改变导致的问题
 
 ## Star 历史趋势（Star History）
 
