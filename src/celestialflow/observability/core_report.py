@@ -192,7 +192,7 @@ class TaskReporter:
 
         error_store = load_jsonl_logs(
             path=jsonl_path,
-            keys=["ts", "error_id", "error_repr", "stage", "task_repr"],
+            keys=["ts", "error_id", "error_repr", "error", "stage", "task_repr"],
         )
         payload = {
             "errors": error_store,

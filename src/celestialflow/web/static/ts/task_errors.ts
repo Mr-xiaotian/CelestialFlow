@@ -61,9 +61,9 @@ function renderErrors() {
       const row = document.createElement("tr");
       row.innerHTML = `
         <td class="error-id">${e.error_id}</td>
-        <td class="error-message">${e.error_repr}</td>
-        <td>${e.stage}</td>
-        <td>${e.task_repr}</td>
+        <td class="error-message" title="${escapeHtml(e.error_repr)}">${escapeHtml(e.error_repr)}</td>
+        <td>${escapeHtml(e.stage)}</td>
+        <td>${escapeHtml(e.task_repr)}</td>
         <td>${renderLocalTime(e.ts)}</td>
       `;
       errorsTableBody.appendChild(row);

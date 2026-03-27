@@ -104,6 +104,11 @@ th {
 .error-message {
   color: var(--crimson-500);
   font-family: monospace;
+  max-width: 40ch;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
 
   .dark-theme & {
     color: var(--crimson-400);

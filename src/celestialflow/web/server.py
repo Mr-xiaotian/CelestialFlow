@@ -266,7 +266,7 @@ class TaskWebServer:
                     partial(
                         load_jsonl_logs,
                         path=data.jsonl_path,
-                        keys=["ts", "error_id", "error_repr", "stage", "task_repr"],
+                        keys=["ts", "error_id", "error_repr", "error", "stage", "task_repr"],
                     )
                 )
                 self._errors_meta_path = data.jsonl_path
