@@ -34,6 +34,7 @@ ctree_host = os.getenv("CTREE_HOST")
 ctree_http_port = os.getenv("CTREE_HTTP_PORT")
 ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
 
+
 class DownloadRedisTransport(TaskRedisTransport):
     def get_args(self, task):
         url, path = task
@@ -44,7 +45,6 @@ class DownloadStage(TaskStage):
     def get_args(self, task):
         url, path = task
         return url, path.replace("/tmp/", "X:/Download/download_py/")
-
 
 
 def test_splitter_0():
@@ -286,7 +286,9 @@ def test_router_0():
     a_tag = stage_a.get_tag()
     b_tag = stage_b.get_tag()
 
-    source_stage = TaskStage(RouterWrapper(a_tag, b_tag), execution_mode="thread", max_workers=4)
+    source_stage = TaskStage(
+        RouterWrapper(a_tag, b_tag), execution_mode="thread", max_workers=4
+    )
 
     source_stage.set_graph_context([router], stage_mode="serial", stage_name="Origin")
 

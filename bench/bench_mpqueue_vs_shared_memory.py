@@ -16,14 +16,13 @@ from typing import Any, Iterable
 
 from bench_utils import summarize
 
-
 # =========================
 # Config
 # =========================
 
 COUNT = 100_000
 REPEAT = 3
-PAYLOAD_MODE = "int"   # int | small | medium | large
+PAYLOAD_MODE = "int"  # int | small | medium | large
 
 # SharedMemory ring config
 SLOT_COUNT = 1024
@@ -42,6 +41,7 @@ TOPOLOGIES = (
 # =========================
 # Payload
 # =========================
+
 
 def make_payload(i: int, mode: str) -> bytes:
     if mode == "int":
@@ -83,11 +83,11 @@ def expected_checksum(start: int, count: int, mode: str) -> int:
     for i in range(start, start + count):
         digits = len(str(i))
         if mode == "small":
-            total += 5 + digits           # "item-{i}" encoded
+            total += 5 + digits  # "item-{i}" encoded
         elif mode == "medium":
-            total += digits + 1 + 128     # "{i}-" + "x"*128 encoded
+            total += digits + 1 + 128  # "{i}-" + "x"*128 encoded
         elif mode == "large":
-            total += digits + 1 + 4096    # "{i}-" + "x"*4096 encoded
+            total += digits + 1 + 4096  # "{i}-" + "x"*4096 encoded
         else:
             raise ValueError(f"Unknown PAYLOAD_MODE: {mode}")
     return total
@@ -111,6 +111,7 @@ def prefix_starts(counts: Iterable[int]) -> list[int]:
 # =========================
 # MPQueue workers
 # =========================
+
 
 def producer_mpqueue(q: MPQueue, start: int, count: int, mode: str) -> None:
     for i in range(start, start + count):
@@ -153,6 +154,7 @@ def consumer_mpqueue(q: MPQueue, count: int, mode: str, result_q: MPQueue) -> No
 # The lock window is minimised by keeping full_slots.release() outside.
 # =========================
 
+
 def producer_shm_ring(
     shm_name: str,
     slot_count: int,
@@ -179,8 +181,8 @@ def producer_shm_ring(
                 slot = write_idx.value
                 write_idx.value = (write_idx.value + 1) % slot_count
                 base = slot * slot_size
-                buf[base:base + 4] = struct.pack("<I", n)
-                buf[base + 4:base + 4 + n] = payload
+                buf[base : base + 4] = struct.pack("<I", n)
+                buf[base + 4 : base + 4 + n] = payload
             # Signal outside the lock: consumer just needs to know *a* slot is
             # ready, not which one — it reads read_idx under its own lock.
             full_slots.release()
@@ -211,8 +213,8 @@ def consumer_shm_ring(
                 slot = read_idx.value
                 read_idx.value = (read_idx.value + 1) % slot_count
                 base = slot * slot_size
-                n = struct.unpack("<I", bytes(buf[base:base + 4]))[0]
-                payload = bytes(buf[base + 4:base + 4 + n])
+                n = struct.unpack("<I", bytes(buf[base : base + 4]))[0]
+                payload = bytes(buf[base + 4 : base + 4 + n])
             consumed += 1
             checksum += checksum_of_payload_bytes(payload, mode)
             empty_slots.release()
@@ -225,6 +227,7 @@ def consumer_shm_ring(
 # =========================
 # Benchmark runners
 # =========================
+
 
 def run_mpqueue_case(
     topology_name: str,
@@ -405,6 +408,7 @@ def run_shared_memory_case(
 # =========================
 # Main
 # =========================
+
 
 def main() -> None:
     print(f"PID={os.getpid()}")

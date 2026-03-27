@@ -25,7 +25,9 @@ class TaskChain(TaskGraph):
             stage.set_graph_context(next_stages, chain_mode, stage_name)
 
         root_stage = stages[0]
-        super().__init__(root_stages=[root_stage], schedule_mode="eager", log_level=log_level)
+        super().__init__(
+            root_stages=[root_stage], schedule_mode="eager", log_level=log_level
+        )
 
     def start_chain(
         self, init_tasks_dict: dict, put_termination_signal: bool = True

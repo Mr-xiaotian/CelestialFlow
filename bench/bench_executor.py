@@ -39,9 +39,7 @@ async def sleep_1_async(_):
 async def bench_executor_fibonacci():
     bench_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
 
-    executor = TaskExecutor(
-        fibonacci, max_workers=6, max_retries=1, show_progress=True
-    )
+    executor = TaskExecutor(fibonacci, max_workers=6, max_retries=1, show_progress=True)
     executor.add_retry_exceptions(ValueError)
 
     executor_async = TaskExecutor(

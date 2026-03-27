@@ -45,7 +45,7 @@ class TaskSplitter(TaskStage):
     def put_split_result(self, result: tuple, task_id: int) -> int:
         """
         将 split 结果放入队列，并发出对应事件
-        
+
         :param result: split 的结果，必须是一个可迭代对象
         :param task_id: 原始任务 ID，用于事件关联
         :return: split 的子任务数量

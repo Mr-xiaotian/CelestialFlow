@@ -1,6 +1,7 @@
 """
 Shared helper functions and classes used across test files.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -14,10 +15,10 @@ import requests
 
 from celestialflow import TaskStage, TaskRedisTransport
 
-
 # =========================
 # 通用计算函数
 # =========================
+
 
 def fibonacci(n):
     if n <= 0:
@@ -56,7 +57,7 @@ def add_one(num):
 
 
 def sqrt(num):
-    return num ** 0.5
+    return num**0.5
 
 
 def square(x):
@@ -119,6 +120,7 @@ async def sleep_1_async(n):
 # 带 sleep 的运算函数（test_structure 用）
 # =========================
 
+
 def operate_sleep(a, b):
     sleep(1)
     return a + b, a * b
@@ -158,6 +160,7 @@ def add_one_sleep(n):
 # =========================
 # URL 处理函数（test_stages 用）
 # =========================
+
 
 def generate_urls(x):
     return tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4))])
@@ -222,13 +225,13 @@ def download_to_file(url: str, file_path: str) -> str:
 # 其他
 # =========================
 
+
 class RouterWrapper:
     def __init__(self, a_tag, b_tag):
         self.a_tag = a_tag
         self.b_tag = b_tag
-        self.__name__ = "RouterWrapper" # 框架需要这个属性
+        self.__name__ = "RouterWrapper"  # 框架需要这个属性
 
     def __call__(self, n: int) -> tuple:
         target = self.a_tag if (n % 2 == 0) else self.b_tag
         return (target, n)
-

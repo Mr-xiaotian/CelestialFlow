@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import os
 import time
-from multiprocessing import Process, Queue as MPQueue, SimpleQueue, Pipe, Manager, set_start_method
+from multiprocessing import (
+    Process,
+    Queue as MPQueue,
+    SimpleQueue,
+    Pipe,
+    Manager,
+    set_start_method,
+)
 from typing import Callable, Any
 
 from bench_utils import summarize
-
 
 # =========================
 # Config
@@ -27,6 +33,7 @@ PAYLOAD_MODE = "int"
 # =========================
 # Payload factory
 # =========================
+
 
 def make_payload(i: int, mode: str) -> Any:
     if mode == "int":
@@ -75,6 +82,7 @@ def consumer_queue(q, result_q) -> None:
 # Worker funcs: Pipe
 # =========================
 
+
 def producer_pipe(conn, count: int, mode: str) -> None:
     try:
         for i in range(count):
@@ -109,6 +117,7 @@ def consumer_pipe(conn, result_q) -> None:
 # Checksum
 # =========================
 
+
 def expected_checksum(count: int, mode: str) -> int:
     if mode == "int":
         return count * (count - 1) // 2
@@ -121,6 +130,7 @@ def expected_checksum(count: int, mode: str) -> int:
 # =========================
 # Benchmark helpers
 # =========================
+
 
 def run_queue_case(
     name: str,
@@ -155,7 +165,9 @@ def run_queue_case(
         if consumed != count:
             raise RuntimeError(f"{name}: consumed={consumed}, expected={count}")
         if checksum != target_checksum:
-            raise RuntimeError(f"{name}: checksum={checksum}, expected={target_checksum}")
+            raise RuntimeError(
+                f"{name}: checksum={checksum}, expected={target_checksum}"
+            )
 
         result_q.close()
 
@@ -242,6 +254,7 @@ def run_manager_queue_case(count: int, repeat: int, mode: str) -> None:
 # =========================
 # Main
 # =========================
+
 
 def main() -> None:
     print(f"PID={os.getpid()}")

@@ -584,9 +584,7 @@ class TaskGraph:
             start_time = stage_runtime.get("start_time", 0)
             last_elapsed = last_stage_status_dict.get("elapsed_time", 0)
             last_pending = last_stage_status_dict.get("tasks_pending", 0)
-            elapsed = calc_elapsed(
-                status, last_elapsed, last_pending, interval
-            )
+            elapsed = calc_elapsed(status, last_elapsed, last_pending, interval)
 
             # 估算剩余时间
             remaining = calc_remaining(
