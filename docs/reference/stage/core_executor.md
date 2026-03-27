@@ -10,7 +10,7 @@ class TaskExecutor:
         self,
         func,
         execution_mode="serial",
-        worker_limit=20,
+        max_workers=20,
         max_retries=1,
         max_info=50,
         unpack_task_args=False,
@@ -32,7 +32,7 @@ class TaskExecutor:
   - `thread`: 多线程执行。
   - `process`: 多进程执行（注意：作为 `TaskGraph` 的一部分时通常不使用此模式，而是由 `TaskStage` 管理）。
   - `async`: 异步执行 (`asyncio`)。
-- **worker_limit**: 并发数量限制（线程数/进程数/协程数）。
+- **max_workers**: 并发数量限制（线程数/进程数/协程数）。
 - **max_retries**: 任务失败后的最大重试次数。
 - **max_info**: 日志中每条信息的最大长度。
 - **unpack_task_args**: 是否将任务参数解包 (`*args`) 传给函数。

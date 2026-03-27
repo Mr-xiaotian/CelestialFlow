@@ -7,13 +7,13 @@
 | 变量 | 类型 | 说明 |
 |------|------|------|
 | `topologyData` | `Record<string, any>` | 拓扑数据，从后端拉取 |
-| `previousTopologyDataJSON` | `string` | 上次快照，供变化检测 |
+| `topologyRev` | `number` | 上次拉取的版本号，用于增量拉取（`known_rev`） |
 
 ## 函数
 
 ### `loadTopology()`
 
-异步从 `GET /api/pull_topology` 拉取拓扑数据，更新 `topologyData`。
+异步从 `GET /api/pull_topology?known_rev=N` 拉取拓扑数据。若服务端数据未变化（`body.data === null`），返回 `false`；否则更新 `topologyData` 和 `topologyRev`，返回 `true`。
 
 ---
 

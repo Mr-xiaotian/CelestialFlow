@@ -7,7 +7,7 @@
 | 变量 | 类型 | 说明 |
 |------|------|------|
 | `errors` | `any[]` | 错误记录数组，从后端拉取 |
-| `previousErrorsJSON` | `string` | 上次快照，供变化检测 |
+| `errorsOffset` | `number` | 已同步的错误条数，用于增量拉取 |
 | `currentPage` | `number` | 当前页码，默认 1 |
 | `pageSize` | `number` | 每页条数，固定为 10 |
 
@@ -15,7 +15,10 @@
 
 ### `loadErrors()`
 
-异步从 `GET /api/pull_errors` 拉取错误列表，更新 `errors`。
+异步从 `GET /api/pull_errors?offset=N` 拉取错误列表增量，更新 `errors`。
+
+- 若 `data.total < errorsOffset`（服务端重启后 error_store 已清空），全量重新同步
+- 新增条目 append 到 `errors` 末尾，返回 `true`；无新数据返回 `false`
 
 ---
 
@@ -43,9 +46,9 @@
 
 ---
 
-### `populateNodeFilter()`
+### `populateNodeFilter(statuses)`
 
-从 `nodeStatuses` 中读取节点名填充下拉筛选器，尽量保留用户当前选中的节点。由 `main.ts` 在 `statusesChanged` 时调用。
+从 `statuses`（`Record<string, NodeStatus>`）中读取节点名填充下拉筛选器，尽量保留用户当前选中的节点。由 `main.ts` 在 `statusesChanged` 时调用。
 
 ## 事件监听
 

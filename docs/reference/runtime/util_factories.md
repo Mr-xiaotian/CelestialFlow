@@ -1,6 +1,6 @@
 # RuntimeFactories
 
-`runtime/factories.py` 提供运行时对象的工厂函数，用于根据执行模式创建相应的队列、计数器等对象。
+`runtime/util_factories.py` 提供运行时对象的工厂函数，用于根据执行模式创建相应的队列、计数器等对象。
 
 ## 设计目标
 

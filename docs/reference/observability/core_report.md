@@ -24,9 +24,24 @@ graph.set_reporter(True, host="127.0.0.1", port=5005)
 Reporter 会与以下 Web API 交互：
 
 - `GET /api/pull_interval`: 获取上报间隔。
+- `GET /api/pull_history_limit`: 获取历史记录最大保留条数。
 - `GET /api/pull_task_injection`: 获取注入的任务。
 - `POST /api/push_status`: 推送运行时状态快照。
 - `POST /api/push_structure`: 推送图结构信息。
 - `POST /api/push_topology`: 推送拓扑连接信息。
 - `POST /api/push_summary`: 推送图概要。
+- `POST /api/push_history`: 推送节点历史走势数据。
 - `POST /api/push_errors_meta` / `push_errors_content`: 推送错误信息。
+
+## NullTaskReporter
+
+当未启用 Reporter 时，`TaskGraph` 使用 `NullTaskReporter` 作为占位符，其 `start()` 和 `stop()` 均为空操作，不会发起任何网络请求。
+
+```python
+class NullTaskReporter:
+    interval = 0
+    history_limit = 20
+
+    def start(self) -> None: ...
+    def stop(self) -> None: ...
+```

@@ -39,9 +39,8 @@ DOMContentLoaded
 
 **流程：**
 
-1. 并行调用所有 `load*()` 函数拉取最新数据
-2. 将各数据序列化为 JSON 字符串，与上次对比判断是否变化
-3. 按数据域分组，仅在数据发生变化时调用对应渲染函数
+1. 并行调用所有 `load*()` 函数拉取最新数据，各函数返回 `boolean` 表示数据是否变化
+2. 按数据域分组，仅在数据发生变化时调用对应渲染函数
 
 **变化检测与渲染映射：**
 
@@ -54,18 +53,16 @@ DOMContentLoaded
 | `statusesChanged` | `renderDashboard()` / `populateNodeFilter()` / `renderNodeList()` |
 | `errorsChanged` | `renderErrors()` |
 
-> 注意：`statusesChanged` 被检查两次（与 `structureChanged` 组合，以及单独检查），`previousNodeStatusesJSON` 在第一次命中时更新。
-
 ## 跨模块依赖
 
 `main.ts` 依赖其他模块暴露的全局函数和变量（通过 `<script>` 标签加载顺序确保可用）：
 
 - **web_config.ts** — `loadWebConfig`, `saveWebConfig`, `applyConfig`, `webConfig`, `applyDashboardLayout`
-- **task_history.ts** — `loadHistories`, `nodeHistories`, `previousNodeHistoriesJSON`, `initChart`, `updateChartData`
-- **task_statuses.ts** — `loadStatuses`, `nodeStatuses`, `previousNodeStatusesJSON`, `renderDashboard`, `initSortableDashboard`
-- **task_structure.ts** — `loadStructure`, `structureData`, `previousStructureDataJSON`, `renderMermaidStructure`
-- **task_errors.ts** — `loadErrors`, `errors`, `previousErrorsJSON`, `renderErrors`, `populateNodeFilter`
-- **task_topology.ts** — `loadTopology`, `topologyData`, `previousTopologyDataJSON`, `renderTopologyInfo`
-- **task_summary.ts** — `loadSummary`, `summaryData`, `previousSummaryDataJSON`, `renderSummary`
+- **task_history.ts** — `loadHistories`, `nodeHistories`, `initChart`, `updateChartData`, `updateChartTheme`
+- **task_statuses.ts** — `loadStatuses`, `nodeStatuses`, `renderDashboard`, `initSortableDashboard`
+- **task_structure.ts** — `loadStructure`, `structureData`, `renderMermaidStructure`
+- **task_errors.ts** — `loadErrors`, `errors`, `renderErrors`, `populateNodeFilter`
+- **task_topology.ts** — `loadTopology`, `topologyData`, `renderTopologyInfo`
+- **task_summary.ts** — `loadSummary`, `summaryData`, `renderSummary`
 - **task_injection.ts** — `renderNodeList`
-- **utils.ts** — `toggleDarkTheme`
+- **utils.ts** — `toggleDarkTheme`, `switchToErrorsTab`

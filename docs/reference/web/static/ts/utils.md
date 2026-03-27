@@ -14,14 +14,28 @@ renderLocalTime(1700000000) // → "2023/11/15 上午10:13:20"（依本地区域
 
 ---
 
-### `formatWithDelta(value, delta)`
+### `formatLargeNumber(n)`
+
+将大数格式化为模糊科学计数法 HTML；小于 10000 的数直接返回字符串。
+
+```ts
+formatLargeNumber(1234567890) // → "~1.23×10<sup>9</sup>"
+formatLargeNumber(999)        // → "999"
+```
+
+---
+
+### `formatWithDelta(value, delta, deltaClass, negClass)`
 
 格式化数值及其增量，增量以彩色小字显示。
 
+- `deltaClass`: 正增量的 CSS 类名
+- `negClass`: 负增量的 CSS 类名
+
 ```ts
-formatWithDelta(100, 5)   // → '100<small style="color: green">+5</small>'
-formatWithDelta(100, 0)   // → '100'
-formatWithDelta(100, -3)  // → '100<small style="color: red">-3</small>'
+formatWithDelta(100, 5, "text-delta-success", "text-delta-success")
+// → '100<small class="text-delta-success" style="margin-left: 4px;">+5</small>'
+formatWithDelta(100, 0, ...)   // → '100'
 ```
 
 返回 HTML 字符串，直接插入 `innerHTML`。
@@ -65,9 +79,25 @@ getColor(9) // → "#3b82f6"（循环）
 
 ---
 
+### `escapeHtml(str)`
+
+转义 HTML 特殊字符（`&`, `<`, `>`, `"`），防止 XSS。
+
+```ts
+escapeHtml('<script>') // → "&lt;script&gt;"
+```
+
+---
+
 ### `toggleDarkTheme()`
 
 切换 `document.body` 的 `dark-theme` CSS 类。返回切换后是否为暗色模式（`boolean`）。
+
+---
+
+### `switchToErrorsTab(nodeFilter?)`
+
+切换到「错误日志」标签页，并可选地将节点筛选器设置为指定节点。不传或传空字符串则显示全部错误。
 
 ---
 
@@ -90,3 +120,4 @@ formatDuration(-5)    // → "00:00"
 ```ts
 formatTimestamp(1700000000) // → "2023-11-15 10:13:20"
 ```
+

@@ -30,14 +30,14 @@ type NodeStatus = {
 | 变量 | 类型 | 说明 |
 |------|------|------|
 | `nodeStatuses` | `Record<string, NodeStatus>` | 所有节点的当前状态 |
-| `previousNodeStatusesJSON` | `string` | 上次快照，供变化检测 |
+| `statusRev` | `number` | 上次拉取的版本号，用于增量拉取（`known_rev`） |
 | `draggingNodeName` | `string \| null` | 当前正在拖动的节点名，渲染时跳过 |
 
 ## 函数
 
 ### `loadStatuses()`
 
-异步从 `GET /api/pull_status` 拉取节点状态，更新 `nodeStatuses`。
+异步从 `GET /api/pull_status?known_rev=N` 拉取节点状态。若服务端数据未变化（`body.data === null`），返回 `false`；否则更新 `nodeStatuses` 和 `statusRev`，返回 `true`。
 
 ---
 
@@ -59,13 +59,7 @@ type NodeStatus = {
 - 开始时间
 - 任务完成率进度条（含已用/剩余时间、平均耗时、百分比）
 
-错误数字带 `error-clickable` 样式，点击后调用 `jumpToErrorsTab(nodeName)` 跳转并预设筛选。
-
----
-
-### `jumpToErrorsTab(nodeName)`
-
-切换到「错误日志」标签页，并将节点筛选器设置为指定节点，触发 `change` 事件刷新列表。
+错误数字带 `error-clickable` 样式，点击后调用 `switchToErrorsTab(node)`（定义于 `utils.ts`）跳转并预设筛选。
 
 ## 徽章状态映射
 

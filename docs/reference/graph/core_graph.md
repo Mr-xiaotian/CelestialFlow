@@ -217,19 +217,6 @@ graph.put_stage_queue({
 })
 ```
 
-## 辅助方法
-
-### test_methods
-
-用于性能测试，对比不同执行模式下的耗时。
-
-```python
-def test_methods(self, init_tasks_dict, test_cases=None):
-    """
-    测试不同执行模式组合的性能。
-    """
-```
-
 ## 调度模式详解
 
 ### Eager 模式

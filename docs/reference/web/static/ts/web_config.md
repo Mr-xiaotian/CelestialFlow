@@ -6,8 +6,24 @@
 
 | 变量 | 类型 | 说明 |
 |------|------|------|
-| `webConfig` | `any` | 当前配置对象，从后端加载 |
+| `webConfig` | `WebConfig \| null` | 当前配置对象，从后端加载 |
 | `PANEL_SELECTOR_MAP` | `Record<string, string>` | 三栏面板的 CSS 选择器映射 |
+
+## 类型定义
+
+```ts
+type WebConfig = {
+    theme: "light" | "dark";
+    refreshInterval: number;
+    historyLimit: number;
+    dashboard: {
+        left: string[];
+        middle: string[];
+        right: string[];
+    };
+    cards: Record<string, { title: string }>;
+};
+```
 
 ## 函数
 
@@ -34,8 +50,7 @@
 
 1. **主题**: 根据 `webConfig.theme` 切换 `dark-theme` CSS 类和按钮文字
 2. **刷新间隔**: 更新 `refreshRate` 和下拉框选中值（含边界保护）
-3. **隐藏节点**: 同步 `hiddenNodes` Set 及 localStorage
-4. **仪表盘布局**: 调用 `applyDashboardLayout()`
+3. **仪表盘布局**: 调用 `applyDashboardLayout()`
 
 ---
 
@@ -58,12 +73,12 @@
 {
     "theme": "light",
     "refreshInterval": 5000,
+    "historyLimit": 20,
     "dashboard": {
         "left": ["mermaid", "topology"],
         "middle": ["status"],
         "right": ["progress", "summary"]
     },
-    "hiddenNodes": [],
     "cards": {
         "mermaid": { "title": "任务结构图" },
         "topology": { "title": "图拓扑信息" },

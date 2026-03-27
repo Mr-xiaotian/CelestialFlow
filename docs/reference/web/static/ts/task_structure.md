@@ -7,13 +7,13 @@
 | 变量 | 类型 | 说明 |
 |------|------|------|
 | `structureData` | `any[]` | 任务图根节点数组，从后端拉取 |
-| `previousStructureDataJSON` | `string` | 上次快照，供变化检测 |
+| `structureRev` | `number` | 上次拉取的版本号，用于增量拉取（`known_rev`） |
 
 ## 函数
 
 ### `loadStructure()`
 
-异步从 `GET /api/pull_structure` 拉取图结构数组，更新 `structureData`。
+异步从 `GET /api/pull_structure?known_rev=N` 拉取图结构数组。若服务端数据未变化（`body.data === null`），返回 `false`；否则更新 `structureData` 和 `structureRev`，返回 `true`。
 
 ---
 
@@ -41,9 +41,9 @@
 
 ---
 
-### `renderMermaidStructure()`
+### `renderMermaidStructure(statuses?)`
 
-从 `structureData` 和 `nodeStatuses` 构建 Mermaid 代码并渲染到 DOM。
+从 `structureData` 和传入的 `statuses`（`Record<string, NodeStatus>`，默认空对象）构建 Mermaid 代码并渲染到 DOM。
 
 **流程：**
 
