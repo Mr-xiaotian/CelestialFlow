@@ -44,6 +44,7 @@ class TaskReporter:
         self._stop_flag = Event()
         self._thread = None
         self._push_errors_mode = "meta"
+        self._session = requests.Session()
 
         self.interval = 5
         self.history_limit = 20
@@ -62,6 +63,7 @@ class TaskReporter:
             self._stop_flag.set()
             self._thread.join(timeout=2)
             self._thread = None
+            self._session.close()
             self.log_sinker.stop_reporter()
 
     def _pull_timeout(self) -> float:
@@ -88,6 +90,9 @@ class TaskReporter:
         self._pull_history_limit()
         self._pull_and_inject_tasks()
 
+        # 收集最新的任务图状态快照，确保推送的数据是最新的
+        self.task_graph.collect_runtime_snapshot()
+
         # 推送逻辑
         self._push_errors()
         self._push_status()
@@ -99,7 +104,7 @@ class TaskReporter:
     def _pull_interval(self) -> None:
         """从远程服务拉取上报间隔配置"""
         try:
-            res = requests.get(
+            res = self._session.get(
                 f"{self.base_url}/api/pull_interval", timeout=self._pull_timeout()
             )
             if res.ok:
@@ -111,7 +116,7 @@ class TaskReporter:
     def _pull_history_limit(self) -> None:
         """从远程服务拉取历史记录限制配置"""
         try:
-            res = requests.get(
+            res = self._session.get(
                 f"{self.base_url}/api/pull_history_limit", timeout=self._pull_timeout()
             )
             if res.ok:
@@ -123,7 +128,7 @@ class TaskReporter:
     def _pull_and_inject_tasks(self) -> None:
         """从远程服务拉取任务注入信息并注入任务"""
         try:
-            res = requests.get(
+            res = self._session.get(
                 f"{self.base_url}/api/pull_task_injection", timeout=self._pull_timeout()
             )
             if res.ok:
@@ -178,7 +183,7 @@ class TaskReporter:
             "jsonl_path": jsonl_path,
             "rev": rev,
         }
-        response = requests.post(
+        response = self._session.post(
             f"{self.base_url}/api/push_errors_meta",
             json=payload,
             timeout=self._push_timeout(),
@@ -199,7 +204,7 @@ class TaskReporter:
             "jsonl_path": jsonl_path,
             "rev": rev,
         }
-        response = requests.post(
+        response = self._session.post(
             f"{self.base_url}/api/push_errors_content",
             json=payload,
             timeout=self._push_timeout(),
@@ -209,10 +214,9 @@ class TaskReporter:
     def _push_status(self) -> None:
         """推送状态信息"""
         try:
-            self.task_graph.collect_runtime_snapshot()
             status_data = self.task_graph.get_status_dict()
             payload = {"status": status_data}
-            requests.post(
+            self._session.post(
                 f"{self.base_url}/api/push_status",
                 json=payload,
                 timeout=self._push_timeout(),
@@ -225,7 +229,7 @@ class TaskReporter:
         try:
             structure = self.task_graph.get_structure_json()
             payload = {"items": structure}
-            requests.post(
+            self._session.post(
                 f"{self.base_url}/api/push_structure",
                 json=payload,
                 timeout=self._push_timeout(),
@@ -238,7 +242,7 @@ class TaskReporter:
         try:
             topology = self.task_graph.get_graph_topology()
             payload = {"topology": topology}
-            requests.post(
+            self._session.post(
                 f"{self.base_url}/api/push_topology",
                 json=payload,
                 timeout=self._push_timeout(),
@@ -251,7 +255,7 @@ class TaskReporter:
         try:
             summary = self.task_graph.get_graph_summary()
             payload = {"summary": summary}
-            requests.post(
+            self._session.post(
                 f"{self.base_url}/api/push_summary",
                 json=payload,
                 timeout=self._push_timeout(),
@@ -264,7 +268,7 @@ class TaskReporter:
         try:
             history = self.task_graph.get_stage_history()
             payload = {"history": history}
-            requests.post(
+            self._session.post(
                 f"{self.base_url}/api/push_history",
                 json=payload,
                 timeout=self._push_timeout(),
