@@ -84,6 +84,7 @@ templates_path = os.path.join(BASE_DIR, "templates")
 
 
 def load_config() -> dict:
+    """从 config.json 加载并校验前端配置，返回序列化后的字典。"""
     if not os.path.exists(CONFIG_PATH):
         raise FileNotFoundError(f"config file not found: {CONFIG_PATH}")
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -92,7 +93,7 @@ def load_config() -> dict:
 
 
 def save_config(config: dict) -> bool:
-    """Save configuration to JSON file."""
+    """将前端配置保存到 config.json，返回是否成功。"""
     try:
         with open(CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=4, ensure_ascii=False)
@@ -103,11 +104,13 @@ def save_config(config: dict) -> bool:
 
 
 def cal_interval(refresh_interval: int) -> float:
+    """将毫秒刷新间隔换算为秒，并限制在 [1, 60] 范围内。"""
     return max(1.0, min(float(refresh_interval) / 1000.0, 60.0))
 
 
 class TaskWebServer:
     def __init__(self, host="0.0.0.0", port=5000, log_level="info"):
+        """初始化 FastAPI 应用、数据存储、版本计数器及路由。"""
         self.app = FastAPI()
         self.host = host
         self.port = port
@@ -150,11 +153,13 @@ class TaskWebServer:
         self._setup_routes()
 
     def _setup_routes(self):
+        """注册所有 HTTP 路由（页面入口、pull 接口、push 接口）。"""
         app = self.app
         templates = self.templates
 
         @app.get("/", response_class=HTMLResponse)
         def index(request: Request):
+            """返回主页面 HTML。"""
             return templates.TemplateResponse(request=request, name="index.html")
 
         # ---- 接收接口 ----
@@ -166,6 +171,7 @@ class TaskWebServer:
 
         @app.get("/api/pull_structure")
         def pull_structure(known_rev: int = -1):
+            """返回图结构数据；若版本未变则返回 data=null。"""
             rev = self._store_revs["structure"]
             if known_rev == rev:
                 return {"rev": rev, "data": None}
@@ -173,6 +179,7 @@ class TaskWebServer:
 
         @app.get("/api/pull_status")
         def pull_status(known_rev: int = -1):
+            """返回各节点运行状态；若版本未变则返回 data=null。"""
             rev = self._store_revs["status"]
             if known_rev == rev:
                 return {"rev": rev, "data": None}
@@ -180,6 +187,7 @@ class TaskWebServer:
 
         @app.get("/api/pull_errors")
         def pull_errors(offset: int = 0):
+            """返回错误日志的增量部分（offset 之后的条目）及当前总条数。"""
             store = self.error_store
             total = len(store)
             if offset > total:
@@ -188,6 +196,7 @@ class TaskWebServer:
 
         @app.get("/api/pull_topology")
         def pull_topology(known_rev: int = -1):
+            """返回图拓扑信息；若版本未变则返回 data=null。"""
             rev = self._store_revs["topology"]
             if known_rev == rev:
                 return {"rev": rev, "data": None}
@@ -195,6 +204,7 @@ class TaskWebServer:
 
         @app.get("/api/pull_summary")
         def pull_summary(known_rev: int = -1):
+            """返回全局任务汇总数据；若版本未变则返回 data=null。"""
             rev = self._store_revs["summary"]
             if known_rev == rev:
                 return {"rev": rev, "data": None}
@@ -202,6 +212,7 @@ class TaskWebServer:
 
         @app.get("/api/pull_history")
         def pull_history(known_rev: int = -1):
+            """返回节点历史走势数据；若版本未变则返回 data=null。"""
             rev = self._store_revs["history"]
             if known_rev == rev:
                 return {"rev": rev, "data": None}
@@ -209,14 +220,17 @@ class TaskWebServer:
 
         @app.get("/api/pull_interval")
         def pull_interval():
+            """返回当前轮询间隔（秒）。"""
             return {"interval": self.report_interval}
 
         @app.get("/api/pull_history_limit")
         def pull_history_limit():
+            """返回历史记录最大保留条数。"""
             return {"historyLimit": self.history_limit}
 
         @app.get("/api/pull_task_injection")
         def pull_task_injection():
+            """取出并清空待执行的前端注入任务列表。"""
             with self._task_injection_lock:
                 tasks_to_send = self.injection_tasks.copy()
                 self.injection_tasks.clear()
@@ -241,18 +255,21 @@ class TaskWebServer:
 
         @app.post("/api/push_structure")
         async def push_structure(data: StructureModel):
+            """更新图结构数据并递增版本号。"""
             self.structure_store = data.items
             self._store_revs["structure"] += 1
             return {"ok": True}
 
         @app.post("/api/push_status")
         async def push_status(data: StatusModel):
+            """更新各节点运行状态并递增版本号。"""
             self.status_store = data.status
             self._store_revs["status"] += 1
             return {"ok": True}
 
         @app.post("/api/push_errors_meta")
         async def push_errors_meta(data: ErrorsMetaModel):
+            """通过 JSONL 文件路径+版本号加载错误日志；命中缓存则跳过读取。"""
             # 命中缓存：path 和 rev 都没变 -> 不重新读取
             if (
                 data.jsonl_path == self._errors_meta_path
@@ -282,6 +299,7 @@ class TaskWebServer:
 
         @app.post("/api/push_errors_content")
         async def push_errors_content(data: ErrorsContentModel):
+            """直接接收错误日志列表并存储；命中缓存则跳过。"""
             # 命中缓存：path 和 rev 都没变 -> 不重新读取
             if (
                 data.jsonl_path == self._errors_meta_path
@@ -296,24 +314,28 @@ class TaskWebServer:
 
         @app.post("/api/push_topology")
         async def push_topology(data: TopologyModel):
+            """更新图拓扑信息并递增版本号。"""
             self.topology_store = data.topology
             self._store_revs["topology"] += 1
             return {"ok": True}
 
         @app.post("/api/push_summary")
         async def push_summary(data: SummaryModel):
+            """更新全局任务汇总数据并递增版本号。"""
             self.summary_store = data.summary
             self._store_revs["summary"] += 1
             return {"ok": True}
 
         @app.post("/api/push_history")
         async def push_history(data: HistoryModel):
+            """更新节点历史走势数据并递增版本号。"""
             self.history_store = data.history
             self._store_revs["history"] += 1
             return {"ok": True}
 
         @app.post("/api/push_injection_tasks")
         async def push_injection_tasks(data: TaskInjectionModel):
+            """将前端提交的注入任务追加到待执行队列。"""
             try:
                 with self._task_injection_lock:
                     self.injection_tasks.append(data.model_dump(mode="json"))
@@ -324,10 +346,12 @@ class TaskWebServer:
                 )
 
     def start_server(self):
+        """启动 uvicorn 服务，阻塞直到服务停止。"""
         uvicorn.run(self.app, host=self.host, port=self.port, log_level=self.log_level)
 
 
 def parse_args():
+    """解析命令行参数：--host、--port、--log-level。"""
     parser = argparse.ArgumentParser(
         prog="task-web",
         description="CelestialFlow Task Web Monitor Server",
@@ -358,6 +382,7 @@ def parse_args():
 
 
 def main_entry():
+    """CLI 入口：解析参数并启动 TaskWebServer。"""
     args = parse_args()
 
     server = TaskWebServer(
