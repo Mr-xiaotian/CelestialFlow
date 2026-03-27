@@ -1,6 +1,6 @@
 # persistence/util_jsonl.py
-import json
 import ast
+import json
 from collections import defaultdict
 from typing import Any, Optional
 

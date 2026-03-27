@@ -1,7 +1,7 @@
 # graph/util_analysis.py
-import networkx as nx
-from networkx import is_directed_acyclic_graph
 from typing import Any
+
+import networkx as nx
 
 
 # ======== (图论分析) ========
@@ -15,11 +15,11 @@ def format_networkx_graph(structure_graph: list[dict[str, Any]]) -> nx.DiGraph:
     G = nx.DiGraph()
 
     def add_node_and_edges(node: dict[str, Any]):
-        node_id = f'{node["name"]}[{node["func_name"]}]'
+        node_id = f"{node['name']}[{node['func_name']}]"
         G.add_node(node_id, **{"mode": node.get("stage_mode")})
 
         for child in node.get("next_stages", []):
-            child_id = f'{child["name"]}[{child["func_name"]}]'
+            child_id = f"{child['name']}[{child['func_name']}]"
             G.add_edge(node_id, child_id)
             # 递归添加子节点
             add_node_and_edges(child)

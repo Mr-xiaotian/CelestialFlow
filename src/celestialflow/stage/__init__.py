@@ -2,11 +2,11 @@
 from .core_executor import TaskExecutor
 from .core_stage import TaskStage
 from .core_stages import (
-    TaskSplitter,
-    TaskRedisTransport,
-    TaskRedisSource,
     TaskRedisAck,
+    TaskRedisSource,
+    TaskRedisTransport,
     TaskRouter,
+    TaskSplitter,
 )
 
 __all__ = [

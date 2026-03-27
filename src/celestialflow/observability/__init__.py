@@ -1,5 +1,5 @@
 # observability/__init__.py
-from .core_report import TaskReporter, NullTaskReporter
+from .core_report import NullTaskReporter, TaskReporter
 
 __all__ = [
     "TaskReporter",

@@ -1,12 +1,13 @@
 # stage/core_stages.py
 import json
 import time
-import redis
-from typing import Any
 from multiprocessing import Value as MPValue
+from typing import Any
+
+import redis
 
 from ..runtime import TaskEnvelope
-from ..runtime.util_errors import RemoteWorkerError, InvalidOptionError
+from ..runtime.util_errors import InvalidOptionError, RemoteWorkerError
 from .core_stage import TaskStage
 
 

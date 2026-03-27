@@ -1,7 +1,7 @@
 # runtime/util_types.py
 from enum import IntEnum
-from threading import Lock
 from multiprocessing import Value as MPValue
+from threading import Lock
 
 from celestialtree import NodeLabelStyle
 

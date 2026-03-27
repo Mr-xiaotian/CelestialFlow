@@ -3,14 +3,16 @@ from __future__ import annotations
 import os
 import time
 from multiprocessing import (
-    Process,
-    Queue as MPQueue,
-    SimpleQueue,
-    Pipe,
     Manager,
+    Pipe,
+    Process,
+    SimpleQueue,
     set_start_method,
 )
-from typing import Callable, Any
+from multiprocessing import (
+    Queue as MPQueue,
+)
+from typing import Any, Callable
 
 from bench_utils import summarize
 

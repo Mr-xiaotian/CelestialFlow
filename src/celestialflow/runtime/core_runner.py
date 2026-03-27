@@ -8,7 +8,7 @@ from threading import Event, Lock
 from typing import TYPE_CHECKING, Any
 
 from . import TaskEnvelope, TaskProgress
-from .util_types import TerminationSignal, TerminationIdPool
+from .util_types import TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
     from ..stage.core_executor import TaskExecutor

@@ -1,7 +1,8 @@
-import requests
-import time
 import statistics
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import requests
 
 # 测试配置
 TEST_URL = "https://httpbin.org/get"  # 使用httpbin作为测试目标
@@ -93,15 +94,15 @@ def print_stats(label, times):
         print(f"{label}: no successful requests")
         return
     print(f"{label} ({len(times)} requests):")
-    print(f"  mean:   {statistics.mean(times)*1000:.1f} ms")
-    print(f"  median: {statistics.median(times)*1000:.1f} ms")
+    print(f"  mean:   {statistics.mean(times) * 1000:.1f} ms")
+    print(f"  median: {statistics.median(times) * 1000:.1f} ms")
     print(
-        f"  stdev:  {statistics.stdev(times)*1000:.1f} ms"
+        f"  stdev:  {statistics.stdev(times) * 1000:.1f} ms"
         if len(times) > 1
         else "  stdev:  n/a"
     )
-    print(f"  min:    {min(times)*1000:.1f} ms")
-    print(f"  max:    {max(times)*1000:.1f} ms")
+    print(f"  min:    {min(times) * 1000:.1f} ms")
+    print(f"  max:    {max(times) * 1000:.1f} ms")
 
 
 if __name__ == "__main__":

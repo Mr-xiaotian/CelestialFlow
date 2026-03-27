@@ -1,7 +1,7 @@
 import pytest
+from test_utils import fibonacci, fibonacci_async
 
 from celestialflow import TaskExecutor
-from test_utils import fibonacci, fibonacci_async
 
 
 def test_fibonacci_serial():

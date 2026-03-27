@@ -1,21 +1,24 @@
-import pytest, logging, os
+import logging
+import os
 
-from celestialflow import (
-    TaskStage,
-    TaskGraph,
-    TaskChain,
-    TaskLoop,
-    TaskCross,
-    TaskComplete,
-    TaskWheel,
-    TaskGrid,
-)
+import pytest
 from test_utils import (
-    add_one_sleep,
-    square,
     add_5,
     add_10,
     add_15,
+    add_one_sleep,
+    square,
+)
+
+from celestialflow import (
+    TaskChain,
+    TaskComplete,
+    TaskCross,
+    TaskGraph,
+    TaskGrid,
+    TaskLoop,
+    TaskStage,
+    TaskWheel,
 )
 
 report_host = os.getenv("REPORT_HOST")

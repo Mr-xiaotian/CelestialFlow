@@ -67,7 +67,7 @@ class TaskCross(TaskGraph):
                 stage.set_graph_context(
                     next_stages=next_layer,
                     stage_mode="process",
-                    stage_name=f"Layer{i+1}-{index+1}",
+                    stage_name=f"Layer{i + 1}-{index + 1}",
                 )
         super().__init__(
             root_stages=layers[0], schedule_mode=schedule_mode, log_level=log_level
@@ -112,7 +112,7 @@ class TaskGrid(TaskGraph):
                     nexts.append(grid[i + 1][j])  # down
                 if j + 1 < cols:
                     nexts.append(grid[i][j + 1])  # right
-                curr.set_graph_context(nexts, "process", f"Grid-{i+1}-{j+1}")
+                curr.set_graph_context(nexts, "process", f"Grid-{i + 1}-{j + 1}")
         super().__init__(
             root_stages=[grid[0][0]], schedule_mode=schedule_mode, log_level=log_level
         )  # 起点为左上角
@@ -175,7 +175,7 @@ class TaskWheel(TaskGraph):
         # 环相连（成闭环）
         for i, node in enumerate(ring):
             next_stage = ring[(i + 1) % len(ring)]
-            node.set_graph_context([next_stage], "process", f"Ring-{i+1}")
+            node.set_graph_context([next_stage], "process", f"Ring-{i + 1}")
         super().__init__(root_stages=[center], log_level=log_level)
 
     def start_wheel(

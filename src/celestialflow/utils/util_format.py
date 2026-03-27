@@ -1,6 +1,6 @@
 # utils/util_format.py
-from itertools import zip_longest
 from datetime import datetime
+from itertools import zip_longest
 from typing import Any
 
 

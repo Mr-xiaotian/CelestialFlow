@@ -1,13 +1,13 @@
 # runtime/util_factories.py
-from asyncio import Queue as AsyncQueue
-from queue import Queue as ThreadQueue
-from multiprocessing import Value as MPValue
 from _thread import LockType
+from asyncio import Queue as AsyncQueue
+from multiprocessing import Value as MPValue
+from queue import Queue as ThreadQueue
 from threading import Lock
 from typing import TYPE_CHECKING
 
-from .util_types import ValueWrapper
 from .core_queue import TaskInQueue, TaskOutQueue
+from .util_types import ValueWrapper
 
 if TYPE_CHECKING:
     from ..stage import TaskExecutor

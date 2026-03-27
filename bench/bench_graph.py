@@ -1,9 +1,10 @@
 import os
 import random
-from dotenv import load_dotenv
 from time import sleep
 
-from celestialflow import TaskStage, TaskGraph, benchmark_graph
+from dotenv import load_dotenv
+
+from celestialflow import TaskGraph, TaskStage, benchmark_graph
 
 load_dotenv()
 report_host = os.getenv("REPORT_HOST")

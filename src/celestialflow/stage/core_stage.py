@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from multiprocessing import Value as MPValue
 from multiprocessing import Queue as MPQueue
+from multiprocessing import Value as MPValue
 
-from ..runtime import TaskInQueue, TaskOutQueue, TaskMetrics
-from ..runtime.util_errors import ExecutionModeError, StageModeError, PickleError
-from ..runtime.util_types import StageStatus, NullPrevStage
+from ..runtime import TaskInQueue, TaskMetrics, TaskOutQueue
+from ..runtime.util_errors import ExecutionModeError, PickleError, StageModeError
+from ..runtime.util_types import NullPrevStage, StageStatus
 from ..utils.util_debug import find_unpickleable
 from .core_executor import TaskExecutor
 
@@ -113,7 +113,7 @@ class TaskStage(TaskExecutor):
 
         :param prev_stage: 前置节点
         """
-        from .core_stages import TaskSplitter, TaskRouter
+        from .core_stages import TaskRouter, TaskSplitter
 
         if prev_stage in self.prev_stages:
             return

@@ -4,13 +4,15 @@ import os
 import struct
 import time
 from multiprocessing import (
+    Lock,
     Process,
-    Queue as MPQueue,
     Semaphore,
     Value,
-    Lock,
-    shared_memory,
     set_start_method,
+    shared_memory,
+)
+from multiprocessing import (
+    Queue as MPQueue,
 )
 from typing import Any, Iterable
 

@@ -1,27 +1,31 @@
-import pytest, logging, random, os
-import dill
+import logging
+import os
+import random
 
-from celestialflow import (
-    TaskStage,
-    TaskGraph,
-    TaskChain,
-    TaskSplitter,
-    TaskRedisTransport,
-    TaskRedisSource,
-    TaskRedisAck,
-    TaskRouter,
-)
+import dill
+import pytest
 from test_utils import (
-    no_op,
-    sleep_1,
+    RouterWrapper,
+    download_sleep,
+    download_to_file,
     fibonacci,
-    sum_int,
     generate_urls_sleep,
     log_urls_sleep,
-    download_sleep,
+    no_op,
     parse_sleep,
-    download_to_file,
-    RouterWrapper,
+    sleep_1,
+    sum_int,
+)
+
+from celestialflow import (
+    TaskChain,
+    TaskGraph,
+    TaskRedisAck,
+    TaskRedisSource,
+    TaskRedisTransport,
+    TaskRouter,
+    TaskSplitter,
+    TaskStage,
 )
 
 report_host = os.getenv("REPORT_HOST")

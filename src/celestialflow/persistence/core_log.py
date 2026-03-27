@@ -71,7 +71,7 @@ class LogSinker(BaseSinker):
 
     # ==== graph ====
     def start_graph(self, structure_list: list[str]) -> None:
-        self._sink("INFO", f"Starting TaskGraph. Graph structure:")
+        self._sink("INFO", "Starting TaskGraph. Graph structure:")
         for line in structure_list:
             self._sink("INFO", line)
 

@@ -1,18 +1,19 @@
 # web/server.py
-import anyio
-import os
-import json
-import threading
-import uvicorn
 import argparse
+import json
+import os
+import threading
+from datetime import datetime
+from functools import partial
+from typing import Any, Optional
+
+import anyio
+import uvicorn
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from functools import partial
 from pydantic import BaseModel
-from typing import Any, Optional
-from datetime import datetime
 
 from ..persistence.util_jsonl import load_jsonl_logs
 

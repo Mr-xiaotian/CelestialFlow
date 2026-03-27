@@ -1,13 +1,13 @@
 # runtime/core_queue.py
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from multiprocessing import Queue as MPQueue
 from asyncio import Queue as AsyncQueue
+from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue
+from typing import TYPE_CHECKING
 
 from .core_envelope import TaskEnvelope
-from .util_types import TerminationSignal, TerminationIdPool
+from .util_types import TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
     from ..persistence import LogSinker

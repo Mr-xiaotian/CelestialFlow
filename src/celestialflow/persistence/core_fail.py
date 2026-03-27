@@ -1,7 +1,7 @@
 # persistence/core_fail.py
 import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 from ..utils.util_format import format_repr
 from .core_base import BaseListener, BaseSinker

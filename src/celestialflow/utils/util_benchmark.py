@@ -1,8 +1,8 @@
 # utils/util_benchmark.py
 from __future__ import annotations
 
-import time
 import pprint
+import time
 from collections.abc import Iterable
 from typing import Any
 

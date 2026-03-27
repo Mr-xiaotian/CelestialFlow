@@ -1,9 +1,11 @@
-import time, os
-import queue
-import redis
-import threading
 import multiprocessing
+import os
+import queue
+import threading
+import time
 from multiprocessing import Manager, Process, Value
+
+import redis
 from dotenv import load_dotenv
 
 N = 10000
@@ -155,7 +157,7 @@ def test_redis_multithread_plain(r, num_threads=10):
 
     def writer(tid, base):
         for i in range(count_per_thread):
-            r.set(f"mt_key{tid}_{i+base}", i)
+            r.set(f"mt_key{tid}_{i + base}", i)
 
     t0 = time.perf_counter()
     for t_id in range(num_threads):
@@ -172,7 +174,7 @@ def test_redis_multithread_plain(r, num_threads=10):
 
     def reader(tid, base):
         for i in range(count_per_thread):
-            _ = r.get(f"mt_key{tid}_{i+base}")
+            _ = r.get(f"mt_key{tid}_{i + base}")
 
     for t_id in range(num_threads):
         base = t_id * count_per_thread

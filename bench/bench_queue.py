@@ -1,8 +1,10 @@
-import time, os
-import redis
-from queue import Queue as ThreadQueue
-from multiprocessing import Queue as MPQueue
+import os
+import time
 from multiprocessing import Manager
+from multiprocessing import Queue as MPQueue
+from queue import Queue as ThreadQueue
+
+import redis
 from dotenv import load_dotenv
 
 load_dotenv()

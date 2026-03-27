@@ -1,5 +1,5 @@
-import time
 import asyncio
+import time
 
 from celestialflow import TaskExecutor, benchmark_executor
 

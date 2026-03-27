@@ -6,7 +6,7 @@ from queue import Empty
 from threading import Thread
 
 from ..runtime.util_queue import cleanup_mpqueue
-from ..runtime.util_types import TerminationSignal, TERMINATION_SIGNAL
+from ..runtime.util_types import TERMINATION_SIGNAL, TerminationSignal
 
 
 class BaseListener:

@@ -1,40 +1,44 @@
 # graph/core_graph.py
+import multiprocessing
 import time
 import warnings
-import multiprocessing
 from collections import defaultdict, deque
 from multiprocessing import Queue as MPQueue
 
 from celestialtree import (
     Client as CelestialTreeClient,
+)
+from celestialtree import (
     NullClient as NullCelestialTreeClient,
+)
+from celestialtree import (
     format_descendants_forest,
     format_provenance_forest,
 )
+from networkx import is_directed_acyclic_graph
 
-from ..runtime import TaskInQueue, TaskOutQueue, TaskEnvelope
+from ..observability import NullTaskReporter, TaskReporter
+from ..persistence import FailListener, FailSinker, LogListener, LogSinker
+from ..persistence.util_jsonl import load_task_by_error, load_task_by_stage
+from ..runtime import TaskEnvelope, TaskInQueue, TaskOutQueue
+from ..runtime.util_errors import UnconsumedError
 from ..runtime.util_estimators import (
     calc_elapsed,
-    calc_remaining,
     calc_global_remain_equal_pred,
+    calc_remaining,
 )
-from ..runtime.util_errors import UnconsumedError
 from ..runtime.util_types import (
+    NULL_PREV_STAGE,
+    STAGE_STYLE,
     StageStatus,
     TerminationSignal,
-    STAGE_STYLE,
-    NULL_PREV_STAGE,
 )
 from ..stage import TaskStage
-from ..observability import TaskReporter, NullTaskReporter
-from ..persistence import FailListener, FailSinker, LogListener, LogSinker
-from ..persistence.util_jsonl import load_task_by_stage, load_task_by_error
 from ..utils.util_collections import cluster_by_value_sorted
 from ..utils.util_format import format_avg_time
 from .util_analysis import (
-    format_networkx_graph,
     compute_node_levels,
-    is_directed_acyclic_graph,
+    format_networkx_graph,
 )
 from .util_serialize import build_structure_graph, format_structure_list_from_graph
 

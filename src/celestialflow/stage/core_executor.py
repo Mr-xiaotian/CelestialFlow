@@ -1,26 +1,29 @@
 # stage/core_executor.py
 from __future__ import annotations
-from typing import Any, Callable
-from multiprocessing import Queue as MPQueue
 
-import asyncio, time
+import asyncio
+import time
 import warnings
 from collections import defaultdict
 from collections.abc import Iterable
+from multiprocessing import Queue as MPQueue
+from typing import Any, Callable
 
 from celestialtree import (
     Client as CelestialTreeClient,
+)
+from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
 from ..persistence import FailListener, FailSinker, LogListener, LogSinker
 from ..runtime import (
-    TaskEnvelope,
-    TaskMetrics,
-    TaskProgress,
     NullTaskProgress,
+    TaskEnvelope,
     TaskInQueue,
+    TaskMetrics,
     TaskOutQueue,
+    TaskProgress,
     TaskRunner,
 )
 from ..runtime.util_errors import ExecutionModeError

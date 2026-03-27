@@ -1,5 +1,5 @@
 # graph/util_serialize.py
-from typing import TYPE_CHECKING, Dict, Any, List, Set
+from typing import TYPE_CHECKING, Any, Dict, List, Set
 
 if TYPE_CHECKING:
     from ..stage import TaskStage
@@ -64,7 +64,7 @@ def format_structure_list_from_graph(root_roots: List[Dict] = None) -> List[str]
         S = node.get("stage_mode", "?")  # S
         E = node.get("execution_mode", "?")  # E
 
-        return f"{N}::{F} " f"(S:{S}, E:{E})" f"{visited_note}"
+        return f"{N}::{F} (S:{S}, E:{E}){visited_note}"
 
     # 只渲染“子节点”（有父节点）——保证一定画连接符
     def build_child_lines(node: Dict, prefix: str, is_last: bool) -> List[str]:

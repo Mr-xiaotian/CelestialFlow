@@ -2,11 +2,11 @@
 from .core_graph import TaskGraph
 from .core_structure import (
     TaskChain,
-    TaskLoop,
-    TaskCross,
     TaskComplete,
-    TaskWheel,
+    TaskCross,
     TaskGrid,
+    TaskLoop,
+    TaskWheel,
 )
 
 __all__ = [
