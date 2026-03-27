@@ -28,6 +28,11 @@ function setupEventListeners() {
     document
         .getElementById("submit-btn")
         .addEventListener("click", handleSubmit);
+    document.getElementById("node-list").addEventListener("click", (e) => {
+        const item = e.target.closest(".node-item[data-node]");
+        if (item)
+            selectNode(item.dataset.node);
+    });
 }
 /**
  * 渲染任务注入页面的节点列表
@@ -58,18 +63,18 @@ function renderNodeList(searchTerm = "") {
             badgeText = "已停止";
         }
         // 禁止点击已停止的节点
-        const clickable = status === 2 ? "" : `onclick="selectNode('${nodeName}')"`;
+        const dataAttr = status !== 2 ? `data-node="${escapeHtml(nodeName)}"` : "";
         const disabledClass = status === 2 ? "disabled-node" : "";
         return `
-        <div class="node-item ${disabledClass}" ${clickable}>
+        <div class="node-item ${disabledClass}" ${dataAttr}>
           <div class="node-info">
-            <div class="node-name">${nodeName}</div>
+            <div class="node-name">${escapeHtml(nodeName)}</div>
           </div>
           <span class="badge ${badgeClass}">${badgeText}</span>
         </div>`;
     })
         .join("");
-    document.getElementById("node-list").innerHTML = nodeListHTML;
+    nodeListEl.innerHTML = nodeListHTML;
 }
 /**
  * 选择或取消选择节点
