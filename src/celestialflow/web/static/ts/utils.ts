@@ -15,7 +15,7 @@ function renderLocalTime(timestamp: number) {
  * @returns {string} 格式化后的字符串或 HTML
  */
 function formatLargeNumber(n: number): string {
-  if (n < 10000) return `${n}`;
+  if (n < 10_000_000) return `${n}`;
   const exp = Math.floor(Math.log10(n));
   const coeff = (n / Math.pow(10, exp)).toFixed(2);
   return `~${coeff}×10<sup>${exp}</sup>`;

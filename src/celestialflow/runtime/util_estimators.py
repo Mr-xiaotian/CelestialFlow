@@ -125,7 +125,7 @@ def calc_global_remain_equal_pred(
                 total_v += obs_each * scale.get(u, 1.0)
 
         scale[v] = total_v / max(1.0, proc_v)  # 下游放大系数
-        expect_pend_v = max(0.0, total_v - proc_v)  # 理论上expect_pend_v >= pend_v
+        expect_pend_v = max(pend_v, total_v - proc_v)  # 理论上expect_pend_v >= pend_v
 
         # 时间估算：需要 avg time（秒/任务）
         expected_pending_map[v] = calc_remaining(proc_v, expect_pend_v, elapsed_v)
