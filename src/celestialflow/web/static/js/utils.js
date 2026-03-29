@@ -8,14 +8,18 @@ function renderLocalTime(timestamp) {
     return new Date(timestamp * 1000).toLocaleString();
 }
 /**
- * 将大数格式化为模糊科学计数法 HTML，小数不处理
- * 例如：1234567890 → "~1.23×10<sup>9</sup>"
+ * 将大数格式化为模糊科学计数法 HTML
+ * 小数用逗号3位分割，如 1,000 或 10,000,000
+ * 大数转为科学计数法：~1.23×10<sup>9</sup>
  * @param {number} n - 数值
  * @returns {string} 格式化后的字符串或 HTML
  */
 function formatLargeNumber(n) {
-    if (n < 10000000)
-        return `${n}`;
+    // 处理小于1000万的数：使用逗号分隔
+    if (n < 10000000) {
+        return n.toLocaleString('en-US');
+    }
+    // 大数转为科学计数法
     const exp = Math.floor(Math.log10(n));
     const coeff = (n / Math.pow(10, exp)).toFixed(2);
     return `~${coeff}×10<sup>${exp}</sup>`;
