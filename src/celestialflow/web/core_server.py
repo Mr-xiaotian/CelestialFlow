@@ -1,6 +1,5 @@
-# web/server.py
+# web/core_server.py
 import argparse
-import json
 import os
 import threading
 from datetime import datetime
@@ -16,6 +15,9 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from ..persistence.util_jsonl import load_jsonl_logs
+from .util_cal import cal_interval
+from .util_config import load_config, save_config
+from .util_error import filter_errors, normalize_errors_query, paginate_errors
 
 
 class StructureModel(BaseModel):
@@ -84,31 +86,6 @@ static_path = os.path.join(BASE_DIR, "static")
 templates_path = os.path.join(BASE_DIR, "templates")
 
 
-def load_config() -> dict:
-    """从 config.json 加载并校验前端配置，返回序列化后的字典。"""
-    if not os.path.exists(CONFIG_PATH):
-        raise FileNotFoundError(f"config file not found: {CONFIG_PATH}")
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return WebConfigModel.model_validate(data).model_dump()
-
-
-def save_config(config: dict) -> bool:
-    """将前端配置保存到 config.json，返回是否成功。"""
-    try:
-        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=4, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Error: Failed to save config: {e}")
-        return False
-
-
-def cal_interval(refresh_interval: int) -> float:
-    """将毫秒刷新间隔换算为秒，并限制在 [1, 60] 范围内。"""
-    return max(1.0, min(float(refresh_interval) / 1000.0, 60.0))
-
-
 class TaskWebServer:
     def __init__(self, host="0.0.0.0", port=5000, log_level="info"):
         """初始化 FastAPI 应用、数据存储、版本计数器及路由。"""
@@ -131,6 +108,7 @@ class TaskWebServer:
         self.history_store = {}
         self.injection_tasks = []  # 存储前端注入任务
 
+        # 用于存储任务注入锁
         self._task_injection_lock = threading.Lock()
 
         self._errors_meta_rev: Optional[int] = None
@@ -147,7 +125,7 @@ class TaskWebServer:
         }
 
         # 加载配置
-        self.config = load_config()
+        self.config = WebConfigModel.model_validate(load_config(CONFIG_PATH)).model_dump()
         self.report_interval = cal_interval(self.config["refreshInterval"])
         self.history_limit = self.config.get("historyLimit", 20)
         self._config_lock = threading.Lock()
@@ -197,25 +175,22 @@ class TaskWebServer:
         ):
             """返回错误日志分页数据；若版本未变则返回 data=null。"""
             rev = self._store_revs["errors"]
-            normalized_page_size = max(1, min(int(page_size), 200))
-            normalized_page = max(1, int(page))
-            normalized_node = node.strip()
-            normalized_keyword = keyword.strip().lower()
-
-            filtered: list[dict[str, Any]] = []
-            for item in self.error_store:
-                stage = str(item.get("stage", ""))
-                if normalized_node and stage != normalized_node:
-                    continue
-                if normalized_keyword:
-                    error_repr = str(item.get("error_repr", "")).lower()
-                    task_repr = str(item.get("task_repr", "")).lower()
-                    if normalized_keyword not in error_repr and normalized_keyword not in task_repr:
-                        continue
-                filtered.append(item)
-
-            total = len(filtered)
-            total_pages = max(1, (total + normalized_page_size - 1) // normalized_page_size)
+            (
+                normalized_page,
+                normalized_page_size,
+                normalized_node,
+                normalized_keyword,
+            ) = normalize_errors_query(page, page_size, node, keyword)
+            filtered = filter_errors(
+                self.error_store,
+                normalized_node,
+                normalized_keyword,
+            )
+            total, total_pages, page_items = paginate_errors(
+                filtered,
+                normalized_page,
+                normalized_page_size,
+            )
             normalized_page = min(normalized_page, total_pages)
 
             if known_rev == rev:
@@ -228,16 +203,13 @@ class TaskWebServer:
                     "data": None,
                 }
 
-            sorted_items = sorted(filtered, key=lambda item: item.get("ts", 0), reverse=True)
-            start_index = (normalized_page - 1) * normalized_page_size
-            end_index = start_index + normalized_page_size
             return {
                 "rev": rev,
                 "page": normalized_page,
                 "page_size": normalized_page_size,
                 "total": total,
                 "total_pages": total_pages,
-                "data": sorted_items[start_index:end_index],
+                "data": page_items,
             }
 
         @app.get("/api/pull_topology")
@@ -290,7 +262,7 @@ class TaskWebServer:
                 self.config = data.model_dump()
                 self.report_interval = cal_interval(self.config["refreshInterval"])
                 self.history_limit = self.config.get("historyLimit", 20)
-                success = save_config(self.config)
+                success = save_config(self.config, CONFIG_PATH)
                 if success:
                     return {"ok": True}
                 else:

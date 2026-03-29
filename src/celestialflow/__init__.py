@@ -26,7 +26,7 @@ from .stage import (
 )
 from .utils.util_benchmark import benchmark_executor, benchmark_graph
 from .utils.util_format import format_table
-from .web.server import TaskWebServer
+from .web.core_server import TaskWebServer
 
 __all__ = [
     "TaskGraph",
