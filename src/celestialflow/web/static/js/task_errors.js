@@ -1,28 +1,47 @@
 let errors = [];
-let errorsOffset = 0;
 let currentPage = 1;
 const pageSize = 10;
+let totalPages = 1;
+let errorsRev = -1;
+let lastQueryKey = "";
+let errorsRequestSeq = 0;
 const searchInput = document.getElementById("error-search");
 const nodeFilter = document.getElementById("node-filter");
 const errorsTableBody = document.querySelector("#errors-table tbody");
 const paginationContainer = document.getElementById("pager-container");
-async function loadErrors() {
+function buildErrorsQueryKey(page, pageSizeValue, node, keyword) {
+    return `${page}|${pageSizeValue}|${node}|${keyword}`;
+}
+async function loadErrors(forceReload = false) {
     try {
-        const res = await fetch(`/api/pull_errors?offset=${errorsOffset}`);
+        const node = nodeFilter.value.trim();
+        const keyword = (searchInput.value || "").trim();
+        const queryKey = buildErrorsQueryKey(currentPage, pageSize, node, keyword.toLowerCase());
+        const knownRev = forceReload || queryKey !== lastQueryKey ? -1 : errorsRev;
+        const requestSeq = ++errorsRequestSeq;
+        const params = new URLSearchParams({
+            known_rev: String(knownRev),
+            page: String(currentPage),
+            page_size: String(pageSize),
+            node,
+            keyword,
+        });
+        const res = await fetch(`/api/pull_errors?${params.toString()}`);
+        if (!res.ok)
+            return false;
         const data = await res.json();
-        const newItems = data.items;
-        if (data.total < errorsOffset) {
-            // server 重启，error_store 已清空，全量重新同步
-            errors = newItems;
-            errorsOffset = data.total;
-            return newItems.length > 0;
+        if (requestSeq !== errorsRequestSeq)
+            return false;
+        currentPage = Number(data.page || currentPage);
+        totalPages = Number(data.total_pages || 1);
+        lastQueryKey = queryKey;
+        if (data.data === null || data.data === undefined) {
+            return false;
         }
-        if (newItems.length > 0) {
-            errors = errors.concat(newItems);
-            errorsOffset = data.total;
-            return true;
-        }
-        return false;
+        errors = Array.isArray(data.data) ? data.data : [];
+        const changed = errorsRev !== Number(data.rev);
+        errorsRev = Number(data.rev);
+        return changed || forceReload;
     }
     catch (e) {
         console.error("错误日志加载失败", e);
@@ -30,21 +49,7 @@ async function loadErrors() {
     }
 }
 function renderErrors() {
-    const filter = nodeFilter.value.trim();
-    const keyword = (searchInput.value || "").trim().toLowerCase();
-    const filtered = errors.filter(e => {
-        const matchNode = !filter || e.stage === filter;
-        const matchKeyword = !keyword ||
-            (e.error_repr && e.error_repr.toLowerCase().includes(keyword)) ||
-            (e.task_repr && e.task_repr.toLowerCase().includes(keyword));
-        return matchNode && matchKeyword;
-    });
-    const sortedByTime = [...filtered].sort((a, b) => b.ts - a.ts);
-    const totalPages = Math.ceil(sortedByTime.length / pageSize);
-    // 处理边界（例如当前页大于最大页）
-    currentPage = Math.min(currentPage, totalPages || 1);
-    const startIndex = (currentPage - 1) * pageSize;
-    const pageItems = sortedByTime.slice(startIndex, startIndex + pageSize);
+    const pageItems = errors;
     errorsTableBody.innerHTML = "";
     if (!pageItems.length) {
         errorsTableBody.innerHTML = `<tr><td colspan="5" class="no-errors">没有错误记录</td></tr>`;
@@ -63,6 +68,14 @@ function renderErrors() {
         }
     }
     renderPaginationControls(totalPages);
+}
+async function goToErrorsPage(nextPage) {
+    const normalizedPage = Math.max(1, Math.min(totalPages || 1, nextPage));
+    if (normalizedPage === currentPage)
+        return;
+    currentPage = normalizedPage;
+    await loadErrors(true);
+    renderErrors();
 }
 function buildPageList(current, total) {
     // 想显示哪些关键页：首尾、当前、前后1-2页
@@ -85,7 +98,7 @@ function renderPaginationControls(totalPages) {
     prevBtn.textContent = "上一页";
     prevBtn.className = "pager-btn";
     prevBtn.disabled = currentPage === 1;
-    prevBtn.onclick = () => { currentPage = Math.max(1, currentPage - 1); renderErrors(); };
+    prevBtn.onclick = async () => { await goToErrorsPage(currentPage - 1); };
     // 数字页码区
     const pageBar = document.createElement("div");
     pageBar.className = "pager";
@@ -101,9 +114,8 @@ function renderPaginationControls(totalPages) {
         }
         else {
             span.className = "pager-link";
-            span.onclick = () => {
-                currentPage = p;
-                renderErrors();
+            span.onclick = async () => {
+                await goToErrorsPage(Number(p));
             };
         }
         pageBar.appendChild(span);
@@ -113,7 +125,7 @@ function renderPaginationControls(totalPages) {
     nextBtn.textContent = "下一页";
     nextBtn.className = "pager-btn";
     nextBtn.disabled = currentPage === totalPages;
-    nextBtn.onclick = () => { currentPage = Math.min(totalPages, currentPage + 1); renderErrors(); };
+    nextBtn.onclick = async () => { await goToErrorsPage(currentPage + 1); };
     paginationContainer.appendChild(prevBtn);
     paginationContainer.appendChild(pageBar);
     paginationContainer.appendChild(nextBtn);
@@ -135,11 +147,13 @@ function populateNodeFilter(statuses) {
         nodeFilter.value = "";
     }
 }
-searchInput.addEventListener("input", () => {
+searchInput.addEventListener("input", async () => {
     currentPage = 1;
+    await loadErrors(true);
     renderErrors();
 });
-nodeFilter.addEventListener("change", () => {
+nodeFilter.addEventListener("change", async () => {
     currentPage = 1; // 切换节点时回到第一页
+    await loadErrors(true);
     renderErrors();
 });

@@ -140,6 +140,7 @@ class TaskWebServer:
         self._store_revs: dict[str, int] = {
             "status": 0,
             "structure": 0,
+            "errors": 0,
             "topology": 0,
             "summary": 0,
             "history": 0,
@@ -187,13 +188,57 @@ class TaskWebServer:
             return {"rev": rev, "data": self.status_store}
 
         @app.get("/api/pull_errors")
-        def pull_errors(offset: int = 0):
-            """返回错误日志的增量部分（offset 之后的条目）及当前总条数。"""
-            store = self.error_store
-            total = len(store)
-            if offset > total:
-                offset = 0
-            return {"total": total, "items": store[offset:]}
+        def pull_errors(
+            known_rev: int = -1,
+            page: int = 1,
+            page_size: int = 10,
+            node: str = "",
+            keyword: str = "",
+        ):
+            """返回错误日志分页数据；若版本未变则返回 data=null。"""
+            rev = self._store_revs["errors"]
+            normalized_page_size = max(1, min(int(page_size), 200))
+            normalized_page = max(1, int(page))
+            normalized_node = node.strip()
+            normalized_keyword = keyword.strip().lower()
+
+            filtered: list[dict[str, Any]] = []
+            for item in self.error_store:
+                stage = str(item.get("stage", ""))
+                if normalized_node and stage != normalized_node:
+                    continue
+                if normalized_keyword:
+                    error_repr = str(item.get("error_repr", "")).lower()
+                    task_repr = str(item.get("task_repr", "")).lower()
+                    if normalized_keyword not in error_repr and normalized_keyword not in task_repr:
+                        continue
+                filtered.append(item)
+
+            total = len(filtered)
+            total_pages = max(1, (total + normalized_page_size - 1) // normalized_page_size)
+            normalized_page = min(normalized_page, total_pages)
+
+            if known_rev == rev:
+                return {
+                    "rev": rev,
+                    "page": normalized_page,
+                    "page_size": normalized_page_size,
+                    "total": total,
+                    "total_pages": total_pages,
+                    "data": None,
+                }
+
+            sorted_items = sorted(filtered, key=lambda item: item.get("ts", 0), reverse=True)
+            start_index = (normalized_page - 1) * normalized_page_size
+            end_index = start_index + normalized_page_size
+            return {
+                "rev": rev,
+                "page": normalized_page,
+                "page_size": normalized_page_size,
+                "total": total,
+                "total_pages": total_pages,
+                "data": sorted_items[start_index:end_index],
+            }
 
         @app.get("/api/pull_topology")
         def pull_topology(known_rev: int = -1):
@@ -296,6 +341,7 @@ class TaskWebServer:
                 )
                 self._errors_meta_path = data.jsonl_path
                 self._errors_meta_rev = data.rev
+                self._store_revs["errors"] += 1
                 return {"ok": True, "cached": False}
             except Exception as e:
                 return {
@@ -318,6 +364,7 @@ class TaskWebServer:
             self.error_store = data.errors
             self._errors_meta_path = data.jsonl_path
             self._errors_meta_rev = data.rev
+            self._store_revs["errors"] += 1
             return {"ok": True, "cached": False}
 
         @app.post("/api/push_topology")
