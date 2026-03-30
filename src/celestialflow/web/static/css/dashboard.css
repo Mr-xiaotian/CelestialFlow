@@ -68,16 +68,16 @@
 }
 
 /* ================================
-  🌟 图拓扑信息
+  🌟 图分析信息
 ================================ */
-.topology-info {
+.analysis-info {
   display: flex;
   flex-direction: column;
   gap: 8px;
   font-size: 14px;
 }
 
-.topology-row {
+.analysis-row {
   display: flex;
   justify-content: space-between;
   padding: 4px 0;

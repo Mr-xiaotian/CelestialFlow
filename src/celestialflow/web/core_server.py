@@ -39,8 +39,8 @@ class ErrorsContentModel(BaseModel):
     rev: int
 
 
-class TopologyModel(BaseModel):
-    topology: dict[str, Any]
+class AnalysisModel(BaseModel):
+    analysis: dict[str, Any]
 
 
 class SummaryModel(BaseModel):
@@ -103,7 +103,7 @@ class TaskWebServer:
         self.status_store = {}
         self.structure_store = []
         self.error_store = []
-        self.topology_store = {}
+        self.analysis_store = {}
         self.summary_store = {}
         self.history_store = {}
         self.injection_tasks = []  # 存储前端注入任务
@@ -119,7 +119,7 @@ class TaskWebServer:
             "status": 0,
             "structure": 0,
             "errors": 0,
-            "topology": 0,
+            "analysis": 0,
             "summary": 0,
             "history": 0,
         }
@@ -212,13 +212,13 @@ class TaskWebServer:
                 "data": page_items,
             }
 
-        @app.get("/api/pull_topology")
-        def pull_topology(known_rev: int = -1):
+        @app.get("/api/pull_analysis")
+        def pull_analysis(known_rev: int = -1):
             """返回图拓扑信息；若版本未变则返回 data=null。"""
-            rev = self._store_revs["topology"]
+            rev = self._store_revs["analysis"]
             if known_rev == rev:
                 return {"rev": rev, "data": None}
-            return {"rev": rev, "data": self.topology_store}
+            return {"rev": rev, "data": self.analysis_store}
 
         @app.get("/api/pull_summary")
         def pull_summary(known_rev: int = -1):
@@ -339,11 +339,11 @@ class TaskWebServer:
             self._store_revs["errors"] += 1
             return {"ok": True, "cached": False}
 
-        @app.post("/api/push_topology")
-        async def push_topology(data: TopologyModel):
-            """更新图拓扑信息并递增版本号。"""
-            self.topology_store = data.topology
-            self._store_revs["topology"] += 1
+        @app.post("/api/push_analysis")
+        async def push_analysis(data: AnalysisModel):
+            """更新图分析信息并递增版本号。"""
+            self.analysis_store = data.analysis
+            self._store_revs["analysis"] += 1
             return {"ok": True}
 
         @app.post("/api/push_summary")

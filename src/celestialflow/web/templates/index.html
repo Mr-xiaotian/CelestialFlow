@@ -71,7 +71,7 @@
           <div class="left-panel">
             <div class="card mermaid-card" style="display: none;">
               <h2 class="card-title" id="mermaid-title">
-                任务结构图
+                结构图
               </h2>
               <div
                 id="mermaid-container"
@@ -82,10 +82,10 @@
               </div>
             </div>
 
-            <div class="card topology-card" id="topology-card" style="display: none;">
-              <h2 class="card-title">图拓扑信息</h2>
-              <div id="topology-info" class="topology-info">
-                <div class="placeholder">暂无拓扑信息</div>
+            <div class="card analysis-card" id="analysis-card" style="display: none;">
+              <h2 class="card-title">图分析信息</h2>
+              <div id="analysis-info" class="analysis-info">
+                <div class="placeholder">暂无分析信息</div>
               </div>
             </div>
           </div>
@@ -385,7 +385,7 @@
     <script src="{{ request.url_for('static', path='js/task_statuses.js') }}"></script>
     <script src="{{ request.url_for('static', path='js/task_structure.js') }}"></script>
     <script src="{{ request.url_for('static', path='js/task_errors.js') }}"></script>
-    <script src="{{ request.url_for('static', path='js/task_topology.js') }}"></script>
+    <script src="{{ request.url_for('static', path='js/task_analysis.js') }}"></script>
     <script src="{{ request.url_for('static', path='js/task_summary.js') }}"></script>
     <script src="{{ request.url_for('static', path='js/task_history.js') }}"></script>
     <script src="{{ request.url_for('static', path='js/task_injection.js') }}"></script>

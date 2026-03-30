@@ -664,9 +664,9 @@ class TaskGraph:
         """获取任务链的历史状态信息字典"""
         return self.stage_history
 
-    def get_graph_topology(self) -> dict:
+    def get_graph_analysis(self) -> dict:
         """
-        获取任务图的拓扑信息
+        获取任务图的分析信息
         """
         return {
             "isDAG": self.isDAG,

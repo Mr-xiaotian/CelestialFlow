@@ -54,19 +54,19 @@ async function refreshAll() {
     // - nodeStatuses 会被 loadStatuses 更新
     // - 结构数据会被 loadStructure 使用来渲染 Mermaid 图
     // - errors 会被 loadErrors 更新后用于错误列表渲染
-    const [statusesChanged, structureChanged, errorsChanged, topologyChanged, summaryChanged, historiesChanged] = await Promise.all([
+    const [statusesChanged, structureChanged, errorsChanged, analysisChanged, summaryChanged, historiesChanged] = await Promise.all([
         loadStatuses(), // 从后端拉取节点运行状态（处理数、等待数、失败数等），更新 nodeStatuses
         loadStructure(), // 拉取任务结构（有向图），更新 structureData
         loadErrors(), // 获取新增错误记录，append 到 errors[]，返回是否有新数据
-        loadTopology(), // 获取最新拓扑信息，更新 TopologyData
+        loadAnalysis(), // 获取最新分析信息，更新 analysisData
         loadSummary(), // 获取最新汇总数据，更新 summaryData
         loadHistories(), // 获取节点进度历史数据，更新 nodeHistories
     ]);
     if (statusesChanged || structureChanged) {
         renderMermaidStructure(nodeStatuses); // 左上结构图, 依赖节点信息与结构信息
     }
-    if (topologyChanged) {
-        renderTopologyInfo(); // 左下拓扑信息
+    if (analysisChanged) {
+        renderAnalysisInfo(); // 左下分析信息
     }
     if (statusesChanged) {
         renderDashboard(); // 中间节点状态卡片

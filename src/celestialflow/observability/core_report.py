@@ -97,7 +97,7 @@ class TaskReporter:
         self._push_errors()
         self._push_status()
         self._push_structure()
-        self._push_topology()
+        self._push_analysis()
         self._push_summary()
         self._push_history()
 
@@ -237,18 +237,18 @@ class TaskReporter:
         except Exception as e:
             self.log_sinker.push_structure_failed(e)
 
-    def _push_topology(self) -> None:
-        """推送拓扑信息"""
+    def _push_analysis(self) -> None:
+        """推送分析信息"""
         try:
-            topology = self.task_graph.get_graph_topology()
-            payload = {"topology": topology}
+            analysis = self.task_graph.get_graph_analysis()
+            payload = {"analysis": analysis}
             self._session.post(
-                f"{self.base_url}/api/push_topology",
+                f"{self.base_url}/api/push_analysis",
                 json=payload,
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.log_sinker.push_topology_failed(e)
+            self.log_sinker.push_analysis_failed(e)
 
     def _push_summary(self) -> None:
         """推送摘要信息"""
