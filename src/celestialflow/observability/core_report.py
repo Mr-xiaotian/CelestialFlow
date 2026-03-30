@@ -45,7 +45,6 @@ class TaskReporter:
         self._thread = None
         self._push_errors_mode = "meta"
         self._last_pushed_errors_rev: Optional[int] = None
-        self._last_pushed_errors_offset: int = 0
         self._session = requests.Session()
 
         self.interval = 5
@@ -158,13 +157,14 @@ class TaskReporter:
         """推送错误信息"""
         try:
             current_rev = self.task_graph.get_total_error_num()
+            jsonl_path = self.task_graph.get_fallback_path()
 
             # 无新增错误，跳过
             if current_rev == self._last_pushed_errors_rev:
                 return
 
             if self._push_errors_mode == "meta":
-                resp = self._push_errors_meta(current_rev)
+                resp = self._push_errors_meta(current_rev, jsonl_path)
                 if resp.get("ok"):
                     pass
                 elif resp.get("fallback") == "need_content":
@@ -172,8 +172,8 @@ class TaskReporter:
                 else:
                     raise RuntimeError(f"push_errors_meta failed: {resp.get('msg')}")
 
-            elif self._push_errors_mode == "content":
-                resp = self._push_errors_content(current_rev)
+            if self._push_errors_mode == "content":
+                resp = self._push_errors_content(current_rev, jsonl_path)
                 if resp.get("ok"):
                     pass
                 else:
@@ -185,13 +185,11 @@ class TaskReporter:
         except Exception as e:
             self.log_sinker.push_errors_failed(e)
 
-    def _push_errors_meta(self, current_rev: int) -> dict:
+    def _push_errors_meta(self, current_rev: int, jsonl_path: str) -> dict:
         """推送错误元信息"""
-        jsonl_path = self.task_graph.get_fallback_path()
-
         payload = {
-            "jsonl_path": jsonl_path,
             "rev": current_rev,
+            "jsonl_path": jsonl_path,
         }
         response = self._session.post(
             f"{self.base_url}/api/push_errors_meta",
@@ -200,23 +198,17 @@ class TaskReporter:
         )
         return response.json()
 
-    def _push_errors_content(self, current_rev: int) -> dict:
+    def _push_errors_content(self, current_rev: int, jsonl_path: str) -> dict:
         """推送错误内容（增量：只传 offset 之后的新增条目）"""
-        jsonl_path = self.task_graph.get_fallback_path()
-        offset = self._last_pushed_errors_offset
-
         all_errors = load_jsonl_logs(
             path=jsonl_path,
             keys=["ts", "error_id", "error_repr", "error", "stage", "task_repr"],
         )
-        new_errors = all_errors[offset:]
-        self._last_pushed_errors_offset = len(all_errors)
 
         payload = {
-            "errors": new_errors,
-            "offset": offset,
-            "jsonl_path": jsonl_path,
             "rev": current_rev,
+            "jsonl_path": jsonl_path,
+            "errors": all_errors,
         }
         response = self._session.post(
             f"{self.base_url}/api/push_errors_content",

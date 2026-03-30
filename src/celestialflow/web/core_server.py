@@ -291,8 +291,8 @@ class TaskWebServer:
             """通过 JSONL 文件路径+版本号加载错误日志；命中缓存则跳过读取。"""
             # 命中缓存：path 和 rev 都没变 -> 不重新读取
             if (
-                data.jsonl_path == self._errors_meta_path
-                and data.rev == self._errors_meta_rev
+                data.rev == self._errors_meta_rev
+                and data.jsonl_path == self._errors_meta_path
             ):
                 return {"ok": True, "cached": True}
 
@@ -312,8 +312,8 @@ class TaskWebServer:
                         ],
                     )
                 )
-                self._errors_meta_path = data.jsonl_path
                 self._errors_meta_rev = data.rev
+                self._errors_meta_path = data.jsonl_path
                 self._store_revs["errors"] += 1
                 return {"ok": True, "cached": False}
             except Exception as e:
@@ -328,8 +328,8 @@ class TaskWebServer:
         async def push_errors_content(data: ErrorsContentModel):
             """直接接收错误日志列表并存储；支持增量 append（offset > 0）；命中缓存则跳过。"""
             if (
-                data.jsonl_path == self._errors_meta_path
-                and data.rev == self._errors_meta_rev
+                data.rev == self._errors_meta_rev
+                and data.jsonl_path == self._errors_meta_path
             ):
                 return {"ok": True, "cached": True}
 
@@ -340,8 +340,8 @@ class TaskWebServer:
                 # 增量 append：截断到 offset 后追加新条目，防止重复
                 self.error_store = self.error_store[:data.offset] + data.errors
 
-            self._errors_meta_path = data.jsonl_path
             self._errors_meta_rev = data.rev
+            self._errors_meta_path = data.jsonl_path
             self._store_revs["errors"] += 1
             return {"ok": True, "cached": False}
 
