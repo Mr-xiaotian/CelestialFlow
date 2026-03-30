@@ -1,6 +1,6 @@
 # observability/core_report.py
 from threading import Event, Thread
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import requests
 
@@ -44,6 +44,8 @@ class TaskReporter:
         self._stop_flag = Event()
         self._thread = None
         self._push_errors_mode = "meta"
+        self._last_pushed_errors_rev: Optional[int] = None
+        self._last_pushed_errors_offset: int = 0
         self._session = requests.Session()
 
         self.interval = 5
@@ -155,33 +157,41 @@ class TaskReporter:
     def _push_errors(self) -> None:
         """推送错误信息"""
         try:
+            current_rev = self.task_graph.get_total_error_num()
+
+            # 无新增错误，跳过
+            if current_rev == self._last_pushed_errors_rev:
+                return
+
             if self._push_errors_mode == "meta":
-                resp = self._push_errors_meta()
+                resp = self._push_errors_meta(current_rev)
                 if resp.get("ok"):
-                    return
-                if resp.get("fallback") == "need_content":
+                    pass
+                elif resp.get("fallback") == "need_content":
                     self._push_errors_mode = "content"
                 else:
                     raise RuntimeError(f"push_errors_meta failed: {resp.get('msg')}")
 
-            if self._push_errors_mode == "content":
-                resp = self._push_errors_content()
+            elif self._push_errors_mode == "content":
+                resp = self._push_errors_content(current_rev)
                 if resp.get("ok"):
-                    return
-
-                raise RuntimeError(f"push_errors_content failed: {resp.get('msg')}")
+                    pass
+                else:
+                    raise RuntimeError(f"push_errors_content failed: {resp.get('msg')}")
+                
+            if resp.get("ok") and not resp.get("cached"):
+                self._last_pushed_errors_rev = current_rev
 
         except Exception as e:
             self.log_sinker.push_errors_failed(e)
 
-    def _push_errors_meta(self) -> dict:
+    def _push_errors_meta(self, current_rev: int) -> dict:
         """推送错误元信息"""
         jsonl_path = self.task_graph.get_fallback_path()
-        rev = self.task_graph.fail_listener.total_error_num
 
         payload = {
             "jsonl_path": jsonl_path,
-            "rev": rev,
+            "rev": current_rev,
         }
         response = self._session.post(
             f"{self.base_url}/api/push_errors_meta",
@@ -190,19 +200,23 @@ class TaskReporter:
         )
         return response.json()
 
-    def _push_errors_content(self) -> dict:
-        """推送错误内容"""
+    def _push_errors_content(self, current_rev: int) -> dict:
+        """推送错误内容（增量：只传 offset 之后的新增条目）"""
         jsonl_path = self.task_graph.get_fallback_path()
-        rev = self.task_graph.fail_listener.total_error_num
+        offset = self._last_pushed_errors_offset
 
-        error_store = load_jsonl_logs(
+        all_errors = load_jsonl_logs(
             path=jsonl_path,
             keys=["ts", "error_id", "error_repr", "error", "stage", "task_repr"],
         )
+        new_errors = all_errors[offset:]
+        self._last_pushed_errors_offset = len(all_errors)
+
         payload = {
-            "errors": error_store,
+            "errors": new_errors,
+            "offset": offset,
             "jsonl_path": jsonl_path,
-            "rev": rev,
+            "rev": current_rev,
         }
         response = self._session.post(
             f"{self.base_url}/api/push_errors_content",

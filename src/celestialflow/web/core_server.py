@@ -35,6 +35,7 @@ class ErrorsMetaModel(BaseModel):
 
 class ErrorsContentModel(BaseModel):
     errors: list[dict]
+    offset: int
     jsonl_path: str
     rev: int
 
@@ -325,15 +326,20 @@ class TaskWebServer:
 
         @app.post("/api/push_errors_content")
         async def push_errors_content(data: ErrorsContentModel):
-            """直接接收错误日志列表并存储；命中缓存则跳过。"""
-            # 命中缓存：path 和 rev 都没变 -> 不重新读取
+            """直接接收错误日志列表并存储；支持增量 append（offset > 0）；命中缓存则跳过。"""
             if (
                 data.jsonl_path == self._errors_meta_path
                 and data.rev == self._errors_meta_rev
             ):
                 return {"ok": True, "cached": True}
 
-            self.error_store = data.errors
+            if data.offset == 0:
+                # 全量替换（首次推送或 reporter 重启后 offset 归零）
+                self.error_store = data.errors
+            else:
+                # 增量 append：截断到 offset 后追加新条目，防止重复
+                self.error_store = self.error_store[:data.offset] + data.errors
+
             self._errors_meta_path = data.jsonl_path
             self._errors_meta_rev = data.rev
             self._store_revs["errors"] += 1
