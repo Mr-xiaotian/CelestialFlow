@@ -52,6 +52,12 @@
   }
 }
 
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .filter-label {
   margin-right: 0.5rem;
 }

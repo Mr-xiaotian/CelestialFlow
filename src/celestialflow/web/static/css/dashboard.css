@@ -165,6 +165,7 @@
   border-radius: 0.25rem;
   overflow: hidden;
   display: flex;
+  align-items: stretch;
 
   .dark-theme & {
     background-color: var(--gray-700);
@@ -172,7 +173,7 @@
 }
 
 .progress-segment {
-  height: 100%;
+  align-self: stretch;
   min-width: 0;
   &.seg-success   { background-color: var(--jade-400);       .dark-theme & { background-color: var(--jade-700); } }
   &.seg-error     { background-color: var(--crimson-400);    .dark-theme & { background-color: var(--crimson-700); } }
