@@ -505,7 +505,7 @@ class TaskGraph:
             in_queue: TaskInQueue = stage_runtime["in_queue"]
 
             remaining_sources = in_queue.drain()
-            stage.metrics.add_error_count(len(remaining_sources))
+            current_stage.metrics.add_error_count(len(remaining_sources))
 
             # 持久化逻辑
             for source in remaining_sources:
