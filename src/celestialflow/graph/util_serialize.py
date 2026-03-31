@@ -49,7 +49,7 @@ def _build_structure_subgraph(
     return node
 
 
-def format_structure_list_from_graph(root_roots: List[Dict] = None) -> List[str]:
+def format_structure_list_from_graph(root_roots: List[Dict] | None = None) -> List[str]:
     """
     从多个 JSON 图结构生成格式化任务结构文本列表（带边框）
 
@@ -88,7 +88,7 @@ def format_structure_list_from_graph(root_roots: List[Dict] = None) -> List[str]
             lines.extend(build_child_lines(child, "", i == len(next_stages) - 1))
         return lines
 
-    all_lines = []
+    all_lines: list[str] = []
     for root in root_roots or []:
         if all_lines:
             all_lines.append("")  # 根之间留空行

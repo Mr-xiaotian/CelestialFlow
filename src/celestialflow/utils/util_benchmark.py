@@ -50,6 +50,12 @@ async def benchmark_executor(
 
     table_results = format_table(results, sync_modes + async_modes, ["Time"])
     print("\n" + table_results)
+    return {
+        "results": results,
+        "sync_modes": sync_modes,
+        "async_modes": async_modes,
+        "table": table_results,
+    }
 
 
 def benchmark_graph(
@@ -101,3 +107,8 @@ def benchmark_graph(
     print(f"Time table:\n{time_table}")
     print(f"Fail stage dict: \n{pprint.pformat(fail_by_stage_dict)}")
     print(f"Fail error dict: \n{pprint.pformat(fail_by_error_dict)}")
+    return {
+        "table": time_table,
+        "fail_by_stage_dict": fail_by_stage_dict,
+        "fail_by_error_dict": fail_by_error_dict,
+    }

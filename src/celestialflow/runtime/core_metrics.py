@@ -33,7 +33,7 @@ class TaskMetrics:
         self.max_retries = max_retries
         self.enable_duplicate_check = enable_duplicate_check
 
-        self.retry_exceptions = tuple()
+        self.retry_exceptions: tuple[type[Exception], ...] = ()
         self.init_counter()
         self.reset_state()
 
@@ -66,8 +66,8 @@ class TaskMetrics:
 
         清空重试时间记录和已处理任务集合。
         """
-        self.retry_time_dict = {}  # task_hash: retry_time
-        self.processed_set = set()  # task_hash
+        self.retry_time_dict: dict[str, int] = {}  # task_hash: retry_time
+        self.processed_set: set[str] = set()  # task_hash
 
     def set_execution_mode(self, execution_mode: str) -> None:
         """
@@ -164,7 +164,7 @@ class TaskMetrics:
         return self.retry_time_dict.pop(task_hash, None)
 
     # counter
-    def append_task_counter(self, counter: SumCounter) -> None:
+    def append_task_counter(self, counter) -> None:
         """
         添加任务总数计数器
 

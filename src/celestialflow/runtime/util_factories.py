@@ -4,7 +4,7 @@ from asyncio import Queue as AsyncQueue
 from multiprocessing import Value as MPValue
 from queue import Queue as ThreadQueue
 from threading import Lock
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .core_queue import TaskInQueue, TaskOutQueue
 from .util_types import ValueWrapper
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 # ==== 函数工厂 ====
 def make_counter(
     mode: str, *, lock: LockType | None = None, init: int = 0
-) -> ValueWrapper:
+) -> Any:
     """
     返回一个 counter：ValueWrapper(±lock) 或 MPValue
     """

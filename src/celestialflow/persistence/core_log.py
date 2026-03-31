@@ -1,6 +1,9 @@
 # persistence/core_log.py
+from __future__ import annotations
+
 from pathlib import Path
 from time import localtime, strftime
+from typing import TextIO
 
 from ..runtime.util_errors import LogLevelError
 from .core_base import BaseListener, BaseSinker
@@ -17,7 +20,7 @@ class LogListener(BaseListener):
 
         self.log_queue = self.queue
         self.log_path: Path | None = None
-        self._file = None
+        self._file: TextIO | None = None
 
     def _before_start(self) -> None:
         # 创建 logs 目录
@@ -35,6 +38,8 @@ class LogListener(BaseListener):
 
         line = f"{timestamp} {level} {message}\n"
 
+        if self._file is None:
+            raise RuntimeError("log file is not initialized")
         self._file.write(line)
         self._file.flush()
 
@@ -58,7 +63,10 @@ class LogSinker(BaseSinker):
         if self.log_level not in LEVEL_DICT:
             raise LogLevelError(self.log_level)
 
-    def _sink(self, level: str, message: str) -> None:
+    def _sink(self, level: str, message: str | None = None) -> None:
+        if message is None:
+            super()._sink(level)
+            return
         timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime())
         level_upper = level.upper()
         if level_upper not in LEVEL_DICT:
@@ -366,6 +374,12 @@ class LogSinker(BaseSinker):
         self._sink(
             "WARNING",
             f"[Reporter] Push 'summary' failed: {type(exception).__name__}({exception}).",
+        )
+
+    def push_analysis_failed(self, exception: Exception) -> None:
+        self._sink(
+            "WARNING",
+            f"[Reporter] Push 'analysis' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_history_failed(self, exception: Exception) -> None:

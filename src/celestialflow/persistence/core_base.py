@@ -4,6 +4,7 @@ from __future__ import annotations
 from multiprocessing import Queue as MPQueue
 from queue import Empty
 from threading import Thread
+from typing import Any
 
 from ..runtime.util_queue import cleanup_mpqueue
 from ..runtime.util_types import TERMINATION_SIGNAL, TerminationSignal
@@ -11,13 +12,13 @@ from ..runtime.util_types import TERMINATION_SIGNAL, TerminationSignal
 
 class BaseListener:
     def __init__(self) -> None:
-        self.queue = MPQueue()
+        self.queue: Any = MPQueue()
         self._thread: Thread | None = None
 
     def _before_start(self) -> None:
         return None
 
-    def _handle_record(self, record) -> None:
+    def _handle_record(self, record: Any) -> None:
         raise NotImplementedError
 
     def _after_stop(self) -> None:
@@ -54,8 +55,8 @@ class BaseListener:
 
 
 class BaseSinker:
-    def __init__(self, queue: MPQueue) -> None:
-        self.queue: MPQueue = queue
+    def __init__(self, queue: Any) -> None:
+        self.queue: Any = queue
 
-    def _sink(self, record) -> None:
+    def _sink(self, record: Any) -> None:
         self.queue.put(record)

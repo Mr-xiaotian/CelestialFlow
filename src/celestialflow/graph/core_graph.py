@@ -3,6 +3,8 @@ import multiprocessing
 import time
 import warnings
 from collections import defaultdict, deque
+from pathlib import Path
+from typing import Any
 from multiprocessing import Queue as MPQueue
 
 from celestialtree import (
@@ -106,15 +108,15 @@ class TaskGraph:
         # 用于保存所有子进程的引用
         self.processes: list[multiprocessing.Process] = []
         # 用于保存每个节点的运行信息
-        self.stage_runtime_dict: dict[str, dict] = defaultdict(dict)
+        self.stage_runtime_dict: dict[str, dict[str, Any]] = defaultdict(dict)
         # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
-        self.status_dict: dict[str, dict] = defaultdict(dict)
+        self.status_dict: dict[str, dict[str, Any]] = defaultdict(dict)
         # 用于保存任务图的摘要信息
         self.graph_summary: dict[str, int | float] = {}
         # 用于保存每个节点的历史状态信息列表（仅保留最近20条）
         self.stage_history: dict[str, list[dict]] = {}
         # 用于保存每个节点的输入任务ID集合
-        self.input_ids: dict[str, set] = defaultdict(set)
+        self.input_ids: dict[str, set[int]] = defaultdict(set)
 
     def init_listener(self) -> None:
         """
@@ -168,11 +170,11 @@ class TaskGraph:
             queue.extend(stage.next_stages)
 
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
-            stage: TaskStage = stage_runtime["stage"]
+            current_stage: TaskStage = stage_runtime["stage"]
             in_queue: TaskInQueue = stage_runtime["in_queue"]
 
             # 遍历每个前驱，创建边队列
-            for prev_stage in stage.prev_stages:
+            for prev_stage in current_stage.prev_stages:
                 prev_stage_tag = prev_stage.get_tag()
                 in_queue.add_source_tag(prev_stage_tag)
 
@@ -239,6 +241,7 @@ class TaskGraph:
         self._is_report = is_report
         self._report_host = host
         self._report_port = port
+        self.reporter: TaskReporter | NullTaskReporter
         if is_report:
             self.reporter = TaskReporter(
                 host=host,
@@ -295,7 +298,7 @@ class TaskGraph:
         :param execution_mode: 节点内部执行模式, 可选值为 'serial' 或 'thread''
         """
 
-        def set_subsequent_stage_mode(stage: TaskStage):
+        def set_subsequent_stage_mode(stage: TaskStage) -> None:
             stage.set_stage_mode(stage_mode)
             stage.set_execution_mode(execution_mode)
             visited_stages.add(stage)
@@ -305,7 +308,7 @@ class TaskGraph:
                     continue
                 set_subsequent_stage_mode(next_stage)
 
-        visited_stages = set()
+        visited_stages: set[TaskStage] = set()
         for root_stage in self.root_stages:
             set_subsequent_stage_mode(root_stage)
         self.init_analysis()
@@ -498,7 +501,7 @@ class TaskGraph:
 
         # 收集并持久化每个 stage 中未消费的任务
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
-            stage: TaskStage = stage_runtime["stage"]
+            current_stage: TaskStage = stage_runtime["stage"]
             in_queue: TaskInQueue = stage_runtime["in_queue"]
 
             remaining_sources = in_queue.drain()
@@ -511,7 +514,7 @@ class TaskGraph:
                 error_id = self.ctree_client.emit(
                     "task.error",
                     [task_id],
-                    payload=stage.get_summary(),
+                    payload=current_stage.get_summary(),
                 )
 
                 self.fail_sinker.task_error(
@@ -519,8 +522,8 @@ class TaskGraph:
                 )
 
                 self.log_sinker.task_error(
-                    stage.get_func_name(),
-                    stage.get_task_repr(task),
+                    current_stage.get_func_name(),
+                    current_stage.get_task_repr(task),
                     UnconsumedError(),
                     task_id,
                     error_id,
@@ -700,7 +703,9 @@ class TaskGraph:
         """
         获取失败任务的回退路径
         """
-        return str(self.fail_listener.jsonl_path.resolve())
+        if self.fail_listener.jsonl_path is None:
+            return ""
+        return str(Path(self.fail_listener.jsonl_path).resolve())
 
     def get_stage_input_trace(self, stage_tag: str) -> str:
         """

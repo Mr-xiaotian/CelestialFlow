@@ -2,7 +2,7 @@
 import json
 import time
 from multiprocessing import Value as MPValue
-from typing import Any
+from typing import Any, cast
 
 import redis
 
@@ -51,6 +51,8 @@ class TaskSplitter(TaskStage):
         :param task_id: 原始任务 ID，用于事件关联
         :return: split 的子任务数量
         """
+        result_queues = self.result_queues
+        assert result_queues is not None
         split_count = len(result)
         for idx, item in enumerate(result):
             split_id = self.ctree_client.emit(
@@ -63,7 +65,7 @@ class TaskSplitter(TaskStage):
                 split_id,
                 source=self.get_tag(),
             )
-            self.result_queues.put(splitted_envelope)
+            result_queues.put(splitted_envelope)
 
             self.log_sinker.split_trace(
                 self.get_func_name(),
@@ -117,7 +119,7 @@ class TaskRouter(TaskStage):
     def init_extra_counter(self) -> None:
         """初始化额外的计数器"""
         # 每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
-        self.route_counters: dict = {}
+        self.route_counters: dict[str, Any] = {}
 
     def reset_extra_counter(self) -> None:
         """重置额外的计数器"""
@@ -166,7 +168,9 @@ class TaskRouter(TaskStage):
             route_id,
             source=self.get_tag(),
         )
-        self.result_queues.put_target(routed_envelope, target)
+        result_queues = self.result_queues
+        assert result_queues is not None
+        result_queues.put_target(routed_envelope, target)
 
         self.metrics.add_success_count()
         self.update_route_counter(target)
@@ -295,13 +299,16 @@ class TaskRedisSource(TaskStage):
         """
         self.init_redis()
 
-        res = self.redis_client.blpop(self.key, timeout=self._timeout)
+        res = cast(Any, self.redis_client.blpop(self.key, timeout=self._timeout))
         if res is None:
             raise TimeoutError("Redis item not returned in time after being fetched")
         _, item = res
+        item = cast(str, item)
         item_obj: dict = json.loads(item)
 
         task = item_obj.get("task")
+        if task is None:
+            raise RemoteWorkerError("Redis source payload missing 'task'")
         if len(task) == 1:
             return task[0]
 
@@ -363,7 +370,7 @@ class TaskRedisAck(TaskStage):
         start_time = time.perf_counter()
 
         while True:
-            result = self.redis_client.hget(self.key, task_id)
+            result = cast(str | None, self.redis_client.hget(self.key, task_id))
 
             if result:
                 # 取到结果即删除，保证 Ack 语义一次性

@@ -1,6 +1,6 @@
 # observability/core_report.py
 from threading import Event, Thread
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import requests
 
@@ -42,7 +42,7 @@ class TaskReporter:
         self.log_sinker = log_sinker
 
         self._stop_flag = Event()
-        self._thread = None
+        self._thread: Thread | None = None
         self._push_errors_mode = "meta"
         self._last_pushed_errors_rev: Optional[int] = None
         self._session = requests.Session()
@@ -137,6 +137,8 @@ class TaskReporter:
                 for injection in injection_tasks:
                     target_stage = injection.get("node")
                     task_datas = injection.get("task_datas")
+                    if target_stage is None or task_datas is None:
+                        continue
 
                     # 这里你可以按需注入到不同的节点
                     task_datas = [
@@ -185,7 +187,7 @@ class TaskReporter:
         except Exception as e:
             self.log_sinker.push_errors_failed(e)
 
-    def _push_errors_meta(self, current_rev: int, jsonl_path: str) -> dict:
+    def _push_errors_meta(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:
         """推送错误元信息"""
         payload = {
             "rev": current_rev,
@@ -198,7 +200,7 @@ class TaskReporter:
         )
         return response.json()
 
-    def _push_errors_content(self, current_rev: int, jsonl_path: str) -> dict:
+    def _push_errors_content(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:
         """推送错误内容（增量：只传 offset 之后的新增条目）"""
         all_errors = load_jsonl_logs(
             path=jsonl_path,

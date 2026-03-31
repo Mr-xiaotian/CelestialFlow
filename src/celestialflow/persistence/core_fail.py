@@ -2,6 +2,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import TextIO
 
 from ..utils.util_format import format_repr
 from .core_base import BaseListener, BaseSinker
@@ -16,7 +17,7 @@ class FailListener(BaseListener):
         self.jsonl_path: Path | None = None
 
         self.total_error_num = 0
-        self._file = None
+        self._file: TextIO | None = None
 
     def _before_start(self) -> None:
         # 创建 fallback 目录
@@ -37,6 +38,8 @@ class FailListener(BaseListener):
     def _handle_record(self, record: dict) -> None:
         jsonl_record = json.dumps(record, ensure_ascii=False)
 
+        if self._file is None:
+            raise RuntimeError("fail file is not initialized")
         self._file.write(f"{jsonl_record}\n")
         self._file.flush()
 

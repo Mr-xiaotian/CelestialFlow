@@ -2,6 +2,7 @@
 from enum import IntEnum
 from multiprocessing import Value as MPValue
 from threading import Lock
+from typing import Any
 
 from celestialtree import NodeLabelStyle
 
@@ -38,7 +39,7 @@ class NoOpContext:
 class ValueWrapper:
     """线程内/单进程的计数器包装，可选线程锁。"""
 
-    def __init__(self, value: int = 0, lock=None) -> None:
+    def __init__(self, value: int = 0, lock: Any | None = None) -> None:
         self.value = value
         self._lock = lock
 
@@ -51,6 +52,8 @@ class SumCounter:
 
     def __init__(self, mode: str = "serial"):
         self.mode = mode
+        self._lock: Any | None
+        self.init_value: Any
 
         if mode == "thread":
             self._lock = Lock()
@@ -61,14 +64,13 @@ class SumCounter:
         else:
             self._lock = None
             self.init_value = ValueWrapper(0)
-
-        self.counters: list[ValueWrapper] = []
+        self.counters: list[Any] = []
 
     def add_init_value(self, value: int) -> None:
         with self.init_value.get_lock():
             self.init_value.value += value
 
-    def append_counter(self, counter: ValueWrapper) -> None:
+    def append_counter(self, counter: Any) -> None:
         self.counters.append(counter)
 
     def reset(self) -> None:

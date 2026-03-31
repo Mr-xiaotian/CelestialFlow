@@ -96,7 +96,11 @@ class TaskExecutor:
         self.progress_desc = progress_desc
         self.set_log_level(log_level)
 
-        self.ctree_client = None
+        self.ctree_client: Any = None
+        self.task_queues: TaskInQueue | None = None
+        self.result_queues: TaskOutQueue | None = None
+        self.fail_queue: Any = None
+        self.log_queue: Any = None
         self.init_metrics()
 
     def init_metrics(self) -> None:
@@ -136,8 +140,8 @@ class TaskExecutor:
         - retry_time_dict：记录重试次数
         - processed_set：用于重复检测
         """
-        self.success_dict = {}  # task -> result
-        self.error_dict = {}  # task -> exception
+        self.success_dict: dict[Any, Any] = {}  # task -> result
+        self.error_dict: dict[Any, Exception] = {}  # task -> exception
         self.metrics.reset_state()
 
     def init_sinker(self, fail_queue: MPQueue, log_queue: MPQueue) -> None:
@@ -197,7 +201,7 @@ class TaskExecutor:
         初始化进度条
         """
         if not self.show_progress:
-            self.task_progress = NullTaskProgress()
+            self.task_progress: TaskProgress | NullTaskProgress = NullTaskProgress()
             return
 
         extra_desc = (
@@ -213,7 +217,7 @@ class TaskExecutor:
             mode=progress_mode,
         )
 
-    def set_func(self, func: Callable):
+    def set_func(self, func: Callable) -> None:
         """
         设置执行函数
 
@@ -289,8 +293,8 @@ class TaskExecutor:
         :return: 当前节点/管理器标签
         """
         if hasattr(self, "_tag"):
-            return self._tag
-        self._tag = f"{self.get_name()}[{self.get_func_name()}]"
+            return str(self._tag)
+        self._tag: str = f"{self.get_name()}[{self.get_func_name()}]"
         return self._tag
 
     def get_class_name(self) -> str:
@@ -350,6 +354,8 @@ class TaskExecutor:
 
         :param task_source: 任务源（可迭代对象）
         """
+        task_queues = self.task_queues
+        assert task_queues is not None
         progress_num = 0
         for task in task_source:
             input_id = self.ctree_client.emit(
@@ -357,7 +363,7 @@ class TaskExecutor:
                 payload=self.get_summary(),
             )
             envelope = TaskEnvelope.wrap(task, input_id, source="input")
-            self.task_queues.put(envelope)
+            task_queues.put(envelope)
             self.metrics.add_task_count()
             self.log_sinker.task_input(
                 self.get_func_name(),
@@ -376,7 +382,7 @@ class TaskExecutor:
             "termination.input",
             payload=self.get_summary(),
         )
-        self.task_queues.put(TerminationSignal(termination_id, source="input"))
+        task_queues.put(TerminationSignal(termination_id, source="input"))
         self.log_sinker.termination_input(
             self.get_func_name(),
             self.get_tag(),
@@ -389,6 +395,8 @@ class TaskExecutor:
 
         :param task_source: 任务源（可迭代对象）
         """
+        task_queues = self.task_queues
+        assert task_queues is not None
         progress_num = 0
         for task in task_source:
             input_id = self.ctree_client.emit(
@@ -396,7 +404,7 @@ class TaskExecutor:
                 payload=self.get_summary(),
             )
             envelope = TaskEnvelope.wrap(task, input_id, source="input")
-            await self.task_queues.put_async(envelope)
+            await task_queues.put_async(envelope)
             self.metrics.add_task_count()
             self.log_sinker.task_input(
                 self.get_func_name(),
@@ -415,7 +423,7 @@ class TaskExecutor:
             "termination.input",
             payload=self.get_summary(),
         )
-        await self.task_queues.put_async(
+        await task_queues.put_async(
             TerminationSignal(termination_id, source="input")
         )
 
@@ -457,7 +465,7 @@ class TaskExecutor:
 
         return dict(error_groups)  # 转换回普通字典
 
-    def get_task_repr(self, task) -> str:
+    def get_task_repr(self, task: Any) -> str:
         """
         获取任务参数信息的可读字符串表示
 
@@ -467,7 +475,7 @@ class TaskExecutor:
         args = self.get_args(task)
 
         # 格式化每个参数
-        def format_args_list(args_list):
+        def format_args_list(args_list: Any) -> list[str]:
             return [format_repr(arg, self.max_info) for arg in args_list]
 
         if len(args) <= 3:
@@ -480,7 +488,7 @@ class TaskExecutor:
 
         return f"({', '.join(formatted_args)})"
 
-    def get_result_repr(self, result):
+    def get_result_repr(self, result: Any) -> str:
         """
         获取结果信息
 
@@ -500,11 +508,13 @@ class TaskExecutor:
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
+        result_queues = self.result_queues
+        assert result_queues is not None
         result_envelope = self._prepare_result_envelope(
             task_envelope, result, start_time
         )
 
-        self.result_queues.put(result_envelope)
+        result_queues.put(result_envelope)
 
     async def process_task_success_async(
         self, task_envelope: TaskEnvelope, result: Any, start_time: float
@@ -516,11 +526,13 @@ class TaskExecutor:
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
+        result_queues = self.result_queues
+        assert result_queues is not None
         result_envelope = self._prepare_result_envelope(
             task_envelope, result, start_time
         )
 
-        await self.result_queues.put_async(result_envelope)
+        await result_queues.put_async(result_envelope)
 
     def _prepare_result_envelope(
         self, task_envelope: TaskEnvelope, result: Any, start_time: float
@@ -575,13 +587,15 @@ class TaskExecutor:
         :param task_envelope: 发生异常的任务
         :param exception: 捕获的异常
         """
+        task_queues = self.task_queues
+        assert task_queues is not None
         task_hash = task_envelope.hash
 
         # 基于异常类型决定重试策略
         if self.metrics.is_retry_able(task_hash, exception):
             # 如果是可重试的异常，将任务重新放入队列
             retry_envelope = self._prepare_retry_envelope(task_envelope, exception)
-            self.task_queues.put(retry_envelope)  # 只在第一个队列存放retry task
+            task_queues.put(retry_envelope)  # 只在第一个队列存放retry task
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
             self._prepare_fail_envelope(task_envelope, exception)
@@ -595,13 +609,15 @@ class TaskExecutor:
         :param task_envelope: 发生异常的任务
         :param exception: 捕获的异常
         """
+        task_queues = self.task_queues
+        assert task_queues is not None
         task_hash = task_envelope.hash
 
         # 基于异常类型决定重试策略
         if self.metrics.is_retry_able(task_hash, exception):
             # 如果是可重试的异常，将任务重新放入队列
             retry_envelope = self._prepare_retry_envelope(task_envelope, exception)
-            await self.task_queues.put_async(
+            await task_queues.put_async(
                 retry_envelope
             )  # 只在第一个队列存放retry task
         else:
@@ -701,7 +717,7 @@ class TaskExecutor:
             duplicate_id,
         )
 
-    def start(self, task_source: Iterable):
+    def start(self, task_source: Iterable) -> None:
         """
         根据 start_type 的值，选择串行、并行、异步或多进程执行任务
 
@@ -750,7 +766,7 @@ class TaskExecutor:
             self.log_listener.stop()
             self.fail_listener.stop()
 
-    async def start_async(self, task_source: Iterable):
+    async def start_async(self, task_source: Iterable) -> None:
         """
         异步地执行任务
 

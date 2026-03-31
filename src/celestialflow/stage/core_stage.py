@@ -20,8 +20,8 @@ class TaskStage(TaskExecutor):
         super().__init__(*args, **kwargs)
 
         self.next_stages: list[TaskStage] = []
-        self.prev_stages: list[TaskStage] = []
-        self._pending_prev_bindings = []
+        self.prev_stages: list[TaskStage | NullPrevStage] = []
+        self._pending_prev_bindings: list[TaskStage] = []
 
         self.init_status()
 
@@ -68,10 +68,10 @@ class TaskStage(TaskExecutor):
 
     def set_graph_context(
         self,
-        next_stages: list[TaskStage] = None,
-        stage_mode: str = None,
-        stage_name: str = None,
-    ):
+        next_stages: list[TaskStage] | None = None,
+        stage_mode: str | None = None,
+        stage_name: str | None = None,
+    ) -> None:
         """
         设置链式上下文(仅限组成graph时)
 
@@ -94,12 +94,14 @@ class TaskStage(TaskExecutor):
         for next_stage in self.next_stages:
             next_stage.add_prev_stages(self)
 
-    def set_stage_mode(self, stage_mode: str) -> None:
+    def set_stage_mode(self, stage_mode: str | None) -> None:
         """
         设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
 
         :param stage_mode: 当前节点执行模式
         """
+        if stage_mode is None:
+            return
         if stage_mode == "process":
             self.stage_mode = "process"
         elif stage_mode == "serial":
@@ -107,7 +109,7 @@ class TaskStage(TaskExecutor):
         else:
             raise StageModeError(stage_mode)
 
-    def add_prev_stages(self, prev_stage: TaskStage) -> None:
+    def add_prev_stages(self, prev_stage: TaskStage | NullPrevStage) -> None:
         """
         添加前置节点
 

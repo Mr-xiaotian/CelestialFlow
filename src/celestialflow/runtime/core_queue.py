@@ -4,7 +4,7 @@ from __future__ import annotations
 from asyncio import Queue as AsyncQueue
 from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .core_envelope import TaskEnvelope
 from .util_types import TerminationIdPool, TerminationSignal
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class TaskInQueue:
     def __init__(
         self,
-        queue: ThreadQueue | MPQueue | AsyncQueue,
+        queue: Any,
         queue_tags: list[str],
         out_tag: str,
         log_sinker: "LogSinker",
@@ -29,12 +29,12 @@ class TaskInQueue:
         :param out_tag: 任务节点标签
         :param log_sinker: 日志记录器
         """
-        self.queue = queue
+        self.queue: Any = queue
         self.queue_tags = list(queue_tags)
         self.out_tag = out_tag
         self.log_sinker = log_sinker
 
-        self.termination_dict: dict[str, str] = {}
+        self.termination_dict: dict[str, int] = {}
 
     def _log_put(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
@@ -169,7 +169,7 @@ class TaskInQueue:
 
     def _deal_get_item(
         self, item: TaskEnvelope | TerminationSignal
-    ) -> TaskEnvelope | TerminationIdPool:
+    ) -> TaskEnvelope | TerminationIdPool | None:
         """
         处理出队的任务或终止符号
 
@@ -219,8 +219,8 @@ class TaskInQueue:
 class TaskOutQueue:
     def __init__(
         self,
-        queue_list: list[ThreadQueue] | list[MPQueue] | list[AsyncQueue],
-        queue_tags: list[str],
+        queue_list: list[Any],
+        queue_tags: list[str | None],
         in_tag: str,
         log_sinker: "LogSinker",
     ) -> None:
@@ -241,7 +241,7 @@ class TaskOutQueue:
         self.in_tag = in_tag
         self.log_sinker = log_sinker
 
-        self._tag_to_idx = {tag: i for i, tag in enumerate(queue_tags)}
+        self._tag_to_idx = {tag: i for i, tag in enumerate(queue_tags) if tag is not None}
 
     def _log_put(self, item: TaskEnvelope | TerminationSignal, idx: int) -> None:
         """
@@ -254,9 +254,9 @@ class TaskOutQueue:
             t = "task"
         elif isinstance(item, TerminationSignal):
             t = "termination"
-        self.log_sinker.put_item(t, item.id, self.in_tag, self.queue_tags[idx])
+        self.log_sinker.put_item(t, item.id, self.in_tag, str(self.queue_tags[idx]))
 
-    def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str) -> None:
+    def add_queue(self, queue: Any, tag: str) -> None:
         """
         添加一个输出队列到队列列表中
 

@@ -28,8 +28,8 @@ def format_repr(obj: Any, max_length: int) -> str:
 
 def format_table(
     data: list,
-    row_names: list | None = None,
-    column_names: list | None = None,
+    row_names: list[Any] | None = None,
+    column_names: list[str] | None = None,
     index_header: str = "#",
     fill_value: str = "N/A",
     align: str = "left",
@@ -51,7 +51,7 @@ def format_table(
         生成 Excel 风格列名（A, B, ..., Z, AA, AB, ...）
         支持从指定起始索引开始生成。
         """
-        names = []
+        names: list[str] = []
         for i in range(start_index, start_index + n):
             name = ""
             x = i
@@ -80,7 +80,7 @@ def format_table(
 
     # 生成行名
     if row_names is None:
-        row_names = range(len(data))
+        row_names = list(range(len(data)))
     elif len(row_names) < len(data):
         row_names.extend([i for i in range(len(row_names), len(data))])
 
@@ -89,14 +89,14 @@ def format_table(
     num_columns = len(column_names)
 
     # 处理行号
-    formatted_data = []
+    formatted_data: list[list[Any]] = []
     for i, row in enumerate(data):
         row_label = row_names[i] if row_names else i
         formatted_data.append([row_label] + list(row))
 
     # 统一填充数据行，确保所有行长度一致
-    formatted_data = zip_longest(*formatted_data, fillvalue=fill_value)
-    formatted_data = list(zip(*formatted_data))  # 转置回来
+    filled_rows = zip_longest(*formatted_data, fillvalue=fill_value)
+    formatted_data = [list(row) for row in zip(*filled_rows)]  # 转置回来
 
     # 计算每列的最大宽度
     col_widths = [
@@ -162,7 +162,7 @@ def format_duration(seconds: int) -> str:
         return f"{minutes:02d}:{seconds:02d}"
 
 
-def format_timestamp(timestamp) -> str:
+def format_timestamp(timestamp: float) -> str:
     """
     将时间戳格式化为 YYYY-MM-DD HH:MM:SS
 

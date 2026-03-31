@@ -5,7 +5,7 @@ from .util_types import StageStatus
 
 
 # ==== calculate ====
-def calc_remaining(processed: int, pending: int, elapsed: float) -> float:
+def calc_remaining(processed: float, pending: float, elapsed: float) -> float:
     """
     基于已处理任务,剩余任务以及已消耗时间来计算剩余时间.
     不要瞧不起均值,在大规模数据下它可能是最有效的.
