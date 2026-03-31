@@ -71,4 +71,5 @@ dev = [
     "httpx>=0.28.1",
     "python-dotenv>=1.2.2",
     "dill",
+    "mypy>=1.19.1",
 ]
