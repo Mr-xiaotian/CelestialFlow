@@ -45,12 +45,6 @@
   margin-bottom: 32px;
 }
 
-@media (max-width: 768px) {
-  #task-injection .card-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 #task-injection .card {
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   display: flex;

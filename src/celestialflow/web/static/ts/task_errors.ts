@@ -65,11 +65,11 @@ function renderErrors() {
     for (const e of pageItems) {
       const row = document.createElement("tr");
       row.innerHTML = `
-        <td class="error-id">${e.error_id}</td>
-        <td class="error-message" title="${escapeHtml(e.error_repr)}">${escapeHtml(e.error_repr)}</td>
-        <td>${escapeHtml(e.stage)}</td>
-        <td>${escapeHtml(e.task_repr)}</td>
-        <td>${renderLocalTime(e.ts)}</td>
+        <td class="error-id" data-label="错误id">${e.error_id}</td>
+        <td class="error-message" data-label="错误信息" title="${escapeHtml(e.error_repr)}">${escapeHtml(e.error_repr)}</td>
+        <td data-label="节点">${escapeHtml(e.stage)}</td>
+        <td data-label="任务">${escapeHtml(e.task_repr)}</td>
+        <td data-label="时间">${renderLocalTime(e.ts)}</td>
       `;
       errorsTableBody.appendChild(row);
     }

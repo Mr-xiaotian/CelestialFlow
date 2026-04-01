@@ -283,8 +283,70 @@ th {
 /* ================================
   🌟 响应式: 小屏优化
 ================================ */
-@media (max-width: 768px) {
+@media (max-width: 2048px) {
   th, td {
     padding: 0.5rem;
+  }
+}
+
+/* ================================
+  🌟 响应式: 小屏表格转卡片
+================================ */
+@media (max-width: 2048px) {
+  #errors-table thead {
+    display: none;
+  }
+
+  #errors-table tbody tr {
+    display: block;
+    border: 1px solid var(--gray-200);
+    border-radius: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    background-color: var(--frost-0);
+
+    .dark-theme & {
+      border-color: var(--carbon-600);
+      background-color: var(--carbon-800);
+    }
+  }
+
+  #errors-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.35rem 0.5rem;
+    border-bottom: none;
+    text-align: right;
+
+    &::before {
+      content: attr(data-label);
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--gray-500);
+      margin-right: 1rem;
+      text-align: left;
+      flex-shrink: 0;
+
+      .dark-theme & {
+        color: var(--gray-400);
+      }
+    }
+  }
+
+  #errors-table tbody td.error-message {
+    white-space: normal;
+    max-width: none;
+    word-break: break-all;
+  }
+
+  .filter-container {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .filter-controls {
+    flex-wrap: wrap;
   }
 }
