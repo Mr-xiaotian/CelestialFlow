@@ -285,10 +285,6 @@ select {
 
 .text-gray {
   color: var(--gray-400);
-
-  .dark-theme & {
-    color: var(--gray-400);
-  }
 }
 
 /* ================================
@@ -297,7 +293,6 @@ select {
 @media (max-width: 2048px) {
   h1 {
     width: 100%;
-    text-align: center;
   }
   #theme-toggle {
     position: static;

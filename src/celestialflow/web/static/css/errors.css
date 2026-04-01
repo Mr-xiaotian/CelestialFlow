@@ -69,18 +69,17 @@
   overflow-x: auto;
 }
 
-table {
+#errors-table {
   width: 100%;
   border-collapse: collapse;
 
   .dark-theme & {
-    background-color: var(--gray-800);
     color: var(--gray-200);
   }
 }
 
-th,
-td {
+#errors-table th,
+#errors-table td {
   text-align: left;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--gray-200);
@@ -90,7 +89,7 @@ td {
   }
 }
 
-th {
+#errors-table th {
   background-color: var(--gray-50);
   font-size: 0.75rem;
   font-weight: 600;
@@ -167,16 +166,6 @@ th {
   }
 }
 
-.pager-info {
-  margin: 0 0.75rem;
-  font-size: 0.75rem;
-  color: var(--gray-500);
-
-  .dark-theme & {
-    color: var(--gray-300);
-  }
-}
-
 /* ================================
   🌟 公共按钮样式
 ================================ */
@@ -236,7 +225,7 @@ th {
     transition: color 0.2s;
 
     &:hover {
-      color: var(--gray-500);
+      color: var(--gray-900);
 
       .dark-theme & {
         color: var(--gray-100);
@@ -274,26 +263,17 @@ th {
   text-align: center;
   color: var(--gray-400);
   padding: 2rem;
-
-  .dark-theme & {
-    color: var(--gray-400);
-  }
-}
-
-/* ================================
-  🌟 响应式: 小屏优化
-================================ */
-@media (max-width: 2048px) {
-  th, td {
-    padding: 0.5rem;
-  }
 }
 
 /* ================================
   🌟 响应式: 小屏表格转卡片
 ================================ */
 @media (max-width: 2048px) {
-  table {
+  #errors-table th, #errors-table td {
+    padding: 0.5rem;
+  }
+
+  #errors-table {
     background-color: var(--frost-0);
 
     .dark-theme & {

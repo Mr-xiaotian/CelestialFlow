@@ -103,23 +103,6 @@
   }
 }
 
-.placeholder {
-  color: var(--gray-400);
-  font-style: italic;
-}
-
-/* ================================
-  🌟 节点运行状态
-================================ */
-.grid {
-  display: grid;
-  gap: 1rem;
-}
-
-.grid-cols-1 {
-  grid-template-columns: 1fr;
-}
-
 /* ================================
   节点运行状态: 统计格子 & 摘要卡片
 ================================ */
@@ -257,10 +240,6 @@
 /* ================================
   🌟 总体状态摘要
 ================================ */
-.summary-card {
-  grid-column: span 2;
-}
-
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

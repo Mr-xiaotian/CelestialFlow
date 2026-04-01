@@ -10,7 +10,6 @@
 
   .dark-theme & {
     background: var(--cornflower-900);
-    border-left: 4px solid var(--cornflower-500);
   }
 }
 
@@ -412,20 +411,12 @@
   }
 
   .dark-theme & {
-    border: 2px dashed var(--carbon-600);
     color: var(--gray-200);
 
     &:hover {
       border-color: var(--gray-500);
     }
   }
-}
-
-#task-injection .upload-icon {
-  width: 3rem;
-  height: 3rem;
-  color: var(--gray-400);
-  margin: 0 auto 1rem;
 }
 
 #task-injection .upload-text {
