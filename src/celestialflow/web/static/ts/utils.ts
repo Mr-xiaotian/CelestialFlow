@@ -49,18 +49,19 @@ function formatWithDelta(value: number, delta: number, deltaClass: string, negCl
  * @returns {string} 十六进制颜色代码
  */
 function getColor(index: number) {
-  const colors = [
-    "#3b82f6",
-    "#10b981",
-    "#f59e0b",
-    "#ef4444",
-    "#8b5cf6",
-    "#ec4899",
-    "#22c55e",
-    "#0ea5e9",
-    "#f97316",
+  const vars = [
+    "--cornflower-500",
+    "--jade-500",
+    "--marigold-500",
+    "--crimson-500",
+    "--violet-500",
+    "--rose-500",
+    "--jade-400",
+    "--sky-500",
+    "--amber-500",
   ];
-  return colors[index % colors.length];
+  const style = getComputedStyle(document.documentElement);
+  return style.getPropertyValue(vars[index % vars.length]).trim();
 }
 
 /**

@@ -22,6 +22,18 @@ async function loadHistories() {
     }
 }
 /**
+ * 从 CSS 变量读取图表主题颜色
+ */
+function getChartThemeColors() {
+    const isDark = document.body.classList.contains("dark-theme");
+    const style = getComputedStyle(document.documentElement);
+    return {
+        text: style.getPropertyValue(isDark ? "--gray-200" : "--gray-900").trim(),
+        grid: style.getPropertyValue(isDark ? "--gray-600" : "--gray-200").trim(),
+        border: style.getPropertyValue(isDark ? "--gray-500" : "--gray-300").trim(),
+    };
+}
+/**
  * 初始化节点进度折线图
  * 创建 Chart.js 实例，配置图表选项、图例点击事件等
  */
@@ -31,10 +43,7 @@ function initChart() {
     if (progressChart) {
         progressChart.destroy();
     }
-    const isDark = document.body.classList.contains("dark-theme");
-    const textColor = isDark ? "#e5e7eb" : "#111827"; // 字体颜色
-    const gridColor = isDark ? "#4b5563" : "#e5e7eb"; // 网格线颜色
-    const borderColor = isDark ? "#6b7280" : "#d1d5db"; // 轴线颜色
+    const { text: textColor, grid: gridColor, border: borderColor } = getChartThemeColors();
     progressChart = new Chart(ctx, {
         type: "line",
         data: {
@@ -93,10 +102,7 @@ function initChart() {
 function updateChartTheme() {
     if (!progressChart)
         return;
-    const isDark = document.body.classList.contains("dark-theme");
-    const textColor = isDark ? "#e5e7eb" : "#111827";
-    const gridColor = isDark ? "#4b5563" : "#e5e7eb";
-    const borderColor = isDark ? "#6b7280" : "#d1d5db";
+    const { text: textColor, grid: gridColor, border: borderColor } = getChartThemeColors();
     progressChart.options.plugins.legend.labels.color = textColor;
     progressChart.options.scales.x.ticks.color = textColor;
     progressChart.options.scales.x.grid.color = gridColor;
