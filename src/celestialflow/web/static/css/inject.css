@@ -5,7 +5,7 @@
   background: var(--cornflower-50);
   border-left: 4px solid var(--cornflower-500);
   padding: 16px;
-  margin-bottom: 32px;
+  margin-bottom: 1rem;
   border-radius: 0 8px 8px 0;
 
   .dark-theme & {

@@ -303,9 +303,7 @@ select {
     position: static;
     order: 3;
   }
+  main.container {
+    padding-bottom: 1rem;
+  }
 }
-
-/* ================================
-  🌟 全局辅助样式
-================================ */
-/* 用于辅助布局的工具类可以在此扩展，比如 flex、grid、gap 等 */
