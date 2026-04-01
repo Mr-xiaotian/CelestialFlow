@@ -62,7 +62,7 @@ h1 {
   font-weight: 700;
   text-align: center;
   color: var(--frost-0);
-  margin-bottom: 30px;
+  margin-bottom: 2rem;
 
   .dark-theme & {
     color: var(--gray-100);
@@ -106,13 +106,13 @@ select {
 
 button {
   color: var(--frost-0);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   transition: background-color 0.2s;
 }
 
 select {
   background-color: var(--frost-0);
-  height: 30px;
+  height: 2rem;
 
   .dark-theme & {
     background-color: var(--carbon-700);
@@ -124,12 +124,12 @@ select {
 /* 主题切换按钮 */
 #theme-toggle {
   position: absolute;
-  right: 20px;
+  right: 1.25rem;
   background-color: var(--gray-700);
   color: var(--frost-0);
   border: none;
-  border-radius: 20px;
-  padding: 5px 15px;
+  border-radius: 1.25rem;
+  padding: 0.25rem 1rem;
   cursor: pointer;
   transition: all 0.3s ease;
 
@@ -208,7 +208,7 @@ select {
   background-color: var(--frost-0);
   border-radius: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 24px;
+  padding: 1.5rem;
   transition: transform 0.2s ease;
 
   &:hover {
@@ -281,7 +281,7 @@ select {
 .text-delta-pending       { color: var(--marigold-300); }
 .text-delta-error         { color: var(--crimson-300); }
 .text-delta-duplicate     { color: var(--amber-300);}
-.text-sm { font-size: 0.875rem; }
+.text-sm { font-size: 0.75rem; }
 
 .text-gray {
   color: var(--gray-400);

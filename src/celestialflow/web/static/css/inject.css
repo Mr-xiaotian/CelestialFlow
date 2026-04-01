@@ -4,9 +4,9 @@
 #task-injection .tip-section {
   background: var(--cornflower-50);
   border-left: 4px solid var(--cornflower-500);
-  padding: 16px;
+  padding: 1rem;
   margin-bottom: 1rem;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 0.5rem 0.5rem 0;
 
   .dark-theme & {
     background: var(--cornflower-900);
@@ -20,15 +20,15 @@
 }
 
 #task-injection .tip-icon {
-  width: 20px;
-  height: 20px;
+  width: 1.25rem;
+  height: 1.25rem;
   color: var(--cornflower-500);
-  margin-right: 12px;
+  margin-right: 0.75rem;
 }
 
 #task-injection .tip-text {
   color: var(--cornflower-600);
-  font-size: 14px;
+  font-size: 0.75rem;
 
   .dark-theme & {
     color: var(--gray-300);
@@ -41,8 +41,8 @@
 #task-injection .card-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  margin-bottom: 32px;
+  gap: 2rem;
+  margin-bottom: 2rem;
 }
 
 #task-injection .card {
@@ -57,10 +57,10 @@
 }
 
 #task-injection .card-title {
-  font-size: 18px;
+  font-size: 1.25rem;
   font-weight: 600;
   color: var(--gray-800);
-  margin-bottom: 16px;
+  margin-bottom: 1rem;
 
   .dark-theme & {
     color: var(--gray-100);
@@ -72,15 +72,15 @@
 ================================ */
 #task-injection .search-container {
   position: relative;
-  margin-bottom: 16px;
+  margin-bottom: 1rem;
 }
 
 #task-injection .search-input {
   width: 100%;
-  padding: 8px 12px 8px 40px;
+  padding: 0.5rem 0.75rem 0.5rem 2.5rem;
   border: 1px solid var(--gray-300);
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
   outline: none;
   transition: all 0.2s;
 
@@ -97,11 +97,11 @@
 
 #task-injection .search-icon {
   position: absolute;
-  left: 12px;
+  left: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
+  width: 1rem;
+  height: 1rem;
   color: var(--gray-400);
 }
 
@@ -110,15 +110,15 @@
 ================================ */
 #task-injection .button-group {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 #task-injection .btn-small {
-  padding: 4px 12px;
-  font-size: 12px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 0.25rem;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -163,17 +163,17 @@
   🌟 节点列表 & 已选节点
 ================================ */
 #task-injection .node-list {
-  max-height: 256px;
+  max-height: 16rem;
   overflow-y: auto;
 }
 
 #task-injection .node-item {
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 0.75rem;
   border: 1px solid var(--gray-200);
-  border-radius: 8px;
-  margin-bottom: 8px;
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
   cursor: pointer;
   transition: all 0.2s;
   justify-content: space-between;
@@ -196,7 +196,7 @@
 #task-injection .node-name {
   font-weight: 500;
   color: var(--gray-800);
-  margin-bottom: 4px;
+  margin-bottom: 0.25rem;
 
   .dark-theme & {
     color: var(--gray-100);
@@ -206,17 +206,17 @@
 /* 已选节点区 */
 #task-injection .selected-list {
   overflow-y: auto;
-  max-height: 87px;
+  max-height: 5.5rem;
 }
 
 #task-injection .selected-nodes {
-  margin-top: 16px;
+  margin-top: 1rem;
 }
 
 #task-injection .selected-title {
   font-weight: 500;
   color: var(--gray-800);
-  margin-bottom: 8px;
+  margin-bottom: 0.5rem;
 
   .dark-theme & {
     color: var(--gray-100);
@@ -228,9 +228,9 @@
   align-items: center;
   justify-content: space-between;
   background: var(--cornflower-50);
-  padding: 8px 12px;
-  border-radius: 8px;
-  margin-bottom: 4px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.25rem;
 
   .dark-theme & {
     background: var(--cornflower-500);
@@ -239,7 +239,7 @@
 }
 
 #task-injection .selected-name {
-  font-size: 14px;
+  font-size: 0.75rem;
   color: var(--cornflower-600);
 
   .dark-theme & {
@@ -252,8 +252,8 @@
   border: none;
   color: var(--cornflower-500);
   cursor: pointer;
-  padding: 2px;
-  border-radius: 4px;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
 
   &:hover {
     color: var(--cornflower-700);
@@ -272,9 +272,9 @@
 #task-injection .input-toggle {
   display: flex;
   background: var(--gray-100);
-  border-radius: 8px;
-  padding: 4px;
-  margin-bottom: 16px;
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+  margin-bottom: 1rem;
 
   .dark-theme & {
     background: var(--carbon-700);
@@ -286,10 +286,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 16px;
+  padding: 0.5rem 1rem;
   border: none;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
   background: transparent;
@@ -313,9 +313,9 @@
 }
 
 #task-injection .toggle-icon {
-  width: 16px;
-  height: 16px;
-  margin-right: 8px;
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
 }
 
 /* ================================
@@ -332,11 +332,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 0.5rem;
 }
 
 #task-injection .json-label {
-  font-size: 14px;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--gray-700);
 
@@ -346,7 +346,7 @@
 }
 
 #task-injection .example-btn {
-  font-size: 14px;
+  font-size: 0.75rem;
   color: var(--cornflower-500);
   background: none;
   border: none;
@@ -359,13 +359,13 @@
 
 #task-injection .json-textarea {
   width: 100%;
-  padding: 12px;
+  padding: 0.75rem;
   border: 1px solid var(--gray-300);
-  border-radius: 8px;
+  border-radius: 0.5rem;
   font-family: "Monaco", "Menlo", monospace;
-  font-size: 12px;
+  font-size: 0.75rem;
   resize: vertical;
-  min-height: 250px;
+  min-height: 15.75rem;
   outline: none;
   flex: 1;
 
@@ -381,16 +381,16 @@
 }
 
 #task-injection .error-message {
-  margin-top: 4px;
-  font-size: 12px;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
   color: var(--crimson-600);
 }
 
 /* 文件上传区 */
 #task-injection #file-input-section {
   border: 2px dashed var(--gray-300);
-  border-radius: 8px;
-  min-height: 250px;
+  border-radius: 0.5rem;
+  min-height: 15.75rem;
   flex: 1;
   display: flex;
   justify-content: center;
@@ -402,7 +402,7 @@
 }
 
 #task-injection .upload-area {
-  padding: 24px;
+  padding: 1.5rem;
   text-align: center;
   transition: all 0.2s;
   cursor: pointer;
@@ -422,16 +422,16 @@
 }
 
 #task-injection .upload-icon {
-  width: 48px;
-  height: 48px;
+  width: 3rem;
+  height: 3rem;
   color: var(--gray-400);
-  margin: 0 auto 16px;
+  margin: 0 auto 1rem;
 }
 
 #task-injection .upload-text {
   font-weight: 500;
   color: var(--gray-800);
-  margin-bottom: 4px;
+  margin-bottom: 0.25rem;
 
   .dark-theme & {
     color: var(--gray-200);
@@ -439,7 +439,7 @@
 }
 
 #task-injection .upload-hint {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--gray-500);
 
   .dark-theme & {
@@ -453,11 +453,11 @@
 
 /* 文件信息 */
 #task-injection .file-info {
-  margin-top: 16px;
-  padding: 12px;
+  margin-top: 1rem;
+  padding: 0.75rem;
   background: var(--jade-50);
   border: 1px solid var(--jade-100);
-  border-radius: 8px;
+  border-radius: 0.5rem;
   display: flex;
   align-items: center;
 
@@ -469,14 +469,14 @@
 }
 
 #task-injection .file-icon {
-  width: 20px;
-  height: 20px;
+  width: 1.25rem;
+  height: 1.25rem;
   color: var(--jade-600);
-  margin-right: 8px;
+  margin-right: 0.5rem;
 }
 
 #task-injection .file-name {
-  font-size: 14px;
+  font-size: 0.75rem;
   color: var(--jade-800);
 
   .dark-theme & {
@@ -497,14 +497,14 @@
 #task-injection .status-message {
   display: flex;
   align-items: center;
-  font-size: 14px;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
 #task-injection .status-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 8px;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.5rem;
 }
 
 #task-injection .status-success {
@@ -524,11 +524,11 @@
 }
 
 #task-injection .btn-submit {
-  padding: 12px 24px;
+  padding: 0.75rem 1.5rem;
   background: var(--cornflower-500);
   color: var(--frost-0);
   border: none;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -561,13 +561,13 @@
 }
 
 #task-injection .spinner {
-  width: 16px;
-  height: 16px;
+  width: 1rem;
+  height: 1rem;
   border: 2px solid var(--frost-0);
   border-top: 2px solid transparent;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-right: 8px;
+  margin-right: 0.5rem;
 }
 
 @keyframes spin {
