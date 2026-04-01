@@ -52,12 +52,15 @@ function renderErrors() {
     const pageItems = errors;
     errorsTableBody.innerHTML = "";
     if (!pageItems.length) {
-        errorsTableBody.innerHTML = `<tr><td colspan="5" class="no-errors">没有错误记录</td></tr>`;
+        errorsTableBody.innerHTML = `<tr><td colspan="6" class="no-errors">没有错误记录</td></tr>`;
     }
     else {
-        for (const e of pageItems) {
+        for (let i = 0; i < pageItems.length; i++) {
+            const e = pageItems[i];
+            const index = (currentPage - 1) * pageSize + i + 1;
             const row = document.createElement("tr");
             row.innerHTML = `
+        <td data-label="#">${index}</td>
         <td class="error-id" data-label="错误id">${e.error_id}</td>
         <td class="error-message" data-label="错误信息" title="${escapeHtml(e.error_repr)}">${escapeHtml(e.error_repr)}</td>
         <td data-label="节点">${escapeHtml(e.stage)}</td>
