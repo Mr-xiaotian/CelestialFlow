@@ -44,28 +44,6 @@
   margin-bottom: 2rem;
 }
 
-#task-injection .card {
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-
-  .dark-theme & {
-    background-color: var(--carbon-800);
-    color: var(--gray-200);
-  }
-}
-
-#task-injection .card-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--gray-800);
-  margin-bottom: 1rem;
-
-  .dark-theme & {
-    color: var(--gray-100);
-  }
-}
-
 /* ================================
   🌟 搜索框
 ================================ */

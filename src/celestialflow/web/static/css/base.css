@@ -205,19 +205,18 @@ select {
 .card {
   background-color: var(--frost-0);
   border-radius: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   padding: 1.5rem;
-  transition: transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
   }
 
   .dark-theme & {
     background-color: var(--carbon-800);
     color: var(--gray-200);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
   }
 }
 
@@ -231,7 +230,8 @@ select {
 .card-title {
   font-size: 1.25rem;
   font-weight: 600;
-  padding-bottom: 1rem;
+  color: var(--gray-800);
+  margin-bottom: 1rem;
 
   .dark-theme & {
     color: var(--gray-100);
