@@ -167,7 +167,35 @@
   font-family: monospace;
 
   .elapsed {
+    color: var(--gray-500);
+
+    .dark-theme & {
+      color: var(--gray-300);
+    }
+  }
+
+  .elapsed-success {
     color: var(--jade-500);
+
+    .dark-theme & {
+      color: var(--jade-300);
+    }
+  }
+
+  .elapsed-error {
+    color: var(--crimson-500);
+
+    .dark-theme & {
+      color: var(--crimson-300);
+    }
+  }
+
+  .elapsed-duplicate {
+    color: var(--marigold-500);
+
+    .dark-theme & {
+      color: var(--marigold-300);
+    }
   }
 
   .remaining { 

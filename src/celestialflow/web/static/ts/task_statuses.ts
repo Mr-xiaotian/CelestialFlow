@@ -143,7 +143,12 @@ function renderDashboard() {
             <div class="progress-header">
               <span>任务完成率</span>
               <span class="time-estimate">
-                <span class="elapsed">${formatDuration(data.elapsed_time)}</span>
+                <span class="elapsed">${formatElapsedDuration(
+                  data.elapsed_time,
+                  data.tasks_successed,
+                  data.tasks_failed,
+                  data.tasks_duplicated
+                )}</span>
                 &lt;
                 <span class="remaining">${formatDuration(data.remaining_time)}</span>,
                 <span class="task-avg-time">${data.task_avg_time}</span>,

@@ -173,6 +173,77 @@ function formatDuration(seconds: number) {
 }
 
 /**
+ * 将 elapsed 时间格式化为带颜色的 HTML 字符串
+ * @param {number} seconds - 秒数
+ * @param {number} successCount - 成功任务数
+ * @param {number} failedCount - 失败任务数
+ * @param {number} duplicateCount - 重复任务数
+ * @returns {string} 带颜色分段的时间 HTML
+ */
+function formatElapsedDuration(
+  seconds: number,
+  successCount: number,
+  failedCount: number,
+  duplicateCount: number
+) {
+  const duration = formatDuration(seconds);
+  const digitCount = duration.replace(/:/g, "").length;
+  if (!digitCount) return duration;
+
+  const segments = [
+    { className: "elapsed-success", count: Math.max(0, successCount || 0) },
+    { className: "elapsed-error", count: Math.max(0, failedCount || 0) },
+    { className: "elapsed-duplicate", count: Math.max(0, duplicateCount || 0) },
+  ].filter((segment) => segment.count > 0);
+
+  if (!segments.length) return duration;
+
+  const totalCount = segments.reduce((sum, segment) => sum + segment.count, 0);
+  const exactAllocations = segments.map((segment) => (segment.count / totalCount) * digitCount);
+  const allocations = exactAllocations.map((value) => Math.floor(value));
+
+  let remainingDigits = digitCount - allocations.reduce((sum, value) => sum + value, 0);
+  const sortedIndexes = exactAllocations
+    .map((value, index) => ({ index, remainder: value - allocations[index] }))
+    .sort((a, b) => {
+      if (b.remainder !== a.remainder) return b.remainder - a.remainder;
+      return a.index - b.index;
+    });
+
+  for (let i = 0; i < remainingDigits; i++) {
+    allocations[sortedIndexes[i % sortedIndexes.length].index] += 1;
+  }
+
+  const digitClasses: string[] = [];
+  allocations.forEach((allocation, index) => {
+    for (let i = 0; i < allocation; i++) {
+      digitClasses.push(segments[index].className);
+    }
+  });
+
+  while (digitClasses.length < digitCount) {
+    digitClasses.push(segments[segments.length - 1].className);
+  }
+
+  let digitIndex = 0;
+  return duration
+    .split("")
+    .map((char) => {
+      if (char === ":") {
+        const leftClassName =
+          digitIndex > 0
+            ? digitClasses[digitIndex - 1]
+            : segments[0].className;
+        return `<span class="${leftClassName}">:</span>`;
+      }
+      const className = digitClasses[digitIndex] || segments[segments.length - 1].className;
+      digitIndex += 1;
+      return `<span class="${className}">${char}</span>`;
+    })
+    .join("");
+}
+
+/**
  * 格式化时间戳为 YYYY-MM-DD HH:MM:SS 格式
  * @param {number} timestamp - Unix 时间戳（秒）
  * @returns {string} 格式化后的日期时间字符串
