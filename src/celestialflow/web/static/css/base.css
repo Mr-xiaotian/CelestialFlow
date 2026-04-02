@@ -21,7 +21,7 @@ body {
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 1rem;
 
   .dark-theme & {
     background-color: var(--carbon-900);
@@ -37,8 +37,6 @@ body {
 header {
   background-color: var(--cornflower-500);
   color: var(--frost-0);
-  padding: 1rem 0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 
   .dark-theme & {
     background-color: var(--carbon-900);
@@ -62,7 +60,7 @@ h1 {
   font-weight: 700;
   text-align: center;
   color: var(--frost-0);
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 
   .dark-theme & {
     color: var(--gray-100);
@@ -297,8 +295,5 @@ select {
   #theme-toggle {
     position: static;
     order: 3;
-  }
-  main.container {
-    padding-bottom: 1rem;
   }
 }
