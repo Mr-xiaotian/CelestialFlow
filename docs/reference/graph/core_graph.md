@@ -135,12 +135,12 @@ def get_graph_summary(self) -> dict:
     """返回全局统计（成功数、失败数、积压数等）。"""
 ```
 
-### 拓扑查询
+### 分析查询
 
 ```python
-# 获取拓扑信息
-def get_graph_topology(self) -> dict:
-    """返回 isDAG, schedule_mode, layers_dict 等信息。"""
+# 获取分析信息
+def get_graph_analysis(self) -> dict:
+    """返回 isDAG, schedule_mode, class_name, layers_dict 等信息."""
 
 # 获取结构 JSON
 def get_structure_json(self) -> list[dict]:

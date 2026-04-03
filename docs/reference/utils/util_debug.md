@@ -1,6 +1,6 @@
 # UtilsDebug
 
-`utils/debug.py` 提供调试辅助函数。
+`utils/util_debug.py` 提供调试辅助函数。
 
 ## 主要函数
 

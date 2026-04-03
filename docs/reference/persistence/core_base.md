@@ -1,6 +1,6 @@
 # Persistence Base
 
-`persistence/base.py` 提供了日志和错误持久化的基础类，是 `LogListener`/`LogSinker` 和 `FailListener`/`FailSinker` 的父类。
+`persistence/core_base.py` 提供了日志和错误持久化的基础类，是 `LogListener`/`LogSinker` 和 `FailListener`/`FailSinker` 的父类。
 
 ## 设计目的
 
@@ -174,12 +174,12 @@ listener.stop()
 
 ```
 BaseListener
-├── LogListener (persistence/log.py)
-└── FailListener (persistence/fail.py)
+├── LogListener (persistence/core_log.py)
+└── FailListener (persistence/core_fail.py)
 
 BaseSinker
-├── LogSinker (persistence/log.py)
-└── FailSinker (persistence/fail.py)
+├── LogSinker (persistence/core_log.py)
+└── FailSinker (persistence/core_fail.py)
 ```
 
 ## 注意事项

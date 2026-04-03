@@ -25,7 +25,7 @@ def clone_executor(executor: TaskExecutor) -> TaskExecutor:
 复制的属性：
 - `func`: 任务函数
 - `execution_mode`: 执行模式
-- `worker_limit`: 并发限制
+- `max_workers`: 并发限制
 - `max_retries`: 最大重试次数
 - `max_info`: 日志信息最大长度
 - `unpack_task_args`: 是否解包参数
@@ -88,7 +88,7 @@ from celestialflow.utils.clone import clone_executor
 executor = TaskExecutor(
     func=process,
     execution_mode="thread",
-    worker_limit=10,
+    max_workers=10,
     max_retries=3,
 )
 

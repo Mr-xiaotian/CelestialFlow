@@ -1,6 +1,6 @@
 # PersistenceConstant
 
-`persistence/constant.py` 定义日志级别映射常量 `LEVEL_DICT`。
+`persistence/util_constant.py` 定义日志级别映射常量 `LEVEL_DICT`。
 
 ## 级别
 

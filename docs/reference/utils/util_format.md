@@ -1,6 +1,6 @@
 # UtilsFormat
 
-`utils/format.py` 提供通用格式化工具。
+`utils/util_format.py` 提供通用格式化工具。
 
 ## 主要函数
 

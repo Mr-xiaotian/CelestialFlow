@@ -186,7 +186,7 @@ class TaskRedisTransport(TaskStage):
         ...
 ```
 
-**行为**: 将任务序列化为 JSON 并 `rpush` 到 Redis List。内部使用 `execution_mode="thread"` 和 `worker_limit=4` 并发写入。
+**行为**: 将任务序列化为 JSON 并 `rpush` 到 Redis List。内部使用 `execution_mode="thread"` 和 `max_workers=4` 并发写入。
 
 ### TaskRedisSource
 
