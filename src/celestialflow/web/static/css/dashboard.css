@@ -57,13 +57,13 @@
 
 .mermaid .arrowMarkerPath {
   .dark-theme & {
-    fill: var(--gray-200);
+    fill: var(--carbon-200);
   }
 }
 
 .mermaid span {
   .dark-theme & {
-    color: var(--gray-300) !important;
+    color: var(--carbon-300) !important;
   }
 }
 
@@ -82,15 +82,15 @@
   justify-content: space-between;
   padding: 0.25rem 0;
 
-  .label {
-    color: var(--gray-500);
+  .analysis-label {
+    color: var(--carbon-500);
 
     .dark-theme & {
-      color: var(--gray-400);
+      color: var(--carbon-400);
     }
   }
 
-  .value {
+  .analysis-value {
     font-weight: 500;
 
     &.ok {
@@ -115,10 +115,10 @@
 
 .stat-label {
   font-size: 0.75rem;
-  color: var(--gray-600);
+  color: var(--carbon-600);
 
   .dark-theme & {
-    color: var(--gray-400);
+    color: var(--carbon-400);
   }
 }
 
@@ -144,33 +144,32 @@
 .progress-bar {
   width: 100%;
   height: 0.5rem;
-  background-color: var(--gray-100);
+  background-color: var(--carbon-100);
   border-radius: 0.25rem;
   overflow: hidden;
   display: flex;
   align-items: stretch;
 
   .dark-theme & {
-    background-color: var(--gray-700);
+    background-color: var(--carbon-700);
   }
 }
 
 .progress-segment {
-  align-self: stretch;
   min-width: 0;
   &.seg-success   { background-color: var(--jade-400);       .dark-theme & { background-color: var(--jade-700); } }
   &.seg-error     { background-color: var(--crimson-400);    .dark-theme & { background-color: var(--crimson-700); } }
   &.seg-duplicate { background-color: var(--marigold-400);   .dark-theme & { background-color: var(--marigold-700); } }
-  &.seg-pending   { background-color: var(--gray-300);       .dark-theme & { background-color: var(--gray-600); } }
+  &.seg-pending   { background-color: var(--carbon-300);       .dark-theme & { background-color: var(--carbon-600); } }
 }
 .time-estimate {
   font-family: monospace;
 
   .elapsed {
-    color: var(--gray-500);
+    color: var(--carbon-500);
 
     .dark-theme & {
-      color: var(--gray-300);
+      color: var(--carbon-300);
     }
   }
 
@@ -199,10 +198,10 @@
   }
 
   .remaining { 
-    color: var(--gray-500);        
+    color: var(--carbon-500);        
     
     .dark-theme & { 
-      color: var(--gray-300); 
+      color: var(--carbon-300); 
     } 
   }
 }
@@ -225,8 +224,8 @@
   background-color: var(--frost-0);
   border-radius: 1rem;
   box-shadow: none;
-  border: 1px solid var(--gray-200);
-  border-left: 3px solid var(--gray-300);
+  border: 1px solid var(--carbon-200);
+  border-left: 3px solid var(--carbon-300);
   padding: 1rem;
   margin: 0.5rem;
 
@@ -236,22 +235,18 @@
   }
 
   &.status-stopped {
-    border-left-color: var(--gray-400);
-    .dark-theme & { border-left-color: var(--gray-500); }
+    border-left-color: var(--carbon-400);
+    .dark-theme & { border-left-color: var(--carbon-500); }
   }
 
   .dark-theme & {
     background-color: var(--carbon-800);
     border-color: var(--carbon-600);
-    border-left-color: var(--gray-600);
+    border-left-color: var(--carbon-600);
   }
 
   .card-title {
     margin-bottom: 0;
-  }
-
-  .badge {
-    display: none;
   }
 }
 
@@ -284,7 +279,7 @@
   border-radius: 0.5rem;
 
   &.success   { background-color: var(--jade-100);        .dark-theme & { background-color: var(--jade-900); } }
-  &.pending   { background-color: var(--gray-100);        .dark-theme & { background-color: var(--gray-700); } }
+  &.pending   { background-color: var(--carbon-100);        .dark-theme & { background-color: var(--carbon-700); } }
   &.error     { background-color: var(--crimson-100);     .dark-theme & { background-color: var(--crimson-900); } }
   &.duplicate { background-color: var(--marigold-100);    .dark-theme & { background-color: var(--marigold-900); } }
   &.nodes     { background-color: var(--cornflower-100);  .dark-theme & { background-color: var(--cornflower-900); } }
@@ -296,7 +291,7 @@
   font-weight: 700;
 
   &.success   { color: var(--jade-600);        .dark-theme & { color: var(--jade-300); } }
-  &.pending   { color: var(--gray-600);        .dark-theme & { color: var(--gray-300); } }
+  &.pending   { color: var(--carbon-600);        .dark-theme & { color: var(--carbon-300); } }
   &.error     { color: var(--crimson-600);     .dark-theme & { color: var(--crimson-300); } }
   &.duplicate { color: var(--marigold-600);    .dark-theme & { color: var(--marigold-300); } }
   &.nodes     { color: var(--cornflower-600);  .dark-theme & { color: var(--cornflower-300); } }
@@ -305,11 +300,11 @@
 
 .summary-label {
   font-size: 0.75rem;
-  color: var(--gray-600);
+  color: var(--carbon-600);
   margin-top: 0.25rem;
 
   .dark-theme & {
-    color: var(--gray-300);
+    color: var(--carbon-300);
   }
 }
 

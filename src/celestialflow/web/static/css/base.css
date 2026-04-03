@@ -9,12 +9,12 @@
 }
 
 body {
-  background-color: var(--gray-50);
+  background-color: var(--carbon-50);
   line-height: 1.5;
 
   &.dark-theme {
     background-color: var(--carbon-900);
-    color: var(--gray-200);
+    color: var(--carbon-200);
   }
 }
 
@@ -25,7 +25,7 @@ body {
 
   .dark-theme & {
     background-color: var(--carbon-900);
-    color: var(--gray-200);
+    color: var(--carbon-200);
   }
 }
 
@@ -36,12 +36,12 @@ body {
 ================================ */
 .empty-placeholder {
   text-align: center !important; 
-  color: var(--gray-400);
+  color: var(--carbon-400);
   padding: 2rem;
   font-size: 1rem;
 
   .dark-theme & {
-    color: var(--gray-300);
+    color: var(--carbon-300);
   }
 }
 
@@ -54,7 +54,7 @@ header {
 
   .dark-theme & {
     background-color: var(--carbon-900);
-    color: var(--gray-100);
+    color: var(--carbon-100);
   }
 }
 
@@ -80,7 +80,7 @@ h1 {
   margin-bottom: 1rem;
 
   .dark-theme & {
-    color: var(--gray-100);
+    color: var(--carbon-100);
   }
 }
 
@@ -92,12 +92,11 @@ h1 {
   align-items: center;
   gap: 1rem;
 
-  select,
   button {
     .dark-theme & {
-      background-color: var(--gray-700);
-      color: var(--gray-100);
-      border: 1px solid var(--carbon-600);
+      background-color: var(--carbon-700);
+      color: var(--carbon-100);
+      border-color: var(--carbon-600);
     }
   }
 }
@@ -116,7 +115,7 @@ select {
   cursor: pointer;
   padding: 0.25rem 0.75rem;
   border-radius: 0.25rem;
-  border: 1px solid var(--gray-400);
+  border: 1px solid var(--carbon-400);
 }
 
 button {
@@ -131,7 +130,7 @@ select {
 
   .dark-theme & {
     background-color: var(--carbon-700);
-    color: var(--gray-200);
+    color: var(--carbon-200);
     border-color: var(--carbon-600);
   }
 }
@@ -140,7 +139,7 @@ select {
 #theme-toggle {
   position: absolute;
   right: 1.25rem;
-  background-color: var(--gray-700);
+  background-color: var(--carbon-700);
   color: var(--frost-0);
   border: none;
   border-radius: 1.25rem;
@@ -158,7 +157,7 @@ select {
 
   .dark-theme & {
     background-color: var(--cornflower-400);
-    color: var(--gray-100);
+    color: var(--carbon-100);
     border: 1px solid var(--carbon-600);
   }
 }
@@ -170,7 +169,7 @@ select {
   display: flex;
   overflow-x: auto;
   scrollbar-width: none;
-  border-bottom: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--carbon-200);
   margin: 1rem 0;
 
   &::-webkit-scrollbar {
@@ -178,7 +177,7 @@ select {
   }
 
   .dark-theme & {
-    border-bottom: 2px solid var(--gray-700);
+    border-bottom: 2px solid var(--carbon-700);
   }
 }
 
@@ -187,7 +186,7 @@ select {
   flex-shrink: 0;
   background: transparent;
   border: none;
-  color: var(--gray-600);
+  color: var(--carbon-600);
   padding: 0.5rem 1rem;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
@@ -203,7 +202,7 @@ select {
   }
 
   &:hover {
-    background-color: var(--gray-50);
+    background-color: var(--carbon-50);
 
     .dark-theme & {
       background-color: var(--carbon-800);
@@ -211,7 +210,7 @@ select {
   }
 
   .dark-theme & {
-    color: var(--gray-300);
+    color: var(--carbon-300);
   }
 }
 
@@ -232,7 +231,7 @@ select {
 
   .dark-theme & {
     background-color: var(--carbon-800);
-    color: var(--gray-200);
+    color: var(--carbon-200);
   }
 }
 
@@ -246,11 +245,11 @@ select {
 .card-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--gray-800);
+  color: var(--carbon-800);
   margin-bottom: 1rem;
 
   .dark-theme & {
-    color: var(--gray-100);
+    color: var(--carbon-100);
   }
 }
 
@@ -265,10 +264,10 @@ select {
 }
 
 .badge-inactive {
-  background-color: var(--gray-400);
+  background-color: var(--carbon-400);
 
   .dark-theme & {
-    background-color: var(--gray-500);
+    background-color: var(--carbon-500);
   }
 }
 
@@ -280,25 +279,31 @@ select {
   }
 }
 
-.badge-completed { background-color: var(--gray-400); }
+.badge-completed {
+  background-color: var(--carbon-400);
+
+  .dark-theme & {
+    background-color: var(--carbon-500);
+  }
+}
 
 /* ================================
   🌟 文字颜色辅助类
 ================================ */
 /* 节点卡片统计数字主色 */
 .text-success   { color: var(--jade-500); }
-.text-pending   { color: var(--gray-500);        .dark-theme & { color: var(--gray-300); } }
+.text-pending   { color: var(--carbon-500);        .dark-theme & { color: var(--carbon-300); } }
 .text-error     { color: var(--crimson-500); }
 .text-duplicate { color: var(--marigold-500);}
 /* 增量数字颜色（比主色浅一档） */
 .text-delta-success       { color: var(--jade-300); }
-.text-delta-pending       { color: var(--gray-400); }
+.text-delta-pending       { color: var(--carbon-400); }
 .text-delta-error         { color: var(--crimson-300); }
 .text-delta-duplicate     { color: var(--marigold-300);}
 .text-sm { font-size: 0.75rem; }
 
-.text-gray {
-  color: var(--gray-400);
+.text-carbon {
+  color: var(--carbon-400);
 }
 
 /* ================================

@@ -91,17 +91,6 @@ function renderDashboard() {
     const pctDuplicate = total === 0 ? 0 : (data.tasks_duplicated / total) * 100;
     const pctPending   = total === 0 ? 0 : (data.tasks_pending    / total) * 100;
 
-    // 根据 status 决定 badge 样式和文本
-    let badgeClass = "badge-inactive";
-    let badgeText = "未运行";
-    if (data.status === 1) {
-      badgeClass = "badge-running";
-      badgeText = "运行中";
-    } else if (data.status === 2) {
-      badgeClass = "badge-completed";
-      badgeText = "已停止";
-    }
-
     const card = document.createElement("div");
     if (data.status === 1) {
       card.className = "node-card status-running";
@@ -113,7 +102,6 @@ function renderDashboard() {
     card.innerHTML = `
           <div class="card-header">
             <h3 class="card-title">${escapeHtml(node)}</h3>
-            <span class="badge ${badgeClass}">${badgeText}</span>
           </div>
           <div class="stat-grid">
             <div><div class="stat-label">成功</div><div class="stat-value text-success">${formatWithDelta(
@@ -143,7 +131,7 @@ function renderDashboard() {
             <div><div class="stat-label">节点模式</div><div class="stat-value">${escapeHtml(data.stage_mode)}</div></div>
             <div><div class="stat-label">运行模式</div><div class="stat-value">${escapeHtml(data.execution_mode)}</div></div>
           </div>
-          <div class="text-sm text-gray">开始时间: ${formatTimestamp(data.start_time)}</div>
+          <div class="text-sm text-carbon">开始时间: ${formatTimestamp(data.start_time)}</div>
           <div class="progress-container">
             <div class="progress-header">
               <span>任务完成率</span>
