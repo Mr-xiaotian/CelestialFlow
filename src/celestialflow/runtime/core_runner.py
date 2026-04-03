@@ -72,8 +72,7 @@ class TaskRunner:
         """
         task_queues = self.task_executor.task_queues
         result_queues = self.task_executor.result_queues
-        assert task_queues is not None
-        assert result_queues is not None
+        
         while True:
             while True:
                 envelope = task_queues.get()
@@ -119,8 +118,6 @@ class TaskRunner:
         self.init_pool(execution_mode)
         task_queues = self.task_executor.task_queues
         result_queues = self.task_executor.result_queues
-        assert task_queues is not None
-        assert result_queues is not None
 
         while True:
             task_start_dict: dict[int, float] = {}  # 用于存储任务开始时间
@@ -220,8 +217,7 @@ class TaskRunner:
         """
         task_queues = self.task_executor.task_queues
         result_queues = self.task_executor.result_queues
-        assert task_queues is not None
-        assert result_queues is not None
+        
         while True:
             semaphore = asyncio.Semaphore(
                 self.task_executor.max_workers

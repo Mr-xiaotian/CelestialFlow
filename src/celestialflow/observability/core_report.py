@@ -52,20 +52,18 @@ class TaskReporter:
 
     def start(self) -> None:
         """启动上报器线程"""
-        if self._thread is None or not self._thread.is_alive():
-            self._stop_flag.clear()
-            self._thread = Thread(target=self._loop, daemon=True)
-            self._thread.start()
+        self._stop_flag.clear()
+        self._thread = Thread(target=self._loop, daemon=True)
+        self._thread.start()
 
     def stop(self) -> None:
         """停止上报器线程"""
-        if self._thread:
-            self._refresh_all()  # 最后一次
-            self._stop_flag.set()
-            self._thread.join(timeout=2)
-            self._thread = None
-            self._session.close()
-            self.log_sinker.stop_reporter()
+        self._refresh_all()  # 最后一次
+        self._stop_flag.set()
+        self._thread.join(timeout=2)
+        self._thread = None
+        self._session.close()
+        self.log_sinker.stop_reporter()
 
     def _pull_timeout(self) -> float:
         """计算拉取请求的超时时间"""
