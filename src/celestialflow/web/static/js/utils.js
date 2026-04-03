@@ -170,16 +170,40 @@ function formatElapsedDuration(seconds, successCount, failedCount, duplicateCoun
     const digitCount = duration.replace(/:/g, "").length;
     if (!digitCount)
         return duration;
-    const segments = [
+    const segments = getElapsedSegments(successCount, failedCount, duplicateCount);
+    if (!segments.length)
+        return duration;
+    const digitClasses = buildElapsedDigitClasses(segments, digitCount);
+    return renderElapsedDurationHtml(duration, digitClasses, segments[0].className);
+}
+/**
+ * 根据成功、失败、重复任务数生成有效的 elapsed 颜色段
+ * @param {number} successCount - 成功任务数
+ * @param {number} failedCount - 失败任务数
+ * @param {number} duplicateCount - 重复任务数
+ * @returns {Array<{ className: string; count: number }>} 有效颜色段列表
+ */
+function getElapsedSegments(successCount, failedCount, duplicateCount) {
+    return [
         { className: "elapsed-success", count: Math.max(0, successCount || 0) },
         { className: "elapsed-error", count: Math.max(0, failedCount || 0) },
         { className: "elapsed-duplicate", count: Math.max(0, duplicateCount || 0) },
     ].filter((segment) => segment.count > 0);
-    if (!segments.length)
-        return duration;
+}
+/**
+ * 按任务占比为 elapsed 的每一位数字分配颜色类
+ * @param {Array<{ className: string; count: number }>} segments - 有效颜色段列表
+ * @param {number} digitCount - 时间字符串中的数字位数
+ * @returns {string[]} 按顺序排列的数字颜色类列表
+ */
+function buildElapsedDigitClasses(segments, digitCount) {
+    if (digitCount <= segments.length) {
+        return segments.slice(0, digitCount).map((segment) => segment.className);
+    }
     const totalCount = segments.reduce((sum, segment) => sum + segment.count, 0);
-    const exactAllocations = segments.map((segment) => (segment.count / totalCount) * digitCount);
-    const allocations = exactAllocations.map((value) => Math.floor(value));
+    const remainingPool = digitCount - segments.length;
+    const exactAllocations = segments.map((segment) => (segment.count / totalCount) * remainingPool);
+    const allocations = exactAllocations.map((value) => 1 + Math.floor(value));
     let remainingDigits = digitCount - allocations.reduce((sum, value) => sum + value, 0);
     const sortedIndexes = exactAllocations
         .map((value, index) => ({ index, remainder: value - allocations[index] }))
@@ -200,6 +224,16 @@ function formatElapsedDuration(seconds, successCount, failedCount, duplicateCoun
     while (digitClasses.length < digitCount) {
         digitClasses.push(segments[segments.length - 1].className);
     }
+    return digitClasses;
+}
+/**
+ * 将时间字符串渲染为带颜色 span 的 HTML
+ * @param {string} duration - 原始时间字符串
+ * @param {string[]} digitClasses - 每一位数字对应的颜色类
+ * @param {string} defaultClassName - 当分隔符前没有数字时使用的默认颜色类
+ * @returns {string} 渲染后的 HTML 字符串
+ */
+function renderElapsedDurationHtml(duration, digitClasses, defaultClassName) {
     let digitIndex = 0;
     return duration
         .split("")
@@ -207,10 +241,10 @@ function formatElapsedDuration(seconds, successCount, failedCount, duplicateCoun
         if (char === ":") {
             const leftClassName = digitIndex > 0
                 ? digitClasses[digitIndex - 1]
-                : segments[0].className;
+                : defaultClassName;
             return `<span class="${leftClassName}">:</span>`;
         }
-        const className = digitClasses[digitIndex] || segments[segments.length - 1].className;
+        const className = digitClasses[digitIndex] || digitClasses[digitClasses.length - 1];
         digitIndex += 1;
         return `<span class="${className}">${char}</span>`;
     })
