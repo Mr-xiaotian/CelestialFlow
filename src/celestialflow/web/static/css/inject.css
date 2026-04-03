@@ -30,7 +30,7 @@
   font-size: 0.75rem;
 
   .dark-theme & {
-    color: var(--gray-300);
+    color: var(--carbon-300);
   }
 }
 
@@ -55,7 +55,7 @@
 #task-injection .search-input {
   width: 100%;
   padding: 0.5rem 0.75rem 0.5rem 2.5rem;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--carbon-300);
   border-radius: 0.5rem;
   font-size: 0.75rem;
   outline: none;
@@ -67,8 +67,8 @@
 
   .dark-theme & {
     background-color: var(--carbon-700);
-    border: 1px solid var(--carbon-600);
-    color: var(--gray-100);
+    border-color: var(--carbon-600);
+    color: var(--carbon-100);
   }
 }
 
@@ -79,7 +79,7 @@
   transform: translateY(-50%);
   width: 1rem;
   height: 1rem;
-  color: var(--gray-400);
+  color: var(--carbon-400);
 }
 
 /* ================================
@@ -105,12 +105,12 @@
   color: var(--cornflower-600);
 
   &:hover {
-    background: var(--gray-200);
+    background: var(--carbon-200);
   }
 
   .dark-theme & {
     background: var(--cornflower-500);
-    color: var(--gray-100);
+    color: var(--carbon-100);
 
     &:hover {
       background: var(--cornflower-600);
@@ -119,16 +119,16 @@
 }
 
 #task-injection .btn-clear {
-  background: var(--gray-100);
-  color: var(--gray-700);
+  background: var(--carbon-100);
+  color: var(--carbon-700);
 
   &:hover {
-    background: var(--gray-200);
+    background: var(--carbon-200);
   }
 
   .dark-theme & {
     background: var(--carbon-600);
-    color: var(--gray-100);
+    color: var(--carbon-100);
 
     &:hover {
       background: var(--carbon-700);
@@ -148,7 +148,7 @@
   display: flex;
   align-items: center;
   padding: 0.75rem;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--carbon-200);
   border-radius: 0.5rem;
   margin-bottom: 0.5rem;
   cursor: pointer;
@@ -156,7 +156,7 @@
   justify-content: space-between;
 
   &:hover {
-    background: var(--gray-50);
+    background: var(--carbon-50);
 
     .dark-theme & {
       background-color: var(--carbon-600);
@@ -165,18 +165,18 @@
 
   .dark-theme & {
     background-color: var(--carbon-700);
-    border: 1px solid var(--carbon-600);
-    color: var(--gray-200);
+    border-color: var(--carbon-600);
+    color: var(--carbon-200);
   }
 }
 
 #task-injection .node-name {
   font-weight: 500;
-  color: var(--gray-800);
+  color: var(--carbon-800);
   margin-bottom: 0.25rem;
 
   .dark-theme & {
-    color: var(--gray-100);
+    color: var(--carbon-100);
   }
 }
 
@@ -192,11 +192,11 @@
 
 #task-injection .selected-title {
   font-weight: 500;
-  color: var(--gray-800);
+  color: var(--carbon-800);
   margin-bottom: 0.5rem;
 
   .dark-theme & {
-    color: var(--gray-100);
+    color: var(--carbon-100);
   }
 }
 
@@ -211,7 +211,7 @@
 
   .dark-theme & {
     background: var(--cornflower-500);
-    color: var(--gray-100);
+    color: var(--carbon-100);
   }
 }
 
@@ -220,7 +220,7 @@
   color: var(--cornflower-600);
 
   .dark-theme & {
-    color: var(--gray-100);
+    color: var(--carbon-100);
   }
 }
 
@@ -248,7 +248,7 @@
 ================================ */
 #task-injection .input-toggle {
   display: flex;
-  background: var(--gray-100);
+  background: var(--carbon-100);
   border-radius: 0.5rem;
   padding: 0.25rem;
   margin-bottom: 1rem;
@@ -270,22 +270,22 @@
   font-weight: 500;
   cursor: pointer;
   background: transparent;
-  color: var(--gray-500);
+  color: var(--carbon-500);
   transition: all 0.2s;
 
   &.active {
     background: var(--frost-0);
-    color: var(--gray-800);
+    color: var(--carbon-800);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
     .dark-theme & {
       background: var(--carbon-600);
-      color: var(--gray-100);
+      color: var(--carbon-100);
     }
   }
 
   .dark-theme & {
-    color: var(--gray-400);
+    color: var(--carbon-400);
   }
 }
 
@@ -315,10 +315,10 @@
 #task-injection .json-label {
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--gray-700);
+  color: var(--carbon-700);
 
   .dark-theme & {
-    color: var(--gray-100);
+    color: var(--carbon-100);
   }
 }
 
@@ -337,7 +337,7 @@
 #task-injection .json-textarea {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--carbon-300);
   border-radius: 0.5rem;
   font-family: "Monaco", "Menlo", monospace;
   font-size: 0.75rem;
@@ -352,8 +352,8 @@
 
   .dark-theme & {
     background: var(--carbon-700);
-    border: 1px solid var(--carbon-600);
-    color: var(--gray-100);
+    border-color: var(--carbon-600);
+    color: var(--carbon-100);
   }
 }
 
@@ -365,54 +365,54 @@
 
 /* 文件上传区 */
 #task-injection #file-input-section {
-  border: 2px dashed var(--gray-300);
+  border: 2px dashed var(--carbon-300);
   border-radius: 0.5rem;
   min-height: 15.75rem;
   flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: var(--carbon-400);
+  }
 
   .dark-theme & {
     border-color: var(--carbon-600);
+
+    &:hover {
+      border-color: var(--carbon-500);
+    }
   }
 }
 
 #task-injection .upload-area {
   padding: 1.5rem;
   text-align: center;
-  transition: all 0.2s;
   cursor: pointer;
 
-  &:hover {
-    border-color: var(--gray-400);
-  }
-
   .dark-theme & {
-    color: var(--gray-200);
-
-    &:hover {
-      border-color: var(--gray-500);
-    }
+    color: var(--carbon-200);
   }
 }
 
 #task-injection .upload-text {
   font-weight: 500;
-  color: var(--gray-800);
+  color: var(--carbon-800);
   margin-bottom: 0.25rem;
 
   .dark-theme & {
-    color: var(--gray-200);
+    color: var(--carbon-200);
   }
 }
 
 #task-injection .upload-hint {
   font-size: 0.75rem;
-  color: var(--gray-500);
+  color: var(--carbon-500);
 
   .dark-theme & {
-    color: var(--gray-400);
+    color: var(--carbon-400);
   }
 }
 
@@ -513,19 +513,19 @@
   }
 
   &:disabled {
-    background: var(--gray-400);
+    background: var(--carbon-400);
     cursor: not-allowed;
     transform: none;
 
     .dark-theme & {
-      background: var(--gray-500);
-      color: var(--gray-300);
+      background: var(--carbon-500);
+      color: var(--carbon-300);
     }
   }
 
   .dark-theme & {
     background: var(--cornflower-600);
-    color: var(--gray-100);
+    color: var(--carbon-100);
   }
 }
 

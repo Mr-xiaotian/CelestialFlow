@@ -1,6 +1,6 @@
 # UtilsCollections
 
-`utils/collections.py` 提供集合/字典聚类工具。
+`utils/util_collections.py` 提供集合/字典聚类工具。
 
 ## 主要函数
 

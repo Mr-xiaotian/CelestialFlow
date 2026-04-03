@@ -28,7 +28,7 @@ Reporter 会与以下 Web API 交互：
 - `GET /api/pull_task_injection`: 获取注入的任务。
 - `POST /api/push_status`: 推送运行时状态快照。
 - `POST /api/push_structure`: 推送图结构信息。
-- `POST /api/push_topology`: 推送拓扑连接信息。
+- `POST /api/push_analysis`: 推送分析信息。
 - `POST /api/push_summary`: 推送图概要。
 - `POST /api/push_history`: 推送节点历史走势数据。
 - `POST /api/push_errors_meta` / `push_errors_content`: 推送错误信息。

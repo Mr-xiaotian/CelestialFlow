@@ -52,7 +52,7 @@ function renderErrors() {
     const pageItems = errors;
     errorsTableBody.innerHTML = "";
     if (!pageItems.length) {
-        errorsTableBody.innerHTML = `<tr><td colspan="6" class="no-errors">没有错误记录</td></tr>`;
+        errorsTableBody.innerHTML = `<tr><td colspan="6" class="empty-placeholder">没有错误记录</td></tr>`;
     }
     else {
         for (let i = 0; i < pageItems.length; i++) {
@@ -62,7 +62,7 @@ function renderErrors() {
             row.innerHTML = `
         <td data-label="#">${index}</td>
         <td class="error-id" data-label="错误id">${e.error_id}</td>
-        <td class="error-message" data-label="错误信息" title="${escapeHtml(e.error_repr)}">${escapeHtml(e.error_repr)}</td>
+        <td class="error-cell" data-label="错误信息" title="${escapeHtml(e.error_repr)}">${escapeHtml(e.error_repr)}</td>
         <td data-label="节点">${escapeHtml(e.stage)}</td>
         <td data-label="任务">${escapeHtml(e.task_repr)}</td>
         <td data-label="时间">${renderLocalTime(e.ts)}</td>

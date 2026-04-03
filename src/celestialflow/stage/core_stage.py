@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 from collections.abc import Callable
 from multiprocessing import Queue as MPQueue
 from multiprocessing import Value as MPValue
@@ -18,7 +19,16 @@ class TaskStage(TaskExecutor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.show_progress == True:
+            warnings.warn(
+                "Progress bar display may be unreliable in 'process' stage mode. "
+                "All nodes run in parallel in this mode, and tqdm's process-based "
+                "implementation is not specifically optimized for this scenario, "
+                "potentially causing visual glitches or incorrect progress indicators.",
+                RuntimeWarning,
+            )
 
+        self.stage_mode = "serial"  # 默认串行
         self.next_stages: list[TaskStage] = []
         self.prev_stages: list[TaskStage | NullPrevStage] = []
         self._pending_prev_bindings: list[TaskStage] = []

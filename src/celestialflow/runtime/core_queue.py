@@ -241,7 +241,9 @@ class TaskOutQueue:
         self.in_tag = in_tag
         self.log_sinker = log_sinker
 
-        self._tag_to_idx = {tag: i for i, tag in enumerate(queue_tags) if tag is not None}
+        self._tag_to_idx = {
+            tag: i for i, tag in enumerate(queue_tags) if tag is not None
+        }
 
     def _log_put(self, item: TaskEnvelope | TerminationSignal, idx: int) -> None:
         """

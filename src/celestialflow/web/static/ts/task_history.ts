@@ -32,9 +32,9 @@ function getChartThemeColors() {
   const isDark = document.body.classList.contains("dark-theme");
   const style = getComputedStyle(document.documentElement);
   return {
-    text:   style.getPropertyValue(isDark ? "--gray-200" : "--gray-900").trim(),
-    grid:   style.getPropertyValue(isDark ? "--gray-600" : "--gray-200").trim(),
-    border: style.getPropertyValue(isDark ? "--gray-500" : "--gray-300").trim(),
+    text:   style.getPropertyValue(isDark ? "--carbon-200" : "--carbon-900").trim(),
+    grid:   style.getPropertyValue(isDark ? "--carbon-600" : "--carbon-200").trim(),
+    border: style.getPropertyValue(isDark ? "--carbon-500" : "--carbon-300").trim(),
   };
 }
 

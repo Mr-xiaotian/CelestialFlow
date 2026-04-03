@@ -6,12 +6,13 @@
 
 ```python
 class TaskRunner:
-    def __init__(self, task_executor: TaskExecutor, worker_limit: int):
+    def __init__(self, task_executor: TaskExecutor, func, max_workers: int):
         """
         初始化任务运行器。
 
         :param task_executor: 任务执行器（TaskExecutor 实例）
-        :param worker_limit: 工作线程或进程数量限制
+        :param func: 任务函数
+        :param max_workers: 工作线程或进程数量限制
         """
 ```
 
@@ -61,7 +62,7 @@ def run_with_pool(self, execution_mode: str):
 
 特点：
 - 支持并发执行多个任务
-- 自动管理并发数量（通过 `worker_limit`）
+- 自动管理并发数量（通过 `max_workers`）
 - 使用回调机制处理结果
 
 ### run_in_async
@@ -139,7 +140,7 @@ async def _run_single_task(self, task):
 
 ```python
 # TaskExecutor 内部会创建 TaskRunner
-executor = TaskExecutor(func=process, execution_mode="thread", worker_limit=4)
+executor = TaskExecutor(func=process, execution_mode="thread", max_workers=4)
 executor.start(task_source)  # 内部调用 runner.run_with_pool("thread")
 ```
 
@@ -148,7 +149,7 @@ executor.start(task_source)  # 内部调用 runner.run_with_pool("thread")
 ```python
 from celestialflow.runtime import TaskRunner
 
-runner = TaskRunner(task_executor, worker_limit=10)
+runner = TaskRunner(task_executor, func, max_workers=10)
 
 # 串行执行
 runner.run_in_serial()
@@ -174,6 +175,8 @@ TaskExecutor
     ├── result_queues      # 输出队列（TaskOutQueue）
     ├── metrics            # 任务指标
     └── runner             # TaskRunner 实例
+            ├── func               # 任务函数
+            ├── max_workers        # 并发数量限制
             ├── run_in_serial()
             ├── run_with_pool()
             └── run_in_async()
@@ -187,7 +190,7 @@ TaskExecutor
 
 ## 注意事项
 
-1. **并发控制**: `worker_limit` 限制并发任务数量，防止资源耗尽
+1. **并发控制**: `max_workers` 限制并发任务数量，防止资源耗尽
 2. **池复用**: 线程池/进程池可以复用，避免频繁创建销毁
 3. **终止处理**: 正确处理终止信号的合并和传递
 4. **错误传播**: 异常会被捕获并传递给 `TaskExecutor.handle_task_error()`

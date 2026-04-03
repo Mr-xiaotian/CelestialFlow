@@ -87,7 +87,7 @@ def test_splitter_0():
 
     graph.start_graph(
         {
-            generate_stage.get_tag(): list(range(10)) + [1,2,3,6,7,8,9],
+            generate_stage.get_tag(): list(range(10)) + [1, 2, 3, 6, 7, 8, 9],
             # logger_stage.get_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
             # splitter.get_tag(): tuple([f"url_{x}_{i}" for i in range(random.randint(1, 4)) for x in range(10, 15)]),
             # download_stage.get_tag(): [f"url_{x}_5" for x in range(10, 20)],
