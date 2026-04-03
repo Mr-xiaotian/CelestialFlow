@@ -650,7 +650,7 @@ class TaskGraph:
 
     def get_fail_by_error_dict(self) -> dict:
         return load_task_by_error(self.fail_listener.jsonl_path)
-    
+
     def get_total_error_num(self) -> int:
         return self.fail_listener.total_error_num
 

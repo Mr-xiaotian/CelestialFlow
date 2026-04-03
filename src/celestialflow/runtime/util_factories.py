@@ -14,9 +14,7 @@ if TYPE_CHECKING:
 
 
 # ==== 函数工厂 ====
-def make_counter(
-    mode: str, *, lock: LockType | None = None, init: int = 0
-) -> Any:
+def make_counter(mode: str, *, lock: LockType | None = None, init: int = 0) -> Any:
     """
     返回一个 counter：ValueWrapper(±lock) 或 MPValue
     """

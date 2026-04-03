@@ -178,7 +178,7 @@ class TaskReporter:
                     pass
                 else:
                     raise RuntimeError(f"push_errors_content failed: {resp.get('msg')}")
-                
+
             if resp.get("ok") and not resp.get("cached"):
                 self._last_pushed_errors_rev = current_rev
 

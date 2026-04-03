@@ -52,7 +52,7 @@ class TaskSplitter(TaskStage):
         :return: split 的子任务数量
         """
         result_queues = self.result_queues
-        
+
         split_count = len(result)
         for idx, item in enumerate(result):
             split_id = self.ctree_client.emit(
@@ -170,7 +170,7 @@ class TaskRouter(TaskStage):
             source=self.get_tag(),
         )
         result_queues = self.result_queues
-        
+
         result_queues.put_target(routed_envelope, target)
 
         self.metrics.add_success_count()

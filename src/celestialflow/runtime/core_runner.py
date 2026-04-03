@@ -72,7 +72,7 @@ class TaskRunner:
         """
         task_queues = self.task_executor.task_queues
         result_queues = self.task_executor.result_queues
-        
+
         while True:
             while True:
                 envelope = task_queues.get()
@@ -217,7 +217,7 @@ class TaskRunner:
         """
         task_queues = self.task_executor.task_queues
         result_queues = self.task_executor.result_queues
-        
+
         while True:
             semaphore = asyncio.Semaphore(
                 self.task_executor.max_workers

@@ -354,7 +354,7 @@ class TaskExecutor:
 
         :param task_source: 任务源（可迭代对象）
         """
-        task_queues = self.task_queues 
+        task_queues = self.task_queues
 
         progress_num = 0
         for task in task_source:
@@ -395,7 +395,7 @@ class TaskExecutor:
 
         :param task_source: 任务源（可迭代对象）
         """
-        task_queues = self.task_queues 
+        task_queues = self.task_queues
 
         progress_num = 0
         for task in task_source:
@@ -423,9 +423,7 @@ class TaskExecutor:
             "termination.input",
             payload=self.get_summary(),
         )
-        await task_queues.put_async(
-            TerminationSignal(termination_id, source="input")
-        )
+        await task_queues.put_async(TerminationSignal(termination_id, source="input"))
 
     def get_args(self, task: Any) -> tuple:
         """
@@ -509,7 +507,7 @@ class TaskExecutor:
         :param start_time: 任务开始时间
         """
         result_queues = self.result_queues
-        
+
         result_envelope = self._prepare_result_envelope(
             task_envelope, result, start_time
         )
@@ -527,7 +525,7 @@ class TaskExecutor:
         :param start_time: 任务开始时间
         """
         result_queues = self.result_queues
-        
+
         result_envelope = self._prepare_result_envelope(
             task_envelope, result, start_time
         )
@@ -587,7 +585,7 @@ class TaskExecutor:
         :param task_envelope: 发生异常的任务
         :param exception: 捕获的异常
         """
-        task_queues = self.task_queues 
+        task_queues = self.task_queues
 
         task_hash = task_envelope.hash
 
@@ -609,7 +607,7 @@ class TaskExecutor:
         :param task_envelope: 发生异常的任务
         :param exception: 捕获的异常
         """
-        task_queues = self.task_queues 
+        task_queues = self.task_queues
 
         task_hash = task_envelope.hash
 
@@ -618,9 +616,7 @@ class TaskExecutor:
             # 如果是可重试的异常，将任务重新放入队列
             retry_envelope = self._prepare_retry_envelope(task_envelope, exception)
             # 只在第一个队列存放retry task
-            await task_queues.put_async(
-                retry_envelope
-            )  
+            await task_queues.put_async(retry_envelope)
         else:
             # 如果不是可重试的异常，直接将任务标记为失败
             self._prepare_fail_envelope(task_envelope, exception)

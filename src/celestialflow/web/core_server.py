@@ -125,7 +125,9 @@ class TaskWebServer:
         }
 
         # 加载配置
-        self.config = WebConfigModel.model_validate(load_config(CONFIG_PATH)).model_dump()
+        self.config = WebConfigModel.model_validate(
+            load_config(CONFIG_PATH)
+        ).model_dump()
         self.report_interval = cal_interval(self.config["refreshInterval"])
         self.history_limit = self.config.get("historyLimit", 20)
         self._config_lock = threading.Lock()
