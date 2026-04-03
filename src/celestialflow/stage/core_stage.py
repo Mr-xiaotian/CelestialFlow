@@ -19,7 +19,7 @@ class TaskStage(TaskExecutor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.show_progress == True and self.stage_mode == "process":
+        if self.show_progress == True:
             warnings.warn(
                 "Progress bar display may be unreliable in 'process' stage mode. "
                 "All nodes run in parallel in this mode, and tqdm's process-based "
@@ -28,6 +28,7 @@ class TaskStage(TaskExecutor):
                 RuntimeWarning,
             )
 
+        self.stage_mode = "serial"  # 默认串行
         self.next_stages: list[TaskStage] = []
         self.prev_stages: list[TaskStage | NullPrevStage] = []
         self._pending_prev_bindings: list[TaskStage] = []

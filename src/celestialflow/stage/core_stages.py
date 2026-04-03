@@ -130,17 +130,18 @@ class TaskRouter(TaskStage):
         """更新 route 计数器"""
         self.route_counters[target].value += 1
 
-    def _route(self, routed: tuple) -> tuple:
+    def _route(self, routed: tuple) -> Any:
         """
         这个函数仅用于提前报错
         """
         if not (isinstance(routed, tuple) and len(routed) == 2):
             raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
-        if routed[0] not in self.route_counters:
+        target, task = routed
+        if target not in self.route_counters:
             raise InvalidOptionError(
-                "Unknown target", routed[0], self.route_counters.keys()
+                "Unknown target", target, self.route_counters.keys()
             )
-        return routed
+        return task
 
     def process_task_success(
         self, task_envelope: TaskEnvelope, result: Any, start_time: float

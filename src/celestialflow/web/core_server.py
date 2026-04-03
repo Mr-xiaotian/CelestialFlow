@@ -35,7 +35,6 @@ class ErrorsMetaModel(BaseModel):
 
 class ErrorsContentModel(BaseModel):
     errors: list[dict]
-    offset: int
     jsonl_path: str
     rev: int
 
@@ -333,12 +332,7 @@ class TaskWebServer:
             ):
                 return {"ok": True, "cached": True}
 
-            if data.offset == 0:
-                # 全量替换（首次推送或 reporter 重启后 offset 归零）
-                self.error_store = data.errors
-            else:
-                # 增量 append：截断到 offset 后追加新条目，防止重复
-                self.error_store = self.error_store[:data.offset] + data.errors
+            self.error_store = data.errors
 
             self._errors_meta_rev = data.rev
             self._errors_meta_path = data.jsonl_path
