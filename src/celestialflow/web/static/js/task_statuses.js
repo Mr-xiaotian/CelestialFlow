@@ -51,6 +51,10 @@ function initSortableDashboard() {
  */
 function renderDashboard() {
     dashboardGrid.innerHTML = "";
+    if (!Object.keys(nodeStatuses).length) {
+        dashboardGrid.innerHTML = `<div class="empty-placeholder" style="grid-column: 1 / -1;">暂无节点数据</div>`;
+        return;
+    }
     for (const [node, data] of Object.entries(nodeStatuses)) {
         if (node === draggingNodeName)
             continue; // 正在拖动时，不渲染它

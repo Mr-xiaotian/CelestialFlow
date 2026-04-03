@@ -73,6 +73,16 @@ function getShapeWrappedLabel(label, shape = "box") {
  * 构建 Mermaid 流程图代码，根据节点状态应用样式，并更新 DOM
  */
 function renderMermaidStructure(statuses: Record<string, NodeStatus> = {}) {
+  if (!structureData.length) {
+    const old = document.getElementById("mermaid-container");
+    const newDiv = document.createElement("div");
+    newDiv.id = "mermaid-container";
+    newDiv.className = "empty-placeholder";
+    newDiv.textContent = "暂无结构数据";
+    old.replaceWith(newDiv);
+    return;
+  }
+
   const edges = new Set();
   const nodeLabels = new Map();
   const classDefs = [];

@@ -32,6 +32,20 @@ body {
 .hidden { display: none !important; }
 
 /* ================================
+  🌟 空提示样式
+================================ */
+.empty-placeholder {
+  text-align: center !important; 
+  color: var(--gray-400);
+  padding: 2rem;
+  font-size: 1rem;
+
+  .dark-theme & {
+    color: var(--gray-300);
+  }
+}
+
+/* ================================
   🌟 头部样式
 ================================ */
 header {

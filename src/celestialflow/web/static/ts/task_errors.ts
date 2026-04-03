@@ -60,7 +60,7 @@ function renderErrors() {
   errorsTableBody.innerHTML = "";
 
   if (!pageItems.length) {
-    errorsTableBody.innerHTML = `<tr><td colspan="6" class="no-errors">没有错误记录</td></tr>`;
+    errorsTableBody.innerHTML = `<tr><td colspan="6" class="empty-placeholder">没有错误记录</td></tr>`;
   } else {
     for (let i = 0; i < pageItems.length; i++) {
       const e = pageItems[i];

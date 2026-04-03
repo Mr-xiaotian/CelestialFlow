@@ -28,7 +28,7 @@ function renderAnalysisInfo() {
     if (!container)
         return;
     if (!analysisData || Object.keys(analysisData).length === 0) {
-        container.innerHTML = `<div class="placeholder">暂无分析信息</div>`;
+        container.innerHTML = `<div class="empty-placeholder">暂无分析信息</div>`;
         return;
     }
     const { isDAG, schedule_mode, class_name, layers_dict = {}, } = analysisData;
