@@ -229,22 +229,27 @@ flowchart TD
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.1.5</em>
+  <em>celestial-flow 3.1.6</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.1.5
+- 3.1.6
   - feat
-    - 大幅修改节点状态卡片的色彩视觉设计. 包括: 取消原本的悬浮设计, 改为平面化设计; 让进度条更直接的显示不同任务完成状态的比例; 使用左边框来显示节点是否在运行中. 而非原本的badge;
-    - 前端的error数据拉取不再每次都全量拉取, 而是只拉取自己当前没有的数据;
+    - 前端现在只储存一页的error数据, 有效减少了运行大规模任务时前端内存飙升的问题;
+    - 优化任务数显示, 大于1*10^7时显示科学计数法, 否则显示英式计数;
+    - 优化小屏模式下表格的显示: 改为用卡片式显示;
+    - 在error表格中加入index项;
+    - 大幅调整任务颜色分配, 现在重复任务使用黄色系, 等待任务使用灰色系;
+    - 将节点卡片中的已消耗时间颜色拟合为下方进度条颜色;
   - refactor
-    - 大幅重构前端代码中的色彩管理, 现在色彩的一致性更好;
-    - 修改前端代码中的数据更新判断, 现在相关判断交给serve.py;
+    - 用mypy整理了一遍类型标注;
+    - 删除与整合部分css代码;
+    - 将字体等适合rem单位的地方全部从px替换为rem, 并且都部分size进行统一;
   - fix
-    - 修复节点已运行时间在节点完成后显示为0的问题
-    - 修复在最新fastapi版本下TemplateResponse参数改变导致的问题
+    - 修复总体剩余时间在特殊情况下显示0的问题(这玩意真麻烦);
+    - 修复部分小屏下的显示问题, 但折线图不显示的问题不太好解决;
 
 ## Star 历史趋势（Star History）
 
