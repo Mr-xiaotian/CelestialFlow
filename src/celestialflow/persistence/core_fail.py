@@ -99,7 +99,7 @@ class FailSinker(BaseSinker):
             "error_repr": format_repr(error_message, 100),
             "task_repr": format_repr(task, 100),
             "error": error_message,
-            "task": task,
+            "task": str(task),
             "error_id": err_id,
             "ts": now.timestamp(),
         }
