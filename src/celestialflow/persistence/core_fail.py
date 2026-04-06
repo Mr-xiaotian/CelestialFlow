@@ -2,7 +2,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 from ..utils.util_format import format_repr
 from .core_base import BaseListener, BaseSinker
@@ -82,7 +82,9 @@ class FailSinker(BaseSinker):
         }
         self._sink(meta_item)
 
-    def task_error(self, stage_tag: str, error: Exception, err_id: int, task) -> None:
+    def task_error(
+        self, stage_tag: str, error: Exception, err_id: int, task: Any
+    ) -> None:
         """
         写入错误日志到 jsonl 文件中
 

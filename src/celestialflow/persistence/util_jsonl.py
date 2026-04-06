@@ -51,60 +51,72 @@ def load_jsonl_logs(
     return results
 
 
+def load_jsonl_by_key(
+    jsonl_path: str, extract_key: str = "stage", extract_value: str = "task"
+) -> dict[str, list]:
+    """ """
+    result_dict = defaultdict(list)
+
+    with open(jsonl_path, "r", encoding="utf-8") as f:
+        for line in f:
+            item = json.loads(line)
+
+            if extract_key not in item or extract_value not in item:
+                continue
+
+            key = item[extract_key]
+            val = item[extract_value]
+
+            # 智能处理不同数据类型
+            if isinstance(val, str):
+                # 如果是字符串（如 "[1, 2]" 或 "(1, 2)"），解析它
+                try:
+                    parsed = ast.literal_eval(val)
+                    value = (
+                        tuple(parsed) if isinstance(parsed, (list, tuple)) else parsed
+                    )
+                except (ValueError, SyntaxError):
+                    # 如果是普通字符串（如 "hello"）
+                    value = val
+            elif isinstance(val, (list, tuple)):
+                # 如果已经是列表/元组，直接转换
+                value = tuple(val)
+            else:
+                # 如果是数字、布尔等单个值
+                value = val
+
+            result_dict[key].append(value)
+
+    return dict(result_dict)
+
+
 def load_jsonl_grouped_by_keys(
     jsonl_path: str,
     group_keys: list[str],
-    extract_fields: Optional[list[str]] = None,
-    eval_fields: Optional[list[str]] = None,
-    skip_if_missing: bool = True,
-) -> dict[str, list[Any]]:
+    extract_field: str,
+) -> dict[tuple[str], list[Any]]:
     """
     加载 JSONL 文件内容并按多个 key 分组。
 
     :param jsonl_path: JSONL 文件路径
     :param group_keys: 用于分组的字段名列表（如 ['error', 'stage']）
-    :param extract_fields: 要提取的字段名列表；为空时返回整个 item
-    :param eval_fields: 哪些字段需要用 ast.literal_eval 解析
-    :param skip_if_missing: 缺 key 是否跳过该条记录
+    :param extract_field: 要提取的字段名
     :return: 一个 {"(k1, k2)": [items]} 的字典
     """
     result_dict = defaultdict(list)
 
     with open(jsonl_path, "r", encoding="utf-8") as f:
         for line in f:
-            try:
-                item = json.loads(line)
-            except Exception:
-                continue
+            item = json.loads(line)
 
-            # 确保 group_keys 都存在
-            if skip_if_missing and any(k not in item for k in group_keys):
+            if any(k not in item for k in group_keys):
                 continue
 
             # 组合分组 key
             group_values = tuple(item.get(k, "") for k in group_keys)
-            group_key = group_values if len(group_values) > 1 else group_values[0]
+            group_key = group_values
 
-            # 字段反序列化（仅 eval_fields）
-            if eval_fields:
-                for key in eval_fields:
-                    if key in item:
-                        try:
-                            item[key] = ast.literal_eval(item[key])
-                        except Exception:
-                            pass  # 解析失败不终止
-
-            # 提取内容
-            if extract_fields:
-                if skip_if_missing and any(k not in item for k in extract_fields):
-                    continue
-
-                if len(extract_fields) == 1:
-                    value = item[extract_fields[0]]
-                else:
-                    value = {k: item[k] for k in extract_fields if k in item}
-            else:
-                value = item
+            value = tuple(ast.literal_eval(item[extract_field]))
 
             result_dict[group_key].append(value)
 
@@ -114,19 +126,18 @@ def load_jsonl_grouped_by_keys(
 def load_task_by_stage(jsonl_path) -> dict[str, list]:
     """
     加载错误记录，按 stage 分类
+
+    :param jsonl_path: JSONL 文件路径
     """
-    return load_jsonl_grouped_by_keys(
-        jsonl_path, group_keys=["stage"], extract_fields=["task"], eval_fields=["task"]
-    )
+    return load_jsonl_by_key(jsonl_path, extract_key="stage", extract_value="task")
 
 
-def load_task_by_error(jsonl_path) -> dict[str, list]:
+def load_task_by_error(jsonl_path) -> dict[tuple[str], list[Any]]:
     """
     加载错误记录，按 error 和 stage 分类
+
+        :param jsonl_path: JSONL 文件路径
     """
     return load_jsonl_grouped_by_keys(
-        jsonl_path,
-        group_keys=["error", "stage"],
-        extract_fields=["task"],
-        eval_fields=["task"],
+        jsonl_path, group_keys=["error", "stage"], extract_field="task"
     )
