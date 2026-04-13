@@ -8,7 +8,6 @@ from functools import partial
 from threading import Event, Lock
 from typing import TYPE_CHECKING, Any
 
-from ..observability import TaskProgress
 from . import TaskEnvelope
 from .util_types import TerminationIdPool, TerminationSignal
 
@@ -100,7 +99,6 @@ class TaskRunner:
 
             if self.task_executor.metrics.is_tasks_finished():
                 result_queues.put(termination_signal)
-                self.task_executor.task_progress.close()
                 return
 
             self.task_executor.log_sinker._sink(
@@ -128,7 +126,7 @@ class TaskRunner:
             all_done_event.set()  # 初始为无任务状态，设为完成状态
 
             def on_task_done(
-                future, envelope: TaskEnvelope, task_progress: TaskProgress | Any
+                future, envelope: TaskEnvelope
             ):
                 # 回调函数中处理任务结果
                 task_id = envelope.id
@@ -178,7 +176,6 @@ class TaskRunner:
                     partial(
                         on_task_done,
                         envelope=envelope,
-                        task_progress=self.task_executor.task_progress,
                     )
                 )
 
@@ -190,7 +187,6 @@ class TaskRunner:
 
             if self.task_executor.metrics.is_tasks_finished():
                 result_queues.put(termination_signal)
-                self.task_executor.task_progress.close()
                 break
 
             self.task_executor.log_sinker._sink(
@@ -266,7 +262,6 @@ class TaskRunner:
 
             if self.task_executor.metrics.is_tasks_finished():
                 await result_queues.put_async(termination_signal)
-                self.task_executor.task_progress.close()
                 return
 
             self.task_executor.log_sinker._sink(

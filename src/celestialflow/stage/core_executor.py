@@ -752,7 +752,8 @@ class TaskExecutor:
 
         finally:
             self.release_client()
-
+            
+            self.task_progress.close()
             self.log_sinker.end_executor(
                 self.get_func_name(),
                 self.execution_mode,
@@ -794,6 +795,7 @@ class TaskExecutor:
         finally:
             self.release_client()
 
+            self.task_progress.close()
             self.log_sinker.end_executor(
                 self.get_func_name(),
                 self.execution_mode,
