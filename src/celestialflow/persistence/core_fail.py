@@ -13,7 +13,6 @@ class FailListener(BaseListener):
         super().__init__()
 
         self.error_source = error_source
-        self.fail_queue = self.queue
         self.jsonl_path: Path | None = None
 
         self.total_error_num = 0
@@ -60,7 +59,6 @@ class FailSinker(BaseSinker):
 
     def __init__(self, fail_queue) -> None:
         super().__init__(fail_queue)
-        self.fail_queue = self.queue
 
     def start_graph(self, structure_json: list) -> None:
         """

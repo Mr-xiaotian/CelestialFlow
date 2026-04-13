@@ -18,7 +18,6 @@ class LogListener(BaseListener):
     def __init__(self):
         super().__init__()
 
-        self.log_queue = self.queue
         self.log_path: Path | None = None
         self._file: TextIO | None = None
 
@@ -57,7 +56,6 @@ class LogSinker(BaseSinker):
 
     def __init__(self, log_queue, log_level: str = "SUCCESS") -> None:
         super().__init__(log_queue)
-        self.log_queue = self.queue
         self.log_level: str = log_level.upper()
 
         if self.log_level not in LEVEL_DICT:

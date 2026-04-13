@@ -8,7 +8,8 @@ from functools import partial
 from threading import Event, Lock
 from typing import TYPE_CHECKING, Any
 
-from . import TaskEnvelope, TaskProgress
+from ..observability import TaskProgress
+from . import TaskEnvelope
 from .util_types import TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
@@ -84,7 +85,6 @@ class TaskRunner:
 
                 if self.task_executor.metrics.is_duplicate(task_hash):
                     self.task_executor.deal_duplicate(envelope)
-                    self.task_executor.task_progress.update(1)
                     continue
                 self.task_executor.metrics.add_processed_set(task_hash)
                 try:
@@ -95,7 +95,6 @@ class TaskRunner:
                     )
                 except Exception as error:
                     self.task_executor.handle_task_error(envelope, error)
-                self.task_executor.task_progress.update(1)
 
             task_queues.reset()
 
@@ -132,7 +131,6 @@ class TaskRunner:
                 future, envelope: TaskEnvelope, task_progress: TaskProgress | Any
             ):
                 # 回调函数中处理任务结果
-                task_progress.update(1)
                 task_id = envelope.id
 
                 try:
@@ -162,7 +160,6 @@ class TaskRunner:
 
                 if self.task_executor.metrics.is_duplicate(task_hash):
                     self.task_executor.deal_duplicate(envelope)
-                    self.task_executor.task_progress.update(1)
                     continue
                 self.task_executor.metrics.add_processed_set(task_hash)
 
@@ -246,7 +243,6 @@ class TaskRunner:
 
                 if self.task_executor.metrics.is_duplicate(task_hash):
                     self.task_executor.deal_duplicate(envelope)
-                    self.task_executor.task_progress.update(1)
                     continue
                 self.task_executor.metrics.add_processed_set(task_hash)
                 async_tasks.append(sem_task(envelope))  # 使用信号量包裹的任务
@@ -265,7 +261,6 @@ class TaskRunner:
                     )
                 else:
                     await self.task_executor.handle_task_error_async(envelope, result)
-                self.task_executor.task_progress.update(1)
 
             task_queues.reset()
 

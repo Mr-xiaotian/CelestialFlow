@@ -16,14 +16,13 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
+from ..observability import TaskProgress, NullTaskProgress
 from ..persistence import FailListener, FailSinker, LogListener, LogSinker
 from ..runtime import (
-    NullTaskProgress,
     TaskEnvelope,
     TaskInQueue,
     TaskMetrics,
     TaskOutQueue,
-    TaskProgress,
     TaskRunner,
 )
 from ..runtime.util_errors import ExecutionModeError
@@ -543,6 +542,7 @@ class TaskExecutor:
         :param start_time: 任务开始时间
         :return: 成功任务的结果信封
         """
+        self.task_progress.update(1)
         task = task_envelope.task
         task_hash = task_envelope.hash
         task_id = task_envelope.id
@@ -633,7 +633,6 @@ class TaskExecutor:
         :param exception: 捕获的异常
         :return: 重试任务的信封
         """
-        self.task_progress.add_total(1)
         _, task_hash, task_id, _ = task_envelope.unwrap()
         self.metrics.discard_processed_set(task_hash)
         new_retry_time = self.metrics.add_retry_time(task_hash)
@@ -668,6 +667,7 @@ class TaskExecutor:
         :param exception: 捕获的异常
         :return: 失败任务的结果信封
         """
+        self.task_progress.update(1)
         if self.enable_error_cache:
             self.error_dict[task_envelope.task] = exception
 
@@ -699,6 +699,7 @@ class TaskExecutor:
 
         :param task_envelope: 重复的任务
         """
+        self.task_progress.update(1)
         task, _, task_id, _ = task_envelope.unwrap()
 
         self.metrics.add_duplicate_count()
