@@ -63,8 +63,10 @@ class TaskMetrics:
     def reset_state(self) -> None:
         """
         重置统计状态
-
         清空重试时间记录和已处理任务集合。
+
+        - retry_time_dict：记录重试次数
+        - processed_set：用于重复检测
         """
         self.retry_time_dict: dict[str, int] = {}  # task_hash: retry_time
         self.processed_set: set[str] = set()  # task_hash

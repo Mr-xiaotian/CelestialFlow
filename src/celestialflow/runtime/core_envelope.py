@@ -7,14 +7,14 @@ from .util_hash import object_to_str_hash
 class TaskEnvelope:
     __slots__ = ("task", "hash", "id", "source")
 
-    def __init__(self, task: Any, hash: str, id: int, source: str = "input"):
+    def __init__(self, task: Any, hash: str, id: int, source: str):
         self.task = task
         self.hash = hash
         self.id = id
         self.source = source
 
     @classmethod
-    def wrap(cls, task: Any, task_id: int, source: str = "input") -> "TaskEnvelope":
+    def wrap(cls, task: Any, task_id: int, source: str) -> "TaskEnvelope":
         """
         将原始 task 包装为 TaskEnvelope。
 

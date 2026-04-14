@@ -64,7 +64,7 @@ class TaskExecutor:
         :param max_retries: 任务的最大重试次数
         :param max_info: 日志中每条信息的最大长度
         :param unpack_task_args: 是否将任务参数解包
-        :param enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_dict 中
+        :param enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_pairs 中
         :param enable_duplicate_check: 是否启用重复检查
         :param progress_desc: 进度条显示名称
         :param show_progress: 进度条显示与否
@@ -131,11 +131,9 @@ class TaskExecutor:
     def init_state(self) -> None:
         """
         初始化任务状态：
-        - success_dict：缓存执行结果
-        - retry_time_dict：记录重试次数
-        - processed_set：用于重复检测
+        - success_pairs：缓存执行结果
         """
-        self.success_dict: dict[Any, Any] = {}  # task -> result
+        self.success_pairs: list[tuple[Any, Any]] = []  # task - result
         self.metrics.reset_state()
 
     def init_inlet(self, fail_queue: MPQueue, log_queue: MPQueue) -> None:
@@ -422,8 +420,10 @@ class TaskExecutor:
     def get_args(self, task: Any) -> tuple:
         """
         从 obj 中获取参数。可根据需要覆写
-
         在这个示例中，我们根据 unpack_task_args 决定是否解包参数
+
+        :param task: 任务对象
+        :return: 任务参数元组
         """
         if self.unpack_task_args:
             return task
@@ -432,18 +432,21 @@ class TaskExecutor:
     def process_result(self, task: Any, result: Any) -> Any:
         """
         从结果队列中获取结果，并进行处理。可根据需要覆写
-
         在这个示例中，我们只是简单地返回结果
+
+        :param task: 任务对象
+        :param result: 任务结果
+        :return: 处理后的结果
         """
         return result
 
-    def process_result_dict(self) -> dict[Any, Any]:
+    def process_result_pairs(self) -> list[tuple[Any, Any]]:
         """
-        处理结果字典。可根据需要覆写
+        处理结果列表。可根据需要覆写
 
-        在这个示例中，我们合并了字典并返回
+        :return: 处理后的结果列表
         """
-        return {**self.success_dict}
+        return self.get_success_pairs() + self.get_error_pairs()
 
     def handle_error_dict(self) -> dict[Any, list]:
         """
@@ -544,7 +547,7 @@ class TaskExecutor:
 
         processed_result = self.process_result(task, result)
         if self.enable_success_cache:
-            self.success_dict[task] = processed_result
+            self.success_pairs.append((task, processed_result))
 
         result_id = self.ctree_client.emit(
             "task.success",
@@ -800,12 +803,11 @@ class TaskExecutor:
             self.log_spout.stop()
             self.fail_spout.stop()
 
-    def get_success_dict(self) -> dict[Any, Any]:
+    def get_success_pairs(self) -> list[tuple[Any, Any]]:
         """
-        获取成功任务的字典
-        需要enable_success_cache=True
+        获取成功任务的列表
         """
-        return dict(self.success_dict)
+        return self.success_pairs
 
     def get_error_pairs(self) -> list[tuple[Any, Exception]]:
         """
