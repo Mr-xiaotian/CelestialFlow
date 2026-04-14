@@ -7,6 +7,24 @@ from typing import Any, Optional
 # ======== jsonl文件处理 ========
 
 
+def parse_jsonl_value(val: Any) -> Any:
+    """
+    智能解析 JSONL 字段值
+
+    :param val: 原始字段值
+    :return: 解析后的值
+    """
+    if isinstance(val, str):
+        try:
+            parsed = ast.literal_eval(val)
+            return tuple(parsed) if isinstance(parsed, (list, tuple)) else parsed
+        except (ValueError, SyntaxError):
+            return val
+    if isinstance(val, (list, tuple)):
+        return tuple(val)
+    return val
+
+
 def load_jsonl_logs(
     path: str,
     start_seq: int = 1,
@@ -66,24 +84,7 @@ def load_jsonl_by_key(
 
             key = item[extract_key]
             val = item[extract_value]
-
-            # 智能处理不同数据类型
-            if isinstance(val, str):
-                # 如果是字符串（如 "[1, 2]" 或 "(1, 2)"），解析它
-                try:
-                    parsed = ast.literal_eval(val)
-                    value = (
-                        tuple(parsed) if isinstance(parsed, (list, tuple)) else parsed
-                    )
-                except (ValueError, SyntaxError):
-                    # 如果是普通字符串（如 "hello"）
-                    value = val
-            elif isinstance(val, (list, tuple)):
-                # 如果已经是列表/元组，直接转换
-                value = tuple(val)
-            else:
-                # 如果是数字、布尔等单个值
-                value = val
+            value = parse_jsonl_value(val)
 
             result_dict[key].append(value)
 
@@ -116,7 +117,7 @@ def load_jsonl_grouped_by_keys(
             group_values = tuple(item.get(k, "") for k in group_keys)
             group_key = group_values
 
-            value = tuple(ast.literal_eval(item[extract_field]))
+            value = parse_jsonl_value(item[extract_field])
 
             result_dict[group_key].append(value)
 
@@ -141,3 +142,33 @@ def load_task_by_error(jsonl_path) -> dict[tuple[str], list[Any]]:
     return load_jsonl_grouped_by_keys(
         jsonl_path, group_keys=["error", "stage"], extract_field="task"
     )
+
+
+def load_task_error_pairs(jsonl_path: str) -> list[tuple[Any, Exception]]:
+    """
+    加载错误记录，返回 (task, error) pair 列表
+
+    :param jsonl_path: JSONL 文件路径
+    :return: [(task, error), ...]
+    """
+    result: list[tuple[Any, Exception]] = []
+
+    with open(jsonl_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            if "task" not in item or "error" not in item:
+                continue
+
+            task = parse_jsonl_value(item["task"])
+            error = Exception(str(item["error"]))
+            result.append((task, error))
+
+    return result

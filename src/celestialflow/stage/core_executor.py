@@ -18,6 +18,7 @@ from celestialtree import (
 
 from ..observability import TaskProgress, NullTaskProgress
 from ..persistence import FailSpout, FailInlet, LogSpout, LogInlet
+from ..persistence.util_jsonl import load_task_error_pairs
 from ..runtime import (
     TaskEnvelope,
     TaskInQueue,
@@ -49,7 +50,6 @@ class TaskExecutor:
         max_info=50,
         unpack_task_args=False,
         enable_success_cache=False,
-        enable_error_cache=False,
         enable_duplicate_check=True,
         show_progress=False,
         progress_desc="Executing",
@@ -65,14 +65,11 @@ class TaskExecutor:
         :param max_info: 日志中每条信息的最大长度
         :param unpack_task_args: 是否将任务参数解包
         :param enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_dict 中
-        :param enable_error_cache: 是否启用失败结果缓存, 将失败结果保存在 error_dict 中
         :param enable_duplicate_check: 是否启用重复检查
         :param progress_desc: 进度条显示名称
         :param show_progress: 进度条显示与否
         """
-        if (
-            enable_success_cache == True or enable_error_cache == True
-        ) and enable_duplicate_check == False:
+        if enable_success_cache == True and enable_duplicate_check == False:
             warnings.warn(
                 "Result cache is enabled while duplicate check is disabled. "
                 "This may cause the number of cached results to differ from the number of input tasks "
@@ -88,7 +85,6 @@ class TaskExecutor:
 
         self.unpack_task_args = unpack_task_args
         self.enable_success_cache = enable_success_cache
-        self.enable_error_cache = enable_error_cache
         self.enable_duplicate_check = enable_duplicate_check
 
         self.show_progress = show_progress
@@ -135,12 +131,11 @@ class TaskExecutor:
     def init_state(self) -> None:
         """
         初始化任务状态：
-        - success_dict / error_dict：缓存执行结果
+        - success_dict：缓存执行结果
         - retry_time_dict：记录重试次数
         - processed_set：用于重复检测
         """
         self.success_dict: dict[Any, Any] = {}  # task -> result
-        self.error_dict: dict[Any, Exception] = {}  # task -> exception
         self.metrics.reset_state()
 
     def init_inlet(self, fail_queue: MPQueue, log_queue: MPQueue) -> None:
@@ -448,7 +443,7 @@ class TaskExecutor:
 
         在这个示例中，我们合并了字典并返回
         """
-        return {**self.success_dict, **self.error_dict}
+        return {**self.success_dict}
 
     def handle_error_dict(self) -> dict[Any, list]:
         """
@@ -457,7 +452,7 @@ class TaskExecutor:
         在这个示例中，我们将列表合并为错误组
         """
         error_groups = defaultdict(list)
-        for task, error in self.error_dict.items():
+        for task, error in self.get_error_pairs():
             error_groups[error].append(task)
 
         return dict(error_groups)  # 转换回普通字典
@@ -668,8 +663,6 @@ class TaskExecutor:
         :return: 失败任务的结果信封
         """
         self.task_progress.update(1)
-        if self.enable_error_cache:
-            self.error_dict[task_envelope.task] = exception
 
         error_id = self.ctree_client.emit(
             "task.error",
@@ -814,12 +807,11 @@ class TaskExecutor:
         """
         return dict(self.success_dict)
 
-    def get_error_dict(self) -> dict[Any, Exception]:
+    def get_error_pairs(self) -> list[tuple[Any, Exception]]:
         """
-        获取出错任务的字典
-        需要enable_error_cache=True
+        获取出错任务的列表
         """
-        return dict(self.error_dict)
+        return load_task_error_pairs(str(self.fail_spout.jsonl_path))
 
     def release_queue(self) -> None:
         """
