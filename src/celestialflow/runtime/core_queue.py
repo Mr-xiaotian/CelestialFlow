@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 from asyncio import Queue as AsyncQueue
-from multiprocessing import Queue as MPQueue
-from queue import Queue as ThreadQueue
 from typing import TYPE_CHECKING, Any
 
 from .core_envelope import TaskEnvelope

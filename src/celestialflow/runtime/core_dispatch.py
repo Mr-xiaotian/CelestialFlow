@@ -8,7 +8,8 @@ from functools import partial
 from threading import Event, Lock
 from typing import TYPE_CHECKING, Any
 
-from . import TaskEnvelope, TaskProgress
+from ..observability import TaskProgress
+from . import TaskEnvelope
 from .util_types import TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:

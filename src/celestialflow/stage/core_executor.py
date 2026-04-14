@@ -16,14 +16,13 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
+from ..observability import NullTaskProgress, TaskProgress
 from ..persistence import FailListener, FailSinker, LogListener, LogSinker
 from ..runtime import (
-    NullTaskProgress,
     TaskEnvelope,
     TaskInQueue,
     TaskMetrics,
     TaskOutQueue,
-    TaskProgress,
     TaskRunner,
 )
 from ..runtime.util_errors import ExecutionModeError

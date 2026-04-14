@@ -1,6 +1,6 @@
 {
     "theme": "light",
-    "refreshInterval": 2000,
+    "refreshInterval": 30000,
     "historyLimit": 20,
     "dashboard": {
         "left": [
