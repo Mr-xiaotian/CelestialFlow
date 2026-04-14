@@ -10,7 +10,7 @@ from .core_envelope import TaskEnvelope
 from .util_types import TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
-    from ..persistence import LogSinker
+    from ..persistence import LogInlet
 
 
 class TaskInQueue:
@@ -19,7 +19,7 @@ class TaskInQueue:
         queue: Any,
         queue_tags: list[str],
         out_tag: str,
-        log_sinker: "LogSinker",
+        log_inlet: "LogInlet",
     ) -> None:
         """
         初始化任务入队
@@ -27,12 +27,12 @@ class TaskInQueue:
         :param queue: 队列对象
         :param queue_tags: 队列标签列表
         :param out_tag: 任务节点标签
-        :param log_sinker: 日志记录器
+        :param log_inlet: 日志记录器
         """
         self.queue: Any = queue
         self.queue_tags = list(queue_tags)
         self.out_tag = out_tag
-        self.log_sinker = log_sinker
+        self.log_inlet = log_inlet
 
         self.termination_dict: dict[str, int] = {}
 
@@ -46,7 +46,7 @@ class TaskInQueue:
             t = "task"
         elif isinstance(item, TerminationSignal):
             t = "termination"
-        self.log_sinker.put_item(t, item.id, item.source, self.out_tag)
+        self.log_inlet.put_item(t, item.id, item.source, self.out_tag)
 
     def _log_get(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
@@ -58,7 +58,7 @@ class TaskInQueue:
             t = "task"
         elif isinstance(item, TerminationSignal):
             t = "termination"
-        self.log_sinker.get_item(t, item.id, item.source, self.out_tag)
+        self.log_inlet.get_item(t, item.id, item.source, self.out_tag)
 
     def add_source_tag(self, tag: str) -> None:
         """
@@ -129,7 +129,7 @@ class TaskInQueue:
             self.queue.put(item)
             self._log_put(item)
         except Exception as e:
-            self.log_sinker.put_item_error(item.source, self.out_tag, e)
+            self.log_inlet.put_item_error(item.source, self.out_tag, e)
 
     async def put_async(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
@@ -141,7 +141,7 @@ class TaskInQueue:
             await self.queue.put(item)
             self._log_put(item)
         except Exception as e:
-            self.log_sinker.put_item_error(item.source, self.out_tag, e)
+            self.log_inlet.put_item_error(item.source, self.out_tag, e)
 
     def get(self) -> TaskEnvelope | TerminationIdPool:
         """
@@ -222,7 +222,7 @@ class TaskOutQueue:
         queue_list: list[Any],
         queue_tags: list[str | None],
         in_tag: str,
-        log_sinker: "LogSinker",
+        log_inlet: "LogInlet",
     ) -> None:
         """
         任务输出队列类，用于管理多个输出队列
@@ -230,7 +230,7 @@ class TaskOutQueue:
         :param queue_list: 输出队列列表，每个元素为一个线程队列、进程队列或异步队列
         :param queue_tags: 队列标签列表，用于标识每个队列
         :param in_tag: 任务节点标签，用于记录日志
-        :param log_sinker: 日志记录器，用于记录入队出队日志
+        :param log_inlet: 日志记录器，用于记录入队出队日志
         :raises ValueError: 如果队列列表和标签列表长度不一致
         """
         if len(queue_list) != len(queue_tags):
@@ -239,7 +239,7 @@ class TaskOutQueue:
         self.queue_list = queue_list
         self.queue_tags = queue_tags
         self.in_tag = in_tag
-        self.log_sinker = log_sinker
+        self.log_inlet = log_inlet
 
         self._tag_to_idx = {
             tag: i for i, tag in enumerate(queue_tags) if tag is not None
@@ -256,7 +256,7 @@ class TaskOutQueue:
             t = "task"
         elif isinstance(item, TerminationSignal):
             t = "termination"
-        self.log_sinker.put_item(t, item.id, self.in_tag, str(self.queue_tags[idx]))
+        self.log_inlet.put_item(t, item.id, self.in_tag, str(self.queue_tags[idx]))
 
     def add_queue(self, queue: Any, tag: str) -> None:
         """
@@ -310,7 +310,7 @@ class TaskOutQueue:
             self.queue_list[idx].put(item)
             self._log_put(item, idx)
         except Exception as e:
-            self.log_sinker.put_item_error(item.source, self.in_tag, e)
+            self.log_inlet.put_item_error(item.source, self.in_tag, e)
 
     async def put_channel_async(
         self, item: TaskEnvelope | TerminationSignal, idx: int
@@ -328,4 +328,4 @@ class TaskOutQueue:
                 self.queue_list[idx].put(item)
             self._log_put(item, idx)
         except Exception as e:
-            self.log_sinker.put_item_error(item.source, self.in_tag, e)
+            self.log_inlet.put_item_error(item.source, self.in_tag, e)

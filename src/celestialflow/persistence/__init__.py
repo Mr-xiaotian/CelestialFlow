@@ -1,13 +1,13 @@
 # persistence/__init__.py
-from .core_base import BaseListener, BaseSinker
-from .core_fail import FailListener, FailSinker
-from .core_log import LogListener, LogSinker
+from .core_funnel import BaseSpout, BaseInlet
+from .core_fail import FailSpout, FailInlet
+from .core_log import LogSpout, LogInlet
 
 __all__ = [
-    "BaseListener",
-    "BaseSinker",
-    "FailListener",
-    "FailSinker",
-    "LogListener",
-    "LogSinker",
+    "BaseSpout",
+    "BaseInlet",
+    "FailSpout",
+    "FailInlet",
+    "LogSpout",
+    "LogInlet",
 ]

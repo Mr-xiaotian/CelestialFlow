@@ -5,10 +5,10 @@ from pathlib import Path
 from typing import TextIO
 
 from ..utils.util_format import format_repr
-from .core_base import BaseListener, BaseSinker
+from .core_funnel import BaseSpout, BaseInlet
 
 
-class FailListener(BaseListener):
+class FailSpout(BaseSpout):
     def __init__(self, error_source: str) -> None:
         super().__init__()
 
@@ -52,7 +52,7 @@ class FailListener(BaseListener):
             self._file = None
 
 
-class FailSinker(BaseSinker):
+class FailInlet(BaseInlet):
     """
     多进程安全失败记录包装类，所有失败记录通过队列发送到监听进程写入
     """
@@ -68,7 +68,7 @@ class FailSinker(BaseSinker):
             "timestamp": datetime.now().isoformat(),
             "structure": structure_json,
         }
-        self._sink(meta_item)
+        self._funnel(meta_item)
 
     def start_executor(self, executor_tag: str) -> None:
         """
@@ -78,7 +78,7 @@ class FailSinker(BaseSinker):
             "timestamp": datetime.now().isoformat(),
             "executor": executor_tag,
         }
-        self._sink(meta_item)
+        self._funnel(meta_item)
 
     def task_error(self, stage_tag: str, error: Exception, err_id: int, task) -> None:
         """
@@ -101,4 +101,4 @@ class FailSinker(BaseSinker):
             "error_id": err_id,
             "ts": now.timestamp(),
         }
-        self._sink(fail_item)
+        self._funnel(fail_item)

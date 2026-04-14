@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import requests
 
-from ..persistence import LogSinker
+from ..persistence import LogInlet
 from ..persistence.util_jsonl import load_jsonl_logs
 from ..runtime.util_types import TERMINATION_SIGNAL
 
@@ -27,7 +27,7 @@ class TaskReporter:
         host: str,
         port: int,
         task_graph: "TaskGraph",
-        log_sinker: LogSinker,
+        log_inlet: LogInlet,
     ) -> None:
         """
         初始化任务上报器
@@ -35,11 +35,11 @@ class TaskReporter:
         :param host: 远程服务主机地址
         :param port: 远程服务端口
         :param task_graph: 任务图实例
-        :param log_sinker: 日志下沉器实例
+        :param log_inlet: 日志收集器实例
         """
         self.base_url = f"http://{host}:{port}"
         self.task_graph = task_graph
-        self.log_sinker = log_sinker
+        self.log_inlet = log_inlet
 
         self._stop_flag = Event()
         self._thread: Thread | None = None
@@ -63,7 +63,7 @@ class TaskReporter:
         self._thread.join(timeout=2)
         self._thread = None
         self._session.close()
-        self.log_sinker.stop_reporter()
+        self.log_inlet.stop_reporter()
 
     def _pull_timeout(self) -> float:
         """计算拉取请求的超时时间"""
@@ -79,7 +79,7 @@ class TaskReporter:
             try:
                 self._refresh_all()
             except Exception as e:
-                self.log_sinker.loop_failed(e)
+                self.log_inlet.loop_failed(e)
             self._stop_flag.wait(self.interval)
 
     def _refresh_all(self) -> None:
@@ -110,7 +110,7 @@ class TaskReporter:
                 interval = res.json().get("interval", 5)
                 self.interval = max(1.0, min(interval, 60.0))
         except Exception as e:
-            self.log_sinker.pull_interval_failed(e)
+            self.log_inlet.pull_interval_failed(e)
 
     def _pull_history_limit(self) -> None:
         """从远程服务拉取历史记录限制配置"""
@@ -122,7 +122,7 @@ class TaskReporter:
                 history_limit = res.json().get("historyLimit", 20)
                 self.history_limit = max(1, min(history_limit, 100))
         except Exception as e:
-            self.log_sinker.pull_history_limit_failed(e)
+            self.log_inlet.pull_history_limit_failed(e)
 
     def _pull_and_inject_tasks(self) -> None:
         """从远程服务拉取任务注入信息并注入任务"""
@@ -147,11 +147,11 @@ class TaskReporter:
                         self.task_graph.put_stage_queue(
                             {target_stage: task_datas}, put_termination_signal=False
                         )
-                        self.log_sinker.inject_tasks_success(target_stage, task_datas)
+                        self.log_inlet.inject_tasks_success(target_stage, task_datas)
                     except Exception as e:
-                        self.log_sinker.inject_tasks_failed(target_stage, task_datas, e)
+                        self.log_inlet.inject_tasks_failed(target_stage, task_datas, e)
         except Exception as e:
-            self.log_sinker.pull_tasks_failed(e)
+            self.log_inlet.pull_tasks_failed(e)
 
     def _push_errors(self) -> None:
         """推送错误信息"""
@@ -183,7 +183,7 @@ class TaskReporter:
                 self._last_pushed_errors_rev = current_rev
 
         except Exception as e:
-            self.log_sinker.push_errors_failed(e)
+            self.log_inlet.push_errors_failed(e)
 
     def _push_errors_meta(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:
         """推送错误元信息"""
@@ -228,7 +228,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.log_sinker.push_status_failed(e)
+            self.log_inlet.push_status_failed(e)
 
     def _push_structure(self) -> None:
         """推送结构信息"""
@@ -241,7 +241,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.log_sinker.push_structure_failed(e)
+            self.log_inlet.push_structure_failed(e)
 
     def _push_analysis(self) -> None:
         """推送分析信息"""
@@ -254,7 +254,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.log_sinker.push_analysis_failed(e)
+            self.log_inlet.push_analysis_failed(e)
 
     def _push_summary(self) -> None:
         """推送摘要信息"""
@@ -267,7 +267,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.log_sinker.push_summary_failed(e)
+            self.log_inlet.push_summary_failed(e)
 
     def _push_history(self) -> None:
         """推送历史信息"""
@@ -280,7 +280,7 @@ class TaskReporter:
                 timeout=self._push_timeout(),
             )
         except Exception as e:
-            self.log_sinker.push_history_failed(e)
+            self.log_inlet.push_history_failed(e)
 
 
 class NullTaskReporter:

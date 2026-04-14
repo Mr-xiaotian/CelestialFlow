@@ -61,7 +61,7 @@ class TaskRunner:
             termination_id,
             source=self.task_executor.get_tag(),
         )
-        self.task_executor.log_sinker.termination_merge(
+        self.task_executor.log_inlet.termination_merge(
             self.task_executor.get_func_name(), parent_ids, termination_id
         )
         return signal
@@ -101,7 +101,7 @@ class TaskRunner:
                 result_queues.put(termination_signal)
                 return
 
-            self.task_executor.log_sinker._sink(
+            self.task_executor.log_inlet._funnel(
                 "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
             )
             task_queues.put(termination_signal)
@@ -189,7 +189,7 @@ class TaskRunner:
                 result_queues.put(termination_signal)
                 break
 
-            self.task_executor.log_sinker._sink(
+            self.task_executor.log_inlet._funnel(
                 "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
             )
             task_queues.put(termination_signal)
@@ -264,7 +264,7 @@ class TaskRunner:
                 await result_queues.put_async(termination_signal)
                 return
 
-            self.task_executor.log_sinker._sink(
+            self.task_executor.log_inlet._funnel(
                 "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
             )
             await task_queues.put_async(termination_signal)
