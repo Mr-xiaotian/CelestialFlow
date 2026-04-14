@@ -23,7 +23,7 @@ from ..runtime import (
     TaskInQueue,
     TaskMetrics,
     TaskOutQueue,
-    TaskRunner,
+    TaskDispatch,
 )
 from ..runtime.util_errors import ExecutionModeError
 from ..runtime.util_factories import (
@@ -130,7 +130,7 @@ class TaskExecutor:
         self.init_state()
         self.init_sinker(fail_queue, log_queue)
         self.init_queue(task_queues, result_queues)
-        self.init_runner()
+        self.init_dispatch()
 
     def init_state(self) -> None:
         """
@@ -179,11 +179,11 @@ class TaskExecutor:
             executor=self,
         )
 
-    def init_runner(self) -> None:
+    def init_dispatch(self) -> None:
         """
         初始化任务运行器
         """
-        self.runner = TaskRunner(self, self.func, self.max_workers)
+        self.dispatch = TaskDispatch(self, self.func, self.max_workers)
 
     def init_listener(self) -> None:
         """
@@ -739,12 +739,12 @@ class TaskExecutor:
         try:
             # 根据模式运行对应的任务处理函数
             if self.execution_mode in ["thread", "process"]:
-                self.runner.run_with_pool(self.execution_mode)
+                self.dispatch.run_with_pool(self.execution_mode)
             elif self.execution_mode == "async":
                 # don't suggest, please use start_async
-                asyncio.run(self.runner.run_in_async())
+                asyncio.run(self.dispatch.run_in_async())
             elif self.execution_mode == "serial":
-                self.runner.run_in_serial()
+                self.dispatch.run_in_serial()
             else:
                 raise ExecutionModeError(self.execution_mode)
 
@@ -787,7 +787,7 @@ class TaskExecutor:
         self.fail_sinker.start_executor(self.get_tag())
 
         try:
-            await self.runner.run_in_async()
+            await self.dispatch.run_in_async()
 
         finally:
             self.release_client()

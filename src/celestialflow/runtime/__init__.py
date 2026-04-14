@@ -1,5 +1,5 @@
 # runtime/__init__.py
-from .core_dispatch import TaskRunner
+from .core_dispatch import TaskDispatch
 from .core_envelope import TaskEnvelope
 from .core_metrics import TaskMetrics
 from .core_queue import TaskInQueue, TaskOutQueue
@@ -9,5 +9,5 @@ __all__ = [
     "TaskMetrics",
     "TaskInQueue",
     "TaskOutQueue",
-    "TaskRunner",
+    "TaskDispatch",
 ]

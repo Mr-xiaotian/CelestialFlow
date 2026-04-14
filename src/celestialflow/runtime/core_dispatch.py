@@ -1,4 +1,4 @@
-# runtime/core_runner.py
+# runtime/core_dispatch.py
 from __future__ import annotations
 
 import asyncio
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from ..stage.core_executor import TaskExecutor
 
 
-class TaskRunner:
+class TaskDispatch:
     def __init__(self, task_executor: TaskExecutor, func, max_workers: int):
         """
         初始化任务运行器
