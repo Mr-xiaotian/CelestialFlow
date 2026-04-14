@@ -6,4 +6,4 @@
 
 - TRACE / DEBUG / SUCCESS / INFO / WARNING / ERROR / CRITICAL
 
-该常量被 `LogSinker` 用于日志过滤与级别比较。
+该常量被 `LogInlet` 用于日志过滤与级别比较。

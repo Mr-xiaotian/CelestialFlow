@@ -2,19 +2,19 @@
 
 `celestialflow.persistence` 模块提供了一个多进程安全的日志系统，旨在解决多进程环境下的日志统一收集、格式化和持久化问题。
 
-核心组件包括 `LogListener` 和 `LogSinker`。
+核心组件包括 `LogSpout` 和 `LogInlet`。
 
 ## 架构设计
 
 与错误持久化类似，日志系统也采用了 **Logger-Listener** 模式：
 
-1.  **LogSinker (生产者)**:
+1.  **LogInlet (生产者)**:
     -   包装类，被各个 Worker 进程持有。
     -   提供丰富的语义化方法（如 `task_success`, `start_stage` 等）。
     -   将日志消息和级别封装后放入多进程队列 (`multiprocessing.Queue`)。
     -   支持基于日志级别的过滤，减少不必要的跨进程通信。
 
-2.  **LogListener (消费者)**:
+2.  **LogSpout (消费者)**:
     -   运行在主进程的独立守护线程中。
     -   从队列中取出日志记录，将其写入文件。
     -   统一管理日志文件的轮转和格式。
@@ -31,14 +31,14 @@
 -   **ERROR** (50): 错误信息，如任务失败、循环异常。
 -   **CRITICAL** (60): 严重错误。
 
-## LogListener
+## LogSpout
 
-`LogListener` 负责日志文件的配置和写入线程的管理。
+`LogSpout` 负责日志文件的配置和写入线程的管理。
 
 ### 初始化
 
 ```python
-listener = LogListener()
+listener = LogSpout()
 listener.start()
 ```
 
@@ -51,18 +51,18 @@ logs/
 └── task_logger(2023-10-27).log
 ```
 
-## LogSinker
+## LogInlet
 
-`LogSinker` 提供了针对不同组件的专用日志方法，确保日志内容的结构化和一致性。
+`LogInlet` 提供了针对不同组件的专用日志方法，确保日志内容的结构化和一致性。
 
 ### 初始化
 
 ```python
-sinker = LogSinker(log_queue, log_level="SUCCESS")
+sinker = LogInlet(log_queue, log_level="SUCCESS")
 ```
 
--   `log_queue`: 也就是 `LogListener.get_queue()` 返回的队列。
--   `log_level`: 设置该 Sinker 的最低日志级别，低于此级别的日志将不会被发送到队列。
+-   `log_queue`: 也就是 `LogSpout.get_queue()` 返回的队列。
+-   `log_level`: 设置该 Inlet 的最低日志级别，低于此级别的日志将不会被发送到队列。
 
 ### 常用方法
 

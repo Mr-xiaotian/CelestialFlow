@@ -24,7 +24,7 @@ class TaskInQueue:
         queue: ThreadQueue | MPQueue | AsyncQueue,
         queue_tags: list[str],
         out_tag: str,
-        log_sinker: "LogSinker",
+        log_inlet: "LogInlet",
     ):
         """
         初始化任务入队。
@@ -32,7 +32,7 @@ class TaskInQueue:
         :param queue: 队列对象
         :param queue_tags: 上游队列标签列表
         :param out_tag: 当前节点标签
-        :param log_sinker: 日志记录器
+        :param log_inlet: 日志记录器
         """
 ```
 
@@ -119,7 +119,7 @@ class TaskOutQueue:
         queue_list: list[ThreadQueue] | list[MPQueue] | list[AsyncQueue],
         queue_tags: list[str],
         in_tag: str,
-        log_sinker: "LogSinker",
+        log_inlet: "LogInlet",
     ):
         """
         初始化任务输出队列。
@@ -127,7 +127,7 @@ class TaskOutQueue:
         :param queue_list: 输出队列列表
         :param queue_tags: 队列标签列表
         :param in_tag: 当前节点标签
-        :param log_sinker: 日志记录器
+        :param log_inlet: 日志记录器
         :raises ValueError: 如果队列列表和标签列表长度不一致
         """
 ```
@@ -235,7 +235,7 @@ in_queue = TaskInQueue(
     queue=MPQueue(),
     queue_tags=["upstream_stage"],
     out_tag="current_stage",
-    log_sinker=log_sinker,
+    log_inlet=log_inlet,
 )
 
 # 输出队列
@@ -243,7 +243,7 @@ out_queue = TaskOutQueue(
     queue_list=[MPQueue()],
     queue_tags=["downstream_stage"],
     in_tag="current_stage",
-    log_sinker=log_sinker,
+    log_inlet=log_inlet,
 )
 ```
 

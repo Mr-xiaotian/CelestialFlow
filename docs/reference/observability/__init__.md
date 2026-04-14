@@ -73,14 +73,14 @@ Observability 模块负责收集、聚合和上报系统的运行状态，提供
 ### 基础配置
 ```python
 from celestialflow.observability import TaskReporter
-from celestialflow.persistence import LogSinker
+from celestialflow.persistence import LogInlet
 
 # 创建报告器
 reporter = TaskReporter(
     host="127.0.0.1",  # Web服务器主机
     port=5000,         # Web服务器端口
     task_graph=my_task_graph,
-    log_sinker=log_sinker  # LogSinker实例
+    log_inlet=log_inlet  # LogInlet实例
 )
 
 # 启动报告器

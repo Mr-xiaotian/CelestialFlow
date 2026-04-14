@@ -1,6 +1,6 @@
 # Persistence Base
 
-`persistence/core_base.py` 提供了日志和错误持久化的基础类，是 `LogListener`/`LogSinker` 和 `FailListener`/`FailSinker` 的父类。
+`persistence/core_funnel.py` 提供了日志和错误持久化的基础类，是 `LogSpout`/`LogInlet` 和 `FailSpout`/`FailInlet` 的父类。
 
 ## 设计目的
 
@@ -9,14 +9,14 @@
 - 后台线程监听
 - 优雅的启动和停止机制
 
-## BaseListener
+## BaseSpout
 
-监听器基类，在后台线程中接收并处理记录。
+出口基类，在后台线程中接收并处理记录。
 
 ### 初始化
 
 ```python
-class BaseListener:
+class BaseSpout:
     def __init__(self):
         self.queue = MPQueue()  # 多进程安全队列
         self._thread: Thread | None = None
@@ -95,14 +95,14 @@ def _listen(self):
 
 ---
 
-## BaseSinker
+## BaseInlet
 
-发送器基类，将记录发送到队列。
+收集器基类，将记录发送到队列。
 
 ### 初始化
 
 ```python
-class BaseSinker:
+class BaseInlet:
     def __init__(self, queue):
         self.queue: MPQueue = queue
 ```
@@ -110,7 +110,7 @@ class BaseSinker:
 ### 核心方法
 
 ```python
-def _sink(self, record):
+def _funnel(self, record):
     """将记录放入队列。"""
     self.queue.put(record)
 ```
@@ -119,13 +119,13 @@ def _sink(self, record):
 
 ## 使用示例
 
-### 创建自定义监听器
+### 创建自定义出口
 
 ```python
-from celestialflow.persistence.base import BaseListener, BaseSinker
+from celestialflow.persistence.core_funnel import BaseSpout, BaseInlet
 import json
 
-class JsonListener(BaseListener):
+class JsonSpout(BaseSpout):
     """将记录保存为 JSON 文件。"""
 
     def _before_start(self):
@@ -138,11 +138,11 @@ class JsonListener(BaseListener):
     def _after_stop(self):
         self.file.close()
 
-class JsonSinker(BaseSinker):
-    """发送记录到 JsonListener。"""
+class JsonInlet(BaseInlet):
+    """发送记录到 JsonSpout。"""
 
     def log(self, data):
-        self._sink(data)
+        self._funnel(data)
 ```
 
 ### 在执行器中使用
@@ -150,12 +150,12 @@ class JsonSinker(BaseSinker):
 ```python
 from celestialflow import TaskExecutor
 
-# 创建监听器
-listener = JsonListener()
+# 创建出口
+listener = JsonSpout()
 listener.start()
 
-# 创建发送器
-sinker = JsonSinker(listener.get_queue())
+# 创建收集器
+sinker = JsonInlet(listener.get_queue())
 
 # 配置执行器
 executor = TaskExecutor(func=process)
@@ -173,13 +173,13 @@ listener.stop()
 ## 继承关系
 
 ```
-BaseListener
-├── LogListener (persistence/core_log.py)
-└── FailListener (persistence/core_fail.py)
+BaseSpout
+├── LogSpout (persistence/core_log.py)
+└── FailSpout (persistence/core_fail.py)
 
-BaseSinker
-├── LogSinker (persistence/core_log.py)
-└── FailSinker (persistence/core_fail.py)
+BaseInlet
+├── LogInlet (persistence/core_log.py)
+└── FailInlet (persistence/core_fail.py)
 ```
 
 ## 注意事项
