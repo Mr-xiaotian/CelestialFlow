@@ -51,7 +51,7 @@ Stage 模块包含三个层次的任务执行单元：
 
 ### 外部关联
 - **与 Graph 模块**: `TaskStage` 是 `TaskGraph` 的基本构建单元
-- **与 Runtime 模块**: 使用 `TaskQueue` 进行节点间通信，依赖 `TaskRunner` 执行
+- **与 Runtime 模块**: 使用 `TaskQueue` 进行节点间通信，依赖 `TaskDispatch` 执行
 - **与 Utils 模块**: 使用工具函数进行数据处理和转换
 - **与 Persistence 模块**: 支持任务状态的持久化保存
 

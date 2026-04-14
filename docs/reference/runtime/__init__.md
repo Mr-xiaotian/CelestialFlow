@@ -10,7 +10,7 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
 
 ### 核心运行时组件
 
-1. **core_runner.py** (`TaskRunner`)
+1. **core_dispatch.py** (`TaskDispatch`)
    - **作用**: 任务执行的核心运行器，支持多种执行模式
    - **执行模式**:
      - 串行执行: 顺序执行任务
@@ -101,13 +101,13 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
 ## 模块关联
 
 ### 内部关联
-- `TaskRunner` 使用 `TaskInQueue` 和 `TaskOutQueue` 获取任务和发送结果
+- `TaskDispatch` 使用 `TaskInQueue` 和 `TaskOutQueue` 获取任务和发送结果
 - `TaskEnvelope` 在队列中传递，包含完整的执行上下文
-- `TaskMetrics` 和 `TaskProgress` 监控 `TaskRunner` 的执行状态
+- `TaskMetrics` 和 `TaskProgress` 监控 `TaskDispatch` 的执行状态
 - 所有错误都通过 `CelestialFlowError` 及其子类统一处理
 
 ### 外部关联
-- **与 Stage 模块**: `TaskRunner` 执行 `TaskExecutor` 和 `TaskStage`
+- **与 Stage 模块**: `TaskDispatch` 执行 `TaskExecutor` 和 `TaskStage`
 - **与 Graph 模块**: 为 `TaskGraph` 提供执行引擎和通信机制
 - **与 Persistence 模块**: 支持执行状态的持久化
 - **与 Observability 模块**: 提供监控数据和性能指标
@@ -137,13 +137,13 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
 ## 使用模式
 
 ### 基础使用
-1. **创建运行器**: 根据任务类型选择合适的 `TaskRunner` 模式
+1. **创建运行器**: 根据任务类型选择合适的 `TaskDispatch` 模式
 2. **配置队列**: 设置输入/输出队列，建立数据流通道
 3. **执行任务**: 提交任务到运行器，监控执行状态
 4. **处理结果**: 从输出队列获取结果，处理错误
 
 ### 高级使用
-1. **自定义运行器**: 继承 `TaskRunner` 实现特定执行逻辑
+1. **自定义运行器**: 继承 `TaskDispatch` 实现特定执行逻辑
 2. **混合模式**: 组合不同执行模式处理复杂工作流
 3. **监控集成**: 集成外部监控系统，实现集中式监控
 

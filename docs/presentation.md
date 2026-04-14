@@ -84,7 +84,7 @@ graph TB
         E --> F{schedule_mode}
         F -->|eager| G[并发启动所有 Stage]
         F -->|staged| H[逐层顺序执行]
-        G --> I[TaskRunner 执行任务]
+        G --> I[TaskDispatch 执行任务]
         H --> I
     end
 
@@ -524,7 +524,7 @@ graph LR
 | **图类型** | DAG + 环形图 | 仅 DAG | 仅 DAG | 无限制（Actor 模型） |
 | **环形任务支持** | 原生支持（Loop/Wheel） | 不支持 | 不支持 | 手动实现 |
 | **执行模式** | serial/thread/process/async | Celery/K8s/Local | Dask/K8s | Ray Worker |
-| **进程级隔离** | Stage 级 `process` 模式 | Executor 级 | Runner 级 | 默认隔离 |
+| **进程级隔离** | Stage 级 `process` 模式 | Executor 级 | Dispatch 级 | 默认隔离 |
 | **实时可视化** | 内置 Web UI | 内置 Web UI | 内置 Cloud UI | Ray Dashboard |
 | **事件溯源** | CelestialTree 集成 | 无原生支持 | 无原生支持 | 无原生支持 |
 | **任务去重** | 内置 SHA1 哈希去重 | 无原生支持 | 无原生支持 | 无原生支持 |

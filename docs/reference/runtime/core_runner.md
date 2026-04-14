@@ -1,11 +1,11 @@
-# TaskRunner
+# TaskDispatch
 
-`TaskRunner` 是任务执行的核心运行器，负责从队列获取任务、执行任务、处理结果和错误。它支持串行、线程池、进程池和异步四种执行模式。
+`TaskDispatch` 是任务执行的核心运行器，负责从队列获取任务、执行任务、处理结果和错误。它支持串行、线程池、进程池和异步四种执行模式。
 
 ## 初始化
 
 ```python
-class TaskRunner:
+class TaskDispatch:
     def __init__(self, task_executor: TaskExecutor, func, max_workers: int):
         """
         初始化任务运行器。
@@ -139,34 +139,34 @@ async def _run_single_task(self, task):
 ### 在 TaskExecutor 中使用
 
 ```python
-# TaskExecutor 内部会创建 TaskRunner
+# TaskExecutor 内部会创建 TaskDispatch
 executor = TaskExecutor(func=process, execution_mode="thread", max_workers=4)
-executor.start(task_source)  # 内部调用 runner.run_with_pool("thread")
+executor.start(task_source)  # 内部调用 dispatch.run_with_pool("thread")
 ```
 
 ### 直接使用（不推荐）
 
 ```python
-from celestialflow.runtime import TaskRunner
+from celestialflow.runtime import TaskDispatch
 
-runner = TaskRunner(task_executor, func, max_workers=10)
+dispatch = TaskDispatch(task_executor, func, max_workers=10)
 
 # 串行执行
-runner.run_in_serial()
+dispatch.run_in_serial()
 
 # 线程池执行
-runner.run_with_pool("thread")
+dispatch.run_with_pool("thread")
 
 # 进程池执行
-runner.run_with_pool("process")
+dispatch.run_with_pool("process")
 
 # 异步执行
-await runner.run_in_async()
+await dispatch.run_in_async()
 ```
 
 ## 与 TaskExecutor 的关系
 
-`TaskRunner` 是 `TaskExecutor` 的内部组件：
+`TaskDispatch` 是 `TaskExecutor` 的内部组件：
 
 ```
 TaskExecutor
@@ -174,7 +174,7 @@ TaskExecutor
     ├── task_queues        # 输入队列（TaskInQueue）
     ├── result_queues      # 输出队列（TaskOutQueue）
     ├── metrics            # 任务指标
-    └── runner             # TaskRunner 实例
+    └── dispatch             # TaskDispatch 实例
             ├── func               # 任务函数
             ├── max_workers        # 并发数量限制
             ├── run_in_serial()
@@ -182,7 +182,7 @@ TaskExecutor
             └── run_in_async()
 ```
 
-`TaskExecutor` 根据 `execution_mode` 选择调用 `TaskRunner` 的哪个方法：
+`TaskExecutor` 根据 `execution_mode` 选择调用 `TaskDispatch` 的哪个方法：
 - `serial` → `run_in_serial()`
 - `thread` → `run_with_pool("thread")`
 - `process` → `run_with_pool("process")`

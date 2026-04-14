@@ -75,7 +75,7 @@
   - refactor:
     - fail_sinker.task_error中不必再传时间, 方法会自己补充;
     - 将所有counter放入TaskMetrics管理, 断绝对TAskExecutor的调用依赖;
-    - 将run_*函数分离并移入TaskRunner类, 同时将pool管理也迁入; 
+    - 将run_*函数分离并移入TaskDispatch类, 同时将pool管理也迁入; 
     - 将TaskQueue分离为更具体的TaskInQueue与TaskOutQueue, 同时TAskInQueue只接受一个MPQueue以避免原有的轮询逻辑, 减少CPU运算消耗;
     - 前端代码换用ts;
     - 重命名所有代码文件, 现在用core_与util_前缀来区分核心代码与辅助代码;
