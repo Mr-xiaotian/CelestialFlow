@@ -8,7 +8,6 @@ from functools import partial
 from threading import Event, Lock
 from typing import TYPE_CHECKING, Any
 
-from ..observability import TaskProgress
 from . import TaskEnvelope
 from .util_types import TerminationIdPool, TerminationSignal
 
@@ -62,7 +61,7 @@ class TaskDispatch:
             termination_id,
             source=self.task_executor.get_tag(),
         )
-        self.task_executor.log_sinker.termination_merge(
+        self.task_executor.log_inlet.termination_merge(
             self.task_executor.get_func_name(), parent_ids, termination_id
         )
         return signal
@@ -85,7 +84,6 @@ class TaskDispatch:
 
                 if self.task_executor.metrics.is_duplicate(task_hash):
                     self.task_executor.deal_duplicate(envelope)
-                    self.task_executor.task_progress.update(1)
                     continue
                 self.task_executor.metrics.add_processed_set(task_hash)
                 try:
@@ -96,16 +94,14 @@ class TaskDispatch:
                     )
                 except Exception as error:
                     self.task_executor.handle_task_error(envelope, error)
-                self.task_executor.task_progress.update(1)
 
             task_queues.reset()
 
             if self.task_executor.metrics.is_tasks_finished():
                 result_queues.put(termination_signal)
-                self.task_executor.task_progress.close()
                 return
 
-            self.task_executor.log_sinker._sink(
+            self.task_executor.log_inlet._funnel(
                 "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
             )
             task_queues.put(termination_signal)
@@ -130,10 +126,9 @@ class TaskDispatch:
             all_done_event.set()  # 初始为无任务状态，设为完成状态
 
             def on_task_done(
-                future, envelope: TaskEnvelope, task_progress: TaskProgress | Any
+                future, envelope: TaskEnvelope
             ):
                 # 回调函数中处理任务结果
-                task_progress.update(1)
                 task_id = envelope.id
 
                 try:
@@ -163,7 +158,6 @@ class TaskDispatch:
 
                 if self.task_executor.metrics.is_duplicate(task_hash):
                     self.task_executor.deal_duplicate(envelope)
-                    self.task_executor.task_progress.update(1)
                     continue
                 self.task_executor.metrics.add_processed_set(task_hash)
 
@@ -182,7 +176,6 @@ class TaskDispatch:
                     partial(
                         on_task_done,
                         envelope=envelope,
-                        task_progress=self.task_executor.task_progress,
                     )
                 )
 
@@ -194,10 +187,9 @@ class TaskDispatch:
 
             if self.task_executor.metrics.is_tasks_finished():
                 result_queues.put(termination_signal)
-                self.task_executor.task_progress.close()
                 break
 
-            self.task_executor.log_sinker._sink(
+            self.task_executor.log_inlet._funnel(
                 "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
             )
             task_queues.put(termination_signal)
@@ -247,7 +239,6 @@ class TaskDispatch:
 
                 if self.task_executor.metrics.is_duplicate(task_hash):
                     self.task_executor.deal_duplicate(envelope)
-                    self.task_executor.task_progress.update(1)
                     continue
                 self.task_executor.metrics.add_processed_set(task_hash)
                 async_tasks.append(sem_task(envelope))  # 使用信号量包裹的任务
@@ -266,16 +257,14 @@ class TaskDispatch:
                     )
                 else:
                     await self.task_executor.handle_task_error_async(envelope, result)
-                self.task_executor.task_progress.update(1)
 
             task_queues.reset()
 
             if self.task_executor.metrics.is_tasks_finished():
                 await result_queues.put_async(termination_signal)
-                self.task_executor.task_progress.close()
                 return
 
-            self.task_executor.log_sinker._sink(
+            self.task_executor.log_inlet._funnel(
                 "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
             )
             await task_queues.put_async(termination_signal)

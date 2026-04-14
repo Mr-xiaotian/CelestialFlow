@@ -20,7 +20,7 @@ from celestialtree import (
 from networkx import is_directed_acyclic_graph
 
 from ..observability import NullTaskReporter, TaskReporter
-from ..persistence import FailListener, FailSinker, LogListener, LogSinker
+from ..persistence import FailSpout, FailInlet, LogSpout, LogInlet
 from ..persistence.util_jsonl import load_task_by_error, load_task_by_stage
 from ..runtime import TaskEnvelope, TaskInQueue, TaskOutQueue
 from ..runtime.util_errors import UnconsumedError
@@ -96,8 +96,8 @@ class TaskGraph:
         初始化环境
         """
         self.init_state()
-        self.init_listener()
-        self.init_sinker()
+        self.init_spout()
+        self.init_inlet()
         self.init_resources()
         self.init_analysis()
 
@@ -118,19 +118,19 @@ class TaskGraph:
         # 用于保存每个节点的输入任务ID集合
         self.input_ids: dict[str, set[int]] = defaultdict(set)
 
-    def init_listener(self) -> None:
+    def init_spout(self) -> None:
         """
         初始化监听器
         """
-        self.log_listener = LogListener()
-        self.fail_listener = FailListener("graph_errors")
+        self.log_spout = LogSpout()
+        self.fail_spout = FailSpout("graph_errors")
 
-    def init_sinker(self) -> None:
+    def init_inlet(self) -> None:
         """
         初始化收集器
         """
-        self.log_sinker = LogSinker(self.log_listener.get_queue(), self.log_level)
-        self.fail_sinker = FailSinker(self.fail_listener.get_queue())
+        self.log_inlet = LogInlet(self.log_spout.get_queue(), self.log_level)
+        self.fail_inlet = FailInlet(self.fail_spout.get_queue())
 
     def init_resources(self) -> None:
         """
@@ -157,13 +157,13 @@ class TaskGraph:
                 queue=MPQueue(),
                 queue_tags=[],
                 out_tag=stage.get_tag(),
-                log_sinker=self.log_sinker,
+                log_inlet=self.log_inlet,
             )
             stage_runtime["out_queue"] = TaskOutQueue(
                 queue_list=[],
                 queue_tags=[],
                 in_tag=stage.get_tag(),
-                log_sinker=self.log_sinker,
+                log_inlet=self.log_inlet,
             )
 
             visited_stages.add(stage_tag)
@@ -247,7 +247,7 @@ class TaskGraph:
                 host=host,
                 port=port,
                 task_graph=self,
-                log_sinker=self.log_sinker,
+                log_inlet=self.log_inlet,
             )
         else:
             self.reporter = NullTaskReporter()
@@ -345,7 +345,7 @@ class TaskGraph:
                 input_ids.add(input_id)
 
                 stage.metrics.add_task_count()
-                self.log_sinker.task_input(
+                self.log_inlet.task_input(
                     stage.get_func_name(),
                     stage.get_task_repr(task),
                     stage.get_tag(),
@@ -364,7 +364,7 @@ class TaskGraph:
                     payload=root_stage.get_summary(),
                 )
                 root_in_queue.put(TerminationSignal(termination_id, source="input"))
-                self.log_sinker.termination_input(
+                self.log_inlet.termination_input(
                     root_stage.get_func_name(),
                     root_stage.get_tag(),
                     termination_id,
@@ -392,10 +392,10 @@ class TaskGraph:
 
         try:
             start_time = time.perf_counter()
-            self.fail_listener.start()
-            self.log_listener.start()
-            self.log_sinker.start_graph(self.get_structure_list())
-            self.fail_sinker.start_graph(self.get_structure_json())
+            self.fail_spout.start()
+            self.log_spout.start()
+            self.log_inlet.start_graph(self.get_structure_list())
+            self.fail_inlet.start_graph(self.get_structure_json())
             self.reporter.start()
 
             self.put_stage_queue(init_tasks_dict, put_termination_signal)
@@ -406,9 +406,9 @@ class TaskGraph:
 
             self.reporter.stop()
             self.release_resources()
-            self.log_sinker.end_graph(time.perf_counter() - start_time)
-            self.fail_listener.stop()
-            self.log_listener.stop()
+            self.log_inlet.end_graph(time.perf_counter() - start_time)
+            self.fail_spout.stop()
+            self.log_spout.stop()
 
     def _excute_stages(self) -> None:
         """
@@ -421,11 +421,11 @@ class TaskGraph:
 
             for p in self.processes:
                 p.join()
-                self.log_sinker.process_exit(p.name, p.exitcode)
+                self.log_inlet.process_exit(p.name, p.exitcode)
         elif self.schedule_mode == "staged":
             # staged schedule_mode：一层层地顺序执行
             for layer_level, layer in self.layers_dict.items():
-                self.log_sinker.start_layer(layer, layer_level)
+                self.log_inlet.start_layer(layer, layer_level)
                 start_time = time.perf_counter()
 
                 processes = []
@@ -438,9 +438,9 @@ class TaskGraph:
                 # join 当前层的所有进程（如果有）
                 for p in processes:
                     p.join()
-                    self.log_sinker.process_exit(p.name, p.exitcode)
+                    self.log_inlet.process_exit(p.name, p.exitcode)
 
-                self.log_sinker.end_layer(layer, time.perf_counter() - start_time)
+                self.log_inlet.end_layer(layer, time.perf_counter() - start_time)
 
     def _execute_stage(self, stage: TaskStage) -> None:
         """
@@ -451,8 +451,8 @@ class TaskGraph:
         stage_tag = stage.get_tag()
         stage_runtime = self.stage_runtime_dict[stage_tag]
 
-        fail_queue = self.fail_listener.get_queue()
-        log_queue = self.log_listener.get_queue()
+        fail_queue = self.fail_spout.get_queue()
+        log_queue = self.log_spout.get_queue()
 
         # 输入输出队列
         input_queues: TaskInQueue = stage_runtime["in_queue"]
@@ -487,12 +487,12 @@ class TaskGraph:
         # 确保所有进程安全结束（不一定要 terminate，但如果没结束就强制）
         for p in self.processes:
             if p.is_alive():
-                self.log_sinker.process_termination_attempt(p.name)
+                self.log_inlet.process_termination_attempt(p.name)
                 p.terminate()
                 p.join(timeout=5)
                 if p.is_alive():
-                    self.log_sinker.process_termination_timeout(p.name)
-                self.log_sinker.process_exit(p.name, p.exitcode)
+                    self.log_inlet.process_termination_timeout(p.name)
+                self.log_inlet.process_exit(p.name, p.exitcode)
 
         # 更新所有节点状态为“已停止”
         for stage_runtime in self.stage_runtime_dict.values():
@@ -517,11 +517,11 @@ class TaskGraph:
                     payload=current_stage.get_summary(),
                 )
 
-                self.fail_sinker.task_error(
+                self.fail_inlet.task_error(
                     stage_tag, UnconsumedError(), error_id, task
                 )
 
-                self.log_sinker.task_error(
+                self.log_inlet.task_error(
                     current_stage.get_func_name(),
                     current_stage.get_task_repr(task),
                     UnconsumedError(),
@@ -646,13 +646,13 @@ class TaskGraph:
         self.stage_history = dict(history_dict)
 
     def get_fail_by_stage_dict(self) -> dict:
-        return load_task_by_stage(self.fail_listener.jsonl_path)
+        return load_task_by_stage(self.fail_spout.jsonl_path)
 
     def get_fail_by_error_dict(self) -> dict:
-        return load_task_by_error(self.fail_listener.jsonl_path)
+        return load_task_by_error(self.fail_spout.jsonl_path)
 
     def get_total_error_num(self) -> int:
-        return self.fail_listener.total_error_num
+        return self.fail_spout.total_error_num
 
     def get_status_dict(self) -> dict[str, dict]:
         """
@@ -703,9 +703,9 @@ class TaskGraph:
         """
         获取失败任务的回退路径
         """
-        if self.fail_listener.jsonl_path is None:
+        if self.fail_spout.jsonl_path is None:
             return ""
-        return str(Path(self.fail_listener.jsonl_path).resolve())
+        return str(Path(self.fail_spout.jsonl_path).resolve())
 
     def get_stage_input_trace(self, stage_tag: str) -> str:
         """

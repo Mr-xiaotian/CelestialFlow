@@ -24,7 +24,7 @@
   - 在前端中添加error_id的显示, 为之后显示provenance_tree做准备; 
   - 增加大量warning与error, 用于提醒不规范设置; 
   - 优化前后端中错误数据的传输方式, 在大量错误数据时减少内存消耗; 
-  - 优化LogSinker中log队列的准入机制; 
+  - 优化LogInlet中log队列的准入机制; 
   - 修改部分Bug;
 - 3.1.0:
   - 新增:
@@ -46,7 +46,7 @@
     - 在task_graph中使用"staged"模式时会报错的问题;
 - 3.1.2:
   - feat:
-    - [Important] 模仿已有Logger逻辑, 建立新的组合结构FailListener和FailSinker, 将原有绑定于TaskReporter的fail持久化在线程中实现; 
+    - [Important] 模仿已有Logger逻辑, 建立新的组合结构FailSpout和FailInlet, 将原有绑定于TaskReporter的fail持久化在线程中实现; 
     - 借此让TaskExecutor也可以进行fail持久化, 文件为fallback/{date_str}/{executor_errors}({time_str}).jsonl";
     - 重构整体项目结构, 现在更加清晰;
     - 补全docs/reference中全部文档, 并令其符合项目重构后结构
@@ -58,8 +58,8 @@
     - 修复其他微小bug;
 - 3.1.3
   - feat:
-    - 抽象出BaseListener与BaseSinker;
-    - 移除loguru, 完全由LogListener和LogSinker实现log记录; 
+    - 抽象出BaseSpout与BaseInlet;
+    - 移除loguru, 完全由LogSpout和LogInlet实现log记录; 
     - 将bench相关代码从TaskExecutor和TaskGraph中抽离, 不再作为方法, 而是单独bench函数; 
     - 重构TaskExecutor部分代码, 以尽量瘦身; 
     - 优化log处理代码中对时间戳的处理, 现在更加准确;
@@ -73,7 +73,7 @@
     - 在前端的错误数字上(包括单个stage的卡片与summary卡片)绑定跳转事件, 可以跳转到ErrorLog页面, 并显示对应的错误;
     - 修复部分原有的文档错误, 并添加新的前端代码文档;
   - refactor:
-    - fail_sinker.task_error中不必再传时间, 方法会自己补充;
+    - fail_inlet.task_error中不必再传时间, 方法会自己补充;
     - 将所有counter放入TaskMetrics管理, 断绝对TAskExecutor的调用依赖;
     - 将run_*函数分离并移入TaskDispatch类, 同时将pool管理也迁入; 
     - 将TaskQueue分离为更具体的TaskInQueue与TaskOutQueue, 同时TAskInQueue只接受一个MPQueue以避免原有的轮询逻辑, 减少CPU运算消耗;

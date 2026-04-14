@@ -2,32 +2,32 @@
 
 `celestialflow.persistence` 模块提供了一套稳健的错误收集与持久化机制，确保在多进程并发执行任务时，所有的异常信息都能被安全、有序地记录下来，供后续分析或重试使用。
 
-核心组件包括 `FailListener` 和 `FailSinker`。
+核心组件包括 `FailSpout` 和 `FailInlet`。
 
 ## 架构设计
 
 系统采用了 **生产者-消费者** 模式来处理错误日志：
 
-1.  **FailSinker (生产者)**:
+1.  **FailInlet (生产者)**:
     -   被各个 Worker 进程（或线程）持有。
     -   负责将错误信息、任务元数据封装成字典。
     -   将封装好的数据放入一个多进程安全的队列 (`multiprocessing.Queue`) 中。
 
-2.  **FailListener (消费者)**:
+2.  **FailSpout (消费者)**:
     -   运行在主进程的一个独立守护线程中。
     -   持续监听队列，一旦有新的错误记录，立即将其写入本地文件。
     -   文件格式为 JSONL (JSON Lines)，便于流式读取和处理。
 
 这种设计避免了多进程直接竞争写文件锁的问题，保证了高性能和数据完整性。
 
-## FailListener
+## FailSpout
 
-`FailListener` 负责管理错误日志文件的创建和写入。
+`FailSpout` 负责管理错误日志文件的创建和写入。
 
 ### 初始化与启动
 
 ```python
-listener = FailListener(error_source="graph_errors")
+listener = FailSpout(error_source="graph_errors")
 listener.start()
 ```
 
@@ -52,9 +52,9 @@ listener.stop()
 
 发送终止信号到队列，等待后台线程处理完剩余数据后安全退出。
 
-## FailSinker
+## FailInlet
 
-`FailSinker` 是向错误队列发送数据的接口。
+`FailInlet` 是向错误队列发送数据的接口。
 
 ### 记录任务错误
 
@@ -81,7 +81,7 @@ sinker.task_error(
 
 ### 记录元数据
 
-`FailSinker` 还支持记录一些元数据，帮助还原当时的执行环境：
+`FailInlet` 还支持记录一些元数据，帮助还原当时的执行环境：
 
 -   `start_graph(structure_json)`: 记录任务图的结构信息。
 -   `start_executor(executor_tag)`: 记录执行器的启动信息。

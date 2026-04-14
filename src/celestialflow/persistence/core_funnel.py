@@ -1,4 +1,4 @@
-# persistence/core_base.py
+# persistence/core_funnel.py
 from __future__ import annotations
 
 from multiprocessing import Queue as MPQueue
@@ -10,7 +10,7 @@ from ..runtime.util_queue import cleanup_mpqueue
 from ..runtime.util_types import TERMINATION_SIGNAL, TerminationSignal
 
 
-class BaseListener:
+class BaseSpout:
     def __init__(self) -> None:
         self.queue: Any = MPQueue()
         self._thread: Thread | None = None
@@ -27,10 +27,10 @@ class BaseListener:
     def start(self) -> None:
         self._before_start()
         if self._thread is None or not self._thread.is_alive():
-            self._thread = Thread(target=self._listen, daemon=True)
+            self._thread = Thread(target=self._spout, daemon=True)
             self._thread.start()
 
-    def _listen(self) -> None:
+    def _spout(self) -> None:
         while True:
             try:
                 record = self.queue.get(timeout=0.5)
@@ -54,9 +54,9 @@ class BaseListener:
         self._after_stop()
 
 
-class BaseSinker:
+class BaseInlet:
     def __init__(self, queue: Any) -> None:
         self.queue: Any = queue
 
-    def _sink(self, record: Any) -> None:
+    def _funnel(self, record: Any) -> None:
         self.queue.put(record)

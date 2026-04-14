@@ -67,7 +67,7 @@ class TaskSplitter(TaskStage):
             )
             result_queues.put(splitted_envelope)
 
-            self.log_sinker.split_trace(
+            self.log_inlet.split_trace(
                 self.get_func_name(),
                 idx + 1,
                 split_count,
@@ -97,7 +97,7 @@ class TaskSplitter(TaskStage):
         self.metrics.add_success_count()
         self.update_split_counter(split_count)
 
-        self.log_sinker.split_success(
+        self.log_inlet.split_success(
             self.get_func_name(),
             self.get_task_repr(task),
             split_count,
@@ -176,7 +176,7 @@ class TaskRouter(TaskStage):
         self.metrics.add_success_count()
         self.update_route_counter(target)
 
-        self.log_sinker.route_success(
+        self.log_inlet.route_success(
             self.get_func_name(),
             self.get_task_repr(task),
             target,

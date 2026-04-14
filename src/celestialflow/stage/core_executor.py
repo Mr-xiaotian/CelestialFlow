@@ -16,8 +16,8 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
-from ..observability import NullTaskProgress, TaskProgress
-from ..persistence import FailListener, FailSinker, LogListener, LogSinker
+from ..observability import TaskProgress, NullTaskProgress
+from ..persistence import FailSpout, FailInlet, LogSpout, LogInlet
 from ..runtime import (
     TaskEnvelope,
     TaskInQueue,
@@ -128,7 +128,7 @@ class TaskExecutor:
         :param log_queue: 日志队列
         """
         self.init_state()
-        self.init_sinker(fail_queue, log_queue)
+        self.init_inlet(fail_queue, log_queue)
         self.init_queue(task_queues, result_queues)
         self.init_dispatch()
 
@@ -143,7 +143,7 @@ class TaskExecutor:
         self.error_dict: dict[Any, Exception] = {}  # task -> exception
         self.metrics.reset_state()
 
-    def init_sinker(self, fail_queue: MPQueue, log_queue: MPQueue) -> None:
+    def init_inlet(self, fail_queue: MPQueue, log_queue: MPQueue) -> None:
         """
         初始化收集器
 
@@ -151,10 +151,10 @@ class TaskExecutor:
         :param log_queue: 日志队列
         """
         self.fail_queue = fail_queue or make_queue_backend("serial")()
-        self.fail_sinker = FailSinker(self.fail_queue)
+        self.fail_inlet = FailInlet(self.fail_queue)
 
         self.log_queue = log_queue or make_queue_backend("serial")()
-        self.log_sinker = LogSinker(self.log_queue, self.log_level)
+        self.log_inlet = LogInlet(self.log_queue, self.log_level)
 
     def init_queue(
         self,
@@ -185,15 +185,15 @@ class TaskExecutor:
         """
         self.dispatch = TaskDispatch(self, self.func, self.max_workers)
 
-    def init_listener(self) -> None:
+    def init_spout(self) -> None:
         """
         初始化监听器
         """
-        self.fail_listener = FailListener("executor_errors")
-        self.log_listener = LogListener()
+        self.fail_spout = FailSpout("executor_errors")
+        self.log_spout = LogSpout()
 
-        self.fail_listener.start()
-        self.log_listener.start()
+        self.fail_spout.start()
+        self.log_spout.start()
 
     def init_progress(self) -> None:
         """
@@ -364,7 +364,7 @@ class TaskExecutor:
             envelope = TaskEnvelope.wrap(task, input_id, source="input")
             task_queues.put(envelope)
             self.metrics.add_task_count()
-            self.log_sinker.task_input(
+            self.log_inlet.task_input(
                 self.get_func_name(),
                 self.get_task_repr(task),
                 self.get_tag(),
@@ -382,7 +382,7 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
         task_queues.put(TerminationSignal(termination_id, source="input"))
-        self.log_sinker.termination_input(
+        self.log_inlet.termination_input(
             self.get_func_name(),
             self.get_tag(),
             termination_id,
@@ -405,7 +405,7 @@ class TaskExecutor:
             envelope = TaskEnvelope.wrap(task, input_id, source="input")
             await task_queues.put_async(envelope)
             self.metrics.add_task_count()
-            self.log_sinker.task_input(
+            self.log_inlet.task_input(
                 self.get_func_name(),
                 self.get_task_repr(task),
                 self.get_tag(),
@@ -542,6 +542,7 @@ class TaskExecutor:
         :param start_time: 任务开始时间
         :return: 成功任务的结果信封
         """
+        self.task_progress.update(1)
         task = task_envelope.task
         task_hash = task_envelope.hash
         task_id = task_envelope.id
@@ -564,7 +565,7 @@ class TaskExecutor:
         self.metrics.add_success_count()
         self.metrics.pop_retry_time(task_hash)
 
-        self.log_sinker.task_success(
+        self.log_inlet.task_success(
             self.get_func_name(),
             self.get_task_repr(task),
             self.execution_mode,
@@ -632,7 +633,6 @@ class TaskExecutor:
         :param exception: 捕获的异常
         :return: 重试任务的信封
         """
-        self.task_progress.add_total(1)
         _, task_hash, task_id, _ = task_envelope.unwrap()
         self.metrics.discard_processed_set(task_hash)
         new_retry_time = self.metrics.add_retry_time(task_hash)
@@ -644,7 +644,7 @@ class TaskExecutor:
         )
         task_envelope.change_id(retry_id)
 
-        self.log_sinker.task_retry(
+        self.log_inlet.task_retry(
             self.get_func_name(),
             self.get_task_repr(task_envelope.task),
             new_retry_time,
@@ -667,6 +667,7 @@ class TaskExecutor:
         :param exception: 捕获的异常
         :return: 失败任务的结果信封
         """
+        self.task_progress.update(1)
         if self.enable_error_cache:
             self.error_dict[task_envelope.task] = exception
 
@@ -680,10 +681,10 @@ class TaskExecutor:
         self.metrics.pop_retry_time(task_hash)
         self.metrics.add_error_count()
 
-        self.fail_sinker.task_error(
+        self.fail_inlet.task_error(
             self.get_tag(), exception, error_id, task_envelope.task
         )
-        self.log_sinker.task_error(
+        self.log_inlet.task_error(
             self.get_func_name(),
             self.get_task_repr(task_envelope.task),
             exception,
@@ -698,6 +699,7 @@ class TaskExecutor:
 
         :param task_envelope: 重复的任务
         """
+        self.task_progress.update(1)
         task, _, task_id, _ = task_envelope.unwrap()
 
         self.metrics.add_duplicate_count()
@@ -706,7 +708,7 @@ class TaskExecutor:
             parents=[task_id],
             payload=self.get_summary(),
         )
-        self.log_sinker.task_duplicate(
+        self.log_inlet.task_duplicate(
             self.get_func_name(),
             self.get_task_repr(task),
             task_id,
@@ -721,16 +723,16 @@ class TaskExecutor:
         """
         start_time = time.perf_counter()
         self.set_nullctree()
-        self.init_listener()
+        self.init_spout()
         self.init_progress()
         self.init_env(
-            log_queue=self.log_listener.get_queue(),
-            fail_queue=self.fail_listener.get_queue(),
+            log_queue=self.log_spout.get_queue(),
+            fail_queue=self.fail_spout.get_queue(),
         )
 
         self.put_task_queues(task_source)
-        self.fail_sinker.start_executor(self.get_tag())
-        self.log_sinker.start_executor(
+        self.fail_inlet.start_executor(self.get_tag())
+        self.log_inlet.start_executor(
             self.get_func_name(),
             self.metrics.get_task_count(),
             self.get_execution_mode_desc(),
@@ -750,8 +752,9 @@ class TaskExecutor:
 
         finally:
             self.release_client()
-
-            self.log_sinker.end_executor(
+            
+            self.task_progress.close()
+            self.log_inlet.end_executor(
                 self.get_func_name(),
                 self.execution_mode,
                 time.perf_counter() - start_time,
@@ -759,8 +762,8 @@ class TaskExecutor:
                 self.metrics.get_error_count(),
                 self.metrics.get_duplicate_count(),
             )
-            self.log_listener.stop()
-            self.fail_listener.stop()
+            self.log_spout.stop()
+            self.fail_spout.stop()
 
     async def start_async(self, task_source: Iterable) -> None:
         """
@@ -771,20 +774,20 @@ class TaskExecutor:
         start_time = time.perf_counter()
         self.set_nullctree()
         self.set_execution_mode("async")
-        self.init_listener()
+        self.init_spout()
         self.init_progress()
         self.init_env(
-            log_queue=self.log_listener.get_queue(),
-            fail_queue=self.fail_listener.get_queue(),
+            log_queue=self.log_spout.get_queue(),
+            fail_queue=self.fail_spout.get_queue(),
         )
 
         await self.put_task_queues_async(task_source)
-        self.log_sinker.start_executor(
+        self.log_inlet.start_executor(
             self.get_func_name(),
             self.metrics.get_task_count(),
             self.get_execution_mode_desc(),
         )
-        self.fail_sinker.start_executor(self.get_tag())
+        self.fail_inlet.start_executor(self.get_tag())
 
         try:
             await self.dispatch.run_in_async()
@@ -792,7 +795,8 @@ class TaskExecutor:
         finally:
             self.release_client()
 
-            self.log_sinker.end_executor(
+            self.task_progress.close()
+            self.log_inlet.end_executor(
                 self.get_func_name(),
                 self.execution_mode,
                 time.perf_counter() - start_time,
@@ -800,8 +804,8 @@ class TaskExecutor:
                 self.metrics.get_error_count(),
                 self.metrics.get_duplicate_count(),
             )
-            self.log_listener.stop()
-            self.fail_listener.stop()
+            self.log_spout.stop()
+            self.fail_spout.stop()
 
     def get_success_dict(self) -> dict[Any, Any]:
         """

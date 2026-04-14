@@ -91,7 +91,7 @@ graph TB
     subgraph 运行时基础设施
         I --> J[TaskInQueue / TaskOutQueue]
         I --> K[TaskMetrics 指标]
-        I --> L[LogSinker / FailSinker]
+        I --> L[LogInlet / FailInlet]
         I --> M[CelestialTree 事件]
     end
 
@@ -340,8 +340,8 @@ sequenceDiagram
 ```mermaid
 graph LR
     subgraph 生产端
-        A[LogSinker] -->|MPQueue| B[LogListener]
-        C[FailSinker] -->|MPQueue| D[FailListener]
+        A[LogInlet] -->|MPQueue| B[LogSpout]
+        C[FailInlet] -->|MPQueue| D[FailSpout]
     end
 
     subgraph 消费端
@@ -350,9 +350,9 @@ graph LR
     end
 ```
 
-- **Listener-Sinker 模式**：
-  - Sinker 端（多进程安全）：格式化记录，写入共享队列
-  - Listener 端（守护线程）：从队列消费，写入文件
+- **Spout-Inlet 模式**：
+  - Inlet 端（多进程安全）：格式化记录，写入共享队列
+  - Spout 端（守护线程）：从队列消费，写入文件
   - 通过 `TerminationSignal` 优雅停止
 
 - **日志分级**：`TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
@@ -635,7 +635,7 @@ graph LR
 |------|------|------|
 | 环形图支持 | 信号合并协议 | 增加终止逻辑复杂度，换取拓扑灵活性 |
 | Graph 内 execution_mode | 仅 serial/thread | 避免进程-in-进程嵌套问题 |
-| 日志架构 | Queue + Listener 线程 | 增加一个守护线程，换取多进程安全写入 |
+| 日志架构 | Queue + Spout 线程 | 增加一个守护线程，换取多进程安全写入 |
 | 去重策略 | SHA1(pickle) | pickle 不稳定性风险，换取通用对象哈希能力 |
 | Redis 结果获取 | 轮询 HGET (0.1s) | 简单可靠，但非实时推送 |
 | Web 变更检测 | JSON.stringify 比较 | O(n) 字符串比较成本，换取实现简洁性 |
@@ -663,7 +663,7 @@ graph LR
   - `SumCounter` 透明聚合多来源计数器
 
 - **持久化可定制**
-  - Listener-Sinker 模式，只需实现 `_handle_record()` 即可自定义输出目标
+  - Spout-Inlet 模式，只需实现 `_handle_record()` 即可自定义输出目标
 
 - **Web 前端配置化**
   - `config.json` 控制布局、主题、刷新间隔

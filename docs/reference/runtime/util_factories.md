@@ -81,7 +81,7 @@ return TaskInQueue(
     queue=Q(),
     queue_tags=[],
     out_tag=executor.get_tag(),
-    log_sinker=executor.log_sinker,
+    log_inlet=executor.log_inlet,
 )
 ```
 
@@ -111,7 +111,7 @@ return TaskOutQueue(
     queue_list=[Q()],
     queue_tags=[None],
     in_tag=executor.get_tag(),
-    log_sinker=executor.log_sinker,
+    log_inlet=executor.log_inlet,
 )
 ```
 
