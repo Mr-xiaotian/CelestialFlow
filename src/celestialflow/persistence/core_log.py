@@ -176,7 +176,7 @@ class LogInlet(BaseInlet):
     ) -> None:
         self._funnel(
             "SUCCESS",
-            f"In '{func_name}', Task {task_repr} successed by {execution_mode}. Result is {result_repr}. Used {use_time:.2f} seconds. [{parent_id}->{success_id}*]",
+            f"In '{func_name}', Task {task_repr} successed by {execution_mode}. Result is {result_repr}. Used {use_time:.2f}s. [{parent_id}->{success_id}*]",
         )
 
     def task_retry(
@@ -234,7 +234,7 @@ class LogInlet(BaseInlet):
     ) -> None:
         self._funnel(
             "SUCCESS",
-            f"In '{func_name}', Task {task_repr} has split into {split_count} parts. Used {use_time:.2f} seconds.",
+            f"In '{func_name}', Task {task_repr} has split into {split_count} parts. Used {use_time:.2f}s.",
         )
 
     # ==== router ====
@@ -249,7 +249,7 @@ class LogInlet(BaseInlet):
     ) -> None:
         self._funnel(
             "SUCCESS",
-            f"In '{func_name}', Task {task_repr} has routed to {target_node}. Used {use_time:.2f} seconds. [{parent_id}->{route_id}*]",
+            f"In '{func_name}', Task {task_repr} has routed to {target_node}. Used {use_time:.2f}s. [{parent_id}->{route_id}*]",
         )
 
     # ==== termination ====
