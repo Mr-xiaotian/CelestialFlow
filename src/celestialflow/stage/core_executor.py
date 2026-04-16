@@ -631,7 +631,7 @@ class TaskExecutor:
         :param exception: 捕获的异常
         :return: 重试任务的信封
         """
-        _, task_hash, task_id, _ = task_envelope.unwrap()
+        _, task_hash, task_id = task_envelope.unwrap()
         self.metrics.discard_processed_set(task_hash)
         new_retry_time = self.metrics.add_retry_time(task_hash)
 
@@ -673,7 +673,7 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
 
-        _, task_hash, task_id, _ = task_envelope.unwrap()
+        _, task_hash, task_id = task_envelope.unwrap()
         self.metrics.pop_retry_time(task_hash)
         self.metrics.add_error_count()
 
@@ -696,7 +696,7 @@ class TaskExecutor:
         :param task_envelope: 重复的任务
         """
         self.task_progress.update(1)
-        task, _, task_id, _ = task_envelope.unwrap()
+        task, _, task_id = task_envelope.unwrap()
 
         self.metrics.add_duplicate_count()
         duplicate_id = self.ctree_client.emit(

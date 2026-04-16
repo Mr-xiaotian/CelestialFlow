@@ -80,7 +80,7 @@ class TaskDispatch:
                     termination_signal = self.process_termination_signal(envelope)
                     break
 
-                task, task_hash, _, _ = envelope.unwrap()
+                task, task_hash, _ = envelope.unwrap()
 
                 if self.task_executor.metrics.is_duplicate(task_hash):
                     self.task_executor.deal_duplicate(envelope)
@@ -154,7 +154,7 @@ class TaskDispatch:
                     termination_signal = self.process_termination_signal(envelope)
                     break
 
-                task, task_hash, task_id, _ = envelope.unwrap()
+                task, task_hash, task_id = envelope.unwrap()
 
                 if self.task_executor.metrics.is_duplicate(task_hash):
                     self.task_executor.deal_duplicate(envelope)
@@ -235,7 +235,7 @@ class TaskDispatch:
                     termination_signal = self.process_termination_signal(envelope)
                     break
 
-                _, task_hash, _, _ = envelope.unwrap()
+                _, task_hash, _ = envelope.unwrap()
 
                 if self.task_executor.metrics.is_duplicate(task_hash):
                     self.task_executor.deal_duplicate(envelope)

@@ -87,7 +87,7 @@ class TaskSplitter(TaskStage):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        task, task_hash, task_id, _ = task_envelope.unwrap()
+        task, task_hash, task_id = task_envelope.unwrap()
 
         processed_result = self.process_result(task, result)
 
@@ -153,7 +153,7 @@ class TaskRouter(TaskStage):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        (target, task), task_hash, task_id, _ = task_envelope.unwrap()
+        (target, task), task_hash, task_id = task_envelope.unwrap()
 
         processed_result = self.process_result(task, result)
 
