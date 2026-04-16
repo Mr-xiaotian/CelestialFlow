@@ -745,8 +745,10 @@ class TaskExecutor:
 
         try:
             # 根据模式运行对应的任务处理函数
-            if self.execution_mode in ["thread", "process"]:
-                self.dispatch.run_with_pool(self.execution_mode)
+            if self.execution_mode == "thread":
+                self.dispatch.run_in_thread()
+            elif self.execution_mode == "process":
+                self.dispatch.run_in_process()
             elif self.execution_mode == "async":
                 # don't suggest, please use start_async
                 asyncio.run(self.dispatch.run_in_async())

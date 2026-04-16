@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
 from functools import partial
 from threading import Event, Lock
 from typing import TYPE_CHECKING
@@ -141,13 +141,54 @@ class TaskDispatch:
             )
             task_queues.put(termination_signal)
 
-    def run_with_pool(self, execution_mode: str) -> None:
+    def run_in_thread(self) -> None:
         """
-        使用指定的执行池（线程池或进程池）来并行执行任务。
+        使用指定的线程池来并行执行任务。
+        """
+        self._init_pool(execution_mode="thread")
+        task_queues = self.task_executor.task_queues
+        result_queues = self.task_executor.result_queues
 
-        :param execution_mode: 执行模式，"thread" 或 "process"
+        while True:
+            futures = [] # 用于存储线程池提交的任务
+
+            while True:
+                envelope = task_queues.get()
+                if isinstance(envelope, TerminationIdPool):
+                    termination_signal = self._process_termination_signal(envelope)
+                    break
+                if self._check_and_mark_task(envelope):
+                    continue
+
+                if self._pool is None:
+                    raise RuntimeError("execution pool has not been initialized")
+                futures.append(self._pool.submit(self._worker, envelope))
+
+            if futures:
+                # 等待所有任务完成
+                wait(futures)
+                for future in futures:
+                    future.result()
+
+            task_queues.reset()
+
+            if self.task_executor.metrics.is_tasks_finished():
+                result_queues.put(termination_signal)
+                break
+
+            self.task_executor.log_inlet._funnel(
+                "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
+            )
+            task_queues.put(termination_signal)
+
+        self._release_pool()
+
+
+    def run_in_process(self) -> None:
         """
-        self._init_pool(execution_mode)
+        使用指定的进程池来并行执行任务。
+        """
+        self._init_pool(execution_mode="process")
         task_queues = self.task_executor.task_queues
         result_queues = self.task_executor.result_queues
 
