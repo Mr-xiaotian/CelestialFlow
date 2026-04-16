@@ -6,9 +6,9 @@ import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import partial
 from threading import Event, Lock
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from . import TaskEnvelope
+from .core_envelope import TaskEnvelope
 from .util_types import TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
@@ -65,6 +65,48 @@ class TaskDispatch:
             self.task_executor.get_func_name(), parent_ids, termination_id
         )
         return signal
+    
+    def worker(self, task_envelope: TaskEnvelope) -> None:
+        """
+        同步执行单个任务（含去重、计时、成功/失败处理）
+
+        :param task_envelope: 包含任务信息的信封
+        """
+        task, task_hash, _, _ = task_envelope.unwrap()
+
+        if self.task_executor.metrics.is_duplicate(task_hash):
+            self.task_executor.deal_duplicate(task_envelope)
+            return
+        self.task_executor.metrics.add_processed_set(task_hash)
+        try:
+            start_time = time.perf_counter()
+            result = self.func(*self.task_executor.get_args(task))
+            self.task_executor.process_task_success(
+                task_envelope, result, start_time
+            )
+        except Exception as error:
+            self.task_executor.handle_task_error(task_envelope, error)
+
+    async def async_worker(self, task_envelope: TaskEnvelope) -> None:
+        """
+        异步执行单个任务（含去重、计时、成功/失败处理）
+
+        :param task_envelope: 包含任务信息的信封
+        """
+        task, task_hash, _, _ = task_envelope.unwrap()
+
+        if self.task_executor.metrics.is_duplicate(task_hash):
+            self.task_executor.deal_duplicate(task_envelope)
+            return
+        self.task_executor.metrics.add_processed_set(task_hash)
+        try:
+            start_time = time.perf_counter()
+            result = await self.func(*self.task_executor.get_args(task))
+            await self.task_executor.process_task_success_async(
+                task_envelope, result, start_time
+            )
+        except Exception as error:
+            await self.task_executor.handle_task_error_async(task_envelope, error)
 
     def run_in_serial(self) -> None:
         """
@@ -80,20 +122,7 @@ class TaskDispatch:
                     termination_signal = self._process_termination_signal(envelope)
                     break
 
-                task, task_hash, _, _ = envelope.unwrap()
-
-                if self.task_executor.metrics.is_duplicate(task_hash):
-                    self.task_executor.deal_duplicate(envelope)
-                    continue
-                self.task_executor.metrics.add_processed_set(task_hash)
-                try:
-                    start_time = time.perf_counter()
-                    result = self.func(*self.task_executor.get_args(task))
-                    self.task_executor.process_task_success(
-                        envelope, result, start_time
-                    )
-                except Exception as error:
-                    self.task_executor.handle_task_error(envelope, error)
+                self.worker(envelope)
 
             task_queues.reset()
 
@@ -212,21 +241,12 @@ class TaskDispatch:
         result_queues = self.task_executor.result_queues
 
         while True:
-            semaphore = asyncio.Semaphore(
-                self.task_executor.max_workers
-            )  # 限制并发数量
+            semaphore = asyncio.Semaphore(self.max_workers)
 
-            async def sem_task(envelope: TaskEnvelope):
-                start_time = time.perf_counter()  # 记录任务开始时间
-                async with semaphore:  # 使用信号量限制并发
-                    result = await self._run_single_task(envelope.task)
-                    return (
-                        envelope,
-                        result,
-                        start_time,
-                    )  # 返回 task, result 和 start_time
+            async def sem_worker(envelope: TaskEnvelope):
+                async with semaphore:
+                    await self.async_worker(envelope)
 
-            # 创建异步任务列表
             async_tasks = []
 
             while True:
@@ -235,28 +255,9 @@ class TaskDispatch:
                     termination_signal = self._process_termination_signal(envelope)
                     break
 
-                _, task_hash, _, _ = envelope.unwrap()
+                async_tasks.append(sem_worker(envelope))
 
-                if self.task_executor.metrics.is_duplicate(task_hash):
-                    self.task_executor.deal_duplicate(envelope)
-                    continue
-                self.task_executor.metrics.add_processed_set(task_hash)
-                async_tasks.append(sem_task(envelope))  # 使用信号量包裹的任务
-
-            # 并发运行所有任务
-            gathered: list[Any] = await asyncio.gather(
-                *async_tasks, return_exceptions=True
-            )
-            for item in gathered:
-                if isinstance(item, Exception):
-                    raise item
-                envelope, result, start_time = item
-                if not isinstance(result, Exception):
-                    await self.task_executor.process_task_success_async(
-                        envelope, result, start_time
-                    )
-                else:
-                    await self.task_executor.handle_task_error_async(envelope, result)
+            await asyncio.gather(*async_tasks)
 
             task_queues.reset()
 
@@ -268,16 +269,3 @@ class TaskDispatch:
                 "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
             )
             await task_queues.put_async(termination_signal)
-
-    async def _run_single_task(self, task: Any) -> Any:
-        """
-        运行单个任务并捕获异常
-
-        :param task: 要运行的任务
-        :return: 任务的结果或异常
-        """
-        try:
-            result = await self.func(*self.task_executor.get_args(task))
-            return result
-        except Exception as error:
-            return error
