@@ -13,7 +13,7 @@ class TaskMetrics:
     任务指标统计类
 
     负责管理任务执行过程中的各项指标统计，包括成功、失败、重复任务的计数，
-    以及重试异常的管理和去重逻辑。
+    以及可重试异常类型和去重逻辑。
     """
 
     def __init__(
@@ -63,12 +63,10 @@ class TaskMetrics:
     def reset_state(self) -> None:
         """
         重置统计状态
-        清空重试时间记录和已处理任务集合。
+        清空已处理任务集合。
 
-        - retry_time_dict：记录重试次数
         - processed_set：用于重复检测
         """
-        self.retry_time_dict: dict[str, int] = {}  # task_hash: retry_time
         self.processed_set: set[str] = set()  # task_hash
 
     def set_execution_mode(self, execution_mode: str) -> None:
@@ -123,51 +121,6 @@ class TaskMetrics:
         :param *exceptions: 异常类列表
         """
         self.retry_exceptions = self.retry_exceptions + tuple(exceptions)
-
-    def is_retry_able(self, task_hash: str, exception: Exception) -> bool:
-        """
-        检查任务是否可重试
-
-        :param task_hash: 任务的哈希值
-        :param exception: 任务执行过程中抛出的异常实例
-        :return: 如果任务是可重试异常且重试次数未超过最大重试次数，返回 True；否则返回 False。
-        """
-        retry_time = self.get_retry_time(task_hash)
-
-        # 基于异常类型决定重试策略
-        is_retry_exception = isinstance(exception, self.retry_exceptions)
-        is_retry_time_able = retry_time < self.max_retries
-        return is_retry_exception and is_retry_time_able
-
-    def get_retry_time(self, task_hash: str) -> int:
-        """
-        获取任务的重试时间
-
-        :param task_hash: 任务的哈希值
-        :return: 对应任务的重试次数（如果存在），否则返回 0。
-        """
-        return self.retry_time_dict.setdefault(task_hash, 0)
-
-    def add_retry_time(self, task_hash: str, retry_time: int = 1) -> int:
-        """
-        增加任务的重试时间
-
-        :param task_hash: 任务的哈希值
-        :param retry_time: 增加的重试次数，默认值为 1。
-        :return: 任务的新重试次数。
-        """
-        self.retry_time_dict.setdefault(task_hash, 0)
-        self.retry_time_dict[task_hash] += retry_time
-        return self.retry_time_dict[task_hash]
-
-    def pop_retry_time(self, task_hash: str) -> int | None:
-        """
-        弹出任务的重试时间
-
-        :param task_hash: 任务的哈希值
-        :return: 对应任务的重试时间（如果存在），否则返回 None。
-        """
-        return self.retry_time_dict.pop(task_hash, None)
 
     # counter
     def append_task_counter(self, counter) -> None:

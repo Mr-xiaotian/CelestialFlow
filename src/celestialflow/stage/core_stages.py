@@ -87,11 +87,9 @@ class TaskSplitter(TaskStage):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        task, task_hash, task_id = task_envelope.unwrap()
+        task, _, task_id = task_envelope.unwrap()
 
         processed_result = self.process_result(task, result)
-
-        self.metrics.retry_time_dict.pop(task_hash, None)
 
         split_count = self._put_split_result(processed_result, task_id)
         self.metrics.add_success_count()
@@ -153,11 +151,9 @@ class TaskRouter(TaskStage):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        (target, task), task_hash, task_id = task_envelope.unwrap()
+        (target, task), _, task_id = task_envelope.unwrap()
 
         processed_result = self.process_result(task, result)
-
-        self.metrics.retry_time_dict.pop(task_hash, None)
 
         route_id = self.ctree_client.emit(
             "task.route",

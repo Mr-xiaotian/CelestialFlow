@@ -59,7 +59,7 @@ class TaskExecutor:
         初始化 TaskExecutor
 
         :param func: 可调用对象
-        :param execution_mode: 执行模式，可选 'serial', 'thread', 'process', 'async' (组合为 'TaskGraph' 时不可用 'process' 和 'async' 模式)
+        :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'
         :param max_workers: 同时处理数量
         :param max_retries: 任务的最大重试次数
         :param max_info: 日志中每条信息的最大长度
@@ -227,9 +227,9 @@ class TaskExecutor:
         """
         设置执行模式
 
-        :param execution_mode: 执行模式，可以是 'thread'（线程）, 'process'（进程）, 'async'（异步）, 'serial'（串行）
+        :param execution_mode: 执行模式，可以是 'thread'（线程）, 'async'（异步）, 'serial'（串行）
         """
-        valid_modes = ("serial", "process", "thread", "async")
+        valid_modes = ("serial", "thread", "async")
         if execution_mode in valid_modes:
             self.execution_mode = execution_mode
         else:
@@ -552,7 +552,6 @@ class TaskExecutor:
         """
         self.task_progress.update(1)
         task = task_envelope.task
-        task_hash = task_envelope.hash
         task_id = task_envelope.id
 
         processed_result = self.process_result(task, result)
@@ -570,7 +569,6 @@ class TaskExecutor:
         )
 
         self.metrics.add_success_count()
-        self.metrics.pop_retry_time(task_hash)
 
         self.log_inlet.task_success(
             self.get_func_name(),
@@ -583,24 +581,25 @@ class TaskExecutor:
         )
         return result_envelope
 
-    def _prepare_retry_envelope(
+    def emit_retry_envelope(
         self,
         task_envelope: TaskEnvelope,
         exception: Exception,
+        retry_time: int,
     ) -> TaskEnvelope:
         """
-        准备重试任务的信封
+        为重试任务生成新的信封 ID 并记录日志
 
         :param task_envelope: 发生异常的任务
         :param exception: 捕获的异常
-        :return: 重试任务的信封
+        :param retry_time: 当前重试次数
+        :return: 更新后的任务信封
         """
         _, task_hash, task_id = task_envelope.unwrap()
         self.metrics.discard_processed_set(task_hash)
-        new_retry_time = self.metrics.add_retry_time(task_hash)
 
         retry_id = self.ctree_client.emit(
-            f"task.retry.{new_retry_time}",
+            f"task.retry.{retry_time}",
             parents=[task_id],
             payload=self.get_summary(),
         )
@@ -609,7 +608,7 @@ class TaskExecutor:
         self.log_inlet.task_retry(
             self.get_func_name(),
             self.get_task_repr(task_envelope.task),
-            new_retry_time,
+            retry_time,
             exception,
             task_id,
             retry_id,
@@ -637,8 +636,7 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
 
-        _, task_hash, task_id = task_envelope.unwrap()
-        self.metrics.pop_retry_time(task_hash)
+        _, _, task_id = task_envelope.unwrap()
         self.metrics.add_error_count()
 
         self.fail_inlet.task_error(
@@ -702,8 +700,6 @@ class TaskExecutor:
             # 根据模式运行对应的任务处理函数
             if self.execution_mode == "thread":
                 self.dispatch.run_in_thread()
-            elif self.execution_mode == "process":
-                self.dispatch.run_in_process()
             elif self.execution_mode == "async":
                 # don't suggest, please use start_async
                 asyncio.run(self.dispatch.run_in_async())

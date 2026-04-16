@@ -43,7 +43,7 @@ class ExecutionModeError(InvalidOptionError):
     """非法的 execution_mode 配置错误"""
 
     def __init__(self, execution_mode: str, valid_modes=None):
-        valid_modes = valid_modes or ("serial", "process", "thread", "async")
+        valid_modes = valid_modes or ("serial", "thread", "async")
         super().__init__("execution mode", execution_mode, valid_modes)
         self.execution_mode = execution_mode
         self.valid_modes = self.allowed  # 兼容旧字段名

@@ -54,7 +54,7 @@ async def bench_executor_fibonacci():
     )
     executor_async.add_retry_exceptions(ValueError)
 
-    sync_modes = ["serial", "thread", "process"]
+    sync_modes = ["serial", "thread"]
     async_modes = ["async"]
     await benchmark_executor(
         executor, executor_async, bench_task_1, sync_modes, async_modes
@@ -77,7 +77,7 @@ async def bench_executor_sleep():
         show_progress=True,
     )
 
-    sync_modes = ["serial", "thread", "process"]
+    sync_modes = ["serial", "thread"]
     async_modes = ["async"]
     await benchmark_executor(
         executor, executor_async, task_list, sync_modes, async_modes

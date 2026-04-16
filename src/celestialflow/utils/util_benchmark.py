@@ -24,11 +24,11 @@ async def benchmark_executor(
 
     :param executor: 要测试的执行器
     :param task_source: 任务源，用于生成任务列表
-    :param execution_modes: 要测试的执行模式列表，默认包括 "serial", "thread", "process"
+    :param execution_modes: 要测试的执行模式列表，默认包括 "serial", "thread"
     :return: 包含测试结果的字典
     """
     task_list = list(task_source)
-    sync_modes = sync_modes or ["serial", "thread", "process"]
+    sync_modes = sync_modes or ["serial", "thread"]
     async_modes = async_modes or ["async"]
 
     results = []

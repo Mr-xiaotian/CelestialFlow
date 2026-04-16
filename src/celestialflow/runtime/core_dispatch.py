@@ -3,9 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
-from functools import partial
-from threading import Event, Lock
+from concurrent.futures import ThreadPoolExecutor, wait
 from typing import TYPE_CHECKING
 
 from .core_envelope import TaskEnvelope
@@ -28,19 +26,17 @@ class TaskDispatch:
         self.func = func
         self.max_workers = max_workers
 
-        self._pool: ThreadPoolExecutor | ProcessPoolExecutor | None = None
+        self._pool: ThreadPoolExecutor | None = None
 
     def _init_pool(self, execution_mode: str) -> None:
         """
-        初始化线程池或进程池，根据执行模式和当前是否为空来判断是否初始化
+        初始化线程池，根据执行模式和当前是否为空来判断是否初始化
 
-        :param execution_mode: 执行模式，"thread" 或 "process"
+        :param execution_mode: 执行模式，"thread"
         """
-        # 可以复用的线程池或进程池
+        # 可以复用的线程池
         if execution_mode == "thread" and self._pool is None:
             self._pool = ThreadPoolExecutor(max_workers=self.max_workers)
-        elif execution_mode == "process" and self._pool is None:
-            self._pool = ProcessPoolExecutor(max_workers=self.max_workers)
 
     def _process_termination_signal(
         self, termination_pool: TerminationIdPool
@@ -86,22 +82,29 @@ class TaskDispatch:
 
         :param task_envelope: 包含任务信息的信封
         """
-        task, task_hash, _ = task_envelope.unwrap()
-        try:
-            start_time = time.perf_counter()
-            result = self.func(*self.task_executor.get_args(task))
-            self.task_executor.process_task_success(
-                task_envelope, result, start_time
-            )
-        except Exception as exception:
-            # 基于异常类型决定重试策略
-            if self.task_executor.metrics.is_retry_able(task_hash, exception):
-                # 如果是可重试的异常，将任务重新放入队列
-                retry_envelope = self.task_executor._prepare_retry_envelope(task_envelope, exception)
-                self.task_executor.task_queues.put(retry_envelope)  # 只在第一个队列存放retry task
-            else:
-                # 如果不是可重试的异常，直接将任务标记为失败
-                self.task_executor.handle_task_fail(task_envelope, exception)
+        task, _, _ = task_envelope.unwrap()
+        max_retries = self.task_executor.max_retries
+
+        for retry_time in range(max_retries + 1):
+            try:
+                start_time = time.perf_counter()
+                result = self.func(*self.task_executor.get_args(task))
+                self.task_executor.process_task_success(
+                    task_envelope, result, start_time
+                )
+                return
+            except Exception as exception:
+                if (
+                    retry_time >= max_retries
+                    or not isinstance(
+                        exception, self.task_executor.metrics.retry_exceptions
+                    )
+                ):
+                    self.task_executor.handle_task_fail(task_envelope, exception)
+                    return
+                task_envelope = self.task_executor.emit_retry_envelope(
+                    task_envelope, exception, retry_time + 1
+                )
 
     async def _async_worker(self, task_envelope: TaskEnvelope) -> None:
         """
@@ -109,23 +112,29 @@ class TaskDispatch:
 
         :param task_envelope: 包含任务信息的信封
         """
-        task, task_hash, _ = task_envelope.unwrap()
-        try:
-            start_time = time.perf_counter()
-            result = await self.func(*self.task_executor.get_args(task))
-            await self.task_executor.process_task_success_async(
-                task_envelope, result, start_time
-            )
-        except Exception as exception:
-            # 基于异常类型决定重试策略
-            if self.task_executor.metrics.is_retry_able(task_hash, exception):
-                # 如果是可重试的异常，将任务重新放入队列
-                retry_envelope = self.task_executor._prepare_retry_envelope(task_envelope, exception)
-                # 只在第一个队列存放retry task
-                await self.task_executor.task_queues.put_async(retry_envelope)
-            else:
-                # 如果不是可重试的异常，直接将任务标记为失败
-                self.task_executor.handle_task_fail(task_envelope, exception)
+        task, _, _ = task_envelope.unwrap()
+        max_retries = self.task_executor.max_retries
+
+        for retry_time in range(max_retries + 1):
+            try:
+                start_time = time.perf_counter()
+                result = await self.func(*self.task_executor.get_args(task))
+                await self.task_executor.process_task_success_async(
+                    task_envelope, result, start_time
+                )
+                return
+            except Exception as exception:
+                if (
+                    retry_time >= max_retries
+                    or not isinstance(
+                        exception, self.task_executor.metrics.retry_exceptions
+                    )
+                ):
+                    self.task_executor.handle_task_fail(task_envelope, exception)
+                    return
+                task_envelope = self.task_executor.emit_retry_envelope(
+                    task_envelope, exception, retry_time + 1
+                )
 
     def run_in_serial(self) -> None:
         """
@@ -198,101 +207,9 @@ class TaskDispatch:
 
         self._release_pool()
 
-    def run_in_process(self) -> None:
-        """
-        使用指定的进程池来并行执行任务。
-        """
-        self._init_pool(execution_mode="process")
-        task_queues = self.task_executor.task_queues
-        result_queues = self.task_executor.result_queues
-
-        while True:
-            task_start_dict: dict[int, float] = {}  # 用于存储任务开始时间
-
-            # 用于追踪进行中任务数的计数器和事件
-            in_flight = 0
-            in_flight_lock = Lock()
-            all_done_event = Event()
-            all_done_event.set()  # 初始为无任务状态，设为完成状态
-
-            def on_task_done(
-                future, envelope: TaskEnvelope
-            ):
-                # 回调函数中处理任务结果
-                _, task_hash, task_id = envelope.unwrap()
-
-                try:
-                    result = future.result()
-                    start_time = task_start_dict.pop(task_id, time.perf_counter())
-                    self.task_executor.process_task_success(
-                        envelope, result, start_time
-                    )
-                except Exception as exception:
-                    task_start_dict.pop(task_id, None)
-                    # 基于异常类型决定重试策略
-                    if self.task_executor.metrics.is_retry_able(task_hash, exception):
-                        # 如果是可重试的异常，将任务重新放入队列
-                        retry_envelope = self.task_executor._prepare_retry_envelope(envelope, exception)
-                        self.task_executor.task_queues.put(retry_envelope)  # 只在第一个队列存放retry task
-                    else:
-                        # 如果不是可重试的异常，直接将任务标记为失败
-                        self.task_executor.handle_task_fail(envelope, exception)
-                # 任务完成后减少in_flight计数
-                with in_flight_lock:
-                    nonlocal in_flight
-                    in_flight -= 1
-                    if in_flight == 0:
-                        all_done_event.set()
-
-            # 从任务队列中提交任务到执行池
-            while True:
-                envelope = task_queues.get()
-                if isinstance(envelope, TerminationIdPool):
-                    termination_signal = self._process_termination_signal(envelope)
-                    break
-                if self._check_and_mark_task(envelope):
-                    continue
-
-                task, _, task_id = envelope.unwrap()
-
-                # 提交新任务时增加in_flight计数，并清除完成事件
-                with in_flight_lock:
-                    in_flight += 1
-                    all_done_event.clear()
-
-                task_start_dict[task_id] = time.perf_counter()
-                if self._pool is None:
-                    raise RuntimeError("execution pool has not been initialized")
-                future = self._pool.submit(
-                    self.func, *self.task_executor.get_args(task)
-                )
-                future.add_done_callback(
-                    partial(
-                        on_task_done,
-                        envelope=envelope,
-                    )
-                )
-
-            # 等待所有已提交任务完成（包括回调）
-            all_done_event.wait()
-
-            # 所有任务和回调都完成了，现在可以安全关闭进度条
-            task_queues.reset()
-
-            if self.task_executor.metrics.is_tasks_finished():
-                result_queues.put(termination_signal)
-                break
-
-            self.task_executor.log_inlet._funnel(
-                "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
-            )
-            task_queues.put(termination_signal)
-
-        self._release_pool()
-
     def _release_pool(self) -> None:
         """
-        关闭线程池和进程池，释放资源
+        关闭线程池，释放资源
         """
         if self._pool is not None:
             self._pool.shutdown(wait=True)

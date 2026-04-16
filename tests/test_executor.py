@@ -33,22 +33,6 @@ def test_fibonacci_thread():
 
     executor.start(test_task_1)
 
-
-def test_fibonacci_process():
-    test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
-
-    executor = TaskExecutor(
-        fibonacci,
-        execution_mode="process",
-        max_workers=6,
-        max_retries=1,
-        show_progress=False,
-    )
-    executor.add_retry_exceptions(ValueError)
-
-    executor.start(test_task_1)
-
-
 @pytest.mark.asyncio
 async def test_fibonacci_async():
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
