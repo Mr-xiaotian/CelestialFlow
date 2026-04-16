@@ -30,7 +30,7 @@ class TaskDispatch:
 
         self._pool: ThreadPoolExecutor | ProcessPoolExecutor | None = None
 
-    def init_pool(self, execution_mode: str) -> None:
+    def _init_pool(self, execution_mode: str) -> None:
         """
         初始化线程池或进程池，根据执行模式和当前是否为空来判断是否初始化
 
@@ -42,7 +42,7 @@ class TaskDispatch:
         elif execution_mode == "process" and self._pool is None:
             self._pool = ProcessPoolExecutor(max_workers=self.max_workers)
 
-    def process_termination_signal(
+    def _process_termination_signal(
         self, termination_pool: TerminationIdPool
     ) -> TerminationSignal:
         """
@@ -77,7 +77,7 @@ class TaskDispatch:
             while True:
                 envelope = task_queues.get()
                 if isinstance(envelope, TerminationIdPool):
-                    termination_signal = self.process_termination_signal(envelope)
+                    termination_signal = self._process_termination_signal(envelope)
                     break
 
                 task, task_hash, _, _ = envelope.unwrap()
@@ -112,7 +112,7 @@ class TaskDispatch:
 
         :param execution_mode: 执行模式，"thread" 或 "process"
         """
-        self.init_pool(execution_mode)
+        self._init_pool(execution_mode)
         task_queues = self.task_executor.task_queues
         result_queues = self.task_executor.result_queues
 
@@ -151,7 +151,7 @@ class TaskDispatch:
             while True:
                 envelope = task_queues.get()
                 if isinstance(envelope, TerminationIdPool):
-                    termination_signal = self.process_termination_signal(envelope)
+                    termination_signal = self._process_termination_signal(envelope)
                     break
 
                 task, task_hash, task_id, _ = envelope.unwrap()
@@ -194,9 +194,9 @@ class TaskDispatch:
             )
             task_queues.put(termination_signal)
 
-        self.release_pool()
+        self._release_pool()
 
-    def release_pool(self) -> None:
+    def _release_pool(self) -> None:
         """
         关闭线程池和进程池，释放资源
         """
@@ -232,7 +232,7 @@ class TaskDispatch:
             while True:
                 envelope = await task_queues.get_async()
                 if isinstance(envelope, TerminationIdPool):
-                    termination_signal = self.process_termination_signal(envelope)
+                    termination_signal = self._process_termination_signal(envelope)
                     break
 
                 _, task_hash, _, _ = envelope.unwrap()

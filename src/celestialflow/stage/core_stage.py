@@ -33,9 +33,9 @@ class TaskStage(TaskExecutor):
         self.prev_stages: list[TaskStage | NullPrevStage] = []
         self._pending_prev_bindings: list[TaskStage] = []
 
-        self.init_status()
+        self._init_status()
 
-    def init_metrics(self) -> None:
+    def _init_metrics(self) -> None:
         """
         初始化任务指标
         """
@@ -45,7 +45,7 @@ class TaskStage(TaskExecutor):
             enable_duplicate_check=self.enable_duplicate_check,
         )
 
-    def init_status(self) -> None:
+    def _init_status(self) -> None:
         """
         初始化 stage 共享状态（跨进程可见）。
         建议在 __init__ 里调用一次。
@@ -53,7 +53,7 @@ class TaskStage(TaskExecutor):
         if not hasattr(self, "_status"):
             self._status = MPValue("i", int(StageStatus.NOT_STARTED))
 
-    def set_func(self, func: Callable):
+    def _set_func(self, func: Callable):
         """
         设置执行函数
 
@@ -194,19 +194,19 @@ class TaskStage(TaskExecutor):
 
     def mark_running(self) -> None:
         """标记：stage 正在运行。"""
-        self.init_status()
+        self._init_status()
         with self._status.get_lock():
             self._status.value = int(StageStatus.RUNNING)
 
     def mark_stopped(self) -> None:
         """标记：stage 已停止（正常结束时在 finally 里调用）。"""
-        self.init_status()
+        self._init_status()
         with self._status.get_lock():
             self._status.value = int(StageStatus.STOPPED)
 
     def get_status(self) -> StageStatus:
         """读取当前状态（返回 StageStatus 枚举）。"""
-        self.init_status()
+        self._init_status()
         # 读取也加锁，避免极端情况下读到中间态（虽然 int 很短，但习惯好）
         with self._status.get_lock():
             return StageStatus(self._status.value)
@@ -227,7 +227,7 @@ class TaskStage(TaskExecutor):
         :param log_queue: 日志队列
         """
         start_time = time.perf_counter()
-        self.init_progress()
+        self._init_progress()
         self.init_env(input_queues, output_queues, fail_queue, log_queue)
         self.log_inlet.start_stage(
             self.get_tag(), self.stage_mode, self.execution_mode, self.max_workers
@@ -245,7 +245,7 @@ class TaskStage(TaskExecutor):
 
         finally:
             self.mark_stopped()
-            self.release_client()
+            self._release_client()
 
             self.task_progress.close()
             self.log_inlet.end_stage(

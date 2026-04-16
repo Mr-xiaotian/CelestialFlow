@@ -35,7 +35,7 @@ class TaskProgress:
         """关闭进度条"""
         self.progress_bar.close()
 
-    def refresh_total(self, total: int) -> None:
+    def _refresh_total(self, total: int) -> None:
         """动态调整进度条的总任务数"""
         self.progress_bar.total = total
         self.progress_bar.refresh()
@@ -45,7 +45,7 @@ class TaskProgress:
         if not add_num:
             return
         total = self.progress_bar.total + add_num
-        self.refresh_total(total)
+        self._refresh_total(total)
 
 
 class NullTaskProgress:
@@ -59,7 +59,7 @@ class NullTaskProgress:
     def close(self) -> None:
         pass
 
-    def refresh_total(self, total: int) -> None:
+    def _refresh_total(self, total: int) -> None:
         pass
 
     def add_total(self, add_num: int) -> None:

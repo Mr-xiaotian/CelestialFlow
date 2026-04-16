@@ -77,7 +77,7 @@ class TaskExecutor:
                 RuntimeWarning,
             )
 
-        self.set_func(func)
+        self._set_func(func)
         self.set_execution_mode(execution_mode)
         self.max_workers = max_workers
         self.max_retries = max_retries
@@ -96,9 +96,9 @@ class TaskExecutor:
         self.result_queues: TaskOutQueue | None = None
         self.fail_queue: Any = None
         self.log_queue: Any = None
-        self.init_metrics()
+        self._init_metrics()
 
-    def init_metrics(self) -> None:
+    def _init_metrics(self) -> None:
         """
         初始化任务指标
         """
@@ -123,12 +123,12 @@ class TaskExecutor:
         :param fail_queue: 失败队列
         :param log_queue: 日志队列
         """
-        self.init_state()
-        self.init_inlet(fail_queue, log_queue)
-        self.init_queue(task_queues, result_queues)
-        self.init_dispatch()
+        self._init_state()
+        self._init_inlet(fail_queue, log_queue)
+        self._init_queue(task_queues, result_queues)
+        self._init_dispatch()
 
-    def init_state(self) -> None:
+    def _init_state(self) -> None:
         """
         初始化任务状态：
         - success_pairs：缓存执行结果
@@ -136,7 +136,7 @@ class TaskExecutor:
         self.success_pairs: list[tuple[Any, Any]] = []  # task - result
         self.metrics.reset_state()
 
-    def init_inlet(self, fail_queue: MPQueue, log_queue: MPQueue) -> None:
+    def _init_inlet(self, fail_queue: MPQueue, log_queue: MPQueue) -> None:
         """
         初始化收集器
 
@@ -149,7 +149,7 @@ class TaskExecutor:
         self.log_queue = log_queue or make_queue_backend("serial")()
         self.log_inlet = LogInlet(self.log_queue, self.log_level)
 
-    def init_queue(
+    def _init_queue(
         self,
         task_queues: TaskInQueue | None = None,
         result_queues: TaskOutQueue | None = None,
@@ -172,13 +172,13 @@ class TaskExecutor:
             executor=self,
         )
 
-    def init_dispatch(self) -> None:
+    def _init_dispatch(self) -> None:
         """
         初始化任务运行器
         """
         self.dispatch = TaskDispatch(self, self.func, self.max_workers)
 
-    def init_spout(self) -> None:
+    def _init_spout(self) -> None:
         """
         初始化监听器
         """
@@ -188,7 +188,7 @@ class TaskExecutor:
         self.fail_spout.start()
         self.log_spout.start()
 
-    def init_progress(self) -> None:
+    def _init_progress(self) -> None:
         """
         初始化进度条
         """
@@ -209,7 +209,7 @@ class TaskExecutor:
             mode=progress_mode,
         )
 
-    def set_func(self, func: Callable) -> None:
+    def _set_func(self, func: Callable) -> None:
         """
         设置执行函数
 
@@ -289,7 +289,7 @@ class TaskExecutor:
         self._tag: str = f"{self.get_name()}[{self.get_func_name()}]"
         return self._tag
 
-    def get_class_name(self) -> str:
+    def _get_class_name(self) -> str:
         """
         获取当前节点类名
 
@@ -297,7 +297,7 @@ class TaskExecutor:
         """
         return self.__class__.__name__
 
-    def get_execution_mode_desc(self) -> str:
+    def _get_execution_mode_desc(self) -> str:
         """
         获取当前节点执行模式
 
@@ -319,8 +319,8 @@ class TaskExecutor:
         return {
             "name": self.get_name(),
             "func_name": self.get_func_name(),
-            "class_name": self.get_class_name(),
-            "execution_mode": self.get_execution_mode_desc(),
+            "class_name": self._get_class_name(),
+            "execution_mode": self._get_execution_mode_desc(),
         }
 
     def get_counts(self) -> dict:
@@ -340,7 +340,7 @@ class TaskExecutor:
         """
         self.metrics.add_retry_exceptions(*exceptions)
 
-    def put_task_queues(self, task_source: Iterable) -> None:
+    def _put_task_queues(self, task_source: Iterable) -> None:
         """
         将任务放入任务队列
 
@@ -381,7 +381,7 @@ class TaskExecutor:
             termination_id,
         )
 
-    async def put_task_queues_async(self, task_source: Iterable) -> None:
+    async def _put_task_queues_async(self, task_source: Iterable) -> None:
         """
         将任务放入任务队列(async模式)
 
@@ -440,13 +440,18 @@ class TaskExecutor:
         """
         return result
 
-    def process_result_pairs(self) -> list[tuple[Any, Any]]:
+    def process_result_dict(self) -> dict[Any, Any]:
         """
         处理结果列表。可根据需要覆写
 
         :return: 处理后的结果列表
         """
-        return self.get_success_pairs() + self.get_error_pairs()
+        result_dict = dict()
+        for task, result in self.get_success_pairs():
+            result_dict[task] = result
+        for task, error in self.get_error_pairs():
+            result_dict[task] = str(error)
+        return result_dict
 
     def handle_error_dict(self) -> dict[Any, list]:
         """
@@ -483,7 +488,7 @@ class TaskExecutor:
 
         return f"({', '.join(formatted_args)})"
 
-    def get_result_repr(self, result: Any) -> str:
+    def _get_result_repr(self, result: Any) -> str:
         """
         获取结果信息
 
@@ -567,7 +572,7 @@ class TaskExecutor:
             self.get_func_name(),
             self.get_task_repr(task),
             self.execution_mode,
-            self.get_result_repr(result),
+            self._get_result_repr(result),
             time.perf_counter() - start_time,
             task_id,
             result_id,
@@ -719,19 +724,19 @@ class TaskExecutor:
         """
         start_time = time.perf_counter()
         self.set_nullctree()
-        self.init_spout()
-        self.init_progress()
+        self._init_spout()
+        self._init_progress()
         self.init_env(
             log_queue=self.log_spout.get_queue(),
             fail_queue=self.fail_spout.get_queue(),
         )
 
-        self.put_task_queues(task_source)
+        self._put_task_queues(task_source)
         self.fail_inlet.start_executor(self.get_tag())
         self.log_inlet.start_executor(
             self.get_func_name(),
             self.metrics.get_task_count(),
-            self.get_execution_mode_desc(),
+            self._get_execution_mode_desc(),
         )
 
         try:
@@ -747,8 +752,8 @@ class TaskExecutor:
                 raise ExecutionModeError(self.execution_mode)
 
         finally:
-            self.release_client()
-            
+            self._release_client()
+
             self.task_progress.close()
             self.log_inlet.end_executor(
                 self.get_func_name(),
@@ -770,18 +775,18 @@ class TaskExecutor:
         start_time = time.perf_counter()
         self.set_nullctree()
         self.set_execution_mode("async")
-        self.init_spout()
-        self.init_progress()
+        self._init_spout()
+        self._init_progress()
         self.init_env(
             log_queue=self.log_spout.get_queue(),
             fail_queue=self.fail_spout.get_queue(),
         )
 
-        await self.put_task_queues_async(task_source)
+        await self._put_task_queues_async(task_source)
         self.log_inlet.start_executor(
             self.get_func_name(),
             self.metrics.get_task_count(),
-            self.get_execution_mode_desc(),
+            self._get_execution_mode_desc(),
         )
         self.fail_inlet.start_executor(self.get_tag())
 
@@ -789,7 +794,7 @@ class TaskExecutor:
             await self.dispatch.run_in_async()
 
         finally:
-            self.release_client()
+            self._release_client()
 
             self.task_progress.close()
             self.log_inlet.end_executor(
@@ -823,5 +828,5 @@ class TaskExecutor:
         self.result_queues = None
         self.fail_queue = None
 
-    def release_client(self) -> None:
+    def _release_client(self) -> None:
         self.ctree_client = None

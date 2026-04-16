@@ -23,17 +23,17 @@ class TaskSplitter(TaskStage):
             unpack_task_args=True,
         )
 
-        self.init_extra_counter()
+        self._init_extra_counter()
 
-    def init_extra_counter(self) -> None:
+    def _init_extra_counter(self) -> None:
         """初始化额外的计数器"""
         self.split_counter = MPValue("i", 0)
 
-    def reset_extra_counter(self) -> None:
+    def _reset_extra_counter(self) -> None:
         """重置额外的计数器"""
         self.split_counter.value = 0
 
-    def update_split_counter(self, add_value: int) -> None:
+    def _update_split_counter(self, add_value: int) -> None:
         """更新 split 计数器"""
         self.split_counter.value += add_value
 
@@ -43,7 +43,7 @@ class TaskSplitter(TaskStage):
         """
         return task
 
-    def put_split_result(self, result: tuple, task_id: int) -> int:
+    def _put_split_result(self, result: tuple, task_id: int) -> int:
         """
         将 split 结果放入队列，并发出对应事件
 
@@ -93,9 +93,9 @@ class TaskSplitter(TaskStage):
 
         self.metrics.retry_time_dict.pop(task_hash, None)
 
-        split_count = self.put_split_result(processed_result, task_id)
+        split_count = self._put_split_result(processed_result, task_id)
         self.metrics.add_success_count()
-        self.update_split_counter(split_count)
+        self._update_split_counter(split_count)
 
         self.log_inlet.split_success(
             self.get_func_name(),
@@ -114,19 +114,19 @@ class TaskRouter(TaskStage):
             max_retries=0,
         )
 
-        self.init_extra_counter()
+        self._init_extra_counter()
 
-    def init_extra_counter(self) -> None:
+    def _init_extra_counter(self) -> None:
         """初始化额外的计数器"""
         # 每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
         self.route_counters: dict[str, Any] = {}
 
-    def reset_extra_counter(self) -> None:
+    def _reset_extra_counter(self) -> None:
         """重置额外的计数器"""
         for counter in self.route_counters.values():
             counter.value = 0
 
-    def update_route_counter(self, target: str) -> None:
+    def _update_route_counter(self, target: str) -> None:
         """更新 route 计数器"""
         self.route_counters[target].value += 1
 
@@ -174,7 +174,7 @@ class TaskRouter(TaskStage):
         result_queues.put_target(routed_envelope, target)
 
         self.metrics.add_success_count()
-        self.update_route_counter(target)
+        self._update_route_counter(target)
 
         self.log_inlet.route_success(
             self.get_func_name(),
