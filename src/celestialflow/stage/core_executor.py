@@ -824,7 +824,7 @@ class TaskExecutor:
         """
         获取出错任务的列表
         """
-        return load_task_error_pairs(str(self.fail_spout.jsonl_path))
+        return self.fail_spout.get_error_pairs()
 
     def release_queue(self) -> None:
         """

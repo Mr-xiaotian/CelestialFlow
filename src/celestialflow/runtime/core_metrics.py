@@ -89,7 +89,11 @@ class TaskMetrics:
         """
         if not self.enable_duplicate_check:
             return False
-        return task_hash in self.processed_set
+        if task_hash not in self.processed_set:
+            return False
+        
+        self.add_processed_set(task_hash)
+        return True
 
     def add_processed_set(self, task_hash: str) -> None:
         """

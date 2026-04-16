@@ -6,6 +6,7 @@ from typing import Any, TextIO
 
 from ..utils.util_format import format_repr
 from ..funnel import BaseSpout, BaseInlet
+from .util_jsonl import load_task_error_pairs
 
 
 class FailSpout(BaseSpout):
@@ -50,6 +51,12 @@ class FailSpout(BaseSpout):
             self._file.flush()
             self._file.close()
             self._file = None
+
+    def get_error_pairs(self) -> list[dict]:
+        """
+        从 jsonl 文件中读取所有错误记录
+        """
+        return load_task_error_pairs(str(self.jsonl_path))
 
 
 class FailInlet(BaseInlet):

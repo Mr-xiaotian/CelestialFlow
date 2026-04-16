@@ -66,18 +66,27 @@ class TaskDispatch:
         )
         return signal
     
-    def _worker(self, task_envelope: TaskEnvelope) -> None:
+    def _check_and_mark_task(self, task_envelope: TaskEnvelope) -> bool:
         """
-        同步执行单个任务（含去重、计时、成功/失败处理）
+        在进入 worker 前完成去重检查
 
         :param task_envelope: 包含任务信息的信封
+        :return: 是否命中重复任务
         """
-        task, task_hash, _ = task_envelope.unwrap()
+        _, task_hash, _ = task_envelope.unwrap()
 
         if self.task_executor.metrics.is_duplicate(task_hash):
             self.task_executor.deal_duplicate(task_envelope)
-            return
-        self.task_executor.metrics.add_processed_set(task_hash)
+            return True
+        return False
+
+    def _worker(self, task_envelope: TaskEnvelope) -> None:
+        """
+        同步执行单个任务（计时、成功/失败处理）
+
+        :param task_envelope: 包含任务信息的信封
+        """
+        task, _, _ = task_envelope.unwrap()
         try:
             start_time = time.perf_counter()
             result = self.func(*self.task_executor.get_args(task))
@@ -87,18 +96,13 @@ class TaskDispatch:
         except Exception as error:
             self.task_executor.handle_task_error(task_envelope, error)
 
-    async def async_worker(self, task_envelope: TaskEnvelope) -> None:
+    async def _async_worker(self, task_envelope: TaskEnvelope) -> None:
         """
-        异步执行单个任务（含去重、计时、成功/失败处理）
+        异步执行单个任务（计时、成功/失败处理）
 
         :param task_envelope: 包含任务信息的信封
         """
-        task, task_hash, _ = task_envelope.unwrap()
-
-        if self.task_executor.metrics.is_duplicate(task_hash):
-            self.task_executor.deal_duplicate(task_envelope)
-            return
-        self.task_executor.metrics.add_processed_set(task_hash)
+        task, _, _ = task_envelope.unwrap()
         try:
             start_time = time.perf_counter()
             result = await self.func(*self.task_executor.get_args(task))
@@ -121,6 +125,8 @@ class TaskDispatch:
                 if isinstance(envelope, TerminationIdPool):
                     termination_signal = self._process_termination_signal(envelope)
                     break
+                if self._check_and_mark_task(envelope):
+                    continue
 
                 self._worker(envelope)
 
@@ -182,13 +188,10 @@ class TaskDispatch:
                 if isinstance(envelope, TerminationIdPool):
                     termination_signal = self._process_termination_signal(envelope)
                     break
-
-                task, task_hash, task_id = envelope.unwrap()
-
-                if self.task_executor.metrics.is_duplicate(task_hash):
-                    self.task_executor.deal_duplicate(envelope)
+                if self._check_and_mark_task(envelope):
                     continue
-                self.task_executor.metrics.add_processed_set(task_hash)
+
+                task, _, task_id = envelope.unwrap()
 
                 # 提交新任务时增加in_flight计数，并清除完成事件
                 with in_flight_lock:
@@ -245,7 +248,7 @@ class TaskDispatch:
 
             async def sem_worker(envelope: TaskEnvelope):
                 async with semaphore:
-                    await self.async_worker(envelope)
+                    await self._async_worker(envelope)
 
             async_tasks = []
 
@@ -254,6 +257,8 @@ class TaskDispatch:
                 if isinstance(envelope, TerminationIdPool):
                     termination_signal = self._process_termination_signal(envelope)
                     break
+                if self._check_and_mark_task(envelope):
+                    continue
 
                 async_tasks.append(sem_worker(envelope))
 
