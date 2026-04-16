@@ -583,51 +583,6 @@ class TaskExecutor:
         )
         return result_envelope
 
-    def handle_task_error(
-        self, task_envelope: TaskEnvelope, exception: Exception
-    ) -> None:
-        """
-        统一处理异常任务
-
-        :param task_envelope: 发生异常的任务
-        :param exception: 捕获的异常
-        """
-        task_queues = self.task_queues
-
-        task_hash = task_envelope.hash
-
-        # 基于异常类型决定重试策略
-        if self.metrics.is_retry_able(task_hash, exception):
-            # 如果是可重试的异常，将任务重新放入队列
-            retry_envelope = self._prepare_retry_envelope(task_envelope, exception)
-            task_queues.put(retry_envelope)  # 只在第一个队列存放retry task
-        else:
-            # 如果不是可重试的异常，直接将任务标记为失败
-            self._prepare_fail_envelope(task_envelope, exception)
-
-    async def handle_task_error_async(
-        self, task_envelope: TaskEnvelope, exception: Exception
-    ) -> None:
-        """
-        统一处理任务异常, 异步版本
-
-        :param task_envelope: 发生异常的任务
-        :param exception: 捕获的异常
-        """
-        task_queues = self.task_queues
-
-        task_hash = task_envelope.hash
-
-        # 基于异常类型决定重试策略
-        if self.metrics.is_retry_able(task_hash, exception):
-            # 如果是可重试的异常，将任务重新放入队列
-            retry_envelope = self._prepare_retry_envelope(task_envelope, exception)
-            # 只在第一个队列存放retry task
-            await task_queues.put_async(retry_envelope)
-        else:
-            # 如果不是可重试的异常，直接将任务标记为失败
-            self._prepare_fail_envelope(task_envelope, exception)
-
     def _prepare_retry_envelope(
         self,
         task_envelope: TaskEnvelope,
@@ -662,7 +617,7 @@ class TaskExecutor:
 
         return task_envelope
 
-    def _prepare_fail_envelope(
+    def handle_task_fail(
         self,
         task_envelope: TaskEnvelope,
         exception: Exception,

@@ -86,15 +86,22 @@ class TaskDispatch:
 
         :param task_envelope: 包含任务信息的信封
         """
-        task, _, _ = task_envelope.unwrap()
+        task, task_hash, _ = task_envelope.unwrap()
         try:
             start_time = time.perf_counter()
             result = self.func(*self.task_executor.get_args(task))
             self.task_executor.process_task_success(
                 task_envelope, result, start_time
             )
-        except Exception as error:
-            self.task_executor.handle_task_error(task_envelope, error)
+        except Exception as exception:
+            # 基于异常类型决定重试策略
+            if self.task_executor.metrics.is_retry_able(task_hash, exception):
+                # 如果是可重试的异常，将任务重新放入队列
+                retry_envelope = self.task_executor._prepare_retry_envelope(task_envelope, exception)
+                self.task_executor.task_queues.put(retry_envelope)  # 只在第一个队列存放retry task
+            else:
+                # 如果不是可重试的异常，直接将任务标记为失败
+                self.task_executor.handle_task_fail(task_envelope, exception)
 
     async def _async_worker(self, task_envelope: TaskEnvelope) -> None:
         """
@@ -102,15 +109,23 @@ class TaskDispatch:
 
         :param task_envelope: 包含任务信息的信封
         """
-        task, _, _ = task_envelope.unwrap()
+        task, task_hash, _ = task_envelope.unwrap()
         try:
             start_time = time.perf_counter()
             result = await self.func(*self.task_executor.get_args(task))
             await self.task_executor.process_task_success_async(
                 task_envelope, result, start_time
             )
-        except Exception as error:
-            await self.task_executor.handle_task_error_async(task_envelope, error)
+        except Exception as exception:
+            # 基于异常类型决定重试策略
+            if self.task_executor.metrics.is_retry_able(task_hash, exception):
+                # 如果是可重试的异常，将任务重新放入队列
+                retry_envelope = self.task_executor._prepare_retry_envelope(task_envelope, exception)
+                # 只在第一个队列存放retry task
+                await self.task_executor.task_queues.put_async(retry_envelope)
+            else:
+                # 如果不是可重试的异常，直接将任务标记为失败
+                self.task_executor.handle_task_fail(task_envelope, exception)
 
     def run_in_serial(self) -> None:
         """
@@ -183,7 +198,6 @@ class TaskDispatch:
 
         self._release_pool()
 
-
     def run_in_process(self) -> None:
         """
         使用指定的进程池来并行执行任务。
@@ -205,7 +219,7 @@ class TaskDispatch:
                 future, envelope: TaskEnvelope
             ):
                 # 回调函数中处理任务结果
-                task_id = envelope.id
+                _, task_hash, task_id = envelope.unwrap()
 
                 try:
                     result = future.result()
@@ -213,9 +227,16 @@ class TaskDispatch:
                     self.task_executor.process_task_success(
                         envelope, result, start_time
                     )
-                except Exception as error:
+                except Exception as exception:
                     task_start_dict.pop(task_id, None)
-                    self.task_executor.handle_task_error(envelope, error)
+                    # 基于异常类型决定重试策略
+                    if self.task_executor.metrics.is_retry_able(task_hash, exception):
+                        # 如果是可重试的异常，将任务重新放入队列
+                        retry_envelope = self.task_executor._prepare_retry_envelope(envelope, exception)
+                        self.task_executor.task_queues.put(retry_envelope)  # 只在第一个队列存放retry task
+                    else:
+                        # 如果不是可重试的异常，直接将任务标记为失败
+                        self.task_executor.handle_task_fail(envelope, exception)
                 # 任务完成后减少in_flight计数
                 with in_flight_lock:
                     nonlocal in_flight
