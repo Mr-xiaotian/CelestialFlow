@@ -5,7 +5,9 @@ from celestialflow import TaskExecutor, benchmark_executor
 
 
 def fibonacci(n):
-    if n <= 0:
+    if not isinstance(n, int):
+        raise TypeError("n must be an integer")
+    elif n <= 0:
         raise ValueError("n must be a positive integer")
     elif n == 1:
         return 1
@@ -16,16 +18,21 @@ def fibonacci(n):
 
 
 async def fibonacci_async(n):
-    if n <= 0:
+    if not isinstance(n, int):
+        raise TypeError("n must be an integer")
+    elif n <= 0:
         raise ValueError("n must be a positive integer")
     elif n == 1:
         return 1
     elif n == 2:
         return 1
     else:
-        result_0 = await fibonacci_async(n - 1)
-        result_1 = await fibonacci_async(n - 2)
-        return result_0 + result_1
+        prev, curr = 1, 1
+        for i in range(3, n + 1):
+            prev, curr = curr, prev + curr
+            if i % 8 == 0:
+                await asyncio.sleep(0)
+        return curr
 
 
 def sleep_1(_):
