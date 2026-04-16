@@ -83,25 +83,25 @@ class TaskGraph:
             - 'ERROR'
             - 'CRITICAL'
         """
-        self.set_root_stages(root_stages)
-        self.set_log_level(log_level)
+        self._set_root_stages(root_stages)
+        self._set_log_level(log_level)
         self.set_reporter()
         self.set_ctree()
 
-        self.init_env()
-        self.set_schedule_mode(schedule_mode)
+        self._init_env()
+        self._set_schedule_mode(schedule_mode)
 
-    def init_env(self) -> None:
+    def _init_env(self) -> None:
         """
         初始化环境
         """
-        self.init_state()
-        self.init_spout()
-        self.init_inlet()
-        self.init_resources()
-        self.init_analysis()
+        self._init_state()
+        self._init_spout()
+        self._init_inlet()
+        self._init_resources()
+        self._init_analysis()
 
-    def init_state(self) -> None:
+    def _init_state(self) -> None:
         """
         初始化状态
         """
@@ -118,21 +118,21 @@ class TaskGraph:
         # 用于保存每个节点的输入任务ID集合
         self.input_ids: dict[str, set[int]] = defaultdict(set)
 
-    def init_spout(self) -> None:
+    def _init_spout(self) -> None:
         """
         初始化监听器
         """
         self.log_spout = LogSpout()
         self.fail_spout = FailSpout("graph_errors")
 
-    def init_inlet(self) -> None:
+    def _init_inlet(self) -> None:
         """
         初始化收集器
         """
         self.log_inlet = LogInlet(self.log_spout.get_queue(), self.log_level)
         self.fail_inlet = FailInlet(self.fail_spout.get_queue())
 
-    def init_resources(self) -> None:
+    def _init_resources(self) -> None:
         """
         初始化每个阶段资源
         """
@@ -185,7 +185,7 @@ class TaskGraph:
                     ]["out_queue"]
                     prev_out_queue.add_queue(in_queue.queue, stage_tag)
 
-    def init_analysis(self) -> None:
+    def _init_analysis(self) -> None:
         """
         分析任务图，计算 DAG 属性和层级信息
         """
@@ -199,7 +199,7 @@ class TaskGraph:
             stage_level_dict = compute_node_levels(self.networkx_graph)
             self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
-    def set_root_stages(self, root_stages: list[TaskStage]) -> None:
+    def _set_root_stages(self, root_stages: list[TaskStage]) -> None:
         """
         设置根节点
 
@@ -210,7 +210,7 @@ class TaskGraph:
             if not stage.prev_stages:
                 stage.add_prev_stages(NULL_PREV_STAGE)
 
-    def set_schedule_mode(self, schedule_mode: str) -> None:
+    def _set_schedule_mode(self, schedule_mode: str) -> None:
         """
         设置任务链的执行模式
 
@@ -282,7 +282,7 @@ class TaskGraph:
         else:
             self.ctree_client = NullCelestialTreeClient()
 
-    def set_log_level(self, level: str = "SUCCESS") -> None:
+    def _set_log_level(self, level: str = "SUCCESS") -> None:
         """
         设置日志级别
 
@@ -311,7 +311,7 @@ class TaskGraph:
         visited_stages: set[TaskStage] = set()
         for root_stage in self.root_stages:
             set_subsequent_stage_mode(root_stage)
-        self.init_analysis()
+        self._init_analysis()
 
     def put_stage_queue(
         self, tasks_dict: dict, put_termination_signal: bool = True
@@ -402,10 +402,10 @@ class TaskGraph:
             self._excute_stages()
 
         finally:
-            self.finalize_nodes()
+            self._finalize_nodes()
 
             self.reporter.stop()
-            self.release_resources()
+            self._release_resources()
             self.log_inlet.end_graph(time.perf_counter() - start_time)
             self.fail_spout.stop()
             self.log_spout.stop()
@@ -480,7 +480,7 @@ class TaskGraph:
         else:
             stage.start_stage(input_queues, output_queues, fail_queue, log_queue)
 
-    def finalize_nodes(self) -> None:
+    def _finalize_nodes(self) -> None:
         """
         确保所有子进程安全结束，更新节点状态，并导出每个节点队列剩余任务。
         """
@@ -529,7 +529,7 @@ class TaskGraph:
                     error_id,
                 )
 
-    def release_resources(self) -> None:
+    def _release_resources(self) -> None:
         """
         释放资源
         """

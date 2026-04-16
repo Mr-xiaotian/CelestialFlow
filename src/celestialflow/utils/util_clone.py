@@ -22,7 +22,6 @@ def _get_clone_init_kwargs(executor: TaskExecutor) -> dict:
         "max_info": executor.max_info,
         "unpack_task_args": executor.unpack_task_args,
         "enable_success_cache": executor.enable_success_cache,
-        "enable_error_cache": executor.enable_error_cache,
         "enable_duplicate_check": executor.enable_duplicate_check,
         "show_progress": executor.show_progress,
         "progress_desc": executor.progress_desc,

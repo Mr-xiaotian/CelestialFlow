@@ -34,10 +34,10 @@ class TaskMetrics:
         self.enable_duplicate_check = enable_duplicate_check
 
         self.retry_exceptions: tuple[type[Exception], ...] = ()
-        self.init_counter()
+        self._init_counter()
         self.reset_state()
 
-    def init_counter(self) -> None:
+    def _init_counter(self) -> None:
         """
         初始化计数器（按 execution_mode 选择实现）
         """
@@ -78,7 +78,7 @@ class TaskMetrics:
         :param execution_mode: 任务执行模式，可选值为 "thread" 或 "async"
         """
         self.execution_mode = execution_mode
-        self.init_counter()
+        self._init_counter()
 
     def is_duplicate(self, task_hash: str) -> bool:
         """
