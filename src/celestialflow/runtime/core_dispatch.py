@@ -66,13 +66,13 @@ class TaskDispatch:
         )
         return signal
     
-    def worker(self, task_envelope: TaskEnvelope) -> None:
+    def _worker(self, task_envelope: TaskEnvelope) -> None:
         """
         同步执行单个任务（含去重、计时、成功/失败处理）
 
         :param task_envelope: 包含任务信息的信封
         """
-        task, task_hash, _, _ = task_envelope.unwrap()
+        task, task_hash, _ = task_envelope.unwrap()
 
         if self.task_executor.metrics.is_duplicate(task_hash):
             self.task_executor.deal_duplicate(task_envelope)
@@ -93,7 +93,7 @@ class TaskDispatch:
 
         :param task_envelope: 包含任务信息的信封
         """
-        task, task_hash, _, _ = task_envelope.unwrap()
+        task, task_hash, _ = task_envelope.unwrap()
 
         if self.task_executor.metrics.is_duplicate(task_hash):
             self.task_executor.deal_duplicate(task_envelope)
@@ -122,7 +122,7 @@ class TaskDispatch:
                     termination_signal = self._process_termination_signal(envelope)
                     break
 
-                self.worker(envelope)
+                self._worker(envelope)
 
             task_queues.reset()
 

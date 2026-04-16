@@ -17,7 +17,7 @@ from celestialtree import (
 )
 
 from ..observability import TaskProgress, NullTaskProgress
-from ..persistence import FailSpout, FailInlet, LogSpout, LogInlet
+from ..persistence import FailSpout, FailInlet, LogSpout, LogInlet, SuccessSpout
 from ..persistence.util_jsonl import load_task_error_pairs
 from ..runtime import (
     TaskEnvelope,
@@ -130,10 +130,8 @@ class TaskExecutor:
 
     def _init_state(self) -> None:
         """
-        初始化任务状态：
-        - success_pairs：缓存执行结果
+        初始化任务状态
         """
-        self.success_pairs: list[tuple[Any, Any]] = []  # task - result
         self.metrics.reset_state()
 
     def _init_inlet(self, fail_queue: MPQueue, log_queue: MPQueue) -> None:
@@ -167,10 +165,15 @@ class TaskExecutor:
             mode=mode,
             executor=self,
         )
-        self.result_queues = result_queues or make_task_out_queue(
-            mode=mode,
-            executor=self,
-        )
+        if result_queues is not None:
+            self.result_queues = result_queues
+        else:
+            self.result_queues = TaskOutQueue(
+                queue_list=[self.success_spout.get_queue()],
+                queue_tags=["success_spout"],
+                in_tag=self.get_tag(),
+                log_inlet=self.log_inlet,
+            )
 
     def _init_dispatch(self) -> None:
         """
@@ -184,9 +187,11 @@ class TaskExecutor:
         """
         self.fail_spout = FailSpout("executor_errors")
         self.log_spout = LogSpout()
+        self.success_spout = SuccessSpout()
 
         self.fail_spout.start()
         self.log_spout.start()
+        self.success_spout.start()
 
     def _init_progress(self) -> None:
         """
@@ -551,8 +556,6 @@ class TaskExecutor:
         task_id = task_envelope.id
 
         processed_result = self.process_result(task, result)
-        if self.enable_success_cache:
-            self.success_pairs.append((task, processed_result))
 
         result_id = self.ctree_client.emit(
             "task.success",
@@ -563,6 +566,7 @@ class TaskExecutor:
             processed_result,
             result_id,
             source=self.get_tag(),
+            prev=task,
         )
 
         self.metrics.add_success_count()
@@ -765,6 +769,7 @@ class TaskExecutor:
             )
             self.log_spout.stop()
             self.fail_spout.stop()
+            self.success_spout.stop()
 
     async def start_async(self, task_source: Iterable) -> None:
         """
@@ -807,12 +812,13 @@ class TaskExecutor:
             )
             self.log_spout.stop()
             self.fail_spout.stop()
+            self.success_spout.stop()
 
     def get_success_pairs(self) -> list[tuple[Any, Any]]:
         """
         获取成功任务的列表
         """
-        return self.success_pairs
+        return self.success_spout.get_success_pairs()
 
     def get_error_pairs(self) -> list[tuple[Any, Exception]]:
         """
