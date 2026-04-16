@@ -6,7 +6,7 @@ from time import localtime, strftime
 from typing import TextIO
 
 from ..runtime.util_errors import LogLevelError
-from .core_funnel import BaseSpout, BaseInlet
+from ..funnel import BaseSpout, BaseInlet
 from .util_constant import LEVEL_DICT
 
 

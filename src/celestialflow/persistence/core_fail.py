@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from ..utils.util_format import format_repr
-from .core_funnel import BaseSpout, BaseInlet
+from ..funnel import BaseSpout, BaseInlet
 
 
 class FailSpout(BaseSpout):

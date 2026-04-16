@@ -1,4 +1,4 @@
-# persistence/core_funnel.py
+# funnel/core_spout.py
 from __future__ import annotations
 
 from multiprocessing import Queue as MPQueue
@@ -54,9 +54,3 @@ class BaseSpout:
         self._after_stop()
 
 
-class BaseInlet:
-    def __init__(self, queue: Any) -> None:
-        self.queue: Any = queue
-
-    def _funnel(self, record: Any) -> None:
-        self.queue.put(record)
