@@ -107,3 +107,15 @@
   - fix
     - 修复总体剩余时间在特殊情况下显示0的问题(这玩意真麻烦);
     - 修复部分小屏下的显示问题, 但折线图不显示的问题不太好解决;
+- 3.1.7
+  - feat:
+    - [Important] 删除executor中的"process"模式, 它跟新的retry机制实在难以匹配;
+  - refactor:
+    - [Important] 大幅重构retry机制, 现在不再让retry任务重进task_queue, 而是在worker中直接解决;
+      - 模仿CelestialForge中grow的做法;
+    - 大幅重构原本成功与失败结果的缓存机制, 并将原有get_success/error_dict改名为get_success/error_pairs, 以避免task无法作为键时会导致的问题; 
+      - fail数据从fail.jsonl中提取;
+      - success数据从result_queue中直接获取, 为此添加了SuccessSpout作为集合端;
+  - fix:
+    - 修复部分任务类型无法在log_spout中dump进jsonl文件的问题;
+    - 修复在executor运行时, retry添加任务total数的问题, 虽然这样很帅;

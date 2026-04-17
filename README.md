@@ -23,11 +23,10 @@
 - 相比 Airflow/Dagster 更轻、更快开始
 - 相比 multiprocessing/threading 更结构化，可直接表达 loop / complete graph 等复杂依赖模式
 
-框架的基本单元为 **TaskExecutor**，可独立运行，并支持四种执行模式：
+框架的基本单元为 **TaskExecutor**，可独立运行，并支持三种执行模式：
 
 * **线性（serial）**
 * **多线程（thread）**
-* **多进程（process）**
 * **协程（async）**
 
 TaskExecutor 实现了对任务的结果缓存，任务去重，进度条显示，多执行模式比较等功能，单独使用也很好用。
@@ -108,7 +107,7 @@ flowchart LR
 uv pip install celestialflow
 
 # 不过也可以直接使用 `pip`
-uv pip install celestialflow
+pip install celestialflow
 ```
 
 一个简单的可运行代码:
@@ -150,16 +149,16 @@ if __name__ == "__main__":
 
 若你想了解框架的整体结构与核心组件，下面的参考文档会对你有帮助：
 
-- [stage/executor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/stage/executor.md)
-- [stage/stage.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/stage/stage.md)
-- [graph/graph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/graph/graph.md)
-- [runtime/progress.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/progress.md)
-- [runtime/metrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/metrics.md)
-- [runtime/queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/queue.md)
-- [stage/nodes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/stage/nodes.md)
-- [observability/report.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/observability/report.md)
-- [graph/structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/graph/structure.md)
-- [web/server.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/web/server.md)
+- [stage/core_executor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/stage/core_executor.md)
+- [stage/core_stage.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/stage/core_stage.md)
+- [graph/core_graph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/graph/core_graph.md)
+- [observability/core_progress.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/observability/core_progress.md)
+- [runtime/core_metrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/core_metrics.md)
+- [runtime/core_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/core_queue.md)
+- [stage/core_stages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/stage/core_stages.md)
+- [observability/core_report.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/observability/core_report.md)
+- [graph/core_structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/graph/core_structure.md)
+- [web/core_server.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/web/core_server.md)
 - [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/other/go_worker.md)
 
 推荐阅读顺序:
@@ -177,7 +176,7 @@ flowchart TD
     TM --> TME[TaskMetrics.md]
 
     TG --> TQ[TaskQueue.md]
-    TG --> TN[TaskNodes.md]
+    TG --> TN[TaskStages.md]
     TG --> TR[TaskReport.md]
     TG --> TSR[TaskStructure.md]
 
@@ -193,11 +192,11 @@ flowchart TD
 
 以下三篇可以作为补充阅读:
 
-- [runtime/tools.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/tools.md)
-- [runtime/types.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/types.md)
-- [runtime/errors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/errors.md)
-- [persistence/fail.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/fail.md)
-- [persistence/log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/log.md)
+- [runtime/util_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/util_queue.md)
+- [runtime/util_types.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/util_types.md)
+- [runtime/util_errors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/util_errors.md)
+- [persistence/core_fail.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/core_fail.md)
+- [persistence/core_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/core_log.md)
 
 如果你更喜欢通过完整案例理解框架的运行方式，可以参考这篇从零开始构建 TaskGraph 的教程：
 
@@ -209,7 +208,7 @@ flowchart TD
 
 ## 环境要求（Requirements）
 
-**CelestialFlow** 基于 Python 3.8+，并依赖以下核心组件。  
+**CelestialFlow** 基于 Python 3.10+，并依赖以下核心组件。  
 请确保你的环境能够正常安装这些依赖（`pip install celestialflow` 会自动安装）。
 
 | 依赖包           | 说明 |
@@ -229,27 +228,24 @@ flowchart TD
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.1.6</em>
+  <em>celestial-flow 3.1.7</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.1.6
-  - feat
-    - 前端现在只储存一页的error数据, 有效减少了运行大规模任务时前端内存飙升的问题;
-    - 优化任务数显示, 大于1*10^7时显示科学计数法, 否则显示英式计数;
-    - 优化小屏模式下表格的显示: 改为用卡片式显示;
-    - 在error表格中加入index项;
-    - 大幅调整任务颜色分配, 现在重复任务使用黄色系, 等待任务使用灰色系;
-    - 将节点卡片中的已消耗时间颜色拟合为下方进度条颜色;
-  - refactor
-    - 用mypy整理了一遍类型标注;
-    - 删除与整合部分css代码;
-    - 将字体等适合rem单位的地方全部从px替换为rem, 并且都部分size进行统一;
-  - fix
-    - 修复总体剩余时间在特殊情况下显示0的问题(这玩意真麻烦);
-    - 修复部分小屏下的显示问题, 但折线图不显示的问题不太好解决;
+- 3.1.7
+  - feat:
+    - [Important] 删除executor中的"process"模式, 它跟新的retry机制实在难以匹配;
+  - refactor:
+    - [Important] 大幅重构retry机制, 现在不再让retry任务重进task_queue, 而是在worker中直接解决;
+      - 模仿CelestialForge中grow的做法;
+    - 大幅重构原本成功与失败结果的缓存机制, 并将原有get_success/error_dict改名为get_success/error_pairs, 以避免task无法作为键时会导致的问题; 
+      - fail数据从fail.jsonl中提取;
+      - success数据从result_queue中直接获取, 为此添加了SuccessSpout作为集合端;
+  - fix:
+    - 修复部分任务类型无法在log_spout中dump进jsonl文件的问题;
+    - 修复在executor运行时, retry添加任务total数的问题, 虽然这样很帅;
 
 ## Star 历史趋势（Star History）
 
