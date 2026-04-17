@@ -72,6 +72,7 @@ dev = [
     "python-dotenv>=1.2.2",
     "dill",
     "mypy>=1.19.1",
+    "ruff",
 ]
 
 [tool.mypy]

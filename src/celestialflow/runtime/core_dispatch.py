@@ -61,7 +61,7 @@ class TaskDispatch:
             self.task_executor.get_func_name(), parent_ids, termination_id
         )
         return signal
-    
+
     def _check_and_mark_task(self, task_envelope: TaskEnvelope) -> bool:
         """
         在进入 worker 前完成去重检查
@@ -94,11 +94,8 @@ class TaskDispatch:
                 )
                 return
             except Exception as exception:
-                if (
-                    retry_time >= max_retries
-                    or not isinstance(
-                        exception, self.task_executor.metrics.retry_exceptions
-                    )
+                if retry_time >= max_retries or not isinstance(
+                    exception, self.task_executor.metrics.retry_exceptions
                 ):
                     self.task_executor.handle_task_fail(task_envelope, exception)
                     return
@@ -124,11 +121,8 @@ class TaskDispatch:
                 )
                 return
             except Exception as exception:
-                if (
-                    retry_time >= max_retries
-                    or not isinstance(
-                        exception, self.task_executor.metrics.retry_exceptions
-                    )
+                if retry_time >= max_retries or not isinstance(
+                    exception, self.task_executor.metrics.retry_exceptions
                 ):
                     self.task_executor.handle_task_fail(task_envelope, exception)
                     return
@@ -174,7 +168,7 @@ class TaskDispatch:
         result_queues = self.task_executor.result_queues
 
         while True:
-            futures = [] # 用于存储线程池提交的任务
+            futures = []  # 用于存储线程池提交的任务
 
             while True:
                 envelope = task_queues.get()

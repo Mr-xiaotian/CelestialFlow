@@ -90,7 +90,7 @@ class TaskMetrics:
         if task_hash not in self.processed_set:
             self.add_processed_set(task_hash)
             return False
-        
+
         return True
 
     def add_processed_set(self, task_hash: str) -> None:

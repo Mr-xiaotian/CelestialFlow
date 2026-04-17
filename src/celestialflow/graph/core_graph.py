@@ -517,9 +517,7 @@ class TaskGraph:
                     payload=current_stage.get_summary(),
                 )
 
-                self.fail_inlet.task_error(
-                    stage_tag, UnconsumedError(), error_id, task
-                )
+                self.fail_inlet.task_error(stage_tag, UnconsumedError(), error_id, task)
 
                 self.log_inlet.task_error(
                     current_stage.get_func_name(),

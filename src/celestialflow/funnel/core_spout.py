@@ -52,5 +52,3 @@ class BaseSpout:
         self._thread = None
         cleanup_mpqueue(self.queue)
         self._after_stop()
-
-

@@ -16,7 +16,9 @@ class TaskEnvelope:
         self.prev = prev
 
     @classmethod
-    def wrap(cls, task: Any, task_id: int, source: str, prev: Any = None) -> "TaskEnvelope":
+    def wrap(
+        cls, task: Any, task_id: int, source: str, prev: Any = None
+    ) -> "TaskEnvelope":
         """
         将原始 task 包装为 TaskEnvelope。
 
