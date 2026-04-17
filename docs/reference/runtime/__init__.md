@@ -38,14 +38,9 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
    - **收集指标**: 执行时间、成功率、错误率、队列长度、吞吐量
    - **关键功能**: 实时监控、性能分析、瓶颈检测、报警触发
 
-5. **core_progress.py** (`TaskProgress`, `NullTaskProgress`)
-   - **作用**: 任务进度报告和显示
-   - **进度类型**: 确定性进度（已知总数）、不确定性进度（流式）
-   - **关键功能**: 进度更新、进度条显示、ETA 估算、速度计算
-
 ### 工具和工具类
 
-6. **util_errors.py** (`CelestialFlowError`, `ConfigurationError`, `InvalidOptionError`, `ExecutionModeError`, `StageModeError`, `LogLevelError`, `RemoteWorkerError`, `UnconsumedError`, `PickleError`)
+5. **util_errors.py** (`CelestialFlowError`, `ConfigurationError`, `InvalidOptionError`, `ExecutionModeError`, `StageModeError`, `LogLevelError`, `RemoteWorkerError`, `UnconsumedError`, `PickleError`)
    - **作用**: 错误处理框架，定义标准错误类型和处理策略
    - **错误类型**: 
      - `CelestialFlowError`: 所有自定义异常的基类
@@ -59,7 +54,7 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
      - `PickleError`: 序列化错误
    - **关键功能**: 错误分类、详细错误信息、参数验证、错误恢复
 
-7. **util_factories.py**
+6. **util_factories.py**
    - **作用**: 运行时组件的工厂函数，简化对象创建
    - **工厂函数**:
      - `make_counter()`: 创建计数器（线程安全/进程安全）
@@ -68,7 +63,7 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
      - `make_task_out_queue()`: 创建任务输出队列
    - **关键功能**: 统一的对象创建接口、配置适配、依赖管理
 
-8. **util_types.py**
+7. **util_types.py**
    - **作用**: 运行时类型定义和数据结构
    - **包含类型**:
      - `TerminationSignal`: 任务队列终止的哨兵对象
@@ -78,19 +73,19 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
      - `NodeLabelStyle`: 节点标签样式（来自 CelestialTree）
    - **关键功能**: 类型定义、枚举管理、数据结构、类型安全
 
-9. **util_queue.py**
+8. **util_queue.py**
    - **作用**: 运行时工具函数，提供通用功能
    - **关键函数**: `cleanup_mpqueue()`: 清理多进程队列，确保资源释放
    - **关键功能**: 资源管理、队列清理、内存释放、多进程安全
 
-10. **util_hash.py**
+9. **util_hash.py**
     - **作用**: 对象哈希计算，用于任务去重和缓存
     - **关键函数**:
       - `make_hashable()`: 将对象转换为可哈希的形式
       - `object_to_str_hash()`: 计算对象的字符串哈希值
     - **关键功能**: 稳定哈希计算、对象序列化、任务去重、缓存键生成
 
-11. **util_estimators.py**
+10. **util_estimators.py**
     - **作用**: 执行时间估算和进度计算
     - **关键函数**:
       - `calc_elapsed()`: 计算已用时间
@@ -103,7 +98,7 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
 ### 内部关联
 - `TaskDispatch` 使用 `TaskInQueue` 和 `TaskOutQueue` 获取任务和发送结果
 - `TaskEnvelope` 在队列中传递，包含完整的执行上下文
-- `TaskMetrics` 和 `TaskProgress` 监控 `TaskDispatch` 的执行状态
+- `TaskMetrics` 监控 `TaskDispatch` 的执行状态
 - 所有错误都通过 `CelestialFlowError` 及其子类统一处理
 
 ### 外部关联

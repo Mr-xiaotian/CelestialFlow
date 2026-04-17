@@ -1,6 +1,6 @@
 # TaskDispatch
 
-`TaskDispatch` 是任务执行的核心运行器，负责从队列获取任务、执行任务、处理结果和错误。它支持串行、线程池、进程池和异步四种执行模式。
+`TaskDispatch` 是任务执行的核心运行器，负责从队列获取任务、执行任务、处理结果和错误。它支持串行、线程池和异步三种执行模式。
 
 ## 初始化
 
@@ -39,31 +39,22 @@ def run_in_serial(self):
 5. 更新进度条
 6. 收到终止信号后，检查是否所有任务完成
 
-### run_with_pool
+### run_in_thread
 
-使用线程池或进程池并行执行任务。
+使用线程池并行执行任务。
 
 ```python
-def run_with_pool(self, execution_mode: str):
+def run_in_thread(self):
     """
-    使用指定的执行池（线程池或进程池）来并行执行任务。
-
-    :param execution_mode: 执行模式，"thread" 或 "process"
+    使用线程池并行执行任务。
     """
 ```
 
 执行流程：
-1. 初始化线程池或进程池
+1. 初始化线程池
 2. 从队列获取任务并提交到池中
-3. 使用回调函数处理任务完成事件
-4. 使用 `in_flight` 计数器和 `Event` 同步
-5. 等待所有任务完成后处理终止信号
-6. 关闭池并释放资源
-
-特点：
-- 支持并发执行多个任务
-- 自动管理并发数量（通过 `max_workers`）
-- 使用回调机制处理结果
+3. 等待所有 future 完成后处理终止信号
+4. 关闭池并释放资源
 
 ### run_in_async
 
@@ -83,22 +74,16 @@ async def run_in_async(self):
 4. 处理结果和错误
 5. 检查终止条件
 
-特点：
-- 适用于 I/O 密集型任务
-- 使用 `asyncio.Semaphore` 控制并发
-- 支持 `async/await` 语法
-
 ## 内部方法
 
-### init_pool
+### _worker / _async_worker
 
 ```python
-def init_pool(self, execution_mode):
-    """
-    初始化线程池或进程池。
+def _worker(self, envelope: TaskEnvelope):
+    """线程池中的工作函数，执行单个任务并处理重试。"""
 
-    :param execution_mode: 执行模式，"thread" 或 "process"
-    """
+async def _async_worker(self, envelope: TaskEnvelope):
+    """异步工作函数，执行单个任务并处理重试。"""
 ```
 
 ### process_termination_signal
@@ -117,51 +102,7 @@ def process_termination_signal(self, termination_pool: TerminationIdPool) -> Ter
 
 ```python
 def release_pool(self):
-    """
-    关闭线程池和进程池，释放资源。
-    """
-```
-
-### _run_single_task
-
-```python
-async def _run_single_task(self, task):
-    """
-    运行单个任务并捕获异常。
-
-    :param task: 要运行的任务
-    :return: 任务的结果或异常
-    """
-```
-
-## 使用示例
-
-### 在 TaskExecutor 中使用
-
-```python
-# TaskExecutor 内部会创建 TaskDispatch
-executor = TaskExecutor(func=process, execution_mode="thread", max_workers=4)
-executor.start(task_source)  # 内部调用 dispatch.run_with_pool("thread")
-```
-
-### 直接使用（不推荐）
-
-```python
-from celestialflow.runtime import TaskDispatch
-
-dispatch = TaskDispatch(task_executor, func, max_workers=10)
-
-# 串行执行
-dispatch.run_in_serial()
-
-# 线程池执行
-dispatch.run_with_pool("thread")
-
-# 进程池执行
-dispatch.run_with_pool("process")
-
-# 异步执行
-await dispatch.run_in_async()
+    """关闭线程池，释放资源。"""
 ```
 
 ## 与 TaskExecutor 的关系
@@ -174,24 +115,23 @@ TaskExecutor
     ├── task_queues        # 输入队列（TaskInQueue）
     ├── result_queues      # 输出队列（TaskOutQueue）
     ├── metrics            # 任务指标
-    └── dispatch             # TaskDispatch 实例
+    └── dispatch           # TaskDispatch 实例
             ├── func               # 任务函数
             ├── max_workers        # 并发数量限制
             ├── run_in_serial()
-            ├── run_with_pool()
+            ├── run_in_thread()
             └── run_in_async()
 ```
 
 `TaskExecutor` 根据 `execution_mode` 选择调用 `TaskDispatch` 的哪个方法：
 - `serial` → `run_in_serial()`
-- `thread` → `run_with_pool("thread")`
-- `process` → `run_with_pool("process")`
+- `thread` → `run_in_thread()`
 - `async` → `run_in_async()`
 
 ## 注意事项
 
 1. **并发控制**: `max_workers` 限制并发任务数量，防止资源耗尽
-2. **池复用**: 线程池/进程池可以复用，避免频繁创建销毁
-3. **终止处理**: 正确处理终止信号的合并和传递
-4. **错误传播**: 异常会被捕获并传递给 `TaskExecutor.handle_task_error()`
+2. **终止处理**: 正确处理终止信号的合并和传递
+3. **错误传播**: 异常会被捕获并传递给 `TaskExecutor.handle_task_fail()`
+4. **重试机制**: worker 内部支持任务重试，由 `max_retries` 控制
 5. **异步限制**: `run_in_async` 需要任务函数是协程函数

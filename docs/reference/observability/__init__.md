@@ -20,6 +20,13 @@ Observability 模块负责收集、聚合和上报系统的运行状态，提供
    - **通信协议**: HTTP
    - **数据格式**: JSON
 
+2. **core_progress.py** (`TaskProgress`, `NullTaskProgress`)
+   - **作用**: 基于 `tqdm` 的任务进度可视化
+   - **关键功能**:
+     - 动态更新总任务数（`add_total`）
+     - 普通模式（`tqdm`）和异步模式（`tqdm.asyncio`）
+     - `NullTaskProgress` 空实现，用于关闭进度条时占位
+
 ## 模块关联
 
 ### 内部关联
