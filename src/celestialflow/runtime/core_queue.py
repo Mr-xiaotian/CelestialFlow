@@ -44,6 +44,8 @@ class TaskInQueue:
             t = "task"
         elif isinstance(item, TerminationSignal):
             t = "termination"
+        else:
+            raise ValueError(f"unexpected item type: {type(item)}")
         self.log_inlet.put_item(t, item.id, item.source, self.out_tag)
 
     def _log_get(self, item: TaskEnvelope | TerminationSignal) -> None:
@@ -254,6 +256,8 @@ class TaskOutQueue:
             t = "task"
         elif isinstance(item, TerminationSignal):
             t = "termination"
+        else:
+            raise ValueError(f"unexpected item type: {type(item)}")
         self.log_inlet.put_item(t, item.id, self.in_tag, str(self.queue_tags[idx]))
 
     def add_queue(self, queue: Any, tag: str) -> None:

@@ -26,10 +26,9 @@ class TaskEnvelope:
         :param prev: 前一个任务的 envelope
         """
         task_hash = object_to_str_hash(task)
-        task_id = task_id
         return cls(task, task_hash, task_id, source, prev)
 
-    def unwrap(self) -> tuple[Any, str, int, str]:
+    def unwrap(self) -> tuple[Any, str, int]:
         """
         解包装 TaskEnvelope 中的任务信息
 

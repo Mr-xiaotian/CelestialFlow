@@ -188,11 +188,9 @@ class TaskDispatch:
                     raise RuntimeError("execution pool has not been initialized")
                 futures.append(self._pool.submit(self._worker, envelope))
 
-            if futures:
-                # 等待所有任务完成
-                wait(futures)
-                for future in futures:
-                    future.result()
+            # 等待当前批次的所有任务完成
+            for future in futures:
+                future.result()
 
             task_queues.reset()
 

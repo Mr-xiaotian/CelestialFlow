@@ -399,7 +399,7 @@ class TaskGraph:
             self.reporter.start()
 
             self.put_stage_queue(init_tasks_dict, put_termination_signal)
-            self._excute_stages()
+            self._execute_stages()
 
         finally:
             self._finalize_nodes()
@@ -410,7 +410,7 @@ class TaskGraph:
             self.fail_spout.stop()
             self.log_spout.stop()
 
-    def _excute_stages(self) -> None:
+    def _execute_stages(self) -> None:
         """
         执行所有节点
         """

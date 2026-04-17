@@ -1,19 +1,19 @@
 # graph/util_serialize.py
-from typing import TYPE_CHECKING, Any, Dict, List, Set
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..stage import TaskStage
 
 
 # ======== 处理图结构 ========
-def build_structure_graph(root_stages: List["TaskStage"]) -> List[Dict[str, Any]]:
+def build_structure_graph(root_stages: list["TaskStage"]) -> list[dict[str, Any]]:
     """
     从多个根节点构建任务链的 JSON 图结构
 
     :param root_stages: 根节点列表
     :return: 多棵任务图的 JSON 列表
     """
-    visited_stages: Set[str] = set()
+    visited_stages: set[str] = set()
     graphs = []
 
     for root_stage in root_stages:
@@ -24,8 +24,8 @@ def build_structure_graph(root_stages: List["TaskStage"]) -> List[Dict[str, Any]
 
 
 def _build_structure_subgraph(
-    task_stage: "TaskStage", visited_stages: Set[str]
-) -> Dict[str, Any]:
+    task_stage: "TaskStage", visited_stages: set[str]
+) -> dict[str, Any]:
     """
     构建单个子图结构
     """
@@ -49,7 +49,7 @@ def _build_structure_subgraph(
     return node
 
 
-def format_structure_list_from_graph(root_roots: List[Dict] | None = None) -> List[str]:
+def format_structure_list_from_graph(root_roots: list[dict] | None = None) -> list[str]:
     """
     从多个 JSON 图结构生成格式化任务结构文本列表（带边框）
 
@@ -57,7 +57,7 @@ def format_structure_list_from_graph(root_roots: List[Dict] | None = None) -> Li
     :return: 带边框的格式化字符串列表
     """
 
-    def node_label(node: Dict) -> str:
+    def node_label(node: dict) -> str:
         visited_note = " [Ref]" if node.get("is_ref") else ""
         N = node.get("name", "?")  # N
         F = node.get("func_name", "?")  # F
@@ -67,7 +67,7 @@ def format_structure_list_from_graph(root_roots: List[Dict] | None = None) -> Li
         return f"{N}::{F} (S:{S}, E:{E}){visited_note}"
 
     # 只渲染“子节点”（有父节点）——保证一定画连接符
-    def build_child_lines(node: Dict, prefix: str, is_last: bool) -> List[str]:
+    def build_child_lines(node: dict, prefix: str, is_last: bool) -> list[str]:
         connector = "╘-->" if is_last else "╞-->"
         lines = [f"{prefix}{connector}{node_label(node)}"]
 
@@ -81,7 +81,7 @@ def format_structure_list_from_graph(root_roots: List[Dict] | None = None) -> Li
         return lines
 
     # 专门处理 root：不画连接符，不产生祖先竖线
-    def build_root_lines(root: Dict) -> List[str]:
+    def build_root_lines(root: dict) -> list[str]:
         lines = [node_label(root)]
         next_stages = root.get("next_stages", []) or []
         for i, child in enumerate(next_stages):

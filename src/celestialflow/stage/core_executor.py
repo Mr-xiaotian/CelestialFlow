@@ -61,7 +61,7 @@ class TaskExecutor:
         :param func: 可调用对象
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'
         :param max_workers: 同时处理数量
-        :param max_retries: 任务的最大重试次数
+        :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_info: 日志中每条信息的最大长度
         :param unpack_task_args: 是否将任务参数解包
         :param enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_pairs 中
@@ -421,6 +421,11 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
         await task_queues.put_async(TerminationSignal(termination_id, source="input"))
+        self.log_inlet.termination_input(
+            self.get_func_name(),
+            self.get_tag(),
+            termination_id,
+        )
 
     def get_args(self, task: Any) -> tuple:
         """
