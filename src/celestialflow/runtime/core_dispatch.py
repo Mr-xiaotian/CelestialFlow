@@ -130,7 +130,7 @@ class TaskDispatch:
                     task_envelope, exception, retry_time + 1
                 )
 
-    def run_in_serial(self) -> None:
+    def dispatch_serial(self) -> None:
         """
         串行地执行任务
         """
@@ -150,7 +150,7 @@ class TaskDispatch:
 
         result_queues.put(termination_signal)
 
-    def run_in_thread(self) -> None:
+    def dispatch_thread(self) -> None:
         """
         使用指定的线程池来并行执行任务。
         """
@@ -180,15 +180,7 @@ class TaskDispatch:
 
         self._release_pool()
 
-    def _release_pool(self) -> None:
-        """
-        关闭线程池，释放资源
-        """
-        if self._pool is not None:
-            self._pool.shutdown(wait=True)
-        self._pool = None
-
-    async def run_in_async(self) -> None:
+    async def dispatch_async(self) -> None:
         """
         异步地执行任务，限制并发数量
         """
@@ -215,3 +207,11 @@ class TaskDispatch:
 
         await asyncio.gather(*async_tasks)
         await result_queues.put_async(termination_signal)
+
+    def _release_pool(self) -> None:
+        """
+        关闭线程池，释放资源
+        """
+        if self._pool is not None:
+            self._pool.shutdown(wait=True)
+        self._pool = None

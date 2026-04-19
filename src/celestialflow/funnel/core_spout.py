@@ -39,6 +39,8 @@ class BaseSpout:
                 self._handle_record(record)
             except Empty:
                 continue
+            except Exception:  # ← 新增：防止线程崩溃
+                continue  # 或记录到 stderr，至少不丢后续记录
 
     def get_queue(self) -> MPQueue:
         return self.queue

@@ -90,7 +90,7 @@ class TaskExecutor:
         self.progress_desc = progress_desc
         self.set_log_level(log_level)
 
-        self.ctree_client: Any = None
+        self.set_nullctree()
         self.task_queues: TaskInQueue | None = None
         self.result_queues: TaskOutQueue | None = None
         self.fail_queue: Any = None
@@ -683,7 +683,6 @@ class TaskExecutor:
         :param task_source: 任务迭代器或者生成器
         """
         start_time = time.perf_counter()
-        self.set_nullctree()
         self._init_spout()
         self._init_progress()
         self.init_env(
@@ -702,12 +701,12 @@ class TaskExecutor:
         try:
             # 根据模式运行对应的任务处理函数
             if self.execution_mode == "thread":
-                self.dispatch.run_in_thread()
+                self.dispatch.dispatch_thread()
             elif self.execution_mode == "async":
                 # don't suggest, please use start_async
-                asyncio.run(self.dispatch.run_in_async())
+                asyncio.run(self.dispatch.dispatch_async())
             elif self.execution_mode == "serial":
-                self.dispatch.run_in_serial()
+                self.dispatch.dispatch_serial()
             else:
                 raise ExecutionModeError(self.execution_mode)
 
@@ -734,7 +733,6 @@ class TaskExecutor:
         :param task_source: 任务迭代器或者生成器
         """
         start_time = time.perf_counter()
-        self.set_nullctree()
         self.set_execution_mode("async")
         self._init_spout()
         self._init_progress()
@@ -752,7 +750,7 @@ class TaskExecutor:
         self.fail_inlet.start_executor(self.get_tag())
 
         try:
-            await self.dispatch.run_in_async()
+            await self.dispatch.dispatch_async()
 
         finally:
             self._release_client()

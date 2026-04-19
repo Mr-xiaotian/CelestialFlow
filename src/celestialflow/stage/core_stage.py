@@ -237,9 +237,9 @@ class TaskStage(TaskExecutor):
         try:
             # 根据模式运行对应的任务处理函数
             if self.execution_mode == "thread":
-                self.dispatch.run_in_thread()
+                self.dispatch.dispatch_thread()
             elif self.execution_mode == "serial":
-                self.dispatch.run_in_serial()
+                self.dispatch.dispatch_serial()
             else:
                 raise ExecutionModeError(self.execution_mode)
 

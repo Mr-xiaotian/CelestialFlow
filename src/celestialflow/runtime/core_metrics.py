@@ -56,9 +56,12 @@ class TaskMetrics:
         重置计数器
         """
         self.task_counter.reset()
-        self.success_counter.value = 0
-        self.error_counter.value = 0
-        self.duplicate_counter.value = 0
+        with self.success_counter.get_lock():
+            self.success_counter.value = 0
+        with self.error_counter.get_lock():
+            self.error_counter.value = 0
+        with self.duplicate_counter.get_lock():
+            self.duplicate_counter.value = 0
 
     def reset_state(self) -> None:
         """
@@ -237,7 +240,7 @@ class TaskMetrics:
         failed = self.error_counter.value
         duplicated = self.duplicate_counter.value
         processed = successed + failed + duplicated
-        pending = max(0, input_count - processed)
+        pending = input_count - processed
 
         return {
             "tasks_input": input_count,
