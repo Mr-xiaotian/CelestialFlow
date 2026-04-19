@@ -4,8 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, TextIO
 
+from ..funnel import BaseInlet, BaseSpout
 from ..utils.util_format import format_repr
-from ..funnel import BaseSpout, BaseInlet
 from .util_jsonl import load_task_error_pairs
 
 
@@ -52,7 +52,7 @@ class FailSpout(BaseSpout):
             self._file.close()
             self._file = None
 
-    def get_error_pairs(self) -> list[dict]:
+    def get_error_pairs(self) -> list[tuple[Any, Exception]]:
         """
         从 jsonl 文件中读取所有错误记录
         """

@@ -16,21 +16,20 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
-from ..observability import TaskProgress, NullTaskProgress
-from ..persistence import FailSpout, FailInlet, LogSpout, LogInlet, SuccessSpout
-from ..persistence.util_jsonl import load_task_error_pairs
+from ..observability import NullTaskProgress, TaskProgress
+from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout, SuccessSpout
 from ..runtime import (
+    TaskDispatch,
     TaskEnvelope,
     TaskInQueue,
     TaskMetrics,
     TaskOutQueue,
-    TaskDispatch,
 )
 from ..runtime.util_errors import ExecutionModeError
 from ..runtime.util_factories import (
     make_queue_backend,
     make_task_in_queue,
-    make_task_out_queue,
+    # make_task_out_queue,
 )
 from ..runtime.util_types import (
     TerminationSignal,
@@ -69,7 +68,7 @@ class TaskExecutor:
         :param progress_desc: 进度条显示名称
         :param show_progress: 进度条显示与否
         """
-        if enable_success_cache == True and enable_duplicate_check == False:
+        if enable_success_cache and not enable_duplicate_check:
             warnings.warn(
                 "Result cache is enabled while duplicate check is disabled. "
                 "This may cause the number of cached results to differ from the number of input tasks "

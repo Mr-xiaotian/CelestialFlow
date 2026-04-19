@@ -5,8 +5,8 @@ from pathlib import Path
 from time import localtime, strftime
 from typing import TextIO
 
+from ..funnel import BaseInlet, BaseSpout
 from ..runtime.util_errors import LogLevelError
-from ..funnel import BaseSpout, BaseInlet
 from .util_constant import LEVEL_DICT
 
 
@@ -61,9 +61,8 @@ class LogInlet(BaseInlet):
         if self.log_level not in LEVEL_DICT:
             raise LogLevelError(self.log_level)
 
-    def _funnel(self, level: str, message: str | None = None) -> None:
+    def _log(self, level: str, message: str | None = None) -> None:
         if message is None:
-            super()._funnel(level)
             return
         timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime())
         level_upper = level.upper()
@@ -77,19 +76,19 @@ class LogInlet(BaseInlet):
 
     # ==== graph ====
     def start_graph(self, structure_list: list[str]) -> None:
-        self._funnel("INFO", "Starting TaskGraph. Graph structure:")
+        self._log("INFO", "Starting TaskGraph. Graph structure:")
         for line in structure_list:
-            self._funnel("INFO", line)
+            self._log("INFO", line)
 
     def end_graph(self, use_time: float) -> None:
-        self._funnel("INFO", f"TaskGraph end. Use {use_time:.2f} second.")
+        self._log("INFO", f"TaskGraph end. Use {use_time:.2f} second.")
 
     # ==== layer ====
     def start_layer(self, layer: list[str], layer_level: int) -> None:
-        self._funnel("INFO", f"Layer {layer} start. Layer level: {layer_level}.")
+        self._log("INFO", f"Layer {layer} start. Layer level: {layer_level}.")
 
     def end_layer(self, layer: list[str], use_time: float) -> None:
-        self._funnel("INFO", f"Layer {layer} end. Use {use_time:.2f} second.")
+        self._log("INFO", f"Layer {layer} end. Use {use_time:.2f} second.")
 
     # ==== stage ====
     def start_stage(
@@ -97,7 +96,7 @@ class LogInlet(BaseInlet):
     ) -> None:
         worker_repr = f"({max_workers} workers)" if execution_mode != "serial" else ""
         text = f"'{stage_tag}' start in {stage_mode}; execute tasks by {execution_mode}{worker_repr}."
-        self._funnel("INFO", text)
+        self._log("INFO", text)
 
     def end_stage(
         self,
@@ -109,7 +108,7 @@ class LogInlet(BaseInlet):
         failed_num: int,
         duplicated_num: int,
     ) -> None:
-        self._funnel(
+        self._log(
             "INFO",
             f"'{stage_tag}' end in {stage_mode}; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
             f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
@@ -120,7 +119,7 @@ class LogInlet(BaseInlet):
         self, func_name: str, task_num: int, execution_mode_desc: str
     ) -> None:
         text = f"'Executor[{func_name}]' start; execute {task_num} tasks by {execution_mode_desc}."
-        self._funnel("INFO", text)
+        self._log("INFO", text)
 
     def end_executor(
         self,
@@ -131,7 +130,7 @@ class LogInlet(BaseInlet):
         failed_num: int,
         duplicated_num: int,
     ) -> None:
-        self._funnel(
+        self._log(
             "INFO",
             f"'Executor[{func_name}]' end; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
             f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
@@ -139,19 +138,19 @@ class LogInlet(BaseInlet):
 
     # ==== process ====
     def process_termination_attempt(self, process_name: str) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"Process '{process_name}' is still running; attempting graceful termination.",
         )
 
     def process_termination_timeout(self, process_name: str) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"Process '{process_name}' did not exit within the termination timeout.",
         )
 
     def process_exit(self, process_name: str, exitcode: int | None) -> None:
-        self._funnel(
+        self._log(
             "DEBUG", f"Process '{process_name}' exited with exit code {exitcode}."
         )
 
@@ -159,7 +158,7 @@ class LogInlet(BaseInlet):
     def task_input(
         self, func_name: str, task_repr: str, source: str, input_id: int
     ) -> None:
-        self._funnel(
+        self._log(
             "DEBUG",
             f"In '{func_name}', Task {task_repr} input into {source}. [{input_id}*]",
         )
@@ -174,7 +173,7 @@ class LogInlet(BaseInlet):
         parent_id: int,
         success_id: int,
     ) -> None:
-        self._funnel(
+        self._log(
             "SUCCESS",
             f"In '{func_name}', Task {task_repr} successed by {execution_mode}. Result is {result_repr}. Used {use_time:.2f}s. [{parent_id}->{success_id}*]",
         )
@@ -188,7 +187,7 @@ class LogInlet(BaseInlet):
         parent_id: int,
         retry_id: int,
     ) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"In '{func_name}', Task {task_repr} failed {retry_times} times and will retry: ({type(exception).__name__}). [{parent_id}->{retry_id}*]",
         )
@@ -202,7 +201,7 @@ class LogInlet(BaseInlet):
         error_id: int,
     ) -> None:
         exception_text = str(exception).replace("\n", " ")
-        self._funnel(
+        self._log(
             "ERROR",
             f"In '{func_name}', Task {task_repr} failed and can't retry: ({type(exception).__name__}){exception_text}. [{parent_id}->{error_id}*]",
         )
@@ -210,7 +209,7 @@ class LogInlet(BaseInlet):
     def task_duplicate(
         self, func_name: str, task_repr: str, parent_id: int, duplicate_id: int
     ) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"In '{func_name}', Task {task_repr} has been duplicated. [{parent_id}->{duplicate_id}*]",
         )
@@ -224,7 +223,7 @@ class LogInlet(BaseInlet):
         parent_id: int,
         split_id: int,
     ) -> None:
-        self._funnel(
+        self._log(
             "TRACE",
             f"In '{func_name}', Task split part {part_index}/{part_total}. [{parent_id}->{split_id}*]",
         )
@@ -232,7 +231,7 @@ class LogInlet(BaseInlet):
     def split_success(
         self, func_name: str, task_repr: str, split_count: int, use_time: float
     ) -> None:
-        self._funnel(
+        self._log(
             "SUCCESS",
             f"In '{func_name}', Task {task_repr} has split into {split_count} parts. Used {use_time:.2f}s.",
         )
@@ -247,7 +246,7 @@ class LogInlet(BaseInlet):
         parent_id: int,
         route_id: int,
     ) -> None:
-        self._funnel(
+        self._log(
             "SUCCESS",
             f"In '{func_name}', Task {task_repr} has routed to {target_node}. Used {use_time:.2f}s. [{parent_id}->{route_id}*]",
         )
@@ -256,7 +255,7 @@ class LogInlet(BaseInlet):
     def termination_input(
         self, func_name: str, source: str, termination_id: int
     ) -> None:
-        self._funnel(
+        self._log(
             "DEBUG",
             f"In '{func_name}', Termination input into {source}. [{termination_id}*]",
         )
@@ -264,7 +263,7 @@ class LogInlet(BaseInlet):
     def termination_merge(
         self, func_name: str, parent_ids: list[int], termination_id: int
     ) -> None:
-        self._funnel(
+        self._log(
             "TRACE",
             f"In '{func_name}', Termination merge. [{parent_ids}->{termination_id}*]",
         )
@@ -274,14 +273,14 @@ class LogInlet(BaseInlet):
         self, item_type: str, item_id: int, left_tag: str, right_tag: str
     ) -> None:
         edge = f"'{left_tag}' -> '{right_tag}'"
-        self._funnel("TRACE", f"Put {item_type}#{item_id} into Edge({edge}).")
+        self._log("TRACE", f"Put {item_type}#{item_id} into Edge({edge}).")
 
     def put_item_error(
         self, left_tag: str, right_tag: str, exception: Exception
     ) -> None:
         edge = f"'{left_tag}' -> '{right_tag}'"
         exception_text = str(exception).replace("\n", " ")
-        self._funnel(
+        self._log(
             "WARNING",
             f"Put into Edge({edge}): ({type(exception).__name__}){exception_text}.",
         )
@@ -290,98 +289,96 @@ class LogInlet(BaseInlet):
         self, item_type: str, item_id: int, left_tag: str, right_tag: str
     ) -> None:
         edge = f"'{left_tag}' -> '{right_tag}'"
-        self._funnel("TRACE", f"Get {item_type}#{item_id} from Edge({edge}).")
+        self._log("TRACE", f"Get {item_type}#{item_id} from Edge({edge}).")
 
     def get_item_error(
         self, left_tag: str, right_tag: str, exception: Exception
     ) -> None:
         edge = f"'{left_tag}' -> '{right_tag}'"
         exception_text = str(exception).replace("\n", " ")
-        self._funnel(
+        self._log(
             "WARNING",
             f"Get from Edge({edge}): ({type(exception).__name__}){exception_text}.",
         )
 
     # ==== reporter ====
     def stop_reporter(self) -> None:
-        self._funnel("DEBUG", "[Reporter] Stopped.")
+        self._log("DEBUG", "[Reporter] Stopped.")
 
     def loop_failed(self, exception: Exception) -> None:
-        self._funnel(
+        self._log(
             "ERROR",
             f"[Reporter] Loop error: {type(exception).__name__}({exception}).",
         )
 
     def pull_interval_failed(self, exception: Exception) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"[Reporter] Pull 'interval' failed: {type(exception).__name__}({exception}).",
         )
 
     def pull_history_limit_failed(self, exception: Exception) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"[Reporter] Pull 'history limit' failed: {type(exception).__name__}({exception}).",
         )
 
     def pull_tasks_failed(self, exception: Exception) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"[Reporter] Pull 'task injection' failed: {type(exception).__name__}({exception}).",
         )
 
     def inject_tasks_success(self, target_node: str, task_datas) -> None:
-        self._funnel(
-            "INFO", f"[Reporter] Inject tasks {task_datas} into '{target_node}'."
-        )
+        self._log("INFO", f"[Reporter] Inject tasks {task_datas} into '{target_node}'.")
 
     def inject_tasks_failed(
         self, target_node: str, task_datas, exception: Exception
     ) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"[Reporter] Inject tasks {task_datas} into '{target_node}' failed. "
             f"Error: {type(exception).__name__}({exception}).",
         )
 
     def push_errors_failed(self, exception: Exception) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"[Reporter] Push 'error' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_status_failed(self, exception: Exception) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"[Reporter] Push 'status' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_structure_failed(self, exception: Exception) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"[Reporter] Push 'structure' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_topology_failed(self, exception: Exception) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"[Reporter] Push 'topology' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_summary_failed(self, exception: Exception) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"[Reporter] Push 'summary' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_analysis_failed(self, exception: Exception) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"[Reporter] Push 'analysis' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_history_failed(self, exception: Exception) -> None:
-        self._funnel(
+        self._log(
             "WARNING",
             f"[Reporter] Push 'history' failed: {type(exception).__name__}({exception}).",
         )

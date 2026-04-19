@@ -3,9 +3,9 @@ import multiprocessing
 import time
 import warnings
 from collections import defaultdict, deque
+from multiprocessing import Queue as MPQueue
 from pathlib import Path
 from typing import Any
-from multiprocessing import Queue as MPQueue
 
 from celestialtree import (
     Client as CelestialTreeClient,
@@ -20,7 +20,7 @@ from celestialtree import (
 from networkx import is_directed_acyclic_graph
 
 from ..observability import NullTaskReporter, TaskReporter
-from ..persistence import FailSpout, FailInlet, LogSpout, LogInlet
+from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout
 from ..persistence.util_jsonl import load_task_by_error, load_task_by_stage
 from ..runtime import TaskEnvelope, TaskInQueue, TaskOutQueue
 from ..runtime.util_errors import UnconsumedError
@@ -379,7 +379,7 @@ class TaskGraph:
         :param init_tasks_dict: 任务列表
         :param put_termination_signal: 是否注入终止信号
         """
-        if self.isDAG == False and put_termination_signal == True:
+        if not self.isDAG and put_termination_signal:
             warnings.warn(
                 "Early injection of termination signals in a non-DAG graph may cause "
                 "some nodes (including root nodes) to shut down as soon as their current "
@@ -389,9 +389,9 @@ class TaskGraph:
                 "appropriate time.",
                 RuntimeWarning,
             )
+        start_time = time.perf_counter()
 
         try:
-            start_time = time.perf_counter()
             self.fail_spout.start()
             self.log_spout.start()
             self.log_inlet.start_graph(self.get_structure_list())
