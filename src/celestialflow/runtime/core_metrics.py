@@ -103,16 +103,6 @@ class TaskMetrics:
         if self.enable_duplicate_check:
             self.processed_set.add(task_hash)
 
-    def discard_processed_set(self, task_hash: str) -> None:
-        """
-        从已处理集合中移除任务
-        用于在任务处理完成后，从去重集合中移除已处理任务。
-
-        :param task_hash: 任务的哈希值
-        """
-        if self.enable_duplicate_check:
-            self.processed_set.discard(task_hash)
-
     # retry
     def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
         """

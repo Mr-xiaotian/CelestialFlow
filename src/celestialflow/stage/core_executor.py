@@ -599,8 +599,7 @@ class TaskExecutor:
         :param retry_time: 当前重试次数
         :return: 更新后的任务信封
         """
-        _, task_hash, task_id = task_envelope.unwrap()
-        self.metrics.discard_processed_set(task_hash)
+        _, _, task_id = task_envelope.unwrap()
 
         retry_id = self.ctree_client.emit(
             f"task.retry.{retry_time}",
