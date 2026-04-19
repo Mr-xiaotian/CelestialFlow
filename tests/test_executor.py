@@ -33,6 +33,7 @@ def test_fibonacci_thread():
 
     executor.start(test_task_1)
 
+
 @pytest.mark.asyncio
 async def test_fibonacci_async():
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from concurrent.futures import ThreadPoolExecutor, wait
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from .core_envelope import TaskEnvelope
@@ -148,7 +148,6 @@ class TaskDispatch:
 
             self._worker(envelope)
 
-        task_queues.reset()
         result_queues.put(termination_signal)
 
     def run_in_thread(self) -> None:
@@ -177,8 +176,6 @@ class TaskDispatch:
         # 等待当前批次的所有任务完成
         for future in futures:
             future.result()
-
-        task_queues.reset()
         result_queues.put(termination_signal)
 
         self._release_pool()
@@ -217,7 +214,4 @@ class TaskDispatch:
             async_tasks.append(sem_worker(envelope))
 
         await asyncio.gather(*async_tasks)
-
-        task_queues.reset()
-
         await result_queues.put_async(termination_signal)

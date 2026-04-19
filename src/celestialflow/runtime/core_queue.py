@@ -44,8 +44,6 @@ class TaskInQueue:
             t = "task"
         elif isinstance(item, TerminationSignal):
             t = "termination"
-        else:
-            raise ValueError(f"unexpected item type: {type(item)}")
         self.log_inlet.put_item(t, item.id, item.source, self.out_tag)
 
     def _log_get(self, item: TaskEnvelope | TerminationSignal) -> None:
@@ -71,12 +69,6 @@ class TaskInQueue:
             raise ValueError(f"duplicate queue tag: {tag}")
         self.queue_tags.append(tag)
 
-    def reset(self) -> None:
-        """
-        重置任务入队状态
-        """
-        self.termination_dict = {}
-
     def _record_termination(self, signal: TerminationSignal) -> None:
         """
         记录入队标签的终止信号
@@ -85,7 +77,7 @@ class TaskInQueue:
         """
         source = signal.source
 
-        valid_sources = set(self.queue_tags) | {"input", self.out_tag}
+        valid_sources = set(self.queue_tags) | {"input"}
         if source not in valid_sources:
             raise ValueError(f"unknown queue tag: {source}")
 
@@ -184,15 +176,15 @@ class TaskInQueue:
         if isinstance(item, TerminationSignal):
             self._record_termination(item)
             if "input" in self.termination_dict:
+                # 外部终止符注入, 直接退出
                 return TerminationIdPool(ids=[self.termination_dict["input"]])
-            elif self.out_tag in self.termination_dict:
-                return TerminationIdPool(ids=[self.termination_dict[self.out_tag]])
+
             elif self._can_merge_termination():
+                # 所有上游终止，合并终止信号
                 return self._merge_termination()
+
             # 信号已记录但尚未集齐所有上游，继续等待
             return None
-
-        raise ValueError(f"unexpected item type: {type(item)}")
 
     def drain(self) -> list[TaskEnvelope]:
         """
@@ -256,8 +248,6 @@ class TaskOutQueue:
             t = "task"
         elif isinstance(item, TerminationSignal):
             t = "termination"
-        else:
-            raise ValueError(f"unexpected item type: {type(item)}")
         self.log_inlet.put_item(t, item.id, self.in_tag, str(self.queue_tags[idx]))
 
     def add_queue(self, queue: Any, tag: str) -> None:
