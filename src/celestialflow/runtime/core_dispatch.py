@@ -62,7 +62,7 @@ class TaskDispatch:
         )
         return signal
 
-    def _check_and_mark_task(self, task_envelope: TaskEnvelope) -> bool:
+    def _check_and_mark_duplicate_task(self, task_envelope: TaskEnvelope) -> bool:
         """
         在进入 worker 前完成去重检查
 
@@ -138,26 +138,18 @@ class TaskDispatch:
         result_queues = self.task_executor.result_queues
 
         while True:
-            while True:
-                envelope = task_queues.get()
-                if isinstance(envelope, TerminationIdPool):
-                    termination_signal = self._process_termination_signal(envelope)
-                    break
-                if self._check_and_mark_task(envelope):
-                    continue
+            envelope = task_queues.get()
+            if isinstance(envelope, TerminationIdPool):
+                termination_signal = self._process_termination_signal(envelope)
+                break
 
-                self._worker(envelope)
+            if self._check_and_mark_duplicate_task(envelope):
+                continue
 
-            task_queues.reset()
+            self._worker(envelope)
 
-            if self.task_executor.metrics.is_tasks_finished():
-                result_queues.put(termination_signal)
-                return
-
-            self.task_executor.log_inlet._funnel(
-                "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
-            )
-            task_queues.put(termination_signal)
+        task_queues.reset()
+        result_queues.put(termination_signal)
 
     def run_in_thread(self) -> None:
         """
@@ -167,35 +159,27 @@ class TaskDispatch:
         task_queues = self.task_executor.task_queues
         result_queues = self.task_executor.result_queues
 
+        futures = []  # 用于存储线程池提交的任务
+
         while True:
-            futures = []  # 用于存储线程池提交的任务
-
-            while True:
-                envelope = task_queues.get()
-                if isinstance(envelope, TerminationIdPool):
-                    termination_signal = self._process_termination_signal(envelope)
-                    break
-                if self._check_and_mark_task(envelope):
-                    continue
-
-                if self._pool is None:
-                    raise RuntimeError("execution pool has not been initialized")
-                futures.append(self._pool.submit(self._worker, envelope))
-
-            # 等待当前批次的所有任务完成
-            for future in futures:
-                future.result()
-
-            task_queues.reset()
-
-            if self.task_executor.metrics.is_tasks_finished():
-                result_queues.put(termination_signal)
+            envelope = task_queues.get()
+            if isinstance(envelope, TerminationIdPool):
+                termination_signal = self._process_termination_signal(envelope)
                 break
 
-            self.task_executor.log_inlet._funnel(
-                "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
-            )
-            task_queues.put(termination_signal)
+            if self._check_and_mark_duplicate_task(envelope):
+                continue
+
+            if self._pool is None:
+                raise RuntimeError("execution pool has not been initialized")
+            futures.append(self._pool.submit(self._worker, envelope))
+
+        # 等待当前批次的所有任务完成
+        for future in futures:
+            future.result()
+
+        task_queues.reset()
+        result_queues.put(termination_signal)
 
         self._release_pool()
 
@@ -214,34 +198,26 @@ class TaskDispatch:
         task_queues = self.task_executor.task_queues
         result_queues = self.task_executor.result_queues
 
+        semaphore = asyncio.Semaphore(self.max_workers)
+
+        async def sem_worker(envelope: TaskEnvelope):
+            async with semaphore:
+                await self._async_worker(envelope)
+
+        async_tasks = []
+
         while True:
-            semaphore = asyncio.Semaphore(self.max_workers)
+            envelope = await task_queues.get_async()
+            if isinstance(envelope, TerminationIdPool):
+                termination_signal = self._process_termination_signal(envelope)
+                break
+            if self._check_and_mark_duplicate_task(envelope):
+                continue
 
-            async def sem_worker(envelope: TaskEnvelope):
-                async with semaphore:
-                    await self._async_worker(envelope)
+            async_tasks.append(sem_worker(envelope))
 
-            async_tasks = []
+        await asyncio.gather(*async_tasks)
 
-            while True:
-                envelope = await task_queues.get_async()
-                if isinstance(envelope, TerminationIdPool):
-                    termination_signal = self._process_termination_signal(envelope)
-                    break
-                if self._check_and_mark_task(envelope):
-                    continue
+        task_queues.reset()
 
-                async_tasks.append(sem_worker(envelope))
-
-            await asyncio.gather(*async_tasks)
-
-            task_queues.reset()
-
-            if self.task_executor.metrics.is_tasks_finished():
-                await result_queues.put_async(termination_signal)
-                return
-
-            self.task_executor.log_inlet._funnel(
-                "DEBUG", f"{self.task_executor.get_func_name()} is not finished."
-            )
-            await task_queues.put_async(termination_signal)
+        await result_queues.put_async(termination_signal)
