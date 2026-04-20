@@ -100,11 +100,7 @@ class TaskGraph:
         :param to_stages: 下游节点列表
         """
         for from_stage in from_stages:
-            for to_stage in to_stages:
-                if to_stage not in from_stage.next_stages:
-                    from_stage.next_stages.append(to_stage)
-                    to_stage.add_prev_stages(from_stage)
-            from_stage._finalize_prev_bindings()
+            from_stage.set_next_stages(to_stages)
 
     def _init_env(self) -> None:
         """

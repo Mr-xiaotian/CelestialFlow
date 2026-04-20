@@ -54,26 +54,20 @@ def test_chain():
 
 def test_forest():
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
-    stageA = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
-    stageB = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
-    stageC = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
-    stageD = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
-    stageE = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageA = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2, stage_mode="process", stage_name="stageA")
+    stageB = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2, stage_mode="process", stage_name="stageB")
+    stageC = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2, stage_mode="process", stage_name="stageC")
+    stageD = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2, stage_mode="process", stage_name="stageD")
+    stageE = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2, stage_mode="process", stage_name="stageE")
 
     # 构建 DAG: F ➝ G ➝ I；F ➝ H ➝ J
-    stageF = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
-    stageG = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
-    stageH = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
-    stageI = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
-    stageJ = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
+    stageF = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2, stage_mode="process", stage_name="stageF")
+    stageG = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2, stage_mode="process", stage_name="stageG")
+    stageH = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2, stage_mode="process", stage_name="stageH")
+    stageI = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2, stage_mode="process", stage_name="stageI")
+    stageJ = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2, stage_mode="process", stage_name="stageJ")
 
     # 设置图结构
-    for s, name in [(stageA, "stageA"), (stageB, "stageB"), (stageC, "stageC"),
-                     (stageD, "stageD"), (stageE, "stageE"), (stageF, "stageF"),
-                     (stageG, "stageG"), (stageH, "stageH"), (stageI, "stageI"),
-                     (stageJ, "stageJ")]:
-        s.set_stage_mode("process")
-        s.set_stage_name(name)
 
     TaskGraph.connect([stageA], [stageC])
     TaskGraph.connect([stageB], [stageD])
