@@ -17,18 +17,37 @@ from .core_executor import TaskExecutor
 class TaskStage(TaskExecutor):
     _name = "Stage"
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.show_progress == True:
-            warnings.warn(
-                "Progress bar display may be unreliable in 'process' stage mode. "
-                "All nodes run in parallel in this mode, and tqdm's process-based "
-                "implementation is not specifically optimized for this scenario, "
-                "potentially causing visual glitches or incorrect progress indicators.",
-                RuntimeWarning,
-            )
+    def __init__(self, 
+        func,
+        execution_mode="serial",
+        max_workers=20,
+        max_retries=1,
+        max_info=50,
+        unpack_task_args=False,
+        enable_success_cache=False,
+        enable_duplicate_check=True,
+        stage_mode="serial",
+        stage_name=None,
+    ):
+        """
+        :param func: 可调用对象
+        :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'
+        :param max_workers: 同时处理数量
+        :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
+        :param max_info: 日志中每条信息的最大长度
+        :param unpack_task_args: 是否将任务参数解包
+        :param enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_pairs 中
+        :param enable_duplicate_check: 是否启用重复检查
+        :param stage_mode: 当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）, 默认 'serial'
+        :param stage_name: 当前节点名称, 默认 None（会自动生成）
+        """
+        super().__init__(
+            func, execution_mode, max_workers, max_retries, max_info, unpack_task_args, enable_success_cache, enable_duplicate_check
+        )
 
-        self.stage_mode = "serial"  # 默认串行
+        self.set_stage_mode(stage_mode)
+        self.set_stage_name(stage_name)
+
         self.next_stages: list[TaskStage] = []
         self.prev_stages: list[TaskStage | NullPrevStage] = []
         self._pending_prev_bindings: list[TaskStage] = []
@@ -53,6 +72,31 @@ class TaskStage(TaskExecutor):
         if not hasattr(self, "_status"):
             self._status = MPValue("i", int(StageStatus.NOT_STARTED))
 
+    def set_stage_mode(self, stage_mode: str | None) -> None:
+        """
+        设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
+
+        :param stage_mode: 当前节点执行模式
+        """
+        if stage_mode == "process":
+            self.stage_mode = "process"
+        elif stage_mode == "serial":
+            self.stage_mode = "serial"
+        else:
+            raise StageModeError(stage_mode)
+
+    def set_stage_name(self, name: str | None = None) -> None:
+        """
+        设置当前节点名称
+
+        :param name: 当前节点名称
+        """
+        self._name = name or f"Stage{id(self)}"
+
+        # name 变了，tag 必须失效
+        if hasattr(self, "_tag"):
+            delattr(self, "_tag")
+
     def _set_func(self, func: Callable):
         """
         设置执行函数
@@ -76,24 +120,6 @@ class TaskStage(TaskExecutor):
         else:
             raise ExecutionModeError(execution_mode, valid_modes)
 
-    def set_graph_context(
-        self,
-        next_stages: list[TaskStage] | None = None,
-        stage_mode: str | None = None,
-        stage_name: str | None = None,
-    ) -> None:
-        """
-        设置链式上下文(仅限组成graph时)
-
-        :param next_stages: 后续节点列表
-        :param stage_mode: 当前节点执行模式, 可以是 'serial'（串行）或 'process'（并行）
-        :param name: 当前节点名称
-        """
-        self.set_next_stages(next_stages)
-        self.set_stage_mode(stage_mode)
-        self.set_stage_name(stage_name)
-        self._finalize_prev_bindings()
-
     def set_next_stages(self, next_stages: list[TaskStage] | None) -> None:
         """
         设置后续节点列表, 并为后续节点添加本节点为前置节点
@@ -103,21 +129,7 @@ class TaskStage(TaskExecutor):
         self.next_stages = next_stages or []
         for next_stage in self.next_stages:
             next_stage.add_prev_stages(self)
-
-    def set_stage_mode(self, stage_mode: str | None) -> None:
-        """
-        设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
-
-        :param stage_mode: 当前节点执行模式
-        """
-        if stage_mode is None:
-            return
-        if stage_mode == "process":
-            self.stage_mode = "process"
-        elif stage_mode == "serial":
-            self.stage_mode = "serial"
-        else:
-            raise StageModeError(stage_mode)
+        self._finalize_prev_bindings()
 
     def add_prev_stages(self, prev_stage: TaskStage | NullPrevStage) -> None:
         """
@@ -140,18 +152,6 @@ class TaskStage(TaskExecutor):
             self._pending_prev_bindings.append(prev_stage)
         else:
             self.metrics.append_task_counter(prev_stage.metrics.success_counter)
-
-    def set_stage_name(self, name: str | None = None) -> None:
-        """
-        设置当前节点名称
-
-        :param name: 当前节点名称
-        """
-        self._name = name or f"Stage{id(self)}"
-
-        # name 变了，tag 必须失效
-        if hasattr(self, "_tag"):
-            delattr(self, "_tag")
 
     def _finalize_prev_bindings(self) -> None:
         """

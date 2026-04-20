@@ -91,6 +91,21 @@ class TaskGraph:
         self._init_env()
         self._set_schedule_mode(schedule_mode)
 
+    @staticmethod
+    def connect(from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
+        """
+        建立超边连接：from_stages 中的每个节点连接到 to_stages 中的每个节点。
+
+        :param from_stages: 上游节点列表
+        :param to_stages: 下游节点列表
+        """
+        for from_stage in from_stages:
+            for to_stage in to_stages:
+                if to_stage not in from_stage.next_stages:
+                    from_stage.next_stages.append(to_stage)
+                    to_stage.add_prev_stages(from_stage)
+            from_stage._finalize_prev_bindings()
+
     def _init_env(self) -> None:
         """
         初始化环境

@@ -68,19 +68,21 @@ def test_forest():
     stageJ = TaskStage(add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 设置图结构
-    stageA.set_graph_context([stageC], stage_mode="process", stage_name="stageA")
-    stageB.set_graph_context([stageD], stage_mode="process", stage_name="stageB")
-    stageC.set_graph_context([stageE], stage_mode="process", stage_name="stageC")
-    stageD.set_graph_context([stageE], stage_mode="process", stage_name="stageD")
-    stageE.set_graph_context(stage_mode="process", stage_name="stageE")
+    for s, name in [(stageA, "stageA"), (stageB, "stageB"), (stageC, "stageC"),
+                     (stageD, "stageD"), (stageE, "stageE"), (stageF, "stageF"),
+                     (stageG, "stageG"), (stageH, "stageH"), (stageI, "stageI"),
+                     (stageJ, "stageJ")]:
+        s.set_stage_mode("process")
+        s.set_stage_name(name)
 
-    stageF.set_graph_context(
-        [stageG, stageH], stage_mode="process", stage_name="stageF"
-    )
-    stageG.set_graph_context([stageI], stage_mode="process", stage_name="stageG")
-    stageH.set_graph_context([stageJ], stage_mode="process", stage_name="stageH")
-    stageI.set_graph_context(stage_mode="process", stage_name="stageI")
-    stageJ.set_graph_context(stage_mode="process", stage_name="stageJ")
+    TaskGraph.connect([stageA], [stageC])
+    TaskGraph.connect([stageB], [stageD])
+    TaskGraph.connect([stageC], [stageE])
+    TaskGraph.connect([stageD], [stageE])
+
+    TaskGraph.connect([stageF], [stageG, stageH])
+    TaskGraph.connect([stageG], [stageI])
+    TaskGraph.connect([stageH], [stageJ])
 
     # 构建 TaskGraph（多根）
     graph = TaskGraph([stageA, stageB, stageF])  # 多根支持

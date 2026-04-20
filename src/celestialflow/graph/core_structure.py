@@ -20,9 +20,10 @@ class TaskChain(TaskGraph):
         :param log_level: 日志级别
         """
         for num, stage in enumerate(stages):
-            stage_name = f"Stage {num + 1}"
-            next_stages = [stages[num + 1]] if num < len(stages) - 1 else []
-            stage.set_graph_context(next_stages, chain_mode, stage_name)
+            stage.set_stage_mode(chain_mode)
+            stage.set_stage_name(f"Stage {num + 1}")
+            if num < len(stages) - 1:
+                TaskGraph.connect([stage], [stages[num + 1]])
 
         root_stage = stages[0]
         super().__init__(
@@ -50,7 +51,7 @@ class TaskCross(TaskGraph):
     ) -> None:
         """
         TaskCross: 多层任务交叉结构
-        该结构将任务按“层”组织，每层可以包含多个并行执行的 TaskStage 节点，
+        该结构将任务按"层"组织，每层可以包含多个并行执行的 TaskStage 节点，
         不同层之间通过依赖关系连接，形成跨层的数据流图。
 
         :param layers:
@@ -59,16 +60,14 @@ class TaskCross(TaskGraph):
         :param schedule_mode: 控制任务图的调度布局模式
         :param log_level: 日志级别
         """
-        for i in range(len(layers)):
-            curr_layer = layers[i]
+        for i, curr_layer in enumerate(layers):
             next_layer = layers[i + 1] if i < len(layers) - 1 else []
-            for index, stage in enumerate(curr_layer[:]):
-                # 非最后一层连接为并行
-                stage.set_graph_context(
-                    next_stages=next_layer,
-                    stage_mode="process",
-                    stage_name=f"Layer{i + 1}-{index + 1}",
-                )
+            for index, stage in enumerate(curr_layer):
+                stage.set_stage_mode("process")
+                stage.set_stage_name(f"Layer{i + 1}-{index + 1}")
+            if next_layer:
+                TaskGraph.connect(curr_layer, next_layer)
+
         super().__init__(
             root_stages=layers[0], schedule_mode=schedule_mode, log_level=log_level
         )
@@ -107,15 +106,16 @@ class TaskGrid(TaskGraph):
         for i in range(rows):
             for j in range(cols):
                 curr = grid[i][j]
-                nexts = []
+                curr.set_stage_mode("process")
+                curr.set_stage_name(f"Grid-{i + 1}-{j + 1}")
                 if i + 1 < rows:
-                    nexts.append(grid[i + 1][j])  # down
+                    TaskGraph.connect([curr], [grid[i + 1][j]])
                 if j + 1 < cols:
-                    nexts.append(grid[i][j + 1])  # right
-                curr.set_graph_context(nexts, "process", f"Grid-{i + 1}-{j + 1}")
+                    TaskGraph.connect([curr], [grid[i][j + 1]])
+
         super().__init__(
             root_stages=[grid[0][0]], schedule_mode=schedule_mode, log_level=log_level
-        )  # 起点为左上角
+        )
 
     def start_grid(
         self, init_tasks_dict: dict, put_termination_signal: bool = True
@@ -140,9 +140,10 @@ class TaskLoop(TaskGraph):
         :param log_level: 日志级别
         """
         for num, stage in enumerate(stages):
-            stage_name = f"Stage {num + 1}"
-            next_stages = [stages[num + 1]] if num < len(stages) - 1 else [stages[0]]
-            stage.set_graph_context(next_stages, "process", stage_name)
+            stage.set_stage_mode("process")
+            stage.set_stage_name(f"Stage {num + 1}")
+            next_stage = stages[num + 1] if num < len(stages) - 1 else stages[0]
+            TaskGraph.connect([stage], [next_stage])
 
         super().__init__(root_stages=[stages[0]], log_level=log_level)
 
@@ -170,12 +171,16 @@ class TaskWheel(TaskGraph):
         :param ring: 环节点
         :param log_level: 日志级别
         """
-        # 中心连向环
-        center.set_graph_context(ring, "process", "Center")
-        # 环相连（成闭环）
+        center.set_stage_mode("process")
+        center.set_stage_name("Center")
+        TaskGraph.connect([center], ring)
+
         for i, node in enumerate(ring):
+            node.set_stage_mode("process")
+            node.set_stage_name(f"Ring-{i + 1}")
             next_stage = ring[(i + 1) % len(ring)]
-            node.set_graph_context([next_stage], "process", f"Ring-{i + 1}")
+            TaskGraph.connect([node], [next_stage])
+
         super().__init__(root_stages=[center], log_level=log_level)
 
     def start_wheel(
@@ -199,12 +204,10 @@ class TaskComplete(TaskGraph):
         :param log_level: 日志级别
         """
         for i, stage in enumerate(stages):
-            next_stages = [s for j, s in enumerate(stages) if i != j]
-            stage.set_graph_context(
-                next_stages=next_stages,
-                stage_mode="process",
-                stage_name=f"Node {i + 1}",
-            )
+            stage.set_stage_mode("process")
+            stage.set_stage_name(f"Node {i + 1}")
+            others = [s for j, s in enumerate(stages) if i != j]
+            TaskGraph.connect([stage], others)
 
         super().__init__(root_stages=stages, log_level=log_level)
 
