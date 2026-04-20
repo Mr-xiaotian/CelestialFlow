@@ -76,30 +76,30 @@ def bench_graph_0():
         execution_mode="thread",
         max_workers=4,
         max_retries=1,
-        show_progress=False,
-        stage_mode="process", stage_name="stage A",
+        stage_mode="process",
+        stage_name="stage A",
     )
     stage2 = TaskStage(
         square,
         execution_mode="thread",
         max_workers=4,
         max_retries=1,
-        show_progress=False,
-        stage_mode="process", stage_name="stage B.1",
+        stage_mode="process",
+        stage_name="stage B.1",
     )
     stage3 = TaskStage(
         sleep_1,
         execution_mode="thread",
         max_workers=4,
-        show_progress=False,
-        stage_mode="process", stage_name="stage B.2",
+        stage_mode="process",
+        stage_name="stage B.2",
     )
     stage4 = TaskStage(
         divide_by_two,
         execution_mode="thread",
         max_workers=4,
-        show_progress=False,
-        stage_mode="process", stage_name="stage C",
+        stage_mode="process",
+        stage_name="stage C",
     )
 
     TaskGraph.connect([stage1], [stage2, stage3])
@@ -126,12 +126,48 @@ def bench_graph_0():
 
 
 def bench_graph_1():
-    A = TaskStage(func=sleep_random_A, execution_mode="thread", max_workers=5, stage_mode="process", stage_name="Stage_A")
-    B = TaskStage(func=sleep_random_B, execution_mode="serial", max_workers=5, stage_mode="process", stage_name="Stage_B")
-    C = TaskStage(func=sleep_random_C, execution_mode="serial", max_workers=5, stage_mode="process", stage_name="Stage_C")
-    D = TaskStage(func=sleep_random_D, execution_mode="thread", max_workers=5, stage_mode="process", stage_name="Stage_D")
-    E = TaskStage(func=sleep_random_E, execution_mode="thread", max_workers=5, stage_mode="process", stage_name="Stage_E")
-    F = TaskStage(func=sleep_random_F, execution_mode="serial", max_workers=5, stage_mode="process", stage_name="Stage_F")
+    A = TaskStage(
+        func=sleep_random_A,
+        execution_mode="thread",
+        max_workers=5,
+        stage_mode="process",
+        stage_name="Stage_A",
+    )
+    B = TaskStage(
+        func=sleep_random_B,
+        execution_mode="serial",
+        max_workers=5,
+        stage_mode="process",
+        stage_name="Stage_B",
+    )
+    C = TaskStage(
+        func=sleep_random_C,
+        execution_mode="serial",
+        max_workers=5,
+        stage_mode="process",
+        stage_name="Stage_C",
+    )
+    D = TaskStage(
+        func=sleep_random_D,
+        execution_mode="thread",
+        max_workers=5,
+        stage_mode="process",
+        stage_name="Stage_D",
+    )
+    E = TaskStage(
+        func=sleep_random_E,
+        execution_mode="thread",
+        max_workers=5,
+        stage_mode="process",
+        stage_name="Stage_E",
+    )
+    F = TaskStage(
+        func=sleep_random_F,
+        execution_mode="serial",
+        max_workers=5,
+        stage_mode="process",
+        stage_name="Stage_F",
+    )
 
     TaskGraph.connect([A], [B, C])
     TaskGraph.connect([B], [D, E])

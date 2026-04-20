@@ -2,7 +2,6 @@ import logging
 import os
 import random
 
-import dill
 import pytest
 from test_utils import (
     RouterWrapper,
@@ -54,23 +53,36 @@ class DownloadStage(TaskStage):
 def test_splitter_0():
     # 定义任务节点
     generate_stage = TaskStage(
-        func=generate_urls_sleep, execution_mode="thread", max_workers=4,
-        stage_mode="process", stage_name="GenURLs",
+        func=generate_urls_sleep,
+        execution_mode="thread",
+        max_workers=4,
+        stage_mode="process",
+        stage_name="GenURLs",
     )
     logger_stage = TaskStage(
-        func=log_urls_sleep, execution_mode="thread", max_workers=4,
-        stage_mode="process", stage_name="Logger",
+        func=log_urls_sleep,
+        execution_mode="thread",
+        max_workers=4,
+        stage_mode="process",
+        stage_name="Logger",
     )
     splitter = TaskSplitter(
-        stage_mode="process", stage_name="Splitter",
+        stage_mode="process",
+        stage_name="Splitter",
     )
     download_stage = TaskStage(
-        func=download_sleep, execution_mode="thread", max_workers=4,
-        stage_mode="process", stage_name="Downloader",
+        func=download_sleep,
+        execution_mode="thread",
+        max_workers=4,
+        stage_mode="process",
+        stage_name="Downloader",
     )
     parse_stage = TaskStage(
-        func=parse_sleep, execution_mode="thread", max_workers=4,
-        stage_mode="process", stage_name="Parser",
+        func=parse_sleep,
+        execution_mode="thread",
+        max_workers=4,
+        stage_mode="process",
+        stage_name="Parser",
     )
 
     # 设置连接关系
@@ -117,20 +129,31 @@ def test_splitter_1():
 
 def test_redis_ack_0():
     start_stage = TaskStage(
-        sleep_1, execution_mode="thread", max_workers=4,
-        stage_mode="serial", stage_name="Start",
+        sleep_1,
+        execution_mode="thread",
+        max_workers=4,
+        stage_mode="serial",
+        stage_name="Start",
     )
     redis_tranport = TaskRedisTransport(
-        key="testFibonacci:input", host=redis_host, password=redis_password,
-        stage_mode="process", stage_name="RedisTransport",
+        key="testFibonacci:input",
+        host=redis_host,
+        password=redis_password,
+        stage_mode="process",
+        stage_name="RedisTransport",
     )
     redis_ack = TaskRedisAck(
-        key="testFibonacci:output", host=redis_host, password=redis_password,
-        stage_mode="process", stage_name="RedisAck",
+        key="testFibonacci:output",
+        host=redis_host,
+        password=redis_password,
+        stage_mode="process",
+        stage_name="RedisAck",
     )
     fibonacci_stage = TaskStage(
-        fibonacci, "thread",
-        stage_mode="process", stage_name="Fibonacci",
+        fibonacci,
+        "thread",
+        stage_mode="process",
+        stage_name="Fibonacci",
     )
 
     TaskGraph.connect([start_stage], [redis_tranport, fibonacci_stage])
@@ -152,23 +175,34 @@ def test_redis_ack_0():
 
 def test_redis_ack_1():
     start_stage = TaskStage(
-        sleep_1, execution_mode="thread", max_workers=4,
-        stage_mode="serial", stage_name="Start",
+        sleep_1,
+        execution_mode="thread",
+        max_workers=4,
+        stage_mode="serial",
+        stage_name="Start",
     )
     redis_tranport = TaskRedisTransport(
         key="testSum:input",
         host=redis_host,
         password=redis_password,
         unpack_task_args=True,
-        stage_mode="process", stage_name="RedisTransport",
+        stage_mode="process",
+        stage_name="RedisTransport",
     )
     redis_ack = TaskRedisAck(
-        key="testSum:output", host=redis_host, password=redis_password,
-        stage_mode="process", stage_name="RedisAck",
+        key="testSum:output",
+        host=redis_host,
+        password=redis_password,
+        stage_mode="process",
+        stage_name="RedisAck",
     )
     sum_stage = TaskStage(
-        sum_int, execution_mode="thread", max_workers=4, unpack_task_args=True,
-        stage_mode="process", stage_name="Sum",
+        sum_int,
+        execution_mode="thread",
+        max_workers=4,
+        unpack_task_args=True,
+        stage_mode="process",
+        stage_name="Sum",
     )
 
     TaskGraph.connect([start_stage], [redis_tranport, sum_stage])
@@ -189,23 +223,33 @@ def test_redis_ack_1():
 
 def test_redis_ack_2():
     start_stage = TaskStage(
-        sleep_1, execution_mode="thread", max_workers=4,
-        stage_mode="serial", stage_name="Start",
+        sleep_1,
+        execution_mode="thread",
+        max_workers=4,
+        stage_mode="serial",
+        stage_name="Start",
     )
     redis_tranport = DownloadRedisTransport(
         key="testDownload:input",
         host=redis_host,
         password=redis_password,
         unpack_task_args=True,
-        stage_mode="process", stage_name="RedisTransport",
+        stage_mode="process",
+        stage_name="RedisTransport",
     )
     redis_ack = TaskRedisAck(
-        key="testDownload:output", host=redis_host, password=redis_password,
-        stage_mode="process", stage_name="RedisAck",
+        key="testDownload:output",
+        host=redis_host,
+        password=redis_password,
+        stage_mode="process",
+        stage_name="RedisAck",
     )
     download_stage = DownloadStage(
-        download_to_file, execution_mode="thread", max_workers=4,
-        stage_mode="process", stage_name="Download",
+        download_to_file,
+        execution_mode="thread",
+        max_workers=4,
+        stage_mode="process",
+        stage_name="Download",
     )
 
     TaskGraph.connect([start_stage], [redis_tranport, download_stage])
@@ -230,20 +274,30 @@ def test_redis_ack_2():
 
 def test_redis_source_0():
     sleep_stage_0 = TaskStage(
-        sleep_1, execution_mode="serial",
-        stage_mode="process", stage_name="Sleep0",
+        sleep_1,
+        execution_mode="serial",
+        stage_mode="process",
+        stage_name="Sleep0",
     )
     redis_tranport = TaskRedisTransport(
-        "test_redis", host=redis_host, password=redis_password,
-        stage_mode="process", stage_name="RedisTransport",
+        "test_redis",
+        host=redis_host,
+        password=redis_password,
+        stage_mode="process",
+        stage_name="RedisTransport",
     )
     redis_source = TaskRedisSource(
-        "test_redis", host=redis_host, password=redis_password,
-        stage_mode="process", stage_name="RedisSource",
+        "test_redis",
+        host=redis_host,
+        password=redis_password,
+        stage_mode="process",
+        stage_name="RedisSource",
     )
     sleep_stage_1 = TaskStage(
-        sleep_1, execution_mode="serial",
-        stage_mode="process", stage_name="Sleep1",
+        sleep_1,
+        execution_mode="serial",
+        stage_mode="process",
+        stage_name="Sleep1",
     )
 
     TaskGraph.connect([sleep_stage_0], [redis_tranport])
@@ -265,15 +319,22 @@ def test_redis_source_0():
 
 def test_router_0():
     router = TaskRouter(
-        stage_mode="serial", stage_name="Router",
+        stage_mode="serial",
+        stage_name="Router",
     )
     stage_a = TaskStage(
-        func=sleep_1, execution_mode="thread", max_workers=2,
-        stage_mode="process", stage_name="Stage A",
+        func=sleep_1,
+        execution_mode="thread",
+        max_workers=2,
+        stage_mode="process",
+        stage_name="Stage A",
     )
     stage_b = TaskStage(
-        func=sleep_1, execution_mode="thread", max_workers=2,
-        stage_mode="process", stage_name="Stage B",
+        func=sleep_1,
+        execution_mode="thread",
+        max_workers=2,
+        stage_mode="process",
+        stage_name="Stage B",
     )
 
     TaskGraph.connect([router], [stage_a, stage_b])
@@ -282,8 +343,11 @@ def test_router_0():
     b_tag = stage_b.get_tag()
 
     source_stage = TaskStage(
-        RouterWrapper(a_tag, b_tag), execution_mode="thread", max_workers=4,
-        stage_mode="serial", stage_name="Origin",
+        RouterWrapper(a_tag, b_tag),
+        execution_mode="thread",
+        max_workers=4,
+        stage_mode="serial",
+        stage_name="Origin",
     )
 
     TaskGraph.connect([source_stage], [router])

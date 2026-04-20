@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import time
-import warnings
 from collections.abc import Callable
 from multiprocessing import Queue as MPQueue
 from multiprocessing import Value as MPValue
@@ -17,7 +16,8 @@ from .core_executor import TaskExecutor
 class TaskStage(TaskExecutor):
     _name = "Stage"
 
-    def __init__(self, 
+    def __init__(
+        self,
         func,
         execution_mode="serial",
         max_workers=20,
@@ -42,7 +42,14 @@ class TaskStage(TaskExecutor):
         :param stage_name: 当前节点名称, 默认 None（会自动生成）
         """
         super().__init__(
-            func, execution_mode, max_workers, max_retries, max_info, unpack_task_args, enable_success_cache, enable_duplicate_check
+            func,
+            execution_mode,
+            max_workers,
+            max_retries,
+            max_info,
+            unpack_task_args,
+            enable_success_cache,
+            enable_duplicate_check,
         )
 
         self.set_stage_mode(stage_mode)
