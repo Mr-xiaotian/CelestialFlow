@@ -239,29 +239,9 @@ stage_save = TaskStage(
 from celestialflow import TaskGraph
 
 # 设置节点间的连接关系
-stage_search.set_graph_context(
-    next_stages=[stage_parse],
-    stage_mode="process",
-    stage_name="搜索页面"
-)
-
-stage_parse.set_graph_context(
-    next_stages=[stage_download],
-    stage_mode="process",
-    stage_name="解析图片"
-)
-
-stage_download.set_graph_context(
-    next_stages=[stage_save],
-    stage_mode="process",
-    stage_name="下载图片"
-)
-
-stage_save.set_graph_context(
-    next_stages=[],
-    stage_mode="process",
-    stage_name="存储文件"
-)
+TaskGraph.connect([stage_search], [stage_parse])
+TaskGraph.connect([stage_parse], [stage_download])
+TaskGraph.connect([stage_download], [stage_save])
 
 # 创建任务图
 graph = TaskGraph(
@@ -403,10 +383,9 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     )
     
     # 设置连接
-    stage_search.set_graph_context([stage_parse], "process", "搜索页面")
-    stage_parse.set_graph_context([stage_download], "process", "解析图片")
-    stage_download.set_graph_context([stage_save], "process", "下载图片")
-    stage_save.set_graph_context([], "process", "存储文件")
+    TaskGraph.connect([stage_search], [stage_parse])
+    TaskGraph.connect([stage_parse], [stage_download])
+    TaskGraph.connect([stage_download], [stage_save])
     
     return TaskGraph([stage_search], schedule_mode="eager", log_level="SUCCESS")
 

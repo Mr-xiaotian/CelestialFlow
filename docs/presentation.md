@@ -160,14 +160,14 @@ classDiagram
         +prev_stages: list
         +stage_mode: str
         +_status: MPValue
-        +set_graph_context()
         +start_stage()
     }
 ```
 
 - **TaskExecutor**：任务执行核心，管理重试、去重、缓存、并发策略
 - **TaskStage**：图节点，携带上下游连接信息和进程级状态
-- **`set_graph_context()`** 绑定图上下文（下游节点、执行模式、名称）
+- **`TaskGraph.connect()`** 建立节点间的连接关系（上下游依赖）
+- **`stage_mode`/`stage_name`** 通过 `TaskStage.__init__()` 构造参数传入
 
 ---
 
@@ -584,11 +584,10 @@ extract_article = TaskStage(extract_article, execution_mode="thread", worker_lim
 extract_image   = TaskStage(extract_image, execution_mode="thread", worker_limit=10)
 store    = TaskStage(save_to_db, execution_mode="serial")
 
-discover.set_graph_context(next_stages=[download])
-download.set_graph_context(next_stages=[router])
-router.set_graph_context(next_stages=[extract_article, extract_image])
-extract_article.set_graph_context(next_stages=[store])
-extract_image.set_graph_context(next_stages=[store])
+TaskGraph.connect([discover], [download])
+TaskGraph.connect([download], [router])
+TaskGraph.connect([router], [extract_article, extract_image])
+TaskGraph.connect([extract_article, extract_image], [store])
 
 graph = TaskGraph(root_stages=[discover], schedule_mode="eager")
 graph.start_graph({"discover": [seed_urls]})

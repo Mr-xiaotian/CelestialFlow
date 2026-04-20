@@ -127,9 +127,11 @@ if __name__ == "__main__":
     stage2 = TaskStage(square, execution_mode="thread")
 
     # 构建任务图结构
-    stage1.set_graph_context([stage2], stage_mode="process", stage_name="Adder")
-    stage2.set_graph_context([], stage_mode="process", stage_name="Squarer")
+    stage1 = TaskStage(add, execution_mode="thread", unpack_task_args=True, stage_mode="process", stage_name="Adder")
+    stage2 = TaskStage(square, execution_mode="thread", stage_mode="process", stage_name="Squarer")
+
     graph = TaskGraph([stage1])
+    TaskGraph.connect([stage1], [stage2])
 
     # 初始化任务并启动
     graph.start_graph({stage1.get_tag(): [(1, 2), (3, 4), (5, 6)]})

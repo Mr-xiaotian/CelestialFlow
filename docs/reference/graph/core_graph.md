@@ -246,14 +246,12 @@ graph.put_stage_queue({
 from celestialflow import TaskStage, TaskGraph
 
 # 创建节点
-stage_a = TaskStage(func=process_a, execution_mode="thread")
-stage_b = TaskStage(func=process_b, execution_mode="serial")
-stage_c = TaskStage(func=process_c, execution_mode="serial")
+stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", stage_name="A")
+stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", stage_name="B")
+stage_c = TaskStage(func=process_c, execution_mode="serial", stage_mode="process", stage_name="C")
 
 # 构建图
-stage_a.set_graph_context([stage_b, stage_c], stage_mode="process", stage_name="A")
-stage_b.set_graph_context([], stage_mode="process", stage_name="B")
-stage_c.set_graph_context([], stage_mode="process", stage_name="C")
+TaskGraph.connect([stage_a], [stage_b, stage_c])
 
 # 创建图并配置
 graph = TaskGraph([stage_a], schedule_mode="eager", log_level="INFO")

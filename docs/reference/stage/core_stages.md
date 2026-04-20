@@ -125,7 +125,7 @@ def route_logic(data):
 router = TaskRouter()
 
 # 连接下游（target 必须与路由逻辑中的 tag 匹配）
-router.set_graph_context([pos_stage, neg_stage], stage_mode="process", stage_name="Router")
+TaskGraph.connect([router], [pos_stage, neg_stage])
 ```
 
 ### 特性

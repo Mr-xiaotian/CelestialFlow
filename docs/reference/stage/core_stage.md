@@ -29,43 +29,31 @@ class TaskStage(TaskExecutor):
 
 ## 图构建方法
 
-### set_graph_context
+### TaskGraph.connect
 
-设置节点在图中的上下文信息。
+通过 `TaskGraph.connect(from_stages, to_stages)` 建立节点间的连接关系。`stage_mode` 和 `stage_name` 通过 `TaskStage.__init__()` 的构造参数传入。
 
 ```python
-def set_graph_context(
-    self,
-    next_stages: List[TaskStage] = None,
-    stage_mode: str = None,
-    stage_name: str = None,
+@staticmethod
+def connect(
+    from_stages: list[TaskStage],
+    to_stages: list[TaskStage],
 ):
     """
-    设置链式上下文（仅限组成 graph 时）
+    连接上游节点与下游节点。
 
-    :param next_stages: 后续节点列表
-    :param stage_mode: 当前节点执行模式，可以是 'serial'（串行）或 'process'（并行）
-    :param stage_name: 当前节点名称
+    :param from_stages: 上游节点列表
+    :param to_stages: 下游节点列表
     """
 ```
 
 示例：
 ```python
-stage_a = TaskStage(func=process_a, execution_mode="thread")
-stage_b = TaskStage(func=process_b, execution_mode="serial")
+stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", stage_name="StageA")
+stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", stage_name="StageB")
 
 # 连接节点
-stage_a.set_graph_context(
-    next_stages=[stage_b],
-    stage_mode="process",  # 在独立进程中运行
-    stage_name="StageA"
-)
-
-stage_b.set_graph_context(
-    next_stages=[],
-    stage_mode="process",
-    stage_name="StageB"
-)
+TaskGraph.connect([stage_a], [stage_b])
 ```
 
 ### 连接管理

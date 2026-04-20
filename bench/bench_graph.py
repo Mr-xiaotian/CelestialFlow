@@ -77,6 +77,7 @@ def bench_graph_0():
         max_workers=4,
         max_retries=1,
         show_progress=False,
+        stage_mode="process", stage_name="stage A",
     )
     stage2 = TaskStage(
         square,
@@ -84,24 +85,25 @@ def bench_graph_0():
         max_workers=4,
         max_retries=1,
         show_progress=False,
+        stage_mode="process", stage_name="stage B.1",
     )
     stage3 = TaskStage(
         sleep_1,
         execution_mode="thread",
         max_workers=4,
         show_progress=False,
+        stage_mode="process", stage_name="stage B.2",
     )
     stage4 = TaskStage(
         divide_by_two,
         execution_mode="thread",
         max_workers=4,
         show_progress=False,
+        stage_mode="process", stage_name="stage C",
     )
 
-    stage1.set_graph_context([stage2, stage3], "process", stage_name="stage A")
-    stage2.set_graph_context([stage4], "process", stage_name="stage B.1")
-    stage3.set_graph_context([], "process", stage_name="stage B.2")
-    stage4.set_graph_context([], "process", stage_name="stage C")
+    TaskGraph.connect([stage1], [stage2, stage3])
+    TaskGraph.connect([stage2], [stage4])
 
     stage1.add_retry_exceptions(ValueError)
     stage2.add_retry_exceptions(ValueError)
@@ -124,19 +126,17 @@ def bench_graph_0():
 
 
 def bench_graph_1():
-    A = TaskStage(func=sleep_random_A, execution_mode="thread", max_workers=5)
-    B = TaskStage(func=sleep_random_B, execution_mode="serial", max_workers=5)
-    C = TaskStage(func=sleep_random_C, execution_mode="serial", max_workers=5)
-    D = TaskStage(func=sleep_random_D, execution_mode="thread", max_workers=5)
-    E = TaskStage(func=sleep_random_E, execution_mode="thread", max_workers=5)
-    F = TaskStage(func=sleep_random_F, execution_mode="serial", max_workers=5)
+    A = TaskStage(func=sleep_random_A, execution_mode="thread", max_workers=5, stage_mode="process", stage_name="Stage_A")
+    B = TaskStage(func=sleep_random_B, execution_mode="serial", max_workers=5, stage_mode="process", stage_name="Stage_B")
+    C = TaskStage(func=sleep_random_C, execution_mode="serial", max_workers=5, stage_mode="process", stage_name="Stage_C")
+    D = TaskStage(func=sleep_random_D, execution_mode="thread", max_workers=5, stage_mode="process", stage_name="Stage_D")
+    E = TaskStage(func=sleep_random_E, execution_mode="thread", max_workers=5, stage_mode="process", stage_name="Stage_E")
+    F = TaskStage(func=sleep_random_F, execution_mode="serial", max_workers=5, stage_mode="process", stage_name="Stage_F")
 
-    A.set_graph_context(next_stages=[B, C], stage_mode="process", stage_name="Stage_A")
-    B.set_graph_context(next_stages=[D, E], stage_mode="process", stage_name="Stage_B")
-    C.set_graph_context(next_stages=[E], stage_mode="process", stage_name="Stage_C")
-    D.set_graph_context(next_stages=[F], stage_mode="process", stage_name="Stage_D")
-    E.set_graph_context(next_stages=[], stage_mode="process", stage_name="Stage_E")
-    F.set_graph_context(next_stages=[], stage_mode="process", stage_name="Stage_F")
+    TaskGraph.connect([A], [B, C])
+    TaskGraph.connect([B], [D, E])
+    TaskGraph.connect([C], [E])
+    TaskGraph.connect([D], [F])
 
     graph = TaskGraph([A])
     graph.set_reporter(True, host=report_host, port=report_port)
