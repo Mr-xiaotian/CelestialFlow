@@ -30,7 +30,6 @@ from ..runtime.util_estimators import (
     calc_remaining,
 )
 from ..runtime.util_types import (
-    NULL_PREV_STAGE,
     STAGE_STYLE,
     StageStatus,
     TerminationSignal,
@@ -112,9 +111,6 @@ class TaskGraph:
                 self.out_edges[from_stage.get_tag()].append(to_stage.get_tag())
                 self.in_edges[to_stage.get_tag()].append(from_stage.get_tag())
 
-        for to_stage in to_stages:
-            to_stage.prev_bindings(from_stages)
-
     def _init_env(self) -> None:
         """
         初始化环境
@@ -183,18 +179,23 @@ class TaskGraph:
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
             current_stage: TaskStage = stage_runtime["stage"]
             in_queue: TaskInQueue = stage_runtime["in_queue"]
+            prev_stages: list[TaskStage] = []
+
+            if not self.in_edges[stage_tag]:  # 如果没有前驱
+                continue
 
             # 遍历每个前驱，创建边队列
             for prev_stage_tag in self.in_edges[stage_tag]:
                 prev_stage = self.stage_runtime_dict[prev_stage_tag]["stage"]
                 in_queue.add_source_tag(prev_stage_tag)
 
-                # source side
-                if prev_stage != NULL_PREV_STAGE:
-                    prev_out_queue: TaskOutQueue = self.stage_runtime_dict[
-                        prev_stage_tag
-                    ]["out_queue"]
-                    prev_out_queue.add_queue(in_queue.queue, stage_tag)
+                prev_out_queue: TaskOutQueue = self.stage_runtime_dict[
+                    prev_stage_tag
+                ]["out_queue"]
+                prev_out_queue.add_queue(in_queue.queue, stage_tag)
+                prev_stages.append(prev_stage)
+        
+            current_stage.prev_bindings(prev_stages)
 
     def _init_analysis(self) -> None:
         """
@@ -380,9 +381,6 @@ class TaskGraph:
         :param init_tasks_dict: 任务列表
         :param put_termination_signal: 是否注入终止信号
         """
-        for stage in self.root_stages:
-            if not self.in_edges[stage.get_tag()]:  # 如果没有前驱
-                self.in_edges[stage.get_tag()] = [NULL_PREV_STAGE]
         self._init_resources()
         self._init_analysis()
 
