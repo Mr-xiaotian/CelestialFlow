@@ -85,13 +85,16 @@ def test_splitter_0():
         stage_name="Parser",
     )
 
-    # 设置连接关系
-    TaskGraph.connect([generate_stage], [logger_stage, splitter])
-    TaskGraph.connect([splitter], [download_stage, parse_stage])
-    TaskGraph.connect([parse_stage], [generate_stage])
-
     # 初始化 TaskGraph
-    graph = TaskGraph([generate_stage], log_level="INFO")
+    graph = TaskGraph(log_level="INFO")
+    graph.set_stages(
+        root_stages=[generate_stage],
+        stages=[generate_stage, logger_stage, splitter, download_stage, parse_stage],
+    )
+    graph.connect([generate_stage], [logger_stage, splitter])
+    graph.connect([splitter], [download_stage, parse_stage])
+    graph.connect([parse_stage], [generate_stage])
+
     graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_ctree(
         True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port
@@ -156,10 +159,14 @@ def test_redis_ack_0():
         stage_name="Fibonacci",
     )
 
-    TaskGraph.connect([start_stage], [redis_tranport, fibonacci_stage])
-    TaskGraph.connect([redis_tranport], [redis_ack])
+    graph = TaskGraph()
+    graph.set_stages(
+        root_stages=[start_stage],
+        stages=[start_stage, redis_tranport, redis_ack, fibonacci_stage],
+    )
+    graph.connect([start_stage], [redis_tranport, fibonacci_stage])
+    graph.connect([redis_tranport], [redis_ack])
 
-    graph = TaskGraph([start_stage])
     graph.set_reporter(True, host=report_host, port=report_port)
 
     # 要测试的任务列表
@@ -205,10 +212,14 @@ def test_redis_ack_1():
         stage_name="Sum",
     )
 
-    TaskGraph.connect([start_stage], [redis_tranport, sum_stage])
-    TaskGraph.connect([redis_tranport], [redis_ack])
+    graph = TaskGraph()
+    graph.set_stages(
+        root_stages=[start_stage],
+        stages=[start_stage, redis_tranport, redis_ack, sum_stage],
+    )
+    graph.connect([start_stage], [redis_tranport, sum_stage])
+    graph.connect([redis_tranport], [redis_ack])
 
-    graph = TaskGraph([start_stage])
     graph.set_reporter(True, host=report_host, port=report_port)
 
     # 要测试的任务列表
@@ -252,10 +263,14 @@ def test_redis_ack_2():
         stage_name="Download",
     )
 
-    TaskGraph.connect([start_stage], [redis_tranport, download_stage])
-    TaskGraph.connect([redis_tranport], [redis_ack])
+    graph = TaskGraph()
+    graph.set_stages(
+        root_stages=[start_stage],
+        stages=[start_stage, redis_tranport, redis_ack, download_stage],
+    )
+    graph.connect([start_stage], [redis_tranport, download_stage])
+    graph.connect([redis_tranport], [redis_ack])
 
-    graph = TaskGraph([start_stage])
     graph.set_reporter(True, host=report_host, port=report_port)
 
     download_links = [
@@ -300,10 +315,14 @@ def test_redis_source_0():
         stage_name="Sleep1",
     )
 
-    TaskGraph.connect([sleep_stage_0], [redis_tranport])
-    TaskGraph.connect([redis_source], [sleep_stage_1])
+    graph = TaskGraph()
+    graph.set_stages(
+        root_stages=[sleep_stage_0, redis_source],
+        stages=[sleep_stage_0, redis_tranport, redis_source, sleep_stage_1],
+    )
+    graph.connect([sleep_stage_0], [redis_tranport])
+    graph.connect([redis_source], [sleep_stage_1])
 
-    graph = TaskGraph([sleep_stage_0, redis_source])
     graph.set_reporter(True, host=report_host, port=report_port)
 
     # 要测试的任务列表
@@ -337,8 +356,6 @@ def test_router_0():
         stage_name="Stage B",
     )
 
-    TaskGraph.connect([router], [stage_a, stage_b])
-
     a_tag = stage_a.get_tag()
     b_tag = stage_b.get_tag()
 
@@ -350,9 +367,14 @@ def test_router_0():
         stage_name="Origin",
     )
 
-    TaskGraph.connect([source_stage], [router])
+    graph = TaskGraph()
+    graph.set_stages(
+        root_stages=[source_stage],
+        stages=[source_stage, router, stage_a, stage_b],
+    )
+    graph.connect([source_stage], [router])
+    graph.connect([router], [stage_a, stage_b])
 
-    graph = TaskGraph([source_stage])
     graph.set_reporter(True, host=report_host, port=report_port)
 
     graph.start_graph(

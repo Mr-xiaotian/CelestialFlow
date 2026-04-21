@@ -48,7 +48,6 @@ from .util_serialize import build_structure_graph, format_structure_list_from_gr
 class TaskGraph:
     def __init__(
         self,
-        root_stages: list[TaskStage],
         schedule_mode: str = "eager",
         log_level: str = "SUCCESS",
     ) -> None:
@@ -58,10 +57,6 @@ class TaskGraph:
         TaskGraph 表示一组 TaskStage 节点所构成的任务图，可用于构建并行、串行、
         分层等多种形式的任务执行流程。通过分析图结构和调度布局策略，实现灵活的
         DAG 任务调度控制。
-
-        :param root_stages: List[TaskStage]
-            根节点 TaskStage 列表，用于构建任务图的入口节点。
-            支持多根节点（森林结构），系统将自动构建整个任务依赖图。
 
         :param schedule_mode: str, optional, default = 'eager'
             控制任务图的调度布局模式，支持以下两种策略：
@@ -83,16 +78,29 @@ class TaskGraph:
             - 'ERROR'
             - 'CRITICAL'
         """
-        self._set_root_stages(root_stages)
         self._set_log_level(log_level)
+        self._set_schedule_mode(schedule_mode)
         self.set_reporter()
         self.set_ctree()
 
         self._init_env()
-        self._set_schedule_mode(schedule_mode)
 
-    @staticmethod
-    def connect(from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
+    def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]) -> None:
+        """
+        添加节点到任务图中
+
+        :param root_stages: 根节点列表  
+        :param stages: 待添加的节点列表
+        """
+        self.root_stages = root_stages
+
+        for stage in stages + root_stages:
+            if stage in self.stage_runtime_dict:
+                continue
+            stage_tag = stage.get_tag()
+            self.stage_runtime_dict[stage_tag]["stage"] = stage
+
+    def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
         """
         建立超边连接：from_stages 中的每个节点连接到 to_stages 中的每个节点。
 
@@ -100,7 +108,12 @@ class TaskGraph:
         :param to_stages: 下游节点列表
         """
         for from_stage in from_stages:
-            from_stage.set_next_stages(to_stages)
+            for to_stage in to_stages:
+                self.out_edges[from_stage.get_tag()].append(to_stage.get_tag())
+                self.in_edges[to_stage.get_tag()].append(from_stage.get_tag())
+
+        for to_stage in to_stages:
+            to_stage.prev_bindings(from_stages)
 
     def _init_env(self) -> None:
         """
@@ -109,8 +122,6 @@ class TaskGraph:
         self._init_state()
         self._init_spout()
         self._init_inlet()
-        self._init_resources()
-        self._init_analysis()
 
     def _init_state(self) -> None:
         """
@@ -128,6 +139,8 @@ class TaskGraph:
         self.stage_history: dict[str, list[dict]] = {}
         # 用于保存每个节点的输入任务ID集合
         self.input_ids: dict[str, set[int]] = defaultdict(set)
+        self.out_edges: dict[str, list[str]] = defaultdict(list)
+        self.in_edges: dict[str, list[str]] = defaultdict(list)
 
     def _init_spout(self) -> None:
         """
@@ -147,22 +160,12 @@ class TaskGraph:
         """
         初始化每个阶段资源
         """
-        visited_stages = set()
-        queue = deque(self.root_stages)
 
-        # BFS 连接
-        while queue:
-            stage = queue.popleft()
-            stage_tag = stage.get_tag()
-            if stage_tag in visited_stages:
-                continue
-            stage_runtime = self.stage_runtime_dict[stage_tag]
+        for stage_tag, stage_runtime in self.stage_runtime_dict.items():
+            stage = stage_runtime["stage"]
 
             # 刷新所有 counter
             stage.metrics.reset_counter()
-
-            # 记录节点
-            stage_runtime["stage"] = stage
 
             stage_runtime["in_queue"] = TaskInQueue(
                 queue=MPQueue(),
@@ -177,16 +180,13 @@ class TaskGraph:
                 log_inlet=self.log_inlet,
             )
 
-            visited_stages.add(stage_tag)
-            queue.extend(stage.next_stages)
-
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
             current_stage: TaskStage = stage_runtime["stage"]
             in_queue: TaskInQueue = stage_runtime["in_queue"]
 
             # 遍历每个前驱，创建边队列
-            for prev_stage in current_stage.prev_stages:
-                prev_stage_tag = prev_stage.get_tag()
+            for prev_stage_tag in self.in_edges[stage_tag]:
+                prev_stage = self.stage_runtime_dict[prev_stage_tag]["stage"]
                 in_queue.add_source_tag(prev_stage_tag)
 
                 # source side
@@ -200,7 +200,9 @@ class TaskGraph:
         """
         分析任务图，计算 DAG 属性和层级信息
         """
-        self.structure_json = build_structure_graph(self.root_stages)
+        self.structure_json = build_structure_graph(
+            self.root_stages, self.out_edges, self.stage_runtime_dict
+        )
         self.structure_list = format_structure_list_from_graph(self.structure_json)
         self.networkx_graph = format_networkx_graph(self.structure_json)
 
@@ -210,17 +212,6 @@ class TaskGraph:
             stage_level_dict = compute_node_levels(self.networkx_graph)
             self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
-    def _set_root_stages(self, root_stages: list[TaskStage]) -> None:
-        """
-        设置根节点
-
-        :param root_stages: 根节点列表
-        """
-        self.root_stages = root_stages
-        for stage in root_stages:
-            if not stage.prev_stages:
-                stage.add_prev_stages(NULL_PREV_STAGE)
-
     def _set_schedule_mode(self, schedule_mode: str) -> None:
         """
         设置任务链的执行模式
@@ -229,10 +220,8 @@ class TaskGraph:
         """
         if schedule_mode == "eager":
             self.schedule_mode = "eager"
-        elif schedule_mode == "staged" and self.isDAG:
+        elif schedule_mode == "staged":
             self.schedule_mode = "staged"
-        elif schedule_mode == "staged" and not self.isDAG:
-            raise Exception("The task graph is not a DAG, cannot use staged mode")
         else:
             raise Exception(
                 f"Invalid schedule mode: {schedule_mode}. "
@@ -314,7 +303,8 @@ class TaskGraph:
             stage.set_execution_mode(execution_mode)
             visited_stages.add(stage)
 
-            for next_stage in stage.next_stages:
+            for next_stage_tag in self.out_edges[stage.get_tag()]:
+                next_stage = self.stage_runtime_dict[next_stage_tag]["stage"]
                 if next_stage in visited_stages:
                     continue
                 set_subsequent_stage_mode(next_stage)
@@ -390,6 +380,13 @@ class TaskGraph:
         :param init_tasks_dict: 任务列表
         :param put_termination_signal: 是否注入终止信号
         """
+        for stage in self.root_stages:
+            if not self.in_edges[stage.get_tag()]:  # 如果没有前驱
+                self.in_edges[stage.get_tag()] = [NULL_PREV_STAGE]
+        self._init_resources()
+        self._init_analysis()
+
+        
         if not self.isDAG and put_termination_signal:
             warnings.warn(
                 "Early injection of termination signals in a non-DAG graph may cause "

@@ -102,13 +102,17 @@ def bench_graph_0():
         stage_name="stage C",
     )
 
-    TaskGraph.connect([stage1], [stage2, stage3])
-    TaskGraph.connect([stage2], [stage4])
+    graph = TaskGraph()
+    graph.set_stages(
+        root_stages=[stage1],
+        stages=[stage1, stage2, stage3, stage4],
+    )
+    graph.connect([stage1], [stage2, stage3])
+    graph.connect([stage2], [stage4])
 
     stage1.add_retry_exceptions(ValueError)
     stage2.add_retry_exceptions(ValueError)
 
-    graph = TaskGraph(root_stages=[stage1])
     graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -169,12 +173,16 @@ def bench_graph_1():
         stage_name="Stage_F",
     )
 
-    TaskGraph.connect([A], [B, C])
-    TaskGraph.connect([B], [D, E])
-    TaskGraph.connect([C], [E])
-    TaskGraph.connect([D], [F])
+    graph = TaskGraph()
+    graph.set_stages(
+        root_stages=[A],
+        stages=[A, B, C, D, E, F],
+    )
+    graph.connect([A], [B, C])
+    graph.connect([B], [D, E])
+    graph.connect([C], [E])
+    graph.connect([D], [F])
 
-    graph = TaskGraph([A])
     graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port

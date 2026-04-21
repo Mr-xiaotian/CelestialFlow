@@ -55,10 +55,6 @@ class TaskStage(TaskExecutor):
         self.set_stage_mode(stage_mode)
         self.set_stage_name(stage_name)
 
-        self.next_stages: list[TaskStage] = []
-        self.prev_stages: list[TaskStage | NullPrevStage] = []
-        self._pending_prev_bindings: list[TaskStage] = []
-
         self._init_status()
 
     def _init_metrics(self) -> None:
@@ -127,55 +123,21 @@ class TaskStage(TaskExecutor):
         else:
             raise ExecutionModeError(execution_mode, valid_modes)
 
-    def set_next_stages(self, next_stages: list[TaskStage] | None) -> None:
-        """
-        设置后续节点列表, 并为后续节点添加本节点为前置节点
-
-        :param next_stages: 后续节点列表
-        """
-        self.next_stages = next_stages or []
-        for next_stage in self.next_stages:
-            next_stage.add_prev_stages(self)
-        self._finalize_prev_bindings()
-
-    def add_prev_stages(self, prev_stage: TaskStage | NullPrevStage) -> None:
-        """
-        添加前置节点
-
-        :param prev_stage: 前置节点
-        """
-        from .core_stages import TaskRouter, TaskSplitter
-
-        if prev_stage in self.prev_stages:
-            return
-        self.prev_stages.append(prev_stage)
-
-        if isinstance(prev_stage, NullPrevStage):
-            return
-
-        if isinstance(prev_stage, TaskSplitter):
-            self.metrics.append_task_counter(prev_stage.split_counter)
-        elif isinstance(prev_stage, TaskRouter):
-            self._pending_prev_bindings.append(prev_stage)
-        else:
-            self.metrics.append_task_counter(prev_stage.metrics.success_counter)
-
-    def _finalize_prev_bindings(self) -> None:
+    def prev_bindings(self, pending_prev_bindings: list[TaskStage]) -> None:
         """
         绑定前置节点
         """
-        from .core_stages import TaskRouter
+        from .core_stages import TaskRouter, TaskRouter, TaskSplitter
 
-        if not self._pending_prev_bindings:
-            return
-
-        for prev_stage in self._pending_prev_bindings:
+        for prev_stage in pending_prev_bindings:
             if isinstance(prev_stage, TaskRouter):
                 key = self.get_tag()  # 现在已经稳定了
                 prev_stage.route_counters.setdefault(key, MPValue("i", 0))
                 self.metrics.append_task_counter(prev_stage.route_counters[key])
-
-        self._pending_prev_bindings.clear()
+            elif isinstance(prev_stage, TaskSplitter):
+                self.metrics.append_task_counter(prev_stage.split_counter)
+            else:
+                self.metrics.append_task_counter(prev_stage.metrics.success_counter)
 
     def get_stage_mode(self) -> str:
         """

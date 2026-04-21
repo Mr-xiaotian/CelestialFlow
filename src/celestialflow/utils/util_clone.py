@@ -63,41 +63,43 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     :param graph: 要克隆的任务图
     :return: 克隆任务图
     """
+    # BFS 收集所有 stage（通过 graph.out_edges）
     visited = set()
     ordered_stages: list[TaskStage] = []
     queue = deque(graph.root_stages)
     while queue:
         stage = queue.popleft()
-        if id(stage) in visited:
+        tag = stage.get_tag()
+        if tag in visited:
             continue
-        visited.add(id(stage))
+        visited.add(tag)
         ordered_stages.append(stage)
-        queue.extend(stage.next_stages)
+        for next_tag in graph.out_edges.get(tag, []):
+            next_stage = graph.stage_runtime_dict[next_tag]["stage"]
+            queue.append(next_stage)
 
-    stage_map = {id(stage): clone_stage(stage) for stage in ordered_stages}
-
+    # 建立 old_tag -> cloned_stage 映射
+    tag_map: dict[str, TaskStage] = {}
     for stage in ordered_stages:
-        cloned_stage = stage_map[id(stage)]
-        cloned_stage.next_stages = []
-        cloned_stage.prev_stages = []
-        cloned_stage._pending_prev_bindings = []
+        tag_map[stage.get_tag()] = clone_stage(stage)
 
-    for stage in ordered_stages:
-        cloned_stage = stage_map[id(stage)]
-        cloned_next_stages = [
-            stage_map[id(next_stage)] for next_stage in stage.next_stages
-        ]
-        cloned_stage.set_next_stages(cloned_next_stages)
+    # 构建新 graph
+    cloned_root_stages = [tag_map[s.get_tag()] for s in graph.root_stages]
+    all_cloned_stages = list(tag_map.values())
 
-    for stage in ordered_stages:
-        stage_map[id(stage)]._finalize_prev_bindings()
-
-    cloned_root_stages = [stage_map[id(stage)] for stage in graph.root_stages]
     cloned_graph = TaskGraph(
-        root_stages=cloned_root_stages,
         schedule_mode=graph.schedule_mode,
         log_level=graph.log_level,
     )
+    cloned_graph.set_stages(cloned_root_stages, all_cloned_stages)
+
+    # 重建连接
+    for from_tag, to_tags in graph.out_edges.items():
+        if not to_tags:
+            continue
+        cloned_from = tag_map[from_tag]
+        cloned_to = [tag_map[t] for t in to_tags]
+        cloned_graph.connect([cloned_from], cloned_to)
 
     if graph._use_ctree:
         cloned_graph.set_ctree(

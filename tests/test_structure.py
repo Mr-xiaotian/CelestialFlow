@@ -128,18 +128,20 @@ def test_forest():
     )
 
     # 设置图结构
+    graph = TaskGraph()
+    graph.set_stages(
+        root_stages=[stageA, stageB, stageF],
+        stages=[stageA, stageB, stageC, stageD, stageE, stageF, stageG, stageH, stageI, stageJ],
+    )
+    graph.connect([stageA], [stageC])
+    graph.connect([stageB], [stageD])
+    graph.connect([stageC], [stageE])
+    graph.connect([stageD], [stageE])
 
-    TaskGraph.connect([stageA], [stageC])
-    TaskGraph.connect([stageB], [stageD])
-    TaskGraph.connect([stageC], [stageE])
-    TaskGraph.connect([stageD], [stageE])
+    graph.connect([stageF], [stageG, stageH])
+    graph.connect([stageG], [stageI])
+    graph.connect([stageH], [stageJ])
 
-    TaskGraph.connect([stageF], [stageG, stageH])
-    TaskGraph.connect([stageG], [stageI])
-    TaskGraph.connect([stageH], [stageJ])
-
-    # 构建 TaskGraph（多根）
-    graph = TaskGraph([stageA, stageB, stageF])  # 多根支持
     graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port

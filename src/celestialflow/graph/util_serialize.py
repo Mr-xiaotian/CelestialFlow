@@ -1,30 +1,38 @@
 # graph/util_serialize.py
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from ..stage import TaskStage
+from typing import Any
 
 
 # ======== 处理图结构 ========
-def build_structure_graph(root_stages: list["TaskStage"]) -> list[dict[str, Any]]:
+def build_structure_graph(
+    root_stages: list,
+    out_edges: dict[str, list[str]],
+    stage_runtime_dict: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
     """
     从多个根节点构建任务链的 JSON 图结构
 
     :param root_stages: 根节点列表
+    :param out_edges: 邻接表 {stage_tag: [next_stage_tag, ...]}
+    :param stage_runtime_dict: {stage_tag: {"stage": TaskStage, ...}}
     :return: 多棵任务图的 JSON 列表
     """
     visited_stages: set[str] = set()
     graphs = []
 
     for root_stage in root_stages:
-        graph = _build_structure_subgraph(root_stage, visited_stages)
+        graph = _build_structure_subgraph(
+            root_stage, visited_stages, out_edges, stage_runtime_dict
+        )
         graphs.append(graph)
 
     return graphs
 
 
 def _build_structure_subgraph(
-    task_stage: "TaskStage", visited_stages: set[str]
+    task_stage,
+    visited_stages: set[str],
+    out_edges: dict[str, list[str]],
+    stage_runtime_dict: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     """
     构建单个子图结构
@@ -42,8 +50,11 @@ def _build_structure_subgraph(
 
     visited_stages.add(stage_tag)
 
-    for next_stage in task_stage.next_stages:
-        child_node = _build_structure_subgraph(next_stage, visited_stages)
+    for next_stage_tag in out_edges.get(stage_tag, []):
+        next_stage = stage_runtime_dict[next_stage_tag]["stage"]
+        child_node = _build_structure_subgraph(
+            next_stage, visited_stages, out_edges, stage_runtime_dict
+        )
         node["next_stages"].append(child_node)
 
     return node
@@ -66,7 +77,7 @@ def format_structure_list_from_graph(root_roots: list[dict] | None = None) -> li
 
         return f"{N}::{F} (S:{S}, E:{E}){visited_note}"
 
-    # 只渲染“子节点”（有父节点）——保证一定画连接符
+    # 只渲染"子节点"（有父节点）——保证一定画连接符
     def build_child_lines(node: dict, prefix: str, is_last: bool) -> list[str]:
         connector = "╘-->" if is_last else "╞-->"
         lines = [f"{prefix}{connector}{node_label(node)}"]
