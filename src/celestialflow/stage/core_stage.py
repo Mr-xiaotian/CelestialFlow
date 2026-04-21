@@ -130,7 +130,7 @@ class TaskStage(TaskExecutor):
         """
         绑定前置节点
         """
-        from .core_stages import TaskRouter, TaskRouter, TaskSplitter
+        from .core_stages import TaskRouter, TaskSplitter
 
         for prev_stage in pending_prev_bindings:
             if isinstance(prev_stage, TaskRouter):

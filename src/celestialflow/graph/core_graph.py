@@ -140,7 +140,7 @@ class TaskGraph:
         self.root_stages = root_stages
 
         for stage in stages + root_stages:
-            if stage in self.stage_runtime_dict:
+            if stage.get_tag() in self.stage_runtime_dict:
                 continue
             stage_tag = stage.get_tag()
             self.stage_runtime_dict[stage_tag]["stage"] = stage
