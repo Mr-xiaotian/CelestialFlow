@@ -122,7 +122,7 @@ linkStyle default stroke:#999,stroke-width:1.5px;
         classDefs.push(`  class ${id} ${statusClass};`);
         for (const child of node.next_stages || []) {
             const toId = getNodeId(child);
-            const addNum = statusInfo?.add_tasks_successed || 0;
+            const addNum = statusInfo?.add_tasks_succeeded || 0;
             const edgeLabel = addNum > 0 ? `|+${addNum}|` : "";
             edges.add(`  ${id} -->${""} ${toId}`);
             walk(child);

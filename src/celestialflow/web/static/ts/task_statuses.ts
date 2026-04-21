@@ -2,8 +2,8 @@ type NodeStatus = {
   status: number;
   tasks_processed: number;
   tasks_pending: number;
-  tasks_successed: number;
-  add_tasks_successed: number;
+  tasks_succeeded: number;
+  add_tasks_succeeded: number;
   add_tasks_pending: number;
   tasks_failed: number;
   add_tasks_failed: number;
@@ -86,7 +86,7 @@ function renderDashboard() {
     const progress = total === 0 ? 0 : Math.floor((data.tasks_processed / total) * 100);
 
     // 计算四段进度条宽度百分比
-    const pctSuccess   = total === 0 ? 0 : (data.tasks_successed  / total) * 100;
+    const pctSuccess   = total === 0 ? 0 : (data.tasks_succeeded  / total) * 100;
     const pctError     = total === 0 ? 0 : (data.tasks_failed     / total) * 100;
     const pctDuplicate = total === 0 ? 0 : (data.tasks_duplicated / total) * 100;
     const pctPending   = total === 0 ? 0 : (data.tasks_pending    / total) * 100;
@@ -105,8 +105,8 @@ function renderDashboard() {
           </div>
           <div class="stat-grid">
             <div><div class="stat-label">成功</div><div class="stat-value text-success">${formatWithDelta(
-              data.tasks_successed,
-              data.add_tasks_successed,
+              data.tasks_succeeded,
+              data.add_tasks_succeeded,
               "text-delta-success",
               "text-delta-success"
             )}</div></div>
@@ -138,7 +138,7 @@ function renderDashboard() {
               <span class="time-estimate">
                 <span class="elapsed">${formatElapsedDuration(
                   data.elapsed_time,
-                  data.tasks_successed,
+                  data.tasks_succeeded,
                   data.tasks_failed,
                   data.tasks_duplicated
                 )}</span>

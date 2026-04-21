@@ -1,6 +1,6 @@
 let summaryData = {};
 let summaryRev = -1;
-const totalSuccessed = document.getElementById("total-successed");
+const totalSucceeded = document.getElementById("total-succeeded");
 const totalPending = document.getElementById("total-pending");
 const totalDuplicated = document.getElementById("total-duplicated");
 const totalFailed = document.getElementById("total-failed");
@@ -30,8 +30,8 @@ async function loadSummary() {
  * 更新页面上的总成功数、等待数、失败数、重复数、节点数和剩余时间
  */
 function renderSummary() {
-    const { total_successed = 0, total_pending = 0, total_failed = 0, total_duplicated = 0, total_nodes = 0, total_remain = 0, } = summaryData || {};
-    totalSuccessed.innerHTML = formatLargeNumber(total_successed);
+    const { total_succeeded = 0, total_pending = 0, total_failed = 0, total_duplicated = 0, total_nodes = 0, total_remain = 0, } = summaryData || {};
+    totalSucceeded.innerHTML = formatLargeNumber(total_succeeded);
     totalPending.innerHTML = formatLargeNumber(total_pending);
     totalFailed.innerHTML = formatLargeNumber(total_failed);
     totalDuplicated.innerHTML = formatLargeNumber(total_duplicated);

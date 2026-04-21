@@ -23,13 +23,18 @@ from ..observability import NullTaskReporter, TaskReporter
 from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout
 from ..persistence.util_jsonl import load_task_by_error, load_task_by_stage
 from ..runtime import TaskEnvelope, TaskInQueue, TaskOutQueue
-from ..runtime.util_errors import UnconsumedError
+from ..runtime.util_errors import (
+    CelestialTreeConnectionError,
+    ScheduleModeError,
+    UnconsumedError,
+)
 from ..runtime.util_estimators import (
     calc_elapsed,
     calc_global_remain_equal_pred,
     calc_remaining,
 )
 from ..runtime.util_types import (
+    CTreeEvent,
     STAGE_STYLE,
     StageStatus,
     TerminationSignal,
@@ -170,10 +175,7 @@ class TaskGraph:
         elif schedule_mode == "staged":
             self.schedule_mode = "staged"
         else:
-            raise Exception(
-                f"Invalid schedule mode: {schedule_mode}. "
-                "Valid options are 'eager' or 'staged'"
-            )
+            raise ScheduleModeError(schedule_mode)
 
     def _set_log_level(self, level: str = "SUCCESS") -> None:
         """
@@ -233,7 +235,7 @@ class TaskGraph:
                 host=host, http_port=http_port, grpc_port=grpc_port, transport=transport
             )
             if not self.ctree_client.health():
-                raise Exception("CelestialTreeClient is not available")
+                raise CelestialTreeConnectionError()
         else:
             self.ctree_client = NullCelestialTreeClient()
 
@@ -386,14 +388,14 @@ class TaskGraph:
             for task in tasks:
                 if isinstance(task, TerminationSignal):
                     termination_id = self.ctree_client.emit(
-                        "termination.input",
+                        CTreeEvent.TERMINATION_INPUT,
                         payload=stage.get_summary(),
                     )
                     in_queue.put(TerminationSignal(termination_id, source="input"))
                     continue
 
                 input_id = self.ctree_client.emit(
-                    "task.input",
+                    CTreeEvent.TASK_INPUT,
                     payload=stage.get_summary(),
                 )
                 envelope = TaskEnvelope.wrap(task, input_id, source="input")
@@ -416,7 +418,7 @@ class TaskGraph:
                 ]
 
                 termination_id = self.ctree_client.emit(
-                    "termination.input",
+                    CTreeEvent.TERMINATION_INPUT,
                     payload=root_stage.get_summary(),
                 )
                 root_in_queue.put(TerminationSignal(termination_id, source="input"))
@@ -530,7 +532,7 @@ class TaskGraph:
                 task = source.task
                 task_id = source.id
                 error_id = self.ctree_client.emit(
-                    "task.error",
+                    CTreeEvent.TASK_ERROR,
                     [task_id],
                     payload=current_stage.get_summary(),
                 )
@@ -565,7 +567,7 @@ class TaskGraph:
         history_limit = self.reporter.history_limit
 
         totals = {
-            "total_successed": 0,
+            "total_succeeded": 0,
             "total_pending": 0,
             "total_failed": 0,
             "total_duplicated": 0,
@@ -589,13 +591,13 @@ class TaskGraph:
 
             stage_counts = stage.get_counts()
 
-            totals["total_successed"] += stage_counts["tasks_successed"]
+            totals["total_succeeded"] += stage_counts["tasks_succeeded"]
             totals["total_pending"] += stage_counts["tasks_pending"]
             totals["total_failed"] += stage_counts["tasks_failed"]
             totals["total_duplicated"] += stage_counts["tasks_duplicated"]
 
             keys = [
-                "tasks_successed",
+                "tasks_succeeded",
                 "tasks_pending",
                 "tasks_failed",
                 "tasks_duplicated",

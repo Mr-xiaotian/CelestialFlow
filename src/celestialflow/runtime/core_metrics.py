@@ -232,22 +232,22 @@ class TaskMetrics:
 
         :return: 包含以下字段的字典：
                 - tasks_input: 输入任务总数
-                - tasks_successed: 成功任务数
+                - tasks_succeeded: 成功任务数
                 - tasks_failed: 失败任务数
                 - tasks_duplicated: 重复任务数
                 - tasks_processed: 已处理任务总数
                 - tasks_pending: 等待处理任务数
         """
         input_count = self.task_counter.value
-        successed = self.success_counter.value
+        succeeded = self.success_counter.value
         failed = self.error_counter.value
         duplicated = self.duplicate_counter.value
-        processed = successed + failed + duplicated
+        processed = succeeded + failed + duplicated
         pending = input_count - processed
 
         return {
             "tasks_input": input_count,
-            "tasks_successed": successed,
+            "tasks_succeeded": succeeded,
             "tasks_failed": failed,
             "tasks_duplicated": duplicated,
             "tasks_processed": processed,

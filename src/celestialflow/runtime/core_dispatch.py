@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from .core_envelope import TaskEnvelope
-from .util_types import TerminationIdPool, TerminationSignal
+from .util_types import CTreeEvent, TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
     from ..stage.core_executor import TaskExecutor
@@ -51,7 +51,7 @@ class TaskDispatch:
         """
         parent_ids = termination_pool.ids
         termination_id = self.task_executor.ctree_client.emit(
-            "termination.merge",
+            CTreeEvent.TERMINATION_MERGE,
             parents=parent_ids,
             payload=self.task_executor.get_summary(),
         )

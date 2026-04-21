@@ -32,6 +32,7 @@ from ..runtime.util_factories import (
     # make_task_out_queue,
 )
 from ..runtime.util_types import (
+    CTreeEvent,
     TerminationSignal,
 )
 from ..utils.util_format import format_repr
@@ -359,7 +360,7 @@ class TaskExecutor:
         progress_num = 0
         for task in task_source:
             input_id = self.ctree_client.emit(
-                "task.input",
+                CTreeEvent.TASK_INPUT,
                 payload=self.get_summary(),
             )
             envelope = TaskEnvelope.wrap(task, input_id, source="input")
@@ -379,7 +380,7 @@ class TaskExecutor:
 
         # 注入终止符
         termination_id = self.ctree_client.emit(
-            "termination.input",
+            CTreeEvent.TERMINATION_INPUT,
             payload=self.get_summary(),
         )
         task_queues.put(TerminationSignal(termination_id, source="input"))
@@ -400,7 +401,7 @@ class TaskExecutor:
         progress_num = 0
         for task in task_source:
             input_id = self.ctree_client.emit(
-                "task.input",
+                CTreeEvent.TASK_INPUT,
                 payload=self.get_summary(),
             )
             envelope = TaskEnvelope.wrap(task, input_id, source="input")
@@ -420,7 +421,7 @@ class TaskExecutor:
 
         # 注入终止符
         termination_id = self.ctree_client.emit(
-            "termination.input",
+            CTreeEvent.TERMINATION_INPUT,
             payload=self.get_summary(),
         )
         await task_queues.put_async(TerminationSignal(termination_id, source="input"))
@@ -566,7 +567,7 @@ class TaskExecutor:
         processed_result = self.process_result(task, result)
 
         result_id = self.ctree_client.emit(
-            "task.success",
+            CTreeEvent.TASK_SUCCESS,
             parents=[task_id],
             payload=self.get_summary(),
         )
@@ -607,7 +608,7 @@ class TaskExecutor:
         _, _, task_id = task_envelope.unwrap()
 
         retry_id = self.ctree_client.emit(
-            f"task.retry.{retry_time}",
+            f"{CTreeEvent.TASK_RETRY_PREFIX}{retry_time}",
             parents=[task_id],
             payload=self.get_summary(),
         )
@@ -639,7 +640,7 @@ class TaskExecutor:
         self.task_progress.update(1)
 
         error_id = self.ctree_client.emit(
-            "task.error",
+            CTreeEvent.TASK_ERROR,
             parents=[task_envelope.id],
             payload=self.get_summary(),
         )
@@ -670,7 +671,7 @@ class TaskExecutor:
 
         self.metrics.add_duplicate_count()
         duplicate_id = self.ctree_client.emit(
-            "task.duplicate",
+            CTreeEvent.TASK_DUPLICATE,
             parents=[task_id],
             payload=self.get_summary(),
         )

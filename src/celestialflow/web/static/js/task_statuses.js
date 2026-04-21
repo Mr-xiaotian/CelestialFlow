@@ -62,7 +62,7 @@ function renderDashboard() {
         const total = data.tasks_processed + data.tasks_pending;
         const progress = total === 0 ? 0 : Math.floor((data.tasks_processed / total) * 100);
         // 计算四段进度条宽度百分比
-        const pctSuccess = total === 0 ? 0 : (data.tasks_successed / total) * 100;
+        const pctSuccess = total === 0 ? 0 : (data.tasks_succeeded / total) * 100;
         const pctError = total === 0 ? 0 : (data.tasks_failed / total) * 100;
         const pctDuplicate = total === 0 ? 0 : (data.tasks_duplicated / total) * 100;
         const pctPending = total === 0 ? 0 : (data.tasks_pending / total) * 100;
@@ -81,7 +81,7 @@ function renderDashboard() {
             <h3 class="card-title">${escapeHtml(node)}</h3>
           </div>
           <div class="stat-grid">
-            <div><div class="stat-label">成功</div><div class="stat-value text-success">${formatWithDelta(data.tasks_successed, data.add_tasks_successed, "text-delta-success", "text-delta-success")}</div></div>
+            <div><div class="stat-label">成功</div><div class="stat-value text-success">${formatWithDelta(data.tasks_succeeded, data.add_tasks_succeeded, "text-delta-success", "text-delta-success")}</div></div>
             <div><div class="stat-label">等待中</div><div class="stat-value text-pending">${formatWithDelta(data.tasks_pending, data.add_tasks_pending, "text-delta-pending", "text-delta-pending")}</div></div>
             <div><div class="stat-label">错误</div><div class="stat-value text-error error-clickable" data-node="${escapeHtml(node)}">${formatWithDelta(data.tasks_failed, data.add_tasks_failed, "text-delta-error", "text-delta-error")}</div></div>
             <div><div class="stat-label">重复</div><div class="stat-value text-duplicate">${formatWithDelta(data.tasks_duplicated, data.add_tasks_duplicated, "text-delta-duplicate", "text-delta-duplicate")}</div></div>
@@ -93,7 +93,7 @@ function renderDashboard() {
             <div class="progress-header">
               <span>任务完成率</span>
               <span class="time-estimate">
-                <span class="elapsed">${formatElapsedDuration(data.elapsed_time, data.tasks_successed, data.tasks_failed, data.tasks_duplicated)}</span>
+                <span class="elapsed">${formatElapsedDuration(data.elapsed_time, data.tasks_succeeded, data.tasks_failed, data.tasks_duplicated)}</span>
                 &lt;
                 <span class="remaining">${formatDuration(data.remaining_time)}</span>,
                 <span class="task-avg-time">${data.task_avg_time}</span>,
