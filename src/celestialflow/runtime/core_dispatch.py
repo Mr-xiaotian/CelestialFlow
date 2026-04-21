@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 
 class TaskDispatch:
+    # ==== 初始化 ====
     def __init__(self, task_executor: TaskExecutor, func, max_workers: int):
         """
         初始化任务运行器
@@ -38,6 +39,7 @@ class TaskDispatch:
         if execution_mode == "thread" and self._pool is None:
             self._pool = ThreadPoolExecutor(max_workers=self.max_workers)
 
+    # ==== 预处理 ====
     def _process_termination_signal(
         self, termination_pool: TerminationIdPool
     ) -> TerminationSignal:
@@ -76,6 +78,7 @@ class TaskDispatch:
             return True
         return False
 
+    # ==== Worker ====
     def _worker(self, task_envelope: TaskEnvelope) -> None:
         """
         同步执行单个任务（计时、成功/失败处理）
@@ -130,6 +133,7 @@ class TaskDispatch:
                     task_envelope, exception, retry_time + 1
                 )
 
+    # ==== Dispatch ====
     def dispatch_serial(self) -> None:
         """
         串行地执行任务
@@ -208,6 +212,7 @@ class TaskDispatch:
         await asyncio.gather(*async_tasks)
         await result_queues.put_async(termination_signal)
 
+    # ==== 清理 ====
     def _release_pool(self) -> None:
         """
         关闭线程池，释放资源

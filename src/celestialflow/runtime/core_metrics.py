@@ -16,6 +16,7 @@ class TaskMetrics:
     以及可重试异常类型和去重逻辑。
     """
 
+    # ==== 初始化 ====
     def __init__(
         self,
         execution_mode: str,
@@ -81,6 +82,7 @@ class TaskMetrics:
         self.execution_mode = execution_mode
         self._init_counter()
 
+    # ==== 去重 ====
     def is_duplicate(self, task_hash: str) -> bool:
         """
         检查任务是否重复
@@ -106,7 +108,7 @@ class TaskMetrics:
         if self.enable_duplicate_check:
             self.processed_set.add(task_hash)
 
-    # retry
+    # ==== 重试 ====
     def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
         """
         添加需要重试的异常类型
@@ -115,7 +117,7 @@ class TaskMetrics:
         """
         self.retry_exceptions = self.retry_exceptions + tuple(exceptions)
 
-    # counter
+    # ==== 计数器 ====
     def append_task_counter(self, counter) -> None:
         """
         添加任务总数计数器
@@ -175,6 +177,7 @@ class TaskMetrics:
         with self.duplicate_counter.get_lock():
             self.duplicate_counter.value += count
 
+    # ==== 查询 ====
     def is_tasks_finished(self) -> bool:
         """
         检查所有任务是否已完成

@@ -22,6 +22,7 @@ class TaskReporter:
     - 主要用于可视化监控、任务远程控制与 Web UI 同步
     """
 
+    # ==== 生命周期 ====
     def __init__(
         self,
         host: str,
@@ -73,6 +74,7 @@ class TaskReporter:
         """计算推送请求的超时时间"""
         return max(1.0, min(self.interval * 0.2, 3.0))
 
+    # ==== 循环 ====
     def _loop(self) -> None:
         """上报器主循环"""
         while not self._stop_flag.is_set():
@@ -100,6 +102,7 @@ class TaskReporter:
         self._push_summary()
         self._push_history()
 
+    # ==== 拉取 ====
     def _pull_interval(self) -> None:
         """从远程服务拉取上报间隔配置"""
         try:
@@ -153,6 +156,7 @@ class TaskReporter:
         except Exception as e:
             self.log_inlet.pull_tasks_failed(e)
 
+    # ==== 推送 ====
     def _push_errors(self) -> None:
         """推送错误信息"""
         try:

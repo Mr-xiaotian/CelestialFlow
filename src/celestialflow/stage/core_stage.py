@@ -8,7 +8,7 @@ from multiprocessing import Value as MPValue
 
 from ..runtime import TaskInQueue, TaskMetrics, TaskOutQueue
 from ..runtime.util_errors import ExecutionModeError, PickleError, StageModeError
-from ..runtime.util_types import NullPrevStage, StageStatus
+from ..runtime.util_types import StageStatus
 from ..utils.util_debug import find_unpickleable
 from .core_executor import TaskExecutor
 
@@ -16,6 +16,7 @@ from .core_executor import TaskExecutor
 class TaskStage(TaskExecutor):
     _name = "Stage"
 
+    # ==== 初始化 ====
     def __init__(
         self,
         func,
@@ -75,6 +76,7 @@ class TaskStage(TaskExecutor):
         if not hasattr(self, "_status"):
             self._status = MPValue("i", int(StageStatus.NOT_STARTED))
 
+    # ==== 配置 ====
     def set_stage_mode(self, stage_mode: str | None) -> None:
         """
         设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
@@ -123,6 +125,7 @@ class TaskStage(TaskExecutor):
         else:
             raise ExecutionModeError(execution_mode, valid_modes)
 
+    # ==== 绑定 ====
     def prev_bindings(self, pending_prev_bindings: list[TaskStage]) -> None:
         """
         绑定前置节点
@@ -139,6 +142,7 @@ class TaskStage(TaskExecutor):
             else:
                 self.metrics.append_task_counter(prev_stage.metrics.success_counter)
 
+    # ==== 查询 ====
     def get_stage_mode(self) -> str:
         """
         获取当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
@@ -161,6 +165,7 @@ class TaskStage(TaskExecutor):
             "stage_mode": self.get_stage_mode(),
         }
 
+    # ==== 状态 ====
     def mark_running(self) -> None:
         """标记：stage 正在运行。"""
         self._init_status()
@@ -180,6 +185,7 @@ class TaskStage(TaskExecutor):
         with self._status.get_lock():
             return StageStatus(self._status.value)
 
+    # ==== 启动 ====
     def start_stage(
         self,
         input_queues: TaskInQueue,

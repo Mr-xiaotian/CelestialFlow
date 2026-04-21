@@ -11,7 +11,9 @@ if TYPE_CHECKING:
     from ..persistence import LogInlet
 
 
+# ==== TaskInQueue ====
 class TaskInQueue:
+    # ==== 初始化 ====
     def __init__(
         self,
         queue: Any,
@@ -34,6 +36,7 @@ class TaskInQueue:
 
         self.termination_dict: dict[str, int] = {}
 
+    # ==== 日志 ====
     def _log_put(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
         记录任务入队日志
@@ -69,6 +72,7 @@ class TaskInQueue:
             raise ValueError(f"duplicate queue tag: {tag}")
         self.queue_tags.append(tag)
 
+    # ==== 终止 ====
     def _record_termination(self, signal: TerminationSignal) -> None:
         """
         记录入队标签的终止信号
@@ -111,6 +115,7 @@ class TaskInQueue:
             ids=[self.termination_dict[tag] for tag in self.queue_tags]
         )
 
+    # ==== put / get ====
     def put(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
         入队任务或终止信号
@@ -208,7 +213,9 @@ class TaskInQueue:
         return results
 
 
+# ==== TaskOutQueue ====
 class TaskOutQueue:
+    # ==== 初始化 ====
     def __init__(
         self,
         queue_list: list[Any],
@@ -237,6 +244,7 @@ class TaskOutQueue:
             tag: i for i, tag in enumerate(queue_tags) if tag is not None
         }
 
+    # ==== put ====
     def _log_put(self, item: TaskEnvelope | TerminationSignal, idx: int) -> None:
         """
         记录入队日志

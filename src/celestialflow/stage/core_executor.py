@@ -40,6 +40,7 @@ from ..utils.util_format import format_repr
 class TaskExecutor:
     _name = "Executor"
 
+    # ==== 初始化 ====
     def __init__(
         self,
         func,
@@ -213,6 +214,7 @@ class TaskExecutor:
             mode=progress_mode,
         )
 
+    # ==== 配置 ====
     def _set_func(self, func: Callable) -> None:
         """
         设置执行函数
@@ -266,6 +268,7 @@ class TaskExecutor:
         """
         self.log_level = log_level.upper()
 
+    # ==== 查询 ====
     def get_name(self) -> str:
         """
         获取当前节点/管理器名称
@@ -344,6 +347,7 @@ class TaskExecutor:
         """
         self.metrics.add_retry_exceptions(*exceptions)
 
+    # ==== 任务输入 ====
     def _put_task_queues(self, task_source: Iterable) -> None:
         """
         将任务放入任务队列
@@ -507,6 +511,7 @@ class TaskExecutor:
         formatted_result = format_repr(result, self.max_info)
         return f"{formatted_result}"
 
+    # ==== 结果处理 ====
     def process_task_success(
         self, task_envelope: TaskEnvelope, result: Any, start_time: float
     ) -> None:
@@ -676,6 +681,7 @@ class TaskExecutor:
             duplicate_id,
         )
 
+    # ==== 启动 ====
     def start(self, task_source: Iterable) -> None:
         """
         根据 start_type 的值，选择串行、并行、异步或多进程执行任务
@@ -768,6 +774,7 @@ class TaskExecutor:
             self.fail_spout.stop()
             self.success_spout.stop()
 
+    # ==== 清理 ====
     def get_success_pairs(self) -> list[tuple[Any, Any]]:
         """
         获取成功任务的列表

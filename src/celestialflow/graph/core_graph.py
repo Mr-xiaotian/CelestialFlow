@@ -45,6 +45,9 @@ from .util_serialize import build_structure_graph, format_structure_list_from_gr
 
 
 class TaskGraph:
+
+    # ==== 初始化 ====
+
     def __init__(
         self,
         schedule_mode: str = "eager",
@@ -83,33 +86,6 @@ class TaskGraph:
         self.set_ctree()
 
         self._init_env()
-
-    def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]) -> None:
-        """
-        添加节点到任务图中
-
-        :param root_stages: 根节点列表  
-        :param stages: 待添加的节点列表
-        """
-        self.root_stages = root_stages
-
-        for stage in stages + root_stages:
-            if stage in self.stage_runtime_dict:
-                continue
-            stage_tag = stage.get_tag()
-            self.stage_runtime_dict[stage_tag]["stage"] = stage
-
-    def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
-        """
-        建立超边连接：from_stages 中的每个节点连接到 to_stages 中的每个节点。
-
-        :param from_stages: 上游节点列表
-        :param to_stages: 下游节点列表
-        """
-        for from_stage in from_stages:
-            for to_stage in to_stages:
-                self.out_edges[from_stage.get_tag()].append(to_stage.get_tag())
-                self.in_edges[to_stage.get_tag()].append(from_stage.get_tag())
 
     def _init_env(self) -> None:
         """
@@ -152,66 +128,36 @@ class TaskGraph:
         self.log_inlet = LogInlet(self.log_spout.get_queue(), self.log_level)
         self.fail_inlet = FailInlet(self.fail_spout.get_queue())
 
-    def _init_resources(self) -> None:
+    # ==== 建图 ====
+
+    def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]) -> None:
         """
-        初始化每个阶段资源
+        添加节点到任务图中
+
+        :param root_stages: 根节点列表
+        :param stages: 待添加的节点列表
         """
+        self.root_stages = root_stages
 
-        for stage_tag, stage_runtime in self.stage_runtime_dict.items():
-            stage = stage_runtime["stage"]
-
-            # 刷新所有 counter
-            stage.metrics.reset_counter()
-
-            stage_runtime["in_queue"] = TaskInQueue(
-                queue=MPQueue(),
-                queue_tags=[],
-                out_tag=stage.get_tag(),
-                log_inlet=self.log_inlet,
-            )
-            stage_runtime["out_queue"] = TaskOutQueue(
-                queue_list=[],
-                queue_tags=[],
-                in_tag=stage.get_tag(),
-                log_inlet=self.log_inlet,
-            )
-
-        for stage_tag, stage_runtime in self.stage_runtime_dict.items():
-            current_stage: TaskStage = stage_runtime["stage"]
-            in_queue: TaskInQueue = stage_runtime["in_queue"]
-            prev_stages: list[TaskStage] = []
-
-            if not self.in_edges[stage_tag]:  # 如果没有前驱
+        for stage in stages + root_stages:
+            if stage in self.stage_runtime_dict:
                 continue
+            stage_tag = stage.get_tag()
+            self.stage_runtime_dict[stage_tag]["stage"] = stage
 
-            # 遍历每个前驱，创建边队列
-            for prev_stage_tag in self.in_edges[stage_tag]:
-                prev_stage = self.stage_runtime_dict[prev_stage_tag]["stage"]
-                in_queue.add_source_tag(prev_stage_tag)
-
-                prev_out_queue: TaskOutQueue = self.stage_runtime_dict[
-                    prev_stage_tag
-                ]["out_queue"]
-                prev_out_queue.add_queue(in_queue.queue, stage_tag)
-                prev_stages.append(prev_stage)
-        
-            current_stage.prev_bindings(prev_stages)
-
-    def _init_analysis(self) -> None:
+    def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
         """
-        分析任务图，计算 DAG 属性和层级信息
-        """
-        self.structure_json = build_structure_graph(
-            self.root_stages, self.out_edges, self.stage_runtime_dict
-        )
-        self.structure_list = format_structure_list_from_graph(self.structure_json)
-        self.networkx_graph = format_networkx_graph(self.structure_json)
+        建立超边连接：from_stages 中的每个节点连接到 to_stages 中的每个节点。
 
-        self.isDAG = is_directed_acyclic_graph(self.networkx_graph)
-        self.layers_dict = {}
-        if self.isDAG:
-            stage_level_dict = compute_node_levels(self.networkx_graph)
-            self.layers_dict = cluster_by_value_sorted(stage_level_dict)
+        :param from_stages: 上游节点列表
+        :param to_stages: 下游节点列表
+        """
+        for from_stage in from_stages:
+            for to_stage in to_stages:
+                self.out_edges[from_stage.get_tag()].append(to_stage.get_tag())
+                self.in_edges[to_stage.get_tag()].append(from_stage.get_tag())
+
+    # ==== 配置 ====
 
     def _set_schedule_mode(self, schedule_mode: str) -> None:
         """
@@ -228,6 +174,14 @@ class TaskGraph:
                 f"Invalid schedule mode: {schedule_mode}. "
                 "Valid options are 'eager' or 'staged'"
             )
+
+    def _set_log_level(self, level: str = "SUCCESS") -> None:
+        """
+        设置日志级别
+
+        :param level: 日志级别, 默认为 "SUCCESS"
+        """
+        self.log_level = level.upper()
 
     def set_reporter(
         self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000
@@ -283,14 +237,6 @@ class TaskGraph:
         else:
             self.ctree_client = NullCelestialTreeClient()
 
-    def _set_log_level(self, level: str = "SUCCESS") -> None:
-        """
-        设置日志级别
-
-        :param level: 日志级别, 默认为 "SUCCESS"
-        """
-        self.log_level = level.upper()
-
     def set_graph_mode(self, stage_mode: str, execution_mode: str) -> None:
         """
         设置任务链的执行模式
@@ -313,7 +259,115 @@ class TaskGraph:
         visited_stages: set[TaskStage] = set()
         for root_stage in self.root_stages:
             set_subsequent_stage_mode(root_stage)
-        self._init_analysis()
+        self._build_analysis()
+
+    # ==== 启动 ====
+
+    def _build_resources(self) -> None:
+        """
+        构建每个阶段的运行时资源（队列、计数器、前驱绑定）
+        """
+
+        for stage_tag, stage_runtime in self.stage_runtime_dict.items():
+            stage = stage_runtime["stage"]
+
+            # 刷新所有 counter
+            stage.metrics.reset_counter()
+
+            stage_runtime["in_queue"] = TaskInQueue(
+                queue=MPQueue(),
+                queue_tags=[],
+                out_tag=stage.get_tag(),
+                log_inlet=self.log_inlet,
+            )
+            stage_runtime["out_queue"] = TaskOutQueue(
+                queue_list=[],
+                queue_tags=[],
+                in_tag=stage.get_tag(),
+                log_inlet=self.log_inlet,
+            )
+
+        for stage_tag, stage_runtime in self.stage_runtime_dict.items():
+            current_stage: TaskStage = stage_runtime["stage"]
+            in_queue: TaskInQueue = stage_runtime["in_queue"]
+            prev_stages: list[TaskStage] = []
+
+            if not self.in_edges[stage_tag]:  # 如果没有前驱
+                continue
+
+            # 遍历每个前驱，创建边队列
+            for prev_stage_tag in self.in_edges[stage_tag]:
+                prev_stage = self.stage_runtime_dict[prev_stage_tag]["stage"]
+                in_queue.add_source_tag(prev_stage_tag)
+
+                prev_out_queue: TaskOutQueue = self.stage_runtime_dict[
+                    prev_stage_tag
+                ]["out_queue"]
+                prev_out_queue.add_queue(in_queue.queue, stage_tag)
+                prev_stages.append(prev_stage)
+
+            current_stage.prev_bindings(prev_stages)
+
+    def _build_analysis(self) -> None:
+        """
+        分析任务图，计算 DAG 属性和层级信息
+        """
+        self.structure_json = build_structure_graph(
+            self.root_stages, self.out_edges, self.stage_runtime_dict
+        )
+        self.structure_list = format_structure_list_from_graph(self.structure_json)
+        self.networkx_graph = format_networkx_graph(self.structure_json)
+
+        self.isDAG = is_directed_acyclic_graph(self.networkx_graph)
+        self.layers_dict = {}
+        if self.isDAG:
+            stage_level_dict = compute_node_levels(self.networkx_graph)
+            self.layers_dict = cluster_by_value_sorted(stage_level_dict)
+
+    def start_graph(
+        self, init_tasks_dict: dict, put_termination_signal: bool = True
+    ) -> None:
+        """
+        启动任务链
+
+        :param init_tasks_dict: 任务列表
+        :param put_termination_signal: 是否注入终止信号
+        """
+        self._build_resources()
+        self._build_analysis()
+
+        if not self.isDAG and put_termination_signal:
+            warnings.warn(
+                "Early injection of termination signals in a non-DAG graph may cause "
+                "some nodes (including root nodes) to shut down as soon as their current "
+                "tasks are exhausted, preventing them from consuming tasks that arrive "
+                "later from other nodes. It is recommended to set put_termination_signal=False "
+                "and manually inject termination signals via the web interface at an "
+                "appropriate time.",
+                RuntimeWarning,
+            )
+        start_time = time.perf_counter()
+
+        try:
+            self.fail_spout.start()
+            self.log_spout.start()
+            self.log_inlet.start_graph(self.get_structure_list())
+            self.fail_inlet.start_graph(self.get_structure_json())
+            self.reporter.start()
+
+            self.put_stage_queue(init_tasks_dict, put_termination_signal)
+            self._execute_stages()
+
+        finally:
+            self._finalize_nodes()
+
+            self.reporter.stop()
+            self._release_resources()
+            self.log_inlet.end_graph(time.perf_counter() - start_time)
+            self.fail_spout.stop()
+            self.log_spout.stop()
+
+    # ==== 执行 ====
 
     def put_stage_queue(
         self, tasks_dict: dict, put_termination_signal: bool = True
@@ -371,50 +425,6 @@ class TaskGraph:
                     root_stage.get_tag(),
                     termination_id,
                 )
-
-    def start_graph(
-        self, init_tasks_dict: dict, put_termination_signal: bool = True
-    ) -> None:
-        """
-        启动任务链
-
-        :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否注入终止信号
-        """
-        self._init_resources()
-        self._init_analysis()
-
-        
-        if not self.isDAG and put_termination_signal:
-            warnings.warn(
-                "Early injection of termination signals in a non-DAG graph may cause "
-                "some nodes (including root nodes) to shut down as soon as their current "
-                "tasks are exhausted, preventing them from consuming tasks that arrive "
-                "later from other nodes. It is recommended to set put_termination_signal=False "
-                "and manually inject termination signals via the web interface at an "
-                "appropriate time.",
-                RuntimeWarning,
-            )
-        start_time = time.perf_counter()
-
-        try:
-            self.fail_spout.start()
-            self.log_spout.start()
-            self.log_inlet.start_graph(self.get_structure_list())
-            self.fail_inlet.start_graph(self.get_structure_json())
-            self.reporter.start()
-
-            self.put_stage_queue(init_tasks_dict, put_termination_signal)
-            self._execute_stages()
-
-        finally:
-            self._finalize_nodes()
-
-            self.reporter.stop()
-            self._release_resources()
-            self.log_inlet.end_graph(time.perf_counter() - start_time)
-            self.fail_spout.stop()
-            self.log_spout.stop()
 
     def _execute_stages(self) -> None:
         """
@@ -486,6 +496,8 @@ class TaskGraph:
         else:
             stage.start_stage(input_queues, output_queues, fail_queue, log_queue)
 
+    # ==== 终止与清理 ====
+
     def _finalize_nodes(self) -> None:
         """
         确保所有子进程安全结束，更新节点状态，并导出每个节点队列剩余任务。
@@ -500,7 +512,7 @@ class TaskGraph:
                     self.log_inlet.process_termination_timeout(p.name)
                 self.log_inlet.process_exit(p.name, p.exitcode)
 
-        # 更新所有节点状态为“已停止”
+        # 更新所有节点状态为"已停止"
         for stage_runtime in self.stage_runtime_dict.values():
             stage: TaskStage = stage_runtime["stage"]
             stage.mark_stopped()
@@ -540,6 +552,8 @@ class TaskGraph:
         for stage_runtime in self.stage_runtime_dict.values():
             stage: TaskStage = stage_runtime["stage"]
             stage.release_queue()
+
+    # ==== 运行时监控 ====
 
     def collect_runtime_snapshot(self) -> None:
         """
@@ -648,6 +662,8 @@ class TaskGraph:
         self.status_dict = status_dict
         self.graph_summary = dict(totals)
         self.stage_history = dict(history_dict)
+
+    # ==== 查询接口 ====
 
     def get_fail_by_stage_dict(self) -> dict:
         return load_task_by_stage(self.fail_spout.jsonl_path)
