@@ -8,7 +8,6 @@
 class TaskGraph:
     def __init__(
         self,
-        root_stages: list[TaskStage],
         schedule_mode: str = "eager",
         log_level: str = "SUCCESS",
     ):
@@ -17,17 +16,28 @@ class TaskGraph:
 
 ### 参数说明
 
-- **root_stages**: 任务图的入口节点列表（根节点）。支持多根节点（森林结构）。
 - **schedule_mode**: 调度模式。
   - `eager` (默认): 所有节点一次性启动，依赖关系通过数据流自动控制。适用于最大化并行度。
   - `staged`: 分层执行。仅适用于 DAG。按层级顺序逐层启动，上一层全部完成后才启动下一层。
 - **log_level**: 全局日志级别（TRACE/DEBUG/SUCCESS/INFO/WARNING/ERROR/CRITICAL）。
 
+### 设置节点
+
+```python
+def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage] = None):
+    """
+    设置任务图的节点。
+    
+    :param root_stages: 入口节点列表（根节点）。支持多根节点（森林结构）。
+    :param stages: 其他非根节点列表（可选）。
+    """
+```
+
 ## 核心功能
 
 ### 图构建与分析
 
-- **自动构建**: 根据 `root_stages` 和节点间的连接关系 (`next_stages`), 自动遍历并构建整个图结构。
+- **自动构建**: 根据 `root_stages` 和节点间的连接关系 (`out_edges`), 自动遍历并构建整个图结构。
 - **DAG 检测**: 自动检测是否为有向无环图 (DAG)。
 - **分层分析**: 如果是 DAG，会自动计算节点的层级，用于 `staged` 调度或可视化展示。
 
@@ -45,7 +55,8 @@ def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True
 
 示例：
 ```python
-graph = TaskGraph([stage_a, stage_b])
+graph = TaskGraph(schedule_mode="eager")
+graph.set_stages(root_stages=[stage_a, stage_b])
 graph.start_graph({
     stage_a.get_tag(): [1, 2, 3, 4, 5]
 })
@@ -251,10 +262,11 @@ stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process
 stage_c = TaskStage(func=process_c, execution_mode="serial", stage_mode="process", stage_name="C")
 
 # 构建图
-TaskGraph.connect([stage_a], [stage_b, stage_c])
+graph = TaskGraph(schedule_mode="eager", log_level="INFO")
+graph.set_stages(root_stages=[stage_a], stages=[stage_b, stage_c])
+graph.connect([stage_a], [stage_b, stage_c])
 
-# 创建图并配置
-graph = TaskGraph([stage_a], schedule_mode="eager", log_level="INFO")
+# 配置
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 
 # 启动

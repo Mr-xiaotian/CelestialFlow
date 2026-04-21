@@ -4,7 +4,7 @@
 
 ## 主要能力
 
-- `build_structure_graph(root_stages)`：从根节点集合递归构建结构 JSON。
+- `build_structure_graph(root_stages, out_edges, stage_runtime_dict)`：从根节点集合递归构建结构 JSON。
 - `format_structure_list_from_graph(root_roots)`：将结构 JSON 格式化为可打印树形文本。
 
 ## 输出特点

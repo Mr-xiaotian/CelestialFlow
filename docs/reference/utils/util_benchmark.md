@@ -118,9 +118,9 @@ stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process
 stage_b = TaskStage(func=process_b, execution_mode="thread", stage_mode="process", stage_name="B")
 
 # 构建图
-TaskGraph.connect([stage_a], [stage_b])
-
-graph = TaskGraph([stage_a])
+graph = TaskGraph()
+graph.set_stages(root_stages=[stage_a], stages=[stage_b])
+graph.connect([stage_a], [stage_b])
 
 # 运行基准测试
 benchmark_graph(

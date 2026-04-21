@@ -238,17 +238,16 @@ stage_save = TaskStage(
 ```python
 from celestialflow import TaskGraph
 
-# 设置节点间的连接关系
-TaskGraph.connect([stage_search], [stage_parse])
-TaskGraph.connect([stage_parse], [stage_download])
-TaskGraph.connect([stage_download], [stage_save])
-
 # 创建任务图
-graph = TaskGraph(
-    root_stages=[stage_search],
-    schedule_mode="eager",
-    log_level="SUCCESS"
-)
+graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
+
+# 设置节点
+graph.set_stages(root_stages=[stage_search], stages=[stage_parse, stage_download, stage_save])
+
+# 设置节点间的连接关系
+graph.connect([stage_search], [stage_parse])
+graph.connect([stage_parse], [stage_download])
+graph.connect([stage_download], [stage_save])
 ```
 
 ### 3.3 启动 Web 监控（可选）
@@ -383,11 +382,13 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     )
     
     # 设置连接
-    TaskGraph.connect([stage_search], [stage_parse])
-    TaskGraph.connect([stage_parse], [stage_download])
-    TaskGraph.connect([stage_download], [stage_save])
+    graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
+    graph.set_stages(root_stages=[stage_search], stages=[stage_parse, stage_download, stage_save])
+    graph.connect([stage_search], [stage_parse])
+    graph.connect([stage_parse], [stage_download])
+    graph.connect([stage_download], [stage_save])
     
-    return TaskGraph([stage_search], schedule_mode="eager", log_level="SUCCESS")
+    return graph
 
 # ========== 主程序 ==========
 

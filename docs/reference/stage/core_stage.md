@@ -10,11 +10,10 @@
 
 ## 关键概念
 
-- **Next Stages**: 后续节点列表。当前节点的输出会进入后续节点的输入队列。
-- **Prev Stages**: 前置节点列表。当前节点的输入来自前置节点的输出。
 - **Stage Mode**: 节点在图中的运行模式。
   - `serial`: 串行模式，在主进程中运行。
   - `process`: 并行模式，在独立子进程中运行。
+- **拓扑关系**: 节点间的上下游连接关系由 `TaskGraph` 管理（通过 `graph.out_edges` / `graph.in_edges`），而非存储在节点自身。
 
 ## 初始化
 
@@ -29,13 +28,13 @@ class TaskStage(TaskExecutor):
 
 ## 图构建方法
 
-### TaskGraph.connect
+### graph.connect
 
-通过 `TaskGraph.connect(from_stages, to_stages)` 建立节点间的连接关系。`stage_mode` 和 `stage_name` 通过 `TaskStage.__init__()` 的构造参数传入。
+通过 `graph.connect(from_stages, to_stages)` 建立节点间的连接关系。`stage_mode` 和 `stage_name` 通过 `TaskStage.__init__()` 的构造参数传入。
 
 ```python
-@staticmethod
 def connect(
+    self,
     from_stages: list[TaskStage],
     to_stages: list[TaskStage],
 ):
@@ -52,25 +51,10 @@ def connect(
 stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", stage_name="StageA")
 stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", stage_name="StageB")
 
-# 连接节点
-TaskGraph.connect([stage_a], [stage_b])
-```
-
-### 连接管理
-
-```python
-# 设置下游节点
-def set_next_stages(self, next_stages: List[TaskStage]):
-    """
-    设置后续节点列表，并为后续节点添加本节点为前置节点。
-    """
-
-# 添加上游节点（通常由 set_next_stages 自动调用）
-def add_prev_stages(self, prev_stage: TaskStage):
-    """
-    添加前置节点。
-    会自动处理计数器的级联（如 split_counter）。
-    """
+# 创建图并连接节点
+graph = TaskGraph()
+graph.set_stages(root_stages=[stage_a], stages=[stage_b])
+graph.connect([stage_a], [stage_b])
 ```
 
 ### 模式设置

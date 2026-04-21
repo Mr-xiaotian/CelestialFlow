@@ -117,13 +117,12 @@ graph TB
 
 ```python
 TaskGraph(
-    root_stages: list[TaskStage],
     schedule_mode: str = "eager",   # "eager" | "staged"
     log_level: str = "SUCCESS"
 )
 ```
 
-- **初始化流水线**：`init_state()` → `init_listener()` → `init_sinker()` → `init_resources()` → `init_analysis()`
+- **初始化**: 构造后通过 `graph.set_stages(root_stages=[...], stages=[...])` 设置节点，通过 `graph.connect(...)` 建立连接
 - **调度模式**：
   - `eager`：所有 Stage 并发启动，依赖关系由队列自然保证
   - `staged`：仅 DAG 可用，逐层执行，层间同步阻塞
@@ -156,8 +155,6 @@ classDiagram
     }
 
     class TaskStage {
-        +next_stages: list
-        +prev_stages: list
         +stage_mode: str
         +_status: MPValue
         +start_stage()
@@ -165,8 +162,8 @@ classDiagram
 ```
 
 - **TaskExecutor**：任务执行核心，管理重试、去重、缓存、并发策略
-- **TaskStage**：图节点，携带上下游连接信息和进程级状态
-- **`TaskGraph.connect()`** 建立节点间的连接关系（上下游依赖）
+- **TaskStage**：图节点，拓扑关系由 `TaskGraph` 管理（`graph.out_edges` / `graph.in_edges`）
+- **`graph.connect()`** 建立节点间的连接关系（上下游依赖）
 - **`stage_mode`/`stage_name`** 通过 `TaskStage.__init__()` 构造参数传入
 
 ---
@@ -584,12 +581,13 @@ extract_article = TaskStage(extract_article, execution_mode="thread", worker_lim
 extract_image   = TaskStage(extract_image, execution_mode="thread", worker_limit=10)
 store    = TaskStage(save_to_db, execution_mode="serial")
 
-TaskGraph.connect([discover], [download])
-TaskGraph.connect([download], [router])
-TaskGraph.connect([router], [extract_article, extract_image])
-TaskGraph.connect([extract_article, extract_image], [store])
+graph = TaskGraph(schedule_mode="eager")
+graph.set_stages(root_stages=[discover], stages=[download, router, extract_article, extract_image, store])
+graph.connect([discover], [download])
+graph.connect([download], [router])
+graph.connect([router], [extract_article, extract_image])
+graph.connect([extract_article, extract_image], [store])
 
-graph = TaskGraph(root_stages=[discover], schedule_mode="eager")
 graph.start_graph({"discover": [seed_urls]})
 ```
 
