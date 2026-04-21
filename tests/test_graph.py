@@ -1,0 +1,219 @@
+import pytest
+
+from celestialflow import TaskChain, TaskComplete, TaskCross, TaskGraph, TaskGrid, TaskStage
+
+
+# =========================
+# 快速测试函数
+# =========================
+def add_one(x):
+    return x + 1
+
+
+def double(x):
+    return x * 2
+
+
+def to_str(x):
+    return str(x)
+
+
+def add_offset(x, offset=10):
+    if x > 30:
+        raise ValueError("too large")
+    return x + offset
+
+
+# =========================
+# TaskGraph 基础测试
+# =========================
+class TestTaskGraphBasic:
+    def test_graph_dag_two_nodes(self):
+        """简单 DAG：两个节点串行，结果正确传递"""
+        stage1 = TaskStage(add_one, execution_mode="serial", stage_name="s1")
+        stage2 = TaskStage(double, execution_mode="serial", stage_name="s2")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.connect([stage1], [stage2])
+
+        graph.start_graph({stage1.get_tag(): [1, 2, 3]})
+
+        # stage1 结果: 2, 3, 4 -> stage2 结果: 4, 6, 8
+        assert stage1.get_counts()["tasks_succeeded"] == 3
+        assert stage2.get_counts()["tasks_succeeded"] == 3
+
+    def test_graph_fan_out(self):
+        """扇出：一个节点到多个下游"""
+        source = TaskStage(add_one, execution_mode="serial", stage_name="src")
+        sink_a = TaskStage(double, execution_mode="serial", stage_name="sink_a")
+        sink_b = TaskStage(to_str, execution_mode="serial", stage_name="sink_b")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[source], stages=[source, sink_a, sink_b])
+        graph.connect([source], [sink_a, sink_b])
+
+        graph.start_graph({source.get_tag(): [1, 2]})
+
+        assert source.get_counts()["tasks_succeeded"] == 2
+        assert sink_a.get_counts()["tasks_succeeded"] == 2
+        assert sink_b.get_counts()["tasks_succeeded"] == 2
+
+    def test_graph_fan_in(self):
+        """扇入：多个上游到一个下游"""
+        source_a = TaskStage(add_one, execution_mode="serial", stage_name="src_a")
+        source_b = TaskStage(double, execution_mode="serial", stage_name="src_b")
+        merge = TaskStage(to_str, execution_mode="serial", stage_name="merge")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[source_a, source_b], stages=[source_a, source_b, merge])
+        graph.connect([source_a, source_b], [merge])
+
+        graph.start_graph({
+            source_a.get_tag(): [1, 2],
+            source_b.get_tag(): [10, 20],
+        })
+
+        assert merge.get_counts()["tasks_succeeded"] == 4
+
+    def test_graph_error_propagation(self):
+        """错误任务不会阻断整体流程"""
+        stage1 = TaskStage(add_offset, execution_mode="serial", stage_name="s1")
+        stage2 = TaskStage(double, execution_mode="serial", stage_name="s2")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.connect([stage1], [stage2])
+
+        graph.start_graph({stage1.get_tag(): [1, 50, 2]})
+
+        # stage1: 1->11, 50->error, 2->12
+        assert stage1.get_counts()["tasks_succeeded"] == 2
+        assert stage1.get_counts()["tasks_failed"] == 1
+
+        # stage2 只收到 2 个成功结果
+        assert stage2.get_counts()["tasks_succeeded"] == 2
+        assert stage2.get_counts()["tasks_failed"] == 0
+
+
+class TestTaskGraphStructure:
+    def test_chain_structure(self):
+        """TaskChain：线性结构正确连接"""
+        s1 = TaskStage(add_one, stage_name="s1")
+        s2 = TaskStage(double, stage_name="s2")
+        s3 = TaskStage(to_str, stage_name="s3")
+
+        chain = TaskChain([s1, s2, s3])
+        chain.start_chain({s1.get_tag(): [1, 2]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 2
+        assert s2.get_counts()["tasks_succeeded"] == 2
+        assert s3.get_counts()["tasks_succeeded"] == 2
+
+    def test_cross_structure(self):
+        """TaskCross：分层结构全连接"""
+        layer1 = [TaskStage(add_one, stage_name=f"l1_{i}") for i in range(2)]
+        layer2 = [TaskStage(double, stage_name=f"l2_{i}") for i in range(3)]
+
+        cross = TaskCross([layer1, layer2])
+        cross.start_cross({
+            layer1[0].get_tag(): [1],
+            layer1[1].get_tag(): [2],
+        })
+
+        for s in layer1:
+            assert s.get_counts()["tasks_succeeded"] == 1
+        for s in layer2:
+            # 每个 layer2 节点收到来自 2 个 layer1 节点的各 1 个结果
+            assert s.get_counts()["tasks_succeeded"] == 2
+
+    def test_grid_structure(self):
+        """TaskGrid：网格结构正确连接"""
+        grid = [[TaskStage(add_one, stage_name=f"g{i}{j}") for j in range(2)] for i in range(2)]
+        task_grid = TaskGrid(grid)
+        task_grid.start_graph({grid[0][0].get_tag(): [1, 2]})
+
+        # 左上角根节点处理 2 个任务
+        assert grid[0][0].get_counts()["tasks_succeeded"] == 2
+        # 其余节点也会收到传递的任务
+        assert grid[0][1].get_counts()["tasks_succeeded"] == 2
+        assert grid[1][0].get_counts()["tasks_succeeded"] == 2
+        assert grid[1][1].get_counts()["tasks_succeeded"] == 2
+
+    def test_complete_structure(self):
+        """TaskComplete：完全图，验证非 DAG 检测与基本启动"""
+        nodes = [TaskStage(add_one, stage_name=f"n{i}") for i in range(3)]
+        complete = TaskComplete(nodes)
+        # 完全图是非 DAG，自动注入终止信号会导致节点提前关闭，
+        # 因此仅注入到根节点并验证图能正常结束
+        complete.start_complete({
+            nodes[0].get_tag(): [1],
+            nodes[1].get_tag(): [2],
+            nodes[2].get_tag(): [3],
+        }, put_termination_signal=True)
+
+        analysis = complete.get_graph_analysis()
+        assert analysis["isDAG"] is False
+        assert analysis["class_name"] == "TaskComplete"
+        # 每个节点至少处理了自己的初始输入
+        for n in nodes:
+            assert n.get_counts()["tasks_succeeded"] >= 1
+
+
+class TestTaskGraphAnalysis:
+    def test_dag_detection(self):
+        """DAG 检测正确"""
+        s1 = TaskStage(add_one, stage_name="s1")
+        s2 = TaskStage(double, stage_name="s2")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.connect([s1], [s2])
+
+        # 调用 build_analysis（通过 start_graph 触发）
+        graph.start_graph({s1.get_tag(): [1]})
+
+        analysis = graph.get_graph_analysis()
+        assert analysis["isDAG"] is True
+        assert analysis["schedule_mode"] == "eager"
+
+    def test_layer_computation(self):
+        """DAG 层级计算正确"""
+        s1 = TaskStage(add_one, stage_name="s1")
+        s2 = TaskStage(double, stage_name="s2")
+        s3 = TaskStage(to_str, stage_name="s3")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[s1], stages=[s1, s2, s3])
+        graph.connect([s1], [s2])
+        graph.connect([s2], [s3])
+
+        graph.start_graph({s1.get_tag(): [1]})
+
+        analysis = graph.get_graph_analysis()
+        layers = analysis["layers_dict"]
+        # s1 在第 0 层, s2 在第 1 层, s3 在第 2 层
+        assert s1.get_tag() in layers[0]
+        assert s2.get_tag() in layers[1]
+        assert s3.get_tag() in layers[2]
+
+
+class TestTaskGraphSummary:
+    def test_graph_summary_counts(self):
+        """图摘要统计正确"""
+        s1 = TaskStage(add_one, stage_name="s1")
+        s2 = TaskStage(double, stage_name="s2")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.connect([s1], [s2])
+
+        graph.start_graph({s1.get_tag(): [1, 2, 3]})
+
+        # 手动触发快照收集（测试中未启用 reporter）
+        graph.collect_runtime_snapshot()
+
+        summary = graph.get_graph_summary()
+        assert summary["total_succeeded"] == 6  # 3 + 3
+        assert summary["total_failed"] == 0
+        assert summary["total_pending"] == 0

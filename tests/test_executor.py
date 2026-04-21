@@ -1,55 +1,223 @@
 import pytest
-from test_utils import fibonacci, fibonacci_async
 
 from celestialflow import TaskExecutor
 
 
-def test_fibonacci_serial():
-    test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
-
-    executor = TaskExecutor(
-        fibonacci,
-        execution_mode="serial",
-        max_workers=6,
-        max_retries=1,
-        show_progress=False,
-    )
-    executor.add_retry_exceptions(ValueError)
-
-    executor.start(test_task_1)
+# =========================
+# 快速测试函数（无副作用）
+# =========================
+def add_one(x):
+    return x + 1
 
 
-def test_fibonacci_thread():
-    test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
-
-    executor = TaskExecutor(
-        fibonacci,
-        execution_mode="thread",
-        max_workers=6,
-        max_retries=1,
-        show_progress=False,
-    )
-    executor.add_retry_exceptions(ValueError)
-
-    executor.start(test_task_1)
+def double(x):
+    return x * 2
 
 
-@pytest.mark.asyncio
-async def test_fibonacci_async():
-    test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
-
-    executor = TaskExecutor(
-        fibonacci_async,
-        execution_mode="async",
-        max_workers=6,
-        max_retries=1,
-        show_progress=False,
-    )
-    executor.add_retry_exceptions(ValueError)
-
-    await executor.start_async(test_task_1)
+def raise_on_negative(x):
+    if x < 0:
+        raise ValueError(f"negative value: {x}")
+    return x * 10
 
 
-if __name__ == "__main__":
-    test_fibonacci_serial()
-    pass
+async def async_add_one(x):
+    return x + 1
+
+
+async def async_double(x):
+    return x * 2
+
+
+# =========================
+# TaskExecutor 基础测试
+# =========================
+class TestExecutorSerial:
+    def test_serial_basic(self):
+        """串行模式：正常计算结果正确"""
+        executor = TaskExecutor(add_one, execution_mode="serial", show_progress=False)
+        tasks = [1, 2, 3, 4, 5]
+        executor.start(tasks)
+
+        result_dict = executor.process_result_dict()
+        assert result_dict[1] == 2
+        assert result_dict[2] == 3
+        assert result_dict[3] == 4
+        assert result_dict[4] == 5
+        assert result_dict[5] == 6
+
+        counts = executor.get_counts()
+        assert counts["tasks_succeeded"] == 5
+        assert counts["tasks_failed"] == 0
+        assert counts["tasks_pending"] == 0
+
+    def test_serial_with_errors(self):
+        """串行模式：部分任务失败，其余成功"""
+        executor = TaskExecutor(
+            raise_on_negative, execution_mode="serial", show_progress=False
+        )
+        tasks = [1, -1, 2, -2, 3]
+        executor.start(tasks)
+
+        result_dict = executor.process_result_dict()
+        assert result_dict[1] == 10
+        assert result_dict[2] == 20
+        assert result_dict[3] == 30
+        assert "negative value: -1" in result_dict[-1]
+        assert "negative value: -2" in result_dict[-2]
+
+        counts = executor.get_counts()
+        assert counts["tasks_succeeded"] == 3
+        assert counts["tasks_failed"] == 2
+
+    def test_serial_retry(self):
+        """串行模式：重试机制生效"""
+        call_count = 0
+
+        def flaky(x):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                raise RuntimeError("flaky")
+            return x + 100
+
+        executor = TaskExecutor(
+            flaky,
+            execution_mode="serial",
+            max_retries=2,
+            show_progress=False,
+        )
+        executor.add_retry_exceptions(RuntimeError)
+        executor.start([1])
+
+        counts = executor.get_counts()
+        # 最终成功，失败计数应为 0（重试不计入最终失败）
+        assert counts["tasks_succeeded"] == 1
+        assert counts["tasks_failed"] == 0
+        assert call_count == 3  # 1 次初始 + 2 次重试
+
+    def test_serial_no_retry_for_unmatched_exception(self):
+        """串行模式：未配置的异常类型不触发重试"""
+        executor = TaskExecutor(
+            raise_on_negative,
+            execution_mode="serial",
+            max_retries=2,
+            show_progress=False,
+        )
+        # 只重试 RuntimeError，但函数抛的是 ValueError
+        executor.add_retry_exceptions(RuntimeError)
+        executor.start([-1])
+
+        counts = executor.get_counts()
+        assert counts["tasks_succeeded"] == 0
+        assert counts["tasks_failed"] == 1
+
+
+class TestExecutorThread:
+    def test_thread_basic(self):
+        """线程模式：正常计算结果正确"""
+        executor = TaskExecutor(double, execution_mode="thread", max_workers=4, show_progress=False)
+        tasks = [1, 2, 3, 4, 5]
+        executor.start(tasks)
+
+        result_dict = executor.process_result_dict()
+        for t in tasks:
+            assert result_dict[t] == t * 2
+
+        counts = executor.get_counts()
+        assert counts["tasks_succeeded"] == 5
+        assert counts["tasks_failed"] == 0
+
+
+class TestExecutorAsync:
+    @pytest.mark.asyncio
+    async def test_async_basic(self):
+        """异步模式：正常计算结果正确"""
+        executor = TaskExecutor(async_add_one, execution_mode="async", max_workers=4, show_progress=False)
+        tasks = [10, 20, 30]
+        await executor.start_async(tasks)
+
+        result_dict = executor.process_result_dict()
+        assert result_dict[10] == 11
+        assert result_dict[20] == 21
+        assert result_dict[30] == 31
+
+        counts = executor.get_counts()
+        assert counts["tasks_succeeded"] == 3
+
+    @pytest.mark.asyncio
+    async def test_async_double(self):
+        """异步模式：并发执行多个任务"""
+        executor = TaskExecutor(async_double, execution_mode="async", max_workers=4, show_progress=False)
+        tasks = list(range(20))
+        await executor.start_async(tasks)
+
+        result_dict = executor.process_result_dict()
+        for t in tasks:
+            assert result_dict[t] == t * 2
+
+
+class TestExecutorDuplicateCheck:
+    def test_duplicate_check_enabled(self):
+        """启用去重：重复任务只执行一次"""
+        executor = TaskExecutor(
+            add_one,
+            execution_mode="serial",
+            enable_duplicate_check=True,
+            show_progress=False,
+        )
+        tasks = [1, 1, 2, 2, 2, 3]
+        executor.start(tasks)
+
+        counts = executor.get_counts()
+        assert counts["tasks_succeeded"] == 3
+        assert counts["tasks_duplicated"] == 3
+        assert counts["tasks_failed"] == 0
+
+    def test_duplicate_check_disabled(self):
+        """禁用去重：重复任务全部执行"""
+        executor = TaskExecutor(
+            add_one,
+            execution_mode="serial",
+            enable_duplicate_check=False,
+            show_progress=False,
+        )
+        tasks = [1, 1, 2, 2, 2, 3]
+        executor.start(tasks)
+
+        counts = executor.get_counts()
+        assert counts["tasks_succeeded"] == 6
+        assert counts["tasks_duplicated"] == 0
+
+
+class TestExecutorSuccessCache:
+    def test_success_cache(self):
+        """成功结果缓存：get_success_pairs 包含正确结果"""
+        executor = TaskExecutor(
+            add_one,
+            execution_mode="serial",
+            enable_success_cache=True,
+            enable_duplicate_check=True,
+            show_progress=False,
+        )
+        executor.start([1, 2, 3])
+
+        pairs = executor.get_success_pairs()
+        result_dict = dict(pairs)
+        assert result_dict[1] == 2
+        assert result_dict[2] == 3
+        assert result_dict[3] == 4
+
+
+class TestExecutorConfig:
+    def test_invalid_execution_mode(self):
+        """非法 execution_mode 应抛出异常"""
+        with pytest.raises(Exception):
+            TaskExecutor(add_one, execution_mode="invalid")
+
+    def test_get_summary(self):
+        """get_summary 返回预期字段"""
+        executor = TaskExecutor(add_one, execution_mode="serial", show_progress=False)
+        summary = executor.get_summary()
+        assert summary["name"] == "Executor"
+        assert summary["func_name"] == "add_one"
+        assert summary["execution_mode"] == "serial"

@@ -1,6 +1,6 @@
-# test_executor.py
+# demo_executor.py
 
-本文件用于测试 CelestialFlow 框架中 **TaskExecutor** 的基本功能与运行模式。
+本文件用于演示 CelestialFlow 框架中 **TaskExecutor** 的基本功能与运行模式。
 
 **TaskExecutor** 是 CelestialFlow 框架中最基础的任务执行单元，在本测试中，它以**独立运行模式（Standalone Mode）**运行，与作为节点被嵌入到 **TaskGraph** 中的"stage 模式"不同。
 
@@ -38,18 +38,12 @@
 
 运行方式：
 ```bash
-pytest tests/test_executor.py
+python tests/examples/demo_executor.py
 ```
 
-或单独运行异步测试：
+# demo_stages.py
 
-```bash
-pytest tests/test_executor.py::test_fibonacci_async
-```
-
-# test_stages.py
-
-该文件主要用于测试 [core_stages.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/src/celestialflow/stage/core_stages.py) 中定义的特殊节点 `TaskSplitter`、`TaskRouter`、`TaskRedis*`，它们都继承自 `TaskStage`。
+该文件主要用于演示 [core_stages.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/src/celestialflow/stage/core_stages.py) 中定义的特殊节点 `TaskSplitter`、`TaskRouter`、`TaskRedis*`，它们都继承自 `TaskStage`。
 
 `TaskSplitter` 用于将迭代器形式的多个任务数据(List[Task])拆成单独任务(Task)传给下游，因此在 Web 页面可以看到 `TaskSplitter` 下游获取的数据会比 `TaskSplitter` 处理成功的数据更多；`TaskRouter` 用于根据路由函数将任务分发到不同的下游节点；`TaskRedisTransport` 用于将传入的任务传给 Redis, 如果此时开启 go_worker，go_worker 会从 Redis 中接受数据并在处理后将答案传回 Redis，之后 `TaskRedisAck` 再提取答案并传给下游；如果想直接从 Redis 中重新读取任务, 可以使用 `TaskRedisSource`, 一般用于跨设备/跨 TaskGraph 传输任务。
 
@@ -85,9 +79,9 @@ pytest tests/test_executor.py::test_fibonacci_async
 
 测试了 `TaskRouter` 的路由功能，将任务根据路由规则分发到不同的下游节点（Stage A 和 Stage B）。
 
-# test_structure.py
+# demo_structure.py
 
-该文件主要用于测试 [core_structure.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/src/celestialflow/graph/core_structure.py) 中预设的几种图结构，包括作为无环图(DAG)的:
+该文件主要用于演示 [core_structure.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/src/celestialflow/graph/core_structure.py) 中预设的几种图结构，包括作为无环图(DAG)的:
 
 - TaskChain: 所有节点串联
 - TaskCross: Graph 分为多层, 每一层有多个节点。每一层内部节点互不相连, 同时链接下一层所有节点。
