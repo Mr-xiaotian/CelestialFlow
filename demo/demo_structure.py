@@ -1,5 +1,7 @@
 import os
 
+from dotenv import load_dotenv
+
 from demo_utils import (
     add_5,
     add_10,
@@ -18,6 +20,8 @@ from celestialflow import (
     TaskStage,
     TaskWheel,
 )
+
+load_dotenv()
 
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")

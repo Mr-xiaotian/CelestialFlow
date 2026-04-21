@@ -34,8 +34,8 @@ from ..runtime.util_estimators import (
     calc_remaining,
 )
 from ..runtime.util_types import (
-    CTreeEvent,
     STAGE_STYLE,
+    CTreeEvent,
     StageStatus,
     TerminationSignal,
 )
@@ -50,7 +50,6 @@ from .util_serialize import build_structure_graph, format_structure_list_from_gr
 
 
 class TaskGraph:
-
     # ==== 初始化 ====
 
     def __init__(
@@ -226,7 +225,7 @@ class TaskGraph:
         """
         self._use_ctree = use_ctree
         self._ctree_host = host
-        self._CTREE_HTTP_PORT = http_port
+        self._ctree_http_port = http_port
         self._ctree_grpc_port = grpc_port
         self._ctree_transport = transport
 
@@ -302,9 +301,9 @@ class TaskGraph:
                 prev_stage = self.stage_runtime_dict[prev_stage_tag]["stage"]
                 in_queue.add_source_tag(prev_stage_tag)
 
-                prev_out_queue: TaskOutQueue = self.stage_runtime_dict[
-                    prev_stage_tag
-                ]["out_queue"]
+                prev_out_queue: TaskOutQueue = self.stage_runtime_dict[prev_stage_tag][
+                    "out_queue"
+                ]
                 prev_out_queue.add_queue(in_queue.queue, stage_tag)
                 prev_stages.append(prev_stage)
 
@@ -480,7 +479,7 @@ class TaskGraph:
 
         if self._use_ctree:
             stage.set_ctree(
-                self._ctree_host, self._CTREE_HTTP_PORT, self._ctree_grpc_port
+                self._ctree_host, self._ctree_grpc_port, self._ctree_grpc_port
             )
         else:
             stage.set_nullctree(self.ctree_client.event_id)
@@ -557,11 +556,100 @@ class TaskGraph:
 
     # ==== 运行时监控 ====
 
+    def _snapshot_one_stage(
+        self,
+        stage_tag: str,
+        stage: TaskStage,
+        stage_runtime: dict,
+        last_status: dict,
+        now: float,
+        interval: float,
+        history_limit: int,
+    ) -> tuple[dict, list[dict], tuple[int, int, float, float]]:
+        """
+        计算单个 stage 的运行时快照。
+
+        :return: (stage_snapshot_dict, history_list, running_metrics)
+            running_metrics = (processed, pending, elapsed, remaining)
+        """
+        status = stage.get_status()
+        stage_counts = stage.get_counts()
+
+        keys = [
+            "tasks_succeeded",
+            "tasks_pending",
+            "tasks_failed",
+            "tasks_duplicated",
+            "tasks_processed",
+        ]
+        deltas = {f"add_{k}": stage_counts[k] - last_status.get(k, 0) for k in keys}
+
+        start_time = stage_runtime.get("start_time", 0)
+        last_elapsed = last_status.get("elapsed_time", 0)
+        last_pending = last_status.get("tasks_pending", 0)
+        elapsed = calc_elapsed(status, last_elapsed, last_pending, interval)
+
+        remaining = calc_remaining(
+            stage_counts["tasks_processed"], stage_counts["tasks_pending"], elapsed
+        )
+
+        # 计算平均时间（秒/任务）并格式化为字符串
+        avg_time_str = format_avg_time(elapsed, stage_counts["tasks_processed"])
+
+        history: list = list(self.stage_history.get(stage_tag, []))
+        history.append(
+            {
+                "timestamp": now,
+                "tasks_processed": stage_counts["tasks_processed"],
+            }
+        )
+        history.pop(0) if len(history) > history_limit else None
+
+        snapshot = {
+            **stage.get_summary(),
+            "status": status,
+            **stage_counts,
+            **deltas,
+            "start_time": start_time,
+            "elapsed_time": elapsed,
+            "remaining_time": remaining,
+            "task_avg_time": avg_time_str,
+        }
+
+        processed = int(stage_counts["tasks_processed"] or 0)
+        pending = int(stage_counts["tasks_pending"] or 0)
+        elapsed_f = float(elapsed or 0.0)
+        remaining_f = float(remaining or 0.0)
+
+        return snapshot, history, (processed, pending, elapsed_f, remaining_f)
+
+    def _calc_graph_remain(
+        self,
+        running_processed_map: dict[str, int],
+        running_pending_map: dict[str, int],
+        running_elapsed_map: dict[str, float],
+        running_remaining_map: dict[str, float],
+    ) -> float:
+        """
+        根据 DAG/非 DAG 策略计算全局预计剩余时间。
+        """
+        if not self.isDAG:
+            return max(running_remaining_map.values(), default=0.0)
+
+        expected_pending_map = calc_global_remain_equal_pred(
+            self.networkx_graph,
+            running_processed_map,
+            running_pending_map,
+            running_elapsed_map,
+        )
+        return max(expected_pending_map.values(), default=0.0)
+
     def collect_runtime_snapshot(self) -> None:
         """
         收集运行时快照
         """
-        status_dict = {}
+        status_dict: dict[str, dict] = {}
+        history_dict: dict[str, list[dict]] = {}
         now = time.time()
         interval = self.reporter.interval
         history_limit = self.reporter.history_limit
@@ -571,7 +659,7 @@ class TaskGraph:
             "total_pending": 0,
             "total_failed": 0,
             "total_duplicated": 0,
-            "total_nodes": 0,  # running nodes
+            "total_nodes": 0,
             "total_remain": 0.0,
         }
 
@@ -581,85 +669,44 @@ class TaskGraph:
         running_pending_map: dict[str, int] = {}
         running_remaining_map: dict[str, float] = {}
 
-        history_dict: dict[str, list[dict]] = {}
-
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
             stage: TaskStage = stage_runtime["stage"]
-            last_stage_status_dict: dict = self.status_dict.get(stage_tag, {})
+            last_status = self.status_dict.get(stage_tag, {})
 
-            status = stage.get_status()
-
-            stage_counts = stage.get_counts()
-
-            totals["total_succeeded"] += stage_counts["tasks_succeeded"]
-            totals["total_pending"] += stage_counts["tasks_pending"]
-            totals["total_failed"] += stage_counts["tasks_failed"]
-            totals["total_duplicated"] += stage_counts["tasks_duplicated"]
-
-            keys = [
-                "tasks_succeeded",
-                "tasks_pending",
-                "tasks_failed",
-                "tasks_duplicated",
-                "tasks_processed",
-            ]
-            deltas = {
-                f"add_{k}": stage_counts[k] - last_stage_status_dict.get(k, 0)
-                for k in keys
-            }
-
-            start_time = stage_runtime.get("start_time", 0)
-            last_elapsed = last_stage_status_dict.get("elapsed_time", 0)
-            last_pending = last_stage_status_dict.get("tasks_pending", 0)
-            elapsed = calc_elapsed(status, last_elapsed, last_pending, interval)
-
-            # 估算剩余时间
-            remaining = calc_remaining(
-                stage_counts["tasks_processed"], stage_counts["tasks_pending"], elapsed
+            snapshot, history, (processed, pending, elapsed, remaining) = (
+                self._snapshot_one_stage(
+                    stage_tag,
+                    stage,
+                    stage_runtime,
+                    last_status,
+                    now,
+                    interval,
+                    history_limit,
+                )
             )
 
-            if status == StageStatus.RUNNING:
+            totals["total_succeeded"] += snapshot["tasks_succeeded"]
+            totals["total_pending"] += snapshot["tasks_pending"]
+            totals["total_failed"] += snapshot["tasks_failed"]
+            totals["total_duplicated"] += snapshot["tasks_duplicated"]
+
+            if snapshot["status"] == StageStatus.RUNNING:
                 totals["total_nodes"] += 1
 
-            running_processed_map[stage_tag] = int(stage_counts["tasks_processed"] or 0)
-            running_pending_map[stage_tag] = int(stage_counts["tasks_pending"] or 0)
-            running_elapsed_map[stage_tag] = float(elapsed or 0.0)
-            running_remaining_map[stage_tag] = float(remaining or 0.0)
-
-            # 计算平均时间（秒/任务）并格式化为字符串
-            avg_time_str = format_avg_time(elapsed, stage_counts["tasks_processed"])
-
-            history: list = list(self.stage_history.get(stage_tag, []))
-            history.append(
-                {
-                    "timestamp": now,
-                    "tasks_processed": stage_counts["tasks_processed"],
-                }
-            )
-            history.pop(0) if len(history) > history_limit else None
+            status_dict[stage_tag] = snapshot
             history_dict[stage_tag] = history
 
-            status_dict[stage_tag] = {
-                **stage.get_summary(),
-                "status": status,
-                **stage_counts,
-                **deltas,
-                "start_time": start_time,
-                "elapsed_time": elapsed,
-                "remaining_time": remaining,
-                "task_avg_time": avg_time_str,
-            }
+            running_processed_map[stage_tag] = processed
+            running_pending_map[stage_tag] = pending
+            running_elapsed_map[stage_tag] = elapsed
+            running_remaining_map[stage_tag] = remaining
 
-        if not self.isDAG:
-            totals["total_remain"] = max(running_remaining_map.values(), default=0.0)
-        else:
-            expected_pending_map = calc_global_remain_equal_pred(
-                self.networkx_graph,
-                running_processed_map,
-                running_pending_map,
-                running_elapsed_map,
-            )
-            totals["total_remain"] = max(expected_pending_map.values(), default=0.0)
+        totals["total_remain"] = self._calc_graph_remain(
+            running_processed_map,
+            running_pending_map,
+            running_elapsed_map,
+            running_remaining_map,
+        )
 
         self.status_dict = status_dict
         self.graph_summary = dict(totals)
