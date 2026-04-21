@@ -34,6 +34,39 @@
 3. **UUID 格式碰撞**：`repr+sha1+uuid` 截断 SHA1 为 16 字节后转 UUID，虽概率极低，但严格来说损失了密码学安全性。
 4. **大对象内存压力**：`long_str_4k`、`bytes_4k` 在 10,000 次重复测试中可能短暂占用大量内存。
 
+## 基准结果（实测）
+
+> 环境：Windows，Python 3.10，timeit repeat=7, number=10,000
+
+### 综合排名（所有数据类型平均）
+
+| 方法 | 平均耗时 | 特点 |
+|------|----------|------|
+| `fast_mixed` | ~2.5 us | 基础类型走捷径，综合最快 |
+| `pickle+blake2b16` | ~3.0 us | pickle 序列化 + 快速哈希 |
+| `pickle+sha1` | ~3.2 us | 稳定、兼容性好 |
+| `repr+blake2b16` | ~15 us | repr 规范化 + 快速哈希 |
+| `json+md5` / `json+sha256` | ~25 us | 跨语言稳定，但最慢 |
+| `repr+sha1+uuid` | ~25 us | UUID 格式输出，有额外转换开销 |
+
+### 典型数据点（单位：微秒/次）
+
+| Case | best | worst | 最佳方法 |
+|------|------|-------|----------|
+| int | ~1.3 | ~4.3 | pickle+sha1 / fast_mixed |
+| short_str | ~1.3 | ~4.2 | repr+blake2b16 / fast_mixed |
+| long_str_4k | ~4.1 | ~23.5 | pickle+sha1 / fast_mixed |
+| bytes_4k | ~3.6 | ~58.4 | **fast_mixed**（原生支持 bytes） |
+| small_dict | ~1.9 | ~17.4 | pickle+blake2b16 |
+| dict_100_pairs | ~7.8 | ~104.4 | pickle+sha1 / fast_mixed |
+| list_100_ints | ~2.9 | ~36.0 | fast_mixed |
+| set_100_ints | ~3.7 | ~43.1 | pickle+blake2b16 / fast_mixed |
+
+**关键结论**：
+- `fast_mixed` 在 bytes 和大集合上具有绝对优势（直接哈希原始字节，避免序列化）
+- `json+sha256` 和 `repr+sha1+uuid` 在所有场景下均显著慢于 pickle 方案，仅在对稳定性/格式有强需求时使用
+- pickle 系列方法在小对象上表现优异（1-3 us），但注意 pickle 的跨会话稳定性风险
+
 ## 运行方式
 
 ```bash

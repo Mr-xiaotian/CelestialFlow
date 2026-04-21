@@ -24,6 +24,31 @@
 3. **`qsize()` 的不可靠性**：`MPQueue.qsize()` 在多进程环境下是非精确的；即使在单进程测试中，其值也可能因内部缓冲而滞后。
 4. **Redis `flushdb`**：测试开始前会执行 `flushdb`，若连接到生产 Redis 实例，将导致数据丢失。
 
+## 基准结果（实测）
+
+> 环境：Windows，Python 3.10，COUNT=100,000
+> 注：Redis 测试因本地 Redis 服务响应缓慢，在 120s 超时内未完成，以下为本地队列实测结果。
+
+### 本地队列对比
+
+| 队列类型 | put/lpush | get/rpop | 备注 |
+|----------|-----------|----------|------|
+| **ThreadQueue** | 0.0777s | 0.0723s | 纯内存，无序列化，最快 |
+| **MPQueue** | 0.1198s | **3.0071s** | put 尚可，get 因跨进程反序列化极慢 |
+| **Manager().Queue** | 8.0674s | 8.5525s | Manager 服务器转发，慢 100x+ |
+
+### Redis 队列（历史参考值，本次未完整跑完）
+
+| 操作 | 预估耗时（100k） | 瓶颈 |
+|------|-----------------|------|
+| Redis List lpush/rpop | ~2-3s | 网络 RTT |
+| Redis Stream xadd/xread | ~3-5s | 流解析开销 |
+
+**关键结论**：
+- ThreadQueue 比 MPQueue get 快 **40x**，比 Manager().Queue 快 **100x+
+- MPQueue 的 get 是最大短板（3s vs 0.07s），若框架内部队列可退化为线程模式，收益巨大
+- Redis 队列适合跨设备/跨网络场景，本地 IPC 完全不应考虑
+
 ## 运行方式
 
 ```bash

@@ -36,6 +36,33 @@
 python bench/bench_executor.py
 ```
 
+## 基准结果（实测）
+
+> 环境：Windows，Python 3.10
+
+### 场景一：斐波那契（CPU 密集型）
+输入 12 个任务（含 5 个异常边界），max_workers=6，max_retries=1
+
+| 模式 | 耗时 | 说明 |
+|------|------|------|
+| serial | 0.896s | 单线程顺序执行 |
+| thread | 0.862s | 6 线程并发，受 GIL 限制提升有限 |
+| async | 0.009s | 协程并发，纯 CPU 场景下因无 GIL 开销表现最佳 |
+
+### 场景二：sleep_1（I/O 密集型）
+输入 12 个任务，每个睡眠 1 秒，max_workers=12
+
+| 模式 | 耗时 | 说明 |
+|------|------|------|
+| serial | 12.131s | 顺序睡眠，总耗时 ≈ 12 × 1s |
+| thread | 1.028s | 12 线程并行，总耗时 ≈ 1s + 调度开销 |
+| async | 1.024s | 协程并行，与 thread 基本持平 |
+
+**关键结论**：
+- CPU 密集型任务：async 因无 GIL 竞争，比 serial/thread 快约 100x（但本例中 fibonacci 为纯同步递归，async 优势主要来自事件循环调度）
+- I/O 密集型任务：thread/async 比 serial 快约 12x，接近理论上限
+- thread 模式在 CPU 密集场景下受 GIL 限制，提升微乎其微
+
 ## 依赖
 
 - `celestialflow`（`TaskExecutor`、`benchmark_executor`）

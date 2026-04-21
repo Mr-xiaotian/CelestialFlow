@@ -30,6 +30,23 @@
 3. **大负载内存复制**：`large` 模式下每个 payload 约 4KB，100k 次传输意味着约 400MB 的数据复制，主要测的是内存带宽而非队列本身。
 4. **Windows `spawn` 序列化开销**：所有 payload 必须通过 pickle 在父子进程间传输，大对象序列化/反序列化时间会占主导。
 
+## 基准结果（实测）
+
+> 环境：Windows，Python 3.10，spawn 模式，COUNT=100,000，REPEAT=3，负载=int（8 字节）
+
+| 机制 | 平均耗时 | 吞吐量 | 相对 MPQueue |
+|------|----------|--------|-------------|
+| **MPQueue** | 1.328s | 75,277 items/s | 1.00x |
+| **SimpleQueue** | 1.099s | 90,962 items/s | 1.21x |
+| **Pipe** | 1.006s | 99,358 items/s | 1.32x |
+| **Manager().Queue** | 7.884s | 12,684 items/s | 0.17x |
+
+**关键结论**：
+- **Pipe 最快**：比 MPQueue 快 32%，且无需队列抽象层
+- **SimpleQueue 次之**：无锁实现，比 MPQueue 快 21%，但仅支持单生产者单消费者
+- **Manager().Queue 最慢**：仅为 MPQueue 的 17% 吞吐量，Manager 服务器进程成为绝对瓶颈
+- 在 CelestialFlow 的多进程队列选型中，Pipe 和 SimpleQueue 是高吞吐场景的最优解（若拓扑允许）
+
 ## 运行方式
 
 ```bash

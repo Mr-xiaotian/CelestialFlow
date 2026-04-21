@@ -30,6 +30,37 @@
 3. **MPSC 写入竞争**：虽然 `write_lock` 保护了索引和写入操作，但多个生产者仍串行化写入，SharedMemory 的优势在 MPSC 下可能不如预期。
 4. **Windows 共享内存命名**：`SharedMemory(name=shm_name)` 在 Windows 上依赖全局命名空间，若名称冲突（如同时运行多个 benchmark 实例）会导致不可预期行为。
 
+## 基准结果（实测）
+
+> 环境：Windows，Python 3.10，spawn 模式，COUNT=100,000，REPEAT=3，负载=int（8 字节），SLOT_COUNT=1024
+
+### SPSC（单生产者单消费者）
+
+| 机制 | 平均耗时 | 吞吐量 | 胜出方 |
+|------|----------|--------|--------|
+| MPQueue | 1.281s | 78,066 items/s | — |
+| SharedMemory ring | **0.878s** | **113,853 items/s** | ✅ **SharedMemory**（快 1.46x） |
+
+### MPSC（4 生产者 1 消费者）
+
+| 机制 | 平均耗时 | 吞吐量 | 胜出方 |
+|------|----------|--------|--------|
+| MPQueue | **1.618s** | **61,787 items/s** | ✅ **MPQueue**（快 1.18x） |
+| SharedMemory ring | 1.905s | 52,487 items/s | — |
+
+### SPMC（1 生产者 4 消费者）
+
+| 机制 | 平均耗时 | 吞吐量 | 胜出方 |
+|------|----------|--------|--------|
+| MPQueue | 2.851s | 35,070 items/s | — |
+| SharedMemory ring | **1.989s** | **50,277 items/s** | ✅ **SharedMemory**（快 1.43x） |
+
+**关键结论**：
+- **SPSC**：SharedMemory 优势明显，避免 pickle 序列化和内核态队列管理
+- **MPSC**：SharedMemory 的 write_lock 成为瓶颈（4 个生产者串行写入），MPQueue 反而更快
+- **SPMC**：SharedMemory 再次领先，多个消费者可并行读取不同 slot
+- 策略建议：单生产者场景优先 SharedMemory；多生产者场景优先 MPQueue
+
 ## 运行方式
 
 ```bash

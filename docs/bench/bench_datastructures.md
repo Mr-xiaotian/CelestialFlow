@@ -38,6 +38,30 @@
 python bench/bench_datastructures.py
 ```
 
+## 基准结果（实测）
+
+> 环境：Windows，Python 3.10，本地 Redis，N=10,000
+
+| 测试项 | put/set | get | 备注 |
+|--------|---------|-----|------|
+| Built-in dict | 0.0008s | 0.0003s | 单线程基准，最快 |
+| Queue (thread) | 0.0101s | 0.0108s | 线程安全队列 |
+| MPQueue | 0.0149s | 0.3072s | 跨进程队列，get 因序列化显著变慢 |
+| Manager.dict | 0.5156s | 0.5369s | Manager 服务器转发，慢 50-100x |
+| Value (number) | 0.0174s | — | 10,000 次原子自增 |
+| Redis plain | 2.8352s | 2.9026s | 逐条 RTT，网络延迟主导 |
+| Redis pipeline | 0.1474s | 0.1202s | 批量打包，比 plain 快 ~20x |
+| Redis multi-thread | 1.1749s | 1.0765s | 10 线程并发，无 pipeline |
+| Redis hash | 2.8391s | 2.7675s | hset/hget，与 plain 持平 |
+| Redis list | 2.6853s | 2.8370s | rpush/lindex |
+| Redis set | 2.7932s | 3.2969s | sadd/sismember |
+| Redis zset | 3.1955s | 3.1854s | zadd/zscore |
+
+**关键结论**：
+- 纯内存结构（dict、thread Queue）比任何 IPC/网络方案快 2-3 个数量级
+- Redis Pipeline 是网络场景下的必选项，可将延迟从 ~2.8s 降至 ~0.15s
+- MPQueue 的 get 比 put 慢约 20x，主要受 pickle 反序列化拖累
+
 ## 依赖
 
 - `redis`

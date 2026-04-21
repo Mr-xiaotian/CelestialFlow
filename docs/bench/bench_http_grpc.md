@@ -27,6 +27,23 @@
 3. **HTTP 连接未复用**：当前实现每次事件上报可能新建 HTTP 连接，若使用连接池（如 `requests.Session`），HTTP 性能会显著提升。
 4. **gRPC 冷启动**：gRPC 首次调用需要 TLS/握手协商，可能在短任务中表现为较高延迟。
 
+## 基准结果（实测）
+
+> 环境：Windows，Python 3.10，TaskSplitter → TaskStage 链，处理 `range(1e4)`
+> 外部服务：本地 CelestialTree（HTTP + gRPC）
+
+| 场景 | 耗时 | overhead vs 基线 |
+|------|------|------------------|
+| **no ctree**（基线） | 3.47s | — |
+| **http ctree** | 7.42s | +114% |
+| **grpc ctree** | 7.51s | +116% |
+
+**关键结论**：
+- HTTP 与 gRPC 在该场景下性能几乎持平（差距 < 2%）
+- 事件追踪引入约 **2.1x** 的总耗时增长（3.47s → 7.5s）
+- 由于任务是 `no_op`（零计算），overhead 比例被放大；在 CPU 密集型任务中，此比例会显著降低
+- gRPC 并未表现出明显优势，可能是因为本地网络 RTT 极低，HTTP 连接复用后差距缩小
+
 ## 运行方式
 
 ```bash

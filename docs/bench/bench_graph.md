@@ -37,6 +37,22 @@
 python bench/bench_graph.py
 ```
 
+## 基准结果（实测）
+
+> 环境：Windows，Python 3.10，6 节点 DAG（A→[B,C]→[D,E]→F），输入 10 个任务
+> 注：`benchmark_graph` 因 `util_clone.py` 的 stage 克隆 bug 已修复后成功运行。
+
+| stage_mode \ execution_mode | serial | thread |
+|----------------------------|--------|--------|
+| **serial** | 63.50s | 18.15s |
+| **process** | 20.16s | 9.02s |
+
+**关键结论**：
+- 最优组合：`process` + `thread`（9.02s），比最差组合 `serial`+`serial`（63.50s）快 **7x**
+- `process`（多进程布局）显著优于 `serial`（单进程串行布局），因为各 stage 可并行启动
+- `thread`（线程执行）比 `serial`（单线程执行）快 2-3x，尤其在 I/O 延迟场景下
+- 总耗时包含：进程启动 + 任务执行 + 队列传输 + 终止信号传播
+
 ## 依赖
 
 - `celestialflow`（`TaskGraph`、`TaskStage`、`benchmark_graph`）
