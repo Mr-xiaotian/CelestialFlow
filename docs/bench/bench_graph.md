@@ -2,7 +2,7 @@
 
 ## 目标
 
-对比不同 `stage_mode`（`serial` / `process`）和 `execution_mode`（`serial` / `thread`）组合下，复杂 DAG 的任务图执行性能。使用框架内置的 `benchmark_graph` 工具进行矩阵式对比。
+对比不同 `stage_mode`（`serial` / `thread` / `process`）和 `execution_mode`（`serial` / `thread`）组合下，复杂 DAG 的任务图执行性能。使用框架内置的 `benchmark_graph` 工具进行矩阵式对比。
 
 ## 测试内容
 
@@ -20,9 +20,9 @@
 
 ## 关键配置
 
-- `stage_modes = ["serial", "process"]`
+- `stage_modes = ["serial", "thread", "process"]`
 - `execution_modes = ["serial", "thread"]`
-- 共 **4 种组合**，每种都会完整跑一遍图
+- 共 **6 种组合**，每种都会完整跑一遍图
 
 ## 可能出现的问题
 
@@ -39,19 +39,38 @@ python bench/bench_graph.py
 
 ## 基准结果（实测）
 
-> 环境：Windows，Python 3.10，6 节点 DAG（A→[B,C]→[D,E]→F），输入 10 个任务
-> 注：`benchmark_graph` 因 `util_clone.py` 的 stage 克隆 bug 已修复后成功运行。
+> 环境：Windows，Python 3.10
+
+### `bench_graph_0` — 4 节点 DAG，CPU+I/O 混合，11 个任务（含异常边界）
 
 | stage_mode \ execution_mode | serial | thread |
 |----------------------------|--------|--------|
-| **serial** | 63.50s | 18.15s |
-| **process** | 20.16s | 9.02s |
+| **serial** | 7.70s | 2.82s |
+| **thread** | 7.12s | 2.63s |
+| **process** | 9.88s | 4.99s |
 
-**关键结论**：
-- 最优组合：`process` + `thread`（9.02s），比最差组合 `serial`+`serial`（63.50s）快 **7x**
-- `process`（多进程布局）显著优于 `serial`（单进程串行布局），因为各 stage 可并行启动
-- `thread`（线程执行）比 `serial`（单线程执行）快 2-3x，尤其在 I/O 延迟场景下
-- 总耗时包含：进程启动 + 任务执行 + 队列传输 + 终止信号传播
+- CPU 密集型（斐波那契）场景下，`thread` 与 `serial` stage_mode 差异不大（GIL 限制）
+- `process` 因进程启动开销反而最慢
+- `execution_mode=thread` 仍有 2-3x 加速（斐波那契计算释放 GIL 的部分 + sleep 阶段的 I/O 并发）
+
+### `bench_graph_1` — 6 节点 DAG，I/O 密集（随机 sleep），10 个任务
+
+| stage_mode \ execution_mode | serial | thread |
+|----------------------------|--------|--------|
+| **serial** | 61.20s | 17.08s |
+| **thread** | 17.07s | 7.07s |
+| **process** | 20.47s | 10.98s |
+
+- 最优组合：`thread` + `thread`（7.07s），比最差组合 `serial`+`serial`（61.20s）快 **8.7x**
+- `thread`（线程布局）在 I/O 密集场景下优于 `process`（多进程布局），省去了进程启动和跨进程序列化开销
+- `process`（多进程布局）仍显著优于 `serial`（单进程串行布局），各 stage 可并行启动
+
+### 总结
+
+- `stage_mode=thread` 在 I/O 密集场景下是最优选择，且支持 lambda 等不可 pickle 的函数
+- `stage_mode=process` 适合 CPU 密集且需要绕过 GIL 的场景，但在 Windows 上进程启动开销较大
+- `execution_mode=thread` 在所有场景下都优于 `serial`
+- 总耗时包含：进程/线程启动 + 任务执行 + 队列传输 + 终止信号传播
 
 ## 依赖
 
