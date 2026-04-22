@@ -35,6 +35,9 @@ class TaskSplitter(TaskStage):
         """初始化额外的计数器"""
         self.split_counter = MPValue("i", 0)
 
+    def get_binding_counter(self, _downstream_tag: str):
+        return self.split_counter
+
     def _update_split_counter(self, add_value: int) -> None:
         """更新 split 计数器"""
         self.split_counter.value += add_value
@@ -125,9 +128,15 @@ class TaskRouter(TaskStage):
         self._init_extra_counter()
 
     def _init_extra_counter(self) -> None:
-        """初始化额外的计数器"""
-        # 每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
+        """
+        初始化额外的计数器
+        每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
+        """
         self.route_counters: dict[str, Any] = {}
+
+    def get_binding_counter(self, downstream_tag: str):
+        self.route_counters.setdefault(downstream_tag, MPValue("i", 0))
+        return self.route_counters[downstream_tag]
 
     def _update_route_counter(self, target: str) -> None:
         """更新 route 计数器"""

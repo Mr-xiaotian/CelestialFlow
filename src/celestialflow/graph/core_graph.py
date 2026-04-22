@@ -115,6 +115,9 @@ class TaskGraph:
         self.stage_history: dict[str, list[dict]] = {}
         # 用于保存每个节点的输入任务ID集合
         self.input_ids: dict[str, set[int]] = defaultdict(set)
+        # 用于保存根节点列表
+        self.root_stages: list[TaskStage] = []
+        # 用于保存图结构的邻接表
         self.out_edges: dict[str, list[str]] = defaultdict(list)
         self.in_edges: dict[str, list[str]] = defaultdict(list)
 

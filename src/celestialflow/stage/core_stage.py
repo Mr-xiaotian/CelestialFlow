@@ -126,21 +126,19 @@ class TaskStage(TaskExecutor):
             raise ExecutionModeError(execution_mode, valid_modes)
 
     # ==== 绑定 ====
+    def get_binding_counter(self, _downstream_tag: str):
+        """
+        返回下游 stage 应绑定的计数器，子类可覆写。
+        """
+        return self.metrics.success_counter
+
     def prev_bindings(self, pending_prev_bindings: list[TaskStage]) -> None:
         """
         绑定前置节点
         """
-        from .core_stages import TaskRouter, TaskSplitter
-
         for prev_stage in pending_prev_bindings:
-            if isinstance(prev_stage, TaskRouter):
-                key = self.get_tag()  # 现在已经稳定了
-                prev_stage.route_counters.setdefault(key, MPValue("i", 0))
-                self.metrics.append_task_counter(prev_stage.route_counters[key])
-            elif isinstance(prev_stage, TaskSplitter):
-                self.metrics.append_task_counter(prev_stage.split_counter)
-            else:
-                self.metrics.append_task_counter(prev_stage.metrics.success_counter)
+            counter = prev_stage.get_binding_counter(self.get_tag())
+            self.metrics.append_task_counter(counter)
 
     # ==== 查询 ====
     def get_stage_mode(self) -> str:
