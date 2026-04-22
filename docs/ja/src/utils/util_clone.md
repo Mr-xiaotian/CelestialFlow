@@ -131,7 +131,7 @@ from celestialflow.utils.benchmark import benchmark_graph
 results = benchmark_graph(
     graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "process"],
+    stage_modes=["serial", "thread", "process"],
     execution_modes=["serial", "thread"],
 )
 ```

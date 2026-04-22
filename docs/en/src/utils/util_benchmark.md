@@ -62,7 +62,7 @@ def benchmark_graph(
 
     :param graph: Task graph template
     :param init_tasks_dict: Initial tasks dictionary
-    :param stage_modes: Stage mode list, defaults to ["serial", "process"]
+    :param stage_modes: Stage mode list, defaults to ["serial", "thread", "process"]
     :param execution_modes: Execution mode list, defaults to ["serial", "thread"]
     :return: Test results dictionary
     """
@@ -128,7 +128,7 @@ graph.connect([stage_a], [stage_b])
 benchmark_graph(
     graph=graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "process"],
+    stage_modes=["serial", "thread", "process"],
     execution_modes=["serial", "thread"],
 )
 ```

@@ -102,7 +102,7 @@ pytest tests/test_graph.py::test_graph_1
 pytest tests/test_nodes.py::test_splitter_1
 ```
 
-- test_graph_1() 在一个简单的树状任务模型下，对比了四种运行组合（节点模式：serial / process × 执行模式：serial / thread），以测试不同调度策略下的整体性能差异。图结构如下:
+- test_graph_1() 在一个简单的树状任务模型下，对比了多种运行组合（节点模式：serial / thread / process × 执行模式：serial / thread），以测试不同调度策略下的整体性能差异。图结构如下:
     ```
     +------------------------------------------------------------+
     | Stage_A::sleep_random_A (S:serial, E:serial)               |

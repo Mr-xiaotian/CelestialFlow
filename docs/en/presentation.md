@@ -40,7 +40,7 @@ Starting from practical engineering scenarios — we need a task orchestration t
 ### Core Features
 
 - **Rich graph topologies**: Six preset structures — Chain / Cross / Grid / Loop / Wheel / Complete
-- **Multi-dimensional execution model**: Stage-level (serial/process) x Task-level (serial/thread/process/async) combinations
+- **Multi-dimensional execution model**: Stage-level (serial/thread/process) x Task-level (serial/thread/process/async) combinations
 - **Redis distribution**: Three-phase distributed task transmission — Transport → Source → Ack
 - **Event sourcing**: CelestialTree integration for full task lifecycle tracking
 - **Web dashboard**: FastAPI + ECharts + Mermaid real-time monitoring
@@ -250,7 +250,7 @@ graph TD
 | Level | Options | Description |
 |-------|---------|-------------|
 | Graph-level `schedule_mode` | `eager` / `staged` | Controls concurrent vs sequential execution between Stages |
-| Stage-level `stage_mode` | `serial` / `process` | Whether the Stage runs in an independent process |
+| Stage-level `stage_mode` | `serial` / `thread` / `process` | Whether the Stage runs in an independent process |
 | Task-level `execution_mode` | `serial` / `thread` | Concurrency strategy for tasks within a Stage |
 
 Notes:
@@ -371,7 +371,7 @@ CelestialFlowError (base class)
 ├── ConfigurationError
 │   └── InvalidOptionError
 │       ├── ExecutionModeError    (serial/process/thread/async)
-│       ├── StageModeError        (serial/process)
+│       ├── StageModeError        (serial/thread/process)
 │       └── LogLevelError         (TRACE~CRITICAL)
 ├── RemoteWorkerError             (Redis remote execution failure)
 ├── UnconsumedError               (Unconsumed queue tasks)

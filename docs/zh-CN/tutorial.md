@@ -491,7 +491,7 @@ graph.put_stage_queue({
 | `TaskStage` | 任务节点，包装处理函数 |
 | `TaskSplitter` | 分裂器，将一个任务拆分为多个 |
 | `TaskGraph` | 任务图，组织节点关系和执行流程 |
-| `stage_mode` | 节点运行模式（serial/process） |
+| `stage_mode` | 节点运行模式（serial/thread/process） |
 | `execution_mode` | 节点内部执行模式（serial/thread） |
 
 ### 下一步

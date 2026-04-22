@@ -102,7 +102,7 @@ pytest tests/test_graph.py::test_graph_1
 pytest tests/test_nodes.py::test_splitter_1
 ```
 
-- test_graph_1() compares four execution combinations (stage mode: serial / process x execution mode: serial / thread) under a simple tree-shaped task model to test overall performance differences across different scheduling strategies. The graph structure is as follows:
+- test_graph_1() compares multiple execution combinations (stage mode: serial / thread / process x execution mode: serial / thread) under a simple tree-shaped task model to test overall performance differences across different scheduling strategies. The graph structure is as follows:
     ```
     +------------------------------------------------------------+
     | Stage_A::sleep_random_A (S:serial, E:serial)               |

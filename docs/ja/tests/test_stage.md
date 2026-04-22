@@ -25,7 +25,7 @@
 - **リスク**：マルチプロセスシナリオで、親プロセスが名前を変更する前に子プロセスが古いタグを既にシリアライズしている場合、タグの不整合が発生する可能性があります。
 
 #### `test_invalid_stage_mode`
-- **目的**：不正な `stage_mode`（`"serial"` / `"process"` 以外）が `StageModeError` を発生させることを検証します。
+- **目的**：不正な `stage_mode`（`"serial"` / `"thread"` / `"process"` 以外）が `StageModeError` を発生させることを検証します。
 
 #### `test_invalid_execution_mode`
 - **目的**：不正な `execution_mode`（`"serial"` / `"thread"` / `"async"` 以外）が `ExecutionModeError` を発生させることを検証します。

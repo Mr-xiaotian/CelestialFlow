@@ -491,7 +491,7 @@ This tutorial demonstrated the complete CelestialFlow workflow:
 | `TaskStage` | Task node that wraps a processing function |
 | `TaskSplitter` | Splitter that divides one task into multiple tasks |
 | `TaskGraph` | Task graph that organizes node relationships and execution flow |
-| `stage_mode` | Node execution mode (serial/process) |
+| `stage_mode` | Node execution mode (serial/thread/process) |
 | `execution_mode` | Internal execution mode within a node (serial/thread) |
 
 ### Next Steps

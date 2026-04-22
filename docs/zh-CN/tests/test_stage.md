@@ -25,7 +25,7 @@
 - **风险点**：若在多进程场景下，子进程已序列化旧 tag 后父进程修改了 name，可能导致 tag 不一致。
 
 #### `test_invalid_stage_mode`
-- **目标**：非法 `stage_mode`（非 `"serial"` / `"process"`）应抛出 `StageModeError`。
+- **目标**：非法 `stage_mode`（非 `"serial"` / `"thread"` / `"process"`）应抛出 `StageModeError`。
 
 #### `test_invalid_execution_mode`
 - **目标**：非法 `execution_mode`（非 `"serial"` / `"thread"` / `"async"`）应抛出 `ExecutionModeError`。

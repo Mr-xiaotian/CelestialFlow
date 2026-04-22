@@ -14,6 +14,7 @@
 
 - **Stage Mode**: 节点在图中的运行模式。
   - `serial`: 串行模式，在主进程中运行。
+  - `thread`: 线程模式，在主进程中以独立线程运行。
   - `process`: 并行模式，在独立子进程中运行。
 - **拓扑关系**: 节点间的上下游连接关系由 `TaskGraph` 管理（通过 `graph.out_edges` / `graph.in_edges`），而非存储在节点自身。
 
@@ -66,7 +67,7 @@ graph.connect([stage_a], [stage_b])
 def set_stage_mode(self, stage_mode: str):
     """
     设置当前节点在 graph 中的执行模式。
-    :param stage_mode: 'serial' 或 'process'
+    :param stage_mode: 'serial'、'thread' 或 'process'
     """
 
 # 获取节点运行模式

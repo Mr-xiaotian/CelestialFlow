@@ -102,7 +102,7 @@ pytest tests/test_graph.py::test_graph_1
 pytest tests/test_nodes.py::test_splitter_1
 ```
 
-- test_graph_1()は、シンプルなツリー型タスクモデルにおいて、4つの実行組み合わせ（ステージモード：serial / process × 実行モード：serial / thread）を比較し、異なるスケジューリング戦略下での全体的なパフォーマンス差異をテストします。グラフ構造は以下の通りです：
+- test_graph_1()は、シンプルなツリー型タスクモデルにおいて、複数の実行組み合わせ（ステージモード：serial / thread / process × 実行モード：serial / thread）を比較し、異なるスケジューリング戦略下での全体的なパフォーマンス差異をテストします。グラフ構造は以下の通りです：
     ```
     +------------------------------------------------------------+
     | Stage_A::sleep_random_A (S:serial, E:serial)               |

@@ -14,6 +14,7 @@
 
 - **Stage Mode**: The running mode of a node within a graph.
   - `serial`: Serial mode, runs in the main process.
+  - `thread`: Thread mode, runs in an independent thread within the main process.
   - `process`: Parallel mode, runs in an independent subprocess.
 - **Topological Relationships**: Upstream/downstream connections between nodes are managed by `TaskGraph` (via `graph.out_edges` / `graph.in_edges`), not stored within the node itself.
 
@@ -66,7 +67,7 @@ graph.connect([stage_a], [stage_b])
 def set_stage_mode(self, stage_mode: str):
     """
     Set the execution mode of the current node within the graph.
-    :param stage_mode: 'serial' or 'process'
+    :param stage_mode: 'serial', 'thread', or 'process'
     """
 
 # Get the node's running mode

@@ -40,7 +40,7 @@
 ### コア機能
 
 - **豊富なグラフトポロジー**: Chain / Cross / Grid / Loop / Wheel / Complete の6種類のプリセット構造
-- **多次元実行モデル**: Stage級（serial/process）× Task級（serial/thread/process/async）の組み合わせ
+- **多次元実行モデル**: Stage級（serial/thread/process）× Task級（serial/thread/process/async）の組み合わせ
 - **Redis分散処理**: Transport → Source → Ack の3フェーズ分散タスク伝送
 - **イベントソーシング**: CelestialTree統合によるタスクの全ライフサイクル追跡
 - **Webダッシュボード**: FastAPI + ECharts + Mermaid によるリアルタイム監視
@@ -250,7 +250,7 @@ graph TD
 | レベル | オプション | 説明 |
 |--------|----------|------|
 | グラフ級 `schedule_mode` | `eager` / `staged` | Stage間の並行 vs 順次実行を制御 |
-| Stage級 `stage_mode` | `serial` / `process` | Stageが独立プロセスで実行されるかどうか |
+| Stage級 `stage_mode` | `serial` / `thread` / `process` | Stageが独立プロセスで実行されるかどうか |
 | Task級 `execution_mode` | `serial` / `thread` | Stage内のタスクの並行戦略 |
 
 備考：
@@ -371,7 +371,7 @@ CelestialFlowError (基底クラス)
 ├── ConfigurationError
 │   └── InvalidOptionError
 │       ├── ExecutionModeError    (serial/process/thread/async)
-│       ├── StageModeError        (serial/process)
+│       ├── StageModeError        (serial/thread/process)
 │       └── LogLevelError         (TRACE~CRITICAL)
 ├── RemoteWorkerError             (Redisリモート実行失敗)
 ├── UnconsumedError               (未消費のキュータスク)

@@ -62,7 +62,7 @@ def benchmark_graph(
 
     :param graph: タスクグラフテンプレート
     :param init_tasks_dict: 初期タスク辞書
-    :param stage_modes: ステージモードリスト、デフォルトは ["serial", "process"]
+    :param stage_modes: ステージモードリスト、デフォルトは ["serial", "thread", "process"]
     :param execution_modes: 実行モードリスト、デフォルトは ["serial", "thread"]
     :return: テスト結果辞書
     """
@@ -128,7 +128,7 @@ graph.connect([stage_a], [stage_b])
 benchmark_graph(
     graph=graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "process"],
+    stage_modes=["serial", "thread", "process"],
     execution_modes=["serial", "thread"],
 )
 ```
