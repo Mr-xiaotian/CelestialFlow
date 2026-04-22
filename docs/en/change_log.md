@@ -107,6 +107,18 @@
   - fix
     - Fixed the issue where total remaining time displayed as 0 in edge cases (this is really troublesome);
     - Fixed some display issues on small screens, though the issue of line charts not displaying is hard to resolve;
+- 3.1.7
+  - feat:
+    - [Important] Removed the "process" mode from executor — it was simply too difficult to reconcile with the new retry mechanism;
+  - refactor:
+    - [Important] Significantly refactored the retry mechanism — retry tasks no longer re-enter the task_queue but are resolved directly within the worker;
+      - Modeled after the grow approach in CelestialForge;
+    - Significantly refactored the caching mechanism for success and failure results, and renamed get_success/error_dict to get_success/error_pairs to avoid issues when tasks cannot serve as dictionary keys; 
+      - Fail data is now extracted from fail.jsonl;
+      - Success data is obtained directly from result_queue — SuccessSpout was added as the collection endpoint;
+  - fix:
+    - Fixed the issue where certain task types could not be dumped to JSONL files in log_spout;
+    - Fixed the issue where retry added to the task total count during executor runtime — although it looked cool;
 - 3.1.8
   - feat:
     - [Important] Added "thread" mode for stage_mode, suitable for I/O-intensive tasks and non-picklable functions;
@@ -131,15 +143,3 @@
   - chore:
     - Renamed all test_ function names to demo_ in demo/;
     - Reorganized docs directory structure — renamed reference to src, moved some documents to zh-CN/;
-- 3.1.7
-  - feat:
-    - [Important] Removed the "process" mode from executor — it was simply too difficult to reconcile with the new retry mechanism;
-  - refactor:
-    - [Important] Significantly refactored the retry mechanism — retry tasks no longer re-enter the task_queue but are resolved directly within the worker;
-      - Modeled after the grow approach in CelestialForge;
-    - Significantly refactored the caching mechanism for success and failure results, and renamed get_success/error_dict to get_success/error_pairs to avoid issues when tasks cannot serve as dictionary keys; 
-      - Fail data is now extracted from fail.jsonl;
-      - Success data is obtained directly from result_queue — SuccessSpout was added as the collection endpoint;
-  - fix:
-    - Fixed the issue where certain task types could not be dumped to JSONL files in log_spout;
-    - Fixed the issue where retry added to the task total count during executor runtime — although it looked cool;
