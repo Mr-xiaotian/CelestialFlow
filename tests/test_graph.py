@@ -217,3 +217,101 @@ class TestTaskGraphSummary:
         assert summary["total_succeeded"] == 6  # 3 + 3
         assert summary["total_failed"] == 0
         assert summary["total_pending"] == 0
+
+
+# =========================
+# TaskGraph thread 模式测试
+# =========================
+class TestTaskGraphThread:
+    def test_graph_thread_two_nodes(self):
+        """thread 模式：两个节点串行，结果正确传递"""
+        stage1 = TaskStage(add_one, stage_mode="thread", execution_mode="serial", stage_name="s1")
+        stage2 = TaskStage(double, stage_mode="thread", execution_mode="serial", stage_name="s2")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.connect([stage1], [stage2])
+
+        graph.start_graph({stage1.get_tag(): [1, 2, 3]})
+
+        assert stage1.get_counts()["tasks_succeeded"] == 3
+        assert stage2.get_counts()["tasks_succeeded"] == 3
+
+    def test_graph_thread_fan_out(self):
+        """thread 模式：扇出"""
+        source = TaskStage(add_one, stage_mode="thread", execution_mode="serial", stage_name="src")
+        sink_a = TaskStage(double, stage_mode="thread", execution_mode="serial", stage_name="sink_a")
+        sink_b = TaskStage(to_str, stage_mode="thread", execution_mode="serial", stage_name="sink_b")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[source], stages=[source, sink_a, sink_b])
+        graph.connect([source], [sink_a, sink_b])
+
+        graph.start_graph({source.get_tag(): [1, 2]})
+
+        assert source.get_counts()["tasks_succeeded"] == 2
+        assert sink_a.get_counts()["tasks_succeeded"] == 2
+        assert sink_b.get_counts()["tasks_succeeded"] == 2
+
+    def test_graph_thread_fan_in(self):
+        """thread 模式：扇入"""
+        source_a = TaskStage(add_one, stage_mode="thread", execution_mode="serial", stage_name="src_a")
+        source_b = TaskStage(double, stage_mode="thread", execution_mode="serial", stage_name="src_b")
+        merge = TaskStage(to_str, stage_mode="thread", execution_mode="serial", stage_name="merge")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[source_a, source_b], stages=[source_a, source_b, merge])
+        graph.connect([source_a, source_b], [merge])
+
+        graph.start_graph({
+            source_a.get_tag(): [1, 2],
+            source_b.get_tag(): [10, 20],
+        })
+
+        assert merge.get_counts()["tasks_succeeded"] == 4
+
+    def test_graph_thread_error_propagation(self):
+        """thread 模式：错误任务不会阻断整体流程"""
+        stage1 = TaskStage(add_offset, stage_mode="thread", execution_mode="serial", stage_name="s1")
+        stage2 = TaskStage(double, stage_mode="thread", execution_mode="serial", stage_name="s2")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.connect([stage1], [stage2])
+
+        graph.start_graph({stage1.get_tag(): [1, 50, 2]})
+
+        assert stage1.get_counts()["tasks_succeeded"] == 2
+        assert stage1.get_counts()["tasks_failed"] == 1
+        assert stage2.get_counts()["tasks_succeeded"] == 2
+
+    def test_graph_thread_with_lambda(self):
+        """thread 模式：支持 lambda 函数（process 模式不允许）"""
+        stage1 = TaskStage(lambda x: x + 1, stage_mode="thread", execution_mode="serial", stage_name="s1")
+        stage2 = TaskStage(lambda x: x * 2, stage_mode="thread", execution_mode="serial", stage_name="s2")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.connect([stage1], [stage2])
+
+        graph.start_graph({stage1.get_tag(): [1, 2, 3]})
+
+        assert stage1.get_counts()["tasks_succeeded"] == 3
+        assert stage2.get_counts()["tasks_succeeded"] == 3
+
+    def test_graph_thread_staged_schedule(self):
+        """thread 模式：staged 调度模式下正常工作"""
+        s1 = TaskStage(add_one, stage_mode="thread", execution_mode="serial", stage_name="s1")
+        s2 = TaskStage(double, stage_mode="thread", execution_mode="serial", stage_name="s2")
+        s3 = TaskStage(to_str, stage_mode="thread", execution_mode="serial", stage_name="s3")
+
+        graph = TaskGraph(schedule_mode="staged")
+        graph.set_stages(root_stages=[s1], stages=[s1, s2, s3])
+        graph.connect([s1], [s2])
+        graph.connect([s2], [s3])
+
+        graph.start_graph({s1.get_tag(): [1, 2]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 2
+        assert s2.get_counts()["tasks_succeeded"] == 2
+        assert s3.get_counts()["tasks_succeeded"] == 2

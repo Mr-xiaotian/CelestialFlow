@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
 from multiprocessing import Queue as MPQueue
 from multiprocessing import Value as MPValue
 
@@ -79,12 +78,16 @@ class TaskStage(TaskExecutor):
     # ==== 配置 ====
     def set_stage_mode(self, stage_mode: str | None) -> None:
         """
-        设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
+        设置当前节点在graph中的执行模式, 可以是 'serial'（串行）, 'thread'（线程）或 'process'（进程）
 
         :param stage_mode: 当前节点执行模式
         """
         if stage_mode == "process":
             self.stage_mode = "process"
+            if hasattr(self, "func") and find_unpickleable(self.func):
+                raise PickleError(self.func)
+        elif stage_mode == "thread":
+            self.stage_mode = "thread"
         elif stage_mode == "serial":
             self.stage_mode = "serial"
         else:
@@ -101,17 +104,6 @@ class TaskStage(TaskExecutor):
         # name 变了，tag 必须失效
         if hasattr(self, "_tag"):
             delattr(self, "_tag")
-
-    def _set_func(self, func: Callable):
-        """
-        设置执行函数
-
-        :param func: 执行函数
-        """
-        if find_unpickleable(func):
-            raise PickleError(func)
-        self.func = func
-        self._func_name = func.__name__
 
     def set_execution_mode(self, execution_mode: str) -> None:
         """

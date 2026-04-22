@@ -36,6 +36,11 @@ class TestTaskStageConfig:
         stage = TaskStage(add_one, stage_mode="serial")
         assert stage.get_stage_mode() == "serial"
 
+    def test_valid_stage_mode_thread(self):
+        """合法 stage_mode: thread"""
+        stage = TaskStage(add_one, stage_mode="thread")
+        assert stage.get_stage_mode() == "thread"
+
     def test_valid_stage_mode_process(self):
         """合法 stage_mode: process"""
         stage = TaskStage(add_one, stage_mode="process")
@@ -68,12 +73,23 @@ class TestTaskStageConfig:
         assert summary["stage_mode"] == "process"
         assert summary["execution_mode"] == "thread-20"
 
+    def test_summary_contains_stage_mode_thread(self):
+        """summary 包含 thread stage_mode"""
+        stage = TaskStage(add_one, stage_mode="thread", execution_mode="serial")
+        summary = stage.get_summary()
+        assert summary["stage_mode"] == "thread"
+
 
 class TestTaskStagePickleGuard:
     def test_unpickleable_lambda_raises(self):
-        """lambda 无法 pickle，应抛出 PickleError"""
+        """lambda 无法 pickle，process 模式应抛出 PickleError"""
         with pytest.raises(PickleError):
             TaskStage(lambda x: x + 1, stage_mode="process")
+
+    def test_unpickleable_lambda_allowed_in_thread(self):
+        """lambda 无法 pickle，但 thread 模式允许"""
+        stage = TaskStage(lambda x: x + 1, stage_mode="thread")
+        assert stage.get_stage_mode() == "thread"
 
     def test_picklable_function_ok(self):
         """普通函数可以正常创建"""

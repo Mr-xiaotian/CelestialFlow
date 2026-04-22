@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import multiprocessing
+import threading
 import time
 import warnings
 from collections import defaultdict
@@ -116,6 +117,8 @@ class TaskGraph:
         """
         # 用于保存所有子进程的引用
         self.processes: list[multiprocessing.Process] = []
+        # 用于保存所有子线程的引用
+        self.threads: list[threading.Thread] = []
         # 用于保存每个节点的运行信息
         self.stage_runtime_dict: dict[str, StageRuntime] = {}
         # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
@@ -456,6 +459,8 @@ class TaskGraph:
             for p in self.processes:
                 p.join()
                 self.log_inlet.process_exit(p.name, p.exitcode)
+            for t in self.threads:
+                t.join()
         elif self.schedule_mode == "staged":
             # staged schedule_mode：一层层地顺序执行
             for layer_level, layer in self.layers_dict.items():
@@ -463,16 +468,21 @@ class TaskGraph:
                 start_time = time.perf_counter()
 
                 processes = []
+                threads = []
                 for stage_tag in layer:
                     stage: TaskStage = self.stage_runtime_dict[stage_tag].stage
                     self._execute_stage(stage)
                     if stage.stage_mode == "process":
-                        processes.append(self.processes[-1])  # 最新的进程
+                        processes.append(self.processes[-1])
+                    elif stage.stage_mode == "thread":
+                        threads.append(self.threads[-1])
 
-                # join 当前层的所有进程（如果有）
+                # join 当前层的所有进程和线程
                 for p in processes:
                     p.join()
                     self.log_inlet.process_exit(p.name, p.exitcode)
+                for t in threads:
+                    t.join()
 
                 self.log_inlet.end_layer(layer, time.perf_counter() - start_time)
 
@@ -511,6 +521,15 @@ class TaskGraph:
             )
             p.start()
             self.processes.append(p)
+        elif stage.stage_mode == "thread":
+            t = threading.Thread(
+                target=stage.start_stage,
+                args=(input_queues, output_queues, fail_queue, log_queue),
+                name=stage_tag,
+                daemon=True,
+            )
+            t.start()
+            self.threads.append(t)
         else:
             stage.start_stage(input_queues, output_queues, fail_queue, log_queue)
 
@@ -529,6 +548,12 @@ class TaskGraph:
                 if p.is_alive():
                     self.log_inlet.process_termination_timeout(p.name)
                 self.log_inlet.process_exit(p.name, p.exitcode)
+
+        # 确保所有线程安全结束（线程不可 terminate，仅做 cooperative join）
+        for t in self.threads:
+            t.join(timeout=10)
+            if t.is_alive():
+                self.log_inlet.process_termination_timeout(t.name)
 
         # 更新所有节点状态为"已停止"
         for stage_runtime in self.stage_runtime_dict.values():

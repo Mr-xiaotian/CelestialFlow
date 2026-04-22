@@ -67,7 +67,7 @@ class StageModeError(InvalidOptionError):
         :param stage_mode: 非法的节点模式值
         :param valid_modes: 允许的节点模式列表
         """
-        valid_modes = valid_modes or ("serial", "process")
+        valid_modes = valid_modes or ("serial", "thread", "process")
         super().__init__("stage mode", stage_mode, valid_modes)
         self.stage_mode = stage_mode
         self.valid_modes = self.allowed
