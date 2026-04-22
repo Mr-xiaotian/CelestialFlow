@@ -111,7 +111,7 @@ class LogInlet(BaseInlet):
         self._log(
             "INFO",
             f"'{stage_tag}' end in {stage_mode}; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
-            f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
+            f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
     # ==== executor ====
@@ -133,7 +133,7 @@ class LogInlet(BaseInlet):
         self._log(
             "INFO",
             f"'Executor[{func_name}]' end; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
-            f"{success_num} tasks successed, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
+            f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
     # ==== process ====
@@ -175,7 +175,7 @@ class LogInlet(BaseInlet):
     ) -> None:
         self._log(
             "SUCCESS",
-            f"In '{func_name}', Task {task_repr} successed by {execution_mode}. Result is {result_repr}. Used {use_time:.2f}s. [{parent_id}->{success_id}*]",
+            f"In '{func_name}', Task {task_repr} succeeded by {execution_mode}. Result is {result_repr}. Used {use_time:.2f}s. [{parent_id}->{success_id}*]",
         )
 
     def task_retry(

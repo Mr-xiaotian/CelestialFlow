@@ -1,7 +1,7 @@
 let summaryData: Record<string, any> = {};
 let summaryRev = -1;
 
-const totalSuccessed = document.getElementById("total-successed") as HTMLElement;
+const totalSucceeded = document.getElementById("total-succeeded") as HTMLElement;
 const totalPending = document.getElementById("total-pending") as HTMLElement;
 const totalDuplicated = document.getElementById("total-duplicated") as HTMLElement;
 const totalFailed = document.getElementById("total-failed") as HTMLElement;
@@ -32,7 +32,7 @@ async function loadSummary(): Promise<boolean> {
  */
 function renderSummary() {
   const {
-    total_successed = 0,
+    total_succeeded = 0,
     total_pending = 0,
     total_failed = 0,
     total_duplicated = 0,
@@ -40,7 +40,7 @@ function renderSummary() {
     total_remain = 0,
   } = summaryData || {};
 
-  totalSuccessed.innerHTML = formatLargeNumber(total_successed);
+  totalSucceeded.innerHTML = formatLargeNumber(total_succeeded);
   totalPending.innerHTML = formatLargeNumber(total_pending);
   totalFailed.innerHTML = formatLargeNumber(total_failed);
   totalDuplicated.innerHTML = formatLargeNumber(total_duplicated);

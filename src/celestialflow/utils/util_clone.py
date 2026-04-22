@@ -48,7 +48,12 @@ def clone_stage(stage: TaskStage) -> TaskStage:
     :param stage: 要克隆的节点
     :return: 克隆节点
     """
-    cloned = TaskStage(**_get_clone_init_kwargs(stage))
+    kwargs = _get_clone_init_kwargs(stage)
+    # TaskStage does not accept show_progress / progress_desc / log_level
+    kwargs.pop("show_progress", None)
+    kwargs.pop("progress_desc", None)
+    kwargs.pop("log_level", None)
+    cloned = TaskStage(**kwargs)
 
     cloned.add_retry_exceptions(*stage.metrics.retry_exceptions)
     cloned.set_stage_mode(stage.get_stage_mode())

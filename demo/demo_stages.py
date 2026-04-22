@@ -1,9 +1,9 @@
-import logging
 import os
 import random
 
-import pytest
-from test_utils import (
+from dotenv import load_dotenv
+
+from demo_utils import (
     RouterWrapper,
     download_sleep,
     download_to_file,
@@ -26,6 +26,8 @@ from celestialflow import (
     TaskSplitter,
     TaskStage,
 )
+
+load_dotenv()
 
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
@@ -385,6 +387,6 @@ def test_router_0():
 
 
 if __name__ == "__main__":
-    # test_splitter_0()
-    test_router_0()
+    test_splitter_0()
+    # test_router_0()
     pass

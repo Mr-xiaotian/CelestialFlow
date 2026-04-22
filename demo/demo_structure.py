@@ -1,8 +1,8 @@
-import logging
 import os
 
-import pytest
-from test_utils import (
+from dotenv import load_dotenv
+
+from demo_utils import (
     add_5,
     add_10,
     add_15,
@@ -20,6 +20,8 @@ from celestialflow import (
     TaskStage,
     TaskWheel,
 )
+
+load_dotenv()
 
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
@@ -131,7 +133,18 @@ def test_forest():
     graph = TaskGraph()
     graph.set_stages(
         root_stages=[stageA, stageB, stageF],
-        stages=[stageA, stageB, stageC, stageD, stageE, stageF, stageG, stageH, stageI, stageJ],
+        stages=[
+            stageA,
+            stageB,
+            stageC,
+            stageD,
+            stageE,
+            stageF,
+            stageG,
+            stageH,
+            stageI,
+            stageJ,
+        ],
     )
     graph.connect([stageA], [stageC])
     graph.connect([stageB], [stageD])

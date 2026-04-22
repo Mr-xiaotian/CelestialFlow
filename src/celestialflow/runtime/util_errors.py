@@ -81,6 +81,23 @@ class RemoteWorkerError(CelestialFlowError):
     pass
 
 
+class ScheduleModeError(InvalidOptionError):
+    """非法的 schedule_mode 配置错误"""
+
+    def __init__(self, schedule_mode: str, valid_modes=None):
+        valid_modes = valid_modes or ("eager", "staged")
+        super().__init__("schedule mode", schedule_mode, valid_modes)
+        self.schedule_mode = schedule_mode
+        self.valid_modes = self.allowed
+
+
+class CelestialTreeConnectionError(CelestialFlowError):
+    """CelestialTree 客户端连接失败"""
+
+    def __init__(self, message: str = "CelestialTreeClient is not available"):
+        super().__init__(message)
+
+
 class UnconsumedError(CelestialFlowError):
     """用于标记任务未消费的异常类"""
 

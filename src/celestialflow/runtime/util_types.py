@@ -101,4 +101,16 @@ class StageStatus(IntEnum):
     STOPPED = 2
 
 
+class CTreeEvent:
+    """CelestialTree 事件名称常量"""
+
+    TASK_INPUT = "task.input"
+    TASK_SUCCESS = "task.success"
+    TASK_ERROR = "task.error"
+    TASK_RETRY_PREFIX = "task.retry."
+    TASK_DUPLICATE = "task.duplicate"
+    TERMINATION_INPUT = "termination.input"
+    TERMINATION_MERGE = "termination.merge"
+
+
 STAGE_STYLE = NodeLabelStyle(template="{base}  {payload.name}  ‹{type}›", missing="-")
