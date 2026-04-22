@@ -80,7 +80,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
         visited.add(tag)
         ordered_stages.append(stage)
         for next_tag in graph.out_edges.get(tag, []):
-            next_stage = graph.stage_runtime_dict[next_tag]["stage"]
+            next_stage = graph.stage_runtime_dict[next_tag].stage
             queue.append(next_stage)
 
     # 建立 old_tag -> cloned_stage 映射

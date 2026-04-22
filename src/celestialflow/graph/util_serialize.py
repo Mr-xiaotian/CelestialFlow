@@ -1,19 +1,24 @@
 # graph/util_serialize.py
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .core_graph import StageRuntime
 
 
 # ======== 处理图结构 ========
 def build_structure_graph(
     root_stages: list,
     out_edges: dict[str, list[str]],
-    stage_runtime_dict: dict[str, dict[str, Any]],
+    stage_runtime_dict: dict[str, StageRuntime],
 ) -> list[dict[str, Any]]:
     """
     从多个根节点构建任务链的 JSON 图结构
 
     :param root_stages: 根节点列表
     :param out_edges: 邻接表 {stage_tag: [next_stage_tag, ...]}
-    :param stage_runtime_dict: {stage_tag: {"stage": TaskStage, ...}}
+    :param stage_runtime_dict: {stage_tag: StageRuntime}
     :return: 多棵任务图的 JSON 列表
     """
     visited_stages: set[str] = set()
@@ -32,7 +37,7 @@ def _build_structure_subgraph(
     task_stage,
     visited_stages: set[str],
     out_edges: dict[str, list[str]],
-    stage_runtime_dict: dict[str, dict[str, Any]],
+    stage_runtime_dict: dict[str, StageRuntime],
 ) -> dict[str, Any]:
     """
     构建单个子图结构
@@ -51,7 +56,7 @@ def _build_structure_subgraph(
     visited_stages.add(stage_tag)
 
     for next_stage_tag in out_edges.get(stage_tag, []):
-        next_stage = stage_runtime_dict[next_stage_tag]["stage"]
+        next_stage = stage_runtime_dict[next_stage_tag].stage
         child_node = _build_structure_subgraph(
             next_stage, visited_stages, out_edges, stage_runtime_dict
         )
