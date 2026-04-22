@@ -18,6 +18,10 @@
   <img src="https://img.shields.io/badge/Distributed-Worker%20Friendly-orange">
 </p>
 
+<p align="center">
+  <a href="README.md">中文</a> | <a href="docs/en/README.md">English</a> | <a href="docs/ja/README.md">日本語</a>
+</p>
+
 **CelestialFlow** 是一个轻量级但功能完全的任务流框架，适合需要 **复杂依赖关系**、**灵活执行模型**、**跨设备运行**与**实时可视化监控** 的中/大型 Python 任务系统。
 
 - 相比 Airflow/Dagster 更轻、更快开始
@@ -141,29 +145,23 @@ if __name__ == "__main__":
 
 注意不要在.ipynb中运行。
 
-👉 想查看完整Quick Start，请见[Quick Start](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/quick_start.md)
+👉 想查看完整Quick Start，请见[Quick Start](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/quick_start.md)
 
 ## 深入阅读（Further Reading）
 
-(以下文档完善中)
-
-你可以继续运行更多的演示代码，这里记录了各个演示文件与其中的演示函数说明：
-
-[📄docs/demo/](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/demo/)
-
 若你想了解框架的整体结构与核心组件，下面的参考文档会对你有帮助：
 
-- [stage/core_executor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/stage/core_executor.md)
-- [stage/core_stage.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/stage/core_stage.md)
-- [graph/core_graph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/graph/core_graph.md)
-- [observability/core_progress.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/observability/core_progress.md)
-- [runtime/core_metrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/runtime/core_metrics.md)
-- [runtime/core_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/runtime/core_queue.md)
-- [stage/core_stages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/stage/core_stages.md)
-- [observability/core_report.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/observability/core_report.md)
-- [graph/core_structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/graph/core_structure.md)
-- [web/core_server.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/web/core_server.md)
-- [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/other/go_worker.md)
+- [stage/core_executor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_executor.md)
+- [stage/core_stage.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stage.md)
+- [graph/core_graph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_graph.md)
+- [observability/core_progress.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_progress.md)
+- [runtime/core_metrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_metrics.md)
+- [runtime/core_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_queue.md)
+- [stage/core_stages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stages.md)
+- [observability/core_report.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_report.md)
+- [graph/core_structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_structure.md)
+- [web/core_server.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/web/core_server.md)
+- [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
 
 推荐阅读顺序:
 
@@ -196,19 +194,31 @@ flowchart TD
 
 以下三篇可以作为补充阅读:
 
-- [runtime/util_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/runtime/util_queue.md)
-- [runtime/util_types.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/runtime/util_types.md)
-- [runtime/util_errors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/runtime/util_errors.md)
-- [persistence/core_fail.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/persistence/core_fail.md)
-- [persistence/core_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/persistence/core_log.md)
+- [runtime/util_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_queue.md)
+- [runtime/util_types.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_types.md)
+- [runtime/util_errors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_errors.md)
+- [persistence/core_fail.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_fail.md)
+- [persistence/core_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md)
 
-如果你更喜欢通过完整案例理解框架的运行方式，可以参考这篇从零开始构建 TaskGraph 的教程：
+如果你更喜欢通过完整案例理解框架的运行方式，可以参考这篇利用 TaskGraph 从零开始构建项目的教程：
 
-[📘案例教程](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/tutorial.md)
+[📘案例教程](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/tutorial.md)
 
 如果你对3.0.7版本加入的ctree_client与其功能感兴趣, 可以看看这一篇:
 
-[📚CelestialTreeClient](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/other/ctree_client.md)
+[📚CelestialTreeClient](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/ctree_client.md)
+
+你可以继续运行更多的演示代码，这里记录了各个演示文件与其中的演示函数说明：
+
+[🎮demo/](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/)
+
+​如果你想运行测试代码, 可以先查看如下文档内容:
+
+[🧪tests/](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/tests/)
+
+如果你想查看bench内容, 这里的数据成为框架中部分设计的决策依据:
+
+[⚡bench/](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/bench/)
 
 ## 环境要求（Requirements）
 
@@ -262,6 +272,10 @@ flowchart TD
   - chore:
     - 将demo/中所有test_函数名改为demo_函数名;
     - 重组docs目录结构, 将reference改为src, 移动部分文档至zh-CN/;
+
+更多过往日志可看:
+
+[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/change_log.md )
 
 ## Star 历史趋势（Star History）
 
