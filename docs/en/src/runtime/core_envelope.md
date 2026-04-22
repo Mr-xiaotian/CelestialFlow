@@ -8,26 +8,28 @@ A wrapper class for task data that is passed between stages. It encapsulates the
 
 ```python
 class TaskEnvelope:
-    __slots__ = ("task", "hash", "id", "source")
+    __slots__ = ("task", "hash", "id", "source", "prev")
 
-    def __init__(self, task, hash: str, id: int, source: str = "input"):
+    def __init__(self, task, hash: str, id: int, source: str, prev: Any):
         self.task = task      # Raw task data
         self.hash = hash      # Hash of the task content
         self.id = id          # Unique task ID
-        self.source = source  # Task source (default "input")
+        self.source = source  # Task source identifier
+        self.prev = prev      # Previous task (for result cache backtracking)
 ```
 
 ## Class Methods
 
 ```python
 @classmethod
-def wrap(cls, task, task_id: int, source: str = "input"):
+def wrap(cls, task, task_id: int, source: str, prev: Any = None):
     """
     Wrap a raw task into a TaskEnvelope.
 
     :param task: Raw task
     :param task_id: Task ID
     :param source: Task source
+    :param prev: Previous task envelope
     :return: TaskEnvelope instance
     """
 ```
@@ -39,7 +41,7 @@ def unwrap(self) -> tuple:
     """
     Unwrap a TaskEnvelope.
 
-    :return: (task, hash, id, source)
+    :return: (task, hash, id)
     """
 
 def change_id(self, new_id: int):
@@ -59,7 +61,7 @@ from celestialflow.runtime import TaskEnvelope
 envelope = TaskEnvelope.wrap(task_data, task_id=123, source="input")
 
 # Unwrap
-task, hash, id, source = envelope.unwrap()
+task, hash, id = envelope.unwrap()
 
 # Change ID (on retry)
 envelope.change_id(456)

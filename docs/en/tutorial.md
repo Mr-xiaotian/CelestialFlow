@@ -279,7 +279,7 @@ print("Starting image crawl...")
 graph.start_graph(init_tasks)
 
 # Get statistics
-print(f"Succeeded: {graph.get_graph_summary().get('total_successed', 0)}")
+print(f"Succeeded: {graph.get_graph_summary().get('total_succeeded', 0)}")
 print(f"Failed: {graph.get_graph_summary().get('total_failed', 0)}")
 ```
 
@@ -411,7 +411,7 @@ if __name__ == "__main__":
     # Statistics
     summary = graph.get_graph_summary()
     print(f"\nCrawl complete!")
-    print(f"Succeeded: {summary.get('total_successed', 0)}")
+    print(f"Succeeded: {summary.get('total_succeeded', 0)}")
     print(f"Failed: {summary.get('total_failed', 0)}")
 ```
 

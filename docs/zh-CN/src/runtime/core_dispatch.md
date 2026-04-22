@@ -20,12 +20,12 @@ class TaskDispatch:
 
 ## 执行模式
 
-### run_in_serial
+### dispatch_serial
 
 串行执行任务，一个接一个处理。
 
 ```python
-def run_in_serial(self):
+def dispatch_serial(self):
     """
     串行地执行任务。
 
@@ -41,12 +41,12 @@ def run_in_serial(self):
 5. 更新进度条
 6. 收到终止信号后，检查是否所有任务完成
 
-### run_in_thread
+### dispatch_thread
 
 使用线程池并行执行任务。
 
 ```python
-def run_in_thread(self):
+def dispatch_thread(self):
     """
     使用线程池并行执行任务。
     """
@@ -58,12 +58,12 @@ def run_in_thread(self):
 3. 等待所有 future 完成后处理终止信号
 4. 关闭池并释放资源
 
-### run_in_async
+### dispatch_async
 
 异步执行任务，使用协程和信号量控制并发。
 
 ```python
-async def run_in_async(self):
+async def dispatch_async(self):
     """
     异步地执行任务，限制并发数量。
     """
@@ -120,15 +120,15 @@ TaskExecutor
     └── dispatch           # TaskDispatch 实例
             ├── func               # 任务函数
             ├── max_workers        # 并发数量限制
-            ├── run_in_serial()
-            ├── run_in_thread()
-            └── run_in_async()
+            ├── dispatch_serial()
+            ├── dispatch_thread()
+            └── dispatch_async()
 ```
 
 `TaskExecutor` 根据 `execution_mode` 选择调用 `TaskDispatch` 的哪个方法：
-- `serial` → `run_in_serial()`
-- `thread` → `run_in_thread()`
-- `async` → `run_in_async()`
+- `serial` → `dispatch_serial()`
+- `thread` → `dispatch_thread()`
+- `async` → `dispatch_async()`
 
 ## 注意事项
 
@@ -136,4 +136,4 @@ TaskExecutor
 2. **终止处理**: 正确处理终止信号的合并和传递
 3. **错误传播**: 异常会被捕获并传递给 `TaskExecutor.handle_task_fail()`
 4. **重试机制**: worker 内部支持任务重试，由 `max_retries` 控制
-5. **异步限制**: `run_in_async` 需要任务函数是协程函数
+5. **异步限制**: `dispatch_async` 需要任务函数是协程函数

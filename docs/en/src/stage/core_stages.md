@@ -41,11 +41,14 @@ Splits a single input task into multiple output tasks. Suitable for one-to-many 
 
 ```python
 class TaskSplitter(TaskStage):
-    def __init__(self):
+    def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
         """
         Initialize TaskSplitter.
-        Defaults: execution_mode="serial", max_retries=0, unpack_task_args=True
+
+        :param stage_mode: Node running mode
+        :param stage_name: Node name
         """
+        # Defaults: execution_mode="serial", max_retries=0, unpack_task_args=True
 ```
 
 ### Usage
@@ -104,11 +107,14 @@ Routes tasks to different downstream paths based on conditions.
 
 ```python
 class TaskRouter(TaskStage):
-    def __init__(self):
+    def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
         """
         Initialize TaskRouter.
-        Defaults: execution_mode="serial", max_retries=0
+
+        :param stage_mode: Node running mode
+        :param stage_name: Node name
         """
+        # Defaults: execution_mode="serial", max_retries=0
 ```
 
 ### Usage
@@ -184,6 +190,8 @@ class TaskRedisTransport(TaskStage):
         db: int = 0,                    # Redis database number
         password: str | None = None,    # Redis password
         unpack_task_args: bool = False, # Whether to unpack task arguments
+        stage_mode: str = "serial",     # Node running mode
+        stage_name: str | None = None,  # Node name
     ):
         ...
 ```
@@ -204,6 +212,8 @@ class TaskRedisSource(TaskStage):
         db: int = 0,                 # Redis database number
         password: str | None = None, # Redis password
         timeout: int = 10,           # Blocking timeout in seconds; 0 means wait indefinitely
+        stage_mode: str = "serial",  # Node running mode
+        stage_name: str | None = None, # Node name
     ):
         ...
 ```
@@ -255,6 +265,8 @@ class TaskRedisAck(TaskStage):
         db: int = 0,                 # Redis database number
         password: str | None = None, # Redis password
         timeout: int = 10,           # Wait timeout in seconds; 0 means wait indefinitely
+        stage_mode: str = "serial",  # Node running mode
+        stage_name: str | None = None, # Node name
     ):
         ...
 ```

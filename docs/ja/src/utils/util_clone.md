@@ -32,7 +32,6 @@ def clone_executor(executor: TaskExecutor) -> TaskExecutor:
 - `max_info`: ログメッセージの最大長
 - `unpack_task_args`: 引数を展開するかどうか
 - `enable_success_cache`: 成功キャッシュの有効/無効
-- `enable_error_cache`: エラーキャッシュの有効/無効
 - `enable_duplicate_check`: 重複チェックの有効/無効
 - `show_progress`: プログレスバーの有効/無効
 - `progress_desc`: プログレスバーの説明

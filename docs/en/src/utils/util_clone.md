@@ -32,7 +32,6 @@ Copied attributes:
 - `max_info`: Maximum log message length
 - `unpack_task_args`: Whether to unpack arguments
 - `enable_success_cache`: Success cache toggle
-- `enable_error_cache`: Error cache toggle
 - `enable_duplicate_check`: Duplicate check toggle
 - `show_progress`: Progress bar toggle
 - `progress_desc`: Progress bar description

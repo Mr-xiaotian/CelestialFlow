@@ -82,7 +82,7 @@ Gets a snapshot dictionary of all current metrics.
 def get_counts(self) -> dict:
     return {
         "tasks_input": int,       # Total input tasks
-        "tasks_successed": int,   # Successful tasks
+        "tasks_succeeded": int,   # Successful tasks
         "tasks_failed": int,      # Failed tasks
         "tasks_duplicated": int,  # Duplicate tasks
         "tasks_processed": int,   # Total processed (success+failure+duplicate)

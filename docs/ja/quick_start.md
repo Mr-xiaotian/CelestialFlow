@@ -69,7 +69,7 @@ python src/celestialflow/task_web.py --port 5005
 
 タスク構造、実行状態、エラーログの確認、およびリアルタイムでのタスク注入などの機能を利用できます。
 
-以下の画像は、test_graph_1実行時のWebページの表示例です（デフォルトのレイアウトではありません）：
+以下の画像は、テスト実行時のWebページの表示例です（デフォルトのレイアウトではありません）：
 
 ![WebUI](https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/web_ui.gif)
 <p align="center"><em>gif画像は細部が圧縮されすぎています(｡•́︿•̀｡)</em></p>
@@ -95,35 +95,14 @@ graph.set_reporter(True, host="127.0.0.1", port=5005)
 uv pip install pytest pytest-asyncio python-dotenv
 ```
 
-まず以下の2つのサンプルを実行することを推奨します：
+まず以下のテストを実行することを推奨します：
 
 ```bash
-pytest tests/test_graph.py::test_graph_1
-pytest tests/test_nodes.py::test_splitter_1
+pytest tests/test_graph.py
+pytest tests/test_stage.py
 ```
 
-- test_graph_1()は、シンプルなツリー型タスクモデルにおいて、複数の実行組み合わせ（ステージモード：serial / thread / process × 実行モード：serial / thread）を比較し、異なるスケジューリング戦略下での全体的なパフォーマンス差異をテストします。グラフ構造は以下の通りです：
-    ```
-    +------------------------------------------------------------+
-    | Stage_A::sleep_random_A (S:serial, E:serial)               |
-    | ╞-->Stage_B::sleep_random_B (S:serial, E:serial)           |
-    | │   ╞-->Stage_D::sleep_random_D (S:serial, E:serial)       |
-    | │   │   ╘-->Stage_F::sleep_random_F (S:serial, E:serial)   |
-    | │   ╘-->Stage_E::sleep_random_E (S:serial, E:serial)       |
-    | ╘-->Stage_C::sleep_random_C (S:serial, E:serial)           |
-    |     ╘-->Stage_E::sleep_random_E (S:serial, E:serial) [Ref] |
-    +------------------------------------------------------------+
-    ```
-- test_splitter_0()は、クローラーの実行フローをシミュレートします：エントリページからの取得を開始し、解析中に動的に新しいクロールタスクを生成して上流の取得ノードに返します。下流ノードはデータクレンジングと結果処理を担当します。グラフ構造は以下の通りです：
-    ```
-    +--------------------------------------------------------------------------------+
-    | GenURLs::generate_urls_sleep (S:process, E:serial)                             |
-    | ╞-->Loger::log_urls_sleep (S:process, E:serial)                                |
-    | ╘-->Splitter::_split (S:process, E:serial)                                     |
-    |     ╞-->Downloader::download_sleep (S:process, E:serial)                       |
-    |     ╘-->Parser::parse_sleep (S:process, E:serial)                              |
-    |         ╘-->GenURLs::generate_urls_sleep (S:process, E:serial) [Ref]           |
-    +--------------------------------------------------------------------------------+
-    ```
+- `tests/test_graph.py` には、グラフ構造に関連するテストが含まれています：DAG構築、段階的スケジューリング、スレッドモード、ループ/グリッド/完全グラフ構造など。
+- `tests/test_stage.py` には、Stageノードに関連するテストが含まれています：モード検証、タグ生成、シリアライズチェックなど。
 
 コード実行中は、Web監視ページで実行状況を確認できます。

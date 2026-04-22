@@ -27,7 +27,7 @@ Updates the statistics values from `summaryData` to the respective DOM elements 
 
 | `summaryData` Field | DOM Element | Description |
 |--------------------|-------------|-------------|
-| `total_successed` | `#total-successed` | Total successful tasks |
+| `total_succeeded` | `#total-succeeded` | Total successful tasks |
 | `total_pending` | `#total-pending` | Total pending tasks |
 | `total_failed` | `#total-failed` | Total failed tasks |
 | `total_duplicated` | `#total-duplicated` | Total duplicated tasks |

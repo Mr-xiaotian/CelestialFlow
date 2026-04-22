@@ -8,26 +8,28 @@
 
 ```python
 class TaskEnvelope:
-    __slots__ = ("task", "hash", "id", "source")
+    __slots__ = ("task", "hash", "id", "source", "prev")
 
-    def __init__(self, task, hash: str, id: int, source: str = "input"):
+    def __init__(self, task, hash: str, id: int, source: str, prev: Any):
         self.task = task      # 原始任务数据
         self.hash = hash      # 任务内容的哈希值
         self.id = id          # 任务唯一 ID
-        self.source = source  # 任务来源（默认 "input"）
+        self.source = source  # 任务来源标识
+        self.prev = prev      # 前一个任务（用于结果缓存时回溯）
 ```
 
 ## 类方法
 
 ```python
 @classmethod
-def wrap(cls, task, task_id: int, source: str = "input"):
+def wrap(cls, task, task_id: int, source: str, prev: Any = None):
     """
     将原始 task 包装为 TaskEnvelope。
 
     :param task: 原始任务
     :param task_id: 任务 id
     :param source: 任务来源
+    :param prev: 前一个任务的 envelope
     :return: TaskEnvelope 实例
     """
 ```
@@ -39,7 +41,7 @@ def unwrap(self) -> tuple:
     """
     解包装 TaskEnvelope。
 
-    :return: (task, hash, id, source)
+    :return: (task, hash, id)
     """
 
 def change_id(self, new_id: int):
@@ -59,7 +61,7 @@ from celestialflow.runtime import TaskEnvelope
 envelope = TaskEnvelope.wrap(task_data, task_id=123, source="input")
 
 # 解包装
-task, hash, id, source = envelope.unwrap()
+task, hash, id = envelope.unwrap()
 
 # 修改 ID（重试时）
 envelope.change_id(456)

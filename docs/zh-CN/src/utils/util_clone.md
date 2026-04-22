@@ -32,7 +32,6 @@ def clone_executor(executor: TaskExecutor) -> TaskExecutor:
 - `max_info`: 日志信息最大长度
 - `unpack_task_args`: 是否解包参数
 - `enable_success_cache`: 成功缓存开关
-- `enable_error_cache`: 错误缓存开关
 - `enable_duplicate_check`: 重复检查开关
 - `show_progress`: 进度条开关
 - `progress_desc`: 进度条描述

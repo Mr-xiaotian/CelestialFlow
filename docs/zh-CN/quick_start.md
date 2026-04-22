@@ -69,7 +69,7 @@ python src/celestialflow/task_web.py --port 5005
 
 可查看任务结构、执行状态、错误日志、以及实时注入任务等功能。
 
-下图为运行test_graph_1时web页面的显示情况, 非默认打开样式：
+下图为运行测试时 web 页面的显示情况，非默认打开样式：
 
 ![WebUI](https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/web_ui.gif)
 <p align="center"><em>gif图压缩了过多细节(｡•́︿•̀｡)</em></p>
@@ -95,35 +95,14 @@ graph.set_reporter(True, host="127.0.0.1", port=5005)
 uv pip install pytest pytest-asyncio python-dotenv
 ```
 
-之后推荐先运行以下两个示例：
+之后推荐先运行以下测试：
 
 ```bash
-pytest tests/test_graph.py::test_graph_1
-pytest tests/test_nodes.py::test_splitter_1
+pytest tests/test_graph.py
+pytest tests/test_stage.py
 ```
 
-- test_graph_1() 在一个简单的树状任务模型下，对比了多种运行组合（节点模式：serial / thread / process × 执行模式：serial / thread），以测试不同调度策略下的整体性能差异。图结构如下:
-    ```
-    +------------------------------------------------------------+
-    | Stage_A::sleep_random_A (S:serial, E:serial)               |
-    | ╞-->Stage_B::sleep_random_B (S:serial, E:serial)           |
-    | │   ╞-->Stage_D::sleep_random_D (S:serial, E:serial)       |
-    | │   │   ╘-->Stage_F::sleep_random_F (S:serial, E:serial)   |
-    | │   ╘-->Stage_E::sleep_random_E (S:serial, E:serial)       |
-    | ╘-->Stage_C::sleep_random_C (S:serial, E:serial)           |
-    |     ╘-->Stage_E::sleep_random_E (S:serial, E:serial) [Ref] |
-    +------------------------------------------------------------+
-    ```
-- test_splitter_0() 模拟了一个爬虫程序的执行流程：从入口页面开始抓取，并在解析过程中动态生成新的爬取任务并返回上游抓取节点；下游节点负责数据清洗与结果处理。图结构如下:
-    ```
-    +--------------------------------------------------------------------------------+
-    | GenURLs::generate_urls_sleep (S:process, E:serial)                             |
-    | ╞-->Loger::log_urls_sleep (S:process, E:serial)                                |
-    | ╘-->Splitter::_split (S:process, E:serial)                                     |
-    |     ╞-->Downloader::download_sleep (S:process, E:serial)                       |
-    |     ╘-->Parser::parse_sleep (S:process, E:serial)                              |
-    |         ╘-->GenURLs::generate_urls_sleep (S:process, E:serial) [Ref]           |
-    +--------------------------------------------------------------------------------+
-    ```
+- `tests/test_graph.py` 包含图结构相关测试：DAG 构建、分层调度、线程模式、循环/网格/完全图结构等。
+- `tests/test_stage.py` 包含 Stage 节点相关测试：模式校验、标签生成、序列化检查等。
 
 在代码运行过程中可以通过Web监视页面查看运行情况。

@@ -279,7 +279,7 @@ print("开始爬取图片...")
 graph.start_graph(init_tasks)
 
 # 获取统计
-print(f"成功: {graph.get_graph_summary().get('total_successed', 0)}")
+print(f"成功: {graph.get_graph_summary().get('total_succeeded', 0)}")
 print(f"失败: {graph.get_graph_summary().get('total_failed', 0)}")
 ```
 
@@ -411,7 +411,7 @@ if __name__ == "__main__":
     # 统计
     summary = graph.get_graph_summary()
     print(f"\n爬取完成!")
-    print(f"成功: {summary.get('total_successed', 0)}")
+    print(f"成功: {summary.get('total_succeeded', 0)}")
     print(f"失败: {summary.get('total_failed', 0)}")
 ```
 

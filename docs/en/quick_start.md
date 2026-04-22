@@ -69,7 +69,7 @@ The default listening port is `5000`, but to avoid conflicts, the test code uses
 
 You can view the task structure, execution status, error logs, and inject tasks in real time.
 
-The image below shows the Web page when running test_graph_1 (not the default layout):
+The image below shows the Web page when running tests (not the default layout):
 
 ![WebUI](https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/web_ui.gif)
 <p align="center"><em>The gif has lost too many details due to compression (｡•́︿•̀｡)</em></p>
@@ -95,35 +95,14 @@ To ensure tests run properly, first install the required testing and dotenv libr
 uv pip install pytest pytest-asyncio python-dotenv
 ```
 
-It is recommended to start by running the following two examples:
+It is recommended to start by running the following tests:
 
 ```bash
-pytest tests/test_graph.py::test_graph_1
-pytest tests/test_nodes.py::test_splitter_1
+pytest tests/test_graph.py
+pytest tests/test_stage.py
 ```
 
-- test_graph_1() compares multiple execution combinations (stage mode: serial / thread / process x execution mode: serial / thread) under a simple tree-shaped task model to test overall performance differences across different scheduling strategies. The graph structure is as follows:
-    ```
-    +------------------------------------------------------------+
-    | Stage_A::sleep_random_A (S:serial, E:serial)               |
-    | ╞-->Stage_B::sleep_random_B (S:serial, E:serial)           |
-    | │   ╞-->Stage_D::sleep_random_D (S:serial, E:serial)       |
-    | │   │   ╘-->Stage_F::sleep_random_F (S:serial, E:serial)   |
-    | │   ╘-->Stage_E::sleep_random_E (S:serial, E:serial)       |
-    | ╘-->Stage_C::sleep_random_C (S:serial, E:serial)           |
-    |     ╘-->Stage_E::sleep_random_E (S:serial, E:serial) [Ref] |
-    +------------------------------------------------------------+
-    ```
-- test_splitter_0() simulates a crawler execution flow: starting from an entry page, dynamically generating new crawl tasks during parsing and returning them to the upstream fetch node; downstream nodes handle data cleaning and result processing. The graph structure is as follows:
-    ```
-    +--------------------------------------------------------------------------------+
-    | GenURLs::generate_urls_sleep (S:process, E:serial)                             |
-    | ╞-->Loger::log_urls_sleep (S:process, E:serial)                                |
-    | ╘-->Splitter::_split (S:process, E:serial)                                     |
-    |     ╞-->Downloader::download_sleep (S:process, E:serial)                       |
-    |     ╘-->Parser::parse_sleep (S:process, E:serial)                              |
-    |         ╘-->GenURLs::generate_urls_sleep (S:process, E:serial) [Ref]           |
-    +--------------------------------------------------------------------------------+
-    ```
+- `tests/test_graph.py` contains graph structure related tests: DAG construction, staged scheduling, thread mode, loop/grid/complete graph structures, etc.
+- `tests/test_stage.py` contains Stage node related tests: mode validation, tag generation, serialization checks, etc.
 
 You can monitor the execution through the Web monitoring page while the code is running.

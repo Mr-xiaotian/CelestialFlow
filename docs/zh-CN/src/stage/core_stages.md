@@ -41,11 +41,14 @@ flowchart LR
 
 ```python
 class TaskSplitter(TaskStage):
-    def __init__(self):
+    def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
         """
         初始化 TaskSplitter。
-        默认：execution_mode="serial", max_retries=0, unpack_task_args=True
+
+        :param stage_mode: 节点运行模式
+        :param stage_name: 节点名称
         """
+        # 默认：execution_mode="serial", max_retries=0, unpack_task_args=True
 ```
 
 ### 使用方式
@@ -104,11 +107,14 @@ flowchart LR
 
 ```python
 class TaskRouter(TaskStage):
-    def __init__(self):
+    def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
         """
         初始化 TaskRouter。
-        默认：execution_mode="serial", max_retries=0
+
+        :param stage_mode: 节点运行模式
+        :param stage_name: 节点名称
         """
+        # 默认：execution_mode="serial", max_retries=0
 ```
 
 ### 使用方式
@@ -184,6 +190,8 @@ class TaskRedisTransport(TaskStage):
         db: int = 0,                    # Redis 数据库编号
         password: str | None = None,    # Redis 密码
         unpack_task_args: bool = False, # 是否解包任务参数
+        stage_mode: str = "serial",     # 节点运行模式
+        stage_name: str | None = None,  # 节点名称
     ):
         ...
 ```
@@ -204,6 +212,8 @@ class TaskRedisSource(TaskStage):
         db: int = 0,                 # Redis 数据库编号
         password: str | None = None, # Redis 密码
         timeout: int = 10,           # 阻塞超时时间（秒），0 表示无限等待
+        stage_mode: str = "serial",  # 节点运行模式
+        stage_name: str | None = None, # 节点名称
     ):
         ...
 ```
@@ -255,6 +265,8 @@ class TaskRedisAck(TaskStage):
         db: int = 0,                 # Redis 数据库编号
         password: str | None = None, # Redis 密码
         timeout: int = 10,           # 等待超时时间（秒），0 表示无限等待
+        stage_mode: str = "serial",  # 节点运行模式
+        stage_name: str | None = None, # 节点名称
     ):
         ...
 ```

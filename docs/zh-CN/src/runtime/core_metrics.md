@@ -82,7 +82,7 @@ def is_tasks_finished(self) -> bool: ...
 def get_counts(self) -> dict:
     return {
         "tasks_input": int,       # 输入任务总数
-        "tasks_successed": int,   # 成功任务数
+        "tasks_succeeded": int,   # 成功任务数
         "tasks_failed": int,      # 失败任务数
         "tasks_duplicated": int,  # 重复任务数
         "tasks_processed": int,   # 已处理总数 (成功+失败+重复)

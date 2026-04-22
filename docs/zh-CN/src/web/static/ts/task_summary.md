@@ -27,7 +27,7 @@
 
 | `summaryData` 字段 | DOM 元素 | 说明 |
 |--------------------|---------|------|
-| `total_successed` | `#total-successed` | 总成功任务数 |
+| `total_succeeded` | `#total-succeeded` | 总成功任务数 |
 | `total_pending` | `#total-pending` | 总等待任务数 |
 | `total_failed` | `#total-failed` | 总错误任务数 |
 | `total_duplicated` | `#total-duplicated` | 总重复任务数 |

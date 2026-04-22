@@ -11,14 +11,14 @@ type NodeStatus = {
   status: number;            // 0=未実行, 1=実行中, 2=停止済み
   tasks_processed: number;   // 処理済みタスク数
   tasks_pending: number;     // 待機中タスク数
-  tasks_successed: number;   // 累計成功数
-  add_tasks_successed: number; // 今サイクルの新規成功数
+  tasks_succeeded: number;   // 累計成功数
+  add_tasks_succeeded: number; // 今サイクルの新規成功数
   add_tasks_pending: number;
   tasks_failed: number;
   add_tasks_failed: number;
   tasks_duplicated: number;
   add_tasks_duplicated: number;
-  stage_mode: string;        // serial / thread
+  stage_mode: string;        // serial / thread / process
   execution_mode: string;    // serial / thread / process / async
   start_time: number;        // Unix タイムスタンプ（秒）
   elapsed_time: number;      // 経過秒数
