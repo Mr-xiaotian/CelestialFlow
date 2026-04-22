@@ -97,6 +97,7 @@ def test_splitter_0():
     graph.connect([splitter], [download_stage, parse_stage])
     graph.connect([parse_stage], [generate_stage])
 
+    graph.set_graph_mode("thread", "thread")
     graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_ctree(
         True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port

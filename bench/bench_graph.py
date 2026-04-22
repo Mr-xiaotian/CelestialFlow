@@ -123,7 +123,7 @@ def bench_graph_0():
     input_tasks = {
         stage1.get_tag(): bench_task_1,
     }
-    stage_modes = ["serial", "process"]
+    stage_modes = ["serial", "thread", "process"]
     execution_modes = ["serial", "thread"]
 
     benchmark_graph(graph, input_tasks, stage_modes, execution_modes)
@@ -191,7 +191,7 @@ def bench_graph_1():
     input_tasks = {
         A.get_tag(): range(10),
     }
-    stage_modes = ["serial", "process"]
+    stage_modes = ["serial", "thread", "process"]
     execution_modes = ["serial", "thread"]
 
     benchmark_graph(graph, input_tasks, stage_modes, execution_modes)
