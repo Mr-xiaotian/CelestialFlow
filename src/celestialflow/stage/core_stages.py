@@ -13,7 +13,7 @@ from .core_stage import TaskStage
 
 # ==== TaskSplitter ====
 class TaskSplitter(TaskStage):
-    """任务拆分器，将一个上游任务拆分为多个子任务分发给下游。""
+    """任务拆分器，将一个上游任务拆分为多个子任务分发给下游。"""
 
     def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
         """
@@ -125,7 +125,7 @@ class TaskSplitter(TaskStage):
 
 # ==== TaskRouter ====
 class TaskRouter(TaskStage):
-    """任务路由器，根据目标标签将任务定向发送到指定下游节点。""
+    """任务路由器，根据目标标签将任务定向发送到指定下游节点。"""
 
     def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
         """
@@ -231,7 +231,7 @@ class TaskRouter(TaskStage):
 
 # ==== TaskRedisTransport ====
 class TaskRedisTransport(TaskStage):
-    """Redis 任务传输节点，将任务序列化后写入 Redis list。""
+    """Redis 任务传输节点，将任务序列化后写入 Redis list。"""
 
     def __init__(
         self,
@@ -305,7 +305,7 @@ class TaskRedisTransport(TaskStage):
 
 # ==== TaskRedisSource ====
 class TaskRedisSource(TaskStage):
-    """Redis 任务源节点，从 Redis list 拉取数据并注入下游。""
+    """Redis 任务源节点，从 Redis list 拉取数据并注入下游。"""
 
     def __init__(
         self,
@@ -384,7 +384,7 @@ class TaskRedisSource(TaskStage):
 
 # ==== TaskRedisAck ====
 class TaskRedisAck(TaskStage):
-    """Redis 任务确认节点，等待远端 Worker 返回执行结果。""
+    """Redis 任务确认节点，等待远端 Worker 返回执行结果。"""
 
     def __init__(
         self,
