@@ -10,6 +10,8 @@ from .util_jsonl import load_task_error_pairs
 
 
 class FailSpout(BaseSpout):
+    """失败记录监听器，将错误信息写入 fallback 目录的 jsonl 文件。"""
+
     def __init__(self, error_source: str) -> None:
         """
         初始化失败记录监听器

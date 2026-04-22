@@ -96,6 +96,8 @@ class LogLevelError(InvalidOptionError):
 
 
 class RemoteWorkerError(CelestialFlowError):
+    """远端 Worker（如 Go Worker）执行失败或返回异常状态时抛出。"""
+
     pass
 
 

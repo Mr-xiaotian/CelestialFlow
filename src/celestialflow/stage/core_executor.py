@@ -39,6 +39,8 @@ from ..utils.util_format import format_repr
 
 
 class TaskExecutor:
+    """任务执行器基类，支持串行、线程和异步三种执行模式。"""
+
     _name = "Executor"
 
     # ==== 初始化 ====

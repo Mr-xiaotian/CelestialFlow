@@ -5,6 +5,8 @@ from .core_graph import TaskGraph
 
 # ========有向无环图(DAG)========
 class TaskChain(TaskGraph):
+    """线性任务链，将多个 Stage 按顺序串行或并行连接。"""
+
     def __init__(
         self,
         stages: list[TaskStage],
@@ -42,6 +44,8 @@ class TaskChain(TaskGraph):
 
 
 class TaskCross(TaskGraph):
+    """多层交叉结构，每层内部并行，层之间全连接。"""
+
     def __init__(
         self,
         layers: list[list[TaskStage]],
@@ -85,6 +89,8 @@ class TaskCross(TaskGraph):
 
 
 class TaskGrid(TaskGraph):
+    """二维网格结构，每个节点连接右侧和下方的邻居。"""
+
     def __init__(
         self,
         grid: list[list[TaskStage]],
@@ -136,6 +142,8 @@ class TaskGrid(TaskGraph):
 
 # ========有环图========
 class TaskLoop(TaskGraph):
+    """有环图结构，节点首尾相连形成闭环。"""
+
     def __init__(self, stages: list[TaskStage], log_level: str = "SUCCESS") -> None:
         """
         TaskLoop:  任务环结构
@@ -168,6 +176,8 @@ class TaskLoop(TaskGraph):
 
 
 class TaskWheel(TaskGraph):
+    """轮状结构，中心节点连接到一个环上。"""
+
     def __init__(
         self, center: TaskStage, ring: list[TaskStage], log_level: str = "SUCCESS"
     ) -> None:
@@ -207,6 +217,8 @@ class TaskWheel(TaskGraph):
 
 
 class TaskComplete(TaskGraph):
+    """完全图结构，每个节点都连接到除自己以外的所有其他节点。"""
+
     def __init__(self, stages: list[TaskStage], log_level: str = "SUCCESS") -> None:
         """
         TaskComplete: 完全图结构，每个节点都连向除自己以外的所有其他节点

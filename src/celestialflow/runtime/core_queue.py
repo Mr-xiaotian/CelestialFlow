@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 
 # ==== TaskInQueue ====
 class TaskInQueue:
+    """任务输入队列，聚合多个上游来源的任务和终止信号。"""
+
     # ==== 初始化 ====
     def __init__(
         self,
@@ -215,6 +217,8 @@ class TaskInQueue:
 
 # ==== TaskOutQueue ====
 class TaskOutQueue:
+    """任务输出队列，将任务广播到一个或多个下游队列通道。"""
+
     # ==== 初始化 ====
     def __init__(
         self,

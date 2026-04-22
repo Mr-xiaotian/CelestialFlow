@@ -21,57 +21,69 @@ from .util_error import filter_errors, normalize_errors_query, paginate_errors
 
 
 class StructureModel(BaseModel):
+    """任务结构数据模型"""
     items: list[dict[str, Any]]
 
 
 class StatusModel(BaseModel):
+    """节点状态数据模型"""
     status: dict[str, dict]
 
 
 class ErrorsMetaModel(BaseModel):
+    """错误元数据模型"""
     jsonl_path: str
     rev: int
 
 
 class ErrorsContentModel(BaseModel):
+    """错误内容数据模型"""
     errors: list[dict]
     jsonl_path: str
     rev: int
 
 
 class AnalysisModel(BaseModel):
+    """任务分析数据模型"""
     analysis: dict[str, Any]
 
 
 class SummaryModel(BaseModel):
+    """任务汇总数据模型"""
     summary: dict[str, Any]
 
 
 class HistoryModel(BaseModel):
+    """节点历史数据模型"""
     history: dict[str, list[dict]]
 
 
 class IntervalModel(BaseModel):
+    """刷新间隔配置模型"""
     interval: float
 
 
 class TaskInjectionModel(BaseModel):
+    """任务注入请求模型"""
     node: str
     task_datas: list[Any]
     timestamp: datetime
 
 
 class CardConfigModel(BaseModel):
+    """仪表盘卡片配置模型"""
     title: str
 
 
 class DashboardConfigModel(BaseModel):
+    """仪表盘布局配置模型"""
     left: list[str]
     middle: list[str]
     right: list[str]
 
 
 class WebConfigModel(BaseModel):
+    """Web UI 全局配置模型"""
     theme: str
     refreshInterval: int
     historyLimit: int
@@ -87,6 +99,8 @@ templates_path = os.path.join(BASE_DIR, "templates")
 
 
 class TaskWebServer:
+    """FastAPI Web 服务，提供任务可视化、状态推送和任务注入接口。"""
+
     def __init__(self, host="0.0.0.0", port=5000, log_level="info"):
         """初始化 FastAPI 应用、数据存储、版本计数器及路由。"""
         self.app = FastAPI()

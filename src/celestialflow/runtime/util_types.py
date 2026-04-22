@@ -125,6 +125,8 @@ class SumCounter:
 
 
 class StageStatus(IntEnum):
+    """Stage 生命周期状态枚举。"""
+
     NOT_STARTED = 0
     RUNNING = 1
     STOPPED = 2

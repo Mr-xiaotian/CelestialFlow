@@ -11,10 +11,23 @@ const nodeFilter = document.getElementById("node-filter") as HTMLSelectElement;
 const errorsTableBody = document.querySelector("#errors-table tbody") as HTMLTableSectionElement;
 const paginationContainer = document.getElementById("pager-container") as HTMLElement;
 
+/**
+ * 构建错误查询缓存键
+ * @param {number} page - 当前页码
+ * @param {number} pageSizeValue - 每页大小
+ * @param {string} node - 节点筛选条件
+ * @param {string} keyword - 搜索关键词
+ * @returns {string} 组合后的查询键
+ */
 function buildErrorsQueryKey(page: number, pageSizeValue: number, node: string, keyword: string) {
   return `${page}|${pageSizeValue}|${node}|${keyword}`;
 }
 
+/**
+ * 从后端加载错误日志数据
+ * @param {boolean} forceReload - 是否强制重新加载
+ * @returns {Promise<boolean>} 数据是否有变更
+ */
 async function loadErrors(forceReload = false): Promise<boolean> {
   try {
     const node = nodeFilter.value.trim();
@@ -54,6 +67,9 @@ async function loadErrors(forceReload = false): Promise<boolean> {
   }
 }
 
+/**
+ * 渲染错误列表表格和分页控件
+ */
 function renderErrors() {
   const pageItems = errors;
 
@@ -81,6 +97,10 @@ function renderErrors() {
   renderPaginationControls(totalPages);
 }
 
+/**
+ * 跳转到指定错误页码并重新加载数据
+ * @param {number} nextPage - 目标页码
+ */
 async function goToErrorsPage(nextPage: number) {
   const normalizedPage = Math.max(1, Math.min(totalPages || 1, nextPage));
   if (normalizedPage === currentPage) return;
@@ -89,6 +109,12 @@ async function goToErrorsPage(nextPage: number) {
   renderErrors();
 }
 
+/**
+ * 生成分页页码列表，包含首尾、当前及前后页，自动插入省略号
+ * @param {number} current - 当前页码
+ * @param {number} total - 总页数
+ * @returns {Array<number|string>} 页码数组（数字或省略号）
+ */
 function buildPageList(current, total) {
   // 想显示哪些关键页：首尾、当前、前后1-2页
   const pages = new Set([1, total, current, current-1, current+1, current-2, current+2]);
@@ -102,6 +128,10 @@ function buildPageList(current, total) {
   return out;
 }
 
+/**
+ * 渲染分页控件（上一页、页码、下一页）
+ * @param {number} totalPages - 总页数
+ */
 function renderPaginationControls(totalPages) {
   paginationContainer.innerHTML = "";
   if (totalPages <= 1) return;
@@ -146,6 +176,10 @@ function renderPaginationControls(totalPages) {
   paginationContainer.appendChild(nextBtn);
 }
 
+/**
+ * 根据节点状态填充错误筛选下拉框
+ * @param {Record<string, NodeStatus>} statuses - 节点状态映射
+ */
 function populateNodeFilter(statuses: Record<string, NodeStatus>) {
   const nodes = Object.keys(statuses);
   const previousValue = nodeFilter.value;

@@ -55,6 +55,8 @@ from .util_serialize import build_structure_graph, format_structure_list_from_gr
 
 @dataclass
 class StageRuntime:
+    """单个 Stage 的运行时封装，保存阶段实例及其输入输出队列。"""
+
     stage: TaskStage
     in_queue: TaskInQueue | None = None
     out_queue: TaskOutQueue | None = None
@@ -62,6 +64,8 @@ class StageRuntime:
 
 
 class TaskGraph:
+    """任务图核心类，负责构建、连接和调度一组 TaskStage 节点。"""
+
     # ==== 初始化 ====
 
     def __init__(
