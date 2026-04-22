@@ -11,6 +11,11 @@ from .util_jsonl import load_task_error_pairs
 
 class FailSpout(BaseSpout):
     def __init__(self, error_source: str) -> None:
+        """
+        初始化失败记录监听器
+
+        :param error_source: 错误来源标识（用于文件命名）
+        """
         super().__init__()
 
         self.error_source = error_source
@@ -20,6 +25,7 @@ class FailSpout(BaseSpout):
         self._file: TextIO | None = None
 
     def _before_start(self) -> None:
+        """创建 fallback 目录并打开 jsonl 文件"""
         # 创建 fallback 目录
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
@@ -36,6 +42,11 @@ class FailSpout(BaseSpout):
         self.total_error_num = 0
 
     def _handle_record(self, record: dict) -> None:
+        """
+        处理单条错误记录，写入 jsonl 文件并更新计数器
+
+        :param record: 错误记录字典
+        """
         jsonl_record = json.dumps(record, ensure_ascii=False)
 
         if self._file is None:
@@ -47,6 +58,7 @@ class FailSpout(BaseSpout):
             self.total_error_num += 1
 
     def _after_stop(self) -> None:
+        """关闭 jsonl 文件句柄"""
         if self._file:
             self._file.flush()
             self._file.close()
@@ -55,6 +67,8 @@ class FailSpout(BaseSpout):
     def get_error_pairs(self) -> list[tuple[Any, Exception]]:
         """
         从 jsonl 文件中读取所有错误记录
+
+        :return: (task, exception) 元组列表
         """
         return load_task_error_pairs(str(self.jsonl_path))
 
@@ -65,11 +79,18 @@ class FailInlet(BaseInlet):
     """
 
     def __init__(self, fail_queue) -> None:
+        """
+        初始化失败记录收集器
+
+        :param fail_queue: 失败记录队列
+        """
         super().__init__(fail_queue)
 
     def start_graph(self, structure_json: list) -> None:
         """
         在运行开始时写入任务结构元信息到 jsonl 文件
+
+        :param structure_json: 任务图结构 JSON
         """
         meta_item = {
             "timestamp": datetime.now().isoformat(),
@@ -80,6 +101,8 @@ class FailInlet(BaseInlet):
     def start_executor(self, executor_tag: str) -> None:
         """
         在运行开始时写入执行器元信息到 jsonl 文件
+
+        :param executor_tag: 执行器标签
         """
         meta_item = {
             "timestamp": datetime.now().isoformat(),

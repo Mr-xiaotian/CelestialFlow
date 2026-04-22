@@ -8,6 +8,13 @@ class TaskEnvelope:
     __slots__ = ("task", "hash", "id", "source", "prev")
 
     def __init__(self, task: Any, hash: str, id: int, source: str, prev: Any):
+        """
+        :param task: 原始任务
+        :param hash: 任务哈希值
+        :param id: 任务 ID
+        :param source: 任务来源标识
+        :param prev: 前一个任务（用于结果缓存时回溯）
+        """
         self.task = task
         self.hash = hash
         self.id = id

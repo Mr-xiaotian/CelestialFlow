@@ -17,6 +17,11 @@ if TYPE_CHECKING:
 def make_counter(mode: str, *, lock: LockType | None = None, init: int = 0) -> Any:
     """
     返回一个 counter：ValueWrapper(±lock) 或 MPValue
+
+    :param mode: 执行模式
+    :param lock: 可选的线程锁（仅 thread 模式使用）
+    :param init: 初始值
+    :return: 计数器实例
     """
     if mode == "process":
         return MPValue("i", init)
@@ -30,11 +35,14 @@ def make_counter(mode: str, *, lock: LockType | None = None, init: int = 0) -> A
 
 def make_queue_backend(mode: str) -> type:
     """
-    返回一个“队列类/构造器”，用于创建单通道队列。
+    返回一个”队列类/构造器”，用于创建单通道队列。
 
     说明：
     - 你当前实现里，process 也用 ThreadQueue（因为节点内使用，不跨进程）。
     - 如果未来需要节点间跨进程通信，把 process 改为 MPQueue 即可。
+
+    :param mode: 执行模式
+    :return: 队列类
     """
     if mode == "async":
         return AsyncQueue
@@ -48,6 +56,13 @@ def make_task_in_queue(
     mode: str,
     executor: "TaskExecutor",
 ) -> TaskInQueue:
+    """
+    创建执行器的输入队列
+
+    :param mode: 执行模式
+    :param executor: 执行器实例
+    :return: TaskInQueue 实例
+    """
     Q = make_queue_backend(mode)
     return TaskInQueue(
         queue=Q(),
@@ -62,6 +77,13 @@ def make_task_out_queue(
     mode: str,
     executor: "TaskExecutor",
 ) -> TaskOutQueue:
+    """
+    创建执行器的输出队列
+
+    :param mode: 执行模式
+    :param executor: 执行器实例
+    :return: TaskOutQueue 实例
+    """
     Q = make_queue_backend(mode)
     return TaskOutQueue(
         queue_list=[Q()],

@@ -15,6 +15,11 @@ def format_networkx_graph(structure_graph: list[dict[str, Any]]) -> nx.DiGraph:
     G = nx.DiGraph()
 
     def add_node_and_edges(node: dict[str, Any]):
+        """
+        递归添加节点及其边到有向图中。
+
+        :param node: 节点字典，包含 name、func_name、next_stages 等字段
+        """
         node_id = f"{node['name']}[{node['func_name']}]"
         G.add_node(node_id, **{"mode": node.get("stage_mode")})
 

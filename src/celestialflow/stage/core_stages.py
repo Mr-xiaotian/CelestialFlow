@@ -32,19 +32,32 @@ class TaskSplitter(TaskStage):
         self._init_extra_counter()
 
     def _init_extra_counter(self) -> None:
-        """初始化额外的计数器"""
+        """初始化 split 计数器，用于跟踪 split 产生的子任务总数"""
         self.split_counter = MPValue("i", 0)
 
     def get_binding_counter(self, _downstream_tag: str):
+        """
+        返回下游 stage 应绑定的计数器
+
+        :param _downstream_tag: 下游 stage 的 tag
+        :return: split 计数器实例
+        """
         return self.split_counter
 
     def _update_split_counter(self, add_value: int) -> None:
-        """更新 split 计数器"""
+        """
+        更新 split 计数器
+
+        :param add_value: 增加的子任务数量
+        """
         self.split_counter.value += add_value
 
     def _split(self, *task: Any) -> tuple:
         """
-        这个函数不执行逻辑，仅用于符合 TaskStage 架构
+        透传任务参数，仅用于符合 TaskStage 架构
+
+        :param task: 任务参数
+        :return: 原样返回的任务元组
         """
         return task
 
@@ -129,22 +142,38 @@ class TaskRouter(TaskStage):
 
     def _init_extra_counter(self) -> None:
         """
-        初始化额外的计数器
-        每个 target_tag 一个计数器：用于让不同下游 stage 的 task_counter 统计正确
+        初始化路由计数器
+
+        每个 target_tag 一个计数器，用于让不同下游 stage 的 task_counter 统计正确。
         """
         self.route_counters: dict[str, Any] = {}
 
     def get_binding_counter(self, downstream_tag: str):
+        """
+        返回下游 stage 应绑定的计数器，按 tag 查找或创建
+
+        :param downstream_tag: 下游 stage 的 tag
+        :return: 对应下游的路由计数器实例
+        """
         self.route_counters.setdefault(downstream_tag, MPValue("i", 0))
         return self.route_counters[downstream_tag]
 
     def _update_route_counter(self, target: str) -> None:
-        """更新 route 计数器"""
+        """
+        更新指定目标的路由计数器
+
+        :param target: 目标 stage 的 tag
+        """
         self.route_counters[target].value += 1
 
     def _route(self, routed: tuple) -> Any:
         """
-        这个函数仅用于提前报错
+        校验路由输入格式并提取目标任务
+
+        :param routed: (target_tag, task) 元组
+        :return: 提取出的任务数据
+        :raises TypeError: 输入不是长度为 2 的元组
+        :raises InvalidOptionError: target 不在已注册的路由列表中
         """
         if not (isinstance(routed, tuple) and len(routed) == 2):
             raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
@@ -236,7 +265,7 @@ class TaskRedisTransport(TaskStage):
         self.password = password
 
     def init_redis(self) -> None:
-        """初始化 Redis 客户端"""
+        """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(
                 host=self.host,
@@ -248,9 +277,9 @@ class TaskRedisTransport(TaskStage):
 
     def _transport(self, *task: Any) -> int:
         """
-        将任务元组转换为 JSON 字符串并写入 Redis list
+        将任务元组序列化为 JSON 并写入 Redis list
 
-        :param task: 任务元组
+        :param task: 任务参数元组
         :return: 任务 ID
         """
         self.init_redis()
@@ -308,6 +337,7 @@ class TaskRedisSource(TaskStage):
         self._timeout = timeout
 
     def init_redis(self) -> None:
+        """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(
                 host=self.host,
@@ -319,8 +349,12 @@ class TaskRedisSource(TaskStage):
 
     def _source(self, *_: Any) -> Any:
         """
-        忽略输入 task，仅作为启动信号
-        从 Redis 拉取数据并注入下游
+        从 Redis list 拉取数据并注入下游，忽略输入任务
+
+        :param _: 忽略的输入参数（仅作为启动信号）
+        :return: 从 Redis 拉取的任务数据
+        :raises TimeoutError: 超时未获取到数据
+        :raises RemoteWorkerError: 返回的 payload 中缺少 'task' 字段
         """
         self.init_redis()
 
@@ -381,6 +415,7 @@ class TaskRedisAck(TaskStage):
         self._timeout = timeout
 
     def init_redis(self) -> None:
+        """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
             self.redis_client = redis.Redis(
                 host=self.host,

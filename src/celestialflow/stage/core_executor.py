@@ -67,8 +67,9 @@ class TaskExecutor:
         :param unpack_task_args: 是否将任务参数解包
         :param enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_pairs 中
         :param enable_duplicate_check: 是否启用重复检查
-        :param progress_desc: 进度条显示名称
         :param show_progress: 进度条显示与否
+        :param progress_desc: 进度条显示名称
+        :param log_level: 日志级别
         """
         if enable_success_cache and not enable_duplicate_check:
             warnings.warn(
@@ -158,7 +159,6 @@ class TaskExecutor:
 
         :param task_queues: 任务队列列表
         :param result_queues: 结果队列列表
-        :param fail_queue: 失败队列
         """
         mode = self.execution_mode
 
@@ -244,10 +244,11 @@ class TaskExecutor:
         self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778
     ) -> None:
         """
-        设置CelestialTreeClient
+        设置 CelestialTreeClient
 
-        :param host: CelestialTreeClient host
-        :param port: CelestialTreeClient port
+        :param host: 主机地址
+        :param http_port: HTTP 端口
+        :param grpc_port: gRPC 端口
         """
         self.ctree_client = CelestialTreeClient(
             host=host, http_port=http_port, grpc_port=grpc_port, transport="grpc"
@@ -321,8 +322,8 @@ class TaskExecutor:
         """
         获取当前节点的状态快照
 
-        :return: 当前节点状态快照
-        包括执行器名称(name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)
+        :return: 当前节点状态快照，
+            包括执行器名称(name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)
         """
         return {
             "name": self.get_name(),
@@ -471,6 +472,12 @@ class TaskExecutor:
 
         # 格式化每个参数
         def format_args_list(args_list: Any) -> list[str]:
+            """
+            将参数列表格式化为可读字符串列表。
+
+            :param args_list: 原始参数列表
+            :return: 格式化后的字符串列表
+            """
             return [format_repr(arg, self.max_info) for arg in args_list]
 
         if len(args) <= 3:
@@ -760,22 +767,25 @@ class TaskExecutor:
     def get_success_pairs(self) -> list[tuple[Any, Any]]:
         """
         获取成功任务的列表
+
+        :return: (task, result) 元组列表
         """
         return self.success_spout.get_success_pairs()
 
     def get_error_pairs(self) -> list[tuple[Any, Exception]]:
         """
         获取出错任务的列表
+
+        :return: (task, exception) 元组列表
         """
         return self.fail_spout.get_error_pairs()
 
     def release_queue(self) -> None:
-        """
-        清理队列
-        """
+        """释放任务队列、结果队列和失败队列的引用"""
         self.task_queues = None
         self.result_queues = None
         self.fail_queue = None
 
     def _release_client(self) -> None:
+        """释放事件树客户端引用"""
         self.ctree_client = None

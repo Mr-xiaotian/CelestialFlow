@@ -22,9 +22,11 @@ async def benchmark_executor(
     """
     对执行器进行基准测试
 
-    :param executor: 要测试的执行器
+    :param sync_executor: 同步执行器
+    :param async_executor: 异步执行器
     :param task_source: 任务源，用于生成任务列表
-    :param execution_modes: 要测试的执行模式列表，默认包括 "serial", "thread"
+    :param sync_modes: 同步执行模式列表，默认 ["serial", "thread"]
+    :param async_modes: 异步执行模式列表，默认 ["async"]
     :return: 包含测试结果的字典
     """
     task_list = list(task_source)

@@ -263,6 +263,11 @@ class TaskGraph:
         """
 
         def set_subsequent_stage_mode(stage: TaskStage) -> None:
+            """
+            递归设置当前节点及其所有后续节点的执行模式。
+
+            :param stage: 当前节点
+            """
             stage.set_stage_mode(stage_mode)
             stage.set_execution_mode(execution_mode)
             visited_stages.add(stage)
@@ -579,10 +584,17 @@ class TaskGraph:
         history_limit: int,
     ) -> tuple[dict, list[dict], tuple[int, int, float, float]]:
         """
-        计算单个 stage 的运行时快照。
+        计算单个 stage 的运行时快照
 
-        :return: (stage_snapshot_dict, history_list, running_metrics)
-            running_metrics = (processed, pending, elapsed, remaining)
+        :param stage_tag: 节点标签
+        :param stage: 节点实例
+        :param stage_runtime: 节点运行时信息
+        :param last_status: 上一次快照的状态字典
+        :param now: 当前时间戳
+        :param interval: 快照采集间隔
+        :param history_limit: 历史记录最大条数
+        :return: (stage_snapshot_dict, history_list, running_metrics)，
+            其中 running_metrics = (processed, pending, elapsed, remaining)
         """
         status = stage.get_status()
         stage_counts = stage.get_counts()
@@ -643,7 +655,13 @@ class TaskGraph:
         running_remaining_map: dict[str, float],
     ) -> float:
         """
-        根据 DAG/非 DAG 策略计算全局预计剩余时间。
+        根据 DAG/非 DAG 策略计算全局预计剩余时间
+
+        :param running_processed_map: 各节点已处理任务数
+        :param running_pending_map: 各节点待处理任务数
+        :param running_elapsed_map: 各节点已用时间
+        :param running_remaining_map: 各节点预计剩余时间
+        :return: 全局预计剩余时间（秒）
         """
         if not self.isDAG:
             return max(running_remaining_map.values(), default=0.0)
@@ -727,12 +745,27 @@ class TaskGraph:
     # ==== 查询接口 ====
 
     def get_fail_by_stage_dict(self) -> dict:
+        """
+        获取按节点分组的失败任务字典
+
+        :return: {stage_tag: [失败任务列表]}
+        """
         return load_task_by_stage(self.fail_spout.jsonl_path)
 
     def get_fail_by_error_dict(self) -> dict:
+        """
+        获取按错误类型分组的失败任务字典
+
+        :return: {error_type: [失败任务列表]}
+        """
         return load_task_by_error(self.fail_spout.jsonl_path)
 
     def get_total_error_num(self) -> int:
+        """
+        获取总错误数
+
+        :return: 错误总数
+        """
         return self.fail_spout.total_error_num
 
     def get_status_dict(self) -> dict[str, dict]:
@@ -744,16 +777,26 @@ class TaskGraph:
         return self.status_dict
 
     def get_graph_summary(self) -> dict:
-        """获取任务链的摘要信息字典"""
+        """
+        获取任务链的摘要信息字典
+
+        :return: 包含 total_succeeded, total_pending, total_failed 等字段的字典
+        """
         return self.graph_summary
 
     def get_stage_history(self) -> dict[str, list[dict]]:
-        """获取任务链的历史状态信息字典"""
+        """
+        获取各节点的历史状态信息字典
+
+        :return: {stage_tag: [历史快照列表]}
+        """
         return self.stage_history
 
     def get_graph_analysis(self) -> dict:
         """
         获取任务图的分析信息
+
+        :return: 包含 isDAG, schedule_mode, class_name, layers_dict 的字典
         """
         return {
             "isDAG": self.isDAG,
@@ -765,24 +808,32 @@ class TaskGraph:
     def get_structure_json(self) -> list[dict]:
         """
         获取任务图的 JSON 结构
+
+        :return: JSON 格式的任务图结构列表
         """
         return self.structure_json
 
     def get_structure_list(self) -> list[str]:
         """
-        获取任务图的结构列表
+        获取任务图的格式化结构列表
+
+        :return: 带边框的格式化字符串列表
         """
         return self.structure_list
 
     def get_networkx_graph(self):  # returns nx.DiGraph
         """
         获取任务图的 networkx 有向图（DiGraph）
+
+        :return: networkx.DiGraph 实例
         """
         return self.networkx_graph
 
     def get_fallback_path(self) -> str:
         """
         获取失败任务的回退路径
+
+        :return: 失败任务 JSONL 文件的绝对路径，未设置时返回空字符串
         """
         if self.fail_spout.jsonl_path is None:
             return ""
@@ -791,6 +842,9 @@ class TaskGraph:
     def get_stage_input_trace(self, stage_tag: str) -> str:
         """
         获取任务节点的输入依赖关系树
+
+        :param stage_tag: 节点标签
+        :return: 格式化的依赖关系树字符串
         """
         if not self._use_ctree:
             return ""
@@ -802,6 +856,9 @@ class TaskGraph:
     def get_error_trace(self, error_id: int) -> str:
         """
         获取错误任务的依赖关系树
+
+        :param error_id: 错误事件 ID
+        :return: 格式化的溯源关系树字符串
         """
         provenance = self.ctree_client.provenance(error_id)
         return format_provenance_forest(provenance, STAGE_STYLE)

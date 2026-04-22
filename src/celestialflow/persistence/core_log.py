@@ -16,12 +16,14 @@ class LogSpout(BaseSpout):
     """
 
     def __init__(self):
+        """初始化日志监听器"""
         super().__init__()
 
         self.log_path: Path | None = None
         self._file: TextIO | None = None
 
     def _before_start(self) -> None:
+        """创建 logs 目录并打开日志文件"""
         # 创建 logs 目录
         now = strftime("%Y-%m-%d", localtime())
         self.log_path = Path(f"logs/task_logger({now}).log")
@@ -31,6 +33,11 @@ class LogSpout(BaseSpout):
         self._file = self.log_path.open("a", encoding="utf-8")
 
     def _handle_record(self, record: dict) -> None:
+        """
+        处理单条日志记录，写入日志文件
+
+        :param record: 包含 timestamp, level, message 的日志记录字典
+        """
         timestamp = record["timestamp"]
         level = record["level"]
         message = record["message"]
@@ -43,6 +50,7 @@ class LogSpout(BaseSpout):
         self._file.flush()
 
     def _after_stop(self) -> None:
+        """关闭日志文件句柄"""
         if self._file:
             self._file.flush()
             self._file.close()
@@ -55,6 +63,12 @@ class LogInlet(BaseInlet):
     """
 
     def __init__(self, log_queue, log_level: str = "SUCCESS") -> None:
+        """
+        初始化日志收集器
+
+        :param log_queue: 日志队列
+        :param log_level: 日志级别，低于此级别的日志不记录
+        """
         super().__init__(log_queue)
         self.log_level: str = log_level.upper()
 
@@ -62,6 +76,12 @@ class LogInlet(BaseInlet):
             raise LogLevelError(self.log_level)
 
     def _log(self, level: str, message: str | None = None) -> None:
+        """
+        记录一条日志，低于当前日志级别的消息将被忽略
+
+        :param level: 日志级别
+        :param message: 日志消息内容
+        """
         if message is None:
             return
         timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime())
@@ -76,24 +96,29 @@ class LogInlet(BaseInlet):
 
     # ==== graph ====
     def start_graph(self, structure_list: list[str]) -> None:
+        """记录任务图启动及结构信息"""
         self._log("INFO", "Starting TaskGraph. Graph structure:")
         for line in structure_list:
             self._log("INFO", line)
 
     def end_graph(self, use_time: float) -> None:
+        """记录任务图结束"""
         self._log("INFO", f"TaskGraph end. Use {use_time:.2f} second.")
 
     # ==== layer ====
     def start_layer(self, layer: list[str], layer_level: int) -> None:
+        """记录分层调度中某一层的启动"""
         self._log("INFO", f"Layer {layer} start. Layer level: {layer_level}.")
 
     def end_layer(self, layer: list[str], use_time: float) -> None:
+        """记录分层调度中某一层的结束"""
         self._log("INFO", f"Layer {layer} end. Use {use_time:.2f} second.")
 
     # ==== stage ====
     def start_stage(
         self, stage_tag: str, stage_mode: str, execution_mode: str, max_workers: int
     ) -> None:
+        """记录节点启动"""
         worker_repr = f"({max_workers} workers)" if execution_mode != "serial" else ""
         text = f"'{stage_tag}' start in {stage_mode}; execute tasks by {execution_mode}{worker_repr}."
         self._log("INFO", text)
@@ -108,6 +133,7 @@ class LogInlet(BaseInlet):
         failed_num: int,
         duplicated_num: int,
     ) -> None:
+        """记录节点结束及统计"""
         self._log(
             "INFO",
             f"'{stage_tag}' end in {stage_mode}; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
@@ -118,6 +144,7 @@ class LogInlet(BaseInlet):
     def start_executor(
         self, func_name: str, task_num: int, execution_mode_desc: str
     ) -> None:
+        """记录执行器启动"""
         text = f"'Executor[{func_name}]' start; execute {task_num} tasks by {execution_mode_desc}."
         self._log("INFO", text)
 
@@ -130,6 +157,7 @@ class LogInlet(BaseInlet):
         failed_num: int,
         duplicated_num: int,
     ) -> None:
+        """记录执行器结束及统计"""
         self._log(
             "INFO",
             f"'Executor[{func_name}]' end; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
@@ -138,18 +166,21 @@ class LogInlet(BaseInlet):
 
     # ==== process ====
     def process_termination_attempt(self, process_name: str) -> None:
+        """记录进程终止尝试"""
         self._log(
             "WARNING",
             f"Process '{process_name}' is still running; attempting graceful termination.",
         )
 
     def process_termination_timeout(self, process_name: str) -> None:
+        """记录进程终止超时"""
         self._log(
             "WARNING",
             f"Process '{process_name}' did not exit within the termination timeout.",
         )
 
     def process_exit(self, process_name: str, exitcode: int | None) -> None:
+        """记录进程退出"""
         self._log(
             "DEBUG", f"Process '{process_name}' exited with exit code {exitcode}."
         )
@@ -158,6 +189,7 @@ class LogInlet(BaseInlet):
     def task_input(
         self, func_name: str, task_repr: str, source: str, input_id: int
     ) -> None:
+        """记录任务输入"""
         self._log(
             "DEBUG",
             f"In '{func_name}', Task {task_repr} input into {source}. [{input_id}*]",
@@ -173,6 +205,7 @@ class LogInlet(BaseInlet):
         parent_id: int,
         success_id: int,
     ) -> None:
+        """记录任务成功"""
         self._log(
             "SUCCESS",
             f"In '{func_name}', Task {task_repr} succeeded by {execution_mode}. Result is {result_repr}. Used {use_time:.2f}s. [{parent_id}->{success_id}*]",
@@ -187,6 +220,7 @@ class LogInlet(BaseInlet):
         parent_id: int,
         retry_id: int,
     ) -> None:
+        """记录任务重试"""
         self._log(
             "WARNING",
             f"In '{func_name}', Task {task_repr} failed {retry_times} times and will retry: ({type(exception).__name__}). [{parent_id}->{retry_id}*]",
@@ -200,6 +234,7 @@ class LogInlet(BaseInlet):
         parent_id: int,
         error_id: int,
     ) -> None:
+        """记录任务失败"""
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "ERROR",
@@ -209,6 +244,7 @@ class LogInlet(BaseInlet):
     def task_duplicate(
         self, func_name: str, task_repr: str, parent_id: int, duplicate_id: int
     ) -> None:
+        """记录重复任务"""
         self._log(
             "WARNING",
             f"In '{func_name}', Task {task_repr} has been duplicated. [{parent_id}->{duplicate_id}*]",
@@ -223,6 +259,7 @@ class LogInlet(BaseInlet):
         parent_id: int,
         split_id: int,
     ) -> None:
+        """记录 split 子任务分发"""
         self._log(
             "TRACE",
             f"In '{func_name}', Task split part {part_index}/{part_total}. [{parent_id}->{split_id}*]",
@@ -231,6 +268,7 @@ class LogInlet(BaseInlet):
     def split_success(
         self, func_name: str, task_repr: str, split_count: int, use_time: float
     ) -> None:
+        """记录 split 成功"""
         self._log(
             "SUCCESS",
             f"In '{func_name}', Task {task_repr} has split into {split_count} parts. Used {use_time:.2f}s.",
@@ -246,6 +284,7 @@ class LogInlet(BaseInlet):
         parent_id: int,
         route_id: int,
     ) -> None:
+        """记录路由成功"""
         self._log(
             "SUCCESS",
             f"In '{func_name}', Task {task_repr} has routed to {target_node}. Used {use_time:.2f}s. [{parent_id}->{route_id}*]",
@@ -255,6 +294,7 @@ class LogInlet(BaseInlet):
     def termination_input(
         self, func_name: str, source: str, termination_id: int
     ) -> None:
+        """记录终止信号输入"""
         self._log(
             "DEBUG",
             f"In '{func_name}', Termination input into {source}. [{termination_id}*]",
@@ -263,6 +303,7 @@ class LogInlet(BaseInlet):
     def termination_merge(
         self, func_name: str, parent_ids: list[int], termination_id: int
     ) -> None:
+        """记录终止信号合并"""
         self._log(
             "TRACE",
             f"In '{func_name}', Termination merge. [{parent_ids}->{termination_id}*]",
@@ -272,12 +313,14 @@ class LogInlet(BaseInlet):
     def put_item(
         self, item_type: str, item_id: int, left_tag: str, right_tag: str
     ) -> None:
+        """记录队列 put 操作"""
         edge = f"'{left_tag}' -> '{right_tag}'"
         self._log("TRACE", f"Put {item_type}#{item_id} into Edge({edge}).")
 
     def put_item_error(
         self, left_tag: str, right_tag: str, exception: Exception
     ) -> None:
+        """记录队列 put 失败"""
         edge = f"'{left_tag}' -> '{right_tag}'"
         exception_text = str(exception).replace("\n", " ")
         self._log(
@@ -288,12 +331,14 @@ class LogInlet(BaseInlet):
     def get_item(
         self, item_type: str, item_id: int, left_tag: str, right_tag: str
     ) -> None:
+        """记录队列 get 操作"""
         edge = f"'{left_tag}' -> '{right_tag}'"
         self._log("TRACE", f"Get {item_type}#{item_id} from Edge({edge}).")
 
     def get_item_error(
         self, left_tag: str, right_tag: str, exception: Exception
     ) -> None:
+        """记录队列 get 失败"""
         edge = f"'{left_tag}' -> '{right_tag}'"
         exception_text = str(exception).replace("\n", " ")
         self._log(
@@ -303,38 +348,45 @@ class LogInlet(BaseInlet):
 
     # ==== reporter ====
     def stop_reporter(self) -> None:
+        """记录上报器停止"""
         self._log("DEBUG", "[Reporter] Stopped.")
 
     def loop_failed(self, exception: Exception) -> None:
+        """记录上报器循环错误"""
         self._log(
             "ERROR",
             f"[Reporter] Loop error: {type(exception).__name__}({exception}).",
         )
 
     def pull_interval_failed(self, exception: Exception) -> None:
+        """记录拉取上报间隔失败"""
         self._log(
             "WARNING",
             f"[Reporter] Pull 'interval' failed: {type(exception).__name__}({exception}).",
         )
 
     def pull_history_limit_failed(self, exception: Exception) -> None:
+        """记录拉取历史限制失败"""
         self._log(
             "WARNING",
             f"[Reporter] Pull 'history limit' failed: {type(exception).__name__}({exception}).",
         )
 
     def pull_tasks_failed(self, exception: Exception) -> None:
+        """记录拉取任务注入失败"""
         self._log(
             "WARNING",
             f"[Reporter] Pull 'task injection' failed: {type(exception).__name__}({exception}).",
         )
 
     def inject_tasks_success(self, target_node: str, task_datas) -> None:
+        """记录任务注入成功"""
         self._log("INFO", f"[Reporter] Inject tasks {task_datas} into '{target_node}'.")
 
     def inject_tasks_failed(
         self, target_node: str, task_datas, exception: Exception
     ) -> None:
+        """记录任务注入失败"""
         self._log(
             "WARNING",
             f"[Reporter] Inject tasks {task_datas} into '{target_node}' failed. "
@@ -342,42 +394,49 @@ class LogInlet(BaseInlet):
         )
 
     def push_errors_failed(self, exception: Exception) -> None:
+        """记录推送错误信息失败"""
         self._log(
             "WARNING",
             f"[Reporter] Push 'error' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_status_failed(self, exception: Exception) -> None:
+        """记录推送状态信息失败"""
         self._log(
             "WARNING",
             f"[Reporter] Push 'status' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_structure_failed(self, exception: Exception) -> None:
+        """记录推送结构信息失败"""
         self._log(
             "WARNING",
             f"[Reporter] Push 'structure' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_topology_failed(self, exception: Exception) -> None:
+        """记录推送拓扑信息失败"""
         self._log(
             "WARNING",
             f"[Reporter] Push 'topology' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_summary_failed(self, exception: Exception) -> None:
+        """记录推送摘要信息失败"""
         self._log(
             "WARNING",
             f"[Reporter] Push 'summary' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_analysis_failed(self, exception: Exception) -> None:
+        """记录推送分析信息失败"""
         self._log(
             "WARNING",
             f"[Reporter] Push 'analysis' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_history_failed(self, exception: Exception) -> None:
+        """记录推送历史信息失败"""
         self._log(
             "WARNING",
             f"[Reporter] Push 'history' failed: {type(exception).__name__}({exception}).",

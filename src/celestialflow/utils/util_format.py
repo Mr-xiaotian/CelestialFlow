@@ -50,6 +50,10 @@ def format_table(
         """
         生成 Excel 风格列名（A, B, ..., Z, AA, AB, ...）
         支持从指定起始索引开始生成。
+
+        :param n: 需要生成的列名数量
+        :param start_index: 起始索引
+        :return: 列名列表
         """
         names: list[str] = []
         for i in range(start_index, start_index + n):

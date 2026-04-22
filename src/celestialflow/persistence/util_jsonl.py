@@ -72,7 +72,14 @@ def load_jsonl_logs(
 def load_jsonl_by_key(
     jsonl_path: str, extract_key: str = "stage", extract_value: str = "task"
 ) -> dict[str, list]:
-    """ """
+    """
+    按指定 key 分组加载 jsonl 文件中的值
+
+    :param jsonl_path: jsonl 文件路径
+    :param extract_key: 分组依据的字段名
+    :param extract_value: 提取的值字段名
+    :return: {key_value: [parsed_values]}
+    """
     result_dict = defaultdict(list)
 
     with open(jsonl_path, "r", encoding="utf-8") as f:

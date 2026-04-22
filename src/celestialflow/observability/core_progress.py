@@ -28,7 +28,11 @@ class TaskProgress:
             self.progress_bar = tqdm(total=total_tasks, desc=desc)
 
     def update(self, n: int = 1) -> None:
-        """更新进度条"""
+        """
+        更新进度条
+
+        :param n: 步进数量
+        """
         self.progress_bar.update(n)
 
     def close(self) -> None:
@@ -36,12 +40,20 @@ class TaskProgress:
         self.progress_bar.close()
 
     def _refresh_total(self, total: int) -> None:
-        """动态调整进度条的总任务数"""
+        """
+        动态调整进度条的总任务数
+
+        :param total: 新的任务总数
+        """
         self.progress_bar.total = total
         self.progress_bar.refresh()
 
     def add_total(self, add_num: int) -> None:
-        """动态增加进度条的总任务数"""
+        """
+        动态增加进度条的总任务数
+
+        :param add_num: 增加的任务数
+        """
         if not add_num:
             return
         total = self.progress_bar.total + add_num
@@ -54,13 +66,29 @@ class NullTaskProgress:
     """
 
     def update(self, n: int = 1) -> None:
+        """
+        空操作
+
+        :param n: 步进数量（忽略）
+        """
         pass
 
     def close(self) -> None:
+        """空操作"""
         pass
 
     def _refresh_total(self, total: int) -> None:
+        """
+        空操作
+
+        :param total: 新的任务总数（忽略）
+        """
         pass
 
     def add_total(self, add_num: int) -> None:
+        """
+        空操作
+
+        :param add_num: 增加的任务数（忽略）
+        """
         pass

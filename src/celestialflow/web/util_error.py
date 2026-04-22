@@ -7,6 +7,12 @@ def normalize_errors_query(
 ) -> tuple[int, int, str, str]:
     """
     归一化错误查询参数，返回归一化后的页面、每页大小、节点和关键词。
+
+    :param page: 页码
+    :param page_size: 每页大小
+    :param node: 节点名称
+    :param keyword: 搜索关键词
+    :return: (归一化页码, 归一化每页大小, 归一化节点名, 归一化关键词)
     """
     normalized_page_size = max(1, min(int(page_size), 200))
     normalized_page = max(1, int(page))
@@ -20,6 +26,11 @@ def filter_errors(
 ) -> list[dict[str, Any]]:
     """
     根据错误查询参数过滤错误记录，返回符合条件的记录。
+
+    :param error_store: 错误记录列表
+    :param normalized_node: 归一化后的节点名称
+    :param normalized_keyword: 归一化后的搜索关键词
+    :return: 符合条件的错误记录列表
     """
     filtered: list[dict[str, Any]] = []
     for item in error_store:
@@ -43,6 +54,11 @@ def paginate_errors(
 ) -> tuple[int, int, list[dict[str, Any]]]:
     """
     根据归一化后的页面和每页大小，对错误记录进行分页处理，返回总记录数、总页数和当前页记录。
+
+    :param filtered: 过滤后的错误记录列表
+    :param normalized_page: 归一化后的页码
+    :param normalized_page_size: 归一化后的每页大小
+    :return: (总记录数, 总页数, 当前页记录列表)
     """
     total = len(filtered)
     total_pages = max(1, (total + normalized_page_size - 1) // normalized_page_size)

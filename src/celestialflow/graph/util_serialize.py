@@ -40,7 +40,13 @@ def _build_structure_subgraph(
     stage_runtime_dict: dict[str, StageRuntime],
 ) -> dict[str, Any]:
     """
-    构建单个子图结构
+    构建单个子图结构（递归）
+
+    :param task_stage: 当前节点
+    :param visited_stages: 已访问节点集合
+    :param out_edges: 邻接表 {stage_tag: [next_stage_tag, ...]}
+    :param stage_runtime_dict: {stage_tag: StageRuntime}
+    :return: 节点的 JSON 字典
     """
     stage_tag = task_stage.get_tag()
     node = {
@@ -74,6 +80,12 @@ def format_structure_list_from_graph(root_roots: list[dict] | None = None) -> li
     """
 
     def node_label(node: dict) -> str:
+        """
+        生成节点的显示标签字符串。
+
+        :param node: 节点字典
+        :return: 格式化的标签字符串
+        """
         visited_note = " [Ref]" if node.get("is_ref") else ""
         N = node.get("name", "?")  # N
         F = node.get("func_name", "?")  # F
@@ -84,6 +96,14 @@ def format_structure_list_from_graph(root_roots: list[dict] | None = None) -> li
 
     # 只渲染"子节点"（有父节点）——保证一定画连接符
     def build_child_lines(node: dict, prefix: str, is_last: bool) -> list[str]:
+        """
+        递归构建子节点的树形显示行。
+
+        :param node: 子节点字典
+        :param prefix: 当前行的缩进前缀
+        :param is_last: 是否为同级最后一个节点
+        :return: 格式化的行列表
+        """
         connector = "╘-->" if is_last else "╞-->"
         lines = [f"{prefix}{connector}{node_label(node)}"]
 
@@ -98,6 +118,12 @@ def format_structure_list_from_graph(root_roots: list[dict] | None = None) -> li
 
     # 专门处理 root：不画连接符，不产生祖先竖线
     def build_root_lines(root: dict) -> list[str]:
+        """
+        构建根节点及其子树的树形显示行。
+
+        :param root: 根节点字典
+        :return: 格式化的行列表
+        """
         lines = [node_label(root)]
         next_stages = root.get("next_stages", []) or []
         for i, child in enumerate(next_stages):

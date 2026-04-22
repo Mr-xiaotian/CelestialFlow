@@ -8,6 +8,9 @@ from typing import Any
 def make_hashable(obj: Any) -> Any:
     """
     把 obj 转换成可哈希的形式。
+
+    :param obj: 任意对象
+    :return: 可哈希的等价形式
     """
     if isinstance(obj, (tuple, list)):
         return tuple(make_hashable(e) for e in obj)

@@ -194,6 +194,11 @@ class TaskDispatch:
         semaphore = asyncio.Semaphore(self.max_workers)
 
         async def sem_worker(envelope: TaskEnvelope):
+            """
+            在信号量限制下执行单个异步任务。
+
+            :param envelope: 任务信封
+            """
             async with semaphore:
                 await self._async_worker(envelope)
 

@@ -131,6 +131,8 @@ class TaskMetrics:
         更新任务总数计数器
 
         增加已接收到的任务总数。
+
+        :param add_count: 增加的任务数
         """
         self.task_counter.add_init_value(add_count)
 

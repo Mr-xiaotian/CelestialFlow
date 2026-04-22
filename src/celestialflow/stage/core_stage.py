@@ -129,12 +129,17 @@ class TaskStage(TaskExecutor):
     def get_binding_counter(self, _downstream_tag: str):
         """
         返回下游 stage 应绑定的计数器，子类可覆写。
+
+        :param _downstream_tag: 下游 stage 的 tag
+        :return: 计数器实例
         """
         return self.metrics.success_counter
 
     def prev_bindings(self, pending_prev_bindings: list[TaskStage]) -> None:
         """
-        绑定前置节点
+        绑定前置节点，将每个前驱 stage 的计数器注册到当前 stage 的 task_counter 中
+
+        :param pending_prev_bindings: 前置节点列表
         """
         for prev_stage in pending_prev_bindings:
             counter = prev_stage.get_binding_counter(self.get_tag())
@@ -195,7 +200,7 @@ class TaskStage(TaskExecutor):
         根据 start_type 的值，选择串行、并行执行任务
 
         :param input_queues: 输入队列
-        :param output_queue: 输出队列
+        :param output_queues: 输出队列
         :param fail_queue: 失败队列
         :param log_queue: 日志队列
         """

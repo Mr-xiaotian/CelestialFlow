@@ -12,13 +12,20 @@ class SuccessSpout(BaseSpout):
     """
 
     def __init__(self) -> None:
+        """初始化成功结果监听器"""
         super().__init__()
         self.success_pairs: list[tuple[Any, Any]] = []
 
     def _before_start(self) -> None:
+        """重置成功结果缓存"""
         self.success_pairs = []
 
     def _handle_record(self, record: Any) -> None:
+        """
+        处理单条成功结果记录
+
+        :param record: TaskEnvelope 实例，包含结果和原始任务
+        """
         if not isinstance(record, TaskEnvelope):
             return
 

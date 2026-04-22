@@ -30,6 +30,12 @@ class InvalidOptionError(ConfigurationError):
         *,
         prefix: str = "Invalid",
     ):
+        """
+        :param field: 配置项名称
+        :param value: 实际传入的值
+        :param allowed: 允许的取值集合
+        :param prefix: 错误消息前缀
+        """
         allowed_tuple: tuple[Any, ...] = tuple(allowed)
         message = f"{prefix} {field}: {value}. Valid options are {allowed_tuple}."
         super().__init__(message)
@@ -43,6 +49,10 @@ class ExecutionModeError(InvalidOptionError):
     """非法的 execution_mode 配置错误"""
 
     def __init__(self, execution_mode: str, valid_modes=None):
+        """
+        :param execution_mode: 非法的执行模式值
+        :param valid_modes: 允许的执行模式列表
+        """
         valid_modes = valid_modes or ("serial", "thread", "async")
         super().__init__("execution mode", execution_mode, valid_modes)
         self.execution_mode = execution_mode
@@ -53,6 +63,10 @@ class StageModeError(InvalidOptionError):
     """非法的 stage_mode 配置错误"""
 
     def __init__(self, stage_mode: str, valid_modes=None):
+        """
+        :param stage_mode: 非法的节点模式值
+        :param valid_modes: 允许的节点模式列表
+        """
         valid_modes = valid_modes or ("serial", "process")
         super().__init__("stage mode", stage_mode, valid_modes)
         self.stage_mode = stage_mode
@@ -63,6 +77,10 @@ class LogLevelError(InvalidOptionError):
     """非法的 log_level 配置错误"""
 
     def __init__(self, log_level: str, valid_levels=None):
+        """
+        :param log_level: 非法的日志级别值
+        :param valid_levels: 允许的日志级别列表
+        """
         valid_levels = valid_levels or (
             "TRACE",
             "DEBUG",
@@ -85,6 +103,10 @@ class ScheduleModeError(InvalidOptionError):
     """非法的 schedule_mode 配置错误"""
 
     def __init__(self, schedule_mode: str, valid_modes=None):
+        """
+        :param schedule_mode: 非法的调度模式值
+        :param valid_modes: 允许的调度模式列表
+        """
         valid_modes = valid_modes or ("eager", "staged")
         super().__init__("schedule mode", schedule_mode, valid_modes)
         self.schedule_mode = schedule_mode
@@ -95,6 +117,9 @@ class CelestialTreeConnectionError(CelestialFlowError):
     """CelestialTree 客户端连接失败"""
 
     def __init__(self, message: str = "CelestialTreeClient is not available"):
+        """
+        :param message: 错误消息
+        """
         super().__init__(message)
 
 
@@ -110,6 +135,9 @@ class PickleError(CelestialFlowError):
     """
 
     def __init__(self, obj: Any):
+        """
+        :param obj: 不可序列化的对象
+        """
         message = f"Object of type {type(obj).__name__} is not pickleable."
         super().__init__(message)
         self.obj = obj

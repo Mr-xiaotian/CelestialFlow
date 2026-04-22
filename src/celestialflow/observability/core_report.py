@@ -190,7 +190,13 @@ class TaskReporter:
             self.log_inlet.push_errors_failed(e)
 
     def _push_errors_meta(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:
-        """推送错误元信息"""
+        """
+        推送错误元信息
+
+        :param current_rev: 当前版本号
+        :param jsonl_path: 错误日志 JSONL 文件路径
+        :return: 服务端响应字典
+        """
         payload = {
             "rev": current_rev,
             "jsonl_path": jsonl_path,
@@ -203,7 +209,13 @@ class TaskReporter:
         return response.json()
 
     def _push_errors_content(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:
-        """推送错误内容（增量：只传 offset 之后的新增条目）"""
+        """
+        推送错误内容（增量：只传 offset 之后的新增条目）
+
+        :param current_rev: 当前版本号
+        :param jsonl_path: 错误日志 JSONL 文件路径
+        :return: 服务端响应字典
+        """
         all_errors = load_jsonl_logs(
             path=jsonl_path,
             keys=["ts", "error_id", "error_repr", "error", "stage", "task_repr"],
