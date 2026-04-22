@@ -52,38 +52,29 @@ class DownloadStage(TaskStage):
         return url, path.replace("/tmp/", "X:/Download/download_py/")
 
 
-def test_splitter_0():
+def demo_splitter_0():
     # 定义任务节点
     generate_stage = TaskStage(
         func=generate_urls_sleep,
-        execution_mode="thread",
         max_workers=4,
-        stage_mode="process",
         stage_name="GenURLs",
     )
     logger_stage = TaskStage(
         func=log_urls_sleep,
-        execution_mode="thread",
         max_workers=4,
-        stage_mode="process",
         stage_name="Logger",
     )
     splitter = TaskSplitter(
-        stage_mode="process",
         stage_name="Splitter",
     )
     download_stage = TaskStage(
         func=download_sleep,
-        execution_mode="thread",
         max_workers=4,
-        stage_mode="process",
         stage_name="Downloader",
     )
     parse_stage = TaskStage(
         func=parse_sleep,
-        execution_mode="thread",
         max_workers=4,
-        stage_mode="process",
         stage_name="Parser",
     )
 
@@ -97,7 +88,7 @@ def test_splitter_0():
     graph.connect([splitter], [download_stage, parse_stage])
     graph.connect([parse_stage], [generate_stage])
 
-    graph.set_graph_mode("thread", "thread")
+    graph.set_graph_mode("process", "thread")
     graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_ctree(
         True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port
@@ -111,7 +102,7 @@ def test_splitter_0():
     )
 
 
-def test_splitter_1():
+def demo_splitter_1():
     # 定义任务节点
     task_splitter = TaskSplitter()
     process_stage = TaskStage(no_op, execution_mode="thread", max_workers=50)
@@ -133,7 +124,7 @@ def test_splitter_1():
     )
 
 
-def test_redis_ack_0():
+def demo_redis_ack_0():
     start_stage = TaskStage(
         sleep_1,
         execution_mode="thread",
@@ -183,7 +174,7 @@ def test_redis_ack_0():
     )
 
 
-def test_redis_ack_1():
+def demo_redis_ack_1():
     start_stage = TaskStage(
         sleep_1,
         execution_mode="thread",
@@ -235,7 +226,7 @@ def test_redis_ack_1():
     )
 
 
-def test_redis_ack_2():
+def demo_redis_ack_2():
     start_stage = TaskStage(
         sleep_1,
         execution_mode="thread",
@@ -290,7 +281,7 @@ def test_redis_ack_2():
     graph.start_graph({start_stage.get_tag(): download_links})
 
 
-def test_redis_source_0():
+def demo_redis_source_0():
     sleep_stage_0 = TaskStage(
         sleep_1,
         execution_mode="serial",
@@ -339,7 +330,7 @@ def test_redis_source_0():
     )
 
 
-def test_router_0():
+def demo_router_0():
     router = TaskRouter(
         stage_mode="serial",
         stage_name="Router",
@@ -388,6 +379,6 @@ def test_router_0():
 
 
 if __name__ == "__main__":
-    test_splitter_0()
-    # test_router_0()
+    demo_splitter_0()
+    # demo_router_0()
     pass

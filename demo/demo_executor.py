@@ -5,7 +5,7 @@ from demo_utils import fibonacci, fibonacci_async
 from celestialflow import TaskExecutor
 
 
-def test_fibonacci_serial():
+def demo_fibonacci_serial():
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
 
     executor = TaskExecutor(
@@ -20,7 +20,7 @@ def test_fibonacci_serial():
     executor.start(test_task_1)
 
 
-def test_fibonacci_thread():
+def demo_fibonacci_thread():
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
 
     executor = TaskExecutor(
@@ -35,7 +35,7 @@ def test_fibonacci_thread():
     executor.start(test_task_1)
 
 
-async def test_fibonacci_async():
+async def demo_fibonacci_async():
     test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
 
     executor = TaskExecutor(
@@ -51,6 +51,6 @@ async def test_fibonacci_async():
 
 
 if __name__ == "__main__":
-    test_fibonacci_serial()
-    test_fibonacci_thread()
-    asyncio.run(test_fibonacci_async())
+    demo_fibonacci_serial()
+    demo_fibonacci_thread()
+    asyncio.run(demo_fibonacci_async())

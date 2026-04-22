@@ -98,8 +98,8 @@ def neuron_activation(x):
 
 # =========================
 # sleep 变体
-#   sleep_1       — 纯延迟，有返回值（test_executor 用）
-#   sleep_1_async — 纯延迟，有返回值的异步版本（test_executor 用）
+#   sleep_1       — 纯延迟，有返回值（demo_executor 用）
+#   sleep_1_async — 纯延迟，有返回值的异步版本（demo_executor 用）
 # =========================
 
 
@@ -114,7 +114,7 @@ async def sleep_1_async(n):
 
 
 # =========================
-# 带 sleep 的运算函数（test_structure 用）
+# 带 sleep 的运算函数（demo_structure 用）
 # =========================
 
 
@@ -155,7 +155,7 @@ def add_one_sleep(n):
 
 
 # =========================
-# URL 处理函数（test_stages 用）
+# URL 处理函数（demo_stages 用）
 # =========================
 
 
