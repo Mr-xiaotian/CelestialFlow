@@ -1,5 +1,7 @@
 # test_metrics.py Test Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Test Purpose
 
 Validates all counter logic, deduplication mechanisms, retry exception configuration, and state determination of the `TaskMetrics` class. `TaskMetrics` is the data source for task status visualization and monitoring within the framework, and its counting accuracy directly affects operational decision-making.

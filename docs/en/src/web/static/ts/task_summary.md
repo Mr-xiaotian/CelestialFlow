@@ -1,5 +1,7 @@
 # task_summary.ts
 
+> 📅 Last updated: 2026/04/22
+
 Manages the loading of overall statistics data and rendering of the summary panel.
 
 ## Global Variables

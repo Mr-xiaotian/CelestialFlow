@@ -1,5 +1,7 @@
 # TaskGraph
 
+> 📅 最后更新日期: 2026/04/22
+
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
 ## 初始化

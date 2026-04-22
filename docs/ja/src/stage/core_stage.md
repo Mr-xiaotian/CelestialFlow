@@ -1,5 +1,7 @@
 # TaskStage
 
+> 📅 最終更新日: 2026/04/22
+
 `TaskStage` は `TaskGraph` を構築するための基本ユニットです。`TaskExecutor` を継承し、グラフ構造の接続機能を追加しています。
 
 ## 継承関係

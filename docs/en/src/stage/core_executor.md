@@ -1,5 +1,7 @@
 # TaskExecutor
 
+> 📅 Last updated: 2026/04/22
+
 `TaskExecutor` is the core component for executing single task logic. It is responsible for task execution, concurrency control, error handling, retry mechanisms, and logging.
 
 ## Initialization

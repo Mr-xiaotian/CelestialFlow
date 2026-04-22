@@ -1,5 +1,7 @@
 # conftest.py 测试配置说明
 
+> 📅 最后更新日期: 2026/04/22
+
 ## 测试目标
 
 `conftest.py` 是 pytest 的本地插件文件，负责在测试会话开始前加载项目级的环境变量配置，确保所有测试用例共享一致的外部服务连接参数（如 Redis、CelestialTree、Reporter 等）。

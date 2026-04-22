@@ -1,5 +1,7 @@
 # task_structure.ts
 
+> 📅 Last updated: 2026/04/22
+
 Manages the loading of task graph structure data and on-demand rendering of Mermaid flowcharts.
 
 ## Global Variables

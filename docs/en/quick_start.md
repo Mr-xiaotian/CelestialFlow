@@ -1,5 +1,7 @@
 # Quick Start
 
+> 📅 Last updated: 2026/04/22
+
 This section will guide you through quickly installing and running **TaskGraph**, experiencing its task graph scheduling mechanism through examples.
 
 ## Create an Isolated Virtual Environment

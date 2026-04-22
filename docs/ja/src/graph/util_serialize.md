@@ -1,5 +1,7 @@
 # GraphSerialize
 
+> 📅 最終更新日: 2026/04/22
+
 `graph/util_serialize.py` は TaskGraph の構造シリアライズとテキスト化を担当します。
 
 ## 主な機能

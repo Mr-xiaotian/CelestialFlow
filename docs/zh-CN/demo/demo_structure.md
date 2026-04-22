@@ -1,5 +1,7 @@
 # demo_structure.py 演示说明
 
+> 📅 最后更新日期: 2026/04/22
+
 ## 目标
 
 演示 `core_structure.py` 中预定义的多种图结构（DAG 与有环图），展示 CelestialFlow 在链式、交叉、网格、循环、轮状、完全图等多种拓扑下的构建与运行方式。

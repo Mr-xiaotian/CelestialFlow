@@ -1,5 +1,7 @@
 # TaskProgress
 
+> 📅 最后更新日期: 2026/04/22
+
 TaskProgress 模块基于 `tqdm` 提供了任务进度的可视化显示。
 
 ## 功能

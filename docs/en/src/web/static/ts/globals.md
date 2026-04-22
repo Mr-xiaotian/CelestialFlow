@@ -1,5 +1,7 @@
 # globals.d.ts
 
+> 📅 Last updated: 2026/04/22
+
 TypeScript global type declaration file that provides type declarations for third-party libraries included via CDN `<script>` tags, preventing compilation errors.
 
 ## Declaration Contents

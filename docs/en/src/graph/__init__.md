@@ -1,5 +1,7 @@
 # Graph Module
 
+> 📅 Last updated: 2026/04/22
+
 The Graph module is CelestialFlow's core scheduling system, responsible for managing dependency relationships, execution flow, and lifecycle of task nodes. It provides flexible task graph construction, analysis, and serialization capabilities.
 
 ## Module Overview

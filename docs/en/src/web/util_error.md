@@ -1,5 +1,7 @@
 # util_error
 
+> 📅 Last updated: 2026/04/22
+
 Error query and pagination utility functions for the Web module.
 
 ## normalize_errors_query

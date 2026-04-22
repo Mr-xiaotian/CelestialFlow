@@ -1,5 +1,7 @@
 # UtilsFormat
 
+> 📅 最終更新日: 2026/04/22
+
 `utils/util_format.py` は汎用フォーマットツールを提供します。
 
 ## 主要関数

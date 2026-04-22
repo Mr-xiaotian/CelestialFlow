@@ -1,5 +1,7 @@
 # TaskEnvelope
 
+> 📅 Last updated: 2026/04/22
+
 A wrapper class for task data that is passed between stages. It encapsulates the raw task data, task hash, task ID, and source information.
 
 ## Attributes

@@ -1,5 +1,7 @@
 # Go Worker
 
+> 📅 Last updated: 2026/04/22
+
 Go Worker is a **lightweight, concurrently scalable, Redis-based task consumer (Worker Pool)**.
 Its design goals are only two:
 

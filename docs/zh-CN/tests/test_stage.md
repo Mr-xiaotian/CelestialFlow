@@ -1,5 +1,7 @@
 # test_stage.py 测试说明
 
+> 📅 最后更新日期: 2026/04/22
+
 ## 测试目标
 
 验证 `TaskStage` 的配置层行为，包括：tag 生成与失效机制、stage_mode / execution_mode 的合法性校验、进程模式下的 pickle 守卫。这些测试覆盖 `TaskStage` 作为图节点的元数据管理层，而非其执行能力（执行能力在 `test_executor.py` 中覆盖）。

@@ -1,5 +1,7 @@
 # TaskStage
 
+> 📅 Last updated: 2026/04/22
+
 `TaskStage` is the basic building unit for constructing a `TaskGraph`. It inherits from `TaskExecutor` and adds graph structure connection capabilities.
 
 ## Inheritance Hierarchy

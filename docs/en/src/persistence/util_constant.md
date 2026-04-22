@@ -1,5 +1,7 @@
 # PersistenceConstant
 
+> 📅 Last updated: 2026/04/22
+
 `persistence/util_constant.py` defines the log level mapping constant `LEVEL_DICT`.
 
 ## Levels

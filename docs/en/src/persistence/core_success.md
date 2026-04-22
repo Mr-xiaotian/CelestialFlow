@@ -1,5 +1,7 @@
 # SuccessSpout
 
+> 📅 Last updated: 2026/04/22
+
 `SuccessSpout` inherits from `BaseSpout` and continuously listens to the success result queue, caching task-result pairs.
 
 ## Initialization

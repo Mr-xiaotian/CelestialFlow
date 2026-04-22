@@ -1,5 +1,7 @@
 # BaseSpout
 
+> 📅 Last updated: 2026/04/22
+
 `BaseSpout` is the base class for all outlet classes, providing common functionality for listening to a queue and processing records in a background thread.
 
 ## Initialization

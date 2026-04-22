@@ -1,5 +1,7 @@
 # test_executor.py Test Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Test Purpose
 
 Validates the core capabilities of `TaskExecutor` across three execution modes (`serial` / `thread` / `async`): task scheduling, result correctness, exception handling, retry mechanism, deduplication checks, success caching, and configuration validation. `TaskExecutor` is the most fundamental task execution unit in CelestialFlow, and its stability is the cornerstone of the entire framework.

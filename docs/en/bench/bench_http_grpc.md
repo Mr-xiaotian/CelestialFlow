@@ -1,5 +1,7 @@
 # bench_http_grpc.py Benchmark Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Objective
 
 Quantitatively compare the performance overhead of the CelestialTree event tracing system under different transport protocols (disabled / HTTP / gRPC), helping users make trade-offs between high-precision tracing and minimum latency.

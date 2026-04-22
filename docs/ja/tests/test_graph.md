@@ -1,5 +1,7 @@
 # test_graph.py テスト説明
 
+> 📅 最終更新日: 2026/04/22
+
 ## テスト目的
 
 `TaskGraph` およびそのサブクラス（`TaskChain`、`TaskCross`、`TaskGrid`、`TaskComplete`）を複数のグラフ構造で検証します。以下を含みます：

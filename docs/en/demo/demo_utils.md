@@ -1,5 +1,7 @@
 # demo_utils.py Utility Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Purpose
 
 Provides shared test functions and helper classes for the demo scripts in the `demo/` directory. The content is largely identical to `tests/test_utils.py` and serves as a dedicated utility library for demo code.

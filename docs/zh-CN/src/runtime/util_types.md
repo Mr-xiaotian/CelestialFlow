@@ -1,5 +1,7 @@
 # TaskTypes
 
+> 📅 最后更新日期: 2026/04/22
+
 TaskTypes 模块定义了框架中使用的基础数据类型、枚举和辅助类。
 
 ## StageStatus

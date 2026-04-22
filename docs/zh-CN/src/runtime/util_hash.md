@@ -1,5 +1,7 @@
 # RuntimeHash
 
+> 📅 最后更新日期: 2026/04/22
+
 `runtime/util_hash.py` 提供任务哈希与可哈希转换工具。
 
 ## 主要函数

@@ -1,5 +1,7 @@
 # demo_stages.py 演示说明
 
+> 📅 最后更新日期: 2026/04/22
+
 ## 目标
 
 演示 CelestialFlow 中特殊 Stage 节点的使用：`TaskSplitter`（任务拆分）、`TaskRouter`（任务路由）、`TaskRedisTransport` / `TaskRedisAck` / `TaskRedisSource`（Redis 分布式传输）。构建包含循环依赖和跨设备协作的复杂任务图。

@@ -1,5 +1,7 @@
 # CelestialTree Client
 
+> 📅 最后更新日期: 2026/04/22
+
 CelestialFlow 集成了 `celestialtree` 客户端，用于实现细粒度的任务全链路追踪（Provenance）和事件记录。
 
 ## 简介

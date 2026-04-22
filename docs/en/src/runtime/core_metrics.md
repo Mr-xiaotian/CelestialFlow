@@ -1,5 +1,7 @@
 # TaskMetrics
 
+> 📅 Last updated: 2026/04/22
+
 The TaskMetrics module manages and tracks various metrics during task execution, such as input task count, success count, failure count, duplicate task count, and more. It typically exists as a component of `TaskExecutor`.
 
 ## Initialization

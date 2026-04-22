@@ -1,5 +1,7 @@
 # util_config
 
+> 📅 Last updated: 2026/04/22
+
 Configuration file read/write utilities for the Web module.
 
 ## load_config

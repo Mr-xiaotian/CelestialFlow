@@ -1,5 +1,7 @@
 # util_error
 
+> 📅 最終更新日: 2026/04/22
+
 Web モジュールのエラークエリおよびページネーションユーティリティ関数です。
 
 ## normalize_errors_query

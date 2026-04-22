@@ -1,5 +1,7 @@
 # bench_queue.py Benchmark Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Objective
 
 Compare the put/get/qsize/empty operation performance of various queue implementations in a single-process environment, including thread queues, multi-process queues, Manager queues, and Redis queues.

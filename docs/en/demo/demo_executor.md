@@ -1,5 +1,7 @@
 # demo_executor.py Demo Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Purpose
 
 Demonstrates the standalone execution capability of `TaskExecutor` in three execution modes (`serial`, `thread`, `async`). Showcases the complete lifecycle of exception retry, progress display, and task statistics, making it ideal as a first hands-on experience with the framework.

@@ -1,5 +1,7 @@
 # task_injection.ts
 
+> 📅 Last updated: 2026/04/22
+
 Logic for the task injection page, supporting stage selection, task data input (JSON text or file upload), and submission to the backend.
 
 ## Type Definitions

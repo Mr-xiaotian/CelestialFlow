@@ -1,5 +1,7 @@
 # bench_tqdm.py Benchmark Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Objective
 
 Quantify the performance overhead of `tqdm` progress bars in loops, helping determine whether progress display should be enabled in ultra-large-scale iterations (millions of iterations).

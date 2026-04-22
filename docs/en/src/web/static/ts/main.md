@@ -1,5 +1,7 @@
 # main.ts
 
+> 📅 Last updated: 2026/04/22
+
 The main page entry point, responsible for initialization, event binding, and unified data refresh scheduling.
 
 ## Responsibilities

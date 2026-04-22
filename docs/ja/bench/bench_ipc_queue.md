@@ -1,5 +1,7 @@
 # bench_ipc_queue.py ベンチマーク説明
 
+> 📅 最終更新日: 2026/04/22
+
 ## 目標
 
 実際のプロセス間シナリオにおいて、複数の Python IPC（プロセス間通信）メカニズムの性能を比較します：MPQueue、SimpleQueue、Pipe、Manager().Queue。CelestialFlow のマルチプロセスモードにおけるキュー選定のためのデータを提供します。

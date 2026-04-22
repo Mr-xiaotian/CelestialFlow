@@ -1,5 +1,7 @@
 # PersistenceJSONL
 
+> 📅 Last updated: 2026/04/22
+
 `persistence/util_jsonl.py` provides JSONL persistence and reading utilities.
 
 ## Reading Interface

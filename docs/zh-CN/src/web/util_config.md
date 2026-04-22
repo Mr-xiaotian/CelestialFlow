@@ -1,5 +1,7 @@
 # util_config
 
+> 📅 最后更新日期: 2026/04/22
+
 Web 模块的配置文件读写工具。
 
 ## load_config

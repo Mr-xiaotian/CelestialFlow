@@ -1,5 +1,7 @@
 # Tutorial: Building an Image Crawler
 
+> 📅 Last updated: 2026/04/22
+
 This tutorial will walk you through learning CelestialFlow from scratch using a complete hands-on project — a **Baidu Image Crawler**.
 
 ## Project Goals

@@ -1,5 +1,7 @@
 # Utils Module
 
+> 📅 Last updated: 2026/04/22
+
 The Utils module provides general-purpose utility functions and helper classes for CelestialFlow, including performance benchmarking, data cloning, collection operations, debugging tools, and formatting capabilities. These tools are widely used by other modules, improving code reusability and maintainability.
 
 ## Module Overview

@@ -1,5 +1,7 @@
 # bench_datastructures.py Benchmark Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Objective
 
 Compare read/write performance of various Python data structures and external storage backends under single-threaded and multi-process environments, providing quantitative evidence for selecting internal queues, shared state, and persistence backends in CelestialFlow.

@@ -1,5 +1,7 @@
 # test_envelope.py Test Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Test Purpose
 
 Validates the core behavior of `TaskEnvelope`, including data wrapping/unwrapping, attribute persistence, hash consistency, and memory optimization mechanisms. `TaskEnvelope` is the fundamental unit for passing tasks between queues in CelestialFlow, and its correctness directly affects the reliability of the entire data flow.

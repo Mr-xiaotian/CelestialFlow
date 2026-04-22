@@ -1,5 +1,7 @@
 # bench_requests.py ベンチマーク説明
 
+> 📅 最終更新日: 2026/04/22
+
 ## 目標
 
 `requests` ライブラリの異なる使用パターンにおける HTTP リクエスト性能を定量的に比較します：Session の使用有無、並行処理の有無、Session の共有粒度。CelestialFlow で HTTP 通信を行うモジュール（Reporter、CelestialTree HTTP クライアント）の最適化の根拠を提供します。

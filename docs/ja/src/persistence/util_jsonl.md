@@ -1,5 +1,7 @@
 # PersistenceJSONL
 
+> 📅 最終更新日: 2026/04/22
+
 `persistence/util_jsonl.py` は JSONL の永続化と読み取りユーティリティを提供します。
 
 ## 読み取りインターフェース

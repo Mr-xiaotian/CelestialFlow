@@ -1,5 +1,7 @@
 # Benchmark
 
+> 📅 Last updated: 2026/04/22
+
 `utils/benchmark.py` provides performance benchmarking functionality for executors and task graphs, used to compare performance differences across execution modes.
 
 ## Design Purpose

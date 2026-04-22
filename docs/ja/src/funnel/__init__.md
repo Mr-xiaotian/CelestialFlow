@@ -1,5 +1,7 @@
 # Funnel モジュール
 
+> 📅 最終更新日: 2026/04/22
+
 Funnel モジュールは CelestialFlow のキュー通信インフラストラクチャを提供し、Persistence モジュールにおける `LogSpout`/`LogInlet` および `FailSpout`/`FailInlet` の基底クラスです。
 
 ## モジュール概要

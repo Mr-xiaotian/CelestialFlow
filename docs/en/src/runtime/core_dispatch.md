@@ -1,5 +1,7 @@
 # TaskDispatch
 
+> 📅 Last updated: 2026/04/22
+
 `TaskDispatch` is the core task execution runner responsible for fetching tasks from queues, executing them, and handling results and errors. It supports three execution modes: serial, thread pool, and async.
 
 ## Initialization

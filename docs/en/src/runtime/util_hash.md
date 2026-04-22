@@ -1,5 +1,7 @@
 # RuntimeHash
 
+> 📅 Last updated: 2026/04/22
+
 `runtime/util_hash.py` provides task hashing and hashable conversion utilities.
 
 ## Main Functions

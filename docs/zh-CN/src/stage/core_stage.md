@@ -1,5 +1,7 @@
 # TaskStage
 
+> 📅 最后更新日期: 2026/04/22
+
 `TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力。
 
 ## 继承关系

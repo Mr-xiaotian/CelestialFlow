@@ -1,5 +1,7 @@
 # Clone
 
+> 📅 Last updated: 2026/04/22
+
 `utils/clone.py` provides functionality for cloning executors, stages, and task graphs, used for performance testing and configuration reuse.
 
 ## Design Purpose

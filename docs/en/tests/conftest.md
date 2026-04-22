@@ -1,5 +1,7 @@
 # conftest.py Test Configuration Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Test Purpose
 
 `conftest.py` is a pytest local plugin file responsible for loading project-level environment variable configuration before the test session begins, ensuring all test cases share consistent external service connection parameters (such as Redis, CelestialTree, Reporter, etc.).

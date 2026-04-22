@@ -1,5 +1,7 @@
 # bench_graph.py Benchmark Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Objective
 
 Compare the task graph execution performance of complex DAGs across different combinations of `stage_mode` (`serial` / `thread` / `process`) and `execution_mode` (`serial` / `thread`). Uses the built-in `benchmark_graph` tool for matrix-style comparison.

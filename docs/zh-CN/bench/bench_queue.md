@@ -1,5 +1,7 @@
 # bench_queue.py 基准测试说明
 
+> 📅 最后更新日期: 2026/04/22
+
 ## 目标
 
 在单进程环境下对比多种队列实现的 put/get/qsize/empty 操作性能，包括线程队列、多进程队列、Manager 队列以及 Redis 队列。

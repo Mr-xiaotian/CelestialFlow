@@ -1,5 +1,7 @@
 # task_statuses.ts
 
+> 📅 Last updated: 2026/04/22
+
 Manages the loading of per-stage runtime status data and rendering of dashboard status cards.
 
 ## Type Definitions

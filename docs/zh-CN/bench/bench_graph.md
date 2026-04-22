@@ -1,5 +1,7 @@
 # bench_graph.py 基准测试说明
 
+> 📅 最后更新日期: 2026/04/22
+
 ## 目标
 
 对比不同 `stage_mode`（`serial` / `thread` / `process`）和 `execution_mode`（`serial` / `thread`）组合下，复杂 DAG 的任务图执行性能。使用框架内置的 `benchmark_graph` 工具进行矩阵式对比。

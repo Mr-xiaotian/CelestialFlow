@@ -1,5 +1,7 @@
 # CelestialFlow — A Lightweight, Parallelizable, Graph-Based Python Task Scheduling Framework
 
+> 📅 Last updated: 2026/04/22
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
 </p>

@@ -1,5 +1,7 @@
 # bench_ipc_queue.py 基准测试说明
 
+> 📅 最后更新日期: 2026/04/22
+
 ## 目标
 
 在真实跨进程场景下对比多种 Python IPC（进程间通信）机制的性能：MPQueue、SimpleQueue、Pipe、Manager().Queue。为 CelestialFlow 在多进程模式下的队列选型提供数据支持。

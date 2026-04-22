@@ -1,5 +1,7 @@
 # util_queue
 
+> 📅 最終更新日: 2026/04/22
+
 `runtime/util_queue.py` はマルチプロセスキューのクリーンアップユーティリティ関数を提供します。
 
 ## cleanup_mpqueue

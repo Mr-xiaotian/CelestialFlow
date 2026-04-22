@@ -1,5 +1,7 @@
 # UtilsDebug
 
+> 📅 最后更新日期: 2026/04/22
+
 `utils/util_debug.py` 提供调试辅助函数。
 
 ## 主要函数

@@ -1,5 +1,7 @@
 # Funnel Module
 
+> 📅 Last updated: 2026/04/22
+
 The Funnel module provides the queue communication infrastructure for CelestialFlow and serves as the base classes for `LogSpout`/`LogInlet` and `FailSpout`/`FailInlet` in the Persistence module.
 
 ## Module Overview

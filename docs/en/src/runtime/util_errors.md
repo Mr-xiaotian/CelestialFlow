@@ -1,5 +1,7 @@
 # TaskErrors
 
+> 📅 Last updated: 2026/04/22
+
 The TaskErrors module defines the custom exception classes used in the framework.
 
 ## Exception Hierarchy

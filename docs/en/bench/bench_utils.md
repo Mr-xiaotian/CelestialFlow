@@ -1,5 +1,7 @@
 # bench_utils.py Benchmark Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Objective
 
 Provides a unified statistical output tool `summarize()` for all benchmarks in the `bench/` directory, standardizing the presentation format of timing data.

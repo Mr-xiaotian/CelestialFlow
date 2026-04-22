@@ -1,5 +1,7 @@
 # GraphSerialize
 
+> 📅 Last updated: 2026/04/22
+
 `graph/util_serialize.py` handles TaskGraph structure serialization and text formatting.
 
 ## Main Capabilities

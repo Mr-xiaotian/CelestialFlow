@@ -1,5 +1,7 @@
 # TaskStructure
 
+> 📅 Last updated: 2026/04/22
+
 The TaskStructure module provides multiple predefined task graph structures to help users quickly build complex task flows. All structures inherit from `TaskGraph`.
 
 ## Chain (Linear Chain)

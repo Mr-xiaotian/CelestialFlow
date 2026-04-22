@@ -1,5 +1,7 @@
 # Other Module
 
+> 📅 Last updated: 2026/04/22
+
 ## Overview
 
 The Other module contains extension components and external integrations for the CelestialFlow framework. These components are not part of the core framework but provide important extended functionality. It mainly includes two components: CelestialTree Client and Go Worker, used for task provenance tracking and cross-language task execution, respectively.
