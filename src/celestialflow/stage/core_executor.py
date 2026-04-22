@@ -349,22 +349,25 @@ class TaskExecutor:
         self.metrics.add_retry_exceptions(*exceptions)
 
     # ==== 任务输入 ====
-    def _put_task_queues(self, task_source: Iterable) -> None:
+    def _prepare_task_envelopes(
+        self, task_source: Iterable
+    ) -> tuple[list[TaskEnvelope | TerminationSignal], int]:
         """
-        将任务放入任务队列
+        构建所有任务信封和终止信号，返回待入队列表。
 
-        :param task_source: 任务源（可迭代对象）
+        :param task_source: 任务源
+        :return: (items, progress_num)
         """
-        task_queues = self.task_queues
-
+        items: list[TaskEnvelope | TerminationSignal] = []
         progress_num = 0
+
         for task in task_source:
             input_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT,
                 payload=self.get_summary(),
             )
             envelope = TaskEnvelope.wrap(task, input_id, source="input")
-            task_queues.put(envelope)
+            items.append(envelope)
             self.metrics.add_task_count()
             self.log_inlet.task_input(
                 self.get_func_name(),
@@ -376,19 +379,29 @@ class TaskExecutor:
             if self.metrics.get_task_count() % 100 == 0:
                 self.task_progress.add_total(100)
                 progress_num += 100
+
         self.task_progress.add_total(self.metrics.get_task_count() - progress_num)
 
-        # 注入终止符
         termination_id = self.ctree_client.emit(
             CTreeEvent.TERMINATION_INPUT,
             payload=self.get_summary(),
         )
-        task_queues.put(TerminationSignal(termination_id, source="input"))
+        items.append(TerminationSignal(termination_id, source="input"))
         self.log_inlet.termination_input(
             self.get_func_name(),
             self.get_tag(),
             termination_id,
         )
+        return items
+
+    def _put_task_queues(self, task_source: Iterable) -> None:
+        """
+        将任务放入任务队列
+
+        :param task_source: 任务源（可迭代对象）
+        """
+        for item in self._prepare_task_envelopes(task_source):
+            self.task_queues.put(item)
 
     async def _put_task_queues_async(self, task_source: Iterable) -> None:
         """
@@ -396,40 +409,8 @@ class TaskExecutor:
 
         :param task_source: 任务源（可迭代对象）
         """
-        task_queues = self.task_queues
-
-        progress_num = 0
-        for task in task_source:
-            input_id = self.ctree_client.emit(
-                CTreeEvent.TASK_INPUT,
-                payload=self.get_summary(),
-            )
-            envelope = TaskEnvelope.wrap(task, input_id, source="input")
-            await task_queues.put_async(envelope)
-            self.metrics.add_task_count()
-            self.log_inlet.task_input(
-                self.get_func_name(),
-                self.get_task_repr(task),
-                self.get_tag(),
-                input_id,
-            )
-
-            if self.metrics.get_task_count() % 100 == 0:
-                self.task_progress.add_total(100)
-                progress_num += 100
-        self.task_progress.add_total(self.metrics.get_task_count() - progress_num)
-
-        # 注入终止符
-        termination_id = self.ctree_client.emit(
-            CTreeEvent.TERMINATION_INPUT,
-            payload=self.get_summary(),
-        )
-        await task_queues.put_async(TerminationSignal(termination_id, source="input"))
-        self.log_inlet.termination_input(
-            self.get_func_name(),
-            self.get_tag(),
-            termination_id,
-        )
+        for item in self._prepare_task_envelopes(task_source):
+            await self.task_queues.put_async(item)
 
     def get_args(self, task: Any) -> tuple:
         """
