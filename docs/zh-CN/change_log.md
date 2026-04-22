@@ -107,6 +107,30 @@
   - fix
     - 修复总体剩余时间在特殊情况下显示0的问题(这玩意真麻烦);
     - 修复部分小屏下的显示问题, 但折线图不显示的问题不太好解决;
+- 3.1.8
+  - feat:
+    - [Important] 为stage_mode新增"thread"模式, 适合I/O密集型任务和不可pickle的函数;
+    - 新增pytest-asyncio支持, async测试现在可以正常运行;
+    - 新增docs/bench与docs/demo文档, 补充bench实测结果;
+    - 新增tests/目录下的测试文件, 替代原有tests/README.md;
+  - refactor:
+    - [Important] 将connect改为内置方法, 新增set_stages, 同时在此注册root_stage;
+    - [Important] 新增StageRuntime, 分离stage运行时逻辑;
+    - 用in_edges和out_edges替代next_stages和prev_stages;
+    - 删除stage.set_stage_context, 改用graph.connect;
+    - 将run_in_*重命名为dispatch_*;
+    - 取消TaskDispatch中termination_signal的reput机制;
+    - 将collect_runtime_snapshot拆分为_snapshot_one_stage和_calc_graph_remain;
+    - 新增get_binding_counter, 替代prev_bindings中的isinstance判断;
+    - 新增_prepare_task_envelopes, 压缩_put_task_queues逻辑;
+    - 将successed重命名为succeeded; ctree.emit中的type_改为CTreeEvent;
+  - fix:
+    - 修复find_unpickleable对bound method的误报;
+    - 修复stage重复检测错误;
+    - 修复retry任务无法被去重的问题;
+  - chore:
+    - 将demo/中所有test_函数名改为demo_函数名;
+    - 重组docs目录结构, 将reference改为src, 移动部分文档至zh-CN/;
 - 3.1.7
   - feat:
     - [Important] 删除executor中的"process"模式, 它跟新的retry机制实在难以匹配;

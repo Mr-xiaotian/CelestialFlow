@@ -38,9 +38,10 @@ TaskStage 的任务执行模式只有两种：
 * **线性（serial）**
 * **多线程（thread）**
 
-在图级别上，每个 Stage 支持两种上下文模式：
+在图级别上，每个 Stage 支持三种上下文模式：
 
 * **线性执行（serial layout）**：当前节点执行完毕再启动下一节点（下游节点可提前接收任务但不会立即执行）。
+* **线程执行（thread layout）**：当前节点在主进程的独立线程中启动，适合 I/O 密集型任务和不可 pickle 的函数（如 lambda）。
 * **并行执行（process layout）**：当前节点启动后立刻前去启动下一节点。
 
 TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支持传统的有向无环图（DAG），也能灵活表达 **树形（Tree）**、**环形（loop）** 乃至于 **完全图（Complete Graph）** 形式的任务依赖。
@@ -146,23 +147,23 @@ if __name__ == "__main__":
 
 (以下文档完善中)
 
-你可以继续运行更多的测试代码，这里记录了各个测试文件与其中的测试函数说明：
+你可以继续运行更多的演示代码，这里记录了各个演示文件与其中的演示函数说明：
 
-[📄tests/README.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/tests/README.md)
+[📄docs/demo/](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/demo/)
 
 若你想了解框架的整体结构与核心组件，下面的参考文档会对你有帮助：
 
-- [stage/core_executor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/stage/core_executor.md)
-- [stage/core_stage.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/stage/core_stage.md)
-- [graph/core_graph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/graph/core_graph.md)
-- [observability/core_progress.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/observability/core_progress.md)
-- [runtime/core_metrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/core_metrics.md)
-- [runtime/core_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/core_queue.md)
-- [stage/core_stages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/stage/core_stages.md)
-- [observability/core_report.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/observability/core_report.md)
-- [graph/core_structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/graph/core_structure.md)
-- [web/core_server.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/web/core_server.md)
-- [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/other/go_worker.md)
+- [stage/core_executor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/stage/core_executor.md)
+- [stage/core_stage.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/stage/core_stage.md)
+- [graph/core_graph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/graph/core_graph.md)
+- [observability/core_progress.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/observability/core_progress.md)
+- [runtime/core_metrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/runtime/core_metrics.md)
+- [runtime/core_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/runtime/core_queue.md)
+- [stage/core_stages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/stage/core_stages.md)
+- [observability/core_report.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/observability/core_report.md)
+- [graph/core_structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/graph/core_structure.md)
+- [web/core_server.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/web/core_server.md)
+- [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/other/go_worker.md)
 
 推荐阅读顺序:
 
@@ -195,11 +196,11 @@ flowchart TD
 
 以下三篇可以作为补充阅读:
 
-- [runtime/util_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/util_queue.md)
-- [runtime/util_types.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/util_types.md)
-- [runtime/util_errors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/runtime/util_errors.md)
-- [persistence/core_fail.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/core_fail.md)
-- [persistence/core_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/core_log.md)
+- [runtime/util_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/runtime/util_queue.md)
+- [runtime/util_types.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/runtime/util_types.md)
+- [runtime/util_errors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/runtime/util_errors.md)
+- [persistence/core_fail.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/persistence/core_fail.md)
+- [persistence/core_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/src/persistence/core_log.md)
 
 如果你更喜欢通过完整案例理解框架的运行方式，可以参考这篇从零开始构建 TaskGraph 的教程：
 
@@ -207,7 +208,7 @@ flowchart TD
 
 如果你对3.0.7版本加入的ctree_client与其功能感兴趣, 可以看看这一篇:
 
-[📚CelestialTreeClient](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/other/ctree_client.md)
+[📚CelestialTreeClient](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/other/ctree_client.md)
 
 ## 环境要求（Requirements）
 
@@ -231,24 +232,36 @@ flowchart TD
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.1.7</em>
+  <em>celestial-flow 3.1.8</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.1.7
+- 3.1.8
   - feat:
-    - [Important] 删除executor中的"process"模式, 它跟新的retry机制实在难以匹配;
+    - [Important] 为stage_mode新增"thread"模式, 适合I/O密集型任务和不可pickle的函数;
+    - 新增pytest-asyncio支持, async测试现在可以正常运行;
+    - 新增docs/bench与docs/demo文档, 补充bench实测结果;
+    - 新增tests/目录下的测试文件, 替代原有tests/README.md;
   - refactor:
-    - [Important] 大幅重构retry机制, 现在不再让retry任务重进task_queue, 而是在worker中直接解决;
-      - 模仿CelestialForge中grow的做法;
-    - 大幅重构原本成功与失败结果的缓存机制, 并将原有get_success/error_dict改名为get_success/error_pairs, 以避免task无法作为键时会导致的问题; 
-      - fail数据从fail.jsonl中提取;
-      - success数据从result_queue中直接获取, 为此添加了SuccessSpout作为集合端;
+    - [Important] 将connect改为内置方法, 新增set_stages, 同时在此注册root_stage;
+    - [Important] 新增StageRuntime, 分离stage运行时逻辑;
+    - 用in_edges和out_edges替代next_stages和prev_stages;
+    - 删除stage.set_stage_context, 改用graph.connect;
+    - 将run_in_*重命名为dispatch_*;
+    - 取消TaskDispatch中termination_signal的reput机制;
+    - 将collect_runtime_snapshot拆分为_snapshot_one_stage和_calc_graph_remain;
+    - 新增get_binding_counter, 替代prev_bindings中的isinstance判断;
+    - 新增_prepare_task_envelopes, 压缩_put_task_queues逻辑;
+    - 将successed重命名为succeeded; ctree.emit中的type_改为CTreeEvent;
   - fix:
-    - 修复部分任务类型无法在log_spout中dump进jsonl文件的问题;
-    - 修复在executor运行时, retry添加任务total数的问题, 虽然这样很帅;
+    - 修复find_unpickleable对bound method的误报;
+    - 修复stage重复检测错误;
+    - 修复retry任务无法被去重的问题;
+  - chore:
+    - 将demo/中所有test_函数名改为demo_函数名;
+    - 重组docs目录结构, 将reference改为src, 移动部分文档至zh-CN/;
 
 ## Star 历史趋势（Star History）
 
