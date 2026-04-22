@@ -15,7 +15,7 @@
 ### Sleep 变体
 - `sleep_1` / `sleep_1_async`：纯延迟 1 秒
 
-### 带 sleep 的运算（test_structure 用）
+### 带 sleep 的运算（demo_structure 用）
 - `operate_sleep` / `operate_sleep_A~E`：二元运算，延迟 1 秒
 - `add_one_sleep`：含多条件异常边界（`n>30`、`n==0`、`n is None`）
 

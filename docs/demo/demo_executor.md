@@ -8,9 +8,9 @@
 
 | 函数 | 模式 | 任务 | 特性 |
 |------|------|------|------|
-| `test_fibonacci_serial` | serial | 斐波那契计算 | 单线程顺序执行 |
-| `test_fibonacci_thread` | thread | 斐波那契计算 | 6 线程并发 |
-| `test_fibonacci_async` | async | 异步斐波那契 | 协程并发 |
+| `demo_fibonacci_serial` | serial | 斐波那契计算 | 单线程顺序执行 |
+| `demo_fibonacci_thread` | thread | 斐波那契计算 | 6 线程并发 |
+| `demo_fibonacci_async` | async | 异步斐波那契 | 协程并发 |
 
 - **输入**：`range(25, 32) + [0, 27, None, 0, ""]`
 - **异常设计**：`0`、`None`、`""` 会触发 `ValueError`，框架自动重试 1 次
@@ -24,7 +24,7 @@
 ## 可能出现的问题
 
 1. **递归深度与耗时**：`fibonacci(31)` 的递归调用量巨大，serial 模式下可能耗时 10 秒以上。
-2. **`asyncio` 环境**：`test_fibonacci_async` 使用 `asyncio.run()`，在 Jupyter Notebook 中直接运行会报错（Notebook 已有事件循环）。
+2. **`asyncio` 环境**：`demo_fibonacci_async` 使用 `asyncio.run()`，在 Jupyter Notebook 中直接运行会报错（Notebook 已有事件循环）。
 3. **无断言**：此文件为**演示脚本**，不含 `assert`。运行成功仅代表未抛出未捕获异常，不验证结果正确性。
 
 ## 运行方式
