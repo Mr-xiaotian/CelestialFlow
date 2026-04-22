@@ -2,7 +2,7 @@
 import multiprocessing
 import time
 import warnings
-from collections import defaultdict, deque
+from collections import defaultdict
 from multiprocessing import Queue as MPQueue
 from pathlib import Path
 from typing import Any
@@ -220,7 +220,9 @@ class TaskGraph:
 
         :param use_ctree: 是否使用事件树
         :param host: 事件树主机地址
-        :param port: 事件树端口
+        :param http_port: 事件树 HTTP 端口
+        :param grpc_port: 事件树 gRPC 端口
+        :param transport: 传输方式, 可选 'grpc' 或 'http'
         """
         self._use_ctree = use_ctree
         self._ctree_host = host
@@ -288,12 +290,12 @@ class TaskGraph:
             )
 
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
+            if not self.in_edges[stage_tag]:  # 如果没有前驱
+                continue
+
             current_stage: TaskStage = stage_runtime["stage"]
             in_queue: TaskInQueue = stage_runtime["in_queue"]
             prev_stages: list[TaskStage] = []
-
-            if not self.in_edges[stage_tag]:  # 如果没有前驱
-                continue
 
             # 遍历每个前驱，创建边队列
             for prev_stage_tag in self.in_edges[stage_tag]:
