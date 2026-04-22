@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+import types
 from multiprocessing import Queue as MPQueue
 from multiprocessing import Value as MPValue
 
@@ -84,8 +85,12 @@ class TaskStage(TaskExecutor):
         """
         if stage_mode == "process":
             self.stage_mode = "process"
-            # if hasattr(self, "func") and find_unpickleable(self.func):
-            #     raise PickleError(self.func)
+            if (
+                hasattr(self, "func")
+                and not isinstance(self.func, types.MethodType)
+                and find_unpickleable(self.func)
+            ):
+                raise PickleError(self.func)
         elif stage_mode == "thread":
             self.stage_mode = "thread"
         elif stage_mode == "serial":

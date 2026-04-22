@@ -56,34 +56,25 @@ def test_splitter_0():
     # 定义任务节点
     generate_stage = TaskStage(
         func=generate_urls_sleep,
-        execution_mode="thread",
         max_workers=4,
-        stage_mode="process",
         stage_name="GenURLs",
     )
     logger_stage = TaskStage(
         func=log_urls_sleep,
-        execution_mode="thread",
         max_workers=4,
-        stage_mode="process",
         stage_name="Logger",
     )
     splitter = TaskSplitter(
-        stage_mode="process",
         stage_name="Splitter",
     )
     download_stage = TaskStage(
         func=download_sleep,
-        execution_mode="thread",
         max_workers=4,
-        stage_mode="process",
         stage_name="Downloader",
     )
     parse_stage = TaskStage(
         func=parse_sleep,
-        execution_mode="thread",
         max_workers=4,
-        stage_mode="process",
         stage_name="Parser",
     )
 
@@ -97,7 +88,7 @@ def test_splitter_0():
     graph.connect([splitter], [download_stage, parse_stage])
     graph.connect([parse_stage], [generate_stage])
 
-    graph.set_graph_mode("thread", "thread")
+    graph.set_graph_mode("process", "thread")
     graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_ctree(
         True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port
