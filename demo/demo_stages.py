@@ -336,14 +336,14 @@ def demo_router_0():
         stage_mode="serial",
     )
     stage_a = TaskStage(
-        "Stage A",
+        "StageA",
         sleep_1,
         execution_mode="thread",
         max_workers=2,
         stage_mode="process",
     )
     stage_b = TaskStage(
-        "Stage B",
+        "StageB",
         sleep_1,
         execution_mode="thread",
         max_workers=2,

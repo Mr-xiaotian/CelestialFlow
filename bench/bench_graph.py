@@ -72,7 +72,7 @@ def square(x):
 
 def bench_graph_0():
     stage1 = TaskStage(
-        "stage A",
+        "StageA",
         fibonacci,
         execution_mode="thread",
         max_workers=4,
@@ -80,7 +80,7 @@ def bench_graph_0():
         stage_mode="process",
     )
     stage2 = TaskStage(
-        "stage B.1",
+        "StageB1",
         square,
         execution_mode="thread",
         max_workers=4,
@@ -88,14 +88,14 @@ def bench_graph_0():
         stage_mode="process",
     )
     stage3 = TaskStage(
-        "stage B.2",
+        "StageB2",
         sleep_1,
         execution_mode="thread",
         max_workers=4,
         stage_mode="process",
     )
     stage4 = TaskStage(
-        "stage C",
+        "StageC",
         divide_by_two,
         execution_mode="thread",
         max_workers=4,
@@ -131,42 +131,42 @@ def bench_graph_0():
 
 def bench_graph_1():
     A = TaskStage(
-        "Stage_A",
+        "StageA",
         sleep_random_A,
         execution_mode="thread",
         max_workers=5,
         stage_mode="process",
     )
     B = TaskStage(
-        "Stage_B",
+        "StageB",
         sleep_random_B,
         execution_mode="serial",
         max_workers=5,
         stage_mode="process",
     )
     C = TaskStage(
-        "Stage_C",
+        "StageC",
         sleep_random_C,
         execution_mode="serial",
         max_workers=5,
         stage_mode="process",
     )
     D = TaskStage(
-        "Stage_D",
+        "StageD",
         sleep_random_D,
         execution_mode="thread",
         max_workers=5,
         stage_mode="process",
     )
     E = TaskStage(
-        "Stage_E",
+        "StageE",
         sleep_random_E,
         execution_mode="thread",
         max_workers=5,
         stage_mode="process",
     )
     F = TaskStage(
-        "Stage_F",
+        "StageF",
         sleep_random_F,
         execution_mode="serial",
         max_workers=5,
