@@ -21,7 +21,7 @@ from celestialtree import (
     format_descendants_forest,
     format_provenance_forest,
 )
-from networkx import is_directed_acyclic_graph
+from networkx import is_directed_acyclic_graph, DiGraph
 
 from ..observability import NullTaskReporter, TaskReporter
 from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout
@@ -852,7 +852,7 @@ class TaskGraph:
         """
         return self.structure_list
 
-    def get_networkx_graph(self):  # returns nx.DiGraph
+    def get_networkx_graph(self) -> DiGraph:
         """
         获取任务图的 networkx 有向图（DiGraph）
 

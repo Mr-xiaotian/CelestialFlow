@@ -32,7 +32,7 @@ class TaskStage(TaskExecutor):
         """
         :param name: 节点名称
         :param func: 可调用对象
-        :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'
+        :param execution_mode: 执行模式，可选 'serial', 'thread'
         :param max_workers: 同时处理数量
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_info: 日志中每条信息的最大长度
@@ -58,6 +58,7 @@ class TaskStage(TaskExecutor):
     def _init_metrics(self) -> None:
         """
         初始化任务指标
+        execution_mode 固定为 "process"，因为 stage 可能跨进程，需要使用 MPValue 等进程安全的工具来统计指标。
         """
         self.metrics = TaskMetrics(
             execution_mode="process",
@@ -153,19 +154,16 @@ class TaskStage(TaskExecutor):
     # ==== 状态 ====
     def mark_running(self) -> None:
         """标记：stage 正在运行。"""
-        self._init_status()
         with self._status.get_lock():
             self._status.value = int(StageStatus.RUNNING)
 
     def mark_stopped(self) -> None:
         """标记：stage 已停止（正常结束时在 finally 里调用）。"""
-        self._init_status()
         with self._status.get_lock():
             self._status.value = int(StageStatus.STOPPED)
 
     def get_status(self) -> StageStatus:
         """读取当前状态（返回 StageStatus 枚举）。"""
-        self._init_status()
         # 读取也加锁，避免极端情况下读到中间态（虽然 int 很短，但习惯好）
         with self._status.get_lock():
             return StageStatus(self._status.value)

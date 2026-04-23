@@ -338,7 +338,7 @@ class TaskRedisSource(TaskStage):
         self.port = port
         self.db = db
         self.password = password
-        self._timeout = timeout
+        self.timeout = timeout
 
     def init_redis(self) -> None:
         """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
@@ -362,7 +362,7 @@ class TaskRedisSource(TaskStage):
         """
         self.init_redis()
 
-        res = cast(Any, self.redis_client.blpop(self.key, timeout=self._timeout))
+        res = cast(Any, self.redis_client.blpop(self.key, timeout=self.timeout))
         if res is None:
             raise TimeoutError("Redis item not returned in time after being fetched")
         _, item = res
@@ -418,7 +418,7 @@ class TaskRedisAck(TaskStage):
         self.port = port
         self.db = db
         self.password = password
-        self._timeout = timeout
+        self.timeout = timeout
 
     def init_redis(self) -> None:
         """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
@@ -472,7 +472,7 @@ class TaskRedisAck(TaskStage):
                     raise RemoteWorkerError(f"Unknown ack status: {result_obj}")
 
             # 超时控制
-            if self._timeout and (time.perf_counter() - start_time) > self._timeout:
+            if self.timeout and (time.perf_counter() - start_time) > self.timeout:
                 raise TimeoutError(
                     f"TaskRedisAck timeout: task_id={task_id} not acknowledged"
                 )

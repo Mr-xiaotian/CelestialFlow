@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-import warnings
 from collections import defaultdict
 from collections.abc import Iterable
 from multiprocessing import Queue as MPQueue
@@ -201,7 +200,7 @@ class TaskExecutor:
 
         self.task_progress = TaskProgress(
             total_tasks=0,
-            desc=f"{self.name}({extra_desc})",
+            desc=f"{self._name}({extra_desc})",
             mode=progress_mode,
         )
 

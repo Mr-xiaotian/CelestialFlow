@@ -71,11 +71,11 @@ def _build_structure_subgraph(
     return node
 
 
-def format_structure_list_from_graph(root_roots: list[dict] | None = None) -> list[str]:
+def format_structure_list_from_graph(roots: list[dict] | None = None) -> list[str]:
     """
     从多个 JSON 图结构生成格式化任务结构文本列表（带边框）
 
-    :param root_roots: JSON 格式任务图根节点列表
+    :param roots: JSON 格式任务图根节点列表
     :return: 带边框的格式化字符串列表
     """
 
@@ -131,7 +131,7 @@ def format_structure_list_from_graph(root_roots: list[dict] | None = None) -> li
         return lines
 
     all_lines: list[str] = []
-    for root in root_roots or []:
+    for root in roots or []:
         if all_lines:
             all_lines.append("")  # 根之间留空行
         all_lines.extend(build_root_lines(root))
