@@ -188,35 +188,32 @@ class TaskDispatch:
 
     async def dispatch_async(self) -> None:
         """
-        异步地执行任务，限制并发数量
+        异步地执行任务，限制并发数量。
+        支持流式到达的任务（stage 模式），边收边跑。
         """
         task_queues = self.task_executor.task_queues
         result_queues = self.task_executor.result_queues
 
         semaphore = asyncio.Semaphore(self.max_workers)
+        pending: set[asyncio.Task] = set()
 
-        async def sem_worker(envelope: TaskEnvelope):
-            """
-            在信号量限制下执行单个异步任务。
-
-            :param envelope: 任务信封
-            """
+        async def sem_worker(envelope: TaskEnvelope) -> None:
             async with semaphore:
                 await self._async_worker(envelope)
 
-        async_tasks = []
-
         while True:
-            envelope = task_queues.get()
+            envelope = await asyncio.to_thread(task_queues.get)
             if isinstance(envelope, TerminationIdPool):
                 termination_signal = self._process_termination_signal(envelope)
                 break
             if self._check_and_mark_duplicate_task(envelope):
                 continue
 
-            async_tasks.append(sem_worker(envelope))
+            task = asyncio.create_task(sem_worker(envelope))
+            pending.add(task)
+            task.add_done_callback(pending.discard)
 
-        await asyncio.gather(*async_tasks)
+        await asyncio.gather(*pending)
         result_queues.put(termination_signal)
 
     # ==== 清理 ====
