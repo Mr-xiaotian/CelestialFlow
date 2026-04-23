@@ -30,8 +30,8 @@ def add_offset(x, offset=10):
 class TestTaskGraphBasic:
     def test_graph_dag_two_nodes(self):
         """简单 DAG：两个节点串行，结果正确传递"""
-        stage1 = TaskStage(add_one, execution_mode="serial", stage_name="s1")
-        stage2 = TaskStage(double, execution_mode="serial", stage_name="s2")
+        stage1 = TaskStage("s1", add_one, execution_mode="serial")
+        stage2 = TaskStage("s2", double, execution_mode="serial")
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
@@ -45,9 +45,9 @@ class TestTaskGraphBasic:
 
     def test_graph_fan_out(self):
         """扇出：一个节点到多个下游"""
-        source = TaskStage(add_one, execution_mode="serial", stage_name="src")
-        sink_a = TaskStage(double, execution_mode="serial", stage_name="sink_a")
-        sink_b = TaskStage(to_str, execution_mode="serial", stage_name="sink_b")
+        source = TaskStage("src", add_one, execution_mode="serial")
+        sink_a = TaskStage("sink_a", double, execution_mode="serial")
+        sink_b = TaskStage("sink_b", to_str, execution_mode="serial")
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[source], stages=[source, sink_a, sink_b])
@@ -61,9 +61,9 @@ class TestTaskGraphBasic:
 
     def test_graph_fan_in(self):
         """扇入：多个上游到一个下游"""
-        source_a = TaskStage(add_one, execution_mode="serial", stage_name="src_a")
-        source_b = TaskStage(double, execution_mode="serial", stage_name="src_b")
-        merge = TaskStage(to_str, execution_mode="serial", stage_name="merge")
+        source_a = TaskStage("src_a", add_one, execution_mode="serial")
+        source_b = TaskStage("src_b", double, execution_mode="serial")
+        merge = TaskStage("merge", to_str, execution_mode="serial")
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[source_a, source_b], stages=[source_a, source_b, merge])
@@ -78,8 +78,8 @@ class TestTaskGraphBasic:
 
     def test_graph_error_propagation(self):
         """错误任务不会阻断整体流程"""
-        stage1 = TaskStage(add_offset, execution_mode="serial", stage_name="s1")
-        stage2 = TaskStage(double, execution_mode="serial", stage_name="s2")
+        stage1 = TaskStage("s1", add_offset, execution_mode="serial")
+        stage2 = TaskStage("s2", double, execution_mode="serial")
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
@@ -99,9 +99,9 @@ class TestTaskGraphBasic:
 class TestTaskGraphStructure:
     def test_chain_structure(self):
         """TaskChain：线性结构正确连接"""
-        s1 = TaskStage(add_one, stage_name="s1")
-        s2 = TaskStage(double, stage_name="s2")
-        s3 = TaskStage(to_str, stage_name="s3")
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+        s3 = TaskStage("s3", to_str)
 
         chain = TaskChain([s1, s2, s3])
         chain.start_chain({s1.get_tag(): [1, 2]})
@@ -112,8 +112,8 @@ class TestTaskGraphStructure:
 
     def test_cross_structure(self):
         """TaskCross：分层结构全连接"""
-        layer1 = [TaskStage(add_one, stage_name=f"l1_{i}") for i in range(2)]
-        layer2 = [TaskStage(double, stage_name=f"l2_{i}") for i in range(3)]
+        layer1 = [TaskStage(f"l1_{i}", add_one) for i in range(2)]
+        layer2 = [TaskStage(f"l2_{i}", double) for i in range(3)]
 
         cross = TaskCross([layer1, layer2])
         cross.start_cross({
@@ -129,7 +129,7 @@ class TestTaskGraphStructure:
 
     def test_grid_structure(self):
         """TaskGrid：网格结构正确连接"""
-        grid = [[TaskStage(add_one, stage_name=f"g{i}{j}") for j in range(2)] for i in range(2)]
+        grid = [[TaskStage(f"g{i}{j}", add_one) for j in range(2)] for i in range(2)]
         task_grid = TaskGrid(grid)
         task_grid.start_graph({grid[0][0].get_tag(): [1, 2]})
 
@@ -142,7 +142,7 @@ class TestTaskGraphStructure:
 
     def test_complete_structure(self):
         """TaskComplete：完全图，验证非 DAG 检测与基本启动"""
-        nodes = [TaskStage(add_one, stage_name=f"n{i}") for i in range(3)]
+        nodes = [TaskStage(f"n{i}", add_one) for i in range(3)]
         complete = TaskComplete(nodes)
         # 完全图是非 DAG，自动注入终止信号会导致节点提前关闭，
         # 因此仅注入到根节点并验证图能正常结束
@@ -163,8 +163,8 @@ class TestTaskGraphStructure:
 class TestTaskGraphAnalysis:
     def test_dag_detection(self):
         """DAG 检测正确"""
-        s1 = TaskStage(add_one, stage_name="s1")
-        s2 = TaskStage(double, stage_name="s2")
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[s1], stages=[s1, s2])
@@ -179,9 +179,9 @@ class TestTaskGraphAnalysis:
 
     def test_layer_computation(self):
         """DAG 层级计算正确"""
-        s1 = TaskStage(add_one, stage_name="s1")
-        s2 = TaskStage(double, stage_name="s2")
-        s3 = TaskStage(to_str, stage_name="s3")
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+        s3 = TaskStage("s3", to_str)
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[s1], stages=[s1, s2, s3])
@@ -201,8 +201,8 @@ class TestTaskGraphAnalysis:
 class TestTaskGraphSummary:
     def test_graph_summary_counts(self):
         """图摘要统计正确"""
-        s1 = TaskStage(add_one, stage_name="s1")
-        s2 = TaskStage(double, stage_name="s2")
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[s1], stages=[s1, s2])
@@ -225,8 +225,8 @@ class TestTaskGraphSummary:
 class TestTaskGraphThread:
     def test_graph_thread_two_nodes(self):
         """thread 模式：两个节点串行，结果正确传递"""
-        stage1 = TaskStage(add_one, stage_mode="thread", execution_mode="serial", stage_name="s1")
-        stage2 = TaskStage(double, stage_mode="thread", execution_mode="serial", stage_name="s2")
+        stage1 = TaskStage("s1", add_one, stage_mode="thread", execution_mode="serial")
+        stage2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
@@ -239,9 +239,9 @@ class TestTaskGraphThread:
 
     def test_graph_thread_fan_out(self):
         """thread 模式：扇出"""
-        source = TaskStage(add_one, stage_mode="thread", execution_mode="serial", stage_name="src")
-        sink_a = TaskStage(double, stage_mode="thread", execution_mode="serial", stage_name="sink_a")
-        sink_b = TaskStage(to_str, stage_mode="thread", execution_mode="serial", stage_name="sink_b")
+        source = TaskStage("src", add_one, stage_mode="thread", execution_mode="serial")
+        sink_a = TaskStage("sink_a", double, stage_mode="thread", execution_mode="serial")
+        sink_b = TaskStage("sink_b", to_str, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[source], stages=[source, sink_a, sink_b])
@@ -255,9 +255,9 @@ class TestTaskGraphThread:
 
     def test_graph_thread_fan_in(self):
         """thread 模式：扇入"""
-        source_a = TaskStage(add_one, stage_mode="thread", execution_mode="serial", stage_name="src_a")
-        source_b = TaskStage(double, stage_mode="thread", execution_mode="serial", stage_name="src_b")
-        merge = TaskStage(to_str, stage_mode="thread", execution_mode="serial", stage_name="merge")
+        source_a = TaskStage("src_a", add_one, stage_mode="thread", execution_mode="serial")
+        source_b = TaskStage("src_b", double, stage_mode="thread", execution_mode="serial")
+        merge = TaskStage("merge", to_str, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[source_a, source_b], stages=[source_a, source_b, merge])
@@ -272,8 +272,8 @@ class TestTaskGraphThread:
 
     def test_graph_thread_error_propagation(self):
         """thread 模式：错误任务不会阻断整体流程"""
-        stage1 = TaskStage(add_offset, stage_mode="thread", execution_mode="serial", stage_name="s1")
-        stage2 = TaskStage(double, stage_mode="thread", execution_mode="serial", stage_name="s2")
+        stage1 = TaskStage("s1", add_offset, stage_mode="thread", execution_mode="serial")
+        stage2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
@@ -287,8 +287,8 @@ class TestTaskGraphThread:
 
     def test_graph_thread_with_lambda(self):
         """thread 模式：支持 lambda 函数（process 模式不允许）"""
-        stage1 = TaskStage(lambda x: x + 1, stage_mode="thread", execution_mode="serial", stage_name="s1")
-        stage2 = TaskStage(lambda x: x * 2, stage_mode="thread", execution_mode="serial", stage_name="s2")
+        stage1 = TaskStage("s1", lambda x: x + 1, stage_mode="thread", execution_mode="serial")
+        stage2 = TaskStage("s2", lambda x: x * 2, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
@@ -301,9 +301,9 @@ class TestTaskGraphThread:
 
     def test_graph_thread_staged_schedule(self):
         """thread 模式：staged 调度模式下正常工作"""
-        s1 = TaskStage(add_one, stage_mode="thread", execution_mode="serial", stage_name="s1")
-        s2 = TaskStage(double, stage_mode="thread", execution_mode="serial", stage_name="s2")
-        s3 = TaskStage(to_str, stage_mode="thread", execution_mode="serial", stage_name="s3")
+        s1 = TaskStage("s1", add_one, stage_mode="thread", execution_mode="serial")
+        s2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
+        s3 = TaskStage("s3", to_str, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph(schedule_mode="staged")
         graph.set_stages(root_stages=[s1], stages=[s1, s2, s3])
