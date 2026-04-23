@@ -51,7 +51,6 @@ class TaskExecutor:
         max_retries: int = 1,
         max_info: int = 50,
         unpack_task_args: bool = False,
-        enable_success_cache: bool = False,
         enable_duplicate_check: bool = True,
         show_progress: bool = False,
         log_level: str = "SUCCESS",
@@ -66,18 +65,10 @@ class TaskExecutor:
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_info: 日志中每条信息的最大长度
         :param unpack_task_args: 是否将任务参数解包
-        :param enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_pairs 中
         :param enable_duplicate_check: 是否启用重复检查
         :param show_progress: 进度条显示与否
         :param log_level: 日志级别
         """
-        if enable_success_cache and not enable_duplicate_check:
-            warnings.warn(
-                "Result cache is enabled while duplicate check is disabled. "
-                "This may cause the number of cached results to differ from the number of input tasks "
-                "due to duplicated task execution.",
-                RuntimeWarning,
-            )
 
         self.set_name(name)
         self._set_func(func)
@@ -87,7 +78,6 @@ class TaskExecutor:
         self.max_info = max_info
 
         self.unpack_task_args = unpack_task_args
-        self.enable_success_cache = enable_success_cache
         self.enable_duplicate_check = enable_duplicate_check
 
         self.show_progress = show_progress

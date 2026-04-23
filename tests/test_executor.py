@@ -195,7 +195,6 @@ class TestExecutorSuccessCache:
         executor = TaskExecutor(
             "add_one_success_cache", add_one,
             execution_mode="serial",
-            enable_success_cache=True,
             enable_duplicate_check=True,
             show_progress=False,
         )

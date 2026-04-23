@@ -26,7 +26,6 @@ class TaskStage(TaskExecutor):
         max_retries=1,
         max_info=50,
         unpack_task_args=False,
-        enable_success_cache=False,
         enable_duplicate_check=True,
         stage_mode="serial",
     ):
@@ -38,7 +37,6 @@ class TaskStage(TaskExecutor):
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_info: 日志中每条信息的最大长度
         :param unpack_task_args: 是否将任务参数解包
-        :param enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_pairs 中
         :param enable_duplicate_check: 是否启用重复检查
         :param stage_mode: 当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）, 默认 'serial'
         """
@@ -50,7 +48,6 @@ class TaskStage(TaskExecutor):
             max_retries,
             max_info,
             unpack_task_args,
-            enable_success_cache,
             enable_duplicate_check,
         )
 
