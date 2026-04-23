@@ -33,6 +33,7 @@ async def benchmark_executor(
     sync_modes = sync_modes or ["serial", "thread"]
     async_modes = async_modes or ["async"]
 
+    use_time = []
     results = []
     for mode in sync_modes:
         cloned_executor = clone_executor(sync_executor)
@@ -40,7 +41,8 @@ async def benchmark_executor(
 
         start = time.perf_counter()
         cloned_executor.start(task_list)
-        results.append([time.perf_counter() - start])
+        use_time.append([time.perf_counter() - start])
+        results.append(cloned_executor.get_success_pairs())
 
     for mode in async_modes:
         cloned_executor = clone_executor(async_executor)
@@ -48,15 +50,20 @@ async def benchmark_executor(
 
         start = time.perf_counter()
         await cloned_executor.start_async(task_list)
-        results.append([time.perf_counter() - start])
+        use_time.append([time.perf_counter() - start])
+        results.append(cloned_executor.get_success_pairs())
 
-    table_results = format_table(results, sync_modes + async_modes, ["Time"])
-    print("\n" + table_results)
+    use_time_table = format_table(use_time, sync_modes + async_modes, ["Time"])
+    results_table = format_table(results, sync_modes + async_modes, [])
+
+    print(f"Use time:\n{use_time_table}\n")
+    print(f"Results:\n{results_table}\n")
+    
     return {
-        "results": results,
+        "use_time": use_time,
         "sync_modes": sync_modes,
         "async_modes": async_modes,
-        "table": table_results,
+        "table": use_time_table,
     }
 
 

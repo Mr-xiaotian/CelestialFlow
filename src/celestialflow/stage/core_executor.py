@@ -28,7 +28,7 @@ from ..runtime.util_errors import ExecutionModeError
 from ..runtime.util_factories import (
     make_queue_backend,
     make_task_in_queue,
-    # make_task_out_queue,
+    make_task_out_queue,
 )
 from ..runtime.util_types import (
     CTreeEvent,
@@ -151,18 +151,20 @@ class TaskExecutor:
         """
         mode = self.execution_mode
 
-        self.task_queues = task_queues or make_task_in_queue(
-            mode=mode,
-            executor=self,
-        )
+        if task_queues is not None:
+            self.task_queues = task_queues
+        else:
+            queue = make_queue_backend(mode)()
+            self.task_queues = make_task_in_queue(
+                queue=queue,
+                executor=self,
+            )
         if result_queues is not None:
             self.result_queues = result_queues
         else:
-            self.result_queues = TaskOutQueue(
-                queue_list=[self.success_spout.get_queue()],
-                queue_tags=["success_spout"],
-                in_tag=self.get_tag(),
-                log_inlet=self.log_inlet,
+            self.result_queues = make_task_out_queue(
+                queue=self.success_spout.get_queue(),
+                executor=self,
             )
 
     def _init_dispatch(self) -> None:
@@ -505,43 +507,6 @@ class TaskExecutor:
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        result_queues = self.result_queues
-
-        result_envelope = self._prepare_result_envelope(
-            task_envelope, result, start_time
-        )
-
-        result_queues.put(result_envelope)
-
-    async def process_task_success_async(
-        self, task_envelope: TaskEnvelope, result: Any, start_time: float
-    ) -> None:
-        """
-        统一处理成功任务, 异步版本
-
-        :param task_envelope: 完成的任务
-        :param result: 任务的结果
-        :param start_time: 任务开始时间
-        """
-        result_queues = self.result_queues
-
-        result_envelope = self._prepare_result_envelope(
-            task_envelope, result, start_time
-        )
-
-        await result_queues.put_async(result_envelope)
-
-    def _prepare_result_envelope(
-        self, task_envelope: TaskEnvelope, result: Any, start_time: float
-    ) -> TaskEnvelope:
-        """
-        准备成功任务的结果信封
-
-        :param task_envelope: 完成的任务
-        :param result: 任务的结果
-        :param start_time: 任务开始时间
-        :return: 成功任务的结果信封
-        """
         self.task_progress.update(1)
         task = task_envelope.task
         task_id = task_envelope.id
@@ -571,7 +536,8 @@ class TaskExecutor:
             task_id,
             result_id,
         )
-        return result_envelope
+
+        self.result_queues.put(result_envelope)
 
     def emit_retry_envelope(
         self,

@@ -121,7 +121,7 @@ class TaskDispatch:
             try:
                 start_time = time.perf_counter()
                 result = await self.func(*self.task_executor.get_args(task))
-                await self.task_executor.process_task_success_async(
+                self.task_executor.process_task_success(
                     task_envelope, result, start_time
                 )
                 return

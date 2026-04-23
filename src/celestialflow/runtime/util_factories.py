@@ -46,26 +46,25 @@ def make_queue_backend(mode: str) -> type:
     """
     if mode == "async":
         return AsyncQueue
-    if mode in ("thread", "serial", "process"):
-        return ThreadQueue  # 未来可改为: mode=="process" -> MPQueue
+    if mode in ("thread", "serial"):
+        return ThreadQueue
     return ThreadQueue
 
 
 def make_task_in_queue(
     *,
-    mode: str,
+    queue: any,
     executor: "TaskExecutor",
 ) -> TaskInQueue:
     """
     创建执行器的输入队列
 
-    :param mode: 执行模式
+    :param queue: 队列实例
     :param executor: 执行器实例
     :return: TaskInQueue 实例
     """
-    Q = make_queue_backend(mode)
     return TaskInQueue(
-        queue=Q(),
+        queue=queue,
         queue_tags=[],
         out_tag=executor.get_tag(),
         log_inlet=executor.log_inlet,
@@ -74,19 +73,18 @@ def make_task_in_queue(
 
 def make_task_out_queue(
     *,
-    mode: str,
+    queue: any,
     executor: "TaskExecutor",
 ) -> TaskOutQueue:
     """
     创建执行器的输出队列
 
-    :param mode: 执行模式
+    :param queue: 队列实例
     :param executor: 执行器实例
     :return: TaskOutQueue 实例
     """
-    Q = make_queue_backend(mode)
     return TaskOutQueue(
-        queue_list=[Q()],
+        queue_list=[queue],
         queue_tags=[None],
         in_tag=executor.get_tag(),
         log_inlet=executor.log_inlet,
