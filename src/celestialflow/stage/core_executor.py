@@ -267,8 +267,10 @@ class TaskExecutor:
         """
         self.ctree_client = NullCelestialTreeClient(event_id)
 
-    def set_name(self, name: str | None = None) -> None:
+    def set_name(self, name: str) -> None:
         self._name = name
+        if hasattr(self, "_tag"):
+            delattr(self, "_tag")
 
     def set_log_level(self, log_level: str) -> None:
         """

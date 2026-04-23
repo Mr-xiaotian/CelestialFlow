@@ -79,11 +79,6 @@ class TaskStage(TaskExecutor):
             self._status = MPValue("i", int(StageStatus.NOT_STARTED))
 
     # ==== 配置 ====
-    def set_name(self, name: str | None = None) -> None:
-        self._name = name or f"Stage{id(self)}"
-        if hasattr(self, "_tag"):
-            delattr(self, "_tag")
-
     def set_stage_mode(self, stage_mode: str | None) -> None:
         """
         设置当前节点在graph中的执行模式, 可以是 'serial'（串行）, 'thread'（线程）或 'process'（进程）

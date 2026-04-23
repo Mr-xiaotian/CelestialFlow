@@ -13,7 +13,7 @@ from .core_stage import TaskStage
 
 # ==== TaskSplitter ====
 class TaskSplitter(TaskStage):
-    def __init__(self, name: str | None = None, stage_mode: str = "serial"):
+    def __init__(self, name: str, stage_mode: str = "serial"):
         """
         初始化 TaskSplitter
 
@@ -123,7 +123,7 @@ class TaskSplitter(TaskStage):
 
 # ==== TaskRouter ====
 class TaskRouter(TaskStage):
-    def __init__(self, name: str | None = None, stage_mode: str = "serial"):
+    def __init__(self, name: str, stage_mode: str = "serial"):
         """
         初始化 TaskRouter
 
@@ -231,7 +231,7 @@ class TaskRedisTransport(TaskStage):
 
     def __init__(
         self,
-        name: str | None = None,
+        name: str,
         key: str = "",
         host: str = "localhost",
         port: int = 6379,
@@ -305,7 +305,7 @@ class TaskRedisSource(TaskStage):
 
     def __init__(
         self,
-        name: str | None = None,
+        name: str,
         key: str = "",
         host: str = "localhost",
         port: int = 6379,
@@ -384,7 +384,7 @@ class TaskRedisAck(TaskStage):
 
     def __init__(
         self,
-        name: str | None = None,
+        name: str,
         key: str = "",
         host: str = "localhost",
         port: int = 6379,
