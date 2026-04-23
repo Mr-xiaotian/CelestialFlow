@@ -207,7 +207,7 @@ class TaskDispatch:
         async_tasks = []
 
         while True:
-            envelope = await task_queues.get_async()
+            envelope = task_queues.get()
             if isinstance(envelope, TerminationIdPool):
                 termination_signal = self._process_termination_signal(envelope)
                 break
@@ -217,7 +217,7 @@ class TaskDispatch:
             async_tasks.append(sem_worker(envelope))
 
         await asyncio.gather(*async_tasks)
-        await result_queues.put_async(termination_signal)
+        result_queues.put(termination_signal)
 
     # ==== 清理 ====
     def _release_pool(self) -> None:

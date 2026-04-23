@@ -2,6 +2,7 @@
 from _thread import LockType
 from asyncio import Queue as AsyncQueue
 from multiprocessing import Value as MPValue
+from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue
 from threading import Lock
 from typing import TYPE_CHECKING, Any
@@ -46,9 +47,10 @@ def make_queue_backend(mode: str) -> type:
     """
     if mode == "async":
         return AsyncQueue
-    if mode in ("thread", "serial"):
+    elif mode in ("thread", "serial"):
         return ThreadQueue
-    return ThreadQueue
+    elif mode == "process":
+        return MPQueue
 
 
 def make_task_in_queue(

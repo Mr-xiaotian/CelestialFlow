@@ -6,6 +6,7 @@ import time
 from collections import defaultdict
 from collections.abc import Iterable
 from multiprocessing import Queue as MPQueue
+from queue import Queue as ThreadQueue
 from typing import Any, Callable
 
 from celestialtree import (
@@ -83,8 +84,8 @@ class TaskExecutor:
         self.set_log_level(log_level)
 
         self.set_nullctree()
-        self.task_queues: TaskInQueue | None = None
-        self.result_queues: TaskOutQueue | None = None
+        self.task_queues: TaskInQueue = None
+        self.result_queues: TaskOutQueue = None
         self.fail_queue: Any = None
         self.log_queue: Any = None
         self._init_metrics()
@@ -154,7 +155,7 @@ class TaskExecutor:
         if task_queues is not None:
             self.task_queues = task_queues
         else:
-            queue = make_queue_backend(mode)()
+            queue = ThreadQueue()
             self.task_queues = make_task_in_queue(
                 queue=queue,
                 executor=self,
@@ -399,15 +400,6 @@ class TaskExecutor:
         """
         for item in self._prepare_task_envelopes(task_source):
             self.task_queues.put(item)
-
-    async def _put_task_queues_async(self, task_source: Iterable) -> None:
-        """
-        将任务放入任务队列(async模式)
-
-        :param task_source: 任务源（可迭代对象）
-        """
-        for item in self._prepare_task_envelopes(task_source):
-            await self.task_queues.put_async(item)
 
     def get_args(self, task: Any) -> tuple:
         """
@@ -696,7 +688,7 @@ class TaskExecutor:
             fail_queue=self.fail_spout.get_queue(),
         )
 
-        await self._put_task_queues_async(task_source)
+        self._put_task_queues(task_source)
         self.log_inlet.start_executor(
             self.get_func_name(),
             self.metrics.get_task_count(),

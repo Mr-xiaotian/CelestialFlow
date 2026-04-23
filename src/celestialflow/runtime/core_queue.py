@@ -1,7 +1,6 @@
 # runtime/core_queue.py
 from __future__ import annotations
 
-from asyncio import Queue as AsyncQueue
 from typing import TYPE_CHECKING, Any
 
 from .core_envelope import TaskEnvelope
@@ -130,18 +129,6 @@ class TaskInQueue:
         except Exception as e:
             self.log_inlet.put_item_error(item.source, self.out_tag, e)
 
-    async def put_async(self, item: TaskEnvelope | TerminationSignal) -> None:
-        """
-        异步入队任务或终止信号
-
-        :param item: 要入队的任务或终止信号
-        """
-        try:
-            await self.queue.put(item)
-            self._log_put(item)
-        except Exception as e:
-            self.log_inlet.put_item_error(item.source, self.out_tag, e)
-
     def get(self) -> TaskEnvelope | TerminationIdPool:
         """
         出队任务或终止符号id池
@@ -150,18 +137,6 @@ class TaskInQueue:
         """
         while True:
             item: TaskEnvelope | TerminationSignal = self.queue.get()
-            result = self._deal_get_item(item)
-            if result is not None:
-                return result
-
-    async def get_async(self) -> TaskEnvelope | TerminationIdPool:
-        """
-        异步出队任务或终止符号id池
-
-        :return: 出队的任务或终止符号id池
-        """
-        while True:
-            item: TaskEnvelope | TerminationSignal = await self.queue.get()
             result = self._deal_get_item(item)
             if result is not None:
                 return result
@@ -285,15 +260,6 @@ class TaskOutQueue:
         for index, _ in enumerate(self.queue_list):
             self.put_channel(item, index)
 
-    async def put_async(self, item: TaskEnvelope | TerminationSignal) -> None:
-        """
-        异步入队任务或终止信号到所有输出队列通道
-
-        :param item: 要入队的任务或终止信号
-        """
-        for index, _ in enumerate(self.queue_list):
-            await self.put_channel_async(item, index)
-
     def put_target(self, item: TaskEnvelope | TerminationSignal, tag: str) -> None:
         """
         入队任务或终止信号到指定的输出队列标签
@@ -312,24 +278,6 @@ class TaskOutQueue:
         """
         try:
             self.queue_list[idx].put(item)
-            self._log_put(item, idx)
-        except Exception as e:
-            self.log_inlet.put_item_error(item.source, self.in_tag, e)
-
-    async def put_channel_async(
-        self, item: TaskEnvelope | TerminationSignal, idx: int
-    ) -> None:
-        """
-        异步入队任务或终止信号到指定的输出队列通道
-
-        :param item: 要入队的任务或终止信号
-        :param idx: 输出队列通道的索引
-        """
-        try:
-            if isinstance(self.queue_list[idx], AsyncQueue):
-                await self.queue_list[idx].put(item)
-            else:
-                self.queue_list[idx].put(item)
             self._log_put(item, idx)
         except Exception as e:
             self.log_inlet.put_item_error(item.source, self.in_tag, e)
