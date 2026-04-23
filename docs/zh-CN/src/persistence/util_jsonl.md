@@ -1,5 +1,7 @@
 # PersistenceJSONL
 
+> 📅 最后更新日期: 2026/04/22
+
 `persistence/util_jsonl.py` 提供 JSONL 持久化与读取工具。
 
 ## 读取接口

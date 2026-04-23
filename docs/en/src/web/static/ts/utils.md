@@ -1,5 +1,7 @@
 # utils.ts
 
+> 📅 Last updated: 2026/04/22
+
 A collection of general-purpose utility functions shared by all other frontend modules.
 
 ## Function List

@@ -1,5 +1,7 @@
 # Fail Persistence
 
+> 📅 Last updated: 2026/04/22
+
 The `celestialflow.persistence` module provides a robust error collection and persistence mechanism, ensuring that all exception information can be safely and orderly recorded during multi-process concurrent task execution for subsequent analysis or retry.
 
 The core components are `FailSpout` and `FailInlet`.

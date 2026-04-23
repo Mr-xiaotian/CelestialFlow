@@ -1,5 +1,7 @@
 # Benchmark
 
+> 📅 最后更新日期: 2026/04/22
+
 `utils/benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
 ## 设计目的
@@ -60,7 +62,7 @@ def benchmark_graph(
 
     :param graph: 任务图模板
     :param init_tasks_dict: 初始任务字典
-    :param stage_modes: 节点模式列表，默认 ["serial", "process"]
+    :param stage_modes: 节点模式列表，默认 ["serial", "thread", "process"]
     :param execution_modes: 执行模式列表，默认 ["serial", "thread"]
     :return: 测试结果字典
     """
@@ -126,7 +128,7 @@ graph.connect([stage_a], [stage_b])
 benchmark_graph(
     graph=graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "process"],
+    stage_modes=["serial", "thread", "process"],
     execution_modes=["serial", "thread"],
 )
 ```

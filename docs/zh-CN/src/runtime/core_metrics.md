@@ -1,5 +1,7 @@
 # TaskMetrics
 
+> 📅 最后更新日期: 2026/04/22
+
 TaskMetrics 模块负责管理和统计任务执行过程中的各项指标，如输入任务数、成功数、失败数、重复任务数等。它通常作为 `TaskExecutor` 的一个组件存在。
 
 ## 初始化
@@ -80,7 +82,7 @@ def is_tasks_finished(self) -> bool: ...
 def get_counts(self) -> dict:
     return {
         "tasks_input": int,       # 输入任务总数
-        "tasks_successed": int,   # 成功任务数
+        "tasks_succeeded": int,   # 成功任务数
         "tasks_failed": int,      # 失败任务数
         "tasks_duplicated": int,  # 重复任务数
         "tasks_processed": int,   # 已处理总数 (成功+失败+重复)

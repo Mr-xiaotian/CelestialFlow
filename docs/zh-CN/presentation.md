@@ -1,5 +1,7 @@
 # CelestialFlow 技术分享
 
+> 📅 最后更新日期: 2026/04/22
+
 ---
 
 ## Slide 1: 封面
@@ -38,7 +40,7 @@
 ### 核心特性
 
 - **图拓扑丰富**：Chain / Cross / Grid / Loop / Wheel / Complete 六种预置结构
-- **多维执行模型**：Stage 级 (serial/process) × Task 级 (serial/thread/process/async) 组合
+- **多维执行模型**：Stage 级 (serial/thread/process) × Task 级 (serial/thread/process/async) 组合
 - **Redis 分布式**：Transport → Source → Ack 三阶段分布式任务传输
 - **事件溯源**：集成 CelestialTree，任务全生命周期可追踪
 - **Web 仪表盘**：FastAPI + ECharts + Mermaid 实时监控
@@ -248,7 +250,7 @@ graph TD
 | 层级 | 选项 | 说明 |
 |------|------|------|
 | 图级 `schedule_mode` | `eager` / `staged` | 控制 Stage 间并发 vs 顺序 |
-| Stage 级 `stage_mode` | `serial` / `process` | Stage 是否在独立进程中运行 |
+| Stage 级 `stage_mode` | `serial` / `thread` / `process` | Stage 是否在独立进程中运行 |
 | Task 级 `execution_mode` | `serial` / `thread` | Stage 内任务的并发策略 |
 
 备注：
@@ -369,7 +371,7 @@ CelestialFlowError (基类)
 ├── ConfigurationError
 │   └── InvalidOptionError
 │       ├── ExecutionModeError    (serial/process/thread/async)
-│       ├── StageModeError        (serial/process)
+│       ├── StageModeError        (serial/thread/process)
 │       └── LogLevelError         (TRACE~CRITICAL)
 ├── RemoteWorkerError             (Redis 远程执行失败)
 ├── UnconsumedError               (未消费的队列任务)

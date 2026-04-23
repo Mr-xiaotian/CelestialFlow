@@ -1,5 +1,7 @@
 # demo/__init__.py Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Purpose
 
 Marks the `demo/` directory as a Python package, enabling imports like `from demo.xxx import ...` for demo modules.

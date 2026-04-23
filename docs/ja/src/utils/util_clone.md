@@ -1,5 +1,7 @@
 # Clone
 
+> 📅 最終更新日: 2026/04/22
+
 `utils/clone.py` は、エグゼキュータ、ステージ、タスクグラフのクローン機能を提供し、パフォーマンステストや設定の再利用に使用されます。
 
 ## 設計目的
@@ -30,7 +32,6 @@ def clone_executor(executor: TaskExecutor) -> TaskExecutor:
 - `max_info`: ログメッセージの最大長
 - `unpack_task_args`: 引数を展開するかどうか
 - `enable_success_cache`: 成功キャッシュの有効/無効
-- `enable_error_cache`: エラーキャッシュの有効/無効
 - `enable_duplicate_check`: 重複チェックの有効/無効
 - `show_progress`: プログレスバーの有効/無効
 - `progress_desc`: プログレスバーの説明
@@ -129,7 +130,7 @@ from celestialflow.utils.benchmark import benchmark_graph
 results = benchmark_graph(
     graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "process"],
+    stage_modes=["serial", "thread", "process"],
     execution_modes=["serial", "thread"],
 )
 ```

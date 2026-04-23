@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
 
 class TaskDispatch:
+    """任务调度器，负责以串行、线程或异步方式执行单个任务。"""
+
     # ==== 初始化 ====
     def __init__(self, task_executor: TaskExecutor, func, max_workers: int):
         """

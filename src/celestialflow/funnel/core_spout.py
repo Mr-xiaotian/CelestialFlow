@@ -11,7 +11,10 @@ from ..runtime.util_types import TERMINATION_SIGNAL, TerminationSignal
 
 
 class BaseSpout:
+    """数据监听器基类，在独立后台线程中消费队列记录。"""
+
     def __init__(self) -> None:
+        """初始化监听器及其内部队列和线程引用。"""
         self.queue: Any = MPQueue()
         self._thread: Thread | None = None
 
@@ -25,6 +28,7 @@ class BaseSpout:
         return None
 
     def start(self) -> None:
+        """启动后台监听线程（若未运行）。"""
         self._before_start()
         if self._thread is None or not self._thread.is_alive():
             self._thread = Thread(target=self._spout, daemon=True)
@@ -43,9 +47,11 @@ class BaseSpout:
                 continue  # 或记录到 stderr，至少不丢后续记录
 
     def get_queue(self) -> MPQueue:
+        """获取监听器的输入队列。"""
         return self.queue
 
     def stop(self) -> None:
+        """发送终止信号并等待后台线程结束。"""
         if self._thread is None:
             return
 

@@ -1,5 +1,7 @@
 # bench_mpqueue_vs_shared_memory.py ベンチマーク説明
 
+> 📅 最終更新日: 2026/04/22
+
 ## 目標
 
 より複雑なプロデューサー-コンシューマートポロジ（SPSC、MPSC、SPMC）において、`multiprocessing.Queue` と `shared_memory` ベースのカスタムリングバッファの性能を比較します。CelestialFlow の高スループットシナリオにおける IPC 最適化のための詳細なデータを提供します。

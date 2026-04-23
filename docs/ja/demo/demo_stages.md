@@ -1,5 +1,7 @@
 # demo_stages.py デモ説明
 
+> 📅 最終更新日: 2026/04/22
+
 ## 目的
 
 CelestialFlow における特殊 Stage ノードの使用方法を実演します：`TaskSplitter`（タスク分割）、`TaskRouter`（タスクルーティング）、`TaskRedisTransport` / `TaskRedisAck` / `TaskRedisSource`（Redis 分散トランスポート）。循環依存やデバイス間連携を含む複雑なタスクグラフを構築します。

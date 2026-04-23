@@ -1,5 +1,7 @@
 # TaskNodes
 
+> 📅 最終更新日: 2026/04/22
+
 TaskNodes モジュールは、フロー制御、外部システム連携などのシナリオ向けに、複数の特殊機能を持つ `TaskStage` 実装を提供します。
 
 ## TaskSplitter (スプリッター)
@@ -39,11 +41,14 @@ flowchart LR
 
 ```python
 class TaskSplitter(TaskStage):
-    def __init__(self):
+    def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
         """
         TaskSplitter を初期化します。
-        デフォルト: execution_mode="serial", max_retries=0, unpack_task_args=True
+
+        :param stage_mode: ノードの実行モード
+        :param stage_name: ノード名
         """
+        # デフォルト: execution_mode="serial", max_retries=0, unpack_task_args=True
 ```
 
 ### 使用方法
@@ -102,11 +107,14 @@ flowchart LR
 
 ```python
 class TaskRouter(TaskStage):
-    def __init__(self):
+    def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
         """
         TaskRouter を初期化します。
-        デフォルト: execution_mode="serial", max_retries=0
+
+        :param stage_mode: ノードの実行モード
+        :param stage_name: ノード名
         """
+        # デフォルト: execution_mode="serial", max_retries=0
 ```
 
 ### 使用方法
@@ -182,6 +190,8 @@ class TaskRedisTransport(TaskStage):
         db: int = 0,                    # Redis データベース番号
         password: str | None = None,    # Redis パスワード
         unpack_task_args: bool = False, # タスク引数を展開するかどうか
+        stage_mode: str = "serial",     # ノードの実行モード
+        stage_name: str | None = None,  # ノード名
     ):
         ...
 ```
@@ -202,6 +212,8 @@ class TaskRedisSource(TaskStage):
         db: int = 0,                 # Redis データベース番号
         password: str | None = None, # Redis パスワード
         timeout: int = 10,           # ブロッキングタイムアウト（秒）、0 は無期限待機
+        stage_mode: str = "serial",  # ノードの実行モード
+        stage_name: str | None = None, # ノード名
     ):
         ...
 ```
@@ -253,6 +265,8 @@ class TaskRedisAck(TaskStage):
         db: int = 0,                 # Redis データベース番号
         password: str | None = None, # Redis パスワード
         timeout: int = 10,           # 待機タイムアウト（秒）、0 は無期限待機
+        stage_mode: str = "serial",  # ノードの実行モード
+        stage_name: str | None = None, # ノード名
     ):
         ...
 ```

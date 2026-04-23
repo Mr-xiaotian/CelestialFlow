@@ -1,5 +1,7 @@
 # demo/__init__.py 说明
 
+> 📅 最后更新日期: 2026/04/22
+
 ## 目标
 
 将 `demo/` 目录标识为 Python 包，支持以 `from demo.xxx import ...` 的方式导入演示模块。

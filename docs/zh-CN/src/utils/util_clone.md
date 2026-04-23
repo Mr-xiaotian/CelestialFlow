@@ -1,5 +1,7 @@
 # Clone
 
+> 📅 最后更新日期: 2026/04/22
+
 `utils/clone.py` 提供了克隆执行器、节点和任务图的功能，用于性能测试和配置复用。
 
 ## 设计目的
@@ -30,7 +32,6 @@ def clone_executor(executor: TaskExecutor) -> TaskExecutor:
 - `max_info`: 日志信息最大长度
 - `unpack_task_args`: 是否解包参数
 - `enable_success_cache`: 成功缓存开关
-- `enable_error_cache`: 错误缓存开关
 - `enable_duplicate_check`: 重复检查开关
 - `show_progress`: 进度条开关
 - `progress_desc`: 进度条描述
@@ -129,7 +130,7 @@ from celestialflow.utils.benchmark import benchmark_graph
 results = benchmark_graph(
     graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "process"],
+    stage_modes=["serial", "thread", "process"],
     execution_modes=["serial", "thread"],
 )
 ```

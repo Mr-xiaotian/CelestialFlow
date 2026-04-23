@@ -1,5 +1,7 @@
 # RuntimeEstimators
 
+> 📅 Last updated: 2026/04/22
+
 `runtime/util_estimators.py` provides runtime duration estimation functions.
 
 ## Main Functions

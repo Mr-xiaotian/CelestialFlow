@@ -1,5 +1,7 @@
 # TaskDispatch
 
+> 📅 最終更新日: 2026/04/22
+
 `TaskDispatch` はタスク実行のコアランナーであり、キューからタスクを取得し、実行し、結果とエラーを処理する役割を担います。シリアル、スレッドプール、非同期の3つの実行モードをサポートしています。
 
 ## 初期化
@@ -18,12 +20,12 @@ class TaskDispatch:
 
 ## 実行モード
 
-### run_in_serial
+### dispatch_serial
 
 タスクをシリアルに実行し、1つずつ処理します。
 
 ```python
-def run_in_serial(self):
+def dispatch_serial(self):
     """
     タスクをシリアルに実行します。
 
@@ -39,12 +41,12 @@ def run_in_serial(self):
 5. プログレスバーを更新します
 6. 終了シグナルを受信した後、すべてのタスクが完了したか確認します
 
-### run_in_thread
+### dispatch_thread
 
 スレッドプールを使用してタスクを並列実行します。
 
 ```python
-def run_in_thread(self):
+def dispatch_thread(self):
     """
     スレッドプールを使用してタスクを並列実行します。
     """
@@ -56,12 +58,12 @@ def run_in_thread(self):
 3. すべての future が完了するのを待ってから終了シグナルを処理します
 4. プールをシャットダウンし、リソースを解放します
 
-### run_in_async
+### dispatch_async
 
 コルーチンとセマフォを使用して並行性を制御しながら、タスクを非同期に実行します。
 
 ```python
-async def run_in_async(self):
+async def dispatch_async(self):
     """
     並行数を制限してタスクを非同期に実行します。
     """
@@ -118,15 +120,15 @@ TaskExecutor
     └── dispatch           # TaskDispatch インスタンス
             ├── func               # タスク関数
             ├── max_workers        # 並行数制限
-            ├── run_in_serial()
-            ├── run_in_thread()
-            └── run_in_async()
+            ├── dispatch_serial()
+            ├── dispatch_thread()
+            └── dispatch_async()
 ```
 
 `TaskExecutor` は `execution_mode` に基づいて `TaskDispatch` のどのメソッドを呼び出すかを選択します:
-- `serial` → `run_in_serial()`
-- `thread` → `run_in_thread()`
-- `async` → `run_in_async()`
+- `serial` → `dispatch_serial()`
+- `thread` → `dispatch_thread()`
+- `async` → `dispatch_async()`
 
 ## 注意事項
 
@@ -134,4 +136,4 @@ TaskExecutor
 2. **終了処理**: 終了シグナルのマージと転送を正しく処理します
 3. **エラー伝搬**: 例外はキャッチされ、`TaskExecutor.handle_task_fail()` に渡されます
 4. **リトライメカニズム**: ワーカー内部でタスクのリトライをサポートし、`max_retries` で制御されます
-5. **非同期の制限**: `run_in_async` はタスク関数がコルーチン関数であることを要求します
+5. **非同期の制限**: `dispatch_async` はタスク関数がコルーチン関数であることを要求します

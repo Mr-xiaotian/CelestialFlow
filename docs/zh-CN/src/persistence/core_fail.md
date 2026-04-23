@@ -1,5 +1,7 @@
 # 错误持久化 (Fail Persistence)
 
+> 📅 最后更新日期: 2026/04/22
+
 `celestialflow.persistence` 模块提供了一套稳健的错误收集与持久化机制，确保在多进程并发执行任务时，所有的异常信息都能被安全、有序地记录下来，供后续分析或重试使用。
 
 核心组件包括 `FailSpout` 和 `FailInlet`。

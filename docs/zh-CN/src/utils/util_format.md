@@ -1,5 +1,7 @@
 # UtilsFormat
 
+> 📅 最后更新日期: 2026/04/22
+
 `utils/util_format.py` 提供通用格式化工具。
 
 ## 主要函数

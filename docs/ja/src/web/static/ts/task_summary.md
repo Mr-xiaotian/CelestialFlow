@@ -1,5 +1,7 @@
 # task_summary.ts
 
+> 📅 最終更新日: 2026/04/22
+
 全体統計データの読み込みとサマリーパネルのレンダリングを管理します。
 
 ## グローバル変数
@@ -25,7 +27,7 @@
 
 | `summaryData` フィールド | DOM 要素 | 説明 |
 |-------------------------|---------|------|
-| `total_successed` | `#total-successed` | 総成功タスク数 |
+| `total_succeeded` | `#total-succeeded` | 総成功タスク数 |
 | `total_pending` | `#total-pending` | 総待機中タスク数 |
 | `total_failed` | `#total-failed` | 総失敗タスク数 |
 | `total_duplicated` | `#total-duplicated` | 総重複タスク数 |

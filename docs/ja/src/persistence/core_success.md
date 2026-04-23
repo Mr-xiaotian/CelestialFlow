@@ -1,5 +1,7 @@
 # SuccessSpout
 
+> 📅 最終更新日: 2026/04/22
+
 `SuccessSpout` は `BaseSpout` を継承し、成功結果キューを継続的にリッスンして task-result ペアをキャッシュします。
 
 ## 初期化

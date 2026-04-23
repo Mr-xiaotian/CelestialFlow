@@ -1,5 +1,7 @@
 # task_history.ts
 
+> 📅 Last updated: 2026/04/22
+
 Manages the loading of per-stage task processing history data and the initialization and updating of line charts.
 
 ## Global Variables

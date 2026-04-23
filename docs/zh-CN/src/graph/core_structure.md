@@ -1,5 +1,7 @@
 # TaskStructure
 
+> 📅 最后更新日期: 2026/04/22
+
 TaskStructure 模块提供了多种预定义的任务图结构，帮助用户快速构建复杂的任务流。所有的结构都继承自 `TaskGraph`。
 
 ## Chain (线性链)

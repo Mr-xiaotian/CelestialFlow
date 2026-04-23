@@ -1,5 +1,7 @@
 # bench_hash.py Benchmark Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Objective
 
 Systematically compare 9 object-to-hash-string serialization + hashing strategies, selecting the optimal approach for deduplication and tracking ID generation in `TaskEnvelope`. Evaluation dimensions include: speed, stability, collision rate, and support for different data types.

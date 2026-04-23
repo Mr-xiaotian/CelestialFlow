@@ -1,5 +1,7 @@
 # TaskGraph
 
+> 📅 最后更新日期: 2026/04/22
+
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
 ## 初始化
@@ -118,7 +120,7 @@ def set_graph_mode(self, stage_mode: str, execution_mode: str):
     """
     批量设置所有节点的运行模式。
 
-    :param stage_mode: 节点运行模式 ('serial' 或 'process')
+    :param stage_mode: 节点运行模式 ('serial'、'thread' 或 'process')
     :param execution_mode: 节点内部执行模式 ('serial' 或 'thread')
     """
 ```

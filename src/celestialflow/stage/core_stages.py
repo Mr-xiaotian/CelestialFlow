@@ -227,6 +227,8 @@ class TaskRouter(TaskStage):
 
 # ==== TaskRedisTransport ====
 class TaskRedisTransport(TaskStage):
+    """Redis 任务传输节点，将任务序列化后写入 Redis list。"""
+
     def __init__(
         self,
         name: str | None = None,
@@ -299,6 +301,8 @@ class TaskRedisTransport(TaskStage):
 
 # ==== TaskRedisSource ====
 class TaskRedisSource(TaskStage):
+    """Redis 任务源节点，从 Redis list 拉取数据并注入下游。"""
+
     def __init__(
         self,
         name: str | None = None,
@@ -376,6 +380,8 @@ class TaskRedisSource(TaskStage):
 
 # ==== TaskRedisAck ====
 class TaskRedisAck(TaskStage):
+    """Redis 任务确认节点，等待远端 Worker 返回执行结果。"""
+
     def __init__(
         self,
         name: str | None = None,

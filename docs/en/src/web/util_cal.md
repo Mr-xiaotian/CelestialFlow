@@ -1,5 +1,7 @@
 # util_cal
 
+> 📅 Last updated: 2026/04/22
+
 Calculation utility functions for the Web module.
 
 ## cal_interval

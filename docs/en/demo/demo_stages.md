@@ -1,5 +1,7 @@
 # demo_stages.py Demo Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Purpose
 
 Demonstrates the usage of special Stage nodes in CelestialFlow: `TaskSplitter` (task splitting), `TaskRouter` (task routing), `TaskRedisTransport` / `TaskRedisAck` / `TaskRedisSource` (Redis distributed transport). Builds complex task graphs with cyclic dependencies and cross-device collaboration.

@@ -1,31 +1,35 @@
 # TaskEnvelope
 
+> 📅 最終更新日: 2026/04/22
+
 各 Stage 間で受け渡されるタスクデータのラッパークラスです。生のタスクデータ、タスクハッシュ、タスク ID、ソース情報をカプセル化します。
 
 ## 属性
 
 ```python
 class TaskEnvelope:
-    __slots__ = ("task", "hash", "id", "source")
+    __slots__ = ("task", "hash", "id", "source", "prev")
 
-    def __init__(self, task, hash: str, id: int, source: str = "input"):
+    def __init__(self, task, hash: str, id: int, source: str, prev: Any):
         self.task = task      # 生のタスクデータ
         self.hash = hash      # タスク内容のハッシュ値
         self.id = id          # タスクの一意な ID
-        self.source = source  # タスクのソース（デフォルト "input"）
+        self.source = source  # タスクのソース識別子
+        self.prev = prev      # 前のタスク（結果キャッシュの回溯用）
 ```
 
 ## クラスメソッド
 
 ```python
 @classmethod
-def wrap(cls, task, task_id: int, source: str = "input"):
+def wrap(cls, task, task_id: int, source: str, prev: Any = None):
     """
     生のタスクを TaskEnvelope にラップします。
 
     :param task: 生のタスク
     :param task_id: タスク ID
     :param source: タスクのソース
+    :param prev: 前のタスクの envelope
     :return: TaskEnvelope インスタンス
     """
 ```
@@ -37,7 +41,7 @@ def unwrap(self) -> tuple:
     """
     TaskEnvelope をアンラップします。
 
-    :return: (task, hash, id, source)
+    :return: (task, hash, id)
     """
 
 def change_id(self, new_id: int):
@@ -57,7 +61,7 @@ from celestialflow.runtime import TaskEnvelope
 envelope = TaskEnvelope.wrap(task_data, task_id=123, source="input")
 
 # アンラップ
-task, hash, id, source = envelope.unwrap()
+task, hash, id = envelope.unwrap()
 
 # ID を変更（リトライ時）
 envelope.change_id(456)

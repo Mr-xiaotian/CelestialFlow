@@ -1,5 +1,7 @@
 # TaskExecutor
 
+> 📅 最終更新日: 2026/04/22
+
 `TaskExecutor` は、単一タスクのロジックを実行するコアコンポーネントです。タスクの実行、並行制御、エラーハンドリング、リトライ機構、およびログ記録を担当します。
 
 ## 初期化
@@ -15,7 +17,6 @@ class TaskExecutor:
         max_info=50,
         unpack_task_args=False,
         enable_success_cache=False,
-        enable_error_cache=False,
         enable_duplicate_check=True,
         show_progress=False,
         progress_desc="Executing",
@@ -37,7 +38,6 @@ class TaskExecutor:
 - **max_info**: ログ内の各メッセージの最大長。
 - **unpack_task_args**: タスク引数を展開 (`*args`) して関数に渡すかどうか。
 - **enable_success_cache**: 成功結果を `success_dict` にキャッシュするかどうか。
-- **enable_error_cache**: 失敗した例外を `error_dict` にキャッシュするかどうか。
 - **enable_duplicate_check**: タスクのハッシュベースの重複チェックを有効にするかどうか。
 - **show_progress**: プログレスバーを表示するかどうか。
 - **progress_desc**: プログレスバーの表示名。
@@ -97,12 +97,12 @@ executor.add_retry_exceptions(ValueError, ConnectionError, TimeoutError)
 ### 結果の取得
 
 ```python
-# 成功結果辞書を取得（enable_success_cache=True が必要）
-def get_success_dict(self) -> dict:
+# 成功結果ペアを取得（enable_success_cache=True が必要）
+def get_success_pairs(self) -> list[tuple[Any, Any]]:
     ...
 
-# 失敗結果辞書を取得（enable_error_cache=True が必要）
-def get_error_dict(self) -> dict:
+# 失敗結果ペアを取得
+def get_error_pairs(self) -> list[tuple[Any, Exception]]:
     ...
 ```
 

@@ -1,5 +1,7 @@
 # GraphAnalysis
 
+> 📅 最后更新日期: 2026/04/22
+
 `graph/util_analysis.py` 提供基于 `networkx` 的图分析工具。
 
 ## 主要能力

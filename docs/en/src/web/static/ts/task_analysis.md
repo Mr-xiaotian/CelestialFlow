@@ -1,5 +1,7 @@
 # task_analysis.ts
 
+> 📅 Last updated: 2026/04/22
+
 Manages the loading of graph analysis information and rendering of the analysis panel.
 
 ## Global Variables

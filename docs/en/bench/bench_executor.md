@@ -1,5 +1,7 @@
 # bench_executor.py Benchmark Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Objective
 
 Compare the performance differences of `TaskExecutor` across three execution modes (`serial`, `thread`, `async`) when processing CPU-intensive tasks (Fibonacci) and I/O-intensive tasks (sleep). Uses the built-in `benchmark_executor` tool to produce a unified comparison report.

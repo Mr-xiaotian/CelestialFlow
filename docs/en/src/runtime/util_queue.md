@@ -1,5 +1,7 @@
 # util_queue
 
+> 📅 Last updated: 2026/04/22
+
 `runtime/util_queue.py` provides cleanup utility functions for multiprocessing queues.
 
 ## cleanup_mpqueue

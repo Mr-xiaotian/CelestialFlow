@@ -1,5 +1,7 @@
 # チュートリアル（Tutorial）：画像クローラーの構築
 
+> 📅 最終更新日: 2026/04/22
+
 このチュートリアルでは、完全な実践プロジェクト — **Baidu画像クローラー** — を通じて、CelestialFlowの使い方をゼロから学びます。
 
 ## プロジェクトの目標
@@ -277,7 +279,7 @@ print("画像のクロールを開始します...")
 graph.start_graph(init_tasks)
 
 # 統計の取得
-print(f"成功: {graph.get_graph_summary().get('total_successed', 0)}")
+print(f"成功: {graph.get_graph_summary().get('total_succeeded', 0)}")
 print(f"失敗: {graph.get_graph_summary().get('total_failed', 0)}")
 ```
 
@@ -409,7 +411,7 @@ if __name__ == "__main__":
     # 統計
     summary = graph.get_graph_summary()
     print(f"\nクロール完了！")
-    print(f"成功: {summary.get('total_successed', 0)}")
+    print(f"成功: {summary.get('total_succeeded', 0)}")
     print(f"失敗: {summary.get('total_failed', 0)}")
 ```
 
@@ -489,7 +491,7 @@ graph.put_stage_queue({
 | `TaskStage` | タスクノード、処理関数をラップします |
 | `TaskSplitter` | 分割器、1つのタスクを複数に分割します |
 | `TaskGraph` | タスクグラフ、ノード関係と実行フローを組織します |
-| `stage_mode` | ノードの実行モード（serial/process） |
+| `stage_mode` | ノードの実行モード（serial/thread/process） |
 | `execution_mode` | ノード内部の実行モード（serial/thread） |
 
 ### 次のステップ

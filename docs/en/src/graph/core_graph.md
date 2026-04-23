@@ -1,5 +1,7 @@
 # TaskGraph
 
+> 📅 Last updated: 2026/04/22
+
 `TaskGraph` is CelestialFlow's core scheduler, responsible for managing the dependency relationships, execution flow, resource allocation, and lifecycle of a set of `TaskStage` nodes.
 
 ## Initialization
@@ -118,7 +120,7 @@ def set_graph_mode(self, stage_mode: str, execution_mode: str):
     """
     Batch set the running mode for all nodes.
 
-    :param stage_mode: Node running mode ('serial' or 'process')
+    :param stage_mode: Node running mode ('serial', 'thread', or 'process')
     :param execution_mode: Node internal execution mode ('serial' or 'thread')
     """
 ```

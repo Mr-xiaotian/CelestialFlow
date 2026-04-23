@@ -5,6 +5,8 @@ from .util_hash import object_to_str_hash
 
 
 class TaskEnvelope:
+    """任务信封，封装原始任务及其哈希、ID、来源等元信息。"""
+
     __slots__ = ("task", "hash", "id", "source", "prev")
 
     def __init__(self, task: Any, hash: str, id: int, source: str, prev: Any):

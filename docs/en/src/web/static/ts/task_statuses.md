@@ -1,5 +1,7 @@
 # task_statuses.ts
 
+> 📅 Last updated: 2026/04/22
+
 Manages the loading of per-stage runtime status data and rendering of dashboard status cards.
 
 ## Type Definitions
@@ -9,14 +11,14 @@ type NodeStatus = {
   status: number;            // 0=not running, 1=running, 2=stopped
   tasks_processed: number;   // Number of processed tasks
   tasks_pending: number;     // Number of pending tasks
-  tasks_successed: number;   // Cumulative success count
-  add_tasks_successed: number; // New successes in this cycle
+  tasks_succeeded: number;   // Cumulative success count
+  add_tasks_succeeded: number; // New successes in this cycle
   add_tasks_pending: number;
   tasks_failed: number;
   add_tasks_failed: number;
   tasks_duplicated: number;
   add_tasks_duplicated: number;
-  stage_mode: string;        // serial / thread
+  stage_mode: string;        // serial / thread / process
   execution_mode: string;    // serial / thread / process / async
   start_time: number;        // Unix timestamp (seconds)
   elapsed_time: number;      // Elapsed seconds

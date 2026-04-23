@@ -1,5 +1,7 @@
 # Stage Module
 
+> 📅 Last updated: 2026/04/22
+
 The Stage module defines the task execution units in CelestialFlow. It provides a complete hierarchy from basic task executors to complex task nodes, serving as the fundamental building blocks for constructing task graphs.
 
 ## Module Overview

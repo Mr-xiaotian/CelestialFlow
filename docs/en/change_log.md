@@ -1,5 +1,7 @@
 # Change Log
 
+> 📅 Last updated: 2026/04/22
+
 - 2021: Created a class supporting both multithreaded and single-threaded processing functions
 - 2023: Added multiprocess and coroutine execution modes with the help of GPT-4
 - 5/9/2024: Abstracted the original processing class into nodes, added the TaskChain class capable of linearly connecting multiple nodes and setting each node's execution mode within the Chain — supporting `serial` and `process` modes, where the latter runs all nodes in the Chain concurrently

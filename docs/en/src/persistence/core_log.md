@@ -1,5 +1,7 @@
 # Log Persistence
 
+> 📅 Last updated: 2026/04/22
+
 The `celestialflow.persistence` module provides a multi-process-safe logging system designed to solve the problems of unified log collection, formatting, and persistence in multi-process environments.
 
 The core components are `LogSpout` and `LogInlet`.

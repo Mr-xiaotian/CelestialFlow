@@ -1,5 +1,7 @@
 # TaskTypes
 
+> 📅 Last updated: 2026/04/22
+
 The TaskTypes module defines the foundational data types, enums, and helper classes used in the framework.
 
 ## StageStatus

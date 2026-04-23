@@ -1,5 +1,7 @@
 # TaskStage
 
+> 📅 最終更新日: 2026/04/22
+
 `TaskStage` は `TaskGraph` を構築するための基本ユニットです。`TaskExecutor` を継承し、グラフ構造の接続機能を追加しています。
 
 ## 継承関係
@@ -12,6 +14,7 @@
 
 - **Stage Mode**: グラフ内でのノードの実行モード。
   - `serial`: 逐次モード、メインプロセスで実行します。
+  - `thread`: スレッドモード、メインプロセス内の独立したスレッドで実行します。
   - `process`: 並列モード、独立したサブプロセスで実行します。
 - **トポロジー関係**: ノード間の上流/下流の接続関係は `TaskGraph` によって管理され（`graph.out_edges` / `graph.in_edges` 経由）、ノード自体には保存されません。
 
@@ -64,7 +67,7 @@ graph.connect([stage_a], [stage_b])
 def set_stage_mode(self, stage_mode: str):
     """
     グラフ内での現在のノードの実行モードを設定します。
-    :param stage_mode: 'serial' または 'process'
+    :param stage_mode: 'serial'、'thread'、または 'process'
     """
 
 # ノードの実行モードを取得

@@ -1,5 +1,7 @@
 # test_stage.py 测试说明
 
+> 📅 最后更新日期: 2026/04/22
+
 ## 测试目标
 
 验证 `TaskStage` 的配置层行为，包括：tag 生成与失效机制、stage_mode / execution_mode 的合法性校验、进程模式下的 pickle 守卫。这些测试覆盖 `TaskStage` 作为图节点的元数据管理层，而非其执行能力（执行能力在 `test_executor.py` 中覆盖）。
@@ -23,7 +25,7 @@
 - **风险点**：若在多进程场景下，子进程已序列化旧 tag 后父进程修改了 name，可能导致 tag 不一致。
 
 #### `test_invalid_stage_mode`
-- **目标**：非法 `stage_mode`（非 `"serial"` / `"process"`）应抛出 `StageModeError`。
+- **目标**：非法 `stage_mode`（非 `"serial"` / `"thread"` / `"process"`）应抛出 `StageModeError`。
 
 #### `test_invalid_execution_mode`
 - **目标**：非法 `execution_mode`（非 `"serial"` / `"thread"` / `"async"`）应抛出 `ExecutionModeError`。

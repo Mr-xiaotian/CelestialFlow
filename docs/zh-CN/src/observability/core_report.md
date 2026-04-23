@@ -1,5 +1,7 @@
 # TaskReporter
 
+> 📅 最后更新日期: 2026/04/22
+
 `TaskReporter` 是一个后台组件，负责收集任务图的运行状态并上报给远程 Web 服务器（CelestialFlow Web UI）。同时也负责从服务器拉取控制指令（如任务注入）。
 
 ## 功能特性

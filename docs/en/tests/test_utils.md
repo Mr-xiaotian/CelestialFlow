@@ -1,5 +1,7 @@
 # test_utils.py Test Utility Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Test Purpose
 
 `test_utils.py` is the shared utility library for the test suite, providing unified test functions, data generators, and helper classes for unit tests and demo tests. All test task functions are **pure functions or controlled side-effect functions**, ensuring predictable and repeatable test behavior.

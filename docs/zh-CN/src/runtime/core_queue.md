@@ -1,5 +1,7 @@
 # TaskQueue
 
+> 📅 最后更新日期: 2026/04/22
+
 `TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了日志记录和监控功能。
 
 ## 概述

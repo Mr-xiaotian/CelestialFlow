@@ -1,5 +1,7 @@
 # 教程（Tutorial）：构建一个图片爬虫
 
+> 📅 最后更新日期: 2026/04/22
+
 本教程将通过一个完整的实战项目——**百度图片爬虫**，带你从零开始学习 CelestialFlow 的使用。
 
 ## 项目目标
@@ -277,7 +279,7 @@ print("开始爬取图片...")
 graph.start_graph(init_tasks)
 
 # 获取统计
-print(f"成功: {graph.get_graph_summary().get('total_successed', 0)}")
+print(f"成功: {graph.get_graph_summary().get('total_succeeded', 0)}")
 print(f"失败: {graph.get_graph_summary().get('total_failed', 0)}")
 ```
 
@@ -409,7 +411,7 @@ if __name__ == "__main__":
     # 统计
     summary = graph.get_graph_summary()
     print(f"\n爬取完成!")
-    print(f"成功: {summary.get('total_successed', 0)}")
+    print(f"成功: {summary.get('total_succeeded', 0)}")
     print(f"失败: {summary.get('total_failed', 0)}")
 ```
 
@@ -489,7 +491,7 @@ graph.put_stage_queue({
 | `TaskStage` | 任务节点，包装处理函数 |
 | `TaskSplitter` | 分裂器，将一个任务拆分为多个 |
 | `TaskGraph` | 任务图，组织节点关系和执行流程 |
-| `stage_mode` | 节点运行模式（serial/process） |
+| `stage_mode` | 节点运行模式（serial/thread/process） |
 | `execution_mode` | 节点内部执行模式（serial/thread） |
 
 ### 下一步

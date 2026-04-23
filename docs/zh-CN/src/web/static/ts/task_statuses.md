@@ -1,5 +1,7 @@
 # task_statuses.ts
 
+> 📅 最后更新日期: 2026/04/22
+
 管理各节点运行状态数据的加载与仪表盘状态卡片的渲染。
 
 ## 类型定义
@@ -9,14 +11,14 @@ type NodeStatus = {
   status: number;            // 0=未运行, 1=运行中, 2=已停止
   tasks_processed: number;   // 已处理任务数
   tasks_pending: number;     // 等待中任务数
-  tasks_successed: number;   // 累计成功数
-  add_tasks_successed: number; // 本周期新增成功数
+  tasks_succeeded: number;   // 累计成功数
+  add_tasks_succeeded: number; // 本周期新增成功数
   add_tasks_pending: number;
   tasks_failed: number;
   add_tasks_failed: number;
   tasks_duplicated: number;
   add_tasks_duplicated: number;
-  stage_mode: string;        // serial / thread
+  stage_mode: string;        // serial / thread / process
   execution_mode: string;    // serial / thread / process / async
   start_time: number;        // Unix 时间戳（秒）
   elapsed_time: number;      // 已运行秒数

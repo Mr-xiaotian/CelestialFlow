@@ -300,6 +300,8 @@ class TaskReporter:
 
 
 class NullTaskReporter:
+    """空实现的任务上报器，用于关闭上报功能时的占位对象。"""
+
     interval = 0
     history_limit = 20
 

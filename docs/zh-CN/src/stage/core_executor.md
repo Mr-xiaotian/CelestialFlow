@@ -1,5 +1,7 @@
 # TaskExecutor
 
+> 📅 最后更新日期: 2026/04/22
+
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
 ## 初始化
@@ -15,7 +17,6 @@ class TaskExecutor:
         max_info=50,
         unpack_task_args=False,
         enable_success_cache=False,
-        enable_error_cache=False,
         enable_duplicate_check=True,
         show_progress=False,
         progress_desc="Executing",
@@ -37,7 +38,6 @@ class TaskExecutor:
 - **max_info**: 日志中每条信息的最大长度。
 - **unpack_task_args**: 是否将任务参数解包 (`*args`) 传给函数。
 - **enable_success_cache**: 是否缓存成功结果到 `success_dict`。
-- **enable_error_cache**: 是否缓存失败异常到 `error_dict`。
 - **enable_duplicate_check**: 是否启用基于任务哈希的重复检查。
 - **show_progress**: 是否显示进度条。
 - **progress_desc**: 进度条显示名称。
@@ -97,12 +97,12 @@ executor.add_retry_exceptions(ValueError, ConnectionError, TimeoutError)
 ### 获取结果
 
 ```python
-# 获取成功结果字典（需要 enable_success_cache=True）
-def get_success_dict(self) -> dict:
+# 获取成功结果列表（需要 enable_success_cache=True）
+def get_success_pairs(self) -> list[tuple[Any, Any]]:
     ...
 
-# 获取失败结果字典（需要 enable_error_cache=True）
-def get_error_dict(self) -> dict:
+# 获取失败结果列表
+def get_error_pairs(self) -> list[tuple[Any, Exception]]:
     ...
 ```
 

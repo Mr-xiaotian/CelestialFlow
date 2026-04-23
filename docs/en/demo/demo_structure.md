@@ -1,5 +1,7 @@
 # demo_structure.py Demo Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Purpose
 
 Demonstrates the various predefined graph structures (DAG and cyclic graphs) in `core_structure.py`, showcasing how CelestialFlow builds and runs under multiple topologies including chain, cross, grid, loop, wheel, and complete graphs.

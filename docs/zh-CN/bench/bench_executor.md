@@ -1,5 +1,7 @@
 # bench_executor.py 基准测试说明
 
+> 📅 最后更新日期: 2026/04/22
+
 ## 目标
 
 对比 `TaskExecutor` 在三种执行模式（`serial`、`thread`、`async`）下处理 CPU 密集型任务（斐波那契）和 I/O 密集型任务（sleep）的性能差异。使用框架内置的 `benchmark_executor` 工具统一输出对比报告。

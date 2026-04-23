@@ -1,5 +1,7 @@
 # task_errors.ts
 
+> 📅 Last updated: 2026/04/22
+
 Manages the loading, filtering, pagination, and rendering of error log data.
 
 ## Global Variables

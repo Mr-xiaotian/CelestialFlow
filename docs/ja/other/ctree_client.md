@@ -1,5 +1,7 @@
 # CelestialTree クライアント
 
+> 📅 最終更新日: 2026/04/22
+
 CelestialFlow は `celestialtree` クライアントを統合しており、きめ細かなタスクの全チェーン追跡（Provenance）とイベント記録を実現します。
 
 ## はじめに

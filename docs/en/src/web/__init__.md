@@ -1,5 +1,7 @@
 # Web Module
 
+> 📅 Last updated: 2026/04/22
+
 The Web module provides CelestialFlow's web-based monitoring and management interface. Built on FastAPI, it supports real-time task status display, error monitoring, task injection, and remote control capabilities.
 
 ## Module Overview

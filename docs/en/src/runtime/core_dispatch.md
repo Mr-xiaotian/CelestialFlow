@@ -1,5 +1,7 @@
 # TaskDispatch
 
+> 📅 Last updated: 2026/04/22
+
 `TaskDispatch` is the core task execution runner responsible for fetching tasks from queues, executing them, and handling results and errors. It supports three execution modes: serial, thread pool, and async.
 
 ## Initialization
@@ -18,12 +20,12 @@ class TaskDispatch:
 
 ## Execution Modes
 
-### run_in_serial
+### dispatch_serial
 
 Executes tasks serially, processing one after another.
 
 ```python
-def run_in_serial(self):
+def dispatch_serial(self):
     """
     Execute tasks serially.
 
@@ -40,12 +42,12 @@ Execution flow:
 5. Update the progress bar
 6. After receiving a termination signal, check if all tasks are completed
 
-### run_in_thread
+### dispatch_thread
 
 Executes tasks in parallel using a thread pool.
 
 ```python
-def run_in_thread(self):
+def dispatch_thread(self):
     """
     Execute tasks in parallel using a thread pool.
     """
@@ -57,12 +59,12 @@ Execution flow:
 3. Wait for all futures to complete, then handle the termination signal
 4. Shut down the pool and release resources
 
-### run_in_async
+### dispatch_async
 
 Executes tasks asynchronously using coroutines and semaphores for concurrency control.
 
 ```python
-async def run_in_async(self):
+async def dispatch_async(self):
     """
     Execute tasks asynchronously with limited concurrency.
     """
@@ -119,15 +121,15 @@ TaskExecutor
     └── dispatch           # TaskDispatch instance
             ├── func               # Task function
             ├── max_workers        # Concurrency limit
-            ├── run_in_serial()
-            ├── run_in_thread()
-            └── run_in_async()
+            ├── dispatch_serial()
+            ├── dispatch_thread()
+            └── dispatch_async()
 ```
 
 `TaskExecutor` selects which `TaskDispatch` method to call based on `execution_mode`:
-- `serial` → `run_in_serial()`
-- `thread` → `run_in_thread()`
-- `async` → `run_in_async()`
+- `serial` → `dispatch_serial()`
+- `thread` → `dispatch_thread()`
+- `async` → `dispatch_async()`
 
 ## Notes
 
@@ -135,4 +137,4 @@ TaskExecutor
 2. **Termination Handling**: Properly handles merging and forwarding of termination signals
 3. **Error Propagation**: Exceptions are caught and passed to `TaskExecutor.handle_task_fail()`
 4. **Retry Mechanism**: Workers internally support task retries, controlled by `max_retries`
-5. **Async Limitation**: `run_in_async` requires the task function to be a coroutine function
+5. **Async Limitation**: `dispatch_async` requires the task function to be a coroutine function

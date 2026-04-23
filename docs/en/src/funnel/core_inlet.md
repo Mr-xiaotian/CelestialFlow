@@ -1,5 +1,7 @@
 # BaseInlet
 
+> 📅 Last updated: 2026/04/22
+
 `BaseInlet` is the base class for all inlet classes, providing common functionality for writing records to a queue.
 
 ## Initialization

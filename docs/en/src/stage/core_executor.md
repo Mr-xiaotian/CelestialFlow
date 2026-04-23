@@ -1,5 +1,7 @@
 # TaskExecutor
 
+> 📅 Last updated: 2026/04/22
+
 `TaskExecutor` is the core component for executing single task logic. It is responsible for task execution, concurrency control, error handling, retry mechanisms, and logging.
 
 ## Initialization
@@ -15,7 +17,6 @@ class TaskExecutor:
         max_info=50,
         unpack_task_args=False,
         enable_success_cache=False,
-        enable_error_cache=False,
         enable_duplicate_check=True,
         show_progress=False,
         progress_desc="Executing",
@@ -37,7 +38,6 @@ class TaskExecutor:
 - **max_info**: Maximum length of each log message.
 - **unpack_task_args**: Whether to unpack task arguments (`*args`) when passing them to the function.
 - **enable_success_cache**: Whether to cache successful results in `success_dict`.
-- **enable_error_cache**: Whether to cache failed exceptions in `error_dict`.
 - **enable_duplicate_check**: Whether to enable hash-based duplicate checking for tasks.
 - **show_progress**: Whether to display a progress bar.
 - **progress_desc**: Display name for the progress bar.
@@ -97,12 +97,12 @@ executor.add_retry_exceptions(ValueError, ConnectionError, TimeoutError)
 ### Retrieving Results
 
 ```python
-# Get the success result dictionary (requires enable_success_cache=True)
-def get_success_dict(self) -> dict:
+# Get the success result pairs (requires enable_success_cache=True)
+def get_success_pairs(self) -> list[tuple[Any, Any]]:
     ...
 
-# Get the failure result dictionary (requires enable_error_cache=True)
-def get_error_dict(self) -> dict:
+# Get the failure result pairs
+def get_error_pairs(self) -> list[tuple[Any, Exception]]:
     ...
 ```
 

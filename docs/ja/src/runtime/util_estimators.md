@@ -1,5 +1,7 @@
 # RuntimeEstimators
 
+> 📅 最終更新日: 2026/04/22
+
 `runtime/util_estimators.py` はランタイムの所要時間推定関数を提供します。
 
 ## 主要関数

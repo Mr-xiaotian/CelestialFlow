@@ -1,5 +1,7 @@
 # Benchmark
 
+> 📅 最終更新日: 2026/04/22
+
 `utils/benchmark.py` は、エグゼキュータおよびタスクグラフのパフォーマンスベンチマーク機能を提供し、異なる実行モード間のパフォーマンス差を比較するために使用されます。
 
 ## 設計目的
@@ -60,7 +62,7 @@ def benchmark_graph(
 
     :param graph: タスクグラフテンプレート
     :param init_tasks_dict: 初期タスク辞書
-    :param stage_modes: ステージモードリスト、デフォルトは ["serial", "process"]
+    :param stage_modes: ステージモードリスト、デフォルトは ["serial", "thread", "process"]
     :param execution_modes: 実行モードリスト、デフォルトは ["serial", "thread"]
     :return: テスト結果辞書
     """
@@ -126,7 +128,7 @@ graph.connect([stage_a], [stage_b])
 benchmark_graph(
     graph=graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "process"],
+    stage_modes=["serial", "thread", "process"],
     execution_modes=["serial", "thread"],
 )
 ```

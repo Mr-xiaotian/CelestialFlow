@@ -1,5 +1,7 @@
 # Tutorial: Building an Image Crawler
 
+> 📅 Last updated: 2026/04/22
+
 This tutorial will walk you through learning CelestialFlow from scratch using a complete hands-on project — a **Baidu Image Crawler**.
 
 ## Project Goals
@@ -277,7 +279,7 @@ print("Starting image crawl...")
 graph.start_graph(init_tasks)
 
 # Get statistics
-print(f"Succeeded: {graph.get_graph_summary().get('total_successed', 0)}")
+print(f"Succeeded: {graph.get_graph_summary().get('total_succeeded', 0)}")
 print(f"Failed: {graph.get_graph_summary().get('total_failed', 0)}")
 ```
 
@@ -409,7 +411,7 @@ if __name__ == "__main__":
     # Statistics
     summary = graph.get_graph_summary()
     print(f"\nCrawl complete!")
-    print(f"Succeeded: {summary.get('total_successed', 0)}")
+    print(f"Succeeded: {summary.get('total_succeeded', 0)}")
     print(f"Failed: {summary.get('total_failed', 0)}")
 ```
 
@@ -489,7 +491,7 @@ This tutorial demonstrated the complete CelestialFlow workflow:
 | `TaskStage` | Task node that wraps a processing function |
 | `TaskSplitter` | Splitter that divides one task into multiple tasks |
 | `TaskGraph` | Task graph that organizes node relationships and execution flow |
-| `stage_mode` | Node execution mode (serial/process) |
+| `stage_mode` | Node execution mode (serial/thread/process) |
 | `execution_mode` | Internal execution mode within a node (serial/thread) |
 
 ### Next Steps

@@ -1,5 +1,7 @@
 # bench_graph.py ベンチマーク説明
 
+> 📅 最終更新日: 2026/04/22
+
 ## 目標
 
 異なる `stage_mode`（`serial` / `thread` / `process`）と `execution_mode`（`serial` / `thread`）の組み合わせにおける複雑な DAG のタスクグラフ実行性能を比較します。フレームワーク組み込みの `benchmark_graph` ツールを使用してマトリクス形式の比較を行います。

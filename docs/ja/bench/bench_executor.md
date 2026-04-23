@@ -1,5 +1,7 @@
 # bench_executor.py ベンチマーク説明
 
+> 📅 最終更新日: 2026/04/22
+
 ## 目標
 
 `TaskExecutor` の 3 つの実行モード（`serial`、`thread`、`async`）における CPU 集約型タスク（フィボナッチ）と I/O 集約型タスク（sleep）の性能差を比較します。フレームワーク組み込みの `benchmark_executor` ツールを使用して統一的な比較レポートを出力します。

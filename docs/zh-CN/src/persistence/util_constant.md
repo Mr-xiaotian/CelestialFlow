@@ -1,5 +1,7 @@
 # PersistenceConstant
 
+> 📅 最后更新日期: 2026/04/22
+
 `persistence/util_constant.py` 定义日志级别映射常量 `LEVEL_DICT`。
 
 ## 级别

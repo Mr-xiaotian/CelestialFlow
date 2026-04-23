@@ -1,5 +1,7 @@
 # test_executor.py 测试说明
 
+> 📅 最后更新日期: 2026/04/22
+
 ## 测试目标
 
 验证 `TaskExecutor` 在三种执行模式（`serial` / `thread` / `async`）下的核心能力：任务调度、结果正确性、异常处理、重试机制、去重检查、成功缓存及配置校验。`TaskExecutor` 是 CelestialFlow 最基础的任务执行单元，其稳定性是整个框架的基石。

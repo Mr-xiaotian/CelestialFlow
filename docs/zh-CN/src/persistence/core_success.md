@@ -1,5 +1,7 @@
 # SuccessSpout
 
+> 📅 最后更新日期: 2026/04/22
+
 `SuccessSpout` 继承自 `BaseSpout`，用于持续监听成功结果队列并缓存 task-result 对。
 
 ## 初始化

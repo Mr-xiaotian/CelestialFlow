@@ -1,5 +1,7 @@
 # bench_requests.py 基准测试说明
 
+> 📅 最后更新日期: 2026/04/22
+
 ## 目标
 
 量化对比 `requests` 库在不同使用模式下的 HTTP 请求性能：是否使用 Session、是否并发、Session 的共享粒度。为 CelestialFlow 中涉及 HTTP 通信的模块（Reporter、CelestialTree HTTP 客户端）提供优化依据。

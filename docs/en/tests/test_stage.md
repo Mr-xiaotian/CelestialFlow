@@ -1,5 +1,7 @@
 # test_stage.py Test Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Test Purpose
 
 Validates the configuration layer behavior of `TaskStage`, including: tag generation and invalidation mechanism, stage_mode / execution_mode legality validation, and pickle guard in process mode. These tests cover `TaskStage` as a graph node's metadata management layer, not its execution capabilities (which are covered in `test_executor.py`).
@@ -23,7 +25,7 @@ Validates the configuration layer behavior of `TaskStage`, including: tag genera
 - **Risk**: In multiprocessing scenarios, if a child process has already serialized the old tag before the parent process modifies the name, tag inconsistency may occur.
 
 #### `test_invalid_stage_mode`
-- **Purpose**: Invalid `stage_mode` (not `"serial"` / `"process"`) should raise `StageModeError`.
+- **Purpose**: Invalid `stage_mode` (not `"serial"` / `"thread"` / `"process"`) should raise `StageModeError`.
 
 #### `test_invalid_execution_mode`
 - **Purpose**: Invalid `execution_mode` (not `"serial"` / `"thread"` / `"async"`) should raise `ExecutionModeError`.

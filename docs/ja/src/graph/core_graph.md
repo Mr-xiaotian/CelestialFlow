@@ -1,5 +1,7 @@
 # TaskGraph
 
+> 📅 最終更新日: 2026/04/22
+
 `TaskGraph` は CelestialFlow のコアスケジューラーで、一連の `TaskStage` ノードの依存関係、実行フロー、リソース割り当て、ライフサイクルの管理を担当します。
 
 ## 初期化
@@ -118,7 +120,7 @@ def set_graph_mode(self, stage_mode: str, execution_mode: str):
     """
     すべてのノードの実行モードを一括設定します。
 
-    :param stage_mode: ノードの実行モード（'serial' または 'process'）
+    :param stage_mode: ノードの実行モード（'serial'、'thread'、または 'process'）
     :param execution_mode: ノードの内部実行モード（'serial' または 'thread'）
     """
 ```

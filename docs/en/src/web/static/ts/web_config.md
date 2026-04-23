@@ -1,5 +1,7 @@
 # web_config.ts
 
+> 📅 Last updated: 2026/04/22
+
 Manages web frontend configuration loading, saving, and application, including theme, refresh interval, and dashboard layout.
 
 ## Global Variables

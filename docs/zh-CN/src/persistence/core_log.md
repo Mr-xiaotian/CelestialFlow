@@ -1,5 +1,7 @@
 # 日志持久化 (Log Persistence)
 
+> 📅 最后更新日期: 2026/04/22
+
 `celestialflow.persistence` 模块提供了一个多进程安全的日志系统，旨在解决多进程环境下的日志统一收集、格式化和持久化问题。
 
 核心组件包括 `LogSpout` 和 `LogInlet`。

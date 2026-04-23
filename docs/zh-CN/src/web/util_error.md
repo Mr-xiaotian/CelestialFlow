@@ -1,5 +1,7 @@
 # util_error
 
+> 📅 最后更新日期: 2026/04/22
+
 Web 模块的错误查询与分页工具函数。
 
 ## normalize_errors_query

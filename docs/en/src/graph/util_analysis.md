@@ -1,5 +1,7 @@
 # GraphAnalysis
 
+> 📅 Last updated: 2026/04/22
+
 `graph/util_analysis.py` provides graph analysis tools based on `networkx`.
 
 ## Main Capabilities

@@ -1,5 +1,7 @@
 # Clone
 
+> 📅 Last updated: 2026/04/22
+
 `utils/clone.py` provides functionality for cloning executors, stages, and task graphs, used for performance testing and configuration reuse.
 
 ## Design Purpose
@@ -30,7 +32,6 @@ Copied attributes:
 - `max_info`: Maximum log message length
 - `unpack_task_args`: Whether to unpack arguments
 - `enable_success_cache`: Success cache toggle
-- `enable_error_cache`: Error cache toggle
 - `enable_duplicate_check`: Duplicate check toggle
 - `show_progress`: Progress bar toggle
 - `progress_desc`: Progress bar description
@@ -129,7 +130,7 @@ from celestialflow.utils.benchmark import benchmark_graph
 results = benchmark_graph(
     graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "process"],
+    stage_modes=["serial", "thread", "process"],
     execution_modes=["serial", "thread"],
 )
 ```

@@ -1,5 +1,7 @@
 # TaskReporter
 
+> 📅 Last updated: 2026/04/22
+
 `TaskReporter` is a background component responsible for collecting task graph runtime status and reporting it to a remote Web server (CelestialFlow Web UI). It is also responsible for pulling control commands (such as task injection) from the server.
 
 ## Features

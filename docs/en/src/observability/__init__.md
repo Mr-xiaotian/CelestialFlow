@@ -1,5 +1,7 @@
 # Observability Module
 
+> 📅 Last updated: 2026/04/22
+
 The Observability module provides observability features for CelestialFlow, including runtime status monitoring, performance metric collection, error tracking, and remote control. It makes the task execution process transparent, monitorable, and controllable.
 
 ## Module Overview

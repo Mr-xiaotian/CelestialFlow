@@ -1,5 +1,7 @@
 # bench_requests.py Benchmark Documentation
 
+> 📅 Last updated: 2026/04/22
+
 ## Objective
 
 Quantitatively compare HTTP request performance of the `requests` library under different usage patterns: whether to use Session, whether to use concurrency, and Session sharing granularity. Provides optimization guidance for HTTP-communicating modules in CelestialFlow (Reporter, CelestialTree HTTP client).

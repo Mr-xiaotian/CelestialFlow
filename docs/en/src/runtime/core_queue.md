@@ -1,5 +1,7 @@
 # TaskQueue
 
+> 📅 Last updated: 2026/04/22
+
 The `TaskQueue` module provides `TaskInQueue` and `TaskOutQueue` classes, which serve as pipelines connecting different stages. They support multi-producer, multi-consumer models and integrate logging and monitoring capabilities.
 
 ## Overview

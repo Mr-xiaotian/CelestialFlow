@@ -1,5 +1,7 @@
 # util_queue
 
+> 📅 最后更新日期: 2026/04/22
+
 `runtime/util_queue.py` 提供多进程队列的清理工具函数。
 
 ## cleanup_mpqueue
