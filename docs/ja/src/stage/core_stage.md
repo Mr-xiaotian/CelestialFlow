@@ -1,6 +1,6 @@
 # TaskStage
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/04/23
 
 `TaskStage` は `TaskGraph` を構築するための基本ユニットです。`TaskExecutor` を継承し、グラフ構造の接続機能を追加しています。
 
@@ -22,12 +22,23 @@
 
 ```python
 class TaskStage(TaskExecutor):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # ...
+    def __init__(
+        self,
+        name,
+        func,
+        execution_mode="serial",
+        max_workers=20,
+        max_retries=1,
+        max_info=50,
+        unpack_task_args=False,
+        enable_success_cache=False,
+        enable_duplicate_check=True,
+        stage_mode="serial",
+    ):
+        ...
 ```
 
-パラメータは `TaskExecutor` と同じです。主な違いは、`TaskStage` の `execution_mode` が `thread` または `serial` のみに制限されることです（`process` モードは `stage_mode` で制御されます）。
+パラメータは `TaskExecutor` と同じですが、`stage_mode` パラメータが追加されています。主な違いは、`TaskStage` の `execution_mode` が `thread` または `serial` のみに制限されることです（`process` モードは `stage_mode` で制御されます）。
 
 ## グラフ構築メソッド
 
@@ -51,8 +62,8 @@ def connect(
 
 例：
 ```python
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="StageA")
-stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", name="StageB")
+stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", stage_mode="process")
+stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mode="process")
 
 # グラフを作成しノードを接続
 graph = TaskGraph()
@@ -80,7 +91,7 @@ def get_stage_mode(self) -> str:
 ### 名前設定
 
 ```python
-def set_name(self, name: str = None):
+def set_name(self, name: str):
     """
     現在のノードの名前を設定します。
     注意: 名前変更後、タグは無効化され再生成されます。

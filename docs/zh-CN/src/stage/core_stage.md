@@ -1,6 +1,6 @@
 # TaskStage
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/04/23
 
 `TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力。
 
@@ -22,12 +22,23 @@
 
 ```python
 class TaskStage(TaskExecutor):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # ...
+    def __init__(
+        self,
+        name,
+        func,
+        execution_mode="serial",
+        max_workers=20,
+        max_retries=1,
+        max_info=50,
+        unpack_task_args=False,
+        enable_success_cache=False,
+        enable_duplicate_check=True,
+        stage_mode="serial",
+    ):
+        ...
 ```
 
-参数与 `TaskExecutor` 一致。主要区别在于 `TaskStage` 的 `execution_mode` 只能是 `thread` 或 `serial`（`process` 模式由 `stage_mode` 控制）。
+参数与 `TaskExecutor` 一致，额外增加了 `stage_mode` 参数。主要区别在于 `TaskStage` 的 `execution_mode` 只能是 `thread` 或 `serial`（`process` 模式由 `stage_mode` 控制）。
 
 ## 图构建方法
 
@@ -51,8 +62,8 @@ def connect(
 
 示例：
 ```python
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="StageA")
-stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", name="StageB")
+stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", stage_mode="process")
+stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mode="process")
 
 # 创建图并连接节点
 graph = TaskGraph()
@@ -80,7 +91,7 @@ def get_stage_mode(self) -> str:
 ### 名称设置
 
 ```python
-def set_name(self, name: str = None):
+def set_name(self, name: str):
     """
     设置当前节点名称。
     注意：名称变更后，标签（tag）会失效并重新生成。

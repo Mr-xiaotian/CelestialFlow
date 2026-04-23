@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/04/23
 
 `TaskExecutor` is the core component for executing single task logic. It is responsible for task execution, concurrency control, error handling, retry mechanisms, and logging.
 
@@ -10,6 +10,7 @@
 class TaskExecutor:
     def __init__(
         self,
+        name,
         func,
         execution_mode="serial",
         max_workers=20,
@@ -27,6 +28,7 @@ class TaskExecutor:
 
 ### Parameters
 
+- **name**: The name of the executor, used for logging and tracing.
 - **func**: The callable object (function) that actually executes the task.
 - **execution_mode**: Execution mode.
   - `serial`: Serial execution.
@@ -83,7 +85,7 @@ def add_retry_exceptions(self, *exceptions):
 
 Example:
 ```python
-executor = TaskExecutor(func=process, max_retries=3)
+executor = TaskExecutor("Processor", process, max_retries=3)
 executor.add_retry_exceptions(ValueError, ConnectionError, TimeoutError)
 ```
 
@@ -157,14 +159,14 @@ def get_name(self) -> str: ...
 # Get the function name
 def get_func_name(self) -> str: ...
 
-# Get the class name
-def get_class_name(self) -> str: ...
+# Get the class name (private)
+def _get_class_name(self) -> str: ...
 
 # Get the tag (used for logging and tracing)
 def get_tag(self) -> str: ...
 
-# Get the execution mode description
-def get_execution_mode_desc(self) -> str: ...
+# Get the execution mode description (private)
+def _get_execution_mode_desc(self) -> str: ...
 ```
 
 ### Getting Status Snapshots
@@ -195,10 +197,10 @@ def get_task_repr(self, task) -> str:
     """
 ```
 
-### get_result_repr
+### _get_result_repr
 
 ```python
-def get_result_repr(self, result) -> str:
+def _get_result_repr(self, result) -> str:
     """
     Get a human-readable string representation of the result.
     """
@@ -213,7 +215,8 @@ When caching is enabled but duplicate checking is disabled, a warning is trigger
 ```python
 # Warning: may cause mismatch between cached result count and input task count
 executor = TaskExecutor(
-    func=process,
+    "Processor",
+    process,
     enable_success_cache=True,
     enable_duplicate_check=False  # Not recommended
 )

@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/04/23
 
 TaskErrors モジュールは、フレームワークで使用されるカスタム例外クラスを定義します。
 
@@ -191,7 +191,7 @@ except ExecutionModeError as e:
 ### リトライ可能な例外の追加
 
 ```python
-executor = TaskExecutor(func=process, max_retries=3)
+executor = TaskExecutor("Processor", process, max_retries=3)
 executor.add_retry_exceptions(ConnectionError, TimeoutError)
 ```
 

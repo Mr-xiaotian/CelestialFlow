@@ -1,6 +1,6 @@
 # TaskNodes
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/04/23
 
 The TaskNodes module provides multiple specialized `TaskStage` implementations for flow control, external system interaction, and other scenarios.
 
@@ -41,12 +41,12 @@ Splits a single input task into multiple output tasks. Suitable for one-to-many 
 
 ```python
 class TaskSplitter(TaskStage):
-    def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
+    def __init__(self, name: str, stage_mode: str = "serial"):
         """
         Initialize TaskSplitter.
 
+        :param name: Node name
         :param stage_mode: Node running mode
-        :param stage_name: Node name
         """
         # Defaults: execution_mode="serial", max_retries=0, unpack_task_args=True
 ```
@@ -107,12 +107,12 @@ Routes tasks to different downstream paths based on conditions.
 
 ```python
 class TaskRouter(TaskStage):
-    def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
+    def __init__(self, name: str, stage_mode: str = "serial"):
         """
         Initialize TaskRouter.
 
+        :param name: Node name
         :param stage_mode: Node running mode
-        :param stage_name: Node name
         """
         # Defaults: execution_mode="serial", max_retries=0
 ```
@@ -184,14 +184,14 @@ Pushes tasks to a Redis List.
 class TaskRedisTransport(TaskStage):
     def __init__(
         self,
-        key: str,                       # Redis List name
+        name: str,        # Node name
+        key: str = "",                  # Redis List name
         host: str = "localhost",        # Redis host address
         port: int = 6379,               # Redis port
         db: int = 0,                    # Redis database number
         password: str | None = None,    # Redis password
         unpack_task_args: bool = False, # Whether to unpack task arguments
         stage_mode: str = "serial",     # Node running mode
-        stage_name: str | None = None,  # Node name
     ):
         ...
 ```
@@ -206,14 +206,14 @@ Pulls tasks from a Redis List as an input source.
 class TaskRedisSource(TaskStage):
     def __init__(
         self,
-        key: str,                    # Redis List name
+        name: str,     # Node name
+        key: str = "",               # Redis List name
         host: str = "localhost",     # Redis host address
         port: int = 6379,            # Redis port
         db: int = 0,                 # Redis database number
         password: str | None = None, # Redis password
         timeout: int = 10,           # Blocking timeout in seconds; 0 means wait indefinitely
         stage_mode: str = "serial",  # Node running mode
-        stage_name: str | None = None, # Node name
     ):
         ...
 ```
@@ -259,14 +259,14 @@ Waits for execution results from remote Workers.
 class TaskRedisAck(TaskStage):
     def __init__(
         self,
-        key: str,                    # Redis Hash name (stores results)
+        name: str,     # Node name
+        key: str = "",               # Redis Hash name (stores results)
         host: str = "localhost",     # Redis host address
         port: int = 6379,            # Redis port
         db: int = 0,                 # Redis database number
         password: str | None = None, # Redis password
         timeout: int = 10,           # Wait timeout in seconds; 0 means wait indefinitely
         stage_mode: str = "serial",  # Node running mode
-        stage_name: str | None = None, # Node name
     ):
         ...
 ```

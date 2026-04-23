@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/04/23
 
 The TaskErrors module defines the custom exception classes used in the framework.
 
@@ -191,7 +191,7 @@ except ExecutionModeError as e:
 ### Adding Retryable Exceptions
 
 ```python
-executor = TaskExecutor(func=process, max_retries=3)
+executor = TaskExecutor("Processor", process, max_retries=3)
 executor.add_retry_exceptions(ConnectionError, TimeoutError)
 ```
 

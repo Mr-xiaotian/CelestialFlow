@@ -1,6 +1,6 @@
 # SuccessSpout
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/04/23
 
 `SuccessSpout` 继承自 `BaseSpout`，用于持续监听成功结果队列并缓存 task-result 对。
 
@@ -41,7 +41,7 @@ def get_success_pairs(self) -> list[tuple[Any, Any]]:
 当 `TaskExecutor` 启用 `enable_success_cache=True` 时，成功结果会被发送到 `SuccessSpout` 的队列，执行结束后可通过 `get_success_pairs()` 获取所有成功的 (task, result) 对。
 
 ```python
-executor = TaskExecutor(func=process, enable_success_cache=True)
+executor = TaskExecutor("Processor", process, enable_success_cache=True)
 executor.start(tasks)
 pairs = executor.success_spout.get_success_pairs()
 ```

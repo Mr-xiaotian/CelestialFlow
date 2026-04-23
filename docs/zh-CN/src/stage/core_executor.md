@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/04/23
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -10,6 +10,7 @@
 class TaskExecutor:
     def __init__(
         self,
+        name,
         func,
         execution_mode="serial",
         max_workers=20,
@@ -27,6 +28,7 @@ class TaskExecutor:
 
 ### 参数说明
 
+- **name**: 执行器名称，用于日志和追踪。
 - **func**: 实际执行任务的可调用对象（函数）。
 - **execution_mode**: 执行模式。
   - `serial`: 串行执行。
@@ -83,7 +85,7 @@ def add_retry_exceptions(self, *exceptions):
 
 示例：
 ```python
-executor = TaskExecutor(func=process, max_retries=3)
+executor = TaskExecutor("Processor", process, max_retries=3)
 executor.add_retry_exceptions(ValueError, ConnectionError, TimeoutError)
 ```
 
@@ -157,14 +159,14 @@ def get_name(self) -> str: ...
 # 获取函数名
 def get_func_name(self) -> str: ...
 
-# 获取类名
-def get_class_name(self) -> str: ...
+# 获取类名（私有）
+def _get_class_name(self) -> str: ...
 
 # 获取标签（用于日志和追踪）
 def get_tag(self) -> str: ...
 
-# 获取执行模式描述
-def get_execution_mode_desc(self) -> str: ...
+# 获取执行模式描述（私有）
+def _get_execution_mode_desc(self) -> str: ...
 ```
 
 ### 获取状态快照
@@ -195,10 +197,10 @@ def get_task_repr(self, task) -> str:
     """
 ```
 
-### get_result_repr
+### _get_result_repr
 
 ```python
-def get_result_repr(self, result) -> str:
+def _get_result_repr(self, result) -> str:
     """
     获取结果的可读字符串表示。
     """
@@ -213,7 +215,8 @@ def get_result_repr(self, result) -> str:
 ```python
 # 警告：可能导致缓存结果数与输入任务数不一致
 executor = TaskExecutor(
-    func=process,
+    "Processor",
+    process,
     enable_success_cache=True,
     enable_duplicate_check=False  # 不推荐
 )

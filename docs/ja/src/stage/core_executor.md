@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/04/23
 
 `TaskExecutor` は、単一タスクのロジックを実行するコアコンポーネントです。タスクの実行、並行制御、エラーハンドリング、リトライ機構、およびログ記録を担当します。
 
@@ -10,6 +10,7 @@
 class TaskExecutor:
     def __init__(
         self,
+        name,
         func,
         execution_mode="serial",
         max_workers=20,
@@ -27,6 +28,7 @@ class TaskExecutor:
 
 ### パラメータ説明
 
+- **name**: エグゼキューターの名前。ログとトレースに使用されます。
 - **func**: タスクを実際に実行するコーラブルオブジェクト（関数）。
 - **execution_mode**: 実行モード。
   - `serial`: 逐次実行。
@@ -83,7 +85,7 @@ def add_retry_exceptions(self, *exceptions):
 
 例：
 ```python
-executor = TaskExecutor(func=process, max_retries=3)
+executor = TaskExecutor("Processor", process, max_retries=3)
 executor.add_retry_exceptions(ValueError, ConnectionError, TimeoutError)
 ```
 
@@ -157,14 +159,14 @@ def get_name(self) -> str: ...
 # 関数名を取得
 def get_func_name(self) -> str: ...
 
-# クラス名を取得
-def get_class_name(self) -> str: ...
+# クラス名を取得（プライベート）
+def _get_class_name(self) -> str: ...
 
 # タグを取得（ログと追跡に使用）
 def get_tag(self) -> str: ...
 
-# 実行モードの説明を取得
-def get_execution_mode_desc(self) -> str: ...
+# 実行モードの説明を取得（プライベート）
+def _get_execution_mode_desc(self) -> str: ...
 ```
 
 ### 状態スナップショットの取得
@@ -195,10 +197,10 @@ def get_task_repr(self, task) -> str:
     """
 ```
 
-### get_result_repr
+### _get_result_repr
 
 ```python
-def get_result_repr(self, result) -> str:
+def _get_result_repr(self, result) -> str:
     """
     結果の人間が読める文字列表現を取得します。
     """
@@ -213,7 +215,8 @@ def get_result_repr(self, result) -> str:
 ```python
 # 警告: キャッシュされた結果数と入力タスク数の不一致が生じる可能性があります
 executor = TaskExecutor(
-    func=process,
+    "Processor",
+    process,
     enable_success_cache=True,
     enable_duplicate_check=False  # 非推奨
 )

@@ -1,6 +1,6 @@
 # TaskNodes
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/04/23
 
 TaskNodes 模块提供了多种特殊功能的 `TaskStage` 实现，用于流控制、外部系统交互等场景。
 
@@ -41,12 +41,12 @@ flowchart LR
 
 ```python
 class TaskSplitter(TaskStage):
-    def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
+    def __init__(self, name: str, stage_mode: str = "serial"):
         """
         初始化 TaskSplitter。
 
+        :param name: 节点名称
         :param stage_mode: 节点运行模式
-        :param stage_name: 节点名称
         """
         # 默认：execution_mode="serial", max_retries=0, unpack_task_args=True
 ```
@@ -107,12 +107,12 @@ flowchart LR
 
 ```python
 class TaskRouter(TaskStage):
-    def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
+    def __init__(self, name: str, stage_mode: str = "serial"):
         """
         初始化 TaskRouter。
 
+        :param name: 节点名称
         :param stage_mode: 节点运行模式
-        :param stage_name: 节点名称
         """
         # 默认：execution_mode="serial", max_retries=0
 ```
@@ -184,14 +184,14 @@ flowchart LR
 class TaskRedisTransport(TaskStage):
     def __init__(
         self,
-        key: str,                       # Redis List 名称
+        name: str,        # 节点名称
+        key: str = "",                  # Redis List 名称
         host: str = "localhost",        # Redis 主机地址
         port: int = 6379,               # Redis 端口
         db: int = 0,                    # Redis 数据库编号
         password: str | None = None,    # Redis 密码
         unpack_task_args: bool = False, # 是否解包任务参数
         stage_mode: str = "serial",     # 节点运行模式
-        stage_name: str | None = None,  # 节点名称
     ):
         ...
 ```
@@ -206,14 +206,14 @@ class TaskRedisTransport(TaskStage):
 class TaskRedisSource(TaskStage):
     def __init__(
         self,
-        key: str,                    # Redis List 名称
+        name: str,     # 节点名称
+        key: str = "",               # Redis List 名称
         host: str = "localhost",     # Redis 主机地址
         port: int = 6379,            # Redis 端口
         db: int = 0,                 # Redis 数据库编号
         password: str | None = None, # Redis 密码
         timeout: int = 10,           # 阻塞超时时间（秒），0 表示无限等待
         stage_mode: str = "serial",  # 节点运行模式
-        stage_name: str | None = None, # 节点名称
     ):
         ...
 ```
@@ -259,14 +259,14 @@ flowchart LR
 class TaskRedisAck(TaskStage):
     def __init__(
         self,
-        key: str,                    # Redis Hash 名称（存储结果）
+        name: str,     # 节点名称
+        key: str = "",               # Redis Hash 名称（存储结果）
         host: str = "localhost",     # Redis 主机地址
         port: int = 6379,            # Redis 端口
         db: int = 0,                 # Redis 数据库编号
         password: str | None = None, # Redis 密码
         timeout: int = 10,           # 等待超时时间（秒），0 表示无限等待
         stage_mode: str = "serial",  # 节点运行模式
-        stage_name: str | None = None, # 节点名称
     ):
         ...
 ```

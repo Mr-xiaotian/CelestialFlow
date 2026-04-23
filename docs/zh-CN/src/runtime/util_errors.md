@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/04/23
 
 TaskErrors 模块定义了框架中使用的自定义异常类。
 
@@ -191,7 +191,7 @@ except ExecutionModeError as e:
 ### 添加可重试异常
 
 ```python
-executor = TaskExecutor(func=process, max_retries=3)
+executor = TaskExecutor("Processor", process, max_retries=3)
 executor.add_retry_exceptions(ConnectionError, TimeoutError)
 ```
 

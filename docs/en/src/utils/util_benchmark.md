@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/04/23
 
 `utils/benchmark.py` provides performance benchmarking functionality for executors and task graphs, used to compare performance differences across execution modes.
 
@@ -98,8 +98,8 @@ async def async_task(x):
     return x * 2
 
 # Create executors
-sync_executor = TaskExecutor(func=sync_task)
-async_executor = TaskExecutor(func=async_task)
+sync_executor = TaskExecutor("SyncBench", sync_task)
+async_executor = TaskExecutor("AsyncBench", async_task)
 
 # Run benchmark
 asyncio.run(benchmark_executor(

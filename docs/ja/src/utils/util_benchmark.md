@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/04/23
 
 `utils/benchmark.py` は、エグゼキュータおよびタスクグラフのパフォーマンスベンチマーク機能を提供し、異なる実行モード間のパフォーマンス差を比較するために使用されます。
 
@@ -98,8 +98,8 @@ async def async_task(x):
     return x * 2
 
 # エグゼキュータの作成
-sync_executor = TaskExecutor(func=sync_task)
-async_executor = TaskExecutor(func=async_task)
+sync_executor = TaskExecutor("SyncBench", sync_task)
+async_executor = TaskExecutor("AsyncBench", async_task)
 
 # ベンチマークの実行
 asyncio.run(benchmark_executor(

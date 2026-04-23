@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/04/23
 
 `utils/benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
@@ -98,8 +98,8 @@ async def async_task(x):
     return x * 2
 
 # 创建执行器
-sync_executor = TaskExecutor(func=sync_task)
-async_executor = TaskExecutor(func=async_task)
+sync_executor = TaskExecutor("SyncBench", sync_task)
+async_executor = TaskExecutor("AsyncBench", async_task)
 
 # 运行基准测试
 asyncio.run(benchmark_executor(

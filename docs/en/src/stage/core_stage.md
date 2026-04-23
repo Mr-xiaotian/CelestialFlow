@@ -1,6 +1,6 @@
 # TaskStage
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/04/23
 
 `TaskStage` is the basic building unit for constructing a `TaskGraph`. It inherits from `TaskExecutor` and adds graph structure connection capabilities.
 
@@ -22,12 +22,23 @@
 
 ```python
 class TaskStage(TaskExecutor):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # ...
+    def __init__(
+        self,
+        name,
+        func,
+        execution_mode="serial",
+        max_workers=20,
+        max_retries=1,
+        max_info=50,
+        unpack_task_args=False,
+        enable_success_cache=False,
+        enable_duplicate_check=True,
+        stage_mode="serial",
+    ):
+        ...
 ```
 
-Parameters are the same as `TaskExecutor`. The main difference is that `TaskStage`'s `execution_mode` can only be `thread` or `serial` (`process` mode is controlled by `stage_mode`).
+Parameters are the same as `TaskExecutor`, with an additional `stage_mode` parameter. The main difference is that `TaskStage`'s `execution_mode` can only be `thread` or `serial` (`process` mode is controlled by `stage_mode`).
 
 ## Graph Construction Methods
 
@@ -51,8 +62,8 @@ def connect(
 
 Example:
 ```python
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="StageA")
-stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", name="StageB")
+stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", stage_mode="process")
+stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mode="process")
 
 # Create graph and connect nodes
 graph = TaskGraph()
@@ -80,7 +91,7 @@ def get_stage_mode(self) -> str:
 ### Name Configuration
 
 ```python
-def set_name(self, name: str = None):
+def set_name(self, name: str):
     """
     Set the name of the current node.
     Note: After a name change, the tag will be invalidated and regenerated.
