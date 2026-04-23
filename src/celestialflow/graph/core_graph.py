@@ -58,8 +58,8 @@ class StageRuntime:
     """单个 Stage 的运行时封装，保存阶段实例及其输入输出队列。"""
 
     stage: TaskStage
-    in_queue: TaskInQueue | None = None
-    out_queue: TaskOutQueue | None = None
+    in_queue: TaskInQueue
+    out_queue: TaskOutQueue
     start_time: float = 0.0
 
 
@@ -167,8 +167,26 @@ class TaskGraph:
         for stage in stages + root_stages:
             if stage.get_tag() in self.stage_runtime_dict:
                 continue
+
             stage_tag = stage.get_tag()
-            self.stage_runtime_dict[stage_tag] = StageRuntime(stage=stage)
+            in_queue = TaskInQueue(
+                queue=MPQueue(),
+                queue_tags=[],
+                out_tag=stage.get_tag(),
+                log_inlet=self.log_inlet,
+            )
+            out_queue = TaskOutQueue(
+                queue_list=[],
+                queue_tags=[],
+                in_tag=stage.get_tag(),
+                log_inlet=self.log_inlet,
+            )
+
+            self.stage_runtime_dict[stage_tag] = StageRuntime(
+                stage=stage,
+                in_queue=in_queue,
+                out_queue=out_queue,
+            )
 
     def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
         """
@@ -296,26 +314,6 @@ class TaskGraph:
         """
         构建每个阶段的运行时资源（队列、计数器、前驱绑定）
         """
-
-        for stage_tag, stage_runtime in self.stage_runtime_dict.items():
-            stage = stage_runtime.stage
-
-            # 刷新所有 counter
-            stage.metrics.reset_counter()
-
-            stage_runtime.in_queue = TaskInQueue(
-                queue=MPQueue(),
-                queue_tags=[],
-                out_tag=stage.get_tag(),
-                log_inlet=self.log_inlet,
-            )
-            stage_runtime.out_queue = TaskOutQueue(
-                queue_list=[],
-                queue_tags=[],
-                in_tag=stage.get_tag(),
-                log_inlet=self.log_inlet,
-            )
-
         for stage_tag, stage_runtime in self.stage_runtime_dict.items():
             if not self.in_edges[stage_tag]:  # 如果没有前驱
                 continue
@@ -329,7 +327,9 @@ class TaskGraph:
                 prev_stage = self.stage_runtime_dict[prev_stage_tag].stage
                 in_queue.add_source_tag(prev_stage_tag)
 
-                prev_out_queue: TaskOutQueue = self.stage_runtime_dict[prev_stage_tag].out_queue
+                prev_out_queue: TaskOutQueue = self.stage_runtime_dict[
+                    prev_stage_tag
+                ].out_queue
                 prev_out_queue.add_queue(in_queue.queue, stage_tag)
                 prev_stages.append(prev_stage)
 
@@ -438,7 +438,9 @@ class TaskGraph:
         if put_termination_signal:
             for root_stage in self.root_stages:
                 root_stage_tag = root_stage.get_tag()
-                root_in_queue: TaskInQueue = self.stage_runtime_dict[root_stage_tag].in_queue
+                root_in_queue: TaskInQueue = self.stage_runtime_dict[
+                    root_stage_tag
+                ].in_queue
 
                 termination_id = self.ctree_client.emit(
                     CTreeEvent.TERMINATION_INPUT,
