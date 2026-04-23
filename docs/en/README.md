@@ -132,8 +132,8 @@ if __name__ == "__main__":
     stage2 = TaskStage(square, execution_mode="thread")
 
     # Build the task graph
-    stage1 = TaskStage(add, execution_mode="thread", unpack_task_args=True, stage_mode="process", stage_name="Adder")
-    stage2 = TaskStage(square, execution_mode="thread", stage_mode="process", stage_name="Squarer")
+    stage1 = TaskStage(add, execution_mode="thread", unpack_task_args=True, stage_mode="process", name="Adder")
+    stage2 = TaskStage(square, execution_mode="thread", stage_mode="process", name="Squarer")
 
     graph = TaskGraph()
     graph.set_stages(root_stages=[stage1], stages=[stage2])

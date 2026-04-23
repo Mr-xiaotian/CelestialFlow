@@ -257,9 +257,9 @@ graph.put_stage_queue({
 from celestialflow import TaskStage, TaskGraph
 
 # 创建节点
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", stage_name="A")
-stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", stage_name="B")
-stage_c = TaskStage(func=process_c, execution_mode="serial", stage_mode="process", stage_name="C")
+stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="A")
+stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", name="B")
+stage_c = TaskStage(func=process_c, execution_mode="serial", stage_mode="process", name="C")
 
 # 构建图
 graph = TaskGraph(schedule_mode="eager", log_level="INFO")

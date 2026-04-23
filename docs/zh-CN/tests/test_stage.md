@@ -18,8 +18,8 @@
 - **格式**：`Stage[{func_name}]` 或自定义 name。
 
 #### `test_stage_tag_changes_with_name`
-- **目标**：修改 `stage_name` 后，旧 tag 应失效，新 tag 反映新名称。
-- **实现机制**：`set_stage_name()` 通过 `delattr(self, "_tag")` 删除缓存的 tag，下次 `get_tag()` 调用时重新计算。
+- **目标**：修改 `name` 后，旧 tag 应失效，新 tag 反映新名称。
+- **实现机制**：`set_name()` 通过 `delattr(self, "_tag")` 删除缓存的 tag，下次 `get_tag()` 调用时重新计算。
 - **风险点**：若在多进程场景下，子进程已序列化旧 tag 后父进程修改了 name，可能导致 tag 不一致。
 
 #### `test_invalid_stage_mode`

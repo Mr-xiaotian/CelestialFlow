@@ -30,7 +30,7 @@ Parameters are the same as `TaskExecutor`. The main difference is that `TaskStag
 
 ### graph.connect
 
-Establish connections between nodes using `graph.connect(from_stages, to_stages)`. `stage_mode` and `stage_name` are passed through `TaskStage.__init__()` constructor parameters.
+Establish connections between nodes using `graph.connect(from_stages, to_stages)`. `stage_mode` and `name` are passed through `TaskStage.__init__()` constructor parameters.
 
 ```python
 def connect(
@@ -48,8 +48,8 @@ def connect(
 
 Example:
 ```python
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", stage_name="StageA")
-stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", stage_name="StageB")
+stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="StageA")
+stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", name="StageB")
 
 # Create graph and connect nodes
 graph = TaskGraph()
@@ -77,7 +77,7 @@ def get_stage_mode(self) -> str:
 ### Name Configuration
 
 ```python
-def set_stage_name(self, name: str = None):
+def set_name(self, name: str = None):
     """
     Set the name of the current node.
     Note: After a name change, the tag will be invalidated and regenerated.

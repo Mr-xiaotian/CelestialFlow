@@ -18,8 +18,8 @@ Validates the configuration layer behavior of `TaskStage`, including: tag genera
 - **Format**: `Stage[{func_name}]` or custom name.
 
 #### `test_stage_tag_changes_with_name`
-- **Purpose**: After modifying `stage_name`, the old tag should be invalidated and the new tag should reflect the new name.
-- **Implementation**: `set_stage_name()` deletes the cached tag via `delattr(self, "_tag")`; the next `get_tag()` call recomputes it.
+- **Purpose**: After modifying `name`, the old tag should be invalidated and the new tag should reflect the new name.
+- **Implementation**: `set_name()` deletes the cached tag via `delattr(self, "_tag")`; the next `get_tag()` call recomputes it.
 - **Risk**: In multiprocessing scenarios, if a child process has already serialized the old tag before the parent process modifies the name, tag inconsistency may occur.
 
 #### `test_invalid_stage_mode`

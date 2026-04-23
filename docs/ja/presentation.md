@@ -164,7 +164,7 @@ classDiagram
 - **TaskExecutor**: タスク実行のコア。リトライ、重複排除、キャッシュ、並行戦略を管理します
 - **TaskStage**: グラフノード。トポロジカル関係は`TaskGraph`が管理します（`graph.out_edges` / `graph.in_edges`）
 - **`graph.connect()`** がノード間の上下流接続を確立します
-- **`stage_mode`/`stage_name`** は`TaskStage.__init__()`のコンストラクタパラメータとして渡されます
+- **`stage_mode`/`name`** は`TaskStage.__init__()`のコンストラクタパラメータとして渡されます
 
 ---
 

@@ -30,7 +30,7 @@ class TaskStage(TaskExecutor):
 
 ### graph.connect
 
-通过 `graph.connect(from_stages, to_stages)` 建立节点间的连接关系。`stage_mode` 和 `stage_name` 通过 `TaskStage.__init__()` 的构造参数传入。
+通过 `graph.connect(from_stages, to_stages)` 建立节点间的连接关系。`stage_mode` 和 `name` 通过 `TaskStage.__init__()` 的构造参数传入。
 
 ```python
 def connect(
@@ -48,8 +48,8 @@ def connect(
 
 示例：
 ```python
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", stage_name="StageA")
-stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", stage_name="StageB")
+stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="StageA")
+stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", name="StageB")
 
 # 创建图并连接节点
 graph = TaskGraph()
@@ -77,7 +77,7 @@ def get_stage_mode(self) -> str:
 ### 名称设置
 
 ```python
-def set_stage_name(self, name: str = None):
+def set_name(self, name: str = None):
     """
     设置当前节点名称。
     注意：名称变更后，标签（tag）会失效并重新生成。

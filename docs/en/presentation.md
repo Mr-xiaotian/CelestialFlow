@@ -164,7 +164,7 @@ classDiagram
 - **TaskExecutor**: Core task execution — manages retries, deduplication, caching, and concurrency strategies
 - **TaskStage**: Graph node — topological relationships managed by `TaskGraph` (`graph.out_edges` / `graph.in_edges`)
 - **`graph.connect()`** establishes upstream/downstream connections between nodes
-- **`stage_mode`/`stage_name`** are passed as constructor parameters to `TaskStage.__init__()`
+- **`stage_mode`/`name`** are passed as constructor parameters to `TaskStage.__init__()`
 
 ---
 

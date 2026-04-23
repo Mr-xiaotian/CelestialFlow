@@ -114,8 +114,8 @@ from celestialflow import TaskGraph, TaskStage
 from celestialflow.utils.benchmark import benchmark_graph
 
 # 创建节点
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", stage_name="A")
-stage_b = TaskStage(func=process_b, execution_mode="thread", stage_mode="process", stage_name="B")
+stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="A")
+stage_b = TaskStage(func=process_b, execution_mode="thread", stage_mode="process", name="B")
 
 # 构建图
 graph = TaskGraph()

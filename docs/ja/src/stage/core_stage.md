@@ -30,7 +30,7 @@ class TaskStage(TaskExecutor):
 
 ### graph.connect
 
-`graph.connect(from_stages, to_stages)` を使用してノード間の接続関係を確立します。`stage_mode` と `stage_name` は `TaskStage.__init__()` のコンストラクタパラメータで渡されます。
+`graph.connect(from_stages, to_stages)` を使用してノード間の接続関係を確立します。`stage_mode` と `name` は `TaskStage.__init__()` のコンストラクタパラメータで渡されます。
 
 ```python
 def connect(
@@ -48,8 +48,8 @@ def connect(
 
 例：
 ```python
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", stage_name="StageA")
-stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", stage_name="StageB")
+stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="StageA")
+stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", name="StageB")
 
 # グラフを作成しノードを接続
 graph = TaskGraph()
@@ -77,7 +77,7 @@ def get_stage_mode(self) -> str:
 ### 名前設定
 
 ```python
-def set_stage_name(self, name: str = None):
+def set_name(self, name: str = None):
     """
     現在のノードの名前を設定します。
     注意: 名前変更後、タグは無効化され再生成されます。

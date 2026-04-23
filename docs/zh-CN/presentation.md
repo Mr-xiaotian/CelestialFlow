@@ -164,7 +164,7 @@ classDiagram
 - **TaskExecutor**：任务执行核心，管理重试、去重、缓存、并发策略
 - **TaskStage**：图节点，拓扑关系由 `TaskGraph` 管理（`graph.out_edges` / `graph.in_edges`）
 - **`graph.connect()`** 建立节点间的连接关系（上下游依赖）
-- **`stage_mode`/`stage_name`** 通过 `TaskStage.__init__()` 构造参数传入
+- **`stage_mode`/`name`** 通过 `TaskStage.__init__()` 构造参数传入
 
 ---
 
