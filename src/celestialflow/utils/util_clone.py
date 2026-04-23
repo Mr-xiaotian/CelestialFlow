@@ -15,6 +15,7 @@ def _get_clone_init_kwargs(executor: TaskExecutor) -> dict:
     :return: 克隆执行器的初始化参数
     """
     return {
+        "name": executor.get_name(),
         "func": executor.func,
         "execution_mode": executor.execution_mode,
         "max_workers": executor.max_workers,
@@ -57,7 +58,6 @@ def clone_stage(stage: TaskStage) -> TaskStage:
 
     cloned.add_retry_exceptions(*stage.metrics.retry_exceptions)
     cloned.set_stage_mode(stage.get_stage_mode())
-    cloned.set_stage_name(stage.get_name())
     return cloned
 
 

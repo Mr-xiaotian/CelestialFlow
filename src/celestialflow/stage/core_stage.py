@@ -19,6 +19,7 @@ class TaskStage(TaskExecutor):
     # ==== 初始化 ====
     def __init__(
         self,
+        name,
         func,
         execution_mode="serial",
         max_workers=20,
@@ -28,9 +29,9 @@ class TaskStage(TaskExecutor):
         enable_success_cache=False,
         enable_duplicate_check=True,
         stage_mode="serial",
-        stage_name=None,
     ):
         """
+        :param name: 节点名称
         :param func: 可调用对象
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'
         :param max_workers: 同时处理数量
@@ -40,9 +41,9 @@ class TaskStage(TaskExecutor):
         :param enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_pairs 中
         :param enable_duplicate_check: 是否启用重复检查
         :param stage_mode: 当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）, 默认 'serial'
-        :param stage_name: 当前节点名称, 默认 None（会自动生成）
         """
         super().__init__(
+            name,
             func,
             execution_mode,
             max_workers,
@@ -54,7 +55,6 @@ class TaskStage(TaskExecutor):
         )
 
         self.set_stage_mode(stage_mode)
-        self.set_stage_name(stage_name)
 
         self._init_status()
 
@@ -97,18 +97,6 @@ class TaskStage(TaskExecutor):
             self.stage_mode = "serial"
         else:
             raise StageModeError(stage_mode)
-
-    def set_stage_name(self, name: str | None = None) -> None:
-        """
-        设置当前节点名称
-
-        :param name: 当前节点名称
-        """
-        self._name = name or f"Stage{id(self)}"
-
-        # name 变了，tag 必须失效
-        if hasattr(self, "_tag"):
-            delattr(self, "_tag")
 
     def set_execution_mode(self, execution_mode: str) -> None:
         """

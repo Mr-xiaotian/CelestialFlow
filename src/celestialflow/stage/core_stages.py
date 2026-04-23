@@ -13,20 +13,20 @@ from .core_stage import TaskStage
 
 # ==== TaskSplitter ====
 class TaskSplitter(TaskStage):
-    def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
+    def __init__(self, name: str | None = None, stage_mode: str = "serial"):
         """
         初始化 TaskSplitter
 
+        :param name: 节点名称
         :param stage_mode: 节点运行模式
-        :param stage_name: 节点名称
         """
         super().__init__(
+            name=name,
             func=self._split,
             execution_mode="serial",
             max_retries=0,
             unpack_task_args=True,
             stage_mode=stage_mode,
-            stage_name=stage_name,
         )
 
         self._init_extra_counter()
@@ -123,19 +123,19 @@ class TaskSplitter(TaskStage):
 
 # ==== TaskRouter ====
 class TaskRouter(TaskStage):
-    def __init__(self, stage_mode: str = "serial", stage_name: str | None = None):
+    def __init__(self, name: str | None = None, stage_mode: str = "serial"):
         """
         初始化 TaskRouter
 
+        :param name: 节点名称
         :param stage_mode: 节点运行模式
-        :param stage_name: 节点名称
         """
         super().__init__(
+            name=name,
             func=self._route,
             execution_mode="serial",
             max_retries=0,
             stage_mode=stage_mode,
-            stage_name=stage_name,
         )
 
         self._init_extra_counter()
@@ -229,18 +229,19 @@ class TaskRouter(TaskStage):
 class TaskRedisTransport(TaskStage):
     def __init__(
         self,
-        key: str,
+        name: str | None = None,
+        key: str = "",
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
         password: str | None = None,
         unpack_task_args: bool = False,
         stage_mode: str = "serial",
-        stage_name: str | None = None,
     ):
         """
         初始化 TaskRedisTransport
 
+        :param name: 节点名称
         :param key: Redis list key
         :param host: Redis 主机地址
         :param port: Redis 端口
@@ -248,15 +249,14 @@ class TaskRedisTransport(TaskStage):
         :param password: Redis 密码
         :param unpack_task_args: 是否将任务参数解包
         :param stage_mode: 节点运行模式
-        :param stage_name: 节点名称
         """
         super().__init__(
+            name=name,
             func=self._transport,
             execution_mode="thread",
             max_workers=4,
             unpack_task_args=unpack_task_args,
             stage_mode=stage_mode,
-            stage_name=stage_name,
         )
         self.key = key
         self.host = host
@@ -301,18 +301,19 @@ class TaskRedisTransport(TaskStage):
 class TaskRedisSource(TaskStage):
     def __init__(
         self,
-        key: str,
+        name: str | None = None,
+        key: str = "",
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
         password: str | None = None,
         timeout: int = 10,
         stage_mode: str = "serial",
-        stage_name: str | None = None,
     ):
         """
         初始化 TaskRedisSource
 
+        :param name: 节点名称
         :param key: Redis list key
         :param host: Redis 主机地址
         :param port: Redis 端口
@@ -320,14 +321,13 @@ class TaskRedisSource(TaskStage):
         :param password: Redis 密码
         :param timeout: Redis 超时时间, 设为0则无限等待
         :param stage_mode: 节点运行模式
-        :param stage_name: 节点名称
         """
         super().__init__(
+            name=name,
             func=self._source,
             execution_mode="serial",
             enable_duplicate_check=False,
             stage_mode=stage_mode,
-            stage_name=stage_name,
         )
         self.key = key
         self.host = host
@@ -378,18 +378,19 @@ class TaskRedisSource(TaskStage):
 class TaskRedisAck(TaskStage):
     def __init__(
         self,
-        key: str,
+        name: str | None = None,
+        key: str = "",
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
         password: str | None = None,
         timeout: int = 10,
         stage_mode: str = "serial",
-        stage_name: str | None = None,
     ):
         """
         TaskRedisAck: 远端任务完成确认节点（Ack）
 
+        :param name: 节点名称
         :param key: Redis 结果 key 前缀（通常与 TaskRedisTransport 对应）
         :param host: Redis 主机地址
         :param port: Redis 端口
@@ -397,14 +398,13 @@ class TaskRedisAck(TaskStage):
         :param password: Redis 密码
         :param timeout: 等待结果的超时时间（秒），0 表示无限等待
         :param stage_mode: 节点运行模式
-        :param stage_name: 节点名称
         """
         super().__init__(
+            name=name,
             func=self._ack,
             execution_mode="serial",  # Ack 是顺序语义
             enable_duplicate_check=False,  # task_id 天然唯一
             stage_mode=stage_mode,
-            stage_name=stage_name,
         )
 
         self.key = key

@@ -44,6 +44,7 @@ class TaskExecutor:
     # ==== 初始化 ====
     def __init__(
         self,
+        name,
         func,
         execution_mode="serial",
         max_workers=20,
@@ -59,6 +60,7 @@ class TaskExecutor:
         """
         初始化 TaskExecutor
 
+        :param name: 节点/管理器名称
         :param func: 可调用对象
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'
         :param max_workers: 同时处理数量
@@ -79,6 +81,7 @@ class TaskExecutor:
                 RuntimeWarning,
             )
 
+        self.set_name(name)
         self._set_func(func)
         self.set_execution_mode(execution_mode)
         self.max_workers = max_workers
@@ -261,6 +264,9 @@ class TaskExecutor:
         :param event_id: 事件ID
         """
         self.ctree_client = NullCelestialTreeClient(event_id)
+
+    def set_name(self, name: str | None = None) -> None:
+        self._name = name
 
     def set_log_level(self, log_level: str) -> None:
         """

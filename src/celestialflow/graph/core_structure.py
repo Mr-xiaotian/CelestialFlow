@@ -23,7 +23,7 @@ class TaskChain(TaskGraph):
 
         for num, stage in enumerate(stages):
             stage.set_stage_mode(chain_mode)
-            stage.set_stage_name(f"Stage {num + 1}")
+            stage.set_name(f"Stage {num + 1}")
 
         self.set_stages(root_stages=[stages[0]], stages=stages)
         for num in range(len(stages) - 1):
@@ -65,7 +65,7 @@ class TaskCross(TaskGraph):
         for i, curr_layer in enumerate(layers):
             for index, stage in enumerate(curr_layer):
                 stage.set_stage_mode("process")
-                stage.set_stage_name(f"Layer{i + 1}-{index + 1}")
+                stage.set_name(f"Layer{i + 1}-{index + 1}")
             all_stages.extend(curr_layer)
 
         self.set_stages(root_stages=layers[0], stages=all_stages)
@@ -110,7 +110,7 @@ class TaskGrid(TaskGraph):
             for j in range(cols):
                 curr = grid[i][j]
                 curr.set_stage_mode("process")
-                curr.set_stage_name(f"Grid-{i + 1}-{j + 1}")
+                curr.set_name(f"Grid-{i + 1}-{j + 1}")
                 all_stages.append(curr)
 
         self.set_stages(root_stages=[grid[0][0]], stages=all_stages)
@@ -148,7 +148,7 @@ class TaskLoop(TaskGraph):
 
         for num, stage in enumerate(stages):
             stage.set_stage_mode("process")
-            stage.set_stage_name(f"Stage {num + 1}")
+            stage.set_name(f"Stage {num + 1}")
 
         self.set_stages(root_stages=[stages[0]], stages=stages)
         for num in range(len(stages)):
@@ -182,11 +182,11 @@ class TaskWheel(TaskGraph):
         super().__init__(log_level=log_level)
 
         center.set_stage_mode("process")
-        center.set_stage_name("Center")
+        center.set_name("Center")
 
         for i, node in enumerate(ring):
             node.set_stage_mode("process")
-            node.set_stage_name(f"Ring-{i + 1}")
+            node.set_name(f"Ring-{i + 1}")
 
         self.set_stages(root_stages=[center], stages=[center] + ring)
         self.connect([center], ring)
@@ -218,7 +218,7 @@ class TaskComplete(TaskGraph):
 
         for i, stage in enumerate(stages):
             stage.set_stage_mode("process")
-            stage.set_stage_name(f"Node {i + 1}")
+            stage.set_name(f"Node {i + 1}")
 
         self.set_stages(root_stages=stages, stages=stages)
         for i, stage in enumerate(stages):
