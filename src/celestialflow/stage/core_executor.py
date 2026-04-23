@@ -41,23 +41,20 @@ from ..utils.util_format import format_repr
 class TaskExecutor:
     """任务执行器基类，支持串行、线程和异步三种执行模式。"""
 
-    _name = "Executor"
-
     # ==== 初始化 ====
     def __init__(
         self,
-        name,
-        func,
-        execution_mode="serial",
-        max_workers=20,
-        max_retries=1,
-        max_info=50,
-        unpack_task_args=False,
-        enable_success_cache=False,
-        enable_duplicate_check=True,
-        show_progress=False,
-        progress_desc="Executing",
-        log_level="SUCCESS",
+        name: str,
+        func: Callable,
+        execution_mode: str = "serial",
+        max_workers: int = 20,
+        max_retries: int = 1,
+        max_info: int = 50,
+        unpack_task_args: bool = False,
+        enable_success_cache: bool = False,
+        enable_duplicate_check: bool = True,
+        show_progress: bool = False,
+        log_level: str = "SUCCESS",
     ):
         """
         初始化 TaskExecutor
@@ -72,7 +69,6 @@ class TaskExecutor:
         :param enable_success_cache: 是否启用成功结果缓存, 将成功结果保存在 success_pairs 中
         :param enable_duplicate_check: 是否启用重复检查
         :param show_progress: 进度条显示与否
-        :param progress_desc: 进度条显示名称
         :param log_level: 日志级别
         """
         if enable_success_cache and not enable_duplicate_check:
@@ -95,7 +91,6 @@ class TaskExecutor:
         self.enable_duplicate_check = enable_duplicate_check
 
         self.show_progress = show_progress
-        self.progress_desc = progress_desc
         self.set_log_level(log_level)
 
         self.set_nullctree()
@@ -119,8 +114,8 @@ class TaskExecutor:
         self,
         task_queues: TaskInQueue | None = None,
         result_queues: TaskOutQueue | None = None,
-        fail_queue=None,
-        log_queue=None,
+        fail_queue: MPQueue | None = None,
+        log_queue: MPQueue | None = None,
     ) -> None:
         """
         初始化环境
@@ -141,7 +136,7 @@ class TaskExecutor:
         """
         self.metrics.reset_state()
 
-    def _init_inlet(self, fail_queue: MPQueue, log_queue: MPQueue) -> None:
+    def _init_inlet(self, fail_queue: MPQueue | None, log_queue: MPQueue | None) -> None:
         """
         初始化收集器
 
@@ -216,7 +211,7 @@ class TaskExecutor:
 
         self.task_progress = TaskProgress(
             total_tasks=0,
-            desc=f"{self.progress_desc}({extra_desc})",
+            desc=f"{self.name}({extra_desc})",
             mode=progress_mode,
         )
 

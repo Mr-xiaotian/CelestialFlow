@@ -25,7 +25,6 @@ def _get_clone_init_kwargs(executor: TaskExecutor) -> dict:
         "enable_success_cache": executor.enable_success_cache,
         "enable_duplicate_check": executor.enable_duplicate_check,
         "show_progress": executor.show_progress,
-        "progress_desc": executor.progress_desc,
         "log_level": executor.log_level,
     }
 
@@ -50,9 +49,8 @@ def clone_stage(stage: TaskStage) -> TaskStage:
     :return: 克隆节点
     """
     kwargs = _get_clone_init_kwargs(stage)
-    # TaskStage does not accept show_progress / progress_desc / log_level
+    # TaskStage does not accept show_progress / log_level
     kwargs.pop("show_progress", None)
-    kwargs.pop("progress_desc", None)
     kwargs.pop("log_level", None)
     cloned = TaskStage(**kwargs)
 
