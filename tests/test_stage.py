@@ -71,7 +71,7 @@ class TestTaskStageConfig:
 
     def test_valid_execution_mode_async(self):
         """合法 execution_mode: async"""
-        stage = TaskStage("add_one_async_exec", add_one, execution_mode="async")
+        stage = TaskStage("add_one_async_exec", async_add_one, execution_mode="async")
         assert stage.execution_mode == "async"
 
     def test_invalid_execution_mode(self):

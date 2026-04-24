@@ -97,18 +97,6 @@ class TaskStage(TaskExecutor):
         else:
             raise StageModeError(stage_mode)
 
-    def set_execution_mode(self, execution_mode: str) -> None:
-        """
-        设置执行模式
-
-        :param execution_mode: 执行模式，在 stage 中可以是 'serial'（串行）, 'thread'（线程）, 'async'（异步）
-        """
-        valid_modes = ("serial", "thread", "async")
-        if execution_mode in valid_modes:
-            self.execution_mode = execution_mode
-        else:
-            raise ExecutionModeError(execution_mode, valid_modes)
-
     # ==== 绑定 ====
     def get_binding_counter(self, _downstream_tag: str):
         """

@@ -343,6 +343,127 @@ class TestTaskGraphSummary:
 
 
 # =========================
+# stage_mode × execution_mode 3×3 矩阵测试
+# =========================
+class TestStageExecutionMatrix:
+    """覆盖 stage_mode(serial/thread/process) × execution_mode(serial/thread/async) 全部 9 种组合"""
+
+    # ---- serial stage_mode ----
+
+    def test_serial_serial(self):
+        s1 = TaskStage("s1", add_one, stage_mode="serial", execution_mode="serial")
+        s2 = TaskStage("s2", double, stage_mode="serial", execution_mode="serial")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.connect([s1], [s2])
+        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 5
+        assert s2.get_counts()["tasks_succeeded"] == 5
+
+    def test_serial_thread(self):
+        s1 = TaskStage("s1", add_one, stage_mode="serial", execution_mode="thread", max_workers=4)
+        s2 = TaskStage("s2", double, stage_mode="serial", execution_mode="thread", max_workers=4)
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.connect([s1], [s2])
+        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 5
+        assert s2.get_counts()["tasks_succeeded"] == 5
+
+    def test_serial_async(self):
+        s1 = TaskStage("s1", async_add_one, stage_mode="serial", execution_mode="async", max_workers=4)
+        s2 = TaskStage("s2", async_double, stage_mode="serial", execution_mode="async", max_workers=4)
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.connect([s1], [s2])
+        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 5
+        assert s2.get_counts()["tasks_succeeded"] == 5
+
+    # ---- thread stage_mode ----
+
+    def test_thread_serial(self):
+        s1 = TaskStage("s1", add_one, stage_mode="thread", execution_mode="serial")
+        s2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.connect([s1], [s2])
+        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 5
+        assert s2.get_counts()["tasks_succeeded"] == 5
+
+    def test_thread_thread(self):
+        s1 = TaskStage("s1", add_one, stage_mode="thread", execution_mode="thread", max_workers=4)
+        s2 = TaskStage("s2", double, stage_mode="thread", execution_mode="thread", max_workers=4)
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.connect([s1], [s2])
+        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 5
+        assert s2.get_counts()["tasks_succeeded"] == 5
+
+    def test_thread_async(self):
+        s1 = TaskStage("s1", async_add_one, stage_mode="thread", execution_mode="async", max_workers=4)
+        s2 = TaskStage("s2", async_double, stage_mode="thread", execution_mode="async", max_workers=4)
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.connect([s1], [s2])
+        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 5
+        assert s2.get_counts()["tasks_succeeded"] == 5
+
+    # ---- process stage_mode ----
+
+    def test_process_serial(self):
+        s1 = TaskStage("s1", add_one, stage_mode="process", execution_mode="serial")
+        s2 = TaskStage("s2", double, stage_mode="process", execution_mode="serial")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.connect([s1], [s2])
+        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 5
+        assert s2.get_counts()["tasks_succeeded"] == 5
+
+    def test_process_thread(self):
+        s1 = TaskStage("s1", add_one, stage_mode="process", execution_mode="thread", max_workers=4)
+        s2 = TaskStage("s2", double, stage_mode="process", execution_mode="thread", max_workers=4)
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.connect([s1], [s2])
+        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 5
+        assert s2.get_counts()["tasks_succeeded"] == 5
+
+    def test_process_async(self):
+        s1 = TaskStage("s1", async_add_one, stage_mode="process", execution_mode="async", max_workers=4)
+        s2 = TaskStage("s2", async_double, stage_mode="process", execution_mode="async", max_workers=4)
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.connect([s1], [s2])
+        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 5
+        assert s2.get_counts()["tasks_succeeded"] == 5
+
+
+# =========================
 # TaskGraph thread 模式测试
 # =========================
 class TestTaskGraphThread:
