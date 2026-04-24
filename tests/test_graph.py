@@ -10,6 +10,24 @@ def add_one(x):
     return x + 1
 
 
+async def async_add_one(x):
+    return x + 1
+
+
+async def async_double(x):
+    return x * 2
+
+
+async def async_to_str(x):
+    return str(x)
+
+
+async def async_add_offset(x, offset=10):
+    if x > 30:
+        raise ValueError("too large")
+    return x + offset
+
+
 def double(x):
     return x * 2
 
@@ -94,6 +112,89 @@ class TestTaskGraphBasic:
         # stage2 只收到 2 个成功结果
         assert stage2.get_counts()["tasks_succeeded"] == 2
         assert stage2.get_counts()["tasks_failed"] == 0
+
+
+
+
+# =========================
+# TaskGraph async 模式测试
+# =========================
+class TestTaskGraphAsync:
+    def test_graph_async_two_nodes(self):
+        """async 模式：两个节点串行，结果正确传递"""
+        stage1 = TaskStage("s1", async_add_one, execution_mode="async")
+        stage2 = TaskStage("s2", async_double, execution_mode="async")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.connect([stage1], [stage2])
+
+        graph.start_graph({stage1.get_tag(): [1, 2, 3]})
+
+        assert stage1.get_counts()["tasks_succeeded"] == 3
+        assert stage2.get_counts()["tasks_succeeded"] == 3
+
+    def test_graph_async_fan_out(self):
+        """async 模式：扇出"""
+        source = TaskStage("src", async_add_one, execution_mode="async")
+        sink_a = TaskStage("sink_a", async_double, execution_mode="async")
+        sink_b = TaskStage("sink_b", async_to_str, execution_mode="async")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[source], stages=[source, sink_a, sink_b])
+        graph.connect([source], [sink_a, sink_b])
+
+        graph.start_graph({source.get_tag(): [1, 2]})
+
+        assert source.get_counts()["tasks_succeeded"] == 2
+        assert sink_a.get_counts()["tasks_succeeded"] == 2
+        assert sink_b.get_counts()["tasks_succeeded"] == 2
+
+    def test_graph_async_fan_in(self):
+        """async 模式：扇入"""
+        source_a = TaskStage("src_a", async_add_one, execution_mode="async")
+        source_b = TaskStage("src_b", async_double, execution_mode="async")
+        merge = TaskStage("merge", async_to_str, execution_mode="async")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[source_a, source_b], stages=[source_a, source_b, merge])
+        graph.connect([source_a, source_b], [merge])
+
+        graph.start_graph({
+            source_a.get_tag(): [1, 2],
+            source_b.get_tag(): [10, 20],
+        })
+
+        assert merge.get_counts()["tasks_succeeded"] == 4
+
+    def test_graph_async_error_propagation(self):
+        """async 模式：错误任务不会阻断整体流程"""
+        stage1 = TaskStage("s1", async_add_offset, execution_mode="async")
+        stage2 = TaskStage("s2", async_double, execution_mode="async")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.connect([stage1], [stage2])
+
+        graph.start_graph({stage1.get_tag(): [1, 50, 2]})
+
+        assert stage1.get_counts()["tasks_succeeded"] == 2
+        assert stage1.get_counts()["tasks_failed"] == 1
+        assert stage2.get_counts()["tasks_succeeded"] == 2
+
+    def test_graph_async_thread_stage_mode(self):
+        """async + thread stage_mode：线程中运行异步任务"""
+        stage1 = TaskStage("s1", async_add_one, stage_mode="thread", execution_mode="async")
+        stage2 = TaskStage("s2", async_double, stage_mode="thread", execution_mode="async")
+
+        graph = TaskGraph()
+        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.connect([stage1], [stage2])
+
+        graph.start_graph({stage1.get_tag(): [1, 2, 3]})
+
+        assert stage1.get_counts()["tasks_succeeded"] == 3
+        assert stage2.get_counts()["tasks_succeeded"] == 3
 
 
 class TestTaskGraphStructure:

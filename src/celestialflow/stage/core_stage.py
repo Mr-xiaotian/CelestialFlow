@@ -1,6 +1,7 @@
 # stage/core_stage.py
 from __future__ import annotations
 
+import asyncio
 import time
 import types
 from multiprocessing import Queue as MPQueue
@@ -32,7 +33,7 @@ class TaskStage(TaskExecutor):
         """
         :param name: 节点名称
         :param func: 可调用对象
-        :param execution_mode: 执行模式，可选 'serial', 'thread'
+        :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'
         :param max_workers: 同时处理数量
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_info: 日志中每条信息的最大长度
@@ -100,9 +101,9 @@ class TaskStage(TaskExecutor):
         """
         设置执行模式
 
-        :param execution_mode: 执行模式，在 stage 中可以是 'thread'（线程）, 'serial'（串行）
+        :param execution_mode: 执行模式，在 stage 中可以是 'serial'（串行）, 'thread'（线程）, 'async'（异步）
         """
-        valid_modes = ("thread", "serial")
+        valid_modes = ("serial", "thread", "async")
         if execution_mode in valid_modes:
             self.execution_mode = execution_mode
         else:
@@ -198,6 +199,8 @@ class TaskStage(TaskExecutor):
                 self.dispatch.dispatch_thread()
             elif self.execution_mode == "serial":
                 self.dispatch.dispatch_serial()
+            elif self.execution_mode == "async":
+                asyncio.run(self.dispatch.dispatch_async())
             else:
                 raise ExecutionModeError(self.execution_mode)
 

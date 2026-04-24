@@ -11,6 +11,10 @@ def add_one(x):
     return x + 1
 
 
+async def async_add_one(x):
+    return x + 1
+
+
 # =========================
 # TaskStage 配置测试
 # =========================
@@ -60,6 +64,11 @@ class TestTaskStageConfig:
         """合法 execution_mode: thread"""
         stage = TaskStage("add_one_thread_exec", add_one, execution_mode="thread")
         assert stage.execution_mode == "thread"
+
+    def test_valid_execution_mode_async(self):
+        """合法 execution_mode: async"""
+        stage = TaskStage("add_one_async_exec", add_one, execution_mode="async")
+        assert stage.execution_mode == "async"
 
     def test_invalid_execution_mode(self):
         """非法 execution_mode 应抛出 ExecutionModeError"""
