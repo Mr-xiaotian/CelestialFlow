@@ -16,7 +16,7 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
-from ..observability import TaskObserver
+from ..observability import BaseObserver
 from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout, SuccessSpout
 from ..runtime import (
     TaskDispatch,
@@ -70,16 +70,16 @@ class TaskExecutor:
 
         self.set_name(name)
         self._set_func(func)
+
         self.set_execution_mode(execution_mode)
         self.max_workers = max_workers
         self.max_retries = max_retries
         self.max_info = max_info
-
         self.unpack_task_args = unpack_task_args
         self.enable_duplicate_check = enable_duplicate_check
-
-        self._observers: list[TaskObserver] = []
         self.set_log_level(log_level)
+
+        self._observers: list[BaseObserver] = []
 
         self.set_nullctree()
         self.task_queues: TaskInQueue = None
@@ -187,10 +187,10 @@ class TaskExecutor:
         self.success_spout.start()
 
     # ==== Observer ====
-    def add_observer(self, observer: TaskObserver) -> None:
+    def add_observer(self, observer: BaseObserver) -> None:
         self._observers.append(observer)
 
-    def remove_observer(self, observer: TaskObserver) -> None:
+    def remove_observer(self, observer: BaseObserver) -> None:
         self._observers.remove(observer)
 
     def _notify(self, method_name: str, *args: Any, **kwargs: Any) -> None:

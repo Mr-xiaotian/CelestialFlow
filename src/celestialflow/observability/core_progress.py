@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from tqdm import tqdm
 
-from .core_observer import TaskObserver
+from .core_observer import BaseObserver
 
 
-class TaskProgress(TaskObserver):
+class TaskProgress(BaseObserver):
     """基于 tqdm 的进度条观察者"""
 
     def on_start(self, name: str, total: int) -> None:

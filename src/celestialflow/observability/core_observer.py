@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 
-class TaskObserver:
+class BaseObserver:
     """执行器生命周期观察者基类，子类按需覆写。"""
 
     def on_start(self, name: str, total: int) -> None: ...

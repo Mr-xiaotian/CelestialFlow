@@ -1,6 +1,6 @@
 import pytest
 
-from celestialflow import TaskExecutor, TaskObserver
+from celestialflow import TaskExecutor, BaseObserver
 
 
 # =========================
@@ -256,7 +256,7 @@ class TestExecutorObserver:
     def test_observer_lifecycle(self):
         """observer 在执行过程中收到完整生命周期回调"""
 
-        class RecordingObserver(TaskObserver):
+        class RecordingObserver(BaseObserver):
             def __init__(self):
                 self.events = []
 
@@ -291,7 +291,7 @@ class TestExecutorObserver:
     def test_observer_with_errors(self):
         """observer 收到失败回调"""
 
-        class CountObserver(TaskObserver):
+        class CountObserver(BaseObserver):
             def __init__(self):
                 self.successes = 0
                 self.failures = 0
@@ -321,7 +321,7 @@ class TestExecutorObserver:
     def test_multiple_observers(self):
         """多个 observer 同时收到回调"""
 
-        class Counter(TaskObserver):
+        class Counter(BaseObserver):
             def __init__(self):
                 self.count = 0
 
@@ -340,7 +340,7 @@ class TestExecutorObserver:
     def test_remove_observer(self):
         """移除 observer 后不再收到回调"""
 
-        class Counter(TaskObserver):
+        class Counter(BaseObserver):
             def __init__(self):
                 self.count = 0
 
