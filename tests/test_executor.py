@@ -34,7 +34,9 @@ async def async_double(x):
 class TestExecutorSerial:
     def test_serial_basic(self):
         """串行模式：正常计算结果正确"""
-        executor = TaskExecutor("AddOneSerial", add_one, execution_mode="serial", show_progress=False)
+        executor = TaskExecutor(
+            "AddOneSerial", add_one, execution_mode="serial", show_progress=False
+        )
         tasks = [1, 2, 3, 4, 5]
         executor.start(tasks)
 
@@ -53,7 +55,10 @@ class TestExecutorSerial:
     def test_serial_with_errors(self):
         """串行模式：部分任务失败，其余成功"""
         executor = TaskExecutor(
-            "RaiseOnNegativeSerial", raise_on_negative, execution_mode="serial", show_progress=False
+            "RaiseOnNegativeSerial",
+            raise_on_negative,
+            execution_mode="serial",
+            show_progress=False,
         )
         tasks = [1, -1, 2, -2, 3]
         executor.start(tasks)
@@ -81,7 +86,8 @@ class TestExecutorSerial:
             return x + 100
 
         executor = TaskExecutor(
-            "FlakySerialRetry", flaky,
+            "FlakySerialRetry",
+            flaky,
             execution_mode="serial",
             max_retries=2,
             show_progress=False,
@@ -98,7 +104,8 @@ class TestExecutorSerial:
     def test_serial_no_retry_for_unmatched_exception(self):
         """串行模式：未配置的异常类型不触发重试"""
         executor = TaskExecutor(
-            "RaiseOnNegativeNoRetry", raise_on_negative,
+            "RaiseOnNegativeNoRetry",
+            raise_on_negative,
             execution_mode="serial",
             max_retries=2,
             show_progress=False,
@@ -115,7 +122,13 @@ class TestExecutorSerial:
 class TestExecutorThread:
     def test_thread_basic(self):
         """线程模式：正常计算结果正确"""
-        executor = TaskExecutor("DoubleThread", double, execution_mode="thread", max_workers=4, show_progress=False)
+        executor = TaskExecutor(
+            "DoubleThread",
+            double,
+            execution_mode="thread",
+            max_workers=4,
+            show_progress=False,
+        )
         tasks = [1, 2, 3, 4, 5]
         executor.start(tasks)
 
@@ -132,7 +145,13 @@ class TestExecutorAsync:
     @pytest.mark.asyncio
     async def test_async_basic(self):
         """异步模式：正常计算结果正确"""
-        executor = TaskExecutor("AsyncAddOneExecutor", async_add_one, execution_mode="async", max_workers=4, show_progress=False)
+        executor = TaskExecutor(
+            "AsyncAddOneExecutor",
+            async_add_one,
+            execution_mode="async",
+            max_workers=4,
+            show_progress=False,
+        )
         tasks = [10, 20, 30]
         await executor.start_async(tasks)
 
@@ -147,7 +166,13 @@ class TestExecutorAsync:
     @pytest.mark.asyncio
     async def test_async_double(self):
         """异步模式：并发执行多个任务"""
-        executor = TaskExecutor("AsyncDoubleExecutor", async_double, execution_mode="async", max_workers=4, show_progress=False)
+        executor = TaskExecutor(
+            "AsyncDoubleExecutor",
+            async_double,
+            execution_mode="async",
+            max_workers=4,
+            show_progress=False,
+        )
         tasks = list(range(20))
         await executor.start_async(tasks)
 
@@ -160,7 +185,8 @@ class TestExecutorDuplicateCheck:
     def test_duplicate_check_enabled(self):
         """启用去重：重复任务只执行一次"""
         executor = TaskExecutor(
-            "AddOneDedupEnabled", add_one,
+            "AddOneDedupEnabled",
+            add_one,
             execution_mode="serial",
             enable_duplicate_check=True,
             show_progress=False,
@@ -176,7 +202,8 @@ class TestExecutorDuplicateCheck:
     def test_duplicate_check_disabled(self):
         """禁用去重：重复任务全部执行"""
         executor = TaskExecutor(
-            "AddOneDedupDisabled", add_one,
+            "AddOneDedupDisabled",
+            add_one,
             execution_mode="serial",
             enable_duplicate_check=False,
             show_progress=False,
@@ -193,7 +220,8 @@ class TestExecutorSuccessCache:
     def test_success_cache(self):
         """成功结果缓存：get_success_pairs 包含正确结果"""
         executor = TaskExecutor(
-            "AddOneSuccessCache", add_one,
+            "AddOneSuccessCache",
+            add_one,
             execution_mode="serial",
             enable_duplicate_check=True,
             show_progress=False,
@@ -215,7 +243,9 @@ class TestExecutorConfig:
 
     def test_get_summary(self):
         """get_summary 返回预期字段"""
-        executor = TaskExecutor("AddOneSummary", add_one, execution_mode="serial", show_progress=False)
+        executor = TaskExecutor(
+            "AddOneSummary", add_one, execution_mode="serial", show_progress=False
+        )
         summary = executor.get_summary()
         assert summary["name"] == "AddOneSummary"
         assert summary["func_name"] == "add_one"

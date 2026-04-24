@@ -44,7 +44,9 @@ class TestTaskInQueue:
     def test_multi_source_termination_merge(self, log_inlet):
         """多上游终止信号合并"""
         q = queue.Queue()
-        in_queue = TaskInQueue(q, queue_tags=["src_a", "src_b"], out_tag="sink", log_inlet=log_inlet)
+        in_queue = TaskInQueue(
+            q, queue_tags=["src_a", "src_b"], out_tag="sink", log_inlet=log_inlet
+        )
 
         in_queue.put(TerminationSignal(_id=10, source="src_a"))
         # 此时不应返回，因为 src_b 还没终止
@@ -92,7 +94,10 @@ class TestTaskOutQueue:
         q1 = queue.Queue()
         q2 = queue.Queue()
         out_queue = TaskOutQueue(
-            queue_list=[q1, q2], queue_tags=["a", "b"], in_tag="src", log_inlet=log_inlet
+            queue_list=[q1, q2],
+            queue_tags=["a", "b"],
+            in_tag="src",
+            log_inlet=log_inlet,
         )
 
         envelope = TaskEnvelope.wrap("data", task_id=1, source="src")
@@ -106,7 +111,10 @@ class TestTaskOutQueue:
         q1 = queue.Queue()
         q2 = queue.Queue()
         out_queue = TaskOutQueue(
-            queue_list=[q1, q2], queue_tags=["a", "b"], in_tag="src", log_inlet=log_inlet
+            queue_list=[q1, q2],
+            queue_tags=["a", "b"],
+            in_tag="src",
+            log_inlet=log_inlet,
         )
 
         envelope = TaskEnvelope.wrap("data", task_id=1, source="src")

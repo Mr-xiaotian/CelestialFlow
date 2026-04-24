@@ -1,7 +1,11 @@
 import pytest
 
 from celestialflow import TaskStage
-from celestialflow.runtime.util_errors import ExecutionModeError, PickleError, StageModeError
+from celestialflow.runtime.util_errors import (
+    ExecutionModeError,
+    PickleError,
+    StageModeError,
+)
 
 
 # =========================
@@ -77,14 +81,24 @@ class TestTaskStageConfig:
 
     def test_summary_contains_stage_mode(self):
         """summary 包含 stage_mode 字段"""
-        stage = TaskStage("AddOneProcessThreadExec", add_one, stage_mode="process", execution_mode="thread")
+        stage = TaskStage(
+            "AddOneProcessThreadExec",
+            add_one,
+            stage_mode="process",
+            execution_mode="thread",
+        )
         summary = stage.get_summary()
         assert summary["stage_mode"] == "process"
         assert summary["execution_mode"] == "thread-20"
 
     def test_summary_contains_stage_mode_thread(self):
         """summary 包含 thread stage_mode"""
-        stage = TaskStage("AddOneThreadSerialExec", add_one, stage_mode="thread", execution_mode="serial")
+        stage = TaskStage(
+            "AddOneThreadSerialExec",
+            add_one,
+            stage_mode="thread",
+            execution_mode="serial",
+        )
         summary = stage.get_summary()
         assert summary["stage_mode"] == "thread"
 

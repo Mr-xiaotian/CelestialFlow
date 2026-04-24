@@ -58,7 +58,7 @@ async def benchmark_executor(
 
     print(f"Use time:\n{use_time_table}\n")
     print(f"Results:\n{results_table}\n")
-    
+
     return {
         "use_time": use_time,
         "sync_modes": sync_modes,

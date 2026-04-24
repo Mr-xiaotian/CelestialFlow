@@ -270,7 +270,15 @@ def demo_fanin():
 
 def demo_grid():
     # 1. 构造网格
-    grid = [[TaskStage(f"Grid{r}{c}", add_one_sleep, execution_mode="thread", max_workers=2) for c in range(4)] for r in range(4)]
+    grid = [
+        [
+            TaskStage(
+                f"Grid{r}{c}", add_one_sleep, execution_mode="thread", max_workers=2
+            )
+            for c in range(4)
+        ]
+        for r in range(4)
+    ]
 
     # 2. 构建 TaskGrid 实例
     task_grid = TaskGrid(grid, "staged")
