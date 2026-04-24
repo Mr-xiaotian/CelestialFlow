@@ -47,8 +47,6 @@ def clone_stage(stage: TaskStage) -> TaskStage:
     :return: 克隆节点
     """
     kwargs = _get_clone_init_kwargs(stage)
-    # TaskStage does not accept log_level
-    kwargs.pop("log_level", None)
     cloned = TaskStage(**kwargs)
 
     cloned.add_retry_exceptions(*stage.metrics.retry_exceptions)

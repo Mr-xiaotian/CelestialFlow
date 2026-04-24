@@ -28,6 +28,7 @@ class TaskStage(TaskExecutor):
         max_info=50,
         unpack_task_args=False,
         enable_duplicate_check=True,
+        log_level="SUCCESS",
         stage_mode="serial",
     ):
         """
@@ -39,6 +40,7 @@ class TaskStage(TaskExecutor):
         :param max_info: 日志中每条信息的最大长度
         :param unpack_task_args: 是否将任务参数解包
         :param enable_duplicate_check: 是否启用重复检查
+        :param log_level: 日志级别
         :param stage_mode: 当前节点在graph中的执行模式, 可以是 'serial'（串行）, 'thread'（线程）或 'process'（进程）, 默认 'serial'
         """
         super().__init__(
@@ -50,6 +52,7 @@ class TaskStage(TaskExecutor):
             max_info,
             unpack_task_args,
             enable_duplicate_check,
+            log_level=log_level,
         )
 
         self.set_stage_mode(stage_mode)
