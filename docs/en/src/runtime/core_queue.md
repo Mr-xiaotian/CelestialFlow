@@ -1,13 +1,13 @@
 # TaskQueue
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/04/24
 
-The `TaskQueue` module provides `TaskInQueue` and `TaskOutQueue` classes, which serve as pipelines connecting different stages. They support multi-producer, multi-consumer models and integrate logging and monitoring capabilities.
+The `TaskQueue` module provides two classes, `TaskInQueue` and `TaskOutQueue`, which serve as pipelines connecting different Stages. They support multi-producer, multi-consumer models and integrate logging and monitoring capabilities.
 
 ## Overview
 
-- **TaskInQueue**: Task input queue for receiving tasks from upstream
-- **TaskOutQueue**: Task output queue for sending tasks to downstream
+- **TaskInQueue**: Task input queue, used to receive tasks from upstream
+- **TaskOutQueue**: Task output queue, used to send tasks to downstream
 
 Both support multiple backends: `queue.Queue` (Thread), `multiprocessing.Queue` (Process), `asyncio.Queue` (Async).
 
@@ -15,7 +15,7 @@ Both support multiple backends: `queue.Queue` (Thread), `multiprocessing.Queue` 
 
 ## TaskInQueue
 
-Task input queue for receiving and merging tasks from multiple upstream sources.
+Task input queue, used to receive and merge tasks from multiple upstream sources.
 
 ### Initialization
 
@@ -40,7 +40,7 @@ class TaskInQueue:
 
 ### Main Methods
 
-#### put / put_async
+#### put
 
 ```python
 def put(self, item: TaskEnvelope | TerminationSignal):
@@ -49,14 +49,9 @@ def put(self, item: TaskEnvelope | TerminationSignal):
 
     :param item: Task or termination signal to enqueue
     """
-
-async def put_async(self, item: TaskEnvelope | TerminationSignal):
-    """
-    Asynchronously enqueue a task or termination signal.
-    """
 ```
 
-#### get / get_async
+#### get
 
 ```python
 def get(self) -> TaskEnvelope | TerminationIdPool:
@@ -65,24 +60,18 @@ def get(self) -> TaskEnvelope | TerminationIdPool:
 
     :return: Task envelope or termination signal ID pool
     """
-
-async def get_async(self) -> TaskEnvelope | TerminationIdPool:
-    """
-    Asynchronously dequeue a task or termination signal pool.
-    """
 ```
 
 **Termination signal merging logic**:
 - When a termination signal from `"input"` is received, it is returned immediately
-- When a termination signal from the current node tag (`out_tag`) is received, it is returned immediately
-- When termination signals from all `queue_tags` are received, they are merged and returned
+- When termination signals from all `queue_tags` have been received, they are merged and returned
 
 #### drain
 
 ```python
 def drain(self) -> list[TaskEnvelope]:
     """
-    Drain all tasks from the queue and return a task list.
+    Drain all tasks from the queue and return them as a list.
     Records termination signal status but does not return TerminationIdPool.
 
     :return: List containing all tasks
@@ -99,18 +88,13 @@ def add_source_tag(self, tag: str):
     :param tag: Upstream queue tag
     :raises ValueError: If the tag already exists
     """
-
-def reset(self):
-    """
-    Reset the task input queue state (clears termination signal records).
-    """
 ```
 
 ---
 
 ## TaskOutQueue
 
-Task output queue for sending tasks to multiple downstream targets.
+Task output queue, used to send tasks to multiple downstream targets.
 
 ### Initialization
 
@@ -136,17 +120,12 @@ class TaskOutQueue:
 
 ### Main Methods
 
-#### put / put_async
+#### put
 
 ```python
 def put(self, item: TaskEnvelope | TerminationSignal):
     """
     Enqueue a task or termination signal to all output channels.
-    """
-
-async def put_async(self, item: TaskEnvelope | TerminationSignal):
-    """
-    Asynchronously enqueue a task or termination signal to all output channels.
     """
 ```
 
@@ -162,9 +141,9 @@ def put_target(self, item: TaskEnvelope | TerminationSignal, tag: str):
     """
 ```
 
-Commonly used for targeted routing in `TaskRouter`.
+Commonly used for targeted dispatch in `TaskRouter`.
 
-#### put_channel / put_channel_async
+#### put_channel
 
 ```python
 def put_channel(self, item: TaskEnvelope | TerminationSignal, idx: int):
@@ -173,11 +152,6 @@ def put_channel(self, item: TaskEnvelope | TerminationSignal, idx: int):
 
     :param item: Task or termination signal to enqueue
     :param idx: Output channel index
-    """
-
-async def put_channel_async(self, item: TaskEnvelope | TerminationSignal, idx: int):
-    """
-    Asynchronously enqueue a task or termination signal to the output channel at the specified index.
     """
 ```
 
@@ -214,17 +188,16 @@ Upstream node ──TaskOutQueue──> Queue ──TaskInQueue──> Current n
 `TaskInQueue` waits for termination signals from all `queue_tags`, then merges them into a single `TerminationIdPool`:
 
 1. When a termination signal is received, it is recorded in `termination_dict`
-2. Checks whether all upstream sources have sent termination signals
-3. If all are received, merges them into a `TerminationIdPool` and returns it
-4. Otherwise, continues waiting
+2. Check whether all upstream sources have sent termination signals
+3. If all have been received, merge into a `TerminationIdPool` and return
+4. Otherwise, continue waiting
 
 Special handling:
 - Termination signals with the `"input"` tag are returned immediately
-- Termination signals with the current node tag (`out_tag`) are returned immediately
 
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Using in TaskGraph
 
@@ -267,7 +240,7 @@ if isinstance(item, TaskEnvelope):
     result = process(item.task)
     out_queue.put(TaskEnvelope.wrap(result, result_id))
 elif isinstance(item, TerminationIdPool):
-    # All upstream sources have terminated, send termination signal downstream
+    # All upstream sources have terminated; send termination signal downstream
     out_queue.put(TerminationSignal())
 ```
 
@@ -275,8 +248,7 @@ elif isinstance(item, TerminationIdPool):
 
 ## Notes
 
-1. **Multi-Channel**: A single `TaskOutQueue` can manage multiple downstream queues
+1. **Multi-channel**: A single `TaskOutQueue` can manage multiple downstream queues
 2. **Logging**: All enqueue/dequeue operations are logged
-3. **Async Support**: Provides async methods such as `put_async` and `get_async`
-4. **Thread Safety**: Internally uses queue implementations that support multi-thread/multi-process access
-5. **Termination Merging**: Properly handles merging of termination signals from multiple upstream sources
+3. **Thread Safety**: Uses queue implementations internally, supporting multi-thread/multi-process access
+4. **Termination Merging**: Properly handles merging of termination signals from multiple upstream sources

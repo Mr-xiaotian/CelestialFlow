@@ -1,8 +1,8 @@
 # TaskExecutor
 
-> 📅 最終更新日: 2026/04/23
+> 📅 最終更新日: 2026/04/24
 
-`TaskExecutor` は、単一タスクのロジックを実行するコアコンポーネントです。タスクの実行、並行制御、エラーハンドリング、リトライ機構、およびログ記録を担当します。
+`TaskExecutor` は単一タスクロジックを実行するコアコンポーネントです。タスクの実行、並行性制御、エラー処理、リトライ機構、およびログ記録を担当します。
 
 ## 初期化
 
@@ -17,10 +17,8 @@ class TaskExecutor:
         max_retries=1,
         max_info=50,
         unpack_task_args=False,
-        enable_success_cache=False,
         enable_duplicate_check=True,
         show_progress=False,
-        progress_desc="Executing",
         log_level="SUCCESS",
     ):
         ...
@@ -28,21 +26,18 @@ class TaskExecutor:
 
 ### パラメータ説明
 
-- **name**: エグゼキューターの名前。ログとトレースに使用されます。
-- **func**: タスクを実際に実行するコーラブルオブジェクト（関数）。
+- **name**: エグゼキュータ名。ログとトレースに使用されます。
+- **func**: タスクを実際に実行する呼び出し可能オブジェクト（関数）。
 - **execution_mode**: 実行モード。
-  - `serial`: 逐次実行。
+  - `serial`: 直列実行。
   - `thread`: マルチスレッド実行。
-  - `process`: マルチプロセス実行（注意: `TaskGraph` の一部として使用する場合、通常このモードは使用せず、`TaskStage` が管理します）。
   - `async`: 非同期実行 (`asyncio`)。
-- **max_workers**: 並行数の制限（スレッド数/プロセス数/コルーチン数）。
+- **max_workers**: 並行数の上限（スレッド数/コルーチン数）。
 - **max_retries**: タスク失敗後の最大リトライ回数。
-- **max_info**: ログ内の各メッセージの最大長。
-- **unpack_task_args**: タスク引数を展開 (`*args`) して関数に渡すかどうか。
-- **enable_success_cache**: 成功結果を `success_dict` にキャッシュするかどうか。
-- **enable_duplicate_check**: タスクのハッシュベースの重複チェックを有効にするかどうか。
+- **max_info**: ログにおける各メッセージの最大長。
+- **unpack_task_args**: タスク引数をアンパック (`*args`) して関数に渡すかどうか。
+- **enable_duplicate_check**: タスクハッシュに基づく重複チェックを有効にするかどうか。
 - **show_progress**: プログレスバーを表示するかどうか。
-- **progress_desc**: プログレスバーの表示名。
 - **log_level**: ログレベル（TRACE/DEBUG/SUCCESS/INFO/WARNING/ERROR/CRITICAL）。
 
 ## コアメソッド
@@ -52,8 +47,8 @@ class TaskExecutor:
 ```python
 def start(self, task_source: Iterable):
     """
-    エグゼキューターを起動し、task_source 内のすべてのタスクを処理します。
-    execution_mode に基づいて適切な実行戦略を選択します。
+    エグゼキュータを起動し、task_source 内のすべてのタスクを処理します。
+    execution_mode に応じて適切な実行戦略を選択します。
     """
 ```
 
@@ -62,22 +57,22 @@ def start(self, task_source: Iterable):
 ```python
 async def start_async(self, task_source: Iterable):
     """
-    エグゼキューターを非同期的に起動します（async モード用）。
+    エグゼキュータを非同期で起動します（async モード用）。
     """
 ```
 
-## エラーハンドリング
+## エラー処理
 
 `TaskExecutor` はタスク実行中の例外をキャッチします：
-- 例外が `retry_exceptions` リストに含まれ、最大リトライ回数に達していない場合、タスクはリトライのためにキューに再投入されます。
-- そうでない場合、タスクは失敗としてマークされ、エラーログが記録され、`fail_queue` に配置されます。
+- 例外が `retry_exceptions` リストに含まれ、最大リトライ回数に達していない場合、タスクをキューに戻してリトライします。
+- それ以外の場合、タスクを失敗としてマークし、エラーログを記録し、`fail_queue` に投入します。
 
 ### add_retry_exceptions
 
 ```python
 def add_retry_exceptions(self, *exceptions):
     """
-    リトライをトリガーする例外タイプを追加します。
+    リトライ対象の例外タイプを追加します。
 
     :param exceptions: 例外タイプのリスト
     """
@@ -99,11 +94,11 @@ executor.add_retry_exceptions(ValueError, ConnectionError, TimeoutError)
 ### 結果の取得
 
 ```python
-# 成功結果ペアを取得（enable_success_cache=True が必要）
+# 成功結果リストを取得
 def get_success_pairs(self) -> list[tuple[Any, Any]]:
     ...
 
-# 失敗結果ペアを取得
+# 失敗結果リストを取得
 def get_error_pairs(self) -> list[tuple[Any, Exception]]:
     ...
 ```
@@ -122,7 +117,7 @@ def handle_error_dict(self) -> dict:
 
 ## CelestialTree 統合
 
-`TaskExecutor` は、タスクの追跡とデバッグのための CelestialTree イベント追跡システムをサポートしています。
+`TaskExecutor` は CelestialTree イベントトレースシステムをサポートし、タスクのトレースとデバッグに使用されます。
 
 ### set_ctree
 
@@ -142,7 +137,7 @@ def set_ctree(self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: i
 ```python
 def set_nullctree(self, event_id=None):
     """
-    Null クライアントを設定します（外部サービスに接続せず、イベント ID のみを生成します）。
+    空クライアントを設定します（外部サービスに接続せず、イベント ID のみ生成）。
 
     :param event_id: オプションのイベント ID
     """
@@ -153,7 +148,7 @@ def set_nullctree(self, event_id=None):
 ### 基本情報の取得
 
 ```python
-# エグゼキューター名を取得
+# エグゼキュータ名を取得
 def get_name(self) -> str: ...
 
 # 関数名を取得
@@ -162,7 +157,7 @@ def get_func_name(self) -> str: ...
 # クラス名を取得（プライベート）
 def _get_class_name(self) -> str: ...
 
-# タグを取得（ログと追跡に使用）
+# タグを取得（ログとトレースに使用）
 def get_tag(self) -> str: ...
 
 # 実行モードの説明を取得（プライベート）
@@ -175,13 +170,13 @@ def _get_execution_mode_desc(self) -> str: ...
 def get_summary(self) -> dict:
     """
     現在のノードの状態スナップショットを取得します。
-    返却値: name, func_name, class_name, execution_mode
+    戻り値：name, func_name, class_name, execution_mode
     """
 
 def get_counts(self) -> dict:
     """
     現在のノードのカウンターを取得します。
-    返却値: total, success, error, duplicate
+    戻り値：tasks_input, tasks_succeeded, tasks_failed, tasks_duplicated, tasks_processed, tasks_pending
     """
 ```
 
@@ -192,7 +187,7 @@ def get_counts(self) -> dict:
 ```python
 def get_task_repr(self, task) -> str:
     """
-    タスク引数の人間が読める文字列表現を取得します。
+    タスク引数の読みやすい文字列表現を取得します。
     ログ出力に使用され、長すぎる引数は自動的に切り詰められます。
     """
 ```
@@ -202,31 +197,16 @@ def get_task_repr(self, task) -> str:
 ```python
 def _get_result_repr(self, result) -> str:
     """
-    結果の人間が読める文字列表現を取得します。
+    結果の読みやすい文字列表現を取得します。
     """
 ```
 
 ## 注意事項
 
-### キャッシュと重複チェック
-
-キャッシュが有効で重複チェックが無効の場合、警告がトリガーされます：
-
-```python
-# 警告: キャッシュされた結果数と入力タスク数の不一致が生じる可能性があります
-executor = TaskExecutor(
-    "Processor",
-    process,
-    enable_success_cache=True,
-    enable_duplicate_check=False  # 非推奨
-)
-```
-
 ### 実行モードの選択
 
-| モード | 適用シーン | 注意事項 |
-|--------|-----------|---------|
-| `serial` | デバッグ、シンプルなタスク | 並行なし |
+| モード | 適用シナリオ | 注意事項 |
+|------|----------|----------|
+| `serial` | デバッグ、シンプルなタスク | 並行性なし |
 | `thread` | I/O 集約型 | GIL の制限に注意 |
-| `process` | CPU 集約型 | pickle 可能な関数が必要 |
 | `async` | ネットワーク I/O | start_async の使用が必要 |

@@ -1,8 +1,8 @@
 # TaskDispatch
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/04/24
 
-`TaskDispatch` is the core task execution runner responsible for fetching tasks from queues, executing them, and handling results and errors. It supports three execution modes: serial, thread pool, and async.
+`TaskDispatch` is the core task execution runner, responsible for fetching tasks from queues, executing them, and handling results and errors. It supports three execution modes: serial, thread pool, and async.
 
 ## Initialization
 
@@ -14,7 +14,7 @@ class TaskDispatch:
 
         :param task_executor: Task executor (TaskExecutor instance)
         :param func: Task function
-        :param max_workers: Maximum number of worker threads or processes
+        :param max_workers: Limit on the number of worker threads or processes
         """
 ```
 
@@ -29,8 +29,7 @@ def dispatch_serial(self):
     """
     Execute tasks serially.
 
-    Fetches tasks from task_queues, executes them sequentially until a termination signal
-    is received and all tasks are completed.
+    Fetches tasks from task_queues, executes them one by one until a termination signal is received and all tasks are completed.
     """
 ```
 
@@ -56,12 +55,12 @@ def dispatch_thread(self):
 Execution flow:
 1. Initialize the thread pool
 2. Fetch tasks from the queue and submit them to the pool
-3. Wait for all futures to complete, then handle the termination signal
+3. Wait for all futures to complete before processing the termination signal
 4. Shut down the pool and release resources
 
 ### dispatch_async
 
-Executes tasks asynchronously using coroutines and semaphores for concurrency control.
+Executes tasks asynchronously using coroutines and semaphores to control concurrency.
 
 ```python
 async def dispatch_async(self):
@@ -73,9 +72,9 @@ async def dispatch_async(self):
 Execution flow:
 1. Create a semaphore to limit concurrency
 2. Fetch tasks asynchronously
-3. Execute tasks concurrently using `asyncio.gather`
+3. Use `asyncio.gather` to execute tasks concurrently
 4. Handle results and errors
-5. Check termination conditions
+5. Check the termination condition
 
 ## Internal Methods
 
@@ -83,16 +82,16 @@ Execution flow:
 
 ```python
 def _worker(self, envelope: TaskEnvelope):
-    """Worker function in the thread pool that executes a single task and handles retries."""
+    """Worker function in the thread pool; executes a single task and handles retries."""
 
 async def _async_worker(self, envelope: TaskEnvelope):
-    """Async worker function that executes a single task and handles retries."""
+    """Async worker function; executes a single task and handles retries."""
 ```
 
-### process_termination_signal
+### _process_termination_signal
 
 ```python
-def process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
+def _process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
     """
     Process a termination signal and generate a merge event.
 
@@ -101,10 +100,10 @@ def process_termination_signal(self, termination_pool: TerminationIdPool) -> Ter
     """
 ```
 
-### release_pool
+### _release_pool
 
 ```python
-def release_pool(self):
+def _release_pool(self):
     """Shut down the thread pool and release resources."""
 ```
 
@@ -134,7 +133,7 @@ TaskExecutor
 ## Notes
 
 1. **Concurrency Control**: `max_workers` limits the number of concurrent tasks to prevent resource exhaustion
-2. **Termination Handling**: Properly handles merging and forwarding of termination signals
+2. **Termination Handling**: Properly handles merging and propagation of termination signals
 3. **Error Propagation**: Exceptions are caught and passed to `TaskExecutor.handle_task_fail()`
-4. **Retry Mechanism**: Workers internally support task retries, controlled by `max_retries`
+4. **Retry Mechanism**: Workers support task retries internally, controlled by `max_retries`
 5. **Async Limitation**: `dispatch_async` requires the task function to be a coroutine function

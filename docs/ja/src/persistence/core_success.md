@@ -1,8 +1,8 @@
 # SuccessSpout
 
-> 📅 最終更新日: 2026/04/23
+> 📅 最終更新日: 2026/04/24
 
-`SuccessSpout` は `BaseSpout` を継承し、成功結果キューを継続的にリッスンして task-result ペアをキャッシュします。
+`SuccessSpout` は `BaseSpout` を継承し、成功結果キューを継続的に監視して task-result ペアをキャッシュします。
 
 ## 初期化
 
@@ -20,7 +20,7 @@ class SuccessSpout(BaseSpout):
 ```python
 def get_success_pairs(self) -> list[tuple[Any, Any]]:
     """
-    成功した task-result ペアのリストを取得します。
+    成功タスクと結果のペアリストを取得する
 
     :return: [(task, result), ...]
     """
@@ -34,14 +34,14 @@ def get_success_pairs(self) -> list[tuple[Any, Any]]:
 
 ### _before_start
 
-起動前に `success_pairs` をクリアします。
+開始前に `success_pairs` をクリアします。
 
-## 使用シーン
+## 使用シナリオ
 
-`TaskExecutor` で `enable_success_cache=True` が有効な場合、成功結果は `SuccessSpout` のキューに送信されます。実行完了後、`get_success_pairs()` を通じてすべての成功した (task, result) ペアを取得できます。
+成功結果は `SuccessSpout` のキューに送信され、実行終了後に `get_success_pairs()` ですべての成功した (task, result) ペアを取得できます。
 
 ```python
-executor = TaskExecutor("Processor", process, enable_success_cache=True)
+executor = TaskExecutor("Processor", process)
 executor.start(tasks)
-pairs = executor.success_spout.get_success_pairs()
+pairs = executor.get_success_pairs()
 ```

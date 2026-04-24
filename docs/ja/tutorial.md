@@ -1,41 +1,41 @@
-# チュートリアル（Tutorial）：画像クローラーの構築
+# チュートリアル（Tutorial）：画像クローラーを構築する
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/04/24
 
-このチュートリアルでは、完全な実践プロジェクト — **Baidu画像クローラー** — を通じて、CelestialFlowの使い方をゼロから学びます。
+本チュートリアルでは、完全な実践プロジェクト --- **Baidu 画像クローラー** --- を通じて、CelestialFlow の使い方をゼロから学びます。
 
-## プロジェクトの目標
+## プロジェクト目標
 
-Baidu画像の検索結果をクロールし、指定したキーワードの画像をローカルにダウンロードします。以下の方法を学びます：
-1. タスクフローを分析し、分解する
-2. 各ステージの処理関数を記述する
+Baidu 画像検索結果をクロールし、指定キーワードの画像をローカルにダウンロードします。以下のことを学びます：
+1. タスクフローを分析し分解する
+2. 各段階の処理関数を作成する
 3. タスクグラフを組み立てて実行する
-4. Web UIで実行状態を監視する
+4. Web UI で実行状態を監視する
 
 ---
 
-## ステップ1：タスクの分析と分解
+## 第一ステップ：タスク分析と分解
 
-コーディングを始める前に、クローラーの実行フローを分析する必要があります：
+コーディングを始める前に、クローラーの実行フローを分析します：
 
 ```
-ユーザーがキーワードを入力 → 検索ページ → 画像リストの解析 → 画像のダウンロード → ファイルの保存
+ユーザーがキーワードを入力 → 検索ページ → 画像リストを解析 → 画像をダウンロード → ファイルを保存
 ```
 
-### タスク階層の設計
+### タスク階層設計
 
 | 階層 | 機能 | 入力 | 出力 |
 |------|------|------|------|
-| **Layer 1: 検索** | 検索結果ページを取得 | キーワード | ページHTML |
-| **Layer 2: 解析** | 画像URLリストを抽出 | HTML | 画像URLリスト |
-| **Layer 3: ダウンロード** | 画像コンテンツをダウンロード | 画像URL | 画像バイナリデータ |
+| **Layer 1: 検索** | 検索結果ページを取得 | キーワード | ページ HTML |
+| **Layer 2: 解析** | 画像 URL リストを抽出 | HTML | 画像 URL リスト |
+| **Layer 3: ダウンロード** | 画像コンテンツをダウンロード | 画像 URL | 画像バイナリデータ |
 | **Layer 4: 保存** | ローカルに保存 | 画像データ | ファイルパス |
 
-### タスクグラフの構造
+### タスクグラフ構造
 
 ```mermaid
 flowchart LR
-    subgraph TG[画像クローラー タスクグラフ]
+    subgraph TG[画像クローラータスクグラフ]
         direction LR
         
         S1[ページ検索]
@@ -55,9 +55,9 @@ flowchart LR
 
 ---
 
-## ステップ2：処理関数の記述
+## 第二ステップ：処理関数の作成
 
-まず各ステージの処理関数を記述し、個別にテスト・検証します。
+各段階の処理関数を作成し、個別にテスト・検証します。
 
 ### 2.1 ページ検索
 
@@ -67,10 +67,10 @@ from urllib.parse import quote
 
 def search_images(keyword: str) -> str:
     """
-    キーワードでBaidu画像を検索し、ページHTMLを返します。
+    キーワードで Baidu 画像を検索し、ページ HTML を返す。
     
     :param keyword: 検索キーワード
-    :return: ページHTMLコンテンツ
+    :return: ページ HTML コンテンツ
     """
     url = f"https://image.baidu.com/search/index?tn=baiduimage&word={quote(keyword)}"
     headers = {
@@ -83,10 +83,10 @@ def search_images(keyword: str) -> str:
 # 単体テスト
 if __name__ == "__main__":
     html = search_images("猫咪")
-    print(f"{len(html)} 文字のHTMLを取得しました")
+    print(f"取得した HTML: {len(html)} 文字")
 ```
 
-### 2.2 画像URLの解析
+### 2.2 画像 URL の解析
 
 ```python
 import re
@@ -94,15 +94,15 @@ import json
 
 def parse_image_urls(html: str) -> list[str]:
     """
-    HTMLから画像URLリストを解析します。
+    HTML から画像 URL リストを解析する。
     
-    :param html: ページHTML
-    :return: 画像URLリスト
+    :param html: ページ HTML
+    :return: 画像 URL リスト
     """
-    # Baidu画像のデータはJavaScriptに埋め込まれています
+    # Baidu 画像のデータは JavaScript に埋め込まれている
     pattern = r'"hoverURL":"(https?://[^"]+)"'
     urls = re.findall(pattern, html)
-    # エスケープ文字の処理
+    # エスケープ文字を処理
     urls = [url.replace("\\/", "/") for url in urls]
     return urls[:20]  # 数量を制限
 
@@ -110,7 +110,7 @@ def parse_image_urls(html: str) -> list[str]:
 if __name__ == "__main__":
     html = search_images("猫咪")
     urls = parse_image_urls(html)
-    print(f"{len(urls)} 個の画像URLを解析しました")
+    print(f"解析した画像 URL: {len(urls)} 個")
     for url in urls[:3]:
         print(f"  - {url}")
 ```
@@ -122,10 +122,10 @@ import time
 
 def download_image(url: str) -> bytes | None:
     """
-    画像コンテンツをダウンロードします。
+    画像コンテンツをダウンロードする。
     
-    :param url: 画像URL
-    :return: 画像バイナリデータ、失敗時はNone
+    :param url: 画像 URL
+    :return: 画像バイナリデータ、失敗時は None を返す
     """
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -157,13 +157,13 @@ import hashlib
 
 def save_image(image_data: bytes, keyword: str) -> str:
     """
-    画像をローカルに保存します。
+    画像をローカルに保存する。
     
     :param image_data: 画像バイナリデータ
-    :param keyword: キーワード（ディレクトリ作成に使用）
+    :param keyword: キーワード（ディレクトリ作成用）
     :return: 保存されたファイルパス
     """
-    # ディレクトリの作成
+    # ディレクトリを作成
     save_dir = os.path.join("images", keyword)
     os.makedirs(save_dir, exist_ok=True)
     
@@ -191,44 +191,47 @@ if __name__ == "__main__":
 
 ---
 
-## ステップ3：タスクグラフの組み立て
+## 第三ステップ：タスクグラフの組み立て
 
-処理関数の検証が完了したら、それぞれを`TaskStage`に割り当て、`TaskGraph`で構造を組織します。
+処理関数の検証が完了したら、各関数をそれぞれの `TaskStage` に割り当て、`TaskGraph` で構造を組み立てます。
 
 ### 3.1 ノードの作成
 
 ```python
 from celestialflow import TaskStage, TaskSplitter
 
-# 検索ステージ：キーワードを入力、HTMLを出力
+# 検索段階：キーワードを入力、HTML を出力
 stage_search = TaskStage(
+    "搜索页面",
     func=search_images,
-    execution_mode="serial",  # キーワードは1つだけなので、シリアルで十分
+    execution_mode="serial",  # キーワードが1つだけなので、シリアルで十分
     max_retries=2,
 )
 
-# 解析ステージ：HTMLを入力、複数の画像URLを出力（分割が必要）
-# URLリストを分割するためのカスタムSplitterが必要
+# 解析段階：HTML を入力、複数の画像 URL を出力（分割が必要）
+# URL リストを分割するためのカスタム Splitter
 class URLSplitter(TaskSplitter):
-    """URLリストを複数の独立したタスクに分割します。"""
+    """URL リストを複数の独立したタスクに分割する。"""
     
     def _split(self, html: str):
         urls = parse_image_urls(html)
-        print(f"{len(urls)} 個の画像URLを解析しました")
+        print(f"解析した画像 URL: {len(urls)} 個")
         return tuple(urls)
 
-stage_parse = URLSplitter()
+stage_parse = URLSplitter("解析图片")
 
-# ダウンロードステージ：URLを入力、画像データを出力
+# ダウンロード段階：URL を入力、画像データを出力
 stage_download = TaskStage(
+    "下载图片",
     func=download_image,
-    execution_mode="thread",  # ネットワークIO集約型なのでスレッドプールを使用
-    worker_limit=10,          # 10枚同時ダウンロード
+    execution_mode="thread",  # ネットワーク IO 集中型なので、スレッドプールを使用
+    max_workers=10,           # 10 枚を並行ダウンロード
     max_retries=3,
 )
 
-# 保存ステージ：画像データを入力、ファイルパスを出力
+# 保存段階：画像データを入力、ファイルパスを出力
 stage_save = TaskStage(
+    "存储文件",
     func=lambda data: save_image(data, "猫咪") if data else None,
     execution_mode="serial",
     enable_duplicate_check=False,  # 重複データの保存を許可（リトライ用）
@@ -240,10 +243,10 @@ stage_save = TaskStage(
 ```python
 from celestialflow import TaskGraph
 
-# タスクグラフの作成
+# タスクグラフを作成
 graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
 
-# ノードの設定
+# ノードを設定
 graph.set_stages(root_stages=[stage_search], stages=[stage_parse, stage_download, stage_save])
 
 # ノード間の接続関係を設定
@@ -252,40 +255,40 @@ graph.connect([stage_parse], [stage_download])
 graph.connect([stage_download], [stage_save])
 ```
 
-### 3.3 Web監視の起動（オプション）
+### 3.3 Web 監視の起動（オプション）
 
 ```python
-# Web監視を有効化
+# Web 監視を有効化
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 ```
 
-Webサービスを起動します：
+Web サービスを起動：
 ```bash
 celestialflow-web --port 5005
 ```
 
-http://localhost:5005 にアクセスしてリアルタイムの状態を確認できます。
+http://localhost:5005 にアクセスしてリアルタイムステータスを確認します。
 
 ### 3.4 タスクグラフの実行
 
 ```python
-# 初期タスクの準備
+# 初期タスクを準備
 init_tasks = {
-    stage_search.get_tag(): ["猫咪", "小狗", "风景"]
+    stage_search.get_tag(): ["猫咪", "小狗", "風景"]
 }
 
-# 開始
-print("画像のクロールを開始します...")
+# 起動
+print("画像のクロールを開始...")
 graph.start_graph(init_tasks)
 
-# 統計の取得
+# 統計を取得
 print(f"成功: {graph.get_graph_summary().get('total_succeeded', 0)}")
 print(f"失敗: {graph.get_graph_summary().get('total_failed', 0)}")
 ```
 
 ---
 
-## ステップ4：完全なコード
+## 第四ステップ：完全なコード
 
 すべてのコードを1つのファイルに統合します：
 
@@ -306,7 +309,7 @@ from celestialflow import (
 # ========== 処理関数 ==========
 
 def search_images(keyword: str) -> str:
-    """Baidu画像を検索します。"""
+    """Baidu 画像を検索する。"""
     url = f"https://image.baidu.com/search/index?tn=baiduimage&word={quote(keyword)}"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     response = requests.get(url, headers=headers, timeout=10)
@@ -314,13 +317,13 @@ def search_images(keyword: str) -> str:
     return response.text
 
 def parse_image_urls(html: str) -> list[str]:
-    """画像URLを解析します。"""
+    """画像 URL を解析する。"""
     pattern = r'"hoverURL":"(https?://[^"]+)"'
     urls = re.findall(pattern, html)
     return [url.replace("\\/", "/") for url in urls][:20]
 
 def download_image(url: str) -> bytes | None:
-    """画像をダウンロードします。"""
+    """画像をダウンロードする。"""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Referer": "https://image.baidu.com/"
@@ -333,7 +336,7 @@ def download_image(url: str) -> bytes | None:
         return None
 
 def save_image(image_data: bytes, keyword: str) -> str | None:
-    """画像を保存します。"""
+    """画像を保存する。"""
     if not image_data:
         return None
     save_dir = os.path.join("images", keyword)
@@ -348,42 +351,45 @@ def save_image(image_data: bytes, keyword: str) -> str | None:
 # ========== カスタムノード ==========
 
 class URLSplitter(TaskSplitter):
-    """URLリスト分割器。"""
+    """URL リストスプリッター。"""
     
     def _split(self, html: str):
         urls = parse_image_urls(html)
-        print(f"{len(urls)} 個の画像URLを解析しました")
+        print(f"解析した画像 URL: {len(urls)} 個")
         return tuple(urls)
 
 # ========== タスクグラフの構築 ==========
 
 def build_crawler_graph(keyword: str) -> TaskGraph:
-    """クローラータスクグラフを構築します。"""
+    """クローラータスクグラフを構築する。"""
     
-    # ノードの作成
+    # ノードを作成
     stage_search = TaskStage(
+        "搜索页面",
         func=search_images,
         execution_mode="serial",
         max_retries=2,
     )
     
-    stage_parse = URLSplitter()
+    stage_parse = URLSplitter("解析图片")
     
     stage_download = TaskStage(
+        "下载图片",
         func=download_image,
         execution_mode="thread",
-        worker_limit=10,
+        max_workers=10,
         max_retries=3,
     )
     
-    # クロージャでkeywordを渡す
+    # クロージャで keyword を渡す
     stage_save = TaskStage(
+        "存储文件",
         func=lambda data: save_image(data, keyword),
         execution_mode="serial",
         enable_duplicate_check=False,
     )
     
-    # 接続の設定
+    # 接続を設定
     graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
     graph.set_stages(root_stages=[stage_search], stages=[stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
@@ -396,51 +402,51 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
 
 if __name__ == "__main__":
     # 設定
-    KEYWORDS = ["猫咪", "小狗", "风景"]
+    KEYWORDS = ["猫咪", "小狗", "風景"]
     
-    # グラフの構築
+    # グラフを構築
     graph = build_crawler_graph(KEYWORDS[0])
     graph.set_reporter(True, host="127.0.0.1", port=5005)
     
     # 実行
-    print("画像のクロールを開始します...")
+    print("画像のクロールを開始...")
     graph.start_graph({
         graph.root_stages[0].get_tag(): KEYWORDS
     })
     
     # 統計
     summary = graph.get_graph_summary()
-    print(f"\nクロール完了！")
+    print(f"\nクロール完了!")
     print(f"成功: {summary.get('total_succeeded', 0)}")
     print(f"失敗: {summary.get('total_failed', 0)}")
 ```
 
 ---
 
-## ステップ5：実行とデバッグ
+## 第五ステップ：実行とデバッグ
 
-### 5.1 Webサービスの起動
+### 5.1 Web サービスの起動
 
 ```bash
-# ターミナル1：Webサービスを起動
+# ターミナル 1: Web サービスを起動
 celestialflow-web --port 5005
 ```
 
 ### 5.2 クローラーの実行
 
 ```bash
-# ターミナル2：クローラーを実行
+# ターミナル 2: クローラーを実行
 python crawler.py
 ```
 
-### 5.3 Web UIの確認
+### 5.3 Web UI の確認
 
-http://localhost:5005 を開くと、以下を確認できます：
+http://localhost:5005 を開くと、以下が表示されます：
 
 1. **Dashboard**: 各ノードの処理進捗をリアルタイム表示
-2. **Structure**: タスクグラフ構造の可視化
-3. **Errors**: ダウンロード失敗した画像URLとエラー情報
-4. **Task Injection**: 新しいキーワードの動的注入
+2. **Structure**: タスクグラフの可視化構造
+3. **Errors**: ダウンロード失敗した画像 URL とエラー情報
+4. **Task Injection**: 新しいキーワードを動的に注入
 
 ### 5.4 結果の確認
 
@@ -448,25 +454,25 @@ http://localhost:5005 を開くと、以下を確認できます：
 # ダウンロードした画像を確認
 ls images/猫咪/
 ls images/小狗/
-ls images/风景/
+ls images/風景/
 ```
 
 ---
 
 ## 拡張：動的タスク注入
 
-Web UIを通じて新しいキーワードを動的に注入できます：
+Web UI から新しいキーワードを動的に注入できます：
 
 ```python
-# またはコードで注入
+# またはコードから注入
 from celestialflow import TerminationSignal
 
-# 新しいキーワードの注入
+# 新しいキーワードを注入
 graph.put_stage_queue({
     stage_search.get_tag(): ["汽车", "美食"]
 })
 
-# 終了シグナルの注入（クロールを停止）
+# 終了シグナルを注入（クロールを停止）
 graph.put_stage_queue({
     stage_search.get_tag(): [TerminationSignal()]
 })
@@ -476,26 +482,26 @@ graph.put_stage_queue({
 
 ## まとめ
 
-このチュートリアルでは、CelestialFlowの完全なワークフローを紹介しました：
+本チュートリアルでは CelestialFlow の完全な使用フローを示しました：
 
-1. **タスク分析**: 複雑なタスクを独立した階層に分解する
-2. **関数の記述**: 各階層の処理関数を記述し、個別にテストする
-3. **ノードの作成**: 関数を`TaskStage`でラップする
-4. **グラフの組み立て**: `TaskGraph`でノード関係を組織する
-5. **監視付き実行**: Web UIで実行状態をリアルタイムに監視する
+1. **タスク分析**: 複雑なタスクを独立した階層に分解
+2. **関数作成**: 各階層の処理関数を作成し個別にテスト
+3. **ノード作成**: 関数を `TaskStage` にラップ
+4. **グラフ組み立て**: `TaskGraph` でノード関係を組み立て
+5. **監視実行**: Web UI でリアルタイムに実行状態を監視
 
-### 主要概念の振り返り
+### 主要コンセプトの振り返り
 
-| 概念 | 説明 |
-|------|------|
-| `TaskStage` | タスクノード、処理関数をラップします |
-| `TaskSplitter` | 分割器、1つのタスクを複数に分割します |
-| `TaskGraph` | タスクグラフ、ノード関係と実行フローを組織します |
-| `stage_mode` | ノードの実行モード（serial/thread/process） |
-| `execution_mode` | ノード内部の実行モード（serial/thread） |
+| コンセプト | 説明 |
+|-----------|------|
+| `TaskStage` | タスクノード、処理関数をラップ |
+| `TaskSplitter` | スプリッター、1つのタスクを複数に分割 |
+| `TaskGraph` | タスクグラフ、ノード関係と実行フローを組み立て |
+| `stage_mode` | ノード実行モード（serial/thread/process） |
+| `execution_mode` | ノード内部実行モード（serial/thread/async） |
 
 ### 次のステップ
 
-- `TaskRouter`を使用した条件付きルーティングを試す
-- `TaskRedisTransport`でクロス言語連携を探る
-- その他の[APIリファレンス](reference/stage/core_executor.md)で詳細な機能を確認する
+- `TaskRouter` を使用した条件付き配信を試す
+- `TaskRedisTransport` を使用したクロス言語連携を探索
+- その他の [API リファレンス](reference/stage/core_executor.md) を読んでさらに多くの機能を学ぶ

@@ -1,35 +1,35 @@
 # Tutorial: Building an Image Crawler
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/04/24
 
-This tutorial will walk you through learning CelestialFlow from scratch using a complete hands-on project — a **Baidu Image Crawler**.
+This tutorial walks you through a complete hands-on project -- a **Baidu Image Crawler** -- to learn CelestialFlow from scratch.
 
-## Project Goals
+## Project Goal
 
-Crawl Baidu Image search results and download images for specified keywords to the local machine. We will learn how to:
-1. Analyze the task flow and break it down
+Crawl Baidu Image search results and download images for specified keywords to local storage. You will learn how to:
+1. Analyze and break down the task workflow
 2. Write processing functions for each stage
-3. Assemble the task graph and run it
-4. Monitor execution status through the Web UI
+3. Assemble and run the task graph
+4. Monitor execution status via the Web UI
 
 ---
 
-## Step 1: Task Analysis and Decomposition
+## Step 1: Task Analysis and Breakdown
 
 Before coding, we need to analyze the crawler's execution flow:
 
 ```
-User inputs keyword → Search page → Parse image list → Download images → Save files
+User inputs keywords → Search page → Parse image list → Download images → Save files
 ```
 
 ### Task Layer Design
 
-| Layer | Function | Input | Output |
-|-------|----------|-------|--------|
-| **Layer 1: Search** | Fetch search result page | Keyword | Page HTML |
+| Layer | Functionality | Input | Output |
+|-------|---------------|-------|--------|
+| **Layer 1: Search** | Fetch search result pages | Keywords | Page HTML |
 | **Layer 2: Parse** | Extract image URL list | HTML | Image URL list |
 | **Layer 3: Download** | Download image content | Image URL | Image binary data |
-| **Layer 4: Storage** | Save to local disk | Image data | File path |
+| **Layer 4: Save** | Save to local storage | Image data | File path |
 
 ### Task Graph Structure
 
@@ -55,9 +55,9 @@ flowchart LR
 
 ---
 
-## Step 2: Write Processing Functions
+## Step 2: Writing Processing Functions
 
-We will first write the processing functions for each stage and test them individually.
+We first write the processing functions for each stage and test them individually.
 
 ### 2.1 Search Page
 
@@ -82,7 +82,7 @@ def search_images(keyword: str) -> str:
 
 # Standalone test
 if __name__ == "__main__":
-    html = search_images("猫咪")
+    html = search_images("cats")
     print(f"Fetched {len(html)} characters of HTML")
 ```
 
@@ -99,7 +99,7 @@ def parse_image_urls(html: str) -> list[str]:
     :param html: Page HTML
     :return: Image URL list
     """
-    # Baidu Images data is embedded in JavaScript
+    # Baidu Images embeds data in JavaScript
     pattern = r'"hoverURL":"(https?://[^"]+)"'
     urls = re.findall(pattern, html)
     # Handle escape characters
@@ -108,7 +108,7 @@ def parse_image_urls(html: str) -> list[str]:
 
 # Standalone test
 if __name__ == "__main__":
-    html = search_images("猫咪")
+    html = search_images("cats")
     urls = parse_image_urls(html)
     print(f"Parsed {len(urls)} image URLs")
     for url in urls[:3]:
@@ -141,7 +141,7 @@ def download_image(url: str) -> bytes | None:
 
 # Standalone test
 if __name__ == "__main__":
-    html = search_images("猫咪")
+    html = search_images("cats")
     urls = parse_image_urls(html)
     if urls:
         data = download_image(urls[0])
@@ -157,10 +157,10 @@ import hashlib
 
 def save_image(image_data: bytes, keyword: str) -> str:
     """
-    Save an image to local disk.
+    Save an image to local storage.
     
     :param image_data: Image binary data
-    :param keyword: Keyword (used for creating directory)
+    :param keyword: Keyword (used to create directory)
     :return: Saved file path
     """
     # Create directory
@@ -180,18 +180,18 @@ def save_image(image_data: bytes, keyword: str) -> str:
 
 # Standalone test
 if __name__ == "__main__":
-    html = search_images("猫咪")
+    html = search_images("cats")
     urls = parse_image_urls(html)
     if urls:
         data = download_image(urls[0])
         if data:
-            path = save_image(data, "猫咪")
+            path = save_image(data, "cats")
             print(f"Saved successfully: {path}")
 ```
 
 ---
 
-## Step 3: Assemble the Task Graph
+## Step 3: Assembling the Task Graph
 
 After verifying the processing functions, we assign them to their respective `TaskStage` instances, then organize the structure with `TaskGraph`.
 
@@ -200,8 +200,9 @@ After verifying the processing functions, we assign them to their respective `Ta
 ```python
 from celestialflow import TaskStage, TaskSplitter
 
-# Search stage: input keyword, output HTML
+# Search stage: input keywords, output HTML
 stage_search = TaskStage(
+    "Search Page",
     func=search_images,
     execution_mode="serial",  # Only one keyword, serial is sufficient
     max_retries=2,
@@ -210,26 +211,28 @@ stage_search = TaskStage(
 # Parse stage: input HTML, output multiple image URLs (requires splitting)
 # A custom Splitter is needed to split the URL list
 class URLSplitter(TaskSplitter):
-    """Split URL list into multiple independent tasks."""
+    """Splits a URL list into multiple independent tasks."""
     
     def _split(self, html: str):
         urls = parse_image_urls(html)
         print(f"Parsed {len(urls)} image URLs")
         return tuple(urls)
 
-stage_parse = URLSplitter()
+stage_parse = URLSplitter("Parse Images")
 
 # Download stage: input URL, output image data
 stage_download = TaskStage(
+    "Download Images",
     func=download_image,
     execution_mode="thread",  # Network IO intensive, use thread pool
-    worker_limit=10,          # Download 10 images concurrently
+    max_workers=10,           # Download 10 concurrently
     max_retries=3,
 )
 
 # Save stage: input image data, output file path
 stage_save = TaskStage(
-    func=lambda data: save_image(data, "猫咪") if data else None,
+    "Save Files",
+    func=lambda data: save_image(data, "cats") if data else None,
     execution_mode="serial",
     enable_duplicate_check=False,  # Allow saving duplicate data (for retries)
 )
@@ -240,7 +243,7 @@ stage_save = TaskStage(
 ```python
 from celestialflow import TaskGraph
 
-# Create task graph
+# Create the task graph
 graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
 
 # Set up nodes
@@ -252,14 +255,14 @@ graph.connect([stage_parse], [stage_download])
 graph.connect([stage_download], [stage_save])
 ```
 
-### 3.3 Start Web Monitoring (Optional)
+### 3.3 Enable Web Monitoring (Optional)
 
 ```python
-# Enable Web monitoring
+# Enable web monitoring
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 ```
 
-Start the Web service:
+Start the web server:
 ```bash
 celestialflow-web --port 5005
 ```
@@ -271,7 +274,7 @@ Visit http://localhost:5005 to view real-time status.
 ```python
 # Prepare initial tasks
 init_tasks = {
-    stage_search.get_tag(): ["猫咪", "小狗", "风景"]
+    stage_search.get_tag(): ["cats", "dogs", "landscapes"]
 }
 
 # Start
@@ -287,7 +290,7 @@ print(f"Failed: {graph.get_graph_summary().get('total_failed', 0)}")
 
 ## Step 4: Complete Code
 
-Integrate all the code into a single file:
+Consolidate all code into a single file:
 
 ```python
 # crawler.py
@@ -362,22 +365,25 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     
     # Create nodes
     stage_search = TaskStage(
+        "Search Page",
         func=search_images,
         execution_mode="serial",
         max_retries=2,
     )
     
-    stage_parse = URLSplitter()
+    stage_parse = URLSplitter("Parse Images")
     
     stage_download = TaskStage(
+        "Download Images",
         func=download_image,
         execution_mode="thread",
-        worker_limit=10,
+        max_workers=10,
         max_retries=3,
     )
     
     # Use closure to pass keyword
     stage_save = TaskStage(
+        "Save Files",
         func=lambda data: save_image(data, keyword),
         execution_mode="serial",
         enable_duplicate_check=False,
@@ -396,7 +402,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
 
 if __name__ == "__main__":
     # Configuration
-    KEYWORDS = ["猫咪", "小狗", "风景"]
+    KEYWORDS = ["cats", "dogs", "landscapes"]
     
     # Build graph
     graph = build_crawler_graph(KEYWORDS[0])
@@ -417,12 +423,12 @@ if __name__ == "__main__":
 
 ---
 
-## Step 5: Run and Debug
+## Step 5: Running and Debugging
 
-### 5.1 Start the Web Service
+### 5.1 Start the Web Server
 
 ```bash
-# Terminal 1: Start the Web service
+# Terminal 1: Start the web server
 celestialflow-web --port 5005
 ```
 
@@ -437,8 +443,8 @@ python crawler.py
 
 Open http://localhost:5005, where you can see:
 
-1. **Dashboard**: Real-time display of processing progress for each node
-2. **Structure**: Visualization of the task graph structure
+1. **Dashboard**: Real-time processing progress for each node
+2. **Structure**: Visual representation of the task graph structure
 3. **Errors**: Failed image URLs and error messages
 4. **Task Injection**: Dynamically inject new keywords
 
@@ -446,16 +452,16 @@ Open http://localhost:5005, where you can see:
 
 ```bash
 # View downloaded images
-ls images/猫咪/
-ls images/小狗/
-ls images/风景/
+ls images/cats/
+ls images/dogs/
+ls images/landscapes/
 ```
 
 ---
 
 ## Extension: Dynamic Task Injection
 
-You can dynamically inject new keywords through the Web UI:
+New keywords can be dynamically injected via the Web UI:
 
 ```python
 # Or inject via code
@@ -463,7 +469,7 @@ from celestialflow import TerminationSignal
 
 # Inject new keywords
 graph.put_stage_queue({
-    stage_search.get_tag(): ["汽车", "美食"]
+    stage_search.get_tag(): ["cars", "food"]
 })
 
 # Inject termination signal (stop crawling)
@@ -482,20 +488,20 @@ This tutorial demonstrated the complete CelestialFlow workflow:
 2. **Function Writing**: Write processing functions for each layer and test them individually
 3. **Node Creation**: Wrap functions as `TaskStage` instances
 4. **Graph Assembly**: Organize node relationships with `TaskGraph`
-5. **Monitored Execution**: Monitor execution status in real time through the Web UI
+5. **Monitored Execution**: Monitor execution status in real time via the Web UI
 
 ### Key Concepts Review
 
 | Concept | Description |
 |---------|-------------|
 | `TaskStage` | Task node that wraps a processing function |
-| `TaskSplitter` | Splitter that divides one task into multiple tasks |
+| `TaskSplitter` | Splitter that breaks one task into multiple tasks |
 | `TaskGraph` | Task graph that organizes node relationships and execution flow |
-| `stage_mode` | Node execution mode (serial/thread/process) |
-| `execution_mode` | Internal execution mode within a node (serial/thread) |
+| `stage_mode` | Node runtime mode (serial/thread/process) |
+| `execution_mode` | Internal execution mode within a node (serial/thread/async) |
 
 ### Next Steps
 
-- Try using `TaskRouter` for conditional routing
+- Try using `TaskRouter` for conditional dispatch
 - Explore `TaskRedisTransport` for cross-language collaboration
-- Read other [API References](reference/stage/core_executor.md) for more features
+- Read the [API Reference](reference/stage/core_executor.md) for more features

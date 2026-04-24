@@ -1,22 +1,22 @@
 # TaskStage
 
-> 📅 最終更新日: 2026/04/23
+> 📅 最終更新日: 2026/04/24
 
-`TaskStage` は `TaskGraph` を構築するための基本ユニットです。`TaskExecutor` を継承し、グラフ構造の接続機能を追加しています。
+`TaskStage` は `TaskGraph` を構築する基本単位です。`TaskExecutor` を継承し、グラフ構造に関する接続機能を追加しています。
 
 ## 継承関係
 
 `TaskExecutor` -> `TaskStage`
 
-`TaskStage` は `TaskExecutor` のすべての実行機能（実行モード、リトライ、キャッシュなど）を保持しつつ、ノード間の接続ロジックを追加しています。
+`TaskStage` は `TaskExecutor` のすべての実行機能（実行モード、リトライ、キャッシュなど）を保持し、ノード間の接続ロジックを追加しています。
 
-## 主要概念
+## 主要な概念
 
 - **Stage Mode**: グラフ内でのノードの実行モード。
-  - `serial`: 逐次モード、メインプロセスで実行します。
-  - `thread`: スレッドモード、メインプロセス内の独立したスレッドで実行します。
-  - `process`: 並列モード、独立したサブプロセスで実行します。
-- **トポロジー関係**: ノード間の上流/下流の接続関係は `TaskGraph` によって管理され（`graph.out_edges` / `graph.in_edges` 経由）、ノード自体には保存されません。
+  - `serial`: 直列モード、メインプロセスで実行。
+  - `thread`: スレッドモード、メインプロセス内で独立したスレッドとして実行。
+  - `process`: 並列モード、独立した子プロセスで実行。
+- **トポロジ関係**: ノード間の上流・下流の接続関係は `TaskGraph` によって管理され（`graph.out_edges` / `graph.in_edges` を通じて）、ノード自身には保存されません。
 
 ## 初期化
 
@@ -31,20 +31,19 @@ class TaskStage(TaskExecutor):
         max_retries=1,
         max_info=50,
         unpack_task_args=False,
-        enable_success_cache=False,
         enable_duplicate_check=True,
         stage_mode="serial",
     ):
         ...
 ```
 
-パラメータは `TaskExecutor` と同じですが、`stage_mode` パラメータが追加されています。主な違いは、`TaskStage` の `execution_mode` が `thread` または `serial` のみに制限されることです（`process` モードは `stage_mode` で制御されます）。
+パラメータは `TaskExecutor` と同一で、`stage_mode` パラメータが追加されています。`TaskStage` の `execution_mode` は `serial`、`thread`、または `async` を指定できます（`process` モードは `stage_mode` で制御します）。
 
 ## グラフ構築メソッド
 
 ### graph.connect
 
-`graph.connect(from_stages, to_stages)` を使用してノード間の接続関係を確立します。`stage_mode` と `name` は `TaskStage.__init__()` のコンストラクタパラメータで渡されます。
+`graph.connect(from_stages, to_stages)` を通じてノード間の接続関係を確立します。`stage_mode` と `name` は `TaskStage.__init__()` のコンストラクタ引数で渡されます。
 
 ```python
 def connect(
@@ -55,8 +54,8 @@ def connect(
     """
     上流ノードと下流ノードを接続します。
 
-    :param from_stages: 上流ノードのリスト
-    :param to_stages: 下流ノードのリスト
+    :param from_stages: 上流ノードリスト
+    :param to_stages: 下流ノードリスト
     """
 ```
 
@@ -88,19 +87,19 @@ def get_stage_mode(self) -> str:
     """
 ```
 
-### 名前設定
+### 名前の設定
 
 ```python
 def set_name(self, name: str):
     """
-    現在のノードの名前を設定します。
-    注意: 名前変更後、タグは無効化され再生成されます。
+    現在のノード名を設定します。
+    注意：名前を変更すると、タグは無効になり再生成されます。
     """
 ```
 
 ## 状態管理
 
-`TaskStage` は `StageStatus` 列挙型を使用して実行状態を管理します：
+`TaskStage` は `StageStatus` 列挙型で実行状態を管理します：
 
 - `NOT_STARTED` (0): 未開始
 - `RUNNING` (1): 実行中
@@ -111,11 +110,11 @@ def set_name(self, name: str):
 ```python
 # 実行中としてマーク
 def mark_running(self) -> None:
-    """マーク: stage が実行中です。"""
+    """マーク：stage が実行中です。"""
 
 # 停止としてマーク
 def mark_stopped(self) -> None:
-    """マーク: stage が停止しました（正常終了時に finally ブロック内で呼び出されます）。"""
+    """マーク：stage が停止しました（正常終了時に finally で呼び出されます）。"""
 
 # 状態を取得
 def get_status(self) -> StageStatus:
@@ -124,9 +123,9 @@ def get_status(self) -> StageStatus:
 
 ## 実行メカニズム
 
-`TaskGraph` が開始されると、各 `TaskStage` は `stage_mode` に基づいて実行方法を決定します：
+`TaskGraph` が起動すると、各 `TaskStage` は `stage_mode` に基づいて実行方法を決定します：
 
-- **process モード**: ノードは独立した `Process` にラップされ、他のノードから分離して起動されます。
+- **process モード**: ノードは独立した `Process` にラップされて起動され、他のノードから隔離されます。
 - **serial モード**: ノードはメインプロセスで実行されます（通常デバッグ用）。
 
 ### start_stage
@@ -149,7 +148,7 @@ def start_stage(
     """
 ```
 
-ノードは `input_queues` から継続的にタスクを取得し、実行（`TaskExecutor` のロジックを使用）し、結果を `output_queues` に配置します。
+ノードは継続的に `input_queues` からタスクを取得し、実行（`TaskExecutor` のロジックを使用）し、結果を `output_queues` に投入します。
 
 ## 状態スナップショット
 
@@ -157,24 +156,24 @@ def start_stage(
 def get_summary(self) -> dict:
     """
     現在のノードの状態スナップショットを取得します。
-    含まれる情報: name, func_name, class_name, execution_mode, stage_mode
+    含まれる情報：name, func_name, class_name, execution_mode, stage_mode
     """
 ```
 
 ## 実行モードの制限
 
-`TaskStage` では、`execution_mode` の利用可能な値は制限されています：
+`TaskStage` では、`execution_mode` の使用可能な値は制限されています：
 
 ```python
 # 有効なモード
-valid_modes = ("thread", "serial")
+valid_modes = ("serial", "thread", "async")
 
-# 注意: process モードは execution_mode ではなく stage_mode で制御されます
+# 注意：process モードは stage_mode で制御され、execution_mode ではありません
 ```
 
 ## 継承による拡張
 
-カスタム Stage を作成する場合、以下のメソッドをオーバーライドできます：
+カスタム Stage を作成する際、以下のメソッドをオーバーライドできます：
 
 ```python
 class MyStage(TaskStage):
@@ -189,7 +188,7 @@ class MyStage(TaskStage):
 
 ## 注意事項
 
-1. **プロセスモード**: `stage_mode="process"` の場合、関数が pickle 可能であることを確認してください（lambda やネスト関数などは避けてください）。
-2. **カウンターのカスケード**: 上流が `TaskSplitter` または `TaskRouter` の場合、カウンターは自動的にカスケードされます。
-3. **状態共有**: `multiprocessing.Value` を使用して実装されており、クロスプロセスの状態クエリをサポートしています。
-4. **タグの一意性**: タグは `名前[関数名]` で構成され、ログ追跡とグラフトポロジーの識別に使用されます。
+1. **プロセスモード**: `stage_mode="process"` の場合、関数が pickle 可能であることを確認してください（lambda、ネストされた関数などは避けてください）。
+2. **カウンターの連鎖**: 上流が `TaskSplitter` または `TaskRouter` の場合、カウンターは自動的に連鎖します。
+3. **状態の共有**: `multiprocessing.Value` を使用して実装され、プロセス間の状態クエリをサポートします。
+4. **タグの一意性**: タグは `名前[関数名]` で構成され、ログトレースとグラフトポロジの識別に使用されます。

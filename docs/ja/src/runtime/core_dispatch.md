@@ -1,8 +1,8 @@
 # TaskDispatch
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/04/24
 
-`TaskDispatch` はタスク実行のコアランナーであり、キューからタスクを取得し、実行し、結果とエラーを処理する役割を担います。シリアル、スレッドプール、非同期の3つの実行モードをサポートしています。
+`TaskDispatch` はタスク実行のコアランナーであり、キューからタスクを取得し、タスクを実行し、結果とエラーを処理する役割を担います。シリアル、スレッドプール、非同期の3つの実行モードをサポートしています。
 
 ## 初期化
 
@@ -10,11 +10,11 @@
 class TaskDispatch:
     def __init__(self, task_executor: TaskExecutor, func, max_workers: int):
         """
-        タスクランナーを初期化します。
+        タスクランナーを初期化する。
 
         :param task_executor: タスクエグゼキューター（TaskExecutor インスタンス）
         :param func: タスク関数
-        :param max_workers: ワーカースレッドまたはプロセスの最大数
+        :param max_workers: ワーカースレッドまたはプロセス数の上限
         """
 ```
 
@@ -27,19 +27,19 @@ class TaskDispatch:
 ```python
 def dispatch_serial(self):
     """
-    タスクをシリアルに実行します。
+    タスクをシリアルに実行する。
 
-    task_queues からタスクを取得し、終了シグナルを受信してすべてのタスクが完了するまで順次実行します。
+    task_queues からタスクを取得し、順番に実行し、終了シグナルを受信してすべてのタスクが完了するまで続ける。
     """
 ```
 
-実行フロー:
-1. `task_queues.get()` からタスクを取得します
-2. 終了シグナル（`TerminationIdPool`）かどうかを確認します
-3. タスクが重複していないか確認します
-4. タスクを実行し、結果またはエラーを処理します
-5. プログレスバーを更新します
-6. 終了シグナルを受信した後、すべてのタスクが完了したか確認します
+実行フロー：
+1. `task_queues.get()` からタスクを取得
+2. 終了シグナル（`TerminationIdPool`）かどうかを確認
+3. タスクが重複していないか確認
+4. タスクを実行し、結果またはエラーを処理
+5. プログレスバーを更新
+6. 終了シグナルを受信後、すべてのタスクが完了しているか確認
 
 ### dispatch_thread
 
@@ -48,33 +48,33 @@ def dispatch_serial(self):
 ```python
 def dispatch_thread(self):
     """
-    スレッドプールを使用してタスクを並列実行します。
+    スレッドプールを使用してタスクを並列実行する。
     """
 ```
 
-実行フロー:
-1. スレッドプールを初期化します
-2. キューからタスクを取得し、プールに送信します
-3. すべての future が完了するのを待ってから終了シグナルを処理します
-4. プールをシャットダウンし、リソースを解放します
+実行フロー：
+1. スレッドプールを初期化
+2. キューからタスクを取得してプールに送信
+3. すべての future が完了してから終了シグナルを処理
+4. プールを閉じてリソースを解放
 
 ### dispatch_async
 
-コルーチンとセマフォを使用して並行性を制御しながら、タスクを非同期に実行します。
+非同期でタスクを実行し、コルーチンとセマフォで並行数を制御します。
 
 ```python
 async def dispatch_async(self):
     """
-    並行数を制限してタスクを非同期に実行します。
+    非同期でタスクを実行し、並行数を制限する。
     """
 ```
 
-実行フロー:
-1. 並行数を制限するセマフォを作成します
-2. タスクを非同期に取得します
-3. `asyncio.gather` を使用してタスクを並行実行します
-4. 結果とエラーを処理します
-5. 終了条件を確認します
+実行フロー：
+1. セマフォを作成して並行数を制限
+2. 非同期でタスクを取得
+3. `asyncio.gather` で並行にタスクを実行
+4. 結果とエラーを処理
+5. 終了条件を確認
 
 ## 内部メソッド
 
@@ -82,34 +82,34 @@ async def dispatch_async(self):
 
 ```python
 def _worker(self, envelope: TaskEnvelope):
-    """スレッドプール内のワーカー関数。単一タスクを実行し、リトライを処理します。"""
+    """スレッドプール内のワーカー関数。単一タスクを実行しリトライを処理する。"""
 
 async def _async_worker(self, envelope: TaskEnvelope):
-    """非同期ワーカー関数。単一タスクを実行し、リトライを処理します。"""
+    """非同期ワーカー関数。単一タスクを実行しリトライを処理する。"""
 ```
 
-### process_termination_signal
+### _process_termination_signal
 
 ```python
-def process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
+def _process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
     """
-    終了シグナルを処理し、マージイベントを生成します。
+    終了シグナルを処理し、マージイベントを生成する。
 
     :param termination_pool: 複数の終了シグナル ID を含むプール
     :return: マージされた終了シグナル
     """
 ```
 
-### release_pool
+### _release_pool
 
 ```python
-def release_pool(self):
-    """スレッドプールをシャットダウンし、リソースを解放します。"""
+def _release_pool(self):
+    """スレッドプールを閉じ、リソースを解放する。"""
 ```
 
 ## TaskExecutor との関係
 
-`TaskDispatch` は `TaskExecutor` の内部コンポーネントです:
+`TaskDispatch` は `TaskExecutor` の内部コンポーネントです：
 
 ```
 TaskExecutor
@@ -119,21 +119,21 @@ TaskExecutor
     ├── metrics            # タスクメトリクス
     └── dispatch           # TaskDispatch インスタンス
             ├── func               # タスク関数
-            ├── max_workers        # 並行数制限
+            ├── max_workers        # 並行数の上限
             ├── dispatch_serial()
             ├── dispatch_thread()
             └── dispatch_async()
 ```
 
-`TaskExecutor` は `execution_mode` に基づいて `TaskDispatch` のどのメソッドを呼び出すかを選択します:
+`TaskExecutor` は `execution_mode` に基づいて `TaskDispatch` のどのメソッドを呼び出すかを選択します：
 - `serial` → `dispatch_serial()`
 - `thread` → `dispatch_thread()`
 - `async` → `dispatch_async()`
 
 ## 注意事項
 
-1. **並行性制御**: `max_workers` は並行タスク数を制限し、リソースの枯渇を防ぎます
-2. **終了処理**: 終了シグナルのマージと転送を正しく処理します
-3. **エラー伝搬**: 例外はキャッチされ、`TaskExecutor.handle_task_fail()` に渡されます
-4. **リトライメカニズム**: ワーカー内部でタスクのリトライをサポートし、`max_retries` で制御されます
-5. **非同期の制限**: `dispatch_async` はタスク関数がコルーチン関数であることを要求します
+1. **並行制御**: `max_workers` で並行タスク数を制限し、リソースの枯渇を防止
+2. **終了処理**: 終了シグナルのマージと伝達を正しく処理
+3. **エラー伝播**: 例外はキャッチされ、`TaskExecutor.handle_task_fail()` に渡される
+4. **リトライ機構**: ワーカー内部でタスクのリトライをサポートし、`max_retries` で制御
+5. **非同期の制限**: `dispatch_async` ではタスク関数がコルーチン関数である必要がある

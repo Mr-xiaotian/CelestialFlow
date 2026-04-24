@@ -1,8 +1,8 @@
 # TaskMetrics
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/04/24
 
-The TaskMetrics module manages and tracks various metrics during task execution, such as input task count, success count, failure count, duplicate task count, and more. It typically exists as a component of `TaskExecutor`.
+The TaskMetrics module is responsible for managing and tracking various metrics during task execution, such as input task count, success count, failure count, duplicate task count, etc. It typically exists as a component of `TaskExecutor`.
 
 ## Initialization
 
@@ -17,25 +17,25 @@ class TaskMetrics:
         ...
 ```
 
-- **execution_mode**: Task execution mode. Possible values include `"thread"`, `"async"`, etc. Used to select the counter implementation.
+- **execution_mode**: Task execution mode. Possible values include `"thread"` or `"async"`, etc. Used to select the counter implementation.
 - **max_retries**: Maximum number of retries, default is 1.
 - **enable_duplicate_check**: Whether to enable duplicate task checking, default is False.
 
 ## Counter Management
 
-TaskMetrics provides a set of methods for safely updating counters (typically using locks in multi-thread/multi-process environments).
+TaskMetrics provides a set of methods to safely update counters (typically using locks in multi-thread/multi-process environments).
 
 ### Initialization and Reset
 
 ```python
-def init_counter(self) -> None:
+def _init_counter(self) -> None:
     """Initialize counters (selects implementation based on execution_mode)."""
 
 def reset_counter(self) -> None:
     """Reset all counters to zero."""
 
 def reset_state(self) -> None:
-    """Reset statistics state (clears retry time records and processed task sets)."""
+    """Reset statistical state (clears retry time records and processed task set)."""
 ```
 
 ### Counter Operations
@@ -61,14 +61,14 @@ def add_duplicate_count(self, count: int = 1):
 
 ```python
 def append_task_counter(self, counter) -> None:
-    """Append an external counter to the task total counter (used for cross-stage cascading statistics)."""
+    """Append an external counter to the task total counter (used for cross-Stage cascading statistics)."""
 ```
 
 ## State Queries
 
 ### is_tasks_finished
 
-Determines whether all input tasks have been processed (success + failure + duplicate == input).
+Determines whether all input tasks have been processed (success + failure + duplicates == input).
 
 ```python
 def is_tasks_finished(self) -> bool: ...
@@ -85,8 +85,8 @@ def get_counts(self) -> dict:
         "tasks_succeeded": int,   # Successful tasks
         "tasks_failed": int,      # Failed tasks
         "tasks_duplicated": int,  # Duplicate tasks
-        "tasks_processed": int,   # Total processed (success+failure+duplicate)
-        "tasks_pending": int,     # Pending tasks (input-processed)
+        "tasks_processed": int,   # Total processed (success + failure + duplicates)
+        "tasks_pending": int,     # Pending tasks (input - processed)
     }
 ```
 
@@ -97,7 +97,7 @@ def get_task_count(self) -> int:
     """Get the current total task count."""
 
 def get_success_count(self) -> int:
-    """Get the current successful task count."""
+    """Get the current success task count."""
 
 def get_error_count(self) -> int:
     """Get the current failed task count."""
@@ -108,7 +108,7 @@ def get_duplicate_count(self) -> int:
 
 ## Task Deduplication
 
-If `enable_duplicate_check` is enabled, TaskMetrics maintains a `processed_set` to record the hashes of processed tasks.
+If `enable_duplicate_check` is enabled, TaskMetrics maintains a `processed_set` to record the hash values of processed tasks.
 
 ```python
 def is_duplicate(self, task_hash: str) -> bool:
@@ -116,14 +116,11 @@ def is_duplicate(self, task_hash: str) -> bool:
 
 def add_processed_set(self, task_hash: str) -> None:
     """Add a task hash to the processed set."""
-
-def discard_processed_set(self, task_hash: str) -> None:
-    """Remove a task from the processed set (used to allow reprocessing during retries)."""
 ```
 
 ## Retry Management
 
-TaskMetrics manages task retry logic, including retryable exception types and retry count tracking.
+TaskMetrics manages the retry logic for tasks.
 
 ### Exception Configuration
 
@@ -132,30 +129,7 @@ def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
     """Add exception types that should trigger retries."""
 ```
 
-### Retry Evaluation
-
-```python
-def is_retry_able(self, task_hash: str, exception: Exception) -> bool:
-    """
-    Check whether a task can be retried.
-    Based on exception type and current retry count.
-    """
-```
-
-### Retry Counting
-
-```python
-def get_retry_time(self, task_hash: str) -> int:
-    """Get the retry count for a task (returns 0 if not found)."""
-
-def add_retry_time(self, task_hash: str, retry_time: int = 1) -> int:
-    """Increment the retry count for a task and return the new count."""
-
-def pop_retry_time(self, task_hash: str) -> int | None:
-    """Pop and return the retry count for a task (called after success or final failure)."""
-```
-
-## Execution Mode Setting
+## Execution Mode Configuration
 
 ```python
 def set_execution_mode(self, execution_mode: str) -> None:

@@ -1,8 +1,8 @@
 # SuccessSpout
 
-> 📅 Last updated: 2026/04/23
+> 📅 Last updated: 2026/04/24
 
-`SuccessSpout` inherits from `BaseSpout` and continuously listens to the success result queue, caching task-result pairs.
+`SuccessSpout` inherits from `BaseSpout` and is used to continuously listen to the success result queue and cache task-result pairs.
 
 ## Initialization
 
@@ -30,18 +30,18 @@ def get_success_pairs(self) -> list[tuple[Any, Any]]:
 
 ### _handle_record
 
-Receives a `TaskEnvelope` from the queue, extracts the original task (`record.prev`) and result (`record.task`), and appends them to `success_pairs`.
+Receives a `TaskEnvelope` from the queue, extracts the original task (`record.prev`) and the result (`record.task`), and appends them to `success_pairs`.
 
 ### _before_start
 
-Clears `success_pairs` before startup.
+Clears `success_pairs` before starting.
 
-## Use Cases
+## Usage Scenario
 
-When `TaskExecutor` has `enable_success_cache=True` enabled, successful results are sent to `SuccessSpout`'s queue. After execution completes, you can retrieve all successful (task, result) pairs via `get_success_pairs()`.
+Success results are sent to the `SuccessSpout` queue. After execution completes, all successful (task, result) pairs can be retrieved via `get_success_pairs()`.
 
 ```python
-executor = TaskExecutor("Processor", process, enable_success_cache=True)
+executor = TaskExecutor("Processor", process)
 executor.start(tasks)
-pairs = executor.success_spout.get_success_pairs()
+pairs = executor.get_success_pairs()
 ```

@@ -1,8 +1,8 @@
 # TaskNodes
 
-> 📅 Last updated: 2026/04/23
+> 📅 Last updated: 2026/04/24
 
-The TaskNodes module provides multiple specialized `TaskStage` implementations for flow control, external system interaction, and other scenarios.
+The TaskNodes module provides various special-purpose `TaskStage` implementations for flow control, external system interaction, and other scenarios.
 
 ## TaskSplitter
 
@@ -46,7 +46,7 @@ class TaskSplitter(TaskStage):
         Initialize TaskSplitter.
 
         :param name: Node name
-        :param stage_mode: Node running mode
+        :param stage_mode: Node execution mode
         """
         # Defaults: execution_mode="serial", max_retries=0, unpack_task_args=True
 ```
@@ -62,9 +62,9 @@ class MySplitter(TaskSplitter):
 
 ### Features
 
-- **Mechanism**: Takes a single task as input and returns a tuple/list. Each element is wrapped into an independent `TaskEnvelope` and sent downstream.
+- **Mechanism**: Takes one task as input and returns a tuple/list. Each element is wrapped into an independent `TaskEnvelope` and sent downstream.
 - **Counting**: Internally maintains a `split_counter` to track the total number of split tasks.
-- **Default Configuration**: `execution_mode="serial"`, `max_retries=0`, `unpack_task_args=True`
+- **Default configuration**: `execution_mode="serial"`, `max_retries=0`, `unpack_task_args=True`
 
 ---
 
@@ -112,14 +112,14 @@ class TaskRouter(TaskStage):
         Initialize TaskRouter.
 
         :param name: Node name
-        :param stage_mode: Node running mode
+        :param stage_mode: Node execution mode
         """
         # Defaults: execution_mode="serial", max_retries=0
 ```
 
 ### Usage
 
-Routing tasks requires returning a tuple in the `(target_tag, data)` format:
+Routing tasks requires returning a tuple in the format `(target_tag, data)`:
 
 ```python
 # Define upstream task to generate routing tuples
@@ -129,8 +129,8 @@ def route_logic(data):
     else:
         return ("negative_stage", data)
 
-# Create a router node
-router = TaskRouter()
+# Create router node
+router = TaskRouter("Router")
 
 # Connect downstream (target must match the tag in the routing logic)
 graph.connect([router], [pos_stage, neg_stage])
@@ -138,9 +138,9 @@ graph.connect([router], [pos_stage, neg_stage])
 
 ### Features
 
-- **Mechanism**: Receives tuples in the `(target_tag, data)` format. Sends `data` to the corresponding downstream Stage based on `target_tag`.
+- **Mechanism**: Receives tuples in the form `(target_tag, data)`. Routes `data` to the corresponding downstream Stage based on `target_tag`.
 - **Counting**: Maintains independent counters `route_counters` for each target.
-- **Error Handling**: Raises `InvalidOptionError` if the `target_tag` does not exist in the downstream list.
+- **Error handling**: If `target_tag` does not exist in the downstream list, an `InvalidOptionError` is raised.
 
 ---
 
@@ -191,7 +191,7 @@ class TaskRedisTransport(TaskStage):
         db: int = 0,                    # Redis database number
         password: str | None = None,    # Redis password
         unpack_task_args: bool = False, # Whether to unpack task arguments
-        stage_mode: str = "serial",     # Node running mode
+        stage_mode: str = "serial",     # Node execution mode
     ):
         ...
 ```
@@ -213,7 +213,7 @@ class TaskRedisSource(TaskStage):
         db: int = 0,                 # Redis database number
         password: str | None = None, # Redis password
         timeout: int = 10,           # Blocking timeout in seconds; 0 means wait indefinitely
-        stage_mode: str = "serial",  # Node running mode
+        stage_mode: str = "serial",  # Node execution mode
     ):
         ...
 ```
@@ -266,7 +266,7 @@ class TaskRedisAck(TaskStage):
         db: int = 0,                 # Redis database number
         password: str | None = None, # Redis password
         timeout: int = 10,           # Wait timeout in seconds; 0 means wait indefinitely
-        stage_mode: str = "serial",  # Node running mode
+        stage_mode: str = "serial",  # Node execution mode
     ):
         ...
 ```
@@ -310,11 +310,13 @@ redis_password = os.getenv("REDIS_PASSWORD", "")
 
 # Transport + Ack combination (push to Redis and wait for results)
 redis_sink = TaskRedisTransport(
+    "RedisTransport",
     key="testFibonacci:input",
     host=redis_host,
     password=redis_password
 )
 redis_ack = TaskRedisAck(
+    "RedisAck",
     key="testFibonacci:output",
     host=redis_host,
     password=redis_password
@@ -322,6 +324,7 @@ redis_ack = TaskRedisAck(
 
 # Source combination (pull tasks from Redis)
 redis_source = TaskRedisSource(
+    "RedisSource",
     key="test_redis",
     host=redis_host,
     password=redis_password
@@ -330,7 +333,7 @@ redis_source = TaskRedisSource(
 
 ---
 
-## Redis Data Format
+## Redis Data Formats
 
 ### TaskRedisTransport Push Format
 
@@ -363,7 +366,7 @@ Or error format:
 
 ## Notes
 
-1. **Connection Management**: The Redis client is lazily initialized on first use.
-2. **Timeout Handling**: `TaskRedisSource` and `TaskRedisAck` support timeout configuration; timeouts raise `TimeoutError`.
-3. **Error Propagation**: Errors returned by remote Workers are propagated via `RemoteWorkerError`.
+1. **Connection management**: The Redis client is lazily initialized on first use.
+2. **Timeout handling**: `TaskRedisSource` and `TaskRedisAck` support timeout configuration; timeouts raise `TimeoutError`.
+3. **Error propagation**: Errors returned by remote Workers are propagated via `RemoteWorkerError`.
 4. **Idempotency**: `TaskRedisAck` deletes the record from Redis after retrieving the result, ensuring one-time consumption.
