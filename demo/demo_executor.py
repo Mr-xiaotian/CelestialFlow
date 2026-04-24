@@ -2,7 +2,7 @@ import asyncio
 
 from demo_utils import fibonacci, fibonacci_async
 
-from celestialflow import TaskExecutor
+from celestialflow import TaskExecutor, TaskProgress
 
 
 def demo_fibonacci_serial():
@@ -14,9 +14,10 @@ def demo_fibonacci_serial():
         execution_mode="serial",
         max_workers=6,
         max_retries=1,
-        show_progress=False,
+
     )
     executor.add_retry_exceptions(ValueError)
+    executor.add_observer(TaskProgress())
 
     executor.start(test_task_1)
 
@@ -30,9 +31,10 @@ def demo_fibonacci_thread():
         execution_mode="thread",
         max_workers=6,
         max_retries=1,
-        show_progress=False,
+
     )
     executor.add_retry_exceptions(ValueError)
+    executor.add_observer(TaskProgress())
 
     executor.start(test_task_1)
 
@@ -46,9 +48,10 @@ async def demo_fibonacci_async():
         execution_mode="async",
         max_workers=6,
         max_retries=1,
-        show_progress=False,
+
     )
     executor.add_retry_exceptions(ValueError)
+    executor.add_observer(TaskProgress())
 
     await executor.start_async(test_task_1)
 

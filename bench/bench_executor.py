@@ -1,7 +1,7 @@
 import asyncio
 import time
 
-from celestialflow import TaskExecutor, benchmark_executor
+from celestialflow import TaskExecutor, TaskProgress, benchmark_executor
 
 
 def fibonacci(n):
@@ -51,20 +51,22 @@ async def bench_executor_fibonacci():
         fibonacci,
         max_workers=6,
         max_retries=1,
-        show_progress=True,
+
         # log_level="TRACE",
     )
     executor.add_retry_exceptions(ValueError)
+    executor.add_observer(TaskProgress())
 
     executor_async = TaskExecutor(
         "fibonacciExecutorAsync",
         fibonacci_async,
         max_workers=6,
         max_retries=1,
-        show_progress=True,
+
         # log_level="TRACE",
     )
     executor_async.add_retry_exceptions(ValueError)
+    executor_async.add_observer(TaskProgress())
 
     sync_modes = ["serial", "thread"]
     async_modes = ["async"]
@@ -81,17 +83,19 @@ async def bench_executor_sleep():
         sleep_1,
         max_workers=12,
         max_retries=0,
-        show_progress=True,
+
         # log_level="TRACE",
     )
+    executor.add_observer(TaskProgress())
     executor_async = TaskExecutor(
         "sleepExecutorAsync",
         sleep_1_async,
         max_workers=12,
         max_retries=0,
-        show_progress=True,
+
         # log_level="TRACE",
     )
+    executor_async.add_observer(TaskProgress())
 
     sync_modes = ["serial", "thread"]
     async_modes = ["async"]

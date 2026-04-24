@@ -1,6 +1,6 @@
 import pytest
 
-from celestialflow import TaskExecutor
+from celestialflow import TaskExecutor, TaskObserver
 
 
 # =========================
@@ -35,7 +35,7 @@ class TestExecutorSerial:
     def test_serial_basic(self):
         """串行模式：正常计算结果正确"""
         executor = TaskExecutor(
-            "AddOneSerial", add_one, execution_mode="serial", show_progress=False
+            "AddOneSerial", add_one, execution_mode="serial"
         )
         tasks = [1, 2, 3, 4, 5]
         executor.start(tasks)
@@ -58,7 +58,7 @@ class TestExecutorSerial:
             "RaiseOnNegativeSerial",
             raise_on_negative,
             execution_mode="serial",
-            show_progress=False,
+
         )
         tasks = [1, -1, 2, -2, 3]
         executor.start(tasks)
@@ -90,7 +90,7 @@ class TestExecutorSerial:
             flaky,
             execution_mode="serial",
             max_retries=2,
-            show_progress=False,
+
         )
         executor.add_retry_exceptions(RuntimeError)
         executor.start([1])
@@ -108,7 +108,7 @@ class TestExecutorSerial:
             raise_on_negative,
             execution_mode="serial",
             max_retries=2,
-            show_progress=False,
+
         )
         # 只重试 RuntimeError，但函数抛的是 ValueError
         executor.add_retry_exceptions(RuntimeError)
@@ -127,7 +127,7 @@ class TestExecutorThread:
             double,
             execution_mode="thread",
             max_workers=4,
-            show_progress=False,
+
         )
         tasks = [1, 2, 3, 4, 5]
         executor.start(tasks)
@@ -150,7 +150,7 @@ class TestExecutorAsync:
             async_add_one,
             execution_mode="async",
             max_workers=4,
-            show_progress=False,
+
         )
         tasks = [10, 20, 30]
         await executor.start_async(tasks)
@@ -171,7 +171,7 @@ class TestExecutorAsync:
             async_double,
             execution_mode="async",
             max_workers=4,
-            show_progress=False,
+
         )
         tasks = list(range(20))
         await executor.start_async(tasks)
@@ -189,7 +189,7 @@ class TestExecutorDuplicateCheck:
             add_one,
             execution_mode="serial",
             enable_duplicate_check=True,
-            show_progress=False,
+
         )
         tasks = [1, 1, 2, 2, 2, 3]
         executor.start(tasks)
@@ -206,7 +206,7 @@ class TestExecutorDuplicateCheck:
             add_one,
             execution_mode="serial",
             enable_duplicate_check=False,
-            show_progress=False,
+
         )
         tasks = [1, 1, 2, 2, 2, 3]
         executor.start(tasks)
@@ -224,7 +224,7 @@ class TestExecutorSuccessCache:
             add_one,
             execution_mode="serial",
             enable_duplicate_check=True,
-            show_progress=False,
+
         )
         executor.start([1, 2, 3])
 
@@ -244,9 +244,113 @@ class TestExecutorConfig:
     def test_get_summary(self):
         """get_summary 返回预期字段"""
         executor = TaskExecutor(
-            "AddOneSummary", add_one, execution_mode="serial", show_progress=False
+            "AddOneSummary", add_one, execution_mode="serial"
         )
         summary = executor.get_summary()
         assert summary["name"] == "AddOneSummary"
         assert summary["func_name"] == "add_one"
         assert summary["execution_mode"] == "serial"
+
+
+class TestExecutorObserver:
+    def test_observer_lifecycle(self):
+        """observer 在执行过程中收到完整生命周期回调"""
+
+        class RecordingObserver(TaskObserver):
+            def __init__(self):
+                self.events = []
+
+            def on_start(self, name, total):
+                self.events.append(("start", name, total))
+
+            def on_task_success(self, count=1):
+                self.events.append(("success", count))
+
+            def on_task_fail(self, count=1):
+                self.events.append(("fail", count))
+
+            def on_task_duplicate(self, count=1):
+                self.events.append(("duplicate", count))
+
+            def on_tasks_added(self, count):
+                self.events.append(("added", count))
+
+            def on_finish(self):
+                self.events.append(("finish",))
+
+        observer = RecordingObserver()
+        executor = TaskExecutor("ObserverTest", add_one, execution_mode="serial")
+        executor.add_observer(observer)
+        executor.start([1, 2, 3])
+
+        event_types = [e[0] for e in observer.events]
+        assert "start" in event_types
+        assert event_types.count("success") == 3
+        assert event_types[-1] == "finish"
+
+    def test_observer_with_errors(self):
+        """observer 收到失败回调"""
+
+        class CountObserver(TaskObserver):
+            def __init__(self):
+                self.successes = 0
+                self.failures = 0
+
+            def on_task_success(self, count=1):
+                self.successes += count
+
+            def on_task_fail(self, count=1):
+                self.failures += count
+
+        observer = CountObserver()
+        executor = TaskExecutor(
+            "ObserverErrorTest", raise_on_negative, execution_mode="serial"
+        )
+        executor.add_observer(observer)
+        executor.start([1, -1, 2])
+
+        assert observer.successes == 2
+        assert observer.failures == 1
+
+    def test_no_observer_works(self):
+        """没有 observer 时正常运行"""
+        executor = TaskExecutor("NoObserver", add_one, execution_mode="serial")
+        executor.start([1, 2, 3])
+        assert executor.get_counts()["tasks_succeeded"] == 3
+
+    def test_multiple_observers(self):
+        """多个 observer 同时收到回调"""
+
+        class Counter(TaskObserver):
+            def __init__(self):
+                self.count = 0
+
+            def on_task_success(self, count=1):
+                self.count += count
+
+        o1, o2 = Counter(), Counter()
+        executor = TaskExecutor("MultiObserver", add_one, execution_mode="serial")
+        executor.add_observer(o1)
+        executor.add_observer(o2)
+        executor.start([1, 2])
+
+        assert o1.count == 2
+        assert o2.count == 2
+
+    def test_remove_observer(self):
+        """移除 observer 后不再收到回调"""
+
+        class Counter(TaskObserver):
+            def __init__(self):
+                self.count = 0
+
+            def on_task_success(self, count=1):
+                self.count += count
+
+        observer = Counter()
+        executor = TaskExecutor("RemoveObserver", add_one, execution_mode="serial")
+        executor.add_observer(observer)
+        executor.remove_observer(observer)
+        executor.start([1, 2])
+
+        assert observer.count == 0
