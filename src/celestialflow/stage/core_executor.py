@@ -230,6 +230,14 @@ class TaskExecutor:
             self.execution_mode = execution_mode
         else:
             raise ExecutionModeError(execution_mode)
+        
+        if (
+            getattr(self, "execution_mode", None) == "async" 
+            and not asyncio.iscoroutinefunction(self.func)
+        ):
+            raise RuntimeError(
+                f"execution_mode is 'async' but '{self.func.__name__}' is not a coroutine function"
+            )
 
         if hasattr(self, "metrics"):
             self.metrics.set_execution_mode(execution_mode)
