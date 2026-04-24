@@ -109,9 +109,11 @@ class TaskReporter:
             res = self._session.get(
                 f"{self.base_url}/api/pull_interval", timeout=self._pull_timeout()
             )
-            if res.ok:
-                interval = res.json().get("interval", 5)
-                self.interval = max(1.0, min(interval, 60.0))
+            if not res.ok:
+                raise RuntimeError(f"Failed to pull interval: {res.status_code}")
+            
+            interval = res.json().get("interval", 5)
+            self.interval = max(1.0, min(interval, 60.0))
         except Exception as e:
             self.log_inlet.pull_interval_failed(e)
 
@@ -121,9 +123,11 @@ class TaskReporter:
             res = self._session.get(
                 f"{self.base_url}/api/pull_history_limit", timeout=self._pull_timeout()
             )
-            if res.ok:
-                history_limit = res.json().get("historyLimit", 20)
-                self.history_limit = max(1, min(history_limit, 100))
+            if not res.ok:
+                raise RuntimeError(f"Failed to pull history limit: {res.status_code}")
+            
+            history_limit = res.json().get("historyLimit", 20)
+            self.history_limit = max(1, min(history_limit, 100))
         except Exception as e:
             self.log_inlet.pull_history_limit_failed(e)
 
@@ -133,26 +137,28 @@ class TaskReporter:
             res = self._session.get(
                 f"{self.base_url}/api/pull_task_injection", timeout=self._pull_timeout()
             )
-            if res.ok:
-                injection_tasks: list[dict] = res.json()
-                for injection in injection_tasks:
-                    target_stage = injection.get("node")
-                    task_datas = injection.get("task_datas")
-                    if target_stage is None or task_datas is None:
-                        continue
+            if not res.ok:
+                raise RuntimeError(f"Failed to pull task injection: {res.status_code}")
+            
+            injection_tasks: list[dict] = res.json()
+            for injection in injection_tasks:
+                target_stage = injection.get("node")
+                task_datas = injection.get("task_datas")
+                if target_stage is None or task_datas is None:
+                    continue
 
-                    # 这里你可以按需注入到不同的节点
-                    task_datas = [
-                        task if task != "TERMINATION_SIGNAL" else TERMINATION_SIGNAL
-                        for task in task_datas
-                    ]
-                    try:
-                        self.task_graph.put_stage_queue(
-                            {target_stage: task_datas}, put_termination_signal=False
-                        )
-                        self.log_inlet.inject_tasks_success(target_stage, task_datas)
-                    except Exception as e:
-                        self.log_inlet.inject_tasks_failed(target_stage, task_datas, e)
+                # 这里你可以按需注入到不同的节点
+                task_datas = [
+                    task if task != "TERMINATION_SIGNAL" else TERMINATION_SIGNAL
+                    for task in task_datas
+                ]
+                try:
+                    self.task_graph.put_stage_queue(
+                        {target_stage: task_datas}, put_termination_signal=False
+                    )
+                    self.log_inlet.inject_tasks_success(target_stage, task_datas)
+                except Exception as e:
+                    self.log_inlet.inject_tasks_failed(target_stage, task_datas, e)
         except Exception as e:
             self.log_inlet.pull_tasks_failed(e)
 

@@ -223,6 +223,42 @@ def download_to_file(url: str, file_path: str) -> str:
 # =========================
 
 
+# =========================
+# ETL 模拟函数（demo_graph 用）
+# =========================
+
+
+def extract_record(raw_id: int) -> dict:
+    sleep(0.5)
+    return {"id": raw_id, "value": raw_id * 10, "label": f"item_{raw_id}"}
+
+
+def transform_normalize(record: dict) -> dict:
+    sleep(0.3)
+    value = record["value"]
+    return {**record, "normalized": value / 100.0}
+
+
+def transform_enrich(record: dict) -> dict:
+    sleep(0.3)
+    return {**record, "category": "even" if record["id"] % 2 == 0 else "odd"}
+
+
+def load_record(record: dict) -> str:
+    sleep(0.2)
+    return f"Saved record #{record['id']} (category={record.get('category', '?')})"
+
+
+async def async_double(n):
+    await asyncio.sleep(0.3)
+    return n * 2
+
+
+async def async_to_str(n):
+    await asyncio.sleep(0.2)
+    return f"result={n}"
+
+
 class RouterWrapper:
     def __init__(self, a_tag, b_tag):
         self.a_tag = a_tag
