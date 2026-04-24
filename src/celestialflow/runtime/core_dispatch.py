@@ -213,8 +213,6 @@ class TaskDispatch:
             pending.add(task)
             task.add_done_callback(pending.discard)
 
-            await asyncio.sleep(0)
-
         await asyncio.gather(*pending)
         result_queues.put(termination_signal)
 

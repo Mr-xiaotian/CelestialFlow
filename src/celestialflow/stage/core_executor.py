@@ -351,7 +351,7 @@ class TaskExecutor:
     # ==== 任务输入 ====
     def _prepare_task_envelopes(
         self, task_source: Iterable
-    ) -> tuple[list[TaskEnvelope | TerminationSignal], int]:
+    ) -> list[TaskEnvelope | TerminationSignal]:
         """
         构建所有任务信封和终止信号，返回待入队列表。
 

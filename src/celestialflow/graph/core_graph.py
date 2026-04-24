@@ -512,7 +512,7 @@ class TaskGraph:
 
         if self._use_ctree:
             stage.set_ctree(
-                self._ctree_host, self._ctree_grpc_port, self._ctree_grpc_port
+                self._ctree_host, self._ctree_http_port, self._ctree_grpc_port
             )
         else:
             stage.set_nullctree(self.ctree_client.event_id)

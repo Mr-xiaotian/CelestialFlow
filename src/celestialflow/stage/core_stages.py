@@ -50,7 +50,8 @@ class TaskSplitter(TaskStage):
 
         :param add_value: 增加的子任务数量
         """
-        self.split_counter.value += add_value
+        with self.split_counter.get_lock():
+            self.split_counter.value += add_value
 
     def _split(self, *task: Any) -> tuple:
         """
@@ -164,7 +165,8 @@ class TaskRouter(TaskStage):
 
         :param target: 目标 stage 的 tag
         """
-        self.route_counters[target].value += 1
+        with self.route_counters[target].get_lock():
+            self.route_counters[target].value += 1
 
     def _route(self, routed: tuple) -> Any:
         """

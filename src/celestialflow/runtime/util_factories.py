@@ -51,6 +51,8 @@ def make_queue_backend(mode: str) -> type:
         return ThreadQueue
     elif mode == "process":
         return MPQueue
+    else:
+        raise ValueError(f"Unsupported execution mode: {mode}")
 
 
 def make_task_in_queue(
