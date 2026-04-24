@@ -39,7 +39,7 @@ class TaskStage(TaskExecutor):
         :param max_info: 日志中每条信息的最大长度
         :param unpack_task_args: 是否将任务参数解包
         :param enable_duplicate_check: 是否启用重复检查
-        :param stage_mode: 当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）, 默认 'serial'
+        :param stage_mode: 当前节点在graph中的执行模式, 可以是 'serial'（串行）, 'thread'（线程）或 'process'（进程）, 默认 'serial'
         """
         super().__init__(
             name,
@@ -132,7 +132,7 @@ class TaskStage(TaskExecutor):
     # ==== 查询 ====
     def get_stage_mode(self) -> str:
         """
-        获取当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'process'（并行）
+        获取当前节点在graph中的执行模式, 可以是 'serial'（串行）, 'thread'（线程）或 'process'（进程）
 
         :return: 当前节点执行模式
         """
@@ -178,7 +178,7 @@ class TaskStage(TaskExecutor):
         log_queue: MPQueue,
     ):
         """
-        根据 start_type 的值，选择串行、并行执行任务
+        根据 execution_mode 的值，选择串行、线程或异步执行任务
 
         :param input_queues: 输入队列
         :param output_queues: 输出队列

@@ -18,7 +18,7 @@ class TaskChain(TaskGraph):
         该结构将多个 TaskStage 节点按顺序连接，形成一个线性的数据流图。
 
         :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点
-        :param chain_mode: 控制任务链中各节点同时运行(process), 亦或者依次运行(serial)
+        :param chain_mode: 控制任务链中各节点的运行模式, 可选 'serial', 'thread' 或 'process'
         :param log_level: 日志级别
         """
         super().__init__(schedule_mode="eager", log_level=log_level)

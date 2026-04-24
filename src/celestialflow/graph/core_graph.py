@@ -283,8 +283,8 @@ class TaskGraph:
         """
         设置任务链的执行模式
 
-        :param stage_mode: 节点执行模式, 可选值为 'serial' 或 'process'
-        :param execution_mode: 节点内部执行模式, 可选值为 'serial' 或 'thread''
+        :param stage_mode: 节点执行模式, 可选值为 'serial', 'thread' 或 'process'
+        :param execution_mode: 节点内部执行模式, 可选值为 'serial', 'thread' 或 'async'
         """
 
         def set_subsequent_stage_mode(stage: TaskStage) -> None:

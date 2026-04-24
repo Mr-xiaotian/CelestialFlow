@@ -34,7 +34,7 @@ def load_jsonl_logs(
     从 jsonl 文件中读取数据（可选择性读取字段）
 
     :param path: jsonl 文件路径
-    :param start_seq: 起始序列号（行号，0-based）
+    :param start_seq: 跳过前 N 行（默认跳过第 0 行的元信息行）
     :param keys: 只保留这些键；None 表示保留全部
     :return: 从 start_seq 开始的 list[dict]
     """
@@ -109,7 +109,7 @@ def load_jsonl_grouped_by_keys(
     :param jsonl_path: JSONL 文件路径
     :param group_keys: 用于分组的字段名列表（如 ['error', 'stage']）
     :param extract_field: 要提取的字段名
-    :return: 一个 {"(k1, k2)": [items]} 的字典
+    :return: 一个 {(k1, k2): [items]} 的字典（键为 tuple）
     """
     result_dict = defaultdict(list)
 
@@ -136,6 +136,7 @@ def load_task_by_stage(jsonl_path) -> dict[str, list]:
     加载错误记录，按 stage 分类
 
     :param jsonl_path: JSONL 文件路径
+    :return: {stage_tag: [task_list]}
     """
     return load_jsonl_by_key(jsonl_path, extract_key="stage", extract_value="task")
 
@@ -144,7 +145,8 @@ def load_task_by_error(jsonl_path) -> dict[tuple[str], list[Any]]:
     """
     加载错误记录，按 error 和 stage 分类
 
-        :param jsonl_path: JSONL 文件路径
+    :param jsonl_path: JSONL 文件路径
+    :return: {(error, stage): [task_list]}
     """
     return load_jsonl_grouped_by_keys(
         jsonl_path, group_keys=["error", "stage"], extract_field="task"

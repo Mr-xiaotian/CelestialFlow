@@ -336,7 +336,7 @@ class TaskExecutor:
         获取当前节点的计数器
 
         :return: 当前节点计数器
-        包括任务总数(total)、成功数(success)、错误数(error)、重复数(duplicate)
+        包括 tasks_input, tasks_succeeded, tasks_failed, tasks_duplicated, tasks_processed, tasks_pending
         """
         return self.metrics.get_counts()
 
@@ -356,7 +356,7 @@ class TaskExecutor:
         构建所有任务信封和终止信号，返回待入队列表。
 
         :param task_source: 任务源
-        :return: (items, progress_num)
+        :return: 待入队的 TaskEnvelope 和 TerminationSignal 列表
         """
         items: list[TaskEnvelope | TerminationSignal] = []
         progress_num = 0
@@ -627,7 +627,7 @@ class TaskExecutor:
     # ==== 启动 ====
     def start(self, task_source: Iterable) -> None:
         """
-        根据 start_type 的值，选择串行、并行、异步或多进程执行任务
+        根据 execution_mode 的值，选择串行、线程或异步执行任务
 
         :param task_source: 任务迭代器或者生成器
         """
