@@ -1,6 +1,6 @@
 # TaskStage
 
-> 📅 最后更新日期: 2026/04/23
+> 📅 最后更新日期: 2026/04/24
 
 `TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力。
 
@@ -31,14 +31,13 @@ class TaskStage(TaskExecutor):
         max_retries=1,
         max_info=50,
         unpack_task_args=False,
-        enable_success_cache=False,
         enable_duplicate_check=True,
         stage_mode="serial",
     ):
         ...
 ```
 
-参数与 `TaskExecutor` 一致，额外增加了 `stage_mode` 参数。主要区别在于 `TaskStage` 的 `execution_mode` 只能是 `thread` 或 `serial`（`process` 模式由 `stage_mode` 控制）。
+参数与 `TaskExecutor` 一致，额外增加了 `stage_mode` 参数。`TaskStage` 的 `execution_mode` 可以是 `serial`、`thread` 或 `async`（`process` 模式由 `stage_mode` 控制）。
 
 ## 图构建方法
 
@@ -167,7 +166,7 @@ def get_summary(self) -> dict:
 
 ```python
 # 有效模式
-valid_modes = ("thread", "serial")
+valid_modes = ("serial", "thread", "async")
 
 # 注意：process 模式由 stage_mode 控制，不是 execution_mode
 ```

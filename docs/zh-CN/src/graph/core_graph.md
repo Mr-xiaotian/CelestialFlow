@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/04/24
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
@@ -26,7 +26,7 @@ class TaskGraph:
 ### 设置节点
 
 ```python
-def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage] = None):
+def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]):
     """
     设置任务图的节点。
     
@@ -58,7 +58,7 @@ def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True
 示例：
 ```python
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[stage_a, stage_b])
+graph.set_stages(root_stages=[stage_a, stage_b], stages=[])
 graph.start_graph({
     stage_a.get_tag(): [1, 2, 3, 4, 5]
 })
@@ -121,14 +121,14 @@ def set_graph_mode(self, stage_mode: str, execution_mode: str):
     批量设置所有节点的运行模式。
 
     :param stage_mode: 节点运行模式 ('serial'、'thread' 或 'process')
-    :param execution_mode: 节点内部执行模式 ('serial' 或 'thread')
+    :param execution_mode: 节点内部执行模式 ('serial'、'thread' 或 'async')
     """
 ```
 
-### set_log_level
+### _set_log_level
 
 ```python
-def set_log_level(self, level="SUCCESS"):
+def _set_log_level(self, level="SUCCESS"):
     """
     设置全局日志级别。
     """
@@ -259,9 +259,9 @@ graph.put_stage_queue({
 from celestialflow import TaskStage, TaskGraph
 
 # 创建节点
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="A")
-stage_b = TaskStage(func=process_b, execution_mode="serial", stage_mode="process", name="B")
-stage_c = TaskStage(func=process_c, execution_mode="serial", stage_mode="process", name="C")
+stage_a = TaskStage("A", func=process_a, execution_mode="thread", stage_mode="process")
+stage_b = TaskStage("B", func=process_b, execution_mode="serial", stage_mode="process")
+stage_c = TaskStage("C", func=process_c, execution_mode="serial", stage_mode="process")
 
 # 构建图
 graph = TaskGraph(schedule_mode="eager", log_level="INFO")

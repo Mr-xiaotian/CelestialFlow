@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/04/23
+> 📅 最后更新日期: 2026/04/24
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -17,10 +17,8 @@ class TaskExecutor:
         max_retries=1,
         max_info=50,
         unpack_task_args=False,
-        enable_success_cache=False,
         enable_duplicate_check=True,
         show_progress=False,
-        progress_desc="Executing",
         log_level="SUCCESS",
     ):
         ...
@@ -33,16 +31,13 @@ class TaskExecutor:
 - **execution_mode**: 执行模式。
   - `serial`: 串行执行。
   - `thread`: 多线程执行。
-  - `process`: 多进程执行（注意：作为 `TaskGraph` 的一部分时通常不使用此模式，而是由 `TaskStage` 管理）。
   - `async`: 异步执行 (`asyncio`)。
-- **max_workers**: 并发数量限制（线程数/进程数/协程数）。
+- **max_workers**: 并发数量限制（线程数/协程数）。
 - **max_retries**: 任务失败后的最大重试次数。
 - **max_info**: 日志中每条信息的最大长度。
 - **unpack_task_args**: 是否将任务参数解包 (`*args`) 传给函数。
-- **enable_success_cache**: 是否缓存成功结果到 `success_dict`。
 - **enable_duplicate_check**: 是否启用基于任务哈希的重复检查。
 - **show_progress**: 是否显示进度条。
-- **progress_desc**: 进度条显示名称。
 - **log_level**: 日志级别（TRACE/DEBUG/SUCCESS/INFO/WARNING/ERROR/CRITICAL）。
 
 ## 核心方法
@@ -99,7 +94,7 @@ executor.add_retry_exceptions(ValueError, ConnectionError, TimeoutError)
 ### 获取结果
 
 ```python
-# 获取成功结果列表（需要 enable_success_cache=True）
+# 获取成功结果列表
 def get_success_pairs(self) -> list[tuple[Any, Any]]:
     ...
 
@@ -181,7 +176,7 @@ def get_summary(self) -> dict:
 def get_counts(self) -> dict:
     """
     获取当前节点的计数器。
-    返回：total, success, error, duplicate
+    返回：tasks_input, tasks_succeeded, tasks_failed, tasks_duplicated, tasks_processed, tasks_pending
     """
 ```
 
@@ -208,25 +203,10 @@ def _get_result_repr(self, result) -> str:
 
 ## 注意事项
 
-### 缓存与重复检查
-
-当启用缓存但禁用重复检查时，会触发警告：
-
-```python
-# 警告：可能导致缓存结果数与输入任务数不一致
-executor = TaskExecutor(
-    "Processor",
-    process,
-    enable_success_cache=True,
-    enable_duplicate_check=False  # 不推荐
-)
-```
-
 ### 执行模式选择
 
 | 模式 | 适用场景 | 注意事项 |
 |------|----------|----------|
 | `serial` | 调试、简单任务 | 无并发 |
 | `thread` | I/O 密集型 | 注意 GIL 限制 |
-| `process` | CPU 密集型 | 需要可 pickle 的函数 |
 | `async` | 网络 I/O | 需要使用 start_async |

@@ -1,6 +1,6 @@
 # TaskDispatch
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/04/24
 
 `TaskDispatch` 是任务执行的核心运行器，负责从队列获取任务、执行任务、处理结果和错误。它支持串行、线程池和异步三种执行模式。
 
@@ -88,10 +88,10 @@ async def _async_worker(self, envelope: TaskEnvelope):
     """异步工作函数，执行单个任务并处理重试。"""
 ```
 
-### process_termination_signal
+### _process_termination_signal
 
 ```python
-def process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
+def _process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
     """
     处理终止信号，生成 merge 事件。
 
@@ -100,10 +100,10 @@ def process_termination_signal(self, termination_pool: TerminationIdPool) -> Ter
     """
 ```
 
-### release_pool
+### _release_pool
 
 ```python
-def release_pool(self):
+def _release_pool(self):
     """关闭线程池，释放资源。"""
 ```
 

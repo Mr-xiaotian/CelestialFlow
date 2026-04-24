@@ -1,6 +1,6 @@
 # TaskNodes
 
-> 📅 最后更新日期: 2026/04/23
+> 📅 最后更新日期: 2026/04/24
 
 TaskNodes 模块提供了多种特殊功能的 `TaskStage` 实现，用于流控制、外部系统交互等场景。
 
@@ -130,7 +130,7 @@ def route_logic(data):
         return ("negative_stage", data)
 
 # 创建路由节点
-router = TaskRouter()
+router = TaskRouter("路由器")
 
 # 连接下游（target 必须与路由逻辑中的 tag 匹配）
 graph.connect([router], [pos_stage, neg_stage])
@@ -310,11 +310,13 @@ redis_password = os.getenv("REDIS_PASSWORD", "")
 
 # Transport + Ack 组合（推送到 Redis 并等待结果）
 redis_sink = TaskRedisTransport(
+    "RedisTransport",
     key="testFibonacci:input",
     host=redis_host,
     password=redis_password
 )
 redis_ack = TaskRedisAck(
+    "RedisAck",
     key="testFibonacci:output",
     host=redis_host,
     password=redis_password
@@ -322,6 +324,7 @@ redis_ack = TaskRedisAck(
 
 # Source 组合（从 Redis 拉取任务）
 redis_source = TaskRedisSource(
+    "RedisSource",
     key="test_redis",
     host=redis_host,
     password=redis_password

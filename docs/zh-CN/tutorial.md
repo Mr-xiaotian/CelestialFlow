@@ -1,6 +1,6 @@
 # 教程（Tutorial）：构建一个图片爬虫
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/04/24
 
 本教程将通过一个完整的实战项目——**百度图片爬虫**，带你从零开始学习 CelestialFlow 的使用。
 
@@ -202,6 +202,7 @@ from celestialflow import TaskStage, TaskSplitter
 
 # 搜索阶段：输入关键词，输出 HTML
 stage_search = TaskStage(
+    "搜索页面",
     func=search_images,
     execution_mode="serial",  # 只有一个关键词，串行即可
     max_retries=2,
@@ -217,18 +218,20 @@ class URLSplitter(TaskSplitter):
         print(f"解析到 {len(urls)} 个图片 URL")
         return tuple(urls)
 
-stage_parse = URLSplitter()
+stage_parse = URLSplitter("解析图片")
 
 # 下载阶段：输入 URL，输出图片数据
 stage_download = TaskStage(
+    "下载图片",
     func=download_image,
     execution_mode="thread",  # 网络IO密集，使用线程池
-    worker_limit=10,          # 并发下载10张
+    max_workers=10,           # 并发下载10张
     max_retries=3,
 )
 
 # 存储阶段：输入图片数据，输出文件路径
 stage_save = TaskStage(
+    "存储文件",
     func=lambda data: save_image(data, "猫咪") if data else None,
     execution_mode="serial",
     enable_duplicate_check=False,  # 允许保存重复数据（用于重试）
@@ -362,22 +365,25 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     
     # 创建节点
     stage_search = TaskStage(
+        "搜索页面",
         func=search_images,
         execution_mode="serial",
         max_retries=2,
     )
     
-    stage_parse = URLSplitter()
+    stage_parse = URLSplitter("解析图片")
     
     stage_download = TaskStage(
+        "下载图片",
         func=download_image,
         execution_mode="thread",
-        worker_limit=10,
+        max_workers=10,
         max_retries=3,
     )
     
     # 使用闭包传递 keyword
     stage_save = TaskStage(
+        "存储文件",
         func=lambda data: save_image(data, keyword),
         execution_mode="serial",
         enable_duplicate_check=False,
@@ -492,7 +498,7 @@ graph.put_stage_queue({
 | `TaskSplitter` | 分裂器，将一个任务拆分为多个 |
 | `TaskGraph` | 任务图，组织节点关系和执行流程 |
 | `stage_mode` | 节点运行模式（serial/thread/process） |
-| `execution_mode` | 节点内部执行模式（serial/thread） |
+| `execution_mode` | 节点内部执行模式（serial/thread/async） |
 
 ### 下一步
 

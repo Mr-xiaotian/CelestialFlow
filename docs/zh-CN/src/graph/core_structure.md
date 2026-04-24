@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/04/24
 
 TaskStructure 模块提供了多种预定义的任务图结构，帮助用户快速构建复杂的任务流。所有的结构都继承自 `TaskGraph`。
 
@@ -26,9 +26,9 @@ flowchart LR
 from celestialflow import TaskChain, TaskStage
 
 # 定义阶段
-stage1 = TaskStage(func=func1)
-stage2 = TaskStage(func=func2)
-stage3 = TaskStage(func=func3)
+stage1 = TaskStage("S1", func=func1)
+stage2 = TaskStage("S2", func=func2)
+stage3 = TaskStage("S3", func=func3)
 
 # 创建链
 chain = TaskChain(

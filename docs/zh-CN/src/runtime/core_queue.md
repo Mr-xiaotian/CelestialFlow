@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/04/24
 
 `TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了日志记录和监控功能。
 
@@ -40,7 +40,7 @@ class TaskInQueue:
 
 ### 主要方法
 
-#### put / put_async
+#### put
 
 ```python
 def put(self, item: TaskEnvelope | TerminationSignal):
@@ -49,14 +49,9 @@ def put(self, item: TaskEnvelope | TerminationSignal):
 
     :param item: 要入队的任务或终止信号
     """
-
-async def put_async(self, item: TaskEnvelope | TerminationSignal):
-    """
-    异步入队任务或终止信号。
-    """
 ```
 
-#### get / get_async
+#### get
 
 ```python
 def get(self) -> TaskEnvelope | TerminationIdPool:
@@ -65,16 +60,10 @@ def get(self) -> TaskEnvelope | TerminationIdPool:
 
     :return: 任务信封或终止信号 ID 池
     """
-
-async def get_async(self) -> TaskEnvelope | TerminationIdPool:
-    """
-    异步出队任务或终止信号池。
-    """
 ```
 
 **终止信号合并逻辑**：
 - 当收到来自 `"input"` 的终止信号时，立即返回
-- 当收到来自当前节点标签（`out_tag`）的终止信号时，立即返回
 - 当收到来自所有 `queue_tags` 的终止信号时，合并后返回
 
 #### drain
@@ -98,11 +87,6 @@ def add_source_tag(self, tag: str):
 
     :param tag: 上游队列标签
     :raises ValueError: 如果标签已存在
-    """
-
-def reset(self):
-    """
-    重置任务入队状态（清空终止信号记录）。
     """
 ```
 
@@ -136,17 +120,12 @@ class TaskOutQueue:
 
 ### 主要方法
 
-#### put / put_async
+#### put
 
 ```python
 def put(self, item: TaskEnvelope | TerminationSignal):
     """
     入队任务或终止信号到所有输出通道。
-    """
-
-async def put_async(self, item: TaskEnvelope | TerminationSignal):
-    """
-    异步入队任务或终止信号到所有输出通道。
     """
 ```
 
@@ -164,7 +143,7 @@ def put_target(self, item: TaskEnvelope | TerminationSignal, tag: str):
 
 常用于 `TaskRouter` 的定向分发。
 
-#### put_channel / put_channel_async
+#### put_channel
 
 ```python
 def put_channel(self, item: TaskEnvelope | TerminationSignal, idx: int):
@@ -173,11 +152,6 @@ def put_channel(self, item: TaskEnvelope | TerminationSignal, idx: int):
 
     :param item: 要入队的任务或终止信号
     :param idx: 输出通道索引
-    """
-
-async def put_channel_async(self, item: TaskEnvelope | TerminationSignal, idx: int):
-    """
-    异步入队任务或终止信号到指定索引的输出通道。
     """
 ```
 
@@ -220,7 +194,6 @@ def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
 
 特殊处理：
 - `"input"` 标签的终止信号立即返回
-- 当前节点标签（`out_tag`）的终止信号立即返回
 
 ---
 
@@ -277,6 +250,5 @@ elif isinstance(item, TerminationIdPool):
 
 1. **多通道**: 一个 `TaskOutQueue` 可以管理多个下游队列
 2. **日志记录**: 所有入队/出队操作都会记录日志
-3. **异步支持**: 提供 `put_async`、`get_async` 等异步方法
-4. **线程安全**: 内部使用队列实现，支持多线程/多进程访问
-5. **终止合并**: 正确处理多上游的终止信号合并
+3. **线程安全**: 内部使用队列实现，支持多线程/多进程访问
+4. **终止合并**: 正确处理多上游的终止信号合并

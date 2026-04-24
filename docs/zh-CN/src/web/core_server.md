@@ -1,6 +1,6 @@
 # TaskWeb
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/04/24
 
 TaskWeb 模块提供了一个基于 FastAPI 的轻量级 Web 服务器，用于实时监控和管理任务图的运行。
 
@@ -118,7 +118,6 @@ class ErrorsMetaModel(BaseModel):
 ```python
 class ErrorsContentModel(BaseModel):
     errors: list[dict]
-    offset: int
     jsonl_path: str
     rev: int
 ```
