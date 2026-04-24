@@ -8,6 +8,7 @@ from .graph import (
     TaskLoop,
     TaskWheel,
 )
+from .observability import TaskObserver, TaskProgress
 from .persistence.util_jsonl import (
     load_jsonl_logs,
     load_task_by_error,
@@ -36,6 +37,8 @@ __all__ = [
     "TaskComplete",
     "TaskWheel",
     "TaskGrid",
+    "TaskObserver",
+    "TaskProgress",
     "TaskExecutor",
     "TaskStage",
     "TaskSplitter",

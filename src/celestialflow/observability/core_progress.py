@@ -1,93 +1,30 @@
-# runtime/core_progress.py
+# observability/core_progress.py
+from __future__ import annotations
+
 from tqdm import tqdm
-from tqdm.asyncio import tqdm as tqdm_asy
+
+from .core_observer import TaskObserver
 
 
-class TaskProgress:
-    """
-    任务进度条管理器
-    """
+class TaskProgress(TaskObserver):
+    """基于 tqdm 的进度条观察者"""
 
-    def __init__(
-        self,
-        total_tasks: int,
-        desc: str,
-        mode: str = "normal",
-    ):
-        """
-        初始化进度条管理器
+    def on_start(self, name: str, total: int) -> None:
+        self._bar = tqdm(total=total, desc=name)
 
-        :param total_tasks: 任务总数，用于设置进度条的总长度
-        :param desc: 进度条的描述文字
-        :param mode: 任务模式，可选 "async", other
-        """
-        if mode == "async":
-            self.progress_bar = tqdm_asy(total=total_tasks, desc=desc)
-        else:
-            self.progress_bar = tqdm(total=total_tasks, desc=desc)
+    def on_task_success(self, count: int = 1) -> None:
+        self._bar.update(count)
 
-    def update(self, n: int = 1) -> None:
-        """
-        更新进度条
+    def on_task_fail(self, count: int = 1) -> None:
+        self._bar.update(count)
 
-        :param n: 步进数量
-        """
-        self.progress_bar.update(n)
+    def on_task_duplicate(self, count: int = 1) -> None:
+        self._bar.update(count)
 
-    def close(self) -> None:
-        """关闭进度条"""
-        self.progress_bar.close()
+    def on_tasks_added(self, count: int) -> None:
+        if count:
+            self._bar.total += count
+            self._bar.refresh()
 
-    def _refresh_total(self, total: int) -> None:
-        """
-        动态调整进度条的总任务数
-
-        :param total: 新的任务总数
-        """
-        self.progress_bar.total = total
-        self.progress_bar.refresh()
-
-    def add_total(self, add_num: int) -> None:
-        """
-        动态增加进度条的总任务数
-
-        :param add_num: 增加的任务数
-        """
-        if not add_num:
-            return
-        total = self.progress_bar.total + add_num
-        self._refresh_total(total)
-
-
-class NullTaskProgress:
-    """
-    空进度条管理器，用于在不需要进度条的场景下占位
-    """
-
-    def update(self, n: int = 1) -> None:
-        """
-        空操作
-
-        :param n: 步进数量（忽略）
-        """
-        pass
-
-    def close(self) -> None:
-        """空操作"""
-        pass
-
-    def _refresh_total(self, total: int) -> None:
-        """
-        空操作
-
-        :param total: 新的任务总数（忽略）
-        """
-        pass
-
-    def add_total(self, add_num: int) -> None:
-        """
-        空操作
-
-        :param add_num: 增加的任务数（忽略）
-        """
-        pass
+    def on_finish(self) -> None:
+        self._bar.close()

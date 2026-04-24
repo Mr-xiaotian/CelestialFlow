@@ -16,7 +16,7 @@ from celestialtree import (
     NullClient as NullCelestialTreeClient,
 )
 
-from ..observability import NullTaskProgress, TaskProgress
+from ..observability import TaskObserver
 from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout, SuccessSpout
 from ..runtime import (
     TaskDispatch,
@@ -52,7 +52,6 @@ class TaskExecutor:
         max_info: int = 50,
         unpack_task_args: bool = False,
         enable_duplicate_check: bool = True,
-        show_progress: bool = False,
         log_level: str = "SUCCESS",
     ):
         """
@@ -66,7 +65,6 @@ class TaskExecutor:
         :param max_info: 日志中每条信息的最大长度
         :param unpack_task_args: 是否将任务参数解包
         :param enable_duplicate_check: 是否启用重复检查
-        :param show_progress: 进度条显示与否
         :param log_level: 日志级别
         """
 
@@ -80,7 +78,7 @@ class TaskExecutor:
         self.unpack_task_args = unpack_task_args
         self.enable_duplicate_check = enable_duplicate_check
 
-        self.show_progress = show_progress
+        self._observers: list[TaskObserver] = []
         self.set_log_level(log_level)
 
         self.set_nullctree()
@@ -188,26 +186,16 @@ class TaskExecutor:
         self.log_spout.start()
         self.success_spout.start()
 
-    def _init_progress(self) -> None:
-        """
-        初始化进度条
-        """
-        if not self.show_progress:
-            self.task_progress: TaskProgress | NullTaskProgress = NullTaskProgress()
-            return
+    # ==== Observer ====
+    def add_observer(self, observer: TaskObserver) -> None:
+        self._observers.append(observer)
 
-        extra_desc = (
-            f"{self.execution_mode}-{self.max_workers}"
-            if self.execution_mode != "serial"
-            else "serial"
-        )
-        progress_mode = "normal" if self.execution_mode != "async" else "async"
+    def remove_observer(self, observer: TaskObserver) -> None:
+        self._observers.remove(observer)
 
-        self.task_progress = TaskProgress(
-            total_tasks=0,
-            desc=f"{self._name}({extra_desc})",
-            mode=progress_mode,
-        )
+    def _notify(self, method_name: str, *args: Any, **kwargs: Any) -> None:
+        for observer in self._observers:
+            getattr(observer, method_name)(*args, **kwargs)
 
     # ==== 配置 ====
     def _set_func(self, func: Callable) -> None:
@@ -285,6 +273,19 @@ class TaskExecutor:
         :return: 当前节点/管理器名称
         """
         return self._name
+    
+    def get_full_name(self) -> str:
+        """
+        获取当前节点/管理器全名
+
+        :return: 当前节点/管理器全名，格式为 "name(execution_mode-max_workers)"
+        """
+        extra_desc = (
+            f"{self.execution_mode}-{self.max_workers}"
+            if self.execution_mode != "serial"
+            else "serial"
+        )
+        return f"{self.get_name()}({extra_desc})"
 
     def get_func_name(self) -> str:
         """
@@ -385,10 +386,10 @@ class TaskExecutor:
             )
 
             if self.metrics.get_task_count() % 100 == 0:
-                self.task_progress.add_total(100)
+                self._notify("on_tasks_added", 100)
                 progress_num += 100
 
-        self.task_progress.add_total(self.metrics.get_task_count() - progress_num)
+        self._notify("on_tasks_added", self.metrics.get_task_count() - progress_num)
 
         termination_id = self.ctree_client.emit(
             CTreeEvent.TERMINATION_INPUT,
@@ -509,7 +510,7 @@ class TaskExecutor:
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        self.task_progress.update(1)
+        self._notify("on_task_success")
         task = task_envelope.task
         task_id = task_envelope.id
 
@@ -587,7 +588,7 @@ class TaskExecutor:
         :param exception: 捕获的异常
         :return: 失败任务的结果信封
         """
-        self.task_progress.update(1)
+        self._notify("on_task_fail")
 
         error_id = self.ctree_client.emit(
             CTreeEvent.TASK_ERROR,
@@ -616,7 +617,7 @@ class TaskExecutor:
 
         :param task_envelope: 重复的任务
         """
-        self.task_progress.update(1)
+        self._notify("on_task_duplicate")
         task, _, task_id = task_envelope.unwrap()
 
         self.metrics.add_duplicate_count()
@@ -641,12 +642,12 @@ class TaskExecutor:
         """
         start_time = time.perf_counter()
         self._init_spout()
-        self._init_progress()
         self.init_env(
             log_queue=self.log_spout.get_queue(),
             fail_queue=self.fail_spout.get_queue(),
         )
 
+        self._notify("on_start", self.get_full_name(), 0)
         self._put_task_queues(task_source)
         self.fail_inlet.start_executor(self.get_tag())
         self.log_inlet.start_executor(
@@ -671,7 +672,7 @@ class TaskExecutor:
         finally:
             self._release_client()
 
-            self.task_progress.close()
+            self._notify("on_finish")
             self.log_inlet.end_executor(
                 self.get_name(),
                 self.get_func_name(),
@@ -694,12 +695,12 @@ class TaskExecutor:
         start_time = time.perf_counter()
         self.set_execution_mode("async")
         self._init_spout()
-        self._init_progress()
         self.init_env(
             log_queue=self.log_spout.get_queue(),
             fail_queue=self.fail_spout.get_queue(),
         )
 
+        self._notify("on_start", self.get_full_name(), 0)
         self._put_task_queues(task_source)
         self.log_inlet.start_executor(
             self.get_name(),
@@ -715,7 +716,7 @@ class TaskExecutor:
         finally:
             self._release_client()
 
-            self.task_progress.close()
+            self._notify("on_finish")
             self.log_inlet.end_executor(
                 self.get_name(),
                 self.get_func_name(),

@@ -174,7 +174,6 @@ class TaskStage(TaskExecutor):
         :param log_queue: 日志队列
         """
         start_time = time.perf_counter()
-        self._init_progress()
         self.init_env(input_queues, output_queues, fail_queue, log_queue)
         self.log_inlet.start_stage(
             self.get_tag(), self.stage_mode, self.execution_mode, self.max_workers
@@ -196,7 +195,7 @@ class TaskStage(TaskExecutor):
             self.mark_stopped()
             self._release_client()
 
-            self.task_progress.close()
+            self._notify("on_finish")
             self.log_inlet.end_stage(
                 self.get_tag(),
                 self.stage_mode,
