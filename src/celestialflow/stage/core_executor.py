@@ -126,7 +126,9 @@ class TaskExecutor:
         """
         self.metrics.reset_state()
 
-    def _init_inlet(self, fail_queue: MPQueue | None, log_queue: MPQueue | None) -> None:
+    def _init_inlet(
+        self, fail_queue: MPQueue | None, log_queue: MPQueue | None
+    ) -> None:
         """
         初始化收集器
 
@@ -640,6 +642,7 @@ class TaskExecutor:
         self._put_task_queues(task_source)
         self.fail_inlet.start_executor(self.get_tag())
         self.log_inlet.start_executor(
+            self.get_name(),
             self.get_func_name(),
             self.metrics.get_task_count(),
             self._get_execution_mode_desc(),
@@ -662,6 +665,7 @@ class TaskExecutor:
 
             self.task_progress.close()
             self.log_inlet.end_executor(
+                self.get_name(),
                 self.get_func_name(),
                 self.execution_mode,
                 time.perf_counter() - start_time,
@@ -690,6 +694,7 @@ class TaskExecutor:
 
         self._put_task_queues(task_source)
         self.log_inlet.start_executor(
+            self.get_name(),
             self.get_func_name(),
             self.metrics.get_task_count(),
             self._get_execution_mode_desc(),
@@ -704,6 +709,7 @@ class TaskExecutor:
 
             self.task_progress.close()
             self.log_inlet.end_executor(
+                self.get_name(),
                 self.get_func_name(),
                 self.execution_mode,
                 time.perf_counter() - start_time,

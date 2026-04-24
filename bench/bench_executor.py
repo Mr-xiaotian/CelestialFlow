@@ -46,11 +46,23 @@ async def sleep_1_async(_):
 async def bench_executor_fibonacci():
     bench_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
 
-    executor = TaskExecutor("fibonacci", fibonacci, max_workers=6, max_retries=1, show_progress=True)
+    executor = TaskExecutor(
+        "fibonacciExecutor",
+        fibonacci,
+        max_workers=6,
+        max_retries=1,
+        show_progress=True,
+        # log_level="TRACE",
+    )
     executor.add_retry_exceptions(ValueError)
 
     executor_async = TaskExecutor(
-        "fibonacci_async", fibonacci_async, max_workers=6, max_retries=1, show_progress=True
+        "fibonacciExecutorAsync",
+        fibonacci_async,
+        max_workers=6,
+        max_retries=1,
+        show_progress=True,
+        # log_level="TRACE",
     )
     executor_async.add_retry_exceptions(ValueError)
 
@@ -65,18 +77,20 @@ async def bench_executor_sleep():
     task_list = list(range(12))
 
     executor = TaskExecutor(
-        "sleep_1",
+        "sleepExecutor",
         sleep_1,
         max_workers=12,
         max_retries=0,
         show_progress=True,
+        # log_level="TRACE",
     )
     executor_async = TaskExecutor(
-        "sleep_1_async",
+        "sleepExecutorAsync",
         sleep_1_async,
         max_workers=12,
         max_retries=0,
         show_progress=True,
+        # log_level="TRACE",
     )
 
     sync_modes = ["serial", "thread"]

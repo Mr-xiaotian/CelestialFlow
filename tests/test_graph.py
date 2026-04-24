@@ -64,8 +64,8 @@ class TestTaskGraphBasic:
     def test_graph_fan_out(self):
         """扇出：一个节点到多个下游"""
         source = TaskStage("src", add_one, execution_mode="serial")
-        sink_a = TaskStage("sink_a", double, execution_mode="serial")
-        sink_b = TaskStage("sink_b", to_str, execution_mode="serial")
+        sink_a = TaskStage("SinkA", double, execution_mode="serial")
+        sink_b = TaskStage("SinkB", to_str, execution_mode="serial")
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[source], stages=[source, sink_a, sink_b])
@@ -79,8 +79,8 @@ class TestTaskGraphBasic:
 
     def test_graph_fan_in(self):
         """扇入：多个上游到一个下游"""
-        source_a = TaskStage("src_a", add_one, execution_mode="serial")
-        source_b = TaskStage("src_b", double, execution_mode="serial")
+        source_a = TaskStage("SrcA", add_one, execution_mode="serial")
+        source_b = TaskStage("SrcB", double, execution_mode="serial")
         merge = TaskStage("merge", to_str, execution_mode="serial")
 
         graph = TaskGraph()
@@ -213,8 +213,8 @@ class TestTaskGraphStructure:
 
     def test_cross_structure(self):
         """TaskCross：分层结构全连接"""
-        layer1 = [TaskStage(f"l1_{i}", add_one) for i in range(2)]
-        layer2 = [TaskStage(f"l2_{i}", double) for i in range(3)]
+        layer1 = [TaskStage(f"L1{i}", add_one) for i in range(2)]
+        layer2 = [TaskStage(f"L2{i}", double) for i in range(3)]
 
         cross = TaskCross([layer1, layer2])
         cross.start_cross({
@@ -341,8 +341,8 @@ class TestTaskGraphThread:
     def test_graph_thread_fan_out(self):
         """thread 模式：扇出"""
         source = TaskStage("src", add_one, stage_mode="thread", execution_mode="serial")
-        sink_a = TaskStage("sink_a", double, stage_mode="thread", execution_mode="serial")
-        sink_b = TaskStage("sink_b", to_str, stage_mode="thread", execution_mode="serial")
+        sink_a = TaskStage("SinkA", double, stage_mode="thread", execution_mode="serial")
+        sink_b = TaskStage("SinkB", to_str, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[source], stages=[source, sink_a, sink_b])
@@ -356,8 +356,8 @@ class TestTaskGraphThread:
 
     def test_graph_thread_fan_in(self):
         """thread 模式：扇入"""
-        source_a = TaskStage("src_a", add_one, stage_mode="thread", execution_mode="serial")
-        source_b = TaskStage("src_b", double, stage_mode="thread", execution_mode="serial")
+        source_a = TaskStage("SrcA", add_one, stage_mode="thread", execution_mode="serial")
+        source_b = TaskStage("SrcB", double, stage_mode="thread", execution_mode="serial")
         merge = TaskStage("merge", to_str, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()

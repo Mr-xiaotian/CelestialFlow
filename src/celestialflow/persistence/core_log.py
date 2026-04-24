@@ -142,14 +142,15 @@ class LogInlet(BaseInlet):
 
     # ==== executor ====
     def start_executor(
-        self, func_name: str, task_num: int, execution_mode_desc: str
+        self, name: str, func_name: str, task_num: int, execution_mode_desc: str
     ) -> None:
         """记录执行器启动"""
-        text = f"'Executor[{func_name}]' start; execute {task_num} tasks by {execution_mode_desc}."
+        text = f"'{name}[{func_name}]' start; execute {task_num} tasks by {execution_mode_desc}."
         self._log("INFO", text)
 
     def end_executor(
         self,
+        name: str,
         func_name: str,
         execution_mode: str,
         use_time: float,
@@ -160,7 +161,7 @@ class LogInlet(BaseInlet):
         """记录执行器结束及统计"""
         self._log(
             "INFO",
-            f"'Executor[{func_name}]' end; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
+            f"'{name}[{func_name}]' end; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
             f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 

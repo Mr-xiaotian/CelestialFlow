@@ -37,32 +37,32 @@ class TestTaskStageConfig:
 
     def test_valid_stage_mode_serial(self):
         """合法 stage_mode: serial"""
-        stage = TaskStage("add_one_serial_mode", add_one, stage_mode="serial")
+        stage = TaskStage("AddOneSerialMode", add_one, stage_mode="serial")
         assert stage.get_stage_mode() == "serial"
 
     def test_valid_stage_mode_thread(self):
         """合法 stage_mode: thread"""
-        stage = TaskStage("add_one_thread_mode", add_one, stage_mode="thread")
+        stage = TaskStage("AddOneThreadMode", add_one, stage_mode="thread")
         assert stage.get_stage_mode() == "thread"
 
     def test_valid_stage_mode_process(self):
         """合法 stage_mode: process"""
-        stage = TaskStage("add_one_process_mode", add_one, stage_mode="process")
+        stage = TaskStage("AddOneProcessMode", add_one, stage_mode="process")
         assert stage.get_stage_mode() == "process"
 
     def test_invalid_stage_mode(self):
         """非法 stage_mode 应抛出 StageModeError"""
         with pytest.raises(StageModeError):
-            TaskStage("add_one_invalid_stage_mode", add_one, stage_mode="invalid")
+            TaskStage("AddOneInvalidStageMode", add_one, stage_mode="invalid")
 
     def test_valid_execution_mode_serial(self):
         """合法 execution_mode: serial"""
-        stage = TaskStage("add_one_serial_exec", add_one, execution_mode="serial")
+        stage = TaskStage("AddOneSerialExec", add_one, execution_mode="serial")
         assert stage.execution_mode == "serial"
 
     def test_valid_execution_mode_thread(self):
         """合法 execution_mode: thread"""
-        stage = TaskStage("add_one_thread_exec", add_one, execution_mode="thread")
+        stage = TaskStage("AddOneThreadExec", add_one, execution_mode="thread")
         assert stage.execution_mode == "thread"
 
     def test_valid_execution_mode_async(self):
@@ -73,18 +73,18 @@ class TestTaskStageConfig:
     def test_invalid_execution_mode(self):
         """非法 execution_mode 应抛出 ExecutionModeError"""
         with pytest.raises(ExecutionModeError):
-            TaskStage("add_one_invalid_exec_mode", add_one, execution_mode="invalid")
+            TaskStage("AddOneInvalidExecMode", add_one, execution_mode="invalid")
 
     def test_summary_contains_stage_mode(self):
         """summary 包含 stage_mode 字段"""
-        stage = TaskStage("add_one_process_thread_exec", add_one, stage_mode="process", execution_mode="thread")
+        stage = TaskStage("AddOneProcessThreadExec", add_one, stage_mode="process", execution_mode="thread")
         summary = stage.get_summary()
         assert summary["stage_mode"] == "process"
         assert summary["execution_mode"] == "thread-20"
 
     def test_summary_contains_stage_mode_thread(self):
         """summary 包含 thread stage_mode"""
-        stage = TaskStage("add_one_thread_serial_exec", add_one, stage_mode="thread", execution_mode="serial")
+        stage = TaskStage("AddOneThreadSerialExec", add_one, stage_mode="thread", execution_mode="serial")
         summary = stage.get_summary()
         assert summary["stage_mode"] == "thread"
 
@@ -93,14 +93,14 @@ class TestTaskStagePickleGuard:
     def test_unpickleable_lambda_raises(self):
         """lambda 无法 pickle，process 模式应抛出 PickleError"""
         with pytest.raises(PickleError):
-            TaskStage("lambda_process_pickle_guard", lambda x: x + 1, stage_mode="process")
+            TaskStage("LambdaProcessPickleGuard", lambda x: x + 1, stage_mode="process")
 
     def test_unpickleable_lambda_allowed_in_thread(self):
         """lambda 无法 pickle，但 thread 模式允许"""
-        stage = TaskStage("lambda_thread_allowed", lambda x: x + 1, stage_mode="thread")
+        stage = TaskStage("LambdaThreadAllowed", lambda x: x + 1, stage_mode="thread")
         assert stage.get_stage_mode() == "thread"
 
     def test_picklable_function_ok(self):
         """普通函数可以正常创建"""
-        stage = TaskStage("add_one_picklable_process", add_one, stage_mode="process")
+        stage = TaskStage("AddOnePicklableProcess", add_one, stage_mode="process")
         assert stage.func is add_one
