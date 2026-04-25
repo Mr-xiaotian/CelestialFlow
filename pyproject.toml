@@ -3,11 +3,11 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "celestialflow"                   
+name = "celestialflow"
 version = "3.1.8"
 description = "A flexible GRAPH-based task orchestration framework."
-readme = "README.md"               
-license = { text = "MIT" }    
+readme = "README.md"
+license = { text = "MIT" }
 authors = [{ name = "Mr-xiaotian", email = "mingxiaomingtian@gmail.com" }]
 keywords = ["workflow", "task", "graph", "async", "CelestialFlow"]
 requires-python = ">=3.10"
@@ -70,9 +70,8 @@ dev = [
     "pytest-asyncio>=0.25.3",
     "httpx>=0.28.1",
     "python-dotenv>=1.2.2",
-    "dill",
-    "mypy>=1.19.1",
     "ruff",
+    "basedpyright>=1.39.3",
 ]
 
 [tool.mypy]

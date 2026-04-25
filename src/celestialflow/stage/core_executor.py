@@ -150,8 +150,6 @@ class TaskExecutor:
         :param task_queues: 任务队列列表
         :param result_queues: 结果队列列表
         """
-        mode = self.execution_mode
-
         if task_queues is not None:
             self.task_queues = task_queues
         else:
@@ -218,11 +216,10 @@ class TaskExecutor:
             self.execution_mode = execution_mode
         else:
             raise ExecutionModeError(execution_mode)
-        
-        if (
-            getattr(self, "execution_mode", None) == "async" 
-            and not asyncio.iscoroutinefunction(self.func)
-        ):
+
+        if getattr(
+            self, "execution_mode", None
+        ) == "async" and not asyncio.iscoroutinefunction(self.func):
             raise RuntimeError(
                 f"execution_mode is 'async' but '{self.func.__name__}' is not a coroutine function"
             )
@@ -273,7 +270,7 @@ class TaskExecutor:
         :return: 当前节点/管理器名称
         """
         return self._name
-    
+
     def get_full_name(self) -> str:
         """
         获取当前节点/管理器全名
