@@ -1,6 +1,6 @@
-# bench_graph.py Benchmark Documentation
+# bench_graph_mode.py Benchmark Documentation
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/05/08
 
 ## Objective
 
@@ -36,7 +36,7 @@ Compare the task graph execution performance of complex DAGs across different co
 ## How to Run
 
 ```bash
-python bench/bench_graph.py
+python bench/bench_graph_mode.py
 ```
 
 ## Benchmark Results (Measured)

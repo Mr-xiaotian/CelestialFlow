@@ -1,37 +1,41 @@
 # TaskProgress
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/05/08
 
-TaskProgress モジュールは、`tqdm` ベースのタスク進捗可視化を提供します。
+`TaskProgress` は `BaseObserver` を継承し、tqdm ベースのタスク進捗可視化を提供します。
 
 ## 機能
 
-- **動的更新**: 総タスク数の動的な増加（`add_total`）をサポートし、ストリーミングタスクやタスク分割のシナリオに対応します。
-- **マルチモードサポート**: 
-  - 通常モード: 標準の `tqdm` を使用します。
-  - 非同期モード: `tqdm.asyncio` を使用し、`async` 実行モードに適しています。
-- **Null モード**: `NullTaskProgress` はプログレスバー表示が無効な場合の Null 実装で、コード中に `if show_progress` の判定が散在するのを避けます。
+- **動的更新**: `on_tasks_added` でタスク総数を動的に増加、ストリーミングやタスク分裂シナリオに対応。
+- **ライフサイクル管理**: `on_start` でプログレスバーを作成、`on_finish` で閉じる。
+- **イベント駆動**: `on_task_success/fail/duplicate` で進捗を更新。
+
+## インターフェース
+
+```python
+class TaskProgress(BaseObserver):
+    def on_start(self, name: str, total: int) -> None:
+        # tqdm プログレスバーを作成
+    def on_task_success(self, count: int = 1) -> None:
+        # 進捗を更新
+    def on_task_fail(self, count: int = 1) -> None:
+        # 進捗を更新
+    def on_task_duplicate(self, count: int = 1) -> None:
+        # 進捗を更新
+    def on_tasks_added(self, count: int) -> None:
+        # タスク総数を増加しリフレッシュ
+    def on_finish(self) -> None:
+        # プログレスバーを閉じる
+```
 
 ## 使用方法
 
-`TaskExecutor` または `TaskStage` 内で初期化します：
-
 ```python
-self.task_progress = TaskProgress(
-    total_tasks=0,  # 初期値は通常 0、タスクの入力に応じて動的に増加
-    desc="Processing",
-    mode="normal"
-)
+from celestialflow import TaskExecutor, TaskProgress
+
+executor = TaskExecutor("Test", my_func)
+executor.add_observer(TaskProgress())
+executor.start(tasks)
 ```
 
-進捗を更新：
-
-```python
-self.task_progress.update(1)
-```
-
-総数を動的に増加：
-
-```python
-self.task_progress.add_total(100)
-```
+プログレスバーが不要な場合は observer を追加しなければよく、Null 実装は不要です。

@@ -1,8 +1,8 @@
 # TaskEnvelope
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/05/08
 
-各 Stage 間で受け渡されるタスクデータのラッパークラスです。生のタスクデータ、タスクハッシュ、タスク ID、ソース情報をカプセル化します。
+Stage 間で受け渡されるタスクデータのラッパークラス。元のタスクデータ、タスクハッシュ、タスク ID、ソース情報をカプセル化します。
 
 ## 属性
 
@@ -10,46 +10,40 @@
 class TaskEnvelope:
     __slots__ = ("task", "hash", "id", "source", "prev")
 
-    def __init__(self, task, hash: str, id: int, source: str, prev: Any):
-        self.task = task      # 生のタスクデータ
-        self.hash = hash      # タスク内容のハッシュ値
-        self.id = id          # タスクの一意な ID
-        self.source = source  # タスクのソース識別子
-        self.prev = prev      # 前のタスク（結果キャッシュの回溯用）
+    def __init__(self, task: Any, id: int, source: str, prev: Any = None):
+        self.task = task      # 元のタスクデータ
+        self.hash = None      # ハッシュ値（遅延計算）
+        self.id = id          # タスク固有 ID
+        self.source = source  # タスクソース識別子
+        self.prev = prev      # 前のタスク（結果キャッシュの遡及用）
 ```
 
-## クラスメソッド
+## Getter メソッド
 
 ```python
-@classmethod
-def wrap(cls, task, task_id: int, source: str, prev: Any = None):
-    """
-    生のタスクを TaskEnvelope にラップします。
+def get_task(self) -> Any:
+    """元のタスクデータを取得。"""
 
-    :param task: 生のタスク
-    :param task_id: タスク ID
-    :param source: タスクのソース
-    :param prev: 前のタスクの envelope
-    :return: TaskEnvelope インスタンス
-    """
+def get_hash(self) -> str:
+    """タスクハッシュを取得。初回呼び出し時に遅延計算しキャッシュ。"""
+
+def get_id(self) -> int:
+    """タスク ID を取得。"""
+
+def change_id(self, new_id: int) -> None:
+    """タスク ID を変更（リトライシナリオで使用）。"""
 ```
 
-## インスタンスメソッド
+## 遅延ハッシュ
+
+`hash` は構築時に `None` で、`get_hash()` の初回呼び出し時にのみ計算されます。重複チェックが不要な場面での計算の無駄を回避します。
 
 ```python
-def unwrap(self) -> tuple:
-    """
-    TaskEnvelope をアンラップします。
-
-    :return: (task, hash, id)
-    """
-
-def change_id(self, new_id: int):
-    """
-    タスク ID を変更します（リトライ時に使用）。
-
-    :param new_id: 新しいタスク ID
-    """
+envelope = TaskEnvelope("data", id=1, source="input")
+assert envelope.hash is None         # 未計算
+h = envelope.get_hash()              # 初回呼び出しで計算・キャッシュ
+assert envelope.hash is not None     # キャッシュ済み
+assert envelope.get_hash() == h      # 以降はキャッシュ値を返す
 ```
 
 ## 使用例
@@ -57,11 +51,13 @@ def change_id(self, new_id: int):
 ```python
 from celestialflow.runtime import TaskEnvelope
 
-# タスクをラップ
-envelope = TaskEnvelope.wrap(task_data, task_id=123, source="input")
+# エンベロープを作成
+envelope = TaskEnvelope(task_data, id=123, source="input")
 
-# アンラップ
-task, hash, id = envelope.unwrap()
+# データを取得
+task = envelope.get_task()
+task_hash = envelope.get_hash()
+task_id = envelope.get_id()
 
 # ID を変更（リトライ時）
 envelope.change_id(456)

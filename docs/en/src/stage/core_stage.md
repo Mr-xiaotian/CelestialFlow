@@ -1,8 +1,8 @@
 # TaskStage
 
-> 📅 Last updated: 2026/04/24
+> 📅 Last updated: 2026/05/08
 
-`TaskStage` is the basic building block for constructing a `TaskGraph`. It inherits from `TaskExecutor` and adds graph-structure-related connection capabilities.
+`TaskStage` is the basic building block for constructing a `TaskGraph`. It inherits from `TaskExecutor` and adds `log_level` and `stage_mode` parameters beyond TaskExecutor.
 
 ## Inheritance Hierarchy
 
@@ -32,6 +32,7 @@ class TaskStage(TaskExecutor):
         max_info=50,
         unpack_task_args=False,
         enable_duplicate_check=True,
+        log_level="SUCCESS",
         stage_mode="serial",
     ):
         ...

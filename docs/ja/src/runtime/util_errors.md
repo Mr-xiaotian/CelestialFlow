@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最終更新日: 2026/04/23
+> 📅 最終更新日: 2026/05/08
 
 TaskErrors モジュールは、フレームワークで使用されるカスタム例外クラスを定義します。
 
@@ -12,10 +12,12 @@ CelestialFlowError
 │   └── InvalidOptionError
 │       ├── ExecutionModeError
 │       ├── StageModeError
+│       ├── ScheduleModeError
 │       └── LogLevelError
 ├── RemoteWorkerError
 ├── UnconsumedError
-└── PickleError
+├── PickleError
+└── CelestialTreeConnectionError
 ```
 
 ## 基底クラス
@@ -73,7 +75,7 @@ class ExecutionModeError(InvalidOptionError):
     """不正な execution_mode の設定エラー"""
 
     def __init__(self, execution_mode: str, valid_modes=None):
-        # valid_modes のデフォルトは ("serial", "process", "thread", "async")
+        # valid_modes のデフォルトは ("serial", "thread", "async")
 ```
 
 ### StageModeError
@@ -85,7 +87,19 @@ class StageModeError(InvalidOptionError):
     """不正な stage_mode の設定エラー"""
 
     def __init__(self, stage_mode: str, valid_modes=None):
-        # valid_modes のデフォルトは ("serial", "process")
+        # valid_modes のデフォルトは ("serial", "thread", "process")
+```
+
+### ScheduleModeError
+
+`schedule_mode` の設定エラーです。
+
+```python
+class ScheduleModeError(InvalidOptionError):
+    """不正な schedule_mode の設定エラー"""
+
+    def __init__(self, schedule_mode: str, valid_modes=None):
+        # valid_modes のデフォルトは ("eager", "staged")
 ```
 
 ### LogLevelError
@@ -139,6 +153,16 @@ class PickleError(CelestialFlowError):
         self.obj = obj
         self.type = type(obj).__name__
         self.message = message
+```
+
+### CelestialTreeConnectionError
+
+CelestialTree サービスへの接続が失敗した場合に発生するエラーです。
+
+```python
+class CelestialTreeConnectionError(CelestialFlowError):
+    """CelestialTree サービスへの接続エラー"""
+    pass
 ```
 
 `TaskStage.set_func()` では、関数が pickle 可能かどうかをチェックします:

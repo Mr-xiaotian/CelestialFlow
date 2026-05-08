@@ -1,6 +1,6 @@
 # TaskDispatch
 
-> 📅 Last updated: 2026/04/24
+> 📅 Last updated: 2026/05/08
 
 `TaskDispatch` is the core task execution runner, responsible for fetching tasks from queues, executing them, and handling results and errors. It supports three execution modes: serial, thread pool, and async.
 
@@ -55,8 +55,9 @@ def dispatch_thread(self):
 Execution flow:
 1. Initialize the thread pool
 2. Fetch tasks from the queue and submit them to the pool
-3. Wait for all futures to complete before processing the termination signal
-4. Shut down the pool and release resources
+3. Periodically clean up completed futures (filtered when list length reaches `max_workers * 2`)
+4. Wait for all futures to complete before processing the termination signal
+5. Shut down the pool and release resources
 
 ### dispatch_async
 
@@ -133,7 +134,8 @@ TaskExecutor
 ## Notes
 
 1. **Concurrency Control**: `max_workers` limits the number of concurrent tasks to prevent resource exhaustion
-2. **Termination Handling**: Properly handles merging and propagation of termination signals
+2. **Futures Cleanup**: In `dispatch_thread`, completed futures are periodically filtered out to prevent memory accumulation from unused futures
+3. **Termination Handling**: Properly handles merging and propagation of termination signals
 3. **Error Propagation**: Exceptions are caught and passed to `TaskExecutor.handle_task_fail()`
 4. **Retry Mechanism**: Workers support task retries internally, controlled by `max_retries`
 5. **Async Limitation**: `dispatch_async` requires the task function to be a coroutine function

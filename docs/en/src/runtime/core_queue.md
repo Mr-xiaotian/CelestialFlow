@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 Last updated: 2026/04/24
+> 📅 Last updated: 2026/05/08
 
 The `TaskQueue` module provides two classes, `TaskInQueue` and `TaskOutQueue`, which serve as pipelines connecting different Stages. They support multi-producer, multi-consumer models and integrate logging and monitoring capabilities.
 
@@ -237,8 +237,8 @@ item = in_queue.get()
 
 if isinstance(item, TaskEnvelope):
     # Process the task
-    result = process(item.task)
-    out_queue.put(TaskEnvelope.wrap(result, result_id))
+    result = process(item.get_task())
+    out_queue.put(TaskEnvelope(result, id=result_id, source="stage_tag"))
 elif isinstance(item, TerminationIdPool):
     # All upstream sources have terminated; send termination signal downstream
     out_queue.put(TerminationSignal())

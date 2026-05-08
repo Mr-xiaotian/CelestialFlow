@@ -1,6 +1,6 @@
 # demo_executor.py Demo Documentation
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/05/08
 
 ## Purpose
 
@@ -21,7 +21,7 @@ Demonstrates the standalone execution capability of `TaskExecutor` in three exec
 
 - `max_workers = 6`
 - `max_retries = 1`
-- `show_progress = False` (disables tqdm to avoid cluttered output during demos)
+- Progress bar added via `executor.add_observer(TaskProgress())`
 
 ## Potential Issues
 
@@ -37,5 +37,5 @@ python demo/demo_executor.py
 
 ## Dependencies
 
-- `celestialflow` (`TaskExecutor`)
+- `celestialflow` (`TaskExecutor`, `TaskProgress`)
 - `demo_utils` (`fibonacci`, `fibonacci_async`)

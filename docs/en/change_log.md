@@ -1,6 +1,6 @@
 # Change Log
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/05/08
 
 - 2021: Created a class supporting both multithreaded and single-threaded processing functions
 - 2023: Added multiprocess and coroutine execution modes with the help of GPT-4
@@ -145,3 +145,18 @@
   - chore:
     - Renamed all test_ function names to demo_ in demo/;
     - Reorganized docs directory structure — renamed reference to src, moved some documents to zh-CN/;
+- 3.1.9
+  - feat:
+    - [Important] Create base class BaseObserver; custom observers can now be attached externally to monitor execution
+      - Also create lightweight CallbackObserver
+    - Add `log_level` init field to TaskStage; stage init fields now fully contain executor init fields, with only `stage_mode` extra
+    - Add more replacements to escapeHtml
+    - Add futures cleanup in dispatch_thread to prevent unused future accumulation
+      - Based on bench/bench_futures_memory.py, futures memory overhead at 100K tasks is 177.01 MB; with periodic cleanup it's 0.48 MB
+  - refactor:
+    - Refactor TaskProgress to inherit BaseObserver
+      - Breaking change: TaskExecutor's show_progress parameter deleted; now only explicit add_observer(TaskProgress()) enables progress
+      - See demo/demo_executor.py for usage
+    - Refactor TaskEnvelope: no longer uses wrap/unwrap; hash is lazily computed
+  - chore:
+    - Delete unused code to improve code quality

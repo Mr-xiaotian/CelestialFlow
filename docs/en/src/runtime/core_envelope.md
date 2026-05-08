@@ -1,8 +1,8 @@
 # TaskEnvelope
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/05/08
 
-A wrapper class for task data that is passed between stages. It encapsulates the raw task data, task hash, task ID, and source information.
+A wrapper class for task data passed between Stages. It encapsulates the original task data, task hash, task ID, and source information.
 
 ## Attributes
 
@@ -10,46 +10,40 @@ A wrapper class for task data that is passed between stages. It encapsulates the
 class TaskEnvelope:
     __slots__ = ("task", "hash", "id", "source", "prev")
 
-    def __init__(self, task, hash: str, id: int, source: str, prev: Any):
-        self.task = task      # Raw task data
-        self.hash = hash      # Hash of the task content
+    def __init__(self, task: Any, id: int, source: str, prev: Any = None):
+        self.task = task      # Original task data
+        self.hash = None      # Hash value (lazily computed)
         self.id = id          # Unique task ID
         self.source = source  # Task source identifier
         self.prev = prev      # Previous task (for result cache backtracking)
 ```
 
-## Class Methods
+## Getter Methods
 
 ```python
-@classmethod
-def wrap(cls, task, task_id: int, source: str, prev: Any = None):
-    """
-    Wrap a raw task into a TaskEnvelope.
+def get_task(self) -> Any:
+    """Get the original task data."""
 
-    :param task: Raw task
-    :param task_id: Task ID
-    :param source: Task source
-    :param prev: Previous task envelope
-    :return: TaskEnvelope instance
-    """
+def get_hash(self) -> str:
+    """Get the task hash. Lazily computed and cached on first call."""
+
+def get_id(self) -> int:
+    """Get the task ID."""
+
+def change_id(self, new_id: int) -> None:
+    """Change the task ID (used in retry scenarios)."""
 ```
 
-## Instance Methods
+## Lazy Hash
+
+`hash` is `None` at construction time and only computed on the first call to `get_hash()`. This avoids wasting computation when duplicate checking is not needed.
 
 ```python
-def unwrap(self) -> tuple:
-    """
-    Unwrap a TaskEnvelope.
-
-    :return: (task, hash, id)
-    """
-
-def change_id(self, new_id: int):
-    """
-    Change the task ID (used in retry scenarios).
-
-    :param new_id: New task ID
-    """
+envelope = TaskEnvelope("data", id=1, source="input")
+assert envelope.hash is None         # Not yet computed
+h = envelope.get_hash()              # First call computes and caches
+assert envelope.hash is not None     # Cached
+assert envelope.get_hash() == h      # Subsequent calls return cached value
 ```
 
 ## Usage Example
@@ -57,11 +51,13 @@ def change_id(self, new_id: int):
 ```python
 from celestialflow.runtime import TaskEnvelope
 
-# Wrap a task
-envelope = TaskEnvelope.wrap(task_data, task_id=123, source="input")
+# Create envelope
+envelope = TaskEnvelope(task_data, id=123, source="input")
 
-# Unwrap
-task, hash, id = envelope.unwrap()
+# Get data
+task = envelope.get_task()
+task_hash = envelope.get_hash()
+task_id = envelope.get_id()
 
 # Change ID (on retry)
 envelope.change_id(456)

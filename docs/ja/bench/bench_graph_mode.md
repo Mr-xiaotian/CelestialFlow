@@ -1,6 +1,6 @@
-# bench_graph.py ベンチマーク説明
+# bench_graph_mode.py ベンチマーク説明
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/05/08
 
 ## 目標
 
@@ -36,7 +36,7 @@
 ## 実行方法
 
 ```bash
-python bench/bench_graph.py
+python bench/bench_graph_mode.py
 ```
 
 ## ベンチマーク結果（実測）
