@@ -1,5 +1,4 @@
 # runtime/core_metrics.py
-import asyncio
 from threading import Lock
 
 from .util_factories import (
@@ -85,7 +84,7 @@ class TaskMetrics:
     # ==== 去重 ====
     def is_duplicate(self, task_hash: str) -> bool:
         """
-        检查任务是否重复
+        检查任务是否重复, 是原子操作
 
         :param task_hash: 任务的哈希值
         :return: 如果启用了去重检查且任务哈希存在于已处理集合中，返回 True；否则返回 False。
@@ -146,16 +145,6 @@ class TaskMetrics:
         """
         with self.success_counter.get_lock():
             self.success_counter.value += count
-
-    async def add_success_count_async(self, count: int = 1):
-        """
-        异步更新成功任务计数器
-
-        在独立线程中执行 add_success_count，避免阻塞事件循环。
-
-        :param count: 增加的成功任务数量，默认值为 1。
-        """
-        await asyncio.to_thread(self.add_success_count, count)
 
     def add_error_count(self, count: int = 1):
         """

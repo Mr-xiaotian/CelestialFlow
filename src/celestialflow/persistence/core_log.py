@@ -312,17 +312,17 @@ class LogInlet(BaseInlet):
 
     # ==== queue ====
     def put_item(
-        self, item_type: str, item_id: int, left_tag: str, right_tag: str
+        self, item_type: str, item_id: int, in_tag: str, out_tag: str
     ) -> None:
         """记录队列 put 操作"""
-        edge = f"'{left_tag}' -> '{right_tag}'"
+        edge = f"'{in_tag}' -> '{out_tag}'"
         self._log("TRACE", f"Put {item_type}#{item_id} into Edge({edge}).")
 
     def put_item_error(
-        self, left_tag: str, right_tag: str, exception: Exception
+        self, in_tag: str, out_tag: str, exception: Exception
     ) -> None:
         """记录队列 put 失败"""
-        edge = f"'{left_tag}' -> '{right_tag}'"
+        edge = f"'{in_tag}' -> '{out_tag}'"
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "WARNING",
@@ -330,17 +330,17 @@ class LogInlet(BaseInlet):
         )
 
     def get_item(
-        self, item_type: str, item_id: int, left_tag: str, right_tag: str
+        self, item_type: str, item_id: int, in_tag: str, out_tag: str
     ) -> None:
         """记录队列 get 操作"""
-        edge = f"'{left_tag}' -> '{right_tag}'"
+        edge = f"'{in_tag}' -> '{out_tag}'"
         self._log("TRACE", f"Get {item_type}#{item_id} from Edge({edge}).")
 
     def get_item_error(
-        self, left_tag: str, right_tag: str, exception: Exception
+        self, in_tag: str, out_tag: str, exception: Exception
     ) -> None:
         """记录队列 get 失败"""
-        edge = f"'{left_tag}' -> '{right_tag}'"
+        edge = f"'{in_tag}' -> '{out_tag}'"
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "WARNING",
@@ -415,11 +415,11 @@ class LogInlet(BaseInlet):
             f"[Reporter] Push 'structure' failed: {type(exception).__name__}({exception}).",
         )
 
-    def push_topology_failed(self, exception: Exception) -> None:
-        """记录推送拓扑信息失败"""
+    def push_analysis_failed(self, exception: Exception) -> None:
+        """记录推送分析信息失败"""
         self._log(
             "WARNING",
-            f"[Reporter] Push 'topology' failed: {type(exception).__name__}({exception}).",
+            f"[Reporter] Push 'analysis' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_summary_failed(self, exception: Exception) -> None:
@@ -427,13 +427,6 @@ class LogInlet(BaseInlet):
         self._log(
             "WARNING",
             f"[Reporter] Push 'summary' failed: {type(exception).__name__}({exception}).",
-        )
-
-    def push_analysis_failed(self, exception: Exception) -> None:
-        """记录推送分析信息失败"""
-        self._log(
-            "WARNING",
-            f"[Reporter] Push 'analysis' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_history_failed(self, exception: Exception) -> None:

@@ -168,6 +168,7 @@ class TaskReporter:
         try:
             current_rev = self.task_graph.get_total_error_num()
             jsonl_path = self.task_graph.get_fallback_path()
+            resp = {"ok": True, "cached": False}  # 默认响应，避免未定义变量
 
             # 无新增错误，跳过
             if current_rev == self._last_pushed_errors_rev:

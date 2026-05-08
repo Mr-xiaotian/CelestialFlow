@@ -57,7 +57,7 @@ def make_queue_backend(mode: str) -> type:
 
 def make_task_in_queue(
     *,
-    queue: any,
+    queue: Any,
     executor: "TaskExecutor",
 ) -> TaskInQueue:
     """
@@ -77,7 +77,7 @@ def make_task_in_queue(
 
 def make_task_out_queue(
     *,
-    queue: any,
+    queue: Any,
     executor: "TaskExecutor",
 ) -> TaskOutQueue:
     """

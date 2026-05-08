@@ -47,10 +47,10 @@ def clone_stage(stage: TaskStage) -> TaskStage:
     :return: 克隆节点
     """
     kwargs = _get_clone_init_kwargs(stage)
+    kwargs["stage_mode"] = stage.get_stage_mode()
     cloned = TaskStage(**kwargs)
 
     cloned.add_retry_exceptions(*stage.metrics.retry_exceptions)
-    cloned.set_stage_mode(stage.get_stage_mode())
     return cloned
 
 
