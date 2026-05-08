@@ -176,16 +176,16 @@ dev = [
 
 [[package]]
 name = "celestialtree"
-version = "0.1.2"
+version = "0.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "grpcio" },
     { name = "protobuf" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2e/dd/18d291699b58c9229057953911d96f6b1d5b7def841318a62e290fa70434/celestialtree-0.1.2.tar.gz", hash = "sha256:12c2507b93308412f059aabc5a6af60b1400b7b2bff7102d3ad14b2c39756f91", size = 12475, upload-time = "2026-02-27T07:49:43.996Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/37/c2/ca1eb4e65bec935f64830e36724dd430fcb6f8364da59b292e511abe1f68/celestialtree-0.1.3.tar.gz", hash = "sha256:64721bd020dae60b208cec875119ea6d07ae0b641c78f58588b6171e591e2db8", size = 12588, upload-time = "2026-05-08T09:41:52.303Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/84/00/7aeac262ad122f08117f410a11dcd395693b504a6e3e7b880f84a3f97735/celestialtree-0.1.2-py3-none-any.whl", hash = "sha256:ef3e52e5a13bb0cb01e72074499d0572f9eaaadba2460f9556ab0f19272e04a3", size = 11986, upload-time = "2026-02-27T07:49:42.408Z" },
+    { url = "https://files.pythonhosted.org/packages/cc/04/d754e9d911686384844fb2737163f2212655f236e21d0154de43e263ed55/celestialtree-0.1.3-py3-none-any.whl", hash = "sha256:667f0efccb256cc5a8beb229ec199a1efde6f531b5264b5ba7ce1f816fb16cb3", size = 12044, upload-time = "2026-05-08T09:41:51.054Z" },
 ]
 
 [[package]]
