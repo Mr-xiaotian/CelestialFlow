@@ -1,6 +1,6 @@
 import pytest
 
-from celestialflow import TaskExecutor, BaseObserver
+from celestialflow import TaskExecutor, BaseObserver, CallbackObserver
 
 
 # =========================
@@ -354,3 +354,29 @@ class TestExecutorObserver:
         executor.start([1, 2])
 
         assert observer.count == 0
+
+    def test_callback_observer(self):
+        """CallbackObserver 通过回调函数接收事件"""
+        results = []
+        observer = CallbackObserver(
+            on_task_success=lambda count=1: results.append(("success", count)),
+            on_finish=lambda: results.append(("finish",)),
+        )
+        executor = TaskExecutor("CallbackTest", add_one, execution_mode="serial")
+        executor.add_observer(observer)
+        executor.start([1, 2, 3])
+
+        assert len([r for r in results if r[0] == "success"]) == 3
+        assert results[-1] == ("finish",)
+
+    def test_callback_observer_partial(self):
+        """CallbackObserver 只覆写部分回调，其余走默认空实现"""
+        count = []
+        observer = CallbackObserver(
+            on_task_fail=lambda count=1: count.append(1),
+        )
+        executor = TaskExecutor("CallbackPartial", add_one, execution_mode="serial")
+        executor.add_observer(observer)
+        executor.start([1, 2])
+
+        assert len(count) == 0

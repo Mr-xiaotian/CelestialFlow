@@ -16,3 +16,11 @@ class BaseObserver:
     def on_tasks_added(self, count: int) -> None: ...
 
     def on_finish(self) -> None: ...
+
+
+class CallbackObserver(BaseObserver):
+    """通过回调函数创建的轻量观察者，无需定义子类。"""
+
+    def __init__(self, **callbacks):
+        for name, fn in callbacks.items():
+            setattr(self, name, fn)
