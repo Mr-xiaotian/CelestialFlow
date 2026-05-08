@@ -177,7 +177,10 @@ class TaskDispatch:
 
             if self._pool is None:
                 raise RuntimeError("execution pool has not been initialized")
+            
             futures.append(self._pool.submit(self._worker, envelope))
+            if len(futures) >= self.max_workers * 2:
+                futures = [f for f in futures if not f.done()]
 
         # 等待当前批次的所有任务完成
         for future in futures:
