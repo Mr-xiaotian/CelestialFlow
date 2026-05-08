@@ -1,37 +1,41 @@
 # TaskProgress
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/08
 
-TaskProgress 模块基于 `tqdm` 提供了任务进度的可视化显示。
+`TaskProgress` 继承 `BaseObserver`，基于 `tqdm` 提供任务进度的可视化显示。
 
 ## 功能
 
-- **动态更新**: 支持动态增加总任务数 (`add_total`)，适应流式任务或任务分裂场景。
-- **多模式支持**: 
-  - 普通模式: 使用标准 `tqdm`。
-  - 异步模式: 使用 `tqdm.asyncio`，适用于 `async` 执行模式。
-- **Null模式**: `NullTaskProgress` 用于关闭进度条显示时的空实现，避免代码中充斥 `if show_progress` 判断。
+- **动态更新**: 通过 `on_tasks_added` 支持动态增加总任务数，适应流式任务或任务分裂场景。
+- **生命周期管理**: 在 `on_start` 时创建进度条，在 `on_finish` 时关闭。
+- **事件驱动**: 通过 `on_task_success/fail/duplicate` 更新进度。
+
+## 接口
+
+```python
+class TaskProgress(BaseObserver):
+    def on_start(self, name: str, total: int) -> None:
+        # 创建 tqdm 进度条
+    def on_task_success(self, count: int = 1) -> None:
+        # 更新进度
+    def on_task_fail(self, count: int = 1) -> None:
+        # 更新进度
+    def on_task_duplicate(self, count: int = 1) -> None:
+        # 更新进度
+    def on_tasks_added(self, count: int) -> None:
+        # 增加总任务数并刷新
+    def on_finish(self) -> None:
+        # 关闭进度条
+```
 
 ## 使用
 
-在 `TaskExecutor` 或 `TaskStage` 中初始化：
-
 ```python
-self.task_progress = TaskProgress(
-    total_tasks=0,  # 初始通常为0，随任务输入动态增加
-    desc="Processing",
-    mode="normal"
-)
+from celestialflow import TaskExecutor, TaskProgress
+
+executor = TaskExecutor("Test", my_func)
+executor.add_observer(TaskProgress())
+executor.start(tasks)
 ```
 
-更新进度：
-
-```python
-self.task_progress.update(1)
-```
-
-动态增加总数：
-
-```python
-self.task_progress.add_total(100)
-```
+不需要进度条时，不添加 observer 即可，无需 Null 实现。

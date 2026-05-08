@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/05/08
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -18,7 +18,6 @@ class TaskExecutor:
         max_info=50,
         unpack_task_args=False,
         enable_duplicate_check=True,
-        show_progress=False,
         log_level="SUCCESS",
     ):
         ...
@@ -37,8 +36,46 @@ class TaskExecutor:
 - **max_info**: 日志中每条信息的最大长度。
 - **unpack_task_args**: 是否将任务参数解包 (`*args`) 传给函数。
 - **enable_duplicate_check**: 是否启用基于任务哈希的重复检查。
-- **show_progress**: 是否显示进度条。
 - **log_level**: 日志级别（TRACE/DEBUG/SUCCESS/INFO/WARNING/ERROR/CRITICAL）。
+
+## Observer 模式
+
+`TaskExecutor` 通过 observer 模式向外部广播生命周期事件。
+
+### 注册与移除
+
+```python
+executor.add_observer(observer)     # 注册观察者
+executor.remove_observer(observer)  # 移除观察者
+```
+
+### 使用示例
+
+```python
+from celestialflow import TaskExecutor, TaskProgress, CallbackObserver
+
+# 使用 TaskProgress 显示进度条
+executor = TaskExecutor("Test", my_func)
+executor.add_observer(TaskProgress())
+executor.start(tasks)
+
+# 使用 CallbackObserver
+observer = CallbackObserver(
+    on_task_success=lambda count=1: print(f"成功: {count}"),
+)
+executor.add_observer(observer)
+```
+
+### 广播事件
+
+| 事件 | 触发时机 |
+|------|----------|
+| `on_start(name, total)` | 执行开始 |
+| `on_task_success(count)` | 任务成功 |
+| `on_task_fail(count)` | 任务失败 |
+| `on_task_duplicate(count)` | 检测到重复 |
+| `on_tasks_added(count)` | 新任务加入 |
+| `on_finish()` | 执行结束 |
 
 ## 核心方法
 

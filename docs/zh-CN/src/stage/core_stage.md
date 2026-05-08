@@ -1,6 +1,6 @@
 # TaskStage
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/05/08
 
 `TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力。
 
@@ -32,6 +32,7 @@ class TaskStage(TaskExecutor):
         max_info=50,
         unpack_task_args=False,
         enable_duplicate_check=True,
+        log_level="SUCCESS",
         stage_mode="serial",
     ):
         ...

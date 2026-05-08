@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/05/08
 
 `TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了日志记录和监控功能。
 
@@ -237,8 +237,8 @@ item = in_queue.get()
 
 if isinstance(item, TaskEnvelope):
     # 处理任务
-    result = process(item.task)
-    out_queue.put(TaskEnvelope.wrap(result, result_id))
+    result = process(item.get_task())
+    out_queue.put(TaskEnvelope(result, id=result_id, source="stage_tag"))
 elif isinstance(item, TerminationIdPool):
     # 所有上游都已终止，发送终止信号给下游
     out_queue.put(TerminationSignal())

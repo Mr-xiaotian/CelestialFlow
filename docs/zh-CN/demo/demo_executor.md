@@ -1,6 +1,6 @@
 # demo_executor.py 演示说明
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/08
 
 ## 目标
 
@@ -21,7 +21,7 @@
 
 - `max_workers = 6`
 - `max_retries = 1`
-- `show_progress = False`（关闭 tqdm，避免演示时输出混乱）
+- 通过 `executor.add_observer(TaskProgress())` 添加进度条
 
 ## 可能出现的问题
 
@@ -37,5 +37,5 @@ python demo/demo_executor.py
 
 ## 依赖
 
-- `celestialflow`（`TaskExecutor`）
+- `celestialflow`（`TaskExecutor`、`TaskProgress`）
 - `demo_utils`（`fibonacci`、`fibonacci_async`）

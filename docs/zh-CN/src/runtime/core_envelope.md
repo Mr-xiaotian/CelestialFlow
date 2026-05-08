@@ -1,6 +1,6 @@
 # TaskEnvelope
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/08
 
 任务数据的包装类，在各个 Stage 之间传递。它封装了原始任务数据、任务哈希、任务 ID 和来源信息。
 
@@ -10,46 +10,40 @@
 class TaskEnvelope:
     __slots__ = ("task", "hash", "id", "source", "prev")
 
-    def __init__(self, task, hash: str, id: int, source: str, prev: Any):
+    def __init__(self, task: Any, id: int, source: str, prev: Any = None):
         self.task = task      # 原始任务数据
-        self.hash = hash      # 任务内容的哈希值
+        self.hash = None      # 哈希值（惰性计算）
         self.id = id          # 任务唯一 ID
         self.source = source  # 任务来源标识
         self.prev = prev      # 前一个任务（用于结果缓存时回溯）
 ```
 
-## 类方法
+## Getter 方法
 
 ```python
-@classmethod
-def wrap(cls, task, task_id: int, source: str, prev: Any = None):
-    """
-    将原始 task 包装为 TaskEnvelope。
+def get_task(self) -> Any:
+    """获取原始任务数据。"""
 
-    :param task: 原始任务
-    :param task_id: 任务 id
-    :param source: 任务来源
-    :param prev: 前一个任务的 envelope
-    :return: TaskEnvelope 实例
-    """
+def get_hash(self) -> str:
+    """获取任务哈希值。首次调用时惰性计算并缓存。"""
+
+def get_id(self) -> int:
+    """获取任务 ID。"""
+
+def change_id(self, new_id: int) -> None:
+    """修改任务 ID（用于重试场景）。"""
 ```
 
-## 实例方法
+## 惰性哈希
+
+`hash` 在构造时为 `None`，首次调用 `get_hash()` 时才计算。这避免了在不需要去重检查的场景下浪费计算资源。
 
 ```python
-def unwrap(self) -> tuple:
-    """
-    解包装 TaskEnvelope。
-
-    :return: (task, hash, id)
-    """
-
-def change_id(self, new_id: int):
-    """
-    修改任务 ID（用于重试场景）。
-
-    :param new_id: 新的任务 id
-    """
+envelope = TaskEnvelope("data", id=1, source="input")
+assert envelope.hash is None         # 未计算
+h = envelope.get_hash()              # 首次调用，计算并缓存
+assert envelope.hash is not None     # 已缓存
+assert envelope.get_hash() == h      # 后续调用直接返回缓存值
 ```
 
 ## 使用示例
@@ -57,11 +51,13 @@ def change_id(self, new_id: int):
 ```python
 from celestialflow.runtime import TaskEnvelope
 
-# 包装任务
-envelope = TaskEnvelope.wrap(task_data, task_id=123, source="input")
+# 创建信封
+envelope = TaskEnvelope(task_data, id=123, source="input")
 
-# 解包装
-task, hash, id = envelope.unwrap()
+# 获取数据
+task = envelope.get_task()
+task_hash = envelope.get_hash()
+task_id = envelope.get_id()
 
 # 修改 ID（重试时）
 envelope.change_id(456)

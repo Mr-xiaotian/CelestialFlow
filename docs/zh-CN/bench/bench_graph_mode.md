@@ -1,6 +1,6 @@
-# bench_graph.py 基准测试说明
+# bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/08
 
 ## 目标
 
@@ -36,7 +36,7 @@
 ## 运行方式
 
 ```bash
-python bench/bench_graph.py
+python bench/bench_graph_mode.py
 ```
 
 ## 基准结果（实测）

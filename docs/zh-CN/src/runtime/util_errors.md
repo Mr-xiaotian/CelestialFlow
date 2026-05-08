@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/04/23
+> 📅 最后更新日期: 2026/05/08
 
 TaskErrors 模块定义了框架中使用的自定义异常类。
 
@@ -12,8 +12,10 @@ CelestialFlowError
 │   └── InvalidOptionError
 │       ├── ExecutionModeError
 │       ├── StageModeError
-│       └── LogLevelError
+│       ├── LogLevelError
+│       └── ScheduleModeError
 ├── RemoteWorkerError
+├── CelestialTreeConnectionError
 ├── UnconsumedError
 └── PickleError
 ```
@@ -73,7 +75,7 @@ class ExecutionModeError(InvalidOptionError):
     """非法的 execution_mode 配置错误"""
 
     def __init__(self, execution_mode: str, valid_modes=None):
-        # valid_modes 默认为 ("serial", "process", "thread", "async")
+        # valid_modes 默认为 ("serial", "thread", "async")
 ```
 
 ### StageModeError
@@ -85,7 +87,7 @@ class StageModeError(InvalidOptionError):
     """非法的 stage_mode 配置错误"""
 
     def __init__(self, stage_mode: str, valid_modes=None):
-        # valid_modes 默认为 ("serial", "process")
+        # valid_modes 默认为 ("serial", "thread", "process")
 ```
 
 ### LogLevelError
@@ -109,6 +111,28 @@ class LogLevelError(InvalidOptionError):
 ```python
 class RemoteWorkerError(CelestialFlowError):
     pass
+```
+
+### ScheduleModeError
+
+`schedule_mode` 配置错误。
+
+```python
+class ScheduleModeError(InvalidOptionError):
+    """非法的 schedule_mode 配置错误"""
+
+    def __init__(self, schedule_mode: str, valid_modes=None):
+        # valid_modes 默认为 ("eager", "staged")
+```
+
+### CelestialTreeConnectionError
+
+CelestialTree 连接错误。
+
+```python
+class CelestialTreeConnectionError(CelestialFlowError):
+    def __init__(self, message: str = "CelestialTreeClient is not available"):
+        ...
 ```
 
 ### UnconsumedError
