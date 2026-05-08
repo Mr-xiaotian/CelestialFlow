@@ -1,6 +1,6 @@
 # 更新日志（Change Log）
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/08
 
 - 2021: 建立一个支持多线程与单线程处理函数的类
 - 2023: 在GPT4帮助下添加多进程与携程运行模式 
@@ -141,3 +141,20 @@
     - 将demo/中所有test_函数名改为demo_函数名;
     - 重组docs目录结构, 将reference改为src;
     - docs中新增en/与ja/, 并将原有中文文档移至zh-CN/;
+- 3.1.9
+ - feat:
+   - [Important] 在TaskStage中允许使用 `async` executor_mode;
+     - 3.1.8版本中其实已经可以实现, 在3.1.9版本中彻底测试通过;
+   - [Important] 创建基类BaseObservor, 现在可以从外界接入自定义Observor来检测运行状况;
+     - 同时创建轻量观察者CallbackObserver;
+   - 在TaskStage中添加init字段`log_level`, 自此stage init字段集实现对executor init字段集的包含关系, 仅多出`stage_mode`字段;
+   - escapeHtml中添加更多替换项;
+   - 在dispatch_thread中添加对futures的清理, 避免无用future的堆积;
+     - 基于bench\bench_futures_memory.py, 在十万级任务下futures内存开销为177.01 MB, 在定期清理后则为0.48 MB
+ - refactor:
+    - 重构TaskProgress, 使其继承BaseObservor;
+      - 接口破坏性重构, TaskExecutor的show_progress参数已删除, 现在只有显性的add_observer TaskProgress后才会使用progress
+      - 具体使用参考demo\demo_executor.py
+    - 重构TaskEnvelope, 不再使用wrap与unwrap, 同时hash值惰性求解;
+  - chore:
+    - 删除部分无用代码以提高代码质量;
