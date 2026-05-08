@@ -73,7 +73,7 @@ class TaskDispatch:
         :param task_envelope: 包含任务信息的信封
         :return: 是否命中重复任务
         """
-        _, task_hash, _ = task_envelope.unwrap()
+        task_hash = task_envelope.get_hash()
 
         if self.task_executor.metrics.is_duplicate(task_hash):
             self.task_executor.deal_duplicate(task_envelope)
@@ -87,7 +87,7 @@ class TaskDispatch:
 
         :param task_envelope: 包含任务信息的信封
         """
-        task, _, _ = task_envelope.unwrap()
+        task = task_envelope.get_task()
         max_retries = self.task_executor.max_retries
 
         for retry_time in range(max_retries + 1):
@@ -114,7 +114,7 @@ class TaskDispatch:
 
         :param task_envelope: 包含任务信息的信封
         """
-        task, _, _ = task_envelope.unwrap()
+        task = task_envelope.get_task()
         max_retries = self.task_executor.max_retries
 
         for retry_time in range(max_retries + 1):

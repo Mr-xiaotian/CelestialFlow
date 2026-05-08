@@ -79,7 +79,7 @@ class TaskSplitter(TaskStage):
                 parents=[task_id],
                 payload=self.get_summary(),
             )
-            splitted_envelope = TaskEnvelope.wrap(
+            splitted_envelope = TaskEnvelope(
                 item,
                 split_id,
                 source=self.get_tag(),
@@ -106,7 +106,8 @@ class TaskSplitter(TaskStage):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        task, _, task_id = task_envelope.unwrap()
+        task = task_envelope.get_task()
+        task_id = task_envelope.get_id()
 
         processed_result = self.process_result(task, result)
 
@@ -196,7 +197,8 @@ class TaskRouter(TaskStage):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        (target, task), _, task_id = task_envelope.unwrap()
+        (target, task) = task_envelope.get_task()
+        task_id = task_envelope.get_id()
 
         processed_result = self.process_result(task, result)
 
@@ -205,7 +207,7 @@ class TaskRouter(TaskStage):
             parents=[task_id],
             payload=self.get_summary(),
         )
-        routed_envelope = TaskEnvelope.wrap(
+        routed_envelope = TaskEnvelope(
             processed_result,
             route_id,
             source=self.get_tag(),

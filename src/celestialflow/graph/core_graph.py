@@ -423,7 +423,7 @@ class TaskGraph:
                     CTreeEvent.TASK_INPUT,
                     payload=stage.get_summary(),
                 )
-                envelope = TaskEnvelope.wrap(task, input_id, source="input")
+                envelope = TaskEnvelope(task, input_id, source="input")
                 in_queue.put(envelope)
                 input_ids.add(input_id)
 

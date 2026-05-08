@@ -375,7 +375,7 @@ class TaskExecutor:
                 CTreeEvent.TASK_INPUT,
                 payload=self.get_summary(),
             )
-            envelope = TaskEnvelope.wrap(task, input_id, source="input")
+            envelope = TaskEnvelope(task, input_id, source="input")
             items.append(envelope)
             self.metrics.add_task_count()
             self.log_inlet.task_input(
@@ -521,7 +521,7 @@ class TaskExecutor:
             parents=[task_id],
             payload=self.get_summary(),
         )
-        result_envelope = TaskEnvelope.wrap(
+        result_envelope = TaskEnvelope(
             processed_result,
             result_id,
             source=self.get_tag(),
@@ -556,7 +556,7 @@ class TaskExecutor:
         :param retry_time: 当前重试次数
         :return: 更新后的任务信封
         """
-        _, _, task_id = task_envelope.unwrap()
+        task_id = task_envelope.get_id()
 
         retry_id = self.ctree_client.emit(
             f"{CTreeEvent.TASK_RETRY_PREFIX}{retry_time}",
@@ -596,7 +596,7 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
 
-        _, _, task_id = task_envelope.unwrap()
+        task_id = task_envelope.get_id()
         self.metrics.add_error_count()
 
         self.fail_inlet.task_error(
@@ -618,7 +618,8 @@ class TaskExecutor:
         :param task_envelope: 重复的任务
         """
         self._notify("on_task_duplicate")
-        task, _, task_id = task_envelope.unwrap()
+        task = task_envelope.get_task()
+        task_id = task_envelope.get_id()
 
         self.metrics.add_duplicate_count()
         duplicate_id = self.ctree_client.emit(
