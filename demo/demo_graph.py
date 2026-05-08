@@ -126,11 +126,12 @@ def demo_async_staged_pipeline():
 
     status = graph.get_status_dict()
     for tag, info in status.items():
-        print(f"[{tag}] succeeded={info.get('tasks_succeeded', 0)}, "
-              f"failed={info.get('tasks_failed', 0)}")
+        print(
+            f"[{tag}] succeeded={info.get('tasks_succeeded', 0)}, "
+            f"failed={info.get('tasks_failed', 0)}"
+        )
 
 
 if __name__ == "__main__":
     demo_etl_fan_out_fan_in()
     demo_async_staged_pipeline()
-

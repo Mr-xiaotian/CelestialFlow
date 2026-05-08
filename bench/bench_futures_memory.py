@@ -59,7 +59,9 @@ def main():
     max_workers = 20
 
     print(f"max_workers = {max_workers}\n")
-    print(f"{'tasks':>10}  {'mode':<12}  {'elapsed':>8}  {'peak_MB':>8}  {'current_MB':>10}")
+    print(
+        f"{'tasks':>10}  {'mode':<12}  {'elapsed':>8}  {'peak_MB':>8}  {'current_MB':>10}"
+    )
     print("-" * 58)
 
     for task_count in scales:

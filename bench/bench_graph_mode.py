@@ -74,32 +74,24 @@ def bench_graph_0():
     stage1 = TaskStage(
         "StageA",
         fibonacci,
-        execution_mode="thread",
         max_workers=4,
         max_retries=1,
-        stage_mode="process",
     )
     stage2 = TaskStage(
         "StageB1",
         square,
-        execution_mode="thread",
         max_workers=4,
         max_retries=1,
-        stage_mode="process",
     )
     stage3 = TaskStage(
         "StageB2",
         sleep_1,
-        execution_mode="thread",
         max_workers=4,
-        stage_mode="process",
     )
     stage4 = TaskStage(
         "StageC",
         divide_by_two,
-        execution_mode="thread",
         max_workers=4,
-        stage_mode="process",
     )
 
     graph = TaskGraph()
@@ -133,44 +125,32 @@ def bench_graph_1():
     A = TaskStage(
         "StageA",
         sleep_random_A,
-        execution_mode="thread",
         max_workers=5,
-        stage_mode="process",
     )
     B = TaskStage(
         "StageB",
         sleep_random_B,
-        execution_mode="serial",
         max_workers=5,
-        stage_mode="process",
     )
     C = TaskStage(
         "StageC",
         sleep_random_C,
-        execution_mode="serial",
         max_workers=5,
-        stage_mode="process",
     )
     D = TaskStage(
         "StageD",
         sleep_random_D,
-        execution_mode="thread",
         max_workers=5,
-        stage_mode="process",
     )
     E = TaskStage(
         "StageE",
         sleep_random_E,
-        execution_mode="thread",
         max_workers=5,
-        stage_mode="process",
     )
     F = TaskStage(
         "StageF",
         sleep_random_F,
-        execution_mode="serial",
         max_workers=5,
-        stage_mode="process",
     )
 
     graph = TaskGraph()

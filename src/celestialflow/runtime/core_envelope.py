@@ -22,7 +22,7 @@ class TaskEnvelope:
 
         self.source = source
         self.prev = prev
-    
+
     def get_task(self) -> Any:
         """
         获取原始任务
@@ -30,7 +30,7 @@ class TaskEnvelope:
         :return: 原始任务
         """
         return self.task
-    
+
     def get_hash(self) -> str:
         """
         获取任务哈希
@@ -40,7 +40,7 @@ class TaskEnvelope:
         if self.hash is None:
             self.hash = object_to_str_hash(self.task)
         return self.hash
-    
+
     def get_id(self) -> int:
         """
         获取任务 ID

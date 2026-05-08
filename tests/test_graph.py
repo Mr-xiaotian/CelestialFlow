@@ -363,8 +363,12 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
     def test_serial_thread(self):
-        s1 = TaskStage("s1", add_one, stage_mode="serial", execution_mode="thread", max_workers=4)
-        s2 = TaskStage("s2", double, stage_mode="serial", execution_mode="thread", max_workers=4)
+        s1 = TaskStage(
+            "s1", add_one, stage_mode="serial", execution_mode="thread", max_workers=4
+        )
+        s2 = TaskStage(
+            "s2", double, stage_mode="serial", execution_mode="thread", max_workers=4
+        )
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[s1], stages=[s1, s2])
@@ -375,8 +379,20 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
     def test_serial_async(self):
-        s1 = TaskStage("s1", async_add_one, stage_mode="serial", execution_mode="async", max_workers=4)
-        s2 = TaskStage("s2", async_double, stage_mode="serial", execution_mode="async", max_workers=4)
+        s1 = TaskStage(
+            "s1",
+            async_add_one,
+            stage_mode="serial",
+            execution_mode="async",
+            max_workers=4,
+        )
+        s2 = TaskStage(
+            "s2",
+            async_double,
+            stage_mode="serial",
+            execution_mode="async",
+            max_workers=4,
+        )
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[s1], stages=[s1, s2])
@@ -401,8 +417,12 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
     def test_thread_thread(self):
-        s1 = TaskStage("s1", add_one, stage_mode="thread", execution_mode="thread", max_workers=4)
-        s2 = TaskStage("s2", double, stage_mode="thread", execution_mode="thread", max_workers=4)
+        s1 = TaskStage(
+            "s1", add_one, stage_mode="thread", execution_mode="thread", max_workers=4
+        )
+        s2 = TaskStage(
+            "s2", double, stage_mode="thread", execution_mode="thread", max_workers=4
+        )
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[s1], stages=[s1, s2])
@@ -413,8 +433,20 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
     def test_thread_async(self):
-        s1 = TaskStage("s1", async_add_one, stage_mode="thread", execution_mode="async", max_workers=4)
-        s2 = TaskStage("s2", async_double, stage_mode="thread", execution_mode="async", max_workers=4)
+        s1 = TaskStage(
+            "s1",
+            async_add_one,
+            stage_mode="thread",
+            execution_mode="async",
+            max_workers=4,
+        )
+        s2 = TaskStage(
+            "s2",
+            async_double,
+            stage_mode="thread",
+            execution_mode="async",
+            max_workers=4,
+        )
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[s1], stages=[s1, s2])
@@ -439,8 +471,12 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
     def test_process_thread(self):
-        s1 = TaskStage("s1", add_one, stage_mode="process", execution_mode="thread", max_workers=4)
-        s2 = TaskStage("s2", double, stage_mode="process", execution_mode="thread", max_workers=4)
+        s1 = TaskStage(
+            "s1", add_one, stage_mode="process", execution_mode="thread", max_workers=4
+        )
+        s2 = TaskStage(
+            "s2", double, stage_mode="process", execution_mode="thread", max_workers=4
+        )
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[s1], stages=[s1, s2])
@@ -451,8 +487,20 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
     def test_process_async(self):
-        s1 = TaskStage("s1", async_add_one, stage_mode="process", execution_mode="async", max_workers=4)
-        s2 = TaskStage("s2", async_double, stage_mode="process", execution_mode="async", max_workers=4)
+        s1 = TaskStage(
+            "s1",
+            async_add_one,
+            stage_mode="process",
+            execution_mode="async",
+            max_workers=4,
+        )
+        s2 = TaskStage(
+            "s2",
+            async_double,
+            stage_mode="process",
+            execution_mode="async",
+            max_workers=4,
+        )
 
         graph = TaskGraph()
         graph.set_stages(root_stages=[s1], stages=[s1, s2])

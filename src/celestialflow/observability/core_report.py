@@ -111,7 +111,7 @@ class TaskReporter:
             )
             if not res.ok:
                 raise RuntimeError(f"Failed to pull interval: {res.status_code}")
-            
+
             interval = res.json().get("interval", 5)
             self.interval = max(1.0, min(interval, 60.0))
         except Exception as e:
@@ -125,7 +125,7 @@ class TaskReporter:
             )
             if not res.ok:
                 raise RuntimeError(f"Failed to pull history limit: {res.status_code}")
-            
+
             history_limit = res.json().get("historyLimit", 20)
             self.history_limit = max(1, min(history_limit, 100))
         except Exception as e:
@@ -139,7 +139,7 @@ class TaskReporter:
             )
             if not res.ok:
                 raise RuntimeError(f"Failed to pull task injection: {res.status_code}")
-            
+
             injection_tasks: list[dict] = res.json()
             for injection in injection_tasks:
                 target_stage = injection.get("node")
