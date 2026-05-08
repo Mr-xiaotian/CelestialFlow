@@ -1,4 +1,3 @@
-// task_web.js
 /**
  * 将时间戳转换为本地时间字符串
  * @param {number} timestamp - Unix 时间戳（秒）
@@ -120,7 +119,9 @@ function escapeHtml(str: string) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/\//g, "&#x2F;");
 }
 
 /**

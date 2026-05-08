@@ -138,8 +138,9 @@ class TaskInQueue:
         while True:
             item: TaskEnvelope | TerminationSignal = self.queue.get()
             result = self._deal_get_item(item)
-            if result is not None:
-                return result
+            if result is None:
+                continue
+            return result
 
     def _deal_get_item(
         self, item: TaskEnvelope | TerminationSignal
