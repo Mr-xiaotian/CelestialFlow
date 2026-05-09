@@ -136,15 +136,11 @@ class TaskInQueue:
         :return: 出队的任务或终止符号id池
         """
         while True:
-            try:
-                item: TaskEnvelope | TerminationSignal = self.queue.get()
-                result = self._deal_get_item(item)
-                if result is None:
-                    continue
-                return result
-            except Exception as e:
-                self.log_inlet.get_item_error("unknown", self.out_tag, e)
+            item: TaskEnvelope | TerminationSignal = self.queue.get()
+            result = self._deal_get_item(item)
+            if result is None:
                 continue
+            return result
 
     def _deal_get_item(
         self, item: TaskEnvelope | TerminationSignal
