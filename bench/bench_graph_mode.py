@@ -10,10 +10,6 @@ load_dotenv()
 report_host = os.getenv("REPORT_HOST")
 report_port = os.getenv("REPORT_PORT")
 
-ctree_host = os.getenv("CTREE_HOST")
-ctree_http_host = os.getenv("CTREE_HTTP_PORT")
-ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
-
 
 def sleep_1(n):
     sleep(1)
@@ -106,16 +102,13 @@ def bench_graph_0():
     stage2.add_retry_exceptions(ValueError)
 
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
 
     bench_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
 
     input_tasks = {
         stage1.get_tag(): bench_task_1,
     }
-    stage_modes = ["serial", "thread", "process"]
+    stage_modes = ["serial", "thread"]
     execution_modes = ["serial", "thread"]
 
     benchmark_graph(graph, input_tasks, stage_modes, execution_modes)
@@ -164,14 +157,11 @@ def bench_graph_1():
     graph.connect([D], [F])
 
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
 
     input_tasks = {
         A.get_tag(): range(10),
     }
-    stage_modes = ["serial", "thread", "process"]
+    stage_modes = ["serial", "thread"]
     execution_modes = ["serial", "thread"]
 
     benchmark_graph(graph, input_tasks, stage_modes, execution_modes)

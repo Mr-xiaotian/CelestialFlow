@@ -41,7 +41,7 @@ def demo_chain():
     stageE = TaskStage("StageE", square, execution_mode="serial", max_workers=2)
 
     # 设置图结构
-    chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "process")
+    chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "thread")
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -61,35 +61,35 @@ def demo_forest():
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
+        stage_mode="thread",
     )
     stageB = TaskStage(
         "stageB",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
+        stage_mode="thread",
     )
     stageC = TaskStage(
         "stageC",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
+        stage_mode="thread",
     )
     stageD = TaskStage(
         "stageD",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
+        stage_mode="thread",
     )
     stageE = TaskStage(
         "stageE",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
+        stage_mode="thread",
     )
 
     # 构建 DAG: F ➝ G ➝ I；F ➝ H ➝ J
@@ -98,35 +98,35 @@ def demo_forest():
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
+        stage_mode="thread",
     )
     stageG = TaskStage(
         "stageG",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
+        stage_mode="thread",
     )
     stageH = TaskStage(
         "stageH",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
+        stage_mode="thread",
     )
     stageI = TaskStage(
         "stageI",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
+        stage_mode="thread",
     )
     stageJ = TaskStage(
         "stageJ",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
+        stage_mode="thread",
     )
 
     # 设置图结构

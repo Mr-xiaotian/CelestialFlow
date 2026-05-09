@@ -88,7 +88,7 @@ def demo_splitter_0():
     graph.connect([splitter], [download_stage, parse_stage])
     graph.connect([parse_stage], [generate_stage])
 
-    graph.set_graph_mode("process", "thread")
+    graph.set_graph_mode("thread", "thread")
     graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_ctree(
         True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port
@@ -107,7 +107,7 @@ def demo_splitter_1():
     task_splitter = TaskSplitter("Splitter")
     process_stage = TaskStage("Process", no_op, execution_mode="thread", max_workers=50)
 
-    chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
+    chain = TaskChain([task_splitter, process_stage], "thread", log_level="INFO")
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(
         True,
@@ -137,20 +137,20 @@ def demo_redis_ack_0():
         key="testFibonacci:input",
         host=redis_host,
         password=redis_password,
-        stage_mode="process",
+        stage_mode="thread",
     )
     redis_ack = TaskRedisAck(
         "RedisAck",
         key="testFibonacci:output",
         host=redis_host,
         password=redis_password,
-        stage_mode="process",
+        stage_mode="thread",
     )
     fibonacci_stage = TaskStage(
         "Fibonacci",
         fibonacci,
         "thread",
-        stage_mode="process",
+        stage_mode="thread",
     )
 
     graph = TaskGraph()
@@ -188,14 +188,14 @@ def demo_redis_ack_1():
         host=redis_host,
         password=redis_password,
         unpack_task_args=True,
-        stage_mode="process",
+        stage_mode="thread",
     )
     redis_ack = TaskRedisAck(
         "RedisAck",
         key="testSum:output",
         host=redis_host,
         password=redis_password,
-        stage_mode="process",
+        stage_mode="thread",
     )
     sum_stage = TaskStage(
         "Sum",
@@ -203,7 +203,7 @@ def demo_redis_ack_1():
         execution_mode="thread",
         max_workers=4,
         unpack_task_args=True,
-        stage_mode="process",
+        stage_mode="thread",
     )
 
     graph = TaskGraph()
@@ -240,21 +240,21 @@ def demo_redis_ack_2():
         host=redis_host,
         password=redis_password,
         unpack_task_args=True,
-        stage_mode="process",
+        stage_mode="thread",
     )
     redis_ack = TaskRedisAck(
         "RedisAck",
         key="testDownload:output",
         host=redis_host,
         password=redis_password,
-        stage_mode="process",
+        stage_mode="thread",
     )
     download_stage = DownloadStage(
         "Download",
         download_to_file,
         execution_mode="thread",
         max_workers=4,
-        stage_mode="process",
+        stage_mode="thread",
     )
 
     graph = TaskGraph()
@@ -286,27 +286,27 @@ def demo_redis_source_0():
         "Sleep0",
         sleep_1,
         execution_mode="serial",
-        stage_mode="process",
+        stage_mode="thread",
     )
     redis_tranport = TaskRedisTransport(
         "RedisTransport",
         key="test_redis",
         host=redis_host,
         password=redis_password,
-        stage_mode="process",
+        stage_mode="thread",
     )
     redis_source = TaskRedisSource(
         "RedisSource",
         key="test_redis",
         host=redis_host,
         password=redis_password,
-        stage_mode="process",
+        stage_mode="thread",
     )
     sleep_stage_1 = TaskStage(
         "Sleep1",
         sleep_1,
         execution_mode="serial",
-        stage_mode="process",
+        stage_mode="thread",
     )
 
     graph = TaskGraph()
@@ -340,14 +340,14 @@ def demo_router_0():
         sleep_1,
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
+        stage_mode="thread",
     )
     stage_b = TaskStage(
         "StageB",
         sleep_1,
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
+        stage_mode="thread",
     )
 
     a_tag = stage_a.get_tag()
