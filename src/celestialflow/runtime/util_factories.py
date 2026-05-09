@@ -1,7 +1,5 @@
 # runtime/util_factories.py
 from _thread import LockType
-from asyncio import Queue as AsyncQueue
-from queue import Queue as ThreadQueue
 from threading import Lock
 from typing import TYPE_CHECKING, Any
 

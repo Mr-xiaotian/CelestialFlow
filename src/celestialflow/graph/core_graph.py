@@ -7,7 +7,7 @@ import warnings
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from queue import Queue
+from queue import Queue as ThreadQueue
 from typing import Any
 
 from celestialtree import (
@@ -167,7 +167,7 @@ class TaskGraph:
 
             stage_tag = stage.get_tag()
             in_queue = TaskInQueue(
-                queue=Queue(),
+                queue=ThreadQueue(),
                 queue_tags=[],
                 out_tag=stage.get_tag(),
                 log_inlet=self.log_inlet,
