@@ -1,6 +1,6 @@
 # TaskTypes
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 TaskTypes 模块定义了框架中使用的基础数据类型、枚举和辅助类。
 
@@ -98,7 +98,7 @@ class ValueWrapper:
 
 ## SumCounter
 
-累加多个 counter（支持 ValueWrapper / MPValue）。
+累加多个 counter（支持 ValueWrapper）。
 
 ```python
 class SumCounter:
@@ -106,7 +106,7 @@ class SumCounter:
         """
         初始化计数器。
 
-        :param mode: 模式 ('serial', 'thread', 'process')
+        :param mode: 模式 ('serial', 'thread')
         """
 ```
 
@@ -170,4 +170,3 @@ STAGE_STYLE = NodeLabelStyle(
 | `LogLevelError` | 日志级别错误 |
 | `RemoteWorkerError` | 远程 Worker 错误 |
 | `UnconsumedError` | 任务未被消费错误 |
-| `PickleError` | 序列化错误 |

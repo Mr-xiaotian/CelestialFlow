@@ -1,6 +1,6 @@
 # task_statuses.ts
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 管理各节点运行状态数据的加载与仪表盘状态卡片的渲染。
 
@@ -18,8 +18,8 @@ type NodeStatus = {
   add_tasks_failed: number;
   tasks_duplicated: number;
   add_tasks_duplicated: number;
-  stage_mode: string;        // serial / thread / process
-  execution_mode: string;    // serial / thread / process / async
+  stage_mode: string;        // serial / thread
+  execution_mode: string;    // serial / thread / async
   start_time: number;        // Unix 时间戳（秒）
   elapsed_time: number;      // 已运行秒数
   remaining_time: number;    // 预计剩余秒数

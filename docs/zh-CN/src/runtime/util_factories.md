@@ -1,12 +1,12 @@
 # RuntimeFactories
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 `runtime/util_factories.py` 提供运行时对象的工厂函数，用于根据执行模式创建相应的队列、计数器等对象。
 
 ## 设计目标
 
-- 统一 serial/thread/process/async 的底层资源创建逻辑
+- 统一 serial/thread/async 的底层资源创建逻辑
 - 封装不同模式的实现差异
 - 简化上层代码的条件判断
 
@@ -25,15 +25,14 @@ def make_counter(
     """
     返回一个计数器。
 
-    :param mode: 执行模式 ('serial', 'thread', 'process', 'async')
+    :param mode: 执行模式 ('serial', 'thread', 'async')
     :param lock: 可选的锁对象（thread 模式使用）
     :param init: 初始值
-    :return: ValueWrapper 或 MPValue
+    :return: ValueWrapper
     """
 ```
 
 返回类型：
-- `process` 模式：`MPValue("i", init)`
 - `thread` 模式：`ValueWrapper(init, lock=lock or Lock())`
 - `serial`/`async` 模式：`ValueWrapper(init)`
 
@@ -53,9 +52,7 @@ def make_queue_backend(mode: str):
 
 返回类型：
 - `async` 模式：`AsyncQueue`
-- `thread`/`serial`/`process` 模式：`ThreadQueue`
-
-> 注意：`process` 模式也使用 `ThreadQueue`，因为队列在节点内部使用，不跨进程。
+- `thread`/`serial` 模式：`ThreadQueue`
 
 ### make_task_in_queue
 
@@ -165,15 +162,12 @@ async_queue = AsyncQueue()
 |------|--------|----------|
 | `serial` | `ValueWrapper` | `ThreadQueue` |
 | `thread` | `ValueWrapper` + Lock | `ThreadQueue` |
-| `process` | `MPValue` | `ThreadQueue` |
 | `async` | `ValueWrapper` | `AsyncQueue` |
 
 ---
 
 ## 注意事项
 
-1. **进程模式队列**: 当前实现中 `process` 模式使用 `ThreadQueue`，因为队列在节点内部使用。如果需要跨进程通信，应改为 `MPQueue`。
+1. **锁传递**: `make_counter` 的 `lock` 参数用于 thread 模式下复用锁对象。
 
-2. **锁传递**: `make_counter` 的 `lock` 参数用于 thread 模式下复用锁对象。
-
-3. **执行器依赖**: `make_task_in_queue` 和 `make_task_out_queue` 需要 `TaskExecutor` 实例来获取标签和日志记录器。
+2. **执行器依赖**: `make_task_in_queue` 和 `make_task_out_queue` 需要 `TaskExecutor` 实例来获取标签和日志记录器。

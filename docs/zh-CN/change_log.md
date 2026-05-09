@@ -1,6 +1,6 @@
 # 更新日志（Change Log）
 
-> 📅 最后更新日期: 2026/05/08
+> 📅 最后更新日期: 2026/05/09
 
 - 2021: 建立一个支持多线程与单线程处理函数的类
 - 2023: 在GPT4帮助下添加多进程与携程运行模式 
@@ -158,3 +158,13 @@
     - 重构TaskEnvelope, 不再使用wrap与unwrap, 同时hash值惰性求解;
   - chore:
     - 删除部分无用代码以提高代码质量;
+- 3.2.0
+  - feat:
+    - [Important] 彻底废弃 `stage_mode="process"`, 移除所有 multiprocessing 依赖(MPValue, MPQueue, multiprocessing.Process);
+      - bench 数据表明 process 模式在所有场景下均慢于 thread 模式, 且引入大量序列化开销和 pickle 限制;
+      - `stage_mode` 现在仅支持 `"serial"` 和 `"thread"`;
+      - 删除 `PickleError` 异常类;
+      - `_status` 从 `MPValue` 改为普通 `int`;
+      - `SumCounter`/`TaskMetrics` 的计数器不再使用 `MPValue`;
+      - `core_structure.py` 中所有预置结构默认从 `"process"` 改为 `"thread"`;
+      - `benchmark_graph` 默认 stage_modes 从 `["serial", "process"]` 改为 `["serial", "thread"]`;

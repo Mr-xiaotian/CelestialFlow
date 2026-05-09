@@ -1,17 +1,16 @@
 # test_stage.py 测试说明
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 ## 测试目标
 
-验证 `TaskStage` 的配置层行为，包括：tag 生成与失效机制、stage_mode / execution_mode 的合法性校验、进程模式下的 pickle 守卫。这些测试覆盖 `TaskStage` 作为图节点的元数据管理层，而非其执行能力（执行能力在 `test_executor.py` 中覆盖）。
+验证 `TaskStage` 的配置层行为，包括：tag 生成与失效机制、stage_mode / execution_mode 的合法性校验。这些测试覆盖 `TaskStage` 作为图节点的元数据管理层，而非其执行能力（执行能力在 `test_executor.py` 中覆盖）。
 
 ## 测试范围
 
 | 测试类 | 用例数 | 覆盖点 |
 |--------|--------|--------|
 | `TestTaskStageConfig` | 8 | tag 生成、tag 变更、stage_mode 合法值、execution_mode 合法值、非法值拦截、summary 字段 |
-| `TestTaskStagePickleGuard` | 2 | lambda 拦截、普通函数放行 |
 
 ### 关键用例详解
 
@@ -22,10 +21,10 @@
 #### `test_stage_tag_changes_with_name`
 - **目标**：修改 `name` 后，旧 tag 应失效，新 tag 反映新名称。
 - **实现机制**：`set_name()` 通过 `delattr(self, "_tag")` 删除缓存的 tag，下次 `get_tag()` 调用时重新计算。
-- **风险点**：若在多进程场景下，子进程已序列化旧 tag 后父进程修改了 name，可能导致 tag 不一致。
+- **风险点**：若在多线程场景下，其他线程已缓存旧 tag 后主线程修改了 name，可能导致 tag 不一致。
 
 #### `test_invalid_stage_mode`
-- **目标**：非法 `stage_mode`（非 `"serial"` / `"thread"` / `"process"`）应抛出 `StageModeError`。
+- **目标**：非法 `stage_mode`（非 `"serial"` / `"thread"`）应抛出 `StageModeError`。
 
 #### `test_invalid_execution_mode`
 - **目标**：非法 `execution_mode`（非 `"serial"` / `"thread"` / `"async"`）应抛出 `ExecutionModeError`。
@@ -34,18 +33,13 @@
 - **目标**：`get_summary()` 返回的字典应包含 `stage_mode` 和 `execution_mode` 字段，用于监控面板展示。
 - **注意**：`execution_mode` 在 non-serial 模式下会附加 workers 数量，如 `"thread-20"`。
 
-#### `test_unpickleable_lambda_raises`
-- **目标**：`stage_mode="process"` 时，lambda 函数无法被 pickle，应在构造阶段拦截。
-- **异常**：`PickleError`
-- **意义**：避免在运行时才发现无法序列化，导致子进程崩溃。
-
 ## 依赖
 
 | 依赖 | 说明 |
 |------|------|
 | `pytest` | 测试框架 |
 | `celestialflow.TaskStage` | 被测对象 |
-| `celestialflow.runtime.util_errors` | `ExecutionModeError`、`StageModeError`、`PickleError` |
+| `celestialflow.runtime.util_errors` | `ExecutionModeError`、`StageModeError` |
 
 ## 可能的问题与注意事项
 
@@ -64,34 +58,7 @@ self._tag = f"{self.get_name()}[{self.get_func_name()}]"
 
 **建议**：若未来需要线程安全，应改用 `@functools.cached_property` 或在 `__init__` 中固化。
 
-### 2. Pickle 检查的局限性
-`find_unpickleable(func)` 在构造时检查函数是否可 pickle，但**不检查闭包中的变量**。例如：
-```python
-def make_func():
-    huge_data = [0] * 1000000
-    def func(x):
-        return x + len(huge_data)
-    return func
-
-TaskStage(make_func(), stage_mode="process")  # 构造时通过，序列化时失败
-```
-
-当前测试未覆盖此场景。
-
-### 3. `stage_mode="process"` 与 `execution_mode="async"` 的组合
-`TaskStage` 的 `set_execution_mode()` 仅允许 `"serial"` / `"thread"`，但 `TaskExecutor` 允许 `"async"`。如果通过继承或绕过校验设置了 `"async"`，在 `stage_mode="process"` 的多进程上下文中会导致不可预期行为。
-
-**当前保护**：`set_execution_mode()` 会抛出 `ExecutionModeError`，但若直接修改属性仍可绕过。
-
-### 4. `PickleError` 的测试仅在 `stage_mode="process"` 时触发
-`stage_mode="serial"` 时不会进行 pickle 检查，因为任务在同进程内执行。这意味着以下代码不会报错：
-```python
-TaskStage(lambda x: x, stage_mode="serial")  # 通过
-```
-
-这是预期行为，但用户可能误以为框架完全禁止 lambda。
-
-### 5. `test_valid_execution_mode_thread` 中未验证 `max_workers`
+### 2. `test_valid_execution_mode_thread` 中未验证 `max_workers`
 测试仅验证了 `execution_mode` 被设为 `"thread"`，但未验证 `max_workers` 的默认值（20）是否生效，也未测试非法值（如 0、-1）的拦截。
 
 **建议补充**：
@@ -107,7 +74,7 @@ def test_invalid_max_workers():
 pytest tests/test_stage.py -v
 ```
 
-所有用例均为纯配置校验，无进程/线程启动，执行时间 `< 50ms`。
+所有用例均为纯配置校验，无线程启动，执行时间 `< 50ms`。
 
 ## 相关文件
 

@@ -1,6 +1,6 @@
 # Funnel 模块
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 Funnel 模块提供了 CelestialFlow 的队列通信基础设施，是 Persistence 模块中 `LogSpout`/`LogInlet` 和 `FailSpout`/`FailInlet` 的底层基类。
 
@@ -37,4 +37,4 @@ BaseInlet (funnel/core_inlet.py)
 
 ### 外部关联
 - **与 Persistence 模块**: `LogSpout`/`LogInlet`、`FailSpout`/`FailInlet`、`SuccessSpout` 均继承自本模块基类
-- **与 Runtime 模块**: 使用 `TerminationSignal` 作为停止信号，使用 `cleanup_mpqueue` 清理队列
+- **与 Runtime 模块**: 使用 `TerminationSignal` 作为停止信号

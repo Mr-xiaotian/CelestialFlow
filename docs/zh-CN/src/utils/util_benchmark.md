@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 最后更新日期: 2026/04/23
+> 📅 最后更新日期: 2026/05/09
 
 `utils/benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
@@ -31,7 +31,7 @@ async def benchmark_executor(
     :param sync_executor: 同步执行器模板
     :param async_executor: 异步执行器模板
     :param task_source: 任务源
-    :param sync_modes: 同步模式列表，默认 ["serial", "thread", "process"]
+    :param sync_modes: 同步模式列表，默认 ["serial", "thread"]
     :param async_modes: 异步模式列表，默认 ["async"]
     :return: 测试结果字典
     """
@@ -42,7 +42,6 @@ async def benchmark_executor(
            Time
 serial     2.34s
 thread     0.89s
-process    0.45s
 async      0.67s
 ```
 
@@ -62,7 +61,7 @@ def benchmark_graph(
 
     :param graph: 任务图模板
     :param init_tasks_dict: 初始任务字典
-    :param stage_modes: 节点模式列表，默认 ["serial", "thread", "process"]
+    :param stage_modes: 节点模式列表，默认 ["serial", "thread"]
     :param execution_modes: 执行模式列表，默认 ["serial", "thread"]
     :return: 测试结果字典
     """
@@ -73,7 +72,7 @@ def benchmark_graph(
 Time table:
           serial    thread
 serial    5.23s     3.45s
-process   2.12s     1.89s
+thread    2.12s     1.89s
 
 Fail stage dict: {}
 Fail error dict: {}
@@ -116,8 +115,8 @@ from celestialflow import TaskGraph, TaskStage
 from celestialflow.utils.benchmark import benchmark_graph
 
 # 创建节点
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="A")
-stage_b = TaskStage(func=process_b, execution_mode="thread", stage_mode="process", name="B")
+stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="thread", name="A")
+stage_b = TaskStage(func=process_b, execution_mode="thread", stage_mode="thread", name="B")
 
 # 构建图
 graph = TaskGraph()
@@ -128,7 +127,7 @@ graph.connect([stage_a], [stage_b])
 benchmark_graph(
     graph=graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "thread", "process"],
+    stage_modes=["serial", "thread"],
     execution_modes=["serial", "thread"],
 )
 ```
@@ -141,14 +140,13 @@ benchmark_graph(
 |------|------|
 | `serial` | 单线程串行执行 |
 | `thread` | 线程池并发执行 |
-| `process` | 进程池并行执行 |
 | `async` | 协程异步执行 |
 
 ### 任务图测试维度
 
 **Stage Mode (节点模式)**：
-- `serial`: 节点在主进程运行
-- `process`: 节点在独立进程运行
+- `serial`: 节点在主线程运行
+- `thread`: 节点在独立线程运行
 
 **Execution Mode (执行模式)**：
 - `serial`: 节点内部串行执行
@@ -158,7 +156,7 @@ benchmark_graph(
 | Stage \ Execution | serial | thread |
 |-------------------|--------|--------|
 | serial | S-S | S-T |
-| process | P-S | P-T |
+| thread | T-S | T-T |
 
 ## 输出信息
 
@@ -176,5 +174,5 @@ benchmark_graph(
 
 1. **克隆机制**: 每次测试都会克隆原始对象，避免状态污染
 2. **任务固定**: 所有测试使用相同的任务列表，保证公平性
-3. **资源竞争**: 进程模式可能因资源竞争影响结果，建议多次测试
+3. **资源竞争**: 线程模式可能因资源竞争影响结果，建议多次测试
 4. **异步要求**: `benchmark_executor` 是异步函数，需要 `await` 或 `asyncio.run`

@@ -1,6 +1,6 @@
 # demo_stages.py 演示说明
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 ## 目标
 
@@ -35,7 +35,7 @@
 
 ## 关键配置
 
-- 所有 stage 默认 `stage_mode="process"`（多进程）
+- 所有 stage 默认 `stage_mode="thread"`（多线程）
 - `set_reporter(True)` 启用监控上报
 - `set_ctree(True)` 启用事件追踪
 

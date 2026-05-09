@@ -1,10 +1,10 @@
 # bench_datastructures.py 基准测试说明
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 ## 目标
 
-对比多种 Python 数据结构及外部存储在单线程/多进程环境下的读写性能，为 CelestialFlow 选择内部队列、共享状态和持久化后端提供量化依据。
+对比多种 Python 数据结构及外部存储在单线程环境下的读写性能，为 CelestialFlow 选择内部队列和持久化后端提供量化依据。
 
 ## 测试内容
 
@@ -12,9 +12,9 @@
 |--------|------|------|
 | `test_builtin_dict` | 原生字典 put/get | N=10,000 |
 | `test_queue_thread` | `queue.Queue` 单线程读写 | N=10,000 |
-| `test_mpqueue` | `multiprocessing.Queue` 跨进程读写 | N=10,000 |
+| `test_mpqueue` | `multiprocessing.Queue` 跨进程读写（已废弃，仅保留供参考） | N=10,000 |
 | `test_manager_dict` | `Manager().dict` 跨进程读写 | N=10,000 |
-| `test_value_number` | `multiprocessing.Value` 原子自增 | N=10,000 |
+| `test_value_number` | `multiprocessing.Value` 原子自增（已废弃，仅保留供参考） | N=10,000 |
 | `test_redis_plain` | Redis 逐条 set/get | N=10,000 |
 | `test_redis_pipeline` | Redis Pipeline 批量 set/get | N=10,000 |
 | `test_redis_multithread_plain` | Redis 多线程并发写入 | N=10,000 / 10 threads |
@@ -31,8 +31,9 @@
 ## 可能出现的问题
 
 1. **Redis 连接失败**：若 `.env` 中 Redis 配置缺失或服务未启动，Redis 相关测试会被跳过，仅输出警告。
-2. **Windows 多进程启动开销**：`MPQueue` 和 `Manager().dict` 测试在 Windows `spawn` 模式下，子进程启动本身可能占去大量时间，导致测得的 put/get 时间不准确。
-3. **MPQueue 的缓冲区限制**：`mpqueue_worker` 中先 put 全部 N 个元素再 get，当 N 很大时可能触发的 OS 管道缓冲区上限（尤其在 Linux 上）。
+2. **MPQueue 的缓冲区限制**：`mpqueue_worker` 中先 put 全部 N 个元素再 get，当 N 很大时可能触发的 OS 管道缓冲区上限（尤其在 Linux 上）。
+
+> **注意**：`test_mpqueue` 和 `test_value_number` 使用的 `multiprocessing.Queue` 和 `multiprocessing.Value` 已不再被框架内部使用（`stage_mode="process"` 已移除），这些基准测试仅作为历史参考保留。
 
 ## 运行方式
 

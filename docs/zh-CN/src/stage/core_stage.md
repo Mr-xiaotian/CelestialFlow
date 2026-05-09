@@ -1,6 +1,6 @@
 # TaskStage
 
-> 📅 最后更新日期: 2026/05/08
+> 📅 最后更新日期: 2026/05/09
 
 `TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力。
 
@@ -15,7 +15,6 @@
 - **Stage Mode**: 节点在图中的运行模式。
   - `serial`: 串行模式，在主进程中运行。
   - `thread`: 线程模式，在主进程中以独立线程运行。
-  - `process`: 并行模式，在独立子进程中运行。
 - **拓扑关系**: 节点间的上下游连接关系由 `TaskGraph` 管理（通过 `graph.out_edges` / `graph.in_edges`），而非存储在节点自身。
 
 ## 初始化
@@ -38,7 +37,7 @@ class TaskStage(TaskExecutor):
         ...
 ```
 
-参数与 `TaskExecutor` 一致，额外增加了 `stage_mode` 参数。`TaskStage` 的 `execution_mode` 可以是 `serial`、`thread` 或 `async`（`process` 模式由 `stage_mode` 控制）。
+参数与 `TaskExecutor` 一致，额外增加了 `stage_mode` 参数。`TaskStage` 的 `execution_mode` 可以是 `serial`、`thread` 或 `async`。
 
 ## 图构建方法
 
@@ -62,8 +61,8 @@ def connect(
 
 示例：
 ```python
-stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", stage_mode="process")
-stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mode="process")
+stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", stage_mode="thread")
+stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mode="thread")
 
 # 创建图并连接节点
 graph = TaskGraph()
@@ -78,7 +77,7 @@ graph.connect([stage_a], [stage_b])
 def set_stage_mode(self, stage_mode: str):
     """
     设置当前节点在 graph 中的执行模式。
-    :param stage_mode: 'serial'、'thread' 或 'process'
+    :param stage_mode: 'serial' 或 'thread'
     """
 
 # 获取节点运行模式
@@ -126,8 +125,8 @@ def get_status(self) -> StageStatus:
 
 当 `TaskGraph` 启动时，每个 `TaskStage` 会根据 `stage_mode` 决定运行方式：
 
-- **process 模式**: 节点被包装在一个独立 `Process` 中启动，与其他节点隔离。
-- **serial 模式**: 节点在主进程中运行（通常用于调试）。
+- **thread 模式**: 节点在独立线程中启动。
+- **serial 模式**: 节点在主进程中串行运行（通常用于调试）。
 
 ### start_stage
 
@@ -136,8 +135,8 @@ def start_stage(
     self,
     input_queues: TaskInQueue,
     output_queues: TaskOutQueue,
-    fail_queue: MPQueue,
-    log_queue: MPQueue,
+    fail_queue: Queue,
+    log_queue: Queue,
 ):
     """
     启动节点执行。
@@ -169,7 +168,7 @@ def get_summary(self) -> dict:
 # 有效模式
 valid_modes = ("serial", "thread", "async")
 
-# 注意：process 模式由 stage_mode 控制，不是 execution_mode
+# 注意：stage_mode 和 execution_mode 是独立的配置
 ```
 
 ## 继承扩展
@@ -189,7 +188,5 @@ class MyStage(TaskStage):
 
 ## 注意事项
 
-1. **进程模式**: `stage_mode="process"` 时，确保函数可 pickle（避免 lambda、嵌套函数等）。
-2. **计数器级联**: 当上游是 `TaskSplitter` 或 `TaskRouter` 时，计数器会自动级联。
-3. **状态共享**: 使用 `multiprocessing.Value` 实现，支持跨进程状态查询。
-4. **标签唯一性**: 标签由 `名称[函数名]` 组成，用于日志追踪和图拓扑标识。
+1. **计数器级联**: 当上游是 `TaskSplitter` 或 `TaskRouter` 时，计数器会自动级联。
+2. **标签唯一性**: 标签由 `名称[函数名]` 组成，用于日志追踪和图拓扑标识。

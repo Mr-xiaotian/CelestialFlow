@@ -1,6 +1,6 @@
 # test_metrics.py 测试说明
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 ## 测试目标
 
@@ -42,11 +42,10 @@
 
 ## 可能的问题与注意事项
 
-### 1. 线程/进程安全（当前测试未覆盖）
+### 1. 线程安全（当前测试未覆盖）
 `TaskMetrics` 内部根据 `execution_mode` 选择不同的计数器实现：
 - `serial`：`ValueWrapper`（无锁）
 - `thread`：`ValueWrapper` + `threading.Lock`
-- `process`：`multiprocessing.Value`
 
 当前单元测试仅在 `serial` 模式下运行，未覆盖并发场景下的计数竞争。若需验证线程安全，应补充以下测试：
 ```python
