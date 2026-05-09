@@ -20,18 +20,13 @@ class TaskStage(TaskExecutor):
         self,
         name,
         func,
-        execution_mode="serial",
-        max_workers=20,
-        max_retries=1,
-        max_info=50,
-        unpack_task_args=False,
-        enable_duplicate_check=True,
-        log_level="SUCCESS",
         stage_mode="serial",
+        **kwargs,
     ):
         """
         :param name: 节点名称
         :param func: 可调用对象
+        :param stage_mode: 当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'thread'（线程）, 默认 'serial'
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'
         :param max_workers: 同时处理数量
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
@@ -39,18 +34,11 @@ class TaskStage(TaskExecutor):
         :param unpack_task_args: 是否将任务参数解包
         :param enable_duplicate_check: 是否启用重复检查
         :param log_level: 日志级别
-        :param stage_mode: 当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'thread'（线程）, 默认 'serial'
         """
         super().__init__(
             name,
             func,
-            execution_mode,
-            max_workers,
-            max_retries,
-            max_info,
-            unpack_task_args,
-            enable_duplicate_check,
-            log_level=log_level,
+            **kwargs,
         )
 
         self.set_stage_mode(stage_mode)

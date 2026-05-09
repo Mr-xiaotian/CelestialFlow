@@ -25,7 +25,7 @@ class TaskMetrics:
         """
         初始化 TaskMetrics
 
-        :param execution_mode: 任务执行模式，可选值为 "serial", "thread", "process" 或 "async"
+        :param execution_mode: 任务执行模式，可选值为 "serial", "thread" 或 "async"
         :param max_retries: 最大重试次数，默认值为 1
         :param enable_duplicate_check: 是否启用重复任务检查，默认值为 False
         """
@@ -76,7 +76,7 @@ class TaskMetrics:
         """
         设置任务执行模式
 
-        :param execution_mode: 任务执行模式，可选值为 "serial", "thread", "process" 或 "async"
+        :param execution_mode: 任务执行模式，可选值为 "serial", "thread" 或 "async"
         """
         self.execution_mode = execution_mode
         self._init_counter()

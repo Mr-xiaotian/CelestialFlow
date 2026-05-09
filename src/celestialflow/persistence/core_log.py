@@ -165,27 +165,6 @@ class LogInlet(BaseInlet):
             f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
-    # ==== process ====
-    def process_termination_attempt(self, process_name: str) -> None:
-        """记录进程终止尝试"""
-        self._log(
-            "WARNING",
-            f"Process '{process_name}' is still running; attempting graceful termination.",
-        )
-
-    def process_termination_timeout(self, process_name: str) -> None:
-        """记录进程终止超时"""
-        self._log(
-            "WARNING",
-            f"Process '{process_name}' did not exit within the termination timeout.",
-        )
-
-    def process_exit(self, process_name: str, exitcode: int | None) -> None:
-        """记录进程退出"""
-        self._log(
-            "DEBUG", f"Process '{process_name}' exited with exit code {exitcode}."
-        )
-
     # ==== task ====
     def task_input(
         self, func_name: str, task_repr: str, source: str, input_id: int

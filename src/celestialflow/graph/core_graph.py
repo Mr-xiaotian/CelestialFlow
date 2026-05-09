@@ -528,8 +528,6 @@ class TaskGraph:
         # 确保所有线程安全结束（线程不可 terminate，仅做 cooperative join）
         for t in self.threads:
             t.join(timeout=10)
-            if t.is_alive():
-                self.log_inlet.process_termination_timeout(t.name)
 
         # 更新所有节点状态为"已停止"
         for stage_runtime in self.stage_runtime_dict.values():

@@ -23,10 +23,10 @@ class TaskSplitter(TaskStage):
         super().__init__(
             name=name,
             func=self._split,
+            stage_mode=stage_mode,
             execution_mode="serial",
             max_retries=0,
             unpack_task_args=True,
-            stage_mode=stage_mode,
         )
 
         self._init_extra_counter()
@@ -134,9 +134,9 @@ class TaskRouter(TaskStage):
         super().__init__(
             name=name,
             func=self._route,
+            stage_mode=stage_mode,
             execution_mode="serial",
             max_retries=0,
-            stage_mode=stage_mode,
         )
 
         self._init_extra_counter()
@@ -239,8 +239,8 @@ class TaskRedisTransport(TaskStage):
         port: int = 6379,
         db: int = 0,
         password: str | None = None,
-        unpack_task_args: bool = False,
         stage_mode: str = "serial",
+        unpack_task_args: bool = False,
     ):
         """
         初始化 TaskRedisTransport
@@ -251,16 +251,16 @@ class TaskRedisTransport(TaskStage):
         :param port: Redis 端口
         :param db: Redis 数据库
         :param password: Redis 密码
-        :param unpack_task_args: 是否将任务参数解包
         :param stage_mode: 节点运行模式
+        :param unpack_task_args: 是否将任务参数解包
         """
         super().__init__(
             name=name,
             func=self._transport,
+            stage_mode=stage_mode,
             execution_mode="thread",
             max_workers=4,
             unpack_task_args=unpack_task_args,
-            stage_mode=stage_mode,
         )
         self.key = key
         self.host = host
@@ -331,9 +331,9 @@ class TaskRedisSource(TaskStage):
         super().__init__(
             name=name,
             func=self._source,
+            stage_mode=stage_mode,
             execution_mode="serial",
             enable_duplicate_check=False,
-            stage_mode=stage_mode,
         )
         self.key = key
         self.host = host
@@ -410,9 +410,9 @@ class TaskRedisAck(TaskStage):
         super().__init__(
             name=name,
             func=self._ack,
+            stage_mode=stage_mode,
             execution_mode="serial",  # Ack 是顺序语义
             enable_duplicate_check=False,  # task_id 天然唯一
-            stage_mode=stage_mode,
         )
 
         self.key = key

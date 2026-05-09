@@ -53,11 +53,6 @@ class TestTaskStageConfig:
         with pytest.raises(StageModeError):
             TaskStage("AddOneInvalidStageMode", add_one, stage_mode="invalid")
 
-    def test_invalid_stage_mode_process(self):
-        """process 已废弃，应抛出 StageModeError"""
-        with pytest.raises(StageModeError):
-            TaskStage("AddOneProcessMode", add_one, stage_mode="process")
-
     def test_valid_execution_mode_serial(self):
         """合法 execution_mode: serial"""
         stage = TaskStage("AddOneSerialExec", add_one, execution_mode="serial")

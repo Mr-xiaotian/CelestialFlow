@@ -78,7 +78,7 @@ def benchmark_graph(
 
     :param graph: 要测试的任务图
     :param init_tasks_dict: 初始任务字典，键为任务标签，值为任务列表
-    :param stage_modes: 要测试的节点执行模式列表，默认包括 "serial", "process"
+    :param stage_modes: 要测试的节点执行模式列表，默认包括 "serial", "thread"
     :param execution_modes: 要测试的执行模式列表，默认包括 "serial", "thread"
     :return: 包含测试结果的字典
     """
