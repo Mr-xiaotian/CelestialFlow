@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import asyncio
 import time
-from queue import Queue
+from queue import Queue as ThreadQueue
 
-from ..runtime import TaskInQueue, TaskMetrics, TaskOutQueue
+from ..persistence import FailInlet, LogInlet
+from ..runtime import TaskInQueue, TaskOutQueue
 from ..runtime.util_errors import ExecutionModeError, StageModeError
 from ..runtime.util_types import StageStatus
 from .core_executor import TaskExecutor
@@ -56,14 +57,6 @@ class TaskStage(TaskExecutor):
 
         self._init_status()
 
-    def _init_metrics(self) -> None:
-        """初始化任务指标"""
-        self.metrics = TaskMetrics(
-            execution_mode=self.execution_mode,
-            max_retries=self.max_retries,
-            enable_duplicate_check=self.enable_duplicate_check,
-        )
-
     def _init_status(self) -> None:
         """初始化 stage 状态。"""
         if not hasattr(self, "_status"):
@@ -96,6 +89,35 @@ class TaskStage(TaskExecutor):
             self.stage_mode = "serial"
         else:
             raise StageModeError(stage_mode)
+
+    def set_queue(
+        self,
+        task_queues: TaskInQueue,
+        result_queues: TaskOutQueue,
+    ) -> None:
+        """
+        初始化队列
+
+        :param task_queues: 任务队列列表
+        :param result_queues: 结果队列列表
+        """
+        self.task_queues = task_queues
+        self.result_queues = result_queues
+
+    def set_inlet(
+        self, fail_queue: ThreadQueue, log_queue: ThreadQueue
+    ) -> None:
+        """
+        初始化收集器
+
+        :param fail_queue: 失败队列
+        :param log_queue: 日志队列
+        """
+        self.fail_queue = fail_queue
+        self.fail_inlet = FailInlet(self.fail_queue)
+
+        self.log_queue = log_queue
+        self.log_inlet = LogInlet(self.log_queue, self.log_level)
 
     # ==== 绑定 ====
     def get_binding_counter(self, _downstream_tag: str):
@@ -156,21 +178,26 @@ class TaskStage(TaskExecutor):
     # ==== 启动 ====
     def start_stage(
         self,
-        input_queues: TaskInQueue,
+        input_queue: TaskInQueue,
         output_queues: TaskOutQueue,
-        fail_queue: Queue,
-        log_queue: Queue,
+        fail_queue: ThreadQueue,
+        log_queue: ThreadQueue,
     ):
         """
         根据 execution_mode 的值，选择串行、线程或异步执行任务
 
-        :param input_queues: 输入队列
-        :param output_queues: 输出队列
+        :param input_queue: 输入队列(单个Queue)
+        :param output_queues: 输出队列(多个Queue)
         :param fail_queue: 失败队列
         :param log_queue: 日志队列
         """
         start_time = time.perf_counter()
-        self.init_env(input_queues, output_queues, fail_queue, log_queue)
+        
+        self._init_state()
+        self._init_dispatch()
+        self.set_inlet(fail_queue, log_queue)
+        self.set_queue(input_queue, output_queues)
+        
         self.log_inlet.start_stage(
             self.get_tag(), self.stage_mode, self.execution_mode, self.max_workers
         )

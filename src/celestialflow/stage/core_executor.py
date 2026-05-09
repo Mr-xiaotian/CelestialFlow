@@ -98,73 +98,22 @@ class TaskExecutor:
 
     def init_env(
         self,
-        task_queues: TaskInQueue | None = None,
-        result_queues: TaskOutQueue | None = None,
-        fail_queue: ThreadQueue | None = None,
-        log_queue: ThreadQueue | None = None,
     ) -> None:
         """
         初始化环境
-
-        :param task_queues: 任务队列列表
-        :param result_queues: 结果队列列表
-        :param fail_queue: 失败队列
-        :param log_queue: 日志队列
         """
         self._init_state()
-        self._init_inlet(fail_queue, log_queue)
-        self._init_queue(task_queues, result_queues)
         self._init_dispatch()
+
+        self._init_spout()
+        self._init_inlet()
+        self._init_queue()
 
     def _init_state(self) -> None:
         """
         初始化任务状态
         """
         self.metrics.reset_state()
-
-    def _init_inlet(
-        self, fail_queue: ThreadQueue | None, log_queue: ThreadQueue | None
-    ) -> None:
-        """
-        初始化收集器
-
-        :param fail_queue: 失败队列
-        :param log_queue: 日志队列
-        """
-        self.fail_queue = fail_queue or ThreadQueue()
-        self.fail_inlet = FailInlet(self.fail_queue)
-
-        self.log_queue = log_queue or ThreadQueue()
-        self.log_inlet = LogInlet(self.log_queue, self.log_level)
-
-    def _init_queue(
-        self,
-        task_queues: TaskInQueue | None = None,
-        result_queues: TaskOutQueue | None = None,
-    ) -> None:
-        """
-        初始化队列
-
-        :param task_queues: 任务队列列表
-        :param result_queues: 结果队列列表
-        """
-        mode = self.execution_mode
-
-        if task_queues is not None:
-            self.task_queues = task_queues
-        else:
-            queue = ThreadQueue()
-            self.task_queues = make_task_in_queue(
-                queue=queue,
-                executor=self,
-            )
-        if result_queues is not None:
-            self.result_queues = result_queues
-        else:
-            self.result_queues = make_task_out_queue(
-                queue=self.success_spout.get_queue(),
-                executor=self,
-            )
 
     def _init_dispatch(self) -> None:
         """
@@ -183,6 +132,32 @@ class TaskExecutor:
         self.fail_spout.start()
         self.log_spout.start()
         self.success_spout.start()
+
+    def _init_inlet(
+        self,
+    ) -> None:
+        """
+        初始化收集器
+        """
+        self.fail_queue = self.fail_spout.get_queue()
+        self.fail_inlet = FailInlet(self.fail_queue)
+
+        self.log_queue = self.log_spout.get_queue()
+        self.log_inlet = LogInlet(self.log_queue, self.log_level)
+
+    def _init_queue(self) -> None:
+        """
+        初始化输入输出队列
+        """
+        queue = ThreadQueue()
+        self.task_queues = make_task_in_queue(
+            queue=queue,
+            executor=self,
+        )
+        self.result_queues = make_task_out_queue(
+            queue=self.success_spout.get_queue(),
+            executor=self,
+        )
 
     # ==== Observer ====
     def add_observer(self, observer: BaseObserver) -> None:
@@ -639,11 +614,7 @@ class TaskExecutor:
         :param task_source: 任务迭代器或者生成器
         """
         start_time = time.perf_counter()
-        self._init_spout()
-        self.init_env(
-            log_queue=self.log_spout.get_queue(),
-            fail_queue=self.fail_spout.get_queue(),
-        )
+        self.init_env()
 
         self._notify("on_start", self.get_full_name(), 0)
         self._put_task_queues(task_source)
@@ -692,11 +663,7 @@ class TaskExecutor:
         """
         start_time = time.perf_counter()
         self.set_execution_mode("async")
-        self._init_spout()
-        self.init_env(
-            log_queue=self.log_spout.get_queue(),
-            fail_queue=self.fail_spout.get_queue(),
-        )
+        self.init_env()
 
         self._notify("on_start", self.get_full_name(), 0)
         self._put_task_queues(task_source)
