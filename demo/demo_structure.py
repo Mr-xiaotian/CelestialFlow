@@ -59,74 +59,74 @@ def demo_forest():
     stageA = TaskStage(
         "stageA",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="thread",
     )
     stageB = TaskStage(
         "stageB",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="thread",
     )
     stageC = TaskStage(
         "stageC",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="thread",
     )
     stageD = TaskStage(
         "stageD",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="thread",
     )
     stageE = TaskStage(
         "stageE",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="thread",
     )
 
     # 构建 DAG: F ➝ G ➝ I；F ➝ H ➝ J
     stageF = TaskStage(
         "stageF",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="thread",
     )
     stageG = TaskStage(
         "stageG",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="thread",
     )
     stageH = TaskStage(
         "stageH",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="thread",
     )
     stageI = TaskStage(
         "stageI",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="thread",
     )
     stageJ = TaskStage(
         "stageJ",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="thread",
     )
 
     # 设置图结构

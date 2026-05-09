@@ -45,29 +45,29 @@ def demo_etl_fan_out_fan_in():
     extract = TaskStage(
         "Extract",
         extract_record,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="thread",
     )
     normalize = TaskStage(
         "Normalize",
         transform_normalize,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="thread",
     )
     enrich = TaskStage(
         "Enrich",
         transform_enrich,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="thread",
     )
     load = TaskStage(
         "Load",
         load_record,
-        execution_mode="serial",
         stage_mode="thread",
+        execution_mode="serial",
     )
 
     graph = TaskGraph(schedule_mode="eager", log_level="INFO")
@@ -101,16 +101,16 @@ def demo_async_staged_pipeline():
     stage_double = TaskStage(
         "AsyncDouble",
         async_double,
+        stage_mode="thread",
         execution_mode="async",
         max_workers=8,
-        stage_mode="thread",
     )
     stage_to_str = TaskStage(
         "AsyncToStr",
         async_to_str,
+        stage_mode="thread",
         execution_mode="async",
         max_workers=8,
-        stage_mode="thread",
     )
 
     graph = TaskGraph(schedule_mode="staged", log_level="INFO")

@@ -128,9 +128,9 @@ def demo_redis_ack_0():
     start_stage = TaskStage(
         "Start",
         sleep_1,
+        stage_mode="serial",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="serial",
     )
     redis_tranport = TaskRedisTransport(
         "RedisTransport",
@@ -149,8 +149,8 @@ def demo_redis_ack_0():
     fibonacci_stage = TaskStage(
         "Fibonacci",
         fibonacci,
-        "thread",
         stage_mode="thread",
+        execution_mode="thread",
     )
 
     graph = TaskGraph()
@@ -178,9 +178,9 @@ def demo_redis_ack_1():
     start_stage = TaskStage(
         "Start",
         sleep_1,
+        stage_mode="serial",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="serial",
     )
     redis_tranport = TaskRedisTransport(
         "RedisTransport",
@@ -200,10 +200,10 @@ def demo_redis_ack_1():
     sum_stage = TaskStage(
         "Sum",
         sum_int,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
         unpack_task_args=True,
-        stage_mode="thread",
     )
 
     graph = TaskGraph()
@@ -230,9 +230,9 @@ def demo_redis_ack_2():
     start_stage = TaskStage(
         "Start",
         sleep_1,
+        stage_mode="serial",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="serial",
     )
     redis_tranport = DownloadRedisTransport(
         "RedisTransport",
@@ -252,9 +252,9 @@ def demo_redis_ack_2():
     download_stage = DownloadStage(
         "Download",
         download_to_file,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="thread",
     )
 
     graph = TaskGraph()
@@ -285,8 +285,8 @@ def demo_redis_source_0():
     sleep_stage_0 = TaskStage(
         "Sleep0",
         sleep_1,
-        execution_mode="serial",
         stage_mode="thread",
+        execution_mode="serial",
     )
     redis_tranport = TaskRedisTransport(
         "RedisTransport",
@@ -305,8 +305,8 @@ def demo_redis_source_0():
     sleep_stage_1 = TaskStage(
         "Sleep1",
         sleep_1,
-        execution_mode="serial",
         stage_mode="thread",
+        execution_mode="serial",
     )
 
     graph = TaskGraph()
@@ -338,16 +338,16 @@ def demo_router_0():
     stage_a = TaskStage(
         "StageA",
         sleep_1,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="thread",
     )
     stage_b = TaskStage(
         "StageB",
         sleep_1,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="thread",
     )
 
     a_tag = stage_a.get_tag()
@@ -356,9 +356,9 @@ def demo_router_0():
     source_stage = TaskStage(
         "Origin",
         RouterWrapper(a_tag, b_tag),
+        stage_mode="serial",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="serial",
     )
 
     graph = TaskGraph()
