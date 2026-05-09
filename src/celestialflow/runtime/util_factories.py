@@ -11,20 +11,15 @@ if TYPE_CHECKING:
 
 
 # ==== 函数工厂 ====
-def make_counter(mode: str, *, lock: LockType | None = None, init: int = 0) -> Any:
+def make_counter(init: int = 0, lock: LockType | None = None) -> Any:
     """
     返回一个 counter：ValueWrapper(±lock)
 
-    :param mode: 执行模式
-    :param lock: 可选的线程锁（仅 thread 模式使用）
     :param init: 初始值
+    :param lock: 可选的线程锁（仅 thread 模式使用）
     :return: 计数器实例
     """
-    if mode == "thread":
-        return ValueWrapper(init, lock=lock or Lock())
-
-    # serial / async
-    return ValueWrapper(init)
+    return ValueWrapper(init, lock=lock)
 
 
 def make_task_in_queue(

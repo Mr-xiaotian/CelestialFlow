@@ -1,7 +1,6 @@
 # runtime/util_types.py
 from enum import IntEnum
 from threading import Lock
-from typing import Any
 
 from celestialtree import NodeLabelStyle
 
@@ -47,7 +46,7 @@ class NoOpContext:
 class ValueWrapper:
     """线程内/单进程的计数器包装，可选线程锁。"""
 
-    def __init__(self, value: int = 0, lock: Any | None = None) -> None:
+    def __init__(self, value: int = 0, lock: Lock | None = None) -> None:
         """
         :param value: 初始值
         :param lock: 可选的线程锁
@@ -68,16 +67,13 @@ class SumCounter:
         :param mode: 执行模式，决定锁和计数器实现
         """
         self.mode = mode
-        self._lock: Any | None
-        self.init_value: Any
+        self.init_value: ValueWrapper
 
         if mode == "thread":
-            self._lock = Lock()
-            self.init_value = ValueWrapper(0, lock=self._lock)
+            self.init_value = ValueWrapper(0, lock=Lock())
         else:
-            self._lock = None
             self.init_value = ValueWrapper(0)
-        self.counters: list[Any] = []
+        self.counters: list[ValueWrapper] = []
 
     def add_init_value(self, value: int) -> None:
         """
@@ -88,7 +84,7 @@ class SumCounter:
         with self.init_value.get_lock():
             self.init_value.value += value
 
-    def append_counter(self, counter: Any) -> None:
+    def append_counter(self, counter: ValueWrapper) -> None:
         """
         追加一个外部计数器
 

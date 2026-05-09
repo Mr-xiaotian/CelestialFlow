@@ -47,9 +47,9 @@ class TaskMetrics:
         lock = Lock() if mode == "thread" else None
 
         self.task_counter = SumCounter(mode=mode)
-        self.success_counter = make_counter(mode, lock=lock)
-        self.error_counter = make_counter(mode, lock=lock)
-        self.duplicate_counter = make_counter(mode, lock=lock)
+        self.success_counter = make_counter(0, lock)
+        self.error_counter = make_counter(0, lock)
+        self.duplicate_counter = make_counter(0, lock)
 
     def reset_counter(self) -> None:
         """
