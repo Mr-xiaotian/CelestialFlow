@@ -3,14 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import time
-import types
-from multiprocessing import Queue as MPQueue
-from multiprocessing import Value as MPValue
+from queue import Queue
 
 from ..runtime import TaskInQueue, TaskMetrics, TaskOutQueue
-from ..runtime.util_errors import ExecutionModeError, PickleError, StageModeError
+from ..runtime.util_errors import ExecutionModeError, StageModeError
 from ..runtime.util_types import StageStatus
-from ..utils.util_debug import find_unpickleable
 from .core_executor import TaskExecutor
 
 
@@ -41,7 +38,7 @@ class TaskStage(TaskExecutor):
         :param unpack_task_args: 是否将任务参数解包
         :param enable_duplicate_check: 是否启用重复检查
         :param log_level: 日志级别
-        :param stage_mode: 当前节点在graph中的执行模式, 可以是 'serial'（串行）, 'thread'（线程）或 'process'（进程）, 默认 'serial'
+        :param stage_mode: 当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'thread'（线程）, 默认 'serial'
         """
         super().__init__(
             name,
@@ -60,40 +57,40 @@ class TaskStage(TaskExecutor):
         self._init_status()
 
     def _init_metrics(self) -> None:
-        """
-        初始化任务指标
-        execution_mode 固定为 "process"，因为 stage 可能跨进程，需要使用 MPValue 等进程安全的工具来统计指标。
-        """
+        """初始化任务指标"""
         self.metrics = TaskMetrics(
-            execution_mode="process",
+            execution_mode=self.execution_mode,
             max_retries=self.max_retries,
             enable_duplicate_check=self.enable_duplicate_check,
         )
 
     def _init_status(self) -> None:
-        """
-        初始化 stage 共享状态（跨进程可见）。
-        建议在 __init__ 里调用一次。
-        """
+        """初始化 stage 状态。"""
         if not hasattr(self, "_status"):
-            self._status = MPValue("i", int(StageStatus.NOT_STARTED))
+            self._status = int(StageStatus.NOT_STARTED)
 
     # ==== 配置 ====
+    def set_execution_mode(self, execution_mode: str) -> None:
+        valid_modes = ("serial", "thread", "async")
+        if execution_mode not in valid_modes:
+            raise ExecutionModeError(execution_mode)
+
+        if execution_mode == "async" and not asyncio.iscoroutinefunction(self.func):
+            raise RuntimeError(
+                f"execution_mode is 'async' but '{self.func.__name__}' is not a coroutine function"
+            )
+
+        self.execution_mode = execution_mode
+        if hasattr(self, "metrics"):
+            self.metrics.set_execution_mode(execution_mode)
+
     def set_stage_mode(self, stage_mode: str | None) -> None:
         """
-        设置当前节点在graph中的执行模式, 可以是 'serial'（串行）, 'thread'（线程）或 'process'（进程）
+        设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'thread'（线程）
 
         :param stage_mode: 当前节点执行模式
         """
-        if stage_mode == "process":
-            self.stage_mode = "process"
-            if (
-                hasattr(self, "func")
-                and not isinstance(self.func, types.MethodType)
-                and find_unpickleable(self.func)
-            ):
-                raise PickleError(self.func)
-        elif stage_mode == "thread":
+        if stage_mode == "thread":
             self.stage_mode = "thread"
         elif stage_mode == "serial":
             self.stage_mode = "serial"
@@ -123,7 +120,7 @@ class TaskStage(TaskExecutor):
     # ==== 查询 ====
     def get_stage_mode(self) -> str:
         """
-        获取当前节点在graph中的执行模式, 可以是 'serial'（串行）, 'thread'（线程）或 'process'（进程）
+        获取当前节点在graph中的执行模式
 
         :return: 当前节点执行模式
         """
@@ -146,27 +143,23 @@ class TaskStage(TaskExecutor):
     # ==== 状态 ====
     def mark_running(self) -> None:
         """标记：stage 正在运行。"""
-        with self._status.get_lock():
-            self._status.value = int(StageStatus.RUNNING)
+        self._status = int(StageStatus.RUNNING)
 
     def mark_stopped(self) -> None:
         """标记：stage 已停止（正常结束时在 finally 里调用）。"""
-        with self._status.get_lock():
-            self._status.value = int(StageStatus.STOPPED)
+        self._status = int(StageStatus.STOPPED)
 
     def get_status(self) -> StageStatus:
         """读取当前状态（返回 StageStatus 枚举）。"""
-        # 读取也加锁，避免极端情况下读到中间态（虽然 int 很短，但习惯好）
-        with self._status.get_lock():
-            return StageStatus(self._status.value)
+        return StageStatus(self._status)
 
     # ==== 启动 ====
     def start_stage(
         self,
         input_queues: TaskInQueue,
         output_queues: TaskOutQueue,
-        fail_queue: MPQueue,
-        log_queue: MPQueue,
+        fail_queue: Queue,
+        log_queue: Queue,
     ):
         """
         根据 execution_mode 的值，选择串行、线程或异步执行任务

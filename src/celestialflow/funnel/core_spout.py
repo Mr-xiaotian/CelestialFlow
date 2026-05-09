@@ -1,12 +1,10 @@
 # funnel/core_spout.py
 from __future__ import annotations
 
-from multiprocessing import Queue as MPQueue
-from queue import Empty
+from queue import Empty, Queue
 from threading import Thread
 from typing import Any
 
-from ..runtime.util_queue import cleanup_mpqueue
 from ..runtime.util_types import TERMINATION_SIGNAL, TerminationSignal
 
 
@@ -15,7 +13,7 @@ class BaseSpout:
 
     def __init__(self) -> None:
         """初始化监听器及其内部队列和线程引用。"""
-        self.queue: Any = MPQueue()
+        self.queue: Queue = Queue()
         self._thread: Thread | None = None
 
     def _before_start(self) -> None:
@@ -46,7 +44,7 @@ class BaseSpout:
             except Exception:  # ← 新增：防止线程崩溃
                 continue  # 或记录到 stderr，至少不丢后续记录
 
-    def get_queue(self) -> MPQueue:
+    def get_queue(self) -> Queue:
         """获取监听器的输入队列。"""
         return self.queue
 
@@ -58,5 +56,4 @@ class BaseSpout:
         self.queue.put(TERMINATION_SIGNAL)
         self._thread.join()
         self._thread = None
-        cleanup_mpqueue(self.queue)
         self._after_stop()

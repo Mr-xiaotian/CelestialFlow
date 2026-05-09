@@ -82,7 +82,7 @@ def benchmark_graph(
     :param execution_modes: 要测试的执行模式列表，默认包括 "serial", "thread"
     :return: 包含测试结果的字典
     """
-    stage_modes = stage_modes or ["serial", "process"]
+    stage_modes = stage_modes or ["serial", "thread"]
     execution_modes = execution_modes or ["serial", "thread"]
 
     base_tasks = {tag: list(tasks) for tag, tasks in init_tasks_dict.items()}

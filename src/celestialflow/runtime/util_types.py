@@ -1,6 +1,5 @@
 # runtime/util_types.py
 from enum import IntEnum
-from multiprocessing import Value as MPValue
 from threading import Lock
 from typing import Any
 
@@ -62,7 +61,7 @@ class ValueWrapper:
 
 
 class SumCounter:
-    """累加多个 counter（ValueWrapper / MPValue）"""
+    """累加多个 counter（ValueWrapper）"""
 
     def __init__(self, mode: str = "serial"):
         """
@@ -75,9 +74,6 @@ class SumCounter:
         if mode == "thread":
             self._lock = Lock()
             self.init_value = ValueWrapper(0, lock=self._lock)
-        elif mode == "process":
-            self._lock = None
-            self.init_value = MPValue("i", 0)
         else:
             self._lock = None
             self.init_value = ValueWrapper(0)

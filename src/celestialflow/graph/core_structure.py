@@ -18,7 +18,7 @@ class TaskChain(TaskGraph):
         该结构将多个 TaskStage 节点按顺序连接，形成一个线性的数据流图。
 
         :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点
-        :param chain_mode: 控制任务链中各节点的运行模式, 可选 'serial', 'thread' 或 'process'
+        :param chain_mode: 控制任务链中各节点的运行模式, 可选 'serial' 或 'thread'
         :param log_level: 日志级别
         """
         super().__init__(schedule_mode="eager", log_level=log_level)
@@ -68,7 +68,7 @@ class TaskCross(TaskGraph):
         all_stages = []
         for i, curr_layer in enumerate(layers):
             for index, stage in enumerate(curr_layer):
-                stage.set_stage_mode("process")
+                stage.set_stage_mode("thread")
                 stage.set_name(f"Layer{i + 1}-{index + 1}")
             all_stages.extend(curr_layer)
 
@@ -115,7 +115,7 @@ class TaskGrid(TaskGraph):
         for i in range(rows):
             for j in range(cols):
                 curr = grid[i][j]
-                curr.set_stage_mode("process")
+                curr.set_stage_mode("thread")
                 curr.set_name(f"Grid-{i + 1}-{j + 1}")
                 all_stages.append(curr)
 
@@ -155,7 +155,7 @@ class TaskLoop(TaskGraph):
         super().__init__(log_level=log_level)
 
         for num, stage in enumerate(stages):
-            stage.set_stage_mode("process")
+            stage.set_stage_mode("thread")
             stage.set_name(f"Stage {num + 1}")
 
         self.set_stages(root_stages=[stages[0]], stages=stages)
@@ -191,11 +191,11 @@ class TaskWheel(TaskGraph):
         """
         super().__init__(log_level=log_level)
 
-        center.set_stage_mode("process")
+        center.set_stage_mode("thread")
         center.set_name("Center")
 
         for i, node in enumerate(ring):
-            node.set_stage_mode("process")
+            node.set_stage_mode("thread")
             node.set_name(f"Ring-{i + 1}")
 
         self.set_stages(root_stages=[center], stages=[center] + ring)
@@ -229,7 +229,7 @@ class TaskComplete(TaskGraph):
         super().__init__(log_level=log_level)
 
         for i, stage in enumerate(stages):
-            stage.set_stage_mode("process")
+            stage.set_stage_mode("thread")
             stage.set_name(f"Node {i + 1}")
 
         self.set_stages(root_stages=stages, stages=stages)

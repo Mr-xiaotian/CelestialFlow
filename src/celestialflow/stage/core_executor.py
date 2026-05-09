@@ -5,7 +5,6 @@ import asyncio
 import time
 from collections import defaultdict
 from collections.abc import Iterable
-from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue
 from typing import Any, Callable
 
@@ -27,7 +26,6 @@ from ..runtime import (
 )
 from ..runtime.util_errors import ExecutionModeError
 from ..runtime.util_factories import (
-    make_queue_backend,
     make_task_in_queue,
     make_task_out_queue,
 )
@@ -102,8 +100,8 @@ class TaskExecutor:
         self,
         task_queues: TaskInQueue | None = None,
         result_queues: TaskOutQueue | None = None,
-        fail_queue: MPQueue | None = None,
-        log_queue: MPQueue | None = None,
+        fail_queue: ThreadQueue | None = None,
+        log_queue: ThreadQueue | None = None,
     ) -> None:
         """
         初始化环境
@@ -125,7 +123,7 @@ class TaskExecutor:
         self.metrics.reset_state()
 
     def _init_inlet(
-        self, fail_queue: MPQueue | None, log_queue: MPQueue | None
+        self, fail_queue: ThreadQueue | None, log_queue: ThreadQueue | None
     ) -> None:
         """
         初始化收集器
@@ -133,10 +131,10 @@ class TaskExecutor:
         :param fail_queue: 失败队列
         :param log_queue: 日志队列
         """
-        self.fail_queue = fail_queue or make_queue_backend("serial")()
+        self.fail_queue = fail_queue or ThreadQueue()
         self.fail_inlet = FailInlet(self.fail_queue)
 
-        self.log_queue = log_queue or make_queue_backend("serial")()
+        self.log_queue = log_queue or ThreadQueue()
         self.log_inlet = LogInlet(self.log_queue, self.log_level)
 
     def _init_queue(

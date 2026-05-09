@@ -1,13 +1,13 @@
 # stage/core_stages.py
 import json
 import time
-from multiprocessing import Value as MPValue
 from typing import Any, cast
 
 import redis
 
 from ..runtime import TaskEnvelope
 from ..runtime.util_errors import InvalidOptionError, RemoteWorkerError
+from ..runtime.util_types import ValueWrapper
 from .core_stage import TaskStage
 
 
@@ -33,7 +33,7 @@ class TaskSplitter(TaskStage):
 
     def _init_extra_counter(self) -> None:
         """初始化 split 计数器，用于跟踪 split 产生的子任务总数"""
-        self.split_counter = MPValue("i", 0)
+        self.split_counter = ValueWrapper(0)
 
     def get_binding_counter(self, _downstream_tag: str):
         """
@@ -50,8 +50,7 @@ class TaskSplitter(TaskStage):
 
         :param add_value: 增加的子任务数量
         """
-        with self.split_counter.get_lock():
-            self.split_counter.value += add_value
+        self.split_counter.value += add_value
 
     def _split(self, *task: Any) -> tuple:
         """
@@ -157,7 +156,7 @@ class TaskRouter(TaskStage):
         :param downstream_tag: 下游 stage 的 tag
         :return: 对应下游的路由计数器实例
         """
-        self.route_counters.setdefault(downstream_tag, MPValue("i", 0))
+        self.route_counters.setdefault(downstream_tag, ValueWrapper(0))
         return self.route_counters[downstream_tag]
 
     def _update_route_counter(self, target: str) -> None:
@@ -166,8 +165,7 @@ class TaskRouter(TaskStage):
 
         :param target: 目标 stage 的 tag
         """
-        with self.route_counters[target].get_lock():
-            self.route_counters[target].value += 1
+        self.route_counters[target].value += 1
 
     def _route(self, routed: tuple) -> Any:
         """
