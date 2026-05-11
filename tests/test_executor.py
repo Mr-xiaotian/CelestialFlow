@@ -1,4 +1,4 @@
-import pytest  # type: ignore[reportMissingImports]
+import pytest
 
 from celestialflow import TaskExecutor, BaseObserver, CallbackObserver
 

@@ -1,3 +1,3 @@
-from dotenv import load_dotenv  # type: ignore[reportMissingImports]
+from dotenv import load_dotenv
 
 load_dotenv()

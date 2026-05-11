@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import json
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Optional
 
 # ======== jsonl文件处理 ========
@@ -72,7 +73,7 @@ def load_jsonl_logs(
 
 
 def load_jsonl_by_key(
-    jsonl_path: str, extract_key: str = "stage", extract_value: str = "task"
+    jsonl_path: str | Path, extract_key: str = "stage", extract_value: str = "task"
 ) -> dict[str, list[Any]]:
     """
     按指定 key 分组加载 jsonl 文件中的值
@@ -101,7 +102,7 @@ def load_jsonl_by_key(
 
 
 def load_jsonl_grouped_by_keys(
-    jsonl_path: str,
+    jsonl_path: str | Path,
     group_keys: list[str],
     extract_field: str,
 ) -> dict[tuple[str, ...], list[Any]]:
@@ -133,7 +134,7 @@ def load_jsonl_grouped_by_keys(
     return dict(result_dict)
 
 
-def load_task_by_stage(jsonl_path: str) -> dict[str, list[Any]]:
+def load_task_by_stage(jsonl_path: str | Path) -> dict[str, list[Any]]:
     """
     加载错误记录，按 stage 分类
 
@@ -143,7 +144,7 @@ def load_task_by_stage(jsonl_path: str) -> dict[str, list[Any]]:
     return load_jsonl_by_key(jsonl_path, extract_key="stage", extract_value="task")
 
 
-def load_task_by_error(jsonl_path: str) -> dict[tuple[str, ...], list[Any]]:
+def load_task_by_error(jsonl_path: str | Path) -> dict[tuple[str, ...], list[Any]]:
     """
     加载错误记录，按 error 和 stage 分类
 

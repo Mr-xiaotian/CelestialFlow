@@ -9,12 +9,8 @@ from collections.abc import Iterable
 from queue import Queue as ThreadQueue
 from typing import Any, Callable
 
-from celestialtree import (  # type: ignore[import-unresolved]
-    Client as CelestialTreeClient,  # type: ignore[reportUnknownVariableType]
-)
-from celestialtree import (  # type: ignore[import-unresolved]
-    NullClient as NullCelestialTreeClient,  # type: ignore[reportUnknownVariableType]
-)
+from celestialtree import Client as CelestialTreeClient
+from celestialtree import NullClient as NullCelestialTreeClient
 
 from ..observability import BaseObserver
 from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout, SuccessSpout
@@ -80,6 +76,7 @@ class TaskExecutor:
 
         self._observers: list[BaseObserver] = []
 
+        self.ctree_client: CelestialTreeClient | NullCelestialTreeClient
         self.set_nullctree()
         self.task_queues: TaskInQueue = None  # type: ignore[assignment]
         self.result_queues: TaskOutQueue = None  # type: ignore[assignment]
@@ -213,7 +210,7 @@ class TaskExecutor:
         :param http_port: HTTP 端口
         :param grpc_port: gRPC 端口
         """
-        self.ctree_client: Any = CelestialTreeClient(
+        self.ctree_client = CelestialTreeClient(
             host=host, http_port=http_port, grpc_port=grpc_port, transport="grpc"
         )
 
@@ -223,7 +220,7 @@ class TaskExecutor:
 
         :param event_id: 事件ID
         """
-        self.ctree_client: Any = NullCelestialTreeClient(event_id)
+        self.ctree_client = NullCelestialTreeClient(event_id)
 
     def set_name(self, name: str) -> None:
         self._name = name
@@ -720,4 +717,4 @@ class TaskExecutor:
 
     def _release_client(self) -> None:
         """释放事件树客户端引用"""
-        self.ctree_client: Any = NullCelestialTreeClient()
+        self.ctree_client = NullCelestialTreeClient()

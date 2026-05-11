@@ -88,8 +88,8 @@ def benchmark_graph(
     base_tasks: dict[str, list[Any]] = {tag: list(tasks) for tag, tasks in init_tasks_dict.items()}
 
     test_table_list: list[list[float]] = []
-    fail_by_error_dict: dict[str, Any] = {}
-    fail_by_stage_dict: dict[str, Any] = {}
+    fail_by_error_dict: dict[tuple[str, ...], list[Any]] = {}
+    fail_by_stage_dict: dict[str, list[Any]] = {}
 
     for stage_mode in stage_modes:
         time_list: list[float] = []
@@ -99,11 +99,11 @@ def benchmark_graph(
 
             run_tasks: dict[str, list[Any]] = {tag: list(tasks) for tag, tasks in base_tasks.items()}
             start_time: float = time.perf_counter()
-            cloned_graph.start_graph(run_tasks)  # type: ignore[arg-type]
+            cloned_graph.start_graph(run_tasks)
             time_list.append(time.perf_counter() - start_time)
 
-            fail_by_stage_dict.update(cloned_graph.get_fail_by_stage_dict())  # type: ignore[arg-type]
-            fail_by_error_dict.update(cloned_graph.get_fail_by_error_dict())  # type: ignore[arg-type]
+            fail_by_stage_dict.update(cloned_graph.get_fail_by_stage_dict())
+            fail_by_error_dict.update(cloned_graph.get_fail_by_error_dict())
 
         test_table_list.append(time_list)
 

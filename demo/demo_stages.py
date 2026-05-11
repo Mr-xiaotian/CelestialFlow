@@ -1,7 +1,7 @@
 import os
 import random
 
-from dotenv import load_dotenv  # type: ignore[reportMissingImports]
+from dotenv import load_dotenv
 
 from demo_utils import (
     RouterWrapper,

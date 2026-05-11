@@ -22,26 +22,26 @@ from .util_config import load_config, save_config
 from .util_error import filter_errors, normalize_errors_query, paginate_errors
 
 
-class StructureModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
+class StructureModel(BaseModel):
     """任务结构数据模型"""
 
     items: list[dict[str, Any]]
 
 
-class StatusModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
+class StatusModel(BaseModel):
     """节点状态数据模型"""
 
     status: dict[str, dict[str, Any]]
 
 
-class ErrorsMetaModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
+class ErrorsMetaModel(BaseModel):
     """错误元数据模型"""
 
     jsonl_path: str
     rev: int
 
 
-class ErrorsContentModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
+class ErrorsContentModel(BaseModel):
     """错误内容数据模型"""
 
     errors: list[dict[str, Any]]
@@ -49,31 +49,31 @@ class ErrorsContentModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
     rev: int
 
 
-class AnalysisModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
+class AnalysisModel(BaseModel):
     """任务分析数据模型"""
 
     analysis: dict[str, Any]
 
 
-class SummaryModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
+class SummaryModel(BaseModel):
     """任务汇总数据模型"""
 
     summary: dict[str, Any]
 
 
-class HistoryModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
+class HistoryModel(BaseModel):
     """节点历史数据模型"""
 
     history: dict[str, list[dict[str, Any]]]
 
 
-class IntervalModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
+class IntervalModel(BaseModel):
     """刷新间隔配置模型"""
 
     interval: float
 
 
-class TaskInjectionModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
+class TaskInjectionModel(BaseModel):
     """任务注入请求模型"""
 
     node: str
@@ -81,13 +81,13 @@ class TaskInjectionModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
     timestamp: datetime
 
 
-class CardConfigModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
+class CardConfigModel(BaseModel):
     """仪表盘卡片配置模型"""
 
     title: str
 
 
-class DashboardConfigModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
+class DashboardConfigModel(BaseModel):
     """仪表盘布局配置模型"""
 
     left: list[str]
@@ -95,7 +95,7 @@ class DashboardConfigModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
     right: list[str]
 
 
-class WebConfigModel(BaseModel):  # type: ignore[reportUntypedBaseClass]
+class WebConfigModel(BaseModel):
     """Web UI 全局配置模型"""
 
     theme: str
@@ -168,8 +168,8 @@ class TaskWebServer:
         app: FastAPI = self.app  # type: ignore[reportUnknownMemberType]
         templates: Jinja2Templates = self.templates  # type: ignore[reportUnknownMemberType]
 
-        @app.get("/", response_class=HTMLResponse)  # type: ignore[reportUntypedFunctionDecorator]
-        def index(request: Request) -> HTMLResponse:  # type: ignore[reportUnusedFunction]
+        @app.get("/", response_class=HTMLResponse)
+        def index(request: Request) -> HTMLResponse:
             """
             返回主页面 HTML。
 
@@ -178,14 +178,14 @@ class TaskWebServer:
             return templates.TemplateResponse(request=request, name="index.html")  # type: ignore[reportUnknownMemberType, reportUnknownVariableType]
 
         # ---- 接收接口 ----
-        @app.get("/api/pull_config")  # type: ignore[reportUntypedFunctionDecorator]
-        def pull_config() -> dict[str, Any]:  # type: ignore[reportUnusedFunction]
+        @app.get("/api/pull_config")
+        def pull_config() -> dict[str, Any]:
             """获取前端配置"""
             with self._config_lock:
                 return self.config
 
-        @app.get("/api/pull_structure")  # type: ignore[reportUntypedFunctionDecorator]
-        def pull_structure(known_rev: int = -1) -> dict[str, Any]:  # type: ignore[reportUnusedFunction]
+        @app.get("/api/pull_structure")
+        def pull_structure(known_rev: int = -1) -> dict[str, Any]:
             """
             返回图结构数据；若版本未变则返回 data=null。
 
@@ -196,8 +196,8 @@ class TaskWebServer:
                 return {"rev": rev, "data": None}
             return {"rev": rev, "data": self.structure_store}
 
-        @app.get("/api/pull_status")  # type: ignore[reportUntypedFunctionDecorator]
-        def pull_status(known_rev: int = -1) -> dict[str, Any]:  # type: ignore[reportUnusedFunction]
+        @app.get("/api/pull_status")
+        def pull_status(known_rev: int = -1) -> dict[str, Any]:
             """
             返回各节点运行状态；若版本未变则返回 data=null。
 
@@ -208,8 +208,8 @@ class TaskWebServer:
                 return {"rev": rev, "data": None}
             return {"rev": rev, "data": self.status_store}
 
-        @app.get("/api/pull_errors")  # type: ignore[reportUntypedFunctionDecorator]
-        def pull_errors(  # type: ignore[reportUnusedFunction]
+        @app.get("/api/pull_errors")
+        def pull_errors(
             known_rev: int = -1,
             page: int = 1,
             page_size: int = 10,
@@ -263,8 +263,8 @@ class TaskWebServer:
                 "data": page_items,
             }
 
-        @app.get("/api/pull_analysis")  # type: ignore[reportUntypedFunctionDecorator]
-        def pull_analysis(known_rev: int = -1) -> dict[str, Any]:  # type: ignore[reportUnusedFunction]
+        @app.get("/api/pull_analysis")
+        def pull_analysis(known_rev: int = -1) -> dict[str, Any]:
             """
             返回图拓扑信息；若版本未变则返回 data=null。
 
@@ -275,8 +275,8 @@ class TaskWebServer:
                 return {"rev": rev, "data": None}
             return {"rev": rev, "data": self.analysis_store}
 
-        @app.get("/api/pull_summary")  # type: ignore[reportUntypedFunctionDecorator]
-        def pull_summary(known_rev: int = -1) -> dict[str, Any]:  # type: ignore[reportUnusedFunction]
+        @app.get("/api/pull_summary")
+        def pull_summary(known_rev: int = -1) -> dict[str, Any]:
             """
             返回全局任务汇总数据；若版本未变则返回 data=null。
 
@@ -287,8 +287,8 @@ class TaskWebServer:
                 return {"rev": rev, "data": None}
             return {"rev": rev, "data": self.summary_store}
 
-        @app.get("/api/pull_history")  # type: ignore[reportUntypedFunctionDecorator]
-        def pull_history(known_rev: int = -1) -> dict[str, Any]:  # type: ignore[reportUnusedFunction]
+        @app.get("/api/pull_history")
+        def pull_history(known_rev: int = -1) -> dict[str, Any]:
             """
             返回节点历史走势数据；若版本未变则返回 data=null。
 
@@ -299,18 +299,18 @@ class TaskWebServer:
                 return {"rev": rev, "data": None}
             return {"rev": rev, "data": self.history_store}
 
-        @app.get("/api/pull_interval")  # type: ignore[reportUntypedFunctionDecorator]
-        def pull_interval() -> dict[str, float]:  # type: ignore[reportUnusedFunction]
+        @app.get("/api/pull_interval")
+        def pull_interval() -> dict[str, float]:
             """返回当前轮询间隔（秒）。"""
             return {"interval": self.report_interval}
 
-        @app.get("/api/pull_history_limit")  # type: ignore[reportUntypedFunctionDecorator]
-        def pull_history_limit() -> dict[str, int]:  # type: ignore[reportUnusedFunction]
+        @app.get("/api/pull_history_limit")
+        def pull_history_limit() -> dict[str, int]:
             """返回历史记录最大保留条数。"""
             return {"historyLimit": self.history_limit}
 
-        @app.get("/api/pull_task_injection")  # type: ignore[reportUntypedFunctionDecorator]
-        def pull_task_injection() -> list[dict[str, Any]]:  # type: ignore[reportUnusedFunction]
+        @app.get("/api/pull_task_injection")
+        def pull_task_injection() -> list[dict[str, Any]]:
             """取出并清空待执行的前端注入任务列表。"""
             with self._task_injection_lock:
                 tasks_to_send: list[dict[str, Any]] = self.injection_tasks.copy()
@@ -318,8 +318,8 @@ class TaskWebServer:
             return tasks_to_send
 
         # ---- 发送接口 ----
-        @app.post("/api/push_config")  # type: ignore[reportUntypedFunctionDecorator]
-        async def push_config(data: WebConfigModel) -> dict[str, bool] | JSONResponse:  # type: ignore[reportUnusedFunction]
+        @app.post("/api/push_config")
+        async def push_config(data: WebConfigModel) -> dict[str, bool] | JSONResponse:
             """
             保存前端配置
 
@@ -339,8 +339,8 @@ class TaskWebServer:
                         status_code=500,
                     )
 
-        @app.post("/api/push_structure")  # type: ignore[reportUntypedFunctionDecorator]
-        async def push_structure(data: StructureModel) -> dict[str, bool]:  # type: ignore[reportUnusedFunction]
+        @app.post("/api/push_structure")
+        async def push_structure(data: StructureModel) -> dict[str, bool]:
             """
             更新图结构数据并递增版本号。
 
@@ -350,8 +350,8 @@ class TaskWebServer:
             self._store_revs["structure"] += 1
             return {"ok": True}
 
-        @app.post("/api/push_status")  # type: ignore[reportUntypedFunctionDecorator]
-        async def push_status(data: StatusModel) -> dict[str, bool]:  # type: ignore[reportUnusedFunction]
+        @app.post("/api/push_status")
+        async def push_status(data: StatusModel) -> dict[str, bool]:
             """
             更新各节点运行状态并递增版本号。
 
@@ -361,8 +361,8 @@ class TaskWebServer:
             self._store_revs["status"] += 1
             return {"ok": True}
 
-        @app.post("/api/push_errors_meta")  # type: ignore[reportUntypedFunctionDecorator]
-        async def push_errors_meta(data: ErrorsMetaModel) -> dict[str, Any]:  # type: ignore[reportUnusedFunction]
+        @app.post("/api/push_errors_meta")
+        async def push_errors_meta(data: ErrorsMetaModel) -> dict[str, Any]:
             """
             通过 JSONL 文件路径+版本号加载错误日志；命中缓存则跳过读取。
 
@@ -403,8 +403,8 @@ class TaskWebServer:
                     "msg": str(e),
                 }
 
-        @app.post("/api/push_errors_content")  # type: ignore[reportUntypedFunctionDecorator]
-        async def push_errors_content(data: ErrorsContentModel) -> dict[str, Any]:  # type: ignore[reportUnusedFunction]
+        @app.post("/api/push_errors_content")
+        async def push_errors_content(data: ErrorsContentModel) -> dict[str, Any]:
             """
             直接接收错误日志列表并存储；支持增量 append（offset > 0）；命中缓存则跳过。
 
@@ -423,8 +423,8 @@ class TaskWebServer:
             self._store_revs["errors"] += 1
             return {"ok": True, "cached": False}
 
-        @app.post("/api/push_analysis")  # type: ignore[reportUntypedFunctionDecorator]
-        async def push_analysis(data: AnalysisModel) -> dict[str, bool]:  # type: ignore[reportUnusedFunction]
+        @app.post("/api/push_analysis")
+        async def push_analysis(data: AnalysisModel) -> dict[str, bool]:
             """
             更新图分析信息并递增版本号。
 
@@ -434,8 +434,8 @@ class TaskWebServer:
             self._store_revs["analysis"] += 1
             return {"ok": True}
 
-        @app.post("/api/push_summary")  # type: ignore[reportUntypedFunctionDecorator]
-        async def push_summary(data: SummaryModel) -> dict[str, bool]:  # type: ignore[reportUnusedFunction]
+        @app.post("/api/push_summary")
+        async def push_summary(data: SummaryModel) -> dict[str, bool]:
             """
             更新全局任务汇总数据并递增版本号。
 
@@ -445,8 +445,8 @@ class TaskWebServer:
             self._store_revs["summary"] += 1
             return {"ok": True}
 
-        @app.post("/api/push_history")  # type: ignore[reportUntypedFunctionDecorator]
-        async def push_history(data: HistoryModel) -> dict[str, bool]:  # type: ignore[reportUnusedFunction]
+        @app.post("/api/push_history")
+        async def push_history(data: HistoryModel) -> dict[str, bool]:
             """
             更新节点历史走势数据并递增版本号。
 
@@ -456,8 +456,8 @@ class TaskWebServer:
             self._store_revs["history"] += 1
             return {"ok": True}
 
-        @app.post("/api/push_injection_tasks")  # type: ignore[reportUntypedFunctionDecorator]
-        async def push_injection_tasks(data: TaskInjectionModel) -> dict[str, bool] | JSONResponse:  # type: ignore[reportUnusedFunction]
+        @app.post("/api/push_injection_tasks")
+        async def push_injection_tasks(data: TaskInjectionModel) -> dict[str, bool] | JSONResponse:
             """
             将前端提交的注入任务追加到待执行队列。
 

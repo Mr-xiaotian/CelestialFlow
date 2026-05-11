@@ -8,17 +8,14 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Queue as ThreadQueue
+from collections.abc import Iterable, Mapping
 from typing import Any
 
-from celestialtree import (  # type: ignore[import-untyped]
-    Client as CelestialTreeClient,  # type: ignore[reportUnknownVariableType]
-)
-from celestialtree import (  # type: ignore[import-untyped]
-    NullClient as NullCelestialTreeClient,  # type: ignore[reportUnknownVariableType]
-)
-from celestialtree import (  # type: ignore[import-untyped]
-    format_descendants_forest,  # type: ignore[reportUnknownVariableType]
-    format_provenance_forest,  # type: ignore[reportUnknownVariableType]
+from celestialtree import Client as CelestialTreeClient
+from celestialtree import NullClient as NullCelestialTreeClient
+from celestialtree import (
+    format_descendants_forest,
+    format_provenance_forest,
 )
 from networkx import is_directed_acyclic_graph, DiGraph
 
@@ -37,7 +34,7 @@ from ..runtime.util_estimators import (
     calc_remaining,
 )
 from ..runtime.util_types import (
-    STAGE_STYLE,  # type: ignore[reportUnknownVariableType]
+    STAGE_STYLE,
     CTreeEvent,
     StageStatus,
     TerminationSignal,
@@ -267,12 +264,12 @@ class TaskGraph:
         self.ctree_grpc_port = grpc_port
         self._ctree_transport = transport
 
-        self.ctree_client: Any
+        self.ctree_client: CelestialTreeClient | NullCelestialTreeClient
         if use_ctree:
             self.ctree_client = CelestialTreeClient(
                 host=host, http_port=http_port, grpc_port=grpc_port, transport=transport
             )
-            if not self.ctree_client.health():  # type: ignore[reportUnknownMemberType]
+            if not self.ctree_client.health():
                 raise CelestialTreeConnectionError()
         else:
             self.ctree_client = NullCelestialTreeClient()
@@ -350,7 +347,7 @@ class TaskGraph:
             self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
     def start_graph(
-        self, init_tasks_dict: dict[str, list[Any]], put_termination_signal: bool = True
+        self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
     ) -> None:
         """
         启动任务链
@@ -395,7 +392,7 @@ class TaskGraph:
     # ==== 执行 ====
 
     def put_stage_queue(
-        self, tasks_dict: dict[str, list[Any]], put_termination_signal: bool = True
+        self, tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
     ) -> None:
         """
         将任务放入队列
@@ -504,7 +501,7 @@ class TaskGraph:
                 self.ctree_host, self.ctree_http_port, self.ctree_grpc_port
             )
         else:
-            stage.set_nullctree(self.ctree_client.event_id)  # type: ignore[reportUnknownMemberType]
+            stage.set_nullctree(self.ctree_client.event_id)
 
         stage.set_log_level(self.log_level)
 
@@ -750,7 +747,9 @@ class TaskGraph:
 
         :return: {stage_tag: [失败任务列表]}
         """
-        return load_task_by_stage(self.fail_spout.jsonl_path)  # type: ignore[arg-type]
+        if self.fail_spout.jsonl_path is None:
+            return {}
+        return load_task_by_stage(self.fail_spout.jsonl_path)
 
     def get_fail_by_error_dict(self) -> dict[tuple[str, ...], list[Any]]:
         """
@@ -758,7 +757,9 @@ class TaskGraph:
 
         :return: {error_type: [失败任务列表]}
         """
-        return load_task_by_error(self.fail_spout.jsonl_path)  # type: ignore[arg-type]
+        if self.fail_spout.jsonl_path is None:
+            return {}
+        return load_task_by_error(self.fail_spout.jsonl_path)
 
     def get_total_error_num(self) -> int:
         """
@@ -850,10 +851,10 @@ class TaskGraph:
             return ""
 
         input_ids: set[int] = self.input_ids[stage_tag]
-        descendants: Any = self.ctree_client.descendants_batch(list(input_ids), "meta")
+        descendants = self.ctree_client.descendants_batch(list(input_ids), "meta")
         if not descendants:
             return ""
-        return format_descendants_forest(descendants, STAGE_STYLE)  # type: ignore[reportUnknownArgumentType]
+        return format_descendants_forest(descendants, STAGE_STYLE)
 
     def get_error_trace(self, error_id: int) -> str:
         """
@@ -862,7 +863,8 @@ class TaskGraph:
         :param error_id: 错误事件 ID
         :return: 格式化的溯源关系树字符串
         """
-        provenance: Any = self.ctree_client.provenance(error_id)
+        provenance = self.ctree_client.provenance(error_id)
         if not provenance:
             return ""
-        return format_provenance_forest(provenance, STAGE_STYLE)  # type: ignore[arg-type]
+        return format_provenance_forest(provenance, STAGE_STYLE)
+

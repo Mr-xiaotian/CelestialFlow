@@ -55,10 +55,10 @@ class TaskDispatch:
         :return: 合并后的终止信号
         """
         parent_ids = termination_pool.ids
-        termination_id: int = self.task_executor.ctree_client.emit(  # type: ignore[union-attr]
+        termination_id: int = self.task_executor.ctree_client.emit(
             CTreeEvent.TERMINATION_MERGE,
             parents=parent_ids,
-            payload=self.task_executor.get_summary(),  # type: ignore[arg-type]
+            payload=self.task_executor.get_summary(),
         )
         signal = TerminationSignal(
             termination_id,

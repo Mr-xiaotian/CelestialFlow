@@ -59,7 +59,7 @@ class FailSpout(BaseSpout):
         self._file.write(f"{jsonl_record}\n")
         self._file.flush()
 
-        if isinstance(record, dict) and record.get("error_id") is not None:  # type: ignore[reportUnnecessaryIsInstance]
+        if record.get("error_id") is not None:
             self.total_error_num += 1
 
     def _after_stop(self) -> None:

@@ -5,7 +5,7 @@ from enum import IntEnum
 from threading import Lock
 from types import TracebackType
 
-from celestialtree import NodeLabelStyle  # type: ignore[import-unresolved]
+from celestialtree import NodeLabelStyle
 
 
 class TerminationSignal:
@@ -139,4 +139,4 @@ class CTreeEvent:
     TERMINATION_MERGE = "termination.merge"
 
 
-STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(template="{base}  {payload.name}  ‹{type}›", missing="-")  # type: ignore[no-any-unimported]
+STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(template="{base}  {payload.name}  ‹{type}›", missing="-")
