@@ -46,7 +46,7 @@ class TaskInQueue:
         """
         if isinstance(item, TaskEnvelope):
             t = "task"
-        elif isinstance(item, TerminationSignal):
+        else:
             t = "termination"
         self.log_inlet.put_item(t, item.id, item.source, self.out_tag)
 
@@ -58,7 +58,7 @@ class TaskInQueue:
         """
         if isinstance(item, TaskEnvelope):
             t = "task"
-        elif isinstance(item, TerminationSignal):
+        else:
             t = "termination"
         self.log_inlet.get_item(t, item.id, item.source, self.out_tag)
 
@@ -156,18 +156,17 @@ class TaskInQueue:
         if isinstance(item, TaskEnvelope):
             return item
 
-        if isinstance(item, TerminationSignal):
-            self._record_termination(item)
-            if "input" in self.termination_dict:
-                # 外部终止符注入, 直接退出
-                return TerminationIdPool(ids=[self.termination_dict["input"]])
+        self._record_termination(item)
+        if "input" in self.termination_dict:
+            # 外部终止符注入, 直接退出
+            return TerminationIdPool(ids=[self.termination_dict["input"]])
 
-            elif self._can_merge_termination():
-                # 所有上游终止，合并终止信号
-                return self._merge_termination()
+        elif self._can_merge_termination():
+            # 所有上游终止，合并终止信号
+            return self._merge_termination()
 
-            # 信号已记录但尚未集齐所有上游，继续等待
-            return None
+        # 信号已记录但尚未集齐所有上游，继续等待
+        return None
 
     def drain(self) -> list[TaskEnvelope]:
         """
@@ -177,14 +176,14 @@ class TaskInQueue:
 
         :return: 包含所有任务的列表
         """
-        results = []
+        results: list[TaskEnvelope] = []
         while True:
             try:
                 item: TaskEnvelope | TerminationSignal = self.queue.get_nowait()
                 self._log_get(item)
                 if isinstance(item, TaskEnvelope):
                     results.append(item)
-                elif isinstance(item, TerminationSignal):
+                else:
                     self._record_termination(item)
             except Exception:
                 break
@@ -234,7 +233,7 @@ class TaskOutQueue:
         """
         if isinstance(item, TaskEnvelope):
             t = "task"
-        elif isinstance(item, TerminationSignal):
+        else:
             t = "termination"
         self.log_inlet.put_item(t, item.id, self.in_tag, str(self.queue_tags[idx]))
 

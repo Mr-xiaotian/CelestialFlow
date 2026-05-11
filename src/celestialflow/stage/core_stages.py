@@ -3,7 +3,7 @@ import json
 import time
 from typing import Any, cast
 
-import redis
+import redis  # type: ignore[import-unresolved]
 
 from ..runtime import TaskEnvelope
 from ..runtime.util_errors import InvalidOptionError, RemoteWorkerError
@@ -35,7 +35,7 @@ class TaskSplitter(TaskStage):
         """初始化 split 计数器，用于跟踪 split 产生的子任务总数"""
         self.split_counter = ValueWrapper(0)
 
-    def get_binding_counter(self, _downstream_tag: str):
+    def get_binding_counter(self, _downstream_tag: str) -> Any:
         """
         返回下游 stage 应绑定的计数器
 
@@ -52,7 +52,7 @@ class TaskSplitter(TaskStage):
         """
         self.split_counter.value += add_value
 
-    def _split(self, *task: Any) -> tuple:
+    def _split(self, *task: Any) -> tuple[Any, ...]:
         """
         透传任务参数，仅用于符合 TaskStage 架构
 
@@ -61,7 +61,7 @@ class TaskSplitter(TaskStage):
         """
         return task
 
-    def _put_split_result(self, result: tuple, task_id: int) -> int:
+    def _put_split_result(self, result: tuple[Any, ...], task_id: int) -> int:
         """
         将 split 结果放入队列，并发出对应事件
 
@@ -149,7 +149,7 @@ class TaskRouter(TaskStage):
         """
         self.route_counters: dict[str, Any] = {}
 
-    def get_binding_counter(self, downstream_tag: str):
+    def get_binding_counter(self, downstream_tag: str) -> Any:
         """
         返回下游 stage 应绑定的计数器，按 tag 查找或创建
 
@@ -167,7 +167,7 @@ class TaskRouter(TaskStage):
         """
         self.route_counters[target].value += 1
 
-    def _route(self, routed: tuple) -> Any:
+    def _route(self, routed: tuple[str, Any]) -> Any:
         """
         校验路由输入格式并提取目标任务
 
@@ -176,7 +176,7 @@ class TaskRouter(TaskStage):
         :raises TypeError: 输入不是长度为 2 的元组
         :raises InvalidOptionError: target 不在已注册的路由列表中
         """
-        if not (isinstance(routed, tuple) and len(routed) == 2):
+        if not (isinstance(routed, tuple) and len(routed) == 2):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
         target, task = routed
         if target not in self.route_counters:
@@ -271,7 +271,7 @@ class TaskRedisTransport(TaskStage):
     def init_redis(self) -> None:
         """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
-            self.redis_client = redis.Redis(
+            self.redis_client: Any = redis.Redis(  # type: ignore[reportUnknownMemberType]
                 host=self.host,
                 port=self.port,
                 db=self.db,
@@ -345,7 +345,7 @@ class TaskRedisSource(TaskStage):
     def init_redis(self) -> None:
         """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
-            self.redis_client = redis.Redis(
+            self.redis_client: Any = redis.Redis(  # type: ignore[reportUnknownMemberType]
                 host=self.host,
                 port=self.port,
                 db=self.db,
@@ -364,14 +364,14 @@ class TaskRedisSource(TaskStage):
         """
         self.init_redis()
 
-        res = cast(Any, self.redis_client.blpop(self.key, timeout=self.timeout))
+        res: Any = self.redis_client.blpop(self.key, timeout=self.timeout)
         if res is None:
             raise TimeoutError("Redis item not returned in time after being fetched")
         _, item = res
         item = cast(str, item)
-        item_obj: dict = json.loads(item)
+        item_obj: dict[str, Any] = json.loads(item)
 
-        task = item_obj.get("task")
+        task: Any = item_obj.get("task")
         if task is None:
             raise RemoteWorkerError("Redis source payload missing 'task'")
         if len(task) == 1:
@@ -425,7 +425,7 @@ class TaskRedisAck(TaskStage):
     def init_redis(self) -> None:
         """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
-            self.redis_client = redis.Redis(
+            self.redis_client: Any = redis.Redis(  # type: ignore[reportUnknownMemberType]
                 host=self.host,
                 port=self.port,
                 db=self.db,
@@ -451,19 +451,19 @@ class TaskRedisAck(TaskStage):
                 # 取到结果即删除，保证 Ack 语义一次性
                 self.redis_client.hdel(self.key, task_id)
 
-                result_obj: dict = json.loads(result)
+                result_obj: dict[str, Any] = json.loads(result)
                 status = result_obj.get("status")
 
                 if status == "success":
-                    result = result_obj.get("result")
+                    result: Any = result_obj.get("result")
                     if not hasattr(result, "__iter__") or isinstance(
                         result, (str, bytes)
                     ):
                         return result
                     elif isinstance(result, list):
-                        if len(result) == 1:
-                            return result[0]
-                        return tuple(result)
+                        if len(result) == 1:  # type: ignore[reportUnknownArgumentType]
+                            return result[0]  # type: ignore[reportUnknownVariableType]
+                        return tuple(result)  # type: ignore[reportUnknownArgumentType]
                     else:
                         return result
 

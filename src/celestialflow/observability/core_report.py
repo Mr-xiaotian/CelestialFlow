@@ -141,10 +141,10 @@ class TaskReporter:
             if not res.ok:
                 raise RuntimeError(f"Failed to pull task injection: {res.status_code}")
 
-            injection_tasks: list[dict] = res.json()
+            injection_tasks: list[dict[str, Any]] = res.json()
             for injection in injection_tasks:
-                target_stage = injection.get("node")
-                task_datas = injection.get("task_datas")
+                target_stage: str | None = injection.get("node")
+                task_datas: list[Any] | None = injection.get("task_datas")
                 if target_stage is None or task_datas is None:
                     continue
 
@@ -154,7 +154,7 @@ class TaskReporter:
                     for task in task_datas
                 ]
                 try:
-                    self.task_graph.put_stage_queue(
+                    self.task_graph.put_stage_queue(  # type: ignore[reportUnknownMemberType]
                         {target_stage: task_datas}, put_termination_signal=False
                     )
                     self.log_inlet.inject_tasks_success(target_stage, task_datas)
@@ -205,11 +205,11 @@ class TaskReporter:
         :param jsonl_path: 错误日志 JSONL 文件路径
         :return: 服务端响应字典
         """
-        payload = {
+        payload: dict[str, Any] = {
             "rev": current_rev,
             "jsonl_path": jsonl_path,
         }
-        response = self._session.post(
+        response: requests.Response = self._session.post(
             f"{self.base_url}/api/push_errors_meta",
             json=payload,
             timeout=self._push_timeout(),
@@ -224,17 +224,17 @@ class TaskReporter:
         :param jsonl_path: 错误日志 JSONL 文件路径
         :return: 服务端响应字典
         """
-        all_errors = load_jsonl_logs(
+        all_errors: list[dict[str, Any]] = load_jsonl_logs(
             path=jsonl_path,
             keys=["ts", "error_id", "error_repr", "error", "stage", "task_repr"],
         )
 
-        payload = {
+        payload: dict[str, Any] = {
             "rev": current_rev,
             "jsonl_path": jsonl_path,
             "errors": all_errors,
         }
-        response = self._session.post(
+        response: requests.Response = self._session.post(
             f"{self.base_url}/api/push_errors_content",
             json=payload,
             timeout=self._push_timeout(),
@@ -244,8 +244,8 @@ class TaskReporter:
     def _push_status(self) -> None:
         """推送状态信息"""
         try:
-            status_data = self.task_graph.get_status_dict()
-            payload = {"status": status_data}
+            status_data: dict[str, Any] = self.task_graph.get_status_dict()  # type: ignore[reportUnknownMemberType]
+            payload: dict[str, Any] = {"status": status_data}
             self._session.post(
                 f"{self.base_url}/api/push_status",
                 json=payload,
@@ -257,8 +257,8 @@ class TaskReporter:
     def _push_structure(self) -> None:
         """推送结构信息"""
         try:
-            structure = self.task_graph.get_structure_json()
-            payload = {"items": structure}
+            structure: list[dict[str, Any]] = self.task_graph.get_structure_json()  # type: ignore[reportUnknownMemberType]
+            payload: dict[str, Any] = {"items": structure}
             self._session.post(
                 f"{self.base_url}/api/push_structure",
                 json=payload,
@@ -270,8 +270,8 @@ class TaskReporter:
     def _push_analysis(self) -> None:
         """推送分析信息"""
         try:
-            analysis = self.task_graph.get_graph_analysis()
-            payload = {"analysis": analysis}
+            analysis: dict[str, Any] = self.task_graph.get_graph_analysis()  # type: ignore[reportUnknownMemberType]
+            payload: dict[str, Any] = {"analysis": analysis}
             self._session.post(
                 f"{self.base_url}/api/push_analysis",
                 json=payload,
@@ -283,8 +283,8 @@ class TaskReporter:
     def _push_summary(self) -> None:
         """推送摘要信息"""
         try:
-            summary = self.task_graph.get_graph_summary()
-            payload = {"summary": summary}
+            summary: dict[str, Any] = self.task_graph.get_graph_summary()  # type: ignore[reportUnknownMemberType]
+            payload: dict[str, Any] = {"summary": summary}
             self._session.post(
                 f"{self.base_url}/api/push_summary",
                 json=payload,
@@ -296,8 +296,8 @@ class TaskReporter:
     def _push_history(self) -> None:
         """推送历史信息"""
         try:
-            history = self.task_graph.get_stage_history()
-            payload = {"history": history}
+            history: dict[str, list[dict[str, Any]]] = self.task_graph.get_stage_history()  # type: ignore[reportUnknownMemberType]
+            payload: dict[str, Any] = {"history": history}
             self._session.post(
                 f"{self.base_url}/api/push_history",
                 json=payload,

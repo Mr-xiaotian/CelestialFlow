@@ -4,12 +4,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from ..stage import TaskStage
+
     from .core_graph import StageRuntime
 
 
 # ======== 处理图结构 ========
 def build_structure_graph(
-    root_stages: list,
+    root_stages: list[TaskStage],
     out_edges: dict[str, list[str]],
     stage_runtime_dict: dict[str, StageRuntime],
 ) -> list[dict[str, Any]]:
@@ -22,10 +24,10 @@ def build_structure_graph(
     :return: 多棵任务图的 JSON 列表
     """
     visited_stages: set[str] = set()
-    graphs = []
+    graphs: list[dict[str, Any]] = []
 
     for root_stage in root_stages:
-        graph = _build_structure_subgraph(
+        graph: dict[str, Any] = _build_structure_subgraph(
             root_stage, visited_stages, out_edges, stage_runtime_dict
         )
         graphs.append(graph)
@@ -34,7 +36,7 @@ def build_structure_graph(
 
 
 def _build_structure_subgraph(
-    task_stage,
+    task_stage: TaskStage,
     visited_stages: set[str],
     out_edges: dict[str, list[str]],
     stage_runtime_dict: dict[str, StageRuntime],
@@ -72,7 +74,7 @@ def _build_structure_subgraph(
     return node
 
 
-def format_structure_list_from_graph(roots: list[dict] | None = None) -> list[str]:
+def format_structure_list_from_graph(roots: list[dict[str, Any]] | None = None) -> list[str]:
     """
     从多个 JSON 图结构生成格式化任务结构文本列表（带边框）
 
@@ -80,7 +82,7 @@ def format_structure_list_from_graph(roots: list[dict] | None = None) -> list[st
     :return: 带边框的格式化字符串列表
     """
 
-    def node_label(node: dict) -> str:
+    def node_label(node: dict[str, Any]) -> str:
         """
         生成节点的显示标签字符串。
 
@@ -96,7 +98,7 @@ def format_structure_list_from_graph(roots: list[dict] | None = None) -> list[st
         return f"{N}::{F} (S:{S}, E:{E}){visited_note}"
 
     # 只渲染"子节点"（有父节点）——保证一定画连接符
-    def build_child_lines(node: dict, prefix: str, is_last: bool) -> list[str]:
+    def build_child_lines(node: dict[str, Any], prefix: str, is_last: bool) -> list[str]:
         """
         递归构建子节点的树形显示行。
 
@@ -108,7 +110,7 @@ def format_structure_list_from_graph(roots: list[dict] | None = None) -> list[st
         connector = "╘-->" if is_last else "╞-->"
         lines = [f"{prefix}{connector}{node_label(node)}"]
 
-        next_stages = node.get("next_stages", []) or []
+        next_stages: list[dict[str, Any]] = node.get("next_stages", []) or []
         # 子节点的 prefix 取决于当前节点是不是 last：last -> 空白，否则竖线延续
         child_prefix = prefix + ("    " if is_last else "│   ")
         for i, child in enumerate(next_stages):
@@ -118,7 +120,7 @@ def format_structure_list_from_graph(roots: list[dict] | None = None) -> list[st
         return lines
 
     # 专门处理 root：不画连接符，不产生祖先竖线
-    def build_root_lines(root: dict) -> list[str]:
+    def build_root_lines(root: dict[str, Any]) -> list[str]:
         """
         构建根节点及其子树的树形显示行。
 
@@ -126,7 +128,7 @@ def format_structure_list_from_graph(roots: list[dict] | None = None) -> list[st
         :return: 格式化的行列表
         """
         lines = [node_label(root)]
-        next_stages = root.get("next_stages", []) or []
+        next_stages: list[dict[str, Any]] = root.get("next_stages", []) or []
         for i, child in enumerate(next_stages):
             lines.extend(build_child_lines(child, "", i == len(next_stages) - 1))
         return lines

@@ -1,4 +1,7 @@
 # utils/util_format.py
+from __future__ import annotations
+
+from collections.abc import Callable
 from datetime import datetime
 from itertools import zip_longest
 from typing import Any
@@ -13,21 +16,21 @@ def format_repr(obj: Any, max_length: int) -> str:
     :param max_length: 显示的最大字符数（超出将被截断）
     :return: 格式化字符串
     """
-    obj_str = str(obj).replace("\\", "\\\\").replace("\n", "\\n")
+    obj_str: str = str(obj).replace("\\", "\\\\").replace("\n", "\\n")
     if max_length <= 0 or len(obj_str) <= max_length:
         return obj_str
 
     # 截断逻辑（前 2/3 + ... + 后 1/3）
-    segment_len = max(1, max_length // 3)
+    segment_len: int = max(1, max_length // 3)
 
-    first_part = obj_str[: segment_len * 2]
-    last_part = obj_str[-segment_len:]
+    first_part: str = obj_str[: segment_len * 2]
+    last_part: str = obj_str[-segment_len:]
 
     return f"{first_part}...{last_part}"
 
 
 def format_table(
-    data: list,
+    data: list[Any],
     row_names: list[Any] | None = None,
     column_names: list[str] | None = None,
     index_header: str = "#",
@@ -71,13 +74,13 @@ def format_table(
         return "表格数据为空！"
 
     # 计算列数
-    max_cols = max(map(len, data))
+    max_cols: int = max(map(len, data))
 
     # 生成列名
     if column_names is None:
         column_names = _generate_excel_column_names(max_cols)
     elif len(column_names) < max_cols:
-        start = len(column_names)  # 从当前列名数量继续命名
+        start: int = len(column_names)  # 从当前列名数量继续命名
         column_names.extend(
             _generate_excel_column_names(max_cols - len(column_names), start)
         )
@@ -90,35 +93,35 @@ def format_table(
 
     # 添加行号列
     column_names = [index_header] + column_names
-    num_columns = len(column_names)
+    num_columns: int = len(column_names)
 
     # 处理行号
     formatted_data: list[list[Any]] = []
     for i, row in enumerate(data):
-        row_label = row_names[i] if row_names else i
+        row_label: Any = row_names[i] if row_names else i
         formatted_data.append([row_label] + list(row))
 
     # 统一填充数据行，确保所有行长度一致
-    filled_rows = zip_longest(*formatted_data, fillvalue=fill_value)
+    filled_rows: zip_longest[tuple[Any, ...]] = zip_longest(*formatted_data, fillvalue=fill_value)
     formatted_data = [list(row) for row in zip(*filled_rows)]  # 转置回来
 
     # 计算每列的最大宽度
-    col_widths = [
+    col_widths: list[int] = [
         max(len(str(item)) for item in col)
         for col in zip(column_names, *formatted_data)
     ]
 
     # 选择对齐方式
-    align_funcs = {
+    align_funcs: dict[str, Callable[[str, int], str]] = {
         "left": lambda text, width: f"{text:<{width}}",
         "right": lambda text, width: f"{text:>{width}}",
         "center": lambda text, width: f"{text:^{width}}",
     }
-    align_func = align_funcs.get(align, align_funcs["left"])  # 默认左对齐
+    align_func: Callable[[str, int], str] = align_funcs.get(align, align_funcs["left"])  # 默认左对齐
 
     # 生成表格
-    separator = "+" + "+".join(["-" * (width + 2) for width in col_widths]) + "+"
-    header = (
+    separator: str = "+" + "+".join(["-" * (width + 2) for width in col_widths]) + "+"
+    header: str = (
         "| "
         + " | ".join(
             [
@@ -130,7 +133,7 @@ def format_table(
     )
 
     # 生成行
-    rows_list = []
+    rows_list: list[str] = []
     for row in formatted_data:
         rows_list.append(
             "| "
@@ -142,10 +145,10 @@ def format_table(
             )
             + " |"
         )
-    rows = "\n".join(rows_list)
+    rows: str = "\n".join(rows_list)
 
     # 拼接表格
-    table = f"{separator}\n{header}\n{separator}\n{rows}\n{separator}"
+    table: str = f"{separator}\n{header}\n{separator}\n{rows}\n{separator}"
     return table
 
 

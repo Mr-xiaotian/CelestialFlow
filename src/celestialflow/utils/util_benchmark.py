@@ -15,7 +15,7 @@ from .util_format import format_table
 async def benchmark_executor(
     sync_executor: TaskExecutor,
     async_executor: TaskExecutor,
-    task_source: Iterable,
+    task_source: Iterable[Any],
     sync_modes: list[str] | None = None,
     async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -29,17 +29,17 @@ async def benchmark_executor(
     :param async_modes: 异步执行模式列表，默认 ["async"]
     :return: 包含测试结果的字典
     """
-    task_list = list(task_source)
+    task_list: list[Any] = list(task_source)
     sync_modes = sync_modes or ["serial", "thread"]
     async_modes = async_modes or ["async"]
 
-    use_time = []
-    results = []
+    use_time: list[list[float]] = []
+    results: list[list[tuple[Any, Any]]] = []
     for mode in sync_modes:
-        cloned_executor = clone_executor(sync_executor)
+        cloned_executor: TaskExecutor = clone_executor(sync_executor)
         cloned_executor.set_execution_mode(mode)
 
-        start = time.perf_counter()
+        start: float = time.perf_counter()
         cloned_executor.start(task_list)
         use_time.append([time.perf_counter() - start])
         results.append(cloned_executor.get_success_pairs())
@@ -53,8 +53,8 @@ async def benchmark_executor(
         use_time.append([time.perf_counter() - start])
         results.append(cloned_executor.get_success_pairs())
 
-    use_time_table = format_table(use_time, sync_modes + async_modes, ["Time"])
-    results_table = format_table(results, sync_modes + async_modes, [])
+    use_time_table: str = format_table(use_time, sync_modes + async_modes, ["Time"])
+    results_table: str = format_table(results, sync_modes + async_modes, [])
 
     print(f"Use time:\n{use_time_table}\n")
     print(f"Results:\n{results_table}\n")
@@ -69,7 +69,7 @@ async def benchmark_executor(
 
 def benchmark_graph(
     graph: TaskGraph,
-    init_tasks_dict: dict[str, Iterable],
+    init_tasks_dict: dict[str, Iterable[Any]],
     stage_modes: list[str] | None = None,
     execution_modes: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -85,29 +85,29 @@ def benchmark_graph(
     stage_modes = stage_modes or ["serial", "thread"]
     execution_modes = execution_modes or ["serial", "thread"]
 
-    base_tasks = {tag: list(tasks) for tag, tasks in init_tasks_dict.items()}
+    base_tasks: dict[str, list[Any]] = {tag: list(tasks) for tag, tasks in init_tasks_dict.items()}
 
-    test_table_list = []
-    fail_by_error_dict = {}
-    fail_by_stage_dict = {}
+    test_table_list: list[list[float]] = []
+    fail_by_error_dict: dict[str, Any] = {}
+    fail_by_stage_dict: dict[str, Any] = {}
 
     for stage_mode in stage_modes:
-        time_list = []
+        time_list: list[float] = []
         for execution_mode in execution_modes:
-            cloned_graph = clone_graph(graph)
+            cloned_graph: TaskGraph = clone_graph(graph)
             cloned_graph.set_graph_mode(stage_mode, execution_mode)
 
-            run_tasks = {tag: list(tasks) for tag, tasks in base_tasks.items()}
-            start_time = time.perf_counter()
-            cloned_graph.start_graph(run_tasks)
+            run_tasks: dict[str, list[Any]] = {tag: list(tasks) for tag, tasks in base_tasks.items()}
+            start_time: float = time.perf_counter()
+            cloned_graph.start_graph(run_tasks)  # type: ignore[arg-type]
             time_list.append(time.perf_counter() - start_time)
 
-            fail_by_stage_dict.update(cloned_graph.get_fail_by_stage_dict())
-            fail_by_error_dict.update(cloned_graph.get_fail_by_error_dict())
+            fail_by_stage_dict.update(cloned_graph.get_fail_by_stage_dict())  # type: ignore[arg-type]
+            fail_by_error_dict.update(cloned_graph.get_fail_by_error_dict())  # type: ignore[arg-type]
 
         test_table_list.append(time_list)
 
-    time_table = format_table(
+    time_table: str = format_table(
         test_table_list,
         stage_modes,
         execution_modes,

@@ -4,12 +4,15 @@ from __future__ import annotations
 import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .core_envelope import TaskEnvelope
 from .util_types import CTreeEvent, TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from concurrent.futures import Future
+
     from ..stage.core_executor import TaskExecutor
 
 
@@ -17,7 +20,7 @@ class TaskDispatch:
     """任务调度器，负责以串行、线程或异步方式执行单个任务。"""
 
     # ==== 初始化 ====
-    def __init__(self, task_executor: TaskExecutor, func, max_workers: int):
+    def __init__(self, task_executor: TaskExecutor, func: Callable[..., Any], max_workers: int):
         """
         初始化任务运行器
 
@@ -52,10 +55,10 @@ class TaskDispatch:
         :return: 合并后的终止信号
         """
         parent_ids = termination_pool.ids
-        termination_id = self.task_executor.ctree_client.emit(
+        termination_id: int = self.task_executor.ctree_client.emit(  # type: ignore[union-attr]
             CTreeEvent.TERMINATION_MERGE,
             parents=parent_ids,
-            payload=self.task_executor.get_summary(),
+            payload=self.task_executor.get_summary(),  # type: ignore[arg-type]
         )
         signal = TerminationSignal(
             termination_id,
@@ -93,7 +96,8 @@ class TaskDispatch:
         for retry_time in range(max_retries + 1):
             try:
                 start_time = time.perf_counter()
-                result = self.func(*self.task_executor.get_args(task))
+                args: tuple[Any, ...] = self.task_executor.get_args(task)
+                result: Any = self.func(*args)
                 self.task_executor.process_task_success(
                     task_envelope, result, start_time
                 )
@@ -120,7 +124,8 @@ class TaskDispatch:
         for retry_time in range(max_retries + 1):
             try:
                 start_time = time.perf_counter()
-                result = await self.func(*self.task_executor.get_args(task))
+                args: tuple[Any, ...] = self.task_executor.get_args(task)
+                result: Any = await self.func(*args)
                 self.task_executor.process_task_success(
                     task_envelope, result, start_time
                 )
@@ -164,7 +169,7 @@ class TaskDispatch:
         task_queues = self.task_executor.task_queues
         result_queues = self.task_executor.result_queues
 
-        futures = []  # 用于存储线程池提交的任务
+        futures: list[Future[None]] = []  # 用于存储线程池提交的任务
 
         while True:
             envelope = task_queues.get()
@@ -198,7 +203,7 @@ class TaskDispatch:
         result_queues = self.task_executor.result_queues
 
         semaphore = asyncio.Semaphore(self.max_workers)
-        pending: set[asyncio.Task] = set()
+        pending: set[asyncio.Task[None]] = set()
 
         async def sem_worker(envelope: TaskEnvelope) -> None:
             async with semaphore:

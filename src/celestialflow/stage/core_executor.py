@@ -2,17 +2,18 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 from collections import defaultdict
 from collections.abc import Iterable
 from queue import Queue as ThreadQueue
 from typing import Any, Callable
 
-from celestialtree import (
-    Client as CelestialTreeClient,
+from celestialtree import (  # type: ignore[import-unresolved]
+    Client as CelestialTreeClient,  # type: ignore[reportUnknownVariableType]
 )
-from celestialtree import (
-    NullClient as NullCelestialTreeClient,
+from celestialtree import (  # type: ignore[import-unresolved]
+    NullClient as NullCelestialTreeClient,  # type: ignore[reportUnknownVariableType]
 )
 
 from ..observability import BaseObserver
@@ -43,7 +44,7 @@ class TaskExecutor:
     def __init__(
         self,
         name: str,
-        func: Callable,
+        func: Callable[..., Any],
         execution_mode: str = "serial",
         max_workers: int = 20,
         max_retries: int = 1,
@@ -149,7 +150,7 @@ class TaskExecutor:
         """
         初始化输入输出队列
         """
-        queue = ThreadQueue()
+        queue: ThreadQueue[Any] = ThreadQueue()
         self.task_queues = make_task_in_queue(
             queue=queue,
             executor=self,
@@ -171,13 +172,13 @@ class TaskExecutor:
             getattr(observer, method_name)(*args, **kwargs)
 
     # ==== 配置 ====
-    def _set_func(self, func: Callable) -> None:
+    def _set_func(self, func: Callable[..., Any]) -> None:
         """
         设置执行函数
 
         :param func: 执行函数
         """
-        self.func = func
+        self.func: Callable[..., Any] = func
         self._func_name = func.__name__
 
     def set_execution_mode(self, execution_mode: str) -> None:
@@ -194,7 +195,7 @@ class TaskExecutor:
 
         if getattr(
             self, "execution_mode", None
-        ) == "async" and not asyncio.iscoroutinefunction(self.func):
+        ) == "async" and not inspect.iscoroutinefunction(self.func):
             raise RuntimeError(
                 f"execution_mode is 'async' but '{self.func.__name__}' is not a coroutine function"
             )
@@ -212,7 +213,7 @@ class TaskExecutor:
         :param http_port: HTTP 端口
         :param grpc_port: gRPC 端口
         """
-        self.ctree_client = CelestialTreeClient(
+        self.ctree_client: Any = CelestialTreeClient(
             host=host, http_port=http_port, grpc_port=grpc_port, transport="grpc"
         )
 
@@ -222,7 +223,7 @@ class TaskExecutor:
 
         :param event_id: 事件ID
         """
-        self.ctree_client = NullCelestialTreeClient(event_id)
+        self.ctree_client: Any = NullCelestialTreeClient(event_id)
 
     def set_name(self, name: str) -> None:
         self._name = name
@@ -298,7 +299,7 @@ class TaskExecutor:
             else f"{self.execution_mode}-{self.max_workers}"
         )
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """
         获取当前节点的状态快照
 
@@ -312,7 +313,7 @@ class TaskExecutor:
             "execution_mode": self._get_execution_mode_desc(),
         }
 
-    def get_counts(self) -> dict:
+    def get_counts(self) -> dict[str, Any]:
         """
         获取当前节点的计数器
 
@@ -331,7 +332,7 @@ class TaskExecutor:
 
     # ==== 任务输入 ====
     def _prepare_task_envelopes(
-        self, task_source: Iterable
+        self, task_source: Iterable[Any]
     ) -> list[TaskEnvelope | TerminationSignal]:
         """
         构建所有任务信封和终止信号，返回待入队列表。
@@ -375,7 +376,7 @@ class TaskExecutor:
         )
         return items
 
-    def _put_task_queues(self, task_source: Iterable) -> None:
+    def _put_task_queues(self, task_source: Iterable[Any]) -> None:
         """
         将任务放入任务队列
 
@@ -384,7 +385,7 @@ class TaskExecutor:
         for item in self._prepare_task_envelopes(task_source):
             self.task_queues.put(item)
 
-    def get_args(self, task: Any) -> tuple:
+    def get_args(self, task: Any) -> tuple[Any, ...]:
         """
         从 obj 中获取参数。可根据需要覆写
         在这个示例中，我们根据 unpack_task_args 决定是否解包参数
@@ -413,20 +414,20 @@ class TaskExecutor:
 
         :return: 处理后的结果列表
         """
-        result_dict = dict()
+        result_dict: dict[Any, Any] = dict()
         for task, result in self.get_success_pairs():
             result_dict[task] = result
         for task, error in self.get_error_pairs():
             result_dict[task] = str(error)
         return result_dict
 
-    def handle_error_dict(self) -> dict[Any, list]:
+    def handle_error_dict(self) -> dict[Any, list[Any]]:
         """
         处理错误字典。可根据需要覆写
 
         在这个示例中，我们将列表合并为错误组
         """
-        error_groups = defaultdict(list)
+        error_groups: defaultdict[Any, list[Any]] = defaultdict(list)
         for task, error in self.get_error_pairs():
             error_groups[error].append(task)
 
@@ -607,7 +608,7 @@ class TaskExecutor:
         )
 
     # ==== 启动 ====
-    def start(self, task_source: Iterable) -> None:
+    def start(self, task_source: Iterable[Any]) -> None:
         """
         根据 execution_mode 的值，选择串行、线程或异步执行任务
 
@@ -655,7 +656,7 @@ class TaskExecutor:
             self.fail_spout.stop()
             self.success_spout.stop()
 
-    async def start_async(self, task_source: Iterable) -> None:
+    async def start_async(self, task_source: Iterable[Any]) -> None:
         """
         异步地执行任务
 
@@ -719,4 +720,4 @@ class TaskExecutor:
 
     def _release_client(self) -> None:
         """释放事件树客户端引用"""
-        self.ctree_client = NullCelestialTreeClient()
+        self.ctree_client: Any = NullCelestialTreeClient()

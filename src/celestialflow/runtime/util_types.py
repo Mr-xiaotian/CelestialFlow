@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from enum import IntEnum
 from threading import Lock
+from types import TracebackType
 
-from celestialtree import NodeLabelStyle
+from celestialtree import NodeLabelStyle  # type: ignore[import-unresolved]
 
 
 class TerminationSignal:
@@ -40,7 +41,7 @@ class NoOpContext:
         """进入空上下文"""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
         """退出空上下文"""
         pass
 
@@ -138,4 +139,4 @@ class CTreeEvent:
     TERMINATION_MERGE = "termination.merge"
 
 
-STAGE_STYLE = NodeLabelStyle(template="{base}  {payload.name}  ‹{type}›", missing="-")
+STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(template="{base}  {payload.name}  ‹{type}›", missing="-")  # type: ignore[no-any-unimported]

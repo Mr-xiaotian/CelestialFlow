@@ -1,4 +1,6 @@
 # graph/core_structure.py
+from typing import Any
+
 from ..stage import TaskStage
 from .core_graph import TaskGraph
 
@@ -32,7 +34,7 @@ class TaskChain(TaskGraph):
             self.connect([stages[num]], [stages[num + 1]])
 
     def start_chain(
-        self, init_tasks_dict: dict, put_termination_signal: bool = True
+        self, init_tasks_dict: dict[str, Any], put_termination_signal: bool = True
     ) -> None:
         """
         启动任务链
@@ -40,7 +42,7 @@ class TaskChain(TaskGraph):
         :param init_tasks_dict: 初始化任务字典
         :param put_termination_signal: 是否在任务完成后发送终止信号
         """
-        self.start_graph(init_tasks_dict, put_termination_signal)
+        self.start_graph(init_tasks_dict, put_termination_signal)  # type: ignore[arg-type]  # type: ignore[arg-type]
 
 
 class TaskCross(TaskGraph):
@@ -65,7 +67,7 @@ class TaskCross(TaskGraph):
         """
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
-        all_stages = []
+        all_stages: list[TaskStage] = []
         for i, curr_layer in enumerate(layers):
             for index, stage in enumerate(curr_layer):
                 stage.set_stage_mode("thread")
@@ -77,7 +79,7 @@ class TaskCross(TaskGraph):
             self.connect(layers[i], layers[i + 1])
 
     def start_cross(
-        self, init_tasks_dict: dict, put_termination_signal: bool = True
+        self, init_tasks_dict: dict[str, Any], put_termination_signal: bool = True
     ) -> None:
         """
         启动多层交叉结构任务图
@@ -85,7 +87,7 @@ class TaskCross(TaskGraph):
         :param init_tasks_dict: 初始化任务字典
         :param put_termination_signal: 是否在任务完成后发送终止信号
         """
-        self.start_graph(init_tasks_dict, put_termination_signal)
+        self.start_graph(init_tasks_dict, put_termination_signal)  # type: ignore[arg-type]  # type: ignore[arg-type]
 
 
 class TaskGrid(TaskGraph):
@@ -111,7 +113,7 @@ class TaskGrid(TaskGraph):
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
         rows, cols = len(grid), len(grid[0])
-        all_stages = []
+        all_stages: list[TaskStage] = []
         for i in range(rows):
             for j in range(cols):
                 curr = grid[i][j]
@@ -129,7 +131,7 @@ class TaskGrid(TaskGraph):
                     self.connect([curr], [grid[i][j + 1]])
 
     def start_grid(
-        self, init_tasks_dict: dict, put_termination_signal: bool = True
+        self, init_tasks_dict: dict[str, Any], put_termination_signal: bool = True
     ) -> None:
         """
         启动任务网格结构
@@ -137,7 +139,7 @@ class TaskGrid(TaskGraph):
         :param init_tasks_dict: 初始化任务字典
         :param put_termination_signal: 是否在任务完成后发送终止信号
         """
-        self.start_graph(init_tasks_dict, put_termination_signal)
+        self.start_graph(init_tasks_dict, put_termination_signal)  # type: ignore[arg-type]
 
 
 # ========有环图========
@@ -164,7 +166,7 @@ class TaskLoop(TaskGraph):
             self.connect([stages[num]], [next_stage])
 
     def start_loop(
-        self, init_tasks_dict: dict, put_termination_signal: bool = False
+        self, init_tasks_dict: dict[str, Any], put_termination_signal: bool = False
     ) -> None:
         """
         启动任务环, 环是自锁结构, 建议外部注入式停止
@@ -172,7 +174,7 @@ class TaskLoop(TaskGraph):
         :param init_tasks_dict: 任务列表
         :param put_termination_signal: 是否在任务完成后发送终止信号
         """
-        self.start_graph(init_tasks_dict, put_termination_signal)
+        self.start_graph(init_tasks_dict, put_termination_signal)  # type: ignore[arg-type]
 
 
 class TaskWheel(TaskGraph):
@@ -205,7 +207,7 @@ class TaskWheel(TaskGraph):
             self.connect([node], [next_stage])
 
     def start_wheel(
-        self, init_tasks_dict: dict, put_termination_signal: bool = True
+        self, init_tasks_dict: dict[str, Any], put_termination_signal: bool = True
     ) -> None:
         """
         启动任务轮结构
@@ -213,7 +215,7 @@ class TaskWheel(TaskGraph):
         :param init_tasks_dict: 任务列表
         :param put_termination_signal: 是否注入终止信号
         """
-        self.start_graph(init_tasks_dict, put_termination_signal)
+        self.start_graph(init_tasks_dict, put_termination_signal)  # type: ignore[arg-type]
 
 
 class TaskComplete(TaskGraph):
@@ -238,7 +240,7 @@ class TaskComplete(TaskGraph):
             self.connect([stage], others)
 
     def start_complete(
-        self, init_tasks_dict: dict, put_termination_signal: bool = False
+        self, init_tasks_dict: dict[str, Any], put_termination_signal: bool = False
     ) -> None:
         """
         启动任务完全图, 建议外部注入式停止
@@ -246,4 +248,4 @@ class TaskComplete(TaskGraph):
         :param init_tasks_dict: 任务列表
         :param put_termination_signal: 是否在任务完成后发送终止信号
         """
-        self.start_graph(init_tasks_dict, put_termination_signal)
+        self.start_graph(init_tasks_dict, put_termination_signal)  # type: ignore[arg-type]

@@ -4,7 +4,7 @@ from threading import Lock
 from .util_factories import (
     make_counter,
 )
-from .util_types import SumCounter
+from .util_types import SumCounter, ValueWrapper
 
 
 class TaskMetrics:
@@ -117,7 +117,7 @@ class TaskMetrics:
         self.retry_exceptions = self.retry_exceptions + tuple(exceptions)
 
     # ==== 计数器 ====
-    def append_task_counter(self, counter) -> None:
+    def append_task_counter(self, counter: ValueWrapper) -> None:
         """
         添加任务总数计数器
 

@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from queue import Queue
 from time import localtime, strftime
-from typing import TextIO
+from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
 from ..runtime.util_errors import LogLevelError
@@ -15,7 +16,7 @@ class LogSpout(BaseSpout):
     日志监听线程，用于将日志写入文件
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化日志监听器"""
         super().__init__()
 
@@ -32,7 +33,7 @@ class LogSpout(BaseSpout):
         # 打开日志文件
         self._file = self.log_path.open("a", encoding="utf-8")
 
-    def _handle_record(self, record: dict) -> None:
+    def _handle_record(self, record: dict[str, Any]) -> None:
         """
         处理单条日志记录，写入日志文件
 
@@ -62,7 +63,7 @@ class LogInlet(BaseInlet):
     多进程安全日志包装类，所有日志通过队列发送到监听进程写入
     """
 
-    def __init__(self, log_queue, log_level: str = "SUCCESS") -> None:
+    def __init__(self, log_queue: Queue[Any], log_level: str = "SUCCESS") -> None:
         """
         初始化日志收集器
 
@@ -351,12 +352,12 @@ class LogInlet(BaseInlet):
             f"[Reporter] Pull 'task injection' failed: {type(exception).__name__}({exception}).",
         )
 
-    def inject_tasks_success(self, target_node: str, task_datas) -> None:
+    def inject_tasks_success(self, target_node: str, task_datas: Any) -> None:
         """记录任务注入成功"""
         self._log("INFO", f"[Reporter] Inject tasks {task_datas} into '{target_node}'.")
 
     def inject_tasks_failed(
-        self, target_node: str, task_datas, exception: Exception
+        self, target_node: str, task_datas: Any, exception: Exception
     ) -> None:
         """记录任务注入失败"""
         self._log(

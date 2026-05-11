@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 from queue import Queue as ThreadQueue
+from typing import Any, Callable
 
 from ..persistence import FailInlet, LogInlet
 from ..runtime import TaskInQueue, TaskOutQueue
@@ -18,10 +20,10 @@ class TaskStage(TaskExecutor):
     # ==== 初始化 ====
     def __init__(
         self,
-        name,
-        func,
-        stage_mode="serial",
-        **kwargs,
+        name: str,
+        func: Callable[..., Any],
+        stage_mode: str = "serial",
+        **kwargs: Any,
     ):
         """
         :param name: 节点名称
@@ -56,7 +58,7 @@ class TaskStage(TaskExecutor):
         if execution_mode not in valid_modes:
             raise ExecutionModeError(execution_mode)
 
-        if execution_mode == "async" and not asyncio.iscoroutinefunction(self.func):
+        if execution_mode == "async" and not inspect.iscoroutinefunction(self.func):
             raise RuntimeError(
                 f"execution_mode is 'async' but '{self.func.__name__}' is not a coroutine function"
             )
@@ -93,7 +95,7 @@ class TaskStage(TaskExecutor):
         self.result_queues = result_queues
 
     def set_inlet(
-        self, fail_queue: ThreadQueue, log_queue: ThreadQueue
+        self, fail_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]
     ) -> None:
         """
         初始化收集器
@@ -108,7 +110,7 @@ class TaskStage(TaskExecutor):
         self.log_inlet = LogInlet(self.log_queue, self.log_level)
 
     # ==== 绑定 ====
-    def get_binding_counter(self, _downstream_tag: str):
+    def get_binding_counter(self, _downstream_tag: str) -> Any:
         """
         返回下游 stage 应绑定的计数器，子类可覆写。
 
@@ -136,7 +138,7 @@ class TaskStage(TaskExecutor):
         """
         return self.stage_mode
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """
         获取当前节点的状态快照
             - name / execution_mode 等来自 TaskExecutor（执行实体视角）
@@ -168,9 +170,9 @@ class TaskStage(TaskExecutor):
         self,
         input_queue: TaskInQueue,
         output_queues: TaskOutQueue,
-        fail_queue: ThreadQueue,
-        log_queue: ThreadQueue,
-    ):
+        fail_queue: ThreadQueue[Any],
+        log_queue: ThreadQueue[Any],
+    ) -> None:
         """
         根据 execution_mode 的值，选择串行、线程或异步执行任务
 

@@ -13,7 +13,7 @@ class BaseSpout:
 
     def __init__(self) -> None:
         """初始化监听器及其内部队列和线程引用。"""
-        self.queue: Queue = Queue()
+        self.queue: Queue[Any] = Queue()
         self._thread: Thread | None = None
 
     def _before_start(self) -> None:
@@ -44,7 +44,7 @@ class BaseSpout:
             except Exception:  # ← 新增：防止线程崩溃
                 continue  # 或记录到 stderr，至少不丢后续记录
 
-    def get_queue(self) -> Queue:
+    def get_queue(self) -> Queue[Any]:
         """获取监听器的输入队列。"""
         return self.queue
 
