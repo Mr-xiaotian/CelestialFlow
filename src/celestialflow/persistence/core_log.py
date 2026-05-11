@@ -63,7 +63,7 @@ class LogInlet(BaseInlet):
     多进程安全日志包装类，所有日志通过队列发送到监听进程写入
     """
 
-    def __init__(self, log_queue: Queue[Any], log_level: str = "SUCCESS") -> None:
+    def __init__(self, log_queue: Queue[Any], log_level: str = "INFO") -> None:
         """
         初始化日志收集器
 

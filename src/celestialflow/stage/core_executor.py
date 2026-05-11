@@ -47,7 +47,7 @@ class TaskExecutor:
         max_info: int = 50,
         unpack_task_args: bool = False,
         enable_duplicate_check: bool = True,
-        log_level: str = "SUCCESS",
+        log_level: str = "INFO",
     ):
         """
         初始化 TaskExecutor

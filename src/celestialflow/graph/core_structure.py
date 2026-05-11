@@ -14,7 +14,7 @@ class TaskChain(TaskGraph):
         self,
         stages: list[TaskStage],
         chain_mode: str = "serial",
-        log_level: str = "SUCCESS",
+        log_level: str = "INFO",
     ) -> None:
         """
         TaskChain: 线性任务链结构
@@ -53,7 +53,7 @@ class TaskCross(TaskGraph):
         self,
         layers: list[list[TaskStage]],
         schedule_mode: str = "eager",
-        log_level: str = "SUCCESS",
+        log_level: str = "INFO",
     ) -> None:
         """
         TaskCross: 多层任务交叉结构
@@ -98,7 +98,7 @@ class TaskGrid(TaskGraph):
         self,
         grid: list[list[TaskStage]],
         schedule_mode: str = "eager",
-        log_level: str = "SUCCESS",
+        log_level: str = "INFO",
     ) -> None:
         """
         TaskGrid: 任务网格结构
@@ -147,7 +147,7 @@ class TaskGrid(TaskGraph):
 class TaskLoop(TaskGraph):
     """有环图结构，节点首尾相连形成闭环。"""
 
-    def __init__(self, stages: list[TaskStage], log_level: str = "SUCCESS") -> None:
+    def __init__(self, stages: list[TaskStage], log_level: str = "INFO") -> None:
         """
         TaskLoop:  任务环结构
         由于环的结构特性, 强制使用 'eager' 节点模式
@@ -182,7 +182,7 @@ class TaskWheel(TaskGraph):
     """轮状结构，中心节点连接到一个环上。"""
 
     def __init__(
-        self, center: TaskStage, ring: list[TaskStage], log_level: str = "SUCCESS"
+        self, center: TaskStage, ring: list[TaskStage], log_level: str = "INFO"
     ) -> None:
         """
         wheel: 特殊的有环图, 他有结构意义上的起点, 中心节点连向环, 环相连成闭环
@@ -222,7 +222,7 @@ class TaskWheel(TaskGraph):
 class TaskComplete(TaskGraph):
     """完全图结构，每个节点都连接到除自己以外的所有其他节点。"""
 
-    def __init__(self, stages: list[TaskStage], log_level: str = "SUCCESS") -> None:
+    def __init__(self, stages: list[TaskStage], log_level: str = "INFO") -> None:
         """
         TaskComplete: 完全图结构，每个节点都连向除自己以外的所有其他节点
 

@@ -67,7 +67,7 @@ class TaskGraph:
     def __init__(
         self,
         schedule_mode: str = "eager",
-        log_level: str = "SUCCESS",
+        log_level: str = "INFO",
     ) -> None:
         """
         初始化 TaskGraph 实例。
@@ -86,7 +86,7 @@ class TaskGraph:
                 节点按层级顺序逐层启动，确保上层所有任务完成后再启动下一层。
                 更利于调试、性能分析和阶段性资源控制。
 
-        :param log_level: str, optional, default = 'SUCCESS'
+        :param log_level: str, optional, default = 'INFO'
             日志级别，支持以下级别：
             - 'TRACE'
             - 'DEBUG'
@@ -209,11 +209,11 @@ class TaskGraph:
         else:
             raise ScheduleModeError(schedule_mode)
 
-    def _set_log_level(self, level: str = "SUCCESS") -> None:
+    def _set_log_level(self, level: str = "INFO") -> None:
         """
         设置日志级别
 
-        :param level: 日志级别, 默认为 "SUCCESS"
+        :param level: 日志级别, 默认为 "INFO"
         """
         self.log_level = level.upper()
 
