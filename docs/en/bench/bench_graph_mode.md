@@ -20,6 +20,11 @@ Compare the task graph execution performance of complex DAGs across different co
 - **Input**: `range(10)`
 - **Enabled services**: Reporter
 
+### `bench_graph_2`
+- **Structure**: 4-node DAG (Splitter -> A -> [B, C]), using `TaskSplitter` to expand input
+- **Tasks**: Pure computation (add one, multiply by two), testing framework scheduling throughput ceiling
+- **Input**: `range(10_000)` (expanded by Splitter into 10,000 independent tasks)
+
 ## Key Configuration
 
 - `stage_modes = ["serial", "thread"]`
@@ -65,10 +70,24 @@ python bench/bench_graph_mode.py
 - `async` outperforms `thread` in I/O-intensive scenarios (coroutine switching overhead is lower than thread switching)
 - `thread` (threaded layout) significantly outperforms `serial` (single-thread serial layout), as stages can start in parallel
 
+### `bench_graph_2` — 4-node DAG (Splitter→A→[B,C]), pure computation, 10,000 tasks
+
+| stage_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 1.09s | 3.89s | 10.73s |
+| **thread** | 2.79s | 5.30s | 11.40s |
+
+- **`serial` + `serial` is fastest** (1.09s): pure computation with no I/O waiting, direct function calls have zero overhead
+- `thread` is 3.5x slower than `serial`: thread pool submission + Future synchronization overhead is amplified for microsecond-level tasks
+- `async` is 10x slower than `serial`: each task creates a coroutine object + event loop scheduling, but there are no I/O wait points to exploit concurrency
+- `stage_mode=thread` also adds overhead: inter-stage thread scheduling is pure burden in computation-only scenarios
+- **Conclusion: pure computation tasks should use `serial` + `serial` to avoid concurrency scheduling overhead**
+
 ### Summary
 
 - `stage_mode=thread` is the optimal choice for I/O-intensive scenarios
 - `execution_mode=async` performs best in I/O-intensive scenarios, followed by `thread`, then `serial`
+- **In pure computation scenarios, `serial` is fastest** — `thread` and `async` scheduling overhead cannot be amortized without I/O waiting, becoming a bottleneck instead
 - `async` requires stage functions to be async functions, hence separate sync_graph and async_graph are needed
 - Total time includes: thread startup + task execution + queue transmission + termination signal propagation
 

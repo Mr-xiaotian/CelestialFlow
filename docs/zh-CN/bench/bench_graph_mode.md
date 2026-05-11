@@ -20,6 +20,11 @@
 - **输入**：`range(10)`
 - **启用服务**：Reporter
 
+### `bench_graph_2`
+- **结构**：4 节点 DAG（Splitter → A → [B, C]），使用 `TaskSplitter` 展开输入
+- **任务**：纯计算（加一、乘二），测试框架调度吞吐上限
+- **输入**：`range(10_000)`（经 Splitter 展开为 10,000 个独立任务）
+
 ## 关键配置
 
 - `stage_modes = ["serial", "thread"]`
@@ -65,10 +70,24 @@ python bench/bench_graph_mode.py
 - `async` 在 I/O 密集场景下优于 `thread`（协程切换开销小于线程切换）
 - `thread`（线程布局）在 I/O 密集场景下显著优于 `serial`（单线程串行布局），各 stage 可并行启动
 
+### `bench_graph_2` — 4 节点 DAG（Splitter→A→[B,C]），纯计算，10,000 个任务
+
+| stage_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 1.09s | 3.89s | 10.73s |
+| **thread** | 2.79s | 5.30s | 11.40s |
+
+- **`serial` + `serial` 最快**（1.09s）：纯计算无 I/O 等待，直接函数调用零开销
+- `thread` 比 `serial` 慢 3.5x：线程池提交 + Future 同步的开销在微秒级任务上被放大
+- `async` 比 `serial` 慢 10x：每个任务都要创建协程对象 + event loop 调度，但没有任何 I/O 等待点可以利用并发
+- `stage_mode=thread` 同样增加了开销：stage 间的线程调度在纯计算场景下是纯负担
+- **结论：纯计算密集型任务应使用 `serial` + `serial`，避免并发调度开销**
+
 ### 总结
 
 - `stage_mode=thread` 在 I/O 密集场景下是最优选择
 - `execution_mode=async` 在 I/O 密集场景下表现最佳，`thread` 次之，`serial` 最慢
+- **纯计算场景下 `serial` 最快**——`thread` 和 `async` 的调度开销在无 I/O 等待时无法被摊销，反而成为瓶颈
 - `async` 需要 stage 的函数为 async 函数，因此需要分别提供 sync_graph 和 async_graph
 - 总耗时包含：线程启动 + 任务执行 + 队列传输 + 终止信号传播
 
