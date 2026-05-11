@@ -318,7 +318,7 @@ class TaskWebServer:
             return tasks_to_send
 
         # ---- 发送接口 ----
-        @app.post("/api/push_config")
+        @app.post("/api/push_config", response_model=None)
         async def push_config(data: WebConfigModel) -> dict[str, bool] | JSONResponse:
             """
             保存前端配置
@@ -456,7 +456,7 @@ class TaskWebServer:
             self._store_revs["history"] += 1
             return {"ok": True}
 
-        @app.post("/api/push_injection_tasks")
+        @app.post("/api/push_injection_tasks", response_model=None)
         async def push_injection_tasks(data: TaskInjectionModel) -> dict[str, bool] | JSONResponse:
             """
             将前端提交的注入任务追加到待执行队列。
