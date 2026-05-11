@@ -1,6 +1,7 @@
 # utils/util_clone.py
 from __future__ import annotations
 
+import inspect
 from collections import deque
 from typing import Any
 
@@ -49,7 +50,12 @@ def clone_stage(stage: TaskStage) -> TaskStage:
     """
     kwargs: dict[str, Any] = _get_clone_init_kwargs(stage)
     kwargs["stage_mode"] = stage.get_stage_mode()
-    cloned: TaskStage = TaskStage(**kwargs)
+
+    stage_cls = type(stage)
+    init_params = set(inspect.signature(stage_cls.__init__).parameters.keys()) - {"self"}
+    filtered_kwargs = {k: v for k, v in kwargs.items() if k in init_params}
+
+    cloned: TaskStage = stage_cls(**filtered_kwargs)
 
     cloned.add_retry_exceptions(*stage.metrics.retry_exceptions)
     return cloned

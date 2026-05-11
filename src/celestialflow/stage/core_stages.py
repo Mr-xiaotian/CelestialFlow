@@ -35,6 +35,9 @@ class TaskSplitter(TaskStage):
         """初始化 split 计数器，用于跟踪 split 产生的子任务总数"""
         self.split_counter = ValueWrapper(0)
 
+    def set_execution_mode(self, execution_mode: str) -> None:
+        self.execution_mode = "serial"
+
     def get_binding_counter(self, _downstream_tag: str) -> Any:
         """
         返回下游 stage 应绑定的计数器
