@@ -15,9 +15,9 @@ def no_op(n):
 
 
 load_dotenv()
-ctree_host = os.getenv("CTREE_HOST")
-ctree_http_port = os.getenv("CTREE_HTTP_PORT")
-ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
+ctree_host = os.getenv("CTREE_HOST", "127.0.0.1")
+ctree_http_port = int(os.getenv("CTREE_HTTP_PORT", "7777"))
+ctree_grpc_port = int(os.getenv("CTREE_GRPC_PORT", "7778"))
 
 
 def bench_no_ctree():

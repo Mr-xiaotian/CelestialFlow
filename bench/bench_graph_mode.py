@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 from celestialflow import TaskGraph, TaskStage, benchmark_graph
 
 load_dotenv()
-report_host = os.getenv("REPORT_HOST")
-report_port = os.getenv("REPORT_PORT")
+report_host = os.getenv("REPORT_HOST", "127.0.0.1")
+report_port = int(os.getenv("REPORT_PORT", "5000"))
 
 
 def sleep_1(n):
@@ -111,7 +111,7 @@ def bench_graph_0():
     stage_modes = ["serial", "thread"]
     execution_modes = ["serial", "thread"]
 
-    benchmark_graph(graph, input_tasks, stage_modes, execution_modes)
+    benchmark_graph(graph, input_tasks, stage_modes, execution_modes)  # type: ignore[arg-type]
 
 
 def bench_graph_1():
@@ -164,7 +164,7 @@ def bench_graph_1():
     stage_modes = ["serial", "thread"]
     execution_modes = ["serial", "thread"]
 
-    benchmark_graph(graph, input_tasks, stage_modes, execution_modes)
+    benchmark_graph(graph, input_tasks, stage_modes, execution_modes)  # type: ignore[arg-type]
 
 
 if __name__ == "__main__":

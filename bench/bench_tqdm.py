@@ -8,12 +8,13 @@ def test_tqdm_performance(use_tqdm=True, data_size=10_000_000):
 
     # 阶段一：数据准备
     start_prepare = time.perf_counter()
+    pbar = None
     if use_tqdm:
         pbar = tqdm(total=0, desc="Preparing and Processing", dynamic_ncols=True)
     data = []
     for i in range(data_size):
         data.append(i)
-    if use_tqdm:
+    if pbar is not None:
         pbar.total = len(data)
     end_prepare = time.perf_counter()
 
@@ -22,9 +23,9 @@ def test_tqdm_performance(use_tqdm=True, data_size=10_000_000):
     for item in data:
         _ = item * 2  # 模拟处理
         # time.sleep(0.00001)
-        if use_tqdm:
+        if pbar is not None:
             pbar.update(1)
-    if use_tqdm:
+    if pbar is not None:
         pbar.close()
     end_process = time.perf_counter()
 

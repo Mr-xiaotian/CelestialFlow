@@ -5,14 +5,14 @@ import threading
 import time
 from multiprocessing import Manager, Process, Value
 
-import redis
+import redis  # type: ignore[import-unresolved]
 from dotenv import load_dotenv
 
 N = 10000
 
 load_dotenv()
-redis_host = os.getenv("REDIS_HOST")
-redis_port = os.getenv("REDIS_PORT")
+redis_host = os.getenv("REDIS_HOST", "127.0.0.1")
+redis_port = int(os.getenv("REDIS_PORT", "6379"))
 redis_password = os.getenv("REDIS_PASSWORD")
 
 # =======================
