@@ -49,10 +49,11 @@ def _build_structure_subgraph(
     :return: 节点的 JSON 字典
     """
     stage_tag = task_stage.get_tag()
-    node = {
+    next_stages: list[dict[str, Any]] = []
+    node: dict[str, Any] = {
         **task_stage.get_summary(),
         "is_ref": False,
-        "next_stages": [],
+        "next_stages": next_stages,
     }
 
     if stage_tag in visited_stages:

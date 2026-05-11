@@ -80,8 +80,8 @@ class TaskExecutor:
         self._observers: list[BaseObserver] = []
 
         self.set_nullctree()
-        self.task_queues: TaskInQueue = None
-        self.result_queues: TaskOutQueue = None
+        self.task_queues: TaskInQueue = None  # type: ignore[assignment]
+        self.result_queues: TaskOutQueue = None  # type: ignore[assignment]
         self.fail_queue: Any = None
         self.log_queue: Any = None
         self._init_metrics()
@@ -714,10 +714,9 @@ class TaskExecutor:
 
     def release_queue(self) -> None:
         """释放任务队列、结果队列和失败队列的引用"""
-        self.task_queues = None
-        self.result_queues = None
-        self.fail_queue = None
+        self.task_queues = None  # type: ignore[assignment]
+        self.result_queues = None  # type: ignore[assignment]        self.fail_queue = None
 
     def _release_client(self) -> None:
         """释放事件树客户端引用"""
-        self.ctree_client = None
+        self.ctree_client = NullCelestialTreeClient()

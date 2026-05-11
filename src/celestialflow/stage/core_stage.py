@@ -65,7 +65,7 @@ class TaskStage(TaskExecutor):
         if hasattr(self, "metrics"):
             self.metrics.set_execution_mode(execution_mode)
 
-    def set_stage_mode(self, stage_mode: str | None) -> None:
+    def set_stage_mode(self, stage_mode: str) -> None:
         """
         设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'thread'（线程）
 

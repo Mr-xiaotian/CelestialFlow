@@ -1,4 +1,6 @@
 # runtime/util_types.py
+from __future__ import annotations
+
 from enum import IntEnum
 from threading import Lock
 
@@ -54,7 +56,7 @@ class ValueWrapper:
         self.value = value
         self._lock = lock
 
-    def get_lock(self) -> NoOpContext:
+    def get_lock(self) -> "Lock | NoOpContext":
         """获取锁对象，无锁时返回空上下文"""
         return self._lock or NoOpContext()
 

@@ -61,8 +61,9 @@ class TaskReporter:
         """停止上报器线程"""
         self._refresh_all()  # 最后一次
         self._stop_flag.set()
-        self._thread.join(timeout=2)
-        self._thread = None
+        if self._thread is not None:
+            self._thread.join(timeout=2)
+            self._thread = None
         self._session.close()
         self.log_inlet.stop_reporter()
 

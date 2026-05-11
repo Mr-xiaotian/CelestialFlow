@@ -1,6 +1,5 @@
 # runtime/util_factories.py
 from _thread import LockType
-from threading import Lock
 from typing import TYPE_CHECKING, Any
 
 from .core_queue import TaskInQueue, TaskOutQueue

@@ -850,6 +850,8 @@ class TaskGraph:
 
         input_ids: set = self.input_ids[stage_tag]
         descendants = self.ctree_client.descendants_batch(list(input_ids), "meta")
+        if not descendants:
+            return ""
         return format_descendants_forest(descendants, STAGE_STYLE)
 
     def get_error_trace(self, error_id: int) -> str:
@@ -860,4 +862,6 @@ class TaskGraph:
         :return: 格式化的溯源关系树字符串
         """
         provenance = self.ctree_client.provenance(error_id)
-        return format_provenance_forest(provenance, STAGE_STYLE)
+        if not provenance:
+            return ""
+        return format_provenance_forest(provenance, STAGE_STYLE)  # type: ignore[arg-type]
