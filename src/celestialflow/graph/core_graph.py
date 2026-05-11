@@ -346,49 +346,6 @@ class TaskGraph:
             stage_level_dict = compute_node_levels(self.networkx_graph)
             self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
-    def start_graph(
-        self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
-    ) -> None:
-        """
-        启动任务链
-
-        :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否注入终止信号
-        """
-        self._build_resources()
-        self._build_analysis()
-
-        if not self.isDAG and put_termination_signal:
-            warnings.warn(
-                "Early injection of termination signals in a non-DAG graph may cause "
-                "some nodes (including root nodes) to shut down as soon as their current "
-                "tasks are exhausted, preventing them from consuming tasks that arrive "
-                "later from other nodes. It is recommended to set put_termination_signal=False "
-                "and manually inject termination signals via the web interface at an "
-                "appropriate time.",
-                RuntimeWarning,
-            )
-        start_time = time.perf_counter()
-
-        try:
-            self.fail_spout.start()
-            self.log_spout.start()
-            self.log_inlet.start_graph(self.get_structure_list())
-            self.fail_inlet.start_graph(self.get_structure_json())
-            self.reporter.start()
-
-            self.put_stage_queue(init_tasks_dict, put_termination_signal)
-            self._execute_stages()
-
-        finally:
-            self._finalize_nodes()
-
-            self.reporter.stop()
-            self._release_resources()
-            self.log_inlet.end_graph(time.perf_counter() - start_time)
-            self.fail_spout.stop()
-            self.log_spout.stop()
-
     # ==== 执行 ====
 
     def put_stage_queue(
@@ -401,6 +358,8 @@ class TaskGraph:
         :param put_termination_signal: 是否放入终止信号
         """
         for tag, tasks in tasks_dict.items():
+            if tag not in self.stage_runtime_dict:
+                continue
             stage: TaskStage = self.stage_runtime_dict[tag].stage
             in_queue: TaskInQueue = self.stage_runtime_dict[tag].in_queue
             input_ids: set[int] = self.input_ids[tag]
@@ -447,6 +406,49 @@ class TaskGraph:
                     root_stage.get_tag(),
                     termination_id,
                 )
+
+    def start_graph(
+        self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
+    ) -> None:
+        """
+        启动任务链
+
+        :param init_tasks_dict: 任务列表
+        :param put_termination_signal: 是否注入终止信号
+        """
+        self._build_resources()
+        self._build_analysis()
+
+        if not self.isDAG and put_termination_signal:
+            warnings.warn(
+                "Early injection of termination signals in a non-DAG graph may cause "
+                "some nodes (including root nodes) to shut down as soon as their current "
+                "tasks are exhausted, preventing them from consuming tasks that arrive "
+                "later from other nodes. It is recommended to set put_termination_signal=False "
+                "and manually inject termination signals via the web interface at an "
+                "appropriate time.",
+                RuntimeWarning,
+            )
+        start_time = time.perf_counter()
+
+        try:
+            self.fail_spout.start()
+            self.log_spout.start()
+            self.log_inlet.start_graph(self.get_structure_list())
+            self.fail_inlet.start_graph(self.get_structure_json())
+            self.reporter.start()
+
+            self.put_stage_queue(init_tasks_dict, put_termination_signal)
+            self._execute_stages()
+
+        finally:
+            self._finalize_nodes()
+
+            self.reporter.stop()
+            self._release_resources()
+            self.log_inlet.end_graph(time.perf_counter() - start_time)
+            self.fail_spout.stop()
+            self.log_spout.stop()
 
     def _execute_stages(self) -> None:
         """
