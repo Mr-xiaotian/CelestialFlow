@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 最終更新日: 2026/04/23
+> 📅 最終更新日: 2026/05/11
 
 `utils/benchmark.py` は、エグゼキュータおよびタスクグラフのパフォーマンスベンチマーク機能を提供し、異なる実行モード間のパフォーマンス差を比較するために使用されます。
 
@@ -31,7 +31,7 @@ async def benchmark_executor(
     :param sync_executor: 同期エグゼキュータテンプレート
     :param async_executor: 非同期エグゼキュータテンプレート
     :param task_source: タスクソース
-    :param sync_modes: 同期モードリスト、デフォルトは ["serial", "thread", "process"]
+    :param sync_modes: 同期モードリスト、デフォルトは ["serial", "thread"]
     :param async_modes: 非同期モードリスト、デフォルトは ["async"]
     :return: テスト結果辞書
     """
@@ -42,7 +42,6 @@ async def benchmark_executor(
            Time
 serial     2.34s
 thread     0.89s
-process    0.45s
 async      0.67s
 ```
 
@@ -52,18 +51,22 @@ async      0.67s
 
 ```python
 def benchmark_graph(
-    graph: TaskGraph,
-    init_tasks_dict: dict[str, Iterable],
+    sync_graph: TaskGraph,
+    async_graph: TaskGraph,
+    init_tasks_dict: Mapping[str, Iterable],
     stage_modes: list[str] | None = None,
-    execution_modes: list[str] | None = None,
+    execution_sync_modes: list[str] | None = None,
+    execution_async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     タスクグラフのベンチマークを実行します。
 
-    :param graph: タスクグラフテンプレート
+    :param sync_graph: 同期タスクグラフテンプレート（serial/thread モード用）
+    :param async_graph: 非同期タスクグラフテンプレート（async モード用）
     :param init_tasks_dict: 初期タスク辞書
-    :param stage_modes: ステージモードリスト、デフォルトは ["serial", "thread", "process"]
-    :param execution_modes: 実行モードリスト、デフォルトは ["serial", "thread"]
+    :param stage_modes: ステージモードリスト、デフォルトは ["serial", "thread"]
+    :param execution_sync_modes: 同期実行モードリスト、デフォルトは ["serial", "thread"]
+    :param execution_async_modes: 非同期実行モードリスト、デフォルトは ["async"]
     :return: テスト結果辞書
     """
 ```
@@ -71,12 +74,9 @@ def benchmark_graph(
 出力例:
 ```
 Time table:
-          serial    thread
-serial    5.23s     3.45s
-process   2.12s     1.89s
-
-Fail stage dict: {}
-Fail error dict: {}
+          serial    thread    async
+serial    5.23s     3.45s     3.21s
+thread    2.12s     1.89s     1.65s
 ```
 
 ## 使用例
@@ -115,21 +115,29 @@ asyncio.run(benchmark_executor(
 from celestialflow import TaskGraph, TaskStage
 from celestialflow.utils.benchmark import benchmark_graph
 
-# ステージの作成
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="A")
-stage_b = TaskStage(func=process_b, execution_mode="thread", stage_mode="process", name="B")
+# 同期ステージの作成
+stage_a = TaskStage("A", process_a)
+stage_b = TaskStage("B", process_b)
 
-# グラフの構築
-graph = TaskGraph()
-graph.set_stages(root_stages=[stage_a], stages=[stage_b])
-graph.connect([stage_a], [stage_b])
+# 非同期ステージの作成
+async_stage_a = TaskStage("A", async_process_a)
+async_stage_b = TaskStage("B", async_process_b)
+
+# 同期グラフの構築
+sync_graph = TaskGraph()
+sync_graph.set_stages(root_stages=[stage_a], stages=[stage_a, stage_b])
+sync_graph.connect([stage_a], [stage_b])
+
+# 非同期グラフの構築
+async_graph = TaskGraph()
+async_graph.set_stages(root_stages=[async_stage_a], stages=[async_stage_a, async_stage_b])
+async_graph.connect([async_stage_a], [async_stage_b])
 
 # ベンチマークの実行
 benchmark_graph(
-    graph=graph,
+    sync_graph=sync_graph,
+    async_graph=async_graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "thread", "process"],
-    execution_modes=["serial", "thread"],
 )
 ```
 
@@ -141,24 +149,24 @@ benchmark_graph(
 |------|------|
 | `serial` | シングルスレッド直列実行 |
 | `thread` | スレッドプール並行実行 |
-| `process` | プロセスプール並列実行 |
 | `async` | コルーチン非同期実行 |
 
 ### タスクグラフテスト次元
 
 **Stage Mode（ステージモード）**:
-- `serial`: ステージがメインプロセスで実行
-- `process`: ステージが独立プロセスで実行
+- `serial`: ステージがメインスレッドで実行
+- `thread`: ステージが独立スレッドで実行
 
 **Execution Mode（実行モード）**:
 - `serial`: ステージ内部で直列実行
 - `thread`: ステージ内部でスレッドプール実行
+- `async`: ステージ内部でコルーチン非同期実行
 
 組み合わせ例:
-| Stage \ Execution | serial | thread |
-|-------------------|--------|--------|
-| serial | S-S | S-T |
-| process | P-S | P-T |
+| Stage \ Execution | serial | thread | async |
+|-------------------|--------|--------|-------|
+| serial | S-S | S-T | S-A |
+| thread | T-S | T-T | T-A |
 
 ## 出力情報
 
@@ -176,5 +184,6 @@ benchmark_graph(
 
 1. **クローンメカニズム**: 各テストは元のオブジェクトをクローンし、状態汚染を防ぎます
 2. **タスク固定**: すべてのテストで同じタスクリストを使用し、公平性を保証します
-3. **リソース競合**: プロセスモードではリソース競合により結果が影響される場合があります。複数回のテストを推奨します
+3. **リソース競合**: スレッドモードではリソース競合により結果が影響される場合があります。複数回のテストを推奨します
 4. **非同期要件**: `benchmark_executor` は非同期関数であり、`await` または `asyncio.run` が必要です
+5. **グラフの分離**: `benchmark_graph` は async 実行モードに async 関数が必要なため、sync_graph と async_graph を別々に提供する必要があります
