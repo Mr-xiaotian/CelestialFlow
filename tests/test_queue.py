@@ -1,6 +1,6 @@
 import queue
 
-import pytest
+import pytest  # type: ignore[reportMissingImports]
 
 from celestialflow.persistence.core_log import LogInlet, LogSpout
 from celestialflow.runtime.core_envelope import TaskEnvelope

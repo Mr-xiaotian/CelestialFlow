@@ -1,4 +1,4 @@
-import pytest
+import pytest  # type: ignore[reportMissingImports]
 
 from celestialflow.runtime.core_metrics import TaskMetrics
 

@@ -1,4 +1,4 @@
-import pytest
+import pytest  # type: ignore[reportMissingImports]
 
 from celestialflow.runtime.core_envelope import TaskEnvelope
 
@@ -48,4 +48,4 @@ class TestTaskEnvelope:
         """__slots__ 应阻止动态属性添加"""
         envelope = TaskEnvelope("x", id=1, source="test")
         with pytest.raises(AttributeError):
-            envelope.extra_attr = 123
+            envelope.extra_attr = 123  # type: ignore[reportAttributeAccessIssue]

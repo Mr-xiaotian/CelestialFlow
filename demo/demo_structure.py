@@ -1,6 +1,6 @@
 import os
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # type: ignore[reportMissingImports]
 
 from demo_utils import (
     add_5,
@@ -23,12 +23,12 @@ from celestialflow import (
 
 load_dotenv()
 
-report_host = os.getenv("REPORT_HOST")
-report_port = os.getenv("REPORT_PORT")
+report_host: str = os.getenv("REPORT_HOST", "")
+report_port: int = int(os.getenv("REPORT_PORT", "0"))
 
-ctree_host = os.getenv("CTREE_HOST")
-ctree_http_host = os.getenv("CTREE_HTTP_PORT")
-ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
+ctree_host: str = os.getenv("CTREE_HOST", "")
+ctree_http_host: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
+ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
 
 
 # ========有向无环图(DAG)========
@@ -161,10 +161,10 @@ def demo_forest():
     )
 
     # 初始任务
-    init_tasks = {
-        stageA.get_tag(): range(1, 11),
-        stageB.get_tag(): range(11, 21),
-        stageF.get_tag(): range(21, 31),
+    init_tasks: dict[str, list[int]] = {
+        stageA.get_tag(): list(range(1, 11)),
+        stageB.get_tag(): list(range(11, 21)),
+        stageF.get_tag(): list(range(21, 31)),
     }
 
     graph.start_graph(init_tasks)
@@ -288,7 +288,7 @@ def demo_grid():
     )
 
     # 3. 初始化任务字典，只放左上角一个任务
-    init_dict = {grid[0][0].get_tag(): range(10)}
+    init_dict: dict[str, list[int]] = {grid[0][0].get_tag(): list(range(10))}
 
     # 4. 启动任务图
     task_grid.start_graph(init_dict)

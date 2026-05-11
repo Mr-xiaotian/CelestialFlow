@@ -1,7 +1,7 @@
 import os
 import random
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # type: ignore[reportMissingImports]
 
 from demo_utils import (
     RouterWrapper,
@@ -29,15 +29,15 @@ from celestialflow import (
 
 load_dotenv()
 
-report_host = os.getenv("REPORT_HOST")
-report_port = os.getenv("REPORT_PORT")
+report_host: str = os.getenv("REPORT_HOST", "")
+report_port: int = int(os.getenv("REPORT_PORT", "0"))
 
-redis_host = os.getenv("REDIS_HOST")
-redis_password = os.getenv("REDIS_PASSWORD")
+redis_host: str = os.getenv("REDIS_HOST", "")
+redis_password: str = os.getenv("REDIS_PASSWORD", "")
 
-ctree_host = os.getenv("CTREE_HOST")
-ctree_http_port = os.getenv("CTREE_HTTP_PORT")
-ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
+ctree_host: str = os.getenv("CTREE_HOST", "")
+ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
+ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
 
 
 class DownloadRedisTransport(TaskRedisTransport):
@@ -320,12 +320,12 @@ def demo_redis_source_0():
     graph.set_reporter(True, host=report_host, port=report_port)
 
     # 要测试的任务列表
-    test_task_0 = range(25, 37)
+    test_task_0 = list(range(25, 37))
 
     graph.start_graph(
         {
             sleep_stage_0.get_tag(): test_task_0,
-            redis_source.get_tag(): range(12),
+            redis_source.get_tag(): list(range(12)),
         }
     )
 
@@ -373,7 +373,7 @@ def demo_router_0():
 
     graph.start_graph(
         {
-            source_stage.get_tag(): range(20),
+            source_stage.get_tag(): list(range(20)),
         }
     )
 
