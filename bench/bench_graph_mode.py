@@ -5,7 +5,7 @@ from time import sleep
 
 from dotenv import load_dotenv
 
-from celestialflow import TaskGraph, TaskStage, benchmark_graph
+from celestialflow import TaskGraph, TaskStage, TaskSplitter, benchmark_graph
 
 load_dotenv()
 report_host = os.getenv("REPORT_HOST", "127.0.0.1")
@@ -113,6 +113,22 @@ async def async_square(x):
     if x == 317811:
         raise ValueError("Bench error in 317811")
     return x**2
+
+
+def add_one(x):
+    return x + 1
+
+
+async def async_add_one(x):
+    return x + 1
+
+
+def multiply_two(x):
+    return x * 2
+
+
+async def async_multiply_two(x):
+    return x * 2
 
 
 def bench_graph_0():
@@ -227,6 +243,36 @@ def bench_graph_1():
     benchmark_graph(graph, async_graph, input_tasks)
 
 
+def bench_graph_2():
+    S = TaskSplitter("Splitter")
+    A = TaskStage("StageA", add_one, max_workers=20)
+    B = TaskStage("StageB", multiply_two, max_workers=20)
+    C = TaskStage("StageC", multiply_two, max_workers=20)
+
+    graph = TaskGraph()
+    graph.set_stages(root_stages=[S], stages=[S, A, B, C])
+    graph.connect([S], [A])
+    graph.connect([A], [B, C])
+
+    aS = TaskSplitter("Splitter")
+    aA = TaskStage("StageA", async_add_one, max_workers=20)
+    aB = TaskStage("StageB", async_multiply_two, max_workers=20)
+    aC = TaskStage("StageC", async_multiply_two, max_workers=20)
+
+    async_graph = TaskGraph()
+    async_graph.set_stages(root_stages=[aS], stages=[aS, aA, aB, aC])
+    async_graph.connect([aS], [aA])
+    async_graph.connect([aA], [aB, aC])
+
+    input_tasks = {
+        S.get_tag(): [range(10_000)],
+        aS.get_tag(): [range(10_000)],
+    }
+
+    benchmark_graph(graph, async_graph, input_tasks)
+
+
 if __name__ == "__main__":
-    bench_graph_0()
-    bench_graph_1()
+    # bench_graph_0()
+    # bench_graph_1()
+    bench_graph_2()
