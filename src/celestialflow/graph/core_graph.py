@@ -44,7 +44,8 @@ from ..utils.util_collections import cluster_by_value_sorted
 from ..utils.util_format import format_avg_time
 from .util_analysis import (
     compute_node_levels,
-    format_networkx_graph,
+    build_networkx_graph,
+    find_source_nodes,
 )
 from .util_serialize import build_structure_graph, format_structure_list_from_graph
 
@@ -127,8 +128,8 @@ class TaskGraph:
         self.stage_history: dict[str, list[dict[str, Any]]] = {}
         # 用于保存每个节点的输入任务ID集合
         self.input_ids: dict[str, set[int]] = defaultdict(set)
-        # 用于保存根节点列表
-        self.root_stages: list[TaskStage] = []
+        # 用于保存源节点列表（由 _build_analysis 自动计算）
+        self.source_stages: list[TaskStage] = []
         # 用于保存图结构的邻接表
         self.out_edges: dict[str, list[str]] = defaultdict(list)
         self.in_edges: dict[str, list[str]] = defaultdict(list)
@@ -149,16 +150,13 @@ class TaskGraph:
 
     # ==== 建图 ====
 
-    def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]) -> None:
+    def set_stages(self, stages: list[TaskStage]) -> None:
         """
         添加节点到任务图中
 
-        :param root_stages: 根节点列表
         :param stages: 待添加的节点列表
         """
-        self.root_stages = root_stages
-
-        for stage in stages + root_stages:
+        for stage in stages:
             if stage.get_tag() in self.stage_runtime_dict:
                 continue
 
@@ -299,8 +297,8 @@ class TaskGraph:
                 set_subsequent_stage_mode(next_stage)
 
         visited_stages: set[TaskStage] = set()
-        for root_stage in self.root_stages:
-            set_subsequent_stage_mode(root_stage)
+        for source_stage in self.source_stages:
+            set_subsequent_stage_mode(source_stage)
         self._build_analysis()
 
     # ==== 启动 ====
@@ -334,14 +332,19 @@ class TaskGraph:
         """
         分析任务图，计算 DAG 属性和层级信息
         """
+        self.networkx_graph = build_networkx_graph(self.out_edges, self.stage_runtime_dict)
+        source_tags = find_source_nodes(self.networkx_graph)
+        self.source_stages = [
+            self.stage_runtime_dict[tag].stage for tag in source_tags
+        ]
+
         self.structure_json = build_structure_graph(
-            self.root_stages, self.out_edges, self.stage_runtime_dict
+            self.source_stages, self.out_edges, self.stage_runtime_dict
         )
         self.structure_list = format_structure_list_from_graph(self.structure_json)
-        self.networkx_graph = format_networkx_graph(self.structure_json)
 
         self.isDAG = is_directed_acyclic_graph(self.networkx_graph)
-        
+
         stage_level_dict = compute_node_levels(self.networkx_graph)
         self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
@@ -387,25 +390,25 @@ class TaskGraph:
                 )
 
         if put_termination_signal:
-            for root_stage in self.root_stages:
-                root_stage_tag = root_stage.get_tag()
-                root_in_queue: TaskInQueue = self.stage_runtime_dict[
-                    root_stage_tag
+            for source_stage in self.source_stages:
+                source_stage_tag = source_stage.get_tag()
+                source_in_queue: TaskInQueue = self.stage_runtime_dict[
+                    source_stage_tag
                 ].in_queue
 
                 termination_id: int = self.ctree_client.emit(
                     CTreeEvent.TERMINATION_INPUT,
-                    payload=root_stage.get_summary(),
+                    payload=source_stage.get_summary(),
                 )
-                root_in_queue.put(TerminationSignal(termination_id, source="input"))
+                source_in_queue.put(TerminationSignal(termination_id, source="input"))
                 self.log_inlet.termination_input(
-                    root_stage.get_func_name(),
-                    root_stage.get_tag(),
+                    source_stage.get_func_name(),
+                    source_stage.get_tag(),
                     termination_id,
                 )
 
     # ==== 执行 ====
-    
+
     def start_graph(
         self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
     ) -> None:
@@ -868,4 +871,13 @@ class TaskGraph:
         if not provenance:
             return ""
         return format_provenance_forest(provenance, STAGE_STYLE)
+    
+    def get_source_stages(self) -> list[TaskStage]:
+        """
+        获取源节点列表
+
+        :return: 源节点列表
+        """
+        self._build_analysis()  # 确保 source_stages 已更新
+        return self.source_stages
 

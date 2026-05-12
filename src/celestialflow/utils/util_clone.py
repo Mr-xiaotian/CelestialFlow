@@ -71,7 +71,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     # BFS 收集所有 stage（通过 graph.out_edges）
     visited: set[str] = set()
     ordered_stages: list[TaskStage] = []
-    queue: deque[TaskStage] = deque(graph.root_stages)
+    queue: deque[TaskStage] = deque(graph.get_source_stages())
     while queue:
         stage: TaskStage = queue.popleft()
         tag: str = stage.get_tag()
@@ -89,14 +89,13 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
         tag_map[stage.get_tag()] = clone_stage(stage)
 
     # 构建新 graph
-    cloned_root_stages: list[TaskStage] = [tag_map[s.get_tag()] for s in graph.root_stages]
     all_cloned_stages: list[TaskStage] = list(tag_map.values())
 
     cloned_graph: TaskGraph = TaskGraph(
         schedule_mode=graph.schedule_mode,
         log_level=graph.log_level,
     )
-    cloned_graph.set_stages(cloned_root_stages, all_cloned_stages)
+    cloned_graph.set_stages(all_cloned_stages)
 
     # 重建连接
     for from_tag, to_tags in graph.out_edges.items():

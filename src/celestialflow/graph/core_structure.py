@@ -30,7 +30,7 @@ class TaskChain(TaskGraph):
             stage.set_stage_mode(chain_mode)
             stage.set_name(f"Stage {num + 1}")
 
-        self.set_stages(root_stages=[stages[0]], stages=stages)
+        self.set_stages(stages)
         for num in range(len(stages) - 1):
             self.connect([stages[num]], [stages[num + 1]])
 
@@ -75,7 +75,7 @@ class TaskCross(TaskGraph):
                 stage.set_name(f"Layer{i + 1}-{index + 1}")
             all_stages.extend(curr_layer)
 
-        self.set_stages(root_stages=layers[0], stages=all_stages)
+        self.set_stages(all_stages)
         for i in range(len(layers) - 1):
             self.connect(layers[i], layers[i + 1])
 
@@ -122,7 +122,7 @@ class TaskGrid(TaskGraph):
                 curr.set_name(f"Grid-{i + 1}-{j + 1}")
                 all_stages.append(curr)
 
-        self.set_stages(root_stages=[grid[0][0]], stages=all_stages)
+        self.set_stages(all_stages)
         for i in range(rows):
             for j in range(cols):
                 curr = grid[i][j]
@@ -166,7 +166,7 @@ class TaskLoop(TaskGraph):
             stage.set_stage_mode("thread")
             stage.set_name(f"Stage {num + 1}")
 
-        self.set_stages(root_stages=[stages[0]], stages=stages)
+        self.set_stages(stages)
         for num in range(len(stages)):
             next_stage = stages[num + 1] if num < len(stages) - 1 else stages[0]
             self.connect([stages[num]], [next_stage])
@@ -210,7 +210,7 @@ class TaskWheel(TaskGraph):
             node.set_stage_mode("thread")
             node.set_name(f"Ring-{i + 1}")
 
-        self.set_stages(root_stages=[center], stages=[center] + ring)
+        self.set_stages([center] + ring)
         self.connect([center], ring)
         for i, node in enumerate(ring):
             next_stage = ring[(i + 1) % len(ring)]
@@ -250,7 +250,7 @@ class TaskComplete(TaskGraph):
             stage.set_stage_mode("thread")
             stage.set_name(f"Node {i + 1}")
 
-        self.set_stages(root_stages=stages, stages=stages)
+        self.set_stages(stages)
         for i, stage in enumerate(stages):
             others = [s for j, s in enumerate(stages) if i != j]
             self.connect([stage], others)

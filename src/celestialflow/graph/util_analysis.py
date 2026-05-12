@@ -1,9 +1,12 @@
 # graph/util_analysis.py
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
+
+if TYPE_CHECKING:
+    from .core_graph import StageRuntime
 
 
 # ======== (图论分析) ========
@@ -37,6 +40,27 @@ def format_networkx_graph(structure_graph: list[dict[str, Any]]) -> nx.DiGraph[s
     return G
 
 
+def build_networkx_graph(
+    out_edges: dict[str, list[str]],
+    stage_runtime_dict: dict[str, StageRuntime],
+) -> nx.DiGraph[str]:
+    """
+    从邻接表和阶段运行时信息构建 networkx 有向图
+
+    :param out_edges: 邻接表 {stage_tag: [next_stage_tag, ...]}
+    :param stage_runtime_dict: {stage_tag: StageRuntime}
+    :return: 构建好的 networkx.DiGraph
+    """
+    G: nx.DiGraph[str] = nx.DiGraph()
+    
+    for tag, runtime in stage_runtime_dict.items():
+        G.add_node(tag, mode=runtime.stage.get_stage_mode())
+    for src, dsts in out_edges.items():
+        for dst in dsts:
+            G.add_edge(src, dst)
+    return G
+
+
 def compute_node_levels(G: nx.DiGraph[str]) -> dict[str, int]:
     """
     计算有向图中每个节点的层级（最早执行阶段）
@@ -60,3 +84,18 @@ def compute_node_levels(G: nx.DiGraph[str]) -> dict[str, int]:
             level[original_node] = lv
 
     return level
+
+
+def find_source_nodes(G: nx.DiGraph[str]) -> list[str]:
+    """
+    找到有向图中的源节点（入度为0的节点）
+
+    :param G: networkx 有向图（DiGraph）
+    :return: 源节点列表
+    """
+    condensation = nx.condensation(G)
+
+    source_scc_ids = [n for n, d in condensation.in_degree() if d == 0]
+    sources = [next(iter(condensation.nodes[scc_id]['members'])) for scc_id in source_scc_ids]
+
+    return sources

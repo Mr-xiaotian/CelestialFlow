@@ -11,14 +11,14 @@ if TYPE_CHECKING:
 
 # ======== 处理图结构 ========
 def build_structure_graph(
-    root_stages: list[TaskStage],
+    source_stages: list[TaskStage],
     out_edges: dict[str, list[str]],
     stage_runtime_dict: dict[str, StageRuntime],
 ) -> list[dict[str, Any]]:
     """
-    从多个根节点构建任务链的 JSON 图结构
+    从多个源节点构建任务链的 JSON 图结构
 
-    :param root_stages: 根节点列表
+    :param source_stages: 源节点列表
     :param out_edges: 邻接表 {stage_tag: [next_stage_tag, ...]}
     :param stage_runtime_dict: {stage_tag: StageRuntime}
     :return: 多棵任务图的 JSON 列表
@@ -26,9 +26,9 @@ def build_structure_graph(
     visited_stages: set[str] = set()
     graphs: list[dict[str, Any]] = []
 
-    for root_stage in root_stages:
+    for source_stage in source_stages:
         graph: dict[str, Any] = _build_structure_subgraph(
-            root_stage, visited_stages, out_edges, stage_runtime_dict
+            source_stage, visited_stages, out_edges, stage_runtime_dict
         )
         graphs.append(graph)
 
