@@ -1,26 +1,13 @@
 # runtime/util_factories.py
-from _thread import LockType
 from typing import TYPE_CHECKING, Any
 
 from .core_queue import TaskInQueue, TaskOutQueue
-from .util_types import ValueWrapper
 
 if TYPE_CHECKING:
     from ..stage import TaskExecutor
 
 
 # ==== 函数工厂 ====
-def make_counter(init: int = 0, lock: LockType | None = None) -> Any:
-    """
-    返回一个 counter：ValueWrapper(±lock)
-
-    :param init: 初始值
-    :param lock: 可选的线程锁（仅 thread 模式使用）
-    :return: 计数器实例
-    """
-    return ValueWrapper(init, lock=lock)
-
-
 def make_task_in_queue(
     *,
     queue: Any,

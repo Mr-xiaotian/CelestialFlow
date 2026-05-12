@@ -119,7 +119,7 @@ def demo_splitter_1():
 
     chain.start_chain(
         {
-            task_splitter.get_tag(): [range(int(1e5))],
+            task_splitter.get_tag(): [range(100_000)],
         }
     )
 

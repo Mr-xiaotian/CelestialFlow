@@ -264,6 +264,9 @@ def bench_graph_2():
     async_graph.connect([aS], [aA])
     async_graph.connect([aA], [aB, aC])
 
+    graph.set_reporter(True, host=report_host, port=report_port)
+    async_graph.set_reporter(True, host=report_host, port=report_port)
+
     input_tasks = {
         S.get_tag(): [range(10_000)],
         aS.get_tag(): [range(10_000)],

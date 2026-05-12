@@ -1,9 +1,6 @@
 # runtime/core_metrics.py
 from threading import Lock
 
-from .util_factories import (
-    make_counter,
-)
 from .util_types import SumCounter, ValueWrapper
 
 
@@ -47,9 +44,9 @@ class TaskMetrics:
         lock = Lock() if mode == "thread" else None
 
         self.task_counter = SumCounter(mode=mode)
-        self.success_counter = make_counter(0, lock)
-        self.error_counter = make_counter(0, lock)
-        self.duplicate_counter = make_counter(0, lock)
+        self.success_counter = ValueWrapper(0, lock)
+        self.error_counter = ValueWrapper(0, lock)
+        self.duplicate_counter = ValueWrapper(0, lock)
 
     def reset_counter(self) -> None:
         """
