@@ -279,26 +279,9 @@ class TaskGraph:
         :param stage_mode: 节点执行模式, 可选值为 'serial' 或 'thread'
         :param execution_mode: 节点内部执行模式, 可选值为 'serial', 'thread' 或 'async'
         """
-
-        def set_subsequent_stage_mode(stage: TaskStage) -> None:
-            """
-            递归设置当前节点及其所有后续节点的执行模式。
-
-            :param stage: 当前节点
-            """
-            stage.set_stage_mode(stage_mode)
-            stage.set_execution_mode(execution_mode)
-            visited_stages.add(stage)
-
-            for next_stage_tag in self.out_edges[stage.get_tag()]:
-                next_stage = self.stage_runtime_dict[next_stage_tag].stage
-                if next_stage in visited_stages:
-                    continue
-                set_subsequent_stage_mode(next_stage)
-
-        visited_stages: set[TaskStage] = set()
-        for source_stage in self.source_stages:
-            set_subsequent_stage_mode(source_stage)
+        for stage_runtime in self.stage_runtime_dict.values():
+            stage_runtime.stage.set_stage_mode(stage_mode)
+            stage_runtime.stage.set_execution_mode(execution_mode)
         self._build_analysis()
 
     # ==== 启动 ====
@@ -563,6 +546,8 @@ class TaskGraph:
                     task_id,
                     error_id,
                 )
+
+        self.collect_runtime_snapshot()
 
     def _release_resources(self) -> None:
         """
