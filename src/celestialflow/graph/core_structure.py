@@ -147,15 +147,20 @@ class TaskGrid(TaskGraph):
 class TaskLoop(TaskGraph):
     """有环图结构，节点首尾相连形成闭环。"""
 
-    def __init__(self, stages: list[TaskStage], log_level: str = "INFO") -> None:
+    def __init__(
+        self,
+        stages: list[TaskStage],
+        schedule_mode: str = "eager",
+        log_level: str = "INFO",
+    ) -> None:
         """
         TaskLoop:  任务环结构
-        由于环的结构特性, 强制使用 'eager' 节点模式
 
         :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点, 形成一个闭环
+        :param schedule_mode: 控制任务图的调度布局模式
         :param log_level: 日志级别
         """
-        super().__init__(log_level=log_level)
+        super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
         for num, stage in enumerate(stages):
             stage.set_stage_mode("thread")
@@ -182,17 +187,21 @@ class TaskWheel(TaskGraph):
     """轮状结构，中心节点连接到一个环上。"""
 
     def __init__(
-        self, center: TaskStage, ring: list[TaskStage], log_level: str = "INFO"
+        self,
+        center: TaskStage,
+        ring: list[TaskStage],
+        schedule_mode: str = "eager",
+        log_level: str = "INFO",
     ) -> None:
         """
         wheel: 特殊的有环图, 他有结构意义上的起点, 中心节点连向环, 环相连成闭环
-        由于环的结构特性, 强制使用 'eager' 节点模式
 
         :param center: 中心节点
         :param ring: 环节点
+        :param schedule_mode: 控制任务图的调度布局模式
         :param log_level: 日志级别
         """
-        super().__init__(log_level=log_level)
+        super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
         center.set_stage_mode("thread")
         center.set_name("Center")
@@ -222,14 +231,20 @@ class TaskWheel(TaskGraph):
 class TaskComplete(TaskGraph):
     """完全图结构，每个节点都连接到除自己以外的所有其他节点。"""
 
-    def __init__(self, stages: list[TaskStage], log_level: str = "INFO") -> None:
+    def __init__(
+        self,
+        stages: list[TaskStage],
+        schedule_mode: str = "eager",
+        log_level: str = "INFO",
+    ) -> None:
         """
         TaskComplete: 完全图结构，每个节点都连向除自己以外的所有其他节点
 
         :param stages: 所有 TaskStage 节点
+        :param schedule_mode: 控制任务图的调度布局模式
         :param log_level: 日志级别
         """
-        super().__init__(log_level=log_level)
+        super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
         for i, stage in enumerate(stages):
             stage.set_stage_mode("thread")

@@ -341,12 +341,9 @@ class TaskGraph:
         self.networkx_graph = format_networkx_graph(self.structure_json)
 
         self.isDAG = is_directed_acyclic_graph(self.networkx_graph)
-        self.layers_dict: dict[int, list[str]] = {}
-        if self.isDAG:
-            stage_level_dict = compute_node_levels(self.networkx_graph)
-            self.layers_dict = cluster_by_value_sorted(stage_level_dict)
-
-    # ==== 执行 ====
+        
+        stage_level_dict = compute_node_levels(self.networkx_graph)
+        self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
     def put_stage_queue(
         self, tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
@@ -407,6 +404,8 @@ class TaskGraph:
                     termination_id,
                 )
 
+    # ==== 执行 ====
+    
     def start_graph(
         self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
     ) -> None:

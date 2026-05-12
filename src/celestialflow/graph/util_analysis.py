@@ -39,19 +39,24 @@ def format_networkx_graph(structure_graph: list[dict[str, Any]]) -> nx.DiGraph[s
 
 def compute_node_levels(G: nx.DiGraph[str]) -> dict[str, int]:
     """
-    计算 DAG 中每个节点的层级（最早执行阶段）
-    前提：图必须是有向无环图（DAG）
+    计算有向图中每个节点的层级（最早执行阶段）
+    先将图缩合为 SCC 缩合图（condensation），再对缩合图做拓扑层级划分，
+    同一 SCC 内的节点共享层级。支持 DAG 和含环图。
 
     :param G: networkx 有向图（DiGraph）
     :return: dict[node] = level (int)
     """
-    if not nx.is_directed_acyclic_graph(G):
-        raise ValueError("该图不是 DAG，无法进行层级划分")
+    condensation = nx.condensation(G)
 
-    level: dict[str, int] = {node: 0 for node in G.nodes}  # 初始层级为 0
+    scc_level: dict[int, int] = {node: 0 for node in condensation.nodes}
+    for node in nx.topological_sort(condensation):
+        for succ in condensation.successors(node):
+            scc_level[succ] = max(scc_level[succ], scc_level[node] + 1)
 
-    for node in nx.topological_sort(G):  # 按拓扑顺序遍历
-        for succ in G.successors(node):
-            level[succ] = max(level[succ], level[node] + 1)
+    level: dict[str, int] = {}
+    for scc_id, data in condensation.nodes(data=True):
+        lv = scc_level[scc_id]
+        for original_node in data["members"]:
+            level[original_node] = lv
 
     return level
