@@ -145,11 +145,11 @@ class TaskDispatch:
         """
         串行地执行任务
         """
-        task_queues = self.task_executor.task_queues
-        result_queues = self.task_executor.result_queues
+        task_queue = self.task_executor.task_queue
+        result_queue = self.task_executor.result_queue
 
         while True:
-            envelope = task_queues.get()
+            envelope = task_queue.get()
             if isinstance(envelope, TerminationIdPool):
                 termination_signal = self._process_termination_signal(envelope)
                 break
@@ -159,20 +159,20 @@ class TaskDispatch:
 
             self._worker(envelope)
 
-        result_queues.put(termination_signal)
+        result_queue.put(termination_signal)
 
     def dispatch_thread(self) -> None:
         """
         使用指定的线程池来并行执行任务。
         """
         self._init_pool(execution_mode="thread")
-        task_queues = self.task_executor.task_queues
-        result_queues = self.task_executor.result_queues
+        task_queue = self.task_executor.task_queue
+        result_queue = self.task_executor.result_queue
 
         futures: list[Future[None]] = []  # 用于存储线程池提交的任务
 
         while True:
-            envelope = task_queues.get()
+            envelope = task_queue.get()
             if isinstance(envelope, TerminationIdPool):
                 termination_signal = self._process_termination_signal(envelope)
                 break
@@ -190,7 +190,7 @@ class TaskDispatch:
         # 等待当前批次的所有任务完成
         for future in futures:
             future.result()
-        result_queues.put(termination_signal)
+        result_queue.put(termination_signal)
 
         self._release_pool()
 
@@ -199,8 +199,8 @@ class TaskDispatch:
         异步地执行任务，限制并发数量。
         支持流式到达的任务（stage 模式），边收边跑。
         """
-        task_queues = self.task_executor.task_queues
-        result_queues = self.task_executor.result_queues
+        task_queue = self.task_executor.task_queue
+        result_queue = self.task_executor.result_queue
 
         semaphore = asyncio.Semaphore(self.max_workers)
         pending: set[asyncio.Task[None]] = set()
@@ -210,7 +210,7 @@ class TaskDispatch:
                 await self._async_worker(envelope)
 
         while True:
-            envelope = await asyncio.to_thread(task_queues.get)
+            envelope = await asyncio.to_thread(task_queue.get)
             if isinstance(envelope, TerminationIdPool):
                 termination_signal = self._process_termination_signal(envelope)
                 break
@@ -222,7 +222,7 @@ class TaskDispatch:
             task.add_done_callback(pending.discard)
 
         await asyncio.gather(*pending)
-        result_queues.put(termination_signal)
+        result_queue.put(termination_signal)
 
     # ==== 清理 ====
     def _release_pool(self) -> None:

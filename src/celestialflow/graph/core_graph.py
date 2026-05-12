@@ -493,8 +493,8 @@ class TaskGraph:
         log_queue = self.log_spout.get_queue()
 
         # 输入输出队列
-        input_queues: TaskInQueue = stage_runtime.in_queue
-        output_queues: TaskOutQueue = stage_runtime.out_queue
+        input_queue: TaskInQueue = stage_runtime.in_queue
+        output_queue: TaskOutQueue = stage_runtime.out_queue
 
         stage_runtime.start_time = time.time()
 
@@ -510,14 +510,14 @@ class TaskGraph:
         if stage.stage_mode == "thread":
             t = threading.Thread(
                 target=stage.start_stage,
-                args=(input_queues, output_queues, fail_queue, log_queue),
+                args=(input_queue, output_queue, fail_queue, log_queue),
                 name=stage_tag,
                 daemon=True,
             )
             t.start()
             self.threads.append(t)
         else:
-            stage.start_stage(input_queues, output_queues, fail_queue, log_queue)
+            stage.start_stage(input_queue, output_queue, fail_queue, log_queue)
 
     # ==== 终止与清理 ====
 

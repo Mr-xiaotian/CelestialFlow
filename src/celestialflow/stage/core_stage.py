@@ -82,17 +82,17 @@ class TaskStage(TaskExecutor):
 
     def set_queue(
         self,
-        task_queues: TaskInQueue,
-        result_queues: TaskOutQueue,
+        task_queue: TaskInQueue,
+        result_queue: TaskOutQueue,
     ) -> None:
         """
         初始化队列
 
-        :param task_queues: 任务队列列表
-        :param result_queues: 结果队列列表
+        :param task_queue: 任务队列列表
+        :param result_queue: 结果队列列表
         """
-        self.task_queues = task_queues
-        self.result_queues = result_queues
+        self.task_queue = task_queue
+        self.result_queue = result_queue
 
     def set_inlet(
         self, fail_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]
@@ -169,15 +169,15 @@ class TaskStage(TaskExecutor):
     def start_stage(
         self,
         input_queue: TaskInQueue,
-        output_queues: TaskOutQueue,
+        output_queue: TaskOutQueue,
         fail_queue: ThreadQueue[Any],
         log_queue: ThreadQueue[Any],
     ) -> None:
         """
         根据 execution_mode 的值，选择串行、线程或异步执行任务
 
-        :param input_queue: 输入队列(单个Queue)
-        :param output_queues: 输出队列(多个Queue)
+        :param input_queue: 输入队列(由单个Queue组成)
+        :param output_queue: 输出队列(由多个Queue组成)
         :param fail_queue: 失败队列
         :param log_queue: 日志队列
         """
@@ -186,7 +186,7 @@ class TaskStage(TaskExecutor):
         self._init_state()
         self._init_dispatch()
         self.set_inlet(fail_queue, log_queue)
-        self.set_queue(input_queue, output_queues)
+        self.set_queue(input_queue, output_queue)
         
         self.log_inlet.start_stage(
             self.get_tag(), self.stage_mode, self.execution_mode, self.max_workers

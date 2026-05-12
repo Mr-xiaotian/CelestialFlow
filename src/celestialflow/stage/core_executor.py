@@ -78,8 +78,8 @@ class TaskExecutor:
 
         self.ctree_client: CelestialTreeClient | NullCelestialTreeClient
         self.set_nullctree()
-        self.task_queues: TaskInQueue = None  # type: ignore[assignment]
-        self.result_queues: TaskOutQueue = None  # type: ignore[assignment]
+        self.task_queue: TaskInQueue = None  # type: ignore[assignment]
+        self.result_queue: TaskOutQueue = None  # type: ignore[assignment]
         self.fail_queue: Any = None
         self.log_queue: Any = None
         self._init_metrics()
@@ -148,11 +148,11 @@ class TaskExecutor:
         初始化输入输出队列
         """
         queue: ThreadQueue[Any] = ThreadQueue()
-        self.task_queues = make_task_in_queue(
+        self.task_queue = make_task_in_queue(
             queue=queue,
             executor=self,
         )
-        self.result_queues = make_task_out_queue(
+        self.result_queue = make_task_out_queue(
             queue=self.success_spout.get_queue(),
             executor=self,
         )
@@ -373,14 +373,14 @@ class TaskExecutor:
         )
         return items
 
-    def _put_task_queues(self, task_source: Iterable[Any]) -> None:
+    def _put_task_queue(self, task_source: Iterable[Any]) -> None:
         """
         将任务放入任务队列
 
         :param task_source: 任务源（可迭代对象）
         """
         for item in self._prepare_task_envelopes(task_source):
-            self.task_queues.put(item)
+            self.task_queue.put(item)
 
     def get_args(self, task: Any) -> tuple[Any, ...]:
         """
@@ -510,7 +510,7 @@ class TaskExecutor:
             result_id,
         )
 
-        self.result_queues.put(result_envelope)
+        self.result_queue.put(result_envelope)
 
     def emit_retry_envelope(
         self,
@@ -615,7 +615,7 @@ class TaskExecutor:
         self.init_env()
 
         self._notify("on_start", self.get_full_name(), 0)
-        self._put_task_queues(task_source)
+        self._put_task_queue(task_source)
         self.fail_inlet.start_executor(self.get_tag())
         self.log_inlet.start_executor(
             self.get_name(),
@@ -664,7 +664,7 @@ class TaskExecutor:
         self.init_env()
 
         self._notify("on_start", self.get_full_name(), 0)
-        self._put_task_queues(task_source)
+        self._put_task_queue(task_source)
         self.log_inlet.start_executor(
             self.get_name(),
             self.get_func_name(),
@@ -712,8 +712,8 @@ class TaskExecutor:
 
     def release_queue(self) -> None:
         """释放任务队列、结果队列和失败队列的引用"""
-        self.task_queues = None  # type: ignore[assignment]
-        self.result_queues = None  # type: ignore[assignment]        self.fail_queue = None
+        self.task_queue = None  # type: ignore[assignment]
+        self.result_queue = None  # type: ignore[assignment]        self.fail_queue = None
 
     def _release_client(self) -> None:
         """释放事件树客户端引用"""

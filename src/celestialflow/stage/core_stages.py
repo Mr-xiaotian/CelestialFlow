@@ -72,7 +72,7 @@ class TaskSplitter(TaskStage):
         :param task_id: 原始任务 ID，用于事件关联
         :return: split 的子任务数量
         """
-        result_queues = self.result_queues
+        result_queue = self.result_queue
 
         split_count = len(result)
         for idx, item in enumerate(result):
@@ -86,7 +86,7 @@ class TaskSplitter(TaskStage):
                 split_id,
                 source=self.get_tag(),
             )
-            result_queues.put(splitted_envelope)
+            result_queue.put(splitted_envelope)
 
             self.log_inlet.split_trace(
                 self.get_func_name(),
@@ -213,9 +213,9 @@ class TaskRouter(TaskStage):
             route_id,
             source=self.get_tag(),
         )
-        result_queues = self.result_queues
+        result_queue = self.result_queue
 
-        result_queues.put_target(routed_envelope, target)
+        result_queue.put_target(routed_envelope, target)
 
         self.metrics.add_success_count()
         self._update_route_counter(target)
