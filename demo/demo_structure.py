@@ -353,8 +353,59 @@ def demo_complete():
     )
 
 
+def demo_multi_cycle():
+    """
+    多环互连图:
+    分支 A: 2 节点循环 (A1 -> A2 ->  A1)
+    分支 B: 2 节点循环 (B1 -> B2 -> B1)
+    分支 C: 2 节点循环 (C1 -> C2 -> C1)
+    连接: A2 -> B1, A2 -> C1
+    """
+
+    # 定义节点
+    A1 = TaskStage("A1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+    A2 = TaskStage("A2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+
+    B1 = TaskStage("B1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+    B2 = TaskStage("B2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+
+    C1 = TaskStage("C1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+    C2 = TaskStage("C2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+
+    graph = TaskGraph(schedule_mode="staged")
+    graph.set_stages(
+        root_stages=[A1],
+        stages=[A1, A2, B1, B2, C1, C2],
+    )
+
+    # 分支 A 循环
+    graph.connect([A1], [A2])
+    graph.connect([A2], [A1])
+
+    # A2 引出到 B 和 C
+    graph.connect([A2], [B1])
+    graph.connect([A2], [C1])
+
+    # 分支 B 循环
+    graph.connect([B1], [B2])
+    graph.connect([B2], [B1])
+
+    # 分支 C 循环
+    graph.connect([C1], [C2])
+    graph.connect([C2], [C1])
+
+    graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
+
+    graph.start_graph({A1.get_tag(): range(1, 11)}, False)
+
+
 if __name__ == "__main__":
-    demo_loop()
+    # demo_forest()
     # demo_cross()
     # demo_grid()
+    # demo_loop()
+    demo_multi_cycle()
     pass
