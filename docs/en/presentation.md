@@ -124,7 +124,7 @@ TaskGraph(
 )
 ```
 
-- **Initialization**: After construction, set nodes via `graph.set_stages(root_stages=[...], stages=[...])` and establish connections via `graph.connect(...)`
+- **Initialization**: After construction, set nodes via `graph.set_stages(stages=[...])` and establish connections via `graph.connect(...)`. Source stages are auto-computed via SCC condensation
 - **Scheduling modes**:
   - `eager`: All Stages start concurrently; dependency ordering is naturally enforced by queues
   - `staged`: DAG-only; layer-by-layer execution with synchronous blocking between layers
@@ -584,7 +584,7 @@ extract_image   = TaskStage(extract_image, execution_mode="thread", worker_limit
 store    = TaskStage(save_to_db, execution_mode="serial")
 
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[discover], stages=[download, router, extract_article, extract_image, store])
+graph.set_stages(stages=[discover, download, router, extract_article, extract_image, store])
 graph.connect([discover], [download])
 graph.connect([download], [router])
 graph.connect([router], [extract_article, extract_image])

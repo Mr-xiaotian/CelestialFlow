@@ -125,12 +125,12 @@ async_stage_b = TaskStage("B", async_process_b)
 
 # Build sync graph
 sync_graph = TaskGraph()
-sync_graph.set_stages(root_stages=[stage_a], stages=[stage_a, stage_b])
+sync_graph.set_stages(stages=[stage_a, stage_b])
 sync_graph.connect([stage_a], [stage_b])
 
 # Build async graph
 async_graph = TaskGraph()
-async_graph.set_stages(root_stages=[async_stage_a], stages=[async_stage_a, async_stage_b])
+async_graph.set_stages(stages=[async_stage_a, async_stage_b])
 async_graph.connect([async_stage_a], [async_stage_b])
 
 # Run benchmark

@@ -124,7 +124,7 @@ TaskGraph(
 )
 ```
 
-- **初期化**: 構築後、`graph.set_stages(root_stages=[...], stages=[...])`でノードを設定し、`graph.connect(...)`で接続を確立します
+- **初期化**: 構築後、`graph.set_stages(stages=[...])`でノードを設定し、`graph.connect(...)`で接続を確立します。ソースノードはSCC凝縮により自動計算されます
 - **スケジューリングモード**:
   - `eager`: 全Stageが並行起動し、依存関係はキューにより自然に保証されます
   - `staged`: DAG専用。レイヤーごとに実行し、レイヤー間は同期ブロッキングです
@@ -584,7 +584,7 @@ extract_image   = TaskStage(extract_image, execution_mode="thread", worker_limit
 store    = TaskStage(save_to_db, execution_mode="serial")
 
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[discover], stages=[download, router, extract_article, extract_image, store])
+graph.set_stages(stages=[discover, download, router, extract_article, extract_image, store])
 graph.connect([discover], [download])
 graph.connect([download], [router])
 graph.connect([router], [extract_article, extract_image])

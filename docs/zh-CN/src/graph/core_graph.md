@@ -26,12 +26,11 @@ class TaskGraph:
 ### 设置节点
 
 ```python
-def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]):
+def set_stages(self, stages: list[TaskStage]):
     """
-    设置任务图的节点。
+    设置任务图的节点。源节点通过 SCC 凝聚自动计算。
     
-    :param root_stages: 入口节点列表（根节点）。支持多根节点（森林结构）。
-    :param stages: 其他非根节点列表（可选）。
+    :param stages: 所有节点列表。
     """
 ```
 
@@ -39,7 +38,8 @@ def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]):
 
 ### 图构建与分析
 
-- **自动构建**: 根据 `root_stages` 和节点间的连接关系 (`out_edges`), 自动遍历并构建整个图结构。
+- **自动构建**: 根据节点列表和节点间的连接关系 (`out_edges`), 自动遍历并构建整个图结构。
+- **源节点自动计算**: 通过 SCC 凝聚自动识别源节点（无入边的节点）。
 - **DAG 检测**: 自动检测是否为有向无环图 (DAG)。
 - **分层分析**: 如果是 DAG，会自动计算节点的层级，用于 `staged` 调度或可视化展示。
 
@@ -58,7 +58,7 @@ def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True
 示例：
 ```python
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[stage_a, stage_b], stages=[])
+graph.set_stages(stages=[stage_a, stage_b])
 graph.start_graph({
     stage_a.get_tag(): [1, 2, 3, 4, 5]
 })
@@ -263,7 +263,7 @@ stage_c = TaskStage("C", func=process_c, execution_mode="serial", stage_mode="th
 
 # 构建图
 graph = TaskGraph(schedule_mode="eager", log_level="INFO")
-graph.set_stages(root_stages=[stage_a], stages=[stage_b, stage_c])
+graph.set_stages(stages=[stage_a, stage_b, stage_c])
 graph.connect([stage_a], [stage_b, stage_c])
 
 # 配置

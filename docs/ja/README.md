@@ -138,7 +138,7 @@ if __name__ == "__main__":
     stage2 = TaskStage(square, execution_mode="thread", stage_mode="process", name="Squarer")
 
     graph = TaskGraph()
-    graph.set_stages(root_stages=[stage1], stages=[stage2])
+    graph.set_stages(stages=[stage1, stage2])
     graph.connect([stage1], [stage2])
 
     # タスクを初期化して開始

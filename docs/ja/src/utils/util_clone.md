@@ -85,7 +85,7 @@ from celestialflow import TaskGraph
 from celestialflow.utils.util_clone import clone_graph
 
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[stage_a, stage_b])
+graph.set_stages(stages=[stage_a, stage_b])
 
 cloned_graph = clone_graph(graph)
 cloned_graph.start_graph(init_tasks)

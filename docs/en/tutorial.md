@@ -247,7 +247,7 @@ from celestialflow import TaskGraph
 graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
 
 # Set up nodes
-graph.set_stages(root_stages=[stage_search], stages=[stage_parse, stage_download, stage_save])
+graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
 
 # Set up connections between nodes
 graph.connect([stage_search], [stage_parse])
@@ -391,7 +391,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     
     # Set up connections
     graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
-    graph.set_stages(root_stages=[stage_search], stages=[stage_parse, stage_download, stage_save])
+    graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
     graph.connect([stage_download], [stage_save])
@@ -411,7 +411,7 @@ if __name__ == "__main__":
     # Run
     print("Starting image crawl...")
     graph.start_graph({
-        graph.root_stages[0].get_tag(): KEYWORDS
+        graph.source_stages[0].get_tag(): KEYWORDS
     })
     
     # Statistics

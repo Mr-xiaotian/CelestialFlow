@@ -130,7 +130,7 @@ if __name__ == "__main__":
 
     # 构建任务图结构
     graph = TaskGraph()
-    graph.set_stages(root_stages=[stage1], stages=[stage2])
+    graph.set_stages(stages=[stage1, stage2])
     graph.connect([stage1], [stage2])
 
     # 初始化任务并启动

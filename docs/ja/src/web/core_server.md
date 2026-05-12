@@ -190,7 +190,7 @@ Web サービスの設定は `web/config.json` に永続化保存されます。
 from celestialflow import TaskGraph
 
 graph = TaskGraph()
-graph.set_stages(root_stages=[stage_a])
+graph.set_stages(stages=[stage_a])
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 graph.start_graph(init_tasks)
 ```

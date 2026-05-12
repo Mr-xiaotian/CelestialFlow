@@ -26,12 +26,11 @@ class TaskGraph:
 ### ノードの設定
 
 ```python
-def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]):
+def set_stages(self, stages: list[TaskStage]):
     """
-    タスクグラフのノードを設定します。
+    タスクグラフのノードを設定します。ソースノードはSCC凝縮により自動計算されます。
     
-    :param root_stages: エントリノードリスト（ルートノード）。複数ルートノード（フォレスト構造）をサポートします。
-    :param stages: その他の非ルートノードリスト（オプション）。
+    :param stages: 全ノードリスト。
     """
 ```
 
@@ -39,7 +38,8 @@ def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]):
 
 ### グラフ構築と分析
 
-- **自動構築**: `root_stages` とノード間の接続関係 (`out_edges`) に基づいて、グラフ構造全体を自動的に走査して構築します。
+- **自動構築**: ノードリストとノード間の接続関係 (`out_edges`) に基づいて、グラフ構造全体を自動的に走査して構築します。
+- **ソースノード自動計算**: SCC凝縮によりソースノード（入辺のないノード）を自動識別します。
 - **DAG 検出**: 有向非巡回グラフ (DAG) であるかどうかを自動検出します。
 - **レイヤー分析**: DAG の場合、`staged` スケジューリングや可視化表示のためにノードのレイヤーを自動計算します。
 
@@ -58,7 +58,7 @@ def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True
 例：
 ```python
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[stage_a, stage_b], stages=[])
+graph.set_stages(stages=[stage_a, stage_b])
 graph.start_graph({
     stage_a.get_tag(): [1, 2, 3, 4, 5]
 })
@@ -265,7 +265,7 @@ stage_c = TaskStage("C", func=process_c, execution_mode="serial", stage_mode="pr
 
 # グラフを構築
 graph = TaskGraph(schedule_mode="eager", log_level="INFO")
-graph.set_stages(root_stages=[stage_a], stages=[stage_b, stage_c])
+graph.set_stages(stages=[stage_a, stage_b, stage_c])
 graph.connect([stage_a], [stage_b, stage_c])
 
 # 設定

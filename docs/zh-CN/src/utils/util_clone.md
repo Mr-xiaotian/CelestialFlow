@@ -107,7 +107,7 @@ from celestialflow.utils.util_clone import clone_graph
 
 # 创建原始图
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[stage_a, stage_b])
+graph.set_stages(stages=[stage_a, stage_b])
 
 # 克隆图用于测试
 cloned_graph = clone_graph(graph)

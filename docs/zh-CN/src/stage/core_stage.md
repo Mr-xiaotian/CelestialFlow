@@ -66,7 +66,7 @@ stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mod
 
 # 创建图并连接节点
 graph = TaskGraph()
-graph.set_stages(root_stages=[stage_a], stages=[stage_b])
+graph.set_stages(stages=[stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 ```
 

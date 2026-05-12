@@ -124,7 +124,7 @@ TaskGraph(
 )
 ```
 
-- **初始化**: 构造后通过 `graph.set_stages(root_stages=[...], stages=[...])` 设置节点，通过 `graph.connect(...)` 建立连接
+- **初始化**: 构造后通过 `graph.set_stages(stages=[...])` 设置节点，通过 `graph.connect(...)` 建立连接。源节点通过 SCC 凝聚自动计算
 - **调度模式**：
   - `eager`：所有 Stage 并发启动，依赖关系由队列自然保证
   - `staged`：仅 DAG 可用，逐层执行，层间同步阻塞
@@ -578,7 +578,7 @@ extract_image   = TaskStage(extract_image, execution_mode="thread", worker_limit
 store    = TaskStage(save_to_db, execution_mode="serial")
 
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[discover], stages=[download, router, extract_article, extract_image, store])
+graph.set_stages(stages=[discover, download, router, extract_article, extract_image, store])
 graph.connect([discover], [download])
 graph.connect([download], [router])
 graph.connect([router], [extract_article, extract_image])
