@@ -81,7 +81,6 @@ def demo_splitter_0():
     # 初始化 TaskGraph
     graph = TaskGraph(log_level="INFO")
     graph.set_stages(
-        root_stages=[generate_stage],
         stages=[generate_stage, logger_stage, splitter, download_stage, parse_stage],
     )
     graph.connect([generate_stage], [logger_stage, splitter])
@@ -155,7 +154,6 @@ def demo_redis_ack_0():
 
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[start_stage],
         stages=[start_stage, redis_tranport, redis_ack, fibonacci_stage],
     )
     graph.connect([start_stage], [redis_tranport, fibonacci_stage])
@@ -208,7 +206,6 @@ def demo_redis_ack_1():
 
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[start_stage],
         stages=[start_stage, redis_tranport, redis_ack, sum_stage],
     )
     graph.connect([start_stage], [redis_tranport, sum_stage])
@@ -259,7 +256,6 @@ def demo_redis_ack_2():
 
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[start_stage],
         stages=[start_stage, redis_tranport, redis_ack, download_stage],
     )
     graph.connect([start_stage], [redis_tranport, download_stage])
@@ -311,7 +307,6 @@ def demo_redis_source_0():
 
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[sleep_stage_0, redis_source],
         stages=[sleep_stage_0, redis_tranport, redis_source, sleep_stage_1],
     )
     graph.connect([sleep_stage_0], [redis_tranport])
@@ -363,7 +358,6 @@ def demo_router_0():
 
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[source_stage],
         stages=[source_stage, router, stage_a, stage_b],
     )
     graph.connect([source_stage], [router])

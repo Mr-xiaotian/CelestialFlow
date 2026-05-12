@@ -73,8 +73,7 @@ def demo_etl_fan_out_fan_in():
     graph = TaskGraph(schedule_mode="eager", log_level="INFO")
     # graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_stages(
-        root_stages=[extract],
-        stages=[normalize, enrich, load],
+        stages=[extract, normalize, enrich, load],
     )
     graph.connect([extract], [normalize, enrich])
     graph.connect([normalize, enrich], [load])
@@ -116,8 +115,7 @@ def demo_async_staged_pipeline():
     graph = TaskGraph(schedule_mode="staged", log_level="INFO")
     # graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_stages(
-        root_stages=[stage_double],
-        stages=[stage_to_str],
+        stages=[stage_double, stage_to_str],
     )
     graph.connect([stage_double], [stage_to_str])
 
@@ -134,4 +132,5 @@ def demo_async_staged_pipeline():
 
 if __name__ == "__main__":
     demo_etl_fan_out_fan_in()
-    demo_async_staged_pipeline()
+    # demo_async_staged_pipeline()
+    pass

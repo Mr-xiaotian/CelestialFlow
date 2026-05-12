@@ -59,7 +59,7 @@ class TestTaskGraphBasic:
         stage2 = TaskStage("s2", double, execution_mode="serial")
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.start_graph({stage1.get_tag(): [1, 2, 3]})
@@ -75,7 +75,7 @@ class TestTaskGraphBasic:
         sink_b = TaskStage("SinkB", to_str, execution_mode="serial")
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[source], stages=[source, sink_a, sink_b])
+        graph.set_stages(stages=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
         graph.start_graph({source.get_tag(): [1, 2]})
@@ -92,7 +92,7 @@ class TestTaskGraphBasic:
 
         graph = TaskGraph()
         graph.set_stages(
-            root_stages=[source_a, source_b], stages=[source_a, source_b, merge]
+            stages=[source_a, source_b, merge]
         )
         graph.connect([source_a, source_b], [merge])
 
@@ -111,7 +111,7 @@ class TestTaskGraphBasic:
         stage2 = TaskStage("s2", double, execution_mode="serial")
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.start_graph({stage1.get_tag(): [1, 50, 2]})
@@ -135,7 +135,7 @@ class TestTaskGraphAsync:
         stage2 = TaskStage("s2", async_double, execution_mode="async")
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.start_graph({stage1.get_tag(): [1, 2, 3]})
@@ -150,7 +150,7 @@ class TestTaskGraphAsync:
         sink_b = TaskStage("sink_b", async_to_str, execution_mode="async")
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[source], stages=[source, sink_a, sink_b])
+        graph.set_stages(stages=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
         graph.start_graph({source.get_tag(): [1, 2]})
@@ -167,7 +167,7 @@ class TestTaskGraphAsync:
 
         graph = TaskGraph()
         graph.set_stages(
-            root_stages=[source_a, source_b], stages=[source_a, source_b, merge]
+            stages=[source_a, source_b, merge]
         )
         graph.connect([source_a, source_b], [merge])
 
@@ -186,7 +186,7 @@ class TestTaskGraphAsync:
         stage2 = TaskStage("s2", async_double, execution_mode="async")
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.start_graph({stage1.get_tag(): [1, 50, 2]})
@@ -205,7 +205,7 @@ class TestTaskGraphAsync:
         )
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.start_graph({stage1.get_tag(): [1, 2, 3]})
@@ -290,7 +290,7 @@ class TestTaskGraphAnalysis:
         s2 = TaskStage("s2", double)
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
 
         # 调用 build_analysis（通过 start_graph 触发）
@@ -307,7 +307,7 @@ class TestTaskGraphAnalysis:
         s3 = TaskStage("s3", to_str)
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[s1], stages=[s1, s2, s3])
+        graph.set_stages(stages=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
 
@@ -328,7 +328,7 @@ class TestTaskGraphSummary:
         s2 = TaskStage("s2", double)
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
 
         graph.start_graph({s1.get_tag(): [1, 2, 3]})
@@ -355,7 +355,7 @@ class TestStageExecutionMatrix:
         s2 = TaskStage("s2", double, stage_mode="serial", execution_mode="serial")
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
         graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
 
@@ -371,7 +371,7 @@ class TestStageExecutionMatrix:
         )
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
         graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
 
@@ -395,7 +395,7 @@ class TestStageExecutionMatrix:
         )
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
         graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
 
@@ -409,7 +409,7 @@ class TestStageExecutionMatrix:
         s2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
         graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
 
@@ -425,7 +425,7 @@ class TestStageExecutionMatrix:
         )
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
         graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
 
@@ -449,7 +449,7 @@ class TestStageExecutionMatrix:
         )
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[s1], stages=[s1, s2])
+        graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
         graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
 
@@ -468,7 +468,7 @@ class TestTaskGraphThread:
         stage2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.start_graph({stage1.get_tag(): [1, 2, 3]})
@@ -487,7 +487,7 @@ class TestTaskGraphThread:
         )
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[source], stages=[source, sink_a, sink_b])
+        graph.set_stages(stages=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
         graph.start_graph({source.get_tag(): [1, 2]})
@@ -508,7 +508,7 @@ class TestTaskGraphThread:
 
         graph = TaskGraph()
         graph.set_stages(
-            root_stages=[source_a, source_b], stages=[source_a, source_b, merge]
+            stages=[source_a, source_b, merge]
         )
         graph.connect([source_a, source_b], [merge])
 
@@ -529,7 +529,7 @@ class TestTaskGraphThread:
         stage2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.start_graph({stage1.get_tag(): [1, 50, 2]})
@@ -548,7 +548,7 @@ class TestTaskGraphThread:
         )
 
         graph = TaskGraph()
-        graph.set_stages(root_stages=[stage1], stages=[stage1, stage2])
+        graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.start_graph({stage1.get_tag(): [1, 2, 3]})
@@ -563,7 +563,7 @@ class TestTaskGraphThread:
         s3 = TaskStage("s3", to_str, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph(schedule_mode="staged")
-        graph.set_stages(root_stages=[s1], stages=[s1, s2, s3])
+        graph.set_stages(stages=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
 

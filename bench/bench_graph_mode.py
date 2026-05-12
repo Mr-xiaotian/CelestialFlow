@@ -157,7 +157,6 @@ def bench_graph_0():
 
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[stage1],
         stages=[stage1, stage2, stage3, stage4],
     )
     graph.connect([stage1], [stage2, stage3])
@@ -174,7 +173,6 @@ def bench_graph_0():
 
     async_graph = TaskGraph()
     async_graph.set_stages(
-        root_stages=[async_stage1],
         stages=[async_stage1, async_stage2, async_stage3, async_stage4],
     )
     async_graph.connect([async_stage1], [async_stage2, async_stage3])
@@ -206,7 +204,6 @@ def bench_graph_1():
 
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[A],
         stages=[A, B, C, D, E, F],
     )
     graph.connect([A], [B, C])
@@ -224,7 +221,6 @@ def bench_graph_1():
 
     async_graph = TaskGraph()
     async_graph.set_stages(
-        root_stages=[aA],
         stages=[aA, aB, aC, aD, aE, aF],
     )
     async_graph.connect([aA], [aB, aC])
@@ -250,7 +246,7 @@ def bench_graph_2():
     C = TaskStage("StageC", multiply_two, max_workers=20)
 
     graph = TaskGraph()
-    graph.set_stages(root_stages=[S], stages=[S, A, B, C])
+    graph.set_stages(stages=[S, A, B, C])
     graph.connect([S], [A])
     graph.connect([A], [B, C])
 
@@ -260,7 +256,7 @@ def bench_graph_2():
     aC = TaskStage("StageC", async_multiply_two, max_workers=20)
 
     async_graph = TaskGraph()
-    async_graph.set_stages(root_stages=[aS], stages=[aS, aA, aB, aC])
+    async_graph.set_stages(stages=[aS, aA, aB, aC])
     async_graph.connect([aS], [aA])
     async_graph.connect([aA], [aB, aC])
 
@@ -277,5 +273,6 @@ def bench_graph_2():
 
 if __name__ == "__main__":
     # bench_graph_0()
-    # bench_graph_1()
+    bench_graph_1()
     bench_graph_2()
+    pass
