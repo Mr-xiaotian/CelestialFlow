@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from queue import Queue
 from time import localtime, strftime
-from typing import TextIO
+from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
 from ..runtime.util_errors import LogLevelError
@@ -15,7 +16,7 @@ class LogSpout(BaseSpout):
     日志监听线程，用于将日志写入文件
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化日志监听器"""
         super().__init__()
 
@@ -32,7 +33,7 @@ class LogSpout(BaseSpout):
         # 打开日志文件
         self._file = self.log_path.open("a", encoding="utf-8")
 
-    def _handle_record(self, record: dict) -> None:
+    def _handle_record(self, record: dict[str, Any]) -> None:
         """
         处理单条日志记录，写入日志文件
 
@@ -62,7 +63,7 @@ class LogInlet(BaseInlet):
     多进程安全日志包装类，所有日志通过队列发送到监听进程写入
     """
 
-    def __init__(self, log_queue, log_level: str = "SUCCESS") -> None:
+    def __init__(self, log_queue: Queue[Any], log_level: str = "INFO") -> None:
         """
         初始化日志收集器
 
@@ -163,27 +164,6 @@ class LogInlet(BaseInlet):
             "INFO",
             f"'{name}[{func_name}]' end; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
             f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
-        )
-
-    # ==== process ====
-    def process_termination_attempt(self, process_name: str) -> None:
-        """记录进程终止尝试"""
-        self._log(
-            "WARNING",
-            f"Process '{process_name}' is still running; attempting graceful termination.",
-        )
-
-    def process_termination_timeout(self, process_name: str) -> None:
-        """记录进程终止超时"""
-        self._log(
-            "WARNING",
-            f"Process '{process_name}' did not exit within the termination timeout.",
-        )
-
-    def process_exit(self, process_name: str, exitcode: int | None) -> None:
-        """记录进程退出"""
-        self._log(
-            "DEBUG", f"Process '{process_name}' exited with exit code {exitcode}."
         )
 
     # ==== task ====
@@ -311,36 +291,28 @@ class LogInlet(BaseInlet):
         )
 
     # ==== queue ====
-    def put_item(
-        self, item_type: str, item_id: int, left_tag: str, right_tag: str
-    ) -> None:
+    def put_item(self, item_type: str, item_id: int, in_tag: str, out_tag: str) -> None:
         """记录队列 put 操作"""
-        edge = f"'{left_tag}' -> '{right_tag}'"
+        edge = f"'{in_tag}' -> '{out_tag}'"
         self._log("TRACE", f"Put {item_type}#{item_id} into Edge({edge}).")
 
-    def put_item_error(
-        self, left_tag: str, right_tag: str, exception: Exception
-    ) -> None:
+    def put_item_error(self, in_tag: str, out_tag: str, exception: Exception) -> None:
         """记录队列 put 失败"""
-        edge = f"'{left_tag}' -> '{right_tag}'"
+        edge = f"'{in_tag}' -> '{out_tag}'"
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "WARNING",
             f"Put into Edge({edge}): ({type(exception).__name__}){exception_text}.",
         )
 
-    def get_item(
-        self, item_type: str, item_id: int, left_tag: str, right_tag: str
-    ) -> None:
+    def get_item(self, item_type: str, item_id: int, in_tag: str, out_tag: str) -> None:
         """记录队列 get 操作"""
-        edge = f"'{left_tag}' -> '{right_tag}'"
+        edge = f"'{in_tag}' -> '{out_tag}'"
         self._log("TRACE", f"Get {item_type}#{item_id} from Edge({edge}).")
 
-    def get_item_error(
-        self, left_tag: str, right_tag: str, exception: Exception
-    ) -> None:
+    def get_item_error(self, in_tag: str, out_tag: str, exception: Exception) -> None:
         """记录队列 get 失败"""
-        edge = f"'{left_tag}' -> '{right_tag}'"
+        edge = f"'{in_tag}' -> '{out_tag}'"
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "WARNING",
@@ -380,12 +352,12 @@ class LogInlet(BaseInlet):
             f"[Reporter] Pull 'task injection' failed: {type(exception).__name__}({exception}).",
         )
 
-    def inject_tasks_success(self, target_node: str, task_datas) -> None:
+    def inject_tasks_success(self, target_node: str, task_datas: Any) -> None:
         """记录任务注入成功"""
         self._log("INFO", f"[Reporter] Inject tasks {task_datas} into '{target_node}'.")
 
     def inject_tasks_failed(
-        self, target_node: str, task_datas, exception: Exception
+        self, target_node: str, task_datas: Any, exception: Exception
     ) -> None:
         """记录任务注入失败"""
         self._log(
@@ -415,11 +387,11 @@ class LogInlet(BaseInlet):
             f"[Reporter] Push 'structure' failed: {type(exception).__name__}({exception}).",
         )
 
-    def push_topology_failed(self, exception: Exception) -> None:
-        """记录推送拓扑信息失败"""
+    def push_analysis_failed(self, exception: Exception) -> None:
+        """记录推送分析信息失败"""
         self._log(
             "WARNING",
-            f"[Reporter] Push 'topology' failed: {type(exception).__name__}({exception}).",
+            f"[Reporter] Push 'analysis' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_summary_failed(self, exception: Exception) -> None:
@@ -427,13 +399,6 @@ class LogInlet(BaseInlet):
         self._log(
             "WARNING",
             f"[Reporter] Push 'summary' failed: {type(exception).__name__}({exception}).",
-        )
-
-    def push_analysis_failed(self, exception: Exception) -> None:
-        """记录推送分析信息失败"""
-        self._log(
-            "WARNING",
-            f"[Reporter] Push 'analysis' failed: {type(exception).__name__}({exception}).",
         )
 
     def push_history_failed(self, exception: Exception) -> None:

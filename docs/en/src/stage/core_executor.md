@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 Last updated: 2026/04/24
+> 📅 Last updated: 2026/05/08
 
 `TaskExecutor` is the core component for executing individual task logic. It handles task execution, concurrency control, error handling, retry mechanisms, and logging.
 
@@ -18,7 +18,6 @@ class TaskExecutor:
         max_info=50,
         unpack_task_args=False,
         enable_duplicate_check=True,
-        show_progress=False,
         log_level="SUCCESS",
     ):
         ...
@@ -37,8 +36,46 @@ class TaskExecutor:
 - **max_info**: Maximum length of each log message.
 - **unpack_task_args**: Whether to unpack task arguments (`*args`) before passing to the function.
 - **enable_duplicate_check**: Whether to enable hash-based duplicate checking for tasks.
-- **show_progress**: Whether to display a progress bar.
 - **log_level**: Log level (TRACE/DEBUG/SUCCESS/INFO/WARNING/ERROR/CRITICAL).
+
+## Observer Pattern
+
+`TaskExecutor` broadcasts lifecycle events to external observers via the observer pattern.
+
+### Register and Remove
+
+```python
+executor.add_observer(observer)     # Register observer
+executor.remove_observer(observer)  # Remove observer
+```
+
+### Usage Example
+
+```python
+from celestialflow import TaskExecutor, TaskProgress, CallbackObserver
+
+# Use TaskProgress for progress bar
+executor = TaskExecutor("Test", my_func)
+executor.add_observer(TaskProgress())
+executor.start(tasks)
+
+# Use CallbackObserver
+observer = CallbackObserver(
+    on_task_success=lambda count=1: print(f"Success: {count}"),
+)
+executor.add_observer(observer)
+```
+
+### Broadcast Events
+
+| Event | Trigger |
+|-------|---------|
+| `on_start(name, total)` | Execution starts |
+| `on_task_success(count)` | Task succeeded |
+| `on_task_fail(count)` | Task failed |
+| `on_task_duplicate(count)` | Duplicate detected |
+| `on_tasks_added(count)` | New tasks added |
+| `on_finish()` | Execution finished |
 
 ## Core Methods
 

@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 Last updated: 2026/04/23
+> 📅 Last updated: 2026/05/11
 
 `utils/benchmark.py` provides performance benchmarking functionality for executors and task graphs, used to compare performance differences across execution modes.
 
@@ -31,7 +31,7 @@ async def benchmark_executor(
     :param sync_executor: Synchronous executor template
     :param async_executor: Asynchronous executor template
     :param task_source: Task source
-    :param sync_modes: Synchronous mode list, defaults to ["serial", "thread", "process"]
+    :param sync_modes: Synchronous mode list, defaults to ["serial", "thread"]
     :param async_modes: Asynchronous mode list, defaults to ["async"]
     :return: Test results dictionary
     """
@@ -42,7 +42,6 @@ Output example:
            Time
 serial     2.34s
 thread     0.89s
-process    0.45s
 async      0.67s
 ```
 
@@ -52,18 +51,22 @@ Benchmarks a `TaskGraph`.
 
 ```python
 def benchmark_graph(
-    graph: TaskGraph,
-    init_tasks_dict: dict[str, Iterable],
+    sync_graph: TaskGraph,
+    async_graph: TaskGraph,
+    init_tasks_dict: Mapping[str, Iterable],
     stage_modes: list[str] | None = None,
-    execution_modes: list[str] | None = None,
+    execution_sync_modes: list[str] | None = None,
+    execution_async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     Benchmark a task graph.
 
-    :param graph: Task graph template
+    :param sync_graph: Synchronous task graph template (for serial/thread modes)
+    :param async_graph: Asynchronous task graph template (for async mode)
     :param init_tasks_dict: Initial tasks dictionary
-    :param stage_modes: Stage mode list, defaults to ["serial", "thread", "process"]
-    :param execution_modes: Execution mode list, defaults to ["serial", "thread"]
+    :param stage_modes: Stage mode list, defaults to ["serial", "thread"]
+    :param execution_sync_modes: Synchronous execution mode list, defaults to ["serial", "thread"]
+    :param execution_async_modes: Asynchronous execution mode list, defaults to ["async"]
     :return: Test results dictionary
     """
 ```
@@ -71,12 +74,9 @@ def benchmark_graph(
 Output example:
 ```
 Time table:
-          serial    thread
-serial    5.23s     3.45s
-process   2.12s     1.89s
-
-Fail stage dict: {}
-Fail error dict: {}
+          serial    thread    async
+serial    5.23s     3.45s     3.21s
+thread    2.12s     1.89s     1.65s
 ```
 
 ## Usage Examples
@@ -115,21 +115,29 @@ asyncio.run(benchmark_executor(
 from celestialflow import TaskGraph, TaskStage
 from celestialflow.utils.benchmark import benchmark_graph
 
-# Create stages
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="A")
-stage_b = TaskStage(func=process_b, execution_mode="thread", stage_mode="process", name="B")
+# Create sync stages
+stage_a = TaskStage("A", process_a)
+stage_b = TaskStage("B", process_b)
 
-# Build graph
-graph = TaskGraph()
-graph.set_stages(root_stages=[stage_a], stages=[stage_b])
-graph.connect([stage_a], [stage_b])
+# Create async stages
+async_stage_a = TaskStage("A", async_process_a)
+async_stage_b = TaskStage("B", async_process_b)
+
+# Build sync graph
+sync_graph = TaskGraph()
+sync_graph.set_stages(stages=[stage_a, stage_b])
+sync_graph.connect([stage_a], [stage_b])
+
+# Build async graph
+async_graph = TaskGraph()
+async_graph.set_stages(stages=[async_stage_a, async_stage_b])
+async_graph.connect([async_stage_a], [async_stage_b])
 
 # Run benchmark
 benchmark_graph(
-    graph=graph,
+    sync_graph=sync_graph,
+    async_graph=async_graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "thread", "process"],
-    execution_modes=["serial", "thread"],
 )
 ```
 
@@ -141,24 +149,24 @@ benchmark_graph(
 |-----------|-------------|
 | `serial` | Single-threaded serial execution |
 | `thread` | Thread pool concurrent execution |
-| `process` | Process pool parallel execution |
 | `async` | Coroutine asynchronous execution |
 
 ### Task Graph Test Dimensions
 
 **Stage Mode**:
-- `serial`: Stage runs in the main process
-- `process`: Stage runs in a separate process
+- `serial`: Stage runs in the main thread
+- `thread`: Stage runs in a separate thread
 
 **Execution Mode**:
 - `serial`: Serial execution within a stage
 - `thread`: Thread pool execution within a stage
+- `async`: Coroutine async execution within a stage
 
 Combination example:
-| Stage \ Execution | serial | thread |
-|-------------------|--------|--------|
-| serial | S-S | S-T |
-| process | P-S | P-T |
+| Stage \ Execution | serial | thread | async |
+|-------------------|--------|--------|-------|
+| serial | S-S | S-T | S-A |
+| thread | T-S | T-T | T-A |
 
 ## Output Information
 
@@ -176,5 +184,6 @@ If any tasks fail, the following is output:
 
 1. **Cloning Mechanism**: Each test clones the original object to avoid state contamination
 2. **Fixed Tasks**: All tests use the same task list to ensure fairness
-3. **Resource Contention**: Process mode may be affected by resource contention; multiple test runs are recommended
+3. **Resource Contention**: Thread mode may be affected by resource contention; multiple test runs are recommended
 4. **Async Requirement**: `benchmark_executor` is an async function and requires `await` or `asyncio.run`
+5. **Separate Graphs**: `benchmark_graph` requires separate sync and async graphs because async execution mode needs async functions

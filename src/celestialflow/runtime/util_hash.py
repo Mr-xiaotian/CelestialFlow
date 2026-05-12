@@ -1,7 +1,7 @@
 # runtime/util_hash.py
 import hashlib
 import pickle
-from typing import Any
+from typing import Any, cast
 
 
 # ======== 处理hash任务 ========
@@ -13,21 +13,22 @@ def make_hashable(obj: Any) -> Any:
     :return: 可哈希的等价形式
     """
     if isinstance(obj, (tuple, list)):
-        return tuple(make_hashable(e) for e in obj)
+        return tuple(make_hashable(e) for e in cast(list[Any], obj))
     elif isinstance(obj, dict):
         # dict 转换成 (key, value) 对的元组，且按 key 排序以确保哈希结果一致
+        obj_dict = cast(dict[Any, Any], obj)
         return tuple(
-            sorted((make_hashable(k), make_hashable(v)) for k, v in obj.items())
+            sorted((make_hashable(k), make_hashable(v)) for k, v in obj_dict.items())
         )
     elif isinstance(obj, set):
         # set 转换成排序后的 tuple
-        return tuple(sorted(make_hashable(e) for e in obj))
+        return tuple(sorted(make_hashable(e) for e in cast(set[Any], obj)))
     else:
         # 基本类型直接返回
         return obj
 
 
-def object_to_str_hash(obj) -> str:
+def object_to_str_hash(obj: Any) -> str:
     """
     将任意对象转换为 SHA1 字符串。
 

@@ -247,7 +247,7 @@ from celestialflow import TaskGraph
 graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
 
 # ノードを設定
-graph.set_stages(root_stages=[stage_search], stages=[stage_parse, stage_download, stage_save])
+graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
 
 # ノード間の接続関係を設定
 graph.connect([stage_search], [stage_parse])
@@ -391,7 +391,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     
     # 接続を設定
     graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
-    graph.set_stages(root_stages=[stage_search], stages=[stage_parse, stage_download, stage_save])
+    graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
     graph.connect([stage_download], [stage_save])
@@ -411,7 +411,7 @@ if __name__ == "__main__":
     # 実行
     print("画像のクロールを開始...")
     graph.start_graph({
-        graph.root_stages[0].get_tag(): KEYWORDS
+        graph.source_stages[0].get_tag(): KEYWORDS
     })
     
     # 統計

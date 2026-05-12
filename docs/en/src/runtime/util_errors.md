@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 Last updated: 2026/04/23
+> 📅 Last updated: 2026/05/08
 
 The TaskErrors module defines the custom exception classes used in the framework.
 
@@ -12,10 +12,12 @@ CelestialFlowError
 │   └── InvalidOptionError
 │       ├── ExecutionModeError
 │       ├── StageModeError
+│       ├── ScheduleModeError
 │       └── LogLevelError
 ├── RemoteWorkerError
 ├── UnconsumedError
-└── PickleError
+├── PickleError
+└── CelestialTreeConnectionError
 ```
 
 ## Base Class
@@ -73,7 +75,7 @@ class ExecutionModeError(InvalidOptionError):
     """Invalid execution_mode configuration error"""
 
     def __init__(self, execution_mode: str, valid_modes=None):
-        # valid_modes defaults to ("serial", "process", "thread", "async")
+        # valid_modes defaults to ("serial", "thread", "async")
 ```
 
 ### StageModeError
@@ -85,7 +87,7 @@ class StageModeError(InvalidOptionError):
     """Invalid stage_mode configuration error"""
 
     def __init__(self, stage_mode: str, valid_modes=None):
-        # valid_modes defaults to ("serial", "process")
+        # valid_modes defaults to ("serial", "thread", "process")
 ```
 
 ### LogLevelError
@@ -98,6 +100,18 @@ class LogLevelError(InvalidOptionError):
 
     def __init__(self, log_level: str, valid_levels=None):
         # valid_levels defaults to ("TRACE", "DEBUG", "SUCCESS", "INFO", "WARNING", "ERROR", "CRITICAL")
+```
+
+### ScheduleModeError
+
+`schedule_mode` configuration error.
+
+```python
+class ScheduleModeError(InvalidOptionError):
+    """Invalid schedule_mode configuration error"""
+
+    def __init__(self, schedule_mode: str, valid_modes=None):
+        # valid_modes defaults to ("eager", "staged")
 ```
 
 ## Runtime Exceptions
@@ -139,6 +153,16 @@ class PickleError(CelestialFlowError):
         self.obj = obj
         self.type = type(obj).__name__
         self.message = message
+```
+
+### CelestialTreeConnectionError
+
+Error raised when the CelestialTree service connection fails.
+
+```python
+class CelestialTreeConnectionError(CelestialFlowError):
+    """Error raised when the CelestialTree service connection fails"""
+    pass
 ```
 
 In `TaskStage.set_func()`, the function is checked for pickle compatibility:

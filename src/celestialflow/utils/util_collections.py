@@ -9,7 +9,7 @@ def cluster_by_value_sorted(input_dict: dict[str, int]) -> dict[int, list[str]]:
     :param input_dict: 输入字典
     :return: 聚类后的字典，键为值，值为键的列表
     """
-    clusters = defaultdict(list)
+    clusters: defaultdict[int, list[str]] = defaultdict(list)
     for key, val in input_dict.items():
         clusters[val].append(key)
 

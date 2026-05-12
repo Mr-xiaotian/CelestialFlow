@@ -26,12 +26,11 @@ class TaskGraph:
 ### Setting Stages
 
 ```python
-def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]):
+def set_stages(self, stages: list[TaskStage]):
     """
-    Set the task graph's nodes.
+    Set the task graph's nodes. Source stages are auto-computed via SCC condensation.
     
-    :param root_stages: List of entry nodes (root nodes). Supports multiple root nodes (forest structure).
-    :param stages: List of other non-root nodes (optional).
+    :param stages: List of all nodes.
     """
 ```
 
@@ -39,7 +38,8 @@ def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]):
 
 ### Graph Construction and Analysis
 
-- **Automatic construction**: Based on `root_stages` and inter-node connections (`out_edges`), automatically traverses and builds the entire graph structure.
+- **Automatic construction**: Based on the stages list and inter-node connections (`out_edges`), automatically traverses and builds the entire graph structure.
+- **Source stage auto-computation**: Automatically identifies source stages (nodes with no incoming edges) via SCC condensation.
 - **DAG detection**: Automatically detects whether the graph is a Directed Acyclic Graph (DAG).
 - **Layer analysis**: If the graph is a DAG, automatically computes node layers for `staged` scheduling or visualization.
 
@@ -58,7 +58,7 @@ def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True
 Example:
 ```python
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[stage_a, stage_b], stages=[])
+graph.set_stages(stages=[stage_a, stage_b])
 graph.start_graph({
     stage_a.get_tag(): [1, 2, 3, 4, 5]
 })
@@ -265,7 +265,7 @@ stage_c = TaskStage("C", func=process_c, execution_mode="serial", stage_mode="pr
 
 # Build graph
 graph = TaskGraph(schedule_mode="eager", log_level="INFO")
-graph.set_stages(root_stages=[stage_a], stages=[stage_b, stage_c])
+graph.set_stages(stages=[stage_a, stage_b, stage_c])
 graph.connect([stage_a], [stage_b, stage_c])
 
 # Configure

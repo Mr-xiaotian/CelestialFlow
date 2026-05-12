@@ -18,15 +18,15 @@ from celestialflow import (
 
 load_dotenv()
 
-report_host = os.getenv("REPORT_HOST")
-report_port = os.getenv("REPORT_PORT")
+report_host: str = os.getenv("REPORT_HOST", "")
+report_port: int = int(os.getenv("REPORT_PORT", "0"))
 
-redis_host = os.getenv("REDIS_HOST")
-redis_password = os.getenv("REDIS_PASSWORD")
+redis_host: str = os.getenv("REDIS_HOST", "")
+redis_password: str = os.getenv("REDIS_PASSWORD", "")
 
-ctree_host = os.getenv("CTREE_HOST")
-ctree_http_port = os.getenv("CTREE_HTTP_PORT")
-ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
+ctree_host: str = os.getenv("CTREE_HOST", "")
+ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
+ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
 
 
 def demo_etl_fan_out_fan_in():
@@ -45,36 +45,35 @@ def demo_etl_fan_out_fan_in():
     extract = TaskStage(
         "Extract",
         extract_record,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="thread",
     )
     normalize = TaskStage(
         "Normalize",
         transform_normalize,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="thread",
     )
     enrich = TaskStage(
         "Enrich",
         transform_enrich,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="thread",
     )
     load = TaskStage(
         "Load",
         load_record,
-        execution_mode="serial",
         stage_mode="thread",
+        execution_mode="serial",
     )
 
     graph = TaskGraph(schedule_mode="eager", log_level="INFO")
-    graph.set_reporter(True, host=report_host, port=report_port)
+    # graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_stages(
-        root_stages=[extract],
-        stages=[normalize, enrich, load],
+        stages=[extract, normalize, enrich, load],
     )
     graph.connect([extract], [normalize, enrich])
     graph.connect([normalize, enrich], [load])
@@ -101,23 +100,22 @@ def demo_async_staged_pipeline():
     stage_double = TaskStage(
         "AsyncDouble",
         async_double,
+        stage_mode="thread",
         execution_mode="async",
         max_workers=8,
-        stage_mode="thread",
     )
     stage_to_str = TaskStage(
         "AsyncToStr",
         async_to_str,
+        stage_mode="thread",
         execution_mode="async",
         max_workers=8,
-        stage_mode="thread",
     )
 
     graph = TaskGraph(schedule_mode="staged", log_level="INFO")
-    graph.set_reporter(True, host=report_host, port=report_port)
+    # graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_stages(
-        root_stages=[stage_double],
-        stages=[stage_to_str],
+        stages=[stage_double, stage_to_str],
     )
     graph.connect([stage_double], [stage_to_str])
 
@@ -126,11 +124,13 @@ def demo_async_staged_pipeline():
 
     status = graph.get_status_dict()
     for tag, info in status.items():
-        print(f"[{tag}] succeeded={info.get('tasks_succeeded', 0)}, "
-              f"failed={info.get('tasks_failed', 0)}")
+        print(
+            f"[{tag}] succeeded={info.get('tasks_succeeded', 0)}, "
+            f"failed={info.get('tasks_failed', 0)}"
+        )
 
 
 if __name__ == "__main__":
     demo_etl_fan_out_fan_in()
-    demo_async_staged_pipeline()
-
+    # demo_async_staged_pipeline()
+    pass

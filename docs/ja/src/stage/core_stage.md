@@ -1,6 +1,6 @@
 # TaskStage
 
-> 📅 最終更新日: 2026/04/24
+> 📅 最終更新日: 2026/05/08
 
 `TaskStage` は `TaskGraph` を構築する基本単位です。`TaskExecutor` を継承し、グラフ構造に関する接続機能を追加しています。
 
@@ -32,12 +32,13 @@ class TaskStage(TaskExecutor):
         max_info=50,
         unpack_task_args=False,
         enable_duplicate_check=True,
+        log_level="SUCCESS",
         stage_mode="serial",
     ):
         ...
 ```
 
-パラメータは `TaskExecutor` と同一で、`stage_mode` パラメータが追加されています。`TaskStage` の `execution_mode` は `serial`、`thread`、または `async` を指定できます（`process` モードは `stage_mode` で制御します）。
+パラメータは `TaskExecutor` と同じで、`log_level` と `stage_mode` パラメータが追加されています。`TaskStage` の `execution_mode` は `serial`、`thread`、または `async` を指定できます（`process` モードは `stage_mode` で制御します）。
 
 ## グラフ構築メソッド
 
@@ -66,7 +67,7 @@ stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mod
 
 # グラフを作成しノードを接続
 graph = TaskGraph()
-graph.set_stages(root_stages=[stage_a], stages=[stage_b])
+graph.set_stages(stages=[stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 ```
 

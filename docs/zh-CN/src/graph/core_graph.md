@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/05/09
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
@@ -26,12 +26,11 @@ class TaskGraph:
 ### 设置节点
 
 ```python
-def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]):
+def set_stages(self, stages: list[TaskStage]):
     """
-    设置任务图的节点。
+    设置任务图的节点。源节点通过 SCC 凝聚自动计算。
     
-    :param root_stages: 入口节点列表（根节点）。支持多根节点（森林结构）。
-    :param stages: 其他非根节点列表（可选）。
+    :param stages: 所有节点列表。
     """
 ```
 
@@ -39,7 +38,8 @@ def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]):
 
 ### 图构建与分析
 
-- **自动构建**: 根据 `root_stages` 和节点间的连接关系 (`out_edges`), 自动遍历并构建整个图结构。
+- **自动构建**: 根据节点列表和节点间的连接关系 (`out_edges`), 自动遍历并构建整个图结构。
+- **源节点自动计算**: 通过 SCC 凝聚自动识别源节点（无入边的节点）。
 - **DAG 检测**: 自动检测是否为有向无环图 (DAG)。
 - **分层分析**: 如果是 DAG，会自动计算节点的层级，用于 `staged` 调度或可视化展示。
 
@@ -58,7 +58,7 @@ def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True
 示例：
 ```python
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[stage_a, stage_b], stages=[])
+graph.set_stages(stages=[stage_a, stage_b])
 graph.start_graph({
     stage_a.get_tag(): [1, 2, 3, 4, 5]
 })
@@ -66,9 +66,8 @@ graph.start_graph({
 
 ### 资源管理
 
-- **进程管理**: 自动创建和管理子进程（对于 `process` 模式的 Stage）。
 - **队列管理**: 自动创建节点间的通信队列 (`TaskInQueue`, `TaskOutQueue`)。
-- **优雅退出**: 确保所有子进程在任务完成后正确退出，或者在异常时被强制终止。
+- **优雅退出**: 确保所有节点在任务完成后正确退出。
 
 ### 监控与报告
 
@@ -120,7 +119,7 @@ def set_graph_mode(self, stage_mode: str, execution_mode: str):
     """
     批量设置所有节点的运行模式。
 
-    :param stage_mode: 节点运行模式 ('serial'、'thread' 或 'process')
+    :param stage_mode: 节点运行模式 ('serial' 或 'thread')
     :param execution_mode: 节点内部执行模式 ('serial'、'thread' 或 'async')
     """
 ```
@@ -249,8 +248,7 @@ graph.put_stage_queue({
 ## 注意事项
 
 1. **非 DAG 图**: 对于有环图，不建议自动注入终止信号，应通过 Web 界面手动控制。
-2. **进程清理**: 异常情况下，框架会强制终止子进程并记录日志。
-3. **未消费任务**: 停止时会收集未消费的任务并记录为错误。
+2. **未消费任务**: 停止时会收集未消费的任务并记录为错误。
 4. **Web 监控**: 需要先启动 Web 服务，再设置 `set_reporter(True)`。
 
 ## 示例
@@ -259,13 +257,13 @@ graph.put_stage_queue({
 from celestialflow import TaskStage, TaskGraph
 
 # 创建节点
-stage_a = TaskStage("A", func=process_a, execution_mode="thread", stage_mode="process")
-stage_b = TaskStage("B", func=process_b, execution_mode="serial", stage_mode="process")
-stage_c = TaskStage("C", func=process_c, execution_mode="serial", stage_mode="process")
+stage_a = TaskStage("A", func=process_a, execution_mode="thread", stage_mode="thread")
+stage_b = TaskStage("B", func=process_b, execution_mode="serial", stage_mode="thread")
+stage_c = TaskStage("C", func=process_c, execution_mode="serial", stage_mode="thread")
 
 # 构建图
 graph = TaskGraph(schedule_mode="eager", log_level="INFO")
-graph.set_stages(root_stages=[stage_a], stages=[stage_b, stage_c])
+graph.set_stages(stages=[stage_a, stage_b, stage_c])
 graph.connect([stage_a], [stage_b, stage_c])
 
 # 配置

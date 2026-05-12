@@ -1,6 +1,6 @@
 # 教程（Tutorial）：构建一个图片爬虫
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/05/09
 
 本教程将通过一个完整的实战项目——**百度图片爬虫**，带你从零开始学习 CelestialFlow 的使用。
 
@@ -247,7 +247,7 @@ from celestialflow import TaskGraph
 graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
 
 # 设置节点
-graph.set_stages(root_stages=[stage_search], stages=[stage_parse, stage_download, stage_save])
+graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
 
 # 设置节点间的连接关系
 graph.connect([stage_search], [stage_parse])
@@ -391,7 +391,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     
     # 设置连接
     graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
-    graph.set_stages(root_stages=[stage_search], stages=[stage_parse, stage_download, stage_save])
+    graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
     graph.connect([stage_download], [stage_save])
@@ -411,7 +411,7 @@ if __name__ == "__main__":
     # 运行
     print("开始爬取图片...")
     graph.start_graph({
-        graph.root_stages[0].get_tag(): KEYWORDS
+        graph.source_stages[0].get_tag(): KEYWORDS
     })
     
     # 统计
@@ -497,7 +497,7 @@ graph.put_stage_queue({
 | `TaskStage` | 任务节点，包装处理函数 |
 | `TaskSplitter` | 分裂器，将一个任务拆分为多个 |
 | `TaskGraph` | 任务图，组织节点关系和执行流程 |
-| `stage_mode` | 节点运行模式（serial/thread/process） |
+| `stage_mode` | 节点运行模式（serial/thread） |
 | `execution_mode` | 节点内部执行模式（serial/thread/async） |
 
 ### 下一步

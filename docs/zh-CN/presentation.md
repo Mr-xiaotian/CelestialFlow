@@ -1,6 +1,6 @@
 # CelestialFlow 技术分享
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 ---
 
@@ -40,7 +40,7 @@
 ### 核心特性
 
 - **图拓扑丰富**：Chain / Cross / Grid / Loop / Wheel / Complete 六种预置结构
-- **多维执行模型**：Stage 级 (serial/thread/process) × Task 级 (serial/thread/process/async) 组合
+- **多维执行模型**：Stage 级 (serial/thread) × Task 级 (serial/thread/async) 组合
 - **Redis 分布式**：Transport → Source → Ack 三阶段分布式任务传输
 - **事件溯源**：集成 CelestialTree，任务全生命周期可追踪
 - **Web 仪表盘**：FastAPI + ECharts + Mermaid 实时监控
@@ -65,7 +65,7 @@
   - 确保 DAG 和环形图均能正确终止
 
 - **指标即公民 (Metrics as First-Class)**
-  - 每个 Stage 内建 `TaskMetrics`，跨进程安全的实时计数
+  - 每个 Stage 内建 `TaskMetrics`，线程安全的实时计数
 
 ---
 
@@ -124,7 +124,7 @@ TaskGraph(
 )
 ```
 
-- **初始化**: 构造后通过 `graph.set_stages(root_stages=[...], stages=[...])` 设置节点，通过 `graph.connect(...)` 建立连接
+- **初始化**: 构造后通过 `graph.set_stages(stages=[...])` 设置节点，通过 `graph.connect(...)` 建立连接。源节点通过 SCC 凝聚自动计算
 - **调度模式**：
   - `eager`：所有 Stage 并发启动，依赖关系由队列自然保证
   - `staged`：仅 DAG 可用，逐层执行，层间同步阻塞
@@ -158,7 +158,7 @@ classDiagram
 
     class TaskStage {
         +stage_mode: str
-        +_status: MPValue
+        +_status: int
         +start_stage()
     }
 ```
@@ -226,14 +226,13 @@ graph TD
     end
 
     subgraph Stage级 stage_mode
-        C[serial: 主进程内运行]
-        D[process: 独立子进程]
+        C[serial: 主线程内运行]
+        D[thread: 独立线程]
     end
 
     subgraph Task级 execution_mode
         E[serial: 串行逐个]
         F[thread: ThreadPoolExecutor]
-        G[process: ProcessPoolExecutor]
         H[async: asyncio + Semaphore]
     end
 
@@ -250,17 +249,17 @@ graph TD
 | 层级 | 选项 | 说明 |
 |------|------|------|
 | 图级 `schedule_mode` | `eager` / `staged` | 控制 Stage 间并发 vs 顺序 |
-| Stage 级 `stage_mode` | `serial` / `thread` / `process` | Stage 是否在独立进程中运行 |
+| Stage 级 `stage_mode` | `serial` / `thread` | Stage 是否在独立线程中运行 |
 | Task 级 `execution_mode` | `serial` / `thread` | Stage 内任务的并发策略 |
 
 备注：
-注意在 TaskGraph 模式下，task 级的 `process` 和 `async` 不可用（仅 standalone `TaskExecutor.start()` 支持）。这是因为进程-in-进程和异步-in-子进程存在技术限制。
+注意在 TaskGraph 模式下，task 级的 `async` 不可用（仅 standalone `TaskExecutor.start()` 支持）。
 
 ---
 
 ## Slide 11: 指标与去重系统
 
-### TaskMetrics — 跨进程安全的实时计数
+### TaskMetrics — 线程安全的实时计数
 
 - **四大核心计数器**：
   - `task_counter`：总输入任务数（含 Splitter/Router 追加）
@@ -276,8 +275,6 @@ graph TD
   - 零成本去重——哈希在封装阶段一次性计算
 
 - **SumCounter 聚合**：支持 Splitter/Router 场景下多来源计数器的准确合并
-
-- **进程安全**：`MPValue("i")` 在 process 模式下提供原子操作
 
 ---
 
@@ -339,8 +336,8 @@ sequenceDiagram
 ```mermaid
 graph LR
     subgraph 生产端
-        A[LogInlet] -->|MPQueue| B[LogSpout]
-        C[FailInlet] -->|MPQueue| D[FailSpout]
+        A[LogInlet] -->|Queue| B[LogSpout]
+        C[FailInlet] -->|Queue| D[FailSpout]
     end
 
     subgraph 消费端
@@ -350,7 +347,7 @@ graph LR
 ```
 
 - **Spout-Inlet 模式**：
-  - Inlet 端（多进程安全）：格式化记录，写入共享队列
+  - Inlet 端（线程安全）：格式化记录，写入共享队列
   - Spout 端（守护线程）：从队列消费，写入文件
   - 通过 `TerminationSignal` 优雅停止
 
@@ -370,16 +367,14 @@ graph LR
 CelestialFlowError (基类)
 ├── ConfigurationError
 │   └── InvalidOptionError
-│       ├── ExecutionModeError    (serial/process/thread/async)
-│       ├── StageModeError        (serial/thread/process)
+│       ├── ExecutionModeError    (serial/thread/async)
+│       ├── StageModeError        (serial/thread)
 │       └── LogLevelError         (TRACE~CRITICAL)
 ├── RemoteWorkerError             (Redis 远程执行失败)
-├── UnconsumedError               (未消费的队列任务)
-└── PickleError                   (不可序列化对象)
+└── UnconsumedError               (未消费的队列任务)
 ```
 
 - **InvalidOptionError**：自动生成 "field=value, allowed=[...]" 提示信息
-- **PickleError**：通过 `find_unpickleable(obj)` 在构建阶段即发现问题
 - **快速反馈**：配置级错误在图启动前就抛出，而非运行时
 
 ---
@@ -458,13 +453,12 @@ CelestialFlowError (基类)
   - `TaskEnvelope.hash` 在封装阶段计算一次 SHA1，后续去重仅 set lookup (O(1))
 
 - **工厂化队列后端**
-  - `make_queue_backend()` 根据 stage_mode 自动选择 `ThreadQueue` / `MPQueue` / `AsyncQueue`
-  - 串行模式零同步开销；进程模式使用 OS 级管道
+  - `make_queue_backend()` 根据 stage_mode 自动选择 `ThreadQueue` / `AsyncQueue`
+  - 串行模式零同步开销
 
 - **指标计数器分级**
   - serial/async：`ValueWrapper` 普通 int
   - thread：`ValueWrapper` + `threading.Lock`
-  - process：`MPValue("i")` 共享内存原子操作
   - 按需选择最轻量的同步机制
 
 - **前端增量渲染**
@@ -522,8 +516,8 @@ graph LR
 | **安装复杂度** | `pip install` 即用 | 需要数据库 + 调度器 | 需要 Server/Cloud | 需要 Ray Cluster |
 | **图类型** | DAG + 环形图 | 仅 DAG | 仅 DAG | 无限制（Actor 模型） |
 | **环形任务支持** | 原生支持（Loop/Wheel） | 不支持 | 不支持 | 手动实现 |
-| **执行模式** | serial/thread/process/async | Celery/K8s/Local | Dask/K8s | Ray Worker |
-| **进程级隔离** | Stage 级 `process` 模式 | Executor 级 | Dispatch 级 | 默认隔离 |
+| **执行模式** | serial/thread/async | Celery/K8s/Local | Dask/K8s | Ray Worker |
+| **进程级隔离** | 无（线程级隔离） | Executor 级 | Dispatch 级 | 默认隔离 |
 | **实时可视化** | 内置 Web UI | 内置 Web UI | 内置 Cloud UI | Ray Dashboard |
 | **事件溯源** | CelestialTree 集成 | 无原生支持 | 无原生支持 | 无原生支持 |
 | **任务去重** | 内置 SHA1 哈希去重 | 无原生支持 | 无原生支持 | 无原生支持 |
@@ -554,7 +548,7 @@ graph LR
 
 - **机器学习 Pipeline**
   - 数据预处理 → 特征工程 → 模型训练 → 评估
-  - process 模式利用多核，避免 GIL
+  - thread 模式并发处理数据管线
 
 ---
 
@@ -584,7 +578,7 @@ extract_image   = TaskStage(extract_image, execution_mode="thread", worker_limit
 store    = TaskStage(save_to_db, execution_mode="serial")
 
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[discover], stages=[download, router, extract_article, extract_image, store])
+graph.set_stages(stages=[discover, download, router, extract_article, extract_image, store])
 graph.connect([discover], [download])
 graph.connect([download], [router])
 graph.connect([router], [extract_article, extract_image])
@@ -633,8 +627,8 @@ graph LR
 | 决策 | 选择 | 取舍 |
 |------|------|------|
 | 环形图支持 | 信号合并协议 | 增加终止逻辑复杂度，换取拓扑灵活性 |
-| Graph 内 execution_mode | 仅 serial/thread | 避免进程-in-进程嵌套问题 |
-| 日志架构 | Queue + Spout 线程 | 增加一个守护线程，换取多进程安全写入 |
+| Graph 内 execution_mode | 仅 serial/thread | 保持简单可靠的线程模型 |
+| 日志架构 | Queue + Spout 线程 | 增加一个守护线程，换取线程安全写入 |
 | 去重策略 | SHA1(pickle) | pickle 不稳定性风险，换取通用对象哈希能力 |
 | Redis 结果获取 | 轮询 HGET (0.1s) | 简单可靠，但非实时推送 |
 | Web 变更检测 | JSON.stringify 比较 | O(n) 字符串比较成本，换取实现简洁性 |
@@ -655,10 +649,10 @@ graph LR
 
 - **Queue 后端可替换**
   - `make_queue_backend(mode)` 工厂方法统一接口
-  - ThreadQueue / MPQueue / AsyncQueue 按需切换
+  - ThreadQueue / AsyncQueue 按需切换
 
 - **指标后端可扩展**
-  - `ValueWrapper` / `MPValue` 按执行模式适配
+  - `ValueWrapper` 按执行模式适配
   - `SumCounter` 透明聚合多来源计数器
 
 - **持久化可定制**

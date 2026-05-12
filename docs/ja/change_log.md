@@ -1,6 +1,6 @@
 # 更新履歴（Change Log）
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/05/08
 
 - 2021: マルチスレッドとシングルスレッドの処理関数をサポートするクラスを作成しました
 - 2023: GPT-4の支援により、マルチプロセスとコルーチンの実行モードを追加しました
@@ -145,3 +145,18 @@
   - chore:
     - demo/内のすべてのtest_関数名をdemo_関数名に変更しました。
     - docsディレクトリ構造を再編成し、referenceをsrcに改名し、一部のドキュメントをzh-CN/に移動しました。
+- 3.1.9
+  - feat:
+    - [重要] 基底クラス BaseObserver を作成、外部からカスタム Observer を接続して実行状況を監視可能に
+      - 軽量オブザーバー CallbackObserver も同時作成
+    - TaskStage に init フィールド `log_level` を追加、これにより stage の init フィールド集は executor の init フィールド集を包含する関係を実現（`stage_mode` のみ追加）
+    - escapeHtml にさらに多くの置換項目を追加
+    - dispatch_thread に futures のクリーンアップを追加、不要な future の蓄積を防止
+      - bench/bench_futures_memory.py に基づき、10万タスクでの futures メモリオーバーヘッドは 177.01 MB、定期クリーンアップ後は 0.48 MB
+  - refactor:
+    - TaskProgress を BaseObserver を継承するようリファクタリング
+      - 破壊的変更: TaskExecutor の show_progress パラメータを削除、明示的に add_observer(TaskProgress()) した場合のみ progress を使用
+      - 使用方法は demo/demo_executor.py を参照
+    - TaskEnvelope をリファクタリング、wrap と unwrap を廃止、hash は遅延計算に
+  - chore:
+    - 不要なコードを削除しコード品質を向上

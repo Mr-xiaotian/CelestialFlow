@@ -48,7 +48,7 @@ class InvalidOptionError(ConfigurationError):
 class ExecutionModeError(InvalidOptionError):
     """非法的 execution_mode 配置错误"""
 
-    def __init__(self, execution_mode: str, valid_modes=None):
+    def __init__(self, execution_mode: str, valid_modes: tuple[str, ...] | None = None):
         """
         :param execution_mode: 非法的执行模式值
         :param valid_modes: 允许的执行模式列表
@@ -62,12 +62,12 @@ class ExecutionModeError(InvalidOptionError):
 class StageModeError(InvalidOptionError):
     """非法的 stage_mode 配置错误"""
 
-    def __init__(self, stage_mode: str, valid_modes=None):
+    def __init__(self, stage_mode: str, valid_modes: tuple[str, ...] | None = None):
         """
         :param stage_mode: 非法的节点模式值
         :param valid_modes: 允许的节点模式列表
         """
-        valid_modes = valid_modes or ("serial", "thread", "process")
+        valid_modes = valid_modes or ("serial", "thread")
         super().__init__("stage mode", stage_mode, valid_modes)
         self.stage_mode = stage_mode
         self.valid_modes = self.allowed
@@ -76,7 +76,7 @@ class StageModeError(InvalidOptionError):
 class LogLevelError(InvalidOptionError):
     """非法的 log_level 配置错误"""
 
-    def __init__(self, log_level: str, valid_levels=None):
+    def __init__(self, log_level: str, valid_levels: tuple[str, ...] | None = None):
         """
         :param log_level: 非法的日志级别值
         :param valid_levels: 允许的日志级别列表
@@ -104,7 +104,7 @@ class RemoteWorkerError(CelestialFlowError):
 class ScheduleModeError(InvalidOptionError):
     """非法的 schedule_mode 配置错误"""
 
-    def __init__(self, schedule_mode: str, valid_modes=None):
+    def __init__(self, schedule_mode: str, valid_modes: tuple[str, ...] | None = None):
         """
         :param schedule_mode: 非法的调度模式值
         :param valid_modes: 允许的调度模式列表
@@ -129,19 +129,3 @@ class UnconsumedError(CelestialFlowError):
     """用于标记任务未消费的异常类"""
 
     pass
-
-
-class PickleError(CelestialFlowError):
-    """
-    任务函数或参数无法 pickle 序列化的错误。
-    """
-
-    def __init__(self, obj: Any):
-        """
-        :param obj: 不可序列化的对象
-        """
-        message = f"Object of type {type(obj).__name__} is not pickleable."
-        super().__init__(message)
-        self.obj = obj
-        self.type = type(obj).__name__
-        self.message = message

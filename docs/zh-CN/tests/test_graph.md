@@ -1,6 +1,6 @@
 # test_graph.py 测试说明
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 ## 测试目标
 
@@ -60,13 +60,13 @@
 
 ## 可能的问题与注意事项
 
-### 1. 多进程模式下的超时风险
-`TaskCross`、`TaskGrid`、`TaskComplete` 的默认 `stage_mode` 为 `"process"`。在 Windows 上，每个 `multiprocessing.Process` 的启动开销约为 100-300ms。若网格较大（如 4×4），总启动时间可能超过测试超时阈值。
+### 1. 线程模式下的超时风险
+`TaskCross`、`TaskGrid`、`TaskComplete` 的默认 `stage_mode` 为 `"thread"`。若网格较大，线程启动和调度开销可能超过测试超时阈值。
 
 **当前测试规模**：
-- `test_cross_structure`：2×3 网格，4 个进程
-- `test_grid_structure`：2×2 网格，4 个进程
-- `test_complete_structure`：3 个节点，3 个进程
+- `test_cross_structure`：2×3 网格，4 个线程
+- `test_grid_structure`：2×2 网格，4 个线程
+- `test_complete_structure`：3 个节点，3 个线程
 
 以上规模在 180 秒超时内可稳定通过。
 
@@ -88,13 +88,11 @@ RuntimeWarning: Early injection of termination signals in a non-DAG graph ...
 
 遗漏此调用会导致 `get_graph_summary()` 返回空字典或旧数据。
 
-### 4. `stage_mode="process"` 与 Pickle
-所有使用 `stage_mode="process"` 的测试，其任务函数和参数必须可被 pickle。当前测试使用的均为顶层函数和基础类型，无此问题。
+### 4. 任务函数的要求
+所有测试的任务函数和参数使用顶层函数和基础类型，确保兼容性。
 
-### 5. Windows 的进程 spawn 开销
-Windows 默认使用 `spawn` 方式创建进程（Linux/macOS 为 `fork`）。`spawn` 会重新导入主模块，若 `if __name__ == "__main__":` 保护不当，可能导致递归创建进程。
-
-**当前测试**：所有进程创建均通过 `TaskGraph.start_graph()` 内部管理，无需额外保护。
+### 5. 线程安全
+当前测试中所有线程创建均通过 `TaskGraph.start_graph()` 内部管理，无需额外保护。
 
 ## 运行方式
 
@@ -102,7 +100,7 @@ Windows 默认使用 `spawn` 方式创建进程（Linux/macOS 为 `fork`）。`s
 # 全部执行
 pytest tests/test_graph.py -v
 
-# 仅结构测试（最耗时，含多进程）
+# 仅结构测试（最耗时，含多线程）
 pytest tests/test_graph.py::TestTaskGraphStructure -v
 
 # 仅分析测试（最快，无任务执行）

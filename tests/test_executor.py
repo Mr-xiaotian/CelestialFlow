@@ -1,6 +1,6 @@
 import pytest
 
-from celestialflow import TaskExecutor, BaseObserver
+from celestialflow import TaskExecutor, BaseObserver, CallbackObserver
 
 
 # =========================
@@ -34,9 +34,7 @@ async def async_double(x):
 class TestExecutorSerial:
     def test_serial_basic(self):
         """串行模式：正常计算结果正确"""
-        executor = TaskExecutor(
-            "AddOneSerial", add_one, execution_mode="serial"
-        )
+        executor = TaskExecutor("AddOneSerial", add_one, execution_mode="serial")
         tasks = [1, 2, 3, 4, 5]
         executor.start(tasks)
 
@@ -58,7 +56,6 @@ class TestExecutorSerial:
             "RaiseOnNegativeSerial",
             raise_on_negative,
             execution_mode="serial",
-
         )
         tasks = [1, -1, 2, -2, 3]
         executor.start(tasks)
@@ -90,7 +87,6 @@ class TestExecutorSerial:
             flaky,
             execution_mode="serial",
             max_retries=2,
-
         )
         executor.add_retry_exceptions(RuntimeError)
         executor.start([1])
@@ -108,7 +104,6 @@ class TestExecutorSerial:
             raise_on_negative,
             execution_mode="serial",
             max_retries=2,
-
         )
         # 只重试 RuntimeError，但函数抛的是 ValueError
         executor.add_retry_exceptions(RuntimeError)
@@ -127,7 +122,6 @@ class TestExecutorThread:
             double,
             execution_mode="thread",
             max_workers=4,
-
         )
         tasks = [1, 2, 3, 4, 5]
         executor.start(tasks)
@@ -150,7 +144,6 @@ class TestExecutorAsync:
             async_add_one,
             execution_mode="async",
             max_workers=4,
-
         )
         tasks = [10, 20, 30]
         await executor.start_async(tasks)
@@ -171,7 +164,6 @@ class TestExecutorAsync:
             async_double,
             execution_mode="async",
             max_workers=4,
-
         )
         tasks = list(range(20))
         await executor.start_async(tasks)
@@ -189,7 +181,6 @@ class TestExecutorDuplicateCheck:
             add_one,
             execution_mode="serial",
             enable_duplicate_check=True,
-
         )
         tasks = [1, 1, 2, 2, 2, 3]
         executor.start(tasks)
@@ -206,7 +197,6 @@ class TestExecutorDuplicateCheck:
             add_one,
             execution_mode="serial",
             enable_duplicate_check=False,
-
         )
         tasks = [1, 1, 2, 2, 2, 3]
         executor.start(tasks)
@@ -224,7 +214,6 @@ class TestExecutorSuccessCache:
             add_one,
             execution_mode="serial",
             enable_duplicate_check=True,
-
         )
         executor.start([1, 2, 3])
 
@@ -243,9 +232,7 @@ class TestExecutorConfig:
 
     def test_get_summary(self):
         """get_summary 返回预期字段"""
-        executor = TaskExecutor(
-            "AddOneSummary", add_one, execution_mode="serial"
-        )
+        executor = TaskExecutor("AddOneSummary", add_one, execution_mode="serial")
         summary = executor.get_summary()
         assert summary["name"] == "AddOneSummary"
         assert summary["func_name"] == "add_one"
@@ -354,3 +341,29 @@ class TestExecutorObserver:
         executor.start([1, 2])
 
         assert observer.count == 0
+
+    def test_callback_observer(self):
+        """CallbackObserver 通过回调函数接收事件"""
+        results = []
+        observer = CallbackObserver(
+            on_task_success=lambda count=1: results.append(("success", count)),
+            on_finish=lambda: results.append(("finish",)),
+        )
+        executor = TaskExecutor("CallbackTest", add_one, execution_mode="serial")
+        executor.add_observer(observer)
+        executor.start([1, 2, 3])
+
+        assert len([r for r in results if r[0] == "success"]) == 3
+        assert results[-1] == ("finish",)
+
+    def test_callback_observer_partial(self):
+        """CallbackObserver 只覆写部分回调，其余走默认空实现"""
+        count = []
+        observer = CallbackObserver(
+            on_task_fail=lambda count=1: count.append(1),
+        )
+        executor = TaskExecutor("CallbackPartial", add_one, execution_mode="serial")
+        executor.add_observer(observer)
+        executor.start([1, 2])
+
+        assert len(count) == 0

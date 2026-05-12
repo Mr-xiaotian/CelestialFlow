@@ -2,19 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 from collections import defaultdict
 from collections.abc import Iterable
-from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue
 from typing import Any, Callable
 
-from celestialtree import (
-    Client as CelestialTreeClient,
-)
-from celestialtree import (
-    NullClient as NullCelestialTreeClient,
-)
+from celestialtree import Client as CelestialTreeClient
+from celestialtree import NullClient as NullCelestialTreeClient
 
 from ..observability import BaseObserver
 from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout, SuccessSpout
@@ -27,7 +23,6 @@ from ..runtime import (
 )
 from ..runtime.util_errors import ExecutionModeError
 from ..runtime.util_factories import (
-    make_queue_backend,
     make_task_in_queue,
     make_task_out_queue,
 )
@@ -45,14 +40,14 @@ class TaskExecutor:
     def __init__(
         self,
         name: str,
-        func: Callable,
+        func: Callable[..., Any],
         execution_mode: str = "serial",
         max_workers: int = 20,
         max_retries: int = 1,
         max_info: int = 50,
         unpack_task_args: bool = False,
         enable_duplicate_check: bool = True,
-        log_level: str = "SUCCESS",
+        log_level: str = "INFO",
     ):
         """
         初始化 TaskExecutor
@@ -81,9 +76,10 @@ class TaskExecutor:
 
         self._observers: list[BaseObserver] = []
 
+        self.ctree_client: CelestialTreeClient | NullCelestialTreeClient
         self.set_nullctree()
-        self.task_queues: TaskInQueue = None
-        self.result_queues: TaskOutQueue = None
+        self.task_queue: TaskInQueue = None  # type: ignore[assignment]
+        self.result_queue: TaskOutQueue = None  # type: ignore[assignment]
         self.fail_queue: Any = None
         self.log_queue: Any = None
         self._init_metrics()
@@ -100,71 +96,22 @@ class TaskExecutor:
 
     def init_env(
         self,
-        task_queues: TaskInQueue | None = None,
-        result_queues: TaskOutQueue | None = None,
-        fail_queue: MPQueue | None = None,
-        log_queue: MPQueue | None = None,
     ) -> None:
         """
         初始化环境
-
-        :param task_queues: 任务队列列表
-        :param result_queues: 结果队列列表
-        :param fail_queue: 失败队列
-        :param log_queue: 日志队列
         """
         self._init_state()
-        self._init_inlet(fail_queue, log_queue)
-        self._init_queue(task_queues, result_queues)
         self._init_dispatch()
+
+        self._init_spout()
+        self._init_inlet()
+        self._init_queue()
 
     def _init_state(self) -> None:
         """
         初始化任务状态
         """
         self.metrics.reset_state()
-
-    def _init_inlet(
-        self, fail_queue: MPQueue | None, log_queue: MPQueue | None
-    ) -> None:
-        """
-        初始化收集器
-
-        :param fail_queue: 失败队列
-        :param log_queue: 日志队列
-        """
-        self.fail_queue = fail_queue or make_queue_backend("serial")()
-        self.fail_inlet = FailInlet(self.fail_queue)
-
-        self.log_queue = log_queue or make_queue_backend("serial")()
-        self.log_inlet = LogInlet(self.log_queue, self.log_level)
-
-    def _init_queue(
-        self,
-        task_queues: TaskInQueue | None = None,
-        result_queues: TaskOutQueue | None = None,
-    ) -> None:
-        """
-        初始化队列
-
-        :param task_queues: 任务队列列表
-        :param result_queues: 结果队列列表
-        """
-        if task_queues is not None:
-            self.task_queues = task_queues
-        else:
-            queue = ThreadQueue()
-            self.task_queues = make_task_in_queue(
-                queue=queue,
-                executor=self,
-            )
-        if result_queues is not None:
-            self.result_queues = result_queues
-        else:
-            self.result_queues = make_task_out_queue(
-                queue=self.success_spout.get_queue(),
-                executor=self,
-            )
 
     def _init_dispatch(self) -> None:
         """
@@ -184,6 +131,32 @@ class TaskExecutor:
         self.log_spout.start()
         self.success_spout.start()
 
+    def _init_inlet(
+        self,
+    ) -> None:
+        """
+        初始化收集器
+        """
+        self.fail_queue = self.fail_spout.get_queue()
+        self.fail_inlet = FailInlet(self.fail_queue)
+
+        self.log_queue = self.log_spout.get_queue()
+        self.log_inlet = LogInlet(self.log_queue, self.log_level)
+
+    def _init_queue(self) -> None:
+        """
+        初始化输入输出队列
+        """
+        queue: ThreadQueue[Any] = ThreadQueue()
+        self.task_queue = make_task_in_queue(
+            queue=queue,
+            executor=self,
+        )
+        self.result_queue = make_task_out_queue(
+            queue=self.success_spout.get_queue(),
+            executor=self,
+        )
+
     # ==== Observer ====
     def add_observer(self, observer: BaseObserver) -> None:
         self._observers.append(observer)
@@ -196,13 +169,13 @@ class TaskExecutor:
             getattr(observer, method_name)(*args, **kwargs)
 
     # ==== 配置 ====
-    def _set_func(self, func: Callable) -> None:
+    def _set_func(self, func: Callable[..., Any]) -> None:
         """
         设置执行函数
 
         :param func: 执行函数
         """
-        self.func = func
+        self.func: Callable[..., Any] = func
         self._func_name = func.__name__
 
     def set_execution_mode(self, execution_mode: str) -> None:
@@ -219,7 +192,7 @@ class TaskExecutor:
 
         if getattr(
             self, "execution_mode", None
-        ) == "async" and not asyncio.iscoroutinefunction(self.func):
+        ) == "async" and not inspect.iscoroutinefunction(self.func):
             raise RuntimeError(
                 f"execution_mode is 'async' but '{self.func.__name__}' is not a coroutine function"
             )
@@ -323,7 +296,7 @@ class TaskExecutor:
             else f"{self.execution_mode}-{self.max_workers}"
         )
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """
         获取当前节点的状态快照
 
@@ -337,7 +310,7 @@ class TaskExecutor:
             "execution_mode": self._get_execution_mode_desc(),
         }
 
-    def get_counts(self) -> dict:
+    def get_counts(self) -> dict[str, Any]:
         """
         获取当前节点的计数器
 
@@ -356,7 +329,7 @@ class TaskExecutor:
 
     # ==== 任务输入 ====
     def _prepare_task_envelopes(
-        self, task_source: Iterable
+        self, task_source: Iterable[Any]
     ) -> list[TaskEnvelope | TerminationSignal]:
         """
         构建所有任务信封和终止信号，返回待入队列表。
@@ -372,7 +345,7 @@ class TaskExecutor:
                 CTreeEvent.TASK_INPUT,
                 payload=self.get_summary(),
             )
-            envelope = TaskEnvelope.wrap(task, input_id, source="input")
+            envelope = TaskEnvelope(task, input_id, source="input")
             items.append(envelope)
             self.metrics.add_task_count()
             self.log_inlet.task_input(
@@ -400,16 +373,16 @@ class TaskExecutor:
         )
         return items
 
-    def _put_task_queues(self, task_source: Iterable) -> None:
+    def _put_task_queue(self, task_source: Iterable[Any]) -> None:
         """
         将任务放入任务队列
 
         :param task_source: 任务源（可迭代对象）
         """
         for item in self._prepare_task_envelopes(task_source):
-            self.task_queues.put(item)
+            self.task_queue.put(item)
 
-    def get_args(self, task: Any) -> tuple:
+    def get_args(self, task: Any) -> tuple[Any, ...]:
         """
         从 obj 中获取参数。可根据需要覆写
         在这个示例中，我们根据 unpack_task_args 决定是否解包参数
@@ -438,20 +411,20 @@ class TaskExecutor:
 
         :return: 处理后的结果列表
         """
-        result_dict = dict()
+        result_dict: dict[Any, Any] = dict()
         for task, result in self.get_success_pairs():
             result_dict[task] = result
         for task, error in self.get_error_pairs():
             result_dict[task] = str(error)
         return result_dict
 
-    def handle_error_dict(self) -> dict[Any, list]:
+    def handle_error_dict(self) -> dict[Any, list[Any]]:
         """
         处理错误字典。可根据需要覆写
 
         在这个示例中，我们将列表合并为错误组
         """
-        error_groups = defaultdict(list)
+        error_groups: defaultdict[Any, list[Any]] = defaultdict(list)
         for task, error in self.get_error_pairs():
             error_groups[error].append(task)
 
@@ -518,7 +491,7 @@ class TaskExecutor:
             parents=[task_id],
             payload=self.get_summary(),
         )
-        result_envelope = TaskEnvelope.wrap(
+        result_envelope = TaskEnvelope(
             processed_result,
             result_id,
             source=self.get_tag(),
@@ -537,7 +510,7 @@ class TaskExecutor:
             result_id,
         )
 
-        self.result_queues.put(result_envelope)
+        self.result_queue.put(result_envelope)
 
     def emit_retry_envelope(
         self,
@@ -553,7 +526,7 @@ class TaskExecutor:
         :param retry_time: 当前重试次数
         :return: 更新后的任务信封
         """
-        _, _, task_id = task_envelope.unwrap()
+        task_id = task_envelope.get_id()
 
         retry_id = self.ctree_client.emit(
             f"{CTreeEvent.TASK_RETRY_PREFIX}{retry_time}",
@@ -593,7 +566,7 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
 
-        _, _, task_id = task_envelope.unwrap()
+        task_id = task_envelope.get_id()
         self.metrics.add_error_count()
 
         self.fail_inlet.task_error(
@@ -615,7 +588,8 @@ class TaskExecutor:
         :param task_envelope: 重复的任务
         """
         self._notify("on_task_duplicate")
-        task, _, task_id = task_envelope.unwrap()
+        task = task_envelope.get_task()
+        task_id = task_envelope.get_id()
 
         self.metrics.add_duplicate_count()
         duplicate_id = self.ctree_client.emit(
@@ -631,21 +605,17 @@ class TaskExecutor:
         )
 
     # ==== 启动 ====
-    def start(self, task_source: Iterable) -> None:
+    def start(self, task_source: Iterable[Any]) -> None:
         """
         根据 execution_mode 的值，选择串行、线程或异步执行任务
 
         :param task_source: 任务迭代器或者生成器
         """
         start_time = time.perf_counter()
-        self._init_spout()
-        self.init_env(
-            log_queue=self.log_spout.get_queue(),
-            fail_queue=self.fail_spout.get_queue(),
-        )
+        self.init_env()
 
         self._notify("on_start", self.get_full_name(), 0)
-        self._put_task_queues(task_source)
+        self._put_task_queue(task_source)
         self.fail_inlet.start_executor(self.get_tag())
         self.log_inlet.start_executor(
             self.get_name(),
@@ -683,7 +653,7 @@ class TaskExecutor:
             self.fail_spout.stop()
             self.success_spout.stop()
 
-    async def start_async(self, task_source: Iterable) -> None:
+    async def start_async(self, task_source: Iterable[Any]) -> None:
         """
         异步地执行任务
 
@@ -691,14 +661,10 @@ class TaskExecutor:
         """
         start_time = time.perf_counter()
         self.set_execution_mode("async")
-        self._init_spout()
-        self.init_env(
-            log_queue=self.log_spout.get_queue(),
-            fail_queue=self.fail_spout.get_queue(),
-        )
+        self.init_env()
 
         self._notify("on_start", self.get_full_name(), 0)
-        self._put_task_queues(task_source)
+        self._put_task_queue(task_source)
         self.log_inlet.start_executor(
             self.get_name(),
             self.get_func_name(),
@@ -746,10 +712,9 @@ class TaskExecutor:
 
     def release_queue(self) -> None:
         """释放任务队列、结果队列和失败队列的引用"""
-        self.task_queues = None
-        self.result_queues = None
-        self.fail_queue = None
+        self.task_queue = None  # type: ignore[assignment]
+        self.result_queue = None  # type: ignore[assignment]        self.fail_queue = None
 
     def _release_client(self) -> None:
         """释放事件树客户端引用"""
-        self.ctree_client = None
+        self.ctree_client = NullCelestialTreeClient()

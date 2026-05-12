@@ -23,12 +23,12 @@ from celestialflow import (
 
 load_dotenv()
 
-report_host = os.getenv("REPORT_HOST")
-report_port = os.getenv("REPORT_PORT")
+report_host: str = os.getenv("REPORT_HOST", "")
+report_port: int = int(os.getenv("REPORT_PORT", "0"))
 
-ctree_host = os.getenv("CTREE_HOST")
-ctree_http_host = os.getenv("CTREE_HTTP_PORT")
-ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
+ctree_host: str = os.getenv("CTREE_HOST", "")
+ctree_http_host: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
+ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
 
 
 # ========有向无环图(DAG)========
@@ -41,7 +41,7 @@ def demo_chain():
     stageE = TaskStage("StageE", square, execution_mode="serial", max_workers=2)
 
     # 设置图结构
-    chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "process")
+    chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "thread")
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -59,80 +59,79 @@ def demo_forest():
     stageA = TaskStage(
         "stageA",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
     )
     stageB = TaskStage(
         "stageB",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
     )
     stageC = TaskStage(
         "stageC",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
     )
     stageD = TaskStage(
         "stageD",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
     )
     stageE = TaskStage(
         "stageE",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
     )
 
     # 构建 DAG: F ➝ G ➝ I；F ➝ H ➝ J
     stageF = TaskStage(
         "stageF",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
     )
     stageG = TaskStage(
         "stageG",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
     )
     stageH = TaskStage(
         "stageH",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
     )
     stageI = TaskStage(
         "stageI",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
     )
     stageJ = TaskStage(
         "stageJ",
         add_one_sleep,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
     )
 
     # 设置图结构
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[stageA, stageB, stageF],
         stages=[
             stageA,
             stageB,
@@ -161,10 +160,10 @@ def demo_forest():
     )
 
     # 初始任务
-    init_tasks = {
-        stageA.get_tag(): range(1, 11),
-        stageB.get_tag(): range(11, 21),
-        stageF.get_tag(): range(21, 31),
+    init_tasks: dict[str, list[int]] = {
+        stageA.get_tag(): list(range(1, 11)),
+        stageB.get_tag(): list(range(11, 21)),
+        stageF.get_tag(): list(range(21, 31)),
     }
 
     graph.start_graph(init_tasks)
@@ -288,7 +287,7 @@ def demo_grid():
     )
 
     # 3. 初始化任务字典，只放左上角一个任务
-    init_dict = {grid[0][0].get_tag(): range(10)}
+    init_dict: dict[str, list[int]] = {grid[0][0].get_tag(): list(range(10))}
 
     # 4. 启动任务图
     task_grid.start_graph(init_dict)
@@ -353,8 +352,58 @@ def demo_complete():
     )
 
 
+def demo_multi_cycle():
+    """
+    多环互连图:
+    分支 A: 2 节点循环 (A1 -> A2 ->  A1)
+    分支 B: 2 节点循环 (B1 -> B2 -> B1)
+    分支 C: 2 节点循环 (C1 -> C2 -> C1)
+    连接: A2 -> B1, A2 -> C1
+    """
+
+    # 定义节点
+    A1 = TaskStage("A1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+    A2 = TaskStage("A2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+
+    B1 = TaskStage("B1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+    B2 = TaskStage("B2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+
+    C1 = TaskStage("C1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+    C2 = TaskStage("C2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+
+    graph = TaskGraph(schedule_mode="staged")
+    graph.set_stages(
+        stages=[A1, A2, B1, B2, C1, C2],
+    )
+
+    # 分支 A 循环
+    graph.connect([A1], [A2])
+    graph.connect([A2], [A1])
+
+    # A2 引出到 B 和 C
+    graph.connect([A2], [B1])
+    graph.connect([A2], [C1])
+
+    # 分支 B 循环
+    graph.connect([B1], [B2])
+    graph.connect([B2], [B1])
+
+    # 分支 C 循环
+    graph.connect([C1], [C2])
+    graph.connect([C2], [C1])
+
+    graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_ctree(
+        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
+    )
+
+    graph.start_graph({A1.get_tag(): range(1, 11)}, False)
+
+
 if __name__ == "__main__":
-    demo_loop()
+    # demo_forest()
     # demo_cross()
     # demo_grid()
+    # demo_loop()
+    demo_multi_cycle()
     pass

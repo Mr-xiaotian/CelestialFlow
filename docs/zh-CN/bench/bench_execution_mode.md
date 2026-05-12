@@ -1,6 +1,6 @@
-# bench_executor.py 基准测试说明
+# bench_execution_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/08
 
 ## 目标
 
@@ -24,7 +24,6 @@
 |------|-----|------|
 | `max_workers` | 6 (CPU) / 12 (I/O) | 并发 worker 数 |
 | `max_retries` | 1 (CPU) / 0 (I/O) | 重试次数 |
-| `show_progress` | `True` | 显示 tqdm 进度条 |
 
 ## 可能出现的问题
 
@@ -35,7 +34,7 @@
 ## 运行方式
 
 ```bash
-python bench/bench_executor.py
+python bench/bench_execution_mode.py
 ```
 
 ## 基准结果（实测）
@@ -67,4 +66,4 @@ python bench/bench_executor.py
 
 ## 依赖
 
-- `celestialflow`（`TaskExecutor`、`benchmark_executor`）
+- `celestialflow`（`TaskExecutor`、`TaskProgress`、`benchmark_executor`）

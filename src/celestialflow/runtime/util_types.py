@@ -1,8 +1,9 @@
 # runtime/util_types.py
+from __future__ import annotations
+
 from enum import IntEnum
-from multiprocessing import Value as MPValue
 from threading import Lock
-from typing import Any
+from types import TracebackType
 
 from celestialtree import NodeLabelStyle
 
@@ -40,7 +41,7 @@ class NoOpContext:
         """进入空上下文"""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
         """退出空上下文"""
         pass
 
@@ -48,7 +49,7 @@ class NoOpContext:
 class ValueWrapper:
     """线程内/单进程的计数器包装，可选线程锁。"""
 
-    def __init__(self, value: int = 0, lock: Any | None = None) -> None:
+    def __init__(self, value: int = 0, lock: Lock | None = None) -> None:
         """
         :param value: 初始值
         :param lock: 可选的线程锁
@@ -56,32 +57,26 @@ class ValueWrapper:
         self.value = value
         self._lock = lock
 
-    def get_lock(self) -> NoOpContext:
+    def get_lock(self) -> "Lock | NoOpContext":
         """获取锁对象，无锁时返回空上下文"""
         return self._lock or NoOpContext()
 
 
 class SumCounter:
-    """累加多个 counter（ValueWrapper / MPValue）"""
+    """累加多个 counter（ValueWrapper）"""
 
     def __init__(self, mode: str = "serial"):
         """
         :param mode: 执行模式，决定锁和计数器实现
         """
         self.mode = mode
-        self._lock: Any | None
-        self.init_value: Any
+        self.init_value: ValueWrapper
 
         if mode == "thread":
-            self._lock = Lock()
-            self.init_value = ValueWrapper(0, lock=self._lock)
-        elif mode == "process":
-            self._lock = None
-            self.init_value = MPValue("i", 0)
+            self.init_value = ValueWrapper(0, lock=Lock())
         else:
-            self._lock = None
             self.init_value = ValueWrapper(0)
-        self.counters: list[Any] = []
+        self.counters: list[ValueWrapper] = []
 
     def add_init_value(self, value: int) -> None:
         """
@@ -92,7 +87,7 @@ class SumCounter:
         with self.init_value.get_lock():
             self.init_value.value += value
 
-    def append_counter(self, counter: Any) -> None:
+    def append_counter(self, counter: ValueWrapper) -> None:
         """
         追加一个外部计数器
 
@@ -144,4 +139,4 @@ class CTreeEvent:
     TERMINATION_MERGE = "termination.merge"
 
 
-STAGE_STYLE = NodeLabelStyle(template="{base}  {payload.name}  ‹{type}›", missing="-")
+STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(template="{base}  {payload.name}  ‹{type}›", missing="-")

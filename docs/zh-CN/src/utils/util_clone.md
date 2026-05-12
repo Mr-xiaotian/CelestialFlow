@@ -1,8 +1,8 @@
 # Clone
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
-`utils/clone.py` 提供了克隆执行器、节点和任务图的功能，用于性能测试和配置复用。
+`utils/util_clone.py` 提供了克隆执行器、节点和任务图的功能，用于性能测试和配置复用。
 
 ## 设计目的
 
@@ -25,16 +25,14 @@ def clone_executor(executor: TaskExecutor) -> TaskExecutor:
 ```
 
 复制的属性：
+- `name`: 执行器名称
 - `func`: 任务函数
 - `execution_mode`: 执行模式
 - `max_workers`: 并发限制
 - `max_retries`: 最大重试次数
 - `max_info`: 日志信息最大长度
 - `unpack_task_args`: 是否解包参数
-- `enable_success_cache`: 成功缓存开关
 - `enable_duplicate_check`: 重复检查开关
-- `show_progress`: 进度条开关
-- `progress_desc`: 进度条描述
 - `log_level`: 日志级别
 - `retry_exceptions`: 可重试异常列表
 
@@ -54,7 +52,6 @@ def clone_stage(stage: TaskStage) -> TaskStage:
 
 除了 `TaskExecutor` 的属性外，还会复制：
 - `stage_mode`: 节点模式
-- `_name`: 节点名称
 
 ### clone_graph
 
@@ -83,11 +80,12 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
 
 ```python
 from celestialflow import TaskExecutor
-from celestialflow.utils.clone import clone_executor
+from celestialflow.utils.util_clone import clone_executor
 
 # 创建原始执行器
 executor = TaskExecutor(
-    func=process,
+    "Processor",
+    process,
     execution_mode="thread",
     max_workers=10,
     max_retries=3,
@@ -95,7 +93,6 @@ executor = TaskExecutor(
 
 # 克隆执行器
 cloned = clone_executor(executor)
-cloned.set_execution_mode("process")  # 修改克隆的配置
 
 # 两个执行器独立运行
 executor.start(range(100))
@@ -106,15 +103,14 @@ cloned.start(range(100))
 
 ```python
 from celestialflow import TaskGraph
-from celestialflow.utils.clone import clone_graph
+from celestialflow.utils.util_clone import clone_graph
 
 # 创建原始图
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[stage_a, stage_b])
+graph.set_stages(stages=[stage_a, stage_b])
 
 # 克隆图用于测试
 cloned_graph = clone_graph(graph)
-cloned_graph.set_graph_mode("process", "thread")
 
 # 运行克隆的图
 cloned_graph.start_graph(init_tasks)
@@ -123,14 +119,13 @@ cloned_graph.start_graph(init_tasks)
 ### 在基准测试中使用
 
 ```python
-from celestialflow.utils.benchmark import benchmark_graph
+from celestialflow.utils.util_benchmark import benchmark_graph
 
-# 对同一图配置进行多次测试
 # benchmark_graph 内部使用 clone_graph
 results = benchmark_graph(
     graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "thread", "process"],
+    stage_modes=["serial", "thread"],
     execution_modes=["serial", "thread"],
 )
 ```

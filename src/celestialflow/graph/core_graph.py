@@ -1,22 +1,18 @@
 # graph/core_graph.py
 from __future__ import annotations
 
-import multiprocessing
 import threading
 import time
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass
-from multiprocessing import Queue as MPQueue
 from pathlib import Path
+from queue import Queue as ThreadQueue
+from collections.abc import Iterable, Mapping
 from typing import Any
 
-from celestialtree import (
-    Client as CelestialTreeClient,
-)
-from celestialtree import (
-    NullClient as NullCelestialTreeClient,
-)
+from celestialtree import Client as CelestialTreeClient
+from celestialtree import NullClient as NullCelestialTreeClient
 from celestialtree import (
     format_descendants_forest,
     format_provenance_forest,
@@ -48,7 +44,8 @@ from ..utils.util_collections import cluster_by_value_sorted
 from ..utils.util_format import format_avg_time
 from .util_analysis import (
     compute_node_levels,
-    format_networkx_graph,
+    build_networkx_graph,
+    find_source_nodes,
 )
 from .util_serialize import build_structure_graph, format_structure_list_from_graph
 
@@ -71,7 +68,7 @@ class TaskGraph:
     def __init__(
         self,
         schedule_mode: str = "eager",
-        log_level: str = "SUCCESS",
+        log_level: str = "INFO",
     ) -> None:
         """
         初始化 TaskGraph 实例。
@@ -90,7 +87,7 @@ class TaskGraph:
                 节点按层级顺序逐层启动，确保上层所有任务完成后再启动下一层。
                 更利于调试、性能分析和阶段性资源控制。
 
-        :param log_level: str, optional, default = 'SUCCESS'
+        :param log_level: str, optional, default = 'INFO'
             日志级别，支持以下级别：
             - 'TRACE'
             - 'DEBUG'
@@ -119,8 +116,6 @@ class TaskGraph:
         """
         初始化状态
         """
-        # 用于保存所有子进程的引用
-        self.processes: list[multiprocessing.Process] = []
         # 用于保存所有子线程的引用
         self.threads: list[threading.Thread] = []
         # 用于保存每个节点的运行信息
@@ -130,11 +125,11 @@ class TaskGraph:
         # 用于保存任务图的摘要信息
         self.graph_summary: dict[str, int | float] = {}
         # 用于保存每个节点的历史状态信息列表（仅保留最近20条）
-        self.stage_history: dict[str, list[dict]] = {}
+        self.stage_history: dict[str, list[dict[str, Any]]] = {}
         # 用于保存每个节点的输入任务ID集合
         self.input_ids: dict[str, set[int]] = defaultdict(set)
-        # 用于保存根节点列表
-        self.root_stages: list[TaskStage] = []
+        # 用于保存源节点列表（由 _build_analysis 自动计算）
+        self.source_stages: list[TaskStage] = []
         # 用于保存图结构的邻接表
         self.out_edges: dict[str, list[str]] = defaultdict(list)
         self.in_edges: dict[str, list[str]] = defaultdict(list)
@@ -155,22 +150,19 @@ class TaskGraph:
 
     # ==== 建图 ====
 
-    def set_stages(self, root_stages: list[TaskStage], stages: list[TaskStage]) -> None:
+    def set_stages(self, stages: list[TaskStage]) -> None:
         """
         添加节点到任务图中
 
-        :param root_stages: 根节点列表
         :param stages: 待添加的节点列表
         """
-        self.root_stages = root_stages
-
-        for stage in stages + root_stages:
+        for stage in stages:
             if stage.get_tag() in self.stage_runtime_dict:
                 continue
 
             stage_tag = stage.get_tag()
             in_queue = TaskInQueue(
-                queue=MPQueue(),
+                queue=ThreadQueue(),
                 queue_tags=[],
                 out_tag=stage.get_tag(),
                 log_inlet=self.log_inlet,
@@ -215,11 +207,11 @@ class TaskGraph:
         else:
             raise ScheduleModeError(schedule_mode)
 
-    def _set_log_level(self, level: str = "SUCCESS") -> None:
+    def _set_log_level(self, level: str = "INFO") -> None:
         """
         设置日志级别
 
-        :param level: 日志级别, 默认为 "SUCCESS"
+        :param level: 日志级别, 默认为 "INFO"
         """
         self.log_level = level.upper()
 
@@ -233,9 +225,9 @@ class TaskGraph:
         :param host: 报告器主机地址
         :param port: 报告器端口
         """
-        self._is_report = is_report
-        self._report_host = host
-        self._report_port = port
+        self.is_report = is_report
+        self.report_host = host
+        self.report_port = port
         self.reporter: TaskReporter | NullTaskReporter
         if is_report:
             self.reporter = TaskReporter(
@@ -264,12 +256,13 @@ class TaskGraph:
         :param grpc_port: 事件树 gRPC 端口
         :param transport: 传输方式, 可选 'grpc' 或 'http'
         """
-        self._use_ctree = use_ctree
-        self._ctree_host = host
-        self._ctree_http_port = http_port
-        self._ctree_grpc_port = grpc_port
+        self.use_ctree = use_ctree
+        self.ctree_host = host
+        self.ctree_http_port = http_port
+        self.ctree_grpc_port = grpc_port
         self._ctree_transport = transport
 
+        self.ctree_client: CelestialTreeClient | NullCelestialTreeClient
         if use_ctree:
             self.ctree_client = CelestialTreeClient(
                 host=host, http_port=http_port, grpc_port=grpc_port, transport=transport
@@ -283,29 +276,12 @@ class TaskGraph:
         """
         设置任务链的执行模式
 
-        :param stage_mode: 节点执行模式, 可选值为 'serial', 'thread' 或 'process'
+        :param stage_mode: 节点执行模式, 可选值为 'serial' 或 'thread'
         :param execution_mode: 节点内部执行模式, 可选值为 'serial', 'thread' 或 'async'
         """
-
-        def set_subsequent_stage_mode(stage: TaskStage) -> None:
-            """
-            递归设置当前节点及其所有后续节点的执行模式。
-
-            :param stage: 当前节点
-            """
-            stage.set_stage_mode(stage_mode)
-            stage.set_execution_mode(execution_mode)
-            visited_stages.add(stage)
-
-            for next_stage_tag in self.out_edges[stage.get_tag()]:
-                next_stage = self.stage_runtime_dict[next_stage_tag].stage
-                if next_stage in visited_stages:
-                    continue
-                set_subsequent_stage_mode(next_stage)
-
-        visited_stages: set[TaskStage] = set()
-        for root_stage in self.root_stages:
-            set_subsequent_stage_mode(root_stage)
+        for stage_runtime in self.stage_runtime_dict.values():
+            stage_runtime.stage.set_stage_mode(stage_mode)
+            stage_runtime.stage.set_execution_mode(execution_mode)
         self._build_analysis()
 
     # ==== 启动 ====
@@ -339,20 +315,85 @@ class TaskGraph:
         """
         分析任务图，计算 DAG 属性和层级信息
         """
+        self.networkx_graph = build_networkx_graph(self.out_edges, self.stage_runtime_dict)
+        source_tags = find_source_nodes(self.networkx_graph)
+        self.source_stages = [
+            self.stage_runtime_dict[tag].stage for tag in source_tags
+        ]
+
         self.structure_json = build_structure_graph(
-            self.root_stages, self.out_edges, self.stage_runtime_dict
+            self.source_stages, self.out_edges, self.stage_runtime_dict
         )
         self.structure_list = format_structure_list_from_graph(self.structure_json)
-        self.networkx_graph = format_networkx_graph(self.structure_json)
 
         self.isDAG = is_directed_acyclic_graph(self.networkx_graph)
-        self.layers_dict = {}
-        if self.isDAG:
-            stage_level_dict = compute_node_levels(self.networkx_graph)
-            self.layers_dict = cluster_by_value_sorted(stage_level_dict)
+
+        stage_level_dict = compute_node_levels(self.networkx_graph)
+        self.layers_dict = cluster_by_value_sorted(stage_level_dict)
+
+    def put_stage_queue(
+        self, tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
+    ) -> None:
+        """
+        将任务放入队列
+
+        :param tasks_dict: 待处理的任务字典
+        :param put_termination_signal: 是否放入终止信号
+        """
+        for tag, tasks in tasks_dict.items():
+            if tag not in self.stage_runtime_dict:
+                continue
+            stage: TaskStage = self.stage_runtime_dict[tag].stage
+            in_queue: TaskInQueue = self.stage_runtime_dict[tag].in_queue
+            input_ids: set[int] = self.input_ids[tag]
+
+            for task in tasks:
+                if isinstance(task, TerminationSignal):
+                    termination_id: int = self.ctree_client.emit(
+                        CTreeEvent.TERMINATION_INPUT,
+                        payload=stage.get_summary(),
+                    )
+                    in_queue.put(TerminationSignal(termination_id, source="input"))
+                    continue
+
+                input_id: int = self.ctree_client.emit(
+                    CTreeEvent.TASK_INPUT,
+                    payload=stage.get_summary(),
+                )
+                envelope = TaskEnvelope(task, input_id, source="input")
+                in_queue.put(envelope)
+                input_ids.add(input_id)
+
+                stage.metrics.add_task_count()
+                self.log_inlet.task_input(
+                    stage.get_func_name(),
+                    stage.get_task_repr(task),
+                    stage.get_tag(),
+                    input_id,
+                )
+
+        if put_termination_signal:
+            for source_stage in self.source_stages:
+                source_stage_tag = source_stage.get_tag()
+                source_in_queue: TaskInQueue = self.stage_runtime_dict[
+                    source_stage_tag
+                ].in_queue
+
+                termination_id: int = self.ctree_client.emit(
+                    CTreeEvent.TERMINATION_INPUT,
+                    payload=source_stage.get_summary(),
+                )
+                source_in_queue.put(TerminationSignal(termination_id, source="input"))
+                self.log_inlet.termination_input(
+                    source_stage.get_func_name(),
+                    source_stage.get_tag(),
+                    termination_id,
+                )
+
+    # ==== 执行 ====
 
     def start_graph(
-        self, init_tasks_dict: dict, put_termination_signal: bool = True
+        self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
     ) -> None:
         """
         启动任务链
@@ -394,65 +435,6 @@ class TaskGraph:
             self.fail_spout.stop()
             self.log_spout.stop()
 
-    # ==== 执行 ====
-
-    def put_stage_queue(
-        self, tasks_dict: dict, put_termination_signal: bool = True
-    ) -> None:
-        """
-        将任务放入队列
-
-        :param tasks_dict: 待处理的任务字典
-        :param put_termination_signal: 是否放入终止信号
-        """
-        for tag, tasks in tasks_dict.items():
-            stage: TaskStage = self.stage_runtime_dict[tag].stage
-            in_queue: TaskInQueue = self.stage_runtime_dict[tag].in_queue
-            input_ids: set = self.input_ids[tag]
-
-            for task in tasks:
-                if isinstance(task, TerminationSignal):
-                    termination_id = self.ctree_client.emit(
-                        CTreeEvent.TERMINATION_INPUT,
-                        payload=stage.get_summary(),
-                    )
-                    in_queue.put(TerminationSignal(termination_id, source="input"))
-                    continue
-
-                input_id = self.ctree_client.emit(
-                    CTreeEvent.TASK_INPUT,
-                    payload=stage.get_summary(),
-                )
-                envelope = TaskEnvelope.wrap(task, input_id, source="input")
-                in_queue.put(envelope)
-                input_ids.add(input_id)
-
-                stage.metrics.add_task_count()
-                self.log_inlet.task_input(
-                    stage.get_func_name(),
-                    stage.get_task_repr(task),
-                    stage.get_tag(),
-                    input_id,
-                )
-
-        if put_termination_signal:
-            for root_stage in self.root_stages:
-                root_stage_tag = root_stage.get_tag()
-                root_in_queue: TaskInQueue = self.stage_runtime_dict[
-                    root_stage_tag
-                ].in_queue
-
-                termination_id = self.ctree_client.emit(
-                    CTreeEvent.TERMINATION_INPUT,
-                    payload=root_stage.get_summary(),
-                )
-                root_in_queue.put(TerminationSignal(termination_id, source="input"))
-                self.log_inlet.termination_input(
-                    root_stage.get_func_name(),
-                    root_stage.get_tag(),
-                    termination_id,
-                )
-
     def _execute_stages(self) -> None:
         """
         执行所有节点
@@ -462,9 +444,6 @@ class TaskGraph:
             for stage_runtime in self.stage_runtime_dict.values():
                 self._execute_stage(stage_runtime.stage)
 
-            for p in self.processes:
-                p.join()
-                self.log_inlet.process_exit(p.name, p.exitcode)
             for t in self.threads:
                 t.join()
         elif self.schedule_mode == "staged":
@@ -473,20 +452,14 @@ class TaskGraph:
                 self.log_inlet.start_layer(layer, layer_level)
                 start_time = time.perf_counter()
 
-                processes = []
-                threads = []
+                threads: list[threading.Thread] = []
                 for stage_tag in layer:
                     stage: TaskStage = self.stage_runtime_dict[stage_tag].stage
                     self._execute_stage(stage)
-                    if stage.stage_mode == "process":
-                        processes.append(self.processes[-1])
-                    elif stage.stage_mode == "thread":
+                    if stage.stage_mode == "thread":
                         threads.append(self.threads[-1])
 
-                # join 当前层的所有进程和线程
-                for p in processes:
-                    p.join()
-                    self.log_inlet.process_exit(p.name, p.exitcode)
+                # join 当前层的所有线程
                 for t in threads:
                     t.join()
 
@@ -505,61 +478,41 @@ class TaskGraph:
         log_queue = self.log_spout.get_queue()
 
         # 输入输出队列
-        input_queues: TaskInQueue = stage_runtime.in_queue
-        output_queues: TaskOutQueue = stage_runtime.out_queue
+        input_queue: TaskInQueue = stage_runtime.in_queue
+        output_queue: TaskOutQueue = stage_runtime.out_queue
 
         stage_runtime.start_time = time.time()
 
-        if self._use_ctree:
+        if self.use_ctree:
             stage.set_ctree(
-                self._ctree_host, self._ctree_http_port, self._ctree_grpc_port
+                self.ctree_host, self.ctree_http_port, self.ctree_grpc_port
             )
         else:
             stage.set_nullctree(self.ctree_client.event_id)
 
         stage.set_log_level(self.log_level)
 
-        if stage.stage_mode == "process":
-            p = multiprocessing.Process(
-                target=stage.start_stage,
-                args=(input_queues, output_queues, fail_queue, log_queue),
-                name=stage_tag,
-            )
-            p.start()
-            self.processes.append(p)
-        elif stage.stage_mode == "thread":
+        if stage.stage_mode == "thread":
             t = threading.Thread(
                 target=stage.start_stage,
-                args=(input_queues, output_queues, fail_queue, log_queue),
+                args=(input_queue, output_queue, fail_queue, log_queue),
                 name=stage_tag,
                 daemon=True,
             )
             t.start()
             self.threads.append(t)
         else:
-            stage.start_stage(input_queues, output_queues, fail_queue, log_queue)
+            stage.start_stage(input_queue, output_queue, fail_queue, log_queue)
 
     # ==== 终止与清理 ====
 
     def _finalize_nodes(self) -> None:
         """
-        确保所有子进程安全结束，更新节点状态，并导出每个节点队列剩余任务。
+        确保所有线程安全结束，更新节点状态，并导出每个节点队列剩余任务。
         """
-        # 确保所有进程安全结束（不一定要 terminate，但如果没结束就强制）
-        for p in self.processes:
-            if p.is_alive():
-                self.log_inlet.process_termination_attempt(p.name)
-                p.terminate()
-                p.join(timeout=5)
-                if p.is_alive():
-                    self.log_inlet.process_termination_timeout(p.name)
-                self.log_inlet.process_exit(p.name, p.exitcode)
-
         # 确保所有线程安全结束（线程不可 terminate，仅做 cooperative join）
         for t in self.threads:
             t.join(timeout=10)
-            if t.is_alive():
-                self.log_inlet.process_termination_timeout(t.name)
 
         # 更新所有节点状态为"已停止"
         for stage_runtime in self.stage_runtime_dict.values():
@@ -578,7 +531,7 @@ class TaskGraph:
             for source in remaining_sources:
                 task = source.task
                 task_id = source.id
-                error_id = self.ctree_client.emit(
+                error_id: int = self.ctree_client.emit(
                     CTreeEvent.TASK_ERROR,
                     [task_id],
                     payload=current_stage.get_summary(),
@@ -593,6 +546,8 @@ class TaskGraph:
                     task_id,
                     error_id,
                 )
+
+        self.collect_runtime_snapshot()
 
     def _release_resources(self) -> None:
         """
@@ -609,11 +564,11 @@ class TaskGraph:
         stage_tag: str,
         stage: TaskStage,
         stage_runtime: StageRuntime,
-        last_status: dict,
+        last_status: dict[str, Any],
         now: float,
         interval: float,
         history_limit: int,
-    ) -> tuple[dict, list[dict], tuple[int, int, float, float]]:
+    ) -> tuple[dict[str, Any], list[dict[str, Any]], tuple[int, int, float, float]]:
         """
         计算单个 stage 的运行时快照
 
@@ -637,11 +592,11 @@ class TaskGraph:
             "tasks_duplicated",
             "tasks_processed",
         ]
-        deltas = {f"add_{k}": stage_counts[k] - last_status.get(k, 0) for k in keys}
+        deltas: dict[str, Any] = {f"add_{k}": stage_counts[k] - last_status.get(k, 0) for k in keys}
 
         start_time = stage_runtime.start_time
-        last_elapsed = last_status.get("elapsed_time", 0)
-        last_pending = last_status.get("tasks_pending", 0)
+        last_elapsed: float = last_status.get("elapsed_time", 0)
+        last_pending: int = last_status.get("tasks_pending", 0)
         elapsed = calc_elapsed(status, last_elapsed, last_pending, interval)
 
         remaining = calc_remaining(
@@ -651,7 +606,7 @@ class TaskGraph:
         # 计算平均时间（秒/任务）并格式化为字符串
         avg_time_str = format_avg_time(elapsed, stage_counts["tasks_processed"])
 
-        history: list = list(self.stage_history.get(stage_tag, []))
+        history: list[dict[str, Any]] = list(self.stage_history.get(stage_tag, []))
         history.append(
             {
                 "timestamp": now,
@@ -660,7 +615,7 @@ class TaskGraph:
         )
         history.pop(0) if len(history) > history_limit else None
 
-        snapshot = {
+        snapshot: dict[str, Any] = {
             **stage.get_summary(),
             "status": status,
             **stage_counts,
@@ -709,8 +664,8 @@ class TaskGraph:
         """
         收集运行时快照
         """
-        status_dict: dict[str, dict] = {}
-        history_dict: dict[str, list[dict]] = {}
+        status_dict: dict[str, dict[str, Any]] = {}
+        history_dict: dict[str, list[dict[str, Any]]] = {}
         now = time.time()
         interval = self.reporter.interval
         history_limit = self.reporter.history_limit
@@ -775,20 +730,24 @@ class TaskGraph:
 
     # ==== 查询接口 ====
 
-    def get_fail_by_stage_dict(self) -> dict:
+    def get_fail_by_stage_dict(self) -> dict[str, list[Any]]:
         """
         获取按节点分组的失败任务字典
 
         :return: {stage_tag: [失败任务列表]}
         """
+        if self.fail_spout.jsonl_path is None:
+            return {}
         return load_task_by_stage(self.fail_spout.jsonl_path)
 
-    def get_fail_by_error_dict(self) -> dict:
+    def get_fail_by_error_dict(self) -> dict[tuple[str, ...], list[Any]]:
         """
         获取按错误类型分组的失败任务字典
 
         :return: {error_type: [失败任务列表]}
         """
+        if self.fail_spout.jsonl_path is None:
+            return {}
         return load_task_by_error(self.fail_spout.jsonl_path)
 
     def get_total_error_num(self) -> int:
@@ -799,7 +758,7 @@ class TaskGraph:
         """
         return self.fail_spout.total_error_num
 
-    def get_status_dict(self) -> dict[str, dict]:
+    def get_status_dict(self) -> dict[str, dict[str, Any]]:
         """
         获取任务链的状态字典
 
@@ -807,7 +766,7 @@ class TaskGraph:
         """
         return self.status_dict
 
-    def get_graph_summary(self) -> dict:
+    def get_graph_summary(self) -> dict[str, int | float]:
         """
         获取任务链的摘要信息字典
 
@@ -815,7 +774,7 @@ class TaskGraph:
         """
         return self.graph_summary
 
-    def get_stage_history(self) -> dict[str, list[dict]]:
+    def get_stage_history(self) -> dict[str, list[dict[str, Any]]]:
         """
         获取各节点的历史状态信息字典
 
@@ -823,7 +782,7 @@ class TaskGraph:
         """
         return self.stage_history
 
-    def get_graph_analysis(self) -> dict:
+    def get_graph_analysis(self) -> dict[str, Any]:
         """
         获取任务图的分析信息
 
@@ -836,7 +795,7 @@ class TaskGraph:
             "layers_dict": self.layers_dict,
         }
 
-    def get_structure_json(self) -> list[dict]:
+    def get_structure_json(self) -> list[dict[str, Any]]:
         """
         获取任务图的 JSON 结构
 
@@ -852,7 +811,7 @@ class TaskGraph:
         """
         return self.structure_list
 
-    def get_networkx_graph(self) -> DiGraph:
+    def get_networkx_graph(self) -> DiGraph[Any]:
         """
         获取任务图的 networkx 有向图（DiGraph）
 
@@ -877,11 +836,13 @@ class TaskGraph:
         :param stage_tag: 节点标签
         :return: 格式化的依赖关系树字符串
         """
-        if not self._use_ctree:
+        if not self.use_ctree:
             return ""
 
-        input_ids: set = self.input_ids[stage_tag]
+        input_ids: set[int] = self.input_ids[stage_tag]
         descendants = self.ctree_client.descendants_batch(list(input_ids), "meta")
+        if not descendants:
+            return ""
         return format_descendants_forest(descendants, STAGE_STYLE)
 
     def get_error_trace(self, error_id: int) -> str:
@@ -892,4 +853,16 @@ class TaskGraph:
         :return: 格式化的溯源关系树字符串
         """
         provenance = self.ctree_client.provenance(error_id)
+        if not provenance:
+            return ""
         return format_provenance_forest(provenance, STAGE_STYLE)
+    
+    def get_source_stages(self) -> list[TaskStage]:
+        """
+        获取源节点列表
+
+        :return: 源节点列表
+        """
+        self._build_analysis()  # 确保 source_stages 已更新
+        return self.source_stages
+

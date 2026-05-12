@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 最終更新日: 2026/04/24
+> 📅 最終更新日: 2026/05/08
 
 `TaskQueue` モジュールは `TaskInQueue` と `TaskOutQueue` の2つのクラスを提供し、異なる Stage 間のパイプラインを接続します。マルチプロデューサー・マルチコンシューマーモデルをサポートし、ログ記録と監視機能を統合しています。
 
@@ -237,8 +237,8 @@ item = in_queue.get()
 
 if isinstance(item, TaskEnvelope):
     # タスクを処理
-    result = process(item.task)
-    out_queue.put(TaskEnvelope.wrap(result, result_id))
+    result = process(item.get_task())
+    out_queue.put(TaskEnvelope(result, id=result_id, source="stage_tag"))
 elif isinstance(item, TerminationIdPool):
     # すべての上流が終了済み、下流に終了シグナルを送信
     out_queue.put(TerminationSignal())

@@ -6,10 +6,10 @@
 
 ## Main Capabilities
 
-- `build_structure_graph(root_stages, out_edges, stage_runtime_dict)`: Recursively builds a structure JSON from a set of root nodes.
+- `build_structure_graph(source_stages, out_edges, stage_runtime_dict)`: Recursively builds a structure JSON from a set of source nodes.
 - `format_structure_list_from_graph(root_roots)`: Formats a structure JSON into a printable tree-style text.
 
 ## Output Characteristics
 
 - Supports cyclic/reference node marking (`is_ref`).
-- Supports multi-root (forest) structure output.
+- Supports multi-source (forest) structure output.

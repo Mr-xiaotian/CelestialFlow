@@ -1,4 +1,3 @@
-// task_web.js
 /**
  * 将时间戳转换为本地时间字符串
  * @param {number} timestamp - Unix 时间戳（秒）
@@ -113,7 +112,9 @@ function escapeHtml(str) {
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;")
+        .replace(/\//g, "&#x2F;");
 }
 /**
  * 切换页面暗黑/明亮主题
@@ -206,7 +207,7 @@ function buildElapsedDigitClasses(segments, digitCount) {
     const allocations = exactAllocations.map((value) => 1 + Math.floor(value));
     let remainingDigits = digitCount - allocations.reduce((sum, value) => sum + value, 0);
     const sortedIndexes = exactAllocations
-        .map((value, index) => ({ index, remainder: value - allocations[index] }))
+        .map((value, index) => ({ index, remainder: value - Math.floor(value) }))
         .sort((a, b) => {
         if (b.remainder !== a.remainder)
             return b.remainder - a.remainder;

@@ -1,7 +1,10 @@
 # persistence/core_fail.py
+from __future__ import annotations
+
 import json
 from datetime import datetime
 from pathlib import Path
+from queue import Queue
 from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
@@ -43,7 +46,7 @@ class FailSpout(BaseSpout):
         # 初始化错误计数器
         self.total_error_num = 0
 
-    def _handle_record(self, record: dict) -> None:
+    def _handle_record(self, record: dict[str, Any]) -> None:
         """
         处理单条错误记录，写入 jsonl 文件并更新计数器
 
@@ -56,7 +59,7 @@ class FailSpout(BaseSpout):
         self._file.write(f"{jsonl_record}\n")
         self._file.flush()
 
-        if isinstance(record, dict) and record.get("error_id") is not None:
+        if record.get("error_id") is not None:
             self.total_error_num += 1
 
     def _after_stop(self) -> None:
@@ -80,7 +83,7 @@ class FailInlet(BaseInlet):
     多进程安全失败记录包装类，所有失败记录通过队列发送到监听进程写入
     """
 
-    def __init__(self, fail_queue) -> None:
+    def __init__(self, fail_queue: Queue[Any]) -> None:
         """
         初始化失败记录收集器
 
@@ -88,7 +91,7 @@ class FailInlet(BaseInlet):
         """
         super().__init__(fail_queue)
 
-    def start_graph(self, structure_json: list) -> None:
+    def start_graph(self, structure_json: list[Any]) -> None:
         """
         在运行开始时写入任务结构元信息到 jsonl 文件
 

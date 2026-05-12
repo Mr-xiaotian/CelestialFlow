@@ -1,6 +1,6 @@
 # TaskDispatch
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/05/08
 
 `TaskDispatch` 是任务执行的核心运行器，负责从队列获取任务、执行任务、处理结果和错误。它支持串行、线程池和异步三种执行模式。
 
@@ -55,8 +55,9 @@ def dispatch_thread(self):
 执行流程：
 1. 初始化线程池
 2. 从队列获取任务并提交到池中
-3. 等待所有 future 完成后处理终止信号
-4. 关闭池并释放资源
+3. 定期清理已完成的 future（当列表长度达到 `max_workers * 2` 时过滤）
+4. 等待所有 future 完成后处理终止信号
+5. 关闭池并释放资源
 
 ### dispatch_async
 
@@ -133,7 +134,8 @@ TaskExecutor
 ## 注意事项
 
 1. **并发控制**: `max_workers` 限制并发任务数量，防止资源耗尽
-2. **终止处理**: 正确处理终止信号的合并和传递
-3. **错误传播**: 异常会被捕获并传递给 `TaskExecutor.handle_task_fail()`
-4. **重试机制**: worker 内部支持任务重试，由 `max_retries` 控制
-5. **异步限制**: `dispatch_async` 需要任务函数是协程函数
+2. **futures 清理**: `dispatch_thread` 中当 futures 列表长度达到 `max_workers * 2` 时，过滤已完成的 future，避免内存无限增长
+3. **终止处理**: 正确处理终止信号的合并和传递
+4. **错误传播**: 异常会被捕获并传递给 `TaskExecutor.handle_task_fail()`
+5. **重试机制**: worker 内部支持任务重试，由 `max_retries` 控制
+6. **异步限制**: `dispatch_async` 需要任务函数是协程函数

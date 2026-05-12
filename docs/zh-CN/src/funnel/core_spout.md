@@ -1,6 +1,6 @@
 # BaseSpout
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 `BaseSpout` 是所有出口类的基类，提供后台线程监听队列并处理记录的通用功能。
 
@@ -9,7 +9,7 @@
 ```python
 class BaseSpout:
     def __init__(self):
-        self.queue = MPQueue()  # 多进程安全队列
+        self.queue = Queue()  # 队列
         self._thread: Thread | None = None
 ```
 
@@ -40,13 +40,13 @@ def stop(self):
 流程：
 1. 发送 `TERMINATION_SIGNAL` 到队列
 2. 等待线程结束
-3. 清理队列资源（`cleanup_mpqueue`）
+3. 清理队列资源
 4. 调用 `_after_stop()` 钩子
 
 ### get_queue
 
 ```python
-def get_queue(self) -> MPQueue:
+def get_queue(self) -> Queue:
     """返回队列对象，供 Inlet 端使用。"""
 ```
 
@@ -81,7 +81,7 @@ def _spout(self):
 
 ## 注意事项
 
-1. **多进程安全**: 使用 `multiprocessing.Queue` 确保跨进程通信安全
+1. **线程安全**: 使用 `queue.Queue` 确保线程间通信安全
 2. **守护线程**: 监听线程设置为守护线程，主进程退出时自动结束
 3. **优雅停止**: 通过发送 `TerminationSignal` 通知线程停止
 4. **队列清理**: 停止时会清理队列中的剩余记录

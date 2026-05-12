@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/05/09
 
 TaskStructure 模块提供了多种预定义的任务图结构，帮助用户快速构建复杂的任务流。所有的结构都继承自 `TaskGraph`。
 
@@ -33,7 +33,7 @@ stage3 = TaskStage("S3", func=func3)
 # 创建链
 chain = TaskChain(
     stages=[stage1, stage2, stage3],
-    chain_mode="serial",  # serial: 依次运行; process: 同时运行
+    chain_mode="serial",  # serial: 依次运行; thread: 同时运行
     log_level="SUCCESS"
 )
 

@@ -1,6 +1,6 @@
 # Runtime 模块
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 Runtime 模块提供了 CelestialFlow 的任务执行运行时环境，包括任务调度、队列管理、错误处理、性能监控等核心功能。它是任务实际执行的基础设施层。
 
@@ -42,7 +42,7 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
 
 ### 工具和工具类
 
-5. **util_errors.py** (`CelestialFlowError`, `ConfigurationError`, `InvalidOptionError`, `ExecutionModeError`, `StageModeError`, `LogLevelError`, `RemoteWorkerError`, `UnconsumedError`, `PickleError`)
+5. **util_errors.py** (`CelestialFlowError`, `ConfigurationError`, `InvalidOptionError`, `ExecutionModeError`, `StageModeError`, `LogLevelError`, `RemoteWorkerError`, `UnconsumedError`)
    - **作用**: 错误处理框架，定义标准错误类型和处理策略
    - **错误类型**: 
      - `CelestialFlowError`: 所有自定义异常的基类
@@ -53,7 +53,6 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
      - `LogLevelError`: 日志级别错误
      - `RemoteWorkerError`: 远程 Worker 错误
      - `UnconsumedError`: 未消费任务错误
-     - `PickleError`: 序列化错误
    - **关键功能**: 错误分类、详细错误信息、参数验证、错误恢复
 
 6. **util_factories.py**
@@ -76,9 +75,7 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
    - **关键功能**: 类型定义、枚举管理、数据结构、类型安全
 
 8. **util_queue.py**
-   - **作用**: 运行时工具函数，提供通用功能
-   - **关键函数**: `cleanup_mpqueue()`: 清理多进程队列，确保资源释放
-   - **关键功能**: 资源管理、队列清理、内存释放、多进程安全
+   - **作用**: 运行时工具函数（`cleanup_mpqueue` 已随 process 模式移除）
 
 9. **util_hash.py**
     - **作用**: 对象哈希计算，用于任务去重和缓存

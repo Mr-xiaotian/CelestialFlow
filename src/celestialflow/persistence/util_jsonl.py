@@ -1,7 +1,10 @@
 # persistence/util_jsonl.py
+from __future__ import annotations
+
 import ast
 import json
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Optional
 
 # ======== jsonl文件处理 ========
@@ -17,11 +20,11 @@ def parse_jsonl_value(val: Any) -> Any:
     if isinstance(val, str):
         try:
             parsed = ast.literal_eval(val)
-            return tuple(parsed) if isinstance(parsed, (list, tuple)) else parsed
+            return tuple(parsed) if isinstance(parsed, (list, tuple)) else parsed  # type: ignore[return-value]
         except (ValueError, SyntaxError):
             return val
     if isinstance(val, (list, tuple)):
-        return tuple(val)
+        return tuple(val)  # type: ignore[return-value]
     return val
 
 
@@ -29,7 +32,7 @@ def load_jsonl_logs(
     path: str,
     start_seq: int = 1,
     keys: Optional[list[str]] = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     从 jsonl 文件中读取数据（可选择性读取字段）
 
@@ -38,7 +41,7 @@ def load_jsonl_logs(
     :param keys: 只保留这些键；None 表示保留全部
     :return: 从 start_seq 开始的 list[dict]
     """
-    results: list[dict] = []
+    results: list[dict[str, Any]] = []
 
     if start_seq < 0:
         start_seq = 0
@@ -55,7 +58,7 @@ def load_jsonl_logs(
                 continue
 
             try:
-                obj: dict = json.loads(line)
+                obj: dict[str, Any] = json.loads(line)
 
                 if keyset is not None:
                     obj = {k: obj.get(k) for k in keyset}
@@ -70,8 +73,8 @@ def load_jsonl_logs(
 
 
 def load_jsonl_by_key(
-    jsonl_path: str, extract_key: str = "stage", extract_value: str = "task"
-) -> dict[str, list]:
+    jsonl_path: str | Path, extract_key: str = "stage", extract_value: str = "task"
+) -> dict[str, list[Any]]:
     """
     按指定 key 分组加载 jsonl 文件中的值
 
@@ -80,11 +83,11 @@ def load_jsonl_by_key(
     :param extract_value: 提取的值字段名
     :return: {key_value: [parsed_values]}
     """
-    result_dict = defaultdict(list)
+    result_dict: defaultdict[str, list[Any]] = defaultdict(list)
 
     with open(jsonl_path, "r", encoding="utf-8") as f:
         for line in f:
-            item = json.loads(line)
+            item: dict[str, Any] = json.loads(line)
 
             if extract_key not in item or extract_value not in item:
                 continue
@@ -99,10 +102,10 @@ def load_jsonl_by_key(
 
 
 def load_jsonl_grouped_by_keys(
-    jsonl_path: str,
+    jsonl_path: str | Path,
     group_keys: list[str],
     extract_field: str,
-) -> dict[tuple[str], list[Any]]:
+) -> dict[tuple[str, ...], list[Any]]:
     """
     加载 JSONL 文件内容并按多个 key 分组。
 
@@ -111,11 +114,11 @@ def load_jsonl_grouped_by_keys(
     :param extract_field: 要提取的字段名
     :return: 一个 {(k1, k2): [items]} 的字典（键为 tuple）
     """
-    result_dict = defaultdict(list)
+    result_dict: defaultdict[tuple[str, ...], list[Any]] = defaultdict(list)
 
     with open(jsonl_path, "r", encoding="utf-8") as f:
         for line in f:
-            item = json.loads(line)
+            item: dict[str, Any] = json.loads(line)
 
             if any(k not in item for k in group_keys):
                 continue
@@ -131,7 +134,7 @@ def load_jsonl_grouped_by_keys(
     return dict(result_dict)
 
 
-def load_task_by_stage(jsonl_path) -> dict[str, list]:
+def load_task_by_stage(jsonl_path: str | Path) -> dict[str, list[Any]]:
     """
     加载错误记录，按 stage 分类
 
@@ -141,7 +144,7 @@ def load_task_by_stage(jsonl_path) -> dict[str, list]:
     return load_jsonl_by_key(jsonl_path, extract_key="stage", extract_value="task")
 
 
-def load_task_by_error(jsonl_path) -> dict[tuple[str], list[Any]]:
+def load_task_by_error(jsonl_path: str | Path) -> dict[tuple[str, ...], list[Any]]:
     """
     加载错误记录，按 error 和 stage 分类
 

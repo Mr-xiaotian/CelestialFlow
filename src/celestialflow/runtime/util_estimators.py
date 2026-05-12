@@ -1,5 +1,7 @@
 # runtime/util_estimators.py
-import networkx as nx
+from __future__ import annotations
+
+import networkx as nx  # type: ignore[import-unresolved]
 
 from .util_types import StageStatus
 
@@ -47,7 +49,7 @@ def calc_elapsed(
 
 
 def calc_global_remain_equal_pred(
-    G: nx.DiGraph,
+    G: nx.DiGraph[str],
     processed_map: dict[str, int],
     pending_map: dict[str, int],
     elapsed_map: dict[str, float],
@@ -118,13 +120,14 @@ def calc_global_remain_equal_pred(
     # 每个节点的 scale（上游放大系数）
     scale: dict[str, float] = {}
 
-    for v in nx.topological_sort(G):
-        proc_v = float(processed_map.get(v, 0) or 0)
-        pend_v = float(pending_map.get(v, 0) or 0)
-        elapsed_v = float(elapsed_map.get(v, 0.0) or 0.0)
+    for v in nx.topological_sort(G):  # type: ignore[misc]
+        v_str: str = v
+        proc_v = float(processed_map.get(v_str, 0) or 0)
+        pend_v = float(pending_map.get(v_str, 0) or 0)
+        elapsed_v = float(elapsed_map.get(v_str, 0.0) or 0.0)
         seen_v = proc_v + pend_v
 
-        preds = list(G.predecessors(v))
+        preds: list[str] = list(G.predecessors(v_str))  # type: ignore[arg-type]
         if not preds:
             # 没上游：就认为总量就是目前看到的量（不外推）
             total_v = seen_v
@@ -135,10 +138,10 @@ def calc_global_remain_equal_pred(
             for u in preds:
                 total_v += obs_each * scale.get(u, 1.0)
 
-        scale[v] = total_v / max(1.0, proc_v)  # 下游放大系数
+        scale[v_str] = total_v / max(1.0, proc_v)  # 下游放大系数
         expect_pend_v = max(pend_v, total_v - proc_v)  # 理论上expect_pend_v >= pend_v
 
         # 时间估算：需要 avg time（秒/任务）
-        expected_pending_map[v] = calc_remaining(proc_v, expect_pend_v, elapsed_v)
+        expected_pending_map[v_str] = calc_remaining(proc_v, expect_pend_v, elapsed_v)
 
     return expected_pending_map

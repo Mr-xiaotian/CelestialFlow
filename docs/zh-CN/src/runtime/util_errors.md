@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/04/23
+> 📅 最后更新日期: 2026/05/09
 
 TaskErrors 模块定义了框架中使用的自定义异常类。
 
@@ -12,10 +12,11 @@ CelestialFlowError
 │   └── InvalidOptionError
 │       ├── ExecutionModeError
 │       ├── StageModeError
-│       └── LogLevelError
+│       ├── LogLevelError
+│       └── ScheduleModeError
 ├── RemoteWorkerError
+├── CelestialTreeConnectionError
 ├── UnconsumedError
-└── PickleError
 ```
 
 ## 基类
@@ -73,7 +74,7 @@ class ExecutionModeError(InvalidOptionError):
     """非法的 execution_mode 配置错误"""
 
     def __init__(self, execution_mode: str, valid_modes=None):
-        # valid_modes 默认为 ("serial", "process", "thread", "async")
+        # valid_modes 默认为 ("serial", "thread", "async")
 ```
 
 ### StageModeError
@@ -85,7 +86,7 @@ class StageModeError(InvalidOptionError):
     """非法的 stage_mode 配置错误"""
 
     def __init__(self, stage_mode: str, valid_modes=None):
-        # valid_modes 默认为 ("serial", "process")
+        # valid_modes 默认为 ("serial", "thread")
 ```
 
 ### LogLevelError
@@ -111,6 +112,28 @@ class RemoteWorkerError(CelestialFlowError):
     pass
 ```
 
+### ScheduleModeError
+
+`schedule_mode` 配置错误。
+
+```python
+class ScheduleModeError(InvalidOptionError):
+    """非法的 schedule_mode 配置错误"""
+
+    def __init__(self, schedule_mode: str, valid_modes=None):
+        # valid_modes 默认为 ("eager", "staged")
+```
+
+### CelestialTreeConnectionError
+
+CelestialTree 连接错误。
+
+```python
+class CelestialTreeConnectionError(CelestialFlowError):
+    def __init__(self, message: str = "CelestialTreeClient is not available"):
+        ...
+```
+
 ### UnconsumedError
 
 标记任务未被消费的异常类。
@@ -122,34 +145,6 @@ class UnconsumedError(CelestialFlowError):
 ```
 
 当 `TaskGraph` 停止时，会收集所有未消费的任务并记录为 `UnconsumedError`。
-
-### PickleError
-
-任务函数或参数无法 pickle 序列化的错误。
-
-```python
-class PickleError(CelestialFlowError):
-    """
-    任务函数或参数无法 pickle 序列化的错误。
-    """
-
-    def __init__(self, obj: Any):
-        message = f"Object of type {type(obj).__name__} is not pickleable."
-        super().__init__(message)
-        self.obj = obj
-        self.type = type(obj).__name__
-        self.message = message
-```
-
-在 `TaskStage.set_func()` 中，会检查函数是否可 pickle：
-
-```python
-from celestialflow.runtime.util_errors import PickleError
-from celestialflow.utils.util_debug import find_unpickleable
-
-if find_unpickleable(func):
-    raise PickleError(func)
-```
 
 ## 错误处理策略
 
@@ -178,7 +173,6 @@ from celestialflow.runtime.util_errors import (
     ExecutionModeError,
     StageModeError,
     RemoteWorkerError,
-    PickleError,
 )
 
 try:
@@ -197,7 +191,6 @@ executor.add_retry_exceptions(ConnectionError, TimeoutError)
 
 ## 注意事项
 
-1. **Pickle 检查**: 在 process 模式下，确保所有函数和参数可 pickle
-2. **错误传播**: `RemoteWorkerError` 包含远程 Worker 返回的错误信息
-3. **日志记录**: 所有异常都会被记录到日志中
-4. **优雅降级**: 即使发生异常，框架也会尝试正确清理资源
+1. **错误传播**: `RemoteWorkerError` 包含远程 Worker 返回的错误信息
+2. **日志记录**: 所有异常都会被记录到日志中
+3. **优雅降级**: 即使发生异常，框架也会尝试正确清理资源

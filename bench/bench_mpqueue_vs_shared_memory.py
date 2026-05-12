@@ -171,6 +171,7 @@ def producer_shm_ring(
 ) -> None:
     shm = shared_memory.SharedMemory(name=shm_name)
     buf = shm.buf
+    assert buf is not None
     try:
         for i in range(start, start + count):
             payload = make_payload(i, mode)
@@ -206,6 +207,7 @@ def consumer_shm_ring(
 ) -> None:
     shm = shared_memory.SharedMemory(name=shm_name)
     buf = shm.buf
+    assert buf is not None
     consumed = 0
     checksum = 0
     try:

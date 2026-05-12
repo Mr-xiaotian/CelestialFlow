@@ -8,7 +8,7 @@ from .graph import (
     TaskLoop,
     TaskWheel,
 )
-from .observability import BaseObserver, TaskProgress
+from .observability import BaseObserver, CallbackObserver, TaskProgress
 from .persistence.util_jsonl import (
     load_jsonl_logs,
     load_task_by_error,
@@ -27,7 +27,7 @@ from .stage import (
 )
 from .utils.util_benchmark import benchmark_executor, benchmark_graph
 from .utils.util_format import format_table
-from .web.core_server import TaskWebServer
+from .web import TaskWebServer
 
 __all__ = [
     "TaskGraph",
@@ -38,6 +38,7 @@ __all__ = [
     "TaskWheel",
     "TaskGrid",
     "BaseObserver",
+    "CallbackObserver",
     "TaskProgress",
     "TaskExecutor",
     "TaskStage",

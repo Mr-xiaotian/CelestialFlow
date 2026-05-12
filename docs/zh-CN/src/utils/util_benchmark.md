@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 最后更新日期: 2026/04/23
+> 📅 最后更新日期: 2026/05/11
 
 `utils/benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
@@ -31,7 +31,7 @@ async def benchmark_executor(
     :param sync_executor: 同步执行器模板
     :param async_executor: 异步执行器模板
     :param task_source: 任务源
-    :param sync_modes: 同步模式列表，默认 ["serial", "thread", "process"]
+    :param sync_modes: 同步模式列表，默认 ["serial", "thread"]
     :param async_modes: 异步模式列表，默认 ["async"]
     :return: 测试结果字典
     """
@@ -42,7 +42,6 @@ async def benchmark_executor(
            Time
 serial     2.34s
 thread     0.89s
-process    0.45s
 async      0.67s
 ```
 
@@ -52,18 +51,22 @@ async      0.67s
 
 ```python
 def benchmark_graph(
-    graph: TaskGraph,
-    init_tasks_dict: dict[str, Iterable],
+    sync_graph: TaskGraph,
+    async_graph: TaskGraph,
+    init_tasks_dict: Mapping[str, Iterable],
     stage_modes: list[str] | None = None,
-    execution_modes: list[str] | None = None,
+    execution_sync_modes: list[str] | None = None,
+    execution_async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     对任务图进行基准测试。
 
-    :param graph: 任务图模板
+    :param sync_graph: 同步任务图模板（用于 serial/thread 模式）
+    :param async_graph: 异步任务图模板（用于 async 模式）
     :param init_tasks_dict: 初始任务字典
-    :param stage_modes: 节点模式列表，默认 ["serial", "thread", "process"]
-    :param execution_modes: 执行模式列表，默认 ["serial", "thread"]
+    :param stage_modes: 节点模式列表，默认 ["serial", "thread"]
+    :param execution_sync_modes: 同步执行模式列表，默认 ["serial", "thread"]
+    :param execution_async_modes: 异步执行模式列表，默认 ["async"]
     :return: 测试结果字典
     """
 ```
@@ -71,12 +74,9 @@ def benchmark_graph(
 输出示例：
 ```
 Time table:
-          serial    thread
-serial    5.23s     3.45s
-process   2.12s     1.89s
-
-Fail stage dict: {}
-Fail error dict: {}
+          serial    thread    async
+serial    5.23s     3.45s     3.21s
+thread    2.12s     1.89s     1.65s
 ```
 
 ## 使用示例
@@ -115,21 +115,29 @@ asyncio.run(benchmark_executor(
 from celestialflow import TaskGraph, TaskStage
 from celestialflow.utils.benchmark import benchmark_graph
 
-# 创建节点
-stage_a = TaskStage(func=process_a, execution_mode="thread", stage_mode="process", name="A")
-stage_b = TaskStage(func=process_b, execution_mode="thread", stage_mode="process", name="B")
+# 创建同步节点
+stage_a = TaskStage("A", process_a)
+stage_b = TaskStage("B", process_b)
 
-# 构建图
-graph = TaskGraph()
-graph.set_stages(root_stages=[stage_a], stages=[stage_b])
-graph.connect([stage_a], [stage_b])
+# 创建异步节点
+async_stage_a = TaskStage("A", async_process_a)
+async_stage_b = TaskStage("B", async_process_b)
+
+# 构建同步图
+sync_graph = TaskGraph()
+sync_graph.set_stages(stages=[stage_a, stage_b])
+sync_graph.connect([stage_a], [stage_b])
+
+# 构建异步图
+async_graph = TaskGraph()
+async_graph.set_stages(stages=[async_stage_a, async_stage_b])
+async_graph.connect([async_stage_a], [async_stage_b])
 
 # 运行基准测试
 benchmark_graph(
-    graph=graph,
+    sync_graph=sync_graph,
+    async_graph=async_graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
-    stage_modes=["serial", "thread", "process"],
-    execution_modes=["serial", "thread"],
 )
 ```
 
@@ -141,24 +149,24 @@ benchmark_graph(
 |------|------|
 | `serial` | 单线程串行执行 |
 | `thread` | 线程池并发执行 |
-| `process` | 进程池并行执行 |
 | `async` | 协程异步执行 |
 
 ### 任务图测试维度
 
 **Stage Mode (节点模式)**：
-- `serial`: 节点在主进程运行
-- `process`: 节点在独立进程运行
+- `serial`: 节点在主线程运行
+- `thread`: 节点在独立线程运行
 
 **Execution Mode (执行模式)**：
 - `serial`: 节点内部串行执行
 - `thread`: 节点内部线程池执行
+- `async`: 节点内部协程异步执行
 
 组合示例：
-| Stage \ Execution | serial | thread |
-|-------------------|--------|--------|
-| serial | S-S | S-T |
-| process | P-S | P-T |
+| Stage \ Execution | serial | thread | async |
+|-------------------|--------|--------|-------|
+| serial | S-S | S-T | S-A |
+| thread | T-S | T-T | T-A |
 
 ## 输出信息
 
@@ -176,5 +184,6 @@ benchmark_graph(
 
 1. **克隆机制**: 每次测试都会克隆原始对象，避免状态污染
 2. **任务固定**: 所有测试使用相同的任务列表，保证公平性
-3. **资源竞争**: 进程模式可能因资源竞争影响结果，建议多次测试
+3. **资源竞争**: 线程模式可能因资源竞争影响结果，建议多次测试
 4. **异步要求**: `benchmark_executor` 是异步函数，需要 `await` 或 `asyncio.run`
+5. **图的分离**: `benchmark_graph` 需要分别提供 sync_graph 和 async_graph，因为 async 执行模式需要 async 函数

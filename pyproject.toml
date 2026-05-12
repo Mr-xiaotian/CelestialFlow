@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "celestialflow"
-version = "3.1.8"
+name = "celestialflow"                   
+version = "3.2.0"
 description = "A flexible GRAPH-based task orchestration framework."
 readme = "README.md"
 license = { text = "MIT" }
@@ -70,11 +70,11 @@ dev = [
     "pytest-asyncio>=0.25.3",
     "httpx>=0.28.1",
     "python-dotenv>=1.2.2",
-    "ruff",
-    "basedpyright>=1.39.3",
+    "ruff>=0.15.0",
+    "pyright>=1.1.409",
 ]
 
-[tool.mypy]
-python_version = "3.10"
-no_implicit_optional = false
-disable_error_code = ["import-untyped"]
+[tool.pyright]
+include = ["src"]
+strict = ["src/celestialflow/runtime", "src/celestialflow/stage", "src/celestialflow/graph", "src/celestialflow/persistence", "src/celestialflow/funnel", "src/celestialflow/observability", "src/celestialflow/utils"]
+stubsPath = "typings"

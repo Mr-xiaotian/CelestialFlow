@@ -1,6 +1,6 @@
-# bench_executor.py ベンチマーク説明
+# bench_execution_mode.py ベンチマーク説明
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/05/08
 
 ## 目標
 
@@ -24,7 +24,6 @@
 |-----------|-----|------|
 | `max_workers` | 6 (CPU) / 12 (I/O) | 並行ワーカー数 |
 | `max_retries` | 1 (CPU) / 0 (I/O) | リトライ回数 |
-| `show_progress` | `True` | tqdm プログレスバーを表示 |
 
 ## 発生しうる問題
 
@@ -35,7 +34,7 @@
 ## 実行方法
 
 ```bash
-python bench/bench_executor.py
+python bench/bench_execution_mode.py
 ```
 
 ## ベンチマーク結果（実測）
@@ -67,4 +66,4 @@ python bench/bench_executor.py
 
 ## 依存関係
 
-- `celestialflow`（`TaskExecutor`、`benchmark_executor`）
+- `celestialflow`（`TaskExecutor`、`TaskProgress`、`benchmark_executor`）

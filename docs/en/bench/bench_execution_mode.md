@@ -1,6 +1,6 @@
-# bench_executor.py Benchmark Documentation
+# bench_execution_mode.py Benchmark Documentation
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/05/08
 
 ## Objective
 
@@ -24,7 +24,6 @@ Compare the performance differences of `TaskExecutor` across three execution mod
 |-----------|-------|-------------|
 | `max_workers` | 6 (CPU) / 12 (I/O) | Number of concurrent workers |
 | `max_retries` | 1 (CPU) / 0 (I/O) | Retry count |
-| `show_progress` | `True` | Display tqdm progress bar |
 
 ## Potential Issues
 
@@ -35,7 +34,7 @@ Compare the performance differences of `TaskExecutor` across three execution mod
 ## How to Run
 
 ```bash
-python bench/bench_executor.py
+python bench/bench_execution_mode.py
 ```
 
 ## Benchmark Results (Measured)
@@ -67,4 +66,4 @@ python bench/bench_executor.py
 
 ## Dependencies
 
-- `celestialflow` (`TaskExecutor`, `benchmark_executor`)
+- `celestialflow` (`TaskExecutor`, `TaskProgress`, `benchmark_executor`)

@@ -1,8 +1,8 @@
 # Clone
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/05/08
 
-`utils/clone.py` provides functionality for cloning executors, stages, and task graphs, used for performance testing and configuration reuse.
+`utils/util_clone.py` provides functionality for cloning executors, stages, and task graphs, used for performance testing and configuration reuse.
 
 ## Design Purpose
 
@@ -25,16 +25,14 @@ def clone_executor(executor: TaskExecutor) -> TaskExecutor:
 ```
 
 Copied attributes:
+- `name`: Executor name
 - `func`: Task function
 - `execution_mode`: Execution mode
 - `max_workers`: Concurrency limit
 - `max_retries`: Maximum retry count
 - `max_info`: Maximum log message length
 - `unpack_task_args`: Whether to unpack arguments
-- `enable_success_cache`: Success cache toggle
 - `enable_duplicate_check`: Duplicate check toggle
-- `show_progress`: Progress bar toggle
-- `progress_desc`: Progress bar description
 - `log_level`: Log level
 - `retry_exceptions`: List of retryable exceptions
 
@@ -52,9 +50,8 @@ def clone_stage(stage: TaskStage) -> TaskStage:
     """
 ```
 
-In addition to `TaskExecutor` attributes, the following are also copied:
+In addition to `TaskExecutor` attributes, the following is also copied:
 - `stage_mode`: Stage mode
-- `_name`: Stage name
 
 ### clone_graph
 
@@ -83,11 +80,12 @@ Cloning process:
 
 ```python
 from celestialflow import TaskExecutor
-from celestialflow.utils.clone import clone_executor
+from celestialflow.utils.util_clone import clone_executor
 
 # Create the original executor
 executor = TaskExecutor(
-    func=process,
+    "Processor",
+    process,
     execution_mode="thread",
     max_workers=10,
     max_retries=3,
@@ -95,7 +93,6 @@ executor = TaskExecutor(
 
 # Clone the executor
 cloned = clone_executor(executor)
-cloned.set_execution_mode("process")  # Modify the cloned configuration
 
 # Both executors run independently
 executor.start(range(100))
@@ -106,15 +103,14 @@ cloned.start(range(100))
 
 ```python
 from celestialflow import TaskGraph
-from celestialflow.utils.clone import clone_graph
+from celestialflow.utils.util_clone import clone_graph
 
 # Create the original graph
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(root_stages=[stage_a, stage_b])
+graph.set_stages(stages=[stage_a, stage_b])
 
 # Clone the graph for testing
 cloned_graph = clone_graph(graph)
-cloned_graph.set_graph_mode("process", "thread")
 
 # Run the cloned graph
 cloned_graph.start_graph(init_tasks)
@@ -123,9 +119,8 @@ cloned_graph.start_graph(init_tasks)
 ### Usage in Benchmarks
 
 ```python
-from celestialflow.utils.benchmark import benchmark_graph
+from celestialflow.utils.util_benchmark import benchmark_graph
 
-# Test the same graph configuration multiple times
 # benchmark_graph internally uses clone_graph
 results = benchmark_graph(
     graph,

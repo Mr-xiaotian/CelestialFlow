@@ -1,37 +1,41 @@
 # TaskProgress
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last updated: 2026/05/08
 
-The TaskProgress module provides task progress visualization based on `tqdm`.
+`TaskProgress` inherits `BaseObserver` and provides tqdm-based task progress visualization.
 
 ## Features
 
-- **Dynamic Updates**: Supports dynamically increasing the total task count (`add_total`), adapting to streaming tasks or task splitting scenarios.
-- **Multi-mode Support**: 
-  - Normal mode: Uses standard `tqdm`.
-  - Async mode: Uses `tqdm.asyncio`, suitable for `async` execution mode.
-- **Null Mode**: `NullTaskProgress` is a null implementation for when the progress bar display is disabled, avoiding `if show_progress` checks throughout the code.
+- **Dynamic Updates**: Supports dynamically increasing total task count via `on_tasks_added`, adapting to streaming or task-splitting scenarios.
+- **Lifecycle Management**: Creates progress bar on `on_start`, closes on `on_finish`.
+- **Event-Driven**: Updates progress via `on_task_success/fail/duplicate`.
+
+## Interface
+
+```python
+class TaskProgress(BaseObserver):
+    def on_start(self, name: str, total: int) -> None:
+        # Create tqdm progress bar
+    def on_task_success(self, count: int = 1) -> None:
+        # Update progress
+    def on_task_fail(self, count: int = 1) -> None:
+        # Update progress
+    def on_task_duplicate(self, count: int = 1) -> None:
+        # Update progress
+    def on_tasks_added(self, count: int) -> None:
+        # Increase total and refresh
+    def on_finish(self) -> None:
+        # Close progress bar
+```
 
 ## Usage
 
-Initialize in a `TaskExecutor` or `TaskStage`:
-
 ```python
-self.task_progress = TaskProgress(
-    total_tasks=0,  # Initially usually 0; increases dynamically as tasks arrive
-    desc="Processing",
-    mode="normal"
-)
+from celestialflow import TaskExecutor, TaskProgress
+
+executor = TaskExecutor("Test", my_func)
+executor.add_observer(TaskProgress())
+executor.start(tasks)
 ```
 
-Update progress:
-
-```python
-self.task_progress.update(1)
-```
-
-Dynamically increase the total:
-
-```python
-self.task_progress.add_total(100)
-```
+When no progress bar is needed, simply don't add an observer — no Null implementation required.

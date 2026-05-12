@@ -29,15 +29,15 @@ from celestialflow import (
 
 load_dotenv()
 
-report_host = os.getenv("REPORT_HOST")
-report_port = os.getenv("REPORT_PORT")
+report_host: str = os.getenv("REPORT_HOST", "")
+report_port: int = int(os.getenv("REPORT_PORT", "0"))
 
-redis_host = os.getenv("REDIS_HOST")
-redis_password = os.getenv("REDIS_PASSWORD")
+redis_host: str = os.getenv("REDIS_HOST", "")
+redis_password: str = os.getenv("REDIS_PASSWORD", "")
 
-ctree_host = os.getenv("CTREE_HOST")
-ctree_http_port = os.getenv("CTREE_HTTP_PORT")
-ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
+ctree_host: str = os.getenv("CTREE_HOST", "")
+ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
+ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
 
 
 class DownloadRedisTransport(TaskRedisTransport):
@@ -81,14 +81,13 @@ def demo_splitter_0():
     # 初始化 TaskGraph
     graph = TaskGraph(log_level="INFO")
     graph.set_stages(
-        root_stages=[generate_stage],
         stages=[generate_stage, logger_stage, splitter, download_stage, parse_stage],
     )
     graph.connect([generate_stage], [logger_stage, splitter])
     graph.connect([splitter], [download_stage, parse_stage])
     graph.connect([parse_stage], [generate_stage])
 
-    graph.set_graph_mode("process", "thread")
+    graph.set_graph_mode("thread", "thread")
     graph.set_reporter(True, host=report_host, port=report_port)
     graph.set_ctree(
         True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port
@@ -107,7 +106,7 @@ def demo_splitter_1():
     task_splitter = TaskSplitter("Splitter")
     process_stage = TaskStage("Process", no_op, execution_mode="thread", max_workers=50)
 
-    chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
+    chain = TaskChain([task_splitter, process_stage], "thread", log_level="INFO")
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(
         True,
@@ -119,7 +118,7 @@ def demo_splitter_1():
 
     chain.start_chain(
         {
-            task_splitter.get_tag(): [range(int(1e5))],
+            task_splitter.get_tag(): [range(100_000)],
         }
     )
 
@@ -128,34 +127,33 @@ def demo_redis_ack_0():
     start_stage = TaskStage(
         "Start",
         sleep_1,
+        stage_mode="serial",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="serial",
     )
     redis_tranport = TaskRedisTransport(
         "RedisTransport",
         key="testFibonacci:input",
         host=redis_host,
         password=redis_password,
-        stage_mode="process",
+        stage_mode="thread",
     )
     redis_ack = TaskRedisAck(
         "RedisAck",
         key="testFibonacci:output",
         host=redis_host,
         password=redis_password,
-        stage_mode="process",
+        stage_mode="thread",
     )
     fibonacci_stage = TaskStage(
         "Fibonacci",
         fibonacci,
-        "thread",
-        stage_mode="process",
+        stage_mode="thread",
+        execution_mode="thread",
     )
 
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[start_stage],
         stages=[start_stage, redis_tranport, redis_ack, fibonacci_stage],
     )
     graph.connect([start_stage], [redis_tranport, fibonacci_stage])
@@ -178,9 +176,9 @@ def demo_redis_ack_1():
     start_stage = TaskStage(
         "Start",
         sleep_1,
+        stage_mode="serial",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="serial",
     )
     redis_tranport = TaskRedisTransport(
         "RedisTransport",
@@ -188,27 +186,26 @@ def demo_redis_ack_1():
         host=redis_host,
         password=redis_password,
         unpack_task_args=True,
-        stage_mode="process",
+        stage_mode="thread",
     )
     redis_ack = TaskRedisAck(
         "RedisAck",
         key="testSum:output",
         host=redis_host,
         password=redis_password,
-        stage_mode="process",
+        stage_mode="thread",
     )
     sum_stage = TaskStage(
         "Sum",
         sum_int,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
         unpack_task_args=True,
-        stage_mode="process",
     )
 
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[start_stage],
         stages=[start_stage, redis_tranport, redis_ack, sum_stage],
     )
     graph.connect([start_stage], [redis_tranport, sum_stage])
@@ -230,9 +227,9 @@ def demo_redis_ack_2():
     start_stage = TaskStage(
         "Start",
         sleep_1,
+        stage_mode="serial",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="serial",
     )
     redis_tranport = DownloadRedisTransport(
         "RedisTransport",
@@ -240,26 +237,25 @@ def demo_redis_ack_2():
         host=redis_host,
         password=redis_password,
         unpack_task_args=True,
-        stage_mode="process",
+        stage_mode="thread",
     )
     redis_ack = TaskRedisAck(
         "RedisAck",
         key="testDownload:output",
         host=redis_host,
         password=redis_password,
-        stage_mode="process",
+        stage_mode="thread",
     )
     download_stage = DownloadStage(
         "Download",
         download_to_file,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="process",
     )
 
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[start_stage],
         stages=[start_stage, redis_tranport, redis_ack, download_stage],
     )
     graph.connect([start_stage], [redis_tranport, download_stage])
@@ -285,33 +281,32 @@ def demo_redis_source_0():
     sleep_stage_0 = TaskStage(
         "Sleep0",
         sleep_1,
+        stage_mode="thread",
         execution_mode="serial",
-        stage_mode="process",
     )
     redis_tranport = TaskRedisTransport(
         "RedisTransport",
         key="test_redis",
         host=redis_host,
         password=redis_password,
-        stage_mode="process",
+        stage_mode="thread",
     )
     redis_source = TaskRedisSource(
         "RedisSource",
         key="test_redis",
         host=redis_host,
         password=redis_password,
-        stage_mode="process",
+        stage_mode="thread",
     )
     sleep_stage_1 = TaskStage(
         "Sleep1",
         sleep_1,
+        stage_mode="thread",
         execution_mode="serial",
-        stage_mode="process",
     )
 
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[sleep_stage_0, redis_source],
         stages=[sleep_stage_0, redis_tranport, redis_source, sleep_stage_1],
     )
     graph.connect([sleep_stage_0], [redis_tranport])
@@ -320,12 +315,12 @@ def demo_redis_source_0():
     graph.set_reporter(True, host=report_host, port=report_port)
 
     # 要测试的任务列表
-    test_task_0 = range(25, 37)
+    test_task_0 = list(range(25, 37))
 
     graph.start_graph(
         {
             sleep_stage_0.get_tag(): test_task_0,
-            redis_source.get_tag(): range(12),
+            redis_source.get_tag(): list(range(12)),
         }
     )
 
@@ -338,16 +333,16 @@ def demo_router_0():
     stage_a = TaskStage(
         "StageA",
         sleep_1,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
     )
     stage_b = TaskStage(
         "StageB",
         sleep_1,
+        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
-        stage_mode="process",
     )
 
     a_tag = stage_a.get_tag()
@@ -356,14 +351,13 @@ def demo_router_0():
     source_stage = TaskStage(
         "Origin",
         RouterWrapper(a_tag, b_tag),
+        stage_mode="serial",
         execution_mode="thread",
         max_workers=4,
-        stage_mode="serial",
     )
 
     graph = TaskGraph()
     graph.set_stages(
-        root_stages=[source_stage],
         stages=[source_stage, router, stage_a, stage_b],
     )
     graph.connect([source_stage], [router])
@@ -373,7 +367,7 @@ def demo_router_0():
 
     graph.start_graph(
         {
-            source_stage.get_tag(): range(20),
+            source_stage.get_tag(): list(range(20)),
         }
     )
 

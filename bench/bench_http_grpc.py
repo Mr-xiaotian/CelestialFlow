@@ -15,9 +15,9 @@ def no_op(n):
 
 
 load_dotenv()
-ctree_host = os.getenv("CTREE_HOST")
-ctree_http_port = os.getenv("CTREE_HTTP_PORT")
-ctree_grpc_port = os.getenv("CTREE_GRPC_PORT")
+ctree_host = os.getenv("CTREE_HOST", "127.0.0.1")
+ctree_http_port = int(os.getenv("CTREE_HTTP_PORT", "7777"))
+ctree_grpc_port = int(os.getenv("CTREE_GRPC_PORT", "7778"))
 
 
 def bench_no_ctree():
@@ -27,7 +27,7 @@ def bench_no_ctree():
         "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
     )
 
-    chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
+    chain = TaskChain([task_splitter, process_stage], "thread", log_level="INFO")
     chain.set_ctree(False)
 
     start_time = time.perf_counter()
@@ -47,7 +47,7 @@ def bench_http_ctree():
         "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
     )
 
-    chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
+    chain = TaskChain([task_splitter, process_stage], "thread", log_level="INFO")
     chain.set_ctree(
         True,
         host=ctree_host,
@@ -73,7 +73,7 @@ def bench_grpc_ctree():
         "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
     )
 
-    chain = TaskChain([task_splitter, process_stage], "process", log_level="INFO")
+    chain = TaskChain([task_splitter, process_stage], "thread", log_level="INFO")
     chain.set_ctree(
         True,
         host=ctree_host,

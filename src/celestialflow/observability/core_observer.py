@@ -1,6 +1,9 @@
 # observability/core_observer.py
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 
 class BaseObserver:
     """执行器生命周期观察者基类，子类按需覆写。"""
@@ -16,3 +19,11 @@ class BaseObserver:
     def on_tasks_added(self, count: int) -> None: ...
 
     def on_finish(self) -> None: ...
+
+
+class CallbackObserver(BaseObserver):
+    """通过回调函数创建的轻量观察者，无需定义子类。"""
+
+    def __init__(self, **callbacks: Callable[..., Any]) -> None:
+        for name, fn in callbacks.items():
+            setattr(self, name, fn)

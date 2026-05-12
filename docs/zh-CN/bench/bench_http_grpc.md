@@ -1,6 +1,6 @@
 # bench_http_grpc.py 基准测试说明
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/09
 
 ## 目标
 
@@ -16,7 +16,7 @@
 
 - **图结构**：`TaskSplitter → TaskStage` 的简单链
 - **任务**：`no_op` 恒等函数（处理 `range(1e4)`）
-- **配置**：`stage_mode="process"`，`execution_mode="thread"`，`max_workers=50`
+- **配置**：`stage_mode="thread"`，`execution_mode="thread"`，`max_workers=50`
 
 ## 关键配置
 

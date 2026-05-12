@@ -9,43 +9,45 @@ class TaskEnvelope:
 
     __slots__ = ("task", "hash", "id", "source", "prev")
 
-    def __init__(self, task: Any, hash: str, id: int, source: str, prev: Any):
+    def __init__(self, task: Any, id: int, source: str, prev: Any = None):
         """
         :param task: 原始任务
-        :param hash: 任务哈希值
         :param id: 任务 ID
         :param source: 任务来源标识
         :param prev: 前一个任务（用于结果缓存时回溯）
         """
         self.task = task
-        self.hash = hash
+        self.hash = None
         self.id = id
 
         self.source = source
         self.prev = prev
 
-    @classmethod
-    def wrap(
-        cls, task: Any, task_id: int, source: str, prev: Any = None
-    ) -> "TaskEnvelope":
+    def get_task(self) -> Any:
         """
-        将原始 task 包装为 TaskEnvelope。
+        获取原始任务
 
-        :param task: 原始任务
-        :param task_id: 任务 id
-        :param source: 任务来源
-        :param prev: 前一个任务的 envelope
+        :return: 原始任务
         """
-        task_hash = object_to_str_hash(task)
-        return cls(task, task_hash, task_id, source, prev)
+        return self.task
 
-    def unwrap(self) -> tuple[Any, str, int]:
+    def get_hash(self) -> str:
         """
-        解包装 TaskEnvelope 中的任务信息
+        获取任务哈希
 
-        :return: 原始任务, 任务哈希, 任务 id
+        :return: 任务哈希
         """
-        return self.task, self.hash, self.id
+        if self.hash is None:
+            self.hash = object_to_str_hash(self.task)
+        return self.hash
+
+    def get_id(self) -> int:
+        """
+        获取任务 ID
+
+        :return: 任务 ID
+        """
+        return self.id
 
     def change_id(self, new_id: int) -> None:
         """

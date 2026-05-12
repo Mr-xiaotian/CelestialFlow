@@ -1,6 +1,6 @@
 # Observability 模块
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/08
 
 Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行状态监控、性能指标收集、错误追踪和远程控制。它使任务执行过程变得透明、可监控和可控制。
 
@@ -12,7 +12,13 @@ Observability 模块负责收集、聚合和上报系统的运行状态，提供
 
 ### 核心组件
 
-1. **core_report.py** (`TaskReporter`)
+1. **core_observer.py** (`BaseObserver`, `CallbackObserver`)
+   - **作用**: 执行器生命周期观察者基类与回调式观察者
+   - **关键功能**:
+     - **BaseObserver**: 定义生命周期事件接口（`on_start`、`on_task_success`、`on_task_fail`、`on_task_duplicate`、`on_tasks_added`、`on_finish`），子类按需覆写
+     - **CallbackObserver**: 通过关键字参数传入回调函数，无需定义子类
+
+2. **core_report.py** (`TaskReporter`)
    - **作用**: 任务状态报告器，负责收集运行状态并上报给远程 Web 服务器
    - **关键功能**:
      - **状态上报**: 周期性推送任务图的结构、拓扑、运行状态、错误信息
@@ -22,132 +28,71 @@ Observability 模块负责收集、聚合和上报系统的运行状态，提供
    - **通信协议**: HTTP
    - **数据格式**: JSON
 
-2. **core_progress.py** (`TaskProgress`, `NullTaskProgress`)
-   - **作用**: 基于 `tqdm` 的任务进度可视化
+3. **core_progress.py** (`TaskProgress`)
+   - **作用**: 基于 `tqdm` 的任务进度可视化，继承 `BaseObserver`
    - **关键功能**:
-     - 动态更新总任务数（`add_total`）
-     - 普通模式（`tqdm`）和异步模式（`tqdm.asyncio`）
-     - `NullTaskProgress` 空实现，用于关闭进度条时占位
+     - 通过 `on_start` 创建进度条
+     - 通过 `on_task_success/fail/duplicate` 更新进度
+     - 通过 `on_tasks_added` 动态增加总任务数
+     - 通过 `on_finish` 关闭进度条
 
 ## 模块关联
 
 ### 内部关联
-- `TaskReporter` 是 Observability 模块的唯一核心组件
-- 设计为可插拔的，可以根据需要启用或禁用
+- `BaseObserver` 是观察者模式的基类，`TaskProgress` 和 `CallbackObserver` 均基于它实现
+- `TaskReporter` 是独立的报告组件，设计为可插拔
 
 ### 外部关联
+- **与 Stage 模块**: `TaskExecutor` 持有 `list[BaseObserver]`，通过 `add_observer()` / `remove_observer()` 管理观察者
 - **与 Graph 模块**: 收集任务图的结构和拓扑信息
 - **与 Runtime 模块**: 收集执行状态、性能指标和错误信息
-- **与 Stage 模块**: 监控任务节点的执行状态和结果
 - **与 Persistence 模块**: 获取持久化的日志和错误数据
 - **与 Web 模块**: 与 Web UI 进行双向通信，支持状态展示和远程控制
 
 ## 架构特点
 
-### 双向通信
+### Observer 模式
+- **多播**: `TaskExecutor` 内部维护 `list[BaseObserver]`，在生命周期节点广播事件
+- **同步分发**: 事件通过 `_notify(method_name, *args, **kwargs)` 同步调用所有观察者
+- **空列表等效 Null**: 当 observer 列表为空时，无任何开销
+
+### 双向通信（TaskReporter）
 - **上行通道**: 状态数据上报到 Web 服务器
 - **下行通道**: 控制指令从 Web 服务器下发到运行实例
 - **实时性**: 支持实时状态更新和即时控制
 
-### 增量更新
-- 状态数据增量上报，减少网络流量
-- 错误日志增量同步，避免重复传输
-- 配置变更增量应用，减少重启需求
-
 ### 容错设计
 - 网络中断时的本地缓存和重试
-- 数据完整性校验和修复
 - 优雅降级，不影响主流程执行
-
-### 安全性
-- 生产环境建议使用反向代理添加认证层
-- 不传输敏感数据，建议限制 Web 服务器的访问范围
-
-## 数据模型
-
-### 状态数据
-- **图结构**: 节点列表、依赖关系、配置参数
-- **运行状态**: 节点状态（待执行、执行中、完成、失败）、进度百分比
-- **性能指标**: 执行时间、吞吐量、资源使用率、队列长度
-- **错误信息**: 错误类型、发生时间、堆栈跟踪、影响范围
-
-### 控制指令
-- **任务注入**: 新任务定义、插入位置、依赖关系
-- **参数调整**: 上报间隔、日志级别、性能阈值
-- **操作命令**: 暂停、恢复、重启、终止
-- **配置更新**: 运行时配置、业务参数、资源限制
 
 ## 使用模式
 
-### 基础配置
+### Observer 使用
 ```python
-from celestialflow.observability import TaskReporter
-from celestialflow.persistence import LogInlet
+from celestialflow import TaskExecutor, TaskProgress, CallbackObserver
 
-# 创建报告器
-reporter = TaskReporter(
-    host="127.0.0.1",  # Web服务器主机
-    port=5000,         # Web服务器端口
-    task_graph=my_task_graph,
-    log_inlet=log_inlet  # LogInlet实例
+# 使用 TaskProgress 显示进度条
+executor = TaskExecutor("Test", my_func)
+executor.add_observer(TaskProgress())
+executor.start(tasks)
+
+# 使用 CallbackObserver 自定义行为
+observer = CallbackObserver(
+    on_task_success=lambda count=1: print(f"成功: {count}"),
+    on_finish=lambda: print("完成"),
 )
-
-# 启动报告器
-reporter.start()
-
-# 在任务执行过程中，报告器会自动收集和上报状态
+executor.add_observer(observer)
 ```
 
-### 高级功能
-1. **自定义数据收集**: 实现自定义的数据收集器，扩展监控维度
-2. **多服务器上报**: 同时上报到多个监控服务器，实现冗余
-3. **本地存储**: 网络不可用时，数据暂存本地，网络恢复后同步
-4. **数据过滤**: 配置数据过滤规则，减少不必要的数据传输
-5. **告警集成**: 与外部告警系统集成，实现自动告警
+### TaskReporter 使用
+```python
+from celestialflow.observability import TaskReporter
 
-### Web UI 集成
-1. **实时监控**: 在 Web UI 中实时查看任务执行状态
-2. **历史分析**: 查看历史执行记录和性能趋势
-3. **错误诊断**: 查看错误详情和根因分析
-4. **远程控制**: 通过 Web UI 动态调整系统行为
-5. **报表生成**: 自动生成执行报告和性能分析
-
-## 部署考虑
-
-### 网络配置
-- **带宽需求**: 根据数据量和上报频率评估带宽需求
-- **延迟容忍**: 配置适当的超时和重试策略
-- **防火墙**: 确保监控端口可访问
-- **代理支持**: 支持通过代理服务器通信
-
-### 安全性配置
-- **证书管理**: 配置 TLS 证书和密钥
-- **认证机制**: 配置 API 密钥、Token 或其他认证方式
-- **访问控制**: 配置 IP 白名单、访问频率限制
-- **数据加密**: 敏感数据加密传输和存储
-
-### 性能优化
-- **批处理**: 批量上报数据，减少请求次数
-- **压缩**: 数据压缩传输，减少带宽占用
-- **缓存**: 本地缓存频繁访问的数据
-- **异步处理**: 非阻塞的数据收集和上报
-
-## 最佳实践
-
-### 生产环境
-1. **高可用部署**: 部署多个监控服务器，避免单点故障
-2. **数据保留策略**: 根据需求配置数据保留期限
-3. **容量规划**: 根据监控数据量规划存储和计算资源
-4. **灾备方案**: 制定网络中断、服务器故障的应对方案
-
-### 开发和测试
-1. **本地模拟**: 开发环境使用本地模拟服务器
-2. **数据脱敏**: 测试环境使用脱敏数据
-3. **性能测试**: 测试大规模数据上报的性能影响
-4. **故障测试**: 测试网络中断、服务器故障的恢复能力
-
-### 监控和维护
-1. **自监控**: 监控报告器自身的运行状态
-2. **数据质量**: 监控上报数据的完整性和准确性
-3. **性能监控**: 监控上报延迟、成功率等指标
-4. **安全审计**: 定期审计访问日志和安全事件
+reporter = TaskReporter(
+    host="127.0.0.1",
+    port=5000,
+    task_graph=my_task_graph,
+    log_inlet=log_inlet,
+)
+reporter.start()
+```

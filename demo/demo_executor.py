@@ -14,7 +14,6 @@ def demo_fibonacci_serial():
         execution_mode="serial",
         max_workers=6,
         max_retries=1,
-
     )
     executor.add_retry_exceptions(ValueError)
     executor.add_observer(TaskProgress())
@@ -31,7 +30,6 @@ def demo_fibonacci_thread():
         execution_mode="thread",
         max_workers=6,
         max_retries=1,
-
     )
     executor.add_retry_exceptions(ValueError)
     executor.add_observer(TaskProgress())
@@ -48,7 +46,6 @@ async def demo_fibonacci_async():
         execution_mode="async",
         max_workers=6,
         max_retries=1,
-
     )
     executor.add_retry_exceptions(ValueError)
     executor.add_observer(TaskProgress())

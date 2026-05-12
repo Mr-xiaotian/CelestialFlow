@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/05/09
 
 `TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了日志记录和监控功能。
 
@@ -9,7 +9,7 @@
 - **TaskInQueue**: 任务输入队列，用于从上游接收任务
 - **TaskOutQueue**: 任务输出队列，用于向下游发送任务
 
-两者都支持多种后端：`queue.Queue` (Thread)、`multiprocessing.Queue` (Process)、`asyncio.Queue` (Async)。
+两者都支持多种后端：`queue.Queue` (Thread)、`asyncio.Queue` (Async)。
 
 ---
 
@@ -23,7 +23,7 @@
 class TaskInQueue:
     def __init__(
         self,
-        queue: ThreadQueue | MPQueue | AsyncQueue,
+        queue: ThreadQueue | AsyncQueue,
         queue_tags: list[str],
         out_tag: str,
         log_inlet: "LogInlet",
@@ -102,7 +102,7 @@ def add_source_tag(self, tag: str):
 class TaskOutQueue:
     def __init__(
         self,
-        queue_list: list[ThreadQueue] | list[MPQueue] | list[AsyncQueue],
+        queue_list: list[ThreadQueue] | list[AsyncQueue],
         queue_tags: list[str],
         in_tag: str,
         log_inlet: "LogInlet",
@@ -158,7 +158,7 @@ def put_channel(self, item: TaskEnvelope | TerminationSignal, idx: int):
 ### 辅助方法
 
 ```python
-def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
+def add_queue(self, queue: ThreadQueue | AsyncQueue, tag: str):
     """
     添加一个输出队列到队列列表中。
 
@@ -203,11 +203,11 @@ def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
 
 ```python
 from celestialflow.runtime import TaskInQueue, TaskOutQueue
-from multiprocessing import Queue as MPQueue
+from queue import Queue as ThreadQueue
 
 # 输入队列
 in_queue = TaskInQueue(
-    queue=MPQueue(),
+    queue=ThreadQueue(),
     queue_tags=["upstream_stage"],
     out_tag="current_stage",
     log_inlet=log_inlet,
@@ -215,7 +215,7 @@ in_queue = TaskInQueue(
 
 # 输出队列
 out_queue = TaskOutQueue(
-    queue_list=[MPQueue()],
+    queue_list=[ThreadQueue()],
     queue_tags=["downstream_stage"],
     in_tag="current_stage",
     log_inlet=log_inlet,
@@ -237,8 +237,8 @@ item = in_queue.get()
 
 if isinstance(item, TaskEnvelope):
     # 处理任务
-    result = process(item.task)
-    out_queue.put(TaskEnvelope.wrap(result, result_id))
+    result = process(item.get_task())
+    out_queue.put(TaskEnvelope(result, id=result_id, source="stage_tag"))
 elif isinstance(item, TerminationIdPool):
     # 所有上游都已终止，发送终止信号给下游
     out_queue.put(TerminationSignal())
@@ -250,5 +250,5 @@ elif isinstance(item, TerminationIdPool):
 
 1. **多通道**: 一个 `TaskOutQueue` 可以管理多个下游队列
 2. **日志记录**: 所有入队/出队操作都会记录日志
-3. **线程安全**: 内部使用队列实现，支持多线程/多进程访问
+3. **线程安全**: 内部使用队列实现，支持多线程访问
 4. **终止合并**: 正确处理多上游的终止信号合并
