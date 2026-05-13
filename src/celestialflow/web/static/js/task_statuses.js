@@ -1,4 +1,5 @@
 let nodeStatuses = {};
+let lastNodeStatuses = {};
 let statusRev = -1;
 let draggingNodeName = null;
 const dashboardGrid = document.getElementById("dashboard-grid");
@@ -12,6 +13,7 @@ async function loadStatuses() {
         const body = await res.json();
         if (body.data === null)
             return false;
+        lastNodeStatuses = nodeStatuses;
         nodeStatuses = body.data;
         statusRev = body.rev;
         return true;
@@ -58,6 +60,11 @@ function renderDashboard() {
     for (const [node, data] of Object.entries(nodeStatuses)) {
         if (node === draggingNodeName)
             continue; // 正在拖动时，不渲染它
+        const last = lastNodeStatuses[node] || {};
+        const addSucceeded = data.tasks_succeeded - (last.tasks_succeeded || 0);
+        const addPending = data.tasks_pending - (last.tasks_pending || 0);
+        const addFailed = data.tasks_failed - (last.tasks_failed || 0);
+        const addDuplicated = data.tasks_duplicated - (last.tasks_duplicated || 0);
         // 计算进度
         const total = data.tasks_processed + data.tasks_pending;
         const progress = total === 0 ? 0 : Math.floor((data.tasks_processed / total) * 100);
@@ -81,10 +88,10 @@ function renderDashboard() {
             <h3 class="card-title">${escapeHtml(node)}</h3>
           </div>
           <div class="stat-grid">
-            <div><div class="stat-label">成功</div><div class="stat-value text-success">${formatWithDelta(data.tasks_succeeded, data.add_tasks_succeeded, "text-delta-success", "text-delta-success")}</div></div>
-            <div><div class="stat-label">等待中</div><div class="stat-value text-pending">${formatWithDelta(data.tasks_pending, data.add_tasks_pending, "text-delta-pending", "text-delta-pending")}</div></div>
-            <div><div class="stat-label">错误</div><div class="stat-value text-error error-clickable" data-node="${escapeHtml(node)}">${formatWithDelta(data.tasks_failed, data.add_tasks_failed, "text-delta-error", "text-delta-error")}</div></div>
-            <div><div class="stat-label">重复</div><div class="stat-value text-duplicate">${formatWithDelta(data.tasks_duplicated, data.add_tasks_duplicated, "text-delta-duplicate", "text-delta-duplicate")}</div></div>
+            <div><div class="stat-label">成功</div><div class="stat-value text-success">${formatWithDelta(data.tasks_succeeded, addSucceeded, "text-delta-success", "text-delta-success")}</div></div>
+            <div><div class="stat-label">等待中</div><div class="stat-value text-pending">${formatWithDelta(data.tasks_pending, addPending, "text-delta-pending", "text-delta-pending")}</div></div>
+            <div><div class="stat-label">错误</div><div class="stat-value text-error error-clickable" data-node="${escapeHtml(node)}">${formatWithDelta(data.tasks_failed, addFailed, "text-delta-error", "text-delta-error")}</div></div>
+            <div><div class="stat-label">重复</div><div class="stat-value text-duplicate">${formatWithDelta(data.tasks_duplicated, addDuplicated, "text-delta-duplicate", "text-delta-duplicate")}</div></div>
             <div><div class="stat-label">节点模式</div><div class="stat-value">${escapeHtml(data.stage_mode)}</div></div>
             <div><div class="stat-label">运行模式</div><div class="stat-value">${escapeHtml(data.execution_mode)}</div></div>
           </div>

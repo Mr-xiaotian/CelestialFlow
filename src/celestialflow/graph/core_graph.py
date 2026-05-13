@@ -574,7 +574,7 @@ class TaskGraph:
         :param stage_tag: 节点标签
         :param stage: 节点实例
         :param stage_runtime: 节点运行时信息
-        :param last_status: 上一次快照的状态字典
+        :param last_status: 上一次快照的状态字典（用于累计 elapsed_time）
         :param now: 当前时间戳
         :param interval: 快照采集间隔
         :param history_limit: 历史记录最大条数
@@ -583,15 +583,6 @@ class TaskGraph:
         """
         status = stage.get_status()
         stage_counts = stage.get_counts()
-
-        keys = [
-            "tasks_succeeded",
-            "tasks_pending",
-            "tasks_failed",
-            "tasks_duplicated",
-            "tasks_processed",
-        ]
-        deltas: dict[str, Any] = {f"add_{k}": stage_counts[k] - last_status.get(k, 0) for k in keys}
 
         start_time = stage_runtime.start_time
         last_elapsed: float = last_status.get("elapsed_time", 0)
@@ -618,7 +609,6 @@ class TaskGraph:
             **stage.get_summary(),
             "status": status,
             **stage_counts,
-            **deltas,
             "start_time": start_time,
             "elapsed_time": elapsed,
             "remaining_time": remaining,
