@@ -572,3 +572,110 @@ class TestTaskGraphThread:
         assert s1.get_counts()["tasks_succeeded"] == 2
         assert s2.get_counts()["tasks_succeeded"] == 2
         assert s3.get_counts()["tasks_succeeded"] == 2
+
+
+# =========================
+# source_stages 自动推导测试
+# =========================
+class TestSourceStages:
+    def test_source_stages_linear(self):
+        """线性图：source 只有头节点"""
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+        s3 = TaskStage("s3", to_str)
+
+        graph = TaskGraph()
+        graph.set_stages(stages=[s1, s2, s3])
+        graph.connect([s1], [s2])
+        graph.connect([s2], [s3])
+
+        graph.start_graph({s1.get_tag(): [1]})
+
+        sources = graph.get_source_stages()
+        assert len(sources) == 1
+        assert sources[0].get_tag() == s1.get_tag()
+
+    def test_source_stages_fan_in(self):
+        """两个入口汇入一点"""
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+        s3 = TaskStage("s3", to_str)
+
+        graph = TaskGraph()
+        graph.set_stages(stages=[s1, s2, s3])
+        graph.connect([s1], [s3])
+        graph.connect([s2], [s3])
+
+        graph.start_graph({s1.get_tag(): [1], s2.get_tag(): [2]})
+
+        source_tags = {s.get_tag() for s in graph.get_source_stages()}
+        assert source_tags == {s1.get_tag(), s2.get_tag()}
+
+    def test_source_stages_diamond(self):
+        """菱形图 A→{B,C}→D：source 只有 A"""
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+        s3 = TaskStage("s3", to_str)
+        s4 = TaskStage("s4", add_one)
+
+        graph = TaskGraph()
+        graph.set_stages(stages=[s1, s2, s3, s4])
+        graph.connect([s1], [s2, s3])
+        graph.connect([s2, s3], [s4])
+
+        graph.start_graph({s1.get_tag(): [1]})
+
+        sources = graph.get_source_stages()
+        assert len(sources) == 1
+        assert sources[0].get_tag() == s1.get_tag()
+
+
+# =========================
+# 含环图测试
+# =========================
+class TestCyclicGraph:
+    def test_cyclic_isDAG_false(self):
+        """含环图 isDAG 为 False"""
+        s1 = TaskStage("s1", add_one, stage_mode="thread")
+        s2 = TaskStage("s2", double, stage_mode="thread")
+        s3 = TaskStage("s3", to_str, stage_mode="thread")
+
+        graph = TaskGraph()
+        graph.set_stages(stages=[s1, s2, s3])
+        graph.connect([s1], [s2])
+        graph.connect([s2], [s3])
+        graph.connect([s3], [s1])
+
+        graph.start_graph({s1.get_tag(): [1]}, put_termination_signal=True)
+
+        analysis = graph.get_graph_analysis()
+        assert analysis["isDAG"] is False
+
+    def test_cyclic_layers(self):
+        """环内节点同层，尾巴节点层级更高"""
+        s1 = TaskStage("s1", add_one, stage_mode="thread")
+        s2 = TaskStage("s2", double, stage_mode="thread")
+        s3 = TaskStage("s3", to_str, stage_mode="thread")
+        s4 = TaskStage("s4", add_one, stage_mode="thread")
+
+        graph = TaskGraph()
+        graph.set_stages(stages=[s1, s2, s3, s4])
+        graph.connect([s1], [s2])
+        graph.connect([s2], [s3])
+        graph.connect([s3], [s1])
+        graph.connect([s1], [s4])
+
+        graph.start_graph({s1.get_tag(): [1]}, put_termination_signal=True)
+
+        analysis = graph.get_graph_analysis()
+        layers = analysis["layers_dict"]
+        cycle_tags = {s1.get_tag(), s2.get_tag(), s3.get_tag()}
+        cycle_layer = None
+        for layer_idx, tags in layers.items():
+            if s1.get_tag() in tags:
+                cycle_layer = layer_idx
+                break
+        assert cycle_layer is not None
+        for tag in cycle_tags:
+            assert tag in layers[cycle_layer]
+        assert s4.get_tag() in layers[cycle_layer + 1]

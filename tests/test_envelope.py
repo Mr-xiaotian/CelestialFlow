@@ -1,6 +1,7 @@
 import pytest
 
 from celestialflow.runtime.core_envelope import TaskEnvelope
+from celestialflow.runtime.util_hash import object_to_hash
 
 
 class TestTaskEnvelope:
@@ -11,7 +12,7 @@ class TestTaskEnvelope:
 
         assert envelope.get_task() == task
         assert envelope.get_id() == 100
-        assert isinstance(envelope.get_hash(), str)
+        assert isinstance(envelope.get_hash(), bytes)
         assert len(envelope.get_hash()) > 0
 
     def test_source_preserved(self):
@@ -49,3 +50,22 @@ class TestTaskEnvelope:
         envelope = TaskEnvelope("x", id=1, source="test")
         with pytest.raises(AttributeError):
             envelope.extra_attr = 123  # type: ignore[reportAttributeAccessIssue]
+
+
+class TestObjectToHash:
+    def test_returns_bytes(self):
+        """object_to_hash 应返回 bytes 类型"""
+        result = object_to_hash(42)
+        assert isinstance(result, bytes)
+
+    def test_returns_20_bytes(self):
+        """SHA1 digest 应为 20 字节"""
+        assert len(object_to_hash("hello")) == 20
+
+    def test_same_input_same_hash(self):
+        """相同输入应产生相同哈希"""
+        assert object_to_hash([1, 2, 3]) == object_to_hash([1, 2, 3])
+
+    def test_different_input_different_hash(self):
+        """不同输入应产生不同哈希"""
+        assert object_to_hash("a") != object_to_hash("b")
