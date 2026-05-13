@@ -1,0 +1,300 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" font-family="Consolas, monospace">
+  <defs>
+    <!-- 箭头 -->
+    <marker id="arrow" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,3 L0,6Z" fill="#555"/>
+    </marker>
+    <marker id="arrow-fade" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,3 L0,6Z" fill="#bbb"/>
+    </marker>
+    <marker id="arrow-scc0" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,3 L0,6Z" fill="#4a90d9"/>
+    </marker>
+    <marker id="arrow-scc1" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,3 L0,6Z" fill="#e07b4a"/>
+    </marker>
+    <marker id="arrow-scc2" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,3 L0,6Z" fill="#5ab78a"/>
+    </marker>
+    <marker id="arrow-dark" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,3 L0,6Z" fill="#333"/>
+    </marker>
+
+    <!-- 节点样式 -->
+    <style>
+      .node { stroke-width: 2; }
+      .label { font-size: 13px; text-anchor: middle; dominant-baseline: central; fill: #fff; font-weight: bold; }
+      .title { font-size: 16px; font-weight: bold; fill: #333; text-anchor: middle; }
+      .subtitle { font-size: 12px; fill: #888; text-anchor: middle; }
+      .level-label { font-size: 12px; fill: #555; font-weight: bold; text-anchor: middle; }
+      .edge { fill: none; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="900" height="520" rx="12" fill="#fafafa" stroke="#e0e0e0" stroke-width="1"/>
+
+  <!-- ==================== Phase 1: 原始图 ==================== -->
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.04;0.28;0.32;1" dur="16s" repeatCount="indefinite"/>
+
+    <text x="225" y="30" class="title">Original Directed Graph</text>
+    <text x="225" y="50" class="subtitle">9 nodes, 3 cycles</text>
+
+    <!-- SCC A 节点: A1, A2, A3 (蓝) -->
+    <circle cx="100" cy="120" r="22" class="node" fill="#4a90d9" stroke="#3570a8"/>
+    <text x="100" y="120" class="label">A1</text>
+    <circle cx="220" cy="90" r="22" class="node" fill="#4a90d9" stroke="#3570a8"/>
+    <text x="220" y="90" class="label">A2</text>
+    <circle cx="220" cy="170" r="22" class="node" fill="#4a90d9" stroke="#3570a8"/>
+    <text x="220" y="170" class="label">A3</text>
+
+    <!-- SCC B 节点: B1, B2, B3, B4 (橙) -->
+    <circle cx="380" cy="90" r="22" class="node" fill="#e07b4a" stroke="#b85e30"/>
+    <text x="380" y="90" class="label">B1</text>
+    <circle cx="500" cy="90" r="22" class="node" fill="#e07b4a" stroke="#b85e30"/>
+    <text x="500" y="90" class="label">B2</text>
+    <circle cx="500" cy="190" r="22" class="node" fill="#e07b4a" stroke="#b85e30"/>
+    <text x="500" y="190" class="label">B3</text>
+    <circle cx="380" cy="190" r="22" class="node" fill="#e07b4a" stroke="#b85e30"/>
+    <text x="380" y="190" class="label">B4</text>
+
+    <!-- SCC C 节点: C1, C2 (绿) -->
+    <circle cx="380" cy="320" r="22" class="node" fill="#5ab78a" stroke="#3d9068"/>
+    <text x="380" y="320" class="label">C1</text>
+    <circle cx="500" cy="320" r="22" class="node" fill="#5ab78a" stroke="#3d9068"/>
+    <text x="500" y="320" class="label">C2</text>
+
+    <!-- 边: SCC A 内部 -->
+    <line x1="122" y1="114" x2="198" y2="96" class="edge" stroke="#4a90d9" marker-end="url(#arrow-scc0)"/>
+    <line x1="220" y1="112" x2="220" y2="148" class="edge" stroke="#4a90d9" marker-end="url(#arrow-scc0)"/>
+    <path d="M200,178 Q140,180 108,142" class="edge" stroke="#4a90d9" marker-end="url(#arrow-scc0)"/>
+
+    <!-- 边: A3 -> B1 -->
+    <line x1="242" y1="164" x2="358" y2="96" class="edge" stroke="#555" marker-end="url(#arrow)"/>
+    <!-- 边: A3 -> C1 -->
+    <line x1="232" y1="190" x2="360" y2="312" class="edge" stroke="#555" marker-end="url(#arrow)"/>
+
+    <!-- 边: SCC B 内部 -->
+    <line x1="402" y1="90" x2="478" y2="90" class="edge" stroke="#e07b4a" marker-end="url(#arrow-scc1)"/>
+    <line x1="500" y1="112" x2="500" y2="168" class="edge" stroke="#e07b4a" marker-end="url(#arrow-scc1)"/>
+    <line x1="478" y1="190" x2="402" y2="190" class="edge" stroke="#e07b4a" marker-end="url(#arrow-scc1)"/>
+    <line x1="380" y1="168" x2="380" y2="112" class="edge" stroke="#e07b4a" marker-end="url(#arrow-scc1)"/>
+
+    <!-- 边: SCC C 内部 -->
+    <path d="M402,314 L478,314" class="edge" stroke="#5ab78a" marker-end="url(#arrow-scc2)"/>
+    <path d="M478,328 L402,328" class="edge" stroke="#5ab78a" marker-end="url(#arrow-scc2)"/>
+  </g>
+
+  <!-- ==================== Phase 2: SCC 高亮 + 圈选 ==================== -->
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.28;0.34;0.56;0.60;1" dur="16s" repeatCount="indefinite"/>
+
+    <text x="300" y="30" class="title">Identify Strongly Connected Components</text>
+    <text x="300" y="50" class="subtitle">Tarjan / Kosaraju → 3 SCCs found</text>
+
+    <!-- SCC A 圈 -->
+    <ellipse cx="175" cy="135" rx="90" ry="65" fill="none" stroke="#4a90d9" stroke-width="3" stroke-dasharray="8,4" opacity="0.7">
+      <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+    <text x="175" y="215" class="level-label" fill="#4a90d9">SCC α</text>
+
+    <!-- SCC A 节点 -->
+    <circle cx="100" cy="120" r="22" class="node" fill="#4a90d9" stroke="#3570a8"/>
+    <text x="100" y="120" class="label">A1</text>
+    <circle cx="220" cy="90" r="22" class="node" fill="#4a90d9" stroke="#3570a8"/>
+    <text x="220" y="90" class="label">A2</text>
+    <circle cx="220" cy="170" r="22" class="node" fill="#4a90d9" stroke="#3570a8"/>
+    <text x="220" y="170" class="label">A3</text>
+
+    <!-- SCC B 圈 -->
+    <ellipse cx="440" cy="140" rx="100" ry="80" fill="none" stroke="#e07b4a" stroke-width="3" stroke-dasharray="8,4" opacity="0.7">
+      <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+    <text x="440" y="235" class="level-label" fill="#e07b4a">SCC β</text>
+
+    <!-- SCC B 节点 -->
+    <circle cx="380" cy="90" r="22" class="node" fill="#e07b4a" stroke="#b85e30"/>
+    <text x="380" y="90" class="label">B1</text>
+    <circle cx="500" cy="90" r="22" class="node" fill="#e07b4a" stroke="#b85e30"/>
+    <text x="500" y="90" class="label">B2</text>
+    <circle cx="500" cy="190" r="22" class="node" fill="#e07b4a" stroke="#b85e30"/>
+    <text x="500" y="190" class="label">B3</text>
+    <circle cx="380" cy="190" r="22" class="node" fill="#e07b4a" stroke="#b85e30"/>
+    <text x="380" y="190" class="label">B4</text>
+
+    <!-- SCC C 圈 -->
+    <ellipse cx="440" cy="320" rx="90" ry="40" fill="none" stroke="#5ab78a" stroke-width="3" stroke-dasharray="8,4" opacity="0.7">
+      <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+    <text x="440" y="375" class="level-label" fill="#5ab78a">SCC γ</text>
+
+    <!-- SCC C 节点 -->
+    <circle cx="380" cy="320" r="22" class="node" fill="#5ab78a" stroke="#3d9068"/>
+    <text x="380" y="320" class="label">C1</text>
+    <circle cx="500" cy="320" r="22" class="node" fill="#5ab78a" stroke="#3d9068"/>
+    <text x="500" y="320" class="label">C2</text>
+
+    <!-- 内部边 (淡) -->
+    <line x1="122" y1="114" x2="198" y2="96" class="edge" stroke="#4a90d9" opacity="0.4" marker-end="url(#arrow-fade)"/>
+    <line x1="220" y1="112" x2="220" y2="148" class="edge" stroke="#4a90d9" opacity="0.4" marker-end="url(#arrow-fade)"/>
+    <path d="M200,178 Q140,180 108,142" class="edge" stroke="#4a90d9" opacity="0.4" marker-end="url(#arrow-fade)"/>
+    <line x1="402" y1="90" x2="478" y2="90" class="edge" stroke="#e07b4a" opacity="0.4" marker-end="url(#arrow-fade)"/>
+    <line x1="500" y1="112" x2="500" y2="168" class="edge" stroke="#e07b4a" opacity="0.4" marker-end="url(#arrow-fade)"/>
+    <line x1="478" y1="190" x2="402" y2="190" class="edge" stroke="#e07b4a" opacity="0.4" marker-end="url(#arrow-fade)"/>
+    <line x1="380" y1="168" x2="380" y2="112" class="edge" stroke="#e07b4a" opacity="0.4" marker-end="url(#arrow-fade)"/>
+    <path d="M402,314 L478,314" class="edge" stroke="#5ab78a" opacity="0.4" marker-end="url(#arrow-fade)"/>
+    <path d="M478,328 L402,328" class="edge" stroke="#5ab78a" opacity="0.4" marker-end="url(#arrow-fade)"/>
+
+    <!-- 跨 SCC 边 (实线) -->
+    <line x1="242" y1="164" x2="358" y2="96" class="edge" stroke="#555" marker-end="url(#arrow)"/>
+    <line x1="232" y1="190" x2="360" y2="312" class="edge" stroke="#555" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- ==================== Phase 3: 缩合图 ==================== -->
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.56;0.62;0.78;0.82;1" dur="16s" repeatCount="indefinite"/>
+
+    <text x="350" y="30" class="title">Condensation DAG</text>
+    <text x="350" y="50" class="subtitle">Each SCC → single super-node, internal edges removed</text>
+
+    <!-- 超级节点 α -->
+    <g>
+      <ellipse cx="200" cy="200" rx="60" ry="36" fill="#4a90d9" stroke="#3570a8" stroke-width="2.5" opacity="0.9"/>
+      <text x="200" y="193" class="label" font-size="14">SCC α</text>
+      <text x="200" y="210" font-size="10" text-anchor="middle" fill="#d4e6f9">{A1,A2,A3}</text>
+
+      <!-- 呼吸动画 -->
+      <animate attributeName="opacity" values="0.85;1;0.85" dur="3s" repeatCount="indefinite"/>
+    </g>
+
+    <!-- 超级节点 β -->
+    <g>
+      <ellipse cx="480" cy="130" rx="65" ry="36" fill="#e07b4a" stroke="#b85e30" stroke-width="2.5" opacity="0.9"/>
+      <text x="480" y="123" class="label" font-size="14">SCC β</text>
+      <text x="480" y="140" font-size="10" text-anchor="middle" fill="#fde0cc">{B1,B2,B3,B4}</text>
+      <animate attributeName="opacity" values="0.85;1;0.85" dur="3s" repeatCount="indefinite" begin="1s"/>
+    </g>
+
+    <!-- 超级节点 γ -->
+    <g>
+      <ellipse cx="480" cy="290" rx="55" ry="36" fill="#5ab78a" stroke="#3d9068" stroke-width="2.5" opacity="0.9"/>
+      <text x="480" y="283" class="label" font-size="14">SCC γ</text>
+      <text x="480" y="300" font-size="10" text-anchor="middle" fill="#c8edda">{C1,C2}</text>
+      <animate attributeName="opacity" values="0.85;1;0.85" dur="3s" repeatCount="indefinite" begin="2s"/>
+    </g>
+
+    <!-- 缩合边 α → β -->
+    <line x1="260" y1="188" x2="415" y2="140" class="edge" stroke="#333" stroke-width="2.5" marker-end="url(#arrow-dark)"/>
+    <!-- 缩合边 α → γ -->
+    <line x1="248" y1="220" x2="428" y2="278" class="edge" stroke="#333" stroke-width="2.5" marker-end="url(#arrow-dark)"/>
+
+    <!-- in-degree 标注 -->
+    <text x="200" y="250" font-size="11" text-anchor="middle" fill="#4a90d9" font-weight="bold">in-degree = 0</text>
+    <text x="200" y="265" font-size="11" text-anchor="middle" fill="#4a90d9">→ SOURCE</text>
+    <text x="480" y="180" font-size="11" text-anchor="middle" fill="#e07b4a" font-weight="bold">in-degree = 1</text>
+    <text x="480" y="340" font-size="11" text-anchor="middle" fill="#5ab78a" font-weight="bold">in-degree = 1</text>
+  </g>
+
+  <!-- ==================== Phase 4: Level 分配 ==================== -->
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.78;0.84;0.96;1" dur="16s" repeatCount="indefinite"/>
+
+    <text x="450" y="30" class="title">Level Assignment via Topological Sort</text>
+    <text x="450" y="50" class="subtitle">Nodes in the same SCC share the same level</text>
+
+    <!-- Level 0 区域 -->
+    <rect x="40" y="70" width="300" height="200" rx="10" fill="#4a90d933" stroke="#4a90d9" stroke-width="1.5" stroke-dasharray="6,3"/>
+    <text x="190" y="95" class="level-label" fill="#4a90d9" font-size="14">Level 0</text>
+
+    <!-- Level 0 节点 -->
+    <circle cx="110" cy="155" r="24" fill="#4a90d9" stroke="#3570a8" stroke-width="2"/>
+    <text x="110" y="155" class="label">A1</text>
+    <circle cx="190" cy="125" r="24" fill="#4a90d9" stroke="#3570a8" stroke-width="2"/>
+    <text x="190" y="125" class="label">A2</text>
+    <circle cx="190" cy="205" r="24" fill="#4a90d9" stroke="#3570a8" stroke-width="2"/>
+    <text x="190" y="205" class="label">A3</text>
+
+    <!-- 内部环标记 -->
+    <path d="M132,148 L168,131" class="edge" stroke="#4a90d966" stroke-width="1.5" marker-end="url(#arrow-fade)"/>
+    <path d="M190,149 L190,181" class="edge" stroke="#4a90d966" stroke-width="1.5" marker-end="url(#arrow-fade)"/>
+    <path d="M170,212 Q120,215 118,177" class="edge" stroke="#4a90d966" stroke-width="1.5" marker-end="url(#arrow-fade)"/>
+
+    <!-- Level 1 区域 -->
+    <rect x="400" y="70" width="470" height="420" rx="10" fill="#e07b4a1a" stroke="#e07b4a" stroke-width="1.5" stroke-dasharray="6,3"/>
+    <text x="635" y="95" class="level-label" fill="#e07b4a" font-size="14">Level 1</text>
+
+    <!-- Level 1: B 节点 -->
+    <circle cx="480" cy="150" r="24" fill="#e07b4a" stroke="#b85e30" stroke-width="2"/>
+    <text x="480" y="150" class="label">B1</text>
+    <circle cx="580" cy="150" r="24" fill="#e07b4a" stroke="#b85e30" stroke-width="2"/>
+    <text x="580" y="150" class="label">B2</text>
+    <circle cx="580" cy="240" r="24" fill="#e07b4a" stroke="#b85e30" stroke-width="2"/>
+    <text x="580" y="240" class="label">B3</text>
+    <circle cx="480" cy="240" r="24" fill="#e07b4a" stroke="#b85e30" stroke-width="2"/>
+    <text x="480" y="240" class="label">B4</text>
+
+    <!-- B 内部环 -->
+    <path d="M504,150 L556,150" class="edge" stroke="#e07b4a55" stroke-width="1.5" marker-end="url(#arrow-fade)"/>
+    <path d="M580,174 L580,216" class="edge" stroke="#e07b4a55" stroke-width="1.5" marker-end="url(#arrow-fade)"/>
+    <path d="M556,240 L504,240" class="edge" stroke="#e07b4a55" stroke-width="1.5" marker-end="url(#arrow-fade)"/>
+    <path d="M480,216 L480,174" class="edge" stroke="#e07b4a55" stroke-width="1.5" marker-end="url(#arrow-fade)"/>
+
+    <!-- Level 1: C 节点 -->
+    <circle cx="520" cy="400" r="24" fill="#5ab78a" stroke="#3d9068" stroke-width="2"/>
+    <text x="520" y="400" class="label">C1</text>
+    <circle cx="640" cy="400" r="24" fill="#5ab78a" stroke="#3d9068" stroke-width="2"/>
+    <text x="640" y="400" class="label">C2</text>
+
+    <!-- C 内部环 -->
+    <path d="M544,393 L616,393" class="edge" stroke="#5ab78a55" stroke-width="1.5" marker-end="url(#arrow-fade)"/>
+    <path d="M616,408 L544,408" class="edge" stroke="#5ab78a55" stroke-width="1.5" marker-end="url(#arrow-fade)"/>
+
+    <!-- 跨 level 边 -->
+    <line x1="212" y1="196" x2="458" y2="156" class="edge" stroke="#333" stroke-width="2" marker-end="url(#arrow-dark)"/>
+    <line x1="208" y1="222" x2="500" y2="388" class="edge" stroke="#333" stroke-width="2" marker-end="url(#arrow-dark)"/>
+
+    <!-- 脉冲效果 - Level 0 -->
+    <rect x="40" y="70" width="300" height="200" rx="10" fill="none" stroke="#4a90d9" stroke-width="3" opacity="0">
+      <animate attributeName="opacity" values="0;0.6;0" dur="3s" repeatCount="indefinite"/>
+    </rect>
+
+    <!-- 脉冲效果 - Level 1 -->
+    <rect x="400" y="70" width="470" height="420" rx="10" fill="none" stroke="#e07b4a" stroke-width="3" opacity="0">
+      <animate attributeName="opacity" values="0;0.6;0" dur="3s" repeatCount="indefinite" begin="1.5s"/>
+    </rect>
+
+    <!-- source 标记 -->
+    <g>
+      <rect x="95" y="280" width="115" height="26" rx="6" fill="#4a90d9"/>
+      <text x="152" y="296" font-size="12" text-anchor="middle" fill="#fff" font-weight="bold">⚡ SOURCE</text>
+      <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite"/>
+    </g>
+  </g>
+
+  <!-- 底部进度条 -->
+  <rect x="50" y="498" width="800" height="4" rx="2" fill="#e8e8e8"/>
+  <rect x="50" y="498" width="0" height="4" rx="2" fill="#4a90d9">
+    <animate attributeName="width" values="0;800;800;0" keyTimes="0;0.96;0.98;1" dur="16s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- 阶段指示器 -->
+  <g font-size="10" fill="#aaa" text-anchor="middle">
+    <text x="150" y="515">
+      <animate attributeName="fill" values="#aaa;#4a90d9;#aaa;#aaa" keyTimes="0;0.04;0.32;1" dur="16s" repeatCount="indefinite"/>
+      ① Original Graph
+    </text>
+    <text x="350" y="515">
+      <animate attributeName="fill" values="#aaa;#aaa;#e07b4a;#aaa;#aaa" keyTimes="0;0.28;0.34;0.60;1" dur="16s" repeatCount="indefinite"/>
+      ② Find SCCs
+    </text>
+    <text x="550" y="515">
+      <animate attributeName="fill" values="#aaa;#aaa;#5ab78a;#aaa;#aaa" keyTimes="0;0.56;0.62;0.82;1" dur="16s" repeatCount="indefinite"/>
+      ③ Condensation
+    </text>
+    <text x="750" y="515">
+      <animate attributeName="fill" values="#aaa;#aaa;#333;#aaa" keyTimes="0;0.78;0.84;1" dur="16s" repeatCount="indefinite"/>
+      ④ Level Assignment
+    </text>
+  </g>
+</svg>
