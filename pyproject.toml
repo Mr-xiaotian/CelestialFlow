@@ -6,8 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "celestialflow"                   
 version = "3.2.0"
 description = "A flexible GRAPH-based task orchestration framework."
-readme = "README.md"               
-license = { text = "MIT" }    
+readme = "README.md"
+license = { text = "MIT" }
 authors = [{ name = "Mr-xiaotian", email = "mingxiaomingtian@gmail.com" }]
 keywords = ["workflow", "task", "graph", "async", "CelestialFlow"]
 requires-python = ">=3.10"
