@@ -1,7 +1,7 @@
 # graph/util_analysis.py
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import networkx as nx
 
@@ -10,36 +10,6 @@ if TYPE_CHECKING:
 
 
 # ======== (图论分析) ========
-def format_networkx_graph(structure_graph: list[dict[str, Any]]) -> nx.DiGraph[str]:
-    """
-    将结构图（由 build_structure_graph 生成）转换为 networkx 有向图（DiGraph）
-
-    :param structure_graph: JSON 格式的任务结构图，list[dict]
-    :return: 构建好的 networkx.DiGraph
-    """
-    G: nx.DiGraph[str] = nx.DiGraph()
-
-    def add_node_and_edges(node: dict[str, Any]) -> None:
-        """
-        递归添加节点及其边到有向图中。
-
-        :param node: 节点字典，包含 name、func_name、next_stages 等字段
-        """
-        node_id = f"{node['name']}[{node['func_name']}]"
-        G.add_node(node_id, **{"mode": node.get("stage_mode")})
-
-        for child in node.get("next_stages", []):
-            child_id = f"{child['name']}[{child['func_name']}]"
-            G.add_edge(node_id, child_id)
-            # 递归添加子节点
-            add_node_and_edges(child)
-
-    for root in structure_graph:
-        add_node_and_edges(root)
-
-    return G
-
-
 def build_networkx_graph(
     out_edges: dict[str, list[str]],
     stage_runtime_dict: dict[str, StageRuntime],

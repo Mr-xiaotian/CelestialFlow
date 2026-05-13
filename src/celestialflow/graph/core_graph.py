@@ -313,7 +313,7 @@ class TaskGraph:
 
     def _build_analysis(self) -> None:
         """
-        分析任务图，计算 DAG 属性和层级信息
+        分析任务图，计算图属性和层级信息（支持 DAG 和含环图）
         """
         self.networkx_graph = build_networkx_graph(self.out_edges, self.stage_runtime_dict)
         source_tags = find_source_nodes(self.networkx_graph)
@@ -407,7 +407,7 @@ class TaskGraph:
         if not self.isDAG and put_termination_signal:
             warnings.warn(
                 "Early injection of termination signals in a non-DAG graph may cause "
-                "some nodes (including root nodes) to shut down as soon as their current "
+                "some nodes (including source nodes) to shut down as soon as their current "
                 "tasks are exhausted, preventing them from consuming tasks that arrive "
                 "later from other nodes. It is recommended to set put_termination_signal=False "
                 "and manually inject termination signals via the web interface at an "
