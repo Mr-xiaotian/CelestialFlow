@@ -15,7 +15,6 @@ from celestialtree import Client as CelestialTreeClient
 from celestialtree import NullClient as NullCelestialTreeClient
 from celestialtree import (
     format_descendants_forest,
-    format_provenance_forest,
 )
 from networkx import is_directed_acyclic_graph, DiGraph
 
@@ -345,7 +344,7 @@ class TaskGraph:
                 continue
             stage: TaskStage = self.stage_runtime_dict[tag].stage
             in_queue: TaskInQueue = self.stage_runtime_dict[tag].in_queue
-            input_ids: set[int] = self.input_ids[tag]
+            # input_ids: set[int] = self.input_ids[tag] # maybe use later
 
             for task in tasks:
                 if isinstance(task, TerminationSignal):
@@ -362,7 +361,7 @@ class TaskGraph:
                 )
                 envelope = TaskEnvelope(task, input_id, source="input")
                 in_queue.put(envelope)
-                input_ids.add(input_id)
+                # input_ids.add(input_id)
 
                 stage.metrics.add_task_count()
                 self.log_inlet.task_input(
@@ -844,18 +843,6 @@ class TaskGraph:
         if not descendants:
             return ""
         return format_descendants_forest(descendants, STAGE_STYLE)
-
-    def get_error_trace(self, error_id: int) -> str:
-        """
-        获取错误任务的依赖关系树
-
-        :param error_id: 错误事件 ID
-        :return: 格式化的溯源关系树字符串
-        """
-        provenance = self.ctree_client.provenance(error_id)
-        if not provenance:
-            return ""
-        return format_provenance_forest(provenance, STAGE_STYLE)
     
     def get_source_stages(self) -> list[TaskStage]:
         """
