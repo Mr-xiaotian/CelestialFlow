@@ -84,25 +84,25 @@ class TestTaskMetricsDuplicate:
     def test_duplicate_check_disabled_always_false(self):
         """禁用去重时，is_duplicate 永远返回 False"""
         metrics = TaskMetrics(execution_mode="serial", enable_duplicate_check=False)
-        assert metrics.is_duplicate("hash_1") is False
-        assert metrics.is_duplicate("hash_1") is False
-        assert metrics.is_duplicate("hash_2") is False
+        assert metrics.is_duplicate(b"hash_1") is False
+        assert metrics.is_duplicate(b"hash_1") is False
+        assert metrics.is_duplicate(b"hash_2") is False
 
     def test_duplicate_check_enabled_detects_repeat(self):
         """启用去重时，第二次相同 hash 返回 True"""
         metrics = TaskMetrics(execution_mode="serial", enable_duplicate_check=True)
-        assert metrics.is_duplicate("hash_1") is False
-        assert metrics.is_duplicate("hash_1") is True
-        assert metrics.is_duplicate("hash_2") is False
+        assert metrics.is_duplicate(b"hash_1") is False
+        assert metrics.is_duplicate(b"hash_1") is True
+        assert metrics.is_duplicate(b"hash_2") is False
 
     def test_duplicate_check_resets_with_reset_state(self):
         """reset_state 后去重集合被清空"""
         metrics = TaskMetrics(execution_mode="serial", enable_duplicate_check=True)
-        metrics.is_duplicate("hash_1")
-        assert metrics.is_duplicate("hash_1") is True
+        metrics.is_duplicate(b"hash_1")
+        assert metrics.is_duplicate(b"hash_1") is True
 
         metrics.reset_state()
-        assert metrics.is_duplicate("hash_1") is False
+        assert metrics.is_duplicate(b"hash_1") is False
 
 
 class TestTaskMetricsRetryExceptions:

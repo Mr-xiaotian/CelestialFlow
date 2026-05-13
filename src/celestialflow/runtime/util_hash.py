@@ -28,12 +28,12 @@ def make_hashable(obj: Any) -> Any:
         return obj
 
 
-def object_to_str_hash(obj: Any) -> str:
+def object_to_hash(obj: Any) -> bytes:
     """
-    将任意对象转换为 SHA1 字符串。
+    将任意对象转换为 SHA1 字节串。
 
     :param obj: 任意对象
-    :return: SHA1 字符串
+    :return: SHA1 字节串
     """
     obj_bytes = pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL)
-    return hashlib.sha1(obj_bytes).hexdigest()
+    return hashlib.sha1(obj_bytes).digest()

@@ -1,7 +1,7 @@
 # runtime/core_envelope.py
 from typing import Any
 
-from .util_hash import object_to_str_hash
+from .util_hash import object_to_hash
 
 
 class TaskEnvelope:
@@ -31,14 +31,14 @@ class TaskEnvelope:
         """
         return self.task
 
-    def get_hash(self) -> str:
+    def get_hash(self) -> bytes:
         """
         获取任务哈希
 
         :return: 任务哈希
         """
         if self.hash is None:
-            self.hash = object_to_str_hash(self.task)
+            self.hash = object_to_hash(self.task)
         return self.hash
 
     def get_id(self) -> int:

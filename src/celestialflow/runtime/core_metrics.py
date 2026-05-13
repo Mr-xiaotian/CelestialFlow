@@ -67,7 +67,7 @@ class TaskMetrics:
 
         - processed_set：用于重复检测
         """
-        self.processed_set: set[str] = set()  # task_hash
+        self.processed_set: set[bytes] = set()  # task_hash
 
     def set_execution_mode(self, execution_mode: str) -> None:
         """
@@ -79,7 +79,7 @@ class TaskMetrics:
         self._init_counter()
 
     # ==== 去重 ====
-    def is_duplicate(self, task_hash: str) -> bool:
+    def is_duplicate(self, task_hash: bytes) -> bool:
         """
         检查任务是否重复, 是原子操作
 
@@ -94,7 +94,7 @@ class TaskMetrics:
 
         return True
 
-    def add_processed_set(self, task_hash: str) -> None:
+    def add_processed_set(self, task_hash: bytes) -> None:
         """
         将任务添加到已处理集合
         用于后续的去重检查。
