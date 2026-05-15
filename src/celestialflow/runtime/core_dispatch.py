@@ -20,7 +20,9 @@ class TaskDispatch:
     """任务调度器，负责以串行、线程或异步方式执行单个任务。"""
 
     # ==== 初始化 ====
-    def __init__(self, task_executor: TaskExecutor, func: Callable[..., Any], max_workers: int):
+    def __init__(
+        self, task_executor: TaskExecutor, func: Callable[..., Any], max_workers: int
+    ):
         """
         初始化任务运行器
 

@@ -74,7 +74,9 @@ def _build_structure_subgraph(
     return node
 
 
-def format_structure_list_from_graph(roots: list[dict[str, Any]] | None = None) -> list[str]:
+def format_structure_list_from_graph(
+    roots: list[dict[str, Any]] | None = None,
+) -> list[str]:
     """
     从多个 JSON 图结构生成格式化任务结构文本列表（带边框）
 
@@ -98,7 +100,9 @@ def format_structure_list_from_graph(roots: list[dict[str, Any]] | None = None) 
         return f"{N}::{F} (S:{S}, E:{E}){visited_note}"
 
     # 只渲染"子节点"（有父节点）——保证一定画连接符
-    def build_child_lines(node: dict[str, Any], prefix: str, is_last: bool) -> list[str]:
+    def build_child_lines(
+        node: dict[str, Any], prefix: str, is_last: bool
+    ) -> list[str]:
         """
         递归构建子节点的树形显示行。
 

@@ -115,7 +115,9 @@ templates_path = os.path.join(BASE_DIR, "templates")
 class TaskWebServer:
     """FastAPI Web 服务，提供任务可视化、状态推送和任务注入接口。"""
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 5000, log_level: str = "info") -> None:
+    def __init__(
+        self, host: str = "0.0.0.0", port: int = 5000, log_level: str = "info"
+    ) -> None:
         """初始化 FastAPI 应用、数据存储、版本计数器及路由。"""
         self.app: FastAPI = FastAPI()  # type: ignore[reportUnknownMemberType]
         self.host = host
@@ -457,7 +459,9 @@ class TaskWebServer:
             return {"ok": True}
 
         @app.post("/api/push_injection_tasks", response_model=None)
-        async def push_injection_tasks(data: TaskInjectionModel) -> dict[str, bool] | JSONResponse:
+        async def push_injection_tasks(
+            data: TaskInjectionModel,
+        ) -> dict[str, bool] | JSONResponse:
             """
             将前端提交的注入任务追加到待执行队列。
 

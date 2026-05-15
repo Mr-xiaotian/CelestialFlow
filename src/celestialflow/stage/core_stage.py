@@ -182,12 +182,12 @@ class TaskStage(TaskExecutor):
         :param log_queue: 日志队列
         """
         start_time = time.perf_counter()
-        
+
         self._init_state()
         self._init_dispatch()
         self.set_inlet(fail_queue, log_queue)
         self.set_queue(input_queue, output_queue)
-        
+
         self.log_inlet.start_stage(
             self.get_tag(), self.stage_mode, self.execution_mode, self.max_workers
         )

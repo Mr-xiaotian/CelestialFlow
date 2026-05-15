@@ -6,25 +6,25 @@ G = nx.DiGraph()
 
 # 分支 A：内部 3 节点循环 (A1 -> A2 -> A3 -> A1)
 # 入口 A_in 指向循环中的 A1
-G.add_edge('A1', 'A2')
-G.add_edge('A2', 'A3')
-G.add_edge('A3', 'A1')  # 闭合循环
+G.add_edge("A1", "A2")
+G.add_edge("A2", "A3")
+G.add_edge("A3", "A1")  # 闭合循环
 
 # 分支 A 的出口（从循环引出）
-G.add_edge('A3', 'B1')  # A3 引出到 B1，进入分支 B
+G.add_edge("A3", "B1")  # A3 引出到 B1，进入分支 B
 
 # 分支 B：内部 4 节点循环 (B1 -> B2 -> B3 -> B4 -> B1)
-G.add_edge('B1', 'B2')
-G.add_edge('B2', 'B3')
-G.add_edge('B3', 'B4')
-G.add_edge('B4', 'B1')  # 闭合循环
+G.add_edge("B1", "B2")
+G.add_edge("B2", "B3")
+G.add_edge("B3", "B4")
+G.add_edge("B4", "B1")  # 闭合循环
 
 # 分支 B 的出口
-G.add_edge('A3', 'C1')
+G.add_edge("A3", "C1")
 
 # 分支 C：内部 2 节点循环 (C1 -> C2 -> C1)
-G.add_edge('C1', 'C2')
-G.add_edge('C2', 'C1')
+G.add_edge("C1", "C2")
+G.add_edge("C2", "C1")
 
 
 # 验证结构
@@ -45,7 +45,7 @@ print(f"缩合图边: {list(C.edges())}")
 
 # Source SCC 代表点
 source_scc_ids = [n for n, d in C.in_degree() if d == 0]
-sources = [next(iter(C.nodes[scc_id]['members'])) for scc_id in source_scc_ids]
+sources = [next(iter(C.nodes[scc_id]["members"])) for scc_id in source_scc_ids]
 print(f"\n源点 SCC: {source_scc_ids}")
 print(f"启动 BFS 的代表点: {sources}")
 

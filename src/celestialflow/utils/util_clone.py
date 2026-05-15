@@ -52,7 +52,9 @@ def clone_stage(stage: TaskStage) -> TaskStage:
     kwargs["stage_mode"] = stage.get_stage_mode()
 
     stage_cls = type(stage)
-    init_params = set(inspect.signature(stage_cls.__init__).parameters.keys()) - {"self"}
+    init_params = set(inspect.signature(stage_cls.__init__).parameters.keys()) - {
+        "self"
+    }
     filtered_kwargs = {k: v for k, v in kwargs.items() if k in init_params}
 
     cloned: TaskStage = stage_cls(**filtered_kwargs)

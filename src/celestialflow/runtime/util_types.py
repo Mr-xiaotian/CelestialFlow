@@ -41,7 +41,12 @@ class NoOpContext:
         """进入空上下文"""
         return self
 
-    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """退出空上下文"""
         pass
 
@@ -139,4 +144,6 @@ class CTreeEvent:
     TERMINATION_MERGE = "termination.merge"
 
 
-STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(template="{base}  {payload.name}  ‹{type}›", missing="-")
+STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(
+    template="{base}  {payload.name}  ‹{type}›", missing="-"
+)

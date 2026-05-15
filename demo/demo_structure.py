@@ -362,14 +362,26 @@ def demo_multi_cycle():
     """
 
     # 定义节点
-    A1 = TaskStage("A1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
-    A2 = TaskStage("A2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+    A1 = TaskStage(
+        "A1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
+    )
+    A2 = TaskStage(
+        "A2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
+    )
 
-    B1 = TaskStage("B1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
-    B2 = TaskStage("B2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+    B1 = TaskStage(
+        "B1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
+    )
+    B2 = TaskStage(
+        "B2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
+    )
 
-    C1 = TaskStage("C1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
-    C2 = TaskStage("C2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2)
+    C1 = TaskStage(
+        "C1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
+    )
+    C2 = TaskStage(
+        "C2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
+    )
 
     graph = TaskGraph(schedule_mode="staged")
     graph.set_stages(

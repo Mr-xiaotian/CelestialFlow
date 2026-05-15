@@ -102,7 +102,9 @@ def format_table(
         formatted_data.append([row_label] + list(row))
 
     # 统一填充数据行，确保所有行长度一致
-    filled_rows: zip_longest[tuple[Any, ...]] = zip_longest(*formatted_data, fillvalue=fill_value)
+    filled_rows: zip_longest[tuple[Any, ...]] = zip_longest(
+        *formatted_data, fillvalue=fill_value
+    )
     formatted_data = [list(row) for row in zip(*filled_rows)]  # 转置回来
 
     # 计算每列的最大宽度
@@ -117,7 +119,9 @@ def format_table(
         "right": lambda text, width: f"{text:>{width}}",
         "center": lambda text, width: f"{text:^{width}}",
     }
-    align_func: Callable[[str, int], str] = align_funcs.get(align, align_funcs["left"])  # 默认左对齐
+    align_func: Callable[[str, int], str] = align_funcs.get(
+        align, align_funcs["left"]
+    )  # 默认左对齐
 
     # 生成表格
     separator: str = "+" + "+".join(["-" * (width + 2) for width in col_widths]) + "+"

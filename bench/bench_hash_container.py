@@ -79,7 +79,9 @@ def measure(name: str, factory, *args) -> dict:
 
 
 # ========== 查询性能 ==========
-def bench_query(container, item_hit, item_miss, duration: float = 0.3) -> tuple[float, float]:
+def bench_query(
+    container, item_hit, item_miss, duration: float = 0.3
+) -> tuple[float, float]:
     _ = item_hit in container
     _ = item_miss in container
 
@@ -102,12 +104,12 @@ def bench_query(container, item_hit, item_miss, duration: float = 0.3) -> tuple[
 
 # ========== 执行 ==========
 configs = [
-    ("set[bytes]",        build_set,          all_hashes),
-    ("dict[B,None]",      build_dict_none,    all_hashes),
-    ("dict[B,float]",     build_dict_float,   all_hashes),
-    ("OrderedDict",       build_ordered_dict, all_hashes),
-    ("LRU(unlimited)",    build_lru,          all_hashes, 0),
-    ("LRU(50k)",          build_lru,          all_hashes, 50_000),
+    ("set[bytes]", build_set, all_hashes),
+    ("dict[B,None]", build_dict_none, all_hashes),
+    ("dict[B,float]", build_dict_float, all_hashes),
+    ("OrderedDict", build_ordered_dict, all_hashes),
+    ("LRU(unlimited)", build_lru, all_hashes, 0),
+    ("LRU(50k)", build_lru, all_hashes, 50_000),
 ]
 
 fake_miss = b"\x00" * 20

@@ -22,7 +22,7 @@ def build_networkx_graph(
     :return: 构建好的 networkx.DiGraph
     """
     G: nx.DiGraph[str] = nx.DiGraph()
-    
+
     for tag, runtime in stage_runtime_dict.items():
         G.add_node(tag, mode=runtime.stage.get_stage_mode())
     for src, dsts in out_edges.items():
@@ -66,6 +66,8 @@ def find_source_nodes(G: nx.DiGraph[str]) -> list[str]:
     condensation = nx.condensation(G)
 
     source_scc_ids = [n for n, d in condensation.in_degree() if d == 0]
-    sources = [next(iter(condensation.nodes[scc_id]['members'])) for scc_id in source_scc_ids]
+    sources = [
+        next(iter(condensation.nodes[scc_id]["members"])) for scc_id in source_scc_ids
+    ]
 
     return sources

@@ -296,7 +296,9 @@ class TaskReporter:
     def _push_history(self) -> None:
         """推送历史信息"""
         try:
-            history: dict[str, list[dict[str, Any]]] = self.task_graph.get_stage_history()  # type: ignore[reportUnknownMemberType]
+            history: dict[str, list[dict[str, Any]]] = (
+                self.task_graph.get_stage_history()
+            )  # type: ignore[reportUnknownMemberType]
             payload: dict[str, Any] = {"history": history}
             self._session.post(
                 f"{self.base_url}/api/push_history",

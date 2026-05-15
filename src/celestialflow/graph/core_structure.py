@@ -35,7 +35,9 @@ class TaskChain(TaskGraph):
             self.connect([stages[num]], [stages[num + 1]])
 
     def start_chain(
-        self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
+        self,
+        init_tasks_dict: Mapping[str, Iterable[Any]],
+        put_termination_signal: bool = True,
     ) -> None:
         """
         启动任务链
@@ -80,7 +82,9 @@ class TaskCross(TaskGraph):
             self.connect(layers[i], layers[i + 1])
 
     def start_cross(
-        self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
+        self,
+        init_tasks_dict: Mapping[str, Iterable[Any]],
+        put_termination_signal: bool = True,
     ) -> None:
         """
         启动多层交叉结构任务图
@@ -132,7 +136,9 @@ class TaskGrid(TaskGraph):
                     self.connect([curr], [grid[i][j + 1]])
 
     def start_grid(
-        self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
+        self,
+        init_tasks_dict: Mapping[str, Iterable[Any]],
+        put_termination_signal: bool = True,
     ) -> None:
         """
         启动任务网格结构
@@ -172,7 +178,9 @@ class TaskLoop(TaskGraph):
             self.connect([stages[num]], [next_stage])
 
     def start_loop(
-        self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = False
+        self,
+        init_tasks_dict: Mapping[str, Iterable[Any]],
+        put_termination_signal: bool = False,
     ) -> None:
         """
         启动任务环, 环是自锁结构, 建议外部注入式停止
@@ -217,7 +225,9 @@ class TaskWheel(TaskGraph):
             self.connect([node], [next_stage])
 
     def start_wheel(
-        self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
+        self,
+        init_tasks_dict: Mapping[str, Iterable[Any]],
+        put_termination_signal: bool = True,
     ) -> None:
         """
         启动任务轮结构
@@ -256,7 +266,9 @@ class TaskComplete(TaskGraph):
             self.connect([stage], others)
 
     def start_complete(
-        self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = False
+        self,
+        init_tasks_dict: Mapping[str, Iterable[Any]],
+        put_termination_signal: bool = False,
     ) -> None:
         """
         启动任务完全图, 建议外部注入式停止

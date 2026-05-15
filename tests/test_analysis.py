@@ -120,11 +120,13 @@ class TestFindSourceNodes:
 
     def test_wheel_topology(self):
         """Center→{R1,R2,R3}, R1→R2→R3→R1: center 是唯一 source"""
-        G = _make_graph({
-            "Center": ["R1", "R2", "R3"],
-            "R1": ["R2"],
-            "R2": ["R3"],
-            "R3": ["R1"],
-        })
+        G = _make_graph(
+            {
+                "Center": ["R1", "R2", "R3"],
+                "R1": ["R2"],
+                "R2": ["R3"],
+                "R3": ["R1"],
+            }
+        )
         sources = find_source_nodes(G)
         assert sources == ["Center"]

@@ -91,9 +91,7 @@ class TestTaskGraphBasic:
         merge = TaskStage("merge", to_str, execution_mode="serial")
 
         graph = TaskGraph()
-        graph.set_stages(
-            stages=[source_a, source_b, merge]
-        )
+        graph.set_stages(stages=[source_a, source_b, merge])
         graph.connect([source_a, source_b], [merge])
 
         graph.start_graph(
@@ -166,9 +164,7 @@ class TestTaskGraphAsync:
         merge = TaskStage("merge", async_to_str, execution_mode="async")
 
         graph = TaskGraph()
-        graph.set_stages(
-            stages=[source_a, source_b, merge]
-        )
+        graph.set_stages(stages=[source_a, source_b, merge])
         graph.connect([source_a, source_b], [merge])
 
         graph.start_graph(
@@ -457,7 +453,6 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
 
-
 # =========================
 # TaskGraph thread 模式测试
 # =========================
@@ -507,9 +502,7 @@ class TestTaskGraphThread:
         merge = TaskStage("merge", to_str, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()
-        graph.set_stages(
-            stages=[source_a, source_b, merge]
-        )
+        graph.set_stages(stages=[source_a, source_b, merge])
         graph.connect([source_a, source_b], [merge])
 
         graph.start_graph(

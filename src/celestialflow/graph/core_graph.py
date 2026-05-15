@@ -314,11 +314,11 @@ class TaskGraph:
         """
         分析任务图，计算图属性和层级信息（支持 DAG 和含环图）
         """
-        self.networkx_graph = build_networkx_graph(self.out_edges, self.stage_runtime_dict)
+        self.networkx_graph = build_networkx_graph(
+            self.out_edges, self.stage_runtime_dict
+        )
         source_tags = find_source_nodes(self.networkx_graph)
-        self.source_stages = [
-            self.stage_runtime_dict[tag].stage for tag in source_tags
-        ]
+        self.source_stages = [self.stage_runtime_dict[tag].stage for tag in source_tags]
 
         self.structure_json = build_structure_graph(
             self.source_stages, self.out_edges, self.stage_runtime_dict
@@ -331,7 +331,9 @@ class TaskGraph:
         self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
     def put_stage_queue(
-        self, tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
+        self,
+        tasks_dict: Mapping[str, Iterable[Any]],
+        put_termination_signal: bool = True,
     ) -> None:
         """
         将任务放入队列
@@ -392,7 +394,9 @@ class TaskGraph:
     # ==== 执行 ====
 
     def start_graph(
-        self, init_tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
+        self,
+        init_tasks_dict: Mapping[str, Iterable[Any]],
+        put_termination_signal: bool = True,
     ) -> None:
         """
         启动任务链
@@ -483,9 +487,7 @@ class TaskGraph:
         stage_runtime.start_time = time.time()
 
         if self.use_ctree:
-            stage.set_ctree(
-                self.ctree_host, self.ctree_http_port, self.ctree_grpc_port
-            )
+            stage.set_ctree(self.ctree_host, self.ctree_http_port, self.ctree_grpc_port)
         else:
             stage.set_nullctree(self.ctree_client.event_id)
 
@@ -833,7 +835,7 @@ class TaskGraph:
         if not descendants:
             return ""
         return format_descendants_forest(descendants, STAGE_STYLE)
-    
+
     def get_source_stages(self) -> list[TaskStage]:
         """
         获取源节点列表
@@ -842,4 +844,3 @@ class TaskGraph:
         """
         self._build_analysis()  # 确保 source_stages 已更新
         return self.source_stages
-

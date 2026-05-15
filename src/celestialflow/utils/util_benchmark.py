@@ -89,7 +89,9 @@ def benchmark_graph(
     sync_modes = execution_sync_modes or ["serial", "thread"]
     async_modes = execution_async_modes or ["async"]
 
-    base_tasks: dict[str, list[Any]] = {tag: list(tasks) for tag, tasks in init_tasks_dict.items()}
+    base_tasks: dict[str, list[Any]] = {
+        tag: list(tasks) for tag, tasks in init_tasks_dict.items()
+    }
     execution_modes: list[str] = sync_modes + async_modes
 
     test_table_list: list[list[float]] = []
@@ -100,7 +102,9 @@ def benchmark_graph(
             cloned_graph: TaskGraph = clone_graph(sync_graph)
             cloned_graph.set_graph_mode(stage_mode, execution_mode)
 
-            run_tasks: dict[str, list[Any]] = {tag: list(tasks) for tag, tasks in base_tasks.items()}
+            run_tasks: dict[str, list[Any]] = {
+                tag: list(tasks) for tag, tasks in base_tasks.items()
+            }
             start_time: float = time.perf_counter()
             cloned_graph.start_graph(run_tasks)
             time_list.append(time.perf_counter() - start_time)
