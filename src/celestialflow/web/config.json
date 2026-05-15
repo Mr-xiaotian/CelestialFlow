@@ -1,8 +1,9 @@
 {
     "theme": "light",
-    "refreshInterval": 2000,
-    "historyLimit": 20,
+    "refreshInterval": 10000,
+    "historyLimit": 50,
     "language": "zh-CN",
+    "errorPageSize": 10,
     "dashboard": {
         "left": [
             "mermaid",

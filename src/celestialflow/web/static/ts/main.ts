@@ -10,6 +10,7 @@ const settingsPanel = document.getElementById("settings-panel") as HTMLElement; 
 const settingsClose = document.getElementById("settings-close") as HTMLButtonElement; // 设置面板关闭按钮
 const themeToggleBtn = document.getElementById("theme-toggle") as HTMLButtonElement; // 主题切换按钮
 const languageSelect = document.getElementById("language-select") as HTMLSelectElement; // 语言选择下拉框
+const errorPageSizeSelect = document.getElementById("error-page-size") as HTMLSelectElement; // 错误每页条数下拉框
 const tabButtons = document.querySelectorAll<HTMLElement>(".tab-btn"); // 页签按钮列表
 const tabContents = document.querySelectorAll<HTMLElement>(".tab-content"); // 页签内容列表
 
@@ -53,7 +54,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 切换历史长度限制：保存配置（后端下次快照时生效）
     historyLimitSelect.addEventListener("change", () => {
         webConfig.historyLimit = parseInt(historyLimitSelect.value);
-        saveWebConfig(); // 保存配置
+        saveWebConfig();
+    });
+
+    // 切换错误每页条数：更新分页并重新加载
+    errorPageSizeSelect.addEventListener("change", async () => {
+        pageSize = parseInt(errorPageSizeSelect.value);
+        webConfig.errorPageSize = pageSize;
+        currentPage = 1;
+        await loadErrors(true);
+        renderErrors();
+        saveWebConfig();
     });
 
     // 切换明暗主题：更新样式并重新渲染图表

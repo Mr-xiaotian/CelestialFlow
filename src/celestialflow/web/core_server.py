@@ -102,6 +102,7 @@ class WebConfigModel(BaseModel):
     refreshInterval: int
     historyLimit: int
     language: str = "zh-CN"
+    errorPageSize: int = 10
     dashboard: DashboardConfigModel
     cards: dict[str, CardConfigModel]
 

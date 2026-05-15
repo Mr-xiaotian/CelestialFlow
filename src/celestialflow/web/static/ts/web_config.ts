@@ -3,6 +3,7 @@ type WebConfig = {
     refreshInterval: number;
     historyLimit: number;
     language: Lang;
+    errorPageSize: number;
     dashboard: {
         left: string[];
         middle: string[];
@@ -91,6 +92,20 @@ function applyConfig() {
         const hasOption = Array.from(historyLimitSelect.options).some(o => o.value === limitStr);
         if (hasOption) {
             historyLimitSelect.value = limitStr;
+        }
+    }
+
+    // 应用错误日志每页条数
+    const eps = Number(webConfig.errorPageSize);
+    if (Number.isFinite(eps) && eps > 0) {
+        pageSize = eps;
+        const epsStr = eps.toString();
+        const errorPageSizeSelect = document.getElementById("error-page-size") as HTMLSelectElement;
+        if (errorPageSizeSelect) {
+            const hasOption = Array.from(errorPageSizeSelect.options).some(o => o.value === epsStr);
+            if (hasOption) {
+                errorPageSizeSelect.value = epsStr;
+            }
         }
     }
 

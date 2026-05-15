@@ -1,7 +1,7 @@
 // 全局状态
 let errors = []; // 错误记录列表
 let currentPage = 1; // 当前分页页码
-const pageSize = 10; // 每页显示条数
+let pageSize = 10; // 每页显示条数
 let totalPages = 1; // 总页数
 let errorsRev = -1; // 数据版本号，用于增量拉取
 let lastQueryKey = ""; // 上次查询的缓存键，用于判断筛选条件是否变化

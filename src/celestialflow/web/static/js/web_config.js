@@ -76,6 +76,19 @@ function applyConfig() {
             historyLimitSelect.value = limitStr;
         }
     }
+    // 应用错误日志每页条数
+    const eps = Number(webConfig.errorPageSize);
+    if (Number.isFinite(eps) && eps > 0) {
+        pageSize = eps;
+        const epsStr = eps.toString();
+        const errorPageSizeSelect = document.getElementById("error-page-size");
+        if (errorPageSizeSelect) {
+            const hasOption = Array.from(errorPageSizeSelect.options).some(o => o.value === epsStr);
+            if (hasOption) {
+                errorPageSizeSelect.value = epsStr;
+            }
+        }
+    }
     // 应用仪表盘布局
     applyDashboardLayout();
     // 应用国际化
