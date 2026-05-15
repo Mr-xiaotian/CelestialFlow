@@ -66,7 +66,8 @@ async function saveWebConfig() {
  */
 function applyConfig() {
     // 应用语言
-    setLang(webConfig.language || "zh-CN");
+    webConfig.language = webConfig.language || "zh-CN";
+    setLang(webConfig.language);
     const langSelect = document.getElementById("language-select") as HTMLSelectElement;
     if (langSelect) langSelect.value = currentLang;
 
@@ -96,6 +97,7 @@ function applyConfig() {
     }
 
     // 应用错误日志每页条数
+    webConfig.errorPageSize = webConfig.errorPageSize || 10;
     const eps = Number(webConfig.errorPageSize);
     if (Number.isFinite(eps) && eps > 0) {
         pageSize = eps;
