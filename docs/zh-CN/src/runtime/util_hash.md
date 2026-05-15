@@ -1,13 +1,13 @@
 # RuntimeHash
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/15
 
 `runtime/util_hash.py` 提供任务哈希与可哈希转换工具。
 
 ## 主要函数
 
 - `make_hashable(obj)`：把 list/dict/set 递归转换为稳定可哈希结构。
-- `object_to_str_hash(obj)`：对任意对象做 pickle 后计算 SHA1。
+- `object_to_hash(obj)`：对任意对象做 pickle 后计算 SHA1，返回 `bytes`。
 
 ## 用途
 

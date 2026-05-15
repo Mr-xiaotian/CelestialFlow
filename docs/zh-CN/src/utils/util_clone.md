@@ -1,6 +1,6 @@
 # Clone
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/15
 
 `utils/util_clone.py` 提供了克隆执行器、节点和任务图的功能，用于性能测试和配置复用。
 
@@ -126,7 +126,8 @@ results = benchmark_graph(
     graph,
     init_tasks_dict={stage_a.get_tag(): range(100)},
     stage_modes=["serial", "thread"],
-    execution_modes=["serial", "thread"],
+    execution_sync_modes=["serial", "thread"],
+    execution_async_modes=["async"],
 )
 ```
 

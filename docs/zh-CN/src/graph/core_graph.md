@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/15
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
@@ -11,7 +11,7 @@ class TaskGraph:
     def __init__(
         self,
         schedule_mode: str = "eager",
-        log_level: str = "SUCCESS",
+        log_level: str = "INFO",
     ):
         ...
 ```
@@ -21,7 +21,7 @@ class TaskGraph:
 - **schedule_mode**: 调度模式。
   - `eager` (默认): 所有节点一次性启动，依赖关系通过数据流自动控制。适用于最大化并行度。
   - `staged`: 分层执行。仅适用于 DAG。按层级顺序逐层启动，上一层全部完成后才启动下一层。
-- **log_level**: 全局日志级别（TRACE/DEBUG/SUCCESS/INFO/WARNING/ERROR/CRITICAL）。
+- **log_level**: 全局日志级别（TRACE/DEBUG/INFO/SUCCESS/WARNING/ERROR/CRITICAL），默认为 `"INFO"`。
 
 ### 设置节点
 
@@ -127,7 +127,7 @@ def set_graph_mode(self, stage_mode: str, execution_mode: str):
 ### _set_log_level
 
 ```python
-def _set_log_level(self, level="SUCCESS"):
+def _set_log_level(self, level="INFO"):
     """
     设置全局日志级别。
     """
@@ -195,10 +195,22 @@ def get_fallback_path(self) -> str:
 # 获取输入追踪
 def get_stage_input_trace(self, stage_tag: str) -> str:
     """获取指定节点的输入事件追踪（需要启用 ctree）。"""
+```
 
-# 获取错误追踪
-def get_error_trace(self, error_id: int):
-    """获取指定错误的追踪信息。"""
+### 其他查询
+
+```python
+# 获取各节点历史状态
+def get_stage_history(self) -> dict[str, list[dict]]:
+    """返回各节点的历史快照列表。"""
+
+# 获取总错误数
+def get_total_error_num(self) -> int:
+    """返回错误总数。"""
+
+# 获取源节点列表
+def get_source_stages(self) -> list[TaskStage]:
+    """返回源节点列表（由 SCC 凝聚自动计算）。"""
 ```
 
 ## 任务注入

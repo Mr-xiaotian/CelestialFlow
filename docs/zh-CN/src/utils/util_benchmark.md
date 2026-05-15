@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 最后更新日期: 2026/05/11
+> 📅 最后更新日期: 2026/05/15
 
 `utils/benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
@@ -86,7 +86,7 @@ thread    2.12s     1.89s     1.65s
 ```python
 import asyncio
 from celestialflow import TaskExecutor
-from celestialflow.utils.benchmark import benchmark_executor
+from celestialflow.utils.util_benchmark import benchmark_executor
 
 # 定义同步任务
 def sync_task(x):

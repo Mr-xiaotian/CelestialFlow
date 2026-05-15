@@ -1,6 +1,6 @@
 # BaseSpout
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/15
 
 `BaseSpout` 是所有出口类的基类，提供后台线程监听队列并处理记录的通用功能。
 
@@ -39,9 +39,8 @@ def stop(self):
 
 流程：
 1. 发送 `TERMINATION_SIGNAL` 到队列
-2. 等待线程结束
-3. 清理队列资源
-4. 调用 `_after_stop()` 钩子
+2. 等待线程结束（`join`），并将 `_thread` 置为 `None`
+3. 调用 `_after_stop()` 钩子
 
 ### get_queue
 
@@ -77,6 +76,8 @@ def _spout(self):
             self._handle_record(record)
         except Empty:
             continue
+        except Exception:
+            continue
 ```
 
 ## 注意事项
@@ -84,4 +85,4 @@ def _spout(self):
 1. **线程安全**: 使用 `queue.Queue` 确保线程间通信安全
 2. **守护线程**: 监听线程设置为守护线程，主进程退出时自动结束
 3. **优雅停止**: 通过发送 `TerminationSignal` 通知线程停止
-4. **队列清理**: 停止时会清理队列中的剩余记录
+4. **队列清理**: 停止时不会清理队列中的剩余记录

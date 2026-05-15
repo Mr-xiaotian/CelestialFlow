@@ -1,6 +1,6 @@
 # test_stage.py 测试说明
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/15
 
 ## 测试目标
 
@@ -10,7 +10,7 @@
 
 | 测试类 | 用例数 | 覆盖点 |
 |--------|--------|--------|
-| `TestTaskStageConfig` | 8 | tag 生成、tag 变更、stage_mode 合法值、execution_mode 合法值、非法值拦截、summary 字段 |
+| `TestTaskStageConfig` | 9 | tag 生成、tag 变更、stage_mode 合法值、execution_mode 合法值、非法值拦截、summary 字段、lambda thread 模式 |
 
 ### 关键用例详解
 
@@ -32,6 +32,10 @@
 #### `test_summary_contains_stage_mode`
 - **目标**：`get_summary()` 返回的字典应包含 `stage_mode` 和 `execution_mode` 字段，用于监控面板展示。
 - **注意**：`execution_mode` 在 non-serial 模式下会附加 workers 数量，如 `"thread-20"`。
+
+#### `test_lambda_allowed_in_thread`
+- **目标**：验证 lambda 函数在 `stage_mode="thread"` 下可正常创建（不会因 pickle 限制被拒绝）。
+- **断言**：`get_stage_mode()` 返回 `"thread"`。
 
 ## 依赖
 

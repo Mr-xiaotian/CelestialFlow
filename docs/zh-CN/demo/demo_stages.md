@@ -1,10 +1,15 @@
 # demo_stages.py 演示说明
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/15
 
 ## 目标
 
 演示 CelestialFlow 中特殊 Stage 节点的使用：`TaskSplitter`（任务拆分）、`TaskRouter`（任务路由）、`TaskRedisTransport` / `TaskRedisAck` / `TaskRedisSource`（Redis 分布式传输）。构建包含循环依赖和跨设备协作的复杂任务图。
+
+## 自定义子类
+
+- `DownloadRedisTransport`：继承 `TaskRedisTransport`，重写 `get_args` 方法将 `/tmp/` 路径替换为 `X:/Download/download_go/`（供 Go Worker 使用）。
+- `DownloadStage`：继承 `TaskStage`，重写 `get_args` 方法将 `/tmp/` 路径替换为 `X:/Download/download_py/`（供 Python 本地下载使用）。
 
 ## 演示场景
 
@@ -56,7 +61,7 @@ python demo/demo_stages.py
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskStage`、`TaskSplitter`、`TaskRouter`、`TaskRedisTransport`、`TaskRedisAck`、`TaskRedisSource`）
+- `celestialflow`（`TaskGraph`、`TaskStage`、`TaskChain`、`TaskSplitter`、`TaskRouter`、`TaskRedisTransport`、`TaskRedisAck`、`TaskRedisSource`）
 - `demo_utils`
 - `python-dotenv`
 - 外部服务：Redis、CelestialTree（可选）、Reporter（可选）、Go Worker（可选）

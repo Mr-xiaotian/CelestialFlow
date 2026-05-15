@@ -1,6 +1,6 @@
 # demo_structure.py 演示说明
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/15
 
 ## 目标
 
@@ -27,6 +27,7 @@
 | `demo_loop` | TaskLoop | 3 节点闭环，自锁结构 |
 | `demo_wheel` | TaskWheel | 中心节点 + 4 个环节点 |
 | `demo_complete` | TaskComplete | 3 节点完全图，两两相连 |
+| `demo_multi_cycle` | TaskGraph | 多环互连图：3 组 2 节点循环（A/B/C），A2 引出到 B1 和 C1 |
 
 ## 关键配置
 

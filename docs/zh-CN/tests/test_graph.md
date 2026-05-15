@@ -1,13 +1,17 @@
 # test_graph.py 测试说明
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/15
 
 ## 测试目标
 
 验证 `TaskGraph` 及其子类（`TaskChain`、`TaskCross`、`TaskGrid`、`TaskComplete`）在多种图结构下的正确性，包括：
 - DAG 数据流的构建与执行
 - 扇出（fan-out）、扇入（fan-in）、错误传播
+- async 模式与 thread 模式下的图执行
+- stage_mode x execution_mode 矩阵组合
 - 图结构分析（DAG 检测、层级计算）
+- 源节点自动推导
+- 含环图的行为
 - 运行时摘要统计
 
 ## 测试范围
@@ -15,9 +19,14 @@
 | 测试类 | 用例数 | 覆盖点 |
 |--------|--------|--------|
 | `TestTaskGraphBasic` | 4 | 两节点 DAG、扇出、扇入、错误传播 |
+| `TestTaskGraphAsync` | 5 | async 模式两节点、扇出、扇入、错误传播、async+thread stage_mode |
 | `TestTaskGraphStructure` | 4 | Chain、Cross、Grid、Complete 结构 |
 | `TestTaskGraphAnalysis` | 2 | DAG 检测、层级计算 |
 | `TestTaskGraphSummary` | 1 | 摘要统计 |
+| `TestStageExecutionMatrix` | 6 | serial/thread stage_mode x serial/thread/async execution_mode |
+| `TestTaskGraphThread` | 6 | thread 模式两节点、扇出、扇入、错误传播、lambda、staged 调度 |
+| `TestSourceStages` | 3 | 线性图 source、扇入 source、菱形图 source |
+| `TestCyclicGraph` | 2 | 含环图 isDAG 检测、环内同层+尾巴层级 |
 
 ### 关键用例详解
 
@@ -88,6 +97,80 @@ RuntimeWarning: Early injection of termination signals in a non-DAG graph ...
 
 遗漏此调用会导致 `get_graph_summary()` 返回空字典或旧数据。
 
+### `TestTaskGraphAsync` 详细用例说明
+
+#### `test_graph_async_two_nodes`
+- **目标**：async 模式下两节点 DAG 的数据流正确性。
+- **断言**：`stage1` 和 `stage2` 各成功 3 个。
+
+#### `test_graph_async_fan_out`
+- **目标**：async 模式下扇出结构（一个上游到多个下游）。
+
+#### `test_graph_async_fan_in`
+- **目标**：async 模式下扇入结构（多个上游汇聚一个下游）。
+- **断言**：merge 节点收到 4 个任务。
+
+#### `test_graph_async_error_propagation`
+- **目标**：async 模式下错误任务不阻断整体流程。
+
+#### `test_graph_async_thread_stage_mode`
+- **目标**：`stage_mode="thread"` + `execution_mode="async"` 组合下的正确执行。
+
+### `TestStageExecutionMatrix` 详细用例说明
+
+覆盖 `stage_mode`（serial/thread）x `execution_mode`（serial/thread/async）全部 6 种组合：
+
+| 用例 | stage_mode | execution_mode |
+|------|-----------|----------------|
+| `test_serial_serial` | serial | serial |
+| `test_serial_thread` | serial | thread |
+| `test_serial_async` | serial | async |
+| `test_thread_serial` | thread | serial |
+| `test_thread_thread` | thread | thread |
+| `test_thread_async` | thread | async |
+
+每个用例均使用 5 个输入任务的两节点 DAG，验证两个 stage 各成功 5 个。
+
+### `TestTaskGraphThread` 详细用例说明
+
+#### `test_graph_thread_two_nodes`
+- **目标**：thread stage_mode 下两节点 DAG 的数据流正确性。
+
+#### `test_graph_thread_fan_out`
+- **目标**：thread 模式下扇出结构。
+
+#### `test_graph_thread_fan_in`
+- **目标**：thread 模式下扇入结构。
+
+#### `test_graph_thread_error_propagation`
+- **目标**：thread 模式下错误任务不阻断流程。
+
+#### `test_graph_thread_with_lambda`
+- **目标**：thread 模式下支持 lambda 函数作为任务处理函数。
+
+#### `test_graph_thread_staged_schedule`
+- **目标**：thread 模式 + `schedule_mode="staged"` 下正常工作。
+
+### `TestSourceStages` 详细用例说明
+
+#### `test_source_stages_linear`
+- **目标**：线性图（A → B → C）中 source 只有头节点 A。
+
+#### `test_source_stages_fan_in`
+- **目标**：两个入口汇入一点，source 为两个入口节点。
+
+#### `test_source_stages_diamond`
+- **目标**：菱形图 A → {B, C} → D 中 source 只有 A。
+
+### `TestCyclicGraph` 详细用例说明
+
+#### `test_cyclic_isDAG_false`
+- **目标**：含环图（s1 → s2 → s3 → s1）的 `isDAG` 为 `False`。
+- **注意**：使用 `put_termination_signal=True` 终止环。
+
+#### `test_cyclic_layers`
+- **目标**：环内节点（s1, s2, s3）同层，尾巴节点 s4 在环层级 + 1。
+
 ### 4. 任务函数的要求
 所有测试的任务函数和参数使用顶层函数和基础类型，确保兼容性。
 
@@ -112,9 +195,14 @@ pytest tests/test_graph.py::TestTaskGraphAnalysis -v
 | 测试 | 耗时（Windows / i5） |
 |------|---------------------|
 | `TestTaskGraphBasic` | ~2s |
+| `TestTaskGraphAsync` | ~3s |
 | `TestTaskGraphStructure` | ~5s |
 | `TestTaskGraphAnalysis` | ~1s |
 | `TestTaskGraphSummary` | ~1s |
+| `TestStageExecutionMatrix` | ~5s |
+| `TestTaskGraphThread` | ~4s |
+| `TestSourceStages` | ~2s |
+| `TestCyclicGraph` | ~2s |
 
 ## 相关文件
 

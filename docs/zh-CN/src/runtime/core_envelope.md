@@ -1,6 +1,6 @@
 # TaskEnvelope
 
-> 📅 最后更新日期: 2026/05/08
+> 📅 最后更新日期: 2026/05/15
 
 任务数据的包装类，在各个 Stage 之间传递。它封装了原始任务数据、任务哈希、任务 ID 和来源信息。
 
@@ -24,7 +24,7 @@ class TaskEnvelope:
 def get_task(self) -> Any:
     """获取原始任务数据。"""
 
-def get_hash(self) -> str:
+def get_hash(self) -> bytes:
     """获取任务哈希值。首次调用时惰性计算并缓存。"""
 
 def get_id(self) -> int:

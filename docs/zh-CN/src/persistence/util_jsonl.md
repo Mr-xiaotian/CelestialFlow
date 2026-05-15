@@ -1,6 +1,6 @@
 # PersistenceJSONL
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/15
 
 `persistence/util_jsonl.py` 提供 JSONL 持久化与读取工具。
 
@@ -10,3 +10,5 @@
 - `load_jsonl_grouped_by_keys`：按多个字段分组读取，支持字段提取和 `ast.literal_eval` 反序列化。
 - `load_task_by_stage`：加载错误记录，按 stage 分类。
 - `load_task_by_error`：加载错误记录，按 error 和 stage 分类。
+- `load_jsonl_by_key`：按指定字段分组加载 jsonl 文件中的值，支持自定义分组键和提取值字段。
+- `load_task_error_pairs`：加载错误记录，返回 `(task, error)` pair 列表。

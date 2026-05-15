@@ -1,6 +1,6 @@
 # TaskStage
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/15
 
 `TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力。
 
@@ -133,22 +133,22 @@ def get_status(self) -> StageStatus:
 ```python
 def start_stage(
     self,
-    input_queues: TaskInQueue,
-    output_queues: TaskOutQueue,
+    input_queue: TaskInQueue,
+    output_queue: TaskOutQueue,
     fail_queue: Queue,
     log_queue: Queue,
 ):
     """
     启动节点执行。
 
-    :param input_queues: 输入队列
-    :param output_queues: 输出队列
+    :param input_queue: 输入队列
+    :param output_queue: 输出队列
     :param fail_queue: 失败队列
     :param log_queue: 日志队列
     """
 ```
 
-节点会持续从 `input_queues` 获取任务，执行（利用 `TaskExecutor` 的逻辑），并将结果放入 `output_queues`。
+节点会持续从 `input_queue` 获取任务，执行（利用 `TaskExecutor` 的逻辑），并将结果放入 `output_queue`。
 
 ## 状态快照
 

@@ -1,6 +1,6 @@
 # TaskMetrics
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/05/15
 
 TaskMetrics 模块负责管理和统计任务执行过程中的各项指标，如输入任务数、成功数、失败数、重复任务数等。它通常作为 `TaskExecutor` 的一个组件存在。
 
@@ -46,9 +46,6 @@ def add_task_count(self, add_count: int = 1):
 
 def add_success_count(self, count: int = 1):
     """线程安全地增加成功任务计数。"""
-
-async def add_success_count_async(self, count: int = 1):
-    """异步更新成功任务计数器。"""
 
 def add_error_count(self, count: int = 1):
     """线程安全地增加失败任务计数。"""
@@ -111,10 +108,10 @@ def get_duplicate_count(self) -> int:
 如果启用了 `enable_duplicate_check`，TaskMetrics 会维护一个 `processed_set` 集合来记录已处理任务的哈希值。
 
 ```python
-def is_duplicate(self, task_hash: str) -> bool:
+def is_duplicate(self, task_hash: bytes) -> bool:
     """检查任务是否已存在。"""
 
-def add_processed_set(self, task_hash: str) -> None:
+def add_processed_set(self, task_hash: bytes) -> None:
     """将任务哈希添加到已处理集合。"""
 ```
 

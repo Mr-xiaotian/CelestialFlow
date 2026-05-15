@@ -1,6 +1,6 @@
 # test_metrics.py 测试说明
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/15
 
 ## 测试目标
 
@@ -27,7 +27,7 @@
 
 #### `test_duplicate_check_enabled_detects_repeat`
 - **目标**：启用去重后，同一 hash 第二次出现返回 `True`。
-- **机制**：内部使用 `set[str]` 存储已处理的 `task_hash`。
+- **机制**：内部使用 `set[bytes]` 存储已处理的 `task_hash`。
 
 #### `test_duplicate_check_resets_with_reset_state`
 - **目标**：`reset_state()` 清空 `processed_set`，使已去重的任务可重新进入。

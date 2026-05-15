@@ -1,6 +1,6 @@
 # TaskReporter
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/15
 
 `TaskReporter` 是一个后台组件，负责收集任务图的运行状态并上报给远程 Web 服务器（CelestialFlow Web UI）。同时也负责从服务器拉取控制指令（如任务注入）。
 
@@ -41,7 +41,7 @@ Reporter 会与以下 Web API 交互：
 
 ```python
 class NullTaskReporter:
-    interval = 0
+    interval = 1
     history_limit = 20
 
     def start(self) -> None: ...

@@ -1,6 +1,6 @@
 # bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/05/11
+> 📅 最后更新日期: 2026/05/15
 
 ## 目标
 
@@ -27,11 +27,8 @@
 
 ## 关键配置
 
-- `stage_modes = ["serial", "thread"]`
-- `execution_sync_modes = ["serial", "thread"]`
-- `execution_async_modes = ["async"]`
-- 共 **6 种组合**，每种都会完整跑一遍图
-- 需要分别提供 `sync_graph`（同步函数）和 `async_graph`（异步函数）
+- `benchmark_graph` 内部会遍历 `stage_mode`（`serial` / `thread`）和 `execution_mode`（`serial` / `thread` / `async`）的组合，共 **6 种组合**，每种都会完整跑一遍图
+- 本文件不直接配置这些模式，仅提供 `sync_graph`（同步函数）和 `async_graph`（异步函数）传入 `benchmark_graph`
 
 ## 可能出现的问题
 

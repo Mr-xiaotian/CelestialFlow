@@ -1,6 +1,6 @@
 # test_envelope.py 测试说明
 
-> 📅 最后更新日期: 2026/05/08
+> 📅 最后更新日期: 2026/05/15
 
 ## 测试目标
 
@@ -11,13 +11,14 @@
 | 测试类 | 用例数 | 覆盖点 |
 |--------|--------|--------|
 | `TestTaskEnvelope` | 7 | 构造与 getter、source、change_id、不同哈希、相同哈希、惰性哈希、slots |
+| `TestObjectToHash` | 4 | 返回 bytes 类型、SHA1 长度、相同输入相同哈希、不同输入不同哈希 |
 
 ### 详细用例说明
 
 #### `test_create_and_getters`
 - **目标**：验证构造函数和 getter 方法能正确创建和读取信封数据。
 - **输入**：`{"key": "value", "num": 42}`，`id=100`
-- **断言**：`get_task()` 返回原始数据；`get_id()` 返回 100；`get_hash()` 为非空字符串。
+- **断言**：`get_task()` 返回原始数据；`get_id()` 返回 100；`get_hash()` 返回 `bytes` 类型且长度大于 0。
 
 #### `test_source_preserved`
 - **目标**：验证 `source` 属性在构造过程中不丢失。
@@ -46,6 +47,21 @@
 |------|------|
 | `pytest` | 测试框架 |
 | `celestialflow.runtime.core_envelope.TaskEnvelope` | 被测对象 |
+| `celestialflow.runtime.util_hash.object_to_hash` | 哈希工具函数 |
+
+### `TestObjectToHash` 详细用例说明
+
+#### `test_returns_bytes`
+- **目标**：验证 `object_to_hash()` 返回 `bytes` 类型。
+
+#### `test_returns_20_bytes`
+- **目标**：验证 SHA1 digest 的长度为 20 字节。
+
+#### `test_same_input_same_hash`
+- **目标**：验证相同输入产生相同哈希值。
+
+#### `test_different_input_different_hash`
+- **目标**：验证不同输入产生不同哈希值。
 
 ## 运行方式
 
