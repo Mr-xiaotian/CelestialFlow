@@ -1,5 +1,6 @@
-let structureData = [];
-let structureRev = -1;
+// 全局状态
+let structureData = []; // 任务结构图数据（有向图）
+let structureRev = -1; // 数据版本号，用于增量拉取
 
 /**
  * 异步加载最新的任务结构数据

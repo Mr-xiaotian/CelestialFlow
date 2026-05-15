@@ -1,10 +1,15 @@
 // 全局配置对象
-let refreshRate = 5000;
-let refreshIntervalId = null;
-const refreshSelect = document.getElementById("refresh-interval");
-const themeToggleBtn = document.getElementById("theme-toggle");
-const tabButtons = document.querySelectorAll(".tab-btn");
-const tabContents = document.querySelectorAll(".tab-content");
+let refreshRate = 5000; // 轮询刷新间隔（毫秒）
+let refreshIntervalId = null; // 轮询定时器 ID
+// DOM 元素引用
+const refreshSelect = document.getElementById("refresh-interval"); // 刷新间隔下拉框
+const historyLimitSelect = document.getElementById("history-limit"); // 历史长度下拉框
+const settingsBtn = document.getElementById("settings-btn"); // 设置齿轮按钮
+const settingsPanel = document.getElementById("settings-panel"); // 设置悬浮面板
+const settingsClose = document.getElementById("settings-close"); // 设置面板关闭按钮
+const themeToggleBtn = document.getElementById("theme-toggle"); // 主题切换按钮
+const tabButtons = document.querySelectorAll(".tab-btn"); // 页签按钮列表
+const tabContents = document.querySelectorAll(".tab-content"); // 页签内容列表
 document.addEventListener("DOMContentLoaded", async () => {
     // ==== 初始化配置 ====
     const loaded = await loadWebConfig();
@@ -12,6 +17,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     applyConfig();
     // ==== 事件绑定 ====
+    // 点击齿轮按钮：切换设置面板显示/隐藏
+    settingsBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        settingsPanel.classList.toggle("hidden");
+    });
+    // 点击关闭按钮：隐藏设置面板
+    settingsClose.addEventListener("click", () => {
+        settingsPanel.classList.add("hidden");
+    });
+    // 点击页面空白处：自动关闭设置面板
+    document.addEventListener("click", (e) => {
+        if (!settingsPanel.classList.contains("hidden") &&
+            !settingsPanel.contains(e.target) &&
+            e.target !== settingsBtn) {
+            settingsPanel.classList.add("hidden");
+        }
+    });
+    // 切换刷新间隔：更新轮询频率并保存配置
     refreshSelect.addEventListener("change", () => {
         refreshRate = parseInt(refreshSelect.value);
         webConfig.refreshInterval = refreshRate;
@@ -19,6 +42,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         clearInterval(refreshIntervalId);
         refreshIntervalId = setInterval(refreshAll, refreshRate);
     });
+    // 切换历史长度限制：保存配置（后端下次快照时生效）
+    historyLimitSelect.addEventListener("change", () => {
+        webConfig.historyLimit = parseInt(historyLimitSelect.value);
+        saveWebConfig(); // 保存配置
+    });
+    // 切换明暗主题：更新样式并重新渲染图表
     themeToggleBtn.addEventListener("click", () => {
         const isDark = toggleDarkTheme();
         webConfig.theme = isDark ? "dark" : "light";
@@ -27,6 +56,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderMermaidStructure(nodeStatuses); // 主题切换后重新渲染 Mermaid 图
         updateChartTheme(); // 主题切换后更新折线图颜色
     });
+    // 切换页签：高亮当前按钮并显示对应内容区
     tabButtons.forEach((button) => {
         button.addEventListener("click", () => {
             const tab = button.getAttribute("data-tab");

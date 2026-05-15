@@ -13,11 +13,13 @@ type NodeStatus = {
   task_avg_time: string;
 };
 
-let nodeStatuses: Record<string, NodeStatus> = {};
-let lastNodeStatuses: Record<string, NodeStatus> = {};
-let statusRev = -1;
-let draggingNodeName: string | null = null;
+// 全局状态
+let nodeStatuses: Record<string, NodeStatus> = {}; // 当前各节点运行状态
+let lastNodeStatuses: Record<string, NodeStatus> = {}; // 上一轮状态快照，用于计算增量
+let statusRev = -1; // 数据版本号，用于增量拉取
+let draggingNodeName: string | null = null; // 当前拖拽中的节点名
 
+// DOM 元素引用
 const dashboardGrid = document.getElementById("dashboard-grid") as HTMLElement;
 
 /**

@@ -88,11 +88,12 @@ h1 {
   🌟 控制面板
 ================================ */
 .control-panel {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 1rem;
 
-  button {
+  button:not(.btn-settings):not(.settings-close) {
     .dark-theme & {
       background-color: var(--carbon-700);
       color: var(--carbon-100);
@@ -105,6 +106,112 @@ h1 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+/* 设置按钮 */
+.btn-settings {
+  background: transparent;
+  border: none;
+  color: var(--frost-0);
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 0.25rem;
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .dark-theme & {
+    color: var(--carbon-200);
+
+    &:hover {
+      background-color: var(--carbon-700);
+    }
+  }
+}
+
+/* 设置面板 */
+.settings-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.25rem;
+  background: var(--frost-0);
+  border: 1px solid var(--carbon-200);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 200px;
+  z-index: 100;
+  color: var(--carbon-800);
+
+  .dark-theme & {
+    background: var(--carbon-800);
+    border-color: var(--carbon-600);
+    color: var(--carbon-200);
+  }
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--carbon-200);
+
+  .dark-theme & {
+    border-color: var(--carbon-600);
+  }
+}
+
+.settings-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.settings-close {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--carbon-500);
+  padding: 0;
+  line-height: 1;
+
+  &:hover {
+    color: var(--carbon-800);
+  }
+
+  .dark-theme & {
+    color: var(--carbon-400);
+
+    &:hover {
+      color: var(--carbon-200);
+    }
+  }
+}
+
+.settings-body {
+  padding: 0.5rem 0.75rem;
+}
+
+.settings-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+
+  label {
+    font-size: 0.8rem;
+    white-space: nowrap;
+    margin-right: 0.75rem;
+  }
+
+  select {
+    font-size: 0.8rem;
+    height: 1.75rem;
+    padding: 0.15rem 0.5rem;
+  }
 }
 
 /* ================================

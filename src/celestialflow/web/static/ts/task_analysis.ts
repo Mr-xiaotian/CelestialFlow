@@ -1,5 +1,6 @@
-let analysisData: Record<string, any> = {};
-let analysisRev = -1;
+// 全局状态
+let analysisData: Record<string, any> = {}; // 拓扑分析数据
+let analysisRev = -1; // 数据版本号，用于增量拉取
 
 /**
  * 异步加载最新的分析数据

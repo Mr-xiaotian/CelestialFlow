@@ -1,5 +1,7 @@
-let summaryData = {};
-let summaryRev = -1;
+// 全局状态
+let summaryData = {}; // 汇总统计数据
+let summaryRev = -1; // 数据版本号，用于增量拉取
+// DOM 元素引用（汇总面板）
 const totalSucceeded = document.getElementById("total-succeeded");
 const totalPending = document.getElementById("total-pending");
 const totalDuplicated = document.getElementById("total-duplicated");

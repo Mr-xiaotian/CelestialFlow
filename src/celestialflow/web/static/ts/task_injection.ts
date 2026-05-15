@@ -1,8 +1,9 @@
 type SelectedNode = { name: string; type: string; status?: number };
 
-let selectedNodes: SelectedNode[] = [];
-let currentInputMethod = "json";
-let uploadedFile: { name: string; content: string } | null = null;
+// 全局状态
+let selectedNodes: SelectedNode[] = []; // 用户选中的注入目标节点
+let currentInputMethod = "json"; // 当前输入方式（json / file）
+let uploadedFile: { name: string; content: string } | null = null; // 已上传的文件内容
 
 document.addEventListener("DOMContentLoaded", async function () {
   renderNodeList();

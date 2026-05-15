@@ -1,10 +1,12 @@
-let errors = [];
-let currentPage = 1;
-const pageSize = 10;
-let totalPages = 1;
-let errorsRev = -1;
-let lastQueryKey = "";
-let errorsRequestSeq = 0;
+// 全局状态
+let errors = []; // 错误记录列表
+let currentPage = 1; // 当前分页页码
+const pageSize = 10; // 每页显示条数
+let totalPages = 1; // 总页数
+let errorsRev = -1; // 数据版本号，用于增量拉取
+let lastQueryKey = ""; // 上次查询的缓存键，用于判断筛选条件是否变化
+let errorsRequestSeq = 0; // 请求序列号，防止旧请求覆盖新结果
+// DOM 元素引用（错误页）
 const searchInput = document.getElementById("error-search");
 const nodeFilter = document.getElementById("node-filter");
 const errorsTableBody = document.querySelector("#errors-table tbody");

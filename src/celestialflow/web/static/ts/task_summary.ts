@@ -1,6 +1,8 @@
-let summaryData: Record<string, any> = {};
-let summaryRev = -1;
+// 全局状态
+let summaryData: Record<string, any> = {}; // 汇总统计数据
+let summaryRev = -1; // 数据版本号，用于增量拉取
 
+// DOM 元素引用（汇总面板）
 const totalSucceeded = document.getElementById("total-succeeded") as HTMLElement;
 const totalPending = document.getElementById("total-pending") as HTMLElement;
 const totalDuplicated = document.getElementById("total-duplicated") as HTMLElement;

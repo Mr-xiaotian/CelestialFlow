@@ -1,4 +1,5 @@
-let webConfig = null;
+// 全局状态
+let webConfig = null; // 当前加载的 Web 配置
 const PANEL_SELECTOR_MAP = {
     left: ".left-panel",
     middle: ".middle-panel",
@@ -61,6 +62,11 @@ function applyConfig() {
     refreshRate = Number.isFinite(interval) && interval > 0 ? interval : 5000;
     webConfig.refreshInterval = refreshRate;
     refreshSelect.value = refreshRate.toString();
+    // 应用历史长度
+    const limit = Number(webConfig.historyLimit);
+    if (Number.isFinite(limit) && limit > 0) {
+        historyLimitSelect.value = limit.toString();
+    }
     // 应用仪表盘布局
     applyDashboardLayout();
 }

@@ -1,11 +1,12 @@
 type NodeHistory = Array<{ timestamp: number; tasks_processed: number }>;
 
-let nodeHistories: Record<string, NodeHistory> = {};
-let progressChart = null;
-let hiddenNodes = new Set<string>(
+// 全局状态
+let nodeHistories: Record<string, NodeHistory> = {}; // 各节点的处理进度历史
+let progressChart = null; // Chart.js 折线图实例
+let hiddenNodes = new Set<string>( // 用户隐藏的节点集合（持久化到 localStorage）
   JSON.parse(localStorage.getItem("hiddenNodes") || "[]")
 );
-let historyRev = -1;
+let historyRev = -1; // 数据版本号，用于增量拉取
 
 /**
  * 异步加载最新的节点状态数据

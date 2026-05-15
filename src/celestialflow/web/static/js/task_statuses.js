@@ -1,7 +1,9 @@
-let nodeStatuses = {};
-let lastNodeStatuses = {};
-let statusRev = -1;
-let draggingNodeName = null;
+// 全局状态
+let nodeStatuses = {}; // 当前各节点运行状态
+let lastNodeStatuses = {}; // 上一轮状态快照，用于计算增量
+let statusRev = -1; // 数据版本号，用于增量拉取
+let draggingNodeName = null; // 当前拖拽中的节点名
+// DOM 元素引用
 const dashboardGrid = document.getElementById("dashboard-grid");
 /**
  * 异步加载最新的节点状态数据

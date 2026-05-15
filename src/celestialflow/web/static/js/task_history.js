@@ -1,7 +1,9 @@
-let nodeHistories = {};
-let progressChart = null;
-let hiddenNodes = new Set(JSON.parse(localStorage.getItem("hiddenNodes") || "[]"));
-let historyRev = -1;
+// 全局状态
+let nodeHistories = {}; // 各节点的处理进度历史
+let progressChart = null; // Chart.js 折线图实例
+let hiddenNodes = new Set(// 用户隐藏的节点集合（持久化到 localStorage）
+JSON.parse(localStorage.getItem("hiddenNodes") || "[]"));
+let historyRev = -1; // 数据版本号，用于增量拉取
 /**
  * 异步加载最新的节点状态数据
  * 从后端 API 获取节点状态并更新全局变量 nodeHistories
