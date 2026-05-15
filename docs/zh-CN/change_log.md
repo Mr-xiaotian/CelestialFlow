@@ -1,6 +1,6 @@
 # 更新日志（Change Log）
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/15
 
 - 2021: 建立一个支持多线程与单线程处理函数的类
 - 2023: 在GPT4帮助下添加多进程与携程运行模式 
@@ -161,10 +161,19 @@
 - 3.2.0
   - feat:
     - [Important] 彻底废弃 `stage_mode="process"`, 移除所有 multiprocessing 依赖(MPValue, MPQueue, multiprocessing.Process);
-      - bench 数据表明 process 模式在所有场景下均慢于 thread 模式, 且引入大量序列化开销和 pickle 限制;
-      - `stage_mode` 现在仅支持 `"serial"` 和 `"thread"`;
-      - 删除 `PickleError` 异常类;
-      - `_status` 从 `MPValue` 改为普通 `int`;
-      - `SumCounter`/`TaskMetrics` 的计数器不再使用 `MPValue`;
-      - `core_structure.py` 中所有预置结构默认从 `"process"` 改为 `"thread"`;
-      - `benchmark_graph` 默认 stage_modes 从 `["serial", "process"]` 改为 `["serial", "thread"]`;
+      - bench_graph_mode 数据表明 process 模式在所有场景下均慢于 thread 模式, 且引入大量序列化开销和 pickle 限制;
+    - [Important] 删除原有set_stages中手动输入的`root_stages`参数, 取而代之为通过scc缩合图计算出的一组`source_stages`
+      - 重补了不少图论课
+      - 当前仅支持设置刷新间隔与历史长度, 之后可以进行更多设置
+    - 将graph/stage/executor的默认log level从`SUCCESS`改为`INFO`, 也就是默认只显示开启关闭信息与错误
+    - 在web页面中添加配置按钮
+  - refactor:
+    - 由于stage_mode中取消`process`, 框架中部分为了适配`process`而进行的设计进行删除或者重构  
+      - 例如将所有的MPValue和MPQueue改为int与Queue
+      - 尚未进行严格的bench测试, 但应该会带来一定的性能优化
+    - 重构networkx图的建立过程, 现在直接通过节点与出边进行建立, 不再依赖递归
+    - 在重试检测机制中计算bytes类型的hash, 而非原本的string类型
+      - 根据 bench_hash_memory, 节省内存约23%
+    - 将节点状态中的deltas数据放在web端由js计算, 减少不必要的通信数据
+  - fix:
+    - 删除InQueue.get中的错误捕获, 这会导致错过panic级error

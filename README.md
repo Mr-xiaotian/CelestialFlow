@@ -236,29 +236,31 @@ flowchart TD
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.1.9</em>
+  <em>celestial-flow 3.2.0</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.1.9
- - feat:
-   - [Important] 在TaskStage中允许使用 `async` executor_mode;
-     - 3.1.8版本中其实已经可以实现, 在3.1.9版本中彻底测试通过;
-   - [Important] 创建基类BaseObservor, 现在可以从外界接入自定义Observor来检测运行状况;
-     - 同时创建轻量观察者CallbackObserver;
-   - 在TaskStage中添加init字段`log_level`, 自此stage init字段集实现对executor init字段集的包含关系, 仅多出`stage_mode`字段;
-   - escapeHtml中添加更多替换项;
-   - 在dispatch_thread中添加对futures的清理, 避免无用future的堆积;
-     - 基于bench\bench_futures_memory.py, 在十万级任务下futures内存开销为177.01 MB, 在定期清理后则为0.48 MB
- - refactor:
-    - 重构TaskProgress, 使其继承BaseObservor;
-      - 接口破坏性重构, TaskExecutor的show_progress参数已删除, 现在只有显性的add_observer TaskProgress后才会使用progress
-      - 具体使用参考demo\demo_executor.py
-    - 重构TaskEnvelope, 不再使用wrap与unwrap, 同时hash值惰性求解;
-  - chore:
-    - 删除部分无用代码以提高代码质量;
+- 3.2.0
+  - feat:
+    - [Important] 彻底废弃 `stage_mode="process"`, 移除所有 multiprocessing 依赖(MPValue, MPQueue, multiprocessing.Process);
+      - bench_graph_mode 数据表明 process 模式在所有场景下均慢于 thread 模式, 且引入大量序列化开销和 pickle 限制;
+    - [Important] 删除原有set_stages中手动输入的`root_stages`参数, 取而代之为通过scc缩合图计算出的一组`source_stages`
+      - 重补了不少图论课
+      - 当前仅支持设置刷新间隔与历史长度, 之后可以进行更多设置
+    - 将graph/stage/executor的默认log level从`SUCCESS`改为`INFO`, 也就是默认只显示开启关闭信息与错误
+    - 在web页面中添加配置按钮
+  - refactor:
+    - 由于stage_mode中取消`process`, 框架中部分为了适配`process`而进行的设计进行删除或者重构  
+      - 例如将所有的MPValue和MPQueue改为int与Queue
+      - 尚未进行严格的bench测试, 但应该会带来一定的性能优化
+    - 重构networkx图的建立过程, 现在直接通过节点与出边进行建立, 不再依赖递归
+    - 在重试检测机制中计算bytes类型的hash, 而非原本的string类型
+      - 根据 bench_hash_memory, 节省内存约23%
+    - 将节点状态中的deltas数据放在web端由js计算, 减少不必要的通信数据
+  - fix:
+    - 删除InQueue.get中的错误捕获, 这会导致错过panic级error
 
 更多过往日志可看:
 
