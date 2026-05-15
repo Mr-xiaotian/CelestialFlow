@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.addEventListener("click", (e) => {
         if (!settingsPanel.classList.contains("hidden") &&
             !settingsPanel.contains(e.target as Node) &&
-            e.target !== settingsBtn) {
+            !settingsBtn.contains(e.target as Node)) {
             settingsPanel.classList.add("hidden");
         }
     });

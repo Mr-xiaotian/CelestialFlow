@@ -148,6 +148,7 @@ function updateChartData() {
   }));
 
   const firstNode = Object.keys(nodeDataMap)[0];
+  if (!firstNode) return;
   progressChart.data.labels = nodeDataMap[firstNode]?.map((p) =>
     new Date(p.x * 1000).toLocaleTimeString()
   );

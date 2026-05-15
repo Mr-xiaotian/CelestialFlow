@@ -131,6 +131,8 @@ function updateChartData() {
         hidden: hiddenNodes.has(node), // 根据用户之前的选择
     }));
     const firstNode = Object.keys(nodeDataMap)[0];
+    if (!firstNode)
+        return;
     progressChart.data.labels = nodeDataMap[firstNode]?.map((p) => new Date(p.x * 1000).toLocaleTimeString());
     progressChart.data.datasets = datasets;
     progressChart.update();
