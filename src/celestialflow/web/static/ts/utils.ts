@@ -104,7 +104,7 @@ function validateJSON(text: string) {
     hideError("json-error");
     return true;
   } catch (e) {
-    showError("json-error", "JSON 格式不合法");
+    showError("json-error", t("json.invalid"));
     return false;
   }
 }

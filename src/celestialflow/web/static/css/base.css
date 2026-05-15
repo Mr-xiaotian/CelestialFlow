@@ -118,6 +118,8 @@ h1 {
   border-radius: 0.25rem;
   display: flex;
   align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
 
   &:hover {
     background-color: rgba(255, 255, 255, 0.15);

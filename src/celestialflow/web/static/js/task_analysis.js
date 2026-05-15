@@ -29,31 +29,31 @@ function renderAnalysisInfo() {
     if (!container)
         return;
     if (!analysisData || Object.keys(analysisData).length === 0) {
-        container.innerHTML = `<div class="empty-placeholder">暂无分析信息</div>`;
+        container.innerHTML = `<div class="empty-placeholder">${t("analysis.noData")}</div>`;
         return;
     }
     const { isDAG, schedule_mode, class_name, layers_dict = {}, } = analysisData;
     const layerCount = Object.keys(layers_dict).length;
     container.innerHTML = `
     <div class="analysis-row">
-      <span class="analysis-label">结构类型</span>
+      <span class="analysis-label">${t("analysis.structType")}</span>
       <span class="analysis-value">${class_name}</span>
     </div>
 
     <div class="analysis-row">
-      <span class="analysis-label">是否 DAG</span>
+      <span class="analysis-label">${t("analysis.isDAG")}</span>
       <span class="analysis-value ${isDAG ? "ok" : "warn"}">
-        ${isDAG ? "是（无环）" : "否（存在环）"}
+        ${isDAG ? t("analysis.dagYes") : t("analysis.dagNo")}
       </span>
     </div>
 
     <div class="analysis-row">
-      <span class="analysis-label">调度模式</span>
+      <span class="analysis-label">${t("analysis.scheduleMode")}</span>
       <span class="analysis-value">${schedule_mode}</span>
     </div>
 
     <div class="analysis-row">
-      <span class="analysis-label">层级数量</span>
+      <span class="analysis-label">${t("analysis.layerCount")}</span>
       <span class="analysis-value">${layerCount}</span>
     </div>
   `;

@@ -9,6 +9,7 @@ const settingsBtn = document.getElementById("settings-btn") as HTMLButtonElement
 const settingsPanel = document.getElementById("settings-panel") as HTMLElement; // 设置悬浮面板
 const settingsClose = document.getElementById("settings-close") as HTMLButtonElement; // 设置面板关闭按钮
 const themeToggleBtn = document.getElementById("theme-toggle") as HTMLButtonElement; // 主题切换按钮
+const languageSelect = document.getElementById("language-select") as HTMLSelectElement; // 语言选择下拉框
 const tabButtons = document.querySelectorAll<HTMLElement>(".tab-btn"); // 页签按钮列表
 const tabContents = document.querySelectorAll<HTMLElement>(".tab-content"); // 页签内容列表
 
@@ -59,10 +60,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     themeToggleBtn.addEventListener("click", () => {
         const isDark = toggleDarkTheme();
         webConfig.theme = isDark ? "dark" : "light";
-        saveWebConfig(); // 保存配置
-        themeToggleBtn.textContent = isDark ? "🌞 白天模式" : "🌙 夜间模式";
-        renderMermaidStructure(nodeStatuses); // 主题切换后重新渲染 Mermaid 图
-        updateChartTheme(); // 主题切换后更新折线图颜色
+        saveWebConfig();
+        themeToggleBtn.textContent = isDark ? t("theme.light") : t("theme.dark");
+        renderMermaidStructure(nodeStatuses);
+        updateChartTheme();
+    });
+
+    // 切换界面语言：更新所有文本并重新渲染动态内容
+    languageSelect.addEventListener("change", () => {
+        webConfig.language = languageSelect.value as Lang;
+        setLang(webConfig.language);
+        applyI18nDOM();
+        themeToggleBtn.textContent = document.body.classList.contains("dark-theme") ? t("theme.light") : t("theme.dark");
+        renderDashboard();
+        renderErrors();
+        renderAnalysisInfo();
+        renderNodeList();
+        initChart();
+        updateChartData();
+        saveWebConfig();
     });
 
     // 切换页签：高亮当前按钮并显示对应内容区

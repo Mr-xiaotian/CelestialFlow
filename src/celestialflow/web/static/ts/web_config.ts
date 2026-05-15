@@ -2,6 +2,7 @@ type WebConfig = {
     theme: "light" | "dark";
     refreshInterval: number;
     historyLimit: number;
+    language: Lang;
     dashboard: {
         left: string[];
         middle: string[];
@@ -63,13 +64,18 @@ async function saveWebConfig() {
  * 应用配置到界面
  */
 function applyConfig() {
+    // 应用语言
+    setLang(webConfig.language || "zh-CN");
+    const langSelect = document.getElementById("language-select") as HTMLSelectElement;
+    if (langSelect) langSelect.value = currentLang;
+
     // 应用主题
     if (webConfig.theme === "dark") {
         document.body.classList.add("dark-theme");
-        themeToggleBtn.textContent = "🌞 白天模式";
+        themeToggleBtn.textContent = t("theme.light");
     } else {
         document.body.classList.remove("dark-theme");
-        themeToggleBtn.textContent = "🌙 夜间模式";
+        themeToggleBtn.textContent = t("theme.dark");
     }
     
     // 应用刷新间隔
@@ -90,6 +96,9 @@ function applyConfig() {
 
     // 应用仪表盘布局
     applyDashboardLayout();
+
+    // 应用国际化
+    applyI18nDOM();
 }
 
 /**

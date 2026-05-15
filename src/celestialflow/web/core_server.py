@@ -101,6 +101,7 @@ class WebConfigModel(BaseModel):
     theme: str
     refreshInterval: int
     historyLimit: int
+    language: str = "zh-CN"
     dashboard: DashboardConfigModel
     cards: dict[str, CardConfigModel]
 

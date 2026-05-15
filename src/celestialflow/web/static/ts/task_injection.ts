@@ -62,13 +62,13 @@ function renderNodeList(searchTerm = "") {
       // 根据 status 值确定样式和文本
       const status = nodeStatuses[nodeName].status;
       let badgeClass = "badge-inactive";
-      let badgeText = "未运行";
+      let badgeText = t("injection.notRunning");
       if (status === 1) {
         badgeClass = "badge-running";
-        badgeText = "运行中";
+        badgeText = t("injection.running");
       } else if (status === 2) {
         badgeClass = "badge-completed";
-        badgeText = "已停止";
+        badgeText = t("injection.stopped");
       }
 
       // 禁止点击已停止的节点
@@ -230,7 +230,7 @@ function handleFileUpload(e: Event) {
   if (!file) return;
 
   if (!file.name.endsWith(".json")) {
-    showError("file-error", "请上传 .json 格式的文件");
+    showError("file-error", t("injection.uploadJsonOnly"));
     return;
   }
 
@@ -242,11 +242,11 @@ function handleFileUpload(e: Event) {
       JSON.parse(content);
 
       uploadedFile = { name: file.name, content };
-      document.getElementById("file-name").textContent = `已上传: ${file.name}`;
+      document.getElementById("file-name").textContent = t("injection.uploaded", file.name);
       document.getElementById("file-info").style.display = "flex";
       hideError("file-error");
     } catch (e) {
-      showError("file-error", "上传文件无效，请检查JSON格式");
+      showError("file-error", t("injection.uploadInvalid"));
       uploadedFile = null;
       document.getElementById("file-info").style.display = "none";
     }
@@ -301,7 +301,7 @@ function showStatus(message, isSuccess = false) {
  */
 async function handleSubmit() {
   if (selectedNodes.length === 0) {
-    showStatus("请选择至少一个节点", false);
+    showStatus(t("injection.selectNodeRequired"), false);
     return;
   }
 
@@ -309,17 +309,17 @@ async function handleSubmit() {
   if (currentInputMethod === "json") {
     const jsonText = (document.getElementById("json-textarea") as HTMLTextAreaElement).value.trim();
     if (!jsonText) {
-      showStatus("请输入任务数据", false);
+      showStatus(t("injection.enterData"), false);
       return;
     }
     if (!validateJSON(jsonText)) {
-      showStatus("JSON格式不合法", false);
+      showStatus(t("injection.invalidJson"), false);
       return;
     }
     taskData = JSON.parse(jsonText);
   } else {
     if (!uploadedFile) {
-      showStatus("请上传任务文件", false);
+      showStatus(t("injection.uploadRequired"), false);
       return;
     }
     taskData = JSON.parse(uploadedFile.content);
@@ -342,11 +342,11 @@ async function handleSubmit() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
     }
 
-    showStatus("任务已成功注入到所有选定节点", true);
+    showStatus(t("injection.success"), true);
     clearForm();
   } catch (e) {
     console.error(e);
-    showStatus("任务注入失败，请重试", false);
+    showStatus(t("injection.failed"), false);
   } finally {
     setButtonLoading(false);
   }
@@ -359,10 +359,10 @@ async function handleSubmit() {
 function setButtonLoading(loading: boolean) {
   const btn = document.getElementById("submit-btn") as HTMLButtonElement;
   if (loading) {
-    btn.innerHTML = '<div class="spinner"></div>提交中...';
+    btn.innerHTML = `<div class="spinner"></div>${t("injection.submitting")}`;
     btn.disabled = true;
   } else {
-    btn.innerHTML = "提交任务注入";
+    btn.innerHTML = t("injection.submit");
     btn.disabled = false;
   }
 }

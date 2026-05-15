@@ -97,13 +97,13 @@ function initChart() {
         x: {
           ticks: { color: textColor },
           grid: { color: gridColor },
-          title: { display: true, text: "时间", color: textColor },
+          title: { display: true, text: t("chart.time"), color: textColor },
           border: { color: borderColor },
         },
         y: {
           ticks: { color: textColor },
           grid: { color: gridColor },
-          title: { display: true, text: "完成任务数", color: textColor },
+          title: { display: true, text: t("chart.tasksCompleted"), color: textColor },
           border: { color: borderColor },
         },
       },

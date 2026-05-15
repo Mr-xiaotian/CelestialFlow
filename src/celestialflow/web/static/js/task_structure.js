@@ -68,7 +68,7 @@ function renderMermaidStructure(statuses = {}) {
         const newDiv = document.createElement("div");
         newDiv.id = "mermaid-container";
         newDiv.className = "empty-placeholder";
-        newDiv.textContent = "暂无结构数据";
+        newDiv.textContent = t("structure.noData");
         old.replaceWith(newDiv);
         return;
     }

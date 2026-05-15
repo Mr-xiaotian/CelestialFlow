@@ -70,7 +70,7 @@ function renderErrors() {
     const pageItems = errors;
     errorsTableBody.innerHTML = "";
     if (!pageItems.length) {
-        errorsTableBody.innerHTML = `<tr><td colspan="6" class="empty-placeholder">没有错误记录</td></tr>`;
+        errorsTableBody.innerHTML = `<tr><td colspan="6" class="empty-placeholder">${t("errors.noRecords")}</td></tr>`;
     }
     else {
         for (let i = 0; i < pageItems.length; i++) {
@@ -79,11 +79,11 @@ function renderErrors() {
             const row = document.createElement("tr");
             row.innerHTML = `
         <td data-label="#">${index}</td>
-        <td class="error-id" data-label="错误id">${e.error_id}</td>
-        <td class="error-cell" data-label="错误信息" title="${escapeHtml(e.error_repr)}">${escapeHtml(e.error_repr)}</td>
-        <td data-label="节点">${escapeHtml(e.stage)}</td>
-        <td data-label="任务">${escapeHtml(e.task_repr)}</td>
-        <td data-label="时间">${renderLocalTime(e.ts)}</td>
+        <td class="error-id" data-label="${t("errors.colId")}">${e.error_id}</td>
+        <td class="error-cell" data-label="${t("errors.colMessage")}" title="${escapeHtml(e.error_repr)}">${escapeHtml(e.error_repr)}</td>
+        <td data-label="${t("errors.colNode")}">${escapeHtml(e.stage)}</td>
+        <td data-label="${t("errors.colTask")}">${escapeHtml(e.task_repr)}</td>
+        <td data-label="${t("errors.colTime")}">${renderLocalTime(e.ts)}</td>
       `;
             errorsTableBody.appendChild(row);
         }
@@ -130,7 +130,7 @@ function renderPaginationControls(totalPages) {
         return;
     // 上一页
     const prevBtn = document.createElement("button");
-    prevBtn.textContent = "上一页";
+    prevBtn.textContent = t("errors.prevPage");
     prevBtn.className = "pager-btn";
     prevBtn.disabled = currentPage === 1;
     prevBtn.onclick = async () => { await goToErrorsPage(currentPage - 1); };
@@ -157,7 +157,7 @@ function renderPaginationControls(totalPages) {
     });
     // 下一页
     const nextBtn = document.createElement("button");
-    nextBtn.textContent = "下一页";
+    nextBtn.textContent = t("errors.nextPage");
     nextBtn.className = "pager-btn";
     nextBtn.disabled = currentPage === totalPages;
     nextBtn.onclick = async () => { await goToErrorsPage(currentPage + 1); };
@@ -172,7 +172,7 @@ function renderPaginationControls(totalPages) {
 function populateNodeFilter(statuses) {
     const nodes = Object.keys(statuses);
     const previousValue = nodeFilter.value;
-    nodeFilter.innerHTML = `<option value="">全部节点</option>`;
+    nodeFilter.innerHTML = `<option value="">${t("errors.allNodes")}</option>`;
     for (const node of nodes) {
         const option = document.createElement("option");
         option.value = node;
