@@ -1,6 +1,6 @@
 # utils.ts
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/15
 
 通用工具函数集合，供所有其他前端模块共享使用。
 
@@ -18,7 +18,7 @@ renderLocalTime(1700000000) // → "2023/11/15 上午10:13:20"（依本地区域
 
 ### `formatLargeNumber(n)`
 
-将大数格式化为模糊科学计数法 HTML；小于 10000 的数直接返回字符串。
+将大数格式化为模糊科学计数法 HTML；小于 1000 万的数用逗号分隔，大于等于 1000 万转为科学计数法。
 
 ```ts
 formatLargeNumber(1234567890) // → "~1.23×10<sup>9</sup>"
@@ -83,7 +83,7 @@ getColor(9) // → "#3b82f6"（循环）
 
 ### `escapeHtml(str)`
 
-转义 HTML 特殊字符（`&`, `<`, `>`, `"`），防止 XSS。
+转义 HTML 特殊字符（`&`, `<`, `>`, `"`, `'`, `/`），防止 XSS。
 
 ```ts
 escapeHtml('<script>') // → "&lt;script&gt;"
@@ -112,6 +112,14 @@ formatDuration(90)    // → "01:30"
 formatDuration(3661)  // → "01:01:01"
 formatDuration(-5)    // → "00:00"
 ```
+
+---
+
+### `formatElapsedDuration(seconds, successCount, failedCount, duplicateCount)`
+
+将 elapsed 时间格式化为带颜色的 HTML 字符串。每个数字字符用 `<span>` 包裹，按成功/失败/重复的任务占比分配颜色类。
+
+内部调用链：`getElapsedSegments()` → `buildElapsedDigitClasses()` → `renderElapsedDurationHtml()`。
 
 ---
 

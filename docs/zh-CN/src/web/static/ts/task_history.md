@@ -1,6 +1,6 @@
 # task_history.ts
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/15
 
 管理节点任务处理历史数据的加载与折线图的初始化、更新。
 
@@ -51,7 +51,7 @@ type NodeHistory = Array<{ timestamp: number; tasks_processed: number }>;
 
 1. 调用 `extractProgressData(nodeHistories)` 转换为 `{x, y}` 坐标点
 2. 为每个节点生成 dataset，颜色由 `getColor(index)` 分配，`hidden` 状态由 `hiddenNodes` 决定
-3. 用第一个节点的时间戳序列生成 X 轴 labels（本地时间字符串）
+3. 用第一个节点的时间戳序列生成 X 轴 labels（本地时间字符串）；若无节点数据则提前返回
 4. 调用 `progressChart.update()` 重绘
 
 ## 数据流

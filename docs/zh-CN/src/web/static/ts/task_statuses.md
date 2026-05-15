@@ -1,6 +1,6 @@
 # task_statuses.ts
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/15
 
 管理各节点运行状态数据的加载与仪表盘状态卡片的渲染。
 
@@ -12,12 +12,8 @@ type NodeStatus = {
   tasks_processed: number;   // 已处理任务数
   tasks_pending: number;     // 等待中任务数
   tasks_succeeded: number;   // 累计成功数
-  add_tasks_succeeded: number; // 本周期新增成功数
-  add_tasks_pending: number;
-  tasks_failed: number;
-  add_tasks_failed: number;
-  tasks_duplicated: number;
-  add_tasks_duplicated: number;
+  tasks_failed: number;      // 累计失败数
+  tasks_duplicated: number;  // 累计重复数
   stage_mode: string;        // serial / thread
   execution_mode: string;    // serial / thread / async
   start_time: number;        // Unix 时间戳（秒）
@@ -32,6 +28,7 @@ type NodeStatus = {
 | 变量 | 类型 | 说明 |
 |------|------|------|
 | `nodeStatuses` | `Record<string, NodeStatus>` | 所有节点的当前状态 |
+| `lastNodeStatuses` | `Record<string, NodeStatus>` | 上一轮状态快照，用于计算增量 |
 | `statusRev` | `number` | 上次拉取的版本号，用于增量拉取（`known_rev`） |
 | `draggingNodeName` | `string \| null` | 当前正在拖动的节点名，渲染时跳过 |
 
@@ -39,7 +36,7 @@ type NodeStatus = {
 
 ### `loadStatuses()`
 
-异步从 `GET /api/pull_status?known_rev=N` 拉取节点状态。若服务端数据未变化（`body.data === null`），返回 `false`；否则更新 `nodeStatuses` 和 `statusRev`，返回 `true`。
+异步从 `GET /api/pull_status?known_rev=N` 拉取节点状态。若服务端数据未变化（`body.data === null`），返回 `false`；否则将当前 `nodeStatuses` 保存为 `lastNodeStatuses`，更新 `nodeStatuses` 和 `statusRev`，返回 `true`。
 
 ---
 
@@ -55,18 +52,20 @@ type NodeStatus = {
 
 遍历 `nodeStatuses`，为每个节点生成状态卡片并插入 `#dashboard-grid`。
 
+增量通过 `lastNodeStatuses` 计算（如 `data.tasks_succeeded - last.tasks_succeeded`），以彩色小字显示。
+
 **卡片内容：**
-- 节点名称 + 状态徽章（未运行 / 运行中 / 已停止）
+- 节点名称
 - 统计数据：已成功、等待中、错误数（可点击跳转）、重复数、节点模式、运行模式
 - 开始时间
-- 任务完成率进度条（含已用/剩余时间、平均耗时、百分比）
+- 任务完成率进度条（四段：成功/错误/重复/等待），含已用/剩余时间、平均耗时、百分比
 
 错误数字带 `error-clickable` 样式，点击后调用 `switchToErrorsTab(node)`（定义于 `utils.ts`）跳转并预设筛选。
 
-## 徽章状态映射
+## 卡片状态样式
 
-| `status` 值 | CSS 类 | 文字 |
+| `status` 值 | CSS 类 | 含义 |
 |-------------|--------|------|
-| `0` | `badge-inactive` | 未运行 |
-| `1` | `badge-running` | 运行中 |
-| `2` | `badge-completed` | 已停止 |
+| `0` | `node-card` | 未运行 |
+| `1` | `node-card status-running` | 运行中 |
+| `2` | `node-card status-stopped` | 已停止 |

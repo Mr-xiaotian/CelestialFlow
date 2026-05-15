@@ -1,8 +1,8 @@
 # web_config.ts
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/15
 
-管理 Web 前端的配置加载、保存和应用，包括主题、刷新间隔和仪表盘布局。
+管理 Web 前端的配置加载、保存和应用，包括主题、刷新间隔、历史长度和仪表盘布局。
 
 ## 全局变量
 
@@ -52,7 +52,8 @@ type WebConfig = {
 
 1. **主题**: 根据 `webConfig.theme` 切换 `dark-theme` CSS 类和按钮文字
 2. **刷新间隔**: 更新 `refreshRate` 和下拉框选中值（含边界保护）
-3. **仪表盘布局**: 调用 `applyDashboardLayout()`
+3. **历史长度**: 将 `historyLimit` 同步到 `#history-limit` 下拉框（仅当配置值在可选项中存在时才设置，避免显示空白）
+4. **仪表盘布局**: 调用 `applyDashboardLayout()`
 
 ---
 
@@ -64,7 +65,7 @@ type WebConfig = {
 
 1. 收集所有已知卡片 key（配置中 + DOM 中存在的），定位对应 `.{key}-card` DOM 元素
 2. 先隐藏所有已知卡片
-3. 按 `left` / `middle` / `right` 顺序，将卡片 `appendChild` 到对应栏位，设为可见，并更新标题
+3. 按 `left` / `middle` / `right` 顺序，将卡片 `appendChild` 到对应栏位，设为可见
 4. 兜底隐藏未被任何栏位接收的卡片
 
 > 通过 `appendChild` 实现移动，支持任意栏位 + 任意顺序组合配置。
@@ -77,13 +78,13 @@ type WebConfig = {
     "refreshInterval": 5000,
     "historyLimit": 20,
     "dashboard": {
-        "left": ["mermaid", "topology"],
+        "left": ["mermaid", "analysis"],
         "middle": ["status"],
         "right": ["progress", "summary"]
     },
     "cards": {
         "mermaid": { "title": "任务结构图" },
-        "topology": { "title": "图拓扑信息" },
+        "analysis": { "title": "图分析信息" },
         "status": { "title": "节点运行状态" },
         "progress": { "title": "节点完成走向" },
         "summary": { "title": "总体状态摘要" }

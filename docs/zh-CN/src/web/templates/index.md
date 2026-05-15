@@ -1,6 +1,6 @@
 # index.html
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/15
 
 Web UI 的 Jinja2 模板文件，定义了监控系统的完整页面结构。
 
@@ -9,13 +9,26 @@ Web UI 的 Jinja2 模板文件，定义了监控系统的完整页面结构。
 页面分为三个主要区域：
 
 ```
-<header>  — 顶部控制栏（刷新间隔、主题切换）
+<header>  — 顶部控制栏（设置面板、主题切换）
 <main>
   ├─ .tabs          — 标签页导航
   ├─ #dashboard     — 仪表盘（三栏布局）
   ├─ #errors        — 错误日志
   └─ #task-injection — 任务注入
 ```
+
+## Header 控制栏
+
+| 元素 | ID / Class | 说明 |
+|------|-----------|------|
+| 设置按钮 | `#settings-btn` / `.btn-settings` | 齿轮 SVG 图标，点击打开设置面板 |
+| 设置面板 | `#settings-panel` / `.settings-panel` | 悬浮面板，包含刷新间隔和历史长度两项设置 |
+| 关闭按钮 | `#settings-close` / `.settings-close` | 设置面板内的关闭按钮 |
+| 刷新间隔 | `#refresh-interval` | 下拉框，可选 1s/2s/5s/10s/30s |
+| 历史长度 | `#history-limit` | 下拉框，可选 10/20/50/100 |
+| 主题切换 | `#theme-toggle` | 明暗模式切换按钮 |
+
+设置面板默认隐藏（`hidden` 类），点击齿轮按钮切换显示，点击面板外区域或关闭按钮隐藏。
 
 ## 标签页
 
@@ -29,10 +42,10 @@ Web UI 的 Jinja2 模板文件，定义了监控系统的完整页面结构。
 
 ### 左栏 `.left-panel`
 
-| 卡片 | ID / Class | 默认显示 | 说明 |
-|------|-----------|---------|------|
-| 任务结构图 | `.mermaid-card` | 由布局配置决定 | Mermaid 流程图容器 `#mermaid-container` |
-| 图拓扑信息 | `.topology-card` / `#topology-card` | 由布局配置决定 | 显示 DAG 状态、调度模式、层级数 |
+| 卡片 | Class | 说明 |
+|------|-------|------|
+| 任务结构图 | `.mermaid-card` | Mermaid 流程图容器 `#mermaid-container` |
+| 图分析信息 | `.analysis-card` | 显示 DAG 状态、调度模式、层级数 |
 
 ### 中栏 `.middle-panel`
 
@@ -53,8 +66,8 @@ Web UI 的 Jinja2 模板文件，定义了监控系统的完整页面结构。
 
 - 关键词搜索框 `#error-search`
 - 节点筛选下拉 `#node-filter`
-- 错误表格 `#errors-table`（列：错误id / 错误信息 / 节点 / 任务 / 时间）
-- 分页控件容器 `#pagination-container`
+- 错误表格 `#errors-table`（列：序号 / 错误id / 错误信息 / 节点 / 任务 / 时间）
+- 分页控件容器 `#pager-container`
 
 ## 任务注入面板
 
@@ -81,10 +94,11 @@ Mermaid 通过 `<script type="module">` 以 ESM 方式加载，并挂载到 `win
 
 ```html
 utils.js          ← 工具函数（无依赖）
+web_config.js     ← 依赖 utils（引用 refreshSelect 等 DOM 元素）
 task_statuses.js  ← 依赖 utils
 task_structure.js ← 依赖 utils, task_statuses（读 nodeStatuses）
 task_errors.js    ← 依赖 utils, task_statuses（读 nodeStatuses）
-task_topology.js  ← 依赖 utils
+task_analysis.js  ← 依赖 utils
 task_summary.js   ← 依赖 utils
 task_history.js   ← 依赖 utils（extractProgressData, getColor）
 task_injection.js ← 依赖 task_statuses（读 nodeStatuses）, utils
@@ -94,7 +108,8 @@ main.js           ← 依赖所有上述模块
 ## CSS 样式引用
 
 ```html
-css/base.css       ← 全局样式、主题变量
+css/_colors.css    ← 颜色变量定义
+css/base.css       ← 全局样式、主题变量、设置面板样式
 css/dashboard.css  ← 仪表盘、卡片、进度条样式
 css/errors.css     ← 错误表格、分页样式
 css/inject.css     ← 任务注入页面样式
