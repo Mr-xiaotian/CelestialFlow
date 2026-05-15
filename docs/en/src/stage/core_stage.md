@@ -1,8 +1,8 @@
 # TaskStage
 
-> 📅 Last updated: 2026/05/08
+> 📅 Last Updated: 2026/05/15
 
-`TaskStage` is the basic building block for constructing a `TaskGraph`. It inherits from `TaskExecutor` and adds `log_level` and `stage_mode` parameters beyond TaskExecutor.
+`TaskStage` is the basic unit for building a `TaskGraph`. It inherits from `TaskExecutor` and adds graph structure connection capabilities.
 
 ## Inheritance Hierarchy
 
@@ -12,11 +12,10 @@
 
 ## Key Concepts
 
-- **Stage Mode**: The node's execution mode within the graph.
+- **Stage Mode**: The running mode of a node in the graph.
   - `serial`: Serial mode, runs in the main process.
-  - `thread`: Thread mode, runs as an independent thread in the main process.
-  - `process`: Parallel mode, runs in a separate subprocess.
-- **Topological Relationships**: Upstream and downstream connections between nodes are managed by `TaskGraph` (via `graph.out_edges` / `graph.in_edges`), not stored on the nodes themselves.
+  - `thread`: Thread mode, runs in an independent thread within the main process.
+- **Topology**: The upstream/downstream connection relationships between nodes are managed by `TaskGraph` (via `graph.out_edges` / `graph.in_edges`), not stored in the nodes themselves.
 
 ## Initialization
 
@@ -38,13 +37,13 @@ class TaskStage(TaskExecutor):
         ...
 ```
 
-Parameters are the same as `TaskExecutor`, with the additional `stage_mode` parameter. `TaskStage`'s `execution_mode` can be `serial`, `thread`, or `async` (`process` mode is controlled by `stage_mode`).
+Parameters are the same as `TaskExecutor`, with the addition of the `stage_mode` parameter. `TaskStage`'s `execution_mode` can be `serial`, `thread`, or `async`.
 
-## Graph Construction Methods
+## Graph Building Methods
 
 ### graph.connect
 
-Establish connections between nodes via `graph.connect(from_stages, to_stages)`. `stage_mode` and `name` are passed through `TaskStage.__init__()` constructor arguments.
+Establishes connections between nodes via `graph.connect(from_stages, to_stages)`. `stage_mode` and `name` are passed through `TaskStage.__init__()` constructor parameters.
 
 ```python
 def connect(
@@ -62,8 +61,8 @@ def connect(
 
 Example:
 ```python
-stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", stage_mode="process")
-stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mode="process")
+stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", stage_mode="thread")
+stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mode="thread")
 
 # Create graph and connect nodes
 graph = TaskGraph()
@@ -71,42 +70,42 @@ graph.set_stages(stages=[stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 ```
 
-### Mode Setting
+### Mode Settings
 
 ```python
-# Set node execution mode
+# Set node running mode
 def set_stage_mode(self, stage_mode: str):
     """
-    Set the current node's execution mode within the graph.
-    :param stage_mode: 'serial', 'thread', or 'process'
+    Set the current node's execution mode in the graph.
+    :param stage_mode: 'serial' or 'thread'
     """
 
-# Get node execution mode
+# Get node running mode
 def get_stage_mode(self) -> str:
     """
-    Get the current node's execution mode within the graph.
+    Get the current node's execution mode in the graph.
     """
 ```
 
-### Name Setting
+### Name Settings
 
 ```python
 def set_name(self, name: str):
     """
-    Set the current node's name.
-    Note: After a name change, the tag will be invalidated and regenerated.
+    Set the current node name.
+    Note: After name change, the tag becomes invalid and will be regenerated.
     """
 ```
 
-## Status Management
+## State Management
 
-`TaskStage` uses the `StageStatus` enum to manage its running state:
+`TaskStage` uses the `StageStatus` enum to manage running state:
 
 - `NOT_STARTED` (0): Not started
 - `RUNNING` (1): Running
 - `STOPPED` (2): Stopped
 
-### Status Methods
+### State Methods
 
 ```python
 # Mark as running
@@ -115,48 +114,48 @@ def mark_running(self) -> None:
 
 # Mark as stopped
 def mark_stopped(self) -> None:
-    """Mark: stage has stopped (called in finally upon normal completion)."""
+    """Mark: stage has stopped (called in finally on normal completion)."""
 
 # Get status
 def get_status(self) -> StageStatus:
-    """Read the current status (returns a StageStatus enum)."""
+    """Read the current status (returns StageStatus enum)."""
 ```
 
-## Execution Mechanism
+## Running Mechanism
 
-When `TaskGraph` starts, each `TaskStage` determines its execution method based on `stage_mode`:
+When `TaskGraph` starts, each `TaskStage` determines its running method based on `stage_mode`:
 
-- **process mode**: The node is wrapped in a separate `Process` and launched in isolation from other nodes.
-- **serial mode**: The node runs in the main process (typically used for debugging).
+- **thread mode**: Node starts in an independent thread.
+- **serial mode**: Node runs serially in the main process (typically used for debugging).
 
 ### start_stage
 
 ```python
 def start_stage(
     self,
-    input_queues: TaskInQueue,
-    output_queues: TaskOutQueue,
-    fail_queue: MPQueue,
-    log_queue: MPQueue,
+    input_queue: TaskInQueue,
+    output_queue: TaskOutQueue,
+    fail_queue: Queue,
+    log_queue: Queue,
 ):
     """
     Start node execution.
 
-    :param input_queues: Input queues
-    :param output_queues: Output queues
+    :param input_queue: Input queue
+    :param output_queue: Output queue
     :param fail_queue: Failure queue
     :param log_queue: Log queue
     """
 ```
 
-The node continuously retrieves tasks from `input_queues`, executes them (using `TaskExecutor`'s logic), and places results into `output_queues`.
+The node continuously fetches tasks from `input_queue`, executes them (using `TaskExecutor` logic), and places results into `output_queue`.
 
-## Status Snapshot
+## State Snapshot
 
 ```python
 def get_summary(self) -> dict:
     """
-    Get the current node's status snapshot.
+    Get the current node state snapshot.
     Includes: name, func_name, class_name, execution_mode, stage_mode
     """
 ```
@@ -169,12 +168,12 @@ In `TaskStage`, the available values for `execution_mode` are restricted:
 # Valid modes
 valid_modes = ("serial", "thread", "async")
 
-# Note: process mode is controlled by stage_mode, not execution_mode
+# Note: stage_mode and execution_mode are independent configurations
 ```
 
-## Inheritance and Extension
+## Inheritance Extension
 
-When creating a custom Stage, you can override the following methods:
+When creating custom Stages, the following methods can be overridden:
 
 ```python
 class MyStage(TaskStage):
@@ -189,7 +188,5 @@ class MyStage(TaskStage):
 
 ## Notes
 
-1. **Process mode**: When `stage_mode="process"`, ensure the function is picklable (avoid lambdas, nested functions, etc.).
-2. **Counter cascading**: When the upstream is a `TaskSplitter` or `TaskRouter`, counters cascade automatically.
-3. **State sharing**: Implemented using `multiprocessing.Value`, supporting cross-process state queries.
-4. **Tag uniqueness**: Tags are composed of `name[func_name]`, used for log tracing and graph topology identification.
+1. **Counter Cascading**: When upstream is a `TaskSplitter` or `TaskRouter`, counters are automatically cascaded.
+2. **Tag Uniqueness**: Tags are composed of `name[func_name]`, used for log tracing and graph topology identification.

@@ -1,6 +1,6 @@
 # TaskReporter
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/05/15
 
 `TaskReporter` is a background component responsible for collecting task graph runtime status and reporting it to a remote Web server (CelestialFlow Web UI). It is also responsible for pulling control commands (such as task injection) from the server.
 
@@ -8,7 +8,7 @@
 
 - **Status Reporting**: Periodically pushes task graph structure, topology, runtime status (counters), error information, etc.
 - **Task Injection**: Receives user-injected new tasks from the Web UI and dynamically inserts them into the running task graph.
-- **Dynamic Parameter Adjustment**: Supports pulling configuration (such as reporting interval) from the server.
+- **Dynamic Parameter Adjustment**: Supports pulling configuration from the server (such as reporting interval).
 - **Error Log Synchronization**: Supports incremental error log pushing.
 
 ## Usage
@@ -21,14 +21,14 @@ graph = TaskGraph(...)
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 ```
 
-## API Interaction
+## API Interactions
 
 The Reporter interacts with the following Web APIs:
 
 - `GET /api/pull_interval`: Get the reporting interval.
 - `GET /api/pull_history_limit`: Get the maximum number of history records to retain.
 - `GET /api/pull_task_injection`: Get injected tasks.
-- `POST /api/push_status`: Push runtime status snapshots.
+- `POST /api/push_status`: Push runtime status snapshot.
 - `POST /api/push_structure`: Push graph structure information.
 - `POST /api/push_analysis`: Push analysis information.
 - `POST /api/push_summary`: Push graph summary.
@@ -41,7 +41,7 @@ When the Reporter is not enabled, `TaskGraph` uses `NullTaskReporter` as a place
 
 ```python
 class NullTaskReporter:
-    interval = 0
+    interval = 1
     history_limit = 20
 
     def start(self) -> None: ...

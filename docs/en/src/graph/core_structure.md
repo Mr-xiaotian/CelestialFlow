@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 Last updated: 2026/04/24
+> 📅 Last Updated: 2026/05/09
 
 The TaskStructure module provides various predefined task graph structures to help users quickly build complex task flows. All structures inherit from `TaskGraph`.
 
@@ -20,7 +20,7 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskChain` is the simplest task structure, connecting multiple `TaskStage` nodes in sequence to form a linear data flow.
+`TaskChain` is the simplest task structure, connecting multiple `TaskStage` nodes sequentially to form a linear data flow.
 
 ```python
 from celestialflow import TaskChain, TaskStage
@@ -33,7 +33,7 @@ stage3 = TaskStage("S3", func=func3)
 # Create chain
 chain = TaskChain(
     stages=[stage1, stage2, stage3],
-    chain_mode="serial",  # serial: run sequentially; process: run simultaneously
+    chain_mode="serial",  # serial: run sequentially; thread: run concurrently
     log_level="SUCCESS"
 )
 
@@ -41,7 +41,7 @@ chain = TaskChain(
 chain.start_chain(init_tasks_dict={stage1.get_tag(): [data]})
 ```
 
-## Cross (Cross Layer)
+## Cross (Cross-Layer)
 
 ```mermaid
 flowchart LR
@@ -64,7 +64,7 @@ flowchart LR
     class S11,S12,S21,S22 blueNode;
 ```
 
-`TaskCross` organizes tasks by "layers". Each layer contains multiple nodes that execute in parallel. Nodes in adjacent layers are fully connected (every node in the previous layer connects to all nodes in the next layer).
+`TaskCross` organizes tasks in "layers". Each layer contains multiple nodes that execute in parallel. Adjacent layers have fully-connected dependencies (every node in the previous layer connects to all nodes in the next layer).
 
 ```python
 from celestialflow import TaskCross
@@ -101,7 +101,7 @@ flowchart TD
     class S00,S01,S10,S11 blueNode;
 ```
 
-`TaskGrid` organizes task nodes into a two-dimensional grid. Each node connects to the node to its **right** and the node **below** it.
+`TaskGrid` organizes task nodes into a two-dimensional grid. Each node connects to its **right** and **below** neighbors.
 
 ```python
 from celestialflow import TaskGrid
@@ -119,7 +119,7 @@ grid = TaskGrid(
 )
 ```
 
-## Loop (Circular)
+## Loop (Ring)
 
 ```mermaid
 flowchart LR
@@ -136,8 +136,8 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskLoop` connects nodes end-to-end to form a closed loop. Due to the cyclic nature, it enforces the use of `eager` scheduling mode.
-Note: Loop structures typically require external intervention to stop, or specific exit conditions to be set.
+`TaskLoop` connects nodes end-to-end to form a closed loop. Due to the cyclic nature, it enforces the `eager` scheduling mode.
+Note: Loop structures typically require external intervention to stop, or a specific exit condition must be set.
 
 ```python
 from celestialflow import TaskLoop
@@ -170,7 +170,7 @@ flowchart TD
     class C,R1,R2,R3 blueNode;
 ```
 
-`TaskWheel` consists of a center node and a ring structure. The center node connects to every node on the ring, and the ring nodes are connected end-to-end.
+`TaskWheel` contains a center node and a ring structure. The center node connects to every node on the ring, and the ring nodes are connected end-to-end.
 
 ```python
 from celestialflow import TaskWheel

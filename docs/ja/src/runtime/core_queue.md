@@ -1,21 +1,21 @@
 # TaskQueue
 
-> 📅 最終更新日: 2026/05/08
+> 📅 最終更新日: 2026/05/09
 
-`TaskQueue` モジュールは `TaskInQueue` と `TaskOutQueue` の2つのクラスを提供し、異なる Stage 間のパイプラインを接続します。マルチプロデューサー・マルチコンシューマーモデルをサポートし、ログ記録と監視機能を統合しています。
+`TaskQueue` モジュールは、異なる Stage を接続するパイプラインとして使用される `TaskInQueue` と `TaskOutQueue` の2つのクラスを提供します。マルチプロデューサー、マルチコンシューマーモデルをサポートし、ログ記録と監視機能を統合しています。
 
 ## 概要
 
-- **TaskInQueue**: タスク入力キュー、上流からタスクを受信するために使用
-- **TaskOutQueue**: タスク出力キュー、下流にタスクを送信するために使用
+- **TaskInQueue**: タスク入力キュー、上流からタスクを受信
+- **TaskOutQueue**: タスク出力キュー、下流へタスクを送信
 
-両方とも複数のバックエンドをサポート：`queue.Queue` (Thread)、`multiprocessing.Queue` (Process)、`asyncio.Queue` (Async)。
+両方とも複数のバックエンドをサポート：`queue.Queue`（Thread）、`asyncio.Queue`（Async）。
 
 ---
 
 ## TaskInQueue
 
-タスク入力キュー。複数の上流からのタスクを受信しマージするために使用します。
+複数の上流からタスクを受信・マージするタスク入力キュー。
 
 ### 初期化
 
@@ -23,18 +23,18 @@
 class TaskInQueue:
     def __init__(
         self,
-        queue: ThreadQueue | MPQueue | AsyncQueue,
+        queue: ThreadQueue | AsyncQueue,
         queue_tags: list[str],
         out_tag: str,
         log_inlet: "LogInlet",
     ):
         """
-        タスク入力キューを初期化する。
+        タスク入力キューを初期化します。
 
         :param queue: キューオブジェクト
-        :param queue_tags: 上流キュータグのリスト
-        :param out_tag: 現在のノードのタグ
-        :param log_inlet: ログレコーダー
+        :param queue_tags: 上流キュータグリスト
+        :param out_tag: 現在のノードタグ
+        :param log_inlet: ロガー
         """
 ```
 
@@ -45,7 +45,7 @@ class TaskInQueue:
 ```python
 def put(self, item: TaskEnvelope | TerminationSignal):
     """
-    タスクまたは終了シグナルをエンキューする。
+    タスクまたは終了シグナルをエンキューします。
 
     :param item: エンキューするタスクまたは終了シグナル
     """
@@ -56,34 +56,34 @@ def put(self, item: TaskEnvelope | TerminationSignal):
 ```python
 def get(self) -> TaskEnvelope | TerminationIdPool:
     """
-    タスクまたは終了シグナルプールをデキューする。
+    タスクまたは終了シグナルプールをデキューします。
 
     :return: タスクエンベロープまたは終了シグナル ID プール
     """
 ```
 
-**終了シグナルのマージロジック**：
-- `"input"` からの終了シグナルを受信した場合、即座に返す
-- すべての `queue_tags` からの終了シグナルを受信した場合、マージして返す
+**終了シグナルマージロジック**：
+- `"input"` からの終了シグナルを受信した場合、即座に返却
+- すべての `queue_tags` からの終了シグナルを受信した場合、マージして返却
 
 #### drain
 
 ```python
 def drain(self) -> list[TaskEnvelope]:
     """
-    キュー内のすべてのタスクを取り出し、タスクリストを返す。
-    終了シグナルの状態は記録するが、TerminationIdPool は返さない。
+    キュー内のすべてのタスクをドレインし、リストとして返します。
+    終了シグナルの状態を記録しますが、TerminationIdPool は返しません。
 
     :return: すべてのタスクを含むリスト
     """
 ```
 
-### 補助メソッド
+### ヘルパーメソッド
 
 ```python
 def add_source_tag(self, tag: str):
     """
-    上流キュータグを追加する。
+    上流キュータグを追加します。
 
     :param tag: 上流キュータグ
     :raises ValueError: タグが既に存在する場合
@@ -94,7 +94,7 @@ def add_source_tag(self, tag: str):
 
 ## TaskOutQueue
 
-タスク出力キュー。複数の下流にタスクを送信するために使用します。
+複数の下流ノードにタスクを送信するタスク出力キュー。
 
 ### 初期化
 
@@ -102,18 +102,18 @@ def add_source_tag(self, tag: str):
 class TaskOutQueue:
     def __init__(
         self,
-        queue_list: list[ThreadQueue] | list[MPQueue] | list[AsyncQueue],
+        queue_list: list[ThreadQueue] | list[AsyncQueue],
         queue_tags: list[str],
         in_tag: str,
         log_inlet: "LogInlet",
     ):
         """
-        タスク出力キューを初期化する。
+        タスク出力キューを初期化します。
 
-        :param queue_list: 出力キューのリスト
-        :param queue_tags: キュータグのリスト
-        :param in_tag: 現在のノードのタグ
-        :param log_inlet: ログレコーダー
+        :param queue_list: 出力キューリスト
+        :param queue_tags: キュータグリスト
+        :param in_tag: 現在のノードタグ
+        :param log_inlet: ロガー
         :raises ValueError: キューリストとタグリストの長さが一致しない場合
         """
 ```
@@ -125,7 +125,7 @@ class TaskOutQueue:
 ```python
 def put(self, item: TaskEnvelope | TerminationSignal):
     """
-    タスクまたは終了シグナルをすべての出力チャネルにエンキューする。
+    すべての出力チャネルにタスクまたは終了シグナルをエンキューします。
     """
 ```
 
@@ -134,33 +134,33 @@ def put(self, item: TaskEnvelope | TerminationSignal):
 ```python
 def put_target(self, item: TaskEnvelope | TerminationSignal, tag: str):
     """
-    タスクまたは終了シグナルを指定タグの出力チャネルにエンキューする。
+    指定されたタグの出力チャネルにタスクまたは終了シグナルをエンキューします。
 
     :param item: エンキューするタスクまたは終了シグナル
     :param tag: 出力キュータグ
     """
 ```
 
-`TaskRouter` の方向指定配信でよく使用されます。
+`TaskRouter` のターゲット配信によく使用されます。
 
 #### put_channel
 
 ```python
 def put_channel(self, item: TaskEnvelope | TerminationSignal, idx: int):
     """
-    タスクまたは終了シグナルを指定インデックスの出力チャネルにエンキューする。
+    指定されたインデックスの出力チャネルにタスクまたは終了シグナルをエンキューします。
 
     :param item: エンキューするタスクまたは終了シグナル
-    :param idx: 出力チャネルのインデックス
+    :param idx: 出力チャネルインデックス
     """
 ```
 
-### 補助メソッド
+### ヘルパーメソッド
 
 ```python
-def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
+def add_queue(self, queue: ThreadQueue | AsyncQueue, tag: str):
     """
-    出力キューをキューリストに追加する。
+    出力キューをキューリストに追加します。
 
     :param queue: 追加する出力キュー
     :param tag: キュータグ
@@ -170,9 +170,9 @@ def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
 
 ---
 
-## 終了シグナル機構
+## 終了シグナルメカニズム
 
-### シグナルの流れ
+### シグナルフロー
 
 ```
 上流ノード ──TaskOutQueue──> キュー ──TaskInQueue──> 現在のノード
@@ -185,15 +185,15 @@ def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
 
 ### マージルール
 
-`TaskInQueue` はすべての `queue_tags` からの終了シグナルを待ち、1つの `TerminationIdPool` にマージします：
+`TaskInQueue` はすべての `queue_tags` からの終了シグナルを待ち、単一の `TerminationIdPool` にマージします：
 
-1. 終了シグナルを受信したら、`termination_dict` に記録
-2. すべての上流が終了シグナルを送信済みか確認
-3. すべて受信した場合、`TerminationIdPool` にマージして返す
-4. そうでなければ待機を続行
+1. 終了シグナルを受信したら `termination_dict` に記録
+2. すべての上流が終了シグナルを送信したか確認
+3. すべて受信済みなら `TerminationIdPool` にマージして返却
+4. そうでなければ待機を継続
 
 特殊処理：
-- `"input"` タグの終了シグナルは即座に返す
+- `"input"` タグの終了シグナルは即座に返却
 
 ---
 
@@ -203,11 +203,11 @@ def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
 
 ```python
 from celestialflow.runtime import TaskInQueue, TaskOutQueue
-from multiprocessing import Queue as MPQueue
+from queue import Queue as ThreadQueue
 
 # 入力キュー
 in_queue = TaskInQueue(
-    queue=MPQueue(),
+    queue=ThreadQueue(),
     queue_tags=["upstream_stage"],
     out_tag="current_stage",
     log_inlet=log_inlet,
@@ -215,14 +215,14 @@ in_queue = TaskInQueue(
 
 # 出力キュー
 out_queue = TaskOutQueue(
-    queue_list=[MPQueue()],
+    queue_list=[ThreadQueue()],
     queue_tags=["downstream_stage"],
     in_tag="current_stage",
     log_inlet=log_inlet,
 )
 ```
 
-### 動的な下流の追加
+### 下流の動的追加
 
 ```python
 # 新しい下流キューを追加
@@ -240,7 +240,7 @@ if isinstance(item, TaskEnvelope):
     result = process(item.get_task())
     out_queue.put(TaskEnvelope(result, id=result_id, source="stage_tag"))
 elif isinstance(item, TerminationIdPool):
-    # すべての上流が終了済み、下流に終了シグナルを送信
+    # すべての上流が終了、下流に終了シグナルを送信
     out_queue.put(TerminationSignal())
 ```
 
@@ -250,5 +250,5 @@ elif isinstance(item, TerminationIdPool):
 
 1. **マルチチャネル**: 1つの `TaskOutQueue` で複数の下流キューを管理可能
 2. **ログ記録**: すべてのエンキュー/デキュー操作がログに記録される
-3. **スレッドセーフ**: 内部でキューを使用して実装されており、マルチスレッド/マルチプロセスアクセスをサポート
-4. **終了マージ**: 複数上流の終了シグナルのマージを正しく処理
+3. **スレッドセーフ**: 内部でマルチスレッドアクセスをサポートするキュー実装を使用
+4. **終了マージ**: 複数の上流からの終了シグナルのマージを適切に処理

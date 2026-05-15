@@ -1,8 +1,8 @@
 # web_config.ts
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/05/15
 
-Manages web frontend configuration loading, saving, and application, including theme, refresh interval, and dashboard layout.
+Manages web frontend configuration loading, saving, and application, including theme, refresh interval, history length, and dashboard layout.
 
 ## Global Variables
 
@@ -52,7 +52,8 @@ Applies settings from `webConfig` to the UI:
 
 1. **Theme**: Toggles the `dark-theme` CSS class and button text based on `webConfig.theme`
 2. **Refresh Interval**: Updates `refreshRate` and the dropdown selected value (with boundary protection)
-3. **Dashboard Layout**: Calls `applyDashboardLayout()`
+3. **History Length**: Syncs `historyLimit` to the `#history-limit` dropdown (only sets the value when it exists among the available options, to avoid displaying a blank)
+4. **Dashboard Layout**: Calls `applyDashboardLayout()`
 
 ---
 
@@ -64,7 +65,7 @@ Dynamically arranges dashboard cards based on `webConfig.dashboard` and `webConf
 
 1. Collects all known card keys (from config + existing in DOM), locating the corresponding `.{key}-card` DOM elements
 2. Hides all known cards first
-3. In `left` / `middle` / `right` order, `appendChild` cards to the corresponding column, sets them visible, and updates titles
+3. In `left` / `middle` / `right` order, `appendChild` cards to the corresponding column and sets them visible
 4. As a fallback, hides any cards not assigned to any column
 
 > Movement is implemented via `appendChild`, supporting any column + any order configuration combinations.
@@ -77,16 +78,16 @@ Dynamically arranges dashboard cards based on `webConfig.dashboard` and `webConf
     "refreshInterval": 5000,
     "historyLimit": 20,
     "dashboard": {
-        "left": ["mermaid", "topology"],
+        "left": ["mermaid", "analysis"],
         "middle": ["status"],
         "right": ["progress", "summary"]
     },
     "cards": {
-        "mermaid": { "title": "Task Structure Diagram" },
-        "topology": { "title": "Graph Topology Info" },
-        "status": { "title": "Stage Runtime Status" },
-        "progress": { "title": "Stage Completion Trend" },
-        "summary": { "title": "Overall Status Summary" }
+        "mermaid": { "title": "任务结构图" },
+        "analysis": { "title": "图分析信息" },
+        "status": { "title": "节点运行状态" },
+        "progress": { "title": "节点完成走向" },
+        "summary": { "title": "总体状态摘要" }
     }
 }
 ```

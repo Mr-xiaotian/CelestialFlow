@@ -1,8 +1,8 @@
 # TaskEnvelope
 
-> 📅 最終更新日: 2026/05/08
+> 📅 最終更新日: 2026/05/15
 
-Stage 間で受け渡されるタスクデータのラッパークラス。元のタスクデータ、タスクハッシュ、タスク ID、ソース情報をカプセル化します。
+タスクデータのラッパークラスで、各 Stage 間で受け渡されます。元のタスクデータ、タスクハッシュ、タスク ID、ソース情報をカプセル化しています。
 
 ## 属性
 
@@ -13,37 +13,37 @@ class TaskEnvelope:
     def __init__(self, task: Any, id: int, source: str, prev: Any = None):
         self.task = task      # 元のタスクデータ
         self.hash = None      # ハッシュ値（遅延計算）
-        self.id = id          # タスク固有 ID
+        self.id = id          # タスク一意 ID
         self.source = source  # タスクソース識別子
         self.prev = prev      # 前のタスク（結果キャッシュの遡及用）
 ```
 
-## Getter メソッド
+## ゲッターメソッド
 
 ```python
 def get_task(self) -> Any:
-    """元のタスクデータを取得。"""
+    """元のタスクデータを取得します。"""
 
-def get_hash(self) -> str:
-    """タスクハッシュを取得。初回呼び出し時に遅延計算しキャッシュ。"""
+def get_hash(self) -> bytes:
+    """タスクハッシュを取得します。初回呼び出し時に遅延計算してキャッシュします。"""
 
 def get_id(self) -> int:
-    """タスク ID を取得。"""
+    """タスク ID を取得します。"""
 
 def change_id(self, new_id: int) -> None:
-    """タスク ID を変更（リトライシナリオで使用）。"""
+    """タスク ID を変更します（リトライシナリオ用）。"""
 ```
 
 ## 遅延ハッシュ
 
-`hash` は構築時に `None` で、`get_hash()` の初回呼び出し時にのみ計算されます。重複チェックが不要な場面での計算の無駄を回避します。
+`hash` はコンストラクション時に `None` で、`get_hash()` の初回呼び出し時にのみ計算されます。これにより、重複チェックが不要なシナリオでの計算リソースの浪費を回避します。
 
 ```python
 envelope = TaskEnvelope("data", id=1, source="input")
 assert envelope.hash is None         # 未計算
-h = envelope.get_hash()              # 初回呼び出しで計算・キャッシュ
+h = envelope.get_hash()              # 初回呼び出し、計算してキャッシュ
 assert envelope.hash is not None     # キャッシュ済み
-assert envelope.get_hash() == h      # 以降はキャッシュ値を返す
+assert envelope.get_hash() == h      # 以降の呼び出しはキャッシュ値を返却
 ```
 
 ## 使用例

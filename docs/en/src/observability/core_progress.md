@@ -1,13 +1,13 @@
 # TaskProgress
 
-> 📅 Last updated: 2026/05/08
+> 📅 Last Updated: 2026/05/08
 
-`TaskProgress` inherits `BaseObserver` and provides tqdm-based task progress visualization.
+`TaskProgress` inherits from `BaseObserver` and provides task progress visualization based on `tqdm`.
 
 ## Features
 
-- **Dynamic Updates**: Supports dynamically increasing total task count via `on_tasks_added`, adapting to streaming or task-splitting scenarios.
-- **Lifecycle Management**: Creates progress bar on `on_start`, closes on `on_finish`.
+- **Dynamic Updates**: Supports dynamically increasing the total task count via `on_tasks_added`, adapting to streaming tasks or task splitting scenarios.
+- **Lifecycle Management**: Creates the progress bar on `on_start` and closes it on `on_finish`.
 - **Event-Driven**: Updates progress via `on_task_success/fail/duplicate`.
 
 ## Interface
@@ -23,7 +23,7 @@ class TaskProgress(BaseObserver):
     def on_task_duplicate(self, count: int = 1) -> None:
         # Update progress
     def on_tasks_added(self, count: int) -> None:
-        # Increase total and refresh
+        # Increase total task count and refresh
     def on_finish(self) -> None:
         # Close progress bar
 ```
@@ -38,4 +38,4 @@ executor.add_observer(TaskProgress())
 executor.start(tasks)
 ```
 
-When no progress bar is needed, simply don't add an observer — no Null implementation required.
+When a progress bar is not needed, simply do not add the observer -- no Null implementation is required.

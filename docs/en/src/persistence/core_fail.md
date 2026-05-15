@@ -1,26 +1,26 @@
 # Fail Persistence
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/05/09
 
 The `celestialflow.persistence` module provides a robust error collection and persistence mechanism, ensuring that all exception information can be safely and orderly recorded during multi-process concurrent task execution for subsequent analysis or retry.
 
-The core components are `FailSpout` and `FailInlet`.
+The core components include `FailSpout` and `FailInlet`.
 
 ## Architecture Design
 
 The system uses a **producer-consumer** pattern to handle error logs:
 
 1.  **FailInlet (Producer)**:
-    -   Held by each Worker process (or thread).
+    -   Held by each Worker thread.
     -   Responsible for packaging error information and task metadata into dictionaries.
-    -   Places the packaged data into a multi-process-safe queue (`multiprocessing.Queue`).
+    -   Places the packaged data into a thread-safe queue (`queue.Queue`).
 
 2.  **FailSpout (Consumer)**:
-    -   Runs in an independent daemon thread in the main process.
-    -   Continuously listens to the queue and immediately writes new error records to a local file.
-    -   File format is JSONL (JSON Lines), facilitating streaming reading and processing.
+    -   Runs in an independent daemon thread.
+    -   Continuously listens to the queue; once a new error record arrives, it immediately writes it to a local file.
+    -   File format is JSONL (JSON Lines), convenient for streaming reads and processing.
 
-This design avoids multi-process contention for file write locks, ensuring high performance and data integrity.
+This design avoids multiple threads competing for file write locks, ensuring high performance and data integrity.
 
 ## FailSpout
 
@@ -33,8 +33,8 @@ listener = FailSpout(error_source="graph_errors")
 listener.start()
 ```
 
--   `error_source`: Error source identifier, used as part of the file name.
--   Upon startup, creates a file named `{error_source}({time}).jsonl` in the `./fallback/{date}/` directory.
+-   `error_source`: Error source identifier, used as part of the filename.
+-   After startup, a file named `{error_source}({time}).jsonl` will be created in the `./fallback/{date}/` directory.
 
 ### File Path
 
@@ -52,7 +52,7 @@ Error logs are saved by default in the `./fallback/` directory, archived by date
 listener.stop()
 ```
 
-Sends a termination signal to the queue and waits for the background thread to finish processing remaining data before safely exiting.
+Sends a termination signal to the queue, waits for the background thread to finish processing remaining data, then exits safely.
 
 ## FailInlet
 
@@ -71,8 +71,8 @@ sinker.task_error(
 )
 ```
 
-Each recorded JSONL line contains the following fields:
--   `timestamp`: Time of the error (ISO format)
+The recorded JSONL line contains the following fields:
+-   `timestamp`: Time the error occurred (ISO format)
 -   `stage`: Stage tag where the error occurred
 -   `error_repr`: String representation of the error message (truncated)
 -   `task_repr`: String representation of the task data (truncated)
@@ -85,8 +85,8 @@ Each recorded JSONL line contains the following fields:
 
 `FailInlet` also supports recording metadata to help reconstruct the execution environment at the time:
 
--   `start_graph(structure_json)`: Records the task graph structure information.
--   `start_executor(executor_tag)`: Records the executor startup information.
+-   `start_graph(structure_json)`: Records task graph structure information.
+-   `start_executor(executor_tag)`: Records executor startup information.
 
 ```python
 sinker.start_graph({...})

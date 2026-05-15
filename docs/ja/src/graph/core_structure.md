@@ -1,10 +1,10 @@
 # TaskStructure
 
-> 📅 最終更新日: 2026/04/24
+> 📅 最終更新日: 2026/05/09
 
-TaskStructure モジュールは複数の定義済みタスクグラフ構造を提供し、ユーザーが複雑なタスクフローを迅速に構築できるようにします。すべての構造は `TaskGraph` を継承しています。
+TaskStructure モジュールは、ユーザーが複雑なタスクフローを素早く構築できるよう、さまざまな定義済みタスクグラフ構造を提供します。すべての構造は `TaskGraph` を継承しています。
 
-## Chain (リニアチェーン)
+## Chain（線形チェーン）
 
 ```mermaid
 flowchart LR
@@ -20,28 +20,28 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskChain` は最もシンプルなタスク構造で、複数の `TaskStage` を順番に接続し、リニアなデータフローを形成します。
+`TaskChain` は最もシンプルなタスク構造で、複数の `TaskStage` を順番に接続し、線形のデータフローを形成します。
 
 ```python
 from celestialflow import TaskChain, TaskStage
 
-# ステージを定義
+# ステージの定義
 stage1 = TaskStage("S1", func=func1)
 stage2 = TaskStage("S2", func=func2)
 stage3 = TaskStage("S3", func=func3)
 
-# チェーンを作成
+# チェーンの作成
 chain = TaskChain(
     stages=[stage1, stage2, stage3],
-    chain_mode="serial",  # serial: 順次実行; process: 同時実行
+    chain_mode="serial",  # serial: 順次実行; thread: 並行実行
     log_level="SUCCESS"
 )
 
-# 起動
+# 開始
 chain.start_chain(init_tasks_dict={stage1.get_tag(): [data]})
 ```
 
-## Cross (クロスレイヤー)
+## Cross（クロスレイヤー）
 
 ```mermaid
 flowchart LR
@@ -64,23 +64,23 @@ flowchart LR
     class S11,S12,S21,S22 blueNode;
 ```
 
-`TaskCross` はタスクを「レイヤー」単位で組織します。各レイヤーには並列実行される複数のノードが含まれます。隣接するレイヤー間のノードは全結合の依存関係を構築します（前のレイヤーの各ノードが次のレイヤーのすべてのノードに接続されます）。
+`TaskCross` はタスクを「レイヤー」で組織します。各レイヤーには並列実行される複数のノードが含まれます。隣接するレイヤー間のノードは全結合の依存関係を持ちます（前のレイヤーの各ノードが次のレイヤーのすべてのノードに接続）。
 
 ```python
 from celestialflow import TaskCross
 
-# レイヤーを定義
+# レイヤーの定義
 layer1 = [stage_1_1, stage_1_2]
 layer2 = [stage_2_1, stage_2_2]
 
-# クロス構造を作成
+# クロス構造の作成
 cross = TaskCross(
     layers=[layer1, layer2],
     schedule_mode="eager"
 )
 ```
 
-## Grid (グリッド)
+## Grid（グリッド）
 
 ```mermaid
 flowchart TD
@@ -101,25 +101,25 @@ flowchart TD
     class S00,S01,S10,S11 blueNode;
 ```
 
-`TaskGrid` はタスクノードを二次元グリッドに組織します。各ノードはその**右側**と**下方**のノードに接続されます。
+`TaskGrid` はタスクノードを二次元グリッドに組織します。各ノードは**右側**と**下方**のノードに接続します。
 
 ```python
 from celestialflow import TaskGrid
 
-# グリッドを定義
+# グリッドの定義
 grid_layout = [
     [stage_00, stage_01],
     [stage_10, stage_11]
 ]
 
-# グリッド構造を作成
+# グリッド構造の作成
 grid = TaskGrid(
     grid=grid_layout,
     schedule_mode="eager"
 )
 ```
 
-## Loop (ループ)
+## Loop（リング）
 
 ```mermaid
 flowchart LR
@@ -136,19 +136,19 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskLoop` はノードを先頭と末尾で接続して閉ループを形成します。ループの特性上、`eager` スケジューリングモードが強制されます。
-注意：ループ構造は通常、外部からの介入で停止するか、特定の終了条件を設定する必要があります。
+`TaskLoop` はノードを首尾接続して閉ループを形成します。循環の特性上、`eager` スケジューリングモードが強制されます。
+注意：ループ構造は通常、外部からの介入による停止、または特定の終了条件の設定が必要です。
 
 ```python
 from celestialflow import TaskLoop
 
-# ループを作成
+# ループの作成
 loop = TaskLoop(
     stages=[stage1, stage2, stage3]  # stage3 -> stage1
 )
 ```
 
-## Wheel (ホイール)
+## Wheel（ホイール）
 
 ```mermaid
 flowchart TD
@@ -170,19 +170,19 @@ flowchart TD
     class C,R1,R2,R3 blueNode;
 ```
 
-`TaskWheel` は中心ノードとリング構造を含みます。中心ノードはリング上の各ノードに接続し、リング上のノードは先頭と末尾で接続されます。
+`TaskWheel` は中心ノードとリング構造を含みます。中心ノードはリング上のすべてのノードに接続し、リング上のノードは首尾接続されます。
 
 ```python
 from celestialflow import TaskWheel
 
-# ホイール構造を作成
+# ホイール構造の作成
 wheel = TaskWheel(
     center=center_stage,
     ring=[ring_stage1, ring_stage2, ring_stage3]
 )
 ```
 
-## Complete (完全グラフ)
+## Complete（完全グラフ）
 
 ```mermaid
 flowchart LR
@@ -201,12 +201,12 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskComplete` は特殊な構造で、各ノードが自身以外のすべてのノードに接続されます。
+`TaskComplete` は特殊な構造で、各ノードが自分自身を除くすべてのノードに接続します。
 
 ```python
 from celestialflow import TaskComplete
 
-# 完全グラフを作成
+# 完全グラフの作成
 complete = TaskComplete(
     stages=[stage1, stage2, stage3, stage4]
 )

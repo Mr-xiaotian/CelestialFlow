@@ -1,44 +1,45 @@
 # test_envelope.py Test Documentation
 
-> 📅 Last updated: 2026/05/08
+> 📅 Last Updated: 2026/05/15
 
-## Test Purpose
+## Test Objective
 
-Validates the core behavior of `TaskEnvelope`, including construction, getter methods, lazy hash, attribute persistence, hash consistency, and memory optimization mechanisms. `TaskEnvelope` is the fundamental unit for passing tasks between queues in CelestialFlow, and its correctness directly affects the reliability of the entire data flow.
+Validates the core behavior of `TaskEnvelope` (task envelope), including construction, getter methods, lazy hashing, attribute persistence, hash consistency, and memory optimization mechanisms. `TaskEnvelope` is the fundamental unit for passing tasks between queues in CelestialFlow; its correctness directly impacts the reliability of the entire data flow.
 
 ## Test Scope
 
-| Test Class | Cases | Coverage |
-|------------|-------|----------|
-| `TestTaskEnvelope` | 7 | Constructor and getters, source, change_id, different hash, same hash, lazy hash, slots |
+| Test Class | Test Count | Coverage |
+|------------|-----------|----------|
+| `TestTaskEnvelope` | 7 | Construction and getters, source, change_id, different hashes, same hash, lazy hash, slots |
+| `TestObjectToHash` | 4 | Returns bytes type, SHA1 length, same input same hash, different input different hash |
 
 ### Detailed Test Case Descriptions
 
 #### `test_create_and_getters`
-- **Purpose**: Verifies the constructor and getter methods correctly create and read envelope data.
+- **Objective**: Validate that the constructor and getter methods correctly create and read envelope data.
 - **Input**: `{"key": "value", "num": 42}`, `id=100`
-- **Assertions**: `get_task()` returns original data; `get_id()` returns 100; `get_hash()` is a non-empty string.
+- **Assertions**: `get_task()` returns the original data; `get_id()` returns 100; `get_hash()` returns `bytes` type with length > 0.
 
 #### `test_source_preserved`
-- **Purpose**: Verifies that the `source` attribute is not lost during construction.
-- **Background**: `source` is used to trace task origin (e.g., `"input"`, upstream stage's tag).
+- **Objective**: Validate that the `source` attribute is not lost during construction.
+- **Background**: `source` is used for tracing task origin (e.g., `"input"`, upstream stage's tag).
 
 #### `test_change_id`
-- **Purpose**: Verifies that `change_id()` can modify the envelope ID (used to generate new tracking IDs in retry scenarios).
+- **Objective**: Validate that `change_id()` can modify the envelope ID (used for generating new tracking IDs in retry scenarios).
 
 #### `test_different_tasks_different_hash`
-- **Purpose**: Verifies that different payloads produce different `hash` values.
+- **Objective**: Validate that different payloads produce different `hash` values.
 
 #### `test_same_task_same_hash`
-- **Purpose**: Verifies that identical payloads produce identical `hash` values.
-- **Use case**: Deduplication checks (`enable_duplicate_check=True`) rely on this property.
+- **Objective**: Validate that identical payloads produce the same `hash` value.
+- **Usage**: Deduplication checking (`enable_duplicate_check=True`) relies on this property.
 
 #### `test_lazy_hash`
-- **Purpose**: Verifies that `hash` is `None` at construction time and only computed on the first call to `get_hash()`.
-- **Assertions**: After construction `envelope.hash is None`; after calling `get_hash()`, `envelope.hash is not None`.
+- **Objective**: Validate that `hash` is `None` at construction time and only computed on the first `get_hash()` call.
+- **Assertions**: After construction, `envelope.hash is None`; after calling `get_hash()`, `envelope.hash is not None`.
 
 #### `test_slots_memory_efficient`
-- **Purpose**: Verifies that `__slots__` is in effect, preventing dynamic attribute addition.
+- **Objective**: Validate that `__slots__` is effective, preventing dynamic attribute addition.
 
 ## Dependencies
 
@@ -46,6 +47,21 @@ Validates the core behavior of `TaskEnvelope`, including construction, getter me
 |------------|-------------|
 | `pytest` | Test framework |
 | `celestialflow.runtime.core_envelope.TaskEnvelope` | Object under test |
+| `celestialflow.runtime.util_hash.object_to_hash` | Hash utility function |
+
+### `TestObjectToHash` Detailed Test Case Descriptions
+
+#### `test_returns_bytes`
+- **Objective**: Validate that `object_to_hash()` returns `bytes` type.
+
+#### `test_returns_20_bytes`
+- **Objective**: Validate that the SHA1 digest length is 20 bytes.
+
+#### `test_same_input_same_hash`
+- **Objective**: Validate that identical inputs produce the same hash value.
+
+#### `test_different_input_different_hash`
+- **Objective**: Validate that different inputs produce different hash values.
 
 ## How to Run
 

@@ -1,14 +1,14 @@
 # conftest.py Test Configuration Documentation
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/04/22
 
-## Test Purpose
+## Test Objective
 
-`conftest.py` is a pytest local plugin file responsible for loading project-level environment variable configuration before the test session begins, ensuring all test cases share consistent external service connection parameters (such as Redis, CelestialTree, Reporter, etc.).
+`conftest.py` is a pytest local plugin file responsible for loading project-level environment variable configurations before the test session begins, ensuring all test cases share consistent external service connection parameters (such as Redis, CelestialTree, Reporter, etc.).
 
 ## Test Scope
 
-- **Environment initialization**: Automatically executed before pytest collects tests.
+- **Environment initialization**: Automatically executes before pytest collects tests.
 - **Configuration loading**: Loads the `.env` file from the project root directory via `python-dotenv`.
 - **Zero-intrusion design**: Contains no fixture definitions or hook functions, maintaining minimal responsibility.
 
@@ -16,7 +16,7 @@
 
 | Dependency | Purpose |
 |------------|---------|
-| `python-dotenv` | Loads environment variables from `.env` file |
+| `python-dotenv` | Load environment variables from `.env` file |
 
 ## Potential Issues and Notes
 
@@ -26,7 +26,7 @@ If the project root directory lacks a `.env` file, `load_dotenv()` will silently
 **Recommendation**: In CI/CD environments, inject environment variables directly rather than relying on `.env` files.
 
 ### 2. Environment Variable Pollution
-`load_dotenv()` does not overwrite existing environment variables by default (`override=False`). If the host machine already defines a variable with the same name (e.g., `REDIS_HOST`), the actual value used may differ from what's in the `.env` file.
+`load_dotenv()` does not override existing environment variables by default (`override=False`). If the host machine already defines variables with the same name (e.g., `REDIS_HOST`), the actual value used may differ from what's in the `.env` file.
 
 **Troubleshooting**:
 ```bash
@@ -35,8 +35,8 @@ pytest tests/ --collect-only -v
 python -c "import os; print(os.getenv('REDIS_HOST'))"
 ```
 
-### 3. Compatibility with uv Virtual Environments
-When using `uv run` on Windows, a corrupted virtual environment may cause `dotenv` loading to fail. In such cases, check the integrity of `.venv`, or run directly with `python -m pytest`.
+### 3. Compatibility with uv Virtual Environment
+When using `uv run` on Windows, a corrupted virtual environment may cause `dotenv` loading to fail. In this case, check the `.venv` integrity, or run directly with `python -m pytest`.
 
 ## How to Run
 

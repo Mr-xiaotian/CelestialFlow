@@ -1,21 +1,21 @@
 # TaskQueue
 
-> 📅 Last updated: 2026/05/08
+> 📅 Last Updated: 2026/05/09
 
-The `TaskQueue` module provides two classes, `TaskInQueue` and `TaskOutQueue`, which serve as pipelines connecting different Stages. They support multi-producer, multi-consumer models and integrate logging and monitoring capabilities.
+The `TaskQueue` module provides two classes, `TaskInQueue` and `TaskOutQueue`, used as pipelines connecting different Stages. They support multi-producer, multi-consumer models and integrate logging and monitoring capabilities.
 
 ## Overview
 
-- **TaskInQueue**: Task input queue, used to receive tasks from upstream
-- **TaskOutQueue**: Task output queue, used to send tasks to downstream
+- **TaskInQueue**: Task input queue, receives tasks from upstream
+- **TaskOutQueue**: Task output queue, sends tasks to downstream
 
-Both support multiple backends: `queue.Queue` (Thread), `multiprocessing.Queue` (Process), `asyncio.Queue` (Async).
+Both support multiple backends: `queue.Queue` (Thread), `asyncio.Queue` (Async).
 
 ---
 
 ## TaskInQueue
 
-Task input queue, used to receive and merge tasks from multiple upstream sources.
+Task input queue for receiving and merging tasks from multiple upstream sources.
 
 ### Initialization
 
@@ -23,7 +23,7 @@ Task input queue, used to receive and merge tasks from multiple upstream sources
 class TaskInQueue:
     def __init__(
         self,
-        queue: ThreadQueue | MPQueue | AsyncQueue,
+        queue: ThreadQueue | AsyncQueue,
         queue_tags: list[str],
         out_tag: str,
         log_inlet: "LogInlet",
@@ -64,7 +64,7 @@ def get(self) -> TaskEnvelope | TerminationIdPool:
 
 **Termination signal merging logic**:
 - When a termination signal from `"input"` is received, it is returned immediately
-- When termination signals from all `queue_tags` have been received, they are merged and returned
+- When termination signals from all `queue_tags` are received, they are merged and returned
 
 #### drain
 
@@ -72,7 +72,7 @@ def get(self) -> TaskEnvelope | TerminationIdPool:
 def drain(self) -> list[TaskEnvelope]:
     """
     Drain all tasks from the queue and return them as a list.
-    Records termination signal status but does not return TerminationIdPool.
+    Records termination signal state but does not return TerminationIdPool.
 
     :return: List containing all tasks
     """
@@ -94,7 +94,7 @@ def add_source_tag(self, tag: str):
 
 ## TaskOutQueue
 
-Task output queue, used to send tasks to multiple downstream targets.
+Task output queue for sending tasks to multiple downstream nodes.
 
 ### Initialization
 
@@ -102,7 +102,7 @@ Task output queue, used to send tasks to multiple downstream targets.
 class TaskOutQueue:
     def __init__(
         self,
-        queue_list: list[ThreadQueue] | list[MPQueue] | list[AsyncQueue],
+        queue_list: list[ThreadQueue] | list[AsyncQueue],
         queue_tags: list[str],
         in_tag: str,
         log_inlet: "LogInlet",
@@ -114,7 +114,7 @@ class TaskOutQueue:
         :param queue_tags: List of queue tags
         :param in_tag: Current node tag
         :param log_inlet: Logger
-        :raises ValueError: If the queue list and tag list have different lengths
+        :raises ValueError: If queue list and tag list lengths do not match
         """
 ```
 
@@ -141,7 +141,7 @@ def put_target(self, item: TaskEnvelope | TerminationSignal, tag: str):
     """
 ```
 
-Commonly used for targeted dispatch in `TaskRouter`.
+Commonly used for targeted distribution in `TaskRouter`.
 
 #### put_channel
 
@@ -158,7 +158,7 @@ def put_channel(self, item: TaskEnvelope | TerminationSignal, idx: int):
 ### Helper Methods
 
 ```python
-def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
+def add_queue(self, queue: ThreadQueue | AsyncQueue, tag: str):
     """
     Add an output queue to the queue list.
 
@@ -175,7 +175,7 @@ def add_queue(self, queue: ThreadQueue | MPQueue | AsyncQueue, tag: str):
 ### Signal Flow
 
 ```
-Upstream node ──TaskOutQueue──> Queue ──TaskInQueue──> Current node
+Upstream Node ──TaskOutQueue──> Queue ──TaskInQueue──> Current Node
     │                              │
     └── TerminationSignal ──────> termination_dict
                                         │
@@ -188,8 +188,8 @@ Upstream node ──TaskOutQueue──> Queue ──TaskInQueue──> Current n
 `TaskInQueue` waits for termination signals from all `queue_tags`, then merges them into a single `TerminationIdPool`:
 
 1. When a termination signal is received, it is recorded in `termination_dict`
-2. Check whether all upstream sources have sent termination signals
-3. If all have been received, merge into a `TerminationIdPool` and return
+2. Check if all upstream sources have sent termination signals
+3. If all received, merge into `TerminationIdPool` and return
 4. Otherwise, continue waiting
 
 Special handling:
@@ -197,17 +197,17 @@ Special handling:
 
 ---
 
-## Usage Examples
+## Usage Example
 
 ### Using in TaskGraph
 
 ```python
 from celestialflow.runtime import TaskInQueue, TaskOutQueue
-from multiprocessing import Queue as MPQueue
+from queue import Queue as ThreadQueue
 
 # Input queue
 in_queue = TaskInQueue(
-    queue=MPQueue(),
+    queue=ThreadQueue(),
     queue_tags=["upstream_stage"],
     out_tag="current_stage",
     log_inlet=log_inlet,
@@ -215,7 +215,7 @@ in_queue = TaskInQueue(
 
 # Output queue
 out_queue = TaskOutQueue(
-    queue_list=[MPQueue()],
+    queue_list=[ThreadQueue()],
     queue_tags=["downstream_stage"],
     in_tag="current_stage",
     log_inlet=log_inlet,
@@ -232,15 +232,15 @@ out_queue.add_queue(new_queue, "new_downstream")
 ### Handling Termination Signals
 
 ```python
-# Get a task
+# Get task
 item = in_queue.get()
 
 if isinstance(item, TaskEnvelope):
-    # Process the task
+    # Process task
     result = process(item.get_task())
     out_queue.put(TaskEnvelope(result, id=result_id, source="stage_tag"))
 elif isinstance(item, TerminationIdPool):
-    # All upstream sources have terminated; send termination signal downstream
+    # All upstream sources have terminated, send termination signal downstream
     out_queue.put(TerminationSignal())
 ```
 
@@ -248,7 +248,7 @@ elif isinstance(item, TerminationIdPool):
 
 ## Notes
 
-1. **Multi-channel**: A single `TaskOutQueue` can manage multiple downstream queues
+1. **Multi-Channel**: A single `TaskOutQueue` can manage multiple downstream queues
 2. **Logging**: All enqueue/dequeue operations are logged
-3. **Thread Safety**: Uses queue implementations internally, supporting multi-thread/multi-process access
+3. **Thread Safety**: Internally uses queue implementations that support multi-threaded access
 4. **Termination Merging**: Properly handles merging of termination signals from multiple upstream sources

@@ -1,6 +1,6 @@
 # Other Module
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/04/22
 
 ## Overview
 

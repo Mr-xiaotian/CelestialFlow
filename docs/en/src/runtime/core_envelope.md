@@ -1,8 +1,8 @@
 # TaskEnvelope
 
-> 📅 Last updated: 2026/05/08
+> 📅 Last Updated: 2026/05/15
 
-A wrapper class for task data passed between Stages. It encapsulates the original task data, task hash, task ID, and source information.
+A wrapper class for task data, passed between Stages. It encapsulates the raw task data, task hash, task ID, and source information.
 
 ## Attributes
 
@@ -11,7 +11,7 @@ class TaskEnvelope:
     __slots__ = ("task", "hash", "id", "source", "prev")
 
     def __init__(self, task: Any, id: int, source: str, prev: Any = None):
-        self.task = task      # Original task data
+        self.task = task      # Raw task data
         self.hash = None      # Hash value (lazily computed)
         self.id = id          # Unique task ID
         self.source = source  # Task source identifier
@@ -22,9 +22,9 @@ class TaskEnvelope:
 
 ```python
 def get_task(self) -> Any:
-    """Get the original task data."""
+    """Get the raw task data."""
 
-def get_hash(self) -> str:
+def get_hash(self) -> bytes:
     """Get the task hash. Lazily computed and cached on first call."""
 
 def get_id(self) -> int:
@@ -34,14 +34,14 @@ def change_id(self, new_id: int) -> None:
     """Change the task ID (used in retry scenarios)."""
 ```
 
-## Lazy Hash
+## Lazy Hashing
 
-`hash` is `None` at construction time and only computed on the first call to `get_hash()`. This avoids wasting computation when duplicate checking is not needed.
+The `hash` is `None` at construction time and is only computed on the first call to `get_hash()`. This avoids wasting computational resources in scenarios where deduplication checks are not needed.
 
 ```python
 envelope = TaskEnvelope("data", id=1, source="input")
-assert envelope.hash is None         # Not yet computed
-h = envelope.get_hash()              # First call computes and caches
+assert envelope.hash is None         # Not computed
+h = envelope.get_hash()              # First call, computed and cached
 assert envelope.hash is not None     # Cached
 assert envelope.get_hash() == h      # Subsequent calls return cached value
 ```
@@ -51,7 +51,7 @@ assert envelope.get_hash() == h      # Subsequent calls return cached value
 ```python
 from celestialflow.runtime import TaskEnvelope
 
-# Create envelope
+# Create an envelope
 envelope = TaskEnvelope(task_data, id=123, source="input")
 
 # Get data

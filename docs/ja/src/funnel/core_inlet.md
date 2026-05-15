@@ -2,14 +2,14 @@
 
 > 📅 最終更新日: 2026/04/22
 
-`BaseInlet` はすべての入口クラスの基底クラスで、レコードをキューに書き込む汎用機能を提供します。
+`BaseInlet` はすべての Inlet クラスの基底クラスで、レコードをキューに書き込む共通機能を提供します。
 
 ## 初期化
 
 ```python
 class BaseInlet:
     def __init__(self, queue):
-        self.queue = queue  # 対応する Spout の get_queue() から取得します
+        self.queue = queue  # 対応する Spout の get_queue() から取得
 ```
 
 ## コアメソッド
@@ -18,7 +18,7 @@ class BaseInlet:
 
 ```python
 def _funnel(self, record):
-    """レコードをキューに入れ、対応する Spout が消費できるようにします。"""
+    """レコードをキューに入れ、対応する Spout に消費させる。"""
     self.queue.put(record)
 ```
 

@@ -1,8 +1,8 @@
 # TaskDispatch
 
-> 📅 Last updated: 2026/05/08
+> 📅 Last Updated: 2026/05/08
 
-`TaskDispatch` is the core task execution runner, responsible for fetching tasks from queues, executing them, and handling results and errors. It supports three execution modes: serial, thread pool, and async.
+`TaskDispatch` is the core task execution runner, responsible for fetching tasks from queues, executing tasks, and handling results and errors. It supports three execution modes: serial, thread pool, and async.
 
 ## Initialization
 
@@ -14,7 +14,7 @@ class TaskDispatch:
 
         :param task_executor: Task executor (TaskExecutor instance)
         :param func: Task function
-        :param max_workers: Limit on the number of worker threads or processes
+        :param max_workers: Maximum number of worker threads or processes
         """
 ```
 
@@ -22,22 +22,22 @@ class TaskDispatch:
 
 ### dispatch_serial
 
-Executes tasks serially, processing one after another.
+Executes tasks serially, processing one at a time.
 
 ```python
 def dispatch_serial(self):
     """
     Execute tasks serially.
 
-    Fetches tasks from task_queues, executes them one by one until a termination signal is received and all tasks are completed.
+    Fetches tasks from task_queues, executes them sequentially until a termination signal is received and all tasks are completed.
     """
 ```
 
 Execution flow:
-1. Fetch a task from `task_queues.get()`
+1. Fetch task from `task_queues.get()`
 2. Check if it is a termination signal (`TerminationIdPool`)
 3. Check if the task is a duplicate
-4. Execute the task and handle the result or error
+4. Execute the task and handle results or errors
 5. Update the progress bar
 6. After receiving a termination signal, check if all tasks are completed
 
@@ -55,13 +55,13 @@ def dispatch_thread(self):
 Execution flow:
 1. Initialize the thread pool
 2. Fetch tasks from the queue and submit them to the pool
-3. Periodically clean up completed futures (filtered when list length reaches `max_workers * 2`)
+3. Periodically clean up completed futures (filter when list length reaches `max_workers * 2`)
 4. Wait for all futures to complete before processing the termination signal
 5. Shut down the pool and release resources
 
 ### dispatch_async
 
-Executes tasks asynchronously using coroutines and semaphores to control concurrency.
+Executes tasks asynchronously using coroutines and semaphores for concurrency control.
 
 ```python
 async def dispatch_async(self):
@@ -73,9 +73,9 @@ async def dispatch_async(self):
 Execution flow:
 1. Create a semaphore to limit concurrency
 2. Fetch tasks asynchronously
-3. Use `asyncio.gather` to execute tasks concurrently
+3. Use `asyncio.gather` for concurrent execution
 4. Handle results and errors
-5. Check the termination condition
+5. Check termination conditions
 
 ## Internal Methods
 
@@ -83,10 +83,10 @@ Execution flow:
 
 ```python
 def _worker(self, envelope: TaskEnvelope):
-    """Worker function in the thread pool; executes a single task and handles retries."""
+    """Worker function in the thread pool, executes a single task and handles retries."""
 
 async def _async_worker(self, envelope: TaskEnvelope):
-    """Async worker function; executes a single task and handles retries."""
+    """Async worker function, executes a single task and handles retries."""
 ```
 
 ### _process_termination_signal
@@ -94,7 +94,7 @@ async def _async_worker(self, envelope: TaskEnvelope):
 ```python
 def _process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
     """
-    Process a termination signal and generate a merge event.
+    Process termination signal and generate merge events.
 
     :param termination_pool: Pool containing multiple termination signal IDs
     :return: Merged termination signal
@@ -134,8 +134,8 @@ TaskExecutor
 ## Notes
 
 1. **Concurrency Control**: `max_workers` limits the number of concurrent tasks to prevent resource exhaustion
-2. **Futures Cleanup**: In `dispatch_thread`, completed futures are periodically filtered out to prevent memory accumulation from unused futures
-3. **Termination Handling**: Properly handles merging and propagation of termination signals
-3. **Error Propagation**: Exceptions are caught and passed to `TaskExecutor.handle_task_fail()`
-4. **Retry Mechanism**: Workers support task retries internally, controlled by `max_retries`
-5. **Async Limitation**: `dispatch_async` requires the task function to be a coroutine function
+2. **Futures Cleanup**: In `dispatch_thread`, when the futures list length reaches `max_workers * 2`, completed futures are filtered out to avoid unbounded memory growth
+3. **Termination Handling**: Proper merging and propagation of termination signals
+4. **Error Propagation**: Exceptions are caught and passed to `TaskExecutor.handle_task_fail()`
+5. **Retry Mechanism**: Workers support task retries internally, controlled by `max_retries`
+6. **Async Limitation**: `dispatch_async` requires the task function to be a coroutine function

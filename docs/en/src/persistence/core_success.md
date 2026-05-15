@@ -1,8 +1,8 @@
 # SuccessSpout
 
-> 📅 Last updated: 2026/04/24
+> 📅 Last Updated: 2026/04/24
 
-`SuccessSpout` inherits from `BaseSpout` and is used to continuously listen to the success result queue and cache task-result pairs.
+`SuccessSpout` inherits from `BaseSpout` and continuously listens to the success result queue, caching task-result pairs.
 
 ## Initialization
 
@@ -36,9 +36,9 @@ Receives a `TaskEnvelope` from the queue, extracts the original task (`record.pr
 
 Clears `success_pairs` before starting.
 
-## Usage Scenario
+## Use Cases
 
-Success results are sent to the `SuccessSpout` queue. After execution completes, all successful (task, result) pairs can be retrieved via `get_success_pairs()`.
+Success results are sent to the `SuccessSpout` queue. After execution completes, you can retrieve all successful (task, result) pairs via `get_success_pairs()`.
 
 ```python
 executor = TaskExecutor("Processor", process)

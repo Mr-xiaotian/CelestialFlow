@@ -1,23 +1,23 @@
 # bench_datastructures.py Benchmark Documentation
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/05/09
 
 ## Objective
 
-Compare read/write performance of various Python data structures and external storage backends under single-threaded and multi-process environments, providing quantitative evidence for selecting internal queues, shared state, and persistence backends in CelestialFlow.
+Compare read/write performance of various Python data structures and external storage backends in a single-threaded environment, providing quantitative evidence for CelestialFlow's internal queue and persistence backend selection.
 
 ## Test Cases
 
-| Test Case | Description | Scale |
-|-----------|-------------|-------|
-| `test_builtin_dict` | Native dictionary put/get | N=10,000 |
-| `test_queue_thread` | `queue.Queue` single-threaded read/write | N=10,000 |
-| `test_mpqueue` | `multiprocessing.Queue` cross-process read/write | N=10,000 |
+| Test | Description | Scale |
+|------|-------------|-------|
+| `test_builtin_dict` | Native dict put/get | N=10,000 |
+| `test_queue_thread` | `queue.Queue` single-thread read/write | N=10,000 |
+| `test_mpqueue` | `multiprocessing.Queue` cross-process read/write (deprecated, kept for reference) | N=10,000 |
 | `test_manager_dict` | `Manager().dict` cross-process read/write | N=10,000 |
-| `test_value_number` | `multiprocessing.Value` atomic increment | N=10,000 |
+| `test_value_number` | `multiprocessing.Value` atomic increment (deprecated, kept for reference) | N=10,000 |
 | `test_redis_plain` | Redis sequential set/get | N=10,000 |
 | `test_redis_pipeline` | Redis Pipeline batch set/get | N=10,000 |
-| `test_redis_multithread_plain` | Redis multi-threaded concurrent writes | N=10,000 / 10 threads |
+| `test_redis_multithread_plain` | Redis multi-threaded concurrent write | N=10,000 / 10 threads |
 | `test_redis_hash` | Redis Hash sequential hset/hget | N=10,000 |
 | `test_redis_list` | Redis List sequential rpush/lindex | N=10,000 |
 | `test_redis_set` | Redis Set sequential sadd/sismember | N=10,000 |
@@ -31,8 +31,9 @@ Compare read/write performance of various Python data structures and external st
 ## Potential Issues
 
 1. **Redis connection failure**: If Redis configuration is missing from `.env` or the service is not running, Redis-related tests will be skipped with a warning.
-2. **Windows multi-process startup overhead**: `MPQueue` and `Manager().dict` tests under Windows `spawn` mode may spend significant time on subprocess startup alone, leading to inaccurate put/get timing.
-3. **MPQueue buffer limits**: In `mpqueue_worker`, all N elements are put before get, which may hit OS pipe buffer limits when N is large (especially on Linux).
+2. **MPQueue buffer limit**: In `mpqueue_worker`, all N elements are put before any get, which may hit the OS pipe buffer limit when N is large (especially on Linux).
+
+> **Note**: `test_mpqueue` and `test_value_number` use `multiprocessing.Queue` and `multiprocessing.Value` which are no longer used internally by the framework (`stage_mode="process"` has been removed). These benchmarks are kept for historical reference only.
 
 ## How to Run
 
@@ -44,17 +45,17 @@ python bench/bench_datastructures.py
 
 > Environment: Windows, Python 3.10, local Redis, N=10,000
 
-| Test Case | put/set | get | Notes |
-|-----------|---------|-----|-------|
-| Built-in dict | 0.0008s | 0.0003s | Single-threaded baseline, fastest |
+| Test | put/set | get | Notes |
+|------|---------|-----|-------|
+| Built-in dict | 0.0008s | 0.0003s | Single-thread baseline, fastest |
 | Queue (thread) | 0.0101s | 0.0108s | Thread-safe queue |
 | MPQueue | 0.0149s | 0.3072s | Cross-process queue, get significantly slower due to serialization |
 | Manager.dict | 0.5156s | 0.5369s | Manager server forwarding, 50-100x slower |
 | Value (number) | 0.0174s | — | 10,000 atomic increments |
-| Redis plain | 2.8352s | 2.9026s | Per-item RTT, dominated by network latency |
+| Redis plain | 2.8352s | 2.9026s | Per-item RTT, network latency dominated |
 | Redis pipeline | 0.1474s | 0.1202s | Batched, ~20x faster than plain |
 | Redis multi-thread | 1.1749s | 1.0765s | 10 threads concurrent, no pipeline |
-| Redis hash | 2.8391s | 2.7675s | hset/hget, on par with plain |
+| Redis hash | 2.8391s | 2.7675s | hset/hget, comparable to plain |
 | Redis list | 2.6853s | 2.8370s | rpush/lindex |
 | Redis set | 2.7932s | 3.2969s | sadd/sismember |
 | Redis zset | 3.1955s | 3.1854s | zadd/zscore |

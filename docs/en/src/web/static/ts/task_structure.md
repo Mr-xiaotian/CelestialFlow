@@ -1,21 +1,21 @@
 # task_structure.ts
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/04/22
 
-Manages the loading of task graph structure data and on-demand rendering of Mermaid flowcharts.
+Manages loading of task graph structure data and on-demand rendering of Mermaid flowcharts.
 
 ## Global Variables
 
 | Variable | Type | Description |
 |----------|------|-------------|
-| `structureData` | `any[]` | Task graph root node array fetched from the backend |
-| `structureRev` | `number` | Version number from the last fetch, used for incremental fetching (`known_rev`) |
+| `structureData` | `any[]` | Task graph root node array, fetched from backend |
+| `structureRev` | `number` | Last fetched version number, used for incremental fetching (`known_rev`) |
 
 ## Functions
 
 ### `loadStructure()`
 
-Asynchronously fetches the graph structure array from `GET /api/pull_structure?known_rev=N`. If the server data has not changed (`body.data === null`), returns `false`; otherwise updates `structureData` and `structureRev`, returning `true`.
+Asynchronously fetches graph structure array from `GET /api/pull_structure?known_rev=N`. If the server data has not changed (`body.data === null`), returns `false`; otherwise updates `structureData` and `structureRev`, and returns `true`.
 
 ---
 
@@ -27,11 +27,11 @@ Replaces non-word characters in the node name with `_` to generate a Mermaid-com
 
 ### `getShapeWrappedLabel(label, shape)`
 
-Generates Mermaid node label syntax based on shape type.
+Generates Mermaid node label syntax based on the shape type.
 
-| `shape` Value | Mermaid Syntax | Purpose |
-|--------------|----------------|---------|
-| `box` (default) | `[label]` | Standard rectangle node |
+| `shape` Value | Mermaid Syntax | Usage |
+|--------------|----------------|-------|
+| `box` (default) | `[label]` | Regular rectangle node |
 | `round` | `(label)` | Rounded rectangle |
 | `circle` | `((label))` | Circle |
 | `rhombus` | `{{label}}` | Diamond (Router node) |
@@ -45,19 +45,19 @@ Generates Mermaid node label syntax based on shape type.
 
 ### `renderMermaidStructure(statuses?)`
 
-Builds Mermaid code from `structureData` and the passed `statuses` (`Record<string, NodeStatus>`, defaults to empty object) and renders it to the DOM.
+Builds Mermaid code from `structureData` and the provided `statuses` (`Record<string, NodeStatus>`, defaults to empty object) and renders to DOM.
 
 **Flow:**
 
-1. Traverses `structureData` (DFS `walk()`):
-   - Determines node shape based on `func_name` (`_split` → subgraph, `_route` → rhombus, `_transport/_source/_ack` → parallelogram)
-   - Determines node style class based on `nodeStatuses[tag].status` (`greenNode` / `greyNode` / `whiteNode`)
-   - Collects all edges (deduplicated via Set)
-2. Selects `classDef` color scheme based on current theme
-3. Generates `graph TD` Mermaid code
-4. Creates a new `<div>` to replace the old `#mermaid-container` and calls `window.mermaid.run()` to render
+1. Iterate over `structureData` (DFS `walk()`):
+   - Determine node shape based on `func_name` (`_split` → subgraph, `_route` → rhombus, `_transport/_source/_ack` → parallelogram)
+   - Determine node style class based on `nodeStatuses[tag].status` (`greenNode` / `greyNode` / `whiteNode`)
+   - Collect all edges (deduplicated via Set)
+2. Choose `classDef` color scheme based on current theme
+3. Generate `graph TD` Mermaid code
+4. Create a new `<div>` to replace the old `#mermaid-container` and call `window.mermaid.run()` to render
 
-**Node Status Colors:**
+**Node status colors:**
 
 | `status` | Style Class | Meaning |
 |----------|-------------|---------|

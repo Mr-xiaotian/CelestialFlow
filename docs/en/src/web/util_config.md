@@ -1,6 +1,6 @@
 # util_config
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/04/22
 
 Configuration file read/write utilities for the Web module.
 
@@ -8,7 +8,7 @@ Configuration file read/write utilities for the Web module.
 
 ```python
 def load_config(config_path: str) -> dict:
-    """Loads and validates the frontend configuration from the specified path, returning a dictionary."""
+    """Load and validate frontend configuration from the specified path, returning a dictionary."""
 ```
 
 Raises `FileNotFoundError` if the file does not exist.
@@ -17,5 +17,5 @@ Raises `FileNotFoundError` if the file does not exist.
 
 ```python
 def save_config(config: dict, config_path: str) -> bool:
-    """Saves the frontend configuration to a JSON file, returning whether the operation succeeded."""
+    """Save frontend configuration to a JSON file, returning whether the operation succeeded."""
 ```

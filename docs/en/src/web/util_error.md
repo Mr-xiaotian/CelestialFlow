@@ -1,6 +1,6 @@
 # util_error
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/04/22
 
 Error query and pagination utility functions for the Web module.
 
@@ -13,7 +13,7 @@ def normalize_errors_query(
     """Normalize error query parameters."""
 ```
 
-Normalizes user-input query parameters: clamps `page_size` to [1, 200], ensures `page` >= 1, strips whitespace, and converts keywords to lowercase.
+Normalizes user-input query parameters: clamps `page_size` to [1, 200], ensures `page` >= 1, trims whitespace, and converts keywords to lowercase.
 
 ## filter_errors
 
@@ -21,10 +21,10 @@ Normalizes user-input query parameters: clamps `page_size` to [1, 200], ensures 
 def filter_errors(
     error_store: list[dict[str, Any]], normalized_node: str, normalized_keyword: str
 ) -> list[dict[str, Any]]:
-    """Filter error records by stage name and keyword."""
+    """Filter error records by node name and keyword."""
 ```
 
-Supports exact matching by stage name and fuzzy matching by error_repr/task_repr keyword.
+Supports exact matching by stage name and fuzzy matching by error_repr/task_repr keywords.
 
 ## paginate_errors
 
@@ -35,4 +35,4 @@ def paginate_errors(
     """Paginate filtered error records, returning (total count, total pages, current page records)."""
 ```
 
-Sorts by timestamp in descending order before paginating.
+Sorts by timestamp in descending order before pagination.

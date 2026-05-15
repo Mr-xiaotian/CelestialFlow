@@ -1,17 +1,17 @@
 # task_history.ts
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/05/15
 
-Manages the loading of per-stage task processing history data and the initialization and updating of line charts.
+Manages loading of node task processing history data and initialization/updating of line charts.
 
 ## Global Variables
 
 | Variable | Type | Description |
 |----------|------|-------------|
-| `nodeHistories` | `Record<string, NodeHistory>` | Per-stage history data fetched from the backend |
+| `nodeHistories` | `Record<string, NodeHistory>` | Per-node history data, fetched from backend |
 | `progressChart` | `any` | Chart.js instance |
-| `hiddenNodes` | `Set<string>` | Set of stages hidden in the line chart, persisted to localStorage |
-| `historyRev` | `number` | Version number from the last fetch, used for incremental fetching (`known_rev`) |
+| `hiddenNodes` | `Set<string>` | Set of hidden nodes in the line chart, persisted to localStorage |
+| `historyRev` | `number` | Last fetched version number, used for incremental fetching (`known_rev`) |
 
 ## Type Definitions
 
@@ -23,7 +23,7 @@ type NodeHistory = Array<{ timestamp: number; tasks_processed: number }>;
 
 ### `loadHistories()`
 
-Asynchronously fetches history data from `GET /api/pull_history?known_rev=N`. If the server data has not changed (`body.data === null`), returns `false`; otherwise updates `nodeHistories` and `historyRev`, returning `true`.
+Asynchronously fetches history data from `GET /api/pull_history?known_rev=N`. If the server data has not changed (`body.data === null`), returns `false`; otherwise updates `nodeHistories` and `historyRev`, and returns `true`.
 
 ---
 
@@ -31,17 +31,17 @@ Asynchronously fetches history data from `GET /api/pull_history?known_rev=N`. If
 
 Initializes (or rebuilds) the Chart.js line chart instance.
 
-- If an instance already exists, calls `destroy()` to dispose of it first
-- Sets text color, grid color, and axis line color based on the current theme (`dark-theme` CSS class)
-- Configures legend click events: clicking a legend item toggles stage visibility and syncs the state to localStorage
+- If an instance already exists, calls `destroy()` first to tear it down
+- Sets text color, grid color, and axis color based on the current theme (`dark-theme` CSS class)
+- Configures legend click events: clicking a legend item toggles node visibility and syncs to localStorage
 
-**The chart instance must be rebuilt on theme switch**, so `main.ts` calls `updateChartTheme()` after theme changes to update colors.
+**The chart instance needs to be rebuilt on theme switch**, so `main.ts` calls `updateChartTheme()` after theme switching to update colors.
 
 ---
 
 ### `updateChartTheme()`
 
-Updates the line chart color scheme (text color, grid line color, axis line color) without destroying and rebuilding the instance. Called after theme switches.
+Updates the line chart's color scheme (text color, grid line color, axis color) without destroying and rebuilding the instance. Called after theme switching.
 
 ---
 
@@ -50,8 +50,8 @@ Updates the line chart color scheme (text color, grid line color, axis line colo
 Writes `nodeHistories` data to the line chart and refreshes it.
 
 1. Calls `extractProgressData(nodeHistories)` to convert to `{x, y}` coordinate points
-2. Generates a dataset for each stage; colors are assigned by `getColor(index)`, `hidden` state is determined by `hiddenNodes`
-3. Uses the first stage's timestamp sequence to generate X-axis labels (local time strings)
+2. Generates a dataset for each node, with colors assigned by `getColor(index)` and `hidden` state determined by `hiddenNodes`
+3. Uses the first node's timestamp sequence to generate X-axis labels (local time strings); returns early if no node data exists
 4. Calls `progressChart.update()` to redraw
 
 ## Data Flow

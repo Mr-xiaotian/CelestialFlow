@@ -2,7 +2,7 @@
 
 > 📅 最終更新日: 2026/04/22
 
-タスクインジェクションページのロジックです。ステージの選択、タスクデータの入力（JSON テキストまたはファイルアップロード）、バックエンドへの送信をサポートします。
+タスクインジェクションページのロジック。ノード選択、タスクデータ入力（JSON テキストまたはファイルアップロード）、バックエンドへの送信をサポートします。
 
 ## 型定義
 
@@ -14,43 +14,43 @@ type SelectedNode = { name: string; type: string; status?: number };
 
 | 変数 | 型 | 説明 |
 |------|------|------|
-| `selectedNodes` | `SelectedNode[]` | 現在選択中のステージリスト |
-| `currentInputMethod` | `string` | 現在の入力方法: `"json"` または `"file"` |
-| `uploadedFile` | `{name, content} \| null` | アップロード済み JSON ファイルの内容 |
+| `selectedNodes` | `SelectedNode[]` | 現在選択されているノードリスト |
+| `currentInputMethod` | `string` | 現在の入力方法：`"json"` または `"file"` |
+| `uploadedFile` | `{name, content} \| null` | アップロードされた JSON ファイルの内容 |
 
 ## 関数
 
 ### `setupEventListeners()`
 
-ページイベントをバインドします: 検索ボックス入力、JSON テキストエリアのリアルタイムバリデーション、ファイル選択、送信ボタン。
+ページイベントをバインド：検索ボックス入力、JSON テキストエリアのリアルタイム検証、ファイル選択、送信ボタン。
 
 ---
 
 ### `renderNodeList(searchTerm?)`
 
-ステージ選択リストをレンダリングします。
+ノード選択リストをレンダリングします。
 
-- `searchTerm` に基づいてステージ名をフィルタリング
-- `nodeStatuses` からステージ状態を読み取りバッジをレンダリング
-- ステータスが `2`（停止済み）のステージはクリック不可（`disabled-node` スタイル）
+- `searchTerm` に基づいてノード名をフィルタリング
+- `nodeStatuses` からノードステータスを読み取り、バッジをレンダリング
+- ステータスが `2`（停止済み）のノードはクリック不可（`disabled-node` スタイル）
 
 ---
 
 ### `selectNode(nodeName)` / `removeNode(nodeName)`
 
-ステージの選択状態を切り替え（選択済みステージの再クリックで選択解除）、`updateSelectedNodes()` を呼び出して選択リスト UI を更新します。
+ノードの選択状態を切り替え（選択済みノードの再クリックで選択解除）、`updateSelectedNodes()` を呼び出して選択リスト UI を更新します。
 
 ---
 
 ### `selectAllNodes()`
 
-`status !== 2` のすべてのステージを全選択します（停止済みステージを除く）。
+`status !== 2` のすべてのノードを全選択（停止済みノードを除外）。
 
 ---
 
 ### `clearSelection()`
 
-選択済みステージをすべてクリアします。
+選択されたすべてのノードをクリアします。
 
 ---
 
@@ -62,13 +62,13 @@ type SelectedNode = { name: string; type: string; status?: number };
 
 ### `fillTermination()`
 
-JSON テキストエリアに事前定義された終了信号 `["TERMINATION_SIGNAL"]` を入力します。ユーザーが素早く終了信号をインジェクションできるようにします。
+JSON テキストエリアに事前定義の終了シグナル `["TERMINATION_SIGNAL"]` を入力し、ユーザーが素早く終了シグナルを注入できるようにします。
 
 ---
 
 ### `handleFileUpload(e)`
 
-ファイルアップロードを処理します: `.json` 形式のみ受け付け、JSON の妥当性を読み取り・検証し、`uploadedFile` に保存します。
+ファイルアップロードを処理：`.json` 形式のみ受け付け、JSON の妥当性を読み取り・検証し、`uploadedFile` に保存します。
 
 ---
 
@@ -76,9 +76,9 @@ JSON テキストエリアに事前定義された終了信号 `["TERMINATION_SI
 
 タスクインジェクションを送信します。
 
-1. 選択済みステージを検証（少なくとも1つ必要）
+1. 選択されたノードを検証（最低 1 つ）
 2. 入力方法に基づいてタスクデータを解析
-3. 選択された各ステージに対して `/api/push_injection_tasks` に POST し、すべて完了後に成功メッセージを表示
+3. 選択された各ノードに対して順次 `/api/push_injection_tasks` に POST し、すべて完了後に成功メッセージを表示
 4. `clearForm()` を呼び出してフォームをリセット
 
 ---
@@ -87,11 +87,11 @@ JSON テキストエリアに事前定義された終了信号 `["TERMINATION_SI
 
 | 関数 | 説明 |
 |------|------|
-| `showError(elementId, message)` | エラーメッセージテキストを表示 |
-| `hideError(elementId)` | エラーメッセージを非表示 |
-| `showStatus(message, isSuccess)` | 操作結果メッセージを表示（3秒後に自動非表示） |
+| `showError(elementId, message)` | エラープロンプトテキストを表示 |
+| `hideError(elementId)` | エラープロンプトを非表示 |
+| `showStatus(message, isSuccess)` | 操作結果メッセージを表示（3 秒後に自動非表示） |
 | `setButtonLoading(loading)` | 送信ボタンのローディング状態を切り替え |
-| `clearForm()` | すべての選択、入力、エラーメッセージをリセット |
+| `clearForm()` | すべての選択、入力、エラープロンプトをリセット |
 
 ## タスクインジェクションリクエストボディ
 
@@ -103,4 +103,4 @@ JSON テキストエリアに事前定義された終了信号 `["TERMINATION_SI
 }
 ```
 
-`POST /api/push_injection_tasks` に送信されます。サーバーは `injection_tasks` キューに保存し、`TaskReporter` が `GET /api/pull_task_injection` で定期的に取得して `TaskGraph` にインジェクションします。
+`POST /api/push_injection_tasks` に送信されます。サーバーは `injection_tasks` キューに格納し、`TaskReporter` が `GET /api/pull_task_injection` を通じて定期的に取得して `TaskGraph` に注入します。

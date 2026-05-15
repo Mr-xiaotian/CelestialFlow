@@ -1,8 +1,8 @@
 # BaseObserver / CallbackObserver
 
-> 📅 Last updated: 2026/05/08
+> 📅 Last Updated: 2026/05/08
 
-`BaseObserver` is the base class for executor lifecycle observers, defining the event interface that `TaskExecutor` broadcasts during execution. `CallbackObserver` is a lightweight implementation that receives events via callback functions.
+`BaseObserver` is the base class for executor lifecycle observers, defining the event interfaces that `TaskExecutor` broadcasts during execution. `CallbackObserver` is a lightweight implementation that receives events through callback functions.
 
 ## BaseObserver
 
@@ -16,17 +16,17 @@ class BaseObserver:
     def on_finish(self) -> None: ...
 ```
 
-All methods have default empty implementations (not ABC); subclasses override as needed.
+All methods have empty default implementations (not ABC); subclasses override as needed.
 
 ### Event Description
 
-| Event | Trigger | Parameters |
-|-------|---------|------------|
-| `on_start` | Executor begins running | `name`: executor name, `total`: initial task count |
-| `on_task_success` | A task succeeds | `count`: number of successes (default 1) |
-| `on_task_fail` | A task fails | `count`: number of failures (default 1) |
-| `on_task_duplicate` | Duplicate task detected | `count`: number of duplicates (default 1) |
-| `on_tasks_added` | New tasks added to queue | `count`: number of new tasks |
+| Event | Trigger Timing | Parameters |
+|-------|---------------|------------|
+| `on_start` | Executor starts running | `name`: executor name, `total`: initial total task count |
+| `on_task_success` | A single task succeeds | `count`: number of successes (default 1) |
+| `on_task_fail` | A single task fails | `count`: number of failures (default 1) |
+| `on_task_duplicate` | A duplicate task is detected | `count`: number of duplicates (default 1) |
+| `on_tasks_added` | New tasks added to the queue | `count`: number of new tasks |
 | `on_finish` | Executor finishes running | None |
 
 ### Usage
@@ -49,15 +49,15 @@ executor.start(tasks)
 ### Observer Management
 
 ```python
-executor.add_observer(observer)     # Register observer
-executor.remove_observer(observer)  # Remove observer
+executor.add_observer(observer)     # Register an observer
+executor.remove_observer(observer)  # Remove an observer
 ```
 
-Internally, the executor broadcasts events to all registered observers via `_notify(method_name, *args, **kwargs)`. When the observer list is empty, there is no overhead (no Null implementation needed).
+The executor internally broadcasts events to all registered observers via `_notify(method_name, *args, **kwargs)`. When the observer list is empty, it is equivalent to having no observers (no Null implementation needed).
 
 ## CallbackObserver
 
-A lightweight observer that accepts callback functions via keyword arguments, without requiring subclassing.
+A lightweight observer that receives events through callback functions passed as keyword arguments, without the need to define a subclass.
 
 ```python
 class CallbackObserver(BaseObserver):
@@ -87,5 +87,5 @@ Only override the events you care about; the rest use `BaseObserver`'s default e
 
 | Class | Description |
 |-------|-------------|
-| `TaskProgress` | tqdm-based progress bar display (see `core_progress.md`) |
-| `CallbackObserver` | Callback-based observer |
+| `TaskProgress` | Progress bar display based on tqdm (see `core_progress.md`) |
+| `CallbackObserver` | Callback function-based observer |

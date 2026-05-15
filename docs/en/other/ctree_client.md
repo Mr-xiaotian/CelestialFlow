@@ -1,6 +1,6 @@
 # CelestialTree Client
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/04/22
 
 CelestialFlow integrates a `celestialtree` client for fine-grained full-chain task tracing (Provenance) and event recording.
 

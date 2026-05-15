@@ -1,8 +1,8 @@
 # task_injection.ts
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/04/22
 
-Logic for the task injection page, supporting stage selection, task data input (JSON text or file upload), and submission to the backend.
+Task injection page logic, supporting node selection, task data input (JSON text or file upload), and submission to the backend.
 
 ## Type Definitions
 
@@ -14,7 +14,7 @@ type SelectedNode = { name: string; type: string; status?: number };
 
 | Variable | Type | Description |
 |----------|------|-------------|
-| `selectedNodes` | `SelectedNode[]` | Currently selected stage list |
+| `selectedNodes` | `SelectedNode[]` | Currently selected node list |
 | `currentInputMethod` | `string` | Current input method: `"json"` or `"file"` |
 | `uploadedFile` | `{name, content} \| null` | Uploaded JSON file content |
 
@@ -22,63 +22,63 @@ type SelectedNode = { name: string; type: string; status?: number };
 
 ### `setupEventListeners()`
 
-Binds page events: search box input, JSON textarea real-time validation, file selection, submit button.
+Binds page events: search input, real-time JSON textarea validation, file selection, submit button.
 
 ---
 
 ### `renderNodeList(searchTerm?)`
 
-Renders the stage selection list.
+Renders the node selection list.
 
-- Filters stage names based on `searchTerm`
-- Reads stage status from `nodeStatuses` and renders badges
-- Stages with status `2` (stopped) are disabled (styled with `disabled-node`)
+- Filters node names based on `searchTerm`
+- Reads node statuses from `nodeStatuses` and renders badges
+- Nodes with status `2` (stopped) are disabled for clicking (`disabled-node` style)
 
 ---
 
 ### `selectNode(nodeName)` / `removeNode(nodeName)`
 
-Toggles stage selection state (clicking an already selected stage deselects it), then calls `updateSelectedNodes()` to refresh the selected list UI.
+Toggles node selection state (clicking an already selected node deselects it), and calls `updateSelectedNodes()` to refresh the selected list UI.
 
 ---
 
 ### `selectAllNodes()`
 
-Selects all stages with `status !== 2` (excludes stopped stages).
+Selects all nodes with `status !== 2` (excludes stopped nodes).
 
 ---
 
 ### `clearSelection()`
 
-Clears all selected stages.
+Clears all selected nodes.
 
 ---
 
 ### `switchInputMethod(method)`
 
-Switches input method (`"json"` / `"file"`), updating the visibility of corresponding areas and button active states.
+Switches the input method (`"json"` / `"file"`), updating the corresponding area's visibility and button active state.
 
 ---
 
 ### `fillTermination()`
 
-Fills the JSON textarea with the predefined termination signal `["TERMINATION_SIGNAL"]`, providing a quick way for users to inject a termination signal.
+Fills the JSON textarea with a predefined termination signal `["TERMINATION_SIGNAL"]`, allowing users to quickly inject a termination signal.
 
 ---
 
 ### `handleFileUpload(e)`
 
-Handles file uploads: accepts only `.json` format files, reads and validates JSON validity, and saves to `uploadedFile`.
+Handles file upload: accepts only `.json` format, reads and validates JSON validity, and saves to `uploadedFile`.
 
 ---
 
 ### `handleSubmit()`
 
-Submits the task injection.
+Submits task injection.
 
-1. Validates selected stages (at least one required)
-2. Parses task data based on the input method
-3. POSTs to `/api/push_injection_tasks` for each selected stage; displays a success message after all complete in parallel
+1. Validates selected nodes (at least one)
+2. Parses task data based on input method
+3. POSTs to `/api/push_injection_tasks` for each selected node sequentially, then displays a success message after all complete
 4. Calls `clearForm()` to reset the form
 
 ---
@@ -87,11 +87,11 @@ Submits the task injection.
 
 | Function | Description |
 |----------|-------------|
-| `showError(elementId, message)` | Displays error message text |
-| `hideError(elementId)` | Hides error message |
+| `showError(elementId, message)` | Displays error prompt text |
+| `hideError(elementId)` | Hides error prompt |
 | `showStatus(message, isSuccess)` | Displays operation result message (auto-hides after 3 seconds) |
-| `setButtonLoading(loading)` | Toggles the submit button loading state |
-| `clearForm()` | Resets all selections, inputs, and error messages |
+| `setButtonLoading(loading)` | Toggles submit button loading state |
+| `clearForm()` | Resets all selections, inputs, and error prompts |
 
 ## Task Injection Request Body
 
@@ -103,4 +103,4 @@ Submits the task injection.
 }
 ```
 
-POSTed to `POST /api/push_injection_tasks`; the server stores it in the `injection_tasks` queue, which `TaskReporter` periodically pulls via `GET /api/pull_task_injection` and injects into the `TaskGraph`.
+POSTed to `POST /api/push_injection_tasks`. The server stores it in the `injection_tasks` queue, which is periodically pulled by `TaskReporter` via `GET /api/pull_task_injection` and injected into the `TaskGraph`.

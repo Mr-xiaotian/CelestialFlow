@@ -1,15 +1,15 @@
 # RuntimeHash
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/05/15
 
-`runtime/util_hash.py` はタスクのハッシュ計算とハッシュ可能変換ユーティリティを提供します。
+`runtime/util_hash.py` はタスクハッシュとハッシュ可能変換ユーティリティを提供します。
 
 ## 主要関数
 
-- `make_hashable(obj)`: list/dict/set を安定したハッシュ可能な構造に再帰的に変換します。
-- `object_to_str_hash(obj)`: 任意のオブジェクトを pickle した後、SHA1 ハッシュを計算します。
+- `make_hashable(obj)`：list/dict/set を再帰的に安定したハッシュ可能な構造に変換します。
+- `object_to_hash(obj)`：任意のオブジェクトを pickle してから SHA1 を計算し、`bytes` を返します。
 
 ## 用途
 
-- タスクの重複排除。
-- タスクのアイデンティティ生成。
+- タスク重複排除。
+- タスク ID の生成。

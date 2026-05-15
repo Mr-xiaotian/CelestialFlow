@@ -1,6 +1,6 @@
 # CelestialFlow Technical Presentation
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/05/09
 
 ---
 
@@ -40,7 +40,7 @@ Starting from practical engineering scenarios — we need a task orchestration t
 ### Core Features
 
 - **Rich graph topologies**: Six preset structures — Chain / Cross / Grid / Loop / Wheel / Complete
-- **Multi-dimensional execution model**: Stage-level (serial/thread/process) x Task-level (serial/thread/process/async) combinations
+- **Multi-dimensional execution model**: Stage-level (serial/thread) x Task-level (serial/thread/async) combinations
 - **Redis distribution**: Three-phase distributed task transmission — Transport → Source → Ack
 - **Event sourcing**: CelestialTree integration for full task lifecycle tracking
 - **Web dashboard**: FastAPI + ECharts + Mermaid real-time monitoring
@@ -65,7 +65,7 @@ Starting from practical engineering scenarios — we need a task orchestration t
   - Ensures correct termination for both DAGs and cyclic graphs
 
 - **Metrics as First-Class**
-  - Every Stage has built-in `TaskMetrics` — cross-process safe real-time counters
+  - Every Stage has built-in `TaskMetrics` — thread-safe real-time counters
 
 ---
 
@@ -158,7 +158,7 @@ classDiagram
 
     class TaskStage {
         +stage_mode: str
-        +_status: MPValue
+        +_status: int
         +start_stage()
     }
 ```
@@ -226,14 +226,13 @@ graph TD
     end
 
     subgraph Stage-level stage_mode
-        C[serial: Runs in main process]
-        D[process: Independent subprocess]
+        C[serial: Runs in main thread]
+        D[thread: Independent thread]
     end
 
     subgraph Task-level execution_mode
         E[serial: Sequential one-by-one]
         F[thread: ThreadPoolExecutor]
-        G[process: ProcessPoolExecutor]
         H[async: asyncio + Semaphore]
     end
 
@@ -250,17 +249,17 @@ graph TD
 | Level | Options | Description |
 |-------|---------|-------------|
 | Graph-level `schedule_mode` | `eager` / `staged` | Controls concurrent vs sequential execution between Stages |
-| Stage-level `stage_mode` | `serial` / `thread` / `process` | Whether the Stage runs in an independent process |
+| Stage-level `stage_mode` | `serial` / `thread` | Whether the Stage runs in an independent thread |
 | Task-level `execution_mode` | `serial` / `thread` | Concurrency strategy for tasks within a Stage |
 
 Notes:
-Note that in TaskGraph mode, task-level `process` and `async` are not available (only supported in standalone `TaskExecutor.start()`). This is due to technical limitations with process-in-process and async-in-subprocess patterns.
+Note that in TaskGraph mode, task-level `async` is not available (only supported in standalone `TaskExecutor.start()`).
 
 ---
 
 ## Slide 11: Metrics and Deduplication System
 
-### TaskMetrics — Cross-Process Safe Real-Time Counters
+### TaskMetrics — Thread-Safe Real-Time Counters
 
 - **Four core counters**:
   - `task_counter`: Total input tasks (including those added by Splitter/Router)
@@ -276,8 +275,6 @@ Note that in TaskGraph mode, task-level `process` and `async` are not available 
   - Zero-cost deduplication — hash is computed once during envelope creation
 
 - **SumCounter aggregation**: Supports accurate merging of counters from multiple sources in Splitter/Router scenarios
-
-- **Process safety**: `MPValue("i")` provides atomic operations in process mode
 
 ---
 
@@ -339,8 +336,8 @@ sequenceDiagram
 ```mermaid
 graph LR
     subgraph Producer Side
-        A[LogInlet] -->|MPQueue| B[LogSpout]
-        C[FailInlet] -->|MPQueue| D[FailSpout]
+        A[LogInlet] -->|Queue| B[LogSpout]
+        C[FailInlet] -->|Queue| D[FailSpout]
     end
 
     subgraph Consumer Side
@@ -350,7 +347,7 @@ graph LR
 ```
 
 - **Spout-Inlet pattern**:
-  - Inlet side (multi-process safe): Formats records and writes to shared queue
+  - Inlet side (thread-safe): Formats records and writes to shared queue
   - Spout side (daemon thread): Consumes from queue and writes to file
   - Graceful shutdown via `TerminationSignal`
 
@@ -370,16 +367,14 @@ graph LR
 CelestialFlowError (base class)
 ├── ConfigurationError
 │   └── InvalidOptionError
-│       ├── ExecutionModeError    (serial/process/thread/async)
-│       ├── StageModeError        (serial/thread/process)
+│       ├── ExecutionModeError    (serial/thread/async)
+│       ├── StageModeError        (serial/thread)
 │       └── LogLevelError         (TRACE~CRITICAL)
 ├── RemoteWorkerError             (Redis remote execution failure)
-├── UnconsumedError               (Unconsumed queue tasks)
-└── PickleError                   (Non-serializable objects)
+└── UnconsumedError               (Unconsumed queue tasks)
 ```
 
 - **InvalidOptionError**: Auto-generates "field=value, allowed=[...]" hint messages
-- **PickleError**: Detects issues at build time via `find_unpickleable(obj)`
 - **Fast feedback**: Configuration-level errors are raised before graph startup, not at runtime
 
 ---
@@ -458,13 +453,12 @@ CelestialFlowError (base class)
   - `TaskEnvelope.hash` computes SHA1 once during envelope creation; subsequent deduplication is just a set lookup (O(1))
 
 - **Factory-based queue backends**
-  - `make_queue_backend()` automatically selects `ThreadQueue` / `MPQueue` / `AsyncQueue` based on stage_mode
-  - Serial mode: zero synchronization overhead; process mode: OS-level pipes
+  - `make_queue_backend()` automatically selects `ThreadQueue` / `AsyncQueue` based on stage_mode
+  - Serial mode: zero synchronization overhead
 
 - **Tiered metrics counters**
   - serial/async: `ValueWrapper` — plain int
   - thread: `ValueWrapper` + `threading.Lock`
-  - process: `MPValue("i")` — shared memory atomic operations
   - Selects the lightest synchronization mechanism as needed
 
 - **Frontend incremental rendering**
@@ -522,8 +516,8 @@ graph LR
 | **Installation complexity** | `pip install` and go | Requires database + scheduler | Requires Server/Cloud | Requires Ray Cluster |
 | **Graph types** | DAG + cyclic graphs | DAG only | DAG only | Unrestricted (Actor model) |
 | **Cyclic task support** | Native support (Loop/Wheel) | Not supported | Not supported | Manual implementation |
-| **Execution modes** | serial/thread/process/async | Celery/K8s/Local | Dask/K8s | Ray Worker |
-| **Process-level isolation** | Stage-level `process` mode | Executor-level | Dispatch-level | Default isolation |
+| **Execution modes** | serial/thread/async | Celery/K8s/Local | Dask/K8s | Ray Worker |
+| **Process-level isolation** | None (thread-level isolation) | Executor-level | Dispatch-level | Default isolation |
 | **Real-time visualization** | Built-in Web UI | Built-in Web UI | Built-in Cloud UI | Ray Dashboard |
 | **Event sourcing** | CelestialTree integration | No native support | No native support | No native support |
 | **Task deduplication** | Built-in SHA1 hash deduplication | No native support | No native support | No native support |
@@ -554,7 +548,7 @@ graph LR
 
 - **Machine Learning Pipeline**
   - Data preprocessing → Feature engineering → Model training → Evaluation
-  - Process mode leverages multiple cores, avoiding the GIL
+  - Thread mode for concurrent data pipeline processing
 
 ---
 
@@ -633,7 +627,7 @@ graph LR
 | Decision | Choice | Trade-off |
 |----------|--------|-----------|
 | Cyclic graph support | Signal merging protocol | Increased termination logic complexity in exchange for topological flexibility |
-| execution_mode within Graph | Serial/thread only | Avoids process-in-process nesting issues |
+| execution_mode within Graph | Serial/thread only | Keeps a simple and reliable thread model |
 | Logging architecture | Queue + Spout thread | Extra daemon thread in exchange for multi-process safe writes |
 | Deduplication strategy | SHA1(pickle) | Pickle instability risk in exchange for universal object hashing |
 | Redis result retrieval | Polling HGET (0.1s) | Simple and reliable, but not real-time push |
@@ -655,10 +649,10 @@ Every design decision involves trade-offs. CelestialFlow prioritizes "simplicity
 
 - **Replaceable Queue Backends**
   - `make_queue_backend(mode)` factory method with unified interface
-  - ThreadQueue / MPQueue / AsyncQueue — switch as needed
+  - ThreadQueue / AsyncQueue — switch as needed
 
 - **Extensible Metrics Backends**
-  - `ValueWrapper` / `MPValue` adapted by execution mode
+  - `ValueWrapper` adapted by execution mode
   - `SumCounter` transparently aggregates counters from multiple sources
 
 - **Customizable Persistence**

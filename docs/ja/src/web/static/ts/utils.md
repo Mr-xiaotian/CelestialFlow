@@ -1,24 +1,24 @@
 # utils.ts
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/05/15
 
-すべてのフロントエンドモジュールで共有される汎用ユーティリティ関数集です。
+すべてのフロントエンドモジュールで共有される汎用ユーティリティ関数コレクション。
 
 ## 関数一覧
 
 ### `renderLocalTime(timestamp)`
 
-Unix タイムスタンプ（秒）をローカル時刻文字列に変換します。
+Unix タイムスタンプ（秒）をローカル時間文字列に変換します。
 
 ```ts
-renderLocalTime(1700000000) // → "2023/11/15 上午10:13:20"（ロケールによる）
+renderLocalTime(1700000000) // → "2023/11/15 上午10:13:20"（ロケールにより異なる）
 ```
 
 ---
 
 ### `formatLargeNumber(n)`
 
-大きな数値を概算科学記数法の HTML にフォーマットします。10000 未満の数値はそのまま文字列として返します。
+大きな数値を概算科学的記数法の HTML にフォーマットします。1000 万未満の数はカンマ区切り、1000 万以上の数は科学的記数法に変換します。
 
 ```ts
 formatLargeNumber(1234567890) // → "~1.23×10<sup>9</sup>"
@@ -29,10 +29,10 @@ formatLargeNumber(999)        // → "999"
 
 ### `formatWithDelta(value, delta, deltaClass, negClass)`
 
-値とその増分をフォーマットします。増分はカラーの小文字テキストで表示されます。
+値とその差分をフォーマットし、差分をカラー付き小文字で表示します。
 
-- `deltaClass`: 正の増分の CSS クラス名
-- `negClass`: 負の増分の CSS クラス名
+- `deltaClass`: 正の差分の CSS クラス名
+- `negClass`: 負の差分の CSS クラス名
 
 ```ts
 formatWithDelta(100, 5, "text-delta-success", "text-delta-success")
@@ -40,13 +40,13 @@ formatWithDelta(100, 5, "text-delta-success", "text-delta-success")
 formatWithDelta(100, 0, ...)   // → '100'
 ```
 
-HTML 文字列を返し、`innerHTML` に直接挿入できます。
+HTML 文字列を返し、`innerHTML` に直接挿入します。
 
 ---
 
 ### `getColor(index)`
 
-インデックスを循環させて、事前定義された9色の16進カラーパレットから色を返します。折れ線グラフの各ノードの線の色付けに使用されます。
+インデックスに基づいて事前定義された 9 色の 16 進カラーを循環して返します。折れ線グラフの各ノード線の着色に使用します。
 
 ```ts
 getColor(0) // → "#3b82f6"（青）
@@ -59,8 +59,8 @@ getColor(9) // → "#3b82f6"（循環）
 
 ノード履歴データからチャート用の `{x, y}` ポイントシーケンスを抽出します。
 
-- **入力**: `Record<string, NodeHistory>` -- ノード名 → 履歴レコード配列
-- **出力**: `Record<string, Array<{x: number, y: number}>>` -- ノード名 → 座標ポイント配列
+- **入力**: `Record<string, NodeHistory>` — ノード名 → 履歴レコード配列
+- **出力**: `Record<string, Array<{x: number, y: number}>>` — ノード名 → 座標ポイント配列
   - `x`: Unix タイムスタンプ（秒）
   - `y`: その時点での処理済みタスク数
 
@@ -68,7 +68,7 @@ getColor(9) // → "#3b82f6"（循環）
 
 ### `isMobile()`
 
-現在のデバイスがモバイルかどうかを検出します（User-Agent に基づく）。`boolean` を返します。モバイルデバイスでのドラッグ&ドロップソートの無効化に使用されます。
+現在のデバイスがモバイルかどうかを検出します（User-Agent ベース）。`boolean` を返します。モバイルデバイスでドラッグ＆ドロップソートを無効にするために使用します。
 
 ---
 
@@ -76,14 +76,14 @@ getColor(9) // → "#3b82f6"（循環）
 
 文字列が有効な JSON かどうかを検証します。
 
-- 空文字列は有効とみなされます（`true` を返し、エラーメッセージを非表示）
-- 解析失敗時に `showError("json-error", ...)` を呼び出してメッセージを表示し、`false` を返します
+- 空文字列は有効と見なされます（`true` を返し、エラープロンプトを非表示）
+- パース失敗時は `showError("json-error", ...)` を呼び出してプロンプトを表示し、`false` を返します
 
 ---
 
 ### `escapeHtml(str)`
 
-HTML 特殊文字（`&`, `<`, `>`, `"`）をエスケープし、XSS を防止します。
+HTML 特殊文字（`&`、`<`、`>`、`"`、`'`、`/`）をエスケープし、XSS を防止します。
 
 ```ts
 escapeHtml('<script>') // → "&lt;script&gt;"
@@ -93,13 +93,13 @@ escapeHtml('<script>') // → "&lt;script&gt;"
 
 ### `toggleDarkTheme()`
 
-`document.body` の `dark-theme` CSS クラスを切り替えます。切り替え後にダークモードかどうか（`boolean`）を返します。
+`document.body` の `dark-theme` CSS クラスを切り替えます。切り替え後にダークモードがアクティブかどうか（`boolean`）を返します。
 
 ---
 
 ### `switchToErrorsTab(nodeFilter?)`
 
-「エラーログ」タブに切り替え、オプションでステージフィルターを指定されたステージに設定します。引数なしまたは空文字列ですべてのエラーを表示します。
+「エラーログ」タブに切り替え、オプションでノードフィルタを指定ノードに設定します。引数なしまたは空文字列を渡すとすべてのエラーを表示します。
 
 ---
 
@@ -112,6 +112,14 @@ formatDuration(90)    // → "01:30"
 formatDuration(3661)  // → "01:01:01"
 formatDuration(-5)    // → "00:00"
 ```
+
+---
+
+### `formatElapsedDuration(seconds, successCount, failedCount, duplicateCount)`
+
+経過時間をカラー付き HTML 文字列にフォーマットします。各数字文字は `<span>` で囲まれ、成功/失敗/重複のタスク比率に応じてカラークラスが割り当てられます。
+
+内部呼び出しチェーン：`getElapsedSegments()` → `buildElapsedDigitClasses()` → `renderElapsedDurationHtml()`。
 
 ---
 

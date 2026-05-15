@@ -1,6 +1,6 @@
 # Change Log
 
-> 📅 Last updated: 2026/05/08
+> 📅 Last Updated: 2026/05/15
 
 - 2021: Created a class supporting both multithreaded and single-threaded processing functions
 - 2023: Added multiprocess and coroutine execution modes with the help of GPT-4
@@ -160,3 +160,22 @@
     - Refactor TaskEnvelope: no longer uses wrap/unwrap; hash is lazily computed
   - chore:
     - Delete unused code to improve code quality
+- 3.2.0
+  - feat:
+    - [Important] Completely deprecated `stage_mode="process"`, removed all multiprocessing dependencies (MPValue, MPQueue, multiprocessing.Process);
+      - bench_graph_mode data shows that process mode is slower than thread mode in all scenarios, and introduces significant serialization overhead and pickle limitations;
+    - [Important] Removed the manually specified `root_stages` parameter from set_stages, replaced by a set of `source_stages` computed via SCC condensation graph
+      - Brushed up on quite a bit of graph theory
+    - Changed the default log level for graph/stage/executor from `SUCCESS` to `INFO`, meaning only start/stop messages and errors are shown by default
+    - Added a configuration button on the web page
+      - Currently only supports setting refresh interval and history length; more settings can be added later
+  - refactor:
+    - Due to removing `process` from stage_mode, parts of the framework designed to accommodate `process` have been deleted or refactored  
+      - For example, all MPValue and MPQueue changed to int and Queue
+      - No strict bench testing has been done yet, but it should bring some performance improvement
+    - Refactored the NetworkX graph construction process; now built directly through nodes and outgoing edges, no longer relying on recursion
+    - Compute bytes-type hash in the retry detection mechanism instead of the original string type
+      - According to bench_hash_memory, saves approximately 23% memory
+    - Moved delta data from node status to be computed by JS on the web side, reducing unnecessary communication data
+  - fix:
+    - Removed error catching in InQueue.get, which would cause panic-level errors to be missed

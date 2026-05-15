@@ -1,15 +1,15 @@
 # BaseSpout
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/05/15
 
-`BaseSpout` is the base class for all outlet classes, providing common functionality for listening to a queue and processing records in a background thread.
+`BaseSpout` is the base class for all spout classes, providing common functionality for listening to a queue in a background thread and processing records.
 
 ## Initialization
 
 ```python
 class BaseSpout:
     def __init__(self):
-        self.queue = MPQueue()  # Multi-process-safe queue
+        self.queue = Queue()  # Queue
         self._thread: Thread | None = None
 ```
 
@@ -25,8 +25,8 @@ def start(self):
 ```
 
 Flow:
-1. Call the `_before_start()` hook
-2. Create and start a daemon thread that executes the `_spout()` method
+1. Calls the `_before_start()` hook
+2. Creates and starts a daemon thread that executes the `_spout()` method
 
 ### stop
 
@@ -38,16 +38,15 @@ def stop(self):
 ```
 
 Flow:
-1. Send `TERMINATION_SIGNAL` to the queue
-2. Wait for the thread to finish
-3. Clean up queue resources (`cleanup_mpqueue`)
-4. Call the `_after_stop()` hook
+1. Sends `TERMINATION_SIGNAL` to the queue
+2. Waits for the thread to finish (`join`) and sets `_thread` to `None`
+3. Calls the `_after_stop()` hook
 
 ### get_queue
 
 ```python
-def get_queue(self) -> MPQueue:
-    """Return the queue object for use by the Inlet side."""
+def get_queue(self) -> Queue:
+    """Returns the queue object for use by the Inlet side."""
 ```
 
 ## Overridable Methods
@@ -68,7 +67,7 @@ def _after_stop(self):
 
 ```python
 def _spout(self):
-    """Listening loop, runs in a background thread."""
+    """Listening loop, runs in the background thread."""
     while True:
         try:
             record = self.queue.get(timeout=0.5)
@@ -77,11 +76,13 @@ def _spout(self):
             self._handle_record(record)
         except Empty:
             continue
+        except Exception:
+            continue
 ```
 
 ## Notes
 
-1. **Multi-process Safety**: Uses `multiprocessing.Queue` to ensure safe cross-process communication
-2. **Daemon Thread**: The listening thread is set as a daemon thread and automatically terminates when the main process exits
-3. **Graceful Shutdown**: Notifies the thread to stop by sending a `TerminationSignal`
-4. **Queue Cleanup**: Remaining records in the queue are cleaned up when stopping
+1. **Thread Safety**: Uses `queue.Queue` to ensure thread-safe communication
+2. **Daemon Thread**: The listening thread is set as a daemon thread, automatically terminating when the main process exits
+3. **Graceful Stop**: Notifies the thread to stop by sending a `TerminationSignal`
+4. **Queue Cleanup**: Remaining records in the queue are not cleaned up on stop

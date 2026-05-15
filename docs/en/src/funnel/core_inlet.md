@@ -1,6 +1,6 @@
 # BaseInlet
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/04/22
 
 `BaseInlet` is the base class for all inlet classes, providing common functionality for writing records to a queue.
 
@@ -18,7 +18,7 @@ class BaseInlet:
 
 ```python
 def _funnel(self, record):
-    """Put a record into the queue for consumption by the corresponding Spout."""
+    """Place the record into the queue for consumption by the corresponding Spout."""
     self.queue.put(record)
 ```
 

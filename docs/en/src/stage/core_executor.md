@@ -1,8 +1,8 @@
 # TaskExecutor
 
-> 📅 Last updated: 2026/05/08
+> 📅 Last Updated: 2026/05/15
 
-`TaskExecutor` is the core component for executing individual task logic. It handles task execution, concurrency control, error handling, retry mechanisms, and logging.
+`TaskExecutor` is the core component for executing single task logic. It is responsible for task execution, concurrency control, error handling, retry mechanisms, and logging.
 
 ## Initialization
 
@@ -18,29 +18,29 @@ class TaskExecutor:
         max_info=50,
         unpack_task_args=False,
         enable_duplicate_check=True,
-        log_level="SUCCESS",
+        log_level="INFO",
     ):
         ...
 ```
 
-### Parameters
+### Parameter Description
 
 - **name**: Executor name, used for logging and tracing.
-- **func**: The callable object (function) that actually executes the task.
+- **func**: Callable object (function) that actually executes the task.
 - **execution_mode**: Execution mode.
   - `serial`: Serial execution.
   - `thread`: Multi-threaded execution.
   - `async`: Asynchronous execution (`asyncio`).
 - **max_workers**: Concurrency limit (number of threads/coroutines).
-- **max_retries**: Maximum number of retries after task failure.
+- **max_retries**: Maximum retry count after task failure.
 - **max_info**: Maximum length of each log message.
-- **unpack_task_args**: Whether to unpack task arguments (`*args`) before passing to the function.
-- **enable_duplicate_check**: Whether to enable hash-based duplicate checking for tasks.
+- **unpack_task_args**: Whether to unpack task arguments (`*args`) when passing to the function.
+- **enable_duplicate_check**: Whether to enable hash-based duplicate checking.
 - **log_level**: Log level (TRACE/DEBUG/SUCCESS/INFO/WARNING/ERROR/CRITICAL).
 
 ## Observer Pattern
 
-`TaskExecutor` broadcasts lifecycle events to external observers via the observer pattern.
+`TaskExecutor` broadcasts lifecycle events to external observers through the observer pattern.
 
 ### Register and Remove
 
@@ -54,7 +54,7 @@ executor.remove_observer(observer)  # Remove observer
 ```python
 from celestialflow import TaskExecutor, TaskProgress, CallbackObserver
 
-# Use TaskProgress for progress bar
+# Use TaskProgress to display progress bar
 executor = TaskExecutor("Test", my_func)
 executor.add_observer(TaskProgress())
 executor.start(tasks)
@@ -68,14 +68,14 @@ executor.add_observer(observer)
 
 ### Broadcast Events
 
-| Event | Trigger |
-|-------|---------|
+| Event | Trigger Timing |
+|-------|---------------|
 | `on_start(name, total)` | Execution starts |
-| `on_task_success(count)` | Task succeeded |
-| `on_task_fail(count)` | Task failed |
+| `on_task_success(count)` | Task succeeds |
+| `on_task_fail(count)` | Task fails |
 | `on_task_duplicate(count)` | Duplicate detected |
 | `on_tasks_added(count)` | New tasks added |
-| `on_finish()` | Execution finished |
+| `on_finish()` | Execution ends |
 
 ## Core Methods
 
@@ -84,8 +84,8 @@ executor.add_observer(observer)
 ```python
 def start(self, task_source: Iterable):
     """
-    Start the executor, processing all tasks from task_source.
-    Selects the appropriate execution strategy based on execution_mode.
+    Start the executor, processing all tasks in task_source.
+    Selects the appropriate running strategy based on execution_mode.
     """
 ```
 
@@ -101,7 +101,7 @@ async def start_async(self, task_source: Iterable):
 ## Error Handling
 
 `TaskExecutor` catches exceptions during task execution:
-- If the exception is in the `retry_exceptions` list and the maximum retry count has not been reached, the task is re-queued for retry.
+- If the exception is in the `retry_exceptions` list and the maximum retry count has not been reached, the task is re-enqueued for retry.
 - Otherwise, the task is marked as failed, an error log is recorded, and it is placed in the `fail_queue`.
 
 ### add_retry_exceptions
@@ -109,7 +109,7 @@ async def start_async(self, task_source: Iterable):
 ```python
 def add_retry_exceptions(self, *exceptions):
     """
-    Add exception types that should trigger a retry.
+    Add exception types that should trigger retries.
 
     :param exceptions: List of exception types
     """
@@ -131,11 +131,11 @@ executor.add_retry_exceptions(ValueError, ConnectionError, TimeoutError)
 ### Retrieving Results
 
 ```python
-# Get list of successful results
+# Get success result list
 def get_success_pairs(self) -> list[tuple[Any, Any]]:
     ...
 
-# Get list of failed results
+# Get failure result list
 def get_error_pairs(self) -> list[tuple[Any, Exception]]:
     ...
 ```
@@ -143,7 +143,7 @@ def get_error_pairs(self) -> list[tuple[Any, Exception]]:
 ### Processing Result Dictionaries
 
 ```python
-# Process result dictionary (merge successes and failures)
+# Process result dictionary (merge success and failure)
 def process_result_dict(self) -> dict:
     ...
 
@@ -154,7 +154,7 @@ def handle_error_dict(self) -> dict:
 
 ## CelestialTree Integration
 
-`TaskExecutor` supports the CelestialTree event tracing system for task tracking and debugging.
+`TaskExecutor` supports the CelestialTree event tracking system for task tracing and debugging.
 
 ### set_ctree
 
@@ -174,13 +174,13 @@ def set_ctree(self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: i
 ```python
 def set_nullctree(self, event_id=None):
     """
-    Set up a null client (does not connect to an external service, only generates event IDs).
+    Set up a null client (no external service connection, only generates event IDs).
 
     :param event_id: Optional event ID
     """
 ```
 
-## Status Query Methods
+## State Query Methods
 
 ### Getting Basic Information
 
@@ -201,18 +201,18 @@ def get_tag(self) -> str: ...
 def _get_execution_mode_desc(self) -> str: ...
 ```
 
-### Getting Status Snapshots
+### Getting State Snapshots
 
 ```python
 def get_summary(self) -> dict:
     """
-    Get the current node's status snapshot.
+    Get the current node state snapshot.
     Returns: name, func_name, class_name, execution_mode
     """
 
 def get_counts(self) -> dict:
     """
-    Get the current node's counters.
+    Get the current node counters.
     Returns: tasks_input, tasks_succeeded, tasks_failed, tasks_duplicated, tasks_processed, tasks_pending
     """
 ```
@@ -225,7 +225,7 @@ def get_counts(self) -> dict:
 def get_task_repr(self, task) -> str:
     """
     Get a human-readable string representation of task arguments.
-    Used for log output; automatically truncates overly long arguments.
+    Used for log output, automatically truncates overly long arguments.
     """
 ```
 
@@ -245,5 +245,5 @@ def _get_result_repr(self, result) -> str:
 | Mode | Use Case | Notes |
 |------|----------|-------|
 | `serial` | Debugging, simple tasks | No concurrency |
-| `thread` | I/O-intensive tasks | Be aware of GIL limitations |
-| `async` | Network I/O | Requires using start_async |
+| `thread` | I/O-intensive | Be aware of GIL limitations |
+| `async` | Network I/O | Requires start_async |

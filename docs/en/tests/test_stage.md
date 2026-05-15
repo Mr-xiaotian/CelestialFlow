@@ -1,43 +1,41 @@
 # test_stage.py Test Documentation
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/05/15
 
-## Test Purpose
+## Test Objective
 
-Validates the configuration layer behavior of `TaskStage`, including: tag generation and invalidation mechanism, stage_mode / execution_mode legality validation, and pickle guard in process mode. These tests cover `TaskStage` as a graph node's metadata management layer, not its execution capabilities (which are covered in `test_executor.py`).
+Validates the configuration-layer behavior of `TaskStage`, including: tag generation and invalidation mechanisms, stage_mode / execution_mode legality validation. These tests cover `TaskStage`'s metadata management layer as a graph node, rather than its execution capabilities (which are covered in `test_executor.py`).
 
 ## Test Scope
 
-| Test Class | Cases | Coverage |
-|------------|-------|----------|
-| `TestTaskStageConfig` | 8 | Tag generation, tag change, valid stage_mode values, valid execution_mode values, invalid value interception, summary fields |
-| `TestTaskStagePickleGuard` | 2 | Lambda interception, regular function pass-through |
+| Test Class | Test Count | Coverage |
+|------------|-----------|----------|
+| `TestTaskStageConfig` | 9 | Tag generation, tag change, stage_mode valid values, execution_mode valid values, illegal value interception, summary fields, lambda thread mode |
 
 ### Key Test Case Details
 
 #### `test_stage_tag_auto_generation`
-- **Purpose**: When no tag is specified, an auto-generated tag containing `name` and `func_name` is created.
+- **Objective**: When no tag is specified, an auto-generated tag containing `name` and `func_name` is produced.
 - **Format**: `Stage[{func_name}]` or custom name.
 
 #### `test_stage_tag_changes_with_name`
-- **Purpose**: After modifying `name`, the old tag should be invalidated and the new tag should reflect the new name.
-- **Implementation**: `set_name()` deletes the cached tag via `delattr(self, "_tag")`; the next `get_tag()` call recomputes it.
-- **Risk**: In multiprocessing scenarios, if a child process has already serialized the old tag before the parent process modifies the name, tag inconsistency may occur.
+- **Objective**: After modifying `name`, the old tag should be invalidated and the new tag should reflect the new name.
+- **Implementation mechanism**: `set_name()` uses `delattr(self, "_tag")` to delete the cached tag; the next `get_tag()` call recomputes it.
+- **Risk point**: In multi-threaded scenarios, if other threads have cached the old tag before the main thread modifies the name, tag inconsistency may occur.
 
 #### `test_invalid_stage_mode`
-- **Purpose**: Invalid `stage_mode` (not `"serial"` / `"thread"` / `"process"`) should raise `StageModeError`.
+- **Objective**: Illegal `stage_mode` (not `"serial"` / `"thread"`) should raise `StageModeError`.
 
 #### `test_invalid_execution_mode`
-- **Purpose**: Invalid `execution_mode` (not `"serial"` / `"thread"` / `"async"`) should raise `ExecutionModeError`.
+- **Objective**: Illegal `execution_mode` (not `"serial"` / `"thread"` / `"async"`) should raise `ExecutionModeError`.
 
 #### `test_summary_contains_stage_mode`
-- **Purpose**: The dictionary returned by `get_summary()` should contain `stage_mode` and `execution_mode` fields for monitoring dashboard display.
-- **Note**: In non-serial mode, `execution_mode` appends the worker count, e.g., `"thread-20"`.
+- **Objective**: The dictionary returned by `get_summary()` should contain `stage_mode` and `execution_mode` fields for monitoring dashboard display.
+- **Note**: `execution_mode` in non-serial mode appends the worker count, e.g., `"thread-20"`.
 
-#### `test_unpickleable_lambda_raises`
-- **Purpose**: In `stage_mode="process"`, lambda functions cannot be pickled and should be intercepted at construction time.
-- **Exception**: `PickleError`
-- **Significance**: Avoids discovering serialization failures at runtime, which would crash child processes.
+#### `test_lambda_allowed_in_thread`
+- **Objective**: Validate that lambda functions can be created normally under `stage_mode="thread"` (not rejected due to pickle limitations).
+- **Assertions**: `get_stage_mode()` returns `"thread"`.
 
 ## Dependencies
 
@@ -45,54 +43,27 @@ Validates the configuration layer behavior of `TaskStage`, including: tag genera
 |------------|-------------|
 | `pytest` | Test framework |
 | `celestialflow.TaskStage` | Object under test |
-| `celestialflow.runtime.util_errors` | `ExecutionModeError`, `StageModeError`, `PickleError` |
+| `celestialflow.runtime.util_errors` | `ExecutionModeError`, `StageModeError` |
 
 ## Potential Issues and Notes
 
 ### 1. Thread Safety of `get_tag()`
-`get_tag()` uses a `hasattr` + dynamic attribute setting pattern for lazy-loading cache:
+`get_tag()` implements lazy-loading caching via the `hasattr` + dynamic attribute setting pattern:
 ```python
 if hasattr(self, "_tag"):
     return str(self._tag)
 self._tag = f"{self.get_name()}[{self.get_func_name()}]"
 ```
 
-In multi-threaded environments, the following may occur:
+In a multi-threaded environment, the following may occur:
 - Thread A checks `hasattr` and gets `False`
-- Thread B checks simultaneously and also gets `False`
-- Both threads create `_tag`; although the results are identical, a race condition exists
+- Thread B simultaneously checks and also gets `False`
+- Both threads create `_tag`; although the result is the same, a race condition exists
 
-**Recommendation**: If thread safety is needed in the future, consider using `@functools.cached_property` or computing the value in `__init__`.
+**Recommendation**: If thread safety is needed in the future, switch to `@functools.cached_property` or solidify in `__init__`.
 
-### 2. Limitations of Pickle Check
-`find_unpickleable(func)` checks at construction time whether the function can be pickled, but **does not check variables in closures**. For example:
-```python
-def make_func():
-    huge_data = [0] * 1000000
-    def func(x):
-        return x + len(huge_data)
-    return func
-
-TaskStage(make_func(), stage_mode="process")  # Passes construction, fails at serialization
-```
-
-This scenario is not covered by current tests.
-
-### 3. Combination of `stage_mode="process"` and `execution_mode="async"`
-`TaskStage`'s `set_execution_mode()` only allows `"serial"` / `"thread"`, but `TaskExecutor` allows `"async"`. If `"async"` is set through inheritance or by bypassing validation, unpredictable behavior may occur in a `stage_mode="process"` multiprocessing context.
-
-**Current protection**: `set_execution_mode()` raises `ExecutionModeError`, but direct attribute modification can still bypass it.
-
-### 4. `PickleError` Test Only Triggers in `stage_mode="process"`
-In `stage_mode="serial"`, no pickle check is performed since tasks execute within the same process. This means the following code will not raise an error:
-```python
-TaskStage(lambda x: x, stage_mode="serial")  # Passes
-```
-
-This is expected behavior, but users may mistakenly believe the framework completely prohibits lambdas.
-
-### 5. `test_valid_execution_mode_thread` Does Not Verify `max_workers`
-The test only verifies that `execution_mode` is set to `"thread"`, but does not verify whether the default `max_workers` value (20) takes effect, nor does it test interception of invalid values (such as 0 or -1).
+### 2. `test_valid_execution_mode_thread` Does Not Verify `max_workers`
+The test only verifies that `execution_mode` is set to `"thread"`, but does not verify whether the default `max_workers` value (20) takes effect, nor does it test illegal values (e.g., 0, -1).
 
 **Suggested addition**:
 ```python
@@ -107,7 +78,7 @@ def test_invalid_max_workers():
 pytest tests/test_stage.py -v
 ```
 
-All test cases are pure configuration validation with no process/thread startup; execution time `< 50ms`.
+All test cases are pure configuration validation with no thread startup, execution time `< 50ms`.
 
 ## Related Files
 

@@ -1,25 +1,21 @@
 # task_statuses.ts
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/05/15
 
-Manages the loading of per-stage runtime status data and rendering of dashboard status cards.
+Manages loading of per-node running status data and rendering of dashboard status cards.
 
 ## Type Definitions
 
 ```ts
 type NodeStatus = {
   status: number;            // 0=not running, 1=running, 2=stopped
-  tasks_processed: number;   // Number of processed tasks
-  tasks_pending: number;     // Number of pending tasks
-  tasks_succeeded: number;   // Cumulative success count
-  add_tasks_succeeded: number; // New successes in this cycle
-  add_tasks_pending: number;
-  tasks_failed: number;
-  add_tasks_failed: number;
-  tasks_duplicated: number;
-  add_tasks_duplicated: number;
-  stage_mode: string;        // serial / thread / process
-  execution_mode: string;    // serial / thread / process / async
+  tasks_processed: number;   // Tasks processed count
+  tasks_pending: number;     // Pending tasks count
+  tasks_succeeded: number;   // Cumulative succeeded count
+  tasks_failed: number;      // Cumulative failed count
+  tasks_duplicated: number;  // Cumulative duplicated count
+  stage_mode: string;        // serial / thread
+  execution_mode: string;    // serial / thread / async
   start_time: number;        // Unix timestamp (seconds)
   elapsed_time: number;      // Elapsed seconds
   remaining_time: number;    // Estimated remaining seconds
@@ -31,42 +27,45 @@ type NodeStatus = {
 
 | Variable | Type | Description |
 |----------|------|-------------|
-| `nodeStatuses` | `Record<string, NodeStatus>` | Current status of all stages |
-| `statusRev` | `number` | Version number from the last fetch, used for incremental fetching (`known_rev`) |
-| `draggingNodeName` | `string \| null` | Name of the stage currently being dragged; skipped during rendering |
+| `nodeStatuses` | `Record<string, NodeStatus>` | Current statuses of all nodes |
+| `lastNodeStatuses` | `Record<string, NodeStatus>` | Previous status snapshot, used for delta calculation |
+| `statusRev` | `number` | Last fetched version number, used for incremental fetching (`known_rev`) |
+| `draggingNodeName` | `string \| null` | Currently dragged node name, skipped during rendering |
 
 ## Functions
 
 ### `loadStatuses()`
 
-Asynchronously fetches stage status from `GET /api/pull_status?known_rev=N`. If the server data has not changed (`body.data === null`), returns `false`; otherwise updates `nodeStatuses` and `statusRev`, returning `true`.
+Asynchronously fetches node statuses from `GET /api/pull_status?known_rev=N`. If the server data has not changed (`body.data === null`), returns `false`; otherwise saves the current `nodeStatuses` as `lastNodeStatuses`, updates `nodeStatuses` and `statusRev`, and returns `true`.
 
 ---
 
 ### `initSortableDashboard()`
 
-Initializes drag-and-drop sorting for stage cards (Sortable.js). Skips initialization on mobile devices.
+Initializes node card drag-and-drop sorting (Sortable.js). Skips initialization on mobile devices.
 
-Records `draggingNodeName` during drag operations to prevent `renderDashboard()` from redrawing the card being dragged, which would cause position jumps.
+Records `draggingNodeName` during drag to prevent `renderDashboard()` from redrawing the dragged card, which would cause position jumping.
 
 ---
 
 ### `renderDashboard()`
 
-Iterates over `nodeStatuses`, generating a status card for each stage and inserting it into `#dashboard-grid`.
+Iterates over `nodeStatuses`, generating a status card for each node and inserting it into `#dashboard-grid`.
 
-**Card Contents:**
-- Stage name + status badge (not running / running / stopped)
-- Statistics: successes, pending, error count (clickable for navigation), duplicates, stage mode, execution mode
+Deltas are calculated via `lastNodeStatuses` (e.g., `data.tasks_succeeded - last.tasks_succeeded`) and displayed as colored small text.
+
+**Card contents:**
+- Node name
+- Statistics: succeeded, pending, errors (clickable for navigation), duplicated, stage mode, execution mode
 - Start time
-- Task completion rate progress bar (with elapsed/remaining time, average duration, percentage)
+- Task completion progress bar (four segments: succeeded/errors/duplicated/pending), with elapsed/remaining time, average duration, and percentage
 
 Error numbers have the `error-clickable` style; clicking calls `switchToErrorsTab(node)` (defined in `utils.ts`) to navigate and preset the filter.
 
-## Badge Status Mapping
+## Card Status Styles
 
-| `status` Value | CSS Class | Text |
-|----------------|-----------|------|
-| `0` | `badge-inactive` | Not Running |
-| `1` | `badge-running` | Running |
-| `2` | `badge-completed` | Stopped |
+| `status` Value | CSS Class | Meaning |
+|----------------|-----------|---------|
+| `0` | `node-card` | Not running |
+| `1` | `node-card status-running` | Running |
+| `2` | `node-card status-stopped` | Stopped |

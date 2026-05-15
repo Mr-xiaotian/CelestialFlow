@@ -20,7 +20,7 @@ class SuccessSpout(BaseSpout):
 ```python
 def get_success_pairs(self) -> list[tuple[Any, Any]]:
     """
-    成功タスクと結果のペアリストを取得する
+    成功したタスクと結果のペアリストを取得する。
 
     :return: [(task, result), ...]
     """
@@ -36,9 +36,9 @@ def get_success_pairs(self) -> list[tuple[Any, Any]]:
 
 開始前に `success_pairs` をクリアします。
 
-## 使用シナリオ
+## 使用シーン
 
-成功結果は `SuccessSpout` のキューに送信され、実行終了後に `get_success_pairs()` ですべての成功した (task, result) ペアを取得できます。
+成功結果は `SuccessSpout` のキューに送信されます。実行完了後、`get_success_pairs()` ですべての成功した (task, result) ペアを取得できます。
 
 ```python
 executor = TaskExecutor("Processor", process)

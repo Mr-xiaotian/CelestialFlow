@@ -1,12 +1,12 @@
 # TaskTypes
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/05/09
 
-TaskTypes モジュールは、フレームワークで使用される基本的なデータ型、列挙型、ヘルパークラスを定義します。
+TaskTypes モジュールは、フレームワークで使用される基本データ型、列挙型、ヘルパークラスを定義します。
 
 ## StageStatus
 
-`TaskStage` の実行状態を表す列挙型クラスです。
+`TaskStage` の実行状態を表す列挙型クラス。
 
 ```python
 class StageStatus(IntEnum):
@@ -15,7 +15,7 @@ class StageStatus(IntEnum):
     STOPPED = 2      # 停止済み
 ```
 
-使用例:
+使用例：
 ```python
 from celestialflow.runtime.util_types import StageStatus
 
@@ -26,7 +26,7 @@ if status == StageStatus.RUNNING:
 
 ## TerminationSignal
 
-タスクキューの終了を示すセンチネルオブジェクトです。Stage がこのシグナルを受信した場合、上流からのタスクがこれ以上ないことを示し、停止の準備をする必要があります。
+タスクキューの終了をマークするために使用されるセンチネルオブジェクト。Stage がこのシグナルを受信すると、上流からのタスクがなくなったことを示し、停止の準備をすべきことを意味します。
 
 ```python
 class TerminationSignal:
@@ -38,7 +38,7 @@ class TerminationSignal:
 TERMINATION_SIGNAL = TerminationSignal()
 ```
 
-### 使用シーン
+### 使用シナリオ
 
 ```python
 from celestialflow.runtime import TerminationSignal
@@ -53,7 +53,7 @@ if isinstance(record, TerminationSignal):
 
 ## TerminationIdPool
 
-終了シグナル ID プール。受信したすべての終了シグナル ID を格納するために使用されます。
+終了シグナル ID プール、受信したすべての終了シグナル ID を格納するために使用されます。
 
 ```python
 class TerminationIdPool:
@@ -63,7 +63,7 @@ class TerminationIdPool:
 
 ## NoOpContext
 
-`with` ブロックのロジックを無効にするために使用できる、何もしないコンテキストマネージャーです。
+空のコンテキストマネージャー、`with` ロジックを無効化するのに使用します。
 
 ```python
 class NoOpContext:
@@ -74,16 +74,16 @@ class NoOpContext:
         pass
 ```
 
-使用シーン:
+使用シナリオ：
 ```python
-# ロックが不要な場合に NoOpContext を返す
+# ロックが不要な場合、NoOpContext を返す
 def get_lock(self):
     return self._lock or NoOpContext()
 ```
 
 ## ValueWrapper
 
-オプションのロックサポートを持つ、シングルスレッド/シングルプロセス用のカウンターラッパーです。
+シングルスレッド/シングルプロセス用のカウンターラッパー、オプションでロック付き。
 
 ```python
 class ValueWrapper:
@@ -92,13 +92,13 @@ class ValueWrapper:
         self._lock = lock
 
     def get_lock(self):
-        """ロックオブジェクトまたは NoOpContext を返します"""
+        """ロックオブジェクトまたは NoOpContext を返す"""
         return self._lock or NoOpContext()
 ```
 
 ## SumCounter
 
-複数のカウンターを累積します（ValueWrapper / MPValue をサポート）。
+複数のカウンターを累積します（ValueWrapper をサポート）。
 
 ```python
 class SumCounter:
@@ -106,7 +106,7 @@ class SumCounter:
         """
         カウンターを初期化します。
 
-        :param mode: モード ('serial', 'thread', 'process')
+        :param mode: モード ('serial', 'thread')
         """
 ```
 
@@ -145,7 +145,7 @@ print(counter.value)  # 15
 
 ## STAGE_STYLE
 
-CelestialTree 可視化のためのノードラベルスタイル設定です。
+CelestialTree 可視化用のノードラベルスタイル設定。
 
 ```python
 from celestialtree import NodeLabelStyle
@@ -158,7 +158,7 @@ STAGE_STYLE = NodeLabelStyle(
 
 ## 例外クラス
 
-例外クラスは `runtime/util_errors.py` で定義されています:
+例外クラスは `runtime/util_errors.py` で定義されています：
 
 | 例外クラス | 説明 |
 |-----------|------|
@@ -166,8 +166,7 @@ STAGE_STYLE = NodeLabelStyle(
 | `ConfigurationError` | 設定エラー |
 | `InvalidOptionError` | 無効なオプションエラー |
 | `ExecutionModeError` | 実行モードエラー |
-| `StageModeError` | Stage モードエラー |
+| `StageModeError` | ステージモードエラー |
 | `LogLevelError` | ログレベルエラー |
 | `RemoteWorkerError` | リモートワーカーエラー |
 | `UnconsumedError` | 未消費タスクエラー |
-| `PickleError` | シリアライズエラー |

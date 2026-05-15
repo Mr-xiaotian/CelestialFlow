@@ -1,8 +1,8 @@
 # TaskTypes
 
-> 📅 Last updated: 2026/04/22
+> 📅 Last Updated: 2026/05/09
 
-The TaskTypes module defines the foundational data types, enums, and helper classes used in the framework.
+The TaskTypes module defines basic data types, enums, and helper classes used in the framework.
 
 ## StageStatus
 
@@ -21,12 +21,12 @@ from celestialflow.runtime.util_types import StageStatus
 
 status = stage.get_status()
 if status == StageStatus.RUNNING:
-    print("The node is running")
+    print("Node is running")
 ```
 
 ## TerminationSignal
 
-A sentinel object used to mark task queue termination. When a stage receives this signal, it indicates that there are no more tasks from upstream and it should prepare to stop.
+A sentinel object used to mark task queue termination. When a Stage receives this signal, it indicates that no more tasks are coming from upstream and it should prepare to stop.
 
 ```python
 class TerminationSignal:
@@ -38,15 +38,15 @@ class TerminationSignal:
 TERMINATION_SIGNAL = TerminationSignal()
 ```
 
-### Use Cases
+### Usage Scenarios
 
 ```python
 from celestialflow.runtime import TerminationSignal
 
-# Inject a termination signal
+# Inject termination signal
 queue.put(TerminationSignal())
 
-# Detect a termination signal
+# Detect termination signal
 if isinstance(record, TerminationSignal):
     break  # Stop processing
 ```
@@ -63,7 +63,7 @@ class TerminationIdPool:
 
 ## NoOpContext
 
-A no-op context manager that can be used to disable `with` block logic.
+A no-op context manager, useful for disabling `with` logic.
 
 ```python
 class NoOpContext:
@@ -74,16 +74,16 @@ class NoOpContext:
         pass
 ```
 
-Use case:
+Usage scenario:
 ```python
-# Return NoOpContext when no lock is needed
+# When no lock is needed, return NoOpContext
 def get_lock(self):
     return self._lock or NoOpContext()
 ```
 
 ## ValueWrapper
 
-A counter wrapper for single-thread/single-process use, with optional lock support.
+A counter wrapper for single-thread/single-process use, optionally with a lock.
 
 ```python
 class ValueWrapper:
@@ -92,13 +92,13 @@ class ValueWrapper:
         self._lock = lock
 
     def get_lock(self):
-        """Returns the lock object or NoOpContext"""
+        """Return the lock object or NoOpContext"""
         return self._lock or NoOpContext()
 ```
 
 ## SumCounter
 
-Accumulates multiple counters (supports ValueWrapper / MPValue).
+Accumulates multiple counters (supports ValueWrapper).
 
 ```python
 class SumCounter:
@@ -106,23 +106,23 @@ class SumCounter:
         """
         Initialize the counter.
 
-        :param mode: Mode ('serial', 'thread', 'process')
+        :param mode: Mode ('serial', 'thread')
         """
 ```
 
 ### Methods
 
 ```python
-# Add an initial value
+# Add initial value
 def add_init_value(self, value: int) -> None
 
-# Append a counter
+# Append counter
 def append_counter(self, counter: ValueWrapper) -> None
 
 # Reset all counters
 def reset(self) -> None
 
-# Get the total value
+# Get total value
 @property
 def value(self) -> int
 ```
@@ -136,7 +136,7 @@ from celestialflow.runtime.util_types import SumCounter, ValueWrapper
 counter = SumCounter(mode="thread")
 counter.add_init_value(10)
 
-# Add sub-counters
+# Add sub-counter
 sub_counter = ValueWrapper(value=5)
 counter.append_counter(sub_counter)
 
@@ -170,4 +170,3 @@ Exception classes are defined in `runtime/util_errors.py`:
 | `LogLevelError` | Log level error |
 | `RemoteWorkerError` | Remote worker error |
 | `UnconsumedError` | Unconsumed task error |
-| `PickleError` | Serialization error |

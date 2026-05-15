@@ -1,6 +1,6 @@
 # CelestialFlow 技術プレゼンテーション
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/05/09
 
 ---
 
@@ -40,7 +40,7 @@
 ### コア機能
 
 - **豊富なグラフトポロジー**: Chain / Cross / Grid / Loop / Wheel / Complete の6種類のプリセット構造
-- **多次元実行モデル**: Stage級（serial/thread/process）× Task級（serial/thread/process/async）の組み合わせ
+- **多次元実行モデル**: Stage級（serial/thread）× Task級（serial/thread/async）の組み合わせ
 - **Redis分散処理**: Transport → Source → Ack の3フェーズ分散タスク伝送
 - **イベントソーシング**: CelestialTree統合によるタスクの全ライフサイクル追跡
 - **Webダッシュボード**: FastAPI + ECharts + Mermaid によるリアルタイム監視
@@ -65,7 +65,7 @@
   - DAGと循環グラフの両方で正しい終了を保証
 
 - **Metrics as First-Class（メトリクスを第一級市民として）**
-  - 各Stageに`TaskMetrics`を組み込み、クロスプロセス安全なリアルタイムカウンター
+  - 各Stageに`TaskMetrics`を組み込み、スレッド安全なリアルタイムカウンター
 
 ---
 
@@ -158,7 +158,7 @@ classDiagram
 
     class TaskStage {
         +stage_mode: str
-        +_status: MPValue
+        +_status: int
         +start_stage()
     }
 ```
@@ -226,14 +226,13 @@ graph TD
     end
 
     subgraph Stage級 stage_mode
-        C[serial: メインプロセス内で実行]
-        D[process: 独立サブプロセス]
+        C[serial: メインスレッド内で実行]
+        D[thread: 独立スレッド]
     end
 
     subgraph Task級 execution_mode
         E[serial: 逐次処理]
         F[thread: ThreadPoolExecutor]
-        G[process: ProcessPoolExecutor]
         H[async: asyncio + Semaphore]
     end
 
@@ -250,17 +249,17 @@ graph TD
 | レベル | オプション | 説明 |
 |--------|----------|------|
 | グラフ級 `schedule_mode` | `eager` / `staged` | Stage間の並行 vs 順次実行を制御 |
-| Stage級 `stage_mode` | `serial` / `thread` / `process` | Stageが独立プロセスで実行されるかどうか |
+| Stage級 `stage_mode` | `serial` / `thread` | Stageが独立スレッドで実行されるかどうか |
 | Task級 `execution_mode` | `serial` / `thread` | Stage内のタスクの並行戦略 |
 
 備考：
-TaskGraphモードでは、Task級の`process`と`async`は使用できません（スタンドアロンの`TaskExecutor.start()`でのみサポートされます）。これはプロセス内プロセスおよびサブプロセス内非同期の技術的制約によるものです。
+TaskGraphモードでは、Task級の`async`は使用できません（スタンドアロンの`TaskExecutor.start()`でのみサポートされます）。
 
 ---
 
 ## Slide 11: メトリクスと重複排除システム
 
-### TaskMetrics — クロスプロセス安全なリアルタイムカウンター
+### TaskMetrics — スレッド安全なリアルタイムカウンター
 
 - **4つのコアカウンター**:
   - `task_counter`: 総入力タスク数（Splitter/Routerによる追加を含む）
@@ -276,8 +275,6 @@ TaskGraphモードでは、Task級の`process`と`async`は使用できません
   - ゼロコスト重複排除 — ハッシュはエンベロープ作成時に一度だけ計算
 
 - **SumCounter集約**: Splitter/Routerシナリオで複数ソースのカウンターを正確にマージ
-
-- **プロセス安全**: processモードでは`MPValue("i")`がアトミック操作を提供
 
 ---
 
@@ -339,8 +336,8 @@ sequenceDiagram
 ```mermaid
 graph LR
     subgraph プロデューサー側
-        A[LogInlet] -->|MPQueue| B[LogSpout]
-        C[FailInlet] -->|MPQueue| D[FailSpout]
+        A[LogInlet] -->|Queue| B[LogSpout]
+        C[FailInlet] -->|Queue| D[FailSpout]
     end
 
     subgraph コンシューマー側
@@ -350,7 +347,7 @@ graph LR
 ```
 
 - **Spout-Inletパターン**:
-  - Inlet側（マルチプロセス安全）: レコードをフォーマットし、共有キューに書き込み
+  - Inlet側（スレッド安全）: レコードをフォーマットし、共有キューに書き込み
   - Spout側（デーモンスレッド）: キューから消費し、ファイルに書き込み
   - `TerminationSignal`による優雅なシャットダウン
 
@@ -370,16 +367,14 @@ graph LR
 CelestialFlowError (基底クラス)
 ├── ConfigurationError
 │   └── InvalidOptionError
-│       ├── ExecutionModeError    (serial/process/thread/async)
-│       ├── StageModeError        (serial/thread/process)
+│       ├── ExecutionModeError    (serial/thread/async)
+│       ├── StageModeError        (serial/thread)
 │       └── LogLevelError         (TRACE~CRITICAL)
 ├── RemoteWorkerError             (Redisリモート実行失敗)
-├── UnconsumedError               (未消費のキュータスク)
-└── PickleError                   (シリアライズ不可能なオブジェクト)
+└── UnconsumedError               (未消費のキュータスク)
 ```
 
 - **InvalidOptionError**: "field=value, allowed=[...]" のヒントメッセージを自動生成
-- **PickleError**: `find_unpickleable(obj)`により構築段階で問題を検出
 - **高速フィードバック**: 設定レベルのエラーは実行時ではなく、グラフ起動前にスローされます
 
 ---
@@ -458,13 +453,12 @@ CelestialFlowError (基底クラス)
   - `TaskEnvelope.hash`はエンベロープ作成時にSHA1を一度計算。以降の重複排除はsetルックアップのみ（O(1)）
 
 - **ファクトリベースのキューバックエンド**
-  - `make_queue_backend()`がstage_modeに基づいて`ThreadQueue` / `MPQueue` / `AsyncQueue`を自動選択
-  - シリアルモード: 同期オーバーヘッドゼロ。プロセスモード: OSレベルのパイプ
+  - `make_queue_backend()`がstage_modeに基づいて`ThreadQueue` / `AsyncQueue`を自動選択
+  - シリアルモード: 同期オーバーヘッドゼロ
 
 - **階層化メトリクスカウンター**
   - serial/async: `ValueWrapper` — 通常のint
   - thread: `ValueWrapper` + `threading.Lock`
-  - process: `MPValue("i")` — 共有メモリのアトミック操作
   - 必要に応じて最も軽量な同期メカニズムを選択
 
 - **フロントエンドの差分レンダリング**
@@ -522,8 +516,8 @@ graph LR
 | **インストール複雑度** | `pip install`で即使用 | データベース + スケジューラーが必要 | Server/Cloudが必要 | Ray Clusterが必要 |
 | **グラフタイプ** | DAG + 循環グラフ | DAGのみ | DAGのみ | 制限なし（Actorモデル） |
 | **循環タスクサポート** | ネイティブサポート（Loop/Wheel） | サポートなし | サポートなし | 手動実装 |
-| **実行モード** | serial/thread/process/async | Celery/K8s/Local | Dask/K8s | Ray Worker |
-| **プロセス級隔離** | Stage級`process`モード | Executor級 | Dispatch級 | デフォルト隔離 |
+| **実行モード** | serial/thread/async | Celery/K8s/Local | Dask/K8s | Ray Worker |
+| **プロセス級隔離** | なし（スレッド級隔離） | Executor級 | Dispatch級 | デフォルト隔離 |
 | **リアルタイム可視化** | 組み込みWeb UI | 組み込みWeb UI | 組み込みCloud UI | Ray Dashboard |
 | **イベントソーシング** | CelestialTree統合 | ネイティブサポートなし | ネイティブサポートなし | ネイティブサポートなし |
 | **タスク重複排除** | 組み込みSHA1ハッシュ重複排除 | ネイティブサポートなし | ネイティブサポートなし | ネイティブサポートなし |
@@ -554,7 +548,7 @@ graph LR
 
 - **機械学習パイプライン**
   - データ前処理 → 特徴量エンジニアリング → モデル学習 → 評価
-  - processモードでマルチコアを活用し、GILを回避
+  - threadモードでデータパイプラインを並行処理
 
 ---
 
@@ -633,7 +627,7 @@ graph LR
 | 決定 | 選択 | トレードオフ |
 |------|------|------------|
 | 循環グラフサポート | シグナルマージプロトコル | トポロジーの柔軟性と引き換えに終了ロジックの複雑さが増加 |
-| Graph内のexecution_mode | serial/threadのみ | プロセス内プロセスのネスト問題を回避 |
+| Graph内のexecution_mode | serial/threadのみ | シンプルで信頼性の高いスレッドモデルを維持 |
 | ログアーキテクチャ | Queue + Spoutスレッド | マルチプロセス安全な書き込みと引き換えにデーモンスレッドが1つ追加 |
 | 重複排除戦略 | SHA1(pickle) | 汎用オブジェクトハッシュ機能と引き換えにpickleの不安定性リスク |
 | Redis結果取得 | ポーリングHGET（0.1秒） | シンプルで信頼性が高いが、リアルタイムプッシュではない |
@@ -655,10 +649,10 @@ graph LR
 
 - **置き換え可能なキューバックエンド**
   - `make_queue_backend(mode)` ファクトリメソッドで統一インターフェース
-  - ThreadQueue / MPQueue / AsyncQueue — 必要に応じて切り替え
+  - ThreadQueue / AsyncQueue — 必要に応じて切り替え
 
 - **拡張可能なメトリクスバックエンド**
-  - `ValueWrapper` / `MPValue` — 実行モードに応じて適応
+  - `ValueWrapper` — 実行モードに応じて適応
   - `SumCounter` — 複数ソースのカウンターを透過的に集約
 
 - **カスタマイズ可能な永続化**
