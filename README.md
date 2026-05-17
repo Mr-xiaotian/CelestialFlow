@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">中文</a> | <a href="docs/en/README.md">English</a> | <a href="docs/ja/README.md">日本語</a>
+  <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/README.md">中文</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/README.md">English</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/README.md">日本語</a>
 </p>
 
 **CelestialFlow** 是一个轻量级但功能完全的任务流框架，适合需要 **复杂依赖关系**、**灵活执行模型**、**跨设备运行**与**实时可视化监控** 的中/大型 Python 任务系统。
@@ -125,8 +125,8 @@ def square(x):
 
 if __name__ == "__main__":
     # 定义两个任务节点
-    stage1 = TaskStage(name="Adder", func=add, execution_mode="thread", unpack_task_args=True, stage_mode="process")
-    stage2 = TaskStage(name="Squarer"func=square, execution_mode="thread", stage_mode="process")
+    stage1 = TaskStage(name="Adder", func=add, stage_mode="process", execution_mode="thread", unpack_task_args=True)
+    stage2 = TaskStage(name="Squarer", func=square, stage_mode="process", execution_mode="thread")
 
     # 构建任务图结构
     graph = TaskGraph()
@@ -264,7 +264,7 @@ flowchart TD
 
 更多过往日志可看:
 
-[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/change_log.md )
+[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/change_log.md )
 
 ## Star 历史趋势（Star History）
 

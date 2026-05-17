@@ -266,7 +266,7 @@ flowchart TD
 
 更多过往日志可看:
 
-[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/change_log.md )
+[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/change_log.md )
 
 ## Star 历史趋势（Star History）
 
