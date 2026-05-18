@@ -9,7 +9,7 @@ from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
 from ..utils.util_format import format_repr
-from .util_jsonl import load_task_error_pairs
+from .util_jsonl import PersistedErrorRecord, load_task_error_pairs
 
 
 class FailSpout(BaseSpout):
@@ -69,11 +69,11 @@ class FailSpout(BaseSpout):
             self._file.close()
             self._file = None
 
-    def get_error_pairs(self) -> list[tuple[Any, Exception]]:
+    def get_error_pairs(self) -> list[tuple[Any, PersistedErrorRecord]]:
         """
         从 jsonl 文件中读取所有错误记录
 
-        :return: (task, exception) 元组列表
+        :return: (task, error_record) 元组列表
         """
         return load_task_error_pairs(str(self.jsonl_path))
 
@@ -116,7 +116,7 @@ class FailInlet(BaseInlet):
         self._funnel(meta_item)
 
     def task_error(
-        self, stage_tag: str, error: Exception, err_id: int, task: Any
+        self, stage_tag: str, err_id: int, error: Exception, task: Any
     ) -> None:
         """
         写入错误日志到 jsonl 文件中
@@ -127,15 +127,21 @@ class FailInlet(BaseInlet):
         :param task: 任务字符串
         """
         now = datetime.now()
-        error_message = f"{type(error).__name__}({error})"
+        error_type = type(error).__name__
+        error_message = str(error)
+        error_repr = f"{error_type}({error_message})"
         fail_item = {
             "timestamp": now.isoformat(),
-            "stage": stage_tag,
-            "error_repr": format_repr(error_message, 100),
-            "task_repr": format_repr(task, 100),
-            "error": error_message,
-            "task": str(task),
-            "error_id": err_id,
             "ts": now.timestamp(),
+            "stage": stage_tag,
+
+            "error_id": err_id,
+            "error_type": error_type,
+            "error_message": error_message,
+            "error": error_repr,
+            "error_repr": format_repr(error_repr, 100),
+
+            "task_repr": format_repr(task, 100),
+            "task": str(task),
         }
         self._funnel(fail_item)

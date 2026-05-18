@@ -7,7 +7,47 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Optional
 
+from ..runtime.util_types import PersistedErrorRecord
+
 # ======== jsonl文件处理 ========
+
+def _split_error_repr(error_repr: str) -> tuple[str, str]:
+    """
+    从旧版错误字符串中拆分错误类型和消息
+
+    :param error_repr: 错误展示字符串
+    :return: (error_type, error_message)
+    """
+    if not error_repr:
+        return ("Exception", "")
+    if "(" in error_repr and error_repr.endswith(")"):
+        error_type, error_message = error_repr.split("(", 1)
+        return (error_type or "Exception", error_message[:-1])
+    return ("Exception", error_repr)
+
+
+def _parse_error_record(item: dict[str, Any]) -> PersistedErrorRecord:
+    """
+    从 JSONL 记录中解析错误记录对象
+
+    :param item: JSONL 中的一条错误记录
+    :return: 结构化错误记录
+    """
+    error_repr = str(item.get("error_repr") or item.get("error") or "")
+    legacy_error_type, legacy_error_message = _split_error_repr(error_repr)
+
+    error_id = item.get("error_id")
+    ts = item.get("ts")
+
+    return PersistedErrorRecord(
+        error_type=str(item.get("error_type") or legacy_error_type),
+        error_message=str(item.get("error_message") or legacy_error_message),
+        error_repr=error_repr,
+        stage=str(item.get("stage") or ""),
+        error_id=error_id if isinstance(error_id, int) else None,
+        timestamp=str(item.get("timestamp") or ""),
+        ts=ts if isinstance(ts, (int, float)) else None,
+    )
 
 
 def parse_jsonl_value(val: Any) -> Any:
@@ -156,14 +196,16 @@ def load_task_by_error(jsonl_path: str | Path) -> dict[tuple[str, ...], list[Any
     )
 
 
-def load_task_error_pairs(jsonl_path: str) -> list[tuple[Any, Exception]]:
+def load_task_error_pairs(
+    jsonl_path: str | Path,
+) -> list[tuple[Any, PersistedErrorRecord]]:
     """
     加载错误记录，返回 (task, error) pair 列表
 
     :param jsonl_path: JSONL 文件路径
     :return: [(task, error), ...]
     """
-    result: list[tuple[Any, Exception]] = []
+    result: list[tuple[Any, PersistedErrorRecord]] = []
 
     with open(jsonl_path, "r", encoding="utf-8") as f:
         for line in f:
@@ -180,7 +222,7 @@ def load_task_error_pairs(jsonl_path: str) -> list[tuple[Any, Exception]]:
                 continue
 
             task = parse_jsonl_value(item["task"])
-            error = Exception(str(item["error"]))
+            error = _parse_error_record(item)
             result.append((task, error))
 
     return result

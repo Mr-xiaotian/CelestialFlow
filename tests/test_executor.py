@@ -71,6 +71,11 @@ class TestExecutorSerial:
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 2
 
+        error_dict = dict(executor.get_error_pairs())
+        assert error_dict[-1].error_type == "ValueError"
+        assert "negative value: -1" in error_dict[-1].error_message
+        assert error_dict[-2].stage == executor.get_tag()
+
     def test_serial_retry(self):
         """串行模式：重试机制生效"""
         call_count = 0

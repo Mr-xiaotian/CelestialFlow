@@ -1,6 +1,7 @@
 # runtime/util_types.py
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import IntEnum
 from threading import Lock
 from types import TracebackType
@@ -147,3 +148,43 @@ class CTreeEvent:
 STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(
     template="{base}  {payload.name}  ‹{type}›", missing="-"
 )
+
+
+@dataclass(frozen=True)
+class PersistedErrorRecord:
+    """
+    持久化错误记录
+
+    :param error_type: 错误类型名称
+    :param error_message: 错误消息
+    :param error_repr: 错误的完整展示字符串
+    :param stage: 错误所属节点标签
+    :param error_id: 错误事件 ID
+    :param timestamp: 错误时间戳字符串
+    :param ts: 错误时间戳
+    """
+
+    error_type: str
+    error_message: str
+    error_repr: str
+    stage: str = ""
+    error_id: int | None = None
+    timestamp: str = ""
+    ts: float | None = None
+
+    def __str__(self) -> str:
+        """
+        返回错误记录的可读字符串
+
+        :return: 错误展示字符串
+        """
+        return self.error_repr
+
+    def get_group_key(self) -> tuple[str, str]:
+        """
+        获取错误分组键
+
+        :return: (error_type, error_message)
+        """
+        return (self.error_type, self.error_message)
+

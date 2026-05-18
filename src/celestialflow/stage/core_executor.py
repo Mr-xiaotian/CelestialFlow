@@ -29,6 +29,7 @@ from ..runtime.util_factories import (
 from ..runtime.util_types import (
     CTreeEvent,
     TerminationSignal,
+    PersistedErrorRecord,
 )
 from ..utils.util_format import format_repr
 
@@ -418,15 +419,15 @@ class TaskExecutor:
             result_dict[task] = str(error)
         return result_dict
 
-    def handle_error_dict(self) -> dict[Any, list[Any]]:
+    def handle_error_dict(self) -> dict[tuple[str, str], list[Any]]:
         """
         处理错误字典。可根据需要覆写
 
         在这个示例中，我们将列表合并为错误组
         """
-        error_groups: defaultdict[Any, list[Any]] = defaultdict(list)
+        error_groups: defaultdict[tuple[str, str], list[Any]] = defaultdict(list)
         for task, error in self.get_error_pairs():
-            error_groups[error].append(task)
+            error_groups[error.get_group_key()].append(task)
 
         return dict(error_groups)  # 转换回普通字典
 
@@ -570,7 +571,7 @@ class TaskExecutor:
         self.metrics.add_error_count()
 
         self.fail_inlet.task_error(
-            self.get_tag(), exception, error_id, task_envelope.task
+            self.get_tag(), error_id, exception, task_envelope.task
         )
         self.log_inlet.task_error(
             self.get_func_name(),
@@ -702,18 +703,19 @@ class TaskExecutor:
         """
         return self.success_spout.get_success_pairs()
 
-    def get_error_pairs(self) -> list[tuple[Any, Exception]]:
+    def get_error_pairs(self) -> list[tuple[Any, PersistedErrorRecord]]:
         """
         获取出错任务的列表
 
-        :return: (task, exception) 元组列表
+        :return: (task, error_record) 元组列表
         """
         return self.fail_spout.get_error_pairs()
 
     def release_queue(self) -> None:
         """释放任务队列、结果队列和失败队列的引用"""
         self.task_queue = None  # type: ignore[assignment]
-        self.result_queue = None  # type: ignore[assignment]        self.fail_queue = None
+        self.result_queue = None  # type: ignore[assignment]        
+        self.fail_queue = None  # type: ignore[assignment]
 
     def _release_client(self) -> None:
         """释放事件树客户端引用"""
