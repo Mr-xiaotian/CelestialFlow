@@ -5,10 +5,10 @@ import threading
 import time
 import warnings
 from collections import defaultdict
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Queue as ThreadQueue
-from collections.abc import Iterable, Mapping
 from typing import Any
 
 from celestialtree import Client as CelestialTreeClient
@@ -16,7 +16,7 @@ from celestialtree import NullClient as NullCelestialTreeClient
 from celestialtree import (
     format_descendants_forest,
 )
-from networkx import is_directed_acyclic_graph, DiGraph
+from networkx import DiGraph, is_directed_acyclic_graph
 
 from ..observability import NullTaskReporter, TaskReporter
 from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout
@@ -42,8 +42,8 @@ from ..stage import TaskStage
 from ..utils.util_collections import cluster_by_value_sorted
 from ..utils.util_format import format_avg_time
 from .util_analysis import (
-    compute_node_levels,
     build_networkx_graph,
+    compute_node_levels,
     find_source_nodes,
 )
 from .util_serialize import build_structure_graph, format_structure_list_from_graph
@@ -605,7 +605,7 @@ class TaskGraph:
                 "tasks_processed": stage_counts["tasks_processed"],
             }
         )
-        history.pop(0) if len(history) > history_limit else None
+        history = history[-history_limit:] if len(history) > history_limit else history
 
         snapshot: dict[str, Any] = {
             **stage.get_summary(),
