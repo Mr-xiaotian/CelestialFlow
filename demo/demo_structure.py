@@ -417,5 +417,6 @@ if __name__ == "__main__":
     # demo_cross()
     # demo_grid()
     # demo_loop()
-    demo_multi_cycle()
+    demo_complete()
+    # demo_multi_cycle()
     pass

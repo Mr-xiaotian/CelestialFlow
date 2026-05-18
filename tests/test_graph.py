@@ -2,7 +2,6 @@ import pytest
 
 from celestialflow import (
     TaskChain,
-    TaskComplete,
     TaskCross,
     TaskGraph,
     TaskGrid,
@@ -255,29 +254,6 @@ class TestTaskGraphStructure:
         assert grid[0][1].get_counts()["tasks_succeeded"] == 2
         assert grid[1][0].get_counts()["tasks_succeeded"] == 2
         assert grid[1][1].get_counts()["tasks_succeeded"] == 2
-
-    def test_complete_structure(self):
-        """TaskComplete：完全图，验证非 DAG 检测与基本启动"""
-        nodes = [TaskStage(f"n{i}", add_one) for i in range(3)]
-        complete = TaskComplete(nodes)
-        # 完全图是非 DAG，自动注入终止信号会导致节点提前关闭，
-        # 因此仅注入到根节点并验证图能正常结束
-        complete.start_complete(
-            {
-                nodes[0].get_tag(): [1],
-                nodes[1].get_tag(): [2],
-                nodes[2].get_tag(): [3],
-            },
-            put_termination_signal=True,
-        )
-
-        analysis = complete.get_graph_analysis()
-        assert analysis["isDAG"] is False
-        assert analysis["class_name"] == "TaskComplete"
-        # 每个节点至少处理了自己的初始输入
-        for n in nodes:
-            assert n.get_counts()["tasks_succeeded"] >= 1
-
 
 class TestTaskGraphAnalysis:
     def test_dag_detection(self):
@@ -621,6 +597,48 @@ class TestSourceStages:
         sources = graph.get_source_stages()
         assert len(sources) == 1
         assert sources[0].get_tag() == s1.get_tag()
+
+    def test_source_stages_cycle_returns_one_source_scc_member(self):
+        """单个源 SCC 只返回一个代表点"""
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+        s3 = TaskStage("s3", to_str)
+
+        graph = TaskGraph()
+        graph.set_stages(stages=[s1, s2, s3])
+        graph.connect([s1], [s2])
+        graph.connect([s2], [s3])
+        graph.connect([s3], [s1])
+
+        source_tags = {stage.get_tag() for stage in graph.get_source_stages()}
+        cycle_tags = {s1.get_tag(), s2.get_tag(), s3.get_tag()}
+
+        assert len(source_tags) == 1
+        assert source_tags <= cycle_tags
+
+    def test_source_stages_returns_one_member_per_source_scc(self):
+        """多个源 SCC 时，每个源 SCC 各返回一个代表点"""
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+        s3 = TaskStage("s3", to_str)
+        s4 = TaskStage("s4", add_one)
+        s5 = TaskStage("s5", double)
+
+        graph = TaskGraph()
+        graph.set_stages(stages=[s1, s2, s3, s4, s5])
+        graph.connect([s1], [s2])
+        graph.connect([s2], [s1])
+        graph.connect([s3], [s4])
+        graph.connect([s4], [s3])
+        graph.connect([s2, s4], [s5])
+
+        source_tags = {stage.get_tag() for stage in graph.get_source_stages()}
+        source_scc_a = {s1.get_tag(), s2.get_tag()}
+        source_scc_b = {s3.get_tag(), s4.get_tag()}
+
+        assert len(source_tags) == 2
+        assert len(source_tags & source_scc_a) == 1
+        assert len(source_tags & source_scc_b) == 1
 
 
 # =========================

@@ -373,23 +373,25 @@ class TaskGraph:
                     input_id,
                 )
 
-        if put_termination_signal:
-            for source_stage in self.source_stages:
-                source_stage_tag = source_stage.get_tag()
-                source_in_queue: TaskInQueue = self.stage_runtime_dict[
-                    source_stage_tag
-                ].in_queue
+        if not put_termination_signal:
+            return
+        
+        for source_stage in self.source_stages:
+            source_stage_tag = source_stage.get_tag()
+            source_in_queue: TaskInQueue = self.stage_runtime_dict[
+                source_stage_tag
+            ].in_queue
 
-                termination_id: int = self.ctree_client.emit(
-                    CTreeEvent.TERMINATION_INPUT,
-                    payload=source_stage.get_summary(),
-                )
-                source_in_queue.put(TerminationSignal(termination_id, source="input"))
-                self.log_inlet.termination_input(
-                    source_stage.get_func_name(),
-                    source_stage.get_tag(),
-                    termination_id,
-                )
+            termination_id: int = self.ctree_client.emit(
+                CTreeEvent.TERMINATION_INPUT,
+                payload=source_stage.get_summary(),
+            )
+            source_in_queue.put(TerminationSignal(termination_id, source="input"))
+            self.log_inlet.termination_input(
+                source_stage.get_func_name(),
+                source_stage.get_tag(),
+                termination_id,
+            )
 
     # ==== 执行 ====
 
