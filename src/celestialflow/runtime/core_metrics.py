@@ -16,18 +16,15 @@ class TaskMetrics:
     def __init__(
         self,
         execution_mode: str,
-        max_retries: int = 1,
         enable_duplicate_check: bool = False,
     ):
         """
         初始化 TaskMetrics
 
         :param execution_mode: 任务执行模式，可选值为 "serial", "thread" 或 "async"
-        :param max_retries: 最大重试次数，默认值为 1
         :param enable_duplicate_check: 是否启用重复任务检查，默认值为 False
         """
         self.execution_mode = execution_mode
-        self.max_retries = max_retries
         self.enable_duplicate_check = enable_duplicate_check
 
         self.retry_exceptions: tuple[type[Exception], ...] = ()

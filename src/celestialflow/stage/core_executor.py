@@ -91,7 +91,6 @@ class TaskExecutor:
         """
         self.metrics = TaskMetrics(
             execution_mode=self.execution_mode,
-            max_retries=self.max_retries,
             enable_duplicate_check=self.enable_duplicate_check,
         )
 
