@@ -77,8 +77,8 @@ def load_jsonl_logs(
     从 jsonl 文件中读取数据（可选择性读取字段）
 
     :param path: jsonl 文件路径
-    :param start_seq: 跳过前 N 行（默认跳过第 0 行的元信息行）
-    :param keys: 只保留这些键；None 表示保留全部
+    :param start_seq: 跳过前 N 行（默认跳过第 0 行的元信息行），默认 1
+    :param keys: 只保留这些键；None 表示保留全部，默认 None
     :return: 从 start_seq 开始的 list[dict]
     """
     results: list[dict[str, Any]] = []
@@ -119,8 +119,8 @@ def load_jsonl_by_key(
     按指定 key 分组加载 jsonl 文件中的值
 
     :param jsonl_path: jsonl 文件路径
-    :param extract_key: 分组依据的字段名
-    :param extract_value: 提取的值字段名
+    :param extract_key: 分组依据的字段名，默认 "stage"
+    :param extract_value: 提取的值字段名，默认 "task"
     :return: {key_value: [parsed_values]}
     """
     result_dict: defaultdict[str, list[Any]] = defaultdict(list)

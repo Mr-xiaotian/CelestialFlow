@@ -205,7 +205,7 @@ class TaskOutQueue:
         """
         任务输出队列类，用于管理多个输出队列
 
-        :param queue_list: 输出队列列表，每个元素为一个线程队列、进程队列或异步队列
+        :param queue_list: 输出队列列表，每个元素为一个线程队列或异步队列
         :param queue_tags: 队列标签列表，用于标识每个队列
         :param in_tag: 任务节点标签，用于记录日志
         :param log_inlet: 日志记录器，用于记录入队出队日志

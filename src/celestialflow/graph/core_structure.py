@@ -21,8 +21,8 @@ class TaskChain(TaskGraph):
         该结构将多个 TaskStage 节点按顺序连接，形成一个线性的数据流图。
 
         :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点
-        :param chain_mode: 控制任务链中各节点的运行模式, 可选 'serial' 或 'thread'
-        :param log_level: 日志级别
+        :param chain_mode: 控制任务链中各节点的运行模式, 可选 'serial' 或 'thread'，默认 'serial'
+        :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(schedule_mode="eager", log_level=log_level)
 
@@ -43,7 +43,7 @@ class TaskChain(TaskGraph):
         启动任务链
 
         :param init_tasks_dict: 初始化任务字典
-        :param put_termination_signal: 是否在任务完成后发送终止信号
+        :param put_termination_signal: 是否在任务完成后发送终止信号，默认 True
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
 
@@ -65,8 +65,8 @@ class TaskCross(TaskGraph):
         :param layers:
             按层划分的任务节点列表。每个子列表代表一层，列表中的 TaskStage 将并行执行。
             相邻层之间的所有节点将建立全连接依赖（即每个上一层节点都连接到下一层所有节点）。
-        :param schedule_mode: 控制任务图的调度布局模式
-        :param log_level: 日志级别
+        :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
+        :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
@@ -90,7 +90,7 @@ class TaskCross(TaskGraph):
         启动多层交叉结构任务图
 
         :param init_tasks_dict: 初始化任务字典
-        :param put_termination_signal: 是否在任务完成后发送终止信号
+        :param put_termination_signal: 是否在任务完成后发送终止信号，默认 True
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
 
@@ -112,8 +112,8 @@ class TaskGrid(TaskGraph):
         :param grid:
             任务网格，每个子列表代表一行，列表中的 TaskStage 将按行并行执行。
             每个节点将连接到其右侧和下方的节点。
-        :param schedule_mode: 控制任务图的调度布局模式
-        :param log_level: 日志级别
+        :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
+        :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
@@ -144,7 +144,7 @@ class TaskGrid(TaskGraph):
         启动任务网格结构
 
         :param init_tasks_dict: 初始化任务字典
-        :param put_termination_signal: 是否在任务完成后发送终止信号
+        :param put_termination_signal: 是否在任务完成后发送终止信号，默认 True
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
 
@@ -163,8 +163,8 @@ class TaskLoop(TaskGraph):
         TaskLoop:  任务环结构
 
         :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点, 形成一个闭环
-        :param schedule_mode: 控制任务图的调度布局模式
-        :param log_level: 日志级别
+        :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
+        :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
@@ -186,7 +186,7 @@ class TaskLoop(TaskGraph):
         启动任务环, 环是自锁结构, 建议外部注入式停止
 
         :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否在任务完成后发送终止信号
+        :param put_termination_signal: 是否在任务完成后发送终止信号，默认 False
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
 
@@ -206,8 +206,8 @@ class TaskWheel(TaskGraph):
 
         :param center: 中心节点
         :param ring: 环节点
-        :param schedule_mode: 控制任务图的调度布局模式
-        :param log_level: 日志级别
+        :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
+        :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
@@ -233,7 +233,7 @@ class TaskWheel(TaskGraph):
         启动任务轮结构
 
         :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否注入终止信号
+        :param put_termination_signal: 是否注入终止信号，默认 True
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
 
@@ -251,8 +251,8 @@ class TaskComplete(TaskGraph):
         TaskComplete: 完全图结构，每个节点都连向除自己以外的所有其他节点
 
         :param stages: 所有 TaskStage 节点
-        :param schedule_mode: 控制任务图的调度布局模式
-        :param log_level: 日志级别
+        :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
+        :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
@@ -274,6 +274,6 @@ class TaskComplete(TaskGraph):
         启动任务完全图, 建议外部注入式停止
 
         :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否在任务完成后发送终止信号
+        :param put_termination_signal: 是否在任务完成后发送终止信号，默认 False
         """
         self.start_graph(init_tasks_dict, put_termination_signal)

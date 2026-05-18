@@ -55,13 +55,13 @@ class TaskExecutor:
 
         :param name: 节点/管理器名称
         :param func: 可调用对象
-        :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'
-        :param max_workers: 同时处理数量
+        :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'，默认 'serial'
+        :param max_workers: 同时处理数量，默认 20
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
-        :param max_info: 日志中每条信息的最大长度
-        :param unpack_task_args: 是否将任务参数解包
-        :param enable_duplicate_check: 是否启用重复检查
-        :param log_level: 日志级别
+        :param max_info: 日志中每条信息的最大长度，默认 50
+        :param unpack_task_args: 是否将任务参数解包，默认 False
+        :param enable_duplicate_check: 是否启用重复检查，默认 True
+        :param log_level: 日志级别，默认 'INFO'
         """
 
         self.set_name(name)

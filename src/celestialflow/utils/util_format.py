@@ -41,8 +41,8 @@ def format_table(
     格式化表格数据为字符串(CelestialVault.TextTools中同名函数的简化版)。
 
     :param data: 二维列表，表格数据
-    :param row_names: 行名列表（可选）
-    :param column_names: 列名列表（可选）
+    :param row_names: 行名列表（可选），默认 None
+    :param column_names: 列名列表（可选），默认 None
     :param index_header: 行号列标题（默认 "#"）
     :param fill_value: 空值填充字符串（默认 "N/A"）
     :param align: 对齐方式（"left" 或 "right"，默认 "left"）

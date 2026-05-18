@@ -80,7 +80,7 @@ class FailSpout(BaseSpout):
 
 class FailInlet(BaseInlet):
     """
-    多进程安全失败记录包装类，所有失败记录通过队列发送到监听进程写入
+    线程安全失败记录包装类，所有失败记录通过队列发送到监听线程写入
     """
 
     def __init__(self, fail_queue: Queue[Any]) -> None:

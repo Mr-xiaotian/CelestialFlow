@@ -17,12 +17,19 @@ class BaseSpout:
         self._thread: Thread | None = None
 
     def _before_start(self) -> None:
+        """在后台线程启动前调用，子类可覆写以做初始化（如打开文件、清空缓存）。"""
         return None
 
     def _handle_record(self, record: Any) -> None:
+        """
+        处理单条队列记录，子类必须覆写。
+
+        :param record: 队列中取出的记录
+        """
         raise NotImplementedError
 
     def _after_stop(self) -> None:
+        """在后台线程停止后调用，子类可覆写以做清理（如关闭文件句柄）。"""
         return None
 
     def start(self) -> None:
@@ -33,6 +40,7 @@ class BaseSpout:
             self._thread.start()
 
     def _spout(self) -> None:
+        """后台线程主循环，持续从队列拉取记录并调用 _handle_record，收到终止信号时退出。"""
         while True:
             try:
                 record = self.queue.get(timeout=0.5)

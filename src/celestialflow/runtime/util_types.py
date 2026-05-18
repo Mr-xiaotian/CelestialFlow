@@ -14,8 +14,8 @@ class TerminationSignal:
 
     def __init__(self, _id: int = -1, source: str = "input") -> None:
         """
-        :param _id: 终止信号 ID
-        :param source: 信号来源标识
+        :param _id: 终止信号 ID，默认 -1
+        :param source: 信号来源标识，默认 "input"
         """
         self.id = _id
         self.source = source
@@ -57,8 +57,8 @@ class ValueWrapper:
 
     def __init__(self, value: int = 0, lock: Lock | None = None) -> None:
         """
-        :param value: 初始值
-        :param lock: 可选的线程锁
+        :param value: 初始值，默认 0
+        :param lock: 可选的线程锁，默认 None
         """
         self.value = value
         self._lock = lock
@@ -73,7 +73,7 @@ class SumCounter:
 
     def __init__(self, mode: str = "serial"):
         """
-        :param mode: 执行模式，决定锁和计数器实现
+        :param mode: 执行模式，决定锁和计数器实现，默认 "serial"
         """
         self.mode = mode
         self.init_value: ValueWrapper

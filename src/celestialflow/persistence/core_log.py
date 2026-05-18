@@ -60,7 +60,7 @@ class LogSpout(BaseSpout):
 
 class LogInlet(BaseInlet):
     """
-    多进程安全日志包装类，所有日志通过队列发送到监听进程写入
+    线程安全日志包装类，所有日志通过队列发送到监听线程写入
     """
 
     def __init__(self, log_queue: Queue[Any], log_level: str = "INFO") -> None:
@@ -68,7 +68,7 @@ class LogInlet(BaseInlet):
         初始化日志收集器
 
         :param log_queue: 日志队列
-        :param log_level: 日志级别，低于此级别的日志不记录
+        :param log_level: 日志级别，低于此级别的日志不记录，默认 "INFO"
         """
         super().__init__(log_queue)
         self.log_level: str = log_level.upper()
@@ -81,7 +81,7 @@ class LogInlet(BaseInlet):
         记录一条日志，低于当前日志级别的消息将被忽略
 
         :param level: 日志级别
-        :param message: 日志消息内容
+        :param message: 日志消息内容，默认 None（跳过）
         """
         if message is None:
             return

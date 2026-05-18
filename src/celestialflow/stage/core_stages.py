@@ -18,7 +18,7 @@ class TaskSplitter(TaskStage):
         初始化 TaskSplitter
 
         :param name: 节点名称
-        :param stage_mode: 节点运行模式
+        :param stage_mode: 节点运行模式，默认 'serial'
         """
         super().__init__(
             name=name,
@@ -36,6 +36,7 @@ class TaskSplitter(TaskStage):
         self.split_counter = ValueWrapper(0)
 
     def set_execution_mode(self, execution_mode: str) -> None:
+        """覆写父类方法，将执行模式固定为串行"""
         self.execution_mode = "serial"
 
     def get_binding_counter(self, _downstream_tag: str) -> Any:
@@ -132,7 +133,7 @@ class TaskRouter(TaskStage):
         初始化 TaskRouter
 
         :param name: 节点名称
-        :param stage_mode: 节点运行模式
+        :param stage_mode: 节点运行模式，默认 'serial'
         """
         super().__init__(
             name=name,
@@ -249,13 +250,13 @@ class TaskRedisTransport(TaskStage):
         初始化 TaskRedisTransport
 
         :param name: 节点名称
-        :param key: Redis list key
-        :param host: Redis 主机地址
-        :param port: Redis 端口
-        :param db: Redis 数据库
-        :param password: Redis 密码
-        :param stage_mode: 节点运行模式
-        :param unpack_task_args: 是否将任务参数解包
+        :param key: Redis list key，默认 ""
+        :param host: Redis 主机地址，默认 "localhost"
+        :param port: Redis 端口，默认 6379
+        :param db: Redis 数据库，默认 0
+        :param password: Redis 密码，默认 None
+        :param stage_mode: 节点运行模式，默认 "serial"
+        :param unpack_task_args: 是否将任务参数解包，默认 False
         """
         super().__init__(
             name=name,
@@ -323,13 +324,13 @@ class TaskRedisSource(TaskStage):
         初始化 TaskRedisSource
 
         :param name: 节点名称
-        :param key: Redis list key
-        :param host: Redis 主机地址
-        :param port: Redis 端口
-        :param db: Redis 数据库
-        :param password: Redis 密码
-        :param timeout: Redis 超时时间, 设为0则无限等待
-        :param stage_mode: 节点运行模式
+        :param key: Redis list key，默认 ""
+        :param host: Redis 主机地址，默认 "localhost"
+        :param port: Redis 端口，默认 6379
+        :param db: Redis 数据库，默认 0
+        :param password: Redis 密码，默认 None
+        :param timeout: Redis 超时时间, 设为0则无限等待，默认 10
+        :param stage_mode: 节点运行模式，默认 "serial"
         """
         super().__init__(
             name=name,
@@ -402,13 +403,13 @@ class TaskRedisAck(TaskStage):
         TaskRedisAck: 远端任务完成确认节点（Ack）
 
         :param name: 节点名称
-        :param key: Redis 结果 key 前缀（通常与 TaskRedisTransport 对应）
-        :param host: Redis 主机地址
-        :param port: Redis 端口
-        :param db: Redis 数据库
-        :param password: Redis 密码
-        :param timeout: 等待结果的超时时间（秒），0 表示无限等待
-        :param stage_mode: 节点运行模式
+        :param key: Redis 结果 key 前缀（通常与 TaskRedisTransport 对应），默认 ""
+        :param host: Redis 主机地址，默认 "localhost"
+        :param port: Redis 端口，默认 6379
+        :param db: Redis 数据库，默认 0
+        :param password: Redis 密码，默认 None
+        :param timeout: 等待结果的超时时间（秒），0 表示无限等待，默认 10
+        :param stage_mode: 节点运行模式，默认 "serial"
         """
         super().__init__(
             name=name,

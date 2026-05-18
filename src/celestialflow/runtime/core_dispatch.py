@@ -28,7 +28,7 @@ class TaskDispatch:
 
         :param task_executor: 任务执行器
         :param func: 任务函数
-        :param max_workers: 工作线程或进程数量限制
+        :param max_workers: 工作线程数量限制
         """
         self.task_executor = task_executor
         self.func = func

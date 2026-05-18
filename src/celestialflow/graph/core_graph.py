@@ -220,9 +220,9 @@ class TaskGraph:
         """
         设定报告器
 
-        :param is_report: 是否启用报告器
-        :param host: 报告器主机地址
-        :param port: 报告器端口
+        :param is_report: 是否启用报告器，默认 False
+        :param host: 报告器主机地址，默认 "127.0.0.1"
+        :param port: 报告器端口，默认 5000
         """
         self.is_report = is_report
         self.report_host = host
@@ -249,11 +249,11 @@ class TaskGraph:
         """
         设定事件树客户端
 
-        :param use_ctree: 是否使用事件树
-        :param host: 事件树主机地址
-        :param http_port: 事件树 HTTP 端口
-        :param grpc_port: 事件树 gRPC 端口
-        :param transport: 传输方式, 可选 'grpc' 或 'http'
+        :param use_ctree: 是否使用事件树，默认 False
+        :param host: 事件树主机地址，默认 "127.0.0.1"
+        :param http_port: 事件树 HTTP 端口，默认 7777
+        :param grpc_port: 事件树 gRPC 端口，默认 7778
+        :param transport: 传输方式, 可选 'grpc' 或 'http'，默认 'grpc'
         """
         self.use_ctree = use_ctree
         self.ctree_host = host
@@ -339,7 +339,7 @@ class TaskGraph:
         将任务放入队列
 
         :param tasks_dict: 待处理的任务字典
-        :param put_termination_signal: 是否放入终止信号
+        :param put_termination_signal: 是否放入终止信号，默认 True
         """
         for tag, tasks in tasks_dict.items():
             if tag not in self.stage_runtime_dict:
@@ -404,7 +404,7 @@ class TaskGraph:
         启动任务链
 
         :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否注入终止信号
+        :param put_termination_signal: 是否注入终止信号，默认 True
         """
         self._build_resources()
         self._build_analysis()

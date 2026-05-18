@@ -120,7 +120,13 @@ class TaskWebServer:
     def __init__(
         self, host: str = "0.0.0.0", port: int = 5000, log_level: str = "info"
     ) -> None:
-        """初始化 FastAPI 应用、数据存储、版本计数器及路由。"""
+        """
+        初始化 FastAPI 应用、数据存储、版本计数器及路由。
+
+        :param host: 绑定主机地址，默认 "0.0.0.0"
+        :param port: 绑定端口，默认 5000
+        :param log_level: uvicorn 日志级别，默认 "info"
+        """
         self.app: FastAPI = FastAPI()  # type: ignore[reportUnknownMemberType]
         self.host = host
         self.port = port
@@ -223,11 +229,11 @@ class TaskWebServer:
             """
             返回错误日志分页数据；若版本未变则返回 data=null。
 
-            :param known_rev: 客户端已知的版本号
-            :param page: 页码
-            :param page_size: 每页大小
-            :param node: 节点名称过滤
-            :param keyword: 关键词过滤
+            :param known_rev: 客户端已知的版本号，默认 -1
+            :param page: 页码，默认 1
+            :param page_size: 每页大小，默认 10
+            :param node: 节点名称过滤，默认 ""
+            :param keyword: 关键词过滤，默认 ""
             """
             rev: int = self._store_revs["errors"]
             (
