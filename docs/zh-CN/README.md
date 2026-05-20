@@ -1,7 +1,5 @@
 # CelestialFlow ——一个轻量级、可并行、基于图结构的 Python 任务调度框架
 
-> 📅 最后更新日期: 2026/05/15
-
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
 </p>
@@ -21,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">中文</a> | <a href="docs/en/README.md">English</a> | <a href="docs/ja/README.md">日本語</a>
+  <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/README.md">中文</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/README.md">English</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/README.md">日本語</a>
 </p>
 
 **CelestialFlow** 是一个轻量级但功能完全的任务流框架，适合需要 **复杂依赖关系**、**灵活执行模型**、**跨设备运行**与**实时可视化监控** 的中/大型 Python 任务系统。
@@ -126,8 +124,8 @@ def square(x):
 
 if __name__ == "__main__":
     # 定义两个任务节点
-    stage1 = TaskStage(name="Adder", func=add, execution_mode="thread", unpack_task_args=True, stage_mode="thread")
-    stage2 = TaskStage(name="Squarer", func=square, execution_mode="thread", stage_mode="thread")
+    stage1 = TaskStage(name="Adder", func=add, stage_mode="thread", execution_mode="thread", unpack_task_args=True)
+    stage2 = TaskStage(name="Squarer", func=square, stage_mode="thread", execution_mode="thread")
 
     # 构建任务图结构
     graph = TaskGraph()
@@ -249,9 +247,9 @@ flowchart TD
       - bench_graph_mode 数据表明 process 模式在所有场景下均慢于 thread 模式, 且引入大量序列化开销和 pickle 限制;
     - [Important] 删除原有set_stages中手动输入的`root_stages`参数, 取而代之为通过scc缩合图计算出的一组`source_stages`
       - 重补了不少图论课
-      - 当前仅支持设置刷新间隔与历史长度, 之后可以进行更多设置
     - 将graph/stage/executor的默认log level从`SUCCESS`改为`INFO`, 也就是默认只显示开启关闭信息与错误
     - 在web页面中添加配置按钮
+      - 当前仅支持设置刷新间隔与历史长度, 之后可以进行更多设置
   - refactor:
     - 由于stage_mode中取消`process`, 框架中部分为了适配`process`而进行的设计进行删除或者重构  
       - 例如将所有的MPValue和MPQueue改为int与Queue
@@ -265,7 +263,7 @@ flowchart TD
 
 更多过往日志可看:
 
-[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/change_log.md )
+[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/change_log.md )
 
 ## Star 历史趋势（Star History）
 
