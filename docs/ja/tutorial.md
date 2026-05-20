@@ -497,7 +497,7 @@ graph.put_stage_queue({
 | `TaskStage` | タスクノード、処理関数をラップ |
 | `TaskSplitter` | スプリッター、1つのタスクを複数に分割 |
 | `TaskGraph` | タスクグラフ、ノード関係と実行フローを組み立て |
-| `stage_mode` | ノード実行モード（serial/thread/process） |
+| `stage_mode` | ノード実行モード（serial/thread） |
 | `execution_mode` | ノード内部実行モード（serial/thread/async） |
 
 ### 次のステップ

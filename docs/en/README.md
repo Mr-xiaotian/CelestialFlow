@@ -41,11 +41,10 @@ Beyond using TaskExecutor directly, the more important usage is through its subc
 
 TaskStage's task execution modes are the same three as in TaskExecutor.
 
-At the graph level, each Stage supports three context modes:
+At the graph level, each Stage supports two context modes:
 
 * **Serial execution (serial layout)**: The current node completes execution before starting the next node (downstream nodes may receive tasks early but won't execute immediately).
 * **Thread execution (thread layout)**: The current node starts in an independent thread within the main process, suitable for I/O-intensive tasks and non-picklable functions (e.g., lambdas).
-* **Parallel execution (process layout)**: The current node starts and immediately proceeds to start the next node.
 
 TaskGraph can build a complete **Directed Graph structure**, supporting not only traditional Directed Acyclic Graphs (DAG), but also flexibly expressing **Tree**, **Loop**, and even **Complete Graph** forms of task dependencies.
 
@@ -127,8 +126,8 @@ def square(x):
 
 if __name__ == "__main__":
     # Define two task nodes
-    stage1 = TaskStage(name="Adder", func=add, execution_mode="thread", unpack_task_args=True, stage_mode="process")
-    stage2 = TaskStage(name="Squarer"func=square, execution_mode="thread", stage_mode="process")
+    stage1 = TaskStage(name="Adder", func=add, execution_mode="thread", unpack_task_args=True, stage_mode="thread")
+    stage2 = TaskStage(name="Squarer", func=square, execution_mode="thread", stage_mode="thread")
 
     # Build the task graph structure
     graph = TaskGraph()

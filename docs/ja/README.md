@@ -130,8 +130,8 @@ def square(x):
 
 if __name__ == "__main__":
     # 2つのタスクノードを定義
-    stage1 = TaskStage(name="Adder", func=add, execution_mode="thread", unpack_task_args=True, stage_mode="process")
-    stage2 = TaskStage(name="Squarer"func=square, execution_mode="thread", stage_mode="process")
+    stage1 = TaskStage(name="Adder", func=add, execution_mode="thread", unpack_task_args=True, stage_mode="thread")
+    stage2 = TaskStage(name="Squarer", func=square, execution_mode="thread", stage_mode="thread")
 
     graph = TaskGraph()
     graph.set_stages(stages=[stage1, stage2])

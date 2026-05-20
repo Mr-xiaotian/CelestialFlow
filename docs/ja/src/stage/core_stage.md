@@ -38,7 +38,7 @@ class TaskStage(TaskExecutor):
         ...
 ```
 
-パラメータは `TaskExecutor` と同じで、`log_level` と `stage_mode` パラメータが追加されています。`TaskStage` の `execution_mode` は `serial`、`thread`、または `async` を指定できます（`process` モードは `stage_mode` で制御します）。
+パラメータは `TaskExecutor` と同じで、`log_level` と `stage_mode` パラメータが追加されています。`TaskStage` の `execution_mode` は `serial`、`thread`、または `async` を指定できます。
 
 ## グラフ構築メソッド
 
@@ -62,8 +62,8 @@ def connect(
 
 例：
 ```python
-stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", stage_mode="process")
-stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mode="process")
+stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", stage_mode="thread")
+stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mode="thread")
 
 # グラフを作成しノードを接続
 graph = TaskGraph()
@@ -78,7 +78,7 @@ graph.connect([stage_a], [stage_b])
 def set_stage_mode(self, stage_mode: str):
     """
     グラフ内での現在のノードの実行モードを設定します。
-    :param stage_mode: 'serial'、'thread'、または 'process'
+    :param stage_mode: 'serial'、'thread'
     """
 
 # ノードの実行モードを取得
@@ -126,8 +126,8 @@ def get_status(self) -> StageStatus:
 
 `TaskGraph` が起動すると、各 `TaskStage` は `stage_mode` に基づいて実行方法を決定します：
 
-- **process モード**: ノードは独立した `Process` にラップされて起動され、他のノードから隔離されます。
-- **serial モード**: ノードはメインプロセスで実行されます（通常デバッグ用）。
+- **thread モード**: ノードは独立したスレッドで起動されます。
+- **serial モード**: ノードはメインプロセスで順次実行されます（通常デバッグ用）。
 
 ### start_stage
 
@@ -168,8 +168,6 @@ def get_summary(self) -> dict:
 ```python
 # 有効なモード
 valid_modes = ("serial", "thread", "async")
-
-# 注意：process モードは stage_mode で制御され、execution_mode ではありません
 ```
 
 ## 継承による拡張
@@ -189,7 +187,5 @@ class MyStage(TaskStage):
 
 ## 注意事項
 
-1. **プロセスモード**: `stage_mode="process"` の場合、関数が pickle 可能であることを確認してください（lambda、ネストされた関数などは避けてください）。
-2. **カウンターの連鎖**: 上流が `TaskSplitter` または `TaskRouter` の場合、カウンターは自動的に連鎖します。
-3. **状態の共有**: `multiprocessing.Value` を使用して実装され、プロセス間の状態クエリをサポートします。
-4. **タグの一意性**: タグは `名前[関数名]` で構成され、ログトレースとグラフトポロジの識別に使用されます。
+1. **カウンターの連鎖**: 上流が `TaskSplitter` または `TaskRouter` の場合、カウンターは自動的に連鎖します。
+2. **タグの一意性**: タグは `名前[関数名]` で構成され、ログトレースとグラフトポロジの識別に使用されます。
