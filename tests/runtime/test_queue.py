@@ -2,21 +2,12 @@ import queue
 
 import pytest
 
-from celestialflow.persistence.core_log import LogInlet, LogSpout
 from celestialflow.runtime.core_envelope import TaskEnvelope
 from celestialflow.runtime.core_queue import TaskInQueue, TaskOutQueue
 from celestialflow.runtime.util_types import TerminationIdPool, TerminationSignal
 
 
 class TestTaskInQueue:
-    @pytest.fixture
-    def log_inlet(self):
-        spout = LogSpout()
-        spout.start()
-        inlet = LogInlet(spout.get_queue(), log_level="ERROR")
-        yield inlet
-        spout.stop()
-
     @pytest.fixture
     def simple_queue(self, log_inlet):
         q = queue.Queue()
@@ -81,14 +72,6 @@ class TestTaskInQueue:
 
 
 class TestTaskOutQueue:
-    @pytest.fixture
-    def log_inlet(self):
-        spout = LogSpout()
-        spout.start()
-        inlet = LogInlet(spout.get_queue(), log_level="ERROR")
-        yield inlet
-        spout.stop()
-
     def test_put_broadcasts_to_all(self, log_inlet):
         """put 应向所有输出队列广播"""
         q1 = queue.Queue()

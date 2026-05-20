@@ -315,7 +315,7 @@ class TestTaskGraphSummary:
 
 
 # =========================
-# stage_mode × execution_mode 3×3 矩阵测试
+# stage_mode × execution_mode 2×3 矩阵测试
 # =========================
 class TestStageExecutionMatrix:
     """覆盖 stage_mode(serial/thread) × execution_mode(serial/thread/async) 全部 6 种组合"""

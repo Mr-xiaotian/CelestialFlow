@@ -365,7 +365,7 @@ class TestExecutorObserver:
         """CallbackObserver 只覆写部分回调，其余走默认空实现"""
         count = []
         observer = CallbackObserver(
-            on_task_fail=lambda count=1: count.append(1),
+            on_task_fail=lambda c=1: count.append(1),
         )
         executor = TaskExecutor("CallbackPartial", add_one, execution_mode="serial")
         executor.add_observer(observer)
