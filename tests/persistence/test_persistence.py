@@ -8,6 +8,7 @@ from celestialflow.runtime.core_envelope import TaskEnvelope
 
 class TestPersistenceIntegration:
     def test_fail_persistence(self, tmp_path, monkeypatch):
+        """集成测试：验证错误持久化链路（Inlet -> Spout -> File -> get_error_pairs）"""
         # 切换工作目录以控制 fallback 位置
         monkeypatch.chdir(tmp_path)
         
@@ -36,6 +37,7 @@ class TestPersistenceIntegration:
         assert pairs[1][1].error_type == "RuntimeError"
 
     def test_log_persistence(self, tmp_path, monkeypatch):
+        """集成测试：验证日志持久化链路（Inlet -> Spout -> File）"""
         monkeypatch.chdir(tmp_path)
         
         spout = LogSpout()
@@ -57,6 +59,7 @@ class TestPersistenceIntegration:
         assert "WARNING" in content
 
     def test_success_persistence(self):
+        """集成测试：验证成功任务持久化（目前为内存缓存）"""
         # SuccessSpout 目前只在内存缓存，不写文件
         spout = SuccessSpout()
         

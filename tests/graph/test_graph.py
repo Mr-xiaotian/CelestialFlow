@@ -323,6 +323,7 @@ class TestStageExecutionMatrix:
     # ---- serial stage_mode ----
 
     def test_serial_serial(self):
+        """测试串行 Stage + 串行执行模式"""
         s1 = TaskStage("s1", add_one, stage_mode="serial", execution_mode="serial")
         s2 = TaskStage("s2", double, stage_mode="serial", execution_mode="serial")
 
@@ -335,6 +336,7 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
     def test_serial_thread(self):
+        """测试串行 Stage + 线程池执行模式"""
         s1 = TaskStage(
             "s1", add_one, stage_mode="serial", execution_mode="thread", max_workers=4
         )
@@ -351,6 +353,7 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
     def test_serial_async(self):
+        """测试串行 Stage + 异步执行模式"""
         s1 = TaskStage(
             "s1",
             async_add_one,
@@ -377,6 +380,7 @@ class TestStageExecutionMatrix:
     # ---- thread stage_mode ----
 
     def test_thread_serial(self):
+        """测试线程隔离 Stage + 串行执行模式"""
         s1 = TaskStage("s1", add_one, stage_mode="thread", execution_mode="serial")
         s2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
 
@@ -389,6 +393,7 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
     def test_thread_thread(self):
+        """测试线程隔离 Stage + 线程池执行模式"""
         s1 = TaskStage(
             "s1", add_one, stage_mode="thread", execution_mode="thread", max_workers=4
         )
@@ -405,6 +410,7 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
     def test_thread_async(self):
+        """测试线程隔离 Stage + 异步执行模式"""
         s1 = TaskStage(
             "s1",
             async_add_one,

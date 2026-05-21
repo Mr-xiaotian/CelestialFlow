@@ -5,7 +5,7 @@ from celestialflow.runtime.core_metrics import TaskMetrics
 
 class TestTaskMetricsBasic:
     def test_initial_counts(self):
-        """初始计数器应为 0"""
+        """测试 TaskMetrics 的初始计数器状态：所有指标应默认为 0"""
         metrics = TaskMetrics(execution_mode="serial")
         counts = metrics.get_counts()
         assert counts["tasks_input"] == 0
@@ -16,35 +16,35 @@ class TestTaskMetricsBasic:
         assert counts["tasks_pending"] == 0
 
     def test_add_task_count(self):
-        """添加任务总数"""
+        """测试任务总数的累加逻辑"""
         metrics = TaskMetrics(execution_mode="serial")
         metrics.add_task_count(5)
         assert metrics.get_task_count() == 5
         assert metrics.get_counts()["tasks_input"] == 5
 
     def test_add_success_count(self):
-        """添加成功计数"""
+        """测试任务成功计数的累加逻辑"""
         metrics = TaskMetrics(execution_mode="serial")
         metrics.add_success_count(3)
         assert metrics.get_success_count() == 3
         assert metrics.get_counts()["tasks_succeeded"] == 3
 
     def test_add_error_count(self):
-        """添加失败计数"""
+        """测试任务失败计数的累加逻辑"""
         metrics = TaskMetrics(execution_mode="serial")
         metrics.add_error_count(2)
         assert metrics.get_error_count() == 2
         assert metrics.get_counts()["tasks_failed"] == 2
 
     def test_add_duplicate_count(self):
-        """添加重复计数"""
+        """测试重复任务计数的累加逻辑"""
         metrics = TaskMetrics(execution_mode="serial")
         metrics.add_duplicate_count(4)
         assert metrics.get_duplicate_count() == 4
         assert metrics.get_counts()["tasks_duplicated"] == 4
 
     def test_processed_equals_sum(self):
-        """已处理 = 成功 + 失败 + 重复"""
+        """测试已处理任务数的计算公式：Processed = Success + Failed + Duplicate"""
         metrics = TaskMetrics(execution_mode="serial")
         metrics.add_task_count(10)
         metrics.add_success_count(5)
@@ -56,7 +56,7 @@ class TestTaskMetricsBasic:
         assert counts["tasks_pending"] == 2
 
     def test_is_tasks_finished_true(self):
-        """所有任务完成后返回 True"""
+        """测试任务完成状态判定：当已处理数等于总数时应返回 True"""
         metrics = TaskMetrics(execution_mode="serial")
         metrics.add_task_count(3)
         metrics.add_success_count(2)
@@ -64,14 +64,14 @@ class TestTaskMetricsBasic:
         assert metrics.is_tasks_finished() is True
 
     def test_is_tasks_finished_false(self):
-        """仍有未处理任务时返回 False"""
+        """测试任务完成状态判定：仍有未处理任务（Pending > 0）时应返回 False"""
         metrics = TaskMetrics(execution_mode="serial")
         metrics.add_task_count(5)
         metrics.add_success_count(2)
         assert metrics.is_tasks_finished() is False
 
     def test_reset_counter(self):
-        """重置计数器后归零"""
+        """测试计数器重置功能：所有累加指标应归零"""
         metrics = TaskMetrics(execution_mode="serial")
         metrics.add_task_count(10)
         metrics.add_success_count(5)
@@ -82,21 +82,21 @@ class TestTaskMetricsBasic:
 
 class TestTaskMetricsDuplicate:
     def test_duplicate_check_disabled_always_false(self):
-        """禁用去重时，is_duplicate 永远返回 False"""
+        """测试去重功能禁用时的行为：相同 Hash 不应被判定为重复"""
         metrics = TaskMetrics(execution_mode="serial", enable_duplicate_check=False)
         assert metrics.is_duplicate(b"hash_1") is False
         assert metrics.is_duplicate(b"hash_1") is False
         assert metrics.is_duplicate(b"hash_2") is False
 
     def test_duplicate_check_enabled_detects_repeat(self):
-        """启用去重时，第二次相同 hash 返回 True"""
+        """测试去重功能启用时的行为：相同 Hash 的后续请求应被判定为重复"""
         metrics = TaskMetrics(execution_mode="serial", enable_duplicate_check=True)
         assert metrics.is_duplicate(b"hash_1") is False
         assert metrics.is_duplicate(b"hash_1") is True
         assert metrics.is_duplicate(b"hash_2") is False
 
     def test_duplicate_check_resets_with_reset_state(self):
-        """reset_state 后去重集合被清空"""
+        """测试状态重置对去重集合的影响：reset_state 后历史 Hash 应失效"""
         metrics = TaskMetrics(execution_mode="serial", enable_duplicate_check=True)
         metrics.is_duplicate(b"hash_1")
         assert metrics.is_duplicate(b"hash_1") is True
@@ -107,12 +107,12 @@ class TestTaskMetricsDuplicate:
 
 class TestTaskMetricsRetryExceptions:
     def test_default_retry_exceptions_empty(self):
-        """默认无可重试异常"""
+        """测试默认可重试异常配置：默认为空"""
         metrics = TaskMetrics(execution_mode="serial")
         assert metrics.retry_exceptions == ()
 
     def test_add_retry_exceptions(self):
-        """添加可重试异常"""
+        """测试动态添加可重试异常类型"""
         metrics = TaskMetrics(execution_mode="serial")
         metrics.add_retry_exceptions(ValueError, RuntimeError)
         assert ValueError in metrics.retry_exceptions

@@ -23,14 +23,14 @@ async def async_add_one(x):
 # =========================
 class TestTaskStageConfig:
     def test_stage_tag_auto_generation(self):
-        """tag 自动生成：包含 name 和 func_name"""
+        """测试 Stage 标签的自动生成：应包含节点名称和函数名"""
         stage = TaskStage("MyStage", add_one)
         tag = stage.get_tag()
         assert "MyStage" in tag
         assert "add_one" in tag
 
     def test_stage_tag_changes_with_name(self):
-        """修改 name 后 tag 应失效并重新生成"""
+        """测试修改节点名称后，标签应自动失效并根据新名称重新生成"""
         stage = TaskStage("OldName", add_one)
         old_tag = stage.get_tag()
         stage.set_name("NewName")
@@ -39,42 +39,42 @@ class TestTaskStageConfig:
         assert "NewName" in new_tag
 
     def test_valid_stage_mode_serial(self):
-        """合法 stage_mode: serial"""
+        """测试合法节点模式：serial（串行隔离）"""
         stage = TaskStage("AddOneSerialMode", add_one, stage_mode="serial")
         assert stage.get_stage_mode() == "serial"
 
     def test_valid_stage_mode_thread(self):
-        """合法 stage_mode: thread"""
+        """测试合法节点模式：thread（线程隔离）"""
         stage = TaskStage("AddOneThreadMode", add_one, stage_mode="thread")
         assert stage.get_stage_mode() == "thread"
 
     def test_invalid_stage_mode(self):
-        """非法 stage_mode 应抛出 StageModeError"""
+        """测试非法节点模式配置：应抛出特定的 StageModeError 异常"""
         with pytest.raises(StageModeError):
             TaskStage("AddOneInvalidStageMode", add_one, stage_mode="invalid")
 
     def test_valid_execution_mode_serial(self):
-        """合法 execution_mode: serial"""
+        """测试合法执行模式：serial（单线程执行）"""
         stage = TaskStage("AddOneSerialExec", add_one, execution_mode="serial")
         assert stage.execution_mode == "serial"
 
     def test_valid_execution_mode_thread(self):
-        """合法 execution_mode: thread"""
+        """测试合法执行模式：thread（线程池执行）"""
         stage = TaskStage("AddOneThreadExec", add_one, execution_mode="thread")
         assert stage.execution_mode == "thread"
 
     def test_valid_execution_mode_async(self):
-        """合法 execution_mode: async"""
+        """测试合法执行模式：async（异步 IO 执行）"""
         stage = TaskStage("add_one_async_exec", async_add_one, execution_mode="async")
         assert stage.execution_mode == "async"
 
     def test_invalid_execution_mode(self):
-        """非法 execution_mode 应抛出 ExecutionModeError"""
+        """测试非法执行模式配置：应抛出特定的 ExecutionModeError 异常"""
         with pytest.raises(ExecutionModeError):
             TaskStage("AddOneInvalidExecMode", add_one, execution_mode="invalid")
 
     def test_summary_contains_stage_mode(self):
-        """summary 包含 stage_mode 字段"""
+        """测试 Stage 的状态摘要信息是否包含节点模式及其执行配置"""
         stage = TaskStage(
             "AddOneThreadExec",
             add_one,
@@ -86,6 +86,6 @@ class TestTaskStageConfig:
         assert summary["execution_mode"] == "thread-20"
 
     def test_lambda_allowed_in_thread(self):
-        """lambda 在 thread 模式允许"""
+        """测试在 thread 隔离模式下允许使用匿名函数（lambda）"""
         stage = TaskStage("LambdaThreadAllowed", lambda x: x + 1, stage_mode="thread")
         assert stage.get_stage_mode() == "thread"

@@ -33,7 +33,7 @@ async def async_double(x):
 # =========================
 class TestExecutorSerial:
     def test_serial_basic(self):
-        """串行模式：正常计算结果正确"""
+        """测试串行执行器的基本任务处理"""
         executor = TaskExecutor("AddOneSerial", add_one, execution_mode="serial")
         tasks = [1, 2, 3, 4, 5]
         executor.start(tasks)
@@ -51,7 +51,7 @@ class TestExecutorSerial:
         assert counts["tasks_pending"] == 0
 
     def test_serial_with_errors(self):
-        """串行模式：部分任务失败，其余成功"""
+        """测试串行执行器对错误任务的处理与记录"""
         executor = TaskExecutor(
             "RaiseOnNegativeSerial",
             raise_on_negative,
@@ -71,13 +71,13 @@ class TestExecutorSerial:
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 2
 
-        error_dict = dict(executor.get_error_pairs())
-        assert error_dict[-1].error_type == "ValueError"
-        assert "negative value: -1" in error_dict[-1].error_message
-        assert error_dict[-2].stage == executor.get_tag()
+        error_pairs = dict(executor.get_error_pairs())
+        assert error_pairs[-1].error_type == "ValueError"
+        assert "negative value: -1" in error_pairs[-1].error_message
+        assert error_pairs[-2].stage == executor.get_tag()
 
     def test_serial_retry(self):
-        """串行模式：重试机制生效"""
+        """测试串行执行器的重试机制"""
         call_count = 0
 
         def flaky(x):
@@ -103,7 +103,7 @@ class TestExecutorSerial:
         assert call_count == 3  # 1 次初始 + 2 次重试
 
     def test_serial_no_retry_for_unmatched_exception(self):
-        """串行模式：未配置的异常类型不触发重试"""
+        """测试执行器在遇到非注册重试异常时不进行重试"""
         executor = TaskExecutor(
             "RaiseOnNegativeNoRetry",
             raise_on_negative,
@@ -121,7 +121,7 @@ class TestExecutorSerial:
 
 class TestExecutorThread:
     def test_thread_basic(self):
-        """线程模式：正常计算结果正确"""
+        """测试线程池执行器的基本并行处理"""
         executor = TaskExecutor(
             "DoubleThread",
             double,
@@ -143,7 +143,7 @@ class TestExecutorThread:
 class TestExecutorAsync:
     @pytest.mark.asyncio
     async def test_async_basic(self):
-        """异步模式：正常计算结果正确"""
+        """测试异步执行器的基本处理"""
         executor = TaskExecutor(
             "AsyncAddOneExecutor",
             async_add_one,
@@ -163,7 +163,7 @@ class TestExecutorAsync:
 
     @pytest.mark.asyncio
     async def test_async_double(self):
-        """异步模式：并发执行多个任务"""
+        """测试异步执行器的连续处理逻辑"""
         executor = TaskExecutor(
             "AsyncDoubleExecutor",
             async_double,
@@ -180,7 +180,7 @@ class TestExecutorAsync:
 
 class TestExecutorDuplicateCheck:
     def test_duplicate_check_enabled(self):
-        """启用去重：重复任务只执行一次"""
+        """测试启用重复检查时，相同任务不重复执行"""
         executor = TaskExecutor(
             "AddOneDedupEnabled",
             add_one,
@@ -196,7 +196,7 @@ class TestExecutorDuplicateCheck:
         assert counts["tasks_failed"] == 0
 
     def test_duplicate_check_disabled(self):
-        """禁用去重：重复任务全部执行"""
+        """测试禁用重复检查时，相同任务会被重复执行"""
         executor = TaskExecutor(
             "AddOneDedupDisabled",
             add_one,
@@ -213,7 +213,7 @@ class TestExecutorDuplicateCheck:
 
 class TestExecutorSuccessCache:
     def test_success_cache(self):
-        """成功结果缓存：get_success_pairs 包含正确结果"""
+        """测试结果缓存机制：相同输入直接返回缓存结果"""
         executor = TaskExecutor(
             "AddOneSuccessCache",
             add_one,
@@ -231,12 +231,12 @@ class TestExecutorSuccessCache:
 
 class TestExecutorConfig:
     def test_invalid_execution_mode(self):
-        """非法 execution_mode 应抛出异常"""
+        """测试配置非法执行模式时抛出异常"""
         with pytest.raises(Exception):
             TaskExecutor("AddOneInvalidMode", add_one, execution_mode="invalid")
 
     def test_get_summary(self):
-        """get_summary 返回预期字段"""
+        """测试获取执行器状态摘要信息"""
         executor = TaskExecutor("AddOneSummary", add_one, execution_mode="serial")
         summary = executor.get_summary()
         assert summary["name"] == "AddOneSummary"

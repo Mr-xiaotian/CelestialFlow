@@ -27,6 +27,7 @@ class MockInlet(BaseInlet):
 
 class TestFunnelCore:
     def test_base_spout_lifecycle(self):
+        """测试 BaseSpout 的生命周期管理：验证启动、停止及钩子函数调用"""
         spout = MockSpout()
         assert not spout.before_called
         
@@ -40,6 +41,7 @@ class TestFunnelCore:
         assert spout._thread is None
 
     def test_inlet_to_spout_communication(self):
+        """测试 Inlet 与 Spout 的异步队列通信逻辑"""
         spout = MockSpout()
         inlet = MockInlet(spout.get_queue())
         
@@ -55,6 +57,7 @@ class TestFunnelCore:
         assert spout.received == ["msg1", {"key": "val"}]
 
     def test_spout_termination_signal(self):
+        """测试 Spout 接收终止信号后的正常关闭行为"""
         spout = MockSpout()
         spout.start()
         
@@ -70,6 +73,7 @@ class TestFunnelCore:
         assert spout.after_called
 
     def test_spout_not_implemented_error(self):
+        """测试 BaseSpout 抽象基类：直接调用未实现的方法应报错"""
         base = BaseSpout()
         with pytest.raises(NotImplementedError):
             base._handle_record("anything")

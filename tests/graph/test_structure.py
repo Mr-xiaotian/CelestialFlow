@@ -18,7 +18,7 @@ def to_str(x):
 # =========================
 class TestTaskLoop:
     def test_loop_analysis(self):
-        """环结构：isDAG=False，所有节点同层"""
+        """测试 TaskLoop 的结构分析：应识别为非 DAG，且所有环内节点处于同一逻辑层级"""
         s1 = TaskStage("s1", add_one)
         s2 = TaskStage("s2", double)
         s3 = TaskStage("s3", to_str)
@@ -37,7 +37,7 @@ class TestTaskLoop:
                 break
 
     def test_loop_source_stages(self):
-        """环结构的 source_stages 返回环内某个代表节点"""
+        """测试 TaskLoop 的源节点推导：对于纯环结构，应返回环内的一个代表节点作为注入点"""
         s1 = TaskStage("s1", add_one)
         s2 = TaskStage("s2", double)
 
@@ -54,7 +54,7 @@ class TestTaskLoop:
 # =========================
 class TestTaskWheel:
     def test_wheel_analysis(self):
-        """轮结构：isDAG=False，center 在 layer 0，ring 在 layer 1"""
+        """测试 TaskWheel 的结构分析：Center 应在第 0 层，Ring 节点应在第 1 层"""
         center = TaskStage("center", add_one)
         r1 = TaskStage("r1", double)
         r2 = TaskStage("r2", to_str)
@@ -72,7 +72,7 @@ class TestTaskWheel:
         assert ring_tags.issubset(set(layers[1]))
 
     def test_wheel_source_stages(self):
-        """轮结构的 source_stages 只有 center"""
+        """测试 TaskWheel 的源节点推导：应仅返回 Center 节点作为唯一入口"""
         center = TaskStage("center", add_one)
         r1 = TaskStage("r1", double)
         r2 = TaskStage("r2", to_str)

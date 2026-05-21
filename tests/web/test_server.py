@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime
 
 def test_index_page(client):
-    """验证首页能否正确加载"""
+    """测试 Web 仪表盘首页：验证 HTML 模板是否渲染正确且包含关键 DOM 容器"""
     response = client.get("/")
     assert response.status_code == 200
     assert "html" in response.headers["content-type"]
@@ -10,7 +10,7 @@ def test_index_page(client):
     assert 'id="dashboard"' in response.text
 
 def test_config_api(client):
-    """验证配置获取接口"""
+    """测试配置拉取 API：验证前端能够获取到刷新间隔、主题等运行时配置"""
     response = client.get("/api/pull_config")
     assert response.status_code == 200
     data = response.json()
@@ -18,7 +18,7 @@ def test_config_api(client):
     assert "theme" in data
 
 def test_status_push_pull(client):
-    """验证状态推送与拉取闭环"""
+    """测试状态同步链路：验证已知版本号（known_rev）下的增量拉取逻辑"""
     # 1. 推送状态
     test_status = {"s1": {"tasks_succeeded": 10, "tasks_failed": 0}}
     push_resp = client.post("/api/push_status", json={"status": test_status})
@@ -38,7 +38,7 @@ def test_status_push_pull(client):
     assert pull_resp_cached.json()["data"] is None
 
 def test_task_injection(client):
-    """验证任务注入流程"""
+    """测试任务手动注入流程：验证 POST 注入任务到队列，以及调度器的 GET 拉取消费逻辑"""
     # 1. 注入任务
     injection_data = {
         "node": "StageA",
@@ -62,7 +62,7 @@ def test_task_injection(client):
     assert pull_again.json() == []
 
 def test_errors_pagination(client):
-    """验证错误日志分页逻辑"""
+    """测试错误日志分页与过滤 API：验证后端对错误记录的聚合与分页逻辑是否正确"""
     # 1. 模拟推送错误数据
     test_errors = [
         {"error_id": i, "stage": f"s{i%2}", "task_repr": f"task{i}"}

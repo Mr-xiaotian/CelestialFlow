@@ -16,6 +16,7 @@ def log_inlet():
 
 class TestTaskSplitter:
     def test_splitter_init(self):
+        """测试 TaskSplitter 的初始配置：应为串行模式且不重试"""
         splitter = TaskSplitter("Splitter")
         assert splitter.execution_mode == "serial"
         assert splitter.max_retries == 0
@@ -23,6 +24,7 @@ class TestTaskSplitter:
         assert splitter.split_counter.value == 0
 
     def test_splitter_process_success(self, log_inlet):
+        """测试 TaskSplitter 的任务分裂逻辑：成功执行后应生成多个子任务"""
         splitter = TaskSplitter("Splitter")
         # 模拟运行环境
         q = Queue()
@@ -45,12 +47,14 @@ class TestTaskSplitter:
 
 class TestTaskRouter:
     def test_router_init(self):
+        """测试 TaskRouter 的初始配置：应为串行模式且不重试"""
         router = TaskRouter("Router")
         assert router.execution_mode == "serial"
         assert router.max_retries == 0
         assert router.route_counters == {}
 
     def test_router_route_logic(self):
+        """测试 TaskRouter 的核心路由逻辑：正确解析目标 tag 并提取任务数据"""
         router = TaskRouter("Router")
         # 预注册 target
         router.get_binding_counter("target1")
@@ -67,6 +71,7 @@ class TestTaskRouter:
             router._route("not_a_tuple") # type: ignore
 
     def test_router_process_success(self, log_inlet):
+        """测试 TaskRouter 的任务分发逻辑：成功执行后应将任务推送到指定目标的队列"""
         router = TaskRouter("Router")
         q_target1 = Queue()
         q_target2 = Queue()

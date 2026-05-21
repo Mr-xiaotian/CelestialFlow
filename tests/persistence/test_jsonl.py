@@ -26,6 +26,7 @@ def sample_jsonl(tmp_path):
 
 class TestJsonlUtils:
     def test_parse_jsonl_value(self):
+        """测试 JSONL 值的智能解析逻辑：支持数字、布尔值及序列化后的容器"""
         assert parse_jsonl_value("1") == 1
         assert parse_jsonl_value("True") is True
         assert parse_jsonl_value("[1, 2]") == (1, 2)
@@ -33,11 +34,13 @@ class TestJsonlUtils:
         assert parse_jsonl_value("just a string") == "just a string"
 
     def test_split_error_repr(self):
+        """测试错误字符串的拆分逻辑：提取错误类型和消息"""
         assert _split_error_repr("ValueError(invalid)") == ("ValueError", "invalid")
         assert _split_error_repr("Simple Error") == ("Exception", "Simple Error")
         assert _split_error_repr("") == ("Exception", "")
 
     def test_load_jsonl_logs(self, sample_jsonl):
+        """测试从 JSONL 文件中批量加载日志行，支持按起始序号和字段过滤"""
         logs = load_jsonl_logs(str(sample_jsonl), start_seq=1)
         assert len(logs) == 4
         assert logs[0]["stage"] == "s1"
@@ -48,6 +51,7 @@ class TestJsonlUtils:
         assert set(logs_filtered[0].keys()) == {"stage"}
 
     def test_load_jsonl_by_key(self, sample_jsonl):
+        """测试按指定键（如 stage）对 JSONL 数据进行分组提取"""
         # 默认按 stage 分组提取 task
         grouped = load_jsonl_by_key(sample_jsonl)
         assert "s1" in grouped
@@ -56,6 +60,7 @@ class TestJsonlUtils:
         assert grouped["s2"] == [3]
 
     def test_load_jsonl_grouped_by_keys(self, sample_jsonl):
+        """测试按多个键的组合对 JSONL 数据进行分组提取"""
         # 按 error 和 stage 组合分组
         grouped = load_jsonl_grouped_by_keys(
             sample_jsonl, 
@@ -67,6 +72,7 @@ class TestJsonlUtils:
         assert grouped[("ValueError(err1)", "s1")] == [1, (1, 2)]
 
     def test_load_task_error_pairs(self, sample_jsonl):
+        """测试加载任务-错误对，并验证其结构化解析为 PersistedErrorRecord"""
         pairs = load_task_error_pairs(sample_jsonl)
         # 第一行 meta 会被跳过（因为没有 task/error 键）
         assert len(pairs) == 4
