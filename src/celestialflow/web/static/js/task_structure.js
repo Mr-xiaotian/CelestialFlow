@@ -5,8 +5,6 @@
 // 全局状态
 let structureData = []; // 任务结构图数据（有向图）
 let structureRev = -1; // 数据版本号，用于增量拉取
-/** 存储 tag 到 Mermaid 内部 ID 的映射，用于状态着色定位 */
-const tagToId = {};
 /**
  * 异步加载最新的任务结构数据
  * 从后端 API 获取任务结构图数据并更新全局变量 structureData
@@ -81,7 +79,6 @@ function renderMermaidStructure(statuses = {}) {
     const edges = new Set();
     const nodeLabels = new Map();
     const classDefs = [];
-    const tagToId = {}; // "Grid_1_1[load_func]" -> "Grid_1_1"
     // 判断是否是暗黑主题
     const isDark = document.body.classList.contains("dark-theme");
     // 样式区块：根据主题切换
@@ -104,7 +101,6 @@ linkStyle default stroke:#999,stroke-width:1.5px;
         const id = getNodeId(node);
         const label = `${node.name}`;
         const tag = `${node.name}[${node.func_name}]`;
-        tagToId[tag] = id; // 保存 tag 到 ID 的映射
         let shape = "box";
         if (node.func_name === "_split")
             shape = "subgraph";

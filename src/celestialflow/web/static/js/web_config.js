@@ -36,18 +36,18 @@ function normalizeWebConfig(rawConfig) {
 async function loadWebConfig() {
     try {
         const res = await fetch("/api/pull_config");
-        if (res.ok) {
-            webConfig = normalizeWebConfig(await res.json());
-            console.log("配置加载成功:", webConfig);
-            return true;
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
         }
+        webConfig = normalizeWebConfig(await res.json());
+        console.log("配置加载成功:", webConfig);
+        return;
     }
     catch (e) {
         console.warn("配置加载失败:", e);
+        webConfig = normalizeWebConfig();
+        console.warn("配置加载失败，已回退到默认配置启动页面");
     }
-    webConfig = normalizeWebConfig();
-    console.warn("配置加载失败，已回退到默认配置启动页面");
-    return false;
 }
 /**
  * 保存配置到后端

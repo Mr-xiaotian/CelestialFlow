@@ -67,12 +67,6 @@ class HistoryModel(BaseModel):
     history: dict[str, list[dict[str, Any]]]
 
 
-class IntervalModel(BaseModel):
-    """刷新间隔配置模型"""
-
-    interval: float
-
-
 class TaskInjectionModel(BaseModel):
     """任务注入请求模型"""
 

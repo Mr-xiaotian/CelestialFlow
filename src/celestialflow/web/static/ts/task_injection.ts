@@ -6,8 +6,6 @@
 /** 被选中的注入目标节点描述信息 */
 type SelectedNode = { 
   name: string;      // 节点名称
-  type: string;      // 运行模式（serial/thread/async）
-  status?: number;   // 运行时状态
 };
 
 // 全局状态
@@ -148,10 +146,7 @@ function selectNode(nodeName: string) {
     selectedNodes = selectedNodes.filter((n) => n.name !== nodeName);
   } else {
     // 新选节点
-    selectedNodes.push({
-      name: nodeName,
-      type: nodeStatuses[nodeName].execution_mode || "unknown",
-    });
+    selectedNodes.push({ name: nodeName });
   }
 
   updateSelectedNodes();
@@ -204,17 +199,9 @@ function updateSelectedNodes() {
  * 全选所有可用节点（排除已停止的节点）
  */
 function selectAllNodes() {
-  // const searchTerm = document.getElementById("search-input").value;
-
-  const nodesArray = Object.keys(nodeStatuses).map(name => ({
-    name,
-    type: nodeStatuses[name].execution_mode,
-    status: nodeStatuses[name].status
-  }));
-
-  const filteredNodes = nodesArray.filter(node =>
-    node.status !== 2
-  );
+  const filteredNodes = Object.entries(nodeStatuses)
+    .filter(([, status]) => status.status !== 2)
+    .map(([name]) => ({ name }));
 
   filteredNodes.forEach((node) => {
     if (!selectedNodes.find((n) => n.name === node.name)) {
