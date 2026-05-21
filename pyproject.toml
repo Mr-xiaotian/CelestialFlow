@@ -10,7 +10,7 @@ readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Mr-xiaotian", email = "mingxiaomingtian@gmail.com" }]
 keywords = ["workflow", "task", "graph", "async", "CelestialFlow"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 dependencies = [
     "tqdm",
@@ -76,5 +76,15 @@ dev = [
 
 [tool.pyright]
 include = ["src"]
-strict = ["src/celestialflow/runtime", "src/celestialflow/stage", "src/celestialflow/graph", "src/celestialflow/persistence", "src/celestialflow/funnel", "src/celestialflow/observability", "src/celestialflow/utils"]
-stubsPath = "typings"
+strict = [
+    "src/celestialflow/runtime",
+    "src/celestialflow/stage",
+    "src/celestialflow/graph",
+    "src/celestialflow/persistence",
+    "src/celestialflow/funnel",
+    "src/celestialflow/observability",
+    "src/celestialflow/utils",
+    "src/celestialflow/web/util_cal.py",
+    "src/celestialflow/web/util_config.py",
+    "src/celestialflow/web/util_error.py",
+]
