@@ -17,6 +17,7 @@ const settingsStatus = document.getElementById("settings-status") as HTMLElement
 const themeToggleBtn = document.getElementById("theme-toggle") as HTMLButtonElement; // 主题切换按钮
 const languageSelect = document.getElementById("language-select") as HTMLSelectElement; // 语言选择下拉框
 const errorPageSizeSelect = document.getElementById("error-page-size") as HTMLSelectElement; // 错误每页条数下拉框
+const structureEdgeDeltaToggle = document.getElementById("structure-edge-delta") as HTMLInputElement; // 结构图边增量显示开关
 const tabButtons = document.querySelectorAll<HTMLElement>(".tab-btn"); // 页签按钮列表
 const tabContents = document.querySelectorAll<HTMLElement>(".tab-content"); // 页签内容列表
 let settingsStatusTimer: ReturnType<typeof setTimeout> | null = null;
@@ -69,6 +70,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentPage = 1;
         await loadErrors(true);
         renderErrors();
+        showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
+    });
+
+    // 切换结构图边增量显示：立即重绘结构图并保存配置
+    structureEdgeDeltaToggle.addEventListener("change", async () => {
+        webConfig.showStructureEdgeDelta = structureEdgeDeltaToggle.checked;
+        renderMermaidStructure(nodeStatuses);
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
     });
 

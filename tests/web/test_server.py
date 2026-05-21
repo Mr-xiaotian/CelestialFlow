@@ -15,6 +15,7 @@ def test_config_api(client):
     data = response.json()
     assert "refreshInterval" in data
     assert "theme" in data
+    assert "showStructureEdgeDelta" in data
 
 def test_status_push_pull(client):
     """测试状态同步链路：验证已知版本号（known_rev）下的增量拉取逻辑"""

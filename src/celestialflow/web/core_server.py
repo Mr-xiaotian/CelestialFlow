@@ -91,6 +91,7 @@ class WebConfigModel(BaseModel):
     historyLimit: int
     language: str = "zh-CN"
     errorPageSize: int = 10
+    showStructureEdgeDelta: bool = True
     dashboard: DashboardConfigModel
 
 

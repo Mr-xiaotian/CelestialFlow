@@ -4,6 +4,7 @@
     "historyLimit": 20,
     "language": "zh-CN",
     "errorPageSize": 50,
+    "showStructureEdgeDelta": false,
     "dashboard": {
         "left": [
             "mermaid",

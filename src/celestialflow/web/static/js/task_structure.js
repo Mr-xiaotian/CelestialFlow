@@ -126,11 +126,14 @@ linkStyle default stroke:#999,stroke-width:1.5px;
         for (const child of node.next_stages || []) {
             const toId = getNodeId(child);
             // TODO: 根据状态信息动态调整边的标签，比如显示增量等
-            // const lastInfo = lastNodeStatuses[node.name] || ({} as NodeStatus);
-            // const addNum = (statusInfo?.tasks_succeeded || 0) - (lastInfo?.tasks_succeeded || 0);
-            // const edgeLabel = addNum > 0 ? `|+${addNum}|` : "";
-            // edges.add(`  ${id} -->${edgeLabel} ${toId}`);
-            edges.add(`  ${id} --> ${toId}`);
+            let edgeLabel = "";
+            if (webConfig?.showStructureEdgeDelta) {
+                const lastInfo = lastNodeStatuses[node.name] || {};
+                const addNum = (statusInfo?.tasks_succeeded || 0) - (lastInfo?.tasks_succeeded || 0);
+                edgeLabel = addNum > 0 ? `|+${addNum}|` : "";
+            }
+            edges.add(`  ${id} -->${edgeLabel} ${toId}`);
+            // edges.add(`  ${id} --> ${toId}`);
             walk(child);
         }
     }

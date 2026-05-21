@@ -7,6 +7,7 @@ type WebConfig = {
     historyLimit: number;        // 节点处理历史记录保留条数
     language: Lang;              // 界面语言
     errorPageSize: number;       // 错误日志每页显示条数
+    showStructureEdgeDelta: boolean; // 是否在结构图边上显示成功任务增量
     dashboard: {                 // 仪表盘布局：各列包含的卡片 ID 列表
         left: string[];
         middle: string[];
@@ -24,6 +25,7 @@ const DEFAULT_WEB_CONFIG: WebConfig = {
     historyLimit: 20,
     language: "zh-CN",
     errorPageSize: 50,
+    showStructureEdgeDelta: false,
     dashboard: {
         left: ["mermaid", "analysis"],
         middle: ["status"],
@@ -143,6 +145,10 @@ function applyConfig() {
             }
         }
     }
+
+    // 应用结构图边增量显示开关
+    webConfig.showStructureEdgeDelta = webConfig.showStructureEdgeDelta !== false;
+    structureEdgeDeltaToggle.checked = webConfig.showStructureEdgeDelta;
 
     // 应用仪表盘布局
     applyDashboardLayout();

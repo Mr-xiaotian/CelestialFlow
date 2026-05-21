@@ -6,6 +6,7 @@ const DEFAULT_WEB_CONFIG = {
     historyLimit: 20,
     language: "zh-CN",
     errorPageSize: 50,
+    showStructureEdgeDelta: false,
     dashboard: {
         left: ["mermaid", "analysis"],
         middle: ["status"],
@@ -119,6 +120,9 @@ function applyConfig() {
             }
         }
     }
+    // 应用结构图边增量显示开关
+    webConfig.showStructureEdgeDelta = webConfig.showStructureEdgeDelta !== false;
+    structureEdgeDeltaToggle.checked = webConfig.showStructureEdgeDelta;
     // 应用仪表盘布局
     applyDashboardLayout();
     // 应用国际化
