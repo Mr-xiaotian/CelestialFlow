@@ -226,21 +226,23 @@ h1 {
 }
 
 .settings-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 5rem;
   align-items: center;
+  column-gap: 0.75rem;
   padding: 0.35rem 0;
 
   label {
     font-size: 0.8rem;
-    white-space: nowrap;
-    margin-right: 0.75rem;
+    min-width: 0;
   }
 
   select {
     font-size: 0.8rem;
     height: 1.75rem;
     padding: 0.15rem 0.5rem;
+    width: 100%;
+    justify-self: end;
   }
 }
 
