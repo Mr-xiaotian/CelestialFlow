@@ -280,10 +280,20 @@
 
             <!-- 操作按钮 -->
             <div class="button-group">
-              <button class="btn-small btn-select" onclick="selectAllNodes()" data-i18n="injection.selectAll">
+              <button
+                class="btn-small btn-select"
+                type="button"
+                data-selection-action="select-all"
+                data-i18n="injection.selectAll"
+              >
                 全选
               </button>
-              <button class="btn-small btn-clear" onclick="clearSelection()" data-i18n="injection.clear">
+              <button
+                class="btn-small btn-clear"
+                type="button"
+                data-selection-action="clear"
+                data-i18n="injection.clear"
+              >
                 清空
               </button>
             </div>
@@ -313,7 +323,8 @@
               <button
                 class="btn-toggle active"
                 id="json-toggle"
-                onclick="switchInputMethod('json')"
+                type="button"
+                data-input-method="json"
               >
                 <svg
                   class="toggle-icon"
@@ -333,7 +344,8 @@
               <button
                 class="btn-toggle"
                 id="file-toggle"
-                onclick="switchInputMethod('file')"
+                type="button"
+                data-input-method="file"
               >
                 <svg
                   class="toggle-icon"
@@ -356,7 +368,12 @@
             <div id="json-input-section" class="json-input-section">
               <div class="json-header">
                 <label class="json-label" data-i18n="injection.jsonLabel">任务数据 (JSON格式)</label>
-                <button class="example-btn" onclick="fillTermination()" data-i18n="injection.insertTermination">
+                <button
+                  id="fill-termination-btn"
+                  class="example-btn"
+                  type="button"
+                  data-i18n="injection.insertTermination"
+                >
                   插入终止符
                 </button>
               </div>

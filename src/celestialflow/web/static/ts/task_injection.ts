@@ -25,6 +25,7 @@ document.addEventListener("DOMContentLoaded", async function () {
  * 包括搜索输入、JSON 输入验证、文件上传和提交按钮
  */
 function setupEventListeners() {
+  // 搜索节点列表时实时按关键词过滤可选节点。
   document
     .getElementById("search-input")
     .addEventListener("input", function (e) {
@@ -32,6 +33,7 @@ function setupEventListeners() {
       renderNodeList(target.value);
     });
 
+  // 输入 JSON 文本时立即做格式校验，尽早给出错误反馈。
   document
     .getElementById("json-textarea")
     .addEventListener("input", function (e) {
@@ -39,17 +41,53 @@ function setupEventListeners() {
       validateJSON(target.value);
     });
 
+  // 选择上传文件后读取并校验 JSON 文件内容。
   document
     .getElementById("file-input")
     .addEventListener("change", handleFileUpload);
 
+  // 点击提交按钮后执行注入请求流程。
   document
     .getElementById("submit-btn")
     .addEventListener("click", handleSubmit);
 
+  // 通过事件委托统一处理“全选 / 清空”两个节点选择操作。
+  document.querySelector(".button-group").addEventListener("click", (e) => {
+    const button = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-selection-action]");
+    if (!button) return;
+
+    if (button.dataset.selectionAction === "select-all") {
+      selectAllNodes();
+    } else if (button.dataset.selectionAction === "clear") {
+      clearSelection();
+    }
+  });
+
+  // 通过 data-input-method 标记切换 JSON 输入和文件上传两种模式。
+  document.querySelector(".input-toggle").addEventListener("click", (e) => {
+    const button = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-input-method]");
+    const method = button?.dataset.inputMethod;
+    if (method) {
+      switchInputMethod(method);
+    }
+  });
+
+  // 一键填入终止信号示例，便于快速构造测试输入。
+  document.getElementById("fill-termination-btn").addEventListener("click", fillTermination);
+
+  // 点击节点列表项时切换该节点的选中状态。
   document.getElementById("node-list").addEventListener("click", (e) => {
     const item = (e.target as HTMLElement).closest<HTMLElement>(".node-item[data-node]");
     if (item) selectNode(item.dataset.node);
+  });
+
+  // 通过事件委托处理已选节点列表中的移除按钮。
+  document.getElementById("selected-list").addEventListener("click", (e) => {
+    const button = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-remove-node]");
+    const nodeName = button?.dataset.removeNode;
+    if (nodeName) {
+      removeNode(nodeName);
+    }
   });
 }
 
@@ -149,8 +187,8 @@ function updateSelectedNodes() {
     .map(
       (node) => `
         <div class="selected-item">
-          <span class="selected-name">${node.name}</span>
-          <button class="btn-remove" onclick="removeNode('${node.name}')">
+          <span class="selected-name">${escapeHtml(node.name)}</span>
+          <button class="btn-remove" type="button" data-remove-node="${escapeHtml(node.name)}">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
