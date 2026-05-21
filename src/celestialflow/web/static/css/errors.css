@@ -1,6 +1,7 @@
 /* ================================
   🌟 错误日志关键词搜索框
 ================================ */
+/* 错误搜索输入框：设置内边距、边框、圆角和背景色，支持暗色模式 */
 .error-search-input {
   padding: 0.5rem 0.5rem;
   border: 1px solid var(--carbon-300);
@@ -12,6 +13,7 @@
   transition: all 0.2s ease;
   height: 2rem;
 
+  /* 获得焦点时的样式：调整边框颜色和背景色 */
   &:focus {
     border-color: var(--carbon-400);
     background-color: var(--carbon-50);
@@ -29,7 +31,7 @@
   }
 }
 
-/* 在 filter-container 里，搜索框和 label 间距 */
+/* 搜索框和标签的间距调整 */
 .filter-container .error-search-input {
   margin-right: 0.5rem;
 }
@@ -37,6 +39,7 @@
 /* ================================
   🌟 错误日志筛选器 & 过滤器
 ================================ */
+/* 过滤器容器：两端对齐显示标题和控件 */
 .filter-container {
   display: flex;
   justify-content: space-between;
@@ -44,12 +47,14 @@
   margin-bottom: 1rem;
 }
 
+/* 过滤器控件组：水平排列，设置间距 */
 .filter-controls {
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
+/* 过滤器标签文字间距 */
 .filter-label {
   margin-right: 0.5rem;
 }
@@ -57,10 +62,12 @@
 /* ================================
   🌟 表格样式
 ================================ */
+/* 错误表格外层容器：支持横向滚动 */
 #errors-table-container {
   overflow-x: auto;
 }
 
+/* 错误数据表格：占满宽度，设置文字颜色适配暗色模式 */
 #errors-table {
   width: 100%;
   border-collapse: collapse;
@@ -70,6 +77,7 @@
   }
 }
 
+/* 表格单元格基础样式：设置对齐、边距和底部边框 */
 #errors-table th,
 #errors-table td {
   text-align: left;
@@ -81,6 +89,7 @@
   }
 }
 
+/* 表头样式：设置背景色、加粗字体和文字转换 */
 #errors-table th {
   background-color: var(--carbon-50);
   font-size: 0.75rem;
@@ -94,10 +103,12 @@
   }
 }
 
+/* 错误 ID 文字颜色 */
 .error-id {
   color: var(--carbon-500);
 }
 
+/* 错误信息单元格：等宽字体，溢出显示省略号，设置最大宽度 */
 .error-cell {
   color: var(--crimson-500);
   font-family: monospace;
@@ -115,6 +126,7 @@
 /* ================================
   🌟 分页样式
 ================================ */
+/* 分页容器样式：居中显示，设置间距 */
 .pager-container {
   display: flex;
   justify-content: center;
@@ -126,6 +138,7 @@
 /* ================================
   🌟 公共按钮样式
 ================================ */
+/* 分页按钮基础样式：设置背景、边框、圆角和过渡效果 */
 .pager-btn {
   background-color: var(--carbon-100);
   border: 1px solid var(--carbon-300);
@@ -136,12 +149,14 @@
   font-size: 0.75rem;
   transition: all 0.2s;
 
+  /* 非禁用状态下的悬停效果 */
   &:hover:not(:disabled) {
     background-color: var(--carbon-200);
     border-color: var(--carbon-400);
     color: var(--carbon-900);
   }
 
+  /* 禁用状态下的按钮样式 */
   &:disabled {
     background-color: var(--carbon-50);
     border-color: var(--carbon-200);
@@ -171,11 +186,13 @@
 /* ================================
   🌟 数字部分（灰色系）
 ================================ */
+/* 页码容器样式：水平排列，设置间距 */
 .pager {
   display: inline-flex;
   gap: 0.5rem;
   margin: 0 0.5rem;
 
+  /* 页码链接样式：支持悬停效果和暗色模式 */
   .pager-link {
     cursor: pointer;
     color: var(--carbon-500);
@@ -194,6 +211,7 @@
     }
   }
 
+  /* 当前激活页码样式：文字加粗 */
   .pager-current {
     font-weight: bold;
     color: var(--carbon-900);
@@ -204,6 +222,7 @@
     }
   }
 
+  /* 分页省略号样式 */
   .dots {
     color: var(--carbon-400);
 
@@ -216,11 +235,14 @@
 /* ================================
   🌟 响应式: 小屏表格转卡片
 ================================ */
+/* 媒体查询：在小屏幕下将表格转换为垂直卡片布局 */
 @media (max-width: 2048px) {
+  /* 调整单元格内边距 */
   #errors-table th, #errors-table td {
     padding: 0.5rem;
   }
 
+  /* 表格背景色适配暗色模式 */
   #errors-table {
     background-color: var(--frost-0);
 
@@ -229,10 +251,12 @@
     }
   }
 
+  /* 隐藏表头 */
   #errors-table thead {
     display: none;
   }
 
+  /* 将每一行转换为独立的卡片块 */
   #errors-table tbody tr {
     display: block;
     border: 1px solid var(--carbon-200);
@@ -245,6 +269,7 @@
     }
   }
 
+  /* 单元格布局：左右排列标签和内容 */
   #errors-table tbody td {
     display: flex;
     justify-content: space-between;
@@ -253,6 +278,7 @@
     border-bottom: none;
     text-align: right;
 
+    /* 使用 data-label 属性注入标签文字 */
     &::before {
       content: attr(data-label);
       font-weight: 600;
@@ -269,17 +295,20 @@
     }
   }
 
+  /* 小屏下错误内容自动换行 */
   #errors-table tbody td.error-cell {
     white-space: normal;
     max-width: none;
     word-break: break-all;
   }
 
+  /* 过滤器容器响应式换行 */
   .filter-container {
     flex-wrap: wrap;
     gap: 0.5rem;
   }
 
+  /* 过滤器控件响应式换行 */
   .filter-controls {
     flex-wrap: wrap;
   }
