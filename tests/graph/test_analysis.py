@@ -1,3 +1,4 @@
+from __future__ import annotations
 import networkx as nx
 
 from celestialflow.graph.util_analysis import (
