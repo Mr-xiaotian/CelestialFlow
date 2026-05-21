@@ -8,11 +8,13 @@ const historyLimitSelect = document.getElementById("history-limit") as HTMLSelec
 const settingsBtn = document.getElementById("settings-btn") as HTMLButtonElement; // 设置齿轮按钮
 const settingsPanel = document.getElementById("settings-panel") as HTMLElement; // 设置悬浮面板
 const settingsClose = document.getElementById("settings-close") as HTMLButtonElement; // 设置面板关闭按钮
+const settingsStatus = document.getElementById("settings-status") as HTMLElement; // 设置保存状态提示
 const themeToggleBtn = document.getElementById("theme-toggle") as HTMLButtonElement; // 主题切换按钮
 const languageSelect = document.getElementById("language-select") as HTMLSelectElement; // 语言选择下拉框
 const errorPageSizeSelect = document.getElementById("error-page-size") as HTMLSelectElement; // 错误每页条数下拉框
 const tabButtons = document.querySelectorAll<HTMLElement>(".tab-btn"); // 页签按钮列表
 const tabContents = document.querySelectorAll<HTMLElement>(".tab-content"); // 页签内容列表
+let settingsStatusTimer: ReturnType<typeof setTimeout> | null = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
     // ==== 初始化配置 ====
@@ -43,18 +45,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     // 切换刷新间隔：更新轮询频率并保存配置
-    refreshSelect.addEventListener("change", () => {
+    refreshSelect.addEventListener("change", async () => {
         refreshRate = parseInt(refreshSelect.value);
         webConfig.refreshInterval = refreshRate;
-        saveWebConfig(); // 保存配置
+        showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
         clearInterval(refreshIntervalId);
         refreshIntervalId = setInterval(refreshAll, refreshRate);
     });
 
     // 切换历史长度限制：保存配置（后端下次快照时生效）
-    historyLimitSelect.addEventListener("change", () => {
+    historyLimitSelect.addEventListener("change", async () => {
         webConfig.historyLimit = parseInt(historyLimitSelect.value);
-        saveWebConfig();
+        showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
     });
 
     // 切换错误每页条数：更新分页并重新加载
@@ -64,24 +66,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentPage = 1;
         await loadErrors(true);
         renderErrors();
-        saveWebConfig();
-    });
-
-    // 切换明暗主题：更新样式并重新渲染图表
-    themeToggleBtn.addEventListener("click", () => {
-        const isDark = toggleDarkTheme();
-        webConfig.theme = isDark ? "dark" : "light";
-        saveWebConfig();
-        themeToggleBtn.textContent = isDark ? t("theme.light") : t("theme.dark");
-        renderMermaidStructure(nodeStatuses);
-        updateChartTheme();
+        showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
     });
 
     // 切换界面语言：更新所有文本并重新渲染动态内容
-    languageSelect.addEventListener("change", () => {
+    languageSelect.addEventListener("change", async () => {
         webConfig.language = languageSelect.value as Lang;
         setLang(webConfig.language);
         applyI18nDOM();
+        updateSettingsStatusText();
         themeToggleBtn.textContent = document.body.classList.contains("dark-theme") ? t("theme.light") : t("theme.dark");
         renderDashboard();
         renderErrors();
@@ -89,7 +82,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderNodeList();
         initChart();
         updateChartData();
-        saveWebConfig();
+        showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
+    });
+
+    // 切换明暗主题：更新样式并重新渲染图表
+    themeToggleBtn.addEventListener("click", async () => {
+        const isDark = toggleDarkTheme();
+        webConfig.theme = isDark ? "dark" : "light";
+        showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
+        themeToggleBtn.textContent = isDark ? t("theme.light") : t("theme.dark");
+        renderMermaidStructure(nodeStatuses);
+        updateChartTheme();
     });
 
     // 切换页签：高亮当前按钮并显示对应内容区

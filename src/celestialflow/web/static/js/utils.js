@@ -267,3 +267,29 @@ function formatTimestamp(timestamp) {
     const second = pad(d.getSeconds());
     return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
+/**
+ * 显示设置保存状态消息
+ * @param {string} messageKey - 状态消息的翻译键
+ */
+function showSettingsSaveStatus(messageKey) {
+    if (settingsStatusTimer) {
+        clearTimeout(settingsStatusTimer);
+    }
+    settingsStatus.dataset.messageKey = messageKey;
+    settingsStatus.textContent = t(messageKey);
+    settingsStatus.classList.remove("hidden", "settings-status-success", "settings-status-error");
+    settingsStatus.classList.add(messageKey === "settings.saveSuccess" ? "settings-status-success" : "settings-status-error");
+    settingsStatusTimer = setTimeout(() => {
+        settingsStatus.classList.add("hidden");
+        settingsStatus.dataset.messageKey = "";
+    }, messageKey === "settings.saveSuccess" ? 2000 : 5000);
+}
+/**
+ * 更新设置保存状态消息文本
+ */
+function updateSettingsStatusText() {
+    const messageKey = settingsStatus.dataset.messageKey;
+    if (!messageKey)
+        return;
+    settingsStatus.textContent = t(messageKey);
+}
