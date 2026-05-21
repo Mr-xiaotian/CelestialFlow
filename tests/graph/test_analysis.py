@@ -1,5 +1,4 @@
 import networkx as nx
-import pytest
 
 from celestialflow.graph.util_analysis import (
     build_networkx_graph,

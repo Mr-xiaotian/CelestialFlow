@@ -1,6 +1,5 @@
 import pytest
 import time
-from queue import Queue
 from celestialflow.funnel.core_inlet import BaseInlet
 from celestialflow.funnel.core_spout import BaseSpout
 from celestialflow.runtime.util_types import TerminationSignal

@@ -307,7 +307,7 @@ def demo_loop():
 
     # 要测试的任务列表
     test_task_0 = range(1, 2)
-    test_task_1 = list(test_task_0) + [0, 6, None, 0, ""]
+    # test_task_1 = list(test_task_0) + [0, 6, None, 0, ""]
 
     loop.start_loop({stageA.get_tag(): test_task_0})
 

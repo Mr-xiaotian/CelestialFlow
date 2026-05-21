@@ -1,4 +1,3 @@
-import pytest
 from celestialflow.utils.util_format import format_repr, format_table
 
 class TestUtilFormat:

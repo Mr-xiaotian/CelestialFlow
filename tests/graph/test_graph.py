@@ -1,5 +1,3 @@
-import pytest
-
 from celestialflow import (
     TaskChain,
     TaskCross,

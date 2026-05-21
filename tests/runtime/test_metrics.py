@@ -1,5 +1,3 @@
-import pytest
-
 from celestialflow.runtime.core_metrics import TaskMetrics
 
 
