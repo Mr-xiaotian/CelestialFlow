@@ -1,18 +1,61 @@
 // 全局状态
 let webConfig = null; // 当前加载的 Web 配置
+const DEFAULT_WEB_CONFIG = {
+    theme: "light",
+    refreshInterval: 5000,
+    historyLimit: 20,
+    language: "zh-CN",
+    errorPageSize: 50,
+    dashboard: {
+        left: ["mermaid", "analysis"],
+        middle: ["status"],
+        right: ["progress", "summary"],
+    },
+    cards: {
+        mermaid: { title: "任务结构图" },
+        analysis: { title: "图分析信息" },
+        status: { title: "节点运行状态" },
+        progress: { title: "节点完成走向" },
+        summary: { title: "总体状态摘要" },
+    },
+};
 const PANEL_SELECTOR_MAP = {
     left: ".left-panel",
     middle: ".middle-panel",
     right: ".right-panel",
 };
 /**
- * 从后端加载配置
+ * 基于默认配置补齐后端返回值，确保页面在缺字段时也能稳定启动。
+ */
+function normalizeWebConfig(rawConfig) {
+    const mergedCards = {
+        ...DEFAULT_WEB_CONFIG.cards,
+    };
+    for (const [cardKey, cardConfig] of Object.entries(rawConfig?.cards ?? {})) {
+        const defaultCard = mergedCards[cardKey] ?? { title: cardKey };
+        mergedCards[cardKey] = {
+            ...defaultCard,
+            ...cardConfig,
+        };
+    }
+    return {
+        ...DEFAULT_WEB_CONFIG,
+        ...rawConfig,
+        dashboard: {
+            ...DEFAULT_WEB_CONFIG.dashboard,
+            ...(rawConfig?.dashboard ?? {}),
+        },
+        cards: mergedCards,
+    };
+}
+/**
+ * 从后端加载配置；失败时自动回退到默认配置继续启动页面。
  */
 async function loadWebConfig() {
     try {
         const res = await fetch("/api/pull_config");
         if (res.ok) {
-            webConfig = await res.json();
+            webConfig = normalizeWebConfig(await res.json());
             console.log("配置加载成功:", webConfig);
             return true;
         }
@@ -20,6 +63,8 @@ async function loadWebConfig() {
     catch (e) {
         console.warn("配置加载失败:", e);
     }
+    webConfig = normalizeWebConfig();
+    console.warn("配置加载失败，已回退到默认配置启动页面");
     return false;
 }
 /**

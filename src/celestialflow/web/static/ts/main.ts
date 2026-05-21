@@ -23,9 +23,7 @@ let settingsStatusTimer: ReturnType<typeof setTimeout> | null = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
     // ==== 初始化配置 ====
-    const loaded = await loadWebConfig();
-    if (!loaded) return;
-
+    await loadWebConfig();
     applyConfig();
 
     // ==== 事件绑定 ====
