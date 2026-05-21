@@ -20,14 +20,6 @@ def raise_on_negative(x):
     return x * 10
 
 
-async def async_add_one(x):
-    return x + 1
-
-
-async def async_double(x):
-    return x * 2
-
-
 class TestExecutorObserver:
     def test_observer_lifecycle(self):
         """observer 在执行过程中收到完整生命周期回调"""
