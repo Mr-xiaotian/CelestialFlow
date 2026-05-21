@@ -11,13 +11,6 @@ const DEFAULT_WEB_CONFIG = {
         middle: ["status"],
         right: ["progress", "summary"],
     },
-    cards: {
-        mermaid: { title: "任务结构图" },
-        analysis: { title: "图分析信息" },
-        status: { title: "节点运行状态" },
-        progress: { title: "节点完成走向" },
-        summary: { title: "总体状态摘要" },
-    },
 };
 const PANEL_SELECTOR_MAP = {
     left: ".left-panel",
@@ -28,16 +21,6 @@ const PANEL_SELECTOR_MAP = {
  * 基于默认配置补齐后端返回值，确保页面在缺字段时也能稳定启动。
  */
 function normalizeWebConfig(rawConfig) {
-    const mergedCards = {
-        ...DEFAULT_WEB_CONFIG.cards,
-    };
-    for (const [cardKey, cardConfig] of Object.entries(rawConfig?.cards ?? {})) {
-        const defaultCard = mergedCards[cardKey] ?? { title: cardKey };
-        mergedCards[cardKey] = {
-            ...defaultCard,
-            ...cardConfig,
-        };
-    }
     return {
         ...DEFAULT_WEB_CONFIG,
         ...rawConfig,
@@ -45,7 +28,6 @@ function normalizeWebConfig(rawConfig) {
             ...DEFAULT_WEB_CONFIG.dashboard,
             ...(rawConfig?.dashboard ?? {}),
         },
-        cards: mergedCards,
     };
 }
 /**
@@ -149,9 +131,7 @@ function applyConfig() {
  */
 function applyDashboardLayout() {
     const dashboard = webConfig.dashboard;
-    const cards = webConfig.cards;
     const allCardKeys = Array.from(new Set([
-        ...Object.keys(cards),
         ...(dashboard.left || []),
         ...(dashboard.middle || []),
         ...(dashboard.right || []),
@@ -174,16 +154,13 @@ function applyDashboardLayout() {
         // 3) 对当前栏位中的每一张卡片：
         //    - 通过 .{key}-card 找到真实 DOM
         //    - 移动到目标栏位
-        //    - 应用 title 等配置
+        //    - 应用卡片显隐和排序
         for (const cardKey of panelCardKeys) {
             const cardEl = cardElements[cardKey];
-            const cardConfig = cards[cardKey] || {};
-            if (!cardEl || !cardConfig)
+            if (!cardEl)
                 continue;
             panelEl.appendChild(cardEl);
             cardEl.style.display = "";
-            const titleEl = cardEl.querySelector(".card-title");
-            // if (titleEl && cardConfig.title) titleEl.textContent = cardConfig.title;
             assigned.add(cardKey);
         }
     }

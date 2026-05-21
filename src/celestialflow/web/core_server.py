@@ -81,12 +81,6 @@ class TaskInjectionModel(BaseModel):
     timestamp: datetime
 
 
-class CardConfigModel(BaseModel):
-    """仪表盘卡片配置模型"""
-
-    title: str
-
-
 class DashboardConfigModel(BaseModel):
     """仪表盘布局配置模型"""
 
@@ -104,7 +98,6 @@ class WebConfigModel(BaseModel):
     language: str = "zh-CN"
     errorPageSize: int = 10
     dashboard: DashboardConfigModel
-    cards: dict[str, CardConfigModel]
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
