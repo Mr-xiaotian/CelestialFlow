@@ -1,3 +1,7 @@
+/**
+ * 任务手动注入模块
+ * 提供 UI 界面允许用户选择节点并手动注入 JSON 格式的任务数据或通过文件上传
+ */
 // 全局状态
 let selectedNodes = []; // 用户选中的注入目标节点
 let currentInputMethod = "json"; // 当前输入方式（json / file）
@@ -252,7 +256,9 @@ function showStatus(message, isSuccess = false) {
 }
 /**
  * 处理任务注入提交
- * 验证输入，遍历选定节点并发送注入请求
+ * 1. 验证节点选择和输入数据
+ * 2. 遍历所有选定节点发送 POST 请求
+ * 3. 根据结果显示成功或失败状态，并重置表单
  */
 async function handleSubmit() {
     if (selectedNodes.length === 0) {

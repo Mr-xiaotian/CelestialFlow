@@ -1,5 +1,11 @@
+/**
+ * 国际化模块
+ * 负责多语言翻译数据的维护和 DOM 文本的自动更新
+ */
+
 var currentLang: Lang = "zh-CN";
 
+/** 翻译字典：包含中、英、日三种语言的 UI 文本映射 */
 const translations: Record<Lang, Record<string, string>> = {
   "zh-CN": {
     "app.title": "任务图监控系统",
@@ -282,11 +288,21 @@ const translations: Record<Lang, Record<string, string>> = {
   },
 };
 
+/**
+ * 切换全局语言设置
+ * @param {Lang} lang - 目标语言标识
+ */
 function setLang(lang: Lang) {
   currentLang = lang;
   document.documentElement.lang = currentLang;
 }
 
+/**
+ * 根据 key 获取翻译文本，支持简单的占位符替换
+ * @param {string} key - 翻译键名
+ * @param {...string} args - 用于替换 {0}, {1}... 的参数列表
+ * @returns {string} 翻译后的文本
+ */
 function t(key: string, ...args: string[]): string {
   let s = translations[currentLang]?.[key] ?? translations["zh-CN"]?.[key] ?? key;
   for (let i = 0; i < args.length; i++) {
@@ -295,6 +311,12 @@ function t(key: string, ...args: string[]): string {
   return s;
 }
 
+/**
+ * 扫描全页带有特定 data-i18n 属性的元素并应用翻译
+ * - data-i18n: 替换 textContent
+ * - data-i18n-placeholder: 替换 placeholder
+ * - data-i18n-title: 替换 title 属性
+ */
 function applyI18nDOM() {
   document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => {
     const key = el.getAttribute("data-i18n")!;

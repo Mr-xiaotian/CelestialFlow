@@ -1,3 +1,7 @@
+/**
+ * 节点状态监控模块
+ * 负责各节点运行指标（成功、失败、等待、重复、速率等）的实时展示和拖拽排序
+ */
 // 全局状态
 let nodeStatuses = {}; // 当前各节点运行状态
 let lastNodeStatuses = {}; // 上一轮状态快照，用于计算增量
@@ -52,6 +56,7 @@ function initSortableDashboard() {
 }
 /**
  * 根据排序顺序和节点状态生成 HTML，显示进度条、统计数据等
+ * 渲染时会跳过当前正在被用户拖拽的卡片，防止闪烁
  */
 function renderDashboard() {
     dashboardGrid.innerHTML = "";

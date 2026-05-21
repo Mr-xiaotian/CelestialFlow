@@ -1,9 +1,15 @@
+/**
+ * 处理进度历史模块
+ * 维护节点处理任务的历史序列，并使用 Chart.js 绘制进度折线图
+ */
+
 type NodeHistory = Array<{ timestamp: number; tasks_processed: number }>;
 
 // 全局状态
 let nodeHistories: Record<string, NodeHistory> = {}; // 各节点的处理进度历史
 let progressChart = null; // Chart.js 折线图实例
-let hiddenNodes = new Set<string>( // 用户隐藏的节点集合（持久化到 localStorage）
+/** 用户在图例中手动隐藏的节点集合（持久化到 localStorage，刷新不丢失） */
+let hiddenNodes = new Set<string>(
   JSON.parse(localStorage.getItem("hiddenNodes") || "[]")
 );
 let historyRev = -1; // 数据版本号，用于增量拉取

@@ -1,4 +1,8 @@
 /**
+ * 通用工具模块
+ * 包含数值格式化、时间转换、设备检测及复杂的 UI 辅助逻辑
+ */
+/**
  * 将时间戳转换为本地时间字符串
  * @param {number} timestamp - Unix 时间戳（秒）
  * @returns {string} 本地时间字符串
@@ -7,11 +11,11 @@ function renderLocalTime(timestamp) {
     return new Date(timestamp * 1000).toLocaleString();
 }
 /**
- * 将大数格式化为模糊科学计数法 HTML
- * 小数用逗号3位分割，如 1,000 或 10,000,000
- * 大数转为科学计数法：~1.23×10<sup>9</sup>
- * @param {number} n - 数值
- * @returns {string} 格式化后的字符串或 HTML
+ * 将大数格式化为易读的字符串
+ * - 小于 10,000,000 (一千万)：使用千分位逗号分隔，如 1,234,567
+ * - 大于等于 10,000,000：转换为科学计数法格式的 HTML，如 ~1.23×10⁹
+ * @param {number} n - 原始数值
+ * @returns {string} 格式化后的 HTML 字符串
  */
 function formatLargeNumber(n) {
     // 处理小于1000万的数：使用逗号分隔
@@ -192,10 +196,13 @@ function getElapsedSegments(successCount, failedCount, duplicateCount) {
     ].filter((segment) => segment.count > 0);
 }
 /**
- * 按任务占比为 elapsed 的每一位数字分配颜色类
+ * 按任务状态比例为时间字符串（HH:MM:SS）的每一位分配颜色类
+ * 算法说明：
+ * 1. 保证每种状态至少分配到 1 位数字（如果位数足够）。
+ * 2. 剩余位数按各状态任务数的比例进行分配（使用最大余数法确保总和等于 digitCount）。
  * @param {Array<{ className: string; count: number }>} segments - 有效颜色段列表
- * @param {number} digitCount - 时间字符串中的数字位数
- * @returns {string[]} 按顺序排列的数字颜色类列表
+ * @param {number} digitCount - 需要染色的总位数（不含冒号）
+ * @returns {string[]} 按顺序排列的 CSS 类名列表
  */
 function buildElapsedDigitClasses(segments, digitCount) {
     if (digitCount <= segments.length) {

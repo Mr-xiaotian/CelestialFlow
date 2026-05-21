@@ -1,6 +1,14 @@
+/**
+ * 任务图结构展示模块
+ * 使用 Mermaid.js 将复杂的任务有向图转换为可视化的流程图，并根据节点状态实时着色
+ */
+
 // 全局状态
 let structureData = []; // 任务结构图数据（有向图）
 let structureRev = -1; // 数据版本号，用于增量拉取
+
+/** 存储 tag 到 Mermaid 内部 ID 的映射，用于状态着色定位 */
+const tagToId: Record<string, string> = {}; 
 
 /**
  * 异步加载最新的任务结构数据

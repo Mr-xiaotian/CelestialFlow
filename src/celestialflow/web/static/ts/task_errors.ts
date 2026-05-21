@@ -1,3 +1,8 @@
+/**
+ * 错误日志分页与过滤模块
+ * 处理错误记录的异步拉取、前端分页逻辑以及按节点/关键词搜索的过滤展示
+ */
+
 // 全局状态
 let errors: any[] = []; // 错误记录列表
 let currentPage = 1; // 当前分页页码
@@ -71,6 +76,7 @@ async function loadErrors(forceReload = false): Promise<boolean> {
 
 /**
  * 渲染错误列表表格和分页控件
+ * 将获取到的错误记录填充到表格中，并根据总页数生成分页按钮
  */
 function renderErrors() {
   const pageItems = errors;

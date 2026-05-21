@@ -45,7 +45,8 @@ async function saveWebConfig() {
     return false;
 }
 /**
- * 应用配置到界面
+ * 将配置对象应用到全局变量和页面 UI 元素上
+ * 包含语言切换、主题应用、下拉框同步和仪表盘重排
  */
 function applyConfig() {
     // 应用语言
@@ -97,7 +98,9 @@ function applyConfig() {
     applyI18nDOM();
 }
 /**
- * 应用仪表盘布局配置
+ * 应用仪表盘卡片布局配置
+ * 通过 DOM 操作（appendChild）将页面中的卡片元素移动到配置指定的左右中栏位中，
+ * 并根据配置控制卡片的显隐和顺序。
  */
 function applyDashboardLayout() {
     const dashboard = webConfig.dashboard;

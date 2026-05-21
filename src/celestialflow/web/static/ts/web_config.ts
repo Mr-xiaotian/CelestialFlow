@@ -1,15 +1,18 @@
+/**
+ * Web 端全局配置结构定义
+ */
 type WebConfig = {
-    theme: "light" | "dark";
-    refreshInterval: number;
-    historyLimit: number;
-    language: Lang;
-    errorPageSize: number;
-    dashboard: {
+    theme: "light" | "dark";    // 界面主题
+    refreshInterval: number;     // 全局轮询刷新间隔（毫秒）
+    historyLimit: number;        // 节点处理历史记录保留条数
+    language: Lang;              // 界面语言
+    errorPageSize: number;       // 错误日志每页显示条数
+    dashboard: {                 // 仪表盘布局：各列包含的卡片 ID 列表
         left: string[];
         middle: string[];
         right: string[];
     };
-    cards: Record<string, { title: string }>;
+    cards: Record<string, { title: string }>; // 卡片元数据（如自定义标题）
 };
 
 
@@ -62,7 +65,8 @@ async function saveWebConfig() {
 }
 
 /**
- * 应用配置到界面
+ * 将配置对象应用到全局变量和页面 UI 元素上
+ * 包含语言切换、主题应用、下拉框同步和仪表盘重排
  */
 function applyConfig() {
     // 应用语言
@@ -119,7 +123,9 @@ function applyConfig() {
 }
 
 /**
- * 应用仪表盘布局配置
+ * 应用仪表盘卡片布局配置
+ * 通过 DOM 操作（appendChild）将页面中的卡片元素移动到配置指定的左右中栏位中，
+ * 并根据配置控制卡片的显隐和顺序。
  */
 function applyDashboardLayout() {
     const dashboard = webConfig.dashboard;

@@ -1,16 +1,22 @@
+/**
+ * 节点状态监控模块
+ * 负责各节点运行指标（成功、失败、等待、重复、速率等）的实时展示和拖拽排序
+ */
+
+/** 节点运行时状态快照定义 */
 type NodeStatus = {
-  status: number;
-  tasks_processed: number;
-  tasks_pending: number;
-  tasks_succeeded: number;
-  tasks_failed: number;
-  tasks_duplicated: number;
-  stage_mode: string;
-  execution_mode: string;
-  start_time: number;
-  elapsed_time: number;
-  remaining_time: number;
-  task_avg_time: string;
+  status: number;            // 状态码：0-未运行, 1-运行中, 2-已停止
+  tasks_processed: number;   // 已处理任务总数
+  tasks_pending: number;     // 队列中等待的任务数
+  tasks_succeeded: number;   // 成功处理的任务数
+  tasks_failed: number;      // 处理失败的任务数
+  tasks_duplicated: number;  // 被去重过滤的任务数
+  stage_mode: string;        // 节点模式（serial/thread）
+  execution_mode: string;    // 运行模式（serial/thread/async）
+  start_time: number;        // 启动 Unix 时间戳
+  elapsed_time: number;      // 已运行秒数
+  remaining_time: number;    // 预计剩余秒数
+  task_avg_time: string;     // 平均每个任务耗时文本
 };
 
 // 全局状态
@@ -69,6 +75,7 @@ function initSortableDashboard() {
 }
 /**
  * 根据排序顺序和节点状态生成 HTML，显示进度条、统计数据等
+ * 渲染时会跳过当前正在被用户拖拽的卡片，防止闪烁
  */
 function renderDashboard() {
   dashboardGrid.innerHTML = "";

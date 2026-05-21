@@ -1,4 +1,9 @@
-// 全局配置对象
+/**
+ * 仪表盘主入口脚本
+ * 负责全局事件监听、配置初始化以及主轮询逻辑的协调
+ */
+
+// 全局配置与状态变量
 let refreshRate = 5000; // 轮询刷新间隔（毫秒）
 let refreshIntervalId: ReturnType<typeof setInterval> | null = null; // 轮询定时器 ID
 
