@@ -6,7 +6,7 @@
 let selectedNodes = []; // 用户选中的注入目标节点
 let currentInputMethod = "json"; // 当前输入方式（json / file）
 let uploadedFile = null; // 已上传的文件内容
-document.addEventListener("DOMContentLoaded", async function () {
+document.addEventListener("DOMContentLoaded", function () {
     renderNodeList();
     setupEventListeners();
 });

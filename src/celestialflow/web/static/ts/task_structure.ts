@@ -143,8 +143,9 @@ linkStyle default stroke:#999,stroke-width:1.5px;
       // const lastInfo = lastNodeStatuses[node.name] || ({} as NodeStatus);
       // const addNum = (statusInfo?.tasks_succeeded || 0) - (lastInfo?.tasks_succeeded || 0);
       // const edgeLabel = addNum > 0 ? `|+${addNum}|` : "";
+      // edges.add(`  ${id} -->${edgeLabel} ${toId}`);
 
-      edges.add(`  ${id} -->${""} ${toId}`);
+      edges.add(`  ${id} --> ${toId}`);
       walk(child);
     }
   }
