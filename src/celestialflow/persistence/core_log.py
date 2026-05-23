@@ -7,7 +7,7 @@ from time import localtime, strftime
 from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
-from ..runtime.util_errors import LogLevelError
+from ..runtime.util_errors import InitializationError, LogLevelError
 from .util_constant import LEVEL_DICT
 
 
@@ -46,7 +46,7 @@ class LogSpout(BaseSpout):
         line = f"{timestamp} {level} {message}\n"
 
         if self._file is None:
-            raise RuntimeError("log file is not initialized")
+            raise InitializationError("log file is not initialized")
         self._file.write(line)
         self._file.flush()
 

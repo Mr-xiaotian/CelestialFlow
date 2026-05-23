@@ -24,6 +24,7 @@ from ..persistence.util_jsonl import load_task_by_error, load_task_by_stage
 from ..runtime import TaskEnvelope, TaskInQueue, TaskOutQueue
 from ..runtime.util_errors import (
     CelestialTreeConnectionError,
+    DuplicateNodeError,
     ScheduleModeError,
     UnconsumedError,
 )
@@ -157,7 +158,7 @@ class TaskGraph:
         for stage in stages:
             stage_name = stage.get_name()
             if stage_name in self.stage_runtime_dict:
-                raise ValueError(f"duplicate stage name: {stage_name}")
+                raise DuplicateNodeError(f"duplicate stage name: {stage_name}")
 
             in_queue = TaskInQueue(
                 queue=ThreadQueue(),

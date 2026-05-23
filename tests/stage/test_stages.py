@@ -3,7 +3,7 @@ from celestialflow.stage.core_stages import TaskSplitter, TaskRouter
 from celestialflow.runtime.core_envelope import TaskEnvelope
 from celestialflow.runtime.core_queue import TaskOutQueue
 from celestialflow.persistence.core_log import LogInlet, LogSpout
-from celestialflow.runtime.util_errors import InvalidOptionError
+from celestialflow.runtime.util_errors import InvalidOptionError, TaskFormatError
 from queue import Queue
 
 @pytest.fixture
@@ -67,7 +67,7 @@ class TestTaskRouter:
             router._route(("unknown", "data"))
             
         # 异常路由：格式错误
-        with pytest.raises(TypeError):
+        with pytest.raises(TaskFormatError):
             router._route("not_a_tuple") # type: ignore
 
     def test_router_process_success(self, log_inlet):

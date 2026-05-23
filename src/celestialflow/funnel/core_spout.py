@@ -5,6 +5,7 @@ from queue import Empty, Queue
 from threading import Thread
 from typing import Any
 
+from ..runtime.util_errors import CelestialFlowError
 from ..runtime.util_types import TERMINATION_SIGNAL, TerminationSignal
 
 
@@ -26,7 +27,7 @@ class BaseSpout:
 
         :param record: 队列中取出的记录
         """
-        raise NotImplementedError
+        raise CelestialFlowError("_handle_record must be implemented by subclasses")
 
     def _after_stop(self) -> None:
         """在后台线程停止后调用，子类可覆写以做清理（如关闭文件句柄）。"""

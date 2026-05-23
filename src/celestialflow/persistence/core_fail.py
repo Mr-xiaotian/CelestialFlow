@@ -8,6 +8,7 @@ from queue import Queue
 from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
+from ..runtime.util_errors import InitializationError
 from ..utils.util_format import format_repr
 from .util_jsonl import PersistedErrorRecord, load_task_error_pairs
 
@@ -55,7 +56,7 @@ class FailSpout(BaseSpout):
         jsonl_record = json.dumps(record, ensure_ascii=False)
 
         if self._file is None:
-            raise RuntimeError("fail file is not initialized")
+            raise InitializationError("fail file is not initialized")
         self._file.write(f"{jsonl_record}\n")
         self._file.flush()
 

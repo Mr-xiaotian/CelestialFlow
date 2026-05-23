@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
 from .core_envelope import TaskEnvelope
+from .util_errors import InitializationError
 from .util_types import CTreeEvent, TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
@@ -183,7 +184,7 @@ class TaskDispatch:
                 continue
 
             if self._pool is None:
-                raise RuntimeError("execution pool has not been initialized")
+                raise InitializationError("execution pool has not been initialized")
 
             futures.append(self._pool.submit(self._worker, envelope))
             if len(futures) >= self.max_workers * 2:

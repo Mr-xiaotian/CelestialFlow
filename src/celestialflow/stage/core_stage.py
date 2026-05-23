@@ -9,7 +9,7 @@ from typing import Any, Callable
 
 from ..persistence import FailInlet, LogInlet
 from ..runtime import TaskInQueue, TaskOutQueue
-from ..runtime.util_errors import ExecutionModeError, StageModeError
+from ..runtime.util_errors import ConfigurationError, ExecutionModeError, StageModeError
 from ..runtime.util_types import StageStatus
 from .core_executor import TaskExecutor
 
@@ -64,7 +64,7 @@ class TaskStage(TaskExecutor):
             raise ExecutionModeError(execution_mode)
 
         if execution_mode == "async" and not inspect.iscoroutinefunction(self.func):
-            raise RuntimeError(
+            raise ConfigurationError(
                 f"execution_mode is 'async' but '{self.func.__name__}' is not a coroutine function"
             )
 

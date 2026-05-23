@@ -4,6 +4,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from .core_envelope import TaskEnvelope
+from .util_errors import (
+    ConfigurationError,
+    DuplicateNodeError,
+    TerminationMergeError,
+    UnknownNodeError,
+)
 from .util_types import TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
@@ -70,7 +76,7 @@ class TaskInQueue:
         :raises ValueError: 如果名称已存在
         """
         if name in self.source_names:
-            raise ValueError(f"duplicate queue source name: {name}")
+            raise DuplicateNodeError(f"duplicate queue source name: {name}")
         self.source_names.append(name)
 
     # ==== 终止 ====
@@ -84,7 +90,7 @@ class TaskInQueue:
 
         valid_sources = set(self.source_names) | {"input"}
         if source not in valid_sources:
-            raise ValueError(f"unknown queue source name: {source}")
+            raise UnknownNodeError(f"unknown queue source name: {source}")
 
         self.termination_dict[source] = signal.id
 
@@ -108,7 +114,7 @@ class TaskInQueue:
             name for name in self.source_names if name not in self.termination_dict
         ]
         if missing_names:
-            raise ValueError(
+            raise TerminationMergeError(
                 f"cannot merge termination, missing source names: {missing_names}"
             )
 
@@ -209,10 +215,10 @@ class TaskOutQueue:
         :param target_names: 下游节点名称列表，用于标识每个队列
         :param in_name: 当前节点唯一名称，用于记录日志
         :param log_inlet: 日志记录器，用于记录入队出队日志
-        :raises ValueError: 如果队列列表和目标名称列表长度不一致
+        :raises ConfigurationError: 如果队列列表和目标名称列表长度不一致
         """
         if len(queue_list) != len(target_names):
-            raise ValueError("queue_list and target_names must have the same length")
+            raise ConfigurationError("queue_list and target_names must have the same length")
 
         self.queue_list = queue_list
         self.target_names = target_names
@@ -243,10 +249,10 @@ class TaskOutQueue:
 
         :param queue: 要添加的输出队列
         :param name: 队列的目标节点名称，用于标识该队列
-        :raises ValueError: 如果名称已存在于队列列表中
+        :raises DuplicateNodeError: 如果名称已存在于队列列表中
         """
         if name in self._name_to_idx:
-            raise ValueError(f"duplicate queue target name: {name}")
+            raise DuplicateNodeError(f"duplicate queue target name: {name}")
         self._name_to_idx[name] = len(self.queue_list)
         self.queue_list.append(queue)
         self.target_names.append(name)

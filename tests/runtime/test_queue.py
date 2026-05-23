@@ -4,6 +4,10 @@ import pytest
 
 from celestialflow.runtime.core_envelope import TaskEnvelope
 from celestialflow.runtime.core_queue import TaskInQueue, TaskOutQueue
+from celestialflow.runtime.util_errors import (
+    DuplicateNodeError,
+    UnknownNodeError,
+)
 from celestialflow.runtime.util_types import TerminationIdPool, TerminationSignal
 
 
@@ -51,7 +55,7 @@ class TestTaskInQueue:
         """未知来源的终止信号应报错"""
         sig = TerminationSignal(_id=99, source="unknown")
         simple_queue.put(sig)
-        with pytest.raises(ValueError, match="unknown queue source name"):
+        with pytest.raises(UnknownNodeError, match="unknown queue source name"):
             simple_queue.get()
 
     def test_drain_returns_remaining_tasks(self, log_inlet):
@@ -128,5 +132,5 @@ class TestTaskOutQueue:
         out_queue = TaskOutQueue(
             queue_list=[q1], target_names=["a"], in_name="src", log_inlet=log_inlet
         )
-        with pytest.raises(ValueError, match="duplicate queue target name"):
+        with pytest.raises(DuplicateNodeError, match="duplicate queue target name"):
             out_queue.add_queue(queue.Queue(), name="a")

@@ -2,6 +2,7 @@
 import os
 import json
 from typing import Any
+from ..runtime.util_errors import ConfigurationError
 
 
 def load_config(config_path: str) -> dict[str, Any]:
@@ -12,7 +13,7 @@ def load_config(config_path: str) -> dict[str, Any]:
     :return: 配置字典
     """
     if not os.path.exists(config_path):
-        raise FileNotFoundError(f"config file not found: {config_path}")
+        raise ConfigurationError(f"config file not found: {config_path}")
     with open(config_path, "r", encoding="utf-8") as f:
         data: dict[str, Any] = json.load(f)
     return data

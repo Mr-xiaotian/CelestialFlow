@@ -6,7 +6,12 @@ from typing import Any, cast
 import redis  # type: ignore[import-unresolved]
 
 from ..runtime import TaskEnvelope
-from ..runtime.util_errors import InvalidOptionError, RemoteWorkerError
+from ..runtime.util_errors import (
+    CelestialFlowTimeoutError,
+    InvalidOptionError,
+    RemoteWorkerError,
+    TaskFormatError,
+)
 from ..runtime.util_types import ValueWrapper
 from .core_stage import TaskStage
 
@@ -181,7 +186,7 @@ class TaskRouter(TaskStage):
         :raises InvalidOptionError: target 不在已注册的路由列表中
         """
         if not (isinstance(routed, tuple) and len(routed) == 2):  # type: ignore[reportUnnecessaryIsInstance]
-            raise TypeError(f"TaskRouter expects tuple, got {type(routed).__name__}")
+            raise TaskFormatError(f"TaskRouter expects tuple, got {type(routed).__name__}")
         target, task = routed
         if target not in self.route_counters:
             raise InvalidOptionError(
@@ -370,7 +375,7 @@ class TaskRedisSource(TaskStage):
 
         res: Any = self.redis_client.blpop(self.key, timeout=self.timeout)
         if res is None:
-            raise TimeoutError("Redis item not returned in time after being fetched")
+            raise CelestialFlowTimeoutError("Redis item not returned in time after being fetched")
         _, item = res
         item = cast(str, item)
         item_obj: dict[str, Any] = json.loads(item)
@@ -479,7 +484,7 @@ class TaskRedisAck(TaskStage):
 
             # 超时控制
             if self.timeout and (time.perf_counter() - start_time) > self.timeout:
-                raise TimeoutError(
+                raise CelestialFlowTimeoutError(
                     f"TaskRedisAck timeout: task_id={task_id} not acknowledged"
                 )
 

@@ -5,10 +5,16 @@ from collections.abc import Iterable
 from typing import Any
 
 
+# ==== 基础异常 ====
+
+
 class CelestialFlowError(Exception):
     """CelestialFlow 所有自定义异常的基类"""
 
     pass
+
+
+# ==== 配置与选项 ====
 
 
 class ConfigurationError(CelestialFlowError):
@@ -95,12 +101,6 @@ class LogLevelError(InvalidOptionError):
         self.valid_levels = self.allowed
 
 
-class RemoteWorkerError(CelestialFlowError):
-    """远端 Worker（如 Go Worker）执行失败或返回异常状态时抛出。"""
-
-    pass
-
-
 class ScheduleModeError(InvalidOptionError):
     """非法的 schedule_mode 配置错误"""
 
@@ -115,6 +115,69 @@ class ScheduleModeError(InvalidOptionError):
         self.valid_modes = self.allowed
 
 
+# ==== 图结构 ====
+
+
+class GraphStructureError(ConfigurationError):
+    """图结构错误"""
+
+    pass
+
+
+class DuplicateNodeError(GraphStructureError):
+    """重复的节点名称"""
+
+    pass
+
+
+class UnknownNodeError(GraphStructureError):
+    """未知的节点名称"""
+
+    pass
+
+
+# ==== 运行时与生命周期 ====
+
+
+class RuntimeStateError(CelestialFlowError):
+    """运行时状态错误（如重复启动、未初始化等）"""
+
+    pass
+
+
+class InitializationError(RuntimeStateError):
+    """初始化错误"""
+
+    pass
+
+
+class CelestialFlowTimeoutError(CelestialFlowError, TimeoutError):
+    """超时错误"""
+
+    pass
+
+
+class UnconsumedError(CelestialFlowError):
+    """用于标记任务未消费的异常类"""
+
+    pass
+
+
+# ==== 外部服务与通信 ====
+
+
+class RemoteWorkerError(CelestialFlowError):
+    """远端 Worker（如 Go Worker）执行失败或返回异常状态时抛出。"""
+
+    pass
+
+
+class ReporterError(CelestialFlowError):
+    """上报器错误"""
+
+    pass
+
+
 class CelestialTreeConnectionError(CelestialFlowError):
     """CelestialTree 客户端连接失败"""
 
@@ -125,7 +188,16 @@ class CelestialTreeConnectionError(CelestialFlowError):
         super().__init__(message)
 
 
-class UnconsumedError(CelestialFlowError):
-    """用于标记任务未消费的异常类"""
+# ==== 任务与逻辑 ====
+
+
+class TaskFormatError(CelestialFlowError):
+    """任务格式错误"""
+
+    pass
+
+
+class TerminationMergeError(CelestialFlowError):
+    """终止信号合并错误"""
 
     pass

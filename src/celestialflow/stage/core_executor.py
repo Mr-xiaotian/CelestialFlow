@@ -21,7 +21,7 @@ from ..runtime import (
     TaskMetrics,
     TaskOutQueue,
 )
-from ..runtime.util_errors import ExecutionModeError
+from ..runtime.util_errors import ConfigurationError, ExecutionModeError
 from ..runtime.util_factories import (
     make_task_in_queue,
     make_task_out_queue,
@@ -193,7 +193,7 @@ class TaskExecutor:
         if getattr(
             self, "execution_mode", None
         ) == "async" and not inspect.iscoroutinefunction(self.func):
-            raise RuntimeError(
+            raise ConfigurationError(
                 f"execution_mode is 'async' but '{self.func.__name__}' is not a coroutine function"
             )
 

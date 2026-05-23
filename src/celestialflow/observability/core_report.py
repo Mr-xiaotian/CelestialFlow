@@ -6,6 +6,7 @@ import requests
 
 from ..persistence import LogInlet
 from ..persistence.util_jsonl import load_jsonl_logs
+from ..runtime.util_errors import ReporterError
 from ..runtime.util_types import TERMINATION_SIGNAL
 
 if TYPE_CHECKING:
@@ -109,7 +110,7 @@ class TaskReporter:
                 f"{self.base_url}/api/pull_interval", timeout=self._pull_timeout()
             )
             if not res.ok:
-                raise RuntimeError(f"Failed to pull interval: {res.status_code}")
+                raise ReporterError(f"Failed to pull interval: {res.status_code}")
 
             interval = res.json().get("interval", 5)
             self.interval = max(1.0, min(interval, 60.0))
@@ -123,7 +124,7 @@ class TaskReporter:
                 f"{self.base_url}/api/pull_task_injection", timeout=self._pull_timeout()
             )
             if not res.ok:
-                raise RuntimeError(f"Failed to pull task injection: {res.status_code}")
+                raise ReporterError(f"Failed to pull task injection: {res.status_code}")
 
             injection_tasks: list[dict[str, Any]] = res.json()
             for injection in injection_tasks:
@@ -166,14 +167,14 @@ class TaskReporter:
                 elif resp.get("fallback") == "need_content":
                     self._push_errors_mode = "content"
                 else:
-                    raise RuntimeError(f"push_errors_meta failed: {resp.get('msg')}")
+                    raise ReporterError(f"push_errors_meta failed: {resp.get('msg')}")
 
             if self._push_errors_mode == "content":
                 resp = self._push_errors_content(current_rev, jsonl_path)
                 if resp.get("ok"):
                     pass
                 else:
-                    raise RuntimeError(f"push_errors_content failed: {resp.get('msg')}")
+                    raise ReporterError(f"push_errors_content failed: {resp.get('msg')}")
 
             if resp.get("ok") and not resp.get("cached"):
                 self._last_pushed_errors_rev = current_rev

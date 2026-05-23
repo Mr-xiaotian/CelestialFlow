@@ -2,6 +2,7 @@ import pytest
 import time
 from celestialflow.funnel.core_inlet import BaseInlet
 from celestialflow.funnel.core_spout import BaseSpout
+from celestialflow.runtime.util_errors import CelestialFlowError
 from celestialflow.runtime.util_types import TerminationSignal
 
 class MockSpout(BaseSpout):
@@ -74,5 +75,5 @@ class TestFunnelCore:
     def test_spout_not_implemented_error(self):
         """测试 BaseSpout 抽象基类：直接调用未实现的方法应报错"""
         base = BaseSpout()
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(CelestialFlowError, match="_handle_record must be implemented"):
             base._handle_record("anything")
