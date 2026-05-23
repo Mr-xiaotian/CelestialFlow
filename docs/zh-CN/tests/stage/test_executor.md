@@ -26,6 +26,34 @@
 - **重试精度**: 验证非匹配异常（如配置重试 RuntimeError 但抛出 ValueError）能立即触发失败。
 - **并发安全性**: 验证线程池和异步模式下的结果收集不会出现竞争或丢失。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/stage/test_executor.py -v
+
+# 仅运行 Serial 模式测试
+pytest tests/stage/test_executor.py -k "serial" -v
+
+# 仅运行 Thread 模式测试
+pytest tests/stage/test_executor.py -k "thread" -v
+
+# 仅运行 Async 模式测试
+pytest tests/stage/test_executor.py -k "async" -v
+
+# 仅运行重试机制测试
+pytest tests/stage/test_executor.py -k "retry" -v
+
+# 仅运行去重测试
+pytest tests/stage/test_executor.py -k "duplicate" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestTaskExecutor` | ~3s（含多线程/异步执行） |
+
 ## 重要细节
 - 使用 `flaky` 函数模拟需要重试的场景。
 - `test_invalid_execution_mode` 确保不支持的模式在初始化时即报错。

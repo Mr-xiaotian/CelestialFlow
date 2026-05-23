@@ -22,6 +22,28 @@
 - **元数据同步**: 验证 Stage 名称作为图引用键的稳定性。
 - **模式语义**: 区分“节点隔离模式 (Stage Mode)”与“任务执行模式 (Execution Mode)”的不同职责。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/stage/test_stage.py -v
+
+# 仅运行标识管理测试
+pytest tests/stage/test_stage.py -k "name" -v
+
+# 仅运行模式校验测试
+pytest tests/stage/test_stage.py -k "mode" -v
+
+# 仅运行 Lambda 支持测试
+pytest tests/stage/test_stage.py -k "lambda" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestTaskStage` | ~0.2s（纯配置验证，无任务执行） |
+
 ## 重要细节
 - `TaskStage` 不直接执行任务，而是通过配置 `TaskExecutor` 和管理 `Queue` 来组织运行。
 - `test_lambda_allowed_in_thread` 是对线程隔离模式下任务函数灵活性的重要验证。

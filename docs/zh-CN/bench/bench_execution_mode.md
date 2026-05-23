@@ -72,6 +72,58 @@ async def fibonacci_async(n):
 python bench/bench_execution_mode.py
 ```
 
+## 参数调整
+
+### 单独运行某个测试场景
+
+在 `bench/bench_execution_mode.py` 的 `main()` 中可选择性运行：
+
+```python
+async def main():
+    # 仅运行斐波那契测试
+    await bench_executor_fibonacci()
+    # await bench_executor_sleep()  # 注释掉 sleep 测试
+```
+
+```bash
+# 修改后运行
+python bench/bench_execution_mode.py
+```
+
+### 调整并发 Worker 数
+
+各场景的 `max_workers` 在 `main()` 中直接设置：
+
+```python
+# 增大斐波那契的 worker 数
+await bench_executor_fibonacci(max_workers=12)
+
+# 调整 sleep 场景的 worker 数
+await bench_executor_sleep(max_workers=4)
+```
+
+### 修改重试次数
+
+```python
+# 关闭重试
+await bench_executor_fibonacci(max_retries=0)
+
+# 增加重试次数
+await bench_executor_fibonacci(max_retries=3)
+```
+
+### 自定义输入范围
+
+斐波那契测试的输入在函数内部定义，可修改 `numbers` 列表：
+
+```python
+# 仅测试小数值（快速验证）
+numbers = [10, 15, 20]
+
+# 扩大范围
+numbers = list(range(20, 35))
+```
+
 ## 基准结果（实测）
 
 > 环境：Windows，Python 3.10

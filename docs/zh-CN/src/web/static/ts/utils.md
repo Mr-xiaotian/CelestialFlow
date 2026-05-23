@@ -76,3 +76,79 @@ flowchart LR
         H[isMobile]
     end
 ```
+
+## 使用示例
+
+### formatLargeNumber / formatDuration / escapeHtml 等函数的使用示例
+
+以下示例展示 `utils.ts` 中所有工具函数的用法（可在浏览器控制台直接运行）：
+
+```typescript
+// ====== 1. formatLargeNumber: 大数格式化 ======
+console.log("=== formatLargeNumber ===");
+console.log(formatLargeNumber(1234));        // "1,234"
+console.log(formatLargeNumber(1234567));     // "1,234,567"
+console.log(formatLargeNumber(9999999));     // "9,999,999"
+console.log(formatLargeNumber(10000000));    // "~1.00×10⁷"
+console.log(formatLargeNumber(1234567890));  // "~1.23×10⁹"
+
+// ====== 2. formatWithDelta: 数值 + 增量显示 ======
+console.log("\n=== formatWithDelta ===");
+const value = 1000;
+const delta = 5;
+// 主数值后追加绿色 +5 小字
+console.log(formatWithDelta(value, delta, "delta-positive", "delta-negative"));
+// "1,000<small class="delta-positive" style="margin-left: 4px;">+5</small>"
+
+// 负增量显示为红色
+console.log(formatWithDelta(value, -3, "delta-positive", "delta-negative"));
+// "1,000<small class="delta-negative" style="margin-left: 4px;">-3</small>"
+
+// 增量为 0 时不显示增量
+console.log(formatWithDelta(value, 0, "", ""));
+// "1,000"
+
+// ====== 3. formatDuration: 秒数格式化 ======
+console.log("\n=== formatDuration ===");
+console.log(formatDuration(0));          // "00:00"
+console.log(formatDuration(45));         // "00:45"
+console.log(formatDuration(120));        // "02:00"
+console.log(formatDuration(3661));       // "01:01:01"
+console.log(formatDuration(86399));      // "23:59:59"
+
+// ====== 4. formatTimestamp: 时间戳格式化 ======
+console.log("\n=== formatTimestamp ===");
+console.log(formatTimestamp(1745400000));
+// "2026-05-24 14:40:00" (取决于当前时区)
+
+// 当前时间
+console.log(formatTimestamp(Date.now() / 1000));
+
+// ====== 5. renderLocalTime: 本地化时间 ======
+console.log("\n=== renderLocalTime ===");
+console.log(renderLocalTime(1745400000));
+// "2026/5/24 14:40:00" (取决于浏览器区域设置)
+
+// ====== 6. escapeHtml: HTML 转义 ======
+console.log("\n=== escapeHtml ===");
+const userInput = '<script>alert("xss")</script>';
+console.log(escapeHtml(userInput));
+// "&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;"
+
+console.log(escapeHtml('A&B < C > D'));
+// "A&amp;B &lt; C &gt; D"
+
+// ====== 7. isMobile: 移动端检测 ======
+console.log("\n=== isMobile ===");
+console.log(isMobile());
+// 在桌面浏览器中返回 false
+// 在移动设备中返回 true
+
+// ====== 8. switchToErrorsTab: 跳转到错误页 ======
+console.log("\n=== switchToErrorsTab ===");
+// 跳转到错误日志标签页，不过滤节点
+switchToErrorsTab();
+
+// 跳转到错误日志标签页，并过滤特定节点
+// switchToErrorsTab("StageA");
+```

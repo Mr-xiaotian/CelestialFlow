@@ -182,6 +182,102 @@ def add_queue(self, queue: Any, name: str) -> None:
 
 ---
 
+## 使用示例
+
+以下示例展示 `TaskInQueue` 和 `TaskOutQueue` 的基本用法，包括任务 put/get、终止信号合并和动态添加通道。
+
+```python
+from queue import Queue as ThreadQueue
+from celestialflow.runtime import TaskEnvelope, TaskInQueue, TaskOutQueue
+from celestialflow.runtime.util_types import TerminationSignal
+
+class FakeLogInlet:
+    def put_item(self, t, idx, source, out_name): pass
+    def put_item_error(self, source, out_name, e): pass
+    def get_item(self, t, idx, source, out_name): pass
+
+log = FakeLogInlet()
+
+# ===== TaskInQueue 使用示例 =====
+
+# 创建输入队列，聚合来自两个上游（"producer1", "producer2"）的任务
+in_queue = TaskInQueue(
+    queue=ThreadQueue(),
+    source_names=["producer1", "producer2"],
+    out_name="processor",
+    log_inlet=log,
+)
+
+# 上游生产者放入任务
+env1 = TaskEnvelope(task=100, id=1, source="producer1")
+env2 = TaskEnvelope(task=200, id=2, source="producer2")
+in_queue.put(env1)
+in_queue.put(env2)
+
+# 下游消费者获取任务
+task1 = in_queue.get()
+print(f"收到任务: {task1.get_task()}, 来源: {task1.source}")
+
+# 动态添加新的上游来源
+in_queue.add_source_name("producer3")
+print(f"上游来源数: {len(in_queue.source_names)}")
+
+# ===== TaskOutQueue 使用示例 =====
+
+# 创建输出队列，广播到两个下游
+consumer_q1 = ThreadQueue()
+consumer_q2 = ThreadQueue()
+
+out_queue = TaskOutQueue(
+    queue_list=[consumer_q1, consumer_q2],
+    target_names=["consumer1", "consumer2"],
+    in_name="processor",
+    log_inlet=log,
+)
+
+# 广播任务到所有下游
+env3 = TaskEnvelope(task="broadcast_msg", id=3, source="processor")
+out_queue.put(env3)
+
+# 验证两个消费者都收到了
+print(f"consumer1 收到: {consumer_q1.get().get_task()}")
+print(f"consumer2 收到: {consumer_q2.get().get_task()}")
+
+# 定向发送到指定下游
+consumer_q3 = ThreadQueue()
+out_queue.add_queue(consumer_q3, "consumer3")
+
+env4 = TaskEnvelope(task="targeted_msg", id=4, source="processor")
+out_queue.put_target(env4, "consumer3")
+print(f"consumer3 收到: {consumer_q3.get().get_task()}")
+
+# ===== 终止信号合并 =====
+
+# 两个上游都发送终止信号
+in_queue.put(TerminationSignal(_id=1, source="producer1"))
+in_queue.put(TerminationSignal(_id=2, source="producer2"))
+
+# get() 会自动合并所有上游的终止信号并返回 TerminationIdPool
+result = in_queue.get()
+from celestialflow.runtime.util_types import TerminationIdPool
+if isinstance(result, TerminationIdPool):
+    print(f"收到合并终止信号，包含 IDs: {result.ids}")
+
+# ===== drain 清空队列 =====
+# 创建新队列并放入残留任务
+residual_q = TaskInQueue(
+    queue=ThreadQueue(),
+    source_names=["src"],
+    out_name="drain_test",
+    log_inlet=log,
+)
+residual_q.put(TaskEnvelope(task="leftover", id=5, source="src"))
+
+# drain 清空所有剩余任务
+leftovers = residual_q.drain()
+print(f"残留任务数: {len(leftovers)}")
+```
+
 ## 注意事项
 
 1. **多通道**: `TaskOutQueue` 管理多个下游队列

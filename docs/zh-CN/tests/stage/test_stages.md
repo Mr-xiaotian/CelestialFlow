@@ -23,6 +23,28 @@
 - **具名分发**: 验证 Router 能通过 `TaskOutQueue` 的具名发送能力实现精确导航。
 - **状态追踪**: 验证特化节点内部的自定义计数器（`split_counter`, `route_counters`）能准确反映业务逻辑执行情况。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/stage/test_stages.py -v
+
+# 仅运行 TaskSplitter 测试
+pytest tests/stage/test_stages.py -k "splitter" -v
+pytest tests/stage/test_stages.py -k "Splitter" -v
+
+# 仅运行 TaskRouter 测试
+pytest tests/stage/test_stages.py -k "router" -v
+pytest tests/stage/test_stages.py -k "Router" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestSplitter` | ~0.2s |
+| `TestRouter` | ~0.2s |
+
 ## 重要细节
 - 测试中使用 `TaskOutQueue` 的 Mock 配置来截获输出结果进行验证。
 - 依赖于 `log_inlet` fixture 进行异步错误日志记录。

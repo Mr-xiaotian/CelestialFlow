@@ -89,3 +89,89 @@ type WebConfig = {
     }
 }
 ```
+
+## 使用示例
+
+### 配置对象的结构和读取示例
+
+以下示例展示 `WebConfig` 配置对象的完整结构以及在浏览器控制台中如何读取和修改：
+
+```typescript
+// 1. WebConfig 的完整结构
+// 参照默认配置，一个完整的配置对象包含：
+const fullConfig: WebConfig = {
+    theme: "light",
+    refreshInterval: 5000,
+    historyLimit: 20,
+    language: "zh-CN",
+    errorPageSize: 50,
+    showStructureEdgeDelta: false,
+    dashboard: {
+        left: ["mermaid", "analysis"],
+        middle: ["status"],
+        right: ["progress", "summary"],
+    },
+};
+
+// 2. 读取当前配置（在浏览器控制台中）
+// 全局变量 webConfig 保存了当前运行时的配置
+console.log("当前配置:", webConfig);
+console.log("主题:", webConfig.theme);                   // "light" | "dark"
+console.log("刷新间隔:", webConfig.refreshInterval, "ms"); // 5000
+console.log("历史长度:", webConfig.historyLimit);          // 20
+console.log("语言:", webConfig.language);                // "zh-CN"
+console.log("错误每页条数:", webConfig.errorPageSize);     // 50
+console.log("结构图增量:", webConfig.showStructureEdgeDelta); // false
+console.log("仪表盘布局:", webConfig.dashboard);
+// { left: [...], middle: [...], right: [...] }
+
+// 3. 使用 normalizeWebConfig 合并配置
+// 当后端返回的配置可能缺失某些字段时，用默认值补齐：
+const partialConfig = {
+    theme: "dark",
+    refreshInterval: 3000,
+};
+const normalized = normalizeWebConfig(partialConfig);
+console.log("归一化后:", normalized);
+// {
+//   theme: "dark",
+//   refreshInterval: 3000,
+//   historyLimit: 20,           // 默认值
+//   language: "zh-CN",          // 默认值
+//   errorPageSize: 50,          // 默认值
+//   showStructureEdgeDelta: false, // 默认值
+//   dashboard: { left: [...], middle: [...], right: [...] } // 默认布局
+// }
+
+// 4. 手动修改配置并保存
+async function updateConfig() {
+    // 修改配置
+    webConfig.theme = "dark";
+    webConfig.refreshInterval = 2000;
+    webConfig.language = "en";
+
+    // 应用配置到页面
+    applyConfig();
+
+    // 保存到后端
+    const saved = await saveWebConfig();
+    console.log(saved ? "配置保存成功" : "配置保存失败");
+}
+
+// 5. 动态调整仪表盘布局
+function rearrangeDashboard() {
+    // 将状态卡片移到左栏，结构图移到中栏
+    webConfig.dashboard = {
+        left: ["status"],
+        middle: ["mermaid"],
+        right: ["analysis", "progress", "summary"],
+    };
+    applyDashboardLayout();
+    saveWebConfig();
+}
+
+// 6. 使用默认配置兜底启动
+// 当 loadWebConfig() 失败时（如后端未响应），自动回退到默认配置：
+// webConfig = normalizeWebConfig();
+// 这保证了页面在任何情况下都能正常渲染
+```

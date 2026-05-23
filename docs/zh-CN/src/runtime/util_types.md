@@ -132,6 +132,124 @@ class PersistedErrorRecord:
         """返回 (error_type, error_message) 用于分组。"""
 ```
 
+## 使用示例
+
+以下示例展示 `util_types` 模块中各数据类和工具类的典型用法。
+
+### TerminationSignal 和 TerminationIdPool
+
+```python
+from celestialflow.runtime.util_types import TerminationSignal, TERMINATION_SIGNAL, TerminationIdPool
+
+# 创建自定义终止信号
+signal = TerminationSignal(_id=42, source="my_source")
+print(f"信号 ID: {signal.id}, 来源: {signal.source}")
+
+# 使用全局单例
+print(f"默认终止信号 ID: {TERMINATION_SIGNAL.id}")      # -1
+print(f"默认来源: {TERMINATION_SIGNAL.source}")         # "input"
+print(f"是同一个实例: {TERMINATION_SIGNAL is TerminationSignal()}")  # False（每次创建新实例）
+
+# 创建终止信号 ID 池
+pool = TerminationIdPool(ids=[1, 2, 3])
+print(f"ID 池: {pool.ids}")  # [1, 2, 3]
+```
+
+### StageStatus 枚举
+
+```python
+from celestialflow.runtime.util_types import StageStatus
+
+# 枚举值
+print(f"NOT_STARTED = {StageStatus.NOT_STARTED.value}")  # 0
+print(f"RUNNING = {StageStatus.RUNNING.value}")          # 1
+print(f"STOPPED = {StageStatus.STOPPED.value}")          # 2
+
+# 状态转换
+status = StageStatus.NOT_STARTED
+print(f"初始状态: {status.name}")
+```
+
+### ValueWrapper 和 SumCounter
+
+```python
+from celestialflow.runtime.util_types import ValueWrapper, SumCounter
+
+# ValueWrapper：带可选锁的计数器
+counter = ValueWrapper(value=10)
+print(f"初始值: {counter.value}")  # 10
+with counter.get_lock():
+    counter.value += 5
+print(f"加锁递增后: {counter.value}")  # 15
+
+# SumCounter：多计数器累加
+sum_counter = SumCounter(mode="serial")
+sum_counter.add_init_value(100)
+
+sub1 = ValueWrapper(value=20)
+sub2 = ValueWrapper(value=30)
+sum_counter.append_counter(sub1)
+sum_counter.append_counter(sub2)
+
+print(f"总和 (100 + 20 + 30): {sum_counter.value}")  # 150
+
+# 重置
+sum_counter.reset()
+print(f"重置后: {sum_counter.value}")  # 0
+```
+
+### NoOpContext
+
+```python
+from celestialflow.runtime.util_types import NoOpContext
+
+# 空上下文管理器，用于禁用 with 逻辑
+ctx = NoOpContext()
+with ctx:
+    print("这是一个无操作上下文")
+```
+
+### CTreeEvent 常量
+
+```python
+from celestialflow.runtime.util_types import CTreeEvent
+
+# 事件名称常量
+print(f"任务输入事件: {CTreeEvent.TASK_INPUT}")           # "task.input"
+print(f"任务成功事件: {CTreeEvent.TASK_SUCCESS}")         # "task.success"
+print(f"任务失败事件: {CTreeEvent.TASK_ERROR}")           # "task.error"
+print(f"重试前缀: {CTreeEvent.TASK_RETRY_PREFIX}")        # "task.retry."
+print(f"重复任务事件: {CTreeEvent.TASK_DUPLICATE}")       # "task.duplicate"
+print(f"终止注入事件: {CTreeEvent.TERMINATION_INPUT}")    # "termination.input"
+print(f"终止合并事件: {CTreeEvent.TERMINATION_MERGE}")    # "termination.merge"
+```
+
+### PersistedErrorRecord
+
+```python
+from celestialflow.runtime.util_types import PersistedErrorRecord
+
+# 创建持久化错误记录
+record = PersistedErrorRecord(
+    error_type="ValueError",
+    error_message="Invalid input: negative value",
+    error_repr="ValueError: Invalid input: negative value",
+    stage="StageA",
+    error_id=123,
+    timestamp="2026-05-24T10:30:00",
+    ts=1716546600.0,
+)
+
+print(f"错误类型: {record.error_type}")
+print(f"错误消息: {record.error_message}")
+print(f"所属节点: {record.stage}")
+print(f"字符串表示: {record}")
+
+# 获取分组键（用于按类型+消息分组统计）
+group_key = record.get_group_key()
+print(f"分组键: {group_key}")  # ("ValueError", "Invalid input: negative value")
+```
+
 ## STAGE_STYLE
 
 节点标签样式配置，用于 CelestialTree 可视化。

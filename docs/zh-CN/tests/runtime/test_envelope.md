@@ -22,6 +22,28 @@
 - **哈希鲁棒性**: 确保 `object_to_hash` 能处理各种 Python 数据类型（字典、列表、字符串、数字）。
 - **ID 修改**: 验证 `id` 属性的可写性，用于在流转过程中重新标记任务。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/runtime/test_envelope.py -v
+
+# 仅运行哈希一致性测试
+pytest tests/runtime/test_envelope.py -k "hash" -v
+
+# 仅运行延迟计算测试
+pytest tests/runtime/test_envelope.py -k "lazy" -v
+
+# 仅运行 slots 内存测试
+pytest tests/runtime/test_envelope.py -k "slots" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestTaskEnvelope` | ~0.1s（纯内存操作） |
+
 ## 重要细节
 - 哈希计算排除了 `id` 字段的影响，确保内容相同但 ID 不同的任务被识别为重复。
 - `test_slots_memory_efficient` 使用 `pytest.raises(AttributeError)` 验证内存优化限制。

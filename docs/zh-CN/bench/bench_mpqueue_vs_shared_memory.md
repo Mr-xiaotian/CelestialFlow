@@ -69,6 +69,40 @@
 python bench/bench_mpqueue_vs_shared_memory.py
 ```
 
+## 参数调整
+
+### 修改测试规模与配置
+
+在 `bench/bench_mpqueue_vs_shared_memory.py` 顶部调整：
+
+```python
+COUNT = 10_000       # 减少次数，快速验证
+# COUNT = 1_000_000  # 大规模压测
+
+REPEAT = 1           # 只跑 1 轮
+# REPEAT = 5         # 增加轮次
+
+PAYLOAD_MODE = "int"  # 负载类型: int / small / medium / large
+SLOT_COUNT = 256     # 减少环形缓冲区槽位数
+# SLOT_COUNT = 4096  # 增加槽位数，观察缓冲区大小对吞吐的影响
+```
+
+### 只测试特定拓扑
+
+```python
+TOPOLOGIES = [
+    ("SPSC", 1, 1),     # 仅测试单生产者单消费者
+    # ("MPSC", 4, 1),   # 跳过多生产者场景
+    # ("SPMC", 1, 4),   # 跳过单生产者多消费者场景
+]
+```
+
+修改后运行：
+
+```bash
+python bench/bench_mpqueue_vs_shared_memory.py
+```
+
 ## 依赖
 
 - `bench_utils.summarize`

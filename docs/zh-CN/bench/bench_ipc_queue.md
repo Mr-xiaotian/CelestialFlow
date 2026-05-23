@@ -55,6 +55,40 @@
 python bench/bench_ipc_queue.py
 ```
 
+## 参数调整
+
+### 修改测试规模与负载模式
+
+在 `bench/bench_ipc_queue.py` 顶部调整全局配置：
+
+```python
+COUNT = 10_000       # 减少次数，快速验证
+# COUNT = 1_000_000  # 大规模压测
+
+REPEAT = 1           # 只跑 1 轮，快速验证
+# REPEAT = 5         # 增加轮次，提高统计可信度
+
+PAYLOAD_MODE = "small"  # 可选：int / small / medium / large
+```
+
+### 只测试特定 IPC 机制
+
+在 `main()` 中可选择性运行：
+
+```python
+def main() -> None:
+    # run_queue_case(name="MPQueue", ...)   # 注释掉 MPQueue
+    # run_queue_case(name="SimpleQueue", ...)
+    run_queue_case(name="Pipe", ...)          # 仅测试 Pipe
+    # run_queue_case(name="Manager().Queue", ...)
+```
+
+修改后运行：
+
+```bash
+python bench/bench_ipc_queue.py
+```
+
 ## 依赖
 
 - `bench_utils.summarize`

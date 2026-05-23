@@ -38,3 +38,63 @@ BaseInlet (funnel/core_inlet.py)
 ### 外部关联
 - **与 Persistence 模块**: `LogSpout`/`LogInlet`、`FailSpout`/`FailInlet`、`SuccessSpout` 均继承自本模块基类
 - **与 Runtime 模块**: 使用 `TerminationSignal` 作为停止信号
+
+## 使用示例
+
+以下示例展示 `BaseInlet` 和 `BaseSpout` 的基本使用模式。
+
+### BaseSpout + BaseInlet 协作
+
+```python
+from queue import Queue
+from celestialflow.funnel import BaseSpout, BaseInlet
+
+# 1. 自定义 Spout：将收到的记录打印到控制台
+class PrintSpout(BaseSpout):
+    def _handle_record(self, record):
+        print(f"Spout 收到: {record}")
+
+# 2. 创建 Spout 和 Inlet
+spout = PrintSpout()
+inlet = BaseInlet(spout.get_queue())
+
+# 3. 启动后台监听线程
+spout.start()
+
+# 4. 通过 Inlet 发送记录
+inlet._funnel("Hello, World!")
+inlet._funnel({"key": "value"})
+inlet._funnel(42)
+
+# 5. 停止 Spout
+spout.stop()
+print("Spout 已停止")
+```
+
+### 使用 BaseSpout 的自定义钩子
+
+```python
+from queue import Queue
+from celestialflow.funnel import BaseSpout
+
+class FileSpout(BaseSpout):
+    def __init__(self, filename: str):
+        super().__init__()
+        self.filename = filename
+        self.file = None
+
+    def _before_start(self):
+        print(f"打开文件: {self.filename}")
+
+    def _handle_record(self, record):
+        print(f"处理记录: {record}")
+
+    def _after_stop(self):
+        print(f"关闭文件: {self.filename}")
+
+spout = FileSpout("records.log")
+spout.start()
+spout.get_queue().put("record1")
+spout.get_queue().put("record2")
+spout.stop()
+```

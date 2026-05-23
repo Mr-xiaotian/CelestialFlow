@@ -108,3 +108,76 @@ reporter = TaskReporter(
 )
 reporter.start()
 ```
+
+## 使用示例
+
+### 自定义 Observer + TaskReporter 搭配使用
+
+以下示例展示如何自定义一个统计观察者，配合 `TaskReporter` 和 `TaskGraph` 构建一个可观测的完整工作流：
+
+```python
+import asyncio
+from celestialflow import TaskGraph, TaskExecutor, TaskStage, BaseObserver
+from celestialflow.observability import TaskReporter
+from celestialflow.persistence import LogInlet
+
+# 1. 自定义观察者：统计任务执行结果
+class StatsObserver(BaseObserver):
+    def __init__(self):
+        self.success_count = 0
+        self.fail_count = 0
+
+    def on_task_success(self, count: int = 1):
+        self.success_count += count
+
+    def on_task_fail(self, count: int = 1):
+        self.fail_count += count
+
+    def on_finish(self):
+        print(f"执行结束：成功 {self.success_count}，失败 {self.fail_count}")
+
+
+# 2. 定义任务处理函数
+def process_item(item: int) -> int:
+    if item % 5 == 0:
+        raise ValueError(f"跳过数字 {item}")
+    return item * 2
+
+
+async def main():
+    # 创建任务图
+    graph = TaskGraph(schedule_mode="eager")
+    stage = TaskStage("Processor", process_item, execution_mode="thread", max_workers=4)
+    graph.set_stages([stage])
+
+    # 注册自定义观察者到 stage 的执行器
+    stats_observer = StatsObserver()
+    stage.add_observer(stats_observer)
+
+    # 可选：启用 TaskReporter 上报到 Web UI
+    log_inlet = LogInlet()
+    reporter = TaskReporter(
+        host="127.0.0.1",
+        port=5000,
+        task_graph=graph,
+        log_inlet=log_inlet,
+    )
+    reporter.start()
+
+    # 启动任务图
+    await graph.start_graph({stage.get_tag(): list(range(20))})
+
+    # 停止上报器
+    reporter.stop()
+
+    # 查看统计结果
+    print(f"最终统计 - 成功: {stats_observer.success_count}, 失败: {stats_observer.fail_count}")
+
+
+asyncio.run(main())
+```
+
+此示例展示了三类可观测组件的协作：
+- **自定义 Observer**: 继承 `BaseObserver` 并覆写事件方法收集统计信息
+- **TaskGraph 集成**: 通过 `TaskStage` 内置的观察者列表注册自定义观察者
+- **TaskReporter**: 将运行状态推送到 Web 服务器用于外部监控

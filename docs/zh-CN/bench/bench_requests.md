@@ -53,6 +53,45 @@
 python bench/bench_requests.py
 ```
 
+## 参数调整
+
+### 修改请求数与并发数
+
+在 `bench/bench_requests.py` 顶部修改配置：
+
+```python
+NUM_REQUESTS = 10          # 减少请求数，快速验证
+# NUM_REQUESTS = 200       # 增加请求数，观察连接池预热后的稳态性能
+
+CONCURRENT_WORKERS = 4     # 减少并发线程
+# CONCURRENT_WORKERS = 50  # 高并发场景
+```
+
+### 更换测试目标
+
+```python
+TEST_URL = "https://httpbin.org/get"             # 默认公网目标
+# TEST_URL = "http://localhost:8000/api/health"  # 本地测试服务
+```
+
+### 只测试特定场景
+
+```python
+if __name__ == "__main__":
+    print("\n[1/4] Sequential - no session")
+    # test_without_session(...)             # 跳过无 Session 测试
+
+    print("\n[2/4] Sequential - with session")  # 仅测试 Session 复用
+    test_with_session(TEST_URL, NUM_REQUESTS)
+    # ...
+```
+
+修改后运行：
+
+```bash
+python bench/bench_requests.py
+```
+
 ## 依赖
 
 - `requests`

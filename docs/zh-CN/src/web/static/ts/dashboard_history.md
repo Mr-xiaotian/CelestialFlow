@@ -145,3 +145,98 @@ GET /api/pull_status
         └─ appendStatusSnapshotToHistory() -> nodeHistories
               └─ updateChartData(currentHistoryMetric) -> Chart.js 重绘
 ```
+
+## 使用示例
+
+### 手动调用图表初始化/更新
+
+以下示例展示如何在浏览器控制台或自定义脚本中手动操作图表：
+
+```typescript
+// 假设页面已加载完成，全局变量可用
+
+// 1. 手动初始化图表（如果尚未初始化）
+initChart();
+console.log("图表已初始化");
+
+// 2. 手动构造一条历史数据点并追加
+const timestamp = Date.now() / 1000;  // 当前时间戳（秒）
+const statuses: Record<string, NodeStatus> = {
+    "Processor": {
+        status: 1,
+        tasks_processed: 150,
+        tasks_succeeded: 145,
+        tasks_failed: 3,
+        tasks_duplicated: 2,
+        tasks_pending: 10,
+        stage_mode: "thread",
+        execution_mode: "thread",
+        start_time: timestamp - 300,
+        elapsed_time: 300,
+        remaining_time: 20,
+        task_avg_time: "2.00s/it",
+    },
+    "Validator": {
+        status: 1,
+        tasks_processed: 80,
+        tasks_succeeded: 78,
+        tasks_failed: 1,
+        tasks_duplicated: 1,
+        tasks_pending: 5,
+        stage_mode: "serial",
+        execution_mode: "serial",
+        start_time: timestamp - 250,
+        elapsed_time: 250,
+        remaining_time: 15,
+        task_avg_time: "3.12s/it",
+    },
+};
+
+// 3. 追加状态快照到历史序列
+// appendStatusSnapshotToHistory(timestamp, statuses, previousStatuses)
+// 这会自动更新 nodeHistories 全局变量
+
+// 4. 切换当前显示的指标
+// currentHistoryMetric = "tasks_succeeded";
+// updateChartData();  // 刷新图表
+
+// 5. 切换指标（模拟点击不同的指标按钮）
+function switchMetric(metric: HistoryMetricKey) {
+    // currentHistoryMetric = metric;
+    // updateHistoryMetricButtons();
+    // updateChartData();
+    console.log(`切换到指标: ${metric}`);
+}
+
+switchMetric("tasks_failed");  // 显示失败趋势
+switchMetric("tasks_pending"); // 显示等待队列趋势
+
+// 6. 手动裁剪历史数据（强制保留最后 N 条）
+// webConfig.historyLimit = 10;
+// const changed = trimNodeHistories();
+// if (changed) updateChartData();
+
+// 7. 在主题切换后更新图表颜色
+// updateChartTheme();
+```
+
+### 构造历史数据并直接渲染
+
+```typescript
+// 直接手动构造完整的 nodeHistories 数据
+const mockHistory: Record<string, NodeHistory> = {
+    "Processor": [
+        { timestamp: 1000, tasks_processed: 10, tasks_succeeded: 9, tasks_failed: 1, tasks_duplicated: 0, tasks_pending: 90 },
+        { timestamp: 1005, tasks_processed: 25, tasks_succeeded: 23, tasks_failed: 1, tasks_duplicated: 1, tasks_pending: 75 },
+        { timestamp: 1010, tasks_processed: 40, tasks_succeeded: 37, tasks_failed: 2, tasks_duplicated: 1, tasks_pending: 60 },
+        { timestamp: 1015, tasks_processed: 55, tasks_succeeded: 51, tasks_failed: 2, tasks_duplicated: 2, tasks_pending: 45 },
+        { timestamp: 1020, tasks_processed: 70, tasks_succeeded: 65, tasks_failed: 3, tasks_duplicated: 2, tasks_pending: 30 },
+    ],
+};
+
+// nodeHistories = mockHistory;
+// updateChartData();  // 渲染到折线图
+
+// 使用 getColor 获取节点的折线颜色
+// const color = getColor(0);  // 第 1 个节点，矢车菊蓝
+```

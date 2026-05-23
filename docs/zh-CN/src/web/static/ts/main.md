@@ -100,3 +100,87 @@ flowchart TD
     M --> X["summaryChanged?"]
     X --> Y["renderSummary()"]
 ```
+
+## 使用示例
+
+### `refreshAll` 手动调用和数据流驱动的示例
+
+以下示例展示如何在浏览器控制台中手动触发数据刷新，以及核心的数据流驱动关系：
+
+```typescript
+// 1. 手动触发完整的数据刷新流程
+// 在浏览器控制台中执行：
+refreshAll().then(() => {
+    console.log("全量刷新完成");
+});
+
+// 2. refreshAll 的内部流程示意（基于 main.ts 源码）：
+// async function refreshAll() {
+//     // 并行拉取 5 类数据
+//     const [statusesChanged, structureChanged, errorsChanged,
+//            analysisChanged, summaryChanged] = await Promise.all([
+//         loadStatuses(),
+//         loadStructure(),
+//         loadErrors(),
+//         loadAnalysis(),
+//         loadSummary(),
+//     ]);
+//
+//     // 按依赖关系驱动渲染：
+//     // 结构图依赖 结构数据 + 状态数据
+//     // 分析面板依赖 分析数据
+//     // 状态卡片/节点列表/折线图依赖 状态数据
+//     // 摘要面板依赖 摘要数据
+//     // 错误表格依赖 错误数据
+// }
+
+// 3. 手动调用单个数据加载函数
+async function manualDataFetch() {
+    // 只拉取状态数据
+    const statusChanged = await loadStatuses();
+    if (statusChanged) {
+        renderDashboard();           // 更新状态卡片
+        populateNodeFilter(nodeStatuses); // 更新错误筛选器
+        renderNodeList();            // 更新注入页节点列表
+        updateChartData();           // 更新折线图
+    }
+
+    // 只拉取结构数据并重绘
+    const structChanged = await loadStructure();
+    if (structChanged && nodeStatuses) {
+        renderMermaidStructure(nodeStatuses);
+    }
+
+    // 只拉取错误数据
+    const errChanged = await loadErrors(true);
+    if (errChanged) {
+        renderErrors();
+    }
+}
+
+// 4. 修改轮询频率
+// 默认存储在 webConfig.refreshInterval 中
+// 可在浏览器控制台中临时调整：
+// clearInterval(refreshIntervalId);
+// refreshRate = 2000;  // 改为 2 秒
+// refreshIntervalId = setInterval(refreshAll, refreshRate);
+
+// 5. 手动触发设置保存
+// saveWebConfig().then(success => {
+//     showSettingsSaveStatus(
+//         success ? "settings.saveSuccess" : "settings.saveFailed"
+//     );
+// });
+
+// 6. 主题切换
+function toggleTheme() {
+    const isDark = toggleDarkTheme();
+    webConfig.theme = isDark ? "dark" : "light";
+    themeToggleBtn.textContent = isDark ? t("theme.light") : t("theme.dark");
+    renderMermaidStructure(nodeStatuses);
+    updateChartTheme();
+    saveWebConfig();
+}
+
+// toggleTheme();  // 执行主题切换
+```

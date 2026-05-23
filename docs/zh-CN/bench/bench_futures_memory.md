@@ -34,6 +34,41 @@
 python bench/bench_futures_memory.py
 ```
 
+## 参数调整
+
+### 修改任务规模和 Worker 数
+
+在 `bench/bench_futures_memory.py` 的 `main()` 函数中调整：
+
+```python
+def main():
+    scales = [10_000, 100_000, 500_000]  # 修改这里的任务数
+    max_workers = 20  # 调整线程池大小
+```
+
+### 只测试某一规模
+
+```python
+def main():
+    scales = [100_000]  # 仅测试 100K 任务
+    max_workers = 20
+```
+
+### 调整 Worker 数以观察影响
+
+```python
+def main():
+    scales = [100_000]
+    max_workers = 4   # 减少 Worker，观察清理策略在不同并发度下的表现
+    # max_workers = 50  # 高并发场景
+```
+
+修改后运行：
+
+```bash
+python bench/bench_futures_memory.py
+```
+
 ## 基准结果（实测）
 
 > 环境：Windows，Python 3.10，max_workers=20

@@ -134,6 +134,79 @@ def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
 异常类型以 `tuple` 形式存储在 `self.retry_exceptions` 中，`TaskDispatch._worker` 通过 `isinstance(exception, self.retry_exceptions)` 判断是否重试。
 
 ## 执行模式设置
+## 使用示例
+
+以下示例展示 `TaskMetrics` 的完整用法，包括初始化、计数器操作、去重检查、重试异常配置和状态查询。
+
+```python
+from celestialflow.runtime import TaskMetrics
+
+# 1. 初始化指标管理器（开启去重检查）
+metrics = TaskMetrics(
+    execution_mode="serial",
+    enable_duplicate_check=True,
+)
+
+# 2. 添加可重试异常类型
+metrics.add_retry_exceptions(ConnectionError, TimeoutError)
+
+# 3. 模拟任务处理过程
+# 收到 5 个输入任务
+metrics.add_task_count(5)
+
+# 处理成功 3 个
+metrics.add_success_count(3)
+
+# 处理失败 1 个
+metrics.add_error_count(1)
+
+# 检测到重复任务 1 个
+metrics.add_duplicate_count(1)
+
+# 4. 查询各计数器的值
+print(f"任务总数: {metrics.get_task_count()}")         # 5
+print(f"成功数: {metrics.get_success_count()}")        # 3
+print(f"失败数: {metrics.get_error_count()}")          # 1
+print(f"重复数: {metrics.get_duplicate_count()}")      # 1
+
+# 5. 获取完整快照字典
+counts = metrics.get_counts()
+print(f"已处理: {counts['tasks_processed']}")          # 3+1+1 = 5
+print(f"待处理: {counts['tasks_pending']}")            # 0
+print(f"全部完成: {metrics.is_tasks_finished()}")      # True
+
+# 6. 去重检查示例（需要 enable_duplicate_check=True）
+task_hash = b"\x00\x01\x02"
+print(f"首次检查: {metrics.is_duplicate(task_hash)}")   # False（首次加入）
+print(f"重复检查: {metrics.is_duplicate(task_hash)}")   # True（已存在）
+
+# 7. 重置计数器
+metrics.reset_counter()
+print(f"重置后任务数: {metrics.get_task_count()}")      # 0
+
+# 8. 切换执行模式（重新初始化线程安全策略）
+metrics.set_execution_mode("thread")
+print(f"新模式: {metrics.execution_mode}")
+```
+
+### 计数器级联
+
+```python
+from celestialflow.runtime import TaskMetrics
+from celestialflow.runtime.util_types import ValueWrapper
+
+# 创建主指标和子指标
+parent_metrics = TaskMetrics(execution_mode="serial")
+child_counter = ValueWrapper(value=10)
+
+# 将子计数器级联到父级 task_counter
+parent_metrics.append_task_counter(child_counter)
+parent_metrics.add_task_count(5)  # 自己新增 5
+
+print(f"总任务数 (5 + 10) : {parent_metrics.get_task_count()}")  # 15
+```
+
+### set_execution_mode
 
 ```python
 def set_execution_mode(self, execution_mode: str) -> None:

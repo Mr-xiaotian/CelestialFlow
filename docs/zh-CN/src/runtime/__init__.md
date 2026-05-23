@@ -106,6 +106,94 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
 - 基于 DAG 的全局剩余时间估算
 - 详细的执行日志
 
+## 使用示例
+
+以下示例展示 runtime 模块各组件协同使用的方式，涵盖任务信封、指标统计和队列通信。
+
+```python
+from queue import Queue as ThreadQueue
+from celestialflow.runtime import TaskEnvelope, TaskMetrics, TaskInQueue, TaskOutQueue
+from celestialflow.persistence import LogInlet
+
+# 1. TaskEnvelope：创建和操作任务信封
+envelope = TaskEnvelope(task={"data": 42}, id=1, source="input")
+print(f"任务数据: {envelope.get_task()}")
+print(f"任务哈希: {envelope.get_hash().hex()[:8]}...")
+print(f"任务ID: {envelope.get_id()}")
+
+# 重试时变更 ID
+envelope.change_id(100)
+print(f"变更后 ID: {envelope.get_id()}")
+```
+
+```python
+# 2. TaskMetrics：指标统计
+import time
+
+metrics = TaskMetrics(execution_mode="serial", enable_duplicate_check=True)
+
+# 模拟任务处理过程
+metrics.add_task_count(5)
+metrics.add_success_count(3)
+metrics.add_error_count(1)
+metrics.add_duplicate_count(1)
+
+# 查询各项计数
+print(f"输入: {metrics.get_task_count()}")
+print(f"成功: {metrics.get_success_count()}")
+print(f"失败: {metrics.get_error_count()}")
+print(f"重复: {metrics.get_duplicate_count()}")
+print(f"全部完成: {metrics.is_tasks_finished()}")
+
+# 获取快照字典
+counts = metrics.get_counts()
+print(f"待处理: {counts['tasks_pending']}")
+```
+
+```python
+# 3. TaskInQueue / TaskOutQueue：队列通信
+from celestialflow.runtime.util_errors import ConfigurationError
+
+class FakeLogInlet:
+    """简化日志入口，仅用于演示"""
+    def put_item(self, t, id, source, out_name): pass
+    def put_item_error(self, source, out_name, e): pass
+    def get_item(self, t, id, source, out_name): pass
+
+log_inlet = FakeLogInlet()
+
+# 创建输入队列（聚合上游任务）
+in_queue = TaskInQueue(
+    queue=ThreadQueue(),
+    source_names=["producer"],
+    out_name="processor",
+    log_inlet=log_inlet,
+)
+
+# 创建输出队列（广播到下游）
+out_queue = TaskOutQueue(
+    queue_list=[ThreadQueue()],
+    target_names=["consumer"],
+    in_name="processor",
+    log_inlet=log_inlet,
+)
+
+# 上游生产任务
+envelope_a = TaskEnvelope(task="hello", id=1, source="producer")
+in_queue.put(envelope_a)
+
+# 下游消费任务
+retrieved = in_queue.get()
+print(f"出队任务: {retrieved.get_task()}")
+
+# 输出队列广播任务
+out_queue.put(envelope_a)
+
+# 动态添加输出通道
+out_queue.add_queue(ThreadQueue(), "another_consumer")
+print(f"输出通道数: {len(out_queue.queue_list)}")
+```
+
 ## 最佳实践
 
 1. **I/O 密集型任务**: 使用 `thread` 模式

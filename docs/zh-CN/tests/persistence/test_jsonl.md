@@ -23,6 +23,28 @@
 - **类型还原**: 验证从 JSONL 恢复出的任务数据能保持原始类型（如 `(1, 2)` 元组）。
 - **字段过滤**: 验证 `keys` 参数能有效减少内存占用，仅提取需要的字段。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/persistence/test_jsonl.py -v
+
+# 仅运行智能解析测试
+pytest tests/persistence/test_jsonl.py -k "parse" -v
+
+# 仅运行分组读取测试
+pytest tests/persistence/test_jsonl.py -k "group" -v
+
+# 仅运行错误配对测试
+pytest tests/persistence/test_jsonl.py -k "error_pair" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestJsonlUtils` | ~0.1s（纯逻辑，无 I/O 等待） |
+
 ## 重要细节
 - 使用 `pytest.fixture` 创建临时的 `sample_jsonl` 文件进行测试。
 - `test_load_task_error_pairs` 验证了 `PersistedErrorRecord` 数据模型的封装。

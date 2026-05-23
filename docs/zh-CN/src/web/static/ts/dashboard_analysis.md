@@ -39,3 +39,76 @@ GET /api/pull_analysis
   └─ loadAnalysis() -> 更新 analysisData
         └─ renderAnalysisInfo() -> UI 列表展示
 ```
+
+## 使用示例
+
+### 分析数据结构和渲染调用链条
+
+以下是分析数据在 TypeScript 端的结构和渲染流程示例：
+
+```typescript
+// 分析数据的典型结构（来自后端 GET /api/pull_analysis）
+const analysisPayload = {
+    analysis: {
+        class_name: "TaskGraph",
+        isDAG: true,
+        schedule_mode: "eager",
+        layers_dict: {0: ["StageA"], 1: ["StageB", "StageC"], 2: ["StageD"]},
+    }
+};
+
+// 这些数据通过以下链条被处理和渲染：
+
+// 1. loadAnalysis() 拉取并更新全局变量
+// analysisData 结构：Record<string, any>
+// 例如：{ class_name, isDAG, schedule_mode, layers_dict }
+
+// 2. renderAnalysisInfo() 将其渲染到 #analysis-info 容器
+//    实际渲染逻辑（示意）：
+function renderAnalysisInfoExample(data: Record<string, any>) {
+    const container = document.getElementById("analysis-info");
+    if (!container) return;
+
+    if (!data || Object.keys(data).length === 0) {
+        container.innerHTML = "<p>暂无分析信息</p>";
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="analysis-item">
+            <span class="analysis-label">结构类型</span>
+            <span class="analysis-value">${escapeHtml(data.class_name || "-")}</span>
+        </div>
+        <div class="analysis-item">
+            <span class="analysis-label">是否 DAG</span>
+            <span class="analysis-value ${data.isDAG ? '' : 'warning'}">
+                ${data.isDAG ? "是（无环）" : "否（存在环）"}
+            </span>
+        </div>
+        <div class="analysis-item">
+            <span class="analysis-label">调度模式</span>
+            <span class="analysis-value">${escapeHtml(data.schedule_mode || "-")}</span>
+        </div>
+        <div class="analysis-item">
+            <span class="analysis-label">层级数量</span>
+            <span class="analysis-value">
+                ${data.layers_dict ? Object.keys(data.layers_dict).length : 0}
+            </span>
+        </div>
+    `;
+}
+
+// 3. 完整的调用链条
+async function fullAnalysisFlow() {
+    // 调用 fetch 拉取数据
+    const res = await fetch("/api/pull_analysis?known_rev=0");
+    const data = await res.json();
+
+    // 更新全局缓存
+    // analysisData = data; (由 loadAnalysis 内部维护)
+    // analysisRev = data.rev ?? 0;
+
+    // 触发渲染
+    renderAnalysisInfoExample(data);
+}
+```

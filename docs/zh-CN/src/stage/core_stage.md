@@ -177,6 +177,126 @@ class MyStage(TaskStage):
         return {"data": result, "metadata": task.metadata}
 ```
 
+## 使用示例
+
+以下示例展示 `TaskStage` 的完整用法，包括多种执行模式、状态管理和图连接。
+
+### 基本用法（serial 模式）
+
+```python
+from celestialflow import TaskGraph, TaskStage
+
+# 创建两个阶段，使用 serial 执行模式
+def step1(x: int) -> int:
+    return x + 5
+
+def step2(x: int) -> int:
+    return x * 3
+
+stage1 = TaskStage(
+    name="Step1",
+    func=step1,
+    execution_mode="serial",  # 单线程顺序执行
+    stage_mode="serial",      # 在主进程中运行
+)
+stage2 = TaskStage(
+    name="Step2",
+    func=step2,
+    execution_mode="serial",
+    stage_mode="serial",
+)
+
+# 构建并执行图
+chain = TaskGraph()
+chain.set_stages([stage1, stage2])
+chain.connect([stage1], [stage2])
+chain.start_graph({stage1.get_name(): [1, 2, 3, 4, 5]})
+
+print(f"链摘要: {chain.get_graph_summary()}")
+```
+
+### 使用 thread 执行模式（I/O 密集型）
+
+```python
+import time
+from celestialflow import TaskGraph, TaskStage
+
+def io_task(x: int) -> int:
+    time.sleep(0.05)  # 模拟网络 I/O
+    return x * 10
+
+stage_a = TaskStage(
+    name="IOWorker",
+    func=io_task,
+    execution_mode="thread",  # 线程池并发
+    max_workers=4,            # 4 个并发线程
+    stage_mode="thread",      # 独立线程中运行
+)
+
+# 独立执行（脱离图结构）
+stage_a.start_stage(
+    input_queue=stage_a.task_queue,
+    output_queue=stage_a.result_queue,
+    fail_queue=stage_a.fail_queue,
+    log_queue=stage_a.log_queue,
+)
+```
+
+### 异步模式（async）
+
+```python
+import asyncio
+from celestialflow import TaskStage
+
+async def async_process(x: int) -> int:
+    await asyncio.sleep(0.01)  # 模拟异步 I/O
+    return x ** 2
+
+async_stage = TaskStage(
+    name="AsyncProcessor",
+    func=async_process,
+    execution_mode="async",
+    max_workers=4,
+)
+print(f"异步阶段摘要: {async_stage.get_summary()}")
+```
+
+### 状态管理
+
+```python
+from celestialflow import TaskStage
+from celestialflow.runtime.util_types import StageStatus
+
+stage = TaskStage("StatusDemo", func=lambda x: x)
+
+print(f"初始状态: {stage.get_status().name}")  # NOT_STARTED
+
+stage.mark_running()
+print(f"运行中: {stage.get_status().name}")   # RUNNING
+
+stage.mark_stopped()
+print(f"已停止: {stage.get_status().name}")   # STOPPED
+```
+
+### 自定义子类
+
+```python
+from celestialflow import TaskStage
+
+class MyCustomStage(TaskStage):
+    def get_args(self, task):
+        """自定义参数提取"""
+        return (task["data"],)
+
+    def process_result(self, task, result):
+        """自定义结果处理"""
+        return {"original": task, "computed": result}
+
+# 使用自定义阶段
+stage = MyCustomStage("Custom", func=lambda x: x * 10)
+print(f"摘要: {stage.get_summary()}")
+```
+
 ## 注意事项
 
 1. **名称唯一性**: 在同一个 `TaskGraph` 中，每个 `TaskStage` 的 `name` 必须唯一，否则会抛出 `DuplicateNodeError`。

@@ -48,17 +48,52 @@ assert envelope.get_hash() == h      # 后续调用直接返回缓存值
 
 ## 使用示例
 
+以下示例展示 `TaskEnvelope` 的创建、数据访问、惰性哈希计算和 ID 变更等核心操作。
+
 ```python
 from celestialflow.runtime import TaskEnvelope
 
-# 创建信封
-envelope = TaskEnvelope(task_data, id=123, source="input")
+# 1. 创建任务信封
+envelope = TaskEnvelope(
+    task={"user": "alice", "score": 95},
+    id=1,
+    source="input",
+)
 
-# 获取数据
+# 2. 获取原始任务数据
 task = envelope.get_task()
-task_hash = envelope.get_hash()
-task_id = envelope.get_id()
+print(f"任务数据: {task}")  # {"user": "alice", "score": 95}
 
-# 修改 ID（重试时）
-envelope.change_id(456)
+# 3. 查看初始状态（hash 尚未计算 — 惰性求值）
+print(f"初始 hash: {envelope.hash}")  # None
+
+# 4. 获取任务 ID
+print(f"任务 ID: {envelope.get_id()}")  # 1
+
+# 5. 首次调用 get_hash() 时计算并缓存 SHA1
+h = envelope.get_hash()
+print(f"SHA1 哈希: {h.hex()[:16]}...")
+print(f"调用后 hash 已缓存: {envelope.hash is not None}")  # True
+print(f"重复调用返回缓存值: {envelope.get_hash() == h}")    # True
+
+# 6. 重试场景：变更任务 ID
+envelope.change_id(100)
+print(f"重试后新 ID: {envelope.get_id()}")  # 100
+print(f"重试不影响数据: {envelope.get_task()}")  # 数据不变
+```
+
+### 多种数据类型
+
+```python
+from celestialflow.runtime import TaskEnvelope
+
+# 不同类型的任务数据
+env_str = TaskEnvelope(task="hello world", id=2, source="producer")
+env_list = TaskEnvelope(task=[1, 2, 3], id=3, source="producer")
+env_dict = TaskEnvelope(task={"key": "value"}, id=4, source="producer")
+env_none = TaskEnvelope(task=None, id=5, source="producer")
+
+# prev 参数：记录前驱任务（用于结果缓存回溯）
+env_with_prev = TaskEnvelope(task="data", id=6, source="producer", prev=env_str)
+print(f"前驱任务数据: {env_with_prev.prev.get_task()}")
 ```

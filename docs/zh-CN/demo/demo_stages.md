@@ -98,9 +98,61 @@ flowchart LR
 ## 运行方式
 
 ```bash
-# 单独运行某个演示
+# 运行默认演示（demo_splitter_0）
 python demo/demo_stages.py
+
+# 修改 main() 后可运行其他场景
+# 如将 demo_splitter_0() 替换为 demo_router_0()
 ```
+
+## 预期行为
+
+### `demo_splitter_0`（爬虫工作流）
+
+生成 URL 后经 Splitter 拆分，Downloader 和 Parser 并行处理，Parser 结果回环到 Generator：
+
+```
+[GenURLs] Generated 3 URLs
+[Splitter] Splitting 3 URLs...
+[Downloader] Downloading url_0...
+[Parser] Parsing url_0...
+[Logger] Logging: url_0
+[Downloader] Downloading url_1...
+...
+```
+
+> 含随机 sleep（4-6 秒），总执行时间可能超过 1 分钟。
+
+### `demo_router_0`（奇偶路由）
+
+Origin 根据输入奇偶性生成 `(target, n)`，Router 分发到 StageA（偶数）或 StageB（奇数）：
+
+```
+[Origin] Input: 0 -> RouterWrapper(0) -> ('stage_a', 0)
+[Origin] Input: 1 -> RouterWrapper(1) -> ('stage_b', 1)
+[Router] Routing 0 to stage_a
+[Router] Routing 1 to stage_b
+[StageA] Received: 0
+[StageB] Received: 1
+...
+```
+
+### `demo_redis_ack_0/1/2`（Redis 分布式计算）
+
+Python 本地计算与 Go Worker 外部计算并行执行，结果分别写入 Redis Ack：
+
+```
+[Fibonacci] Computing fibonacci for n=10...
+[RedisTransport] Writing 10 to Redis key 'input:0'
+[RedisAck] Acknowledging fibonacci result: 55
+...
+```
+
+> 需要提前启动 Redis 和 Go Worker（参见[前期设置]）。不会自动停止，需手动 Ctrl+C 终止。
+
+### `demo_splitter_1`（大数据拆分）
+
+将 `range(100000)` 包装成列表传入 Splitter，逐个输出给下游处理，无额外输出日志。
 
 ## 依赖
 

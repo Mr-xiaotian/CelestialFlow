@@ -52,6 +52,45 @@
 python bench/bench_http_grpc.py
 ```
 
+## 参数调整
+
+### 只测试特定传输模式
+
+在 `main()` 中可注释掉不需要的模式：
+
+```python
+def main():
+    bench_no_ctree()       # 仅测试基线
+    # bench_http_ctree()   # 跳过 HTTP
+    # bench_grpc_ctree()   # 跳过 gRPC
+```
+
+### 调整任务规模
+
+由 `TaskSplitter` 展开 `range(1e4)`，可修改为更大或更小：
+
+```python
+# 快速验证（少量任务）
+range(100)
+
+# 高负载测试
+range(100_000)
+```
+
+### 调整并发 Worker 数
+
+```python
+# 在函数内部修改
+max_workers=20   # 减少并发
+# max_workers=100  # 增加并发
+```
+
+修改后运行：
+
+```bash
+python bench/bench_http_grpc.py
+```
+
 ## 依赖
 
 - `celestialflow`（`TaskChain`、`TaskSplitter`、`TaskStage`）

@@ -25,6 +25,30 @@
 - **类型安全**: 验证从队列中获取的对象符合预期的 `TaskEnvelope` 或 `TerminationIdPool` 类型。
 - **扇出逻辑**: 确保 `TaskOutQueue` 能高效处理一对多的数据分发。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/runtime/test_queue.py -v
+
+# 仅运行输入队列测试
+pytest tests/runtime/test_queue.py -k "input" -v
+pytest tests/runtime/test_queue.py -k "InQueue" -v
+
+# 仅运行输出队列测试
+pytest tests/runtime/test_queue.py -k "output" -v
+pytest tests/runtime/test_queue.py -k "OutQueue" -v
+
+# 仅运行信号合并测试
+pytest tests/runtime/test_queue.py -k "termination" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestTaskQueue` | ~0.2s（队列操作均在内存中完成） |
+
 ## 重要细节
 - 使用 `TerminationIdPool` 汇总所有来源的终止 ID，方便后续溯源。
 - `test_duplicate_queue_name_raises` 验证了图结构定义的严谨性。

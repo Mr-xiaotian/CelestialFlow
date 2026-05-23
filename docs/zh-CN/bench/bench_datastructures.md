@@ -41,6 +41,47 @@
 python bench/bench_datastructures.py
 ```
 
+## 参数调整
+
+### 修改测试规模
+
+在 `bench/bench_datastructures.py` 中修改 `N = 10000` 的值即可调整测试规模：
+
+```python
+# 小规模快速验证
+N = 1000
+
+# 大规模压测
+N = 100_000
+```
+
+### 单独运行特定测试
+
+脚本默认运行全部测试。如需单独验证某个数据结构，可在 `main()` 中注释其他调用：
+
+```python
+if __name__ == "__main__":
+    print(f"\nRunning benchmarks with N={N}\n")
+
+    test_builtin_dict()          # 仅测试内置 dict
+    # test_queue_thread()
+    # test_mpqueue()
+    # test_manager_dict()
+    # ...
+    # test_redis_plain(r)
+    # test_redis_pipeline(r)
+```
+
+### 调整 Redis 线程数
+
+`test_redis_multithread_plain` 支持自定义并发线程数：
+
+```python
+# 在函数调用时传入 num_threads 参数
+test_redis_multithread_plain(r, num_threads=5)   # 5 线程
+# test_redis_multithread_plain(r, num_threads=20)  # 20 线程
+```
+
 ## 基准结果（实测）
 
 > 环境：Windows，Python 3.10，本地 Redis，N=10,000

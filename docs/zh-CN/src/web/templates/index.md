@@ -89,3 +89,78 @@ css/dashboard_history.css    ← 历史图专属样式
 css/errors.css              ← 错误日志页样式
 css/injection.css           ← 任务注入页样式
 ```
+
+## 使用示例
+
+### 通过浏览器访问
+
+启动 Web 服务器后，在浏览器地址栏访问：
+
+```
+http://127.0.0.1:5000
+```
+
+启动命令：
+
+```bash
+# 命令行启动（默认 0.0.0.0:5000）
+celestialflow-web
+
+# 或在 Python 中启动
+python -c "from celestialflow import TaskWebServer; TaskWebServer(host='127.0.0.1', port=5000).start_server()"
+```
+
+浏览器打开后可见三个标签页：
+- **仪表盘 (Dashboard)**: 实时显示任务图的结构图、节点运行状态、指标走向和总体摘要
+- **错误日志 (Errors)**: 分页查看和搜索错误记录
+- **任务注入 (Task Injection)**: 向指定节点注入新任务
+
+### 修改模板示例
+
+`index.html` 使用 Jinja2 模板引擎，可以通过自定义模板变量或直接修改 HTML 来自定义界面。
+
+#### 修改页面标题
+
+编辑 `index.html` 找到 `<title>` 标签：
+
+```html
+<!-- 原内容 -->
+<title>任务图监控系统</title>
+
+<!-- 修改为自定义标题 -->
+<title>我的任务监控</title>
+```
+
+#### 调整仪表盘布局
+
+模板中硬编码了三栏结构（left-panel / middle-panel / right-panel），可以通过修改对应的卡片容器排序：
+
+```html
+<!-- 将结构图和分析信息互换位置 -->
+<div class="left-panel">
+  <div class="analysis-card"><!-- 分析面板 --></div>
+  <div class="mermaid-card"><!-- 结构图 --></div>
+</div>
+```
+
+#### 通过配置动态控制
+
+运行时的卡片布局实际由 `WebConfig.dashboard` 控制，在 `web_config.ts` 中修改默认值或通过后端 `config.json` 调整：
+
+```json
+{
+    "dashboard": {
+        "left": ["status"],
+        "middle": ["mermaid"],
+        "right": ["summary", "progress"]
+    }
+}
+```
+
+#### 添加自定义 CSS
+
+将自定义样式文件放入 `web/static/css/` 目录，并在 `index.html` 中引入：
+
+```html
+<link rel="stylesheet" href="static/css/custom.css">
+```

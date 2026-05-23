@@ -69,3 +69,66 @@ requests.post("http://localhost:5000/api/push_injection_tasks", json={
     "timestamp": "2026-05-23T10:00:00"
 })
 ```
+
+## 使用示例
+
+### 创建和启动 TaskWebServer 的基本示例
+
+```python
+from celestialflow import TaskWebServer
+
+# 创建服务器实例
+server = TaskWebServer(
+    host="127.0.0.1",   # 监听地址
+    port=5000,            # 监听端口
+    log_level="info",    # 日志级别
+)
+
+# 启动服务器（阻塞调用，会一直运行）
+server.start_server()
+```
+
+启动后浏览器访问 `http://127.0.0.1:5000` 即可看到 Web UI 监控面板。
+
+### 完整的数据上报链路示例
+
+```python
+from celestialflow import TaskGraph, TaskStage, TaskWebServer
+from celestialflow.persistence import LogInlet
+from celestialflow.observability import TaskReporter
+import asyncio
+
+
+async def main():
+    # 1. 先启动 Web 服务器（在后台线程中运行）
+    server = TaskWebServer(host="127.0.0.1", port=5000, log_level="info")
+    # 实际生产环境中 server.start_server() 会阻塞，
+    # 此处示意 reporter 与 server 配合的流程
+
+    # 2. 创建任务图
+    def process(x: int) -> int:
+        return x * 2
+
+    graph = TaskGraph(schedule_mode="eager")
+    stage = TaskStage("Processor", process, execution_mode="thread")
+    graph.set_stages([stage])
+
+    # 3. 创建并启动 TaskReporter
+    log_inlet = LogInlet()
+    reporter = TaskReporter(
+        host="127.0.0.1",
+        port=5000,
+        task_graph=graph,
+        log_inlet=log_inlet,
+    )
+    reporter.start()
+
+    # 4. 执行任务
+    await graph.start_graph({stage.get_tag(): range(50)})
+
+    # 5. 停止上报器
+    reporter.stop()
+
+
+asyncio.run(main())
+```

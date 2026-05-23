@@ -116,3 +116,88 @@ flowchart LR
     H --> I["带颜色 span 的 HTML"]
     I --> J[→ renderDashboard]
 ```
+
+## 使用示例
+
+### 节点状态数据结构的构造示例
+
+以下示例展示如何在 TypeScript 中构造和操作 `NodeStatus` 数据：
+
+```typescript
+// 手动构造一个完整的 NodeStatus 对象
+const nodeStatus: NodeStatus = {
+    status: 1,                    // 0=未运行, 1=运行中, 2=已停止
+    tasks_processed: 250,         // 已处理总数
+    tasks_pending: 30,            // 等待队列
+    tasks_succeeded: 240,         // 成功
+    tasks_failed: 5,              // 失败
+    tasks_duplicated: 5,          // 重复
+    stage_mode: "thread",         // 节点模式
+    execution_mode: "thread",     // 执行模式
+    start_time: 1745400000,       // 启动时间戳（秒）
+    elapsed_time: 3600,           // 已运行秒数
+    remaining_time: 600,          // 预计剩余秒数
+    task_avg_time: "1.44s/it",    // 平均耗时
+};
+
+// 构造多个节点的状态快照
+const statusSnapshot: Record<string, NodeStatus> = {
+    "DataLoader": {
+        status: 1,
+        tasks_processed: 5000,
+        tasks_succeeded: 4980,
+        tasks_failed: 10,
+        tasks_duplicated: 10,
+        tasks_pending: 0,
+        stage_mode: "serial",
+        execution_mode: "serial",
+        start_time: 1745396400,
+        elapsed_time: 7200,
+        remaining_time: 0,
+        task_avg_time: "0.02s/it",
+    },
+    "Analyzer": {
+        status: 1,
+        tasks_processed: 3000,
+        tasks_succeeded: 2900,
+        tasks_failed: 50,
+        tasks_duplicated: 50,
+        tasks_pending: 200,
+        stage_mode: "thread",
+        execution_mode: "thread",
+        start_time: 1745397000,
+        elapsed_time: 6600,
+        remaining_time: 440,
+        task_avg_time: "2.20s/it",
+    },
+};
+
+// 模拟 loadStatuses 的返回值结构
+const statusResponse = {
+    timestamp: Date.now() / 1000,
+    status: statusSnapshot,
+};
+
+// 计算运行时间彩色分段（用于 elapsed_time 的彩色渲染）
+// 输入：秒数、成功数、失败数、重复数
+// 输出：带颜色 span 的 HTML 字符串
+const coloredDuration = formatElapsedDuration(
+    nodeStatus.elapsed_time,
+    nodeStatus.tasks_succeeded,
+    nodeStatus.tasks_failed,
+    nodeStatus.tasks_duplicated
+);
+// 返回类似：'<span class="elapsed-success">0</span><span class="elapsed-success">1</span>:...'
+
+// 状态判断辅助函数
+function isNodeRunning(status: number): boolean {
+    return status === 1;
+}
+
+function isNodeStopped(status: number): boolean {
+    return status === 2;
+}
+
+console.log(`DataLoader 运行中: ${isNodeRunning(statusSnapshot.DataLoader.status)}`);   // true
+console.log(`Analyzer 已停止: ${isNodeStopped(statusSnapshot.Analyzer.status)}`);       // false
+```

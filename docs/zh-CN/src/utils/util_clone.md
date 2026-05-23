@@ -99,6 +99,29 @@ executor.start(range(100))
 cloned.start(range(100))
 ```
 
+### 克隆节点（TaskStage）
+
+```python
+from celestialflow import TaskStage
+from celestialflow.utils.util_clone import clone_stage
+
+# 创建原始节点
+stage = TaskStage(
+    "Processor",
+    process_func,
+    stage_mode="thread",
+    execution_mode="thread",
+    max_workers=4,
+)
+
+# 克隆节点
+cloned_stage = clone_stage(stage)
+
+# 原始节点和克隆节点独立运行，互不影响
+stage.start(range(10))
+cloned_stage.start(range(10, 20))
+```
+
 ### 克隆任务图
 
 ```python
@@ -114,6 +137,60 @@ cloned_graph = clone_graph(graph)
 
 # 运行克隆的图
 cloned_graph.start_graph(init_tasks)
+```
+
+## 综合示例
+
+以下示例展示 `clone_executor`、`clone_stage` 和 `clone_graph` 配合使用的完整场景：
+
+```python
+import asyncio
+from celestialflow import TaskExecutor, TaskStage, TaskGraph
+from celestialflow.utils.util_clone import clone_executor, clone_stage, clone_graph
+
+
+def square(x: int) -> int:
+    return x * x
+
+
+def add_one(x: int) -> int:
+    return x + 1
+
+
+async def main():
+    # 1. clone_executor ----
+    executor = TaskExecutor(
+        "Square", square, execution_mode="thread", max_workers=4
+    )
+    cloned_exe = clone_executor(executor)
+    print(f"clone_executor: 模式={cloned_exe.execution_mode}")
+
+    # 2. clone_stage ----
+    stage = TaskStage(
+        "AddOne", add_one, stage_mode="serial", execution_mode="serial"
+    )
+    cloned_stg = clone_stage(stage)
+    print(f"clone_stage: 名称={cloned_stg.get_name()}, mode={cloned_stg.get_stage_mode()}")
+
+    # 3. clone_graph ----
+    graph = TaskGraph(schedule_mode="eager")
+    a = TaskStage("A", square, execution_mode="thread")
+    b = TaskStage("B", add_one, execution_mode="thread")
+    graph.set_stages([a, b])
+    graph.connect([a], [b])
+
+    cloned_grp = clone_graph(graph)
+    print(f"clone_graph: 调度模式={cloned_grp.schedule_mode}")
+    print(f"连接关系一致: {graph.out_edges == cloned_grp.out_edges}")
+
+    # 分别运行原始图和克隆图，状态完全独立
+    await graph.start_graph({a.get_tag(): [1, 2, 3]})
+    await cloned_grp.start_graph(
+        {list(cloned_grp.stage_runtime_dict.keys())[0]: [10, 20]}
+    )
+
+
+asyncio.run(main())
 ```
 
 ### 在基准测试中使用

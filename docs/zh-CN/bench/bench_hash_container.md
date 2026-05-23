@@ -61,6 +61,47 @@
 python bench/bench_hash_container.py
 ```
 
+## 参数调整
+
+### 修改测试规模
+
+在 `bench/bench_hash_container.py` 的顶部修改 `N` 值：
+
+```python
+N = 10_000          # 小规模快速验证
+# N = 1_000_000     # 大规模测试，观察内存线性增长
+```
+
+### 只测试特定容器
+
+在 `main()` 中可选择性运行某些容器：
+
+```python
+def main():
+    containers = [
+        ("set[bytes]", benchmark_set_bytes),
+        ("dict[B,None]", benchmark_dict_none),
+        # ("dict[B,float]", benchmark_dict_float),      # 跳过时间戳场景
+        # ("OrderedDict", benchmark_ordered_dict),
+        ("LRU(unlimited)", benchmark_lru_unlimited),
+        ("LRU(50k)", benchmark_lru_50k),
+    ]
+```
+
+### 调整 LRU 容量
+
+```python
+# 修改 LRU(50k) 的容量上限
+lru_50k_size = 10_000   # 限制在 1 万条
+# lru_50k_size = 200_000  # 扩大到 20 万条
+```
+
+修改后运行：
+
+```bash
+python bench/bench_hash_container.py
+```
+
 ## 依赖
 
 - 仅标准库（`random`、`tracemalloc`、`collections`、`time`）

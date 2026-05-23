@@ -86,6 +86,112 @@ Stage 模块包含三个层次的任务执行单元：
 - 支持插件式架构
 - 配置驱动，无需修改代码即可调整行为
 
+## 使用示例
+
+以下示例展示 stage 模块各核心类的典型用法。
+
+### TaskExecutor 独立使用
+
+```python
+from celestialflow import TaskExecutor
+
+# 定义处理函数
+def process_item(x: int) -> dict:
+    return {"input": x, "output": x * 10}
+
+# 创建并执行
+executor = TaskExecutor(
+    name="Calculator",
+    func=process_item,
+    execution_mode="serial",
+)
+executor.start([1, 2, 3])
+
+# 获取结果
+success = executor.get_success_pairs()
+for task, result in success:
+    print(f"{task} -> {result}")
+
+# 统计
+print(f"成功: {executor.get_counts()['tasks_succeeded']}")
+```
+
+### TaskStage 作为图节点
+
+```python
+from celestialflow import TaskGraph, TaskStage
+
+# 创建阶段节点
+stage_a = TaskStage("StageA", func=lambda x: x + 1, stage_mode="thread")
+stage_b = TaskStage("StageB", func=lambda x: x * 2, stage_mode="serial")
+
+# 构建图
+graph = TaskGraph()
+graph.set_stages([stage_a, stage_b])
+graph.connect([stage_a], [stage_b])
+
+# 执行
+graph.start_graph({stage_a.get_name(): [5, 10, 15]})
+
+# 阶段快照
+for name, runtime in graph.stage_runtime_dict.items():
+    summary = runtime.stage.get_summary()
+    print(f"{name}: {summary}")
+
+# 图摘要
+print(graph.get_graph_summary())
+```
+
+### TaskSplitter 使用示例
+
+```python
+from celestialflow import TaskGraph, TaskStage, TaskSplitter
+
+# 自定义分裂器：将字符串按逗号分裂
+class CommaSplitter(TaskSplitter):
+    def _split(self, *task):
+        return tuple(task[0].split(","))
+
+# 构建图
+raw = TaskStage("Source", func=lambda x: x, stage_mode="serial")
+splitter = CommaSplitter("Splitter")
+processor = TaskStage("Process", func=lambda x: x.strip().upper(), stage_mode="thread")
+
+graph = TaskGraph()
+graph.set_stages([raw, splitter, processor])
+graph.connect([raw], [splitter])
+graph.connect([splitter], [processor])
+
+graph.start_graph({raw.get_name(): ["a,b,c", "x,y,z"]})
+print(graph.get_graph_summary())
+```
+
+### TaskRouter 使用示例
+
+```python
+from celestialflow import TaskGraph, TaskStage, TaskRouter
+
+# 定义一个生成路由信息的处理函数
+def classify(x: int) -> tuple:
+    if x > 0:
+        return ("positive", x)
+    else:
+        return ("negative", x)
+
+source = TaskStage("Source", func=classify, stage_mode="serial")
+router = TaskRouter("Router")
+pos = TaskStage("Positive", func=lambda x: f"POS: {x}", stage_mode="serial")
+neg = TaskStage("Negative", func=lambda x: f"NEG: {x}", stage_mode="serial")
+
+graph = TaskGraph()
+graph.set_stages([source, router, pos, neg])
+graph.connect([source], [router])
+graph.connect([router], [pos, neg])  # 路由到两个下游
+
+graph.start_graph({source.get_name(): [5, -3, 10, -8]})
+print(graph.get_graph_summary())
+```
+
 ## 最佳实践
 
 1. **简单任务**: 直接使用 `TaskExecutor` 或继承实现

@@ -26,6 +26,30 @@
 - **层级一致性**: 复杂拓扑（如带尾巴的环）下层级计算的鲁棒性。
 - **SCC 处理**: 确保循环引用不会导致死循环或错误的层级分布。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/graph/test_analysis.py -v
+
+# 仅运行图构建测试
+pytest tests/graph/test_analysis.py::TestBuildNetworkxGraph -v
+
+# 仅运行层级计算测试
+pytest tests/graph/test_analysis.py -k "levels" -v
+
+# 仅运行源节点查找测试
+pytest tests/graph/test_analysis.py -k "source" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestBuildNetworkxGraph` | < 0.1s（纯内存计算） |
+| `TestComputeNodeLevels` | < 0.1s |
+| `TestFindSourceNodes` | < 0.1s |
+
 ## 重要细节
 - 使用轻量级 Mock 对象模拟 `Stage` 和 `Runtime` 环境。
 - 测试用例均为纯内存计算，执行速度极快。

@@ -23,5 +23,25 @@
 - 使用 `MockSpout` 和 `MockInlet` 子类化基类以测试具体行为。
 - `test_spout_termination_signal` 中通过 `join(timeout=2)` 确保线程回收，避免测试挂起。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/funnel/test_funnel.py -v
+
+# 仅运行生命周期测试
+pytest tests/funnel/test_funnel.py::TestFunnelCore::test_base_spout_lifecycle -v
+
+# 仅运行终止信号测试
+pytest tests/funnel/test_funnel.py -k "termination" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestFunnelCore` | ~1s（含线程同步等待） |
+
 ## 注意事项
 - 测试涉及多线程同步，使用了 `time.sleep(0.1)` 等待异步处理完成。
+- 若线程回收超时，`join(timeout=2)` 会强制退出，此时测试可能失败。

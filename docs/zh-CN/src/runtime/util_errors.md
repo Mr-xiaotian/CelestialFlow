@@ -281,6 +281,138 @@ except DuplicateNodeError as e:
     print(f"重复节点: {e}")
 ```
 
+## 使用示例
+
+以下示例展示 CelestialFlow 各类异常的 raise 和 catch 典型用法。
+
+### 配置异常
+
+```python
+from celestialflow.runtime.util_errors import (
+    ExecutionModeError,
+    StageModeError,
+    LogLevelError,
+    ScheduleModeError,
+    InvalidOptionError,
+)
+
+# 捕获 ExecutionModeError
+try:
+    stage.set_execution_mode("invalid")
+except ExecutionModeError as e:
+    print(f"字段: {e.field}")          # execution_mode
+    print(f"传入值: {e.value}")        # invalid
+    print(f"合法值: {e.allowed}")      # ('serial', 'thread', 'async')
+
+# 捕获 StageModeError
+try:
+    stage.set_stage_mode("invalid")
+except StageModeError as e:
+    print(f"配置错误: {e}")
+
+# 直接使用 InvalidOptionError
+try:
+    raise InvalidOptionError(
+        field="strategy",
+        value="aggressive",
+        allowed=("conservative", "balanced"),
+    )
+except InvalidOptionError as e:
+    print(f"错误: {e}")
+```
+
+### 图结构异常
+
+```python
+from celestialflow import TaskGraph, TaskStage
+from celestialflow.runtime.util_errors import DuplicateNodeError, UnknownNodeError
+
+graph = TaskGraph()
+
+stage_a = TaskStage("A", func=lambda x: x)
+stage_b = TaskStage("A", func=lambda x: x * 2)  # 同名节点
+
+try:
+    graph.set_stages([stage_a, stage_b])
+except DuplicateNodeError as e:
+    print(f"重复节点: {e}")
+
+try:
+    from celestialflow.runtime.util_types import TerminationSignal
+    in_queue = list(graph.stage_runtime_dict.values())[0].in_queue
+    in_queue._record_termination(TerminationSignal(source="unknown_source"))
+except UnknownNodeError as e:
+    print(f"未知来源: {e}")
+```
+
+### 运行时和超时异常
+
+```python
+from celestialflow.runtime.util_errors import (
+    RuntimeStateError,
+    CelestialFlowTimeoutError,
+    UnconsumedError,
+    TaskFormatError,
+    TerminationMergeError,
+)
+
+# 超时错误（继承内置 TimeoutError）
+try:
+    raise CelestialFlowTimeoutError("Task execution timed out after 30s")
+except CelestialFlowTimeoutError as e:
+    print(f"超时: {e}")
+
+# 任务格式错误
+try:
+    raise TaskFormatError("Expected (target, data) tuple, got str")
+except TaskFormatError as e:
+    print(f"格式错误: {e}")
+
+# 终止信号合并错误
+try:
+    raise TerminationMergeError("Missing termination from source: B")
+except TerminationMergeError as e:
+    print(f"合并错误: {e}")
+```
+
+### 外部服务异常
+
+```python
+from celestialflow.runtime.util_errors import (
+    RemoteWorkerError,
+    CelestialTreeConnectionError,
+)
+
+try:
+    raise RemoteWorkerError("Go worker returned status code 500")
+except RemoteWorkerError as e:
+    print(f"远端 Worker 错误: {e}")
+
+try:
+    raise CelestialTreeConnectionError("Cannot connect to 127.0.0.1:7777")
+except CelestialTreeConnectionError as e:
+    print(f"连接失败: {e}")
+```
+
+### 结合 TaskExecutor 使用
+
+```python
+from celestialflow import TaskExecutor
+from celestialflow.runtime.util_errors import CelestialFlowError
+
+# 在实际执行器中，异常被统一捕获并记录
+executor = TaskExecutor(
+    "SafeWorker",
+    func=lambda x: 10 // x,
+    execution_mode="serial",
+    max_retries=0,
+)
+executor.start([1, 0, 2])  # 中间任务会触发 ZeroDivisionError
+
+counts = executor.get_counts()
+print(f"成功: {counts['tasks_succeeded']}, 失败: {counts['tasks_failed']}")
+```
+
 ## 异常持久化
 
 `TaskGraph` 会在 `_finalize_nodes()` 中将未处理错误持久化到本地 JSONL 文件（通过 `FailSpout`）。每个错误记录包含错误类型、消息、所在 Stage、事件 ID 和时间戳，由 `PersistedErrorRecord` 表示。

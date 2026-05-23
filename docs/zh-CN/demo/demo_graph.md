@@ -73,6 +73,47 @@ AsyncDouble ──> AsyncToStr
 python demo/demo_graph.py
 ```
 
+## 预期行为
+
+### ETL 管道（`demo_etl_fan_out_fan_in`）
+
+依次执行 Extract → Normalize/Enrich → Load，输出包含 sleep 日志和最终摘要：
+
+```
+[Extract] Input: 0 -> Output: {'id': 0, 'value': 101}
+[Extract] Input: 1 -> Output: {'id': 1, 'value': 102}
+[Normalize] Input: {'id': 0, 'value': 101} -> Output: {'id': 0, 'value': 0.01}
+[Enrich] Input: {'id': 0, 'value': 101} -> Output: {'id': 0, 'label': 'odd'}
+...
+--- Graph Summary ---
+Extract    : success=5  fail=0
+Normalize  : success=5  fail=0
+Enrich     : success=5  fail=0
+Load       : success=10 fail=0
+```
+
+> 每个 Extract 产生 1 条记录，经 Normalize 和 Enrich 分别处理后由 Load 聚合。当输入为 `range(5)` 时，Load 节点共接收 10 个任务（5 × 2 下游）。
+
+### 异步流水线（`demo_async_staged_pipeline`）
+
+分阶段逐层执行，先完成 AsyncDouble 再启动 AsyncToStr：
+
+```
+--- Staged 1: AsyncDouble ---
+[AsyncDouble] Input: 1 -> Output: 2
+[AsyncDouble] Input: 2 -> Output: 4
+...
+--- Staged 2: AsyncToStr ---
+[AsyncToStr] Input: 2 -> Output: 'Result: 2'
+[AsyncToStr] Input: 4 -> Output: 'Result: 4'
+...
+--- Status Snapshot ---
+AsyncDouble : success=5  fail=0  pending=0
+AsyncToStr  : success=5  fail=0  pending=0
+```
+
+> 总执行时间约 3-5 秒，主要受内置 `sleep` 影响。
+
 ## 依赖
 
 - `celestialflow`（`TaskGraph`、`TaskStage`）

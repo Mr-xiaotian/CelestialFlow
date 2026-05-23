@@ -25,6 +25,32 @@
 - **分页准确性**: 验证后端在处理大量错误记录时的偏移量计算。
 - **任务一致性**: 确保注入的任务在拉取消费后被正确清除，防止重复处理。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/web/test_server.py -v
+
+# 仅运行状态同步测试
+pytest tests/web/test_server.py -k "status" -v
+pytest tests/web/test_server.py -k "rev" -v
+
+# 仅运行任务注入测试
+pytest tests/web/test_server.py -k "inject" -v
+
+# 仅运行错误管理测试
+pytest tests/web/test_server.py -k "error" -v
+
+# 仅运行配置拉取测试
+pytest tests/web/test_server.py -k "config" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestTaskWebServer` | ~0.5s（模拟 HTTP 请求） |
+
 ## 重要细节
 - 使用 `FastAPI TestClient` 进行模拟请求。
 - 注入任务测试中使用了 `datetime.now().isoformat()` 模拟真实时间戳。

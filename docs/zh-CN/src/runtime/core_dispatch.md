@@ -155,6 +155,100 @@ flowchart TD
 
 ## 注意事项
 
+## 使用示例
+
+`TaskDispatch` 作为 `TaskExecutor` 的内部组件，通过 `TaskExecutor` 的 `start()` 方法间接使用。
+以下示例展示三种执行模式的区别：
+
+### Serial 模式（串行执行）
+
+```python
+from celestialflow import TaskExecutor
+
+# serial 模式：单线程顺序执行，适合调试
+executor = TaskExecutor(
+    "SerialWorker",
+    func=lambda x: x ** 2,
+    execution_mode="serial",
+)
+executor.start([1, 2, 3, 4, 5])
+
+success_pairs = executor.get_success_pairs()
+for task, result in success_pairs:
+    print(f"Task {task} -> {result}")
+
+print(f"成功: {executor.get_counts()['tasks_succeeded']}")
+```
+
+### Thread 模式（线程池并发）
+
+```python
+from celestialflow import TaskExecutor
+import time
+
+def io_task(x: int) -> int:
+    time.sleep(0.1)  # 模拟 I/O 操作
+    return x * 10
+
+# thread 模式：线程池并发，适合 I/O 密集型
+executor = TaskExecutor(
+    "ThreadWorker",
+    func=io_task,
+    execution_mode="thread",
+    max_workers=4,
+)
+executor.start([1, 2, 3, 4, 5])
+
+counts = executor.get_counts()
+print(f"成功: {counts['tasks_succeeded']}, 失败: {counts['tasks_failed']}")
+```
+
+### Async 模式（异步协程）
+
+```python
+import asyncio
+from celestialflow import TaskExecutor
+
+async def async_task(x: int) -> int:
+    await asyncio.sleep(0.05)  # 模拟异步 I/O
+    return x * 100
+
+# async 模式：异步协程，适合网络 I/O
+executor = TaskExecutor(
+    "AsyncWorker",
+    func=async_task,
+    execution_mode="async",
+    max_workers=4,
+)
+executor.start([1, 2, 3])
+
+counts = executor.get_counts()
+print(f"成功: {counts['tasks_succeeded']}")
+```
+
+### 重试配置
+
+```python
+from celestialflow import TaskExecutor
+
+# 配置重试策略，遇到 ConnectionError 或 TimeoutError 时自动重试
+unstable_func = lambda x: 100 // x if x != 0 else exec("raise ConnectionError('network error')")
+
+executor = TaskExecutor(
+    "RetryWorker",
+    func=unstable_func,
+    execution_mode="serial",
+    max_retries=3,  # 最多重试 3 次
+)
+executor.add_retry_exceptions(ConnectionError, TimeoutError)
+executor.start([1, 2, 0, 4])
+
+counts = executor.get_counts()
+print(f"成功: {counts['tasks_succeeded']}, 失败: {counts['tasks_failed']}")
+```
+
+## 注意事项
+
 1. **串行模式**: 同步阻塞，适合调试
 2. **线程模式**: 适合 I/O 密集型；`_release_pool` 确保资源释放
 3. **异步模式**: 函数须为协程；使用 `asyncio.to_thread` 避免阻塞

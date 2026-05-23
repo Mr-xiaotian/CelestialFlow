@@ -370,3 +370,82 @@ redis_source = TaskRedisSource(
 2. **超时处理**: `TaskRedisSource` 和 `TaskRedisAck` 支持超时配置，超时会抛出 `TimeoutError`。
 3. **错误传播**: 远端 Worker 返回的错误会通过 `RemoteWorkerError` 传播。
 4. **幂等性**: `TaskRedisAck` 获取结果后会删除 Redis 中的记录，保证一次性消费。
+
+## 使用示例
+
+以下示例展示 `TaskSplitter` 和 `TaskRouter` 的典型用法。
+
+### TaskSplitter：将一条记录分裂为多条
+
+```python
+from celestialflow import TaskGraph, TaskStage, TaskSplitter
+
+# 自定义分裂器：按行分裂文本
+class LineSplitter(TaskSplitter):
+    def _split(self, *task):
+        return tuple(task[0].split("\\n"))
+
+# 定义后续处理阶段
+source = TaskStage("Input", func=lambda x: x, stage_mode="serial")
+splitter = LineSplitter("SplitLines")
+processor = TaskStage("Process", func=lambda x: f">>> {x}", stage_mode="serial")
+
+graph = TaskGraph()
+graph.set_stages([source, splitter, processor])
+graph.connect([source], [splitter])
+graph.connect([splitter], [processor])
+
+# 输入一条包含三行的文本，分裂为三个独立任务
+text_data = "line1\\nline2\\nline3"
+graph.start_graph({source.get_name(): [text_data]})
+
+print(f"摘要: {graph.get_graph_summary()}")
+```
+
+### TaskRouter：按条件分发任务
+
+```python
+from celestialflow import TaskGraph, TaskStage, TaskRouter
+
+# 定义路由判断逻辑（生成 (target_tag, data) 格式的元组）
+def classify_number(x: int) -> tuple:
+    if x > 0:
+        return ("positive", x)
+    elif x < 0:
+        return ("negative", x)
+    else:
+        return ("zero", x)
+
+# 构建图节点
+source = TaskStage("Source", func=classify_number, stage_mode="serial")
+router = TaskRouter("Router")
+handler_pos = TaskStage("positive", func=lambda x: f"Positive: {x}", stage_mode="serial")
+handler_neg = TaskStage("negative", func=lambda x: f"Negative: {x}", stage_mode="serial")
+handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}", stage_mode="serial")
+
+graph = TaskGraph()
+graph.set_stages([source, router, handler_pos, handler_neg, handler_zero])
+graph.connect([source], [router])
+graph.connect([router], [handler_pos, handler_neg, handler_zero])
+
+graph.start_graph({source.get_name(): [10, -5, 0, 3, -1]})
+
+print(f"路由摘要: {graph.get_graph_summary()}")
+summary = graph.get_graph_summary()
+print(f"总错误: {summary.get('total_error', 0)}")
+```
+
+### 注意：Route target tag 必须与下游 Stage name 一致
+
+`TaskRouter` 路由时，`(target_tag, data)` 中的 `target_tag` 必须与下游 `TaskStage` 的 `name` 完全匹配：
+
+```python
+from celestialflow import TaskRouter, TaskStage
+
+# 正确：tag 与下游 name 一致
+router = TaskRouter("Router")
+task_data = ("my_stage", 42)  # tag = "my_stage"
+
+my_stage = TaskStage("my_stage", func=lambda x: x * 10)  # name = "my_stage"
+# ✅ 匹配成功
+```

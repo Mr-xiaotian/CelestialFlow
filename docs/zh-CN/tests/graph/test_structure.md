@@ -23,9 +23,29 @@
 - **层级一致性**: 验证在存在循环依赖时，逻辑层级的划分依然符合物理直觉。
 - **源节点特化**: 针对特定结构优化的源节点查找逻辑。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/graph/test_structure.py -v
+
+# 仅运行 TaskLoop 测试
+pytest tests/graph/test_structure.py::TestTaskLoop -v
+
+# 仅运行 TaskWheel 测试
+pytest tests/graph/test_structure.py::TestTaskWheel -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestTaskLoop` | ~1s（含图启动与终止） |
+| `TestTaskWheel` | ~1s |
+
 ## 重要细节
 - 使用 `start_loop` 和 `start_wheel` 等特化方法启动测试，并配合 `put_termination_signal=True`。
-- 测试重点在于“分析结果”（analysis dict）而非“执行结果”。
+- 测试重点在于"分析结果"（analysis dict）而非"执行结果"。
 
 ## 注意事项
 - 本测试侧重于 `TaskGraph` 子类的特化行为。

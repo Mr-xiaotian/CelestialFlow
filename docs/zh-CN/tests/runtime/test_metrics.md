@@ -23,6 +23,31 @@
 - **去重准确性**: 验证哈希集合能有效识别重复任务，防止冗余计算。
 - **重置功能**: 验证 `reset_counter()`（仅重置数值）与 `reset_state()`（重置数值及去重集合）的区别。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/runtime/test_metrics.py -v
+
+# 仅运行基础计数测试
+pytest tests/runtime/test_metrics.py -k "count" -v
+
+# 仅运行去重逻辑测试
+pytest tests/runtime/test_metrics.py -k "duplicate" -v
+
+# 仅运行重置功能测试
+pytest tests/runtime/test_metrics.py -k "reset" -v
+
+# 仅运行重试配置测试
+pytest tests/runtime/test_metrics.py -k "retry" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestTaskMetrics` | ~0.1s（纯逻辑运算） |
+
 ## 重要细节
 - 统计指标是 Dashboard 展示和图运行终止判定的数据来源。
 - 测试覆盖了 `execution_mode` 参数的传递（虽然目前主要影响内部锁的使用）。

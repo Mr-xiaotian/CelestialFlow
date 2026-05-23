@@ -41,6 +41,54 @@
 python bench/bench_graph_mode.py
 ```
 
+## 参数调整
+
+### 单独运行某个测试场景
+
+在 `bench/bench_graph_mode.py` 的 `main()` 中可选择只运行某个场景：
+
+```python
+if __name__ == "__main__":
+    bench_graph_0()     # 仅运行 4 节点 DAG 混合场景
+    # bench_graph_1()   # 注释掉其他场景
+    # bench_graph_2()
+```
+
+### 跳过特定模式组合
+
+`benchmark_graph` 默认遍历全部 6 种组合。如需跳过某些组合，可在 `main()` 中修改传入参数：
+
+```python
+# 只测试 thread stage_mode
+bench_graph_0(stage_modes=["thread"])
+
+# 只测试 serial execution_mode
+bench_graph_0(execution_modes=["serial"])
+```
+
+### 调整输入规模
+
+```python
+# bench_graph_2 默认输入 range(10_000)，可减小以快速验证
+# 在函数内部修改输入范围
+inputs = range(1_000)  # 改为 1000 个任务，快速验证
+```
+
+### 修改 Worker 数
+
+各场景的默认 worker 数在代码中可直接调整：
+
+```python
+# 在 bench_graph_0 内部
+max_workers = 4   # 减少并发 Worker
+```
+
+修改后运行：
+
+```bash
+python bench/bench_graph_mode.py
+```
+
 ## 基准结果（实测）
 
 > 环境：Windows，Python 3.10

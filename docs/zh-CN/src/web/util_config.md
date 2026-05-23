@@ -38,3 +38,75 @@ flowchart LR
 |------|---------|---------|
 | `load_config` | 不涉及（只读） | 文件不存在 → `ConfigurationError`；JSON 解析失败 → 向上传播 |
 | `save_config` | ❌ 无锁，由调用方保障 | 写入异常 → 打印错误并返回 `False` |
+
+## 使用示例
+
+### load_config / save_config 的完整用法示例
+
+```python
+from celestialflow.web.util_config import load_config, save_config
+
+# 假设 config.json 内容：
+# {
+#     "theme": "dark",
+#     "refreshInterval": 5000,
+#     "language": "zh-CN",
+#     "dashboard": {
+#         "left": ["mermaid"],
+#         "middle": ["status"],
+#         "right": ["progress"]
+#     }
+# }
+
+config_path = "/path/to/web/config.json"
+
+# --- 读取配置 ---
+try:
+    config = load_config(config_path)
+    print(f"加载成功，主题: {config.get('theme')}")
+    print(f"刷新间隔: {config.get('refreshInterval')}ms")
+    print(f"语言: {config.get('language')}")
+    print(f"左侧面板卡片: {config['dashboard']['left']}")
+except Exception as e:
+    print(f"配置加载失败: {e}")
+
+# --- 修改并保存配置 ---
+config["theme"] = "light"
+config["refreshInterval"] = 3000
+config["language"] = "en"
+
+success = save_config(config, config_path)
+if success:
+    print("配置保存成功")
+else:
+    print("配置保存失败")
+
+# --- 验证保存结果 ---
+reloaded = load_config(config_path)
+print(f"重载后主题: {reloaded['theme']}")  # light
+print(f"重载后语言: {reloaded['language']}")  # en
+```
+
+### 与 WebConfigModel 配合使用
+
+```python
+from celestialflow.web.util_config import load_config, save_config
+
+# config.json 的完整结构符合 WebConfigModel Pydantic 模型
+# 建议在保存前/读取后使用 Pydantic 模型进行验证
+
+try:
+    raw_config = load_config("/path/to/config.json")
+
+    # 使用 Pydantic 模型验证（假设在 core_server.py 中）
+    from celestialflow.web.core_server import WebConfigModel
+    validated = WebConfigModel(**raw_config)
+
+    print(f"验证通过: 主题={validated.theme}, 刷新={validated.refreshInterval}ms")
+
+    # 修改后保存
+    validated.theme = "dark"
+    save_config(validated.model_dump(), "/path/to/config.json")
+except Exception as e:
+    print(f"配置处理失败: {e}")
+```

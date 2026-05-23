@@ -256,6 +256,66 @@ flowchart TD
 python demo/demo_structure.py
 ```
 
+## 预期行为
+
+运行后依次执行各个结构演示，输出各 Stage 的输入输出日志和最终摘要。
+
+### DAG 结构
+
+```
+=== demo_chain (5-node linear chain) ===
+[StageA] Input: 2 -> Output: 4
+[StageB] Input: 4 -> Output: 16
+[StageC] Input: 16 -> Output: 256
+[StageD] Input: 256 -> Output: 65536
+[StageE] Input: 65536 -> Output: 4294967296
+```
+
+```
+=== demo_grid (4x4 grid, staged scheduling) ===
+[Grid00] -> [Grid01] [Grid10]
+[Grid01] -> [Grid02] [Grid11]
+...
+--- Summary ---
+Grid00: success=5  fail=0
+Grid33: success=5  fail=0
+```
+
+### 有环图
+
+```
+=== demo_loop (3-node closed loop) ===
+[StageA] Input: 1 -> Output: 2
+[StageB] Input: 2 -> Output: 3
+[StageC] Input: 3 -> Output: 4
+[StageA] Input: 4 -> Output: 5
+... (持续循环，不会自动停止)
+```
+
+```
+=== demo_complete (3-node complete graph) ===
+[Node1] Input: 5 -> Output: 10
+[Node2] Input: 10 -> Output: 20
+[Node3] Input: 20 -> Output: 400
+... (持续循环)
+```
+
+> **重要**：`demo_loop`、`demo_wheel`、`demo_complete` 等有环图使用 `put_termination_signal=False`，运行后不会自动停止，需按 **Ctrl+C** 手动终止进程。
+
+### Forest（森林）
+
+两棵独立 DAG 各自运行，互不干扰：
+
+```
+=== demo_forest (disjoint DAGs) ===
+[stageA] Input: 1 -> Result: 2
+[stageB] Input: 2 -> Result: 3
+[stageF] Input: 3 -> Result: 4
+[stageC] Input: ...
+```
+
+> 每个结构运行前会打印 `=== demo_xxx ===` 分隔线，`Summary` 部分展示各节点成功/失败计数。
+
 ## 依赖
 
 - `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskStage`）

@@ -57,6 +57,37 @@
 python bench/bench_queue.py
 ```
 
+## 参数调整
+
+### 修改测试规模
+
+脚本默认 `COUNT = 100_000`，可在 `if __name__ == "__main__"` 中修改：
+
+```python
+if __name__ == "__main__":
+    COUNT = 10_000       # 小规模快速验证（耗时数秒）
+    # COUNT = 1_000_000  # 大规模压测（注意 Manager().Queue 会极慢）
+```
+
+### 只测试特定队列类型
+
+```python
+if __name__ == "__main__":
+    COUNT = 10_000
+
+    # test_threadqueue_perf(COUNT)        # 注释掉线程队列
+    test_mpqueue_perf(COUNT)              # 仅测试 MPQueue
+    # test_manager_queue_perf(COUNT)      # 跳过 Manager 队列
+    # test_redis_list_perf(COUNT)         # 跳过 Redis
+    # test_redis_stream_perf(COUNT)
+```
+
+修改后运行：
+
+```bash
+python bench/bench_queue.py
+```
+
 ## 依赖
 
 - `redis`

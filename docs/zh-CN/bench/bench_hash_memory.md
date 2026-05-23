@@ -51,6 +51,40 @@
 python bench/bench_hash_memory.py
 ```
 
+## 参数调整
+
+### 修改测试规模
+
+在 `bench/bench_hash_memory.py` 的顶部修改 `N` 值：
+
+```python
+N = 10_000          # 小规模快速验证
+# N = 1_000_000     # 大规模测试（观察百万级内存差异）
+```
+
+### 只测试特定类型
+
+在 `main()` 中可选择只运行部分类型：
+
+```python
+def main():
+    # benchmark_str()    # 跳过 str 类型
+    benchmark_bytes()    # 仅测试 bytes
+    # benchmark_int()    # 跳过 int 类型
+```
+
+### 自定义随机种子
+
+```python
+random.seed(123)  # 修改种子以获得不同哈希值分布
+```
+
+修改后运行：
+
+```bash
+python bench/bench_hash_memory.py
+```
+
 ## 依赖
 
 - 仅标准库（`random`、`sys`、`tracemalloc`、`time`）

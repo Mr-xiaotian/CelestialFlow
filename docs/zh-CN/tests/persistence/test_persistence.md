@@ -26,6 +26,28 @@
 - **文件路径控制**: 使用 `monkeypatch` 控制当前工作目录，确保测试产物不污染主目录。
 - **数据完整性**: 验证从 `TaskEnvelope` 到最终持久化记录的字段转换准确性。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/persistence/test_persistence.py -v
+
+# 仅运行错误持久化测试
+pytest tests/persistence/test_persistence.py -k "fail" -v
+
+# 仅运行日志持久化测试
+pytest tests/persistence/test_persistence.py -k "log" -v
+
+# 仅运行成功任务记录测试
+pytest tests/persistence/test_persistence.py -k "success" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestPersistenceIntegration` | ~2s（含后台线程 I/O 等待） |
+
 ## 重要细节
 - 集成测试使用了 `time.sleep(0.2)` 等待后台线程完成 IO 操作。
 - `test_fail_persistence` 验证了 `error_source` 标记的正确传递。

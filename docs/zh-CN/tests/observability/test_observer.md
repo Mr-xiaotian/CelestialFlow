@@ -25,6 +25,28 @@
 - 使用 `RecordingObserver` 和 `CountObserver` 等 Mock 类来收集和验证事件。
 - `test_remove_observer` 确保解绑后的观测器不再产生副作用。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/observability/test_observer.py -v
+
+# 仅运行生命周期回调测试
+pytest tests/observability/test_observer.py -k "lifecycle" -v
+
+# 仅运行动态管理测试（添加/移除观测器）
+pytest tests/observability/test_observer.py -k "observer_remove" -v
+
+# 仅运行函数式观测测试
+pytest tests/observability/test_observer.py -k "callback" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestExecutorObserver` | ~2s（含任务执行） |
+
 ## 注意事项
 - 观测器模式是框架实现监控、日志和进度条的基础。
 - 测试代码位于 `tests/observability/test_observer.py`。

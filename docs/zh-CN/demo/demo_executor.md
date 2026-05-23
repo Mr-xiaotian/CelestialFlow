@@ -77,6 +77,39 @@ flowchart TB
 python demo/demo_executor.py
 ```
 
+## 预期行为
+
+运行后将依次执行三种模式，输出类似以下流程：
+
+```
+========================================
+[serial] Fibonacci benchmark (N=12 tasks, max_workers=6)
+========================================
+ 80%|████████████████░░░░| ...
+
+--- Summary ---
+  mode=serial  success=07  fail=05  dup=0  pending=0  elapsed=0.90s
+
+========================================
+[thread] Fibonacci benchmark (N=12 tasks, max_workers=6)
+========================================
+ 80%|████████████████░░░░| ...
+
+--- Summary ---
+  mode=thread  success=07  fail=05  dup=0  pending=0  elapsed=0.86s
+
+========================================
+[async] Fibonacci benchmark (N=12 tasks, max_workers=6)
+========================================
+ 80%|████████████████░░░░| ...
+
+--- Summary ---
+  mode=async  success=07  fail=05  dup=0  pending=0  elapsed=0.01s
+```
+
+> **说明**：12 个任务中，5 个异常输入（`0`、`27`、`None`、`0`、`""`）触发 `ValueError`，经重试后最终标记为失败；`success=07` 为正常执行的 7 个斐波那契任务。
+> async 模式因使用迭代版斐波那契（O(n)），耗时显著短于 serial/thread 的递归版（O(φⁿ)）。
+
 ## 依赖
 
 - `celestialflow`（`TaskExecutor`、`TaskProgress`）

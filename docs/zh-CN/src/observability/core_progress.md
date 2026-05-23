@@ -39,3 +39,81 @@ executor.start(tasks)
 ```
 
 不需要进度条时，不添加 observer 即可，无需 Null 实现。
+
+## 使用示例
+
+### TaskProgress 与 TaskExecutor 配合使用
+
+以下完整示例展示如何将 `TaskProgress` 添加到 `TaskExecutor`，在处理一批任务时显示实时进度条：
+
+```python
+import asyncio
+from celestialflow import TaskExecutor, TaskProgress
+
+
+async def slow_task(n: int) -> int:
+    """模拟一个耗时任务"""
+    import asyncio
+    await asyncio.sleep(0.05)
+    return n * n
+
+
+async def main():
+    # 1. 创建执行器，线程模式运行
+    executor = TaskExecutor(
+        "计算平方",
+        slow_task,
+        execution_mode="thread",
+        max_workers=10,
+    )
+
+    # 2. 添加进度条观察者
+    #    会在终端自动显示 tqdm 进度条
+    executor.add_observer(TaskProgress())
+
+    # 3. 启动执行器处理 100 个任务
+    #    TaskProgress.on_start() 创建进度条
+    #    TaskProgress.on_task_success/fail() 更新进度
+    #    TaskProgress.on_finish() 关闭进度条
+    await executor.start(range(100))
+
+    print("所有任务已完成！")
+
+
+asyncio.run(main())
+```
+
+### 动态添加任务的进度条
+
+当任务在运行过程中可能动态增多时（如任务分裂场景），`TaskProgress` 会自动扩展进度条总量：
+
+```python
+import asyncio
+from celestialflow import TaskExecutor, TaskProgress
+
+
+async def dynamic_task(n: int) -> list[int]:
+    """根据输入值动态产生新任务"""
+    if n % 10 == 0:
+        # 返回任务列表会自动触发 on_tasks_added
+        return [n + 1, n + 2]
+    return [n]
+
+
+async def main():
+    executor = TaskExecutor(
+        "动态任务",
+        dynamic_task,
+        execution_mode="thread",
+    )
+
+    # 添加进度条（支持动态总量扩展）
+    progress = TaskProgress()
+    executor.add_observer(progress)
+
+    # 初始 20 个任务，运行中会动态增加
+    await executor.start(range(20))
+
+
+asyncio.run(main())
+```

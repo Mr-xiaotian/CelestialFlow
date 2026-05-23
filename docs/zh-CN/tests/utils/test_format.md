@@ -24,6 +24,25 @@
 - **转义安全**: 确保 `\n` 等字符在 repr 模式下不会产生实际换行。
 - **内存安全**: 测试用例使用小规模数据，确保格式化逻辑不会因为递归或复杂循环导致性能问题。
 
+## 运行方式
+
+```bash
+# 全部执行
+pytest tests/utils/test_format.py -v
+
+# 仅运行字符串缩略测试
+pytest tests/utils/test_format.py -k "repr" -v
+
+# 仅运行表格格式化测试
+pytest tests/utils/test_format.py -k "table" -v
+```
+
+## 性能参考
+
+| 测试 | 耗时 |
+|------|------|
+| `TestFormatUtils` | ~0.1s（纯字符串处理） |
+
 ## 重要细节
 - 表格格式化算法会自动计算每列的最大宽度。
 - `test_format_repr_truncation` 验证了截断逻辑的比例分布。

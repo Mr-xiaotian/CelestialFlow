@@ -137,6 +137,76 @@ __all__ = [
 ]
 ```
 
+## 使用示例
+
+以下示例演示如何从包入口导入并使用 CelestialFlow 的核心功能构建和执行任务图。
+
+```python
+from celestialflow import TaskGraph, TaskStage, TaskExecutor
+
+# 1. 定义任务处理函数
+def double(x: int) -> int:
+    return x * 2
+
+def add_one(x: int) -> int:
+    return x + 1
+
+# 2. 创建 TaskStage 节点
+stage_a = TaskStage("StageA", func=double, execution_mode="serial", stage_mode="serial")
+stage_b = TaskStage("StageB", func=add_one, execution_mode="serial", stage_mode="serial")
+
+# 3. 构建 DAG 图
+graph = TaskGraph()
+graph.set_stages([stage_a, stage_b])
+graph.connect([stage_a], [stage_b])
+
+# 4. 执行图
+init_tasks = {stage_a.get_name(): [1, 2, 3, 4, 5]}
+graph.start_graph(init_tasks)
+
+# 5. 查看执行结果摘要
+summary = graph.get_graph_summary()
+print("Graph summary:", summary)
+```
+
+### 使用 TaskExecutor 独立执行
+
+`TaskExecutor` 可脱离图结构独立运行，适合单步任务执行：
+
+```python
+from celestialflow import TaskExecutor
+
+# 创建执行器并传入数据迭代器
+executor = TaskExecutor("Adder", func=lambda x: x + 10, execution_mode="serial")
+executor.start([1, 2, 3])
+
+# 获取执行结果
+success_pairs = executor.get_success_pairs()
+for task, result in success_pairs:
+    print(f"Task: {task} -> Result: {result}")
+
+# 查看统计计数
+counts = executor.get_counts()
+print("Counts:", counts)
+```
+
+### 使用预定义图结构
+
+```python
+from celestialflow import TaskChain, TaskStage
+
+stages = [
+    TaskStage("S1", func=lambda x: x * 2),
+    TaskStage("S2", func=lambda x: x + 1),
+    TaskStage("S3", func=lambda x: x ** 2),
+]
+
+chain = TaskChain(stages, chain_mode="serial")
+chain.start_chain({stages[0].get_name(): [1, 2, 3]})
+summary = chain.get_graph_summary()
+print("Chain summary:", summary)
+```
+
 ## 模块依赖关系
 
 ```mermaid

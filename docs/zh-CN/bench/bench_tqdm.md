@@ -45,6 +45,40 @@
 python bench/bench_tqdm.py
 ```
 
+## 参数调整
+
+### 修改数据规模
+
+`test_tqdm_performance(data_size)` 接受 `data_size` 参数：
+
+```bash
+# 运行不同规模对比
+python -c "
+from bench.bench_tqdm import test_tqdm_performance
+test_tqdm_performance(use_tqdm=False, data_size=100_000)
+test_tqdm_performance(use_tqdm=True, data_size=100_000)
+"
+```
+
+也可在 `if __name__ == "__main__"` 中直接修改：
+
+```python
+if __name__ == "__main__":
+    # 小规模测试（快速验证）
+    test_tqdm_performance(use_tqdm=False, data_size=10_000)
+    test_tqdm_performance(use_tqdm=True, data_size=10_000)
+
+    # 大规模测试（观察 tqdm 开销比例变化）
+    # test_tqdm_performance(use_tqdm=False, data_size=10_000_000)
+    # test_tqdm_performance(use_tqdm=True, data_size=10_000_000)
+```
+
+修改后运行：
+
+```bash
+python bench/bench_tqdm.py
+```
+
 ## 依赖
 
 - `tqdm`

@@ -211,3 +211,133 @@ complete = TaskComplete(
     stages=[stage1, stage2, stage3, stage4]
 )
 ```
+
+## 使用示例
+
+以下示例展示各预定义图结构的具体构建和执行方式。
+
+### TaskChain 完整示例
+
+```python
+from celestialflow import TaskChain, TaskStage
+
+# 定义三个阶段：数据清洗 -> 转换 -> 聚合
+def clean(data: str) -> str:
+    return data.strip()
+
+def transform(data: str) -> int:
+    return int(data) * 2
+
+def aggregate(data: int) -> dict:
+    return {"original": data // 2, "doubled": data}
+
+# 构建链
+s1 = TaskStage("Clean", func=clean)
+s2 = TaskStage("Transform", func=transform)
+s3 = TaskStage("Aggregate", func=aggregate)
+chain = TaskChain(stages=[s1, s2, s3], chain_mode="serial")
+
+# 启动
+chain.start_chain({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
+
+# 获取结果
+print(f"链摘要: {chain.get_graph_summary()}")
+```
+
+### TaskCross 完整示例
+
+```python
+from celestialflow import TaskCross, TaskStage
+
+# 第一层：数据准备
+def load_a(x: int) -> int:
+    return x + 1
+
+def load_b(x: int) -> int:
+    return x * 10
+
+# 第二层：计算分析
+def analyze_a(x: int) -> float:
+    return x * 1.5
+
+def analyze_b(x: int) -> float:
+    return x * 2.0
+
+layer1 = [TaskStage("LoadA", func=load_a), TaskStage("LoadB", func=load_b)]
+layer2 = [TaskStage("AnaA", func=analyze_a), TaskStage("AnaB", func=analyze_b)]
+
+cross = TaskCross(layers=[layer1, layer2])
+cross.start_cross({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
+print(cross.get_graph_summary())
+```
+
+### TaskGrid 完整示例
+
+```python
+from celestialflow import TaskGrid, TaskStage
+
+# 2x2 网格
+n00 = TaskStage("Init", func=lambda x: x)
+n01 = TaskStage("Add", func=lambda x: x + 1)
+n10 = TaskStage("Mul", func=lambda x: x * 2)
+n11 = TaskStage("Square", func=lambda x: x * x)
+
+grid = TaskGrid(grid=[[n00, n01], [n10, n11]])
+grid.start_grid({n00.get_name(): [1, 2, 3]})
+print(grid.get_graph_summary())
+```
+
+### TaskLoop 完整示例
+
+```python
+from celestialflow import TaskLoop, TaskStage
+
+# 三节点环：每个节点处理后将结果传给下一个
+loop_stages = [
+    TaskStage("Ring1", func=lambda x: x + 1),
+    TaskStage("Ring2", func=lambda x: x * 2),
+    TaskStage("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 形成闭环
+]
+
+loop = TaskLoop(loop_stages)
+loop.start_loop(
+    {loop_stages[0].get_name(): [5]},
+    put_termination_signal=False,  # 环结构需手动注入终止
+)
+```
+
+### TaskWheel 完整示例
+
+```python
+from celestialflow import TaskWheel, TaskStage
+
+center = TaskStage("Hub", func=lambda x: {"input": x, "processed": x * 10})
+ring_nodes = [
+    TaskStage("Channel1", func=lambda x: x["processed"] + 1),
+    TaskStage("Channel2", func=lambda x: x["processed"] + 2),
+    TaskStage("Channel3", func=lambda x: x["processed"] + 3),
+]
+
+wheel = TaskWheel(center=center, ring=ring_nodes)
+wheel.start_wheel({center.get_name(): [42]})
+print(wheel.get_graph_summary())
+```
+
+### TaskComplete 完整示例
+
+```python
+from celestialflow import TaskComplete, TaskStage
+
+nodes = [
+    TaskStage("N1", func=lambda x: x ** 2),
+    TaskStage("N2", func=lambda x: x + 1),
+    TaskStage("N3", func=lambda x: x // 2),
+]
+
+complete = TaskComplete(nodes)
+complete.start_complete(
+    {nodes[0].get_name(): [10]},
+    put_termination_signal=False,
+)
+print(complete.get_graph_summary())
+```
