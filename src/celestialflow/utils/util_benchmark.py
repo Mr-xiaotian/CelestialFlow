@@ -90,7 +90,7 @@ def benchmark_graph(
     async_modes = execution_async_modes or ["async"]
 
     base_tasks: dict[str, list[Any]] = {
-        tag: list(tasks) for tag, tasks in init_tasks_dict.items()
+        stage_name: list(tasks) for stage_name, tasks in init_tasks_dict.items()
     }
     execution_modes: list[str] = sync_modes + async_modes
 
@@ -103,7 +103,8 @@ def benchmark_graph(
             cloned_graph.set_graph_mode(stage_mode, execution_mode)
 
             run_tasks: dict[str, list[Any]] = {
-                tag: list(tasks) for tag, tasks in base_tasks.items()
+                stage_name: list(tasks)
+                for stage_name, tasks in base_tasks.items()
             }
             start_time: float = time.perf_counter()
             cloned_graph.start_graph(run_tasks)
@@ -113,7 +114,10 @@ def benchmark_graph(
             cloned_graph = clone_graph(async_graph)
             cloned_graph.set_graph_mode(stage_mode, execution_mode)
 
-            run_tasks = {tag: list(tasks) for tag, tasks in base_tasks.items()}
+            run_tasks = {
+                stage_name: list(tasks)
+                for stage_name, tasks in base_tasks.items()
+            }
             start_time = time.perf_counter()
             cloned_graph.start_graph(run_tasks)
             time_list.append(time.perf_counter() - start_time)

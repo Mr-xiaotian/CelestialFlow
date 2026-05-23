@@ -260,11 +260,11 @@ async def async_to_str(n):
 
 
 class RouterWrapper:
-    def __init__(self, a_tag, b_tag):
-        self.a_tag = a_tag
-        self.b_tag = b_tag
+    def __init__(self, a_name, b_name):
+        self.a_name = a_name
+        self.b_name = b_name
         self.__name__ = "RouterWrapper"  # 框架需要这个属性
 
     def __call__(self, n: int) -> tuple:
-        target = self.a_tag if (n % 2 == 0) else self.b_tag
+        target = self.a_name if (n % 2 == 0) else self.b_name
         return (target, n)

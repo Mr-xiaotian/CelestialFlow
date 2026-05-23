@@ -580,8 +580,8 @@ class TestSourceStages:
 
         graph.start_graph({s1.get_name(): [1], s2.get_name(): [2]})
 
-        source_tags = {s.get_name() for s in graph.get_source_stages()}
-        assert source_tags == {s1.get_name(), s2.get_name()}
+        source_names = {s.get_name() for s in graph.get_source_stages()}
+        assert source_names == {s1.get_name(), s2.get_name()}
 
     def test_source_stages_diamond(self):
         """菱形图 A→{B,C}→D：source 只有 A"""
@@ -613,11 +613,11 @@ class TestSourceStages:
         graph.connect([s2], [s3])
         graph.connect([s3], [s1])
 
-        source_tags = {stage.get_name() for stage in graph.get_source_stages()}
-        cycle_tags = {s1.get_name(), s2.get_name(), s3.get_name()}
+        source_names = {stage.get_name() for stage in graph.get_source_stages()}
+        cycle_names = {s1.get_name(), s2.get_name(), s3.get_name()}
 
-        assert len(source_tags) == 1
-        assert source_tags <= cycle_tags
+        assert len(source_names) == 1
+        assert source_names <= cycle_names
 
     def test_source_stages_returns_one_member_per_source_scc(self):
         """多个源 SCC 时，每个源 SCC 各返回一个代表点"""
@@ -635,13 +635,13 @@ class TestSourceStages:
         graph.connect([s4], [s3])
         graph.connect([s2, s4], [s5])
 
-        source_tags = {stage.get_name() for stage in graph.get_source_stages()}
+        source_names = {stage.get_name() for stage in graph.get_source_stages()}
         source_scc_a = {s1.get_name(), s2.get_name()}
         source_scc_b = {s3.get_name(), s4.get_name()}
 
-        assert len(source_tags) == 2
-        assert len(source_tags & source_scc_a) == 1
-        assert len(source_tags & source_scc_b) == 1
+        assert len(source_names) == 2
+        assert len(source_names & source_scc_a) == 1
+        assert len(source_names & source_scc_b) == 1
 
 
 # =========================
@@ -683,13 +683,13 @@ class TestCyclicGraph:
 
         analysis = graph.get_graph_analysis()
         layers = analysis["layers_dict"]
-        cycle_tags = {s1.get_name(), s2.get_name(), s3.get_name()}
+        cycle_names = {s1.get_name(), s2.get_name(), s3.get_name()}
         cycle_layer = None
-        for layer_idx, tags in layers.items():
-            if s1.get_name() in tags:
+        for layer_idx, layer_names in layers.items():
+            if s1.get_name() in layer_names:
                 cycle_layer = layer_idx
                 break
         assert cycle_layer is not None
-        for tag in cycle_tags:
-            assert tag in layers[cycle_layer]
+        for stage_name in cycle_names:
+            assert stage_name in layers[cycle_layer]
         assert s4.get_name() in layers[cycle_layer + 1]

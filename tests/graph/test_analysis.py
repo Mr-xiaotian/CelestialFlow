@@ -23,10 +23,10 @@ class _MockRuntime:
 
 
 def _make_graph(edges: dict[str, list[str]]) -> nx.DiGraph[str]:
-    tags = set(edges.keys())
+    stage_names = set(edges.keys())
     for dsts in edges.values():
-        tags.update(dsts)
-    runtime = {t: _MockRuntime() for t in tags}
+        stage_names.update(dsts)
+    runtime = {name: _MockRuntime() for name in stage_names}
     return build_networkx_graph(edges, runtime)  # type: ignore[arg-type]
 
 

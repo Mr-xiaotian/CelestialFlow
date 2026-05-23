@@ -31,8 +31,8 @@ class TaskInQueue:
         :param log_inlet: 日志记录器
         """
         self.queue: Any = queue
-        self.queue_tags = list(source_names)
-        self.out_tag = out_name
+        self.source_names = source_names
+        self.out_name = out_name
         self.log_inlet = log_inlet
 
         self.termination_dict: dict[str, int] = {}
@@ -48,7 +48,7 @@ class TaskInQueue:
             t = "task"
         else:
             t = "termination"
-        self.log_inlet.put_item(t, item.id, item.source, self.out_tag)
+        self.log_inlet.put_item(t, item.id, item.source, self.out_name)
 
     def _log_get(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
@@ -60,7 +60,7 @@ class TaskInQueue:
             t = "task"
         else:
             t = "termination"
-        self.log_inlet.get_item(t, item.id, item.source, self.out_tag)
+        self.log_inlet.get_item(t, item.id, item.source, self.out_name)
 
     def add_source_name(self, name: str) -> None:
         """
@@ -69,9 +69,9 @@ class TaskInQueue:
         :param name: 入队来源名称
         :raises ValueError: 如果名称已存在
         """
-        if name in self.queue_tags:
+        if name in self.source_names:
             raise ValueError(f"duplicate queue source name: {name}")
-        self.queue_tags.append(name)
+        self.source_names.append(name)
 
     # ==== 终止 ====
     def _record_termination(self, signal: TerminationSignal) -> None:
@@ -82,7 +82,7 @@ class TaskInQueue:
         """
         source = signal.source
 
-        valid_sources = set(self.queue_tags) | {"input"}
+        valid_sources = set(self.source_names) | {"input"}
         if source not in valid_sources:
             raise ValueError(f"unknown queue source name: {source}")
 
@@ -92,7 +92,7 @@ class TaskInQueue:
         """
         判断是否可以合并普通输入队列的终止信号
         """
-        return all(name in self.termination_dict for name in self.queue_tags)
+        return all(name in self.termination_dict for name in self.source_names)
 
     def _merge_termination(self) -> TerminationIdPool:
         """
@@ -100,12 +100,12 @@ class TaskInQueue:
 
         这里只合并来自 source_names 的 termination，不处理：
         - input 注入的直接终止
-        - self.out_tag 的 merge 后终止
+        - self.out_name 的 merge 后终止
 
         :return: 合并后的终止信号池
         """
         missing_names = [
-            name for name in self.queue_tags if name not in self.termination_dict
+            name for name in self.source_names if name not in self.termination_dict
         ]
         if missing_names:
             raise ValueError(
@@ -113,7 +113,7 @@ class TaskInQueue:
             )
 
         return TerminationIdPool(
-            ids=[self.termination_dict[name] for name in self.queue_tags]
+            ids=[self.termination_dict[name] for name in self.source_names]
         )
 
     # ==== put / get ====
@@ -127,7 +127,7 @@ class TaskInQueue:
             self.queue.put(item)
             self._log_put(item)
         except Exception as e:
-            self.log_inlet.put_item_error(item.source, self.out_tag, e)
+            self.log_inlet.put_item_error(item.source, self.out_name, e)
 
     def get(self) -> TaskEnvelope | TerminationIdPool:
         """
@@ -209,17 +209,17 @@ class TaskOutQueue:
         :param target_names: 下游节点名称列表，用于标识每个队列
         :param in_name: 当前节点唯一名称，用于记录日志
         :param log_inlet: 日志记录器，用于记录入队出队日志
-        :raises ValueError: 如果队列列表和标签列表长度不一致
+        :raises ValueError: 如果队列列表和目标名称列表长度不一致
         """
         if len(queue_list) != len(target_names):
             raise ValueError("queue_list and target_names must have the same length")
 
         self.queue_list = queue_list
-        self.queue_tags = target_names
-        self.in_tag = in_name
+        self.target_names = target_names
+        self.in_name = in_name
         self.log_inlet = log_inlet
 
-        self._tag_to_idx = {
+        self._name_to_idx = {
             name: i for i, name in enumerate(target_names) if name is not None
         }
 
@@ -235,7 +235,7 @@ class TaskOutQueue:
             t = "task"
         else:
             t = "termination"
-        self.log_inlet.put_item(t, item.id, self.in_tag, str(self.queue_tags[idx]))
+        self.log_inlet.put_item(t, item.id, self.in_name, str(self.target_names[idx]))
 
     def add_queue(self, queue: Any, name: str) -> None:
         """
@@ -245,11 +245,11 @@ class TaskOutQueue:
         :param name: 队列的目标节点名称，用于标识该队列
         :raises ValueError: 如果名称已存在于队列列表中
         """
-        if name in self._tag_to_idx:
+        if name in self._name_to_idx:
             raise ValueError(f"duplicate queue target name: {name}")
-        self._tag_to_idx[name] = len(self.queue_list)
+        self._name_to_idx[name] = len(self.queue_list)
         self.queue_list.append(queue)
-        self.queue_tags.append(name)
+        self.target_names.append(name)
 
     def put(self, item: TaskEnvelope | TerminationSignal) -> None:
         """
@@ -262,12 +262,12 @@ class TaskOutQueue:
 
     def put_target(self, item: TaskEnvelope | TerminationSignal, name: str) -> None:
         """
-        入队任务或终止信号到指定的输出队列标签
+        入队任务或终止信号到指定的输出队列
 
         :param item: 要入队的任务或终止信号
         :param name: 输出队列目标节点名称，用于标识该队列通道
         """
-        self.put_channel(item, self._tag_to_idx[name])
+        self.put_channel(item, self._name_to_idx[name])
 
     def put_channel(self, item: TaskEnvelope | TerminationSignal, idx: int) -> None:
         """
@@ -280,4 +280,4 @@ class TaskOutQueue:
             self.queue_list[idx].put(item)
             self._log_put(item, idx)
         except Exception as e:
-            self.log_inlet.put_item_error(item.source, self.in_tag, e)
+            self.log_inlet.put_item_error(item.source, self.in_name, e)

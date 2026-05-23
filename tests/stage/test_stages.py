@@ -28,7 +28,7 @@ class TestTaskSplitter:
         splitter = TaskSplitter("Splitter")
         # 模拟运行环境
         q = Queue()
-        # TaskOutQueue 构造函数要求 queue_list 和 queue_tags 长度一致
+        # TaskOutQueue 构造函数要求 queue_list 和 target_names 长度一致
         splitter.result_queue = TaskOutQueue([q], [None], splitter.get_name(), log_inlet)
         splitter.log_inlet = log_inlet
 
@@ -54,7 +54,7 @@ class TestTaskRouter:
         assert router.route_counters == {}
 
     def test_router_route_logic(self):
-        """测试 TaskRouter 的核心路由逻辑：正确解析目标 tag 并提取任务数据"""
+        """测试 TaskRouter 的核心路由逻辑：正确解析目标名称并提取任务数据"""
         router = TaskRouter("Router")
         # 预注册 target
         router.get_binding_counter("target1")
@@ -80,8 +80,8 @@ class TestTaskRouter:
         router.get_binding_counter("target1")
         router.get_binding_counter("target2")
         
-        # TaskOutQueue 构造函数要求 queue_list 和 queue_tags 长度一致
-        # 我们这里模拟两个有 tag 的输出队列
+        # TaskOutQueue 构造函数要求 queue_list 和 target_names 长度一致
+        # 我们这里模拟两个具名输出队列
         router.result_queue = TaskOutQueue(
             [q_target1, q_target2], 
             ["target1", "target2"], 

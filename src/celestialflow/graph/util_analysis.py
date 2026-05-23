@@ -23,8 +23,8 @@ def build_networkx_graph(
     """
     G: nx.DiGraph[str] = nx.DiGraph()
 
-    for tag, runtime in stage_runtime_dict.items():
-        G.add_node(tag, mode=runtime.stage.get_stage_mode())
+    for stage_name, runtime in stage_runtime_dict.items():
+        G.add_node(stage_name, mode=runtime.stage.get_stage_mode())
     for src, dsts in out_edges.items():
         for dst in dsts:
             G.add_edge(src, dst)

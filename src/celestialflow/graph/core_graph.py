@@ -316,8 +316,10 @@ class TaskGraph:
         self.networkx_graph = build_networkx_graph(
             self.out_edges, self.stage_runtime_dict
         )
-        source_tags = find_source_nodes(self.networkx_graph)
-        self.source_stages = [self.stage_runtime_dict[tag].stage for tag in source_tags]
+        source_names = find_source_nodes(self.networkx_graph)
+        self.source_stages = [
+            self.stage_runtime_dict[name].stage for name in source_names
+        ]
 
         self.structure_json = build_structure_graph(
             self.source_stages, self.out_edges, self.stage_runtime_dict

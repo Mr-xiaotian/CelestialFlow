@@ -123,9 +123,9 @@ def demo_async_staged_pipeline():
     graph.start_graph({stage_double.get_name(): tasks})
 
     status = graph.get_status_snapshot()["status"]
-    for tag, info in status.items():
+    for stage_name, info in status.items():
         print(
-            f"[{tag}] succeeded={info.get('tasks_succeeded', 0)}, "
+            f"[{stage_name}] succeeded={info.get('tasks_succeeded', 0)}, "
             f"failed={info.get('tasks_failed', 0)}"
         )
 

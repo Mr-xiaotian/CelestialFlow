@@ -30,10 +30,10 @@ class TestTaskLoop:
         assert analysis["isDAG"] is False
 
         layers = analysis["layers_dict"]
-        tags = {s1.get_name(), s2.get_name(), s3.get_name()}
-        for layer_tags in layers.values():
-            if s1.get_name() in layer_tags:
-                assert tags.issubset(set(layer_tags))
+        stage_names = {s1.get_name(), s2.get_name(), s3.get_name()}
+        for layer_names in layers.values():
+            if s1.get_name() in layer_names:
+                assert stage_names.issubset(set(layer_names))
                 break
 
     def test_loop_source_stages(self):
@@ -68,8 +68,8 @@ class TestTaskWheel:
 
         layers = analysis["layers_dict"]
         assert center.get_name() in layers[0]
-        ring_tags = {r1.get_name(), r2.get_name(), r3.get_name()}
-        assert ring_tags.issubset(set(layers[1]))
+        ring_names = {r1.get_name(), r2.get_name(), r3.get_name()}
+        assert ring_names.issubset(set(layers[1]))
 
     def test_wheel_source_stages(self):
         """测试 TaskWheel 的源节点推导：应仅返回 Center 节点作为唯一入口"""

@@ -345,12 +345,12 @@ def demo_router_0():
         max_workers=2,
     )
 
-    a_tag = stage_a.get_name()
-    b_tag = stage_b.get_name()
+    a_name = stage_a.get_name()
+    b_name = stage_b.get_name()
 
     source_stage = TaskStage(
         "Origin",
-        RouterWrapper(a_tag, b_tag),
+        RouterWrapper(a_name, b_name),
         stage_mode="serial",
         execution_mode="thread",
         max_workers=4,

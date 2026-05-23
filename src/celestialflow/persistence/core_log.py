@@ -291,28 +291,36 @@ class LogInlet(BaseInlet):
         )
 
     # ==== queue ====
-    def put_item(self, item_type: str, item_id: int, in_tag: str, out_tag: str) -> None:
+    def put_item(
+        self, item_type: str, item_id: int, in_name: str, out_name: str
+    ) -> None:
         """记录队列 put 操作"""
-        edge = f"'{in_tag}' -> '{out_tag}'"
+        edge = f"'{in_name}' -> '{out_name}'"
         self._log("TRACE", f"Put {item_type}#{item_id} into Edge({edge}).")
 
-    def put_item_error(self, in_tag: str, out_tag: str, exception: Exception) -> None:
+    def put_item_error(
+        self, in_name: str, out_name: str, exception: Exception
+    ) -> None:
         """记录队列 put 失败"""
-        edge = f"'{in_tag}' -> '{out_tag}'"
+        edge = f"'{in_name}' -> '{out_name}'"
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "WARNING",
             f"Put into Edge({edge}): ({type(exception).__name__}){exception_text}.",
         )
 
-    def get_item(self, item_type: str, item_id: int, in_tag: str, out_tag: str) -> None:
+    def get_item(
+        self, item_type: str, item_id: int, in_name: str, out_name: str
+    ) -> None:
         """记录队列 get 操作"""
-        edge = f"'{in_tag}' -> '{out_tag}'"
+        edge = f"'{in_name}' -> '{out_name}'"
         self._log("TRACE", f"Get {item_type}#{item_id} from Edge({edge}).")
 
-    def get_item_error(self, in_tag: str, out_tag: str, exception: Exception) -> None:
+    def get_item_error(
+        self, in_name: str, out_name: str, exception: Exception
+    ) -> None:
         """记录队列 get 失败"""
-        edge = f"'{in_tag}' -> '{out_tag}'"
+        edge = f"'{in_name}' -> '{out_name}'"
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "WARNING",

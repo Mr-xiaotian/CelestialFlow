@@ -179,7 +179,7 @@ def load_task_by_stage(jsonl_path: str | Path) -> dict[str, list[Any]]:
     加载错误记录，按 stage 分类
 
     :param jsonl_path: JSONL 文件路径
-    :return: {stage_tag: [task_list]}
+    :return: {stage_name: [task_list]}
     """
     return load_jsonl_by_key(jsonl_path, extract_key="stage", extract_value="task")
 
