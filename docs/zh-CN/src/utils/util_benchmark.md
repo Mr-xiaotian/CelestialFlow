@@ -1,8 +1,8 @@
 # Benchmark
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/24
 
-`utils/benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
+`utils/util_benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
 ## 设计目的
 
@@ -33,9 +33,15 @@ async def benchmark_executor(
     :param task_source: 任务源
     :param sync_modes: 同步模式列表，默认 ["serial", "thread"]
     :param async_modes: 异步模式列表，默认 ["async"]
-    :return: 测试结果字典
+    :return: 测试结果字典（含 use_time, sync_modes, async_modes, table）
     """
 ```
+
+测试流程：
+1. 克隆执行器（避免状态污染）
+2. 对每种模式设置执行方式
+3. 执行任务并计时
+4. 输出时间表格和结果表格
 
 输出示例：
 ```
@@ -67,9 +73,16 @@ def benchmark_graph(
     :param stage_modes: 节点模式列表，默认 ["serial", "thread"]
     :param execution_sync_modes: 同步执行模式列表，默认 ["serial", "thread"]
     :param execution_async_modes: 异步执行模式列表，默认 ["async"]
-    :return: 测试结果字典
+    :return: 测试结果字典（含 table, stage_modes, sync_modes, async_modes）
     """
 ```
+
+测试流程：
+1. 对每种 `stage_mode` × `execution_mode` 组合
+2. 克隆任务图
+3. 设置 `set_graph_mode(stage_mode, execution_mode)`
+4. 执行 `start_graph()` 并计时
+5. 输出时间表格
 
 输出示例：
 ```
@@ -113,7 +126,7 @@ asyncio.run(benchmark_executor(
 
 ```python
 from celestialflow import TaskGraph, TaskStage
-from celestialflow.utils.benchmark import benchmark_graph
+from celestialflow.utils.util_benchmark import benchmark_graph
 
 # 创建同步节点
 stage_a = TaskStage("A", process_a)
@@ -174,11 +187,22 @@ benchmark_graph(
 
 显示每种配置的执行时间。
 
-### 失败统计
+### 结果表格
 
-如果有任务失败，会输出：
-- `Fail stage dict`: 按节点分组的失败任务
-- `Fail error dict`: 按错误类型分组的失败任务
+显示每种配置的成功结果对。
+
+### 返回值
+
+`benchmark_executor` 返回包含以下内容的字典：
+- `use_time`: 各模式的耗时列表
+- `sync_modes`: 测试的同步模式列表
+- `async_modes`: 测试的异步模式列表
+- `table`: 格式化后的时间表格字符串
+
+`benchmark_graph` 返回包含以下内容的字典：
+- `table`: 格式化后的时间表格字符串
+- `stage_modes`: 测试的节点模式列表
+- `sync_modes` / `async_modes`: 测试的执行模式列表
 
 ## 注意事项
 

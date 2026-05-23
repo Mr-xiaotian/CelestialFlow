@@ -1,8 +1,8 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/24
 
-TaskErrors 模块定义了框架中使用的自定义异常类。
+TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
 ## 异常层级
 
@@ -10,13 +10,22 @@ TaskErrors 模块定义了框架中使用的自定义异常类。
 CelestialFlowError
 ├── ConfigurationError
 │   └── InvalidOptionError
-│       ├── ExecutionModeError
-│       ├── StageModeError
-│       ├── LogLevelError
-│       └── ScheduleModeError
-├── RemoteWorkerError
-├── CelestialTreeConnectionError
-├── UnconsumedError
+│       ├── ExecutionModeError      # ("serial", "thread", "async")
+│       ├── StageModeError          # ("serial", "thread")
+│       ├── LogLevelError           # (TRACE/DEBUG/SUCCESS/INFO/...)
+│       └── ScheduleModeError       # ("eager", "staged")
+├── GraphStructureError
+│   ├── DuplicateNodeError          # 重复的节点名称
+│   └── UnknownNodeError            # 未知的节点名称
+├── RuntimeStateError
+│   └── InitializationError         # 初始化失败
+├── RemoteWorkerError               # 远端 Worker 执行失败
+├── ReporterError                   # 上报器错误
+├── CelestialTreeConnectionError    # CelestialTree 连接失败
+├── CelestialFlowTimeoutError       # 超时错误
+├── UnconsumedError                 # 标记未消费任务
+├── TaskFormatError                 # 任务格式错误
+└── TerminationMergeError           # 终止信号合并错误
 ```
 
 ## 基类
@@ -31,7 +40,7 @@ class CelestialFlowError(Exception):
     pass
 ```
 
-## 配置相关异常
+## 配置相关异常（ConfigurationError）
 
 ### ConfigurationError
 
@@ -39,13 +48,13 @@ class CelestialFlowError(Exception):
 
 ```python
 class ConfigurationError(CelestialFlowError):
-    """配置错误基类"""
+    """配置错误（参数非法、组合不支持等）"""
     pass
 ```
 
 ### InvalidOptionError
 
-某个配置项的取值不合法（不在允许集合里）。
+某个配置项的取值不合法。
 
 ```python
 class InvalidOptionError(ConfigurationError):
@@ -59,10 +68,11 @@ class InvalidOptionError(ConfigurationError):
     ):
         """
         :param field: 配置项名称
-        :param value: 实际值
-        :param allowed: 允许的值列表
+        :param value: 实际传入值
+        :param allowed: 允许的取值集合
         :param prefix: 错误消息前缀
         """
+        # 示例: "Invalid execution mode: xxx. Valid options are ('serial', 'thread', 'async')."
 ```
 
 ### ExecutionModeError
@@ -71,8 +81,7 @@ class InvalidOptionError(ConfigurationError):
 
 ```python
 class ExecutionModeError(InvalidOptionError):
-    """非法的 execution_mode 配置错误"""
-
+    """非法的 execution_mode"""
     def __init__(self, execution_mode: str, valid_modes=None):
         # valid_modes 默认为 ("serial", "thread", "async")
 ```
@@ -83,8 +92,7 @@ class ExecutionModeError(InvalidOptionError):
 
 ```python
 class StageModeError(InvalidOptionError):
-    """非法的 stage_mode 配置错误"""
-
+    """非法的 stage_mode"""
     def __init__(self, stage_mode: str, valid_modes=None):
         # valid_modes 默认为 ("serial", "thread")
 ```
@@ -95,21 +103,9 @@ class StageModeError(InvalidOptionError):
 
 ```python
 class LogLevelError(InvalidOptionError):
-    """非法的 log_level 配置错误"""
-
+    """非法的 log_level"""
     def __init__(self, log_level: str, valid_levels=None):
         # valid_levels 默认为 ("TRACE", "DEBUG", "SUCCESS", "INFO", "WARNING", "ERROR", "CRITICAL")
-```
-
-## 运行时异常
-
-### RemoteWorkerError
-
-远程 Worker（如 Go Worker）执行失败时抛出的异常。
-
-```python
-class RemoteWorkerError(CelestialFlowError):
-    pass
 ```
 
 ### ScheduleModeError
@@ -118,15 +114,90 @@ class RemoteWorkerError(CelestialFlowError):
 
 ```python
 class ScheduleModeError(InvalidOptionError):
-    """非法的 schedule_mode 配置错误"""
-
+    """非法的 schedule_mode"""
     def __init__(self, schedule_mode: str, valid_modes=None):
         # valid_modes 默认为 ("eager", "staged")
 ```
 
+## 图结构异常（GraphStructureError）
+
+### GraphStructureError
+
+图结构错误基类。
+
+```python
+class GraphStructureError(ConfigurationError):
+    """图结构错误"""
+    pass
+```
+
+### DuplicateNodeError
+
+重复的节点名称（在 `set_stages` 或 `add_source_name` / `add_queue` 时触发）。
+
+```python
+class DuplicateNodeError(GraphStructureError):
+    """重复的节点名称"""
+    pass
+```
+
+### UnknownNodeError
+
+未知的节点名称（在验证终止信号来源时触发）。
+
+```python
+class UnknownNodeError(GraphStructureError):
+    """未知的节点名称"""
+    pass
+```
+
+## 运行时异常（RuntimeStateError）
+
+### RuntimeStateError
+
+运行时状态错误基类（重复启动、未初始化等）。
+
+```python
+class RuntimeStateError(CelestialFlowError):
+    """运行时状态错误"""
+    pass
+```
+
+### InitializationError
+
+初始化错误（如线程池未初始化时使用）。
+
+```python
+class InitializationError(RuntimeStateError):
+    """初始化错误"""
+    pass
+```
+
+## 外部服务异常
+
+### RemoteWorkerError
+
+远端 Worker（如 Go Worker）执行失败时抛出。
+
+```python
+class RemoteWorkerError(CelestialFlowError):
+    """远端 Worker 执行失败"""
+    pass
+```
+
+### ReporterError
+
+上报器错误。
+
+```python
+class ReporterError(CelestialFlowError):
+    """上报器错误"""
+    pass
+```
+
 ### CelestialTreeConnectionError
 
-CelestialTree 连接错误。
+CelestialTree 客户端连接失败。
 
 ```python
 class CelestialTreeConnectionError(CelestialFlowError):
@@ -134,9 +205,21 @@ class CelestialTreeConnectionError(CelestialFlowError):
         ...
 ```
 
+## 其他运行时异常
+
+### CelestialFlowTimeoutError
+
+超时错误（继承内置 `TimeoutError`）。
+
+```python
+class CelestialFlowTimeoutError(CelestialFlowError, TimeoutError):
+    """超时错误"""
+    pass
+```
+
 ### UnconsumedError
 
-标记任务未被消费的异常类。
+标记未被消费的任务。
 
 ```python
 class UnconsumedError(CelestialFlowError):
@@ -144,36 +227,41 @@ class UnconsumedError(CelestialFlowError):
     pass
 ```
 
-当 `TaskGraph` 停止时，会收集所有未消费的任务并记录为 `UnconsumedError`。
+当 `TaskGraph._finalize_nodes()` 发现队列中有剩余任务时，将其标记为 `UnconsumedError` 并持久化。
 
-## 错误处理策略
+### TaskFormatError
 
-在 `TaskExecutor` 中，异常被分为两类：
-
-1. **可重试异常**: 如果异常类型在 `retry_exceptions` 列表中，且重试次数未达上限，框架会自动重试该任务。
-2. **不可重试异常**: 任务会被标记为失败，记录错误日志，并放入 `fail_queue`。
-
-## 错误持久化
-
-`TaskGraph` 会自动将所有未处理的错误（包括重试失败和 UnconsumedError）持久化到本地的 `fallback/` 目录下，格式为 JSONL。
-
-每个错误记录包含：
-- 时间戳
-- 阶段标签
-- 错误信息
-- 原始任务数据
-- 错误 ID
-
-## 使用示例
-
-### 捕获特定异常
+任务格式错误。
 
 ```python
-from celestialflow.runtime.util_errors import (
-    ExecutionModeError,
-    StageModeError,
-    RemoteWorkerError,
-)
+class TaskFormatError(CelestialFlowError):
+    """任务格式错误"""
+    pass
+```
+
+### TerminationMergeError
+
+终止信号合并错误（缺少上游终止信号时触发）。
+
+```python
+class TerminationMergeError(CelestialFlowError):
+    """终止信号合并错误"""
+    pass
+```
+
+## 使用场景
+
+### 1. 添加可重试异常
+
+```python
+executor = TaskExecutor("Processor", process, max_retries=3)
+executor.add_retry_exceptions(ConnectionError, TimeoutError)
+```
+
+### 2. 捕获配置错误
+
+```python
+from celestialflow.runtime.util_errors import ExecutionModeError
 
 try:
     stage.set_execution_mode("invalid_mode")
@@ -182,15 +270,17 @@ except ExecutionModeError as e:
     print(f"有效选项: {e.valid_modes}")
 ```
 
-### 添加可重试异常
+### 3. 图结构验证
 
 ```python
-executor = TaskExecutor("Processor", process, max_retries=3)
-executor.add_retry_exceptions(ConnectionError, TimeoutError)
+from celestialflow.runtime.util_errors import DuplicateNodeError
+
+try:
+    graph.set_stages([stage_a, stage_a])  # 同名节点
+except DuplicateNodeError as e:
+    print(f"重复节点: {e}")
 ```
 
-## 注意事项
+## 异常持久化
 
-1. **错误传播**: `RemoteWorkerError` 包含远程 Worker 返回的错误信息
-2. **日志记录**: 所有异常都会被记录到日志中
-3. **优雅降级**: 即使发生异常，框架也会尝试正确清理资源
+`TaskGraph` 会在 `_finalize_nodes()` 中将未处理错误持久化到本地 JSONL 文件（通过 `FailSpout`）。每个错误记录包含错误类型、消息、所在 Stage、事件 ID 和时间戳，由 `PersistedErrorRecord` 表示。

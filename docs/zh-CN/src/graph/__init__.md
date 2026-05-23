@@ -1,84 +1,78 @@
 # Graph 模块
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/24
 
 Graph 模块是 CelestialFlow 的核心调度系统，负责管理任务节点之间的依赖关系、执行流程和生命周期。它提供了灵活的任务图构建、分析和序列化功能。
 
 ## 模块概述
 
-Graph 模块定义了任务执行的基本单元和它们之间的关系，形成一个有向无环图（DAG）。每个节点代表一个 `TaskStage`，边代表依赖关系。该模块确保任务按照正确的顺序执行，并处理并发、错误处理和资源管理。
+Graph 模块定义了任务执行的基本单元和它们之间的关系，形成一个有向图。每个节点代表一个 `TaskStage`，边代表数据流依赖关系。该模块确保任务按照正确的拓扑顺序执行，并处理并发、错误处理和资源管理。
 
 ## 文件说明
 
 ### 核心文件
 
-1. **core_graph.py** (`TaskGraph`)
+1. **core_graph.py** (`TaskGraph`, `StageRuntime`)
    - **作用**: 核心调度器，管理 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期
    - **关键功能**:
-     - 建立节点间的依赖关系
-     - 执行任务图（同步/异步）
-     - 错误处理和重试机制
-     - 资源管理和并发控制
+     - 建立节点间的依赖关系（`set_stages` / `connect`）
+     - 执行任务图（`eager` 一次性启动 / `staged` 分层执行）
+     - 运行时监控快照和全局剩余时间估算
+     - 动态任务注入（`put_stage_queue`）
+     - 错误持久化和未消费任务处理
 
-2. **core_structure.py** (`TaskChain`, `TaskLoop`, `TaskCross`, `TaskComplete`, `TaskWheel`, `TaskGrid`)
-   - **作用**: 提供预定义的任务图结构，简化常见模式的构建
+2. **core_structure.py**（预定义图结构）
+   - **作用**: 提供六种预定义的任务图结构，简化常见模式
    - **包含的结构**:
-     - `TaskChain`: 线性任务链，节点按顺序执行
-     - `TaskLoop`: 循环结构，支持条件循环
-     - `TaskCross`: 交叉连接结构，节点间相互连接
-     - `TaskComplete`: 完全连接结构，所有节点相互连接
-     - `TaskWheel`: 轮辐结构，中心节点连接所有其他节点
-     - `TaskGrid`: 网格结构，节点按行列排列
+     - `TaskChain`: 线性任务链，节点按顺序连接
+     - `TaskLoop`: 环形结构，节点首尾相连
+     - `TaskCross`: 多层交叉结构，层内并行、层间全连接
+     - `TaskComplete`: 完全图，每个节点连接所有其他节点
+     - `TaskWheel`: 轮辐结构，中心节点连接环上所有节点
+     - `TaskGrid`: 二维网格，节点连接右侧和下方邻居
 
 ### 工具文件
 
 3. **util_analysis.py**
-   - **作用**: 任务图分析工具，提供图论分析和诊断功能
+   - **作用**: 基于 `networkx` 的图分析工具
    - **关键函数**:
-     - `format_networkx_graph()`: 将结构图转换为 networkx 有向图
-     - `compute_node_levels()`: 计算图中节点的层级（拓扑排序）
-   - **关键功能**:
-     - 图结构转换和可视化支持
-     - 节点层级计算和拓扑分析
-     - 依赖关系分析和验证
+     - `build_networkx_graph()`: 从邻接表和运行时信息构建 `DiGraph`
+     - `find_source_nodes()`: 找到入度为 0 的源节点
+     - `compute_node_levels()`: 计算节点层级（支持 DAG 和含环图）
 
 4. **util_serialize.py**
-   - **作用**: 任务图序列化和结构构建工具
+   - **作用**: 任务图结构序列化为 JSON 及文本化
    - **关键函数**:
-     - `build_structure_graph()`: 从根节点构建任务链的 JSON 图结构
-     - `_build_structure_subgraph()`: 构建单个子图结构（内部函数）
-     - `format_structure_list_from_graph()`: 从图结构格式化字符串列表
-   - **关键功能**:
-     - 任务图结构序列化为 JSON 格式
-     - 递归构建图结构表示
-     - 结构格式化和文本输出
+     - `build_structure_graph()`: 从源节点递归构建结构 JSON
+     - `_build_structure_subgraph()`: 递归构建子图（内部函数）
+     - `format_structure_list_from_graph()`: 格式化为可打印树形文本
 
 ## 模块关联
 
 ### 内部关联
-- `TaskGraph` 是基础类，所有其他结构都继承或使用它
-- `TaskChain`、`TaskLoop` 等是 `TaskGraph` 的特化实现
-- 分析工具依赖图结构进行诊断
-- 序列化工具可以将任何 `TaskGraph` 实例持久化
+- `TaskGraph` 是基础类，所有其他结构继承自它
+- `TaskChain`、`TaskLoop` 等是 `TaskGraph` 的特化实现（封装了 `set_stages` / `connect` 逻辑）
+- 分析工具依赖 `networkx` 进行图论计算
+- 序列化工具将运行时结构输出为 JSON/文本
 
 ### 外部关联
-- **与 Stage 模块**: 管理 `TaskStage` 节点，每个节点都是可执行单元
-- **与 Runtime 模块**: 使用 `TaskDispatch` 执行任务，依赖 `TaskQueue` 进行通信
-- **与 Persistence 模块**: 通过序列化工具与持久化存储交互
-- **与 Observability 模块**: 提供执行状态和性能指标
+- **与 Stage 模块**: `TaskGraph` 管理 `TaskStage` 节点，每个节点通过 `start_stage` 启动
+- **与 Runtime 模块**: 使用 `TaskInQueue`/`TaskOutQueue` 作为节点间通信管道
+- **与 Persistence 模块**: 通过 `LogSpout`/`FailSpout` 实现持久化
+- **与 Observability 模块**: 通过 `TaskReporter` 向 Web UI 推送状态
 
 ## 使用模式
 
-1. **构建任务图**: 创建 `TaskStage` 节点，通过 `graph.connect()` 建立依赖关系
-2. **选择结构**: 根据需求使用预定义结构（如 `TaskChain` 用于线性流程）
-3. **执行**: 调用 `start_graph()` 或通过子类的 `start_chain()` 等方法执行任务图
-4. **监控**: 使用分析工具检查图结构，监控执行状态
-5. **持久化**: 需要时使用序列化工具保存/加载任务图
+1. **构建任务图**: 创建 `TaskStage` 节点 → `set_stages()` 注册 → `connect()` 建立依赖
+2. **选择结构**: 对常见模式可直接使用 `TaskChain`/`TaskCross` 等预定义结构
+3. **配置**: 通过 `set_reporter()` / `set_ctree()` 集成外部服务
+4. **执行**: 调用 `start_graph()` 或子类的 `start_chain()`/`start_cross()` 等方法
+5. **监控**: 使用 `collect_runtime_snapshot()` 和 `get_graph_summary()` 获取状态
 
 ## 最佳实践
 
-- 对于简单线性流程，优先使用 `TaskChain`
-- 复杂分支逻辑使用 `TaskSplitter` 和 `TaskRouter`
-- 循环任务使用 `TaskLoop`
-- 定期使用分析工具检查图结构的健康状态
-- 重要工作流建议序列化保存，便于调试和恢复
+- 线性流程使用 `TaskChain`，无需手动 `connect`
+- 多路并行流水线使用 `TaskCross` 或手动组合
+- 有环图（`TaskLoop`/`TaskWheel`）建议 `put_termination_signal=False`，通过外部注入停止
+- 生产环境启用 `set_reporter(True)` 进行 Web 监控
+- 复杂 DAG 使用 `staged` 模式便于逐层调试

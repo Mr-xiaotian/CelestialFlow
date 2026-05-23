@@ -1,6 +1,6 @@
 # TaskMetrics
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/24
 
 TaskMetrics 模块负责管理和统计任务执行过程中的各项指标，如输入任务数、成功数、失败数、重复任务数等。它通常作为 `TaskExecutor` 的一个组件存在。
 
@@ -11,38 +11,45 @@ class TaskMetrics:
     def __init__(
         self,
         execution_mode: str,
-        max_retries: int = 1,
         enable_duplicate_check: bool = False,
     ):
-        ...
+        """
+        :param execution_mode: 任务执行模式，可选 "serial", "thread", "async"
+        :param enable_duplicate_check: 是否启用重复任务检查，默认 False
+        """
 ```
 
-- **execution_mode**: 任务执行模式，可选值为 `"thread"` 或 `"async"` 等。用于选择计数器的实现方式。
-- **max_retries**: 最大重试次数，默认值为 1。
-- **enable_duplicate_check**: 是否启用重复任务检查，默认值为 False。
+- **execution_mode**: 决定计数器的线程安全实现（thread 模式下使用 `Lock`）
+- **enable_duplicate_check**: 控制是否维护 `processed_set` 用于去重
 
 ## 计数器管理
 
-TaskMetrics 提供了一系列方法来安全地更新计数器（通常在多线程/多进程环境下使用锁）。
+TaskMetrics 内部维护四个核心计数器：
+
+| 计数器 | 类型 | 用途 |
+|--------|------|------|
+| `task_counter` | `SumCounter` | 总输入任务数（支持级联） |
+| `success_counter` | `ValueWrapper` | 成功任务数 |
+| `error_counter` | `ValueWrapper` | 失败任务数 |
+| `duplicate_counter` | `ValueWrapper` | 重复任务数 |
+
+在 `thread` 模式下，三个 `ValueWrapper` 共用同一把 `Lock`，减少锁开销。
 
 ### 初始化与重置
 
 ```python
-def _init_counter(self) -> None:
-    """初始化计数器（按 execution_mode 选择实现）。"""
-
 def reset_counter(self) -> None:
     """重置所有计数器为零。"""
 
 def reset_state(self) -> None:
-    """重置统计状态（清空重试时间记录和已处理任务集合）。"""
+    """重置统计状态（清空 processed_set）。"""
 ```
 
 ### 计数器操作
 
 ```python
 def add_task_count(self, add_count: int = 1):
-    """增加输入任务计数。"""
+    """线程安全地增加输入任务计数。"""
 
 def add_success_count(self, count: int = 1):
     """线程安全地增加成功任务计数。"""
@@ -57,18 +64,23 @@ def add_duplicate_count(self, count: int = 1):
 ### 计数器级联
 
 ```python
-def append_task_counter(self, counter) -> None:
-    """添加外部计数器到任务总数计数器（用于跨 Stage 级联统计）。"""
+def append_task_counter(self, counter: ValueWrapper) -> None:
+    """添加外部计数器到 task_counter（用于跨 Stage 级联统计）。"""
 ```
+
+级联用于 `TaskStage.prev_bindings()` — 每个下游节点将上游的成功计数器注册到自己的 `task_counter`，实现"上游产出 = 下游输入"的计数一致性。
 
 ## 状态查询
 
 ### is_tasks_finished
 
-判断所有输入的任务是否都已处理完毕（成功 + 失败 + 重复 == 输入）。
+判断所有输入任务是否都已处理完毕。
 
 ```python
-def is_tasks_finished(self) -> bool: ...
+def is_tasks_finished(self) -> bool:
+    """
+    比较 task_counter.value 与 processed (success + error + duplicate) 是否相等。
+    """
 ```
 
 ### get_counts
@@ -76,59 +88,54 @@ def is_tasks_finished(self) -> bool: ...
 获取当前所有指标的快照字典。
 
 ```python
-def get_counts(self) -> dict:
+def get_counts(self) -> dict[str, int]:
     return {
         "tasks_input": int,       # 输入任务总数
         "tasks_succeeded": int,   # 成功任务数
         "tasks_failed": int,      # 失败任务数
         "tasks_duplicated": int,  # 重复任务数
-        "tasks_processed": int,   # 已处理总数 (成功+失败+重复)
-        "tasks_pending": int,     # 待处理任务数 (输入-已处理)
+        "tasks_processed": int,   # 已处理总数
+        "tasks_pending": int,     # 待处理任务数
     }
 ```
 
 ### 单项查询
 
 ```python
-def get_task_count(self) -> int:
-    """获取当前的任务总数。"""
-
-def get_success_count(self) -> int:
-    """获取当前的成功任务数。"""
-
-def get_error_count(self) -> int:
-    """获取当前的失败任务数。"""
-
-def get_duplicate_count(self) -> int:
-    """获取当前的重复任务数。"""
+def get_task_count(self) -> int: ...
+def get_success_count(self) -> int: ...
+def get_error_count(self) -> int: ...
+def get_duplicate_count(self) -> int: ...
 ```
 
 ## 任务去重
 
-如果启用了 `enable_duplicate_check`，TaskMetrics 会维护一个 `processed_set` 集合来记录已处理任务的哈希值。
+当 `enable_duplicate_check=True` 时，维护 `processed_set: set[bytes]` 记录已处理任务的哈希值。
 
 ```python
 def is_duplicate(self, task_hash: bytes) -> bool:
-    """检查任务是否已存在。"""
+    """
+    原子操作：检查并标记重复。
+    - 如果哈希不在集合中，加入集合并返回 False
+    - 如果已存在，返回 True
+    """
 
 def add_processed_set(self, task_hash: bytes) -> None:
-    """将任务哈希添加到已处理集合。"""
+    """将任务哈希加入已处理集合（仅当 enable_duplicate_check=True 时生效）。"""
 ```
 
 ## 重试管理
-
-TaskMetrics 管理任务的重试逻辑。
-
-### 异常配置
 
 ```python
 def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
     """添加需要重试的异常类型。"""
 ```
 
+异常类型以 `tuple` 形式存储在 `self.retry_exceptions` 中，`TaskDispatch._worker` 通过 `isinstance(exception, self.retry_exceptions)` 判断是否重试。
+
 ## 执行模式设置
 
 ```python
 def set_execution_mode(self, execution_mode: str) -> None:
-    """设置任务执行模式并重新初始化计数器。"""
+    """设置任务执行模式并重新初始化计数器（切换线程安全策略）。"""
 ```

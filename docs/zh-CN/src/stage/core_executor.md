@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/24
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -10,33 +10,32 @@
 class TaskExecutor:
     def __init__(
         self,
-        name,
-        func,
-        execution_mode="serial",
-        max_workers=20,
-        max_retries=1,
-        max_info=50,
-        unpack_task_args=False,
-        enable_duplicate_check=True,
-        log_level="INFO",
+        name: str,
+        func: Callable[..., Any],
+        execution_mode: str = "serial",
+        max_workers: int = 20,
+        max_retries: int = 1,
+        max_info: int = 50,
+        unpack_task_args: bool = False,
+        enable_duplicate_check: bool = True,
+        log_level: str = "INFO",
     ):
         ...
 ```
 
 ### 参数说明
 
-- **name**: 执行器名称，用于日志和追踪。
-- **func**: 实际执行任务的可调用对象（函数）。
-- **execution_mode**: 执行模式。
-  - `serial`: 串行执行。
-  - `thread`: 多线程执行。
-  - `async`: 异步执行 (`asyncio`)。
-- **max_workers**: 并发数量限制（线程数/协程数）。
-- **max_retries**: 任务失败后的最大重试次数。
-- **max_info**: 日志中每条信息的最大长度。
-- **unpack_task_args**: 是否将任务参数解包 (`*args`) 传给函数。
-- **enable_duplicate_check**: 是否启用基于任务哈希的重复检查。
-- **log_level**: 日志级别（TRACE/DEBUG/SUCCESS/INFO/WARNING/ERROR/CRITICAL）。
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `name` | — | 执行器名称，用于日志和追踪 |
+| `func` | — | 实际执行任务的可调用对象 |
+| `execution_mode` | `"serial"` | 执行模式：`"serial"` / `"thread"` / `"async"` |
+| `max_workers` | `20` | 并发数量限制（线程数/协程数） |
+| `max_retries` | `1` | 任务失败后的最大重试次数 |
+| `max_info` | `50` | 日志中每条信息的最大长度 |
+| `unpack_task_args` | `False` | 是否将任务参数解包 (`*args`) 传给函数 |
+| `enable_duplicate_check` | `True` | 是否启用基于任务哈希的重复检查 |
+| `log_level` | `"INFO"` | 日志级别 |
 
 ## Observer 模式
 
@@ -49,201 +48,176 @@ executor.add_observer(observer)     # 注册观察者
 executor.remove_observer(observer)  # 移除观察者
 ```
 
-### 使用示例
-
-```python
-from celestialflow import TaskExecutor, TaskProgress, CallbackObserver
-
-# 使用 TaskProgress 显示进度条
-executor = TaskExecutor("Test", my_func)
-executor.add_observer(TaskProgress())
-executor.start(tasks)
-
-# 使用 CallbackObserver
-observer = CallbackObserver(
-    on_task_success=lambda count=1: print(f"成功: {count}"),
-)
-executor.add_observer(observer)
-```
-
 ### 广播事件
 
-| 事件 | 触发时机 |
-|------|----------|
-| `on_start(name, total)` | 执行开始 |
-| `on_task_success(count)` | 任务成功 |
-| `on_task_fail(count)` | 任务失败 |
-| `on_task_duplicate(count)` | 检测到重复 |
-| `on_tasks_added(count)` | 新任务加入 |
-| `on_finish()` | 执行结束 |
+| 事件 | 触发位置 | 说明 |
+|------|---------|------|
+| `on_start(name, total)` | `start()`/`start_async()` | 执行开始 |
+| `on_task_success()` | `process_task_success()` | 任务成功 |
+| `on_task_fail()` | `handle_task_fail()` | 任务失败 |
+| `on_task_duplicate()` | `deal_duplicate()` | 检测到重复 |
+| `on_tasks_added(count)` | `_prepare_task_envelopes()` | 新任务加入（每 100 个通知一次） |
+| `on_finish()` | `start()`/`start_async()` finally | 执行结束 |
+
+注意：`on_task_success`、`on_task_fail`、`on_task_duplicate` 的 `_notify` 调用不传递计数参数，Observer 需自行从外部获取。
 
 ## 核心方法
 
-### start
+### start / start_async
 
 ```python
-def start(self, task_source: Iterable):
+def start(self, task_source: Iterable[Any]) -> None:
     """
-    启动执行器，处理 task_source 中的所有任务。
-    会根据 execution_mode 选择相应的运行策略。
+    同步启动执行器。流程：
+    1. init_env() — 初始化 metrics、dispatch、spout、inlet、queue
+    2. _put_task_queue() — 构造信封并入队所有任务
+    3. 根据 execution_mode 调用 dispatch 对应方法
+    4. finally 中停止 spout
+    
+    注意：async 模式不应使用此方法（会内部 asyncio.run），请使用 start_async。
     """
-```
 
-### start_async
-
-```python
-async def start_async(self, task_source: Iterable):
+async def start_async(self, task_source: Iterable[Any]) -> None:
     """
-    异步启动执行器（用于 async 模式）。
+    异步启动执行器。内部设置 execution_mode="async"。
     """
 ```
 
 ## 错误处理
 
-`TaskExecutor` 会捕获任务执行中的异常：
-- 如果异常在 `retry_exceptions` 列表中且未达到最大重试次数，会将任务重新放入队列重试。
-- 否则，将任务标记为失败，记录错误日志，并放入 `fail_queue`。
+### 重试逻辑
 
-### add_retry_exceptions
+异常在 `TaskDispatch._worker` 中被分类：
+- **可重试异常**: 如果在 `retry_exceptions` 中且未达 `max_retries`，通过 `emit_retry_envelope()` 更新任务 ID 并重试
+- **不可重试异常**: 任务标记为失败，记录错误日志，放入 `fail_inlet`
 
 ```python
-def add_retry_exceptions(self, *exceptions):
-    """
-    添加需要重试的异常类型。
-
-    :param exceptions: 异常类型列表
-    """
+def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
+    """添加需要重试的异常类型。"""
 ```
 
-示例：
+### 结果处理（可重写方法）
+
 ```python
-executor = TaskExecutor("Processor", process, max_retries=3)
-executor.add_retry_exceptions(ValueError, ConnectionError, TimeoutError)
+def process_result(self, task: Any, result: Any) -> Any:
+    """自定义结果处理逻辑（默认原样返回）。"""
+
+def get_args(self, task: Any) -> tuple[Any, ...]:
+    """自定义参数提取逻辑（默认根据 unpack_task_args 解包）。"""
 ```
-
-## 结果处理
-
-### 可重写方法
-
-- **process_result(task, result)**: 可重写此方法以自定义结果处理逻辑。
-- **get_args(task)**: 可重写此方法以自定义参数提取逻辑。
 
 ### 获取结果
 
 ```python
-# 获取成功结果列表
 def get_success_pairs(self) -> list[tuple[Any, Any]]:
-    ...
+    """获取成功任务 (task, result) 列表（通过 SuccessSpout 缓存）。"""
 
-# 获取失败结果列表
-def get_error_pairs(self) -> list[tuple[Any, Exception]]:
-    ...
-```
+def get_error_pairs(self) -> list[tuple[Any, PersistedErrorRecord]]:
+    """获取失败任务 (task, error_record) 列表（通过 FailSpout 缓存）。"""
 
-### 处理结果字典
+def process_result_dict(self) -> dict[Any, Any]:
+    """合并成功和失败结果字典。"""
 
-```python
-# 处理结果字典（合并成功和失败）
-def process_result_dict(self) -> dict:
-    ...
-
-# 处理错误字典（按错误类型分组）
-def handle_error_dict(self) -> dict:
-    ...
+def handle_error_dict(self) -> dict[tuple[str, str], list[Any]]:
+    """按 (error_type, error_message) 分组错误。"""
 ```
 
 ## CelestialTree 集成
 
-`TaskExecutor` 支持 CelestialTree 事件追踪系统，用于任务追踪和调试。
-
-### set_ctree
-
 ```python
-def set_ctree(self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778):
-    """
-    设置 CelestialTree 客户端连接。
+def set_ctree(self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778) -> None:
+    """设置 CelestialTree 客户端（仅 gRPC 传输）。"""
 
-    :param host: CelestialTree 服务主机地址
-    :param http_port: HTTP 端口
-    :param grpc_port: gRPC 端口
-    """
-```
-
-### set_nullctree
-
-```python
-def set_nullctree(self, event_id=None):
-    """
-    设置空客户端（不连接外部服务，仅生成事件 ID）。
-
-    :param event_id: 可选的事件 ID
-    """
+def set_nullctree(self, event_id: int | None = None) -> None:
+    """设置空客户端（不连接外部服务，仅生成事件 ID）。"""
 ```
 
 ## 状态查询方法
 
-### 获取基本信息
-
 ```python
-# 获取执行器名称
-def get_name(self) -> str: ...
-
-# 获取函数名
-def get_func_name(self) -> str: ...
-
-# 获取类名（私有）
-def _get_class_name(self) -> str: ...
-
-# 获取标签（用于日志和追踪）
-def get_tag(self) -> str: ...
-
-# 获取执行模式描述（私有）
-def _get_execution_mode_desc(self) -> str: ...
+def get_name(self) -> str:           # 执行器名称
+def get_full_name(self) -> str:      # "name(mode-workers)" 或 "name(serial)"
+def get_func_name(self) -> str:      # 函数名
+def _get_class_name(self) -> str:    # 类名
+def _get_execution_mode_desc(self) -> str:  # 执行模式描述字符串
+def get_summary(self) -> dict:       # 快照：name, func_name, class_name, execution_mode
+def get_counts(self) -> dict:        # 计数器：tasks_input/succeeded/failed/duplicated/processed/pending
 ```
 
-### 获取状态快照
+## start / start_async 流程
+
+### start（同步启动）
 
 ```python
-def get_summary(self) -> dict:
-    """
-    获取当前节点的状态快照。
-    返回：name, func_name, class_name, execution_mode
-    """
-
-def get_counts(self) -> dict:
-    """
-    获取当前节点的计数器。
-    返回：tasks_input, tasks_succeeded, tasks_failed, tasks_duplicated, tasks_processed, tasks_pending
-    """
+def start(self, task_source: Iterable[Any]) -> None:
 ```
 
-## 运行时信息
+执行流程：
+1. 记录启动时间
+2. `init_env()` — 初始化 metrics → dispatch → spout → inlet → queue
+3. 通知 observer `on_start`
+4. `_put_task_queue(task_source)` — 构造 TaskEnvelope 并入队所有任务
+5. `fail_inlet.start_executor()` / `log_inlet.start_executor()` — 记录启动日志
+6. 根据 `execution_mode` 调用对应 dispatch 方法：
+   - `serial` → `dispatch_serial()`
+   - `thread` → `dispatch_thread()`
+   - `async` → `asyncio.run(dispatch_async())`（不推荐，建议用 `start_async`）
+7. `finally` 中执行清理：`_release_client()` → 通知 `on_finish` → 记录结束日志 → 停止所有 spout
 
-### get_task_repr
+### start_async（异步启动）
 
 ```python
-def get_task_repr(self, task) -> str:
-    """
-    获取任务参数的可读字符串表示。
-    用于日志输出，会自动截断过长的参数。
-    """
+async def start_async(self, task_source: Iterable[Any]) -> None:
 ```
 
-### _get_result_repr
+与 `start` 类似，但：
+- 自动设置 `execution_mode="async"`
+- 使用 `await dispatch.dispatch_async()` 而非 `asyncio.run()`
+- 适合在已有事件循环中调用
+
+## release_queue
 
 ```python
-def _get_result_repr(self, result) -> str:
-    """
-    获取结果的可读字符串表示。
-    """
+def release_queue(self) -> None:
+    """释放任务队列、结果队列和失败队列的引用"""
+```
+
+将 `task_queue`、`result_queue`、`fail_queue` 引用置为 `None`，用于生命周期结束后的 GC。
+
+## 生命周期
+
+```mermaid
+flowchart TD
+    INIT[__init__] -->|设置 func, mode, metrics| NULLCTREE[set_nullctree]
+    NULLCTREE -->|需外部追踪| SETCTREE[set_ctree]
+    SETCTREE -->|start/start_async| ENV[init_env]
+    ENV --> STATE[_init_state]
+    ENV --> DISPATCH_INIT[_init_dispatch: TaskDispatch]
+    ENV --> SPOUT[_init_spout: 创建并启动 ×3]
+    ENV --> INLET[_init_inlet: FailInlet + LogInlet]
+    ENV --> QUEUE[_init_queue: task_queue + result_queue]
+    SPOUT --> PUT[_put_task_queue: 构造信封 → 入队]
+    PUT --> RUN{dispatch 循环}
+    RUN -->|serial| SERIAL[dispatch_serial]
+    RUN -->|thread| THREAD[dispatch_thread]
+    RUN -->|async| ASYNC[dispatch_async]
+    SERIAL --> CLEANUP[finally: _release_client]
+    THREAD --> CLEANUP
+    ASYNC --> CLEANUP
+    CLEANUP --> NOTIFY[on_finish / 结束日志]
+    NOTIFY --> STOP[停止 spout ×3]
+    STOP --> RELEASE[release_queue: 队列引用置空]
 ```
 
 ## 注意事项
 
-### 执行模式选择
-
 | 模式 | 适用场景 | 注意事项 |
-|------|----------|----------|
-| `serial` | 调试、简单任务 | 无并发 |
-| `thread` | I/O 密集型 | 注意 GIL 限制 |
-| `async` | 网络 I/O | 需要使用 start_async |
+|------|----------|---------|
+| `serial` | 调试、简单任务 | 无并发，单线程 |
+| `thread` | I/O 密集型 | 注意 GIL 限制，内部使用线程池 |
+| `async` | 网络 I/O | 函数须为协程；使用 `start_async` 而非 `start` |
+
+- `process_task_success` 会创建结果信封并放入 `result_queue`（= `SuccessSpout` 的队列）
+- `handle_task_fail` 会将错误记录写入 `fail_inlet`
+- `deal_duplicate` 处理重复任务并记录日志
+- `release_queue` 将 `task_queue`、`result_queue`、`fail_queue` 引用置为 None（用于生命周期结束后的 GC）

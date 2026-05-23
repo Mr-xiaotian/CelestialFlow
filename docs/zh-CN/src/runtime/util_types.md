@@ -1,6 +1,6 @@
 # TaskTypes
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/24
 
 TaskTypes 模块定义了框架中使用的基础数据类型、枚举和辅助类。
 
@@ -15,15 +15,6 @@ class StageStatus(IntEnum):
     STOPPED = 2      # 已停止
 ```
 
-使用示例：
-```python
-from celestialflow.runtime.util_types import StageStatus
-
-status = stage.get_status()
-if status == StageStatus.RUNNING:
-    print("节点正在运行")
-```
-
 ## TerminationSignal
 
 用于标记任务队列终止的哨兵对象。当 Stage 接收到此信号时，表示上游已无更多任务，应当准备停止。
@@ -34,21 +25,8 @@ class TerminationSignal:
         self.id = _id        # 事件 ID
         self.source = source  # 来源
 
-# 单例
+# 全局单例
 TERMINATION_SIGNAL = TerminationSignal()
-```
-
-### 使用场景
-
-```python
-from celestialflow.runtime import TerminationSignal
-
-# 注入终止信号
-queue.put(TerminationSignal())
-
-# 检测终止信号
-if isinstance(record, TerminationSignal):
-    break  # 停止处理
 ```
 
 ## TerminationIdPool
@@ -63,22 +41,12 @@ class TerminationIdPool:
 
 ## NoOpContext
 
-空上下文管理器，可用于禁用 `with` 逻辑。
+空上下文管理器，用于禁用 `with` 逻辑（例如当无需锁时）。
 
 ```python
 class NoOpContext:
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-```
-
-使用场景：
-```python
-# 当不需要锁时，返回 NoOpContext
-def get_lock(self):
-    return self._lock or NoOpContext()
+    def __enter__(self) -> "NoOpContext": ...
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
 ```
 
 ## ValueWrapper
@@ -87,60 +55,81 @@ def get_lock(self):
 
 ```python
 class ValueWrapper:
-    def __init__(self, value=0, lock=None):
+    def __init__(self, value: int = 0, lock: Lock | None = None):
         self.value = value
         self._lock = lock
 
-    def get_lock(self):
-        """返回锁对象或 NoOpContext"""
-        return self._lock or NoOpContext()
+    def get_lock(self) -> Lock | NoOpContext:
+        """返回锁对象或 NoOpContext（无锁时）。"""
 ```
 
 ## SumCounter
 
-累加多个 counter（支持 ValueWrapper）。
+累加多个 counter（ValueWrapper）的总和计数器。
 
 ```python
 class SumCounter:
     def __init__(self, mode: str = "serial"):
         """
-        初始化计数器。
-
-        :param mode: 模式 ('serial', 'thread')
+        :param mode: 执行模式，'serial'（无锁）或 'thread'（带锁）
         """
 ```
 
 ### 方法
 
-```python
-# 添加初始值
-def add_init_value(self, value: int) -> None
-
-# 追加计数器
-def append_counter(self, counter: ValueWrapper) -> None
-
-# 重置所有计数器
-def reset(self) -> None
-
-# 获取总值
-@property
-def value(self) -> int
-```
+| 方法 | 说明 |
+|------|------|
+| `add_init_value(value)` | 增加初始值 |
+| `append_counter(counter)` | 追加外部计数器 |
+| `reset()` | 重置所有计数器归零 |
+| `value`（属性） | 累加所有计数器的总值 |
 
 ### 使用示例
 
 ```python
 from celestialflow.runtime.util_types import SumCounter, ValueWrapper
 
-# 线程模式
 counter = SumCounter(mode="thread")
 counter.add_init_value(10)
 
-# 添加子计数器
 sub_counter = ValueWrapper(value=5)
 counter.append_counter(sub_counter)
 
 print(counter.value)  # 15
+```
+
+## CTreeEvent
+
+CelestialTree 事件名称常量，用于任务追踪和可视化。
+
+| 常量 | 值 | 触发时机 |
+|------|-----|---------|
+| `TASK_INPUT` | `"task.input"` | 任务进入系统 |
+| `TASK_SUCCESS` | `"task.success"` | 任务执行成功 |
+| `TASK_ERROR` | `"task.error"` | 任务执行失败 |
+| `TASK_RETRY_PREFIX` | `"task.retry."` | 重试前缀（拼接重试次数） |
+| `TASK_DUPLICATE` | `"task.duplicate"` | 检测到重复任务 |
+| `TERMINATION_INPUT` | `"termination.input"` | 注入终止信号 |
+| `TERMINATION_MERGE` | `"termination.merge"` | 合并终止信号 |
+
+## PersistedErrorRecord
+
+持久化错误记录数据类。
+
+```python
+@dataclass(frozen=True)
+class PersistedErrorRecord:
+    error_type: str          # 错误类型名称
+    error_message: str       # 错误消息
+    error_repr: str          # 错误的完整展示字符串
+    stage: str               # 错误所属节点标签
+    error_id: int | None     # 错误事件 ID
+    timestamp: str           # 错误时间戳字符串
+    ts: float | None         # 错误时间戳
+
+    def __str__(self) -> str: ...
+    def get_group_key(self) -> tuple[str, str]:
+        """返回 (error_type, error_message) 用于分组。"""
 ```
 
 ## STAGE_STYLE
@@ -155,18 +144,3 @@ STAGE_STYLE = NodeLabelStyle(
     missing="-"
 )
 ```
-
-## 异常类
-
-异常类定义在 `runtime/util_errors.py` 中：
-
-| 异常类 | 说明 |
-|--------|------|
-| `CelestialFlowError` | 基础异常类 |
-| `ConfigurationError` | 配置错误 |
-| `InvalidOptionError` | 无效选项错误 |
-| `ExecutionModeError` | 执行模式错误 |
-| `StageModeError` | 节点模式错误 |
-| `LogLevelError` | 日志级别错误 |
-| `RemoteWorkerError` | 远程 Worker 错误 |
-| `UnconsumedError` | 任务未被消费错误 |
