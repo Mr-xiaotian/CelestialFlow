@@ -70,6 +70,13 @@ type NodeHistory = NodeHistoryPoint[];
 
 ---
 
+### `extractProgressData(nodeHistories, metric)`
+
+将本地维护的 `nodeHistories` 映射转换为 Chart.js 兼容的 `{x, y}` 坐标点数组。
+- `metric` 参数决定了提取哪个指标（如 `tasks_succeeded`, `tasks_failed` 等）。
+
+---
+
 ### `trimNodeHistories()`
 
 根据 `webConfig.historyLimit` 裁剪前端本地维护的历史点数量，确保性能。

@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/23
 
 `TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了日志记录和监控功能。
 
@@ -24,16 +24,16 @@ class TaskInQueue:
     def __init__(
         self,
         queue: ThreadQueue | AsyncQueue,
-        queue_tags: list[str],
-        out_tag: str,
+        source_names: list[str],
+        current_name: str,
         log_inlet: "LogInlet",
     ):
         """
         初始化任务入队。
 
         :param queue: 队列对象
-        :param queue_tags: 上游队列标签列表
-        :param out_tag: 当前节点标签
+        :param source_names: 上游节点名称列表
+        :param current_name: 当前节点名称
         :param log_inlet: 日志记录器
         """
 ```
@@ -64,7 +64,7 @@ def get(self) -> TaskEnvelope | TerminationIdPool:
 
 **终止信号合并逻辑**：
 - 当收到来自 `"input"` 的终止信号时，立即返回
-- 当收到来自所有 `queue_tags` 的终止信号时，合并后返回
+- 当收到来自所有 `source_names` 的终止信号时，合并后返回
 
 #### drain
 
@@ -81,9 +81,9 @@ def drain(self) -> list[TaskEnvelope]:
 ### 辅助方法
 
 ```python
-def add_source_tag(self, tag: str):
+def add_source_name(self, name: str):
     """
-    添加上游队列标签。
+    添加上游节点名称。
 
     :param tag: 上游队列标签
     :raises ValueError: 如果标签已存在
@@ -103,18 +103,17 @@ class TaskOutQueue:
     def __init__(
         self,
         queue_list: list[ThreadQueue] | list[AsyncQueue],
-        queue_tags: list[str],
-        in_tag: str,
+        target_names: list[str],
+        current_name: str,
         log_inlet: "LogInlet",
     ):
         """
         初始化任务输出队列。
 
         :param queue_list: 输出队列列表
-        :param queue_tags: 队列标签列表
-        :param in_tag: 当前节点标签
+        :param target_names: 目标节点名称列表
+        :param current_name: 当前节点名称
         :param log_inlet: 日志记录器
-        :raises ValueError: 如果队列列表和标签列表长度不一致
         """
 ```
 
@@ -132,12 +131,12 @@ def put(self, item: TaskEnvelope | TerminationSignal):
 #### put_target
 
 ```python
-def put_target(self, item: TaskEnvelope | TerminationSignal, tag: str):
+def put_target(self, item: TaskEnvelope | TerminationSignal, name: str):
     """
-    入队任务或终止信号到指定标签的输出通道。
+    入队任务或终止信号到指定名称的输出通道。
 
     :param item: 要入队的任务或终止信号
-    :param tag: 输出队列标签
+    :param name: 输出队列标签
     """
 ```
 
@@ -185,7 +184,7 @@ def add_queue(self, queue: ThreadQueue | AsyncQueue, tag: str):
 
 ### 合并规则
 
-`TaskInQueue` 会等待来自所有 `queue_tags` 的终止信号，然后合并为一个 `TerminationIdPool`：
+`TaskInQueue` 会等待来自所有 `source_names` 的终止信号，然后合并为一个 `TerminationIdPool`：
 
 1. 收到终止信号时，记录到 `termination_dict`
 2. 检查是否所有上游都已发送终止信号

@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/23
 
 TaskStructure 模块提供了多种预定义的任务图结构，帮助用户快速构建复杂的任务流。所有的结构都继承自 `TaskGraph`。
 
@@ -38,7 +38,7 @@ chain = TaskChain(
 )
 
 # 启动
-chain.start_chain(init_tasks_dict={stage1.get_tag(): [data]})
+chain.start_chain(init_tasks_dict={stage1.get_name(): [data]})
 ```
 
 ## Cross (交叉层)

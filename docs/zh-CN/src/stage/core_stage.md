@@ -1,21 +1,22 @@
 # TaskStage
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/23
 
-`TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力。
+`TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力与 `stage_mode` 控制逻辑。
 
 ## 继承关系
 
 `TaskExecutor` -> `TaskStage`
 
-`TaskStage` 保留了 `TaskExecutor` 的所有执行能力（执行模式、重试、缓存等），并添加了节点间的连接逻辑。
+`TaskStage` 继承了 `TaskExecutor` 的所有核心能力（执行模式、重试、指标监控等），并添加了节点间的连接逻辑。
 
-## 关键概念
+## 核心概念
 
-- **Stage Mode**: 节点在图中的运行模式。
+- **Stage Mode**: 节点在任务图中的调度逻辑模式。
   - `serial`: 串行模式，在主进程中运行。
   - `thread`: 线程模式，在主进程中以独立线程运行。
-- **拓扑关系**: 节点间的上下游连接关系由 `TaskGraph` 管理（通过 `graph.out_edges` / `graph.in_edges`），而非存储在节点自身。
+- **Execution Mode**: 节点内部处理任务的并发模式（`serial`, `thread`, `async`）。
+- **拓扑关系**: 节点间的上下游连接关系由 `TaskGraph` 管理，`TaskStage` 自身不存储邻接表。
 
 ## 初始化
 
@@ -23,40 +24,17 @@
 class TaskStage(TaskExecutor):
     def __init__(
         self,
-        name,
-        func,
-        execution_mode="serial",
-        max_workers=20,
-        max_retries=1,
-        max_info=50,
-        unpack_task_args=False,
-        enable_duplicate_check=True,
-        log_level="SUCCESS",
-        stage_mode="serial",
+        name: str,
+        func: Callable[..., Any],
+        stage_mode: str = "serial",
+        **kwargs: Any,
     ):
-        ...
-```
-
-参数与 `TaskExecutor` 一致，额外增加了 `stage_mode` 参数。`TaskStage` 的 `execution_mode` 可以是 `serial`、`thread` 或 `async`。
-
-## 图构建方法
-
-### graph.connect
-
-通过 `graph.connect(from_stages, to_stages)` 建立节点间的连接关系。`stage_mode` 和 `name` 通过 `TaskStage.__init__()` 的构造参数传入。
-
-```python
-def connect(
-    self,
-    from_stages: list[TaskStage],
-    to_stages: list[TaskStage],
-):
-    """
-    连接上游节点与下游节点。
-
-    :param from_stages: 上游节点列表
-    :param to_stages: 下游节点列表
-    """
+        """
+        :param name: 节点名称（唯一标识）
+        :param func: 执行函数
+        :param stage_mode: 在图中的运行模式 ('serial' 或 'thread')
+        :param kwargs: 透传给 TaskExecutor 的参数 (execution_mode, max_workers, max_retries 等)
+        """
 ```
 
 示例：
@@ -70,40 +48,47 @@ graph.set_stages(stages=[stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 ```
 
-### 模式设置
+## 配置方法
+
+### set_stage_mode
 
 ```python
-# 设置节点运行模式
 def set_stage_mode(self, stage_mode: str):
     """
-    设置当前节点在 graph 中的执行模式。
+    设置节点在任务图中的执行模式。
     :param stage_mode: 'serial' 或 'thread'
-    """
-
-# 获取节点运行模式
-def get_stage_mode(self) -> str:
-    """
-    获取当前节点在 graph 中的执行模式。
+    :raises StageModeError: 如果模式不支持
     """
 ```
 
-### 名称设置
+### set_execution_mode
+
+```python
+def set_execution_mode(self, execution_mode: str):
+    """
+    设置节点内部的任务处理模式。
+
+    :param execution_mode: 'serial', 'thread' 或 'async'
+    :raises ExecutionModeError: 如果模式不支持
+    """
+```
+
+### set_name
 
 ```python
 def set_name(self, name: str):
     """
-    设置当前节点名称。
-    注意：名称变更后，标签（tag）会失效并重新生成。
+    设置节点名称。
     """
 ```
 
 ## 状态管理
 
-`TaskStage` 使用 `StageStatus` 枚举管理运行状态：
+`TaskStage` 使用 `StageStatus` 枚举维护生命周期：
 
-- `NOT_STARTED` (0): 未启动
-- `RUNNING` (1): 运行中
-- `STOPPED` (2): 已停止
+- `NOT_STARTED` (0): 初始状态。
+- `RUNNING` (1): 已启动，正在监听队列。
+- `STOPPED` (2): 已正常停止或异常退出。
 
 ### 状态方法
 
@@ -130,16 +115,18 @@ def get_status(self) -> StageStatus:
 
 ### start_stage
 
+当 `TaskGraph` 启动时，会调用此方法启动节点。
+
 ```python
 def start_stage(
     self,
     input_queue: TaskInQueue,
     output_queue: TaskOutQueue,
-    fail_queue: Queue,
-    log_queue: Queue,
+    fail_queue: ThreadQueue[Any],
+    log_queue: ThreadQueue[Any],
 ):
     """
-    启动节点执行。
+    启动节点执行，根据 execution_mode 选择调度器。
 
     :param input_queue: 输入队列
     :param output_queue: 输出队列
@@ -148,15 +135,19 @@ def start_stage(
     """
 ```
 
-节点会持续从 `input_queue` 获取任务，执行（利用 `TaskExecutor` 的逻辑），并将结果放入 `output_queue`。
+1. 初始化环境（`Inlet`, `Queue`）。
+2. 记录启动日志。
+3. 标记状态为 `RUNNING`。
+4. 进入 `TaskDispatch` 循环处理任务。
+5. 完成后清理资源并标记 `STOPPED`。
 
 ## 状态快照
 
 ```python
-def get_summary(self) -> dict:
+def get_summary(self) -> dict[str, Any]:
     """
-    获取当前节点的状态快照。
-    包括：name, func_name, class_name, execution_mode, stage_mode
+    获取当前节点的状态摘要。
+    返回包含 class_name, name, func_name, execution_mode, stage_mode 的字典。
     """
 ```
 
@@ -188,5 +179,6 @@ class MyStage(TaskStage):
 
 ## 注意事项
 
-1. **计数器级联**: 当上游是 `TaskSplitter` 或 `TaskRouter` 时，计数器会自动级联。
-2. **标签唯一性**: 标签由 `名称[函数名]` 组成，用于日志追踪和图拓扑标识。
+1. **名称唯一性**: 在同一个 `TaskGraph` 中，每个 `TaskStage` 的 `name` 必须唯一，否则会抛出 `DuplicateNodeError`。
+2. **异步支持**: 如果 `execution_mode` 设置为 `async`，则 `func` 必须是一个协程函数。
+3. **资源清理**: 节点停止时会自动释放客户端连接和闭包资源。

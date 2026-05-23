@@ -33,6 +33,14 @@
 | **结构图增量** | 切换 `showStructureEdgeDelta` 并立即重绘 Mermaid 图 |
 | **明暗主题** | 切换 body 类名，同步更新 `theme-toggle` 文案与图表主题颜色 |
 
+### UI 辅助函数
+
+#### `toggleDarkTheme()`
+在 `body` 元素上切换 `dark-theme` 类，返回切换后的布尔状态。
+
+#### `showSettingsSaveStatus(messageKey)`
+在设置面板底部显示限时的状态提示（如“保存成功”），支持国际化 key 映射。
+
 ### 焦点与辅助功能 (a11y)
 
 - **设置面板**: 支持 `Escape` 键快速关闭，关闭后焦点自动归还至设置按钮。

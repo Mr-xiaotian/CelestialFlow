@@ -1,6 +1,6 @@
 # demo_graph.py 演示说明
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/23
 
 ## 目标
 
@@ -37,7 +37,7 @@ AsyncDouble ──> AsyncToStr
 
 **图结构**：DAG，线性两阶段
 **调度模式**：`staged`（逐层执行）
-**执行后**：调用 `graph.get_status_dict()` 输出每阶段成功/失败任务数
+**执行后**：调用 `graph.get_status_snapshot()` 输出每阶段成功/失败任务数
 
 ## 关键配置
 

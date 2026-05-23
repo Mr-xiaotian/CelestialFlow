@@ -1,6 +1,6 @@
 # 错误持久化 (Fail Persistence)
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/05/23
 
 `celestialflow.persistence` 模块提供了一套稳健的错误收集与持久化机制，确保在多进程并发执行任务时，所有的异常信息都能被安全、有序地记录下来，供后续分析或重试使用。
 
@@ -64,7 +64,7 @@ listener.stop()
 
 ```python
 sinker.task_error(
-    stage_tag="MyStage",
+    stage_name="MyStage",
     error=ValueError("Invalid input"),
     err_id=12345,
     task=[1, 2, 3]
@@ -73,7 +73,7 @@ sinker.task_error(
 
 记录的 JSONL 行包含以下字段：
 -   `timestamp`: 错误发生的时间（ISO 格式）
--   `stage`: 发生错误的阶段标签
+-   `stage`: 发生错误的阶段名称
 -   `error_repr`: 错误信息的字符串表示（截断）
 -   `task_repr`: 任务数据的字符串表示（截断）
 -   `error`: 完整的错误类型和信息
@@ -86,7 +86,7 @@ sinker.task_error(
 `FailInlet` 还支持记录一些元数据，帮助还原当时的执行环境：
 
 -   `start_graph(structure_json)`: 记录任务图的结构信息。
--   `start_executor(executor_tag)`: 记录执行器的启动信息。
+-   `start_executor(executor_name)`: 记录执行器的启动信息。
 
 ```python
 sinker.start_graph({...})
