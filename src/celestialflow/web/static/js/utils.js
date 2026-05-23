@@ -300,3 +300,40 @@ function updateSettingsStatusText() {
         return;
     settingsStatus.textContent = t(messageKey);
 }
+/**
+ * 检查设置面板是否打开
+ * @returns {boolean} 如果设置面板打开则返回 true，否则返回 false
+ */
+function isSettingsPanelOpen() {
+    return !settingsPanel.classList.contains("hidden");
+}
+/**
+ * 打开设置面板
+ */
+function openSettingsPanel() {
+    settingsPanel.classList.remove("hidden");
+    settingsBtn.setAttribute("aria-expanded", "true");
+    settingsClose.focus();
+}
+/**
+ * 关闭设置面板
+ * @param {boolean} options.restoreFocus - 是否在关闭后将焦点返回到设置按钮
+ */
+function closeSettingsPanel(options = {}) {
+    const { restoreFocus = false } = options;
+    settingsPanel.classList.add("hidden");
+    settingsBtn.setAttribute("aria-expanded", "false");
+    if (restoreFocus) {
+        settingsBtn.focus();
+    }
+}
+/**
+ * 切换设置面板的显示状态
+ */
+function toggleSettingsPanel() {
+    if (isSettingsPanelOpen()) {
+        closeSettingsPanel();
+        return;
+    }
+    openSettingsPanel();
+}

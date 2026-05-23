@@ -31,20 +31,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 点击齿轮按钮：切换设置面板显示/隐藏
     settingsBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        settingsPanel.classList.toggle("hidden");
+        toggleSettingsPanel();
     });
 
     // 点击关闭按钮：隐藏设置面板
     settingsClose.addEventListener("click", () => {
-        settingsPanel.classList.add("hidden");
+        closeSettingsPanel({ restoreFocus: true });
     });
 
     // 点击页面空白处：自动关闭设置面板
     document.addEventListener("click", (e) => {
-        if (!settingsPanel.classList.contains("hidden") &&
+        if (isSettingsPanelOpen() &&
             !settingsPanel.contains(e.target as Node) &&
             !settingsBtn.contains(e.target as Node)) {
-            settingsPanel.classList.add("hidden");
+            closeSettingsPanel();
+        }
+    });
+
+    // 按下 Escape：关闭设置面板并把焦点还给设置按钮
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && isSettingsPanelOpen()) {
+            e.preventDefault();
+            closeSettingsPanel({ restoreFocus: true });
         }
     });
 

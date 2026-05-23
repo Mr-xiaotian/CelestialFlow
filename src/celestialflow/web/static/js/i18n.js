@@ -9,6 +9,7 @@ const translations = {
         "app.title": "任务图监控系统",
         "settings.title": "设置",
         "settings.tooltip": "设置",
+        "settings.close": "关闭设置",
         "settings.refreshInterval": "刷新间隔",
         "settings.historyLimit": "历史长度",
         "settings.language": "界面语言",
@@ -103,6 +104,7 @@ const translations = {
         "app.title": "Task Graph Monitor",
         "settings.title": "Settings",
         "settings.tooltip": "Settings",
+        "settings.close": "Close settings",
         "settings.refreshInterval": "Refresh Interval",
         "settings.historyLimit": "History Limit",
         "settings.language": "Language",
@@ -197,6 +199,7 @@ const translations = {
         "app.title": "タスクグラフモニター",
         "settings.title": "設定",
         "settings.tooltip": "設定",
+        "settings.close": "設定を閉じる",
         "settings.refreshInterval": "更新間隔",
         "settings.historyLimit": "履歴長さ",
         "settings.language": "表示言語",
@@ -314,6 +317,7 @@ function t(key, ...args) {
  * - data-i18n: 替换 textContent
  * - data-i18n-placeholder: 替换 placeholder
  * - data-i18n-title: 替换 title 属性
+ * - data-i18n-aria-label: 替换 aria-label 属性
  */
 function applyI18nDOM() {
     document.querySelectorAll("[data-i18n]").forEach((el) => {
@@ -325,6 +329,9 @@ function applyI18nDOM() {
     });
     document.querySelectorAll("[data-i18n-title]").forEach((el) => {
         el.title = t(el.getAttribute("data-i18n-title"));
+    });
+    document.querySelectorAll("[data-i18n-aria-label]").forEach((el) => {
+        el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria-label")));
     });
     document.title = t("app.title");
 }
