@@ -22,21 +22,19 @@ async def async_add_one(x):
 # TaskStage 配置测试
 # =========================
 class TestTaskStageConfig:
-    def test_stage_tag_auto_generation(self):
-        """测试 Stage 标签的自动生成：应包含节点名称和函数名"""
+    def test_stage_name_identity(self):
+        """测试 Stage 唯一标识现在直接使用 name"""
         stage = TaskStage("MyStage", add_one)
-        tag = stage.get_name()
-        assert "MyStage" in tag
-        assert "add_one" in tag
+        assert stage.get_name() == "MyStage"
 
-    def test_stage_tag_changes_with_name(self):
-        """测试修改节点名称后，标签应自动失效并根据新名称重新生成"""
+    def test_stage_name_changes_with_name(self):
+        """测试修改节点名称后，唯一标识随之更新"""
         stage = TaskStage("OldName", add_one)
-        old_tag = stage.get_name()
+        old_name = stage.get_name()
         stage.set_name("NewName")
-        new_tag = stage.get_name()
-        assert old_tag != new_tag
-        assert "NewName" in new_tag
+        new_name = stage.get_name()
+        assert old_name != new_name
+        assert new_name == "NewName"
 
     def test_valid_stage_mode_serial(self):
         """测试合法节点模式：serial（串行隔离）"""

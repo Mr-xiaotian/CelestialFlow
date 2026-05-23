@@ -11,7 +11,7 @@ class TestTaskInQueue:
     @pytest.fixture
     def simple_queue(self, log_inlet):
         q = queue.Queue()
-        return TaskInQueue(q, queue_tags=[], out_tag="test", log_inlet=log_inlet)
+        return TaskInQueue(q, source_names=[], out_name="test", log_inlet=log_inlet)
 
     def test_put_and_get_task(self, simple_queue):
         """入队和出队任务信封"""
@@ -36,7 +36,7 @@ class TestTaskInQueue:
         """多上游终止信号合并"""
         q = queue.Queue()
         in_queue = TaskInQueue(
-            q, queue_tags=["src_a", "src_b"], out_tag="sink", log_inlet=log_inlet
+            q, source_names=["src_a", "src_b"], out_name="sink", log_inlet=log_inlet
         )
 
         in_queue.put(TerminationSignal(_id=10, source="src_a"))
@@ -51,13 +51,13 @@ class TestTaskInQueue:
         """未知来源的终止信号应报错"""
         sig = TerminationSignal(_id=99, source="unknown")
         simple_queue.put(sig)
-        with pytest.raises(ValueError, match="unknown queue tag"):
+        with pytest.raises(ValueError, match="unknown queue source name"):
             simple_queue.get()
 
     def test_drain_returns_remaining_tasks(self, log_inlet):
         """drain 应清空队列并返回所有任务"""
         q = queue.Queue()
-        in_queue = TaskInQueue(q, queue_tags=[], out_tag="test", log_inlet=log_inlet)
+        in_queue = TaskInQueue(q, source_names=[], out_name="test", log_inlet=log_inlet)
 
         env1 = TaskEnvelope("a", id=1, source="input")
         env2 = TaskEnvelope("b", id=2, source="input")
@@ -78,8 +78,8 @@ class TestTaskOutQueue:
         q2 = queue.Queue()
         out_queue = TaskOutQueue(
             queue_list=[q1, q2],
-            queue_tags=["a", "b"],
-            in_tag="src",
+            target_names=["a", "b"],
+            in_name="src",
             log_inlet=log_inlet,
         )
 
@@ -95,13 +95,13 @@ class TestTaskOutQueue:
         q2 = queue.Queue()
         out_queue = TaskOutQueue(
             queue_list=[q1, q2],
-            queue_tags=["a", "b"],
-            in_tag="src",
+            target_names=["a", "b"],
+            in_name="src",
             log_inlet=log_inlet,
         )
 
         envelope = TaskEnvelope("data", id=1, source="src")
-        out_queue.put_target(envelope, tag="b")
+        out_queue.put_target(envelope, name="b")
 
         assert q1.empty()
         assert q2.get().task == "data"
@@ -110,11 +110,11 @@ class TestTaskOutQueue:
         """动态添加输出队列"""
         q1 = queue.Queue()
         out_queue = TaskOutQueue(
-            queue_list=[q1], queue_tags=["a"], in_tag="src", log_inlet=log_inlet
+            queue_list=[q1], target_names=["a"], in_name="src", log_inlet=log_inlet
         )
 
         q2 = queue.Queue()
-        out_queue.add_queue(q2, tag="b")
+        out_queue.add_queue(q2, name="b")
 
         envelope = TaskEnvelope("x", id=1, source="src")
         out_queue.put(envelope)
@@ -122,11 +122,11 @@ class TestTaskOutQueue:
         assert q1.get().task == "x"
         assert q2.get().task == "x"
 
-    def test_duplicate_queue_tag_raises(self, log_inlet):
-        """重复标签应报错"""
+    def test_duplicate_queue_name_raises(self, log_inlet):
+        """重复目标名称应报错"""
         q1 = queue.Queue()
         out_queue = TaskOutQueue(
-            queue_list=[q1], queue_tags=["a"], in_tag="src", log_inlet=log_inlet
+            queue_list=[q1], target_names=["a"], in_name="src", log_inlet=log_inlet
         )
-        with pytest.raises(ValueError, match="duplicate queue tag"):
-            out_queue.add_queue(queue.Queue(), tag="a")
+        with pytest.raises(ValueError, match="duplicate queue target name"):
+            out_queue.add_queue(queue.Queue(), name="a")

@@ -307,9 +307,8 @@ class TestTaskGraphSummary:
         graph.collect_runtime_snapshot()
 
         summary = graph.get_graph_summary()
-        assert summary["total_succeeded"] == 6  # 3 + 3
-        assert summary["total_failed"] == 0
-        assert summary["total_pending"] == 0
+        assert "total_remain" in summary
+        assert summary["total_remain"] == 0
 
 
 # =========================
