@@ -1,8 +1,31 @@
 # SuccessSpout
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/05/24
 
 `SuccessSpout` 继承自 `BaseSpout`，用于持续监听成功结果队列并缓存 task-result 对。
+
+## 架构设计
+
+```mermaid
+flowchart LR
+    Queue[queue.Queue] -->|守护线程轮询| Spout[SuccessSpout._handle_record]
+    Spout --> IsEnvelope{record 是
+TaskEnvelope?}
+    IsEnvelope -->|否| Drop[丢弃]
+    IsEnvelope -->|是| Extract[提取 result = record.task
+task = record.prev]
+    Extract --> Append[追加到
+success_pairs 列表]
+    Append --> Get[get_success_pairs
+返回 list[(task, result)]]
+
+    style Queue fill:#fff3e0
+    style Spout fill:#e8f5e9
+    style IsEnvelope fill:#fff9c4
+    style Extract fill:#e3f2fd
+    style Append fill:#c8e6c9
+    style Get fill:#f3e5f5
+```
 
 ## 初始化
 

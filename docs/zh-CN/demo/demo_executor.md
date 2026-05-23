@@ -1,12 +1,54 @@
 # demo_executor.py 演示说明
 
-> 📅 最后更新日期: 2026/05/08
+> 📅 最后更新日期: 2026/05/24
 
 ## 目标
 
 演示 `TaskExecutor` 在三种执行模式（`serial`、`thread`、`async`）下的独立运行能力。展示异常重试、进度显示和任务统计的完整生命周期，适合作为框架入门的第一手体验。
 
 ## 演示内容
+
+三种执行模式的核心策略对比如下：
+
+```mermaid
+flowchart TB
+    subgraph Serial["串行模式 serial"]
+        direction LR
+        T1_1["任务 1<br/>fibonacci(25)"] --> T1_2["任务 2<br/>fibonacci(26)"]
+        T1_2 --> T1_3["..."]
+        T1_3 --> T1_4["任务 7<br/>fibonacci(31)"]
+    end
+
+    subgraph Thread["线程模式 thread"]
+        direction LR
+        T2_1["任务 1<br/>fibonacci(25)"]
+        T2_2["任务 2<br/>fibonacci(26)"]
+        T2_3["任务 3<br/>fibonacci(27)"]
+        T2_4["任务 4<br/>fibonacci(28)"]
+        T2_5["任务 5<br/>fibonacci(29)"]
+        T2_6["任务 6<br/>fibonacci(30)"]
+        T2_7["任务 7<br/>fibonacci(31)"]
+    end
+
+    subgraph Async["异步模式 async"]
+        direction LR
+        T3_1["任务 1<br/>fibonacci_async(25)"]
+        T3_2["任务 2<br/>fibonacci_async(26)"]
+        T3_3["任务 3<br/>fibonacci_async(27)"]
+        T3_4["任务 4<br/>fibonacci_async(28)"]
+        T3_5["任务 5<br/>fibonacci_async(29)"]
+        T3_6["任务 6<br/>fibonacci_async(30)"]
+        T3_7["任务 7<br/>fibonacci_async(31)"]
+    end
+
+    Input["输入<br/>range(25,32) + [0,27,None,0,'']"] --> Serial
+    Input --> Thread
+    Input --> Async
+
+    Serial --> Retry["异常自动重试 1 次<br/>max_retries=1"]
+    Thread --> Retry
+    Async --> Retry
+```
 
 | 函数 | 模式 | 任务 | 特性 |
 |------|------|------|------|

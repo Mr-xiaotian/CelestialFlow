@@ -8,6 +8,45 @@
 
 ## 架构设计
 
+### 数据流
+
+日志系统采用生产者-消费者模式，完整的数据流如下：
+
+```mermaid
+flowchart LR
+    subgraph Worker[Worker 线程]
+        Inlet[LogInlet]
+    end
+    Worker -->|_funnel 方法| Queue[queue.Queue]
+    Queue -->|守护线程轮询| Spout[LogSpout]
+    Spout -->|_handle_record| File[logs/*.log]
+
+    style Worker fill:#e1f5fe
+    style Queue fill:#fff3e0
+    style Spout fill:#e8f5e9
+    style File fill:#f3e5f5
+```
+
+### 日志级别过滤
+
+`LogInlet._log()` 方法在写入队列前会进行级别过滤：
+
+```mermaid
+flowchart LR
+    Call[_log 被调用] --> Check{level in
+LEVEL_DICT?}
+    Check -->|否| Skip[丢弃]
+    Check -->|是| Compare{LEVEL_DICT[level] <
+LEVEL_DICT[log_level]?}
+    Compare -->|是 - 级别过低| Skip
+    Compare -->|否| Funnel[调用 _funnel
+写入队列]
+
+    style Call fill:#e3f2fd
+    style Skip fill:#ffcdd2
+    style Funnel fill:#c8e6c9
+```
+
 与错误持久化类似，日志系统也采用了 **Logger-Listener** 模式：
 
 1.  **LogInlet (生产者)**:

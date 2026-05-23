@@ -1,6 +1,6 @@
 # demo_graph.py 演示说明
 
-> 📅 最后更新日期: 2026/05/23
+> 📅 最后更新日期: 2026/05/24
 
 ## 目标
 
@@ -10,6 +10,16 @@
 
 ### `demo_etl_fan_out_fan_in`
 ETL 管道，扇出/扇入拓扑：
+
+```mermaid
+flowchart LR
+    Extract["Extract<br/>thread | 4 workers"] --> Normalize["Normalize<br/>thread | 4 workers"]
+    Extract --> Enrich["Enrich<br/>thread | 4 workers"]
+    Normalize --> Load["Load<br/>serial"]
+    Enrich --> Load
+```
+
+ASCII 补充示意：
 
 ```
 Extract ──┬── Normalize ──┬── Load
@@ -27,6 +37,13 @@ Extract ──┬── Normalize ──┬── Load
 
 ### `demo_async_staged_pipeline`
 两阶段异步流水线：
+
+```mermaid
+flowchart LR
+    AsyncDouble["AsyncDouble<br/>async | 8 workers"] --> AsyncToStr["AsyncToStr<br/>async | 8 workers"]
+```
+
+ASCII 补充示意：
 
 ```
 AsyncDouble ──> AsyncToStr

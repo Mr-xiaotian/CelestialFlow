@@ -8,6 +8,28 @@
 
 ## 架构设计
 
+### 数据流
+
+```mermaid
+flowchart LR
+    subgraph Producer[生产者 - Worker 线程]
+        Inlet[FailInlet]
+        Inlet -->|task_error / start_graph / start_executor| Funnel[_funnel]
+    end
+    Funnel --> Queue[queue.Queue]
+    Queue -->|守护线程轮询| Spout[FailSpout._handle_record]
+    Spout -->|json.dumps + 写入| JSONL[fallback/*.jsonl]
+    Spout -->|error_id 存在| Counter[total_error_num += 1]
+    JSONL --> Read[get_error_pairs
+加载已持久化记录]
+
+    style Producer fill:#e1f5fe
+    style Queue fill:#fff3e0
+    style Spout fill:#e8f5e9
+    style JSONL fill:#f3e5f5
+    style Read fill:#c8e6c9
+```
+
 系统采用了 **生产者-消费者** 模式来处理错误日志：
 
 1.  **FailInlet (生产者)**:

@@ -1,6 +1,6 @@
 # demo_stages.py 演示说明
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/24
 
 ## 目标
 
@@ -15,6 +15,16 @@
 
 ### `demo_splitter_0`
 模拟爬虫工作流：
+
+```mermaid
+flowchart TD
+    GenURLs["GenURLs<br/>生成 URL 列表"] -->|直接输出| Logger["Logger<br/>记录爬取信息"]
+    GenURLs -->|直接输出| Splitter["Splitter<br/>将 URL 列表拆分为单条"]
+    Splitter -->|单个 URL| Downloader["Downloader<br/>下载资源"]
+    Splitter -->|单个 URL| Parser["Parser<br/>解析新 URL"]
+    Parser -.->|回环| GenURLs
+```
+
 - `GenURLs` → 生成 URL 列表
 - `Logger` → 记录爬取信息
 - `Splitter` → 将 URL 列表拆分为单个 URL
@@ -28,15 +38,48 @@
 
 ### `demo_redis_ack_0/1/2`
 对比 Python 本地计算与通过 Redis + Go Worker 外部计算的耗时差异：
-- `demo_redis_ack_0`：斐波那契（CPU 密集）
-- `demo_redis_ack_1`：`sum_int`（通信开销主导）
-- `demo_redis_ack_2`：图片下载（I/O 密集）
+
+```mermaid
+flowchart TB
+    subgraph Python["Python 本地计算"]
+        direction LR
+        Start["Start<br/>sleep_1"] -->|直接下发| Compute["计算节点<br/>Fibonacci / Sum / Download"]
+        Compute --> Ack["RedisAck<br/>结果确认"]
+    end
+
+    subgraph GoWorker["Redis + Go Worker 外部计算"]
+        direction LR
+        StartGo["Start<br/>sleep_1"] -->|写入| Transport["RedisTransport<br/>key: input"]
+        Transport -.->|Go Worker 消费| GoCalc["Go Worker<br/>外部计算"]
+        GoCalc -.->|Go Worker 写入| GoAck["RedisAck<br/>key: output"]
+    end
+
+    PythonStart["Start"] --> Python
+    PythonStart --> GoWorker
+```
+
+| 场景 | 计算类型 | Python 本地节点 | Go Worker 节点 |
+|------|---------|----------------|----------------|
+| `demo_redis_ack_0` | CPU 密集 | `Fibonacci` | 斐波那契计算 |
+| `demo_redis_ack_1` | 通信开销主导 | `Sum`（`sum_int`） | 求和计算 |
+| `demo_redis_ack_2` | I/O 密集 | `Download`（`download_to_file`，路径 `download_py/`） | 下载图片（`download_go/`） |
+
+> 图中虚线箭头表示跨进程/跨设备的数据流转。所有 `demo_redis_ack_*` 的 Python 路径和 Go Worker 路径共享同一个 `Start` 节点：`graph.connect([start_stage], [redis_tranport, compute_stage])`。
 
 ### `demo_redis_source_0`
 演示 `TaskRedisSource` 从 Redis 独立读取任务，实现跨设备/跨 TaskGraph 的数据传输。
 
 ### `demo_router_0`
 演示 `TaskRouter` 根据奇偶性将任务分发到不同下游节点。
+
+```mermaid
+flowchart LR
+    Origin["Origin<br/>RouterWrapper"] -->|"(target, n)"| Router["Router<br/>stage_mode=serial"]
+    Router -->|偶数 n % 2 == 0| StageA["StageA<br/>thread | 2 workers"]
+    Router -->|奇数 n % 2 != 0| StageB["StageB<br/>thread | 2 workers"]
+```
+
+路由逻辑：`Origin` 阶段的 `RouterWrapper` 根据输入 `n` 的奇偶性生成 `(target, n)` 元组，`Router` 根据 `target` 字段将任务分发到 `StageA`（偶数）或 `StageB`（奇数）。
 
 ## 关键配置
 

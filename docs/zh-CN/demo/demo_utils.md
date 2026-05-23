@@ -1,10 +1,44 @@
 # demo_utils.py 演示工具说明
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/24
 
 ## 目标
 
 为 `demo/` 目录下的演示脚本提供共享的测试函数和辅助类。与 `tests/test_utils.py` 内容基本一致，是演示代码的专用工具库。
+
+## 函数与演示文件的关系
+
+以下 Mermaid 图展示了 `demo_utils.py` 中各函数/类被哪些演示文件使用：
+
+```mermaid
+flowchart TD
+    subgraph Utils["demo_utils.py 工具函数"]
+        direction TB
+        Fib["fibonacci / fibonacci_async"]
+        Sleep1["sleep_1 / sleep_1_async"]
+        Compute["square / add_5 / add_10 / add_15 / add_one_sleep"]
+        Url["generate_urls_sleep / log_urls_sleep / download_sleep / parse_sleep / download_to_file"]
+        ETL["extract_record / transform_normalize / transform_enrich / load_record"]
+        Async["async_double / async_to_str"]
+        Router["RouterWrapper"]
+        Misc["no_op / sum_int"]
+    end
+
+    ETL --> Graph["demo_graph.py<br/>(demo_etl_fan_out_fan_in)"]
+    Async --> Graph
+    Async --> GraphAsync["demo_graph.py<br/>(demo_async_staged_pipeline)"]
+    Fib --> Executor["demo_executor.py"]
+    Fib --> StagesRedis0["demo_stages.py<br/>(demo_redis_ack_0)"]
+    Sleep1 --> StagesRedis["demo_stages.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0, demo_router_0)"]
+    Url --> StagesSplitter0["demo_stages.py<br/>(demo_splitter_0)"]
+    Url --> StagesRedis2["demo_stages.py<br/>(demo_redis_ack_2)"]
+    Router --> StagesRouter0["demo_stages.py<br/>(demo_router_0)"]
+    Misc --> StagesRedis1["demo_stages.py<br/>(demo_redis_ack_1)"]
+    Misc --> StagesSplitter1["demo_stages.py<br/>(demo_splitter_1)"]
+    Compute --> Structure["demo_structure.py"]
+```
+
+> 图中仅展示主要函数与演示脚本的对应关系，省略了辅助函数和非核心依赖。
 
 ## 内容分类
 
