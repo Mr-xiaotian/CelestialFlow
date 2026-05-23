@@ -1,0 +1,39 @@
+/* ================================
+  🌟 图分析信息
+================================ */
+/* 图分析信息列表容器：纵向排列，设置小号字体 */
+.analysis-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+/* 分析信息行样式：两端排列标签和数值 */
+.analysis-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+
+  /* 分析信息标签文字样式 */
+  .analysis-label {
+    color: var(--carbon-500);
+
+    .dark-theme & {
+      color: var(--carbon-400);
+    }
+  }
+
+  /* 分析信息数值样式：设置字重，支持正常和警告颜色 */
+  .analysis-value {
+    font-weight: 500;
+
+    &.ok {
+      color: var(--jade-600);
+    }
+
+    &.warn {
+      color: var(--crimson-600);
+    }
+  }
+}

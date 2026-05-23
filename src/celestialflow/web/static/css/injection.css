@@ -592,6 +592,7 @@
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -605,6 +606,7 @@
   #task-injection .card-grid {
     grid-template-columns: 1fr;
   }
+
   /* 小屏下展开节点列表，不限制高度 */
   #task-injection .node-list {
     max-height: none;

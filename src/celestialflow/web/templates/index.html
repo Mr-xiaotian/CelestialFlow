@@ -22,11 +22,31 @@
     />
     <link
       rel="stylesheet"
+      href="{{ request.url_for('static', path='css/dashboard_structure.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ request.url_for('static', path='css/dashboard_analysis.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ request.url_for('static', path='css/dashboard_statuses.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ request.url_for('static', path='css/dashboard_summary.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ request.url_for('static', path='css/dashboard_history.css') }}"
+    />
+    <link
+      rel="stylesheet"
       href="{{ request.url_for('static', path='css/errors.css') }}"
     />
     <link
       rel="stylesheet"
-      href="{{ request.url_for('static', path='css/inject.css') }}"
+      href="{{ request.url_for('static', path='css/injection.css') }}"
     />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>

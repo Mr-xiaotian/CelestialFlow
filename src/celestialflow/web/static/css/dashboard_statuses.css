@@ -1,0 +1,238 @@
+/* ================================
+  节点运行状态: 统计格子 & 摘要卡片
+================================ */
+/* 节点内部统计网格样式：两列布局 */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* 节点统计项标签样式 */
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--carbon-600);
+
+  .dark-theme & {
+    color: var(--carbon-400);
+  }
+}
+
+/* 节点统计项数值样式：设置字号和字重 */
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+/* ================================
+  节点运行状态: 进度条 & 任务进度样式
+================================ */
+/* 进度条外层容器样式 */
+.progress-container {
+  margin-top: 0.75rem;
+}
+
+/* 进度条头部样式：排列百分比和状态文字 */
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+/* 进度条轨道样式：设置高度和背景色，支持暗色模式 */
+.progress-bar {
+  width: 100%;
+  height: 0.5rem;
+  background-color: var(--carbon-100);
+  border-radius: 0.25rem;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+
+  .dark-theme & {
+    background-color: var(--carbon-700);
+  }
+}
+
+/* 进度条分段样式：根据任务状态（成功/错误/重复/等待）设置颜色 */
+.progress-segment {
+  min-width: 0;
+
+  &.seg-success {
+    background-color: var(--jade-400);
+
+    .dark-theme & {
+      background-color: var(--jade-700);
+    }
+  }
+
+  &.seg-error {
+    background-color: var(--crimson-400);
+
+    .dark-theme & {
+      background-color: var(--crimson-700);
+    }
+  }
+
+  &.seg-duplicate {
+    background-color: var(--marigold-400);
+
+    .dark-theme & {
+      background-color: var(--marigold-700);
+    }
+  }
+
+  &.seg-pending {
+    background-color: var(--carbon-300);
+
+    .dark-theme & {
+      background-color: var(--carbon-600);
+    }
+  }
+}
+
+/* 预计时间文字样式：等宽字体 */
+.time-estimate {
+  font-family: monospace;
+
+  .elapsed {
+    color: var(--carbon-500);
+
+    .dark-theme & {
+      color: var(--carbon-300);
+    }
+  }
+
+  .elapsed-success {
+    color: var(--jade-500);
+
+    .dark-theme & {
+      color: var(--jade-300);
+    }
+  }
+
+  .elapsed-error {
+    color: var(--crimson-500);
+
+    .dark-theme & {
+      color: var(--crimson-300);
+    }
+  }
+
+  .elapsed-duplicate {
+    color: var(--marigold-500);
+
+    .dark-theme & {
+      color: var(--marigold-300);
+    }
+  }
+
+  .remaining {
+    color: var(--carbon-500);
+
+    .dark-theme & {
+      color: var(--carbon-300);
+    }
+  }
+}
+
+/* ================================
+  🌟 节点运行状态样式
+================================ */
+/* 仪表盘节点卡片网格样式：两列布局，设置最大高度支持滚动 */
+#dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+/* 卡片头部样式：两端排列内部元素 */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+/* 节点状态卡片：设置背景、边框及左侧状态条 */
+.node-card {
+  background-color: var(--frost-0);
+  border-radius: 1rem;
+  box-shadow: none;
+  border: 1px solid var(--carbon-200);
+  border-left: 3px solid var(--carbon-300);
+  padding: 1rem;
+  margin: 0.5rem;
+
+  &.status-running {
+    border-left-color: var(--cornflower-400);
+
+    .dark-theme & {
+      border-left-color: var(--cornflower-500);
+    }
+  }
+
+  &.status-stopped {
+    border-left-color: var(--carbon-400);
+
+    .dark-theme & {
+      border-left-color: var(--carbon-500);
+    }
+  }
+
+  .dark-theme & {
+    background-color: var(--carbon-800);
+    border-color: var(--carbon-600);
+    border-left-color: var(--carbon-600);
+  }
+
+  .card-title {
+    margin-bottom: 0;
+  }
+}
+
+/* 拖拽中的卡片半透明效果 */
+.sortable-dragging {
+  opacity: 0.5;
+}
+
+/* 拖拽占位符（影子）样式 */
+.sortable-ghost {
+  opacity: 0.4;
+  transform: rotate(1.5deg);
+}
+
+/* 被选中的拖拽项样式 */
+.sortable-chosen {
+  box-shadow: none;
+  cursor: grabbing;
+}
+
+/* 可点击的错误统计值：显示手型光标 */
+.stat-value.error-clickable {
+  cursor: pointer;
+}
+
+/* ================================
+  🌟 响应式：小屏布局
+================================ */
+@media (max-width: 2048px) {
+  #dashboard-grid {
+    grid-template-columns: 1fr !important;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .card-header {
+    flex-wrap: wrap;
+    word-break: break-word;
+  }
+
+  .card-header .card-title {
+    flex: 1 1 100%;
+  }
+}
