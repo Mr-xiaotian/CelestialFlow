@@ -125,21 +125,35 @@ h1 {
   border: none;
   color: var(--frost-0);
   cursor: pointer;
-  padding: 0.4rem;
+  height: 2rem;
+  padding: 0 0.75rem;
   border-radius: 0.25rem;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
+  line-height: 1;
 
   &:hover {
     background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 2px;
+    background-color: rgba(255, 255, 255, 0.12);
   }
 
   .dark-theme & {
     color: var(--carbon-200);
 
     &:hover {
+      background-color: var(--carbon-700);
+    }
+
+    &:focus-visible {
+      outline-color: var(--frost-1);
       background-color: var(--carbon-700);
     }
   }
@@ -312,9 +326,14 @@ select {
   background-color: var(--carbon-700);
   color: var(--frost-0);
   border: none;
+  height: 2rem;
   border-radius: 1.25rem;
   padding: 0.25rem 1rem;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   transition: all 0.3s ease;
 
   &:hover {
