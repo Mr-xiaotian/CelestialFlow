@@ -17,6 +17,7 @@ let historyRev = -1; // 数据版本号，用于增量拉取
 /**
  * 异步加载最新的节点状态数据
  * 从后端 API 获取节点状态并更新全局变量 nodeHistories
+ * @returns {Promise<boolean>} 当历史数据版本发生变化并成功更新时返回 `true`，否则返回 `false`。
  */
 async function loadHistories(): Promise<boolean> {
   try {
@@ -34,6 +35,7 @@ async function loadHistories(): Promise<boolean> {
 
 /**
  * 从 CSS 变量读取图表主题颜色
+ * @returns {{ text: string; grid: string; border: string }} 当前主题下图表文字、网格线和边框颜色。
  */
 function getChartThemeColors() {
   const isDark = document.body.classList.contains("dark-theme");
@@ -48,6 +50,7 @@ function getChartThemeColors() {
 /**
  * 初始化节点进度折线图
  * 创建 Chart.js 实例，配置图表选项、图例点击事件等
+ * @returns {void}
  */
 function initChart() {
   const ctx = (document.getElementById("node-progress-chart") as HTMLCanvasElement).getContext("2d");
@@ -119,6 +122,7 @@ function initChart() {
 
 /**
  * 更新折线图主题颜色（切换深色/浅色模式时调用，无需重建实例）
+ * @returns {void}
  */
 function updateChartTheme() {
   if (!progressChart) return;
@@ -141,6 +145,7 @@ function updateChartTheme() {
 /**
  * 更新折线图数据
  * 提取节点进度历史数据，更新 Chart.js 实例的数据集并重绘
+ * @returns {void}
  */
 function updateChartData() {
   const nodeDataMap = extractProgressData(nodeHistories);

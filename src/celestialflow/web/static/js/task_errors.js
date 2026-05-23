@@ -28,8 +28,8 @@ function buildErrorsQueryKey(page, pageSizeValue, node, keyword) {
 }
 /**
  * 从后端加载错误日志数据
- * @param {boolean} forceReload - 是否强制重新加载
- * @returns {Promise<boolean>} 数据是否有变更
+ * @param {boolean} [forceReload=false] - 是否忽略当前查询缓存与 `known_rev`，强制重新拉取。
+ * @returns {Promise<boolean>} 当后端返回了新的错误记录数据时返回 `true`，否则返回 `false`。
  */
 async function loadErrors(forceReload = false) {
     try {
@@ -98,6 +98,7 @@ function renderErrors() {
 /**
  * 跳转到指定错误页码并重新加载数据
  * @param {number} nextPage - 目标页码
+ * @returns {Promise<void>}
  */
 async function goToErrorsPage(nextPage) {
     const normalizedPage = Math.max(1, Math.min(totalPages || 1, nextPage));
@@ -128,6 +129,7 @@ function buildPageList(current, total) {
 /**
  * 渲染分页控件（上一页、页码、下一页）
  * @param {number} totalPages - 总页数
+ * @returns {void}
  */
 function renderPaginationControls(totalPages) {
     paginationContainer.innerHTML = "";
@@ -173,6 +175,7 @@ function renderPaginationControls(totalPages) {
 /**
  * 根据节点状态填充错误筛选下拉框
  * @param {Record<string, NodeStatus>} statuses - 节点状态映射
+ * @returns {void}
  */
 function populateNodeFilter(statuses) {
     const nodes = Object.keys(statuses);

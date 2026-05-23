@@ -10,6 +10,7 @@ let analysisRev = -1; // 数据版本号，用于增量拉取
 /**
  * 异步加载最新的分析数据
  * 从后端 API 获取分析信息并更新全局变量 analysisData
+ * @returns {Promise<boolean>} 当分析数据版本发生变化并成功更新时返回 `true`，否则返回 `false`。
  */
 async function loadAnalysis(): Promise<boolean> {
   try {
@@ -28,6 +29,7 @@ async function loadAnalysis(): Promise<boolean> {
 /**
  * 渲染分析信息面板
  * 根据 analysisData 在页面上显示结构类型、DAG 状态、调度模式和层级数量等信息
+ * @returns {void}
  */
 function renderAnalysisInfo() {
   const container = document.getElementById("analysis-info") as HTMLElement;

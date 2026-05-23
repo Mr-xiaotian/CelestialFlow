@@ -92,6 +92,7 @@ function setupEventListeners() {
 /**
  * 渲染任务注入页面的节点列表
  * @param {string} searchTerm - 搜索关键词，用于过滤节点
+ * @returns {void}
  */
 function renderNodeList(searchTerm = "") {
   const nodeListEl = document.getElementById("node-list");
@@ -164,6 +165,7 @@ function removeNode(nodeName: string) {
 /**
  * 更新已选节点列表的 UI 显示
  * 显示已选数量和节点列表，如果为空则隐藏相关区域
+ * @returns {void}
  */
 function updateSelectedNodes() {
   const selectedSection = document.getElementById("selected-section");
@@ -222,7 +224,8 @@ function clearSelection() {
 
 /**
  * 切换任务数据输入方式（JSON文本或文件上传）
- * @param {string} method - 输入方式 'json' 或 'file'
+ * @param {string} method - 输入方式，当前支持 `json` 或 `file`。
+ * @returns {void}
  */
 function switchInputMethod(method: string) {
   currentInputMethod = method;
@@ -244,6 +247,7 @@ function switchInputMethod(method: string) {
 
 /**
  * 填充预定义的终止信号 JSON
+ * @returns {void}
  */
 function fillTermination() {
   (document.getElementById("json-textarea") as HTMLTextAreaElement).value = JSON.stringify(
@@ -258,6 +262,7 @@ function fillTermination() {
  * 处理文件上传事件
  * 读取 JSON 文件内容并验证格式
  * @param {Event} e - 文件选择事件
+ * @returns {void}
  */
 function handleFileUpload(e: Event) {
   const fileInput = e.target as HTMLInputElement;
@@ -293,6 +298,7 @@ function handleFileUpload(e: Event) {
  * 显示错误信息
  * @param {string} elementId - 错误信息容器 ID
  * @param {string} message - 错误文本
+ * @returns {void}
  */
 function showError(elementId: string, message: string) {
   const errorDiv = document.getElementById(elementId) as HTMLElement;
@@ -303,6 +309,7 @@ function showError(elementId: string, message: string) {
 /**
  * 隐藏错误信息
  * @param {string} elementId - 错误信息容器 ID
+ * @returns {void}
  */
 function hideError(elementId: string) {
   (document.getElementById(elementId) as HTMLElement).style.display = "none";
@@ -310,8 +317,9 @@ function hideError(elementId: string) {
 
 /**
  * 显示操作状态提示（成功或失败）
- * @param {string} message - 提示信息
- * @param {boolean} isSuccess - 是否成功
+ * @param {string} message - 要显示的提示 HTML 文本。
+ * @param {boolean} [isSuccess=false] - 是否按成功态样式展示。
+ * @returns {void}
  */
 function showStatus(message, isSuccess = false) {
   const statusDiv = document.getElementById("status-message");
@@ -335,6 +343,7 @@ function showStatus(message, isSuccess = false) {
  * 1. 验证节点选择和输入数据
  * 2. 遍历所有选定节点发送 POST 请求
  * 3. 根据结果显示成功或失败状态，并重置表单
+ * @returns {Promise<void>}
  */
 async function handleSubmit() {
   if (selectedNodes.length === 0) {
@@ -392,6 +401,7 @@ async function handleSubmit() {
 /**
  * 设置提交按钮的加载状态
  * @param {boolean} loading - 是否正在加载
+ * @returns {void}
  */
 function setButtonLoading(loading: boolean) {
   const btn = document.getElementById("submit-btn") as HTMLButtonElement;
@@ -407,6 +417,7 @@ function setButtonLoading(loading: boolean) {
 /**
  * 重置任务注入表单
  * 清空选择、输入框和错误信息
+ * @returns {void}
  */
 function clearForm() {
   selectedNodes = [];

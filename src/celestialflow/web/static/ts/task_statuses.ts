@@ -31,6 +31,7 @@ const dashboardGrid = document.getElementById("dashboard-grid") as HTMLElement;
 /**
  * 异步加载最新的节点状态数据
  * 从后端 API 获取节点状态并更新全局变量 nodeStatuses
+ * @returns {Promise<boolean>} 当状态版本发生变化并成功更新时返回 `true`，否则返回 `false`。
  */
 async function loadStatuses(): Promise<boolean> {
   try {
@@ -50,6 +51,7 @@ async function loadStatuses(): Promise<boolean> {
 /**
  * 初始化仪表盘的拖拽排序功能
  * 如果是移动端则跳过初始化
+ * @returns {void}
  */
 function initSortableDashboard() {
   if (isMobile()) {
@@ -76,6 +78,7 @@ function initSortableDashboard() {
 /**
  * 根据排序顺序和节点状态生成 HTML，显示进度条、统计数据等
  * 渲染时会跳过当前正在被用户拖拽的卡片，防止闪烁
+ * @returns {void}
  */
 function renderDashboard() {
   dashboardGrid.innerHTML = "";

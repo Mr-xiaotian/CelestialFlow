@@ -15,6 +15,7 @@ const totalRemain = document.getElementById("total-remain");
 /**
  * 异步加载最新的汇总数据
  * 从后端 API 获取任务汇总信息并更新全局变量 summaryData
+ * @returns {Promise<boolean>} 当后端返回了新的汇总数据时返回 `true`，否则返回 `false`。
  */
 async function loadSummary() {
     try {
@@ -35,6 +36,7 @@ async function loadSummary() {
  * 渲染汇总数据面板
  * 基于已有节点状态聚合展示总成功数、等待数、失败数、重复数、活动节点数；
  * 图级剩余时间仍使用后端提供的全局估算值。
+ * @returns {void}
  */
 function renderSummary() {
     const statusList = Object.values(nodeStatuses || {});

@@ -41,6 +41,8 @@ const PANEL_SELECTOR_MAP = {
 
 /**
  * 基于默认配置补齐后端返回值，确保页面在缺字段时也能稳定启动。
+ * @param {Partial<WebConfig> | null} [rawConfig] - 后端返回的原始配置；为空时仅使用默认值。
+ * @returns {WebConfig} 补齐缺省字段后的可用配置对象。
  */
 function normalizeWebConfig(rawConfig?: Partial<WebConfig> | null): WebConfig {
     return {
@@ -55,6 +57,7 @@ function normalizeWebConfig(rawConfig?: Partial<WebConfig> | null): WebConfig {
 
 /**
  * 从后端加载配置；失败时自动回退到默认配置继续启动页面。
+ * @returns {Promise<void>} 配置加载流程完成后结束；无论成功或降级都会保证 `webConfig` 可用。
  */
 async function loadWebConfig(): Promise<void> {
     try {
@@ -75,6 +78,7 @@ async function loadWebConfig(): Promise<void> {
 
 /**
  * 保存配置到后端
+ * @returns {Promise<boolean>} 保存成功返回 `true`，否则返回 `false`。
  */
 async function saveWebConfig() {
     try {
@@ -98,6 +102,7 @@ async function saveWebConfig() {
 /**
  * 将配置对象应用到全局变量和页面 UI 元素上
  * 包含语言切换、主题应用、下拉框同步和仪表盘重排
+ * @returns {void}
  */
 function applyConfig() {
     // 应用语言
@@ -161,6 +166,7 @@ function applyConfig() {
  * 应用仪表盘卡片布局配置
  * 通过 DOM 操作（appendChild）将页面中的卡片元素移动到配置指定的左右中栏位中，
  * 并根据配置控制卡片的显隐和顺序。
+ * @returns {void}
  */
 function applyDashboardLayout() {
     const dashboard = webConfig.dashboard;

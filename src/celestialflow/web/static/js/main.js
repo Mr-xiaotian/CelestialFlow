@@ -122,6 +122,7 @@ document.addEventListener("DOMContentLoaded", async () => {
  * 主刷新函数：协调所有数据的更新和 UI 渲染
  * 并行拉取节点状态、结构、错误、拓扑和汇总数据
  * 对比新旧数据，仅在数据变更时触发相应的 UI 更新函数
+ * @returns {Promise<void>}
  */
 async function refreshAll() {
     // 并行获取节点状态、任务结构、错误日志（注意是异步 API 请求）

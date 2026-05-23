@@ -70,8 +70,8 @@ function getColor(index: number) {
 
 /**
  * 从节点历史数据中提取进度数据，用于图表显示
- * @param {Object} nodeHistories - 节点历史数据对象
- * @returns {Object} 包含各节点历史数据的对象
+ * @param {Record<string, NodeHistory>} nodeHistories - 以节点名为键的历史数据映射。
+ * @returns {Record<string, Array<{ x: number; y: number }>>} 可直接交给图表使用的坐标点映射。
  */
 function extractProgressData(nodeHistories: Record<string, NodeHistory>) {
   const result: Record<string, Array<{ x: number; y: number }>> = {};
@@ -140,6 +140,7 @@ function toggleDarkTheme() {
 /**
  * 切换到错误标签页，并可选地设置节点筛选器
  * @param {string} [nodeFilter] - 节点筛选值，不传或传空字符串则显示全部
+ * @returns {void}
  */
 function switchToErrorsTab(nodeFilter: string = "") {
   document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
@@ -324,6 +325,7 @@ function formatTimestamp(timestamp: number) {
 /**
  * 显示设置保存状态消息
  * @param {string} messageKey - 状态消息的翻译键
+ * @returns {void}
  */
 function showSettingsSaveStatus(messageKey: string) {
     if (settingsStatusTimer) {
@@ -345,6 +347,7 @@ function showSettingsSaveStatus(messageKey: string) {
 
 /**
  * 更新设置保存状态消息文本
+ * @returns {void}
  */
 function updateSettingsStatusText() {
     const messageKey = settingsStatus.dataset.messageKey;
@@ -362,6 +365,7 @@ function isSettingsPanelOpen() {
 
 /**
  * 打开设置面板
+ * @returns {void}
  */
 function openSettingsPanel() {
     settingsPanel.classList.remove("hidden");
@@ -371,7 +375,8 @@ function openSettingsPanel() {
 
 /**
  * 关闭设置面板
- * @param {boolean} options.restoreFocus - 是否在关闭后将焦点返回到设置按钮
+ * @param {{ restoreFocus?: boolean }} [options={}] - 关闭选项；`restoreFocus` 为 `true` 时会把焦点还给设置按钮。
+ * @returns {void}
  */
 function closeSettingsPanel(options: { restoreFocus?: boolean } = {}) {
     const { restoreFocus = false } = options;
@@ -384,6 +389,7 @@ function closeSettingsPanel(options: { restoreFocus?: boolean } = {}) {
 
 /**
  * 切换设置面板的显示状态
+ * @returns {void}
  */
 function toggleSettingsPanel() {
     if (isSettingsPanelOpen()) {

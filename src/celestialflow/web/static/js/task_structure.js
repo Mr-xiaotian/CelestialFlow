@@ -8,6 +8,7 @@ let structureRev = -1; // 数据版本号，用于增量拉取
 /**
  * 异步加载最新的任务结构数据
  * 从后端 API 获取任务结构图数据并更新全局变量 structureData
+ * @returns {Promise<boolean>} 当结构版本发生变化并成功更新时返回 `true`，否则返回 `false`。
  */
 async function loadStructure() {
     try {
@@ -26,7 +27,7 @@ async function loadStructure() {
 }
 /**
  * 获取节点的唯一标识符 ID
- * @param {Object} node - 节点对象
+ * @param {{ name: string }} node - 结构图节点对象，至少需要包含 `name` 字段。
  * @returns {string} 替换非单词字符后的节点 ID
  */
 function getNodeId(node) {
@@ -35,7 +36,7 @@ function getNodeId(node) {
 /**
  * 根据节点形状类型生成 Mermaid 语法的标签
  * @param {string} label - 节点显示的文本
- * @param {string} shape - 形状类型 (box, circle, round, rhombus, subgraph, parallelogram, db, cloud, hex, arrow)
+ * @param {string} [shape="box"] - 形状类型，可选值包括 `box`、`circle`、`round`、`rhombus`、`subgraph`、`parallelogram`、`db`、`cloud`、`hex`、`arrow`。
  * @returns {string} 包含形状定义的 Mermaid 节点标签
  */
 function getShapeWrappedLabel(label, shape = "box") {
@@ -65,6 +66,8 @@ function getShapeWrappedLabel(label, shape = "box") {
 /**
  * 根据任务结构数据渲染 Mermaid 图表
  * 构建 Mermaid 流程图代码，根据节点状态应用样式，并更新 DOM
+ * @param {Record<string, NodeStatus>} [statuses={}] - 当前节点状态映射，用于节点着色和边增量计算。
+ * @returns {void}
  */
 function renderMermaidStructure(statuses = {}) {
     if (!structureData.length) {
