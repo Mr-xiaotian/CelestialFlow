@@ -35,7 +35,6 @@ from ..runtime.util_estimators import (
 from ..runtime.util_types import (
     STAGE_STYLE,
     CTreeEvent,
-    StageStatus,
     TerminationSignal,
 )
 from ..stage import TaskStage
@@ -663,14 +662,7 @@ class TaskGraph:
         interval = self.reporter.interval
         history_limit = self.reporter.history_limit
 
-        totals = {
-            "total_succeeded": 0,
-            "total_pending": 0,
-            "total_failed": 0,
-            "total_duplicated": 0,
-            "total_nodes": 0,
-            "total_remain": 0.0,
-        }
+        totals = {"total_remain": 0.0}
 
         # 为全局预计 remaining 收集
         running_elapsed_map: dict[str, float] = {}
@@ -693,14 +685,6 @@ class TaskGraph:
                     history_limit,
                 )
             )
-
-            totals["total_succeeded"] += snapshot["tasks_succeeded"]
-            totals["total_pending"] += snapshot["tasks_pending"]
-            totals["total_failed"] += snapshot["tasks_failed"]
-            totals["total_duplicated"] += snapshot["tasks_duplicated"]
-
-            if snapshot["status"] == StageStatus.RUNNING:
-                totals["total_nodes"] += 1
 
             status_dict[stage_tag] = snapshot
             history_dict[stage_tag] = history
@@ -763,7 +747,7 @@ class TaskGraph:
         """
         获取任务链的摘要信息字典
 
-        :return: 包含 total_succeeded, total_pending, total_failed 等字段的字典
+        :return: 当前仅包含 total_remain 的字典
         """
         return self.graph_summary
 
