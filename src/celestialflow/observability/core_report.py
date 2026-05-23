@@ -89,7 +89,6 @@ class TaskReporter:
         """刷新所有上报内容"""
         # 拉取逻辑
         self._pull_interval()
-        self._pull_history_limit()
         self._pull_and_inject_tasks()
 
         # 收集最新的任务图状态快照，确保推送的数据是最新的
@@ -101,7 +100,6 @@ class TaskReporter:
         self._push_structure()
         self._push_analysis()
         self._push_summary()
-        self._push_history()
 
     # ==== 拉取 ====
     def _pull_interval(self) -> None:
@@ -117,20 +115,6 @@ class TaskReporter:
             self.interval = max(1.0, min(interval, 60.0))
         except Exception as e:
             self.log_inlet.pull_interval_failed(e)
-
-    def _pull_history_limit(self) -> None:
-        """从远程服务拉取历史记录限制配置"""
-        try:
-            res = self._session.get(
-                f"{self.base_url}/api/pull_history_limit", timeout=self._pull_timeout()
-            )
-            if not res.ok:
-                raise RuntimeError(f"Failed to pull history limit: {res.status_code}")
-
-            history_limit = res.json().get("historyLimit", 20)
-            self.history_limit = max(1, min(history_limit, 100))
-        except Exception as e:
-            self.log_inlet.pull_history_limit_failed(e)
 
     def _pull_and_inject_tasks(self) -> None:
         """从远程服务拉取任务注入信息并注入任务"""
@@ -244,8 +228,7 @@ class TaskReporter:
     def _push_status(self) -> None:
         """推送状态信息"""
         try:
-            status_data: dict[str, Any] = self.task_graph.get_status_dict()  # type: ignore[reportUnknownMemberType]
-            payload: dict[str, Any] = {"status": status_data}
+            payload: dict[str, Any] = self.task_graph.get_status_snapshot()  # type: ignore[reportUnknownMemberType]
             self._session.post(
                 f"{self.base_url}/api/push_status",
                 json=payload,
@@ -292,22 +275,6 @@ class TaskReporter:
             )
         except Exception as e:
             self.log_inlet.push_summary_failed(e)
-
-    def _push_history(self) -> None:
-        """推送历史信息"""
-        try:
-            history: dict[str, list[dict[str, Any]]] = (
-                self.task_graph.get_stage_history()
-            )  # type: ignore[reportUnknownMemberType]
-            payload: dict[str, Any] = {"history": history}
-            self._session.post(
-                f"{self.base_url}/api/push_history",
-                json=payload,
-                timeout=self._push_timeout(),
-            )
-        except Exception as e:
-            self.log_inlet.push_history_failed(e)
-
 
 class NullTaskReporter:
     """空实现的任务上报器，用于关闭上报功能时的占位对象。"""

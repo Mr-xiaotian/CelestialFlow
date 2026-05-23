@@ -20,8 +20,12 @@ def test_config_api(client):
 def test_status_push_pull(client):
     """测试状态同步链路：验证已知版本号（known_rev）下的增量拉取逻辑"""
     # 1. 推送状态
+    test_timestamp = 1710000000.0
     test_status = {"s1": {"tasks_succeeded": 10, "tasks_failed": 0}}
-    push_resp = client.post("/api/push_status", json={"status": test_status})
+    push_resp = client.post(
+        "/api/push_status",
+        json={"timestamp": test_timestamp, "status": test_status},
+    )
     assert push_resp.status_code == 200
     assert push_resp.json() == {"ok": True}
 
@@ -30,6 +34,7 @@ def test_status_push_pull(client):
     assert pull_resp.status_code == 200
     pull_data = pull_resp.json()
     assert pull_data["rev"] > 0
+    assert pull_data["timestamp"] == test_timestamp
     assert pull_data["data"] == test_status
 
     # 3. 再次拉取相同版本 (known_rev=current_rev)

@@ -31,6 +31,7 @@ class StructureModel(BaseModel):
 class StatusModel(BaseModel):
     """节点状态数据模型"""
 
+    timestamp: float
     status: dict[str, dict[str, Any]]
 
 
@@ -59,12 +60,6 @@ class SummaryModel(BaseModel):
     """任务汇总数据模型"""
 
     summary: dict[str, Any]
-
-
-class HistoryModel(BaseModel):
-    """节点历史数据模型"""
-
-    history: dict[str, list[dict[str, Any]]]
 
 
 class TaskInjectionModel(BaseModel):
@@ -127,11 +122,11 @@ class TaskWebServer:
 
         # 用于存储状态、结构、错误信息
         self.status_store: dict[str, dict[str, Any]] = {}
+        self.status_timestamp: float = 0.0
         self.structure_store: list[dict[str, Any]] = []
         self.error_store: list[dict[str, Any]] = []
         self.analysis_store: dict[str, Any] = {}
         self.summary_store: dict[str, Any] = {}
-        self.history_store: dict[str, list[dict[str, Any]]] = {}
         self.injection_tasks: list[dict[str, Any]] = []  # 存储前端注入任务
 
         # 用于存储任务注入锁
@@ -147,7 +142,6 @@ class TaskWebServer:
             "errors": 0,
             "analysis": 0,
             "summary": 0,
-            "history": 0,
         }
 
         # 加载配置
@@ -156,7 +150,6 @@ class TaskWebServer:
         ).model_dump()  # type: ignore[reportUnknownMemberType]
         self.config: dict[str, Any] = cast(dict[str, Any], config_raw)
         self.report_interval: float = cal_interval(int(self.config["refreshInterval"]))
-        self.history_limit: int = int(self.config.get("historyLimit", 20))
         self._config_lock = threading.Lock()
 
         self._setup_routes()
@@ -203,8 +196,12 @@ class TaskWebServer:
             """
             rev: int = self._store_revs["status"]
             if known_rev == rev:
-                return {"rev": rev, "data": None}
-            return {"rev": rev, "data": self.status_store}
+                return {"rev": rev, "timestamp": self.status_timestamp, "data": None}
+            return {
+                "rev": rev,
+                "timestamp": self.status_timestamp,
+                "data": self.status_store,
+            }
 
         @app.get("/api/pull_errors")
         def pull_errors(
@@ -285,27 +282,10 @@ class TaskWebServer:
                 return {"rev": rev, "data": None}
             return {"rev": rev, "data": self.summary_store}
 
-        @app.get("/api/pull_history")
-        def pull_history(known_rev: int = -1) -> dict[str, Any]:
-            """
-            返回节点历史走势数据；若版本未变则返回 data=null。
-
-            :param known_rev: 客户端已知的版本号
-            """
-            rev: int = self._store_revs["history"]
-            if known_rev == rev:
-                return {"rev": rev, "data": None}
-            return {"rev": rev, "data": self.history_store}
-
         @app.get("/api/pull_interval")
         def pull_interval() -> dict[str, float]:
             """返回当前轮询间隔（秒）。"""
             return {"interval": self.report_interval}
-
-        @app.get("/api/pull_history_limit")
-        def pull_history_limit() -> dict[str, int]:
-            """返回历史记录最大保留条数。"""
-            return {"historyLimit": self.history_limit}
 
         @app.get("/api/pull_task_injection")
         def pull_task_injection() -> list[dict[str, Any]]:
@@ -327,7 +307,6 @@ class TaskWebServer:
                 config_raw: Any = data.model_dump()  # type: ignore[reportUnknownMemberType]
                 self.config = cast(dict[str, Any], config_raw)
                 self.report_interval = cal_interval(int(self.config["refreshInterval"]))
-                self.history_limit = int(self.config.get("historyLimit", 20))
                 success: bool = save_config(self.config, CONFIG_PATH)
                 if success:
                     return {"ok": True}
@@ -355,6 +334,7 @@ class TaskWebServer:
 
             :param data: 节点状态数据
             """
+            self.status_timestamp = float(data.timestamp)
             self.status_store = data.status
             self._store_revs["status"] += 1
             return {"ok": True}
@@ -441,17 +421,6 @@ class TaskWebServer:
             """
             self.summary_store = data.summary
             self._store_revs["summary"] += 1
-            return {"ok": True}
-
-        @app.post("/api/push_history")
-        async def push_history(data: HistoryModel) -> dict[str, bool]:
-            """
-            更新节点历史走势数据并递增版本号。
-
-            :param data: 节点历史数据
-            """
-            self.history_store = data.history
-            self._store_revs["history"] += 1
             return {"ok": True}
 
         @app.post("/api/push_injection_tasks", response_model=None)

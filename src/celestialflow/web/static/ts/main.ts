@@ -65,9 +65,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         refreshIntervalId = setInterval(refreshAll, refreshRate);
     });
 
-    // 切换历史长度限制：保存配置（后端下次快照时生效）
+    // 切换历史长度限制：立即裁剪当前页面中的历史曲线并保存配置
     historyLimitSelect.addEventListener("change", async () => {
         webConfig.historyLimit = parseInt(historyLimitSelect.value);
+        if (trimNodeHistories()) {
+            updateChartData();
+        }
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
     });
 
@@ -145,13 +148,12 @@ async function refreshAll() {
   // - nodeStatuses 会被 loadStatuses 更新
   // - 结构数据会被 loadStructure 使用来渲染 Mermaid 图
   // - errors 会被 loadErrors 刷新为当前筛选结果并用于错误列表渲染
-  const [statusesChanged, structureChanged, errorsChanged, analysisChanged, summaryChanged, historiesChanged] = await Promise.all([
+  const [statusesChanged, structureChanged, errorsChanged, analysisChanged, summaryChanged] = await Promise.all([
     loadStatuses(),    // 从后端拉取节点运行状态（处理数、等待数、失败数等），更新 nodeStatuses
     loadStructure(),   // 拉取任务结构（有向图），更新 structureData
     loadErrors(),      // 获取当前分页与筛选条件下的错误记录，更新 errors
     loadAnalysis(),    // 获取最新分析信息，更新 analysisData
     loadSummary(),     // 获取最新汇总数据，更新 summaryData
-    loadHistories(),   // 获取节点进度历史数据，更新 nodeHistories
   ]);
 
   if (statusesChanged || structureChanged) {
@@ -166,9 +168,6 @@ async function refreshAll() {
     renderDashboard();                // 中间节点状态卡片
     populateNodeFilter(nodeStatuses); // 错误筛选器
     renderNodeList();                 // 注入页节点列表
-  }
-
-  if (historiesChanged) {
     updateChartData();      // 右上折线图
   }
 

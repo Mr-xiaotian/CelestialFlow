@@ -7,26 +7,85 @@ let nodeHistories = {}; // 各节点的处理进度历史
 let progressChart = null; // Chart.js 折线图实例
 /** 用户在图例中手动隐藏的节点集合（持久化到 localStorage，刷新不丢失） */
 let hiddenNodes = new Set(JSON.parse(localStorage.getItem("hiddenNodes") || "[]"));
-let historyRev = -1; // 数据版本号，用于增量拉取
 /**
- * 异步加载最新的节点状态数据
- * 从后端 API 获取节点状态并更新全局变量 nodeHistories
- * @returns {Promise<boolean>} 当历史数据版本发生变化并成功更新时返回 `true`，否则返回 `false`。
+ * 获取当前历史曲线保留点数限制
+ * @returns {number} 归一化后的历史长度限制，最小为 1。
  */
-async function loadHistories() {
-    try {
-        const res = await fetch(`/api/pull_history?known_rev=${historyRev}`);
-        const body = await res.json();
-        if (body.data === null)
-            return false;
-        nodeHistories = body.data;
-        historyRev = body.rev;
-        return true;
+function getCurrentHistoryLimit() {
+    const limit = Number(webConfig?.historyLimit);
+    return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 20;
+}
+/**
+ * 按当前配置裁剪前端本地维护的历史点数量
+ * @returns {boolean} 历史数据是否发生了变化。
+ */
+function trimNodeHistories() {
+    const historyLimit = getCurrentHistoryLimit();
+    let changed = false;
+    const nextHistories = {};
+    for (const [node, history] of Object.entries(nodeHistories)) {
+        const trimmed = history.slice(-historyLimit);
+        nextHistories[node] = trimmed;
+        if (trimmed.length !== history.length) {
+            changed = true;
+        }
     }
-    catch (e) {
-        console.error("状态加载失败", e);
+    nodeHistories = nextHistories;
+    return changed;
+}
+/**
+ * 根据最新状态快照在前端追加进度历史点
+ * @param {number} timestamp - 本轮状态快照的统一 Unix 时间戳（秒）。
+ * @param {Record<string, NodeStatus>} statuses - 最新节点状态映射。
+ * @param {Record<string, NodeStatus>} [previousStatuses={}] - 上一轮节点状态映射，用于识别节点重启。
+ * @returns {boolean} 历史数据是否发生了变化。
+ */
+function appendStatusSnapshotToHistory(timestamp, statuses, previousStatuses = {}) {
+    if (!Number.isFinite(timestamp) || timestamp <= 0) {
         return false;
     }
+    const historyLimit = getCurrentHistoryLimit();
+    let changed = false;
+    const nextHistories = {};
+    for (const [node, status] of Object.entries(statuses)) {
+        const previousHistory = nodeHistories[node] || [];
+        const previousStatus = previousStatuses[node];
+        const lastPoint = previousHistory[previousHistory.length - 1];
+        const restarted = Boolean(previousStatus && previousStatus.start_time !== status.start_time);
+        const rolledBack = Boolean(lastPoint && status.tasks_processed < lastPoint.tasks_processed);
+        const history = restarted || rolledBack ? [] : [...previousHistory];
+        const nextPoint = {
+            timestamp,
+            tasks_processed: status.tasks_processed || 0,
+        };
+        if (!history.length) {
+            history.push(nextPoint);
+            changed = true;
+        }
+        else {
+            const currentLastPoint = history[history.length - 1];
+            if (currentLastPoint.timestamp === timestamp) {
+                if (currentLastPoint.tasks_processed !== nextPoint.tasks_processed) {
+                    history[history.length - 1] = nextPoint;
+                    changed = true;
+                }
+            }
+            else {
+                history.push(nextPoint);
+                changed = true;
+            }
+        }
+        const trimmed = history.slice(-historyLimit);
+        if (trimmed.length !== history.length) {
+            changed = true;
+        }
+        nextHistories[node] = trimmed;
+    }
+    if (Object.keys(nodeHistories).some((node) => !(node in statuses))) {
+        changed = true;
+    }
+    nodeHistories = nextHistories;
+    return changed;
 }
 /**
  * 从 CSS 变量读取图表主题颜色
@@ -140,8 +199,12 @@ function updateChartData() {
         hidden: hiddenNodes.has(node), // 根据用户之前的选择
     }));
     const firstNode = Object.keys(nodeDataMap)[0];
-    if (!firstNode)
+    if (!firstNode) {
+        progressChart.data.labels = [];
+        progressChart.data.datasets = [];
+        progressChart.update();
         return;
+    }
     progressChart.data.labels = nodeDataMap[firstNode]?.map((p) => new Date(p.x * 1000).toLocaleTimeString());
     progressChart.data.datasets = datasets;
     progressChart.update();

@@ -120,10 +120,10 @@ class TaskGraph:
         self.stage_runtime_dict: dict[str, StageRuntime] = {}
         # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
         self.status_dict: dict[str, dict[str, Any]] = defaultdict(dict)
+        # 用于保存最近一次状态快照对应的统一时间戳
+        self.status_timestamp: float = 0.0
         # 用于保存任务图的摘要信息
         self.graph_summary: dict[str, int | float] = {}
-        # 用于保存每个节点的历史状态信息列表（仅保留最近20条）
-        self.stage_history: dict[str, list[dict[str, Any]]] = {}
         # 用于保存每个节点的输入任务ID集合
         self.input_ids: dict[str, set[int]] = defaultdict(set)
         # 用于保存源节点列表（由 _build_analysis 自动计算）
@@ -563,26 +563,19 @@ class TaskGraph:
 
     def _snapshot_one_stage(
         self,
-        stage_tag: str,
         stage: TaskStage,
         stage_runtime: StageRuntime,
         last_status: dict[str, Any],
-        now: float,
         interval: float,
-        history_limit: int,
-    ) -> tuple[dict[str, Any], list[dict[str, Any]], tuple[int, int, float, float]]:
+    ) -> tuple[dict[str, Any], tuple[int, int, float, float]]:
         """
         计算单个 stage 的运行时快照
-
-        :param stage_tag: 节点标签
         :param stage: 节点实例
         :param stage_runtime: 节点运行时信息
         :param last_status: 上一次快照的状态字典（用于累计 elapsed_time）
-        :param now: 当前时间戳
         :param interval: 快照采集间隔
-        :param history_limit: 历史记录最大条数
-        :return: (stage_snapshot_dict, history_list, running_metrics)，
-            其中 running_metrics = (processed, pending, elapsed, remaining)
+        :return: (stage_snapshot_dict, running_metrics)，其中
+            running_metrics = (processed, pending, elapsed, remaining)
         """
         status = stage.get_status()
         stage_counts = stage.get_counts()
@@ -599,15 +592,6 @@ class TaskGraph:
         # 计算平均时间（秒/任务）并格式化为字符串
         avg_time_str = format_avg_time(elapsed, stage_counts["tasks_processed"])
 
-        history: list[dict[str, Any]] = list(self.stage_history.get(stage_tag, []))
-        history.append(
-            {
-                "timestamp": now,
-                "tasks_processed": stage_counts["tasks_processed"],
-            }
-        )
-        history = history[-history_limit:] if len(history) > history_limit else history
-
         snapshot: dict[str, Any] = {
             **stage.get_summary(),
             "status": status,
@@ -623,7 +607,7 @@ class TaskGraph:
         elapsed_f = float(elapsed or 0.0)
         remaining_f = float(remaining or 0.0)
 
-        return snapshot, history, (processed, pending, elapsed_f, remaining_f)
+        return snapshot, (processed, pending, elapsed_f, remaining_f)
 
     def _calc_graph_remain(
         self,
@@ -657,10 +641,8 @@ class TaskGraph:
         收集运行时快照
         """
         status_dict: dict[str, dict[str, Any]] = {}
-        history_dict: dict[str, list[dict[str, Any]]] = {}
         now = time.time()
         interval = self.reporter.interval
-        history_limit = self.reporter.history_limit
 
         totals = {"total_remain": 0.0}
 
@@ -674,20 +656,16 @@ class TaskGraph:
             stage: TaskStage = stage_runtime.stage
             last_status = self.status_dict.get(stage_tag, {})
 
-            snapshot, history, (processed, pending, elapsed, remaining) = (
+            snapshot, (processed, pending, elapsed, remaining) = (
                 self._snapshot_one_stage(
-                    stage_tag,
                     stage,
                     stage_runtime,
                     last_status,
-                    now,
                     interval,
-                    history_limit,
                 )
             )
 
             status_dict[stage_tag] = snapshot
-            history_dict[stage_tag] = history
 
             running_processed_map[stage_tag] = processed
             running_pending_map[stage_tag] = pending
@@ -702,8 +680,8 @@ class TaskGraph:
         )
 
         self.status_dict = status_dict
+        self.status_timestamp = now
         self.graph_summary = dict(totals)
-        self.stage_history = dict(history_dict)
 
     # ==== 查询接口 ====
 
@@ -735,13 +713,16 @@ class TaskGraph:
         """
         return self.fail_spout.total_error_num
 
-    def get_status_dict(self) -> dict[str, dict[str, Any]]:
+    def get_status_snapshot(self) -> dict[str, Any]:
         """
-        获取任务链的状态字典
+        获取带统一时间戳的状态快照
 
-        :return: 任务链状态字典
+        :return: {"timestamp": float, "status": {...}}
         """
-        return self.status_dict
+        return {
+            "timestamp": self.status_timestamp,
+            "status": self.status_dict,
+        }
 
     def get_graph_summary(self) -> dict[str, int | float]:
         """
@@ -750,14 +731,6 @@ class TaskGraph:
         :return: 当前仅包含 total_remain 的字典
         """
         return self.graph_summary
-
-    def get_stage_history(self) -> dict[str, list[dict[str, Any]]]:
-        """
-        获取各节点的历史状态信息字典
-
-        :return: {stage_tag: [历史快照列表]}
-        """
-        return self.stage_history
 
     def get_graph_analysis(self) -> dict[str, Any]:
         """

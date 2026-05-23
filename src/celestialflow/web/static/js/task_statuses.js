@@ -11,7 +11,7 @@ let draggingNodeName = null; // 当前拖拽中的节点名
 const dashboardGrid = document.getElementById("dashboard-grid");
 /**
  * 异步加载最新的节点状态数据
- * 从后端 API 获取节点状态并更新全局变量 nodeStatuses
+ * 从后端 API 获取节点状态，更新全局变量并同步前端本地历史曲线
  * @returns {Promise<boolean>} 当状态版本发生变化并成功更新时返回 `true`，否则返回 `false`。
  */
 async function loadStatuses() {
@@ -23,6 +23,7 @@ async function loadStatuses() {
         lastNodeStatuses = nodeStatuses;
         nodeStatuses = body.data;
         statusRev = body.rev;
+        appendStatusSnapshotToHistory(Number(body.timestamp || 0), nodeStatuses, lastNodeStatuses);
         return true;
     }
     catch (e) {
