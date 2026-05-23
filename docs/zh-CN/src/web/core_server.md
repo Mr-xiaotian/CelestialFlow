@@ -1,8 +1,8 @@
 # TaskWeb
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/05/23
 
-TaskWeb 模块提供了一个基于 FastAPI 的轻量级 Web 服务器，用于实时监控和管理任务图的运行。
+TaskWeb 模块提供了一个基于 FastAPI 的轻量级 Web 服务器，用于实时监控和管理任务图的运行。它充当了 `TaskReporter` (后端) 与 Web UI (前端) 之间的中转站。
 
 ## 启动方式
 
@@ -56,57 +56,56 @@ server.start_server()
 - 支持日间/夜间主题切换
 - 主题设置持久化保存至后端 `config.json`
 
-## API 接口
+## API 接口 (RESTful)
 
 TaskWeb 提供了一系列 RESTful API 供 `TaskReporter` 调用和前端使用。所有接口均以 `/api/` 为前缀，拉取接口使用 `pull_` 命名，推送接口使用 `push_` 命名。
 
-### 拉取数据 (GET)
+### 拉取接口 (GET /api/pull_*)
 
-| 端点 | 说明 |
-|------|------|
-| `GET /api/pull_config` | 获取前端配置（主题、刷新间隔、仪表盘布局等） |
-| `GET /api/pull_structure` | 获取图结构 |
-| `GET /api/pull_status` | 获取节点运行状态 |
-| `GET /api/pull_errors` | 获取错误日志 |
-| `GET /api/pull_analysis` | 获取分析数据 |
-| `GET /api/pull_summary` | 获取概要统计 |
-| `GET /api/pull_history` | 获取各节点任务处理历史（用于折线图） |
-| `GET /api/pull_interval` | 获取 Reporter 推送间隔 |
-| `GET /api/pull_history_limit` | 获取历史记录最大保留条数 |
-| `GET /api/pull_task_injection` | 获取待注入的任务（供 TaskGraph 拉取） |
+用于 Web UI 获取最新数据。支持 `known_rev` 机制：若服务端数据版本未变，则返回 `data: null` 以节省带宽。
 
-### 推送数据 (POST)
+| 端点 | 返回结构 (data 字段) | 说明 |
+|------|--------------------|------|
+| `pull_config` | `WebConfigModel` | 获取主题、语言、刷新频率等全局配置 |
+| `pull_structure`| `list[dict]` | 获取任务图的拓扑结构 |
+| `pull_status` | `dict[tag, NodeStatus]` | 获取各节点的实时运行指标及统一时间戳 |
+| `pull_errors` | `list[dict]` | 分页拉取错误日志 |
+| `pull_analysis` | `dict` | 获取图的拓扑分析结果 (DAG, 层级等) |
+| `pull_summary` | `{"total_remain": float}` | 获取图级总剩余时间估算 |
+| `pull_task_injection` | `list[dict]` | 供 TaskGraph 拉取待注入的任务队列 |
+| `pull_interval` | `{"interval": float}` | 获取 Reporter 推送间隔 |
 
-| 端点 | 说明 |
-|------|------|
-| `POST /api/push_config` | 保存前端配置 |
-| `POST /api/push_structure` | 推送图结构 |
-| `POST /api/push_status` | 推送节点状态 |
-| `POST /api/push_errors_meta` | 推送错误元数据（支持缓存） |
-| `POST /api/push_errors_content` | 推送错误内容（支持缓存） |
-| `POST /api/push_analysis` | 推送分析数据 |
-| `POST /api/push_summary` | 推送概要统计 |
-| `POST /api/push_history` | 推送各节点历史数据 |
-| `POST /api/push_injection_tasks` | 注入任务（供前端推送，TaskGraph 拉取） |
+### 推送接口 (POST /api/push_*)
 
-## 数据模型
+主要由 `TaskReporter` 调用，用于上报后端运行状态。
+
+| 端点 | 数据模型 | 说明 |
+|------|---------|------|
+| `push_config` | `WebConfigModel` | 由前端调用，保存用户设置 |
+| `push_status` | `StatusModel` | 上报节点状态快照 + 当前时间戳 |
+| `push_structure`| `StructureModel` | 上报图结构 |
+| `push_analysis` | `AnalysisModel` | 上报分析数据 |
+| `push_summary` | `SummaryModel` | 上报图级汇总信息 |
+| `push_errors_meta` | `ErrorsMetaModel` | 推送错误元数据（支持缓存） |
+| `push_errors_content`| `ErrorsContentModel`| 推送错误内容（支持缓存） |
+| `push_injection_tasks` | `TaskInjectionModel` | 前端提交任务注入请求 |
+
+## 数据模型 (Pydantic)
 
 ### StructureModel
-
 ```python
 class StructureModel(BaseModel):
     items: list[dict[str, Any]]
 ```
 
 ### StatusModel
-
 ```python
 class StatusModel(BaseModel):
-    status: dict[str, dict]
+    timestamp: float                 # 统一采样时间戳
+    status: dict[str, dict[str, Any]] # 键为节点 Tag，值为 NodeStatus
 ```
 
 ### ErrorsMetaModel
-
 ```python
 class ErrorsMetaModel(BaseModel):
     jsonl_path: str  # JSONL 文件路径
@@ -114,38 +113,26 @@ class ErrorsMetaModel(BaseModel):
 ```
 
 ### ErrorsContentModel
-
 ```python
 class ErrorsContentModel(BaseModel):
-    errors: list[dict]
+    errors: list[dict[str, Any]]
     jsonl_path: str
     rev: int
 ```
 
 ### AnalysisModel
-
 ```python
 class AnalysisModel(BaseModel):
     analysis: dict[str, Any]
 ```
 
 ### SummaryModel
-
 ```python
 class SummaryModel(BaseModel):
     summary: dict[str, Any]
 ```
 
-### HistoryModel
-
-```python
-class HistoryModel(BaseModel):
-    history: dict[str, list[dict]]
-    # key: 节点 tag；value: [{timestamp, tasks_processed}, ...]
-```
-
 ### TaskInjectionModel
-
 ```python
 class TaskInjectionModel(BaseModel):
     node: str             # 目标节点标签
@@ -154,22 +141,20 @@ class TaskInjectionModel(BaseModel):
 ```
 
 ### WebConfigModel
-
 ```python
 class WebConfigModel(BaseModel):
-    theme: str                        # "light" 或 "dark"
-    refreshInterval: int              # 刷新间隔（毫秒）
-    historyLimit: int                 # 历史记录最大保留条数
-    dashboard: DashboardConfigModel   # 仪表盘布局配置
-    cards: dict[str, CardConfigModel] # 各卡片标题配置
+    theme: str                        # "light" | "dark"
+    refreshInterval: int              # 轮询间隔 (ms)
+    historyLimit: int                 # 前端历史保留长度
+    language: str = "zh-CN"           # 界面语言
+    errorPageSize: int = 10           # 错误日志分页大小
+    showStructureEdgeDelta: bool = True # 结构图增量显示开关
+    dashboard: DashboardConfigModel   # 仪表盘三栏布局定义
 
 class DashboardConfigModel(BaseModel):
     left: list[str]    # 左栏卡片 key 列表
     middle: list[str]  # 中栏卡片 key 列表
     right: list[str]   # 右栏卡片 key 列表
-
-class CardConfigModel(BaseModel):
-    title: str         # 卡片标题
 ```
 
 ## 配置管理
@@ -179,8 +164,8 @@ Web 服务的配置持久化保存在 `web/config.json`。
 - `load_config()` — 启动时读取并通过 `WebConfigModel` 验证
 - `save_config(config)` — 保存配置到 JSON 文件，线程安全（使用 `_config_lock`）
 - `cal_interval(refresh_interval)` — 将毫秒刷新间隔转换为秒，范围限制在 `[1.0, 60.0]`
-
-前端通过 `push_config` 更新配置时，`report_interval` 也会同步更新。
+- **降级启动**: 若 `config.json` 加载失败，Web 服务会使用硬编码的默认值启动，确保监控界面始终可用。
+- **同步机制**: 前端更新 `refreshInterval` 时，后端的 `report_interval` 会自动同步，从而影响 `TaskReporter` 的推送频率。
 
 ## 与 TaskGraph 集成
 
@@ -204,7 +189,6 @@ TaskGraph                    TaskWeb                    Browser
     |--- push_status ---------->|                          |
     |--- push_analysis -------->|                          |
     |--- push_summary --------->|                          |
-    |--- push_history --------->|                          |
     |                           |                          |
     |--- push_errors_meta ----->|---- Errors ------------->|
     |--- push_errors_content -->|                          |

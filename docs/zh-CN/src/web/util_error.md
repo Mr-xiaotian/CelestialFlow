@@ -1,8 +1,8 @@
 # util_error
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/05/23
 
-Web 模块的错误查询与分页工具函数。
+Web 模块的错误查询、过滤与分页工具函数。
 
 ## normalize_errors_query
 
@@ -13,7 +13,9 @@ def normalize_errors_query(
     """归一化错误查询参数。"""
 ```
 
-将用户输入的查询参数进行归一化处理：限制 `page_size` 在 [1, 200]、`page` >= 1、去除空白、关键词转小写。
+- 限制 `page_size` 在 [1, 200] 之间。
+- 限制 `page` 最小为 1。
+- 去除节点名与关键词的首尾空格，并将关键词转为小写。
 
 ## filter_errors
 
@@ -24,7 +26,8 @@ def filter_errors(
     """根据节点名和关键词过滤错误记录。"""
 ```
 
-支持按 stage 名精确匹配和按 error_repr/task_repr 关键词模糊匹配。
+- **节点过滤**: 若 `normalized_node` 非空，则仅保留该节点的错误。
+- **关键词搜索**: 若 `normalized_keyword` 非空，则在 `error_repr` (错误表示) 和 `task_repr` (任务表示) 中进行模糊匹配。
 
 ## paginate_errors
 
@@ -35,4 +38,5 @@ def paginate_errors(
     """对过滤后的错误记录进行分页，返回 (总数, 总页数, 当前页记录)。"""
 ```
 
-按时间戳降序排列后分页。
+- 按时间戳降序排列（最新错误在前）。
+- 准确计算总记录数和总页数。

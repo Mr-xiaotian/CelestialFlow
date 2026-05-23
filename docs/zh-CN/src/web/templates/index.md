@@ -1,6 +1,6 @@
 # index.html
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/23
 
 Web UI 的 Jinja2 模板文件，定义了监控系统的完整页面结构。
 
@@ -11,32 +11,21 @@ Web UI 的 Jinja2 模板文件，定义了监控系统的完整页面结构。
 ```
 <header>  — 顶部控制栏（设置面板、主题切换）
 <main>
-  ├─ .tabs          — 标签页导航
-  ├─ #dashboard     — 仪表盘（三栏布局）
-  ├─ #errors        — 错误日志
-  └─ #task-injection — 任务注入
+  ├─ .tabs           — 标签页导航（仪表盘 / 错误日志 / 任务注入）
+  ├─ #dashboard      — 仪表盘（三栏布局）
+  ├─ #errors         — 错误日志
+  └─ #task-injection  — 任务注入
 ```
 
 ## Header 控制栏
 
 | 元素 | ID / Class | 说明 |
 |------|-----------|------|
-| 设置按钮 | `#settings-btn` / `.btn-settings` | 齿轮 SVG 图标，点击打开设置面板 |
-| 设置面板 | `#settings-panel` / `.settings-panel` | 悬浮面板，包含刷新间隔和历史长度两项设置 |
-| 关闭按钮 | `#settings-close` / `.settings-close` | 设置面板内的关闭按钮 |
-| 刷新间隔 | `#refresh-interval` | 下拉框，可选 1s/2s/5s/10s/30s |
-| 历史长度 | `#history-limit` | 下拉框，可选 10/20/50/100 |
-| 主题切换 | `#theme-toggle` | 明暗模式切换按钮 |
-
-设置面板默认隐藏（`hidden` 类），点击齿轮按钮切换显示，点击面板外区域或关闭按钮隐藏。
-
-## 标签页
-
-| Tab ID | 按钮 `data-tab` | 说明 |
-|--------|----------------|------|
-| `#dashboard` | `dashboard` | 实时任务图监控面板 |
-| `#errors` | `errors` | 错误日志列表 |
-| `#task-injection` | `task-injection` | 任务注入 |
+| 设置按钮 | `#settings-btn` | 点击打开设置面板，带 a11y 属性 |
+| 设置面板 | `#settings-panel` | 包含刷新、历史、语言、分页、增量开关等设置 |
+| 界面语言 | `#language-select` | 支持中、英、日三语切换 |
+| 结构图增量 | `#structure-edge-delta` | 开关，控制 Mermaid 图边上是否显示成功数增量 |
+| 主题切换 | `#theme-toggle` | 圆角胶囊按钮，切换明暗模式 |
 
 ## Dashboard 三栏结构
 
@@ -44,73 +33,59 @@ Web UI 的 Jinja2 模板文件，定义了监控系统的完整页面结构。
 
 | 卡片 | Class | 说明 |
 |------|-------|------|
-| 任务结构图 | `.mermaid-card` | Mermaid 流程图容器 `#mermaid-container` |
-| 图分析信息 | `.analysis-card` | 显示 DAG 状态、调度模式、层级数 |
+| 任务结构图 | `.mermaid-card` | Mermaid 流程图，支持节点着色和边增量 |
+| 图分析信息 | `.analysis-card` | 拓扑结构洞察信息 |
 
 ### 中栏 `.middle-panel`
 
 | 卡片 | Class | 说明 |
 |------|-------|------|
-| 节点运行状态 | `.status-card` | 动态生成的节点状态卡片网格 `#dashboard-grid` |
+| 节点运行状态 | `.status-card` | 动态节点卡片，含进度条和实时增量统计 |
 
 ### 右栏 `.right-panel`
 
 | 卡片 | Class | 说明 |
 |------|-------|------|
-| 节点完成走向 | `.progress-card` | Chart.js 折线图 `<canvas id="node-progress-chart">` |
-| 总体状态摘要 | `.summary-card` | 6 格统计：成功/等待/错误/重复/活动节点/剩余时间 |
-
-> 卡片的实际栏位分配和显示/隐藏由 `web_config.ts` 的 `applyDashboardLayout()` 动态控制，初始 HTML 中卡片均设为 `display: none`。
-
-## 错误日志面板
-
-- 关键词搜索框 `#error-search`
-- 节点筛选下拉 `#node-filter`
-- 错误表格 `#errors-table`（列：序号 / 错误id / 错误信息 / 节点 / 任务 / 时间）
-- 分页控件容器 `#pager-container`
-
-## 任务注入面板
-
-- 节点搜索 `#search-input` + 节点列表 `#node-list`
-- 全选/清空按钮
-- 已选节点区域 `#selected-section` / `#selected-list`
-- 输入方式切换：JSON 文本（`#json-textarea`）/ 文件上传（`#file-input`）
-- 插入终止符快捷按钮 `fillTermination()`
-- 提交按钮 `#submit-btn` + 状态提示 `#status-message`
+| 节点指标走向 | `.progress-card` | 支持指标切换（完成/成功/错误/重复/等待）的历史折线图 |
+| 总体状态摘要 | `.summary-card` | 全局 6 格统计看板 |
 
 ## 外部依赖（CDN）
 
 | 库 | 版本 | 用途 |
 |----|------|------|
-| Chart.js | latest | 折线图 |
+| Chart.js | latest | 折线图绘制 |
 | SortableJS | latest | 节点卡片拖拽排序 |
-| Mermaid | `^10` (ESM) | 任务图可视化 |
-
-Mermaid 通过 `<script type="module">` 以 ESM 方式加载，并挂载到 `window.mermaid`，供 `task_structure.ts` 调用。
+| Mermaid | `^10` (ESM) | 任务图可视化渲染 |
 
 ## JS 脚本加载顺序
 
-脚本按以下顺序加载（依赖顺序）：
+脚本按依赖关系顺序加载：
 
 ```html
-utils.js          ← 工具函数（无依赖）
-web_config.js     ← 依赖 utils（引用 refreshSelect 等 DOM 元素）
-task_statuses.js  ← 依赖 utils
-task_structure.js ← 依赖 utils, task_statuses（读 nodeStatuses）
-task_errors.js    ← 依赖 utils, task_statuses（读 nodeStatuses）
-task_analysis.js  ← 依赖 utils
-task_summary.js   ← 依赖 utils
-task_history.js   ← 依赖 utils（extractProgressData, getColor）
-task_injection.js ← 依赖 task_statuses（读 nodeStatuses）, utils
-main.js           ← 依赖所有上述模块
+i18n.js               ← 国际化支持
+utils.js              ← 通用工具函数
+web_config.js         ← 配置管理逻辑
+dashboard_statuses.js ← 节点状态管理
+dashboard_structure.js← 结构图渲染
+errors.js             ← 错误日志分页
+dashboard_analysis.js ← 拓扑分析展示
+dashboard_summary.js  ← 汇总统计
+dashboard_history.js  ← 历史图表
+injection.js          ← 任务注入逻辑
+main.js               ← 全局入口与轮询协调
 ```
 
 ## CSS 样式引用
 
 ```html
-css/_colors.css    ← 颜色变量定义
-css/base.css       ← 全局样式、主题变量、设置面板样式
-css/dashboard.css  ← 仪表盘、卡片、进度条样式
-css/errors.css     ← 错误表格、分页样式
-css/inject.css     ← 任务注入页面样式
+css/_colors.css             ← 颜色变量定义
+css/base.css                ← 全局基础样式与设置面板
+css/dashboard.css           ← 仪表盘布局与 Tab 容器
+css/dashboard_structure.css  ← 结构图专属样式
+css/dashboard_analysis.css   ← 分析卡片专属样式
+css/dashboard_statuses.css   ← 节点卡片专属样式
+css/dashboard_summary.css    ← 汇总面板专属样式
+css/dashboard_history.css    ← 历史图专属样式
+css/errors.css              ← 错误日志页样式
+css/injection.css           ← 任务注入页样式
 ```

@@ -1,87 +1,53 @@
 # main.ts
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/23
 
-页面主入口，负责初始化、事件绑定和统一数据刷新调度。
-
-## 职责
-
-- DOMContentLoaded 后加载配置并启动轮询
-- 绑定设置面板、刷新间隔、历史长度、主题切换、标签页切换等 UI 事件
-- 通过 `refreshAll()` 并行拉取所有数据，按需触发各模块渲染
-
-## 全局变量
-
-| 变量 | 类型 | 说明 |
-|------|------|------|
-| `refreshRate` | `number` | 当前刷新间隔（毫秒），默认 5000 |
-| `refreshIntervalId` | `ReturnType<typeof setInterval> \| null` | 定时器句柄 |
-
-## DOM 元素引用
-
-| 变量 | 选择器 | 说明 |
-|------|--------|------|
-| `refreshSelect` | `#refresh-interval` | 刷新间隔下拉框 |
-| `historyLimitSelect` | `#history-limit` | 历史长度下拉框 |
-| `settingsBtn` | `#settings-btn` | 设置齿轮按钮 |
-| `settingsPanel` | `#settings-panel` | 设置悬浮面板 |
-| `settingsClose` | `#settings-close` | 设置面板关闭按钮 |
-| `themeToggleBtn` | `#theme-toggle` | 主题切换按钮 |
-| `tabButtons` | `.tab-btn` | 页签按钮列表 |
-| `tabContents` | `.tab-content` | 页签内容列表 |
+仪表盘主入口脚本，负责协调全局初始化、事件监听及核心数据轮询逻辑。
 
 ## 初始化流程
 
+1. **配置加载**: 调用 `loadWebConfig()` 从后端拉取持久化配置。
+2. **UI 应用**: 调用 `applyConfig()` 应用主题、语言、刷新间隔等设置。
+3. **功能激活**:
+   - `initSortableDashboard()`: 开启节点卡片拖拽。
+   - `initChart()`: 初始化 Chart.js 历史图表。
+   - `initHistoryMetricSwitcher()`: 激活指标切换按钮。
+4. **轮询开启**: 通过 `setInterval` 启动 `refreshAll()` 周期性刷新。
+
+## 核心功能
+
+### 轮询刷新 (`refreshAll`)
+
+并行发起多个异步请求，获取最新的节点状态、图结构、错误日志、拓扑分析和汇总统计。
+
+- **按需渲染**: 仅当对应的数据版本号（`rev`）发生变化时，才触发 DOM 重新渲染。
+- **状态同步**: `loadStatuses()` 成功后会自动驱动 `appendStatusSnapshotToHistory()` 累积前端历史。
+
+### 设置交互
+
+| 设置项 | 触发行为 |
+|-------|----------|
+| **刷新间隔** | 更新轮询定时器，调用 `saveWebConfig()` |
+| **历史长度** | 立即调用 `trimNodeHistories()` 裁剪本地序列并重绘图表 |
+| **界面语言** | 调用 `setLang()` + `applyI18nDOM()`，并全量刷新所有动态渲染的卡片 |
+| **结构图增量** | 切换 `showStructureEdgeDelta` 并立即重绘 Mermaid 图 |
+| **明暗主题** | 切换 body 类名，同步更新 `theme-toggle` 文案与图表主题颜色 |
+
+### 焦点与辅助功能 (a11y)
+
+- **设置面板**: 支持 `Escape` 键快速关闭，关闭后焦点自动归还至设置按钮。
+- **状态反馈**: 设置保存时，面板底部会显示短暂的“保存成功”或“保存失败”提示（通过 `showSettingsSaveStatus()` 实现）。
+
+## 数据流向图
+
 ```
 DOMContentLoaded
-  └─ loadWebConfig()        从 /api/pull_config 加载配置
-  └─ applyConfig()          应用主题、刷新间隔、历史长度、仪表盘布局
-  └─ 事件绑定
-      ├─ settingsBtn        点击齿轮按钮：切换设置面板显示/隐藏
-      ├─ settingsClose      点击关闭按钮：隐藏设置面板
-      ├─ document click     点击页面空白处：自动关闭设置面板
-      ├─ refreshSelect      刷新间隔变更 → 重置定时器 + 保存配置
-      ├─ historyLimitSelect 历史长度变更 → 保存配置（后端下次快照时生效）
-      ├─ themeToggleBtn     主题切换 → 重新渲染图表 + 保存配置
-      └─ tabButtons         标签页切换
-  └─ initSortableDashboard()  初始化节点卡片拖拽
-  └─ refreshAll()             立即执行一次刷新
-  └─ initChart()              初始化折线图实例
-  └─ setInterval(refreshAll)  启动周期轮询
+  └─ loadWebConfig()
+        └─ applyConfig()
+              └─ refreshAll() (Interval)
+                    ├─ loadStatuses() -> renderDashboard(), renderNodeList(), updateChartData()
+                    ├─ loadStructure() -> renderMermaidStructure()
+                    ├─ loadErrors() -> renderErrors()
+                    ├─ loadAnalysis() -> renderAnalysisInfo()
+                    └─ loadSummary() -> renderSummary()
 ```
-
-## 核心函数
-
-### `refreshAll()`
-
-主刷新函数，协调所有数据更新和 UI 渲染。
-
-**流程：**
-
-1. 并行调用所有 `load*()` 函数拉取最新数据，各函数返回 `boolean` 表示数据是否变化
-2. 按数据域分组，仅在数据发生变化时调用对应渲染函数
-
-**变化检测与渲染映射：**
-
-| 变化条件 | 触发渲染 |
-|----------|---------|
-| `statusesChanged \|\| structureChanged` | `renderMermaidStructure()` |
-| `analysisChanged` | `renderAnalysisInfo()` |
-| `summaryChanged` | `renderSummary()` |
-| `historiesChanged` | `updateChartData()` |
-| `statusesChanged` | `renderDashboard()` / `populateNodeFilter()` / `renderNodeList()` |
-| `errorsChanged` | `renderErrors()` |
-
-## 跨模块依赖
-
-`main.ts` 依赖其他模块暴露的全局函数和变量（通过 `<script>` 标签加载顺序确保可用）：
-
-- **web_config.ts** — `loadWebConfig`, `saveWebConfig`, `applyConfig`, `webConfig`, `applyDashboardLayout`
-- **task_history.ts** — `loadHistories`, `nodeHistories`, `initChart`, `updateChartData`, `updateChartTheme`
-- **task_statuses.ts** — `loadStatuses`, `nodeStatuses`, `renderDashboard`, `initSortableDashboard`
-- **task_structure.ts** — `loadStructure`, `structureData`, `renderMermaidStructure`
-- **task_errors.ts** — `loadErrors`, `errors`, `renderErrors`, `populateNodeFilter`
-- **task_analysis.ts** — `loadAnalysis`, `analysisData`, `renderAnalysisInfo`
-- **task_summary.ts** — `loadSummary`, `summaryData`, `renderSummary`
-- **task_injection.ts** — `renderNodeList`
-- **utils.ts** — `toggleDarkTheme`, `switchToErrorsTab`

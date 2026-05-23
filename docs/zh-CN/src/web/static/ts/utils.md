@@ -1,132 +1,54 @@
 # utils.ts
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/23
 
-通用工具函数集合，供所有其他前端模块共享使用。
+包含 Web 前端通用的格式化工具、UI 辅助逻辑、DOM 操作封装及环境检测函数。
 
-## 函数列表
-
-### `renderLocalTime(timestamp)`
-
-将 Unix 时间戳（秒）转换为本地时间字符串。
-
-```ts
-renderLocalTime(1700000000) // → "2023/11/15 上午10:13:20"（依本地区域而定）
-```
-
----
+## 数值与时间格式化
 
 ### `formatLargeNumber(n)`
+将大数转换为易读格式。
+- `< 10,000,000`: 使用千分位逗号分隔。
+- `>= 10,000,000`: 转换为 HTML 科学计数法（如 `~1.23×10⁹`）。
 
-将大数格式化为模糊科学计数法 HTML；小于 1000 万的数用逗号分隔，大于等于 1000 万转为科学计数法。
-
-```ts
-formatLargeNumber(1234567890) // → "~1.23×10<sup>9</sup>"
-formatLargeNumber(999)        // → "999"
-```
-
----
-
-### `formatWithDelta(value, delta, deltaClass, negClass)`
-
-格式化数值及其增量，增量以彩色小字显示。
-
-- `deltaClass`: 正增量的 CSS 类名
-- `negClass`: 负增量的 CSS 类名
-
-```ts
-formatWithDelta(100, 5, "text-delta-success", "text-delta-success")
-// → '100<small class="text-delta-success" style="margin-left: 4px;">+5</small>'
-formatWithDelta(100, 0, ...)   // → '100'
-```
-
-返回 HTML 字符串，直接插入 `innerHTML`。
-
----
-
-### `getColor(index)`
-
-按索引循环返回预定义的 9 种十六进制颜色，用于折线图各节点线条着色。
-
-```ts
-getColor(0) // → "#3b82f6"（蓝）
-getColor(9) // → "#3b82f6"（循环）
-```
-
----
-
-### `extractProgressData(nodeHistories)`
-
-从节点历史数据中提取图表用的 `{x, y}` 点序列。
-
-- **输入**: `Record<string, NodeHistory>` — 节点名 → 历史记录数组
-- **输出**: `Record<string, Array<{x: number, y: number}>>` — 节点名 → 坐标点数组
-  - `x`: Unix 时间戳（秒）
-  - `y`: 该时刻已处理任务数
-
----
-
-### `isMobile()`
-
-检测当前设备是否为移动端（基于 User-Agent）。返回 `boolean`。用于在移动端禁用拖拽排序功能。
-
----
-
-### `validateJSON(text)`
-
-验证字符串是否为合法 JSON。
-
-- 空字符串视为合法（返回 `true`，隐藏错误提示）
-- 解析失败时调用 `showError("json-error", ...)` 显示提示，返回 `false`
-
----
-
-### `escapeHtml(str)`
-
-转义 HTML 特殊字符（`&`, `<`, `>`, `"`, `'`, `/`），防止 XSS。
-
-```ts
-escapeHtml('<script>') // → "&lt;script&gt;"
-```
-
----
-
-### `toggleDarkTheme()`
-
-切换 `document.body` 的 `dark-theme` CSS 类。返回切换后是否为暗色模式（`boolean`）。
-
----
-
-### `switchToErrorsTab(nodeFilter?)`
-
-切换到「错误日志」标签页，并可选地将节点筛选器设置为指定节点。不传或传空字符串则显示全部错误。
-
----
+### `formatWithDelta(value, delta, ...)`
+格式化带有增量的数值。若增量非零，则在主数值后追加带颜色的 `+N` 或 `-N` 小字。
 
 ### `formatDuration(seconds)`
-
 将秒数格式化为 `HH:MM:SS` 或 `MM:SS` 字符串。
 
-```ts
-formatDuration(90)    // → "01:30"
-formatDuration(3661)  // → "01:01:01"
-formatDuration(-5)    // → "00:00"
-```
+### `renderLocalTime(timestamp)`
+将 Unix 时间戳转换为本地化日期时间字符串。
 
 ---
 
-### `formatElapsedDuration(seconds, successCount, failedCount, duplicateCount)`
+## UI 与 路由辅助
 
-将 elapsed 时间格式化为带颜色的 HTML 字符串。每个数字字符用 `<span>` 包裹，按成功/失败/重复的任务占比分配颜色类。
+### `switchToErrorsTab(nodeFilter?)`
+全局路由跳转函数。
+- 切换当前 Tab 至“错误日志”。
+- 若传入 `nodeFilter`，则自动填充错误筛选下拉框并触发一次查询。
 
-内部调用链：`getElapsedSegments()` → `buildElapsedDigitClasses()` → `renderElapsedDurationHtml()`。
+### `toggleDarkTheme()`
+在 `body` 元素上切换 `dark-theme` 类，返回切换后的布尔状态。
+
+### `showSettingsSaveStatus(messageKey)`
+在设置面板底部显示限时的状态提示（如“保存成功”），支持国际化 key 映射。
 
 ---
 
-### `formatTimestamp(timestamp)`
+## 历史数据处理
 
-将 Unix 时间戳（秒）格式化为 `YYYY-MM-DD HH:MM:SS` 字符串。
+### `extractProgressData(nodeHistories, metric)`
+将本地维护的 `nodeHistories` 映射转换为 Chart.js 兼容的 `{x, y}` 坐标点数组。
+- `metric` 参数决定了提取哪个指标（如 `tasks_succeeded`, `tasks_failed` 等）。
 
-```ts
-formatTimestamp(1700000000) // → "2023-11-15 10:13:20"
-```
+---
+
+## 安全与工具
+
+### `escapeHtml(str)`
+基础的 HTML 转义函数，防止动态插入文本时的 XSS 风险。
+
+### `isMobile()`
+基于 UserAgent 的简单移动端检测，用于禁用拖拽排序等交互。

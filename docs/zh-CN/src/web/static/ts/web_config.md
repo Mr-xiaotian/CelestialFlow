@@ -1,95 +1,91 @@
 # web_config.ts
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/23
 
-管理 Web 前端的配置加载、保存和应用，包括主题、刷新间隔、历史长度和仪表盘布局。
-
-## 全局变量
-
-| 变量 | 类型 | 说明 |
-|------|------|------|
-| `webConfig` | `WebConfig \| null` | 当前配置对象，从后端加载 |
-| `PANEL_SELECTOR_MAP` | `Record<string, string>` | 三栏面板的 CSS 选择器映射 |
+管理 Web 前端的配置加载、归一化、保存和应用。包含主题、语言、轮询频率、历史长度、分页大小及仪表盘布局。
 
 ## 类型定义
 
 ```ts
 type WebConfig = {
-    theme: "light" | "dark";
-    refreshInterval: number;
-    historyLimit: number;
-    dashboard: {
+    theme: "light" | "dark";         // 界面主题
+    refreshInterval: number;          // 全局轮询刷新间隔（毫秒）
+    historyLimit: number;             // 前端本地维护的历史记录长度
+    language: Lang;                   // 界面语言（zh-CN, en, ja）
+    errorPageSize: number;            // 错误日志每页显示条数
+    showStructureEdgeDelta: boolean;  // 是否在结构图边上显示成功任务增量
+    dashboard: {                      // 仪表盘布局配置
         left: string[];
         middle: string[];
         right: string[];
     };
-    cards: Record<string, { title: string }>;
 };
 ```
+
+## 全局变量
+
+| 变量 | 类型 | 说明 |
+|------|------|------|
+| `webConfig` | `WebConfig \| null` | 当前运行时的配置对象 |
+| `DEFAULT_WEB_CONFIG` | `WebConfig` | 默认配置模板，用于初始化和降级兜底 |
 
 ## 函数
 
 ### `loadWebConfig()`
 
-异步从 `GET /api/pull_config` 加载配置，赋值给 `webConfig`。
+异步从 `GET /api/pull_config` 加载配置。
 
-- 成功返回 `true`，失败返回 `false`
-- 失败时在控制台打印警告，不抛出异常
+- **鲁棒性**: 若请求失败（如后端未响应或网络异常），会捕获异常并自动调用 `normalizeWebConfig()` 使用默认配置启动，确保页面基本可用。
 
 ---
 
 ### `saveWebConfig()`
 
-异步将当前 `webConfig` POST 到 `/api/push_config` 保存至后端。
+将当前 `webConfig` 对象 POST 到 `/api/push_config`。后端会将其持久化到 `web/config.json`。
 
-- 成功返回 `true`，失败返回 `false`
+---
+
+### `normalizeWebConfig(rawConfig?)`
+
+将后端返回的原始配置（可能缺失字段）与 `DEFAULT_WEB_CONFIG` 合并。
+
+- 确保 `dashboard` 结构的完整性。
+- 提供深层合并逻辑。
 
 ---
 
 ### `applyConfig()`
 
-将 `webConfig` 中的设置应用到 UI：
+将 `webConfig` 中的各项设置同步到页面：
 
-1. **主题**: 根据 `webConfig.theme` 切换 `dark-theme` CSS 类和按钮文字
-2. **刷新间隔**: 更新 `refreshRate` 和下拉框选中值（含边界保护）
-3. **历史长度**: 将 `historyLimit` 同步到 `#history-limit` 下拉框（仅当配置值在可选项中存在时才设置，避免显示空白）
-4. **仪表盘布局**: 调用 `applyDashboardLayout()`
+1. **语言**: 应用 `language` 并更新全页 `data-i18n` 元素。
+2. **主题**: 切换 `dark-theme` 类。
+3. **参数同步**: 将刷新率、历史长度、每页条数、增量开关同步到对应的 DOM 控件（如 Select/Checkbox）。
+4. **布局**: 调用 `applyDashboardLayout()` 重排卡片。
 
 ---
 
 ### `applyDashboardLayout()`
 
-根据 `webConfig.dashboard` 和 `webConfig.cards` 配置动态排列仪表盘中的各卡片。
+核心布局逻辑：通过 DOM 操作（`appendChild`）实现卡片在三栏面板间的动态移动。
 
-**流程：**
+- **动态显隐**: 仅配置中存在的卡片才会设为 `display: block`。
+- **顺序控制**: 严格遵循配置数组中的顺序进行插入。
 
-1. 收集所有已知卡片 key（配置中 + DOM 中存在的），定位对应 `.{key}-card` DOM 元素
-2. 先隐藏所有已知卡片
-3. 按 `left` / `middle` / `right` 顺序，将卡片 `appendChild` 到对应栏位，设为可见
-4. 兜底隐藏未被任何栏位接收的卡片
-
-> 通过 `appendChild` 实现移动，支持任意栏位 + 任意顺序组合配置。
-
-## 配置结构
+## 默认配置参考
 
 ```json
 {
     "theme": "light",
     "refreshInterval": 5000,
     "historyLimit": 20,
+    "language": "zh-CN",
+    "errorPageSize": 50,
+    "showStructureEdgeDelta": false,
     "dashboard": {
         "left": ["mermaid", "analysis"],
         "middle": ["status"],
         "right": ["progress", "summary"]
-    },
-    "cards": {
-        "mermaid": { "title": "任务结构图" },
-        "analysis": { "title": "图分析信息" },
-        "status": { "title": "节点运行状态" },
-        "progress": { "title": "节点完成走向" },
-        "summary": { "title": "总体状态摘要" }
     }
 }
 ```
-
-配置持久化在后端 `web/config.json`，前端修改后通过 `saveWebConfig()` 同步。
