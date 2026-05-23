@@ -103,25 +103,25 @@ class FailInlet(BaseInlet):
         }
         self._funnel(meta_item)
 
-    def start_executor(self, executor_tag: str) -> None:
+    def start_executor(self, executor_name: str) -> None:
         """
         在运行开始时写入执行器元信息到 jsonl 文件
 
-        :param executor_tag: 执行器标签
+        :param executor_name: 执行器唯一名称
         """
         meta_item = {
             "timestamp": datetime.now().isoformat(),
-            "executor": executor_tag,
+            "executor": executor_name,
         }
         self._funnel(meta_item)
 
     def task_error(
-        self, stage_tag: str, err_id: int, error: Exception, task: Any
+        self, stage_name: str, err_id: int, error: Exception, task: Any
     ) -> None:
         """
         写入错误日志到 jsonl 文件中
 
-        :param stage_tag: 阶段标签
+        :param stage_name: 阶段唯一名称
         :param error: 错误信息
         :param err_id: 错误ID
         :param task: 任务字符串
@@ -133,7 +133,7 @@ class FailInlet(BaseInlet):
         fail_item = {
             "timestamp": now.isoformat(),
             "ts": now.timestamp(),
-            "stage": stage_tag,
+            "stage": stage_name,
 
             "error_id": err_id,
             "error_type": error_type,

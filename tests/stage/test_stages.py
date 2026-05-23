@@ -29,7 +29,7 @@ class TestTaskSplitter:
         # 模拟运行环境
         q = Queue()
         # TaskOutQueue 构造函数要求 queue_list 和 queue_tags 长度一致
-        splitter.result_queue = TaskOutQueue([q], [None], splitter.get_tag(), log_inlet)
+        splitter.result_queue = TaskOutQueue([q], [None], splitter.get_name(), log_inlet)
         splitter.log_inlet = log_inlet
 
         # 模拟任务执行成功并触发分裂
@@ -43,7 +43,7 @@ class TestTaskSplitter:
         # 验证弹出的内容
         e1 = q.get()
         assert e1.get_task() == 1
-        assert e1.source == splitter.get_tag()
+        assert e1.source == splitter.get_name()
 
 class TestTaskRouter:
     def test_router_init(self):
@@ -85,7 +85,7 @@ class TestTaskRouter:
         router.result_queue = TaskOutQueue(
             [q_target1, q_target2], 
             ["target1", "target2"], 
-            router.get_tag(), 
+            router.get_name(), 
             log_inlet
         )
         router.log_inlet = log_inlet

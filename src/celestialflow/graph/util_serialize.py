@@ -19,8 +19,8 @@ def build_structure_graph(
     从多个源节点构建任务链的 JSON 图结构
 
     :param source_stages: 源节点列表
-    :param out_edges: 邻接表 {stage_tag: [next_stage_tag, ...]}
-    :param stage_runtime_dict: {stage_tag: StageRuntime}
+    :param out_edges: 邻接表 {stage_name: [next_stage_name, ...]}
+    :param stage_runtime_dict: {stage_name: StageRuntime}
     :return: 多棵任务图的 JSON 列表
     """
     visited_stages: set[str] = set()
@@ -46,11 +46,11 @@ def _build_structure_subgraph(
 
     :param task_stage: 当前节点
     :param visited_stages: 已访问节点集合
-    :param out_edges: 邻接表 {stage_tag: [next_stage_tag, ...]}
-    :param stage_runtime_dict: {stage_tag: StageRuntime}
+    :param out_edges: 邻接表 {stage_name: [next_stage_name, ...]}
+    :param stage_runtime_dict: {stage_name: StageRuntime}
     :return: 节点的 JSON 字典
     """
-    stage_tag = task_stage.get_tag()
+    stage_name = task_stage.get_name()
     next_stages: list[dict[str, Any]] = []
     node: dict[str, Any] = {
         **task_stage.get_summary(),
@@ -58,14 +58,14 @@ def _build_structure_subgraph(
         "next_stages": next_stages,
     }
 
-    if stage_tag in visited_stages:
+    if stage_name in visited_stages:
         node["is_ref"] = True
         return node
 
-    visited_stages.add(stage_tag)
+    visited_stages.add(stage_name)
 
-    for next_stage_tag in out_edges.get(stage_tag, []):
-        next_stage = stage_runtime_dict[next_stage_tag].stage
+    for next_stage_name in out_edges.get(stage_name, []):
+        next_stage = stage_runtime_dict[next_stage_name].stage
         child_node = _build_structure_subgraph(
             next_stage, visited_stages, out_edges, stage_runtime_dict
         )

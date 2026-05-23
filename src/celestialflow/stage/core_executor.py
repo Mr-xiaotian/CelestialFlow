@@ -224,8 +224,6 @@ class TaskExecutor:
 
     def set_name(self, name: str) -> None:
         self._name = name
-        if hasattr(self, "_tag"):
-            delattr(self, "_tag")
 
     def set_log_level(self, log_level: str) -> None:
         """
@@ -265,17 +263,6 @@ class TaskExecutor:
         """
         return self._func_name
 
-    def get_tag(self) -> str:
-        """
-        获取当前节点/管理器标签
-
-        :return: 当前节点/管理器标签
-        """
-        if hasattr(self, "_tag"):
-            return str(self._tag)
-        self._tag: str = f"{self.get_name()}[{self.get_func_name()}]"
-        return self._tag
-
     def _get_class_name(self) -> str:
         """
         获取当前节点类名
@@ -304,9 +291,9 @@ class TaskExecutor:
             包括执行器名称(name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)
         """
         return {
+            "class_name": self._get_class_name(),
             "name": self.get_name(),
             "func_name": self.get_func_name(),
-            "class_name": self._get_class_name(),
             "execution_mode": self._get_execution_mode_desc(),
         }
 
@@ -351,7 +338,7 @@ class TaskExecutor:
             self.log_inlet.task_input(
                 self.get_func_name(),
                 self.get_task_repr(task),
-                self.get_tag(),
+                self.get_name(),
                 input_id,
             )
 
@@ -368,7 +355,7 @@ class TaskExecutor:
         items.append(TerminationSignal(termination_id, source="input"))
         self.log_inlet.termination_input(
             self.get_func_name(),
-            self.get_tag(),
+            self.get_name(),
             termination_id,
         )
         return items
@@ -494,7 +481,7 @@ class TaskExecutor:
         result_envelope = TaskEnvelope(
             processed_result,
             result_id,
-            source=self.get_tag(),
+            source=self.get_name(),
             prev=task,
         )
 
@@ -570,7 +557,7 @@ class TaskExecutor:
         self.metrics.add_error_count()
 
         self.fail_inlet.task_error(
-            self.get_tag(), error_id, exception, task_envelope.task
+            self.get_name(), error_id, exception, task_envelope.task
         )
         self.log_inlet.task_error(
             self.get_func_name(),
@@ -616,7 +603,7 @@ class TaskExecutor:
 
         self._notify("on_start", self.get_full_name(), 0)
         self._put_task_queue(task_source)
-        self.fail_inlet.start_executor(self.get_tag())
+        self.fail_inlet.start_executor(self.get_name())
         self.log_inlet.start_executor(
             self.get_name(),
             self.get_func_name(),
@@ -671,7 +658,7 @@ class TaskExecutor:
             self.metrics.get_task_count(),
             self._get_execution_mode_desc(),
         )
-        self.fail_inlet.start_executor(self.get_tag())
+        self.fail_inlet.start_executor(self.get_name())
 
         try:
             await self.dispatch.dispatch_async()

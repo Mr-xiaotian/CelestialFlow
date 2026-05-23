@@ -33,7 +33,7 @@ def bench_no_ctree():
     start_time = time.perf_counter()
     chain.start_chain(
         {
-            task_splitter.get_tag(): [range(int(1e4))],
+            task_splitter.get_name(): [range(int(1e4))],
         }
     )
     end_time = time.perf_counter()
@@ -59,7 +59,7 @@ def bench_http_ctree():
     start_time = time.perf_counter()
     chain.start_chain(
         {
-            task_splitter.get_tag(): [range(int(1e4))],
+            task_splitter.get_name(): [range(int(1e4))],
         }
     )
     end_time = time.perf_counter()
@@ -85,7 +85,7 @@ def bench_grpc_ctree():
     start_time = time.perf_counter()
     chain.start_chain(
         {
-            task_splitter.get_tag(): [range(int(1e4))],
+            task_splitter.get_name(): [range(int(1e4))],
         }
     )
     end_time = time.perf_counter()

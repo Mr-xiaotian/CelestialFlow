@@ -3,7 +3,7 @@
     "refreshInterval": 2000,
     "historyLimit": 20,
     "language": "zh-CN",
-    "errorPageSize": 50,
+    "errorPageSize": 20,
     "showStructureEdgeDelta": false,
     "dashboard": {
         "left": [

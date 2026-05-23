@@ -59,7 +59,7 @@ class TestTaskGraphBasic:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        graph.start_graph({stage1.get_tag(): [1, 2, 3]})
+        graph.start_graph({stage1.get_name(): [1, 2, 3]})
 
         # stage1 结果: 2, 3, 4 -> stage2 结果: 4, 6, 8
         assert stage1.get_counts()["tasks_succeeded"] == 3
@@ -75,7 +75,7 @@ class TestTaskGraphBasic:
         graph.set_stages(stages=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
-        graph.start_graph({source.get_tag(): [1, 2]})
+        graph.start_graph({source.get_name(): [1, 2]})
 
         assert source.get_counts()["tasks_succeeded"] == 2
         assert sink_a.get_counts()["tasks_succeeded"] == 2
@@ -93,8 +93,8 @@ class TestTaskGraphBasic:
 
         graph.start_graph(
             {
-                source_a.get_tag(): [1, 2],
-                source_b.get_tag(): [10, 20],
+                source_a.get_name(): [1, 2],
+                source_b.get_name(): [10, 20],
             }
         )
 
@@ -109,7 +109,7 @@ class TestTaskGraphBasic:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        graph.start_graph({stage1.get_tag(): [1, 50, 2]})
+        graph.start_graph({stage1.get_name(): [1, 50, 2]})
 
         # stage1: 1->11, 50->error, 2->12
         assert stage1.get_counts()["tasks_succeeded"] == 2
@@ -133,7 +133,7 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        graph.start_graph({stage1.get_tag(): [1, 2, 3]})
+        graph.start_graph({stage1.get_name(): [1, 2, 3]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 3
         assert stage2.get_counts()["tasks_succeeded"] == 3
@@ -148,7 +148,7 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
-        graph.start_graph({source.get_tag(): [1, 2]})
+        graph.start_graph({source.get_name(): [1, 2]})
 
         assert source.get_counts()["tasks_succeeded"] == 2
         assert sink_a.get_counts()["tasks_succeeded"] == 2
@@ -166,8 +166,8 @@ class TestTaskGraphAsync:
 
         graph.start_graph(
             {
-                source_a.get_tag(): [1, 2],
-                source_b.get_tag(): [10, 20],
+                source_a.get_name(): [1, 2],
+                source_b.get_name(): [10, 20],
             }
         )
 
@@ -182,7 +182,7 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        graph.start_graph({stage1.get_tag(): [1, 50, 2]})
+        graph.start_graph({stage1.get_name(): [1, 50, 2]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 2
         assert stage1.get_counts()["tasks_failed"] == 1
@@ -201,7 +201,7 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        graph.start_graph({stage1.get_tag(): [1, 2, 3]})
+        graph.start_graph({stage1.get_name(): [1, 2, 3]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 3
         assert stage2.get_counts()["tasks_succeeded"] == 3
@@ -215,7 +215,7 @@ class TestTaskGraphStructure:
         s3 = TaskStage("s3", to_str)
 
         chain = TaskChain([s1, s2, s3])
-        chain.start_chain({s1.get_tag(): [1, 2]})
+        chain.start_chain({s1.get_name(): [1, 2]})
 
         assert s1.get_counts()["tasks_succeeded"] == 2
         assert s2.get_counts()["tasks_succeeded"] == 2
@@ -229,8 +229,8 @@ class TestTaskGraphStructure:
         cross = TaskCross([layer1, layer2])
         cross.start_cross(
             {
-                layer1[0].get_tag(): [1],
-                layer1[1].get_tag(): [2],
+                layer1[0].get_name(): [1],
+                layer1[1].get_name(): [2],
             }
         )
 
@@ -244,7 +244,7 @@ class TestTaskGraphStructure:
         """TaskGrid：网格结构正确连接"""
         grid = [[TaskStage(f"g{i}{j}", add_one) for j in range(2)] for i in range(2)]
         task_grid = TaskGrid(grid)
-        task_grid.start_graph({grid[0][0].get_tag(): [1, 2]})
+        task_grid.start_graph({grid[0][0].get_name(): [1, 2]})
 
         # 左上角根节点处理 2 个任务
         assert grid[0][0].get_counts()["tasks_succeeded"] == 2
@@ -264,7 +264,7 @@ class TestTaskGraphAnalysis:
         graph.connect([s1], [s2])
 
         # 调用 build_analysis（通过 start_graph 触发）
-        graph.start_graph({s1.get_tag(): [1]})
+        graph.start_graph({s1.get_name(): [1]})
 
         analysis = graph.get_graph_analysis()
         assert analysis["isDAG"] is True
@@ -281,14 +281,14 @@ class TestTaskGraphAnalysis:
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
 
-        graph.start_graph({s1.get_tag(): [1]})
+        graph.start_graph({s1.get_name(): [1]})
 
         analysis = graph.get_graph_analysis()
         layers = analysis["layers_dict"]
         # s1 在第 0 层, s2 在第 1 层, s3 在第 2 层
-        assert s1.get_tag() in layers[0]
-        assert s2.get_tag() in layers[1]
-        assert s3.get_tag() in layers[2]
+        assert s1.get_name() in layers[0]
+        assert s2.get_name() in layers[1]
+        assert s3.get_name() in layers[2]
 
 
 class TestTaskGraphSummary:
@@ -301,7 +301,7 @@ class TestTaskGraphSummary:
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
 
-        graph.start_graph({s1.get_tag(): [1, 2, 3]})
+        graph.start_graph({s1.get_name(): [1, 2, 3]})
 
         # 手动触发快照收集（测试中未启用 reporter）
         graph.collect_runtime_snapshot()
@@ -328,7 +328,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph()
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+        graph.start_graph({s1.get_name(): [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -345,7 +345,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph()
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+        graph.start_graph({s1.get_name(): [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -370,7 +370,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph()
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+        graph.start_graph({s1.get_name(): [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -385,7 +385,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph()
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+        graph.start_graph({s1.get_name(): [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -402,7 +402,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph()
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+        graph.start_graph({s1.get_name(): [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -427,7 +427,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph()
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        graph.start_graph({s1.get_tag(): [1, 2, 3, 4, 5]})
+        graph.start_graph({s1.get_name(): [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -446,7 +446,7 @@ class TestTaskGraphThread:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        graph.start_graph({stage1.get_tag(): [1, 2, 3]})
+        graph.start_graph({stage1.get_name(): [1, 2, 3]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 3
         assert stage2.get_counts()["tasks_succeeded"] == 3
@@ -465,7 +465,7 @@ class TestTaskGraphThread:
         graph.set_stages(stages=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
-        graph.start_graph({source.get_tag(): [1, 2]})
+        graph.start_graph({source.get_name(): [1, 2]})
 
         assert source.get_counts()["tasks_succeeded"] == 2
         assert sink_a.get_counts()["tasks_succeeded"] == 2
@@ -487,8 +487,8 @@ class TestTaskGraphThread:
 
         graph.start_graph(
             {
-                source_a.get_tag(): [1, 2],
-                source_b.get_tag(): [10, 20],
+                source_a.get_name(): [1, 2],
+                source_b.get_name(): [10, 20],
             }
         )
 
@@ -505,7 +505,7 @@ class TestTaskGraphThread:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        graph.start_graph({stage1.get_tag(): [1, 50, 2]})
+        graph.start_graph({stage1.get_name(): [1, 50, 2]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 2
         assert stage1.get_counts()["tasks_failed"] == 1
@@ -524,7 +524,7 @@ class TestTaskGraphThread:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        graph.start_graph({stage1.get_tag(): [1, 2, 3]})
+        graph.start_graph({stage1.get_name(): [1, 2, 3]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 3
         assert stage2.get_counts()["tasks_succeeded"] == 3
@@ -540,7 +540,7 @@ class TestTaskGraphThread:
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
 
-        graph.start_graph({s1.get_tag(): [1, 2]})
+        graph.start_graph({s1.get_name(): [1, 2]})
 
         assert s1.get_counts()["tasks_succeeded"] == 2
         assert s2.get_counts()["tasks_succeeded"] == 2
@@ -562,11 +562,11 @@ class TestSourceStages:
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
 
-        graph.start_graph({s1.get_tag(): [1]})
+        graph.start_graph({s1.get_name(): [1]})
 
         sources = graph.get_source_stages()
         assert len(sources) == 1
-        assert sources[0].get_tag() == s1.get_tag()
+        assert sources[0].get_name() == s1.get_name()
 
     def test_source_stages_fan_in(self):
         """两个入口汇入一点"""
@@ -579,10 +579,10 @@ class TestSourceStages:
         graph.connect([s1], [s3])
         graph.connect([s2], [s3])
 
-        graph.start_graph({s1.get_tag(): [1], s2.get_tag(): [2]})
+        graph.start_graph({s1.get_name(): [1], s2.get_name(): [2]})
 
-        source_tags = {s.get_tag() for s in graph.get_source_stages()}
-        assert source_tags == {s1.get_tag(), s2.get_tag()}
+        source_tags = {s.get_name() for s in graph.get_source_stages()}
+        assert source_tags == {s1.get_name(), s2.get_name()}
 
     def test_source_stages_diamond(self):
         """菱形图 A→{B,C}→D：source 只有 A"""
@@ -596,11 +596,11 @@ class TestSourceStages:
         graph.connect([s1], [s2, s3])
         graph.connect([s2, s3], [s4])
 
-        graph.start_graph({s1.get_tag(): [1]})
+        graph.start_graph({s1.get_name(): [1]})
 
         sources = graph.get_source_stages()
         assert len(sources) == 1
-        assert sources[0].get_tag() == s1.get_tag()
+        assert sources[0].get_name() == s1.get_name()
 
     def test_source_stages_cycle_returns_one_source_scc_member(self):
         """单个源 SCC 只返回一个代表点"""
@@ -614,8 +614,8 @@ class TestSourceStages:
         graph.connect([s2], [s3])
         graph.connect([s3], [s1])
 
-        source_tags = {stage.get_tag() for stage in graph.get_source_stages()}
-        cycle_tags = {s1.get_tag(), s2.get_tag(), s3.get_tag()}
+        source_tags = {stage.get_name() for stage in graph.get_source_stages()}
+        cycle_tags = {s1.get_name(), s2.get_name(), s3.get_name()}
 
         assert len(source_tags) == 1
         assert source_tags <= cycle_tags
@@ -636,9 +636,9 @@ class TestSourceStages:
         graph.connect([s4], [s3])
         graph.connect([s2, s4], [s5])
 
-        source_tags = {stage.get_tag() for stage in graph.get_source_stages()}
-        source_scc_a = {s1.get_tag(), s2.get_tag()}
-        source_scc_b = {s3.get_tag(), s4.get_tag()}
+        source_tags = {stage.get_name() for stage in graph.get_source_stages()}
+        source_scc_a = {s1.get_name(), s2.get_name()}
+        source_scc_b = {s3.get_name(), s4.get_name()}
 
         assert len(source_tags) == 2
         assert len(source_tags & source_scc_a) == 1
@@ -661,7 +661,7 @@ class TestCyclicGraph:
         graph.connect([s2], [s3])
         graph.connect([s3], [s1])
 
-        graph.start_graph({s1.get_tag(): [1]}, put_termination_signal=True)
+        graph.start_graph({s1.get_name(): [1]}, put_termination_signal=True)
 
         analysis = graph.get_graph_analysis()
         assert analysis["isDAG"] is False
@@ -680,17 +680,17 @@ class TestCyclicGraph:
         graph.connect([s3], [s1])
         graph.connect([s1], [s4])
 
-        graph.start_graph({s1.get_tag(): [1]}, put_termination_signal=True)
+        graph.start_graph({s1.get_name(): [1]}, put_termination_signal=True)
 
         analysis = graph.get_graph_analysis()
         layers = analysis["layers_dict"]
-        cycle_tags = {s1.get_tag(), s2.get_tag(), s3.get_tag()}
+        cycle_tags = {s1.get_name(), s2.get_name(), s3.get_name()}
         cycle_layer = None
         for layer_idx, tags in layers.items():
-            if s1.get_tag() in tags:
+            if s1.get_name() in tags:
                 cycle_layer = layer_idx
                 break
         assert cycle_layer is not None
         for tag in cycle_tags:
             assert tag in layers[cycle_layer]
-        assert s4.get_tag() in layers[cycle_layer + 1]
+        assert s4.get_name() in layers[cycle_layer + 1]

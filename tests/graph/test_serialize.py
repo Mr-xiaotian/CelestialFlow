@@ -17,8 +17,8 @@ def create_mock_stage_runtime(name: str, func_name: str, stage_mode: str, execut
     log_spout = LogSpout()
     log_spout.start()
     log_inlet = LogInlet(log_spout.get_queue())
-    in_queue = TaskInQueue(Queue(), [], stage.get_tag(), log_inlet)
-    out_queue = TaskOutQueue([], [], stage.get_tag(), log_inlet)
+    in_queue = TaskInQueue(Queue(), [], stage.get_name(), log_inlet)
+    out_queue = TaskOutQueue([], [], stage.get_name(), log_inlet)
     return StageRuntime(stage, in_queue, out_queue)
 
 class TestUtilSerialize:
@@ -31,18 +31,18 @@ class TestUtilSerialize:
         s4_runtime = create_mock_stage_runtime("s4", "func4", "thread", "thread")
 
         stage_runtime_dict = {
-            s1_runtime.stage.get_tag(): s1_runtime,
-            s2_runtime.stage.get_tag(): s2_runtime,
-            s3_runtime.stage.get_tag(): s3_runtime,
-            s4_runtime.stage.get_tag(): s4_runtime,
+            s1_runtime.stage.get_name(): s1_runtime,
+            s2_runtime.stage.get_name(): s2_runtime,
+            s3_runtime.stage.get_name(): s3_runtime,
+            s4_runtime.stage.get_name(): s4_runtime,
         }
 
         # 模拟邻接表
         out_edges = {
-            s1_runtime.stage.get_tag(): [s2_runtime.stage.get_tag(), s3_runtime.stage.get_tag()],
-            s2_runtime.stage.get_tag(): [s4_runtime.stage.get_tag()],
-            s3_runtime.stage.get_tag(): [s4_runtime.stage.get_tag()],
-            s4_runtime.stage.get_tag(): [],
+            s1_runtime.stage.get_name(): [s2_runtime.stage.get_name(), s3_runtime.stage.get_name()],
+            s2_runtime.stage.get_name(): [s4_runtime.stage.get_name()],
+            s3_runtime.stage.get_name(): [s4_runtime.stage.get_name()],
+            s4_runtime.stage.get_name(): [],
         }
         
         # 模拟循环图
@@ -51,15 +51,15 @@ class TestUtilSerialize:
         cyclic_s3_runtime = create_mock_stage_runtime("cs3", "cfunc3", "serial", "serial")
         
         cyclic_stage_runtime_dict = {
-            cyclic_s1_runtime.stage.get_tag(): cyclic_s1_runtime,
-            cyclic_s2_runtime.stage.get_tag(): cyclic_s2_runtime,
-            cyclic_s3_runtime.stage.get_tag(): cyclic_s3_runtime,
+            cyclic_s1_runtime.stage.get_name(): cyclic_s1_runtime,
+            cyclic_s2_runtime.stage.get_name(): cyclic_s2_runtime,
+            cyclic_s3_runtime.stage.get_name(): cyclic_s3_runtime,
         }
         
         cyclic_out_edges = {
-            cyclic_s1_runtime.stage.get_tag(): [cyclic_s2_runtime.stage.get_tag()],
-            cyclic_s2_runtime.stage.get_tag(): [cyclic_s3_runtime.stage.get_tag()],
-            cyclic_s3_runtime.stage.get_tag(): [cyclic_s1_runtime.stage.get_tag()],
+            cyclic_s1_runtime.stage.get_name(): [cyclic_s2_runtime.stage.get_name()],
+            cyclic_s2_runtime.stage.get_name(): [cyclic_s3_runtime.stage.get_name()],
+            cyclic_s3_runtime.stage.get_name(): [cyclic_s1_runtime.stage.get_name()],
         }
 
         return {

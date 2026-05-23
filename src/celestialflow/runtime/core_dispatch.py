@@ -64,7 +64,7 @@ class TaskDispatch:
         )
         signal = TerminationSignal(
             termination_id,
-            source=self.task_executor.get_tag(),
+            source=self.task_executor.get_name(),
         )
         self.task_executor.log_inlet.termination_merge(
             self.task_executor.get_func_name(), parent_ids, termination_id

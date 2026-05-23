@@ -117,16 +117,16 @@ class LogInlet(BaseInlet):
 
     # ==== stage ====
     def start_stage(
-        self, stage_tag: str, stage_mode: str, execution_mode: str, max_workers: int
+        self, stage_name: str, stage_mode: str, execution_mode: str, max_workers: int
     ) -> None:
         """记录节点启动"""
         worker_repr = f"({max_workers} workers)" if execution_mode != "serial" else ""
-        text = f"'{stage_tag}' start in {stage_mode}; execute tasks by {execution_mode}{worker_repr}."
+        text = f"'{stage_name}' start in {stage_mode}; execute tasks by {execution_mode}{worker_repr}."
         self._log("INFO", text)
 
     def end_stage(
         self,
-        stage_tag: str,
+        stage_name: str,
         stage_mode: str,
         execution_mode: str,
         use_time: float,
@@ -137,7 +137,7 @@ class LogInlet(BaseInlet):
         """记录节点结束及统计"""
         self._log(
             "INFO",
-            f"'{stage_tag}' end in {stage_mode}; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
+            f"'{stage_name}' end in {stage_mode}; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
             f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 

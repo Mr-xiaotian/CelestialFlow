@@ -74,7 +74,7 @@ class TestExecutorSerial:
         error_pairs = dict(executor.get_error_pairs())
         assert error_pairs[-1].error_type == "ValueError"
         assert "negative value: -1" in error_pairs[-1].error_message
-        assert error_pairs[-2].stage == executor.get_tag()
+        assert error_pairs[-2].stage == executor.get_name()
 
     def test_serial_retry(self):
         """测试串行执行器的重试机制"""

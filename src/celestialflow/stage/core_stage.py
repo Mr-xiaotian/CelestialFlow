@@ -115,11 +115,11 @@ class TaskStage(TaskExecutor):
         self.log_inlet = LogInlet(self.log_queue, self.log_level)
 
     # ==== 绑定 ====
-    def get_binding_counter(self, _downstream_tag: str) -> Any:
+    def get_binding_counter(self, _downstream_name: str) -> Any:
         """
         返回下游 stage 应绑定的计数器，子类可覆写。
 
-        :param _downstream_tag: 下游 stage 的 tag
+        :param _downstream_name: 下游 stage 的唯一名称
         :return: 计数器实例
         """
         return self.metrics.success_counter
@@ -131,7 +131,7 @@ class TaskStage(TaskExecutor):
         :param pending_prev_bindings: 前置节点列表
         """
         for prev_stage in pending_prev_bindings:
-            counter = prev_stage.get_binding_counter(self.get_tag())
+            counter = prev_stage.get_binding_counter(self.get_name())
             self.metrics.append_task_counter(counter)
 
     # ==== 查询 ====
@@ -194,7 +194,7 @@ class TaskStage(TaskExecutor):
         self.set_queue(input_queue, output_queue)
 
         self.log_inlet.start_stage(
-            self.get_tag(), self.stage_mode, self.execution_mode, self.max_workers
+            self.get_name(), self.stage_mode, self.execution_mode, self.max_workers
         )
         self.mark_running()
 
@@ -215,7 +215,7 @@ class TaskStage(TaskExecutor):
 
             self._notify("on_finish")
             self.log_inlet.end_stage(
-                self.get_tag(),
+                self.get_name(),
                 self.stage_mode,
                 self.execution_mode,
                 time.perf_counter() - start_time,

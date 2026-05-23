@@ -187,8 +187,8 @@ def bench_graph_0():
     bench_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
 
     input_tasks = {
-        stage1.get_tag(): bench_task_1,
-        async_stage1.get_tag(): bench_task_1,
+        stage1.get_name(): bench_task_1,
+        async_stage1.get_name(): bench_task_1,
     }
 
     benchmark_graph(graph, async_graph, input_tasks)
@@ -232,8 +232,8 @@ def bench_graph_1():
     async_graph.set_reporter(True, host=report_host, port=report_port)
 
     input_tasks = {
-        A.get_tag(): range(10),
-        aA.get_tag(): range(10),
+        A.get_name(): range(10),
+        aA.get_name(): range(10),
     }
 
     benchmark_graph(graph, async_graph, input_tasks)
@@ -264,8 +264,8 @@ def bench_graph_2():
     async_graph.set_reporter(True, host=report_host, port=report_port)
 
     input_tasks = {
-        S.get_tag(): [range(10_000)],
-        aS.get_tag(): [range(10_000)],
+        S.get_name(): [range(10_000)],
+        aS.get_name(): [range(10_000)],
     }
 
     benchmark_graph(graph, async_graph, input_tasks)

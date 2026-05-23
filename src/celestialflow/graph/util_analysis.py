@@ -17,8 +17,8 @@ def build_networkx_graph(
     """
     从邻接表和阶段运行时信息构建 networkx 有向图
 
-    :param out_edges: 邻接表 {stage_tag: [next_stage_tag, ...]}
-    :param stage_runtime_dict: {stage_tag: StageRuntime}
+    :param out_edges: 邻接表 {stage_name: [next_stage_name, ...]}
+    :param stage_runtime_dict: {stage_name: StageRuntime}
     :return: 构建好的 networkx.DiGraph
     """
     G: nx.DiGraph[str] = nx.DiGraph()
@@ -29,6 +29,23 @@ def build_networkx_graph(
         for dst in dsts:
             G.add_edge(src, dst)
     return G
+
+
+def find_source_nodes(G: nx.DiGraph[str]) -> list[str]:
+    """
+    找到有向图中的源节点（入度为0的节点）
+
+    :param G: networkx 有向图（DiGraph）
+    :return: 源节点列表
+    """
+    condensation = nx.condensation(G)
+
+    source_scc_ids = [n for n, d in condensation.in_degree() if d == 0]
+    sources = [
+        next(iter(condensation.nodes[scc_id]["members"])) for scc_id in source_scc_ids
+    ]
+
+    return sources
 
 
 def compute_node_levels(G: nx.DiGraph[str]) -> dict[str, int]:
@@ -54,20 +71,3 @@ def compute_node_levels(G: nx.DiGraph[str]) -> dict[str, int]:
             level[original_node] = lv
 
     return level
-
-
-def find_source_nodes(G: nx.DiGraph[str]) -> list[str]:
-    """
-    找到有向图中的源节点（入度为0的节点）
-
-    :param G: networkx 有向图（DiGraph）
-    :return: 源节点列表
-    """
-    condensation = nx.condensation(G)
-
-    source_scc_ids = [n for n, d in condensation.in_degree() if d == 0]
-    sources = [
-        next(iter(condensation.nodes[scc_id]["members"])) for scc_id in source_scc_ids
-    ]
-
-    return sources

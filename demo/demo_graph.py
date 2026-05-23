@@ -79,7 +79,7 @@ def demo_etl_fan_out_fan_in():
     graph.connect([normalize, enrich], [load])
 
     raw_ids = list(range(1, 16))
-    graph.start_graph({extract.get_tag(): raw_ids})
+    graph.start_graph({extract.get_name(): raw_ids})
 
     summary = graph.get_graph_summary()
     print(f"Total succeeded: {summary.get('total_succeeded', 0)}")
@@ -120,7 +120,7 @@ def demo_async_staged_pipeline():
     graph.connect([stage_double], [stage_to_str])
 
     tasks = list(range(1, 21))
-    graph.start_graph({stage_double.get_tag(): tasks})
+    graph.start_graph({stage_double.get_name(): tasks})
 
     status = graph.get_status_snapshot()["status"]
     for tag, info in status.items():

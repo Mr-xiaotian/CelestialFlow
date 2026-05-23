@@ -125,7 +125,6 @@ linkStyle default stroke:#999,stroke-width:1.5px;
   function walk(node: StructureNode) {
     const id = getNodeId(node);
     const label = `${node.name}`;
-    const tag = `${node.name}[${node.func_name}]`;
 
     let shape = "box";
     if (node.func_name === "_split") shape = "subgraph";
@@ -137,7 +136,7 @@ linkStyle default stroke:#999,stroke-width:1.5px;
     nodeLabels.set(id, getShapeWrappedLabel(label, shape));
 
     // 🧠 找对应状态 class
-    const statusInfo = statuses[tag];
+    const statusInfo = statuses[node.name];
     let statusClass = "whiteNode";
     if (statusInfo) {
       if (statusInfo.status === 1) statusClass = "greenNode";

@@ -155,24 +155,24 @@ class TaskGraph:
         :param stages: 待添加的节点列表
         """
         for stage in stages:
-            if stage.get_tag() in self.stage_runtime_dict:
-                continue
+            stage_name = stage.get_name()
+            if stage_name in self.stage_runtime_dict:
+                raise ValueError(f"duplicate stage name: {stage_name}")
 
-            stage_tag = stage.get_tag()
             in_queue = TaskInQueue(
                 queue=ThreadQueue(),
-                queue_tags=[],
-                out_tag=stage.get_tag(),
+                source_names=[],
+                out_name=stage_name,
                 log_inlet=self.log_inlet,
             )
             out_queue = TaskOutQueue(
                 queue_list=[],
-                queue_tags=[],
-                in_tag=stage.get_tag(),
+                target_names=[],
+                in_name=stage_name,
                 log_inlet=self.log_inlet,
             )
 
-            self.stage_runtime_dict[stage_tag] = StageRuntime(
+            self.stage_runtime_dict[stage_name] = StageRuntime(
                 stage=stage,
                 in_queue=in_queue,
                 out_queue=out_queue,
@@ -187,8 +187,8 @@ class TaskGraph:
         """
         for from_stage in from_stages:
             for to_stage in to_stages:
-                self.out_edges[from_stage.get_tag()].append(to_stage.get_tag())
-                self.in_edges[to_stage.get_tag()].append(from_stage.get_tag())
+                self.out_edges[from_stage.get_name()].append(to_stage.get_name())
+                self.in_edges[to_stage.get_name()].append(from_stage.get_name())
 
     # ==== 配置 ====
 
@@ -288,8 +288,8 @@ class TaskGraph:
         """
         构建每个阶段的运行时资源（队列、计数器、前驱绑定）
         """
-        for stage_tag, stage_runtime in self.stage_runtime_dict.items():
-            if not self.in_edges[stage_tag]:  # 如果没有前驱
+        for stage_name, stage_runtime in self.stage_runtime_dict.items():
+            if not self.in_edges[stage_name]:  # 如果没有前驱
                 continue
 
             current_stage: TaskStage = stage_runtime.stage
@@ -297,14 +297,14 @@ class TaskGraph:
             prev_stages: list[TaskStage] = []
 
             # 遍历每个前驱，创建边队列
-            for prev_stage_tag in self.in_edges[stage_tag]:
-                prev_stage = self.stage_runtime_dict[prev_stage_tag].stage
-                in_queue.add_source_tag(prev_stage_tag)
+            for prev_stage_name in self.in_edges[stage_name]:
+                prev_stage = self.stage_runtime_dict[prev_stage_name].stage
+                in_queue.add_source_name(prev_stage_name)
 
                 prev_out_queue: TaskOutQueue = self.stage_runtime_dict[
-                    prev_stage_tag
+                    prev_stage_name
                 ].out_queue
-                prev_out_queue.add_queue(in_queue.queue, stage_tag)
+                prev_out_queue.add_queue(in_queue.queue, stage_name)
                 prev_stages.append(prev_stage)
 
             current_stage.prev_bindings(prev_stages)
@@ -322,7 +322,6 @@ class TaskGraph:
         self.structure_json = build_structure_graph(
             self.source_stages, self.out_edges, self.stage_runtime_dict
         )
-        self.structure_list = format_structure_list_from_graph(self.structure_json)
 
         self.isDAG = is_directed_acyclic_graph(self.networkx_graph)
 
@@ -340,12 +339,12 @@ class TaskGraph:
         :param tasks_dict: 待处理的任务字典
         :param put_termination_signal: 是否放入终止信号，默认 True
         """
-        for tag, tasks in tasks_dict.items():
-            if tag not in self.stage_runtime_dict:
+        for name, tasks in tasks_dict.items():
+            if name not in self.stage_runtime_dict:
                 continue
-            stage: TaskStage = self.stage_runtime_dict[tag].stage
-            in_queue: TaskInQueue = self.stage_runtime_dict[tag].in_queue
-            # input_ids: set[int] = self.input_ids[tag] # maybe use later
+            stage: TaskStage = self.stage_runtime_dict[name].stage
+            in_queue: TaskInQueue = self.stage_runtime_dict[name].in_queue
+            # input_ids: set[int] = self.input_ids[name] # maybe use later
 
             for task in tasks:
                 if isinstance(task, TerminationSignal):
@@ -368,7 +367,7 @@ class TaskGraph:
                 self.log_inlet.task_input(
                     stage.get_func_name(),
                     stage.get_task_repr(task),
-                    stage.get_tag(),
+                    stage.get_name(),
                     input_id,
                 )
 
@@ -376,9 +375,9 @@ class TaskGraph:
             return
         
         for source_stage in self.source_stages:
-            source_stage_tag = source_stage.get_tag()
+            source_stage_name = source_stage.get_name()
             source_in_queue: TaskInQueue = self.stage_runtime_dict[
-                source_stage_tag
+                source_stage_name
             ].in_queue
 
             termination_id: int = self.ctree_client.emit(
@@ -388,7 +387,7 @@ class TaskGraph:
             source_in_queue.put(TerminationSignal(termination_id, source="input"))
             self.log_inlet.termination_input(
                 source_stage.get_func_name(),
-                source_stage.get_tag(),
+                source_stage.get_name(),
                 termination_id,
             )
 
@@ -457,8 +456,8 @@ class TaskGraph:
                 start_time = time.perf_counter()
 
                 threads: list[threading.Thread] = []
-                for stage_tag in layer:
-                    stage: TaskStage = self.stage_runtime_dict[stage_tag].stage
+                for stage_name in layer:
+                    stage: TaskStage = self.stage_runtime_dict[stage_name].stage
                     self._execute_stage(stage)
                     if stage.stage_mode == "thread":
                         threads.append(self.threads[-1])
@@ -475,8 +474,8 @@ class TaskGraph:
 
         :param stage: 节点
         """
-        stage_tag = stage.get_tag()
-        stage_runtime = self.stage_runtime_dict[stage_tag]
+        stage_name = stage.get_name()
+        stage_runtime = self.stage_runtime_dict[stage_name]
 
         fail_queue = self.fail_spout.get_queue()
         log_queue = self.log_spout.get_queue()
@@ -498,7 +497,7 @@ class TaskGraph:
             t = threading.Thread(
                 target=stage.start_stage,
                 args=(input_queue, output_queue, fail_queue, log_queue),
-                name=stage_tag,
+                name=stage_name,
                 daemon=True,
             )
             t.start()
@@ -522,7 +521,7 @@ class TaskGraph:
             stage.mark_stopped()
 
         # 收集并持久化每个 stage 中未消费的任务
-        for stage_tag, stage_runtime in self.stage_runtime_dict.items():
+        for stage_name, stage_runtime in self.stage_runtime_dict.items():
             current_stage: TaskStage = stage_runtime.stage
             in_queue: TaskInQueue = stage_runtime.in_queue
 
@@ -539,7 +538,7 @@ class TaskGraph:
                     payload=current_stage.get_summary(),
                 )
 
-                self.fail_inlet.task_error(stage_tag, error_id, UnconsumedError(), task)
+                self.fail_inlet.task_error(stage_name, error_id, UnconsumedError(), task)
 
                 self.log_inlet.task_error(
                     current_stage.get_func_name(),
@@ -652,9 +651,9 @@ class TaskGraph:
         running_pending_map: dict[str, int] = {}
         running_remaining_map: dict[str, float] = {}
 
-        for stage_tag, stage_runtime in self.stage_runtime_dict.items():
+        for stage_name, stage_runtime in self.stage_runtime_dict.items():
             stage: TaskStage = stage_runtime.stage
-            last_status = self.status_dict.get(stage_tag, {})
+            last_status = self.status_dict.get(stage_name, {})
 
             snapshot, (processed, pending, elapsed, remaining) = (
                 self._snapshot_one_stage(
@@ -665,12 +664,12 @@ class TaskGraph:
                 )
             )
 
-            status_dict[stage_tag] = snapshot
+            status_dict[stage_name] = snapshot
 
-            running_processed_map[stage_tag] = processed
-            running_pending_map[stage_tag] = pending
-            running_elapsed_map[stage_tag] = elapsed
-            running_remaining_map[stage_tag] = remaining
+            running_processed_map[stage_name] = processed
+            running_pending_map[stage_name] = pending
+            running_elapsed_map[stage_name] = elapsed
+            running_remaining_map[stage_name] = remaining
 
         totals["total_remain"] = self._calc_graph_remain(
             running_processed_map,
@@ -689,7 +688,7 @@ class TaskGraph:
         """
         获取按节点分组的失败任务字典
 
-        :return: {stage_tag: [失败任务列表]}
+        :return: {stage_name: [失败任务列表]}
         """
         if self.fail_spout.jsonl_path is None:
             return {}
@@ -759,7 +758,7 @@ class TaskGraph:
 
         :return: 带边框的格式化字符串列表
         """
-        return self.structure_list
+        return format_structure_list_from_graph(self.structure_json)
 
     def get_networkx_graph(self) -> DiGraph[Any]:
         """
@@ -779,17 +778,17 @@ class TaskGraph:
             return ""
         return str(Path(self.fail_spout.jsonl_path).resolve())
 
-    def get_stage_input_trace(self, stage_tag: str) -> str:
+    def get_stage_input_trace(self, stage_name: str) -> str:
         """
         获取任务节点的输入依赖关系树
 
-        :param stage_tag: 节点标签
+        :param stage_name: 节点唯一名称
         :return: 格式化的依赖关系树字符串
         """
         if not self.use_ctree:
             return ""
 
-        input_ids: set[int] = self.input_ids[stage_tag]
+        input_ids: set[int] = self.input_ids[stage_name]
         descendants = self.ctree_client.descendants_batch(list(input_ids), "meta")
         if not descendants:
             return ""

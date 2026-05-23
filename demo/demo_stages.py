@@ -95,7 +95,7 @@ def demo_splitter_0():
 
     graph.start_graph(
         {
-            generate_stage.get_tag(): list(range(10)) + [1, 2, 3, 6, 7, 8, 9],
+            generate_stage.get_name(): list(range(10)) + [1, 2, 3, 6, 7, 8, 9],
         },
         False,
     )
@@ -118,7 +118,7 @@ def demo_splitter_1():
 
     chain.start_chain(
         {
-            task_splitter.get_tag(): [range(100_000)],
+            task_splitter.get_name(): [range(100_000)],
         }
     )
 
@@ -167,7 +167,7 @@ def demo_redis_ack_0():
 
     graph.start_graph(
         {
-            start_stage.get_tag(): test_task_1,
+            start_stage.get_name(): test_task_1,
         }
     )
 
@@ -218,7 +218,7 @@ def demo_redis_ack_1():
 
     graph.start_graph(
         {
-            start_stage.get_tag(): test_task_0,
+            start_stage.get_name(): test_task_0,
         }
     )
 
@@ -274,7 +274,7 @@ def demo_redis_ack_2():
         ],
     ]
 
-    graph.start_graph({start_stage.get_tag(): download_links})
+    graph.start_graph({start_stage.get_name(): download_links})
 
 
 def demo_redis_source_0():
@@ -319,8 +319,8 @@ def demo_redis_source_0():
 
     graph.start_graph(
         {
-            sleep_stage_0.get_tag(): test_task_0,
-            redis_source.get_tag(): list(range(12)),
+            sleep_stage_0.get_name(): test_task_0,
+            redis_source.get_name(): list(range(12)),
         }
     )
 
@@ -345,8 +345,8 @@ def demo_router_0():
         max_workers=2,
     )
 
-    a_tag = stage_a.get_tag()
-    b_tag = stage_b.get_tag()
+    a_tag = stage_a.get_name()
+    b_tag = stage_b.get_name()
 
     source_stage = TaskStage(
         "Origin",
@@ -367,7 +367,7 @@ def demo_router_0():
 
     graph.start_graph(
         {
-            source_stage.get_tag(): list(range(20)),
+            source_stage.get_name(): list(range(20)),
         }
     )
 

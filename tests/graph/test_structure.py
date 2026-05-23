@@ -24,15 +24,15 @@ class TestTaskLoop:
         s3 = TaskStage("s3", to_str)
 
         loop = TaskLoop([s1, s2, s3])
-        loop.start_loop({s1.get_tag(): [1]}, put_termination_signal=True)
+        loop.start_loop({s1.get_name(): [1]}, put_termination_signal=True)
 
         analysis = loop.get_graph_analysis()
         assert analysis["isDAG"] is False
 
         layers = analysis["layers_dict"]
-        tags = {s1.get_tag(), s2.get_tag(), s3.get_tag()}
+        tags = {s1.get_name(), s2.get_name(), s3.get_name()}
         for layer_tags in layers.values():
-            if s1.get_tag() in layer_tags:
+            if s1.get_name() in layer_tags:
                 assert tags.issubset(set(layer_tags))
                 break
 
@@ -42,11 +42,11 @@ class TestTaskLoop:
         s2 = TaskStage("s2", double)
 
         loop = TaskLoop([s1, s2])
-        loop.start_loop({s1.get_tag(): [1]}, put_termination_signal=True)
+        loop.start_loop({s1.get_name(): [1]}, put_termination_signal=True)
 
         sources = loop.get_source_stages()
         assert len(sources) == 1
-        assert sources[0].get_tag() in {s1.get_tag(), s2.get_tag()}
+        assert sources[0].get_name() in {s1.get_name(), s2.get_name()}
 
 
 # =========================
@@ -67,8 +67,8 @@ class TestTaskWheel:
         assert analysis["isDAG"] is False
 
         layers = analysis["layers_dict"]
-        assert center.get_tag() in layers[0]
-        ring_tags = {r1.get_tag(), r2.get_tag(), r3.get_tag()}
+        assert center.get_name() in layers[0]
+        ring_tags = {r1.get_name(), r2.get_name(), r3.get_name()}
         assert ring_tags.issubset(set(layers[1]))
 
     def test_wheel_source_stages(self):
@@ -82,4 +82,4 @@ class TestTaskWheel:
 
         sources = wheel.get_source_stages()
         assert len(sources) == 1
-        assert sources[0].get_tag() == center.get_tag()
+        assert sources[0].get_name() == center.get_name()

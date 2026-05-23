@@ -76,22 +76,22 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     queue: deque[TaskStage] = deque(graph.get_source_stages())
     while queue:
         stage: TaskStage = queue.popleft()
-        tag: str = stage.get_tag()
-        if tag in visited:
+        stage_name: str = stage.get_name()
+        if stage_name in visited:
             continue
-        visited.add(tag)
+        visited.add(stage_name)
         ordered_stages.append(stage)
-        for next_tag in graph.out_edges.get(tag, []):
-            next_stage: TaskStage = graph.stage_runtime_dict[next_tag].stage
+        for next_stage_name in graph.out_edges.get(stage_name, []):
+            next_stage: TaskStage = graph.stage_runtime_dict[next_stage_name].stage
             queue.append(next_stage)
 
-    # 建立 old_tag -> cloned_stage 映射
-    tag_map: dict[str, TaskStage] = {}
+    # 建立 old_name -> cloned_stage 映射
+    name_map: dict[str, TaskStage] = {}
     for stage in ordered_stages:
-        tag_map[stage.get_tag()] = clone_stage(stage)
+        name_map[stage.get_name()] = clone_stage(stage)
 
     # 构建新 graph
-    all_cloned_stages: list[TaskStage] = list(tag_map.values())
+    all_cloned_stages: list[TaskStage] = list(name_map.values())
 
     cloned_graph: TaskGraph = TaskGraph(
         schedule_mode=graph.schedule_mode,
@@ -100,11 +100,11 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     cloned_graph.set_stages(all_cloned_stages)
 
     # 重建连接
-    for from_tag, to_tags in graph.out_edges.items():
-        if not to_tags:
+    for from_name, to_names in graph.out_edges.items():
+        if not to_names:
             continue
-        cloned_from: TaskStage = tag_map[from_tag]
-        cloned_to: list[TaskStage] = [tag_map[t] for t in to_tags]
+        cloned_from: TaskStage = name_map[from_name]
+        cloned_to: list[TaskStage] = [name_map[name] for name in to_names]
         cloned_graph.connect([cloned_from], cloned_to)
 
     if graph.use_ctree:

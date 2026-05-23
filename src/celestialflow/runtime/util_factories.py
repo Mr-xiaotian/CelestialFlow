@@ -22,8 +22,8 @@ def make_task_in_queue(
     """
     return TaskInQueue(
         queue=queue,
-        queue_tags=[],
-        out_tag=executor.get_tag(),
+        source_names=[],
+        out_name=executor.get_name(),
         log_inlet=executor.log_inlet,
     )
 
@@ -42,7 +42,7 @@ def make_task_out_queue(
     """
     return TaskOutQueue(
         queue_list=[queue],
-        queue_tags=[None],
-        in_tag=executor.get_tag(),
+        target_names=[None],
+        in_name=executor.get_name(),
         log_inlet=executor.log_inlet,
     )

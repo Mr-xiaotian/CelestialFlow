@@ -49,7 +49,7 @@ def demo_chain():
 
     chain.start_chain(
         {
-            stageA.get_tag(): range(20),
+            stageA.get_name(): range(20),
         }
     )
 
@@ -161,9 +161,9 @@ def demo_forest():
 
     # 初始任务
     init_tasks: dict[str, list[int]] = {
-        stageA.get_tag(): list(range(1, 11)),
-        stageB.get_tag(): list(range(11, 21)),
-        stageF.get_tag(): list(range(21, 31)),
+        stageA.get_name(): list(range(1, 11)),
+        stageB.get_name(): list(range(11, 21)),
+        stageF.get_name(): list(range(21, 31)),
     }
 
     graph.start_graph(init_tasks)
@@ -190,9 +190,9 @@ def demo_cross():
 
     # 初始任务
     init_tasks = {
-        stageA.get_tag(): range(1, 11),  # random_values(100, "str"),
-        stageB.get_tag(): range(6, 16),
-        stageC.get_tag(): range(11, 21),
+        stageA.get_name(): range(1, 11),  # random_values(100, "str"),
+        stageB.get_name(): range(6, 16),
+        stageC.get_name(): range(11, 21),
     }
 
     cross.start_cross(init_tasks)
@@ -220,8 +220,8 @@ def demo_network():
 
     # 初始任务（输入层）
     init_tasks = {
-        A1.get_tag(): range(1, 11),
-        A2.get_tag(): range(11, 21),
+        A1.get_name(): range(1, 11),
+        A2.get_name(): range(11, 21),
     }
 
     cross.start_cross(init_tasks, True)
@@ -241,7 +241,7 @@ def demo_star():
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
     )
 
-    star.start_cross({core.get_tag(): range(1, 11)})
+    star.start_cross({core.get_name(): range(1, 11)})
 
 
 def demo_fanin():
@@ -260,9 +260,9 @@ def demo_fanin():
 
     fainin.start_cross(
         {
-            source1.get_tag(): range(1, 11),
-            source2.get_tag(): range(11, 21),
-            source3.get_tag(): range(21, 31),
+            source1.get_name(): range(1, 11),
+            source2.get_name(): range(11, 21),
+            source3.get_name(): range(21, 31),
         }
     )
 
@@ -287,7 +287,7 @@ def demo_grid():
     )
 
     # 3. 初始化任务字典，只放左上角一个任务
-    init_dict: dict[str, list[int]] = {grid[0][0].get_tag(): list(range(10))}
+    init_dict: dict[str, list[int]] = {grid[0][0].get_name(): list(range(10))}
 
     # 4. 启动任务图
     task_grid.start_graph(init_dict)
@@ -309,7 +309,7 @@ def demo_loop():
     test_task_0 = range(1, 2)
     # test_task_1 = list(test_task_0) + [0, 6, None, 0, ""]
 
-    loop.start_loop({stageA.get_tag(): test_task_0})
+    loop.start_loop({stageA.get_name(): test_task_0})
 
 
 def demo_wheel():
@@ -327,7 +327,7 @@ def demo_wheel():
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
     )
 
-    wheel.start_wheel({core.get_tag(): range(1, 11)}, True)
+    wheel.start_wheel({core.get_name(): range(1, 11)}, True)
 
 
 def demo_complete():
@@ -345,9 +345,9 @@ def demo_complete():
 
     complete.start_complete(
         {
-            n1.get_tag(): range(1, 11),
-            n2.get_tag(): range(11, 21),
-            n3.get_tag(): range(21, 31),
+            n1.get_name(): range(1, 11),
+            n2.get_name(): range(11, 21),
+            n3.get_name(): range(21, 31),
         }
     )
 
@@ -409,7 +409,7 @@ def demo_multi_cycle():
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
     )
 
-    graph.start_graph({A1.get_tag(): range(1, 11)}, False)
+    graph.start_graph({A1.get_name(): range(1, 11)}, False)
 
 
 if __name__ == "__main__":

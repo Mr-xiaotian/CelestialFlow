@@ -25,16 +25,16 @@ class TestTaskStageConfig:
     def test_stage_tag_auto_generation(self):
         """测试 Stage 标签的自动生成：应包含节点名称和函数名"""
         stage = TaskStage("MyStage", add_one)
-        tag = stage.get_tag()
+        tag = stage.get_name()
         assert "MyStage" in tag
         assert "add_one" in tag
 
     def test_stage_tag_changes_with_name(self):
         """测试修改节点名称后，标签应自动失效并根据新名称重新生成"""
         stage = TaskStage("OldName", add_one)
-        old_tag = stage.get_tag()
+        old_tag = stage.get_name()
         stage.set_name("NewName")
-        new_tag = stage.get_tag()
+        new_tag = stage.get_name()
         assert old_tag != new_tag
         assert "NewName" in new_tag
 

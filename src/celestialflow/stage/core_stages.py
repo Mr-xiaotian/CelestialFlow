@@ -39,11 +39,11 @@ class TaskSplitter(TaskStage):
         """覆写父类方法，将执行模式固定为串行"""
         self.execution_mode = "serial"
 
-    def get_binding_counter(self, _downstream_tag: str) -> Any:
+    def get_binding_counter(self, _downstream_name: str) -> Any:
         """
         返回下游 stage 应绑定的计数器
 
-        :param _downstream_tag: 下游 stage 的 tag
+        :param _downstream_name: 下游 stage 的唯一名称
         :return: split 计数器实例
         """
         return self.split_counter
@@ -85,7 +85,7 @@ class TaskSplitter(TaskStage):
             splitted_envelope = TaskEnvelope(
                 item,
                 split_id,
-                source=self.get_tag(),
+                source=self.get_name(),
             )
             result_queue.put(splitted_envelope)
 
@@ -149,25 +149,25 @@ class TaskRouter(TaskStage):
         """
         初始化路由计数器
 
-        每个 target_tag 一个计数器，用于让不同下游 stage 的 task_counter 统计正确。
+        每个 target_name 一个计数器，用于让不同下游 stage 的 task_counter 统计正确。
         """
         self.route_counters: dict[str, Any] = {}
 
-    def get_binding_counter(self, downstream_tag: str) -> Any:
+    def get_binding_counter(self, downstream_name: str) -> Any:
         """
-        返回下游 stage 应绑定的计数器，按 tag 查找或创建
+        返回下游 stage 应绑定的计数器，按唯一名称查找或创建
 
-        :param downstream_tag: 下游 stage 的 tag
+        :param downstream_name: 下游 stage 的唯一名称
         :return: 对应下游的路由计数器实例
         """
-        self.route_counters.setdefault(downstream_tag, ValueWrapper(0))
-        return self.route_counters[downstream_tag]
+        self.route_counters.setdefault(downstream_name, ValueWrapper(0))
+        return self.route_counters[downstream_name]
 
     def _update_route_counter(self, target: str) -> None:
         """
         更新指定目标的路由计数器
 
-        :param target: 目标 stage 的 tag
+        :param target: 目标 stage 的唯一名称
         """
         self.route_counters[target].value += 1
 
@@ -175,7 +175,7 @@ class TaskRouter(TaskStage):
         """
         校验路由输入格式并提取目标任务
 
-        :param routed: (target_tag, task) 元组
+        :param routed: (target_name, task) 元组
         :return: 提取出的任务数据
         :raises TypeError: 输入不是长度为 2 的元组
         :raises InvalidOptionError: target 不在已注册的路由列表中
@@ -212,7 +212,7 @@ class TaskRouter(TaskStage):
         routed_envelope = TaskEnvelope(
             processed_result,
             route_id,
-            source=self.get_tag(),
+            source=self.get_name(),
         )
         result_queue = self.result_queue
 
