@@ -7,6 +7,70 @@ let nodeHistories = {}; // 各节点的处理进度历史
 let progressChart = null; // Chart.js 折线图实例
 /** 用户在图例中手动隐藏的节点集合（持久化到 localStorage，刷新不丢失） */
 let hiddenNodes = new Set(JSON.parse(localStorage.getItem("hiddenNodes") || "[]"));
+/** 当前历史图正在展示的指标类型，默认显示完成累计。 */
+let currentHistoryMetric = "tasks_processed";
+/** 历史图指标切换按钮集合。 */
+const historyMetricButtons = document.querySelectorAll(".history-metric-btn");
+/**
+ * 将历史指标键映射为对应的国际化文案 key
+ * @param {HistoryMetricKey} metric - 当前选中的历史图指标键。
+ * @returns {string} 对应的国际化翻译 key。
+ */
+function getHistoryMetricLabelKey(metric) {
+    switch (metric) {
+        case "tasks_succeeded":
+            return "chart.metric.succeeded";
+        case "tasks_failed":
+            return "chart.metric.failed";
+        case "tasks_duplicated":
+            return "chart.metric.duplicated";
+        case "tasks_pending":
+            return "chart.metric.pending";
+        case "tasks_processed":
+        default:
+            return "chart.metric.processed";
+    }
+}
+/**
+ * 根据当前选中的指标状态更新切换按钮的激活样式
+ * @returns {void}
+ */
+function updateHistoryMetricButtons() {
+    historyMetricButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.historyMetric === currentHistoryMetric);
+    });
+}
+/**
+ * 更新图表坐标轴标题，使其与当前语言和指标类型保持一致
+ * @returns {void}
+ */
+function updateChartAxisLabels() {
+    if (!progressChart)
+        return;
+    progressChart.options.scales.x.title.text = t("chart.time");
+    progressChart.options.scales.y.title.text = t(getHistoryMetricLabelKey(currentHistoryMetric));
+}
+/**
+ * 初始化历史图指标切换器
+ * - 同步当前激活按钮
+ * - 绑定点击事件，在切换指标后更新轴标题并重绘图表
+ * @returns {void}
+ */
+function initHistoryMetricSwitcher() {
+    updateHistoryMetricButtons();
+    historyMetricButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            const metric = button.dataset.historyMetric;
+            if (!metric || metric === currentHistoryMetric)
+                return;
+            currentHistoryMetric = metric;
+            updateHistoryMetricButtons();
+            updateChartAxisLabels();
+            updateChartData();
+        });
+    });
+}
+initHistoryMetricSwitcher();
 /**
  * 获取当前历史曲线保留点数限制
  * @returns {number} 归一化后的历史长度限制，最小为 1。
@@ -34,7 +98,7 @@ function trimNodeHistories() {
     return changed;
 }
 /**
- * 根据最新状态快照在前端追加进度历史点
+ * 根据最新状态快照在前端追加多指标历史点
  * @param {number} timestamp - 本轮状态快照的统一 Unix 时间戳（秒）。
  * @param {Record<string, NodeStatus>} statuses - 最新节点状态映射。
  * @param {Record<string, NodeStatus>} [previousStatuses={}] - 上一轮节点状态映射，用于识别节点重启。
@@ -57,6 +121,10 @@ function appendStatusSnapshotToHistory(timestamp, statuses, previousStatuses = {
         const nextPoint = {
             timestamp,
             tasks_processed: status.tasks_processed || 0,
+            tasks_succeeded: status.tasks_succeeded || 0,
+            tasks_failed: status.tasks_failed || 0,
+            tasks_duplicated: status.tasks_duplicated || 0,
+            tasks_pending: status.tasks_pending || 0,
         };
         if (!history.length) {
             history.push(nextPoint);
@@ -65,7 +133,12 @@ function appendStatusSnapshotToHistory(timestamp, statuses, previousStatuses = {
         else {
             const currentLastPoint = history[history.length - 1];
             if (currentLastPoint.timestamp === timestamp) {
-                if (currentLastPoint.tasks_processed !== nextPoint.tasks_processed) {
+                const pointChanged = currentLastPoint.tasks_processed !== nextPoint.tasks_processed ||
+                    currentLastPoint.tasks_succeeded !== nextPoint.tasks_succeeded ||
+                    currentLastPoint.tasks_failed !== nextPoint.tasks_failed ||
+                    currentLastPoint.tasks_duplicated !== nextPoint.tasks_duplicated ||
+                    currentLastPoint.tasks_pending !== nextPoint.tasks_pending;
+                if (pointChanged) {
                     history[history.length - 1] = nextPoint;
                     changed = true;
                 }
@@ -157,7 +230,11 @@ function initChart() {
                 y: {
                     ticks: { color: textColor },
                     grid: { color: gridColor },
-                    title: { display: true, text: t("chart.tasksCompleted"), color: textColor },
+                    title: {
+                        display: true,
+                        text: t(getHistoryMetricLabelKey(currentHistoryMetric)),
+                        color: textColor,
+                    },
                     border: { color: borderColor },
                 },
             },
@@ -172,6 +249,7 @@ function updateChartTheme() {
     if (!progressChart)
         return;
     const { text: textColor, grid: gridColor, border: borderColor } = getChartThemeColors();
+    updateChartAxisLabels();
     progressChart.options.plugins.legend.labels.color = textColor;
     progressChart.options.scales.x.ticks.color = textColor;
     progressChart.options.scales.x.grid.color = gridColor;
@@ -189,7 +267,8 @@ function updateChartTheme() {
  * @returns {void}
  */
 function updateChartData() {
-    const nodeDataMap = extractProgressData(nodeHistories);
+    updateChartAxisLabels();
+    const nodeDataMap = extractProgressData(nodeHistories, currentHistoryMetric);
     const datasets = Object.entries(nodeDataMap).map(([node, data], index) => ({
         label: node,
         data: data,

@@ -66,14 +66,15 @@ function getColor(index) {
 /**
  * 从节点历史数据中提取进度数据，用于图表显示
  * @param {Record<string, NodeHistory>} nodeHistories - 以节点名为键的历史数据映射。
+ * @param {HistoryMetricKey} metric - 当前要展示的历史指标字段。
  * @returns {Record<string, Array<{ x: number; y: number }>>} 可直接交给图表使用的坐标点映射。
  */
-function extractProgressData(nodeHistories) {
+function extractProgressData(nodeHistories, metric) {
     const result = {};
     for (const [node, data] of Object.entries(nodeHistories)) {
         result[node] = data.map((point) => ({
             x: point.timestamp,
-            y: point.tasks_processed,
+            y: Number(point[metric] || 0),
         }));
     }
     return result;

@@ -168,7 +168,51 @@
           <!-- 右侧: 总体状态 -->
           <div class="right-panel">
             <div class="card progress-card" style="display: none;">
-              <h2 class="card-title" data-i18n="card.progress.title">节点完成走向</h2>
+              <div class="progress-card-header">
+                <h2 class="card-title" data-i18n="card.progress.title">节点指标走向</h2>
+                <div class="history-metric-switcher" role="group" aria-label="History metric switcher">
+                  <button
+                    class="history-metric-btn active"
+                    type="button"
+                    data-history-metric="tasks_processed"
+                    data-i18n="chart.metric.processed"
+                  >
+                    完成累计
+                  </button>
+                  <button
+                    class="history-metric-btn"
+                    type="button"
+                    data-history-metric="tasks_succeeded"
+                    data-i18n="chart.metric.succeeded"
+                  >
+                    成功累计
+                  </button>
+                  <button
+                    class="history-metric-btn"
+                    type="button"
+                    data-history-metric="tasks_failed"
+                    data-i18n="chart.metric.failed"
+                  >
+                    错误累计
+                  </button>
+                  <button
+                    class="history-metric-btn"
+                    type="button"
+                    data-history-metric="tasks_duplicated"
+                    data-i18n="chart.metric.duplicated"
+                  >
+                    重复累计
+                  </button>
+                  <button
+                    class="history-metric-btn"
+                    type="button"
+                    data-history-metric="tasks_pending"
+                    data-i18n="chart.metric.pending"
+                  >
+                    等待队列
+                  </button>
+                </div>
+              </div>
               <canvas id="node-progress-chart"></canvas>
             </div>
 
