@@ -97,7 +97,7 @@ def demo_splitter_0():
         {
             generate_stage.get_tag(): list(range(10)) + [1, 2, 3, 6, 7, 8, 9],
         },
-        True,
+        False,
     )
 
 
