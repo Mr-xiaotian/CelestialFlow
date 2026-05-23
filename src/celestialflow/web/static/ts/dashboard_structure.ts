@@ -7,6 +7,12 @@
 let structureData = []; // 任务结构图数据（有向图）
 let structureRev = -1; // 数据版本号，用于增量拉取
 
+type StructureNode = {
+  name: string;
+  func_name: string;
+  next_stages?: StructureNode[];
+};
+
 /**
  * 异步加载最新的任务结构数据
  * 从后端 API 获取任务结构图数据并更新全局变量 structureData
@@ -31,7 +37,7 @@ async function loadStructure(): Promise<boolean> {
  * @param {{ name: string }} node - 结构图节点对象，至少需要包含 `name` 字段。
  * @returns {string} 替换非单词字符后的节点 ID
  */
-function getNodeId(node) {
+function getNodeId(node: StructureNode): string {
   return node.name.replace(/\W+/g, "_");
 }
 
@@ -41,7 +47,7 @@ function getNodeId(node) {
  * @param {string} [shape="box"] - 形状类型，可选值包括 `box`、`circle`、`round`、`rhombus`、`subgraph`、`parallelogram`、`db`、`cloud`、`hex`、`arrow`。
  * @returns {string} 包含形状定义的 Mermaid 节点标签
  */
-function getShapeWrappedLabel(label, shape = "box") {
+function getShapeWrappedLabel(label: string, shape: string = "box"): string {
   switch (shape) {
     case "circle": // Circle nodes
       return `((${label}))`;
@@ -116,7 +122,7 @@ classDef blueNode fill:#e0f2fe,stroke:#0ea5e9,stroke-width:2px;
 linkStyle default stroke:#999,stroke-width:1.5px;
 `;
 
-  function walk(node) {
+  function walk(node: StructureNode) {
     const id = getNodeId(node);
     const label = `${node.name}`;
     const tag = `${node.name}[${node.func_name}]`;

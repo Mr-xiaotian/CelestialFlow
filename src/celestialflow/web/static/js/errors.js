@@ -147,7 +147,7 @@ function renderPaginationControls(totalPages) {
     const pages = buildPageList(currentPage, totalPages);
     pages.forEach(p => {
         const span = document.createElement("span");
-        span.textContent = p;
+        span.textContent = p.toString();
         if (p === "…") {
             span.className = "dots";
         }

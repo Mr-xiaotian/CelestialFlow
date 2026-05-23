@@ -316,12 +316,33 @@ function hideError(elementId: string) {
 }
 
 /**
+ * 验证 JSON 字符串格式是否合法
+ * @param {string} text - JSON 字符串
+ * @returns {boolean} 格式合法返回 true，否则返回 false
+ */
+function validateJSON(text: string): boolean {
+  if (!text.trim()) {
+    hideError("json-error");
+    return true;
+  }
+
+  try {
+    JSON.parse(text);
+    hideError("json-error");
+    return true;
+  } catch {
+    showError("json-error", t("json.invalid"));
+    return false;
+  }
+}
+
+/**
  * 显示操作状态提示（成功或失败）
  * @param {string} message - 要显示的提示 HTML 文本。
  * @param {boolean} [isSuccess=false] - 是否按成功态样式展示。
  * @returns {void}
  */
-function showStatus(message, isSuccess = false) {
+function showStatus(message: string, isSuccess = false) {
   const statusDiv = document.getElementById("status-message");
   const iconSVG = isSuccess
     ? '<svg class="status-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'

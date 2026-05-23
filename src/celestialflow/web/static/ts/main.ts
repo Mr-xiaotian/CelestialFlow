@@ -22,6 +22,91 @@ const tabButtons = document.querySelectorAll<HTMLElement>(".tab-btn"); // 页签
 const tabContents = document.querySelectorAll<HTMLElement>(".tab-content"); // 页签内容列表
 let settingsStatusTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * 切换页面暗黑/明亮主题
+ * @returns {boolean} 切换后是否为暗黑模式
+ */
+function toggleDarkTheme(): boolean {
+    return document.body.classList.toggle("dark-theme");
+}
+
+/**
+ * 显示设置保存状态消息
+ * @param {string} messageKey - 状态消息的翻译键
+ * @returns {void}
+ */
+function showSettingsSaveStatus(messageKey: string): void {
+    if (settingsStatusTimer) {
+        clearTimeout(settingsStatusTimer);
+    }
+
+    settingsStatus.dataset.messageKey = messageKey;
+    settingsStatus.textContent = t(messageKey);
+    settingsStatus.classList.remove("hidden", "settings-status-success", "settings-status-error");
+    settingsStatus.classList.add(
+        messageKey === "settings.saveSuccess" ? "settings-status-success" : "settings-status-error"
+    );
+
+    settingsStatusTimer = setTimeout(() => {
+        settingsStatus.classList.add("hidden");
+        settingsStatus.dataset.messageKey = "";
+    }, messageKey === "settings.saveSuccess" ? 2000 : 5000);
+}
+
+/**
+ * 更新设置保存状态消息文本
+ * @returns {void}
+ */
+function updateSettingsStatusText(): void {
+    const messageKey = settingsStatus.dataset.messageKey;
+    if (!messageKey) return;
+    settingsStatus.textContent = t(messageKey);
+}
+
+/**
+ * 检查设置面板是否打开
+ * @returns {boolean} 如果设置面板打开则返回 true，否则返回 false
+ */
+function isSettingsPanelOpen(): boolean {
+    return !settingsPanel.classList.contains("hidden");
+}
+
+/**
+ * 打开设置面板
+ * @returns {void}
+ */
+function openSettingsPanel(): void {
+    settingsPanel.classList.remove("hidden");
+    settingsBtn.setAttribute("aria-expanded", "true");
+    settingsClose.focus();
+}
+
+/**
+ * 关闭设置面板
+ * @param {{ restoreFocus?: boolean }} [options={}] - 关闭选项；`restoreFocus` 为 `true` 时会把焦点还给设置按钮。
+ * @returns {void}
+ */
+function closeSettingsPanel(options: { restoreFocus?: boolean } = {}): void {
+    const { restoreFocus = false } = options;
+    settingsPanel.classList.add("hidden");
+    settingsBtn.setAttribute("aria-expanded", "false");
+    if (restoreFocus) {
+        settingsBtn.focus();
+    }
+}
+
+/**
+ * 切换设置面板的显示状态
+ * @returns {void}
+ */
+function toggleSettingsPanel(): void {
+    if (isSettingsPanelOpen()) {
+        closeSettingsPanel();
+        return;
+    }
+    openSettingsPanel();
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     // ==== 初始化配置 ====
     await loadWebConfig();

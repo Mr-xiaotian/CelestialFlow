@@ -39,6 +39,47 @@ const historyMetricButtons = document.querySelectorAll<HTMLButtonElement>(
 );
 
 /**
+ * 根据索引获取预定义的主题色，用于区分不同节点的折线
+ * @param {number} index - 数据集索引
+ * @returns {string} 当前主题下解析后的十六进制颜色值
+ */
+function getColor(index: number): string {
+  const vars = [
+    "--cornflower-500",
+    "--jade-500",
+    "--marigold-500",
+    "--crimson-500",
+    "--violet-500",
+    "--rose-500",
+    "--jade-400",
+    "--sky-500",
+    "--amber-500",
+  ];
+  const style = getComputedStyle(document.documentElement);
+  return style.getPropertyValue(vars[index % vars.length]).trim();
+}
+
+/**
+ * 从节点历史数据中提取图表所需的 `{x, y}` 点序列
+ * @param {Record<string, NodeHistory>} histories - 以节点名为键的历史数据映射
+ * @param {HistoryMetricKey} metric - 当前需要提取的指标字段
+ * @returns {Record<string, Array<{ x: number; y: number }>>} 图表使用的坐标点映射
+ */
+function extractProgressData(
+  histories: Record<string, NodeHistory>,
+  metric: HistoryMetricKey
+): Record<string, Array<{ x: number; y: number }>> {
+  const result: Record<string, Array<{ x: number; y: number }>> = {};
+  for (const [node, data] of Object.entries(histories)) {
+    result[node] = data.map((point) => ({
+      x: point.timestamp,
+      y: Number(point[metric] || 0),
+    }));
+  }
+  return result;
+}
+
+/**
  * 将历史指标键映射为对应的国际化文案 key
  * @param {HistoryMetricKey} metric - 当前选中的历史图指标键。
  * @returns {string} 对应的国际化翻译 key。

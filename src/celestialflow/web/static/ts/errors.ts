@@ -124,12 +124,12 @@ async function goToErrorsPage(nextPage: number) {
  * @param {number} total - 总页数
  * @returns {Array<number|string>} 页码数组（数字或省略号）
  */
-function buildPageList(current, total) {
+function buildPageList(current: number, total: number): Array<number | string> {
   // 想显示哪些关键页：首尾、当前、前后1-2页
   const pages = new Set([1, total, current, current-1, current+1, current-2, current+2]);
   const list = [...pages].filter(p => p >= 1 && p <= total).sort((a,b)=>a-b);
 
-  const out = [];
+  const out: Array<number | string> = [];
   for (let i = 0; i < list.length; i++) {
     out.push(list[i]);
     if (i < list.length - 1 && list[i+1] - list[i] > 1) out.push("…"); // 插入省略号
@@ -160,8 +160,8 @@ function renderPaginationControls(totalPages) {
   const pages = buildPageList(currentPage, totalPages);
   pages.forEach(p => {
     const span = document.createElement("span");
-    span.textContent = p;
-    if (p === "…") {
+    span.textContent = p.toString();
+       if (p === "…") {
       span.className = "dots";
     } else if (p === currentPage) {
       span.className = "pager-current";

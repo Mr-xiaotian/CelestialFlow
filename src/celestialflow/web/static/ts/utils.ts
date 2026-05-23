@@ -48,74 +48,11 @@ function formatWithDelta(value: number, delta: number, deltaClass: string, negCl
 }
 
 /**
- * 根据索引获取预定义的颜色
- * @param {number} index - 索引值
- * @returns {string} 十六进制颜色代码
- */
-function getColor(index: number) {
-  const vars = [
-    "--cornflower-500",
-    "--jade-500",
-    "--marigold-500",
-    "--crimson-500",
-    "--violet-500",
-    "--rose-500",
-    "--jade-400",
-    "--sky-500",
-    "--amber-500",
-  ];
-  const style = getComputedStyle(document.documentElement);
-  return style.getPropertyValue(vars[index % vars.length]).trim();
-}
-
-/**
- * 从节点历史数据中提取进度数据，用于图表显示
- * @param {Record<string, NodeHistory>} nodeHistories - 以节点名为键的历史数据映射。
- * @param {HistoryMetricKey} metric - 当前要展示的历史指标字段。
- * @returns {Record<string, Array<{ x: number; y: number }>>} 可直接交给图表使用的坐标点映射。
- */
-function extractProgressData(
-  nodeHistories: Record<string, NodeHistory>,
-  metric: HistoryMetricKey
-) {
-  const result: Record<string, Array<{ x: number; y: number }>> = {};
-  for (const [node, data] of Object.entries(nodeHistories) as Array<[string, NodeHistory]>) {
-    result[node] = data.map((point: any) => ({
-      x: point.timestamp,
-      y: Number(point[metric] || 0),
-    }));
-  }
-  return result;
-}
-
-/**
  * 简单的移动端设备检测
  * @returns {boolean} 如果是移动设备则返回 true
  */
 function isMobile() {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-
-// task_indexction.js
-/**
- * 验证 JSON 字符串格式是否合法
- * @param {string} text - JSON 字符串
- * @returns {boolean} 格式合法返回 true，否则返回 false
- */
-function validateJSON(text: string) {
-  if (!text.trim()) {
-    hideError("json-error");
-    return true;
-  }
-
-  try {
-    JSON.parse(text);
-    hideError("json-error");
-    return true;
-  } catch (e) {
-    showError("json-error", t("json.invalid"));
-    return false;
-  }
 }
 
 /**
@@ -134,14 +71,6 @@ function escapeHtml(str: string) {
 }
 
 /**
- * 切换页面暗黑/明亮主题
- * @returns {boolean} 切换后是否为暗黑模式
- */
-function toggleDarkTheme() {
-  return document.body.classList.toggle("dark-theme");
-}
-
-/**
  * 切换到错误标签页，并可选地设置节点筛选器
  * @param {string} [nodeFilter] - 节点筛选值，不传或传空字符串则显示全部
  * @returns {void}
@@ -152,7 +81,7 @@ function switchToErrorsTab(nodeFilter: string = "") {
 
   document.querySelector(`.tab-btn[data-tab="errors"]`)?.classList.add("active");
   document.getElementById("errors")?.classList.add("active");
-  
+
   const filterEl = document.getElementById("node-filter") as HTMLSelectElement | null;
   if (filterEl) {
     filterEl.value = nodeFilter;
@@ -160,7 +89,6 @@ function switchToErrorsTab(nodeFilter: string = "") {
   }
 }
 
-// task_statuses.js
 /**
  * 格式化持续时间为 HH:MM:SS 或 MM:SS 格式
  * @param {number} seconds - 秒数
@@ -184,129 +112,6 @@ function formatDuration(seconds: number) {
 }
 
 /**
- * 将 elapsed 时间格式化为带颜色的 HTML 字符串
- * @param {number} seconds - 秒数
- * @param {number} successCount - 成功任务数
- * @param {number} failedCount - 失败任务数
- * @param {number} duplicateCount - 重复任务数
- * @returns {string} 带颜色分段的时间 HTML
- */
-function formatElapsedDuration(
-  seconds: number,
-  successCount: number,
-  failedCount: number,
-  duplicateCount: number
-) {
-  const duration = formatDuration(seconds);
-  const digitCount = duration.replace(/:/g, "").length;
-  if (!digitCount) return duration;
-
-  const segments = getElapsedSegments(successCount, failedCount, duplicateCount);
-  if (!segments.length) return duration;
-  const digitClasses = buildElapsedDigitClasses(segments, digitCount);
-  return renderElapsedDurationHtml(duration, digitClasses, segments[0].className);
-}
-
-/**
- * 根据成功、失败、重复任务数生成有效的 elapsed 颜色段
- * @param {number} successCount - 成功任务数
- * @param {number} failedCount - 失败任务数
- * @param {number} duplicateCount - 重复任务数
- * @returns {Array<{ className: string; count: number }>} 有效颜色段列表
- */
-function getElapsedSegments(
-  successCount: number,
-  failedCount: number,
-  duplicateCount: number
-) {
-  return [
-    { className: "elapsed-success", count: Math.max(0, successCount || 0) },
-    { className: "elapsed-error", count: Math.max(0, failedCount || 0) },
-    { className: "elapsed-duplicate", count: Math.max(0, duplicateCount || 0) },
-  ].filter((segment) => segment.count > 0);
-}
-
-/**
- * 按任务状态比例为时间字符串（HH:MM:SS）的每一位分配颜色类
- * 算法说明：
- * 1. 保证每种状态至少分配到 1 位数字（如果位数足够）。
- * 2. 剩余位数按各状态任务数的比例进行分配（使用最大余数法确保总和等于 digitCount）。
- * @param {Array<{ className: string; count: number }>} segments - 有效颜色段列表
- * @param {number} digitCount - 需要染色的总位数（不含冒号）
- * @returns {string[]} 按顺序排列的 CSS 类名列表
- */
-function buildElapsedDigitClasses(
-  segments: Array<{ className: string; count: number }>,
-  digitCount: number
-) {
-  if (digitCount <= segments.length) {
-    return segments.slice(0, digitCount).map((segment) => segment.className);
-  }
-
-  const totalCount = segments.reduce((sum, segment) => sum + segment.count, 0);
-  const remainingPool = digitCount - segments.length;
-  const exactAllocations = segments.map(
-    (segment) => (segment.count / totalCount) * remainingPool
-  );
-  const allocations = exactAllocations.map((value) => 1 + Math.floor(value));
-
-  let remainingDigits = digitCount - allocations.reduce((sum, value) => sum + value, 0);
-  const sortedIndexes = exactAllocations
-    .map((value, index) => ({ index, remainder: value - Math.floor(value) }))
-    .sort((a, b) => {
-      if (b.remainder !== a.remainder) return b.remainder - a.remainder;
-      return a.index - b.index;
-    });
-
-  for (let i = 0; i < remainingDigits; i++) {
-    allocations[sortedIndexes[i % sortedIndexes.length].index] += 1;
-  }
-
-  const digitClasses: string[] = [];
-  allocations.forEach((allocation, index) => {
-    for (let i = 0; i < allocation; i++) {
-      digitClasses.push(segments[index].className);
-    }
-  });
-
-  while (digitClasses.length < digitCount) {
-    digitClasses.push(segments[segments.length - 1].className);
-  }
-
-  return digitClasses;
-}
-
-/**
- * 将时间字符串渲染为带颜色 span 的 HTML
- * @param {string} duration - 原始时间字符串
- * @param {string[]} digitClasses - 每一位数字对应的颜色类
- * @param {string} defaultClassName - 当分隔符前没有数字时使用的默认颜色类
- * @returns {string} 渲染后的 HTML 字符串
- */
-function renderElapsedDurationHtml(
-  duration: string,
-  digitClasses: string[],
-  defaultClassName: string
-) {
-  let digitIndex = 0;
-  return duration
-    .split("")
-    .map((char) => {
-      if (char === ":") {
-        const leftClassName =
-          digitIndex > 0
-            ? digitClasses[digitIndex - 1]
-            : defaultClassName;
-        return `<span class="${leftClassName}">:</span>`;
-      }
-      const className = digitClasses[digitIndex] || digitClasses[digitClasses.length - 1];
-      digitIndex += 1;
-      return `<span class="${className}">${char}</span>`;
-    })
-    .join("");
-}
-
-/**
  * 格式化时间戳为 YYYY-MM-DD HH:MM:SS 格式
  * @param {number} timestamp - Unix 时间戳（秒）
  * @returns {string} 格式化后的日期时间字符串
@@ -324,81 +129,4 @@ function formatTimestamp(timestamp: number) {
   const second = pad(d.getSeconds());
 
   return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-}
-
-/**
- * 显示设置保存状态消息
- * @param {string} messageKey - 状态消息的翻译键
- * @returns {void}
- */
-function showSettingsSaveStatus(messageKey: string) {
-    if (settingsStatusTimer) {
-        clearTimeout(settingsStatusTimer);
-    }
-
-    settingsStatus.dataset.messageKey = messageKey;
-    settingsStatus.textContent = t(messageKey);
-    settingsStatus.classList.remove("hidden", "settings-status-success", "settings-status-error");
-    settingsStatus.classList.add(
-        messageKey === "settings.saveSuccess" ? "settings-status-success" : "settings-status-error"
-    );
-
-    settingsStatusTimer = setTimeout(() => {
-        settingsStatus.classList.add("hidden");
-        settingsStatus.dataset.messageKey = "";
-    }, messageKey === "settings.saveSuccess" ? 2000 : 5000);
-}
-
-/**
- * 更新设置保存状态消息文本
- * @returns {void}
- */
-function updateSettingsStatusText() {
-    const messageKey = settingsStatus.dataset.messageKey;
-    if (!messageKey) return;
-    settingsStatus.textContent = t(messageKey);
-}
-
-/**
- * 检查设置面板是否打开
- * @returns {boolean} 如果设置面板打开则返回 true，否则返回 false
- */
-function isSettingsPanelOpen() {
-    return !settingsPanel.classList.contains("hidden");
-}
-
-/**
- * 打开设置面板
- * @returns {void}
- */
-function openSettingsPanel() {
-    settingsPanel.classList.remove("hidden");
-    settingsBtn.setAttribute("aria-expanded", "true");
-    settingsClose.focus();
-}
-
-/**
- * 关闭设置面板
- * @param {{ restoreFocus?: boolean }} [options={}] - 关闭选项；`restoreFocus` 为 `true` 时会把焦点还给设置按钮。
- * @returns {void}
- */
-function closeSettingsPanel(options: { restoreFocus?: boolean } = {}) {
-    const { restoreFocus = false } = options;
-    settingsPanel.classList.add("hidden");
-    settingsBtn.setAttribute("aria-expanded", "false");
-    if (restoreFocus) {
-        settingsBtn.focus();
-    }
-}
-
-/**
- * 切换设置面板的显示状态
- * @returns {void}
- */
-function toggleSettingsPanel() {
-    if (isSettingsPanelOpen()) {
-        closeSettingsPanel();
-        return;
-    }
-    openSettingsPanel();
 }
