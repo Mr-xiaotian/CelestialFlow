@@ -79,12 +79,7 @@ include = ["src"]
 ignore = ["tests", "**/tests/**", "typings", "demo", "bench", "experiments", "examples", "temp"]
 
 typeCheckingMode = "strict"
-
-[tool.pyright.reportExplicitAny]
-severity = "none"
-
-[tool.pyright.reportAny]
-severity = "none"
-
-[tool.pyright.reportUnannotatedClassAttribute]
-severity = "none"
+reportExplicitAny = "none"
+reportAny = "none"
+reportUnannotatedClassAttribute = "none"
+reportUnusedFunction = "none"
