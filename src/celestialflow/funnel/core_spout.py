@@ -50,6 +50,8 @@ class BaseSpout:
                 self._handle_record(record)
             except Empty:
                 continue
+            except Exception:
+                pass  # 单条记录处理失败不致死线程
 
     def get_queue(self) -> Queue[Any]:  # type: ignore[reportExplicitAny]
         """获取监听器的输入队列。"""
