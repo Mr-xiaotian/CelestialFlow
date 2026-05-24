@@ -18,6 +18,7 @@ import requests
 
 
 def fibonacci(n):
+    """同步版斐波那契 — 迭代 O(n)"""
     if n <= 0:
         raise ValueError("n must be a positive integer")
     elif n == 1:
@@ -25,10 +26,14 @@ def fibonacci(n):
     elif n == 2:
         return 1
     else:
-        return fibonacci(n - 1) + fibonacci(n - 2)
+        prev, curr = 1, 1
+        for _ in range(3, n + 1):
+            prev, curr = curr, prev + curr
+        return curr
 
 
 async def fibonacci_async(n):
+    """异步版斐波那契 — 迭代 O(n)，每 8 轮出让事件循环"""
     if n <= 0:
         raise ValueError("n must be a positive integer")
     elif n == 1:
@@ -36,9 +41,12 @@ async def fibonacci_async(n):
     elif n == 2:
         return 1
     else:
-        result_0 = await fibonacci_async(n - 1)
-        result_1 = await fibonacci_async(n - 2)
-        return result_0 + result_1
+        prev, curr = 1, 1
+        for i in range(3, n + 1):
+            prev, curr = curr, prev + curr
+            if i % 8 == 0:
+                await asyncio.sleep(0)
+        return curr
 
 
 def no_op(n):

@@ -43,7 +43,7 @@ flowchart TD
 ## 内容分类
 
 ### 通用计算函数
-- `fibonacci` / `fibonacci_async`：递归斐波那契（含异常边界）
+- `fibonacci` / `fibonacci_async`：迭代斐波那契 O(n)（与 `bench/bench_execution_mode.py` 算法一致），async 版每 8 轮 `await asyncio.sleep(0)` 出让事件循环
 - `no_op` / `sum_int` / `add_one` / `sqrt`：基础运算
 - `square` / `add_offset` / `add_5` / `add_10` / `add_15` / `add_20` / `add_25` 等：含 1 秒 sleep 的模拟耗时任务
 - `neuron_activation`：Sigmoid 激活函数（模拟 ML 推理）
@@ -74,7 +74,7 @@ flowchart TD
 
 ## 与 tests/test_utils.py 的关系
 
-两个文件内容几乎完全相同。历史原因可能是演示代码从测试代码中分离出来时保留了副本。维护时建议保持两者同步，或考虑将公共工具提取到 `celestialflow/utils/` 下的独立模块。
+两个文件内容几乎完全相同，`fibonacci`/`fibonacci_async` 已统一为迭代 O(n) 版本（与 `bench/bench_execution_mode.py` 保持一致）。历史原因可能是演示代码从测试代码中分离出来时保留了副本。维护时建议保持两者同步，或考虑将公共工具提取到 `celestialflow/utils/` 下的独立模块。
 
 ## 可能出现的问题
 
