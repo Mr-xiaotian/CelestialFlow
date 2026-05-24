@@ -5,18 +5,19 @@
 
 /** 节点运行时状态快照定义 */
 type NodeStatus = {
-  status: number;            // 状态码：0-未运行, 1-运行中, 2-已停止
-  tasks_processed: number;   // 已处理任务总数
-  tasks_pending: number;     // 队列中等待的任务数
-  tasks_succeeded: number;   // 成功处理的任务数
-  tasks_failed: number;      // 处理失败的任务数
-  tasks_duplicated: number;  // 被去重过滤的任务数
-  stage_mode: string;        // 节点模式（serial/thread）
-  execution_mode: string;    // 运行模式（serial/thread/async）
-  start_time: number;        // 启动 Unix 时间戳
-  elapsed_time: number;      // 已运行秒数
-  remaining_time: number;    // 预计剩余秒数
-  task_avg_time: string;     // 平均每个任务耗时文本
+  status: number; // 状态码：0-未运行, 1-运行中, 2-已停止
+  tasks_processed: number; // 已处理任务总数
+  tasks_pending: number; // 队列中等待的任务数
+  tasks_succeeded: number; // 成功处理的任务数
+  tasks_failed: number; // 处理失败的任务数
+  tasks_duplicated: number; // 被去重过滤的任务数
+  stage_mode: string; // 节点模式（serial/thread）
+  execution_mode: string; // 运行模式（serial/thread/async）
+  max_workers: number; // 最大并发数
+  start_time: number; // 启动 Unix 时间戳
+  elapsed_time: number; // 已运行秒数
+  remaining_time: number; // 预计剩余秒数
+  task_avg_time: string; // 平均每个任务耗时文本
 };
 
 // 全局状态
@@ -40,16 +41,24 @@ function formatElapsedDuration(
   seconds: number,
   successCount: number,
   failedCount: number,
-  duplicateCount: number
+  duplicateCount: number,
 ) {
   const duration = formatDuration(seconds);
   const digitCount = duration.replace(/:/g, "").length;
   if (!digitCount) return duration;
 
-  const segments = getElapsedSegments(successCount, failedCount, duplicateCount);
+  const segments = getElapsedSegments(
+    successCount,
+    failedCount,
+    duplicateCount,
+  );
   if (!segments.length) return duration;
   const digitClasses = buildElapsedDigitClasses(segments, digitCount);
-  return renderElapsedDurationHtml(duration, digitClasses, segments[0].className);
+  return renderElapsedDurationHtml(
+    duration,
+    digitClasses,
+    segments[0].className,
+  );
 }
 
 /**
@@ -62,7 +71,7 @@ function formatElapsedDuration(
 function getElapsedSegments(
   successCount: number,
   failedCount: number,
-  duplicateCount: number
+  duplicateCount: number,
 ) {
   return [
     { className: "elapsed-success", count: Math.max(0, successCount || 0) },
@@ -79,7 +88,7 @@ function getElapsedSegments(
  */
 function buildElapsedDigitClasses(
   segments: Array<{ className: string; count: number }>,
-  digitCount: number
+  digitCount: number,
 ) {
   if (digitCount <= segments.length) {
     return segments.slice(0, digitCount).map((segment) => segment.className);
@@ -88,7 +97,7 @@ function buildElapsedDigitClasses(
   const totalCount = segments.reduce((sum, segment) => sum + segment.count, 0);
   const remainingPool = digitCount - segments.length;
   const exactAllocations = segments.map(
-    (segment) => (segment.count / totalCount) * remainingPool
+    (segment) => (segment.count / totalCount) * remainingPool,
   );
   const allocations = exactAllocations.map((value) => 1 + Math.floor(value));
 
@@ -129,7 +138,7 @@ function buildElapsedDigitClasses(
 function renderElapsedDurationHtml(
   duration: string,
   digitClasses: string[],
-  defaultClassName: string
+  defaultClassName: string,
 ) {
   let digitIndex = 0;
   return duration
@@ -164,7 +173,7 @@ async function loadStatuses(): Promise<boolean> {
     appendStatusSnapshotToHistory(
       Number(body.timestamp || 0),
       nodeStatuses,
-      lastNodeStatuses
+      lastNodeStatuses,
     );
     return true;
   } catch (e) {
@@ -216,21 +225,27 @@ function renderDashboard() {
   for (const [node, data] of Object.entries(nodeStatuses)) {
     if (node === draggingNodeName) continue; // 正在拖动时，不渲染它
 
-    const last = lastNodeStatuses[node] || {} as NodeStatus;
+    const last = lastNodeStatuses[node] || ({} as NodeStatus);
     const addSucceeded = data.tasks_succeeded - (last.tasks_succeeded || 0);
     const addPending = data.tasks_pending - (last.tasks_pending || 0);
     const addFailed = data.tasks_failed - (last.tasks_failed || 0);
     const addDuplicated = data.tasks_duplicated - (last.tasks_duplicated || 0);
 
+    const executionModeDesc = data.max_workers
+      ? `${data.execution_mode}-${data.max_workers}`
+      : data.execution_mode;
+
     // 计算进度
     const total = data.tasks_processed + data.tasks_pending;
-    const progress = total === 0 ? 0 : Math.floor((data.tasks_processed / total) * 100);
+    const progress =
+      total === 0 ? 0 : Math.floor((data.tasks_processed / total) * 100);
 
     // 计算四段进度条宽度百分比
-    const pctSuccess   = total === 0 ? 0 : (data.tasks_succeeded  / total) * 100;
-    const pctError     = total === 0 ? 0 : (data.tasks_failed     / total) * 100;
-    const pctDuplicate = total === 0 ? 0 : (data.tasks_duplicated / total) * 100;
-    const pctPending   = total === 0 ? 0 : (data.tasks_pending    / total) * 100;
+    const pctSuccess = total === 0 ? 0 : (data.tasks_succeeded / total) * 100;
+    const pctError = total === 0 ? 0 : (data.tasks_failed / total) * 100;
+    const pctDuplicate =
+      total === 0 ? 0 : (data.tasks_duplicated / total) * 100;
+    const pctPending = total === 0 ? 0 : (data.tasks_pending / total) * 100;
 
     const card = document.createElement("div");
     if (data.status === 1) {
@@ -249,28 +264,28 @@ function renderDashboard() {
               data.tasks_succeeded,
               addSucceeded,
               "text-delta-success",
-              "text-delta-success"
+              "text-delta-success",
             )}</div></div>
             <div><div class="stat-label">${t("status.pending")}</div><div class="stat-value text-pending">${formatWithDelta(
               data.tasks_pending,
               addPending,
               "text-delta-pending",
-              "text-delta-pending"
+              "text-delta-pending",
             )}</div></div>
             <div><div class="stat-label">${t("status.error")}</div><div class="stat-value text-error error-clickable" data-node="${escapeHtml(node)}">${formatWithDelta(
               data.tasks_failed,
               addFailed,
               "text-delta-error",
-              "text-delta-error"
+              "text-delta-error",
             )}</div></div>
             <div><div class="stat-label">${t("status.duplicated")}</div><div class="stat-value text-duplicate">${formatWithDelta(
               data.tasks_duplicated,
               addDuplicated,
               "text-delta-duplicate",
-              "text-delta-duplicate"
+              "text-delta-duplicate",
             )}</div></div>
             <div><div class="stat-label">${t("status.stageMode")}</div><div class="stat-value">${escapeHtml(data.stage_mode)}</div></div>
-            <div><div class="stat-label">${t("status.executionMode")}</div><div class="stat-value">${escapeHtml(data.execution_mode)}</div></div>
+            <div><div class="stat-label">${t("status.executionMode")}</div><div class="stat-value">${escapeHtml(executionModeDesc)}</div></div>
           </div>
           <div class="text-sm text-carbon">${t("status.startTime")}${formatTimestamp(data.start_time)}</div>
           <div class="progress-container">
@@ -281,7 +296,7 @@ function renderDashboard() {
                   data.elapsed_time,
                   data.tasks_succeeded,
                   data.tasks_failed,
-                  data.tasks_duplicated
+                  data.tasks_duplicated,
                 )}</span>
                 &lt;
                 <span class="remaining">${formatDuration(data.remaining_time)}</span>,
@@ -306,8 +321,7 @@ function renderDashboard() {
         switchToErrorsTab(node); // 使用原始 node 值（非转义）作为筛选器的值
       });
     }
-    
+
     dashboardGrid.appendChild(card);
   }
 }
-

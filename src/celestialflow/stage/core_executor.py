@@ -315,7 +315,8 @@ class TaskExecutor:
             "class_name": self._get_class_name(),
             "name": self.get_name(),
             "func_name": self.get_func_name(),
-            "execution_mode": self._get_execution_mode_desc(),
+            "execution_mode": self.execution_mode,
+            "max_workers": self.max_workers,
         }
 
     def get_counts(self) -> dict[str, Any]:
