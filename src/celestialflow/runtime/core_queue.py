@@ -162,6 +162,10 @@ class TaskInQueue:
         if isinstance(item, TaskEnvelope):
             return item
 
+        if isinstance(item, TerminationIdPool):
+            # 直接注入的终止信号池，不经上游汇合逻辑
+            return item
+
         self._record_termination(item)
         if "input" in self.termination_dict:
             # 外部终止符注入, 直接退出
