@@ -81,7 +81,7 @@ class TestTaskStageConfig:
         )
         summary = stage.get_summary()
         assert summary["stage_mode"] == "thread"
-        assert summary["execution_mode"] == "thread-20"
+        assert summary["execution_mode"] == "thread"
 
     def test_lambda_allowed_in_thread(self):
         """测试在 thread 隔离模式下允许使用匿名函数（lambda）"""

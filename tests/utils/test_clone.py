@@ -1,5 +1,7 @@
 """Tests for util_clone module."""
 
+import pytest
+
 from celestialflow.graph import TaskGraph
 from celestialflow.stage import TaskExecutor, TaskStage
 from celestialflow.utils.util_clone import clone_executor, clone_graph, clone_stage
@@ -47,12 +49,7 @@ class TestUtilClone:
     # ── clone_stage ────────────────────────────────────────────────
 
     def test_clone_stage_same_attributes(self):
-        """克隆后 name / func / stage_mode 与原对象相同。
-
-        execution_mode 通过 **kwargs 透传，clone_stage 中 inspect.signature
-        过滤时无法匹配到 **kwargs 内的具体参数名，因此总是回退到默认值 'serial'。
-        此处使用默认 execution_mode 以保证断言通过。
-        """
+        """克隆后 name / func / execution_mode / stage_mode 应与原对象相同。"""
         stage = TaskStage(
             name="test_stage",
             func=lambda x: x,
@@ -62,7 +59,7 @@ class TestUtilClone:
 
         assert cloned.get_name() == stage.get_name()
         assert cloned.func is stage.func
-        assert cloned.execution_mode == "serial"
+        assert cloned.execution_mode == stage.execution_mode
         assert cloned.stage_mode == stage.stage_mode
 
     def test_clone_stage_different_object(self):
@@ -101,17 +98,22 @@ class TestUtilClone:
 
         cloned = clone_graph(graph)
 
-        # 节点数一致
-        assert len(cloned.stage_runtime_dict) == len(graph.stage_runtime_dict)
-        assert len(cloned.stage_runtime_dict) == 3
+        # 源节点一致（同时触发 cloned 图的 _build_analysis）
+        assert [s.get_name() for s in cloned.get_source_stages()] == \
+               [s.get_name() for s in graph.get_source_stages()]
+
+        # 通过 networkx 图验证节点一致
+        g1_nx = graph.get_networkx_graph()
+        g2_nx = cloned.get_networkx_graph()
+        assert set(g1_nx.nodes()) == set(g2_nx.nodes())
+        assert set(g1_nx.nodes()) == {"A", "B", "C"}
+
+        # 通过 networkx 图验证边连接一致
+        assert set(g1_nx.edges()) == set(g2_nx.edges())
+        assert set(g1_nx.edges()) == {("A", "B"), ("B", "C")}
 
         # schedule_mode 保留
         assert cloned.schedule_mode == graph.schedule_mode
-
-        # 边连接一致
-        assert set(cloned.out_edges.keys()) == set(graph.out_edges.keys())
-        for key in graph.out_edges:
-            assert cloned.out_edges[key] == graph.out_edges[key]
 
     def test_clone_graph_independent(self):
         """克隆图的节点修改不影响原图节点。"""

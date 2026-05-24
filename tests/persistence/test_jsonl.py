@@ -6,7 +6,6 @@ from celestialflow.persistence.util_jsonl import (
     load_jsonl_grouped_by_keys,
     load_task_error_pairs,
     parse_jsonl_value,
-    _split_error_repr
 )
 
 @pytest.fixture
@@ -33,18 +32,12 @@ class TestJsonlUtils:
         assert parse_jsonl_value("(1, 2)") == (1, 2)
         assert parse_jsonl_value("just a string") == "just a string"
 
-    def test_split_error_repr(self):
-        """测试错误字符串的拆分逻辑：提取错误类型和消息"""
-        assert _split_error_repr("ValueError(invalid)") == ("ValueError", "invalid")
-        assert _split_error_repr("Simple Error") == ("Exception", "Simple Error")
-        assert _split_error_repr("") == ("Exception", "")
-
     def test_load_jsonl_logs(self, sample_jsonl):
         """测试从 JSONL 文件中批量加载日志行，支持按起始序号和字段过滤"""
         logs = load_jsonl_logs(str(sample_jsonl), start_seq=1)
         assert len(logs) == 4
         assert logs[0]["stage"] == "s1"
-        
+
         # 测试 key 过滤
         logs_filtered = load_jsonl_logs(str(sample_jsonl), start_seq=1, keys=["stage"])
         assert len(logs_filtered) == 4
@@ -63,8 +56,8 @@ class TestJsonlUtils:
         """测试按多个键的组合对 JSONL 数据进行分组提取"""
         # 按 error 和 stage 组合分组
         grouped = load_jsonl_grouped_by_keys(
-            sample_jsonl, 
-            group_keys=["error", "stage"], 
+            sample_jsonl,
+            group_keys=["error", "stage"],
             extract_field="task"
         )
         assert ("ValueError(err1)", "s1") in grouped
