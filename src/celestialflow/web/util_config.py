@@ -15,7 +15,7 @@ def load_config(config_path: str) -> dict[str, Any]:  # type: ignore[reportExpli
     """
     if not os.path.exists(config_path):
         raise ConfigurationError(f"config file not found: {config_path}")
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(config_path, encoding="utf-8") as f:
         data: dict[str, Any] = json.load(f)  # type: ignore[reportExplicitAny, reportAny]
     return data
 

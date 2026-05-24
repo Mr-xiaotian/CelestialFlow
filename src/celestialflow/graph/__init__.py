@@ -10,11 +10,11 @@ from .core_structure import (
 )
 
 __all__ = [
-    "TaskGraph",
     "TaskChain",
-    "TaskLoop",
-    "TaskCross",
     "TaskComplete",
-    "TaskWheel",
+    "TaskCross",
+    "TaskGraph",
     "TaskGrid",
+    "TaskLoop",
+    "TaskWheel",
 ]

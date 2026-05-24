@@ -23,7 +23,7 @@ class TaskInQueue:
     queue: Any
     source_names: list[str]
     out_name: str
-    log_inlet: "LogInlet"
+    log_inlet: LogInlet
     termination_dict: dict[str, int]
 
     # ==== 初始化 ====
@@ -32,7 +32,7 @@ class TaskInQueue:
         queue: Any,
         source_names: list[str],
         out_name: str,
-        log_inlet: "LogInlet",
+        log_inlet: LogInlet,
     ) -> None:
         """
         初始化任务入队
@@ -56,10 +56,7 @@ class TaskInQueue:
 
         :param item: 入队的任务或终止信号
         """
-        if isinstance(item, TaskEnvelope):
-            t = "task"
-        else:
-            t = "termination"
+        t = "task" if isinstance(item, TaskEnvelope) else "termination"
         self.log_inlet.put_item(t, item.id, item.source, self.out_name)
 
     def _log_get(self, item: TaskEnvelope | TerminationSignal) -> None:
@@ -68,10 +65,7 @@ class TaskInQueue:
 
         :param item: 出队的任务或终止信号
         """
-        if isinstance(item, TaskEnvelope):
-            t = "task"
-        else:
-            t = "termination"
+        t = "task" if isinstance(item, TaskEnvelope) else "termination"
         self.log_inlet.get_item(t, item.id, item.source, self.out_name)
 
     def add_source_name(self, name: str) -> None:
@@ -209,7 +203,7 @@ class TaskOutQueue:
     queue_list: list[Any]
     target_names: list[str | None]
     in_name: str
-    log_inlet: "LogInlet"
+    log_inlet: LogInlet
     _name_to_idx: dict[str, int]
 
     # ==== 初始化 ====
@@ -218,7 +212,7 @@ class TaskOutQueue:
         queue_list: list[Any],
         target_names: list[str | None],
         in_name: str,
-        log_inlet: "LogInlet",
+        log_inlet: LogInlet,
     ) -> None:
         """
         任务输出队列类，用于管理多个输出队列
@@ -251,10 +245,7 @@ class TaskOutQueue:
         :param item: 入队的任务或终止信号
         :param idx: 输出队列通道的索引
         """
-        if isinstance(item, TaskEnvelope):
-            t = "task"
-        else:
-            t = "termination"
+        t = "task" if isinstance(item, TaskEnvelope) else "termination"
         self.log_inlet.put_item(t, item.id, self.in_name, str(self.target_names[idx]))
 
     def add_queue(self, queue: Any, name: str) -> None:

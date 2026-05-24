@@ -11,10 +11,10 @@ from .core_stages import (
 
 __all__ = [
     "TaskExecutor",
-    "TaskStage",
-    "TaskSplitter",
-    "TaskRedisTransport",
-    "TaskRedisSource",
     "TaskRedisAck",
+    "TaskRedisSource",
+    "TaskRedisTransport",
     "TaskRouter",
+    "TaskSplitter",
+    "TaskStage",
 ]

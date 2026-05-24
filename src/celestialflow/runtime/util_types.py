@@ -43,7 +43,7 @@ class TerminationIdPool:
 class NoOpContext:
     """空上下文管理器，可用于禁用 with 逻辑"""
 
-    def __enter__(self) -> "NoOpContext":
+    def __enter__(self) -> NoOpContext:
         """进入空上下文"""
         return self
 
@@ -71,7 +71,7 @@ class ValueWrapper:
         self.value = value
         self._lock = lock
 
-    def get_lock(self) -> "Lock | NoOpContext":
+    def get_lock(self) -> Lock | NoOpContext:
         """获取锁对象，无锁时返回空上下文"""
         return self._lock or NoOpContext()
 

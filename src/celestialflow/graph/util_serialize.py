@@ -148,4 +148,4 @@ def format_structure_list_from_graph(
     max_length = max(len(line) for line in all_lines)
     content_lines = [f"| {line.ljust(max_length)} |" for line in all_lines]
     border = "+" + "-" * (max_length + 2) + "+"
-    return [border] + content_lines + [border]
+    return [border, *content_lines, border]

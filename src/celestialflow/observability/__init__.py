@@ -6,7 +6,7 @@ from .core_report import NullTaskReporter, TaskReporter
 __all__ = [
     "BaseObserver",
     "CallbackObserver",
-    "TaskReporter",
     "NullTaskReporter",
     "TaskProgress",
+    "TaskReporter",
 ]

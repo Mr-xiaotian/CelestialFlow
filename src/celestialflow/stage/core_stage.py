@@ -4,8 +4,9 @@ from __future__ import annotations
 import asyncio
 import inspect
 import time
+from collections.abc import Callable
 from queue import Queue as ThreadQueue
-from typing import Any, Callable
+from typing import Any
 
 from ..persistence import FailInlet, LogInlet
 from ..runtime import TaskInQueue, TaskOutQueue

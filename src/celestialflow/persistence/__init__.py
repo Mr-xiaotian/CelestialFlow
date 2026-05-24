@@ -4,9 +4,9 @@ from .core_log import LogInlet, LogSpout
 from .core_success import SuccessSpout
 
 __all__ = [
-    "FailSpout",
     "FailInlet",
-    "LogSpout",
+    "FailSpout",
     "LogInlet",
+    "LogSpout",
     "SuccessSpout",
 ]

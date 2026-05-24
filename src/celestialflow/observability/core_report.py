@@ -40,7 +40,7 @@ class TaskReporter:
         :param log_inlet: 日志收集器实例
         """
         self.base_url: str = f"http://{host}:{port}"
-        self.task_graph: "TaskGraph" = task_graph
+        self.task_graph: TaskGraph = task_graph
         self.log_inlet: LogInlet = log_inlet
 
         self._stop_flag: Event = Event()

@@ -59,7 +59,7 @@ def compute_node_levels(G: nx.DiGraph[str]) -> dict[str, int]:
     """
     condensation = nx.condensation(G)
 
-    scc_level: dict[int, int] = {node: 0 for node in condensation.nodes}
+    scc_level: dict[int, int] = dict.fromkeys(condensation.nodes, 0)
     for node in nx.topological_sort(condensation):
         for succ in condensation.successors(node):
             scc_level[succ] = max(scc_level[succ], scc_level[node] + 1)

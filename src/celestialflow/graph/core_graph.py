@@ -420,7 +420,7 @@ class TaskGraph:
                     "and manually inject termination signals via the web interface at an "
                     "appropriate time."
                 ),
-                RuntimeWarning,
+                RuntimeWarning, stacklevel=2,
             )
         start_time = time.perf_counter()
 

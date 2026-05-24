@@ -75,7 +75,7 @@ class TaskCross(TaskGraph):
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
         all_stages: list[TaskStage] = []
-        for i, curr_layer in enumerate(layers):
+        for _, curr_layer in enumerate(layers):
             for stage in curr_layer:
                 stage.set_stage_mode(stage_mode)
                 # stage.set_name(f"Layer{i + 1}-{index + 1}")
@@ -228,7 +228,7 @@ class TaskWheel(TaskGraph):
             node.set_stage_mode(stage_mode)
             # node.set_name(f"Ring-{i + 1}")
 
-        self.set_stages([center] + ring)
+        self.set_stages([center, *ring])
         self.connect([center], ring)
         for i, node in enumerate(ring):
             next_stage = ring[(i + 1) % len(ring)]

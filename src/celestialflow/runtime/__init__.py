@@ -5,9 +5,9 @@ from .core_metrics import TaskMetrics
 from .core_queue import TaskInQueue, TaskOutQueue
 
 __all__ = [
-    "TaskEnvelope",
-    "TaskMetrics",
-    "TaskInQueue",
-    "TaskOutQueue",
     "TaskDispatch",
+    "TaskEnvelope",
+    "TaskInQueue",
+    "TaskMetrics",
+    "TaskOutQueue",
 ]

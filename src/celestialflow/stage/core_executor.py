@@ -6,9 +6,9 @@ import inspect
 import os
 import time
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from queue import Queue as ThreadQueue
-from typing import Any, Callable
+from typing import Any
 
 from celestialtree import Client as CelestialTreeClient
 from celestialtree import NullClient as NullCelestialTreeClient
@@ -420,7 +420,7 @@ class TaskExecutor:
 
         :return: 处理后的结果列表
         """
-        result_dict: dict[Any, Any] = dict()
+        result_dict: dict[Any, Any] = {}
         for task, result in self.get_success_pairs():
             result_dict[task] = result
         for task, error in self.get_error_pairs():
@@ -464,7 +464,7 @@ class TaskExecutor:
             # 显示前两个 + ... + 最后一个
             head = format_args_list(args[:2])
             tail = format_args_list([args[-1]])
-            formatted_args = head + ["..."] + tail
+            formatted_args = [*head, "...", *tail]
 
         return f"({', '.join(formatted_args)})"
 

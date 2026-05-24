@@ -1,8 +1,8 @@
 # funnel/__init__.py
-from .core_spout import BaseSpout
 from .core_inlet import BaseInlet
+from .core_spout import BaseSpout
 
 __all__ = [
-    "BaseSpout",
     "BaseInlet",
+    "BaseSpout",
 ]

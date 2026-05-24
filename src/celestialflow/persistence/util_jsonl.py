@@ -89,7 +89,7 @@ def load_jsonl_logs(
 
     keyset = set(keys) if keys else None
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for idx, line in enumerate(f):
             if idx < start_seq:
                 continue
@@ -126,7 +126,7 @@ def load_jsonl_by_key(
     """
     result_dict: defaultdict[str, list[Any]] = defaultdict(list)
 
-    with open(jsonl_path, "r", encoding="utf-8") as f:
+    with open(jsonl_path, encoding="utf-8") as f:
         for line in f:
             item: dict[str, Any] = json.loads(line)
 
@@ -157,7 +157,7 @@ def load_jsonl_grouped_by_keys(
     """
     result_dict: defaultdict[tuple[str, ...], list[Any]] = defaultdict(list)
 
-    with open(jsonl_path, "r", encoding="utf-8") as f:
+    with open(jsonl_path, encoding="utf-8") as f:
         for line in f:
             item: dict[str, Any] = json.loads(line)
 
@@ -208,7 +208,7 @@ def load_task_error_pairs(
     """
     result: list[tuple[Any, PersistedErrorRecord]] = []
 
-    with open(jsonl_path, "r", encoding="utf-8") as f:
+    with open(jsonl_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:

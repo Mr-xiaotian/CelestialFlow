@@ -7,7 +7,7 @@ from .util_hash import object_to_hash
 class TaskEnvelope:
     """任务信封，封装原始任务及其哈希、ID、来源等元信息。"""
 
-    __slots__: tuple[str, ...] = ("task", "hash", "id", "source", "prev")
+    __slots__: tuple[str, ...] = ("hash", "id", "prev", "source", "task")
 
     def __init__(self, task: Any, id: int, source: str, prev: Any = None):
         """

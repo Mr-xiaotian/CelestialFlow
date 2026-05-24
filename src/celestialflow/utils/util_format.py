@@ -89,28 +89,28 @@ def format_table(
     if row_names is None:
         row_names = list(range(len(data)))
     elif len(row_names) < len(data):
-        row_names.extend([i for i in range(len(row_names), len(data))])
+        row_names.extend(list(range(len(row_names), len(data))))
 
     # 添加行号列
-    column_names = [index_header] + column_names
+    column_names = [index_header, *column_names]
     num_columns: int = len(column_names)
 
     # 处理行号
     formatted_data: list[list[Any]] = []  # type: ignore[reportExplicitAny]
     for i, row in enumerate(data):  # type: ignore[reportAny]
         row_label: Any = row_names[i] if row_names else i  # type: ignore[reportExplicitAny]
-        formatted_data.append([row_label] + list(row))  # type: ignore[reportAny]
+        formatted_data.append([row_label, *list(row)])  # type: ignore[reportAny]
 
     # 统一填充数据行，确保所有行长度一致
     filled_rows: zip_longest[tuple[Any, ...]] = zip_longest(  # type: ignore[reportExplicitAny]
         *formatted_data, fillvalue=fill_value
     )
-    formatted_data = [list(row) for row in zip(*filled_rows)]  # 转置回来
+    formatted_data = [list(row) for row in zip(*filled_rows, strict=False)]  # 转置回来
 
     # 计算每列的最大宽度
     col_widths: list[int] = [
         max(len(str(item)) for item in col)  # type: ignore[reportAny]
-        for col in zip(column_names, *formatted_data)
+        for col in zip(column_names, *formatted_data, strict=False)
     ]
 
     # 选择对齐方式
