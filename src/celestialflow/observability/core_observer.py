@@ -8,44 +8,44 @@ from typing import Any
 class BaseObserver:
     """执行器生命周期观察者基类，子类按需覆写。"""
 
-    def on_start(self, name: str, total: int) -> None:
+    def on_start(self, _name: str, _total: int) -> None:
         """
         执行器启动回调
 
-        :param name: 执行器全名
-        :param total: 任务总数
+        :param _name: 执行器全名
+        :param _total: 任务总数
         """
         ...
 
-    def on_task_success(self, count: int = 1) -> None:
+    def on_task_success(self, _count: int = 1) -> None:
         """
         任务成功回调
 
-        :param count: 成功任务数量，默认 1
+        :param _count: 成功任务数量，默认 1
         """
         ...
 
-    def on_task_fail(self, count: int = 1) -> None:
+    def on_task_fail(self, _count: int = 1) -> None:
         """
         任务失败回调
 
-        :param count: 失败任务数量，默认 1
+        :param _count: 失败任务数量，默认 1
         """
         ...
 
-    def on_task_duplicate(self, count: int = 1) -> None:
+    def on_task_duplicate(self, _count: int = 1) -> None:
         """
         重复任务回调
 
-        :param count: 重复任务数量，默认 1
+        :param _count: 重复任务数量，默认 1
         """
         ...
 
-    def on_tasks_added(self, count: int) -> None:
+    def on_tasks_added(self, _count: int) -> None:
         """
         新增任务通知
 
-        :param count: 新增任务数量
+        :param _count: 新增任务数量
         """
         ...
 
@@ -57,7 +57,7 @@ class BaseObserver:
 class CallbackObserver(BaseObserver):
     """通过回调函数创建的轻量观察者，无需定义子类。"""
 
-    def __init__(self, **callbacks: Callable[..., Any]) -> None:
+    def __init__(self, **callbacks: Callable[..., Any]) -> None:  # pyright: ignore[reportExplicitAny]
         """
         通过回调函数创建观察者
 

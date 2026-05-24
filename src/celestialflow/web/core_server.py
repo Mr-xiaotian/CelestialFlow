@@ -6,15 +6,27 @@ import os
 import threading
 from datetime import datetime
 from functools import partial
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import anyio  # type: ignore[reportMissingImports]
 import uvicorn  # type: ignore[reportMissingImports]
-from fastapi import FastAPI, Request  # type: ignore[reportMissingImports, reportUnknownVariableType]
-from fastapi.responses import HTMLResponse, JSONResponse  # type: ignore[reportMissingImports, reportUnknownVariableType]
-from fastapi.staticfiles import StaticFiles  # type: ignore[reportMissingImports, reportUnknownVariableType]
-from fastapi.templating import Jinja2Templates  # type: ignore[reportMissingImports, reportUnknownVariableType]
-from pydantic import BaseModel  # type: ignore[reportMissingImports, reportUnknownVariableType]
+from fastapi import (  # type: ignore[reportMissingImports, reportUnknownVariableType]
+    FastAPI,
+    Request,
+)
+from fastapi.responses import (  # type: ignore[reportMissingImports, reportUnknownVariableType]
+    HTMLResponse,
+    JSONResponse,
+)
+from fastapi.staticfiles import (
+    StaticFiles,  # type: ignore[reportMissingImports, reportUnknownVariableType]
+)
+from fastapi.templating import (
+    Jinja2Templates,  # type: ignore[reportMissingImports, reportUnknownVariableType]
+)
+from pydantic import (
+    BaseModel,  # type: ignore[reportMissingImports, reportUnknownVariableType]
+)
 
 from ..persistence.util_jsonl import load_jsonl_logs
 from .util_cal import cal_interval
@@ -111,9 +123,9 @@ class TaskWebServer:
         :param log_level: uvicorn 日志级别，默认 "info"
         """
         self.app: FastAPI = FastAPI()  # type: ignore[reportUnknownMemberType]
-        self.host = host
-        self.port = port
-        self.log_level = log_level
+        self.host: str = host
+        self.port: int = port
+        self.log_level: str = log_level
 
         if os.path.isdir(static_path):
             self.app.mount("/static", StaticFiles(directory=static_path), name="static")  # type: ignore[reportUnknownMemberType]
@@ -130,10 +142,10 @@ class TaskWebServer:
         self.injection_tasks: list[dict[str, Any]] = []  # 存储前端注入任务
 
         # 用于存储任务注入锁
-        self._task_injection_lock = threading.Lock()
+        self._task_injection_lock: threading.Lock = threading.Lock()
 
-        self._errors_meta_rev: Optional[int] = None
-        self._errors_meta_path: Optional[str] = None
+        self._errors_meta_rev: int | None = None
+        self._errors_meta_path: str | None = None
 
         # 每次 push 时递增，pull 时对比，无变化则返回 null data
         self._store_revs: dict[str, int] = {
@@ -150,7 +162,7 @@ class TaskWebServer:
         ).model_dump()  # type: ignore[reportUnknownMemberType]
         self.config: dict[str, Any] = cast(dict[str, Any], config_raw)
         self.report_interval: float = cal_interval(int(self.config["refreshInterval"]))
-        self._config_lock = threading.Lock()
+        self._config_lock: threading.Lock = threading.Lock()
 
         self._setup_routes()
 
@@ -453,20 +465,20 @@ def parse_args() -> argparse.Namespace:
         description="CelestialFlow Task Web Monitor Server",
     )
 
-    parser.add_argument(
+    _ = parser.add_argument(
         "--host",
         default="0.0.0.0",
         help="Bind host (default: 0.0.0.0)",
     )
 
-    parser.add_argument(
+    _ = parser.add_argument(
         "--port",
         type=int,
         default=5000,
         help="Bind port (default: 5000)",
     )
 
-    parser.add_argument(
+    _ = parser.add_argument(
         "--log-level",
         default="info",
         type=lambda s: s.lower(),
@@ -482,9 +494,9 @@ def main_entry() -> None:
     args: argparse.Namespace = parse_args()
 
     server: TaskWebServer = TaskWebServer(
-        host=args.host,
-        port=args.port,
-        log_level=args.log_level,
+        host=cast(str, args.host),
+        port=cast(int, args.port),
+        log_level=cast(str, args.log_level),
     )
 
     server.start_server()

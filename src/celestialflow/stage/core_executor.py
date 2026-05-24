@@ -38,13 +38,33 @@ from ..utils.util_format import format_repr
 class TaskExecutor:
     """任务执行器基类，支持串行、线程和异步三种执行模式。"""
 
+    # Class-level type annotations
+    task_queue: TaskInQueue | None
+    result_queue: TaskOutQueue | None
+    max_workers: int
+    max_retries: int
+    max_info: int
+    unpack_task_args: bool
+    enable_duplicate_check: bool
+    metrics: TaskMetrics
+    dispatch: TaskDispatch  # pyright: ignore[reportUninitializedInstanceVariable]
+    fail_spout: FailSpout  # pyright: ignore[reportUninitializedInstanceVariable]
+    log_spout: LogSpout  # pyright: ignore[reportUninitializedInstanceVariable]
+    success_spout: SuccessSpout  # pyright: ignore[reportUninitializedInstanceVariable]
+    fail_inlet: FailInlet  # pyright: ignore[reportUninitializedInstanceVariable]
+    log_inlet: LogInlet  # pyright: ignore[reportUninitializedInstanceVariable]
+    execution_mode: str
+    _name: str
+    _func_name: str
+    log_level: str
+
     # ==== 初始化 ====
     def __init__(
         self,
         name: str,
         func: Callable[..., Any],
         execution_mode: str = "serial",
-        max_workers: int = None,
+        max_workers: int | None = None,
         max_retries: int = 1,
         max_info: int = 50,
         unpack_task_args: bool = False,
@@ -80,10 +100,10 @@ class TaskExecutor:
 
         self.ctree_client: CelestialTreeClient | NullCelestialTreeClient
         self.set_nullctree()
-        self.task_queue: TaskInQueue = None  # type: ignore[assignment]
-        self.result_queue: TaskOutQueue = None  # type: ignore[assignment]
-        self.fail_queue: Any = None
-        self.log_queue: Any = None
+        self.task_queue = None
+        self.result_queue = None
+        self.fail_queue: ThreadQueue[Any] | None = None
+        self.log_queue: ThreadQueue[Any] | None = None
         self._init_metrics()
 
     def _init_metrics(self) -> None:
@@ -367,6 +387,7 @@ class TaskExecutor:
 
         :param task_source: 任务源（可迭代对象）
         """
+        assert self.task_queue is not None
         for item in self._prepare_task_envelopes(task_source):
             self.task_queue.put(item)
 
@@ -498,6 +519,7 @@ class TaskExecutor:
             result_id,
         )
 
+        assert self.result_queue is not None
         self.result_queue.put(result_envelope)
 
     def emit_retry_envelope(
@@ -700,9 +722,9 @@ class TaskExecutor:
 
     def release_queue(self) -> None:
         """释放任务队列、结果队列和失败队列的引用"""
-        self.task_queue = None  # type: ignore[assignment]
-        self.result_queue = None  # type: ignore[assignment]
-        self.fail_queue = None  # type: ignore[assignment]
+        self.task_queue = None
+        self.result_queue = None
+        self.fail_queue = None
 
     def _release_client(self) -> None:
         """释放事件树客户端引用"""

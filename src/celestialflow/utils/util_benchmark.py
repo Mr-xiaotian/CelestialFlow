@@ -14,10 +14,10 @@ from .util_format import format_table
 async def benchmark_executor(
     sync_executor: TaskExecutor,
     async_executor: TaskExecutor,
-    task_source: Iterable[Any],
+    task_source: Iterable[Any],  # type: ignore[reportExplicitAny]
     sync_modes: list[str] | None = None,
     async_modes: list[str] | None = None,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # type: ignore[reportExplicitAny]
     """
     对执行器进行基准测试
 
@@ -28,12 +28,12 @@ async def benchmark_executor(
     :param async_modes: 异步执行模式列表，默认 ["async"]
     :return: 包含测试结果的字典
     """
-    task_list: list[Any] = list(task_source)
+    task_list: list[Any] = list(task_source)  # type: ignore[reportExplicitAny]
     sync_modes = sync_modes or ["serial", "thread"]
     async_modes = async_modes or ["async"]
 
     use_time: list[list[float]] = []
-    results: list[list[tuple[Any, Any]]] = []
+    results: list[list[tuple[Any, Any]]] = []  # type: ignore[reportExplicitAny]
     for mode in sync_modes:
         cloned_executor: TaskExecutor = clone_executor(sync_executor)
         cloned_executor.set_execution_mode(mode)
@@ -69,11 +69,11 @@ async def benchmark_executor(
 def benchmark_graph(
     sync_graph: TaskGraph,
     async_graph: TaskGraph,
-    init_tasks_dict: Mapping[str, Iterable[Any]],
+    init_tasks_dict: Mapping[str, Iterable[Any]],  # type: ignore[reportExplicitAny]
     stage_modes: list[str] | None = None,
     execution_sync_modes: list[str] | None = None,
     execution_async_modes: list[str] | None = None,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # type: ignore[reportExplicitAny]
     """
     对任务图进行基准测试
 
@@ -89,7 +89,7 @@ def benchmark_graph(
     sync_modes = execution_sync_modes or ["serial", "thread"]
     async_modes = execution_async_modes or ["async"]
 
-    base_tasks: dict[str, list[Any]] = {
+    base_tasks: dict[str, list[Any]] = {  # type: ignore[reportExplicitAny]
         stage_name: list(tasks) for stage_name, tasks in init_tasks_dict.items()
     }
     execution_modes: list[str] = sync_modes + async_modes
@@ -102,9 +102,8 @@ def benchmark_graph(
             cloned_graph: TaskGraph = clone_graph(sync_graph)
             cloned_graph.set_graph_mode(stage_mode, execution_mode)
 
-            run_tasks: dict[str, list[Any]] = {
-                stage_name: list(tasks)
-                for stage_name, tasks in base_tasks.items()
+            run_tasks: dict[str, list[Any]] = {  # type: ignore[reportExplicitAny]
+                stage_name: list(tasks) for stage_name, tasks in base_tasks.items()
             }
             start_time: float = time.perf_counter()
             cloned_graph.start_graph(run_tasks)
@@ -115,8 +114,7 @@ def benchmark_graph(
             cloned_graph.set_graph_mode(stage_mode, execution_mode)
 
             run_tasks = {
-                stage_name: list(tasks)
-                for stage_name, tasks in base_tasks.items()
+                stage_name: list(tasks) for stage_name, tasks in base_tasks.items()
             }
             start_time = time.perf_counter()
             cloned_graph.start_graph(run_tasks)

@@ -12,6 +12,15 @@ class TaskMetrics:
     以及可重试异常类型和去重逻辑。
     """
 
+    execution_mode: str
+    enable_duplicate_check: bool
+    retry_exceptions: tuple[type[Exception], ...]
+    task_counter: SumCounter
+    success_counter: ValueWrapper
+    error_counter: ValueWrapper
+    duplicate_counter: ValueWrapper
+    processed_set: set[bytes]
+
     # ==== 初始化 ====
     def __init__(
         self,
@@ -27,7 +36,7 @@ class TaskMetrics:
         self.execution_mode = execution_mode
         self.enable_duplicate_check = enable_duplicate_check
 
-        self.retry_exceptions: tuple[type[Exception], ...] = ()
+        self.retry_exceptions = ()
         self._init_counter()
         self.reset_state()
 
@@ -64,7 +73,7 @@ class TaskMetrics:
 
         - processed_set：用于重复检测
         """
-        self.processed_set: set[bytes] = set()  # task_hash
+        self.processed_set = set()  # task_hash
 
     def set_execution_mode(self, execution_mode: str) -> None:
         """
@@ -119,7 +128,7 @@ class TaskMetrics:
         """
         self.task_counter.append_counter(counter)
 
-    def add_task_count(self, add_count: int = 1):
+    def add_task_count(self, add_count: int = 1) -> None:
         """
         更新任务总数计数器
 
@@ -129,7 +138,7 @@ class TaskMetrics:
         """
         self.task_counter.add_init_value(add_count)
 
-    def add_success_count(self, count: int = 1):
+    def add_success_count(self, count: int = 1) -> None:
         """
         更新成功任务计数器
 
@@ -140,7 +149,7 @@ class TaskMetrics:
         with self.success_counter.get_lock():
             self.success_counter.value += count
 
-    def add_error_count(self, count: int = 1):
+    def add_error_count(self, count: int = 1) -> None:
         """
         更新失败任务计数器
 
@@ -151,7 +160,7 @@ class TaskMetrics:
         with self.error_counter.get_lock():
             self.error_counter.value += count
 
-    def add_duplicate_count(self, count: int = 1):
+    def add_duplicate_count(self, count: int = 1) -> None:
         """
         更新重复任务计数器
 

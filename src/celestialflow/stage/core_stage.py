@@ -17,6 +17,17 @@ from .core_executor import TaskExecutor
 class TaskStage(TaskExecutor):
     """任务阶段节点，继承 TaskExecutor 并增加图结构连接与 stage_mode 控制能力。"""
 
+    # Class-level type annotations (TaskStage-specific)
+    _status: int
+    stage_mode: str
+    execution_mode: str
+    task_queue: TaskInQueue | None
+    result_queue: TaskOutQueue | None
+    fail_queue: ThreadQueue[Any] | None
+    fail_inlet: FailInlet
+    log_queue: ThreadQueue[Any] | None
+    log_inlet: LogInlet
+
     # ==== 初始化 ====
     def __init__(
         self,

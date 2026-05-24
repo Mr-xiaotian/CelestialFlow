@@ -18,6 +18,11 @@ from .core_stage import TaskStage
 
 # ==== TaskSplitter ====
 class TaskSplitter(TaskStage):
+    """TaskSplitter: 将单个任务拆分为多个子任务，注入下游队列。"""
+
+    split_counter: ValueWrapper
+    execution_mode: str
+
     def __init__(self, name: str, stage_mode: str = "serial"):
         """
         初始化 TaskSplitter
@@ -79,6 +84,7 @@ class TaskSplitter(TaskStage):
         :return: split 的子任务数量
         """
         result_queue = self.result_queue
+        assert result_queue is not None
 
         split_count = len(result)
         for idx, item in enumerate(result):
@@ -133,6 +139,10 @@ class TaskSplitter(TaskStage):
 
 # ==== TaskRouter ====
 class TaskRouter(TaskStage):
+    """TaskRouter: 根据路由信息将任务分发到不同的下游 stage。"""
+
+    route_counters: dict[str, Any]
+
     def __init__(self, name: str, stage_mode: str = "serial"):
         """
         初始化 TaskRouter
@@ -156,7 +166,7 @@ class TaskRouter(TaskStage):
 
         每个 target_name 一个计数器，用于让不同下游 stage 的 task_counter 统计正确。
         """
-        self.route_counters: dict[str, Any] = {}
+        self.route_counters = {}
 
     def get_binding_counter(self, downstream_name: str) -> Any:
         """
@@ -185,8 +195,10 @@ class TaskRouter(TaskStage):
         :raises TypeError: 输入不是长度为 2 的元组
         :raises InvalidOptionError: target 不在已注册的路由列表中
         """
-        if not (isinstance(routed, tuple) and len(routed) == 2):  # type: ignore[reportUnnecessaryIsInstance]
-            raise TaskFormatError(f"TaskRouter expects tuple, got {type(routed).__name__}")
+        if not (isinstance(routed, tuple) and len(routed) == 2):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise TaskFormatError(
+                f"TaskRouter expects tuple, got {type(routed).__name__}"
+            )  # pyright: ignore[reportUnreachable]
         target, task = routed
         if target not in self.route_counters:
             raise InvalidOptionError(
@@ -220,6 +232,7 @@ class TaskRouter(TaskStage):
             source=self.get_name(),
         )
         result_queue = self.result_queue
+        assert result_queue is not None
 
         result_queue.put_target(routed_envelope, target)
 
@@ -239,6 +252,13 @@ class TaskRouter(TaskStage):
 # ==== TaskRedisTransport ====
 class TaskRedisTransport(TaskStage):
     """Redis 任务传输节点，将任务序列化后写入 Redis list。"""
+
+    key: str
+    host: str
+    port: int
+    db: int
+    password: str | None
+    redis_client: Any  # pyright: ignore[reportUninitializedInstanceVariable]
 
     def __init__(
         self,
@@ -280,7 +300,7 @@ class TaskRedisTransport(TaskStage):
     def init_redis(self) -> None:
         """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
-            self.redis_client: Any = redis.Redis(  # type: ignore[reportUnknownMemberType]
+            self.redis_client = redis.Redis(  # type: ignore[reportUnknownMemberType]
                 host=self.host,
                 port=self.port,
                 db=self.db,
@@ -313,6 +333,14 @@ class TaskRedisTransport(TaskStage):
 # ==== TaskRedisSource ====
 class TaskRedisSource(TaskStage):
     """Redis 任务源节点，从 Redis list 拉取数据并注入下游。"""
+
+    key: str
+    host: str
+    port: int
+    db: int
+    password: str | None
+    timeout: int
+    redis_client: Any  # pyright: ignore[reportUninitializedInstanceVariable]
 
     def __init__(
         self,
@@ -354,7 +382,7 @@ class TaskRedisSource(TaskStage):
     def init_redis(self) -> None:
         """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
-            self.redis_client: Any = redis.Redis(  # type: ignore[reportUnknownMemberType]
+            self.redis_client = redis.Redis(  # type: ignore[reportUnknownMemberType]
                 host=self.host,
                 port=self.port,
                 db=self.db,
@@ -375,7 +403,9 @@ class TaskRedisSource(TaskStage):
 
         res: Any = self.redis_client.blpop(self.key, timeout=self.timeout)
         if res is None:
-            raise CelestialFlowTimeoutError("Redis item not returned in time after being fetched")
+            raise CelestialFlowTimeoutError(
+                "Redis item not returned in time after being fetched"
+            )
         _, item = res
         item = cast(str, item)
         item_obj: dict[str, Any] = json.loads(item)
@@ -392,6 +422,14 @@ class TaskRedisSource(TaskStage):
 # ==== TaskRedisAck ====
 class TaskRedisAck(TaskStage):
     """Redis 任务确认节点，等待远端 Worker 返回执行结果。"""
+
+    key: str
+    host: str
+    port: int
+    db: int
+    password: str | None
+    timeout: int
+    redis_client: Any  # pyright: ignore[reportUninitializedInstanceVariable]
 
     def __init__(
         self,
@@ -434,7 +472,7 @@ class TaskRedisAck(TaskStage):
     def init_redis(self) -> None:
         """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
-            self.redis_client: Any = redis.Redis(  # type: ignore[reportUnknownMemberType]
+            self.redis_client = redis.Redis(  # type: ignore[reportUnknownMemberType]
                 host=self.host,
                 port=self.port,
                 db=self.db,
@@ -470,9 +508,9 @@ class TaskRedisAck(TaskStage):
                     ):
                         return result
                     elif isinstance(result, list):
-                        if len(result) == 1:  # type: ignore[reportUnknownArgumentType]
-                            return result[0]  # type: ignore[reportUnknownVariableType]
-                        return tuple(result)  # type: ignore[reportUnknownArgumentType]
+                        if len(result) == 1:  # pyright: ignore[reportUnknownArgumentType]
+                            return result[0]  # pyright: ignore[reportUnknownVariableType]
+                        return tuple(result)  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
                     else:
                         return result
 

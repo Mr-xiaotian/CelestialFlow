@@ -351,11 +351,11 @@ class TaskGraph:
 
             for task in tasks:
                 if isinstance(task, TerminationSignal):
-                    termination_id: int = self.ctree_client.emit(
+                    term_signal_id: int = self.ctree_client.emit(
                         CTreeEvent.TERMINATION_INPUT,
                         payload=stage.get_summary(),
                     )
-                    in_queue.put(TerminationSignal(termination_id, source="input"))
+                    in_queue.put(TerminationSignal(term_signal_id, source="input"))
                     continue
 
                 input_id: int = self.ctree_client.emit(
@@ -412,12 +412,14 @@ class TaskGraph:
 
         if not self.isDAG and put_termination_signal:
             warnings.warn(
-                "Early injection of termination signals in a non-DAG graph may cause "
-                "some nodes (including source nodes) to shut down as soon as their current "
-                "tasks are exhausted, preventing them from consuming tasks that arrive "
-                "later from other nodes. It is recommended to set put_termination_signal=False "
-                "and manually inject termination signals via the web interface at an "
-                "appropriate time.",
+                (
+                    "Early injection of termination signals in a non-DAG graph may cause "
+                    "some nodes (including source nodes) to shut down as soon as their current "
+                    "tasks are exhausted, preventing them from consuming tasks that arrive "
+                    "later from other nodes. It is recommended to set put_termination_signal=False "
+                    "and manually inject termination signals via the web interface at an "
+                    "appropriate time."
+                ),
                 RuntimeWarning,
             )
         start_time = time.perf_counter()
@@ -533,8 +535,8 @@ class TaskGraph:
 
             # 持久化逻辑
             for source in remaining_sources:
-                task = source.task
-                task_id = source.id
+                task: Any = source.task
+                task_id: int = source.id
                 error_id: int = self.ctree_client.emit(
                     CTreeEvent.TASK_ERROR,
                     [task_id],
@@ -583,8 +585,8 @@ class TaskGraph:
         stage_counts = stage.get_counts()
 
         start_time = stage_runtime.start_time
-        last_elapsed: float = last_status.get("elapsed_time", 0)
-        last_pending: int = last_status.get("tasks_pending", 0)
+        last_elapsed: float = float(last_status.get("elapsed_time", 0))
+        last_pending: int = int(last_status.get("tasks_pending", 0))
         elapsed = calc_elapsed(status, last_elapsed, last_pending, interval)
 
         remaining = calc_remaining(

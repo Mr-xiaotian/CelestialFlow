@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..stage import TaskStage
-
     from .core_graph import StageRuntime
 
 
@@ -69,7 +68,7 @@ def _build_structure_subgraph(
         child_node = _build_structure_subgraph(
             next_stage, visited_stages, out_edges, stage_runtime_dict
         )
-        node["next_stages"].append(child_node)
+        next_stages.append(child_node)
 
     return node
 

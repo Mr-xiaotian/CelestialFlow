@@ -93,15 +93,15 @@ class TaskDispatch:
 
         :param task_envelope: 包含任务信息的信封
         """
-        task = task_envelope.get_task()
-        max_retries = self.task_executor.max_retries
+        task: Any = task_envelope.get_task()
+        max_retries: int = self.task_executor.max_retries
 
         for retry_time in range(max_retries + 1):
             try:
                 start_time = time.perf_counter()
                 args: tuple[Any, ...] = self.task_executor.get_args(task)
                 result: Any = self.func(*args)
-                self.task_executor.process_task_success(
+                _ = self.task_executor.process_task_success(
                     task_envelope, result, start_time
                 )
                 return
@@ -121,15 +121,15 @@ class TaskDispatch:
 
         :param task_envelope: 包含任务信息的信封
         """
-        task = task_envelope.get_task()
-        max_retries = self.task_executor.max_retries
+        task: Any = task_envelope.get_task()
+        max_retries: int = self.task_executor.max_retries
 
         for retry_time in range(max_retries + 1):
             try:
                 start_time = time.perf_counter()
                 args: tuple[Any, ...] = self.task_executor.get_args(task)
                 result: Any = await self.func(*args)
-                self.task_executor.process_task_success(
+                _ = self.task_executor.process_task_success(
                     task_envelope, result, start_time
                 )
                 return
@@ -224,7 +224,7 @@ class TaskDispatch:
             pending.add(task)
             task.add_done_callback(pending.discard)
 
-        await asyncio.gather(*pending)
+        _ = await asyncio.gather(*pending)
         result_queue.put(termination_signal)
 
     # ==== 清理 ====

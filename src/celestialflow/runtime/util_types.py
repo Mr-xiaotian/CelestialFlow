@@ -12,6 +12,9 @@ from celestialtree import NodeLabelStyle
 class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
 
+    id: int
+    source: str
+
     def __init__(self, _id: int = -1, source: str = "input") -> None:
         """
         :param _id: 终止信号 ID，默认 -1
@@ -27,6 +30,8 @@ TERMINATION_SIGNAL = TerminationSignal()
 
 class TerminationIdPool:
     """终止信号id池，用于存储所有已接收的终止信号"""
+
+    ids: list[int]
 
     def __init__(self, ids: list[int]) -> None:
         """
@@ -55,6 +60,9 @@ class NoOpContext:
 class ValueWrapper:
     """线程内/单进程的计数器包装，可选线程锁。"""
 
+    value: int
+    _lock: Lock | None
+
     def __init__(self, value: int = 0, lock: Lock | None = None) -> None:
         """
         :param value: 初始值，默认 0
@@ -71,18 +79,21 @@ class ValueWrapper:
 class SumCounter:
     """累加多个 counter（ValueWrapper）"""
 
+    mode: str
+    init_value: ValueWrapper
+    counters: list[ValueWrapper]
+
     def __init__(self, mode: str = "serial"):
         """
         :param mode: 执行模式，决定锁和计数器实现，默认 "serial"
         """
         self.mode = mode
-        self.init_value: ValueWrapper
 
         if mode == "thread":
             self.init_value = ValueWrapper(0, lock=Lock())
         else:
             self.init_value = ValueWrapper(0)
-        self.counters: list[ValueWrapper] = []
+        self.counters = []
 
     def add_init_value(self, value: int) -> None:
         """
@@ -136,13 +147,13 @@ class StageStatus(IntEnum):
 class CTreeEvent:
     """CelestialTree 事件名称常量"""
 
-    TASK_INPUT = "task.input"
-    TASK_SUCCESS = "task.success"
-    TASK_ERROR = "task.error"
-    TASK_RETRY_PREFIX = "task.retry."
-    TASK_DUPLICATE = "task.duplicate"
-    TERMINATION_INPUT = "termination.input"
-    TERMINATION_MERGE = "termination.merge"
+    TASK_INPUT: str = "task.input"
+    TASK_SUCCESS: str = "task.success"
+    TASK_ERROR: str = "task.error"
+    TASK_RETRY_PREFIX: str = "task.retry."
+    TASK_DUPLICATE: str = "task.duplicate"
+    TERMINATION_INPUT: str = "termination.input"
+    TERMINATION_MERGE: str = "termination.merge"
 
 
 STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(
@@ -187,4 +198,3 @@ class PersistedErrorRecord:
         :return: (error_type, error_message)
         """
         return (self.error_type, self.error_message)
-

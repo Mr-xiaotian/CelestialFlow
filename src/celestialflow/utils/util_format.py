@@ -8,7 +8,7 @@ from typing import Any
 
 
 # ======== format函数 ========
-def format_repr(obj: Any, max_length: int) -> str:
+def format_repr(obj: Any, max_length: int) -> str:  # type: ignore[reportExplicitAny, reportAny]
     """
     将对象格式化为字符串，自动转义换行、截断超长文本。
 
@@ -16,7 +16,7 @@ def format_repr(obj: Any, max_length: int) -> str:
     :param max_length: 显示的最大字符数（超出将被截断）
     :return: 格式化字符串
     """
-    obj_str: str = str(obj).replace("\\", "\\\\").replace("\n", "\\n")
+    obj_str: str = str(obj).replace("\\", "\\\\").replace("\n", "\\n")  # type: ignore[reportAny]
     if max_length <= 0 or len(obj_str) <= max_length:
         return obj_str
 
@@ -30,8 +30,8 @@ def format_repr(obj: Any, max_length: int) -> str:
 
 
 def format_table(
-    data: list[Any],
-    row_names: list[Any] | None = None,
+    data: list[Any],  # type: ignore[reportExplicitAny]
+    row_names: list[Any] | None = None,  # type: ignore[reportExplicitAny]
     column_names: list[str] | None = None,
     index_header: str = "#",
     fill_value: str = "N/A",
@@ -96,20 +96,20 @@ def format_table(
     num_columns: int = len(column_names)
 
     # 处理行号
-    formatted_data: list[list[Any]] = []
-    for i, row in enumerate(data):
-        row_label: Any = row_names[i] if row_names else i
-        formatted_data.append([row_label] + list(row))
+    formatted_data: list[list[Any]] = []  # type: ignore[reportExplicitAny]
+    for i, row in enumerate(data):  # type: ignore[reportAny]
+        row_label: Any = row_names[i] if row_names else i  # type: ignore[reportExplicitAny]
+        formatted_data.append([row_label] + list(row))  # type: ignore[reportAny]
 
     # 统一填充数据行，确保所有行长度一致
-    filled_rows: zip_longest[tuple[Any, ...]] = zip_longest(
+    filled_rows: zip_longest[tuple[Any, ...]] = zip_longest(  # type: ignore[reportExplicitAny]
         *formatted_data, fillvalue=fill_value
     )
     formatted_data = [list(row) for row in zip(*filled_rows)]  # 转置回来
 
     # 计算每列的最大宽度
     col_widths: list[int] = [
-        max(len(str(item)) for item in col)
+        max(len(str(item)) for item in col)  # type: ignore[reportAny]
         for col in zip(column_names, *formatted_data)
     ]
 
@@ -143,7 +143,7 @@ def format_table(
             "| "
             + " | ".join(
                 [
-                    f"{align_func(str(row[i]), col_widths[i])}"
+                    f"{align_func(str(row[i]), col_widths[i])}"  # type: ignore[reportAny]
                     for i in range(num_columns)
                 ]
             )

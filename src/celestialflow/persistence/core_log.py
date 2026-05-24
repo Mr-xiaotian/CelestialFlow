@@ -27,7 +27,7 @@ class LogSpout(BaseSpout):
         self._flush_every: int = 5
         self._flush_counter: int = 0
 
-    def _before_start(self) -> None:
+    def _before_start(self) -> None:  # pyright: ignore[reportImplicitOverride]
         """创建 logs 目录并打开日志文件"""
         # 创建 logs 目录
         now = strftime("%Y-%m-%d", localtime())
@@ -40,29 +40,29 @@ class LogSpout(BaseSpout):
         # 初始化计数器
         self._flush_counter = 0
 
-    def _handle_record(self, record: dict[str, Any]) -> None:
+    def _handle_record(self, record: dict[str, Any]) -> None:  # pyright: ignore[reportExplicitAny, reportImplicitOverride]
         """
         处理单条日志记录，批量写入日志文件。
         每 _flush_every 条记录才 flush 一次。
 
         :param record: 包含 timestamp, level, message 的日志记录字典
         """
-        timestamp = record["timestamp"]
-        level = record["level"]
-        message = record["message"]
+        timestamp: Any = record["timestamp"]  # pyright: ignore[reportExplicitAny, reportAny]
+        level: Any = record["level"]  # pyright: ignore[reportExplicitAny, reportAny]
+        message: Any = record["message"]  # pyright: ignore[reportExplicitAny, reportAny]
 
         line = f"{timestamp} {level} {message}\n"
 
         if self._file is None:
             raise InitializationError("log file is not initialized")
-        self._file.write(line)
+        _ = self._file.write(line)
         self._flush_counter += 1
 
         if self._flush_counter >= self._flush_every:
             self._file.flush()
             self._flush_counter = 0
 
-    def _after_stop(self) -> None:
+    def _after_stop(self) -> None:  # pyright: ignore[reportImplicitOverride]
         """关闭日志文件句柄，确保剩余缓冲落盘"""
         if self._file:
             self._file.flush()
@@ -75,7 +75,7 @@ class LogInlet(BaseInlet):
     线程安全日志包装类，所有日志通过队列发送到监听线程写入
     """
 
-    def __init__(self, log_queue: Queue[Any], log_level: str = "INFO") -> None:
+    def __init__(self, log_queue: Queue[Any], log_level: str = "INFO") -> None:  # pyright: ignore[reportExplicitAny]
         """
         初始化日志收集器
 
@@ -150,7 +150,7 @@ class LogInlet(BaseInlet):
         self._log(
             "INFO",
             f"'{stage_name}' end in {stage_mode}; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
-            f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
+            + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
     # ==== executor ====
@@ -175,7 +175,7 @@ class LogInlet(BaseInlet):
         self._log(
             "INFO",
             f"'{name}[{func_name}]' end; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
-            f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
+            + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
     # ==== task ====
@@ -368,18 +368,21 @@ class LogInlet(BaseInlet):
             f"[Reporter] Pull 'task injection' failed: {type(exception).__name__}({exception}).",
         )
 
-    def inject_tasks_success(self, target_node: str, task_datas: Any) -> None:
+    def inject_tasks_success(self, target_node: str, task_datas: Any) -> None:  # pyright: ignore[reportExplicitAny, reportAny]
         """记录任务注入成功"""
         self._log("INFO", f"[Reporter] Inject tasks {task_datas} into '{target_node}'.")
 
     def inject_tasks_failed(
-        self, target_node: str, task_datas: Any, exception: Exception
+        self,
+        target_node: str,
+        task_datas: Any,  # pyright: ignore[reportExplicitAny, reportAny]
+        exception: Exception,
     ) -> None:
         """记录任务注入失败"""
         self._log(
             "WARNING",
             f"[Reporter] Inject tasks {task_datas} into '{target_node}' failed. "
-            f"Error: {type(exception).__name__}({exception}).",
+            + f"Error: {type(exception).__name__}({exception}).",
         )
 
     def push_errors_failed(self, exception: Exception) -> None:

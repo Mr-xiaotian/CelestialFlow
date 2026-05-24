@@ -20,6 +20,12 @@ if TYPE_CHECKING:
 class TaskInQueue:
     """任务输入队列，聚合多个上游来源的任务和终止信号。"""
 
+    queue: Any
+    source_names: list[str]
+    out_name: str
+    log_inlet: "LogInlet"
+    termination_dict: dict[str, int]
+
     # ==== 初始化 ====
     def __init__(
         self,
@@ -36,12 +42,12 @@ class TaskInQueue:
         :param out_name: 当前节点唯一名称
         :param log_inlet: 日志记录器
         """
-        self.queue: Any = queue
+        self.queue = queue
         self.source_names = source_names
         self.out_name = out_name
         self.log_inlet = log_inlet
 
-        self.termination_dict: dict[str, int] = {}
+        self.termination_dict = {}
 
     # ==== 日志 ====
     def _log_put(self, item: TaskEnvelope | TerminationSignal) -> None:
@@ -200,6 +206,12 @@ class TaskInQueue:
 class TaskOutQueue:
     """任务输出队列，将任务广播到一个或多个下游队列通道。"""
 
+    queue_list: list[Any]
+    target_names: list[str | None]
+    in_name: str
+    log_inlet: "LogInlet"
+    _name_to_idx: dict[str, int]
+
     # ==== 初始化 ====
     def __init__(
         self,
@@ -218,7 +230,9 @@ class TaskOutQueue:
         :raises ConfigurationError: 如果队列列表和目标名称列表长度不一致
         """
         if len(queue_list) != len(target_names):
-            raise ConfigurationError("queue_list and target_names must have the same length")
+            raise ConfigurationError(
+                "queue_list and target_names must have the same length"
+            )
 
         self.queue_list = queue_list
         self.target_names = target_names

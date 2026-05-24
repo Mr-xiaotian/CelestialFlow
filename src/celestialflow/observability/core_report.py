@@ -39,18 +39,18 @@ class TaskReporter:
         :param task_graph: 任务图实例
         :param log_inlet: 日志收集器实例
         """
-        self.base_url = f"http://{host}:{port}"
-        self.task_graph = task_graph
-        self.log_inlet = log_inlet
+        self.base_url: str = f"http://{host}:{port}"
+        self.task_graph: "TaskGraph" = task_graph
+        self.log_inlet: LogInlet = log_inlet
 
-        self._stop_flag = Event()
+        self._stop_flag: Event = Event()
         self._thread: Thread | None = None
-        self._push_errors_mode = "meta"
+        self._push_errors_mode: str = "meta"
         self._last_pushed_errors_rev: int | None = None
-        self._session = requests.Session()
+        self._session: requests.Session = requests.Session()
 
-        self.interval = 5
-        self.history_limit = 20
+        self.interval: int = 5
+        self.history_limit: int = 20
 
     def start(self) -> None:
         """启动上报器线程"""
@@ -84,7 +84,7 @@ class TaskReporter:
                 self._refresh_all()
             except Exception as e:
                 self.log_inlet.loop_failed(e)
-            self._stop_flag.wait(self.interval)
+            _ = self._stop_flag.wait(self.interval)
 
     def _refresh_all(self) -> None:
         """刷新所有上报内容"""
@@ -112,8 +112,8 @@ class TaskReporter:
             if not res.ok:
                 raise ReporterError(f"Failed to pull interval: {res.status_code}")
 
-            interval = res.json().get("interval", 5)
-            self.interval = max(1.0, min(interval, 60.0))
+            interval: Any = res.json().get("interval", 5)  # pyright: ignore[reportExplicitAny, reportAny]
+            self.interval = int(max(1.0, min(float(interval), 60.0)))  # pyright: ignore[reportAny]
         except Exception as e:
             self.log_inlet.pull_interval_failed(e)
 
@@ -126,17 +126,17 @@ class TaskReporter:
             if not res.ok:
                 raise ReporterError(f"Failed to pull task injection: {res.status_code}")
 
-            injection_tasks: list[dict[str, Any]] = res.json()
+            injection_tasks: list[dict[str, Any]] = res.json()  # pyright: ignore[reportExplicitAny, reportAny]
             for injection in injection_tasks:
                 target_stage: str | None = injection.get("node")
-                task_datas: list[Any] | None = injection.get("task_datas")
+                task_datas: list[Any] | None = injection.get("task_datas")  # pyright: ignore[reportExplicitAny]
                 if target_stage is None or task_datas is None:
                     continue
 
                 # 这里你可以按需注入到不同的节点
                 task_datas = [
                     task if task != "TERMINATION_SIGNAL" else TERMINATION_SIGNAL
-                    for task in task_datas
+                    for task in task_datas  # pyright: ignore[reportAny]
                 ]
                 try:
                     self.task_graph.put_stage_queue(  # type: ignore[reportUnknownMemberType]
@@ -184,7 +184,7 @@ class TaskReporter:
         except Exception as e:
             self.log_inlet.push_errors_failed(e)
 
-    def _push_errors_meta(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:
+    def _push_errors_meta(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
         """
         推送错误元信息
 
@@ -192,7 +192,7 @@ class TaskReporter:
         :param jsonl_path: 错误日志 JSONL 文件路径
         :return: 服务端响应字典
         """
-        payload: dict[str, Any] = {
+        payload: dict[str, Any] = {  # pyright: ignore[reportExplicitAny]
             "rev": current_rev,
             "jsonl_path": jsonl_path,
         }
@@ -201,9 +201,9 @@ class TaskReporter:
             json=payload,
             timeout=self._push_timeout(),
         )
-        return response.json()
+        return response.json()  # pyright: ignore[reportAny]
 
-    def _push_errors_content(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:
+    def _push_errors_content(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
         """
         推送错误内容（增量：只传 offset 之后的新增条目）
 
@@ -211,12 +211,12 @@ class TaskReporter:
         :param jsonl_path: 错误日志 JSONL 文件路径
         :return: 服务端响应字典
         """
-        all_errors: list[dict[str, Any]] = load_jsonl_logs(
+        all_errors: list[dict[str, Any]] = load_jsonl_logs(  # pyright: ignore[reportExplicitAny]
             path=jsonl_path,
             keys=["ts", "error_id", "error_repr", "error", "stage", "task_repr"],
         )
 
-        payload: dict[str, Any] = {
+        payload: dict[str, Any] = {  # pyright: ignore[reportExplicitAny]
             "rev": current_rev,
             "jsonl_path": jsonl_path,
             "errors": all_errors,
@@ -226,13 +226,13 @@ class TaskReporter:
             json=payload,
             timeout=self._push_timeout(),
         )
-        return response.json()
+        return response.json()  # pyright: ignore[reportAny]
 
     def _push_status(self) -> None:
         """推送状态信息"""
         try:
-            payload: dict[str, Any] = self.task_graph.get_status_snapshot()  # type: ignore[reportUnknownMemberType]
-            self._session.post(
+            payload: dict[str, Any] = self.task_graph.get_status_snapshot()  # type: ignore[reportUnknownMemberType]  # pyright: ignore[reportExplicitAny]
+            _ = self._session.post(
                 f"{self.base_url}/api/push_status",
                 json=payload,
                 timeout=self._push_timeout(),
@@ -243,9 +243,9 @@ class TaskReporter:
     def _push_structure(self) -> None:
         """推送结构信息"""
         try:
-            structure: list[dict[str, Any]] = self.task_graph.get_structure_json()  # type: ignore[reportUnknownMemberType]
-            payload: dict[str, Any] = {"items": structure}
-            self._session.post(
+            structure: list[dict[str, Any]] = self.task_graph.get_structure_json()  # type: ignore[reportUnknownMemberType]  # pyright: ignore[reportExplicitAny]
+            payload: dict[str, Any] = {"items": structure}  # pyright: ignore[reportExplicitAny]
+            _ = self._session.post(
                 f"{self.base_url}/api/push_structure",
                 json=payload,
                 timeout=self._push_timeout(),
@@ -256,9 +256,9 @@ class TaskReporter:
     def _push_analysis(self) -> None:
         """推送分析信息"""
         try:
-            analysis: dict[str, Any] = self.task_graph.get_graph_analysis()  # type: ignore[reportUnknownMemberType]
-            payload: dict[str, Any] = {"analysis": analysis}
-            self._session.post(
+            analysis: dict[str, Any] = self.task_graph.get_graph_analysis()  # type: ignore[reportUnknownMemberType]  # pyright: ignore[reportExplicitAny]
+            payload: dict[str, Any] = {"analysis": analysis}  # pyright: ignore[reportExplicitAny]
+            _ = self._session.post(
                 f"{self.base_url}/api/push_analysis",
                 json=payload,
                 timeout=self._push_timeout(),
@@ -269,9 +269,9 @@ class TaskReporter:
     def _push_summary(self) -> None:
         """推送摘要信息"""
         try:
-            summary: dict[str, Any] = self.task_graph.get_graph_summary()  # type: ignore[reportUnknownMemberType]
-            payload: dict[str, Any] = {"summary": summary}
-            self._session.post(
+            summary: dict[str, Any] = self.task_graph.get_graph_summary()  # type: ignore[reportUnknownMemberType]  # pyright: ignore[reportExplicitAny]
+            payload: dict[str, Any] = {"summary": summary}  # pyright: ignore[reportExplicitAny]
+            _ = self._session.post(
                 f"{self.base_url}/api/push_summary",
                 json=payload,
                 timeout=self._push_timeout(),
@@ -283,8 +283,8 @@ class TaskReporter:
 class NullTaskReporter:
     """空实现的任务上报器，用于关闭上报功能时的占位对象。"""
 
-    interval = 1
-    history_limit = 20
+    interval: int = 1
+    history_limit: int = 20
 
     def start(self) -> None:
         """启动上报器线程"""

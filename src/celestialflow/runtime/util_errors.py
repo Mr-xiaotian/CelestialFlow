@@ -4,7 +4,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-
 # ==== 基础异常 ====
 
 
@@ -27,6 +26,10 @@ class InvalidOptionError(ConfigurationError):
     """
     某个配置项的取值不合法（不在允许集合里）。
     """
+
+    field: str
+    value: Any
+    allowed: tuple[Any, ...]
 
     def __init__(
         self,
@@ -54,6 +57,9 @@ class InvalidOptionError(ConfigurationError):
 class ExecutionModeError(InvalidOptionError):
     """非法的 execution_mode 配置错误"""
 
+    execution_mode: str
+    valid_modes: tuple[str, ...]
+
     def __init__(self, execution_mode: str, valid_modes: tuple[str, ...] | None = None):
         """
         :param execution_mode: 非法的执行模式值
@@ -68,6 +74,9 @@ class ExecutionModeError(InvalidOptionError):
 class StageModeError(InvalidOptionError):
     """非法的 stage_mode 配置错误"""
 
+    stage_mode: str
+    valid_modes: tuple[str, ...]
+
     def __init__(self, stage_mode: str, valid_modes: tuple[str, ...] | None = None):
         """
         :param stage_mode: 非法的节点模式值
@@ -81,6 +90,9 @@ class StageModeError(InvalidOptionError):
 
 class LogLevelError(InvalidOptionError):
     """非法的 log_level 配置错误"""
+
+    log_level: str
+    valid_levels: tuple[str, ...]
 
     def __init__(self, log_level: str, valid_levels: tuple[str, ...] | None = None):
         """
@@ -103,6 +115,9 @@ class LogLevelError(InvalidOptionError):
 
 class ScheduleModeError(InvalidOptionError):
     """非法的 schedule_mode 配置错误"""
+
+    schedule_mode: str
+    valid_modes: tuple[str, ...]
 
     def __init__(self, schedule_mode: str, valid_modes: tuple[str, ...] | None = None):
         """
