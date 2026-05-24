@@ -76,6 +76,7 @@ dev = [
 
 [tool.pyright]
 include = ["src"]
+ignore = ["tests", "**/tests/**", "typings", "demo", "bench", "experiments", "examples", "temp"]
 
 typeCheckingMode = "strict"
 
