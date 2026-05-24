@@ -1,6 +1,6 @@
 # observability/core_report.py
 from threading import Event, Thread
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import requests
 
@@ -46,7 +46,7 @@ class TaskReporter:
         self._stop_flag = Event()
         self._thread: Thread | None = None
         self._push_errors_mode = "meta"
-        self._last_pushed_errors_rev: Optional[int] = None
+        self._last_pushed_errors_rev: int | None = None
         self._session = requests.Session()
 
         self.interval = 5
@@ -174,7 +174,9 @@ class TaskReporter:
                 if resp.get("ok"):
                     pass
                 else:
-                    raise ReporterError(f"push_errors_content failed: {resp.get('msg')}")
+                    raise ReporterError(
+                        f"push_errors_content failed: {resp.get('msg')}"
+                    )
 
             if resp.get("ok") and not resp.get("cached"):
                 self._last_pushed_errors_rev = current_rev
@@ -276,6 +278,7 @@ class TaskReporter:
             )
         except Exception as e:
             self.log_inlet.push_summary_failed(e)
+
 
 class NullTaskReporter:
     """空实现的任务上报器，用于关闭上报功能时的占位对象。"""

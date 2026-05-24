@@ -23,6 +23,10 @@ class LogSpout(BaseSpout):
         self.log_path: Path | None = None
         self._file: TextIO | None = None
 
+        # 批量刷新：日志量远大于错误量，阈值设更高
+        self._flush_every: int = 5
+        self._flush_counter: int = 0
+
     def _before_start(self) -> None:
         """创建 logs 目录并打开日志文件"""
         # 创建 logs 目录
@@ -33,9 +37,13 @@ class LogSpout(BaseSpout):
         # 打开日志文件
         self._file = self.log_path.open("a", encoding="utf-8")
 
+        # 初始化计数器
+        self._flush_counter = 0
+
     def _handle_record(self, record: dict[str, Any]) -> None:
         """
-        处理单条日志记录，写入日志文件
+        处理单条日志记录，批量写入日志文件。
+        每 _flush_every 条记录才 flush 一次。
 
         :param record: 包含 timestamp, level, message 的日志记录字典
         """
@@ -48,10 +56,14 @@ class LogSpout(BaseSpout):
         if self._file is None:
             raise InitializationError("log file is not initialized")
         self._file.write(line)
-        self._file.flush()
+        self._flush_counter += 1
+
+        if self._flush_counter >= self._flush_every:
+            self._file.flush()
+            self._flush_counter = 0
 
     def _after_stop(self) -> None:
-        """关闭日志文件句柄"""
+        """关闭日志文件句柄，确保剩余缓冲落盘"""
         if self._file:
             self._file.flush()
             self._file.close()
@@ -298,9 +310,7 @@ class LogInlet(BaseInlet):
         edge = f"'{in_name}' -> '{out_name}'"
         self._log("TRACE", f"Put {item_type}#{item_id} into Edge({edge}).")
 
-    def put_item_error(
-        self, in_name: str, out_name: str, exception: Exception
-    ) -> None:
+    def put_item_error(self, in_name: str, out_name: str, exception: Exception) -> None:
         """记录队列 put 失败"""
         edge = f"'{in_name}' -> '{out_name}'"
         exception_text = str(exception).replace("\n", " ")
@@ -316,9 +326,7 @@ class LogInlet(BaseInlet):
         edge = f"'{in_name}' -> '{out_name}'"
         self._log("TRACE", f"Get {item_type}#{item_id} from Edge({edge}).")
 
-    def get_item_error(
-        self, in_name: str, out_name: str, exception: Exception
-    ) -> None:
+    def get_item_error(self, in_name: str, out_name: str, exception: Exception) -> None:
         """记录队列 get 失败"""
         edge = f"'{in_name}' -> '{out_name}'"
         exception_text = str(exception).replace("\n", " ")
