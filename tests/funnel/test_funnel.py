@@ -3,7 +3,7 @@ import time
 from celestialflow.funnel.core_inlet import BaseInlet
 from celestialflow.funnel.core_spout import BaseSpout
 from celestialflow.runtime.util_errors import CelestialFlowError
-from celestialflow.runtime.util_types import TerminationSignal
+
 
 class MockSpout(BaseSpout):
     def __init__(self):
@@ -30,21 +30,28 @@ class TestFunnelCore:
         """测试 BaseSpout 的生命周期管理：验证启动、停止及钩子函数调用"""
         spout = MockSpout()
         assert not spout.before_called
-        
+
         spout.start()
         assert spout.before_called
-        assert spout._thread is not None
-        assert spout._thread.is_alive()
-        
+
+        # 验证 start() 后 spout 正在运行：放入数据应被消费
+        spout.get_queue().put("data_before_stop")
         spout.stop()
+
         assert spout.after_called
-        assert spout._thread is None
+        assert "data_before_stop" in spout.received
+
+        # 验证 stop() 后 spout 已停止：再次放入数据不会被消费
+        before_count = len(spout.received)
+        spout.get_queue().put("data_after_stop")
+        time.sleep(0.2)
+        assert len(spout.received) == before_count
 
     def test_inlet_to_spout_communication(self):
         """测试 Inlet 与 Spout 的异步队列通信逻辑"""
         spout = MockSpout()
         inlet = MockInlet(spout.get_queue())
-        
+
         spout.start()
         try:
             inlet.send("msg1")
@@ -53,24 +60,33 @@ class TestFunnelCore:
             time.sleep(0.1)
         finally:
             spout.stop()
-            
+
         assert spout.received == ["msg1", {"key": "val"}]
 
     def test_spout_termination_signal(self):
-        """测试 Spout 接收终止信号后的正常关闭行为"""
+        """测试 stop() 发送终止信号后 spout 正常关闭且不再消费新数据"""
         spout = MockSpout()
         spout.start()
-        
-        # 发送终止信号
-        spout.get_queue().put(TerminationSignal(_id=-1, source="test"))
-        
-        # 等待线程结束（join）
-        spout._thread.join(timeout=2)
-        assert not spout._thread.is_alive()
-        
-        # 验证 cleanup 被调用
-        spout.stop() # 再次调用 stop 应该是安全的
+
+        # 放入测试数据
+        spout.get_queue().put("msg1")
+        spout.get_queue().put("msg2")
+
+        # 使用公开 API 停止（内部发送 TERMINATION_SIGNAL + join + _after_stop）
+        spout.stop()
+
+        # 验证数据在 stop() 前已被消费
+        assert spout.received == ["msg1", "msg2"]
         assert spout.after_called
+
+        # 验证 stop() 后不再消费新数据
+        before_count = len(spout.received)
+        spout.get_queue().put("msg_after_stop")
+        time.sleep(0.2)
+        assert len(spout.received) == before_count
+
+        # 验证重复调用 stop() 是安全的（幂等）
+        spout.stop()
 
     def test_spout_not_implemented_error(self):
         """测试 BaseSpout 抽象基类：直接调用未实现的方法应报错"""

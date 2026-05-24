@@ -15,12 +15,9 @@ from typing import Any
 
 import pytest
 
-from celestialflow.runtime import TaskEnvelope, TaskInQueue, TaskOutQueue
+from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.core_dispatch import TaskDispatch
-from celestialflow.runtime.util_types import (
-    TerminationIdPool,
-    TerminationSignal,
-)
+from celestialflow.runtime.util_types import TerminationSignal
 from celestialflow.stage import TaskExecutor
 
 
@@ -80,11 +77,6 @@ class _CtreeStub:
         return 42
 
 
-class _DummyLogInlet:
-    def __getattr__(self, _name: str) -> Any:
-        return lambda *args, **kw: None  # noqa: ARG005
-
-
 # ── 最小 Executor ──────────────────────────────────────
 
 
@@ -93,31 +85,34 @@ def _make_executor(
 ) -> TaskExecutor:
     e = TaskExecutor(name, func, max_retries=max_retries, log_level="SUCCESS")
     e.add_retry_exceptions(ValueError)
-    q_in = Queue()
-    q_out = Queue()
-    e.task_queue = TaskInQueue(q_in, [name], name, _DummyLogInlet())  # type: ignore[assignment]
-    e.result_queue = TaskOutQueue([q_out], [None], name, _DummyLogInlet())  # type: ignore[assignment]
+    e.init_env()
     e.ctree_client = _CtreeStub()  # type: ignore[assignment]
-    e.log_inlet = _DummyLogInlet()  # type: ignore[assignment]
-    e.fail_inlet = _DummyLogInlet()  # type: ignore[assignment]
+    # 添加测试结果收集队列，通过公开 API add_queue() 注册到 result_queue 下游
+    e._test_result_queue: Queue[Any] = Queue()
+    e.result_queue.add_queue(e._test_result_queue, name="test_collector")  # type: ignore[union-attr]
     return e
 
 
 def _put(executor: TaskExecutor, *items: Any) -> None:
     for num, i in enumerate(items):
         envelope = TaskEnvelope(task=i, id=num, source="test")
-        executor.task_queue.queue.put(envelope)
+        executor.task_queue.put(envelope)  # type: ignore[union-attr]
 
 
 def _put_termination(executor: TaskExecutor, ids: list[int] | None = None) -> None:
+    """发送终止信号，让框架通过 _merge_termination() 自然合并后退出调度循环。
+
+    使用公开 API put()，注入 TerminationSignal（而非直接操作内部 TerminationIdPool）。
+    """
     if ids is None:
         ids = [-1]
-    executor.task_queue.queue.put(TerminationIdPool(ids))
+    # 使用 source="input" 触发直接退出路径，source_names 为空的单 executor 场景与之兼容
+    executor.task_queue.put(TerminationSignal(_id=ids[0], source="input"))  # type: ignore[union-attr]
 
 
 def _collect_results(executor: TaskExecutor) -> list[Any]:
     results: list[Any] = []
-    q = executor.result_queue.queue_list[0]
+    q = executor._test_result_queue  # type: ignore[attr-defined]
     while not q.empty():
         results.append(q.get())
     return results
@@ -206,14 +201,13 @@ class TestDispatchThread:
         results = _collect_results(executor)
         task_results = [r for r in results if not isinstance(r, TerminationSignal)]
         assert len(task_results) == 10
-        assert dispatch._pool is None
 
     def test_thread_duplicate(self) -> None:
         executor = _make_executor(_square)
         dispatch = TaskDispatch(executor, executor.func, max_workers=2)
-        executor.task_queue.queue.put(TaskEnvelope(task=7, id=1, source="test"))
-        executor.task_queue.queue.put(TaskEnvelope(task=7, id=2, source="test"))
-        executor.task_queue.queue.put(TaskEnvelope(task=3, id=3, source="test"))
+        executor.task_queue.put(TaskEnvelope(task=7, id=1, source="test"))  # type: ignore[union-attr]
+        executor.task_queue.put(TaskEnvelope(task=7, id=2, source="test"))  # type: ignore[union-attr]
+        executor.task_queue.put(TaskEnvelope(task=3, id=3, source="test"))  # type: ignore[union-attr]
         _put_termination(executor)
         dispatch.dispatch_thread()
         results = _collect_results(executor)

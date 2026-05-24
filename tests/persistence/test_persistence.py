@@ -1,4 +1,7 @@
 import time
+
+import pytest
+
 from celestialflow.persistence.core_fail import FailInlet, FailSpout
 from celestialflow.persistence.core_log import LogInlet, LogSpout
 from celestialflow.persistence.core_success import SuccessSpout
@@ -9,23 +12,28 @@ class TestPersistenceIntegration:
         """集成测试：验证错误持久化链路（Inlet -> Spout -> File -> get_error_pairs）"""
         # 切换工作目录以控制 fallback 位置
         monkeypatch.chdir(tmp_path)
-        
+
         spout = FailSpout(error_source="test_source")
         inlet = FailInlet(spout.get_queue())
-        
+
         spout.start()
         try:
             inlet.start_graph([{"node": "s1"}])
             inlet.task_error("s1", err_id=1, error=ValueError("oops"), task="data1")
             inlet.task_error("s1", err_id=2, error=RuntimeError("fail"), task="data2")
-            # 给一点时间让后台线程写入文件
-            time.sleep(0.2)
+            # 轮询等待后台线程处理记录
+            for _ in range(50):
+                if spout.total_error_num == 2:
+                    break
+                time.sleep(0.1)
+            else:
+                pytest.fail("timeout waiting for fail_spout to process records")
         finally:
             spout.stop()
-            
+
         assert spout.total_error_num == 2
         assert spout.jsonl_path.exists()
-        
+
         # 验证读取
         pairs = spout.get_error_pairs()
         assert len(pairs) == 2
@@ -37,18 +45,29 @@ class TestPersistenceIntegration:
     def test_log_persistence(self, tmp_path, monkeypatch):
         """集成测试：验证日志持久化链路（Inlet -> Spout -> File）"""
         monkeypatch.chdir(tmp_path)
-        
+
         spout = LogSpout()
         inlet = LogInlet(spout.get_queue(), log_level="INFO")
-        
+
         spout.start()
         try:
-            inlet._log("INFO", "test message")
-            inlet._log("WARNING", "hello world")
-            time.sleep(0.2)
+            inlet.start_graph(["test message"])
+            inlet.task_retry("func", "hello world", 1, ValueError("oops"), 0, 1)
+            # 补足 5 条记录以触发 LogSpout 的 _flush_every 批量刷新
+            inlet.end_graph(1.0)
+            inlet.start_stage("stage", "normal", "parallel", 4)
+            # 轮询等待后台线程写入日志
+            for _ in range(50):
+                if spout.log_path.exists():
+                    content = spout.log_path.read_text(encoding="utf-8")
+                    if "test message" in content and "hello world" in content:
+                        break
+                time.sleep(0.1)
+            else:
+                pytest.fail("timeout waiting for log_spout to write records")
         finally:
             spout.stop()
-            
+
         assert spout.log_path.exists()
         content = spout.log_path.read_text(encoding="utf-8")
         assert "test message" in content
@@ -60,22 +79,28 @@ class TestPersistenceIntegration:
         """集成测试：验证成功任务持久化（目前为内存缓存）"""
         # SuccessSpout 目前只在内存缓存，不写文件
         spout = SuccessSpout()
-        
+
         spout.start()
         try:
             # SuccessSpout 处理的是 TaskEnvelope，且 result 是 envelope.task, task 是 envelope.prev
             env1 = TaskEnvelope(task=100, id=1, source="s1")
             env1.prev = "task1"
-            
+
             env2 = TaskEnvelope(task=200, id=2, source="s2")
             env2.prev = "task2"
-            
+
             spout.get_queue().put(env1)
             spout.get_queue().put(env2)
-            time.sleep(0.2)
+            # 轮询等待后台线程处理记录
+            for _ in range(50):
+                if len(spout.get_success_pairs()) == 2:
+                    break
+                time.sleep(0.1)
+            else:
+                pytest.fail("timeout waiting for success_spout to process records")
         finally:
             spout.stop()
-            
+
         pairs = spout.get_success_pairs()
         assert len(pairs) == 2
         assert pairs[0] == ("task1", 100)
