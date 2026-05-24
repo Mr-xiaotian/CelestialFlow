@@ -13,7 +13,8 @@ class TaskChain(TaskGraph):
     def __init__(
         self,
         stages: list[TaskStage],
-        chain_mode: str = "serial",
+        schedule_mode: str = "eager",
+        stage_mode: str = "thread",
         log_level: str = "INFO",
     ) -> None:
         """
@@ -21,14 +22,15 @@ class TaskChain(TaskGraph):
         该结构将多个 TaskStage 节点按顺序连接，形成一个线性的数据流图。
 
         :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点
-        :param chain_mode: 控制任务链中各节点的运行模式, 可选 'serial' 或 'thread'，默认 'serial'
+        :param schedule_mode: 控制任务链中各节点的运行模式, 可选 'eager' 或 'staged'，默认 'eager'
+        :param stage_mode: 统一设置链中所有节点的 stage_mode，默认 'thread'
         :param log_level: 日志级别，默认 'INFO'
         """
-        super().__init__(schedule_mode="eager", log_level=log_level)
+        super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
-        for num, stage in enumerate(stages):
-            stage.set_stage_mode(chain_mode)
-            stage.set_name(f"Stage {num + 1}")
+        for stage in stages:
+            stage.set_stage_mode(stage_mode)
+            #     stage.set_name(f"Stage {num + 1}")
 
         self.set_stages(stages)
         for num in range(len(stages) - 1):
@@ -55,6 +57,7 @@ class TaskCross(TaskGraph):
         self,
         layers: list[list[TaskStage]],
         schedule_mode: str = "eager",
+        stage_mode: str = "thread",
         log_level: str = "INFO",
     ) -> None:
         """
@@ -66,15 +69,16 @@ class TaskCross(TaskGraph):
             按层划分的任务节点列表。每个子列表代表一层，列表中的 TaskStage 将并行执行。
             相邻层之间的所有节点将建立全连接依赖（即每个上一层节点都连接到下一层所有节点）。
         :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
+        :param stage_mode: 统一设置所有节点的 stage_mode，默认 'thread'
         :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
         all_stages: list[TaskStage] = []
         for i, curr_layer in enumerate(layers):
-            for index, stage in enumerate(curr_layer):
-                stage.set_stage_mode("thread")
-                stage.set_name(f"Layer{i + 1}-{index + 1}")
+            for stage in curr_layer:
+                stage.set_stage_mode(stage_mode)
+                # stage.set_name(f"Layer{i + 1}-{index + 1}")
             all_stages.extend(curr_layer)
 
         self.set_stages(all_stages)
@@ -102,6 +106,7 @@ class TaskGrid(TaskGraph):
         self,
         grid: list[list[TaskStage]],
         schedule_mode: str = "eager",
+        stage_mode: str = "thread",
         log_level: str = "INFO",
     ) -> None:
         """
@@ -113,6 +118,7 @@ class TaskGrid(TaskGraph):
             任务网格，每个子列表代表一行，列表中的 TaskStage 将按行并行执行。
             每个节点将连接到其右侧和下方的节点。
         :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
+        :param stage_mode: 统一设置所有节点的 stage_mode，默认 'thread'
         :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
@@ -122,8 +128,8 @@ class TaskGrid(TaskGraph):
         for i in range(rows):
             for j in range(cols):
                 curr = grid[i][j]
-                curr.set_stage_mode("thread")
-                curr.set_name(f"Grid-{i + 1}-{j + 1}")
+                curr.set_stage_mode(stage_mode)
+                # curr.set_name(f"Grid-{i + 1}-{j + 1}")
                 all_stages.append(curr)
 
         self.set_stages(all_stages)
@@ -157,6 +163,7 @@ class TaskLoop(TaskGraph):
         self,
         stages: list[TaskStage],
         schedule_mode: str = "eager",
+        stage_mode: str = "thread",
         log_level: str = "INFO",
     ) -> None:
         """
@@ -164,13 +171,14 @@ class TaskLoop(TaskGraph):
 
         :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点, 形成一个闭环
         :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
+        :param stage_mode: 统一设置环中所有节点的 stage_mode，默认 'thread'
         :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
-        for num, stage in enumerate(stages):
-            stage.set_stage_mode("thread")
-            stage.set_name(f"Stage {num + 1}")
+        for stage in stages:
+            stage.set_stage_mode(stage_mode)
+            # stage.set_name(f"Stage {num + 1}")
 
         self.set_stages(stages)
         for num in range(len(stages)):
@@ -199,6 +207,7 @@ class TaskWheel(TaskGraph):
         center: TaskStage,
         ring: list[TaskStage],
         schedule_mode: str = "eager",
+        stage_mode: str = "thread",
         log_level: str = "INFO",
     ) -> None:
         """
@@ -207,16 +216,17 @@ class TaskWheel(TaskGraph):
         :param center: 中心节点
         :param ring: 环节点
         :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
+        :param stage_mode: 统一设置中心及环中所有节点的 stage_mode，默认 'thread'
         :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
-        center.set_stage_mode("thread")
-        center.set_name("Center")
+        center.set_stage_mode(stage_mode)
+        # center.set_name("Center")
 
-        for i, node in enumerate(ring):
-            node.set_stage_mode("thread")
-            node.set_name(f"Ring-{i + 1}")
+        for node in ring:
+            node.set_stage_mode(stage_mode)
+            # node.set_name(f"Ring-{i + 1}")
 
         self.set_stages([center] + ring)
         self.connect([center], ring)
@@ -245,6 +255,7 @@ class TaskComplete(TaskGraph):
         self,
         stages: list[TaskStage],
         schedule_mode: str = "eager",
+        stage_mode: str = "thread",
         log_level: str = "INFO",
     ) -> None:
         """
@@ -252,13 +263,14 @@ class TaskComplete(TaskGraph):
 
         :param stages: 所有 TaskStage 节点
         :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
+        :param stage_mode: 统一设置所有节点的 stage_mode，默认 'thread'
         :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
-        for i, stage in enumerate(stages):
-            stage.set_stage_mode("thread")
-            stage.set_name(f"Node {i + 1}")
+        for stage in stages:
+            stage.set_stage_mode(stage_mode)
+            # stage.set_name(f"Node {i + 1}")
 
         self.set_stages(stages)
         for i, stage in enumerate(stages):

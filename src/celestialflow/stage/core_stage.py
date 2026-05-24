@@ -30,7 +30,7 @@ class TaskStage(TaskExecutor):
         :param func: 可调用对象
         :param stage_mode: 当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'thread'（线程）, 默认 'serial'
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'，默认 'serial'
-        :param max_workers: 同时处理数量，默认 20
+        :param max_workers: 同时处理数量，默认根据 CPU 核心数动态调整
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param unpack_task_args: 是否将任务参数解包，默认 False

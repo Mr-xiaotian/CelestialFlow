@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import os
 import time
 from collections import defaultdict
 from collections.abc import Iterable
@@ -28,8 +29,8 @@ from ..runtime.util_factories import (
 )
 from ..runtime.util_types import (
     CTreeEvent,
-    TerminationSignal,
     PersistedErrorRecord,
+    TerminationSignal,
 )
 from ..utils.util_format import format_repr
 
@@ -43,7 +44,7 @@ class TaskExecutor:
         name: str,
         func: Callable[..., Any],
         execution_mode: str = "serial",
-        max_workers: int = 20,
+        max_workers: int = None,
         max_retries: int = 1,
         max_info: int = 50,
         unpack_task_args: bool = False,
@@ -56,7 +57,7 @@ class TaskExecutor:
         :param name: 节点/管理器名称
         :param func: 可调用对象
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'，默认 'serial'
-        :param max_workers: 同时处理数量，默认 20
+        :param max_workers: 同时处理数量，默认根据 CPU 核心数动态调整
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param unpack_task_args: 是否将任务参数解包，默认 False
@@ -68,7 +69,7 @@ class TaskExecutor:
         self._set_func(func)
 
         self.set_execution_mode(execution_mode)
-        self.max_workers = max_workers
+        self.max_workers = max_workers or min(32, (os.cpu_count() or 1) + 4)
         self.max_retries = max_retries
         self.max_info = max_info
         self.unpack_task_args = unpack_task_args
@@ -700,7 +701,7 @@ class TaskExecutor:
     def release_queue(self) -> None:
         """释放任务队列、结果队列和失败队列的引用"""
         self.task_queue = None  # type: ignore[assignment]
-        self.result_queue = None  # type: ignore[assignment]        
+        self.result_queue = None  # type: ignore[assignment]
         self.fail_queue = None  # type: ignore[assignment]
 
     def _release_client(self) -> None:
