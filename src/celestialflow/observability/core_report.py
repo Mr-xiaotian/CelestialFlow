@@ -112,8 +112,8 @@ class TaskReporter:
             if not res.ok:
                 raise ReporterError(f"Failed to pull interval: {res.status_code}")
 
-            interval: Any = res.json().get("interval", 5)  # pyright: ignore[reportExplicitAny, reportAny]
-            self.interval = int(max(1.0, min(float(interval), 60.0)))  # pyright: ignore[reportAny]
+            interval: Any = res.json().get("interval", 5)
+            self.interval = int(max(1.0, min(float(interval), 60.0)))
         except Exception as e:
             self.log_inlet.pull_interval_failed(e)
 
@@ -126,17 +126,17 @@ class TaskReporter:
             if not res.ok:
                 raise ReporterError(f"Failed to pull task injection: {res.status_code}")
 
-            injection_tasks: list[dict[str, Any]] = res.json()  # pyright: ignore[reportExplicitAny, reportAny]
+            injection_tasks: list[dict[str, Any]] = res.json()
             for injection in injection_tasks:
                 target_stage: str | None = injection.get("node")
-                task_datas: list[Any] | None = injection.get("task_datas")  # pyright: ignore[reportExplicitAny]
+                task_datas: list[Any] | None = injection.get("task_datas")
                 if target_stage is None or task_datas is None:
                     continue
 
                 # 这里你可以按需注入到不同的节点
                 task_datas = [
                     task if task != "TERMINATION_SIGNAL" else TERMINATION_SIGNAL
-                    for task in task_datas  # pyright: ignore[reportAny]
+                    for task in task_datas
                 ]
                 try:
                     self.task_graph.put_stage_queue(  # type: ignore[reportUnknownMemberType]
@@ -184,7 +184,7 @@ class TaskReporter:
         except Exception as e:
             self.log_inlet.push_errors_failed(e)
 
-    def _push_errors_meta(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
+    def _push_errors_meta(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:
         """
         推送错误元信息
 
@@ -192,7 +192,7 @@ class TaskReporter:
         :param jsonl_path: 错误日志 JSONL 文件路径
         :return: 服务端响应字典
         """
-        payload: dict[str, Any] = {  # pyright: ignore[reportExplicitAny]
+        payload: dict[str, Any] = {
             "rev": current_rev,
             "jsonl_path": jsonl_path,
         }
@@ -201,9 +201,9 @@ class TaskReporter:
             json=payload,
             timeout=self._push_timeout(),
         )
-        return response.json()  # pyright: ignore[reportAny]
+        return response.json()
 
-    def _push_errors_content(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
+    def _push_errors_content(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:
         """
         推送错误内容（增量：只传 offset 之后的新增条目）
 
@@ -211,12 +211,12 @@ class TaskReporter:
         :param jsonl_path: 错误日志 JSONL 文件路径
         :return: 服务端响应字典
         """
-        all_errors: list[dict[str, Any]] = load_jsonl_logs(  # pyright: ignore[reportExplicitAny]
+        all_errors: list[dict[str, Any]] = load_jsonl_logs(
             path=jsonl_path,
             keys=["ts", "error_id", "error_repr", "error", "stage", "task_repr"],
         )
 
-        payload: dict[str, Any] = {  # pyright: ignore[reportExplicitAny]
+        payload: dict[str, Any] = {
             "rev": current_rev,
             "jsonl_path": jsonl_path,
             "errors": all_errors,
@@ -226,12 +226,12 @@ class TaskReporter:
             json=payload,
             timeout=self._push_timeout(),
         )
-        return response.json()  # pyright: ignore[reportAny]
+        return response.json()
 
     def _push_status(self) -> None:
         """推送状态信息"""
         try:
-            payload: dict[str, Any] = self.task_graph.get_status_snapshot()  # type: ignore[reportUnknownMemberType]  # pyright: ignore[reportExplicitAny]
+            payload: dict[str, Any] = self.task_graph.get_status_snapshot()  # type: ignore[reportUnknownMemberType]
             _ = self._session.post(
                 f"{self.base_url}/api/push_status",
                 json=payload,
@@ -243,8 +243,8 @@ class TaskReporter:
     def _push_structure(self) -> None:
         """推送结构信息"""
         try:
-            structure: list[dict[str, Any]] = self.task_graph.get_structure_json()  # type: ignore[reportUnknownMemberType]  # pyright: ignore[reportExplicitAny]
-            payload: dict[str, Any] = {"items": structure}  # pyright: ignore[reportExplicitAny]
+            structure: list[dict[str, Any]] = self.task_graph.get_structure_json()  # type: ignore[reportUnknownMemberType]
+            payload: dict[str, Any] = {"items": structure}
             _ = self._session.post(
                 f"{self.base_url}/api/push_structure",
                 json=payload,
@@ -256,8 +256,8 @@ class TaskReporter:
     def _push_analysis(self) -> None:
         """推送分析信息"""
         try:
-            analysis: dict[str, Any] = self.task_graph.get_graph_analysis()  # type: ignore[reportUnknownMemberType]  # pyright: ignore[reportExplicitAny]
-            payload: dict[str, Any] = {"analysis": analysis}  # pyright: ignore[reportExplicitAny]
+            analysis: dict[str, Any] = self.task_graph.get_graph_analysis()  # type: ignore[reportUnknownMemberType]
+            payload: dict[str, Any] = {"analysis": analysis}
             _ = self._session.post(
                 f"{self.base_url}/api/push_analysis",
                 json=payload,
@@ -269,8 +269,8 @@ class TaskReporter:
     def _push_summary(self) -> None:
         """推送摘要信息"""
         try:
-            summary: dict[str, Any] = self.task_graph.get_graph_summary()  # type: ignore[reportUnknownMemberType]  # pyright: ignore[reportExplicitAny]
-            payload: dict[str, Any] = {"summary": summary}  # pyright: ignore[reportExplicitAny]
+            summary: dict[str, Any] = self.task_graph.get_graph_summary()  # type: ignore[reportUnknownMemberType]
+            payload: dict[str, Any] = {"summary": summary}
             _ = self._session.post(
                 f"{self.base_url}/api/push_summary",
                 json=payload,

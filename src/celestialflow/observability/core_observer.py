@@ -57,7 +57,7 @@ class BaseObserver:
 class CallbackObserver(BaseObserver):
     """通过回调函数创建的轻量观察者，无需定义子类。"""
 
-    def __init__(self, **callbacks: Callable[..., Any]) -> None:  # pyright: ignore[reportExplicitAny]
+    def __init__(self, **callbacks: Callable[..., Any]) -> None:
         """
         通过回调函数创建观察者
 

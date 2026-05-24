@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "celestialflow"                   
+name = "celestialflow"
 version = "3.2.1"
 description = "A flexible GRAPH-based task orchestration framework."
 readme = "README.md"
@@ -76,15 +76,14 @@ dev = [
 
 [tool.pyright]
 include = ["src"]
-strict = [
-    "src/celestialflow/runtime",
-    "src/celestialflow/stage",
-    "src/celestialflow/graph",
-    "src/celestialflow/persistence",
-    "src/celestialflow/funnel",
-    "src/celestialflow/observability",
-    "src/celestialflow/utils",
-    "src/celestialflow/web/util_cal.py",
-    "src/celestialflow/web/util_config.py",
-    "src/celestialflow/web/util_error.py",
-]
+
+typeCheckingMode = "strict"
+
+[tool.pyright.reportExplicitAny]
+severity = "none"
+
+[tool.pyright.reportAny]
+severity = "none"
+
+[tool.pyright.reportUnannotatedClassAttribute]
+severity = "none"

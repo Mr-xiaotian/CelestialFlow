@@ -53,7 +53,7 @@ class FailSpout(BaseSpout):
         self.total_error_num = 0
         self._flush_counter = 0
 
-    def _handle_record(self, record: dict[str, Any]) -> None:  # pyright: ignore[reportExplicitAny, reportImplicitOverride]
+    def _handle_record(self, record: dict[str, Any]) -> None:  # pyright: ignore[reportImplicitOverride]
         """
         处理单条错误记录，批量写入 jsonl 文件并更新计数器。
         每 _flush_every 条记录才 flush 一次。
@@ -81,7 +81,7 @@ class FailSpout(BaseSpout):
             self._file.close()
             self._file = None
 
-    def get_error_pairs(self) -> list[tuple[Any, PersistedErrorRecord]]:  # pyright: ignore[reportExplicitAny]
+    def get_error_pairs(self) -> list[tuple[Any, PersistedErrorRecord]]:
         """
         从 jsonl 文件中读取所有错误记录
 
@@ -95,7 +95,7 @@ class FailInlet(BaseInlet):
     线程安全失败记录包装类，所有失败记录通过队列发送到监听线程写入
     """
 
-    def __init__(self, fail_queue: Queue[Any]) -> None:  # pyright: ignore[reportExplicitAny]
+    def __init__(self, fail_queue: Queue[Any]) -> None:
         """
         初始化失败记录收集器
 
@@ -103,7 +103,7 @@ class FailInlet(BaseInlet):
         """
         super().__init__(fail_queue)
 
-    def start_graph(self, structure_json: list[Any]) -> None:  # pyright: ignore[reportExplicitAny]
+    def start_graph(self, structure_json: list[Any]) -> None:
         """
         在运行开始时写入任务结构元信息到 jsonl 文件
 
@@ -132,7 +132,7 @@ class FailInlet(BaseInlet):
         stage_name: str,
         err_id: int,
         error: Exception,
-        task: Any,  # pyright: ignore[reportExplicitAny, reportAny]
+        task: Any,
     ) -> None:
         """
         写入错误日志到 jsonl 文件中
@@ -156,6 +156,6 @@ class FailInlet(BaseInlet):
             "error": error_repr,
             "error_repr": format_repr(error_repr, 100),
             "task_repr": format_repr(task, 100),
-            "task": str(task),  # pyright: ignore[reportAny]
+            "task": str(task),
         }
         self._funnel(fail_item)

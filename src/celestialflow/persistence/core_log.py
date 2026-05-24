@@ -40,16 +40,16 @@ class LogSpout(BaseSpout):
         # 初始化计数器
         self._flush_counter = 0
 
-    def _handle_record(self, record: dict[str, Any]) -> None:  # pyright: ignore[reportExplicitAny, reportImplicitOverride]
+    def _handle_record(self, record: dict[str, Any]) -> None:  # pyright: ignore[reportImplicitOverride]
         """
         处理单条日志记录，批量写入日志文件。
         每 _flush_every 条记录才 flush 一次。
 
         :param record: 包含 timestamp, level, message 的日志记录字典
         """
-        timestamp: Any = record["timestamp"]  # pyright: ignore[reportExplicitAny, reportAny]
-        level: Any = record["level"]  # pyright: ignore[reportExplicitAny, reportAny]
-        message: Any = record["message"]  # pyright: ignore[reportExplicitAny, reportAny]
+        timestamp: Any = record["timestamp"]
+        level: Any = record["level"]
+        message: Any = record["message"]
 
         line = f"{timestamp} {level} {message}\n"
 
@@ -75,7 +75,7 @@ class LogInlet(BaseInlet):
     线程安全日志包装类，所有日志通过队列发送到监听线程写入
     """
 
-    def __init__(self, log_queue: Queue[Any], log_level: str = "INFO") -> None:  # pyright: ignore[reportExplicitAny]
+    def __init__(self, log_queue: Queue[Any], log_level: str = "INFO") -> None:
         """
         初始化日志收集器
 
@@ -368,14 +368,14 @@ class LogInlet(BaseInlet):
             f"[Reporter] Pull 'task injection' failed: {type(exception).__name__}({exception}).",
         )
 
-    def inject_tasks_success(self, target_node: str, task_datas: Any) -> None:  # pyright: ignore[reportExplicitAny, reportAny]
+    def inject_tasks_success(self, target_node: str, task_datas: Any) -> None:
         """记录任务注入成功"""
         self._log("INFO", f"[Reporter] Inject tasks {task_datas} into '{target_node}'.")
 
     def inject_tasks_failed(
         self,
         target_node: str,
-        task_datas: Any,  # pyright: ignore[reportExplicitAny, reportAny]
+        task_datas: Any,
         exception: Exception,
     ) -> None:
         """记录任务注入失败"""

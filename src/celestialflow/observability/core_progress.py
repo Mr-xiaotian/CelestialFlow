@@ -11,7 +11,7 @@ from .core_observer import BaseObserver
 class TaskProgress(BaseObserver):
     """基于 tqdm 的进度条观察者"""
 
-    _bar: Any  # pyright: ignore[reportExplicitAny, reportUninitializedInstanceVariable]
+    _bar: Any  # pyright: ignore[reportUninitializedInstanceVariable]
 
     def on_start(self, name: str, total: int) -> None:  # pyright: ignore[reportImplicitOverride]
         """
@@ -28,7 +28,7 @@ class TaskProgress(BaseObserver):
 
         :param count: 成功任务数量，默认 1
         """
-        _ = self._bar.update(count)  # pyright: ignore[reportAny]
+        _ = self._bar.update(count)
 
     def on_task_fail(self, count: int = 1) -> None:  # pyright: ignore[reportImplicitOverride]
         """
@@ -36,7 +36,7 @@ class TaskProgress(BaseObserver):
 
         :param count: 失败任务数量，默认 1
         """
-        _ = self._bar.update(count)  # pyright: ignore[reportAny]
+        _ = self._bar.update(count)
 
     def on_task_duplicate(self, count: int = 1) -> None:  # pyright: ignore[reportImplicitOverride]
         """
@@ -44,7 +44,7 @@ class TaskProgress(BaseObserver):
 
         :param count: 重复任务数量，默认 1
         """
-        _ = self._bar.update(count)  # pyright: ignore[reportAny]
+        _ = self._bar.update(count)
 
     def on_tasks_added(self, count: int) -> None:  # pyright: ignore[reportImplicitOverride]
         """
@@ -53,9 +53,9 @@ class TaskProgress(BaseObserver):
         :param count: 新增任务数量
         """
         if count:
-            self._bar.total += count  # pyright: ignore[reportAny]
-            self._bar.refresh()  # pyright: ignore[reportAny]
+            self._bar.total += count
+            self._bar.refresh()
 
     def on_finish(self) -> None:  # pyright: ignore[reportImplicitOverride]
         """关闭进度条"""
-        self._bar.close()  # pyright: ignore[reportAny]
+        self._bar.close()

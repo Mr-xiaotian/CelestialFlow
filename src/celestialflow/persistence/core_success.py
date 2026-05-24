@@ -14,13 +14,13 @@ class SuccessSpout(BaseSpout):
     def __init__(self) -> None:
         """初始化成功结果监听器"""
         super().__init__()
-        self.success_pairs: list[tuple[Any, Any]] = []  # pyright: ignore[reportExplicitAny]
+        self.success_pairs: list[tuple[Any, Any]] = []
 
     def _before_start(self) -> None:  # pyright: ignore[reportImplicitOverride]
         """重置成功结果缓存"""
         self.success_pairs = []
 
-    def _handle_record(self, record: Any) -> None:  # pyright: ignore[reportExplicitAny, reportAny, reportImplicitOverride]
+    def _handle_record(self, record: Any) -> None:  # pyright: ignore[reportImplicitOverride]
         """
         处理单条成功结果记录
 
@@ -29,11 +29,11 @@ class SuccessSpout(BaseSpout):
         if not isinstance(record, TaskEnvelope):
             return
 
-        result: Any = record.task  # pyright: ignore[reportExplicitAny, reportAny]
-        task: Any = record.prev  # pyright: ignore[reportExplicitAny, reportAny]
+        result: Any = record.task
+        task: Any = record.prev
         self.success_pairs.append((task, result))
 
-    def get_success_pairs(self) -> list[tuple[Any, Any]]:  # pyright: ignore[reportExplicitAny]
+    def get_success_pairs(self) -> list[tuple[Any, Any]]:
         """
         获取成功任务与结果的 pair 列表
 
