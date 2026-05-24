@@ -5,6 +5,7 @@ from celestialflow import TaskExecutor, TaskProgress, benchmark_executor
 
 
 def fibonacci(n):
+    """同步版斐波那契 — 迭代 O(n)，与 fibonacci_async 算法一致（公平对比）"""
     if not isinstance(n, int):
         raise TypeError("n must be an integer")
     elif n <= 0:
@@ -14,7 +15,10 @@ def fibonacci(n):
     elif n == 2:
         return 1
     else:
-        return fibonacci(n - 1) + fibonacci(n - 2)
+        prev, curr = 1, 1
+        for _ in range(3, n + 1):
+            prev, curr = curr, prev + curr
+        return curr
 
 
 async def fibonacci_async(n):

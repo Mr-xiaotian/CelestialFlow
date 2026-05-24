@@ -99,6 +99,9 @@ python bench/bench_graph_mode.py
 |----------------------------|--------|--------|-------|
 | **serial** | 7.74s | 2.76s | 2.74s |
 | **thread** | 7.19s | 2.28s | 2.14s |
+| **process** | 9.88s | 4.99s | - |
+
+注: `process` 模式已废除, 仅保留bench数据
 
 - `thread` 与 `serial` stage_mode 在 CPU 密集型（斐波那契）场景下差异不大（GIL 限制）
 - `execution_mode=thread` 和 `async` 均有 2-3x 加速（斐波那契计算释放 GIL 的部分 + sleep 阶段的 I/O 并发）
@@ -110,6 +113,9 @@ python bench/bench_graph_mode.py
 |----------------------------|--------|--------|-------|
 | **serial** | 54.25s | 17.12s | 14.14s |
 | **thread** | 17.10s | 7.07s | 6.05s |
+| **process** | 20.47s | 10.98s | - |
+
+注: `process` 模式已废除, 仅保留bench数据
 
 - 最优组合：`thread` + `async`（6.05s），比最差组合 `serial`+`serial`（54.25s）快 **9.0x**
 - `async` 在 I/O 密集场景下优于 `thread`（协程切换开销小于线程切换）
