@@ -28,15 +28,13 @@ let nodeHistories: Record<string, NodeHistory> = {}; // 各节点的处理进度
 let progressChart = null; // Chart.js 折线图实例
 /** 用户在图例中手动隐藏的节点集合（持久化到 localStorage，刷新不丢失） */
 let hiddenNodes = new Set<string>(
-  JSON.parse(localStorage.getItem("hiddenNodes") || "[]")
+  JSON.parse(localStorage.getItem("hiddenNodes") || "[]"),
 );
 /** 当前历史图正在展示的指标类型，默认显示完成累计。 */
 let currentHistoryMetric: HistoryMetricKey = "tasks_processed";
 
 /** 历史图指标切换按钮集合。 */
-const historyMetricButtons = document.querySelectorAll<HTMLButtonElement>(
-  ".history-metric-btn"
-);
+const metricDots = document.querySelectorAll<HTMLLabelElement>(".metric-dot");
 
 /**
  * 根据索引获取预定义的主题色，用于区分不同节点的折线
@@ -67,7 +65,7 @@ function getColor(index: number): string {
  */
 function extractProgressData(
   histories: Record<string, NodeHistory>,
-  metric: HistoryMetricKey
+  metric: HistoryMetricKey,
 ): Record<string, Array<{ x: number; y: number }>> {
   const result: Record<string, Array<{ x: number; y: number }>> = {};
   for (const [node, data] of Object.entries(histories)) {
@@ -105,10 +103,10 @@ function getHistoryMetricLabelKey(metric: HistoryMetricKey) {
  * @returns {void}
  */
 function updateHistoryMetricButtons() {
-  historyMetricButtons.forEach((button) => {
-    button.classList.toggle(
+  metricDots.forEach((dot) => {
+    dot.classList.toggle(
       "active",
-      button.dataset.historyMetric === currentHistoryMetric
+      dot.dataset.historyMetric === currentHistoryMetric,
     );
   });
 }
@@ -121,7 +119,7 @@ function updateChartAxisLabels() {
   if (!progressChart) return;
   progressChart.options.scales.x.title.text = t("chart.time");
   progressChart.options.scales.y.title.text = t(
-    getHistoryMetricLabelKey(currentHistoryMetric)
+    getHistoryMetricLabelKey(currentHistoryMetric),
   );
 }
 
@@ -133,9 +131,9 @@ function updateChartAxisLabels() {
  */
 function initHistoryMetricSwitcher() {
   updateHistoryMetricButtons();
-  historyMetricButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const metric = button.dataset.historyMetric as HistoryMetricKey | undefined;
+  metricDots.forEach((dot) => {
+    dot.addEventListener("click", () => {
+      const metric = dot.dataset.historyMetric as HistoryMetricKey | undefined;
       if (!metric || metric === currentHistoryMetric) return;
       currentHistoryMetric = metric;
       updateHistoryMetricButtons();
@@ -187,7 +185,7 @@ function trimNodeHistories() {
 function appendStatusSnapshotToHistory(
   timestamp: number,
   statuses: Record<string, NodeStatus>,
-  previousStatuses: Record<string, NodeStatus> = {}
+  previousStatuses: Record<string, NodeStatus> = {},
 ) {
   if (!Number.isFinite(timestamp) || timestamp <= 0) {
     return false;
@@ -202,10 +200,10 @@ function appendStatusSnapshotToHistory(
     const previousStatus = previousStatuses[node];
     const lastPoint = previousHistory[previousHistory.length - 1];
     const restarted = Boolean(
-      previousStatus && previousStatus.start_time !== status.start_time
+      previousStatus && previousStatus.start_time !== status.start_time,
     );
     const rolledBack = Boolean(
-      lastPoint && status.tasks_processed < lastPoint.tasks_processed
+      lastPoint && status.tasks_processed < lastPoint.tasks_processed,
     );
     const history = restarted || rolledBack ? [] : [...previousHistory];
     const nextPoint: NodeHistoryPoint = {
@@ -262,9 +260,15 @@ function getChartThemeColors() {
   const isDark = document.body.classList.contains("dark-theme");
   const style = getComputedStyle(document.documentElement);
   return {
-    text:   style.getPropertyValue(isDark ? "--carbon-200" : "--carbon-900").trim(),
-    grid:   style.getPropertyValue(isDark ? "--carbon-600" : "--carbon-200").trim(),
-    border: style.getPropertyValue(isDark ? "--carbon-500" : "--carbon-300").trim(),
+    text: style
+      .getPropertyValue(isDark ? "--carbon-200" : "--carbon-900")
+      .trim(),
+    grid: style
+      .getPropertyValue(isDark ? "--carbon-600" : "--carbon-200")
+      .trim(),
+    border: style
+      .getPropertyValue(isDark ? "--carbon-500" : "--carbon-300")
+      .trim(),
   };
 }
 
@@ -274,14 +278,20 @@ function getChartThemeColors() {
  * @returns {void}
  */
 function initChart() {
-  const ctx = (document.getElementById("node-progress-chart") as HTMLCanvasElement).getContext("2d");
+  const ctx = (
+    document.getElementById("node-progress-chart") as HTMLCanvasElement
+  ).getContext("2d");
 
   // 销毁旧实例（关键）
   if (progressChart) {
     progressChart.destroy();
   }
 
-  const { text: textColor, grid: gridColor, border: borderColor } = getChartThemeColors();
+  const {
+    text: textColor,
+    grid: gridColor,
+    border: borderColor,
+  } = getChartThemeColors();
 
   progressChart = new Chart(ctx, {
     type: "line",
@@ -310,7 +320,7 @@ function initChart() {
             // 保存到 localStorage
             localStorage.setItem(
               "hiddenNodes",
-              JSON.stringify([...hiddenNodes])
+              JSON.stringify([...hiddenNodes]),
             );
 
             const meta = legend.chart.getDatasetMeta(index);
@@ -352,7 +362,11 @@ function initChart() {
 function updateChartTheme() {
   if (!progressChart) return;
 
-  const { text: textColor, grid: gridColor, border: borderColor } = getChartThemeColors();
+  const {
+    text: textColor,
+    grid: gridColor,
+    border: borderColor,
+  } = getChartThemeColors();
 
   updateChartAxisLabels();
   progressChart.options.plugins.legend.labels.color = textColor;
@@ -393,10 +407,9 @@ function updateChartData() {
     return;
   }
   progressChart.data.labels = nodeDataMap[firstNode]?.map((p) =>
-    new Date(p.x * 1000).toLocaleTimeString()
+    new Date(p.x * 1000).toLocaleTimeString(),
   );
   progressChart.data.datasets = datasets;
 
   progressChart.update();
 }
-

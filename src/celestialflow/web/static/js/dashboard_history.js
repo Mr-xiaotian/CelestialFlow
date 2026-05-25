@@ -10,7 +10,7 @@ let hiddenNodes = new Set(JSON.parse(localStorage.getItem("hiddenNodes") || "[]"
 /** 当前历史图正在展示的指标类型，默认显示完成累计。 */
 let currentHistoryMetric = "tasks_processed";
 /** 历史图指标切换按钮集合。 */
-const historyMetricButtons = document.querySelectorAll(".history-metric-btn");
+const metricDots = document.querySelectorAll(".metric-dot");
 /**
  * 根据索引获取预定义的主题色，用于区分不同节点的折线
  * @param {number} index - 数据集索引
@@ -72,8 +72,8 @@ function getHistoryMetricLabelKey(metric) {
  * @returns {void}
  */
 function updateHistoryMetricButtons() {
-    historyMetricButtons.forEach((button) => {
-        button.classList.toggle("active", button.dataset.historyMetric === currentHistoryMetric);
+    metricDots.forEach((dot) => {
+        dot.classList.toggle("active", dot.dataset.historyMetric === currentHistoryMetric);
     });
 }
 /**
@@ -94,9 +94,9 @@ function updateChartAxisLabels() {
  */
 function initHistoryMetricSwitcher() {
     updateHistoryMetricButtons();
-    historyMetricButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-            const metric = button.dataset.historyMetric;
+    metricDots.forEach((dot) => {
+        dot.addEventListener("click", () => {
+            const metric = dot.dataset.historyMetric;
             if (!metric || metric === currentHistoryMetric)
                 return;
             currentHistoryMetric = metric;
@@ -204,9 +204,15 @@ function getChartThemeColors() {
     const isDark = document.body.classList.contains("dark-theme");
     const style = getComputedStyle(document.documentElement);
     return {
-        text: style.getPropertyValue(isDark ? "--carbon-200" : "--carbon-900").trim(),
-        grid: style.getPropertyValue(isDark ? "--carbon-600" : "--carbon-200").trim(),
-        border: style.getPropertyValue(isDark ? "--carbon-500" : "--carbon-300").trim(),
+        text: style
+            .getPropertyValue(isDark ? "--carbon-200" : "--carbon-900")
+            .trim(),
+        grid: style
+            .getPropertyValue(isDark ? "--carbon-600" : "--carbon-200")
+            .trim(),
+        border: style
+            .getPropertyValue(isDark ? "--carbon-500" : "--carbon-300")
+            .trim(),
     };
 }
 /**
@@ -220,7 +226,7 @@ function initChart() {
     if (progressChart) {
         progressChart.destroy();
     }
-    const { text: textColor, grid: gridColor, border: borderColor } = getChartThemeColors();
+    const { text: textColor, grid: gridColor, border: borderColor, } = getChartThemeColors();
     progressChart = new Chart(ctx, {
         type: "line",
         data: {
@@ -284,7 +290,7 @@ function initChart() {
 function updateChartTheme() {
     if (!progressChart)
         return;
-    const { text: textColor, grid: gridColor, border: borderColor } = getChartThemeColors();
+    const { text: textColor, grid: gridColor, border: borderColor, } = getChartThemeColors();
     updateChartAxisLabels();
     progressChart.options.plugins.legend.labels.color = textColor;
     progressChart.options.scales.x.ticks.color = textColor;

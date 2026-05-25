@@ -231,9 +231,10 @@ function renderDashboard() {
     const addFailed = data.tasks_failed - (last.tasks_failed || 0);
     const addDuplicated = data.tasks_duplicated - (last.tasks_duplicated || 0);
 
-    const executionModeDesc = data.max_workers
-      ? `${data.execution_mode}-${data.max_workers}`
-      : data.execution_mode;
+    const executionModeDesc =
+      data.execution_mode === "serial"
+        ? `${data.execution_mode}-${data.max_workers}`
+        : data.execution_mode;
 
     // 计算进度
     const total = data.tasks_processed + data.tasks_pending;

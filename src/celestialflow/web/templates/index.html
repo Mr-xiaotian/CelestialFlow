@@ -1,544 +1,813 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>任务图监控系统</title>
-    <link
-      rel="icon"
-      href="{{ request.url_for('static', path='favicon.ico') }}"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ request.url_for('static', path='css/_colors.css') }}"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ request.url_for('static', path='css/base.css') }}"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ request.url_for('static', path='css/dashboard.css') }}"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ request.url_for('static', path='css/dashboard_structure.css') }}"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ request.url_for('static', path='css/dashboard_analysis.css') }}"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ request.url_for('static', path='css/dashboard_statuses.css') }}"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ request.url_for('static', path='css/dashboard_summary.css') }}"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ request.url_for('static', path='css/dashboard_history.css') }}"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ request.url_for('static', path='css/errors.css') }}"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ request.url_for('static', path='css/injection.css') }}"
-    />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-    <script type="module">
-      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-      mermaid.initialize({ startOnLoad: false });
-      window.mermaid = mermaid; // 允许你在 JS 中手动调用
-    </script>
-  </head>
-  <body>
-    <header>
-      <div class="container header-content">
-        <h1 data-i18n="app.title">任务图监控系统</h1>
-        <div class="control-panel">
-          <button
-            id="settings-btn"
-            class="btn-settings"
-            aria-controls="settings-panel"
-            aria-expanded="false"
-            aria-haspopup="dialog"
-            data-i18n-title="settings.tooltip"
-            title="设置"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/>
-              <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.902 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291a1.873 1.873 0 0 0-1.116-2.693l-.318-.094c-.835-.246-.835-1.428 0-1.674l.319-.094a1.873 1.873 0 0 0 1.115-2.693l-.16-.291c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.116l.094-.318z"/>
-            </svg>
-            <span data-i18n="settings.title">设置</span>
-          </button>
-          <div
-            id="settings-panel"
-            class="settings-panel hidden"
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="settings-panel-title"
-          >
-            <div class="settings-header">
-              <span id="settings-panel-title" class="settings-title" data-i18n="settings.title">设置</span>
-              <button
-                id="settings-close"
-                class="settings-close"
-                type="button"
-                data-i18n-aria-label="settings.close"
-                aria-label="关闭设置"
-              >&times;</button>
-            </div>
-            <div class="settings-body">
-              <div class="settings-item">
-                <label for="refresh-interval" data-i18n="settings.refreshInterval">刷新间隔</label>
-                <select id="refresh-interval">
-                  <option value="1000" data-i18n="interval.1s">1秒</option>
-                  <option value="2000" data-i18n="interval.2s">2秒</option>
-                  <option value="5000" selected data-i18n="interval.5s">5秒</option>
-                  <option value="10000" data-i18n="interval.10s">10秒</option>
-                  <option value="30000" data-i18n="interval.30s">30秒</option>
-                </select>
-              </div>
-              <div class="settings-item">
-                <label for="history-limit" data-i18n="settings.historyLimit">历史长度</label>
-                <select id="history-limit">
-                  <option value="10">10</option>
-                  <option value="20" selected>20</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-              </div>
-              <div class="settings-item">
-                <label for="language-select" data-i18n="settings.language">界面语言</label>
-                <select id="language-select">
-                  <option value="zh-CN">中文</option>
-                  <option value="en">English</option>
-                  <option value="ja">日本語</option>
-                </select>
-              </div>
-              <div class="settings-item">
-                <label for="error-page-size" data-i18n="settings.errorPageSize">错误每页条数</label>
-                <select id="error-page-size">
-                  <option value="10">10</option>
-                  <option value="20">20</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-              </div>
-              <div class="settings-item">
-                <label for="structure-edge-delta" data-i18n="settings.structureEdgeDelta">结构图显示增量</label>
-                <input id="structure-edge-delta" class="settings-toggle" type="checkbox" />
-              </div>
-              <div id="settings-status" class="settings-status hidden"></div>
-            </div>
-          </div>
-          <!-- <button id="shutdown-btn" class="btn-stop">关闭服务</button> -->
-        </div>
-        <button id="theme-toggle" data-i18n="theme.dark">🌙 夜间模式</button>
-      </div>
-    </header>
-
-    <main class="container">
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="dashboard" data-i18n="tab.dashboard">仪表盘</button>
-        <button class="tab-btn" data-tab="errors" data-i18n="tab.errors">错误日志</button>
-        <button class="tab-btn" data-tab="task-injection" data-i18n="tab.injection">任务注入</button>
-      </div>
-
-      <div id="dashboard" class="tab-content active">
-        <div class="three-column-container">
-          <!-- 左侧: 图结构 -->
-          <div class="left-panel">
-            <div class="card mermaid-card" style="display: none;">
-              <h2 class="card-title" id="mermaid-title" data-i18n="card.mermaid.title">
-                结构图
-              </h2>
-              <div
-                id="mermaid-container"
-                class="mermaid"
-                style="white-space: pre-line"
-              >
-                graph TD
-              </div>
-            </div>
-
-            <div class="card analysis-card" id="analysis-card" style="display: none;">
-              <h2 class="card-title" data-i18n="card.analysis.title">图分析信息</h2>
-              <div id="analysis-info" class="analysis-info">
-                <div class="empty-placeholder" data-i18n="analysis.noData">暂无分析信息</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 中间: 节点卡片 -->
-          <div class="middle-panel">
-            <div class="card status-card" style="display: none;">
-              <h2 class="card-title" data-i18n="card.status.title">节点运行状态</h2>
-              <div
-                id="dashboard-grid"
-              ></div>
-            </div>
-          </div>
-
-          <!-- 右侧: 总体状态 -->
-          <div class="right-panel">
-            <div class="card progress-card" style="display: none;">
-              <div class="progress-card-header">
-                <h2 class="card-title" data-i18n="card.progress.title">节点指标走向</h2>
-                <div class="history-metric-switcher" role="group" aria-label="History metric switcher">
-                  <button
-                    class="history-metric-btn active"
-                    type="button"
-                    data-history-metric="tasks_processed"
-                    data-i18n="chart.metric.processed"
-                  >
-                    完成累计
-                  </button>
-                  <button
-                    class="history-metric-btn"
-                    type="button"
-                    data-history-metric="tasks_succeeded"
-                    data-i18n="chart.metric.succeeded"
-                  >
-                    成功累计
-                  </button>
-                  <button
-                    class="history-metric-btn"
-                    type="button"
-                    data-history-metric="tasks_failed"
-                    data-i18n="chart.metric.failed"
-                  >
-                    错误累计
-                  </button>
-                  <button
-                    class="history-metric-btn"
-                    type="button"
-                    data-history-metric="tasks_duplicated"
-                    data-i18n="chart.metric.duplicated"
-                  >
-                    重复累计
-                  </button>
-                  <button
-                    class="history-metric-btn"
-                    type="button"
-                    data-history-metric="tasks_pending"
-                    data-i18n="chart.metric.pending"
-                  >
-                    等待队列
-                  </button>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>任务图监控系统</title>
+        <link
+            rel="icon"
+            href="{{ request.url_for('static', path='favicon.ico') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/_colors.css') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/base.css') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/dashboard.css') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/dashboard_structure.css') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/dashboard_analysis.css') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/dashboard_statuses.css') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/dashboard_summary.css') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/dashboard_history.css') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/errors.css') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/injection.css') }}"
+        />
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+        <script type="module">
+            import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+            mermaid.initialize({ startOnLoad: false });
+            window.mermaid = mermaid; // 允许你在 JS 中手动调用
+        </script>
+    </head>
+    <body>
+        <header>
+            <div class="container header-content">
+                <h1 data-i18n="app.title">任务图监控系统</h1>
+                <div class="control-panel">
+                    <button
+                        id="settings-btn"
+                        class="btn-settings"
+                        aria-controls="settings-panel"
+                        aria-expanded="false"
+                        aria-haspopup="dialog"
+                        data-i18n-title="settings.tooltip"
+                        title="设置"
+                    >
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                        >
+                            <path
+                                d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"
+                            />
+                            <path
+                                d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.902 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291a1.873 1.873 0 0 0-1.116-2.693l-.318-.094c-.835-.246-.835-1.428 0-1.674l.319-.094a1.873 1.873 0 0 0 1.115-2.693l-.16-.291c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.116l.094-.318z"
+                            />
+                        </svg>
+                        <span data-i18n="settings.title">设置</span>
+                    </button>
+                    <div
+                        id="settings-panel"
+                        class="settings-panel hidden"
+                        role="dialog"
+                        aria-modal="false"
+                        aria-labelledby="settings-panel-title"
+                    >
+                        <div class="settings-header">
+                            <span
+                                id="settings-panel-title"
+                                class="settings-title"
+                                data-i18n="settings.title"
+                                >设置</span
+                            >
+                            <button
+                                id="settings-close"
+                                class="settings-close"
+                                type="button"
+                                data-i18n-aria-label="settings.close"
+                                aria-label="关闭设置"
+                            >
+                                &times;
+                            </button>
+                        </div>
+                        <div class="settings-body">
+                            <div class="settings-item">
+                                <label
+                                    for="refresh-interval"
+                                    data-i18n="settings.refreshInterval"
+                                    >刷新间隔</label
+                                >
+                                <select id="refresh-interval">
+                                    <option
+                                        value="1000"
+                                        data-i18n="interval.1s"
+                                    >
+                                        1秒
+                                    </option>
+                                    <option
+                                        value="2000"
+                                        data-i18n="interval.2s"
+                                    >
+                                        2秒
+                                    </option>
+                                    <option
+                                        value="5000"
+                                        selected
+                                        data-i18n="interval.5s"
+                                    >
+                                        5秒
+                                    </option>
+                                    <option
+                                        value="10000"
+                                        data-i18n="interval.10s"
+                                    >
+                                        10秒
+                                    </option>
+                                    <option
+                                        value="30000"
+                                        data-i18n="interval.30s"
+                                    >
+                                        30秒
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="settings-item">
+                                <label
+                                    for="history-limit"
+                                    data-i18n="settings.historyLimit"
+                                    >历史长度</label
+                                >
+                                <select id="history-limit">
+                                    <option value="10">10</option>
+                                    <option value="20" selected>20</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                            <div class="settings-item">
+                                <label
+                                    for="language-select"
+                                    data-i18n="settings.language"
+                                    >界面语言</label
+                                >
+                                <select id="language-select">
+                                    <option value="zh-CN">中文</option>
+                                    <option value="en">English</option>
+                                    <option value="ja">日本語</option>
+                                </select>
+                            </div>
+                            <div class="settings-item">
+                                <label
+                                    for="error-page-size"
+                                    data-i18n="settings.errorPageSize"
+                                    >错误每页条数</label
+                                >
+                                <select id="error-page-size">
+                                    <option value="10">10</option>
+                                    <option value="20">20</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                            <div class="settings-item">
+                                <label
+                                    for="structure-edge-delta"
+                                    data-i18n="settings.structureEdgeDelta"
+                                    >结构图显示增量</label
+                                >
+                                <input
+                                    id="structure-edge-delta"
+                                    class="settings-toggle"
+                                    type="checkbox"
+                                />
+                            </div>
+                            <div
+                                id="settings-status"
+                                class="settings-status hidden"
+                            ></div>
+                        </div>
+                    </div>
+                    <!-- <button id="shutdown-btn" class="btn-stop">关闭服务</button> -->
                 </div>
-              </div>
-              <canvas id="node-progress-chart"></canvas>
-            </div>
-
-            <div class="card summary-card" style="display: none;">
-              <h2 class="card-title" data-i18n="card.summary.title">总体状态摘要</h2>
-              <div class="summary-grid">
-                <div class="summary-item success">
-                  <div id="total-succeeded" class="summary-value success">0</div>
-                  <div class="summary-label" data-i18n="summary.succeeded">总成功任务</div>
-                </div>
-                <div class="summary-item pending">
-                  <div id="total-pending" class="summary-value pending">0</div>
-                  <div class="summary-label" data-i18n="summary.pending">总等待任务</div>
-                </div>
-                <div class="summary-item error">
-                  <div id="total-failed" class="summary-value error">0</div>
-                  <div class="summary-label" data-i18n="summary.failed">总错误任务</div>
-                </div>
-                <div class="summary-item duplicate">
-                  <div id="total-duplicated" class="summary-value duplicate">0</div>
-                  <div class="summary-label" data-i18n="summary.duplicated">总重复任务</div>
-                </div>
-                <div class="summary-item nodes">
-                  <div id="total-nodes" class="summary-value nodes">0</div>
-                  <div class="summary-label" data-i18n="summary.nodes">活动节点</div>
-                </div>
-                <div class="summary-item remain">
-                  <div id="total-remain" class="summary-value remain">00:00</div>
-                  <div class="summary-label" data-i18n="summary.remain">总剩余时间</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="errors" class="tab-content">
-        <div class="card">
-          <div class="filter-container">
-            <h2 class="card-title" data-i18n="errors.title">错误日志</h2>
-            <div class="filter-controls">
-              <div>
-                <span class="filter-label" data-i18n="errors.searchLabel">关键词搜索:</span>
-                <input
-                  type="text"
-                  id="error-search"
-                  class="error-search-input"
-                  data-i18n-placeholder="errors.searchPlaceholder"
-                  placeholder="搜索错误或任务"
-                />
-              </div>
-              <div>
-                <span class="filter-label" data-i18n="errors.filterLabel">按节点筛选:</span>
-                <select id="node-filter">
-                  <option value="" data-i18n="errors.allNodes">全部节点</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div id="errors-table-container">
-            <table id="errors-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th data-i18n="errors.colId">错误id</th>
-                  <th data-i18n="errors.colMessage">错误信息</th>
-                  <th data-i18n="errors.colNode">节点</th>
-                  <th data-i18n="errors.colTask">任务</th>
-                  <th data-i18n="errors.colTime">时间</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-            <div id="pager-container" class="pager-container"></div>
-          </div>
-        </div>
-      </div>
-
-      <div id="task-injection" class="tab-content">
-        <!-- 提示区域 -->
-        <div class="tip-section">
-          <div class="tip-content">
-            <svg
-              class="tip-icon"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              ></path>
-            </svg>
-            <p class="tip-text" data-i18n="injection.tip">
-              选择目标节点并输入任务数据或上传文件，点击提交按钮进行注入。
-            </p>
-          </div>
-        </div>
-
-        <!-- 主要内容区域 -->
-        <div class="card-grid">
-          <!-- 节点选择区 -->
-          <div class="card">
-            <h3 class="card-title" data-i18n="injection.nodeSelection">节点选择</h3>
-
-            <!-- 搜索框 -->
-            <div class="search-container">
-              <svg
-                class="search-icon"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
-              <input
-                type="text"
-                id="search-input"
-                class="search-input"
-                data-i18n-placeholder="injection.searchPlaceholder"
-                placeholder="搜索节点..."
-              />
-            </div>
-
-            <!-- 操作按钮 -->
-            <div class="button-group">
-              <button
-                class="btn-small btn-select"
-                type="button"
-                data-selection-action="select-all"
-                data-i18n="injection.selectAll"
-              >
-                全选
-              </button>
-              <button
-                class="btn-small btn-clear"
-                type="button"
-                data-selection-action="clear"
-                data-i18n="injection.clear"
-              >
-                清空
-              </button>
-            </div>
-
-            <!-- 节点列表 -->
-            <div class="node-list" id="node-list"></div>
-
-            <!-- 已选择的节点 -->
-            <div
-              class="selected-nodes"
-              id="selected-section"
-              style="display: none"
-            >
-              <div class="selected-title">
-                <span data-i18n="injection.selectedNodes">已选择节点</span> (<span id="selected-count">0</span>)
-              </div>
-              <div id="selected-list" class="selected-list"></div>
-            </div>
-          </div>
-
-          <!-- 任务数据输入区 -->
-          <div class="card">
-            <h3 class="card-title" data-i18n="injection.dataInput">任务数据输入</h3>
-
-            <!-- 输入方式切换 -->
-            <div class="input-toggle">
-              <button
-                class="btn-toggle active"
-                id="json-toggle"
-                type="button"
-                data-input-method="json"
-              >
-                <svg
-                  class="toggle-icon"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                  ></path>
-                </svg>
-                <span data-i18n="injection.jsonToggle">JSON 输入</span>
-              </button>
-              <button
-                class="btn-toggle"
-                id="file-toggle"
-                type="button"
-                data-input-method="file"
-              >
-                <svg
-                  class="toggle-icon"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                  ></path>
-                </svg>
-                <span data-i18n="injection.fileToggle">文件上传</span>
-              </button>
-            </div>
-
-            <!-- JSON输入区 -->
-            <div id="json-input-section" class="json-input-section">
-              <div class="json-header">
-                <label class="json-label" data-i18n="injection.jsonLabel">任务数据 (JSON格式)</label>
-                <button
-                  id="fill-termination-btn"
-                  class="example-btn"
-                  type="button"
-                  data-i18n="injection.insertTermination"
-                >
-                  插入终止符
+                <button id="theme-toggle" data-i18n="theme.dark">
+                    🌙 夜间模式
                 </button>
-              </div>
-              <textarea
-                id="json-textarea"
-                class="json-textarea"
-                data-i18n-placeholder="injection.jsonPlaceholder"
-                placeholder="请输入JSON格式的任务数据..."
-              ></textarea>
-              <div
-                id="json-error"
-                class="error-message"
-                style="display: none"
-              ></div>
             </div>
+        </header>
 
-            <!-- 文件上传区 -->
-            <div id="file-input-section" class="hidden">
-              <label for="file-input" class="upload-area">
-                <div class="upload-text" data-i18n="injection.uploadText">点击上传文件</div>
-                <div class="upload-hint" data-i18n="injection.uploadHint">仅支持 .json 格式文件</div>
-              </label>
-              <input
-                type="file"
-                id="file-input"
-                class="file-input"
-                accept=".json"
-              />
-
-              <div id="file-info" class="file-info" style="display: none">
-                <svg
-                  class="file-icon"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+        <main class="container">
+            <div class="tabs">
+                <button
+                    class="tab-btn active"
+                    data-tab="dashboard"
+                    data-i18n="tab.dashboard"
                 >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  ></path>
-                </svg>
-                <span id="file-name" class="file-name"></span>
-              </div>
-              <div
-                id="file-error"
-                class="error-message"
-                style="visibility: hidden"
-              ></div>
+                    仪表盘
+                </button>
+                <button
+                    class="tab-btn"
+                    data-tab="errors"
+                    data-i18n="tab.errors"
+                >
+                    错误日志
+                </button>
+                <button
+                    class="tab-btn"
+                    data-tab="task-injection"
+                    data-i18n="tab.injection"
+                >
+                    任务注入
+                </button>
             </div>
-          </div>
-        </div>
 
-        <!-- 提交区域 -->
-        <div class="submit-section card">
-          <div
-            id="status-message"
-            class="status-message"
-            style="visibility: hidden"
-          ></div>
-          <button id="submit-btn" class="btn-submit" data-i18n="injection.submit">
-            提交任务注入
-          </button>
-        </div>
-      </div>
-    </main>
+            <div id="dashboard" class="tab-content active">
+                <div class="three-column-container">
+                    <!-- 左侧: 图结构 -->
+                    <div class="left-panel">
+                        <div class="card mermaid-card" style="display: none">
+                            <h2
+                                class="card-title"
+                                id="mermaid-title"
+                                data-i18n="card.mermaid.title"
+                            >
+                                结构图
+                            </h2>
+                            <div
+                                id="mermaid-container"
+                                class="mermaid"
+                                style="white-space: pre-line"
+                            >
+                                graph TD
+                            </div>
+                        </div>
 
-    <script src="{{ request.url_for('static', path='js/i18n.js') }}"></script>
-    <script src="{{ request.url_for('static', path='js/utils.js') }}"></script>
-    <script src="{{ request.url_for('static', path='js/web_config.js') }}"></script>
-    <script src="{{ request.url_for('static', path='js/dashboard_statuses.js') }}"></script>
-    <script src="{{ request.url_for('static', path='js/dashboard_structure.js') }}"></script>
-    <script src="{{ request.url_for('static', path='js/errors.js') }}"></script>
-    <script src="{{ request.url_for('static', path='js/dashboard_analysis.js') }}"></script>
-    <script src="{{ request.url_for('static', path='js/dashboard_summary.js') }}"></script>
-    <script src="{{ request.url_for('static', path='js/dashboard_history.js') }}"></script>
-    <script src="{{ request.url_for('static', path='js/injection.js') }}"></script>
-    <script src="{{ request.url_for('static', path='js/main.js') }}"></script>
-  </body>
+                        <div
+                            class="card analysis-card"
+                            id="analysis-card"
+                            style="display: none"
+                        >
+                            <h2
+                                class="card-title"
+                                data-i18n="card.analysis.title"
+                            >
+                                图分析信息
+                            </h2>
+                            <div id="analysis-info" class="analysis-info">
+                                <div
+                                    class="empty-placeholder"
+                                    data-i18n="analysis.noData"
+                                >
+                                    暂无分析信息
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 中间: 节点卡片 -->
+                    <div class="middle-panel">
+                        <div class="card status-card" style="display: none">
+                            <h2
+                                class="card-title"
+                                data-i18n="card.status.title"
+                            >
+                                节点运行状态
+                            </h2>
+                            <div id="dashboard-grid"></div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧: 总体状态 -->
+                    <div class="right-panel">
+                        <div class="card progress-card" style="display: none">
+                            <div class="progress-card-header">
+                                <h2
+                                    class="card-title"
+                                    data-i18n="card.progress.title"
+                                >
+                                    节点指标走向
+                                </h2>
+                            </div>
+                            <canvas id="node-progress-chart"></canvas>
+                            <div
+                                class="metric-indicators"
+                                role="radiogroup"
+                                aria-label="选择指标"
+                            >
+                                <label
+                                    class="metric-dot active"
+                                    data-history-metric="tasks_processed"
+                                >
+                                    <span
+                                        class="dot"
+                                        style="
+                                            background: var(--cornflower-500);
+                                        "
+                                    ></span>
+                                    <span
+                                        class="label"
+                                        data-i18n="chart.metric.processed"
+                                        >完成累计</span
+                                    >
+                                </label>
+                                <label
+                                    class="metric-dot"
+                                    data-history-metric="tasks_succeeded"
+                                >
+                                    <span
+                                        class="dot"
+                                        style="background: var(--jade-500)"
+                                    ></span>
+                                    <span
+                                        class="label"
+                                        data-i18n="chart.metric.succeeded"
+                                        >成功累计</span
+                                    >
+                                </label>
+                                <label
+                                    class="metric-dot"
+                                    data-history-metric="tasks_failed"
+                                >
+                                    <span
+                                        class="dot"
+                                        style="background: var(--crimson-500)"
+                                    ></span>
+                                    <span
+                                        class="label"
+                                        data-i18n="chart.metric.failed"
+                                        >错误累计</span
+                                    >
+                                </label>
+                                <label
+                                    class="metric-dot"
+                                    data-history-metric="tasks_duplicated"
+                                >
+                                    <span
+                                        class="dot"
+                                        style="background: var(--marigold-500)"
+                                    ></span>
+                                    <span
+                                        class="label"
+                                        data-i18n="chart.metric.duplicated"
+                                        >重复累计</span
+                                    >
+                                </label>
+                                <label
+                                    class="metric-dot"
+                                    data-history-metric="tasks_pending"
+                                >
+                                    <span
+                                        class="dot"
+                                        style="background: var(--violet-500)"
+                                    ></span>
+                                    <span
+                                        class="label"
+                                        data-i18n="chart.metric.pending"
+                                        >等待队列</span
+                                    >
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="card summary-card" style="display: none">
+                            <h2
+                                class="card-title"
+                                data-i18n="card.summary.title"
+                            >
+                                总体状态摘要
+                            </h2>
+                            <div class="summary-grid">
+                                <div class="summary-item success">
+                                    <div
+                                        id="total-succeeded"
+                                        class="summary-value success"
+                                    >
+                                        0
+                                    </div>
+                                    <div
+                                        class="summary-label"
+                                        data-i18n="summary.succeeded"
+                                    >
+                                        总成功任务
+                                    </div>
+                                </div>
+                                <div class="summary-item pending">
+                                    <div
+                                        id="total-pending"
+                                        class="summary-value pending"
+                                    >
+                                        0
+                                    </div>
+                                    <div
+                                        class="summary-label"
+                                        data-i18n="summary.pending"
+                                    >
+                                        总等待任务
+                                    </div>
+                                </div>
+                                <div class="summary-item error">
+                                    <div
+                                        id="total-failed"
+                                        class="summary-value error"
+                                    >
+                                        0
+                                    </div>
+                                    <div
+                                        class="summary-label"
+                                        data-i18n="summary.failed"
+                                    >
+                                        总错误任务
+                                    </div>
+                                </div>
+                                <div class="summary-item duplicate">
+                                    <div
+                                        id="total-duplicated"
+                                        class="summary-value duplicate"
+                                    >
+                                        0
+                                    </div>
+                                    <div
+                                        class="summary-label"
+                                        data-i18n="summary.duplicated"
+                                    >
+                                        总重复任务
+                                    </div>
+                                </div>
+                                <div class="summary-item nodes">
+                                    <div
+                                        id="total-nodes"
+                                        class="summary-value nodes"
+                                    >
+                                        0
+                                    </div>
+                                    <div
+                                        class="summary-label"
+                                        data-i18n="summary.nodes"
+                                    >
+                                        活动节点
+                                    </div>
+                                </div>
+                                <div class="summary-item remain">
+                                    <div
+                                        id="total-remain"
+                                        class="summary-value remain"
+                                    >
+                                        00:00
+                                    </div>
+                                    <div
+                                        class="summary-label"
+                                        data-i18n="summary.remain"
+                                    >
+                                        总剩余时间
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="errors" class="tab-content">
+                <div class="card">
+                    <div class="filter-container">
+                        <h2 class="card-title" data-i18n="errors.title">
+                            错误日志
+                        </h2>
+                        <div class="filter-controls">
+                            <div>
+                                <span
+                                    class="filter-label"
+                                    data-i18n="errors.searchLabel"
+                                    >关键词搜索:</span
+                                >
+                                <input
+                                    type="text"
+                                    id="error-search"
+                                    class="error-search-input"
+                                    data-i18n-placeholder="errors.searchPlaceholder"
+                                    placeholder="搜索错误或任务"
+                                />
+                            </div>
+                            <div>
+                                <span
+                                    class="filter-label"
+                                    data-i18n="errors.filterLabel"
+                                    >按节点筛选:</span
+                                >
+                                <select id="node-filter">
+                                    <option
+                                        value=""
+                                        data-i18n="errors.allNodes"
+                                    >
+                                        全部节点
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="errors-table-container">
+                        <table id="errors-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th data-i18n="errors.colId">错误id</th>
+                                    <th data-i18n="errors.colMessage">
+                                        错误信息
+                                    </th>
+                                    <th data-i18n="errors.colNode">节点</th>
+                                    <th data-i18n="errors.colTask">任务</th>
+                                    <th data-i18n="errors.colTime">时间</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <div id="pager-container" class="pager-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="task-injection" class="tab-content">
+                <!-- 提示区域 -->
+                <div class="tip-section">
+                    <div class="tip-content">
+                        <svg
+                            class="tip-icon"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            ></path>
+                        </svg>
+                        <p class="tip-text" data-i18n="injection.tip">
+                            选择目标节点并输入任务数据或上传文件，点击提交按钮进行注入。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 主要内容区域 -->
+                <div class="card-grid">
+                    <!-- 节点选择区 -->
+                    <div class="card">
+                        <h3
+                            class="card-title"
+                            data-i18n="injection.nodeSelection"
+                        >
+                            节点选择
+                        </h3>
+
+                        <!-- 搜索框 -->
+                        <div class="search-container">
+                            <svg
+                                class="search-icon"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                ></path>
+                            </svg>
+                            <input
+                                type="text"
+                                id="search-input"
+                                class="search-input"
+                                data-i18n-placeholder="injection.searchPlaceholder"
+                                placeholder="搜索节点..."
+                            />
+                        </div>
+
+                        <!-- 操作按钮 -->
+                        <div class="button-group">
+                            <button
+                                class="btn-small btn-select"
+                                type="button"
+                                data-selection-action="select-all"
+                                data-i18n="injection.selectAll"
+                            >
+                                全选
+                            </button>
+                            <button
+                                class="btn-small btn-clear"
+                                type="button"
+                                data-selection-action="clear"
+                                data-i18n="injection.clear"
+                            >
+                                清空
+                            </button>
+                        </div>
+
+                        <!-- 节点列表 -->
+                        <div class="node-list" id="node-list"></div>
+
+                        <!-- 已选择的节点 -->
+                        <div
+                            class="selected-nodes"
+                            id="selected-section"
+                            style="display: none"
+                        >
+                            <div class="selected-title">
+                                <span data-i18n="injection.selectedNodes"
+                                    >已选择节点</span
+                                >
+                                (<span id="selected-count">0</span>)
+                            </div>
+                            <div id="selected-list" class="selected-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- 任务数据输入区 -->
+                    <div class="card">
+                        <h3 class="card-title" data-i18n="injection.dataInput">
+                            任务数据输入
+                        </h3>
+
+                        <!-- 输入方式切换 -->
+                        <div class="input-toggle">
+                            <button
+                                class="btn-toggle active"
+                                id="json-toggle"
+                                type="button"
+                                data-input-method="json"
+                            >
+                                <svg
+                                    class="toggle-icon"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                                    ></path>
+                                </svg>
+                                <span data-i18n="injection.jsonToggle"
+                                    >JSON 输入</span
+                                >
+                            </button>
+                            <button
+                                class="btn-toggle"
+                                id="file-toggle"
+                                type="button"
+                                data-input-method="file"
+                            >
+                                <svg
+                                    class="toggle-icon"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                                    ></path>
+                                </svg>
+                                <span data-i18n="injection.fileToggle"
+                                    >文件上传</span
+                                >
+                            </button>
+                        </div>
+
+                        <!-- JSON输入区 -->
+                        <div id="json-input-section" class="json-input-section">
+                            <div class="json-header">
+                                <label
+                                    class="json-label"
+                                    data-i18n="injection.jsonLabel"
+                                    >任务数据 (JSON格式)</label
+                                >
+                                <button
+                                    id="fill-termination-btn"
+                                    class="example-btn"
+                                    type="button"
+                                    data-i18n="injection.insertTermination"
+                                >
+                                    插入终止符
+                                </button>
+                            </div>
+                            <textarea
+                                id="json-textarea"
+                                class="json-textarea"
+                                data-i18n-placeholder="injection.jsonPlaceholder"
+                                placeholder="请输入JSON格式的任务数据..."
+                            ></textarea>
+                            <div
+                                id="json-error"
+                                class="error-message"
+                                style="display: none"
+                            ></div>
+                        </div>
+
+                        <!-- 文件上传区 -->
+                        <div id="file-input-section" class="hidden">
+                            <label for="file-input" class="upload-area">
+                                <div
+                                    class="upload-text"
+                                    data-i18n="injection.uploadText"
+                                >
+                                    点击上传文件
+                                </div>
+                                <div
+                                    class="upload-hint"
+                                    data-i18n="injection.uploadHint"
+                                >
+                                    仅支持 .json 格式文件
+                                </div>
+                            </label>
+                            <input
+                                type="file"
+                                id="file-input"
+                                class="file-input"
+                                accept=".json"
+                            />
+
+                            <div
+                                id="file-info"
+                                class="file-info"
+                                style="display: none"
+                            >
+                                <svg
+                                    class="file-icon"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    ></path>
+                                </svg>
+                                <span id="file-name" class="file-name"></span>
+                            </div>
+                            <div
+                                id="file-error"
+                                class="error-message"
+                                style="visibility: hidden"
+                            ></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 提交区域 -->
+                <div class="submit-section card">
+                    <div
+                        id="status-message"
+                        class="status-message"
+                        style="visibility: hidden"
+                    ></div>
+                    <button
+                        id="submit-btn"
+                        class="btn-submit"
+                        data-i18n="injection.submit"
+                    >
+                        提交任务注入
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <script src="{{ request.url_for('static', path='js/i18n.js') }}"></script>
+        <script src="{{ request.url_for('static', path='js/utils.js') }}"></script>
+        <script src="{{ request.url_for('static', path='js/web_config.js') }}"></script>
+        <script src="{{ request.url_for('static', path='js/dashboard_statuses.js') }}"></script>
+        <script src="{{ request.url_for('static', path='js/dashboard_structure.js') }}"></script>
+        <script src="{{ request.url_for('static', path='js/errors.js') }}"></script>
+        <script src="{{ request.url_for('static', path='js/dashboard_analysis.js') }}"></script>
+        <script src="{{ request.url_for('static', path='js/dashboard_summary.js') }}"></script>
+        <script src="{{ request.url_for('static', path='js/dashboard_history.js') }}"></script>
+        <script src="{{ request.url_for('static', path='js/injection.js') }}"></script>
+        <script src="{{ request.url_for('static', path='js/main.js') }}"></script>
+    </body>
 </html>
