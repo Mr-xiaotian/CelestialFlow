@@ -55,7 +55,7 @@ class TestPersistenceIntegration:
             inlet.task_retry("func", "hello world", 1, ValueError("oops"), 0, 1)
             # 补足 5 条记录以触发 LogSpout 的 _flush_every 批量刷新
             inlet.end_graph(1.0)
-            inlet.start_stage("stage", "normal", "parallel", 4)
+            inlet.start_stage("stage", "normal", "parallel-4")
             # 轮询等待后台线程写入日志
             for _ in range(50):
                 if spout.log_path.exists():

@@ -44,18 +44,18 @@ class TestUtilSerialize:
             s3_runtime.stage.get_name(): [s4_runtime.stage.get_name()],
             s4_runtime.stage.get_name(): [],
         }
-        
+
         # 模拟循环图
         cyclic_s1_runtime = create_mock_stage_runtime("cs1", "cfunc1", "serial", "serial")
         cyclic_s2_runtime = create_mock_stage_runtime("cs2", "cfunc2", "serial", "serial")
         cyclic_s3_runtime = create_mock_stage_runtime("cs3", "cfunc3", "serial", "serial")
-        
+
         cyclic_stage_runtime_dict = {
             cyclic_s1_runtime.stage.get_name(): cyclic_s1_runtime,
             cyclic_s2_runtime.stage.get_name(): cyclic_s2_runtime,
             cyclic_s3_runtime.stage.get_name(): cyclic_s3_runtime,
         }
-        
+
         cyclic_out_edges = {
             cyclic_s1_runtime.stage.get_name(): [cyclic_s2_runtime.stage.get_name()],
             cyclic_s2_runtime.stage.get_name(): [cyclic_s3_runtime.stage.get_name()],
@@ -97,11 +97,11 @@ class TestUtilSerialize:
         cs1 = mock_graph_data["cyclic_s1"]
         cyclic_stage_runtime_dict = mock_graph_data["cyclic_stage_runtime_dict"]
         cyclic_out_edges = mock_graph_data["cyclic_out_edges"]
-        
+
         graphs = build_structure_graph([cs1], cyclic_out_edges, cyclic_stage_runtime_dict)
         assert len(graphs) == 1
         graph = graphs[0]
-        
+
         assert graph["name"] == "cs1"
         assert graph["next_stages"][0]["name"] == "cs2"
         assert graph["next_stages"][0]["next_stages"][0]["name"] == "cs3"
@@ -116,7 +116,7 @@ class TestUtilSerialize:
 
         graphs = build_structure_graph([s1], out_edges, stage_runtime_dict)
         formatted_list = format_structure_list_from_graph(graphs)
-        
+
         assert len(formatted_list) > 0
-        assert "s1::<lambda> (S:serial, E:serial)" in formatted_list[1]
+        assert "s1::<lambda> (S:serial, E:serial, W:20)" in formatted_list[1]
         assert any("[Ref]" in line for line in formatted_list)
