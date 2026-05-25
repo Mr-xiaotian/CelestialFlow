@@ -312,7 +312,6 @@ class TaskExecutor:
             包括执行器名称(name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)
         """
         return {
-            "class_name": self._get_class_name(),
             "name": self.get_name(),
             "func_name": self.get_func_name(),
             "execution_mode": self.execution_mode,

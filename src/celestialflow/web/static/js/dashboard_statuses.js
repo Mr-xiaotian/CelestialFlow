@@ -162,14 +162,16 @@ function renderDashboard() {
     for (const [node, data] of Object.entries(nodeStatuses)) {
         if (node === draggingNodeName)
             continue; // 正在拖动时，不渲染它
+        // 计算增量变化
         const last = lastNodeStatuses[node] || {};
         const addSucceeded = data.tasks_succeeded - (last.tasks_succeeded || 0);
         const addPending = data.tasks_pending - (last.tasks_pending || 0);
         const addFailed = data.tasks_failed - (last.tasks_failed || 0);
         const addDuplicated = data.tasks_duplicated - (last.tasks_duplicated || 0);
+        // 计算执行模式描述
         const executionModeDesc = data.execution_mode === "serial"
-            ? `${data.execution_mode}-${data.max_workers}`
-            : data.execution_mode;
+            ? data.execution_mode
+            : `${data.execution_mode}-${data.max_workers}`;
         // 计算进度
         const total = data.tasks_processed + data.tasks_pending;
         const progress = total === 0 ? 0 : Math.floor((data.tasks_processed / total) * 100);
