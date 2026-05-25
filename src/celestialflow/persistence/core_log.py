@@ -129,18 +129,20 @@ class LogInlet(BaseInlet):
 
     # ==== stage ====
     def start_stage(
-        self, stage_name: str, stage_mode: str, execution_mode: str, max_workers: int
+        self,
+        stage_name: str,
+        stage_mode: str,
+        execution_mode_desc: str,
     ) -> None:
         """记录节点启动"""
-        worker_repr = f"({max_workers} workers)" if execution_mode != "serial" else ""
-        text = f"'{stage_name}' start in {stage_mode}; execute tasks by {execution_mode}{worker_repr}."
+        text = f"'{stage_name}' start in {stage_mode}; execute tasks by {execution_mode_desc}."
         self._log("INFO", text)
 
     def end_stage(
         self,
         stage_name: str,
         stage_mode: str,
-        execution_mode: str,
+        execution_mode_desc: str,
         use_time: float,
         success_num: int,
         failed_num: int,
@@ -149,7 +151,7 @@ class LogInlet(BaseInlet):
         """记录节点结束及统计"""
         self._log(
             "INFO",
-            f"'{stage_name}' end in {stage_mode}; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
+            f"'{stage_name}' end in {stage_mode}; execute tasks by {execution_mode_desc}. Use {use_time:.2f} second. "
             + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
@@ -165,7 +167,7 @@ class LogInlet(BaseInlet):
         self,
         name: str,
         func_name: str,
-        execution_mode: str,
+        execution_mode_desc: str,
         use_time: float,
         success_num: int,
         failed_num: int,
@@ -174,7 +176,7 @@ class LogInlet(BaseInlet):
         """记录执行器结束及统计"""
         self._log(
             "INFO",
-            f"'{name}[{func_name}]' end; execute tasks by {execution_mode}. Use {use_time:.2f} second. "
+            f"'{name}[{func_name}]' end; execute tasks by {execution_mode_desc}. Use {use_time:.2f} second. "
             + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 

@@ -12,7 +12,7 @@ def make_hashable(obj: Any) -> Any:
     :param obj: 任意对象
     :return: 可哈希的等价形式
     """
-    if isinstance(obj, (tuple, list)):
+    if isinstance(obj, tuple | list):
         return tuple(make_hashable(e) for e in cast(list[Any], obj))
     elif isinstance(obj, dict):
         # dict 转换成 (key, value) 对的元组，且按 key 排序以确保哈希结果一致

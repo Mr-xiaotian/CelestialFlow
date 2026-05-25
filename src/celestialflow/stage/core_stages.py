@@ -504,7 +504,7 @@ class TaskRedisAck(TaskStage):
                 if status == "success":
                     result: Any = result_obj.get("result")
                     if not hasattr(result, "__iter__") or isinstance(
-                        result, (str, bytes)
+                        result, str | bytes
                     ):
                         return result
                     elif isinstance(result, list):

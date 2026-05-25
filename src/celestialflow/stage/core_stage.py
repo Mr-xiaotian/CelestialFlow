@@ -206,7 +206,7 @@ class TaskStage(TaskExecutor):
         self.set_queue(input_queue, output_queue)
 
         self.log_inlet.start_stage(
-            self.get_name(), self.stage_mode, self.execution_mode, self.max_workers
+            self.get_name(), self.stage_mode, self._get_execution_mode_desc()
         )
         self.mark_running()
 
@@ -229,7 +229,7 @@ class TaskStage(TaskExecutor):
             self.log_inlet.end_stage(
                 self.get_name(),
                 self.stage_mode,
-                self.execution_mode,
+                self._get_execution_mode_desc(),
                 time.perf_counter() - start_time,
                 self.metrics.get_success_count(),
                 self.metrics.get_error_count(),

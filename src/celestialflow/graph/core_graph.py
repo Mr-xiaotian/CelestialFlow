@@ -376,7 +376,7 @@ class TaskGraph:
 
         if not put_termination_signal:
             return
-        
+
         for source_stage in self.source_stages:
             source_stage_name = source_stage.get_name()
             source_in_queue: TaskInQueue = self.stage_runtime_dict[
@@ -420,7 +420,8 @@ class TaskGraph:
                     "and manually inject termination signals via the web interface at an "
                     "appropriate time."
                 ),
-                RuntimeWarning, stacklevel=2,
+                RuntimeWarning,
+                stacklevel=2,
             )
         start_time = time.perf_counter()
 
@@ -543,7 +544,9 @@ class TaskGraph:
                     payload=current_stage.get_summary(),
                 )
 
-                self.fail_inlet.task_error(stage_name, error_id, UnconsumedError(), task)
+                self.fail_inlet.task_error(
+                    stage_name, error_id, UnconsumedError(), task
+                )
 
                 self.log_inlet.task_error(
                     current_stage.get_func_name(),

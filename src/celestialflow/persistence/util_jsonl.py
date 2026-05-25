@@ -47,7 +47,7 @@ def _parse_error_record(item: dict[str, Any]) -> PersistedErrorRecord:
         stage=str(item.get("stage") or ""),
         error_id=error_id if isinstance(error_id, int) else None,
         timestamp=str(item.get("timestamp") or ""),
-        ts=ts if isinstance(ts, (int, float)) else None,
+        ts=ts if isinstance(ts, int | float) else None,
     )
 
 
@@ -61,10 +61,10 @@ def parse_jsonl_value(val: Any) -> Any:
     if isinstance(val, str):
         try:
             parsed: Any = ast.literal_eval(val)
-            return tuple(parsed) if isinstance(parsed, (list, tuple)) else parsed  # type: ignore[return-value]  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
+            return tuple(parsed) if isinstance(parsed, list | tuple) else parsed  # type: ignore[return-value]  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
         except (ValueError, SyntaxError):
             return val
-    if isinstance(val, (list, tuple)):
+    if isinstance(val, list | tuple):
         return tuple(val)  # type: ignore[return-value]  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
     return val
 

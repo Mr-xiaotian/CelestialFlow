@@ -95,8 +95,9 @@ def format_structure_list_from_graph(
         F = node.get("func_name", "?")  # F
         S = node.get("stage_mode", "?")  # S
         E = node.get("execution_mode", "?")  # E
+        W = node.get("max_workers", "?")  # W
 
-        return f"{N}::{F} (S:{S}, E:{E}){visited_note}"
+        return f"{N}::{F} (S:{S}, E:{E}, W:{W}){visited_note}"
 
     # 只渲染"子节点"（有父节点）——保证一定画连接符
     def build_child_lines(

@@ -654,7 +654,7 @@ class TaskExecutor:
             self.log_inlet.end_executor(
                 self.get_name(),
                 self.get_func_name(),
-                self.execution_mode,
+                self._get_execution_mode_desc(),
                 time.perf_counter() - start_time,
                 self.metrics.get_success_count(),
                 self.metrics.get_error_count(),
@@ -694,7 +694,7 @@ class TaskExecutor:
             self.log_inlet.end_executor(
                 self.get_name(),
                 self.get_func_name(),
-                self.execution_mode,
+                self._get_execution_mode_desc(),
                 time.perf_counter() - start_time,
                 self.metrics.get_success_count(),
                 self.metrics.get_error_count(),
