@@ -38,12 +38,28 @@ function getColor(index) {
  * @returns {Record<string, Array<{ x: number; y: number }>>} 图表使用的坐标点映射
  */
 function extractProgressData(histories, metric) {
+    const isDelta = metric.startsWith("delta_");
+    const sourceMetric = isDelta
+        ? metric.replace("delta_", "")
+        : null;
     const result = {};
     for (const [node, data] of Object.entries(histories)) {
-        result[node] = data.map((point) => ({
-            x: point.timestamp,
-            y: Number(point[metric] || 0),
-        }));
+        if (isDelta && sourceMetric) {
+            result[node] = data.map((point, i) => {
+                if (i === 0)
+                    return { x: point.timestamp, y: 0 };
+                const prev = data[i - 1];
+                const dt = point.timestamp - prev.timestamp || 1;
+                const dy = Number(point[sourceMetric] || 0) - Number(prev[sourceMetric] || 0);
+                return { x: point.timestamp, y: dy / dt };
+            });
+        }
+        else {
+            result[node] = data.map((point) => ({
+                x: point.timestamp,
+                y: Number(point[metric] || 0),
+            }));
+        }
     }
     return result;
 }
@@ -62,6 +78,14 @@ function getHistoryMetricLabelKey(metric) {
             return "chart.metric.duplicated";
         case "tasks_pending":
             return "chart.metric.pending";
+        case "delta_tasks_processed":
+            return "chart.metric.deltaProcessed";
+        case "delta_tasks_succeeded":
+            return "chart.metric.deltaSucceeded";
+        case "delta_tasks_failed":
+            return "chart.metric.deltaFailed";
+        case "delta_tasks_duplicated":
+            return "chart.metric.deltaDuplicated";
         case "tasks_processed":
         default:
             return "chart.metric.processed";

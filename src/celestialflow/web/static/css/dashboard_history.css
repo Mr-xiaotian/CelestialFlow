@@ -50,6 +50,27 @@
     flex-shrink: 0;
 }
 
+/* 趋势指标用空心圆（边框色=累计色的同色，无背景） */
+.metric-dot .dot.delta {
+    background: transparent;
+    border: 2px solid;
+    width: 0.55rem;
+    height: 0.55rem;
+}
+
+/* 累计和趋势之间的分隔线 */
+.metric-sep {
+    display: inline-block;
+    width: 1px;
+    height: 1.2rem;
+    background: var(--carbon-300);
+    align-self: center;
+}
+
+.dark-theme .metric-sep {
+    background: var(--carbon-600);
+}
+
 .metric-dot .label {
     font-size: 0.75rem;
     color: var(--carbon-700);

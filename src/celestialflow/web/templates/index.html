@@ -370,6 +370,10 @@
                                         >重复累计</span
                                     >
                                 </label>
+                                <span
+                                    class="metric-sep"
+                                    aria-hidden="true"
+                                ></span>
                                 <label
                                     class="metric-dot"
                                     data-history-metric="tasks_pending"
@@ -382,6 +386,70 @@
                                         class="label"
                                         data-i18n="chart.metric.pending"
                                         >等待队列</span
+                                    >
+                                </label>
+                                <span
+                                    class="metric-sep"
+                                    aria-hidden="true"
+                                ></span>
+                                <label
+                                    class="metric-dot"
+                                    data-history-metric="delta_tasks_processed"
+                                >
+                                    <span
+                                        class="dot delta"
+                                        style="
+                                            border-color: var(--cornflower-500);
+                                        "
+                                    ></span>
+                                    <span
+                                        class="label"
+                                        data-i18n="chart.metric.deltaProcessed"
+                                        >完成趋势</span
+                                    >
+                                </label>
+                                <label
+                                    class="metric-dot"
+                                    data-history-metric="delta_tasks_succeeded"
+                                >
+                                    <span
+                                        class="dot delta"
+                                        style="border-color: var(--jade-500)"
+                                    ></span>
+                                    <span
+                                        class="label"
+                                        data-i18n="chart.metric.deltaSucceeded"
+                                        >成功趋势</span
+                                    >
+                                </label>
+                                <label
+                                    class="metric-dot"
+                                    data-history-metric="delta_tasks_failed"
+                                >
+                                    <span
+                                        class="dot delta"
+                                        style="border-color: var(--crimson-500)"
+                                    ></span>
+                                    <span
+                                        class="label"
+                                        data-i18n="chart.metric.deltaFailed"
+                                        >错误趋势</span
+                                    >
+                                </label>
+                                <label
+                                    class="metric-dot"
+                                    data-history-metric="delta_tasks_duplicated"
+                                >
+                                    <span
+                                        class="dot delta"
+                                        style="
+                                            border-color: var(--marigold-500);
+                                        "
+                                    ></span>
+                                    <span
+                                        class="label"
+                                        data-i18n="chart.metric.deltaDuplicated"
+                                        >重复趋势</span
                                     >
                                 </label>
                             </div>

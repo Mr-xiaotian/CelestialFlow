@@ -97,6 +97,10 @@ const translations = {
         "chart.metric.failed": "错误累计",
         "chart.metric.duplicated": "重复累计",
         "chart.metric.pending": "等待队列",
+        "chart.metric.deltaProcessed": "完成趋势",
+        "chart.metric.deltaSucceeded": "成功趋势",
+        "chart.metric.deltaFailed": "错误趋势",
+        "chart.metric.deltaDuplicated": "重复趋势",
         "json.invalid": "JSON 格式不合法",
         "interval.1s": "1秒",
         "interval.2s": "2秒",
@@ -104,7 +108,7 @@ const translations = {
         "interval.10s": "10秒",
         "interval.30s": "30秒",
     },
-    "en": {
+    en: {
         "app.title": "Task Graph Monitor",
         "settings.title": "Settings",
         "settings.tooltip": "Settings",
@@ -196,6 +200,10 @@ const translations = {
         "chart.metric.failed": "Failed",
         "chart.metric.duplicated": "Duplicated",
         "chart.metric.pending": "Pending Queue",
+        "chart.metric.deltaProcessed": "Completed Rate",
+        "chart.metric.deltaSucceeded": "Success Rate",
+        "chart.metric.deltaFailed": "Failure Rate",
+        "chart.metric.deltaDuplicated": "Duplicate Rate",
         "json.invalid": "Invalid JSON format",
         "interval.1s": "1s",
         "interval.2s": "2s",
@@ -203,7 +211,7 @@ const translations = {
         "interval.10s": "10s",
         "interval.30s": "30s",
     },
-    "ja": {
+    ja: {
         "app.title": "タスクグラフモニター",
         "settings.title": "設定",
         "settings.tooltip": "設定",
@@ -295,6 +303,10 @@ const translations = {
         "chart.metric.failed": "エラー累計",
         "chart.metric.duplicated": "重複累計",
         "chart.metric.pending": "待機キュー",
+        "chart.metric.deltaProcessed": "完了トレンド",
+        "chart.metric.deltaSucceeded": "成功トレンド",
+        "chart.metric.deltaFailed": "エラートレンド",
+        "chart.metric.deltaDuplicated": "重複トレンド",
         "json.invalid": "JSON 形式が不正です",
         "interval.1s": "1秒",
         "interval.2s": "2秒",
@@ -336,13 +348,17 @@ function applyI18nDOM() {
         const key = el.getAttribute("data-i18n");
         el.textContent = t(key);
     });
-    document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+    document
+        .querySelectorAll("[data-i18n-placeholder]")
+        .forEach((el) => {
         el.placeholder = t(el.getAttribute("data-i18n-placeholder"));
     });
     document.querySelectorAll("[data-i18n-title]").forEach((el) => {
         el.title = t(el.getAttribute("data-i18n-title"));
     });
-    document.querySelectorAll("[data-i18n-aria-label]").forEach((el) => {
+    document
+        .querySelectorAll("[data-i18n-aria-label]")
+        .forEach((el) => {
         el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria-label")));
     });
     document.title = t("app.title");

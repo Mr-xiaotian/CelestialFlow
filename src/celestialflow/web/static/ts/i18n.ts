@@ -48,7 +48,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "errors.noRecords": "没有错误记录",
     "errors.prevPage": "上一页",
     "errors.nextPage": "下一页",
-    "injection.tip": "选择目标节点并输入任务数据或上传文件，点击提交按钮进行注入。",
+    "injection.tip":
+      "选择目标节点并输入任务数据或上传文件，点击提交按钮进行注入。",
     "injection.nodeSelection": "节点选择",
     "injection.searchPlaceholder": "搜索节点...",
     "injection.selectAll": "全选",
@@ -99,6 +100,10 @@ const translations: Record<Lang, Record<string, string>> = {
     "chart.metric.failed": "错误累计",
     "chart.metric.duplicated": "重复累计",
     "chart.metric.pending": "等待队列",
+    "chart.metric.deltaProcessed": "完成趋势",
+    "chart.metric.deltaSucceeded": "成功趋势",
+    "chart.metric.deltaFailed": "错误趋势",
+    "chart.metric.deltaDuplicated": "重复趋势",
     "json.invalid": "JSON 格式不合法",
     "interval.1s": "1秒",
     "interval.2s": "2秒",
@@ -106,7 +111,7 @@ const translations: Record<Lang, Record<string, string>> = {
     "interval.10s": "10秒",
     "interval.30s": "30秒",
   },
-  "en": {
+  en: {
     "app.title": "Task Graph Monitor",
     "settings.title": "Settings",
     "settings.tooltip": "Settings",
@@ -117,7 +122,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "settings.errorPageSize": "Errors Per Page",
     "settings.structureEdgeDelta": "Show Edge Delta",
     "settings.saveSuccess": "Settings saved",
-    "settings.saveFailed": "Failed to save settings. Changes apply only to this page",
+    "settings.saveFailed":
+      "Failed to save settings. Changes apply only to this page",
     "theme.dark": "🌙 Dark Mode",
     "theme.light": "🌞 Light Mode",
     "tab.dashboard": "Dashboard",
@@ -147,7 +153,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "errors.noRecords": "No error records",
     "errors.prevPage": "Previous",
     "errors.nextPage": "Next",
-    "injection.tip": "Select target nodes, input task data or upload a file, then click submit to inject.",
+    "injection.tip":
+      "Select target nodes, input task data or upload a file, then click submit to inject.",
     "injection.nodeSelection": "Node Selection",
     "injection.searchPlaceholder": "Search nodes...",
     "injection.selectAll": "Select All",
@@ -198,6 +205,10 @@ const translations: Record<Lang, Record<string, string>> = {
     "chart.metric.failed": "Failed",
     "chart.metric.duplicated": "Duplicated",
     "chart.metric.pending": "Pending Queue",
+    "chart.metric.deltaProcessed": "Completed Rate",
+    "chart.metric.deltaSucceeded": "Success Rate",
+    "chart.metric.deltaFailed": "Failure Rate",
+    "chart.metric.deltaDuplicated": "Duplicate Rate",
     "json.invalid": "Invalid JSON format",
     "interval.1s": "1s",
     "interval.2s": "2s",
@@ -205,7 +216,7 @@ const translations: Record<Lang, Record<string, string>> = {
     "interval.10s": "10s",
     "interval.30s": "30s",
   },
-  "ja": {
+  ja: {
     "app.title": "タスクグラフモニター",
     "settings.title": "設定",
     "settings.tooltip": "設定",
@@ -216,7 +227,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "settings.errorPageSize": "エラー表示件数",
     "settings.structureEdgeDelta": "構造図で増分を表示",
     "settings.saveSuccess": "設定を保存しました",
-    "settings.saveFailed": "設定の保存に失敗しました。この変更は現在のページでのみ有効です",
+    "settings.saveFailed":
+      "設定の保存に失敗しました。この変更は現在のページでのみ有効です",
     "theme.dark": "🌙 ダークモード",
     "theme.light": "🌞 ライトモード",
     "tab.dashboard": "ダッシュボード",
@@ -246,7 +258,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "errors.noRecords": "エラー記録なし",
     "errors.prevPage": "前のページ",
     "errors.nextPage": "次のページ",
-    "injection.tip": "対象ノードを選択し、タスクデータを入力またはファイルをアップロードして、送信ボタンをクリックしてください。",
+    "injection.tip":
+      "対象ノードを選択し、タスクデータを入力またはファイルをアップロードして、送信ボタンをクリックしてください。",
     "injection.nodeSelection": "ノード選択",
     "injection.searchPlaceholder": "ノードを検索...",
     "injection.selectAll": "全選択",
@@ -267,7 +280,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "injection.stopped": "停止済み",
     "injection.uploadJsonOnly": ".json ファイルをアップロードしてください",
     "injection.uploaded": "アップロード済み: {0}",
-    "injection.uploadInvalid": "アップロードファイルが無効です。JSON形式を確認してください",
+    "injection.uploadInvalid":
+      "アップロードファイルが無効です。JSON形式を確認してください",
     "injection.selectNodeRequired": "ノードを1つ以上選択してください",
     "injection.enterData": "タスクデータを入力してください",
     "injection.invalidJson": "JSON形式が不正です",
@@ -297,6 +311,10 @@ const translations: Record<Lang, Record<string, string>> = {
     "chart.metric.failed": "エラー累計",
     "chart.metric.duplicated": "重複累計",
     "chart.metric.pending": "待機キュー",
+    "chart.metric.deltaProcessed": "完了トレンド",
+    "chart.metric.deltaSucceeded": "成功トレンド",
+    "chart.metric.deltaFailed": "エラートレンド",
+    "chart.metric.deltaDuplicated": "重複トレンド",
     "json.invalid": "JSON 形式が不正です",
     "interval.1s": "1秒",
     "interval.2s": "2秒",
@@ -322,7 +340,8 @@ function setLang(lang: Lang) {
  * @returns {string} 翻译后的文本
  */
 function t(key: string, ...args: string[]): string {
-  let s = translations[currentLang]?.[key] ?? translations["zh-CN"]?.[key] ?? key;
+  let s =
+    translations[currentLang]?.[key] ?? translations["zh-CN"]?.[key] ?? key;
   for (let i = 0; i < args.length; i++) {
     s = s.replace(`{${i}}`, args[i]);
   }
@@ -341,14 +360,23 @@ function applyI18nDOM() {
     const key = el.getAttribute("data-i18n")!;
     el.textContent = t(key);
   });
-  document.querySelectorAll<HTMLElement>("[data-i18n-placeholder]").forEach((el) => {
-    (el as HTMLInputElement).placeholder = t(el.getAttribute("data-i18n-placeholder")!);
-  });
+  document
+    .querySelectorAll<HTMLElement>("[data-i18n-placeholder]")
+    .forEach((el) => {
+      (el as HTMLInputElement).placeholder = t(
+        el.getAttribute("data-i18n-placeholder")!,
+      );
+    });
   document.querySelectorAll<HTMLElement>("[data-i18n-title]").forEach((el) => {
     el.title = t(el.getAttribute("data-i18n-title")!);
   });
-  document.querySelectorAll<HTMLElement>("[data-i18n-aria-label]").forEach((el) => {
-    el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria-label")!));
-  });
+  document
+    .querySelectorAll<HTMLElement>("[data-i18n-aria-label]")
+    .forEach((el) => {
+      el.setAttribute(
+        "aria-label",
+        t(el.getAttribute("data-i18n-aria-label")!),
+      );
+    });
   document.title = t("app.title");
 }

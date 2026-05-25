@@ -9,7 +9,11 @@ type HistoryMetricKey =
   | "tasks_succeeded"
   | "tasks_failed"
   | "tasks_duplicated"
-  | "tasks_pending";
+  | "tasks_pending"
+  | "delta_tasks_processed"
+  | "delta_tasks_succeeded"
+  | "delta_tasks_failed"
+  | "delta_tasks_duplicated";
 
 /** 单个节点在某一时刻的历史采样点 */
 type NodeHistoryPoint = {
@@ -67,12 +71,28 @@ function extractProgressData(
   histories: Record<string, NodeHistory>,
   metric: HistoryMetricKey,
 ): Record<string, Array<{ x: number; y: number }>> {
+  const isDelta = metric.startsWith("delta_");
+  const sourceMetric = isDelta
+    ? (metric.replace("delta_", "") as keyof NodeHistoryPoint)
+    : null;
+
   const result: Record<string, Array<{ x: number; y: number }>> = {};
   for (const [node, data] of Object.entries(histories)) {
-    result[node] = data.map((point) => ({
-      x: point.timestamp,
-      y: Number(point[metric] || 0),
-    }));
+    if (isDelta && sourceMetric) {
+      result[node] = data.map((point, i) => {
+        if (i === 0) return { x: point.timestamp, y: 0 };
+        const prev = data[i - 1];
+        const dt = point.timestamp - prev.timestamp || 1;
+        const dy =
+          Number(point[sourceMetric] || 0) - Number(prev[sourceMetric] || 0);
+        return { x: point.timestamp, y: dy / dt };
+      });
+    } else {
+      result[node] = data.map((point) => ({
+        x: point.timestamp,
+        y: Number(point[metric] || 0),
+      }));
+    }
   }
   return result;
 }
@@ -92,6 +112,14 @@ function getHistoryMetricLabelKey(metric: HistoryMetricKey) {
       return "chart.metric.duplicated";
     case "tasks_pending":
       return "chart.metric.pending";
+    case "delta_tasks_processed":
+      return "chart.metric.deltaProcessed";
+    case "delta_tasks_succeeded":
+      return "chart.metric.deltaSucceeded";
+    case "delta_tasks_failed":
+      return "chart.metric.deltaFailed";
+    case "delta_tasks_duplicated":
+      return "chart.metric.deltaDuplicated";
     case "tasks_processed":
     default:
       return "chart.metric.processed";
