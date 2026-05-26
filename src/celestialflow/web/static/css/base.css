@@ -568,8 +568,11 @@ select {
     }
 }
 
-/* ========== 卡片布局编辑器 ========== */
+/* ================================
+  🌟 卡片布局编辑器（悬浮窗口）
+================================ */
 
+/* 遮罩层：覆盖全屏，半透明背景 */
 .overlay {
     position: fixed;
     inset: 0;
@@ -580,10 +583,12 @@ select {
     justify-content: center;
 }
 
+/* 遮罩隐藏时的关闭逻辑 */
 .overlay.hidden {
     display: none;
 }
 
+/* 编辑器主窗口：圆角卡片，限制宽高，纵向弹性布局 */
 .layout-editor {
     background: var(--frost-0);
     border-radius: 0.75rem;
@@ -598,6 +603,7 @@ select {
     background: var(--carbon-800);
 }
 
+/* 编辑器标题栏：标题左对齐，关闭按钮右对齐 */
 .layout-editor-header {
     display: flex;
     justify-content: space-between;
@@ -615,6 +621,7 @@ select {
     color: var(--carbon-100);
 }
 
+/* 三栏布局区：左中右等宽，可纵向滚动 */
 .layout-editor-columns {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -629,6 +636,7 @@ select {
     flex-direction: column;
 }
 
+/* 栏位标题：居中，下划线分隔 */
 .layout-column-header {
     font-size: 0.8rem;
     font-weight: 600;
@@ -644,6 +652,7 @@ select {
     border-color: var(--carbon-600);
 }
 
+/* 拖拽放置区：虚线边框，接收拖入的卡片 */
 .layout-column-dropzone {
     flex: 1;
     min-height: 120px;
@@ -656,6 +665,7 @@ select {
     transition: border-color 0.15s;
 }
 
+/* 拖拽悬停时高亮边框和背景 */
 .layout-column-dropzone.drag-over {
     border-color: var(--cornflower-400);
     background: var(--cornflower-50);
@@ -670,6 +680,7 @@ select {
     background: var(--carbon-700);
 }
 
+/* 可拖拽的卡片项：灰底圆角，抓手光标 */
 .layout-card {
     display: flex;
     align-items: center;
@@ -688,11 +699,35 @@ select {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
+/* 拖拽中降低不透明度 */
 .layout-card.dragging {
     opacity: 0.5;
 }
 
-/* 未使用卡片区域 */
+.dark-theme .layout-card {
+    background: var(--carbon-700);
+    border-color: var(--carbon-600);
+}
+
+/* 卡片名称文字 */
+.layout-card-name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--carbon-800);
+}
+
+.dark-theme .layout-card-name {
+    color: var(--carbon-200);
+}
+
+/* 拖拽手柄（⠿ 字符） */
+.layout-card-handle {
+    color: var(--carbon-400);
+    font-size: 0.7rem;
+    cursor: grab;
+}
+
+/* 未使用卡片池：三栏下方，横向排列被移除的卡片 */
 .layout-unused {
     padding: 0 1.25rem 0.5rem;
 }
@@ -707,33 +742,14 @@ select {
     color: var(--carbon-400);
 }
 
+/* 未使用池中的 dropzone 改为横向排列 */
 .layout-unused .layout-column-dropzone {
     min-height: 40px;
     flex-direction: row;
     flex-wrap: wrap;
 }
 
-.dark-theme .layout-card {
-    background: var(--carbon-700);
-    border-color: var(--carbon-600);
-}
-
-.layout-card-name {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--carbon-800);
-}
-
-.dark-theme .layout-card-name {
-    color: var(--carbon-200);
-}
-
-.layout-card-handle {
-    color: var(--carbon-400);
-    font-size: 0.7rem;
-    cursor: grab;
-}
-
+/* 编辑器底部按钮栏 */
 .layout-editor-footer {
     display: flex;
     justify-content: flex-end;
@@ -746,6 +762,7 @@ select {
     border-color: var(--carbon-600);
 }
 
+/* 底部按钮通用样式 */
 .btn-layout-reset,
 .btn-layout-save {
     padding: 0.3rem 0.75rem;
@@ -755,25 +772,28 @@ select {
     cursor: pointer;
 }
 
+/* 保存按钮：蓝色填充 */
 .btn-layout-save {
     width: 80%;
     color: var(--frost-0);
     background: var(--cornflower-500);
 }
 
+/* 重置按钮：右侧占位，灰色描边 */
 .btn-layout-reset {
     width: 20%;
     color: var(--carbon-700);
     background: var(--frost-0);
 }
 
-.dark-theme .btn-layout-reset,
-.dark-theme .btn-layout-save {
+.dark-theme .btn-layout-save,
+.dark-theme .btn-layout-reset {
     background: var(--carbon-700);
     color: var(--carbon-200);
     border-color: var(--carbon-600);
 }
 
+/* 设置面板中的「编辑卡片布局」入口按钮 */
 .btn-layout-editor {
     padding: 0.4rem 1.2rem;
     font-size: 0.85rem;

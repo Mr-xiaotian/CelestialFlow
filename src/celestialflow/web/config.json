@@ -1,5 +1,5 @@
 {
-    "theme": "light",
+    "theme": "dark",
     "refreshInterval": 2000,
     "historyLimit": 100,
     "language": "zh-CN",
