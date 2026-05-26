@@ -692,6 +692,27 @@ select {
     opacity: 0.5;
 }
 
+/* 未使用卡片区域 */
+.layout-unused {
+    padding: 0 1.25rem 0.5rem;
+}
+
+.layout-unused-header {
+    font-size: 0.75rem;
+    color: var(--carbon-500);
+    margin-bottom: 0.35rem;
+}
+
+.dark-theme .layout-unused-header {
+    color: var(--carbon-400);
+}
+
+.layout-unused .layout-column-dropzone {
+    min-height: 40px;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
 .dark-theme .layout-card {
     background: var(--carbon-700);
     border-color: var(--carbon-600);

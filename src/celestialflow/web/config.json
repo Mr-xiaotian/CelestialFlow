@@ -7,15 +7,15 @@
     "showStructureEdgeDelta": false,
     "dashboard": {
         "left": [
-            "mermaid"
+            "mermaid",
+            "analysis"
         ],
         "middle": [
             "status"
         ],
         "right": [
             "progress",
-            "summary",
-            "analysis"
+            "summary"
         ]
     }
 }

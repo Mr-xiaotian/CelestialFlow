@@ -9,22 +9,55 @@ const CARD_META = {
     progress: "指标走向",
     summary: "总体摘要",
 };
+const ALL_CARD_IDS = Object.keys(CARD_META);
 const DEFAULT_LAYOUT = {
     left: ["mermaid", "analysis"],
     middle: ["status"],
     right: ["progress", "summary"],
 };
 let originalLayout = {};
+/** 创建一张可拖拽卡片 */
+function renderCard(cardId) {
+    const name = CARD_META[cardId] ?? cardId;
+    const el = document.createElement("div");
+    el.className = "layout-card";
+    el.dataset.cardId = cardId;
+    el.innerHTML = `
+    <span class="layout-card-name">${name}</span>
+    <span class="layout-card-handle" aria-hidden="true">⠿</span>`;
+    return el;
+}
 /** 打开布局编辑器，读取当前配置并渲染 */
 function openLayoutEditor() {
     const overlay = document.getElementById("layout-editor-overlay");
     overlay.classList.remove("hidden");
+    const layout = webConfig.dashboard ?? DEFAULT_LAYOUT;
     originalLayout = {
-        left: [...(webConfig.dashboard?.left ?? DEFAULT_LAYOUT.left)],
-        middle: [...(webConfig.dashboard?.middle ?? DEFAULT_LAYOUT.middle)],
-        right: [...(webConfig.dashboard?.right ?? DEFAULT_LAYOUT.right)],
+        left: [...(layout.left ?? [])],
+        middle: [...(layout.middle ?? [])],
+        right: [...(layout.right ?? [])],
     };
-    renderLayoutColumns(originalLayout);
+    const usedIds = new Set([
+        ...(layout.left ?? []),
+        ...(layout.middle ?? []),
+        ...(layout.right ?? []),
+    ]);
+    // 渲染三栏
+    for (const col of ["left", "middle", "right"]) {
+        const zone = document.getElementById(`layout-dropzone-${col}`);
+        zone.innerHTML = "";
+        for (const cardId of layout[col] ?? []) {
+            zone.appendChild(renderCard(cardId));
+        }
+    }
+    // 渲染未使用池
+    const unusedZone = document.getElementById("layout-dropzone-unused");
+    unusedZone.innerHTML = "";
+    for (const cardId of ALL_CARD_IDS) {
+        if (!usedIds.has(cardId)) {
+            unusedZone.appendChild(renderCard(cardId));
+        }
+    }
     initSortable();
 }
 /** 关闭编辑器 */
@@ -40,41 +73,24 @@ function closeLayoutEditor(restore = true) {
         applyConfig();
     }
 }
-/** 根据布局数据渲染三栏的卡片列表 */
-function renderLayoutColumns(layout) {
-    for (const col of ["left", "middle", "right"]) {
-        const zone = document.getElementById(`layout-dropzone-${col}`);
-        zone.innerHTML = "";
-        for (const cardId of layout[col] || []) {
-            const name = CARD_META[cardId] ?? cardId;
-            const el = document.createElement("div");
-            el.className = "layout-card";
-            el.dataset.cardId = cardId;
-            el.innerHTML = `
-        <span class="layout-card-name">${name}</span>
-        <span class="layout-card-handle" aria-hidden="true">⠿</span>`;
-            zone.appendChild(el);
-        }
-    }
-}
-/** 初始化 SortableJS 拖拽（三栏互拖） */
+/** 初始化 SortableJS 拖拽（三栏 + 未使用池互拖） */
 function initSortable() {
-    const zones = [
-        document.getElementById("layout-dropzone-left"),
-        document.getElementById("layout-dropzone-middle"),
-        document.getElementById("layout-dropzone-right"),
+    const zoneIds = [
+        "layout-dropzone-left",
+        "layout-dropzone-middle",
+        "layout-dropzone-right",
+        "layout-dropzone-unused",
     ];
-    for (const zone of zones) {
-        Sortable.create(zone, {
+    for (const id of zoneIds) {
+        Sortable.create(document.getElementById(id), {
             group: "dashboard-layout",
             animation: 150,
             ghostClass: "dragging",
             dragClass: "dragging",
-            onEnd: () => syncLayout(),
         });
     }
 }
-/** 拖拽结束后将 dropzone 中的卡片顺序写回 webConfig */
+/** 拖拽结束后将三栏卡片顺序写回 webConfig */
 function syncLayout() {
     const cards = (col) => {
         const zone = document.getElementById(`layout-dropzone-${col}`);
@@ -98,14 +114,32 @@ async function saveLayout() {
         showSettingsSaveStatus("settings.saveFailed");
     }
 }
-/** 重置为默认布局 */
+/** 重置为默认布局（清空所有栏并重新渲染） */
 function resetLayout() {
     webConfig.dashboard = {
         left: [...DEFAULT_LAYOUT.left],
         middle: [...DEFAULT_LAYOUT.middle],
         right: [...DEFAULT_LAYOUT.right],
     };
-    renderLayoutColumns(webConfig.dashboard);
+    const usedIds = new Set([
+        ...DEFAULT_LAYOUT.left,
+        ...DEFAULT_LAYOUT.middle,
+        ...DEFAULT_LAYOUT.right,
+    ]);
+    for (const col of ["left", "middle", "right"]) {
+        const zone = document.getElementById(`layout-dropzone-${col}`);
+        zone.innerHTML = "";
+        for (const cardId of webConfig.dashboard[col]) {
+            zone.appendChild(renderCard(cardId));
+        }
+    }
+    const unusedZone = document.getElementById("layout-dropzone-unused");
+    unusedZone.innerHTML = "";
+    for (const cardId of ALL_CARD_IDS) {
+        if (!usedIds.has(cardId)) {
+            unusedZone.appendChild(renderCard(cardId));
+        }
+    }
     initSortable();
 }
 // ── 事件绑定 ──────────────────────────────────────────

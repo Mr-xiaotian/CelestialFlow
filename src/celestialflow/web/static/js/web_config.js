@@ -106,7 +106,7 @@ function applyConfig() {
     const limit = Number(webConfig.historyLimit);
     if (Number.isFinite(limit) && limit > 0) {
         const limitStr = limit.toString();
-        const hasOption = Array.from(historyLimitSelect.options).some(o => o.value === limitStr);
+        const hasOption = Array.from(historyLimitSelect.options).some((o) => o.value === limitStr);
         if (hasOption) {
             historyLimitSelect.value = limitStr;
         }
@@ -119,7 +119,7 @@ function applyConfig() {
         const epsStr = eps.toString();
         const errorPageSizeSelect = document.getElementById("error-page-size");
         if (errorPageSizeSelect) {
-            const hasOption = Array.from(errorPageSizeSelect.options).some(o => o.value === epsStr);
+            const hasOption = Array.from(errorPageSizeSelect.options).some((o) => o.value === epsStr);
             if (hasOption) {
                 errorPageSizeSelect.value = epsStr;
             }
@@ -142,12 +142,20 @@ function applyConfig() {
 function applyDashboardLayout() {
     const dashboard = webConfig.dashboard;
     const allCardKeys = Array.from(new Set([
+        "mermaid",
+        "analysis",
+        "status",
+        "progress",
+        "summary",
         ...(dashboard.left || []),
         ...(dashboard.middle || []),
         ...(dashboard.right || []),
     ]));
     const cardElements = Object.fromEntries(allCardKeys.map((key) => [key, document.querySelector(`.${key}-card`)]));
-    const panelElements = Object.fromEntries(Object.entries(PANEL_SELECTOR_MAP).map(([key, selector]) => [key, document.querySelector(selector)]));
+    const panelElements = Object.fromEntries(Object.entries(PANEL_SELECTOR_MAP).map(([key, selector]) => [
+        key,
+        document.querySelector(selector),
+    ]));
     const assigned = new Set();
     // 1) 先把所有已知卡片隐藏，避免卡片从旧布局残留在错误栏位
     for (const cardEl of Object.values(cardElements)) {
