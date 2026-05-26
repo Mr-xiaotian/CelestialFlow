@@ -1,21 +1,21 @@
 {
-    "theme": "dark",
-    "refreshInterval": 30000,
+    "theme": "light",
+    "refreshInterval": 2000,
     "historyLimit": 100,
     "language": "zh-CN",
     "errorPageSize": 20,
     "showStructureEdgeDelta": false,
     "dashboard": {
         "left": [
-            "mermaid",
-            "analysis"
+            "mermaid"
         ],
         "middle": [
             "status"
         ],
         "right": [
             "progress",
-            "summary"
+            "summary",
+            "analysis"
         ]
     }
 }

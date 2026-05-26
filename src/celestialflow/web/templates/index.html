@@ -200,6 +200,17 @@
                                     type="checkbox"
                                 />
                             </div>
+                            <hr class="settings-divider" />
+                            <div class="settings-item settings-item-center">
+                                <button
+                                    id="open-layout-editor"
+                                    class="btn-layout-editor"
+                                    type="button"
+                                    data-i18n="settings.editLayout"
+                                >
+                                    编辑卡片布局
+                                </button>
+                            </div>
                             <div
                                 id="settings-status"
                                 class="settings-status hidden"
@@ -866,6 +877,70 @@
             </div>
         </main>
 
+        <!-- 卡片布局编辑器（悬浮窗口） -->
+        <div id="layout-editor-overlay" class="overlay hidden">
+            <div
+                id="layout-editor"
+                class="layout-editor"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="layout-editor-title"
+            >
+                <div class="layout-editor-header">
+                    <span id="layout-editor-title" class="layout-editor-title"
+                        >卡片布局</span
+                    >
+                    <button
+                        id="layout-editor-close"
+                        class="settings-close"
+                        type="button"
+                        aria-label="关闭"
+                    >
+                        &times;
+                    </button>
+                </div>
+                <div class="layout-editor-columns">
+                    <div class="layout-column" data-column="left">
+                        <div class="layout-column-header">左栏</div>
+                        <div
+                            class="layout-column-dropzone"
+                            id="layout-dropzone-left"
+                        ></div>
+                    </div>
+                    <div class="layout-column" data-column="middle">
+                        <div class="layout-column-header">中栏</div>
+                        <div
+                            class="layout-column-dropzone"
+                            id="layout-dropzone-middle"
+                        ></div>
+                    </div>
+                    <div class="layout-column" data-column="right">
+                        <div class="layout-column-header">右栏</div>
+                        <div
+                            class="layout-column-dropzone"
+                            id="layout-dropzone-right"
+                        ></div>
+                    </div>
+                </div>
+                <div class="layout-editor-footer">
+                    <button
+                        id="layout-save-btn"
+                        class="btn-layout-save"
+                        type="button"
+                    >
+                        保存并关闭
+                    </button>
+                    <button
+                        id="layout-reset-btn"
+                        class="btn-layout-reset"
+                        type="button"
+                    >
+                        重置默认
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <script src="{{ request.url_for('static', path='js/i18n.js') }}"></script>
         <script src="{{ request.url_for('static', path='js/utils.js') }}"></script>
         <script src="{{ request.url_for('static', path='js/web_config.js') }}"></script>
@@ -877,5 +952,6 @@
         <script src="{{ request.url_for('static', path='js/dashboard_history.js') }}"></script>
         <script src="{{ request.url_for('static', path='js/injection.js') }}"></script>
         <script src="{{ request.url_for('static', path='js/main.js') }}"></script>
+        <script src="{{ request.url_for('static', path='js/layout_editor.js') }}"></script>
     </body>
 </html>
