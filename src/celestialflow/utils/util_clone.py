@@ -113,6 +113,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
             host=graph.ctree_host,
             http_port=graph.ctree_http_port,
             grpc_port=graph.ctree_grpc_port,
+            transport=graph.ctree_transport,
         )
     if graph.is_report:
         cloned_graph.set_reporter(

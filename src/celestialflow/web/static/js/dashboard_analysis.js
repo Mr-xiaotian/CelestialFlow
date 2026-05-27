@@ -43,7 +43,7 @@ function renderAnalysisInfo() {
     container.innerHTML = `
     <div class="analysis-row">
       <span class="analysis-label">${t("analysis.structType")}</span>
-      <span class="analysis-value">${class_name}</span>
+      <span class="analysis-value">${className}</span>
     </div>
 
     <div class="analysis-row">
@@ -55,7 +55,7 @@ function renderAnalysisInfo() {
 
     <div class="analysis-row">
       <span class="analysis-label">${t("analysis.scheduleMode")}</span>
-      <span class="analysis-value">${schedule_mode}</span>
+      <span class="analysis-value">${scheduleMode}</span>
     </div>
 
     <div class="analysis-row">

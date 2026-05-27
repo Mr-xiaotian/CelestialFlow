@@ -1,6 +1,7 @@
 # runtime/core_queue.py
 from __future__ import annotations
 
+from queue import Empty
 from typing import Any
 
 from .core_envelope import TaskEnvelope
@@ -164,7 +165,7 @@ class TaskInQueue:
                     results.append(item)
                 else:
                     self._record_termination(item)
-            except Exception:
+            except Empty:
                 break
         return results
 

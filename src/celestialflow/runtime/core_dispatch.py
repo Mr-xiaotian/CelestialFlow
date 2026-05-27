@@ -169,33 +169,36 @@ class TaskDispatch:
         使用指定的线程池来并行执行任务。
         """
         self._init_pool(execution_mode="thread")
-        task_queue = self.task_executor.task_queue
-        result_queue = self.task_executor.result_queue
+        try:
+            task_queue = self.task_executor.task_queue
+            result_queue = self.task_executor.result_queue
 
-        futures: list[Future[None]] = []  # 用于存储线程池提交的任务
+            futures: list[Future[None]] = []  # 用于存储线程池提交的任务
 
-        while True:
-            envelope = task_queue.get()
-            if isinstance(envelope, TerminationIdPool):
-                termination_signal = self._process_termination_signal(envelope)
-                break
+            while True:
+                envelope = task_queue.get()
+                if isinstance(envelope, TerminationIdPool):
+                    termination_signal = self._process_termination_signal(envelope)
+                    break
 
-            if self._check_and_mark_duplicate_task(envelope):
-                continue
+                if self._check_and_mark_duplicate_task(envelope):
+                    continue
 
-            if self._pool is None:
-                raise InitializationError("execution pool has not been initialized")
+                if self._pool is None:
+                    raise InitializationError("execution pool has not been initialized")
 
-            futures.append(self._pool.submit(self._worker, envelope))
-            if len(futures) >= self.max_workers * 2:
-                futures = [f for f in futures if not f.done()]
+                futures.append(self._pool.submit(self._worker, envelope))
+                if len(futures) >= self.max_workers * 2:
+                    futures = [f for f in futures if not f.done()]
 
-        # 等待当前批次的所有任务完成
-        for future in futures:
-            future.result()
-        result_queue.put(termination_signal)
+            # 等待当前批次的所有任务完成
+            for future in futures:
+                future.result()
+            result_queue.put(termination_signal)
 
-        self._release_pool()
+        finally:
+            # 避免pool未完全释放
+            self._release_pool()
 
     async def dispatch_async(self) -> None:
         """
@@ -232,6 +235,8 @@ class TaskDispatch:
         """
         关闭线程池，释放资源
         """
-        if self._pool is not None:
-            self._pool.shutdown(wait=True)
+        if self._pool is None:
+            return
+
+        self._pool.shutdown(wait=True)
         self._pool = None

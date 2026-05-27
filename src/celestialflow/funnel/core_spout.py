@@ -65,6 +65,7 @@ class BaseSpout:
             return
 
         self.queue.put(TERMINATION_SIGNAL)
-        self._thread.join()
+        if self._thread.is_alive():
+            self._thread.join(timeout=5)
         self._thread = None
         self._after_stop()

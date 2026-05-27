@@ -235,7 +235,7 @@ class TaskGraph:
         self.ctree_host = host
         self.ctree_http_port = http_port
         self.ctree_grpc_port = grpc_port
-        self._ctree_transport = transport
+        self.ctree_transport = transport
 
         self.ctree_client: CelestialTreeClient | NullCelestialTreeClient
         if use_ctree:

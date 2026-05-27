@@ -9,7 +9,7 @@ from typing import Any
 
 from ..persistence import FailInlet, LogInlet
 from ..runtime import TaskInQueue, TaskOutQueue
-from ..runtime.util_errors import ExecutionModeError, StageModeError
+from ..runtime.util_errors import ExecutionModeError, GraphManagedError, StageModeError
 from ..runtime.util_types import StageStatus
 from .core_executor import TaskExecutor
 
@@ -148,6 +148,11 @@ class TaskStage(TaskExecutor):
         return StageStatus(self._status)
 
     # ==== 启动 ====
+    def start(self, task_source: Any) -> None:
+        raise GraphManagedError(
+            f"Stage {self.get_name()} is managed by a TaskGraph. Use TaskGraph.start_graph() instead of calling start() directly."
+        )
+
     def start_stage(self) -> None:
         """
         根据 execution_mode 的值，选择串行、线程或异步执行任务
