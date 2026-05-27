@@ -607,11 +607,12 @@ class TaskExecutor:
         )
 
     # ==== 启动 ====
-    def start(self, task_source: Iterable[Any]) -> None:
+    def _prepare_start(self, task_source: Iterable[Any]) -> float:
         """
-        根据 execution_mode 的值，选择串行、线程或异步执行任务
+        启动前准备：初始化环境、注入任务、记录启动日志。
 
-        :param task_source: 任务迭代器或者生成器
+        :param task_source: 任务源
+        :return: 启动时间戳
         """
         start_time = time.perf_counter()
         self.init_env()
@@ -625,77 +626,61 @@ class TaskExecutor:
             self.metrics.get_task_count(),
             self._get_execution_mode_desc(),
         )
+        return start_time
 
+    def _finish_start(self, start_time: float) -> None:
+        """
+        启动后清理：释放客户端、记录结束日志、停止 spout。
+
+        :param start_time: 启动时的时间戳
+        """
+        self._notify("on_finish")
+        self.log_inlet.end_executor(
+            self.get_name(),
+            self.get_func_name(),
+            self._get_execution_mode_desc(),
+            time.perf_counter() - start_time,
+            self.metrics.get_success_count(),
+            self.metrics.get_error_count(),
+            self.metrics.get_duplicate_count(),
+        )
+        self.log_spout.stop()
+        self.fail_spout.stop()
+        self.success_spout.stop()
+
+    def start(self, task_source: Iterable[Any]) -> None:
+        """
+        根据 execution_mode 的值，选择串行、线程或异步执行任务。
+
+        :param task_source: 任务迭代器或者生成器
+        """
+        start_time = self._prepare_start(task_source)
         try:
-            # 根据模式运行对应的任务处理函数
             if self.execution_mode == "thread":
                 self.dispatch.dispatch_thread()
-            elif self.execution_mode == "async":
-                # don't suggest, please use start_async
-                asyncio.run(self.dispatch.dispatch_async())
             elif self.execution_mode == "serial":
                 self.dispatch.dispatch_serial()
+            elif self.execution_mode == "async":
+                asyncio.run(self.dispatch.dispatch_async())
             else:
                 raise ExecutionModeError(self.execution_mode)
-
         finally:
-            self._release_client()
-
-            self._notify("on_finish")
-            self.log_inlet.end_executor(
-                self.get_name(),
-                self.get_func_name(),
-                self._get_execution_mode_desc(),
-                time.perf_counter() - start_time,
-                self.metrics.get_success_count(),
-                self.metrics.get_error_count(),
-                self.metrics.get_duplicate_count(),
-            )
-            self.log_spout.stop()
-            self.fail_spout.stop()
-            self.success_spout.stop()
+            self._finish_start(start_time)
 
     async def start_async(self, task_source: Iterable[Any]) -> None:
         """
-        异步地执行任务
+        异步地执行任务。
 
         :param task_source: 任务迭代器或者生成器
         """
-        start_time = time.perf_counter()
         self.set_execution_mode("async")
-        self.init_env()
-
-        self._notify("on_start", self.get_full_name(), 0)
-        self._put_task_queue(task_source)
-        self.log_inlet.start_executor(
-            self.get_name(),
-            self.get_func_name(),
-            self.metrics.get_task_count(),
-            self._get_execution_mode_desc(),
-        )
-        self.fail_inlet.start_executor(self.get_name())
-
+        start_time = self._prepare_start(task_source)
         try:
             await self.dispatch.dispatch_async()
-
         finally:
-            self._release_client()
+            self._finish_start(start_time)
 
-            self._notify("on_finish")
-            self.log_inlet.end_executor(
-                self.get_name(),
-                self.get_func_name(),
-                self._get_execution_mode_desc(),
-                time.perf_counter() - start_time,
-                self.metrics.get_success_count(),
-                self.metrics.get_error_count(),
-                self.metrics.get_duplicate_count(),
-            )
-            self.log_spout.stop()
-            self.fail_spout.stop()
-            self.success_spout.stop()
-
-    # ==== 清理 ====
+    # ==== 结果获取 ====
     def get_success_pairs(self) -> list[tuple[Any, Any]]:
         """
         获取成功任务的列表
@@ -711,7 +696,3 @@ class TaskExecutor:
         :return: (task, error_record) 元组列表
         """
         return self.fail_spout.get_error_pairs()
-
-    def _release_client(self) -> None:
-        """释放事件树客户端引用"""
-        self.ctree_client = NullCelestialTreeClient()

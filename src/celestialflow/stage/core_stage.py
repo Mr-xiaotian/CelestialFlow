@@ -174,7 +174,6 @@ class TaskStage(TaskExecutor):
 
         finally:
             self.mark_stopped()
-            self._release_client()
 
             self._notify("on_finish")
             self.log_inlet.end_stage(
