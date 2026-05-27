@@ -9,7 +9,7 @@ from ..graph import TaskGraph
 from ..stage import TaskExecutor, TaskStage
 
 
-def _get_clone_init_kwargs(executor: TaskExecutor) -> dict[str, Any]:  # type: ignore[reportExplicitAny]
+def _get_clone_init_kwargs(executor: TaskExecutor) -> dict[str, Any]:
     """
     获取克隆执行器的初始化参数
 
@@ -36,7 +36,7 @@ def clone_executor(executor: TaskExecutor) -> TaskExecutor:
     :param executor: 要克隆的执行器
     :return: 克隆执行器
     """
-    cloned: TaskExecutor = TaskExecutor(**_get_clone_init_kwargs(executor))  # type: ignore[reportAny]
+    cloned: TaskExecutor = TaskExecutor(**_get_clone_init_kwargs(executor))
     cloned.add_retry_exceptions(*executor.metrics.retry_exceptions)
     return cloned
 
@@ -48,16 +48,16 @@ def clone_stage(stage: TaskStage) -> TaskStage:
     :param stage: 要克隆的节点
     :return: 克隆节点
     """
-    kwargs: dict[str, Any] = _get_clone_init_kwargs(stage)  # type: ignore[reportExplicitAny]
+    kwargs: dict[str, Any] = _get_clone_init_kwargs(stage)
     kwargs["stage_mode"] = stage.get_stage_mode()
 
     stage_cls = type(stage)
     init_params = set(inspect.signature(stage_cls.__init__).parameters.keys()) - {
         "self"
     }
-    filtered_kwargs = {k: v for k, v in kwargs.items() if k in init_params}  # type: ignore[reportAny]
+    filtered_kwargs = {k: v for k, v in kwargs.items() if k in init_params}
 
-    cloned: TaskStage = stage_cls(**filtered_kwargs)  # type: ignore[reportAny]
+    cloned: TaskStage = stage_cls(**filtered_kwargs)
 
     cloned.add_retry_exceptions(*stage.metrics.retry_exceptions)
     return cloned

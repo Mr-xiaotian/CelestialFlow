@@ -83,6 +83,7 @@ reportExplicitAny = "none"
 reportAny = "none"
 reportUnannotatedClassAttribute = "none"
 reportUnusedFunction = "none"
+reportImplicitOverride = "none"
 
 [tool.ruff]
 target-version = "py311"

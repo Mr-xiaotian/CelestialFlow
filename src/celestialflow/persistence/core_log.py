@@ -27,7 +27,7 @@ class LogSpout(BaseSpout):
         self._flush_every: int = 5
         self._flush_counter: int = 0
 
-    def _before_start(self) -> None:  # pyright: ignore[reportImplicitOverride]
+    def _before_start(self) -> None:
         """创建 logs 目录并打开日志文件"""
         # 创建 logs 目录
         now = strftime("%Y-%m-%d", localtime())
@@ -40,7 +40,7 @@ class LogSpout(BaseSpout):
         # 初始化计数器
         self._flush_counter = 0
 
-    def _handle_record(self, record: dict[str, Any]) -> None:  # pyright: ignore[reportImplicitOverride]
+    def _handle_record(self, record: dict[str, Any]) -> None:
         """
         处理单条日志记录，批量写入日志文件。
         每 _flush_every 条记录才 flush 一次。
@@ -62,7 +62,7 @@ class LogSpout(BaseSpout):
             self._file.flush()
             self._flush_counter = 0
 
-    def _after_stop(self) -> None:  # pyright: ignore[reportImplicitOverride]
+    def _after_stop(self) -> None:
         """关闭日志文件句柄，确保剩余缓冲落盘"""
         if self._file:
             self._file.flush()

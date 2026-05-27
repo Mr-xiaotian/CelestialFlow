@@ -35,7 +35,7 @@ class FailSpout(BaseSpout):
         self._flush_every: int = 1
         self._flush_counter: int = 0
 
-    def _before_start(self) -> None:  # pyright: ignore[reportImplicitOverride]
+    def _before_start(self) -> None:
         """创建 fallback 目录并打开 jsonl 文件"""
         # 创建 fallback 目录
         now = datetime.now()
@@ -53,7 +53,7 @@ class FailSpout(BaseSpout):
         self.total_error_num = 0
         self._flush_counter = 0
 
-    def _handle_record(self, record: dict[str, Any]) -> None:  # pyright: ignore[reportImplicitOverride]
+    def _handle_record(self, record: dict[str, Any]) -> None:
         """
         处理单条错误记录，批量写入 jsonl 文件并更新计数器。
         每 _flush_every 条记录才 flush 一次。
@@ -74,7 +74,7 @@ class FailSpout(BaseSpout):
         if record.get("error_id") is not None:
             self.total_error_num += 1
 
-    def _after_stop(self) -> None:  # pyright: ignore[reportImplicitOverride]
+    def _after_stop(self) -> None:
         """关闭 jsonl 文件句柄，确保剩余缓冲落盘"""
         if self._file:
             self._file.flush()

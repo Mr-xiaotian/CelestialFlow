@@ -16,11 +16,11 @@ class SuccessSpout(BaseSpout):
         super().__init__()
         self.success_pairs: list[tuple[Any, Any]] = []
 
-    def _before_start(self) -> None:  # pyright: ignore[reportImplicitOverride]
+    def _before_start(self) -> None:
         """重置成功结果缓存"""
         self.success_pairs = []
 
-    def _handle_record(self, record: Any) -> None:  # pyright: ignore[reportImplicitOverride]
+    def _handle_record(self, record: Any) -> None:
         """
         处理单条成功结果记录
 

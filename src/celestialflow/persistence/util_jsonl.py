@@ -61,11 +61,11 @@ def parse_jsonl_value(val: Any) -> Any:
     if isinstance(val, str):
         try:
             parsed: Any = ast.literal_eval(val)
-            return tuple(parsed) if isinstance(parsed, list | tuple) else parsed  # type: ignore[return-value]  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
+            return tuple(parsed) if isinstance(parsed, list | tuple) else parsed  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
         except (ValueError, SyntaxError):
             return val
     if isinstance(val, list | tuple):
-        return tuple(val)  # type: ignore[return-value]  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
+        return tuple(val)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
     return val
 
 

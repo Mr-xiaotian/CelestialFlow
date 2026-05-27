@@ -23,7 +23,7 @@ def normalize_errors_query(
 
 def filter_errors(
     error_store: list[dict[str, Any]], normalized_node: str, normalized_keyword: str
-) -> list[dict[str, Any]]:  # type: ignore[reportExplicitAny]
+) -> list[dict[str, Any]]:
     """
     根据错误查询参数过滤错误记录，返回符合条件的记录。
 
@@ -32,14 +32,14 @@ def filter_errors(
     :param normalized_keyword: 归一化后的搜索关键词
     :return: 符合条件的错误记录列表
     """
-    filtered: list[dict[str, Any]] = []  # type: ignore[reportExplicitAny]
+    filtered: list[dict[str, Any]] = []
     for item in error_store:
-        stage = str(item.get("stage", ""))  # type: ignore[reportAny]
+        stage = str(item.get("stage", ""))
         if normalized_node and stage != normalized_node:
             continue
         if normalized_keyword:
-            error_repr = str(item.get("error_repr", "")).lower()  # type: ignore[reportAny]
-            task_repr = str(item.get("task_repr", "")).lower()  # type: ignore[reportAny]
+            error_repr = str(item.get("error_repr", "")).lower()
+            task_repr = str(item.get("task_repr", "")).lower()
             if (
                 normalized_keyword not in error_repr
                 and normalized_keyword not in task_repr
@@ -51,7 +51,7 @@ def filter_errors(
 
 def paginate_errors(
     filtered: list[dict[str, Any]], normalized_page: int, normalized_page_size: int
-) -> tuple[int, int, list[dict[str, Any]]]:  # type: ignore[reportExplicitAny]
+) -> tuple[int, int, list[dict[str, Any]]]:
     """
     根据归一化后的页面和每页大小，对错误记录进行分页处理，返回总记录数、总页数和当前页记录。
 
@@ -63,7 +63,7 @@ def paginate_errors(
     total = len(filtered)
     total_pages = max(1, (total + normalized_page_size - 1) // normalized_page_size)
     normalized_page = min(normalized_page, total_pages)
-    sorted_items = sorted(filtered, key=lambda item: item.get("ts", 0), reverse=True)  # type: ignore[reportAny]
+    sorted_items = sorted(filtered, key=lambda item: item.get("ts", 0), reverse=True)
     start_index = (normalized_page - 1) * normalized_page_size
     end_index = start_index + normalized_page_size
     return total, total_pages, sorted_items[start_index:end_index]

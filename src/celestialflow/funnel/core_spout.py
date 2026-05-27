@@ -14,14 +14,14 @@ class BaseSpout:
 
     def __init__(self) -> None:
         """初始化监听器及其内部队列和线程引用。"""
-        self.queue: Queue[Any] = Queue()  # type: ignore[reportExplicitAny]
+        self.queue: Queue[Any] = Queue()
         self._thread: Thread | None = None
 
     def _before_start(self) -> None:
         """在后台线程启动前调用，子类可覆写以做初始化（如打开文件、清空缓存）。"""
         return None
 
-    def _handle_record(self, _record: Any) -> None:  # type: ignore[reportExplicitAny, reportAny]
+    def _handle_record(self, _record: Any) -> None:
         """
         处理单条队列记录，子类必须覆写。
 
@@ -44,7 +44,7 @@ class BaseSpout:
         """后台线程主循环，持续从队列拉取记录并调用 _handle_record，收到终止信号时退出。"""
         while True:
             try:
-                record = self.queue.get(timeout=0.5)  # type: ignore[reportAny]
+                record = self.queue.get(timeout=0.5)
                 if isinstance(record, TerminationSignal):
                     break
                 self._handle_record(record)
@@ -53,7 +53,7 @@ class BaseSpout:
             except Exception:
                 pass  # 单条记录处理失败不致死线程
 
-    def get_queue(self) -> Queue[Any]:  # type: ignore[reportExplicitAny]
+    def get_queue(self) -> Queue[Any]:
         """获取监听器的输入队列。"""
         return self.queue
 
