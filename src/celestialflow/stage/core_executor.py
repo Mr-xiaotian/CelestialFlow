@@ -334,60 +334,57 @@ class TaskExecutor:
         self.metrics.add_retry_exceptions(*exceptions)
 
     # ==== 任务输入 ====
-    def _prepare_task_envelopes(
-        self, task_source: Iterable[Any]
-    ) -> list[TaskEnvelope | TerminationSignal]:
+    def put_task(self, task: Any) -> None:
         """
-        构建所有任务信封和终止信号，返回待入队列表。
+        将单个任务封装为 TaskEnvelope 并放入队列。
 
-        :param task_source: 任务源
-        :return: 待入队的 TaskEnvelope 和 TerminationSignal 列表
+        :param task: 原始任务数据
         """
-        items: list[TaskEnvelope | TerminationSignal] = []
-        progress_num = 0
+        input_id = self.ctree_client.emit(
+            CTreeEvent.TASK_INPUT,
+            payload=self.get_summary(),
+        )
+        envelope = TaskEnvelope(task, input_id, source="input")
+        self.task_queue.put(envelope)
+        self.metrics.add_task_count()
+        self.log_inlet.task_input(
+            self.get_func_name(),
+            self.get_task_repr(task),
+            self.get_name(),
+            input_id,
+        )
 
-        for task in task_source:
-            input_id = self.ctree_client.emit(
-                CTreeEvent.TASK_INPUT,
-                payload=self.get_summary(),
-            )
-            envelope = TaskEnvelope(task, input_id, source="input")
-            items.append(envelope)
-            self.metrics.add_task_count()
-            self.log_inlet.task_input(
-                self.get_func_name(),
-                self.get_task_repr(task),
-                self.get_name(),
-                input_id,
-            )
-
-            if self.metrics.get_task_count() % 100 == 0:
-                self._notify("on_tasks_added", 100)
-                progress_num += 100
-
-        self._notify("on_tasks_added", self.metrics.get_task_count() - progress_num)
-
+    def put_signal(self) -> None:
+        """
+        放入终止信号到队列。
+        """
         termination_id = self.ctree_client.emit(
             CTreeEvent.TERMINATION_INPUT,
             payload=self.get_summary(),
         )
-        items.append(TerminationSignal(termination_id, source="input"))
+        signal = TerminationSignal(termination_id, source="input")
+        self.task_queue.put(signal)
         self.log_inlet.termination_input(
             self.get_func_name(),
             self.get_name(),
             termination_id,
         )
-        return items
 
     def _put_task_queue(self, task_source: Iterable[Any]) -> None:
         """
-        将任务放入任务队列
+        遍历任务源，逐个放入队列，末尾追加终止信号。
 
         :param task_source: 任务源（可迭代对象）
         """
-        assert self.task_queue is not None
-        for item in self._prepare_task_envelopes(task_source):
-            self.task_queue.put(item)
+        progress_num = 0
+        for task in task_source:
+            self.put_task(task)
+            if self.metrics.get_task_count() % 100 == 0:
+                self._notify("on_tasks_added", 100)
+                progress_num += 100
+
+        self._notify("on_tasks_added", self.metrics.get_task_count() - progress_num)
+        self.put_signal()
 
     def get_args(self, task: Any) -> tuple[Any, ...]:
         """
@@ -717,10 +714,6 @@ class TaskExecutor:
         :return: (task, error_record) 元组列表
         """
         return self.fail_spout.get_error_pairs()
-
-    def release_queue(self) -> None:
-        """释放任务队列、结果队列和失败队列的引用"""
-        self.fail_queue = None
 
     def _release_client(self) -> None:
         """释放事件树客户端引用"""

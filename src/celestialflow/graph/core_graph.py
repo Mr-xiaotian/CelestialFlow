@@ -20,7 +20,7 @@ from networkx import DiGraph, is_directed_acyclic_graph
 from ..observability import NullTaskReporter, TaskReporter
 from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout
 from ..persistence.util_jsonl import load_task_by_error, load_task_by_stage
-from ..runtime import TaskEnvelope, TaskInQueue, TaskOutQueue
+from ..runtime import TaskInQueue, TaskOutQueue
 from ..runtime.util_errors import (
     CelestialTreeConnectionError,
     DuplicateNodeError,
@@ -152,6 +152,9 @@ class TaskGraph:
 
         :param stages: 待添加的节点列表
         """
+        fail_queue = self.fail_spout.get_queue()
+        log_queue = self.log_spout.get_queue()
+
         for stage in stages:
             stage_name = stage.get_name()
             if stage_name in self.stage_runtime_dict:
@@ -160,6 +163,8 @@ class TaskGraph:
             self.stage_runtime_dict[stage_name] = StageRuntime(
                 stage=stage,
             )
+
+            stage.set_inlet(fail_queue, log_queue)
 
     def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
         """
@@ -281,9 +286,9 @@ class TaskGraph:
 
             # 遍历每个前驱，创建边队列
             for prev_stage_name in self.in_edges[stage_name]:
-                prev_stage = self.stage_runtime_dict[prev_stage_name].stage
                 in_queue.add_source_name(prev_stage_name)
 
+                prev_stage = self.stage_runtime_dict[prev_stage_name].stage
                 prev_out_queue: TaskOutQueue = prev_stage.result_queue
                 prev_out_queue.add_queue(in_queue.queue, stage_name)
                 prev_stages.append(prev_stage)
@@ -326,50 +331,19 @@ class TaskGraph:
             if name not in self.stage_runtime_dict:
                 continue
             stage: TaskStage = self.stage_runtime_dict[name].stage
-            in_queue: TaskInQueue = stage.task_queue
             # input_ids: set[int] = self.input_ids[name] # maybe use later
 
             for task in tasks:
                 if isinstance(task, TerminationSignal):
-                    term_signal_id: int = self.ctree_client.emit(
-                        CTreeEvent.TERMINATION_INPUT,
-                        payload=stage.get_summary(),
-                    )
-                    in_queue.put(TerminationSignal(term_signal_id, source="input"))
-                    continue
-
-                input_id: int = self.ctree_client.emit(
-                    CTreeEvent.TASK_INPUT,
-                    payload=stage.get_summary(),
-                )
-                envelope = TaskEnvelope(task, input_id, source="input")
-                in_queue.put(envelope)
-                # input_ids.add(input_id)
-
-                stage.metrics.add_task_count()
-                self.log_inlet.task_input(
-                    stage.get_func_name(),
-                    stage.get_task_repr(task),
-                    stage.get_name(),
-                    input_id,
-                )
+                    stage.put_signal()
+                else:
+                    stage.put_task(task)
 
         if not put_termination_signal:
             return
 
         for source_stage in self.source_stages:
-            source_in_queue: TaskInQueue = source_stage.task_queue
-
-            termination_id: int = self.ctree_client.emit(
-                CTreeEvent.TERMINATION_INPUT,
-                payload=source_stage.get_summary(),
-            )
-            source_in_queue.put(TerminationSignal(termination_id, source="input"))
-            self.log_inlet.termination_input(
-                source_stage.get_func_name(),
-                source_stage.get_name(),
-                termination_id,
-            )
+            source_stage.put_signal()
 
     # ==== 执行 ====
 
@@ -416,7 +390,6 @@ class TaskGraph:
             self._finalize_nodes()
 
             self.reporter.stop()
-            self._release_resources()
             self.log_inlet.end_graph(time.perf_counter() - start_time)
             self.fail_spout.stop()
             self.log_spout.stop()
@@ -460,9 +433,6 @@ class TaskGraph:
         stage_name = stage.get_name()
         stage_runtime = self.stage_runtime_dict[stage_name]
 
-        fail_queue = self.fail_spout.get_queue()
-        log_queue = self.log_spout.get_queue()
-
         stage_runtime.start_time = time.time()
 
         if self.use_ctree:
@@ -475,14 +445,14 @@ class TaskGraph:
         if stage.stage_mode == "thread":
             t = threading.Thread(
                 target=stage.start_stage,
-                args=(fail_queue, log_queue),
+                args=(),
                 name=stage_name,
                 daemon=True,
             )
             t.start()
             self.threads.append(t)
         else:
-            stage.start_stage(fail_queue, log_queue)
+            stage.start_stage()
 
     # ==== 终止与清理 ====
 
@@ -530,14 +500,6 @@ class TaskGraph:
                 )
 
         self.collect_runtime_snapshot()
-
-    def _release_resources(self) -> None:
-        """
-        释放资源
-        """
-        for stage_runtime in self.stage_runtime_dict.values():
-            stage: TaskStage = stage_runtime.stage
-            stage.release_queue()
 
     # ==== 运行时监控 ====
 

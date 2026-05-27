@@ -78,12 +78,12 @@ async def bench_executor_fibonacci():
 
 
 async def bench_executor_sleep():
-    task_list = list(range(12))
+    task_list = list(range(6))
 
     executor = TaskExecutor(
         "sleepExecutor",
         sleep_1,
-        max_workers=12,
+        max_workers=6,
         max_retries=0,
         # log_level="TRACE",
     )
@@ -91,7 +91,7 @@ async def bench_executor_sleep():
     executor_async = TaskExecutor(
         "sleepExecutorAsync",
         sleep_1_async,
-        max_workers=12,
+        max_workers=6,
         max_retries=0,
         # log_level="TRACE",
     )

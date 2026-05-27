@@ -167,23 +167,13 @@ class TaskStage(TaskExecutor):
         return StageStatus(self._status)
 
     # ==== 启动 ====
-    def start_stage(
-        self,
-        fail_queue: ThreadQueue[Any],
-        log_queue: ThreadQueue[Any],
-    ) -> None:
+    def start_stage(self) -> None:
         """
         根据 execution_mode 的值，选择串行、线程或异步执行任务
-
-        :param input_queue: 输入队列(由单个Queue组成)
-        :param output_queue: 输出队列(由多个Queue组成)
-        :param fail_queue: 失败队列
-        :param log_queue: 日志队列
         """
         start_time = time.perf_counter()
 
         self._init_state()
-        self.set_inlet(fail_queue, log_queue)
 
         self.log_inlet.start_stage(
             self.get_name(), self.stage_mode, self._get_execution_mode_desc()
