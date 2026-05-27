@@ -40,14 +40,9 @@ function renderAnalysisInfo() {
     return;
   }
 
-  const {
-    isDAG,
-    schedule_mode,
-    class_name,
-    layers_dict = {},
-  } = analysisData;
+  const { isDAG, scheduleMode, className, layersDict = {} } = analysisData;
 
-  const layerCount = Object.keys(layers_dict).length;
+  const layerCount = Object.keys(layersDict).length;
 
   container.innerHTML = `
     <div class="analysis-row">

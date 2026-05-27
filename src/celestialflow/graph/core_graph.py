@@ -295,7 +295,7 @@ class TaskGraph:
             self.source_stages, self.out_edges, self.stage_dict
         )
 
-        self.isDAG = is_directed_acyclic_graph(self.networkx_graph)
+        self.is_dag = is_directed_acyclic_graph(self.networkx_graph)
 
         stage_level_dict = compute_node_levels(self.networkx_graph)
         self.layers_dict = cluster_by_value_sorted(stage_level_dict)
@@ -344,7 +344,7 @@ class TaskGraph:
         self._build_resources()
         self._build_analysis()
 
-        if not self.isDAG and put_termination_signal:
+        if not self.is_dag and put_termination_signal:
             warnings.warn(
                 (
                     "Early injection of termination signals in a non-DAG graph may cause "
@@ -541,7 +541,7 @@ class TaskGraph:
         :param running_remaining_map: 各节点预计剩余时间
         :return: 全局预计剩余时间（秒）
         """
-        if not self.isDAG:
+        if not self.is_dag:
             return max(running_remaining_map.values(), default=0.0)
 
         expected_pending_map = calc_global_remain_equal_pred(
@@ -650,13 +650,13 @@ class TaskGraph:
         """
         获取任务图的分析信息
 
-        :return: 包含 isDAG, schedule_mode, class_name, layers_dict 的字典
+        :return: 包含 is_dag, schedule_mode, class_name, layers_dict 的字典
         """
         return {
-            "isDAG": self.isDAG,
-            "schedule_mode": self.schedule_mode,
-            "class_name": self.__class__.__name__,
-            "layers_dict": self.layers_dict,
+            "isDAG": self.is_dag,
+            "scheduleMode": self.schedule_mode,
+            "className": self.__class__.__name__,
+            "layersDict": self.layers_dict,
         }
 
     def get_structure_json(self) -> list[dict[str, Any]]:

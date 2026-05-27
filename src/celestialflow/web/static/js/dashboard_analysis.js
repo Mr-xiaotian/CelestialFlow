@@ -38,8 +38,8 @@ function renderAnalysisInfo() {
         container.innerHTML = `<div class="empty-placeholder">${t("analysis.noData")}</div>`;
         return;
     }
-    const { isDAG, schedule_mode, class_name, layers_dict = {}, } = analysisData;
-    const layerCount = Object.keys(layers_dict).length;
+    const { isDAG, scheduleMode, className, layersDict = {} } = analysisData;
+    const layerCount = Object.keys(layersDict).length;
     container.innerHTML = `
     <div class="analysis-row">
       <span class="analysis-label">${t("analysis.structType")}</span>
