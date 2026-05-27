@@ -18,7 +18,7 @@ def build_structure_graph(
 
     :param source_stages: 源节点列表
     :param out_edges: 邻接表 {stage_name: [next_stage_name, ...]}
-    :param stage_dict: {stage_name: StageRuntime}
+    :param stage_dict: {stage_name: TaskStage}
     :return: 多棵任务图的 JSON 列表
     """
     visited_stages: set[str] = set()

@@ -88,6 +88,7 @@ class TaskMetrics:
     def is_duplicate(self, task_hash: bytes) -> bool:
         """
         检查任务是否重复, 是原子操作
+        不管有多少 worker thread, is_duplicate 本身只会被 executor thread 线性操作
 
         :param task_hash: 任务的哈希值
         :return: 如果启用了去重检查且任务哈希存在于已处理集合中，返回 True；否则返回 False。

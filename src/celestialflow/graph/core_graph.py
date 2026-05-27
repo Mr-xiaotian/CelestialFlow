@@ -413,11 +413,6 @@ class TaskGraph:
 
         :param stage: 节点
         """
-        stage_name = stage.get_name()
-        stage = self.stage_dict[stage_name]
-
-        stage.start_time = time.time()
-
         if self.use_ctree:
             stage.set_ctree(self.ctree_host, self.ctree_http_port, self.ctree_grpc_port)
         else:
@@ -429,7 +424,7 @@ class TaskGraph:
             t = threading.Thread(
                 target=stage.start_stage,
                 args=(),
-                name=stage_name,
+                name=stage.get_name(),
                 daemon=True,
             )
             t.start()
