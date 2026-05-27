@@ -6,25 +6,25 @@ from typing import TYPE_CHECKING
 import networkx as nx
 
 if TYPE_CHECKING:
-    from .core_graph import StageRuntime
+    from ..stage.core_stage import TaskStage
 
 
 # ======== (图论分析) ========
 def build_networkx_graph(
     out_edges: dict[str, list[str]],
-    stage_runtime_dict: dict[str, StageRuntime],
+    stage_dict: dict[str, TaskStage],
 ) -> nx.DiGraph[str]:
     """
     从邻接表和阶段运行时信息构建 networkx 有向图
 
     :param out_edges: 邻接表 {stage_name: [next_stage_name, ...]}
-    :param stage_runtime_dict: {stage_name: StageRuntime}
+    :param stage_dict: {stage_name: TaskStage}
     :return: 构建好的 networkx.DiGraph
     """
     G: nx.DiGraph[str] = nx.DiGraph()
 
-    for stage_name, runtime in stage_runtime_dict.items():
-        G.add_node(stage_name, mode=runtime.stage.get_stage_mode())
+    for stage_name, stage in stage_dict.items():
+        G.add_node(stage_name, mode=stage.get_stage_mode())
     for src, dsts in out_edges.items():
         for dst in dsts:
             G.add_edge(src, dst)

@@ -5,21 +5,20 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..stage import TaskStage
-    from .core_graph import StageRuntime
 
 
 # ======== 处理图结构 ========
 def build_structure_graph(
     source_stages: list[TaskStage],
     out_edges: dict[str, list[str]],
-    stage_runtime_dict: dict[str, StageRuntime],
+    stage_dict: dict[str, TaskStage],
 ) -> list[dict[str, Any]]:
     """
     从多个源节点构建任务链的 JSON 图结构
 
     :param source_stages: 源节点列表
     :param out_edges: 邻接表 {stage_name: [next_stage_name, ...]}
-    :param stage_runtime_dict: {stage_name: StageRuntime}
+    :param stage_dict: {stage_name: StageRuntime}
     :return: 多棵任务图的 JSON 列表
     """
     visited_stages: set[str] = set()
@@ -27,7 +26,7 @@ def build_structure_graph(
 
     for source_stage in source_stages:
         graph: dict[str, Any] = _build_structure_subgraph(
-            source_stage, visited_stages, out_edges, stage_runtime_dict
+            source_stage, visited_stages, out_edges, stage_dict
         )
         graphs.append(graph)
 
@@ -35,24 +34,24 @@ def build_structure_graph(
 
 
 def _build_structure_subgraph(
-    task_stage: TaskStage,
+    currect_stage: TaskStage,
     visited_stages: set[str],
     out_edges: dict[str, list[str]],
-    stage_runtime_dict: dict[str, StageRuntime],
+    stage_dict: dict[str, TaskStage],
 ) -> dict[str, Any]:
     """
     构建单个子图结构（递归）
 
-    :param task_stage: 当前节点
+    :param currect_stage: 当前节点
     :param visited_stages: 已访问节点集合
     :param out_edges: 邻接表 {stage_name: [next_stage_name, ...]}
-    :param stage_runtime_dict: {stage_name: StageRuntime}
+    :param stage_dict: {stage_name: TaskStage}
     :return: 节点的 JSON 字典
     """
-    stage_name = task_stage.get_name()
+    stage_name = currect_stage.get_name()
     next_stages: list[dict[str, Any]] = []
     node: dict[str, Any] = {
-        **task_stage.get_summary(),
+        **currect_stage.get_summary(),
         "is_ref": False,
         "next_stages": next_stages,
     }
@@ -64,9 +63,9 @@ def _build_structure_subgraph(
     visited_stages.add(stage_name)
 
     for next_stage_name in out_edges.get(stage_name, []):
-        next_stage = stage_runtime_dict[next_stage_name].stage
+        next_stage = stage_dict[next_stage_name]
         child_node = _build_structure_subgraph(
-            next_stage, visited_stages, out_edges, stage_runtime_dict
+            next_stage, visited_stages, out_edges, stage_dict
         )
         next_stages.append(child_node)
 

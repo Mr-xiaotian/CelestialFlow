@@ -148,8 +148,6 @@ class TaskDispatch:
         """
         串行地执行任务
         """
-        assert self.task_executor.task_queue is not None
-        assert self.task_executor.result_queue is not None
         task_queue = self.task_executor.task_queue
         result_queue = self.task_executor.result_queue
 
@@ -171,8 +169,6 @@ class TaskDispatch:
         使用指定的线程池来并行执行任务。
         """
         self._init_pool(execution_mode="thread")
-        assert self.task_executor.task_queue is not None
-        assert self.task_executor.result_queue is not None
         task_queue = self.task_executor.task_queue
         result_queue = self.task_executor.result_queue
 
@@ -206,8 +202,6 @@ class TaskDispatch:
         异步地执行任务，限制并发数量。
         支持流式到达的任务（stage 模式），边收边跑。
         """
-        assert self.task_executor.task_queue is not None
-        assert self.task_executor.result_queue is not None
         task_queue = self.task_executor.task_queue
         result_queue = self.task_executor.result_queue
 

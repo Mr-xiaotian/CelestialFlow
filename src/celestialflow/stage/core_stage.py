@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 import time
 from collections.abc import Callable
 from queue import Queue as ThreadQueue
@@ -10,7 +9,7 @@ from typing import Any
 
 from ..persistence import FailInlet, LogInlet
 from ..runtime import TaskInQueue, TaskOutQueue
-from ..runtime.util_errors import ConfigurationError, ExecutionModeError, StageModeError
+from ..runtime.util_errors import ExecutionModeError, StageModeError
 from ..runtime.util_types import StageStatus
 from .core_executor import TaskExecutor
 
@@ -20,6 +19,7 @@ class TaskStage(TaskExecutor):
 
     # Class-level type annotations (TaskStage-specific)
     _status: int
+    start_time: float
     stage_mode: str
     execution_mode: str
     task_queue: TaskInQueue
@@ -63,25 +63,6 @@ class TaskStage(TaskExecutor):
             self._status = int(StageStatus.NOT_STARTED)
 
     # ==== 配置 ====
-    def set_execution_mode(self, execution_mode: str) -> None:
-        """
-        设置执行模式
-
-        :param execution_mode: 执行模式，可以是 'thread'（线程）, 'async'（异步）, 'serial'（串行）
-        """
-        valid_modes = ("serial", "thread", "async")
-        if execution_mode not in valid_modes:
-            raise ExecutionModeError(execution_mode)
-
-        if execution_mode == "async" and not inspect.iscoroutinefunction(self.func):
-            raise ConfigurationError(
-                f"execution_mode is 'async' but '{self.func.__name__}' is not a coroutine function"
-            )
-
-        self.execution_mode = execution_mode
-        if hasattr(self, "metrics"):
-            self.metrics.set_execution_mode(execution_mode)
-
     def set_stage_mode(self, stage_mode: str) -> None:
         """
         设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'thread'（线程）
@@ -171,7 +152,7 @@ class TaskStage(TaskExecutor):
         """
         根据 execution_mode 的值，选择串行、线程或异步执行任务
         """
-        start_time = time.perf_counter()
+        self.start_time = time.perf_counter()
 
         self._init_state()
 
@@ -200,7 +181,7 @@ class TaskStage(TaskExecutor):
                 self.get_name(),
                 self.stage_mode,
                 self._get_execution_mode_desc(),
-                time.perf_counter() - start_time,
+                time.perf_counter() - self.start_time,
                 self.metrics.get_success_count(),
                 self.metrics.get_error_count(),
                 self.metrics.get_duplicate_count(),

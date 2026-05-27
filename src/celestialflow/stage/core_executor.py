@@ -209,9 +209,7 @@ class TaskExecutor:
         else:
             raise ExecutionModeError(execution_mode)
 
-        if getattr(
-            self, "execution_mode", None
-        ) == "async" and not inspect.iscoroutinefunction(self.func):
+        if execution_mode == "async" and not inspect.iscoroutinefunction(self.func):
             raise ConfigurationError(
                 f"execution_mode is 'async' but '{self.func.__name__}' is not a coroutine function"
             )
@@ -514,7 +512,6 @@ class TaskExecutor:
             result_id,
         )
 
-        assert self.result_queue is not None
         self.result_queue.put(result_envelope)
 
     def emit_retry_envelope(
