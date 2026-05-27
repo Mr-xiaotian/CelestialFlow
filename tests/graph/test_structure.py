@@ -29,7 +29,7 @@ class TestTaskLoop:
         analysis = loop.get_graph_analysis()
         assert analysis["isDAG"] is False
 
-        layers = analysis["layers_dict"]
+        layers = analysis["layersDict"]
         stage_names = {s1.get_name(), s2.get_name(), s3.get_name()}
         for layer_names in layers.values():
             if s1.get_name() in layer_names:
@@ -66,7 +66,7 @@ class TestTaskWheel:
         analysis = wheel.get_graph_analysis()
         assert analysis["isDAG"] is False
 
-        layers = analysis["layers_dict"]
+        layers = analysis["layersDict"]
         assert center.get_name() in layers[0]
         ring_names = {r1.get_name(), r2.get_name(), r3.get_name()}
         assert ring_names.issubset(set(layers[1]))

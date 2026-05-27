@@ -268,7 +268,7 @@ class TestTaskGraphAnalysis:
 
         analysis = graph.get_graph_analysis()
         assert analysis["isDAG"] is True
-        assert analysis["schedule_mode"] == "eager"
+        assert analysis["scheduleMode"] == "eager"
 
     def test_layer_computation(self):
         """DAG 层级计算正确"""
@@ -284,7 +284,7 @@ class TestTaskGraphAnalysis:
         graph.start_graph({s1.get_name(): [1]})
 
         analysis = graph.get_graph_analysis()
-        layers = analysis["layers_dict"]
+        layers = analysis["layersDict"]
         # s1 在第 0 层, s2 在第 1 层, s3 在第 2 层
         assert s1.get_name() in layers[0]
         assert s2.get_name() in layers[1]
@@ -648,8 +648,8 @@ class TestSourceStages:
 # 含环图测试
 # =========================
 class TestCyclicGraph:
-    def test_cyclic_isDAG_false(self):
-        """含环图 isDAG 为 False"""
+    def test_cyclic_is_dag_false(self):
+        """含环图 is_dag 为 False"""
         s1 = TaskStage("s1", add_one, stage_mode="thread")
         s2 = TaskStage("s2", double, stage_mode="thread")
         s3 = TaskStage("s3", to_str, stage_mode="thread")
@@ -682,7 +682,7 @@ class TestCyclicGraph:
         graph.start_graph({s1.get_name(): [1]}, put_termination_signal=True)
 
         analysis = graph.get_graph_analysis()
-        layers = analysis["layers_dict"]
+        layers = analysis["layersDict"]
         cycle_names = {s1.get_name(), s2.get_name(), s3.get_name()}
         cycle_layer = None
         for layer_idx, layer_names in layers.items():
