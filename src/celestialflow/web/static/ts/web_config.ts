@@ -56,6 +56,8 @@ function normalizeWebConfig(rawConfig?: Partial<WebConfig> | null): WebConfig {
 }
 
 const CARD_TEMPLATES: Record<string, string> = {
+  // ⚠️ 加新卡片只需在这里加一条，ID 会自动出现在布局编辑器中
+  // 显示名称用 CARD_META 映射，ALL_CARD_IDS 从 keys 自动生成
   mermaid: `
     <div class="card mermaid-card">
       <h2 class="card-title" id="mermaid-title" data-i18n="card.mermaid.title">结构图</h2>
@@ -133,6 +135,16 @@ const CARD_TEMPLATES: Record<string, string> = {
       </div>
     </div>`,
 };
+
+const CARD_META: Record<string, string> = {
+  mermaid: "card.mermaid.title",
+  analysis: "card.analysis.title",
+  status: "card.status.title",
+  progress: "card.progress.title",
+  summary: "card.summary.title",
+};
+
+const ALL_CARD_IDS = Object.keys(CARD_TEMPLATES);
 
 function ensureAllCards() {
   const pool = document.getElementById("card-pool")!;

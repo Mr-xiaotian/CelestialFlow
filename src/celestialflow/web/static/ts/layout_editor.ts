@@ -3,16 +3,6 @@
  * 悬浮窗口中用拖拽方式管理仪表盘左中右三栏的卡片排列
  */
 
-const CARD_META: Record<string, string> = {
-  mermaid: "结构图",
-  analysis: "图分析",
-  status: "节点状态",
-  progress: "指标走向",
-  summary: "总体摘要",
-};
-
-const ALL_CARD_IDS = Object.keys(CARD_META);
-
 const DEFAULT_LAYOUT = {
   left: ["mermaid", "analysis"],
   middle: ["status"],
@@ -23,7 +13,7 @@ let originalLayout: Record<string, string[]> = {};
 
 /** 创建一张可拖拽卡片 */
 function renderCard(cardId: string): HTMLElement {
-  const name = CARD_META[cardId] ?? cardId;
+  const name = t(CARD_META[cardId] ?? cardId);
   const el = document.createElement("div");
   el.className = "layout-card";
   el.dataset.cardId = cardId;
