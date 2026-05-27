@@ -12,7 +12,7 @@ async def async_noop(x):
 
 def create_mock_stage_runtime(name: str, func_name: str, stage_mode: str, execution_mode: str) -> StageRuntime:
     func = async_noop if execution_mode == "async" else (lambda x: x)
-    stage = TaskStage(name, func, stage_mode=stage_mode, execution_mode=execution_mode)
+    stage = TaskStage(name, func, stage_mode=stage_mode, execution_mode=execution_mode, max_workers=2)
     # 模拟队列，虽然这里不实际使用，但 StageRuntime 需要
     log_spout = LogSpout()
     log_spout.start()
@@ -118,5 +118,5 @@ class TestUtilSerialize:
         formatted_list = format_structure_list_from_graph(graphs)
 
         assert len(formatted_list) > 0
-        # assert "s1::<lambda> (S:serial, E:serial, W:20)" in formatted_list[1]
+        assert "s1::<lambda> (S:serial, E:serial, W:2)" in formatted_list[1]
         assert any("[Ref]" in line for line in formatted_list)
