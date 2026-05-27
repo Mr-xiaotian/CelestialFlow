@@ -2,9 +2,6 @@ import pytest
 from celestialflow.graph.util_serialize import build_structure_graph, format_structure_list_from_graph
 from celestialflow.stage.core_stage import TaskStage
 from celestialflow.graph.core_graph import StageRuntime
-from celestialflow.runtime.core_queue import TaskInQueue, TaskOutQueue
-from celestialflow.persistence.core_log import LogInlet, LogSpout
-from queue import Queue
 
 # 辅助函数：创建 mock StageRuntime
 async def async_noop(x):
@@ -13,13 +10,7 @@ async def async_noop(x):
 def create_mock_stage_runtime(name: str, func_name: str, stage_mode: str, execution_mode: str) -> StageRuntime:
     func = async_noop if execution_mode == "async" else (lambda x: x)
     stage = TaskStage(name, func, stage_mode=stage_mode, execution_mode=execution_mode, max_workers=2)
-    # 模拟队列，虽然这里不实际使用，但 StageRuntime 需要
-    log_spout = LogSpout()
-    log_spout.start()
-    log_inlet = LogInlet(log_spout.get_queue())
-    in_queue = TaskInQueue(Queue(), [], stage.get_name(), log_inlet)
-    out_queue = TaskOutQueue([], [], stage.get_name(), log_inlet)
-    return StageRuntime(stage, in_queue, out_queue)
+    return StageRuntime(stage=stage)
 
 class TestUtilSerialize:
     @pytest.fixture
