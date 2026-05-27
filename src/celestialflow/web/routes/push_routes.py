@@ -1,0 +1,173 @@
+"""Push 路由（POST）：Reporter 推送状态、错误、结构等。"""
+
+from __future__ import annotations
+
+from functools import partial
+from typing import TYPE_CHECKING, Any, cast
+
+import anyio
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+
+from ...persistence.util_jsonl import load_jsonl_logs
+from ..util_cal import cal_interval
+from ..util_config import save_config
+from ..util_models import (
+    AnalysisModel,
+    ErrorsContentModel,
+    ErrorsMetaModel,
+    StatusModel,
+    StructureModel,
+    SummaryModel,
+    TaskInjectionModel,
+    WebConfigModel,
+)
+
+if TYPE_CHECKING:
+    from ..core_server import TaskWebServer
+
+
+def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None:
+    """注册所有 push 路由。"""
+
+    @router.post("/api/push_config", response_model=None)
+    async def push_config(data: WebConfigModel) -> dict[str, bool] | JSONResponse:
+        """
+        保存前端配置
+
+        :param data: 前端配置数据
+        """
+        with server.config_lock:
+            config_raw: Any = data.model_dump()
+            server.config = cast(dict[str, Any], config_raw)
+            server.report_interval = cal_interval(int(server.config["refreshInterval"]))
+            success: bool = save_config(server.config, config_path)
+            if success:
+                return {"ok": True}
+            else:
+                return JSONResponse(
+                    content={"ok": False, "error": "Failed to save config"},
+                    status_code=500,
+                )
+
+    @router.post("/api/push_structure")
+    async def push_structure(data: StructureModel) -> dict[str, bool]:
+        """
+        更新图结构数据并递增版本号。
+
+        :param data: 图结构数据
+        """
+        server.structure_store = data.items
+        server.store_revs["structure"] += 1
+        return {"ok": True}
+
+    @router.post("/api/push_status")
+    async def push_status(data: StatusModel) -> dict[str, bool]:
+        """
+        更新各节点运行状态并递增版本号。
+
+        :param data: 节点状态数据
+        """
+        server.status_timestamp = float(data.timestamp)
+        server.status_store = data.status
+        server.store_revs["status"] += 1
+        return {"ok": True}
+
+    def _is_errors_cache_hit(rev: int, path: str) -> bool:
+        return rev == server.errors_meta_rev and path == server.errors_meta_path
+
+    def _update_errors_cache(rev: int, path: str) -> None:
+        server.errors_meta_rev = rev
+        server.errors_meta_path = path
+        server.store_revs["errors"] += 1
+
+    @router.post("/api/push_errors_meta")
+    async def push_errors_meta(data: ErrorsMetaModel) -> dict[str, Any]:
+        """
+        通过 JSONL 文件路径+版本号加载错误日志；命中缓存则跳过读取。
+
+        :param data: 错误元信息数据
+        """
+        # 命中缓存：path 和 rev 都没变 -> 不重新读取
+        if _is_errors_cache_hit(data.rev, data.jsonl_path):
+            return {"ok": True, "cached": True}
+
+        try:
+            # 不命中：更新 key 并全量加载
+            server.error_store = await anyio.to_thread.run_sync(  # type: ignore[reportUnknownMemberType]
+                partial(
+                    load_jsonl_logs,
+                    path=data.jsonl_path,
+                    keys=[
+                        "ts",
+                        "error_id",
+                        "error_repr",
+                        "error",
+                        "stage",
+                        "task_repr",
+                    ],
+                )
+            )
+            _update_errors_cache(data.rev, data.jsonl_path)
+            return {"ok": True, "cached": False}
+        except Exception as e:
+            return {
+                "ok": False,
+                "fallback": "need_content",
+                "reason": type(e).__name__,
+                "msg": str(e),
+            }
+
+    @router.post("/api/push_errors_content")
+    async def push_errors_content(data: ErrorsContentModel) -> dict[str, Any]:
+        """
+        直接接收错误日志列表并存储；支持增量 append；命中缓存则跳过。
+
+        :param data: 错误内容数据
+        """
+        if _is_errors_cache_hit(data.rev, data.jsonl_path):
+            return {"ok": True, "cached": True}
+
+        server.error_store = data.errors
+        _update_errors_cache(data.rev, data.jsonl_path)
+        return {"ok": True, "cached": False}
+
+    @router.post("/api/push_analysis")
+    async def push_analysis(data: AnalysisModel) -> dict[str, bool]:
+        """
+        更新图分析信息并递增版本号。
+
+        :param data: 图分析数据
+        """
+        server.analysis_store = data.analysis
+        server.store_revs["analysis"] += 1
+        return {"ok": True}
+
+    @router.post("/api/push_summary")
+    async def push_summary(data: SummaryModel) -> dict[str, bool]:
+        """
+        更新全局任务汇总数据并递增版本号。
+
+        :param data: 全局汇总数据
+        """
+        server.summary_store = data.summary
+        server.store_revs["summary"] += 1
+        return {"ok": True}
+
+    @router.post("/api/push_injection_tasks", response_model=None)
+    async def push_injection_tasks(
+        data: TaskInjectionModel,
+    ) -> dict[str, bool] | JSONResponse:
+        """
+        将前端提交的注入任务追加到待执行队列。
+
+        :param data: 注入任务数据
+        """
+        try:
+            with server.task_injection_lock:
+                server.injection_tasks.append(data.model_dump(mode="json"))
+            return {"ok": True}
+        except Exception as e:
+            return JSONResponse(
+                content={"ok": False, "msg": f"任务注入失败: {e}"}, status_code=500
+            )
