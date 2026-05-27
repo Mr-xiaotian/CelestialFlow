@@ -47,9 +47,9 @@ class LogSpout(BaseSpout):
 
         :param record: 包含 timestamp, level, message 的日志记录字典
         """
-        timestamp: Any = record["timestamp"]
-        level: Any = record["level"]
-        message: Any = record["message"]
+        timestamp: str = record["timestamp"]
+        level: str = record["level"]
+        message: str = record["message"]
 
         line = f"{timestamp} {level} {message}\n"
 

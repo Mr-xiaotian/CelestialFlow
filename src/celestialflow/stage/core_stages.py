@@ -140,7 +140,7 @@ class TaskSplitter(TaskStage):
 class TaskRouter(TaskStage):
     """TaskRouter: 根据路由信息将任务分发到不同的下游 stage。"""
 
-    route_counters: dict[str, Any]
+    route_counters: dict[str, ValueWrapper]
 
     def __init__(self, name: str, stage_mode: str = "serial"):
         """
@@ -256,7 +256,7 @@ class TaskRedisTransport(TaskStage):
     port: int
     db: int
     password: str | None
-    redis_client: Any  # pyright: ignore[reportUninitializedInstanceVariable]
+    redis_client: "redis.Redis"
 
     def __init__(
         self,
@@ -338,7 +338,7 @@ class TaskRedisSource(TaskStage):
     db: int
     password: str | None
     timeout: int
-    redis_client: Any  # pyright: ignore[reportUninitializedInstanceVariable]
+    redis_client: "redis.Redis"
 
     def __init__(
         self,
@@ -399,7 +399,7 @@ class TaskRedisSource(TaskStage):
         """
         self.init_redis()
 
-        res: Any = self.redis_client.blpop(self.key, timeout=self.timeout)
+        res: Any = self.redis_client.blpop(self.key, timeout=self.timeout)  # type: ignore[reportUnknownMemberType]
         if res is None:
             raise CelestialFlowTimeoutError(
                 "Redis item not returned in time after being fetched"
@@ -427,7 +427,7 @@ class TaskRedisAck(TaskStage):
     db: int
     password: str | None
     timeout: int
-    redis_client: Any  # pyright: ignore[reportUninitializedInstanceVariable]
+    redis_client: "redis.Redis"
 
     def __init__(
         self,
