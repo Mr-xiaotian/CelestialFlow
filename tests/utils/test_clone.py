@@ -127,7 +127,7 @@ class TestUtilClone:
         cloned = clone_graph(graph)
 
         # 修改克隆图中节点 A 的 execution_mode
-        cloned_stage_a = cloned.stage_runtime_dict["A"].stage
+        cloned_stage_a = cloned.stage_dict["A"]
         cloned_stage_a.set_execution_mode("thread")
 
         # 原图节点不受影响

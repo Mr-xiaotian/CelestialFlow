@@ -17,17 +17,12 @@ class _MockStage:
         return self._mode
 
 
-class _MockRuntime:
-    def __init__(self, mode: str = "serial"):
-        self.stage = _MockStage(mode)
-
-
 def _make_graph(edges: dict[str, list[str]]) -> nx.DiGraph[str]:
     stage_names = set(edges.keys())
     for dsts in edges.values():
         stage_names.update(dsts)
-    runtime = {name: _MockRuntime() for name in stage_names}
-    return build_networkx_graph(edges, runtime)  # type: ignore[arg-type]
+    stage_dict = {name: _MockStage() for name in stage_names}
+    return build_networkx_graph(edges, stage_dict)  # type: ignore[arg-type]
 
 
 # =========================

@@ -1,77 +1,62 @@
 import pytest
 from celestialflow.graph.util_serialize import build_structure_graph, format_structure_list_from_graph
 from celestialflow.stage.core_stage import TaskStage
-from celestialflow.graph.core_graph import StageRuntime
 
-# 辅助函数：创建 mock StageRuntime
+
+# 辅助函数
 async def async_noop(x):
     return x
 
-def create_mock_stage_runtime(name: str, func_name: str, stage_mode: str, execution_mode: str) -> StageRuntime:
+
+def make_stage(name: str, stage_mode: str, execution_mode: str) -> TaskStage:
     func = async_noop if execution_mode == "async" else (lambda x: x)
-    stage = TaskStage(name, func, stage_mode=stage_mode, execution_mode=execution_mode, max_workers=2)
-    return StageRuntime(stage=stage)
+    return TaskStage(name, func, stage_mode=stage_mode, execution_mode=execution_mode, max_workers=2)
+
 
 class TestUtilSerialize:
     @pytest.fixture
     def mock_graph_data(self):
-        # 创建 mock StageRuntime 实例
-        s1_runtime = create_mock_stage_runtime("s1", "func1", "serial", "serial")
-        s2_runtime = create_mock_stage_runtime("s2", "func2", "thread", "async")
-        s3_runtime = create_mock_stage_runtime("s3", "func3", "serial", "serial")
-        s4_runtime = create_mock_stage_runtime("s4", "func4", "thread", "thread")
+        s1 = make_stage("s1", "serial", "serial")
+        s2 = make_stage("s2", "thread", "async")
+        s3 = make_stage("s3", "serial", "serial")
+        s4 = make_stage("s4", "thread", "thread")
 
-        stage_runtime_dict = {
-            s1_runtime.stage.get_name(): s1_runtime,
-            s2_runtime.stage.get_name(): s2_runtime,
-            s3_runtime.stage.get_name(): s3_runtime,
-            s4_runtime.stage.get_name(): s4_runtime,
-        }
+        stage_dict = {s.get_name(): s for s in [s1, s2, s3, s4]}
 
-        # 模拟邻接表
         out_edges = {
-            s1_runtime.stage.get_name(): [s2_runtime.stage.get_name(), s3_runtime.stage.get_name()],
-            s2_runtime.stage.get_name(): [s4_runtime.stage.get_name()],
-            s3_runtime.stage.get_name(): [s4_runtime.stage.get_name()],
-            s4_runtime.stage.get_name(): [],
+            s1.get_name(): [s2.get_name(), s3.get_name()],
+            s2.get_name(): [s4.get_name()],
+            s3.get_name(): [s4.get_name()],
+            s4.get_name(): [],
         }
 
-        # 模拟循环图
-        cyclic_s1_runtime = create_mock_stage_runtime("cs1", "cfunc1", "serial", "serial")
-        cyclic_s2_runtime = create_mock_stage_runtime("cs2", "cfunc2", "serial", "serial")
-        cyclic_s3_runtime = create_mock_stage_runtime("cs3", "cfunc3", "serial", "serial")
+        cs1 = make_stage("cs1", "serial", "serial")
+        cs2 = make_stage("cs2", "serial", "serial")
+        cs3 = make_stage("cs3", "serial", "serial")
 
-        cyclic_stage_runtime_dict = {
-            cyclic_s1_runtime.stage.get_name(): cyclic_s1_runtime,
-            cyclic_s2_runtime.stage.get_name(): cyclic_s2_runtime,
-            cyclic_s3_runtime.stage.get_name(): cyclic_s3_runtime,
-        }
+        cyclic_stage_dict = {s.get_name(): s for s in [cs1, cs2, cs3]}
 
         cyclic_out_edges = {
-            cyclic_s1_runtime.stage.get_name(): [cyclic_s2_runtime.stage.get_name()],
-            cyclic_s2_runtime.stage.get_name(): [cyclic_s3_runtime.stage.get_name()],
-            cyclic_s3_runtime.stage.get_name(): [cyclic_s1_runtime.stage.get_name()],
+            cs1.get_name(): [cs2.get_name()],
+            cs2.get_name(): [cs3.get_name()],
+            cs3.get_name(): [cs1.get_name()],
         }
 
         return {
-            "s1": s1_runtime.stage,
-            "s2": s2_runtime.stage,
-            "s3": s3_runtime.stage,
-            "s4": s4_runtime.stage,
-            "stage_runtime_dict": stage_runtime_dict,
+            "s1": s1,
+            "stage_dict": stage_dict,
             "out_edges": out_edges,
-            "cyclic_s1": cyclic_s1_runtime.stage,
-            "cyclic_stage_runtime_dict": cyclic_stage_runtime_dict,
+            "cs1": cs1,
+            "cyclic_stage_dict": cyclic_stage_dict,
             "cyclic_out_edges": cyclic_out_edges,
         }
 
     def test_build_structure_graph_dag(self, mock_graph_data):
-        """测试 DAG 图结构构建"""
         s1 = mock_graph_data["s1"]
-        stage_runtime_dict = mock_graph_data["stage_runtime_dict"]
+        stage_dict = mock_graph_data["stage_dict"]
         out_edges = mock_graph_data["out_edges"]
 
-        graphs = build_structure_graph([s1], out_edges, stage_runtime_dict)
+        graphs = build_structure_graph([s1], out_edges, stage_dict)
         assert len(graphs) == 1
         graph = graphs[0]
 
@@ -81,15 +66,14 @@ class TestUtilSerialize:
         assert graph["next_stages"][1]["name"] == "s3"
         assert graph["next_stages"][0]["next_stages"][0]["name"] == "s4"
         assert graph["next_stages"][1]["next_stages"][0]["name"] == "s4"
-        assert graph["next_stages"][1]["next_stages"][0]["is_ref"] is True # s4 被 s2 和 s3 引用，第二次出现应为 is_ref
+        assert graph["next_stages"][1]["next_stages"][0]["is_ref"] is True
 
     def test_build_structure_graph_cyclic(self, mock_graph_data):
-        """测试循环图结构构建，is_ref 标记应正确"""
-        cs1 = mock_graph_data["cyclic_s1"]
-        cyclic_stage_runtime_dict = mock_graph_data["cyclic_stage_runtime_dict"]
+        cs1 = mock_graph_data["cs1"]
+        cyclic_stage_dict = mock_graph_data["cyclic_stage_dict"]
         cyclic_out_edges = mock_graph_data["cyclic_out_edges"]
 
-        graphs = build_structure_graph([cs1], cyclic_out_edges, cyclic_stage_runtime_dict)
+        graphs = build_structure_graph([cs1], cyclic_out_edges, cyclic_stage_dict)
         assert len(graphs) == 1
         graph = graphs[0]
 
@@ -97,15 +81,14 @@ class TestUtilSerialize:
         assert graph["next_stages"][0]["name"] == "cs2"
         assert graph["next_stages"][0]["next_stages"][0]["name"] == "cs3"
         assert graph["next_stages"][0]["next_stages"][0]["next_stages"][0]["name"] == "cs1"
-        assert graph["next_stages"][0]["next_stages"][0]["next_stages"][0]["is_ref"] is True # 循环引用
+        assert graph["next_stages"][0]["next_stages"][0]["next_stages"][0]["is_ref"] is True
 
     def test_format_structure_list_from_graph(self, mock_graph_data):
-        """测试 JSON 图结构到格式化文本的转换"""
         s1 = mock_graph_data["s1"]
-        stage_runtime_dict = mock_graph_data["stage_runtime_dict"]
+        stage_dict = mock_graph_data["stage_dict"]
         out_edges = mock_graph_data["out_edges"]
 
-        graphs = build_structure_graph([s1], out_edges, stage_runtime_dict)
+        graphs = build_structure_graph([s1], out_edges, stage_dict)
         formatted_list = format_structure_list_from_graph(graphs)
 
         assert len(formatted_list) > 0
