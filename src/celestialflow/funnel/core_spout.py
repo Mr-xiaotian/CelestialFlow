@@ -1,6 +1,7 @@
 # funnel/core_spout.py
 from __future__ import annotations
 
+import traceback
 from queue import Empty, Queue
 from threading import Thread
 from typing import Any
@@ -51,7 +52,8 @@ class BaseSpout:
             except Empty:
                 continue
             except Exception:
-                pass  # 单条记录处理失败不致死线程
+                # 单条记录处理失败不致死线程
+                traceback.print_exc()
 
     def get_queue(self) -> Queue[Any]:
         """获取监听器的输入队列。"""
