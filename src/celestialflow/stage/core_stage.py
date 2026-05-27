@@ -22,11 +22,9 @@ class TaskStage(TaskExecutor):
     _status: int
     stage_mode: str
     execution_mode: str
-    task_queue: TaskInQueue | None
-    result_queue: TaskOutQueue | None
-    fail_queue: ThreadQueue[Any] | None
+    task_queue: TaskInQueue
+    result_queue: TaskOutQueue
     fail_inlet: FailInlet
-    log_queue: ThreadQueue[Any] | None
     log_inlet: LogInlet
 
     # ==== 初始化 ====
@@ -96,20 +94,6 @@ class TaskStage(TaskExecutor):
             self.stage_mode = "serial"
         else:
             raise StageModeError(stage_mode)
-
-    def set_queue(
-        self,
-        task_queue: TaskInQueue,
-        result_queue: TaskOutQueue,
-    ) -> None:
-        """
-        初始化队列
-
-        :param task_queue: 任务队列列表
-        :param result_queue: 结果队列列表
-        """
-        self.task_queue = task_queue
-        self.result_queue = result_queue
 
     def set_inlet(
         self, fail_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]
@@ -185,8 +169,6 @@ class TaskStage(TaskExecutor):
     # ==== 启动 ====
     def start_stage(
         self,
-        input_queue: TaskInQueue,
-        output_queue: TaskOutQueue,
         fail_queue: ThreadQueue[Any],
         log_queue: ThreadQueue[Any],
     ) -> None:
@@ -201,9 +183,7 @@ class TaskStage(TaskExecutor):
         start_time = time.perf_counter()
 
         self._init_state()
-        self._init_dispatch()
         self.set_inlet(fail_queue, log_queue)
-        self.set_queue(input_queue, output_queue)
 
         self.log_inlet.start_stage(
             self.get_name(), self.stage_mode, self._get_execution_mode_desc()

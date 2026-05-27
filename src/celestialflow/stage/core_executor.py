@@ -23,10 +23,6 @@ from ..runtime import (
     TaskOutQueue,
 )
 from ..runtime.util_errors import ConfigurationError, ExecutionModeError
-from ..runtime.util_factories import (
-    make_task_in_queue,
-    make_task_out_queue,
-)
 from ..runtime.util_types import (
     CTreeEvent,
     PersistedErrorRecord,
@@ -39,8 +35,8 @@ class TaskExecutor:
     """任务执行器基类，支持串行、线程和异步三种执行模式。"""
 
     # Class-level type annotations
-    task_queue: TaskInQueue | None
-    result_queue: TaskOutQueue | None
+    task_queue: TaskInQueue
+    result_queue: TaskOutQueue
     max_workers: int
     max_retries: int
     max_info: int
@@ -100,10 +96,12 @@ class TaskExecutor:
 
         self.ctree_client: CelestialTreeClient | NullCelestialTreeClient
         self.set_nullctree()
-        self.task_queue = None
-        self.result_queue = None
+
         self.fail_queue: ThreadQueue[Any] | None = None
         self.log_queue: ThreadQueue[Any] | None = None
+
+        self._init_dispatch()
+        self._init_queue()
         self._init_metrics()
 
     def _init_metrics(self) -> None:
@@ -115,6 +113,27 @@ class TaskExecutor:
             enable_duplicate_check=self.enable_duplicate_check,
         )
 
+    def _init_dispatch(self) -> None:
+        """
+        初始化任务运行器
+        """
+        self.dispatch = TaskDispatch(self, self.func, self.max_workers)
+
+    def _init_queue(self) -> None:
+        """
+        初始化输入输出队列
+        """
+        self.task_queue = TaskInQueue(
+            queue=ThreadQueue(),
+            source_names=[],
+            out_name=self.get_name(),
+        )
+        self.result_queue = TaskOutQueue(
+            queue_list=[],
+            target_names=[],
+            in_name=self.get_name(),
+        )
+
     def init_env(
         self,
     ) -> None:
@@ -122,23 +141,14 @@ class TaskExecutor:
         初始化环境
         """
         self._init_state()
-        self._init_dispatch()
-
         self._init_spout()
         self._init_inlet()
-        self._init_queue()
 
     def _init_state(self) -> None:
         """
         初始化任务状态
         """
         self.metrics.reset_state()
-
-    def _init_dispatch(self) -> None:
-        """
-        初始化任务运行器
-        """
-        self.dispatch = TaskDispatch(self, self.func, self.max_workers)
 
     def _init_spout(self) -> None:
         """
@@ -152,6 +162,8 @@ class TaskExecutor:
         self.log_spout.start()
         self.success_spout.start()
 
+        self.result_queue.add_queue(self.success_spout.get_queue(), "success_spout")
+
     def _init_inlet(
         self,
     ) -> None:
@@ -163,20 +175,6 @@ class TaskExecutor:
 
         self.log_queue = self.log_spout.get_queue()
         self.log_inlet = LogInlet(self.log_queue, self.log_level)
-
-    def _init_queue(self) -> None:
-        """
-        初始化输入输出队列
-        """
-        queue: ThreadQueue[Any] = ThreadQueue()
-        self.task_queue = make_task_in_queue(
-            queue=queue,
-            executor=self,
-        )
-        self.result_queue = make_task_out_queue(
-            queue=self.success_spout.get_queue(),
-            executor=self,
-        )
 
     # ==== Observer ====
     def add_observer(self, observer: BaseObserver) -> None:
@@ -722,8 +720,6 @@ class TaskExecutor:
 
     def release_queue(self) -> None:
         """释放任务队列、结果队列和失败队列的引用"""
-        self.task_queue = None
-        self.result_queue = None
         self.fail_queue = None
 
     def _release_client(self) -> None:

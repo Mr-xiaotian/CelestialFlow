@@ -1,7 +1,7 @@
 # runtime/core_queue.py
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from .core_envelope import TaskEnvelope
 from .util_errors import (
@@ -12,9 +12,6 @@ from .util_errors import (
 )
 from .util_types import TerminationIdPool, TerminationSignal
 
-if TYPE_CHECKING:
-    from ..persistence import LogInlet
-
 
 # ==== TaskInQueue ====
 class TaskInQueue:
@@ -23,7 +20,6 @@ class TaskInQueue:
     queue: Any
     source_names: list[str]
     out_name: str
-    log_inlet: LogInlet
     termination_dict: dict[str, int]
 
     # ==== 初始化 ====
@@ -32,7 +28,6 @@ class TaskInQueue:
         queue: Any,
         source_names: list[str],
         out_name: str,
-        log_inlet: LogInlet,
     ) -> None:
         """
         初始化任务入队
@@ -40,33 +35,14 @@ class TaskInQueue:
         :param queue: 队列对象
         :param source_names: 上游节点名称列表
         :param out_name: 当前节点唯一名称
-        :param log_inlet: 日志记录器
         """
         self.queue = queue
         self.source_names = source_names
         self.out_name = out_name
-        self.log_inlet = log_inlet
 
         self.termination_dict = {}
 
-    # ==== 日志 ====
-    def _log_put(self, item: TaskEnvelope | TerminationSignal) -> None:
-        """
-        记录任务入队日志
-
-        :param item: 入队的任务或终止信号
-        """
-        t = "task" if isinstance(item, TaskEnvelope) else "termination"
-        self.log_inlet.put_item(t, item.id, item.source, self.out_name)
-
-    def _log_get(self, item: TaskEnvelope | TerminationSignal) -> None:
-        """
-        记录任务出队日志
-
-        :param item: 出队的任务或终止信号
-        """
-        t = "task" if isinstance(item, TaskEnvelope) else "termination"
-        self.log_inlet.get_item(t, item.id, item.source, self.out_name)
+    # ==== 添加 ====
 
     def add_source_name(self, name: str) -> None:
         """
@@ -129,11 +105,7 @@ class TaskInQueue:
 
         :param item: 要入队的任务或终止信号
         """
-        try:
-            self.queue.put(item)
-            self._log_put(item)
-        except Exception as e:
-            self.log_inlet.put_item_error(item.source, self.out_name, e)
+        self.queue.put(item)
 
     def get(self) -> TaskEnvelope | TerminationIdPool:
         """
@@ -157,8 +129,6 @@ class TaskInQueue:
         :param item: 出队的任务或终止信号
         :return: 处理后的任务或终止符号id池
         """
-        self._log_get(item)
-
         if isinstance(item, TaskEnvelope):
             return item
 
@@ -190,7 +160,6 @@ class TaskInQueue:
         while True:
             try:
                 item: TaskEnvelope | TerminationSignal = self.queue.get_nowait()
-                self._log_get(item)
                 if isinstance(item, TaskEnvelope):
                     results.append(item)
                 else:
@@ -205,18 +174,16 @@ class TaskOutQueue:
     """任务输出队列，将任务广播到一个或多个下游队列通道。"""
 
     queue_list: list[Any]
-    target_names: list[str | None]
+    target_names: list[str]
     in_name: str
-    log_inlet: LogInlet
     _name_to_idx: dict[str, int]
 
     # ==== 初始化 ====
     def __init__(
         self,
         queue_list: list[Any],
-        target_names: list[str | None],
+        target_names: list[str],
         in_name: str,
-        log_inlet: LogInlet,
     ) -> None:
         """
         任务输出队列类，用于管理多个输出队列
@@ -224,7 +191,6 @@ class TaskOutQueue:
         :param queue_list: 输出队列列表，每个元素为一个线程队列或异步队列
         :param target_names: 下游节点名称列表，用于标识每个队列
         :param in_name: 当前节点唯一名称，用于记录日志
-        :param log_inlet: 日志记录器，用于记录入队出队日志
         :raises ConfigurationError: 如果队列列表和目标名称列表长度不一致
         """
         if len(queue_list) != len(target_names):
@@ -235,22 +201,10 @@ class TaskOutQueue:
         self.queue_list = queue_list
         self.target_names = target_names
         self.in_name = in_name
-        self.log_inlet = log_inlet
 
-        self._name_to_idx = {
-            name: i for i, name in enumerate(target_names) if name is not None
-        }
+        self._name_to_idx = {name: i for i, name in enumerate(target_names)}
 
     # ==== put ====
-    def _log_put(self, item: TaskEnvelope | TerminationSignal, idx: int) -> None:
-        """
-        记录入队日志
-
-        :param item: 入队的任务或终止信号
-        :param idx: 输出队列通道的索引
-        """
-        t = "task" if isinstance(item, TaskEnvelope) else "termination"
-        self.log_inlet.put_item(t, item.id, self.in_name, str(self.target_names[idx]))
 
     def add_queue(self, queue: Any, name: str) -> None:
         """
@@ -291,8 +245,4 @@ class TaskOutQueue:
         :param item: 要入队的任务或终止信号
         :param idx: 输出队列通道的索引
         """
-        try:
-            self.queue_list[idx].put(item)
-            self._log_put(item, idx)
-        except Exception as e:
-            self.log_inlet.put_item_error(item.source, self.in_name, e)
+        self.queue_list[idx].put(item)

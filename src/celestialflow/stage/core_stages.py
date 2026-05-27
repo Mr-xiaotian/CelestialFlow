@@ -84,7 +84,6 @@ class TaskSplitter(TaskStage):
         :return: split 的子任务数量
         """
         result_queue = self.result_queue
-        assert result_queue is not None
 
         split_count = len(result)
         for idx, item in enumerate(result):
@@ -232,7 +231,6 @@ class TaskRouter(TaskStage):
             source=self.get_name(),
         )
         result_queue = self.result_queue
-        assert result_queue is not None
 
         result_queue.put_target(routed_envelope, target)
 

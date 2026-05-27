@@ -8,7 +8,6 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from queue import Queue as ThreadQueue
 from typing import Any
 
 from celestialtree import Client as CelestialTreeClient
@@ -54,8 +53,6 @@ class StageRuntime:
     """单个 Stage 的运行时封装，保存阶段实例及其输入输出队列。"""
 
     stage: TaskStage
-    in_queue: TaskInQueue
-    out_queue: TaskOutQueue
     start_time: float = 0.0
 
 
@@ -160,23 +157,8 @@ class TaskGraph:
             if stage_name in self.stage_runtime_dict:
                 raise DuplicateNodeError(f"duplicate stage name: {stage_name}")
 
-            in_queue = TaskInQueue(
-                queue=ThreadQueue(),
-                source_names=[],
-                out_name=stage_name,
-                log_inlet=self.log_inlet,
-            )
-            out_queue = TaskOutQueue(
-                queue_list=[],
-                target_names=[],
-                in_name=stage_name,
-                log_inlet=self.log_inlet,
-            )
-
             self.stage_runtime_dict[stage_name] = StageRuntime(
                 stage=stage,
-                in_queue=in_queue,
-                out_queue=out_queue,
             )
 
     def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
@@ -294,7 +276,7 @@ class TaskGraph:
                 continue
 
             current_stage: TaskStage = stage_runtime.stage
-            in_queue: TaskInQueue = stage_runtime.in_queue
+            in_queue: TaskInQueue = current_stage.task_queue
             prev_stages: list[TaskStage] = []
 
             # 遍历每个前驱，创建边队列
@@ -302,9 +284,7 @@ class TaskGraph:
                 prev_stage = self.stage_runtime_dict[prev_stage_name].stage
                 in_queue.add_source_name(prev_stage_name)
 
-                prev_out_queue: TaskOutQueue = self.stage_runtime_dict[
-                    prev_stage_name
-                ].out_queue
+                prev_out_queue: TaskOutQueue = prev_stage.result_queue
                 prev_out_queue.add_queue(in_queue.queue, stage_name)
                 prev_stages.append(prev_stage)
 
@@ -346,7 +326,7 @@ class TaskGraph:
             if name not in self.stage_runtime_dict:
                 continue
             stage: TaskStage = self.stage_runtime_dict[name].stage
-            in_queue: TaskInQueue = self.stage_runtime_dict[name].in_queue
+            in_queue: TaskInQueue = stage.task_queue
             # input_ids: set[int] = self.input_ids[name] # maybe use later
 
             for task in tasks:
@@ -378,10 +358,7 @@ class TaskGraph:
             return
 
         for source_stage in self.source_stages:
-            source_stage_name = source_stage.get_name()
-            source_in_queue: TaskInQueue = self.stage_runtime_dict[
-                source_stage_name
-            ].in_queue
+            source_in_queue: TaskInQueue = source_stage.task_queue
 
             termination_id: int = self.ctree_client.emit(
                 CTreeEvent.TERMINATION_INPUT,
@@ -486,10 +463,6 @@ class TaskGraph:
         fail_queue = self.fail_spout.get_queue()
         log_queue = self.log_spout.get_queue()
 
-        # 输入输出队列
-        input_queue: TaskInQueue = stage_runtime.in_queue
-        output_queue: TaskOutQueue = stage_runtime.out_queue
-
         stage_runtime.start_time = time.time()
 
         if self.use_ctree:
@@ -502,14 +475,14 @@ class TaskGraph:
         if stage.stage_mode == "thread":
             t = threading.Thread(
                 target=stage.start_stage,
-                args=(input_queue, output_queue, fail_queue, log_queue),
+                args=(fail_queue, log_queue),
                 name=stage_name,
                 daemon=True,
             )
             t.start()
             self.threads.append(t)
         else:
-            stage.start_stage(input_queue, output_queue, fail_queue, log_queue)
+            stage.start_stage(fail_queue, log_queue)
 
     # ==== 终止与清理 ====
 
@@ -529,7 +502,7 @@ class TaskGraph:
         # 收集并持久化每个 stage 中未消费的任务
         for stage_name, stage_runtime in self.stage_runtime_dict.items():
             current_stage: TaskStage = stage_runtime.stage
-            in_queue: TaskInQueue = stage_runtime.in_queue
+            in_queue: TaskInQueue = current_stage.task_queue
 
             remaining_sources = in_queue.drain()
             current_stage.metrics.add_error_count(len(remaining_sources))
