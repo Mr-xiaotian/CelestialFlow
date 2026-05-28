@@ -1,179 +1,224 @@
 # 更新日志（Change Log）
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/28
 
 - 2021: 建立一个支持多线程与单线程处理函数的类
-- 2023: 在GPT4帮助下添加多进程与携程运行模式 
-- 5/9/2024: 将原有的处理类抽象为节点, 添加TaskChain类, 可以线性连接多个节点, 并设定节点在Chain中的运行模式, 支持serial和process两种, 后者Chain所有节点同时运行
-- 12/12/2024-12/16/2024: 在原有链式结构基础上允许节点有复数下级节点, 实现Tree结构; 将原有TaskChain改名为TaskTree
-- 3/16/2025: 支持Web端任务完成情况可视化
-- 6/9/2025: 支持节点拥有复数上级节点, 脱离纯Tree结构, 为之后循环图做准备
-- 6/11/2025: 自[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)项目instances.inst_task迁出
-- 6/12/2025: 支持循环图, 下级节点可指向上级节点
-- 6/13/2025: 支持loop结构, 即节点可指向自己
-- 6/14/2025: 支持forest结构, 即可有多个根节点
-- 6/16/2025: 多轮评测后, 当前框架已支持完整有向图结构, 将TaskTree改名为TaskGraph
-- 3.0.1: 上线Pypi, 可喜可贺
-- 3.0.4: 新增一个抽象结构TaskQueue, 用于表示节点的所有"入边"与"出边"; 恢复未消费任务的保存功能
-- 3.0.5: 删除原有的TaskRedisTransfer节点, 并增添三种新的redis交互节点TaskRedisTransport TaskRedisSource TaskRedisAck, 用于跨语言 跨进程 跨设备处理任务; 并在Web页面添加展示拓扑信息的卡片
-- 3.0.6: 添加对[CelestialTree](https://github.com/Mr-xiaotian/CelestialTree)系统的支持, 现在可以追踪单个任务的流向
-- 3.0.7: 将TaskStage从TaskExecutor中单独抽出来作为一个子类; 增加新节点TaskRouter, 可以将传入的任务选择的传给不同的下游节点, 而不是进行广播
-- 3.0.8: 在ctree逻辑上将"任务重试"事件后的"任务成功/失败/重试"事件视为因果关系, 而非之前的并行关系; 重构错误搜集部分逻辑; 修复大量3.0.6与3.07版本引入的bug; 优化部分log表现
-- 3.0.9: 
-  - 更新前端mermaid显示中部分节点图标; 
-  - 对ctree_client进行匹配CelestialTree的大量修改; 
-  - 将ctree_client移出为单独的project; 
-  - 在前端中添加error_id的显示, 为之后显示provenance_tree做准备; 
-  - 增加大量warning与error, 用于提醒不规范设置; 
-  - 优化前后端中错误数据的传输方式, 在大量错误数据时减少内存消耗; 
-  - 优化LogInlet中log队列的准入机制; 
-  - 修改部分Bug;
+- 2023: 在 GPT-4 帮助下添加多进程与协程运行模式
+- 5/9/2024: 将原有的处理类抽象为节点，添加 `TaskChain` 类，可以线性连接多个节点，并设定节点在 Chain 中的运行模式，支持 `"serial"` 和 `"process"` 两种，后者 Chain 所有节点同时运行
+- 12/12/2024-12/16/2024: 在原有链式结构基础上允许节点有复数下级节点，实现 Tree 结构；将原有 `TaskChain` 改名为 `TaskTree`
+- 3/16/2025: 支持 Web 端任务完成情况可视化
+- 6/9/2025: 支持节点拥有复数上级节点，脱离纯 Tree 结构，为之后循环图做准备
+- 6/11/2025: 自 [CelestialVault](https://github.com/Mr-xiaotian/CelestialVault) 项目 `instances.inst_task` 迁出
+- 6/12/2025: 支持循环图，下级节点可指向上级节点
+- 6/13/2025: 支持 loop 结构，即节点可指向自己
+- 6/14/2025: 支持 forest 结构，即可有多个根节点
+- 6/16/2025: 多轮评测后，当前框架已支持完整有向图结构，将 `TaskTree` 改名为 `TaskGraph`
+- 3.0.1: 上线 PyPI，可喜可贺
+- 3.0.4: 新增一个抽象结构 `TaskQueue`，用于表示节点的所有"入边"与"出边"；恢复未消费任务的保存功能
+- 3.0.5: 删除原有的 `TaskRedisTransfer` 节点，并增添三种新的 Redis 交互节点 `TaskRedisTransport`、`TaskRedisSource`、`TaskRedisAck`，用于跨语言、跨进程、跨设备处理任务；并在 Web 页面添加展示拓扑信息的卡片
+- 3.0.6: 添加对 [CelestialTree](https://github.com/Mr-xiaotian/CelestialTree) 系统的支持，现在可以追踪单个任务的流向
+- 3.0.7: 将 `TaskStage` 从 `TaskExecutor` 中单独抽出来作为一个子类；增加新节点 `TaskRouter`，可以将传入的任务选择性地传给不同的下游节点，而不是进行广播
+- 3.0.8: 在 ctree 逻辑上将"任务重试"事件后的"任务成功/失败/重试"事件视为因果关系，而非之前的并行关系；重构错误搜集部分逻辑；修复大量 3.0.6 与 3.0.7 版本引入的 bug；优化部分 log 表现
+- 3.0.9:
+  - 更新前端 Mermaid 显示中部分节点图标
+  - 对 `ctree_client` 进行匹配 CelestialTree 的大量修改
+  - 将 `ctree_client` 移出为单独的 project
+  - 在前端中添加 `error_id` 的显示，为之后显示 provenance_tree 做准备
+  - 增加大量 warning 与 error，用于提醒不规范设置
+  - 优化前后端中错误数据的传输方式，在大量错误数据时减少内存消耗
+  - 优化 `LogInlet` 中 log 队列的准入机制
+  - 修改部分 Bug
 - 3.1.0:
   - 新增:
-    - 优化web端仪表盘页面的"总体状态摘要"卡片, 新增"总重复任务"与"总剩余市场", 后者由节点间拓扑关系计算而成, 后续还需要优化;
+    - 优化 Web 端仪表盘页面的"总体状态摘要"卡片，新增"总重复任务"与"总剩余时间"，后者由节点间拓扑关系计算而成，后续还需要优化
   - 修复:
-    - 3.0.9版本下当web端与celestialflow运行端不同时, error数据无法传递的问题;
-    - 修复NullTaskReporter使用问题;
+    - 3.0.9 版本下当 Web 端与 CelestialFlow 运行端不同时，error 数据无法传递的问题
+    - 修复 `NullTaskReporter` 使用问题
 - 3.1.1:
   - 新增:
-    - [Important] CelestialTree中引入grpc, 这大大减少了emit操作的耗时;
-    - [Important] 为TerminationSignal添加id, 并可以像task一样通过CelestialTree进行跟踪;
-    - 优化task_graph与task_executor的log分级, 现在默认为"SUCCESS"级;
-    - 将go_worker部分分离为单独project: [celestialflow-goworker]https://github.com/Mr-xiaotian/celestialflow-goworker
-    - 在readme中使用svg图片来展示文件夹结构;
-    - 优化全局剩余时间的计算;
-    - 优化部分代码结构;
+    - **[Important]** CelestialTree 中引入 gRPC，这大大减少了 `emit` 操作的耗时
+    - **[Important]** 为 `TerminationSignal` 添加 id，并可以像 task 一样通过 CelestialTree 进行跟踪
+    - 优化 `TaskGraph` 与 `TaskExecutor` 的 log 分级，现在默认为 `"SUCCESS"` 级
+    - 将 Go Worker 部分分离为单独 project: [celestialflow-goworker](https://github.com/Mr-xiaotian/celestialflow-goworker)
+    - 在 README 中使用 SVG 图片来展示文件夹结构
+    - 优化全局剩余时间的计算
+    - 优化部分代码结构
   - 修复:
-    - 修复节点剩余时间在小于1s时显示0的问题(这很影响判断);
-    - 在task_graph中使用"staged"模式时会报错的问题;
+    - 修复节点剩余时间在小于 1s 时显示 0 的问题（这很影响判断）
+    - 在 `TaskGraph` 中使用 `"staged"` 模式时会报错的问题
 - 3.1.2:
   - feat:
-    - [Important] 模仿已有Logger逻辑, 建立新的组合结构FailSpout和FailInlet, 将原有绑定于TaskReporter的fail持久化在线程中实现; 
-    - 借此让TaskExecutor也可以进行fail持久化, 文件为fallback/{date_str}/{executor_errors}({time_str}).jsonl";
-    - 重构整体项目结构, 现在更加清晰;
-    - 补全docs/reference中全部文档, 并令其符合项目重构后结构
-    - 引入uv进行环境管理;
-    - 将executor中技术逻辑分离为runtime/metrics.py;
-    - 整合TaskQueue中重复逻辑;
-  - fix
-    - 修复前端renderNodeList中参数设置错误;
-    - 修复其他微小bug;
-- 3.1.3
+    - **[Important]** 模仿已有 Logger 逻辑，建立新的组合结构 `FailSpout` 和 `FailInlet`，将原有绑定于 `TaskReporter` 的 fail 持久化在线程中实现
+    - 借此让 `TaskExecutor` 也可以进行 fail 持久化，文件为 `fallback/{date_str}/executor_errors({time_str}).jsonl`
+    - 重构整体项目结构，现在更加清晰
+    - 补全 `docs/reference` 中全部文档，并令其符合项目重构后结构
+    - 引入 `uv` 进行环境管理
+    - 将 executor 中计数逻辑分离为 `runtime/metrics.py`
+    - 整合 `TaskQueue` 中重复逻辑
+  - fix:
+    - 修复前端 `renderNodeList` 中参数设置错误
+    - 修复其他微小 bug
+- 3.1.3:
   - feat:
-    - 抽象出BaseSpout与BaseInlet;
-    - 移除loguru, 完全由LogSpout和LogInlet实现log记录; 
-    - 将bench相关代码从TaskExecutor和TaskGraph中抽离, 不再作为方法, 而是单独bench函数; 
-    - 重构TaskExecutor部分代码, 以尽量瘦身; 
-    - 优化log处理代码中对时间戳的处理, 现在更加准确;
+    - 抽象出 `BaseSpout` 与 `BaseInlet`
+    - 移除 loguru，完全由 `LogSpout` 和 `LogInlet` 实现 log 记录
+    - 将 bench 相关代码从 `TaskExecutor` 和 `TaskGraph` 中抽离，不再作为方法，而是单独 bench 函数
+    - 重构 `TaskExecutor` 部分代码，以尽量瘦身
+    - 优化 log 处理代码中对时间戳的处理，现在更加准确
   - fix:
     - 修复一些影响性能的小问题
 - 3.1.4:
   - feat:
-    - 添加前端设置文件config.json, 包含主题(白天与黑夜), 刷新时间, 历史长度, 卡片种类, 仪表盘布局;
-    - 完善对termination_signal在ctree上的事件管理;
-    - 新添termination_*系日志, 同时优化部分原有日志;
-    - 在前端的错误数字上(包括单个stage的卡片与summary卡片)绑定跳转事件, 可以跳转到ErrorLog页面, 并显示对应的错误;
-    - 修复部分原有的文档错误, 并添加新的前端代码文档;
+    - 添加前端设置文件 `config.json`，包含主题（白天与黑夜）、刷新时间、历史长度、卡片种类、仪表盘布局
+    - 完善对 `TerminationSignal` 在 ctree 上的事件管理
+    - 新添 `termination_*` 系日志，同时优化部分原有日志
+    - 在前端的错误数字上（包括单个 stage 的卡片与 summary 卡片）绑定跳转事件，可以跳转到 ErrorLog 页面，并显示对应的错误
+    - 修复部分原有的文档错误，并添加新的前端代码文档
   - refactor:
-    - fail_inlet.task_error中不必再传时间, 方法会自己补充;
-    - 将所有counter放入TaskMetrics管理, 断绝对TAskExecutor的调用依赖;
-    - 将run_*函数分离并移入TaskDispatch类, 同时将pool管理也迁入; 
-    - 将TaskQueue分离为更具体的TaskInQueue与TaskOutQueue, 同时TAskInQueue只接受一个MPQueue以避免原有的轮询逻辑, 减少CPU运算消耗;
-    - 前端代码换用ts;
-    - 重命名所有代码文件, 现在用core_与util_前缀来区分核心代码与辅助代码;
-    - 将history数据从status中移出, 使用单独的/api/*_history端口;
+    - `FailInlet.task_error` 中不必再传时间，方法会自己补充
+    - 将所有 counter 放入 `TaskMetrics` 管理，断绝对 `TaskExecutor` 的调用依赖
+    - 将 `run_*` 函数分离并移入 `TaskDispatch` 类，同时将 pool 管理也迁入
+    - 将 `TaskQueue` 分离为更具体的 `TaskInQueue` 与 `TaskOutQueue`，同时 `TaskInQueue` 只接受一个 MPQueue 以避免原有的轮询逻辑，减少 CPU 运算消耗
+    - 前端代码换用 TypeScript
+    - 重命名所有代码文件，现在用 `core_` 与 `util_` 前缀来区分核心代码与辅助代码
+    - 将 history 数据从 status 中移出，使用单独的 `/api/*_history` 端口
   - fix:
-    - TaskRedisTransport节点在mermaid中没有展示为parallelogram;
-- 3.1.5
-  - feat
-    - 大幅修改节点状态卡片的色彩视觉设计. 包括: 取消原本的悬浮设计, 改为平面化设计; 让进度条更直接的显示不同任务完成状态的比例; 使用左边框来显示节点是否在运行中. 而非原本的badge;
-    - 前端的error数据拉取不再每次都全量拉取, 而是只拉取自己当前没有的数据;
-  - refactor
-    - 大幅重构前端代码中的色彩管理, 现在色彩的一致性更好;
-    - 修改前端代码中的数据更新判断, 现在相关判断交给serve.py;
-  - fix
-    - 修复节点已运行时间在节点完成后显示为0的问题
-    - 修复在最新fastapi版本下TemplateResponse参数改变导致的问题
-- 3.1.6
-  - feat
-    - 前端现在只储存一页的error数据, 有效减少了运行大规模任务时前端内存飙升的问题;
-    - 优化任务数显示, 大于1*10^7时显示科学计数法, 否则显示英式计数;
-    - 优化小屏模式下表格的显示: 改为用卡片式显示;
-    - 在error表格中加入index项;
-    - 大幅调整任务颜色分配, 现在重复任务使用黄色系, 等待任务使用灰色系;
-    - 将节点卡片中的已消耗时间颜色拟合为下方进度条颜色;
-  - refactor
-    - 用mypy整理了一遍类型标注;
-    - 删除与整合部分css代码;
-    - 将字体等适合rem单位的地方全部从px替换为rem, 并且都部分size进行统一;
-  - fix
-    - 修复总体剩余时间在特殊情况下显示0的问题(这玩意真麻烦);
-    - 修复部分小屏下的显示问题, 但折线图不显示的问题不太好解决;
-- 3.1.7
+    - `TaskRedisTransport` 节点在 Mermaid 中没有展示为 parallelogram
+- 3.1.5:
   - feat:
-    - [Important] 删除executor中的"process"模式, 它跟新的retry机制实在难以匹配;
+    - 大幅修改节点状态卡片的色彩视觉设计。包括: 取消原本的悬浮设计，改为平面化设计；让进度条更直接地显示不同任务完成状态的比例；使用左边框来显示节点是否在运行中，而非原本的 badge
+    - 前端的 error 数据拉取不再每次都全量拉取，而是只拉取自己当前没有的数据
   - refactor:
-    - [Important] 大幅重构retry机制, 现在不再让retry任务重进task_queue, 而是在worker中直接解决;
-      - 模仿CelestialForge中grow的做法;
-    - 大幅重构原本成功与失败结果的缓存机制, 并将原有get_success/error_dict改名为get_success/error_pairs, 以避免task无法作为键时会导致的问题; 
-      - fail数据从fail.jsonl中提取;
-      - success数据从result_queue中直接获取, 为此添加了SuccessSpout作为集合端;
+    - 大幅重构前端代码中的色彩管理，现在色彩的一致性更好
+    - 修改前端代码中的数据更新判断，现在相关判断交给 `serve.py`
   - fix:
-    - 修复部分任务类型无法在log_spout中dump进jsonl文件的问题;
-    - 修复在executor运行时, retry添加任务total数的问题, 虽然这样很帅;
-- 3.1.8
+    - 修复节点已运行时间在节点完成后显示为 0 的问题
+    - 修复在最新 FastAPI 版本下 `TemplateResponse` 参数改变导致的问题
+- 3.1.6:
   - feat:
-    - [Important] 为stage_mode新增"thread"模式, 适合I/O密集型任务和不可pickle的函数;
-      - 在io密集任务的bench测试中, "thread-thread"相比最慢的"serial-serial"快8.7x, 并且优于之前最快的"process-thread";
-    - 新增docs/.../bench与docs/.../demo文档, 补充bench实测结果;
+    - 前端现在只储存一页的 error 数据，有效减少了运行大规模任务时前端内存飙升的问题
+    - 优化任务数显示，大于 1×10⁷ 时显示科学计数法，否则显示英式计数
+    - 优化小屏模式下表格的显示: 改为用卡片式显示
+    - 在 error 表格中加入 index 项
+    - 大幅调整任务颜色分配，现在重复任务使用黄色系，等待任务使用灰色系
+    - 将节点卡片中的已消耗时间颜色拟合为下方进度条颜色
   - refactor:
-    - [Important] 删除stage.set_stage_context, 改用graph.connect;
-      - 接口破坏性重构, 需要修改大量graph相关代码;
-    - [Important] name作为第一位参数在stage/executor中强制设定;
+    - 用 mypy 整理了一遍类型标注
+    - 删除与整合部分 CSS 代码
+    - 将字体等适合 rem 单位的地方全部从 px 替换为 rem，并且对部分 size 进行统一
+  - fix:
+    - 修复总体剩余时间在特殊情况下显示 0 的问题（这玩意真麻烦）
+    - 修复部分小屏下的显示问题，但折线图不显示的问题不太好解决
+- 3.1.7:
+  - feat:
+    - **[Important]** 删除 executor 中的 `"process"` 模式，它跟新的 retry 机制实在难以匹配
+  - refactor:
+    - **[Important]** 大幅重构 retry 机制，现在不再让 retry 任务重进 `task_queue`，而是在 worker 中直接解决
+      - 模仿 CelestialForge 中 grow 的做法
+    - 大幅重构原本成功与失败结果的缓存机制，并将原有 `get_success/error_dict` 改名为 `get_success/error_pairs`，以避免 task 无法作为键时会导致的问题
+      - fail 数据从 `fail.jsonl` 中提取
+      - success 数据从 `result_queue` 中直接获取，为此添加了 `SuccessSpout` 作为集合端
+  - fix:
+    - 修复部分任务类型无法在 `LogSpout` 中 dump 进 JSONL 文件的问题
+    - 修复在 executor 运行时，retry 添加任务 total 数的问题，虽然这样很帅
+- 3.1.8:
+  - feat:
+    - **[Important]** 为 `stage_mode` 新增 `"thread"` 模式，适合 I/O 密集型任务和不可 pickle 的函数
+      - 在 I/O 密集任务的 bench 测试中，`"thread-thread"` 相比最慢的 `"serial-serial"` 快 8.7×，并且优于之前最快的 `"process-thread"`
+    - 新增 `docs/.../bench` 与 `docs/.../demo` 文档，补充 bench 实测结果
+  - refactor:
+    - **[Important]** 删除 `stage.set_stage_context`，改用 `graph.connect`
+      - 接口破坏性重构，需要修改大量 graph 相关代码
+    - **[Important]** `name` 作为第一位参数在 stage/executor 中强制设定
       - 接口破坏性重构
-    - 优化async的executor_mode, 使其同时获取与消费任务, 而非集中消费;
-    - 为上版本retry机制的重构收尾;
+    - 优化 async 的 `executor_mode`，使其同时获取与消费任务，而非集中消费
+    - 为上版本 retry 机制的重构收尾
   - fix:
-    - 修复find_unpickleable对bound method的误报;
-    - 修复stage重复检测错误;
-    - 修复retry任务无法被去重的问题;
+    - 修复 `find_unpickleable` 对 bound method 的误报
+    - 修复 stage 重复检测错误
+    - 修复 retry 任务无法被去重的问题
   - chore:
-    - 将demo/中所有test_函数名改为demo_函数名;
-    - 重组docs目录结构, 将reference改为src;
-    - docs中新增en/与ja/, 并将原有中文文档移至zh-CN/;
-- 3.1.9
- - feat:
-   - [Important] 在TaskStage中允许使用 `async` executor_mode;
-     - 3.1.8版本中其实已经可以实现, 在3.1.9版本中彻底测试通过;
-   - [Important] 创建基类BaseObservor, 现在可以从外界接入自定义Observor来检测运行状况;
-     - 同时创建轻量观察者CallbackObserver;
-   - 在TaskStage中添加init字段`log_level`, 自此stage init字段集实现对executor init字段集的包含关系, 仅多出`stage_mode`字段;
-   - escapeHtml中添加更多替换项;
-   - 在dispatch_thread中添加对futures的清理, 避免无用future的堆积;
-     - 基于bench\bench_futures_memory.py, 在十万级任务下futures内存开销为177.01 MB, 在定期清理后则为0.48 MB
- - refactor:
-    - 重构TaskProgress, 使其继承BaseObservor;
-      - 接口破坏性重构, TaskExecutor的show_progress参数已删除, 现在只有显性的add_observer TaskProgress后才会使用progress
-      - 具体使用参考demo\demo_executor.py
-    - 重构TaskEnvelope, 不再使用wrap与unwrap, 同时hash值惰性求解;
-  - chore:
-    - 删除部分无用代码以提高代码质量;
-- 3.2.0
+    - 将 `demo/` 中所有 `test_` 函数名改为 `demo_` 函数名
+    - 重组 `docs/` 目录结构，将 `reference` 改为 `src`
+    - `docs/` 中新增 `en/` 与 `ja/`，并将原有中文文档移至 `zh-CN/`
+- 3.1.9:
   - feat:
-    - [Important] 彻底废弃 `stage_mode="process"`, 移除所有 multiprocessing 依赖(MPValue, MPQueue, multiprocessing.Process);
-      - bench_graph_mode 数据表明 process 模式在所有场景下均慢于 thread 模式, 且引入大量序列化开销和 pickle 限制;
-    - [Important] 删除原有set_stages中手动输入的`root_stages`参数, 取而代之为通过scc缩合图计算出的一组`source_stages`
-      - 重补了不少图论课
-    - 将graph/stage/executor的默认log level从`SUCCESS`改为`INFO`, 也就是默认只显示开启关闭信息与错误
-    - 在web页面中添加配置按钮
-      - 当前仅支持设置刷新间隔与历史长度, 之后可以进行更多设置
+    - **[Important]** 在 `TaskStage` 中允许使用 `"async"` executor_mode
+      - 3.1.8 版本中其实已经可以实现，在 3.1.9 版本中彻底测试通过
+    - **[Important]** 创建基类 `BaseObserver`，现在可以从外界接入自定义 Observer 来检测运行状况
+      - 同时创建轻量观察者 `CallbackObserver`
+    - 在 `TaskStage` 中添加 init 字段 `log_level`，自此 stage init 字段集实现对 executor init 字段集的包含关系，仅多出 `stage_mode` 字段
+    - `escapeHtml` 中添加更多替换项
+    - 在 `dispatch_thread` 中添加对 futures 的清理，避免无用 future 的堆积
+      - 基于 `bench/bench_futures_memory.py`，在十万级任务下 futures 内存开销为 177.01 MB，在定期清理后则为 0.48 MB
   - refactor:
-    - 由于stage_mode中取消`process`, 框架中部分为了适配`process`而进行的设计进行删除或者重构  
-      - 例如将所有的MPValue和MPQueue改为int与Queue
-      - 尚未进行严格的bench测试, 但应该会带来一定的性能优化
-    - 重构networkx图的建立过程, 现在直接通过节点与出边进行建立, 不再依赖递归
-    - 在重试检测机制中计算bytes类型的hash, 而非原本的string类型
-      - 根据 bench_hash_memory, 节省内存约23%
-    - 将节点状态中的deltas数据放在web端由js计算, 减少不必要的通信数据
+    - 重构 `TaskProgress`，使其继承 `BaseObserver`
+      - 接口破坏性重构，`TaskExecutor` 的 `show_progress` 参数已删除，现在只有显式的 `add_observer(TaskProgress(...))` 后才会使用 progress
+      - 具体使用参考 `demo/demo_executor.py`
+    - 重构 `TaskEnvelope`，不再使用 `wrap` 与 `unwrap`，同时 hash 值惰性求解
+  - chore:
+    - 删除部分无用代码以提高代码质量
+- 3.2.0:
+  - feat:
+    - **[Important]** 彻底废弃 `stage_mode="process"`，移除所有 multiprocessing 依赖（`MPValue`、`MPQueue`、`multiprocessing.Process`）
+      - `bench_graph_mode` 数据表明 process 模式在所有场景下均慢于 thread 模式，且引入大量序列化开销和 pickle 限制
+    - **[Important]** 删除原有 `set_stages` 中手动输入的 `root_stages` 参数，取而代之为通过 SCC 缩合图计算出的一组 `source_stages`
+      - 重补了不少图论课
+    - 将 graph/stage/executor 的默认 log level 从 `"SUCCESS"` 改为 `"INFO"`，也就是默认只显示开启关闭信息与错误
+    - 在 Web 页面中添加配置按钮
+      - 当前仅支持设置刷新间隔与历史长度，之后可以进行更多设置
+  - refactor:
+    - 由于 `stage_mode` 中取消 `"process"`，框架中部分为了适配 `"process"` 而进行的设计进行删除或者重构
+      - 例如将所有的 `MPValue` 和 `MPQueue` 改为 `int` 与 `Queue`
+      - 尚未进行严格的 bench 测试，但应该会带来一定的性能优化
+    - 重构 NetworkX 图的建立过程，现在直接通过节点与出边进行建立，不再依赖递归
+    - 在重试检测机制中计算 `bytes` 类型的 hash，而非原本的 string 类型
+      - 根据 `bench_hash_memory`，节省内存约 23%
+    - 将节点状态中的 deltas 数据放在 Web 端由 JS 计算，减少不必要的通信数据
   - fix:
-    - 删除InQueue.get中的错误捕获, 这会导致错过panic级error
+    - 删除 `InQueue.get` 中的错误捕获，这会导致错过 panic 级 error
+- 3.2.1:
+  - feat:
+    - **[Important]** 大幅强化配置按钮功能
+      - 现在可以配置界面语言，并支持中、日、英三语言切换
+      - 可以配置错误日志每页日志条数
+      - 可以配置结构图中是否显示增量，不过现在样式上有点丑
+      - 以及最重要的，可以直接编辑仪表盘页的卡片布局
+      - 另外，所有设置保存成功后会有提示
+    - 折线图中可以选择数据类型
+      - 现在包括"数据累计"、"等待队列"和"数据变化率"
+    - 对 structure 的一些调整
+      - 所有 structure 的参数中添加 `stage_mode`，用于统一控制节点模式
+      - 对 struct 中节点不再重新命名
+    - 在部分 Spout 中增加缓冲机制
+  - refactor:
+    - **[Important]** 删除 executor 中的 `tag` 属性，并全面使用 `name` 属性进行替代
+      - `tag` 的出现是为了适应早期无法区分节点而设计的，但现在 `name` 已经强制唯一性，继续使用冗长的 `tag` 会导致不便
+    - **[Important]** 将 executor 中 `task_queue` 与 `result_queue` 的定义提前到 `__init__` 中
+      - 对于 executor 来说区别不大，但对于 stage 而言这是更理想且优雅的形式，只是由于原先 `stage_mode="process"` 时不允许执行函数内带有 `MPQueue`，所以才使用 graph 中统一定义，然后通过 process 的 args 注入的形式
+    - **[Important]** 重构 `core_server`，将其分解出 `routes/` 与 `util_models`，实现结构优化
+    - 进一步地，将 `log_queue` 和 `fail_queue` 的注入也提前到 `graph.set_stages` 中，实现 `stage.start_stage` 完全无输入参数
+    - 同时在 executor 中添加 `put_task` 与 `put_signal`，并在 graph 中进行复用
+      - 之前不能这样做是因为 stage 中此时还没有定义 queue
+    - 移除 `core_graph` 中的 `StageRuntime`
+    - 将类型标注中的部分 `Any` 改为更明确的类型
+    - 删除 HTML 中的仪表盘部分的 card，现在交给 `web-config` 来定义
+    - 删除部分没必要的前后端通信，优化通信负载
+      - 移除后端传递的节点历史信息，由前端进行维护
+      - 移除总体统计中除"总剩余时间"的后端数据，由前端进行计算
+    - 优化错误存储的 JSONL 数据结构，现在保存更细致的错误信息
+    - 调整 pyright 规则，并实现 pyright 0 error / 0 warning
+    - 给 `web/` 下几乎所有 `.ts` 与 `.css` 文件重命名，并整理文件内容边界
+    - `util_error` 中添加更多错误类型，保证项目中所有主动 raise 的错误都在当前的错误体系下
+    - 删除前端代码中所有的 `onclick`，改用 `data-*` 属性
+    - 清简 `config.json` 中的部分字段
+    - 删除部分不必要的代码
+  - fix:
+    - 对部分太宽泛的错误捕捉进行收窄
+  - chore:
+    - 添加更多测试代码，并整理 `tests/` 结构
+    - 修复 `bench/` 中的一些问题
+      - 主要是 `bench_execution_mode` 中的两种 Fibonacci 运算量级不同，无法正常进行模型 bench
+    - 添加 `.github/workflows`，实现 CI/CD
+    - 更新支持的 Python 版本为 3.11，以与部分库要求相符
+    - 添加两个 skill，分别用于更新文档与审查项目

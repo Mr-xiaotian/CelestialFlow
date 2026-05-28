@@ -241,25 +241,51 @@ flowchart TD
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.2.0
+- 3.2.1:
   - feat:
-    - [Important] 彻底废弃 `stage_mode="process"`, 移除所有 multiprocessing 依赖(MPValue, MPQueue, multiprocessing.Process);
-      - bench_graph_mode 数据表明 process 模式在所有场景下均慢于 thread 模式, 且引入大量序列化开销和 pickle 限制;
-    - [Important] 删除原有set_stages中手动输入的`root_stages`参数, 取而代之为通过scc缩合图计算出的一组`source_stages`
-      - 重补了不少图论课
-    - 将graph/stage/executor的默认log level从`SUCCESS`改为`INFO`, 也就是默认只显示开启关闭信息与错误
-    - 在web页面中添加配置按钮
-      - 当前仅支持设置刷新间隔与历史长度, 之后可以进行更多设置
+    - **[Important]** 大幅强化配置按钮功能
+      - 现在可以配置界面语言，并支持中、日、英三语言切换
+      - 可以配置错误日志每页日志条数
+      - 可以配置结构图中是否显示增量，不过现在样式上有点丑
+      - 以及最重要的，可以直接编辑仪表盘页的卡片布局
+      - 另外，所有设置保存成功后会有提示
+    - 折线图中可以选择数据类型
+      - 现在包括"数据累计"、"等待队列"和"数据变化率"
+    - 对 structure 的一些调整
+      - 所有 structure 的参数中添加 `stage_mode`，用于统一控制节点模式
+      - 对 struct 中节点不再重新命名
+    - 在部分 Spout 中增加缓冲机制
   - refactor:
-    - 由于stage_mode中取消`process`, 框架中部分为了适配`process`而进行的设计进行删除或者重构  
-      - 例如将所有的MPValue和MPQueue改为int与Queue
-      - 尚未进行严格的bench测试, 但应该会带来一定的性能优化
-    - 重构networkx图的建立过程, 现在直接通过节点与出边进行建立, 不再依赖递归
-    - 在重试检测机制中计算bytes类型的hash, 而非原本的string类型
-      - 根据 bench_hash_memory, 节省内存约23%
-    - 将节点状态中的deltas数据放在web端由js计算, 减少不必要的通信数据
+    - **[Important]** 删除 executor 中的 `tag` 属性，并全面使用 `name` 属性进行替代
+      - `tag` 的出现是为了适应早期无法区分节点而设计的，但现在 `name` 已经强制唯一性，继续使用冗长的 `tag` 会导致不便
+    - **[Important]** 将 executor 中 `task_queue` 与 `result_queue` 的定义提前到 `__init__` 中
+      - 对于 executor 来说区别不大，但对于 stage 而言这是更理想且优雅的形式，只是由于原先 `stage_mode="process"` 时不允许执行函数内带有 `MPQueue`，所以才使用 graph 中统一定义，然后通过 process 的 args 注入的形式
+    - **[Important]** 重构 `core_server`，将其分解出 `routes/` 与 `util_models`，实现结构优化
+    - 进一步地，将 `log_queue` 和 `fail_queue` 的注入也提前到 `graph.set_stages` 中，实现 `stage.start_stage` 完全无输入参数
+    - 同时在 executor 中添加 `put_task` 与 `put_signal`，并在 graph 中进行复用
+      - 之前不能这样做是因为 stage 中此时还没有定义 queue
+    - 移除 `core_graph` 中的 `StageRuntime`
+    - 将类型标注中的部分 `Any` 改为更明确的类型
+    - 删除 HTML 中的仪表盘部分的 card，现在交给 `web-config` 来定义
+    - 删除部分没必要的前后端通信，优化通信负载
+      - 移除后端传递的节点历史信息，由前端进行维护
+      - 移除总体统计中除"总剩余时间"的后端数据，由前端进行计算
+    - 优化错误存储的 JSONL 数据结构，现在保存更细致的错误信息
+    - 调整 pyright 规则，并实现 pyright 0 error / 0 warning
+    - 给 `web/` 下几乎所有 `.ts` 与 `.css` 文件重命名，并整理文件内容边界
+    - `util_error` 中添加更多错误类型，保证项目中所有主动 raise 的错误都在当前的错误体系下
+    - 删除前端代码中所有的 `onclick`，改用 `data-*` 属性
+    - 清简 `config.json` 中的部分字段
+    - 删除部分不必要的代码
   - fix:
-    - 删除InQueue.get中的错误捕获, 这会导致错过panic级error
+    - 对部分太宽泛的错误捕捉进行收窄
+  - chore:
+    - 添加更多测试代码，并整理 `tests/` 结构
+    - 修复 `bench/` 中的一些问题
+      - 主要是 `bench_execution_mode` 中的两种 Fibonacci 运算量级不同，无法正常进行模型 bench
+    - 添加 `.github/workflows`，实现 CI/CD
+    - 更新支持的 Python 版本为 3.11，以与部分库要求相符
+    - 添加两个 skill，分别用于更新文档与审查项目
 
 更多过往日志可看:
 
