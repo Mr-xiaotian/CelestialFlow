@@ -13,11 +13,18 @@ if TYPE_CHECKING:
 
 
 def register(router: APIRouter, server: TaskWebServer) -> None:
-    """注册所有 pull 路由。"""
+    """注册所有 pull 路由。
+
+    :param router: FastAPI APIRouter 实例
+    :param server: TaskWebServer 实例，提供数据存储与配置
+    """
 
     @router.get("/api/pull_config")
     def pull_config() -> dict[str, Any]:
-        """获取前端配置"""
+        """获取前端配置
+
+        :return: 前端配置字典
+        """
         with server.config_lock:
             return server.config
 
@@ -27,6 +34,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         返回图结构数据；若版本未变则返回 data=null。
 
         :param known_rev: 客户端已知的版本号
+        :return: {"rev": int, "data": list | None}
         """
         rev: int = server.store_revs["structure"]
         if known_rev == rev:
@@ -39,6 +47,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         返回各节点运行状态；若版本未变则返回 data=null。
 
         :param known_rev: 客户端已知的版本号
+        :return: {"rev": int, "timestamp": float, "data": dict | None}
         """
         rev: int = server.store_revs["status"]
         if known_rev == rev:
@@ -65,6 +74,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         :param page_size: 每页大小，默认 10
         :param node: 节点名称过滤，默认 ""
         :param keyword: 关键词过滤，默认 ""
+        :return: {"rev": int, "page": int, "page_size": int, "total": int, "total_pages": int, "data": list | None}
         """
         rev: int = server.store_revs["errors"]
         (
@@ -98,6 +108,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         返回图拓扑信息；若版本未变则返回 data=null。
 
         :param known_rev: 客户端已知的版本号
+        :return: {"rev": int, "data": dict | None}
         """
         rev: int = server.store_revs["analysis"]
         if known_rev == rev:
@@ -110,6 +121,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         返回全局任务汇总数据；若版本未变则返回 data=null。
 
         :param known_rev: 客户端已知的版本号
+        :return: {"rev": int, "data": dict | None}
         """
         rev: int = server.store_revs["summary"]
         if known_rev == rev:
@@ -118,12 +130,18 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
 
     @router.get("/api/pull_interval")
     def pull_interval() -> dict[str, float]:
-        """返回当前轮询间隔（秒）。"""
+        """返回当前轮询间隔（秒）。
+
+        :return: {"interval": float}
+        """
         return {"interval": server.report_interval}
 
     @router.get("/api/pull_task_injection")
     def pull_task_injection() -> list[dict[str, Any]]:
-        """取出并清空待执行的前端注入任务列表。"""
+        """取出并清空待执行的前端注入任务列表。
+
+        :return: 待执行注入任务列表
+        """
         with server.task_injection_lock:
             tasks = server.injection_tasks.copy()
             server.injection_tasks.clear()

@@ -26,7 +26,7 @@ class BaseSpout:
         """
         处理单条队列记录，子类必须覆写。
 
-        :param record: 队列中取出的记录
+        :param _record: 队列中取出的记录
         """
         raise CelestialFlowError("_handle_record must be implemented by subclasses")
 

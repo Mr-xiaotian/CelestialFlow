@@ -142,6 +142,7 @@ class TaskGraph:
         添加节点到任务图中
 
         :param stages: 待添加的节点列表
+        :raises DuplicateNodeError: 存在重复的 stage 名称
         """
         fail_queue = self.fail_spout.get_queue()
         log_queue = self.log_spout.get_queue()
@@ -174,6 +175,7 @@ class TaskGraph:
         设置任务链的执行模式
 
         :param schedule_mode: 节点执行模式, 可选值为 'eager' 或 'staged'
+        :raises ScheduleModeError: schedule_mode 不是 'eager' 或 'staged'
         """
         if schedule_mode == "eager":
             self.schedule_mode = "eager"
@@ -230,6 +232,7 @@ class TaskGraph:
         :param http_port: 事件树 HTTP 端口，默认 7777
         :param grpc_port: 事件树 gRPC 端口，默认 7778
         :param transport: 传输方式, 可选 'grpc' 或 'http'，默认 'grpc'
+        :raises CelestialTreeConnectionError: 使用 ctree 但 health check 失败
         """
         self.use_ctree = use_ctree
         self.ctree_host = host

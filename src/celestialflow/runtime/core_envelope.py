@@ -11,6 +11,8 @@ class TaskEnvelope:
 
     def __init__(self, task: Any, id: int, source: str, prev: Any = None):
         """
+        初始化任务信封。
+
         :param task: 原始任务
         :param id: 任务 ID
         :param source: 任务来源标识

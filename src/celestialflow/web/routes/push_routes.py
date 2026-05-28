@@ -28,7 +28,12 @@ if TYPE_CHECKING:
 
 
 def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None:
-    """注册所有 push 路由。"""
+    """注册所有 push 路由。
+
+    :param router: FastAPI APIRouter 实例
+    :param server: TaskWebServer 实例，提供数据存储与配置
+    :param config_path: 配置文件路径
+    """
 
     @router.post("/api/push_config", response_model=None)
     async def push_config(data: WebConfigModel) -> dict[str, bool] | JSONResponse:
@@ -36,6 +41,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         保存前端配置
 
         :param data: 前端配置数据
+        :return: {"ok": True} 或 JSONResponse({"ok": False, "error": ...}, 500)
         """
         with server.config_lock:
             config_raw: Any = data.model_dump()
@@ -56,6 +62,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         更新图结构数据并递增版本号。
 
         :param data: 图结构数据
+        :return: {"ok": True}
         """
         server.structure_store = data.items
         server.store_revs["structure"] += 1
@@ -67,6 +74,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         更新各节点运行状态并递增版本号。
 
         :param data: 节点状态数据
+        :return: {"ok": True}
         """
         server.status_timestamp = float(data.timestamp)
         server.status_store = data.status
@@ -87,6 +95,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         通过 JSONL 文件路径+版本号加载错误日志；命中缓存则跳过读取。
 
         :param data: 错误元信息数据
+        :return: {"ok": True, "cached": bool} 或 {"ok": False, "fallback": ..., ...}
         """
         # 命中缓存：path 和 rev 都没变 -> 不重新读取
         if _is_errors_cache_hit(data.rev, data.jsonl_path):
@@ -124,6 +133,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         直接接收错误日志列表并存储；支持增量 append；命中缓存则跳过。
 
         :param data: 错误内容数据
+        :return: {"ok": True, "cached": bool}
         """
         if _is_errors_cache_hit(data.rev, data.jsonl_path):
             return {"ok": True, "cached": True}
@@ -138,6 +148,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         更新图分析信息并递增版本号。
 
         :param data: 图分析数据
+        :return: {"ok": True}
         """
         server.analysis_store = data.analysis
         server.store_revs["analysis"] += 1
@@ -149,6 +160,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         更新全局任务汇总数据并递增版本号。
 
         :param data: 全局汇总数据
+        :return: {"ok": True}
         """
         server.summary_store = data.summary
         server.store_revs["summary"] += 1
@@ -162,6 +174,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         将前端提交的注入任务追加到待执行队列。
 
         :param data: 注入任务数据
+        :return: {"ok": True} 或 JSONResponse({"ok": False, "msg": ...}, 500)
         """
         try:
             with server.task_injection_lock:

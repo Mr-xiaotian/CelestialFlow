@@ -12,6 +12,7 @@ def load_config(config_path: str) -> dict[str, Any]:
 
     :param config_path: 配置文件路径
     :return: 配置字典
+    :raises ConfigurationError: 配置文件不存在时抛出
     """
     if not os.path.exists(config_path):
         raise ConfigurationError(f"config file not found: {config_path}")

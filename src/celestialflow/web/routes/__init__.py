@@ -14,7 +14,11 @@ if TYPE_CHECKING:
 
 
 def create_router(server: TaskWebServer) -> APIRouter:
-    """创建并注册所有路由的 APIRouter。"""
+    """创建并注册所有路由的 APIRouter。
+
+    :param server: TaskWebServer 实例，路由需持有其状态引用
+    :return: 组装完成的 APIRouter 实例
+    """
     router = APIRouter()
 
     # 页面入口

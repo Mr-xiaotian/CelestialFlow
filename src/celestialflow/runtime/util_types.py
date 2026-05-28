@@ -17,6 +17,8 @@ class TerminationSignal:
 
     def __init__(self, _id: int = -1, source: str = "input") -> None:
         """
+        初始化终止信号。
+
         :param _id: 终止信号 ID，默认 -1
         :param source: 信号来源标识，默认 "input"
         """
@@ -37,6 +39,8 @@ class TerminationIdPool:
 
     def __init__(self, ids: list[int]) -> None:
         """
+        初始化终止信号 ID 池。
+
         :param ids: 终止信号 ID 列表
         """
         self.ids = ids
@@ -57,7 +61,12 @@ class NoOpContext:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        """退出空上下文"""
+        """退出空上下文，忽略所有异常信息。
+
+        :param exc_type: 异常类型，未使用
+        :param exc_val: 异常值，未使用
+        :param exc_tb: 回溯信息，未使用
+        """
         pass
 
 
@@ -69,6 +78,8 @@ class ValueWrapper:
 
     def __init__(self, value: int = 0, lock: Lock | None = None) -> None:
         """
+        初始化值包装器。
+
         :param value: 初始值，默认 0
         :param lock: 可选的线程锁，默认 None
         """
@@ -89,6 +100,8 @@ class SumCounter:
 
     def __init__(self, mode: str = "serial"):
         """
+        初始化累加计数器。
+
         :param mode: 执行模式，决定锁和计数器实现，默认 "serial"
         """
         self.mode = mode

@@ -50,7 +50,7 @@ class TaskInQueue:
         添加入队来源名称
 
         :param name: 入队来源名称
-        :raises ValueError: 如果名称已存在
+        :raises DuplicateNodeError: 如果名称已存在
         """
         if name in self.source_names:
             raise DuplicateNodeError(f"duplicate queue source name: {name}")
@@ -62,6 +62,7 @@ class TaskInQueue:
         记录入队来源的终止信号
 
         :param signal: 入队来源的终止信号
+        :raises UnknownNodeError: 如果信号来源不在已知来源集合中
         """
         source = signal.source
 
@@ -74,6 +75,8 @@ class TaskInQueue:
     def _can_merge_termination(self) -> bool:
         """
         判断是否可以合并普通输入队列的终止信号
+
+        :return: 如果所有来源都已发出终止信号则返回 True，否则返回 False
         """
         return all(name in self.termination_dict for name in self.source_names)
 
@@ -86,6 +89,7 @@ class TaskInQueue:
         - self.out_name 的 merge 后终止
 
         :return: 合并后的终止信号池
+        :raises TerminationMergeError: 如果存在尚未收到终止信号的来源
         """
         missing_names = [
             name for name in self.source_names if name not in self.termination_dict

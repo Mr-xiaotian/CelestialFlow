@@ -40,6 +40,8 @@ class InvalidOptionError(ConfigurationError):
         prefix: str = "Invalid",
     ):
         """
+        初始化异常。
+
         :param field: 配置项名称
         :param value: 实际传入的值
         :param allowed: 允许的取值集合
@@ -62,6 +64,8 @@ class ExecutionModeError(InvalidOptionError):
 
     def __init__(self, execution_mode: str, valid_modes: tuple[str, ...] | None = None):
         """
+        初始化异常。
+
         :param execution_mode: 非法的执行模式值
         :param valid_modes: 允许的执行模式列表
         """
@@ -79,6 +83,8 @@ class StageModeError(InvalidOptionError):
 
     def __init__(self, stage_mode: str, valid_modes: tuple[str, ...] | None = None):
         """
+        初始化异常。
+
         :param stage_mode: 非法的节点模式值
         :param valid_modes: 允许的节点模式列表
         """
@@ -96,6 +102,8 @@ class LogLevelError(InvalidOptionError):
 
     def __init__(self, log_level: str, valid_levels: tuple[str, ...] | None = None):
         """
+        初始化异常。
+
         :param log_level: 非法的日志级别值
         :param valid_levels: 允许的日志级别列表
         """
@@ -121,6 +129,8 @@ class ScheduleModeError(InvalidOptionError):
 
     def __init__(self, schedule_mode: str, valid_modes: tuple[str, ...] | None = None):
         """
+        初始化异常。
+
         :param schedule_mode: 非法的调度模式值
         :param valid_modes: 允许的调度模式列表
         """
@@ -173,6 +183,11 @@ class GraphManagedError(RuntimeStateError):
         self,
         message: str = "This stage is managed by a TaskGraph. Use TaskGraph.start_graph() instead of calling start() directly.",
     ) -> None:
+        """
+        初始化异常。
+
+        :param message: 错误消息
+        """
         super().__init__(message)
 
 
@@ -208,6 +223,8 @@ class CelestialTreeConnectionError(CelestialFlowError):
 
     def __init__(self, message: str = "CelestialTreeClient is not available"):
         """
+        初始化异常。
+
         :param message: 错误消息
         """
         super().__init__(message)

@@ -394,7 +394,7 @@ class TaskRedisSource(TaskStage):
 
         :param _: 忽略的输入参数（仅作为启动信号）
         :return: 从 Redis 拉取的任务数据
-        :raises TimeoutError: 超时未获取到数据
+        :raises CelestialFlowTimeoutError: 超时未获取到数据
         :raises RemoteWorkerError: 返回的 payload 中缺少 'task' 字段
         """
         self.init_redis()
@@ -484,6 +484,8 @@ class TaskRedisAck(TaskStage):
 
         :param task_id: 来自 TaskRedisTransport 的 task_id
         :return: 远端执行结果
+        :raises RemoteWorkerError: 远端 worker 返回错误状态或未知状态
+        :raises CelestialFlowTimeoutError: 等待远端结果超时
         """
         self.init_redis()
 

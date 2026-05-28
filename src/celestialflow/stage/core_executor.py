@@ -178,12 +178,29 @@ class TaskExecutor:
 
     # ==== Observer ====
     def add_observer(self, observer: BaseObserver) -> None:
+        """
+        注册观察者。
+
+        :param observer: 要注册的观察者实例
+        """
         self._observers.append(observer)
 
     def remove_observer(self, observer: BaseObserver) -> None:
+        """
+        移除观察者。
+
+        :param observer: 要移除的观察者实例
+        """
         self._observers.remove(observer)
 
     def _notify(self, method_name: str, *args: Any, **kwargs: Any) -> None:
+        """
+        通知所有已注册的观察者调用指定方法。
+
+        :param method_name: 要调用的观察者方法名
+        :param args: 传递给观察者方法的位置参数
+        :param kwargs: 传递给观察者方法的关键字参数
+        """
         for observer in self._observers:
             getattr(observer, method_name)(*args, **kwargs)
 
@@ -202,6 +219,8 @@ class TaskExecutor:
         设置执行模式
 
         :param execution_mode: 执行模式，可以是 'thread'（线程）, 'async'（异步）, 'serial'（串行）
+        :raises ExecutionModeError: execution_mode 不是合法值
+        :raises ConfigurationError: 异步模式下 func 不是协程函数
         """
         valid_modes = ("serial", "thread", "async")
         if execution_mode in valid_modes:
@@ -240,6 +259,11 @@ class TaskExecutor:
         self.ctree_client = NullCelestialTreeClient(event_id)
 
     def set_name(self, name: str) -> None:
+        """
+        设置节点/管理器名称。
+
+        :param name: 节点/管理器名称
+        """
         self._name = name
 
     def set_log_level(self, log_level: str) -> None:
@@ -425,6 +449,8 @@ class TaskExecutor:
         处理错误字典。可根据需要覆写
 
         在这个示例中，我们将列表合并为错误组
+
+        :return: 按 (error_type, error_message) 分组的任务列表
         """
         error_groups: defaultdict[tuple[str, str], list[Any]] = defaultdict(list)
         for task, error in self.get_error_pairs():
@@ -653,6 +679,7 @@ class TaskExecutor:
         根据 execution_mode 的值，选择串行、线程或异步执行任务。
 
         :param task_source: 任务迭代器或者生成器
+        :raises ExecutionModeError: execution_mode 为非法值时触发
         """
         start_time = self._prepare_start(task_source)
         try:

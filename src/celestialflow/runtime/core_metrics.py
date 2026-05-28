@@ -179,8 +179,7 @@ class TaskMetrics:
 
         通过比较总输入任务数与已处理（成功+失败+重复）的任务数来判断。
 
-        Returns:
-            bool: 如果所有任务都已处理完毕，返回 True；否则返回 False。
+        :return: 如果所有任务都已处理完毕，返回 True；否则返回 False。
         """
         processed = (
             self.success_counter.value

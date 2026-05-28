@@ -68,6 +68,7 @@ class TaskStage(TaskExecutor):
         设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'thread'（线程）
 
         :param stage_mode: 当前节点执行模式
+        :raises StageModeError: stage_mode 不是 'serial' 或 'thread'
         """
         if stage_mode == "thread":
             self.stage_mode = "thread"
@@ -155,7 +156,9 @@ class TaskStage(TaskExecutor):
 
     def start_stage(self) -> None:
         """
-        根据 execution_mode 的值，选择串行、线程或异步执行任务
+        根据 execution_mode 的值，选择串行、线程或异步执行任务。
+
+        :raises ExecutionModeError: execution_mode 不为合法值时触发
         """
         self.start_time = time.perf_counter()
 

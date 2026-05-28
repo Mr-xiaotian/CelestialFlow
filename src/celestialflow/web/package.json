@@ -1,6 +1,7 @@
 {
   "name": "celestialflow-web",
   "version": "0.1.0",
+  "description": "CelestialFlow web frontend — task graph monitoring dashboard with real-time status, history charts, error logs, and task injection.",
   "private": true,
   "scripts": {
     "build": "tsc",
