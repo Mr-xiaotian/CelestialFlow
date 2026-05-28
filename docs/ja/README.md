@@ -1,6 +1,6 @@
 # CelestialFlow — 軽量・並列対応・グラフベースのPythonタスクスケジューリングフレームワーク
 
-> 📅 最終更新日: 2026/05/15
+> 📅 最終更新日: 2026/05/28
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
@@ -138,7 +138,7 @@ if __name__ == "__main__":
     graph.connect([stage1], [stage2])
 
     # タスクを初期化して開始
-    graph.start_graph({stage1.get_tag(): [(1, 2), (3, 4), (5, 6)]})
+    graph.start_graph({stage1.get_name(): [(1, 2), (3, 4), (5, 6)]})
 ```
 
 注意：.ipynbノートブックでは実行しないでください。
@@ -225,7 +225,7 @@ flowchart TD
 
 | 依存パッケージ      | 説明 |
 | ------------------- | ---- |
-| **Python ≥ 3.10**   | 実行環境、バージョン3.10以上を推奨 |
+| **Python ≥ 3.11**   | 実行環境、バージョン3.11以上を推奨 |
 | **tqdm**            | オプション、タスク実行の可視化用プログレスバー |
 | **fastapi**         | Webサービスフレームワーク（タスクの可視化とリモート制御用） |
 | **uvicorn**         | FastAPI用の高性能ASGIサーバー |
@@ -250,11 +250,11 @@ flowchart TD
   - feat:
     - [Important] `stage_mode="process"` を完全に廃止し、すべての multiprocessing 依存（MPValue、MPQueue、multiprocessing.Process）を削除しました。
       - bench_graph_mode のデータにより、process モードはすべてのシナリオで thread モードより遅く、大量のシリアライズオーバーヘッドと pickle の制限を伴うことが判明しました。
-    - [Important] set_stages から手動で指定していた `root_stages` パラメータを削除し、SCC 縮合グラフによって計算される `source_stages` のセットに置き換えました。
+    - **[Important]** set_stages から手動で指定していた `root_stages` パラメータを削除し、SCC 縮合グラフによって計算される `source_stages` のセットに置き換えました。
       - グラフ理論をかなり復習しました
-      - 現在はリフレッシュ間隔と履歴長の設定のみサポートしています。今後さらに多くの設定を追加できます
     - graph/stage/executor のデフォルトログレベルを `SUCCESS` から `INFO` に変更しました。つまりデフォルトでは開始/停止メッセージとエラーのみ表示されます
     - Web ページに設定ボタンを追加しました
+      - 現在はリフレッシュ間隔と履歴長の設定のみサポートしています。今後さらに多くの設定を追加できます
   - refactor:
     - stage_mode から `process` を削除したことにより、`process` に対応するために設計されていたフレームワークの一部を削除またはリファクタリングしました
       - 例えば、すべての MPValue と MPQueue を int と Queue に変更しました
@@ -265,6 +265,51 @@ flowchart TD
     - ノードステータスの delta データを Web 側の JS で計算するように移動し、不要な通信データを削減しました
   - fix:
     - InQueue.get のエラーキャッチを削除しました。これにより panic レベルのエラーが見逃される問題がありました
+- 3.2.1:
+  - feat:
+    - **[Important]** 設定ボタン機能を大幅に強化
+      - インターフェース言語の設定が可能になり、中国語・日本語・英語の3言語切替に対応
+      - エラーログの1ページあたりの表示件数を設定可能
+      - 構造図でデルタ表示の有無を設定可能（ただし現在のスタイルはやや不格好）
+      - そして最も重要な、ダッシュボードページのカードレイアウトを直接編集可能
+      - また、すべての設定を保存すると成功通知が表示されます
+    - 折れ線グラフでデータタイプを選択可能
+      - 「累計データ」、「待機キュー」、「データ変化率」を含む
+    - structure の調整
+      - すべての structure に `stage_mode` パラメータを追加し、ノードモードを統一的に制御
+      - struct 内のノードを再命名しないように変更
+    - 一部の Spout にバッファリング機構を追加
+  - refactor:
+    - **[Important]** executor の `tag` 属性を削除し、全面的に `name` 属性で代替
+      - `tag` は初期バージョンでノードを区別できなかったために設計されましたが、現在は `name` が一意性を強制するため、冗長な `tag` を使い続けると不便になります
+    - **[Important]** executor の `task_queue` と `result_queue` の定義を `__init__` に前倒し
+      - executor にとっては大きな違いはありませんが、stage にとってはより理想的でエレガントな形式です。ただ以前は `stage_mode="process"` の際に関数内に `MPQueue` を持てなかったため、graph で統一定義し process の args で注入していました
+    - **[Important]** `core_server` をリファクタリングし、`routes/` と `util_models` に分解して構造を最適化
+    - さらに、`log_queue` と `fail_queue` の注入も `graph.set_stages` に前倒しし、`stage.start_stage` が完全に入力パラメータなしで動作するように
+    - 同時に executor に `put_task` と `put_signal` を追加し、graph で再利用
+      - 以前は stage にまだ queue が定義されていなかったため、これができませんでした
+    - `core_graph` から `StageRuntime` を削除
+    - 型アノテーションの一部の `Any` をより明確な型に変更
+    - HTML からダッシュボードの card を削除し、`web-config` で定義
+    - 不要なフロントエンド・バックエンド通信を削減し、通信負荷を最適化
+      - ノード履歴情報のバックエンドからの転送を廃止し、フロントエンドで管理
+      - 「総残り時間」以外の全体統計のバックエンドデータを廃止し、フロントエンドで計算
+    - エラー保存の JSONL データ構造を最適化し、より詳細なエラー情報を保存
+    - pyright ルールを調整し、pyright 0 error / 0 warning を達成
+    - `web/` 下のほぼすべての `.ts` と `.css` ファイルをリネームし、ファイル内容の境界を整理
+    - `util_error` により多くのエラータイプを追加し、プロジェクト内のすべての能動的な raise が現在のエラー体系下にあることを保証
+    - フロントエンドコードのすべての `onclick` を削除し、`data-*` 属性に置き換え
+    - `config.json` の一部のフィールドを簡素化
+    - 不要なコードを一部削除
+  - fix:
+    - 一部の過度に広範なエラーキャッチを絞り込み
+  - chore:
+    - より多くのテストコードを追加し、`tests/` の構造を整理
+    - `bench/` の問題を修正
+      - 主に `bench_execution_mode` の2つの Fibonacci 実装で計算量が異なり、正常なモデルベンチマークができなかった問題
+    - `.github/workflows` を追加し、CI/CD を実現
+    - サポートする Python バージョンを 3.11 に更新し、一部のライブラリ要件に対応
+    - ドキュメント更新用とプロジェクトレビュー用の2つの skill を追加
 
 過去のログの詳細：
 

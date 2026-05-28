@@ -1,151 +1,186 @@
 # Runtime Module
 
-> 📅 Last Updated: 2026/05/09
+> 📅 Last Updated: 2026/05/28
 
 The Runtime module provides the task execution runtime environment for CelestialFlow, including core functionalities such as task scheduling, queue management, error handling, and performance monitoring. It serves as the infrastructure layer for actual task execution.
 
 ## Module Overview
 
-The Runtime module manages the lifecycle of task execution, from task submission to result retrieval. It provides multiple execution modes (serial, parallel, asynchronous), robust error handling mechanisms, performance monitoring, and resource management features.
+The Runtime module manages the lifecycle of task execution, from task submission to result retrieval. It provides three execution modes (serial `serial`, thread `thread`, async `async`), robust error handling mechanisms, performance monitoring, and resource management features.
 
-## File Descriptions
+## File Description
 
 ### Core Runtime Components
 
 1. **core_dispatch.py** (`TaskDispatch`)
-   - **Purpose**: Core task execution runner supporting multiple execution modes
+   - **Purpose**: Task scheduler that executes individual tasks in serial, thread, or async modes
    - **Execution Modes**:
-     - Serial execution: Executes tasks sequentially
-     - Thread pool: Concurrent execution for I/O-intensive tasks
-     - Process pool: Concurrent execution for CPU-intensive tasks
-     - Async execution: Asynchronous tasks based on asyncio
-   - **Key Features**: Task scheduling, worker thread management, timeout control, resource cleanup
+     - `dispatch_serial`: Executes tasks sequentially
+     - `dispatch_thread`: Concurrent execution based on `ThreadPoolExecutor`
+     - `dispatch_async`: Async tasks based on `asyncio` (semaphore-controlled concurrency)
+   - **Key Features**: Task retry, duplicate checking, termination signal merging, thread pool lifecycle management
 
 2. **core_queue.py** (`TaskInQueue`, `TaskOutQueue`)
-   - **Purpose**: Task input/output queues for data transfer between nodes
+   - **Purpose**: Task input/output queues for data transfer and termination signal merging between nodes
    - **Queue Types**:
-     - `TaskInQueue`: Task input queue, receives output from upstream nodes
-     - `TaskOutQueue`: Task output queue, sends results to downstream nodes
-   - **Key Features**: Thread safety, flow control, backpressure handling, serialization support
+     - `TaskInQueue`: Task input queue, aggregates tasks and termination signals from multiple upstream sources
+     - `TaskOutQueue`: Task output queue, broadcasts results to one or more downstream queue channels
+   - **Key Features**: Termination signal merging, source name management, logging, dynamic queue channel addition
 
 3. **core_envelope.py** (`TaskEnvelope`)
-   - **Purpose**: Task data wrapper containing task data, metadata, and execution context
-   - **Contains**: Task ID, input data, execution parameters, error handling strategy, priority
-   - **Key Features**: Data encapsulation, context propagation, error propagation, priority sorting
+   - **Purpose**: Task data wrapper encapsulating the original task along with its hash, ID, source, and other metadata
+   - **Contents**: Task data, SHA1 hash value (lazy computation), task ID, source identifier, predecessor task reference
+   - **Key Features**: Data encapsulation, lazy hash computation, task ID mutation (retry scenarios)
 
 ### Monitoring and Metrics
 
 4. **core_metrics.py** (`TaskMetrics`)
-   - **Purpose**: Task execution metrics collection and monitoring
-   - **Collected Metrics**: Execution time, success rate, error rate, queue length, throughput
-   - **Key Features**: Real-time monitoring, performance analysis, bottleneck detection, alert triggering
+   - **Purpose**: Task execution metrics, managing success/failure/duplicate counts and deduplication logic
+   - **Key Features**: Thread-safe counters, duplicate task checking, retryable exception configuration, task completion detection
 
 ### Tools and Utilities
 
-5. **util_errors.py** (`CelestialFlowError`, `ConfigurationError`, `InvalidOptionError`, `ExecutionModeError`, `StageModeError`, `LogLevelError`, `RemoteWorkerError`, `UnconsumedError`)
-   - **Purpose**: Error handling framework defining standard error types and handling strategies
-   - **Error Types**: 
-     - `CelestialFlowError`: Base class for all custom exceptions
-     - `ConfigurationError`: Configuration errors (invalid parameters, unsupported combinations, etc.)
-     - `InvalidOptionError`: Invalid configuration option value
-     - `ExecutionModeError`: Execution mode error
-     - `StageModeError`: Stage mode error
-     - `LogLevelError`: Log level error
-     - `RemoteWorkerError`: Remote worker error
-     - `UnconsumedError`: Unconsumed task error
-   - **Key Features**: Error classification, detailed error messages, parameter validation, error recovery
+5. **util_errors.py** (Exception Class Hierarchy)
+   - **Purpose**: Complete exception definition system
+   - **Coverage**: Configuration exceptions, graph structure exceptions, runtime exceptions, external service exceptions, task logic exceptions
+   - See `util_errors.md` for detailed exception list
 
-6. **util_factories.py**
-   - **Purpose**: Factory functions for runtime components, simplifying object creation
-   - **Factory Functions**:
-     - `make_counter()`: Creates counters (thread-safe/process-safe)
-     - `make_queue_backend()`: Creates queue backends based on execution mode
-     - `make_task_in_queue()`: Creates task input queues
-     - `make_task_out_queue()`: Creates task output queues
-   - **Key Features**: Unified object creation interface, configuration adaptation, dependency management
-
-7. **util_types.py**
+6. **util_types.py**
    - **Purpose**: Runtime type definitions and data structures
    - **Included Types**:
-     - `TerminationSignal`: Sentinel object for task queue termination
-     - `TerminationIdPool`: Termination signal ID pool
-     - `StageStatus`: Stage status enum (NOT_STARTED, RUNNING, STOPPED)
-     - `STAGE_STYLE`: Stage style enum
-     - `NodeLabelStyle`: Node label style (from CelestialTree)
-   - **Key Features**: Type definitions, enum management, data structures, type safety
+     - **Core Signals**: `TerminationSignal` / `TERMINATION_SIGNAL` — sentinel objects; `TerminationIdPool` — termination signal ID pool
+     - **Counters**: `ValueWrapper` — integer wrapper with optional thread lock; `SumCounter` — cascading accumulation from multiple `ValueWrapper` instances
+     - **Context Manager**: `NoOpContext` — empty context manager for disabling `with` logic
+     - **Lifecycle**: `StageStatus` — IntEnum (NOT_STARTED / RUNNING / STOPPED)
+     - **Event Constants**: `CTreeEvent` — task/termination event name constants (TASK_INPUT / TASK_SUCCESS / TASK_ERROR / TASK_RETRY_PREFIX / TASK_DUPLICATE / TERMINATION_INPUT / TERMINATION_MERGE)
+     - **Error Record**: `PersistedErrorRecord` — persistent error record frozen dataclass (supports grouping)
+     - **Visualization**: `STAGE_STYLE` — CelestialTree node label style
 
-8. **util_queue.py**
-   - **Purpose**: Runtime utility functions (`cleanup_mpqueue` was removed along with process mode)
+7. **util_hash.py**
+   - **Purpose**: Object hash computation for task deduplication
+   - **Key Functions**:
+     - `make_hashable()`: Recursively converts list/dict/set to stable hashable structures
+     - `object_to_hash()`: Pickles then computes SHA1, returns `bytes`
 
-9. **util_hash.py**
-    - **Purpose**: Object hash computation for task deduplication and caching
-    - **Key Functions**:
-      - `make_hashable()`: Converts objects into hashable form
-      - `object_to_str_hash()`: Computes string hash of objects
-    - **Key Features**: Stable hash computation, object serialization, task deduplication, cache key generation
-
-10. **util_estimators.py**
-    - **Purpose**: Execution time estimation and progress calculation
-    - **Key Functions**:
-      - `calc_elapsed()`: Calculates elapsed time
-      - `calc_remaining()`: Calculates remaining time
-      - `calc_global_remain_equal_pred()`: Calculates global remaining time (equal-weight prediction)
-    - **Key Features**: Time estimation, progress prediction, performance analysis, ETA calculation
+8. **util_estimators.py**
+   - **Purpose**: Execution time estimation and progress calculation
+   - **Key Functions**:
+     - `calc_remaining()`: Estimates remaining time based on averages
+     - `calc_elapsed()`: Accumulates elapsed time by status
+     - `calc_global_remain_equal_pred()`: Global remaining time estimation based on DAG topology (conservative)
 
 ## Module Relationships
 
 ### Internal Relationships
-- `TaskDispatch` uses `TaskInQueue` and `TaskOutQueue` to get tasks and send results
-- `TaskEnvelope` is passed through queues, containing the complete execution context
+- `TaskDispatch` uses `TaskInQueue`/`TaskOutQueue` to get tasks and send results
+- `TaskEnvelope` is passed through queues, carrying task hash and source information
 - `TaskMetrics` monitors the execution state of `TaskDispatch`
 - All errors are handled uniformly through `CelestialFlowError` and its subclasses
 
 ### External Relationships
 - **With Stage Module**: `TaskDispatch` executes `TaskExecutor` and `TaskStage`
 - **With Graph Module**: Provides execution engine and communication mechanism for `TaskGraph`
-- **With Persistence Module**: Supports persistence of execution state
+- **With Persistence Module**: Supports persistence of execution state and logging
 - **With Observability Module**: Provides monitoring data and performance metrics
 
 ## Architecture Features
 
-### Multi-Mode Execution
-- Supports four execution modes for different scenario requirements
-- Automatically selects optimal execution strategy
-- Supports mixed execution modes
+### Three-Mode Execution
+- `serial`: Sequential execution, suitable for lightweight tasks and debugging
+- `thread`: Thread pool concurrency, suitable for I/O-intensive tasks
+- `async`: Async coroutines, suitable for network I/O scenarios
 
 ### Robustness Design
-- Complete error handling chain
-- Automatic retry and failover
-- Resource leak protection
+- Complete error handling chain (retryable / non-retryable)
+- Thread-safe counters
+- Resource leak prevention (automatic thread pool release)
 
 ### Observability
-- Comprehensive metrics collection
-- Real-time progress reporting
+- Comprehensive metrics collection (success, failure, duplicate, pending)
+- DAG-based global remaining time estimation
 - Detailed execution logs
 
-### Extensibility
-- Plugin-based architecture
-- Custom execution strategies
-- Configurable queue implementations
+## Usage Examples
 
-## Usage Patterns
+The following examples demonstrate collaborative usage of runtime module components, covering task envelopes, metrics, and queue communication.
 
-### Basic Usage
-1. **Create Runner**: Choose the appropriate `TaskDispatch` mode based on task type
-2. **Configure Queues**: Set up input/output queues to establish data flow channels
-3. **Execute Tasks**: Submit tasks to the runner and monitor execution state
-4. **Process Results**: Retrieve results from output queue and handle errors
+```python
+from queue import Queue as ThreadQueue
+from celestialflow.runtime import TaskEnvelope, TaskMetrics, TaskInQueue, TaskOutQueue
+from celestialflow.persistence import LogInlet
 
-### Advanced Usage
-1. **Custom Runner**: Inherit from `TaskDispatch` to implement specific execution logic
-2. **Mixed Mode**: Combine different execution modes for complex workflows
-3. **Monitoring Integration**: Integrate with external monitoring systems for centralized monitoring
+# 1. TaskEnvelope: Create and operate on task envelopes
+envelope = TaskEnvelope(task={"data": 42}, id=1, source="input")
+print(f"Task data: {envelope.get_task()}")
+print(f"Task hash: {envelope.get_hash().hex()[:8]}...")
+print(f"Task ID: {envelope.get_id()}")
+
+# Change ID on retry
+envelope.change_id(100)
+print(f"Changed ID: {envelope.get_id()}")
+```
+
+```python
+# 2. TaskMetrics: Metrics statistics
+import time
+
+metrics = TaskMetrics(execution_mode="serial", enable_duplicate_check=True)
+
+# Simulate task processing
+metrics.add_task_count(5)
+metrics.add_success_count(3)
+metrics.add_error_count(1)
+metrics.add_duplicate_count(1)
+
+# Query counts
+print(f"Input: {metrics.get_task_count()}")
+print(f"Success: {metrics.get_success_count()}")
+print(f"Failed: {metrics.get_error_count()}")
+print(f"Duplicate: {metrics.get_duplicate_count()}")
+print(f"All finished: {metrics.is_tasks_finished()}")
+
+# Get snapshot dict
+counts = metrics.get_counts()
+print(f"Pending: {counts['tasks_pending']}")
+```
+
+```python
+# 3. TaskInQueue / TaskOutQueue: Queue communication
+
+# Create input queue (aggregating upstream tasks)
+in_queue = TaskInQueue(
+    queue=ThreadQueue(),
+    source_names=["producer"],
+    out_name="processor",
+)
+
+# Create output queue (broadcasting to downstream)
+out_queue = TaskOutQueue(
+    queue_list=[ThreadQueue()],
+    target_names=["consumer"],
+    in_name="processor",
+)
+
+# Upstream produces tasks
+envelope_a = TaskEnvelope(task="hello", id=1, source="producer")
+in_queue.put(envelope_a)
+
+# Downstream consumes tasks
+retrieved = in_queue.get()
+print(f"Dequeued task: {retrieved.get_task()}")
+
+# Output queue broadcasts tasks
+out_queue.put(envelope_a)
+
+# Dynamically add output channel
+out_queue.add_queue(ThreadQueue(), "another_consumer")
+print(f"Output channel count: {len(out_queue.queue_list)}")
+```
 
 ## Best Practices
 
-1. **I/O-Intensive Tasks**: Use thread pool mode
-2. **CPU-Intensive Tasks**: Use process pool mode
-3. **Async Tasks**: Use async mode for improved concurrency performance
-4. **Critical Tasks**: Configure appropriate retry strategies and timeout settings
-5. **Batch Tasks**: Use batch processing mode for improved throughput
-6. **Monitoring Configuration**: Configure comprehensive monitoring and alerting for production environments
+1. **I/O-Intensive Tasks**: Use `thread` mode
+2. **Async Tasks**: Use `async` mode (function must be a coroutine)
+3. **Debugging**: Use `serial` mode for easier single-execution tracing
+4. **Critical Tasks**: Configure appropriate `max_retries` and `add_retry_exceptions`
+5. **Duplicate-Sensitive Scenarios**: Enable `enable_duplicate_check=True`

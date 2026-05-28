@@ -1,151 +1,186 @@
 # Runtime モジュール
 
-> 📅 最終更新日: 2026/05/09
+> 📅 最終更新日: 2026/05/28
 
 Runtime モジュールは、CelestialFlow のタスク実行ランタイム環境を提供します。タスクスケジューリング、キュー管理、エラーハンドリング、パフォーマンス監視などのコア機能が含まれています。タスクの実際の実行を支えるインフラストラクチャ層です。
 
 ## モジュール概要
 
-Runtime モジュールは、タスクの送信から結果の返却までのタスク実行ライフサイクル全体を管理します。複数の実行モード（シリアル、並列、非同期）、堅牢なエラーハンドリングメカニズム、パフォーマンス監視、リソース管理機能を提供します。
+Runtime モジュールは、タスクの送信から結果の返却までのタスク実行ライフサイクル全体を管理します。3つの実行モード（シリアル `serial`、スレッド `thread`、非同期 `async`）、堅牢なエラーハンドリングメカニズム、パフォーマンス監視、リソース管理機能を提供します。
 
 ## ファイル説明
 
 ### コアランタイムコンポーネント
 
 1. **core_dispatch.py** (`TaskDispatch`)
-   - **役割**: 複数の実行モードをサポートするコアタスク実行ランナー
+   - **役割**: シリアル、スレッド、非同期モードで個々のタスクを実行するタスクスケジューラ
    - **実行モード**:
-     - シリアル実行: タスクを順番に実行
-     - スレッドプール: I/O 集約型タスクの並行実行
-     - プロセスプール: CPU 集約型タスクの並行実行
-     - 非同期実行: asyncio ベースの非同期タスク
-   - **主要機能**: タスクスケジューリング、ワーカースレッド管理、タイムアウト制御、リソースクリーンアップ
+     - `dispatch_serial`: タスクを順次実行
+     - `dispatch_thread`: `ThreadPoolExecutor` ベースの並行実行
+     - `dispatch_async`: `asyncio` ベースの非同期タスク（セマフォ制御の並行数）
+   - **主要機能**: タスクリトライ、重複チェック、終了シグナルマージ、スレッドプールライフサイクル管理
 
 2. **core_queue.py** (`TaskInQueue`, `TaskOutQueue`)
-   - **役割**: ノード間のデータ転送を行うタスク入力/出力キュー
+   - **役割**: ノード間のデータ転送と終了シグナルマージを行うタスク入力/出力キュー
    - **キュータイプ**:
-     - `TaskInQueue`: タスク入力キュー、上流ノードからの出力を受信
-     - `TaskOutQueue`: タスク出力キュー、下流ノードへ結果を送信
-   - **主要機能**: スレッドセーフ、フロー制御、バックプレッシャー処理、シリアライゼーションサポート
+     - `TaskInQueue`: タスク入力キュー。複数の上流ソースからのタスクと終了シグナルを集約
+     - `TaskOutQueue`: タスク出力キュー。結果を1つ以上の下流キューチャネルにブロードキャスト
+   - **主要機能**: 終了シグナルマージ、ソース名管理、ログ記録、動的キューチャネル追加
 
 3. **core_envelope.py** (`TaskEnvelope`)
-   - **役割**: タスクデータ、メタデータ、実行コンテキストを含むタスクデータラッパー
-   - **含まれる情報**: タスクID、入力データ、実行パラメータ、エラーハンドリング戦略、優先度
-   - **主要機能**: データカプセル化、コンテキスト伝播、エラー伝播、優先度ソート
+   - **役割**: 元のタスクをハッシュ、ID、ソースなどのメタ情報と共にカプセル化するタスクデータラッパー
+   - **含まれる情報**: タスクデータ、SHA1 ハッシュ値（遅延計算）、タスク ID、ソース識別子、先行タスク参照
+   - **主要機能**: データカプセル化、遅延ハッシュ計算、タスク ID 変更（リトライシナリオ）
 
 ### 監視とメトリクス
 
 4. **core_metrics.py** (`TaskMetrics`)
-   - **役割**: タスク実行メトリクスの収集と監視
-   - **収集メトリクス**: 実行時間、成功率、エラー率、キュー長、スループット
-   - **主要機能**: リアルタイム監視、パフォーマンス分析、ボトルネック検出、アラート発火
+   - **役割**: タスク実行メトリクス統計。成功/失敗/重複カウントと重複排除ロジックを管理
+   - **主要機能**: スレッドセーフカウンター、重複タスクチェック、リトライ可能例外設定、タスク完了判定
 
 ### ツールとユーティリティ
 
-5. **util_errors.py** (`CelestialFlowError`, `ConfigurationError`, `InvalidOptionError`, `ExecutionModeError`, `StageModeError`, `LogLevelError`, `RemoteWorkerError`, `UnconsumedError`)
-   - **役割**: 標準エラータイプとハンドリング戦略を定義するエラーハンドリングフレームワーク
-   - **エラータイプ**: 
-     - `CelestialFlowError`: すべてのカスタム例外の基底クラス
-     - `ConfigurationError`: 設定エラー（不正なパラメータ、サポートされない組み合わせなど）
-     - `InvalidOptionError`: 不正な設定オプション値
-     - `ExecutionModeError`: 実行モードエラー
-     - `StageModeError`: ステージモードエラー
-     - `LogLevelError`: ログレベルエラー
-     - `RemoteWorkerError`: リモートワーカーエラー
-     - `UnconsumedError`: 未消費タスクエラー
-   - **主要機能**: エラー分類、詳細なエラーメッセージ、パラメータバリデーション、エラーリカバリ
+5. **util_errors.py**（例外クラス階層）
+   - **役割**: 完全な例外定義体系
+   - **対象**: 設定例外、グラフ構造例外、ランタイム例外、外部サービス例外、タスクロジック例外
+   - 詳細な例外リストは `util_errors.md` を参照
 
-6. **util_factories.py**
-   - **役割**: ランタイムコンポーネントのファクトリ関数、オブジェクト作成を簡素化
-   - **ファクトリ関数**:
-     - `make_counter()`: カウンター作成（スレッドセーフ/プロセスセーフ）
-     - `make_queue_backend()`: 実行モードに基づくキューバックエンドの作成
-     - `make_task_in_queue()`: タスク入力キューの作成
-     - `make_task_out_queue()`: タスク出力キューの作成
-   - **主要機能**: 統一されたオブジェクト作成インターフェース、設定適応、依存関係管理
-
-7. **util_types.py**
+6. **util_types.py**
    - **役割**: ランタイム型定義とデータ構造
    - **含まれる型**:
-     - `TerminationSignal`: タスクキュー終了のセンチネルオブジェクト
-     - `TerminationIdPool`: 終了シグナル ID プール
-     - `StageStatus`: ステージ状態列挙型（NOT_STARTED, RUNNING, STOPPED）
-     - `STAGE_STYLE`: ステージスタイル列挙型
-     - `NodeLabelStyle`: ノードラベルスタイル（CelestialTree から）
-   - **主要機能**: 型定義、列挙型管理、データ構造、型安全性
+     - **コアシグナル**: `TerminationSignal` / `TERMINATION_SIGNAL` — センチネルオブジェクト; `TerminationIdPool` — 終了シグナル ID プール
+     - **カウンター**: `ValueWrapper` — オプションのスレッドロック付き整数ラッパー; `SumCounter` — 複数の `ValueWrapper` からのカスケード集計
+     - **コンテキストマネージャ**: `NoOpContext` — `with` ロジックを無効にする空のコンテキストマネージャ
+     - **ライフサイクル**: `StageStatus` — IntEnum（NOT_STARTED / RUNNING / STOPPED）
+     - **イベント定数**: `CTreeEvent` — タスク/終了イベント名定数（TASK_INPUT / TASK_SUCCESS / TASK_ERROR / TASK_RETRY_PREFIX / TASK_DUPLICATE / TERMINATION_INPUT / TERMINATION_MERGE）
+     - **エラーレコード**: `PersistedErrorRecord` — 永続化エラーレコード frozen dataclass（グループ化対応）
+     - **可視化**: `STAGE_STYLE` — CelestialTree ノードラベルスタイル
 
-8. **util_queue.py**
-   - **役割**: ランタイムユーティリティ関数（`cleanup_mpqueue` はプロセスモードの削除に伴い削除済み）
+7. **util_hash.py**
+   - **役割**: タスク重複排除のためのオブジェクトハッシュ計算
+   - **主要関数**:
+     - `make_hashable()`: list/dict/set を安定したハッシュ可能構造に再帰的に変換
+     - `object_to_hash()`: pickle 後に SHA1 を計算し、`bytes` を返す
 
-9. **util_hash.py**
-    - **役割**: タスク重複排除とキャッシュのためのオブジェクトハッシュ計算
-    - **主要関数**:
-      - `make_hashable()`: オブジェクトをハッシュ可能な形式に変換
-      - `object_to_str_hash()`: オブジェクトの文字列ハッシュ値を計算
-    - **主要機能**: 安定したハッシュ計算、オブジェクトシリアライゼーション、タスク重複排除、キャッシュキー生成
-
-10. **util_estimators.py**
-    - **役割**: 実行時間推定と進捗計算
-    - **主要関数**:
-      - `calc_elapsed()`: 経過時間を計算
-      - `calc_remaining()`: 残り時間を計算
-      - `calc_global_remain_equal_pred()`: グローバル残り時間を計算（等重み予測）
-    - **主要機能**: 時間推定、進捗予測、パフォーマンス分析、ETA 計算
+8. **util_estimators.py**
+   - **役割**: 実行時間推定と進捗計算
+   - **主要関数**:
+     - `calc_remaining()`: 平均値に基づいて残り時間を推定
+     - `calc_elapsed()`: 状態ごとに経過時間を集計
+     - `calc_global_remain_equal_pred()`: DAG トポロジーに基づくグローバル残り時間推定（保守的）
 
 ## モジュール関連
 
 ### 内部関連
-- `TaskDispatch` は `TaskInQueue` と `TaskOutQueue` を使用してタスク取得と結果送信を行う
-- `TaskEnvelope` はキューを通じて渡され、完全な実行コンテキストを含む
+- `TaskDispatch` は `TaskInQueue`/`TaskOutQueue` を使用してタスク取得と結果送信を行う
+- `TaskEnvelope` はキューを通じて渡され、タスクのハッシュとソース情報を含む
 - `TaskMetrics` は `TaskDispatch` の実行状態を監視
 - すべてのエラーは `CelestialFlowError` とそのサブクラスを通じて統一的に処理
 
 ### 外部関連
 - **Stage モジュールとの関連**: `TaskDispatch` は `TaskExecutor` と `TaskStage` を実行
 - **Graph モジュールとの関連**: `TaskGraph` に実行エンジンと通信メカニズムを提供
-- **Persistence モジュールとの関連**: 実行状態の永続化をサポート
+- **Persistence モジュールとの関連**: 実行状態の永続化とログ記録をサポート
 - **Observability モジュールとの関連**: 監視データとパフォーマンスメトリクスを提供
 
 ## アーキテクチャ特徴
 
-### マルチモード実行
-- 異なるシナリオ要件に対応する4つの実行モードをサポート
-- 最適な実行戦略を自動選択
-- 混合実行モードをサポート
+### 3モード実行
+- `serial`: 順次実行、軽量タスクとデバッグに適する
+- `thread`: スレッドプール並行、I/O 集約型タスクに適する
+- `async`: 非同期コルーチン、ネットワーク I/O シナリオに適する
 
 ### 堅牢性設計
-- 完全なエラーハンドリングチェーン
-- 自動リトライとフェイルオーバー
-- リソースリーク防止
+- 完全なエラーハンドリングチェーン（リトライ可能 / リトライ不可）
+- スレッドセーフカウンター
+- リソースリーク防止（スレッドプール自動解放）
 
 ### 可観測性
-- 包括的なメトリクス収集
-- リアルタイム進捗報告
+- 包括的なメトリクス収集（成功、失敗、重複、保留中）
+- DAG ベースのグローバル残り時間推定
 - 詳細な実行ログ
 
-### 拡張性
-- プラグインベースのアーキテクチャ
-- カスタム実行戦略
-- 設定可能なキュー実装
+## 使用例
 
-## 使用パターン
+以下に、ランタイムモジュールの各コンポーネントの協調使用例を示します。タスクエンベロープ、メトリクス統計、キュー通信をカバーしています。
 
-### 基本的な使用
-1. **ランナー作成**: タスクタイプに基づいて適切な `TaskDispatch` モードを選択
-2. **キュー設定**: 入力/出力キューを設定してデータフローチャネルを確立
-3. **タスク実行**: ランナーにタスクを送信し、実行状態を監視
-4. **結果処理**: 出力キューから結果を取得し、エラーを処理
+```python
+from queue import Queue as ThreadQueue
+from celestialflow.runtime import TaskEnvelope, TaskMetrics, TaskInQueue, TaskOutQueue
+from celestialflow.persistence import LogInlet
 
-### 高度な使用
-1. **カスタムランナー**: `TaskDispatch` を継承して特定の実行ロジックを実装
-2. **混合モード**: 複雑なワークフローのために異なる実行モードを組み合わせ
-3. **監視統合**: 外部監視システムと統合して集中監視を実現
+# 1. TaskEnvelope：タスクエンベロープの作成と操作
+envelope = TaskEnvelope(task={"data": 42}, id=1, source="input")
+print(f"タスクデータ: {envelope.get_task()}")
+print(f"タスクハッシュ: {envelope.get_hash().hex()[:8]}...")
+print(f"タスクID: {envelope.get_id()}")
+
+# リトライ時に ID を変更
+envelope.change_id(100)
+print(f"変更後 ID: {envelope.get_id()}")
+```
+
+```python
+# 2. TaskMetrics：メトリクス統計
+import time
+
+metrics = TaskMetrics(execution_mode="serial", enable_duplicate_check=True)
+
+# タスク処理をシミュレート
+metrics.add_task_count(5)
+metrics.add_success_count(3)
+metrics.add_error_count(1)
+metrics.add_duplicate_count(1)
+
+# 各カウントをクエリ
+print(f"入力: {metrics.get_task_count()}")
+print(f"成功: {metrics.get_success_count()}")
+print(f"失敗: {metrics.get_error_count()}")
+print(f"重複: {metrics.get_duplicate_count()}")
+print(f"全完了: {metrics.is_tasks_finished()}")
+
+# スナップショット辞書を取得
+counts = metrics.get_counts()
+print(f"保留中: {counts['tasks_pending']}")
+```
+
+```python
+# 3. TaskInQueue / TaskOutQueue：キュー通信
+
+# 入力キューを作成（上流タスクを集約）
+in_queue = TaskInQueue(
+    queue=ThreadQueue(),
+    source_names=["producer"],
+    out_name="processor",
+)
+
+# 出力キューを作成（下流にブロードキャスト）
+out_queue = TaskOutQueue(
+    queue_list=[ThreadQueue()],
+    target_names=["consumer"],
+    in_name="processor",
+)
+
+# 上流がタスクを生産
+envelope_a = TaskEnvelope(task="hello", id=1, source="producer")
+in_queue.put(envelope_a)
+
+# 下流がタスクを消費
+retrieved = in_queue.get()
+print(f"デキューされたタスク: {retrieved.get_task()}")
+
+# 出力キューがタスクをブロードキャスト
+out_queue.put(envelope_a)
+
+# 出力チャネルを動的に追加
+out_queue.add_queue(ThreadQueue(), "another_consumer")
+print(f"出力チャネル数: {len(out_queue.queue_list)}")
+```
 
 ## ベストプラクティス
 
-1. **I/O 集約型タスク**: スレッドプールモードを使用
-2. **CPU 集約型タスク**: プロセスプールモードを使用
-3. **非同期タスク**: 非同期モードを使用して並行性能を向上
-4. **クリティカルタスク**: 適切なリトライ戦略とタイムアウト設定を構成
-5. **バッチタスク**: バッチ処理モードを使用してスループットを向上
-6. **監視設定**: 本番環境では包括的な監視とアラートを構成
+1. **I/O 集約型タスク**: `thread` モードを使用
+2. **非同期タスク**: `async` モードを使用（関数はコルーチンである必要あり）
+3. **デバッグ**: `serial` モードを使用、単一実行の追跡が容易
+4. **クリティカルタスク**: 適切な `max_retries` と `add_retry_exceptions` を設定
+5. **重複に敏感なシナリオ**: `enable_duplicate_check=True` を有効化

@@ -1,6 +1,6 @@
 # bench_graph_mode.py ベンチマーク説明
 
-> 📅 最終更新日: 2026/05/15
+> 📅 最終更新日: 2026/05/28
 
 ## 目的
 
@@ -41,6 +41,42 @@
 python bench/bench_graph_mode.py
 ```
 
+## パラメータ調整
+
+### 特定のテストシナリオの実行
+
+`bench/bench_graph_mode.py` の `main()` で特定のシナリオのみを実行することを選択できます：
+
+```python
+if __name__ == "__main__":
+    bench_graph_0()     # 4 ノード DAG 混合シナリオのみ実行
+    # bench_graph_1()   # 他のシナリオをコメントアウト
+    # bench_graph_2()
+```
+
+### 入力規模の調整
+
+```python
+# bench_graph_2 のデフォルトは range(10_000)、迅速な検証のために縮小可能
+# 関数内部で入力範囲を変更
+inputs = range(1_000)  # 1000 タスクに変更して迅速検証
+```
+
+### ワーカー数の変更
+
+各シナリオのデフォルトワーカー数はコード内で直接調整できます：
+
+```python
+# bench_graph_0 内部で
+max_workers = 4   # 並行ワーカーを削減
+```
+
+修正後に実行：
+
+```bash
+python bench/bench_graph_mode.py
+```
+
 ## ベンチマーク結果（実測）
 
 > 環境：Windows、Python 3.10
@@ -51,6 +87,9 @@ python bench/bench_graph_mode.py
 |----------------------------|--------|--------|-------|
 | **serial** | 7.74s | 2.76s | 2.74s |
 | **thread** | 7.19s | 2.28s | 2.14s |
+| **process** | 9.88s | 4.99s | - |
+
+注: `process` モードは廃止されました。過去のベンチマークデータとして保持。
 
 - `thread` と `serial` の stage_mode は CPU 集約型（フィボナッチ）シナリオでほとんど差がない（GIL の制約）
 - `execution_mode=thread` と `async` はいずれも 2-3 倍の高速化を実現（フィボナッチ計算での部分的な GIL 解放 + sleep ステージでの I/O 並行処理）
@@ -62,6 +101,9 @@ python bench/bench_graph_mode.py
 |----------------------------|--------|--------|-------|
 | **serial** | 54.25s | 17.12s | 14.14s |
 | **thread** | 17.10s | 7.07s | 6.05s |
+| **process** | 20.47s | 10.98s | - |
+
+注: `process` モードは廃止されました。過去のベンチマークデータとして保持。
 
 - 最適な組み合わせ：`thread` + `async`（6.05s）、最悪の組み合わせ `serial`+`serial`（54.25s）の **9.0 倍**高速
 - `async` は I/O 集約型シナリオで `thread` を上回る（コルーチン切り替えのオーバーヘッドがスレッド切り替えより小さい）

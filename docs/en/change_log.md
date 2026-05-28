@@ -1,6 +1,6 @@
 # Change Log
 
-> 📅 Last Updated: 2026/05/15
+> 📅 Last Updated: 2026/05/28
 
 - 2021: Created a class supporting both multithreaded and single-threaded processing functions
 - 2023: Added multiprocess and coroutine execution modes with the help of GPT-4
@@ -179,3 +179,48 @@
     - Moved delta data from node status to be computed by JS on the web side, reducing unnecessary communication data
   - fix:
     - Removed error catching in InQueue.get, which would cause panic-level errors to be missed
+- 3.2.1:
+  - feat:
+    - **[Important]** Significantly enhanced the configuration button functionality
+      - Now supports UI language configuration with Chinese, Japanese, and English
+      - Configurable number of error log entries per page
+      - Configurable display of deltas in the structure diagram (though the styling is a bit rough)
+      - And most importantly, direct editing of the dashboard card layout
+      - Additionally, a confirmation prompt appears after saving all settings
+    - Data type selection in line charts
+      - Now includes "Cumulative Data", "Queue Length", and "Data Change Rate"
+    - Some adjustments to structures
+      - Added `stage_mode` parameter to all structures for unified node mode control
+      - Nodes in structs are no longer renamed
+    - Added buffering mechanism in some Spouts
+  - refactor:
+    - **[Important]** Removed the `tag` attribute from executor and fully replaced it with the `name` attribute
+      - `tag` was originally designed to distinguish nodes in early versions when unique identification was not possible, but now that `name` enforces uniqueness, continuing to use the verbose `tag` causes inconvenience
+    - **[Important]** Moved the definition of `task_queue` and `result_queue` in executor to `__init__`
+      - This makes little difference for executor, but for stage it is a more ideal and elegant form — it was only because `stage_mode="process"` previously disallowed `MPQueue` inside execution functions that they were defined uniformly in graph and injected via process args
+    - **[Important]** Refactored `core_server`, decomposing it into `routes/` and `util_models` for structural optimization
+    - Further moved `log_queue` and `fail_queue` injection to `graph.set_stages`, enabling `stage.start_stage` to have zero input parameters
+    - Also added `put_task` and `put_signal` to executor, with reuse in graph
+      - This was previously impossible because stage had no queues defined at that point
+    - Removed `StageRuntime` from `core_graph`
+    - Changed some `Any` type annotations to more specific types
+    - Removed dashboard cards from HTML, now defined by `web-config`
+    - Removed unnecessary frontend-backend communication, optimizing communication load
+      - Removed node history data from backend transfer, now maintained by frontend
+      - Removed backend data from overall statistics except "Total Remaining Time", now computed by frontend
+    - Optimized error storage JSONL data structure, now saving more detailed error information
+    - Adjusted pyright rules and achieved pyright 0 errors / 0 warnings
+    - Renamed nearly all `.ts` and `.css` files under `web/` and organized file content boundaries
+    - Added more error types in `util_error`, ensuring all actively raised errors in the project are within the current error system
+    - Removed all `onclick` from frontend code, replaced with `data-*` attributes
+    - Simplified some fields in `config.json`
+    - Removed some unnecessary code
+  - fix:
+    - Narrowed some overly broad error catching
+  - chore:
+    - Added more test code and organized `tests/` structure
+    - Fixed some issues in `bench/`
+      - Mainly the two Fibonacci implementations in `bench_execution_mode` had different computational magnitudes, preventing proper model benchmarking
+    - Added `.github/workflows` for CI/CD
+    - Updated supported Python version to 3.11 to align with some library requirements
+    - Added two skills for updating documentation and reviewing the project

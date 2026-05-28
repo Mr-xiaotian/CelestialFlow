@@ -1,8 +1,8 @@
 # TaskErrors
 
-> 📅 Last Updated: 2026/05/09
+> 📅 Last Updated: 2026/05/28
 
-The TaskErrors module defines custom exception classes used in the framework.
+The TaskErrors module defines the complete custom exception hierarchy used in the CelestialFlow framework.
 
 ## Exception Hierarchy
 
@@ -10,13 +10,23 @@ The TaskErrors module defines custom exception classes used in the framework.
 CelestialFlowError
 ├── ConfigurationError
 │   └── InvalidOptionError
-│       ├── ExecutionModeError
-│       ├── StageModeError
-│       ├── LogLevelError
-│       └── ScheduleModeError
-├── RemoteWorkerError
-├── CelestialTreeConnectionError
-├── UnconsumedError
+│       ├── ExecutionModeError      # ("serial", "thread", "async")
+│       ├── StageModeError          # ("serial", "thread")
+│       ├── LogLevelError           # (TRACE/DEBUG/SUCCESS/INFO/...)
+│       └── ScheduleModeError       # ("eager", "staged")
+├── GraphStructureError
+│   ├── DuplicateNodeError          # Duplicate node name
+│   └── UnknownNodeError            # Unknown node name
+├── RuntimeStateError
+│   ├── InitializationError         # Initialization failure
+│   └── GraphManagedError           # Graph management error
+├── RemoteWorkerError               # Remote Worker execution failure
+├── ReporterError                   # Reporter error
+├── CelestialTreeConnectionError    # CelestialTree connection failure
+├── CelestialFlowTimeoutError       # Timeout error
+├── UnconsumedError                 # Marks unconsumed tasks
+├── TaskFormatError                 # Task format error
+└── TerminationMergeError           # Termination signal merge error
 ```
 
 ## Base Class
@@ -31,7 +41,7 @@ class CelestialFlowError(Exception):
     pass
 ```
 
-## Configuration Exceptions
+## Configuration Exceptions (ConfigurationError)
 
 ### ConfigurationError
 
@@ -39,13 +49,13 @@ Base class for configuration errors (invalid parameters, unsupported combination
 
 ```python
 class ConfigurationError(CelestialFlowError):
-    """Configuration error base class"""
+    """Configuration error (invalid parameters, unsupported combinations, etc.)"""
     pass
 ```
 
 ### InvalidOptionError
 
-A configuration option value is not valid (not in the allowed set).
+A configuration option value is not valid.
 
 ```python
 class InvalidOptionError(ConfigurationError):
@@ -59,10 +69,11 @@ class InvalidOptionError(ConfigurationError):
     ):
         """
         :param field: Configuration field name
-        :param value: Actual value
-        :param allowed: List of allowed values
+        :param value: Actual value passed
+        :param allowed: Set of allowed values
         :param prefix: Error message prefix
         """
+        # Example: "Invalid execution mode: xxx. Valid options are ('serial', 'thread', 'async')."
 ```
 
 ### ExecutionModeError
@@ -71,8 +82,7 @@ class InvalidOptionError(ConfigurationError):
 
 ```python
 class ExecutionModeError(InvalidOptionError):
-    """Invalid execution_mode configuration error"""
-
+    """Invalid execution_mode"""
     def __init__(self, execution_mode: str, valid_modes=None):
         # valid_modes defaults to ("serial", "thread", "async")
 ```
@@ -83,8 +93,7 @@ class ExecutionModeError(InvalidOptionError):
 
 ```python
 class StageModeError(InvalidOptionError):
-    """Invalid stage_mode configuration error"""
-
+    """Invalid stage_mode"""
     def __init__(self, stage_mode: str, valid_modes=None):
         # valid_modes defaults to ("serial", "thread")
 ```
@@ -95,21 +104,9 @@ class StageModeError(InvalidOptionError):
 
 ```python
 class LogLevelError(InvalidOptionError):
-    """Invalid log_level configuration error"""
-
+    """Invalid log_level"""
     def __init__(self, log_level: str, valid_levels=None):
         # valid_levels defaults to ("TRACE", "DEBUG", "SUCCESS", "INFO", "WARNING", "ERROR", "CRITICAL")
-```
-
-## Runtime Exceptions
-
-### RemoteWorkerError
-
-Exception thrown when a remote worker (e.g., Go Worker) fails to execute.
-
-```python
-class RemoteWorkerError(CelestialFlowError):
-    pass
 ```
 
 ### ScheduleModeError
@@ -118,15 +115,100 @@ class RemoteWorkerError(CelestialFlowError):
 
 ```python
 class ScheduleModeError(InvalidOptionError):
-    """Invalid schedule_mode configuration error"""
-
+    """Invalid schedule_mode"""
     def __init__(self, schedule_mode: str, valid_modes=None):
         # valid_modes defaults to ("eager", "staged")
 ```
 
+## Graph Structure Exceptions (GraphStructureError)
+
+### GraphStructureError
+
+Base class for graph structure errors.
+
+```python
+class GraphStructureError(ConfigurationError):
+    """Graph structure error"""
+    pass
+```
+
+### DuplicateNodeError
+
+Duplicate node name (triggered in `set_stages` or `add_source_name` / `add_queue`).
+
+```python
+class DuplicateNodeError(GraphStructureError):
+    """Duplicate node name"""
+    pass
+```
+
+### UnknownNodeError
+
+Unknown node name (triggered when validating termination signal sources).
+
+```python
+class UnknownNodeError(GraphStructureError):
+    """Unknown node name"""
+    pass
+```
+
+## Runtime Exceptions (RuntimeStateError)
+
+### RuntimeStateError
+
+Base class for runtime state errors (duplicate start, not initialized, etc.).
+
+```python
+class RuntimeStateError(CelestialFlowError):
+    """Runtime state error"""
+    pass
+```
+
+### InitializationError
+
+Initialization error (e.g., when thread pool is not initialized).
+
+```python
+class InitializationError(RuntimeStateError):
+    """Initialization error"""
+    pass
+```
+
+### GraphManagedError
+
+Graph management error (triggered when illegal operations occur in the graph's start/stop lifecycle).
+
+```python
+class GraphManagedError(RuntimeStateError):
+    """Graph management error"""
+    pass
+```
+
+## External Service Exceptions
+
+### RemoteWorkerError
+
+Thrown when a remote Worker (e.g., Go Worker) fails to execute.
+
+```python
+class RemoteWorkerError(CelestialFlowError):
+    """Remote Worker execution failure"""
+    pass
+```
+
+### ReporterError
+
+Reporter error.
+
+```python
+class ReporterError(CelestialFlowError):
+    """Reporter error"""
+    pass
+```
+
 ### CelestialTreeConnectionError
 
-CelestialTree connection error.
+CelestialTree client connection failure.
 
 ```python
 class CelestialTreeConnectionError(CelestialFlowError):
@@ -134,9 +216,21 @@ class CelestialTreeConnectionError(CelestialFlowError):
         ...
 ```
 
+## Other Runtime Exceptions
+
+### CelestialFlowTimeoutError
+
+Timeout error (inherits built-in `TimeoutError`).
+
+```python
+class CelestialFlowTimeoutError(CelestialFlowError, TimeoutError):
+    """Timeout error"""
+    pass
+```
+
 ### UnconsumedError
 
-Exception class for marking unconsumed tasks.
+Marks unconsumed tasks.
 
 ```python
 class UnconsumedError(CelestialFlowError):
@@ -144,36 +238,41 @@ class UnconsumedError(CelestialFlowError):
     pass
 ```
 
-When `TaskGraph` stops, it collects all unconsumed tasks and records them as `UnconsumedError`.
+When `TaskGraph._finalize_nodes()` finds remaining tasks in the queue, they are marked as `UnconsumedError` and persisted.
 
-## Error Handling Strategy
+### TaskFormatError
 
-In `TaskExecutor`, exceptions are categorized into two types:
-
-1. **Retryable Exceptions**: If the exception type is in the `retry_exceptions` list and the retry limit has not been reached, the framework will automatically retry the task.
-2. **Non-Retryable Exceptions**: The task is marked as failed, an error log is recorded, and it is placed in the `fail_queue`.
-
-## Error Persistence
-
-`TaskGraph` automatically persists all unhandled errors (including retry failures and UnconsumedError) to the local `fallback/` directory in JSONL format.
-
-Each error record contains:
-- Timestamp
-- Stage tag
-- Error message
-- Original task data
-- Error ID
-
-## Usage Example
-
-### Catching Specific Exceptions
+Task format error.
 
 ```python
-from celestialflow.runtime.util_errors import (
-    ExecutionModeError,
-    StageModeError,
-    RemoteWorkerError,
-)
+class TaskFormatError(CelestialFlowError):
+    """Task format error"""
+    pass
+```
+
+### TerminationMergeError
+
+Termination signal merge error (triggered when an upstream termination signal is missing).
+
+```python
+class TerminationMergeError(CelestialFlowError):
+    """Termination signal merge error"""
+    pass
+```
+
+## Usage Scenarios
+
+### 1. Adding Retryable Exceptions
+
+```python
+executor = TaskExecutor("Processor", process, max_retries=3)
+executor.add_retry_exceptions(ConnectionError, TimeoutError)
+```
+
+### 2. Catching Configuration Errors
+
+```python
+from celestialflow.runtime.util_errors import ExecutionModeError
 
 try:
     stage.set_execution_mode("invalid_mode")
@@ -182,15 +281,149 @@ except ExecutionModeError as e:
     print(f"Valid options: {e.valid_modes}")
 ```
 
-### Adding Retryable Exceptions
+### 3. Graph Structure Validation
 
 ```python
-executor = TaskExecutor("Processor", process, max_retries=3)
-executor.add_retry_exceptions(ConnectionError, TimeoutError)
+from celestialflow.runtime.util_errors import DuplicateNodeError
+
+try:
+    graph.set_stages([stage_a, stage_a])  # Duplicate node names
+except DuplicateNodeError as e:
+    print(f"Duplicate node: {e}")
 ```
 
-## Notes
+## Usage Examples
 
-1. **Error Propagation**: `RemoteWorkerError` contains error information returned by the remote worker
-2. **Logging**: All exceptions are logged
-3. **Graceful Degradation**: Even when exceptions occur, the framework attempts to properly clean up resources
+The following examples demonstrate typical raise and catch patterns for CelestialFlow exceptions.
+
+### Configuration Exceptions
+
+```python
+from celestialflow.runtime.util_errors import (
+    ExecutionModeError,
+    StageModeError,
+    LogLevelError,
+    ScheduleModeError,
+    InvalidOptionError,
+)
+
+# Catch ExecutionModeError
+try:
+    stage.set_execution_mode("invalid")
+except ExecutionModeError as e:
+    print(f"Field: {e.field}")          # execution_mode
+    print(f"Value: {e.value}")          # invalid
+    print(f"Allowed: {e.allowed}")      # ('serial', 'thread', 'async')
+
+# Catch StageModeError
+try:
+    stage.set_stage_mode("invalid")
+except StageModeError as e:
+    print(f"Configuration error: {e}")
+
+# Use InvalidOptionError directly
+try:
+    raise InvalidOptionError(
+        field="strategy",
+        value="aggressive",
+        allowed=("conservative", "balanced"),
+    )
+except InvalidOptionError as e:
+    print(f"Error: {e}")
+```
+
+### Graph Structure Exceptions
+
+```python
+from celestialflow import TaskGraph, TaskStage
+from celestialflow.runtime.util_errors import DuplicateNodeError, UnknownNodeError
+
+graph = TaskGraph()
+
+stage_a = TaskStage("A", func=lambda x: x)
+stage_b = TaskStage("A", func=lambda x: x * 2)  # Duplicate node name
+
+try:
+    graph.set_stages([stage_a, stage_b])
+except DuplicateNodeError as e:
+    print(f"Duplicate node: {e}")
+
+try:
+    from celestialflow.runtime.util_types import TerminationSignal
+    in_queue = list(graph.stage_dict.values())[0].in_queue
+    in_queue._record_termination(TerminationSignal(source="unknown_source"))
+except UnknownNodeError as e:
+    print(f"Unknown source: {e}")
+```
+
+### Runtime and Timeout Exceptions
+
+```python
+from celestialflow.runtime.util_errors import (
+    RuntimeStateError,
+    CelestialFlowTimeoutError,
+    UnconsumedError,
+    TaskFormatError,
+    TerminationMergeError,
+)
+
+# Timeout error (inherits built-in TimeoutError)
+try:
+    raise CelestialFlowTimeoutError("Task execution timed out after 30s")
+except CelestialFlowTimeoutError as e:
+    print(f"Timeout: {e}")
+
+# Task format error
+try:
+    raise TaskFormatError("Expected (target, data) tuple, got str")
+except TaskFormatError as e:
+    print(f"Format error: {e}")
+
+# Termination signal merge error
+try:
+    raise TerminationMergeError("Missing termination from source: B")
+except TerminationMergeError as e:
+    print(f"Merge error: {e}")
+```
+
+### External Service Exceptions
+
+```python
+from celestialflow.runtime.util_errors import (
+    RemoteWorkerError,
+    CelestialTreeConnectionError,
+)
+
+try:
+    raise RemoteWorkerError("Go worker returned status code 500")
+except RemoteWorkerError as e:
+    print(f"Remote Worker error: {e}")
+
+try:
+    raise CelestialTreeConnectionError("Cannot connect to 127.0.0.1:7777")
+except CelestialTreeConnectionError as e:
+    print(f"Connection failed: {e}")
+```
+
+### Integration with TaskExecutor
+
+```python
+from celestialflow import TaskExecutor
+from celestialflow.runtime.util_errors import CelestialFlowError
+
+# In actual executors, exceptions are uniformly caught and recorded
+executor = TaskExecutor(
+    "SafeWorker",
+    func=lambda x: 10 // x,
+    execution_mode="serial",
+    max_retries=0,
+)
+executor.start([1, 0, 2])  # The middle task will trigger ZeroDivisionError
+
+counts = executor.get_counts()
+print(f"Success: {counts['tasks_succeeded']}, Failed: {counts['tasks_failed']}")
+```
+
+## Error Persistence
+
+`TaskGraph` persists unhandled errors to a local JSONL file (via `FailSpout`) during `_finalize_nodes()`. Each error record contains the error type, message, stage, event ID, and timestamp, represented by `PersistedErrorRecord`.

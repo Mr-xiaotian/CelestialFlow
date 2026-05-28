@@ -1,6 +1,6 @@
 # bench_graph_mode.py Benchmark Documentation
 
-> 📅 Last Updated: 2026/05/15
+> 📅 Last Updated: 2026/05/28
 
 ## Objective
 
@@ -41,6 +41,42 @@ Compare task graph execution performance across different combinations of `stage
 python bench/bench_graph_mode.py
 ```
 
+## Parameter Adjustment
+
+### Running a Specific Test Scenario
+
+In `bench/bench_graph_mode.py`'s `main()`, you can choose to run only a specific scenario:
+
+```python
+if __name__ == "__main__":
+    bench_graph_0()     # Run only the 4-node DAG mixed scenario
+    # bench_graph_1()   # Comment out other scenarios
+    # bench_graph_2()
+```
+
+### Adjusting Input Scale
+
+```python
+# bench_graph_2 defaults to range(10_000); reduce for quick verification
+# Modify the input range inside the function
+inputs = range(1_000)  # Change to 1000 tasks for quick verification
+```
+
+### Modifying Worker Count
+
+The default worker count for each scenario can be directly adjusted in the code:
+
+```python
+# Inside bench_graph_0
+max_workers = 4   # Reduce concurrent workers
+```
+
+After modification, run:
+
+```bash
+python bench/bench_graph_mode.py
+```
+
 ## Benchmark Results (Measured)
 
 > Environment: Windows, Python 3.10
@@ -51,6 +87,9 @@ python bench/bench_graph_mode.py
 |----------------------------|--------|--------|-------|
 | **serial** | 7.74s | 2.76s | 2.74s |
 | **thread** | 7.19s | 2.28s | 2.14s |
+| **process** | 9.88s | 4.99s | - |
+
+Note: `process` mode has been deprecated; retained for historical benchmark data only.
 
 - `thread` vs `serial` stage_mode shows little difference in CPU-intensive (Fibonacci) scenarios (GIL limitation)
 - `execution_mode=thread` and `async` both provide 2-3x speedup (partial GIL release during Fibonacci + I/O concurrency during sleep stages)
@@ -62,6 +101,9 @@ python bench/bench_graph_mode.py
 |----------------------------|--------|--------|-------|
 | **serial** | 54.25s | 17.12s | 14.14s |
 | **thread** | 17.10s | 7.07s | 6.05s |
+| **process** | 20.47s | 10.98s | - |
+
+Note: `process` mode has been deprecated; retained for historical benchmark data only.
 
 - Best combination: `thread` + `async` (6.05s), **9.0x** faster than worst combination `serial`+`serial` (54.25s)
 - `async` outperforms `thread` in I/O-intensive scenarios (coroutine switching overhead is lower than thread switching)

@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最終更新日: 2026/05/15
+> 📅 最終更新日: 2026/05/28
 
 `TaskExecutor` は単一タスクロジックを実行するコアコンポーネントです。タスクの実行、並行制御、エラーハンドリング、リトライメカニズム、ログ記録を担当します。
 
@@ -10,33 +10,32 @@
 class TaskExecutor:
     def __init__(
         self,
-        name,
-        func,
-        execution_mode="serial",
-        max_workers=20,
-        max_retries=1,
-        max_info=50,
-        unpack_task_args=False,
-        enable_duplicate_check=True,
-        log_level="INFO",
+        name: str,
+        func: Callable[..., Any],
+        execution_mode: str = "serial",
+        max_workers: int | None = None,
+        max_retries: int = 1,
+        max_info: int = 50,
+        unpack_task_args: bool = False,
+        enable_duplicate_check: bool = True,
+        log_level: str = "INFO",
     ):
         ...
 ```
 
 ### パラメータ説明
 
-- **name**: エグゼキューター名、ログとトレースに使用。
-- **func**: タスクを実際に実行する呼び出し可能オブジェクト（関数）。
-- **execution_mode**: 実行モード。
-  - `serial`: シリアル実行。
-  - `thread`: マルチスレッド実行。
-  - `async`: 非同期実行（`asyncio`）。
-- **max_workers**: 並行数制限（スレッド数/コルーチン数）。
-- **max_retries**: タスク失敗後の最大リトライ回数。
-- **max_info**: ログメッセージの最大長。
-- **unpack_task_args**: タスク引数を関数に渡す際に展開（`*args`）するかどうか。
-- **enable_duplicate_check**: ハッシュベースの重複チェックの有効化。
-- **log_level**: ログレベル（TRACE/DEBUG/SUCCESS/INFO/WARNING/ERROR/CRITICAL）。
+| パラメータ | デフォルト | 説明 |
+|-----------|----------|------|
+| `name` | — | エグゼキューター名。ログとトレースに使用 |
+| `func` | — | タスクを実際に実行する呼び出し可能オブジェクト |
+| `execution_mode` | `"serial"` | 実行モード: `"serial"` / `"thread"` / `"async"` |
+| `max_workers` | `None` | 並行数制限（None 時は動的: `min(32, cpu_count+4)`） |
+| `max_retries` | `1` | タスク失敗後の最大リトライ回数 |
+| `max_info` | `50` | ログメッセージの最大長 |
+| `unpack_task_args` | `False` | タスク引数を関数に渡す際に展開（`*args`）するかどうか |
+| `enable_duplicate_check` | `True` | ハッシュベースの重複チェックを有効にするか |
+| `log_level` | `"INFO"` | ログレベル |
 
 ## Observer パターン
 
@@ -49,201 +48,165 @@ executor.add_observer(observer)     # オブザーバーを登録
 executor.remove_observer(observer)  # オブザーバーを削除
 ```
 
-### 使用例
-
-```python
-from celestialflow import TaskExecutor, TaskProgress, CallbackObserver
-
-# TaskProgress でプログレスバーを表示
-executor = TaskExecutor("Test", my_func)
-executor.add_observer(TaskProgress())
-executor.start(tasks)
-
-# CallbackObserver を使用
-observer = CallbackObserver(
-    on_task_success=lambda count=1: print(f"成功: {count}"),
-)
-executor.add_observer(observer)
-```
-
 ### ブロードキャストイベント
 
-| イベント | 発火タイミング |
-|---------|--------------|
-| `on_start(name, total)` | 実行開始 |
-| `on_task_success(count)` | タスク成功 |
-| `on_task_fail(count)` | タスク失敗 |
-| `on_task_duplicate(count)` | 重複検出 |
-| `on_tasks_added(count)` | 新タスク追加 |
-| `on_finish()` | 実行終了 |
+| イベント | 発火場所 | 説明 |
+|---------|--------|------|
+| `on_start(name, total)` | `start()`/`start_async()` | 実行開始 |
+| `on_task_success()` | `process_task_success()` | タスク成功 |
+| `on_task_fail()` | `handle_task_fail()` | タスク失敗 |
+| `on_task_duplicate()` | `deal_duplicate()` | 重複検出 |
+| `on_tasks_added(count)` | `_put_task_queue()` | 新タスク追加（100件ごとに通知） |
+| `on_finish()` | `start()`/`start_async()` finally | 実行終了 |
+
+注意: `on_task_success`、`on_task_fail`、`on_task_duplicate` の `_notify` 呼び出しはカウント引数を渡しません。Observer は外部から取得する必要があります。
 
 ## コアメソッド
 
-### start
+### start / start_async
 
 ```python
-def start(self, task_source: Iterable):
+def start(self, task_source: Iterable[Any]) -> None:
     """
-    エグゼキューターを起動し、task_source 内のすべてのタスクを処理します。
-    execution_mode に基づいて適切な実行戦略を選択します。
+    同期的にエグゼキューターを起動。フロー：
+    1. init_env() — metrics、dispatch、spout、inlet、queue を初期化
+    2. _put_task_queue() — エンベロープを構築し全タスクをエンキュー
+    3. execution_mode に応じた dispatch メソッドを呼び出し
+    4. finally で spout を停止
+    
+    注意: async モードではこのメソッドを使用しないでください（内部で asyncio.run）。start_async を使用してください。
     """
-```
 
-### start_async
-
-```python
-async def start_async(self, task_source: Iterable):
+async def start_async(self, task_source: Iterable[Any]) -> None:
     """
-    エグゼキューターを非同期起動します（async モード用）。
+    非同期的にエグゼキューターを起動。内部的に execution_mode="async" を設定。
     """
 ```
 
 ## エラーハンドリング
 
-`TaskExecutor` はタスク実行中の例外をキャッチします：
-- 例外が `retry_exceptions` リストに含まれ、最大リトライ回数に達していない場合、タスクをキューに戻してリトライします。
-- それ以外の場合、タスクを失敗としてマークし、エラーログを記録し、`fail_queue` に配置します。
+### リトライロジック
 
-### add_retry_exceptions
+例外は `TaskDispatch._worker` で分類されます:
+- **リトライ可能な例外**: `retry_exceptions` に含まれ、`max_retries` に達していない場合、`emit_retry_envelope()` でタスク ID を更新してリトライ
+- **リトライ不可能な例外**: タスクを失敗としてマーク、エラーログを記録、`fail_inlet` に配置
 
 ```python
-def add_retry_exceptions(self, *exceptions):
-    """
-    リトライが必要な例外タイプを追加します。
-
-    :param exceptions: 例外タイプのリスト
-    """
+def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
+    """リトライが必要な例外タイプを追加。"""
 ```
 
-例：
+### 結果処理（オーバーライド可能メソッド）
+
 ```python
-executor = TaskExecutor("Processor", process, max_retries=3)
-executor.add_retry_exceptions(ValueError, ConnectionError, TimeoutError)
+def process_result(self, task: Any, result: Any) -> Any:
+    """カスタム結果処理ロジック（デフォルトはそのまま返す）。"""
+
+def get_args(self, task: Any) -> tuple[Any, ...]:
+    """カスタム引数抽出ロジック（デフォルトは unpack_task_args に基づいて展開）。"""
 ```
-
-## 結果処理
-
-### オーバーライド可能なメソッド
-
-- **process_result(task, result)**: このメソッドをオーバーライドして結果処理ロジックをカスタマイズできます。
-- **get_args(task)**: このメソッドをオーバーライドして引数抽出ロジックをカスタマイズできます。
 
 ### 結果の取得
 
 ```python
-# 成功結果リストを取得
 def get_success_pairs(self) -> list[tuple[Any, Any]]:
-    ...
+    """成功タスク (task, result) リストを取得（SuccessSpout キャッシュ経由）。"""
 
-# 失敗結果リストを取得
-def get_error_pairs(self) -> list[tuple[Any, Exception]]:
-    ...
-```
+def get_error_pairs(self) -> list[tuple[Any, PersistedErrorRecord]]:
+    """失敗タスク (task, error_record) リストを取得（FailSpout キャッシュ経由）。"""
 
-### 結果辞書の処理
+def process_result_dict(self) -> dict[Any, Any]:
+    """成功と失敗の結果辞書をマージ。"""
 
-```python
-# 結果辞書を処理（成功と失敗をマージ）
-def process_result_dict(self) -> dict:
-    ...
-
-# エラー辞書を処理（エラータイプ別にグループ化）
-def handle_error_dict(self) -> dict:
-    ...
+def handle_error_dict(self) -> dict[tuple[str, str], list[Any]]:
+    """(error_type, error_message) でエラーをグループ化。"""
 ```
 
 ## CelestialTree 統合
 
-`TaskExecutor` は CelestialTree イベントトラッキングシステムをサポートし、タスクのトレースとデバッグに使用されます。
-
-### set_ctree
-
 ```python
-def set_ctree(self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778):
-    """
-    CelestialTree クライアント接続を設定します。
+def set_ctree(self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778) -> None:
+    """CelestialTree クライアントを設定（gRPC トランスポートのみ）。"""
 
-    :param host: CelestialTree サービスホストアドレス
-    :param http_port: HTTP ポート
-    :param grpc_port: gRPC ポート
-    """
-```
-
-### set_nullctree
-
-```python
-def set_nullctree(self, event_id=None):
-    """
-    Null クライアントを設定します（外部サービスに接続せず、イベント ID のみ生成）。
-
-    :param event_id: オプションのイベント ID
-    """
+def set_nullctree(self, event_id: int | None = None) -> None:
+    """Null クライアントを設定（外部サービスに接続せず、イベント ID のみ生成）。"""
 ```
 
 ## 状態クエリメソッド
 
-### 基本情報の取得
-
 ```python
-# エグゼキューター名を取得
-def get_name(self) -> str: ...
-
-# 関数名を取得
-def get_func_name(self) -> str: ...
-
-# クラス名を取得（プライベート）
-def _get_class_name(self) -> str: ...
-
-# タグを取得（ログとトレース用）
-def get_tag(self) -> str: ...
-
-# 実行モード説明を取得（プライベート）
-def _get_execution_mode_desc(self) -> str: ...
+def get_name(self) -> str:           # エグゼキューター名
+def get_full_name(self) -> str:      # "name(mode-workers)" または "name(serial)"
+def get_func_name(self) -> str:      # 関数名
+def _get_class_name(self) -> str:    # クラス名
+def _get_execution_mode_desc(self) -> str:  # 実行モード説明文字列
+def get_summary(self) -> dict:       # スナップショット: name, func_name, class_name, execution_mode
+def get_counts(self) -> dict:        # カウンター: tasks_input/succeeded/failed/duplicated/processed/pending
 ```
 
-### 状態スナップショットの取得
+## start / start_async フロー
+
+### start（同期起動）
 
 ```python
-def get_summary(self) -> dict:
-    """
-    現在のノードの状態スナップショットを取得します。
-    返却値：name, func_name, class_name, execution_mode
-    """
-
-def get_counts(self) -> dict:
-    """
-    現在のノードのカウンターを取得します。
-    返却値：tasks_input, tasks_succeeded, tasks_failed, tasks_duplicated, tasks_processed, tasks_pending
-    """
+def start(self, task_source: Iterable[Any]) -> None:
 ```
 
-## ランタイム情報
+実行フロー:
+1. 起動時間を記録
+2. `init_env()` — metrics → dispatch → spout → inlet → queue を初期化
+3. Observer に `on_start` を通知
+4. `_put_task_queue(task_source)` — エンベロープを構築し全タスクをエンキュー
+5. `fail_inlet.start_executor()` / `log_inlet.start_executor()` — 起動ログを記録
+6. `execution_mode` に応じた dispatch メソッドを呼び出し:
+   - `serial` → `dispatch_serial()`
+   - `thread` → `dispatch_thread()`
+   - `async` → `asyncio.run(dispatch_async())`（非推奨、`start_async` を使用）
+7. `finally` クリーンアップ: `on_finish` 通知 → 終了ログ記録 → 全 spout を停止
 
-### get_task_repr
+### start_async（非同期起動）
 
 ```python
-def get_task_repr(self, task) -> str:
-    """
-    タスク引数の可読文字列表現を取得します。
-    ログ出力に使用され、長すぎる引数は自動的に切り詰められます。
-    """
+async def start_async(self, task_source: Iterable[Any]) -> None:
 ```
 
-### _get_result_repr
+`start` と同様ですが:
+- 自動的に `execution_mode="async"` を設定
+- `asyncio.run()` の代わりに `await dispatch.dispatch_async()` を使用
+- 既存のイベントループ内での呼び出しに適する
 
-```python
-def _get_result_repr(self, result) -> str:
-    """
-    結果の可読文字列表現を取得します。
-    """
+## ライフサイクル
+
+```mermaid
+flowchart TD
+    INIT[__init__] -->|func, mode, metrics を設定| NULLCTREE[set_nullctree]
+    NULLCTREE -->|外部トレースが必要| SETCTREE[set_ctree]
+    SETCTREE -->|start/start_async| ENV[init_env]
+    ENV --> STATE[_init_state]
+    ENV --> DISPATCH_INIT[_init_dispatch: TaskDispatch]
+    ENV --> SPOUT[_init_spout: 作成と起動 ×3]
+    ENV --> INLET[_init_inlet: FailInlet + LogInlet]
+    ENV --> QUEUE[_init_queue: task_queue + result_queue]
+    SPOUT --> PUT[_put_task_queue: エンベロープ構築 → エンキュー]
+    PUT --> RUN{dispatch ループ}
+    RUN -->|serial| SERIAL[dispatch_serial]
+    RUN -->|thread| THREAD[dispatch_thread]
+    RUN -->|async| ASYNC[dispatch_async]
+    SERIAL --> CLEANUP[finally: _release_client]
+    THREAD --> CLEANUP
+    ASYNC --> CLEANUP
+    CLEANUP --> NOTIFY[on_finish / 終了ログ]
+    NOTIFY --> STOP[spout 停止 ×3]
 ```
 
 ## 注意事項
 
-### 実行モード選択
-
 | モード | 適用シナリオ | 注意事項 |
 |-------|------------|---------|
-| `serial` | デバッグ、シンプルなタスク | 並行性なし |
-| `thread` | I/O 集約型 | GIL 制限に注意 |
-| `async` | ネットワーク I/O | start_async の使用が必要 |
+| `serial` | デバッグ、シンプルなタスク | 並行性なし、シングルスレッド |
+| `thread` | I/O 集約型 | GIL 制限に注意。内部的にスレッドプールを使用 |
+| `async` | ネットワーク I/O | 関数はコルーチンである必要がある。`start` ではなく `start_async` を使用 |
+
+- `process_task_success` は結果エンベロープを作成し `result_queue`（= `SuccessSpout` のキュー）に配置
+- `handle_task_fail` はエラーレコードを `fail_inlet` に書き込み
+- `deal_duplicate` は重複タスクを処理しログを記録

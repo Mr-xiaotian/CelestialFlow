@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 Last Updated: 2026/05/15
+> 📅 Last Updated: 2026/05/28
 
 `TaskExecutor` is the core component for executing single task logic. It is responsible for task execution, concurrency control, error handling, retry mechanisms, and logging.
 
@@ -10,33 +10,32 @@
 class TaskExecutor:
     def __init__(
         self,
-        name,
-        func,
-        execution_mode="serial",
-        max_workers=20,
-        max_retries=1,
-        max_info=50,
-        unpack_task_args=False,
-        enable_duplicate_check=True,
-        log_level="INFO",
+        name: str,
+        func: Callable[..., Any],
+        execution_mode: str = "serial",
+        max_workers: int | None = None,
+        max_retries: int = 1,
+        max_info: int = 50,
+        unpack_task_args: bool = False,
+        enable_duplicate_check: bool = True,
+        log_level: str = "INFO",
     ):
         ...
 ```
 
 ### Parameter Description
 
-- **name**: Executor name, used for logging and tracing.
-- **func**: Callable object (function) that actually executes the task.
-- **execution_mode**: Execution mode.
-  - `serial`: Serial execution.
-  - `thread`: Multi-threaded execution.
-  - `async`: Asynchronous execution (`asyncio`).
-- **max_workers**: Concurrency limit (number of threads/coroutines).
-- **max_retries**: Maximum retry count after task failure.
-- **max_info**: Maximum length of each log message.
-- **unpack_task_args**: Whether to unpack task arguments (`*args`) when passing to the function.
-- **enable_duplicate_check**: Whether to enable hash-based duplicate checking.
-- **log_level**: Log level (TRACE/DEBUG/SUCCESS/INFO/WARNING/ERROR/CRITICAL).
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `name` | — | Executor name, used for logging and tracing |
+| `func` | — | Callable object that actually executes the task |
+| `execution_mode` | `"serial"` | Execution mode: `"serial"` / `"thread"` / `"async"` |
+| `max_workers` | `None` | Concurrency limit (dynamic when None: `min(32, cpu_count+4)`) |
+| `max_retries` | `1` | Maximum retry count after task failure |
+| `max_info` | `50` | Maximum length of each log message |
+| `unpack_task_args` | `False` | Whether to unpack task arguments (`*args`) when passing to the function |
+| `enable_duplicate_check` | `True` | Whether to enable hash-based duplicate checking |
+| `log_level` | `"INFO"` | Log level |
 
 ## Observer Pattern
 
@@ -49,201 +48,165 @@ executor.add_observer(observer)     # Register observer
 executor.remove_observer(observer)  # Remove observer
 ```
 
-### Usage Example
-
-```python
-from celestialflow import TaskExecutor, TaskProgress, CallbackObserver
-
-# Use TaskProgress to display progress bar
-executor = TaskExecutor("Test", my_func)
-executor.add_observer(TaskProgress())
-executor.start(tasks)
-
-# Use CallbackObserver
-observer = CallbackObserver(
-    on_task_success=lambda count=1: print(f"Success: {count}"),
-)
-executor.add_observer(observer)
-```
-
 ### Broadcast Events
 
-| Event | Trigger Timing |
-|-------|---------------|
-| `on_start(name, total)` | Execution starts |
-| `on_task_success(count)` | Task succeeds |
-| `on_task_fail(count)` | Task fails |
-| `on_task_duplicate(count)` | Duplicate detected |
-| `on_tasks_added(count)` | New tasks added |
-| `on_finish()` | Execution ends |
+| Event | Trigger Location | Description |
+|-------|-----------------|-------------|
+| `on_start(name, total)` | `start()`/`start_async()` | Execution starts |
+| `on_task_success()` | `process_task_success()` | Task succeeds |
+| `on_task_fail()` | `handle_task_fail()` | Task fails |
+| `on_task_duplicate()` | `deal_duplicate()` | Duplicate detected |
+| `on_tasks_added(count)` | `_put_task_queue()` | New tasks added (notified every 100) |
+| `on_finish()` | `start()`/`start_async()` finally | Execution ends |
+
+Note: `on_task_success`, `on_task_fail`, `on_task_duplicate` `_notify` calls do not pass count parameters; Observers should obtain them externally.
 
 ## Core Methods
 
-### start
+### start / start_async
 
 ```python
-def start(self, task_source: Iterable):
+def start(self, task_source: Iterable[Any]) -> None:
     """
-    Start the executor, processing all tasks in task_source.
-    Selects the appropriate running strategy based on execution_mode.
+    Synchronously start the executor. Flow:
+    1. init_env() — Initialize metrics, dispatch, spout, inlet, queue
+    2. _put_task_queue() — Construct envelopes and enqueue all tasks
+    3. Call the dispatch method corresponding to execution_mode
+    4. Stop spout in finally
+    
+    Note: async mode should not use this method (it would internally asyncio.run). Use start_async instead.
     """
-```
 
-### start_async
-
-```python
-async def start_async(self, task_source: Iterable):
+async def start_async(self, task_source: Iterable[Any]) -> None:
     """
-    Start the executor asynchronously (for async mode).
+    Asynchronously start the executor. Internally sets execution_mode="async".
     """
 ```
 
 ## Error Handling
 
-`TaskExecutor` catches exceptions during task execution:
-- If the exception is in the `retry_exceptions` list and the maximum retry count has not been reached, the task is re-enqueued for retry.
-- Otherwise, the task is marked as failed, an error log is recorded, and it is placed in the `fail_queue`.
+### Retry Logic
 
-### add_retry_exceptions
+Exceptions are classified in `TaskDispatch._worker`:
+- **Retryable exceptions**: If in `retry_exceptions` and max_retries not reached, retry via `emit_retry_envelope()` with updated task ID
+- **Non-retryable exceptions**: Task marked as failed, error logged, placed in `fail_inlet`
 
 ```python
-def add_retry_exceptions(self, *exceptions):
-    """
-    Add exception types that should trigger retries.
-
-    :param exceptions: List of exception types
-    """
+def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
+    """Add exception types that should trigger retries."""
 ```
 
-Example:
+### Result Handling (Overridable Methods)
+
 ```python
-executor = TaskExecutor("Processor", process, max_retries=3)
-executor.add_retry_exceptions(ValueError, ConnectionError, TimeoutError)
+def process_result(self, task: Any, result: Any) -> Any:
+    """Custom result processing logic (default returns as-is)."""
+
+def get_args(self, task: Any) -> tuple[Any, ...]:
+    """Custom argument extraction logic (default unpacks based on unpack_task_args)."""
 ```
-
-## Result Handling
-
-### Overridable Methods
-
-- **process_result(task, result)**: Override this method to customize result processing logic.
-- **get_args(task)**: Override this method to customize argument extraction logic.
 
 ### Retrieving Results
 
 ```python
-# Get success result list
 def get_success_pairs(self) -> list[tuple[Any, Any]]:
-    ...
+    """Get success task (task, result) list (via SuccessSpout cache)."""
 
-# Get failure result list
-def get_error_pairs(self) -> list[tuple[Any, Exception]]:
-    ...
-```
+def get_error_pairs(self) -> list[tuple[Any, PersistedErrorRecord]]:
+    """Get failed task (task, error_record) list (via FailSpout cache)."""
 
-### Processing Result Dictionaries
+def process_result_dict(self) -> dict[Any, Any]:
+    """Merge success and failure result dictionaries."""
 
-```python
-# Process result dictionary (merge success and failure)
-def process_result_dict(self) -> dict:
-    ...
-
-# Handle error dictionary (group by error type)
-def handle_error_dict(self) -> dict:
-    ...
+def handle_error_dict(self) -> dict[tuple[str, str], list[Any]]:
+    """Group errors by (error_type, error_message)."""
 ```
 
 ## CelestialTree Integration
 
-`TaskExecutor` supports the CelestialTree event tracking system for task tracing and debugging.
-
-### set_ctree
-
 ```python
-def set_ctree(self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778):
-    """
-    Set up the CelestialTree client connection.
+def set_ctree(self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778) -> None:
+    """Set up the CelestialTree client (gRPC transport only)."""
 
-    :param host: CelestialTree service host address
-    :param http_port: HTTP port
-    :param grpc_port: gRPC port
-    """
-```
-
-### set_nullctree
-
-```python
-def set_nullctree(self, event_id=None):
-    """
-    Set up a null client (no external service connection, only generates event IDs).
-
-    :param event_id: Optional event ID
-    """
+def set_nullctree(self, event_id: int | None = None) -> None:
+    """Set up a null client (no external service connection, only generates event IDs)."""
 ```
 
 ## State Query Methods
 
-### Getting Basic Information
-
 ```python
-# Get executor name
-def get_name(self) -> str: ...
-
-# Get function name
-def get_func_name(self) -> str: ...
-
-# Get class name (private)
-def _get_class_name(self) -> str: ...
-
-# Get tag (for logging and tracing)
-def get_tag(self) -> str: ...
-
-# Get execution mode description (private)
-def _get_execution_mode_desc(self) -> str: ...
+def get_name(self) -> str:           # Executor name
+def get_full_name(self) -> str:      # "name(mode-workers)" or "name(serial)"
+def get_func_name(self) -> str:      # Function name
+def _get_class_name(self) -> str:    # Class name
+def _get_execution_mode_desc(self) -> str:  # Execution mode description string
+def get_summary(self) -> dict:       # Snapshot: name, func_name, class_name, execution_mode
+def get_counts(self) -> dict:        # Counters: tasks_input/succeeded/failed/duplicated/processed/pending
 ```
 
-### Getting State Snapshots
+## start / start_async Flow
+
+### start (Synchronous Start)
 
 ```python
-def get_summary(self) -> dict:
-    """
-    Get the current node state snapshot.
-    Returns: name, func_name, class_name, execution_mode
-    """
-
-def get_counts(self) -> dict:
-    """
-    Get the current node counters.
-    Returns: tasks_input, tasks_succeeded, tasks_failed, tasks_duplicated, tasks_processed, tasks_pending
-    """
+def start(self, task_source: Iterable[Any]) -> None:
 ```
 
-## Runtime Information
+Execution flow:
+1. Record start time
+2. `init_env()` — Initialize metrics → dispatch → spout → inlet → queue
+3. Notify observer `on_start`
+4. `_put_task_queue(task_source)` — Construct envelopes and enqueue all tasks
+5. `fail_inlet.start_executor()` / `log_inlet.start_executor()` — Record start log
+6. Call corresponding dispatch method based on `execution_mode`:
+   - `serial` → `dispatch_serial()`
+   - `thread` → `dispatch_thread()`
+   - `async` → `asyncio.run(dispatch_async())` (not recommended, prefer `start_async`)
+7. `finally` cleanup: Notify `on_finish` → Record end log → Stop all spouts
 
-### get_task_repr
+### start_async (Asynchronous Start)
 
 ```python
-def get_task_repr(self, task) -> str:
-    """
-    Get a human-readable string representation of task arguments.
-    Used for log output, automatically truncates overly long arguments.
-    """
+async def start_async(self, task_source: Iterable[Any]) -> None:
 ```
 
-### _get_result_repr
+Similar to `start`, but:
+- Automatically sets `execution_mode="async"`
+- Uses `await dispatch.dispatch_async()` instead of `asyncio.run()`
+- Suitable for calling within an existing event loop
 
-```python
-def _get_result_repr(self, result) -> str:
-    """
-    Get a human-readable string representation of the result.
-    """
+## Lifecycle
+
+```mermaid
+flowchart TD
+    INIT[__init__] -->|Set func, mode, metrics| NULLCTREE[set_nullctree]
+    NULLCTREE -->|External tracing needed| SETCTREE[set_ctree]
+    SETCTREE -->|start/start_async| ENV[init_env]
+    ENV --> STATE[_init_state]
+    ENV --> DISPATCH_INIT[_init_dispatch: TaskDispatch]
+    ENV --> SPOUT[_init_spout: Create and start ×3]
+    ENV --> INLET[_init_inlet: FailInlet + LogInlet]
+    ENV --> QUEUE[_init_queue: task_queue + result_queue]
+    SPOUT --> PUT[_put_task_queue: Construct envelopes → enqueue]
+    PUT --> RUN{dispatch loop}
+    RUN -->|serial| SERIAL[dispatch_serial]
+    RUN -->|thread| THREAD[dispatch_thread]
+    RUN -->|async| ASYNC[dispatch_async]
+    SERIAL --> CLEANUP[finally: _release_client]
+    THREAD --> CLEANUP
+    ASYNC --> CLEANUP
+    CLEANUP --> NOTIFY[on_finish / end log]
+    NOTIFY --> STOP[Stop spout ×3]
 ```
 
 ## Notes
 
-### Execution Mode Selection
-
 | Mode | Use Case | Notes |
 |------|----------|-------|
-| `serial` | Debugging, simple tasks | No concurrency |
-| `thread` | I/O-intensive | Be aware of GIL limitations |
-| `async` | Network I/O | Requires start_async |
+| `serial` | Debugging, simple tasks | No concurrency, single thread |
+| `thread` | I/O-intensive | Be aware of GIL limitations; uses thread pool internally |
+| `async` | Network I/O | Function must be a coroutine; use `start_async` instead of `start` |
+
+- `process_task_success` creates a result envelope and places it in `result_queue` (= `SuccessSpout`'s queue)
+- `handle_task_fail` writes error records to `fail_inlet`
+- `deal_duplicate` handles duplicate tasks and records a log

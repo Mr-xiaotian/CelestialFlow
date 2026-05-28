@@ -1,6 +1,6 @@
 # Stage Module
 
-> 📅 Last Updated: 2026/04/24
+> 📅 Last Updated: 2026/05/28
 
 The Stage module defines the task execution units in CelestialFlow. It provides a complete hierarchy from basic task executors to complex task nodes, serving as the fundamental building blocks for constructing task graphs.
 
@@ -13,7 +13,7 @@ The Stage module contains three levels of task execution units:
 
 These components together form the core of task execution, each usable independently or combined into complex task flows.
 
-## File Descriptions
+## File Description
 
 ### Core Files
 
@@ -53,7 +53,7 @@ These components together form the core of task execution, each usable independe
 
 ### External Relationships
 - **With Graph Module**: `TaskStage` is the basic building unit of `TaskGraph`
-- **With Runtime Module**: Uses `TaskQueue` for inter-node communication, relies on `TaskDispatch` for execution
+- **With Runtime Module**: Uses `TaskInQueue`/`TaskOutQueue` for inter-node communication, depends on `TaskDispatch` for execution
 - **With Utils Module**: Uses utility functions for data processing and transformation
 - **With Persistence Module**: Supports persistent saving of task state
 
@@ -85,6 +85,112 @@ These components together form the core of task execution, each usable independe
 - Easily create custom nodes through inheritance
 - Plugin-based architecture support
 - Configuration-driven, adjustable behavior without code changes
+
+## Usage Examples
+
+The following examples demonstrate typical usage of core classes in the stage module.
+
+### Standalone TaskExecutor Usage
+
+```python
+from celestialflow import TaskExecutor
+
+# Define processing function
+def process_item(x: int) -> dict:
+    return {"input": x, "output": x * 10}
+
+# Create and execute
+executor = TaskExecutor(
+    name="Calculator",
+    func=process_item,
+    execution_mode="serial",
+)
+executor.start([1, 2, 3])
+
+# Get results
+success = executor.get_success_pairs()
+for task, result in success:
+    print(f"{task} -> {result}")
+
+# Statistics
+print(f"Success: {executor.get_counts()['tasks_succeeded']}")
+```
+
+### TaskStage as Graph Node
+
+```python
+from celestialflow import TaskGraph, TaskStage
+
+# Create stage nodes
+stage_a = TaskStage("StageA", func=lambda x: x + 1, stage_mode="thread")
+stage_b = TaskStage("StageB", func=lambda x: x * 2, stage_mode="serial")
+
+# Build graph
+graph = TaskGraph()
+graph.set_stages([stage_a, stage_b])
+graph.connect([stage_a], [stage_b])
+
+# Execute
+graph.start_graph({stage_a.get_name(): [5, 10, 15]})
+
+# Stage snapshots
+for name, stage in graph.stage_dict.items():
+    summary = stage.get_summary()
+    print(f"{name}: {summary}")
+
+# Graph summary
+print(graph.get_graph_summary())
+```
+
+### TaskSplitter Usage
+
+```python
+from celestialflow import TaskGraph, TaskStage, TaskSplitter
+
+# Custom splitter: splits a string by commas
+class CommaSplitter(TaskSplitter):
+    def _split(self, *task):
+        return tuple(task[0].split(","))
+
+# Build graph
+raw = TaskStage("Source", func=lambda x: x, stage_mode="serial")
+splitter = CommaSplitter("Splitter")
+processor = TaskStage("Process", func=lambda x: x.strip().upper(), stage_mode="thread")
+
+graph = TaskGraph()
+graph.set_stages([raw, splitter, processor])
+graph.connect([raw], [splitter])
+graph.connect([splitter], [processor])
+
+graph.start_graph({raw.get_name(): ["a,b,c", "x,y,z"]})
+print(graph.get_graph_summary())
+```
+
+### TaskRouter Usage
+
+```python
+from celestialflow import TaskGraph, TaskStage, TaskRouter
+
+# Define a processing function that generates routing info
+def classify(x: int) -> tuple:
+    if x > 0:
+        return ("positive", x)
+    else:
+        return ("negative", x)
+
+source = TaskStage("Source", func=classify, stage_mode="serial")
+router = TaskRouter("Router")
+pos = TaskStage("Positive", func=lambda x: f"POS: {x}", stage_mode="serial")
+neg = TaskStage("Negative", func=lambda x: f"NEG: {x}", stage_mode="serial")
+
+graph = TaskGraph()
+graph.set_stages([source, router, pos, neg])
+graph.connect([source], [router])
+graph.connect([router], [pos, neg])  # Route to two downstreams
+
+graph.start_graph({source.get_name(): [5, -3, 10, -8]})
+print(graph.get_graph_summary())
+```
 
 ## Best Practices
 

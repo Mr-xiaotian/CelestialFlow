@@ -1,288 +1,257 @@
 # TaskGraph
 
-> 📅 最終更新日: 2026/05/15
+> 📅 最終更新日: 2026/05/28
 
 `TaskGraph` は CelestialFlow のコアスケジューラで、一連の `TaskStage` ノードの依存関係、実行フロー、リソース割り当て、ライフサイクルの管理を担当します。
+
+## 主要データ構造
+
+`TaskGraph` は内部で `stage_dict: dict[str, TaskStage]` を使用して全ノードの Stage マッピングを保持します。各 Stage は初期化時に自動的に対応する `TaskInQueue` と `TaskOutQueue` を作成し、キューは `_build_resources()` フェーズで接続されます。
 
 ## 初期化
 
 ```python
 class TaskGraph:
-    def __init__(
-        self,
-        schedule_mode: str = "eager",
-        log_level: str = "INFO",
-    ):
+    def __init__(self, schedule_mode: str = "eager", log_level: str = "INFO"):
         ...
 ```
 
 ### パラメータ説明
 
-- **schedule_mode**: スケジューリングモード。
-  - `eager`（デフォルト）: すべてのノードを一斉に起動し、依存関係はデータフローにより自動制御。並列度の最大化に適している。
-  - `staged`: レイヤーごとに順次実行。DAG のみに適用。レベル順にレイヤーを起動し、前のレイヤーがすべて完了してから次のレイヤーを開始。
-- **log_level**: グローバルログレベル（TRACE/DEBUG/INFO/SUCCESS/WARNING/ERROR/CRITICAL）、デフォルトは `"INFO"`。
+- **schedule_mode**: スケジューリングモード
+  - `eager`（デフォルト）: 全ノードを一斉に並行起動。依存関係はキューフローで自動制御
+  - `staged`: レイヤーごとに実行（DAG のみ）。レベル順にレイヤーを起動し、前のレイヤーがすべて完了してから次のレイヤーを開始
+- **log_level**: ログレベル
 
-### ノードの設定
+## グラフ構築
+
+### set_stages
 
 ```python
-def set_stages(self, stages: list[TaskStage]):
+def set_stages(self, stages: list[TaskStage]) -> None:
     """
-    タスクグラフのノードを設定する。ソースノードは SCC 凝縮により自動計算。
-    
-    :param stages: すべてのノードのリスト。
+    ノードをタスクグラフに追加する。各ノードに TaskInQueue と TaskOutQueue を作成。
+
+    :param stages: ノードリスト
+    :raises DuplicateNodeError: ノード名が重複している場合
     """
 ```
 
-## コア機能
-
-### グラフの構築と分析
-
-- **自動構築**: ノードリストとノード間の接続関係（`out_edges`）に基づいて、グラフ構造全体を自動的に走査・構築。
-- **ソースノードの自動検出**: SCC 凝縮によりソースノード（入次数が 0 のノード）を自動識別。
-- **DAG 検出**: 有向非巡回グラフ（DAG）であるかどうかを自動検出。
-- **レベル分析**: DAG の場合、`staged` スケジューリングや可視化のためにノードレベルを自動計算。
-
-### 実行の開始
+### connect
 
 ```python
-def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True):
+def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
     """
-    タスクグラフを開始する。
-    
-    :param init_tasks_dict: 初期タスクデータ。形式は {stage_tag: [task_data, ...]}
-    :param put_termination_signal: 初期タスク後に終了シグナルを自動注入するかどうか。
+    ハイパーエッジ接続を確立：from_stages の各ノードが to_stages の各ノードに接続。
+    out_edges / in_edges 辞書を操作し、実際のキュー接続は _build_resources() で実行。
     """
 ```
-
-例：
-```python
-graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(stages=[stage_a, stage_b])
-graph.start_graph({
-    stage_a.get_tag(): [1, 2, 3, 4, 5]
-})
-```
-
-### リソース管理
-
-- **キュー管理**: ノード間の通信キュー（`TaskInQueue`、`TaskOutQueue`）を自動作成。
-- **グレースフル終了**: タスク完了後、すべてのノードが正しく終了することを保証。
-
-### 監視とレポート
-
-- **ランタイムスナップショット**: `collect_runtime_snapshot()` で各ノードの実行状態（処理数、バックログ数、レートなど）を収集。
-- **エラー永続化**: ランタイムのエラーログをローカル JSONL ファイル（`fallback/` ディレクトリ）に永続化。
-- **Web レポート**: `TaskReporter` を統合し、Web UI にリアルタイムで状態をプッシュ。
 
 ## 設定メソッド
 
 ### set_reporter
 
 ```python
-def set_reporter(self, is_report=False, host="127.0.0.1", port=5000):
-    """
-    Web UI への状態プッシュ用レポーターを設定。
-
-    :param is_report: レポーターを有効にするかどうか
-    :param host: Web サービスのホストアドレス
-    :param port: Web サービスのポート
-    """
+def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000) -> None:
+    """Web UI に状態をプッシュするレポーターを設定。"""
 ```
 
 ### set_ctree
 
 ```python
-def set_ctree(
-    self,
-    use_ctree=False,
-    host="127.0.0.1",
-    http_port=7777,
-    grpc_port=7778,
-    transport="grpc",
-):
+def set_ctree(self, use_ctree: bool = False, host: str = "127.0.0.1",
+              http_port: int = 7777, grpc_port: int = 7778,
+              transport: str = "grpc") -> None:
     """
-    イベントトレーシング用の CelestialTree クライアントを設定。
-
-    :param use_ctree: CelestialTree を使用するかどうか
-    :param host: サービスのホストアドレス
-    :param http_port: HTTP ポート
-    :param grpc_port: gRPC ポート
-    :param transport: トランスポートプロトコル
+    CelestialTree クライアントを設定。有効時は接続状態を検証。
+    :raises CelestialTreeConnectionError: 接続失敗時
     """
 ```
 
 ### set_graph_mode
 
 ```python
-def set_graph_mode(self, stage_mode: str, execution_mode: str):
+def set_graph_mode(self, stage_mode: str, execution_mode: str) -> None:
     """
-    すべてのノードの実行モードを一括設定。
-
-    :param stage_mode: ノードの実行モード（'serial' または 'thread'）
-    :param execution_mode: ノードの内部実行モード（'serial'、'thread'、または 'async'）
+    全ノードの stage_mode と execution_mode を一括設定。
+    _build_analysis() をトリガーして分析データを再構築。
     """
 ```
 
-### _set_log_level
+## 実行開始
+
+### start_graph
 
 ```python
-def _set_log_level(self, level="INFO"):
+def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
+                put_termination_signal: bool = True) -> None:
     """
-    グローバルログレベルを設定。
-    """
-```
-
-## データクエリメソッド
-
-### 状態クエリ
-
-```python
-# ノード状態辞書を取得
-def get_status_dict(self) -> dict[str, dict]:
-    """各ノードのリアルタイム状態を返す。"""
-
-# グラフ概要を取得
-def get_graph_summary(self) -> dict:
-    """グローバル統計（成功数、失敗数、バックログ数など）を返す。"""
-```
-
-### 分析クエリ
-
-```python
-# 分析情報を取得
-def get_graph_analysis(self) -> dict:
-    """isDAG、schedule_mode、class_name、layers_dict などの情報を返す。"""
-
-# 構造 JSON を取得
-def get_structure_json(self) -> list[dict]:
-    """グラフ構造の JSON 表現を返す。"""
-
-# 構造リストを取得
-def get_structure_list(self) -> list[str]:
-    """フォーマットされた構造リストを返す。"""
-```
-
-### NetworkX グラフ
-
-```python
-def get_networkx_graph(self):
-    """
-    タスクグラフの networkx 有向グラフ（DiGraph）を取得。
-    複雑なグラフ分析に使用可能。
+    タスクグラフを開始。フロー：
+    1. _build_resources() — キュー接続とカウンターバインディングを構築
+    2. _build_analysis() — グラフ構造を分析（ソースノード、レベル、DAG 判定）
+    3. spout、inlet、reporter を起動
+    4. put_stage_queue() — 初期タスクと終了シグナルを注入
+    5. _execute_stages() — 全ノードを実行
+    6. _finalize_nodes() — 後処理（スレッド終了確認、未消費タスク収集）
+    7. リソース解放
     """
 ```
 
-### エラークエリ
-
 ```python
-# ステージ別に失敗タスクを取得
-def get_fail_by_stage_dict(self):
-    """{stage_tag: [failed_tasks]} 形式の辞書を返す。"""
-
-# エラータイプ別に失敗タスクを取得
-def get_fail_by_error_dict(self):
-    """{error_type: [failed_tasks]} 形式の辞書を返す。"""
-
-# fallback ファイルパスを取得
-def get_fallback_path(self) -> str:
-    """エラーログファイルのパスを返す。"""
+graph = TaskGraph(schedule_mode="eager")
+graph.set_stages(stages=[stage_a, stage_b])
+graph.connect([stage_a], [stage_b])
+graph.start_graph({stage_a.get_name(): [1, 2, 3, 4, 5]})
 ```
 
-### トレースクエリ
+### _execute_stages
 
 ```python
-# 入力トレースを取得
-def get_stage_input_trace(self, stage_tag: str) -> str:
-    """指定ノードの入力イベントトレースを取得（ctree の有効化が必要）。"""
+def _execute_stages(self) -> None:
+    """eager モード：全ノードを一斉起動；staged モード：レイヤーごとに順次起動。"""
 ```
 
-### その他のクエリ
+### _execute_stage
 
 ```python
-# 各ノードの履歴状態を取得
-def get_stage_history(self) -> dict[str, list[dict]]:
-    """各ノードの履歴スナップショットリストを返す。"""
-
-# エラー総数を取得
-def get_total_error_num(self) -> int:
-    """エラーの総数を返す。"""
-
-# ソースノードリストを取得
-def get_source_stages(self) -> list[TaskStage]:
-    """ソースノードのリストを返す（SCC 凝縮により自動計算）。"""
+def _execute_stage(self, stage: TaskStage) -> None:
+    """
+    単一ノードを実行：
+    - thread モード：新規スレッドで stage.start_stage() を呼び出し
+    - serial モード：現在のスレッドで同期的に stage.start_stage() を呼び出し
+    """
 ```
 
-## タスク注入
+## 動的タスク注入
 
 ### put_stage_queue
 
 ```python
-def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
+def put_stage_queue(self, tasks_dict: Mapping[str, Iterable[Any]],
+                    put_termination_signal: bool = True) -> None:
     """
-    ノードキューにタスクを動的に注入。
-
-    :param tasks_dict: {stage_tag: [tasks]}
-    :param put_termination_signal: 終了シグナルを注入するかどうか
+    ノードにタスクを動的注入。以下をサポート：
+    - 通常タスク → 自動的に TaskEnvelope にラップ
+    - TerminationSignal オブジェクト → 直接終了シグナルを注入
+    - put_termination_signal=True → 全ソースノードに終了シグナルを自動注入
     """
 ```
 
-例：
-```python
-# タスクを動的に注入
-graph.put_stage_queue({
-    stage_a.get_tag(): [6, 7, 8]
-})
+## ランタイム監視
 
-# 終了シグナルを注入
-from celestialflow import TerminationSignal
-graph.put_stage_queue({
-    stage_a.get_tag(): [TerminationSignal()]
-})
+### collect_runtime_snapshot
+
+```python
+def collect_runtime_snapshot(self) -> None:
+    """
+    全ノードのランタイムスナップショットを収集し、status_dict を更新。
+    各ノードの processed / pending / elapsed / remaining とグローバル残り時間を計算。
+    """
+```
+
+### _snapshot_one_stage
+
+単一ノードのスナップショットを収集し、以下のフィールドを含む辞書を返す：
+
+| フィールド | 型 | 説明 |
+|-----------|------|------|
+| `name` | `str` | ノード名 |
+| `func_name` | `str` | 関数名 |
+| `execution_mode` | `str` | 実行モード |
+| `stage_mode` | `str` | ノードモード |
+| `status` | `StageStatus` | 実行状態 |
+| `tasks_input` | `int` | 入力タスク数 |
+| `tasks_succeeded` | `int` | 成功数 |
+| `tasks_failed` | `int` | 失敗数 |
+| `tasks_duplicated` | `int` | 重複数 |
+| `tasks_processed` | `int` | 処理済み数 |
+| `tasks_pending` | `int` | 保留中数 |
+| `elapsed_time` | `float` | 経過時間 |
+| `remaining_time` | `float` | 推定残り時間 |
+| `task_avg_time` | `str` | 平均時間（フォーマット済み） |
+| `start_time` | `float` | 起動タイムスタンプ |
+
+## クエリインターフェース
+
+| メソッド | 戻り値の型 | 説明 |
+|---------|----------|------|
+| `get_status_snapshot()` | `dict` | 統一タイムスタンプ付き状態スナップショット |
+| `get_graph_summary()` | `dict` | グローバル残り時間サマリー |
+| `get_graph_analysis()` | `dict` | グラフ分析情報（isDAG, scheduleMode, layersDict, className） |
+| `get_structure_json()` | `list[dict]` | JSON 形式のグラフ構造 |
+| `get_structure_list()` | `list[str]` | 枠付きフォーマット済みツリーテキスト |
+| `get_networkx_graph()` | `DiGraph` | networkx 有向グラフインスタンス |
+| `get_fail_by_stage_dict()` | `dict[str, list]` | ステージ別の失敗タスク |
+| `get_fail_by_error_dict()` | `dict[tuple, list]` | エラータイプ別の失敗タスク（キーは `(error_type, error_message)` タプル） |
+| `get_total_error_num()` | `int` | 総エラー数 |
+| `get_fallback_path()` | `str` | 失敗タスク JSONL ファイルの絶対パス |
+| `get_source_stages()` | `list[TaskStage]` | ソースノードリスト |
+| `get_stage_input_trace(stage_name)` | `str` | ノード入力依存関係ツリー（ctree 有効時） |
+
+### get_fail_by_error_dict 詳細
+
+```python
+def get_fail_by_error_dict(self) -> dict[tuple[str, ...], list[Any]]:
+    """(error_type, error_message) でグループ化して返す。"""
+```
+
+## ライフサイクル図
+
+```mermaid
+flowchart TD
+    INIT[__init__] -->|set_schedule_mode / set_ctree / set_reporter| ENV[_init_env]
+    ENV --> STATE[_init_state]
+    ENV --> SPOUT[_init_spout: LogSpout + FailSpout]
+    ENV --> INLET[_init_inlet: LogInlet + FailInlet]
+    STATE --> BUILD[set_stages + connect]
+    BUILD --> START[start_graph]
+    START --> RESOURCES[_build_resources: キュー接続 & カウンターバインディング]
+    START --> ANALYSIS[_build_analysis: グラフ分析]
+    START -->|初期タスク注入| PUT[put_stage_queue]
+    START --> EXEC[_execute_stages]
+    EXEC -->|eager| ALL[全ノードを一斉起動]
+    EXEC -->|staged| LAYER[レイヤーごとに起動]
+    ALL --> FINALIZE[_finalize_nodes: 未消費タスク収集]
+    LAYER --> FINALIZE
+    FINALIZE --> RELEASE[_release_resources]
+    RELEASE --> END[グラフ実行完了]
+    
+    START -->|監視| SNAPSHOT[collect_runtime_snapshot]
+    SNAPSHOT --> SUMMARY[get_graph_summary]
+    SNAPSHOT --> STATUS[get_status_snapshot]
 ```
 
 ## スケジューリングモード詳解
 
 ### Eager モード
 
-- すべてのノードが即座に開始
-- 依存関係はキューフローにより自動制御
+```
+全ノードが同時に start_stage → データはキューを通じてフロー → 終了シグナル到着で停止
+```
+
 - 並列度を最大化
 - ほとんどのシナリオに適用
+- 循環グラフにはこのモードを推奨
 
 ### Staged モード
 
-- レベル順にレイヤーごとに実行
-- 前のレイヤーがすべて完了してから次のレイヤーを開始
+```
+レイヤー 0: [ノード A, ノード B] → すべて join → レイヤー 1: [ノード C, ノード D] → ...
+```
+
+- レイヤーごとに実行。現在のレイヤーが完全に終了してから次のレイヤーを開始
 - DAG のみに適用
-- デバッグ、パフォーマンス分析、リソース制御に適用
+- デバッグ、パフォーマンス分析、リソース制御に適する
 
-## 注意事項
+## 非 DAG グラフの注意事項
 
-1. **非 DAG グラフ**: 循環グラフの場合、終了シグナルの自動注入は推奨されません。代わりに Web インターフェースで手動制御してください。
-2. **未消費タスク**: 停止時に未消費のタスクが収集され、エラーとして記録されます。
-4. **Web 監視**: Web サービスを先に起動してから、`set_reporter(True)` で有効化する必要があります。
-
-## 例
+循環グラフで `put_termination_signal=True` の場合、`start_graph` は `RuntimeWarning` を発行します。終了シグナルにより、一部のノードが上流データを受信する前に早期終了する可能性があります。推奨アプローチ：
 
 ```python
-from celestialflow import TaskStage, TaskGraph
-
-# ノードの作成
-stage_a = TaskStage("A", func=process_a, execution_mode="thread", stage_mode="thread")
-stage_b = TaskStage("B", func=process_b, execution_mode="serial", stage_mode="thread")
-stage_c = TaskStage("C", func=process_c, execution_mode="serial", stage_mode="thread")
-
-# グラフの構築
-graph = TaskGraph(schedule_mode="eager", log_level="INFO")
-graph.set_stages(stages=[stage_a, stage_b, stage_c])
-graph.connect([stage_a], [stage_b, stage_c])
-
-# 設定
-graph.set_reporter(True, host="127.0.0.1", port=5005)
-
-# 開始
-graph.start_graph({
-    stage_a.get_tag(): range(100)
-})
+graph.start_graph({"source": tasks}, put_termination_signal=False)
+# 後で Web UI や put_stage_queue で手動で TerminationSignal を注入
 ```
+
+## 未消費タスクの処理
+
+`_finalize_nodes()` で `in_queue.drain()` により全残存タスクを収集し、`UnconsumedError` としてマークし、`fail_inlet` を通じて JSONL ファイルに永続化します。

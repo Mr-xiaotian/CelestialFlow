@@ -1,288 +1,257 @@
 # TaskGraph
 
-> 📅 Last Updated: 2026/05/15
+> 📅 Last Updated: 2026/05/28
 
 `TaskGraph` is the core scheduler of CelestialFlow, responsible for managing dependency relationships, execution flow, resource allocation, and lifecycle of a set of `TaskStage` nodes.
+
+## Key Data Structures
+
+`TaskGraph` internally uses `stage_dict: dict[str, TaskStage]` to maintain the Stage mapping of all nodes. Each Stage automatically creates its corresponding `TaskInQueue` and `TaskOutQueue` during initialization, and queues are connected during the `_build_resources()` phase.
 
 ## Initialization
 
 ```python
 class TaskGraph:
-    def __init__(
-        self,
-        schedule_mode: str = "eager",
-        log_level: str = "INFO",
-    ):
+    def __init__(self, schedule_mode: str = "eager", log_level: str = "INFO"):
         ...
 ```
 
 ### Parameters
 
-- **schedule_mode**: Scheduling mode.
-  - `eager` (default): All nodes start at once; dependencies are automatically controlled through data flow. Suitable for maximizing parallelism.
-  - `staged`: Layer-by-layer execution. Only applicable to DAGs. Starts layers in level order; the next layer starts only after the previous layer has fully completed.
-- **log_level**: Global log level (TRACE/DEBUG/INFO/SUCCESS/WARNING/ERROR/CRITICAL), defaults to `"INFO"`.
+- **schedule_mode**: Scheduling mode
+  - `eager` (default): All nodes start concurrently at once; dependencies are controlled automatically through queue flow
+  - `staged`: Layer-by-layer execution (DAG only). Starts layers in level order; the next layer starts only after the previous layer has fully completed
+- **log_level**: Log level
 
-### Setting Nodes
+## Graph Construction
+
+### set_stages
 
 ```python
-def set_stages(self, stages: list[TaskStage]):
+def set_stages(self, stages: list[TaskStage]) -> None:
     """
-    Set the nodes of the task graph. Source nodes are automatically computed via SCC condensation.
-    
-    :param stages: List of all nodes.
+    Add nodes to the task graph. Creates TaskInQueue and TaskOutQueue for each node.
+
+    :param stages: List of nodes
+    :raises DuplicateNodeError: If node names are duplicated
     """
 ```
 
-## Core Features
-
-### Graph Construction and Analysis
-
-- **Automatic Construction**: Automatically traverses and builds the entire graph structure based on the node list and their connections (`out_edges`).
-- **Automatic Source Node Detection**: Automatically identifies source nodes (nodes with no incoming edges) through SCC condensation.
-- **DAG Detection**: Automatically detects whether the graph is a Directed Acyclic Graph (DAG).
-- **Level Analysis**: If the graph is a DAG, node levels are automatically computed for `staged` scheduling or visualization.
-
-### Starting Execution
+### connect
 
 ```python
-def start_graph(self, init_tasks_dict: dict, put_termination_signal: bool = True):
+def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
     """
-    Start the task graph.
-    
-    :param init_tasks_dict: Initial task data in the format {stage_tag: [task_data, ...]}
-    :param put_termination_signal: Whether to automatically inject a termination signal after initial tasks.
+    Establish hyperedge connections: each node in from_stages connects to each node in to_stages.
+    Operates on out_edges / in_edges dictionaries; actual queue connections are completed in _build_resources().
     """
 ```
-
-Example:
-```python
-graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(stages=[stage_a, stage_b])
-graph.start_graph({
-    stage_a.get_tag(): [1, 2, 3, 4, 5]
-})
-```
-
-### Resource Management
-
-- **Queue Management**: Automatically creates communication queues (`TaskInQueue`, `TaskOutQueue`) between nodes.
-- **Graceful Exit**: Ensures all nodes exit correctly after task completion.
-
-### Monitoring and Reporting
-
-- **Runtime Snapshot**: `collect_runtime_snapshot()` collects the runtime status of each node (processed count, backlog count, rate, etc.).
-- **Error Persistence**: Persists runtime error logs to local JSONL files (`fallback/` directory).
-- **Web Reporting**: Integrates `TaskReporter` to push status in real-time to the Web UI.
 
 ## Configuration Methods
 
 ### set_reporter
 
 ```python
-def set_reporter(self, is_report=False, host="127.0.0.1", port=5000):
-    """
-    Configure the reporter for pushing status to the Web UI.
-
-    :param is_report: Whether to enable the reporter
-    :param host: Web service host address
-    :param port: Web service port
-    """
+def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000) -> None:
+    """Configure the reporter to push status to the Web UI."""
 ```
 
 ### set_ctree
 
 ```python
-def set_ctree(
-    self,
-    use_ctree=False,
-    host="127.0.0.1",
-    http_port=7777,
-    grpc_port=7778,
-    transport="grpc",
-):
+def set_ctree(self, use_ctree: bool = False, host: str = "127.0.0.1",
+              http_port: int = 7777, grpc_port: int = 7778,
+              transport: str = "grpc") -> None:
     """
-    Configure the CelestialTree client for event tracing.
-
-    :param use_ctree: Whether to use CelestialTree
-    :param host: Service host address
-    :param http_port: HTTP port
-    :param grpc_port: gRPC port
-    :param transport: Transport protocol
+    Configure the CelestialTree client. Validates connection health when enabled.
+    :raises CelestialTreeConnectionError: If connection fails
     """
 ```
 
 ### set_graph_mode
 
 ```python
-def set_graph_mode(self, stage_mode: str, execution_mode: str):
+def set_graph_mode(self, stage_mode: str, execution_mode: str) -> None:
     """
-    Set the execution mode for all nodes in batch.
-
-    :param stage_mode: Node execution mode ('serial' or 'thread')
-    :param execution_mode: Internal execution mode of nodes ('serial', 'thread', or 'async')
+    Batch-set the stage_mode and execution_mode for all nodes.
+    Triggers _build_analysis() to rebuild analysis data.
     """
 ```
 
-### _set_log_level
+## Starting Execution
+
+### start_graph
 
 ```python
-def _set_log_level(self, level="INFO"):
+def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
+                put_termination_signal: bool = True) -> None:
     """
-    Set the global log level.
-    """
-```
-
-## Data Query Methods
-
-### Status Queries
-
-```python
-# Get node status dictionary
-def get_status_dict(self) -> dict[str, dict]:
-    """Returns the real-time status of each node."""
-
-# Get graph summary
-def get_graph_summary(self) -> dict:
-    """Returns global statistics (success count, failure count, backlog count, etc.)."""
-```
-
-### Analysis Queries
-
-```python
-# Get analysis information
-def get_graph_analysis(self) -> dict:
-    """Returns isDAG, schedule_mode, class_name, layers_dict, etc."""
-
-# Get structure JSON
-def get_structure_json(self) -> list[dict]:
-    """Returns the JSON representation of the graph structure."""
-
-# Get structure list
-def get_structure_list(self) -> list[str]:
-    """Returns a formatted structure list."""
-```
-
-### NetworkX Graph
-
-```python
-def get_networkx_graph(self):
-    """
-    Get the networkx directed graph (DiGraph) of the task graph.
-    Can be used for complex graph analysis.
+    Start the task graph. Flow:
+    1. _build_resources() — Build queue connections and counter bindings
+    2. _build_analysis() — Analyze graph structure (source nodes, levels, DAG detection)
+    3. Start spout, inlet, reporter
+    4. put_stage_queue() — Inject initial tasks and termination signals
+    5. _execute_stages() — Execute all nodes
+    6. _finalize_nodes() — Cleanup (ensure threads finish, collect unconsumed tasks)
+    7. Release resources
     """
 ```
 
-### Error Queries
-
 ```python
-# Get failed tasks by stage
-def get_fail_by_stage_dict(self):
-    """Returns a dictionary in {stage_tag: [failed_tasks]} format."""
-
-# Get failed tasks by error type
-def get_fail_by_error_dict(self):
-    """Returns a dictionary in {error_type: [failed_tasks]} format."""
-
-# Get fallback file path
-def get_fallback_path(self) -> str:
-    """Returns the error log file path."""
+graph = TaskGraph(schedule_mode="eager")
+graph.set_stages(stages=[stage_a, stage_b])
+graph.connect([stage_a], [stage_b])
+graph.start_graph({stage_a.get_name(): [1, 2, 3, 4, 5]})
 ```
 
-### Trace Queries
+### _execute_stages
 
 ```python
-# Get input trace
-def get_stage_input_trace(self, stage_tag: str) -> str:
-    """Get the input event trace for a specified node (requires ctree to be enabled)."""
+def _execute_stages(self) -> None:
+    """eager mode: Start all nodes at once; staged mode: Start layer by layer."""
 ```
 
-### Other Queries
+### _execute_stage
 
 ```python
-# Get historical status of each node
-def get_stage_history(self) -> dict[str, list[dict]]:
-    """Returns a list of historical snapshots for each node."""
-
-# Get total error count
-def get_total_error_num(self) -> int:
-    """Returns the total number of errors."""
-
-# Get source node list
-def get_source_stages(self) -> list[TaskStage]:
-    """Returns the list of source nodes (automatically computed via SCC condensation)."""
+def _execute_stage(self, stage: TaskStage) -> None:
+    """
+    Execute a single node:
+    - thread mode: Call stage.start_stage() in a new thread
+    - serial mode: Call stage.start_stage() synchronously in the current thread
+    """
 ```
 
-## Task Injection
+## Dynamic Task Injection
 
 ### put_stage_queue
 
 ```python
-def put_stage_queue(self, tasks_dict: dict, put_termination_signal=True):
+def put_stage_queue(self, tasks_dict: Mapping[str, Iterable[Any]],
+                    put_termination_signal: bool = True) -> None:
     """
-    Dynamically inject tasks into node queues.
-
-    :param tasks_dict: {stage_tag: [tasks]}
-    :param put_termination_signal: Whether to inject a termination signal
+    Dynamically inject tasks into nodes. Supports:
+    - Regular tasks → Automatically wrapped as TaskEnvelope
+    - TerminationSignal objects → Direct termination signal injection
+    - put_termination_signal=True → Automatically inject termination signals to all source nodes
     """
 ```
 
-Example:
-```python
-# Dynamically inject tasks
-graph.put_stage_queue({
-    stage_a.get_tag(): [6, 7, 8]
-})
+## Runtime Monitoring
 
-# Inject termination signal
-from celestialflow import TerminationSignal
-graph.put_stage_queue({
-    stage_a.get_tag(): [TerminationSignal()]
-})
+### collect_runtime_snapshot
+
+```python
+def collect_runtime_snapshot(self) -> None:
+    """
+    Collect runtime snapshots of all nodes and update status_dict.
+    Computes processed / pending / elapsed / remaining for each node and global remaining time.
+    """
+```
+
+### _snapshot_one_stage
+
+Collects a snapshot of a single node, returning a dict with the following fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `str` | Node name |
+| `func_name` | `str` | Function name |
+| `execution_mode` | `str` | Execution mode |
+| `stage_mode` | `str` | Stage mode |
+| `status` | `StageStatus` | Running status |
+| `tasks_input` | `int` | Input task count |
+| `tasks_succeeded` | `int` | Success count |
+| `tasks_failed` | `int` | Failure count |
+| `tasks_duplicated` | `int` | Duplicate count |
+| `tasks_processed` | `int` | Processed count |
+| `tasks_pending` | `int` | Pending count |
+| `elapsed_time` | `float` | Elapsed time |
+| `remaining_time` | `float` | Estimated remaining time |
+| `task_avg_time` | `str` | Average time (formatted) |
+| `start_time` | `float` | Start timestamp |
+
+## Query Interface
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `get_status_snapshot()` | `dict` | Status snapshot with unified timestamp |
+| `get_graph_summary()` | `dict` | Global remaining time summary |
+| `get_graph_analysis()` | `dict` | Graph analysis info (isDAG, scheduleMode, layersDict, className) |
+| `get_structure_json()` | `list[dict]` | JSON-formatted graph structure |
+| `get_structure_list()` | `list[str]` | Bordered formatted tree text |
+| `get_networkx_graph()` | `DiGraph` | networkx directed graph instance |
+| `get_fail_by_stage_dict()` | `dict[str, list]` | Failed tasks grouped by stage |
+| `get_fail_by_error_dict()` | `dict[tuple, list]` | Failed tasks grouped by error type (key is `(error_type, error_message)` tuple) |
+| `get_total_error_num()` | `int` | Total error count |
+| `get_fallback_path()` | `str` | Absolute path to failed tasks JSONL file |
+| `get_source_stages()` | `list[TaskStage]` | List of source nodes |
+| `get_stage_input_trace(stage_name)` | `str` | Node input dependency tree (requires ctree enabled) |
+
+### get_fail_by_error_dict Details
+
+```python
+def get_fail_by_error_dict(self) -> dict[tuple[str, ...], list[Any]]:
+    """Returns grouped by (error_type, error_message)."""
+```
+
+## Lifecycle Diagram
+
+```mermaid
+flowchart TD
+    INIT[__init__] -->|set_schedule_mode / set_ctree / set_reporter| ENV[_init_env]
+    ENV --> STATE[_init_state]
+    ENV --> SPOUT[_init_spout: LogSpout + FailSpout]
+    ENV --> INLET[_init_inlet: LogInlet + FailInlet]
+    STATE --> BUILD[set_stages + connect]
+    BUILD --> START[start_graph]
+    START --> RESOURCES[_build_resources: Queue connections & counter bindings]
+    START --> ANALYSIS[_build_analysis: Graph analysis]
+    START -->|Inject initial tasks| PUT[put_stage_queue]
+    START --> EXEC[_execute_stages]
+    EXEC -->|eager| ALL[Start all nodes at once]
+    EXEC -->|staged| LAYER[Start layer by layer]
+    ALL --> FINALIZE[_finalize_nodes: Collect unconsumed tasks]
+    LAYER --> FINALIZE
+    FINALIZE --> RELEASE[_release_resources]
+    RELEASE --> END[Graph execution complete]
+    
+    START -->|Monitor| SNAPSHOT[collect_runtime_snapshot]
+    SNAPSHOT --> SUMMARY[get_graph_summary]
+    SNAPSHOT --> STATUS[get_status_snapshot]
 ```
 
 ## Scheduling Modes Explained
 
 ### Eager Mode
 
-- All nodes start immediately
-- Dependencies are automatically controlled through queue flow
+```
+All nodes start stage simultaneously → data flows through queues → stop when termination signal arrives
+```
+
 - Maximizes parallelism
 - Suitable for most scenarios
+- Recommended for cyclic graphs
 
 ### Staged Mode
 
-- Executes layer by layer in level order
-- The next layer starts only after the previous layer has fully completed
+```
+Layer 0: [Node A, Node B] → all join → Layer 1: [Node C, Node D] → ...
+```
+
+- Layer-by-layer execution, next layer starts only after current layer fully completes
 - Only applicable to DAGs
 - Suitable for debugging, performance analysis, and resource control
 
-## Notes
+## Notes for Non-DAG Graphs
 
-1. **Non-DAG Graphs**: For cyclic graphs, automatic termination signal injection is not recommended; use the Web interface for manual control instead.
-2. **Unconsumed Tasks**: Unconsumed tasks are collected and logged as errors when stopping.
-4. **Web Monitoring**: The Web service must be started first, then enable with `set_reporter(True)`.
-
-## Example
+For cyclic graphs, if `put_termination_signal=True`, `start_graph` will emit a `RuntimeWarning`. Termination signals may cause some nodes to exit prematurely before receiving upstream data. Recommended approach:
 
 ```python
-from celestialflow import TaskStage, TaskGraph
-
-# Create nodes
-stage_a = TaskStage("A", func=process_a, execution_mode="thread", stage_mode="thread")
-stage_b = TaskStage("B", func=process_b, execution_mode="serial", stage_mode="thread")
-stage_c = TaskStage("C", func=process_c, execution_mode="serial", stage_mode="thread")
-
-# Build graph
-graph = TaskGraph(schedule_mode="eager", log_level="INFO")
-graph.set_stages(stages=[stage_a, stage_b, stage_c])
-graph.connect([stage_a], [stage_b, stage_c])
-
-# Configure
-graph.set_reporter(True, host="127.0.0.1", port=5005)
-
-# Start
-graph.start_graph({
-    stage_a.get_tag(): range(100)
-})
+graph.start_graph({"source": tasks}, put_termination_signal=False)
+# Later manually inject TerminationSignal via Web UI or put_stage_queue
 ```
+
+## Unconsumed Task Handling
+
+In `_finalize_nodes()`, all remaining tasks are collected via `in_queue.drain()`, marked as `UnconsumedError`, and persisted to a JSONL file through `fail_inlet`.

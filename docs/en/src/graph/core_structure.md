@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 Last Updated: 2026/05/09
+> 📅 Last Updated: 2026/05/28
 
 The TaskStructure module provides various predefined task graph structures to help users quickly build complex task flows. All structures inherit from `TaskGraph`.
 
@@ -33,12 +33,12 @@ stage3 = TaskStage("S3", func=func3)
 # Create chain
 chain = TaskChain(
     stages=[stage1, stage2, stage3],
-    chain_mode="serial",  # serial: run sequentially; thread: run concurrently
+    stage_mode="thread",  # thread: nodes run concurrently; serial: nodes run sequentially
     log_level="SUCCESS"
 )
 
 # Start
-chain.start_chain(init_tasks_dict={stage1.get_tag(): [data]})
+chain.start_chain(init_tasks_dict={stage1.get_name(): [data]})
 ```
 
 ## Cross (Cross-Layer)
@@ -210,4 +210,134 @@ from celestialflow import TaskComplete
 complete = TaskComplete(
     stages=[stage1, stage2, stage3, stage4]
 )
+```
+
+## Usage Examples
+
+The following examples demonstrate how to build and execute various predefined graph structures.
+
+### TaskChain Complete Example
+
+```python
+from celestialflow import TaskChain, TaskStage
+
+# Define three stages: data cleaning → transform → aggregate
+def clean(data: str) -> str:
+    return data.strip()
+
+def transform(data: str) -> int:
+    return int(data) * 2
+
+def aggregate(data: int) -> dict:
+    return {"original": data // 2, "doubled": data}
+
+# Build chain
+s1 = TaskStage("Clean", func=clean)
+s2 = TaskStage("Transform", func=transform)
+s3 = TaskStage("Aggregate", func=aggregate)
+chain = TaskChain(stages=[s1, s2, s3], stage_mode="thread")
+
+# Start
+chain.start_chain({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
+
+# Get results
+print(f"Chain summary: {chain.get_graph_summary()}")
+```
+
+### TaskCross Complete Example
+
+```python
+from celestialflow import TaskCross, TaskStage
+
+# Layer 1: Data preparation
+def load_a(x: int) -> int:
+    return x + 1
+
+def load_b(x: int) -> int:
+    return x * 10
+
+# Layer 2: Computation analysis
+def analyze_a(x: int) -> float:
+    return x * 1.5
+
+def analyze_b(x: int) -> float:
+    return x * 2.0
+
+layer1 = [TaskStage("LoadA", func=load_a), TaskStage("LoadB", func=load_b)]
+layer2 = [TaskStage("AnaA", func=analyze_a), TaskStage("AnaB", func=analyze_b)]
+
+cross = TaskCross(layers=[layer1, layer2])
+cross.start_cross({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
+print(cross.get_graph_summary())
+```
+
+### TaskGrid Complete Example
+
+```python
+from celestialflow import TaskGrid, TaskStage
+
+# 2x2 grid
+n00 = TaskStage("Init", func=lambda x: x)
+n01 = TaskStage("Add", func=lambda x: x + 1)
+n10 = TaskStage("Mul", func=lambda x: x * 2)
+n11 = TaskStage("Square", func=lambda x: x * x)
+
+grid = TaskGrid(grid=[[n00, n01], [n10, n11]])
+grid.start_grid({n00.get_name(): [1, 2, 3]})
+print(grid.get_graph_summary())
+```
+
+### TaskLoop Complete Example
+
+```python
+from celestialflow import TaskLoop, TaskStage
+
+# Three-node ring: each node processes and passes result to next
+loop_stages = [
+    TaskStage("Ring1", func=lambda x: x + 1),
+    TaskStage("Ring2", func=lambda x: x * 2),
+    TaskStage("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 forms closed loop
+]
+
+loop = TaskLoop(loop_stages)
+loop.start_loop(
+    {loop_stages[0].get_name(): [5]},
+    put_termination_signal=False,  # Ring structures need manual termination injection
+)
+```
+
+### TaskWheel Complete Example
+
+```python
+from celestialflow import TaskWheel, TaskStage
+
+center = TaskStage("Hub", func=lambda x: {"input": x, "processed": x * 10})
+ring_nodes = [
+    TaskStage("Channel1", func=lambda x: x["processed"] + 1),
+    TaskStage("Channel2", func=lambda x: x["processed"] + 2),
+    TaskStage("Channel3", func=lambda x: x["processed"] + 3),
+]
+
+wheel = TaskWheel(center=center, ring=ring_nodes)
+wheel.start_wheel({center.get_name(): [42]})
+print(wheel.get_graph_summary())
+```
+
+### TaskComplete Complete Example
+
+```python
+from celestialflow import TaskComplete, TaskStage
+
+nodes = [
+    TaskStage("N1", func=lambda x: x ** 2),
+    TaskStage("N2", func=lambda x: x + 1),
+    TaskStage("N3", func=lambda x: x // 2),
+]
+
+complete = TaskComplete(nodes)
+complete.start_complete(
+    {nodes[0].get_name(): [10]},
+    put_termination_signal=False,
+)
+print(complete.get_graph_summary())
 ```
