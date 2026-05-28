@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 最后更新日期: 2026/05/23
+> 📅 最后更新日期: 2026/05/28
 
 TaskStructure 模块提供了多种预定义的任务图结构，帮助用户快速构建复杂的任务流。所有的结构都继承自 `TaskGraph`。
 
@@ -33,7 +33,7 @@ stage3 = TaskStage("S3", func=func3)
 # 创建链
 chain = TaskChain(
     stages=[stage1, stage2, stage3],
-    chain_mode="serial",  # serial: 依次运行; thread: 同时运行
+    stage_mode="thread",  # thread: 节点并行运行; serial: 节点串行运行
     log_level="SUCCESS"
 )
 
@@ -235,7 +235,7 @@ def aggregate(data: int) -> dict:
 s1 = TaskStage("Clean", func=clean)
 s2 = TaskStage("Transform", func=transform)
 s3 = TaskStage("Aggregate", func=aggregate)
-chain = TaskChain(stages=[s1, s2, s3], chain_mode="serial")
+chain = TaskChain(stages=[s1, s2, s3], stage_mode="thread")
 
 # 启动
 chain.start_chain({s1.get_name(): [" 10 ", " 20 ", " 30 "]})

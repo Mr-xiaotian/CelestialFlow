@@ -1,6 +1,6 @@
 # Runtime 模块
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/05/28
 
 Runtime 模块提供了 CelestialFlow 的任务执行运行时环境，包括任务调度、队列管理、错误处理、性能监控等核心功能。它是任务实际执行的基础设施层。
 
@@ -45,13 +45,7 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
    - **涵盖**: 配置异常、图结构异常、运行时异常、外部服务异常、任务逻辑异常
    - 详细异常列表见 `util_errors.md`
 
-6. **util_factories.py**
-   - **作用**: 队列对象的工厂函数
-   - **工厂函数**:
-     - `make_task_in_queue()`: 创建 `TaskInQueue` 实例
-     - `make_task_out_queue()`: 创建 `TaskOutQueue` 实例
-
-7. **util_types.py**
+6. **util_types.py**
    - **作用**: 运行时类型定义和数据结构
    - **包含类型**:
      - **核心信号**: `TerminationSignal` / `TERMINATION_SIGNAL` — 哨兵对象；`TerminationIdPool` — 终止信号 ID 池
@@ -62,13 +56,13 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
      - **错误记录**: `PersistedErrorRecord` — 持久化错误记录 frozen dataclass（支持分组）
      - **可视化**: `STAGE_STYLE` — CelestialTree 节点标签样式
 
-8. **util_hash.py**
+7. **util_hash.py**
    - **作用**: 对象哈希计算，用于任务去重
    - **关键函数**:
      - `make_hashable()`: 递归转换 list/dict/set 为稳定可哈希结构
      - `object_to_hash()`: pickle 后计算 SHA1，返回 `bytes`
 
-9. **util_estimators.py**
+8. **util_estimators.py**
    - **作用**: 执行时间估算和进度计算
    - **关键函数**:
      - `calc_remaining()`: 基于均值估算剩余时间
@@ -152,22 +146,12 @@ print(f"待处理: {counts['tasks_pending']}")
 
 ```python
 # 3. TaskInQueue / TaskOutQueue：队列通信
-from celestialflow.runtime.util_errors import ConfigurationError
-
-class FakeLogInlet:
-    """简化日志入口，仅用于演示"""
-    def put_item(self, t, id, source, out_name): pass
-    def put_item_error(self, source, out_name, e): pass
-    def get_item(self, t, id, source, out_name): pass
-
-log_inlet = FakeLogInlet()
 
 # 创建输入队列（聚合上游任务）
 in_queue = TaskInQueue(
     queue=ThreadQueue(),
     source_names=["producer"],
     out_name="processor",
-    log_inlet=log_inlet,
 )
 
 # 创建输出队列（广播到下游）
@@ -175,7 +159,6 @@ out_queue = TaskOutQueue(
     queue_list=[ThreadQueue()],
     target_names=["consumer"],
     in_name="processor",
-    log_inlet=log_inlet,
 )
 
 # 上游生产任务

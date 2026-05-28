@@ -1,6 +1,6 @@
 # util_config
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/05/28
 
 Web 模块的配置文件读写工具，负责 `config.json` 的持久化管理。无线程锁保护——线程安全由上层调用方（`core_server.py` 的 `push_config`）保证。
 
@@ -99,7 +99,7 @@ try:
     raw_config = load_config("/path/to/config.json")
 
     # 使用 Pydantic 模型验证（假设在 core_server.py 中）
-    from celestialflow.web.core_server import WebConfigModel
+    from celestialflow.web.util_models import WebConfigModel
     validated = WebConfigModel(**raw_config)
 
     print(f"验证通过: 主题={validated.theme}, 刷新={validated.refreshInterval}ms")

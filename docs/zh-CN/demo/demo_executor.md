@@ -108,7 +108,7 @@ python demo/demo_executor.py
 ```
 
 > **说明**：12 个任务中，5 个异常输入（`0`、`27`、`None`、`0`、`""`）触发 `ValueError`，经重试后最终标记为失败；`success=07` 为正常执行的 7 个斐波那契任务。
-> async 模式因使用迭代版斐波那契（O(n)），耗时显著短于 serial/thread 的递归版（O(φⁿ)）。
+> 三种模式均使用 `demo_utils` 中的迭代版斐波那契（O(n)），性能可比。
 
 ## 依赖
 

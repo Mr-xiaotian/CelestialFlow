@@ -1,6 +1,6 @@
 # Stage 模块
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/05/28
 
 Stage 模块定义了 CelestialFlow 中的任务执行单元。它提供了从基础任务执行器到复杂任务节点的完整体系，是构建任务图的基本构建块。
 
@@ -53,7 +53,7 @@ Stage 模块包含三个层次的任务执行单元：
 
 ### 外部关联
 - **与 Graph 模块**: `TaskStage` 是 `TaskGraph` 的基本构建单元
-- **与 Runtime 模块**: 使用 `TaskQueue` 进行节点间通信，依赖 `TaskDispatch` 执行
+- **与 Runtime 模块**: 使用 `TaskInQueue` / `TaskOutQueue` 进行节点间通信，依赖 `TaskDispatch` 执行
 - **与 Utils 模块**: 使用工具函数进行数据处理和转换
 - **与 Persistence 模块**: 支持任务状态的持久化保存
 

@@ -1,6 +1,6 @@
 # dashboard_analysis.ts
 
-> 📅 最后更新日期: 2026/05/23
+> 📅 最后更新日期: 2026/05/28
 
 管理图分析信息的加载与分析面板的渲染。提供对 TaskGraph 拓扑结构的深度洞察，如环检测、层级分析等。
 
@@ -27,10 +27,10 @@
 
 | 显示标签 | 对应字段 | 说明 |
 |---------|---------|------|
-| `结构类型` | `class_name` | TaskGraph 具体的 Python 类名 |
+| `结构类型` | `className` | TaskGraph 具体的 Python 类名 |
 | `是否 DAG` | `isDAG` | 是否为有向无环图，非 DAG 时带黄色警告样式 |
-| `调度模式` | `schedule_mode` | `eager` 或 `staged` |
-| `层级数量` | `layers_dict` | 图的拓扑分层深度 |
+| `调度模式` | `scheduleMode` | `eager` 或 `staged` |
+| `层级数量` | `layersDict` | 图的拓扑分层深度 |
 
 ## 数据流
 
@@ -48,12 +48,13 @@ GET /api/pull_analysis
 
 ```typescript
 // 分析数据的典型结构（来自后端 GET /api/pull_analysis）
+// 注意：后端返回蛇形字段，前端接收后转为驼峰命名
 const analysisPayload = {
     analysis: {
-        class_name: "TaskGraph",
+        className: "TaskGraph",
         isDAG: true,
-        schedule_mode: "eager",
-        layers_dict: {0: ["StageA"], 1: ["StageB", "StageC"], 2: ["StageD"]},
+        scheduleMode: "eager",
+        layersDict: {0: ["StageA"], 1: ["StageB", "StageC"], 2: ["StageD"]},
     }
 };
 
@@ -61,7 +62,7 @@ const analysisPayload = {
 
 // 1. loadAnalysis() 拉取并更新全局变量
 // analysisData 结构：Record<string, any>
-// 例如：{ class_name, isDAG, schedule_mode, layers_dict }
+// 例如：{ className, isDAG, scheduleMode, layersDict }
 
 // 2. renderAnalysisInfo() 将其渲染到 #analysis-info 容器
 //    实际渲染逻辑（示意）：
@@ -77,7 +78,7 @@ function renderAnalysisInfoExample(data: Record<string, any>) {
     container.innerHTML = `
         <div class="analysis-item">
             <span class="analysis-label">结构类型</span>
-            <span class="analysis-value">${escapeHtml(data.class_name || "-")}</span>
+            <span class="analysis-value">${escapeHtml(data.className || "-")}</span>
         </div>
         <div class="analysis-item">
             <span class="analysis-label">是否 DAG</span>
@@ -87,12 +88,12 @@ function renderAnalysisInfoExample(data: Record<string, any>) {
         </div>
         <div class="analysis-item">
             <span class="analysis-label">调度模式</span>
-            <span class="analysis-value">${escapeHtml(data.schedule_mode || "-")}</span>
+            <span class="analysis-value">${escapeHtml(data.scheduleMode || "-")}</span>
         </div>
         <div class="analysis-item">
             <span class="analysis-label">层级数量</span>
             <span class="analysis-value">
-                ${data.layers_dict ? Object.keys(data.layers_dict).length : 0}
+                ${data.layersDict ? Object.keys(data.layersDict).length : 0}
             </span>
         </div>
     `;

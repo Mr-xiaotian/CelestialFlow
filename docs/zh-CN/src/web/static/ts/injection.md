@@ -1,6 +1,6 @@
 # injection.ts
 
-> 📅 最后更新日期: 2026/05/23
+> 📅 最后更新日期: 2026/05/28
 
 管理任务手动注入页面的逻辑，支持多节点选择、JSON 文本输入、JSON 文件上传、终止信号快速填充以及注入提交。
 
@@ -8,7 +8,7 @@
 
 | 变量 | 类型 | 说明 |
 |------|------|------|
-| `selectedNodes` | `SelectedNode[]` | 用户当前选中的注入目标节点列表 |
+| `selectedNodes` | `{ name: string }[]` | 用户当前选中的注入目标节点列表，每个节点仅包含 `name` 字段 |
 | `currentInputMethod` | `string` | 当前输入模式：`json` 或 `file` |
 | `uploadedFile` | `object \| null` | 存储已读取的文件名和文件内容 |
 
@@ -79,10 +79,10 @@
 以下示例展示任务注入功能的典型操作流程和数据结构：
 
 ```typescript
-// 1. 模拟选中的目标节点
+// 1. 模拟选中的目标节点（仅包含 name 字段）
 const selectedNodes = [
-    { tag: "StageA", name: "数据加载" },
-    { tag: "StageB", name: "数据处理" },
+    { name: "StageA" },
+    { name: "StageB" },
 ];
 
 // 2. 任务注入请求的数据格式

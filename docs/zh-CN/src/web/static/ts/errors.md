@@ -1,6 +1,6 @@
 # errors.ts
 
-> 📅 最后更新日期: 2026/05/23
+> 📅 最后更新日期: 2026/05/28
 
 管理错误日志的分页拉取、关键词搜索、节点过滤及表格渲染。
 
@@ -15,6 +15,26 @@
 | `errorsRev` | `number` | 数据版本号，用于增量拉取判断 |
 
 ## 函数
+
+### `buildErrorsQueryKey(page, pageSizeValue, node, keyword)`
+
+构建错误查询的缓存键字符串，用于判断筛选条件是否发生变化以决定是否强制重新拉取。
+
+- **参数**: 当前页码、每页大小、节点筛选条件、搜索关键词
+- **返回值**: 由 `|` 分隔的组合字符串，如 `"1|10|StageA|timeout"`
+- 与 `lastQueryKey` 配合使用实现查询缓存对比
+
+---
+
+### `buildPageList(current, total)`
+
+生成分页页码列表，包含首尾页、当前页及前后页，自动在跳页处插入省略号（`…`）。
+
+- **参数**: `current` 当前页码，`total` 总页数
+- **返回值**: `Array<number | string>`，数字页码或省略号字符串
+- 用于 `renderPaginationControls()` 内部生成页码导航
+
+---
 
 ### `loadErrors(forceReload)`
 

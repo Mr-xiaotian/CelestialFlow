@@ -1,6 +1,6 @@
 # TaskStage
 
-> 📅 最后更新日期: 2026/05/23
+> 📅 最后更新日期: 2026/05/28
 
 `TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力与 `stage_mode` 控制逻辑。
 
@@ -63,6 +63,8 @@ def set_stage_mode(self, stage_mode: str):
 
 ### set_execution_mode
 
+> ⚠️ 此方法继承自 `TaskExecutor`，`TaskStage` 未重写。
+
 ```python
 def set_execution_mode(self, execution_mode: str):
     """
@@ -74,6 +76,8 @@ def set_execution_mode(self, execution_mode: str):
 ```
 
 ### set_name
+
+> ⚠️ 此方法继承自 `TaskExecutor`，`TaskStage` 未重写。
 
 ```python
 def set_name(self, name: str):
@@ -118,24 +122,13 @@ def get_status(self) -> StageStatus:
 当 `TaskGraph` 启动时，会调用此方法启动节点。
 
 ```python
-def start_stage(
-    self,
-    input_queue: TaskInQueue,
-    output_queue: TaskOutQueue,
-    fail_queue: ThreadQueue[Any],
-    log_queue: ThreadQueue[Any],
-):
+def start_stage(self):
     """
     启动节点执行，根据 execution_mode 选择调度器。
-
-    :param input_queue: 输入队列
-    :param output_queue: 输出队列
-    :param fail_queue: 失败队列
-    :param log_queue: 日志队列
     """
 ```
 
-1. 初始化环境（`Inlet`, `Queue`）。
+1. 调用 `_init_state()` 初始化内部状态。
 2. 记录启动日志。
 3. 标记状态为 `RUNNING`。
 4. 进入 `TaskDispatch` 循环处理任务。
@@ -234,12 +227,7 @@ stage_a = TaskStage(
 )
 
 # 独立执行（脱离图结构）
-stage_a.start_stage(
-    input_queue=stage_a.task_queue,
-    output_queue=stage_a.result_queue,
-    fail_queue=stage_a.fail_queue,
-    log_queue=stage_a.log_queue,
-)
+stage_a.start_stage()
 ```
 
 ### 异步模式（async）

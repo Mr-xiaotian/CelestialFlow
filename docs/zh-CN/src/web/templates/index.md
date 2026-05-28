@@ -1,6 +1,6 @@
 # index.html
 
-> 📅 最后更新日期: 2026/05/23
+> 📅 最后更新日期: 2026/05/28
 
 Web UI 的 Jinja2 模板文件，定义了监控系统的完整页面结构。
 
@@ -72,6 +72,7 @@ dashboard_analysis.js ← 拓扑分析展示
 dashboard_summary.js  ← 汇总统计
 dashboard_history.js  ← 历史图表
 injection.js          ← 任务注入逻辑
+layout_editor.js      ← 卡片布局编辑器（依赖 web_config 的 CARD_TEMPLATES、PANEL_SELECTOR_MAP 及 applyDashboardLayout）
 main.js               ← 全局入口与轮询协调
 ```
 
@@ -89,6 +90,18 @@ css/dashboard_history.css    ← 历史图专属样式
 css/errors.css              ← 错误日志页样式
 css/injection.css           ← 任务注入页样式
 ```
+
+## 卡片布局编辑器模态窗 (`#layout-editor-overlay`)
+
+悬浮模态窗（默认 `.overlay.hidden` 隐藏），支持拖拽排序三栏仪表盘卡片。
+
+- **遮罩层**: `#layout-editor-overlay` / `.overlay` — 全屏半透明黑色背景，`z-index: 200`
+- **编辑器主体**: `#layout-editor` / `.layout-editor` — 圆角卡片容器，`max-width: 700px`
+- **三栏放置区**: 左中右三个 drop zone（`#layout-dropzone-left`、`#layout-dropzone-middle`、`#layout-dropzone-right`），基于 SortableJS 实现拖拽
+- **未使用池**: `#layout-dropzone-unused` — 横向 drop zone，容纳被移出三栏的卡片
+- **底部按钮**: 保存（`#layout-save-btn`）和重置默认（`#layout-reset-btn`）
+- 通过设置面板中的 `.btn-layout-editor` 按钮打开；点击 `#layout-editor-close` 或遮罩外部关闭
+- 保存时调用 `applyDashboardLayout()` 立即生效，再调用 `saveWebConfig()` 持久化到后端
 
 ## 使用示例
 

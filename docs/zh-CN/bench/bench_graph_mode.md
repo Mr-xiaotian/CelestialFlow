@@ -54,18 +54,6 @@ if __name__ == "__main__":
     # bench_graph_2()
 ```
 
-### 跳过特定模式组合
-
-`benchmark_graph` 默认遍历全部 6 种组合。如需跳过某些组合，可在 `main()` 中修改传入参数：
-
-```python
-# 只测试 thread stage_mode
-bench_graph_0(stage_modes=["thread"])
-
-# 只测试 serial execution_mode
-bench_graph_0(execution_modes=["serial"])
-```
-
 ### 调整输入规模
 
 ```python

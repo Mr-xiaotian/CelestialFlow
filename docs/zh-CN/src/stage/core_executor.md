@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/05/28
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -13,7 +13,7 @@ class TaskExecutor:
         name: str,
         func: Callable[..., Any],
         execution_mode: str = "serial",
-        max_workers: int = 20,
+        max_workers: int | None = None,
         max_retries: int = 1,
         max_info: int = 50,
         unpack_task_args: bool = False,
@@ -30,7 +30,7 @@ class TaskExecutor:
 | `name` | — | 执行器名称，用于日志和追踪 |
 | `func` | — | 实际执行任务的可调用对象 |
 | `execution_mode` | `"serial"` | 执行模式：`"serial"` / `"thread"` / `"async"` |
-| `max_workers` | `20` | 并发数量限制（线程数/协程数） |
+| `max_workers` | `None` | 并发数量限制（None 时动态: `min(32, cpu_count+4)`） |
 | `max_retries` | `1` | 任务失败后的最大重试次数 |
 | `max_info` | `50` | 日志中每条信息的最大长度 |
 | `unpack_task_args` | `False` | 是否将任务参数解包 (`*args`) 传给函数 |
@@ -56,7 +56,7 @@ executor.remove_observer(observer)  # 移除观察者
 | `on_task_success()` | `process_task_success()` | 任务成功 |
 | `on_task_fail()` | `handle_task_fail()` | 任务失败 |
 | `on_task_duplicate()` | `deal_duplicate()` | 检测到重复 |
-| `on_tasks_added(count)` | `_prepare_task_envelopes()` | 新任务加入（每 100 个通知一次） |
+| `on_tasks_added(count)` | `_put_task_queue()` | 新任务加入（每 100 个通知一次） |
 | `on_finish()` | `start()`/`start_async()` finally | 执行结束 |
 
 注意：`on_task_success`、`on_task_fail`、`on_task_duplicate` 的 `_notify` 调用不传递计数参数，Observer 需自行从外部获取。
@@ -156,13 +156,13 @@ def start(self, task_source: Iterable[Any]) -> None:
 1. 记录启动时间
 2. `init_env()` — 初始化 metrics → dispatch → spout → inlet → queue
 3. 通知 observer `on_start`
-4. `_put_task_queue(task_source)` — 构造 TaskEnvelope 并入队所有任务
+4. `_put_task_queue(task_source)` — 构造信封并入队所有任务
 5. `fail_inlet.start_executor()` / `log_inlet.start_executor()` — 记录启动日志
 6. 根据 `execution_mode` 调用对应 dispatch 方法：
    - `serial` → `dispatch_serial()`
    - `thread` → `dispatch_thread()`
    - `async` → `asyncio.run(dispatch_async())`（不推荐，建议用 `start_async`）
-7. `finally` 中执行清理：`_release_client()` → 通知 `on_finish` → 记录结束日志 → 停止所有 spout
+7. `finally` 中执行清理：通知 `on_finish` → 记录结束日志 → 停止所有 spout
 
 ### start_async（异步启动）
 
@@ -174,15 +174,6 @@ async def start_async(self, task_source: Iterable[Any]) -> None:
 - 自动设置 `execution_mode="async"`
 - 使用 `await dispatch.dispatch_async()` 而非 `asyncio.run()`
 - 适合在已有事件循环中调用
-
-## release_queue
-
-```python
-def release_queue(self) -> None:
-    """释放任务队列、结果队列和失败队列的引用"""
-```
-
-将 `task_queue`、`result_queue`、`fail_queue` 引用置为 `None`，用于生命周期结束后的 GC。
 
 ## 生命周期
 
@@ -206,7 +197,7 @@ flowchart TD
     ASYNC --> CLEANUP
     CLEANUP --> NOTIFY[on_finish / 结束日志]
     NOTIFY --> STOP[停止 spout ×3]
-    STOP --> RELEASE[release_queue: 队列引用置空]
+
 ```
 
 ## 注意事项
@@ -220,4 +211,4 @@ flowchart TD
 - `process_task_success` 会创建结果信封并放入 `result_queue`（= `SuccessSpout` 的队列）
 - `handle_task_fail` 会将错误记录写入 `fail_inlet`
 - `deal_duplicate` 处理重复任务并记录日志
-- `release_queue` 将 `task_queue`、`result_queue`、`fail_queue` 引用置为 None（用于生命周期结束后的 GC）
+

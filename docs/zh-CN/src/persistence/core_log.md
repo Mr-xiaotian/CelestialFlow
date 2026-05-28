@@ -1,6 +1,6 @@
 # 日志持久化 (Log Persistence)
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/05/28
 
 `celestialflow.persistence` 模块提供了一个多进程安全的日志系统，旨在解决多进程环境下的日志统一收集、格式化和持久化问题。
 
@@ -128,15 +128,15 @@ sinker = LogInlet(log_queue, log_level="SUCCESS")
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `start_stage(name, stage_mode, exec_mode, max_workers)` | INFO | 记录节点启动 |
-| `end_stage(name, stage_mode, exec_mode, use_time, success_num, failed_num, duplicated_num)` | INFO | 记录节点结束及统计 |
+| `start_stage(stage_name, stage_mode, execution_mode_desc)` | INFO | 记录节点启动 |
+| `end_stage(stage_name, stage_mode, execution_mode_desc, use_time, success_num, failed_num, duplicated_num)` | INFO | 记录节点结束及统计 |
 
 #### 执行器 (Executor)
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `start_executor(name, func_name, task_num, exec_mode_desc)` | INFO | 记录执行器启动 |
-| `end_executor(name, func_name, exec_mode, use_time, success_num, failed_num, duplicated_num)` | INFO | 记录执行器结束及统计 |
+| `start_executor(name, func_name, task_num, execution_mode_desc)` | INFO | 记录执行器启动 |
+| `end_executor(name, func_name, execution_mode_desc, use_time, success_num, failed_num, duplicated_num)` | INFO | 记录执行器结束及统计 |
 
 #### 任务生命周期 (Task)
 
@@ -168,15 +168,6 @@ sinker = LogInlet(log_queue, log_level="SUCCESS")
 | `termination_input(func_name, source, termination_id)` | DEBUG | 记录终止信号输入 |
 | `termination_merge(func_name, parent_ids, termination_id)` | TRACE | 记录终止信号合并 |
 
-#### 队列操作 (Queue)
-
-| 方法 | 日志级别 | 说明 |
-|------|---------|------|
-| `put_item(item_type, item_id, in_name, out_name)` | TRACE | 记录队列 put 操作 |
-| `put_item_error(in_name, out_name, exception)` | WARNING | 记录队列 put 失败 |
-| `get_item(item_type, item_id, in_name, out_name)` | TRACE | 记录队列 get 操作 |
-| `get_item_error(in_name, out_name, exception)` | WARNING | 记录队列 get 失败 |
-
 #### 上报器 (Reporter)
 
 | 方法 | 日志级别 | 说明 |
@@ -203,8 +194,8 @@ sinker.start_graph(["NodeA -> NodeB", "NodeB -> NodeC"])
 sinker.end_graph(12.34)
 
 # 阶段周期
-sinker.start_stage("ProcessStage", "thread", "thread", 4)
-sinker.end_stage("ProcessStage", "thread", "thread", 5.2, 100, 2, 0)
+sinker.start_stage("ProcessStage", "thread", "thread-4")
+sinker.end_stage("ProcessStage", "thread", "thread-4", 5.2, 100, 2, 0)
 
 # 执行器周期
 sinker.start_executor("Executor1", "process_func", 50, "thread")
@@ -216,12 +207,6 @@ sinker.task_success("process_func", "task_1", "thread", "OK", 0.05, 1, 2)
 sinker.task_retry("process_func", "task_2", 1, TimeoutError("timeout"), 1, 3)
 sinker.task_error("process_func", "task_3", ValueError("bad"), 1, 4)
 sinker.task_duplicate("process_func", "task_2", 1, 5)
-
-# 队列操作
-sinker.put_item("task", 1, "StageA", "StageB")
-sinker.put_item_error("StageA", "StageB", ConnectionError("fail"))
-sinker.get_item("task", 1, "StageA", "StageB")
-sinker.get_item_error("StageA", "StageB", ConnectionError("fail"))
 
 # 终止信号
 sinker.termination_input("process_func", "queue", 1)

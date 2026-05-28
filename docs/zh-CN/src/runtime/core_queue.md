@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/05/28
 
 `TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了日志记录和终止信号合并功能。
 
@@ -26,13 +26,11 @@ class TaskInQueue:
         queue: Any,
         source_names: list[str],
         out_name: str,
-        log_inlet: "LogInlet",
     ):
         """
         :param queue: 队列对象
         :param source_names: 上游节点名称列表
         :param out_name: 当前节点唯一名称
-        :param log_inlet: 日志记录器
         """
 ```
 
@@ -94,15 +92,13 @@ class TaskOutQueue:
     def __init__(
         self,
         queue_list: list[Any],
-        target_names: list[str | None],
+        target_names: list[str],
         in_name: str,
-        log_inlet: "LogInlet",
     ):
         """
         :param queue_list: 输出队列列表
         :param target_names: 下游节点名称列表（长度须与 queue_list 一致）
         :param in_name: 当前节点唯一名称
-        :param log_inlet: 日志记录器
         :raises ConfigurationError: 如果两个列表长度不一致
         """
 ```
@@ -191,13 +187,6 @@ from queue import Queue as ThreadQueue
 from celestialflow.runtime import TaskEnvelope, TaskInQueue, TaskOutQueue
 from celestialflow.runtime.util_types import TerminationSignal
 
-class FakeLogInlet:
-    def put_item(self, t, idx, source, out_name): pass
-    def put_item_error(self, source, out_name, e): pass
-    def get_item(self, t, idx, source, out_name): pass
-
-log = FakeLogInlet()
-
 # ===== TaskInQueue 使用示例 =====
 
 # 创建输入队列，聚合来自两个上游（"producer1", "producer2"）的任务
@@ -205,7 +194,6 @@ in_queue = TaskInQueue(
     queue=ThreadQueue(),
     source_names=["producer1", "producer2"],
     out_name="processor",
-    log_inlet=log,
 )
 
 # 上游生产者放入任务
@@ -232,7 +220,6 @@ out_queue = TaskOutQueue(
     queue_list=[consumer_q1, consumer_q2],
     target_names=["consumer1", "consumer2"],
     in_name="processor",
-    log_inlet=log,
 )
 
 # 广播任务到所有下游
@@ -269,7 +256,6 @@ residual_q = TaskInQueue(
     queue=ThreadQueue(),
     source_names=["src"],
     out_name="drain_test",
-    log_inlet=log,
 )
 residual_q.put(TaskEnvelope(task="leftover", id=5, source="src"))
 

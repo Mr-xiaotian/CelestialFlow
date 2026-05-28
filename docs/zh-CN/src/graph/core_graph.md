@@ -1,24 +1,12 @@
 # TaskGraph
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/05/28
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
 ## 关键数据结构
 
-### StageRuntime
-
-```python
-@dataclass
-class StageRuntime:
-    """单个 Stage 的运行时封装"""
-    stage: TaskStage
-    in_queue: TaskInQueue
-    out_queue: TaskOutQueue
-    start_time: float = 0.0
-```
-
-`TaskGraph` 内部使用 `stage_runtime_dict: dict[str, StageRuntime]` 维护所有节点的运行时信息。
+`TaskGraph` 内部使用 `stage_dict: dict[str, TaskStage]` 维护所有节点的 Stage 映射。每个 Stage 在初始化时自动创建对应的 `TaskInQueue` 和 `TaskOutQueue`，队列通过 `_build_resources()` 阶段建立连接。
 
 ## 初始化
 
@@ -169,7 +157,6 @@ def collect_runtime_snapshot(self) -> None:
 |------|------|------|
 | `name` | `str` | 节点名称 |
 | `func_name` | `str` | 函数名 |
-| `class_name` | `str` | 类名 |
 | `execution_mode` | `str` | 执行模式 |
 | `stage_mode` | `str` | 节点模式 |
 | `status` | `StageStatus` | 运行状态 |
@@ -190,7 +177,7 @@ def collect_runtime_snapshot(self) -> None:
 |------|---------|------|
 | `get_status_snapshot()` | `dict` | 带统一时间戳的状态快照 |
 | `get_graph_summary()` | `dict` | 全局剩余时间摘要 |
-| `get_graph_analysis()` | `dict` | 图分析信息（isDAG、schedule_mode、layers_dict） |
+| `get_graph_analysis()` | `dict` | 图分析信息（isDAG、scheduleMode、layersDict、className） |
 | `get_structure_json()` | `list[dict]` | JSON 格式的图结构 |
 | `get_structure_list()` | `list[str]` | 带边框的格式化树形文本 |
 | `get_networkx_graph()` | `DiGraph` | networkx 有向图实例 |

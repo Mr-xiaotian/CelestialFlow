@@ -1,6 +1,6 @@
 # web_config.ts
 
-> 📅 最后更新日期: 2026/05/23
+> 📅 最后更新日期: 2026/05/28
 
 管理 Web 前端的配置加载、归一化、保存和应用。包含主题、语言、轮询频率、历史长度、分页大小及仪表盘布局。
 
@@ -28,6 +28,10 @@ type WebConfig = {
 |------|------|------|
 | `webConfig` | `WebConfig \| null` | 当前运行时的配置对象 |
 | `DEFAULT_WEB_CONFIG` | `WebConfig` | 默认配置模板，用于初始化和降级兜底 |
+| `PANEL_SELECTOR_MAP` | `Record<string, string>` | 将 `left` / `middle` / `right` 面板键映射为 CSS 选择器（`.left-panel`、`.middle-panel`、`.right-panel`） |
+| `CARD_TEMPLATES` | `Record<string, string>` | 以卡片 ID（mermaid, analysis, status, progress, summary）为键的 HTML 模板字符串 |
+| `CARD_META` | `Record<string, string>` | 卡片 ID 到 i18n 标签键的映射（如 `mermaid` → `card.mermaid.title`） |
+| `ALL_CARD_IDS` | `string[]` | 由 `Object.keys(CARD_TEMPLATES)` 自动生成，作为标准卡片 ID 列表供布局编辑器使用 |
 
 ## 函数
 
@@ -62,6 +66,15 @@ type WebConfig = {
 2. **主题**: 切换 `dark-theme` 类。
 3. **参数同步**: 将刷新率、历史长度、每页条数、增量开关同步到对应的 DOM 控件（如 Select/Checkbox）。
 4. **布局**: 调用 `applyDashboardLayout()` 重排卡片。
+
+---
+
+### `ensureAllCards()`
+
+模块加载时立即执行，遍历 `CARD_TEMPLATES` 将所有卡片 DOM 节点创建并注入 `#card-pool` 容器中。
+
+- 会检查是否已存在 `.{key}-card` 类名元素以避免重复创建
+- 模块级顶层执行（非函数内部），确保后续脚本在任何布局操作前都能通过 ID 找到元素
 
 ---
 

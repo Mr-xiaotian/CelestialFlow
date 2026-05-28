@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/05/28
 
 TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
@@ -18,7 +18,8 @@ CelestialFlowError
 │   ├── DuplicateNodeError          # 重复的节点名称
 │   └── UnknownNodeError            # 未知的节点名称
 ├── RuntimeStateError
-│   └── InitializationError         # 初始化失败
+│   ├── InitializationError         # 初始化失败
+│   └── GraphManagedError           # 图管理错误
 ├── RemoteWorkerError               # 远端 Worker 执行失败
 ├── ReporterError                   # 上报器错误
 ├── CelestialTreeConnectionError    # CelestialTree 连接失败
@@ -170,6 +171,16 @@ class RuntimeStateError(CelestialFlowError):
 ```python
 class InitializationError(RuntimeStateError):
     """初始化错误"""
+    pass
+```
+
+### GraphManagedError
+
+图管理错误（如图的启动/停止生命周期中出现非法操作时触发）。
+
+```python
+class GraphManagedError(RuntimeStateError):
+    """图管理错误"""
     pass
 ```
 

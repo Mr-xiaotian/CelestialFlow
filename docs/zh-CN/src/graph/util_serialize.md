@@ -1,12 +1,12 @@
 # GraphSerialize
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/28
 
 `graph/util_serialize.py` 负责 TaskGraph 的结构序列化与文本化。
 
 ## 主要能力
 
-- `build_structure_graph(source_stages, out_edges, stage_runtime_dict)`：从源节点集合递归构建结构 JSON。
+- `build_structure_graph(source_stages, out_edges, stage_dict)`：从源节点集合递归构建结构 JSON。
 - `format_structure_list_from_graph(roots)`：将结构 JSON 格式化为可打印树形文本。
 
 ## 使用示例
@@ -38,7 +38,7 @@ print(f"源节点数: {len(sources)}")
 graph_json = build_structure_graph(
     source_stages=sources,
     out_edges=graph.out_edges,
-    stage_runtime_dict=graph.stage_runtime_dict,
+    stage_dict=graph.stage_dict,
 )
 print(f"结构 JSON: {graph_json}")
 

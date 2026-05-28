@@ -1,6 +1,6 @@
 # dashboard_history.ts
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/05/28
 
 管理节点多指标历史数据的维护与折线图的初始化、重绘。历史数据完全在前端通过状态快照累积。
 
@@ -13,7 +13,11 @@ type HistoryMetricKey =
   | "tasks_succeeded"
   | "tasks_failed"
   | "tasks_duplicated"
-  | "tasks_pending";
+  | "tasks_pending"
+  | "delta_tasks_processed"
+  | "delta_tasks_succeeded"
+  | "delta_tasks_failed"
+  | "delta_tasks_duplicated";
 
 /** 单个节点在某一时刻的历史采样点 */
 type NodeHistoryPoint = {
@@ -36,7 +40,7 @@ type NodeHistory = NodeHistoryPoint[];
 | `progressChart` | `any` | Chart.js 实例 |
 | `hiddenNodes` | `Set<string>` | 折线图中已隐藏的节点集合，持久化至 localStorage |
 | `currentHistoryMetric` | `HistoryMetricKey` | 当前图表展示的指标，默认为 `tasks_processed` |
-| `historyMetricButtons` | `NodeListOf<HTMLButtonElement>` | 所有 `.history-metric-btn` 按钮 |
+| `metricDots` | `NodeListOf<HTMLLabelElement>` | 所有 `.metric-dot` 标签元素，用于切换指标显示 |
 
 ## 辅助函数
 
@@ -64,10 +68,14 @@ type NodeHistory = NodeHistoryPoint[];
 | `tasks_failed` | `chart.metric.failed` |
 | `tasks_duplicated` | `chart.metric.duplicated` |
 | `tasks_pending` | `chart.metric.pending` |
+| `delta_tasks_processed` | `chart.metric.deltaProcessed` |
+| `delta_tasks_succeeded` | `chart.metric.deltaSucceeded` |
+| `delta_tasks_failed` | `chart.metric.deltaFailed` |
+| `delta_tasks_duplicated` | `chart.metric.deltaDuplicated` |
 
 ### `updateHistoryMetricButtons()`
 
-遍历 `historyMetricButtons`，根据 `currentHistoryMetric` 为匹配的按钮添加 `.active` 类，其余移除。
+遍历 `metricDots`，根据 `currentHistoryMetric` 为匹配的 `<label>` 添加 `.active` 类，其余移除。
 
 ### `updateChartAxisLabels()`
 
@@ -102,10 +110,15 @@ type NodeHistory = NodeHistoryPoint[];
 - **去重**：若时间戳相同则更新最后一个点，否则追加新点。
 - 所有修改都受 `getCurrentHistoryLimit()` 约束裁剪。
 
-### `extractProgressData(nodeHistories, metric)`
+### `extractProgressData(histories, metric)`
 
 将本地维护的 `nodeHistories` 映射转换为 Chart.js 兼容的 `{x, y}` 坐标点数组。
+
 - `metric` 参数决定了提取哪个指标（如 `tasks_succeeded`, `tasks_failed` 等）。
+- **增量模式（delta）**: 当 `metric` 以 `delta_` 开头时（如 `delta_tasks_processed`），会将累计值转换为差分变化率（`dy/dt`）。
+  - 计算公式：`dy = point[sourceMetric] - prev[sourceMetric]`，`dt = point.timestamp - prev.timestamp`
+  - 第一个点强制返回 `y = 0`（无前置点可计算差分）
+  - 用于展示指标的变化趋势而非绝对累计值
 
 ### `trimNodeHistories()`
 
@@ -133,8 +146,8 @@ function initHistoryMetricSwitcher() { ... }
 initHistoryMetricSwitcher(); // 模块级立即执行
 ```
 
-`initHistoryMetricSwitcher()` 在 `dashboard_history.ts` 文件顶部模块作用域中自动调用，**不由 `main.ts` 主动调用**。它负责：
-1. 同步按钮激活样式
+`initHistoryMetricSwitcher()` 在 `dashboard_history.js` 文件顶部模块作用域中自动调用，**不由 `main.js` 主动调用**。它负责：
+1. 同步 `metricDots` 按钮激活样式
 2. 绑定点击事件，切换 `currentHistoryMetric` 后更新轴标题并重绘
 
 ## 数据流

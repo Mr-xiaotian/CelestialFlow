@@ -1,6 +1,6 @@
 # 错误持久化 (Fail Persistence)
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/05/28
 
 `celestialflow.persistence` 模块提供了一套稳健的错误收集与持久化机制，确保在多进程并发执行任务时，所有的异常信息都能被安全、有序地记录下来，供后续分析或重试使用。
 
@@ -129,7 +129,7 @@ sinker.task_error(
 
 #### start_graph
 
-记录任务图的结构信息。参数为 `list[Any]`（任务图结构的 JSON 表示）。
+记录任务图的结构信息。参数 `structure_json` 为 `list[Any]`（任务图结构的 JSON 表示）。
 
 ```python
 sinker.start_graph([

@@ -1,12 +1,12 @@
 # GraphAnalysis
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/05/28
 
 `graph/util_analysis.py` 提供基于 `networkx` 的图分析工具。
 
 ## 主要能力
 
-- `build_networkx_graph(out_edges, stage_runtime_dict)`：从邻接表和阶段运行时信息构建 `networkx.DiGraph`。
+- `build_networkx_graph(out_edges, stage_dict)`：从邻接表和 Stage 映射构建 `networkx.DiGraph`。
 - `compute_node_levels(G)`：对有向图做层级划分（支持 DAG 和含环图），返回 `node -> level` 映射。
 - `find_source_nodes(G)`：找到有向图中的源节点（入度为 0 的节点），返回源节点列表。
 
@@ -37,7 +37,7 @@ graph.connect([s2], [s4])
 graph.connect([s3], [s4])
 
 # 2. 构建 networkx DiGraph
-G = build_networkx_graph(graph.out_edges, graph.stage_runtime_dict)
+G = build_networkx_graph(graph.out_edges, graph.stage_dict)
 print(f"节点数: {G.number_of_nodes()}")  # 4
 print(f"边数: {G.number_of_edges()}")    # 4
 print(f"节点属性: {dict(G.nodes(data=True))}")
@@ -67,8 +67,8 @@ graph.connect([s1], [s2])
 
 analysis = graph.get_graph_analysis()
 print(f"是否为 DAG: {analysis['isDAG']}")  # True
-print(f"调度模式: {analysis['schedule_mode']}")  # eager
-print(f"层级分布: {analysis['layers_dict']}")
+print(f"调度模式: {analysis['scheduleMode']}")  # eager
+print(f"层级分布: {analysis['layersDict']}")
 print(f"邻接表: {analysis['out_edges']}")
 
 # 获取 networkx 图

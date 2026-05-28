@@ -39,14 +39,14 @@ async def fibonacci_async(n):
 
 ### `bench_executor_sleep`
 - **任务**：纯睡眠 1 秒（模拟 I/O 等待），同步和异步版行为完全一致
-- **配置**：`max_workers=12`，`max_retries=0`
+- **配置**：`max_workers=6`，`max_retries=0`
 - **对比模式**：`serial`、`thread`、`async`
 
 ## 关键参数
 
 | 参数 | 值 | 说明 |
 |------|-----|------|
-| `max_workers` | 6 (CPU) / 12 (I/O) | 并发 worker 数 |
+| `max_workers` | 6 (CPU) / 6 (I/O) | 并发 worker 数 |
 | `max_retries` | 1 (CPU) / 0 (I/O) | 重试次数 |
 
 ## 可能出现的问题
@@ -79,27 +79,7 @@ async def main():
 python bench/bench_execution_mode.py
 ```
 
-### 调整并发 Worker 数
 
-各场景的 `max_workers` 在 `main()` 中直接设置：
-
-```python
-# 增大斐波那契的 worker 数
-await bench_executor_fibonacci(max_workers=12)
-
-# 调整 sleep 场景的 worker 数
-await bench_executor_sleep(max_workers=4)
-```
-
-### 修改重试次数
-
-```python
-# 关闭重试
-await bench_executor_fibonacci(max_retries=0)
-
-# 增加重试次数
-await bench_executor_fibonacci(max_retries=3)
-```
 
 ### 自定义输入范围
 
@@ -126,15 +106,15 @@ numbers = list(range(20, 35))
 | thread | 0.0048s | 6 线程并发，受 GIL 限制，提升有限 |
 | async | 0.0062s | 协程并发，迭代中的 await 出让点允许并发，但仍受限于纯计算本质 |
 
-> 🟢 三种模式耗时在同一量级（~5-6ms）。thread 略快是因为 GIL 在高频迭代的出让点之间仍有少量并发窗口；async 的 `await` 出让点带来了极微量的协程调度开销。整体差异在微秒级，对 CPU 密集任务三者均非明显加速。
+> 🟢 三种模式耗时在同一量级（~5-6ms）。thread 略快是因为 GIL 在高频迭代的出让点之间仍有少量并发窗口；async 的 `await` 出让点带来了极微量的协程调度开销。整体差异在微秒级，CPU 密集任务三者均无明显加速。
 
 ### 场景二：sleep_1（I/O 密集型）
-输入 12 个任务，每个睡眠 1 秒，max_workers=12。同步和异步版 sleep 行为一致，对比结果可直接反映执行模式差异。
+输入 6 个任务，每个睡眠 1 秒，max_workers=6。同步和异步版 sleep 行为一致，对比结果可直接反映执行模式差异。
 
 | 模式 | 耗时 | 说明 |
 |------|------|------|
-| serial | 12.010s | 顺序睡眠，总耗时 ≈ 12 × 1s |
-| thread | 1.006s | 12 线程并行，总耗时 ≈ 1s + 调度开销 |
+| serial | 6.010s | 顺序睡眠，总耗时 ≈ 6 × 1s |
+| thread | 1.006s | 6 线程并行，总耗时 ≈ 1s + 调度开销 |
 | async | 1.009s | 协程并行，与 thread 基本持平 |
 
 **关键结论**：
