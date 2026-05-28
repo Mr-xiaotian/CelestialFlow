@@ -237,13 +237,13 @@ class TaskWheel(TaskGraph):
     def start_wheel(
         self,
         init_tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = True,
+        put_termination_signal: bool = False,
     ) -> None:
         """
         启动任务轮结构
 
         :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否注入终止信号，默认 True
+        :param put_termination_signal: 是否注入终止信号，默认 False
         """
         self.start_graph(init_tasks_dict, put_termination_signal)
 
