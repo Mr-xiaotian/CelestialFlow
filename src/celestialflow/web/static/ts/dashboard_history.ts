@@ -353,6 +353,7 @@ function initChart() {
 
             const meta = legend.chart.getDatasetMeta(index);
             meta.hidden = !meta.hidden;
+            legendItem.hidden = meta.hidden;
             legend.chart.update();
           },
         },
@@ -440,4 +441,14 @@ function updateChartData() {
   progressChart.data.datasets = datasets;
 
   progressChart.update();
+
+  // 同步 legendItem.hidden，确保刷新后 legend 渲染与 hiddenNodes 一致
+  if (progressChart.legend?.legendItems) {
+    progressChart.legend.legendItems.forEach((item) => {
+      const dataset = progressChart.data.datasets[item.datasetIndex];
+      if (dataset) {
+        item.hidden = dataset.hidden || false;
+      }
+    });
+  }
 }

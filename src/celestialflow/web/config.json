@@ -1,6 +1,6 @@
 {
     "theme": "light",
-    "refreshInterval": 30000,
+    "refreshInterval": 2000,
     "historyLimit": 100,
     "language": "zh-CN",
     "errorPageSize": 20,
