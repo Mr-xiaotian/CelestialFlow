@@ -26,7 +26,7 @@ def test_status_push_pull(client):
             "tasks_succeeded": 10,
             "tasks_failed": 0,
             "remaining_time": 3.5,
-            "expected_remaining_time": 8.0,
+            "total_remaining_time": 8.0,
         }
     }
     push_resp = client.post(
@@ -43,7 +43,7 @@ def test_status_push_pull(client):
     assert pull_data["rev"] > 0
     assert pull_data["timestamp"] == test_timestamp
     assert pull_data["data"] == test_status
-    assert pull_data["data"]["s1"]["expected_remaining_time"] == 8.0
+    assert pull_data["data"]["s1"]["total_remaining_time"] == 8.0
 
     # 3. 再次拉取相同版本 (known_rev=current_rev)
     current_rev = pull_data["rev"]

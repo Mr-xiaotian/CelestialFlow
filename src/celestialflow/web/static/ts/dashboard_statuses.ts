@@ -17,7 +17,7 @@ type NodeStatus = {
   start_time: number; // 启动 Unix 时间戳
   elapsed_time: number; // 已运行秒数
   remaining_time: number; // 预计剩余秒数
-  expected_remaining_time: number; // 预计剩余秒数(考虑各条链路状态，用于计算总剩余时间)
+  total_remaining_time: number; // 预计剩余秒数(考虑各条链路状态，用于计算总剩余时间)
   task_avg_time: string; // 平均每个任务耗时文本
 };
 

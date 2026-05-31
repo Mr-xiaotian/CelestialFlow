@@ -545,13 +545,13 @@ class TaskGraph:
         if not self.is_dag:
             return running_remaining_map
 
-        expected_remaining_map = calc_global_remain_equal_pred(
+        total_remaining_map = calc_global_remain_equal_pred(
             self.networkx_graph,
             running_processed_map,
             running_pending_map,
             running_elapsed_map,
         )
-        return expected_remaining_map
+        return total_remaining_map
 
     def collect_runtime_snapshot(self) -> None:
         """
@@ -585,7 +585,7 @@ class TaskGraph:
             running_elapsed_map[stage_name] = elapsed
             running_remaining_map[stage_name] = remaining
 
-        expected_remaining_map = self._calc_graph_remain(
+        total_remaining_map = self._calc_graph_remain(
             running_processed_map,
             running_pending_map,
             running_elapsed_map,
@@ -593,7 +593,7 @@ class TaskGraph:
         )
 
         for stage_name, stage_status in status_dict.items():
-            stage_status["expected_remaining_time"] = expected_remaining_map[stage_name]
+            stage_status["total_remaining_time"] = total_remaining_map[stage_name]
 
         self.status_dict = status_dict
         self.status_timestamp = now
