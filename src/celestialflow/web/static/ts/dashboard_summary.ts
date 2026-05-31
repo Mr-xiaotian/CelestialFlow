@@ -3,12 +3,7 @@
  * 负责计算和展示整个图任务的总体进度、成功/失败总量及预计剩余时间
  */
 
-type SummaryData = {
-  total_remain?: number;
-};
-
 // 全局状态
-let summaryData: SummaryData = {}; // 汇总统计数据（当前仅保留图级剩余时间）
 let summaryRev = -1; // 数据版本号，用于增量拉取
 
 // DOM 元素引用（汇总面板）
@@ -19,24 +14,6 @@ const totalFailed = document.getElementById("total-failed") as HTMLElement;
 const totalNodes = document.getElementById("total-nodes") as HTMLElement;
 const totalRemain = document.getElementById("total-remain") as HTMLElement;
 
-/**
- * 异步加载最新的汇总数据
- * 从后端 API 获取任务汇总信息并更新全局变量 summaryData
- * @returns {Promise<boolean>} 当后端返回了新的汇总数据时返回 `true`，否则返回 `false`。
- */
-async function loadSummary(): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/pull_summary?known_rev=${summaryRev}`);
-    const body = await res.json();
-    if (body.data === null) return false;
-    summaryData = body.data;
-    summaryRev = body.rev;
-    return true;
-  } catch (e) {
-    console.error("合计数据加载失败", e);
-    return false;
-  }
-}
 
 /**
  * 渲染汇总数据面板
@@ -51,7 +28,7 @@ function renderSummary() {
   const total_failed = statusList.reduce((sum, status) => sum + (status.tasks_failed || 0), 0);
   const total_duplicated = statusList.reduce((sum, status) => sum + (status.tasks_duplicated || 0), 0);
   const total_nodes = statusList.reduce((sum, status) => sum + (status.status === 1 ? 1 : 0), 0);
-  const total_remain = summaryData.total_remain || 0;
+  const total_remain = Math.max(...statusList.map(status => status.expected_remaining_time || 0), 0);
 
   totalSucceeded.innerHTML = formatLargeNumber(total_succeeded);
   totalPending.innerHTML = formatLargeNumber(total_pending);

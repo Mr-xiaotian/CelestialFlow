@@ -18,7 +18,6 @@ from ..util_models import (
     ErrorsMetaModel,
     StatusModel,
     StructureModel,
-    SummaryModel,
     TaskInjectionModel,
     WebConfigModel,
 )
@@ -152,18 +151,6 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         """
         server.analysis_store = data.analysis
         server.store_revs["analysis"] += 1
-        return {"ok": True}
-
-    @router.post("/api/push_summary")
-    async def push_summary(data: SummaryModel) -> dict[str, bool]:
-        """
-        更新全局任务汇总数据并递增版本号。
-
-        :param data: 全局汇总数据
-        :return: {"ok": True}
-        """
-        server.summary_store = data.summary
-        server.store_revs["summary"] += 1
         return {"ok": True}
 
     @router.post("/api/push_injection_tasks", response_model=None)

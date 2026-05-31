@@ -207,12 +207,11 @@ async function refreshAll() {
     // - nodeStatuses 会被 loadStatuses 更新
     // - 结构数据会被 loadStructure 使用来渲染 Mermaid 图
     // - errors 会被 loadErrors 刷新为当前筛选结果并用于错误列表渲染
-    const [statusesChanged, structureChanged, errorsChanged, analysisChanged, summaryChanged] = await Promise.all([
+    const [statusesChanged, structureChanged, errorsChanged, analysisChanged] = await Promise.all([
         loadStatuses(), // 从后端拉取节点运行状态（处理数、等待数、失败数等），更新 nodeStatuses
         loadStructure(), // 拉取任务结构（有向图），更新 structureData
         loadErrors(), // 获取当前分页与筛选条件下的错误记录，更新 errors
         loadAnalysis(), // 获取最新分析信息，更新 analysisData
-        loadSummary(), // 获取最新汇总数据，更新 summaryData
     ]);
     if (statusesChanged || structureChanged) {
         renderMermaidStructure(nodeStatuses); // 左上结构图, 依赖节点信息与结构信息
@@ -225,8 +224,6 @@ async function refreshAll() {
         populateNodeFilter(nodeStatuses); // 错误筛选器
         renderNodeList(); // 注入页节点列表
         updateChartData(); // 右上折线图
-    }
-    if (summaryChanged) {
         renderSummary(); // 右下汇总数据
     }
     if (errorsChanged) {

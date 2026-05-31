@@ -115,19 +115,6 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
             return {"rev": rev, "data": None}
         return {"rev": rev, "data": server.analysis_store}
 
-    @router.get("/api/pull_summary")
-    def pull_summary(known_rev: int = -1) -> dict[str, Any]:
-        """
-        返回全局任务汇总数据；若版本未变则返回 data=null。
-
-        :param known_rev: 客户端已知的版本号
-        :return: {"rev": int, "data": dict | None}
-        """
-        rev: int = server.store_revs["summary"]
-        if known_rev == rev:
-            return {"rev": rev, "data": None}
-        return {"rev": rev, "data": server.summary_store}
-
     @router.get("/api/pull_interval")
     def pull_interval() -> dict[str, float]:
         """返回当前轮询间隔（秒）。

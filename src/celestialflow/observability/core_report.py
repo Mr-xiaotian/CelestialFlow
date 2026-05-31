@@ -100,7 +100,6 @@ class TaskReporter:
         self._push_status()
         self._push_structure()
         self._push_analysis()
-        self._push_summary()
 
     # ==== 拉取 ====
     def _pull_interval(self) -> None:
@@ -265,19 +264,6 @@ class TaskReporter:
             )
         except Exception as e:
             self.log_inlet.push_analysis_failed(e)
-
-    def _push_summary(self) -> None:
-        """推送摘要信息"""
-        try:
-            summary: dict[str, Any] = self.task_graph.get_graph_summary()  # type: ignore[reportUnknownMemberType]
-            payload: dict[str, Any] = {"summary": summary}
-            _ = self._session.post(
-                f"{self.base_url}/api/push_summary",
-                json=payload,
-                timeout=self._push_timeout(),
-            )
-        except Exception as e:
-            self.log_inlet.push_summary_failed(e)
 
 
 class NullTaskReporter:

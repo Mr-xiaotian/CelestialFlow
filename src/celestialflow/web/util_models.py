@@ -42,12 +42,6 @@ class AnalysisModel(BaseModel):
     analysis: dict[str, Any]
 
 
-class SummaryModel(BaseModel):
-    """任务汇总数据模型"""
-
-    summary: dict[str, Any]
-
-
 class TaskInjectionModel(BaseModel):
     """任务注入请求模型"""
 

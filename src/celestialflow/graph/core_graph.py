@@ -111,8 +111,6 @@ class TaskGraph:
         self.status_dict: dict[str, dict[str, Any]] = defaultdict(dict)
         # 用于保存最近一次状态快照对应的统一时间戳
         self.status_timestamp: float = 0.0
-        # 用于保存任务图的摘要信息
-        self.graph_summary: dict[str, int | float] = {}
         # 用于保存每个节点的输入任务ID集合
         self.input_ids: dict[str, set[int]] = defaultdict(set)
         # 用于保存源节点列表（由 _build_analysis 自动计算）
@@ -534,7 +532,7 @@ class TaskGraph:
         running_pending_map: dict[str, int],
         running_elapsed_map: dict[str, float],
         running_remaining_map: dict[str, float],
-    ) -> float:
+    ) -> dict[str, float]:
         """
         根据 DAG/非 DAG 策略计算全局预计剩余时间
 
@@ -545,15 +543,15 @@ class TaskGraph:
         :return: 全局预计剩余时间（秒）
         """
         if not self.is_dag:
-            return max(running_remaining_map.values(), default=0.0)
+            return running_remaining_map
 
-        expected_pending_map = calc_global_remain_equal_pred(
+        expected_remaining_map = calc_global_remain_equal_pred(
             self.networkx_graph,
             running_processed_map,
             running_pending_map,
             running_elapsed_map,
         )
-        return max(expected_pending_map.values(), default=0.0)
+        return expected_remaining_map
 
     def collect_runtime_snapshot(self) -> None:
         """
@@ -562,8 +560,6 @@ class TaskGraph:
         status_dict: dict[str, dict[str, Any]] = {}
         now = time.time()
         interval = self.reporter.interval
-
-        totals = {"total_remain": 0.0}
 
         # 为全局预计 remaining 收集
         running_elapsed_map: dict[str, float] = {}
@@ -589,16 +585,18 @@ class TaskGraph:
             running_elapsed_map[stage_name] = elapsed
             running_remaining_map[stage_name] = remaining
 
-        totals["total_remain"] = self._calc_graph_remain(
+        expected_remaining_map = self._calc_graph_remain(
             running_processed_map,
             running_pending_map,
             running_elapsed_map,
             running_remaining_map,
         )
 
+        for stage_name, stage_status in status_dict.items():
+            stage_status["expected_remaining_time"] = expected_remaining_map[stage_name]
+
         self.status_dict = status_dict
         self.status_timestamp = now
-        self.graph_summary = dict(totals)
 
     # ==== 查询接口 ====
 
@@ -640,14 +638,6 @@ class TaskGraph:
             "timestamp": self.status_timestamp,
             "status": self.status_dict,
         }
-
-    def get_graph_summary(self) -> dict[str, int | float]:
-        """
-        获取任务链的摘要信息字典
-
-        :return: 当前仅包含 total_remain 的字典
-        """
-        return self.graph_summary
 
     def get_graph_analysis(self) -> dict[str, Any]:
         """
