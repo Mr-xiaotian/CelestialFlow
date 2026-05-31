@@ -291,26 +291,6 @@ class TestTaskGraphAnalysis:
         assert s3.get_name() in layers[2]
 
 
-class TestTaskGraphSummary:
-    def test_graph_summary_counts(self):
-        """图摘要统计正确"""
-        s1 = TaskStage("s1", add_one)
-        s2 = TaskStage("s2", double)
-
-        graph = TaskGraph()
-        graph.set_stages(stages=[s1, s2])
-        graph.connect([s1], [s2])
-
-        graph.start_graph({s1.get_name(): [1, 2, 3]})
-
-        # 手动触发快照收集（测试中未启用 reporter）
-        graph.collect_runtime_snapshot()
-
-        summary = graph.get_graph_summary()
-        assert "total_remain" in summary
-        assert summary["total_remain"] == 0
-
-
 # =========================
 # stage_mode × execution_mode 2×3 矩阵测试
 # =========================

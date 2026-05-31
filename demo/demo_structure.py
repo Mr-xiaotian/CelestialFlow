@@ -41,7 +41,7 @@ def demo_chain():
     stageE = TaskStage("StageE", square, execution_mode="serial", max_workers=2)
 
     # 设置图结构
-    chain = TaskChain([stageA, stageB, stageC, stageD, stageE], "thread")
+    chain = TaskChain([stageA, stageB, stageC, stageD, stageE], stage_mode="thread")
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -181,7 +181,7 @@ def demo_cross():
 
     # 构建 TaskCross
     cross = TaskCross(
-        [[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]], "staged"
+        [[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]], schedule_mode="staged"
     )
     cross.set_reporter(True, host=report_host, port=report_port)
     cross.set_ctree(
@@ -235,7 +235,7 @@ def demo_star():
     side3 = TaskStage("Side3", add_15)
 
     # 构造 TaskCross
-    star = TaskCross([[core], [side1, side2, side3]], "eager")
+    star = TaskCross([[core], [side1, side2, side3]], schedule_mode="eager")
     star.set_reporter(True, host=report_host, port=report_port)
     star.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -252,7 +252,7 @@ def demo_fanin():
     merge = TaskStage("Merge", add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 构造 TaskCross
-    fainin = TaskCross([[source1, source2, source3], [merge]], "eager")
+    fainin = TaskCross([[source1, source2, source3], [merge]], schedule_mode="eager")
     fainin.set_reporter(True, host=report_host, port=report_port)
     fainin.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -280,7 +280,7 @@ def demo_grid():
     ]
 
     # 2. 构建 TaskGrid 实例
-    task_grid = TaskGrid(grid, "staged")
+    task_grid = TaskGrid(grid, schedule_mode="staged")
     task_grid.set_reporter(True, host=report_host, port=report_port)
     task_grid.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -413,10 +413,11 @@ def demo_multi_cycle():
 
 
 if __name__ == "__main__":
+    demo_chain()
     # demo_forest()
     # demo_cross()
     # demo_grid()
     # demo_loop()
-    demo_complete()
+    # demo_complete()
     # demo_multi_cycle()
     pass

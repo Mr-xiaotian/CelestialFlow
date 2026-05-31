@@ -18,7 +18,7 @@ const totalRemain = document.getElementById("total-remain") as HTMLElement;
 /**
  * 渲染汇总数据面板
  * 基于已有节点状态聚合展示总成功数、等待数、失败数、重复数、活动节点数；
- * 图级剩余时间仍使用后端提供的全局估算值。
+ * 图级剩余时间由前端基于各节点的 `expected_remaining_time` 取最大值得到。
  * @returns {void}
  */
 function renderSummary() {
