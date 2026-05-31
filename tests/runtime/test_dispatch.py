@@ -28,14 +28,17 @@ _RESULT_COLLECTORS: WeakKeyDictionary[TaskExecutor, Queue[Any]] = WeakKeyDiction
 
 
 def _square(x: Any) -> Any:
+    """测试用同步平方函数。"""
     return x * x
 
 
 async def _async_square(x: Any) -> Any:
+    """测试用异步平方函数。"""
     return x * x
 
 
 def _always_fail(_x: Any) -> None:
+    """测试用函数，始终抛出异常。"""
     msg = "boom"
     raise ValueError(msg)
 
@@ -46,9 +49,11 @@ class _RetryTwiceThenSucceed:
     __name__: str = "_RetryTwiceThenSucceed"
 
     def __init__(self) -> None:
+        """初始化重试计数器。"""
         self.calls: int = 0
 
     def __call__(self, x: Any) -> Any:
+        """前两次抛错，第三次返回平方结果。"""
         self.calls += 1
         if self.calls < 3:
             msg = f"retry #{self.calls}"
@@ -62,9 +67,11 @@ class _AsyncRetryTwiceThenSucceed:
     __name__: str = "_AsyncRetryTwiceThenSucceed"
 
     def __init__(self) -> None:
+        """初始化异步重试计数器。"""
         self.calls: int = 0
 
     async def __call__(self, x: Any) -> Any:
+        """前两次异步抛错，第三次返回平方结果。"""
         self.calls += 1
         if self.calls < 3:
             msg = f"retry #{self.calls}"
@@ -77,6 +84,7 @@ class _AsyncRetryTwiceThenSucceed:
 
 class _CtreeStub:
     def emit(self, event: str, **kw: Any) -> int:  # noqa: ARG002
+        """返回固定事件 ID 以替代真实 ctree。"""
         return 42
 
 
@@ -86,6 +94,7 @@ class _CtreeStub:
 def _make_executor(
     func: Any, max_retries: int = 1, name: str = "test"
 ) -> TaskExecutor:
+    """构造最小可运行的测试执行器。"""
     e = TaskExecutor(name, func, max_retries=max_retries, log_level="SUCCESS")
     e.add_retry_exceptions(ValueError)
     e.init_env()
@@ -98,6 +107,7 @@ def _make_executor(
 
 
 def _put(executor: TaskExecutor, *items: Any) -> None:
+    """向执行器输入队列写入任务信封。"""
     for num, i in enumerate(items):
         envelope = TaskEnvelope(task=i, id=num, source="test")
         executor.task_queue.put(envelope)  # type: ignore[union-attr]
@@ -115,6 +125,7 @@ def _put_termination(executor: TaskExecutor, ids: list[int] | None = None) -> No
 
 
 def _collect_results(executor: TaskExecutor) -> list[Any]:
+    """收集执行器结果队列中的全部结果。"""
     results: list[Any] = []
     q = _RESULT_COLLECTORS[executor]
     while not q.empty():
@@ -127,6 +138,7 @@ def _collect_results(executor: TaskExecutor) -> list[Any]:
 
 class TestDispatchSerial:
     def test_single_task(self) -> None:
+        """验证串行模式能处理单个任务。"""
         executor = _make_executor(_square)
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
         _put(executor, 3)
@@ -140,6 +152,7 @@ class TestDispatchSerial:
         assert task_results[0].task == 9
 
     def test_multiple_tasks(self) -> None:
+        """验证串行模式能处理多个任务。"""
         executor = _make_executor(_square)
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
         _put(executor, 1, 2, 3, 4, 5)
@@ -150,6 +163,7 @@ class TestDispatchSerial:
         assert len(results) == 6
 
     def test_retry_then_succeed(self) -> None:
+        """验证串行模式下任务重试后最终成功。"""
         func = _RetryTwiceThenSucceed()
         executor = _make_executor(func, max_retries=2, name="retry_test")
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
@@ -163,6 +177,7 @@ class TestDispatchSerial:
         assert func.calls == 3
 
     def test_retry_exhausted(self) -> None:
+        """验证串行模式下重试耗尽后仅输出终止信号。"""
         executor = _make_executor(_always_fail, name="fail_test")
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
         _put(executor, 42)
@@ -173,6 +188,7 @@ class TestDispatchSerial:
         assert isinstance(results[0], TerminationSignal)
 
     def test_termination_single_id(self) -> None:
+        """验证单个终止 ID 能正确传递到结果队列。"""
         executor = _make_executor(_square)
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
         _put(executor, 1, 2)
@@ -183,6 +199,7 @@ class TestDispatchSerial:
         assert isinstance(results[-1], TerminationSignal)
 
     def test_termination_multi_id(self) -> None:
+        """验证多个终止 ID 合并后仍只输出一个终止信号。"""
         executor = _make_executor(_square)
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
         _put_termination(executor, ids=[1, 2, 3])
@@ -197,6 +214,7 @@ class TestDispatchSerial:
 
 class TestDispatchThread:
     def test_basic_parallel(self) -> None:
+        """验证线程模式能并行处理一批任务。"""
         executor = _make_executor(_square)
         dispatch = TaskDispatch(executor, executor.func, max_workers=4)
         _put(executor, *range(10))
@@ -207,6 +225,7 @@ class TestDispatchThread:
         assert len(task_results) == 10
 
     def test_thread_duplicate(self) -> None:
+        """验证线程模式会统计重复任务。"""
         executor = _make_executor(_square)
         dispatch = TaskDispatch(executor, executor.func, max_workers=2)
         executor.task_queue.put(TaskEnvelope(task=7, id=1, source="test"))  # type: ignore[union-attr]
@@ -225,10 +244,12 @@ class TestDispatchThread:
 
 class TestDispatchAsync:
     def test_basic_async(self) -> None:
+        """验证异步模式能处理一批任务。"""
         executor = _make_executor(_async_square)
         dispatch = TaskDispatch(executor, executor.func, max_workers=4)
 
         async def _run() -> list[Any]:
+            """执行异步调度并返回收集到的结果。"""
             _put(executor, *range(10))
             _put_termination(executor)
             await dispatch.dispatch_async()
@@ -239,11 +260,13 @@ class TestDispatchAsync:
         assert len(task_results) == 10
 
     def test_async_retry_then_succeed(self) -> None:
+        """验证异步模式下任务重试后最终成功。"""
         func = _AsyncRetryTwiceThenSucceed()
         executor = _make_executor(func, max_retries=2, name="async_retry")
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
 
         async def _run() -> None:
+            """执行异步重试场景。"""
             _put(executor, 5)
             _put_termination(executor)
             await dispatch.dispatch_async()
@@ -261,10 +284,12 @@ class TestDispatchAsync:
 class TestDispatchCoreBehavior:
     @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
     def test_empty_queue_with_termination(self, mode: str) -> None:
+        """验证空队列在收到终止信号后可正常退出。"""
         executor = _make_executor(_square)
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
 
         def _run() -> None:
+            """按当前模式运行空队列终止场景。"""
             _put_termination(executor)
             if mode == "serial":
                 dispatch.dispatch_serial()
@@ -273,6 +298,7 @@ class TestDispatchCoreBehavior:
             else:
 
                 async def _a() -> None:
+                    """执行异步调度分支。"""
                     await dispatch.dispatch_async()
 
                 asyncio.run(_a())
@@ -284,10 +310,12 @@ class TestDispatchCoreBehavior:
 
     @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
     def test_result_count(self, mode: str) -> None:
+        """验证不同调度模式下结果数量一致。"""
         executor = _make_executor(_async_square if mode == "async" else _square)
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
 
         def _run() -> None:
+            """按当前模式运行多任务场景。"""
             _put(executor, 1, 2, 3, 4, 5)
             _put_termination(executor)
             if mode == "serial":
@@ -297,6 +325,7 @@ class TestDispatchCoreBehavior:
             else:
 
                 async def _a() -> None:
+                    """执行异步调度分支。"""
                     await dispatch.dispatch_async()
 
                 asyncio.run(_a())

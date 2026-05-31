@@ -2,14 +2,17 @@ from celestialflow import TaskLoop, TaskStage, TaskWheel
 
 
 def add_one(x):
+    """测试用同步加一函数。"""
     return x + 1
 
 
 def double(x):
+    """测试用同步乘二函数。"""
     return x * 2
 
 
 def to_str(x):
+    """测试用同步转字符串函数。"""
     return str(x)
 
 

@@ -8,24 +8,29 @@ from celestialflow.runtime.util_errors import ExecutionModeError
 # 快速测试函数（无副作用）
 # =========================
 def add_one(x):
+    """测试用同步加一函数。"""
     return x + 1
 
 
 def double(x):
+    """测试用同步乘二函数。"""
     return x * 2
 
 
 def raise_on_negative(x):
+    """测试用函数，负数时抛出异常。"""
     if x < 0:
         raise ValueError(f"negative value: {x}")
     return x * 10
 
 
 async def async_add_one(x):
+    """测试用异步加一函数。"""
     return x + 1
 
 
 async def async_double(x):
+    """测试用异步乘二函数。"""
     return x * 2
 
 
@@ -82,6 +87,7 @@ class TestExecutorSerial:
         call_count = 0
 
         def flaky(x):
+            """前两次抛错，第三次返回偏移后的结果。"""
             nonlocal call_count
             call_count += 1
             if call_count <= 2:

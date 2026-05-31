@@ -4,7 +4,7 @@ from tests.conftest import wait_until
 
 class TestLogPersistence:
     def test_log_persistence(self, tmp_path, monkeypatch):
-        """LogInlet/LogSpout ????????????"""
+        """`LogInlet`/`LogSpout` 应将日志批量刷新到文件。"""
         monkeypatch.chdir(tmp_path)
 
         spout = LogSpout()

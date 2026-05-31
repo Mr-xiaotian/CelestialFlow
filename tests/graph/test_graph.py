@@ -14,36 +14,44 @@ from celestialflow.runtime.util_errors import RuntimeStateError
 # 快速测试函数
 # =========================
 def add_one(x):
+    """测试用同步加一函数。"""
     return x + 1
 
 
 async def async_add_one(x):
+    """测试用异步加一函数。"""
     return x + 1
 
 
 async def async_double(x):
+    """测试用异步乘二函数。"""
     return x * 2
 
 
 async def async_to_str(x):
+    """测试用异步转字符串函数。"""
     return str(x)
 
 
 async def async_add_offset(x, offset=10):
+    """测试用异步偏移函数，超过阈值时抛错。"""
     if x > 30:
         raise ValueError("too large")
     return x + offset
 
 
 def double(x):
+    """测试用同步乘二函数。"""
     return x * 2
 
 
 def to_str(x):
+    """测试用同步转字符串函数。"""
     return str(x)
 
 
 def add_offset(x, offset=10):
+    """测试用同步偏移函数，超过阈值时抛错。"""
     if x > 30:
         raise ValueError("too large")
     return x + offset
@@ -303,9 +311,11 @@ class TestTaskGraphFinalize:
             name = "slow-stage"
 
             def join(self, timeout=None) -> None:
+                """模拟 `join()` 调用但不真正结束线程。"""
                 return None
 
             def is_alive(self) -> bool:
+                """始终报告线程仍然存活。"""
                 return True
 
         graph.threads = [AliveThread()]

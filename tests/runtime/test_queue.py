@@ -14,6 +14,7 @@ from celestialflow.runtime.util_types import TerminationIdPool, TerminationSigna
 class TestTaskInQueue:
     @pytest.fixture
     def simple_queue(self):
+        """构造一个无上游来源的简单输入队列。"""
         q = queue.Queue()
         return TaskInQueue(q, source_names=[], out_name="test")
 

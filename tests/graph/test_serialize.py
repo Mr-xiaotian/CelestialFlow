@@ -5,10 +5,12 @@ from celestialflow.stage.core_stage import TaskStage
 
 # 辅助函数
 async def async_noop(x):
+    """测试用异步空操作函数。"""
     return x
 
 
 def make_stage(name: str, stage_mode: str, execution_mode: str) -> TaskStage:
+    """根据模式组合构造测试节点。"""
     func = async_noop if execution_mode == "async" else (lambda x: x)
     return TaskStage(name, func, stage_mode=stage_mode, execution_mode=execution_mode, max_workers=2)
 
@@ -16,6 +18,7 @@ def make_stage(name: str, stage_mode: str, execution_mode: str) -> TaskStage:
 class TestUtilSerialize:
     @pytest.fixture
     def mock_graph_data(self):
+        """构造一组 DAG 与环图序列化测试样本。"""
         s1 = make_stage("s1", "serial", "serial")
         s2 = make_stage("s2", "thread", "async")
         s3 = make_stage("s3", "serial", "serial")
@@ -52,6 +55,7 @@ class TestUtilSerialize:
         }
 
     def test_build_structure_graph_dag(self, mock_graph_data):
+        """验证 DAG 结构会被递归展开并复用引用节点。"""
         s1 = mock_graph_data["s1"]
         stage_dict = mock_graph_data["stage_dict"]
         out_edges = mock_graph_data["out_edges"]
@@ -69,6 +73,7 @@ class TestUtilSerialize:
         assert graph["next_stages"][1]["next_stages"][0]["is_ref"] is True
 
     def test_build_structure_graph_cyclic(self, mock_graph_data):
+        """验证环图结构会在回边处标记引用节点。"""
         cs1 = mock_graph_data["cs1"]
         cyclic_stage_dict = mock_graph_data["cyclic_stage_dict"]
         cyclic_out_edges = mock_graph_data["cyclic_out_edges"]
@@ -84,6 +89,7 @@ class TestUtilSerialize:
         assert graph["next_stages"][0]["next_stages"][0]["next_stages"][0]["is_ref"] is True
 
     def test_format_structure_list_from_graph(self, mock_graph_data):
+        """验证结构图能够格式化为可读的结构列表。"""
         s1 = mock_graph_data["s1"]
         stage_dict = mock_graph_data["stage_dict"]
         out_edges = mock_graph_data["out_edges"]

@@ -5,14 +5,17 @@ from celestialflow import TaskExecutor, BaseObserver, CallbackObserver
 # 快速测试函数（无副作用）
 # =========================
 def add_one(x):
+    """测试用同步加一函数。"""
     return x + 1
 
 
 def double(x):
+    """测试用同步乘二函数。"""
     return x * 2
 
 
 def raise_on_negative(x):
+    """测试用函数，负数时抛出异常。"""
     if x < 0:
         raise ValueError(f"negative value: {x}")
     return x * 10
@@ -24,24 +27,31 @@ class TestExecutorObserver:
 
         class RecordingObserver(BaseObserver):
             def __init__(self):
+                """初始化事件记录列表。"""
                 self.events = []
 
             def on_start(self, name, total):
+                """记录执行器启动事件。"""
                 self.events.append(("start", name, total))
 
             def on_task_success(self, count=1):
+                """记录任务成功事件。"""
                 self.events.append(("success", count))
 
             def on_task_fail(self, count=1):
+                """记录任务失败事件。"""
                 self.events.append(("fail", count))
 
             def on_task_duplicate(self, count=1):
+                """记录重复任务事件。"""
                 self.events.append(("duplicate", count))
 
             def on_tasks_added(self, count):
+                """记录新增任务事件。"""
                 self.events.append(("added", count))
 
             def on_finish(self):
+                """记录执行结束事件。"""
                 self.events.append(("finish",))
 
         observer = RecordingObserver()
@@ -59,13 +69,16 @@ class TestExecutorObserver:
 
         class CountObserver(BaseObserver):
             def __init__(self):
+                """初始化成功与失败计数。"""
                 self.successes = 0
                 self.failures = 0
 
             def on_task_success(self, count=1):
+                """累计成功任务数量。"""
                 self.successes += count
 
             def on_task_fail(self, count=1):
+                """累计失败任务数量。"""
                 self.failures += count
 
         observer = CountObserver()
@@ -89,9 +102,11 @@ class TestExecutorObserver:
 
         class Counter(BaseObserver):
             def __init__(self):
+                """初始化成功计数。"""
                 self.count = 0
 
             def on_task_success(self, count=1):
+                """累计成功回调次数。"""
                 self.count += count
 
         o1, o2 = Counter(), Counter()
@@ -108,9 +123,11 @@ class TestExecutorObserver:
 
         class Counter(BaseObserver):
             def __init__(self):
+                """初始化成功计数。"""
                 self.count = 0
 
             def on_task_success(self, count=1):
+                """累计成功回调次数。"""
                 self.count += count
 
         observer = Counter()

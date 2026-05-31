@@ -11,13 +11,16 @@ from celestialflow.graph.util_analysis import (
 # ========== 轻量 mock ==========
 class _MockStage:
     def __init__(self, mode: str = "serial"):
+        """初始化带指定节点模式的 mock 节点。"""
         self._mode = mode
 
     def get_stage_mode(self) -> str:
+        """返回 mock 节点的 `stage_mode`。"""
         return self._mode
 
 
 def _make_graph(edges: dict[str, list[str]]) -> nx.DiGraph[str]:
+    """根据边定义构造用于分析的测试图。"""
     stage_names = set(edges.keys())
     for dsts in edges.values():
         stage_names.update(dsts)

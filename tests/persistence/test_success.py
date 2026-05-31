@@ -5,7 +5,7 @@ from tests.conftest import wait_until
 
 class TestSuccessPersistence:
     def test_success_persistence(self):
-        """SuccessSpout ??? TaskEnvelope ?? task-result ??"""
+        """`SuccessSpout` 应缓存 `TaskEnvelope` 中的 task-result 对。"""
         spout = SuccessSpout()
 
         spout.start()

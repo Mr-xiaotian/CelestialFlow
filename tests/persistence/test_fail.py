@@ -4,7 +4,7 @@ from tests.conftest import wait_until
 
 class TestFailPersistence:
     def test_fail_persistence(self, tmp_path, monkeypatch):
-        """FailInlet/FailSpout ?????????? jsonl?"""
+        """`FailInlet`/`FailSpout` 应将错误记录持久化到 JSONL。"""
         monkeypatch.chdir(tmp_path)
 
         spout = FailSpout(error_source='test_source')

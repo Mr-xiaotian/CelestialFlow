@@ -10,6 +10,7 @@ from celestialflow.persistence.util_jsonl import (
 
 @pytest.fixture
 def sample_jsonl(tmp_path):
+    """创建用于 JSONL 工具测试的临时样本文件。"""
     path = tmp_path / "test.jsonl"
     data = [
         {"meta": "header"},

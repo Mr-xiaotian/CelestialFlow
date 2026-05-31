@@ -15,6 +15,7 @@ class TestTaskSplitter:
     def test_splitter_process_success(self):
         """测试 TaskSplitter 在图中：成功执行后下游应收到分裂后的独立任务"""
         def noop(x):
+            """测试用原样返回函数。"""
             return x
 
         S = TaskSplitter("S")
@@ -57,6 +58,7 @@ class TestTaskRouter:
     def test_router_process_success(self):
         """测试 TaskRouter 在图中：成功执行后任务应被正确路由到指定目标节点"""
         def noop(x):
+            """测试用原样返回函数。"""
             return x
 
         R = TaskRouter("R")

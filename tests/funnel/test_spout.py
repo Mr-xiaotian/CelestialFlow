@@ -7,24 +7,28 @@ from tests.conftest import assert_stays_true
 
 class MockSpout(BaseSpout):
     def __init__(self):
+        """初始化测试用监听器状态。"""
         super().__init__()
         self.received = []
         self.before_called = False
         self.after_called = False
 
     def _before_start(self):
+        """标记监听线程即将启动。"""
         self.before_called = True
 
     def _handle_record(self, record):
+        """记录消费到的测试数据。"""
         self.received.append(record)
 
     def _after_stop(self):
+        """标记监听线程已经停止。"""
         self.after_called = True
 
 
 class TestBaseSpout:
     def test_base_spout_lifecycle(self):
-        """BaseSpout ??????????????????????"""
+        """BaseSpout 启停时应调用生命周期钩子并消费停止前的数据。"""
         spout = MockSpout()
         assert not spout.before_called
 
@@ -46,7 +50,7 @@ class TestBaseSpout:
         )
 
     def test_spout_termination_signal(self):
-        """stop() ????????????????????"""
+        """`stop()` 发送终止信号后应停止消费且支持重复调用。"""
         spout = MockSpout()
         spout.start()
 
@@ -68,7 +72,7 @@ class TestBaseSpout:
         spout.stop()
 
     def test_spout_not_implemented_error(self):
-        """??? _handle_record ? BaseSpout ????????"""
+        """未覆写 `_handle_record()` 的 `BaseSpout` 应抛出框架异常。"""
         base = BaseSpout()
         with pytest.raises(CelestialFlowError, match='_handle_record must be implemented'):
             base._handle_record('anything')

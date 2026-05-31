@@ -8,12 +8,14 @@ class TestUtilFormat:
         assert format_repr("", 10) == ""
 
     def test_format_repr_truncation(self):
+        """测试超长文本会按规则截断并补省略号。"""
         long_str = "this is a very very very long string that needs to be truncated"
         result = format_repr(long_str, 30)
         assert "..." in result
         assert len(result) <= 33  # 20 (first 2/3) + 3 dots + 10 (last 1/3)
 
     def test_format_repr_edge_cases(self):
+        """测试最小截断长度等边界输入。"""
         assert format_repr("abcde", 3) == "ab...e"
         assert format_repr("abcdef", 3) == "ab...f"
 
@@ -39,6 +41,7 @@ class TestUtilFormat:
         assert format_table(data) == expected
 
     def test_format_table_with_names(self):
+        """测试自定义行列名称时的表格渲染。"""
         data = [["apple", 10], ["banana", 20]]
         row_names = ["Fruit A", "Fruit B"]
         column_names = ["Name", "Count"]
