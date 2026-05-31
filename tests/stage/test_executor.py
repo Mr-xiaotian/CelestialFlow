@@ -1,6 +1,7 @@
 import pytest
 
 from celestialflow import TaskExecutor
+from celestialflow.runtime.util_errors import ExecutionModeError
 
 
 # =========================
@@ -232,7 +233,7 @@ class TestExecutorSuccessCache:
 class TestExecutorConfig:
     def test_invalid_execution_mode(self):
         """测试配置非法执行模式时抛出异常"""
-        with pytest.raises(Exception):
+        with pytest.raises(ExecutionModeError):
             TaskExecutor("AddOneInvalidMode", add_one, execution_mode="invalid")
 
     def test_get_summary(self):
@@ -242,4 +243,3 @@ class TestExecutorConfig:
         assert summary["name"] == "AddOneSummary"
         assert summary["func_name"] == "add_one"
         assert summary["execution_mode"] == "serial"
-

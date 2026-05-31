@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 from queue import Queue
 from typing import Any
+from weakref import WeakKeyDictionary
 
 import pytest
 
@@ -19,6 +20,8 @@ from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.core_dispatch import TaskDispatch
 from celestialflow.runtime.util_types import TerminationSignal
 from celestialflow.stage import TaskExecutor
+
+_RESULT_COLLECTORS: WeakKeyDictionary[TaskExecutor, Queue[Any]] = WeakKeyDictionary()
 
 
 # ── 工具函数 ──────────────────────────────────────────
@@ -87,9 +90,10 @@ def _make_executor(
     e.add_retry_exceptions(ValueError)
     e.init_env()
     e.ctree_client = _CtreeStub()  # type: ignore[assignment]
-    # 添加测试结果收集队列，通过公开 API add_queue() 注册到 result_queue 下游
-    e._test_result_queue: Queue[Any] = Queue()
-    e.result_queue.add_queue(e._test_result_queue, name="test_collector")  # type: ignore[union-attr]
+    # 通过公开 API 为测试注册结果收集队列，避免向 executor 注入测试专用属性
+    collector: Queue[Any] = Queue()
+    e.result_queue.add_queue(collector, name="test_collector")  # type: ignore[union-attr]
+    _RESULT_COLLECTORS[e] = collector
     return e
 
 
@@ -112,7 +116,7 @@ def _put_termination(executor: TaskExecutor, ids: list[int] | None = None) -> No
 
 def _collect_results(executor: TaskExecutor) -> list[Any]:
     results: list[Any] = []
-    q = executor._test_result_queue  # type: ignore[attr-defined]
+    q = _RESULT_COLLECTORS[executor]
     while not q.empty():
         results.append(q.get())
     return results

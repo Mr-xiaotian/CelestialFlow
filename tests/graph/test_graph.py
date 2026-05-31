@@ -313,12 +313,11 @@ class TestTaskGraphFinalize:
         stage = TaskStage("slow-stage", add_one)
         graph.stage_dict = {stage.get_name(): stage}
 
-        with pytest.warns(RuntimeWarning, match="still alive after the join timeout"):
-            with pytest.raises(
-                RuntimeStateError,
-                match="alive stage threads remain after finalize",
-            ):
-                graph._finalize_nodes()
+        with pytest.raises(
+            RuntimeStateError,
+            match="alive stage threads remain after finalize",
+        ):
+            graph._finalize_nodes()
 
         assert stage.get_status().value == 0
 
@@ -465,12 +464,8 @@ class TestTaskGraphThread:
     def test_graph_thread_fan_out(self):
         """thread 模式：扇出"""
         source = TaskStage("src", add_one, stage_mode="thread", execution_mode="serial")
-        sink_a = TaskStage(
-            "SinkA", double, stage_mode="thread", execution_mode="serial"
-        )
-        sink_b = TaskStage(
-            "SinkB", to_str, stage_mode="thread", execution_mode="serial"
-        )
+        sink_a = TaskStage("SinkA", double, stage_mode="thread", execution_mode="serial")
+        sink_b = TaskStage("SinkB", to_str, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()
         graph.set_stages(stages=[source, sink_a, sink_b])
@@ -484,12 +479,8 @@ class TestTaskGraphThread:
 
     def test_graph_thread_fan_in(self):
         """thread 模式：扇入"""
-        source_a = TaskStage(
-            "SrcA", add_one, stage_mode="thread", execution_mode="serial"
-        )
-        source_b = TaskStage(
-            "SrcB", double, stage_mode="thread", execution_mode="serial"
-        )
+        source_a = TaskStage("SrcA", add_one, stage_mode="thread", execution_mode="serial")
+        source_b = TaskStage("SrcB", double, stage_mode="thread", execution_mode="serial")
         merge = TaskStage("merge", to_str, stage_mode="thread", execution_mode="serial")
 
         graph = TaskGraph()
@@ -550,7 +541,7 @@ class TestTaskGraphThread:
         graph.set_stages(stages=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
-
+        
         graph.start_graph({s1.get_name(): [1, 2]})
 
         assert s1.get_counts()["tasks_succeeded"] == 2

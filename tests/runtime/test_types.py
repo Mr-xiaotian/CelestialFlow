@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from dataclasses import FrozenInstanceError
 
 from celestialflow.runtime.util_types import (
     CTreeEvent,
@@ -277,7 +278,7 @@ class TestUtilTypes:
         )
         import pytest
 
-        with pytest.raises(Exception):  # dataclasses.FrozenInstanceError
+        with pytest.raises(FrozenInstanceError):
             rec.error_type = "changed"
 
     def test_persisted_error_record_str(self):
