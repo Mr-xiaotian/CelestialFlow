@@ -1,5 +1,45 @@
 from datetime import datetime
 
+
+def test_store_snapshot_methods_return_isolated_copies(web_server):
+    """测试 server 快照接口：返回值不应与内部 store 共享可变引用"""
+    raw_status = {"s1": {"tasks_succeeded": 1, "total_remaining_time": 2.0}}
+    raw_structure = [{"name": "s1"}]
+    raw_analysis = {"isDAG": True}
+    raw_errors = [{"error_id": 1, "stage": "s1"}]
+
+    web_server.update_status_store(123.0, raw_status)
+    web_server.update_structure_store(raw_structure)
+    web_server.update_analysis_store(raw_analysis)
+    web_server.update_errors_store(7, "dummy.jsonl", raw_errors)
+
+    _, status_timestamp, status_snapshot = web_server.get_status_snapshot()
+    _, structure_snapshot = web_server.get_structure_snapshot()
+    _, analysis_snapshot = web_server.get_analysis_snapshot()
+    _, errors_snapshot = web_server.get_errors_snapshot()
+
+    raw_status["s1"]["tasks_succeeded"] = 99
+    raw_structure[0]["name"] = "mutated"
+    raw_analysis["isDAG"] = False
+    raw_errors[0]["stage"] = "mutated"
+    status_snapshot["s1"]["tasks_succeeded"] = 88
+    structure_snapshot[0]["name"] = "snapshot-mutated"
+    analysis_snapshot["isDAG"] = False
+    errors_snapshot[0]["stage"] = "snapshot-mutated"
+
+    _, status_timestamp_after, status_snapshot_after = web_server.get_status_snapshot()
+    _, structure_snapshot_after = web_server.get_structure_snapshot()
+    _, analysis_snapshot_after = web_server.get_analysis_snapshot()
+    _, errors_snapshot_after = web_server.get_errors_snapshot()
+
+    assert status_timestamp == 123.0
+    assert status_timestamp_after == 123.0
+    assert status_snapshot_after["s1"]["tasks_succeeded"] == 1
+    assert structure_snapshot_after[0]["name"] == "s1"
+    assert analysis_snapshot_after["isDAG"] is True
+    assert errors_snapshot_after[0]["stage"] == "s1"
+
+
 def test_index_page(client):
     """测试 Web 仪表盘首页：验证 HTML 模板是否渲染正确且包含关键 DOM 容器"""
     response = client.get("/")

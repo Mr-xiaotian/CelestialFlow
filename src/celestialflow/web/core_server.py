@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import os
 import threading
 from typing import Any, cast
@@ -61,6 +62,12 @@ class TaskWebServer:
         self.summary_store: dict[str, Any] = {}
         self.injection_tasks: list[dict[str, Any]] = []  # 存储前端注入任务
 
+        # 各类 store 的 rev + payload 需要原子读写，避免 pull 读到撕裂快照
+        self.status_lock: threading.Lock = threading.Lock()
+        self.structure_lock: threading.Lock = threading.Lock()
+        self.errors_lock: threading.Lock = threading.Lock()
+        self.analysis_lock: threading.Lock = threading.Lock()
+
         # 用于存储任务注入锁
         self.task_injection_lock: threading.Lock = threading.Lock()
 
@@ -86,6 +93,67 @@ class TaskWebServer:
         self.config_path: str = CONFIG_PATH
 
         self._setup_routes()
+
+    # ==== Store Snapshot ====
+    def update_structure_store(self, items: list[dict[str, Any]]) -> None:
+        """原子更新结构数据及其版本号。"""
+        with self.structure_lock:
+            self.structure_store = copy.deepcopy(items)
+            self.store_revs["structure"] += 1
+
+    def get_structure_snapshot(self) -> tuple[int, list[dict[str, Any]]]:
+        """原子读取结构数据快照。"""
+        with self.structure_lock:
+            return self.store_revs["structure"], copy.deepcopy(self.structure_store)
+
+    def update_status_store(
+        self, timestamp: float, status: dict[str, dict[str, Any]]
+    ) -> None:
+        """原子更新状态数据、时间戳及其版本号。"""
+        with self.status_lock:
+            self.status_timestamp = timestamp
+            self.status_store = copy.deepcopy(status)
+            self.store_revs["status"] += 1
+
+    def get_status_snapshot(self) -> tuple[int, float, dict[str, dict[str, Any]]]:
+        """原子读取状态快照。"""
+        with self.status_lock:
+            return (
+                self.store_revs["status"],
+                self.status_timestamp,
+                copy.deepcopy(self.status_store),
+            )
+
+    def is_errors_cache_hit(self, rev: int, path: str) -> bool:
+        """判断错误缓存是否命中。"""
+        with self.errors_lock:
+            return rev == self.errors_meta_rev and path == self.errors_meta_path
+
+    def update_errors_store(
+        self, rev: int, path: str, errors: list[dict[str, Any]]
+    ) -> None:
+        """原子更新错误缓存元信息、错误内容及其版本号。"""
+        with self.errors_lock:
+            self.error_store = copy.deepcopy(errors)
+            self.errors_meta_rev = rev
+            self.errors_meta_path = path
+            self.store_revs["errors"] += 1
+
+    def get_errors_snapshot(self) -> tuple[int, list[dict[str, Any]]]:
+        """原子读取错误数据快照。"""
+        with self.errors_lock:
+            return self.store_revs["errors"], copy.deepcopy(self.error_store)
+
+    def update_analysis_store(self, analysis: dict[str, Any]) -> None:
+        """原子更新图分析数据及其版本号。"""
+        with self.analysis_lock:
+            self.analysis_store = copy.deepcopy(analysis)
+            self.store_revs["analysis"] += 1
+
+    def get_analysis_snapshot(self) -> tuple[int, dict[str, Any]]:
+        """原子读取图分析快照。"""
+        with self.analysis_lock:
+            return self.store_revs["analysis"], copy.deepcopy(self.analysis_store)
 
     def _setup_routes(self) -> None:
         """注册所有 HTTP 路由（页面入口、pull 接口、push 接口）。"""

@@ -63,8 +63,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         :param data: 图结构数据
         :return: {"ok": True}
         """
-        server.structure_store = data.items
-        server.store_revs["structure"] += 1
+        server.update_structure_store(data.items)
         return {"ok": True}
 
     @router.post("/api/push_status")
@@ -75,18 +74,11 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         :param data: 节点状态数据
         :return: {"ok": True}
         """
-        server.status_timestamp = float(data.timestamp)
-        server.status_store = data.status
-        server.store_revs["status"] += 1
+        server.update_status_store(float(data.timestamp), data.status)
         return {"ok": True}
 
     def _is_errors_cache_hit(rev: int, path: str) -> bool:
-        return rev == server.errors_meta_rev and path == server.errors_meta_path
-
-    def _update_errors_cache(rev: int, path: str) -> None:
-        server.errors_meta_rev = rev
-        server.errors_meta_path = path
-        server.store_revs["errors"] += 1
+        return server.is_errors_cache_hit(rev, path)
 
     @router.post("/api/push_errors_meta")
     async def push_errors_meta(data: ErrorsMetaModel) -> dict[str, Any]:
@@ -102,7 +94,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
 
         try:
             # 不命中：更新 key 并全量加载
-            server.error_store = await anyio.to_thread.run_sync(  # type: ignore[reportUnknownMemberType]
+            errors = await anyio.to_thread.run_sync(  # type: ignore[reportUnknownMemberType]
                 partial(
                     load_jsonl_logs,
                     path=data.jsonl_path,
@@ -116,7 +108,11 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
                     ],
                 )
             )
-            _update_errors_cache(data.rev, data.jsonl_path)
+            errors = cast(
+                list[dict[str, Any]],
+                errors,
+            )
+            server.update_errors_store(data.rev, data.jsonl_path, errors)
             return {"ok": True, "cached": False}
         except Exception as e:
             return {
@@ -137,8 +133,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         if _is_errors_cache_hit(data.rev, data.jsonl_path):
             return {"ok": True, "cached": True}
 
-        server.error_store = data.errors
-        _update_errors_cache(data.rev, data.jsonl_path)
+        server.update_errors_store(data.rev, data.jsonl_path, data.errors)
         return {"ok": True, "cached": False}
 
     @router.post("/api/push_analysis")
@@ -149,8 +144,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         :param data: 图分析数据
         :return: {"ok": True}
         """
-        server.analysis_store = data.analysis
-        server.store_revs["analysis"] += 1
+        server.update_analysis_store(data.analysis)
         return {"ok": True}
 
     @router.post("/api/push_injection_tasks", response_model=None)

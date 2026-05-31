@@ -36,10 +36,10 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         :param known_rev: 客户端已知的版本号
         :return: {"rev": int, "data": list | None}
         """
-        rev: int = server.store_revs["structure"]
+        rev, structure_store = server.get_structure_snapshot()
         if known_rev == rev:
             return {"rev": rev, "data": None}
-        return {"rev": rev, "data": server.structure_store}
+        return {"rev": rev, "data": structure_store}
 
     @router.get("/api/pull_status")
     def pull_status(known_rev: int = -1) -> dict[str, Any]:
@@ -49,13 +49,13 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         :param known_rev: 客户端已知的版本号
         :return: {"rev": int, "timestamp": float, "data": dict | None}
         """
-        rev: int = server.store_revs["status"]
+        rev, status_timestamp, status_store = server.get_status_snapshot()
         if known_rev == rev:
-            return {"rev": rev, "timestamp": server.status_timestamp, "data": None}
+            return {"rev": rev, "timestamp": status_timestamp, "data": None}
         return {
             "rev": rev,
-            "timestamp": server.status_timestamp,
-            "data": server.status_store,
+            "timestamp": status_timestamp,
+            "data": status_store,
         }
 
     @router.get("/api/pull_errors")
@@ -76,7 +76,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         :param keyword: 关键词过滤，默认 ""
         :return: {"rev": int, "page": int, "page_size": int, "total": int, "total_pages": int, "data": list | None}
         """
-        rev: int = server.store_revs["errors"]
+        rev, error_store = server.get_errors_snapshot()
         (
             normalized_page,
             normalized_page_size,
@@ -84,7 +84,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
             normalized_keyword,
         ) = normalize_errors_query(page, page_size, node, keyword)
         filtered = filter_errors(
-            server.error_store, normalized_node, normalized_keyword
+            error_store, normalized_node, normalized_keyword
         )
         total, total_pages, page_items = paginate_errors(
             filtered, normalized_page, normalized_page_size
@@ -110,10 +110,10 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         :param known_rev: 客户端已知的版本号
         :return: {"rev": int, "data": dict | None}
         """
-        rev: int = server.store_revs["analysis"]
+        rev, analysis_store = server.get_analysis_snapshot()
         if known_rev == rev:
             return {"rev": rev, "data": None}
-        return {"rev": rev, "data": server.analysis_store}
+        return {"rev": rev, "data": analysis_store}
 
     @router.get("/api/pull_interval")
     def pull_interval() -> dict[str, float]:
