@@ -23,6 +23,7 @@ from ..runtime import TaskInQueue, TaskOutQueue
 from ..runtime.util_errors import (
     CelestialTreeConnectionError,
     DuplicateNodeError,
+    RuntimeStateError,
     ScheduleModeError,
     UnconsumedError,
 )
@@ -440,8 +441,18 @@ class TaskGraph:
         确保所有线程安全结束，更新节点状态，并导出每个节点队列剩余任务。
         """
         # 确保所有线程安全结束（线程不可 terminate，仅做 cooperative join）
+        alive_thread_names: list[str] = []
         for t in self.threads:
             t.join(timeout=10)
+            if t.is_alive():
+                alive_thread_names.append(t.name)
+
+        if alive_thread_names:
+            stage_names = ", ".join(sorted(alive_thread_names))
+            raise RuntimeStateError(
+                "TaskGraph shutdown incomplete; alive stage threads remain after finalize: "
+                f"{stage_names}"
+            )
 
         # 更新所有节点状态为"已停止"
         for stage in self.stage_dict.values():

@@ -60,11 +60,11 @@ class TaskReporter:
 
     def stop(self) -> None:
         """停止上报器线程"""
-        self._refresh_all()  # 最后一次
         self._stop_flag.set()
         if self._thread is not None:
             self._thread.join(timeout=2)
             self._thread = None
+        self._refresh_all()  # 最后一次
         self._session.close()
         self.log_inlet.stop_reporter()
 

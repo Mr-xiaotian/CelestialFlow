@@ -1,3 +1,5 @@
+import pytest
+
 from celestialflow import (
     TaskChain,
     TaskCross,
@@ -5,6 +7,7 @@ from celestialflow import (
     TaskGrid,
     TaskStage,
 )
+from celestialflow.runtime.util_errors import RuntimeStateError
 
 
 # =========================
@@ -289,6 +292,35 @@ class TestTaskGraphAnalysis:
         assert s1.get_name() in layers[0]
         assert s2.get_name() in layers[1]
         assert s3.get_name() in layers[2]
+
+
+class TestTaskGraphFinalize:
+    def test_finalize_nodes_raises_if_stage_threads_still_alive(self):
+        """收尾阶段若仍有存活线程，应中止危险清理并抛出运行时异常。"""
+        graph = TaskGraph()
+
+        class AliveThread:
+            name = "slow-stage"
+
+            def join(self, timeout=None) -> None:
+                return None
+
+            def is_alive(self) -> bool:
+                return True
+
+        graph.threads = [AliveThread()]
+
+        stage = TaskStage("slow-stage", add_one)
+        graph.stage_dict = {stage.get_name(): stage}
+
+        with pytest.warns(RuntimeWarning, match="still alive after the join timeout"):
+            with pytest.raises(
+                RuntimeStateError,
+                match="alive stage threads remain after finalize",
+            ):
+                graph._finalize_nodes()
+
+        assert stage.get_status().value == 0
 
 
 # =========================
