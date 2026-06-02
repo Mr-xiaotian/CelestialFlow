@@ -7,15 +7,15 @@ import os
 import threading
 from typing import Any, cast
 
-import uvicorn  # type: ignore[reportMissingImports]
-from fastapi import (  # type: ignore[reportMissingImports, reportUnknownVariableType]
+import uvicorn  
+from fastapi import (  
     FastAPI,
 )
 from fastapi.staticfiles import (
-    StaticFiles,  # type: ignore[reportMissingImports, reportUnknownVariableType]
+    StaticFiles,  
 )
 from fastapi.templating import (
-    Jinja2Templates,  # type: ignore[reportMissingImports, reportUnknownVariableType]
+    Jinja2Templates,  
 )
 
 from .routes import create_router
@@ -56,7 +56,11 @@ class TaskWebServer:
         # 用于存储状态、结构、错误信息
         self.status_store: dict[str, dict[str, Any]] = {}
         self.status_timestamp: float = 0.0
-        self.structure_store: list[dict[str, Any]] = []
+        self.structure_store: dict[str, Any] = {
+            "nodes": {},
+            "edges": {},
+            "source_nodes": [],
+        }
         self.error_store: list[dict[str, Any]] = []
         self.analysis_store: dict[str, Any] = {}
         self.summary_store: dict[str, Any] = {}
@@ -95,13 +99,13 @@ class TaskWebServer:
         self._setup_routes()
 
     # ==== Store Snapshot ====
-    def update_structure_store(self, items: list[dict[str, Any]]) -> None:
+    def update_structure_store(self, structure: dict[str, Any]) -> None:
         """原子更新结构数据及其版本号。"""
         with self.structure_lock:
-            self.structure_store = copy.deepcopy(items)
+            self.structure_store = copy.deepcopy(structure)
             self.store_revs["structure"] += 1
 
-    def get_structure_snapshot(self) -> tuple[int, list[dict[str, Any]]]:
+    def get_structure_snapshot(self) -> tuple[int, dict[str, Any]]:
         """原子读取结构数据快照。"""
         with self.structure_lock:
             return self.store_revs["structure"], copy.deepcopy(self.structure_store)

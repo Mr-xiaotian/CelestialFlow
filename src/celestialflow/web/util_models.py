@@ -11,7 +11,7 @@ from pydantic import BaseModel
 class StructureModel(BaseModel):
     """任务结构数据模型"""
 
-    items: list[dict[str, Any]]
+    structure: dict[str, Any]
 
 
 class StatusModel(BaseModel):

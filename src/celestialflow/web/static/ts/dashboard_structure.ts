@@ -4,13 +4,24 @@
  */
 
 // 全局状态
-let structureData = []; // 任务结构图数据（有向图）
+let structureData: StructureGraph = {
+  nodes: {},
+  edges: {},
+  source_nodes: [],
+}; // 任务结构图数据（有向图）
 let structureRev = -1; // 数据版本号，用于增量拉取
 
-type StructureNode = {
-  name: string;
+type StructureNodeMeta = {
   func_name: string;
-  next_stages?: StructureNode[];
+  execution_mode?: string;
+  stage_mode?: string;
+  max_workers?: number;
+};
+
+type StructureGraph = {
+  nodes: Record<string, StructureNodeMeta>;
+  edges: Record<string, string[]>;
+  source_nodes: string[];
 };
 
 /**
@@ -34,11 +45,31 @@ async function loadStructure(): Promise<boolean> {
 
 /**
  * 获取节点的唯一标识符 ID
- * @param {{ name: string }} node - 结构图节点对象，至少需要包含 `name` 字段。
+ * @param {string} nodeName - 节点名称。
  * @returns {string} 替换非单词字符后的节点 ID
  */
-function getNodeId(node: StructureNode): string {
-  return node.name.replace(/\W+/g, "_");
+function getNodeId(nodeName: string): string {
+  return nodeName.replace(/\W+/g, "_");
+}
+
+/**
+ * 根据节点元信息推导 Mermaid 形状类型
+ * @param {StructureNodeMeta} nodeMeta - 节点元信息
+ * @returns {string} Mermaid 形状名称
+ */
+function getNodeShape(nodeMeta: StructureNodeMeta): string {
+  switch (nodeMeta.func_name) {
+    case "_split":
+      return "subgraph";
+    case "_route":
+      return "rhombus";
+    case "_transport":
+    case "_source":
+    case "_ack":
+      return "parallelogram";
+    default:
+      return "box";
+  }
 }
 
 /**
@@ -88,7 +119,10 @@ function getShapeWrappedLabel(label: string, shape: string = "box"): string {
  * @returns {void}
  */
 function renderMermaidStructure(statuses: Record<string, NodeStatus> = {}) {
-  if (!structureData.length) {
+  const { nodes = {}, edges = {}, source_nodes = [] } = structureData || {};
+  const nodeNames = Object.keys(nodes);
+
+  if (!nodeNames.length) {
     const old = document.getElementById("mermaid-container");
     const newDiv = document.createElement("div");
     newDiv.id = "mermaid-container";
@@ -98,9 +132,9 @@ function renderMermaidStructure(statuses: Record<string, NodeStatus> = {}) {
     return;
   }
 
-  const edges = new Set();
-  const nodeLabels = new Map();
-  const classDefs = [];
+  const mermaidEdges = new Set<string>();
+  const nodeLabels = new Map<string, string>();
+  const classDefs = new Set<string>();
 
   // 判断是否是暗黑主题
   const isDark = document.body.classList.contains("dark-theme");
@@ -122,54 +156,50 @@ classDef blueNode fill:#e0f2fe,stroke:#0ea5e9,stroke-width:2px;
 linkStyle default stroke:#999,stroke-width:1.5px;
 `;
 
-  function walk(node: StructureNode) {
-    const id = getNodeId(node);
-    const label = `${node.name}`;
+  const orderedNodeNames = [
+    ...source_nodes.filter((name) => name in nodes),
+    ...nodeNames.filter((name) => !source_nodes.includes(name)),
+  ];
 
-    let shape = "box";
-    if (node.func_name === "_split") shape = "subgraph";
-    else if (node.func_name === "_route") shape = "rhombus";
-    else if (node.func_name === "_transport") shape = "parallelogram";
-    else if (node.func_name === "_source") shape = "parallelogram";
-    else if (node.func_name === "_ack") shape = "parallelogram";
+  for (const nodeName of orderedNodeNames) {
+    const nodeMeta = nodes[nodeName];
+    const id = getNodeId(nodeName);
+    nodeLabels.set(id, getShapeWrappedLabel(nodeName, getNodeShape(nodeMeta)));
 
-    nodeLabels.set(id, getShapeWrappedLabel(label, shape));
-
-    // 🧠 找对应状态 class
-    const statusInfo = statuses[node.name];
+    const statusInfo = statuses[nodeName];
     let statusClass = "whiteNode";
     if (statusInfo) {
       if (statusInfo.status === 1) statusClass = "greenNode";
       else if (statusInfo.status === 2) statusClass = "greyNode";
     }
-    classDefs.push(`  class ${id} ${statusClass};`);
+    classDefs.add(`  class ${id} ${statusClass};`);
+  }
 
-    for (const child of node.next_stages || []) {
-      const toId = getNodeId(child);
-      
-      // TODO: 根据状态信息动态调整边的标签，比如显示增量等
+  for (const [fromName, toNames] of Object.entries(edges)) {
+    if (!(fromName in nodes)) continue;
+    const fromId = getNodeId(fromName);
+    const statusInfo = statuses[fromName];
+    for (const toName of toNames || []) {
+      if (!(toName in nodes)) continue;
+      const toId = getNodeId(toName);
+
       let edgeLabel = "";
       if (webConfig?.showStructureEdgeDelta) {
-        const lastInfo = lastNodeStatuses[node.name] || ({} as NodeStatus);
+        const lastInfo = lastNodeStatuses[fromName] || ({} as NodeStatus);
         const addNum = (statusInfo?.tasks_succeeded || 0) - (lastInfo?.tasks_succeeded || 0);
         edgeLabel = addNum > 0 ? `|+${addNum}|` : "";
       }
-      edges.add(`  ${id} -->${edgeLabel} ${toId}`);
-
-      // edges.add(`  ${id} --> ${toId}`);
-      walk(child);
+      mermaidEdges.add(`  ${fromId} -->${edgeLabel} ${toId}`);
     }
   }
-
-  structureData.forEach((graph) => walk(graph));
 
   const defs = [...nodeLabels.entries()].map(
     ([id, shapeLabel]) => `  ${id}${shapeLabel}`
   );
 
-  const mermaidCode = `graph TD\n${defs.join("\n")}\n${[...edges].join(
+  const mermaidCode = `graph TD\n${defs.join("\n")}\n${[...mermaidEdges].join(
     "\n"
-  )}\n${classDefs.join("\n")}\n${styleBlock}`;
+  )}\n${[...classDefs].join("\n")}\n${styleBlock}`;
 
   const old = document.getElementById("mermaid-container");
   const newDiv = document.createElement("div");

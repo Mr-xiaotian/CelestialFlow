@@ -63,7 +63,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         :param data: 图结构数据
         :return: {"ok": True}
         """
-        server.update_structure_store(data.items)
+        server.update_structure_store(data.structure)
         return {"ok": True}
 
     @router.post("/api/push_status")
