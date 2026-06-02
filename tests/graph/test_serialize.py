@@ -55,38 +55,32 @@ class TestUtilSerialize:
         }
 
     def test_build_structure_graph_dag(self, mock_graph_data):
-        """验证 DAG 结构会被递归展开并复用引用节点。"""
+        """验证 DAG 结构会序列化为 nodes、edges、source_nodes。"""
         s1 = mock_graph_data["s1"]
         stage_dict = mock_graph_data["stage_dict"]
         out_edges = mock_graph_data["out_edges"]
 
-        graphs = build_structure_graph([s1], out_edges, stage_dict)
-        assert len(graphs) == 1
-        graph = graphs[0]
+        graph = build_structure_graph(stage_dict, out_edges, [s1])
 
-        assert graph["name"] == "s1"
-        assert len(graph["next_stages"]) == 2
-        assert graph["next_stages"][0]["name"] == "s2"
-        assert graph["next_stages"][1]["name"] == "s3"
-        assert graph["next_stages"][0]["next_stages"][0]["name"] == "s4"
-        assert graph["next_stages"][1]["next_stages"][0]["name"] == "s4"
-        assert graph["next_stages"][1]["next_stages"][0]["is_ref"] is True
+        assert graph["source_nodes"] == ["s1"]
+        assert set(graph["nodes"]) == {"s1", "s2", "s3", "s4"}
+        assert graph["nodes"]["s1"]["func_name"] == "<lambda>"
+        assert graph["nodes"]["s2"]["stage_mode"] == "thread"
+        assert graph["nodes"]["s2"]["execution_mode"] == "async"
+        assert graph["nodes"]["s4"]["max_workers"] == 2
+        assert graph["edges"] == out_edges
 
     def test_build_structure_graph_cyclic(self, mock_graph_data):
-        """验证环图结构会在回边处标记引用节点。"""
+        """验证环图结构仍能序列化出稳定的邻接表和入口节点。"""
         cs1 = mock_graph_data["cs1"]
         cyclic_stage_dict = mock_graph_data["cyclic_stage_dict"]
         cyclic_out_edges = mock_graph_data["cyclic_out_edges"]
 
-        graphs = build_structure_graph([cs1], cyclic_out_edges, cyclic_stage_dict)
-        assert len(graphs) == 1
-        graph = graphs[0]
+        graph = build_structure_graph(cyclic_stage_dict, cyclic_out_edges, [cs1])
 
-        assert graph["name"] == "cs1"
-        assert graph["next_stages"][0]["name"] == "cs2"
-        assert graph["next_stages"][0]["next_stages"][0]["name"] == "cs3"
-        assert graph["next_stages"][0]["next_stages"][0]["next_stages"][0]["name"] == "cs1"
-        assert graph["next_stages"][0]["next_stages"][0]["next_stages"][0]["is_ref"] is True
+        assert graph["source_nodes"] == ["cs1"]
+        assert set(graph["nodes"]) == {"cs1", "cs2", "cs3"}
+        assert graph["edges"] == cyclic_out_edges
 
     def test_format_structure_list_from_graph(self, mock_graph_data):
         """验证结构图能够格式化为可读的结构列表。"""
@@ -94,8 +88,8 @@ class TestUtilSerialize:
         stage_dict = mock_graph_data["stage_dict"]
         out_edges = mock_graph_data["out_edges"]
 
-        graphs = build_structure_graph([s1], out_edges, stage_dict)
-        formatted_list = format_structure_list_from_graph(graphs)
+        graph = build_structure_graph(stage_dict, out_edges, [s1])
+        formatted_list = format_structure_list_from_graph(graph)
 
         assert len(formatted_list) > 0
         assert "s1::<lambda> (S:serial, E:serial, W:2)" in formatted_list[1]

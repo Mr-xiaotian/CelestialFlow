@@ -332,6 +332,22 @@ class TestTaskGraphFinalize:
         assert stage.get_status().value == 0
 
 
+class TestTaskGraphRuntimeSnapshot:
+    def test_collect_runtime_snapshot_tolerates_not_started_stage(self):
+        """Reporter 在节点尚未启动时采集快照也不应因缺少 start_time 崩溃。"""
+        graph = TaskGraph()
+        stage = TaskStage("idle-stage", add_one)
+        graph.stage_dict = {stage.get_name(): stage}
+        graph.is_dag = False
+
+        graph.collect_runtime_snapshot()
+
+        snapshot = graph.status_dict[stage.get_name()]
+        assert snapshot["status"].value == 0
+        assert snapshot["start_time"] == 0.0
+        assert snapshot["elapsed_time"] == 0
+
+
 # =========================
 # stage_mode × execution_mode 2×3 矩阵测试
 # =========================
