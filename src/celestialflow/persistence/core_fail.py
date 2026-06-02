@@ -103,15 +103,15 @@ class FailInlet(BaseInlet):
         """
         super().__init__(fail_queue)
 
-    def start_graph(self, structure_json: list[Any]) -> None:
+    def start_graph(self, structure_graph: dict[str, Any]) -> None:
         """
         在运行开始时写入任务结构元信息到 jsonl 文件
 
-        :param structure_json: 任务图结构 JSON
+        :param structure_graph: 任务图结构 JSON
         """
         meta_item = {
             "timestamp": datetime.now().isoformat(),
-            "structure": structure_json,
+            "structure": structure_graph,
         }
         self._funnel(meta_item)
 

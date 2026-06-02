@@ -242,8 +242,8 @@ class TaskReporter:
     def _push_structure(self) -> None:
         """推送结构信息"""
         try:
-            structure: list[dict[str, Any]] = self.task_graph.get_structure_json()  # type: ignore[reportUnknownMemberType]
-            payload: dict[str, Any] = {"items": structure}
+            structure: dict[str, Any] = self.task_graph.get_structure_graph()  # type: ignore[reportUnknownMemberType]
+            payload: dict[str, Any] = {"structure": structure}
             _ = self._session.post(
                 f"{self.base_url}/api/push_structure",
                 json=payload,

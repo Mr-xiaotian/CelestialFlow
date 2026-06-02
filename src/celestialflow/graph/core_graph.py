@@ -293,8 +293,8 @@ class TaskGraph:
         source_names = find_source_nodes(self.networkx_graph)
         self.source_stages = [self.stage_dict[name] for name in source_names]
 
-        self.structure_json = build_structure_graph(
-            self.source_stages, self.out_edges, self.stage_dict
+        self.structure_graph = build_structure_graph(
+            self.stage_dict, self.out_edges, self.source_stages
         )
 
         self.is_dag = is_directed_acyclic_graph(self.networkx_graph)
@@ -365,7 +365,7 @@ class TaskGraph:
             self.fail_spout.start()
             self.log_spout.start()
             self.log_inlet.start_graph(self.get_structure_list())
-            self.fail_inlet.start_graph(self.get_structure_json())
+            self.fail_inlet.start_graph(self.get_structure_graph())
             self.reporter.start()
 
             self.put_stage_queue(init_tasks_dict, put_termination_signal)
@@ -663,13 +663,13 @@ class TaskGraph:
             "layersDict": self.layers_dict,
         }
 
-    def get_structure_json(self) -> list[dict[str, Any]]:
+    def get_structure_graph(self) -> dict[str, Any]:
         """
         获取任务图的 JSON 结构
 
-        :return: JSON 格式的任务图结构列表
+        :return: JSON 格式的任务图结构字典
         """
-        return self.structure_json
+        return self.structure_graph
 
     def get_structure_list(self) -> list[str]:
         """
@@ -677,7 +677,7 @@ class TaskGraph:
 
         :return: 带边框的格式化字符串列表
         """
-        return format_structure_list_from_graph(self.structure_json)
+        return format_structure_list_from_graph(self.structure_graph)
 
     def get_networkx_graph(self) -> DiGraph[Any]:
         """
