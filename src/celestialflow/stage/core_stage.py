@@ -61,6 +61,9 @@ class TaskStage(TaskExecutor):
         """初始化 stage 状态。"""
         if not hasattr(self, "_status"):
             self._status = int(StageStatus.NOT_STARTED)
+            
+        # Reporter 可能会在 stage 真正启动前先采集一次快照。
+        self.start_time = 0.0
 
     # ==== 配置 ====
     def set_stage_mode(self, stage_mode: str) -> None:
@@ -160,7 +163,8 @@ class TaskStage(TaskExecutor):
 
         :raises ExecutionModeError: execution_mode 不为合法值时触发
         """
-        self.start_time = time.perf_counter()
+        self.start_time = time.time()
+        _start = time.perf_counter()
 
         self._init_state()
 
@@ -188,7 +192,7 @@ class TaskStage(TaskExecutor):
                 self.get_name(),
                 self.stage_mode,
                 self._get_execution_mode_desc(),
-                time.perf_counter() - self.start_time,
+                time.perf_counter() - _start,
                 self.metrics.get_success_count(),
                 self.metrics.get_error_count(),
                 self.metrics.get_duplicate_count(),
