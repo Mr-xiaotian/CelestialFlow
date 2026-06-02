@@ -49,7 +49,7 @@ class TestTaskEnvelope:
         """测试 __slots__ 限制，确保不能为 TaskEnvelope 实例动态添加非法属性"""
         envelope = TaskEnvelope("x", id=1, source="test")
         with pytest.raises(AttributeError):
-            envelope.extra_attr = 123  # type: ignore[reportAttributeAccessIssue]
+            envelope.extra_attr = 123
 
 
 class TestObjectToHash:

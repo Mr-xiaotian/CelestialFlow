@@ -3,7 +3,7 @@ import json
 import time
 from typing import Any, cast
 
-import redis  # type: ignore[import-unresolved]
+import redis
 
 from ..runtime import TaskEnvelope
 from ..runtime.util_errors import (
@@ -298,7 +298,7 @@ class TaskRedisTransport(TaskStage):
     def init_redis(self) -> None:
         """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
-            self.redis_client = redis.Redis(  # type: ignore[reportUnknownMemberType]
+            self.redis_client = redis.Redis(
                 host=self.host,
                 port=self.port,
                 db=self.db,
@@ -380,7 +380,7 @@ class TaskRedisSource(TaskStage):
     def init_redis(self) -> None:
         """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
-            self.redis_client = redis.Redis(  # type: ignore[reportUnknownMemberType]
+            self.redis_client = redis.Redis(
                 host=self.host,
                 port=self.port,
                 db=self.db,
@@ -399,7 +399,8 @@ class TaskRedisSource(TaskStage):
         """
         self.init_redis()
 
-        res: Any = self.redis_client.blpop(self.key, timeout=self.timeout)  # type: ignore[reportUnknownMemberType]
+        redis_client = cast(Any, self.redis_client)
+        res = cast(list[Any] | None, redis_client.blpop(self.key, timeout=self.timeout))
         if res is None:
             raise CelestialFlowTimeoutError(
                 "Redis item not returned in time after being fetched"
@@ -470,7 +471,7 @@ class TaskRedisAck(TaskStage):
     def init_redis(self) -> None:
         """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
-            self.redis_client = redis.Redis(  # type: ignore[reportUnknownMemberType]
+            self.redis_client = redis.Redis(
                 host=self.host,
                 port=self.port,
                 db=self.db,

@@ -138,7 +138,7 @@ class TaskReporter:
                     for task in task_datas
                 ]
                 try:
-                    self.task_graph.put_stage_queue(  # type: ignore[reportUnknownMemberType]
+                    self.task_graph.put_stage_queue(
                         {target_stage: task_datas}, put_termination_signal=False
                     )
                     self.log_inlet.inject_tasks_success(target_stage, task_datas)
@@ -230,7 +230,7 @@ class TaskReporter:
     def _push_status(self) -> None:
         """推送状态信息"""
         try:
-            payload: dict[str, Any] = self.task_graph.get_status_snapshot()  # type: ignore[reportUnknownMemberType]
+            payload: dict[str, Any] = self.task_graph.get_status_snapshot()
             _ = self._session.post(
                 f"{self.base_url}/api/push_status",
                 json=payload,
@@ -242,7 +242,7 @@ class TaskReporter:
     def _push_structure(self) -> None:
         """推送结构信息"""
         try:
-            structure: dict[str, Any] = self.task_graph.get_structure_graph()  # type: ignore[reportUnknownMemberType]
+            structure: dict[str, Any] = self.task_graph.get_structure_graph()
             payload: dict[str, Any] = {"structure": structure}
             _ = self._session.post(
                 f"{self.base_url}/api/push_structure",
@@ -255,7 +255,7 @@ class TaskReporter:
     def _push_analysis(self) -> None:
         """推送分析信息"""
         try:
-            analysis: dict[str, Any] = self.task_graph.get_graph_analysis()  # type: ignore[reportUnknownMemberType]
+            analysis: dict[str, Any] = self.task_graph.get_graph_analysis()
             payload: dict[str, Any] = {"analysis": analysis}
             _ = self._session.post(
                 f"{self.base_url}/api/push_analysis",

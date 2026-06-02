@@ -25,7 +25,7 @@ def _make_graph(edges: dict[str, list[str]]) -> nx.DiGraph[str]:
     for dsts in edges.values():
         stage_names.update(dsts)
     stage_dict = {name: _MockStage() for name in stage_names}
-    return build_networkx_graph(edges, stage_dict)  # type: ignore[arg-type]
+    return build_networkx_graph(edges, stage_dict)
 
 
 # =========================

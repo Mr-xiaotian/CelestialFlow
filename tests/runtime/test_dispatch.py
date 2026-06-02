@@ -98,10 +98,10 @@ def _make_executor(
     e = TaskExecutor(name, func, max_retries=max_retries, log_level="SUCCESS")
     e.add_retry_exceptions(ValueError)
     e.init_env()
-    e.ctree_client = _CtreeStub()  # type: ignore[assignment]
+    e.ctree_client = _CtreeStub()
     # 通过公开 API 为测试注册结果收集队列，避免向 executor 注入测试专用属性
     collector: Queue[Any] = Queue()
-    e.result_queue.add_queue(collector, name="test_collector")  # type: ignore[union-attr]
+    e.result_queue.add_queue(collector, name="test_collector")
     _RESULT_COLLECTORS[e] = collector
     return e
 
@@ -110,7 +110,7 @@ def _put(executor: TaskExecutor, *items: Any) -> None:
     """向执行器输入队列写入任务信封。"""
     for num, i in enumerate(items):
         envelope = TaskEnvelope(task=i, id=num, source="test")
-        executor.task_queue.put(envelope)  # type: ignore[union-attr]
+        executor.task_queue.put(envelope)
 
 
 def _put_termination(executor: TaskExecutor, ids: list[int] | None = None) -> None:
@@ -121,7 +121,7 @@ def _put_termination(executor: TaskExecutor, ids: list[int] | None = None) -> No
     if ids is None:
         ids = [-1]
     # 使用 source="input" 触发直接退出路径，source_names 为空的单 executor 场景与之兼容
-    executor.task_queue.put(TerminationSignal(_id=ids[0], source="input"))  # type: ignore[union-attr]
+    executor.task_queue.put(TerminationSignal(_id=ids[0], source="input"))
 
 
 def _collect_results(executor: TaskExecutor) -> list[Any]:
@@ -228,9 +228,9 @@ class TestDispatchThread:
         """验证线程模式会统计重复任务。"""
         executor = _make_executor(_square)
         dispatch = TaskDispatch(executor, executor.func, max_workers=2)
-        executor.task_queue.put(TaskEnvelope(task=7, id=1, source="test"))  # type: ignore[union-attr]
-        executor.task_queue.put(TaskEnvelope(task=7, id=2, source="test"))  # type: ignore[union-attr]
-        executor.task_queue.put(TaskEnvelope(task=3, id=3, source="test"))  # type: ignore[union-attr]
+        executor.task_queue.put(TaskEnvelope(task=7, id=1, source="test"))
+        executor.task_queue.put(TaskEnvelope(task=7, id=2, source="test"))
+        executor.task_queue.put(TaskEnvelope(task=3, id=3, source="test"))
         _put_termination(executor)
         dispatch.dispatch_thread()
         results = _collect_results(executor)

@@ -4,7 +4,7 @@ from multiprocessing import Manager
 from multiprocessing import Queue as MPQueue
 from queue import Queue as ThreadQueue
 
-import redis  # type: ignore[import-unresolved]
+import redis
 from dotenv import load_dotenv
 
 load_dotenv()

@@ -1,7 +1,7 @@
 # runtime/util_estimators.py
 from __future__ import annotations
 
-import networkx as nx  # type: ignore[import-unresolved]
+import networkx as nx
 
 from .util_types import StageStatus
 
@@ -120,14 +120,14 @@ def calc_global_remain_equal_pred(
     # 每个节点的 scale（上游放大系数）
     scale: dict[str, float] = {}
 
-    for v in nx.topological_sort(G):  # type: ignore[misc]
+    for v in nx.topological_sort(G):
         v_str: str = v
         proc_v = float(processed_map.get(v_str, 0) or 0)
         pend_v = float(pending_map.get(v_str, 0) or 0)
         elapsed_v = float(elapsed_map.get(v_str, 0.0) or 0.0)
         seen_v = proc_v + pend_v
 
-        preds: list[str] = list(G.predecessors(v_str))  # type: ignore[arg-type]
+        preds: list[str] = list(G.predecessors(v_str))
         if not preds:
             # 没上游：就认为总量就是目前看到的量（不外推）
             total_v = seen_v

@@ -53,7 +53,7 @@ class TestTaskRouter:
 
         # 异常路由：格式错误
         with pytest.raises(TaskFormatError):
-            router._route("not_a_tuple")  # type: ignore
+            router._route("not_a_tuple")
 
     def test_router_process_success(self):
         """测试 TaskRouter 在图中：成功执行后任务应被正确路由到指定目标节点"""

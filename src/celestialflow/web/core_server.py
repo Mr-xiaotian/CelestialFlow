@@ -43,15 +43,15 @@ class TaskWebServer:
         :param port: 绑定端口，默认 5000
         :param log_level: uvicorn 日志级别，默认 "info"
         """
-        self.app: FastAPI = FastAPI()  # type: ignore[reportUnknownMemberType]
+        self.app: FastAPI = FastAPI()
         self.host: str = host
         self.port: int = port
         self.log_level: str = log_level
 
         if os.path.isdir(static_path):
-            self.app.mount("/static", StaticFiles(directory=static_path), name="static")  # type: ignore[reportUnknownMemberType]
+            self.app.mount("/static", StaticFiles(directory=static_path), name="static")
 
-        self.templates: Jinja2Templates = Jinja2Templates(directory=templates_path)  # type: ignore[reportUnknownMemberType]
+        self.templates: Jinja2Templates = Jinja2Templates(directory=templates_path)
 
         # 用于存储状态、结构、错误信息
         self.status_store: dict[str, dict[str, Any]] = {}
@@ -88,9 +88,9 @@ class TaskWebServer:
         }
 
         # 加载配置
-        config_raw: Any = WebConfigModel.model_validate(  # type: ignore[reportUnknownMemberType]
+        config_raw: Any = WebConfigModel.model_validate(
             load_config(CONFIG_PATH)
-        ).model_dump()  # type: ignore[reportUnknownMemberType]
+        ).model_dump()
         self.config: dict[str, Any] = cast(dict[str, Any], config_raw)
         self.report_interval: float = cal_interval(int(self.config["refreshInterval"]))
         self.config_lock: threading.Lock = threading.Lock()
@@ -165,7 +165,7 @@ class TaskWebServer:
 
     def start_server(self) -> None:
         """启动 uvicorn 服务，阻塞直到服务停止。"""
-        uvicorn.run(self.app, host=self.host, port=self.port, log_level=self.log_level)  # type: ignore[reportUnknownMemberType]
+        uvicorn.run(self.app, host=self.host, port=self.port, log_level=self.log_level)
 
 
 def parse_args() -> argparse.Namespace:

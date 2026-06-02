@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, cast
 
-import anyio
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+from anyio.to_thread import run_sync
 
 from ...persistence.util_jsonl import load_jsonl_logs
 from ..util_cal import cal_interval
@@ -94,7 +94,11 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
 
         try:
             # 不命中：更新 key 并全量加载
-            errors = await anyio.to_thread.run_sync(  # type: ignore[reportUnknownMemberType]
+            run_sync_typed = cast(
+                Callable[..., Awaitable[list[dict[str, Any]]]],
+                run_sync,
+            )
+            errors = await run_sync_typed(
                 partial(
                     load_jsonl_logs,
                     path=data.jsonl_path,
@@ -107,10 +111,6 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
                         "task_repr",
                     ],
                 )
-            )
-            errors = cast(
-                list[dict[str, Any]],
-                errors,
             )
             server.update_errors_store(data.rev, data.jsonl_path, errors)
             return {"ok": True, "cached": False}

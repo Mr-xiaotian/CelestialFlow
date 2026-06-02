@@ -5,7 +5,7 @@ import threading
 import time
 from multiprocessing import Manager, Process, Value
 
-import redis  # type: ignore[import-unresolved]
+import redis
 from dotenv import load_dotenv
 
 N = 10000
