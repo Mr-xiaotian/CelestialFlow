@@ -6,6 +6,7 @@
 let errors = []; // 错误记录列表
 let currentPage = 1; // 当前分页页码
 let pageSize = 10; // 每页显示条数
+let errorSortOrder = "newest"; // 错误日志默认排序
 let totalPages = 1; // 总页数
 let errorsRev = -1; // 数据版本号，用于增量拉取
 let lastQueryKey = ""; // 上次查询的缓存键，用于判断筛选条件是否变化
@@ -13,6 +14,7 @@ let errorsRequestSeq = 0; // 请求序列号，防止旧请求覆盖新结果
 // DOM 元素引用（错误页）
 const searchInput = document.getElementById("error-search");
 const nodeFilter = document.getElementById("node-filter");
+const errorSortSelect = document.getElementById("error-sort-order");
 const errorsTableBody = document.querySelector("#errors-table tbody");
 const paginationContainer = document.getElementById("pager-container");
 /**
@@ -23,8 +25,8 @@ const paginationContainer = document.getElementById("pager-container");
  * @param {string} keyword - 搜索关键词
  * @returns {string} 组合后的查询键
  */
-function buildErrorsQueryKey(page, pageSizeValue, node, keyword) {
-    return `${page}|${pageSizeValue}|${node}|${keyword}`;
+function buildErrorsQueryKey(page, pageSizeValue, node, keyword, sortOrder) {
+    return `${page}|${pageSizeValue}|${node}|${keyword}|${sortOrder}`;
 }
 /**
  * 从后端加载错误日志数据
@@ -35,7 +37,7 @@ async function loadErrors(forceReload = false) {
     try {
         const node = nodeFilter.value.trim();
         const keyword = (searchInput.value || "").trim();
-        const queryKey = buildErrorsQueryKey(currentPage, pageSize, node, keyword.toLowerCase());
+        const queryKey = buildErrorsQueryKey(currentPage, pageSize, node, keyword.toLowerCase(), errorSortOrder);
         const knownRev = forceReload || queryKey !== lastQueryKey ? -1 : errorsRev;
         const requestSeq = ++errorsRequestSeq;
         const params = new URLSearchParams({
@@ -44,6 +46,7 @@ async function loadErrors(forceReload = false) {
             page_size: String(pageSize),
             node,
             keyword,
+            sort_order: errorSortOrder,
         });
         const res = await fetch(`/api/pull_errors?${params.toString()}`);
         if (!res.ok)
@@ -53,6 +56,7 @@ async function loadErrors(forceReload = false) {
             return false;
         currentPage = Number(data.page || currentPage);
         totalPages = Number(data.total_pages || 1);
+        errorSortOrder = data.sort_order === "oldest" ? "oldest" : "newest";
         lastQueryKey = queryKey;
         if (data.data === null || data.data === undefined) {
             return false;
@@ -203,4 +207,16 @@ nodeFilter.addEventListener("change", async () => {
     currentPage = 1; // 切换节点时回到第一页
     await loadErrors(true);
     renderErrors();
+});
+errorSortSelect.addEventListener("change", async () => {
+    errorSortOrder = errorSortSelect.value === "oldest" ? "oldest" : "newest";
+    if (webConfig) {
+        webConfig.errorSortOrder = errorSortOrder;
+    }
+    currentPage = 1;
+    await loadErrors(true);
+    renderErrors();
+    if (webConfig) {
+        showSettingsSaveStatus((await saveWebConfig()) ? "settings.saveSuccess" : "settings.saveFailed");
+    }
 });

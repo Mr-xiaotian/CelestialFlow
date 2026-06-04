@@ -1,9 +1,11 @@
 {
     "theme": "light",
+    "autoRefreshEnabled": true,
     "refreshInterval": 2000,
     "historyLimit": 100,
     "language": "zh-CN",
     "errorPageSize": 20,
+    "errorSortOrder": "newest",
     "showStructureEdgeDelta": false,
     "dashboard": {
         "left": [

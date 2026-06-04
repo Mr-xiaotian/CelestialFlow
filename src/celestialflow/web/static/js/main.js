@@ -14,6 +14,7 @@ const settingsClose = document.getElementById("settings-close"); // 设置面板
 const settingsStatus = document.getElementById("settings-status"); // 设置保存状态提示
 const themeToggleBtn = document.getElementById("theme-toggle"); // 主题切换按钮
 const languageSelect = document.getElementById("language-select"); // 语言选择下拉框
+const autoRefreshToggle = document.getElementById("auto-refresh-toggle"); // 自动刷新开关
 const errorPageSizeSelect = document.getElementById("error-page-size"); // 错误每页条数下拉框
 const structureEdgeDeltaToggle = document.getElementById("structure-edge-delta"); // 结构图边增量显示开关
 const settingsCurrentGroup = document.getElementById("settings-current-group"); // 当前页设置分组
@@ -28,6 +29,19 @@ let settingsStatusTimer = null;
  */
 function toggleDarkTheme() {
     return document.body.classList.toggle("dark-theme");
+}
+/**
+ * 根据当前配置重建自动刷新定时器。
+ * @returns {void}
+ */
+function syncAutoRefreshTimer() {
+    if (refreshIntervalId) {
+        clearInterval(refreshIntervalId);
+        refreshIntervalId = null;
+    }
+    if (webConfig?.autoRefreshEnabled) {
+        refreshIntervalId = setInterval(refreshAll, refreshRate);
+    }
 }
 /**
  * 显示设置保存状态消息
@@ -172,8 +186,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         refreshRate = parseInt(refreshSelect.value);
         webConfig.refreshInterval = refreshRate;
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
-        clearInterval(refreshIntervalId);
-        refreshIntervalId = setInterval(refreshAll, refreshRate);
+        syncAutoRefreshTimer();
+    });
+    // 切换自动刷新开关：控制全局轮询并保存配置
+    autoRefreshToggle.addEventListener("change", async () => {
+        webConfig.autoRefreshEnabled = autoRefreshToggle.checked;
+        syncAutoRefreshTimer();
+        showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
     });
     // 切换历史长度限制：立即裁剪当前页面中的历史曲线并保存配置
     historyLimitSelect.addEventListener("change", async () => {
@@ -232,7 +251,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     initSortableDashboard(); // 初始化拖拽
     refreshAll(); // 启动轮询
     initChart(); // 初始化折线图
-    refreshIntervalId = setInterval(refreshAll, refreshRate);
+    syncAutoRefreshTimer();
 });
 /**
  * 主刷新函数：协调所有数据的更新和 UI 渲染

@@ -7,6 +7,7 @@
 let errors: any[] = []; // 错误记录列表
 let currentPage = 1; // 当前分页页码
 let pageSize = 10; // 每页显示条数
+let errorSortOrder: "newest" | "oldest" = "newest"; // 错误日志默认排序
 let totalPages = 1; // 总页数
 let errorsRev = -1; // 数据版本号，用于增量拉取
 let lastQueryKey = ""; // 上次查询的缓存键，用于判断筛选条件是否变化
@@ -15,6 +16,7 @@ let errorsRequestSeq = 0; // 请求序列号，防止旧请求覆盖新结果
 // DOM 元素引用（错误页）
 const searchInput = document.getElementById("error-search") as HTMLInputElement;
 const nodeFilter = document.getElementById("node-filter") as HTMLSelectElement;
+const errorSortSelect = document.getElementById("error-sort-order") as HTMLSelectElement;
 const errorsTableBody = document.querySelector("#errors-table tbody") as HTMLTableSectionElement;
 const paginationContainer = document.getElementById("pager-container") as HTMLElement;
 
@@ -26,8 +28,14 @@ const paginationContainer = document.getElementById("pager-container") as HTMLEl
  * @param {string} keyword - 搜索关键词
  * @returns {string} 组合后的查询键
  */
-function buildErrorsQueryKey(page: number, pageSizeValue: number, node: string, keyword: string) {
-  return `${page}|${pageSizeValue}|${node}|${keyword}`;
+function buildErrorsQueryKey(
+  page: number,
+  pageSizeValue: number,
+  node: string,
+  keyword: string,
+  sortOrder: string,
+) {
+  return `${page}|${pageSizeValue}|${node}|${keyword}|${sortOrder}`;
 }
 
 /**
@@ -39,7 +47,13 @@ async function loadErrors(forceReload = false): Promise<boolean> {
   try {
     const node = nodeFilter.value.trim();
     const keyword = (searchInput.value || "").trim();
-    const queryKey = buildErrorsQueryKey(currentPage, pageSize, node, keyword.toLowerCase());
+    const queryKey = buildErrorsQueryKey(
+      currentPage,
+      pageSize,
+      node,
+      keyword.toLowerCase(),
+      errorSortOrder,
+    );
     const knownRev = forceReload || queryKey !== lastQueryKey ? -1 : errorsRev;
     const requestSeq = ++errorsRequestSeq;
 
@@ -49,6 +63,7 @@ async function loadErrors(forceReload = false): Promise<boolean> {
       page_size: String(pageSize),
       node,
       keyword,
+      sort_order: errorSortOrder,
     });
     const res = await fetch(`/api/pull_errors?${params.toString()}`);
     if (!res.ok) return false;
@@ -58,6 +73,7 @@ async function loadErrors(forceReload = false): Promise<boolean> {
 
     currentPage = Number(data.page || currentPage);
     totalPages = Number(data.total_pages || 1);
+    errorSortOrder = data.sort_order === "oldest" ? "oldest" : "newest";
     lastQueryKey = queryKey;
 
     if (data.data === null || data.data === undefined) {
@@ -220,4 +236,19 @@ nodeFilter.addEventListener("change", async () => {
   currentPage = 1; // 切换节点时回到第一页
   await loadErrors(true);
   renderErrors();
+});
+
+errorSortSelect.addEventListener("change", async () => {
+  errorSortOrder = errorSortSelect.value === "oldest" ? "oldest" : "newest";
+  if (webConfig) {
+    webConfig.errorSortOrder = errorSortOrder;
+  }
+  currentPage = 1;
+  await loadErrors(true);
+  renderErrors();
+  if (webConfig) {
+    showSettingsSaveStatus(
+      (await saveWebConfig()) ? "settings.saveSuccess" : "settings.saveFailed",
+    );
+  }
 });

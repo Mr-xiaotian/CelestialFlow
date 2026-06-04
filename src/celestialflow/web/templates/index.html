@@ -169,6 +169,18 @@
                                     </option>
                                 </select>
                             </div>
+                            <div class="settings-item">
+                                <label
+                                    for="auto-refresh-toggle"
+                                    data-i18n="settings.autoRefresh"
+                                    >自动刷新</label
+                                >
+                                <input
+                                    id="auto-refresh-toggle"
+                                    class="settings-toggle"
+                                    type="checkbox"
+                                />
+                            </div>
                             <div
                                 id="settings-current-group"
                                 class="settings-scope-group"
@@ -238,6 +250,30 @@
                                     <option value="20">20</option>
                                     <option value="50">50</option>
                                     <option value="100">100</option>
+                                </select>
+                                </div>
+                                <div
+                                    class="settings-item"
+                                    data-settings-tab="errors"
+                                >
+                                <label
+                                    for="error-sort-order"
+                                    data-i18n="settings.errorSortOrder"
+                                    >默认排序方式</label
+                                >
+                                <select id="error-sort-order">
+                                    <option
+                                        value="newest"
+                                        data-i18n="settings.errorSortNewest"
+                                    >
+                                        最新优先
+                                    </option>
+                                    <option
+                                        value="oldest"
+                                        data-i18n="settings.errorSortOldest"
+                                    >
+                                        最旧优先
+                                    </option>
                                 </select>
                                 </div>
                                 <div

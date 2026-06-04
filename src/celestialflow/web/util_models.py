@@ -62,9 +62,11 @@ class WebConfigModel(BaseModel):
     """Web UI 全局配置模型"""
 
     theme: str
+    autoRefreshEnabled: bool = True
     refreshInterval: int
     historyLimit: int
     language: str = "zh-CN"
     errorPageSize: int = 10
+    errorSortOrder: str = "newest"
     showStructureEdgeDelta: bool = True
     dashboard: DashboardConfigModel

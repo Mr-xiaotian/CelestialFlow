@@ -65,6 +65,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         page_size: int = 10,
         node: str = "",
         keyword: str = "",
+        sort_order: str = "newest",
     ) -> dict[str, Any]:
         """
         返回错误日志分页数据；若版本未变则返回 data=null。
@@ -74,6 +75,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         :param page_size: 每页大小，默认 10
         :param node: 节点名称过滤，默认 ""
         :param keyword: 关键词过滤，默认 ""
+        :param sort_order: 排序方式，支持 newest / oldest
         :return: {"rev": int, "page": int, "page_size": int, "total": int, "total_pages": int, "data": list | None}
         """
         rev, error_store = server.get_errors_snapshot()
@@ -82,12 +84,13 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
             normalized_page_size,
             normalized_node,
             normalized_keyword,
-        ) = normalize_errors_query(page, page_size, node, keyword)
+            normalized_sort_order,
+        ) = normalize_errors_query(page, page_size, node, keyword, sort_order)
         filtered = filter_errors(
             error_store, normalized_node, normalized_keyword
         )
         total, total_pages, page_items = paginate_errors(
-            filtered, normalized_page, normalized_page_size
+            filtered, normalized_page, normalized_page_size, normalized_sort_order
         )
         normalized_page = min(normalized_page, total_pages)
 
@@ -97,6 +100,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
             "page_size": normalized_page_size,
             "total": total,
             "total_pages": total_pages,
+            "sort_order": normalized_sort_order,
         }
         if known_rev == rev:
             return {**base, "data": None}

@@ -2,10 +2,12 @@
 let webConfig = null; // 当前加载的 Web 配置
 const DEFAULT_WEB_CONFIG = {
     theme: "light",
+    autoRefreshEnabled: true,
     refreshInterval: 5000,
     historyLimit: 20,
     language: "zh-CN",
     errorPageSize: 50,
+    errorSortOrder: "newest",
     showStructureEdgeDelta: false,
     dashboard: {
         left: ["mermaid", "analysis"],
@@ -199,10 +201,12 @@ function applyConfig() {
         themeToggleBtn.textContent = t("theme.dark");
     }
     // 应用刷新间隔
+    webConfig.autoRefreshEnabled = webConfig.autoRefreshEnabled !== false;
     const interval = Number(webConfig.refreshInterval);
     refreshRate = Number.isFinite(interval) && interval > 0 ? interval : 5000;
     webConfig.refreshInterval = refreshRate;
     refreshSelect.value = refreshRate.toString();
+    autoRefreshToggle.checked = webConfig.autoRefreshEnabled;
     // 应用历史长度
     const limit = Number(webConfig.historyLimit);
     if (Number.isFinite(limit) && limit > 0) {
@@ -226,6 +230,11 @@ function applyConfig() {
             }
         }
     }
+    // 应用错误日志排序方式
+    webConfig.errorSortOrder =
+        webConfig.errorSortOrder === "oldest" ? "oldest" : "newest";
+    errorSortOrder = webConfig.errorSortOrder;
+    errorSortSelect.value = errorSortOrder;
     // 应用结构图边增量显示开关
     webConfig.showStructureEdgeDelta = webConfig.showStructureEdgeDelta !== false;
     structureEdgeDeltaToggle.checked = webConfig.showStructureEdgeDelta;

@@ -57,9 +57,11 @@ def test_config_api(client):
     response = client.get("/api/pull_config")
     assert response.status_code == 200
     data = response.json()
+    assert "autoRefreshEnabled" in data
     assert "refreshInterval" in data
     assert "theme" in data
     assert "showStructureEdgeDelta" in data
+    assert "errorSortOrder" in data
 
 def test_status_push_pull(client):
     """测试状态同步链路：验证已知版本号（known_rev）下的增量拉取逻辑"""
@@ -122,7 +124,7 @@ def test_errors_pagination(client):
     """测试错误日志分页与过滤 API：验证后端对错误记录的聚合与分页逻辑是否正确"""
     # 1. 模拟推送错误数据
     test_errors = [
-        {"error_id": i, "stage": f"s{i%2}", "task_repr": f"task{i}"}
+        {"error_id": i, "stage": f"s{i%2}", "task_repr": f"task{i}", "ts": i}
         for i in range(15)
     ]
     # 注意：由于 push_errors_meta 需要真实路径，我们直接用 push_errors_content
@@ -138,9 +140,18 @@ def test_errors_pagination(client):
     assert data_p1["total"] == 15
     assert data_p1["total_pages"] == 2
     assert len(data_p1["data"]) == 10
+    assert data_p1["sort_order"] == "newest"
+    assert data_p1["data"][0]["error_id"] == 14
 
     # 3. 测试过滤 (node=s0)
     resp_filter = client.get("/api/pull_errors?node=s0")
     data_filter = resp_filter.json()
     # 0, 2, 4, 6, 8, 10, 12, 14 -> 8条
     assert data_filter["total"] == 8
+
+    # 4. 测试排序（最旧优先）
+    resp_oldest = client.get("/api/pull_errors?sort_order=oldest&page_size=5")
+    data_oldest = resp_oldest.json()
+    assert data_oldest["sort_order"] == "oldest"
+    assert len(data_oldest["data"]) == 5
+    assert data_oldest["data"][0]["error_id"] == 0
