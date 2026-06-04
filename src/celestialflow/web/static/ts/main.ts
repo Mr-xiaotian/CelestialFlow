@@ -18,6 +18,9 @@ const themeToggleBtn = document.getElementById("theme-toggle") as HTMLButtonElem
 const languageSelect = document.getElementById("language-select") as HTMLSelectElement; // 语言选择下拉框
 const errorPageSizeSelect = document.getElementById("error-page-size") as HTMLSelectElement; // 错误每页条数下拉框
 const structureEdgeDeltaToggle = document.getElementById("structure-edge-delta") as HTMLInputElement; // 结构图边增量显示开关
+const settingsCurrentGroup = document.getElementById("settings-current-group") as HTMLElement; // 当前页设置分组
+const settingsCurrentEmpty = document.getElementById("settings-current-empty") as HTMLElement; // 当前页无专属设置提示
+const settingsCurrentItems = document.querySelectorAll<HTMLElement>("[data-settings-tab]"); // 当前页设置项列表
 const tabButtons = document.querySelectorAll<HTMLElement>(".tab-btn"); // 页签按钮列表
 const tabContents = document.querySelectorAll<HTMLElement>(".tab-content"); // 页签内容列表
 let settingsStatusTimer: ReturnType<typeof setTimeout> | null = null;
@@ -107,10 +110,56 @@ function toggleSettingsPanel(): void {
     openSettingsPanel();
 }
 
+/**
+ * 获取当前激活的页面标签。
+ * @returns {string} 当前激活 tab 的标识；默认返回 dashboard。
+ */
+function getActiveTab(): string {
+    const activeButton = document.querySelector<HTMLElement>(".tab-btn.active");
+    return activeButton?.getAttribute("data-tab") ?? "dashboard";
+}
+
+/**
+ * 根据当前页筛选设置项，只保留与当前页相关的配置。
+ * @returns {void}
+ */
+function updateCurrentPageSettings(): void {
+    const activeTab = getActiveTab();
+    let visibleCount = 0;
+
+    settingsCurrentItems.forEach((item) => {
+        const matched = item.dataset.settingsTab === activeTab;
+        item.classList.toggle("hidden", !matched);
+        if (matched) {
+            visibleCount += 1;
+        }
+    });
+
+    settingsCurrentEmpty.classList.toggle("hidden", visibleCount > 0);
+    settingsCurrentGroup.classList.remove("hidden");
+}
+
+/**
+ * 切换页签并同步设置面板中的“当前页生效”配置。
+ * @param {HTMLElement} button - 被点击的 tab 按钮。
+ * @returns {void}
+ */
+function activateTab(button: HTMLElement): void {
+    const tab = button.getAttribute("data-tab");
+    tabButtons.forEach((b) => b.classList.remove("active"));
+    tabContents.forEach((c) => c.classList.remove("active"));
+    button.classList.add("active");
+    if (tab) {
+        document.getElementById(tab)?.classList.add("active");
+    }
+    updateCurrentPageSettings();
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     // ==== 初始化配置 ====
     await loadWebConfig();
     applyConfig();
+    updateCurrentPageSettings();
 
     // ==== 事件绑定 ====
     // 点击齿轮按钮：切换设置面板显示/隐藏
@@ -205,13 +254,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 切换页签：高亮当前按钮并显示对应内容区
     tabButtons.forEach((button) => {
         button.addEventListener("click", () => {
-            const tab = button.getAttribute("data-tab");
-            tabButtons.forEach((b) => b.classList.remove("active"));
-            tabContents.forEach((c) => c.classList.remove("active"));
-            button.classList.add("active");
-            if (tab) {
-              document.getElementById(tab)?.classList.add("active");
-            }
+            activateTab(button);
         });
     });
 

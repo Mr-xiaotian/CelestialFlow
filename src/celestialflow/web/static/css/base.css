@@ -292,13 +292,46 @@ h1 {
 
 /* 设置面板分隔线 */
 .settings-divider {
-    border: none;
-    border-top: 1px solid var(--carbon-200);
-    margin: 0.4rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.6rem 0 0.3rem;
+    color: var(--carbon-500);
+
+    &::before,
+    &::after {
+        content: "";
+        flex: 1;
+        border-top: 1px solid var(--carbon-200);
+    }
+
+    .dark-theme & {
+        color: var(--carbon-400);
+    }
+
+    .dark-theme &::before,
+    .dark-theme &::after {
+        border-color: var(--carbon-600);
+    }
 }
 
-.dark-theme .settings-divider {
-    border-color: var(--carbon-600);
+.settings-divider-label {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.settings-empty {
+    padding: 0.4rem 0 0.2rem;
+    font-size: 0.78rem;
+    color: var(--carbon-500);
+    text-align: center;
+
+    .dark-theme & {
+        color: var(--carbon-400);
+    }
 }
 
 /* 设置项居中（用于操作按钮） */
