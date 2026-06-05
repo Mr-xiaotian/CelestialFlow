@@ -76,11 +76,12 @@ function escapeHtml(str: string) {
  * @returns {void}
  */
 function switchToErrorsTab(nodeFilter: string = "") {
-  document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-  document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
-
-  document.querySelector(`.tab-btn[data-tab="errors"]`)?.classList.add("active");
-  document.getElementById("errors")?.classList.add("active");
+  const errorsTabButton = document.querySelector<HTMLElement>(
+    `.tab-btn[data-tab="errors"]`,
+  );
+  if (errorsTabButton) {
+    activateTab(errorsTabButton);
+  }
 
   const filterEl = document.getElementById("node-filter") as HTMLSelectElement | null;
   if (filterEl) {
