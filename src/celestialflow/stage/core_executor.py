@@ -50,12 +50,12 @@ class TaskExecutor:
     unpack_task_args: bool
     enable_duplicate_check: bool
     metrics: TaskMetrics
-    dispatch: TaskDispatch  # pyright: ignore[reportUninitializedInstanceVariable]
-    fail_spout: FailSpout  # pyright: ignore[reportUninitializedInstanceVariable]
-    log_spout: LogSpout  # pyright: ignore[reportUninitializedInstanceVariable]
-    success_spout: SuccessSpout  # pyright: ignore[reportUninitializedInstanceVariable]
-    fail_inlet: FailInlet  # pyright: ignore[reportUninitializedInstanceVariable]
-    log_inlet: LogInlet  # pyright: ignore[reportUninitializedInstanceVariable]
+    dispatch: TaskDispatch
+    fail_spout: FailSpout
+    log_spout: LogSpout
+    success_spout: SuccessSpout
+    fail_inlet: FailInlet
+    log_inlet: LogInlet
     execution_mode: str
     _name: str
     _func_name: str

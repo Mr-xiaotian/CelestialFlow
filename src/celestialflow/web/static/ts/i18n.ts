@@ -94,7 +94,7 @@ const translations: Record<Lang, Record<string, string>> = {
     "analysis.layerCount": "层级数量",
     "status.noData": "暂无节点数据",
     "status.succeeded": "成功",
-    "status.pending": "等待中",
+    "status.pending": "等待",
     "status.error": "错误",
     "status.duplicated": "重复",
     "status.stageMode": "节点模式",

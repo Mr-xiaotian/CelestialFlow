@@ -11,7 +11,7 @@ from .core_observer import BaseObserver
 class TaskProgress(BaseObserver):
     """基于 tqdm 的进度条观察者"""
 
-    _bar: tqdm[Any]  # pyright: ignore[reportUninitializedInstanceVariable]
+    _bar: tqdm[Any]
 
     def on_start(self, name: str, total: int) -> None:
         """

@@ -197,7 +197,7 @@ class TaskRouter(TaskStage):
         if not (isinstance(routed, tuple) and len(routed) == 2):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TaskFormatError(
                 f"TaskRouter expects tuple, got {type(routed).__name__}"
-            )  # pyright: ignore[reportUnreachable]
+            )
         target, task = routed
         if target not in self.route_counters:
             raise InvalidOptionError(

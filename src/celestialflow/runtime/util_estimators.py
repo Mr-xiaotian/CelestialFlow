@@ -32,7 +32,7 @@ def calc_elapsed(
     更新时间消耗
 
     :param status: 节点状态
-    :param last_elapsed: 上一次累计的消耗时间
+    :param last_elapsed: 上一次累计的消耗时间（秒）
     :param last_pending: 上一次的待处理任务数
     :param interval: 快照采集间隔（秒）
     :return: 更新后的消耗时间（秒）
@@ -48,19 +48,17 @@ def calc_elapsed(
     return elapsed
 
 
-def calc_global_remain_equal_pred(
+def calc_global_pending(
     G: nx.DiGraph[str],
     processed_map: dict[str, int],
     pending_map: dict[str, int],
-    elapsed_map: dict[str, float],
 ) -> dict[str, float]:
     """
-    基于任务图（DAG）估算全局剩余执行时间（偏保守 / 拥塞放大型）。
+    基于任务图（DAG）估算全局待处理任务数量（偏保守 / 拥塞放大型）。
 
-    本函数仅依赖每个节点的三类观测数据：
+    本函数仅依赖每个节点的两类观测数据：
     - processed_map: 已完成任务数
     - pending_map:   当前尚未完成的任务数
-    - elapsed_map:   已消耗的执行时间（秒）
 
     核心思想：
     1. 将每个节点当前“已见任务量”定义为：
@@ -97,8 +95,8 @@ def calc_global_remain_equal_pred(
         expected_remain_time[v] = 0
         （表示尚无法基于历史速度进行时间外推）
 
-    全局剩余时间定义为：
-        所有节点 expected_remain_time 的最大值。
+    全局待处理任务数量定义为：
+        所有节点 remain_tasks_v 的最大值。
 
     算法特性与设计取向：
     - 假设任务图为有向无环图（DAG），调用方需保证这一前提。
@@ -111,9 +109,8 @@ def calc_global_remain_equal_pred(
     :param G             : 任务依赖图（networkx.DiGraph），节点需与 map 的 key 对应
     :param processed_map : 每个节点已完成的任务数量
     :param pending_map   : 每个节点当前剩余的任务数量
-    :param elapsed_map   : 每个节点已消耗的执行时间（秒）
 
-    :return: expected_pending_map : 估算得到的全局剩余执行时间（秒）
+    :return: expected_pending_map : 估算得到的全局待处理任务数量
     """
     expected_pending_map: dict[str, float] = {}
 
@@ -124,7 +121,6 @@ def calc_global_remain_equal_pred(
         v_str: str = v
         proc_v = float(processed_map.get(v_str, 0) or 0)
         pend_v = float(pending_map.get(v_str, 0) or 0)
-        elapsed_v = float(elapsed_map.get(v_str, 0.0) or 0.0)
         seen_v = proc_v + pend_v
 
         preds: list[str] = list(G.predecessors(v_str))
@@ -142,6 +138,6 @@ def calc_global_remain_equal_pred(
         expect_pend_v = max(pend_v, total_v - proc_v)  # 理论上expect_pend_v >= pend_v
 
         # 时间估算：需要 avg time（秒/任务）
-        expected_pending_map[v_str] = calc_remaining(proc_v, expect_pend_v, elapsed_v)
+        expected_pending_map[v_str] = expect_pend_v
 
     return expected_pending_map

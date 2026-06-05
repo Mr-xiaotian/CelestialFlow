@@ -115,3 +115,16 @@ function formatTimestamp(timestamp) {
     const second = pad(d.getSeconds());
     return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
+/**
+ * 计算预计剩余时间（秒）
+ * @param {number} processed - 已处理任务数
+ * @param {number} pending - 待处理任务数
+ * @param {number} elapsed - 已消耗时间（秒）
+ * @returns {number} 预计剩余时间（秒）
+ */
+function calcRemainTime(processed, pending, elapsed) {
+    if (processed && pending) {
+        return pending / processed * elapsed;
+    }
+    return 0;
+}

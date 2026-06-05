@@ -29,7 +29,7 @@ from ..runtime.util_errors import (
 )
 from ..runtime.util_estimators import (
     calc_elapsed,
-    calc_global_remain_equal_pred,
+    calc_global_pending,
     calc_remaining,
 )
 from ..runtime.util_types import (
@@ -511,7 +511,7 @@ class TaskGraph:
         stage: TaskStage,
         last_status: dict[str, Any],
         interval: float,
-    ) -> tuple[dict[str, Any], tuple[int, int, float, float]]:
+    ) -> tuple[dict[str, Any], tuple[int, int, float]]:
         """
         计算单个 stage 的运行时快照
         :param stage: 节点实例
@@ -547,37 +547,33 @@ class TaskGraph:
 
         processed = int(stage_counts["tasks_processed"] or 0)
         pending = int(stage_counts["tasks_pending"] or 0)
-        elapsed_f = float(elapsed or 0.0)
         remaining_f = float(remaining or 0.0)
 
-        return snapshot, (processed, pending, elapsed_f, remaining_f)
+        return snapshot, (processed, pending, remaining_f)
 
-    def _calc_graph_remain(
+    def _calc_graph_pending(
         self,
         running_processed_map: dict[str, int],
         running_pending_map: dict[str, int],
-        running_elapsed_map: dict[str, float],
         running_remaining_map: dict[str, float],
     ) -> dict[str, float]:
         """
-        根据 DAG/非 DAG 策略计算全局预计剩余时间
+        根据 DAG/非 DAG 策略计算全局预计待处理任务数量
 
         :param running_processed_map: 各节点已处理任务数
         :param running_pending_map: 各节点待处理任务数
-        :param running_elapsed_map: 各节点已用时间
         :param running_remaining_map: 各节点预计剩余时间
         :return: 全局预计剩余时间（秒）
         """
         if not self.is_dag:
             return running_remaining_map
 
-        total_remaining_map = calc_global_remain_equal_pred(
+        total_pending_map = calc_global_pending(
             self.networkx_graph,
             running_processed_map,
             running_pending_map,
-            running_elapsed_map,
         )
-        return total_remaining_map
+        return total_pending_map
 
     def collect_runtime_snapshot(self) -> None:
         """
@@ -587,8 +583,7 @@ class TaskGraph:
         now = time.time()
         interval = self.reporter.interval
 
-        # 为全局预计 remaining 收集
-        running_elapsed_map: dict[str, float] = {}
+        # 为全局预计 tasks_pending 收集数据
         running_processed_map: dict[str, int] = {}
         running_pending_map: dict[str, int] = {}
         running_remaining_map: dict[str, float] = {}
@@ -596,7 +591,7 @@ class TaskGraph:
         for stage_name, stage in self.stage_dict.items():
             last_status = self.status_dict.get(stage_name, {})
 
-            snapshot, (processed, pending, elapsed, remaining) = (
+            snapshot, (processed, pending, remaining) = (
                 self._snapshot_one_stage(
                     stage,
                     last_status,
@@ -606,20 +601,23 @@ class TaskGraph:
 
             status_dict[stage_name] = snapshot
 
+            # 更新各节点的 processed, pending, remaining 数据
             running_processed_map[stage_name] = processed
             running_pending_map[stage_name] = pending
-            running_elapsed_map[stage_name] = elapsed
             running_remaining_map[stage_name] = remaining
 
-        total_remaining_map = self._calc_graph_remain(
+        total_pending_map = self._calc_graph_pending(
             running_processed_map,
             running_pending_map,
-            running_elapsed_map,
             running_remaining_map,
         )
-
         for stage_name, stage_status in status_dict.items():
-            stage_status["total_remaining_time"] = total_remaining_map[stage_name]
+            stage_status["total_tasks_pending"] = total_pending_map[stage_name]
+            stage_status["total_remaining_time"] = calc_remaining(
+                stage_status["tasks_processed"],
+                stage_status["total_tasks_pending"],
+                stage_status["elapsed_time"],
+            )
 
         self.status_dict = status_dict
         self.status_timestamp = now
