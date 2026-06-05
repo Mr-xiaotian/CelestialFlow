@@ -1,6 +1,6 @@
 # Pull 路由（GET）— `pull_routes`
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/05
 
 ## 作用
 
@@ -10,7 +10,7 @@
 
 ### `register(router: APIRouter, server: TaskWebServer) -> None`
 
-在给定的 `APIRouter` 上注册全部 8 个 GET 端点。
+在给定的 `APIRouter` 上注册全部 7 个 GET 端点。
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
@@ -33,9 +33,15 @@
 
 ```json
 {
-  "refreshInterval": "5",
-  "dashboard": { "left": ["mermaid"], "middle": ["status"], ... },
-  ...
+  "theme": "dark",
+  "autoRefreshEnabled": true,
+  "refreshInterval": 5,
+  "historyLimit": 20,
+  "language": "zh-CN",
+  "errorPageSize": 10,
+  "errorSortOrder": "newest",
+  "showStructureEdgeDelta": true,
+  "dashboard": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] }
 }
 ```
 
@@ -54,11 +60,11 @@
 | 字段 | 说明 |
 |------|------|
 | `rev` | 当前版本号 |
-| `data` | 结构数据列表；若 `known_rev==rev` 则为 `null` |
+| `data` | 图结构字典；若 `known_rev==rev` 则为 `null` |
 
 ```json
 // 有更新
-{"rev": 5, "data": [{"id": "n1", "type": "task", ...}]}
+{"rev": 5, "data": {"nodes": {"n1": {"label": "Task"}}, "edges": {"n1": []}, "source_nodes": ["n1"]}}
 // 无更新
 {"rev": 5, "data": null}
 ```
@@ -98,6 +104,7 @@
 | `page_size` | `int` | `10` | 每页条数 |
 | `node` | `str` | `""` | 按节点名称过滤，空字符串不生效 |
 | `keyword` | `str` | `""` | 按关键词过滤，空字符串不生效 |
+| `sort_order` | `str` | `"newest"` | 排序方式，仅支持 `newest` / `oldest` |
 
 **返回：**
 
@@ -108,6 +115,7 @@
 | `page_size` | 归一化后的每页大小 |
 | `total` | 过滤后的总条数 |
 | `total_pages` | 总页数 |
+| `sort_order` | 实际生效的排序方式 |
 | `data` | 当前页错误列表；无变化时为 `null` |
 
 ```json
@@ -136,23 +144,7 @@
 
 ---
 
-### 6. `GET /api/pull_summary`
-
-获取全局任务汇总数据，支持 rev 守卫。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `known_rev` | `int` | `-1` | 客户端已知的版本号 |
-
-**返回：** `{"rev": int, "data": dict | None}`
-
-```json
-{"rev": 1, "data": {"total": 42, "success": 38, "failed": 4, ...}}
-```
-
----
-
-### 7. `GET /api/pull_interval`
+### 6. `GET /api/pull_interval`
 
 获取当前轮询间隔。
 
@@ -168,7 +160,7 @@
 
 ---
 
-### 8. `GET /api/pull_task_injection`
+### 7. `GET /api/pull_task_injection`
 
 取出并清空当前待执行的注入任务队列。这是一个**一次性消费**端点：返回后队列清空，同一批任务不会被重复获取。
 
@@ -179,8 +171,10 @@
 **返回：** `list[dict[str, Any]]`
 
 ```json
-[{"task_id": "...", "params": {...}}, ...]
+[{"node": "StageA", "task_datas": [1, 2, 3], "timestamp": "2026-06-05T12:00:00"}, ...]
 ```
+
+> 注意：虽然当前实现使用 GET，但这个端点具有副作用，会在读取后清空队列；它更接近“消费接口”而不是纯查询接口。
 
 ## 使用示例
 

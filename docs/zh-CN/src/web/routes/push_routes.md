@@ -1,6 +1,6 @@
 # Push 路由（POST）— `push_routes`
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/05
 
 ## 作用
 
@@ -10,7 +10,7 @@
 
 ### `register(router: APIRouter, server: TaskWebServer, config_path: str) -> None`
 
-在给定的 `APIRouter` 上注册全部 8 个 POST 端点。
+在给定的 `APIRouter` 上注册全部 7 个 POST 端点。
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
@@ -30,9 +30,15 @@
 
 ```json
 {
-  "refreshInterval": "5",
-  "dashboard": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] },
-  ...
+  "theme": "dark",
+  "autoRefreshEnabled": true,
+  "refreshInterval": 5,
+  "historyLimit": 20,
+  "language": "zh-CN",
+  "errorPageSize": 10,
+  "errorSortOrder": "newest",
+  "showStructureEdgeDelta": true,
+  "dashboard": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] }
 }
 ```
 
@@ -41,6 +47,8 @@
 2. 根据 `refreshInterval` 值重新计算 `server.report_interval`
 3. 调用 `save_config()` 将配置持久化到 `config_path`
 4. 若保存成功返回 `{"ok": true}`，否则返回 HTTP 500
+
+> 注意：当前实现会先更新内存中的 `server.config` 与 `server.report_interval`，再尝试落盘；如果 `save_config()` 失败，请求虽然返回 500，但进程内配置已经变更。
 
 **返回：**
 - 成功：`{"ok": true}`
@@ -52,10 +60,10 @@
 
 更新图结构数据。
 
-**请求体：** `StructureModel`（包含 `items` 字段）
+**请求体：** `StructureModel`（包含 `structure` 字段）
 
 **逻辑：**
-1. 将 `data.items` 写入 `server.structure_store`
+1. 将 `data.structure` 原子写入 `server.structure_store`
 2. `server.store_revs["structure"]` 自增 1
 
 **返回：** `{"ok": true}`
@@ -158,30 +166,26 @@
 
 ---
 
-### 7. `POST /api/push_summary`
-
-更新全局任务汇总数据。
-
-**请求体：** `SummaryModel`（包含 `summary` 字段）
-
-**逻辑：**
-1. 更新 `server.summary_store`
-2. `server.store_revs["summary"]` 自增 1
-
-**返回：** `{"ok": true}`
-
----
-
-### 8. `POST /api/push_injection_tasks`
+### 7. `POST /api/push_injection_tasks`
 
 将前端提交的注入任务追加到待执行队列。
 
 **请求体：** `TaskInjectionModel`
 
+```json
+{
+  "node": "StageA",
+  "task_datas": [1, 2, 3],
+  "timestamp": "2026-06-05T12:00:00"
+}
+```
+
 **逻辑：**
 1. 持有 `task_injection_lock` 锁
 2. 将 `data.model_dump(mode="json")` 追加到 `server.injection_tasks`
 3. 释放锁
+
+> 注意：后端模型要求 `task_datas` 必须是数组；若前端传入对象、字符串或数字，将在 FastAPI/Pydantic 校验阶段直接返回 422。
 
 **返回：**
 - 成功：`{"ok": true}`
@@ -223,7 +227,11 @@ if not data["ok"] and data.get("fallback") == "need_content":
 
 # 推送结构数据
 requests.post(f"{BASE}/api/push_structure", json={
-    "items": [{"id": "n1", "type": "task", "label": "MyTask"}]
+    "structure": {
+        "nodes": {"n1": {"label": "MyTask"}},
+        "edges": {"n1": []},
+        "source_nodes": ["n1"],
+    }
 })
 ```
 
@@ -233,7 +241,17 @@ requests.post(f"{BASE}/api/push_structure", json={
 const resp = await fetch("/api/push_config", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ refreshInterval: "10", dashboard: {...} })
+  body: JSON.stringify({
+    theme: "dark",
+    autoRefreshEnabled: true,
+    refreshInterval: 10,
+    historyLimit: 20,
+    language: "zh-CN",
+    errorPageSize: 10,
+    errorSortOrder: "newest",
+    showStructureEdgeDelta: true,
+    dashboard: { left: ["mermaid"], middle: ["status"], right: ["progress"] }
+  })
 });
 const result = await resp.json();
 console.log(result.ok ? "保存成功" : "保存失败");

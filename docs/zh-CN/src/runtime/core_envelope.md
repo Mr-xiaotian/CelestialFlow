@@ -1,6 +1,6 @@
 # TaskEnvelope
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/06/05
 
 任务数据的包装类，在各个 Stage 之间传递。它封装了原始任务数据、任务哈希、任务 ID 和来源信息。
 
@@ -37,6 +37,10 @@ def change_id(self, new_id: int) -> None:
 ## 惰性哈希
 
 `hash` 在构造时为 `None`，首次调用 `get_hash()` 时才计算。这避免了在不需要去重检查的场景下浪费计算资源。
+
+- 对于可正常序列化的任务，`get_hash()` 会使用 `object_to_hash()` 生成稳定的 SHA1 字节串。
+- 如果任务对象无法被 pickle / hash，`get_hash()` 不再把异常直接抛给调用方，而是退化为一个仅当前 `TaskEnvelope` 唯一的兜底字节串。
+- 该兜底值带有专用前缀，语义上表示“不可 hash 任务的唯一占位”，避免影响其他任务的正常去重与调度。
 
 ```python
 envelope = TaskEnvelope("data", id=1, source="input")
@@ -97,3 +101,29 @@ env_none = TaskEnvelope(task=None, id=5, source="producer")
 env_with_prev = TaskEnvelope(task="data", id=6, source="producer", prev=env_str)
 print(f"前驱任务数据: {env_with_prev.prev.get_task()}")
 ```
+
+### 不可 hash 任务的兜底行为
+
+```python
+from celestialflow.runtime import TaskEnvelope
+
+class UnpicklableTask:
+    def __getstate__(self):
+        raise TypeError("cannot pickle")
+
+env1 = TaskEnvelope(task=UnpicklableTask(), id=101, source="input")
+env2 = TaskEnvelope(task=UnpicklableTask(), id=102, source="input")
+
+h1 = env1.get_hash()
+h2 = env2.get_hash()
+
+assert h1.startswith(b"__unhashable_task__:")
+assert h2.startswith(b"__unhashable_task__:")
+assert h1 != h2
+```
+
+这个行为的目标不是让不可 hash 任务参与“按内容去重”，而是保证：
+
+- 单个不可 hash 任务不会中断整条调度链路
+- 不会误与正常任务哈希冲突
+- 不同不可 hash 任务 envelope 之间仍有唯一标识

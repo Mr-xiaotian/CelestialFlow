@@ -1,8 +1,10 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/05
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
+
+> 注意：`TaskExecutor` 是一次性对象。一次 `start()` 或 `start_async()` 完成后，不应假定当前实例还能被安全复用；如需再次执行，请重新创建新的 `TaskExecutor`。
 
 ## 初始化
 
@@ -82,6 +84,12 @@ async def start_async(self, task_source: Iterable[Any]) -> None:
     异步启动执行器。内部设置 execution_mode="async"。
     """
 ```
+
+生命周期约束：
+
+- 执行过程中会创建并持有队列、`spout/inlet`、统计状态和调度器运行期资源。
+- 当前实现按单次运行设计，不保证在一次执行结束后可被完整重置。
+- 如果需要多轮执行同一逻辑，请新建执行器实例，而不是重复调用同一对象的 `start()` / `start_async()`。
 
 ## 错误处理
 

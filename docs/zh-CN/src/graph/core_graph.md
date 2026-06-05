@@ -1,8 +1,10 @@
 # TaskGraph
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/05
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
+
+> 注意：`TaskGraph` 是一次性对象。一次 `start_graph()` 完成后，不保证当前实例可被安全重置并再次启动；如需重复执行同一流程，请重新创建新的 `TaskGraph` 和关联 `TaskStage`。
 
 ## 关键数据结构
 
@@ -96,6 +98,12 @@ def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
     7. 释放资源
     """
 ```
+
+生命周期约束：
+
+- `TaskGraph` 内部会在启动过程中建立运行期队列连接、前驱绑定、线程引用和状态快照。
+- 这些运行时资源设计上服务于一次完整执行，不承诺在运行结束后被安全清空并复用。
+- 如果需要重新跑同一套拓扑，推荐重新实例化图对象与节点对象，而不是再次调用同一实例的 `start_graph()`。
 
 ```python
 graph = TaskGraph(schedule_mode="eager")
