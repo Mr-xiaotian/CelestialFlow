@@ -72,20 +72,6 @@ class TaskDispatch:
         )
         return signal
 
-    def _check_and_mark_duplicate_task(self, task_envelope: TaskEnvelope) -> bool:
-        """
-        在进入 worker 前完成去重检查
-
-        :param task_envelope: 包含任务信息的信封
-        :return: 是否命中重复任务
-        """
-        task_hash = task_envelope.get_hash()
-
-        if self.task_executor.metrics.is_duplicate(task_hash):
-            self.task_executor.deal_duplicate(task_envelope)
-            return True
-        return False
-
     # ==== Worker ====
     def _worker(self, task_envelope: TaskEnvelope) -> None:
         """
@@ -157,7 +143,9 @@ class TaskDispatch:
                 termination_signal = self._process_termination_signal(envelope)
                 break
 
-            if self._check_and_mark_duplicate_task(envelope):
+            task_hash = envelope.get_hash()
+            if self.task_executor.metrics.is_duplicate(task_hash):
+                self.task_executor.deal_duplicate(envelope)
                 continue
 
             self._worker(envelope)
@@ -181,7 +169,9 @@ class TaskDispatch:
                     termination_signal = self._process_termination_signal(envelope)
                     break
 
-                if self._check_and_mark_duplicate_task(envelope):
+                task_hash = envelope.get_hash()
+                if self.task_executor.metrics.is_duplicate(task_hash):
+                    self.task_executor.deal_duplicate(envelope)
                     continue
 
                 if self._pool is None:
@@ -220,7 +210,10 @@ class TaskDispatch:
             if isinstance(envelope, TerminationIdPool):
                 termination_signal = self._process_termination_signal(envelope)
                 break
-            if self._check_and_mark_duplicate_task(envelope):
+
+            task_hash = envelope.get_hash()
+            if self.task_executor.metrics.is_duplicate(task_hash):
+                self.task_executor.deal_duplicate(envelope)
                 continue
 
             task = asyncio.create_task(sem_worker(envelope))
