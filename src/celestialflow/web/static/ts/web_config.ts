@@ -10,6 +10,7 @@ type WebConfig = {
   errorPageSize: number; // 错误日志每页显示条数
   errorSortOrder: "newest" | "oldest"; // 错误日志默认排序方式
   showStructureEdgeDelta: boolean; // 是否在结构图边上显示成功任务增量
+  useTotalPendingInStatus: boolean; // 节点状态卡是否使用 total_tasks_pending
   dashboard: {
     // 仪表盘布局：各列包含的卡片 ID 列表
     left: string[];
@@ -30,6 +31,7 @@ const DEFAULT_WEB_CONFIG: WebConfig = {
   errorPageSize: 50,
   errorSortOrder: "newest",
   showStructureEdgeDelta: false,
+  useTotalPendingInStatus: false,
   dashboard: {
     left: ["mermaid", "analysis"],
     middle: ["status"],
@@ -280,6 +282,10 @@ function applyConfig() {
   // 应用结构图边增量显示开关
   webConfig.showStructureEdgeDelta = webConfig.showStructureEdgeDelta !== false;
   structureEdgeDeltaToggle.checked = webConfig.showStructureEdgeDelta;
+
+  // 应用节点状态等待模式开关
+  webConfig.useTotalPendingInStatus = webConfig.useTotalPendingInStatus === true;
+  statusTotalPendingToggle.checked = webConfig.useTotalPendingInStatus;
 
   // 应用仪表盘布局
   applyDashboardLayout();

@@ -69,4 +69,5 @@ class WebConfigModel(BaseModel):
     errorPageSize: int = 10
     errorSortOrder: str = "newest"
     showStructureEdgeDelta: bool = True
+    useTotalPendingInStatus: bool = False
     dashboard: DashboardConfigModel

@@ -9,6 +9,7 @@ const DEFAULT_WEB_CONFIG = {
     errorPageSize: 50,
     errorSortOrder: "newest",
     showStructureEdgeDelta: false,
+    useTotalPendingInStatus: false,
     dashboard: {
         left: ["mermaid", "analysis"],
         middle: ["status"],
@@ -238,6 +239,9 @@ function applyConfig() {
     // 应用结构图边增量显示开关
     webConfig.showStructureEdgeDelta = webConfig.showStructureEdgeDelta !== false;
     structureEdgeDeltaToggle.checked = webConfig.showStructureEdgeDelta;
+    // 应用节点状态等待模式开关
+    webConfig.useTotalPendingInStatus = webConfig.useTotalPendingInStatus === true;
+    statusTotalPendingToggle.checked = webConfig.useTotalPendingInStatus;
     // 应用仪表盘布局
     applyDashboardLayout();
     // 应用国际化

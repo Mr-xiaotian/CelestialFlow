@@ -19,6 +19,7 @@ const languageSelect = document.getElementById("language-select") as HTMLSelectE
 const autoRefreshToggle = document.getElementById("auto-refresh-toggle") as HTMLInputElement; // 自动刷新开关
 const errorPageSizeSelect = document.getElementById("error-page-size") as HTMLSelectElement; // 错误每页条数下拉框
 const structureEdgeDeltaToggle = document.getElementById("structure-edge-delta") as HTMLInputElement; // 结构图边增量显示开关
+const statusTotalPendingToggle = document.getElementById("status-total-pending-toggle") as HTMLInputElement; // 节点状态卡等待值模式开关
 const settingsCurrentGroup = document.getElementById("settings-current-group") as HTMLElement; // 当前页设置分组
 const settingsCurrentEmpty = document.getElementById("settings-current-empty") as HTMLElement; // 当前页无专属设置提示
 const settingsCurrentItems = document.querySelectorAll<HTMLElement>("[data-settings-tab]"); // 当前页设置项列表
@@ -244,6 +245,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     structureEdgeDeltaToggle.addEventListener("change", async () => {
         webConfig.showStructureEdgeDelta = structureEdgeDeltaToggle.checked;
         renderMermaidStructure(nodeStatuses);
+        showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
+    });
+
+    // 切换节点状态等待统计模式：重绘节点卡片并保存配置
+    statusTotalPendingToggle.addEventListener("change", async () => {
+        webConfig.useTotalPendingInStatus = statusTotalPendingToggle.checked;
+        renderDashboard();
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
     });
 

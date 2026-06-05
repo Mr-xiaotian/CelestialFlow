@@ -10,6 +10,43 @@ let draggingNodeName = null; // 当前拖拽中的节点名
 // DOM 元素引用
 const dashboardGrid = document.getElementById("dashboard-grid");
 /**
+ * 获取节点状态卡当前采用的等待值字段。
+ * @returns {"tasks_pending" | "total_tasks_pending"} 当前等待统计字段。
+ */
+function getStatusPendingField() {
+    return webConfig?.useTotalPendingInStatus
+        ? "total_tasks_pending"
+        : "tasks_pending";
+}
+/**
+ * 根据当前配置获取节点状态卡应展示的等待任务数。
+ * @param {NodeStatus} status - 节点状态快照
+ * @returns {number} 当前节点状态卡使用的等待值
+ */
+function getDisplayPending(status) {
+    const pendingField = getStatusPendingField();
+    return Number(status[pendingField] || 0);
+}
+/**
+ * 根据当前配置获取节点状态卡应展示的剩余时间。
+ * @param {NodeStatus} status - 节点状态快照
+ * @returns {number} 当前节点状态卡使用的剩余时间
+ */
+function getDisplayRemainingTime(status) {
+    return Number(webConfig?.useTotalPendingInStatus
+        ? status.total_remaining_time
+        : status.remaining_time);
+}
+/**
+ * 获取节点状态卡当前应展示的等待标签。
+ * @returns {string} 等待标签文案
+ */
+function getPendingLabel() {
+    return t(webConfig?.useTotalPendingInStatus
+        ? "status.pendingGlobal"
+        : "status.pending");
+}
+/**
  * 将 elapsed 时间格式化为带颜色的 HTML 字符串
  * @param {number} seconds - 秒数
  * @param {number} successCount - 成功任务数
@@ -164,8 +201,11 @@ function renderDashboard() {
             continue; // 正在拖动时，不渲染它
         // 计算增量变化
         const last = lastNodeStatuses[node] || {};
+        const displayPending = getDisplayPending(data);
+        const lastDisplayPending = getDisplayPending(last);
+        const displayRemainingTime = getDisplayRemainingTime(data);
         const addSucceeded = data.tasks_succeeded - (last.tasks_succeeded || 0);
-        const addPending = data.tasks_pending - (last.tasks_pending || 0);
+        const addPending = displayPending - lastDisplayPending;
         const addFailed = data.tasks_failed - (last.tasks_failed || 0);
         const addDuplicated = data.tasks_duplicated - (last.tasks_duplicated || 0);
         // 计算执行模式描述
@@ -173,13 +213,13 @@ function renderDashboard() {
             ? data.execution_mode
             : `${data.execution_mode}-${data.max_workers}`;
         // 计算进度
-        const total = data.tasks_processed + data.tasks_pending;
+        const total = data.tasks_processed + displayPending;
         const progress = total === 0 ? 0 : Math.floor((data.tasks_processed / total) * 100);
         // 计算四段进度条宽度百分比
         const pctSuccess = total === 0 ? 0 : (data.tasks_succeeded / total) * 100;
         const pctError = total === 0 ? 0 : (data.tasks_failed / total) * 100;
         const pctDuplicate = total === 0 ? 0 : (data.tasks_duplicated / total) * 100;
-        const pctPending = total === 0 ? 0 : (data.tasks_pending / total) * 100;
+        const pctPending = total === 0 ? 0 : (displayPending / total) * 100;
         const card = document.createElement("div");
         if (data.status === 1) {
             card.className = "node-card status-running";
@@ -196,7 +236,7 @@ function renderDashboard() {
           </div>
           <div class="stat-grid">
             <div><div class="stat-label">${t("status.succeeded")}</div><div class="stat-value text-success">${formatWithDelta(data.tasks_succeeded, addSucceeded, "text-delta-success", "text-delta-success")}</div></div>
-            <div><div class="stat-label">${t("status.pending")}</div><div class="stat-value text-pending">${formatWithDelta(data.tasks_pending, addPending, "text-delta-pending", "text-delta-pending")}</div></div>
+            <div><div class="stat-label">${getPendingLabel()}</div><div class="stat-value text-pending">${formatWithDelta(displayPending, addPending, "text-delta-pending", "text-delta-pending")}</div></div>
             <div><div class="stat-label">${t("status.error")}</div><div class="stat-value text-error error-clickable" data-node="${escapeHtml(node)}">${formatWithDelta(data.tasks_failed, addFailed, "text-delta-error", "text-delta-error")}</div></div>
             <div><div class="stat-label">${t("status.duplicated")}</div><div class="stat-value text-duplicate">${formatWithDelta(data.tasks_duplicated, addDuplicated, "text-delta-duplicate", "text-delta-duplicate")}</div></div>
             <div><div class="stat-label">${t("status.stageMode")}</div><div class="stat-value">${escapeHtml(data.stage_mode)}</div></div>
@@ -209,7 +249,7 @@ function renderDashboard() {
               <span class="time-estimate">
                 <span class="elapsed">${formatElapsedDuration(data.elapsed_time, data.tasks_succeeded, data.tasks_failed, data.tasks_duplicated)}</span>
                 &lt;
-                <span class="remaining">${formatDuration(data.remaining_time)}</span>,
+                <span class="remaining">${formatDuration(displayRemainingTime)}</span>,
                 <span class="task-avg-time">${data.task_avg_time}</span>,
                 <span>${progress}%</span>
               </span>
