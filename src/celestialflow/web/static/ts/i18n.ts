@@ -88,19 +88,30 @@ const translations: Record<Lang, Record<string, string>> = {
     "injection.failed": "任务注入失败，请重试",
     "analysis.noData": "暂无分析信息",
     "analysis.structType": "结构类型",
+    "analysis.structTypeHelp":
+      "图的结构分类名称，用于概括当前任务图的整体连接形态。",
     "analysis.isDAG": "是否 DAG",
     "analysis.dagYes": "是（无环）",
     "analysis.dagNo": "否（存在环）",
     "analysis.scheduleMode": "调度模式",
+    "analysis.scheduleModeHelp":
+      "图级任务的调度策略，用于决定节点之间按什么顺序推进执行。",
     "analysis.layerCount": "层级数量",
     "status.noData": "暂无节点数据",
     "status.succeeded": "成功",
     "status.pending": "等待",
+    "status.pendingHelp": "当前节点队列中尚未开始处理的任务数。",
     "status.pendingGlobal": "全局等待",
+    "status.pendingGlobalHelp":
+      "基于图结构全局估计后，归属于当前节点链路的总待处理任务量。",
     "status.error": "错误",
     "status.duplicated": "重复",
     "status.stageMode": "节点模式",
+    "status.stageModeHelp":
+      "节点在任务图中的启动方式。serial 表示按当前调度顺序执行，thread 表示节点以独立线程启动。",
     "status.executionMode": "运行模式",
+    "status.executionModeHelp":
+      "节点内部处理任务的方式。serial 为串行执行，thread 为线程池并发，async 为异步并发。",
     "status.startTime": "开始时间: ",
     "status.completionRate": "任务完成率",
     "structure.noData": "暂无结构数据",
@@ -203,19 +214,31 @@ const translations: Record<Lang, Record<string, string>> = {
     "injection.failed": "Task injection failed, please retry",
     "analysis.noData": "No analysis data",
     "analysis.structType": "Structure Type",
+    "analysis.structTypeHelp":
+      "The graph structure classification, summarizing the overall connection pattern of the current task graph.",
     "analysis.isDAG": "Is DAG",
     "analysis.dagYes": "Yes (acyclic)",
     "analysis.dagNo": "No (has cycles)",
     "analysis.scheduleMode": "Schedule Mode",
+    "analysis.scheduleModeHelp":
+      "The graph-level scheduling strategy that determines how execution advances between nodes.",
     "analysis.layerCount": "Layer Count",
     "status.noData": "No node data",
     "status.succeeded": "Succeeded",
     "status.pending": "Pending",
+    "status.pendingHelp":
+      "Tasks in the current node queue that have not started processing yet.",
     "status.pendingGlobal": "Global Pending",
+    "status.pendingGlobalHelp":
+      "The total pending workload attributed to this node path based on a graph-wide estimate.",
     "status.error": "Error",
     "status.duplicated": "Duplicated",
     "status.stageMode": "Stage Mode",
+    "status.stageModeHelp":
+      "How the node is started in the task graph. serial follows the scheduler order, thread starts the node in its own thread.",
     "status.executionMode": "Exec Mode",
+    "status.executionModeHelp":
+      "How tasks are processed inside the node. serial runs sequentially, thread uses a worker pool, async uses asynchronous concurrency.",
     "status.startTime": "Start Time: ",
     "status.completionRate": "Completion Rate",
     "structure.noData": "No structure data",
@@ -319,19 +342,31 @@ const translations: Record<Lang, Record<string, string>> = {
     "injection.failed": "タスク注入に失敗しました。再試行してください",
     "analysis.noData": "分析情報なし",
     "analysis.structType": "構造タイプ",
+    "analysis.structTypeHelp":
+      "現在のタスクグラフ全体の接続形態を要約する構造分類名です。",
     "analysis.isDAG": "DAGか否か",
     "analysis.dagYes": "はい（非循環）",
     "analysis.dagNo": "いいえ（循環あり）",
     "analysis.scheduleMode": "スケジュールモード",
+    "analysis.scheduleModeHelp":
+      "ノード間の実行をどの順序で進めるかを決める、グラフ全体のスケジューリング方針です。",
     "analysis.layerCount": "レイヤー数",
     "status.noData": "ノードデータなし",
     "status.succeeded": "成功",
     "status.pending": "待機中",
+    "status.pendingHelp":
+      "現在のノードキューでまだ処理が始まっていないタスク数です。",
     "status.pendingGlobal": "全体待機",
+    "status.pendingGlobalHelp":
+      "グラフ全体の推定に基づき、このノード系統に割り当てられる総待機タスク量です。",
     "status.error": "エラー",
     "status.duplicated": "重複",
     "status.stageMode": "ステージモード",
+    "status.stageModeHelp":
+      "タスクグラフ内でのノード起動方式です。serial は現在のスケジュール順で実行し、thread は独立スレッドで起動します。",
     "status.executionMode": "実行モード",
+    "status.executionModeHelp":
+      "ノード内部でのタスク処理方式です。serial は直列、thread はスレッドプール並列、async は非同期並列です。",
     "status.startTime": "開始時刻: ",
     "status.completionRate": "タスク完了率",
     "structure.noData": "構造データなし",

@@ -19,6 +19,97 @@
   }
 }
 
+.stat-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.tooltip-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+}
+
+.tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid var(--carbon-300);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--carbon-500);
+  font-size: 0.65rem;
+  line-height: 1;
+  cursor: help;
+  padding: 0;
+
+  .dark-theme & {
+    border-color: var(--carbon-500);
+    color: var(--carbon-300);
+  }
+}
+
+.tooltip-trigger:focus-visible {
+  outline: 2px solid var(--cornflower-400);
+  outline-offset: 2px;
+}
+
+.tooltip-bubble {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.5rem);
+  transform: none;
+  width: max-content;
+  min-width: 11rem;
+  max-width: min(16rem, calc(100% - 0.5rem));
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.6rem;
+  background: var(--carbon-900);
+  color: var(--frost-0);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: break-word;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 18%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    visibility 0.18s ease;
+  z-index: 20;
+
+  .dark-theme & {
+    background: var(--carbon-100);
+    color: var(--carbon-900);
+  }
+}
+
+.tooltip-bubble::before {
+  content: "";
+  position: absolute;
+  left: 0.5rem;
+  bottom: 100%;
+  transform: none;
+  border-width: 0.35rem;
+  border-style: solid;
+  border-color: transparent transparent var(--carbon-900) transparent;
+
+  .dark-theme & {
+    border-color: transparent transparent var(--carbon-100) transparent;
+  }
+}
+
+.tooltip-anchor:hover .tooltip-bubble,
+.tooltip-anchor:focus-within .tooltip-bubble {
+  opacity: 1;
+  visibility: visible;
+}
+
 /* 节点统计项数值样式：设置字号和字重 */
 .stat-value {
   font-size: 1.25rem;

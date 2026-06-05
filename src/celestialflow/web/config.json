@@ -7,6 +7,7 @@
     "errorPageSize": 20,
     "errorSortOrder": "newest",
     "showStructureEdgeDelta": false,
+    "useTotalPendingInStatus": false,
     "dashboard": {
         "left": [
             "mermaid",

@@ -65,15 +65,42 @@ function getDisplayRemainingTime(status: NodeStatus): number {
 }
 
 /**
- * 获取节点状态卡当前应展示的等待标签。
- * @returns {string} 等待标签文案
+ * 获取节点状态卡当前应展示的等待标签 HTML。
+ * @returns {string} 等待标签及提示点 HTML
  */
-function getPendingLabel(): string {
-  return t(
+function getPendingLabelHtml(): string {
+  return renderLabelWithTooltip(
     webConfig?.useTotalPendingInStatus
       ? "status.pendingGlobal"
       : "status.pending",
+    webConfig?.useTotalPendingInStatus
+      ? "status.pendingGlobalHelp"
+      : "status.pendingHelp",
   );
+}
+
+/**
+ * 渲染带提示点的统计项标签。
+ * @param {string} labelKey - 标签翻译键
+ * @param {string} tooltipKey - 提示文案翻译键
+ * @returns {string} 统计项标签 HTML
+ */
+function renderLabelWithTooltip(labelKey: string, tooltipKey: string): string {
+  const label = escapeHtml(t(labelKey));
+  const tooltip = escapeHtml(t(tooltipKey));
+  return `
+    <span class="stat-label-row">
+      <span>${label}</span>
+      <span class="tooltip-anchor">
+        <button
+          type="button"
+          class="tooltip-trigger"
+          aria-label="${tooltip}"
+        >i</button>
+        <span class="tooltip-bubble" role="tooltip">${tooltip}</span>
+      </span>
+    </span>
+  `;
 }
 
 /**
@@ -319,7 +346,7 @@ function renderDashboard() {
               "text-delta-success",
               "text-delta-success",
             )}</div></div>
-            <div><div class="stat-label">${getPendingLabel()}</div><div class="stat-value text-pending">${formatWithDelta(
+            <div><div class="stat-label">${getPendingLabelHtml()}</div><div class="stat-value text-pending">${formatWithDelta(
               displayPending,
               addPending,
               "text-delta-pending",
@@ -337,8 +364,8 @@ function renderDashboard() {
               "text-delta-duplicate",
               "text-delta-duplicate",
             )}</div></div>
-            <div><div class="stat-label">${t("status.stageMode")}</div><div class="stat-value">${escapeHtml(data.stage_mode)}</div></div>
-            <div><div class="stat-label">${t("status.executionMode")}</div><div class="stat-value">${escapeHtml(executionModeDesc)}</div></div>
+            <div><div class="stat-label">${renderLabelWithTooltip("status.stageMode", "status.stageModeHelp")}</div><div class="stat-value">${escapeHtml(data.stage_mode)}</div></div>
+            <div><div class="stat-label">${renderLabelWithTooltip("status.executionMode", "status.executionModeHelp")}</div><div class="stat-value">${escapeHtml(executionModeDesc)}</div></div>
           </div>
           <div class="text-sm text-carbon">${t("status.startTime")}${formatTimestamp(data.start_time)}</div>
           <div class="progress-container">
