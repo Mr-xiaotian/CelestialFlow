@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from functools import partial
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, cast
+from typing import TYPE_CHECKING, Any, cast
 
+from anyio.to_thread import run_sync
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from anyio.to_thread import run_sync
 
 from ...persistence.util_jsonl import load_jsonl_logs
 from ..util_cal import cal_interval
