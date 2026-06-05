@@ -30,10 +30,8 @@ type NodeHistory = NodeHistoryPoint[];
 // 全局状态
 let nodeHistories: Record<string, NodeHistory> = {}; // 各节点的处理进度历史
 let progressChart = null; // Chart.js 折线图实例
-/** 用户在图例中手动隐藏的节点集合（持久化到 localStorage，刷新不丢失） */
-let hiddenNodes = new Set<string>(
-  JSON.parse(localStorage.getItem("hiddenNodes") || "[]"),
-);
+/** 用户在图例中手动隐藏的节点集合（仅在当前页面生命周期内保留） */
+let hiddenNodes = new Set<string>();
 /** 当前历史图正在展示的指标类型，默认显示完成累计。 */
 let currentHistoryMetric: HistoryMetricKey = "tasks_processed";
 
@@ -345,12 +343,6 @@ function initChart() {
             } else {
               hiddenNodes.add(nodeName);
             }
-
-            // 保存到 localStorage
-            localStorage.setItem(
-              "hiddenNodes",
-              JSON.stringify([...hiddenNodes]),
-            );
 
             const meta = legend.chart.getDatasetMeta(index);
             meta.hidden = !meta.hidden;
