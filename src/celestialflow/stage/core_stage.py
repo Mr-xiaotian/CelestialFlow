@@ -70,7 +70,7 @@ class TaskStage(TaskExecutor):
         """初始化 stage 状态。"""
         if not hasattr(self, "_status"):
             self._status = int(StageStatus.NOT_STARTED)
-            
+
         # Reporter 可能会在 stage 真正启动前先采集一次快照。
         self.start_time = 0.0
 

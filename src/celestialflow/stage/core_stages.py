@@ -316,7 +316,7 @@ class TaskRedisTransport(TaskStage):
         :return: 任务 ID
         """
         self.init_redis()
-        
+
         task_id = self.task_id_counter
         self.task_id_counter += 1
         payload = json.dumps(

@@ -7,15 +7,15 @@ import os
 import threading
 from typing import Any, cast
 
-import uvicorn  
-from fastapi import (  
+import uvicorn
+from fastapi import (
     FastAPI,
 )
 from fastapi.staticfiles import (
-    StaticFiles,  
+    StaticFiles,
 )
 from fastapi.templating import (
-    Jinja2Templates,  
+    Jinja2Templates,
 )
 
 from .routes import create_router

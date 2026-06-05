@@ -86,9 +86,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
             normalized_keyword,
             normalized_sort_order,
         ) = normalize_errors_query(page, page_size, node, keyword, sort_order)
-        filtered = filter_errors(
-            error_store, normalized_node, normalized_keyword
-        )
+        filtered = filter_errors(error_store, normalized_node, normalized_keyword)
         total, total_pages, page_items = paginate_errors(
             filtered, normalized_page, normalized_page_size, normalized_sort_order
         )

@@ -85,9 +85,7 @@ def format_structure_list_from_graph(
         return f"{node_name}::{F} (S:{S}, E:{E}, W:{W}){visited_note}"
 
     # 只渲染"子节点"（有父节点）——保证一定画连接符
-    def build_child_lines(
-        node_name: str, prefix: str, is_last: bool
-    ) -> list[str]:
+    def build_child_lines(node_name: str, prefix: str, is_last: bool) -> list[str]:
         """
         递归构建子节点的树形显示行。
 
