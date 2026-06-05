@@ -1,12 +1,11 @@
 /**
  * 节点状态监控模块
- * 负责各节点运行指标（成功、失败、等待、重复、速率等）的实时展示和拖拽排序
+ * 负责各节点运行指标（成功、失败、等待、重复、速率等）的实时展示
  */
 // 全局状态
 let nodeStatuses = {}; // 当前各节点运行状态
 let lastNodeStatuses = {}; // 上一轮状态快照，用于计算增量
 let statusRev = -1; // 上次拉取的数据版本号，-1 表示首次拉取全量
-let draggingNodeName = null; // 当前拖拽中的节点名
 // DOM 元素引用
 const dashboardGrid = document.getElementById("dashboard-grid");
 /**
@@ -185,34 +184,7 @@ async function loadStatuses() {
     }
 }
 /**
- * 初始化仪表盘的拖拽排序功能
- * 如果是移动端则跳过初始化
- * @returns {void}
- */
-function initSortableDashboard() {
-    if (isMobile()) {
-        console.log("移动端，禁用拖动功能");
-        return;
-    }
-    const el = document.getElementById("dashboard-grid");
-    new Sortable(el, {
-        animation: 300,
-        easing: "cubic-bezier(0.25, 1, 0.5, 1)",
-        ghostClass: "sortable-ghost",
-        chosenClass: "sortable-chosen",
-        dragClass: "sortable-dragging",
-        onStart: function (evt) {
-            const title = evt.item.querySelector(".card-title").textContent;
-            draggingNodeName = title;
-        },
-        onEnd: function (evt) {
-            draggingNodeName = null;
-        },
-    });
-}
-/**
- * 根据排序顺序和节点状态生成 HTML，显示进度条、统计数据等
- * 渲染时会跳过当前正在被用户拖拽的卡片，防止闪烁
+ * 根据节点状态生成 HTML，显示进度条、统计数据等
  * @returns {void}
  */
 function renderDashboard() {
@@ -222,8 +194,6 @@ function renderDashboard() {
         return;
     }
     for (const [node, data] of Object.entries(nodeStatuses)) {
-        if (node === draggingNodeName)
-            continue; // 正在拖动时，不渲染它
         // 计算增量变化
         const last = lastNodeStatuses[node] || {};
         const displayPending = getDisplayPending(data);

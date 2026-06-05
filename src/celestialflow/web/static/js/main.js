@@ -260,7 +260,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     });
     // ==== 启动流程 ====
-    initSortableDashboard(); // 初始化拖拽
     refreshAll(); // 启动轮询
     initChart(); // 初始化折线图
     syncAutoRefreshTimer();

@@ -286,23 +286,6 @@
   }
 }
 
-/* 拖拽中的卡片半透明效果 */
-.sortable-dragging {
-  opacity: 0.5;
-}
-
-/* 拖拽占位符（影子）样式 */
-.sortable-ghost {
-  opacity: 0.4;
-  transform: rotate(1.5deg);
-}
-
-/* 被选中的拖拽项样式 */
-.sortable-chosen {
-  box-shadow: none;
-  cursor: grabbing;
-}
-
 /* 可点击的错误统计值：显示手型光标 */
 .stat-value.error-clickable {
   cursor: pointer;
