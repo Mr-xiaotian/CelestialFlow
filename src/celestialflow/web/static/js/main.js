@@ -151,6 +151,7 @@ function activateTab(button) {
     }
     updateCurrentPageSettings();
 }
+// 页面加载完成后初始化配置、设置面板和各模块交互。
 document.addEventListener("DOMContentLoaded", async () => {
     // ==== 初始化配置 ====
     await loadWebConfig();
@@ -243,6 +244,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     // 切换页签：高亮当前按钮并显示对应内容区
     tabButtons.forEach((button) => {
+        // 点击顶部标签时切换当前页面并同步当前页设置分组。
         button.addEventListener("click", () => {
             activateTab(button);
         });

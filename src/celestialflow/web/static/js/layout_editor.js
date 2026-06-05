@@ -135,13 +135,17 @@ function resetLayout() {
     initSortable();
 }
 // ── 事件绑定 ──────────────────────────────────────────
+// 页面初始化后绑定布局编辑器相关交互。
 document.addEventListener("DOMContentLoaded", () => {
+    // 点击设置项里的入口按钮时打开布局编辑弹层。
     document
         .getElementById("open-layout-editor")
         .addEventListener("click", openLayoutEditor);
+    // 点击右上角关闭按钮时关闭弹层并恢复未保存布局。
     document
         .getElementById("layout-editor-close")
         .addEventListener("click", () => closeLayoutEditor());
+    // 点击遮罩空白区域时关闭弹层，保留常见弹窗交互习惯。
     document
         .getElementById("layout-editor-overlay")
         .addEventListener("click", (e) => {
@@ -149,9 +153,11 @@ document.addEventListener("DOMContentLoaded", () => {
             closeLayoutEditor();
         }
     });
+    // 点击保存按钮时写回当前拖拽结果并持久化配置。
     document
         .getElementById("layout-save-btn")
         .addEventListener("click", saveLayout);
+    // 点击重置按钮时恢复默认卡片布局。
     document
         .getElementById("layout-reset-btn")
         .addEventListener("click", resetLayout);

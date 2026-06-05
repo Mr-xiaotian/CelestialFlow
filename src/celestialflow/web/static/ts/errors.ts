@@ -226,18 +226,21 @@ function populateNodeFilter(statuses: Record<string, NodeStatus>) {
   }
 }
 
+// 输入搜索关键词时立即重新筛选错误列表并回到第一页。
 searchInput.addEventListener("input", async () => {
   currentPage = 1;
   await loadErrors(true);
   renderErrors();
 });
 
+// 切换节点筛选时刷新当前错误列表。
 nodeFilter.addEventListener("change", async () => {
   currentPage = 1; // 切换节点时回到第一页
   await loadErrors(true);
   renderErrors();
 });
 
+// 切换默认排序方式时刷新错误页并保存当前设置。
 errorSortSelect.addEventListener("change", async () => {
   errorSortOrder = errorSortSelect.value === "oldest" ? "oldest" : "newest";
   if (webConfig) {

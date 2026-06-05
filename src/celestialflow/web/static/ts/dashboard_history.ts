@@ -160,6 +160,7 @@ function updateChartAxisLabels() {
 function initHistoryMetricSwitcher() {
   updateHistoryMetricButtons();
   metricDots.forEach((dot) => {
+    // 点击历史指标按钮时切换图表展示字段并立即重绘。
     dot.addEventListener("click", () => {
       const metric = dot.dataset.historyMetric as HistoryMetricKey | undefined;
       if (!metric || metric === currentHistoryMetric) return;

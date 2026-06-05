@@ -13,6 +13,7 @@ let selectedNodes: SelectedNode[] = []; // 用户选中的注入目标节点
 let currentInputMethod = "json"; // 当前输入方式（json / file）
 let uploadedFile: { name: string; content: string } | null = null; // 已上传的文件内容
 
+// 页面加载完成后初始化节点列表并绑定注入表单交互。
 document.addEventListener("DOMContentLoaded", function () {
   renderNodeList();
   setupEventListeners();
