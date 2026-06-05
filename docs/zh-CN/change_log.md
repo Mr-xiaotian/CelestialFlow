@@ -222,3 +222,22 @@
     - 添加 `.github/workflows`，实现 CI/CD
     - 更新支持的 Python 版本为 3.11，以与部分库要求相符
     - 添加两个 skill，分别用于更新文档与审查项目
+- 3.2.2
+  - feat:
+    - `core_server` 中添加数据锁, 避免并发访问导致的错误状态
+    - 优化前端设置面板的显示, 现在只显示全局设置与当前页相关设置
+    - 在设置面板中添加全局设置中的 "是否自动更新" 选项与错误日志页面中的 "排序方式" 两项
+  - refactor:
+    - 删除前后端通讯中的 `summary` , 节点的总体预期结束时间由各个节点的 `status` 分别传递, 并由前端计算整体的预期结束时间
+    - 修改 `structure_graph`(原 `structure_json`) 字段的内容, 现在更为简洁, 避免信息冗余, 同时方便后续拓展
+  - fix:
+    - 修复指标折线图中指标选择失效的问题
+    - 修改 `report.stop` 中_refresh_all的执行顺序, 避免与thread中的刷新冲突
+    - 在 `graph._finalize_nodes` 中添加对thread未终止的防御性检查
+    - 修复 `stage` 中 `start_time` 在未定义前被 `report` 调用的问题
+    - 修复 `TaskRedisTransport._transport` 中使用 `id()` 来计算task_id导致的问题
+    - 修复部分任务无法被hash导致的panic问题
+  - chore:
+    - 删除所有的 `type: ignore`
+      - 好看不少
+    - 在 `start_*` 函数的doc-string中标注该函数为一次性调用函数

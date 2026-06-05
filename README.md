@@ -187,7 +187,7 @@ flowchart TD
 
 以下三篇可以作为补充阅读:
 
-- [runtime/util_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_queue.md)
+- [runtime/util_hash.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_hash.md)
 - [runtime/util_types.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_types.md)
 - [runtime/util_errors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_errors.md)
 - [persistence/core_fail.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_fail.md)
@@ -203,15 +203,15 @@ flowchart TD
 
 你可以继续运行更多的演示代码，这里记录了各个演示文件与其中的演示函数说明：
 
-[🎮demo/](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/)
+[🎮demo/](https://github.com/Mr-xiaotian/CelestialFlow/tree/main/docs/zh-CN/demo)
 
 ​如果你想运行测试代码, 可以先查看如下文档内容:
 
-[🧪tests/](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/tests/)
+[🧪tests/](https://github.com/Mr-xiaotian/CelestialFlow/tree/main/docs/zh-CN/tests)
 
 如果你想查看bench内容, 这里的数据成为框架中部分设计的决策依据:
 
-[⚡bench/](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/bench/)
+[⚡bench/](https://github.com/Mr-xiaotian/CelestialFlow/tree/main/docs/zh-CN/bench)
 
 ## 环境要求（Requirements）
 
@@ -235,57 +235,31 @@ flowchart TD
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.2.1</em>
+  <em>celestial-flow 3.2.2</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.2.1:
+- 3.2.2
   - feat:
-    - **[Important]** 大幅强化配置按钮功能
-      - 现在可以配置界面语言，并支持中、日、英三语言切换
-      - 可以配置错误日志每页日志条数
-      - 可以配置结构图中是否显示增量，不过现在样式上有点丑
-      - 以及最重要的，可以直接编辑仪表盘页的卡片布局
-      - 另外，所有设置保存成功后会有提示
-    - 折线图中可以选择数据类型
-      - 现在包括"数据累计"、"等待队列"和"数据变化率"
-    - 对 structure 的一些调整
-      - 所有 structure 的参数中添加 `stage_mode`，用于统一控制节点模式
-      - 对 struct 中节点不再重新命名
-    - 在部分 Spout 中增加缓冲机制
+    - `core_server` 中添加数据锁, 避免并发访问导致的错误状态
+    - 优化前端设置面板的显示, 现在只显示全局设置与当前页相关设置
+    - 在设置面板中添加全局设置中的 "是否自动更新" 选项与错误日志页面中的 "排序方式" 两项
   - refactor:
-    - **[Important]** 删除 executor 中的 `tag` 属性，并全面使用 `name` 属性进行替代
-      - `tag` 的出现是为了适应早期无法区分节点而设计的，但现在 `name` 已经强制唯一性，继续使用冗长的 `tag` 会导致不便
-    - **[Important]** 将 executor 中 `task_queue` 与 `result_queue` 的定义提前到 `__init__` 中
-      - 对于 executor 来说区别不大，但对于 stage 而言这是更理想且优雅的形式，只是由于原先 `stage_mode="process"` 时不允许执行函数内带有 `MPQueue`，所以才使用 graph 中统一定义，然后通过 process 的 args 注入的形式
-    - **[Important]** 重构 `core_server`，将其分解出 `routes/` 与 `util_models`，实现结构优化
-    - 进一步地，将 `log_queue` 和 `fail_queue` 的注入也提前到 `graph.set_stages` 中，实现 `stage.start_stage` 完全无输入参数
-    - 同时在 executor 中添加 `put_task` 与 `put_signal`，并在 graph 中进行复用
-      - 之前不能这样做是因为 stage 中此时还没有定义 queue
-    - 移除 `core_graph` 中的 `StageRuntime`
-    - 将类型标注中的部分 `Any` 改为更明确的类型
-    - 删除 HTML 中的仪表盘部分的 card，现在交给 `web-config` 来定义
-    - 删除部分没必要的前后端通信，优化通信负载
-      - 移除后端传递的节点历史信息，由前端进行维护
-      - 移除总体统计中除"总剩余时间"的后端数据，由前端进行计算
-    - 优化错误存储的 JSONL 数据结构，现在保存更细致的错误信息
-    - 调整 pyright 规则，并实现 pyright 0 error / 0 warning
-    - 给 `web/` 下几乎所有 `.ts` 与 `.css` 文件重命名，并整理文件内容边界
-    - `util_error` 中添加更多错误类型，保证项目中所有主动 raise 的错误都在当前的错误体系下
-    - 删除前端代码中所有的 `onclick`，改用 `data-*` 属性
-    - 清简 `config.json` 中的部分字段
-    - 删除部分不必要的代码
+    - 删除前后端通讯中的 `summary` , 节点的总体预期结束时间由各个节点的 `status` 分别传递, 并由前端计算整体的预期结束时间
+    - 修改 `structure_graph`(原 `structure_json`) 字段的内容, 现在更为简洁, 避免信息冗余, 同时方便后续拓展
   - fix:
-    - 对部分太宽泛的错误捕捉进行收窄
+    - 修复指标折线图中指标选择失效的问题
+    - 修改 `report.stop` 中_refresh_all的执行顺序, 避免与thread中的刷新冲突
+    - 在 `graph._finalize_nodes` 中添加对thread未终止的防御性检查
+    - 修复 `stage` 中 `start_time` 在未定义前被 `report` 调用的问题
+    - 修复 `TaskRedisTransport._transport` 中使用 `id()` 来计算task_id导致的问题
+    - 修复部分任务无法被hash导致的panic问题
   - chore:
-    - 添加更多测试代码，并整理 `tests/` 结构
-    - 修复 `bench/` 中的一些问题
-      - 主要是 `bench_execution_mode` 中的两种 Fibonacci 运算量级不同，无法正常进行模型 bench
-    - 添加 `.github/workflows`，实现 CI/CD
-    - 更新支持的 Python 版本为 3.11，以与部分库要求相符
-    - 添加两个 skill，分别用于更新文档与审查项目
+    - 删除所有的 `type: ignore`
+      - 好看不少
+    - 在 `start_*` 函数的doc-string中标注该函数为一次性调用函数
 
 更多过往日志可看:
 
