@@ -49,7 +49,14 @@ from .util_serialize import build_structure_graph, format_structure_list_from_gr
 
 
 class TaskGraph:
-    """任务图核心类，负责构建、连接和调度一组 TaskStage 节点。"""
+    """任务图核心类，负责构建、连接和调度一组 TaskStage 节点。
+
+    注意：
+    - TaskGraph 是一次性对象，设计上只应启动一次。
+    - start_graph() 执行后，内部会建立并持有运行期资源、队列绑定和线程状态，
+      不保证可被安全重置或重复启动。
+    - 如需再次运行相同流程，请重新创建 TaskGraph 实例及其关联的 TaskStage。
+    """
 
     # ==== 初始化 ====
 
@@ -64,6 +71,11 @@ class TaskGraph:
         TaskGraph 表示一组 TaskStage 节点所构成的任务图，可用于构建并行、串行、
         分层等多种形式的任务执行流程。通过分析图结构和调度布局策略，实现灵活的
         DAG 任务调度控制。
+
+        生命周期说明：
+        - 当前 TaskGraph 实例为一次性对象。
+        - 完成一次 start_graph() 后，不应复用同一实例再次启动。
+        - 如需重复执行，请重新构建新的 TaskGraph 与节点对象。
 
         :param schedule_mode: str, optional, default = 'eager'
             控制任务图的调度布局模式，支持以下两种策略：
@@ -342,6 +354,9 @@ class TaskGraph:
 
         :param init_tasks_dict: 任务列表
         :param put_termination_signal: 是否注入终止信号，默认 True
+        :note:
+            TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
+            start_graph()。如需重复执行，请创建新的 TaskGraph 实例。
         """
         self._build_resources()
         self._build_analysis()
