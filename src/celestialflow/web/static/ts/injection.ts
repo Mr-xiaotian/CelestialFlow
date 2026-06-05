@@ -13,6 +13,46 @@ let selectedNodes: SelectedNode[] = []; // 用户选中的注入目标节点
 let currentInputMethod = "json"; // 当前输入方式（json / file）
 let uploadedFile: { name: string; content: string } | null = null; // 已上传的文件内容
 
+function setLocalizedMessageMeta(
+  element: HTMLElement,
+  messageKey: string,
+  args: string[] = [],
+) {
+  element.dataset.messageKey = messageKey;
+  element.dataset.messageArgs = JSON.stringify(args);
+}
+
+function clearLocalizedMessageMeta(element: HTMLElement) {
+  delete element.dataset.messageKey;
+  delete element.dataset.messageArgs;
+}
+
+function getLocalizedMessageArgs(element: HTMLElement): string[] {
+  const rawArgs = element.dataset.messageArgs;
+  if (!rawArgs) return [];
+  try {
+    const parsed = JSON.parse(rawArgs);
+    return Array.isArray(parsed) ? parsed.map((item) => String(item)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function getStatusIconSvg(isSuccess: boolean): string {
+  return isSuccess
+    ? '<svg class="status-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+    : '<svg class="status-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+}
+
+function renderStatusMessage(
+  statusDiv: HTMLElement,
+  messageKey: string,
+  isSuccess: boolean,
+  args: string[] = [],
+) {
+  statusDiv.innerHTML = getStatusIconSvg(isSuccess) + t(messageKey, ...args);
+}
+
 // 页面加载完成后初始化节点列表并绑定注入表单交互。
 document.addEventListener("DOMContentLoaded", function () {
   renderNodeList();
@@ -271,7 +311,7 @@ function handleFileUpload(e: Event) {
   if (!file) return;
 
   if (!file.name.endsWith(".json")) {
-    showError("file-error", t("injection.uploadJsonOnly"));
+    showError("file-error", "injection.uploadJsonOnly");
     return;
   }
 
@@ -287,7 +327,7 @@ function handleFileUpload(e: Event) {
       document.getElementById("file-info").style.display = "flex";
       hideError("file-error");
     } catch (e) {
-      showError("file-error", t("injection.uploadInvalid"));
+      showError("file-error", "injection.uploadInvalid");
       uploadedFile = null;
       document.getElementById("file-info").style.display = "none";
     }
@@ -298,12 +338,14 @@ function handleFileUpload(e: Event) {
 /**
  * 显示错误信息
  * @param {string} elementId - 错误信息容器 ID
- * @param {string} message - 错误文本
+ * @param {string} messageKey - 错误文案翻译键
+ * @param {...string} args - 翻译占位参数
  * @returns {void}
  */
-function showError(elementId: string, message: string) {
+function showError(elementId: string, messageKey: string, ...args: string[]) {
   const errorDiv = document.getElementById(elementId) as HTMLElement;
-  errorDiv.textContent = message;
+  setLocalizedMessageMeta(errorDiv, messageKey, args);
+  errorDiv.textContent = t(messageKey, ...args);
   errorDiv.style.display = "block";
 }
 
@@ -313,7 +355,9 @@ function showError(elementId: string, message: string) {
  * @returns {void}
  */
 function hideError(elementId: string) {
-  (document.getElementById(elementId) as HTMLElement).style.display = "none";
+  const errorDiv = document.getElementById(elementId) as HTMLElement;
+  errorDiv.style.display = "none";
+  clearLocalizedMessageMeta(errorDiv);
 }
 
 /**
@@ -332,24 +376,22 @@ function validateJSON(text: string): boolean {
     hideError("json-error");
     return true;
   } catch {
-    showError("json-error", t("json.invalid"));
+    showError("json-error", "json.invalid");
     return false;
   }
 }
 
 /**
  * 显示操作状态提示（成功或失败）
- * @param {string} message - 要显示的提示 HTML 文本。
+ * @param {string} messageKey - 要显示的提示翻译键。
  * @param {boolean} [isSuccess=false] - 是否按成功态样式展示。
+ * @param {...string} args - 翻译占位参数
  * @returns {void}
  */
-function showStatus(message: string, isSuccess = false) {
+function showStatus(messageKey: string, isSuccess = false, ...args: string[]) {
   const statusDiv = document.getElementById("status-message");
-  const iconSVG = isSuccess
-    ? '<svg class="status-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
-    : '<svg class="status-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-
-  statusDiv.innerHTML = iconSVG + message;
+  setLocalizedMessageMeta(statusDiv, messageKey, args);
+  renderStatusMessage(statusDiv, messageKey, isSuccess, args);
   statusDiv.className = `status-message ${
     isSuccess ? "status-success" : "status-error"
   }`;
@@ -369,7 +411,7 @@ function showStatus(message: string, isSuccess = false) {
  */
 async function handleSubmit() {
   if (selectedNodes.length === 0) {
-    showStatus(t("injection.selectNodeRequired"), false);
+    showStatus("injection.selectNodeRequired", false);
     return;
   }
 
@@ -377,17 +419,17 @@ async function handleSubmit() {
   if (currentInputMethod === "json") {
     const jsonText = (document.getElementById("json-textarea") as HTMLTextAreaElement).value.trim();
     if (!jsonText) {
-      showStatus(t("injection.enterData"), false);
+      showStatus("injection.enterData", false);
       return;
     }
     if (!validateJSON(jsonText)) {
-      showStatus(t("injection.invalidJson"), false);
+      showStatus("injection.invalidJson", false);
       return;
     }
     taskData = JSON.parse(jsonText);
   } else {
     if (!uploadedFile) {
-      showStatus(t("injection.uploadRequired"), false);
+      showStatus("injection.uploadRequired", false);
       return;
     }
     taskData = JSON.parse(uploadedFile.content);
@@ -410,11 +452,11 @@ async function handleSubmit() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
     }
 
-    showStatus(t("injection.success"), true);
+    showStatus("injection.success", true);
     clearForm();
   } catch (e) {
     console.error(e);
-    showStatus(t("injection.failed"), false);
+    showStatus("injection.failed", false);
   } finally {
     setButtonLoading(false);
   }
@@ -427,6 +469,7 @@ async function handleSubmit() {
  */
 function setButtonLoading(loading: boolean) {
   const btn = document.getElementById("submit-btn") as HTMLButtonElement;
+  btn.dataset.loading = loading ? "true" : "false";
   if (loading) {
     btn.innerHTML = `<div class="spinner"></div>${t("injection.submitting")}`;
     btn.disabled = true;
@@ -452,4 +495,42 @@ function clearForm() {
   hideError("file-error");
   (document.getElementById("search-input") as HTMLInputElement).value = "";
   renderNodeList();
+}
+
+/**
+ * 刷新任务注入表单的本地化文本
+ * 包括文件名、错误提示、状态消息等
+ * @returns {void}
+ */
+function refreshInjectionLocalizedText() {
+  if (uploadedFile) {
+    document.getElementById("file-name").textContent = t(
+      "injection.uploaded",
+      uploadedFile.name,
+    );
+  }
+
+  for (const elementId of ["json-error", "file-error"]) {
+    const errorDiv = document.getElementById(elementId) as HTMLElement;
+    const messageKey = errorDiv.dataset.messageKey;
+    if (messageKey) {
+      errorDiv.textContent = t(messageKey, ...getLocalizedMessageArgs(errorDiv));
+    }
+  }
+
+  const statusDiv = document.getElementById("status-message") as HTMLElement;
+  const statusMessageKey = statusDiv.dataset.messageKey;
+  if (statusMessageKey) {
+    renderStatusMessage(
+      statusDiv,
+      statusMessageKey,
+      statusDiv.classList.contains("status-success"),
+      getLocalizedMessageArgs(statusDiv),
+    );
+  }
+
+  const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
+  if (submitBtn.dataset.loading === "true") {
+    submitBtn.innerHTML = `<div class="spinner"></div>${t("injection.submitting")}`;
+  }
 }

@@ -232,10 +232,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         applyI18nDOM();
         updateSettingsStatusText();
         themeToggleBtn.textContent = document.body.classList.contains("dark-theme") ? t("theme.light") : t("theme.dark");
+        renderMermaidStructure(nodeStatuses);
         renderDashboard();
+        populateNodeFilter(nodeStatuses);
         renderErrors();
         renderAnalysisInfo();
         renderNodeList();
+        refreshInjectionLocalizedText();
         initChart();
         updateChartData();
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
