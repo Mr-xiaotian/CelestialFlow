@@ -511,7 +511,7 @@ class TaskGraph:
         stage: TaskStage,
         last_status: dict[str, Any],
         interval: float,
-    ) -> tuple[dict[str, Any], tuple[int, int, float]]:
+    ) -> tuple[dict[str, Any], tuple[int, int]]:
         """
         计算单个 stage 的运行时快照
         :param stage: 节点实例
@@ -547,26 +547,23 @@ class TaskGraph:
 
         processed = int(stage_counts["tasks_processed"] or 0)
         pending = int(stage_counts["tasks_pending"] or 0)
-        remaining_f = float(remaining or 0.0)
 
-        return snapshot, (processed, pending, remaining_f)
+        return snapshot, (processed, pending)
 
     def _calc_graph_pending(
         self,
         running_processed_map: dict[str, int],
         running_pending_map: dict[str, int],
-        running_remaining_map: dict[str, float],
-    ) -> dict[str, float]:
+    ) -> dict[str, int]:
         """
         根据 DAG/非 DAG 策略计算全局预计待处理任务数量
 
         :param running_processed_map: 各节点已处理任务数
         :param running_pending_map: 各节点待处理任务数
-        :param running_remaining_map: 各节点预计剩余时间
-        :return: 全局预计剩余时间（秒）
+        :return: 全局预计待处理任务数量
         """
         if not self.is_dag:
-            return running_remaining_map
+            return running_pending_map
 
         total_pending_map = calc_global_pending(
             self.networkx_graph,
@@ -586,12 +583,11 @@ class TaskGraph:
         # 为全局预计 tasks_pending 收集数据
         running_processed_map: dict[str, int] = {}
         running_pending_map: dict[str, int] = {}
-        running_remaining_map: dict[str, float] = {}
 
         for stage_name, stage in self.stage_dict.items():
             last_status = self.status_dict.get(stage_name, {})
 
-            snapshot, (processed, pending, remaining) = (
+            snapshot, (processed, pending) = (
                 self._snapshot_one_stage(
                     stage,
                     last_status,
@@ -604,12 +600,10 @@ class TaskGraph:
             # 更新各节点的 processed, pending, remaining 数据
             running_processed_map[stage_name] = processed
             running_pending_map[stage_name] = pending
-            running_remaining_map[stage_name] = remaining
 
         total_pending_map = self._calc_graph_pending(
             running_processed_map,
             running_pending_map,
-            running_remaining_map,
         )
         for stage_name, stage_status in status_dict.items():
             stage_status["total_tasks_pending"] = total_pending_map[stage_name]

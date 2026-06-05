@@ -52,7 +52,7 @@ def calc_global_pending(
     G: nx.DiGraph[str],
     processed_map: dict[str, int],
     pending_map: dict[str, int],
-) -> dict[str, float]:
+) -> dict[str, int]:
     """
     基于任务图（DAG）估算全局待处理任务数量（偏保守 / 拥塞放大型）。
 
@@ -112,15 +112,15 @@ def calc_global_pending(
 
     :return: expected_pending_map : 估算得到的全局待处理任务数量
     """
-    expected_pending_map: dict[str, float] = {}
+    expected_pending_map: dict[str, int] = {}
 
     # 每个节点的 scale（上游放大系数）
     scale: dict[str, float] = {}
 
     for v in nx.topological_sort(G):
         v_str: str = v
-        proc_v = float(processed_map.get(v_str, 0) or 0)
-        pend_v = float(pending_map.get(v_str, 0) or 0)
+        proc_v = int(processed_map.get(v_str, 0) or 0)
+        pend_v = int(pending_map.get(v_str, 0) or 0)
         seen_v = proc_v + pend_v
 
         preds: list[str] = list(G.predecessors(v_str))
@@ -130,14 +130,14 @@ def calc_global_pending(
         else:
             k = float(len(preds))
             obs_each = seen_v / k
-            total_v = 0.0
+            total_v = 0
             for u in preds:
                 total_v += obs_each * scale.get(u, 1.0)
 
-        scale[v_str] = total_v / max(1.0, proc_v)  # 下游放大系数
+        scale[v_str] = total_v / max(1, proc_v)  # 下游放大系数
         expect_pend_v = max(pend_v, total_v - proc_v)  # 理论上expect_pend_v >= pend_v
 
         # 时间估算：需要 avg time（秒/任务）
-        expected_pending_map[v_str] = expect_pend_v
+        expected_pending_map[v_str] = int(expect_pend_v)
 
     return expected_pending_map
