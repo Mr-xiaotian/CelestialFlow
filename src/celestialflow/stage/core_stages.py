@@ -295,6 +295,8 @@ class TaskRedisTransport(TaskStage):
         self.db = db
         self.password = password
 
+        self.task_id_counter = 0
+
     def init_redis(self) -> None:
         """初始化 Redis 客户端（惰性，仅首次调用时创建连接）"""
         if not hasattr(self, "redis_client"):
@@ -314,8 +316,9 @@ class TaskRedisTransport(TaskStage):
         :return: 任务 ID
         """
         self.init_redis()
-
-        task_id = id(task)
+        
+        task_id = self.task_id_counter
+        self.task_id_counter += 1
         payload = json.dumps(
             {
                 "id": task_id,
