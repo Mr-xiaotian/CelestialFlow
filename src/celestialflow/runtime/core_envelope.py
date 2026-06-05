@@ -36,11 +36,20 @@ class TaskEnvelope:
     def get_hash(self) -> bytes:
         """
         获取任务哈希
+        如果任务哈希未计算，则计算并缓存。
+        如果任务不可 hash，则退化为仅当前 envelope 唯一的兜底值。
 
         :return: 任务哈希
         """
-        if self.hash is None:
+        if self.hash is not None:
+            return self.hash
+
+        try:
             self.hash = object_to_hash(self.task)
+        except Exception:
+            # 不可 hash 的任务退化为仅当前 envelope 唯一的兜底值。
+            # 使用长度和前缀都区别于 SHA1 的字节串，避免与正常内容哈希冲突。
+            self.hash = f"__unhashable_task__:{self.id}".encode("ascii")
         return self.hash
 
     def get_id(self) -> int:

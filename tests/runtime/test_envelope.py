@@ -45,6 +45,25 @@ class TestTaskEnvelope:
         envelope.get_hash()
         assert envelope.hash is not None
 
+    def test_unhashable_task_falls_back_to_unique_hash(self):
+        """不可 pickle 的任务应回退到仅当前 envelope 唯一的哈希值。"""
+
+        class UnpicklableTask:
+            def __getstate__(self):
+                raise TypeError("cannot pickle")
+
+        env1 = TaskEnvelope(UnpicklableTask(), id=101, source="test")
+        env2 = TaskEnvelope(UnpicklableTask(), id=102, source="test")
+
+        hash1 = env1.get_hash()
+        hash2 = env2.get_hash()
+
+        assert isinstance(hash1, bytes)
+        assert isinstance(hash2, bytes)
+        assert hash1.startswith(b"__unhashable_task__:")
+        assert hash2.startswith(b"__unhashable_task__:")
+        assert hash1 != hash2
+
     def test_slots_memory_efficient(self):
         """测试 __slots__ 限制，确保不能为 TaskEnvelope 实例动态添加非法属性"""
         envelope = TaskEnvelope("x", id=1, source="test")
