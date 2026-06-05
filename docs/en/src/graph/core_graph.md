@@ -1,8 +1,10 @@
 # TaskGraph
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/05
 
 `TaskGraph` is the core scheduler of CelestialFlow, responsible for managing dependency relationships, execution flow, resource allocation, and lifecycle of a set of `TaskStage` nodes.
+
+> Note: `TaskGraph` is a one-shot object. After one `start_graph()` run, the current instance is not guaranteed to be safely reset or started again. Recreate the graph and its stages for another run.
 
 ## Key Data Structures
 
@@ -96,6 +98,10 @@ def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
     7. Release resources
     """
 ```
+
+Lifecycle note:
+- Runtime queue bindings, predecessor links, and thread references are built for a single run.
+- Reusing the same `TaskGraph` instance after completion is not part of the supported lifecycle.
 
 ```python
 graph = TaskGraph(schedule_mode="eager")

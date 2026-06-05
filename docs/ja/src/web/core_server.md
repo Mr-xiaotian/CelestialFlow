@@ -1,8 +1,8 @@
 # TaskWeb
 
-> 📅 最終更新日: 2026/04/24
+> 📅 最終更新日: 2026/05/23
 
-TaskWeb モジュールは、FastAPI ベースの軽量 Web サーバーを提供し、タスクグラフの実行をリアルタイムで監視・管理します。
+TaskWeb モジュールは、FastAPI ベースの軽量 Web サーバーを提供し、タスクグラフの実行をリアルタイムで監視・管理します。`TaskReporter`（バックエンド）と Web UI（フロントエンド）の間の中継局として機能します。
 
 ## 起動方法
 
@@ -25,7 +25,7 @@ celestialflow-web --log-level debug
 ### コマンドライン引数
 
 | 引数 | デフォルト値 | 説明 |
-|------|------------|------|
+|------|--------|------|
 | `--host` | `0.0.0.0` | リッスンアドレス |
 | `--port` | `5000` | リッスンポート |
 | `--log-level` | `info` | ログレベル (critical/error/warning/info/debug/trace) |
@@ -46,7 +46,7 @@ server.start_server()
 ### 主要パネル
 
 | パネル | 機能 |
-|--------|------|
+|------|------|
 | **Dashboard** | タスクグラフのリアルタイムステータス概要（構造可視化（Mermaid 図）、ノード数、成功/失敗/滞留タスク数、折れ線グラフ） |
 | **Errors** | リアルタイムエラーログリスト |
 | **Task Injection** | Web 画面から動的にタスクを注入 |
@@ -56,57 +56,56 @@ server.start_server()
 - ライト/ダークテーマの切り替えをサポート
 - テーマ設定はバックエンドの `config.json` に永続化保存
 
-## API インターフェース
+## API インターフェース (RESTful)
 
 TaskWeb は一連の RESTful API を提供し、`TaskReporter` からの呼び出しとフロントエンドでの使用に対応します。すべてのインターフェースは `/api/` をプレフィックスとし、取得インターフェースは `pull_` 命名、送信インターフェースは `push_` 命名を使用します。
 
-### データ取得 (GET)
+### 取得インターフェース (GET /api/pull_*)
 
-| エンドポイント | 説明 |
-|---------------|------|
-| `GET /api/pull_config` | フロントエンド設定を取得（テーマ、リフレッシュ間隔、ダッシュボードレイアウトなど） |
-| `GET /api/pull_structure` | グラフ構造を取得 |
-| `GET /api/pull_status` | ノード実行ステータスを取得 |
-| `GET /api/pull_errors` | エラーログを取得 |
-| `GET /api/pull_analysis` | 分析データを取得 |
-| `GET /api/pull_summary` | サマリー統計を取得 |
-| `GET /api/pull_history` | 各ノードのタスク処理履歴を取得（折れ線グラフ用） |
-| `GET /api/pull_interval` | Reporter のプッシュ間隔を取得 |
-| `GET /api/pull_history_limit` | 履歴レコードの最大保持件数を取得 |
-| `GET /api/pull_task_injection` | 注入待ちタスクを取得（TaskGraph が取得用） |
+Web UI が最新データを取得するために使用します。`known_rev` メカニズムをサポートします：サーバー側のデータバージョンが変更されていない場合、帯域幅節約のために `data: null` を返します。
 
-### データ送信 (POST)
+| エンドポイント | 戻り値構造 (data フィールド) | 説明 |
+|------|--------------------|------|
+| `pull_config` | `WebConfigModel` | テーマ、言語、リフレッシュ頻度などのグローバル設定を取得 |
+| `pull_structure`| `list[dict]` | タスクグラフのトポロジ構造を取得 |
+| `pull_status` | `dict[tag, NodeStatus]` | 各ノードのリアルタイム実行指標と統一タイムスタンプを取得 |
+| `pull_errors` | `list[dict]` | エラーログをページネーション取得 |
+| `pull_analysis` | `dict` | グラフのトポロジ分析結果を取得 (DAG, 階層など) |
+| `pull_summary` | `{"total_remain": float}` | グラフレベルの合計残り時間推定を取得 |
+| `pull_task_injection` | `list[dict]` | TaskGraph が注入待ちタスクキューを取得するために使用 |
+| `pull_interval` | `{"interval": float}` | Reporter のプッシュ間隔を取得 |
 
-| エンドポイント | 説明 |
-|---------------|------|
-| `POST /api/push_config` | フロントエンド設定を保存 |
-| `POST /api/push_structure` | グラフ構造を送信 |
-| `POST /api/push_status` | ノードステータスを送信 |
-| `POST /api/push_errors_meta` | エラーメタデータを送信（キャッシュ対応） |
-| `POST /api/push_errors_content` | エラー内容を送信（キャッシュ対応） |
-| `POST /api/push_analysis` | 分析データを送信 |
-| `POST /api/push_summary` | サマリー統計を送信 |
-| `POST /api/push_history` | 各ノードの履歴データを送信 |
-| `POST /api/push_injection_tasks` | タスクを注入（フロントエンドが送信、TaskGraph が取得） |
+### 送信インターフェース (POST /api/push_*)
 
-## データモデル
+主に `TaskReporter` から呼び出され、バックエンドの実行状態を報告します。
+
+| エンドポイント | データモデル | 説明 |
+|------|---------|------|
+| `push_config` | `WebConfigModel` | フロントエンドから呼び出され、ユーザー設定を保存 |
+| `push_status` | `StatusModel` | ノード状態スナップショット + 現在のタイムスタンプを報告 |
+| `push_structure`| `StructureModel` | グラフ構造を報告 |
+| `push_analysis` | `AnalysisModel` | 分析データを報告 |
+| `push_summary` | `SummaryModel` | グラフレベルのサマリー情報を報告 |
+| `push_errors_meta` | `ErrorsMetaModel` | エラーメタデータをプッシュ（キャッシュ対応） |
+| `push_errors_content`| `ErrorsContentModel`| エラー内容をプッシュ（キャッシュ対応） |
+| `push_injection_tasks` | `TaskInjectionModel` | フロントエンドがタスク注入リクエストを送信 |
+
+## データモデル (Pydantic)
 
 ### StructureModel
-
 ```python
 class StructureModel(BaseModel):
     items: list[dict[str, Any]]
 ```
 
 ### StatusModel
-
 ```python
 class StatusModel(BaseModel):
-    status: dict[str, dict]
+    timestamp: float                 # 統一サンプリングタイムスタンプ
+    status: dict[str, dict[str, Any]] # キーはノード Tag、値は NodeStatus
 ```
 
 ### ErrorsMetaModel
-
 ```python
 class ErrorsMetaModel(BaseModel):
     jsonl_path: str  # JSONL ファイルパス
@@ -114,73 +113,59 @@ class ErrorsMetaModel(BaseModel):
 ```
 
 ### ErrorsContentModel
-
 ```python
 class ErrorsContentModel(BaseModel):
-    errors: list[dict]
+    errors: list[dict[str, Any]]
     jsonl_path: str
     rev: int
 ```
 
 ### AnalysisModel
-
 ```python
 class AnalysisModel(BaseModel):
     analysis: dict[str, Any]
 ```
 
 ### SummaryModel
-
 ```python
 class SummaryModel(BaseModel):
     summary: dict[str, Any]
 ```
 
-### HistoryModel
-
-```python
-class HistoryModel(BaseModel):
-    history: dict[str, list[dict]]
-    # key: ノードタグ；value: [{timestamp, tasks_processed}, ...]
-```
-
 ### TaskInjectionModel
-
 ```python
 class TaskInjectionModel(BaseModel):
-    node: str             # ターゲットノードタグ
+    node: str             # ターゲットノードラベル
     task_datas: list[Any] # タスクデータリスト
     timestamp: datetime   # タイムスタンプ
 ```
 
 ### WebConfigModel
-
 ```python
 class WebConfigModel(BaseModel):
-    theme: str                        # "light" または "dark"
-    refreshInterval: int              # リフレッシュ間隔（ミリ秒）
-    historyLimit: int                 # 履歴レコードの最大保持件数
-    dashboard: DashboardConfigModel   # ダッシュボードレイアウト設定
-    cards: dict[str, CardConfigModel] # 各カードのタイトル設定
+    theme: str                        # "light" | "dark"
+    refreshInterval: int              # ポーリング間隔 (ms)
+    historyLimit: int                 # フロントエンド履歴保持長
+    language: str = "zh-CN"           # 画面言語
+    errorPageSize: int = 10           # エラーログページネーションサイズ
+    showStructureEdgeDelta: bool = True # 構造図増分表示スイッチ
+    dashboard: DashboardConfigModel   # ダッシュボード3カラムレイアウト定義
 
 class DashboardConfigModel(BaseModel):
-    left: list[str]    # 左カラムのカード key リスト
-    middle: list[str]  # 中央カラムのカード key リスト
-    right: list[str]   # 右カラムのカード key リスト
-
-class CardConfigModel(BaseModel):
-    title: str         # カードタイトル
+    left: list[str]    # 左カラムカード key リスト
+    middle: list[str]  # 中央カラムカード key リスト
+    right: list[str]   # 右カラムカード key リスト
 ```
 
 ## 設定管理
 
 Web サービスの設定は `web/config.json` に永続化保存されます。
 
-- `load_config()` --- 起動時に読み込み、`WebConfigModel` で検証
-- `save_config(config)` --- 設定を JSON ファイルに保存、スレッドセーフ（`_config_lock` を使用）
-- `cal_interval(refresh_interval)` --- ミリ秒のリフレッシュ間隔を秒に変換、範囲を `[1.0, 60.0]` に制限
-
-フロントエンドが `push_config` で設定を更新すると、`report_interval` も同期的に更新されます。
+- `load_config()` — 起動時に読み込み、`WebConfigModel` で検証
+- `save_config(config)` — 設定を JSON ファイルに保存、スレッドセーフ（`_config_lock` を使用）
+- `cal_interval(refresh_interval)` — ミリ秒のリフレッシュ間隔を秒に変換、範囲を `[1.0, 60.0]` に制限
+- **デグレード起動**: `config.json` の読み込みに失敗した場合、Web サービスはハードコードされたデフォルト値で起動し、監視画面が常に利用可能であることを保証します。
+- **同期メカニズム**: フロントエンドが `refreshInterval` を更新すると、バックエンドの `report_interval` が自動的に同期され、`TaskReporter` のプッシュ頻度に影響します。
 
 ## TaskGraph との統合
 
@@ -204,7 +189,6 @@ TaskGraph                    TaskWeb                    Browser
     |--- push_status ---------->|                          |
     |--- push_analysis -------->|                          |
     |--- push_summary --------->|                          |
-    |--- push_history --------->|                          |
     |                           |                          |
     |--- push_errors_meta ----->|---- Errors ------------->|
     |--- push_errors_content -->|                          |

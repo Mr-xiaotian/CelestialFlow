@@ -1,12 +1,22 @@
 # Persistence Module
 
-> 📅 Last Updated: 2026/04/22
+> 📅 Last Updated: 2026/05/24
 
-The Persistence module provides data persistence features for CelestialFlow, including execution log recording, error information storage, task status saving, and configuration constant management. It ensures that critical data from task execution can be reliably saved and retrieved.
+The Persistence module provides data persistence features for CelestialFlow, including execution log recording, error information storage, success result caching, and configuration constant management. It ensures that critical data from task execution can be reliably saved and retrieved.
 
 ## Module Overview
 
-The Persistence module is responsible for persisting runtime data to various storage backends, supporting log recording, error tracking, status snapshots, and configuration management. The module adopts the spout pattern, seamlessly integrating into the task execution flow without affecting main flow performance.
+The Persistence module is responsible for persisting runtime data to the local file system, supporting log recording, error tracking, and success result caching. The module adopts a producer-consumer (Spout/Inlet) pattern, seamlessly integrating into the task execution flow without affecting main flow performance.
+
+## Exports
+
+| Exported Symbol | Source Module | Description |
+|----------------|---------------|-------------|
+| `FailSpout` | `core_fail` | Failure record listener, writes error information to JSONL files in the fallback directory |
+| `FailInlet` | `core_fail` | Thread-safe failure record collector, sends errors to `FailSpout` for writing via a queue |
+| `LogSpout` | `core_log` | Log listener thread, writes logs to text files in the `logs/` directory |
+| `LogInlet` | `core_log` | Thread-safe log collector, provides rich semantic logging methods |
+| `SuccessSpout` | `core_success` | Success result listener thread, continuously reads the success queue and caches task-result pairs |
 
 ## File Description
 
@@ -15,39 +25,42 @@ The Persistence module is responsible for persisting runtime data to various sto
 1. **core_log.py** (`LogSpout`, `LogInlet`)
    - **Purpose**: Infrastructure for log recording and storage
    - **Core Components**:
-     - `LogSpout`: Log spout that receives log messages from the queue and writes to files
-     - `LogInlet`: Log collector that writes logs to files
-   - **Log Format**: Text log format containing timestamp, log level, and message content
-   - **Key Features**: Asynchronous writing, file management, log rotation, multi-process safety
+     - `LogSpout`: Log listener thread, receives log messages from the queue and writes to text files in the `logs/` directory
+     - `LogInlet`: Thread-safe log collector, provides semantic logging methods (task success/failure/retry, stage start/stop, queue operations, etc.)
+   - **Log Format**: Plain text format, each line containing `timestamp level message`
+   - **Key Features**: Asynchronous writing, level filtering, rich lifecycle logging methods
 
 ### Error Persistence
 
 2. **core_fail.py** (`FailSpout`, `FailInlet`)
    - **Purpose**: Infrastructure for error information recording and storage
    - **Core Components**:
-     - `FailSpout`: Error spout that receives error information from the queue and writes to files
-     - `FailInlet`: Error collector that writes error information to files
-   - **Error Information**: Error type, stack trace, context data, occurrence time, task ID
-   - **Key Features**: Error classification, file storage, asynchronous processing, multi-process safety
+     - `FailSpout`: Failure record listener, receives error information from the queue and writes to JSONL files in the `fallback/` directory
+     - `FailInlet`: Thread-safe error collector, sends error information to `FailSpout` for writing via a queue
+   - **Error Format**: JSONL (JSON Lines), containing fields such as `ts`, `error_type`, `error_message`, `error_repr`, `stage`, `task`
+   - **Key Features**: JSONL file storage, error counter, metadata recording
 
 ### Success Result Persistence
 
 3. **core_success.py** (`SuccessSpout`)
-   - **Purpose**: Success result listening thread that continuously reads from the success result queue and caches task-result pairs
+   - **Purpose**: Success result listener thread, continuously reads from the success result queue and caches task-result pairs
    - **Core Components**:
-     - `SuccessSpout`: Inherits from `BaseSpout`, caches (task, result) pairs
+     - `SuccessSpout`: Inherits from `BaseSpout`, caches `(task, result)` pairs
    - **Key Features**: Success result caching, task-result pair extraction
 
 ### Data Format and Configuration
 
 4. **util_jsonl.py**
    - **Purpose**: JSON Lines format support for efficient structured data storage and reading
-   - **Key Features**:
-     - `load_jsonl_logs()`: Loads log data from JSONL files, supports selective field reading
-     - Streaming data reading, supports starting from a specified line number
-     - Data filtering and transformation
-     - Error handling and file validation
-   - **Use Cases**: Log file reading, error record analysis, Web interface data display
+   - **Key Functions**:
+     - `load_jsonl_logs()`: Loads log data from JSONL files, supports selective field reading and line offset
+     - `parse_jsonl_value()`: Intelligently parses JSONL field values (supports `ast.literal_eval` deserialization)
+     - `load_jsonl_by_key()`: Loads JSONL data grouped by a specified field
+     - `load_jsonl_grouped_by_keys()`: Loads JSONL data grouped by multiple fields
+     - `load_task_by_stage()`: Loads error records grouped by stage
+     - `load_task_by_error()`: Loads error records grouped by error and stage
+     - `load_task_error_pairs()`: Loads error records, returning a list of `(task, error)` pairs
+   - **Use Cases**: Error log reading, error record analysis, Web interface data display
 
 5. **util_constant.py**
    - **Purpose**: Persistence-related constants and configuration definitions
@@ -67,7 +80,6 @@ The Persistence module is responsible for persisting runtime data to various sto
 ### External Dependencies
 - **Runtime Module**: Monitors logs and errors generated at runtime
 - **Stage Module**: Records task execution status and results
-- **Graph Module**: Saves graph structure status and execution history
 - **Observability Module**: Provides raw data for monitoring and analysis
 - **Utils Module**: Uses utility functions for data processing and formatting
 
@@ -75,25 +87,60 @@ The Persistence module is responsible for persisting runtime data to various sto
 
 ### Asynchronous Non-Blocking Design
 - Spouts run in background threads without blocking the main flow
-- Queue buffering to handle write peaks
+- Inlets send data via queues, non-blocking writes
 - Batch commits to improve storage efficiency
 
-### Multi-Backend Support
-- Supports files, databases, remote services, and other storage backends
-- Unified interface for easy switching and extension
-- Storage adapter pattern supporting custom backends
+### Producer-Consumer Pattern
 
-### Reliability Guarantees
-- Write failure retry mechanism
-- Data integrity verification
-- Storage space monitoring and alerting
-- Graceful degradation without affecting the main flow
+```mermaid
+flowchart LR
+    subgraph Producer["Producer - Worker Threads"]
+        LogInlet[LogInlet]
+        FailInlet[FailInlet]
+        SuccessSpout[SuccessSpout
+as consumer
+used independently]
+    end
 
-### Configurability
-- Configurable storage paths
-- Adjustable formats and encoding
-- Tunable performance parameters
-- Customizable alerting rules
+    LogInlet -->|_log -> _funnel| LogQueue[Log Queue
+queue.Queue]
+    FailInlet -->|task_error / metadata| FailQueue[Error Queue
+queue.Queue]
+
+    LogQueue -->|Daemon thread polling| LogSpout[LogSpout]
+    FailQueue -->|Daemon thread polling| FailSpout[FailSpout]
+
+    LogSpout -->|_handle_record| LogFile[logs/*.log]
+    FailSpout -->|json.dumps| FailFile[fallback/*.jsonl]
+
+    SrcQueue[Success Queue
+queue.Queue] -->|Daemon thread polling| SuccessSpout
+    SuccessSpout -->|_handle_record| Cache[(success_pairs
+in-memory cache)]
+
+    style Producer fill:#e1f5fe
+    style LogQueue fill:#fff3e0
+    style FailQueue fill:#fff3e0
+    style SrcQueue fill:#fff3e0
+    style LogSpout fill:#e8f5e9
+    style FailSpout fill:#e8f5e9
+    style SuccessSpout fill:#e8f5e9
+    style LogFile fill:#f3e5f5
+    style FailFile fill:#f3e5f5
+    style Cache fill:#c8e6c9
+```
+
+### JSONL Format (Error Persistence)
+- One JSON record per line, facilitating streaming processing
+- Supports selective field reading
+- Compatible with `ast.literal_eval` deserialization
+
+### File Naming Convention
+
+| Persistence Type | File Path Pattern |
+|-----------------|-------------------|
+| Logs | `logs/task_logger({date}).log` |
+| Errors | `fallback/{date}/{source}({time}).jsonl` |
 
 ## Usage Patterns
 
@@ -112,35 +159,38 @@ fail_spout.start()
 fail_inlet = FailInlet(fail_spout.get_queue())
 ```
 
-### Advanced Usage
-1. **Multi-Backend Storage**: Write to files and databases simultaneously for redundant storage
-2. **Custom Formats**: Implement custom serialization formats
-3. **Real-time Alerting**: Configure error thresholds to trigger real-time notifications
-4. **Data Archival**: Automatically archive historical data to free storage space
-5. **Data Migration**: Migrate data between different storage backends
+### Recording Logs
+```python
+# Record stage start/stop
+log_inlet.start_stage("StageA", "thread", "thread", 4)
+log_inlet.end_stage("StageA", "thread", "thread", 12.5, 100, 2, 0)
 
-### Monitoring and Maintenance
-1. **Storage Monitoring**: Monitor disk usage to prevent storage overflow
-2. **Performance Monitoring**: Monitor write latency and throughput
-3. **Error Monitoring**: Monitor persistence failure rates
-4. **Data Cleanup**: Periodically clean up expired data
+# Record task lifecycle
+log_inlet.task_success("func", "task1", "thread", "result", 0.05, 1, 2)
+log_inlet.task_error("func", "task2", ValueError("bad"), 3, 4)
+```
 
-## Best Practices
+### Recording Errors
+```python
+fail_inlet.start_graph([{"name": "StageA", ...}])
+fail_inlet.start_executor("Executor-1")
+fail_inlet.task_error("StageA", 1, ValueError("invalid"), task_data)
+```
 
-### Production Environment Configuration
-1. **Storage Planning**: Plan storage space based on data volume and retention policies
-2. **Redundancy Design**: Use multi-copy storage for critical data
-3. **Performance Optimization**: Adjust batch processing size and concurrency based on load
-4. **Monitoring and Alerting**: Configure comprehensive monitoring and alerting rules
+### Reading Error Data
+```python
+from celestialflow.persistence.util_jsonl import (
+    load_jsonl_logs,
+    load_task_error_pairs,
+    parse_jsonl_value,
+)
 
-### Development and Testing
-1. **Local Storage**: Use file storage in development environments for easy debugging
-2. **Mock Backends**: Use in-memory or mock backends in test environments
-3. **Data Isolation**: Use different storage paths for different environments
-4. **Cleanup Strategy**: Automatically clean up test data to prevent accumulation
+# Read error logs
+errors = load_jsonl_logs("fallback/2026-01-01/errors(10-00-00-000).jsonl")
 
-### Troubleshooting
-1. **Write Failures**: Configure appropriate retry strategies and degradation plans
-2. **Storage Full**: Monitor storage space and configure automatic cleanup
-3. **Network Failures**: Handle network interruptions for remote storage
-4. **Format Errors**: Data validation and format compatibility handling
+# Get (task, error) pairs
+pairs = load_task_error_pairs("fallback/2026-01-01/errors(10-00-00-000).jsonl")
+
+# Parse task value
+task = parse_jsonl_value("[1, 2, 3]")  # returns (1, 2, 3)
+```

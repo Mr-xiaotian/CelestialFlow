@@ -1,8 +1,8 @@
 # TaskWeb
 
-> 📅 Last Updated: 2026/04/24
+> 📅 Last Updated: 2026/05/23
 
-The TaskWeb module provides a lightweight FastAPI-based web server for real-time monitoring and management of task graph execution.
+The TaskWeb module provides a lightweight FastAPI-based web server for real-time monitoring and management of task graph execution. It acts as a relay between `TaskReporter` (backend) and the Web UI (frontend).
 
 ## Starting the Server
 
@@ -56,57 +56,56 @@ Visit `http://localhost:5000` (or the specified port) to access the Web UI.
 - Supports light/dark theme switching
 - Theme settings are persisted to the backend `config.json`
 
-## API Endpoints
+## API Endpoints (RESTful)
 
-TaskWeb provides a set of RESTful APIs for `TaskReporter` and the frontend. All endpoints are prefixed with `/api/`. Pull endpoints use the `pull_` naming convention, and push endpoints use the `push_` naming convention.
+TaskWeb provides a set of RESTful APIs for `TaskReporter` and frontend usage. All endpoints are prefixed with `/api/`. Pull endpoints use the `pull_` naming convention, and push endpoints use the `push_` naming convention.
 
-### Pull Data (GET)
+### Pull Endpoints (GET /api/pull_*)
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/pull_config` | Get frontend configuration (theme, refresh interval, dashboard layout, etc.) |
-| `GET /api/pull_structure` | Get graph structure |
-| `GET /api/pull_status` | Get node runtime status |
-| `GET /api/pull_errors` | Get error logs |
-| `GET /api/pull_analysis` | Get analysis data |
-| `GET /api/pull_summary` | Get summary statistics |
-| `GET /api/pull_history` | Get task processing history for each node (used for line charts) |
-| `GET /api/pull_interval` | Get Reporter push interval |
-| `GET /api/pull_history_limit` | Get maximum history record retention count |
-| `GET /api/pull_task_injection` | Get tasks pending injection (pulled by TaskGraph) |
+Used by the Web UI to fetch the latest data. Supports the `known_rev` mechanism: if the server-side data version is unchanged, `data: null` is returned to save bandwidth.
 
-### Push Data (POST)
+| Endpoint | Return Structure (data field) | Description |
+|----------|-------------------------------|-------------|
+| `pull_config` | `WebConfigModel` | Fetch global configuration such as theme, language, and refresh interval |
+| `pull_structure`| `list[dict]` | Fetch the topological structure of the task graph |
+| `pull_status` | `dict[tag, NodeStatus]` | Fetch real-time runtime metrics and unified timestamps for each node |
+| `pull_errors` | `list[dict]` | Fetch paginated error logs |
+| `pull_analysis` | `dict` | Fetch graph topology analysis results (DAG, levels, etc.) |
+| `pull_summary` | `{"total_remain": float}` | Fetch graph-level total remaining time estimate |
+| `pull_task_injection` | `list[dict]` | For TaskGraph to fetch the pending injection task queue |
+| `pull_interval` | `{"interval": float}` | Fetch the Reporter push interval |
 
-| Endpoint | Description |
-|----------|-------------|
-| `POST /api/push_config` | Save frontend configuration |
-| `POST /api/push_structure` | Push graph structure |
-| `POST /api/push_status` | Push node status |
-| `POST /api/push_errors_meta` | Push error metadata (supports caching) |
-| `POST /api/push_errors_content` | Push error content (supports caching) |
-| `POST /api/push_analysis` | Push analysis data |
-| `POST /api/push_summary` | Push summary statistics |
-| `POST /api/push_history` | Push history data for each node |
-| `POST /api/push_injection_tasks` | Inject tasks (pushed by frontend, pulled by TaskGraph) |
+### Push Endpoints (POST /api/push_*)
 
-## Data Models
+Primarily called by `TaskReporter` to report backend runtime status.
+
+| Endpoint | Data Model | Description |
+|----------|-----------|-------------|
+| `push_config` | `WebConfigModel` | Called by the frontend to save user settings |
+| `push_status` | `StatusModel` | Report node status snapshot + current timestamp |
+| `push_structure`| `StructureModel` | Report graph structure |
+| `push_analysis` | `AnalysisModel` | Report analysis data |
+| `push_summary` | `SummaryModel` | Report graph-level summary information |
+| `push_errors_meta` | `ErrorsMetaModel` | Push error metadata (supports caching) |
+| `push_errors_content`| `ErrorsContentModel`| Push error content (supports caching) |
+| `push_injection_tasks` | `TaskInjectionModel` | Frontend submits task injection requests |
+
+## Data Models (Pydantic)
 
 ### StructureModel
-
 ```python
 class StructureModel(BaseModel):
     items: list[dict[str, Any]]
 ```
 
 ### StatusModel
-
 ```python
 class StatusModel(BaseModel):
-    status: dict[str, dict]
+    timestamp: float                 # Unified sampling timestamp
+    status: dict[str, dict[str, Any]] # Key: node tag, Value: NodeStatus
 ```
 
 ### ErrorsMetaModel
-
 ```python
 class ErrorsMetaModel(BaseModel):
     jsonl_path: str  # JSONL file path
@@ -114,38 +113,26 @@ class ErrorsMetaModel(BaseModel):
 ```
 
 ### ErrorsContentModel
-
 ```python
 class ErrorsContentModel(BaseModel):
-    errors: list[dict]
+    errors: list[dict[str, Any]]
     jsonl_path: str
     rev: int
 ```
 
 ### AnalysisModel
-
 ```python
 class AnalysisModel(BaseModel):
     analysis: dict[str, Any]
 ```
 
 ### SummaryModel
-
 ```python
 class SummaryModel(BaseModel):
     summary: dict[str, Any]
 ```
 
-### HistoryModel
-
-```python
-class HistoryModel(BaseModel):
-    history: dict[str, list[dict]]
-    # key: node tag; value: [{timestamp, tasks_processed}, ...]
-```
-
 ### TaskInjectionModel
-
 ```python
 class TaskInjectionModel(BaseModel):
     node: str             # Target node tag
@@ -154,33 +141,31 @@ class TaskInjectionModel(BaseModel):
 ```
 
 ### WebConfigModel
-
 ```python
 class WebConfigModel(BaseModel):
-    theme: str                        # "light" or "dark"
-    refreshInterval: int              # Refresh interval (milliseconds)
-    historyLimit: int                 # Maximum history record retention count
-    dashboard: DashboardConfigModel   # Dashboard layout configuration
-    cards: dict[str, CardConfigModel] # Card title configuration
+    theme: str                        # "light" | "dark"
+    refreshInterval: int              # Polling interval (ms)
+    historyLimit: int                 # Frontend history retention length
+    language: str = "zh-CN"           # Interface language
+    errorPageSize: int = 10           # Error log page size
+    showStructureEdgeDelta: bool = True # Structure diagram edge delta toggle
+    dashboard: DashboardConfigModel   # Dashboard three-column layout definition
 
 class DashboardConfigModel(BaseModel):
     left: list[str]    # Left column card key list
     middle: list[str]  # Middle column card key list
     right: list[str]   # Right column card key list
-
-class CardConfigModel(BaseModel):
-    title: str         # Card title
 ```
 
 ## Configuration Management
 
 Web service configuration is persisted in `web/config.json`.
 
-- `load_config()` -- Reads and validates via `WebConfigModel` at startup
-- `save_config(config)` -- Saves configuration to JSON file, thread-safe (uses `_config_lock`)
-- `cal_interval(refresh_interval)` -- Converts millisecond refresh interval to seconds, clamped to the range `[1.0, 60.0]`
-
-When the frontend updates the configuration via `push_config`, `report_interval` is also updated accordingly.
+- `load_config()` — Reads at startup and validates via `WebConfigModel`
+- `save_config(config)` — Saves configuration to JSON file, thread-safe (uses `_config_lock`)
+- `cal_interval(refresh_interval)` — Converts millisecond refresh interval to seconds, clamped to `[1.0, 60.0]`
+- **Degraded Startup**: If `config.json` fails to load, the Web service starts with hardcoded defaults, ensuring the monitoring interface is always available.
+- **Sync Mechanism**: When the frontend updates `refreshInterval`, the backend's `report_interval` is automatically synchronized, thereby affecting the `TaskReporter` push frequency.
 
 ## Integration with TaskGraph
 
@@ -204,7 +189,6 @@ TaskGraph                    TaskWeb                    Browser
     |--- push_status ---------->|                          |
     |--- push_analysis -------->|                          |
     |--- push_summary --------->|                          |
-    |--- push_history --------->|                          |
     |                           |                          |
     |--- push_errors_meta ----->|---- Errors ------------->|
     |--- push_errors_content -->|                          |

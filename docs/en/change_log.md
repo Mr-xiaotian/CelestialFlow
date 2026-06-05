@@ -1,184 +1,182 @@
 # Change Log
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/05
 
 - 2021: Created a class supporting both multithreaded and single-threaded processing functions
 - 2023: Added multiprocess and coroutine execution modes with the help of GPT-4
-- 5/9/2024: Abstracted the original processing class into nodes, added the TaskChain class capable of linearly connecting multiple nodes and setting each node's execution mode within the Chain — supporting `serial` and `process` modes, where the latter runs all nodes in the Chain concurrently
-- 12/12/2024-12/16/2024: Extended the chain structure to allow nodes to have multiple downstream nodes, implementing a Tree structure; renamed TaskChain to TaskTree
+- 5/9/2024: Abstracted the original processing class into nodes, added the `TaskChain` class capable of linearly connecting multiple nodes and setting each node's execution mode within the Chain — supporting `"serial"` and `"process"` modes, where the latter runs all nodes in the Chain concurrently
+- 12/12/2024-12/16/2024: Extended the chain structure to allow nodes to have multiple downstream nodes, implementing a Tree structure; renamed `TaskChain` to `TaskTree`
 - 3/16/2025: Added web-based task completion visualization
 - 6/9/2025: Enabled nodes to have multiple upstream nodes, moving beyond a pure Tree structure in preparation for cyclic graphs
-- 6/11/2025: Migrated from the [CelestialVault](https://github.com/Mr-xiaotian/CelestialVault) project's instances.inst_task module
+- 6/11/2025: Migrated from the [CelestialVault](https://github.com/Mr-xiaotian/CelestialVault) project's `instances.inst_task` module
 - 6/12/2025: Added support for cyclic graphs — downstream nodes can now point to upstream nodes
 - 6/13/2025: Added support for loop structures — a node can now point to itself
 - 6/14/2025: Added support for forest structures — multiple root nodes are now allowed
-- 6/16/2025: After multiple rounds of evaluation, the framework now supports full directed graph structures; renamed TaskTree to TaskGraph
+- 6/16/2025: After multiple rounds of evaluation, the framework now supports full directed graph structures; renamed `TaskTree` to `TaskGraph`
 - 3.0.1: Published on PyPI — a milestone worth celebrating
-- 3.0.4: Added a new abstract structure TaskQueue to represent all "in-edges" and "out-edges" of a node; restored the ability to save unconsumed tasks
-- 3.0.5: Removed the original TaskRedisTransfer node and added three new Redis interaction nodes — TaskRedisTransport, TaskRedisSource, and TaskRedisAck — for cross-language, cross-process, and cross-device task processing; added a topology information card to the Web page
+- 3.0.4: Added a new abstract structure `TaskQueue` to represent all "in-edges" and "out-edges" of a node; restored the ability to preserve unconsumed tasks
+- 3.0.5: Removed the original `TaskRedisTransfer` node and added three new Redis interaction nodes — `TaskRedisTransport`, `TaskRedisSource`, and `TaskRedisAck` — for cross-language, cross-process, and cross-device task processing; added a topology information card to the Web page
 - 3.0.6: Added support for the [CelestialTree](https://github.com/Mr-xiaotian/CelestialTree) system — individual task flow can now be tracked
-- 3.0.7: Extracted TaskStage from TaskExecutor as a separate subclass; added a new node TaskRouter that selectively routes incoming tasks to different downstream nodes instead of broadcasting
+- 3.0.7: Extracted `TaskStage` from `TaskExecutor` as a separate subclass; added a new node `TaskRouter` that selectively routes incoming tasks to different downstream nodes instead of broadcasting
 - 3.0.8: In CelestialTree logic, "task success/failure/retry" events after a "task retry" event are now treated as causal relationships rather than parallel ones; refactored error collection logic; fixed numerous bugs introduced in versions 3.0.6 and 3.0.7; improved some log output
-- 3.0.9: 
-  - Updated some node icons in the frontend Mermaid display; 
-  - Made extensive changes to ctree_client to match CelestialTree; 
-  - Moved ctree_client out as a separate project; 
-  - Added error_id display in the frontend, preparing for future provenance_tree display; 
-  - Added numerous warnings and errors to alert users about improper configurations; 
-  - Optimized error data transmission between frontend and backend, reducing memory consumption with large volumes of error data; 
-  - Optimized the admission mechanism for the log queue in LogInlet; 
-  - Fixed miscellaneous bugs;
+- 3.0.9:
+  - Updated some node icons in the frontend Mermaid display
+  - Made extensive changes to `ctree_client` to match CelestialTree
+  - Moved `ctree_client` out as a separate project
+  - Added `error_id` display in the frontend, preparing for future provenance_tree display
+  - Added numerous warnings and errors to alert users about improper configurations
+  - Optimized error data transmission between frontend and backend, reducing memory consumption with large volumes of error data
+  - Optimized the admission mechanism for the log queue in `LogInlet`
+  - Fixed miscellaneous bugs
 - 3.1.0:
   - New:
-    - Enhanced the "Overall Status Summary" card on the web dashboard, adding "Total Duplicate Tasks" and "Total Remaining Time" — the latter is calculated from inter-node topology relationships and needs further optimization;
+    - Enhanced the "Overall Status Summary" card on the web dashboard, adding "Total Duplicate Tasks" and "Total Remaining Time" — the latter is calculated from inter-node topology relationships and needs further optimization
   - Fixed:
-    - Fixed the issue where error data could not be transmitted when the web frontend and CelestialFlow runtime were running on different hosts (introduced in 3.0.9);
-    - Fixed NullTaskReporter usage issues;
+    - Fixed the issue where error data could not be transmitted when the web frontend and CelestialFlow runtime were running on different hosts (introduced in 3.0.9)
+    - Fixed `NullTaskReporter` usage issues
 - 3.1.1:
   - New:
-    - [Important] Introduced gRPC in CelestialTree, significantly reducing the time cost of emit operations;
-    - [Important] Added IDs to TerminationSignal, which can now be tracked via CelestialTree like regular tasks;
-    - Optimized log level categorization for task_graph and task_executor — default is now "SUCCESS" level;
-    - Separated the go_worker component into a standalone project: [celestialflow-goworker]https://github.com/Mr-xiaotian/celestialflow-goworker
-    - Used SVG images in the README to display folder structure;
-    - Optimized global remaining time calculation;
-    - Optimized some code structure;
+    - **[Important]** Introduced gRPC in CelestialTree, significantly reducing the time cost of `emit` operations
+    - **[Important]** Added IDs to `TerminationSignal`, which can now be tracked via CelestialTree like regular tasks
+    - Optimized log level categorization for `TaskGraph` and `TaskExecutor` — default is now `"SUCCESS"` level
+    - Separated the Go Worker component into a standalone project: [celestialflow-goworker](https://github.com/Mr-xiaotian/celestialflow-goworker)
+    - Used SVG images in the README to display folder structure
+    - Optimized global remaining time calculation
+    - Optimized some code structure
   - Fixed:
-    - Fixed the issue where node remaining time displayed as 0 when less than 1 second (this significantly affected judgment);
-    - Fixed the error that occurred when using "staged" mode in task_graph;
+    - Fixed the issue where node remaining time displayed as 0 when less than 1 second (this significantly affected judgment)
+    - Fixed the error that occurred when using `"staged"` mode in `TaskGraph`
 - 3.1.2:
   - feat:
-    - [Important] Modeled after the existing Logger logic, created new composite structures FailSpout and FailInlet, implementing fail persistence (previously bound to TaskReporter) in a dedicated thread; 
-    - This also enables TaskExecutor to perform fail persistence, writing to fallback/{date_str}/{executor_errors}({time_str}).jsonl";
-    - Restructured the overall project — it is now much cleaner;
-    - Completed all documentation in docs/reference to match the restructured project;
-    - Introduced uv for environment management;
-    - Separated technical logic from executor into runtime/metrics.py;
-    - Consolidated duplicate logic in TaskQueue;
-  - fix
-    - Fixed incorrect parameter settings in the frontend renderNodeList;
-    - Fixed other minor bugs;
-- 3.1.3
+    - **[Important]** Modeled after the existing Logger logic, created new composite structures `FailSpout` and `FailInlet`, implementing fail persistence (previously bound to `TaskReporter`) in a dedicated thread
+    - This also enables `TaskExecutor` to perform fail persistence, writing to `fallback/{date_str}/executor_errors({time_str}).jsonl`
+    - Restructured the overall project — it is now much cleaner
+    - Completed all documentation in `docs/reference` to match the restructured project
+    - Introduced `uv` for environment management
+    - Separated counter logic from executor into `runtime/metrics.py`
+    - Consolidated duplicate logic in `TaskQueue`
+  - fix:
+    - Fixed incorrect parameter settings in the frontend `renderNodeList`
+    - Fixed other minor bugs
+- 3.1.3:
   - feat:
-    - Abstracted BaseSpout and BaseInlet;
-    - Removed loguru — log recording is now entirely handled by LogSpout and LogInlet; 
-    - Extracted bench-related code from TaskExecutor and TaskGraph — no longer methods but standalone bench functions; 
-    - Refactored parts of TaskExecutor code to reduce its size; 
-    - Optimized timestamp handling in log processing code — now more accurate;
+    - Abstracted `BaseSpout` and `BaseInlet`
+    - Removed loguru — log recording is now entirely handled by `LogSpout` and `LogInlet`
+    - Extracted bench-related code from `TaskExecutor` and `TaskGraph` — no longer methods but standalone bench functions
+    - Refactored parts of `TaskExecutor` code to reduce its size
+    - Optimized timestamp handling in log processing code — now more accurate
   - fix:
     - Fixed minor issues affecting performance
 - 3.1.4:
   - feat:
-    - Added frontend configuration file config.json, including theme (light and dark), refresh interval, history length, card types, and dashboard layout;
-    - Improved management of termination_signal events in CelestialTree;
-    - Added termination_* log entries and optimized some existing logs;
-    - Bound navigation events to error count numbers in the frontend (both individual stage cards and the summary card) — clicking navigates to the ErrorLog page with the corresponding errors displayed;
-    - Fixed some existing documentation errors and added new frontend code documentation;
+    - Added frontend configuration file `config.json`, including theme (light and dark), refresh interval, history length, card types, and dashboard layout
+    - Improved management of `TerminationSignal` events in CelestialTree
+    - Added `termination_*` log entries and optimized some existing logs
+    - Bound navigation events to error count numbers in the frontend (both individual stage cards and the summary card) — clicking navigates to the ErrorLog page with the corresponding errors displayed
+    - Fixed some existing documentation errors and added new frontend code documentation
   - refactor:
-    - fail_inlet.task_error no longer requires a timestamp parameter — the method now adds it automatically;
-    - Moved all counters into TaskMetrics management, eliminating call dependencies on TaskExecutor;
-    - Separated run_* functions into the TaskDispatch class, along with pool management; 
-    - Split TaskQueue into more specific TaskInQueue and TaskOutQueue — TaskInQueue now accepts only a single MPQueue to avoid the previous polling logic, reducing CPU overhead;
-    - Rewrote frontend code in TypeScript;
-    - Renamed all code files — now using core_ and util_ prefixes to distinguish core code from utility code;
-    - Moved history data out of status, using dedicated /api/*_history endpoints;
+    - `FailInlet.task_error` no longer requires a timestamp parameter — the method now adds it automatically
+    - Moved all counters into `TaskMetrics` management, eliminating call dependencies on `TaskExecutor`
+    - Separated `run_*` functions into the `TaskDispatch` class, along with pool management
+    - Split `TaskQueue` into more specific `TaskInQueue` and `TaskOutQueue`; `TaskInQueue` now accepts only a single MPQueue to avoid the previous polling logic, reducing CPU overhead
+    - Rewrote frontend code in TypeScript
+    - Renamed all code files — now using `core_` and `util_` prefixes to distinguish core code from utility code
+    - Moved history data out of status, using dedicated `/api/*_history` endpoints
   - fix:
-    - Fixed TaskRedisTransport node not being displayed as a parallelogram in Mermaid;
-- 3.1.5
-  - feat
-    - Significantly redesigned the visual appearance of node status cards, including: removed the previous floating design in favor of a flat design; made the progress bar more directly show the proportion of different task completion states; used left borders to indicate whether a node is running instead of the previous badge;
-    - Frontend error data fetching no longer pulls all data each time — it now only fetches data not yet available locally;
-  - refactor
-    - Significantly refactored color management in the frontend code — color consistency is now much better;
-    - Changed the data update detection in frontend code — related checks are now delegated to serve.py;
-  - fix
+    - Fixed `TaskRedisTransport` node not being displayed as a parallelogram in Mermaid
+- 3.1.5:
+  - feat:
+    - Significantly redesigned the visual appearance of node status cards, including: removed the previous floating design in favor of a flat design; made the progress bar more directly show the proportion of different task completion states; used left borders to indicate whether a node is running instead of the previous badge
+    - Frontend error data fetching no longer pulls all data each time — it now only fetches data not yet available locally
+  - refactor:
+    - Significantly refactored color management in the frontend code — color consistency is now much better
+    - Changed the data update detection in frontend code — related checks are now delegated to `serve.py`
+  - fix:
     - Fixed the issue where node elapsed time displayed as 0 after the node completed
-    - Fixed the issue caused by parameter changes in TemplateResponse in the latest FastAPI version
-- 3.1.6
-  - feat
-    - The frontend now stores only one page of error data, effectively reducing the memory spike issue during large-scale task execution;
-    - Optimized task count display — shows scientific notation when greater than 1*10^7, otherwise shows English-style notation;
-    - Optimized table display in small screen mode: switched to card-style display;
-    - Added an index column to the error table;
-    - Significantly adjusted task color allocation — duplicate tasks now use yellow tones, and pending tasks use gray tones;
-    - Matched the elapsed time color in node cards to the progress bar color below;
-  - refactor
-    - Cleaned up type annotations with mypy;
-    - Removed and consolidated some CSS code;
-    - Replaced px with rem for fonts and other places where rem units are appropriate, and unified some sizes;
-  - fix
-    - Fixed the issue where total remaining time displayed as 0 in edge cases (this is really troublesome);
-    - Fixed some display issues on small screens, though the issue of line charts not displaying is hard to resolve;
-- 3.1.7
+    - Fixed the issue caused by parameter changes in `TemplateResponse` in the latest FastAPI version
+- 3.1.6:
   - feat:
-    - [Important] Removed the "process" mode from executor — it was simply too difficult to reconcile with the new retry mechanism;
+    - The frontend now stores only one page of error data, effectively reducing the memory spike issue during large-scale task execution
+    - Optimized task count display — shows scientific notation when greater than 1×10⁷, otherwise shows English-style notation
+    - Optimized table display in small screen mode: switched to card-style display
+    - Added an index column to the error table
+    - Significantly adjusted task color allocation — duplicate tasks now use yellow tones, and pending tasks use gray tones
+    - Matched the elapsed time color in node cards to the progress bar color below
   - refactor:
-    - [Important] Significantly refactored the retry mechanism — retry tasks no longer re-enter the task_queue but are resolved directly within the worker;
-      - Modeled after the grow approach in CelestialForge;
-    - Significantly refactored the caching mechanism for success and failure results, and renamed get_success/error_dict to get_success/error_pairs to avoid issues when tasks cannot serve as dictionary keys; 
-      - Fail data is now extracted from fail.jsonl;
-      - Success data is obtained directly from result_queue — SuccessSpout was added as the collection endpoint;
+    - Cleaned up type annotations with mypy
+    - Removed and consolidated some CSS code
+    - Replaced px with rem for fonts and other places where rem units are appropriate, and unified some sizes
   - fix:
-    - Fixed the issue where certain task types could not be dumped to JSONL files in log_spout;
-    - Fixed the issue where retry added to the task total count during executor runtime — although it looked cool;
-- 3.1.8
+    - Fixed the issue where total remaining time displayed as 0 in edge cases (this is really troublesome)
+    - Fixed some display issues on small screens, though the issue of line charts not displaying is hard to resolve
+- 3.1.7:
   - feat:
-    - [Important] Added "thread" mode for stage_mode, suitable for I/O-intensive tasks and non-picklable functions;
-    - Added pytest-asyncio support — async tests can now run properly;
-    - Added docs/bench and docs/demo documentation, supplementing actual benchmark results;
-    - Added test files under tests/ directory, replacing the previous tests/README.md;
+    - **[Important]** Removed the `"process"` mode from executor — it was simply too difficult to reconcile with the new retry mechanism
   - refactor:
-    - [Important] Converted connect to a built-in method, added set_stages, and also registered root_stage here;
-    - [Important] Added StageRuntime, separating stage runtime logic;
-    - Replaced next_stages and prev_stages with in_edges and out_edges;
-    - Removed stage.set_stage_context, replaced with graph.connect;
-    - Renamed run_in_* to dispatch_*;
-    - Removed the termination_signal reput mechanism in TaskDispatch;
-    - Split collect_runtime_snapshot into _snapshot_one_stage and _calc_graph_remain;
-    - Added get_binding_counter to replace isinstance checks in prev_bindings;
-    - Added _prepare_task_envelopes to compress _put_task_queues logic;
-    - Renamed successed to succeeded; changed type_ to CTreeEvent in ctree.emit;
+    - **[Important]** Significantly refactored the retry mechanism — retry tasks no longer re-enter `task_queue` but are resolved directly within the worker
+      - Modeled after the grow approach in CelestialForge
+    - Significantly refactored the caching mechanism for success and failure results, and renamed `get_success/error_dict` to `get_success/error_pairs` to avoid issues when tasks cannot serve as dictionary keys
+      - Fail data is now extracted from `fail.jsonl`
+      - Success data is obtained directly from `result_queue` — `SuccessSpout` was added as the collection endpoint
   - fix:
-    - Fixed false positives in find_unpickleable for bound methods;
-    - Fixed stage duplicate detection errors;
-    - Fixed the issue where retry tasks could not be deduplicated;
-  - chore:
-    - Renamed all test_ function names to demo_ in demo/;
-    - Reorganized docs directory structure — renamed reference to src, moved some documents to zh-CN/;
-- 3.1.9
+    - Fixed the issue where certain task types could not be dumped to JSONL files in `LogSpout`
+    - Fixed the issue where retry added to the task total count during executor runtime — although it looked cool
+- 3.1.8:
   - feat:
-    - [Important] Create base class BaseObserver; custom observers can now be attached externally to monitor execution
-      - Also create lightweight CallbackObserver
-    - Add `log_level` init field to TaskStage; stage init fields now fully contain executor init fields, with only `stage_mode` extra
-    - Add more replacements to escapeHtml
-    - Add futures cleanup in dispatch_thread to prevent unused future accumulation
-      - Based on bench/bench_futures_memory.py, futures memory overhead at 100K tasks is 177.01 MB; with periodic cleanup it's 0.48 MB
+    - **[Important]** Added `"thread"` mode for `stage_mode`, suitable for I/O-intensive tasks and non-picklable functions
+      - In I/O-intensive task bench tests, `"thread-thread"` was 8.7× faster than the slowest `"serial-serial"`, and outperformed the previous fastest `"process-thread"`
+    - Added `docs/.../bench` and `docs/.../demo` documentation, supplementing actual benchmark results
   - refactor:
-    - Refactor TaskProgress to inherit BaseObserver
-      - Breaking change: TaskExecutor's show_progress parameter deleted; now only explicit add_observer(TaskProgress()) enables progress
-      - See demo/demo_executor.py for usage
-    - Refactor TaskEnvelope: no longer uses wrap/unwrap; hash is lazily computed
+    - **[Important]** Removed `stage.set_stage_context`, replaced with `graph.connect`
+      - Breaking interface change, requiring modifications to much graph-related code
+    - **[Important]** `name` is now a mandatory first parameter in stage/executor
+      - Breaking interface change
+    - Optimized async `executor_mode` to fetch and consume tasks simultaneously rather than centrally
+    - Finalized cleanup from the previous version's retry mechanism refactor
+  - fix:
+    - Fixed false positives in `find_unpickleable` for bound methods
+    - Fixed stage duplicate detection errors
+    - Fixed the issue where retry tasks could not be deduplicated
   - chore:
-    - Delete unused code to improve code quality
-- 3.2.0
+    - Renamed all `test_` function names to `demo_` in `demo/`
+    - Reorganized `docs/` directory structure — renamed `reference` to `src`
+    - Added `en/` and `ja/` to `docs/`, and moved existing Chinese documentation to `zh-CN/`
+- 3.1.9:
   - feat:
-    - [Important] Completely deprecated `stage_mode="process"`, removed all multiprocessing dependencies (MPValue, MPQueue, multiprocessing.Process);
-      - bench_graph_mode data shows that process mode is slower than thread mode in all scenarios, and introduces significant serialization overhead and pickle limitations;
-    - [Important] Removed the manually specified `root_stages` parameter from set_stages, replaced by a set of `source_stages` computed via SCC condensation graph
+    - **[Important]** Allowed `"async"` executor_mode in `TaskStage`
+      - Functionally achievable since 3.1.8, thoroughly tested in 3.1.9
+    - **[Important]** Created base class `BaseObserver`; custom observers can now be attached externally to monitor execution
+      - Also created lightweight `CallbackObserver`
+    - Added `log_level` init field to `TaskStage`; stage init fields now fully contain executor init fields, with only `stage_mode` extra
+    - Added more replacements to `escapeHtml`
+    - Added futures cleanup in `dispatch_thread` to prevent unused future accumulation
+      - Based on `bench/bench_futures_memory.py`, futures memory overhead at 100K tasks is 177.01 MB; with periodic cleanup it's 0.48 MB
+  - refactor:
+    - Refactored `TaskProgress` to inherit `BaseObserver`
+      - Breaking change: `TaskExecutor`'s `show_progress` parameter has been deleted; now only explicit `add_observer(TaskProgress(...))` enables progress
+      - See `demo/demo_executor.py` for usage
+    - Refactored `TaskEnvelope`: no longer uses `wrap` / `unwrap`; hash is lazily computed
+  - chore:
+    - Deleted unused code to improve code quality
+- 3.2.0:
+  - feat:
+    - **[Important]** Completely deprecated `stage_mode="process"`, removed all multiprocessing dependencies (`MPValue`, `MPQueue`, `multiprocessing.Process`)
+      - `bench_graph_mode` data shows that process mode is slower than thread mode in all scenarios, and introduces significant serialization overhead and pickle limitations
+    - **[Important]** Removed the manually specified `root_stages` parameter from `set_stages`, replaced by a set of `source_stages` computed via SCC condensation graph
       - Brushed up on quite a bit of graph theory
-    - Changed the default log level for graph/stage/executor from `SUCCESS` to `INFO`, meaning only start/stop messages and errors are shown by default
+    - Changed the default log level for graph/stage/executor from `"SUCCESS"` to `"INFO"`, meaning only start/stop messages and errors are shown by default
     - Added a configuration button on the web page
       - Currently only supports setting refresh interval and history length; more settings can be added later
   - refactor:
-    - Due to removing `process` from stage_mode, parts of the framework designed to accommodate `process` have been deleted or refactored  
-      - For example, all MPValue and MPQueue changed to int and Queue
+    - Due to removing `"process"` from `stage_mode`, parts of the framework designed to accommodate `"process"` have been deleted or refactored
+      - For example, all `MPValue` and `MPQueue` changed to `int` and `Queue`
       - No strict bench testing has been done yet, but it should bring some performance improvement
     - Refactored the NetworkX graph construction process; now built directly through nodes and outgoing edges, no longer relying on recursion
-    - Compute bytes-type hash in the retry detection mechanism instead of the original string type
-      - According to bench_hash_memory, saves approximately 23% memory
+    - Compute `bytes`-type hash in the retry detection mechanism instead of the original `string` type
+      - According to `bench_hash_memory`, saves approximately 23% memory
     - Moved delta data from node status to be computed by JS on the web side, reducing unnecessary communication data
   - fix:
-    - Removed error catching in InQueue.get, which would cause panic-level errors to be missed
+    - Removed error catching in `InQueue.get`, which would cause panic-level errors to be missed
 - 3.2.1:
   - feat:
     - **[Important]** Significantly enhanced the configuration button functionality
@@ -224,3 +222,22 @@
     - Added `.github/workflows` for CI/CD
     - Updated supported Python version to 3.11 to align with some library requirements
     - Added two skills for updating documentation and reviewing the project
+- 3.2.2
+  - feat:
+    - Added data locks in `core_server` to prevent error states caused by concurrent access
+    - Optimized the frontend settings panel display, now showing only global settings and settings related to the current page
+    - Added "Auto Update" option in global settings and "Sort Mode" option on the error log page in the settings panel
+  - refactor:
+    - Removed `summary` from frontend-backend communication; the overall expected end time for nodes is now transmitted per-node via `status` and computed on the frontend
+    - Modified `structure_graph` (formerly `structure_json`) field content, now more concise, avoiding information redundancy while facilitating future extensions
+  - fix:
+    - Fixed metric selection not working in the metric line charts
+    - Adjusted the execution order of `_refresh_all` in `report.stop` to avoid conflicts with thread refreshes
+    - Added defensive checks in `graph._finalize_nodes` for un-terminated threads
+    - Fixed `start_time` in `stage` being called by `report` before it was defined
+    - Fixed issues in `TaskRedisTransport._transport` caused by using `id()` to compute task_id
+    - Fixed panic issues caused by some tasks being unhashable
+  - chore:
+    - Removed all `type: ignore`
+      - Looks much nicer
+    - Annotated `start_*` functions in doc-strings as single-invocation functions

@@ -1,45 +1,79 @@
-# bench_tqdm.py Benchmark Documentation
+﻿# bench_tqdm.py Benchmark Notes
 
 > 📅 Last Updated: 2026/04/22
 
 ## Objective
 
-Quantify the performance overhead of `tqdm` progress bar in loops, helping determine whether progress display should be enabled in ultra-large-scale iterations (millions).
+Quantify the runtime overhead of a `tqdm` progress bar inside a loop, helping decide whether progress display should be enabled for very large iteration counts.
 
 ## Test Cases
 
-- **With tqdm**: Each iteration calls `pbar.update(1)`
-- **Without tqdm**: Bare loop
-- **Data scale**: Default `data_size = 1_000_000`
-- **Simulated processing**: `item * 2` (extremely lightweight operation)
+- **With tqdm**: call `pbar.update(1)` on every iteration.
+- **Without tqdm**: plain loop.
+- **Data size**: default `data_size = 1_000_000`.
+- **Simulated work**: `item * 2`, an extremely lightweight computation.
 
 ## Key Parameters
 
-- `dynamic_ncols=True`: Auto-adapt to terminal width
-- `total=0` then dynamically set `pbar.total = len(data)`: Demonstrates deferred total setting usage
+- `dynamic_ncols=True`: adapt automatically to terminal width.
+- `total=0` followed by `pbar.total = len(data)`: demonstrates delayed total assignment.
 
 ## Potential Issues
 
-1. **TTY detection overhead**: If output is redirected to a file or pipe, `tqdm` may auto-disable display but still execute partial refresh logic, causing results to differ from direct terminal execution.
-2. **`dynamic_ncols` terminal query**: Each refresh queries terminal width, which may trigger slow system calls in certain CI environments or Windows PowerShell.
-3. **Memory growth in large loops**: The test code fully expands `range(data_size)` into a `list` stored in `data`; when `data_size` is increased to 10 million, the list alone occupies ~80MB of memory.
+1. **TTY detection overhead**: if output is redirected to a file or pipe, `tqdm` may disable rendering but still run part of its refresh logic, producing results that differ from a real terminal.
+2. **Terminal-width polling**: with `dynamic_ncols`, each refresh queries terminal width, which can be slow in some CI environments or Windows PowerShell.
+3. **Memory growth for huge loops**: the benchmark expands `range(data_size)` into a full `list`. At `10,000,000`, the list alone costs roughly 80 MB.
 
 ## Benchmark Results (Measured)
 
-> Environment: Windows, Python 3.10, data_size=1,000,000, processing logic: `item * 2`
+> Environment: Windows, Python 3.10, `data_size=1,000,000`, work=`item * 2`
 
-| Mode | Preparation Time | Processing Time | Total Time | Relative to no tqdm |
-|------|-------------------|-----------------|------------|---------------------|
-| **Without tqdm** | 0.0859s | 0.0334s | **0.1194s** | -- |
+| Mode | Preparation Time | Processing Time | Total Time | Relative to No tqdm |
+|------|------------------|-----------------|------------|---------------------|
+| **Without tqdm** | 0.0859s | 0.0334s | **0.1194s** | — |
 | **With tqdm** | 0.1067s | 0.3259s | **0.4325s** | **3.6x** |
 
-**Key Conclusions**:
-- tqdm increases total duration by approximately **3.6x** in this test (0.12s -> 0.43s)
-- Processing time increases from 0.033s to 0.326s, nearly 10x, showing that in **extremely lightweight loop bodies**, tqdm's refresh overhead far exceeds actual computation
-- When per-iteration computation is substantial (e.g., > 1ms), tqdm's relative overhead drops rapidly to negligible levels (< 5%)
-- Strategy recommendation: Disable tqdm or increase `miniters` for million-scale lightweight loops; feel free to enable it for long-duration/low-count tasks
+**Key takeaways**:
+- In this benchmark, `tqdm` increases total runtime by about **3.6x** (`0.12s -> 0.43s`).
+- Processing time jumps from `0.033s` to `0.326s`, almost 10x, which shows that refresh overhead dominates when the loop body is extremely cheap.
+- Once each iteration becomes more expensive, such as more than 1 ms of compute, the relative cost of `tqdm` usually drops quickly to a negligible level.
+- Strategy suggestion: disable `tqdm` for million-scale lightweight loops or increase `miniters`; keep it enabled for long-running or low-iteration tasks.
 
 ## How to Run
+
+```bash
+python bench/bench_tqdm.py
+```
+
+## Parameter Tuning
+
+### Change the Data Scale
+
+`test_tqdm_performance(data_size)` accepts a `data_size` parameter:
+
+```bash
+# Compare different scales
+python -c "
+from bench.bench_tqdm import test_tqdm_performance
+test_tqdm_performance(use_tqdm=False, data_size=100_000)
+test_tqdm_performance(use_tqdm=True, data_size=100_000)
+"
+```
+
+You can also edit `if __name__ == "__main__"` directly:
+
+```python
+if __name__ == "__main__":
+    # Small-scale quick verification
+    test_tqdm_performance(use_tqdm=False, data_size=10_000)
+    test_tqdm_performance(use_tqdm=True, data_size=10_000)
+
+    # Large-scale test to observe how tqdm overhead changes
+    # test_tqdm_performance(use_tqdm=False, data_size=10_000_000)
+    # test_tqdm_performance(use_tqdm=True, data_size=10_000_000)
+```
+
+Run again after modification:
 
 ```bash
 python bench/bench_tqdm.py

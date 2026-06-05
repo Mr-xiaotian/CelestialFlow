@@ -1,52 +1,86 @@
-# demo_utils.py ユーティリティ説明
+# demo_utils.py デモユーティリティ説明
 
-> 📅 最終更新日: 2026/05/15
+> 📅 最終更新日: 2026/05/24
 
 ## 目的
 
 `demo/` ディレクトリ下のデモスクリプト用に、共有テスト関数とヘルパークラスを提供します。`tests/test_utils.py` と内容がほぼ同一であり、デモコード専用のユーティリティライブラリです。
 
+## 関数とデモファイルの関係
+
+以下の Mermaid 図は、`demo_utils.py` の各関数/クラスがどのデモファイルで使用されているかを示します：
+
+```mermaid
+flowchart TD
+    subgraph Utils["demo_utils.py ユーティリティ関数"]
+        direction TB
+        Fib["fibonacci / fibonacci_async"]
+        Sleep1["sleep_1 / sleep_1_async"]
+        Compute["square / add_5 / add_10 / add_15 / add_one_sleep"]
+        Url["generate_urls_sleep / log_urls_sleep / download_sleep / parse_sleep / download_to_file"]
+        ETL["extract_record / transform_normalize / transform_enrich / load_record"]
+        Async["async_double / async_to_str"]
+        Router["RouterWrapper"]
+        Misc["no_op / sum_int"]
+    end
+
+    ETL --> Graph["demo_graph.py<br/>(demo_etl_fan_out_fan_in)"]
+    Async --> Graph
+    Async --> GraphAsync["demo_graph.py<br/>(demo_async_staged_pipeline)"]
+    Fib --> Executor["demo_executor.py"]
+    Fib --> StagesRedis0["demo_stages.py<br/>(demo_redis_ack_0)"]
+    Sleep1 --> StagesRedis["demo_stages.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0, demo_router_0)"]
+    Url --> StagesSplitter0["demo_stages.py<br/>(demo_splitter_0)"]
+    Url --> StagesRedis2["demo_stages.py<br/>(demo_redis_ack_2)"]
+    Router --> StagesRouter0["demo_stages.py<br/>(demo_router_0)"]
+    Misc --> StagesRedis1["demo_stages.py<br/>(demo_redis_ack_1)"]
+    Misc --> StagesSplitter1["demo_stages.py<br/>(demo_splitter_1)"]
+    Compute --> Structure["demo_structure.py"]
+```
+
+> 図では主要な関数とデモスクリプトの対応関係のみを示し、補助関数と非コア依存関係は省略しています。
+
 ## 内容分類
 
 ### 汎用計算関数
-- `fibonacci` / `fibonacci_async`: 再帰フィボナッチ（例外境界付き）
-- `no_op` / `sum_int` / `add_one` / `sqrt`: 基本演算
-- `square` / `add_offset` / `add_5` / `add_10` / `add_15` / `add_20` / `add_25` など: 1秒 sleep 付きの模擬時間消費タスク
-- `neuron_activation`: シグモイド活性化関数（ML 推論のシミュレーション）
+- `fibonacci` / `fibonacci_async`：反復フィボナッチ O(n)（`bench/bench_execution_mode.py` とアルゴリズムが一致）、async 版は8ラウンドごとに `await asyncio.sleep(0)` でイベントループを譲渡
+- `no_op` / `sum_int` / `add_one` / `sqrt`：基本演算
+- `square` / `add_offset` / `add_5` / `add_10` / `add_15` / `add_20` / `add_25` など：1秒 sleep 付きの模擬時間消費タスク
+- `neuron_activation`：シグモイド活性化関数（ML 推論のシミュレーション）
 
 ### Sleep バリアント
-- `sleep_1` / `sleep_1_async`: 純粋な1秒遅延
+- `sleep_1` / `sleep_1_async`：純粋な1秒遅延
 
 ### Sleep 付き演算（demo_structure 用）
-- `operate_sleep` / `operate_sleep_A~E`: 1秒遅延付き二項演算
-- `add_one_sleep`: 多条件例外境界付き（`n>30`、`n==0`、`n is None`）
+- `operate_sleep` / `operate_sleep_A~E`：1秒遅延付き二項演算
+- `add_one_sleep`：多条件例外境界付き（`n>30`、`n==0`、`n is None`）
 
 ### URL 処理関数（demo_stages 用）
 - `generate_urls_sleep` / `log_urls_sleep` / `download_sleep` / `parse_sleep`
-- `download_to_file`: ローカルファイルへの実 HTTP ダウンロード
+- `download_to_file`：ローカルファイルへの実 HTTP ダウンロード
 
 ### ETL シミュレーション関数（demo_graph 用）
-- `extract_record`: ID に基づいてレコード辞書を生成（0.5秒 sleep 付き）
-- `transform_normalize`: レコード値を正規化（0.3秒 sleep 付き）
-- `transform_enrich`: レコードに奇偶分類を追加（0.3秒 sleep 付き）
-- `load_record`: レコード保存をシミュレーションし結果文字列を返す（0.2秒 sleep 付き）
+- `extract_record`：ID に基づいてレコード辞書を生成（0.5秒 sleep 付き）
+- `transform_normalize`：レコード値を正規化（0.3秒 sleep 付き）
+- `transform_enrich`：レコードに奇偶分類を追加（0.3秒 sleep 付き）
+- `load_record`：レコード保存をシミュレーションし結果文字列を返す（0.2秒 sleep 付き）
 
 ### 非同期ヘルパー関数（demo_graph 用）
-- `async_double`: 入力を非同期で2倍にする（0.3秒 sleep 付き）
-- `async_to_str`: 入力を非同期でフォーマット文字列に変換（0.2秒 sleep 付き）
+- `async_double`：入力を非同期で2倍にする（0.3秒 sleep 付き）
+- `async_to_str`：入力を非同期でフォーマット文字列に変換（0.2秒 sleep 付き）
 
 ### 特殊クラス
-- `RouterWrapper`: `TaskRouter` デモ用のルーティングラッパー
+- `RouterWrapper`：`TaskRouter` デモ用のルーティングラッパー
 
 ## tests/test_utils.py との関係
 
-2つのファイルの内容はほぼ完全に同一です。これはデモコードがテストコードから分離された際にコピーが保持された歴史的な経緯によるものと考えられます。メンテナンス時は両方を同期させるか、共通ユーティリティを `celestialflow/utils/` 下の独立モジュールに抽出することを検討してください。
+2つのファイルの内容はほぼ完全に同一です。`fibonacci`/`fibonacci_async` は反復 O(n) バージョンに統一されています（`bench/bench_execution_mode.py` と一致）。これはデモコードがテストコードから分離された際にコピーが保持された歴史的な経緯によるものと考えられます。メンテナンス時は両方を同期させるか、共通ユーティリティを `celestialflow/utils/` 下の独立モジュールに抽出することを検討してください。
 
 ## 起こりうる問題
 
-1. **tests/test_utils.py との重複**: 一方を修正する際にもう一方を忘れると、デモとユニットテストの動作が分岐する可能性があります。
-2. **ハードコードされた Windows パス**: パス置換ロジックは `demo_stages.py` 内の `DownloadStage` および `DownloadRedisTransport` カスタムサブクラスに存在し、本ファイルにはありません。
-3. **`requests` ネットワーク依存**: `download_to_file` は外部ネットワークアクセスが必要であり、隔離されたネットワーク環境では利用できません。
+1. **tests/test_utils.py との重複**：一方を修正する際にもう一方を忘れると、デモとユニットテストの動作が分岐する可能性があります。
+2. **ハードコードされた Windows パス**：パス置換ロジックは `demo_stages.py` 内の `DownloadStage` および `DownloadRedisTransport` カスタムサブクラスに存在し、本ファイルにはありません。
+3. **`requests` ネットワーク依存**：`download_to_file` は外部ネットワークアクセスが必要であり、隔離されたネットワーク環境では利用できません。
 
 ## 実行方法
 

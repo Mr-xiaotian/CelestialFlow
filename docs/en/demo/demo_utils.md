@@ -1,15 +1,49 @@
 # demo_utils.py Demo Utilities Documentation
 
-> 📅 Last Updated: 2026/05/15
+> 📅 Last Updated: 2026/05/24
 
 ## Purpose
 
 Provides shared test functions and helper classes for demo scripts under the `demo/` directory. The contents are largely identical to `tests/test_utils.py` and serve as a dedicated utility library for demo code.
 
+## Relationship Between Functions and Demo Files
+
+The following Mermaid diagram shows which demo files use which functions/classes from `demo_utils.py`:
+
+```mermaid
+flowchart TD
+    subgraph Utils["demo_utils.py Utility Functions"]
+        direction TB
+        Fib["fibonacci / fibonacci_async"]
+        Sleep1["sleep_1 / sleep_1_async"]
+        Compute["square / add_5 / add_10 / add_15 / add_one_sleep"]
+        Url["generate_urls_sleep / log_urls_sleep / download_sleep / parse_sleep / download_to_file"]
+        ETL["extract_record / transform_normalize / transform_enrich / load_record"]
+        Async["async_double / async_to_str"]
+        Router["RouterWrapper"]
+        Misc["no_op / sum_int"]
+    end
+
+    ETL --> Graph["demo_graph.py<br/>(demo_etl_fan_out_fan_in)"]
+    Async --> Graph
+    Async --> GraphAsync["demo_graph.py<br/>(demo_async_staged_pipeline)"]
+    Fib --> Executor["demo_executor.py"]
+    Fib --> StagesRedis0["demo_stages.py<br/>(demo_redis_ack_0)"]
+    Sleep1 --> StagesRedis["demo_stages.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0, demo_router_0)"]
+    Url --> StagesSplitter0["demo_stages.py<br/>(demo_splitter_0)"]
+    Url --> StagesRedis2["demo_stages.py<br/>(demo_redis_ack_2)"]
+    Router --> StagesRouter0["demo_stages.py<br/>(demo_router_0)"]
+    Misc --> StagesRedis1["demo_stages.py<br/>(demo_redis_ack_1)"]
+    Misc --> StagesSplitter1["demo_stages.py<br/>(demo_splitter_1)"]
+    Compute --> Structure["demo_structure.py"]
+```
+
+> The diagram only shows the primary function-to-demo-script relationships; helper functions and non-core dependencies are omitted.
+
 ## Content Categories
 
 ### General Computation Functions
-- `fibonacci` / `fibonacci_async`: Recursive Fibonacci (with exception boundaries)
+- `fibonacci` / `fibonacci_async`: Iterative Fibonacci O(n) (same algorithm as `bench/bench_execution_mode.py`), async version yields the event loop every 8 iterations via `await asyncio.sleep(0)`
 - `no_op` / `sum_int` / `add_one` / `sqrt`: Basic operations
 - `square` / `add_offset` / `add_5` / `add_10` / `add_15` / `add_20` / `add_25`, etc.: Simulated time-consuming tasks with 1-second sleep
 - `neuron_activation`: Sigmoid activation function (simulating ML inference)
@@ -40,7 +74,7 @@ Provides shared test functions and helper classes for demo scripts under the `de
 
 ## Relationship with tests/test_utils.py
 
-The two files have nearly identical contents. This is likely a historical artifact from when demo code was separated from test code, retaining a copy. When maintaining, it is recommended to keep both in sync, or consider extracting common utilities into a standalone module under `celestialflow/utils/`.
+The two files have nearly identical contents, with `fibonacci`/`fibonacci_async` already unified to the iterative O(n) version (consistent with `bench/bench_execution_mode.py`). This is likely a historical artifact from when demo code was separated from test code, retaining a copy. When maintaining, it is recommended to keep both in sync, or consider extracting common utilities into a standalone module under `celestialflow/utils/`.
 
 ## Potential Issues
 

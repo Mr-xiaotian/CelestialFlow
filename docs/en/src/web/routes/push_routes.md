@@ -1,6 +1,6 @@
 # Push Routes (POST) — `push_routes`
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/05
 
 ## Purpose
 
@@ -10,7 +10,7 @@ The `push_routes` module provides all POST endpoints for the **Reporter** to **p
 
 ### `register(router: APIRouter, server: TaskWebServer, config_path: str) -> None`
 
-Registers all 8 POST endpoints on the given `APIRouter`.
+Registers all 7 POST endpoints on the given `APIRouter`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -30,17 +30,25 @@ Saves frontend configuration and updates the polling interval.
 
 ```json
 {
-  "refreshInterval": "5",
-  "dashboard": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] },
-  ...
+  "theme": "dark",
+  "autoRefreshEnabled": true,
+  "refreshInterval": 5,
+  "historyLimit": 20,
+  "language": "zh-CN",
+  "errorPageSize": 10,
+  "errorSortOrder": "newest",
+  "showStructureEdgeDelta": true,
+  "dashboard": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] }
 }
 ```
 
 **Logic:**
 1. Deserializes the request body into a dict and updates `server.config`
-2. Recalculates `server.report_interval` based on `refreshInterval`
+2. Recalculates `server.report_interval` based on the `refreshInterval` value
 3. Calls `save_config()` to persist the configuration to `config_path`
 4. Returns `{"ok": true}` on success, or HTTP 500 on failure
+
+> Note: The current implementation updates the in-memory `server.config` and `server.report_interval` before attempting to persist. If `save_config()` fails, the request returns 500, but the in-process configuration has already changed.
 
 **Returns:**
 - Success: `{"ok": true}`
@@ -52,10 +60,10 @@ Saves frontend configuration and updates the polling interval.
 
 Updates graph structure data.
 
-**Request Body:** `StructureModel` (contains `items` field)
+**Request Body:** `StructureModel` (contains `structure` field)
 
 **Logic:**
-1. Writes `data.items` to `server.structure_store`
+1. Atomically writes `data.structure` to `server.structure_store`
 2. `server.store_revs["structure"]` increments by 1
 
 **Returns:** `{"ok": true}`
@@ -159,30 +167,26 @@ Updates graph topology analysis info.
 
 ---
 
-### 7. `POST /api/push_summary`
-
-Updates global task summary data.
-
-**Request Body:** `SummaryModel` (contains `summary` field)
-
-**Logic:**
-1. Updates `server.summary_store`
-2. `server.store_revs["summary"]` increments by 1
-
-**Returns:** `{"ok": true}`
-
----
-
-### 8. `POST /api/push_injection_tasks`
+### 7. `POST /api/push_injection_tasks`
 
 Appends frontend-submitted injection tasks to the pending execution queue.
 
 **Request Body:** `TaskInjectionModel`
 
+```json
+{
+  "node": "StageA",
+  "task_datas": [1, 2, 3],
+  "timestamp": "2026-06-05T12:00:00"
+}
+```
+
 **Logic:**
 1. Acquires `task_injection_lock`
 2. Appends `data.model_dump(mode="json")` to `server.injection_tasks`
 3. Releases lock
+
+> Note: The backend model requires `task_datas` to be an array. If the frontend passes an object, string, or number, a 422 will be returned directly during the FastAPI/Pydantic validation phase.
 
 **Returns:**
 - Success: `{"ok": true}`
@@ -224,7 +228,11 @@ if not data["ok"] and data.get("fallback") == "need_content":
 
 # Push structure data
 requests.post(f"{BASE}/api/push_structure", json={
-    "items": [{"id": "n1", "type": "task", "label": "MyTask"}]
+    "structure": {
+        "nodes": {"n1": {"label": "MyTask"}},
+        "edges": {"n1": []},
+        "source_nodes": ["n1"],
+    }
 })
 ```
 
@@ -234,8 +242,18 @@ requests.post(f"{BASE}/api/push_structure", json={
 const resp = await fetch("/api/push_config", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ refreshInterval: "10", dashboard: {...} })
+  body: JSON.stringify({
+    theme: "dark",
+    autoRefreshEnabled: true,
+    refreshInterval: 10,
+    historyLimit: 20,
+    language: "zh-CN",
+    errorPageSize: 10,
+    errorSortOrder: "newest",
+    showStructureEdgeDelta: true,
+    dashboard: { left: ["mermaid"], middle: ["status"], right: ["progress"] }
+  })
 });
 const result = await resp.json();
-console.log(result.ok ? "Save successful" : "Save failed");
+console.log(result.ok ? "保存成功" : "保存失败");
 ```

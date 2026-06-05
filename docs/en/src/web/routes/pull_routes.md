@@ -1,6 +1,6 @@
 # Pull Routes (GET) — `pull_routes`
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/05
 
 ## Purpose
 
@@ -10,7 +10,7 @@ The `pull_routes` module provides all GET endpoints for clients to **pull** data
 
 ### `register(router: APIRouter, server: TaskWebServer) -> None`
 
-Registers all 8 GET endpoints on the given `APIRouter`.
+Registers all 7 GET endpoints on the given `APIRouter`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -33,9 +33,15 @@ Fetches frontend configuration.
 
 ```json
 {
-  "refreshInterval": "5",
-  "dashboard": { "left": ["mermaid"], "middle": ["status"], ... },
-  ...
+  "theme": "dark",
+  "autoRefreshEnabled": true,
+  "refreshInterval": 5,
+  "historyLimit": 20,
+  "language": "zh-CN",
+  "errorPageSize": 10,
+  "errorSortOrder": "newest",
+  "showStructureEdgeDelta": true,
+  "dashboard": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] }
 }
 ```
 
@@ -54,11 +60,11 @@ Fetches graph structure data (nodes and edges), supports rev guard.
 | Field | Description |
 |-------|-------------|
 | `rev` | Current version number |
-| `data` | Structure data list; `null` if `known_rev==rev` |
+| `data` | Graph structure dictionary; `null` if `known_rev==rev` |
 
 ```json
 // Updated
-{"rev": 5, "data": [{"id": "n1", "type": "task", ...}]}
+{"rev": 5, "data": {"nodes": {"n1": {"label": "Task"}}, "edges": {"n1": []}, "source_nodes": ["n1"]}}
 // No update
 {"rev": 5, "data": null}
 ```
@@ -98,6 +104,7 @@ Fetches paginated error logs, supports node/keyword filtering and rev guard.
 | `page_size` | `int` | `10` | Items per page |
 | `node` | `str` | `""` | Filter by node name; empty string is ignored |
 | `keyword` | `str` | `""` | Filter by keyword; empty string is ignored |
+| `sort_order` | `str` | `"newest"` | Sort order; only supports `newest` / `oldest` |
 
 **Returns:**
 
@@ -108,6 +115,7 @@ Fetches paginated error logs, supports node/keyword filtering and rev guard.
 | `page_size` | Normalized page size |
 | `total` | Total filtered count |
 | `total_pages` | Total page count |
+| `sort_order` | Effective sort order |
 | `data` | Current page error list; `null` if unchanged |
 
 ```json
@@ -136,23 +144,7 @@ Fetches graph topology analysis info, supports rev guard.
 
 ---
 
-### 6. `GET /api/pull_summary`
-
-Fetches global task summary data, supports rev guard.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `known_rev` | `int` | `-1` | Version number the client already has |
-
-**Returns:** `{"rev": int, "data": dict | None}`
-
-```json
-{"rev": 1, "data": {"total": 42, "success": 38, "failed": 4, ...}}
-```
-
----
-
-### 7. `GET /api/pull_interval`
+### 6. `GET /api/pull_interval`
 
 Fetches the current polling interval.
 
@@ -168,7 +160,7 @@ Fetches the current polling interval.
 
 ---
 
-### 8. `GET /api/pull_task_injection`
+### 7. `GET /api/pull_task_injection`
 
 Fetches and clears the current pending injection task queue. This is a **one-shot consumption** endpoint: the queue is emptied after the response, and the same batch of tasks will not be fetched again.
 
@@ -179,8 +171,10 @@ Fetches and clears the current pending injection task queue. This is a **one-sho
 **Returns:** `list[dict[str, Any]]`
 
 ```json
-[{"task_id": "...", "params": {...}}, ...]
+[{"node": "StageA", "task_datas": [1, 2, 3], "timestamp": "2026-06-05T12:00:00"}, ...]
 ```
+
+> Note: Although the current implementation uses GET, this endpoint has side effects — it clears the queue after reading. It is closer to a "consumption interface" than a pure query interface.
 
 ## Usage Example
 

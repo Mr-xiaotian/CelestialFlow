@@ -1,8 +1,14 @@
 # TaskEnvelope
 
-> 📅 Last Updated: 2026/05/15
+> 📅 Last Updated: 2026/06/05
 
 A wrapper class for task data, passed between Stages. It encapsulates the raw task data, task hash, task ID, and source information.
+
+## Hash Behavior
+
+- For normal tasks, `get_hash()` delegates to `object_to_hash()` and caches the SHA1 bytes result.
+- If the task cannot be pickled / hashed, `get_hash()` falls back to a unique byte string with the `__unhashable_task__:` prefix instead of raising an exception.
+- The fallback is envelope-unique and is intended to keep one bad task from breaking the rest of the dispatch flow.
 
 ## Attributes
 
@@ -37,6 +43,8 @@ def change_id(self, new_id: int) -> None:
 ## Lazy Hashing
 
 The `hash` is `None` at construction time and is only computed on the first call to `get_hash()`. This avoids wasting computational resources in scenarios where deduplication checks are not needed.
+
+If hashing fails for an unpicklable task, the cached value becomes the fallback bytes described above.
 
 ```python
 envelope = TaskEnvelope("data", id=1, source="input")

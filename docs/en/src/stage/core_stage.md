@@ -1,8 +1,10 @@
 # TaskStage
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/05
 
 `TaskStage` is the basic unit for building a `TaskGraph`. It inherits from `TaskExecutor` and adds graph structure connection capabilities and `stage_mode` control logic.
+
+> Note: `TaskStage` is also a one-shot object. Queue bindings, graph links, and runtime counters are designed for one execution lifecycle and should not be assumed reusable after completion.
 
 ## Inheritance Hierarchy
 

@@ -1,51 +1,85 @@
-# bench_hash_memory.py Benchmark Documentation
+﻿# bench_hash_memory.py Benchmark Notes
 
 > 📅 Last Updated: 2026/05/13
 
 ## Objective
 
-Compare memory usage and query performance when storing SHA1 hash values as `str` (40-char hex), `bytes` (20-byte raw), or `int` (160-bit integer) in a `set`, providing data to support data type selection for `processed_set`.
+Compare the memory footprint and lookup performance of storing SHA1 hashes in a `set` as `str` (40-char hex), `bytes` (20 raw bytes), and `int` (160-bit integer), providing evidence for the `processed_set` data type choice.
 
 ## Test Strategy
 
-| Type | Construction | Single Object Size | Description |
-|------|-------------|-------------------|-------------|
+| Type | Construction | Single-Object Size | Notes |
+|------|--------------|--------------------|-------|
 | `str` | `randbytes(20).hex()` | 81 B | Original approach, 40-character hex string |
 | `bytes` | `randbytes(20)` | 53 B | Current approach, direct output of `hashlib.sha1().digest()` |
 | `int` | `int.from_bytes(randbytes(20), 'big')` | 48 B | Most compact, but loses fixed-length semantics |
 
 ## Measurement Dimensions
 
-- **Single object size**: Python object memory returned by `sys.getsizeof()`
-- **Set total memory increment**: `tracemalloc` snapshot difference after constructing N objects and adding to set
-- **Per-entry average overhead**: Total increment / N (including set bucket, pointer overhead, etc.)
-- **Build time**: Total time for N `set.add()` operations
-- **Query latency**: Hit / miss each measured over 0.3s steady state, reported in nanoseconds per lookup
+- **Single-object size**: Python object memory from `sys.getsizeof()`.
+- **Total set memory increase**: construct `N` objects into a set with `tracemalloc` snapshots.
+- **Average cost per entry**: total increase divided by `N`, including set buckets and pointer overhead.
+- **Build time**: total time for `N` calls to `set.add()`.
+- **Lookup latency**: steady-state hit and miss measurements over `0.3s`, reported in nanoseconds per lookup.
 
 ## Benchmark Results (Measured)
 
-> Environment: Windows 11, Python 3.14, N=100,000
+> Environment: Windows 11, Python 3.14, `N=100,000`
 
-| Type | Per Object(B) | Total Memory(MB) | Per Entry(B) | Build(ms) | Hit(ns) | Miss(ns) |
-|------|--------------|------------------|--------------|-----------|---------|----------|
+| Type | Single Object (B) | Total Memory (MB) | Per Entry (B) | Build (ms) | Hit (ns) | Miss (ns) |
+|------|-------------------|-------------------|---------------|------------|----------|-----------|
 | `str` | 81 | 11.73 | 123.0 | 60.40 | 110.5 | 112.2 |
 | `bytes` | 53 | 9.06 | 95.0 | 56.23 | 112.7 | 112.7 |
 | `int` | 48 | 8.58 | 90.0 | 69.05 | 121.9 | 112.4 |
 
-### Memory Savings (Relative to str)
+### Memory Savings (Relative to `str`)
 
-| Type | Total Memory | Per-entry Overhead |
-|------|-------------|-------------------|
+| Type | Total Memory | Per-Entry Cost |
+|------|--------------|----------------|
 | `bytes` | 77.2% | 77.2% |
 | `int` | 73.2% | 73.2% |
 
-**Key Conclusions**:
-- `str->bytes` saves ~23% memory; at million-scale tasks, this saves ~27 MB
-- `bytes->int` saves only ~5% more, but `int` lacks fixed-length semantics and is less intuitive for debugging
-- All three types show no significant difference in query performance (~112 ns); type switching does not affect deduplication efficiency
-- **Recommendation: use `bytes`**: `hashlib.sha1().digest()` returns it directly with zero conversion overhead
+**Key takeaways**:
+- Moving from `str` to `bytes` saves about 23% memory, roughly 27 MB at the million-task scale.
+- Moving from `bytes` to `int` saves only about another 5%, but `int` loses fixed-length semantics and is harder to inspect during debugging.
+- Lookup speed is effectively the same across all three (~112 ns), so changing type does not materially affect deduplication throughput.
+- **Recommendation**: use `bytes`, because `hashlib.sha1().digest()` returns it directly with zero conversion overhead.
 
 ## How to Run
+
+```bash
+python bench/bench_hash_memory.py
+```
+
+## Parameter Tuning
+
+### Change the Test Scale
+
+Modify `N` near the top of `bench/bench_hash_memory.py`:
+
+```python
+N = 10_000          # Small-scale quick verification
+# N = 1_000_000     # Large-scale test to observe million-entry memory differences
+```
+
+### Test Only Specific Types
+
+Choose which cases to run in `main()`:
+
+```python
+def main():
+    # benchmark_str()    # Skip the str case
+    benchmark_bytes()    # Only test bytes
+    # benchmark_int()    # Skip the int case
+```
+
+### Customize the Random Seed
+
+```python
+random.seed(123)  # Change the seed to produce a different hash distribution
+```
+
+Run again after modification:
 
 ```bash
 python bench/bench_hash_memory.py

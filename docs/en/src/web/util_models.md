@@ -1,6 +1,6 @@
 # util_models
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/05
 
 ## Purpose
 
@@ -14,7 +14,7 @@ Task structure data model, representing the structure information of the task gr
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `items` | `list[dict[str, Any]]` | List of task graph structure items, each item is a node dictionary |
+| `structure` | `dict[str, Any]` | Structure snapshot dictionary, typically containing `nodes`, `edges`, `source_nodes` |
 
 ### StatusModel
 
@@ -52,14 +52,6 @@ Task analysis data model.
 |-------|------|-------------|
 | `analysis` | `dict[str, Any]` | Analysis result dictionary |
 
-### SummaryModel
-
-Task summary data model.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `summary` | `dict[str, Any]` | Summary result dictionary |
-
 ### TaskInjectionModel
 
 Task injection request model, used to dynamically insert new tasks into a running task graph.
@@ -67,7 +59,7 @@ Task injection request model, used to dynamically insert new tasks into a runnin
 | Field | Type | Description |
 |-------|------|-------------|
 | `node` | `str` | Injection target node name |
-| `task_datas` | `list[Any]` | List of task data to inject |
+| `task_datas` | `list[Any]` | List of task data to inject; backend requires it to be an array |
 | `timestamp` | `datetime` | Injection request timestamp |
 
 ### DashboardConfigModel
@@ -87,14 +79,16 @@ Web UI global configuration model.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `theme` | `str` | — | UI theme |
+| `autoRefreshEnabled` | `bool` | `True` | Whether auto-refresh is enabled |
 | `refreshInterval` | `int` | — | Page data refresh interval (ms) |
 | `historyLimit` | `int` | — | History record count limit |
 | `language` | `str` | `"zh-CN"` | Interface language |
 | `errorPageSize` | `int` | `10` | Error page items per page |
-| `showStructureEdgeDelta` | `bool` | `True` | Whether to show structure graph edge deltas |
+| `errorSortOrder` | `str` | `"newest"` | Error page sort order |
+| `showStructureEdgeDelta` | `bool` | `True` | Whether to show structure diagram edge deltas |
 | `dashboard` | `DashboardConfigModel` | — | Dashboard layout configuration (nested model) |
 
-## Usage Example
+## Usage Examples
 
 ### Data Validation and Serialization
 
@@ -104,9 +98,13 @@ from celestialflow.web.util_models import WebConfigModel, DashboardConfigModel, 
 # --- WebConfigModel usage ---
 config = WebConfigModel(
     theme="dark",
-    refreshInterval=5000,
-    historyLimit=100,
+    autoRefreshEnabled=True,
+    refreshInterval=5,
+    historyLimit=20,
     language="zh-CN",
+    errorPageSize=10,
+    errorSortOrder="newest",
+    showStructureEdgeDelta=True,
     dashboard=DashboardConfigModel(
         left=["mermaid"],
         middle=["status"],
@@ -132,6 +130,8 @@ injection = TaskInjectionModel(
 )
 print(f"Injection target: {injection.node}, task count: {len(injection.task_datas)}")
 ```
+
+> Note: `TaskInjectionModel.task_datas` is currently strictly `list[Any]`. If the frontend uploads a single object, string, or number, wrap it in an array first; otherwise the endpoint will return 422.
 
 ### Error Data Processing
 

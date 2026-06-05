@@ -1,44 +1,46 @@
 # Utils Module
 
-> 📅 Last Updated: 2026/04/22
+> 📅 Last Updated: 2026/05/24
 
-The Utils module provides general-purpose utility functions and helper classes for CelestialFlow, including performance testing, data cloning, collection operations, debugging tools, and formatting features. These tools are widely used by other modules, improving code reusability and maintainability.
+The Utils module provides general-purpose utility functions and helper classes for CelestialFlow, including performance benchmarking, data cloning, collection operations, and formatting features. These tools are widely used by other modules, improving code reusability and maintainability.
 
-## Module Overview
+## File List
 
-The Utils module contains a series of independent yet practical tools, each focused on solving a specific general problem. These tools are designed to be stateless, testable, and composable, usable anywhere in the project.
+| File | Description |
+|------|-------------|
+| `util_benchmark.py` | Executor and task graph performance benchmarking |
+| `util_clone.py` | Executor and task graph deep cloning tools |
+| `util_collections.py` | Collection operation tools, provides `cluster_by_value_sorted()` |
+| `util_format.py` | Data formatting and display tools (`format_repr`, `format_table`, `format_duration`, `format_timestamp`, `format_avg_time`) |
+
+> **Note**: `util_debug.py` no longer exists in the source code. Do not rely on this file.
 
 ## File Descriptions
 
 ### Performance Tools
 
 1. **util_benchmark.py**
-   - **Purpose**: Performance benchmarking tool for comparing performance differences across execution modes
-   - **Key Features**:
-     - Execution time measurement and statistics
-     - Memory usage monitoring
-     - Concurrency performance testing
-     - Performance comparison report generation
-   - **Use Cases**: 
-     - Optimizing execution mode selection
+   - **Purpose**: Executor and task graph performance benchmarking tool, used to compare performance differences across execution modes
+   - **Key Functions**:
+     - `benchmark_executor()`: Benchmarks `TaskExecutor`, comparing elapsed time across serial/thread/async modes
+     - `benchmark_graph()`: Benchmarks `TaskGraph`, comparing different stage_mode × execution_mode combinations
+   - **Dependencies**: `util_clone` (clone executor/task graph), `util_format` (output time table)
+   - **Use Cases**:
+     - Optimizing task execution mode selection
      - Discovering performance bottlenecks
      - Validating parallelization effects
-     - Capacity planning and resource allocation
 
 ### Data Processing Tools
 
 2. **util_clone.py**
-   - **Purpose**: Deep cloning tool supporting complete copies of complex objects
-   - **Key Features**:
-     - Recursive object cloning
-     - Circular reference handling
-     - Custom cloning strategies
-     - Performance optimization (caching, lazy cloning)
-   - **Supported Types**: Primitive types, lists, dicts, sets, custom objects, nested structures
-   - **Use Cases**: Task data copying, state snapshots, test data preparation
+   - **Purpose**: Executor and task graph cloning tool, used to isolate state during benchmarking
+   - **Key Functions**: `clone_executor()`, `clone_graph()`
+   - **Design**: Creates independent copies via `copy.deepcopy` to avoid state contamination
+   - **Supported Types**: `TaskExecutor`, `TaskGraph`
+   - **Use Cases**: Benchmarking, state isolation testing
 
 3. **util_collections.py**
-   - **Purpose**: Collection operation tools providing specific data processing functions
+   - **Purpose**: Collection operation tools, providing specific data processing functionality
    - **Key Function**: `cluster_by_value_sorted()`: Clusters and sorts a dictionary by value
    - **Key Features**:
      - Group dictionaries by value
@@ -46,19 +48,7 @@ The Utils module contains a series of independent yet practical tools, each focu
      - Return clustering results sorted by value
    - **Use Cases**: Data analysis, result grouping, statistical summaries, performance metric clustering
 
-### Development and Debugging Tools
-
-4. **util_debug.py**
-   - **Purpose**: Debugging tools to help identify serialization issues
-   - **Key Function**: `find_unpickleable()`: Finds parts of an object that cannot be pickle-serialized
-   - **Key Features**:
-     - Recursively checks object serializability
-     - Identifies specific attributes causing pickle failures
-     - Provides detailed error information
-     - Helps debug serialization issues in multi-process environments
-   - **Use Cases**: Multi-process task execution, object serialization debugging, cross-process communication troubleshooting
-
-5. **util_format.py**
+4. **util_format.py**
    - **Purpose**: Data formatting and display tools for improved readability
    - **Key Functions**:
      - `format_repr()`: Formats object string representation with maximum length limit
@@ -72,15 +62,13 @@ The Utils module contains a series of independent yet practical tools, each focu
 ## Module Relationships
 
 ### Internal Relationships
-- All tools are independent and can be used standalone
-- Some tools have dependencies on each other (e.g., `util_debug` may use `util_format` for output)
-- Tool design follows a unified interface convention
+- `util_benchmark` depends on `util_clone` (clone executor/task graph) and `util_format` (output tables)
+- The remaining tools are independent and can be used standalone
 
 ### External Relationships
-- **With All Modules**: The Utils module is widely used by all other modules
 - **With Runtime Module**: Performance testing tools are used to test executor performance
-- **With Stage Module**: Data cloning tools are used for task state copying
-- **With Graph Module**: Collection tools are used for graph data operations
+- **With Stage Module**: Cloning tools are used for executor copy generation
+- **With Graph Module**: Cloning tools are used for task graph copy generation; collection tools are used for graph data operations
 - **With Persistence Module**: Formatting tools are used for data serialization display
 
 ## Design Principles
@@ -90,53 +78,141 @@ The Utils module contains a series of independent yet practical tools, each focu
 - Functions are designed to be small and focused, avoiding feature bloat
 - Clear interfaces and well-defined responsibilities
 
-### Stateless Design
+### Pure Function Design
 - Utility functions are stateless whenever possible
 - Avoids global variables and side effects
 - Supports concurrent safe usage
 
-### Testability
-- Pure function design for easy unit testing
-- Dependency injection support
-- Mock and stub support
-
-### Extensibility
-- Plugin-based architecture with custom extension support
-- Configuration-driven, flexible behavior adjustment
-- Version compatibility guarantee
-
 ## Usage Patterns
 
-### Direct Usage
+### Benchmarking
 ```python
-from celestialflow.utils import util_benchmark, util_clone, util_collections
+import asyncio
+from celestialflow import TaskExecutor
+from celestialflow.utils.util_benchmark import benchmark_executor
 
-# Performance testing
-results = util_benchmark.run_benchmark(task_executor, iterations=100)
-
-# Deep cloning
-cloned_data = util_clone.deep_clone(complex_object)
-
-# Collection operations
-grouped = util_collections.cluster_by_value_sorted(items)
+executor = TaskExecutor("Bench", my_func)
+asyncio.run(benchmark_executor(executor, async_executor, range(100)))
 ```
 
-### Integrated Usage
-- Integrate performance monitoring in task executors
-- Use collection tools in data pipelines
-- Enable diagnostic tools in debug mode
-- Use formatting tools in report generation
+### Cloning
+```python
+from celestialflow.utils.util_clone import clone_executor, clone_graph
 
-### Custom Extensions
-- Inherit base tool classes for specific functionality
-- Add custom formatters
-- Implement domain-specific collection operations
+executor_copy = clone_executor(original_executor)
+graph_copy = clone_graph(original_graph)
+```
 
-## Best Practices
+### Collection Operations
+```python
+from celestialflow.utils.util_collections import cluster_by_value_sorted
 
-1. **Performance-Critical Paths**: Avoid heavy tools (like deep cloning) in hot paths
-2. **Error Handling**: Tool functions should provide clear error messages and recovery options
-3. **Resource Management**: Tools requiring resources (file handles, network connections) should clean up properly
-4. **Documentation and Examples**: Provide usage examples and common scenarios for complex tools
-5. **Version Compatibility**: Keep tool interfaces backward compatible, avoid breaking changes
-6. **Test Coverage**: Ensure complete test coverage for tool functions, especially edge cases
+grouped = cluster_by_value_sorted({"a": 1, "b": 2, "c": 1})
+# {"1": ["a", "c"], "2": ["b"]}
+```
+
+### Formatting
+```python
+from celestialflow.utils.util_format import format_table, format_duration
+
+print(format_table([[2.34, 0.89]], ["serial", "thread"], ["Time"]))
+print(format_duration(123.456))  # "2m 3.46s"
+```
+
+## Usage Examples
+
+### Batch Import and Use All Tool Functions
+
+The following example demonstrates how to import all tool modules at once and use each function:
+
+```python
+import asyncio
+from celestialflow import TaskExecutor, format_table
+from celestialflow.utils.util_benchmark import benchmark_executor
+from celestialflow.utils.util_clone import clone_executor, clone_stage, clone_graph
+from celestialflow.utils.util_collections import cluster_by_value_sorted
+from celestialflow.utils.util_format import (
+    format_repr,
+    format_duration,
+    format_timestamp,
+    format_avg_time,
+)
+
+# 1. Formatting Tools ----
+print("=" * 40)
+print("格式化工具示例")
+print("=" * 40)
+
+# format_duration: seconds -> readable time
+print(f"format_duration(75): {format_duration(75)}")     # 01:15
+print(f"format_duration(3661): {format_duration(3661)}") # 01:01:01
+
+# format_timestamp: timestamp -> date string
+import time
+print(f"format_timestamp(now): {format_timestamp(time.time())}")
+
+# format_avg_time: average processing time
+print(f"format_avg_time(12.5, 100): {format_avg_time(12.5, 100)}")  # 0.12s/it
+print(f"format_avg_time(2.0, 1): {format_avg_time(2.0, 1)}")       # 2.00s/it
+
+# format_repr: safe truncation
+print(f"format_repr('hello'*10, 15): {format_repr('hello'*10, 15)}")
+
+# 2. Collection Operations ----
+print("\n" + "=" * 40)
+print("集合操作示例")
+print("=" * 40)
+
+task_results = {
+    "stage_a": 100,
+    "stage_b": 50,
+    "stage_c": 100,
+    "stage_d": 50,
+    "stage_e": 200,
+}
+clustered = cluster_by_value_sorted(task_results)
+for value, stages in clustered.items():
+    print(f"处理量 {value}: {stages}")
+# Output:
+#   处理量 50: ['stage_b', 'stage_d']
+#   处理量 100: ['stage_a', 'stage_c']
+#   处理量 200: ['stage_e']
+
+# 3. Cloning Tools (with Benchmarking) ----
+print("\n" + "=" * 40)
+print("克隆与基准测试示例")
+print("=" * 40)
+
+
+def simple_task(x: int) -> int:
+    return x * x
+
+
+async def run_benchmark():
+    executor = TaskExecutor(
+        "Bench",
+        simple_task,
+        execution_mode="thread",
+        max_workers=4,
+    )
+
+    # Clone executor for isolated state testing
+    cloned = clone_executor(executor)
+    print(f"原始执行器: {executor.get_name()}")
+    print(f"克隆执行器: {cloned.get_name()}")
+    print(f"模式一致: {executor.execution_mode == cloned.execution_mode}")
+
+    # Use format_table to display a table
+    table = format_table(
+        [[100, 0.12], [50, 0.08]],
+        row_names=["thread", "serial"],
+        column_names=["任务数", "平均耗时(s)"],
+    )
+    print(f"\n基准测试表格:\n{table}")
+
+    # Run the original executor
+    await executor.start(range(100))
+
+
+asyncio.run(run_benchmark())
+```

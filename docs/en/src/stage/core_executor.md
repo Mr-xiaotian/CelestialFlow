@@ -1,8 +1,10 @@
 # TaskExecutor
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/05
 
 `TaskExecutor` is the core component for executing single task logic. It is responsible for task execution, concurrency control, error handling, retry mechanisms, and logging.
+
+> Note: `TaskExecutor` should be treated as a one-shot object. After one `start()` / `start_async()` run, the same instance is not guaranteed to be safely reusable.
 
 ## Initialization
 
@@ -82,6 +84,10 @@ async def start_async(self, task_source: Iterable[Any]) -> None:
     Asynchronously start the executor. Internally sets execution_mode="async".
     """
 ```
+
+Lifecycle note:
+- Internal queues, spouts, inlets, counters, and runtime state are initialized for a single execution lifecycle.
+- If you need to run the same task flow again, create a new `TaskExecutor` instead of restarting the same instance.
 
 ## Error Handling
 

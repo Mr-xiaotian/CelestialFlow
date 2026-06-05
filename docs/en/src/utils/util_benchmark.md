@@ -1,8 +1,8 @@
 # Benchmark
 
-> 📅 Last updated: 2026/05/11
+> 📅 Last Updated: 2026/05/24
 
-`utils/benchmark.py` provides performance benchmarking functionality for executors and task graphs, used to compare performance differences across execution modes.
+`utils/util_benchmark.py` provides performance benchmarking functionality for executors and task graphs, used to compare performance differences across execution modes.
 
 ## Design Purpose
 
@@ -33,9 +33,15 @@ async def benchmark_executor(
     :param task_source: Task source
     :param sync_modes: Synchronous mode list, defaults to ["serial", "thread"]
     :param async_modes: Asynchronous mode list, defaults to ["async"]
-    :return: Test results dictionary
+    :return: Test results dictionary (contains use_time, sync_modes, async_modes, table)
     """
 ```
+
+Test flow:
+1. Clone executors (to avoid state contamination)
+2. Set the execution mode for each mode
+3. Execute tasks and measure time
+4. Output time table and result table
 
 Output example:
 ```
@@ -67,9 +73,16 @@ def benchmark_graph(
     :param stage_modes: Stage mode list, defaults to ["serial", "thread"]
     :param execution_sync_modes: Synchronous execution mode list, defaults to ["serial", "thread"]
     :param execution_async_modes: Asynchronous execution mode list, defaults to ["async"]
-    :return: Test results dictionary
+    :return: Test results dictionary (contains table, stage_modes, sync_modes, async_modes)
     """
 ```
+
+Test flow:
+1. For each stage_mode × execution_mode combination
+2. Clone the task graph
+3. Set `set_graph_mode(stage_mode, execution_mode)`
+4. Execute `start_graph()` and measure time
+5. Output time table
 
 Output example:
 ```
@@ -86,7 +99,7 @@ thread    2.12s     1.89s     1.65s
 ```python
 import asyncio
 from celestialflow import TaskExecutor
-from celestialflow.utils.benchmark import benchmark_executor
+from celestialflow.utils.util_benchmark import benchmark_executor
 
 # Define a synchronous task
 def sync_task(x):
@@ -113,7 +126,7 @@ asyncio.run(benchmark_executor(
 
 ```python
 from celestialflow import TaskGraph, TaskStage
-from celestialflow.utils.benchmark import benchmark_graph
+from celestialflow.utils.util_benchmark import benchmark_graph
 
 # Create sync stages
 stage_a = TaskStage("A", process_a)
@@ -174,11 +187,22 @@ Combination example:
 
 Displays execution time for each configuration.
 
-### Failure Statistics
+### Result Table
 
-If any tasks fail, the following is output:
-- `Fail stage dict`: Failed tasks grouped by stage
-- `Fail error dict`: Failed tasks grouped by error type
+Displays the successful result pairs for each configuration.
+
+### Return Values
+
+`benchmark_executor` returns a dictionary containing:
+- `use_time`: Elapsed time list for each mode
+- `sync_modes`: Tested synchronous mode list
+- `async_modes`: Tested asynchronous mode list
+- `table`: Formatted time table string
+
+`benchmark_graph` returns a dictionary containing:
+- `table`: Formatted time table string
+- `stage_modes`: Tested stage mode list
+- `sync_modes` / `async_modes`: Tested execution mode list
 
 ## Notes
 

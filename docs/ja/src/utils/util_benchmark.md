@@ -1,12 +1,12 @@
 # Benchmark
 
-> 📅 最終更新日: 2026/05/11
+> 📅 最終更新日: 2026/05/24
 
-`utils/benchmark.py` は、エグゼキュータおよびタスクグラフのパフォーマンスベンチマーク機能を提供し、異なる実行モード間のパフォーマンス差を比較するために使用されます。
+`utils/util_benchmark.py` は、エグゼキューターおよびタスクグラフのパフォーマンスベンチマーク機能を提供し、異なる実行モード間のパフォーマンス差を比較するために使用されます。
 
 ## 設計目的
 
-実際のプロジェクトでは、適切な実行モードの選択がパフォーマンスにとって非常に重要です。ベンチマークツールでは以下が可能です:
+実際のプロジェクトでは、適切な実行モードの選択がパフォーマンスにとって非常に重要です。ベンチマークツールでは以下が可能です：
 - 異なる実行モード間の実行時間を比較
 - 並列化効果を検証
 - パフォーマンスボトルネックを発見
@@ -26,18 +26,24 @@ async def benchmark_executor(
     async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    エグゼキュータのベンチマークを実行します。
+    エグゼキューターのベンチマークを実行します。
 
-    :param sync_executor: 同期エグゼキュータテンプレート
-    :param async_executor: 非同期エグゼキュータテンプレート
+    :param sync_executor: 同期エグゼキューターのテンプレート
+    :param async_executor: 非同期エグゼキューターのテンプレート
     :param task_source: タスクソース
     :param sync_modes: 同期モードリスト、デフォルトは ["serial", "thread"]
     :param async_modes: 非同期モードリスト、デフォルトは ["async"]
-    :return: テスト結果辞書
+    :return: テスト結果辞書（use_time, sync_modes, async_modes, table を含む）
     """
 ```
 
-出力例:
+テストフロー：
+1. エグゼキューターをクローン（状態汚染を回避）
+2. 各モードに対して実行方式を設定
+3. タスクを実行して時間を計測
+4. 時刻テーブルと結果テーブルを出力
+
+出力例：
 ```
            Time
 serial     2.34s
@@ -67,11 +73,18 @@ def benchmark_graph(
     :param stage_modes: ステージモードリスト、デフォルトは ["serial", "thread"]
     :param execution_sync_modes: 同期実行モードリスト、デフォルトは ["serial", "thread"]
     :param execution_async_modes: 非同期実行モードリスト、デフォルトは ["async"]
-    :return: テスト結果辞書
+    :return: テスト結果辞書（table, stage_modes, sync_modes, async_modes を含む）
     """
 ```
 
-出力例:
+テストフロー：
+1. 各 `stage_mode` × `execution_mode` の組み合わせに対して
+2. タスクグラフをクローン
+3. `set_graph_mode(stage_mode, execution_mode)` を設定
+4. `start_graph()` を実行して時間を計測
+5. 時刻テーブルを出力
+
+出力例：
 ```
 Time table:
           serial    thread    async
@@ -81,12 +94,12 @@ thread    2.12s     1.89s     1.65s
 
 ## 使用例
 
-### エグゼキュータのテスト
+### エグゼキューターのテスト
 
 ```python
 import asyncio
 from celestialflow import TaskExecutor
-from celestialflow.utils.benchmark import benchmark_executor
+from celestialflow.utils.util_benchmark import benchmark_executor
 
 # 同期タスクの定義
 def sync_task(x):
@@ -97,7 +110,7 @@ async def async_task(x):
     await asyncio.sleep(0.01)
     return x * 2
 
-# エグゼキュータの作成
+# エグゼキューターの作成
 sync_executor = TaskExecutor("SyncBench", sync_task)
 async_executor = TaskExecutor("AsyncBench", async_task)
 
@@ -113,7 +126,7 @@ asyncio.run(benchmark_executor(
 
 ```python
 from celestialflow import TaskGraph, TaskStage
-from celestialflow.utils.benchmark import benchmark_graph
+from celestialflow.utils.util_benchmark import benchmark_graph
 
 # 同期ステージの作成
 stage_a = TaskStage("A", process_a)
@@ -143,7 +156,7 @@ benchmark_graph(
 
 ## テストマトリクス
 
-### エグゼキュータテスト次元
+### エグゼキューターのテスト次元
 
 | 次元 | 説明 |
 |------|------|
@@ -151,18 +164,18 @@ benchmark_graph(
 | `thread` | スレッドプール並行実行 |
 | `async` | コルーチン非同期実行 |
 
-### タスクグラフテスト次元
+### タスクグラフのテスト次元
 
-**Stage Mode（ステージモード）**:
+**Stage Mode（ステージモード）**：
 - `serial`: ステージがメインスレッドで実行
 - `thread`: ステージが独立スレッドで実行
 
-**Execution Mode（実行モード）**:
+**Execution Mode（実行モード）**：
 - `serial`: ステージ内部で直列実行
 - `thread`: ステージ内部でスレッドプール実行
 - `async`: ステージ内部でコルーチン非同期実行
 
-組み合わせ例:
+組み合わせ例：
 | Stage \ Execution | serial | thread | async |
 |-------------------|--------|--------|-------|
 | serial | S-S | S-T | S-A |
@@ -170,15 +183,26 @@ benchmark_graph(
 
 ## 出力情報
 
-### 時間テーブル
+### 時刻テーブル
 
 各構成の実行時間を表示します。
 
-### 失敗統計
+### 結果テーブル
 
-タスクの失敗がある場合、以下が出力されます:
-- `Fail stage dict`: ステージ別にグループ化された失敗タスク
-- `Fail error dict`: エラー種別にグループ化された失敗タスク
+各構成の成功した結果ペアを表示します。
+
+### 戻り値
+
+`benchmark_executor` は以下を含む辞書を返します：
+- `use_time`: 各モードの実行時間リスト
+- `sync_modes`: テストされた同期モードリスト
+- `async_modes`: テストされた非同期モードリスト
+- `table`: フォーマット済みの時刻テーブル文字列
+
+`benchmark_graph` は以下を含む辞書を返します：
+- `table`: フォーマット済みの時刻テーブル文字列
+- `stage_modes`: テストされたステージモードリスト
+- `sync_modes` / `async_modes`: テストされた実行モードリスト
 
 ## 注意事項
 

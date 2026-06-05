@@ -1,164 +1,134 @@
 # Web Module
 
-> 📅 Last Updated: 2026/04/22
+> 📅 Last Updated: 2026/05/23
 
-The Web module provides CelestialFlow's web-based monitoring and management interface. Built on FastAPI, it supports real-time task status display, error monitoring, task injection, and remote control capabilities.
+The Web module provides an interactive monitoring and management interface, built on FastAPI and native TypeScript, supporting real-time task status visualization, error tracing, dynamic task injection, and global configuration management.
 
 ## Module Overview
 
-The Web module is a standalone web server that provides a visual monitoring and management interface for CelestialFlow. It receives status data from `TaskReporter`, provides real-time monitoring views, and supports task injection and system control through the web interface.
+The Web module acts as a bridge between `TaskReporter` and end users. On one hand, it serves as a RESTful API Server that receives and caches status snapshots from the runtime; on the other, it provides a high-performance, low-latency single-page application (SPA) that allows developers to intuitively observe the execution flow of graph tasks, performance bottlenecks, and exception details.
 
 ## File Descriptions
 
-### Core Components
+### Core Backend Components
 
 1. **core_server.py** (`TaskWebServer`)
-   - **Purpose**: FastAPI-based web server providing RESTful API endpoints
-   - **Key Features**:
-     - **Status Display**: Real-time display of task graph structure, stage status, and performance metrics
-     - **Error Monitoring**: Display of error details, stack traces, and occurrence timelines
-     - **Task Injection**: Dynamically inject new tasks into a running task graph via the web interface
-     - **Remote Control**: Support for pause, resume, restart, and terminate operations
-     - **Historical Analysis**: View historical execution records and performance trends
-   - **Tech Stack**: FastAPI, Jinja2 templates, static file serving
+   - **Purpose**: Core web server that manages data caching, version control (known_rev), and API routes.
+   - **Key Features**: Status aggregation, configuration persistence, error pagination queries, task injection relay.
 
-### Utility Components
-
-2. **util_cal.py**
-   - **Purpose**: Calculation utility functions that convert millisecond refresh intervals to seconds and clamp the range
+2. **util_error.py**
+   - **Purpose**: Provides error log filtering, normalization, and pagination logic.
 
 3. **util_config.py**
-   - **Purpose**: Loading and saving frontend configuration files (JSON)
+   - **Purpose**: Handles reading and writing of `config.json`, supporting degraded startup.
 
-4. **util_error.py**
-   - **Purpose**: Utility functions for error query parameter normalization, filtering, and pagination
+### Core Frontend Components
 
-## Module Dependencies
+1. **dashboard_history.ts**
+   - **Purpose**: Maintains multi-metric historical series, renders progress line charts using Chart.js. Supports real-time metric switching.
 
-### Internal Dependencies
-- `TaskWeb` is the sole core component of the Web module
-- Contains frontend static files (HTML, CSS, JavaScript) and backend API services
+2. **dashboard_statuses.ts**
+   - **Purpose**: Renders dynamic node cards, displaying real-time performance metrics and progress bars for each stage.
 
-### External Dependencies
-- **With Observability Module**: Receives status data reported by `TaskReporter`
-- **With Graph Module**: Displays task graph structure and stage status
-- **With Runtime Module**: Displays execution status and performance metrics
-- **With Stage Module**: Displays task stage details and execution results
-- **With Persistence Module**: Accesses persisted logs and error data
+3. **dashboard_structure.ts**
+   - **Purpose**: Renders task graph topology structure based on Mermaid.js, supporting dynamic node coloring.
+
+4. **injection.ts**
+   - **Purpose**: Manages the task manual injection UI, supporting multi-node batch injection and file uploads.
+
+5. **errors.ts**
+   - **Purpose**: Handles paginated display and deep filtering of error logs.
 
 ## Architecture Features
 
-### Frontend-Backend Separation
-- **Backend**: FastAPI provides RESTful API services
-- **Frontend**: Static HTML/JS/CSS files supporting modern browsers
-- **Communication**: JSON over HTTP, with status updates via periodic polling
+### Client-Side History Accumulation
+To significantly reduce frontend-backend communication frequency, historical trend data is no longer fully pushed by the backend. Instead, the frontend accumulates and maintains it in browser memory based on continuous status snapshots.
 
-### Real-Time Support
-- **Periodic Polling**: Frontend periodically requests status updates at a configurable interval
-- **Version-Based Caching**: Supports a `known_rev` parameter; returns `data=null` when unchanged, reducing transfer volume
+### Incremental Pull Mechanism
+All pull endpoints (`pull_*`) support the `known_rev` mechanism. The actual payload is transmitted only when the backend data version has changed; otherwise, only the version number is returned, greatly saving polling bandwidth.
 
-### Extensibility
-- **Plugin Architecture**: Supports custom monitoring panels and controls
-- **Theme System**: Supports interface theme switching and customization
-- **Multilingual**: Supports internationalized interfaces
-- **Permission System**: Role-based access control
-
-### Security
-- **CORS Configuration**: Controls cross-origin access
-- **Authentication & Authorization**: Supports multiple authentication methods (API Key, OAuth, JWT)
-- **Input Validation**: Strict input data validation and sanitization
-- **Rate Limiting**: Prevents API abuse
-
-## Feature Highlights
-
-### Monitoring Dashboard
-- **Topology View**: Visual display of task graph structure and dependencies
-- **Status Panel**: Real-time display of stage status (color-coded)
-- **Performance Dashboard**: Displays CPU, memory, queue length, and other metrics
-- **Error Center**: Centralized display of error information and statistics
-
-### Control Features
-- **Task Injection**: Define new tasks via forms or JSON
-- **Parameter Adjustment**: Dynamically adjust system parameters and configuration
-- **Execution Control**: Start, pause, resume, and terminate task execution
-- **Data Export**: Export execution logs, performance data, and error reports
-
-### Analysis Features
-- **Historical Trends**: View historical trends of performance metrics
-- **Comparative Analysis**: Compare execution across different time periods
-- **Root Cause Analysis**: Error root cause analysis and correlation analysis
-- **Report Generation**: Automatically generate execution reports and performance analysis reports
+### Degraded Configuration Startup
+The system is designed with a robust initialization flow: if backend configuration loading fails, the frontend automatically falls back to the built-in `DEFAULT_WEB_CONFIG`, ensuring the monitoring dashboard renders and displays basic data under any circumstances.
 
 ## Usage Patterns
 
 ### Starting the Server
 ```bash
-# Command-line startup
-celestialflow-web
-
-# Specify port and host
-celestialflow-web --host 0.0.0.0 --port 5080
+# Run the CLI tool directly
+celestialflow-web --port 5000
 ```
 
-### API Usage
+### Task Injection Example
 ```python
 import requests
 
-# Get task graph status
-response = requests.get("http://localhost:5000/api/pull_status")
-status = response.json()
-
-# Inject new tasks (POST to push_injection_tasks, then pulled by TaskGraph)
-task_injection = {
-    "node": "Stage 1",
-    "task_datas": [[1, 2, 3]],
-    "timestamp": "2024-01-01T00:00:00"
-}
-response = requests.post("http://localhost:5000/api/push_injection_tasks", json=task_injection)
+# Inject new tasks into a specified node
+requests.post("http://localhost:5000/api/push_injection_tasks", json={
+    "node": "Stage_A",
+    "task_datas": [{"id": 1, "data": "payload"}],
+    "timestamp": "2026-05-23T10:00:00"
+})
 ```
 
-## Deployment Considerations
+## Usage Examples
 
-### Server Configuration
-- **Process Management**: Use WSGI/ASGI servers such as Gunicorn or Uvicorn
-- **Load Balancing**: Configure load balancing for multi-instance deployments
-- **Reverse Proxy**: Use Nginx or Apache as a reverse proxy
-- **SSL/TLS**: Configure HTTPS to secure data transmission
+### Basic Example of Creating and Starting TaskWebServer
 
-### Performance Optimization
-- **Static File Caching**: Configure browser caching strategies
-- **API Caching**: Cache frequently accessed API responses
-- **Connection Pooling**: Database and external service connection pooling
-- **Compression**: Enable Gzip/Brotli compression
+```python
+from celestialflow import TaskWebServer
 
-### High Availability
-- **Multi-Instance Deployment**: Deploy multiple web server instances
-- **Session Sharing**: Configure shared session storage (Redis)
-- **Health Checks**: Configure health check endpoints
-- **Failover**: Configure automatic failover mechanisms
+# Create a server instance
+server = TaskWebServer(
+    host="127.0.0.1",   # Listen address
+    port=5000,            # Listen port
+    log_level="info",    # Log level
+)
 
-## Best Practices
+# Start the server (blocking call, runs indefinitely)
+server.start_server()
+```
 
-### Development Environment
-1. **Hot Reload**: Enable code hot reloading during development for improved efficiency
-2. **Debugging Tools**: Integrate debugging tools and performance profilers
-3. **Mock Data**: Provide mock data generation tools for frontend development
-4. **API Documentation**: Maintain complete API documentation and examples
+After startup, visit `http://127.0.0.1:5000` in a browser to see the Web UI monitoring panel.
 
-### Production Environment
-1. **Security Hardening**: Disable debug mode, configure security headers, regularly update dependencies
-2. **Monitoring Integration**: Integrate system monitoring and log collection
-3. **Backup Strategy**: Regularly back up configuration and important data
-4. **Capacity Planning**: Plan server resources based on user volume and data volume
+### Complete Data Reporting Pipeline Example
 
-### User Experience
-1. **Responsive Design**: Support desktop and mobile device access
-2. **Loading Optimization**: Optimize initial load speed and page responsiveness
-3. **Error Handling**: Provide friendly error messages and recovery guidance
-4. **Help Documentation**: Provide online help and operation guides
+```python
+from celestialflow import TaskGraph, TaskStage, TaskWebServer
+from celestialflow.persistence import LogInlet
+from celestialflow.observability import TaskReporter
+import asyncio
 
-### Maintenance and Upgrades
-1. **Version Management**: Clear version release and upgrade processes
-2. **Data Migration**: Support safe migration of configuration and data
-3. **Rollback Plans**: Prepare version rollback plans to address upgrade issues
-4. **User Notification**: Notify users in advance of important changes
+
+async def main():
+    # 1. Start the Web server first (runs in a background thread)
+    server = TaskWebServer(host="127.0.0.1", port=5000, log_level="info")
+    # In a real production environment, server.start_server() would block;
+    # this example illustrates the reporter-server coordination flow
+
+    # 2. Create a task graph
+    def process(x: int) -> int:
+        return x * 2
+
+    graph = TaskGraph(schedule_mode="eager")
+    stage = TaskStage("Processor", process, execution_mode="thread")
+    graph.set_stages([stage])
+
+    # 3. Create and start TaskReporter
+    log_inlet = LogInlet()
+    reporter = TaskReporter(
+        host="127.0.0.1",
+        port=5000,
+        task_graph=graph,
+        log_inlet=log_inlet,
+    )
+    reporter.start()
+
+    # 4. Execute tasks
+    await graph.start_graph({stage.get_tag(): range(50)})
+
+    # 5. Stop the reporter
+    reporter.stop()
+
+
+asyncio.run(main())
+```
