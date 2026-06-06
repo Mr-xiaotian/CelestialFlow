@@ -519,8 +519,8 @@ class TaskExecutor:
         :param start_time: 任务开始时间
         """
         self._notify("on_task_success")
-        task = task_envelope.task
-        task_id = task_envelope.id
+        task = task_envelope.get_task()
+        task_id = task_envelope.get_id()
 
         processed_result = self.process_result(task, result)
 
@@ -530,8 +530,8 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
         result_envelope = TaskEnvelope(
-            processed_result,
-            result_id,
+            task=processed_result,
+            id=result_id,
             source=self.get_name(),
             prev=task,
         )
@@ -562,8 +562,9 @@ class TaskExecutor:
         :param task_envelope: 发生异常的任务
         :param exception: 捕获的异常
         :param retry_time: 当前重试次数
-        :return: 更新后的任务信封
+        :return: 重试的任务信封
         """
+        task = task_envelope.get_task()
         task_id = task_envelope.get_id()
 
         retry_id = self.ctree_client.emit(
@@ -571,53 +572,58 @@ class TaskExecutor:
             parents=[task_id],
             payload=self.get_summary(),
         )
-        task_envelope.change_id(retry_id)
+        
+        retry_envelope = TaskEnvelope(
+            task=task,
+            id=retry_id,
+            source=self.get_name(),
+            prev=task_envelope.get_prev(),
+        )
 
         self.log_inlet.task_retry(
             self.get_func_name(),
-            self.get_task_repr(task_envelope.task),
+            self.get_task_repr(task),
             retry_time,
             exception,
             task_id,
             retry_id,
         )
 
-        return task_envelope
+        return retry_envelope
 
     def handle_task_fail(
         self,
         task_envelope: TaskEnvelope,
         exception: Exception,
-    ) -> TaskEnvelope:
+    ) -> None:
         """
         准备失败任务的结果信封
 
         :param task_envelope: 失败的任务
         :param exception: 捕获的异常
-        :return: 失败任务的结果信封
         """
         self._notify("on_task_fail")
+        task = task_envelope.get_task()
+        task_id = task_envelope.get_id()
 
         error_id = self.ctree_client.emit(
             CTreeEvent.TASK_ERROR,
-            parents=[task_envelope.id],
+            parents=[task_id],
             payload=self.get_summary(),
         )
 
-        task_id = task_envelope.get_id()
         self.metrics.add_error_count()
 
         self.fail_inlet.task_error(
-            self.get_name(), error_id, exception, task_envelope.task
+            self.get_name(), error_id, exception, task
         )
         self.log_inlet.task_error(
             self.get_func_name(),
-            self.get_task_repr(task_envelope.task),
+            self.get_task_repr(task),
             exception,
             task_id,
             error_id,
         )
-        return task_envelope
 
     def deal_duplicate(self, task_envelope: TaskEnvelope) -> None:
         """

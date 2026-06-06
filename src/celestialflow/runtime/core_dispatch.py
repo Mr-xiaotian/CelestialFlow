@@ -87,7 +87,7 @@ class TaskDispatch:
                 start_time = time.perf_counter()
                 args: tuple[Any, ...] = self.task_executor.get_args(task)
                 result: Any = self.func(*args)
-                _ = self.task_executor.process_task_success(
+                self.task_executor.process_task_success(
                     task_envelope, result, start_time
                 )
                 return

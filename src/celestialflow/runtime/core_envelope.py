@@ -59,11 +59,11 @@ class TaskEnvelope:
         :return: 任务 ID
         """
         return self.id
-
-    def change_id(self, new_id: int) -> None:
+    
+    def get_prev(self) -> Any | None:
         """
-        修改 id
+        获取前一个任务（用于结果缓存时回溯）
 
-        :param new_id: 新的任务 id
+        :return: 前一个任务
         """
-        self.id = new_id
+        return self.prev
