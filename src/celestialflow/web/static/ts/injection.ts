@@ -131,6 +131,30 @@ function setupEventListeners() {
 }
 
 /**
+ * 判断节点当前是否仍允许作为注入目标。
+ * 已停止或已不存在的节点不允许继续提交。
+ * @param {string} nodeName - 节点名称
+ * @returns {boolean} 当前是否可注入
+ */
+function isInjectableNode(nodeName: string): boolean {
+  const status = nodeStatuses[nodeName];
+  return Boolean(status) && status.status !== 2;
+}
+
+/**
+ * 将已选节点与当前状态快照同步，移除已停止或已消失的节点。
+ * @returns {void}
+ */
+function syncSelectedNodesWithStatuses() {
+  const nextSelectedNodes = selectedNodes.filter((node) =>
+    isInjectableNode(node.name),
+  );
+  if (nextSelectedNodes.length === selectedNodes.length) return;
+  selectedNodes = nextSelectedNodes;
+  updateSelectedNodes();
+}
+
+/**
  * 渲染任务注入页面的节点列表
  * @param {string} searchTerm - 搜索关键词，用于过滤节点
  * @returns {void}
@@ -138,6 +162,8 @@ function setupEventListeners() {
 function renderNodeList(searchTerm = "") {
   const nodeListEl = document.getElementById("node-list");
   if (!nodeListEl) return;
+
+  syncSelectedNodesWithStatuses();
 
   const normalizedSearch = searchTerm.toLowerCase().trim();
 
@@ -181,6 +207,11 @@ function renderNodeList(searchTerm = "") {
  * @param {string} nodeName - 节点名称
  */
 function selectNode(nodeName: string) {
+  if (!isInjectableNode(nodeName)) {
+    syncSelectedNodesWithStatuses();
+    return;
+  }
+
   const existing = selectedNodes.find((n) => n.name === nodeName);
 
   if (existing) {
@@ -410,6 +441,8 @@ function showStatus(messageKey: string, isSuccess = false, ...args: string[]) {
  * @returns {Promise<void>}
  */
 async function handleSubmit() {
+  syncSelectedNodesWithStatuses();
+
   if (selectedNodes.length === 0) {
     showStatus("injection.selectNodeRequired", false);
     return;
