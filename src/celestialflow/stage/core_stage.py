@@ -9,7 +9,12 @@ from typing import Any
 
 from ..persistence import FailInlet, LogInlet
 from ..runtime import TaskInQueue, TaskOutQueue
-from ..runtime.util_errors import ExecutionModeError, GraphManagedError, StageModeError, UnconsumedError
+from ..runtime.util_errors import (
+    ExecutionModeError,
+    GraphManagedError,
+    StageModeError,
+    UnconsumedError,
+)
 from ..runtime.util_types import StageStatus
 from .core_executor import TaskExecutor
 

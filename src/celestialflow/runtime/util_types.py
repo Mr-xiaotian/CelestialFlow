@@ -76,12 +76,12 @@ class ValueWrapper:
     value: int
     _lock: Lock | NoOpContext
 
-    def __init__(self, value: int = 0, lock: Lock | NoOpContext = NoOpContext()) -> None:
+    def __init__(self, value: int, lock: Lock | NoOpContext) -> None:
         """
         初始化值包装器。
 
-        :param value: 初始值，默认 0
-        :param lock: 可选的线程锁，默认 NoOpContext
+        :param value: 初始值
+        :param lock: 可选的线程锁
         """
         self.value = value
         self._lock = lock
@@ -89,7 +89,7 @@ class ValueWrapper:
     def get_lock(self) -> Lock | NoOpContext:
         """获取锁对象，无锁时返回空上下文"""
         return self._lock
-    
+
     def add(self, value: int) -> None:
         """增加值"""
         with self.get_lock():

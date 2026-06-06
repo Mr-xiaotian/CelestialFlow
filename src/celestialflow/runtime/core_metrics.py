@@ -1,7 +1,7 @@
 # runtime/core_metrics.py
 from threading import Lock
 
-from .util_types import SumCounter, ValueWrapper, NoOpContext
+from .util_types import NoOpContext, SumCounter, ValueWrapper
 
 
 class TaskMetrics:
@@ -57,9 +57,9 @@ class TaskMetrics:
 
         # thread 模式下，让四个 counter 共用同一把锁（减少开销，也更一致）
         self.task_counter = SumCounter(lock=self.lock)
-        self.success_counter = ValueWrapper(lock=self.lock)
-        self.error_counter = ValueWrapper(lock=self.lock)
-        self.duplicate_counter = ValueWrapper(lock=self.lock)
+        self.success_counter = ValueWrapper(value=0, lock=self.lock)
+        self.error_counter = ValueWrapper(value=0, lock=self.lock)
+        self.duplicate_counter = ValueWrapper(value=0, lock=self.lock)
 
     def reset_counter(self) -> None:
         """
