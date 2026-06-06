@@ -25,7 +25,6 @@ from ..runtime.util_errors import (
     DuplicateNodeError,
     RuntimeStateError,
     ScheduleModeError,
-    UnconsumedError,
 )
 from ..runtime.util_estimators import (
     calc_elapsed,
@@ -34,7 +33,6 @@ from ..runtime.util_estimators import (
 )
 from ..runtime.util_types import (
     STAGE_STYLE,
-    CTreeEvent,
     TerminationSignal,
 )
 from ..stage import TaskStage
@@ -474,33 +472,8 @@ class TaskGraph:
             stage.mark_stopped()
 
         # 收集并持久化每个 stage 中未消费的任务
-        for stage_name, stage in self.stage_dict.items():
-            in_queue: TaskInQueue = stage.task_queue
-
-            remaining_sources = in_queue.drain()
-            stage.metrics.add_error_count(len(remaining_sources))
-
-            # 持久化逻辑
-            for source in remaining_sources:
-                task: Any = source.task
-                task_id: int = source.id
-                error_id: int = self.ctree_client.emit(
-                    CTreeEvent.TASK_ERROR,
-                    [task_id],
-                    payload=stage.get_summary(),
-                )
-
-                self.fail_inlet.task_error(
-                    stage_name, error_id, UnconsumedError(), task
-                )
-
-                self.log_inlet.task_error(
-                    stage.get_func_name(),
-                    stage.get_task_repr(task),
-                    UnconsumedError(),
-                    task_id,
-                    error_id,
-                )
+        for stage in self.stage_dict.values():
+            stage.drain_task_queue()
 
         self.collect_runtime_snapshot()
 

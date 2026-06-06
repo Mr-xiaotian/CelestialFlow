@@ -9,7 +9,7 @@ from typing import Any
 
 from ..persistence import FailInlet, LogInlet
 from ..runtime import TaskInQueue, TaskOutQueue
-from ..runtime.util_errors import ExecutionModeError, GraphManagedError, StageModeError
+from ..runtime.util_errors import ExecutionModeError, GraphManagedError, StageModeError, UnconsumedError
 from ..runtime.util_types import StageStatus
 from .core_executor import TaskExecutor
 
@@ -159,11 +159,38 @@ class TaskStage(TaskExecutor):
     def get_status(self) -> StageStatus:
         """读取当前状态（返回 StageStatus 枚举）。"""
         return StageStatus(self._status)
+    
+    # ==== 任务队列 ====
+    def drain_task_queue(self) -> None:
+        """清空任务队列，将所有任务移至失败队列。"""
+        remaining_sources = self.task_queue.drain()
+        self.metrics.add_error_count(len(remaining_sources))
+
+        # 持久化逻辑
+        for source in remaining_sources:
+            self.handle_task_fail(source, UnconsumedError())
 
     # ==== 启动 ====
     def start(self, task_source: Any) -> None:
+        """
+        启动 stage，将任务源添加到任务队列。
+
+        :param task_source: 任务源，包含任务和任务 ID
+        :raises GraphManagedError: stage 被 graph 管理，不能直接调用 start()
+        """
         raise GraphManagedError(
             f"Stage {self.get_name()} is managed by a TaskGraph. Use TaskGraph.start_graph() instead of calling start() directly."
+        )
+    
+    async def start_async(self, task_source: Any) -> None:
+        """
+        异步启动 stage，将任务源添加到任务队列。
+
+        :param task_source: 任务源，包含任务和任务 ID
+        :raises GraphManagedError: stage 被 graph 管理，不能直接调用 start_async()
+        """
+        raise GraphManagedError(
+            f"Stage {self.get_name()} is managed by a TaskGraph. Use TaskGraph.start_graph() instead of calling start_async() directly."
         )
 
     def start_stage(self) -> None:
