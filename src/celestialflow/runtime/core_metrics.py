@@ -1,7 +1,7 @@
 # runtime/core_metrics.py
 from threading import Lock
 
-from .util_types import SumCounter, ValueWrapper
+from .util_types import SumCounter, ValueWrapper, NoOpContext
 
 
 class TaskMetrics:
@@ -12,6 +12,7 @@ class TaskMetrics:
     以及可重试异常类型和去重逻辑。
     """
 
+    lock: Lock | NoOpContext
     execution_mode: str
     enable_duplicate_check: bool
     retry_exceptions: tuple[type[Exception], ...]
@@ -35,35 +36,39 @@ class TaskMetrics:
         """
         self.execution_mode = execution_mode
         self.enable_duplicate_check = enable_duplicate_check
-
         self.retry_exceptions = ()
+
+        self._init_lock()
         self._init_counter()
         self.reset_state()
 
+    def _init_lock(self) -> None:
+        """
+        初始化锁对象（按 execution_mode 选择实现）
+        :param execution_mode: 任务执行模式，可选值为 "serial", "thread" 或 "async"
+        :param enable_duplicate_check: 是否启用重复任务检查，默认值为 False
+        """
+        self.lock = Lock() if self.execution_mode == "thread" else NoOpContext()
+
     def _init_counter(self) -> None:
         """
-        初始化计数器（按 execution_mode 选择实现）
+        初始化计数器
         """
-        mode = self.execution_mode
 
-        # thread 模式下，让三个 counter 共用同一把锁（减少开销，也更一致）
-        lock = Lock() if mode == "thread" else None
-
-        self.task_counter = SumCounter(mode=mode)
-        self.success_counter = ValueWrapper(0, lock)
-        self.error_counter = ValueWrapper(0, lock)
-        self.duplicate_counter = ValueWrapper(0, lock)
+        # thread 模式下，让四个 counter 共用同一把锁（减少开销，也更一致）
+        self.task_counter = SumCounter(lock=self.lock)
+        self.success_counter = ValueWrapper(lock=self.lock)
+        self.error_counter = ValueWrapper(lock=self.lock)
+        self.duplicate_counter = ValueWrapper(lock=self.lock)
 
     def reset_counter(self) -> None:
         """
         重置计数器
         """
-        self.task_counter.reset()
-        with self.success_counter.get_lock():
+        with self.lock:
+            self.task_counter.reset()
             self.success_counter.value = 0
-        with self.error_counter.get_lock():
             self.error_counter.value = 0
-        with self.duplicate_counter.get_lock():
             self.duplicate_counter.value = 0
 
     def reset_state(self) -> None:
@@ -82,6 +87,7 @@ class TaskMetrics:
         :param execution_mode: 任务执行模式，可选值为 "serial", "thread" 或 "async"
         """
         self.execution_mode = execution_mode
+        self._init_lock()
         self._init_counter()
 
     # ==== 去重 ====
@@ -108,7 +114,9 @@ class TaskMetrics:
 
         :param task_hash: 任务的哈希值
         """
-        if self.enable_duplicate_check:
+        if not self.enable_duplicate_check:
+            return
+        with self.lock:
             self.processed_set.add(task_hash)
 
     # ==== 重试 ====
@@ -147,8 +155,7 @@ class TaskMetrics:
 
         :param count: 增加的成功任务数量，默认值为 1。
         """
-        with self.success_counter.get_lock():
-            self.success_counter.value += count
+        self.success_counter.add(count)
 
     def add_error_count(self, count: int = 1) -> None:
         """
@@ -158,8 +165,7 @@ class TaskMetrics:
 
         :param count: 增加的失败任务数量，默认值为 1。
         """
-        with self.error_counter.get_lock():
-            self.error_counter.value += count
+        self.error_counter.add(count)
 
     def add_duplicate_count(self, count: int = 1) -> None:
         """
@@ -169,8 +175,7 @@ class TaskMetrics:
 
         :param count: 增加的重复任务数量，默认值为 1。
         """
-        with self.duplicate_counter.get_lock():
-            self.duplicate_counter.value += count
+        self.duplicate_counter.add(count)
 
     # ==== 查询 ====
     def is_tasks_finished(self) -> bool:
@@ -181,12 +186,14 @@ class TaskMetrics:
 
         :return: 如果所有任务都已处理完毕，返回 True；否则返回 False。
         """
-        processed = (
-            self.success_counter.value
-            + self.error_counter.value
-            + self.duplicate_counter.value
-        )
-        return self.task_counter.value == processed
+        with self.lock:
+            processed = (
+                self.success_counter.value
+                + self.error_counter.value
+                + self.duplicate_counter.value
+            )
+            total = self.task_counter.value
+        return total == processed
 
     def get_task_count(self) -> int:
         """
@@ -194,7 +201,7 @@ class TaskMetrics:
 
         :return: 当前的任务总数
         """
-        return self.task_counter.value
+        return self.task_counter.get()
 
     def get_success_count(self) -> int:
         """
@@ -202,7 +209,7 @@ class TaskMetrics:
 
         :return: 当前的成功任务数
         """
-        return self.success_counter.value
+        return self.success_counter.get()
 
     def get_error_count(self) -> int:
         """
@@ -210,7 +217,7 @@ class TaskMetrics:
 
         :return: 当前的失败任务数
         """
-        return self.error_counter.value
+        return self.error_counter.get()
 
     def get_duplicate_count(self) -> int:
         """
@@ -218,7 +225,7 @@ class TaskMetrics:
 
         :return: 当前的重复任务数
         """
-        return self.duplicate_counter.value
+        return self.duplicate_counter.get()
 
     def get_counts(self) -> dict[str, int]:
         """
@@ -232,12 +239,14 @@ class TaskMetrics:
                 - tasks_processed: 已处理任务总数
                 - tasks_pending: 等待处理任务数
         """
-        input_count = self.task_counter.value
-        succeeded = self.success_counter.value
-        failed = self.error_counter.value
-        duplicated = self.duplicate_counter.value
+        with self.lock:
+            input_count = self.task_counter.value
+            succeeded = self.success_counter.value
+            failed = self.error_counter.value
+            duplicated = self.duplicate_counter.value
+
         processed = succeeded + failed + duplicated
-        pending = input_count - processed
+        pending = max(0, input_count - processed)
 
         return {
             "tasks_input": input_count,

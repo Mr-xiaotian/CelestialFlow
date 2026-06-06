@@ -286,7 +286,7 @@ function renderDashboard() {
 
     // 计算进度
     const total = data.tasks_processed + displayPending;
-    const progress =
+    const progressRatio =
       total === 0 ? 0 : Math.floor((data.tasks_processed / total) * 100);
 
     // 计算四段进度条宽度百分比
@@ -350,7 +350,7 @@ function renderDashboard() {
                 &lt;
                 <span class="remaining">${formatDuration(displayRemainingTime)}</span>,
                 <span class="task-avg-time">${data.task_avg_time}</span>,
-                <span>${progress}%</span>
+                <span class="progress-ratio">${progressRatio}%</span>
               </span>
             </div>
             <div class="progress-bar">

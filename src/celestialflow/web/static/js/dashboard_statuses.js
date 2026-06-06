@@ -209,7 +209,7 @@ function renderDashboard() {
             : `${data.execution_mode}-${data.max_workers}`;
         // 计算进度
         const total = data.tasks_processed + displayPending;
-        const progress = total === 0 ? 0 : Math.floor((data.tasks_processed / total) * 100);
+        const progressRatio = total === 0 ? 0 : Math.floor((data.tasks_processed / total) * 100);
         // 计算四段进度条宽度百分比
         const pctSuccess = total === 0 ? 0 : (data.tasks_succeeded / total) * 100;
         const pctError = total === 0 ? 0 : (data.tasks_failed / total) * 100;
@@ -246,7 +246,7 @@ function renderDashboard() {
                 &lt;
                 <span class="remaining">${formatDuration(displayRemainingTime)}</span>,
                 <span class="task-avg-time">${data.task_avg_time}</span>,
-                <span>${progress}%</span>
+                <span class="progress-ratio">${progressRatio}%</span>
               </span>
             </div>
             <div class="progress-bar">

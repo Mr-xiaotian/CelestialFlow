@@ -74,42 +74,53 @@ class ValueWrapper:
     """线程内/单进程的计数器包装，可选线程锁。"""
 
     value: int
-    _lock: Lock | None
+    _lock: Lock | NoOpContext
 
-    def __init__(self, value: int = 0, lock: Lock | None = None) -> None:
+    def __init__(self, value: int = 0, lock: Lock | NoOpContext = NoOpContext()) -> None:
         """
         初始化值包装器。
 
         :param value: 初始值，默认 0
-        :param lock: 可选的线程锁，默认 None
+        :param lock: 可选的线程锁，默认 NoOpContext
         """
         self.value = value
         self._lock = lock
 
     def get_lock(self) -> Lock | NoOpContext:
         """获取锁对象，无锁时返回空上下文"""
-        return self._lock or NoOpContext()
+        return self._lock
+    
+    def add(self, value: int) -> None:
+        """增加值"""
+        with self.get_lock():
+            self.value += value
+
+    def get(self) -> int:
+        """获取当前值"""
+        with self.get_lock():
+            return self.value
+
+    def reset(self) -> None:
+        """重置值为 0"""
+        with self.get_lock():
+            self.value = 0
 
 
 class SumCounter:
     """累加多个 counter（ValueWrapper）"""
 
-    mode: str
+    lock: Lock | NoOpContext
     init_value: ValueWrapper
     counters: list[ValueWrapper]
 
-    def __init__(self, mode: str = "serial"):
+    def __init__(self, lock: Lock | NoOpContext):
         """
         初始化累加计数器。
 
-        :param mode: 执行模式，决定锁和计数器实现，默认 "serial"
+        :param lock: 可选的线程锁，默认 None
         """
-        self.mode = mode
-
-        if mode == "thread":
-            self.init_value = ValueWrapper(0, lock=Lock())
-        else:
-            self.init_value = ValueWrapper(0)
+        self.lock = lock
+        self.init_value = ValueWrapper(value=0, lock=lock)
         self.counters = []
 
     def add_init_value(self, value: int) -> None:
@@ -131,20 +142,23 @@ class SumCounter:
 
     def reset(self) -> None:
         """重置所有计数器为 0"""
-        # reset 也最好带锁（至少 thread 模式）
-        with self.init_value.get_lock():
-            self.init_value.value = 0
+        # 外层有锁
+        self.init_value.value = 0
 
         for c in self.counters:
             with c.get_lock():
                 c.value = 0
 
+    def get(self) -> int:
+        """获取所有计数器的累加值"""
+        with self.lock:
+            return self.value
+
     @property
     def value(self) -> int:
         """计算所有计数器的累加值"""
-        # 读也建议加锁，thread 模式更稳
-        with self.init_value.get_lock():
-            base = int(self.init_value.value)
+        # 读不用加锁, 外层已经有锁
+        base = int(self.init_value.value)
 
         total = base
         for c in self.counters:
