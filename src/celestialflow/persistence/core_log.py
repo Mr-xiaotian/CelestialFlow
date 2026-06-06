@@ -7,8 +7,8 @@ from time import localtime, strftime
 from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
+from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import InitializationError, LogLevelError
-from .util_constant import LEVEL_DICT
 
 
 class LogSpout(BaseSpout):

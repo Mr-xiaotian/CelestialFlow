@@ -6,8 +6,6 @@ from enum import IntEnum
 from threading import Lock
 from types import TracebackType
 
-from celestialtree import NodeLabelStyle
-
 
 class TerminationSignal:
     """用于标记任务队列终止的哨兵对象"""
@@ -185,11 +183,6 @@ class CTreeEvent:
     TASK_DUPLICATE: str = "task.duplicate"
     TERMINATION_INPUT: str = "termination.input"
     TERMINATION_MERGE: str = "termination.merge"
-
-
-STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(
-    template="{base}  {payload.name}  ‹{type}›", missing="-"
-)
 
 
 @dataclass(frozen=True)

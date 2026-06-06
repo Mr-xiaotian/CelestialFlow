@@ -12,7 +12,7 @@ from ..runtime.util_errors import (
     RemoteWorkerError,
     TaskFormatError,
 )
-from ..runtime.util_types import ValueWrapper
+from ..runtime.util_types import NoOpContext, ValueWrapper
 from .core_stage import TaskStage
 
 
@@ -43,7 +43,7 @@ class TaskSplitter(TaskStage):
 
     def _init_extra_counter(self) -> None:
         """初始化 split 计数器，用于跟踪 split 产生的子任务总数"""
-        self.split_counter = ValueWrapper(0)
+        self.split_counter = ValueWrapper(0, NoOpContext())
 
     def set_execution_mode(self, execution_mode: str) -> None:
         """覆写父类方法，将执行模式固定为串行"""
@@ -174,7 +174,7 @@ class TaskRouter(TaskStage):
         :param downstream_name: 下游 stage 的唯一名称
         :return: 对应下游的路由计数器实例
         """
-        self.route_counters.setdefault(downstream_name, ValueWrapper(0))
+        self.route_counters.setdefault(downstream_name, ValueWrapper(0, NoOpContext()))
         return self.route_counters[downstream_name]
 
     def _update_route_counter(self, target: str) -> None:

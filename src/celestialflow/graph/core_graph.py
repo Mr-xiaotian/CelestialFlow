@@ -20,9 +20,11 @@ from ..observability import NullTaskReporter, TaskReporter
 from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout
 from ..persistence.util_jsonl import load_task_by_error, load_task_by_stage
 from ..runtime import TaskInQueue, TaskOutQueue
+from ..runtime.util_constant import LEVEL_DICT, STAGE_STYLE
 from ..runtime.util_errors import (
     CelestialTreeConnectionError,
     DuplicateNodeError,
+    LogLevelError,
     RuntimeStateError,
     ScheduleModeError,
 )
@@ -31,10 +33,7 @@ from ..runtime.util_estimators import (
     calc_global_pending,
     calc_remaining,
 )
-from ..runtime.util_types import (
-    STAGE_STYLE,
-    TerminationSignal,
-)
+from ..runtime.util_types import TerminationSignal
 from ..stage import TaskStage
 from ..utils.util_collections import cluster_by_value_sorted
 from ..utils.util_format import format_avg_time
@@ -200,6 +199,8 @@ class TaskGraph:
         :param level: 日志级别, 默认为 "INFO"
         """
         self.log_level = level.upper()
+        if self.log_level not in LEVEL_DICT:
+            raise LogLevelError(self.log_level)
 
     def set_reporter(
         self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000
@@ -560,12 +561,10 @@ class TaskGraph:
         for stage_name, stage in self.stage_dict.items():
             last_status = self.status_dict.get(stage_name, {})
 
-            snapshot, (processed, pending) = (
-                self._snapshot_one_stage(
-                    stage,
-                    last_status,
-                    interval,
-                )
+            snapshot, (processed, pending) = self._snapshot_one_stage(
+                stage,
+                last_status,
+                interval,
             )
 
             status_dict[stage_name] = snapshot
