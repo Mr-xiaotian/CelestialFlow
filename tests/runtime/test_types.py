@@ -16,7 +16,7 @@ from celestialflow.runtime.util_types import (
 
 
 class TestUtilTypes:
-    # ── TerminationSignal ──────────────────────────────────────────
+    # ---- TerminationSignal ----
 
     def test_termination_signal_default(self):
         """默认参数构造"""
@@ -36,7 +36,7 @@ class TestUtilTypes:
         assert sig.id == -1
         assert sig.source == "scheduler"
 
-    # ── TerminationIdPool ──────────────────────────────────────────
+    # ---- TerminationIdPool ----
 
     def test_termination_id_pool_non_empty(self):
         """非空列表构造"""
@@ -53,7 +53,7 @@ class TestUtilTypes:
         pool = TerminationIdPool([0])
         assert pool.ids == [0]
 
-    # ── NoOpContext ────────────────────────────────────────────────
+    # ---- NoOpContext ----
 
     def test_noop_context_with_statement(self):
         """with 语句正常进出"""
@@ -83,7 +83,7 @@ class TestUtilTypes:
         result = ctx.__exit__(None, None, None)
         assert result is None
 
-    # ── ValueWrapper ───────────────────────────────────────────────
+    # ---- ValueWrapper ----
 
     def test_value_wrapper_basic_read_write(self):
         """基本读写"""
@@ -91,11 +91,6 @@ class TestUtilTypes:
         assert v.value == 10
         v.value = 20
         assert v.value == 20
-
-    def test_value_wrapper_default_zero(self):
-        """默认值为 0"""
-        v = ValueWrapper()
-        assert v.value == 0
 
     def test_value_wrapper_with_lock(self):
         """带锁的 ValueWrapper 读写行为一致"""
@@ -116,12 +111,12 @@ class TestUtilTypes:
     def test_value_wrapper_get_lock_returns_lock(self):
         """传入 Lock 时 get_lock 返回 Lock 本身"""
         lock = threading.Lock()
-        v = ValueWrapper(lock=lock)
+        v = ValueWrapper(0, lock=lock)
         assert v.get_lock() is lock
 
     def test_value_wrapper_get_lock_returns_noop(self):
         """不传 Lock 时 get_lock 返回 NoOpContext"""
-        v = ValueWrapper()
+        v = ValueWrapper(0)
         lock = v.get_lock()
         assert isinstance(lock, NoOpContext)
 
@@ -130,7 +125,7 @@ class TestUtilTypes:
         v = ValueWrapper(-100)
         assert v.value == -100
 
-    # ── SumCounter ─────────────────────────────────────────────────
+    # ---- SumCounter ----
 
     def test_sum_counter_single_append(self):
         """单个计数器累加"""
@@ -142,15 +137,15 @@ class TestUtilTypes:
     def test_sum_counter_init_value(self):
         """init_value 影响总和"""
         sc = SumCounter()
-        sc.add_init_value(5)
+        sc.add(5)
         assert sc.value == 5
-        sc.add_init_value(3)
+        sc.add(3)
         assert sc.value == 8
 
     def test_sum_counter_init_and_counters(self):
         """init_value 和 counters 同时累加"""
         sc = SumCounter()
-        sc.add_init_value(100)
+        sc.add(100)
         sc.append_counter(ValueWrapper(50))
         sc.append_counter(ValueWrapper(30))
         assert sc.value == 180
@@ -158,7 +153,7 @@ class TestUtilTypes:
     def test_sum_counter_reset(self):
         """reset 清零所有计数器"""
         sc = SumCounter()
-        sc.add_init_value(10)
+        sc.add(10)
         sc.append_counter(ValueWrapper(20))
         sc.append_counter(ValueWrapper(30))
         assert sc.value == 60
@@ -181,24 +176,15 @@ class TestUtilTypes:
         sc = SumCounter()
         assert sc.value == 0
 
-    def test_sum_counter_thread_mode(self):
-        """thread 模式正常构造和累加"""
-        sc = SumCounter(mode="thread")
-        sc.add_init_value(1)
-        sc.append_counter(ValueWrapper(2))
-        assert sc.value == 3
-        sc.reset()
-        assert sc.value == 0
-
     def test_sum_counter_multiple_add_init(self):
-        """多次 add_init_value"""
+        """多次 add"""
         sc = SumCounter()
-        sc.add_init_value(0)
-        sc.add_init_value(10)
-        sc.add_init_value(20)
+        sc.add(0)
+        sc.add(10)
+        sc.add(20)
         assert sc.value == 30
 
-    # ── StageStatus ────────────────────────────────────────────────
+    # ---- StageStatus ----
 
     def test_stage_status_values(self):
         """枚举值正确"""
@@ -217,7 +203,7 @@ class TestUtilTypes:
         """枚举成员数量"""
         assert len(StageStatus) == 3
 
-    # ── CTreeEvent ─────────────────────────────────────────────────
+    # ---- CTreeEvent ----
 
     def test_ctree_event_task_values(self):
         """任务相关常量"""
@@ -236,7 +222,7 @@ class TestUtilTypes:
         """重试前缀以点结尾"""
         assert CTreeEvent.TASK_RETRY_PREFIX.endswith(".")
 
-    # ── PersistedErrorRecord ───────────────────────────────────────
+    # ---- PersistedErrorRecord ───────────────────────────────────────
 
     def test_persisted_error_record_construction(self):
         """基本构造"""

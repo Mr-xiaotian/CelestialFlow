@@ -74,15 +74,16 @@ class ValueWrapper:
     value: int
     _lock: Lock | NoOpContext
 
-    def __init__(self, value: int, lock: Lock | NoOpContext) -> None:
+    def __init__(self, value: int, lock: Lock | NoOpContext | None = None) -> None:
         """
         初始化值包装器。
 
         :param value: 初始值
-        :param lock: 可选的线程锁
+        :param lock: 可选的线程锁，默认 None
+        :note: 如果 lock 为 None，则则使用 NoOpContext 作为默认锁
         """
         self.value = value
-        self._lock = lock
+        self._lock = lock or NoOpContext()
 
     def get_lock(self) -> Lock | NoOpContext:
         """获取锁对象，无锁时返回空上下文"""
@@ -111,24 +112,15 @@ class SumCounter:
     init_value: ValueWrapper
     counters: list[ValueWrapper]
 
-    def __init__(self, lock: Lock | NoOpContext):
+    def __init__(self, lock: Lock | NoOpContext | None = None):
         """
         初始化累加计数器。
 
         :param lock: 可选的线程锁，默认 None
         """
-        self.lock = lock
-        self.init_value = ValueWrapper(value=0, lock=lock)
+        self.lock = lock or NoOpContext()
+        self.init_value = ValueWrapper(value=0, lock=self.lock)
         self.counters = []
-
-    def add_init_value(self, value: int) -> None:
-        """
-        增加初始计数值
-
-        :param value: 增加的值
-        """
-        with self.init_value.get_lock():
-            self.init_value.value += value
 
     def append_counter(self, counter: ValueWrapper) -> None:
         """
@@ -138,19 +130,28 @@ class SumCounter:
         """
         self.counters.append(counter)
 
-    def reset(self) -> None:
-        """重置所有计数器为 0"""
-        # 外层有锁
-        self.init_value.value = 0
+    def add(self, value: int) -> None:
+        """
+        增加初始计数值
 
-        for c in self.counters:
-            with c.get_lock():
-                c.value = 0
+        :param value: 增加的值
+        """
+        with self.lock:
+            self.init_value.value += value
 
     def get(self) -> int:
         """获取所有计数器的累加值"""
         with self.lock:
             return self.value
+
+    def reset(self) -> None:
+        """重置所有计数器为 0"""
+        with self.lock:
+            self.init_value.value = 0
+
+        for c in self.counters:
+            with c.get_lock():
+                c.value = 0
 
     @property
     def value(self) -> int:

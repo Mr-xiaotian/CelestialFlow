@@ -65,11 +65,10 @@ class TaskMetrics:
         """
         重置计数器
         """
-        with self.lock:
-            self.task_counter.reset()
-            self.success_counter.value = 0
-            self.error_counter.value = 0
-            self.duplicate_counter.value = 0
+        self.task_counter.reset()
+        self.success_counter.reset()
+        self.error_counter.reset()
+        self.duplicate_counter.reset()
 
     def reset_state(self) -> None:
         """
@@ -145,7 +144,7 @@ class TaskMetrics:
 
         :param add_count: 增加的任务数
         """
-        self.task_counter.add_init_value(add_count)
+        self.task_counter.add(add_count)
 
     def add_success_count(self, count: int = 1) -> None:
         """
