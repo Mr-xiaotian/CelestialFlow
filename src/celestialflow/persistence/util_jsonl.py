@@ -11,22 +11,6 @@ from ..runtime.util_types import PersistedErrorRecord
 
 # ======== jsonl文件处理 ========
 
-
-def _split_error_repr(error_repr: str) -> tuple[str, str]:
-    """
-    从旧版错误字符串中拆分错误类型和消息
-
-    :param error_repr: 错误展示字符串
-    :return: (error_type, error_message)
-    """
-    if not error_repr:
-        return ("Exception", "")
-    if "(" in error_repr and error_repr.endswith(")"):
-        error_type, error_message = error_repr.split("(", 1)
-        return (error_type or "Exception", error_message[:-1])
-    return ("Exception", error_repr)
-
-
 def _parse_error_record(item: dict[str, Any]) -> PersistedErrorRecord:
     """
     从 JSONL 记录中解析错误记录对象
@@ -34,27 +18,19 @@ def _parse_error_record(item: dict[str, Any]) -> PersistedErrorRecord:
     :param item: JSONL 中的一条错误记录
     :return: 结构化错误记录
     """
-    error_repr = str(item.get("error_repr") or item.get("error") or "")
-    legacy_error_type, legacy_error_message = _split_error_repr(error_repr)
-    error_type = str(item.get("error_type") or legacy_error_type)
-    error_message = str(item.get("error_message") or legacy_error_message)
+    ts = item.get("ts", None)
+    stage = item.get("stage", "")
 
-    if not error_repr:
-        error_repr = (
-            f"{error_type}({error_message})" if error_message else error_type
-        )
-
-    error_id = item.get("error_id")
-    ts = item.get("ts")
+    error_id = item.get("error_id", None)
+    error_type = str(item.get("error_type") or "")
+    error_message = str(item.get("error_message") or "")
 
     return PersistedErrorRecord(
+        ts=ts,
+        stage=stage,
+        error_id=error_id,
         error_type=error_type,
         error_message=error_message,
-        error_repr=error_repr,
-        stage=str(item.get("stage") or ""),
-        error_id=error_id if isinstance(error_id, int) else None,
-        timestamp=str(item.get("timestamp") or ""),
-        ts=ts if isinstance(ts, int | float) else None,
     )
 
 
@@ -228,7 +204,7 @@ def load_task_error_pairs(
 
             has_error = any(
                 key in item
-                for key in ("error", "error_repr", "error_type", "error_message")
+                for key in ("error_type", "error_message")
             )
             if "task" not in item or not has_error:
                 continue

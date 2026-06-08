@@ -193,20 +193,17 @@ class PersistedErrorRecord:
 
     :param error_type: 错误类型名称
     :param error_message: 错误消息
-    :param error_repr: 错误的完整展示字符串
     :param stage: 错误所属节点标签
     :param error_id: 错误事件 ID
     :param timestamp: 错误时间戳字符串
     :param ts: 错误时间戳
     """
 
-    error_type: str
-    error_message: str
-    error_repr: str
+    ts: float | None = None
     stage: str = ""
     error_id: int | None = None
-    timestamp: str = ""
-    ts: float | None = None
+    error_type: str = ""
+    error_message: str = ""
 
     def __str__(self) -> str:
         """
@@ -214,7 +211,7 @@ class PersistedErrorRecord:
 
         :return: 错误展示字符串
         """
-        return self.error_repr
+        return f"{self.error_type}({self.error_message})"
 
     def get_group_key(self) -> tuple[str, str]:
         """
