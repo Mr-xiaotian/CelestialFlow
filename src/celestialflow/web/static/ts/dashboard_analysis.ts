@@ -13,6 +13,7 @@ type AnalysisData = {
 // 全局状态
 let analysisData: AnalysisData = {}; // 拓扑分析数据
 let analysisRev = -1; // 数据版本号，用于增量拉取
+let analysisRequestSeq = 0; // 请求序列号，防止旧分析响应覆盖新结果
 
 /**
  * 渲染带提示点的分析项标签。
@@ -45,8 +46,10 @@ function renderAnalysisLabelWithTooltip(labelKey: string, tooltipKey: string): s
  */
 async function loadAnalysis(): Promise<boolean> {
   try {
+    const requestSeq = ++analysisRequestSeq; // 为当前分析请求分配递增序号
     const res = await fetch(`/api/pull_analysis?known_rev=${analysisRev}`);
     const body = (await res.json()) as AnalysisPullResponse;
+    if (requestSeq !== analysisRequestSeq) return false; // 丢弃已过时请求的返回结果
     if (body.data === null) return false;
     analysisData = body.data;
     analysisRev = body.rev;

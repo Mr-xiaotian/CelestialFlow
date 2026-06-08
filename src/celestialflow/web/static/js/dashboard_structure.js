@@ -10,6 +10,7 @@ let structureData = {
     source_nodes: [],
 }; // 任务结构图数据（有向图）
 let structureRev = -1; // 数据版本号，用于增量拉取
+let structureRequestSeq = 0; // 请求序列号，防止旧结构响应覆盖新结果
 /**
  * 异步加载最新的任务结构数据
  * 从后端 API 获取任务结构图数据并更新全局变量 structureData
@@ -17,8 +18,11 @@ let structureRev = -1; // 数据版本号，用于增量拉取
  */
 async function loadStructure() {
     try {
+        const requestSeq = ++structureRequestSeq; // 为当前结构请求分配递增序号
         const res = await fetch(`/api/pull_structure?known_rev=${structureRev}`);
         const body = (await res.json());
+        if (requestSeq !== structureRequestSeq)
+            return false; // 丢弃已过时请求的返回结果
         if (body.data === null)
             return false;
         structureData = body.data;

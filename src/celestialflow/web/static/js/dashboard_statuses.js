@@ -7,6 +7,7 @@
 let nodeStatuses = {}; // 当前各节点运行状态
 let lastNodeStatuses = {}; // 上一轮状态快照，用于计算增量
 let statusRev = -1; // 上次拉取的数据版本号，-1 表示首次拉取全量
+let statusesRequestSeq = 0; // 请求序列号，防止旧状态响应覆盖新结果
 // DOM 元素引用
 const dashboardGrid = document.getElementById("dashboard-grid");
 /**
@@ -169,8 +170,11 @@ function renderElapsedDurationHtml(duration, digitClasses, defaultClassName) {
  */
 async function loadStatuses() {
     try {
+        const requestSeq = ++statusesRequestSeq; // 为当前状态请求分配递增序号
         const res = await fetch(`/api/pull_status?known_rev=${statusRev}`);
         const body = (await res.json());
+        if (requestSeq !== statusesRequestSeq)
+            return false; // 丢弃已过时请求的返回结果
         if (body.data === null)
             return false;
         lastNodeStatuses = nodeStatuses;
