@@ -40,7 +40,7 @@ const dashboardGrid = document.getElementById("dashboard-grid") as HTMLElement;
  * @returns {"tasks_pending" | "total_tasks_pending"} 当前等待统计字段。
  */
 function getStatusPendingField(): "tasks_pending" | "total_tasks_pending" {
-  return webConfig?.useTotalPendingInStatus
+  return webConfig.dashboard.useTotalPendingInStatus
     ? "total_tasks_pending"
     : "tasks_pending";
 }
@@ -62,7 +62,7 @@ function getDisplayPending(status: NodeStatus): number {
  */
 function getDisplayRemainingTime(status: NodeStatus): number {
   return Number(
-    webConfig?.useTotalPendingInStatus
+    webConfig.dashboard.useTotalPendingInStatus
       ? status.total_remaining_time
       : status.remaining_time,
   );
@@ -74,10 +74,10 @@ function getDisplayRemainingTime(status: NodeStatus): number {
  */
 function getPendingLabelHtml(): string {
   return renderLabelWithTooltip(
-    webConfig?.useTotalPendingInStatus
+    webConfig.dashboard.useTotalPendingInStatus
       ? "status.pendingGlobal"
       : "status.pending",
-    webConfig?.useTotalPendingInStatus
+    webConfig.dashboard.useTotalPendingInStatus
       ? "status.pendingGlobalHelp"
       : "status.pendingHelp",
   );

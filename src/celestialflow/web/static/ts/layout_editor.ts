@@ -32,7 +32,7 @@ function openLayoutEditor(): void {
   const overlay = document.getElementById("layout-editor-overlay")!; // 布局编辑器遮罩层
   overlay.classList.remove("hidden");
 
-  const layout = webConfig.dashboard; // 当前生效布局
+  const layout = webConfig.dashboard.layout; // 当前生效布局
   originalLayout = {
     left: [...(layout.left ?? [])],
     middle: [...(layout.middle ?? [])],
@@ -72,7 +72,7 @@ function closeLayoutEditor(restore: boolean = true): void {
   overlay.classList.add("hidden");
   if (restore) {
     // 关闭且需要恢复时，回滚到打开编辑器时的布局快照。
-    webConfig.dashboard = {
+    webConfig.dashboard.layout = {
       left: [...originalLayout.left],
       middle: [...originalLayout.middle],
       right: [...originalLayout.right],
@@ -114,7 +114,7 @@ function syncLayout(): void {
       (c) => c.dataset.cardId!,
     );
   };
-  webConfig.dashboard = {
+  webConfig.dashboard.layout = {
     left: cards("left"),
     middle: cards("middle"),
     right: cards("right"),
@@ -136,7 +136,7 @@ async function saveLayout(): Promise<void> {
 /** 重置为默认布局（清空所有栏并重新渲染） */
 function resetLayout(): void {
   // 先把运行时布局恢复成默认值。
-  webConfig.dashboard = {
+  webConfig.dashboard.layout = {
     left: [...DEFAULT_LAYOUT.left],
     middle: [...DEFAULT_LAYOUT.middle],
     right: [...DEFAULT_LAYOUT.right],
@@ -151,7 +151,7 @@ function resetLayout(): void {
   for (const col of ["left", "middle", "right"] as DashboardColumnKey[]) {
     const zone = document.getElementById(`layout-dropzone-${col}`)!; // 当前栏位拖放区域
     zone.innerHTML = "";
-    for (const cardId of webConfig.dashboard[col]) {
+    for (const cardId of webConfig.dashboard.layout[col]) {
       zone.appendChild(renderCard(cardId));
     }
   }

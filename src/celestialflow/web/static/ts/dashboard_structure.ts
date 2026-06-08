@@ -187,7 +187,7 @@ linkStyle default stroke:#999,stroke-width:1.5px;
       const toId = getNodeId(toName);
 
       let edgeLabel = ""; // Mermaid 边标签，默认空字符串
-      if (webConfig?.showStructureEdgeDelta) {
+      if (webConfig.dashboard.showStructureEdgeDelta) {
         const lastInfo = lastNodeStatuses[fromName] || ({} as NodeStatus); // 上一轮状态，用于计算增量
         const addNum = (statusInfo?.tasks_succeeded || 0) - (lastInfo?.tasks_succeeded || 0); // 本轮新增成功任务数
         edgeLabel = addNum > 0 ? `|+${addNum}|` : "";

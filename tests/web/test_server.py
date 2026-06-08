@@ -54,11 +54,15 @@ def test_config_api(client):
     response = client.get("/api/pull_config")
     assert response.status_code == 200
     data = response.json()
-    assert "autoRefreshEnabled" in data
-    assert "refreshInterval" in data
-    assert "theme" in data
-    assert "showStructureEdgeDelta" in data
-    assert "errorSortOrder" in data
+    assert "global" in data
+    assert "dashboard" in data
+    assert "errors" in data
+    assert "injection" in data
+    assert "autoRefreshEnabled" in data["global"]
+    assert "refreshInterval" in data["global"]
+    assert "theme" in data["global"]
+    assert "showStructureEdgeDelta" in data["dashboard"]
+    assert "sortOrder" in data["errors"]
 
 def test_status_push_pull(client):
     """测试状态同步链路：验证已知版本号（known_rev）下的增量拉取逻辑"""

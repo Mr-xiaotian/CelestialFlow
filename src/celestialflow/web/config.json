@@ -1,24 +1,31 @@
 {
-    "theme": "light",
-    "autoRefreshEnabled": true,
-    "refreshInterval": 2000,
-    "historyLimit": 100,
-    "language": "zh-CN",
-    "errorPageSize": 20,
-    "errorSortOrder": "newest",
-    "showStructureEdgeDelta": false,
-    "useTotalPendingInStatus": false,
+    "global": {
+        "theme": "light",
+        "autoRefreshEnabled": true,
+        "refreshInterval": 2000,
+        "language": "zh-CN"
+    },
     "dashboard": {
-        "left": [
-            "mermaid",
-            "analysis"
-        ],
-        "middle": [
-            "status"
-        ],
-        "right": [
-            "progress",
-            "summary"
-        ]
-    }
+        "historyLimit": 100,
+        "showStructureEdgeDelta": false,
+        "useTotalPendingInStatus": false,
+        "layout": {
+            "left": [
+                "mermaid",
+                "analysis"
+            ],
+            "middle": [
+                "status"
+            ],
+            "right": [
+                "progress",
+                "summary"
+            ]
+        }
+    },
+    "errors": {
+        "pageSize": 20,
+        "sortOrder": "newest"
+    },
+    "injection": {}
 }

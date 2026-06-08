@@ -186,7 +186,7 @@ initHistoryMetricSwitcher();
  * @returns {number} 归一化后的历史长度限制，最小为 1。
  */
 function getCurrentHistoryLimit(): number {
-  const limit = Number(webConfig?.historyLimit);
+  const limit = Number(webConfig.dashboard.historyLimit);
   return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 20;
 }
 

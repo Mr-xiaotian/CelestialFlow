@@ -220,7 +220,7 @@ nodeFilter.addEventListener("change", async () => {
 errorSortSelect.addEventListener("change", async () => {
     errorSortOrder = errorSortSelect.value === "oldest" ? "oldest" : "newest";
     if (webConfig) {
-        webConfig.errorSortOrder = errorSortOrder;
+        webConfig.errors.sortOrder = errorSortOrder;
     }
     currentPage = 1;
     await loadErrors(true);

@@ -41,7 +41,7 @@ function syncAutoRefreshTimer() {
         clearInterval(refreshIntervalId);
         refreshIntervalId = null;
     }
-    if (webConfig?.autoRefreshEnabled) {
+    if (webConfig.global.autoRefreshEnabled) {
         refreshIntervalId = setInterval(refreshAll, refreshRate);
     }
 }
@@ -188,19 +188,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 切换刷新间隔：更新轮询频率并保存配置
     refreshSelect.addEventListener("change", async () => {
         refreshRate = parseInt(refreshSelect.value);
-        config.refreshInterval = refreshRate;
+        config.global.refreshInterval = refreshRate;
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
         syncAutoRefreshTimer();
     });
     // 切换自动刷新开关：控制全局轮询并保存配置
     autoRefreshToggle.addEventListener("change", async () => {
-        config.autoRefreshEnabled = autoRefreshToggle.checked;
+        config.global.autoRefreshEnabled = autoRefreshToggle.checked;
         syncAutoRefreshTimer();
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
     });
     // 切换历史长度限制：立即裁剪当前页面中的历史曲线并保存配置
     historyLimitSelect.addEventListener("change", async () => {
-        config.historyLimit = parseInt(historyLimitSelect.value);
+        config.dashboard.historyLimit = parseInt(historyLimitSelect.value);
         if (trimNodeHistories()) {
             updateChartData();
         }
@@ -209,7 +209,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 切换错误每页条数：更新分页并重新加载
     errorPageSizeSelect.addEventListener("change", async () => {
         pageSize = parseInt(errorPageSizeSelect.value);
-        config.errorPageSize = pageSize;
+        config.errors.pageSize = pageSize;
         currentPage = 1;
         await loadErrors(true);
         renderErrors();
@@ -217,20 +217,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     // 切换结构图边增量显示：立即重绘结构图并保存配置
     structureEdgeDeltaToggle.addEventListener("change", async () => {
-        config.showStructureEdgeDelta = structureEdgeDeltaToggle.checked;
+        config.dashboard.showStructureEdgeDelta = structureEdgeDeltaToggle.checked;
         renderMermaidStructure(nodeStatuses);
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
     });
     // 切换节点状态等待统计模式：重绘节点卡片并保存配置
     statusTotalPendingToggle.addEventListener("change", async () => {
-        config.useTotalPendingInStatus = statusTotalPendingToggle.checked;
+        config.dashboard.useTotalPendingInStatus = statusTotalPendingToggle.checked;
         renderDashboard();
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
     });
     // 切换界面语言：更新所有文本并重新渲染动态内容
     languageSelect.addEventListener("change", async () => {
-        config.language = languageSelect.value;
-        setLang(config.language);
+        config.global.language = languageSelect.value;
+        setLang(config.global.language);
         applyI18nDOM();
         updateSettingsStatusText();
         themeToggleBtn.textContent = document.body.classList.contains("dark-theme") ? t("theme.light") : t("theme.dark");
@@ -248,7 +248,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 切换明暗主题：更新样式并重新渲染图表
     themeToggleBtn.addEventListener("click", async () => {
         const isDark = toggleDarkTheme();
-        config.theme = isDark ? "dark" : "light";
+        config.global.theme = isDark ? "dark" : "light";
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
         themeToggleBtn.textContent = isDark ? t("theme.light") : t("theme.dark");
         renderMermaidStructure(nodeStatuses);

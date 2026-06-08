@@ -14,7 +14,7 @@ const dashboardGrid = document.getElementById("dashboard-grid");
  * @returns {"tasks_pending" | "total_tasks_pending"} 当前等待统计字段。
  */
 function getStatusPendingField() {
-    return webConfig?.useTotalPendingInStatus
+    return webConfig.dashboard.useTotalPendingInStatus
         ? "total_tasks_pending"
         : "tasks_pending";
 }
@@ -33,7 +33,7 @@ function getDisplayPending(status) {
  * @returns {number} 当前节点状态卡使用的剩余时间
  */
 function getDisplayRemainingTime(status) {
-    return Number(webConfig?.useTotalPendingInStatus
+    return Number(webConfig.dashboard.useTotalPendingInStatus
         ? status.total_remaining_time
         : status.remaining_time);
 }
@@ -42,9 +42,9 @@ function getDisplayRemainingTime(status) {
  * @returns {string} 等待标签及提示点 HTML
  */
 function getPendingLabelHtml() {
-    return renderLabelWithTooltip(webConfig?.useTotalPendingInStatus
+    return renderLabelWithTooltip(webConfig.dashboard.useTotalPendingInStatus
         ? "status.pendingGlobal"
-        : "status.pending", webConfig?.useTotalPendingInStatus
+        : "status.pending", webConfig.dashboard.useTotalPendingInStatus
         ? "status.pendingGlobalHelp"
         : "status.pendingHelp");
 }

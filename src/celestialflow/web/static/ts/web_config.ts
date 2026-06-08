@@ -1,35 +1,70 @@
 /**
  * Web 端全局配置结构定义
  */
-type WebConfig = {
+type WebGlobalConfig = {
   theme: "light" | "dark"; // 界面主题
   autoRefreshEnabled: boolean; // 是否启用自动轮询刷新
   refreshInterval: number; // 全局轮询刷新间隔（毫秒）
-  historyLimit: number; // 节点处理历史记录保留条数
   language: Lang; // 界面语言
-  errorPageSize: number; // 错误日志每页显示条数
-  errorSortOrder: "newest" | "oldest"; // 错误日志默认排序方式
+};
+
+type WebDashboardConfig = {
+  historyLimit: number; // 节点处理历史记录保留条数
   showStructureEdgeDelta: boolean; // 是否在结构图边上显示成功任务增量
   useTotalPendingInStatus: boolean; // 节点状态卡是否使用 total_tasks_pending
-  dashboard: DashboardLayout; // 仪表盘左右中三栏的卡片布局
+  layout: DashboardLayout; // 仪表盘左右中三栏的卡片布局
+};
+
+type WebErrorsConfig = {
+  pageSize: number; // 错误日志每页显示条数
+  sortOrder: "newest" | "oldest"; // 错误日志默认排序方式
+};
+
+type WebInjectionConfig = Record<string, never>;
+
+type WebConfig = {
+  global: WebGlobalConfig; // 全局共享配置
+  dashboard: WebDashboardConfig; // 仪表盘页配置
+  errors: WebErrorsConfig; // 错误页配置
+  injection: WebInjectionConfig; // 注入页配置
+};
+
+type LegacyWebConfig = {
+  theme?: "light" | "dark";
+  autoRefreshEnabled?: boolean;
+  refreshInterval?: number;
+  historyLimit?: number;
+  language?: Lang;
+  errorPageSize?: number;
+  errorSortOrder?: "newest" | "oldest";
+  showStructureEdgeDelta?: boolean;
+  useTotalPendingInStatus?: boolean;
+  dashboard?: Partial<DashboardLayout>;
 };
 
 /** 页面初始化和回退场景共用的默认配置。 */
 const DEFAULT_WEB_CONFIG: WebConfig = {
-  theme: "light",
-  autoRefreshEnabled: true,
-  refreshInterval: 5000,
-  historyLimit: 20,
-  language: "zh-CN",
-  errorPageSize: 50,
-  errorSortOrder: "newest",
-  showStructureEdgeDelta: false,
-  useTotalPendingInStatus: false,
-  dashboard: {
-    left: ["mermaid", "analysis"],
-    middle: ["status"],
-    right: ["progress", "summary"],
+  global: {
+    theme: "light",
+    autoRefreshEnabled: true,
+    refreshInterval: 5000,
+    language: "zh-CN",
   },
+  dashboard: {
+    historyLimit: 20,
+    showStructureEdgeDelta: false,
+    useTotalPendingInStatus: false,
+    layout: {
+      left: ["mermaid", "analysis"],
+      middle: ["status"],
+      right: ["progress", "summary"],
+    },
+  },
+  errors: {
+    pageSize: 50,
+    sortOrder: "newest",
+  },
+  injection: {},
 };
 
 /** 仪表盘栏位 key 到真实 DOM 选择器的映射。 */
@@ -40,18 +75,106 @@ const PANEL_SELECTOR_MAP: Record<DashboardColumnKey, string> = {
 };
 
 /**
+ * 判断后端返回值是否已经是新的分组配置结构。
+ * @param {unknown} rawConfig - 后端返回的原始配置。
+ * @returns {boolean} 若为分组结构则返回 true。
+ */
+function isGroupedWebConfig(rawConfig: unknown): rawConfig is Partial<WebConfig> {
+  if (!rawConfig || typeof rawConfig !== "object") return false;
+  const config = rawConfig as Record<string, unknown>;
+  return "global" in config || "errors" in config || "injection" in config;
+}
+
+/**
+ * 基于默认布局补齐后端返回的栏位配置。
+ * @param {Partial<DashboardLayout> | null | undefined} rawLayout - 原始仪表盘布局。
+ * @returns {DashboardLayout} 补齐后的稳定布局对象。
+ */
+function normalizeDashboardLayout(
+  rawLayout?: Partial<DashboardLayout> | null,
+): DashboardLayout {
+  return {
+    ...DEFAULT_WEB_CONFIG.dashboard.layout,
+    ...(rawLayout ?? {}),
+  };
+}
+
+/**
  * 基于默认配置补齐后端返回值，确保页面在缺字段时也能稳定启动。
- * @param {Partial<WebConfig> | null} [rawConfig] - 后端返回的原始配置；为空时仅使用默认值。
+ * @param {Partial<WebConfig> | LegacyWebConfig | null} [rawConfig] - 后端返回的原始配置；为空时仅使用默认值。
  * @returns {WebConfig} 补齐缺省字段后的可用配置对象。
  */
-function normalizeWebConfig(rawConfig?: Partial<WebConfig> | null): WebConfig {
+function normalizeWebConfig(
+  rawConfig?: Partial<WebConfig> | LegacyWebConfig | null,
+): WebConfig {
+  if (!rawConfig) {
+    return {
+      ...DEFAULT_WEB_CONFIG,
+      global: { ...DEFAULT_WEB_CONFIG.global },
+      dashboard: {
+        ...DEFAULT_WEB_CONFIG.dashboard,
+        layout: { ...DEFAULT_WEB_CONFIG.dashboard.layout },
+      },
+      errors: { ...DEFAULT_WEB_CONFIG.errors },
+      injection: {},
+    };
+  }
+
+  if (isGroupedWebConfig(rawConfig)) {
+    return {
+      ...DEFAULT_WEB_CONFIG,
+      ...rawConfig,
+      global: {
+        ...DEFAULT_WEB_CONFIG.global,
+        ...(rawConfig.global ?? {}),
+      },
+      dashboard: {
+        ...DEFAULT_WEB_CONFIG.dashboard,
+        ...(rawConfig.dashboard ?? {}),
+        layout: normalizeDashboardLayout(rawConfig.dashboard?.layout),
+      },
+      errors: {
+        ...DEFAULT_WEB_CONFIG.errors,
+        ...(rawConfig.errors ?? {}),
+      },
+      injection: {
+        ...DEFAULT_WEB_CONFIG.injection,
+        ...(rawConfig.injection ?? {}),
+      },
+    };
+  }
+
+  const legacyConfig = rawConfig as LegacyWebConfig;
   return {
-    ...DEFAULT_WEB_CONFIG,
-    ...rawConfig,
+    global: {
+      ...DEFAULT_WEB_CONFIG.global,
+      theme: legacyConfig.theme ?? DEFAULT_WEB_CONFIG.global.theme,
+      autoRefreshEnabled:
+        legacyConfig.autoRefreshEnabled ??
+        DEFAULT_WEB_CONFIG.global.autoRefreshEnabled,
+      refreshInterval:
+        legacyConfig.refreshInterval ?? DEFAULT_WEB_CONFIG.global.refreshInterval,
+      language: legacyConfig.language ?? DEFAULT_WEB_CONFIG.global.language,
+    },
     dashboard: {
       ...DEFAULT_WEB_CONFIG.dashboard,
-      ...(rawConfig?.dashboard ?? {}),
+      historyLimit:
+        legacyConfig.historyLimit ?? DEFAULT_WEB_CONFIG.dashboard.historyLimit,
+      showStructureEdgeDelta:
+        legacyConfig.showStructureEdgeDelta ??
+        DEFAULT_WEB_CONFIG.dashboard.showStructureEdgeDelta,
+      useTotalPendingInStatus:
+        legacyConfig.useTotalPendingInStatus ??
+        DEFAULT_WEB_CONFIG.dashboard.useTotalPendingInStatus,
+      layout: normalizeDashboardLayout(legacyConfig.dashboard),
     },
+    errors: {
+      ...DEFAULT_WEB_CONFIG.errors,
+      pageSize: legacyConfig.errorPageSize ?? DEFAULT_WEB_CONFIG.errors.pageSize,
+      sortOrder:
+        legacyConfig.errorSortOrder ?? DEFAULT_WEB_CONFIG.errors.sortOrder,
+    },
+    injection: {},
   };
 }
 
@@ -182,9 +305,7 @@ async function loadWebConfig(): Promise<void> {
       throw new Error(`HTTP ${res.status}`);
     }
 
-    webConfig = normalizeWebConfig(
-      (await res.json()) as Partial<WebConfig>,
-    );
+    webConfig = normalizeWebConfig((await res.json()) as Partial<WebConfig>);
     console.log("配置加载成功:", webConfig);
     return;
   } catch (e) {
@@ -225,15 +346,15 @@ async function saveWebConfig(): Promise<boolean> {
  */
 function applyConfig(): void {
   // 应用语言
-  webConfig.language = webConfig.language || "zh-CN";
-  setLang(webConfig.language);
+  webConfig.global.language = webConfig.global.language || "zh-CN";
+  setLang(webConfig.global.language);
   const langSelect = document.getElementById(
     "language-select",
   ) as HTMLSelectElement;
   if (langSelect) langSelect.value = currentLang;
 
   // 应用主题
-  if (webConfig.theme === "dark") {
+  if (webConfig.global.theme === "dark") {
     document.body.classList.add("dark-theme");
     themeToggleBtn.textContent = t("theme.light");
   } else {
@@ -242,15 +363,15 @@ function applyConfig(): void {
   }
 
   // 应用刷新间隔
-  webConfig.autoRefreshEnabled = webConfig.autoRefreshEnabled !== false;
-  const interval = Number(webConfig.refreshInterval); // 后端配置可能是字符串，先统一转数值
+  webConfig.global.autoRefreshEnabled = webConfig.global.autoRefreshEnabled !== false;
+  const interval = Number(webConfig.global.refreshInterval); // 后端配置可能是字符串，先统一转数值
   refreshRate = Number.isFinite(interval) && interval > 0 ? interval : 5000;
-  webConfig.refreshInterval = refreshRate;
+  webConfig.global.refreshInterval = refreshRate;
   refreshSelect.value = refreshRate.toString();
-  autoRefreshToggle.checked = webConfig.autoRefreshEnabled;
+  autoRefreshToggle.checked = webConfig.global.autoRefreshEnabled;
 
   // 应用历史长度
-  const limit = Number(webConfig.historyLimit); // 历史长度也统一走数值归一化
+  const limit = Number(webConfig.dashboard.historyLimit); // 历史长度也统一走数值归一化
   if (Number.isFinite(limit) && limit > 0) {
     const limitStr = limit.toString(); // select 的 option 值是字符串
     const hasOption = Array.from(historyLimitSelect.options).some(
@@ -262,8 +383,8 @@ function applyConfig(): void {
   }
 
   // 应用错误日志每页条数
-  webConfig.errorPageSize = webConfig.errorPageSize || 10;
-  const eps = Number(webConfig.errorPageSize); // 错误分页大小需要同步到运行时变量与下拉框
+  webConfig.errors.pageSize = webConfig.errors.pageSize || 10;
+  const eps = Number(webConfig.errors.pageSize); // 错误分页大小需要同步到运行时变量与下拉框
   if (Number.isFinite(eps) && eps > 0) {
     pageSize = eps;
     const epsStr = eps.toString(); // select 的 option 值是字符串
@@ -281,18 +402,21 @@ function applyConfig(): void {
   }
 
   // 应用错误日志排序方式
-  webConfig.errorSortOrder =
-    webConfig.errorSortOrder === "oldest" ? "oldest" : "newest";
-  errorSortOrder = webConfig.errorSortOrder;
+  webConfig.errors.sortOrder =
+    webConfig.errors.sortOrder === "oldest" ? "oldest" : "newest";
+  errorSortOrder = webConfig.errors.sortOrder;
   errorSortSelect.value = errorSortOrder;
 
   // 应用结构图边增量显示开关
-  webConfig.showStructureEdgeDelta = webConfig.showStructureEdgeDelta !== false;
-  structureEdgeDeltaToggle.checked = webConfig.showStructureEdgeDelta;
+  webConfig.dashboard.showStructureEdgeDelta =
+    webConfig.dashboard.showStructureEdgeDelta !== false;
+  structureEdgeDeltaToggle.checked = webConfig.dashboard.showStructureEdgeDelta;
 
   // 应用节点状态等待模式开关
-  webConfig.useTotalPendingInStatus = webConfig.useTotalPendingInStatus === true;
-  statusTotalPendingToggle.checked = webConfig.useTotalPendingInStatus;
+  webConfig.dashboard.useTotalPendingInStatus =
+    webConfig.dashboard.useTotalPendingInStatus === true;
+  statusTotalPendingToggle.checked =
+    webConfig.dashboard.useTotalPendingInStatus;
 
   // 应用仪表盘布局
   applyDashboardLayout();
@@ -309,7 +433,7 @@ function applyConfig(): void {
  */
 function applyDashboardLayout(): void {
   ensureAllCards();
-  const dashboard = webConfig.dashboard; // 当前配置中的三栏布局
+  const dashboard = webConfig.dashboard.layout; // 当前配置中的三栏布局
   const allCardKeys = Array.from(
     new Set([
       "mermaid",

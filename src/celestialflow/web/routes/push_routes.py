@@ -44,9 +44,11 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         :return: {"ok": True} 或 JSONResponse({"ok": False, "error": ...}, 500)
         """
         with server.config_lock:
-            config_raw: Any = data.model_dump()
+            config_raw: Any = data.model_dump(by_alias=True)
             server.config = cast(dict[str, Any], config_raw)
-            server.report_interval = cal_interval(int(server.config["refreshInterval"]))
+            server.report_interval = cal_interval(
+                int(server.config["global"]["refreshInterval"])
+            )
             success: bool = save_config(server.config, config_path)
             if success:
                 return {"ok": True}

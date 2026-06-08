@@ -90,9 +90,11 @@ class TaskWebServer:
         # 加载配置
         config_raw: Any = WebConfigModel.model_validate(
             load_config(CONFIG_PATH)
-        ).model_dump()
+        ).model_dump(by_alias=True)
         self.config: dict[str, Any] = cast(dict[str, Any], config_raw)
-        self.report_interval: float = cal_interval(int(self.config["refreshInterval"]))
+        self.report_interval: float = cal_interval(
+            int(self.config["global"]["refreshInterval"])
+        )
         self.config_lock: threading.Lock = threading.Lock()
         self.config_path: str = CONFIG_PATH
 

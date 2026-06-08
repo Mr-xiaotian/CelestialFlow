@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel, Field, RootModel
 
 
 class StructureModel(BaseModel):
@@ -46,23 +46,46 @@ class TaskInjectionModel(RootModel[dict[str, list[Any]]]):
 
 
 class DashboardConfigModel(BaseModel):
-    """仪表盘布局配置模型"""
+    """仪表盘卡片布局配置模型"""
 
     left: list[str]
     middle: list[str]
     right: list[str]
 
 
-class WebConfigModel(BaseModel):
-    """Web UI 全局配置模型"""
+class GlobalConfigModel(BaseModel):
+    """全局共享配置模型"""
 
     theme: str
     autoRefreshEnabled: bool = True
     refreshInterval: int
-    historyLimit: int
     language: str = "zh-CN"
-    errorPageSize: int = 10
-    errorSortOrder: str = "newest"
-    showStructureEdgeDelta: bool = True
+
+
+class DashboardPageConfigModel(BaseModel):
+    """仪表盘页面配置模型"""
+
+    historyLimit: int
+    showStructureEdgeDelta: bool = False
     useTotalPendingInStatus: bool = False
-    dashboard: DashboardConfigModel
+    layout: DashboardConfigModel
+
+
+class ErrorsPageConfigModel(BaseModel):
+    """错误页配置模型"""
+
+    pageSize: int = 10
+    sortOrder: str = "newest"
+
+
+class InjectionPageConfigModel(BaseModel):
+    """注入页配置模型。当前保留为空对象，便于后续扩展。"""
+
+
+class WebConfigModel(BaseModel):
+    """Web UI 分组配置模型"""
+
+    global_: GlobalConfigModel = Field(alias="global")
+    dashboard: DashboardPageConfigModel
+    errors: ErrorsPageConfigModel
+    injection: InjectionPageConfigModel = Field(default_factory=InjectionPageConfigModel)
