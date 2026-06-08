@@ -425,20 +425,20 @@
                             ></path>
                         </svg>
                         <p class="tip-text" data-i18n="injection.tip">
-                            选择目标节点并输入任务数据或上传文件，点击提交按钮进行注入。
+                            先从左侧选择一个节点，再为该节点单独编辑注入数据；每个节点会保留自己的草稿。
                         </p>
                     </div>
                 </div>
 
                 <!-- 主要内容区域 -->
                 <div class="card-grid">
-                    <!-- 节点选择区 -->
+                    <!-- 节点浏览区 -->
                     <div class="card">
                         <h3
                             class="card-title"
                             data-i18n="injection.nodeSelection"
                         >
-                            节点选择
+                            节点浏览
                         </h3>
 
                         <!-- 搜索框 -->
@@ -465,99 +465,45 @@
                             />
                         </div>
 
-                        <!-- 操作按钮 -->
-                        <div class="button-group">
-                            <button
-                                class="btn-small btn-select"
-                                type="button"
-                                data-selection-action="select-all"
-                                data-i18n="injection.selectAll"
+                        <label class="injectable-toggle" for="injectable-only-toggle">
+                            <input
+                                type="checkbox"
+                                id="injectable-only-toggle"
+                                checked
+                            />
+                            <span data-i18n="injection.injectableOnly"
+                                >仅显示可注入节点</span
                             >
-                                全选
-                            </button>
-                            <button
-                                class="btn-small btn-clear"
-                                type="button"
-                                data-selection-action="clear"
-                                data-i18n="injection.clear"
-                            >
-                                清空
-                            </button>
-                        </div>
+                        </label>
 
                         <!-- 节点列表 -->
                         <div class="node-list" id="node-list"></div>
-
-                        <!-- 已选择的节点 -->
-                        <div
-                            class="selected-nodes"
-                            id="selected-section"
-                            style="display: none"
-                        >
-                            <div class="selected-title">
-                                <span data-i18n="injection.selectedNodes"
-                                    >已选择节点</span
-                                >
-                                (<span id="selected-count">0</span>)
-                            </div>
-                            <div id="selected-list" class="selected-list"></div>
-                        </div>
                     </div>
 
-                    <!-- 任务数据输入区 -->
-                    <div class="card">
+                    <!-- 当前节点编辑区 -->
+                    <div class="card injection-editor-card">
                         <h3 class="card-title" data-i18n="injection.dataInput">
-                            任务数据输入
+                            当前节点编辑
                         </h3>
 
-                        <!-- 输入方式切换 -->
-                        <div class="input-toggle">
-                            <button
-                                class="btn-toggle active"
-                                id="json-toggle"
-                                type="button"
-                                data-input-method="json"
-                            >
-                                <svg
-                                    class="toggle-icon"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
+                        <div class="editor-header">
+                            <div class="editor-node-meta">
+                                <div
+                                    class="editor-caption"
+                                    data-i18n="injection.currentNode"
                                 >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                                    ></path>
-                                </svg>
-                                <span data-i18n="injection.jsonToggle"
-                                    >JSON 输入</span
-                                >
-                            </button>
-                            <button
-                                class="btn-toggle"
-                                id="file-toggle"
-                                type="button"
-                                data-input-method="file"
-                            >
-                                <svg
-                                    class="toggle-icon"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                                    ></path>
-                                </svg>
-                                <span data-i18n="injection.fileToggle"
-                                    >文件上传</span
-                                >
-                            </button>
+                                    当前节点
+                                </div>
+                                <div class="editor-node-row">
+                                    <span id="current-node-name" class="current-node-name"
+                                        >未选择节点</span
+                                    >
+                                    <span
+                                        id="current-node-tag"
+                                        class="node-side-tag"
+                                    ></span>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- JSON输入区 -->
@@ -566,7 +512,7 @@
                                 <label
                                     class="json-label"
                                     data-i18n="injection.jsonLabel"
-                                    >任务数据 (JSON格式)</label
+                                    >当前节点任务数据 (JSON格式)</label
                                 >
                                 <button
                                     id="fill-termination-btn"
@@ -574,88 +520,75 @@
                                     type="button"
                                     data-i18n="injection.insertTermination"
                                 >
-                                    插入终止符
+                                    填入终止符模板
                                 </button>
                             </div>
                             <textarea
                                 id="json-textarea"
                                 class="json-textarea"
                                 data-i18n-placeholder="injection.jsonPlaceholder"
-                                placeholder="请输入JSON格式的任务数据..."
+                                placeholder="请选择一个节点后输入JSON格式的任务数据..."
                             ></textarea>
                             <div
                                 id="json-error"
                                 class="error-message"
                                 style="display: none"
                             ></div>
+                            <div
+                                id="json-validation"
+                                class="validation-message"
+                            >
+                            </div>
                         </div>
 
-                        <!-- 文件上传区 -->
-                        <div id="file-input-section" class="hidden">
-                            <label for="file-input" class="upload-area">
-                                <div
-                                    class="upload-text"
-                                    data-i18n="injection.uploadText"
-                                >
-                                    点击上传文件
-                                </div>
-                                <div
-                                    class="upload-hint"
-                                    data-i18n="injection.uploadHint"
-                                >
-                                    仅支持 .json 格式文件
-                                </div>
-                            </label>
-                            <input
-                                type="file"
-                                id="file-input"
-                                class="file-input"
-                                accept=".json"
-                            />
-
-                            <div
-                                id="file-info"
-                                class="file-info"
-                                style="display: none"
+                        <div class="editor-actions">
+                            <button
+                                id="validate-json-btn"
+                                class="btn-small btn-select"
+                                type="button"
+                                data-i18n="injection.validate"
                             >
-                                <svg
-                                    class="file-icon"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                    ></path>
-                                </svg>
-                                <span id="file-name" class="file-name"></span>
-                            </div>
-                            <div
-                                id="file-error"
-                                class="error-message"
-                                style="visibility: hidden"
-                            ></div>
+                                校验
+                            </button>
+                            <button
+                                id="format-json-btn"
+                                class="btn-small btn-select"
+                                type="button"
+                                data-i18n="injection.format"
+                            >
+                                格式化
+                            </button>
+                            <button
+                                id="clear-draft-btn"
+                                class="btn-small btn-clear"
+                                type="button"
+                                data-i18n="injection.clearCurrentDraft"
+                            >
+                                清空当前草稿
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- 提交区域 -->
-                <div class="submit-section card">
-                    <div
-                        id="status-message"
-                        class="status-message"
-                        style="visibility: hidden"
-                    ></div>
-                    <button
-                        id="submit-btn"
-                        class="btn-submit"
-                        data-i18n="injection.submit"
-                    >
-                        提交任务注入
-                    </button>
+                <div class="card draft-card">
+                    <div class="draft-title" data-i18n="injection.drafts">
+                        待发送数据预览
+                    </div>
+                    <pre id="draft-preview" class="draft-preview"></pre>
+                    <div class="submit-section">
+                        <div
+                            id="status-message"
+                            class="status-message"
+                            style="visibility: hidden"
+                        ></div>
+                        <button
+                            id="submit-btn"
+                            class="btn-submit"
+                            data-i18n="injection.submitAllDrafts"
+                        >
+                            提交所有草稿
+                        </button>
+                    </div>
                 </div>
             </div>
         </main>

@@ -1,7 +1,7 @@
 /* ================================
-  🌟 提示区域
+  注入页提示区
 ================================ */
-/* 任务注入页顶部的操作提示区样式 */
+/* 提示区容器。 */
 #task-injection .tip-section {
   background: var(--cornflower-50);
   border-left: 4px solid var(--cornflower-500);
@@ -14,13 +14,13 @@
   }
 }
 
-/* 提示区内部内容容器样式 */
+/* 顶部提示的图标和文案布局。 */
 #task-injection .tip-content {
   display: flex;
   align-items: center;
 }
 
-/* 提示区图标样式：设置尺寸和颜色 */
+/* 提示区图标尺寸与颜色。 */
 #task-injection .tip-icon {
   width: 1.25rem;
   height: 1.25rem;
@@ -28,7 +28,7 @@
   margin-right: 0.75rem;
 }
 
-/* 提示区文本样式：设置字号和颜色 */
+/* 提示区正文文案。 */
 #task-injection .tip-text {
   color: var(--cornflower-600);
   font-size: 0.75rem;
@@ -39,48 +39,46 @@
 }
 
 /* ================================
-  🌟 卡片布局 & 响应式
+  主体卡片布局
 ================================ */
-/* 任务注入页的卡片网格布局：默认两列 */
+/* 左侧节点浏览 + 右侧编辑区的双栏布局。 */
 #task-injection .card-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  margin-bottom: 2rem;
+  grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 /* ================================
-  🌟 搜索框
+  节点搜索与过滤
 ================================ */
-/* 节点搜索框容器：相对定位，用于放置搜索图标 */
+/* 搜索框容器，用于承载左侧搜索图标。 */
 #task-injection .search-container {
   position: relative;
   margin-bottom: 1rem;
 }
 
-/* 节点搜索输入框：设置内边距留出图标位置，调整边框圆角 */
+/* 节点搜索输入框。 */
 #task-injection .search-input {
   width: 100%;
-  padding: 0.5rem 0.75rem 0.5rem 2.5rem;
+  padding: 0.625rem 0.75rem 0.625rem 2.5rem;
   border: 1px solid var(--carbon-300);
   border-radius: 0.5rem;
   font-size: 0.75rem;
   outline: none;
-  transition: all 0.2s;
 
-  /* 获得焦点时隐藏边框（通过 transparent） */
   &:focus {
-    border-color: transparent;
+    border-color: var(--cornflower-400);
   }
 
   .dark-theme & {
-    background-color: var(--carbon-700);
+    background: var(--carbon-700);
     border-color: var(--carbon-600);
     color: var(--carbon-100);
   }
 }
 
-/* 搜索图标：绝对定位在输入框左侧 */
+/* 搜索图标定位在输入框左侧。 */
 #task-injection .search-icon {
   position: absolute;
   left: 0.75rem;
@@ -91,51 +89,205 @@
   color: var(--carbon-400);
 }
 
-/* ================================
-  🌟 按钮组
-================================ */
-/* 按钮组容器：水平排列按钮，设置间距 */
-#task-injection .button-group {
+/* “仅显示可注入节点”开关。 */
+#task-injection .injectable-toggle {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-/* 小号按钮通用样式：设置内边距、字号和圆角 */
-#task-injection .btn-small {
-  padding: 0.25rem 0.75rem;
+  margin-bottom: 0.875rem;
   font-size: 0.75rem;
-  border: none;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  transition: all 0.2s;
+  color: var(--carbon-700);
+
+  .dark-theme & {
+    color: var(--carbon-200);
+  }
 }
 
-/* 全选按钮样式：使用主题色系的浅色背景 */
-#task-injection .btn-select {
-  background: var(--cornflower-50);
-  color: var(--cornflower-600);
+/* ================================
+  节点浏览列表
+================================ */
+/* 左侧节点浏览列表，限制最大高度并允许滚动。 */
+#task-injection .node-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 30rem;
+  overflow-y: auto;
+  padding-top: 5px;
+}
+
+/* 单个节点项。 */
+#task-injection .node-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--carbon-200);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s, transform 0.2s;
 
   &:hover {
-    background: var(--carbon-200);
+    background: var(--carbon-50);
+    border-color: var(--cornflower-300);
+    transform: translateY(-1px);
   }
 
   .dark-theme & {
-    background: var(--cornflower-500);
+    background: var(--carbon-700);
+    border-color: var(--carbon-600);
     color: var(--carbon-100);
 
     &:hover {
+      background: var(--carbon-600);
+      border-color: var(--cornflower-500);
+    }
+  }
+}
+
+/* 当前被选中的节点。 */
+#task-injection .node-item.active-node {
+  border-color: var(--cornflower-500);
+  background: var(--cornflower-50);
+
+  .dark-theme & {
+    background: rgba(59, 130, 246, 0.18);
+  }
+}
+
+/* 节点基础信息区域。 */
+#task-injection .node-info {
+  min-width: 0;
+  flex: 1;
+}
+
+/* 节点名称。 */
+#task-injection .node-name {
+  font-weight: 600;
+  color: var(--carbon-800);
+  word-break: break-all;
+
+  .dark-theme & {
+    color: var(--carbon-100);
+  }
+}
+
+/* “已编辑”状态 tag，同时复用于标题右侧。 */
+#task-injection .node-side-tag {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  color: var(--cornflower-700);
+  background: var(--cornflower-100);
+
+  .dark-theme & {
+    background: var(--cornflower-800);
+    color: var(--cornflower-100);
+  }
+}
+
+/* 不可注入节点的禁用态。 */
+#task-injection .disabled-node {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ================================
+  当前节点编辑区
+================================ */
+/* 右侧编辑卡片采用纵向布局。 */
+#task-injection .injection-editor-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* 标题区：上方说明 + 当前节点信息。 */
+#task-injection .editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* “当前节点”标题上方的小型说明文字。 */
+#task-injection .editor-caption {
+  font-size: 0.75rem;
+  color: var(--carbon-500);
+  margin-bottom: 0.35rem;
+
+  .dark-theme & {
+    color: var(--carbon-400);
+  }
+}
+
+/* 节点名与右侧 tag 的行布局。 */
+#task-injection .editor-node-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* 当前选中的节点名称。 */
+#task-injection .current-node-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--carbon-900);
+  word-break: break-all;
+
+  .dark-theme & {
+    color: var(--carbon-100);
+  }
+}
+
+/* ================================
+  编辑器操作按钮
+================================ */
+/* 右侧编辑器中的小按钮通用样式。 */
+#task-injection .btn-small {
+  padding: 0.45rem 0.85rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+/* 主操作按钮：校验 / 格式化。 */
+#task-injection .btn-select {
+  background: var(--cornflower-50);
+  color: var(--cornflower-700);
+
+  &:hover:not(:disabled) {
+    background: var(--cornflower-100);
+  }
+
+  .dark-theme & {
+    background: var(--cornflower-700);
+    color: var(--carbon-100);
+
+    &:hover:not(:disabled) {
       background: var(--cornflower-600);
     }
   }
 }
 
-/* 清空按钮样式：使用中性色系的浅色背景 */
+/* 次操作按钮：清空草稿。 */
 #task-injection .btn-clear {
   background: var(--carbon-100);
   color: var(--carbon-700);
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--carbon-200);
   }
 
@@ -143,203 +295,32 @@
     background: var(--carbon-600);
     color: var(--carbon-100);
 
-    &:hover {
-      background: var(--carbon-700);
+    &:hover:not(:disabled) {
+      background: var(--carbon-500);
     }
   }
 }
 
 /* ================================
-  🌟 节点列表 & 已选节点
+  JSON 编辑区
 ================================ */
-/* 可选节点列表区域：限制高度并支持垂直滚动 */
-#task-injection .node-list {
-  max-height: 16rem;
-  overflow-y: auto;
-}
-
-/* 节点列表项样式：左右排列内容，支持悬停效果 */
-#task-injection .node-item {
-  display: flex;
-  align-items: center;
-  padding: 0.75rem;
-  border: 1px solid var(--carbon-200);
-  border-radius: 0.5rem;
-  margin-bottom: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  justify-content: space-between;
-
-  &:hover {
-    background: var(--carbon-50);
-
-    .dark-theme & {
-      background-color: var(--carbon-600);
-    }
-  }
-
-  .dark-theme & {
-    background-color: var(--carbon-700);
-    border-color: var(--carbon-600);
-    color: var(--carbon-200);
-  }
-}
-
-/* 节点名称样式：设置字重和颜色 */
-#task-injection .node-name {
-  font-weight: 500;
-  color: var(--carbon-800);
-  margin-bottom: 0.25rem;
-
-  .dark-theme & {
-    color: var(--carbon-100);
-  }
-}
-
-/* 已选节点列表容器：限制高度支持滚动 */
-#task-injection .selected-list {
-  overflow-y: auto;
-  max-height: 5.5rem;
-}
-
-/* 已选节点区域整体外边距 */
-#task-injection .selected-nodes {
-  margin-top: 1rem;
-}
-
-/* 已选节点区域标题样式 */
-#task-injection .selected-title {
-  font-weight: 500;
-  color: var(--carbon-800);
-  margin-bottom: 0.5rem;
-
-  .dark-theme & {
-    color: var(--carbon-100);
-  }
-}
-
-/* 已选节点项：显示在已选区域的单个节点块 */
-#task-injection .selected-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--cornflower-50);
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.5rem;
-  margin-bottom: 0.25rem;
-
-  .dark-theme & {
-    background: var(--cornflower-500);
-    color: var(--carbon-100);
-  }
-}
-
-/* 已选节点项的文字颜色 */
-#task-injection .selected-name {
-  font-size: 0.75rem;
-  color: var(--cornflower-600);
-
-  .dark-theme & {
-    color: var(--carbon-100);
-  }
-}
-
-/* 移除已选节点的按钮样式：无背景，悬停变色 */
-#task-injection .btn-remove {
-  background: none;
-  border: none;
-  color: var(--cornflower-500);
-  cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 0.25rem;
-
-  &:hover {
-    color: var(--cornflower-700);
-  }
-}
-
-/* 禁用状态的节点：半透明并禁止交互 */
-.disabled-node {
-  opacity: 0.5;
-  pointer-events: none;
-  cursor: not-allowed;
-}
-
-/* ================================
-  🌟 输入方式切换
-================================ */
-/* 输入方式切换按钮容器：胶囊型背景布局 */
-#task-injection .input-toggle {
-  display: flex;
-  background: var(--carbon-100);
-  border-radius: 0.5rem;
-  padding: 0.25rem;
-  margin-bottom: 1rem;
-
-  .dark-theme & {
-    background: var(--carbon-700);
-  }
-}
-
-/* 切换按钮基础样式：平分宽度，支持激活状态 */
-#task-injection .btn-toggle {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  background: transparent;
-  color: var(--carbon-500);
-  transition: all 0.2s;
-
-  /* 激活状态的切换按钮：显示白色背景和阴影 */
-  &.active {
-    background: var(--frost-0);
-    color: var(--carbon-800);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-
-    .dark-theme & {
-      background: var(--carbon-600);
-      color: var(--carbon-100);
-    }
-  }
-
-  .dark-theme & {
-    color: var(--carbon-400);
-  }
-}
-
-/* 切换按钮图标间距 */
-#task-injection .toggle-icon {
-  width: 1rem;
-  height: 1rem;
-  margin-right: 0.5rem;
-}
-
-/* ================================
-  🌟 JSON输入区 & 文件上传区
-================================ */
-/* JSON 输入区域容器：纵向占满剩余空间 */
+/* JSON 输入区域主体。 */
 #task-injection .json-input-section {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
-/* JSON 输入区头部样式：排列标签和示例按钮 */
+/* JSON 区顶部标签与模板按钮。 */
 #task-injection .json-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   margin-bottom: 0.5rem;
 }
 
-/* JSON 输入框标签样式 */
+/* JSON 区标签文案。 */
 #task-injection .json-label {
   font-size: 0.75rem;
   font-weight: 500;
@@ -350,101 +331,89 @@
   }
 }
 
-/* 示例按钮样式：无背景蓝色文字 */
+/* “填入终止符模板”这样的文本按钮。 */
 #task-injection .example-btn {
+  padding: 0;
+  border: none;
+  background: none;
   font-size: 0.75rem;
   color: var(--cornflower-500);
-  background: none;
-  border: none;
   cursor: pointer;
 
-  &:hover {
+  &:hover:not(:disabled) {
     color: var(--cornflower-700);
   }
 }
 
-/* JSON 文本输入框：使用等宽字体，支持垂直拉伸 */
+/* 主 JSON 编辑框。 */
 #task-injection .json-textarea {
   width: 100%;
-  padding: 0.75rem;
+  min-height: 20rem;
+  padding: 0.875rem;
   border: 1px solid var(--carbon-300);
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   font-family: "Monaco", "Menlo", monospace;
   font-size: 0.75rem;
+  line-height: 1.6;
   resize: vertical;
-  min-height: 15.75rem;
   outline: none;
-  flex: 1;
 
-  /* 获得焦点时隐藏边框 */
   &:focus {
-    border-color: transparent;
+    border-color: var(--cornflower-400);
+  }
+
+  &:disabled {
+    background: var(--carbon-50);
+    color: var(--carbon-400);
+    cursor: not-allowed;
   }
 
   .dark-theme & {
     background: var(--carbon-700);
     border-color: var(--carbon-600);
     color: var(--carbon-100);
-  }
-}
 
-/* 校验错误提示文字样式 */
-#task-injection .error-message {
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-  color: var(--crimson-600);
-}
-
-/* 文件上传虚线区域样式 */
-#task-injection #file-input-section {
-  border: 2px dashed var(--carbon-300);
-  border-radius: 0.5rem;
-  min-height: 15.75rem;
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: border-color 0.2s;
-
-  /* 悬停时加深边框颜色 */
-  &:hover {
-    border-color: var(--carbon-400);
-  }
-
-  .dark-theme & {
-    border-color: var(--carbon-600);
-
-    &:hover {
-      border-color: var(--carbon-500);
+    &:disabled {
+      background: var(--carbon-800);
+      color: var(--carbon-400);
     }
   }
 }
 
-/* 上传点击区域内边距 */
-#task-injection .upload-area {
-  padding: 1.5rem;
-  text-align: center;
-  cursor: pointer;
-
-  .dark-theme & {
-    color: var(--carbon-200);
-  }
-}
-
-/* 上传提示主文字样式 */
-#task-injection .upload-text {
-  font-weight: 500;
-  color: var(--carbon-800);
-  margin-bottom: 0.25rem;
-
-  .dark-theme & {
-    color: var(--carbon-200);
-  }
-}
-
-/* 上传提示次要文字样式 */
-#task-injection .upload-hint {
+/* JSON 语法错误提示。 */
+#task-injection .error-message {
+  margin-top: 0.35rem;
   font-size: 0.75rem;
+  color: var(--crimson-600);
+}
+
+/* 校验结果提示。 */
+#task-injection .validation-message {
+  min-height: 1.25rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+/* 校验成功态。 */
+#task-injection .validation-success {
+  color: var(--jade-600);
+
+  .dark-theme & {
+    color: var(--jade-400);
+  }
+}
+
+/* 校验失败态。 */
+#task-injection .validation-error {
+  color: var(--crimson-600);
+
+  .dark-theme & {
+    color: var(--crimson-400);
+  }
+}
+
+/* 中性提示态，例如“当前还没有数据”。 */
+#task-injection .validation-neutral {
   color: var(--carbon-500);
 
   .dark-theme & {
@@ -452,58 +421,74 @@
   }
 }
 
-/* 隐藏真实的文件输入控件 */
-#task-injection .file-input {
-  display: none;
+/* 编辑器底部的按钮组。 */
+#task-injection .editor-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
-/* 已上传文件信息卡片：绿色背景展示文件名 */
-#task-injection .file-info {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background: var(--jade-50);
-  border: 1px solid var(--jade-100);
-  border-radius: 0.5rem;
+/* ================================
+  待发送数据预览
+================================ */
+/* 底部预览卡片。 */
+#task-injection .draft-card {
+  margin-bottom: 1rem;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* 预览卡片标题。 */
+#task-injection .draft-title {
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--carbon-800);
 
   .dark-theme & {
-    background: var(--jade-900);
-    border-color: var(--jade-900);
-    color: var(--jade-300);
+    color: var(--carbon-100);
   }
 }
 
-/* 文件图标颜色 */
-#task-injection .file-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: var(--jade-600);
-  margin-right: 0.5rem;
-}
-
-/* 文件名文字样式 */
-#task-injection .file-name {
+/* 只读的大型 JSON 预览区。 */
+#task-injection .draft-preview,
+#task-injection .empty-placeholder {
+  margin: 0;
+  padding: 1rem;
+  min-height: 12rem;
+  max-height: 24rem;
+  overflow: auto;
+  border: 1px solid var(--carbon-200);
+  border-radius: 0.75rem;
+  background: var(--carbon-50);
+  font-family: "Monaco", "Menlo", monospace;
   font-size: 0.75rem;
-  color: var(--jade-800);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--carbon-700);
 
   .dark-theme & {
-    color: var(--jade-300);
+    background: var(--carbon-800);
+    border-color: var(--carbon-600);
+    color: var(--carbon-200);
   }
 }
 
 /* ================================
-  🌟 提交区域 & 状态提示
+  发送状态与提交按钮
 ================================ */
-/* 底部提交栏布局：左右排列提示和提交按钮 */
+/* 预览卡片底部的状态提示 + 提交按钮布局。 */
 #task-injection .submit-section {
   display: flex;
-  flex-direction: row;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
+  margin-top: auto;
 }
 
-/* 提交结果状态提示文字样式 */
+/* 提交结果提示文本。 */
 #task-injection .status-message {
   display: flex;
   align-items: center;
@@ -511,14 +496,14 @@
   font-weight: 500;
 }
 
-/* 提交状态图标尺寸 */
+/* 提示图标。 */
 #task-injection .status-icon {
   width: 1.25rem;
   height: 1.25rem;
   margin-right: 0.5rem;
 }
 
-/* 提交成功提示颜色 */
+/* 成功提示颜色。 */
 #task-injection .status-success {
   color: var(--jade-600);
 
@@ -527,7 +512,7 @@
   }
 }
 
-/* 提交失败提示颜色 */
+/* 失败提示颜色。 */
 #task-injection .status-error {
   color: var(--crimson-600);
 
@@ -536,8 +521,11 @@
   }
 }
 
-/* 提交注入任务主按钮样式：醒目的蓝色背景和阴影 */
+/* 主提交按钮。 */
 #task-injection .btn-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.75rem 1.5rem;
   background: var(--cornflower-500);
   color: var(--frost-0);
@@ -545,38 +533,34 @@
   border-radius: 0.5rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, transform 0.2s;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 
-  /* 悬停时加深并有微小位移 */
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--cornflower-600);
     transform: translateY(-1px);
-
-    .dark-theme & {
-      background: var(--cornflower-700);
-    }
   }
 
-  /* 禁用状态按钮样式：灰色背景，不可点击 */
   &:disabled {
     background: var(--carbon-400);
+    color: var(--carbon-100);
     cursor: not-allowed;
     transform: none;
-
-    .dark-theme & {
-      background: var(--carbon-500);
-      color: var(--carbon-300);
-    }
+    box-shadow: none;
   }
 
   .dark-theme & {
     background: var(--cornflower-600);
     color: var(--carbon-100);
+
+    &:disabled {
+      background: var(--carbon-500);
+      color: var(--carbon-300);
+    }
   }
 }
 
-/* 加载动画圆圈样式 */
+/* 提交中的旋转指示器。 */
 #task-injection .spinner {
   width: 1rem;
   height: 1rem;
@@ -587,7 +571,7 @@
   margin-right: 0.5rem;
 }
 
-/* 自旋动画定义 */
+/* 旋转动画定义。 */
 @keyframes spin {
   0% {
     transform: rotate(0deg);
@@ -599,17 +583,25 @@
 }
 
 /* ================================
-  🌟 响应式：小屏兼容
+  响应式布局
 ================================ */
-/* 媒体查询：适配窄屏，将注入页的两列布局切换为单列 */
+/* 当前断点下统一切成单列，并堆叠头部与底部操作区。 */
 @media (max-width: 2048px) {
   #task-injection .card-grid {
     grid-template-columns: 1fr;
   }
 
-  /* 小屏下展开节点列表，不限制高度 */
   #task-injection .node-list {
     max-height: none;
-    overflow: visible;
+  }
+  
+  #task-injection .editor-header,
+  #task-injection .submit-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #task-injection .editor-actions {
+    flex-direction: column;
   }
 }

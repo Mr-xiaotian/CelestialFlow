@@ -1,19 +1,42 @@
 /**
  * 任务手动注入模块
- * 提供 UI 界面允许用户选择节点并手动注入 JSON 格式的任务数据或通过文件上传
+ * 当前设计改为单节点编辑：每次只编辑并提交一个节点的注入数据。
  */
-// 全局状态
-let selectedNodes = []; // 用户选中的注入目标节点
-let currentInputMethod = "json"; // 当前输入方式（json / file）
-let uploadedFile = null; // 已上传的文件内容
+// ======== 页面级状态 ========
+// 当前正在编辑的节点名称；未选择节点时为 null。
+let currentNodeName = null;
+// 每个节点各自维护一份 JSON 草稿文本。
+let nodeDrafts = {};
+// 状态提示的自动隐藏定时器，避免重复触发时相互覆盖。
+let statusHideTimer = null;
+/**
+ * 为动态提示元素记录 i18n 元信息，便于语言切换后重绘。
+ *
+ * @param {HTMLElement} element - 目标元素
+ * @param {string} messageKey - 文案翻译键
+ * @param {string[]} [args=[]] - 占位参数
+ * @returns {void}
+ */
 function setLocalizedMessageMeta(element, messageKey, args = []) {
     element.dataset.messageKey = messageKey;
     element.dataset.messageArgs = JSON.stringify(args);
 }
+/**
+ * 清理元素上缓存的 i18n 元信息。
+ *
+ * @param {HTMLElement} element - 目标元素
+ * @returns {void}
+ */
 function clearLocalizedMessageMeta(element) {
     delete element.dataset.messageKey;
     delete element.dataset.messageArgs;
 }
+/**
+ * 读取元素上缓存的 i18n 占位参数。
+ *
+ * @param {HTMLElement} element - 目标元素
+ * @returns {string[]} 占位参数列表
+ */
 function getLocalizedMessageArgs(element) {
     const rawArgs = element.dataset.messageArgs;
     if (!rawArgs)
@@ -26,293 +49,307 @@ function getLocalizedMessageArgs(element) {
         return [];
     }
 }
+/**
+ * 根据成功/失败状态生成状态提示图标。
+ *
+ * @param {boolean} isSuccess - 是否为成功状态
+ * @returns {string} SVG 字符串
+ */
 function getStatusIconSvg(isSuccess) {
     return isSuccess
         ? '<svg class="status-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
         : '<svg class="status-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
 }
+/**
+ * 渲染底部状态提示的完整 HTML。
+ *
+ * @param {HTMLElement} statusDiv - 状态提示容器
+ * @param {string} messageKey - 文案翻译键
+ * @param {boolean} isSuccess - 是否使用成功态图标
+ * @param {string[]} [args=[]] - 文案占位参数
+ * @returns {void}
+ */
 function renderStatusMessage(statusDiv, messageKey, isSuccess, args = []) {
     statusDiv.innerHTML = getStatusIconSvg(isSuccess) + t(messageKey, ...args);
 }
-// 页面加载完成后初始化节点列表并绑定注入表单交互。
-document.addEventListener("DOMContentLoaded", function () {
-    renderNodeList();
-    setupEventListeners();
-});
-/**
- * 设置页面元素的事件监听器
- * 包括搜索输入、JSON 输入验证、文件上传和提交按钮
- */
-function setupEventListeners() {
-    // 搜索节点列表时实时按关键词过滤可选节点。
-    document
-        .getElementById("search-input")
-        .addEventListener("input", function (e) {
-        const target = e.target;
-        renderNodeList(target.value);
-    });
-    // 输入 JSON 文本时立即做格式校验，尽早给出错误反馈。
-    document
-        .getElementById("json-textarea")
-        .addEventListener("input", function (e) {
-        const target = e.target;
-        validateJSON(target.value);
-    });
-    // 选择上传文件后读取并校验 JSON 文件内容。
-    document
-        .getElementById("file-input")
-        .addEventListener("change", handleFileUpload);
-    // 点击提交按钮后执行注入请求流程。
-    document
-        .getElementById("submit-btn")
-        .addEventListener("click", handleSubmit);
-    // 通过事件委托统一处理“全选 / 清空”两个节点选择操作。
-    document.querySelector(".button-group").addEventListener("click", (e) => {
-        const button = e.target.closest("button[data-selection-action]");
-        if (!button)
-            return;
-        if (button.dataset.selectionAction === "select-all") {
-            selectAllNodes();
-        }
-        else if (button.dataset.selectionAction === "clear") {
-            clearSelection();
-        }
-    });
-    // 通过 data-input-method 标记切换 JSON 输入和文件上传两种模式。
-    document.querySelector(".input-toggle").addEventListener("click", (e) => {
-        const button = e.target.closest("button[data-input-method]");
-        const method = button?.dataset.inputMethod;
-        if (method) {
-            switchInputMethod(method);
-        }
-    });
-    // 一键填入终止信号示例，便于快速构造测试输入。
-    document.getElementById("fill-termination-btn").addEventListener("click", fillTermination);
-    // 点击节点列表项时切换该节点的选中状态。
-    document.getElementById("node-list").addEventListener("click", (e) => {
-        const item = e.target.closest(".node-item[data-node]");
-        if (item)
-            selectNode(item.dataset.node);
-    });
-    // 通过事件委托处理已选节点列表中的移除按钮。
-    document.getElementById("selected-list").addEventListener("click", (e) => {
-        const button = e.target.closest("button[data-remove-node]");
-        const nodeName = button?.dataset.removeNode;
-        if (nodeName) {
-            removeNode(nodeName);
-        }
-    });
+/** 获取节点搜索框。 */
+function getSearchInput() {
+    return document.getElementById("search-input");
+}
+/** 获取“仅显示可注入节点”勾选框。 */
+function getInjectableOnlyToggle() {
+    return document.getElementById("injectable-only-toggle");
+}
+/** 获取当前节点 JSON 编辑框。 */
+function getJsonTextarea() {
+    return document.getElementById("json-textarea");
 }
 /**
- * 判断节点当前是否仍允许作为注入目标。
- * 已停止或已不存在的节点不允许继续提交。
+ * 收集当前节点编辑区里会随选中状态联动启用/禁用的按钮。
+ *
+ * @returns {HTMLButtonElement[]} 按钮列表
+ */
+function getEditorButtons() {
+    return [
+        document.getElementById("submit-btn"),
+        document.getElementById("validate-json-btn"),
+        document.getElementById("format-json-btn"),
+        document.getElementById("clear-draft-btn"),
+        document.getElementById("fill-termination-btn"),
+    ];
+}
+document.addEventListener("DOMContentLoaded", () => {
+    setupEventListeners();
+    renderInjectionPage();
+});
+/**
+ * 绑定注入页所需的所有 DOM 事件。
+ *
+ * @returns {void}
+ */
+function setupEventListeners() {
+    // 搜索节点时实时过滤左侧节点浏览列表。
+    getSearchInput().addEventListener("input", (e) => {
+        renderNodeList(e.target.value);
+    });
+    // 切换“仅显示可注入节点”时同时刷新列表和待发送预览。
+    getInjectableOnlyToggle().addEventListener("change", () => {
+        renderNodeList(getSearchInput().value);
+        renderDraftList();
+    });
+    // 编辑 JSON 时同步写回对应节点草稿，并更新右侧提示与底部预览。
+    getJsonTextarea().addEventListener("input", (e) => {
+        if (!currentNodeName)
+            return;
+        const nextValue = e.target.value;
+        setDraftForNode(currentNodeName, nextValue);
+        renderNodeList(getSearchInput().value);
+        renderDraftList();
+        validateCurrentDraft(true);
+    });
+    // 节点浏览列表采用事件委托，统一处理节点切换。
+    document.getElementById("node-list").addEventListener("click", (e) => {
+        const item = e.target.closest(".node-item[data-node]");
+        const nodeName = item?.dataset.node;
+        if (nodeName) {
+            selectNode(nodeName);
+        }
+    });
+    // 编辑器底部操作按钮。
+    document.getElementById("validate-json-btn").addEventListener("click", () => {
+        validateCurrentDraft(true);
+    });
+    document.getElementById("format-json-btn").addEventListener("click", formatCurrentDraft);
+    document.getElementById("clear-draft-btn").addEventListener("click", clearCurrentDraft);
+    document.getElementById("fill-termination-btn").addEventListener("click", fillTerminationDraft);
+    document.getElementById("submit-btn").addEventListener("click", handleSubmit);
+}
+/**
+ * 判断节点当前是否仍允许接收注入。
+ * 已停止或已消失节点不能继续提交。
+ *
  * @param {string} nodeName - 节点名称
- * @returns {boolean} 当前是否可注入
+ * @returns {boolean} 是否可注入
  */
 function isInjectableNode(nodeName) {
     const status = nodeStatuses[nodeName];
     return Boolean(status) && status.status !== 2;
 }
 /**
- * 将已选节点与当前状态快照同步，移除已停止或已消失的节点。
+ * 将草稿状态与最新节点状态快照对齐。
+ * - 已消失节点的草稿会被清理
+ * - 当前编辑节点如果已不可注入，则取消当前选择
+ *
  * @returns {void}
  */
-function syncSelectedNodesWithStatuses() {
-    const nextSelectedNodes = selectedNodes.filter((node) => isInjectableNode(node.name));
-    if (nextSelectedNodes.length === selectedNodes.length)
-        return;
-    selectedNodes = nextSelectedNodes;
-    updateSelectedNodes();
+function syncInjectionStateWithStatuses() {
+    for (const nodeName of Object.keys(nodeDrafts)) {
+        if (!nodeStatuses[nodeName]) {
+            delete nodeDrafts[nodeName];
+        }
+    }
+    if (currentNodeName && !isInjectableNode(currentNodeName)) {
+        currentNodeName = null;
+    }
 }
 /**
- * 渲染任务注入页面的节点列表
- * @param {string} searchTerm - 搜索关键词，用于过滤节点
+ * 根据节点运行状态生成旧版 badge 描述。
+ * 当前主要保留为状态文案工具，便于其他位置复用。
+ *
+ * @param {string} nodeName - 节点名称
+ * @returns {{ badgeClass: string; badgeText: string }} 展示信息
+ */
+function getNodeBadgeInfo(nodeName) {
+    const status = nodeStatuses[nodeName]?.status;
+    if (status === 1) {
+        return { badgeClass: "badge-running", badgeText: t("injection.running") };
+    }
+    if (status === 2) {
+        return { badgeClass: "badge-completed", badgeText: t("injection.stopped") };
+    }
+    return { badgeClass: "badge-inactive", badgeText: t("injection.notRunning") };
+}
+/**
+ * 刷新注入页的三个主要区域：
+ * - 左侧节点浏览
+ * - 当前节点编辑器
+ * - 底部待发送数据预览
+ *
+ * @returns {void}
+ */
+function renderInjectionPage() {
+    syncInjectionStateWithStatuses();
+    renderNodeList(getSearchInput()?.value || "");
+    renderCurrentNodeEditor();
+    renderDraftList();
+}
+/**
+ * 渲染左侧节点浏览列表。
+ *
+ * @param {string} [searchTerm=""] - 搜索关键词
  * @returns {void}
  */
 function renderNodeList(searchTerm = "") {
     const nodeListEl = document.getElementById("node-list");
     if (!nodeListEl)
         return;
-    syncSelectedNodesWithStatuses();
+    syncInjectionStateWithStatuses();
     const normalizedSearch = searchTerm.toLowerCase().trim();
-    const nodeListHTML = Object.keys(nodeStatuses)
-        .filter((nodeName) => {
+    const injectableOnly = getInjectableOnlyToggle().checked;
+    const visibleNodes = Object.keys(nodeStatuses).filter((nodeName) => {
+        if (injectableOnly && !isInjectableNode(nodeName))
+            return false;
         if (!normalizedSearch)
             return true;
         return nodeName.toLowerCase().includes(normalizedSearch);
-    })
+    });
+    if (!visibleNodes.length) {
+        nodeListEl.innerHTML = `<div class="empty-placeholder">${t("injection.noNodes")}</div>`;
+        return;
+    }
+    nodeListEl.innerHTML = visibleNodes
         .map((nodeName) => {
-        // 根据 status 值确定样式和文本
-        const status = nodeStatuses[nodeName].status;
-        let badgeClass = "badge-inactive";
-        let badgeText = t("injection.notRunning");
-        if (status === 1) {
-            badgeClass = "badge-running";
-            badgeText = t("injection.running");
-        }
-        else if (status === 2) {
-            badgeClass = "badge-completed";
-            badgeText = t("injection.stopped");
-        }
-        // 禁止点击已停止的节点
-        const dataAttr = status !== 2 ? `data-node="${escapeHtml(nodeName)}"` : "";
-        const disabledClass = status === 2 ? "disabled-node" : "";
+        const activeClass = currentNodeName === nodeName ? "active-node" : "";
+        const disabledClass = isInjectableNode(nodeName) ? "" : "disabled-node";
+        const hasDraft = Boolean(nodeDrafts[nodeName]?.trim());
+        const dataAttr = isInjectableNode(nodeName) ? `data-node="${escapeHtml(nodeName)}"` : "";
+        const rightTag = hasDraft
+            ? `<span class="node-side-tag">${t("injection.draftEdited")}</span>`
+            : "";
         return `
-        <div class="node-item ${disabledClass}" ${dataAttr}>
+        <div class="node-item ${activeClass} ${disabledClass}" ${dataAttr}>
           <div class="node-info">
             <div class="node-name">${escapeHtml(nodeName)}</div>
           </div>
-          <span class="badge ${badgeClass}">${badgeText}</span>
+          ${rightTag}
         </div>`;
     })
         .join("");
-    nodeListEl.innerHTML = nodeListHTML;
 }
 /**
- * 选择或取消选择节点
+ * 渲染“当前节点编辑”区的标题、tag 和输入框状态。
+ *
+ * @returns {void}
+ */
+function renderCurrentNodeEditor() {
+    const currentNodeEl = document.getElementById("current-node-name");
+    const currentTagEl = document.getElementById("current-node-tag");
+    const textarea = getJsonTextarea();
+    const hasNode = Boolean(currentNodeName);
+    if (!hasNode) {
+        currentNodeEl.textContent = t("injection.noNodeSelected");
+        currentTagEl.textContent = "";
+        currentTagEl.style.display = "none";
+        textarea.value = "";
+        textarea.placeholder = t("injection.selectNodeHint");
+        textarea.disabled = true;
+        hideError("json-error");
+        setValidationMessage("injection.validationSelectNode", "neutral");
+    }
+    else {
+        currentNodeEl.textContent = currentNodeName;
+        const hasDraft = Boolean(nodeDrafts[currentNodeName]?.trim());
+        currentTagEl.textContent = hasDraft ? t("injection.draftEdited") : "";
+        currentTagEl.style.display = hasDraft ? "inline-flex" : "none";
+        textarea.value = nodeDrafts[currentNodeName] || "";
+        textarea.placeholder = t("injection.jsonPlaceholder");
+        textarea.disabled = false;
+        validateCurrentDraft(false);
+    }
+    for (const button of getEditorButtons()) {
+        button.disabled = !hasNode;
+    }
+}
+/**
+ * 切换当前编辑节点。
+ *
  * @param {string} nodeName - 节点名称
+ * @returns {void}
  */
 function selectNode(nodeName) {
     if (!isInjectableNode(nodeName)) {
-        syncSelectedNodesWithStatuses();
+        syncInjectionStateWithStatuses();
+        renderInjectionPage();
         return;
     }
-    const existing = selectedNodes.find((n) => n.name === nodeName);
-    if (existing) {
-        // 点击已选节点 = 取消选中
-        selectedNodes = selectedNodes.filter((n) => n.name !== nodeName);
+    currentNodeName = nodeName;
+    renderInjectionPage();
+}
+/**
+ * 写入某个节点的草稿文本。
+ * 空白文本会直接清除该节点草稿。
+ *
+ * @param {string} nodeName - 节点名称
+ * @param {string} value - 草稿文本
+ * @returns {void}
+ */
+function setDraftForNode(nodeName, value) {
+    if (value.trim()) {
+        nodeDrafts[nodeName] = value;
     }
     else {
-        // 新选节点
-        selectedNodes.push({ name: nodeName });
+        delete nodeDrafts[nodeName];
     }
-    updateSelectedNodes();
 }
 /**
- * 从已选列表中移除节点
- * @param {string} nodeName - 节点名称
- */
-function removeNode(nodeName) {
-    selectedNodes = selectedNodes.filter((n) => n.name !== nodeName);
-    updateSelectedNodes();
-}
-/**
- * 更新已选节点列表的 UI 显示
- * 显示已选数量和节点列表，如果为空则隐藏相关区域
+ * 渲染底部“待发送数据预览”。
+ * 这里尽量贴近最终发送的数据结构，便于用户肉眼检查。
+ *
  * @returns {void}
  */
-function updateSelectedNodes() {
-    const selectedSection = document.getElementById("selected-section");
-    const selectedList = document.getElementById("selected-list");
-    const selectedCount = document.getElementById("selected-count");
-    if (selectedNodes.length === 0) {
-        selectedSection.style.display = "none";
+function renderDraftList() {
+    const draftPreview = document.getElementById("draft-preview");
+    if (!draftPreview)
         return;
-    }
-    selectedSection.style.display = "block";
-    selectedCount.textContent = String(selectedNodes.length);
-    const selectedHTML = selectedNodes
-        .map((node) => `
-        <div class="selected-item">
-          <span class="selected-name">${escapeHtml(node.name)}</span>
-          <button class="btn-remove" type="button" data-remove-node="${escapeHtml(node.name)}">
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>`)
-        .join("");
-    selectedList.innerHTML = selectedHTML;
-}
-/**
- * 全选所有可用节点（排除已停止的节点）
- */
-function selectAllNodes() {
-    const filteredNodes = Object.entries(nodeStatuses)
-        .filter(([, status]) => status.status !== 2)
-        .map(([name]) => ({ name }));
-    filteredNodes.forEach((node) => {
-        if (!selectedNodes.find((n) => n.name === node.name)) {
-            selectedNodes.push(node);
+    const pendingEntries = Object.entries(nodeDrafts)
+        .filter(([, draftText]) => draftText.trim())
+        .map(([nodeName, draftText]) => {
+        try {
+            return {
+                node: nodeName,
+                task_datas: JSON.parse(draftText),
+            };
+        }
+        catch {
+            return {
+                node: nodeName,
+                invalid_json: true,
+                task_datas_raw: draftText,
+            };
         }
     });
-    updateSelectedNodes();
-}
-/**
- * 清空所有已选节点
- */
-function clearSelection() {
-    selectedNodes = [];
-    updateSelectedNodes();
-}
-/**
- * 切换任务数据输入方式（JSON文本或文件上传）
- * @param {string} method - 输入方式，当前支持 `json` 或 `file`。
- * @returns {void}
- */
-function switchInputMethod(method) {
-    currentInputMethod = method;
-    document
-        .getElementById("json-toggle")
-        .classList.toggle("active", method === "json");
-    document
-        .getElementById("file-toggle")
-        .classList.toggle("active", method === "file");
-    document
-        .getElementById("json-input-section")
-        .classList.toggle("hidden", method !== "json");
-    document
-        .getElementById("file-input-section")
-        .classList.toggle("hidden", method !== "file");
-}
-/**
- * 填充预定义的终止信号 JSON
- * @returns {void}
- */
-function fillTermination() {
-    document.getElementById("json-textarea").value = JSON.stringify(["TERMINATION_SIGNAL"], null, 2);
-    hideError("json-error");
-}
-/**
- * 处理文件上传事件
- * 读取 JSON 文件内容并验证格式
- * @param {Event} e - 文件选择事件
- * @returns {void}
- */
-function handleFileUpload(e) {
-    const fileInput = e.target;
-    const file = fileInput.files?.[0];
-    if (!file)
-        return;
-    if (!file.name.endsWith(".json")) {
-        showError("file-error", "injection.uploadJsonOnly");
+    if (!pendingEntries.length) {
+        draftPreview.textContent = t("injection.noDrafts");
         return;
     }
-    const reader = new FileReader();
-    reader.onload = function (event) {
-        try {
-            const content = event.target?.result;
-            if (typeof content !== "string")
-                return;
-            JSON.parse(content);
-            uploadedFile = { name: file.name, content };
-            document.getElementById("file-name").textContent = t("injection.uploaded", file.name);
-            document.getElementById("file-info").style.display = "flex";
-            hideError("file-error");
-        }
-        catch (e) {
-            showError("file-error", "injection.uploadInvalid");
-            uploadedFile = null;
-            document.getElementById("file-info").style.display = "none";
-        }
-    };
-    reader.readAsText(file);
+    draftPreview.textContent = JSON.stringify(pendingEntries, null, 2);
 }
 /**
- * 显示错误信息
+ * 显示 JSON 语法错误等内联错误信息。
+ *
  * @param {string} elementId - 错误信息容器 ID
- * @param {string} messageKey - 错误文案翻译键
- * @param {...string} args - 翻译占位参数
+ * @param {string} messageKey - 翻译键
+ * @param {...string[]} args - 占位参数
  * @returns {void}
  */
 function showError(elementId, messageKey, ...args) {
@@ -322,7 +359,8 @@ function showError(elementId, messageKey, ...args) {
     errorDiv.style.display = "block";
 }
 /**
- * 隐藏错误信息
+ * 隐藏指定的内联错误信息。
+ *
  * @param {string} elementId - 错误信息容器 ID
  * @returns {void}
  */
@@ -332,30 +370,121 @@ function hideError(elementId) {
     clearLocalizedMessageMeta(errorDiv);
 }
 /**
- * 验证 JSON 字符串格式是否合法
- * @param {string} text - JSON 字符串
- * @returns {boolean} 格式合法返回 true，否则返回 false
+ * 设置编辑区下方的校验状态文字。
+ *
+ * @param {string} messageKey - 翻译键
+ * @param {ValidationState} state - 展示状态
+ * @param {string[]} [args=[]] - 占位参数
+ * @returns {void}
  */
-function validateJSON(text) {
-    if (!text.trim()) {
+function setValidationMessage(messageKey, state, args = []) {
+    const validationDiv = document.getElementById("json-validation");
+    setLocalizedMessageMeta(validationDiv, messageKey, args);
+    validationDiv.textContent = t(messageKey, ...args);
+    validationDiv.className = `validation-message validation-${state}`;
+}
+/**
+ * 校验当前节点草稿的 JSON 格式。
+ *
+ * @param {boolean} [showSyntaxError=true] - 是否显示内联语法错误
+ * @returns {boolean} 当前草稿是否为合法 JSON
+ */
+function validateCurrentDraft(showSyntaxError = true) {
+    if (!currentNodeName) {
         hideError("json-error");
-        return true;
+        setValidationMessage("injection.validationSelectNode", "neutral");
+        return false;
+    }
+    const draftText = (nodeDrafts[currentNodeName] || "").trim();
+    if (!draftText) {
+        hideError("json-error");
+        setValidationMessage("injection.validationEmpty", "neutral");
+        return false;
     }
     try {
-        JSON.parse(text);
+        JSON.parse(draftText);
         hideError("json-error");
+        setValidationMessage("injection.validationOk", "success");
         return true;
     }
     catch {
-        showError("json-error", "json.invalid");
+        if (showSyntaxError) {
+            showError("json-error", "json.invalid");
+        }
+        else {
+            hideError("json-error");
+        }
+        setValidationMessage("injection.invalidJson", "error");
         return false;
     }
 }
 /**
- * 显示操作状态提示（成功或失败）
- * @param {string} messageKey - 要显示的提示翻译键。
- * @param {boolean} [isSuccess=false] - 是否按成功态样式展示。
- * @param {...string} args - 翻译占位参数
+ * 对当前节点草稿执行 JSON 格式化。
+ *
+ * @returns {void}
+ */
+function formatCurrentDraft() {
+    if (!currentNodeName) {
+        showStatus("injection.selectNodeRequired", false);
+        return;
+    }
+    const draftText = (nodeDrafts[currentNodeName] || "").trim();
+    if (!draftText) {
+        setValidationMessage("injection.validationEmpty", "neutral");
+        return;
+    }
+    try {
+        const formatted = JSON.stringify(JSON.parse(draftText), null, 2);
+        setDraftForNode(currentNodeName, formatted);
+        getJsonTextarea().value = formatted;
+        renderNodeList(getSearchInput().value);
+        renderDraftList();
+        validateCurrentDraft(false);
+    }
+    catch {
+        validateCurrentDraft(true);
+    }
+}
+/**
+ * 清空当前节点草稿与编辑区内容。
+ *
+ * @returns {void}
+ */
+function clearCurrentDraft() {
+    if (!currentNodeName) {
+        showStatus("injection.selectNodeRequired", false);
+        return;
+    }
+    delete nodeDrafts[currentNodeName];
+    getJsonTextarea().value = "";
+    renderNodeList(getSearchInput().value);
+    renderDraftList();
+    hideError("json-error");
+    setValidationMessage("injection.validationEmpty", "neutral");
+}
+/**
+ * 为当前节点填入终止信号模板。
+ *
+ * @returns {void}
+ */
+function fillTerminationDraft() {
+    if (!currentNodeName) {
+        showStatus("injection.selectNodeRequired", false);
+        return;
+    }
+    const terminationDraft = JSON.stringify(["TERMINATION_SIGNAL"], null, 2);
+    setDraftForNode(currentNodeName, terminationDraft);
+    getJsonTextarea().value = terminationDraft;
+    renderNodeList(getSearchInput().value);
+    renderDraftList();
+    validateCurrentDraft(false);
+}
+/**
+ * 显示底部提交结果提示，并自动在 3 秒后隐藏。
+ *
+ * @param {string} messageKey - 翻译键
+ * @param {boolean} [isSuccess=false] - 是否为成功态
+ * @param {...string[]} args - 占位参数
  * @returns {void}
  */
 function showStatus(messageKey, isSuccess = false, ...args) {
@@ -364,60 +493,55 @@ function showStatus(messageKey, isSuccess = false, ...args) {
     renderStatusMessage(statusDiv, messageKey, isSuccess, args);
     statusDiv.className = `status-message ${isSuccess ? "status-success" : "status-error"}`;
     statusDiv.style.visibility = "visible";
-    setTimeout(() => {
+    if (statusHideTimer !== null) {
+        window.clearTimeout(statusHideTimer);
+    }
+    statusHideTimer = window.setTimeout(() => {
         statusDiv.style.visibility = "hidden";
     }, 3000);
 }
 /**
- * 处理任务注入提交
- * 1. 验证节点选择和输入数据
- * 2. 遍历所有选定节点发送 POST 请求
- * 3. 根据结果显示成功或失败状态，并重置表单
+ * 提交所有待发送节点草稿。
+ * 提交前会再次验证每个节点的 JSON 格式，并在成功后清空全部草稿。
+ *
  * @returns {Promise<void>}
  */
 async function handleSubmit() {
-    syncSelectedNodesWithStatuses();
-    if (selectedNodes.length === 0) {
-        showStatus("injection.selectNodeRequired", false);
+    syncInjectionStateWithStatuses();
+    const draftEntries = Object.entries(nodeDrafts).filter(([nodeName, draftText]) => isInjectableNode(nodeName) && draftText.trim());
+    if (!draftEntries.length) {
+        showStatus("injection.noDraftsToSubmit", false);
         return;
     }
-    let taskData;
-    if (currentInputMethod === "json") {
-        const jsonText = document.getElementById("json-textarea").value.trim();
-        if (!jsonText) {
-            showStatus("injection.enterData", false);
+    for (const [nodeName, draftText] of draftEntries) {
+        try {
+            JSON.parse(draftText);
+        }
+        catch {
+            currentNodeName = nodeName;
+            renderInjectionPage();
+            showStatus("injection.invalidNodeJson", false, nodeName);
             return;
         }
-        if (!validateJSON(jsonText)) {
-            showStatus("injection.invalidJson", false);
-            return;
-        }
-        taskData = JSON.parse(jsonText);
-    }
-    else {
-        if (!uploadedFile) {
-            showStatus("injection.uploadRequired", false);
-            return;
-        }
-        taskData = JSON.parse(uploadedFile.content);
     }
     setButtonLoading(true);
     try {
-        for (const node of selectedNodes) {
+        for (const [nodeName, draftText] of draftEntries) {
             const response = await fetch("/api/push_injection_tasks", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    node: node.name,
-                    task_datas: taskData,
+                    node: nodeName,
+                    task_datas: JSON.parse(draftText),
                     timestamp: new Date().toISOString(),
                 }),
             });
             if (!response.ok)
                 throw new Error(`HTTP ${response.status}`);
         }
-        showStatus("injection.success", true);
-        clearForm();
+        nodeDrafts = {};
+        renderInjectionPage();
+        showStatus("injection.successBatch", true, String(draftEntries.length));
     }
     catch (e) {
         console.error(e);
@@ -428,60 +552,46 @@ async function handleSubmit() {
     }
 }
 /**
- * 设置提交按钮的加载状态
- * @param {boolean} loading - 是否正在加载
+ * 设置提交按钮的加载状态。
+ *
+ * @param {boolean} loading - 是否进入提交中状态
  * @returns {void}
  */
 function setButtonLoading(loading) {
-    const btn = document.getElementById("submit-btn");
-    btn.dataset.loading = loading ? "true" : "false";
+    const submitBtn = document.getElementById("submit-btn");
+    submitBtn.dataset.loading = loading ? "true" : "false";
     if (loading) {
-        btn.innerHTML = `<div class="spinner"></div>${t("injection.submitting")}`;
-        btn.disabled = true;
+        submitBtn.innerHTML = `<div class="spinner"></div>${t("injection.submitting")}`;
+        submitBtn.disabled = true;
     }
     else {
-        btn.innerHTML = t("injection.submit");
-        btn.disabled = false;
+        submitBtn.innerHTML = t("injection.submitAllDrafts");
+        submitBtn.disabled = !currentNodeName;
     }
 }
 /**
- * 重置任务注入表单
- * 清空选择、输入框和错误信息
- * @returns {void}
- */
-function clearForm() {
-    selectedNodes = [];
-    updateSelectedNodes();
-    document.getElementById("json-textarea").value = "";
-    hideError("json-error");
-    document.getElementById("file-input").value = "";
-    uploadedFile = null;
-    document.getElementById("file-info").style.display = "none";
-    hideError("file-error");
-    document.getElementById("search-input").value = "";
-    renderNodeList();
-}
-/**
- * 刷新任务注入表单的本地化文本
- * 包括文件名、错误提示、状态消息等
+ * 在语言切换后，重绘注入页中所有动态文本。
+ * 包括：错误提示、校验提示、底部状态提示和草稿预览相关文案。
+ *
  * @returns {void}
  */
 function refreshInjectionLocalizedText() {
-    if (uploadedFile) {
-        document.getElementById("file-name").textContent = t("injection.uploaded", uploadedFile.name);
+    const jsonError = document.getElementById("json-error");
+    const jsonErrorMessageKey = jsonError.dataset.messageKey;
+    if (jsonErrorMessageKey) {
+        jsonError.textContent = t(jsonErrorMessageKey, ...getLocalizedMessageArgs(jsonError));
     }
-    for (const elementId of ["json-error", "file-error"]) {
-        const errorDiv = document.getElementById(elementId);
-        const messageKey = errorDiv.dataset.messageKey;
-        if (messageKey) {
-            errorDiv.textContent = t(messageKey, ...getLocalizedMessageArgs(errorDiv));
-        }
+    const validationDiv = document.getElementById("json-validation");
+    const validationMessageKey = validationDiv.dataset.messageKey;
+    if (validationMessageKey) {
+        validationDiv.textContent = t(validationMessageKey, ...getLocalizedMessageArgs(validationDiv));
     }
     const statusDiv = document.getElementById("status-message");
     const statusMessageKey = statusDiv.dataset.messageKey;
     if (statusMessageKey) {
         renderStatusMessage(statusDiv, statusMessageKey, statusDiv.classList.contains("status-success"), getLocalizedMessageArgs(statusDiv));
     }
+    renderInjectionPage();
     const submitBtn = document.getElementById("submit-btn");
     if (submitBtn.dataset.loading === "true") {
         submitBtn.innerHTML = `<div class="spinner"></div>${t("injection.submitting")}`;
