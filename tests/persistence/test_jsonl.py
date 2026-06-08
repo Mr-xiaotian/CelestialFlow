@@ -69,7 +69,7 @@ class TestJsonlUtils:
         """测试加载任务-错误对，并验证其结构化解析为 PersistedErrorRecord"""
         pairs = load_task_error_pairs(sample_jsonl)
         # 第一行 meta 会被跳过（因为没有 task/error 键）
-        assert len(pairs) == 4
+        assert len(pairs) == 3
         task, error = pairs[0]
         assert task == 1
         assert error.error_type == "ValueError"
@@ -106,5 +106,4 @@ class TestJsonlUtils:
         assert pairs[0][0] == {"id": 1}
         assert pairs[0][1].error_type == "ValueError"
         assert pairs[0][1].error_message == "bad value"
-        assert pairs[0][1].error_repr == "ValueError(bad value)"
         assert str(pairs[1][1]) == "RuntimeError(boom)"

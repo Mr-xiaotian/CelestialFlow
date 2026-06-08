@@ -229,14 +229,11 @@ class TestUtilTypes:
         rec = PersistedErrorRecord(
             error_type="ValueError",
             error_message="bad value",
-            error_repr="ValueError('bad value')",
         )
         assert rec.error_type == "ValueError"
         assert rec.error_message == "bad value"
-        assert rec.error_repr == "ValueError('bad value')"
         assert rec.stage == ""
         assert rec.error_id is None
-        assert rec.timestamp == ""
         assert rec.ts is None
 
     def test_persisted_error_record_full(self):
@@ -244,15 +241,12 @@ class TestUtilTypes:
         rec = PersistedErrorRecord(
             error_type="RuntimeError",
             error_message="crash",
-            error_repr="RuntimeError('crash')",
             stage="Stage-1",
             error_id=42,
-            timestamp="2025-01-01T00:00:00",
             ts=1704067200.0,
         )
         assert rec.stage == "Stage-1"
         assert rec.error_id == 42
-        assert rec.timestamp == "2025-01-01T00:00:00"
         assert rec.ts == 1704067200.0
 
     def test_persisted_error_record_frozen(self):
@@ -260,7 +254,6 @@ class TestUtilTypes:
         rec = PersistedErrorRecord(
             error_type="TypeError",
             error_message="msg",
-            error_repr="repr",
         )
         import pytest
 
@@ -268,20 +261,18 @@ class TestUtilTypes:
             rec.error_type = "changed"
 
     def test_persisted_error_record_str(self):
-        """__str__ 返回 error_repr"""
+        """__str__ 返回 error_type(error_message)"""
         rec = PersistedErrorRecord(
             error_type="KeyError",
             error_message="missing",
-            error_repr="KeyError('missing')",
         )
-        assert str(rec) == "KeyError('missing')"
+        assert str(rec) == "KeyError(missing)"
 
     def test_persisted_error_record_get_group_key(self):
         """get_group_key 返回 (error_type, error_message)"""
         rec = PersistedErrorRecord(
             error_type="OSError",
             error_message="file not found",
-            error_repr="OSError('file not found')",
         )
         key = rec.get_group_key()
         assert key == ("OSError", "file not found")
