@@ -3,14 +3,6 @@
  * 包含数值格式化、时间转换、设备检测及复杂的 UI 辅助逻辑
  */
 /**
- * 将时间戳转换为本地时间字符串
- * @param {number} timestamp - Unix 时间戳（秒）
- * @returns {string} 本地时间字符串
- */
-function renderLocalTime(timestamp) {
-    return new Date(timestamp * 1000).toLocaleString();
-}
-/**
  * 将大数格式化为易读的字符串
  * - 小于 10,000,000 (一千万)：使用千分位逗号分隔，如 1,234,567
  * - 大于等于 10,000,000：转换为科学计数法格式的 HTML，如 ~1.23×10⁹

@@ -92,7 +92,7 @@ function renderErrors() {
         <td class="error-cell" data-label="${t("errors.colMessage")}" title="${escapeHtml(e.error_repr)}">${escapeHtml(e.error_repr)}</td>
         <td data-label="${t("errors.colNode")}">${escapeHtml(e.stage)}</td>
         <td data-label="${t("errors.colTask")}">${escapeHtml(e.task_repr)}</td>
-        <td data-label="${t("errors.colTime")}">${renderLocalTime(e.ts)}</td>
+        <td data-label="${t("errors.colTime")}">${formatTimestamp(e.ts)}</td>
       `;
             errorsTableBody.appendChild(row);
         }
