@@ -20,7 +20,9 @@ type WebErrorsConfig = {
   sortOrder: "newest" | "oldest"; // 错误日志默认排序方式
 };
 
-type WebInjectionConfig = Record<string, never>;
+type WebInjectionConfig = {
+  showInjectableOnly: boolean; // 注入页是否只显示可注入节点
+};
 
 type WebConfig = {
   global: WebGlobalConfig; // 全局共享配置
@@ -64,7 +66,9 @@ const DEFAULT_WEB_CONFIG: WebConfig = {
     pageSize: 50,
     sortOrder: "newest",
   },
-  injection: {},
+  injection: {
+    showInjectableOnly: true,
+  },
 };
 
 /** 仪表盘栏位 key 到真实 DOM 选择器的映射。 */
@@ -116,7 +120,7 @@ function normalizeWebConfig(
         layout: { ...DEFAULT_WEB_CONFIG.dashboard.layout },
       },
       errors: { ...DEFAULT_WEB_CONFIG.errors },
-      injection: {},
+      injection: { ...DEFAULT_WEB_CONFIG.injection },
     };
   }
 
@@ -174,7 +178,9 @@ function normalizeWebConfig(
       sortOrder:
         legacyConfig.errorSortOrder ?? DEFAULT_WEB_CONFIG.errors.sortOrder,
     },
-    injection: {},
+    injection: {
+      ...DEFAULT_WEB_CONFIG.injection,
+    },
   };
 }
 
@@ -420,6 +426,16 @@ function applyConfig(): void {
 
   // 应用仪表盘布局
   applyDashboardLayout();
+
+  // 应用注入页节点过滤开关
+  webConfig.injection.showInjectableOnly =
+    webConfig.injection.showInjectableOnly !== false;
+  const injectableOnlyToggle = document.getElementById(
+    "injectable-only-toggle",
+  ) as HTMLInputElement | null;
+  if (injectableOnlyToggle) {
+    injectableOnlyToggle.checked = webConfig.injection.showInjectableOnly;
+  }
 
   // 应用国际化
   applyI18nDOM();

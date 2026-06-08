@@ -27,5 +27,7 @@
         "pageSize": 20,
         "sortOrder": "newest"
     },
-    "injection": {}
+    "injection": {
+        "showInjectableOnly": true
+    }
 }

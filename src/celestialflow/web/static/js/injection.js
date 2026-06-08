@@ -78,7 +78,7 @@ function renderStatusMessage(statusDiv, messageKey, isSuccess, args = []) {
 function getSearchInput() {
     return document.getElementById("search-input");
 }
-/** 获取“仅显示可注入节点”勾选框。 */
+/** 获取设置面板中的“仅显示可注入节点”勾选框。 */
 function getInjectableOnlyToggle() {
     return document.getElementById("injectable-only-toggle");
 }
@@ -127,11 +127,6 @@ function setupEventListeners() {
     // 搜索节点时实时过滤左侧节点浏览列表。
     getSearchInput().addEventListener("input", (e) => {
         renderNodeList(e.target.value);
-    });
-    // 切换“仅显示可注入节点”时同时刷新列表和待发送预览。
-    getInjectableOnlyToggle().addEventListener("change", () => {
-        renderNodeList(getSearchInput().value);
-        renderDraftList();
     });
     // 编辑 JSON 时同步写回对应节点草稿，并更新右侧提示与底部预览。
     getJsonTextarea().addEventListener("input", (e) => {

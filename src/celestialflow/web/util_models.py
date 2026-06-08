@@ -79,7 +79,9 @@ class ErrorsPageConfigModel(BaseModel):
 
 
 class InjectionPageConfigModel(BaseModel):
-    """注入页配置模型。当前保留为空对象，便于后续扩展。"""
+    """注入页配置模型。"""
+
+    showInjectableOnly: bool = True
 
 
 class WebConfigModel(BaseModel):

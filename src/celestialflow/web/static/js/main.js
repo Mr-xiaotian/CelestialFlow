@@ -19,6 +19,7 @@ const autoRefreshToggle = document.getElementById("auto-refresh-toggle"); // 自
 const errorPageSizeSelect = document.getElementById("error-page-size"); // 错误每页条数下拉框
 const structureEdgeDeltaToggle = document.getElementById("structure-edge-delta"); // 结构图边增量显示开关
 const statusTotalPendingToggle = document.getElementById("status-total-pending-toggle"); // 节点状态卡等待值模式开关
+const injectableOnlyToggle = document.getElementById("injectable-only-toggle"); // 注入页仅显示可注入节点开关
 const settingsCurrentGroup = document.getElementById("settings-current-group"); // 当前页设置分组
 const settingsCurrentEmpty = document.getElementById("settings-current-empty"); // 当前页无专属设置提示
 const settingsCurrentItems = document.querySelectorAll("[data-settings-tab]"); // 当前页设置项列表
@@ -225,6 +226,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     statusTotalPendingToggle.addEventListener("change", async () => {
         config.dashboard.useTotalPendingInStatus = statusTotalPendingToggle.checked;
         renderDashboard();
+        showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
+    });
+    // 切换注入页节点过滤模式：立即刷新节点列表与草稿预览并保存配置
+    injectableOnlyToggle.addEventListener("change", async () => {
+        config.injection.showInjectableOnly = injectableOnlyToggle.checked;
+        renderInjectionPage();
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
     });
     // 切换界面语言：更新所有文本并重新渲染动态内容

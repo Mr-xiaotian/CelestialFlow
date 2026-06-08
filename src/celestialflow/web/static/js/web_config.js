@@ -21,7 +21,9 @@ const DEFAULT_WEB_CONFIG = {
         pageSize: 50,
         sortOrder: "newest",
     },
-    injection: {},
+    injection: {
+        showInjectableOnly: true,
+    },
 };
 /** 仪表盘栏位 key 到真实 DOM 选择器的映射。 */
 const PANEL_SELECTOR_MAP = {
@@ -66,7 +68,7 @@ function normalizeWebConfig(rawConfig) {
                 layout: { ...DEFAULT_WEB_CONFIG.dashboard.layout },
             },
             errors: { ...DEFAULT_WEB_CONFIG.errors },
-            injection: {},
+            injection: { ...DEFAULT_WEB_CONFIG.injection },
         };
     }
     if (isGroupedWebConfig(rawConfig)) {
@@ -116,7 +118,9 @@ function normalizeWebConfig(rawConfig) {
             pageSize: legacyConfig.errorPageSize ?? DEFAULT_WEB_CONFIG.errors.pageSize,
             sortOrder: legacyConfig.errorSortOrder ?? DEFAULT_WEB_CONFIG.errors.sortOrder,
         },
-        injection: {},
+        injection: {
+            ...DEFAULT_WEB_CONFIG.injection,
+        },
     };
 }
 // 全局状态
@@ -340,6 +344,13 @@ function applyConfig() {
         webConfig.dashboard.useTotalPendingInStatus;
     // 应用仪表盘布局
     applyDashboardLayout();
+    // 应用注入页节点过滤开关
+    webConfig.injection.showInjectableOnly =
+        webConfig.injection.showInjectableOnly !== false;
+    const injectableOnlyToggle = document.getElementById("injectable-only-toggle");
+    if (injectableOnlyToggle) {
+        injectableOnlyToggle.checked = webConfig.injection.showInjectableOnly;
+    }
     // 应用国际化
     applyI18nDOM();
 }

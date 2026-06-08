@@ -304,6 +304,21 @@
                                 </select>
                                 </div>
                                 <div
+                                    class="settings-item"
+                                    data-settings-tab="task-injection"
+                                >
+                                <label
+                                    for="injectable-only-toggle"
+                                    data-i18n="settings.injectionInjectableOnly"
+                                    >仅显示可注入节点</label
+                                >
+                                <input
+                                    id="injectable-only-toggle"
+                                    class="settings-toggle"
+                                    type="checkbox"
+                                />
+                                </div>
+                                <div
                                     id="settings-current-empty"
                                     class="settings-empty hidden"
                                     data-i18n="settings.current.empty"
@@ -476,17 +491,6 @@
                                 placeholder="搜索节点..."
                             />
                         </div>
-
-                        <label class="injectable-toggle" for="injectable-only-toggle">
-                            <input
-                                type="checkbox"
-                                id="injectable-only-toggle"
-                                checked
-                            />
-                            <span data-i18n="injection.injectableOnly"
-                                >仅显示可注入节点</span
-                            >
-                        </label>
 
                         <!-- 节点列表 -->
                         <div class="node-list" id="node-list"></div>
