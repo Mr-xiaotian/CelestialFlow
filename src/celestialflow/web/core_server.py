@@ -64,7 +64,7 @@ class TaskWebServer:
         self.error_store: list[dict[str, Any]] = []
         self.analysis_store: dict[str, Any] = {}
         self.summary_store: dict[str, Any] = {}
-        self.injection_tasks: list[dict[str, Any]] = []  # 存储前端注入任务
+        self.injection_tasks: dict[str, list[Any]] = {}  # 存储前端注入任务
 
         # 各类 store 的 rev + payload 需要原子读写，避免 pull 读到撕裂快照
         self.status_lock: threading.Lock = threading.Lock()

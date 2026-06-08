@@ -125,24 +125,25 @@ class TaskReporter:
             if not res.ok:
                 raise ReporterError(f"Failed to pull task injection: {res.status_code}")
 
-            injection_tasks: list[dict[str, Any]] = res.json()
-            for injection in injection_tasks:
-                target_stage: str | None = injection.get("node")
-                task_datas: list[Any] | None = injection.get("task_datas")
-                if target_stage is None or task_datas is None:
-                    continue
-
-                # 这里你可以按需注入到不同的节点
-                task_datas = [
+            injection_tasks: dict[str, list[Any]] = res.json()
+            tasks_by_stage = {
+                target_stage: [
                     task if task != "TERMINATION_SIGNAL" else TERMINATION_SIGNAL
                     for task in task_datas
                 ]
-                try:
-                    self.task_graph.put_stage_queue(
-                        {target_stage: task_datas}, put_termination_signal=False
-                    )
+                for target_stage, task_datas in injection_tasks.items()
+            }
+            if not tasks_by_stage:
+                return
+
+            try:
+                self.task_graph.put_stage_queue(
+                    tasks_by_stage, put_termination_signal=False
+                )
+                for target_stage, task_datas in tasks_by_stage.items():
                     self.log_inlet.inject_tasks_success(target_stage, task_datas)
-                except Exception as e:
+            except Exception as e:
+                for target_stage, task_datas in tasks_by_stage.items():
                     self.log_inlet.inject_tasks_failed(target_stage, task_datas, e)
         except Exception as e:
             self.log_inlet.pull_tasks_failed(e)

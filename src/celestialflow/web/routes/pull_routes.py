@@ -126,12 +126,12 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         return {"interval": server.report_interval}
 
     @router.get("/api/pull_task_injection")
-    def pull_task_injection() -> list[dict[str, Any]]:
-        """取出并清空待执行的前端注入任务列表。
+    def pull_task_injection() -> dict[str, list[Any]]:
+        """取出并清空待执行的前端注入任务映射。
 
-        :return: 待执行注入任务列表
+        :return: 待执行注入任务映射
         """
         with server.task_injection_lock:
             tasks = server.injection_tasks.copy()
-            server.injection_tasks.clear()
+            server.injection_tasks = {}
         return tasks

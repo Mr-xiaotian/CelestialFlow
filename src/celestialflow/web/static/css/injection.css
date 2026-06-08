@@ -454,24 +454,11 @@
 /* 只读的大型 JSON 预览区。 */
 #task-injection .draft-preview,
 #task-injection .empty-placeholder {
-  margin: 0;
   padding: 1rem;
-  min-height: 12rem;
-  max-height: 24rem;
-  overflow: auto;
-  border: 1px solid var(--carbon-200);
-  border-radius: 0.75rem;
-  background: var(--carbon-50);
   font-family: "Monaco", "Menlo", monospace;
   font-size: 0.75rem;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: var(--carbon-700);
 
   .dark-theme & {
-    background: var(--carbon-800);
-    border-color: var(--carbon-600);
     color: var(--carbon-200);
   }
 }

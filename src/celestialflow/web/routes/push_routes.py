@@ -153,7 +153,8 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         """
         try:
             with server.task_injection_lock:
-                server.injection_tasks.append(data.model_dump(mode="json"))
+                for node_name, task_list in data.root.items():
+                    server.injection_tasks[node_name] = task_list
             return {"ok": True}
         except Exception as e:
             return JSONResponse(

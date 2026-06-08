@@ -1,6 +1,3 @@
-from datetime import datetime
-
-
 def test_store_snapshot_methods_return_isolated_copies(web_server):
     """测试 server 快照接口：返回值不应与内部 store 共享可变引用"""
     raw_status = {"s1": {"tasks_succeeded": 1, "total_remaining_time": 2.0}}
@@ -97,12 +94,11 @@ def test_status_push_pull(client):
     assert pull_resp_cached.json()["data"] is None
 
 def test_task_injection(client):
-    """测试任务手动注入流程：验证 POST 注入任务到队列，以及调度器的 GET 拉取消费逻辑"""
+    """测试任务手动注入流程：验证服务端按节点更新 task list，并在 pull 后清空。"""
     # 1. 注入任务
     injection_data = {
-        "node": "StageA",
-        "task_datas": [1, 2, 3],
-        "timestamp": datetime.now().isoformat()
+        "StageA": [1, 2, 3],
+        "StageB": ["TERMINATION_SIGNAL"],
     }
     push_resp = client.post("/api/push_injection_tasks", json=injection_data)
     assert push_resp.status_code == 200
@@ -112,13 +108,50 @@ def test_task_injection(client):
     pull_resp = client.get("/api/pull_task_injection")
     assert pull_resp.status_code == 200
     tasks = pull_resp.json()
-    assert len(tasks) == 1
-    assert tasks[0]["node"] == "StageA"
-    assert tasks[0]["task_datas"] == [1, 2, 3]
+    assert tasks == injection_data
 
     # 3. 再次拉取应为空（已清空）
     pull_again = client.get("/api/pull_task_injection")
-    assert pull_again.json() == []
+    assert pull_again.json() == {}
+
+
+def test_task_injection_overwrites_tasklist_per_node(client):
+    """新的 push 会逐个节点更新 task list，而不是把整包追加成列表。"""
+    client.post(
+        "/api/push_injection_tasks",
+        json={
+            "StageA": [1, 2, 3],
+            "StageB": ["TERMINATION_SIGNAL"],
+        },
+    )
+
+    client.post(
+        "/api/push_injection_tasks",
+        json={
+            "StageA": [9],
+            "StageC": ["new"],
+        },
+    )
+
+    pull_resp = client.get("/api/pull_task_injection")
+
+    assert pull_resp.status_code == 200
+    assert pull_resp.json() == {
+        "StageA": [9],
+        "StageB": ["TERMINATION_SIGNAL"],
+        "StageC": ["new"],
+    }
+
+
+def test_task_injection_requires_tasklist_mapping(client):
+    """任务注入接口要求每个节点值都是任务列表数组。"""
+    invalid_payload = {
+        "StageA": {"user_id": 1},
+    }
+
+    response = client.post("/api/push_injection_tasks", json=invalid_payload)
+
+    assert response.status_code == 422
 
 def test_errors_pagination(client):
     """测试错误日志分页与过滤 API：验证后端对错误记录的聚合与分页逻辑是否正确"""

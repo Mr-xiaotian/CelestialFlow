@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 
 
 class StructureModel(BaseModel):
@@ -42,12 +41,8 @@ class AnalysisModel(BaseModel):
     analysis: dict[str, Any]
 
 
-class TaskInjectionModel(BaseModel):
-    """任务注入请求模型"""
-
-    node: str
-    task_datas: list[Any]
-    timestamp: datetime
+class TaskInjectionModel(RootModel[dict[str, list[Any]]]):
+    """任务注入请求模型，格式为 {node_name: [tasklist]}"""
 
 
 class DashboardConfigModel(BaseModel):

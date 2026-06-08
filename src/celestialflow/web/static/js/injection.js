@@ -1,6 +1,7 @@
 /**
  * 任务手动注入模块
- * 当前设计改为单节点编辑：每次只编辑并提交一个节点的注入数据。
+ * 当前设计改为单节点编辑 + 批量提交：每个节点维护独立草稿，最终统一发送为
+ * { node_name: [tasklist] } 结构。
  */
 // ======== 页面级状态 ========
 // 当前正在编辑的节点名称；未选择节点时为 null。
@@ -91,7 +92,6 @@ function getJsonTextarea() {
  */
 function getEditorButtons() {
     return [
-        document.getElementById("submit-btn"),
         document.getElementById("validate-json-btn"),
         document.getElementById("format-json-btn"),
         document.getElementById("clear-draft-btn"),
@@ -202,6 +202,7 @@ function renderInjectionPage() {
     renderNodeList(getSearchInput()?.value || "");
     renderCurrentNodeEditor();
     renderDraftList();
+    updateSubmitButtonAvailability();
 }
 /**
  * 渲染左侧节点浏览列表。
@@ -312,6 +313,64 @@ function setDraftForNode(nodeName, value) {
     }
 }
 /**
+ * 将节点草稿解析为任务列表。
+ * 任务注入的新结构要求每个节点值都必须是 JSON 数组。
+ *
+ * @param {string} draftText - 节点草稿文本
+ * @returns {{ ok: true; taskList: unknown[] } | { ok: false; reason: "invalid_json" | "not_array" }}
+ */
+function parseDraftTaskList(draftText) {
+    try {
+        const parsed = JSON.parse(draftText);
+        if (!Array.isArray(parsed)) {
+            return { ok: false, reason: "not_array" };
+        }
+        return { ok: true, taskList: parsed };
+    }
+    catch {
+        return { ok: false, reason: "invalid_json" };
+    }
+}
+/**
+ * 构建最终提交给服务端的注入映射。
+ *
+ * @returns {{
+ *   payload: Record<string, unknown[]>;
+ *   invalidNode: string | null;
+ *   invalidReason: "invalid_json" | "not_array" | null;
+ * }}
+ */
+function buildPendingInjectionPayload() {
+    const payload = {};
+    let invalidNode = null;
+    let invalidReason = null;
+    for (const [nodeName, draftText] of Object.entries(nodeDrafts)) {
+        if (!isInjectableNode(nodeName) || !draftText.trim())
+            continue;
+        const parsed = parseDraftTaskList(draftText);
+        if (parsed.ok) {
+            payload[nodeName] = parsed.taskList;
+            continue;
+        }
+        if (!invalidNode) {
+            invalidNode = nodeName;
+            invalidReason = "reason" in parsed ? parsed.reason : "invalid_json";
+        }
+    }
+    return { payload, invalidNode, invalidReason };
+}
+/**
+ * 按是否存在可提交草稿刷新底部提交按钮状态。
+ *
+ * @returns {void}
+ */
+function updateSubmitButtonAvailability() {
+    const submitBtn = document.getElementById("submit-btn");
+    if (!submitBtn || submitBtn.dataset.loading === "true")
+        return;
+    submitBtn.disabled = Object.keys(buildPendingInjectionPayload().payload).length === 0;
+}
+/**
  * 渲染底部“待发送数据预览”。
  * 这里尽量贴近最终发送的数据结构，便于用户肉眼检查。
  *
@@ -321,28 +380,33 @@ function renderDraftList() {
     const draftPreview = document.getElementById("draft-preview");
     if (!draftPreview)
         return;
-    const pendingEntries = Object.entries(nodeDrafts)
-        .filter(([, draftText]) => draftText.trim())
-        .map(([nodeName, draftText]) => {
-        try {
-            return {
-                node: nodeName,
-                task_datas: JSON.parse(draftText),
-            };
+    const previewPayload = {};
+    for (const [nodeName, draftText] of Object.entries(nodeDrafts)) {
+        if (!draftText.trim())
+            continue;
+        const parsed = parseDraftTaskList(draftText);
+        if (parsed.ok) {
+            previewPayload[nodeName] = parsed.taskList;
         }
-        catch {
-            return {
-                node: nodeName,
-                invalid_json: true,
-                task_datas_raw: draftText,
-            };
+        else {
+            const reason = "reason" in parsed ? parsed.reason : "invalid_json";
+            previewPayload[nodeName] =
+                reason === "invalid_json"
+                    ? {
+                        invalid_json: true,
+                        task_list_raw: draftText,
+                    }
+                    : {
+                        invalid_task_list: true,
+                        task_list_raw: draftText,
+                    };
         }
-    });
-    if (!pendingEntries.length) {
+    }
+    if (!Object.keys(previewPayload).length) {
         draftPreview.textContent = t("injection.noDrafts");
         return;
     }
-    draftPreview.textContent = JSON.stringify(pendingEntries, null, 2);
+    draftPreview.textContent = JSON.stringify(previewPayload, null, 2);
 }
 /**
  * 显示 JSON 语法错误等内联错误信息。
@@ -387,7 +451,7 @@ function setValidationMessage(messageKey, state, args = []) {
  * 校验当前节点草稿的 JSON 格式。
  *
  * @param {boolean} [showSyntaxError=true] - 是否显示内联语法错误
- * @returns {boolean} 当前草稿是否为合法 JSON
+ * @returns {boolean} 当前草稿是否为合法 JSON 数组
  */
 function validateCurrentDraft(showSyntaxError = true) {
     if (!currentNodeName) {
@@ -401,22 +465,21 @@ function validateCurrentDraft(showSyntaxError = true) {
         setValidationMessage("injection.validationEmpty", "neutral");
         return false;
     }
-    try {
-        JSON.parse(draftText);
+    const parsed = parseDraftTaskList(draftText);
+    if (parsed.ok) {
         hideError("json-error");
         setValidationMessage("injection.validationOk", "success");
         return true;
     }
-    catch {
-        if (showSyntaxError) {
-            showError("json-error", "json.invalid");
-        }
-        else {
-            hideError("json-error");
-        }
-        setValidationMessage("injection.invalidJson", "error");
-        return false;
+    const reason = "reason" in parsed ? parsed.reason : "invalid_json";
+    if (showSyntaxError) {
+        showError("json-error", reason === "invalid_json" ? "json.invalid" : "injection.invalidTaskList");
     }
+    else {
+        hideError("json-error");
+    }
+    setValidationMessage(reason === "invalid_json" ? "injection.invalidJson" : "injection.invalidTaskList", "error");
+    return false;
 }
 /**
  * 对当前节点草稿执行 JSON 格式化。
@@ -502,46 +565,38 @@ function showStatus(messageKey, isSuccess = false, ...args) {
 }
 /**
  * 提交所有待发送节点草稿。
- * 提交前会再次验证每个节点的 JSON 格式，并在成功后清空全部草稿。
+ * 提交前会再次验证每个节点都是 JSON 数组，并统一发送为 { node_name: [tasklist] }。
  *
  * @returns {Promise<void>}
  */
 async function handleSubmit() {
     syncInjectionStateWithStatuses();
-    const draftEntries = Object.entries(nodeDrafts).filter(([nodeName, draftText]) => isInjectableNode(nodeName) && draftText.trim());
-    if (!draftEntries.length) {
+    const { payload, invalidNode, invalidReason } = buildPendingInjectionPayload();
+    const targetNodes = Object.keys(payload);
+    if (invalidNode) {
+        currentNodeName = invalidNode;
+        renderInjectionPage();
+        showStatus(invalidReason === "invalid_json"
+            ? "injection.invalidNodeJson"
+            : "injection.invalidNodeTaskList", false, invalidNode);
+        return;
+    }
+    if (!targetNodes.length) {
         showStatus("injection.noDraftsToSubmit", false);
         return;
     }
-    for (const [nodeName, draftText] of draftEntries) {
-        try {
-            JSON.parse(draftText);
-        }
-        catch {
-            currentNodeName = nodeName;
-            renderInjectionPage();
-            showStatus("injection.invalidNodeJson", false, nodeName);
-            return;
-        }
-    }
     setButtonLoading(true);
     try {
-        for (const [nodeName, draftText] of draftEntries) {
-            const response = await fetch("/api/push_injection_tasks", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    node: nodeName,
-                    task_datas: JSON.parse(draftText),
-                    timestamp: new Date().toISOString(),
-                }),
-            });
-            if (!response.ok)
-                throw new Error(`HTTP ${response.status}`);
-        }
+        const response = await fetch("/api/push_injection_tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        if (!response.ok)
+            throw new Error(`HTTP ${response.status}`);
         nodeDrafts = {};
         renderInjectionPage();
-        showStatus("injection.successBatch", true, String(draftEntries.length));
+        showStatus("injection.successBatch", true, String(targetNodes.length));
     }
     catch (e) {
         console.error(e);
@@ -566,7 +621,7 @@ function setButtonLoading(loading) {
     }
     else {
         submitBtn.innerHTML = t("injection.submitAllDrafts");
-        submitBtn.disabled = !currentNodeName;
+        updateSubmitButtonAvailability();
     }
 }
 /**
