@@ -382,7 +382,7 @@ function renderDraftList() {
         return;
     const previewPayload = {};
     for (const [nodeName, draftText] of Object.entries(nodeDrafts)) {
-        if (!draftText.trim())
+        if (!isInjectableNode(nodeName) || !draftText.trim())
             continue;
         const parsed = parseDraftTaskList(draftText);
         if (parsed.ok) {
