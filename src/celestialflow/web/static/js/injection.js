@@ -278,7 +278,6 @@ function renderCurrentNodeEditor() {
         textarea.value = "";
         textarea.placeholder = t("injection.selectNodeHint");
         textarea.disabled = true;
-        hideError("json-error");
         setValidationMessage("injection.validationSelectNode", "neutral");
     }
     else {
@@ -427,32 +426,8 @@ function renderDraftList() {
     draftPreview.textContent = JSON.stringify(previewPayload, null, 2);
 }
 /**
- * 显示 JSON 语法错误等内联错误信息。
- *
- * @param {string} elementId - 错误信息容器 ID
- * @param {string} messageKey - 翻译键
- * @param {...string[]} args - 占位参数
- * @returns {void}
- */
-function showError(elementId, messageKey, ...args) {
-    const errorDiv = document.getElementById(elementId);
-    setLocalizedMessageMeta(errorDiv, messageKey, args);
-    errorDiv.textContent = t(messageKey, ...args);
-    errorDiv.style.display = "block";
-}
-/**
- * 隐藏指定的内联错误信息。
- *
- * @param {string} elementId - 错误信息容器 ID
- * @returns {void}
- */
-function hideError(elementId) {
-    const errorDiv = document.getElementById(elementId);
-    errorDiv.style.display = "none";
-    clearLocalizedMessageMeta(errorDiv);
-}
-/**
  * 设置编辑区下方的校验状态文字。
+ * 该区域同时承担错误、成功和中性提示的统一展示职责。
  *
  * @param {string} messageKey - 翻译键
  * @param {ValidationState} state - 展示状态
@@ -466,6 +441,17 @@ function setValidationMessage(messageKey, state, args = []) {
     validationDiv.className = `validation-message validation-${state}`;
 }
 /**
+ * 清空编辑区下方的提示文字。
+ *
+ * @returns {void}
+ */
+function clearValidationMessage() {
+    const validationDiv = document.getElementById("json-validation");
+    clearLocalizedMessageMeta(validationDiv);
+    validationDiv.textContent = "";
+    validationDiv.className = "validation-message";
+}
+/**
  * 校验当前节点草稿的 JSON 格式。
  *
  * @param {boolean} [showSyntaxError=true] - 是否显示内联语法错误
@@ -473,30 +459,23 @@ function setValidationMessage(messageKey, state, args = []) {
  */
 function validateCurrentDraft(showSyntaxError = true) {
     if (!currentNodeName) {
-        hideError("json-error");
         setValidationMessage("injection.validationSelectNode", "neutral");
         return false;
     }
     const draftText = (nodeDrafts[currentNodeName] || "").trim();
     if (!draftText) {
-        hideError("json-error");
         setValidationMessage("injection.validationEmpty", "neutral");
         return false;
     }
     const parsed = parseDraftTaskList(draftText);
     if (parsed.ok) {
-        hideError("json-error");
         setValidationMessage("injection.validationOk", "success");
         return true;
     }
     const reason = "reason" in parsed ? parsed.reason : "invalid_json";
-    if (showSyntaxError) {
-        showError("json-error", reason === "invalid_json" ? "json.invalid" : "injection.invalidTaskList");
-    }
-    else {
-        hideError("json-error");
-    }
-    setValidationMessage(reason === "invalid_json" ? "injection.invalidJson" : "injection.invalidTaskList", "error");
+    setValidationMessage(reason === "invalid_json"
+        ? "injection.invalidJson"
+        : "injection.invalidTaskList", "error");
     return false;
 }
 /**
@@ -540,7 +519,6 @@ function clearCurrentDraft() {
     getJsonTextarea().value = "";
     renderNodeList(getSearchInput().value);
     renderDraftList();
-    hideError("json-error");
     setValidationMessage("injection.validationEmpty", "neutral");
 }
 /**
@@ -651,11 +629,6 @@ function setButtonLoading(loading) {
  * @returns {void}
  */
 function refreshInjectionLocalizedText() {
-    const jsonError = document.getElementById("json-error"); // JSON 语法错误提示
-    const jsonErrorMessageKey = jsonError.dataset.messageKey; // 当前错误提示翻译键
-    if (jsonErrorMessageKey) {
-        jsonError.textContent = t(jsonErrorMessageKey, ...getLocalizedMessageArgs(jsonError));
-    }
     const validationDiv = document.getElementById("json-validation"); // 编辑器下方校验提示
     const validationMessageKey = validationDiv.dataset.messageKey; // 当前校验提示翻译键
     if (validationMessageKey) {

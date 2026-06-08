@@ -181,13 +181,6 @@
   }
 }
 
-/* JSON 语法错误提示。 */
-#task-injection .error-message {
-  margin-top: 0.35rem;
-  font-size: 0.75rem;
-  color: var(--crimson-600);
-}
-
 /* 校验结果提示。 */
 #task-injection .validation-message {
   min-height: 1.25rem;
