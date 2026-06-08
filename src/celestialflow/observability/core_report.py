@@ -212,7 +212,7 @@ class TaskReporter:
         """
         all_errors: list[dict[str, Any]] = load_jsonl_logs(
             path=jsonl_path,
-            keys=["ts", "error_id", "error_repr", "error", "stage", "task_repr"],
+            keys=["ts", "error_id", "error_type", "error_message", "stage", "task"],
         )
 
         payload: dict[str, Any] = {

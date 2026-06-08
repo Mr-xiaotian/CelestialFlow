@@ -136,3 +136,24 @@ function calcRemainTime(processed: number, pending: number, elapsed: number) {
   }
   return 0
 }
+
+/**
+ * 将对象格式化为字符串，自动转义换行、截断超长文本。
+ * @param {any} obj - 任意对象
+ * @param {number} max_length - 显示的最大字符数（超出将被截断）
+ * @returns {string} 格式化字符串
+ */
+function format_repr(obj, max_length) {
+    let obj_str = String(obj).replace(/\\/g, "\\\\").replace(/\n/g, "\\n");
+    if (max_length <= 0 || obj_str.length <= max_length) {
+        return obj_str;
+    }
+
+    // 截断逻辑（前 2/3 + ... + 后 1/3）
+    const segment_len = Math.max(1, Math.floor(max_length / 3));
+
+    const first_part = obj_str.slice(0, segment_len * 2);
+    const last_part = obj_str.slice(-segment_len);
+
+    return `${first_part}...${last_part}`;
+}

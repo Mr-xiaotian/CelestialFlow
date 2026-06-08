@@ -48,11 +48,13 @@ def filter_errors(
         if normalized_node and stage != normalized_node:
             continue
         if normalized_keyword:
-            error_repr = str(item.get("error_repr", "")).lower()
-            task_repr = str(item.get("task_repr", "")).lower()
+            error_type = str(item.get("error_type", "")).lower()
+            error_message = str(item.get("error_message", "")).lower()
+            task = str(item.get("task", "")).lower()
             if (
-                normalized_keyword not in error_repr
-                and normalized_keyword not in task_repr
+                normalized_keyword not in error_type
+                and normalized_keyword not in error_message
+                and normalized_keyword not in task
             ):
                 continue
         filtered.append(item)

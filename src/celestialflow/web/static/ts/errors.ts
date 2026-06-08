@@ -3,8 +3,18 @@
  * 处理错误记录的异步拉取、前端分页逻辑以及按节点/关键词搜索的过滤展示
  */
 
+/** 单条错误数据定义 */
+type ErrorData = {
+  ts: number; // 错误发生的时间戳，单位为秒
+  stage: string; // 错误发生的节点/阶段名称，用于节点筛选
+  error_id: number; // 错误的唯一标识ID，全局唯一
+  error_type: string; // 错误的分类类型，用于区分不同类别的错误
+  error_message: string; // 错误的具体描述信息，是错误的详细文本内容
+  task: string; // 触发该错误的任务名称，关联错误所属的业务任务
+};
+
 // 全局状态
-let errors: any[] = []; // 错误记录列表
+let errors: ErrorData[] = []; // 错误记录列表
 let currentPage = 1; // 当前分页页码
 let pageSize = 10; // 每页显示条数
 let errorSortOrder: "newest" | "oldest" = "newest"; // 错误日志默认排序
@@ -26,6 +36,7 @@ const paginationContainer = document.getElementById("pager-container") as HTMLEl
  * @param {number} pageSizeValue - 每页大小
  * @param {string} node - 节点筛选条件
  * @param {string} keyword - 搜索关键词
+ * @param {string} sortOrder - 排序顺序（"newest" 或 "oldest"）
  * @returns {string} 组合后的查询键
  */
 function buildErrorsQueryKey(
@@ -80,7 +91,7 @@ async function loadErrors(forceReload = false): Promise<boolean> {
       return false;
     }
 
-    errors = Array.isArray(data.data) ? data.data : [];
+    errors = Array.isArray(data.data) ? (data.data as ErrorData[]) : [];
     const changed = errorsRev !== Number(data.rev);
     errorsRev = Number(data.rev);
     return changed || forceReload;
@@ -106,12 +117,16 @@ function renderErrors() {
       const e = pageItems[i];
       const index = (currentPage - 1) * pageSize + i + 1;
       const row = document.createElement("tr");
+      const errorFull = `${e.error_type}(${e.error_message})`;
+      const errorRepr = format_repr(errorFull, 100);
+      const taskRepr = format_repr(e.task, 100);
+
       row.innerHTML = `
         <td data-label="#">${index}</td>
         <td class="error-id" data-label="${t("errors.colId")}">${e.error_id}</td>
-        <td class="error-cell" data-label="${t("errors.colMessage")}" title="${escapeHtml(e.error_repr)}">${escapeHtml(e.error_repr)}</td>
+        <td class="error-cell" data-label="${t("errors.colMessage")}" title="${escapeHtml(errorFull)}">${escapeHtml(errorRepr)}</td>
         <td data-label="${t("errors.colNode")}">${escapeHtml(e.stage)}</td>
-        <td data-label="${t("errors.colTask")}">${escapeHtml(e.task_repr)}</td>
+        <td data-label="${t("errors.colTask")}" title="${escapeHtml(e.task)}">${escapeHtml(taskRepr)}</td>
         <td data-label="${t("errors.colTime")}">${formatTimestamp(e.ts)}</td>
       `;
       errorsTableBody.appendChild(row);

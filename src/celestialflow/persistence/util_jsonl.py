@@ -36,13 +36,20 @@ def _parse_error_record(item: dict[str, Any]) -> PersistedErrorRecord:
     """
     error_repr = str(item.get("error_repr") or item.get("error") or "")
     legacy_error_type, legacy_error_message = _split_error_repr(error_repr)
+    error_type = str(item.get("error_type") or legacy_error_type)
+    error_message = str(item.get("error_message") or legacy_error_message)
+
+    if not error_repr:
+        error_repr = (
+            f"{error_type}({error_message})" if error_message else error_type
+        )
 
     error_id = item.get("error_id")
     ts = item.get("ts")
 
     return PersistedErrorRecord(
-        error_type=str(item.get("error_type") or legacy_error_type),
-        error_message=str(item.get("error_message") or legacy_error_message),
+        error_type=error_type,
+        error_message=error_message,
         error_repr=error_repr,
         stage=str(item.get("stage") or ""),
         error_id=error_id if isinstance(error_id, int) else None,
@@ -187,13 +194,13 @@ def load_task_by_stage(jsonl_path: str | Path) -> dict[str, list[Any]]:
 
 def load_task_by_error(jsonl_path: str | Path) -> dict[tuple[str, ...], list[Any]]:
     """
-    加载错误记录，按 error 和 stage 分类
+    加载错误记录，按 error_type 和 stage 分类
 
     :param jsonl_path: JSONL 文件路径
-    :return: {(error, stage): [task_list]}
+    :return: {(error_type, stage): [task_list]}
     """
     return load_jsonl_grouped_by_keys(
-        jsonl_path, group_keys=["error", "stage"], extract_field="task"
+        jsonl_path, group_keys=["error_type", "stage"], extract_field="task"
     )
 
 
@@ -219,7 +226,11 @@ def load_task_error_pairs(
             except json.JSONDecodeError:
                 continue
 
-            if "task" not in item or "error" not in item:
+            has_error = any(
+                key in item
+                for key in ("error", "error_repr", "error_type", "error_message")
+            )
+            if "task" not in item or not has_error:
                 continue
 
             task: Any = parse_jsonl_value(item["task"])

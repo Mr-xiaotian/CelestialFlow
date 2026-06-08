@@ -10,7 +10,6 @@ from typing import Any, TextIO
 from ..funnel import BaseInlet, BaseSpout
 from ..runtime.util_errors import InitializationError
 from ..runtime.util_types import PersistedErrorRecord
-from ..utils.util_format import format_repr
 from .util_jsonl import load_task_error_pairs
 
 
@@ -145,7 +144,6 @@ class FailInlet(BaseInlet):
         now = datetime.now()
         error_type = type(error).__name__
         error_message = str(error)
-        error_repr = f"{error_type}({error_message})"
         fail_item = {
             "timestamp": now.isoformat(),
             "ts": now.timestamp(),
@@ -153,9 +151,6 @@ class FailInlet(BaseInlet):
             "error_id": err_id,
             "error_type": error_type,
             "error_message": error_message,
-            "error": error_repr,
-            "error_repr": format_repr(error_repr, 100),
-            "task_repr": format_repr(task, 100),
             "task": str(task),
         }
         self._funnel(fail_item)

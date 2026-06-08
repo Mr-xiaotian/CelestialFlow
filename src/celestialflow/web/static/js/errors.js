@@ -23,6 +23,7 @@ const paginationContainer = document.getElementById("pager-container");
  * @param {number} pageSizeValue - 每页大小
  * @param {string} node - 节点筛选条件
  * @param {string} keyword - 搜索关键词
+ * @param {string} sortOrder - 排序顺序（"newest" 或 "oldest"）
  * @returns {string} 组合后的查询键
  */
 function buildErrorsQueryKey(page, pageSizeValue, node, keyword, sortOrder) {
@@ -86,12 +87,15 @@ function renderErrors() {
             const e = pageItems[i];
             const index = (currentPage - 1) * pageSize + i + 1;
             const row = document.createElement("tr");
+            const errorFull = `${e.error_type}(${e.error_message})`;
+            const errorRepr = format_repr(errorFull, 100);
+            const taskRepr = format_repr(e.task, 100);
             row.innerHTML = `
         <td data-label="#">${index}</td>
         <td class="error-id" data-label="${t("errors.colId")}">${e.error_id}</td>
-        <td class="error-cell" data-label="${t("errors.colMessage")}" title="${escapeHtml(e.error_repr)}">${escapeHtml(e.error_repr)}</td>
+        <td class="error-cell" data-label="${t("errors.colMessage")}" title="${escapeHtml(errorFull)}">${escapeHtml(errorRepr)}</td>
         <td data-label="${t("errors.colNode")}">${escapeHtml(e.stage)}</td>
-        <td data-label="${t("errors.colTask")}">${escapeHtml(e.task_repr)}</td>
+        <td data-label="${t("errors.colTask")}" title="${escapeHtml(e.task)}">${escapeHtml(taskRepr)}</td>
         <td data-label="${t("errors.colTime")}">${formatTimestamp(e.ts)}</td>
       `;
             errorsTableBody.appendChild(row);
