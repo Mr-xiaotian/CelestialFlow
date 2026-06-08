@@ -14,9 +14,6 @@ type WebConfig = {
   dashboard: DashboardLayout;
 };
 
-// 全局状态
-let webConfig: WebConfig | null = null; // 当前加载的 Web 配置
-
 const DEFAULT_WEB_CONFIG: WebConfig = {
   theme: "light",
   autoRefreshEnabled: true,
@@ -55,6 +52,9 @@ function normalizeWebConfig(rawConfig?: Partial<WebConfig> | null): WebConfig {
     },
   };
 }
+
+// 全局状态
+let webConfig: WebConfig = normalizeWebConfig(); // 当前加载的 Web 配置
 
 const CARD_TEMPLATES: Record<string, string> = {
   // ⚠️ 加新卡片只需在这里加一条，ID 会自动出现在布局编辑器中

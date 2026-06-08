@@ -1,3 +1,4 @@
+"use strict";
 /**
  * 卡片布局编辑器
  * 悬浮窗口中用拖拽方式管理仪表盘左中右三栏的卡片排列
@@ -27,7 +28,7 @@ function renderCard(cardId) {
 function openLayoutEditor() {
     const overlay = document.getElementById("layout-editor-overlay");
     overlay.classList.remove("hidden");
-    const layout = webConfig.dashboard ?? DEFAULT_LAYOUT;
+    const layout = webConfig.dashboard;
     originalLayout = {
         left: [...(layout.left ?? [])],
         middle: [...(layout.middle ?? [])],

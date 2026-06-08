@@ -343,7 +343,9 @@ function initChart(): void {
           },
           onClick: (e, legendItem, legend) => {
             const index = legendItem.datasetIndex;
-            const nodeName = progressChart.data.datasets[index].label;
+            const chart = legend.chart;
+            const nodeName = chart.data.datasets[index]?.label;
+            if (!nodeName) return;
 
             if (hiddenNodes.has(nodeName)) {
               hiddenNodes.delete(nodeName);
@@ -417,6 +419,8 @@ function updateChartTheme(): void {
  * @returns {void}
  */
 function updateChartData(): void {
+  if (!progressChart) return;
+  const chart = progressChart;
   updateChartAxisLabels();
   const nodeDataMap = extractProgressData(nodeHistories, currentHistoryMetric);
   const datasets = Object.entries(nodeDataMap).map(([node, data], index) => ({
@@ -430,22 +434,22 @@ function updateChartData(): void {
 
   const firstNode = Object.keys(nodeDataMap)[0];
   if (!firstNode) {
-    progressChart.data.labels = [];
-    progressChart.data.datasets = [];
-    progressChart.update();
+    chart.data.labels = [];
+    chart.data.datasets = [];
+    chart.update();
     return;
   }
-  progressChart.data.labels = nodeDataMap[firstNode]?.map((p) =>
+  chart.data.labels = nodeDataMap[firstNode]?.map((p) =>
     new Date(p.x * 1000).toLocaleTimeString(),
   );
-  progressChart.data.datasets = datasets;
+  chart.data.datasets = datasets;
 
-  progressChart.update();
+  chart.update();
 
   // 同步 legendItem.hidden，确保刷新后 legend 渲染与 hiddenNodes 一致
-  if (progressChart.legend?.legendItems) {
-    progressChart.legend.legendItems.forEach((item) => {
-      const dataset = progressChart.data.datasets[item.datasetIndex];
+  if (chart.legend?.legendItems) {
+    chart.legend.legendItems.forEach((item) => {
+      const dataset = chart.data.datasets[item.datasetIndex];
       if (dataset) {
         item.hidden = dataset.hidden || false;
       }

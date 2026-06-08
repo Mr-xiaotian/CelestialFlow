@@ -130,6 +130,23 @@ document.addEventListener("DOMContentLoaded", () => {
  * @returns {void}
  */
 function setupEventListeners(): void {
+  const nodeList = document.getElementById("node-list");
+  const validateButton = document.getElementById("validate-json-btn");
+  const formatButton = document.getElementById("format-json-btn");
+  const clearButton = document.getElementById("clear-draft-btn");
+  const fillTerminationButton = document.getElementById("fill-termination-btn");
+  const submitButton = document.getElementById("submit-btn");
+  if (
+    !nodeList ||
+    !validateButton ||
+    !formatButton ||
+    !clearButton ||
+    !fillTerminationButton ||
+    !submitButton
+  ) {
+    return;
+  }
+
   // 搜索节点时实时过滤左侧节点浏览列表。
   getSearchInput().addEventListener("input", (e) => {
     renderNodeList((e.target as HTMLInputElement).value);
@@ -152,7 +169,7 @@ function setupEventListeners(): void {
   });
 
   // 节点浏览列表采用事件委托，统一处理节点切换。
-  document.getElementById("node-list").addEventListener("click", (e) => {
+  nodeList.addEventListener("click", (e) => {
     const item = (e.target as HTMLElement).closest<HTMLElement>(".node-item[data-node]");
     const nodeName = item?.dataset.node;
     if (nodeName) {
@@ -161,13 +178,13 @@ function setupEventListeners(): void {
   });
 
   // 编辑器底部操作按钮。
-  document.getElementById("validate-json-btn").addEventListener("click", () => {
+  validateButton.addEventListener("click", () => {
     validateCurrentDraft(true);
   });
-  document.getElementById("format-json-btn").addEventListener("click", formatCurrentDraft);
-  document.getElementById("clear-draft-btn").addEventListener("click", clearCurrentDraft);
-  document.getElementById("fill-termination-btn").addEventListener("click", fillTerminationDraft);
-  document.getElementById("submit-btn").addEventListener("click", handleSubmit);
+  formatButton.addEventListener("click", formatCurrentDraft);
+  clearButton.addEventListener("click", clearCurrentDraft);
+  fillTerminationButton.addEventListener("click", fillTerminationDraft);
+  submitButton.addEventListener("click", handleSubmit);
 }
 
 /**
@@ -290,6 +307,7 @@ function renderCurrentNodeEditor(): void {
   const currentNodeEl = document.getElementById("current-node-name");
   const currentTagEl = document.getElementById("current-node-tag");
   const textarea = getJsonTextarea();
+  if (!currentNodeEl || !currentTagEl) return;
   const hasNode = Boolean(currentNodeName);
 
   if (!hasNode) {
@@ -302,11 +320,13 @@ function renderCurrentNodeEditor(): void {
     hideError("json-error");
     setValidationMessage("injection.validationSelectNode", "neutral");
   } else {
-    currentNodeEl.textContent = currentNodeName;
-    const hasDraft = Boolean(nodeDrafts[currentNodeName]?.trim());
+    const currentNode = currentNodeName;
+    if (!currentNode) return;
+    currentNodeEl.textContent = currentNode;
+    const hasDraft = Boolean(nodeDrafts[currentNode]?.trim());
     currentTagEl.textContent = hasDraft ? t("injection.draftEdited") : "";
     currentTagEl.style.display = hasDraft ? "inline-flex" : "none";
-    textarea.value = nodeDrafts[currentNodeName] || "";
+    textarea.value = nodeDrafts[currentNode] || "";
     textarea.placeholder = t("injection.jsonPlaceholder");
     textarea.disabled = false;
     validateCurrentDraft(false);

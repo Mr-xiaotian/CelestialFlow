@@ -1,3 +1,4 @@
+"use strict";
 /**
  * 处理进度历史模块
  * 维护节点处理任务的历史序列，并使用 Chart.js 绘制进度折线图
@@ -269,7 +270,10 @@ function initChart() {
                     },
                     onClick: (e, legendItem, legend) => {
                         const index = legendItem.datasetIndex;
-                        const nodeName = progressChart.data.datasets[index].label;
+                        const chart = legend.chart;
+                        const nodeName = chart.data.datasets[index]?.label;
+                        if (!nodeName)
+                            return;
                         if (hiddenNodes.has(nodeName)) {
                             hiddenNodes.delete(nodeName);
                         }
@@ -334,6 +338,9 @@ function updateChartTheme() {
  * @returns {void}
  */
 function updateChartData() {
+    if (!progressChart)
+        return;
+    const chart = progressChart;
     updateChartAxisLabels();
     const nodeDataMap = extractProgressData(nodeHistories, currentHistoryMetric);
     const datasets = Object.entries(nodeDataMap).map(([node, data], index) => ({
@@ -346,18 +353,18 @@ function updateChartData() {
     }));
     const firstNode = Object.keys(nodeDataMap)[0];
     if (!firstNode) {
-        progressChart.data.labels = [];
-        progressChart.data.datasets = [];
-        progressChart.update();
+        chart.data.labels = [];
+        chart.data.datasets = [];
+        chart.update();
         return;
     }
-    progressChart.data.labels = nodeDataMap[firstNode]?.map((p) => new Date(p.x * 1000).toLocaleTimeString());
-    progressChart.data.datasets = datasets;
-    progressChart.update();
+    chart.data.labels = nodeDataMap[firstNode]?.map((p) => new Date(p.x * 1000).toLocaleTimeString());
+    chart.data.datasets = datasets;
+    chart.update();
     // 同步 legendItem.hidden，确保刷新后 legend 渲染与 hiddenNodes 一致
-    if (progressChart.legend?.legendItems) {
-        progressChart.legend.legendItems.forEach((item) => {
-            const dataset = progressChart.data.datasets[item.datasetIndex];
+    if (chart.legend?.legendItems) {
+        chart.legend.legendItems.forEach((item) => {
+            const dataset = chart.data.datasets[item.datasetIndex];
             if (dataset) {
                 item.hidden = dataset.hidden || false;
             }

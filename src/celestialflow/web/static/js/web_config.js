@@ -1,5 +1,4 @@
-// 全局状态
-let webConfig = null; // 当前加载的 Web 配置
+"use strict";
 const DEFAULT_WEB_CONFIG = {
     theme: "light",
     autoRefreshEnabled: true,
@@ -36,6 +35,8 @@ function normalizeWebConfig(rawConfig) {
         },
     };
 }
+// 全局状态
+let webConfig = normalizeWebConfig(); // 当前加载的 Web 配置
 const CARD_TEMPLATES = {
     // ⚠️ 加新卡片只需在这里加一条，ID 会自动出现在布局编辑器中
     // 显示名称用 CARD_META 映射，ALL_CARD_IDS 从 keys 自动生成

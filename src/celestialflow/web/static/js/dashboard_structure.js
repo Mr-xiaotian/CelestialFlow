@@ -1,3 +1,4 @@
+"use strict";
 /**
  * 任务图结构展示模块
  * 使用 Mermaid.js 将复杂的任务有向图转换为可视化的流程图，并根据节点状态实时着色
@@ -97,6 +98,8 @@ function renderMermaidStructure(statuses = {}) {
     const nodeNames = Object.keys(nodes);
     if (!nodeNames.length) {
         const old = document.getElementById("mermaid-container");
+        if (!old)
+            return;
         const newDiv = document.createElement("div");
         newDiv.id = "mermaid-container";
         newDiv.className = "empty-placeholder";
@@ -164,6 +167,8 @@ linkStyle default stroke:#999,stroke-width:1.5px;
     const defs = [...nodeLabels.entries()].map(([id, shapeLabel]) => `  ${id}${shapeLabel}`);
     const mermaidCode = `graph TD\n${defs.join("\n")}\n${[...mermaidEdges].join("\n")}\n${[...classDefs].join("\n")}\n${styleBlock}`;
     const old = document.getElementById("mermaid-container");
+    if (!old)
+        return;
     const newDiv = document.createElement("div");
     newDiv.id = "mermaid-container";
     newDiv.className = "mermaid";

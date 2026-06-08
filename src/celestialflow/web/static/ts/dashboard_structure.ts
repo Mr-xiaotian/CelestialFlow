@@ -124,6 +124,7 @@ function renderMermaidStructure(statuses: Record<string, NodeStatus> = {}): void
 
   if (!nodeNames.length) {
     const old = document.getElementById("mermaid-container");
+    if (!old) return;
     const newDiv = document.createElement("div");
     newDiv.id = "mermaid-container";
     newDiv.className = "empty-placeholder";
@@ -202,6 +203,7 @@ linkStyle default stroke:#999,stroke-width:1.5px;
   )}\n${[...classDefs].join("\n")}\n${styleBlock}`;
 
   const old = document.getElementById("mermaid-container");
+  if (!old) return;
   const newDiv = document.createElement("div");
   newDiv.id = "mermaid-container";
   newDiv.className = "mermaid";

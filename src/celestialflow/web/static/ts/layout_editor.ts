@@ -32,7 +32,7 @@ function openLayoutEditor(): void {
   const overlay = document.getElementById("layout-editor-overlay")!;
   overlay.classList.remove("hidden");
 
-  const layout = webConfig.dashboard ?? DEFAULT_LAYOUT;
+  const layout = webConfig.dashboard;
   originalLayout = {
     left: [...(layout.left ?? [])],
     middle: [...(layout.middle ?? [])],
