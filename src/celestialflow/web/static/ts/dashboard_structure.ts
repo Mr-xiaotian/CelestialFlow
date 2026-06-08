@@ -12,16 +12,16 @@ let structureData: StructureGraph = {
 let structureRev = -1; // 数据版本号，用于增量拉取
 
 type StructureNodeMeta = {
-  func_name: string;
-  execution_mode?: string;
-  stage_mode?: string;
-  max_workers?: number;
+  func_name: string; // 节点函数名，用于推导节点类型
+  execution_mode?: string; // 节点执行模式
+  stage_mode?: string; // 节点阶段模式
+  max_workers?: number; // 并发 worker 数上限
 };
 
 type StructureGraph = {
-  nodes: Record<string, StructureNodeMeta>;
-  edges: Record<string, string[]>;
-  source_nodes: string[];
+  nodes: Record<string, StructureNodeMeta>; // 节点名到元信息的映射
+  edges: Record<string, string[]>; // 有向边邻接表
+  source_nodes: string[]; // 入度为 0 的源节点列表
 };
 
 /**
@@ -119,8 +119,8 @@ function getShapeWrappedLabel(label: string, shape: string = "box"): string {
  * @returns {void}
  */
 function renderMermaidStructure(statuses: Record<string, NodeStatus> = {}): void {
-  const { nodes = {}, edges = {}, source_nodes = [] } = structureData || {};
-  const nodeNames = Object.keys(nodes);
+  const { nodes = {}, edges = {}, source_nodes = [] } = structureData || {}; // 当前结构图主数据
+  const nodeNames = Object.keys(nodes); // 全量节点名，供空状态判断和遍历使用
 
   if (!nodeNames.length) {
     const old = document.getElementById("mermaid-container");
@@ -133,9 +133,9 @@ function renderMermaidStructure(statuses: Record<string, NodeStatus> = {}): void
     return;
   }
 
-  const mermaidEdges = new Set<string>();
-  const nodeLabels = new Map<string, string>();
-  const classDefs = new Set<string>();
+  const mermaidEdges = new Set<string>(); // 边定义去重集合
+  const nodeLabels = new Map<string, string>(); // Mermaid 节点标签缓存
+  const classDefs = new Set<string>(); // Mermaid class 样式绑定集合
 
   // 判断是否是暗黑主题
   const isDark = document.body.classList.contains("dark-theme");
@@ -160,15 +160,16 @@ linkStyle default stroke:#999,stroke-width:1.5px;
   const orderedNodeNames = [
     ...source_nodes.filter((name) => name in nodes),
     ...nodeNames.filter((name) => !source_nodes.includes(name)),
-  ];
+  ]; // 优先把源节点放前面，增强拓扑图可读性
 
+  // 先生成节点定义和节点样式，再生成边，便于后续统一拼接 Mermaid 代码。
   for (const nodeName of orderedNodeNames) {
     const nodeMeta = nodes[nodeName];
     const id = getNodeId(nodeName);
     nodeLabels.set(id, getShapeWrappedLabel(nodeName, getNodeShape(nodeMeta)));
 
-    const statusInfo = statuses[nodeName];
-    let statusClass = "whiteNode";
+    const statusInfo = statuses[nodeName]; // 当前节点的运行态，用于上色
+    let statusClass = "whiteNode"; // 默认样式为普通白色节点
     if (statusInfo) {
       if (statusInfo.status === 1) statusClass = "greenNode";
       else if (statusInfo.status === 2) statusClass = "greyNode";
@@ -176,6 +177,7 @@ linkStyle default stroke:#999,stroke-width:1.5px;
     classDefs.add(`  class ${id} ${statusClass};`);
   }
 
+  // 再生成边定义，并按配置决定是否在边上显示本轮成功增量。
   for (const [fromName, toNames] of Object.entries(edges)) {
     if (!(fromName in nodes)) continue;
     const fromId = getNodeId(fromName);
@@ -184,10 +186,10 @@ linkStyle default stroke:#999,stroke-width:1.5px;
       if (!(toName in nodes)) continue;
       const toId = getNodeId(toName);
 
-      let edgeLabel = "";
+      let edgeLabel = ""; // Mermaid 边标签，默认空字符串
       if (webConfig?.showStructureEdgeDelta) {
-        const lastInfo = lastNodeStatuses[fromName] || ({} as NodeStatus);
-        const addNum = (statusInfo?.tasks_succeeded || 0) - (lastInfo?.tasks_succeeded || 0);
+        const lastInfo = lastNodeStatuses[fromName] || ({} as NodeStatus); // 上一轮状态，用于计算增量
+        const addNum = (statusInfo?.tasks_succeeded || 0) - (lastInfo?.tasks_succeeded || 0); // 本轮新增成功任务数
         edgeLabel = addNum > 0 ? `|+${addNum}|` : "";
       }
       mermaidEdges.add(`  ${fromId} -->${edgeLabel} ${toId}`);
@@ -196,20 +198,21 @@ linkStyle default stroke:#999,stroke-width:1.5px;
 
   const defs = [...nodeLabels.entries()].map(
     ([id, shapeLabel]) => `  ${id}${shapeLabel}`
-  );
+  ); // Mermaid 节点定义区块
 
   const mermaidCode = `graph TD\n${defs.join("\n")}\n${[...mermaidEdges].join(
     "\n"
-  )}\n${[...classDefs].join("\n")}\n${styleBlock}`;
+  )}\n${[...classDefs].join("\n")}\n${styleBlock}`; // 最终 Mermaid 源码
 
   const old = document.getElementById("mermaid-container");
   if (!old) return;
-  const newDiv = document.createElement("div");
+  const newDiv = document.createElement("div"); // 新容器替换旧容器，避免 mermaid 对旧 DOM 状态残留
   newDiv.id = "mermaid-container";
   newDiv.className = "mermaid";
   newDiv.style.whiteSpace = "pre-line";
   newDiv.textContent = mermaidCode;
 
   old.replaceWith(newDiv);
+  // Mermaid 会扫描新容器中的源码并完成 SVG 渲染。
   window.mermaid.run();
 }

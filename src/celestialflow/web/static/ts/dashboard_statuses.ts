@@ -23,8 +23,8 @@ type NodeStatus = {
 };
 
 type ElapsedSegment = {
-  className: string;
-  count: number;
+  className: string; // 对应的颜色 CSS 类名
+  count: number; // 该类型任务数量
 };
 
 // 全局状态
@@ -274,14 +274,14 @@ function renderDashboard(): void {
 
   for (const [node, data] of Object.entries(nodeStatuses)) {
     // 计算增量变化
-    const last = lastNodeStatuses[node] || ({} as NodeStatus);
-    const displayPending = getDisplayPending(data);
-    const lastDisplayPending = getDisplayPending(last);
-    const displayRemainingTime = getDisplayRemainingTime(data);
-    const addSucceeded = data.tasks_succeeded - (last.tasks_succeeded || 0);
-    const addPending = displayPending - lastDisplayPending;
-    const addFailed = data.tasks_failed - (last.tasks_failed || 0);
-    const addDuplicated = data.tasks_duplicated - (last.tasks_duplicated || 0);
+    const last = lastNodeStatuses[node] || ({} as NodeStatus); // 上一轮同节点状态
+    const displayPending = getDisplayPending(data); // 当前等待值展示字段
+    const lastDisplayPending = getDisplayPending(last); // 上一轮等待值展示字段
+    const displayRemainingTime = getDisplayRemainingTime(data); // 当前剩余时间展示字段
+    const addSucceeded = data.tasks_succeeded - (last.tasks_succeeded || 0); // 成功数增量
+    const addPending = displayPending - lastDisplayPending; // 等待数增量
+    const addFailed = data.tasks_failed - (last.tasks_failed || 0); // 失败数增量
+    const addDuplicated = data.tasks_duplicated - (last.tasks_duplicated || 0); // 重复数增量
 
     // 计算执行模式描述
     const executionModeDesc =
@@ -290,7 +290,7 @@ function renderDashboard(): void {
         : `${data.execution_mode}-${data.max_workers}`;
 
     // 计算进度
-    const total = data.tasks_processed + displayPending;
+    const total = data.tasks_processed + displayPending; // 已处理 + 待处理构成总量
     const progressRatio =
       total === 0 ? 0 : Math.floor((data.tasks_processed / total) * 100);
 
@@ -301,7 +301,7 @@ function renderDashboard(): void {
       total === 0 ? 0 : (data.tasks_duplicated / total) * 100;
     const pctPending = total === 0 ? 0 : (displayPending / total) * 100;
 
-    const card = document.createElement("div");
+    const card = document.createElement("div"); // 当前节点状态卡 DOM
     if (data.status === 1) {
       card.className = "node-card status-running";
     } else if (data.status === 2) {

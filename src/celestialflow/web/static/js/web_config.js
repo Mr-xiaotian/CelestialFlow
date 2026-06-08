@@ -1,4 +1,5 @@
 "use strict";
+/** 页面初始化和回退场景共用的默认配置。 */
 const DEFAULT_WEB_CONFIG = {
     theme: "light",
     autoRefreshEnabled: true,
@@ -15,6 +16,7 @@ const DEFAULT_WEB_CONFIG = {
         right: ["progress", "summary"],
     },
 };
+/** 仪表盘栏位 key 到真实 DOM 选择器的映射。 */
 const PANEL_SELECTOR_MAP = {
     left: ".left-panel",
     middle: ".middle-panel",
@@ -37,6 +39,7 @@ function normalizeWebConfig(rawConfig) {
 }
 // 全局状态
 let webConfig = normalizeWebConfig(); // 当前加载的 Web 配置
+/** 每张仪表盘卡片的 HTML 模板，供初始化和恢复布局时复用。 */
 const CARD_TEMPLATES = {
     // ⚠️ 加新卡片只需在这里加一条，ID 会自动出现在布局编辑器中
     // 显示名称用 CARD_META 映射，ALL_CARD_IDS 从 keys 自动生成
@@ -117,6 +120,7 @@ const CARD_TEMPLATES = {
       </div>
     </div>`,
 };
+/** 卡片 ID 到国际化标题 key 的映射。 */
 const CARD_META = {
     mermaid: "card.mermaid.title",
     analysis: "card.analysis.title",
@@ -124,13 +128,18 @@ const CARD_META = {
     progress: "card.progress.title",
     summary: "card.summary.title",
 };
+/** 当前支持加入布局编辑器的全部卡片 ID。 */
 const ALL_CARD_IDS = Object.keys(CARD_TEMPLATES);
+/**
+ * 确保所有卡片节点都已出现在隐藏池中，供后续布局重排直接移动。
+ * @returns {void}
+ */
 function ensureAllCards() {
-    const pool = document.getElementById("card-pool");
+    const pool = document.getElementById("card-pool"); // 统一承载尚未挂载到栏位的卡片节点
     for (const [key, html] of Object.entries(CARD_TEMPLATES)) {
-        const cls = `${key}-card`;
+        const cls = `${key}-card`; // 每张卡片的唯一类名入口
         if (!document.querySelector(`.${cls}`)) {
-            const el = document.createElement("div");
+            const el = document.createElement("div"); // 临时容器，用于把字符串模板转成真实 DOM
             el.innerHTML = html;
             pool.appendChild(el.firstElementChild);
         }
@@ -164,6 +173,7 @@ async function loadWebConfig() {
  */
 async function saveWebConfig() {
     try {
+        // 将当前前端配置完整推送到后端，避免局部字段丢失。
         const res = await fetch("/api/push_config", {
             method: "POST",
             headers: {
@@ -204,15 +214,15 @@ function applyConfig() {
     }
     // 应用刷新间隔
     webConfig.autoRefreshEnabled = webConfig.autoRefreshEnabled !== false;
-    const interval = Number(webConfig.refreshInterval);
+    const interval = Number(webConfig.refreshInterval); // 后端配置可能是字符串，先统一转数值
     refreshRate = Number.isFinite(interval) && interval > 0 ? interval : 5000;
     webConfig.refreshInterval = refreshRate;
     refreshSelect.value = refreshRate.toString();
     autoRefreshToggle.checked = webConfig.autoRefreshEnabled;
     // 应用历史长度
-    const limit = Number(webConfig.historyLimit);
+    const limit = Number(webConfig.historyLimit); // 历史长度也统一走数值归一化
     if (Number.isFinite(limit) && limit > 0) {
-        const limitStr = limit.toString();
+        const limitStr = limit.toString(); // select 的 option 值是字符串
         const hasOption = Array.from(historyLimitSelect.options).some((o) => o.value === limitStr);
         if (hasOption) {
             historyLimitSelect.value = limitStr;
@@ -220,10 +230,10 @@ function applyConfig() {
     }
     // 应用错误日志每页条数
     webConfig.errorPageSize = webConfig.errorPageSize || 10;
-    const eps = Number(webConfig.errorPageSize);
+    const eps = Number(webConfig.errorPageSize); // 错误分页大小需要同步到运行时变量与下拉框
     if (Number.isFinite(eps) && eps > 0) {
         pageSize = eps;
-        const epsStr = eps.toString();
+        const epsStr = eps.toString(); // select 的 option 值是字符串
         const errorPageSizeSelect = document.getElementById("error-page-size");
         if (errorPageSizeSelect) {
             const hasOption = Array.from(errorPageSizeSelect.options).some((o) => o.value === epsStr);
@@ -256,7 +266,7 @@ function applyConfig() {
  */
 function applyDashboardLayout() {
     ensureAllCards();
-    const dashboard = webConfig.dashboard;
+    const dashboard = webConfig.dashboard; // 当前配置中的三栏布局
     const allCardKeys = Array.from(new Set([
         "mermaid",
         "analysis",
@@ -267,12 +277,12 @@ function applyDashboardLayout() {
         ...(dashboard.middle || []),
         ...(dashboard.right || []),
     ]));
-    const cardElements = Object.fromEntries(allCardKeys.map((key) => [key, document.querySelector(`.${key}-card`)]));
+    const cardElements = Object.fromEntries(allCardKeys.map((key) => [key, document.querySelector(`.${key}-card`)])); // 所有可能涉及的卡片 DOM 引用
     const panelElements = Object.fromEntries(Object.entries(PANEL_SELECTOR_MAP).map(([key, selector]) => [
         key,
         document.querySelector(selector),
-    ]));
-    const assigned = new Set();
+    ])); // 三个栏位容器的 DOM 引用
+    const assigned = new Set(); // 记录已经被成功挂到某个栏位的卡片
     // 1) 先把所有已知卡片隐藏，避免卡片从旧布局残留在错误栏位
     for (const cardEl of Object.values(cardElements)) {
         if (cardEl)
@@ -281,8 +291,8 @@ function applyDashboardLayout() {
     // 2) 按配置中的 left/middle/right 顺序遍历栏位
     //    每个栏位内部再按数组顺序依次 appendChild，实现“任意栏位 + 任意顺序”
     for (const panelKey of Object.keys(PANEL_SELECTOR_MAP)) {
-        const panelEl = panelElements[panelKey];
-        const panelCardKeys = dashboard[panelKey] || [];
+        const panelEl = panelElements[panelKey]; // 当前处理的栏位容器
+        const panelCardKeys = dashboard[panelKey] || []; // 当前栏位配置中的卡片顺序
         if (!panelEl)
             continue;
         // 3) 对当前栏位中的每一张卡片：
@@ -290,7 +300,7 @@ function applyDashboardLayout() {
         //    - 移动到目标栏位
         //    - 应用卡片显隐和排序
         for (const cardKey of panelCardKeys) {
-            const cardEl = cardElements[cardKey];
+            const cardEl = cardElements[cardKey]; // 实际存在于 DOM 中的卡片节点
             if (!cardEl)
                 continue;
             panelEl.appendChild(cardEl);

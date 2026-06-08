@@ -29,11 +29,11 @@ function formatLargeNumber(n) {
  * @returns {string} 包含数值和带颜色增量的 HTML 字符串
  */
 function formatWithDelta(value, delta, deltaClass, negClass) {
-    const fmtValue = formatLargeNumber(value);
+    const fmtValue = formatLargeNumber(value); // 当前主值的格式化结果
     if (!delta || delta === 0)
         return fmtValue;
-    const sign = delta > 0 ? "+" : "-";
-    const cls = delta > 0 ? deltaClass : negClass;
+    const sign = delta > 0 ? "+" : "-"; // 增量显示符号
+    const cls = delta > 0 ? deltaClass : negClass; // 根据正负值选择颜色类
     return `${fmtValue}<small class="${cls}" style="margin-left: 4px;">${sign}${formatLargeNumber(Math.abs(delta))}</small>`;
 }
 /**
@@ -63,10 +63,12 @@ function escapeHtml(str) {
  * @returns {void}
  */
 function switchToErrorsTab(nodeFilter = "") {
+    // 先切换到错误日志页，确保筛选器所在页面处于可见状态。
     const errorsTabButton = document.querySelector(`.tab-btn[data-tab="errors"]`);
     if (errorsTabButton) {
         activateTab(errorsTabButton);
     }
+    // 再同步节点筛选器，复用原有 change 事件触发刷新逻辑。
     const filterEl = document.getElementById("node-filter");
     if (filterEl) {
         filterEl.value = nodeFilter;
@@ -79,11 +81,12 @@ function switchToErrorsTab(nodeFilter = "") {
  * @returns {string} 格式化后的时间字符串
  */
 function formatDuration(seconds) {
-    seconds = seconds > 0 ? Math.max(1, Math.floor(seconds)) : 0;
+    seconds = seconds > 0 ? Math.max(1, Math.floor(seconds)) : 0; // 正数至少展示 1 秒
     const hours = Math.floor(seconds / 3600);
     const remainder = seconds % 3600;
     const minutes = Math.floor(remainder / 60);
     const secs = remainder % 60;
+    /** 将单个时间段补齐为两位字符串。 */
     const pad = (n) => String(n).padStart(2, "0");
     if (hours > 0) {
         return `${pad(hours)}:${pad(minutes)}:${pad(secs)}`;
@@ -98,14 +101,15 @@ function formatDuration(seconds) {
  * @returns {string} 格式化后的日期时间字符串
  */
 function formatTimestamp(timestamp) {
-    const d = new Date(timestamp * 1000);
+    const d = new Date(timestamp * 1000); // Unix 秒级时间戳转本地时间
+    /** 将年/月/日/时/分/秒字段补齐为两位。 */
     const pad = (n) => String(n).padStart(2, "0");
-    const year = d.getFullYear();
-    const month = pad(d.getMonth() + 1);
-    const day = pad(d.getDate());
-    const hour = pad(d.getHours());
-    const minute = pad(d.getMinutes());
-    const second = pad(d.getSeconds());
+    const year = d.getFullYear(); // 年份保留完整位数
+    const month = pad(d.getMonth() + 1); // 月份从 0 开始，需补 1
+    const day = pad(d.getDate()); // 日期
+    const hour = pad(d.getHours()); // 小时
+    const minute = pad(d.getMinutes()); // 分钟
+    const second = pad(d.getSeconds()); // 秒
     return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 /**
@@ -117,9 +121,9 @@ function formatTimestamp(timestamp) {
  */
 function calcRemainTime(processed, pending, elapsed) {
     if (processed && pending) {
-        return pending / processed * elapsed;
+        return pending / processed * elapsed; // 按当前吞吐速度线性估算剩余时长
     }
-    return 0;
+    return 0; // 没有足够样本时返回 0，避免误导性估算
 }
 /**
  * 将对象格式化为字符串，自动转义换行、截断超长文本。
@@ -128,13 +132,13 @@ function calcRemainTime(processed, pending, elapsed) {
  * @returns {string} 格式化字符串
  */
 function format_repr(obj, max_length) {
-    let obj_str = String(obj).replace(/\\/g, "\\\\").replace(/\n/g, "\\n");
+    let obj_str = String(obj).replace(/\\/g, "\\\\").replace(/\n/g, "\\n"); // 保留换行与反斜杠的可见形式
     if (max_length <= 0 || obj_str.length <= max_length) {
         return obj_str;
     }
     // 截断逻辑（前 2/3 + ... + 后 1/3）
-    const segment_len = Math.max(1, Math.floor(max_length / 3));
-    const first_part = obj_str.slice(0, segment_len * 2);
-    const last_part = obj_str.slice(-segment_len);
+    const segment_len = Math.max(1, Math.floor(max_length / 3)); // 单侧保留的最小片段长度
+    const first_part = obj_str.slice(0, segment_len * 2); // 前段保留更长，方便快速识别
+    const last_part = obj_str.slice(-segment_len); // 末段保留尾部上下文
     return `${first_part}...${last_part}`;
 }

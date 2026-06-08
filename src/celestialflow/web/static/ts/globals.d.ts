@@ -4,99 +4,99 @@
  * 以及由其他脚本导出的全局变量和函数
  */
 
-type DashboardColumnKey = "left" | "middle" | "right";
+type DashboardColumnKey = "left" | "middle" | "right"; // 仪表盘三栏布局 key
 
-type DashboardLayout = Record<DashboardColumnKey, string[]>;
+type DashboardLayout = Record<DashboardColumnKey, string[]>; // 每个栏位内的卡片 ID 顺序
 
 type ApiVersionedResponse<T> = {
-  rev: number;
-  data: T | null;
+  rev: number; // 当前数据版本号
+  data: T | null; // 当 known_rev 未变化时可能返回 null
 };
 
 type StatusPullResponse = ApiVersionedResponse<Record<string, NodeStatus>> & {
-  timestamp: number;
+  timestamp: number; // 本次状态快照的统一时间戳
 };
 
-type StructurePullResponse = ApiVersionedResponse<StructureGraph>;
+type StructurePullResponse = ApiVersionedResponse<StructureGraph>; // 结构图拉取响应
 
-type AnalysisPullResponse = ApiVersionedResponse<AnalysisData>;
+type AnalysisPullResponse = ApiVersionedResponse<AnalysisData>; // 分析信息拉取响应
 
 type ErrorsPullResponse = {
-  rev: number;
-  page: number;
-  page_size: number;
-  total: number;
-  total_pages: number;
-  sort_order: "newest" | "oldest";
-  data: ErrorData[] | null;
+  rev: number; // 错误数据版本号
+  page: number; // 当前页码
+  page_size: number; // 每页条数
+  total: number; // 总记录数
+  total_pages: number; // 总页数
+  sort_order: "newest" | "oldest"; // 当前排序顺序
+  data: ErrorData[] | null; // 当前页的错误记录
 };
 
-type ChartPoint = { x: number; y: number };
+type ChartPoint = { x: number; y: number }; // Chart.js 折线图点坐标
 
 type ChartDataset = {
-  label?: string;
-  data: ChartPoint[];
-  borderColor?: string;
-  fill?: boolean;
-  tension?: number;
-  hidden?: boolean;
+  label?: string; // 数据集标签，通常为节点名
+  data: ChartPoint[]; // 折线点集合
+  borderColor?: string; // 线条颜色
+  fill?: boolean; // 是否填充区域
+  tension?: number; // 曲线平滑程度
+  hidden?: boolean; // 是否隐藏该数据集
 };
 
 type ChartLegendItem = {
-  datasetIndex: number;
-  hidden?: boolean;
+  datasetIndex: number; // 对应的数据集索引
+  hidden?: boolean; // 当前图例项是否隐藏
 };
 
 type ChartLegend = {
-  legendItems: ChartLegendItem[];
+  legendItems: ChartLegendItem[]; // 当前图例项集合
 };
 
 type ChartScaleConfig = {
-  ticks: { color: string };
-  grid: { color: string };
+  ticks: { color: string }; // 坐标刻度文字配置
+  grid: { color: string }; // 网格线配置
   title: {
-    display: boolean;
-    text: string;
-    color: string;
+    display: boolean; // 是否显示标题
+    text: string; // 轴标题文案
+    color: string; // 标题颜色
   };
-  border: { color: string };
+  border: { color: string }; // 轴边框颜色
 };
 
 type ChartOptions = {
-  animation: boolean;
-  responsive: boolean;
+  animation: boolean; // 是否启用动画
+  responsive: boolean; // 是否自适应容器尺寸
   plugins: {
     legend: {
       labels: {
-        color: string;
+        color: string; // 图例文字颜色
       };
       onClick: (
         event: Event,
         legendItem: ChartLegendItem,
         legend: { chart: ChartInstance },
-      ) => void;
+      ) => void; // 图例点击回调
     };
   };
   interaction: {
-    intersect: boolean;
-    mode: string;
+    intersect: boolean; // 是否要求鼠标必须与点相交
+    mode: string; // 交互模式
   };
   scales: {
-    x: ChartScaleConfig;
-    y: ChartScaleConfig;
+    x: ChartScaleConfig; // X 轴配置
+    y: ChartScaleConfig; // Y 轴配置
   };
 };
 
 interface ChartInstance {
   data: {
-    labels: string[];
-    datasets: ChartDataset[];
+    labels: string[]; // 横轴标签
+    datasets: ChartDataset[]; // 所有折线数据集
   };
-  options: ChartOptions;
-  legend?: ChartLegend;
-  destroy(): void;
-  update(): void;
-  getDatasetMeta(index: number): { hidden: boolean | null };
+  options: ChartOptions; // 图表配置
+  legend?: ChartLegend; // 图例运行时对象
+  destroy(): void; // 销毁实例
+  update(): void; // 触发重绘
+  getDatasetMeta(index: number): { hidden: boolean | null }; // 获取数据集元信息
 }
 
 declare const Chart: {
@@ -119,15 +119,15 @@ declare const Sortable: {
       ghostClass: string;
       dragClass: string;
     },
-  ): unknown;
+  ): unknown; // 创建一个可拖拽区域
 };
 
 type MermaidApi = {
-  run(): void;
+  run(): void; // 扫描页面中的 Mermaid 源码并执行渲染
 };
 
 interface Window {
-  mermaid: MermaidApi;
+  mermaid: MermaidApi; // 挂在 window 上的 Mermaid 运行时对象
 }
 
 /** 支持的界面语言类型 */

@@ -22,13 +22,13 @@ const totalRemain = document.getElementById("total-remain") as HTMLElement;
  * @returns {void}
  */
 function renderSummary(): void {
-  const statusList = Object.values(nodeStatuses || {});
-  const total_succeeded = statusList.reduce((sum, status) => sum + (status.tasks_succeeded || 0), 0);
-  const total_pending = statusList.reduce((sum, status) => sum + (status.tasks_pending || 0), 0);
-  const total_failed = statusList.reduce((sum, status) => sum + (status.tasks_failed || 0), 0);
-  const total_duplicated = statusList.reduce((sum, status) => sum + (status.tasks_duplicated || 0), 0);
-  const total_nodes = statusList.reduce((sum, status) => sum + (status.status === 1 ? 1 : 0), 0);
-  const total_remain = Math.max(...statusList.map(status => status.total_remaining_time || 0), 0);
+  const statusList = Object.values(nodeStatuses || {}); // 当前全部节点状态快照
+  const total_succeeded = statusList.reduce((sum, status) => sum + (status.tasks_succeeded || 0), 0); // 总成功任务数
+  const total_pending = statusList.reduce((sum, status) => sum + (status.tasks_pending || 0), 0); // 总等待任务数
+  const total_failed = statusList.reduce((sum, status) => sum + (status.tasks_failed || 0), 0); // 总失败任务数
+  const total_duplicated = statusList.reduce((sum, status) => sum + (status.tasks_duplicated || 0), 0); // 总重复任务数
+  const total_nodes = statusList.reduce((sum, status) => sum + (status.status === 1 ? 1 : 0), 0); // 当前运行中的节点数
+  const total_remain = Math.max(...statusList.map(status => status.total_remaining_time || 0), 0); // 图级剩余时间取所有链路估算中的最大值
 
   totalSucceeded.innerHTML = formatLargeNumber(total_succeeded);
   totalPending.innerHTML = formatLargeNumber(total_pending);

@@ -37,11 +37,12 @@ function buildErrorsQueryKey(page, pageSizeValue, node, keyword, sortOrder) {
  */
 async function loadErrors(forceReload = false) {
     try {
-        const node = nodeFilter.value.trim();
-        const keyword = (searchInput.value || "").trim();
+        const node = nodeFilter.value.trim(); // 当前节点筛选值
+        const keyword = (searchInput.value || "").trim(); // 当前关键词筛选值
         const queryKey = buildErrorsQueryKey(currentPage, pageSize, node, keyword.toLowerCase(), errorSortOrder);
-        const knownRev = forceReload || queryKey !== lastQueryKey ? -1 : errorsRev;
-        const requestSeq = ++errorsRequestSeq;
+        const knownRev = forceReload || queryKey !== lastQueryKey ? -1 : errorsRev; // 条件变化时强制全量拉取
+        const requestSeq = ++errorsRequestSeq; // 为当前请求分配递增序号
+        // 将分页、排序和筛选条件编码进查询参数。
         const params = new URLSearchParams({
             known_rev: String(knownRev),
             page: String(currentPage),
@@ -55,7 +56,7 @@ async function loadErrors(forceReload = false) {
             return false;
         const data = (await res.json());
         if (requestSeq !== errorsRequestSeq)
-            return false;
+            return false; // 丢弃已过时请求的返回结果
         currentPage = Number(data.page || currentPage);
         totalPages = Number(data.total_pages || 1);
         errorSortOrder = data.sort_order === "oldest" ? "oldest" : "newest";
@@ -63,8 +64,8 @@ async function loadErrors(forceReload = false) {
         if (data.data === null || data.data === undefined) {
             return false;
         }
-        errors = Array.isArray(data.data) ? data.data : [];
-        const changed = errorsRev !== Number(data.rev);
+        errors = Array.isArray(data.data) ? data.data : []; // 仅接受数组类型结果
+        const changed = errorsRev !== Number(data.rev); // 对比版本号判断是否有新内容
         errorsRev = Number(data.rev);
         return changed || forceReload;
     }
@@ -78,19 +79,19 @@ async function loadErrors(forceReload = false) {
  * 将获取到的错误记录填充到表格中，并根据总页数生成分页按钮
  */
 function renderErrors() {
-    const pageItems = errors;
+    const pageItems = errors; // 后端已按分页返回当前页数据
     errorsTableBody.innerHTML = "";
     if (!pageItems.length) {
         errorsTableBody.innerHTML = `<tr><td colspan="6" class="empty-placeholder">${t("errors.noRecords")}</td></tr>`;
     }
     else {
         for (let i = 0; i < pageItems.length; i++) {
-            const e = pageItems[i];
-            const index = (currentPage - 1) * pageSize + i + 1;
-            const row = document.createElement("tr");
-            const errorFull = `${e.error_type}(${e.error_message})`;
-            const errorRepr = format_repr(errorFull, 100);
-            const taskRepr = format_repr(e.task, 100);
+            const e = pageItems[i]; // 当前错误记录
+            const index = (currentPage - 1) * pageSize + i + 1; // 全局展示序号
+            const row = document.createElement("tr"); // 当前表格行
+            const errorFull = `${e.error_type}(${e.error_message})`; // 错误完整文本
+            const errorRepr = format_repr(errorFull, 100); // 表格中展示的截断错误文本
+            const taskRepr = format_repr(e.task, 100); // 表格中展示的截断任务文本
             row.innerHTML = `
         <td data-label="#">${index}</td>
         <td class="error-id" data-label="${t("errors.colId")}">${e.error_id}</td>
@@ -110,7 +111,7 @@ function renderErrors() {
  * @returns {Promise<void>}
  */
 async function goToErrorsPage(nextPage) {
-    const normalizedPage = Math.max(1, Math.min(totalPages || 1, nextPage));
+    const normalizedPage = Math.max(1, Math.min(totalPages || 1, nextPage)); // 将目标页码限制在合法范围内
     if (normalizedPage === currentPage)
         return;
     currentPage = normalizedPage;
@@ -126,7 +127,7 @@ async function goToErrorsPage(nextPage) {
 function buildPageList(current, total) {
     // 想显示哪些关键页：首尾、当前、前后1-2页
     const pages = new Set([1, total, current, current - 1, current + 1, current - 2, current + 2]);
-    const list = [...pages].filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
+    const list = [...pages].filter(p => p >= 1 && p <= total).sort((a, b) => a - b); // 去掉越界页码后升序排列
     const out = [];
     for (let i = 0; i < list.length; i++) {
         out.push(list[i]);
@@ -151,11 +152,11 @@ function renderPaginationControls(totalPages) {
     prevBtn.disabled = currentPage === 1;
     prevBtn.onclick = async () => { await goToErrorsPage(currentPage - 1); };
     // 数字页码区
-    const pageBar = document.createElement("div");
+    const pageBar = document.createElement("div"); // 中间页码容器
     pageBar.className = "pager";
-    const pages = buildPageList(currentPage, totalPages);
+    const pages = buildPageList(currentPage, totalPages); // 带省略号的页码模型
     pages.forEach(p => {
-        const span = document.createElement("span");
+        const span = document.createElement("span"); // 单个页码或省略号元素
         span.textContent = p.toString();
         if (p === "…") {
             span.className = "dots";
@@ -187,11 +188,11 @@ function renderPaginationControls(totalPages) {
  * @returns {void}
  */
 function populateNodeFilter(statuses) {
-    const nodes = Object.keys(statuses);
-    const previousValue = nodeFilter.value;
+    const nodes = Object.keys(statuses); // 当前可供筛选的节点名列表
+    const previousValue = nodeFilter.value; // 尽量保留用户当前筛选条件
     nodeFilter.innerHTML = `<option value="">${t("errors.allNodes")}</option>`;
     for (const node of nodes) {
-        const option = document.createElement("option");
+        const option = document.createElement("option"); // 单个节点下拉项
         option.value = node;
         option.textContent = node;
         nodeFilter.appendChild(option);

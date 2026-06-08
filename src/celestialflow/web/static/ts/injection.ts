@@ -27,7 +27,7 @@ function setLocalizedMessageMeta(
   element: HTMLElement,
   messageKey: string,
   args: string[] = [],
-) {
+) : void {
   element.dataset.messageKey = messageKey;
   element.dataset.messageArgs = JSON.stringify(args);
 }
@@ -38,7 +38,7 @@ function setLocalizedMessageMeta(
  * @param {HTMLElement} element - 目标元素
  * @returns {void}
  */
-function clearLocalizedMessageMeta(element: HTMLElement) {
+function clearLocalizedMessageMeta(element: HTMLElement): void {
   delete element.dataset.messageKey;
   delete element.dataset.messageArgs;
 }
@@ -86,7 +86,7 @@ function renderStatusMessage(
   messageKey: string,
   isSuccess: boolean,
   args: string[] = [],
-) {
+) : void {
   statusDiv.innerHTML = getStatusIconSvg(isSuccess) + t(messageKey, ...args);
 }
 
@@ -119,6 +119,7 @@ function getEditorButtons(): HTMLButtonElement[] {
   ];
 }
 
+// 页面初始化后立即绑定交互并绘制首屏注入页。
 document.addEventListener("DOMContentLoaded", () => {
   setupEventListeners();
   renderInjectionPage();
@@ -130,12 +131,12 @@ document.addEventListener("DOMContentLoaded", () => {
  * @returns {void}
  */
 function setupEventListeners(): void {
-  const nodeList = document.getElementById("node-list");
-  const validateButton = document.getElementById("validate-json-btn");
-  const formatButton = document.getElementById("format-json-btn");
-  const clearButton = document.getElementById("clear-draft-btn");
-  const fillTerminationButton = document.getElementById("fill-termination-btn");
-  const submitButton = document.getElementById("submit-btn");
+  const nodeList = document.getElementById("node-list"); // 左侧节点浏览容器
+  const validateButton = document.getElementById("validate-json-btn"); // 校验按钮
+  const formatButton = document.getElementById("format-json-btn"); // 格式化按钮
+  const clearButton = document.getElementById("clear-draft-btn"); // 清空草稿按钮
+  const fillTerminationButton = document.getElementById("fill-termination-btn"); // 终止信号模板按钮
+  const submitButton = document.getElementById("submit-btn"); // 批量提交按钮
   if (
     !nodeList ||
     !validateButton ||
@@ -170,8 +171,8 @@ function setupEventListeners(): void {
 
   // 节点浏览列表采用事件委托，统一处理节点切换。
   nodeList.addEventListener("click", (e) => {
-    const item = (e.target as HTMLElement).closest<HTMLElement>(".node-item[data-node]");
-    const nodeName = item?.dataset.node;
+      const item = (e.target as HTMLElement).closest<HTMLElement>(".node-item[data-node]"); // 点击命中的节点项
+      const nodeName = item?.dataset.node; // 节点项上缓存的节点名
     if (nodeName) {
       selectNode(nodeName);
     }
@@ -304,13 +305,14 @@ function renderNodeList(searchTerm = ""): void {
  * @returns {void}
  */
 function renderCurrentNodeEditor(): void {
-  const currentNodeEl = document.getElementById("current-node-name");
-  const currentTagEl = document.getElementById("current-node-tag");
-  const textarea = getJsonTextarea();
+  const currentNodeEl = document.getElementById("current-node-name"); // 当前节点标题文本
+  const currentTagEl = document.getElementById("current-node-tag"); // 当前节点标题右侧 tag
+  const textarea = getJsonTextarea(); // JSON 编辑框
   if (!currentNodeEl || !currentTagEl) return;
-  const hasNode = Boolean(currentNodeName);
+  const hasNode = Boolean(currentNodeName); // 当前是否已有选中的可编辑节点
 
   if (!hasNode) {
+    // 未选择节点时，编辑器进入只读提示状态。
     currentNodeEl.textContent = t("injection.noNodeSelected");
     currentTagEl.textContent = "";
     currentTagEl.style.display = "none";
@@ -320,8 +322,9 @@ function renderCurrentNodeEditor(): void {
     hideError("json-error");
     setValidationMessage("injection.validationSelectNode", "neutral");
   } else {
-    const currentNode = currentNodeName;
+    const currentNode = currentNodeName; // 收窄后的当前节点名
     if (!currentNode) return;
+    // 已选择节点时，恢复该节点草稿并实时显示“已编辑”状态。
     currentNodeEl.textContent = currentNode;
     const hasDraft = Boolean(nodeDrafts[currentNode]?.trim());
     currentTagEl.textContent = hasDraft ? t("injection.draftEdited") : "";
@@ -343,7 +346,7 @@ function renderCurrentNodeEditor(): void {
  * @param {string} nodeName - 节点名称
  * @returns {void}
  */
-function selectNode(nodeName: string) {
+function selectNode(nodeName: string): void {
   if (!isInjectableNode(nodeName)) {
     syncInjectionStateWithStatuses();
     renderInjectionPage();
@@ -361,7 +364,7 @@ function selectNode(nodeName: string) {
  * @param {string} value - 草稿文本
  * @returns {void}
  */
-function setDraftForNode(nodeName: string, value: string) {
+function setDraftForNode(nodeName: string, value: string): void {
   if (value.trim()) {
     nodeDrafts[nodeName] = value;
   } else {
@@ -404,9 +407,9 @@ function buildPendingInjectionPayload(): {
   invalidNode: string | null;
   invalidReason: "invalid_json" | "not_array" | null;
 } {
-  const payload: Record<string, unknown[]> = {};
-  let invalidNode: string | null = null;
-  let invalidReason: "invalid_json" | "not_array" | null = null;
+  const payload: Record<string, unknown[]> = {}; // 最终提交给后端的映射
+  let invalidNode: string | null = null; // 首个校验失败的节点
+  let invalidReason: "invalid_json" | "not_array" | null = null; // 失败原因
 
   for (const [nodeName, draftText] of Object.entries(nodeDrafts)) {
     if (!isInjectableNode(nodeName) || !draftText.trim()) continue;
@@ -446,7 +449,7 @@ function renderDraftList(): void {
   const draftPreview = document.getElementById("draft-preview");
   if (!draftPreview) return;
 
-  const previewPayload: Record<string, unknown> = {};
+  const previewPayload: Record<string, unknown> = {}; // 供右侧 JSON 预览展示的数据
   for (const [nodeName, draftText] of Object.entries(nodeDrafts)) {
     if (!isInjectableNode(nodeName) || !draftText.trim()) continue;
     const parsed = parseDraftTaskList(draftText);
@@ -483,7 +486,7 @@ function renderDraftList(): void {
  * @param {...string[]} args - 占位参数
  * @returns {void}
  */
-function showError(elementId: string, messageKey: string, ...args: string[]) {
+function showError(elementId: string, messageKey: string, ...args: string[]): void {
   const errorDiv = document.getElementById(elementId) as HTMLElement;
   setLocalizedMessageMeta(errorDiv, messageKey, args);
   errorDiv.textContent = t(messageKey, ...args);
@@ -496,7 +499,7 @@ function showError(elementId: string, messageKey: string, ...args: string[]) {
  * @param {string} elementId - 错误信息容器 ID
  * @returns {void}
  */
-function hideError(elementId: string) {
+function hideError(elementId: string): void {
   const errorDiv = document.getElementById(elementId) as HTMLElement;
   errorDiv.style.display = "none";
   clearLocalizedMessageMeta(errorDiv);
@@ -514,7 +517,7 @@ function setValidationMessage(
   messageKey: string,
   state: ValidationState,
   args: string[] = [],
-) {
+) : void {
   const validationDiv = document.getElementById("json-validation") as HTMLElement;
   setLocalizedMessageMeta(validationDiv, messageKey, args);
   validationDiv.textContent = t(messageKey, ...args);
@@ -640,7 +643,7 @@ function fillTerminationDraft(): void {
  * @param {...string[]} args - 占位参数
  * @returns {void}
  */
-function showStatus(messageKey: string, isSuccess = false, ...args: string[]) {
+function showStatus(messageKey: string, isSuccess = false, ...args: string[]): void {
   const statusDiv = document.getElementById("status-message") as HTMLElement;
   setLocalizedMessageMeta(statusDiv, messageKey, args);
   renderStatusMessage(statusDiv, messageKey, isSuccess, args);
@@ -715,15 +718,17 @@ async function handleSubmit(): Promise<void> {
  * @param {boolean} loading - 是否进入提交中状态
  * @returns {void}
  */
-function setButtonLoading(loading: boolean) {
-  const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
+function setButtonLoading(loading: boolean): void {
+  const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement; // 提交按钮 DOM
 
   submitBtn.dataset.loading = loading ? "true" : "false";
 
   if (loading) {
+    // 加载中时替换按钮内容并锁定重复提交。
     submitBtn.innerHTML = `<div class="spinner"></div>${t("injection.submitting")}`;
     submitBtn.disabled = true;
   } else {
+    // 结束加载后恢复按钮文案，并重新按当前草稿状态判断是否可提交。
     submitBtn.innerHTML = t("injection.submitAllDrafts");
     updateSubmitButtonAvailability();
   }
@@ -736,8 +741,8 @@ function setButtonLoading(loading: boolean) {
  * @returns {void}
  */
 function refreshInjectionLocalizedText(): void {
-  const jsonError = document.getElementById("json-error") as HTMLElement;
-  const jsonErrorMessageKey = jsonError.dataset.messageKey;
+  const jsonError = document.getElementById("json-error") as HTMLElement; // JSON 语法错误提示
+  const jsonErrorMessageKey = jsonError.dataset.messageKey; // 当前错误提示翻译键
   if (jsonErrorMessageKey) {
     jsonError.textContent = t(
       jsonErrorMessageKey,
@@ -745,8 +750,8 @@ function refreshInjectionLocalizedText(): void {
     );
   }
 
-  const validationDiv = document.getElementById("json-validation") as HTMLElement;
-  const validationMessageKey = validationDiv.dataset.messageKey;
+  const validationDiv = document.getElementById("json-validation") as HTMLElement; // 编辑器下方校验提示
+  const validationMessageKey = validationDiv.dataset.messageKey; // 当前校验提示翻译键
   if (validationMessageKey) {
     validationDiv.textContent = t(
       validationMessageKey,
@@ -754,8 +759,8 @@ function refreshInjectionLocalizedText(): void {
     );
   }
 
-  const statusDiv = document.getElementById("status-message") as HTMLElement;
-  const statusMessageKey = statusDiv.dataset.messageKey;
+  const statusDiv = document.getElementById("status-message") as HTMLElement; // 预览卡底部状态提示
+  const statusMessageKey = statusDiv.dataset.messageKey; // 当前状态提示翻译键
   if (statusMessageKey) {
     renderStatusMessage(
       statusDiv,
@@ -767,7 +772,7 @@ function refreshInjectionLocalizedText(): void {
 
   renderInjectionPage();
 
-  const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
+  const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement; // 提交按钮
   if (submitBtn.dataset.loading === "true") {
     submitBtn.innerHTML = `<div class="spinner"></div>${t("injection.submitting")}`;
   }

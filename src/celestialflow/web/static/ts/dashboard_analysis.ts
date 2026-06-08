@@ -4,10 +4,10 @@
  */
 
 type AnalysisData = {
-  isDAG?: boolean;
-  scheduleMode?: string;
-  className?: string;
-  layersDict?: Record<string, unknown>;
+  isDAG?: boolean; // 当前任务图是否为 DAG
+  scheduleMode?: string; // 图级调度模式名称
+  className?: string; // 图结构分类名称
+  layersDict?: Record<string, unknown>; // 层级分析结果，键数量可用于统计层数
 };
 
 // 全局状态
@@ -63,7 +63,7 @@ async function loadAnalysis(): Promise<boolean> {
  * @returns {void}
  */
 function renderAnalysisInfo(): void {
-  const container = document.getElementById("analysis-info") as HTMLElement;
+  const container = document.getElementById("analysis-info") as HTMLElement; // 分析卡片内容容器
   if (!container) return;
 
   if (!analysisData || Object.keys(analysisData).length === 0) {
@@ -71,10 +71,11 @@ function renderAnalysisInfo(): void {
     return;
   }
 
-  const { isDAG, scheduleMode, className, layersDict = {} } = analysisData;
+  const { isDAG, scheduleMode, className, layersDict = {} } = analysisData; // 解构常用分析字段
 
-  const layerCount = Object.keys(layersDict).length;
+  const layerCount = Object.keys(layersDict).length; // 通过层级字典键数推导层级总数
 
+  // 统一构建四行展示内容，避免分散更新不同 DOM 节点。
   container.innerHTML = `
     <div class="analysis-row">
       <span class="analysis-label">${renderAnalysisLabelWithTooltip("analysis.structType", "analysis.structTypeHelp")}</span>

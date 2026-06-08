@@ -25,7 +25,7 @@ const settingsCurrentEmpty = document.getElementById("settings-current-empty") a
 const settingsCurrentItems = document.querySelectorAll<HTMLElement>("[data-settings-tab]"); // 当前页设置项列表
 const tabButtons = document.querySelectorAll<HTMLElement>(".tab-btn"); // 页签按钮列表
 const tabContents = document.querySelectorAll<HTMLElement>(".tab-content"); // 页签内容列表
-let settingsStatusTimer: ReturnType<typeof setTimeout> | null = null;
+let settingsStatusTimer: ReturnType<typeof setTimeout> | null = null; // 设置状态提示自动隐藏定时器
 
 /**
  * 切换页面暗黑/明亮主题
@@ -176,7 +176,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // ==== 初始化配置 ====
     await loadWebConfig();
     applyConfig();
-    const config = webConfig;
+  const config = webConfig; // 使用局部引用，后续事件里直接修改同一配置对象
     updateCurrentPageSettings();
 
     // ==== 事件绑定 ====
@@ -317,14 +317,17 @@ async function refreshAll(): Promise<void> {
     loadAnalysis(),    // 获取最新分析信息，更新 analysisData
   ]);
 
+  // 结构图依赖结构数据，也会用节点状态给节点着色。
   if (statusesChanged || structureChanged) {
     renderMermaidStructure(nodeStatuses); // 左上结构图, 依赖节点信息与结构信息
   }
 
+  // 分析信息只在分析数据变更时刷新，避免无效重绘。
   if (analysisChanged) {
     renderAnalysisInfo();   // 左下分析信息
   }
 
+  // 节点状态变化会联动影响多个区域：状态卡、筛选器、注入页、折线图和汇总卡。
   if (statusesChanged) {
     renderDashboard();                // 中间节点状态卡片
     populateNodeFilter(nodeStatuses); // 错误筛选器
@@ -333,6 +336,7 @@ async function refreshAll(): Promise<void> {
     renderSummary();                  // 右下汇总数据
   }
 
+  // 错误分页与筛选结果变更后再重绘错误表格。
   if (errorsChanged) {
     renderErrors();         // 错误表格
   }

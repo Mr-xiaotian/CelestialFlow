@@ -3,7 +3,7 @@
  * 负责多语言翻译数据的维护和 DOM 文本的自动更新
  */
 
-var currentLang: Lang = "zh-CN";
+var currentLang: Lang = "zh-CN"; // 当前全局语言，默认使用中文
 
 /** 翻译字典：包含中、英、日三种语言的 UI 文本映射 */
 const translations: Record<Lang, Record<string, string>> = {
@@ -445,6 +445,7 @@ function setLang(lang: Lang): void {
 function t(key: string, ...args: string[]): string {
   let s =
     translations[currentLang]?.[key] ?? translations["zh-CN"]?.[key] ?? key;
+  // 逐个替换简单占位符，支持 {0}、{1} 这类模板参数。
   for (let i = 0; i < args.length; i++) {
     s = s.replace(`{${i}}`, args[i]);
   }
@@ -459,10 +460,12 @@ function t(key: string, ...args: string[]): string {
  * - data-i18n-aria-label: 替换 aria-label 属性
  */
 function applyI18nDOM(): void {
+  // 批量替换直接显示文本的元素内容。
   document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => {
     const key = el.getAttribute("data-i18n")!;
     el.textContent = t(key);
   });
+  // 同步输入框 placeholder。
   document
     .querySelectorAll<HTMLElement>("[data-i18n-placeholder]")
     .forEach((el) => {
@@ -470,9 +473,11 @@ function applyI18nDOM(): void {
         el.getAttribute("data-i18n-placeholder")!,
       );
     });
+  // 同步 title 提示文案。
   document.querySelectorAll<HTMLElement>("[data-i18n-title]").forEach((el) => {
     el.title = t(el.getAttribute("data-i18n-title")!);
   });
+  // 同步 aria-label，保证辅助功能文本也跟随语言变化。
   document
     .querySelectorAll<HTMLElement>("[data-i18n-aria-label]")
     .forEach((el) => {
@@ -481,5 +486,6 @@ function applyI18nDOM(): void {
         t(el.getAttribute("data-i18n-aria-label")!),
       );
     });
+  // 最后刷新浏览器标签页标题。
   document.title = t("app.title");
 }

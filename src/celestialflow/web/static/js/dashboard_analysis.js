@@ -55,15 +55,16 @@ async function loadAnalysis() {
  * @returns {void}
  */
 function renderAnalysisInfo() {
-    const container = document.getElementById("analysis-info");
+    const container = document.getElementById("analysis-info"); // 分析卡片内容容器
     if (!container)
         return;
     if (!analysisData || Object.keys(analysisData).length === 0) {
         container.innerHTML = `<div class="empty-placeholder">${t("analysis.noData")}</div>`;
         return;
     }
-    const { isDAG, scheduleMode, className, layersDict = {} } = analysisData;
-    const layerCount = Object.keys(layersDict).length;
+    const { isDAG, scheduleMode, className, layersDict = {} } = analysisData; // 解构常用分析字段
+    const layerCount = Object.keys(layersDict).length; // 通过层级字典键数推导层级总数
+    // 统一构建四行展示内容，避免分散更新不同 DOM 节点。
     container.innerHTML = `
     <div class="analysis-row">
       <span class="analysis-label">${renderAnalysisLabelWithTooltip("analysis.structType", "analysis.structTypeHelp")}</span>

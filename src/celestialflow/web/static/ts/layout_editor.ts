@@ -7,18 +7,18 @@ const DEFAULT_LAYOUT: DashboardLayout = {
   left: ["mermaid", "analysis"],
   middle: ["status"],
   right: ["progress", "summary"],
-};
+}; // 默认三栏布局，用于首次启动和重置
 
 let originalLayout: DashboardLayout = {
   left: [],
   middle: [],
   right: [],
-};
+}; // 打开编辑器时的布局快照，用于取消时恢复
 
 /** 创建一张可拖拽卡片 */
 function renderCard(cardId: string): HTMLElement {
-  const name = t(CARD_META[cardId] ?? cardId);
-  const el = document.createElement("div");
+  const name = t(CARD_META[cardId] ?? cardId); // 卡片显示名称，优先使用国际化标题
+  const el = document.createElement("div"); // 可拖拽卡片 DOM
   el.className = "layout-card";
   el.dataset.cardId = cardId;
   el.innerHTML = `
@@ -29,10 +29,10 @@ function renderCard(cardId: string): HTMLElement {
 
 /** 打开布局编辑器，读取当前配置并渲染 */
 function openLayoutEditor(): void {
-  const overlay = document.getElementById("layout-editor-overlay")!;
+  const overlay = document.getElementById("layout-editor-overlay")!; // 布局编辑器遮罩层
   overlay.classList.remove("hidden");
 
-  const layout = webConfig.dashboard;
+  const layout = webConfig.dashboard; // 当前生效布局
   originalLayout = {
     left: [...(layout.left ?? [])],
     middle: [...(layout.middle ?? [])],
@@ -43,11 +43,11 @@ function openLayoutEditor(): void {
     ...(layout.left ?? []),
     ...(layout.middle ?? []),
     ...(layout.right ?? []),
-  ]);
+  ]); // 当前已经被占用的卡片 ID
 
   // 渲染三栏
   for (const col of ["left", "middle", "right"] as DashboardColumnKey[]) {
-    const zone = document.getElementById(`layout-dropzone-${col}`)!;
+    const zone = document.getElementById(`layout-dropzone-${col}`)!; // 当前栏位的拖放区域
     zone.innerHTML = "";
     for (const cardId of layout[col] ?? []) {
       zone.appendChild(renderCard(cardId));
@@ -55,7 +55,7 @@ function openLayoutEditor(): void {
   }
 
   // 渲染未使用池
-  const unusedZone = document.getElementById("layout-dropzone-unused")!;
+  const unusedZone = document.getElementById("layout-dropzone-unused")!; // 未使用卡片池
   unusedZone.innerHTML = "";
   for (const cardId of ALL_CARD_IDS) {
     if (!usedIds.has(cardId)) {
@@ -68,9 +68,10 @@ function openLayoutEditor(): void {
 
 /** 关闭编辑器 */
 function closeLayoutEditor(restore: boolean = true): void {
-  const overlay = document.getElementById("layout-editor-overlay")!;
+  const overlay = document.getElementById("layout-editor-overlay")!; // 布局编辑器遮罩层
   overlay.classList.add("hidden");
   if (restore) {
+    // 关闭且需要恢复时，回滚到打开编辑器时的布局快照。
     webConfig.dashboard = {
       left: [...originalLayout.left],
       middle: [...originalLayout.middle],
@@ -87,9 +88,10 @@ function initSortable(): void {
     "layout-dropzone-middle",
     "layout-dropzone-right",
     "layout-dropzone-unused",
-  ];
+  ]; // 支持互拖的全部区域 ID
 
   for (const id of zoneIds) {
+    // 每个区域都加入同一 group，这样卡片可以跨栏位拖拽。
     Sortable.create(document.getElementById(id)!, {
       group: "dashboard-layout",
       animation: 150,
@@ -101,8 +103,13 @@ function initSortable(): void {
 
 /** 拖拽结束后将三栏卡片顺序写回 webConfig */
 function syncLayout(): void {
+  /**
+   * 读取某一栏位中的全部卡片顺序。
+   * @param {DashboardColumnKey} col - 栏位 key
+   * @returns {string[]} 栏位中的卡片 ID 顺序
+   */
   const cards = (col: DashboardColumnKey): string[] => {
-    const zone = document.getElementById(`layout-dropzone-${col}`)!;
+    const zone = document.getElementById(`layout-dropzone-${col}`)!; // 对应栏位的拖放区域
     return Array.from(zone.querySelectorAll<HTMLElement>(".layout-card")).map(
       (c) => c.dataset.cardId!,
     );
@@ -128,6 +135,7 @@ async function saveLayout(): Promise<void> {
 
 /** 重置为默认布局（清空所有栏并重新渲染） */
 function resetLayout(): void {
+  // 先把运行时布局恢复成默认值。
   webConfig.dashboard = {
     left: [...DEFAULT_LAYOUT.left],
     middle: [...DEFAULT_LAYOUT.middle],
@@ -138,17 +146,17 @@ function resetLayout(): void {
     ...DEFAULT_LAYOUT.left,
     ...DEFAULT_LAYOUT.middle,
     ...DEFAULT_LAYOUT.right,
-  ]);
+  ]); // 默认布局中已经使用到的卡片 ID
 
   for (const col of ["left", "middle", "right"] as DashboardColumnKey[]) {
-    const zone = document.getElementById(`layout-dropzone-${col}`)!;
+    const zone = document.getElementById(`layout-dropzone-${col}`)!; // 当前栏位拖放区域
     zone.innerHTML = "";
     for (const cardId of webConfig.dashboard[col]) {
       zone.appendChild(renderCard(cardId));
     }
   }
 
-  const unusedZone = document.getElementById("layout-dropzone-unused")!;
+  const unusedZone = document.getElementById("layout-dropzone-unused")!; // 未使用卡片池
   unusedZone.innerHTML = "";
   for (const cardId of ALL_CARD_IDS) {
     if (!usedIds.has(cardId)) {

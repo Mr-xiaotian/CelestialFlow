@@ -29,7 +29,7 @@ function getColor(index) {
         "--sky-500",
         "--amber-500",
     ];
-    const style = getComputedStyle(document.documentElement);
+    const style = getComputedStyle(document.documentElement); // 从主题变量读取真实颜色值
     return style.getPropertyValue(vars[index % vars.length]).trim();
 }
 /**
@@ -39,7 +39,7 @@ function getColor(index) {
  * @returns {Record<string, Array<{ x: number; y: number }>>} 图表使用的坐标点映射
  */
 function extractProgressData(histories, metric) {
-    const isDelta = metric.startsWith("delta_");
+    const isDelta = metric.startsWith("delta_"); // delta_ 前缀表示要计算变化率
     const sourceMetric = isDelta
         ? metric.replace("delta_", "")
         : null;
@@ -47,6 +47,7 @@ function extractProgressData(histories, metric) {
     const result = {};
     for (const [node, data] of Object.entries(histories)) {
         if (isDelta && sourceMetric) {
+            // 趋势指标使用相邻采样点差值 / 时间差来近似每秒速率。
             result[node] = data.map((point, i) => {
                 if (i === 0)
                     return { x: point.timestamp, y: 0 };
@@ -57,6 +58,7 @@ function extractProgressData(histories, metric) {
             });
         }
         else {
+            // 累计类指标直接读取采样点原始字段值。
             result[node] = data.map((point) => ({
                 x: point.timestamp,
                 y: Number(point[directMetric] || 0),
@@ -171,16 +173,16 @@ function appendStatusSnapshotToHistory(timestamp, statuses, previousStatuses = {
     if (!Number.isFinite(timestamp) || timestamp <= 0) {
         return false;
     }
-    const historyLimit = getCurrentHistoryLimit();
-    let changed = false;
-    const nextHistories = {};
+    const historyLimit = getCurrentHistoryLimit(); // 当前允许保留的最大历史点数
+    let changed = false; // 标记历史缓存是否发生变化
+    const nextHistories = {}; // 下一轮完整历史映射
     for (const [node, status] of Object.entries(statuses)) {
-        const previousHistory = nodeHistories[node] || [];
-        const previousStatus = previousStatuses[node];
-        const lastPoint = previousHistory[previousHistory.length - 1];
-        const restarted = Boolean(previousStatus && previousStatus.start_time !== status.start_time);
-        const rolledBack = Boolean(lastPoint && status.tasks_processed < lastPoint.tasks_processed);
-        const history = restarted || rolledBack ? [] : [...previousHistory];
+        const previousHistory = nodeHistories[node] || []; // 当前节点之前保留的历史序列
+        const previousStatus = previousStatuses[node]; // 上一轮状态快照
+        const lastPoint = previousHistory[previousHistory.length - 1]; // 上一个历史点
+        const restarted = Boolean(previousStatus && previousStatus.start_time !== status.start_time); // start_time 变化意味着节点重启
+        const rolledBack = Boolean(lastPoint && status.tasks_processed < lastPoint.tasks_processed); // processed 值回退通常意味着节点重置或历史失效
+        const history = restarted || rolledBack ? [] : [...previousHistory]; // 重启后放弃旧历史，避免折线回跳
         const nextPoint = {
             timestamp,
             tasks_processed: status.tasks_processed || 0,
@@ -190,12 +192,14 @@ function appendStatusSnapshotToHistory(timestamp, statuses, previousStatuses = {
             tasks_pending: status.tasks_pending || 0,
         };
         if (!history.length) {
+            // 首个采样点直接写入。
             history.push(nextPoint);
             changed = true;
         }
         else {
-            const currentLastPoint = history[history.length - 1];
+            const currentLastPoint = history[history.length - 1]; // 当前序列尾点，可能需要原位更新
             if (currentLastPoint.timestamp === timestamp) {
+                // 同一秒内的重复刷新直接覆盖尾点，避免出现重复横坐标。
                 const pointChanged = currentLastPoint.tasks_processed !== nextPoint.tasks_processed ||
                     currentLastPoint.tasks_succeeded !== nextPoint.tasks_succeeded ||
                     currentLastPoint.tasks_failed !== nextPoint.tasks_failed ||
@@ -207,11 +211,12 @@ function appendStatusSnapshotToHistory(timestamp, statuses, previousStatuses = {
                 }
             }
             else {
+                // 新时间戳则追加到末尾。
                 history.push(nextPoint);
                 changed = true;
             }
         }
-        const trimmed = history.slice(-historyLimit);
+        const trimmed = history.slice(-historyLimit); // 控制前端内存和图表长度
         if (trimmed.length !== history.length) {
             changed = true;
         }
@@ -248,12 +253,12 @@ function getChartThemeColors() {
  * @returns {void}
  */
 function initChart() {
-    const ctx = document.getElementById("node-progress-chart").getContext("2d");
+    const ctx = document.getElementById("node-progress-chart").getContext("2d"); // Chart.js 绘图上下文
     // 销毁旧实例（关键）
     if (progressChart) {
         progressChart.destroy();
     }
-    const { text: textColor, grid: gridColor, border: borderColor, } = getChartThemeColors();
+    const { text: textColor, grid: gridColor, border: borderColor, } = getChartThemeColors(); // 当前主题下图表颜色配置
     progressChart = new Chart(ctx, {
         type: "line",
         data: {
@@ -269,11 +274,12 @@ function initChart() {
                         color: textColor, // 图例文字颜色
                     },
                     onClick: (e, legendItem, legend) => {
-                        const index = legendItem.datasetIndex;
-                        const chart = legend.chart;
-                        const nodeName = chart.data.datasets[index]?.label;
+                        const index = legendItem.datasetIndex; // 被点击的数据集索引
+                        const chart = legend.chart; // 当前 Chart 实例
+                        const nodeName = chart.data.datasets[index]?.label; // 图例项对应的节点名
                         if (!nodeName)
                             return;
+                        // hiddenNodes 作为额外缓存，用于刷新数据后仍保留手动隐藏状态。
                         if (hiddenNodes.has(nodeName)) {
                             hiddenNodes.delete(nodeName);
                         }
@@ -340,9 +346,9 @@ function updateChartTheme() {
 function updateChartData() {
     if (!progressChart)
         return;
-    const chart = progressChart;
+    const chart = progressChart; // 收窄为非空实例，便于后续统一访问
     updateChartAxisLabels();
-    const nodeDataMap = extractProgressData(nodeHistories, currentHistoryMetric);
+    const nodeDataMap = extractProgressData(nodeHistories, currentHistoryMetric); // 当前指标下的节点折线数据
     const datasets = Object.entries(nodeDataMap).map(([node, data], index) => ({
         label: node,
         data: data,
@@ -351,7 +357,7 @@ function updateChartData() {
         tension: 0.3,
         hidden: hiddenNodes.has(node), // 根据用户之前的选择
     }));
-    const firstNode = Object.keys(nodeDataMap)[0];
+    const firstNode = Object.keys(nodeDataMap)[0]; // 用第一条曲线的横轴标签作为全图 labels
     if (!firstNode) {
         chart.data.labels = [];
         chart.data.datasets = [];
