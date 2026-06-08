@@ -471,7 +471,7 @@ function renderDraftList(): void {
   }
 
   if (!Object.keys(previewPayload).length) {
-    draftPreview.textContent = t("injection.noDrafts");
+    draftPreview.innerHTML = `<div class="empty-placeholder">${escapeHtml(t("injection.noDrafts"))}</div>`;
     return;
   }
 

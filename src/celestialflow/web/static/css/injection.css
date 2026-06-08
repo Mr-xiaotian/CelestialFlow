@@ -439,28 +439,15 @@
   gap: 0.75rem;
 }
 
-/* 预览卡片标题。 */
-#task-injection .draft-title {
-  margin-bottom: 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--carbon-800);
-
-  .dark-theme & {
-    color: var(--carbon-100);
-  }
-}
-
 /* 只读的大型 JSON 预览区。 */
-#task-injection .draft-preview,
 #task-injection .empty-placeholder {
   padding: 1rem;
   font-family: "Monaco", "Menlo", monospace;
   font-size: 0.75rem;
 
-  .dark-theme & {
+  /* .dark-theme & {
     color: var(--carbon-200);
-  }
+  } */
 }
 
 /* ================================
