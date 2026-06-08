@@ -75,3 +75,36 @@ class TestJsonlUtils:
         assert error.error_type == "ValueError"
         assert error.error_message == "err1"
         assert error.stage == "s1"
+
+    def test_load_task_error_pairs_accepts_new_schema(self, tmp_path):
+        """新 schema 仅保留 error_type/error_message/task 时也应能正常解析。"""
+        path = tmp_path / "new-schema.jsonl"
+        data = [
+            {"meta": "header"},
+            {
+                "stage": "s1",
+                "task": "{'id': 1}",
+                "error_type": "ValueError",
+                "error_message": "bad value",
+                "ts": 1.0,
+            },
+            {
+                "stage": "s2",
+                "task": "2",
+                "error_type": "RuntimeError",
+                "error_message": "boom",
+                "ts": 2.0,
+            },
+        ]
+        with open(path, "w", encoding="utf-8") as f:
+            for item in data:
+                f.write(json.dumps(item) + "\n")
+
+        pairs = load_task_error_pairs(path)
+
+        assert len(pairs) == 2
+        assert pairs[0][0] == {"id": 1}
+        assert pairs[0][1].error_type == "ValueError"
+        assert pairs[0][1].error_message == "bad value"
+        assert pairs[0][1].error_repr == "ValueError(bad value)"
+        assert str(pairs[1][1]) == "RuntimeError(boom)"

@@ -124,7 +124,14 @@ def test_errors_pagination(client):
     """测试错误日志分页与过滤 API：验证后端对错误记录的聚合与分页逻辑是否正确"""
     # 1. 模拟推送错误数据
     test_errors = [
-        {"error_id": i, "stage": f"s{i%2}", "task_repr": f"task{i}", "ts": i}
+        {
+            "error_id": i,
+            "stage": f"s{i%2}",
+            "task": f"task{i}",
+            "error_type": "ValueError" if i % 2 == 0 else "TypeError",
+            "error_message": f"err{i}",
+            "ts": i,
+        }
         for i in range(15)
     ]
     # 注意：由于 push_errors_meta 需要真实路径，我们直接用 push_errors_content
@@ -149,7 +156,17 @@ def test_errors_pagination(client):
     # 0, 2, 4, 6, 8, 10, 12, 14 -> 8条
     assert data_filter["total"] == 8
 
-    # 4. 测试排序（最旧优先）
+    # 4. 测试关键词过滤（任务名与错误字段都可命中）
+    resp_keyword = client.get("/api/pull_errors?keyword=task12")
+    data_keyword = resp_keyword.json()
+    assert data_keyword["total"] == 1
+    assert data_keyword["data"][0]["error_id"] == 12
+
+    resp_error_keyword = client.get("/api/pull_errors?keyword=typeerror")
+    data_error_keyword = resp_error_keyword.json()
+    assert data_error_keyword["total"] == 7
+
+    # 5. 测试排序（最旧优先）
     resp_oldest = client.get("/api/pull_errors?sort_order=oldest&page_size=5")
     data_oldest = resp_oldest.json()
     assert data_oldest["sort_order"] == "oldest"
