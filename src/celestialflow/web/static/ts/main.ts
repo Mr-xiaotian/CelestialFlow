@@ -327,7 +327,7 @@ async function refreshAll() {
   if (statusesChanged) {
     renderDashboard();                // 中间节点状态卡片
     populateNodeFilter(nodeStatuses); // 错误筛选器
-    renderNodeList();                 // 注入页节点列表
+    renderInjectionPage();            // 注入页节点列表 + 当前节点编辑区
     updateChartData();                // 右上折线图
     renderSummary();                  // 右下汇总数据
   }
