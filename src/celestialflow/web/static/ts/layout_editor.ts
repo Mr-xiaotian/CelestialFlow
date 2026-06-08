@@ -3,13 +3,17 @@
  * 悬浮窗口中用拖拽方式管理仪表盘左中右三栏的卡片排列
  */
 
-const DEFAULT_LAYOUT = {
+const DEFAULT_LAYOUT: DashboardLayout = {
   left: ["mermaid", "analysis"],
   middle: ["status"],
   right: ["progress", "summary"],
 };
 
-let originalLayout: Record<string, string[]> = {};
+let originalLayout: DashboardLayout = {
+  left: [],
+  middle: [],
+  right: [],
+};
 
 /** 创建一张可拖拽卡片 */
 function renderCard(cardId: string): HTMLElement {
@@ -24,7 +28,7 @@ function renderCard(cardId: string): HTMLElement {
 }
 
 /** 打开布局编辑器，读取当前配置并渲染 */
-function openLayoutEditor() {
+function openLayoutEditor(): void {
   const overlay = document.getElementById("layout-editor-overlay")!;
   overlay.classList.remove("hidden");
 
@@ -42,7 +46,7 @@ function openLayoutEditor() {
   ]);
 
   // 渲染三栏
-  for (const col of ["left", "middle", "right"]) {
+  for (const col of ["left", "middle", "right"] as DashboardColumnKey[]) {
     const zone = document.getElementById(`layout-dropzone-${col}`)!;
     zone.innerHTML = "";
     for (const cardId of layout[col] ?? []) {
@@ -63,7 +67,7 @@ function openLayoutEditor() {
 }
 
 /** 关闭编辑器 */
-function closeLayoutEditor(restore: boolean = true) {
+function closeLayoutEditor(restore: boolean = true): void {
   const overlay = document.getElementById("layout-editor-overlay")!;
   overlay.classList.add("hidden");
   if (restore) {
@@ -77,7 +81,7 @@ function closeLayoutEditor(restore: boolean = true) {
 }
 
 /** 初始化 SortableJS 拖拽（三栏 + 未使用池互拖） */
-function initSortable() {
+function initSortable(): void {
   const zoneIds = [
     "layout-dropzone-left",
     "layout-dropzone-middle",
@@ -96,8 +100,8 @@ function initSortable() {
 }
 
 /** 拖拽结束后将三栏卡片顺序写回 webConfig */
-function syncLayout() {
-  const cards = (col: string) => {
+function syncLayout(): void {
+  const cards = (col: DashboardColumnKey): string[] => {
     const zone = document.getElementById(`layout-dropzone-${col}`)!;
     return Array.from(zone.querySelectorAll<HTMLElement>(".layout-card")).map(
       (c) => c.dataset.cardId!,
@@ -111,7 +115,7 @@ function syncLayout() {
 }
 
 /** 保存布局到 config.json 并刷新仪表盘 */
-async function saveLayout() {
+async function saveLayout(): Promise<void> {
   syncLayout();
   const saved = await saveWebConfig();
   if (saved) {
@@ -123,7 +127,7 @@ async function saveLayout() {
 }
 
 /** 重置为默认布局（清空所有栏并重新渲染） */
-function resetLayout() {
+function resetLayout(): void {
   webConfig.dashboard = {
     left: [...DEFAULT_LAYOUT.left],
     middle: [...DEFAULT_LAYOUT.middle],
@@ -136,7 +140,7 @@ function resetLayout() {
     ...DEFAULT_LAYOUT.right,
   ]);
 
-  for (const col of ["left", "middle", "right"]) {
+  for (const col of ["left", "middle", "right"] as DashboardColumnKey[]) {
     const zone = document.getElementById(`layout-dropzone-${col}`)!;
     zone.innerHTML = "";
     for (const cardId of webConfig.dashboard[col]) {

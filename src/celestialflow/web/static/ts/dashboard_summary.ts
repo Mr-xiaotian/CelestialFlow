@@ -21,7 +21,7 @@ const totalRemain = document.getElementById("total-remain") as HTMLElement;
  * 图级剩余时间由前端基于各节点的 `total_remaining_time` 取最大值得到。
  * @returns {void}
  */
-function renderSummary() {
+function renderSummary(): void {
   const statusList = Object.values(nodeStatuses || {});
   const total_succeeded = statusList.reduce((sum, status) => sum + (status.tasks_succeeded || 0), 0);
   const total_pending = statusList.reduce((sum, status) => sum + (status.tasks_pending || 0), 0);

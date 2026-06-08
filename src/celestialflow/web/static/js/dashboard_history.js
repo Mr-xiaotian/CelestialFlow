@@ -42,6 +42,7 @@ function extractProgressData(histories, metric) {
     const sourceMetric = isDelta
         ? metric.replace("delta_", "")
         : null;
+    const directMetric = isDelta ? null : metric;
     const result = {};
     for (const [node, data] of Object.entries(histories)) {
         if (isDelta && sourceMetric) {
@@ -57,7 +58,7 @@ function extractProgressData(histories, metric) {
         else {
             result[node] = data.map((point) => ({
                 x: point.timestamp,
-                y: Number(point[metric] || 0),
+                y: Number(point[directMetric] || 0),
             }));
         }
     }

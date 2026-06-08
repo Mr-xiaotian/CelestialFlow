@@ -304,7 +304,7 @@ document.addEventListener("DOMContentLoaded", async () => {
  * 对比新旧数据，仅在数据变更时触发相应的 UI 更新函数
  * @returns {Promise<void>}
  */
-async function refreshAll() {
+async function refreshAll(): Promise<void> {
   // 并行获取节点状态、任务结构、错误日志（注意是异步 API 请求）
   // - nodeStatuses 会被 loadStatuses 更新
   // - 结构数据会被 loadStructure 使用来渲染 Mermaid 图

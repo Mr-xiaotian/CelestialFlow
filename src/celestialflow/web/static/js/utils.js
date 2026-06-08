@@ -122,7 +122,7 @@ function calcRemainTime(processed, pending, elapsed) {
 }
 /**
  * 将对象格式化为字符串，自动转义换行、截断超长文本。
- * @param {any} obj - 任意对象
+ * @param {unknown} obj - 任意对象
  * @param {number} max_length - 显示的最大字符数（超出将被截断）
  * @returns {string} 格式化字符串
  */

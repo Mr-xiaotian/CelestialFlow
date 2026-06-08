@@ -129,7 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
  *
  * @returns {void}
  */
-function setupEventListeners() {
+function setupEventListeners(): void {
   // 搜索节点时实时过滤左侧节点浏览列表。
   getSearchInput().addEventListener("input", (e) => {
     renderNodeList((e.target as HTMLInputElement).value);
@@ -189,7 +189,7 @@ function isInjectableNode(nodeName: string): boolean {
  *
  * @returns {void}
  */
-function syncInjectionStateWithStatuses() {
+function syncInjectionStateWithStatuses(): void {
   for (const nodeName of Object.keys(nodeDrafts)) {
     if (!nodeStatuses[nodeName]) {
       delete nodeDrafts[nodeName];
@@ -227,7 +227,7 @@ function getNodeBadgeInfo(nodeName: string): { badgeClass: string; badgeText: st
  *
  * @returns {void}
  */
-function renderInjectionPage() {
+function renderInjectionPage(): void {
   syncInjectionStateWithStatuses();
   renderNodeList(getSearchInput()?.value || "");
   renderCurrentNodeEditor();
@@ -241,7 +241,7 @@ function renderInjectionPage() {
  * @param {string} [searchTerm=""] - 搜索关键词
  * @returns {void}
  */
-function renderNodeList(searchTerm = "") {
+function renderNodeList(searchTerm = ""): void {
   const nodeListEl = document.getElementById("node-list");
   if (!nodeListEl) return;
 
@@ -286,7 +286,7 @@ function renderNodeList(searchTerm = "") {
  *
  * @returns {void}
  */
-function renderCurrentNodeEditor() {
+function renderCurrentNodeEditor(): void {
   const currentNodeEl = document.getElementById("current-node-name");
   const currentTagEl = document.getElementById("current-node-tag");
   const textarea = getJsonTextarea();
@@ -410,7 +410,7 @@ function buildPendingInjectionPayload(): {
  *
  * @returns {void}
  */
-function updateSubmitButtonAvailability() {
+function updateSubmitButtonAvailability(): void {
   const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement | null;
   if (!submitBtn || submitBtn.dataset.loading === "true") return;
   submitBtn.disabled = Object.keys(buildPendingInjectionPayload().payload).length === 0;
@@ -422,7 +422,7 @@ function updateSubmitButtonAvailability() {
  *
  * @returns {void}
  */
-function renderDraftList() {
+function renderDraftList(): void {
   const draftPreview = document.getElementById("draft-preview");
   if (!draftPreview) return;
 
@@ -550,7 +550,7 @@ function validateCurrentDraft(showSyntaxError = true): boolean {
  *
  * @returns {void}
  */
-function formatCurrentDraft() {
+function formatCurrentDraft(): void {
   if (!currentNodeName) {
     showStatus("injection.selectNodeRequired", false);
     return;
@@ -579,7 +579,7 @@ function formatCurrentDraft() {
  *
  * @returns {void}
  */
-function clearCurrentDraft() {
+function clearCurrentDraft(): void {
   if (!currentNodeName) {
     showStatus("injection.selectNodeRequired", false);
     return;
@@ -598,7 +598,7 @@ function clearCurrentDraft() {
  *
  * @returns {void}
  */
-function fillTerminationDraft() {
+function fillTerminationDraft(): void {
   if (!currentNodeName) {
     showStatus("injection.selectNodeRequired", false);
     return;
@@ -643,7 +643,7 @@ function showStatus(messageKey: string, isSuccess = false, ...args: string[]) {
  *
  * @returns {Promise<void>}
  */
-async function handleSubmit() {
+async function handleSubmit(): Promise<void> {
   syncInjectionStateWithStatuses();
 
   const { payload, invalidNode, invalidReason } = buildPendingInjectionPayload();
@@ -715,7 +715,7 @@ function setButtonLoading(loading: boolean) {
  *
  * @returns {void}
  */
-function refreshInjectionLocalizedText() {
+function refreshInjectionLocalizedText(): void {
   const jsonError = document.getElementById("json-error") as HTMLElement;
   const jsonErrorMessageKey = jsonError.dataset.messageKey;
   if (jsonErrorMessageKey) {

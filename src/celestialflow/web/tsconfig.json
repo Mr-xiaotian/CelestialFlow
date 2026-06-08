@@ -4,7 +4,7 @@
     "module": "none",
     "lib": ["ES2020", "DOM"],
     "strict": false,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
     "skipLibCheck": true,
     "rootDir": "static/ts",
     "outDir": "static/js"

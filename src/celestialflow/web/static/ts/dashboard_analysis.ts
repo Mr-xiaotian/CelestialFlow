@@ -3,8 +3,15 @@
  * 负责拉取和展示图结构的拓扑分析结果（如是否为 DAG、调度模式等）
  */
 
+type AnalysisData = {
+  isDAG?: boolean;
+  scheduleMode?: string;
+  className?: string;
+  layersDict?: Record<string, unknown>;
+};
+
 // 全局状态
-let analysisData: Record<string, any> = {}; // 拓扑分析数据
+let analysisData: AnalysisData = {}; // 拓扑分析数据
 let analysisRev = -1; // 数据版本号，用于增量拉取
 
 /**
@@ -55,7 +62,7 @@ async function loadAnalysis(): Promise<boolean> {
  * 根据 analysisData 在页面上显示结构类型、DAG 状态、调度模式和层级数量等信息
  * @returns {void}
  */
-function renderAnalysisInfo() {
+function renderAnalysisInfo(): void {
   const container = document.getElementById("analysis-info") as HTMLElement;
   if (!container) return;
 

@@ -431,7 +431,7 @@ const translations: Record<Lang, Record<string, string>> = {
  * 切换全局语言设置
  * @param {Lang} lang - 目标语言标识
  */
-function setLang(lang: Lang) {
+function setLang(lang: Lang): void {
   currentLang = lang;
   document.documentElement.lang = currentLang;
 }
@@ -458,7 +458,7 @@ function t(key: string, ...args: string[]): string {
  * - data-i18n-title: 替换 title 属性
  * - data-i18n-aria-label: 替换 aria-label 属性
  */
-function applyI18nDOM() {
+function applyI18nDOM(): void {
   document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => {
     const key = el.getAttribute("data-i18n")!;
     el.textContent = t(key);

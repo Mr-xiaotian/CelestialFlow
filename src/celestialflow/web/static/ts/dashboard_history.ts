@@ -27,9 +27,15 @@ type NodeHistoryPoint = {
 
 type NodeHistory = NodeHistoryPoint[];
 
+type ThemeColors = {
+  text: string;
+  grid: string;
+  border: string;
+};
+
 // 全局状态
 let nodeHistories: Record<string, NodeHistory> = {}; // 各节点的处理进度历史
-let progressChart = null; // Chart.js 折线图实例
+let progressChart: ChartInstance | null = null; // Chart.js 折线图实例
 /** 用户在图例中手动隐藏的节点集合（仅在当前页面生命周期内保留） */
 let hiddenNodes = new Set<string>();
 /** 当前历史图正在展示的指标类型，默认显示完成累计。 */
@@ -73,6 +79,7 @@ function extractProgressData(
   const sourceMetric = isDelta
     ? (metric.replace("delta_", "") as keyof NodeHistoryPoint)
     : null;
+  const directMetric = isDelta ? null : (metric as keyof NodeHistoryPoint);
 
   const result: Record<string, Array<{ x: number; y: number }>> = {};
   for (const [node, data] of Object.entries(histories)) {
@@ -88,7 +95,7 @@ function extractProgressData(
     } else {
       result[node] = data.map((point) => ({
         x: point.timestamp,
-        y: Number(point[metric] || 0),
+        y: Number(point[directMetric as keyof NodeHistoryPoint] || 0),
       }));
     }
   }
@@ -100,7 +107,7 @@ function extractProgressData(
  * @param {HistoryMetricKey} metric - 当前选中的历史图指标键。
  * @returns {string} 对应的国际化翻译 key。
  */
-function getHistoryMetricLabelKey(metric: HistoryMetricKey) {
+function getHistoryMetricLabelKey(metric: HistoryMetricKey): string {
   switch (metric) {
     case "tasks_succeeded":
       return "chart.metric.succeeded";
@@ -128,7 +135,7 @@ function getHistoryMetricLabelKey(metric: HistoryMetricKey) {
  * 根据当前选中的指标状态更新切换按钮的激活样式
  * @returns {void}
  */
-function updateHistoryMetricButtons() {
+function updateHistoryMetricButtons(): void {
   metricDots.forEach((dot) => {
     dot.classList.toggle(
       "active",
@@ -141,7 +148,7 @@ function updateHistoryMetricButtons() {
  * 更新图表坐标轴标题，使其与当前语言和指标类型保持一致
  * @returns {void}
  */
-function updateChartAxisLabels() {
+function updateChartAxisLabels(): void {
   if (!progressChart) return;
   progressChart.options.scales.x.title.text = t("chart.time");
   progressChart.options.scales.y.title.text = t(
@@ -155,7 +162,7 @@ function updateChartAxisLabels() {
  * - 绑定点击事件，在切换指标后更新轴标题并重绘图表
  * @returns {void}
  */
-function initHistoryMetricSwitcher() {
+function initHistoryMetricSwitcher(): void {
   updateHistoryMetricButtons();
   metricDots.forEach((dot) => {
     // 点击历史指标按钮时切换图表展示字段并立即重绘。
@@ -176,7 +183,7 @@ initHistoryMetricSwitcher();
  * 获取当前历史曲线保留点数限制
  * @returns {number} 归一化后的历史长度限制，最小为 1。
  */
-function getCurrentHistoryLimit() {
+function getCurrentHistoryLimit(): number {
   const limit = Number(webConfig?.historyLimit);
   return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 20;
 }
@@ -185,7 +192,7 @@ function getCurrentHistoryLimit() {
  * 按当前配置裁剪前端本地维护的历史点数量
  * @returns {boolean} 历史数据是否发生了变化。
  */
-function trimNodeHistories() {
+function trimNodeHistories(): boolean {
   const historyLimit = getCurrentHistoryLimit();
   let changed = false;
   const nextHistories: Record<string, NodeHistory> = {};
@@ -213,7 +220,7 @@ function appendStatusSnapshotToHistory(
   timestamp: number,
   statuses: Record<string, NodeStatus>,
   previousStatuses: Record<string, NodeStatus> = {},
-) {
+): boolean {
   if (!Number.isFinite(timestamp) || timestamp <= 0) {
     return false;
   }
@@ -283,7 +290,7 @@ function appendStatusSnapshotToHistory(
  * 从 CSS 变量读取图表主题颜色
  * @returns {{ text: string; grid: string; border: string }} 当前主题下图表文字、网格线和边框颜色。
  */
-function getChartThemeColors() {
+function getChartThemeColors(): ThemeColors {
   const isDark = document.body.classList.contains("dark-theme");
   const style = getComputedStyle(document.documentElement);
   return {
@@ -304,7 +311,7 @@ function getChartThemeColors() {
  * 创建 Chart.js 实例，配置图表选项、图例点击事件等
  * @returns {void}
  */
-function initChart() {
+function initChart(): void {
   const ctx = (
     document.getElementById("node-progress-chart") as HTMLCanvasElement
   ).getContext("2d");
@@ -381,7 +388,7 @@ function initChart() {
  * 更新折线图主题颜色（切换深色/浅色模式时调用，无需重建实例）
  * @returns {void}
  */
-function updateChartTheme() {
+function updateChartTheme(): void {
   if (!progressChart) return;
 
   const {
@@ -409,7 +416,7 @@ function updateChartTheme() {
  * 提取节点进度历史数据，更新 Chart.js 实例的数据集并重绘
  * @returns {void}
  */
-function updateChartData() {
+function updateChartData(): void {
   updateChartAxisLabels();
   const nodeDataMap = extractProgressData(nodeHistories, currentHistoryMetric);
   const datasets = Object.entries(nodeDataMap).map(([node, data], index) => ({

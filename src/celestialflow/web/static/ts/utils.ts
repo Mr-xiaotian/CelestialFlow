@@ -30,7 +30,12 @@ function formatLargeNumber(n: number): string {
  * @param {string} negClass - 负增量数值的 CSS 类名
  * @returns {string} 包含数值和带颜色增量的 HTML 字符串
  */
-function formatWithDelta(value: number, delta: number, deltaClass: string, negClass: string) {
+function formatWithDelta(
+  value: number,
+  delta: number,
+  deltaClass: string,
+  negClass: string,
+): string {
   const fmtValue = formatLargeNumber(value);
   if (!delta || delta === 0) return fmtValue;
   const sign = delta > 0 ? "+" : "-";
@@ -42,7 +47,7 @@ function formatWithDelta(value: number, delta: number, deltaClass: string, negCl
  * 简单的移动端设备检测
  * @returns {boolean} 如果是移动设备则返回 true
  */
-function isMobile() {
+function isMobile(): boolean {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
@@ -51,7 +56,7 @@ function isMobile() {
  * @param {string} str - 原始字符串
  * @returns {string} 转义后的安全字符串
  */
-function escapeHtml(str: string) {
+function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -66,7 +71,7 @@ function escapeHtml(str: string) {
  * @param {string} [nodeFilter] - 节点筛选值，不传或传空字符串则显示全部
  * @returns {void}
  */
-function switchToErrorsTab(nodeFilter: string = "") {
+function switchToErrorsTab(nodeFilter: string = ""): void {
   const errorsTabButton = document.querySelector<HTMLElement>(
     `.tab-btn[data-tab="errors"]`,
   );
@@ -86,7 +91,7 @@ function switchToErrorsTab(nodeFilter: string = "") {
  * @param {number} seconds - 秒数
  * @returns {string} 格式化后的时间字符串
  */
-function formatDuration(seconds: number) {
+function formatDuration(seconds: number): string {
   seconds = seconds > 0 ? Math.max(1, Math.floor(seconds)) : 0;
 
   const hours = Math.floor(seconds / 3600);
@@ -108,7 +113,7 @@ function formatDuration(seconds: number) {
  * @param {number} timestamp - Unix 时间戳（秒）
  * @returns {string} 格式化后的日期时间字符串
  */
-function formatTimestamp(timestamp: number) {
+function formatTimestamp(timestamp: number): string {
   const d = new Date(timestamp * 1000);
 
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -130,7 +135,7 @@ function formatTimestamp(timestamp: number) {
  * @param {number} elapsed - 已消耗时间（秒）
  * @returns {number} 预计剩余时间（秒）
  */
-function calcRemainTime(processed: number, pending: number, elapsed: number) {
+function calcRemainTime(processed: number, pending: number, elapsed: number): number {
   if (processed && pending) {
       return pending / processed * elapsed
   }
@@ -139,11 +144,11 @@ function calcRemainTime(processed: number, pending: number, elapsed: number) {
 
 /**
  * 将对象格式化为字符串，自动转义换行、截断超长文本。
- * @param {any} obj - 任意对象
+ * @param {unknown} obj - 任意对象
  * @param {number} max_length - 显示的最大字符数（超出将被截断）
  * @returns {string} 格式化字符串
  */
-function format_repr(obj, max_length) {
+function format_repr(obj: unknown, max_length: number): string {
     let obj_str = String(obj).replace(/\\/g, "\\\\").replace(/\n/g, "\\n");
     if (max_length <= 0 || obj_str.length <= max_length) {
         return obj_str;

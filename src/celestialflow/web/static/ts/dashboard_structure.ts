@@ -118,7 +118,7 @@ function getShapeWrappedLabel(label: string, shape: string = "box"): string {
  * @param {Record<string, NodeStatus>} [statuses={}] - 当前节点状态映射，用于节点着色和边增量计算。
  * @returns {void}
  */
-function renderMermaidStructure(statuses: Record<string, NodeStatus> = {}) {
+function renderMermaidStructure(statuses: Record<string, NodeStatus> = {}): void {
   const { nodes = {}, edges = {}, source_nodes = [] } = structureData || {};
   const nodeNames = Object.keys(nodes);
 

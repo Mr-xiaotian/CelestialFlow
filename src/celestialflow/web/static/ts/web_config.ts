@@ -11,12 +11,7 @@ type WebConfig = {
   errorSortOrder: "newest" | "oldest"; // 错误日志默认排序方式
   showStructureEdgeDelta: boolean; // 是否在结构图边上显示成功任务增量
   useTotalPendingInStatus: boolean; // 节点状态卡是否使用 total_tasks_pending
-  dashboard: {
-    // 仪表盘布局：各列包含的卡片 ID 列表
-    left: string[];
-    middle: string[];
-    right: string[];
-  };
+  dashboard: DashboardLayout;
 };
 
 // 全局状态
@@ -39,7 +34,7 @@ const DEFAULT_WEB_CONFIG: WebConfig = {
   },
 };
 
-const PANEL_SELECTOR_MAP = {
+const PANEL_SELECTOR_MAP: Record<DashboardColumnKey, string> = {
   left: ".left-panel",
   middle: ".middle-panel",
   right: ".right-panel",
@@ -150,9 +145,9 @@ const CARD_META: Record<string, string> = {
   summary: "card.summary.title",
 };
 
-const ALL_CARD_IDS = Object.keys(CARD_TEMPLATES);
+const ALL_CARD_IDS: string[] = Object.keys(CARD_TEMPLATES);
 
-function ensureAllCards() {
+function ensureAllCards(): void {
   const pool = document.getElementById("card-pool")!;
   for (const [key, html] of Object.entries(CARD_TEMPLATES)) {
     const cls = `${key}-card`;
@@ -192,7 +187,7 @@ async function loadWebConfig(): Promise<void> {
  * 保存配置到后端
  * @returns {Promise<boolean>} 保存成功返回 `true`，否则返回 `false`。
  */
-async function saveWebConfig() {
+async function saveWebConfig(): Promise<boolean> {
   try {
     const res = await fetch("/api/push_config", {
       method: "POST",
@@ -216,7 +211,7 @@ async function saveWebConfig() {
  * 包含语言切换、主题应用、下拉框同步和仪表盘重排
  * @returns {void}
  */
-function applyConfig() {
+function applyConfig(): void {
   // 应用语言
   webConfig.language = webConfig.language || "zh-CN";
   setLang(webConfig.language);
@@ -300,7 +295,7 @@ function applyConfig() {
  * 并根据配置控制卡片的显隐和顺序。
  * @returns {void}
  */
-function applyDashboardLayout() {
+function applyDashboardLayout(): void {
   ensureAllCards();
   const dashboard = webConfig.dashboard;
   const allCardKeys = Array.from(
@@ -318,12 +313,12 @@ function applyDashboardLayout() {
   const cardElements: Record<string, HTMLElement | null> = Object.fromEntries(
     allCardKeys.map((key) => [key, document.querySelector(`.${key}-card`)]),
   );
-  const panelElements: Record<string, HTMLElement | null> = Object.fromEntries(
+  const panelElements: Record<DashboardColumnKey, HTMLElement | null> = Object.fromEntries(
     Object.entries(PANEL_SELECTOR_MAP).map(([key, selector]) => [
       key,
       document.querySelector(selector),
     ]),
-  );
+  ) as Record<DashboardColumnKey, HTMLElement | null>;
   const assigned = new Set();
 
   // 1) 先把所有已知卡片隐藏，避免卡片从旧布局残留在错误栏位
@@ -333,7 +328,7 @@ function applyDashboardLayout() {
 
   // 2) 按配置中的 left/middle/right 顺序遍历栏位
   //    每个栏位内部再按数组顺序依次 appendChild，实现“任意栏位 + 任意顺序”
-  for (const panelKey of Object.keys(PANEL_SELECTOR_MAP)) {
+  for (const panelKey of Object.keys(PANEL_SELECTOR_MAP) as DashboardColumnKey[]) {
     const panelEl = panelElements[panelKey];
     const panelCardKeys = dashboard[panelKey] || [];
     if (!panelEl) continue;

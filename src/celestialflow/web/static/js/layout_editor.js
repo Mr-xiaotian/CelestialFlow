@@ -7,7 +7,11 @@ const DEFAULT_LAYOUT = {
     middle: ["status"],
     right: ["progress", "summary"],
 };
-let originalLayout = {};
+let originalLayout = {
+    left: [],
+    middle: [],
+    right: [],
+};
 /** 创建一张可拖拽卡片 */
 function renderCard(cardId) {
     const name = t(CARD_META[cardId] ?? cardId);

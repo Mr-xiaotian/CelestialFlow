@@ -45,7 +45,7 @@ function buildErrorsQueryKey(
   node: string,
   keyword: string,
   sortOrder: string,
-) {
+): string {
   return `${page}|${pageSizeValue}|${node}|${keyword}|${sortOrder}`;
 }
 
@@ -105,7 +105,7 @@ async function loadErrors(forceReload = false): Promise<boolean> {
  * 渲染错误列表表格和分页控件
  * 将获取到的错误记录填充到表格中，并根据总页数生成分页按钮
  */
-function renderErrors() {
+function renderErrors(): void {
   const pageItems = errors;
 
   errorsTableBody.innerHTML = "";
@@ -173,7 +173,7 @@ function buildPageList(current: number, total: number): Array<number | string> {
  * @param {number} totalPages - 总页数
  * @returns {void}
  */
-function renderPaginationControls(totalPages) {
+function renderPaginationControls(totalPages: number): void {
   paginationContainer.innerHTML = "";
   if (totalPages <= 1) return;
 

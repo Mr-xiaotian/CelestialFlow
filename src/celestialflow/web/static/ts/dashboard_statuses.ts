@@ -22,6 +22,11 @@ type NodeStatus = {
   task_avg_time: string; // 平均每个任务耗时文本
 };
 
+type ElapsedSegment = {
+  className: string;
+  count: number;
+};
+
 // 全局状态
 let nodeStatuses: Record<string, NodeStatus> = {}; // 当前各节点运行状态
 let lastNodeStatuses: Record<string, NodeStatus> = {}; // 上一轮状态快照，用于计算增量
@@ -115,7 +120,7 @@ function formatElapsedDuration(
   successCount: number,
   failedCount: number,
   duplicateCount: number,
-) {
+): string {
   const duration = formatDuration(seconds);
   const digitCount = duration.replace(/:/g, "").length;
   if (!digitCount) return duration;
@@ -145,7 +150,7 @@ function getElapsedSegments(
   successCount: number,
   failedCount: number,
   duplicateCount: number,
-) {
+): ElapsedSegment[] {
   return [
     { className: "elapsed-success", count: Math.max(0, successCount || 0) },
     { className: "elapsed-error", count: Math.max(0, failedCount || 0) },
@@ -160,9 +165,9 @@ function getElapsedSegments(
  * @returns {string[]} 按顺序排列的 CSS 类名列表
  */
 function buildElapsedDigitClasses(
-  segments: Array<{ className: string; count: number }>,
+  segments: ElapsedSegment[],
   digitCount: number,
-) {
+): string[] {
   if (digitCount <= segments.length) {
     return segments.slice(0, digitCount).map((segment) => segment.className);
   }
@@ -212,7 +217,7 @@ function renderElapsedDurationHtml(
   duration: string,
   digitClasses: string[],
   defaultClassName: string,
-) {
+): string {
   let digitIndex = 0;
   return duration
     .split("")
@@ -259,7 +264,7 @@ async function loadStatuses(): Promise<boolean> {
  * 根据节点状态生成 HTML，显示进度条、统计数据等
  * @returns {void}
  */
-function renderDashboard() {
+function renderDashboard(): void {
   dashboardGrid.innerHTML = "";
 
   if (!Object.keys(nodeStatuses).length) {

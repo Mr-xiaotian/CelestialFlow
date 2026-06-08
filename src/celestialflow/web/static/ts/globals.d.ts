@@ -1,14 +1,110 @@
 /**
  * 全局类型声明文件
- * 包含外部库（Chart.js, Sortable.js, Mermaid）的类型定义
+ * 包含外部库（Chart.js, Sortable.js, Mermaid）的最小类型定义
  * 以及由其他脚本导出的全局变量和函数
  */
 
-declare const Chart: any;
-declare const Sortable: any;
+type DashboardColumnKey = "left" | "middle" | "right";
+
+type DashboardLayout = Record<DashboardColumnKey, string[]>;
+
+type ChartPoint = { x: number; y: number };
+
+type ChartDataset = {
+  label?: string;
+  data: ChartPoint[];
+  borderColor?: string;
+  fill?: boolean;
+  tension?: number;
+  hidden?: boolean;
+};
+
+type ChartLegendItem = {
+  datasetIndex: number;
+  hidden?: boolean;
+};
+
+type ChartLegend = {
+  legendItems: ChartLegendItem[];
+};
+
+type ChartScaleConfig = {
+  ticks: { color: string };
+  grid: { color: string };
+  title: {
+    display: boolean;
+    text: string;
+    color: string;
+  };
+  border: { color: string };
+};
+
+type ChartOptions = {
+  animation: boolean;
+  responsive: boolean;
+  plugins: {
+    legend: {
+      labels: {
+        color: string;
+      };
+      onClick: (
+        event: Event,
+        legendItem: ChartLegendItem,
+        legend: { chart: ChartInstance },
+      ) => void;
+    };
+  };
+  interaction: {
+    intersect: boolean;
+    mode: string;
+  };
+  scales: {
+    x: ChartScaleConfig;
+    y: ChartScaleConfig;
+  };
+};
+
+interface ChartInstance {
+  data: {
+    labels: string[];
+    datasets: ChartDataset[];
+  };
+  options: ChartOptions;
+  legend?: ChartLegend;
+  destroy(): void;
+  update(): void;
+  getDatasetMeta(index: number): { hidden: boolean | null };
+}
+
+declare const Chart: {
+  new (
+    ctx: CanvasRenderingContext2D | null,
+    config: {
+      type: string;
+      data: ChartInstance["data"];
+      options: ChartOptions;
+    },
+  ): ChartInstance;
+};
+
+declare const Sortable: {
+  create(
+    element: HTMLElement,
+    options: {
+      group: string;
+      animation: number;
+      ghostClass: string;
+      dragClass: string;
+    },
+  ): unknown;
+};
+
+type MermaidApi = {
+  run(): void;
+};
 
 interface Window {
-  mermaid: any;
+  mermaid: MermaidApi;
 }
 
 /** 支持的界面语言类型 */
