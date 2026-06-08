@@ -214,24 +214,6 @@ function syncInjectionStateWithStatuses(): void {
 }
 
 /**
- * 根据节点运行状态生成旧版 badge 描述。
- * 当前主要保留为状态文案工具，便于其他位置复用。
- *
- * @param {string} nodeName - 节点名称
- * @returns {{ badgeClass: string; badgeText: string }} 展示信息
- */
-function getNodeBadgeInfo(nodeName: string): { badgeClass: string; badgeText: string } {
-  const status = nodeStatuses[nodeName]?.status;
-  if (status === 1) {
-    return { badgeClass: "badge-running", badgeText: t("injection.running") };
-  }
-  if (status === 2) {
-    return { badgeClass: "badge-completed", badgeText: t("injection.stopped") };
-  }
-  return { badgeClass: "badge-inactive", badgeText: t("injection.notRunning") };
-}
-
-/**
  * 刷新注入页的三个主要区域：
  * - 左侧节点浏览
  * - 当前节点编辑器

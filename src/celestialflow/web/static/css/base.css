@@ -518,44 +518,6 @@ select {
 }
 
 /* ================================
-  🌟 状态徽章
-================================ */
-/* 状态徽章通用样式：设置圆角和字号 */
-.badge {
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    color: var(--frost-0);
-}
-
-/* 未运行状态徽章颜色 */
-.badge-inactive {
-    background-color: var(--carbon-400);
-
-    .dark-theme & {
-        background-color: var(--carbon-500);
-    }
-}
-
-/* 运行中状态徽章颜色 */
-.badge-running {
-    background-color: var(--jade-500);
-
-    .dark-theme & {
-        background-color: var(--jade-600);
-    }
-}
-
-/* 已完成状态徽章颜色 */
-.badge-completed {
-    background-color: var(--carbon-400);
-
-    .dark-theme & {
-        background-color: var(--carbon-500);
-    }
-}
-
-/* ================================
   🌟 文字颜色辅助类
 ================================ */
 /* 成功文本颜色 */
