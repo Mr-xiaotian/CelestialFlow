@@ -18,10 +18,10 @@ def _parse_error_record(item: dict[str, Any]) -> PersistedErrorRecord:
     :param item: JSONL 中的一条错误记录
     :return: 结构化错误记录
     """
-    ts = item.get("ts", None)
+    ts = item.get("ts")
     stage = item.get("stage", "")
 
-    error_id = item.get("error_id", None)
+    error_id = item.get("error_id")
     error_type = str(item.get("error_type") or "")
     error_message = str(item.get("error_message") or "")
 
