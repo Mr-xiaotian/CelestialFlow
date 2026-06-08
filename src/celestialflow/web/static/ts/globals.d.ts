@@ -110,6 +110,10 @@ declare const Chart: {
   ): ChartInstance;
 };
 
+type SortableInstance = {
+  destroy(): void; // 销毁当前拖拽实例并释放监听器
+};
+
 declare const Sortable: {
   create(
     element: HTMLElement,
@@ -119,7 +123,7 @@ declare const Sortable: {
       ghostClass: string;
       dragClass: string;
     },
-  ): unknown; // 创建一个可拖拽区域
+  ): SortableInstance; // 创建一个可拖拽区域
 };
 
 type MermaidApi = {

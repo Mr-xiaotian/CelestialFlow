@@ -15,6 +15,16 @@ let originalLayout: DashboardLayout = {
   right: [],
 }; // 打开编辑器时的布局快照，用于取消时恢复
 
+const LAYOUT_ZONE_IDS = [
+  "layout-dropzone-left",
+  "layout-dropzone-middle",
+  "layout-dropzone-right",
+  "layout-dropzone-unused",
+] as const; // 布局编辑器内支持互拖的全部区域 ID
+
+let sortableInstances: Partial<Record<(typeof LAYOUT_ZONE_IDS)[number], SortableInstance>> = {};
+// 缓存当前拖拽区实例，避免反复打开编辑器时重复创建监听器。
+
 /** 创建一张可拖拽卡片 */
 function renderCard(cardId: string): HTMLElement {
   const name = t(CARD_META[cardId] ?? cardId); // 卡片显示名称，优先使用国际化标题
@@ -70,6 +80,7 @@ function openLayoutEditor(): void {
 function closeLayoutEditor(restore: boolean = true): void {
   const overlay = document.getElementById("layout-editor-overlay")!; // 布局编辑器遮罩层
   overlay.classList.add("hidden");
+  destroySortableInstances();
   if (restore) {
     // 关闭且需要恢复时，回滚到打开编辑器时的布局快照。
     webConfig.dashboard.layout = {
@@ -83,22 +94,32 @@ function closeLayoutEditor(restore: boolean = true): void {
 
 /** 初始化 SortableJS 拖拽（三栏 + 未使用池互拖） */
 function initSortable(): void {
-  const zoneIds = [
-    "layout-dropzone-left",
-    "layout-dropzone-middle",
-    "layout-dropzone-right",
-    "layout-dropzone-unused",
-  ]; // 支持互拖的全部区域 ID
+  destroySortableInstances();
 
-  for (const id of zoneIds) {
+  for (const id of LAYOUT_ZONE_IDS) {
+    const zone = document.getElementById(id);
+    if (!zone) continue;
     // 每个区域都加入同一 group，这样卡片可以跨栏位拖拽。
-    Sortable.create(document.getElementById(id)!, {
+    sortableInstances[id] = Sortable.create(zone, {
       group: "dashboard-layout",
       animation: 150,
       ghostClass: "dragging",
       dragClass: "dragging",
     });
   }
+}
+
+/**
+ * 销毁当前布局编辑器挂载的全部 Sortable 实例。
+ * 在重绘拖拽区之前先清理旧实例，避免重复监听和实例泄漏。
+ *
+ * @returns {void}
+ */
+function destroySortableInstances(): void {
+  for (const id of LAYOUT_ZONE_IDS) {
+    sortableInstances[id]?.destroy();
+  }
+  sortableInstances = {};
 }
 
 /** 拖拽结束后将三栏卡片顺序写回 webConfig */
