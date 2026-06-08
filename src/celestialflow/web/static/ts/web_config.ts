@@ -186,6 +186,8 @@ function normalizeWebConfig(
 
 // 全局状态
 let webConfig: WebConfig = normalizeWebConfig(); // 当前加载的 Web 配置
+let saveConfigPending = false; // 是否还有新的配置变更等待落盘
+let saveConfigPromise: Promise<boolean> | null = null; // 当前正在执行的保存队列
 
 /** 每张仪表盘卡片的 HTML 模板，供初始化和恢复布局时复用。 */
 const CARD_TEMPLATES: Record<string, string> = {
@@ -322,10 +324,12 @@ async function loadWebConfig(): Promise<void> {
 }
 
 /**
- * 保存配置到后端
+ * 执行一次真实的配置落盘请求。
+ * 该函数不处理并发协调，仅负责把当前快照推送到后端。
+ *
  * @returns {Promise<boolean>} 保存成功返回 `true`，否则返回 `false`。
  */
-async function saveWebConfig(): Promise<boolean> {
+async function performSaveWebConfig(): Promise<boolean> {
   try {
     // 将当前前端配置完整推送到后端，避免局部字段丢失。
     const res = await fetch("/api/push_config", {
@@ -343,6 +347,36 @@ async function saveWebConfig(): Promise<boolean> {
     console.warn("配置保存失败:", e);
   }
   return false;
+}
+
+/**
+ * 请求保存当前配置。
+ * - 同一时刻只允许一条保存请求在飞
+ * - 保存期间若有新的配置改动，会在当前请求结束后自动补发一次最新快照
+ *
+ * @returns {Promise<boolean>} 当前保存队列完全落空后的最终结果。
+ */
+async function saveWebConfig(): Promise<boolean> {
+  saveConfigPending = true;
+
+  if (saveConfigPromise) {
+    return saveConfigPromise;
+  }
+
+  saveConfigPromise = (async (): Promise<boolean> => {
+    let lastResult = true;
+    try {
+      while (saveConfigPending) {
+        saveConfigPending = false;
+        lastResult = await performSaveWebConfig();
+      }
+      return lastResult;
+    } finally {
+      saveConfigPromise = null;
+    }
+  })();
+
+  return saveConfigPromise;
 }
 
 /**
