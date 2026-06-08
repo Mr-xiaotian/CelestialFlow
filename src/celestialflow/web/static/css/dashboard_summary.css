@@ -1,134 +1,136 @@
 /* ================================
   🌟 总体状态摘要
 ================================ */
-/* 总体汇总网格：两列布局 */
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-}
+.summary-card {
+  /* 总体汇总网格：两列布局 */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
 
-/* 汇总项卡片样式：居中显示，根据不同指标设置背景色 */
-.summary-item {
-  text-align: center;
-  padding: 1rem;
-  border-radius: 0.5rem;
+  /* 汇总项卡片样式：居中显示，根据不同指标设置背景色 */
+  .summary-item {
+    text-align: center;
+    padding: 1rem;
+    border-radius: 0.5rem;
 
-  &.success {
-    background-color: var(--jade-100);
+    &.success {
+      background-color: var(--jade-100);
 
-    .dark-theme & {
-      background-color: var(--jade-900);
+      .dark-theme & {
+        background-color: var(--jade-900);
+      }
+    }
+
+    &.pending {
+      background-color: var(--carbon-100);
+
+      .dark-theme & {
+        background-color: var(--carbon-700);
+      }
+    }
+
+    &.error {
+      background-color: var(--crimson-100);
+
+      .dark-theme & {
+        background-color: var(--crimson-900);
+      }
+    }
+
+    &.duplicate {
+      background-color: var(--marigold-100);
+
+      .dark-theme & {
+        background-color: var(--marigold-900);
+      }
+    }
+
+    &.nodes {
+      background-color: var(--cornflower-100);
+
+      .dark-theme & {
+        background-color: var(--cornflower-900);
+      }
+    }
+
+    &.remain {
+      background-color: var(--violet-100);
+
+      .dark-theme & {
+        background-color: var(--violet-900);
+      }
     }
   }
 
-  &.pending {
-    background-color: var(--carbon-100);
+  /* 汇总项数值样式：大号加粗字体，对应不同指标颜色 */
+  .summary-value {
+    font-size: 2rem;
+    font-weight: 700;
 
-    .dark-theme & {
-      background-color: var(--carbon-700);
+    &.success {
+      color: var(--jade-600);
+
+      .dark-theme & {
+        color: var(--jade-300);
+      }
+    }
+
+    &.pending {
+      color: var(--carbon-600);
+
+      .dark-theme & {
+        color: var(--carbon-300);
+      }
+    }
+
+    &.error {
+      color: var(--crimson-600);
+
+      .dark-theme & {
+        color: var(--crimson-300);
+      }
+    }
+
+    &.duplicate {
+      color: var(--marigold-600);
+
+      .dark-theme & {
+        color: var(--marigold-300);
+      }
+    }
+
+    &.nodes {
+      color: var(--cornflower-600);
+
+      .dark-theme & {
+        color: var(--cornflower-300);
+      }
+    }
+
+    &.remain {
+      color: var(--violet-600);
+
+      .dark-theme & {
+        color: var(--violet-300);
+      }
+    }
+
+    /* 可点击的错误汇总值：显示手型光标 */
+    &.error-clickable {
+      cursor: pointer;
     }
   }
 
-  &.error {
-    background-color: var(--crimson-100);
-
-    .dark-theme & {
-      background-color: var(--crimson-900);
-    }
-  }
-
-  &.duplicate {
-    background-color: var(--marigold-100);
-
-    .dark-theme & {
-      background-color: var(--marigold-900);
-    }
-  }
-
-  &.nodes {
-    background-color: var(--cornflower-100);
-
-    .dark-theme & {
-      background-color: var(--cornflower-900);
-    }
-  }
-
-  &.remain {
-    background-color: var(--violet-100);
-
-    .dark-theme & {
-      background-color: var(--violet-900);
-    }
-  }
-}
-
-/* 汇总项数值样式：大号加粗字体，对应不同指标颜色 */
-.summary-value {
-  font-size: 2rem;
-  font-weight: 700;
-
-  &.success {
-    color: var(--jade-600);
-
-    .dark-theme & {
-      color: var(--jade-300);
-    }
-  }
-
-  &.pending {
+  /* 汇总项标签文字样式 */
+  .summary-label {
+    font-size: 0.75rem;
     color: var(--carbon-600);
+    margin-top: 0.25rem;
 
     .dark-theme & {
       color: var(--carbon-300);
     }
   }
-
-  &.error {
-    color: var(--crimson-600);
-
-    .dark-theme & {
-      color: var(--crimson-300);
-    }
-  }
-
-  &.duplicate {
-    color: var(--marigold-600);
-
-    .dark-theme & {
-      color: var(--marigold-300);
-    }
-  }
-
-  &.nodes {
-    color: var(--cornflower-600);
-
-    .dark-theme & {
-      color: var(--cornflower-300);
-    }
-  }
-
-  &.remain {
-    color: var(--violet-600);
-
-    .dark-theme & {
-      color: var(--violet-300);
-    }
-  }
-}
-
-/* 汇总项标签文字样式 */
-.summary-label {
-  font-size: 0.75rem;
-  color: var(--carbon-600);
-  margin-top: 0.25rem;
-
-  .dark-theme & {
-    color: var(--carbon-300);
-  }
-}
-
-/* 可点击的错误汇总值：显示手型光标 */
-.summary-value.error-clickable {
-  cursor: pointer;
 }

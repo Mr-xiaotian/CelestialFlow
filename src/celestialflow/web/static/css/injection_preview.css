@@ -1,0 +1,140 @@
+/* ================================
+  注入页预览与提交
+================================ */
+/* 底部预览卡片。 */
+#task-injection .draft-card {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* 只读的大型 JSON 预览区。 */
+#task-injection .draft-preview {
+  min-height: 12rem;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--carbon-200);
+  border-radius: 0.75rem;
+  background: var(--carbon-50);
+  font-family: "Monaco", "Menlo", monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  overflow: auto;
+
+  .dark-theme & {
+    background: var(--carbon-800);
+    border-color: var(--carbon-600);
+    color: var(--carbon-100);
+  }
+}
+
+/* 空预览时的占位区。 */
+#task-injection .empty-placeholder {
+  padding: 1rem;
+  font-family: "Monaco", "Menlo", monospace;
+  font-size: 0.75rem;
+}
+
+/* 预览卡片底部的状态提示 + 提交按钮布局。 */
+#task-injection .submit-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: auto;
+}
+
+/* 提交结果提示文本。 */
+#task-injection .status-message {
+  display: flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* 提示图标。 */
+#task-injection .status-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.5rem;
+}
+
+/* 成功提示颜色。 */
+#task-injection .status-success {
+  color: var(--jade-600);
+
+  .dark-theme & {
+    color: var(--jade-400);
+  }
+}
+
+/* 失败提示颜色。 */
+#task-injection .status-error {
+  color: var(--crimson-600);
+
+  .dark-theme & {
+    color: var(--crimson-400);
+  }
+}
+
+/* 主提交按钮。 */
+#task-injection .btn-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  background: var(--cornflower-500);
+  color: var(--frost-0);
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+
+  &:hover:not(:disabled) {
+    background: var(--cornflower-600);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    background: var(--carbon-400);
+    color: var(--carbon-100);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .dark-theme & {
+    background: var(--cornflower-600);
+    color: var(--carbon-100);
+
+    &:disabled {
+      background: var(--carbon-500);
+      color: var(--carbon-300);
+    }
+  }
+}
+
+/* 提交中的旋转指示器。 */
+#task-injection .spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--frost-0);
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: injection-spin 1s linear infinite;
+  margin-right: 0.5rem;
+}
+
+/* 提交按钮旋转动画。 */
+@keyframes injection-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}

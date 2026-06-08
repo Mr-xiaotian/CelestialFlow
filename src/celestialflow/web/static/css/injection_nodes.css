@@ -1,0 +1,92 @@
+/* ================================
+  注入页节点浏览列表
+================================ */
+/* 左侧节点浏览列表，限制最大高度并允许滚动。 */
+#task-injection .node-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 30rem;
+  overflow-y: auto;
+  padding-top: 5px;
+}
+
+/* 单个节点项。 */
+#task-injection .node-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--carbon-200);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s, transform 0.2s;
+
+  &:hover {
+    background: var(--carbon-50);
+    border-color: var(--cornflower-300);
+    transform: translateY(-1px);
+  }
+
+  .dark-theme & {
+    background: var(--carbon-700);
+    border-color: var(--carbon-600);
+    color: var(--carbon-100);
+
+    &:hover {
+      background: var(--carbon-600);
+      border-color: var(--cornflower-500);
+    }
+  }
+}
+
+/* 当前被选中的节点。 */
+#task-injection .node-item.active-node {
+  border-color: var(--cornflower-500);
+  background: var(--cornflower-50);
+
+  .dark-theme & {
+    background: rgba(59, 130, 246, 0.18);
+  }
+}
+
+/* 节点基础信息区域。 */
+#task-injection .node-info {
+  min-width: 0;
+  flex: 1;
+}
+
+/* 节点名称。 */
+#task-injection .node-name {
+  font-weight: 600;
+  color: var(--carbon-800);
+  word-break: break-all;
+
+  .dark-theme & {
+    color: var(--carbon-100);
+  }
+}
+
+/* “已编辑”状态 tag，同时复用于标题右侧。 */
+#task-injection .node-side-tag {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  color: var(--cornflower-700);
+  background: var(--cornflower-100);
+
+  .dark-theme & {
+    background: var(--cornflower-800);
+    color: var(--cornflower-100);
+  }
+}
+
+/* 不可注入节点的禁用态。 */
+#task-injection .disabled-node {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}

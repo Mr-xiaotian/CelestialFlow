@@ -46,7 +46,19 @@
         />
         <link
             rel="stylesheet"
-            href="{{ request.url_for('static', path='css/injection.css') }}"
+            href="{{ request.url_for('static', path='css/injection_layout.css') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/injection_nodes.css') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/injection_editor.css') }}"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ request.url_for('static', path='css/injection_preview.css') }}"
         />
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>

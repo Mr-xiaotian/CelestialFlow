@@ -1,25 +1,27 @@
 /* ================================
   🌟 任务结构图（Mermaid）
 ================================ */
-/* Mermaid 结构图容器：居中显示，支持横向滚动 */
-#mermaid-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 1rem;
-  overflow-x: auto;
-}
-
-/* Mermaid 箭头样式：暗色模式下适配颜色 */
-.mermaid .arrowMarkerPath {
-  .dark-theme & {
-    fill: var(--carbon-200);
+.mermaid-card {
+  /* Mermaid 结构图容器：居中显示，支持横向滚动 */
+  #mermaid-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    overflow-x: auto;
   }
-}
 
-/* Mermaid 节点文字样式：暗色模式下适配颜色 */
-.mermaid span {
-  .dark-theme & {
-    color: var(--carbon-300) !important;
+  /* Mermaid 箭头样式：暗色模式下适配颜色 */
+  .mermaid .arrowMarkerPath {
+    .dark-theme & {
+      fill: var(--carbon-200);
+    }
+  }
+
+  /* Mermaid 节点文字样式：暗色模式下适配颜色 */
+  .mermaid span {
+    .dark-theme & {
+      color: var(--carbon-300) !important;
+    }
   }
 }

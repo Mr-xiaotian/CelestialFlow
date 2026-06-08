@@ -1,0 +1,119 @@
+/* ================================
+  注入页布局与筛选
+================================ */
+/* 提示区容器。 */
+#task-injection .tip-section {
+  background: var(--cornflower-50);
+  border-left: 4px solid var(--cornflower-500);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+
+  .dark-theme & {
+    background: var(--cornflower-900);
+  }
+}
+
+/* 顶部提示的图标和文案布局。 */
+#task-injection .tip-content {
+  display: flex;
+  align-items: center;
+}
+
+/* 提示区图标尺寸与颜色。 */
+#task-injection .tip-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--cornflower-500);
+  margin-right: 0.75rem;
+}
+
+/* 提示区正文文案。 */
+#task-injection .tip-text {
+  color: var(--cornflower-600);
+  font-size: 0.75rem;
+
+  .dark-theme & {
+    color: var(--carbon-300);
+  }
+}
+
+/* 左侧节点浏览 + 右侧编辑区的双栏布局。 */
+#task-injection .card-grid {
+  display: grid;
+  grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+/* 搜索框容器，用于承载左侧搜索图标。 */
+#task-injection .search-container {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+/* 节点搜索输入框。 */
+#task-injection .search-input {
+  width: 100%;
+  padding: 0.625rem 0.75rem 0.625rem 2.5rem;
+  border: 1px solid var(--carbon-300);
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  outline: none;
+
+  &:focus {
+    border-color: var(--cornflower-400);
+  }
+
+  .dark-theme & {
+    background: var(--carbon-700);
+    border-color: var(--carbon-600);
+    color: var(--carbon-100);
+  }
+}
+
+/* 搜索图标定位在输入框左侧。 */
+#task-injection .search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  color: var(--carbon-400);
+}
+
+/* “仅显示可注入节点”开关。 */
+#task-injection .injectable-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.875rem;
+  font-size: 0.75rem;
+  color: var(--carbon-700);
+
+  .dark-theme & {
+    color: var(--carbon-200);
+  }
+}
+
+/* 当前断点下统一切成单列，并堆叠头部与底部操作区。 */
+@media (max-width: 2048px) {
+  #task-injection .card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #task-injection .node-list {
+    max-height: none;
+  }
+
+  #task-injection .editor-header,
+  #task-injection .submit-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #task-injection .editor-actions {
+    flex-direction: column;
+  }
+}
