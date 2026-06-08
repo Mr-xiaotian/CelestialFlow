@@ -37,7 +37,7 @@ function renderAnalysisLabelWithTooltip(labelKey, tooltipKey) {
 async function loadAnalysis() {
     try {
         const res = await fetch(`/api/pull_analysis?known_rev=${analysisRev}`);
-        const body = await res.json();
+        const body = (await res.json());
         if (body.data === null)
             return false;
         analysisData = body.data;

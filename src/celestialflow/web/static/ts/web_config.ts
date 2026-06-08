@@ -173,7 +173,9 @@ async function loadWebConfig(): Promise<void> {
       throw new Error(`HTTP ${res.status}`);
     }
 
-    webConfig = normalizeWebConfig(await res.json());
+    webConfig = normalizeWebConfig(
+      (await res.json()) as Partial<WebConfig>,
+    );
     console.log("配置加载成功:", webConfig);
     return;
   } catch (e) {

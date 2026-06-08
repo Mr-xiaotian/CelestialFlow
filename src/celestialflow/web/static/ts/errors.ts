@@ -78,7 +78,7 @@ async function loadErrors(forceReload = false): Promise<boolean> {
     });
     const res = await fetch(`/api/pull_errors?${params.toString()}`);
     if (!res.ok) return false;
-    const data = await res.json();
+    const data = (await res.json()) as ErrorsPullResponse;
 
     if (requestSeq !== errorsRequestSeq) return false;
 

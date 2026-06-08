@@ -18,7 +18,7 @@ let structureRev = -1; // 数据版本号，用于增量拉取
 async function loadStructure() {
     try {
         const res = await fetch(`/api/pull_structure?known_rev=${structureRev}`);
-        const body = await res.json();
+        const body = (await res.json());
         if (body.data === null)
             return false;
         structureData = body.data;

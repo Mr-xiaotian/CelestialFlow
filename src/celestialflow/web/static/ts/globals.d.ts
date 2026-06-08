@@ -8,6 +8,29 @@ type DashboardColumnKey = "left" | "middle" | "right";
 
 type DashboardLayout = Record<DashboardColumnKey, string[]>;
 
+type ApiVersionedResponse<T> = {
+  rev: number;
+  data: T | null;
+};
+
+type StatusPullResponse = ApiVersionedResponse<Record<string, NodeStatus>> & {
+  timestamp: number;
+};
+
+type StructurePullResponse = ApiVersionedResponse<StructureGraph>;
+
+type AnalysisPullResponse = ApiVersionedResponse<AnalysisData>;
+
+type ErrorsPullResponse = {
+  rev: number;
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  sort_order: "newest" | "oldest";
+  data: ErrorData[] | null;
+};
+
 type ChartPoint = { x: number; y: number };
 
 type ChartDataset = {

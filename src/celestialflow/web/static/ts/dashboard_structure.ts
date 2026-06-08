@@ -32,7 +32,7 @@ type StructureGraph = {
 async function loadStructure(): Promise<boolean> {
   try {
     const res = await fetch(`/api/pull_structure?known_rev=${structureRev}`);
-    const body = await res.json();
+    const body = (await res.json()) as StructurePullResponse;
     if (body.data === null) return false;
     structureData = body.data;
     structureRev = body.rev;

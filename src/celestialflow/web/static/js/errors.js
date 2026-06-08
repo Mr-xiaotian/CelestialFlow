@@ -53,7 +53,7 @@ async function loadErrors(forceReload = false) {
         const res = await fetch(`/api/pull_errors?${params.toString()}`);
         if (!res.ok)
             return false;
-        const data = await res.json();
+        const data = (await res.json());
         if (requestSeq !== errorsRequestSeq)
             return false;
         currentPage = Number(data.page || currentPage);

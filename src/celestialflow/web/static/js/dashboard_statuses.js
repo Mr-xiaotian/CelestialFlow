@@ -170,7 +170,7 @@ function renderElapsedDurationHtml(duration, digitClasses, defaultClassName) {
 async function loadStatuses() {
     try {
         const res = await fetch(`/api/pull_status?known_rev=${statusRev}`);
-        const body = await res.json();
+        const body = (await res.json());
         if (body.data === null)
             return false;
         lastNodeStatuses = nodeStatuses;
