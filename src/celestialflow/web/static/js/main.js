@@ -21,6 +21,7 @@ const structureEdgeDeltaToggle = document.getElementById("structure-edge-delta")
 const statusTotalPendingToggle = document.getElementById("status-total-pending-toggle"); // 节点状态卡等待值模式开关
 const injectableOnlyToggle = document.getElementById("injectable-only-toggle"); // 注入页仅显示可注入节点开关
 const settingsCurrentGroup = document.getElementById("settings-current-group"); // 当前页设置分组
+const settingsCurrentLabel = document.getElementById("settings-current-label"); // 当前页设置分组标题
 const settingsCurrentEmpty = document.getElementById("settings-current-empty"); // 当前页无专属设置提示
 const settingsCurrentItems = document.querySelectorAll("[data-settings-tab]"); // 当前页设置项列表
 const tabButtons = document.querySelectorAll(".tab-btn"); // 页签按钮列表
@@ -129,6 +130,9 @@ function getActiveTab() {
 function updateCurrentPageSettings() {
     const activeTab = getActiveTab();
     let visibleCount = 0;
+    const currentScopeKey = `settings.scope.${activeTab}`;
+    settingsCurrentLabel.dataset.i18n = currentScopeKey;
+    settingsCurrentLabel.textContent = t(currentScopeKey);
     settingsCurrentItems.forEach((item) => {
         const matched = item.dataset.settingsTab === activeTab;
         item.classList.toggle("hidden", !matched);
@@ -140,7 +144,7 @@ function updateCurrentPageSettings() {
     settingsCurrentGroup.classList.remove("hidden");
 }
 /**
- * 切换页签并同步设置面板中的“当前页生效”配置。
+ * 切换页签并同步设置面板中的当前页面设置分组。
  * @param {HTMLElement} button - 被点击的 tab 按钮。
  * @returns {void}
  */
@@ -239,6 +243,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         config.global.language = languageSelect.value;
         setLang(config.global.language);
         applyI18nDOM();
+        updateCurrentPageSettings();
         updateSettingsStatusText();
         themeToggleBtn.textContent = document.body.classList.contains("dark-theme") ? t("theme.light") : t("theme.dark");
         renderMermaidStructure(nodeStatuses);
