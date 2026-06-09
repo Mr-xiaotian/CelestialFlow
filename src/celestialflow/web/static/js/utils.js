@@ -58,6 +58,29 @@ function escapeHtml(str) {
         .replace(/\//g, "&#x2F;");
 }
 /**
+ * 渲染带提示点的通用标签。
+ * @param {string} labelKey - 标签翻译键
+ * @param {string} tooltipKey - 提示文案翻译键
+ * @returns {string} 标签 HTML
+ */
+function renderLabelWithTooltip(labelKey, tooltipKey) {
+    const label = escapeHtml(t(labelKey));
+    const tooltip = escapeHtml(t(tooltipKey));
+    return `
+    <span class="stat-label-row">
+      <span>${label}</span>
+      <span class="tooltip-anchor">
+        <button
+          type="button"
+          class="tooltip-trigger"
+          aria-label="${tooltip}"
+        >i</button>
+        <span class="tooltip-bubble" role="tooltip">${tooltip}</span>
+      </span>
+    </span>
+  `;
+}
+/**
  * 切换到错误标签页，并可选地设置节点筛选器
  * @param {string} [nodeFilter] - 节点筛选值，不传或传空字符串则显示全部
  * @returns {void}

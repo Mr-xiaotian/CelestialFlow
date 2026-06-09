@@ -16,30 +16,6 @@ let analysisRev = -1; // 数据版本号，用于增量拉取
 let analysisRequestSeq = 0; // 请求序列号，防止旧分析响应覆盖新结果
 
 /**
- * 渲染带提示点的分析项标签。
- * @param {string} labelKey - 标签翻译键
- * @param {string} tooltipKey - 提示文案翻译键
- * @returns {string} 标签 HTML
- */
-function renderAnalysisLabelWithTooltip(labelKey: string, tooltipKey: string): string {
-  const label = escapeHtml(t(labelKey));
-  const tooltip = escapeHtml(t(tooltipKey));
-  return `
-    <span class="stat-label-row">
-      <span>${label}</span>
-      <span class="tooltip-anchor">
-        <button
-          type="button"
-          class="tooltip-trigger"
-          aria-label="${tooltip}"
-        >i</button>
-        <span class="tooltip-bubble" role="tooltip">${tooltip}</span>
-      </span>
-    </span>
-  `;
-}
-
-/**
  * 异步加载最新的分析数据
  * 从后端 API 获取分析信息并更新全局变量 analysisData
  * @returns {Promise<boolean>} 当分析数据版本发生变化并成功更新时返回 `true`，否则返回 `false`。
@@ -81,7 +57,7 @@ function renderAnalysisInfo(): void {
   // 统一构建四行展示内容，避免分散更新不同 DOM 节点。
   container.innerHTML = `
     <div class="analysis-row">
-      <span class="analysis-label">${renderAnalysisLabelWithTooltip("analysis.structType", "analysis.structTypeHelp")}</span>
+      <span class="analysis-label">${renderLabelWithTooltip("analysis.structType", "analysis.structTypeHelp")}</span>
       <span class="analysis-value">${className}</span>
     </div>
 
@@ -93,7 +69,7 @@ function renderAnalysisInfo(): void {
     </div>
 
     <div class="analysis-row">
-      <span class="analysis-label">${renderAnalysisLabelWithTooltip("analysis.scheduleMode", "analysis.scheduleModeHelp")}</span>
+      <span class="analysis-label">${renderLabelWithTooltip("analysis.scheduleMode", "analysis.scheduleModeHelp")}</span>
       <span class="analysis-value">${scheduleMode}</span>
     </div>
 

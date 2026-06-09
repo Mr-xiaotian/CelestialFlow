@@ -50,29 +50,6 @@ function getPendingLabelHtml() {
         : "status.pendingHelp");
 }
 /**
- * 渲染带提示点的统计项标签。
- * @param {string} labelKey - 标签翻译键
- * @param {string} tooltipKey - 提示文案翻译键
- * @returns {string} 统计项标签 HTML
- */
-function renderLabelWithTooltip(labelKey, tooltipKey) {
-    const label = escapeHtml(t(labelKey));
-    const tooltip = escapeHtml(t(tooltipKey));
-    return `
-    <span class="stat-label-row">
-      <span>${label}</span>
-      <span class="tooltip-anchor">
-        <button
-          type="button"
-          class="tooltip-trigger"
-          aria-label="${tooltip}"
-        >i</button>
-        <span class="tooltip-bubble" role="tooltip">${tooltip}</span>
-      </span>
-    </span>
-  `;
-}
-/**
  * 将 elapsed 时间格式化为带颜色的 HTML 字符串
  * @param {number} seconds - 秒数
  * @param {number} successCount - 成功任务数
