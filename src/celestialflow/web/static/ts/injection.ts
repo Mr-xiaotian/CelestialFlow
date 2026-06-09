@@ -27,7 +27,7 @@ function setLocalizedMessageMeta(
   element: HTMLElement,
   messageKey: string,
   args: string[] = [],
-) : void {
+): void {
   element.dataset.messageKey = messageKey;
   element.dataset.messageArgs = JSON.stringify(args);
 }
@@ -86,7 +86,7 @@ function renderStatusMessage(
   messageKey: string,
   isSuccess: boolean,
   args: string[] = [],
-) : void {
+): void {
   statusDiv.innerHTML = getStatusIconSvg(isSuccess) + t(messageKey, ...args);
 }
 
@@ -165,8 +165,10 @@ function setupEventListeners(): void {
 
   // 节点浏览列表采用事件委托，统一处理节点切换。
   nodeList.addEventListener("click", (e) => {
-      const item = (e.target as HTMLElement).closest<HTMLElement>(".node-item[data-node]"); // 点击命中的节点项
-      const nodeName = item?.dataset.node; // 节点项上缓存的节点名
+    const item = (e.target as HTMLElement).closest<HTMLElement>(
+      ".node-item[data-node]",
+    ); // 点击命中的节点项
+    const nodeName = item?.dataset.node; // 节点项上缓存的节点名
     if (nodeName) {
       selectNode(nodeName);
     }
@@ -259,7 +261,9 @@ function renderNodeList(searchTerm = ""): void {
       const activeClass = currentNodeName === nodeName ? "active-node" : "";
       const disabledClass = isInjectableNode(nodeName) ? "" : "disabled-node";
       const hasDraft = Boolean(nodeDrafts[nodeName]?.trim());
-      const dataAttr = isInjectableNode(nodeName) ? `data-node="${escapeHtml(nodeName)}"` : "";
+      const dataAttr = isInjectableNode(nodeName)
+        ? `data-node="${escapeHtml(nodeName)}"`
+        : "";
       const rightTag = hasDraft
         ? `<span class="node-side-tag">${t("injection.draftEdited")}</span>`
         : "";
@@ -389,7 +393,9 @@ function preloadInjectionDraftFromError(
  */
 function parseDraftTaskList(
   draftText: string,
-): { ok: true; taskList: unknown[] } | { ok: false; reason: "invalid_json" | "not_array" } {
+):
+  | { ok: true; taskList: unknown[] }
+  | { ok: false; reason: "invalid_json" | "not_array" } {
   try {
     const parsed = JSON.parse(draftText);
     if (!Array.isArray(parsed)) {
@@ -442,9 +448,12 @@ function buildPendingInjectionPayload(): {
  * @returns {void}
  */
 function updateSubmitButtonAvailability(): void {
-  const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement | null;
+  const submitBtn = document.getElementById(
+    "submit-btn",
+  ) as HTMLButtonElement | null;
   if (!submitBtn || submitBtn.dataset.loading === "true") return;
-  submitBtn.disabled = Object.keys(buildPendingInjectionPayload().payload).length === 0;
+  submitBtn.disabled =
+    Object.keys(buildPendingInjectionPayload().payload).length === 0;
 }
 
 /**
@@ -499,8 +508,10 @@ function setValidationMessage(
   messageKey: string,
   state: ValidationState,
   args: string[] = [],
-) : void {
-  const validationDiv = document.getElementById("json-validation") as HTMLElement;
+): void {
+  const validationDiv = document.getElementById(
+    "json-validation",
+  ) as HTMLElement;
   setLocalizedMessageMeta(validationDiv, messageKey, args);
   validationDiv.textContent = t(messageKey, ...args);
   validationDiv.className = `validation-message validation-${state}`;
@@ -512,7 +523,9 @@ function setValidationMessage(
  * @returns {void}
  */
 function clearValidationMessage(): void {
-  const validationDiv = document.getElementById("json-validation") as HTMLElement;
+  const validationDiv = document.getElementById(
+    "json-validation",
+  ) as HTMLElement;
   clearLocalizedMessageMeta(validationDiv);
   validationDiv.textContent = "";
   validationDiv.className = "validation-message";
@@ -610,9 +623,19 @@ function fillTerminationDraft(): void {
     return;
   }
 
-  const terminationDraft = JSON.stringify(["TERMINATION_SIGNAL"], null, 2);
-  setDraftForNode(currentNodeName, terminationDraft);
-  getJsonTextarea().value = terminationDraft;
+  const currentDraft = nodeDrafts[currentNodeName] || "[]";
+  let taskList: unknown[];
+  try {
+    const parsed = JSON.parse(currentDraft);
+    taskList = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    taskList = [];
+  }
+
+  taskList.push("TERMINATION_SIGNAL");
+  const nextDraft = JSON.stringify(taskList, null, 2);
+  setDraftForNode(currentNodeName, nextDraft);
+  getJsonTextarea().value = nextDraft;
   renderNodeList(getSearchInput().value);
   renderDraftList();
   validateCurrentDraft(false);
@@ -626,7 +649,11 @@ function fillTerminationDraft(): void {
  * @param {...string[]} args - 占位参数
  * @returns {void}
  */
-function showStatus(messageKey: string, isSuccess = false, ...args: string[]): void {
+function showStatus(
+  messageKey: string,
+  isSuccess = false,
+  ...args: string[]
+): void {
   const statusDiv = document.getElementById("status-message") as HTMLElement;
   setLocalizedMessageMeta(statusDiv, messageKey, args);
   renderStatusMessage(statusDiv, messageKey, isSuccess, args);
@@ -652,7 +679,8 @@ function showStatus(messageKey: string, isSuccess = false, ...args: string[]): v
 async function handleSubmit(): Promise<void> {
   syncInjectionStateWithStatuses();
 
-  const { payload, invalidNode, invalidReason } = buildPendingInjectionPayload();
+  const { payload, invalidNode, invalidReason } =
+    buildPendingInjectionPayload();
   const targetNodes = Object.keys(payload);
 
   if (invalidNode) {
@@ -724,7 +752,9 @@ function setButtonLoading(loading: boolean): void {
  * @returns {void}
  */
 function refreshInjectionLocalizedText(): void {
-  const validationDiv = document.getElementById("json-validation") as HTMLElement; // 编辑器下方校验提示
+  const validationDiv = document.getElementById(
+    "json-validation",
+  ) as HTMLElement; // 编辑器下方校验提示
   const validationMessageKey = validationDiv.dataset.messageKey; // 当前校验提示翻译键
   if (validationMessageKey) {
     validationDiv.textContent = t(
