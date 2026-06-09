@@ -122,9 +122,7 @@ class TaskSplitter(TaskStage):
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
 
-        processed_result = self.process_result(task, result)
-
-        split_count = self._put_split_result(processed_result, task_id)
+        split_count = self._put_split_result(result, task_id)
         self.metrics.add_success_count()
         self._update_split_counter(split_count)
 
@@ -218,15 +216,13 @@ class TaskRouter(TaskStage):
         (target, task) = task_envelope.get_task()
         task_id = task_envelope.get_id()
 
-        processed_result = self.process_result(task, result)
-
         route_id = self.ctree_client.emit(
             "task.route",
             parents=[task_id],
             payload=self.get_summary(),
         )
         routed_envelope = TaskEnvelope(
-            processed_result,
+            result,
             route_id,
             source=self.get_name(),
         )

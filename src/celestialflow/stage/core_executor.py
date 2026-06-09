@@ -430,17 +430,6 @@ class TaskExecutor:
             return task
         return (task,)
 
-    def process_result(self, task: Any, result: Any) -> Any:
-        """
-        从结果队列中获取结果，并进行处理。可根据需要覆写
-        在这个示例中，我们只是简单地返回结果
-
-        :param task: 任务对象
-        :param result: 任务结果
-        :return: 处理后的结果
-        """
-        return result
-
     def process_result_dict(self) -> dict[Any, Any]:
         """
         处理结果列表。可根据需要覆写
@@ -522,15 +511,13 @@ class TaskExecutor:
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
 
-        processed_result = self.process_result(task, result)
-
         result_id = self.ctree_client.emit(
             CTreeEvent.TASK_SUCCESS,
             parents=[task_id],
             payload=self.get_summary(),
         )
         result_envelope = TaskEnvelope(
-            task=processed_result,
+            task=result,
             id=result_id,
             source=self.get_name(),
             prev=task,
