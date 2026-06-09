@@ -2,27 +2,31 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
+from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
 from .core_envelope import TaskEnvelope
-from .util_errors import InitializationError
+from .util_errors import ConfigurationError, InitializationError
 from .util_types import CTreeEvent, TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from concurrent.futures import Future
 
     from ..stage.core_executor import TaskExecutor
 
 
-class TaskDispatch:
+class TaskDispatch[T, R]:
     """任务调度器，负责以串行、线程或异步方式执行单个任务。"""
 
     # ==== 初始化 ====
     def __init__(
-        self, task_executor: TaskExecutor, func: Callable[..., Any], max_workers: int
+        self,
+        task_executor: TaskExecutor[T, R],
+        func: Callable[[T], R] | Callable[[T], Awaitable[R]],
+        max_workers: int,
     ):
         """
         初始化任务运行器
@@ -36,6 +40,24 @@ class TaskDispatch:
         self.max_workers = max_workers
 
         self._pool: ThreadPoolExecutor | None = None
+
+    def _call_sync(self, task: T) -> R:
+        """调用同步任务函数；若返回 awaitable，说明模式与函数类型不匹配。"""
+        result = self.func(task)
+        if inspect.isawaitable(result):
+            raise ConfigurationError(
+                "execution_mode is not 'async' but task function returned an awaitable object"
+            )
+        return result
+
+    async def _call_async(self, task: T) -> R:
+        """调用异步任务函数；若返回值不可 await，说明模式与函数类型不匹配。"""
+        result = self.func(task)
+        if not inspect.isawaitable(result):
+            raise ConfigurationError(
+                "execution_mode is 'async' but task function did not return an awaitable object"
+            )
+        return await result
 
     def _init_pool(self, execution_mode: str) -> None:
         """
@@ -73,19 +95,19 @@ class TaskDispatch:
         return signal
 
     # ==== Worker ====
-    def _worker(self, task_envelope: TaskEnvelope) -> None:
+    def _worker(self, task_envelope: TaskEnvelope[T, R]) -> None:
         """
         同步执行单个任务（计时、成功/失败处理）
 
         :param task_envelope: 包含任务信息的信封
         """
-        task: Any = task_envelope.get_task()
+        task: T = task_envelope.get_task()
         max_retries: int = self.task_executor.max_retries
 
         for retry_time in range(max_retries + 1):
             try:
                 start_time = time.perf_counter()
-                result: Any = self.func(task)
+                result: R = self._call_sync(task)
                 self.task_executor.process_task_success(
                     task_envelope, result, start_time
                 )
@@ -100,20 +122,20 @@ class TaskDispatch:
                     task_envelope, exception, retry_time + 1
                 )
 
-    async def _async_worker(self, task_envelope: TaskEnvelope) -> None:
+    async def _async_worker(self, task_envelope: TaskEnvelope[T, R]) -> None:
         """
         异步执行单个任务（计时、成功/失败处理）
 
         :param task_envelope: 包含任务信息的信封
         """
-        task: Any = task_envelope.get_task()
+        task: T = task_envelope.get_task()
         max_retries: int = self.task_executor.max_retries
 
         for retry_time in range(max_retries + 1):
             try:
                 start_time = time.perf_counter()
-                result: Any = await self.func(task)
-                _ = self.task_executor.process_task_success(
+                result: R = await self._call_async(task)
+                self.task_executor.process_task_success(
                     task_envelope, result, start_time
                 )
                 return
@@ -199,7 +221,7 @@ class TaskDispatch:
         semaphore = asyncio.Semaphore(self.max_workers)
         pending: set[asyncio.Task[None]] = set()
 
-        async def sem_worker(envelope: TaskEnvelope) -> None:
+        async def sem_worker(envelope: TaskEnvelope[T, Any]) -> None:
             async with semaphore:
                 await self._async_worker(envelope)
 

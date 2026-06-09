@@ -1,6 +1,7 @@
 # stage/core_stages.py
 import json
 import time
+from collections.abc import Iterable
 from typing import Any, cast
 
 import redis
@@ -13,11 +14,12 @@ from ..runtime.util_errors import (
     TaskFormatError,
 )
 from ..runtime.util_types import NoOpContext, ValueWrapper
+from ..utils.util_format import format_repr
 from .core_stage import TaskStage
 
 
 # ==== TaskSplitter ====
-class TaskSplitter(TaskStage):
+class TaskSplitter[TItem](TaskStage[Iterable[TItem], TItem]):
     """TaskSplitter: 将单个任务拆分为多个子任务，注入下游队列。"""
 
     split_counter: ValueWrapper
@@ -65,7 +67,7 @@ class TaskSplitter(TaskStage):
         """
         self.split_counter.value += add_value
 
-    def _split(self, task: Any) -> tuple[Any, ...]:
+    def _split(self, task: Iterable[TItem]) -> tuple[TItem, ...]:
         """
         将单个任务展开为子任务元组。
 
@@ -91,7 +93,7 @@ class TaskSplitter(TaskStage):
                 parents=[task_id],
                 payload=self.get_summary(),
             )
-            splitted_envelope = TaskEnvelope(
+            splitted_envelope: TaskEnvelope[TItem, None] = TaskEnvelope(
                 item,
                 split_id,
                 source=self.get_name(),
@@ -109,7 +111,10 @@ class TaskSplitter(TaskStage):
         return split_count
 
     def process_task_success(
-        self, task_envelope: TaskEnvelope, result: Any, start_time: float
+        self,
+        task_envelope: TaskEnvelope[Iterable[TItem], Any],
+        result: tuple[TItem, ...],
+        start_time: float,
     ) -> None:
         """
         统一处理成功任务
@@ -134,7 +139,7 @@ class TaskSplitter(TaskStage):
 
 
 # ==== TaskRouter ====
-class TaskRouter(TaskStage):
+class TaskRouter[T](TaskStage[tuple[str, T], T]):
     """TaskRouter: 根据路由信息将任务分发到不同的下游 stage。"""
 
     route_counters: dict[str, ValueWrapper]
@@ -182,7 +187,7 @@ class TaskRouter(TaskStage):
         """
         self.route_counters[target].value += 1
 
-    def _route(self, routed: tuple[str, Any]) -> Any:
+    def _route(self, routed: tuple[str, T]) -> T:
         """
         校验路由输入格式并提取目标任务
 
@@ -203,7 +208,10 @@ class TaskRouter(TaskStage):
         return task
 
     def process_task_success(
-        self, task_envelope: TaskEnvelope, result: Any, start_time: float
+        self,
+        task_envelope: TaskEnvelope[tuple[str, T], Any],
+        result: T,
+        start_time: float,
     ) -> None:
         """
         统一处理成功任务
@@ -220,7 +228,7 @@ class TaskRouter(TaskStage):
             parents=[task_id],
             payload=self.get_summary(),
         )
-        routed_envelope = TaskEnvelope(
+        routed_envelope: TaskEnvelope[T, None] = TaskEnvelope(
             result,
             route_id,
             source=self.get_name(),
@@ -234,7 +242,7 @@ class TaskRouter(TaskStage):
 
         self.log_inlet.route_success(
             self.get_func_name(),
-            self.get_task_repr(task),
+            f"({format_repr(task, self.max_info)})",
             target,
             time.perf_counter() - start_time,
             task_id,
@@ -243,7 +251,7 @@ class TaskRouter(TaskStage):
 
 
 # ==== TaskRedisTransport ====
-class TaskRedisTransport(TaskStage):
+class TaskRedisTransport[T](TaskStage[T, int]):
     """Redis 任务传输节点，将任务序列化后写入 Redis list。"""
 
     key: str
@@ -300,7 +308,7 @@ class TaskRedisTransport(TaskStage):
                 decode_responses=True,
             )
 
-    def _transport(self, task: Any) -> int:
+    def _transport(self, task: T) -> int:
         """
         将单个任务序列化为 JSON 并写入 Redis list。
 
@@ -324,7 +332,7 @@ class TaskRedisTransport(TaskStage):
 
 
 # ==== TaskRedisSource ====
-class TaskRedisSource(TaskStage):
+class TaskRedisSource[T](TaskStage[Any, T]):
     """Redis 任务源节点，从 Redis list 拉取数据并注入下游。"""
 
     key: str
@@ -383,7 +391,7 @@ class TaskRedisSource(TaskStage):
                 decode_responses=True,
             )
 
-    def _source(self, _: Any) -> Any:
+    def _source(self, _: Any) -> T:
         """
         从 Redis list 拉取数据并注入下游，忽略输入任务
 
@@ -408,13 +416,13 @@ class TaskRedisSource(TaskStage):
         if task is None:
             raise RemoteWorkerError("Redis source payload missing 'task'")
         if len(task) == 1:
-            return task[0]
+            return cast(T, task[0])
 
-        return tuple(task)
+        return cast(T, tuple(task))
 
 
 # ==== TaskRedisAck ====
-class TaskRedisAck(TaskStage):
+class TaskRedisAck[TResult](TaskStage[str, TResult]):
     """Redis 任务确认节点，等待远端 Worker 返回执行结果。"""
 
     key: str
@@ -474,7 +482,7 @@ class TaskRedisAck(TaskStage):
                 decode_responses=True,
             )
 
-    def _ack(self, task_id: str) -> Any:
+    def _ack(self, task_id: str) -> TResult:
         """
         接收 task_id，等待远端 worker 的执行结果
 
@@ -502,13 +510,13 @@ class TaskRedisAck(TaskStage):
                     if not hasattr(result, "__iter__") or isinstance(
                         result, str | bytes
                     ):
-                        return result
+                        return cast(TResult, result)
                     elif isinstance(result, list):
                         if len(result) == 1:  # pyright: ignore[reportUnknownArgumentType]
-                            return result[0]  # pyright: ignore[reportUnknownVariableType]
-                        return tuple(result)  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+                            return cast(TResult, result[0])  # pyright: ignore[reportUnknownVariableType]
+                        return cast(TResult, tuple(result))  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
                     else:
-                        return result
+                        return cast(TResult, result)
 
                 elif status == "error":
                     raise RemoteWorkerError(result_obj.get("error"))

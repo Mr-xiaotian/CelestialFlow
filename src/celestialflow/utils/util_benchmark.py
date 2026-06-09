@@ -10,10 +10,12 @@ from ..stage import TaskExecutor
 from .util_clone import clone_executor, clone_graph
 from .util_format import format_table
 
+type AnyTaskExecutor = TaskExecutor[Any, Any]
+
 
 async def benchmark_executor(
-    sync_executor: TaskExecutor,
-    async_executor: TaskExecutor,
+    sync_executor: AnyTaskExecutor,
+    async_executor: AnyTaskExecutor,
     task_source: Iterable[Any],
     sync_modes: list[str] | None = None,
     async_modes: list[str] | None = None,
@@ -35,7 +37,7 @@ async def benchmark_executor(
     use_time: list[list[float]] = []
     results: list[list[tuple[Any, Any]]] = []
     for mode in sync_modes:
-        cloned_executor: TaskExecutor = clone_executor(sync_executor)
+        cloned_executor: AnyTaskExecutor = clone_executor(sync_executor)
         cloned_executor.set_execution_mode(mode)
 
         start: float = time.perf_counter()

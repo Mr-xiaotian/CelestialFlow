@@ -1,15 +1,21 @@
 # runtime/core_envelope.py
-from typing import Any
+from __future__ import annotations
 
 from .util_hash import object_to_hash
 
 
-class TaskEnvelope:
+class TaskEnvelope[T, TPrev]:
     """任务信封，封装原始任务及其哈希、ID、来源等元信息。"""
 
     __slots__: tuple[str, ...] = ("hash", "id", "prev", "source", "task")
 
-    def __init__(self, task: Any, id: int, source: str, prev: Any = None):
+    def __init__(
+        self,
+        task: T,
+        id: int,
+        source: str,
+        prev: TPrev | None = None,
+    ):
         """
         初始化任务信封。
 
@@ -18,14 +24,14 @@ class TaskEnvelope:
         :param source: 任务来源标识
         :param prev: 前一个任务（用于结果缓存时回溯），默认 None
         """
-        self.task: Any = task
+        self.task: T = task
         self.hash: bytes | None = None
         self.id: int = id
 
         self.source: str = source
-        self.prev: Any = prev
+        self.prev: TPrev | None = prev
 
-    def get_task(self) -> Any:
+    def get_task(self) -> T:
         """
         获取原始任务
 
@@ -60,7 +66,7 @@ class TaskEnvelope:
         """
         return self.id
     
-    def get_prev(self) -> Any | None:
+    def get_prev(self) -> TPrev | None:
         """
         获取前一个任务（用于结果缓存时回溯）
 

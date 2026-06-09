@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from queue import Queue as ThreadQueue
 from typing import Any
 
@@ -19,7 +19,7 @@ from ..runtime.util_types import StageStatus
 from .core_executor import TaskExecutor
 
 
-class TaskStage(TaskExecutor):
+class TaskStage[T, R](TaskExecutor[T, R]):
     """任务阶段节点，继承 TaskExecutor 并增加图结构连接与 stage_mode 控制能力。
 
     注意：
@@ -33,8 +33,8 @@ class TaskStage(TaskExecutor):
     start_time: float
     stage_mode: str
     execution_mode: str
-    task_queue: TaskInQueue
-    result_queue: TaskOutQueue
+    task_queue: TaskInQueue[T]
+    result_queue: TaskOutQueue[R]
     fail_inlet: FailInlet
     log_inlet: LogInlet
 
@@ -42,7 +42,7 @@ class TaskStage(TaskExecutor):
     def __init__(
         self,
         name: str,
-        func: Callable[..., Any],
+        func: Callable[[T], R] | Callable[[T], Awaitable[R]],
         stage_mode: str = "serial",
         **kwargs: Any,
     ):
@@ -118,7 +118,7 @@ class TaskStage(TaskExecutor):
         """
         return self.metrics.success_counter
 
-    def prev_bindings(self, pending_prev_bindings: list[TaskStage]) -> None:
+    def prev_bindings(self, pending_prev_bindings: list[TaskStage[Any, Any]]) -> None:
         """
         绑定前置节点，将每个前驱 stage 的计数器注册到当前 stage 的 task_counter 中
 

@@ -1,24 +1,20 @@
 # graph/util_analysis.py
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import networkx as nx
-
-if TYPE_CHECKING:
-    from ..stage.core_stage import TaskStage
+from ..stage.util_types import AnyTaskStage
 
 
 # ======== (图论分析) ========
 def build_networkx_graph(
     out_edges: dict[str, list[str]],
-    stage_dict: dict[str, TaskStage],
+    stage_dict: dict[str, AnyTaskStage],
 ) -> nx.DiGraph[str]:
     """
     从邻接表和阶段运行时信息构建 networkx 有向图
 
     :param out_edges: 邻接表 {stage_name: [next_stage_name, ...]}
-    :param stage_dict: {stage_name: TaskStage}
+    :param stage_dict: {stage_name: AnyTaskStage}
     :return: 构建好的 networkx.DiGraph
     """
     G: nx.DiGraph[str] = nx.DiGraph()

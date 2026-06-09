@@ -34,7 +34,7 @@ from ..runtime.util_estimators import (
     calc_remaining,
 )
 from ..runtime.util_types import TerminationSignal
-from ..stage import TaskStage
+from ..stage.util_types import AnyTaskStage
 from ..utils.util_collections import cluster_by_value_sorted
 from ..utils.util_format import format_avg_time
 from .util_analysis import (
@@ -116,7 +116,7 @@ class TaskGraph:
         # 用于保存所有子线程的引用
         self.threads: list[threading.Thread] = []
         # 用于保存每个节点的运行信息
-        self.stage_dict: dict[str, TaskStage] = {}
+        self.stage_dict: dict[str, AnyTaskStage] = {}
         # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
         self.status_dict: dict[str, dict[str, Any]] = defaultdict(dict)
         # 用于保存最近一次状态快照对应的统一时间戳
@@ -124,7 +124,7 @@ class TaskGraph:
         # 用于保存每个节点的输入任务ID集合
         self.input_ids: dict[str, set[int]] = defaultdict(set)
         # 用于保存源节点列表（由 _build_analysis 自动计算）
-        self.source_stages: list[TaskStage] = []
+        self.source_stages: list[AnyTaskStage] = []
         # 用于保存图结构的邻接表
         self.out_edges: dict[str, list[str]] = defaultdict(list)
         self.in_edges: dict[str, list[str]] = defaultdict(list)
@@ -145,7 +145,7 @@ class TaskGraph:
 
     # ==== 建图 ====
 
-    def set_stages(self, stages: list[TaskStage]) -> None:
+    def set_stages(self, stages: list[AnyTaskStage]) -> None:
         """
         添加节点到任务图中
 
@@ -164,7 +164,11 @@ class TaskGraph:
 
             stage.set_inlet(fail_queue, log_queue)
 
-    def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
+    def connect(
+        self,
+        from_stages: list[AnyTaskStage],
+        to_stages: list[AnyTaskStage],
+    ) -> None:
         """
         建立超边连接：from_stages 中的每个节点连接到 to_stages 中的每个节点。
 
@@ -282,15 +286,15 @@ class TaskGraph:
             if not self.in_edges[stage_name]:  # 如果没有前驱
                 continue
 
-            in_queue: TaskInQueue = current_stage.task_queue
-            prev_stages: list[TaskStage] = []
+            in_queue: TaskInQueue[Any] = current_stage.task_queue
+            prev_stages: list[AnyTaskStage] = []
 
             # 遍历每个前驱，创建边队列
             for prev_stage_name in self.in_edges[stage_name]:
                 in_queue.add_source_name(prev_stage_name)
 
                 prev_stage = self.stage_dict[prev_stage_name]
-                prev_out_queue: TaskOutQueue = prev_stage.result_queue
+                prev_out_queue: TaskOutQueue[Any] = prev_stage.result_queue
                 prev_out_queue.add_queue(in_queue.queue, stage_name)
                 prev_stages.append(prev_stage)
 
@@ -327,7 +331,7 @@ class TaskGraph:
         for name, tasks in tasks_dict.items():
             if name not in self.stage_dict:
                 continue
-            stage: TaskStage = self.stage_dict[name]
+            stage: AnyTaskStage = self.stage_dict[name]
 
             for task in tasks:
                 if isinstance(task, TerminationSignal):
@@ -412,7 +416,7 @@ class TaskGraph:
 
                 threads: list[threading.Thread] = []
                 for stage_name in layer:
-                    stage: TaskStage = self.stage_dict[stage_name]
+                    stage: AnyTaskStage = self.stage_dict[stage_name]
                     self._execute_stage(stage)
                     if stage.stage_mode == "thread":
                         threads.append(self.threads[-1])
@@ -423,7 +427,7 @@ class TaskGraph:
 
                 self.log_inlet.end_layer(layer, time.perf_counter() - start_time)
 
-    def _execute_stage(self, stage: TaskStage) -> None:
+    def _execute_stage(self, stage: AnyTaskStage) -> None:
         """
         执行单个节点
 
@@ -482,7 +486,7 @@ class TaskGraph:
 
     def _snapshot_one_stage(
         self,
-        stage: TaskStage,
+        stage: AnyTaskStage,
         last_status: dict[str, Any],
         interval: float,
     ) -> tuple[dict[str, Any], tuple[int, int]]:
@@ -692,7 +696,7 @@ class TaskGraph:
             return ""
         return format_descendants_forest(descendants, STAGE_STYLE)
 
-    def get_source_stages(self) -> list[TaskStage]:
+    def get_source_stages(self) -> list[AnyTaskStage]:
         """
         获取源节点列表
 

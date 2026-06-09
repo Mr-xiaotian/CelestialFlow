@@ -15,7 +15,7 @@ from .util_types import TerminationIdPool, TerminationSignal
 
 
 # ==== TaskInQueue ====
-class TaskInQueue:
+class TaskInQueue[T]:
     """任务输入队列，聚合多个上游来源的任务和终止信号。"""
 
     queue: Any
@@ -104,7 +104,7 @@ class TaskInQueue:
         )
 
     # ==== put / get ====
-    def put(self, item: TaskEnvelope | TerminationSignal) -> None:
+    def put(self, item: TaskEnvelope[T, Any] | TerminationSignal) -> None:
         """
         入队任务或终止信号
 
@@ -112,22 +112,25 @@ class TaskInQueue:
         """
         self.queue.put(item)
 
-    def get(self) -> TaskEnvelope | TerminationIdPool:
+    def get(self) -> TaskEnvelope[T, Any] | TerminationIdPool:
         """
         出队任务或终止符号id池
 
         :return: 出队的任务或终止符号id池
         """
         while True:
-            item: TaskEnvelope | TerminationSignal = self.queue.get()
+            item: TaskEnvelope[T, Any] | TerminationSignal | TerminationIdPool = (
+                self.queue.get()
+            )
             result = self._deal_get_item(item)
             if result is None:
                 continue
             return result
 
     def _deal_get_item(
-        self, item: TaskEnvelope | TerminationSignal
-    ) -> TaskEnvelope | TerminationIdPool | None:
+        self,
+        item: TaskEnvelope[T, Any] | TerminationSignal | TerminationIdPool,
+    ) -> TaskEnvelope[T, Any] | TerminationIdPool | None:
         """
         处理出队的任务或终止符号
 
@@ -153,7 +156,7 @@ class TaskInQueue:
         # 信号已记录但尚未集齐所有上游，继续等待
         return None
 
-    def drain(self) -> list[TaskEnvelope]:
+    def drain(self) -> list[TaskEnvelope[T, Any]]:
         """
         清空队列中的所有任务，返回所有任务列表
         并记录 termination 状态，但不返回 TerminationIdPool
@@ -161,10 +164,12 @@ class TaskInQueue:
 
         :return: 包含所有任务的列表
         """
-        results: list[TaskEnvelope] = []
+        results: list[TaskEnvelope[T, Any]] = []
         while True:
             try:
-                item: TaskEnvelope | TerminationSignal = self.queue.get_nowait()
+                item: TaskEnvelope[T, Any] | TerminationSignal = (
+                    self.queue.get_nowait()
+                )
                 if isinstance(item, TaskEnvelope):
                     results.append(item)
                 else:
@@ -175,7 +180,7 @@ class TaskInQueue:
 
 
 # ==== TaskOutQueue ====
-class TaskOutQueue:
+class TaskOutQueue[T]:
     """任务输出队列，将任务广播到一个或多个下游队列通道。"""
 
     queue_list: list[Any]
@@ -225,7 +230,7 @@ class TaskOutQueue:
         self.queue_list.append(queue)
         self.target_names.append(name)
 
-    def put(self, item: TaskEnvelope | TerminationSignal) -> None:
+    def put(self, item: TaskEnvelope[T, Any] | TerminationSignal) -> None:
         """
         入队任务或终止信号到所有输出队列通道
 
@@ -234,7 +239,9 @@ class TaskOutQueue:
         for index, _ in enumerate(self.queue_list):
             self.put_channel(item, index)
 
-    def put_target(self, item: TaskEnvelope | TerminationSignal, name: str) -> None:
+    def put_target(
+        self, item: TaskEnvelope[T, Any] | TerminationSignal, name: str
+    ) -> None:
         """
         入队任务或终止信号到指定的输出队列
 
@@ -243,7 +250,9 @@ class TaskOutQueue:
         """
         self.put_channel(item, self._name_to_idx[name])
 
-    def put_channel(self, item: TaskEnvelope | TerminationSignal, idx: int) -> None:
+    def put_channel(
+        self, item: TaskEnvelope[T, Any] | TerminationSignal, idx: int
+    ) -> None:
         """
         入队任务或终止信号到指定的输出队列通道
 

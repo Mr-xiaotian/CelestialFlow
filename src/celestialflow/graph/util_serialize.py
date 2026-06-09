@@ -1,17 +1,16 @@
 # graph/util_serialize.py
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from ..stage import TaskStage
+from ..stage.util_types import AnyTaskStage
 
 
 # ======== 处理图结构 ========
 def build_structure_graph(
-    stage_dict: dict[str, TaskStage],
+    stage_dict: dict[str, AnyTaskStage],
     out_edges: dict[str, list[str]],
-    source_stages: list[TaskStage],
+    source_stages: list[AnyTaskStage],
 ) -> dict[str, Any]:
     """
     从源节点、邻接表和节点字典构建标准化图结构。
@@ -21,7 +20,7 @@ def build_structure_graph(
     - ``edges``: 邻接表 {stage_name: [next_stage_name, ...]}
     - ``source_nodes``: 图入口节点名称列表
 
-    :param stage_dict: {stage_name: TaskStage}
+    :param stage_dict: {stage_name: AnyTaskStage}
     :param out_edges: 邻接表 {stage_name: [next_stage_name, ...]}
     :param source_stages: 源节点列表
     :return: 标准化图结构字典

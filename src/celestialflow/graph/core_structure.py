@@ -2,8 +2,9 @@
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from ..stage import TaskStage
+from ..stage.util_types import AnyTaskStage
 from .core_graph import TaskGraph
+
 
 
 # ========有向无环图(DAG)========
@@ -12,7 +13,7 @@ class TaskChain(TaskGraph):
 
     def __init__(
         self,
-        stages: list[TaskStage],
+        stages: list[AnyTaskStage],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
         log_level: str = "INFO",
@@ -55,7 +56,7 @@ class TaskCross(TaskGraph):
 
     def __init__(
         self,
-        layers: list[list[TaskStage]],
+        layers: list[list[AnyTaskStage]],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
         log_level: str = "INFO",
@@ -74,7 +75,7 @@ class TaskCross(TaskGraph):
         """
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
-        all_stages: list[TaskStage] = []
+        all_stages: list[AnyTaskStage] = []
         for _, curr_layer in enumerate(layers):
             for stage in curr_layer:
                 stage.set_stage_mode(stage_mode)
@@ -104,7 +105,7 @@ class TaskGrid(TaskGraph):
 
     def __init__(
         self,
-        grid: list[list[TaskStage]],
+        grid: list[list[AnyTaskStage]],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
         log_level: str = "INFO",
@@ -124,7 +125,7 @@ class TaskGrid(TaskGraph):
         super().__init__(schedule_mode=schedule_mode, log_level=log_level)
 
         rows, cols = len(grid), len(grid[0])
-        all_stages: list[TaskStage] = []
+        all_stages: list[AnyTaskStage] = []
         for i in range(rows):
             for j in range(cols):
                 curr = grid[i][j]
@@ -161,7 +162,7 @@ class TaskLoop(TaskGraph):
 
     def __init__(
         self,
-        stages: list[TaskStage],
+        stages: list[AnyTaskStage],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
         log_level: str = "INFO",
@@ -204,8 +205,8 @@ class TaskWheel(TaskGraph):
 
     def __init__(
         self,
-        center: TaskStage,
-        ring: list[TaskStage],
+        center: AnyTaskStage,
+        ring: list[AnyTaskStage],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
         log_level: str = "INFO",
@@ -253,7 +254,7 @@ class TaskComplete(TaskGraph):
 
     def __init__(
         self,
-        stages: list[TaskStage],
+        stages: list[AnyTaskStage],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
         log_level: str = "INFO",

@@ -6,7 +6,7 @@ import inspect
 import os
 import time
 from collections import defaultdict
-from collections.abc import Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from queue import Queue as ThreadQueue
 from typing import Any
 
@@ -31,7 +31,7 @@ from ..runtime.util_types import (
 from ..utils.util_format import format_repr
 
 
-class TaskExecutor:
+class TaskExecutor[T, R]:
     """任务执行器基类，支持串行、线程和异步三种执行模式。
 
     注意：
@@ -42,17 +42,17 @@ class TaskExecutor:
     """
 
     # Class-level type annotations
-    task_queue: TaskInQueue
-    result_queue: TaskOutQueue
+    task_queue: TaskInQueue[T]
+    result_queue: TaskOutQueue[R]
     max_workers: int
     max_retries: int
     max_info: int
     enable_duplicate_check: bool
     metrics: TaskMetrics
-    dispatch: TaskDispatch
+    dispatch: TaskDispatch[T, R]
     fail_spout: FailSpout
     log_spout: LogSpout
-    success_spout: SuccessSpout
+    success_spout: SuccessSpout[T, R]
     fail_inlet: FailInlet
     log_inlet: LogInlet
     execution_mode: str
@@ -64,7 +64,7 @@ class TaskExecutor:
     def __init__(
         self,
         name: str,
-        func: Callable[..., Any],
+        func: Callable[[T], R] | Callable[[T], Awaitable[R]],
         execution_mode: str = "serial",
         max_workers: int | None = None,
         max_retries: int = 1,
@@ -211,13 +211,16 @@ class TaskExecutor:
             getattr(observer, method_name)(*args, **kwargs)
 
     # ==== 配置 ====
-    def _set_func(self, func: Callable[..., Any]) -> None:
+    def _set_func(
+        self,
+        func: Callable[[T], R] | Callable[[T], Awaitable[R]],
+    ) -> None:
         """
         设置执行函数
 
         :param func: 执行函数
         """
-        self.func: Callable[..., Any] = func
+        self.func: Callable[[T], R] | Callable[[T], Awaitable[R]] = func
         self._func_name = func.__name__
 
     def set_execution_mode(self, execution_mode: str) -> None:
@@ -362,7 +365,7 @@ class TaskExecutor:
         self.metrics.add_retry_exceptions(*exceptions)
 
     # ==== 任务输入 ====
-    def put_task(self, task: Any) -> None:
+    def put_task(self, task: T) -> None:
         """
         将单个任务封装为 TaskEnvelope 并放入队列。
 
@@ -372,7 +375,7 @@ class TaskExecutor:
             CTreeEvent.TASK_INPUT,
             payload=self.get_summary(),
         )
-        envelope = TaskEnvelope(task, input_id, source="input")
+        envelope: TaskEnvelope[T, None] = TaskEnvelope(task, input_id, source="input")
         self.task_queue.put(envelope)
         self.metrics.add_task_count()
         self.log_inlet.task_input(
@@ -398,7 +401,7 @@ class TaskExecutor:
             termination_id,
         )
 
-    def _put_task_queue(self, task_source: Iterable[Any]) -> None:
+    def _put_task_queue(self, task_source: Iterable[T]) -> None:
         """
         遍历任务源，逐个放入队列，末尾追加终止信号。
 
@@ -414,20 +417,20 @@ class TaskExecutor:
         self._notify("on_tasks_added", self.metrics.get_task_count() - progress_num)
         self.put_signal()
 
-    def process_result_dict(self) -> dict[Any, Any]:
+    def process_result_dict(self) -> dict[T, R | str]:
         """
         处理结果列表。可根据需要覆写
 
         :return: 处理后的结果列表
         """
-        result_dict: dict[Any, Any] = {}
+        result_dict: dict[T, R | str] = {}
         for task, result in self.get_success_pairs():
             result_dict[task] = result
         for task, error in self.get_error_pairs():
             result_dict[task] = str(error)
         return result_dict
 
-    def handle_error_dict(self) -> dict[tuple[str, str], list[Any]]:
+    def handle_error_dict(self) -> dict[tuple[str, str], list[T]]:
         """
         处理错误字典。可根据需要覆写
 
@@ -435,13 +438,13 @@ class TaskExecutor:
 
         :return: 按 (error_type, error_message) 分组的任务列表
         """
-        error_groups: defaultdict[tuple[str, str], list[Any]] = defaultdict(list)
+        error_groups: defaultdict[tuple[str, str], list[T]] = defaultdict(list)
         for task, error in self.get_error_pairs():
             error_groups[error.get_group_key()].append(task)
 
         return dict(error_groups)  # 转换回普通字典
 
-    def get_task_repr(self, task: Any) -> str:
+    def get_task_repr(self, task: T) -> str:
         """
         获取任务对象的可读字符串表示
 
@@ -462,7 +465,7 @@ class TaskExecutor:
 
     # ==== 结果处理 ====
     def process_task_success(
-        self, task_envelope: TaskEnvelope, result: Any, start_time: float
+        self, task_envelope: TaskEnvelope[T, R], result: R, start_time: float
     ) -> None:
         """
         统一处理成功任务
@@ -480,7 +483,7 @@ class TaskExecutor:
             parents=[task_id],
             payload=self.get_summary(),
         )
-        result_envelope = TaskEnvelope(
+        result_envelope: TaskEnvelope[R, T] = TaskEnvelope(
             task=result,
             id=result_id,
             source=self.get_name(),
@@ -503,10 +506,10 @@ class TaskExecutor:
 
     def emit_retry_envelope(
         self,
-        task_envelope: TaskEnvelope,
+        task_envelope: TaskEnvelope[T, R],
         exception: Exception,
         retry_time: int,
-    ) -> TaskEnvelope:
+    ) -> TaskEnvelope[T, R]:
         """
         为重试任务生成新的信封 ID 并记录日志
 
@@ -524,7 +527,7 @@ class TaskExecutor:
             payload=self.get_summary(),
         )
         
-        retry_envelope = TaskEnvelope(
+        retry_envelope: TaskEnvelope[T, Any] = TaskEnvelope(
             task=task,
             id=retry_id,
             source=self.get_name(),
@@ -544,7 +547,7 @@ class TaskExecutor:
 
     def handle_task_fail(
         self,
-        task_envelope: TaskEnvelope,
+        task_envelope: TaskEnvelope[T, R],
         exception: Exception,
     ) -> None:
         """
@@ -576,7 +579,7 @@ class TaskExecutor:
             error_id,
         )
 
-    def deal_duplicate(self, task_envelope: TaskEnvelope) -> None:
+    def deal_duplicate(self, task_envelope: TaskEnvelope[T, R]) -> None:
         """
         处理重复任务
 
@@ -600,7 +603,7 @@ class TaskExecutor:
         )
 
     # ==== 启动 ====
-    def _prepare_start(self, task_source: Iterable[Any]) -> float:
+    def _prepare_start(self, task_source: Iterable[T]) -> float:
         """
         启动前准备：初始化环境、注入任务、记录启动日志。
 
@@ -641,7 +644,7 @@ class TaskExecutor:
         self.fail_spout.stop()
         self.success_spout.stop()
 
-    def start(self, task_source: Iterable[Any]) -> None:
+    def start(self, task_source: Iterable[T]) -> None:
         """
         根据 execution_mode 的值，选择串行、线程或异步执行任务。
 
@@ -664,7 +667,7 @@ class TaskExecutor:
         finally:
             self._finish_start(start_time)
 
-    async def start_async(self, task_source: Iterable[Any]) -> None:
+    async def start_async(self, task_source: Iterable[T]) -> None:
         """
         异步地执行任务。
 
@@ -681,7 +684,7 @@ class TaskExecutor:
             self._finish_start(start_time)
 
     # ==== 结果获取 ====
-    def get_success_pairs(self) -> list[tuple[Any, Any]]:
+    def get_success_pairs(self) -> list[tuple[T, R]]:
         """
         获取成功任务的列表
 

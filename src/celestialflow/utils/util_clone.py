@@ -3,13 +3,16 @@ from __future__ import annotations
 
 import inspect
 from collections import deque
-from typing import Any
+from typing import Any, cast
 
 from ..graph import TaskGraph
 from ..stage import TaskExecutor, TaskStage
+from ..stage.util_types import AnyTaskStage
 
 
-def _get_clone_init_kwargs(executor: TaskExecutor) -> dict[str, Any]:
+def _get_clone_init_kwargs[T, R](
+    executor: TaskExecutor[T, R],
+) -> dict[str, Any]:
     """
     获取克隆执行器的初始化参数
 
@@ -28,19 +31,23 @@ def _get_clone_init_kwargs(executor: TaskExecutor) -> dict[str, Any]:
     }
 
 
-def clone_executor(executor: TaskExecutor) -> TaskExecutor:
+def clone_executor[T, R](
+    executor: TaskExecutor[T, R],
+) -> TaskExecutor[T, R]:
     """
     克隆执行器
 
     :param executor: 要克隆的执行器
     :return: 克隆执行器
     """
-    cloned: TaskExecutor = TaskExecutor(**_get_clone_init_kwargs(executor))
+    cloned = cast(TaskExecutor[T, R], TaskExecutor(**_get_clone_init_kwargs(executor)))
     cloned.add_retry_exceptions(*executor.metrics.retry_exceptions)
     return cloned
 
 
-def clone_stage(stage: TaskStage) -> TaskStage:
+def clone_stage[T, R](
+    stage: TaskStage[T, R],
+) -> TaskStage[T, R]:
     """
     克隆节点
 
@@ -56,7 +63,7 @@ def clone_stage(stage: TaskStage) -> TaskStage:
     }
     filtered_kwargs = {k: v for k, v in kwargs.items() if k in init_params}
 
-    cloned: TaskStage = stage_cls(**filtered_kwargs)
+    cloned: TaskStage[T, R] = stage_cls(**filtered_kwargs)
 
     cloned.add_retry_exceptions(*stage.metrics.retry_exceptions)
     return cloned
@@ -71,26 +78,26 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     """
     # BFS 收集所有 stage（通过 graph.out_edges）
     visited: set[str] = set()
-    ordered_stages: list[TaskStage] = []
-    queue: deque[TaskStage] = deque(graph.get_source_stages())
+    ordered_stages: list[AnyTaskStage] = []
+    queue: deque[AnyTaskStage] = deque(graph.get_source_stages())
     while queue:
-        stage: TaskStage = queue.popleft()
+        stage: AnyTaskStage = queue.popleft()
         stage_name: str = stage.get_name()
         if stage_name in visited:
             continue
         visited.add(stage_name)
         ordered_stages.append(stage)
         for next_stage_name in graph.out_edges.get(stage_name, []):
-            next_stage: TaskStage = graph.stage_dict[next_stage_name]
+            next_stage: AnyTaskStage = graph.stage_dict[next_stage_name]
             queue.append(next_stage)
 
     # 建立 old_name -> cloned_stage 映射
-    name_map: dict[str, TaskStage] = {}
+    name_map: dict[str, AnyTaskStage] = {}
     for stage in ordered_stages:
         name_map[stage.get_name()] = clone_stage(stage)
 
     # 构建新 graph
-    all_cloned_stages: list[TaskStage] = list(name_map.values())
+    all_cloned_stages: list[AnyTaskStage] = list(name_map.values())
 
     cloned_graph: TaskGraph = TaskGraph(
         schedule_mode=graph.schedule_mode,
@@ -102,8 +109,8 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     for from_name, to_names in graph.out_edges.items():
         if not to_names:
             continue
-        cloned_from: TaskStage = name_map[from_name]
-        cloned_to: list[TaskStage] = [name_map[name] for name in to_names]
+        cloned_from: AnyTaskStage = name_map[from_name]
+        cloned_to: list[AnyTaskStage] = [name_map[name] for name in to_names]
         cloned_graph.connect([cloned_from], cloned_to)
 
     if graph.use_ctree:
