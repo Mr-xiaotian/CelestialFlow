@@ -10,7 +10,6 @@ const translations: Record<Lang, Record<string, string>> = {
   "zh-CN": {
     "app.title": "任务图监控系统",
     "settings.title": "设置",
-    "settings.tooltip": "设置",
     "settings.close": "关闭设置",
     "settings.autoRefresh": "自动刷新",
     "settings.refreshInterval": "刷新间隔",
@@ -139,7 +138,6 @@ const translations: Record<Lang, Record<string, string>> = {
   en: {
     "app.title": "Task Graph Monitor",
     "settings.title": "Settings",
-    "settings.tooltip": "Settings",
     "settings.close": "Close settings",
     "settings.autoRefresh": "Auto Refresh",
     "settings.refreshInterval": "Refresh Interval",
@@ -270,7 +268,6 @@ const translations: Record<Lang, Record<string, string>> = {
   ja: {
     "app.title": "タスクグラフモニター",
     "settings.title": "設定",
-    "settings.tooltip": "設定",
     "settings.close": "設定を閉じる",
     "settings.autoRefresh": "自動更新",
     "settings.refreshInterval": "更新間隔",
