@@ -1,7 +1,7 @@
 # stage/core_stages.py
 import json
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any, cast
 
 import redis
@@ -19,17 +19,27 @@ from .core_stage import TaskStage
 
 
 # ==== TaskSplitter ====
-class TaskSplitter[TItem](TaskStage[Iterable[TItem], tuple[TItem, ...]]):
-    """TaskSplitter: 将单个任务拆分为多个子任务，注入下游队列。"""
+class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], tuple[RItem, ...]]):
+    """TaskSplitter: 将单个任务拆分为多个子任务，注入下游队列。
+
+    可通过 ``split_item`` 参数自定义对子任务的处理逻辑。
+    """
 
     split_counter: ValueWrapper
     execution_mode: str
+    split_item: Callable[[TItem], RItem]
 
-    def __init__(self, name: str, stage_mode: str = "serial"):
+    def __init__(
+        self,
+        name: str,
+        split_item: Callable[[TItem], RItem] | None = None,
+        stage_mode: str = "serial",
+    ):
         """
         初始化 TaskSplitter
 
         :param name: 节点名称
+        :param split_item: 自定义单个子任务处理函数，默认使用恒等映射
         :param stage_mode: 节点运行模式，默认 'serial'
         """
         super().__init__(
@@ -40,6 +50,7 @@ class TaskSplitter[TItem](TaskStage[Iterable[TItem], tuple[TItem, ...]]):
             max_retries=0,
         )
 
+        self.split_item = split_item or self._identity_split_item
         self._init_extra_counter()
 
     def _init_extra_counter(self) -> None:
@@ -67,16 +78,26 @@ class TaskSplitter[TItem](TaskStage[Iterable[TItem], tuple[TItem, ...]]):
         """
         self.split_counter.value += add_value
 
-    def _split(self, task: Iterable[TItem]) -> tuple[TItem, ...]:
+    @staticmethod
+    def _identity_split_item(task: TItem) -> RItem:
         """
-        将单个任务展开为子任务元组。
+        默认的单个子任务处理逻辑。
+
+        :param task: 拆分出的单个子任务
+        :return: 处理后的单个子任务
+        """
+        return cast(RItem, task)
+
+    def _split(self, task: Iterable[TItem]) -> tuple[RItem, ...]:
+        """
+        将可迭代任务拆分并物化为稳定元组，避免一次性迭代器被重复消费。
 
         :param task: 任务对象
         :return: 子任务元组
         """
-        return tuple(task)
+        return tuple(self.split_item(item) for item in task)
 
-    def _put_split_result(self, result: tuple[TItem, ...], task_id: int) -> int:
+    def _put_split_result(self, result: tuple[RItem, ...], task_id: int) -> int:
         """
         将 split 结果放入队列，并发出对应事件
 
@@ -84,7 +105,7 @@ class TaskSplitter[TItem](TaskStage[Iterable[TItem], tuple[TItem, ...]]):
         :param task_id: 原始任务 ID，用于事件关联
         :return: split 的子任务数量
         """
-        result_queue = cast(TaskOutQueue[TItem], self.result_queue)
+        result_queue = cast(TaskOutQueue[RItem], self.result_queue)
 
         split_count = len(result)
         for idx, item in enumerate(result):
@@ -93,7 +114,7 @@ class TaskSplitter[TItem](TaskStage[Iterable[TItem], tuple[TItem, ...]]):
                 parents=[task_id],
                 payload=self.get_summary(),
             )
-            splitted_envelope: TaskEnvelope[TItem, None] = TaskEnvelope(
+            splitted_envelope: TaskEnvelope[RItem, None] = TaskEnvelope(
                 item,
                 split_id,
                 source=self.get_name(),
@@ -113,7 +134,7 @@ class TaskSplitter[TItem](TaskStage[Iterable[TItem], tuple[TItem, ...]]):
     def process_task_success(
         self,
         task_envelope: TaskEnvelope[Iterable[TItem], Any],
-        result: tuple[TItem, ...],
+        result: tuple[RItem, ...],
         start_time: float,
     ) -> None:
         """

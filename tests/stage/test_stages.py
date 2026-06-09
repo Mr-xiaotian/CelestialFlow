@@ -60,6 +60,12 @@ class TestTaskSplitter:
         assert S.split_counter.value == 3
         assert A.get_counts()["tasks_succeeded"] == 3
 
+    def test_splitter_allows_constructor_split_item(self):
+        """测试 TaskSplitter 可通过构造参数 split_item 注入单个子任务处理逻辑"""
+        splitter = TaskSplitter[str, str]("S", split_item=lambda item: item.strip())
+
+        assert splitter._split([" a ", " b ", " c "]) == ("a", "b", "c")
+
 
 class TestTaskRouter:
     def test_router_init(self):
