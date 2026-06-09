@@ -1,10 +1,11 @@
 import asyncio
 import time
+from typing import Any
 
 from celestialflow import TaskExecutor, TaskProgress, benchmark_executor
 
 
-def fibonacci(n):
+def fibonacci(n: Any) -> int:
     """同步版斐波那契 — 迭代 O(n)，与 fibonacci_async 算法一致（公平对比）"""
     if not isinstance(n, int):
         raise TypeError("n must be an integer")
@@ -21,7 +22,7 @@ def fibonacci(n):
         return curr
 
 
-async def fibonacci_async(n):
+async def fibonacci_async(n: Any) -> int:
     if not isinstance(n, int):
         raise TypeError("n must be an integer")
     elif n <= 0:
@@ -39,16 +40,16 @@ async def fibonacci_async(n):
         return curr
 
 
-def sleep_1(_):
+def sleep_1(_: Any) -> None:
     time.sleep(1)
 
 
-async def sleep_1_async(_):
+async def sleep_1_async(_: Any) -> None:
     await asyncio.sleep(1)
 
 
-async def bench_executor_fibonacci():
-    bench_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
+async def bench_executor_fibonacci() -> None:
+    bench_task_1: list[Any] = list(range(25, 32)) + [0, 27, None, 0, ""]
 
     executor = TaskExecutor(
         "fibonacciExecutor",
@@ -77,7 +78,7 @@ async def bench_executor_fibonacci():
     )
 
 
-async def bench_executor_sleep():
+async def bench_executor_sleep() -> None:
     task_list = list(range(6))
 
     executor = TaskExecutor(
@@ -104,7 +105,7 @@ async def bench_executor_sleep():
     )
 
 
-async def main():
+async def main() -> None:
     await bench_executor_fibonacci()
     await bench_executor_sleep()
 

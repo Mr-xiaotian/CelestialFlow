@@ -10,12 +10,12 @@ from celestialflow.runtime.util_errors import (
 # =========================
 # 快速测试函数
 # =========================
-def add_one(x):
+def add_one(x: int) -> int:
     """测试用同步加一函数。"""
     return x + 1
 
 
-async def async_add_one(x):
+async def async_add_one(x: int) -> int:
     """测试用异步加一函数。"""
     return x + 1
 

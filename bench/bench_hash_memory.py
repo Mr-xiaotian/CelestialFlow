@@ -2,6 +2,7 @@ import random
 import sys
 import tracemalloc
 from time import perf_counter
+from typing import Any, Callable
 
 # ========== 配置 ==========
 N = 100_000
@@ -11,20 +12,22 @@ random.seed(42)
 # 使用 random.randbytes(20) 模拟 SHA1 原始输出
 
 
-def make_str():
+def make_str() -> str:
     return random.randbytes(20).hex()  # 40字符 hex 字符串
 
 
-def make_bytes():
+def make_bytes() -> bytes:
     return random.randbytes(20)  # 20 bytes
 
 
-def make_int():
+def make_int() -> int:
     return int.from_bytes(random.randbytes(20), "big")  # 160-bit int
 
 
 # ========== 内存测量 ==========
-def measure_total_memory(factory, n):
+def measure_total_memory(
+    factory: Callable[[], str | bytes | int], n: int
+) -> tuple[set[str | bytes | int], int]:
     """现场构造 n 个对象并加入 set，测量总内存增量（含对象+set开销）"""
     tracemalloc.start()
     tracemalloc.reset_peak()
@@ -40,7 +43,12 @@ def measure_total_memory(factory, n):
 
 
 # ========== 查询性能测量（严格对齐结构） ==========
-def bench_query(s, item_hit, item_miss, duration=0.3):
+def bench_query(
+    s: set[str | bytes | int],
+    item_hit: str | bytes | int,
+    item_miss: str | bytes | int,
+    duration: float = 0.3,
+) -> tuple[float, float]:
     # 预热
     _ = item_hit in s
     _ = item_miss in s
@@ -65,7 +73,7 @@ def bench_query(s, item_hit, item_miss, duration=0.3):
 
 
 # ========== 执行 ==========
-results = {}
+results: dict[str, dict[str, Any]] = {}
 
 for name, factory in [("str", make_str), ("bytes", make_bytes), ("int", make_int)]:
     # 内存测量（现场构造）

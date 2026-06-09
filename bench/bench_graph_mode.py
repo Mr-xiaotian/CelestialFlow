@@ -2,6 +2,7 @@ import asyncio
 import os
 import random
 from time import sleep
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -12,75 +13,75 @@ report_host = os.getenv("REPORT_HOST", "127.0.0.1")
 report_port = int(os.getenv("REPORT_PORT", "5000"))
 
 
-def sleep_1(n):
+def sleep_1(n: Any) -> Any:
     sleep(1)
     return n
 
 
-async def async_sleep_1(n):
+async def async_sleep_1(n: Any) -> Any:
     await asyncio.sleep(1)
     return n
 
 
-def sleep_random_02(n):
+def sleep_random_02(n: Any) -> Any:
     sleep(random.randint(0, 2))
     return n
 
 
-async def async_sleep_random_02(n):
+async def async_sleep_random_02(n: Any) -> Any:
     await asyncio.sleep(random.randint(0, 2))
     return n
 
 
-def sleep_random_A(n):
+def sleep_random_A(n: Any) -> Any:
     return sleep_random_02(n)
 
 
-def sleep_random_B(n):
+def sleep_random_B(n: Any) -> Any:
     return sleep_random_02(n)
 
 
-def sleep_random_C(n):
+def sleep_random_C(n: Any) -> Any:
     return sleep_random_02(n)
 
 
-def sleep_random_D(n):
+def sleep_random_D(n: Any) -> Any:
     return sleep_random_02(n)
 
 
-def sleep_random_E(n):
+def sleep_random_E(n: Any) -> Any:
     return sleep_random_02(n)
 
 
-def sleep_random_F(n):
+def sleep_random_F(n: Any) -> Any:
     return sleep_random_02(n)
 
 
-async def async_sleep_random_A(n):
+async def async_sleep_random_A(n: Any) -> Any:
     return await async_sleep_random_02(n)
 
 
-async def async_sleep_random_B(n):
+async def async_sleep_random_B(n: Any) -> Any:
     return await async_sleep_random_02(n)
 
 
-async def async_sleep_random_C(n):
+async def async_sleep_random_C(n: Any) -> Any:
     return await async_sleep_random_02(n)
 
 
-async def async_sleep_random_D(n):
+async def async_sleep_random_D(n: Any) -> Any:
     return await async_sleep_random_02(n)
 
 
-async def async_sleep_random_E(n):
+async def async_sleep_random_E(n: Any) -> Any:
     return await async_sleep_random_02(n)
 
 
-async def async_sleep_random_F(n):
+async def async_sleep_random_F(n: Any) -> Any:
     return await async_sleep_random_02(n)
 
 
-def fibonacci(n):
+def fibonacci(n: Any) -> int:
     if n <= 0:
         raise ValueError("n must be a positive integer")
     elif n == 1:
@@ -91,47 +92,47 @@ def fibonacci(n):
         return fibonacci(n - 1) + fibonacci(n - 2)
 
 
-async def async_fibonacci(n):
+async def async_fibonacci(n: Any) -> int:
     return fibonacci(n)
 
 
-def divide_by_two(x):
+def divide_by_two(x: int | float) -> float:
     return x / 2
 
 
-async def async_divide_by_two(x):
+async def async_divide_by_two(x: int | float) -> float:
     return x / 2
 
 
-def square(x):
+def square(x: int) -> int:
     if x == 317811:
         raise ValueError("Bench error in 317811")
     return x**2
 
 
-async def async_square(x):
+async def async_square(x: int) -> int:
     if x == 317811:
         raise ValueError("Bench error in 317811")
     return x**2
 
 
-def add_one(x):
+def add_one(x: int) -> int:
     return x + 1
 
 
-async def async_add_one(x):
+async def async_add_one(x: int) -> int:
     return x + 1
 
 
-def multiply_two(x):
+def multiply_two(x: int) -> int:
     return x * 2
 
 
-async def async_multiply_two(x):
+async def async_multiply_two(x: int) -> int:
     return x * 2
 
 
-def bench_graph_0():
+def bench_graph_0() -> None:
     stage1 = TaskStage(
         "StageA",
         fibonacci,
@@ -184,7 +185,7 @@ def bench_graph_0():
     graph.set_reporter(True, host=report_host, port=report_port)
     async_graph.set_reporter(True, host=report_host, port=report_port)
 
-    bench_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
+    bench_task_1: list[Any] = list(range(25, 32)) + [0, 27, None, 0, ""]
 
     input_tasks = {
         stage1.get_name(): bench_task_1,
@@ -194,7 +195,7 @@ def bench_graph_0():
     benchmark_graph(graph, async_graph, input_tasks)
 
 
-def bench_graph_1():
+def bench_graph_1() -> None:
     A = TaskStage("StageA", sleep_random_A, max_workers=5)
     B = TaskStage("StageB", sleep_random_B, max_workers=5)
     C = TaskStage("StageC", sleep_random_C, max_workers=5)
@@ -239,7 +240,7 @@ def bench_graph_1():
     benchmark_graph(graph, async_graph, input_tasks)
 
 
-def bench_graph_2():
+def bench_graph_2() -> None:
     S = TaskSplitter("Splitter")
     A = TaskStage("StageA", add_one, max_workers=20)
     B = TaskStage("StageB", multiply_two, max_workers=20)

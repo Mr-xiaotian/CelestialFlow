@@ -12,6 +12,7 @@ from multiprocessing import (
 from multiprocessing import (
     Queue as MPQueue,
 )
+from multiprocessing.connection import Connection
 from typing import Any, Callable
 
 from bench_utils import summarize
@@ -56,13 +57,13 @@ def make_payload(i: int, mode: str) -> Any:
 _SENTINEL = None
 
 
-def producer_queue(q, count: int, mode: str) -> None:
+def producer_queue(q: Any, count: int, mode: str) -> None:
     for i in range(count):
         q.put(make_payload(i, mode))
     q.put(_SENTINEL)
 
 
-def consumer_queue(q, result_q) -> None:
+def consumer_queue(q: Any, result_q: MPQueue) -> None:
     consumed = 0
     checksum = 0
 
@@ -85,7 +86,7 @@ def consumer_queue(q, result_q) -> None:
 # =========================
 
 
-def producer_pipe(conn, count: int, mode: str) -> None:
+def producer_pipe(conn: Connection, count: int, mode: str) -> None:
     try:
         for i in range(count):
             conn.send(make_payload(i, mode))
@@ -94,7 +95,7 @@ def producer_pipe(conn, count: int, mode: str) -> None:
         conn.close()
 
 
-def consumer_pipe(conn, result_q) -> None:
+def consumer_pipe(conn: Connection, result_q: MPQueue) -> None:
     consumed = 0
     checksum = 0
 

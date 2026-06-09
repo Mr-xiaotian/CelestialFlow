@@ -1,5 +1,6 @@
 import os
 import time
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -10,7 +11,7 @@ from celestialflow import (
 )
 
 
-def no_op(n):
+def no_op(n: Any) -> Any:
     return n
 
 
@@ -20,7 +21,7 @@ ctree_http_port = int(os.getenv("CTREE_HTTP_PORT", "7777"))
 ctree_grpc_port = int(os.getenv("CTREE_GRPC_PORT", "7778"))
 
 
-def bench_no_ctree():
+def bench_no_ctree() -> None:
     # 定义任务节点
     task_splitter = TaskSplitter("splitter")
     process_stage = TaskStage(
@@ -40,7 +41,7 @@ def bench_no_ctree():
     print(f"bench_no_ctree: {end_time - start_time}")
 
 
-def bench_http_ctree():
+def bench_http_ctree() -> None:
     # 定义任务节点
     task_splitter = TaskSplitter("splitter")
     process_stage = TaskStage(
@@ -66,7 +67,7 @@ def bench_http_ctree():
     print(f"bench_http_ctree: {end_time - start_time}")
 
 
-def bench_grpc_ctree():
+def bench_grpc_ctree() -> None:
     # 定义任务节点
     task_splitter = TaskSplitter("splitter")
     process_stage = TaskStage(
@@ -92,7 +93,7 @@ def bench_grpc_ctree():
     print(f"bench_grpc_ctree: {end_time - start_time}")
 
 
-def main():
+def main() -> None:
     bench_no_ctree()
     bench_http_ctree()
     bench_grpc_ctree()

@@ -1,15 +1,19 @@
+from collections.abc import Iterator
+
 import pytest
 from celestialflow.graph.util_serialize import build_structure_graph, format_structure_list_from_graph
 from celestialflow.stage.core_stage import TaskStage
 
 
 # 辅助函数
-async def async_noop(x):
+async def async_noop(x: int) -> int:
     """测试用异步空操作函数。"""
     return x
 
 
-def make_stage(name: str, stage_mode: str, execution_mode: str) -> TaskStage:
+def make_stage(
+    name: str, stage_mode: str, execution_mode: str
+) -> TaskStage[int, int]:
     """根据模式组合构造测试节点。"""
     func = async_noop if execution_mode == "async" else (lambda x: x)
     return TaskStage(name, func, stage_mode=stage_mode, execution_mode=execution_mode, max_workers=2)
@@ -17,7 +21,7 @@ def make_stage(name: str, stage_mode: str, execution_mode: str) -> TaskStage:
 
 class TestUtilSerialize:
     @pytest.fixture
-    def mock_graph_data(self):
+    def mock_graph_data(self) -> dict[str, object]:
         """构造一组 DAG 与环图序列化测试样本。"""
         s1 = make_stage("s1", "serial", "serial")
         s2 = make_stage("s2", "thread", "async")

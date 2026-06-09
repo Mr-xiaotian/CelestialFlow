@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from celestialflow import TaskExecutor
@@ -7,29 +9,29 @@ from celestialflow.runtime.util_errors import ExecutionModeError
 # =========================
 # 快速测试函数（无副作用）
 # =========================
-def add_one(x):
+def add_one(x: int) -> int:
     """测试用同步加一函数。"""
     return x + 1
 
 
-def double(x):
+def double(x: int) -> int:
     """测试用同步乘二函数。"""
     return x * 2
 
 
-def raise_on_negative(x):
+def raise_on_negative(x: int) -> int:
     """测试用函数，负数时抛出异常。"""
     if x < 0:
         raise ValueError(f"negative value: {x}")
     return x * 10
 
 
-async def async_add_one(x):
+async def async_add_one(x: int) -> int:
     """测试用异步加一函数。"""
     return x + 1
 
 
-async def async_double(x):
+async def async_double(x: int) -> int:
     """测试用异步乘二函数。"""
     return x * 2
 
@@ -63,7 +65,7 @@ class TestExecutorSerial:
             raise_on_negative,
             execution_mode="serial",
         )
-        tasks = [1, -1, 2, -2, 3]
+        tasks: list[int] = [1, -1, 2, -2, 3]
         executor.start(tasks)
 
         result_dict = executor.process_result_dict()
@@ -86,7 +88,7 @@ class TestExecutorSerial:
         """测试串行执行器的重试机制"""
         call_count = 0
 
-        def flaky(x):
+        def flaky(x: int) -> int:
             """前两次抛错，第三次返回偏移后的结果。"""
             nonlocal call_count
             call_count += 1
@@ -135,7 +137,7 @@ class TestExecutorThread:
             execution_mode="thread",
             max_workers=4,
         )
-        tasks = [1, 2, 3, 4, 5]
+        tasks: list[int] = [1, 2, 3, 4, 5]
         executor.start(tasks)
 
         result_dict = executor.process_result_dict()
@@ -157,7 +159,7 @@ class TestExecutorAsync:
             execution_mode="async",
             max_workers=4,
         )
-        tasks = [10, 20, 30]
+        tasks: list[int] = [10, 20, 30]
         await executor.start_async(tasks)
 
         result_dict = executor.process_result_dict()
@@ -194,7 +196,7 @@ class TestExecutorDuplicateCheck:
             execution_mode="serial",
             enable_duplicate_check=True,
         )
-        tasks = [1, 1, 2, 2, 2, 3]
+        tasks: list[int] = [1, 1, 2, 2, 2, 3]
         executor.start(tasks)
 
         counts = executor.get_counts()
@@ -210,7 +212,7 @@ class TestExecutorDuplicateCheck:
             execution_mode="serial",
             enable_duplicate_check=False,
         )
-        tasks = [1, 1, 2, 2, 2, 3]
+        tasks: list[int] = [1, 1, 2, 2, 2, 3]
         executor.start(tasks)
 
         counts = executor.get_counts()

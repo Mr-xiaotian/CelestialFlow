@@ -1,3 +1,5 @@
+from typing import Any
+
 from celestialflow.observability import TaskReporter
 from celestialflow.runtime.util_types import TERMINATION_SIGNAL
 
@@ -5,12 +7,12 @@ from celestialflow.runtime.util_types import TERMINATION_SIGNAL
 class FakeResponse:
     """模拟 reporter 拉取注入任务时的 HTTP 响应。"""
 
-    def __init__(self, payload):
+    def __init__(self, payload: dict[str, list[Any]]) -> None:
         self.ok = True
         self.status_code = 200
         self._payload = payload
 
-    def json(self):
+    def json(self) -> dict[str, list[Any]]:
         """返回预设 JSON 载荷。"""
         return self._payload
 
@@ -18,10 +20,10 @@ class FakeResponse:
 class FakeSession:
     """模拟 requests.Session，只覆盖 reporter 需要的 get 接口。"""
 
-    def __init__(self, payload):
+    def __init__(self, payload: dict[str, list[Any]]) -> None:
         self.payload = payload
 
-    def get(self, *_args, **_kwargs):
+    def get(self, *_args: Any, **_kwargs: Any) -> FakeResponse:
         """返回固定注入任务响应。"""
         return FakeResponse(self.payload)
 
@@ -29,10 +31,12 @@ class FakeSession:
 class FakeTaskGraph:
     """记录 put_stage_queue 调用参数。"""
 
-    def __init__(self):
-        self.calls = []
+    def __init__(self) -> None:
+        self.calls: list[tuple[dict[str, list[Any]], bool]] = []
 
-    def put_stage_queue(self, tasks_dict, put_termination_signal=True):
+    def put_stage_queue(
+        self, tasks_dict: dict[str, list[Any]], put_termination_signal: bool = True
+    ) -> None:
         """保存 reporter 注入到图中的任务字典。"""
         self.calls.append((tasks_dict, put_termination_signal))
 
@@ -40,25 +44,27 @@ class FakeTaskGraph:
 class FakeLogInlet:
     """记录 reporter 注入成功/失败日志。"""
 
-    def __init__(self):
-        self.successes = []
-        self.failures = []
-        self.pull_failures = []
+    def __init__(self) -> None:
+        self.successes: list[tuple[str, list[Any]]] = []
+        self.failures: list[tuple[str, list[Any], Exception]] = []
+        self.pull_failures: list[Exception] = []
 
-    def inject_tasks_success(self, target_node, task_datas):
+    def inject_tasks_success(self, target_node: str, task_datas: list[Any]) -> None:
         """记录节点注入成功。"""
         self.successes.append((target_node, task_datas))
 
-    def inject_tasks_failed(self, target_node, task_datas, error):
+    def inject_tasks_failed(
+        self, target_node: str, task_datas: list[Any], error: Exception
+    ) -> None:
         """记录节点注入失败。"""
         self.failures.append((target_node, task_datas, error))
 
-    def pull_tasks_failed(self, error):
+    def pull_tasks_failed(self, error: Exception) -> None:
         """记录拉取失败。"""
         self.pull_failures.append(error)
 
 
-def test_reporter_accepts_node_to_tasklist_mapping():
+def test_reporter_accepts_node_to_tasklist_mapping() -> None:
     """Reporter 能消费 {node_name: [tasklist]} 映射并一次性注入整包任务。"""
     graph = FakeTaskGraph()
     log_inlet = FakeLogInlet()

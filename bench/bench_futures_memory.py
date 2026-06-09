@@ -1,13 +1,15 @@
 import tracemalloc
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 
-def noop(x):
+def noop(x: Any) -> Any:
     return x
 
 
-def dispatch_no_cleanup(task_count: int, max_workers: int):
+def dispatch_no_cleanup(task_count: int, max_workers: int) -> None:
     """futures 列表不清理，全部保留到最后"""
     pool = ThreadPoolExecutor(max_workers=max_workers)
     futures = []
@@ -21,7 +23,7 @@ def dispatch_no_cleanup(task_count: int, max_workers: int):
     pool.shutdown(wait=False)
 
 
-def dispatch_with_cleanup(task_count: int, max_workers: int):
+def dispatch_with_cleanup(task_count: int, max_workers: int) -> None:
     """futures 列表定期清理已完成的 future"""
     pool = ThreadPoolExecutor(max_workers=max_workers)
     futures = []
@@ -37,7 +39,9 @@ def dispatch_with_cleanup(task_count: int, max_workers: int):
     pool.shutdown(wait=False)
 
 
-def measure(fn, task_count: int, max_workers: int) -> dict:
+def measure(
+    fn: Callable[[int, int], None], task_count: int, max_workers: int
+) -> dict[str, float]:
     tracemalloc.start()
 
     t0 = time.perf_counter()
@@ -54,7 +58,7 @@ def measure(fn, task_count: int, max_workers: int) -> dict:
     }
 
 
-def main():
+def main() -> None:
     scales = [10_000, 100_000, 500_000]
     max_workers = 20
 

@@ -1,12 +1,13 @@
 import asyncio
+from typing import Any
 
 from demo_utils import fibonacci, fibonacci_async
 
 from celestialflow import TaskExecutor, TaskProgress
 
 
-def demo_fibonacci_serial():
-    test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
+def demo_fibonacci_serial() -> None:
+    test_task_1: list[Any] = list(range(25, 32)) + [0, 27, None, 0, ""]
 
     executor = TaskExecutor(
         "FibonacciSerial",
@@ -21,8 +22,8 @@ def demo_fibonacci_serial():
     executor.start(test_task_1)
 
 
-def demo_fibonacci_thread():
-    test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
+def demo_fibonacci_thread() -> None:
+    test_task_1: list[Any] = list(range(25, 32)) + [0, 27, None, 0, ""]
 
     executor = TaskExecutor(
         "FibonacciThread",
@@ -37,8 +38,8 @@ def demo_fibonacci_thread():
     executor.start(test_task_1)
 
 
-async def demo_fibonacci_async():
-    test_task_1 = list(range(25, 32)) + [0, 27, None, 0, ""]
+async def demo_fibonacci_async() -> None:
+    test_task_1: list[Any] = list(range(25, 32)) + [0, 27, None, 0, ""]
 
     executor = TaskExecutor(
         "FibonacciAsync",

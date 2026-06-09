@@ -13,44 +13,44 @@ from celestialflow.runtime.util_errors import RuntimeStateError
 # =========================
 # 快速测试函数
 # =========================
-def add_one(x):
+def add_one(x: int) -> int:
     """测试用同步加一函数。"""
     return x + 1
 
 
-async def async_add_one(x):
+async def async_add_one(x: int) -> int:
     """测试用异步加一函数。"""
     return x + 1
 
 
-async def async_double(x):
+async def async_double(x: int) -> int:
     """测试用异步乘二函数。"""
     return x * 2
 
 
-async def async_to_str(x):
+async def async_to_str(x: int) -> str:
     """测试用异步转字符串函数。"""
     return str(x)
 
 
-async def async_add_offset(x, offset=10):
+async def async_add_offset(x: int, offset: int = 10) -> int:
     """测试用异步偏移函数，超过阈值时抛错。"""
     if x > 30:
         raise ValueError("too large")
     return x + offset
 
 
-def double(x):
+def double(x: int) -> int:
     """测试用同步乘二函数。"""
     return x * 2
 
 
-def to_str(x):
+def to_str(x: int) -> str:
     """测试用同步转字符串函数。"""
     return str(x)
 
 
-def add_offset(x, offset=10):
+def add_offset(x: int, offset: int = 10) -> int:
     """测试用同步偏移函数，超过阈值时抛错。"""
     if x > 30:
         raise ValueError("too large")

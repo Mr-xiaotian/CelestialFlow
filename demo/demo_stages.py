@@ -41,7 +41,7 @@ ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
 ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
 
 
-def demo_splitter_0():
+def demo_splitter_0() -> None:
     # 定义任务节点
     generate_stage = TaskStage(
         "GenURLs",
@@ -90,7 +90,7 @@ def demo_splitter_0():
     )
 
 
-def demo_splitter_1():
+def demo_splitter_1() -> None:
     # 定义任务节点
     task_splitter = TaskSplitter("Splitter")
     process_stage = TaskStage("Process", no_op, execution_mode="thread", max_workers=50)
@@ -112,7 +112,7 @@ def demo_splitter_1():
     )
 
 
-def demo_redis_ack_0():
+def demo_redis_ack_0() -> None:
     start_stage = TaskStage(
         "Start",
         sleep_1,
@@ -152,7 +152,7 @@ def demo_redis_ack_0():
 
     # 要测试的任务列表
     test_task_0 = range(25, 37)
-    test_task_1 = list(test_task_0) + [0, 27, None, 0, ""]
+    test_task_1: list[Any] = list(test_task_0) + [0, 27, None, 0, ""]
 
     graph.start_graph(
         {
@@ -161,7 +161,7 @@ def demo_redis_ack_0():
     )
 
 
-def demo_redis_ack_1():
+def demo_redis_ack_1() -> None:
     start_stage = TaskStage(
         "Start",
         sleep_1,
@@ -201,7 +201,9 @@ def demo_redis_ack_1():
     graph.set_reporter(True, host=report_host, port=report_port)
 
     # 要测试的任务列表
-    test_task_0 = [(random.randint(1, 100), random.randint(1, 100)) for _ in range(12)]
+    test_task_0: list[tuple[int, int]] = [
+        (random.randint(1, 100), random.randint(1, 100)) for _ in range(12)
+    ]
 
     graph.start_graph(
         {
@@ -210,7 +212,7 @@ def demo_redis_ack_1():
     )
 
 
-def demo_redis_ack_2():
+def demo_redis_ack_2() -> None:
     start_stage = TaskStage(
         "Start",
         sleep_1,
@@ -249,21 +251,21 @@ def demo_redis_ack_2():
 
     graph.set_reporter(True, host=report_host, port=report_port)
 
-    download_links = [
-        [
+    download_links: list[tuple[str, str]] = [
+        (
             "https://img.4khd.com/-IaKPu2ONWz8/aEhVCP-4Wsl/AAAAAAADirM/2Fg5CujCaKk7PqPY3I6DELSmidZE3ofqgCNcBGAsHYQ/w1300-rw/orts-shoes-4khd.com-001.webp?w=1300",
             "X:/Download/download_py/orts-shoes-4khd.com-001.png",
-        ],
-        [
+        ),
+        (
             "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2949210/ss_a2792205c92812f5be3321f2e685135b402e5a72.600x338.jpg?t=1714466877",
             "X:/Download/download_py/steam_2949210.jpg",
-        ],
+        ),
     ]
 
     graph.start_graph({start_stage.get_name(): download_links})
 
 
-def demo_redis_source_0():
+def demo_redis_source_0() -> None:
     sleep_stage_0 = TaskStage(
         "Sleep0",
         sleep_1,
@@ -311,7 +313,7 @@ def demo_redis_source_0():
     )
 
 
-def demo_router_0():
+def demo_router_0() -> None:
     router = TaskRouter(
         "Router",
         stage_mode="serial",

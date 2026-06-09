@@ -1,5 +1,6 @@
 import statistics
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
@@ -11,7 +12,7 @@ CONCURRENT_WORKERS = 10  # 并发数
 TIMEOUT = 30  # 超时时间
 
 
-def test_without_session(url, num_requests):
+def test_without_session(url: str, num_requests: int) -> list[float]:
     """不使用Session，每次新建连接"""
     times = []
     for i in range(num_requests):
@@ -25,7 +26,7 @@ def test_without_session(url, num_requests):
     return times
 
 
-def test_with_session(url, num_requests):
+def test_with_session(url: str, num_requests: int) -> list[float]:
     """使用Session复用连接"""
     session = requests.Session()
     times = []
@@ -41,10 +42,12 @@ def test_with_session(url, num_requests):
     return times
 
 
-def test_concurrent_without_session(url, num_requests, workers):
+def test_concurrent_without_session(
+    url: str, num_requests: int, workers: int
+) -> list[float]:
     """并发测试 - 不使用Session"""
 
-    def make_request(i):
+    def make_request(i: int) -> float | None:
         start = time.perf_counter()
         try:
             response = requests.get(url, timeout=TIMEOUT)
@@ -64,10 +67,12 @@ def test_concurrent_without_session(url, num_requests, workers):
     return times
 
 
-def test_concurrent_with_session(url, num_requests, workers):
+def test_concurrent_with_session(
+    url: str, num_requests: int, workers: int
+) -> list[float]:
     """并发测试 - 每个线程独立Session"""
 
-    def make_request(i):
+    def make_request(i: int) -> float | None:
         start = time.perf_counter()
         try:
             with requests.Session() as session:
@@ -88,7 +93,7 @@ def test_concurrent_with_session(url, num_requests, workers):
     return times
 
 
-def print_stats(label, times):
+def print_stats(label: str, times: list[float]) -> None:
     """打印一组耗时数据的统计摘要。"""
     if not times:
         print(f"{label}: no successful requests")

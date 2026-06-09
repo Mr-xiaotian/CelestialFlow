@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -29,7 +30,7 @@ ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
 ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
 
 
-def demo_etl_fan_out_fan_in():
+def demo_etl_fan_out_fan_in() -> None:
     """
     ETL pipeline with fan-out/fan-in topology:
 
@@ -82,7 +83,7 @@ def demo_etl_fan_out_fan_in():
     graph.start_graph({extract.get_name(): raw_ids})
 
 
-def demo_async_staged_pipeline():
+def demo_async_staged_pipeline() -> None:
     """
     Two-stage async pipeline with staged scheduling:
 
@@ -115,7 +116,7 @@ def demo_async_staged_pipeline():
     )
     graph.connect([stage_double], [stage_to_str])
 
-    tasks = list(range(1, 21))
+    tasks: list[Any] = list(range(1, 21))
     graph.start_graph({stage_double.get_name(): tasks})
 
 

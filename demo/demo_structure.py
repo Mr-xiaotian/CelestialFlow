@@ -32,7 +32,7 @@ ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
 
 
 # ========有向无环图(DAG)========
-def demo_chain():
+def demo_chain() -> None:
     # 构建 DAG: A ➝ B ➝ C ➝ D ➝ E
     stageA = TaskStage("StageA", square, execution_mode="serial", max_workers=2)
     stageB = TaskStage("StageB", square, execution_mode="serial", max_workers=2)
@@ -54,7 +54,7 @@ def demo_chain():
     )
 
 
-def demo_forest():
+def demo_forest() -> None:
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
     stageA = TaskStage(
         "stageA",
@@ -169,7 +169,7 @@ def demo_forest():
     graph.start_graph(init_tasks)
 
 
-def demo_cross():
+def demo_cross() -> None:
     # 构建 DAG
     stageA = TaskStage("StageA", add_one_sleep, execution_mode="thread", max_workers=2)
     stageB = TaskStage("StageB", add_one_sleep, execution_mode="thread", max_workers=2)
@@ -198,7 +198,7 @@ def demo_cross():
     cross.start_cross(init_tasks)
 
 
-def demo_network():
+def demo_network() -> None:
     # 输入层
     A1 = TaskStage("A1", add_one_sleep, execution_mode="thread", max_workers=2)
     A2 = TaskStage("A2", add_one_sleep, execution_mode="thread", max_workers=2)
@@ -227,7 +227,7 @@ def demo_network():
     cross.start_cross(init_tasks, True)
 
 
-def demo_star():
+def demo_star() -> None:
     # 定义核心与边节点函数
     core = TaskStage("Core", square)
     side1 = TaskStage("Side1", add_5)
@@ -244,7 +244,7 @@ def demo_star():
     star.start_cross({core.get_name(): range(1, 11)})
 
 
-def demo_fanin():
+def demo_fanin() -> None:
     # 创建 3 个节点，每个节点有不同偏移
     source1 = TaskStage("Source1", add_5)
     source2 = TaskStage("Source2", add_10)
@@ -267,7 +267,7 @@ def demo_fanin():
     )
 
 
-def demo_grid():
+def demo_grid() -> None:
     # 1. 构造网格
     grid = [
         [
@@ -294,7 +294,7 @@ def demo_grid():
 
 
 # ========有环图========
-def demo_loop():
+def demo_loop() -> None:
     stageA = TaskStage("StageA", add_one_sleep, execution_mode="serial")
     stageB = TaskStage("StageB", add_one_sleep, execution_mode="serial")
     stageC = TaskStage("StageC", add_one_sleep, execution_mode="serial")
@@ -312,7 +312,7 @@ def demo_loop():
     loop.start_loop({stageA.get_name(): test_task_0})
 
 
-def demo_wheel():
+def demo_wheel() -> None:
     # 定义核心与边节点函数
     core = TaskStage("Core", square)
     side1 = TaskStage("Side1", add_one_sleep)
@@ -330,7 +330,7 @@ def demo_wheel():
     wheel.start_wheel({core.get_name(): range(1, 11)}, True)
 
 
-def demo_complete():
+def demo_complete() -> None:
     # 创建 3 个节点，每个节点有不同偏移
     n1 = TaskStage("Node1", add_5, execution_mode="thread", max_workers=5)
     n2 = TaskStage("Node2", add_10, execution_mode="thread", max_workers=5)
@@ -352,7 +352,7 @@ def demo_complete():
     )
 
 
-def demo_multi_cycle():
+def demo_multi_cycle() -> None:
     """
     多环互连图:
     分支 A: 2 节点循环 (A1 -> A2 ->  A1)
