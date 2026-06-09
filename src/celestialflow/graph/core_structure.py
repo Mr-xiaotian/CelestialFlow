@@ -6,7 +6,6 @@ from ..stage.util_types import AnyTaskStage
 from .core_graph import TaskGraph
 
 
-
 # ========有向无环图(DAG)========
 class TaskChain(TaskGraph):
     """线性任务链，将多个 Stage 按顺序串行或并行连接。"""
