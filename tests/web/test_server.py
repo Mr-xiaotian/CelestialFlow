@@ -165,7 +165,7 @@ def test_errors_pagination(client):
         {
             "error_id": i,
             "stage": f"s{i%2}",
-            "task": f"task{i}",
+            "task": {"value": i, "label": f"task{i}"},
             "error_type": "ValueError" if i % 2 == 0 else "TypeError",
             "error_message": f"err{i}",
             "ts": i,
@@ -187,6 +187,7 @@ def test_errors_pagination(client):
     assert len(data_p1["data"]) == 10
     assert data_p1["sort_order"] == "newest"
     assert data_p1["data"][0]["error_id"] == 14
+    assert data_p1["data"][0]["task"] == {"value": 14, "label": "task14"}
 
     # 3. 测试过滤 (node=s0)
     resp_filter = client.get("/api/pull_errors?node=s0")

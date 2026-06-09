@@ -31,6 +31,11 @@ type ErrorsPullResponse = {
   data: ErrorData[] | null; // 当前页的错误记录
 };
 
+declare function preloadInjectionDraftFromError(
+  nodeName: string,
+  taskData: unknown,
+): void;
+
 type ChartPoint = { x: number; y: number }; // Chart.js 折线图点坐标
 
 type ChartDataset = {

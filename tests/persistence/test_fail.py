@@ -31,3 +31,7 @@ class TestFailPersistence:
         assert pairs[0][1].error_type == 'ValueError'
         assert pairs[1][0] == 'data2'
         assert pairs[1][1].error_type == 'RuntimeError'
+
+        raw_records = [line for line in spout.jsonl_path.read_text(encoding="utf-8").splitlines() if '"error_id"' in line]
+        assert '"task": "data1"' in raw_records[0]
+        assert '"task": "data2"' in raw_records[1]

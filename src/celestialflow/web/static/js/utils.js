@@ -76,6 +76,16 @@ function switchToErrorsTab(nodeFilter = "") {
     }
 }
 /**
+ * 切换到任务注入标签页。
+ * @returns {void}
+ */
+function switchToInjectionTab() {
+    const injectionTabButton = document.querySelector(`.tab-btn[data-tab="task-injection"]`);
+    if (injectionTabButton) {
+        activateTab(injectionTabButton);
+    }
+}
+/**
  * 格式化持续时间为 HH:MM:SS 或 MM:SS 格式
  * @param {number} seconds - 秒数
  * @returns {string} 格式化后的时间字符串

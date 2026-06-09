@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from queue import Queue
-from typing import Any, TextIO
+from typing import Any, TextIO, cast
 
 from ..funnel import BaseInlet, BaseSpout
 from ..runtime.util_errors import InitializationError
@@ -126,6 +126,28 @@ class FailInlet(BaseInlet):
         }
         self._funnel(meta_item)
 
+    def _to_retry_payload(self, task: Any) -> Any:
+        """
+        将失败任务转换为可回填到注入页的 JSON 友好结构。
+
+        :param task: 失败任务
+        :return: 可回填到注入页的 JSON 友好结构
+        :raises: 任务类型不支持时抛出异常
+        """
+        if task is None or isinstance(task, str | int | float | bool):
+            return task
+        if isinstance(task, list | tuple | set):
+            iterable_task = cast(list[Any] | tuple[Any, ...] | set[Any], task)
+            items = list(iterable_task)
+            return [self._to_retry_payload(item) for item in items]
+        if isinstance(task, dict):
+            task_dict = cast(dict[Any, Any], task)
+            return {
+                str(key): self._to_retry_payload(value)
+                for key, value in task_dict.items()
+            }
+        return str(task)
+
     def task_error(
         self,
         stage_name: str,
@@ -151,6 +173,6 @@ class FailInlet(BaseInlet):
             "error_id": err_id,
             "error_type": error_type,
             "error_message": error_message,
-            "task": str(task),
+            "task": self._to_retry_payload(task),
         }
         self._funnel(fail_item)

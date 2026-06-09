@@ -82,24 +82,41 @@ function renderErrors() {
     const pageItems = errors; // 后端已按分页返回当前页数据
     errorsTableBody.innerHTML = "";
     if (!pageItems.length) {
-        errorsTableBody.innerHTML = `<tr><td colspan="6" class="empty-placeholder">${t("errors.noRecords")}</td></tr>`;
+        errorsTableBody.innerHTML = `<tr><td colspan="7" class="empty-placeholder">${t("errors.noRecords")}</td></tr>`;
     }
     else {
         for (let i = 0; i < pageItems.length; i++) {
             const e = pageItems[i]; // 当前错误记录
             const index = (currentPage - 1) * pageSize + i + 1; // 全局展示序号
             const row = document.createElement("tr"); // 当前表格行
-            const errorFull = `${e.error_type}(${e.error_message})`; // 错误完整文本
-            const errorRepr = format_repr(errorFull, 100); // 表格中展示的截断错误文本
-            const taskRepr = format_repr(e.task, 100); // 表格中展示的截断任务文本
+            const errorText = `${e.error_type}(${e.error_message})`; // 错误完整文本
+            const errorRepr = format_repr(errorText, 100); // 表格中展示的截断错误文本
+            const taskText = typeof e.task === "string" ? e.task : JSON.stringify(e.task);
+            const taskRepr = format_repr(taskText, 100); // 表格中展示的截断任务文本
+            const canRetry = e.task !== undefined && !taskText.startsWith("<");
+            const retryLabel = canRetry ? t("errors.retryInject") : t("errors.retryUnavailable");
+            const retryClass = canRetry ? "retry-link" : "retry-disabled";
             row.innerHTML = `
         <td data-label="#">${index}</td>
         <td class="error-id" data-label="${t("errors.colId")}">${e.error_id}</td>
-        <td class="error-cell" data-label="${t("errors.colMessage")}" title="${escapeHtml(errorFull)}">${escapeHtml(errorRepr)}</td>
+        <td class="error-cell" data-label="${t("errors.colMessage")}" title="${escapeHtml(errorText)}">${escapeHtml(errorRepr)}</td>
         <td data-label="${t("errors.colNode")}">${escapeHtml(e.stage)}</td>
-        <td data-label="${t("errors.colTask")}" title="${escapeHtml(e.task)}">${escapeHtml(taskRepr)}</td>
+        <td data-label="${t("errors.colTask")}" title="${escapeHtml(taskText)}">${escapeHtml(taskRepr)}</td>
         <td data-label="${t("errors.colTime")}">${formatTimestamp(e.ts)}</td>
+        <td data-label="${t("errors.colRetry")}"><div class="${retryClass}" role="${canRetry ? "button" : "note"}" tabindex="${canRetry ? "0" : "-1"}">${retryLabel}</div></td>
       `;
+            const retryAction = row.querySelector(".retry-link");
+            if (retryAction && canRetry) {
+                retryAction.addEventListener("click", () => {
+                    preloadInjectionDraftFromError(e.stage, e.task);
+                });
+                retryAction.addEventListener("keydown", (event) => {
+                    if (event.key !== "Enter" && event.key !== " ")
+                        return;
+                    event.preventDefault();
+                    preloadInjectionDraftFromError(e.stage, e.task);
+                });
+            }
             errorsTableBody.appendChild(row);
         }
     }

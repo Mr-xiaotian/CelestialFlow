@@ -127,6 +127,47 @@
     }
   }
 
+  .retry-link,
+  .retry-disabled {
+    display: inline-block;
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  .retry-link {
+    color: var(--cornflower-600);
+    cursor: pointer;
+    user-select: none;
+    text-decoration: none;
+    transition: color 0.2s ease;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--cornflower-700);
+      text-decoration: underline;
+      outline: none;
+    }
+
+    .dark-theme & {
+      color: var(--cornflower-300);
+
+      &:hover,
+      &:focus-visible {
+        color: var(--cornflower-200);
+      }
+    }
+  }
+
+  .retry-disabled {
+    color: var(--carbon-400);
+    cursor: default;
+    user-select: none;
+
+    .dark-theme & {
+      color: var(--carbon-500);
+    }
+  }
+
   /* ================================
     🌟 分页样式
   ================================ */

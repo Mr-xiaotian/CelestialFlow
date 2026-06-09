@@ -313,6 +313,31 @@ function setDraftForNode(nodeName, value) {
     }
 }
 /**
+ * 从错误日志预填一条任务到注入页。
+ *
+ * @param {string} nodeName - 目标节点
+ * @param {unknown} taskData - 原始任务数据
+ * @returns {void}
+ */
+function preloadInjectionDraftFromError(nodeName, taskData) {
+    currentNodeName = nodeName;
+    const currentDraft = (nodeDrafts[nodeName] || "").trim();
+    let nextTaskList = [taskData];
+    if (currentDraft) {
+        const parsed = parseDraftTaskList(currentDraft);
+        if (parsed.ok) {
+            nextTaskList = [...parsed.taskList, taskData];
+        }
+    }
+    const nextDraft = JSON.stringify(nextTaskList, null, 2);
+    setDraftForNode(nodeName, nextDraft);
+    switchToInjectionTab();
+    renderInjectionPage();
+    const textarea = getJsonTextarea();
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+}
+/**
  * 将节点草稿解析为任务列表。
  * 任务注入的新结构要求每个节点值都必须是 JSON 数组。
  *
