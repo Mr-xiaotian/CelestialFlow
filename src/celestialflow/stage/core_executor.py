@@ -47,7 +47,6 @@ class TaskExecutor:
     max_workers: int
     max_retries: int
     max_info: int
-    unpack_task_args: bool
     enable_duplicate_check: bool
     metrics: TaskMetrics
     dispatch: TaskDispatch
@@ -70,7 +69,6 @@ class TaskExecutor:
         max_workers: int | None = None,
         max_retries: int = 1,
         max_info: int = 50,
-        unpack_task_args: bool = False,
         enable_duplicate_check: bool = True,
         log_level: str = "INFO",
     ):
@@ -86,7 +84,6 @@ class TaskExecutor:
         :param max_workers: 同时处理数量，默认根据 CPU 核心数动态调整
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_info: 日志中每条信息的最大长度，默认 50
-        :param unpack_task_args: 是否将任务参数解包，默认 False
         :param enable_duplicate_check: 是否启用重复检查，默认 True
         :param log_level: 日志级别，默认 'INFO'
         """
@@ -98,7 +95,6 @@ class TaskExecutor:
         self.max_workers = max_workers or min(32, (os.cpu_count() or 1) + 4)
         self.max_retries = max_retries
         self.max_info = max_info
-        self.unpack_task_args = unpack_task_args
         self.enable_duplicate_check = enable_duplicate_check
         self.set_log_level(log_level)
 
@@ -418,18 +414,6 @@ class TaskExecutor:
         self._notify("on_tasks_added", self.metrics.get_task_count() - progress_num)
         self.put_signal()
 
-    def get_args(self, task: Any) -> tuple[Any, ...]:
-        """
-        从 obj 中获取参数。可根据需要覆写
-        在这个示例中，我们根据 unpack_task_args 决定是否解包参数
-
-        :param task: 任务对象
-        :return: 任务参数元组
-        """
-        if self.unpack_task_args:
-            return task
-        return (task,)
-
     def process_result_dict(self) -> dict[Any, Any]:
         """
         处理结果列表。可根据需要覆写
@@ -459,32 +443,12 @@ class TaskExecutor:
 
     def get_task_repr(self, task: Any) -> str:
         """
-        获取任务参数信息的可读字符串表示
+        获取任务对象的可读字符串表示
 
         :param task: 任务对象
-        :return: 任务参数信息字符串
+        :return: 任务信息字符串
         """
-        args = self.get_args(task)
-
-        # 格式化每个参数
-        def format_args_list(args_list: Any) -> list[str]:
-            """
-            将参数列表格式化为可读字符串列表。
-
-            :param args_list: 原始参数列表
-            :return: 格式化后的字符串列表
-            """
-            return [format_repr(arg, self.max_info) for arg in args_list]
-
-        if len(args) <= 3:
-            formatted_args = format_args_list(args)
-        else:
-            # 显示前两个 + ... + 最后一个
-            head = format_args_list(args[:2])
-            tail = format_args_list([args[-1]])
-            formatted_args = [*head, "...", *tail]
-
-        return f"({', '.join(formatted_args)})"
+        return f"({format_repr(task, self.max_info)})"
 
     def _get_result_repr(self, result: Any) -> str:
         """

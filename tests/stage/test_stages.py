@@ -9,7 +9,6 @@ class TestTaskSplitter:
         splitter = TaskSplitter("Splitter")
         assert splitter.execution_mode == "serial"
         assert splitter.max_retries == 0
-        assert splitter.unpack_task_args is True
         assert splitter.split_counter.value == 0
 
     def test_splitter_process_success(self):

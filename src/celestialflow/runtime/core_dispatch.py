@@ -85,8 +85,7 @@ class TaskDispatch:
         for retry_time in range(max_retries + 1):
             try:
                 start_time = time.perf_counter()
-                args: tuple[Any, ...] = self.task_executor.get_args(task)
-                result: Any = self.func(*args)
+                result: Any = self.func(task)
                 self.task_executor.process_task_success(
                     task_envelope, result, start_time
                 )
@@ -113,8 +112,7 @@ class TaskDispatch:
         for retry_time in range(max_retries + 1):
             try:
                 start_time = time.perf_counter()
-                args: tuple[Any, ...] = self.task_executor.get_args(task)
-                result: Any = await self.func(*args)
+                result: Any = await self.func(task)
                 _ = self.task_executor.process_task_success(
                     task_envelope, result, start_time
                 )

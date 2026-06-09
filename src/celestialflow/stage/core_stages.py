@@ -36,7 +36,6 @@ class TaskSplitter(TaskStage):
             stage_mode=stage_mode,
             execution_mode="serial",
             max_retries=0,
-            unpack_task_args=True,
         )
 
         self._init_extra_counter()
@@ -66,14 +65,14 @@ class TaskSplitter(TaskStage):
         """
         self.split_counter.value += add_value
 
-    def _split(self, *task: Any) -> tuple[Any, ...]:
+    def _split(self, task: Any) -> tuple[Any, ...]:
         """
-        透传任务参数，仅用于符合 TaskStage 架构
+        将单个任务展开为子任务元组。
 
-        :param task: 任务参数
-        :return: 原样返回的任务元组
+        :param task: 任务对象
+        :return: 子任务元组
         """
-        return task
+        return tuple(task)
 
     def _put_split_result(self, result: tuple[Any, ...], task_id: int) -> int:
         """
@@ -263,7 +262,6 @@ class TaskRedisTransport(TaskStage):
         db: int = 0,
         password: str | None = None,
         stage_mode: str = "serial",
-        unpack_task_args: bool = False,
     ):
         """
         初始化 TaskRedisTransport
@@ -275,7 +273,6 @@ class TaskRedisTransport(TaskStage):
         :param db: Redis 数据库，默认 0
         :param password: Redis 密码，默认 None
         :param stage_mode: 节点运行模式，默认 "serial"
-        :param unpack_task_args: 是否将任务参数解包，默认 False
         """
         super().__init__(
             name=name,
@@ -283,7 +280,6 @@ class TaskRedisTransport(TaskStage):
             stage_mode=stage_mode,
             execution_mode="thread",
             max_workers=4,
-            unpack_task_args=unpack_task_args,
         )
         self.key = key
         self.host = host
@@ -304,11 +300,11 @@ class TaskRedisTransport(TaskStage):
                 decode_responses=True,
             )
 
-    def _transport(self, *task: Any) -> int:
+    def _transport(self, task: Any) -> int:
         """
-        将任务元组序列化为 JSON 并写入 Redis list
+        将单个任务序列化为 JSON 并写入 Redis list。
 
-        :param task: 任务参数元组
+        :param task: 任务对象
         :return: 任务 ID
         """
         self.init_redis()
@@ -318,7 +314,7 @@ class TaskRedisTransport(TaskStage):
         payload = json.dumps(
             {
                 "id": task_id,
-                "task": task,
+                "task": (task,),
                 "emit_ts": time.time(),
             }
         )
@@ -387,7 +383,7 @@ class TaskRedisSource(TaskStage):
                 decode_responses=True,
             )
 
-    def _source(self, *_: Any) -> Any:
+    def _source(self, _: Any) -> Any:
         """
         从 Redis list 拉取数据并注入下游，忽略输入任务
 

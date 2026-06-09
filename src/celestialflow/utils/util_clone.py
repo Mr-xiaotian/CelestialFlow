@@ -23,7 +23,6 @@ def _get_clone_init_kwargs(executor: TaskExecutor) -> dict[str, Any]:
         "max_workers": executor.max_workers,
         "max_retries": executor.max_retries,
         "max_info": executor.max_info,
-        "unpack_task_args": executor.unpack_task_args,
         "enable_duplicate_check": executor.enable_duplicate_check,
         "log_level": executor.log_level,
     }
