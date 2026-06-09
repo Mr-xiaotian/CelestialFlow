@@ -352,9 +352,14 @@ function setDraftForNode(nodeName: string, value: string): void {
  *
  * @param {string} nodeName - 目标节点
  * @param {unknown} taskData - 原始任务数据
+ * @param {boolean} [switchTab=true] - 是否在预填后切换到任务注入页
  * @returns {void}
  */
-function preloadInjectionDraftFromError(nodeName: string, taskData: unknown): void {
+function preloadInjectionDraftFromError(
+  nodeName: string,
+  taskData: unknown,
+  switchTab = true,
+): void {
   currentNodeName = nodeName;
   const currentDraft = (nodeDrafts[nodeName] || "").trim();
   let nextTaskList: unknown[] = [taskData];
@@ -366,7 +371,9 @@ function preloadInjectionDraftFromError(nodeName: string, taskData: unknown): vo
   }
   const nextDraft = JSON.stringify(nextTaskList, null, 2);
   setDraftForNode(nodeName, nextDraft);
-  switchToInjectionTab();
+  if (switchTab) {
+    switchToInjectionTab();
+  }
   renderInjectionPage();
   const textarea = getJsonTextarea();
   textarea.focus();

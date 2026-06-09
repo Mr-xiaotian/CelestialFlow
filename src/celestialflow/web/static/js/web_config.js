@@ -20,6 +20,7 @@ const DEFAULT_WEB_CONFIG = {
     errors: {
         pageSize: 50,
         sortOrder: "newest",
+        jumpToInjectionAfterRetry: true,
     },
     injection: {
         showInjectableOnly: true,
@@ -117,6 +118,7 @@ function normalizeWebConfig(rawConfig) {
             ...DEFAULT_WEB_CONFIG.errors,
             pageSize: legacyConfig.errorPageSize ?? DEFAULT_WEB_CONFIG.errors.pageSize,
             sortOrder: legacyConfig.errorSortOrder ?? DEFAULT_WEB_CONFIG.errors.sortOrder,
+            jumpToInjectionAfterRetry: DEFAULT_WEB_CONFIG.errors.jumpToInjectionAfterRetry,
         },
         injection: {
             ...DEFAULT_WEB_CONFIG.injection,
@@ -364,6 +366,13 @@ function applyConfig() {
         webConfig.errors.sortOrder === "oldest" ? "oldest" : "newest";
     errorSortOrder = webConfig.errors.sortOrder;
     errorSortSelect.value = errorSortOrder;
+    webConfig.errors.jumpToInjectionAfterRetry =
+        webConfig.errors.jumpToInjectionAfterRetry !== false;
+    const errorJumpToInjectionToggle = document.getElementById("error-jump-to-injection-toggle");
+    if (errorJumpToInjectionToggle) {
+        errorJumpToInjectionToggle.checked =
+            webConfig.errors.jumpToInjectionAfterRetry;
+    }
     // 应用结构图边增量显示开关
     webConfig.dashboard.showStructureEdgeDelta =
         webConfig.dashboard.showStructureEdgeDelta !== false;

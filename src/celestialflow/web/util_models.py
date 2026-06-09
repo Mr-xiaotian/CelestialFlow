@@ -76,6 +76,7 @@ class ErrorsPageConfigModel(BaseModel):
 
     pageSize: int = 10
     sortOrder: str = "newest"
+    jumpToInjectionAfterRetry: bool = True
 
 
 class InjectionPageConfigModel(BaseModel):

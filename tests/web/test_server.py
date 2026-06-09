@@ -63,6 +63,7 @@ def test_config_api(client):
     assert "theme" in data["global"]
     assert "showStructureEdgeDelta" in data["dashboard"]
     assert "sortOrder" in data["errors"]
+    assert "jumpToInjectionAfterRetry" in data["errors"]
     assert "showInjectableOnly" in data["injection"]
 
 def test_status_push_pull(client):

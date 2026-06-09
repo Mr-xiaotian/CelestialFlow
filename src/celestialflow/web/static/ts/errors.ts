@@ -138,12 +138,20 @@ function renderErrors(): void {
       const retryAction = row.querySelector<HTMLElement>(".retry-link");
       if (retryAction && canRetry) {
         retryAction.addEventListener("click", () => {
-          preloadInjectionDraftFromError(e.stage, e.task);
+          preloadInjectionDraftFromError(
+            e.stage,
+            e.task,
+            webConfig.errors.jumpToInjectionAfterRetry,
+          );
         });
         retryAction.addEventListener("keydown", (event) => {
           if (event.key !== "Enter" && event.key !== " ") return;
           event.preventDefault();
-          preloadInjectionDraftFromError(e.stage, e.task);
+          preloadInjectionDraftFromError(
+            e.stage,
+            e.task,
+            webConfig.errors.jumpToInjectionAfterRetry,
+          );
         });
       }
       errorsTableBody.appendChild(row);

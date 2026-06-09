@@ -25,7 +25,8 @@
     },
     "errors": {
         "pageSize": 20,
-        "sortOrder": "newest"
+        "sortOrder": "newest",
+        "jumpToInjectionAfterRetry": false
     },
     "injection": {
         "showInjectableOnly": false

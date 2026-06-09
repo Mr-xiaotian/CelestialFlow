@@ -18,6 +18,7 @@ const themeToggleBtn = document.getElementById("theme-toggle") as HTMLButtonElem
 const languageSelect = document.getElementById("language-select") as HTMLSelectElement; // 语言选择下拉框
 const autoRefreshToggle = document.getElementById("auto-refresh-toggle") as HTMLInputElement; // 自动刷新开关
 const errorPageSizeSelect = document.getElementById("error-page-size") as HTMLSelectElement; // 错误每页条数下拉框
+const errorJumpToInjectionToggle = document.getElementById("error-jump-to-injection-toggle") as HTMLInputElement; // 错误页任务注入后是否跳转
 const structureEdgeDeltaToggle = document.getElementById("structure-edge-delta") as HTMLInputElement; // 结构图边增量显示开关
 const statusTotalPendingToggle = document.getElementById("status-total-pending-toggle") as HTMLInputElement; // 节点状态卡等待值模式开关
 const injectableOnlyToggle = document.getElementById("injectable-only-toggle") as HTMLInputElement; // 注入页仅显示可注入节点开关
@@ -245,6 +246,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentPage = 1;
         await loadErrors(true);
         renderErrors();
+        showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
+    });
+
+    // 切换错误页任务注入后是否跳转注入页：保存配置
+    errorJumpToInjectionToggle.addEventListener("change", async () => {
+        config.errors.jumpToInjectionAfterRetry = errorJumpToInjectionToggle.checked;
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
     });
 

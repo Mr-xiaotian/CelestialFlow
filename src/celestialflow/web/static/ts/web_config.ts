@@ -18,6 +18,7 @@ type WebDashboardConfig = {
 type WebErrorsConfig = {
   pageSize: number; // 错误日志每页显示条数
   sortOrder: "newest" | "oldest"; // 错误日志默认排序方式
+  jumpToInjectionAfterRetry: boolean; // 错误日志点击任务注入后是否切换到任务注入页
 };
 
 type WebInjectionConfig = {
@@ -65,6 +66,7 @@ const DEFAULT_WEB_CONFIG: WebConfig = {
   errors: {
     pageSize: 50,
     sortOrder: "newest",
+    jumpToInjectionAfterRetry: true,
   },
   injection: {
     showInjectableOnly: true,
@@ -177,6 +179,8 @@ function normalizeWebConfig(
       pageSize: legacyConfig.errorPageSize ?? DEFAULT_WEB_CONFIG.errors.pageSize,
       sortOrder:
         legacyConfig.errorSortOrder ?? DEFAULT_WEB_CONFIG.errors.sortOrder,
+      jumpToInjectionAfterRetry:
+        DEFAULT_WEB_CONFIG.errors.jumpToInjectionAfterRetry,
     },
     injection: {
       ...DEFAULT_WEB_CONFIG.injection,
@@ -446,6 +450,15 @@ function applyConfig(): void {
     webConfig.errors.sortOrder === "oldest" ? "oldest" : "newest";
   errorSortOrder = webConfig.errors.sortOrder;
   errorSortSelect.value = errorSortOrder;
+  webConfig.errors.jumpToInjectionAfterRetry =
+    webConfig.errors.jumpToInjectionAfterRetry !== false;
+  const errorJumpToInjectionToggle = document.getElementById(
+    "error-jump-to-injection-toggle",
+  ) as HTMLInputElement | null;
+  if (errorJumpToInjectionToggle) {
+    errorJumpToInjectionToggle.checked =
+      webConfig.errors.jumpToInjectionAfterRetry;
+  }
 
   // 应用结构图边增量显示开关
   webConfig.dashboard.showStructureEdgeDelta =
