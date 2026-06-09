@@ -20,7 +20,7 @@ dependencies = [
     "networkx",
     "redis",
     "jinja2",
-    "celestialtree>=0.1.2",
+    "celestialtree>=0.1.3",
 ]
 
 classifiers = [
