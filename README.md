@@ -215,12 +215,12 @@ flowchart TD
 
 ## 环境要求（Requirements）
 
-**CelestialFlow** 基于 Python 3.11+，并依赖以下核心组件。
+**CelestialFlow** 基于 Python 3.12+，并依赖以下核心组件。
 请确保你的环境能够正常安装这些依赖（`pip install celestialflow` 会自动安装）。
 
 | 依赖包           | 说明 |
 | ----------------- | ---- |
-| **Python ≥ 3.11**  | 运行环境，建议使用 3.11 及以上版本 |
+| **Python ≥ 3.12**  | 运行环境，建议使用 3.12 及以上版本 |
 | **fastapi**       | Web 服务接口框架（用于任务可视化与远程控制） |
 | **uvicorn**       | FastAPI 的高性能 ASGI 服务器 |
 | **requests**      | HTTP 客户端库，用于任务状态上报与远程调用 |
