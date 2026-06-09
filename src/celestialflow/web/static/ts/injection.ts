@@ -226,7 +226,7 @@ function syncInjectionStateWithStatuses(): void {
  */
 function renderInjectionPage(): void {
   syncInjectionStateWithStatuses();
-  renderNodeList(getSearchInput()?.value || "");
+  renderNodeList(getSearchInput().value);
   renderCurrentNodeEditor();
   renderDraftList();
   updateSubmitButtonAvailability();
@@ -261,7 +261,7 @@ function renderNodeList(searchTerm = ""): void {
     .map((nodeName) => {
       const activeClass = currentNodeName === nodeName ? "active-node" : "";
       const disabledClass = isInjectableNode(nodeName) ? "" : "disabled-node";
-      const hasDraft = Boolean(nodeDrafts[nodeName]?.trim());
+      const hasDraft = Boolean((nodeDrafts[nodeName] || "").trim());
       const dataAttr = isInjectableNode(nodeName)
         ? `data-node="${escapeHtml(nodeName)}"`
         : "";
@@ -306,7 +306,7 @@ function renderCurrentNodeEditor(): void {
     if (!currentNode) return;
     // 已选择节点时，恢复该节点草稿并实时显示“已编辑”状态。
     currentNodeEl.textContent = currentNode;
-    const hasDraft = Boolean(nodeDrafts[currentNode]?.trim());
+    const hasDraft = Boolean((nodeDrafts[currentNode] || "").trim());
     currentTagEl.textContent = hasDraft ? t("injection.draftEdited") : "";
     currentTagEl.style.display = hasDraft ? "inline-flex" : "none";
     textarea.value = nodeDrafts[currentNode] || "";

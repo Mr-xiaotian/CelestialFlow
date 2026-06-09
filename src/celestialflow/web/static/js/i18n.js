@@ -400,7 +400,7 @@ function setLang(lang) {
  * @returns {string} 翻译后的文本
  */
 function t(key, ...args) {
-    let s = translations[currentLang]?.[key] ?? translations["zh-CN"]?.[key] ?? key;
+    let s = translations[currentLang][key] ?? translations["zh-CN"][key] ?? key;
     // 逐个替换简单占位符，支持 {0}、{1} 这类模板参数。
     for (let i = 0; i < args.length; i++) {
         s = s.replace(`{${i}}`, args[i]);

@@ -14,9 +14,9 @@ let structureRequestSeq = 0; // 请求序列号，防止旧结构响应覆盖新
 
 type StructureNodeMeta = {
   func_name: string; // 节点函数名，用于推导节点类型
-  execution_mode?: string; // 节点执行模式
-  stage_mode?: string; // 节点阶段模式
-  max_workers?: number; // 并发 worker 数上限
+  execution_mode: string; // 节点执行模式
+  stage_mode: string; // 节点阶段模式
+  max_workers: number; // 并发 worker 数上限
 };
 
 type StructureGraph = {

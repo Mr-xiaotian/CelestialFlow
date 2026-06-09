@@ -276,9 +276,10 @@ function initChart() {
                     onClick: (e, legendItem, legend) => {
                         const index = legendItem.datasetIndex; // 被点击的数据集索引
                         const chart = legend.chart; // 当前 Chart 实例
-                        const nodeName = chart.data.datasets[index]?.label; // 图例项对应的节点名
-                        if (!nodeName)
+                        const dataset = chart.data.datasets[index];
+                        if (!dataset)
                             return;
+                        const nodeName = dataset.label; // 图例项对应的节点名
                         // hiddenNodes 作为额外缓存，用于刷新数据后仍保留手动隐藏状态。
                         if (hiddenNodes.has(nodeName)) {
                             hiddenNodes.delete(nodeName);
@@ -364,7 +365,8 @@ function updateChartData() {
         chart.update();
         return;
     }
-    chart.data.labels = nodeDataMap[firstNode]?.map((p) => new Date(p.x * 1000).toLocaleTimeString());
+    const firstNodeData = nodeDataMap[firstNode];
+    chart.data.labels = firstNodeData.map((p) => new Date(p.x * 1000).toLocaleTimeString());
     chart.data.datasets = datasets;
     chart.update();
     // 同步 legendItem.hidden，确保刷新后 legend 渲染与 hiddenNodes 一致

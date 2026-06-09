@@ -4,7 +4,7 @@
  * 负责拉取和展示图结构的拓扑分析结果（如是否为 DAG、调度模式等）
  */
 // 全局状态
-let analysisData = {}; // 拓扑分析数据
+let analysisData = null; // 拓扑分析数据；未加载时为 null
 let analysisRev = -1; // 数据版本号，用于增量拉取
 let analysisRequestSeq = 0; // 请求序列号，防止旧分析响应覆盖新结果
 /**
@@ -39,17 +39,17 @@ function renderAnalysisInfo() {
     const container = document.getElementById("analysis-info"); // 分析卡片内容容器
     if (!container)
         return;
-    if (!analysisData || Object.keys(analysisData).length === 0) {
+    if (!analysisData) {
         container.innerHTML = `<div class="empty-placeholder">${t("analysis.noData")}</div>`;
         return;
     }
-    const { isDAG, scheduleMode, className, layersDict = {} } = analysisData; // 解构常用分析字段
+    const { isDAG, scheduleMode, className, layersDict } = analysisData; // 解构常用分析字段
     const layerCount = Object.keys(layersDict).length; // 通过层级字典键数推导层级总数
     // 统一构建四行展示内容，避免分散更新不同 DOM 节点。
     container.innerHTML = `
     <div class="analysis-row">
       <span class="analysis-label">${renderLabelWithTooltip("analysis.structType", "analysis.structTypeHelp")}</span>
-      <span class="analysis-value">${className}</span>
+      <span class="analysis-value">${escapeHtml(className)}</span>
     </div>
 
     <div class="analysis-row">
@@ -61,7 +61,7 @@ function renderAnalysisInfo() {
 
     <div class="analysis-row">
       <span class="analysis-label">${renderLabelWithTooltip("analysis.scheduleMode", "analysis.scheduleModeHelp")}</span>
-      <span class="analysis-value">${scheduleMode}</span>
+      <span class="analysis-value">${escapeHtml(scheduleMode)}</span>
     </div>
 
     <div class="analysis-row">

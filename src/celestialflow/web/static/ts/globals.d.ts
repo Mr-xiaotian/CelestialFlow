@@ -39,7 +39,7 @@ declare function preloadInjectionDraftFromError(
 type ChartPoint = { x: number; y: number }; // Chart.js 折线图点坐标
 
 type ChartDataset = {
-  label?: string; // 数据集标签，通常为节点名
+  label: string; // 数据集标签，通常为节点名
   data: ChartPoint[]; // 折线点集合
   borderColor?: string; // 线条颜色
   fill?: boolean; // 是否填充区域

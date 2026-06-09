@@ -4,14 +4,14 @@
  */
 
 type AnalysisData = {
-  isDAG?: boolean; // 当前任务图是否为 DAG
-  scheduleMode?: string; // 图级调度模式名称
-  className?: string; // 图结构分类名称
-  layersDict?: Record<string, unknown>; // 层级分析结果，键数量可用于统计层数
+  isDAG: boolean; // 当前任务图是否为 DAG
+  scheduleMode: string; // 图级调度模式名称
+  className: string; // 图结构分类名称
+  layersDict: Record<string, unknown>; // 层级分析结果，键数量可用于统计层数
 };
 
 // 全局状态
-let analysisData: AnalysisData = {}; // 拓扑分析数据
+let analysisData: AnalysisData | null = null; // 拓扑分析数据；未加载时为 null
 let analysisRev = -1; // 数据版本号，用于增量拉取
 let analysisRequestSeq = 0; // 请求序列号，防止旧分析响应覆盖新结果
 
@@ -45,12 +45,12 @@ function renderAnalysisInfo(): void {
   const container = document.getElementById("analysis-info") as HTMLElement; // 分析卡片内容容器
   if (!container) return;
 
-  if (!analysisData || Object.keys(analysisData).length === 0) {
+  if (!analysisData) {
     container.innerHTML = `<div class="empty-placeholder">${t("analysis.noData")}</div>`;
     return;
   }
 
-  const { isDAG, scheduleMode, className, layersDict = {} } = analysisData; // 解构常用分析字段
+  const { isDAG, scheduleMode, className, layersDict } = analysisData; // 解构常用分析字段
 
   const layerCount = Object.keys(layersDict).length; // 通过层级字典键数推导层级总数
 
@@ -58,7 +58,7 @@ function renderAnalysisInfo(): void {
   container.innerHTML = `
     <div class="analysis-row">
       <span class="analysis-label">${renderLabelWithTooltip("analysis.structType", "analysis.structTypeHelp")}</span>
-      <span class="analysis-value">${className}</span>
+      <span class="analysis-value">${escapeHtml(className)}</span>
     </div>
 
     <div class="analysis-row">
@@ -70,7 +70,7 @@ function renderAnalysisInfo(): void {
 
     <div class="analysis-row">
       <span class="analysis-label">${renderLabelWithTooltip("analysis.scheduleMode", "analysis.scheduleModeHelp")}</span>
-      <span class="analysis-value">${scheduleMode}</span>
+      <span class="analysis-value">${escapeHtml(scheduleMode)}</span>
     </div>
 
     <div class="analysis-row">
