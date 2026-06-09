@@ -28,6 +28,38 @@ class TestTaskSplitter:
         assert S.split_counter.value == 3
         assert A.get_counts()["tasks_succeeded"] == 3
 
+    def test_splitter_allows_empty_iterable(self):
+        """测试 TaskSplitter 对空可迭代任务应产生 0 个子任务，而不是抛异常"""
+        def noop(x):
+            return x
+
+        S = TaskSplitter("S")
+        A = TaskStage("A", noop)
+
+        graph = TaskGraph()
+        graph.set_stages([S, A])
+        graph.connect([S], [A])
+        graph.start_graph({S.get_name(): [[]]})
+
+        assert S.split_counter.value == 0
+        assert A.get_counts()["tasks_succeeded"] == 0
+
+    def test_splitter_supports_generator_input(self):
+        """测试 TaskSplitter 对一次性迭代器应基于拆分结果继续分发所有子任务"""
+        def noop(x):
+            return x
+
+        S = TaskSplitter("S")
+        A = TaskStage("A", noop)
+
+        graph = TaskGraph()
+        graph.set_stages([S, A])
+        graph.connect([S], [A])
+        graph.start_graph({S.get_name(): [(i for i in [1, 2, 3])]})
+
+        assert S.split_counter.value == 3
+        assert A.get_counts()["tasks_succeeded"] == 3
+
 
 class TestTaskRouter:
     def test_router_init(self):

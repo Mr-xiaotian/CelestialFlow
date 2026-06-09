@@ -6,7 +6,7 @@ from typing import Any, cast
 
 import redis
 
-from ..runtime import TaskEnvelope
+from ..runtime import TaskEnvelope, TaskOutQueue
 from ..runtime.util_errors import (
     CelestialFlowTimeoutError,
     InvalidOptionError,
@@ -19,7 +19,7 @@ from .core_stage import TaskStage
 
 
 # ==== TaskSplitter ====
-class TaskSplitter[TItem](TaskStage[Iterable[TItem], TItem]):
+class TaskSplitter[TItem](TaskStage[Iterable[TItem], tuple[TItem, ...]]):
     """TaskSplitter: 将单个任务拆分为多个子任务，注入下游队列。"""
 
     split_counter: ValueWrapper
@@ -76,7 +76,7 @@ class TaskSplitter[TItem](TaskStage[Iterable[TItem], TItem]):
         """
         return tuple(task)
 
-    def _put_split_result(self, result: tuple[Any, ...], task_id: int) -> int:
+    def _put_split_result(self, result: tuple[TItem, ...], task_id: int) -> int:
         """
         将 split 结果放入队列，并发出对应事件
 
@@ -84,7 +84,7 @@ class TaskSplitter[TItem](TaskStage[Iterable[TItem], TItem]):
         :param task_id: 原始任务 ID，用于事件关联
         :return: split 的子任务数量
         """
-        result_queue = self.result_queue
+        result_queue = cast(TaskOutQueue[TItem], self.result_queue)
 
         split_count = len(result)
         for idx, item in enumerate(result):
