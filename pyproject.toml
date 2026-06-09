@@ -10,7 +10,7 @@ readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Mr-xiaotian", email = "mingxiaomingtian@gmail.com" }]
 keywords = ["workflow", "task", "graph", "async", "CelestialFlow"]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 
 dependencies = [
     "tqdm",
