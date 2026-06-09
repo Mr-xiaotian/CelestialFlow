@@ -8,6 +8,7 @@ import asyncio
 import math
 import random
 import re
+from collections.abc import Iterable
 from time import sleep
 
 import requests
@@ -53,7 +54,7 @@ def no_op(n):
     return n
 
 
-def sum_int(*num):
+def sum_int(num: Iterable[int]) -> int:
     return sum(num)
 
 
@@ -215,7 +216,8 @@ def parse_sleep(url):
     return parse(url)
 
 
-def download_to_file(url: str, file_path: str) -> str:
+def download_to_file(task: tuple[str, str]) -> str:
+    url, file_path = task
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()

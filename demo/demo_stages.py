@@ -1,5 +1,6 @@
 import os
 import random
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -38,18 +39,6 @@ redis_password: str = os.getenv("REDIS_PASSWORD", "")
 ctree_host: str = os.getenv("CTREE_HOST", "")
 ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
 ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
-
-
-class DownloadRedisTransport(TaskRedisTransport):
-    def get_args(self, task):
-        url, path = task
-        return url, path.replace("/tmp/", "X:/Download/download_go/")
-
-
-class DownloadStage(TaskStage):
-    def get_args(self, task):
-        url, path = task
-        return url, path.replace("/tmp/", "X:/Download/download_py/")
 
 
 def demo_splitter_0():
@@ -185,7 +174,6 @@ def demo_redis_ack_1():
         key="testSum:input",
         host=redis_host,
         password=redis_password,
-        unpack_task_args=True,
         stage_mode="thread",
     )
     redis_ack = TaskRedisAck(
@@ -201,7 +189,6 @@ def demo_redis_ack_1():
         stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
-        unpack_task_args=True,
     )
 
     graph = TaskGraph()
@@ -231,12 +218,11 @@ def demo_redis_ack_2():
         execution_mode="thread",
         max_workers=4,
     )
-    redis_tranport = DownloadRedisTransport(
+    redis_tranport = TaskRedisTransport(
         "RedisTransport",
         key="testDownload:input",
         host=redis_host,
         password=redis_password,
-        unpack_task_args=True,
         stage_mode="thread",
     )
     redis_ack = TaskRedisAck(
@@ -246,7 +232,7 @@ def demo_redis_ack_2():
         password=redis_password,
         stage_mode="thread",
     )
-    download_stage = DownloadStage(
+    download_stage = TaskStage(
         "Download",
         download_to_file,
         stage_mode="thread",
@@ -266,11 +252,11 @@ def demo_redis_ack_2():
     download_links = [
         [
             "https://img.4khd.com/-IaKPu2ONWz8/aEhVCP-4Wsl/AAAAAAADirM/2Fg5CujCaKk7PqPY3I6DELSmidZE3ofqgCNcBGAsHYQ/w1300-rw/orts-shoes-4khd.com-001.webp?w=1300",
-            "/tmp/orts-shoes-4khd.com-001.png",
+            "X:/Download/download_py/orts-shoes-4khd.com-001.png",
         ],
         [
             "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2949210/ss_a2792205c92812f5be3321f2e685135b402e5a72.600x338.jpg?t=1714466877",
-            "/tmp/steam_2949210.jpg",
+            "X:/Download/download_py/steam_2949210.jpg",
         ],
     ]
 

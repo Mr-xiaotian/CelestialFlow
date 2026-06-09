@@ -81,10 +81,6 @@ def demo_etl_fan_out_fan_in():
     raw_ids = list(range(1, 16))
     graph.start_graph({extract.get_name(): raw_ids})
 
-    summary = graph.get_graph_summary()
-    print(f"Total succeeded: {summary.get('total_succeeded', 0)}")
-    print(f"Total failed:    {summary.get('total_failed', 0)}")
-
 
 def demo_async_staged_pipeline():
     """
@@ -122,12 +118,6 @@ def demo_async_staged_pipeline():
     tasks = list(range(1, 21))
     graph.start_graph({stage_double.get_name(): tasks})
 
-    status = graph.get_status_snapshot()["status"]
-    for stage_name, info in status.items():
-        print(
-            f"[{stage_name}] succeeded={info.get('tasks_succeeded', 0)}, "
-            f"failed={info.get('tasks_failed', 0)}"
-        )
 
 
 if __name__ == "__main__":
