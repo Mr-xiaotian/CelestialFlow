@@ -59,6 +59,7 @@ class TaskExecutor[T, R]:
     _name: str
     _func_name: str
     log_level: str
+    cree_client: CelestialTreeClient | NullCelestialTreeClient
 
     # ==== 初始化 ====
     def __init__(
@@ -99,12 +100,7 @@ class TaskExecutor[T, R]:
         self.set_log_level(log_level)
 
         self._observers: list[BaseObserver] = []
-
-        self.ctree_client: CelestialTreeClient | NullCelestialTreeClient
         self.set_nullctree()
-
-        self.fail_queue: ThreadQueue[Any] | None = None
-        self.log_queue: ThreadQueue[Any] | None = None
 
         self._init_dispatch()
         self._init_queue()
@@ -139,6 +135,9 @@ class TaskExecutor[T, R]:
             target_names=[],
             in_name=self.get_name(),
         )
+
+        self.fail_queue: ThreadQueue[Any] | None = None
+        self.log_queue: ThreadQueue[Any] | None = None
 
     def init_env(
         self,
@@ -380,7 +379,7 @@ class TaskExecutor[T, R]:
         self.metrics.add_task_count()
         self.log_inlet.task_input(
             self.get_func_name(),
-            self.get_task_repr(task),
+            self._get_task_repr(task),
             self.get_name(),
             input_id,
         )
@@ -444,7 +443,7 @@ class TaskExecutor[T, R]:
 
         return dict(error_groups)  # 转换回普通字典
 
-    def get_task_repr(self, task: T) -> str:
+    def _get_task_repr(self, task: T) -> str:
         """
         获取任务对象的可读字符串表示
 
@@ -460,8 +459,7 @@ class TaskExecutor[T, R]:
         :param result: 任务结果
         :return: 结果信息字符串
         """
-        formatted_result = format_repr(result, self.max_info)
-        return f"{formatted_result}"
+        return f"({format_repr(result, self.max_info)})"
 
     # ==== 结果处理 ====
     def process_task_success(
@@ -494,7 +492,7 @@ class TaskExecutor[T, R]:
 
         self.log_inlet.task_success(
             self.get_func_name(),
-            self.get_task_repr(task),
+            self._get_task_repr(task),
             self.execution_mode,
             self._get_result_repr(result),
             time.perf_counter() - start_time,
@@ -536,7 +534,7 @@ class TaskExecutor[T, R]:
 
         self.log_inlet.task_retry(
             self.get_func_name(),
-            self.get_task_repr(task),
+            self._get_task_repr(task),
             retry_time,
             exception,
             task_id,
@@ -573,7 +571,7 @@ class TaskExecutor[T, R]:
         )
         self.log_inlet.task_error(
             self.get_func_name(),
-            self.get_task_repr(task),
+            self._get_task_repr(task),
             exception,
             task_id,
             error_id,
@@ -597,7 +595,7 @@ class TaskExecutor[T, R]:
         )
         self.log_inlet.task_duplicate(
             self.get_func_name(),
-            self.get_task_repr(task),
+            self._get_task_repr(task),
             task_id,
             duplicate_id,
         )

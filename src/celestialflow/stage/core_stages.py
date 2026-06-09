@@ -132,7 +132,7 @@ class TaskSplitter[TItem](TaskStage[Iterable[TItem], tuple[TItem, ...]]):
 
         self.log_inlet.split_success(
             self.get_func_name(),
-            self.get_task_repr(task),
+            self._get_task_repr(task),
             split_count,
             time.perf_counter() - start_time,
         )
@@ -220,7 +220,7 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        (target, task) = task_envelope.get_task()
+        target, ture_task = task_envelope.get_task()
         task_id = task_envelope.get_id()
 
         route_id = self.ctree_client.emit(
@@ -233,16 +233,14 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
             route_id,
             source=self.get_name(),
         )
-        result_queue = self.result_queue
-
-        result_queue.put_target(routed_envelope, target)
+        self.result_queue.put_target(routed_envelope, target)
 
         self.metrics.add_success_count()
         self._update_route_counter(target)
 
         self.log_inlet.route_success(
             self.get_func_name(),
-            f"({format_repr(task, self.max_info)})",
+            f"({format_repr(ture_task, self.max_info)})",
             target,
             time.perf_counter() - start_time,
             task_id,
