@@ -161,6 +161,7 @@ function setupEventListeners(): void {
     renderNodeList(getSearchInput().value);
     renderDraftList();
     validateCurrentDraft(true);
+    updateSubmitButtonAvailability();
   });
 
   // 节点浏览列表采用事件委托，统一处理节点切换。
@@ -589,6 +590,7 @@ function formatCurrentDraft(): void {
     renderNodeList(getSearchInput().value);
     renderDraftList();
     validateCurrentDraft(false);
+    updateSubmitButtonAvailability();
   } catch {
     validateCurrentDraft(true);
   }
@@ -610,6 +612,7 @@ function clearCurrentDraft(): void {
   renderNodeList(getSearchInput().value);
   renderDraftList();
   setValidationMessage("injection.validationEmpty", "neutral");
+  updateSubmitButtonAvailability();
 }
 
 /**
@@ -639,6 +642,7 @@ function fillTerminationDraft(): void {
   renderNodeList(getSearchInput().value);
   renderDraftList();
   validateCurrentDraft(false);
+  updateSubmitButtonAvailability();
 }
 
 /**
