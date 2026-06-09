@@ -86,7 +86,7 @@ reportUnusedFunction = "none"
 reportImplicitOverride = "none"
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 exclude = ["tests", "typings", "demo", "bench", "experiments", "examples", "temp"]
 
 [tool.ruff.lint]
