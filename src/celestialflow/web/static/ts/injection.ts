@@ -199,14 +199,14 @@ function isInjectableNode(nodeName: string): boolean {
 
 /**
  * 将草稿状态与最新节点状态快照对齐。
- * - 已消失节点的草稿会被清理
+ * - 已消失或已不可注入节点的草稿会被清理
  * - 当前编辑节点如果已不可注入，则取消当前选择
  *
  * @returns {void}
  */
 function syncInjectionStateWithStatuses(): void {
   for (const nodeName of Object.keys(nodeDrafts)) {
-    if (!nodeStatuses[nodeName]) {
+    if (!isInjectableNode(nodeName)) {
       delete nodeDrafts[nodeName];
     }
   }
