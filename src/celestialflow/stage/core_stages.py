@@ -19,7 +19,7 @@ from .core_stage import TaskStage
 
 
 # ==== TaskSplitter ====
-class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], tuple[RItem, ...]]):
+class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
     """TaskSplitter: 将单个任务拆分为多个子任务，注入下游队列。
 
     可通过 ``split_item`` 参数自定义对子任务的处理逻辑。
@@ -76,7 +76,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], tuple[RItem, ...]]):
 
         :param add_value: 增加的子任务数量
         """
-        self.split_counter.value += add_value
+        self.split_counter.add(add_value)
 
     @staticmethod
     def _identity_split_item(task: TItem) -> RItem:
@@ -88,53 +88,19 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], tuple[RItem, ...]]):
         """
         return cast(RItem, task)
 
-    def _split(self, task: Iterable[TItem]) -> tuple[RItem, ...]:
+    def _split(self, task: Iterable[TItem]) -> Iterable[RItem]:
         """
         将可迭代任务拆分并物化为稳定元组，避免一次性迭代器被重复消费。
 
         :param task: 任务对象
         :return: 子任务元组
         """
-        return tuple(self.split_item(item) for item in task)
-
-    def _put_split_result(self, result: tuple[RItem, ...], task_id: int) -> int:
-        """
-        将 split 结果放入队列，并发出对应事件
-
-        :param result: split 的结果，必须是一个可迭代对象
-        :param task_id: 原始任务 ID，用于事件关联
-        :return: split 的子任务数量
-        """
-        result_queue = cast(TaskOutQueue[RItem], self.result_queue)
-
-        split_count = len(result)
-        for idx, item in enumerate(result):
-            split_id = self.ctree_client.emit(
-                "task.split",
-                parents=[task_id],
-                payload=self.get_summary(),
-            )
-            splitted_envelope: TaskEnvelope[RItem, None] = TaskEnvelope(
-                item,
-                split_id,
-                source=self.get_name(),
-            )
-            result_queue.put(splitted_envelope)
-
-            self.log_inlet.split_trace(
-                self.get_func_name(),
-                idx + 1,
-                split_count,
-                task_id,
-                split_id,
-            )
-
-        return split_count
+        return (self.split_item(item) for item in task)
 
     def process_task_success(
         self,
         task_envelope: TaskEnvelope[Iterable[TItem], Any],
-        result: tuple[RItem, ...],
+        result: Iterable[RItem],
         start_time: float,
     ) -> None:
         """
@@ -157,6 +123,41 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], tuple[RItem, ...]]):
             split_count,
             time.perf_counter() - start_time,
         )
+
+    def _put_split_result(self, result: Iterable[RItem], task_id: int) -> int:
+        """
+        将 split 结果放入队列，并发出对应事件
+
+        :param result: split 的结果，必须是一个可迭代对象
+        :param task_id: 原始任务 ID，用于事件关联
+        :return: split 的子任务数量
+        """
+        result_queue = cast(TaskOutQueue[RItem], self.result_queue)
+        result_list = list(result)
+        split_count = len(result_list)
+
+        for idx, item in enumerate(result_list):
+            split_id = self.ctree_client.emit(
+                "task.split",
+                parents=[task_id],
+                payload=self.get_summary(),
+            )
+            splitted_envelope: TaskEnvelope[RItem, None] = TaskEnvelope(
+                item,
+                split_id,
+                source=self.get_name(),
+            )
+            result_queue.put(splitted_envelope)
+
+            self.log_inlet.split_trace(
+                self.get_func_name(),
+                idx + 1,
+                split_count,
+                task_id,
+                split_id,
+            )
+
+        return split_count
 
 
 # ==== TaskRouter ====

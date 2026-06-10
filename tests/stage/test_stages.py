@@ -9,7 +9,7 @@ class TestTaskSplitter:
         splitter = TaskSplitter("Splitter")
         assert splitter.execution_mode == "serial"
         assert splitter.max_retries == 0
-        assert splitter.split_counter.value == 0
+        assert splitter.split_counter.get() == 0
 
     def test_splitter_process_success(self):
         """测试 TaskSplitter 在图中：成功执行后下游应收到分裂后的独立任务"""
@@ -25,7 +25,7 @@ class TestTaskSplitter:
         graph.connect([S], [A])
         graph.start_graph({S.get_name(): [[1, 2, 3]]})
 
-        assert S.split_counter.value == 3
+        assert S.split_counter.get() == 3
         assert A.get_counts()["tasks_succeeded"] == 3
 
     def test_splitter_allows_empty_iterable(self):
@@ -41,7 +41,7 @@ class TestTaskSplitter:
         graph.connect([S], [A])
         graph.start_graph({S.get_name(): [[]]})
 
-        assert S.split_counter.value == 0
+        assert S.split_counter.get() == 0
         assert A.get_counts()["tasks_succeeded"] == 0
 
     def test_splitter_supports_generator_input(self):
@@ -57,14 +57,14 @@ class TestTaskSplitter:
         graph.connect([S], [A])
         graph.start_graph({S.get_name(): [(i for i in [1, 2, 3])]})
 
-        assert S.split_counter.value == 3
+        assert S.split_counter.get() == 3
         assert A.get_counts()["tasks_succeeded"] == 3
 
     def test_splitter_allows_constructor_split_item(self):
         """测试 TaskSplitter 可通过构造参数 split_item 注入单个子任务处理逻辑"""
         splitter = TaskSplitter[str, str]("S", split_item=lambda item: item.strip())
 
-        assert splitter._split([" a ", " b ", " c "]) == ("a", "b", "c")
+        assert tuple(splitter._split([" a ", " b ", " c "])) == ("a", "b", "c")
 
 
 class TestTaskRouter:
