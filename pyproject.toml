@@ -79,9 +79,6 @@ include = ["src"]
 ignore = ["tests", "**/tests/**", "typings", "demo", "bench", "experiments", "examples", "temp"]
 
 typeCheckingMode = "strict"
-reportExplicitAny = "none"
-reportAny = "none"
-reportUnannotatedClassAttribute = "none"
 reportUnusedFunction = "none"
 reportImplicitOverride = "none"
 
