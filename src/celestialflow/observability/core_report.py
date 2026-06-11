@@ -1,16 +1,14 @@
 # observability/core_report.py
 from threading import Event, Thread
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import requests
 
+from ..graph.util_types import ReporterTaskGraph
 from ..persistence import LogInlet
 from ..persistence.util_jsonl import load_jsonl_logs
 from ..runtime.util_errors import ReporterError
 from ..runtime.util_types import TERMINATION_SIGNAL
-
-if TYPE_CHECKING:
-    from ..graph import TaskGraph
 
 
 class TaskReporter:
@@ -28,7 +26,7 @@ class TaskReporter:
         self,
         host: str,
         port: int,
-        task_graph: "TaskGraph",
+        task_graph: ReporterTaskGraph,
         log_inlet: LogInlet,
     ) -> None:
         """
@@ -40,7 +38,7 @@ class TaskReporter:
         :param log_inlet: 日志收集器实例
         """
         self.base_url: str = f"http://{host}:{port}"
-        self.task_graph: TaskGraph = task_graph
+        self.task_graph: ReporterTaskGraph = task_graph
         self.log_inlet: LogInlet = log_inlet
 
         self._stop_flag: Event = Event()
