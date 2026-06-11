@@ -22,7 +22,7 @@ from .core_stage import TaskStage
 class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
     """TaskSplitter: 将单个任务拆分为多个子任务，注入下游队列。
 
-    可通过 ``split_item`` 参数自定义对子任务的处理逻辑。
+    可通过 `split_item` 参数自定义对子任务的处理逻辑。
     """
 
     split_counter: ValueWrapper
@@ -34,6 +34,8 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         name: str,
         split_item: Callable[[TItem], RItem] | None = None,
         stage_mode: str = "serial",
+        enable_duplicate_check: bool = True,
+        log_level: str = "INFO",
     ):
         """
         初始化 TaskSplitter
@@ -41,6 +43,8 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         :param name: 节点名称
         :param split_item: 自定义单个子任务处理函数，默认使用恒等映射
         :param stage_mode: 节点运行模式，默认 'serial'
+        :param enable_duplicate_check: 是否启用重复检查，默认 True
+        :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(
             name=name,
@@ -48,6 +52,8 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
             stage_mode=stage_mode,
             execution_mode="serial",
             max_retries=0,
+            enable_duplicate_check=enable_duplicate_check,
+            log_level=log_level,
         )
 
         self.split_item = split_item or self._identity_split_item

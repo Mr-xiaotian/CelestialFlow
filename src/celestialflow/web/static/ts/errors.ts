@@ -119,9 +119,9 @@ function renderErrors(): void {
       const index = (currentPage - 1) * pageSize + i + 1; // 全局展示序号
       const row = document.createElement("tr"); // 当前表格行
       const errorText = `${e.error_type}(${e.error_message})`; // 错误完整文本
-      const errorRepr = format_repr(errorText, 100); // 表格中展示的截断错误文本
+      const errorRepr = format_repr(errorText, 50); // 表格中展示的截断错误文本
       const taskText = typeof e.task === "string" ? e.task : JSON.stringify(e.task);
-      const taskRepr = format_repr(taskText, 100); // 表格中展示的截断任务文本
+      const taskRepr = format_repr(taskText, 50); // 表格中展示的截断任务文本
       const canRetry = e.task !== undefined && !taskText.startsWith("<");
       const retryLabel = canRetry ? t("errors.retryInject") : t("errors.retryUnavailable");
       const retryClass = canRetry ? "retry-link" : "retry-disabled";
