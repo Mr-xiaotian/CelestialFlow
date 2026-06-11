@@ -1,6 +1,6 @@
 # util_models
 
-> 📅 最后更新日期: 2026/06/05
+> 📅 最后更新日期: 2026/06/11
 
 ## 作用
 
@@ -56,11 +56,20 @@
 
 任务注入请求模型，用于向运行中的任务图动态插入新任务。
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `node` | `str` | 注入目标节点名称 |
-| `task_datas` | `list[Any]` | 待注入的任务数据列表；后端要求必须为数组 |
-| `timestamp` | `datetime` | 注入请求时间 |
+> 该模型继承自 `RootModel[dict[str, list[Any]]]`，请求体直接为 `{节点名: [任务列表]}` 格式的字典，不再包含 `node`/`task_datas`/`timestamp` 等独立字段。
+
+| 根值类型 | 说明 |
+|----------|------|
+| `dict[str, list[Any]]` | 键为节点名称，值为该节点待注入的任务数据列表 |
+
+**请求体示例：**
+
+```json
+{
+  "StageA": [{"id": 1, "value": 42}, {"id": 2, "value": 99}],
+  "StageB": [{"id": 3, "value": 55}]
+}
+```
 
 ### DashboardConfigModel
 
@@ -72,66 +81,117 @@
 | `middle` | `list[str]` | 中间面板要显示的卡片类型列表 |
 | `right` | `list[str]` | 右侧面板要显示的卡片类型列表 |
 
-### WebConfigModel
+### GlobalConfigModel
 
-Web UI 全局配置模型。
+全局共享配置模型（嵌套于 `WebConfigModel.global_` 下）。
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `theme` | `str` | — | UI 主题 |
+| `theme` | `str` | — | UI 主题（如 `"light"`、`"dark"`） |
 | `autoRefreshEnabled` | `bool` | `True` | 是否启用自动刷新 |
 | `refreshInterval` | `int` | — | 页面数据刷新间隔（ms） |
-| `historyLimit` | `int` | — | 历史记录数量上限 |
 | `language` | `str` | `"zh-CN"` | 界面语言 |
-| `errorPageSize` | `int` | `10` | 错误页每页条数 |
-| `errorSortOrder` | `str` | `"newest"` | 错误页排序方式 |
-| `showStructureEdgeDelta` | `bool` | `True` | 是否显示结构图边 Delta |
-| `dashboard` | `DashboardConfigModel` | — | 仪表盘布局配置（嵌套模型） |
+
+### DashboardPageConfigModel
+
+仪表盘页面配置模型（嵌套于 `WebConfigModel.dashboard` 下）。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `historyLimit` | `int` | — | 历史记录数量上限 |
+| `showStructureEdgeDelta` | `bool` | `False` | 是否显示结构图边增量 |
+| `useTotalPendingInStatus` | `bool` | `False` | 节点等待参数是否使用全局估计 |
+| `layout` | `DashboardConfigModel` | — | 仪表盘卡片三栏布局定义 |
+
+### ErrorsPageConfigModel
+
+错误页配置模型（嵌套于 `WebConfigModel.errors` 下）。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `pageSize` | `int` | `10` | 错误页每页条数 |
+| `sortOrder` | `str` | `"newest"` | 默认排序方式（`"newest"` / `"oldest"`） |
+| `jumpToInjectionAfterRetry` | `bool` | `True` | 任务重试后是否跳转到注入页 |
+
+### InjectionPageConfigModel
+
+注入页配置模型（嵌套于 `WebConfigModel.injection` 下）。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `showInjectableOnly` | `bool` | `True` | 是否仅显示可注入节点 |
+
+### WebConfigModel
+
+Web UI 全局配置模型（已变更为嵌套分组结构）。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `global_` | `GlobalConfigModel` | — | 全局共享配置（JSON 别名为 `"global"`） |
+| `dashboard` | `DashboardPageConfigModel` | — | 仪表盘页面配置 |
+| `errors` | `ErrorsPageConfigModel` | — | 错误页配置 |
+| `injection` | `InjectionPageConfigModel` | `InjectionPageConfigModel()` | 注入页配置 |
+
+> **已变更**: `WebConfigModel` 由旧版的平铺字段（`theme`, `refreshInterval`, `historyLimit`...）改为嵌套分组结构。原 `theme`、`refreshInterval` 等字段移入 `GlobalConfigModel`（别名 `"global"`），`historyLimit`、`showStructureEdgeDelta` 等移入 `DashboardPageConfigModel`，`errorPageSize`、`errorSortOrder` 等移入 `ErrorsPageConfigModel`。
 
 ## 使用示例
 
 ### 数据校验与序列化
 
 ```python
-from celestialflow.web.util_models import WebConfigModel, DashboardConfigModel, TaskInjectionModel
+from celestialflow.web.util_models import (
+    WebConfigModel, GlobalConfigModel, DashboardPageConfigModel,
+    DashboardConfigModel, ErrorsPageConfigModel, InjectionPageConfigModel,
+    TaskInjectionModel,
+)
 
-# --- WebConfigModel 使用 ---
+# --- WebConfigModel 使用 (嵌套结构) ---
 config = WebConfigModel(
-    theme="dark",
-    autoRefreshEnabled=True,
-    refreshInterval=5,
-    historyLimit=20,
-    language="zh-CN",
-    errorPageSize=10,
-    errorSortOrder="newest",
-    showStructureEdgeDelta=True,
-    dashboard=DashboardConfigModel(
-        left=["mermaid"],
-        middle=["status"],
-        right=["progress"],
+    global=GlobalConfigModel(
+        theme="dark",
+        autoRefreshEnabled=True,
+        refreshInterval=5000,
+        language="zh-CN",
+    ),
+    dashboard=DashboardPageConfigModel(
+        historyLimit=20,
+        showStructureEdgeDelta=False,
+        useTotalPendingInStatus=False,
+        layout=DashboardConfigModel(
+            left=["mermaid"],
+            middle=["status"],
+            right=["progress"],
+        ),
+    ),
+    errors=ErrorsPageConfigModel(
+        pageSize=10,
+        sortOrder="newest",
+        jumpToInjectionAfterRetry=True,
+    ),
+    injection=InjectionPageConfigModel(
+        showInjectableOnly=True,
     ),
 )
-print(f"主题: {config.theme}")
-print(f"仪表盘布局: {config.dashboard.model_dump()}")
+print(f"主题: {config.global_.theme}")
+print(f"仪表盘布局: {config.dashboard.layout.model_dump()}")
 
-# 序列化为字典
-config_dict = config.model_dump()
+# 序列化为字典（by_alias=True 将 global_ 转为 "global"）
+config_dict = config.model_dump(by_alias=True)
 
 # 从字典创建
-restored = WebConfigModel(**config_dict)
+restored = WebConfigModel.model_validate(config_dict)
 
 # --- TaskInjectionModel 使用 ---
-from datetime import datetime
-
 injection = TaskInjectionModel(
-    node="StageA",
-    task_datas=[{"id": 1, "value": 42}, {"id": 2, "value": 99}],
-    timestamp=datetime.now(),
+    StageA=[{"id": 1, "value": 42}, {"id": 2, "value": 99}],
+    StageB=[{"id": 3, "value": 55}],
 )
-print(f"注入目标: {injection.node}, 任务数: {len(injection.task_datas)}")
+print(f"注入节点数: {len(injection.root)}")
+for node_name, tasks in injection.root.items():
+    print(f"  {node_name}: {len(tasks)} 个任务")
 ```
 
-> 注意：`TaskInjectionModel.task_datas` 当前是严格的 `list[Any]`。如果前端上传单个对象、字符串或数字，请先包装为数组，否则接口会返回 422。
+> 注意：`TaskInjectionModel` 是 `RootModel[dict[str, list[Any]]]`，请求体直接为节点名到任务列表的映射字典，不再包装 `node`/`task_datas` 等字段。
 
 ### 错误数据处理
 

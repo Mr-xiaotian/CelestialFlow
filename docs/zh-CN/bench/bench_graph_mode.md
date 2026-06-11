@@ -1,6 +1,6 @@
 # bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/11
 
 ## 目标
 
@@ -49,9 +49,9 @@ python bench/bench_graph_mode.py
 
 ```python
 if __name__ == "__main__":
-    bench_graph_0()     # 仅运行 4 节点 DAG 混合场景
-    # bench_graph_1()   # 注释掉其他场景
-    # bench_graph_2()
+    bench_graph_0()     # 运行 4 节点 DAG 混合场景（默认已注释）
+    bench_graph_1()     # 当前启用：6 节点多层 DAG
+    bench_graph_2()     # 当前启用：Splitter 吞吐量测试
 ```
 
 ### 调整输入规模

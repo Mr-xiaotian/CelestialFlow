@@ -1,6 +1,6 @@
 # RuntimeEstimators
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/06/11
 
 `runtime/util_estimators.py` 提供运行时耗时估算函数。
 
@@ -8,7 +8,7 @@
 
 - `calc_remaining(processed, pending, elapsed)`：估算节点剩余时间。
 - `calc_elapsed(status, last_elapsed, last_pending, interval)`：按状态累计耗时。
-- `calc_global_remain_equal_pred(...)`：基于 DAG 与观测指标估算全局剩余时间。
+- `calc_global_pending(G, processed_map, pending_map)`：基于 DAG 与观测指标估算全局待处理任务数。
 
 ## 使用示例
 
@@ -57,11 +57,11 @@ elapsed_stopped = calc_elapsed(
 print(f"已停止节点: {elapsed_stopped:.1f} 秒")  # 50.0（不再增加）
 ```
 
-### calc_global_remain_equal_pred：基于 DAG 估算全局剩余时间
+### calc_global_pending：基于 DAG 估算全局待处理任务数
 
 ```python
 import networkx as nx
-from celestialflow.runtime.util_estimators import calc_global_remain_equal_pred
+from celestialflow.runtime.util_estimators import calc_global_pending
 
 # 构建一个简单的 DAG: A -> B -> C
 G = nx.DiGraph()
@@ -71,11 +71,10 @@ G.add_edge("B", "C")
 # 输入观测数据
 processed_map = {"A": 100, "B": 50, "C": 10}
 pending_map = {"A": 0, "B": 50, "C": 90}
-elapsed_map = {"A": 10.0, "B": 5.0, "C": 1.0}
 
-result = calc_global_remain_equal_pred(G, processed_map, pending_map, elapsed_map)
-for node, remain in result.items():
-    print(f"节点 {node}: 预计剩余 {remain:.2f} 秒")
+result = calc_global_pending(G, processed_map, pending_map)
+for node, pending in result.items():
+    print(f"节点 {node}: 预计待处理 {pending} 个任务")
 ```
 
 ## 用途

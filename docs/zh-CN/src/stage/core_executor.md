@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/06/05
+> 📅 最后更新日期: 2026/06/11
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -9,16 +9,15 @@
 ## 初始化
 
 ```python
-class TaskExecutor:
+class TaskExecutor[T, R]:
     def __init__(
         self,
         name: str,
-        func: Callable[..., Any],
+        func: Callable[[T], R] | Callable[[T], Awaitable[R]],
         execution_mode: str = "serial",
         max_workers: int | None = None,
         max_retries: int = 1,
         max_info: int = 50,
-        unpack_task_args: bool = False,
         enable_duplicate_check: bool = True,
         log_level: str = "INFO",
     ):
@@ -30,14 +29,15 @@ class TaskExecutor:
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `name` | — | 执行器名称，用于日志和追踪 |
-| `func` | — | 实际执行任务的可调用对象 |
+| `func` | — | 实际执行任务的可调用对象（支持同步函数和协程函数） |
 | `execution_mode` | `"serial"` | 执行模式：`"serial"` / `"thread"` / `"async"` |
 | `max_workers` | `None` | 并发数量限制（None 时动态: `min(32, cpu_count+4)`） |
-| `max_retries` | `1` | 任务失败后的最大重试次数 |
+| `max_retries` | `1` | 任务失败后的最大重试次数（最多执行 retries+1 次） |
 | `max_info` | `50` | 日志中每条信息的最大长度 |
-| `unpack_task_args` | `False` | 是否将任务参数解包 (`*args`) 传给函数 |
 | `enable_duplicate_check` | `True` | 是否启用基于任务哈希的重复检查 |
 | `log_level` | `"INFO"` | 日志级别 |
+
+> **已变更**：此前文档包含 `unpack_task_args` 参数，该参数在当前源码中不存在，已移除。
 
 ## Observer 模式
 
@@ -54,34 +54,32 @@ executor.remove_observer(observer)  # 移除观察者
 
 | 事件 | 触发位置 | 说明 |
 |------|---------|------|
-| `on_start(name, total)` | `start()`/`start_async()` | 执行开始 |
-| `on_task_success()` | `process_task_success()` | 任务成功 |
-| `on_task_fail()` | `handle_task_fail()` | 任务失败 |
-| `on_task_duplicate()` | `deal_duplicate()` | 检测到重复 |
+| `on_start(name, total)` | `_prepare_start()` | 执行开始（注意：total 固定为 0，实际任务数通过 `on_tasks_added` 通知） |
+| `on_task_success()` | `process_task_success()` | 任务成功（无参数，Observer 需自行获取计数） |
+| `on_task_fail()` | `handle_task_fail()` | 任务失败（无参数） |
+| `on_task_duplicate()` | `deal_duplicate()` | 检测到重复（无参数） |
 | `on_tasks_added(count)` | `_put_task_queue()` | 新任务加入（每 100 个通知一次） |
-| `on_finish()` | `start()`/`start_async()` finally | 执行结束 |
+| `on_finish()` | `_finish_start()` finally | 执行结束（无参数） |
 
-注意：`on_task_success`、`on_task_fail`、`on_task_duplicate` 的 `_notify` 调用不传递计数参数，Observer 需自行从外部获取。
+> **已变更**：此前文档记载 `on_start` 传递实际任务总数，源码中固定传递 `0`，实际任务数通过后续的 `on_tasks_added` 事件逐批通知。成功/失败/重复事件也不传递计数参数。
 
 ## 核心方法
 
 ### start / start_async
 
 ```python
-def start(self, task_source: Iterable[Any]) -> None:
+def start(self, task_source: Iterable[T]) -> None:
     """
     同步启动执行器。流程：
-    1. init_env() — 初始化 metrics、dispatch、spout、inlet、queue
-    2. _put_task_queue() — 构造信封并入队所有任务
-    3. 根据 execution_mode 调用 dispatch 对应方法
-    4. finally 中停止 spout
-    
-    注意：async 模式不应使用此方法（会内部 asyncio.run），请使用 start_async。
+    1. _prepare_start() — init_env() + 注入任务 + 记录启动日志
+    2. 根据 execution_mode 调用 dispatch 对应方法
+    3. _finish_start() — 通知 on_finish + 停止所有 spout
     """
 
-async def start_async(self, task_source: Iterable[Any]) -> None:
+async def start_async(self, task_source: Iterable[T]) -> None:
     """
     异步启动执行器。内部设置 execution_mode="async"。
+    使用 await dispatch.dispatch_async() 而非 asyncio.run()。
     """
 ```
 
@@ -104,29 +102,36 @@ def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
     """添加需要重试的异常类型。"""
 ```
 
-### 结果处理（可重写方法）
+### 结果处理（核心方法）
+
+任务的结果处理通过以下方法实现：
 
 ```python
-def process_result(self, task: Any, result: Any) -> Any:
-    """自定义结果处理逻辑（默认原样返回）。"""
+def process_task_success(self, task_envelope: TaskEnvelope[T, R], result: R, start_time: float) -> None:
+    """处理成功任务：通知 observer、写日志、生成结果封装并放入 result_queue。"""
 
-def get_args(self, task: Any) -> tuple[Any, ...]:
-    """自定义参数提取逻辑（默认根据 unpack_task_args 解包）。"""
+def handle_task_fail(self, task_envelope: TaskEnvelope[T, R], exception: Exception) -> None:
+    """处理失败任务：通知 observer、记录到 fail_inlet 和 log_inlet。"""
+
+def deal_duplicate(self, task_envelope: TaskEnvelope[T, R]) -> None:
+    """处理重复任务：通知 observer、记录日志。"""
 ```
+
+> **已变更**：此前文档记载可覆写方法 `process_result()` 和 `get_args()`，当前源码中不存在这两个方法，实际结果处理通过 `process_task_success()` 完成，参数提取逻辑由 `TaskDispatch` 内部处理。
 
 ### 获取结果
 
 ```python
-def get_success_pairs(self) -> list[tuple[Any, Any]]:
+def get_success_pairs(self) -> list[tuple[T, R]]:
     """获取成功任务 (task, result) 列表（通过 SuccessSpout 缓存）。"""
 
 def get_error_pairs(self) -> list[tuple[Any, PersistedErrorRecord]]:
     """获取失败任务 (task, error_record) 列表（通过 FailSpout 缓存）。"""
 
-def process_result_dict(self) -> dict[Any, Any]:
+def process_result_dict(self) -> dict[T, R | str]:
     """合并成功和失败结果字典。"""
 
-def handle_error_dict(self) -> dict[tuple[str, str], list[Any]]:
+def handle_error_dict(self) -> dict[tuple[str, str], list[T]]:
     """按 (error_type, error_message) 分组错误。"""
 ```
 
@@ -143,70 +148,48 @@ def set_nullctree(self, event_id: int | None = None) -> None:
 ## 状态查询方法
 
 ```python
-def get_name(self) -> str:           # 执行器名称
-def get_full_name(self) -> str:      # "name(mode-workers)" 或 "name(serial)"
-def get_func_name(self) -> str:      # 函数名
-def _get_class_name(self) -> str:    # 类名
-def _get_execution_mode_desc(self) -> str:  # 执行模式描述字符串
-def get_summary(self) -> dict:       # 快照：name, func_name, class_name, execution_mode
-def get_counts(self) -> dict:        # 计数器：tasks_input/succeeded/failed/duplicated/processed/pending
+def get_name(self) -> str:                    # 执行器名称
+def get_full_name(self) -> str:               # "name(mode-workers)" 或 "name(serial)"
+def get_func_name(self) -> str:               # 函数名
+def _get_class_name(self) -> str:             # 类名
+def _get_execution_mode_desc(self) -> str:    # 执行模式描述字符串
+def get_summary(self) -> dict:                # 快照：name, func_name, execution_mode, max_workers
+def get_counts(self) -> dict:                 # 计数器：tasks_input/succeeded/failed/duplicated/processed/pending
 ```
 
-## start / start_async 流程
-
-### start（同步启动）
-
-```python
-def start(self, task_source: Iterable[Any]) -> None:
-```
-
-执行流程：
-1. 记录启动时间
-2. `init_env()` — 初始化 metrics → dispatch → spout → inlet → queue
-3. 通知 observer `on_start`
-4. `_put_task_queue(task_source)` — 构造信封并入队所有任务
-5. `fail_inlet.start_executor()` / `log_inlet.start_executor()` — 记录启动日志
-6. 根据 `execution_mode` 调用对应 dispatch 方法：
-   - `serial` → `dispatch_serial()`
-   - `thread` → `dispatch_thread()`
-   - `async` → `asyncio.run(dispatch_async())`（不推荐，建议用 `start_async`）
-7. `finally` 中执行清理：通知 `on_finish` → 记录结束日志 → 停止所有 spout
-
-### start_async（异步启动）
-
-```python
-async def start_async(self, task_source: Iterable[Any]) -> None:
-```
-
-与 `start` 类似，但：
-- 自动设置 `execution_mode="async"`
-- 使用 `await dispatch.dispatch_async()` 而非 `asyncio.run()`
-- 适合在已有事件循环中调用
+> **已变更**：`get_summary()` 返回的字典键为 `name, func_name, execution_mode, max_workers`，不包含 `class_name`。
 
 ## 生命周期
 
 ```mermaid
 flowchart TD
-    INIT[__init__] -->|设置 func, mode, metrics| NULLCTREE[set_nullctree]
-    NULLCTREE -->|需外部追踪| SETCTREE[set_ctree]
-    SETCTREE -->|start/start_async| ENV[init_env]
-    ENV --> STATE[_init_state]
-    ENV --> DISPATCH_INIT[_init_dispatch: TaskDispatch]
-    ENV --> SPOUT[_init_spout: 创建并启动 ×3]
-    ENV --> INLET[_init_inlet: FailInlet + LogInlet]
-    ENV --> QUEUE[_init_queue: task_queue + result_queue]
-    SPOUT --> PUT[_put_task_queue: 构造信封 → 入队]
-    PUT --> RUN{dispatch 循环}
+    INIT[__init__] -->|set_name, _set_func| CONFIG[set_execution_mode<br/>set max_workers/retries/info]
+    CONFIG -->|_init_dispatch| DISPATCH[TaskDispatch 创建]
+    CONFIG -->|_init_queue| QUEUE[task_queue + result_queue]
+    CONFIG -->|_init_metrics| METRICS[TaskMetrics 初始化]
+    CONFIG -->|set_nullctree| CTREE[NullCelestialTreeClient]
+
+    INIT -->|start/start_async| PREPARE[_prepare_start]
+    PREPARE --> ENV[init_env:<br/>_init_state → _init_spout → _init_inlet]
+    ENV --> PUT[_put_task_queue:<br/>遍历 task_source → put_task → put_signal]
+    PUT --> NOTIFY_START[_notify: on_start]
+    NOTIFY_START --> LOG_START[fail_inlet.start_executor<br/>log_inlet.start_executor]
+
+    LOG_START --> RUN{dispatch 循环}
     RUN -->|serial| SERIAL[dispatch_serial]
     RUN -->|thread| THREAD[dispatch_thread]
     RUN -->|async| ASYNC[dispatch_async]
-    SERIAL --> CLEANUP[finally: _release_client]
-    THREAD --> CLEANUP
-    ASYNC --> CLEANUP
-    CLEANUP --> NOTIFY[on_finish / 结束日志]
-    NOTIFY --> STOP[停止 spout ×3]
 
+    SERIAL --> FINISH[_finish_start]
+    THREAD --> FINISH
+    ASYNC --> FINISH
+
+    FINISH --> NOTIFY_END[_notify: on_finish]
+    NOTIFY_END --> LOG_END[log_inlet.end_executor]
+    LOG_END --> STOP[停止 spout ×3:<br/>log_spout + fail_spout + success_spout]
 ```
+
+> **已变更**：此前流程图中出现 `_release_client` 节点，当前源码中不存在此操作。`_finish_start` 实际执行 `_notify → log → stop spouts` 三个步骤。
 
 ## 注意事项
 
@@ -219,4 +202,4 @@ flowchart TD
 - `process_task_success` 会创建结果信封并放入 `result_queue`（= `SuccessSpout` 的队列）
 - `handle_task_fail` 会将错误记录写入 `fail_inlet`
 - `deal_duplicate` 处理重复任务并记录日志
-
+- `_init_spout` 会自动创建并启动 `FailSpout`、`LogSpout`、`SuccessSpout` 三个后台线程

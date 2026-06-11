@@ -1,16 +1,18 @@
 # observability 测试包
 
-> 最后更新日期: 2026/06/05
+> 最后更新日期: 2026/06/11
 
 ## 作用
-`tests/observability/` 覆盖运行状态上报与观测链路，确保 `TaskReporter` 等观测组件能够稳定拉取图状态并对外暴露接口。
+`tests/observability/` 覆盖运行状态观测与任务注入机制，确保 `BaseObserver`/`CallbackObserver` 生命周期回调以及 `TaskReporter` 任务注入行为符合预期。
 
 ## 包含的测试文件
-- `test_reporter.py`: 覆盖 reporter 的启动、停止、轮询和异常路径。
+- `test_observer.py`: 覆盖 Observer 生命周期回调、多观察器支持、动态管理及 CallbackObserver。
+- `test_reporter_injection.py`: 覆盖 `TaskReporter._pull_and_inject_tasks()` 的节点映射注入与日志记录逻辑。
 
 ## 运行方式
 
 ```bash
 pytest tests/observability -v
-pytest tests/observability/test_reporter.py -v
+pytest tests/observability/test_observer.py -v
+pytest tests/observability/test_reporter_injection.py -v
 ```

@@ -1,6 +1,6 @@
 # TaskEnvelope
 
-> 📅 最后更新日期: 2026/06/05
+> 📅 最后更新日期: 2026/06/11
 
 任务数据的包装类，在各个 Stage 之间传递。它封装了原始任务数据、任务哈希、任务 ID 和来源信息。
 
@@ -30,8 +30,8 @@ def get_hash(self) -> bytes:
 def get_id(self) -> int:
     """获取任务 ID。"""
 
-def change_id(self, new_id: int) -> None:
-    """修改任务 ID（用于重试场景）。"""
+def get_prev(self) -> Any | None:
+    """获取前一个任务（用于结果缓存时回溯）。"""
 ```
 
 ## 惰性哈希
@@ -80,10 +80,8 @@ print(f"SHA1 哈希: {h.hex()[:16]}...")
 print(f"调用后 hash 已缓存: {envelope.hash is not None}")  # True
 print(f"重复调用返回缓存值: {envelope.get_hash() == h}")    # True
 
-# 6. 重试场景：变更任务 ID
-envelope.change_id(100)
-print(f"重试后新 ID: {envelope.get_id()}")  # 100
-print(f"重试不影响数据: {envelope.get_task()}")  # 数据不变
+# 6. 获取前驱任务（用于结果缓存回溯）
+print(f"前驱任务: {envelope.get_prev()}")  # None（未设置 prev）
 ```
 
 ### 多种数据类型

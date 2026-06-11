@@ -1,155 +1,99 @@
 # dashboard_summary.ts
 
-> 📅 最后更新日期: 2026/05/23
+> 📅 最后更新日期: 2026/06/11
 
-管理全局汇总统计数据的加载与渲染。为了减少通信量，大部分统计项改为前端基于节点状态实时聚合，后端仅提供图级剩余时间估算。
+管理全局汇总统计数据的渲染。**汇总完全由前端基于 `nodeStatuses` 实时聚合计算**，不依赖独立的后端 API。
+
+> ⚠️ **已变更**: 旧版文档提及的 `loadSummary()` 函数和 `/api/pull_summary` 端点已移除。当前版本中，`renderSummary()` 直接从 `nodeStatuses`（由 `dashboard_statuses.ts` 维护）中聚合所有统计项。
 
 ## 全局变量
 
 | 变量 | 类型 | 说明 |
 |------|------|------|
-| `summaryData` | `SummaryData` | 汇总数据，目前仅包含 `total_remain` |
-| `summaryRev` | `number` | 上次拉取的版本号，用于增量拉取 |
+| `summaryRev` | `number` | 数据版本号（当前保留但未使用增量拉取逻辑） |
+
+## DOM 元素引用
+
+| 变量 | DOM ID | 说明 |
+|------|--------|------|
+| `totalSucceeded` | `#total-succeeded` | 总成功任务数 |
+| `totalPending` | `#total-pending` | 总等待任务数 |
+| `totalDuplicated` | `#total-duplicated` | 总重复任务数 |
+| `totalFailed` | `#total-failed` | 总失败任务数 |
+| `totalNodes` | `#total-nodes` | 活动节点数 |
+| `totalRemain` | `#total-remain` | 总剩余时间 |
 
 ## 函数
 
-### `loadSummary()`
+### `renderSummary(): void`
 
-异步从 `GET /api/pull_summary?known_rev=N` 拉取汇总数据。
-
----
-
-### `renderSummary()`
-
-基于 `nodeStatuses` 的最新快照，前端聚合计算各项总量，并结合 `summaryData.total_remain` 渲染到汇总面板。
+基于 `nodeStatuses`（全局变量，由 `dashboard_statuses.ts` 维护）的最新快照，前端聚合计算各项总量并渲染到汇总面板。
 
 **前端聚合项：**
-- `总成功任务`: 所有节点 `tasks_succeeded` 之和
-- `总等待任务`: 所有节点 `tasks_pending` 之和
-- `总错误任务`: 所有节点 `tasks_failed` 之和（大于 0 时可点击跳转至错误日志页）
-- `总重复任务`: 所有节点 `tasks_duplicated` 之和
-- `活动节点`: 处于运行状态（`status === 1`）的节点总数
 
-**后端估算项：**
-- `总剩余时间`: 后端根据图结构和当前各节点速率计算的全局剩余时间估算值
-```
+| 显示项 | 计算方式 | 格式化函数 |
+|--------|---------|-----------|
+| 总成功任务 | `sum(status.tasks_succeeded)` | `formatLargeNumber()` |
+| 总等待任务 | `sum(status.tasks_pending)` | `formatLargeNumber()` |
+| 总失败任务 | `sum(status.tasks_failed)` | `formatLargeNumber()` |
+| 总重复任务 | `sum(status.tasks_duplicated)` | `formatLargeNumber()` |
+| 活动节点数 | `count(status === 1)` | `formatLargeNumber()` |
+| 总剩余时间 | `max(status.total_remaining_time)` | `formatDuration()` |
+
+> 图级剩余时间取自各节点 `total_remaining_time` 的最大值（考虑各条链路的估算），而非简单求和。
+
+**交互特性：**
+
+- 当总失败数 `> 0` 时，`#total-failed` 元素被添加 `.error-clickable` 类并绑定 `onclick` 调用 `switchToErrorsTab()`，点击可跳转至错误日志页。
 
 ## 数据流
 
-```
-1. loadStatuses() -> 更新 nodeStatuses
-2. loadSummary()  -> 更新 summaryData.total_remain
-3. renderSummary() -> 前端聚合 + 后端估算 -> UI 展示
+```mermaid
+flowchart LR
+    subgraph "dashboard_statuses.ts"
+        LS[loadStatuses]
+        NS[nodeStatuses]
+    end
+    subgraph "dashboard_summary.ts"
+        RS[renderSummary]
+    end
+    subgraph "DOM"
+        TSF[#total-succeeded]
+        TPF[#total-pending]
+        TFF[#total-failed]
+        TDF[#total-duplicated]
+        TNF[#total-nodes]
+        TRF[#total-remain]
+    end
+
+    LS --> NS
+    NS --> RS
+    RS --> TSF
+    RS --> TPF
+    RS --> TFF
+    RS --> TDF
+    RS --> TNF
+    RS --> TRF
+    TFF -->|click if > 0| SW[switchToErrorsTab]
 ```
 
 ## 使用示例
 
-### 摘要数据的格式示例
-
-以下示例展示汇总数据的前端聚合逻辑和数据结构：
-
 ```typescript
-// 模拟从后端获取的摘要数据
-// GET /api/pull_summary 返回的结构
-const summaryResponse = {
-    summary: {
-        total_remain: 125.5,  // 后端估算的全局剩余时间（秒）
-    },
-    // 其他统计在前端基于 nodeStatuses 实时聚合
-};
+// renderSummary() 由 refreshAll() 在 statusesChanged 时自动调用
 
-// 模拟节点状态快照（前端用于聚合计算）
-const nodeStatuses: Record<string, NodeStatus> = {
-    "StageA": {
-        status: 1,
-        tasks_succeeded: 1200,
-        tasks_pending: 50,
-        tasks_failed: 10,
-        tasks_duplicated: 5,
-    } as NodeStatus,
-    "StageB": {
-        status: 1,
-        tasks_succeeded: 800,
-        tasks_pending: 30,
-        tasks_failed: 3,
-        tasks_duplicated: 2,
-    } as NodeStatus,
-    "StageC": {
-        status: 0,  // 未运行，不计入活动节点
-        tasks_succeeded: 0,
-        tasks_pending: 0,
-        tasks_failed: 0,
-        tasks_duplicated: 0,
-    } as NodeStatus,
-};
+// 内部聚合逻辑示意：
+const statusList = Object.values(nodeStatuses || {});
+const total_succeeded = statusList.reduce((sum, s) => sum + (s.tasks_succeeded || 0), 0);
+const total_pending   = statusList.reduce((sum, s) => sum + (s.tasks_pending || 0), 0);
+const total_failed    = statusList.reduce((sum, s) => sum + (s.tasks_failed || 0), 0);
+const total_duplicated = statusList.reduce((sum, s) => sum + (s.tasks_duplicated || 0), 0);
+const total_nodes     = statusList.reduce((sum, s) => sum + (s.status === 1 ? 1 : 0), 0);
+const total_remain    = Math.max(...statusList.map(s => s.total_remaining_time || 0), 0);
 
-// renderSummary() 内部执行的前端聚合逻辑（示意）
-function computeSummary(statuses: Record<string, NodeStatus>, totalRemain: number) {
-    let totalSucceeded = 0;
-    let totalPending = 0;
-    let totalFailed = 0;
-    let totalDuplicated = 0;
-    let activeNodes = 0;
-
-    for (const [tag, status] of Object.entries(statuses)) {
-        totalSucceeded += status.tasks_succeeded || 0;
-        totalPending += status.tasks_pending || 0;
-        totalFailed += status.tasks_failed || 0;
-        totalDuplicated += status.tasks_duplicated || 0;
-        if (status.status === 1) activeNodes++;
-    }
-
-    return {
-        totalSucceeded,     // 2000
-        totalPending,       // 80
-        totalFailed,        // 13
-        totalDuplicated,    // 7
-        activeNodes,        // 2
-        totalRemain,        // 125.5s（来自后端）
-    };
-}
-
-const summary = computeSummary(nodeStatuses, 125.5);
-console.log("摘要统计:", summary);
-// 输出：
-// {
-//   totalSucceeded: 2000,
-//   totalPending: 80,
-//   totalFailed: 13,
-//   totalDuplicated: 7,
-//   activeNodes: 2,
-//   totalRemain: 125.5
-// }
-
-// 渲染为 HTML（renderSummary 内部逻辑示意）
-function renderSummaryHtml(summary: ReturnType<typeof computeSummary>): string {
-    return `
-        <div class="summary-grid">
-            <div class="summary-item">
-                <span class="summary-label">总成功任务</span>
-                <span class="summary-value success">${formatLargeNumber(summary.totalSucceeded)}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">总等待任务</span>
-                <span class="summary-value pending">${formatLargeNumber(summary.totalPending)}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">总错误任务</span>
-                <span class="summary-value error">${formatLargeNumber(summary.totalFailed)}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">总重复任务</span>
-                <span class="summary-value duplicate">${formatLargeNumber(summary.totalDuplicated)}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">活动节点</span>
-                <span class="summary-value">${summary.activeNodes}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">总剩余时间</span>
-                <span class="summary-value">${formatDuration(summary.totalRemain)}</span>
-            </div>
-        </div>
-    `;
-}
+// 更新 DOM
+totalSucceeded.innerHTML = formatLargeNumber(total_succeeded);
+totalPending.innerHTML   = formatLargeNumber(total_pending);
+// ... 其余 DOM 更新
+totalRemain.textContent  = formatDuration(total_remain);
 ```

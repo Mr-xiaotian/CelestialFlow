@@ -1,6 +1,6 @@
 # TaskDispatch
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/11
 
 `TaskDispatch` 是任务调度器，负责以串行、线程或异步方式执行单个任务。它是 `TaskExecutor` 的内部组件，从 `TaskInQueue` 获取任务，调用用户函数，并将结果通过 `TaskOutQueue` 发送。
 
@@ -32,9 +32,10 @@ def dispatch_serial(self) -> None:
 执行流程：
 1. 从 `task_queue.get()` 获取任务
 2. 若收到 `TerminationIdPool`，调用 `_process_termination_signal()` 后终止
-3. 若收到 `TaskEnvelope`，检查是否重复（`_check_and_mark_duplicate_task`）
-4. 调用 `_worker()` 同步执行
-5. 将合并后的 `TerminationSignal` 放入 `result_queue`
+3. 若收到 `TaskEnvelope`，通过 `task_executor.metrics.is_duplicate()` 检查是否重复
+4. 若重复则调用 `task_executor.deal_duplicate()` 处理
+5. 否则调用 `_worker()` 同步执行
+6. 将合并后的 `TerminationSignal` 放入 `result_queue`
 
 ### dispatch_thread
 
@@ -100,17 +101,19 @@ def _process_termination_signal(self, termination_pool: TerminationIdPool) -> Te
     """
 ```
 
-### _check_and_mark_duplicate_task
+### 去重检查
+
+去重逻辑在各 dispatch 方法中内联执行，不在单独方法中：
 
 ```python
-def _check_and_mark_duplicate_task(self, task_envelope: TaskEnvelope) -> bool:
-    """
-    在 worker 前完成去重检查。
-
-    :param task_envelope: 任务信封
-    :return: 是否命中重复任务
-    """
+# 内联去重（dispatch_serial / dispatch_thread / dispatch_async 共享该模式）
+task_hash = envelope.get_hash()
+if self.task_executor.metrics.is_duplicate(task_hash):
+    self.task_executor.deal_duplicate(envelope)
+    continue
 ```
+
+`is_duplicate()` 是原子操作：若哈希不在 `processed_set` 中，先加入再返回 `False`；若已存在则返回 `True`。
 
 ### _init_pool / _release_pool
 
@@ -128,7 +131,7 @@ def _release_pool(self) -> None:
 flowchart LR
     TQ[TaskInQueue] -->|task_envelope| DISPATCH[TaskDispatch]
     DISPATCH -->|终止时| PROC[_process_termination_signal]
-    DISPATCH -->|去重检查| DUP[_check_and_mark_duplicate_task]
+    DISPATCH -->|去重检查| DUP[metrics.is_duplicate / deal_duplicate]
     DISPATCH -->|执行| WORKER[_worker/_async_worker]
     WORKER -->|成功| SUCCESS[process_task_success → result_queue]
     WORKER -->|可重试异常| RETRY[emit_retry_envelope → 重试]
@@ -254,4 +257,4 @@ print(f"成功: {counts['tasks_succeeded']}, 失败: {counts['tasks_failed']}")
 3. **异步模式**: 函数须为协程；使用 `asyncio.to_thread` 避免阻塞
 4. **futures 清理**: `dispatch_thread` 中当列表达到 `max_workers * 2` 时清理已完成 future
 5. **去重**: 在入 worker 前完成，减少无效计算
-6. **重试**: worker 内部通过循环和 `change_id` 实现
+6. **重试**: worker 内部通过循环和 `emit_retry_envelope` 实现

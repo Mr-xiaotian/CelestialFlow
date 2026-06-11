@@ -1,6 +1,6 @@
 # Pull 路由（GET）— `pull_routes`
 
-> 📅 最后更新日期: 2026/06/05
+> 📅 最后更新日期: 2026/06/11
 
 ## 作用
 
@@ -33,15 +33,26 @@
 
 ```json
 {
-  "theme": "dark",
-  "autoRefreshEnabled": true,
-  "refreshInterval": 5,
-  "historyLimit": 20,
-  "language": "zh-CN",
-  "errorPageSize": 10,
-  "errorSortOrder": "newest",
-  "showStructureEdgeDelta": true,
-  "dashboard": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] }
+  "global": {
+    "theme": "dark",
+    "autoRefreshEnabled": true,
+    "refreshInterval": 5000,
+    "language": "zh-CN"
+  },
+  "dashboard": {
+    "historyLimit": 20,
+    "showStructureEdgeDelta": false,
+    "useTotalPendingInStatus": false,
+    "layout": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] }
+  },
+  "errors": {
+    "pageSize": 10,
+    "sortOrder": "newest",
+    "jumpToInjectionAfterRetry": true
+  },
+  "injection": {
+    "showInjectableOnly": true
+  }
 }
 ```
 
@@ -168,10 +179,10 @@
 |------|------|--------|------|
 | — | — | — | 无参数 |
 
-**返回：** `list[dict[str, Any]]`
+**返回：** `dict[str, list[Any]]` — 节点名到任务列表的映射。读取后队列清空。
 
 ```json
-[{"node": "StageA", "task_datas": [1, 2, 3], "timestamp": "2026-06-05T12:00:00"}, ...]
+{"StageA": [1, 2, 3], "StageB": [{"id": 4, "val": "x"}]}
 ```
 
 > 注意：虽然当前实现使用 GET，但这个端点具有副作用，会在读取后清空队列；它更接近“消费接口”而不是纯查询接口。

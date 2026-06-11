@@ -1,6 +1,6 @@
 # bench_hash_container.py 基准测试说明
 
-> 📅 最后更新日期: 2026/05/13
+> 📅 最后更新日期: 2026/06/11
 
 ## 目标
 
@@ -74,26 +74,25 @@ N = 10_000          # 小规模快速验证
 
 ### 只测试特定容器
 
-在 `main()` 中可选择性运行某些容器：
+容器列表在脚本顶部的 `configs` 中定义，可通过注释选择：
 
 ```python
-def main():
-    containers = [
-        ("set[bytes]", benchmark_set_bytes),
-        ("dict[B,None]", benchmark_dict_none),
-        # ("dict[B,float]", benchmark_dict_float),      # 跳过时间戳场景
-        # ("OrderedDict", benchmark_ordered_dict),
-        ("LRU(unlimited)", benchmark_lru_unlimited),
-        ("LRU(50k)", benchmark_lru_50k),
-    ]
+configs = [
+    ("set[bytes]", build_set, all_hashes),
+    ("dict[B,None]", build_dict_none, all_hashes),
+    # ("dict[B,float]", build_dict_float, all_hashes),      # 跳过时间戳场景
+    # ("OrderedDict", build_ordered_dict, all_hashes),
+    ("LRU(unlimited)", build_lru, all_hashes, 0),
+    ("LRU(50k)", build_lru, all_hashes, 50_000),
+]
 ```
 
 ### 调整 LRU 容量
 
 ```python
-# 修改 LRU(50k) 的容量上限
-lru_50k_size = 10_000   # 限制在 1 万条
-# lru_50k_size = 200_000  # 扩大到 20 万条
+# 修改 configs 中 LRU 的 maxsize 参数
+("LRU(10k)", build_lru, all_hashes, 10_000)    # 限制在 1 万条
+# ("LRU(200k)", build_lru, all_hashes, 200_000) # 扩大到 20 万条
 ```
 
 修改后运行：

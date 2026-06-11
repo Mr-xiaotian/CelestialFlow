@@ -1,6 +1,6 @@
 # bench_hash_memory.py 基准测试说明
 
-> 📅 最后更新日期: 2026/05/13
+> 📅 最后更新日期: 2026/06/11
 
 ## 目标
 
@@ -64,13 +64,14 @@ N = 10_000          # 小规模快速验证
 
 ### 只测试特定类型
 
-在 `main()` 中可选择只运行部分类型：
+脚本中的类型对比循环在 `for name, factory in [("str", make_str), ...]` 中定义，可通过注释跳过部分类型：
 
 ```python
-def main():
-    # benchmark_str()    # 跳过 str 类型
-    benchmark_bytes()    # 仅测试 bytes
-    # benchmark_int()    # 跳过 int 类型
+for name, factory in [
+    # ("str", make_str),   # 跳过 str 类型
+    ("bytes", make_bytes),  # 仅测试 bytes
+    # ("int", make_int),    # 跳过 int 类型
+]:
 ```
 
 ### 自定义随机种子

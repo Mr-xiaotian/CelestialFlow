@@ -1,6 +1,6 @@
 # Push 路由（POST）— `push_routes`
 
-> 📅 最后更新日期: 2026/06/05
+> 📅 最后更新日期: 2026/06/11
 
 ## 作用
 
@@ -30,15 +30,26 @@
 
 ```json
 {
-  "theme": "dark",
-  "autoRefreshEnabled": true,
-  "refreshInterval": 5,
-  "historyLimit": 20,
-  "language": "zh-CN",
-  "errorPageSize": 10,
-  "errorSortOrder": "newest",
-  "showStructureEdgeDelta": true,
-  "dashboard": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] }
+  "global": {
+    "theme": "dark",
+    "autoRefreshEnabled": true,
+    "refreshInterval": 5000,
+    "language": "zh-CN"
+  },
+  "dashboard": {
+    "historyLimit": 20,
+    "showStructureEdgeDelta": false,
+    "useTotalPendingInStatus": false,
+    "layout": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] }
+  },
+  "errors": {
+    "pageSize": 10,
+    "sortOrder": "newest",
+    "jumpToInjectionAfterRetry": true
+  },
+  "injection": {
+    "showInjectableOnly": true
+  }
 }
 ```
 
@@ -168,24 +179,23 @@
 
 ### 7. `POST /api/push_injection_tasks`
 
-将前端提交的注入任务追加到待执行队列。
+将前端提交的注入任务写入到待执行队列。
 
-**请求体：** `TaskInjectionModel`
+**请求体：** `TaskInjectionModel`（`RootModel[dict[str, list[Any]]]`）
 
 ```json
 {
-  "node": "StageA",
-  "task_datas": [1, 2, 3],
-  "timestamp": "2026-06-05T12:00:00"
+  "StageA": [1, 2, 3],
+  "StageB": [{"id": 4, "val": "x"}]
 }
 ```
 
 **逻辑：**
 1. 持有 `task_injection_lock` 锁
-2. 将 `data.model_dump(mode="json")` 追加到 `server.injection_tasks`
+2. 遍历 `data.root`，以 `{node_name: task_list}` 方式写入 `server.injection_tasks`
 3. 释放锁
 
-> 注意：后端模型要求 `task_datas` 必须是数组；若前端传入对象、字符串或数字，将在 FastAPI/Pydantic 校验阶段直接返回 422。
+> 注意：请求体直接为 `{节点名: [任务列表]}` 格式的字典，不再包装 `node`/`task_datas`/`timestamp` 字段。每个节点名对应的任务列表会**覆盖**该节点已有的待注入任务（而非追加）。
 
 **返回：**
 - 成功：`{"ok": true}`
@@ -242,15 +252,26 @@ const resp = await fetch("/api/push_config", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    theme: "dark",
-    autoRefreshEnabled: true,
-    refreshInterval: 10,
-    historyLimit: 20,
-    language: "zh-CN",
-    errorPageSize: 10,
-    errorSortOrder: "newest",
-    showStructureEdgeDelta: true,
-    dashboard: { left: ["mermaid"], middle: ["status"], right: ["progress"] }
+    global: {
+      theme: "dark",
+      autoRefreshEnabled: true,
+      refreshInterval: 10000,
+      language: "zh-CN",
+    },
+    dashboard: {
+      historyLimit: 20,
+      showStructureEdgeDelta: false,
+      useTotalPendingInStatus: false,
+      layout: { left: ["mermaid"], middle: ["status"], right: ["progress"] }
+    },
+    errors: {
+      pageSize: 10,
+      sortOrder: "newest",
+      jumpToInjectionAfterRetry: true,
+    },
+    injection: {
+      showInjectableOnly: true,
+    },
   })
 });
 const result = await resp.json();

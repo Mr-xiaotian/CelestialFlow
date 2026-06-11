@@ -1,6 +1,6 @@
 # TaskNodes
 
-> 📅 最后更新日期: 2026/04/24
+> 📅 最后更新日期: 2026/06/11
 
 TaskNodes 模块提供了多种特殊功能的 `TaskStage` 实现，用于流控制、外部系统交互等场景。
 
@@ -40,16 +40,27 @@ flowchart LR
 ### 初始化
 
 ```python
-class TaskSplitter(TaskStage):
-    def __init__(self, name: str, stage_mode: str = "serial"):
+class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
+    def __init__(
+        self,
+        name: str,
+        split_item: Callable[[TItem], RItem] | None = None,
+        stage_mode: str = "serial",
+        enable_duplicate_check: bool = True,
+        log_level: str = "INFO",
+    ):
         """
         初始化 TaskSplitter。
 
         :param name: 节点名称
+        :param split_item: 自定义单个子任务处理函数，默认使用恒等映射
         :param stage_mode: 节点运行模式
+        :param enable_duplicate_check: 是否启用重复检查
+        :param log_level: 日志级别
         """
-        # 默认：execution_mode="serial", max_retries=0, unpack_task_args=True
 ```
+
+> **已变更**：`execution_mode` 固定为 `"serial"`、`max_retries` 固定为 `0`，无需也不应通过外部参数修改。此前文档提及的 `unpack_task_args=True` 参数在当前源码中不存在。
 
 ### 使用方式
 
@@ -62,9 +73,10 @@ class MySplitter(TaskSplitter):
 
 ### 特性
 
-- **机制**: 输入一个任务，返回一个元组/列表。每个元素会被包装成独立的 `TaskEnvelope` 发送给下游。
+- **机制**: 输入一个任务，`_split` 返回元组中每个元素被包装成独立的 `TaskEnvelope` 发送给下游。
 - **计数**: 内部维护 `split_counter` 统计分裂出的总任务数。
-- **默认配置**: `execution_mode="serial"`, `max_retries=0`, `unpack_task_args=True`
+- **固定配置**: `execution_mode="serial"`, `max_retries=0`（在 `__init__` 中硬编码）。
+- **split_item**: 可选的自定义子任务处理函数，对每个分裂项做预处理。
 
 ---
 
@@ -114,7 +126,6 @@ class TaskRouter(TaskStage):
         :param name: 节点名称
         :param stage_mode: 节点运行模式
         """
-        # 默认：execution_mode="serial", max_retries=0
 ```
 
 ### 使用方式
@@ -140,7 +151,7 @@ graph.connect([router], [pos_stage, neg_stage])
 
 - **机制**: 接收 `(target_tag, data)` 形式的元组。根据 `target_tag` 将 `data` 发送到对应的下游 Stage。
 - **计数**: 为每个目标维护独立的计数器 `route_counters`。
-- **错误处理**: 如果 `target_tag` 不存在于下游列表中，会抛出 `InvalidOptionError`。
+- **错误处理**: 如果 `target_tag` 不存在于下游列表中，会记录错误。
 
 ---
 
@@ -156,7 +167,7 @@ flowchart LR
 
         RE[(Redis)]
 
-        TRSI -.-> RE -.->  TRSO
+        TRSI -.->|rpush task| RE -.->|blpop task| TRSO
 
     end
 
@@ -287,11 +298,8 @@ class TaskRedisAck(TaskStage):
 
 ```env
 # .env
-# Redis 服务地址
 REDIS_HOST=127.0.0.1
-# Redis 服务端口
 REDIS_PORT=6379
-# Redis 服务密码，没有则留空
 REDIS_PASSWORD=your_redis_password
 ```
 
@@ -302,7 +310,6 @@ import os
 from dotenv import load_dotenv
 from celestialflow import TaskRedisTransport, TaskRedisAck, TaskRedisSource
 
-# 加载环境变量
 load_dotenv()
 
 redis_host = os.getenv("REDIS_HOST", "127.0.0.1")
@@ -318,14 +325,6 @@ redis_sink = TaskRedisTransport(
 redis_ack = TaskRedisAck(
     "RedisAck",
     key="testFibonacci:output",
-    host=redis_host,
-    password=redis_password
-)
-
-# Source 组合（从 Redis 拉取任务）
-redis_source = TaskRedisSource(
-    "RedisSource",
-    key="test_redis",
     host=redis_host,
     password=redis_password
 )
@@ -373,8 +372,6 @@ redis_source = TaskRedisSource(
 
 ## 使用示例
 
-以下示例展示 `TaskSplitter` 和 `TaskRouter` 的典型用法。
-
 ### TaskSplitter：将一条记录分裂为多条
 
 ```python
@@ -398,8 +395,6 @@ graph.connect([splitter], [processor])
 # 输入一条包含三行的文本，分裂为三个独立任务
 text_data = "line1\\nline2\\nline3"
 graph.start_graph({source.get_name(): [text_data]})
-
-print(f"摘要: {graph.get_graph_summary()}")
 ```
 
 ### TaskRouter：按条件分发任务
@@ -429,23 +424,15 @@ graph.connect([source], [router])
 graph.connect([router], [handler_pos, handler_neg, handler_zero])
 
 graph.start_graph({source.get_name(): [10, -5, 0, 3, -1]})
-
-print(f"路由摘要: {graph.get_graph_summary()}")
-summary = graph.get_graph_summary()
-print(f"总错误: {summary.get('total_error', 0)}")
 ```
 
-### 注意：Route target tag 必须与下游 Stage name 一致
+> **注意**: Route target tag 必须与下游 `TaskStage` 的 `name` 完全匹配。
 
-`TaskRouter` 路由时，`(target_tag, data)` 中的 `target_tag` 必须与下游 `TaskStage` 的 `name` 完全匹配：
+---
 
-```python
-from celestialflow import TaskRouter, TaskStage
+## 注意事项
 
-# 正确：tag 与下游 name 一致
-router = TaskRouter("Router")
-task_data = ("my_stage", 42)  # tag = "my_stage"
-
-my_stage = TaskStage("my_stage", func=lambda x: x * 10)  # name = "my_stage"
-# ✅ 匹配成功
-```
+1. **连接管理**: Redis 客户端在首次使用时延迟初始化（`init_redis()` 方法）。
+2. **超时处理**: `TaskRedisSource` 和 `TaskRedisAck` 支持超时配置。
+3. **错误传播**: 远端 Worker 返回的错误会通过 `RemoteWorkerError` 传播。
+4. **幂等性**: `TaskRedisAck` 获取结果后会删除 Redis 中的记录，保证一次性消费。

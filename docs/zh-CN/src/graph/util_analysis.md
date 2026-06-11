@@ -1,6 +1,6 @@
 # GraphAnalysis
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/11
 
 `graph/util_analysis.py` 提供基于 `networkx` 的图分析工具。
 
@@ -29,7 +29,7 @@ s2 = TaskStage("B", func=lambda x: x * 2)
 s3 = TaskStage("C", func=lambda x: x - 1)
 s4 = TaskStage("D", func=lambda x: x ** 2)
 
-graph = TaskGraph()
+graph = TaskGraph(name="AnalysisGraph")
 graph.set_stages([s1, s2, s3, s4])
 graph.connect([s1], [s2])
 graph.connect([s1], [s3])
@@ -59,7 +59,7 @@ print(f"源节点: {sources}")  # ['A']
 from celestialflow import TaskGraph, TaskStage
 
 # 构建图并执行后获取分析信息
-graph = TaskGraph()
+graph = TaskGraph(name="AnalysisGraph2")
 s1 = TaskStage("X", func=lambda x: x)
 s2 = TaskStage("Y", func=lambda x: x * 2)
 graph.set_stages([s1, s2])
@@ -69,7 +69,7 @@ analysis = graph.get_graph_analysis()
 print(f"是否为 DAG: {analysis['isDAG']}")  # True
 print(f"调度模式: {analysis['scheduleMode']}")  # eager
 print(f"层级分布: {analysis['layersDict']}")
-print(f"邻接表: {analysis['out_edges']}")
+print(f"图类名: {analysis['className']}")
 
 # 获取 networkx 图
 nx_graph = graph.get_networkx_graph()

@@ -1,6 +1,6 @@
 # TaskStage
 
-> 📅 最后更新日期: 2026/06/05
+> 📅 最后更新日期: 2026/06/11
 
 `TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力与 `stage_mode` 控制逻辑。
 
@@ -17,17 +17,17 @@
 - **Stage Mode**: 节点在任务图中的调度逻辑模式。
   - `serial`: 串行模式，在主进程中运行。
   - `thread`: 线程模式，在主进程中以独立线程运行。
-- **Execution Mode**: 节点内部处理任务的并发模式（`serial`, `thread`, `async`）。
+- **Execution Mode**: 节点内部处理任务的并发模式（`serial`, `thread`, `async`），继承自 `TaskExecutor`。
 - **拓扑关系**: 节点间的上下游连接关系由 `TaskGraph` 管理，`TaskStage` 自身不存储邻接表。
 
 ## 初始化
 
 ```python
-class TaskStage(TaskExecutor):
+class TaskStage[T, R](TaskExecutor[T, R]):
     def __init__(
         self,
         name: str,
-        func: Callable[..., Any],
+        func: Callable[[T], R] | Callable[[T], Awaitable[R]],
         stage_mode: str = "serial",
         **kwargs: Any,
     ):
@@ -63,28 +63,42 @@ def set_stage_mode(self, stage_mode: str):
     """
 ```
 
-### set_execution_mode
-
-> ⚠️ 此方法继承自 `TaskExecutor`，`TaskStage` 未重写。
+### set_inlet
 
 ```python
-def set_execution_mode(self, execution_mode: str):
+def set_inlet(self, fail_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]) -> None:
     """
-    设置节点内部的任务处理模式。
-
-    :param execution_mode: 'serial', 'thread' 或 'async'
-    :raises ExecutionModeError: 如果模式不支持
+    初始化收集器，将 fail/log 队列接入持久化层。
+    :param fail_queue: 失败队列
+    :param log_queue: 日志队列
     """
 ```
 
-### set_name
+### 继承自 TaskExecutor 的配置方法
 
-> ⚠️ 此方法继承自 `TaskExecutor`，`TaskStage` 未重写。
+| 方法 | 说明 |
+|------|------|
+| `set_execution_mode(mode)` | 设置节点内部的任务处理模式（`serial`/`thread`/`async`） |
+| `set_name(name)` | 设置节点名称 |
+| `set_log_level(level)` | 设置日志级别 |
+
+## 连接绑定
+
+### prev_bindings
 
 ```python
-def set_name(self, name: str):
+def prev_bindings(self, pending_prev_bindings: list[TaskStage[Any, Any]]) -> None:
     """
-    设置节点名称。
+    绑定前置节点，将每个前驱 stage 的计数器注册到当前 stage 的 task_counter 中。
+    """
+```
+
+### get_binding_counter
+
+```python
+def get_binding_counter(self, _downstream_name: str) -> Any:
+    """
+    返回下游 stage 应绑定的计数器，子类可覆写（默认返回 success_counter）。
     """
 ```
 
@@ -92,9 +106,14 @@ def set_name(self, name: str):
 
 `TaskStage` 使用 `StageStatus` 枚举维护生命周期：
 
-- `NOT_STARTED` (0): 初始状态。
-- `RUNNING` (1): 已启动，正在监听队列。
-- `STOPPED` (2): 已正常停止或异常退出。
+```mermaid
+stateDiagram-v2
+    [*] --> NOT_STARTED: __init__()
+    NOT_STARTED --> RUNNING: start_stage()
+    RUNNING --> RUNNING: 处理任务中
+    RUNNING --> STOPPED: finally 块
+    STOPPED --> [*]
+```
 
 ### 状态方法
 
@@ -114,19 +133,19 @@ def get_status(self) -> StageStatus:
 
 ## 运行机制
 
-当 `TaskGraph` 启动时，每个 `TaskStage` 会根据 `stage_mode` 决定运行方式：
+### start / start_async（被禁止直接调用）
 
-- **thread 模式**: 节点在独立线程中启动。
-- **serial 模式**: 节点在主进程中串行运行（通常用于调试）。
+当 `TaskStage` 被 `TaskGraph` 管理时，直接调用 `start()` 或 `start_async()` 会抛出 `GraphManagedError`。应由 `TaskGraph.start_graph()` 统一驱动。
 
 ### start_stage
 
-当 `TaskGraph` 启动时，会调用此方法启动节点。
+当 `TaskGraph` 启动时，会调用此方法启动节点的实际执行。
 
 ```python
 def start_stage(self):
     """
-    启动节点执行，根据 execution_mode 选择调度器。
+    根据 execution_mode 的值，选择串行、线程或异步执行任务。
+    记录启动/结束日志，管理状态转换。
     """
 ```
 
@@ -136,11 +155,12 @@ def start_stage(self):
 - 当前实现并未提供面向多轮复用的彻底重置语义。
 - 需要再次运行相同节点时，推荐重新创建新的 `TaskStage`，并重新接入新的 `TaskGraph`。
 
-1. 调用 `_init_state()` 初始化内部状态。
-2. 记录启动日志。
-3. 标记状态为 `RUNNING`。
-4. 进入 `TaskDispatch` 循环处理任务。
-5. 完成后清理资源并标记 `STOPPED`。
+### drain_task_queue
+
+```python
+def drain_task_queue(self) -> None:
+    """清空任务队列，将所有剩余任务移至失败队列并标记为 UnconsumedError。"""
+```
 
 ## 状态快照
 
@@ -148,34 +168,9 @@ def start_stage(self):
 def get_summary(self) -> dict[str, Any]:
     """
     获取当前节点的状态摘要。
-    返回包含 class_name, name, func_name, execution_mode, stage_mode 的字典。
+    返回继承自 TaskExecutor 的字段（name, func_name, execution_mode, max_workers）
+    外加 stage_mode。
     """
-```
-
-## 执行模式限制
-
-在 `TaskStage` 中，`execution_mode` 的可用值受限：
-
-```python
-# 有效模式
-valid_modes = ("serial", "thread", "async")
-
-# 注意：stage_mode 和 execution_mode 是独立的配置
-```
-
-## 继承扩展
-
-创建自定义 Stage 时，可以重写以下方法：
-
-```python
-class MyStage(TaskStage):
-    def get_args(self, task):
-        """自定义参数提取"""
-        return (task.data,)
-
-    def process_result(self, task, result):
-        """自定义结果处理"""
-        return {"data": result, "metadata": task.metadata}
 ```
 
 ## 使用示例
@@ -187,33 +182,23 @@ class MyStage(TaskStage):
 ```python
 from celestialflow import TaskGraph, TaskStage
 
-# 创建两个阶段，使用 serial 执行模式
 def step1(x: int) -> int:
     return x + 5
 
 def step2(x: int) -> int:
     return x * 3
 
-stage1 = TaskStage(
-    name="Step1",
-    func=step1,
-    execution_mode="serial",  # 单线程顺序执行
-    stage_mode="serial",      # 在主进程中运行
-)
-stage2 = TaskStage(
-    name="Step2",
-    func=step2,
-    execution_mode="serial",
-    stage_mode="serial",
-)
+stage1 = TaskStage("Step1", func=step1, execution_mode="serial", stage_mode="serial")
+stage2 = TaskStage("Step2", func=step2, execution_mode="serial", stage_mode="serial")
 
-# 构建并执行图
 chain = TaskGraph()
 chain.set_stages([stage1, stage2])
 chain.connect([stage1], [stage2])
 chain.start_graph({stage1.get_name(): [1, 2, 3, 4, 5]})
 
-print(f"链摘要: {chain.get_graph_summary()}")
+for name, runtime in chain.stage_runtime_dict.items():
+    pairs = runtime.stage.get_success_pairs()
+    print(f"{name}: {len(pairs)} 成功")
 ```
 
 ### 使用 thread 执行模式（I/O 密集型）
@@ -223,19 +208,20 @@ import time
 from celestialflow import TaskGraph, TaskStage
 
 def io_task(x: int) -> int:
-    time.sleep(0.05)  # 模拟网络 I/O
+    time.sleep(0.05)
     return x * 10
 
 stage_a = TaskStage(
     name="IOWorker",
     func=io_task,
-    execution_mode="thread",  # 线程池并发
-    max_workers=4,            # 4 个并发线程
-    stage_mode="thread",      # 独立线程中运行
+    execution_mode="thread",
+    max_workers=4,
+    stage_mode="thread",
 )
 
-# 独立执行（脱离图结构）
-stage_a.start_stage()
+graph = TaskGraph()
+graph.set_stages([stage_a])
+graph.start_graph({stage_a.get_name(): list(range(20))})
 ```
 
 ### 异步模式（async）
@@ -245,7 +231,7 @@ import asyncio
 from celestialflow import TaskStage
 
 async def async_process(x: int) -> int:
-    await asyncio.sleep(0.01)  # 模拟异步 I/O
+    await asyncio.sleep(0.01)
     return x ** 2
 
 async_stage = TaskStage(
@@ -266,35 +252,15 @@ from celestialflow.runtime.util_types import StageStatus
 stage = TaskStage("StatusDemo", func=lambda x: x)
 
 print(f"初始状态: {stage.get_status().name}")  # NOT_STARTED
-
 stage.mark_running()
 print(f"运行中: {stage.get_status().name}")   # RUNNING
-
 stage.mark_stopped()
 print(f"已停止: {stage.get_status().name}")   # STOPPED
 ```
 
-### 自定义子类
-
-```python
-from celestialflow import TaskStage
-
-class MyCustomStage(TaskStage):
-    def get_args(self, task):
-        """自定义参数提取"""
-        return (task["data"],)
-
-    def process_result(self, task, result):
-        """自定义结果处理"""
-        return {"original": task, "computed": result}
-
-# 使用自定义阶段
-stage = MyCustomStage("Custom", func=lambda x: x * 10)
-print(f"摘要: {stage.get_summary()}")
-```
-
 ## 注意事项
 
-1. **名称唯一性**: 在同一个 `TaskGraph` 中，每个 `TaskStage` 的 `name` 必须唯一，否则会抛出 `DuplicateNodeError`。
+1. **名称唯一性**: 在同一个 `TaskGraph` 中，每个 `TaskStage` 的 `name` 必须唯一。
 2. **异步支持**: 如果 `execution_mode` 设置为 `async`，则 `func` 必须是一个协程函数。
-3. **资源清理**: 节点停止时会自动释放客户端连接和闭包资源。
+3. **Graph 管理**: 被 `TaskGraph` 管理的 Stage 不能直接调用 `start()` / `start_async()`。
+4. **一次性**: 完成运行后不应复用同一个 `TaskStage` 实例。

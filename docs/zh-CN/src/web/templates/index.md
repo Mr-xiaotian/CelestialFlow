@@ -1,6 +1,6 @@
 # index.html
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/11
 
 Web UI 的 Jinja2 模板文件，定义了监控系统的完整页面结构。
 
@@ -88,7 +88,10 @@ css/dashboard_statuses.css   ← 节点卡片专属样式
 css/dashboard_summary.css    ← 汇总面板专属样式
 css/dashboard_history.css    ← 历史图专属样式
 css/errors.css              ← 错误日志页样式
-css/injection.css           ← 任务注入页样式
+css/injection_layout.css     ← 注入页布局样式
+css/injection_nodes.css      ← 注入页节点列表样式
+css/injection_editor.css     ← 注入页编辑器样式
+css/injection_preview.css    ← 注入页预览样式
 ```
 
 ## 卡片布局编辑器模态窗 (`#layout-editor-overlay`)

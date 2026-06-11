@@ -1,6 +1,6 @@
 # bench_execution_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/11
 
 ## 目标
 
@@ -83,14 +83,14 @@ python bench/bench_execution_mode.py
 
 ### 自定义输入范围
 
-斐波那契测试的输入在函数内部定义，可修改 `numbers` 列表：
+斐波那契测试的输入在函数内部的 `bench_task_1` 列表中定义，可修改任务列表：
 
 ```python
 # 仅测试小数值（快速验证）
-numbers = [10, 15, 20]
+bench_task_1: list[Any] = [10, 15, 20]
 
 # 扩大范围
-numbers = list(range(20, 35))
+bench_task_1: list[Any] = list(range(20, 35))
 ```
 
 ## 基准结果（实测）

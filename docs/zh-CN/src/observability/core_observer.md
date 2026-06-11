@@ -22,7 +22,7 @@ class BaseObserver:
 
 | 事件 | 触发时机 | 参数 |
 |------|----------|------|
-| `on_start` | 执行器开始运行 | `_name`: 执行器名称, `_total`: 初始任务总数 |
+| `on_start` | 执行器开始运行 | `_name`: 执行器全名, `_total`: 固定为 0（实际任务数通过 `on_tasks_added` 通知） |
 | `on_task_success` | 单个任务成功 | `count`: 成功数量（默认 1） |
 | `on_task_fail` | 单个任务失败 | `count`: 失败数量（默认 1） |
 | `on_task_duplicate` | 检测到重复任务 | `count`: 重复数量（默认 1） |

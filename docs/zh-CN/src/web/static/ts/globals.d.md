@@ -1,61 +1,191 @@
 # globals.d.ts
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/11
 
-TypeScript 全局类型声明文件，为通过 CDN `<script>` 标签引入的第三方库、全局变量以及跨模块共享函数提供声明。
+TypeScript 全局类型声明文件，为 CDN 引入的第三方库（Chart.js、Sortable.js）、全局变量、跨模块共享函数以及后端 API 响应结构提供完整类型定义。
 
-## 声明内容
+> ⚠️ **已变更**: 旧版文档中 `Chart`/`Sortable` 简化声明为 `any`。当前版本已展开为完整的最小类型定义，并新增了全部 API 响应类型和前端内部结构类型。
 
-```ts
-declare const Chart: any;         // Chart.js — 历史指标走向图
-declare const Sortable: any;      // SortableJS — 节点卡片拖拽排序
+## API 响应类型
 
-interface Window {
-  mermaid: any;                   // Mermaid — 任务结构图渲染
+```typescript
+type ApiVersionedResponse<T> = {
+  rev: number;       // 当前数据版本号
+  data: T | null;    // 当 known_rev 未变化时可能返回 null
+};
+
+type StatusPullResponse = ApiVersionedResponse<Record<string, NodeStatus>> & {
+  timestamp: number; // 本次状态快照的统一时间戳
+};
+
+type StructurePullResponse = ApiVersionedResponse<StructureGraph>;
+
+type AnalysisPullResponse = ApiVersionedResponse<AnalysisData>;
+
+type ErrorsPullResponse = {
+  rev: number;
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  sort_order: "newest" | "oldest";
+  data: ErrorData[] | null;
+};
+```
+
+## 仪表盘布局类型
+
+```typescript
+type DashboardColumnKey = "left" | "middle" | "right";
+
+type DashboardLayout = Record<DashboardColumnKey, string[]>;
+```
+
+## Chart.js 类型
+
+```typescript
+type ChartPoint = { x: number; y: number };
+
+type ChartDataset = {
+  label: string;
+  data: ChartPoint[];
+  borderColor?: string;
+  fill?: boolean;
+  tension?: number;
+  hidden?: boolean;
+};
+
+type ChartLegendItem = {
+  datasetIndex: number;
+  hidden?: boolean;
+};
+
+type ChartLegend = {
+  legendItems: ChartLegendItem[];
+};
+
+type ChartScaleConfig = {
+  ticks: { color: string };
+  grid: { color: string };
+  title: { display: boolean; text: string; color: string };
+  border: { color: string };
+};
+
+type ChartOptions = {
+  animation: boolean;
+  responsive: boolean;
+  plugins: {
+    legend: {
+      labels: { color: string };
+      onClick: (event: Event, legendItem: ChartLegendItem, legend: { chart: ChartInstance }) => void;
+    };
+  };
+  interaction: { intersect: boolean; mode: string };
+  scales: { x: ChartScaleConfig; y: ChartScaleConfig };
+};
+
+interface ChartInstance {
+  data: { labels: string[]; datasets: ChartDataset[] };
+  options: ChartOptions;
+  legend?: ChartLegend;
+  destroy(): void;
+  update(): void;
+  getDatasetMeta(index: number): { hidden: boolean | null };
 }
 
-/** 支持的界面语言类型 */
+declare const Chart: {
+  new (ctx: CanvasRenderingContext2D | null, config: {
+    type: string;
+    data: ChartInstance["data"];
+    options: ChartOptions;
+  }): ChartInstance;
+};
+```
+
+## Sortable.js 类型
+
+```typescript
+type SortableInstance = {
+  destroy(): void;
+};
+
+declare const Sortable: {
+  create(element: HTMLElement, options: {
+    group: string;
+    animation: number;
+    ghostClass: string;
+    dragClass: string;
+  }): SortableInstance;
+};
+```
+
+## Mermaid 类型
+
+```typescript
+type MermaidApi = {
+  run(): void; // 扫描页面中的 Mermaid 源码并执行渲染
+};
+
+interface Window {
+  mermaid: MermaidApi;
+}
+```
+
+## 国际化类型与全局声明
+
+```typescript
 type Lang = "zh-CN" | "en" | "ja";
 
-/** 当前选中的语言标识 */
 declare var currentLang: Lang;
-
-/** 设置当前语言并更新 HTML 根节点的 lang 属性 */
 declare function setLang(lang: Lang): void;
-
-/** 根据翻译键获取当前语言的文本 */
 declare function t(key: string, ...args: string[]): string;
-
-/** 将国际化属性（如 data-i18n）应用到 DOM 元素 */
 declare function applyI18nDOM(): void;
 ```
 
-## 说明
+## 跨模块函数声明
 
-| 声明 | 来源 | 用途 |
-|------|------|------|
-| `Chart` | CDN 加载的 Chart.js 库 | `dashboard_history.ts` 中的多指标折线图 |
-| `Sortable` | CDN 加载的 SortableJS 库 | `dashboard_statuses.ts` 中节点卡片的自由拖拽排序 |
-| `mermaid` | ESM 模块动态加载后挂载到 `window` | `dashboard_structure.ts` 中的有向图可视化 |
-| `Lang` | 全局类型别名 | 语言选择下拉框的取值类型约束 |
-| `currentLang` | `i18n.ts` 中定义并挂载的全局变量 | 当前激活的界面语言标识 |
-| `setLang()` | `i18n.ts` | 切换语言并更新 `<html lang="...">` |
-| `t()` | `i18n.ts` | 翻译函数，支持占位符替换 |
-| `applyI18nDOM()` | `i18n.ts` | 遍历 DOM 中 `data-i18n` 属性并替换为当前语言的文本 |
+```typescript
+declare function preloadInjectionDraftFromError(
+  nodeName: string,
+  taskData: unknown,
+  jumpToInjectionAfterRetry?: boolean
+): void;
+```
+
+`preloadInjectionDraftFromError` 定义于 `injection.ts`，由 `errors.ts` 中重注入列调用，用于将错误关联的任务数据预填到注入页编辑器。
 
 ## 类型关系
 
 ```mermaid
 flowchart LR
     subgraph "globals.d.ts"
-        L[type Lang]
-        CL[declare var currentLang]
-        SL[declare function setLang]
-        T[declare function t]
-        AI[declare function applyI18nDOM]
-        C[declare const Chart]
-        S[declare const Sortable]
-        W[interface Window.mermaid]
+        direction TB
+        subgraph "API 响应"
+            AVR[ApiVersionedResponse]
+            SPR[StatusPullResponse]
+            STR[StructurePullResponse]
+            APR[AnalysisPullResponse]
+            EPR[ErrorsPullResponse]
+        end
+        subgraph "Chart.js"
+            CPT[ChartPoint]
+            CDS[ChartDataset]
+            CLI[ChartLegendItem]
+            CSC[ChartScaleConfig]
+            COP[ChartOptions]
+            CI[ChartInstance]
+        end
+        subgraph "外部库"
+            SORT[Sortable]
+            SORTI[SortableInstance]
+            MER[MermaidApi]
+        end
+        subgraph "全局函数"
+            SL[setLang]
+            T[t]
+            AI[applyI18nDOM]
+            PIDE[preloadInjectionDraftFromError]
+        end
     end
 
     subgraph "实现文件"
@@ -63,16 +193,21 @@ flowchart LR
         DH[dashboard_history.ts]
         DS[dashboard_statuses.ts]
         DST[dashboard_structure.ts]
+        DA[dashboard_analysis.ts]
+        ER[errors.ts]
+        INJ[injection.ts]
+        LE[layout_editor.ts]
     end
 
-    L --> I
-    CL --> I
+    CI --> DH
+    SPR --> DS
+    STR --> DST
+    APR --> DA
+    EPR --> ER
+    PIDE --> ER
+    PIDE --> INJ
     SL --> I
     T --> I
     AI --> I
-    C --> DH
-    S --> DS
-    W --> DST
+    SORT --> LE
 ```
-
-此文件确保 TypeScript 编译器能够识别非模块化加载的外部依赖以及跨模块的全局变量与函数。

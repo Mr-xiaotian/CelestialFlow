@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/11
 
 TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
@@ -176,12 +176,13 @@ class InitializationError(RuntimeStateError):
 
 ### GraphManagedError
 
-图管理错误（如图的启动/停止生命周期中出现非法操作时触发）。
+当 Stage 已被 TaskGraph 管理时，尝试通过 standalone 路径直接调用 `start()` 时抛出。
 
 ```python
 class GraphManagedError(RuntimeStateError):
-    """图管理错误"""
-    pass
+    """Stage 已被 Graph 管理，不应通过 standalone 路径启动。"""
+    def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."):
+        ...
 ```
 
 ## 外部服务异常
@@ -338,7 +339,7 @@ except InvalidOptionError as e:
 from celestialflow import TaskGraph, TaskStage
 from celestialflow.runtime.util_errors import DuplicateNodeError, UnknownNodeError
 
-graph = TaskGraph()
+graph = TaskGraph(name="ErrorTestGraph")
 
 stage_a = TaskStage("A", func=lambda x: x)
 stage_b = TaskStage("A", func=lambda x: x * 2)  # 同名节点
@@ -350,7 +351,10 @@ except DuplicateNodeError as e:
 
 try:
     from celestialflow.runtime.util_types import TerminationSignal
-    in_queue = list(graph.stage_runtime_dict.values())[0].in_queue
+    # UnknownNodeError 在 in_queue._record_termination 验证来源时触发
+    from celestialflow.runtime import TaskInQueue
+    from queue import Queue
+    in_queue = TaskInQueue(queue=Queue(), source_names=["known"], out_name="test")
     in_queue._record_termination(TerminationSignal(source="unknown_source"))
 except UnknownNodeError as e:
     print(f"未知来源: {e}")

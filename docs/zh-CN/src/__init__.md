@@ -1,6 +1,6 @@
 # CelestialFlow 包入口
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/11
 
 ## 简介
 
@@ -63,7 +63,7 @@
 
 | 导出符号 | 说明 |
 |----------|------|
-| `benchmark_executor` | 对单个 `TaskExecutor` 进行多模式基准测试 |
+| `benchmark_executor` | 对同步/异步 `TaskExecutor` 进行多模式基准测试 |
 | `benchmark_graph` | 对整个任务图进行基准测试 |
 | `format_table` | 格式化表格输出，用于控制台展示对比数据 |
 
@@ -75,7 +75,7 @@
 
 | 导出符号 | 说明 |
 |----------|------|
-| `TaskWebServer` | 基于 Starlette 的 Web 服务器，提供图运行时快照的 HTTP API |
+| `TaskWebServer` | 基于 FastAPI 的 Web 服务器，提供图运行时快照的 HTTP API 和可视化面板 |
 
 ---
 

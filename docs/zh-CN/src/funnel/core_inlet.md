@@ -1,6 +1,6 @@
 # BaseInlet
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/11
 
 `BaseInlet` 是所有入口类（Inlet）的基类，提供将记录写入队列的通用功能。
 
@@ -19,7 +19,7 @@ class BaseInlet:
         self.queue.put(record)
 ```
 
-### 属性类型
+### 属性
 
 | 属性 | 类型 | 说明 |
 |------|------|------|
@@ -46,15 +46,19 @@ classDiagram
         +_funnel(record: Any) None
     }
     class LogInlet {
-        +start_executor()
-        +end_executor()
-        +put_item()
-        +get_item()
-        +termination_merge()
+        +start_graph()
+        +end_graph()
+        +start_stage()
+        +end_stage()
+        +task_success()
+        +task_error()
+        +task_retry()
+        +termination_input()
     }
     class FailInlet {
+        +start_graph()
         +start_executor()
-        +put_error()
+        +task_error()
     }
     BaseInlet <|-- LogInlet
     BaseInlet <|-- FailInlet

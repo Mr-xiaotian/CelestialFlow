@@ -1,6 +1,6 @@
 # tests 测试包
 
-> 最后更新日期: 2026/06/05
+> 最后更新日期: 2026/06/11
 
 ## 作用
 `tests/` 目录保存 CelestialFlow 的 pytest 测试集。`tests/__init__.py` 为空文件，本页用于说明测试目录结构。
@@ -12,8 +12,10 @@
 - `tests/persistence/`: 错误、日志、成功结果持久化测试。
 - `tests/runtime/`: 信封、队列、哈希、计数器、异常与估算测试。
 - `tests/stage/`: TaskStage / TaskExecutor 与内置 Stage 测试。
+- `tests/utils/`: 克隆工具与格式化工具测试。
 - `tests/web/`: Web API 与服务集成测试。
 - `tests/conftest.py`: 通用测试 helper。
+- `tests/__init__.py`: 空文件，标记测试包。
 
 ## 运行方式
 

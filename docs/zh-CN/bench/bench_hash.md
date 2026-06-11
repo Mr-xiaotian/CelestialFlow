@@ -1,6 +1,6 @@
 # bench_hash.py 基准测试说明
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/06/11
 
 ## 目标
 
@@ -79,40 +79,38 @@ python bench/bench_hash.py
 
 ### 只测试特定哈希方法
 
-在 `bench/bench_hash.py` 中，测试方法和数据集分别在 `hash_methods` 和 `test_data` 列表中定义。可通过临时注释选择特定方法：
+在 `bench/bench_hash.py` 中，测试方法和数据集分别在 `METHODS` 字典和 `TEST_CASES` 字典中定义。可通过临时注释选择特定方法：
 
 ```python
-hash_methods = [
-    # ("pickle+md5", hash_pickle_md5),
-    # ("pickle+sha1", hash_pickle_sha1),
-    ("json+md5", hash_json_md5),        # 仅测试 JSON 方案
-    ("json+sha256", hash_json_sha256),   # 仅测试 JSON 方案
-    # ("repr+md5", hash_repr_md5),
+METHODS: dict[str, Callable[[Any], str]] = {
+    # "pickle+md5": method_pickle_md5,
+    # "pickle+sha1": method_pickle_sha1,
+    "json+md5": method_json_md5,        # 仅测试 JSON 方案
+    "json+sha256": method_json_sha256,   # 仅测试 JSON 方案
+    # "repr+md5": method_repr_md5,
     # ...
-]
+}
 ```
 
 ### 只测试特定数据类型
 
 ```python
-test_data = [
-    ("int", 12345),
-    ("short_str", "hello"),
-    ("long_str_4k", "A" * 4096),     # 仅测试大字符串
-    # ("bytes_4k", b"B" * 4096),
+TEST_CASES = {
+    "int": 123456789,
+    "short_str": "celestialflow",
+    "long_str_4k": "x" * 4096,     # 仅测试大字符串
+    # "bytes_4k": b"x" * 4096,
     # ...
-]
+}
 ```
 
 ### 调整 timeit 重复次数
 
 ```python
 # 减少重复以快速验证（结果稳定性下降）
-results = benchmark_one(
-    name, method, test_data,
-    repeat=3,       # 默认 7 次
-    number=1_000    # 默认 10,000 次
-)
+# 在 benchmark_one 调用处传入 repeat 和 number
+mean_us, std_us = benchmark_one(func, obj, repeat=3, number=1000)
+# 默认 repeat=7, number=10000
 ```
 
 修改后运行：

@@ -12,13 +12,14 @@
 | `load_jsonl_by_key(jsonl_path, extract_key="stage", extract_value="task")` | 按指定字段分组加载，支持自定义分组键和提取值字段 |
 | `load_jsonl_grouped_by_keys(jsonl_path, group_keys, extract_field)` | 按多个字段分组读取，支持字段提取和 `ast.literal_eval` 反序列化 |
 | `load_task_by_stage(jsonl_path)` | 加载错误记录，按 stage 分类，返回 `{stage_name: [task_list]}` |
-| `load_task_by_error(jsonl_path)` | 加载错误记录，按 error 和 stage 分类，返回 `{(error, stage): [task_list]}` |
-| `load_task_error_pairs(jsonl_path)` | 加载错误记录，返回 `(task, error)` pair 列表 |
+| `load_task_by_error(jsonl_path)` | 加载错误记录，按 error_type 和 stage 分类，返回 `{(error_type, stage): [task_list]}` |
+| `load_task_error_pairs(jsonl_path)` | 加载错误记录，返回 `(task, PersistedErrorRecord)` pair 列表 |
 
-### 工具函数
+### 内部函数
 
 | 函数 | 说明 |
 |------|------|
+| `_parse_error_record(item)` | 从 JSONL 记录中解析 `PersistedErrorRecord` 对象 |
 | `parse_jsonl_value(val)` | 智能解析 JSONL 字段值，支持 `ast.literal_eval` 反序列化字符串形式的列表/元组 |
 
 #### parse_jsonl_value 详解

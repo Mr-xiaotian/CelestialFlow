@@ -1,6 +1,6 @@
 # bench_datastructures.py 基准测试说明
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/06/11
 
 ## 目标
 
@@ -33,7 +33,7 @@
 1. **Redis 连接失败**：若 `.env` 中 Redis 配置缺失或服务未启动，Redis 相关测试会被跳过，仅输出警告。
 2. **MPQueue 的缓冲区限制**：`mpqueue_worker` 中先 put 全部 N 个元素再 get，当 N 很大时可能触发的 OS 管道缓冲区上限（尤其在 Linux 上）。
 
-> **注意**：`test_mpqueue` 和 `test_value_number` 使用的 `multiprocessing.Queue` 和 `multiprocessing.Value` 已不再被框架内部使用（`stage_mode="process"` 已移除），这些基准测试仅作为历史参考保留。
+> **注意**：`test_mpqueue` 和 `test_value_number` 使用的 `multiprocessing.Queue` 和 `multiprocessing.Value` 已不再被框架内部使用（`stage_mode="process"` 已移除）。这些基准测试仍在脚本中默认运行，主要用于与纯内存方案做跨进程性能基线对比，保留供参考。
 
 ## 运行方式
 

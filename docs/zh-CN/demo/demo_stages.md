@@ -1,15 +1,10 @@
 # demo_stages.py 演示说明
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/11
 
 ## 目标
 
 演示 CelestialFlow 中特殊 Stage 节点的使用：`TaskSplitter`（任务拆分）、`TaskRouter`（任务路由）、`TaskRedisTransport` / `TaskRedisAck` / `TaskRedisSource`（Redis 分布式传输）。构建包含循环依赖和跨设备协作的复杂任务图。
-
-## 自定义子类
-
-- `DownloadRedisTransport`：继承 `TaskRedisTransport`，重写 `get_args` 方法将 `/tmp/` 路径替换为 `X:/Download/download_go/`（供 Go Worker 使用）。
-- `DownloadStage`：继承 `TaskStage`，重写 `get_args` 方法将 `/tmp/` 路径替换为 `X:/Download/download_py/`（供 Python 本地下载使用）。
 
 ## 演示场景
 
@@ -62,7 +57,7 @@ flowchart TB
 |------|---------|----------------|----------------|
 | `demo_redis_ack_0` | CPU 密集 | `Fibonacci` | 斐波那契计算 |
 | `demo_redis_ack_1` | 通信开销主导 | `Sum`（`sum_int`） | 求和计算 |
-| `demo_redis_ack_2` | I/O 密集 | `Download`（`download_to_file`，路径 `download_py/`） | 下载图片（`download_go/`） |
+| `demo_redis_ack_2` | I/O 密集 | `Download`（`download_to_file`） | 下载图片（外部 Worker） |
 
 > 图中虚线箭头表示跨进程/跨设备的数据流转。所有 `demo_redis_ack_*` 的 Python 路径和 Go Worker 路径共享同一个 `Start` 节点：`graph.connect([start_stage], [redis_tranport, compute_stage])`。
 
@@ -91,7 +86,7 @@ flowchart LR
 
 1. **Redis 依赖**：`demo_redis_*` 系列需要可用的 Redis 服务（`.env` 配置 `REDIS_HOST`、`REDIS_PASSWORD`）。
 2. **Go Worker 前期设置**：使用外部 Worker 前需完成 [前期设置](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/other/go_worker.md#前期设置)。
-3. **网络路径硬编码**：`DownloadStage` 和 `DownloadRedisTransport` 中有 Windows 路径硬编码（`X:/Download/...`），在非 Windows 环境或路径不存在时会失败。
+3. **路径硬编码**：`demo_redis_ack_2` 中下载链接是示例 URL，在实际网络环境和路径下可能失败。
 4. **长耗时**：`demo_splitter_0` 中各阶段含 4-6 秒随机 sleep，完整执行可能超过 1 分钟。
 5. **无断言**：演示脚本，不验证结果正确性。
 

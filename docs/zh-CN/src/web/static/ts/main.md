@@ -1,69 +1,98 @@
 # main.ts
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/11
 
 仪表盘主入口脚本，负责协调全局初始化、事件监听及核心数据轮询逻辑。
 
-## 初始化流程
+> ⚠️ **已变更**: 旧版文档提及的 `loadSummary()` 和 `initSortableDashboard()` 已移除。`refreshAll()` 现并行 4 个请求（statuses、structure、errors、analysis），summary 由 `renderSummary()` 直接基于 `nodeStatuses` 前端聚合。新增了 `updateCurrentPageSettings()`、`activateTab()` 等设置面板管理函数。
 
-1. **配置加载**：调用 `loadWebConfig()` 从后端拉取持久化配置。
-2. **UI 应用**：调用 `applyConfig()` 应用主题、语言、刷新间隔等设置。
-3. **功能激活**：
-   - `initSortableDashboard()`：开启节点卡片拖拽。
-   - `initChart()`：初始化 Chart.js 历史图表。
-   - ⚠️ `initHistoryMetricSwitcher()` **不在 main.ts 中调用**——它已在 `dashboard_history.ts` 的模块作用域中自动执行。
-4. **轮询开启**：通过 `setInterval` 启动 `refreshAll()` 周期性刷新。
+## 全局变量
+
+| 变量 | 类型 | 说明 |
+|------|------|------|
+| `refreshRate` | `number` | 轮询刷新间隔（毫秒），默认 `5000` |
+| `refreshIntervalId` | `ReturnType<typeof setInterval> \| null` | 轮询定时器 ID |
+
+## DOM 元素引用
+
+| 变量 | DOM 选择器 | 说明 |
+|------|-----------|------|
+| `refreshSelect` | `#refresh-interval` | 刷新间隔下拉框 |
+| `autoRefreshToggle` | `#auto-refresh-toggle` | 自动刷新开关 |
+| `historyLimitSelect` | `#history-limit` | 历史长度下拉框 |
+| `settingsBtn` | `#settings-btn` | 设置齿轮按钮 |
+| `settingsPanel` | `#settings-panel` | 设置悬浮面板 |
+| `themeToggleBtn` | `#theme-toggle` | 主题切换按钮 |
+| `languageSelect` | `#language-select` | 语言选择下拉框 |
+| `errorPageSizeSelect` | `#error-page-size` | 错误每页条数下拉框 |
+| `errorJumpToInjectionToggle` | `#error-jump-to-injection-toggle` | 错误页重注入后跳转开关 |
+| `structureEdgeDeltaToggle` | `#structure-edge-delta` | 结构图边增量显示开关 |
+| `statusTotalPendingToggle` | `#status-total-pending-toggle` | 节点状态卡等待值模式开关 |
+| `injectableOnlyToggle` | `#injectable-only-toggle` | 注入页"仅显示可注入节点"开关 |
+| `tabButtons` | `.tab-btn` | 页签按钮列表 |
+| `tabContents` | `.tab-content` | 页签内容列表 |
 
 ## 核心功能
 
 ### 轮询刷新 (`refreshAll`)
 
-并行发起多个异步请求，获取最新的节点状态、图结构、错误日志、拓扑分析和汇总统计。
+并行发起 4 个异步请求：`loadStatuses()`、`loadStructure()`、`loadErrors()`、`loadAnalysis()`。根据各模块返回的变更标志，按需触发 DOM 渲染。
 
-- **按需渲染**：仅当对应的数据版本号（`rev`）发生变化时，才触发 DOM 重新渲染。
-- **状态同步**：`loadStatuses()` 成功后会自动驱动 `appendStatusSnapshotToHistory()` 累积前端历史。
+```mermaid
+flowchart TD
+    RA[refreshAll] --> LS[loadStatuses]
+    RA --> LST[loadStructure]
+    RA --> LE[loadErrors]
+    RA --> LA[loadAnalysis]
+
+    LS -->|statusesChanged| RD[renderDashboard]
+    LS -->|statusesChanged| PN[populateNodeFilter]
+    LS -->|statusesChanged| RI[renderInjectionPage]
+    LS -->|statusesChanged| UC[updateChartData]
+    LS -->|statusesChanged| RS[renderSummary]
+
+    LST -->|structureChanged| RM[renderMermaidStructure]
+    LS -->|statusesChanged| RM
+
+    LE -->|errorsChanged| RE[renderErrors]
+
+    LA -->|analysisChanged| RAI[renderAnalysisInfo]
+```
 
 ### 设置交互
 
-| 设置项 | 触发行为 |
-|-------|----------|
-| **刷新间隔** | 更新轮询定时器，调用 `saveWebConfig()` |
-| **历史长度** | 立即调用 `trimNodeHistories()` 裁剪本地序列并重绘图表 |
-| **界面语言** | 调用 `setLang()` + `applyI18nDOM()`，并全量刷新所有动态渲染的卡片 |
-| **结构图增量** | 切换 `showStructureEdgeDelta` 并立即重绘 Mermaid 图 |
-| **明暗主题** | 切换 body 类名，同步更新 `theme-toggle` 文案与图表主题颜色 |
+| 设置项 | 事件 | 触发行为 |
+|-------|------|----------|
+| **刷新间隔** | `change` | 更新 `refreshRate`，保存配置，重建定时器 |
+| **自动刷新** | `change` | 切换 `autoRefreshEnabled`，同步定时器，保存配置 |
+| **历史长度** | `change` | 更新 `historyLimit`，裁剪历史并重绘，保存配置 |
+| **界面语言** | `change` | `setLang()` + `applyI18nDOM()`，全量刷新所有卡片和图表 |
+| **结构图增量** | `change` | 切换 `showStructureEdgeDelta`，重绘 Mermaid，保存配置 |
+| **节点等待模式** | `change` | 切换 `useTotalPendingInStatus`，重绘节点卡，保存配置 |
+| **注入页节点过滤** | `change` | 切换 `showInjectableOnly`，刷新注入页，保存配置 |
+| **错误页大小** | `change` | 更新 `pageSize`，重新加载错误列表，保存配置 |
+| **错误重注入跳转** | `change` | 切换 `jumpToInjectionAfterRetry`，保存配置 |
+| **明暗主题** | `click` | 切换 `dark-theme` 类，更新图表主题色，保存配置 |
 
 ### UI 辅助函数
 
-#### `toggleDarkTheme()`
-在 `body` 元素上切换 `dark-theme` 类，返回切换后的布尔状态。
+#### `toggleDarkTheme(): boolean`
+在 `body` 元素上切换 `dark-theme` 类，返回切换后是否为暗黑模式。
 
-#### `showSettingsSaveStatus(messageKey)`
-在设置面板底部显示限时的状态提示（如"保存成功"），支持国际化 key 映射。自动在 2 秒（成功）或 5 秒（失败）后隐藏。
+#### `showSettingsSaveStatus(messageKey: string): void`
+在设置面板底部显示限时的状态提示（成功 2 秒、失败 5 秒后自动隐藏）。
 
-#### `updateSettingsStatusText()`
-在语言切换后更新设置状态提示文本为当前语言的译文。
+#### `updateSettingsStatusText(): void`
+语言切换后更新设置状态提示的文本。
 
-#### `isSettingsPanelOpen()` / `openSettingsPanel()` / `closeSettingsPanel()` / `toggleSettingsPanel()`
-设置面板的打开/关闭/切换管理。支持：
-- 点击齿轮按钮切换
-- 点击关闭按钮并归还焦点
-- 点击空白区域自动关闭
-- 按下 `Escape` 关闭
+#### `syncAutoRefreshTimer(): void`
+根据 `webConfig.global.autoRefreshEnabled` 创建或清除轮询定时器。
 
-### 焦点与辅助功能 (a11y)
+#### 设置面板管理
+`isSettingsPanelOpen()` / `openSettingsPanel()` / `closeSettingsPanel(options?)` / `toggleSettingsPanel()` — 管理设置面板的显隐与焦点归还。
 
-- **设置面板**：支持 `Escape` 键快速关闭，关闭后焦点自动归还至设置按钮。
-- **状态反馈**：设置保存时，面板底部会显示短暂的"保存成功"或"保存失败"提示（通过 `showSettingsSaveStatus()` 实现）。
-
-## `toggleDarkTheme()` 与 `showSettingsSaveStatus()` 归属
-
-| 函数 | 定义位置 | 用途 |
-|------|---------|------|
-| `toggleDarkTheme()` | **main.ts** | 主题切换 |
-| `showSettingsSaveStatus()` | **main.ts** | 设置保存状态反馈 |
-
-> 这两个函数**不在** `utils.ts` 中定义。
+#### 页签管理
+`getActiveTab(): string` / `activateTab(button): void` / `updateCurrentPageSettings(): void` — 管理顶部页签切换和设置面板中"当前页专属设置"分组。
 
 ## 数据流向图
 
@@ -71,116 +100,50 @@
 flowchart TD
     A["DOMContentLoaded"] --> B["loadWebConfig()"]
     B --> C["applyConfig()"]
-    C --> D["initSortableDashboard()"]
-    C --> E["initChart()"]
-    C --> F["refreshAll()<br/>(首次)"]
-    F --> G["setInterval(refreshAll, refreshRate)"]
+    C --> D["首次渲染（空态）"]
+    C --> E["事件绑定"]
+    D --> F["refreshAll()<br/>(首次)"]
+    E --> G["syncAutoRefreshTimer()"]
+    G --> H["setInterval(refreshAll, refreshRate)"]
 
-    G --> H["refreshAll()"]
-    H --> I["loadStatuses()"]
-    H --> J["loadStructure()"]
-    H --> K["loadErrors()"]
-    H --> L["loadAnalysis()"]
-    H --> M["loadSummary()"]
+    H --> RA["refreshAll()"]
+    RA --> I["loadStatuses()"]
+    RA --> J["loadStructure()"]
+    RA --> K["loadErrors()"]
+    RA --> L["loadAnalysis()"]
 
     I --> N["statusesChanged?"]
-    N --> O["renderDashboard()"]
-    N --> P["renderNodeList()"]
-    N --> Q["updateChartData()"]
+    N -->|true| O["renderDashboard()"]
+    N -->|true| P["renderInjectionPage()"]
+    N -->|true| Q["updateChartData()"]
+    N -->|true| R["renderSummary()"]
 
-    J --> R["structureChanged?"]
-    R --> S["renderMermaidStructure()"]
+    J --> S["structureChanged?"]
+    S -->|true| T["renderMermaidStructure()"]
 
-    K --> T["errorsChanged?"]
-    T --> U["renderErrors()"]
+    K --> U["errorsChanged?"]
+    U -->|true| V["renderErrors()"]
 
-    L --> V["analysisChanged?"]
-    V --> W["renderAnalysisInfo()"]
-
-    M --> X["summaryChanged?"]
-    X --> Y["renderSummary()"]
+    L --> W["analysisChanged?"]
+    W -->|true| X["renderAnalysisInfo()"]
 ```
 
 ## 使用示例
 
-### `refreshAll` 手动调用和数据流驱动的示例
-
-以下示例展示如何在浏览器控制台中手动触发数据刷新，以及核心的数据流驱动关系：
-
 ```typescript
-// 1. 手动触发完整的数据刷新流程
-// 在浏览器控制台中执行：
-refreshAll().then(() => {
-    console.log("全量刷新完成");
-});
+// 手动触发完整刷新
+// await refreshAll();
 
-// 2. refreshAll 的内部流程示意（基于 main.ts 源码）：
-// async function refreshAll() {
-//     // 并行拉取 5 类数据
-//     const [statusesChanged, structureChanged, errorsChanged,
-//            analysisChanged, summaryChanged] = await Promise.all([
-//         loadStatuses(),
-//         loadStructure(),
-//         loadErrors(),
-//         loadAnalysis(),
-//         loadSummary(),
-//     ]);
-//
-//     // 按依赖关系驱动渲染：
-//     // 结构图依赖 结构数据 + 状态数据
-//     // 分析面板依赖 分析数据
-//     // 状态卡片/节点列表/折线图依赖 状态数据
-//     // 摘要面板依赖 摘要数据
-//     // 错误表格依赖 错误数据
-// }
+// 修改轮询频率
+// refreshRate = 2000;
+// syncAutoRefreshTimer();
 
-// 3. 手动调用单个数据加载函数
-async function manualDataFetch() {
-    // 只拉取状态数据
-    const statusChanged = await loadStatuses();
-    if (statusChanged) {
-        renderDashboard();           // 更新状态卡片
-        populateNodeFilter(nodeStatuses); // 更新错误筛选器
-        renderNodeList();            // 更新注入页节点列表
-        updateChartData();           // 更新折线图
-    }
+// 主题切换
+// const isDark = toggleDarkTheme();
+// themeToggleBtn.textContent = isDark ? t("theme.light") : t("theme.dark");
+// updateChartTheme();
+// renderMermaidStructure(nodeStatuses);
 
-    // 只拉取结构数据并重绘
-    const structChanged = await loadStructure();
-    if (structChanged && nodeStatuses) {
-        renderMermaidStructure(nodeStatuses);
-    }
-
-    // 只拉取错误数据
-    const errChanged = await loadErrors(true);
-    if (errChanged) {
-        renderErrors();
-    }
-}
-
-// 4. 修改轮询频率
-// 默认存储在 webConfig.refreshInterval 中
-// 可在浏览器控制台中临时调整：
-// clearInterval(refreshIntervalId);
-// refreshRate = 2000;  // 改为 2 秒
-// refreshIntervalId = setInterval(refreshAll, refreshRate);
-
-// 5. 手动触发设置保存
-// saveWebConfig().then(success => {
-//     showSettingsSaveStatus(
-//         success ? "settings.saveSuccess" : "settings.saveFailed"
-//     );
-// });
-
-// 6. 主题切换
-function toggleTheme() {
-    const isDark = toggleDarkTheme();
-    webConfig.theme = isDark ? "dark" : "light";
-    themeToggleBtn.textContent = isDark ? t("theme.light") : t("theme.dark");
-    renderMermaidStructure(nodeStatuses);
-    updateChartTheme();
-    saveWebConfig();
-}
-
-// toggleTheme();  // 执行主题切换
+// 切换页签
+// activateTab(document.querySelector('[data-tab="errors"]'));
 ```

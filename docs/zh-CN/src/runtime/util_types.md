@@ -1,6 +1,6 @@
 # TaskTypes
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/11
 
 TaskTypes 模块定义了框架中使用的基础数据类型、枚举和辅助类。
 
@@ -69,9 +69,9 @@ class ValueWrapper:
 
 ```python
 class SumCounter:
-    def __init__(self, mode: str = "serial"):
+    def __init__(self, lock: Lock | NoOpContext | None = None):
         """
-        :param mode: 执行模式，'serial'（无锁）或 'thread'（带锁）
+        :param lock: 可选的线程锁，默认 None（使用 NoOpContext）
         """
 ```
 
@@ -79,9 +79,10 @@ class SumCounter:
 
 | 方法 | 说明 |
 |------|------|
-| `add_init_value(value)` | 增加初始值 |
+| `add(value)` | 增加初始计数值 |
 | `append_counter(counter)` | 追加外部计数器 |
 | `reset()` | 重置所有计数器归零 |
+| `get()` | 获取所有计数器的累加值 |
 | `value`（属性） | 累加所有计数器的总值 |
 
 ### 使用示例
@@ -89,13 +90,13 @@ class SumCounter:
 ```python
 from celestialflow.runtime.util_types import SumCounter, ValueWrapper
 
-counter = SumCounter(mode="thread")
-counter.add_init_value(10)
+counter = SumCounter()
+counter.add(10)
 
 sub_counter = ValueWrapper(value=5)
 counter.append_counter(sub_counter)
 
-print(counter.value)  # 15
+print(counter.get())  # 15
 ```
 
 ## CTreeEvent
@@ -119,13 +120,11 @@ CelestialTree 事件名称常量，用于任务追踪和可视化。
 ```python
 @dataclass(frozen=True)
 class PersistedErrorRecord:
-    error_type: str          # 错误类型名称
-    error_message: str       # 错误消息
-    error_repr: str          # 错误的完整展示字符串
-    stage: str               # 错误所属节点标签
-    error_id: int | None     # 错误事件 ID
-    timestamp: str           # 错误时间戳字符串
-    ts: float | None         # 错误时间戳
+    ts: float | None = None         # 错误时间戳
+    stage: str = ""                  # 错误所属节点标签
+    error_id: int | None = None      # 错误事件 ID
+    error_type: str = ""             # 错误类型名称
+    error_message: str = ""          # 错误消息
 
     def __str__(self) -> str: ...
     def get_group_key(self) -> tuple[str, str]:
@@ -233,10 +232,8 @@ from celestialflow.runtime.util_types import PersistedErrorRecord
 record = PersistedErrorRecord(
     error_type="ValueError",
     error_message="Invalid input: negative value",
-    error_repr="ValueError: Invalid input: negative value",
     stage="StageA",
     error_id=123,
-    timestamp="2026-05-24T10:30:00",
     ts=1716546600.0,
 )
 
@@ -250,15 +247,8 @@ group_key = record.get_group_key()
 print(f"分组键: {group_key}")  # ("ValueError", "Invalid input: negative value")
 ```
 
-## STAGE_STYLE
+## 注意事项
 
-节点标签样式配置，用于 CelestialTree 可视化。
-
-```python
-from celestialtree import NodeLabelStyle
-
-STAGE_STYLE = NodeLabelStyle(
-    template="{base}  {payload.name}  ‹{type}›",
-    missing="-"
-)
-```
+- `ValueWrapper` 和 `SumCounter` 的线程安全依赖于调用方传入正确的 `Lock` 对象。
+- `NoOpContext` 用于 `serial`/`async` 模式下替代真实锁，避免不必要的锁开销。
+- `PersistedErrorRecord` 是 frozen dataclass，创建后不可变。

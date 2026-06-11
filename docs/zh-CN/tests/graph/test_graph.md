@@ -1,14 +1,13 @@
 # 任务图核心功能测试 (test_graph.py)
 
-> 最后更新日期: 2026/05/24
+> 最后更新日期: 2026/06/11
 
 ## 作用
-全面验证 `TaskGraph` 及其各种拓扑子类（`TaskChain`、`TaskCross`、`TaskGrid`）的核心功能，涵盖同步/异步执行、错误传播、拓扑分析、执行模式矩阵、源节点推导及含环图行为。
+全面验证 `TaskGraph` 及其各种拓扑子类（`TaskChain`、`TaskCross`、`TaskGrid`）的核心功能，涵盖同步/异步执行、错误传播、拓扑分析、执行模式矩阵、源节点推导、含环图行为、收尾阶段安全检查及运行时快照采集。
 
 ## 核心测试对象
 - `TaskGraph`: 通用任务图容器
 - `TaskChain`, `TaskCross`, `TaskGrid`: 预定义拓扑结构
-- `StageRuntime`: 运行时状态管理
 - `TaskStage`: 图节点定义
 
 ## 测试范围
@@ -21,12 +20,13 @@
 | `TestTaskGraphAsync` | 5 | async 模式两节点、扇出、扇入、错误传播、async+thread stage_mode |
 | `TestTaskGraphStructure` | 3 | Chain、Cross、Grid 结构 |
 | `TestTaskGraphAnalysis` | 2 | DAG 检测、层级计算 |
-| `TestTaskGraphSummary` | 1 | 摘要统计 |
+| `TestTaskGraphFinalize` | 1 | 收尾阶段线程安全检查 |
+| `TestTaskGraphRuntimeSnapshot` | 1 | Reporter 快照采集对未启动 Stage 的容错 |
 | `TestStageExecutionMatrix` | 6 | serial/thread stage_mode × serial/thread/async execution_mode |
 | `TestTaskGraphThread` | 6 | thread 模式两节点、扇出、扇入、错误传播、lambda、staged 调度 |
 | `TestSourceStages` | 5 | 线性图 source、扇入 source、菱形图 source、单源 SCC 代表点、多源 SCC 各返回一点 |
 | `TestCyclicGraph` | 2 | 含环图 isDAG 检测、环内同层 + 尾巴层级 |
-| **合计** | **34** | |
+| **合计** | **35** | |
 
 > **说明**: 此处统计的是 `test_graph.py` 中的测试类。`TaskLoop` 和 `TaskWheel` 的专用测试在 `test_structure.py`。
 
@@ -68,6 +68,10 @@ graph LR
 - **DAG 检测** (`test_dag_detection`): `isDAG` 标记应正确反映图是否有环。
 - **层级计算** (`test_layer_computation`): 线性链 A→B→C 的拓扑层级为 {A:0, B:1, C:2}。
 
+#### 收尾与快照
+- **收尾安全检查** (`TestTaskGraphFinalize`): 验证 `_finalize_nodes()` 在仍有存活线程时抛出 `RuntimeStateError`，阻止危险清理。
+- **快照容错** (`TestTaskGraphRuntimeSnapshot`): 验证 Reporter 在节点尚未启动（无 `start_time`）时采集快照不会崩溃。
+
 #### 复杂结构 (`TestTaskGraphStructure`)
 | 结构 | 节点数 | 线程数 | 覆盖场景 |
 |------|--------|--------|---------|
@@ -95,18 +99,14 @@ graph LR
 | `test_cyclic_isDAG_false` | s1→s2→s3→s1 的 `isDAG` 应为 `False` |
 | `test_cyclic_layers` | 环内节点 (s1,s2,s3) 同层，尾巴 s4 在环层级 + 1 |
 
-### 摘要统计 (`TestTaskGraphSummary`)
-验证 `collect_runtime_snapshot()` 能正确统计各节点的成功、失败、待处理任务数。
-**注意**: 单元测试中未启用 `TaskReporter`，需手动调用 `collect_runtime_snapshot()`。
+### 运行时快照
+`get_graph_summary()` 返回的是上一次 `collect_runtime_snapshot()` 的快照数据。在未启用 `TaskReporter` 的测试中必须手动调用。
 
 ## 重要细节
 
 ### 终止信号行为
 - 含环图使用 `put_termination_signal=True` 以确保测试退出。
 - 非 DAG 图在 eager 模式下会触发 `RuntimeWarning`，测试调整为宽松断言（`>= 1`）。
-
-### 统计快照
-`get_graph_summary()` 返回的是上一次 `collect_runtime_snapshot()` 的快照数据。在未启用 `TaskReporter` 的测试中必须手动调用。
 
 ### Lambda 支持
 线程模式下可使用 lambda 作为任务函数（`test_graph_thread_with_lambda`）。
@@ -139,7 +139,8 @@ pytest tests/graph/test_graph.py::TestTaskGraphAnalysis -v
 | `TestTaskGraphAsync` | ~3s |
 | `TestTaskGraphStructure` | ~5s |
 | `TestTaskGraphAnalysis` | ~1s |
-| `TestTaskGraphSummary` | ~1s |
+| `TestTaskGraphFinalize` | < 0.1s |
+| `TestTaskGraphRuntimeSnapshot` | < 0.1s |
 | `TestStageExecutionMatrix` | ~5s |
 | `TestTaskGraphThread` | ~4s |
 | `TestSourceStages` | ~2s |
@@ -149,4 +150,4 @@ pytest tests/graph/test_graph.py::TestTaskGraphAnalysis -v
 
 - `src/celestialflow/graph/core_graph.py`: `TaskGraph` 实现
 - `src/celestialflow/graph/core_structure.py`: 图结构子类
-- `tests/demo_structure.py`: 更复杂的图结构演示（含循环图、多层网络）
+- `tests/graph/test_structure.py`: TaskLoop / TaskWheel 专用测试

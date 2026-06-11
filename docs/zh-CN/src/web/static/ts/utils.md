@@ -1,52 +1,59 @@
 # utils.ts
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/11
 
 包含 Web 前端通用的格式化工具、UI 辅助逻辑、DOM 操作封装及环境检测函数。
 
+> ⚠️ **已变更**: 旧版文档提及的 `renderLocalTime()` 函数实际不存在于此文件中。新增了 `renderLabelWithTooltip()`、`switchToInjectionTab()`、`calcRemainTime()`、`format_repr()` 四个函数。
+
 ## 数值与时间格式化
 
-### `formatLargeNumber(n)`
-将大数转换为易读格式。
-- `< 10,000,000`：使用千分位逗号分隔。
-- `>= 10,000,000`：转换为 HTML 科学计数法（如 `~1.23×10⁹`）。
+### `formatLargeNumber(n: number): string`
+将大数转换为易读的 HTML 格式。
+- `< 10,000,000`：使用 `toLocaleString('en-US')` 千分位逗号分隔。
+- `>= 10,000,000`：转换为科学计数法 HTML（如 `~1.23×10⁹`）。
 
-### `formatWithDelta(value, delta, deltaClass, negClass)`
-格式化带有增量的数值。若增量非零，则在主数值后追加带颜色的 `+N` 或 `-N` 小字。
+### `formatWithDelta(value: number, delta: number, deltaClass: string, negClass: string): string`
+格式化带有增量的数值。若增量非零，则在主数值后追加带颜色的 `+N` 或 `-N` 小字 `<small>` 标签。
 
-### `formatDuration(seconds)`
-将秒数格式化为 `HH:MM:SS` 或 `MM:SS` 字符串。
+### `formatDuration(seconds: number): string`
+将秒数格式化为 `HH:MM:SS`（≥1小时）或 `MM:SS`（<1小时）字符串。正数至少展示 1 秒。
 
-### `formatTimestamp(timestamp)`
+### `formatTimestamp(timestamp: number): string`
 将 Unix 时间戳（秒）格式化为 `YYYY-MM-DD HH:MM:SS` 本地时间字符串。
-```ts
-function formatTimestamp(timestamp: number): string {
-  const d = new Date(timestamp * 1000);
-  // 返回格式如 "2026-05-24 14:30:00"
-}
-```
 
-### `renderLocalTime(timestamp)`
-将 Unix 时间戳转换为区域敏感的本地化日期时间字符串（`toLocaleString()`）。
+### `calcRemainTime(processed: number, pending: number, elapsed: number): number`
+根据已处理数、待处理数和已消耗时间线性估算剩余时间。当 `processed` 或 `pending` 为 0 时返回 0。
+
+### `format_repr(obj: unknown, max_length: number): string`
+将任意对象格式化为字符串，超过 `max_length` 时截断（前 2/3 + `...` + 后 1/3），保留换行与反斜杠的可见形式。
 
 ---
 
 ## UI 与路由辅助
 
-### `switchToErrorsTab(nodeFilter?)`
+### `switchToErrorsTab(nodeFilter?: string): void`
 全局路由跳转函数。
-- 切换当前 Tab 至"错误日志"。
-- 若传入 `nodeFilter`，则自动填充错误筛选下拉框并触发一次查询。
+- 切换到"错误日志"页签（`activateTab`）。
+- 若传入 `nodeFilter`，则设置节点筛选下拉框并触发 `change` 事件以启动查询。
+
+### `switchToInjectionTab(): void`
+切换到"任务注入"页签。
+
+### `renderLabelWithTooltip(labelKey: string, tooltipKey: string): string`
+渲染带提示气泡的标签 HTML。包含一个 `i` 按钮（`.tooltip-trigger`），悬停或聚焦时显示翻译后的提示文案（`.tooltip-bubble`）。
+
+> 此函数被 `dashboard_statuses.ts` 和 `dashboard_analysis.ts` 广泛使用，用于为"阶段模式"、"调度模式"等专业术语提供即时解释。
 
 ---
 
 ## 安全与工具
 
-### `escapeHtml(str)`
+### `escapeHtml(str: string): string`
 基础的 HTML 转义函数，防止动态插入文本时的 XSS 风险。转义字符：`&` `<` `>` `"` `'` `/`。
 
-### `isMobile()`
-基于 UserAgent 的简单移动端检测（匹配 `Mobi|Android|iPhone|iPad|iPod`），用于禁用拖拽排序等交互。
+### `isMobile(): boolean`
+基于 UserAgent 的简单移动端检测（匹配 `Mobi|Android|iPhone|iPad|iPod`）。
 
 ---
 
@@ -59,6 +66,8 @@ function formatTimestamp(timestamp: number): string {
 | `toggleDarkTheme()` | **main.ts** | 明暗主题切换 |
 | `showSettingsSaveStatus()` | **main.ts** | 设置保存状态提示 |
 
+> 旧版文档提及的 `renderLocalTime()` 在源码中不存在，可能为旧版遗留或从未实现。
+
 ---
 
 ## 函数总览
@@ -70,85 +79,49 @@ flowchart LR
         B[formatWithDelta]
         C[formatDuration]
         D[formatTimestamp]
-        E[renderLocalTime]
-        F[switchToErrorsTab]
-        G[escapeHtml]
-        H[isMobile]
+        E[calcRemainTime]
+        F[format_repr]
+        G[switchToErrorsTab]
+        H[switchToInjectionTab]
+        I[renderLabelWithTooltip]
+        J[escapeHtml]
+        K[isMobile]
     end
 ```
 
 ## 使用示例
 
-### formatLargeNumber / formatDuration / escapeHtml 等函数的使用示例
-
-以下示例展示 `utils.ts` 中所有工具函数的用法（可在浏览器控制台直接运行）：
-
 ```typescript
-// ====== 1. formatLargeNumber: 大数格式化 ======
-console.log("=== formatLargeNumber ===");
-console.log(formatLargeNumber(1234));        // "1,234"
-console.log(formatLargeNumber(1234567));     // "1,234,567"
-console.log(formatLargeNumber(9999999));     // "9,999,999"
-console.log(formatLargeNumber(10000000));    // "~1.00×10⁷"
-console.log(formatLargeNumber(1234567890));  // "~1.23×10⁹"
+// ====== 数值格式化 ======
+formatLargeNumber(1234567);     // "1,234,567"
+formatLargeNumber(1234567890);  // "~1.23×10⁹"
 
-// ====== 2. formatWithDelta: 数值 + 增量显示 ======
-console.log("\n=== formatWithDelta ===");
-const value = 1000;
-const delta = 5;
-// 主数值后追加绿色 +5 小字
-console.log(formatWithDelta(value, delta, "delta-positive", "delta-negative"));
-// "1,000<small class="delta-positive" style="margin-left: 4px;">+5</small>"
+// ====== 增量显示 ======
+formatWithDelta(1000, 5, "text-delta-success", "text-delta-success");
+// "1,000<small class="text-delta-success">+5</small>"
 
-// 负增量显示为红色
-console.log(formatWithDelta(value, -3, "delta-positive", "delta-negative"));
-// "1,000<small class="delta-negative" style="margin-left: 4px;">-3</small>"
+// ====== 时间格式化 ======
+formatDuration(3661);           // "01:01:01"
+formatTimestamp(1745400000);    // "2026-04-23 14:40:00"
 
-// 增量为 0 时不显示增量
-console.log(formatWithDelta(value, 0, "", ""));
-// "1,000"
+// ====== 剩余时间估算 ======
+calcRemainTime(500, 100, 300);  // 60
 
-// ====== 3. formatDuration: 秒数格式化 ======
-console.log("\n=== formatDuration ===");
-console.log(formatDuration(0));          // "00:00"
-console.log(formatDuration(45));         // "00:45"
-console.log(formatDuration(120));        // "02:00"
-console.log(formatDuration(3661));       // "01:01:01"
-console.log(formatDuration(86399));      // "23:59:59"
+// ====== 字符串截断 ======
+format_repr("very long string...", 10);  // "very lo...g..."
 
-// ====== 4. formatTimestamp: 时间戳格式化 ======
-console.log("\n=== formatTimestamp ===");
-console.log(formatTimestamp(1745400000));
-// "2026-05-24 14:40:00" (取决于当前时区)
+// ====== 提示标签 ======
+renderLabelWithTooltip("status.stageMode", "status.stageModeHelp");
+// 返回带 tooltip-trigger 和 tooltip-bubble 的 HTML
 
-// 当前时间
-console.log(formatTimestamp(Date.now() / 1000));
+// ====== 页签跳转 ======
+switchToErrorsTab("StageA");    // 跳转到错误页并筛选 StageA
+switchToInjectionTab();          // 跳转到注入页
 
-// ====== 5. renderLocalTime: 本地化时间 ======
-console.log("\n=== renderLocalTime ===");
-console.log(renderLocalTime(1745400000));
-// "2026/5/24 14:40:00" (取决于浏览器区域设置)
-
-// ====== 6. escapeHtml: HTML 转义 ======
-console.log("\n=== escapeHtml ===");
-const userInput = '<script>alert("xss")</script>';
-console.log(escapeHtml(userInput));
+// ====== HTML 转义 ======
+escapeHtml('<script>alert("xss")</script>');
 // "&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;"
 
-console.log(escapeHtml('A&B < C > D'));
-// "A&amp;B &lt; C &gt; D"
-
-// ====== 7. isMobile: 移动端检测 ======
-console.log("\n=== isMobile ===");
-console.log(isMobile());
-// 在桌面浏览器中返回 false
-// 在移动设备中返回 true
-
-// ====== 8. switchToErrorsTab: 跳转到错误页 ======
-console.log("\n=== switchToErrorsTab ===");
-// 跳转到错误日志标签页，不过滤节点
-switchToErrorsTab();
-
-// 跳转到错误日志标签页，并过滤特定节点
-// switchToErrorsTab("StageA");
+// ====== 移动端检测 ======
+isMobile();  // 桌面端 false，移动端 true
 ```

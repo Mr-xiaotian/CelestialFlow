@@ -1,6 +1,6 @@
 # Runtime 路由组装入口
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/11
 
 ## 作用
 
@@ -22,7 +22,7 @@
 |------|------|------|
 | `/` | `GET` | 页面入口，返回 `templates/index.html` |
 | `/api/pull_*` | `GET` | 由 `pull_routes.register()` 注册的全部拉取端点 |
-| `/api/push_*` | `POST` | 由 `push_routes.register()` 注册的全部推送端点 |
+| `/api/push_*` | `POST` | 由 `push_routes.register(router, server, config_path)` 注册的全部推送端点 |
 
 **注册顺序：**
 

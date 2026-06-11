@@ -1,6 +1,6 @@
 # 日志持久化 (Log Persistence)
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/11
 
 `celestialflow.persistence` 模块提供了一个多进程安全的日志系统，旨在解决多进程环境下的日志统一收集、格式化和持久化问题。
 
@@ -114,8 +114,8 @@ sinker = LogInlet(log_queue, log_level="SUCCESS")
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `start_graph(structure_list)` | INFO | 记录任务图启动及结构信息 |
-| `end_graph(use_time)` | INFO | 记录任务图结束及耗时 |
+| `start_graph(graph_name, structure_list)` | INFO | 记录任务图启动及结构信息 |
+| `end_graph(graph_name, use_time)` | INFO | 记录任务图结束及耗时 |
 
 #### 分层调度 (Layer)
 
@@ -135,8 +135,8 @@ sinker = LogInlet(log_queue, log_level="SUCCESS")
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `start_executor(name, func_name, task_num, execution_mode_desc)` | INFO | 记录执行器启动 |
-| `end_executor(name, func_name, execution_mode_desc, use_time, success_num, failed_num, duplicated_num)` | INFO | 记录执行器结束及统计 |
+| `start_executor(executor_name, task_num, execution_mode_desc)` | INFO | 记录执行器启动 |
+| `end_executor(executor_name, execution_mode_desc, use_time, success_num, failed_num, duplicated_num)` | INFO | 记录执行器结束及统计 |
 
 #### 任务生命周期 (Task)
 
@@ -190,16 +190,16 @@ sinker = LogInlet(log_queue, log_level="SUCCESS")
 
 ```python
 # 图生命周期
-sinker.start_graph(["NodeA -> NodeB", "NodeB -> NodeC"])
-sinker.end_graph(12.34)
+sinker.start_graph("my_graph", ["NodeA -> NodeB", "NodeB -> NodeC"])
+sinker.end_graph("my_graph", 12.34)
 
 # 阶段周期
 sinker.start_stage("ProcessStage", "thread", "thread-4")
 sinker.end_stage("ProcessStage", "thread", "thread-4", 5.2, 100, 2, 0)
 
 # 执行器周期
-sinker.start_executor("Executor1", "process_func", 50, "thread")
-sinker.end_executor("Executor1", "process_func", "thread", 4.8, 48, 1, 1)
+sinker.start_executor("Executor1", 50, "thread")
+sinker.end_executor("Executor1", "thread", 4.8, 48, 1, 1)
 
 # 任务生命周期
 sinker.task_input("process_func", "task_1", "queue", 1)

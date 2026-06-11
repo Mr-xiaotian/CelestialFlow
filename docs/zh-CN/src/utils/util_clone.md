@@ -1,6 +1,6 @@
 # Clone
 
-> 📅 最后更新日期: 2026/05/15
+> 📅 最后更新日期: 2026/06/11
 
 `utils/util_clone.py` 提供了克隆执行器、节点和任务图的功能，用于性能测试和配置复用。
 
@@ -31,7 +31,6 @@ def clone_executor(executor: TaskExecutor) -> TaskExecutor:
 - `max_workers`: 并发限制
 - `max_retries`: 最大重试次数
 - `max_info`: 日志信息最大长度
-- `unpack_task_args`: 是否解包参数
 - `enable_duplicate_check`: 重复检查开关
 - `log_level`: 日志级别
 - `retry_exceptions`: 可重试异常列表
@@ -210,7 +209,7 @@ results = benchmark_graph(
 
 ## 注意事项
 
-1. **状态独立**: 克隆后的对象与原对象完全独立，修改不会互相影响
+1. **状态独立**: 克隆后的对象与原对象完全独立（通过构造新实例实现），修改不会互相影响
 2. **连接重建**: 克隆图时会重建节点间的连接关系
 3. **函数引用**: 克隆只复制函数引用，不复制函数本身
 4. **性能开销**: 克隆大型图有一定开销，但比重新构建更快

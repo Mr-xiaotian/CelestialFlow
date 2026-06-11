@@ -1,6 +1,6 @@
 # Web 模块
 
-> 📅 最后更新日期: 2026/05/23
+> 📅 最后更新日期: 2026/06/11
 
 Web 模块提供了一个交互式的监控和管理界面，基于 FastAPI 与原生 TypeScript 构建，支持任务状态实时可视化、错误追溯、动态任务注入及全局配置管理。
 
@@ -34,7 +34,7 @@ Web 模块充当了 `TaskReporter` 与最终用户之间的桥梁。它一方面
    - **作用**: 基于 Mermaid.js 渲染任务图拓扑结构，支持动态节点着色。
 
 4. **injection.ts**
-   - **作用**: 管理任务手动注入 UI，支持多节点批量注入与文件上传。
+   - **作用**: 管理任务手动注入 UI，支持多节点批量注入。
 
 5. **errors.ts**
    - **作用**: 负责错误日志的分页展示与深度过滤。
@@ -62,11 +62,9 @@ celestialflow-web --port 5000
 ```python
 import requests
 
-# 注入新任务到指定节点
+# 注入新任务到指定节点（格式：{节点名: [任务列表]}）
 requests.post("http://localhost:5000/api/push_injection_tasks", json={
-    "node": "Stage_A",
-    "task_datas": [{"id": 1, "data": "payload"}],
-    "timestamp": "2026-05-23T10:00:00"
+    "Stage_A": [{"id": 1, "data": "payload"}]
 })
 ```
 

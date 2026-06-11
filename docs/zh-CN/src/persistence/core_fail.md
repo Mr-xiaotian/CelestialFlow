@@ -1,8 +1,8 @@
 # 错误持久化 (Fail Persistence)
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/11
 
-`celestialflow.persistence` 模块提供了一套稳健的错误收集与持久化机制，确保在多进程并发执行任务时，所有的异常信息都能被安全、有序地记录下来，供后续分析或重试使用。
+`celestialflow.persistence` 模块提供了一套稳健的错误收集与持久化机制，确保在多线程并发执行任务时，所有的异常信息都能被安全、有序地记录下来，供后续分析或重试使用。
 
 核心组件包括 `FailSpout` 和 `FailInlet`。
 
@@ -20,14 +20,7 @@ flowchart LR
     Queue -->|守护线程轮询| Spout[FailSpout._handle_record]
     Spout -->|json.dumps + 写入| JSONL[fallback/*.jsonl]
     Spout -->|error_id 存在| Counter[total_error_num += 1]
-    JSONL --> Read[get_error_pairs
-加载已持久化记录]
-
-    style Producer fill:#e1f5fe
-    style Queue fill:#fff3e0
-    style Spout fill:#e8f5e9
-    style JSONL fill:#f3e5f5
-    style Read fill:#c8e6c9
+    JSONL --> Read[get_error_pairs<br/>加载已持久化记录]
 ```
 
 系统采用了 **生产者-消费者** 模式来处理错误日志：
@@ -57,6 +50,7 @@ listener.start()
 
 -   `error_source`: 错误来源标识，将作为文件名的一部分。
 -   启动后，会在 `./fallback/{date}/` 目录下创建一个以 `{error_source}({time}).jsonl` 命名的文件。
+-   批量刷新阈值：每 1 条记录 flush 一次（`_flush_every = 1`）。
 
 ### 生命周期
 
@@ -91,6 +85,13 @@ listener.stop()
 
 `FailSpout` 维护 `total_error_num` 计数器，每写入一条带有 `error_id` 的记录自动递增。
 
+### 读取已持久化记录
+
+```python
+error_pairs = listener.get_error_pairs()
+# 返回 list[tuple[Any, PersistedErrorRecord]]
+```
+
 ## FailInlet
 
 `FailInlet` 是向错误队列发送数据的接口。
@@ -118,10 +119,9 @@ sinker.task_error(
 | `error_id` | `int` | 错误的唯一标识符 |
 | `error_type` | `str` | 异常类型名（如 `ValueError`） |
 | `error_message` | `str` | 异常消息文本 |
-| `error` | `str` | 错误完整表示（`error_type(error_message)`） |
-| `error_repr` | `str` | 截断后的错误表示（最大 100 字符） |
-| `task_repr` | `str` | 截断后的任务数据字符串表示（最大 100 字符） |
-| `task` | `str` | 原始任务数据的字符串形式 |
+| `task` | `Any` | 经过 `_to_retry_payload()` 转换后的任务数据（可回填到注入页的 JSON 友好结构） |
+
+> **已变更**：此前文档列出 `error`、`error_repr`、`task_repr` 等字段，但当前源码 `FailInlet.task_error()` 实际只写入上述 7 个字段。任务数据通过 `_to_retry_payload()` 递归转换为 JSON 兼容结构后存入 `task` 字段。
 
 ### 记录元数据
 
@@ -129,18 +129,20 @@ sinker.task_error(
 
 #### start_graph
 
-记录任务图的结构信息。参数 `structure_json` 为 `list[Any]`（任务图结构的 JSON 表示）。
+记录任务图的结构信息。
 
 ```python
-sinker.start_graph([
-    {"name": "StageA", "depends_on": []},
-    {"name": "StageB", "depends_on": ["StageA"]},
-])
+sinker.start_graph(
+    graph_name="my_pipeline",
+    structure_graph={"stages": ["A", "B"], "edges": [("A", "B")]}
+)
 ```
+
+> **已变更**：`start_graph` 的签名为 `(graph_name: str, structure_graph: dict[str, Any])`，此前文档记载的参数 `structure_json: list[Any]` 与当前源码不符。
 
 #### start_executor
 
-记录执行器启动信息。参数为执行器名称字符串。
+记录执行器启动信息。
 
 ```python
 sinker.start_executor("Executor-1")

@@ -1,6 +1,6 @@
 # TaskMetrics
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/11
 
 TaskMetrics 模块负责管理和统计任务执行过程中的各项指标，如输入任务数、成功数、失败数、重复任务数等。它通常作为 `TaskExecutor` 的一个组件存在。
 
@@ -133,7 +133,6 @@ def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
 
 异常类型以 `tuple` 形式存储在 `self.retry_exceptions` 中，`TaskDispatch._worker` 通过 `isinstance(exception, self.retry_exceptions)` 判断是否重试。
 
-## 执行模式设置
 ## 使用示例
 
 以下示例展示 `TaskMetrics` 的完整用法，包括初始化、计数器操作、去重检查、重试异常配置和状态查询。
@@ -205,6 +204,8 @@ parent_metrics.add_task_count(5)  # 自己新增 5
 
 print(f"总任务数 (5 + 10) : {parent_metrics.get_task_count()}")  # 15
 ```
+
+## 执行模式切换
 
 ### set_execution_mode
 

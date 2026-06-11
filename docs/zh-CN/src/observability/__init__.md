@@ -1,22 +1,18 @@
 # Observability 模块
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/11
 
-Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行状态监控、性能指标收集、错误追踪和远程控制。它使任务执行过程变得透明、可监控和可控制。
+Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行状态监控、进度可视化、Observer 模式和远程状态上报。它使任务执行过程变得透明、可监控。
 
-## 模块概述
-
-Observability 模块负责收集、聚合和上报系统的运行状态，提供实时的监控视图和远程控制能力。通过该模块，用户可以实时了解任务执行状态、性能指标和错误信息，并能够动态调整系统行为。
-
-## 导出项
+## 导出符号
 
 | 导出符号 | 来源模块 | 说明 |
 |---------|---------|------|
 | `BaseObserver` | `core_observer` | 执行器生命周期观察者基类，定义 `on_start`, `on_task_success`, `on_task_fail`, `on_task_duplicate`, `on_tasks_added`, `on_finish` 等事件接口 |
 | `CallbackObserver` | `core_observer` | 通过关键字参数传入回调函数的观察者实现，无需定义子类 |
+| `TaskProgress` | `core_progress` | 基于 `tqdm` 的任务进度可视化工具，继承自 `BaseObserver` |
 | `TaskReporter` | `core_report` | 任务状态上报器，后台线程周期性向 Web 服务器推送运行状态并拉取控制指令 |
-| `NullTaskReporter` | `core_report` | 空实现的任务上报器，作为关闭上报功能时的占位对象，`start()` / `stop()` 均为空操作 |
-| `TaskProgress` | `core_progress` | 基于 `tqdm` 的任务进度可视化工具，继承自 `BaseObserver`，自动在终端显示进度条 |
+| `NullTaskReporter` | `core_report` | 空实现的任务上报器，作为关闭上报功能时的占位对象 |
 
 ## 文件说明
 
@@ -25,27 +21,26 @@ Observability 模块负责收集、聚合和上报系统的运行状态，提供
 1. **core_observer.py** (`BaseObserver`, `CallbackObserver`)
    - **作用**: 执行器生命周期观察者基类与回调式观察者
    - **关键功能**:
-     - `BaseObserver`: 定义生命周期事件接口（`on_start`、`on_task_success`、`on_task_fail`、`on_task_duplicate`、`on_tasks_added`、`on_finish`），子类按需覆写
-     - `CallbackObserver`: 通过关键字参数传入回调函数，无需定义子类
+     - `BaseObserver`: 定义生命周期事件接口，子类按需覆写
+     - `CallbackObserver`: 通过 `**callbacks` 关键字参数传入回调函数，无需定义子类
 
-2. **core_report.py** (`TaskReporter`, `NullTaskReporter`)
-   - **作用**: 任务状态上报器及其空实现
-   - **关键功能**:
-     - **状态上报**: 周期性推送任务图的结构、拓扑、运行状态、错误信息
-     - **任务注入**: 从 Web UI 接收用户注入的新任务，动态插入到运行中的任务图
-     - **参数调整**: 从服务器拉取配置，动态调整上报间隔等参数
-     - **错误同步**: 支持两种错误推送模式（元数据模式和内容模式）
-     - **NullTaskReporter**: 关闭上报功能时的占位对象，不发起任何网络请求
-   - **通信协议**: HTTP
-   - **数据格式**: JSON
-
-3. **core_progress.py** (`TaskProgress`)
+2. **core_progress.py** (`TaskProgress`)
    - **作用**: 基于 `tqdm` 的任务进度可视化，继承 `BaseObserver`
    - **关键功能**:
      - 通过 `on_start` 创建进度条
      - 通过 `on_task_success/fail/duplicate` 更新进度
      - 通过 `on_tasks_added` 动态增加总任务数
      - 通过 `on_finish` 关闭进度条
+
+3. **core_report.py** (`TaskReporter`, `NullTaskReporter`)
+   - **作用**: 任务状态上报器及其空实现
+   - **关键功能**:
+     - **状态上报**: 周期性推送任务图的结构、拓扑、运行状态、错误信息
+     - **任务注入**: 从 Web UI 接收用户注入的新任务，动态插入到运行中的任务图
+     - **参数调整**: 从服务器拉取配置，动态调整上报间隔等参数
+     - **错误同步**: 支持两种错误推送模式（元数据模式和内容模式）
+   - **通信协议**: HTTP
+   - **数据格式**: JSON
 
 ## 模块关联
 
@@ -56,10 +51,8 @@ Observability 模块负责收集、聚合和上报系统的运行状态，提供
 
 ### 外部关联
 - **与 Stage 模块**: `TaskExecutor` 持有 `list[BaseObserver]`，通过 `add_observer()` / `remove_observer()` 管理观察者
-- **与 Graph 模块**: 收集任务图的结构和拓扑信息
-- **与 Runtime 模块**: 收集执行状态、性能指标和错误信息
-- **与 Persistence 模块**: 获取持久化的日志和错误数据
-- **与 Web 模块**: 与 Web UI 进行双向通信，支持状态展示和远程控制
+- **与 Graph 模块**: `TaskReporter` 收集任务图的结构和拓扑信息
+- **与 Persistence 模块**: 获取持久化的日志和错误数据，依赖 `LogInlet`
 
 ## 架构特点
 
@@ -71,7 +64,6 @@ Observability 模块负责收集、聚合和上报系统的运行状态，提供
 ### 双向通信（TaskReporter）
 - **上行通道**: 状态数据上报到 Web 服务器
 - **下行通道**: 控制指令从 Web 服务器下发到运行实例
-- **实时性**: 支持实时状态更新和即时控制
 
 ### 容错设计
 - 网络中断时的优雅降级，不影响主流程执行
@@ -113,11 +105,8 @@ reporter.start()
 
 ### 自定义 Observer + TaskReporter 搭配使用
 
-以下示例展示如何自定义一个统计观察者，配合 `TaskReporter` 和 `TaskGraph` 构建一个可观测的完整工作流：
-
 ```python
-import asyncio
-from celestialflow import TaskGraph, TaskExecutor, TaskStage, BaseObserver
+from celestialflow import TaskGraph, TaskStage, BaseObserver
 from celestialflow.observability import TaskReporter
 from celestialflow.persistence import LogInlet
 
@@ -136,45 +125,39 @@ class StatsObserver(BaseObserver):
     def on_finish(self):
         print(f"执行结束：成功 {self.success_count}，失败 {self.fail_count}")
 
-
 # 2. 定义任务处理函数
 def process_item(item: int) -> int:
     if item % 5 == 0:
         raise ValueError(f"跳过数字 {item}")
     return item * 2
 
+# 创建任务图
+graph = TaskGraph(schedule_mode="eager")
+stage = TaskStage("Processor", process_item, execution_mode="thread", max_workers=4)
+graph.set_stages([stage])
 
-async def main():
-    # 创建任务图
-    graph = TaskGraph(schedule_mode="eager")
-    stage = TaskStage("Processor", process_item, execution_mode="thread", max_workers=4)
-    graph.set_stages([stage])
+# 注册自定义观察者到 stage 的执行器
+stats_observer = StatsObserver()
+stage.add_observer(stats_observer)
 
-    # 注册自定义观察者到 stage 的执行器
-    stats_observer = StatsObserver()
-    stage.add_observer(stats_observer)
+# 可选：启用 TaskReporter 上报到 Web UI
+log_inlet = stage.log_inlet
+reporter = TaskReporter(
+    host="127.0.0.1",
+    port=5000,
+    task_graph=graph,
+    log_inlet=log_inlet,
+)
+reporter.start()
 
-    # 可选：启用 TaskReporter 上报到 Web UI
-    log_inlet = LogInlet()
-    reporter = TaskReporter(
-        host="127.0.0.1",
-        port=5000,
-        task_graph=graph,
-        log_inlet=log_inlet,
-    )
-    reporter.start()
+# 启动任务图
+graph.start_graph({stage.get_name(): list(range(20))})
 
-    # 启动任务图
-    await graph.start_graph({stage.get_tag(): list(range(20))})
+# 停止上报器
+reporter.stop()
 
-    # 停止上报器
-    reporter.stop()
-
-    # 查看统计结果
-    print(f"最终统计 - 成功: {stats_observer.success_count}, 失败: {stats_observer.fail_count}")
-
-
-asyncio.run(main())
+# 查看统计结果
+print(f"最终统计 - 成功: {stats_observer.success_count}, 失败: {stats_observer.fail_count}")
 ```
 
 此示例展示了三类可观测组件的协作：

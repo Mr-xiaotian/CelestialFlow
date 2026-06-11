@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最后更新日期: 2026/06/05
+> 📅 最后更新日期: 2026/06/11
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
@@ -14,12 +14,13 @@
 
 ```python
 class TaskGraph:
-    def __init__(self, schedule_mode: str = "eager", log_level: str = "INFO"):
+    def __init__(self, name: str, schedule_mode: str = "eager", log_level: str = "INFO"):
         ...
 ```
 
 ### 参数说明
 
+- **name**: 任务图名称（必填）
 - **schedule_mode**: 调度模式
   - `eager`（默认）: 所有节点一次性并发启动，依赖通过队列流自动控制
   - `staged`: 分层执行（仅 DAG）。按层级顺序逐层启动，上一层全部完成后才启动下一层
@@ -106,7 +107,7 @@ def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
 - 如果需要重新跑同一套拓扑，推荐重新实例化图对象与节点对象，而不是再次调用同一实例的 `start_graph()`。
 
 ```python
-graph = TaskGraph(schedule_mode="eager")
+graph = TaskGraph(name="MyGraph", schedule_mode="eager")
 graph.set_stages(stages=[stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 graph.start_graph({stage_a.get_name(): [1, 2, 3, 4, 5]})
@@ -174,8 +175,10 @@ def collect_runtime_snapshot(self) -> None:
 | `tasks_duplicated` | `int` | 重复数 |
 | `tasks_processed` | `int` | 已处理数 |
 | `tasks_pending` | `int` | 待处理数 |
+| `total_tasks_pending` | `int` | 全局预计待处理数 |
 | `elapsed_time` | `float` | 已消耗时间 |
 | `remaining_time` | `float` | 预计剩余时间 |
+| `total_remaining_time` | `float` | 全局预计剩余时间 |
 | `task_avg_time` | `str` | 平均时间（格式化） |
 | `start_time` | `float` | 启动时间戳 |
 
@@ -184,9 +187,8 @@ def collect_runtime_snapshot(self) -> None:
 | 方法 | 返回类型 | 说明 |
 |------|---------|------|
 | `get_status_snapshot()` | `dict` | 带统一时间戳的状态快照 |
-| `get_graph_summary()` | `dict` | 全局剩余时间摘要 |
 | `get_graph_analysis()` | `dict` | 图分析信息（isDAG、scheduleMode、layersDict、className） |
-| `get_structure_json()` | `list[dict]` | JSON 格式的图结构 |
+| `get_structure_graph()` | `dict` | JSON 格式的图结构（nodes + edges + source_nodes） |
 | `get_structure_list()` | `list[str]` | 带边框的格式化树形文本 |
 | `get_networkx_graph()` | `DiGraph` | networkx 有向图实例 |
 | `get_fail_by_stage_dict()` | `dict[str, list]` | 按节点分组的失败任务 |

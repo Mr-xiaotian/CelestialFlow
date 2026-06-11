@@ -1,8 +1,8 @@
 # TaskQueue
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/11
 
-`TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了日志记录和终止信号合并功能。
+`TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了终止信号合并功能。
 
 ## 概述
 
@@ -41,7 +41,7 @@ class TaskInQueue:
 ```python
 def put(self, item: TaskEnvelope | TerminationSignal) -> None:
     """
-    入队任务或终止信号。记录入队日志。
+    入队任务或终止信号。
     """
 ```
 
@@ -267,7 +267,6 @@ print(f"残留任务数: {len(leftovers)}")
 ## 注意事项
 
 1. **多通道**: `TaskOutQueue` 管理多个下游队列
-2. **日志记录**: 所有 put/get 操作记录日志；异常时记录 `put_item_error`
-3. **来源管理**: `add_source_name` 和 `add_queue` 均防重（`DuplicateNodeError`）
-4. **终止合并**: `_merge_termination` 会检查是否遗漏 source，遗漏则抛 `TerminationMergeError`
-5. **drain 特性**: 仅在同步环境（`_finalize_nodes`）中使用，用于收集未消费任务
+2. **来源管理**: `add_source_name` 和 `add_queue` 均防重（`DuplicateNodeError`）
+3. **终止合并**: `_merge_termination` 会检查是否遗漏 source，遗漏则抛 `TerminationMergeError`
+4. **drain 特性**: 仅在同步环境（`_finalize_nodes`）中使用，用于收集未消费任务

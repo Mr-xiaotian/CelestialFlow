@@ -1,12 +1,26 @@
 # Runtime 模块
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/11
 
 Runtime 模块提供了 CelestialFlow 的任务执行运行时环境，包括任务调度、队列管理、错误处理、性能监控等核心功能。它是任务实际执行的基础设施层。
 
 ## 模块概述
 
 Runtime 模块负责管理任务执行的生命周期，从任务提交到结果返回的整个过程。它提供了三种执行模式（串行 `serial`、线程 `thread`、异步 `async`）、健壮的错误处理机制、性能监控和资源管理功能。
+
+### 公开导出符号 (`__all__`)
+
+```python
+from celestialflow.runtime import (
+    TaskDispatch,    # 任务调度器
+    TaskEnvelope,    # 任务信封
+    TaskInQueue,     # 任务输入队列
+    TaskMetrics,     # 任务指标统计
+    TaskOutQueue,    # 任务输出队列
+)
+```
+
+> **注意**：`util_constant`、`util_errors`、`util_estimators`、`util_hash`、`util_types` 等工具模块的符号**不在** `runtime/__init__.py` 的 `__all__` 中，需要通过完整路径导入（如 `from celestialflow.runtime.util_errors import ConfigurationError`）。
 
 ## 文件说明
 
@@ -25,12 +39,12 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
    - **队列类型**:
      - `TaskInQueue`: 任务输入队列，聚合多个上游来源的任务和终止信号
      - `TaskOutQueue`: 任务输出队列，将结果广播到一个或多个下游队列通道
-   - **关键功能**: 终止信号合并、来源名称管理、日志记录、动态添加队列通道
+   - **关键功能**: 终止信号合并、来源名称管理、动态添加队列通道
 
 3. **core_envelope.py** (`TaskEnvelope`)
    - **作用**: 任务数据包装器，封装原始任务及其哈希、ID、来源等元信息
    - **包含信息**: 任务数据、SHA1 哈希值（惰性计算）、任务 ID、来源标识、前驱任务引用
-   - **关键功能**: 数据封装、惰性哈希计算、任务 ID 变更（重试场景）
+   - **关键功能**: 数据封装、惰性哈希计算、任务 ID 与前驱任务引用
 
 ### 监控和度量
 
@@ -64,10 +78,10 @@ Runtime 模块负责管理任务执行的生命周期，从任务提交到结果
 
 8. **util_estimators.py**
    - **作用**: 执行时间估算和进度计算
-   - **关键函数**:
+   - **关键功能**:
      - `calc_remaining()`: 基于均值估算剩余时间
      - `calc_elapsed()`: 按状态累计已耗时间
-     - `calc_global_remain_equal_pred()`: 基于 DAG 拓扑的全局剩余时间估算（偏保守）
+     - `calc_global_pending()`: 基于 DAG 拓扑的全局待处理任务数估算（偏保守）
 
 ## 模块关联
 
@@ -115,9 +129,8 @@ print(f"任务数据: {envelope.get_task()}")
 print(f"任务哈希: {envelope.get_hash().hex()[:8]}...")
 print(f"任务ID: {envelope.get_id()}")
 
-# 重试时变更 ID
-envelope.change_id(100)
-print(f"变更后 ID: {envelope.get_id()}")
+# 重试时通过 emit_retry_envelope 生成新信封
+print(f"任务ID: {envelope.get_id()}")
 ```
 
 ```python

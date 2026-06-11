@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/11
 
 TaskStructure 模块提供了多种预定义的任务图结构，帮助用户快速构建复杂的任务流。所有的结构都继承自 `TaskGraph`。
 
@@ -32,6 +32,7 @@ stage3 = TaskStage("S3", func=func3)
 
 # 创建链
 chain = TaskChain(
+    name="DataPipeline",
     stages=[stage1, stage2, stage3],
     stage_mode="thread",  # thread: 节点并行运行; serial: 节点串行运行
     log_level="SUCCESS"
@@ -75,6 +76,7 @@ layer2 = [stage_2_1, stage_2_2]
 
 # 创建交叉结构
 cross = TaskCross(
+    name="CrossPipeline",
     layers=[layer1, layer2],
     schedule_mode="eager"
 )
@@ -114,6 +116,7 @@ grid_layout = [
 
 # 创建网格结构
 grid = TaskGrid(
+    name="GridPipeline",
     grid=grid_layout,
     schedule_mode="eager"
 )
@@ -144,6 +147,7 @@ from celestialflow import TaskLoop
 
 # 创建环
 loop = TaskLoop(
+    name="FeedbackLoop",
     stages=[stage1, stage2, stage3]  # stage3 -> stage1
 )
 ```
@@ -177,6 +181,7 @@ from celestialflow import TaskWheel
 
 # 创建轮形结构
 wheel = TaskWheel(
+    name="HubAndSpoke",
     center=center_stage,
     ring=[ring_stage1, ring_stage2, ring_stage3]
 )
@@ -208,6 +213,7 @@ from celestialflow import TaskComplete
 
 # 创建完全图
 complete = TaskComplete(
+    name="FullMesh",
     stages=[stage1, stage2, stage3, stage4]
 )
 ```
@@ -235,13 +241,13 @@ def aggregate(data: int) -> dict:
 s1 = TaskStage("Clean", func=clean)
 s2 = TaskStage("Transform", func=transform)
 s3 = TaskStage("Aggregate", func=aggregate)
-chain = TaskChain(stages=[s1, s2, s3], stage_mode="thread")
+chain = TaskChain(name="ETL", stages=[s1, s2, s3], stage_mode="thread")
 
 # 启动
 chain.start_chain({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
 
 # 获取结果
-print(f"链摘要: {chain.get_graph_summary()}")
+print(f"链状态: {chain.get_status_snapshot()}")
 ```
 
 ### TaskCross 完整示例
@@ -266,9 +272,9 @@ def analyze_b(x: int) -> float:
 layer1 = [TaskStage("LoadA", func=load_a), TaskStage("LoadB", func=load_b)]
 layer2 = [TaskStage("AnaA", func=analyze_a), TaskStage("AnaB", func=analyze_b)]
 
-cross = TaskCross(layers=[layer1, layer2])
+cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
 cross.start_cross({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
-print(cross.get_graph_summary())
+print(cross.get_status_snapshot())
 ```
 
 ### TaskGrid 完整示例
@@ -282,9 +288,9 @@ n01 = TaskStage("Add", func=lambda x: x + 1)
 n10 = TaskStage("Mul", func=lambda x: x * 2)
 n11 = TaskStage("Square", func=lambda x: x * x)
 
-grid = TaskGrid(grid=[[n00, n01], [n10, n11]])
+grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
 grid.start_grid({n00.get_name(): [1, 2, 3]})
-print(grid.get_graph_summary())
+print(grid.get_status_snapshot())
 ```
 
 ### TaskLoop 完整示例
@@ -299,7 +305,7 @@ loop_stages = [
     TaskStage("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 形成闭环
 ]
 
-loop = TaskLoop(loop_stages)
+loop = TaskLoop(name="RingLoop", stages=loop_stages)
 loop.start_loop(
     {loop_stages[0].get_name(): [5]},
     put_termination_signal=False,  # 环结构需手动注入终止
@@ -318,9 +324,9 @@ ring_nodes = [
     TaskStage("Channel3", func=lambda x: x["processed"] + 3),
 ]
 
-wheel = TaskWheel(center=center, ring=ring_nodes)
+wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
 wheel.start_wheel({center.get_name(): [42]})
-print(wheel.get_graph_summary())
+print(wheel.get_status_snapshot())
 ```
 
 ### TaskComplete 完整示例
@@ -334,10 +340,10 @@ nodes = [
     TaskStage("N3", func=lambda x: x // 2),
 ]
 
-complete = TaskComplete(nodes)
+complete = TaskComplete(name="FullConnected", stages=nodes)
 complete.start_complete(
     {nodes[0].get_name(): [10]},
     put_termination_signal=False,
 )
-print(complete.get_graph_summary())
+print(complete.get_status_snapshot())
 ```

@@ -1,25 +1,35 @@
 # dashboard_statuses.ts
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/11
 
 管理各节点运行状态数据的加载、同步与仪表盘状态卡片的动态渲染。提供运行时间彩色分段渲染能力。
 
+> ⚠️ **已变更**: 旧版文档提及的 `draggingNodeName` 变量和 `initSortableDashboard()` 函数已移除（拖拽排序功能已迁移至 `layout_editor.ts` 布局编辑器）。新增了等待值模式切换和剩余时间展示配置相关函数。
+
 ## 类型定义
 
-```ts
+```typescript
 type NodeStatus = {
-  status: number;            // 0=未运行, 1=运行中, 2=已停止
-  tasks_processed: number;   // 已处理任务总数
-  tasks_pending: number;     // 队列中等待的任务数
-  tasks_succeeded: number;   // 成功处理的任务数
-  tasks_failed: number;      // 处理失败的任务数
-  tasks_duplicated: number;  // 被去重过滤的任务数
-  stage_mode: string;        // 节点模式（serial/thread）
-  execution_mode: string;    // 运行模式（serial/thread/async）
-  start_time: number;        // Unix 时间戳（秒）
-  elapsed_time: number;      // 已运行秒数
-  remaining_time: number;    // 预计剩余秒数
-  task_avg_time: string;     // 平均每个任务耗时文本
+  status: number;              // 状态码：0-未运行, 1-运行中, 2-已停止
+  tasks_processed: number;     // 已处理任务总数
+  tasks_pending: number;       // 队列中等待的任务数
+  tasks_succeeded: number;     // 成功处理的任务数
+  tasks_failed: number;        // 处理失败的任务数
+  tasks_duplicated: number;    // 被去重过滤的任务数
+  stage_mode: string;          // 节点模式（serial/thread）
+  execution_mode: string;      // 运行模式（serial/thread/async）
+  max_workers: number;         // 最大并发数
+  start_time: number;          // 启动 Unix 时间戳
+  elapsed_time: number;        // 已运行秒数
+  remaining_time: number;      // 预计剩余秒数（当前链路）
+  total_tasks_pending: number; // 总待处理任务数（含下游链路）
+  total_remaining_time: number;// 预计总剩余秒数（考虑各条链路状态）
+  task_avg_time: string;       // 平均每个任务耗时文本
+};
+
+type ElapsedSegment = {
+  className: string; // 对应的颜色 CSS 类名
+  count: number;     // 该类型任务数量
 };
 ```
 
@@ -29,18 +39,40 @@ type NodeStatus = {
 |------|------|------|
 | `nodeStatuses` | `Record<string, NodeStatus>` | 所有节点的当前状态快照 |
 | `lastNodeStatuses` | `Record<string, NodeStatus>` | 上一轮状态快照，用于计算增量显示 |
-| `statusRev` | `number` | 上次拉取的版本号，用于增量拉取 |
-| `draggingNodeName` | `string \| null` | 当前正在拖动的节点名，防止重绘闪烁 |
+| `statusRev` | `number` | 上次拉取的版本号，初始化 `-1`，用于增量拉取 |
+| `statusesRequestSeq` | `number` | 请求序列号，防止旧状态响应覆盖新结果 |
+
+## 配置驱动函数
+
+以下函数根据 `webConfig.dashboard.useTotalPendingInStatus` 开关动态切换节点状态卡中"等待任务数"和"剩余时间"的数据来源。
+
+### `getStatusPendingField(): "tasks_pending" | "total_tasks_pending"`
+
+返回当前状态卡应采用的等待值字段。当配置启用 `useTotalPendingInStatus` 时返回 `"total_tasks_pending"`（含下游链路总等待），否则返回 `"tasks_pending"`（仅当前节点队列）。
+
+### `getDisplayPending(status: NodeStatus): number`
+
+根据当前配置从状态快照中提取等待任务数。
+
+### `getDisplayRemainingTime(status: NodeStatus): number`
+
+根据当前配置从状态快照中提取剩余时间。启用总等待模式时使用 `total_remaining_time`。
+
+### `getPendingLabelHtml(): string`
+
+返回等待标签及提示气泡的 HTML，根据配置模式切换国际化键（`status.pending` vs `status.pendingGlobal`）。
+
+---
 
 ## 辅助函数：运行时间彩色分段渲染
 
 以下四个函数共同实现对 `elapsed_time` 的彩色 HTML 渲染。颜色段根据成功/失败/重复任务数的比例分配给每一位数字。
 
-### `formatElapsedDuration(seconds, successCount, failedCount, duplicateCount)`
+### `formatElapsedDuration(seconds, successCount, failedCount, duplicateCount): string`
 
-入口函数。调用 `formatDuration()` 获取 `HH:MM:SS` 格式文本，再通过 `getElapsedSegments()`、`buildElapsedDigitClasses()`、`renderElapsedDurationHtml()` 生成带颜色 `<span>` 的 HTML。
+入口函数。调用 `formatDuration()` 获取时间格式文本，再通过 `getElapsedSegments()`、`buildElapsedDigitClasses()`、`renderElapsedDurationHtml()` 生成带颜色 `<span>` 的 HTML。
 
-### `getElapsedSegments(successCount, failedCount, duplicateCount)`
+### `getElapsedSegments(successCount, failedCount, duplicateCount): ElapsedSegment[]`
 
 生成由非零计数驱动的颜色段列表。
 
@@ -52,53 +84,52 @@ type NodeStatus = {
 
 返回仅包含 `count > 0` 的段。若全部为零，返回空数组。
 
-### `buildElapsedDigitClasses(segments, digitCount)`
+### `buildElapsedDigitClasses(segments: ElapsedSegment[], digitCount: number): string[]`
 
 按任务状态比例为 `HH:MM:SS` 去掉冒号后的每一位数字分配颜色类。
 
 - **段数 ≥ 位数**：直接取前 N 个段。
 - **段数 < 位数**：等比例分配剩余位数给各段，再通过余数排序补齐分配误差，确保每位均有颜色类。
 
-### `renderElapsedDurationHtml(duration, digitClasses, defaultClassName)`
+### `renderElapsedDurationHtml(duration, digitClasses, defaultClassName): string`
 
-将 `HH:MM:SS` 字符串的每个字符包裹在 `<span>` 中。
-- 冒号 `:` 使用其左侧数字的颜色类（若无左侧数字则用 `defaultClassName`）。
-- 数字字符依次使用 `digitClasses` 中的类名。
+将时间字符串的每个字符包裹在 `<span>` 中。冒号 `:` 使用其左侧数字的颜色类；数字字符依次使用 `digitClasses` 中的类名。
 
 ---
 
 ## 核心函数
 
-### `loadStatuses()`
+### `loadStatuses(): Promise<boolean>`
 
 异步从 `GET /api/pull_status?known_rev=N` 拉取节点状态。
 
-- 成功获取新数据后，会调用 `appendStatusSnapshotToHistory()` 同步更新前端本地维护的历史序列。
-- 标记 `statusRev` 用于后续增量拉取。
+- **竞态保护**: 使用 `statusesRequestSeq` 丢弃过时响应。
+- **状态快照保存**: 成功后保存上一轮状态到 `lastNodeStatuses`。
+- **历史联动**: 成功后调用 `appendStatusSnapshotToHistory()` 同步更新前端本地历史序列。
+- **返回值**: 状态版本发生变化并成功更新时返回 `true`。
 
-### `initSortableDashboard()`
+---
 
-初始化节点卡片的拖拽排序功能（基于 Sortable.js）。移动端会自动禁用以防冲突。
-
-### `renderDashboard()`
+### `renderDashboard(): void`
 
 遍历 `nodeStatuses` 为每个节点生成状态卡片。
 
 **卡片渲染特性：**
-- **实时增量**：对比 `lastNodeStatuses` 自动计算成功/失败/等待/重复任务的增量并彩色显示。
-- **状态标记**：卡片左侧边框颜色反映节点状态（绿色=运行中，灰色=已停止/未运行）。
-- **运行时间彩色分段**：调用 `formatElapsedDuration()` 为 `elapsed_time` 生成基于任务成功/失败/重复比例染色的 HTML。
-- **四段式进度条**：直观展示成功（绿）、错误（红）、重复（黄）、等待（灰）的比例。
-- **时间预估**：显示已运行时间、预计剩余时间及平均任务耗时。
-- **交互跳转**：点击卡片中的错误数，自动跳转至"错误日志"标签页并预设该节点过滤器。
+
+- **实时增量**: 对比 `lastNodeStatuses` 自动计算成功/失败/等待/重复任务的增量并彩色显示。
+- **状态标记**: 卡片左侧边框颜色反映节点状态（蓝色=运行中 `status-running`，灰色=已停止 `status-stopped`）。
+- **运行时间彩色分段**: 调用 `formatElapsedDuration()` 为 `elapsed_time` 生成基于任务成功/失败/重复比例染色的 HTML。
+- **四段式进度条**: 直观展示成功（绿）、错误（红）、重复（黄）、等待（灰）的比例。
+- **时间预估**: 显示已运行时间、预计剩余时间、平均任务耗时和进度百分比。
+- **交互跳转**: 点击卡片中的错误数（`.error-clickable`），自动跳转至"错误日志"标签页并预设该节点过滤器。
 
 ## 卡片样式类
 
 | 状态 | CSS 类 | 说明 |
 |------|--------|------|
-| 运行中 | `node-card status-running` | 边框加深，标记活跃 |
-| 已停止 | `node-card status-stopped` | 灰色边框 |
-| 未启动 | `node-card` | 初始状态 |
+| 运行中 | `node-card status-running` | 蓝色左边框 |
+| 已停止 | `node-card status-stopped` | 灰色左边框 |
+| 未启动 | `node-card` | 默认灰色左边框 |
 
 ## 运行时间渲染流程
 
@@ -119,85 +150,30 @@ flowchart LR
 
 ## 使用示例
 
-### 节点状态数据结构的构造示例
-
-以下示例展示如何在 TypeScript 中构造和操作 `NodeStatus` 数据：
-
 ```typescript
-// 手动构造一个完整的 NodeStatus 对象
+// 构造一个完整的 NodeStatus 对象
 const nodeStatus: NodeStatus = {
-    status: 1,                    // 0=未运行, 1=运行中, 2=已停止
-    tasks_processed: 250,         // 已处理总数
-    tasks_pending: 30,            // 等待队列
-    tasks_succeeded: 240,         // 成功
-    tasks_failed: 5,              // 失败
-    tasks_duplicated: 5,          // 重复
-    stage_mode: "thread",         // 节点模式
-    execution_mode: "thread",     // 执行模式
-    start_time: 1745400000,       // 启动时间戳（秒）
-    elapsed_time: 3600,           // 已运行秒数
-    remaining_time: 600,          // 预计剩余秒数
-    task_avg_time: "1.44s/it",    // 平均耗时
+  status: 1,
+  tasks_processed: 250, tasks_succeeded: 240,
+  tasks_failed: 5, tasks_duplicated: 5,
+  tasks_pending: 30, total_tasks_pending: 50,
+  stage_mode: "thread", execution_mode: "thread",
+  max_workers: 4,
+  start_time: 1745400000, elapsed_time: 3600,
+  remaining_time: 600, total_remaining_time: 1200,
+  task_avg_time: "1.44s/it",
 };
 
-// 构造多个节点的状态快照
-const statusSnapshot: Record<string, NodeStatus> = {
-    "DataLoader": {
-        status: 1,
-        tasks_processed: 5000,
-        tasks_succeeded: 4980,
-        tasks_failed: 10,
-        tasks_duplicated: 10,
-        tasks_pending: 0,
-        stage_mode: "serial",
-        execution_mode: "serial",
-        start_time: 1745396400,
-        elapsed_time: 7200,
-        remaining_time: 0,
-        task_avg_time: "0.02s/it",
-    },
-    "Analyzer": {
-        status: 1,
-        tasks_processed: 3000,
-        tasks_succeeded: 2900,
-        tasks_failed: 50,
-        tasks_duplicated: 50,
-        tasks_pending: 200,
-        stage_mode: "thread",
-        execution_mode: "thread",
-        start_time: 1745397000,
-        elapsed_time: 6600,
-        remaining_time: 440,
-        task_avg_time: "2.20s/it",
-    },
-};
-
-// 模拟 loadStatuses 的返回值结构
-const statusResponse = {
-    timestamp: Date.now() / 1000,
-    status: statusSnapshot,
-};
-
-// 计算运行时间彩色分段（用于 elapsed_time 的彩色渲染）
-// 输入：秒数、成功数、失败数、重复数
-// 输出：带颜色 span 的 HTML 字符串
+// 计算运行时间彩色分段
 const coloredDuration = formatElapsedDuration(
-    nodeStatus.elapsed_time,
-    nodeStatus.tasks_succeeded,
-    nodeStatus.tasks_failed,
-    nodeStatus.tasks_duplicated
+  nodeStatus.elapsed_time,
+  nodeStatus.tasks_succeeded,
+  nodeStatus.tasks_failed,
+  nodeStatus.tasks_duplicated,
 );
-// 返回类似：'<span class="elapsed-success">0</span><span class="elapsed-success">1</span>:...'
+// 返回带颜色 span 的 HTML 字符串
 
-// 状态判断辅助函数
-function isNodeRunning(status: number): boolean {
-    return status === 1;
-}
-
-function isNodeStopped(status: number): boolean {
-    return status === 2;
-}
-
-console.log(`DataLoader 运行中: ${isNodeRunning(statusSnapshot.DataLoader.status)}`);   // true
-console.log(`Analyzer 已停止: ${isNodeStopped(statusSnapshot.Analyzer.status)}`);       // false
+// 根据配置获取展示值
+// getDisplayPending(nodeStatus) → 30 或 50
+// getDisplayRemainingTime(nodeStatus) → 600 或 1200
 ```

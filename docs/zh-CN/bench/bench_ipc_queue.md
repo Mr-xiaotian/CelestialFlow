@@ -1,6 +1,6 @@
 # bench_ipc_queue.py 基准测试说明
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/06/11
 
 ## 目标
 
@@ -79,8 +79,8 @@ PAYLOAD_MODE = "small"  # 可选：int / small / medium / large
 def main() -> None:
     # run_queue_case(name="MPQueue", ...)   # 注释掉 MPQueue
     # run_queue_case(name="SimpleQueue", ...)
-    run_queue_case(name="Pipe", ...)          # 仅测试 Pipe
-    # run_queue_case(name="Manager().Queue", ...)
+    run_pipe_case(...)                        # 仅测试 Pipe
+    # run_manager_queue_case(...)
 ```
 
 修改后运行：

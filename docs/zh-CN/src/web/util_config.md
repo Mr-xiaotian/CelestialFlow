@@ -1,6 +1,6 @@
 # util_config
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/11
 
 Web 模块的配置文件读写工具，负责 `config.json` 的持久化管理。无线程锁保护——线程安全由上层调用方（`core_server.py` 的 `push_config`）保证。
 
@@ -46,15 +46,20 @@ flowchart LR
 ```python
 from celestialflow.web.util_config import load_config, save_config
 
-# 假设 config.json 内容：
+# 假设 config.json 为新嵌套分组结构：
 # {
-#     "theme": "dark",
-#     "refreshInterval": 5000,
-#     "language": "zh-CN",
+#     "global": {
+#         "theme": "dark",
+#         "refreshInterval": 5000,
+#         "language": "zh-CN"
+#     },
 #     "dashboard": {
-#         "left": ["mermaid"],
-#         "middle": ["status"],
-#         "right": ["progress"]
+#         "historyLimit": 20,
+#         "layout": {
+#             "left": ["mermaid"],
+#             "middle": ["status"],
+#             "right": ["progress"]
+#         }
 #     }
 # }
 
@@ -63,17 +68,17 @@ config_path = "/path/to/web/config.json"
 # --- 读取配置 ---
 try:
     config = load_config(config_path)
-    print(f"加载成功，主题: {config.get('theme')}")
-    print(f"刷新间隔: {config.get('refreshInterval')}ms")
-    print(f"语言: {config.get('language')}")
-    print(f"左侧面板卡片: {config['dashboard']['left']}")
+    print(f"加载成功，主题: {config['global']['theme']}")
+    print(f"刷新间隔: {config['global']['refreshInterval']}ms")
+    print(f"语言: {config['global']['language']}")
+    print(f"左侧面板卡片: {config['dashboard']['layout']['left']}")
 except Exception as e:
     print(f"配置加载失败: {e}")
 
 # --- 修改并保存配置 ---
-config["theme"] = "light"
-config["refreshInterval"] = 3000
-config["language"] = "en"
+config["global"]["theme"] = "light"
+config["global"]["refreshInterval"] = 3000
+config["global"]["language"] = "en"
 
 success = save_config(config, config_path)
 if success:
@@ -83,8 +88,8 @@ else:
 
 # --- 验证保存结果 ---
 reloaded = load_config(config_path)
-print(f"重载后主题: {reloaded['theme']}")  # light
-print(f"重载后语言: {reloaded['language']}")  # en
+print(f"重载后主题: {reloaded['global']['theme']}")  # light
+print(f"重载后语言: {reloaded['global']['language']}")  # en
 ```
 
 ### 与 WebConfigModel 配合使用
@@ -100,13 +105,13 @@ try:
 
     # 使用 Pydantic 模型验证（假设在 core_server.py 中）
     from celestialflow.web.util_models import WebConfigModel
-    validated = WebConfigModel(**raw_config)
+    validated = WebConfigModel.model_validate(raw_config)
 
-    print(f"验证通过: 主题={validated.theme}, 刷新={validated.refreshInterval}ms")
+    print(f"验证通过: 主题={validated.global_.theme}, 刷新={validated.global_.refreshInterval}ms")
 
     # 修改后保存
-    validated.theme = "dark"
-    save_config(validated.model_dump(), "/path/to/config.json")
+    validated.global_.theme = "dark"
+    save_config(validated.model_dump(by_alias=True), "/path/to/config.json")
 except Exception as e:
     print(f"配置处理失败: {e}")
 ```
