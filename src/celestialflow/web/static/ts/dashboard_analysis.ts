@@ -4,9 +4,11 @@
  */
 
 type AnalysisData = {
+  name: string; // 任务图名称
+  startTime: number; // 任务图启动时间戳
+  className: string; // 图结构分类名称
   isDAG: boolean; // 当前任务图是否为 DAG
   scheduleMode: string; // 图级调度模式名称
-  className: string; // 图结构分类名称
   layersDict: Record<string, unknown>; // 层级分析结果，键数量可用于统计层数
 };
 
@@ -50,12 +52,24 @@ function renderAnalysisInfo(): void {
     return;
   }
 
-  const { isDAG, scheduleMode, className, layersDict } = analysisData; // 解构常用分析字段
+  const { name, startTime, isDAG, scheduleMode, className, layersDict } =
+    analysisData; // 解构常用分析字段
 
   const layerCount = Object.keys(layersDict).length; // 通过层级字典键数推导层级总数
+  const startTimeText = startTime > 0 ? formatTimestamp(startTime) : "-";
 
-  // 统一构建四行展示内容，避免分散更新不同 DOM 节点。
+  // 统一构建分析信息内容，避免分散更新不同 DOM 节点。
   container.innerHTML = `
+    <div class="analysis-row">
+      <span class="analysis-label">${t("analysis.graphName")}</span>
+      <span class="analysis-value">${escapeHtml(name)}</span>
+    </div>
+
+    <div class="analysis-row">
+      <span class="analysis-label">${t("analysis.startTime")}</span>
+      <span class="analysis-value">${startTimeText}</span>
+    </div>
+
     <div class="analysis-row">
       <span class="analysis-label">${renderLabelWithTooltip("analysis.structType", "analysis.structTypeHelp")}</span>
       <span class="analysis-value">${escapeHtml(className)}</span>

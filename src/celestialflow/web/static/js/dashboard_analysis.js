@@ -43,10 +43,21 @@ function renderAnalysisInfo() {
         container.innerHTML = `<div class="empty-placeholder">${t("analysis.noData")}</div>`;
         return;
     }
-    const { isDAG, scheduleMode, className, layersDict } = analysisData; // 解构常用分析字段
+    const { name, startTime, isDAG, scheduleMode, className, layersDict } = analysisData; // 解构常用分析字段
     const layerCount = Object.keys(layersDict).length; // 通过层级字典键数推导层级总数
-    // 统一构建四行展示内容，避免分散更新不同 DOM 节点。
+    const startTimeText = startTime > 0 ? formatTimestamp(startTime) : "-";
+    // 统一构建分析信息内容，避免分散更新不同 DOM 节点。
     container.innerHTML = `
+    <div class="analysis-row">
+      <span class="analysis-label">${t("analysis.graphName")}</span>
+      <span class="analysis-value">${escapeHtml(name)}</span>
+    </div>
+
+    <div class="analysis-row">
+      <span class="analysis-label">${t("analysis.startTime")}</span>
+      <span class="analysis-value">${startTimeText}</span>
+    </div>
+
     <div class="analysis-row">
       <span class="analysis-label">${renderLabelWithTooltip("analysis.structType", "analysis.structTypeHelp")}</span>
       <span class="analysis-value">${escapeHtml(className)}</span>
