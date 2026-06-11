@@ -100,6 +100,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     all_cloned_stages: list[AnyTaskStage] = list(name_map.values())
 
     cloned_graph: TaskGraph = TaskGraph(
+        name=graph.name,
         schedule_mode=graph.schedule_mode,
         log_level=graph.log_level,
     )

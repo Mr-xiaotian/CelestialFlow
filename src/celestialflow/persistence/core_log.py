@@ -108,23 +108,23 @@ class LogInlet(BaseInlet):
         )
 
     # ==== graph ====
-    def start_graph(self, structure_list: list[str]) -> None:
+    def start_graph(self, graph_name: str, structure_list: list[str]) -> None:
         """
         记录任务图启动及结构信息
 
         :param structure_list: 任务图结构信息列表
         """
-        self._log("INFO", "Starting TaskGraph. Graph structure:")
+        self._log("INFO", f"Graph '{graph_name}' start. Graph structure:")
         for line in structure_list:
             self._log("INFO", line)
 
-    def end_graph(self, use_time: float) -> None:
+    def end_graph(self, graph_name: str, use_time: float) -> None:
         """
         记录任务图结束
 
         :param use_time: 任务图运行耗时（秒）
         """
-        self._log("INFO", f"TaskGraph end. Use {use_time:.2f} second.")
+        self._log("INFO", f"Graph '{graph_name}' end. Use {use_time:.2f}s.")
 
     # ==== layer ====
     def start_layer(self, layer: list[str], layer_level: int) -> None:
@@ -134,7 +134,7 @@ class LogInlet(BaseInlet):
         :param layer: 层节点名称列表
         :param layer_level: 层级深度
         """
-        self._log("INFO", f"Layer {layer} start. Layer level: {layer_level}.")
+        self._log("INFO", f"Layer '{layer}' start. Layer level: {layer_level}.")
 
     def end_layer(self, layer: list[str], use_time: float) -> None:
         """
@@ -143,7 +143,7 @@ class LogInlet(BaseInlet):
         :param layer: 层节点名称列表
         :param use_time: 该层运行耗时（秒）
         """
-        self._log("INFO", f"Layer {layer} end. Use {use_time:.2f} second.")
+        self._log("INFO", f"Layer '{layer}' end. Use {use_time:.2f}s.")
 
     # ==== stage ====
     def start_stage(
@@ -159,7 +159,7 @@ class LogInlet(BaseInlet):
         :param stage_mode: 节点运行模式
         :param execution_mode_desc: 任务执行模式描述
         """
-        text = f"'{stage_name}' start in {stage_mode}; execute tasks by {execution_mode_desc}."
+        text = f"Stage '{stage_name}' start in {stage_mode}; execute tasks by {execution_mode_desc}."
         self._log("INFO", text)
 
     def end_stage(
@@ -185,29 +185,27 @@ class LogInlet(BaseInlet):
         """
         self._log(
             "INFO",
-            f"'{stage_name}' end in {stage_mode}; execute tasks by {execution_mode_desc}. Use {use_time:.2f} second. "
+            f"Stage '{stage_name}' end in {stage_mode}; execute tasks by {execution_mode_desc}. Use {use_time:.2f}s. "
             + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
     # ==== executor ====
     def start_executor(
-        self, name: str, func_name: str, task_num: int, execution_mode_desc: str
+        self, executor_name: str, task_num: int, execution_mode_desc: str
     ) -> None:
         """
         记录执行器启动
 
-        :param name: 执行器名称
-        :param func_name: 任务函数名称
+        :param executor_name: 执行器名称
         :param task_num: 任务数量
         :param execution_mode_desc: 执行模式描述
         """
-        text = f"'{name}[{func_name}]' start; execute {task_num} tasks by {execution_mode_desc}."
+        text = f"Executor '{executor_name}' start; execute {task_num} tasks by {execution_mode_desc}."
         self._log("INFO", text)
 
     def end_executor(
         self,
-        name: str,
-        func_name: str,
+        executor_name: str,
         execution_mode_desc: str,
         use_time: float,
         success_num: int,
@@ -217,8 +215,7 @@ class LogInlet(BaseInlet):
         """
         记录执行器结束及统计
 
-        :param name: 执行器名称
-        :param func_name: 任务函数名称
+        :param executor_name: 执行器名称
         :param execution_mode_desc: 执行模式描述
         :param use_time: 执行器运行耗时（秒）
         :param success_num: 成功任务数量
@@ -227,7 +224,7 @@ class LogInlet(BaseInlet):
         """
         self._log(
             "INFO",
-            f"'{name}[{func_name}]' end; execute tasks by {execution_mode_desc}. Use {use_time:.2f} second. "
+            f"Executor '{executor_name}' end; execute tasks by {execution_mode_desc}. Use {use_time:.2f}s. "
             + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 

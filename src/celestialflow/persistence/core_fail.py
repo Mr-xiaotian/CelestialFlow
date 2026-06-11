@@ -102,7 +102,7 @@ class FailInlet(BaseInlet):
         """
         super().__init__(fail_queue)
 
-    def start_graph(self, structure_graph: dict[str, Any]) -> None:
+    def start_graph(self, graph_name: str, structure_graph: dict[str, Any]) -> None:
         """
         在运行开始时写入任务结构元信息到 jsonl 文件
 
@@ -110,6 +110,7 @@ class FailInlet(BaseInlet):
         """
         meta_item = {
             "timestamp": datetime.now().isoformat(),
+            "graph_name": graph_name,
             "structure": structure_graph,
         }
         self._funnel(meta_item)
@@ -122,7 +123,7 @@ class FailInlet(BaseInlet):
         """
         meta_item = {
             "timestamp": datetime.now().isoformat(),
-            "executor": executor_name,
+            "executor_name": executor_name,
         }
         self._funnel(meta_item)
 

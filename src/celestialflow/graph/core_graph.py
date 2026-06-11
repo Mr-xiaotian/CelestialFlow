@@ -59,6 +59,7 @@ class TaskGraph:
 
     def __init__(
         self,
+        name: str,
         schedule_mode: str = "eager",
         log_level: str = "INFO",
     ) -> None:
@@ -73,7 +74,8 @@ class TaskGraph:
         - 当前 TaskGraph 实例为一次性对象。
         - 完成一次 start_graph() 后，不应复用同一实例再次启动。
         - 如需重复执行，请重新构建新的 TaskGraph 与节点对象。
-
+        
+        :param name: 任务图名称
         :param schedule_mode: str, optional, default = 'eager'
             控制任务图的调度布局模式，支持以下两种策略：
             - 'eager'：
@@ -94,6 +96,7 @@ class TaskGraph:
             - 'ERROR'
             - 'CRITICAL'
         """
+        self._set_name(name)
         self._set_log_level(log_level)
         self._set_schedule_mode(schedule_mode)
         self.set_reporter()
@@ -128,6 +131,8 @@ class TaskGraph:
         # 用于保存图结构的邻接表
         self.out_edges: dict[str, list[str]] = defaultdict(list)
         self.in_edges: dict[str, list[str]] = defaultdict(list)
+        # 用于保存任务图启动时间
+        self.start_time: float = 0.0
 
     def _init_spout(self) -> None:
         """
@@ -181,6 +186,14 @@ class TaskGraph:
                 self.in_edges[to_stage.get_name()].append(from_stage.get_name())
 
     # ==== 配置 ====
+
+    def _set_name(self, name: str) -> None:
+        """
+        设置任务图名称
+
+        :param name: 任务图名称
+        """
+        self.name = name
 
     def _set_schedule_mode(self, schedule_mode: str) -> None:
         """
@@ -377,13 +390,14 @@ class TaskGraph:
                 RuntimeWarning,
                 stacklevel=2,
             )
-        start_time = time.perf_counter()
+        _start = time.perf_counter()
+        self.start_time = time.time()
 
         try:
             self.fail_spout.start()
             self.log_spout.start()
-            self.log_inlet.start_graph(self.get_structure_list())
-            self.fail_inlet.start_graph(self.get_structure_graph())
+            self.log_inlet.start_graph(self.name, self.get_structure_list())
+            self.fail_inlet.start_graph(self.name, self.get_structure_graph())
             self.reporter.start()
 
             self.put_stage_queue(init_tasks_dict, put_termination_signal)
@@ -393,7 +407,7 @@ class TaskGraph:
             self._finalize_nodes()
 
             self.reporter.stop()
-            self.log_inlet.end_graph(time.perf_counter() - start_time)
+            self.log_inlet.end_graph(self.name, time.perf_counter() - _start)
             self.fail_spout.stop()
             self.log_spout.stop()
 
@@ -637,12 +651,14 @@ class TaskGraph:
         """
         获取任务图的分析信息
 
-        :return: 包含 is_dag, schedule_mode, class_name, layers_dict 的字典
+        :return: 包含 name, startTime, is_dag, schedule_mode, class_name, layers_dict 的字典
         """
         return {
+            "name": self.name,
+            "startTime": self.start_time,
+            "className": self.__class__.__name__,
             "isDAG": self.is_dag,
             "scheduleMode": self.schedule_mode,
-            "className": self.__class__.__name__,
             "layersDict": self.layers_dict,
         }
 

@@ -206,8 +206,8 @@ class TaskStage[T, R](TaskExecutor[T, R]):
             TaskStage 为一次性对象；当前实例完成一次 start_stage() 生命周期后，不保
             证可安全再次运行。需要重复执行时请重新创建 TaskStage。
         """
-        self.start_time = time.time()
         _start = time.perf_counter()
+        self.start_time = time.time()
 
         self._init_state()
 

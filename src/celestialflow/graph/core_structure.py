@@ -12,6 +12,7 @@ class TaskChain(TaskGraph):
 
     def __init__(
         self,
+        name: str,
         stages: list[AnyTaskStage],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
@@ -26,7 +27,7 @@ class TaskChain(TaskGraph):
         :param stage_mode: 统一设置链中所有节点的 stage_mode，默认 'thread'
         :param log_level: 日志级别，默认 'INFO'
         """
-        super().__init__(schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
 
         for stage in stages:
             stage.set_stage_mode(stage_mode)
@@ -55,6 +56,7 @@ class TaskCross(TaskGraph):
 
     def __init__(
         self,
+        name: str,
         layers: list[list[AnyTaskStage]],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
@@ -72,7 +74,7 @@ class TaskCross(TaskGraph):
         :param stage_mode: 统一设置所有节点的 stage_mode，默认 'thread'
         :param log_level: 日志级别，默认 'INFO'
         """
-        super().__init__(schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
 
         all_stages: list[AnyTaskStage] = []
         for _, curr_layer in enumerate(layers):
@@ -104,6 +106,7 @@ class TaskGrid(TaskGraph):
 
     def __init__(
         self,
+        name: str,
         grid: list[list[AnyTaskStage]],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
@@ -121,7 +124,7 @@ class TaskGrid(TaskGraph):
         :param stage_mode: 统一设置所有节点的 stage_mode，默认 'thread'
         :param log_level: 日志级别，默认 'INFO'
         """
-        super().__init__(schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
 
         rows, cols = len(grid), len(grid[0])
         all_stages: list[AnyTaskStage] = []
@@ -161,6 +164,7 @@ class TaskLoop(TaskGraph):
 
     def __init__(
         self,
+        name: str,
         stages: list[AnyTaskStage],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
@@ -174,7 +178,7 @@ class TaskLoop(TaskGraph):
         :param stage_mode: 统一设置环中所有节点的 stage_mode，默认 'thread'
         :param log_level: 日志级别，默认 'INFO'
         """
-        super().__init__(schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
 
         for stage in stages:
             stage.set_stage_mode(stage_mode)
@@ -204,6 +208,7 @@ class TaskWheel(TaskGraph):
 
     def __init__(
         self,
+        name: str,
         center: AnyTaskStage,
         ring: list[AnyTaskStage],
         schedule_mode: str = "eager",
@@ -219,7 +224,7 @@ class TaskWheel(TaskGraph):
         :param stage_mode: 统一设置中心及环中所有节点的 stage_mode，默认 'thread'
         :param log_level: 日志级别，默认 'INFO'
         """
-        super().__init__(schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
 
         center.set_stage_mode(stage_mode)
         # center.set_name("Center")
@@ -253,6 +258,7 @@ class TaskComplete(TaskGraph):
 
     def __init__(
         self,
+        name: str,
         stages: list[AnyTaskStage],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
@@ -266,7 +272,7 @@ class TaskComplete(TaskGraph):
         :param stage_mode: 统一设置所有节点的 stage_mode，默认 'thread'
         :param log_level: 日志级别，默认 'INFO'
         """
-        super().__init__(schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
 
         for stage in stages:
             stage.set_stage_mode(stage_mode)

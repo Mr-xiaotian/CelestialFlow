@@ -616,7 +616,6 @@ class TaskExecutor[T, R]:
         self.fail_inlet.start_executor(self.get_name())
         self.log_inlet.start_executor(
             self.get_name(),
-            self.get_func_name(),
             self.metrics.get_task_count(),
             self._get_execution_mode_desc(),
         )
@@ -631,7 +630,6 @@ class TaskExecutor[T, R]:
         self._notify("on_finish")
         self.log_inlet.end_executor(
             self.get_name(),
-            self.get_func_name(),
             self._get_execution_mode_desc(),
             time.perf_counter() - start_time,
             self.metrics.get_success_count(),
