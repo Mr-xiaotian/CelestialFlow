@@ -12,7 +12,7 @@ class TestFailPersistence:
 
         spout.start()
         try:
-            inlet.start_graph([{'node': 's1'}])
+            inlet.start_graph("test_graph", [{'node': 's1'}])
             inlet.task_error('s1', err_id=1, error=ValueError('oops'), task='data1')
             inlet.task_error('s1', err_id=2, error=RuntimeError('fail'), task='data2')
             wait_until(

@@ -28,7 +28,12 @@ def bench_no_ctree() -> None:
         "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
     )
 
-    chain = TaskChain([task_splitter, process_stage], "thread", log_level="INFO")
+    chain = TaskChain(
+        "bench_no_ctree",
+        [task_splitter, process_stage],
+        stage_mode="thread",
+        log_level="INFO",
+    )
     chain.set_ctree(False)
 
     start_time = time.perf_counter()
@@ -48,7 +53,12 @@ def bench_http_ctree() -> None:
         "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
     )
 
-    chain = TaskChain([task_splitter, process_stage], "thread", log_level="INFO")
+    chain = TaskChain(
+        "bench_http_ctree",
+        [task_splitter, process_stage],
+        stage_mode="thread",
+        log_level="INFO",
+    )
     chain.set_ctree(
         True,
         host=ctree_host,
@@ -74,7 +84,12 @@ def bench_grpc_ctree() -> None:
         "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
     )
 
-    chain = TaskChain([task_splitter, process_stage], "thread", log_level="INFO")
+    chain = TaskChain(
+        "bench_grpc_ctree",
+        [task_splitter, process_stage],
+        stage_mode="thread",
+        log_level="INFO",
+    )
     chain.set_ctree(
         True,
         host=ctree_host,

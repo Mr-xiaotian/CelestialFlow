@@ -41,7 +41,11 @@ def demo_chain() -> None:
     stageE = TaskStage("StageE", square, execution_mode="serial", max_workers=2)
 
     # 设置图结构
-    chain = TaskChain([stageA, stageB, stageC, stageD, stageE], stage_mode="thread")
+    chain = TaskChain(
+        "demo_chain",
+        [stageA, stageB, stageC, stageD, stageE],
+        stage_mode="thread",
+    )
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -130,7 +134,7 @@ def demo_forest() -> None:
     )
 
     # 设置图结构
-    graph = TaskGraph()
+    graph = TaskGraph("demo_forest")
     graph.set_stages(
         stages=[
             stageA,
@@ -181,7 +185,9 @@ def demo_cross() -> None:
 
     # 构建 TaskCross
     cross = TaskCross(
-        [[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]], schedule_mode="staged"
+        "demo_cross",
+        [[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]],
+        schedule_mode="staged",
     )
     cross.set_reporter(True, host=report_host, port=report_port)
     cross.set_ctree(
@@ -212,7 +218,7 @@ def demo_network() -> None:
     C = TaskStage("C", add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 构建任务图
-    cross = TaskCross([[A1, A2], [B1, B2, B3], [C]])
+    cross = TaskCross("demo_network", [[A1, A2], [B1, B2, B3], [C]])
     cross.set_reporter(True, host=report_host, port=report_port)
     cross.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -235,7 +241,11 @@ def demo_star() -> None:
     side3 = TaskStage("Side3", add_15)
 
     # 构造 TaskCross
-    star = TaskCross([[core], [side1, side2, side3]], schedule_mode="eager")
+    star = TaskCross(
+        "demo_star",
+        [[core], [side1, side2, side3]],
+        schedule_mode="eager",
+    )
     star.set_reporter(True, host=report_host, port=report_port)
     star.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -252,7 +262,11 @@ def demo_fanin() -> None:
     merge = TaskStage("Merge", add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 构造 TaskCross
-    fainin = TaskCross([[source1, source2, source3], [merge]], schedule_mode="eager")
+    fainin = TaskCross(
+        "demo_fanin",
+        [[source1, source2, source3], [merge]],
+        schedule_mode="eager",
+    )
     fainin.set_reporter(True, host=report_host, port=report_port)
     fainin.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -280,7 +294,7 @@ def demo_grid() -> None:
     ]
 
     # 2. 构建 TaskGrid 实例
-    task_grid = TaskGrid(grid, schedule_mode="staged")
+    task_grid = TaskGrid("demo_grid", grid, schedule_mode="staged")
     task_grid.set_reporter(True, host=report_host, port=report_port)
     task_grid.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -299,7 +313,7 @@ def demo_loop() -> None:
     stageB = TaskStage("StageB", add_one_sleep, execution_mode="serial")
     stageC = TaskStage("StageC", add_one_sleep, execution_mode="serial")
 
-    loop = TaskLoop([stageA, stageB, stageC])
+    loop = TaskLoop("demo_loop", [stageA, stageB, stageC])
     loop.set_reporter(True, host=report_host, port=report_port)
     loop.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -321,7 +335,7 @@ def demo_wheel() -> None:
     side4 = TaskStage("Side4", add_one_sleep)
 
     # 构造 TaskCross
-    wheel = TaskWheel(core, [side1, side2, side3, side4])
+    wheel = TaskWheel("demo_wheel", core, [side1, side2, side3, side4])
     wheel.set_reporter(True, host=report_host, port=report_port)
     wheel.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -337,7 +351,7 @@ def demo_complete() -> None:
     n3 = TaskStage("Node3", square, execution_mode="thread", max_workers=5)
 
     # 构造 TaskComplete
-    complete = TaskComplete([n1, n2, n3])
+    complete = TaskComplete("demo_complete", [n1, n2, n3])
     complete.set_reporter(True, host=report_host, port=report_port)
     complete.set_ctree(
         True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
@@ -383,7 +397,7 @@ def demo_multi_cycle() -> None:
         "C2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
     )
 
-    graph = TaskGraph(schedule_mode="staged")
+    graph = TaskGraph("demo_multi_cycle", schedule_mode="staged")
     graph.set_stages(
         stages=[A1, A2, B1, B2, C1, C2],
     )

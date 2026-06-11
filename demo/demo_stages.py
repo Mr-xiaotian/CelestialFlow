@@ -68,7 +68,7 @@ def demo_splitter_0() -> None:
     )
 
     # 初始化 TaskGraph
-    graph = TaskGraph(log_level="INFO")
+    graph = TaskGraph("demo_splitter_0", log_level="INFO")
     graph.set_stages(
         stages=[generate_stage, logger_stage, splitter, download_stage, parse_stage],
     )
@@ -95,7 +95,12 @@ def demo_splitter_1() -> None:
     task_splitter = TaskSplitter("Splitter")
     process_stage = TaskStage("Process", no_op, execution_mode="thread", max_workers=50)
 
-    chain = TaskChain([task_splitter, process_stage], "thread", log_level="INFO")
+    chain = TaskChain(
+        "demo_splitter_1",
+        [task_splitter, process_stage],
+        stage_mode="thread",
+        log_level="INFO",
+    )
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(
         True,
@@ -141,7 +146,7 @@ def demo_redis_ack_0() -> None:
         execution_mode="thread",
     )
 
-    graph = TaskGraph()
+    graph = TaskGraph("demo_redis_ack_0")
     graph.set_stages(
         stages=[start_stage, redis_tranport, redis_ack, fibonacci_stage],
     )
@@ -191,7 +196,7 @@ def demo_redis_ack_1() -> None:
         max_workers=4,
     )
 
-    graph = TaskGraph()
+    graph = TaskGraph("demo_redis_ack_1")
     graph.set_stages(
         stages=[start_stage, redis_tranport, redis_ack, sum_stage],
     )
@@ -242,7 +247,7 @@ def demo_redis_ack_2() -> None:
         max_workers=4,
     )
 
-    graph = TaskGraph()
+    graph = TaskGraph("demo_redis_ack_2")
     graph.set_stages(
         stages=[start_stage, redis_tranport, redis_ack, download_stage],
     )
@@ -293,7 +298,7 @@ def demo_redis_source_0() -> None:
         execution_mode="serial",
     )
 
-    graph = TaskGraph()
+    graph = TaskGraph("demo_redis_source_0")
     graph.set_stages(
         stages=[sleep_stage_0, redis_tranport, redis_source, sleep_stage_1],
     )
@@ -344,7 +349,7 @@ def demo_router_0() -> None:
         max_workers=4,
     )
 
-    graph = TaskGraph()
+    graph = TaskGraph("demo_router_0")
     graph.set_stages(
         stages=[source_stage, router, stage_a, stage_b],
     )

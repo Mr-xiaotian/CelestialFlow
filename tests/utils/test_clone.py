@@ -91,7 +91,7 @@ class TestUtilClone:
         stage_b = TaskStage(name="B", func=lambda x: x)
         stage_c = TaskStage(name="C", func=lambda x: x)
 
-        graph = TaskGraph(schedule_mode="staged")
+        graph = TaskGraph("test_clone_graph_structure", schedule_mode="staged")
         graph.set_stages([stage_a, stage_b, stage_c])
         graph.connect([stage_a], [stage_b])
         graph.connect([stage_b], [stage_c])
@@ -120,7 +120,7 @@ class TestUtilClone:
         stage_a = TaskStage(name="A", func=lambda x: x, execution_mode="serial")
         stage_b = TaskStage(name="B", func=lambda x: x, execution_mode="serial")
 
-        graph = TaskGraph(schedule_mode="eager")
+        graph = TaskGraph("test_clone_graph_independent", schedule_mode="eager")
         graph.set_stages([stage_a, stage_b])
         graph.connect([stage_a], [stage_b])
 

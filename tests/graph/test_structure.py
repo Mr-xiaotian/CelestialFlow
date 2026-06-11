@@ -26,7 +26,7 @@ class TestTaskLoop:
         s2 = TaskStage("s2", double)
         s3 = TaskStage("s3", to_str)
 
-        loop = TaskLoop([s1, s2, s3])
+        loop = TaskLoop("test_loop_analysis", [s1, s2, s3])
         loop.start_loop({s1.get_name(): [1]}, put_termination_signal=True)
 
         analysis = loop.get_graph_analysis()
@@ -44,7 +44,7 @@ class TestTaskLoop:
         s1 = TaskStage("s1", add_one)
         s2 = TaskStage("s2", double)
 
-        loop = TaskLoop([s1, s2])
+        loop = TaskLoop("test_loop_source_stages", [s1, s2])
         loop.start_loop({s1.get_name(): [1]}, put_termination_signal=True)
 
         sources = loop.get_source_stages()
@@ -63,7 +63,7 @@ class TestTaskWheel:
         r2 = TaskStage("r2", to_str)
         r3 = TaskStage("r3", add_one)
 
-        wheel = TaskWheel(center, [r1, r2, r3])
+        wheel = TaskWheel("test_wheel_analysis", center, [r1, r2, r3])
         wheel.set_graph_mode("thread", "serial")
 
         analysis = wheel.get_graph_analysis()
@@ -80,7 +80,7 @@ class TestTaskWheel:
         r1 = TaskStage("r1", double)
         r2 = TaskStage("r2", to_str)
 
-        wheel = TaskWheel(center, [r1, r2])
+        wheel = TaskWheel("test_wheel_source_stages", center, [r1, r2])
         wheel.set_graph_mode("thread", "serial")
 
         sources = wheel.get_source_stages()

@@ -12,9 +12,9 @@ class TestLogPersistence:
 
         spout.start()
         try:
-            inlet.start_graph(['test message'])
+            inlet.start_graph("test_graph", ['test message'])
             inlet.task_retry('func', 'hello world', 1, ValueError('oops'), 0, 1)
-            inlet.end_graph(1.0)
+            inlet.end_graph("test_graph", 1.0)
             inlet.start_stage('stage', 'normal', 'parallel-4')
             wait_until(
                 lambda: spout.log_path.exists()

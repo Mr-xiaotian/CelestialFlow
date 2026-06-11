@@ -20,7 +20,7 @@ class TestTaskSplitter:
         S = TaskSplitter("S")
         A = TaskStage("A", noop)
 
-        graph = TaskGraph()
+        graph = TaskGraph("test_splitter_process_success")
         graph.set_stages([S, A])
         graph.connect([S], [A])
         graph.start_graph({S.get_name(): [[1, 2, 3]]})
@@ -36,7 +36,7 @@ class TestTaskSplitter:
         S = TaskSplitter("S")
         A = TaskStage("A", noop)
 
-        graph = TaskGraph()
+        graph = TaskGraph("test_splitter_allows_empty_iterable")
         graph.set_stages([S, A])
         graph.connect([S], [A])
         graph.start_graph({S.get_name(): [[]]})
@@ -52,7 +52,7 @@ class TestTaskSplitter:
         S = TaskSplitter("S")
         A = TaskStage("A", noop)
 
-        graph = TaskGraph()
+        graph = TaskGraph("test_splitter_supports_generator_input")
         graph.set_stages([S, A])
         graph.connect([S], [A])
         graph.start_graph({S.get_name(): [(i for i in [1, 2, 3])]})
@@ -102,7 +102,7 @@ class TestTaskRouter:
         T1 = TaskStage("target1", noop)
         T2 = TaskStage("target2", noop)
 
-        graph = TaskGraph()
+        graph = TaskGraph("test_router_process_success")
         graph.set_stages([R, T1, T2])
         graph.connect([R], [T1, T2])
         graph.start_graph({R.get_name(): [("target1", "msg1"), ("target2", "msg2")]})
