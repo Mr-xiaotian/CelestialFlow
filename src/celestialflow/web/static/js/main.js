@@ -166,6 +166,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     applyConfig();
     const config = webConfig; // 使用局部引用，后续事件里直接修改同一配置对象
     updateCurrentPageSettings();
+    // 先渲染一轮默认空态，避免页面在首次拉取完成前出现空白区域。
+    renderMermaidStructure(nodeStatuses);
+    renderDashboard();
+    populateNodeFilter(nodeStatuses);
+    renderErrors();
+    renderAnalysisInfo();
+    renderInjectionPage();
+    initChart();
+    updateChartData();
+    renderSummary();
     // ==== 事件绑定 ====
     // 点击齿轮按钮：切换设置面板显示/隐藏
     settingsBtn.addEventListener("click", (e) => {
@@ -281,7 +291,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     // ==== 启动流程 ====
     refreshAll(); // 启动轮询
-    initChart(); // 初始化折线图
     syncAutoRefreshTimer();
 });
 /**
