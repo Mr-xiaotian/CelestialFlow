@@ -235,31 +235,61 @@ flowchart TD
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.2.2</em>
+  <em>celestial-flow 3.2.3</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.2.2
+- 3.2.3
   - feat:
-    - `core_server` 中添加数据锁, 避免并发访问导致的错误状态
-    - 优化前端设置面板的显示, 现在只显示全局设置与当前页相关设置
-    - 在设置面板中添加全局设置中的 "是否自动更新" 选项与错误日志页面中的 "排序方式" 两项
+    - **[IMPORTANT]** 前端仪表盘设置面板中新添 `节点等待使用全局估计` 开关, 开启后节点卡片中原 `等待` 量将被替换为 `全局等待`, 并在卡片中显示 `全局剩余时间`
+      - 这个功能非常有趣, 开启前后能看到数值大幅波动
+    - **[IMPORTANT]** 重写任务注入页面, 现在实用性远远高于之前版本
+      - 可以给每个节点单独配置注入任务列表, 在一起发送
+    - **[IMPORTANT]** 移除 `TaskExecutor` 中 `get_args` 与 `process_result` 两个方法, 以及 `unpack_task_args` 属性
+      - 这是为引入泛型必要的修改
+      - `process_result` 功能很简单, 对func输出的result进行再次处理, 但事实上在输入func前对齐进行包装也能达到一样的效果
+      - `get_args` 功能更为复杂, 可以直接将前一节点提供的 `result` 转为当前节点所需的 `task` 类型, 非常灵活; 但问题在于太过灵活, 导致使用心智负担很大
+      - `unpack_task_args` 就是 `get_args` 带来的一项心智负担, 默认 `get_args` 会把 `task` 进行 `(task, )` 包裹后发送给func, 开启 `unpack_task_args` 后则直接发送
+    - **[IMPORTANT]** `graph` 的init参数中添加 `name`, 以与 `executor` `stage` 一致
+      - 破坏接口破坏性更新
+      - 在日志的 `start_graph` `end_graph` 与web端的 `graph_anaylysis` 中都有显示
+    - 彻底移除前后端通信中的 `graph_summary` , 原本残余的 `全局剩余时间` 现在拆为各个节点的 `全局等待` 与 `全局剩余时间`
+      - 这里所说的 `全局` 意为根据图论关系, 由上游剩余的任务数估算下游总共能获得多少任务
+      - 例如: 图关系 `A -> B`, A已处理任务2, 未处理任务3, B已处理任务4, 未处理任务2. 这意味着A成功的2个任务为B带来总共了6个任务, 那么我们可以据此估计B总功能获取"3/2*6=9"个任务, 因此B的 `等待` 任务数量为2, 但 `全局等待` 任务数量为5
+    - 前端中添加部分提示气泡, 鼠标放上去后可以介绍相关信息, 例如本次新加入的节点 `全局等待` 的含义
+    - 移除前端中节点卡片的拖拽功能
+      - 这个功能是在最早加入web页面时添加的, 当时感觉很帅, 但现在有点玩腻了
+    - 前端错误日志页面添加 `任务注入` 按钮, 可以把选定任务直接添加到任务注入页面中节点的代注入任务列表中
+    - 在 `TaskSplitter` 中添加 `split_item` 方法, 可自由定义
+      - 原本的 `splitter` 非常依赖于 `get_args`, 现在通过 `split_item` 方法稍微弥补其缺失的灵活性
   - refactor:
-    - 删除前后端通讯中的 `summary` , 节点的总体预期结束时间由各个节点的 `status` 分别传递, 并由前端计算整体的预期结束时间
-    - 修改 `structure_graph`(原 `structure_json`) 字段的内容, 现在更为简洁, 避免信息冗余, 同时方便后续拓展
+    - **[IMPORTANT]** 引入泛型, 同时强制性要求py版本>=3.12
+      - 泛型的引入使得代码更加类型安全, 同时也提高了代码的可读性
+      - 3.12版本对泛型的表述非常直观
+    - 移除前端代码中所有对 `localStorage` 的使用
+      - 在已经有config配置文件的情况下意义不大, 反而会带来困扰
+    - 将任务队列的drain操作从graph层移至stage层
+      - 之前不能这样做是因为节点的 `stage_mode` 可能为 `process`, 此时在主进程持有的节点非真实运行的节点
+      - 算是3.2.0版本带来的持久影响之一
+    - 优化 `TaskMetric` 中对锁的使用
+    - 移除 `TaskEnvelope` 中的 `change_id()` 方法, 现在默认envelope不可变, 同时 `emit_retry_envelope` 中不再把原有的envelope的id修改后继续提交给worker, 而是直接使用新生成的envelope
+    - 移除错误日志中的 `error` `error_repr` `task_repr` 字段
+    - 修改前后端通信中任务注入数据的格式, 以方便同时提交多个节点的任务数据
+    - 前端代码中开启strict检查
+    - 将前端中 `injection.css` 文件拆分成多个文件
+    - 修改 `config.json` 的数据格式, 现在按照生效区域进行分类
+    - 收紧前端中的数据类型
+    - 添加 `ReportTaskGraph` 类型, 专门用于给reporter做类型声明
   - fix:
-    - 修复指标折线图中指标选择失效的问题
-    - 修改 `report.stop` 中_refresh_all的执行顺序, 避免与thread中的刷新冲突
-    - 在 `graph._finalize_nodes` 中添加对thread未终止的防御性检查
-    - 修复 `stage` 中 `start_time` 在未定义前被 `report` 调用的问题
-    - 修复 `TaskRedisTransport._transport` 中使用 `id()` 来计算task_id导致的问题
-    - 修复部分任务无法被hash导致的panic问题
+    - i18n本地化在部分字段上失效的问题
+    - 直接点击仪表盘中错误数字跳转到错误日志页后, 设置面板显示的还是仪表盘页面的设置
+    - 前端中为各项仪表盘请求添加 `RequestSeq`, 以避免前后发送两个请求, 但因为延迟关系, 先发送的请求的返回覆盖掉后发送请求的返回
+    - 修复前端中各项空字段需要在第一次refresh才显示的问题, 体感上会导致"加载"很慢
   - chore:
-    - 删除所有的 `type: ignore`
-      - 好看不少
-    - 在 `start_*` 函数的doc-string中标注该函数为一次性调用函数
+    - 将文档更新翻译为英/日两语
+      - 这项操作太耗token了
 
 更多过往日志可看:
 
