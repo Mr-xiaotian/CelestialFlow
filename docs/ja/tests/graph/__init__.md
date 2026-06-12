@@ -1,19 +1,19 @@
 # graph テストパッケージ
 
-> 📅 最終更新日: 2026/06/05
+> 📅 最終更新日: 2026/06/11
 
-## 目的
+## 役割
+`tests/graph/` はタスクグラフの構築、トポロジ解析、構造エクスポート、グラフレベルスケジューリング動作、および `TaskLoop`、`TaskWheel` などの循環グラフ構造の専用テストをカバーし、主に `celestialflow.graph` モジュールに対応します。
 
-グラフ解析 helper、`TaskGraph`、構造シリアライズのテストをまとめます。
-
-## 主要ポイント
-
-- ソースノード検出とグラフ実行挙動を検証します。
-- JSON / テキスト構造レンダリング helper も含みます。
+## 含まれるテストファイル
+- `test_analysis.py`: ソースノード識別、階層計算、networkx グラフ解析ヘルパー関数をカバー。
+- `test_graph.py`: `TaskGraph` の構築、スケジューリング、エラー収集、ライフサイクルをカバー。
+- `test_serialize.py`: 構造グラフの JSON / テキストエクスポートロジックをカバー。
+- `test_structure.py`: `TaskLoop` と `TaskWheel` の循環グラフ構造専用解析をカバー。
 
 ## 実行方法
 
 ```bash
 pytest tests/graph -v
-pytest tests/graph -k "graph or analysis" -v
+pytest tests/graph -k "graph or analysis or structure" -v
 ```

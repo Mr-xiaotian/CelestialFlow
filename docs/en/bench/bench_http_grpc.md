@@ -4,47 +4,47 @@
 
 ## Objective
 
-Quantify the performance overhead of the CelestialTree event-tracking system under different transport modes (disabled / HTTP / gRPC), helping users balance high-fidelity tracing against minimal latency.
+Quantitatively compare the performance overhead of the CelestialTree event tracking system under different transport protocols (disabled / HTTP / gRPC), helping users make trade-offs between high-precision tracing and minimal latency.
 
-## Test Cases
+## Test Contents
 
 | Scenario | Description |
 |----------|-------------|
-| `bench_no_ctree` | CelestialTree fully disabled, used as the baseline |
+| `bench_no_ctree` | CelestialTree completely disabled, as baseline |
 | `bench_http_ctree` | Report events to CelestialTree via HTTP |
 | `bench_grpc_ctree` | Report events to CelestialTree via gRPC |
 
-- **Graph topology**: a simple `TaskSplitter -> TaskStage` chain.
-- **Task**: `no_op`, processing `range(1e4)`.
-- **Configuration**: `stage_mode="thread"`, `execution_mode="thread"`, `max_workers=50`.
+- **Graph structure**: Simple chain of `TaskSplitter → TaskStage`
+- **Tasks**: `no_op` identity function (processing `range(1e4)`)
+- **Config**: `stage_mode="thread"`, `execution_mode="thread"`, `max_workers=50`
 
 ## Key Configuration
 
-- `ctree_host`, `ctree_http_port`, and `ctree_grpc_port` are loaded from `.env`.
+- `ctree_host`, `ctree_http_port`, `ctree_grpc_port` read from `.env`
 
 ## Potential Issues
 
-1. **CelestialTree service not running**: if the HTTP or gRPC server is unavailable, the benchmark fails immediately with a connection error.
-2. **Network RTT dominates**: because the task is `no_op` with almost zero compute cost, most of the measured difference comes from event-reporting round trips rather than task execution itself.
-3. **HTTP connections not reused**: the current implementation may create a new HTTP connection for each event. If connection pooling such as `requests.Session` is used, HTTP performance can improve substantially.
-4. **gRPC cold start**: the first gRPC request needs handshake setup, which can look expensive in short-running jobs.
+1. **CelestialTree service not running**: Under HTTP/gRPC scenarios, if the server is unavailable, the test will directly throw a connection exception.
+2. **Network latency dominates results**: Since tasks are `no_op` (near-zero computation), measured time differences are almost entirely from network RTT of event reporting and cannot reflect real proportions in CPU-intensive scenarios.
+3. **HTTP connections not reused**: The current implementation may create a new HTTP connection for each event report; using a connection pool (e.g., `requests.Session`) would significantly improve HTTP performance.
+4. **gRPC cold start**: gRPC's first call requires TLS/handshake negotiation, which may manifest as higher latency in short tasks.
 
 ## Benchmark Results (Measured)
 
-> Environment: Windows, Python 3.10, `TaskSplitter -> TaskStage`, processing `range(1e4)`
-> External service: local CelestialTree (HTTP + gRPC)
+> Environment: Windows, Python 3.10, TaskSplitter → TaskStage chain, processing `range(1e4)`
+> External Service: local CelestialTree (HTTP + gRPC)
 
 | Scenario | Time | Overhead vs Baseline |
-|----------|------|----------------------|
+|----------|------|---------------------|
 | **no ctree** (baseline) | 4.14s | — |
 | **http ctree** | 9.46s | +129% |
 | **grpc ctree** | 9.25s | +124% |
 
-**Key takeaways**:
-- HTTP and gRPC are almost identical in this scenario, with less than 2% difference.
-- Event tracing increases total runtime by about **2.3x** (`4.14s -> 9.3s`).
-- Because the task is a near-zero-cost `no_op`, the overhead ratio is amplified; for CPU-intensive jobs, the relative overhead should be much lower.
-- gRPC shows no obvious advantage here, likely because local-network RTT is already very small and HTTP could narrow the gap further once connection reuse is enabled.
+**Key Takeaways**:
+- HTTP and gRPC perform nearly identically in this scenario (difference < 2%)
+- Event tracking introduces approximately **2.3x** total time increase (4.14s → 9.3s)
+- Since tasks are `no_op` (zero computation), the overhead ratio is amplified; in CPU-intensive tasks, this ratio would be significantly lower
+- gRPC did not show a clear advantage, likely because local network RTT is extremely low and HTTP connection reuse narrows the gap
 
 ## How to Run
 
@@ -54,38 +54,38 @@ python bench/bench_http_grpc.py
 
 ## Parameter Tuning
 
-### Test Only Specific Transport Modes
+### Testing Specific Transport Modes Only
 
-Comment out unneeded cases in `main()`:
+In `main()`, comment out unneeded modes:
 
 ```python
 def main():
-    bench_no_ctree()       # Only test the baseline
+    bench_no_ctree()       # Test baseline only
     # bench_http_ctree()   # Skip HTTP
     # bench_grpc_ctree()   # Skip gRPC
 ```
 
-### Adjust Task Scale
+### Adjusting Task Scale
 
-`TaskSplitter` expands `range(1e4)`, which you can shrink or enlarge:
+Expanded from `range(1e4)` by `TaskSplitter`; can be modified larger or smaller:
 
 ```python
-# Quick verification
+# Quick validation (few tasks)
 range(100)
 
 # High-load test
 range(100_000)
 ```
 
-### Adjust the Number of Workers
+### Adjusting Concurrent Worker Count
 
 ```python
-# Change inside the function
-max_workers=20   # Lower concurrency
-# max_workers=100  # Higher concurrency
+# Modify inside the function
+max_workers=20   # Reduce concurrency
+# max_workers=100  # Increase concurrency
 ```
 
-Run again after modification:
+Run after modification:
 
 ```bash
 python bench/bench_http_grpc.py
@@ -95,4 +95,4 @@ python bench/bench_http_grpc.py
 
 - `celestialflow` (`TaskChain`, `TaskSplitter`, `TaskStage`)
 - `python-dotenv`
-- External service: CelestialTree (HTTP port + gRPC port)
+- External Service: CelestialTree (HTTP port + gRPC port)

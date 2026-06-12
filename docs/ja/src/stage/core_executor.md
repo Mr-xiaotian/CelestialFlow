@@ -1,24 +1,23 @@
 # TaskExecutor
 
-> 📅 最終更新日: 2026/06/05
+> 📅 最終更新日: 2026/06/11
 
-`TaskExecutor` は単一タスクロジックを実行するコアコンポーネントです。タスクの実行、並行制御、エラーハンドリング、リトライメカニズム、ログ記録を担当します。
+`TaskExecutor` は単一タスクロジックを実行するコアコンポーネントです。タスクの実行、並行性制御、エラー処理、リトライ機構、およびログ記録を担当します。
 
-> 注意: `TaskExecutor` は使い切りオブジェクトとして扱うべきです。1 回 `start()` / `start_async()` を実行した後、同じインスタンスを安全に再利用できる保証はありません。
+> 注意：`TaskExecutor` は使い捨てオブジェクトです。`start()` または `start_async()` の完了後、現在のインスタンスを安全に再利用できるとは限りません。再実行が必要な場合は、新しい `TaskExecutor` を作成してください。
 
 ## 初期化
 
 ```python
-class TaskExecutor:
+class TaskExecutor[T, R]:
     def __init__(
         self,
         name: str,
-        func: Callable[..., Any],
+        func: Callable[[T], R] | Callable[[T], Awaitable[R]],
         execution_mode: str = "serial",
         max_workers: int | None = None,
         max_retries: int = 1,
         max_info: int = 50,
-        unpack_task_args: bool = False,
         enable_duplicate_check: bool = True,
         log_level: str = "INFO",
     ):
@@ -27,104 +26,112 @@ class TaskExecutor:
 
 ### パラメータ説明
 
-| パラメータ | デフォルト | 説明 |
-|-----------|----------|------|
-| `name` | — | エグゼキューター名。ログとトレースに使用 |
-| `func` | — | タスクを実際に実行する呼び出し可能オブジェクト |
-| `execution_mode` | `"serial"` | 実行モード: `"serial"` / `"thread"` / `"async"` |
-| `max_workers` | `None` | 並行数制限（None 時は動的: `min(32, cpu_count+4)`） |
-| `max_retries` | `1` | タスク失敗後の最大リトライ回数 |
-| `max_info` | `50` | ログメッセージの最大長 |
-| `unpack_task_args` | `False` | タスク引数を関数に渡す際に展開（`*args`）するかどうか |
-| `enable_duplicate_check` | `True` | ハッシュベースの重複チェックを有効にするか |
+| パラメータ | デフォルト値 | 説明 |
+|------|--------|------|
+| `name` | — | 実行者名。ログと追跡に使用 |
+| `func` | — | タスクを実際に実行する呼び出し可能オブジェクト（同期関数とコルーチン関数の両方をサポート） |
+| `execution_mode` | `"serial"` | 実行モード：`"serial"` / `"thread"` / `"async"` |
+| `max_workers` | `None` | 並行数制限（None の場合は動的: `min(32, cpu_count+4)`） |
+| `max_retries` | `1` | タスク失敗後の最大リトライ回数（最大で retries+1 回実行） |
+| `max_info` | `50` | ログにおける各情報の最大長 |
+| `enable_duplicate_check` | `True` | タスクハッシュに基づく重複チェックを有効にするか |
 | `log_level` | `"INFO"` | ログレベル |
+
+> **変更点**：以前のドキュメントには `unpack_task_args` パラメータが記載されていましたが、現在のソースコードには存在せず、削除されました。
 
 ## Observer パターン
 
-`TaskExecutor` は Observer パターンを通じてライフサイクルイベントを外部にブロードキャストします。
+`TaskExecutor` は observer パターンを通じてライフサイクルイベントを外部にブロードキャストします。
 
-### 登録と削除
+### 登録と解除
 
 ```python
 executor.add_observer(observer)     # オブザーバーを登録
-executor.remove_observer(observer)  # オブザーバーを削除
+executor.remove_observer(observer)  # オブザーバーを解除
 ```
 
 ### ブロードキャストイベント
 
-| イベント | 発火場所 | 説明 |
-|---------|--------|------|
-| `on_start(name, total)` | `start()`/`start_async()` | 実行開始 |
-| `on_task_success()` | `process_task_success()` | タスク成功 |
-| `on_task_fail()` | `handle_task_fail()` | タスク失敗 |
-| `on_task_duplicate()` | `deal_duplicate()` | 重複検出 |
-| `on_tasks_added(count)` | `_put_task_queue()` | 新タスク追加（100件ごとに通知） |
-| `on_finish()` | `start()`/`start_async()` finally | 実行終了 |
+| イベント | トリガー位置 | 説明 |
+|------|---------|------|
+| `on_start(name, total)` | `_prepare_start()` | 実行開始（注意：total は常に 0。実際のタスク数は `on_tasks_added` で通知） |
+| `on_task_success()` | `process_task_success()` | タスク成功（パラメータなし。Observer が自身でカウントを取得） |
+| `on_task_fail()` | `handle_task_fail()` | タスク失敗（パラメータなし） |
+| `on_task_duplicate()` | `deal_duplicate()` | 重複検出（パラメータなし） |
+| `on_tasks_added(count)` | `_put_task_queue()` | 新規タスク追加（100 件ごとに通知） |
+| `on_finish()` | `_finish_start()` finally | 実行終了（パラメータなし） |
 
-注意: `on_task_success`、`on_task_fail`、`on_task_duplicate` の `_notify` 呼び出しはカウント引数を渡しません。Observer は外部から取得する必要があります。
+> **変更点**：以前のドキュメントでは `on_start` が実際のタスク総数を渡すと記載されていましたが、ソースコードでは常に `0` を渡します。実際のタスク数は後続の `on_tasks_added` イベントで逐次通知されます。成功/失敗/重複イベントもカウントパラメータを渡しません。
 
 ## コアメソッド
 
 ### start / start_async
 
 ```python
-def start(self, task_source: Iterable[Any]) -> None:
+def start(self, task_source: Iterable[T]) -> None:
     """
-    同期的にエグゼキューターを起動。フロー：
-    1. init_env() — metrics、dispatch、spout、inlet、queue を初期化
-    2. _put_task_queue() — エンベロープを構築し全タスクをエンキュー
-    3. execution_mode に応じた dispatch メソッドを呼び出し
-    4. finally で spout を停止
-    
-    注意: async モードではこのメソッドを使用しないでください（内部で asyncio.run）。start_async を使用してください。
+    実行者を同期的に起動。フロー：
+    1. _prepare_start() — init_env() + タスク注入 + 起動ログ記録
+    2. execution_mode に応じて dispatch の対応メソッドを呼び出し
+    3. _finish_start() — on_finish 通知 + 全 spout 停止
     """
 
-async def start_async(self, task_source: Iterable[Any]) -> None:
+async def start_async(self, task_source: Iterable[T]) -> None:
     """
-    非同期的にエグゼキューターを起動。内部的に execution_mode="async" を設定。
+    実行者を非同期的に起動。内部で execution_mode="async" を設定。
+    asyncio.run() の代わりに await dispatch.dispatch_async() を使用。
     """
 ```
 
-ライフサイクル上の注意:
-- 内部キュー、spout、inlet、カウンタ、実行時状態は 1 回の実行ライフサイクル向けに初期化されます。
-- 同じタスクフローを再度実行したい場合は、同じインスタンスを再起動するのではなく、新しい `TaskExecutor` を作成してください。
+ライフサイクル制約：
 
-## エラーハンドリング
+- 実行中はキュー、`spout/inlet`、統計状態、スケジューラー実行時リソースを作成・保持します。
+- 現在の実装は単回実行向けに設計されており、一度の実行終了後に完全にリセットできることは保証されません。
+- 同じロジックを複数回実行する必要がある場合は、同じオブジェクトの `start()` / `start_async()` を繰り返し呼ぶのではなく、新しい実行者インスタンスを作成してください。
+
+## エラー処理
 
 ### リトライロジック
 
-例外は `TaskDispatch._worker` で分類されます:
-- **リトライ可能な例外**: `retry_exceptions` に含まれ、`max_retries` に達していない場合、`emit_retry_envelope()` でタスク ID を更新してリトライ
-- **リトライ不可能な例外**: タスクを失敗としてマーク、エラーログを記録、`fail_inlet` に配置
+例外は `TaskDispatch._worker` で分類されます：
+- **リトライ可能な例外**: `retry_exceptions` に含まれ、かつ `max_retries` に達していない場合、`emit_retry_envelope()` でタスク ID を更新してリトライ
+- **リトライ不可能な例外**: タスクを失敗としてマークし、エラーログを記録、`fail_inlet` に投入
 
 ```python
 def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
-    """リトライが必要な例外タイプを追加。"""
+    """リトライが必要な例外型を追加する。"""
 ```
 
-### 結果処理（オーバーライド可能メソッド）
+### 結果処理（コアメソッド）
+
+タスクの結果処理は以下のメソッドで実装されます：
 
 ```python
-def process_result(self, task: Any, result: Any) -> Any:
-    """カスタム結果処理ロジック（デフォルトはそのまま返す）。"""
+def process_task_success(self, task_envelope: TaskEnvelope[T, R], result: R, start_time: float) -> None:
+    """成功タスクの処理：observer 通知、ログ書き込み、結果エンベロープ生成、result_queue への投入。"""
 
-def get_args(self, task: Any) -> tuple[Any, ...]:
-    """カスタム引数抽出ロジック（デフォルトは unpack_task_args に基づいて展開）。"""
+def handle_task_fail(self, task_envelope: TaskEnvelope[T, R], exception: Exception) -> None:
+    """失敗タスクの処理：observer 通知、fail_inlet と log_inlet への記録。"""
+
+def deal_duplicate(self, task_envelope: TaskEnvelope[T, R]) -> None:
+    """重複タスクの処理：observer 通知、ログ記録。"""
 ```
+
+> **変更点**：以前のドキュメントではオーバーライド可能なメソッド `process_result()` と `get_args()` が記載されていましたが、現在のソースコードにはこれらのメソッドは存在しません。実際の結果処理は `process_task_success()` で行われ、パラメータ抽出ロジックは `TaskDispatch` 内部で処理されます。
 
 ### 結果の取得
 
 ```python
-def get_success_pairs(self) -> list[tuple[Any, Any]]:
+def get_success_pairs(self) -> list[tuple[T, R]]:
     """成功タスク (task, result) リストを取得（SuccessSpout キャッシュ経由）。"""
 
 def get_error_pairs(self) -> list[tuple[Any, PersistedErrorRecord]]:
     """失敗タスク (task, error_record) リストを取得（FailSpout キャッシュ経由）。"""
 
-def process_result_dict(self) -> dict[Any, Any]:
+def process_result_dict(self) -> dict[T, R | str]:
     """成功と失敗の結果辞書をマージ。"""
 
-def handle_error_dict(self) -> dict[tuple[str, str], list[Any]]:
+def handle_error_dict(self) -> dict[tuple[str, str], list[T]]:
     """(error_type, error_message) でエラーをグループ化。"""
 ```
 
@@ -132,87 +139,67 @@ def handle_error_dict(self) -> dict[tuple[str, str], list[Any]]:
 
 ```python
 def set_ctree(self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778) -> None:
-    """CelestialTree クライアントを設定（gRPC トランスポートのみ）。"""
+    """CelestialTree クライアントを設定（gRPC 転送のみ）。"""
 
 def set_nullctree(self, event_id: int | None = None) -> None:
-    """Null クライアントを設定（外部サービスに接続せず、イベント ID のみ生成）。"""
+    """空クライアントを設定（外部サービスに接続せず、イベント ID のみ生成）。"""
 ```
 
-## 状態クエリメソッド
+## 状態照会メソッド
 
 ```python
-def get_name(self) -> str:           # エグゼキューター名
-def get_full_name(self) -> str:      # "name(mode-workers)" または "name(serial)"
-def get_func_name(self) -> str:      # 関数名
-def _get_class_name(self) -> str:    # クラス名
-def _get_execution_mode_desc(self) -> str:  # 実行モード説明文字列
-def get_summary(self) -> dict:       # スナップショット: name, func_name, class_name, execution_mode
-def get_counts(self) -> dict:        # カウンター: tasks_input/succeeded/failed/duplicated/processed/pending
+def get_name(self) -> str:                    # 実行者名
+def get_full_name(self) -> str:               # "name(mode-workers)" または "name(serial)"
+def get_func_name(self) -> str:               # 関数名
+def _get_class_name(self) -> str:             # クラス名
+def _get_execution_mode_desc(self) -> str:    # 実行モード説明文字列
+def get_summary(self) -> dict:                # スナップショット：name, func_name, execution_mode, max_workers
+def get_counts(self) -> dict:                 # カウンター：tasks_input/succeeded/failed/duplicated/processed/pending
 ```
 
-## start / start_async フロー
-
-### start（同期起動）
-
-```python
-def start(self, task_source: Iterable[Any]) -> None:
-```
-
-実行フロー:
-1. 起動時間を記録
-2. `init_env()` — metrics → dispatch → spout → inlet → queue を初期化
-3. Observer に `on_start` を通知
-4. `_put_task_queue(task_source)` — エンベロープを構築し全タスクをエンキュー
-5. `fail_inlet.start_executor()` / `log_inlet.start_executor()` — 起動ログを記録
-6. `execution_mode` に応じた dispatch メソッドを呼び出し:
-   - `serial` → `dispatch_serial()`
-   - `thread` → `dispatch_thread()`
-   - `async` → `asyncio.run(dispatch_async())`（非推奨、`start_async` を使用）
-7. `finally` クリーンアップ: `on_finish` 通知 → 終了ログ記録 → 全 spout を停止
-
-### start_async（非同期起動）
-
-```python
-async def start_async(self, task_source: Iterable[Any]) -> None:
-```
-
-`start` と同様ですが:
-- 自動的に `execution_mode="async"` を設定
-- `asyncio.run()` の代わりに `await dispatch.dispatch_async()` を使用
-- 既存のイベントループ内での呼び出しに適する
+> **変更点**：`get_summary()` が返す辞書のキーは `name, func_name, execution_mode, max_workers` であり、`class_name` は含まれません。
 
 ## ライフサイクル
 
 ```mermaid
 flowchart TD
-    INIT[__init__] -->|func, mode, metrics を設定| NULLCTREE[set_nullctree]
-    NULLCTREE -->|外部トレースが必要| SETCTREE[set_ctree]
-    SETCTREE -->|start/start_async| ENV[init_env]
-    ENV --> STATE[_init_state]
-    ENV --> DISPATCH_INIT[_init_dispatch: TaskDispatch]
-    ENV --> SPOUT[_init_spout: 作成と起動 ×3]
-    ENV --> INLET[_init_inlet: FailInlet + LogInlet]
-    ENV --> QUEUE[_init_queue: task_queue + result_queue]
-    SPOUT --> PUT[_put_task_queue: エンベロープ構築 → エンキュー]
-    PUT --> RUN{dispatch ループ}
+    INIT[__init__] -->|set_name, _set_func| CONFIG[set_execution_mode<br/>set max_workers/retries/info]
+    CONFIG -->|_init_dispatch| DISPATCH[TaskDispatch 作成]
+    CONFIG -->|_init_queue| QUEUE[task_queue + result_queue]
+    CONFIG -->|_init_metrics| METRICS[TaskMetrics 初期化]
+    CONFIG -->|set_nullctree| CTREE[NullCelestialTreeClient]
+
+    INIT -->|start/start_async| PREPARE[_prepare_start]
+    PREPARE --> ENV[init_env:<br/>_init_state → _init_spout → _init_inlet]
+    ENV --> PUT[_put_task_queue:<br/>task_source を走査 → put_task → put_signal]
+    PUT --> NOTIFY_START[_notify: on_start]
+    NOTIFY_START --> LOG_START[fail_inlet.start_executor<br/>log_inlet.start_executor]
+
+    LOG_START --> RUN{dispatch ループ}
     RUN -->|serial| SERIAL[dispatch_serial]
     RUN -->|thread| THREAD[dispatch_thread]
     RUN -->|async| ASYNC[dispatch_async]
-    SERIAL --> CLEANUP[finally: _release_client]
-    THREAD --> CLEANUP
-    ASYNC --> CLEANUP
-    CLEANUP --> NOTIFY[on_finish / 終了ログ]
-    NOTIFY --> STOP[spout 停止 ×3]
+
+    SERIAL --> FINISH[_finish_start]
+    THREAD --> FINISH
+    ASYNC --> FINISH
+
+    FINISH --> NOTIFY_END[_notify: on_finish]
+    NOTIFY_END --> LOG_END[log_inlet.end_executor]
+    LOG_END --> STOP[spout ×3 停止:<br/>log_spout + fail_spout + success_spout]
 ```
+
+> **変更点**：以前のフローチャートには `_release_client` ノードが含まれていましたが、現在のソースコードにはこの操作は存在しません。`_finish_start` は実際には `_notify → log → stop spouts` の 3 ステップを実行します。
 
 ## 注意事項
 
-| モード | 適用シナリオ | 注意事項 |
-|-------|------------|---------|
-| `serial` | デバッグ、シンプルなタスク | 並行性なし、シングルスレッド |
-| `thread` | I/O 集約型 | GIL 制限に注意。内部的にスレッドプールを使用 |
-| `async` | ネットワーク I/O | 関数はコルーチンである必要がある。`start` ではなく `start_async` を使用 |
+| モード | 適したシナリオ | 注意事項 |
+|------|----------|---------|
+| `serial` | デバッグ、単純なタスク | 並行性なし、シングルスレッド |
+| `thread` | I/O 密集型 | GIL 制限に注意、内部でスレッドプールを使用 |
+| `async` | ネットワーク I/O | 関数はコルーチンである必要あり。`start` ではなく `start_async` を使用 |
 
-- `process_task_success` は結果エンベロープを作成し `result_queue`（= `SuccessSpout` のキュー）に配置
+- `process_task_success` は結果エンベロープを作成し `result_queue`（= `SuccessSpout` のキュー）に投入
 - `handle_task_fail` はエラーレコードを `fail_inlet` に書き込み
 - `deal_duplicate` は重複タスクを処理しログを記録
+- `_init_spout` は自動的に `FailSpout`、`LogSpout`、`SuccessSpout` の 3 つのバックグラウンドスレッドを作成・起動

@@ -1,8 +1,8 @@
 # TaskErrors
 
-> 📅 最終更新日: 2026/05/28
+> 📅 最終更新日: 2026/06/11
 
-TaskErrors モジュールは、CelestialFlow フレームワークで使用される完全なカスタム例外体系を定義します。
+TaskErrors モジュールは CelestialFlow フレームワークで使用される完全な例外クラス体系を定義します。
 
 ## 例外階層
 
@@ -33,11 +33,11 @@ CelestialFlowError
 
 ### CelestialFlowError
 
-すべてのカスタム例外の基底クラス。
+全カスタム例外の基底クラスです。
 
 ```python
 class CelestialFlowError(Exception):
-    """CelestialFlow のすべてのカスタム例外の基底クラス"""
+    """CelestialFlow 全カスタム例外の基底クラス"""
     pass
 ```
 
@@ -45,7 +45,7 @@ class CelestialFlowError(Exception):
 
 ### ConfigurationError
 
-設定エラーの基底クラス（不正なパラメータ、サポートされない組み合わせなど）。
+設定エラー基底クラス（不正なパラメータ、サポートされない組み合わせなど）。
 
 ```python
 class ConfigurationError(CelestialFlowError):
@@ -55,7 +55,7 @@ class ConfigurationError(CelestialFlowError):
 
 ### InvalidOptionError
 
-設定項目の値が不正。
+特定の設定項目の値が不正です。
 
 ```python
 class InvalidOptionError(ConfigurationError):
@@ -124,7 +124,7 @@ class ScheduleModeError(InvalidOptionError):
 
 ### GraphStructureError
 
-グラフ構造エラーの基底クラス。
+グラフ構造エラー基底クラス。
 
 ```python
 class GraphStructureError(ConfigurationError):
@@ -134,7 +134,7 @@ class GraphStructureError(ConfigurationError):
 
 ### DuplicateNodeError
 
-重複ノード名（`set_stages` または `add_source_name` / `add_queue` で発生）。
+重複ノード名（`set_stages` または `add_source_name` / `add_queue` 時に発生）。
 
 ```python
 class DuplicateNodeError(GraphStructureError):
@@ -152,21 +152,21 @@ class UnknownNodeError(GraphStructureError):
     pass
 ```
 
-## ランタイム例外（RuntimeStateError）
+## 実行時例外（RuntimeStateError）
 
 ### RuntimeStateError
 
-ランタイム状態エラーの基底クラス（重複起動、未初期化など）。
+実行時状態エラー基底クラス（重複起動、未初期化など）。
 
 ```python
 class RuntimeStateError(CelestialFlowError):
-    """ランタイム状態エラー"""
+    """実行時状態エラー"""
     pass
 ```
 
 ### InitializationError
 
-初期化エラー（例：スレッドプールが初期化されていない場合）。
+初期化エラー（スレッドプールが未初期化の状態で使用された場合など）。
 
 ```python
 class InitializationError(RuntimeStateError):
@@ -176,19 +176,20 @@ class InitializationError(RuntimeStateError):
 
 ### GraphManagedError
 
-グラフ管理エラー（グラフの起動/停止ライフサイクルで不正な操作が発生した場合に発火）。
+Stage が既に TaskGraph によって管理されている場合に、スタンドアロン経路で直接 `start()` を呼び出そうとすると送出されます。
 
 ```python
 class GraphManagedError(RuntimeStateError):
-    """グラフ管理エラー"""
-    pass
+    """Stage は既に Graph に管理されています。スタンドアロン経路で起動すべきではありません。"""
+    def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."):
+        ...
 ```
 
 ## 外部サービス例外
 
 ### RemoteWorkerError
 
-リモート Worker（例：Go Worker）の実行失敗時にスロー。
+リモート Worker（Go Worker など）の実行失敗時に送出されます。
 
 ```python
 class RemoteWorkerError(CelestialFlowError):
@@ -216,7 +217,7 @@ class CelestialTreeConnectionError(CelestialFlowError):
         ...
 ```
 
-## その他のランタイム例外
+## その他の実行時例外
 
 ### CelestialFlowTimeoutError
 
@@ -230,15 +231,15 @@ class CelestialFlowTimeoutError(CelestialFlowError, TimeoutError):
 
 ### UnconsumedError
 
-未消費タスクをマーク。
+未消費タスクをマークします。
 
 ```python
 class UnconsumedError(CelestialFlowError):
-    """未消費タスクをマークするための例外クラス"""
+    """タスク未消費をマークする例外クラス"""
     pass
 ```
 
-`TaskGraph._finalize_nodes()` がキューに残存タスクを発見した場合、それらは `UnconsumedError` としてマークされ永続化されます。
+`TaskGraph._finalize_nodes()` がキュー内に残存タスクを検出した場合、それらを `UnconsumedError` としてマークし永続化します。
 
 ### TaskFormatError
 
@@ -260,16 +261,16 @@ class TerminationMergeError(CelestialFlowError):
     pass
 ```
 
-## 使用シーン
+## 使用シナリオ
 
-### 1. リトライ可能な例外の追加
+### 1. リトライ可能例外の追加
 
 ```python
 executor = TaskExecutor("Processor", process, max_retries=3)
 executor.add_retry_exceptions(ConnectionError, TimeoutError)
 ```
 
-### 2. 設定エラーのキャッチ
+### 2. 設定エラーの捕捉
 
 ```python
 from celestialflow.runtime.util_errors import ExecutionModeError
@@ -277,24 +278,24 @@ from celestialflow.runtime.util_errors import ExecutionModeError
 try:
     stage.set_execution_mode("invalid_mode")
 except ExecutionModeError as e:
-    print(f"不正な実行モード: {e.execution_mode}")
+    print(f"無効な実行モード: {e.execution_mode}")
     print(f"有効なオプション: {e.valid_modes}")
 ```
 
-### 3. グラフ構造の検証
+### 3. グラフ構造検証
 
 ```python
 from celestialflow.runtime.util_errors import DuplicateNodeError
 
 try:
-    graph.set_stages([stage_a, stage_a])  # 重複ノード名
+    graph.set_stages([stage_a, stage_a])  # 同名ノード
 except DuplicateNodeError as e:
     print(f"重複ノード: {e}")
 ```
 
 ## 使用例
 
-以下に、CelestialFlow の各例外の raise と catch の典型的なパターンを示します。
+以下の例は CelestialFlow の各種例外の raise と catch の典型的な使用方法を示します。
 
 ### 設定例外
 
@@ -307,15 +308,15 @@ from celestialflow.runtime.util_errors import (
     InvalidOptionError,
 )
 
-# ExecutionModeError のキャッチ
+# ExecutionModeError の捕捉
 try:
     stage.set_execution_mode("invalid")
 except ExecutionModeError as e:
     print(f"フィールド: {e.field}")          # execution_mode
-    print(f"値: {e.value}")                 # invalid
-    print(f"許可値: {e.allowed}")           # ('serial', 'thread', 'async')
+    print(f"渡された値: {e.value}")        # invalid
+    print(f"有効な値: {e.allowed}")      # ('serial', 'thread', 'async')
 
-# StageModeError のキャッチ
+# StageModeError の捕捉
 try:
     stage.set_stage_mode("invalid")
 except StageModeError as e:
@@ -338,10 +339,10 @@ except InvalidOptionError as e:
 from celestialflow import TaskGraph, TaskStage
 from celestialflow.runtime.util_errors import DuplicateNodeError, UnknownNodeError
 
-graph = TaskGraph()
+graph = TaskGraph(name="ErrorTestGraph")
 
 stage_a = TaskStage("A", func=lambda x: x)
-stage_b = TaskStage("A", func=lambda x: x * 2)  # 重複ノード名
+stage_b = TaskStage("A", func=lambda x: x * 2)  # 同名ノード
 
 try:
     graph.set_stages([stage_a, stage_b])
@@ -350,13 +351,16 @@ except DuplicateNodeError as e:
 
 try:
     from celestialflow.runtime.util_types import TerminationSignal
-    in_queue = list(graph.stage_dict.values())[0].in_queue
+    # UnknownNodeError は in_queue._record_termination のソース検証時に発生
+    from celestialflow.runtime import TaskInQueue
+    from queue import Queue
+    in_queue = TaskInQueue(queue=Queue(), source_names=["known"], out_name="test")
     in_queue._record_termination(TerminationSignal(source="unknown_source"))
 except UnknownNodeError as e:
     print(f"不明なソース: {e}")
 ```
 
-### ランタイム例外とタイムアウト例外
+### 実行時例外とタイムアウト例外
 
 ```python
 from celestialflow.runtime.util_errors import (
@@ -405,25 +409,25 @@ except CelestialTreeConnectionError as e:
     print(f"接続失敗: {e}")
 ```
 
-### TaskExecutor との統合
+### TaskExecutor との連携
 
 ```python
 from celestialflow import TaskExecutor
 from celestialflow.runtime.util_errors import CelestialFlowError
 
-# 実際のエグゼキューターでは例外は統一的にキャッチされ記録される
+# 実際のエグゼキュータでは、例外は統一的に捕捉され記録されます
 executor = TaskExecutor(
     "SafeWorker",
     func=lambda x: 10 // x,
     execution_mode="serial",
     max_retries=0,
 )
-executor.start([1, 0, 2])  # 中間のタスクが ZeroDivisionError を発生
+executor.start([1, 0, 2])  # 中間タスクで ZeroDivisionError が発生
 
 counts = executor.get_counts()
 print(f"成功: {counts['tasks_succeeded']}, 失敗: {counts['tasks_failed']}")
 ```
 
-## エラー永続化
+## 例外の永続化
 
-`TaskGraph` は `_finalize_nodes()` で未処理エラーをローカル JSONL ファイルに永続化します（`FailSpout` 経由）。各エラーレコードには、エラータイプ、メッセージ、Stage、イベント ID、タイムスタンプが含まれ、`PersistedErrorRecord` で表現されます。
+`TaskGraph` は `_finalize_nodes()` 内で未処理エラーをローカル JSONL ファイルに永続化します（`FailSpout` 経由）。各エラーレコードはエラー型、メッセージ、所属 Stage、イベント ID、タイムスタンプを含み、`PersistedErrorRecord` で表現されます。

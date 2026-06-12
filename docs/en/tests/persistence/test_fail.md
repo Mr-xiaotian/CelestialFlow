@@ -1,19 +1,19 @@
 ﻿# Failure Persistence Tests (test_fail.py)
 
-> Last Updated: 2026/06/05
+> 📅 Last Updated: 2026/06/05
 
 ## Purpose
-Validates that when `FailInlet` and `FailSpout` work together, task errors are asynchronously written into JSONL while the total error count and in-memory error pairs are updated at the same time.
+Validates that when `FailInlet` and `FailSpout` work together, task errors are asynchronously written to JSONL, and the total error count and in-memory error pair list are synchronously accumulated.
 
-## Coverage
-- `start_graph()` records graph-structure context.
-- `task_error()` serializes task values and exception information into `FailSpout`.
-- `FailSpout.total_error_num` and `get_error_pairs()` reflect the actual processed result.
+## Coverage Points
+- `start_graph()` records the graph structure context.
+- `task_error()` serializes the task value and exception information to `FailSpout`.
+- `FailSpout.total_error_num` and `get_error_pairs()` reflect actual processing results.
 
 ## Key Scenarios
-- Start the spout inside a temporary directory.
-- Write two kinds of errors in sequence: `ValueError` and `RuntimeError`.
-- Wait for the background thread to flush data, then assert that the JSONL file exists and that the number of error records, error types, and task values are all correct.
+- Start a spout in a temporary directory.
+- Write two types of errors consecutively: `ValueError` and `RuntimeError`.
+- After waiting for the background thread to flush, assert that the JSONL file exists and that the error record count, types, and task values are all correct.
 
 ## How to Run
 
@@ -21,4 +21,3 @@ Validates that when `FailInlet` and `FailSpout` work together, task errors are a
 pytest tests/persistence/test_fail.py -v
 pytest tests/persistence/test_fail.py -k "fail_persistence" -v
 ```
-

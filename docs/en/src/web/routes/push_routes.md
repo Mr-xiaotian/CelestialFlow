@@ -1,10 +1,10 @@
 # Push Routes (POST) — `push_routes`
 
-> 📅 Last Updated: 2026/06/05
+> 📅 Last Updated: 2026/06/11
 
 ## Purpose
 
-The `push_routes` module provides all POST endpoints for the **Reporter** to **push** data to the server. Each push updates the corresponding in-memory store and increments the version number (`store_revs`), allowing clients to detect data changes through Pull routes. Error data supports **cache hit** optimization (skips reload if path + rev are unchanged).
+The `push_routes` module provides all POST endpoints for the **Reporter** to **push** data to the server. Each push updates the corresponding in-memory store and increments the version number (`store_revs`), allowing clients to detect data changes via Pull routes. Error data supports **cache hit** optimization (skip reloading if path + rev are unchanged).
 
 ## Core Function
 
@@ -24,31 +24,42 @@ Registers all 7 POST endpoints on the given `APIRouter`.
 
 ### 1. `POST /api/push_config`
 
-Saves frontend configuration and updates the polling interval.
+Save frontend configuration and update the polling interval.
 
-**Request Body:** `WebConfigModel`
+**Request body:** `WebConfigModel`
 
 ```json
 {
-  "theme": "dark",
-  "autoRefreshEnabled": true,
-  "refreshInterval": 5,
-  "historyLimit": 20,
-  "language": "zh-CN",
-  "errorPageSize": 10,
-  "errorSortOrder": "newest",
-  "showStructureEdgeDelta": true,
-  "dashboard": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] }
+  "global": {
+    "theme": "dark",
+    "autoRefreshEnabled": true,
+    "refreshInterval": 5000,
+    "language": "zh-CN"
+  },
+  "dashboard": {
+    "historyLimit": 20,
+    "showStructureEdgeDelta": false,
+    "useTotalPendingInStatus": false,
+    "layout": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] }
+  },
+  "errors": {
+    "pageSize": 10,
+    "sortOrder": "newest",
+    "jumpToInjectionAfterRetry": true
+  },
+  "injection": {
+    "showInjectableOnly": true
+  }
 }
 ```
 
 **Logic:**
-1. Deserializes the request body into a dict and updates `server.config`
-2. Recalculates `server.report_interval` based on the `refreshInterval` value
-3. Calls `save_config()` to persist the configuration to `config_path`
-4. Returns `{"ok": true}` on success, or HTTP 500 on failure
+1. Deserialize the request body into a dict, update `server.config`
+2. Recalculate `server.report_interval` based on the `refreshInterval` value
+3. Call `save_config()` to persist the configuration to `config_path`
+4. Return `{"ok": true}` on success, HTTP 500 on failure
 
-> Note: The current implementation updates the in-memory `server.config` and `server.report_interval` before attempting to persist. If `save_config()` fails, the request returns 500, but the in-process configuration has already changed.
+> Note: The current implementation updates in-memory `server.config` and `server.report_interval` first, then attempts to write to disk; if `save_config()` fails, the request returns 500, but the in-process configuration has already changed.
 
 **Returns:**
 - Success: `{"ok": true}`
@@ -58,13 +69,13 @@ Saves frontend configuration and updates the polling interval.
 
 ### 2. `POST /api/push_structure`
 
-Updates graph structure data.
+Update graph structure data.
 
-**Request Body:** `StructureModel` (contains `structure` field)
+**Request body:** `StructureModel` (contains a `structure` field)
 
 **Logic:**
-1. Atomically writes `data.structure` to `server.structure_store`
-2. `server.store_revs["structure"]` increments by 1
+1. Atomically write `data.structure` into `server.structure_store`
+2. Increment `server.store_revs["structure"]` by 1
 
 **Returns:** `{"ok": true}`
 
@@ -72,14 +83,14 @@ Updates graph structure data.
 
 ### 3. `POST /api/push_status`
 
-Updates running status of each node.
+Update the runtime status of each node.
 
-**Request Body:** `StatusModel` (contains `timestamp` and `status` fields)
+**Request body:** `StatusModel` (contains `timestamp` and `status` fields)
 
 **Logic:**
-1. Updates `server.status_timestamp`
-2. Updates `server.status_store`
-3. `server.store_revs["status"]` increments by 1
+1. Update `server.status_timestamp`
+2. Update `server.status_store`
+3. Increment `server.store_revs["status"]` by 1
 
 **Returns:** `{"ok": true}`
 
@@ -87,9 +98,9 @@ Updates running status of each node.
 
 ### 4. `POST /api/push_errors_meta`
 
-Loads error logs via JSONL file path and version number, supports cache hit.
+Load error logs via JSONL file path and version number, supports cache hit.
 
-**Request Body:** `ErrorsMetaModel`
+**Request body:** `ErrorsMetaModel`
 
 ```json
 {
@@ -104,19 +115,19 @@ Loads error logs via JSONL file path and version number, supports cache hit.
 ┌─────────────────────────────────────────┐
 │  Request arrives                         │
 │     ↓                                    │
-│  Cache hit? (path and rev unchanged)     │
-│     ├─ Yes → Return {"cached": true}    │
+│  Cache hit? (path and rev both unchanged)│
+│     ├─ Yes → return {"cached": true}    │
 │     └─ No →                             │
 │          try:                            │
-│            Call load_jsonl_logs()        │
-│            (reads JSONL in separate      │
-│             thread)                      │
-│            → Update error_store          │
-│            → Update cache (rev+path)     │
-│            → store_revs["errors"] += 1   │
-│            Return {"cached": false}      │
+│            call load_jsonl_logs()       │
+│            (read JSONL in a separate    │
+│             thread)                     │
+│            → update error_store         │
+│            → update cache (rev+path)    │
+│            → store_revs["errors"] += 1  │
+│            return {"cached": false}     │
 │          except:                         │
-│            Return fallback=need_content  │
+│            return fallback=need_content │
 └─────────────────────────────────────────┘
 ```
 
@@ -125,15 +136,15 @@ Loads error logs via JSONL file path and version number, supports cache hit.
 - Load success: `{"ok": true, "cached": false}`
 - Load failure: `{"ok": false, "fallback": "need_content", "reason": "...", "msg": "..."}`
 
-> **Note:** On load failure, the caller should fall back to `push_errors_content` to send error content directly.
+> **Note:** On load failure, the caller should fall back to `push_errors_content` to directly send error content.
 
 ---
 
 ### 5. `POST /api/push_errors_content`
 
-Directly receives and stores error log list, supports cache hit.
+Directly receive and store an error log list, supports cache hit.
 
-**Request Body:** `ErrorsContentModel`
+**Request body:** `ErrorsContentModel`
 
 ```json
 {
@@ -144,8 +155,8 @@ Directly receives and stores error log list, supports cache hit.
 ```
 
 **Logic:**
-- On cache hit, skips and returns `{"cached": true}`
-- Otherwise writes to `server.error_store` and updates cache and version number
+- On cache hit, skip and directly return `{"cached": true}`
+- Otherwise, write into `server.error_store` and update cache and version number
 
 **Returns:**
 - Cache hit: `{"ok": true, "cached": true}`
@@ -155,13 +166,13 @@ Directly receives and stores error log list, supports cache hit.
 
 ### 6. `POST /api/push_analysis`
 
-Updates graph topology analysis info.
+Update graph topology analysis information.
 
-**Request Body:** `AnalysisModel` (contains `analysis` field)
+**Request body:** `AnalysisModel` (contains an `analysis` field)
 
 **Logic:**
-1. Updates `server.analysis_store`
-2. `server.store_revs["analysis"]` increments by 1
+1. Update `server.analysis_store`
+2. Increment `server.store_revs["analysis"]` by 1
 
 **Returns:** `{"ok": true}`
 
@@ -169,24 +180,23 @@ Updates graph topology analysis info.
 
 ### 7. `POST /api/push_injection_tasks`
 
-Appends frontend-submitted injection tasks to the pending execution queue.
+Write frontend-submitted injection tasks into the pending execution queue.
 
-**Request Body:** `TaskInjectionModel`
+**Request body:** `TaskInjectionModel` (`RootModel[dict[str, list[Any]]]`)
 
 ```json
 {
-  "node": "StageA",
-  "task_datas": [1, 2, 3],
-  "timestamp": "2026-06-05T12:00:00"
+  "StageA": [1, 2, 3],
+  "StageB": [{"id": 4, "val": "x"}]
 }
 ```
 
 **Logic:**
-1. Acquires `task_injection_lock`
-2. Appends `data.model_dump(mode="json")` to `server.injection_tasks`
-3. Releases lock
+1. Acquire `task_injection_lock`
+2. Iterate over `data.root`, write into `server.injection_tasks` in `{node_name: task_list}` format
+3. Release the lock
 
-> Note: The backend model requires `task_datas` to be an array. If the frontend passes an object, string, or number, a 422 will be returned directly during the FastAPI/Pydantic validation phase.
+> Note: The request body is directly a `{node_name: [task_list]}` format dictionary, no longer wrapping `node`/`task_datas`/`timestamp` fields. The task list for each node name will **overwrite** that node's existing pending injection tasks (not append).
 
 **Returns:**
 - Success: `{"ok": true}`
@@ -194,7 +204,7 @@ Appends frontend-submitted injection tasks to the pending execution queue.
 
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Reporter Pushing Status and Errors
 
@@ -209,13 +219,13 @@ requests.post(f"{BASE}/api/push_status", json={
     "status": {"node_a": "running", "node_b": "success"}
 })
 
-# Push error logs (meta mode: let server read JSONL itself)
+# Push error logs (meta mode: let the server read JSONL itself)
 resp = requests.post(f"{BASE}/api/push_errors_meta", json={
     "rev": 5,
     "jsonl_path": "/var/log/celestialflow/errors.jsonl"
 })
 
-# If server read fails, fall back to sending content directly
+# If server read fails, fall back to direct content delivery
 data = resp.json()
 if not data["ok"] and data.get("fallback") == "need_content":
     requests.post(f"{BASE}/api/push_errors_content", json={
@@ -243,17 +253,28 @@ const resp = await fetch("/api/push_config", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    theme: "dark",
-    autoRefreshEnabled: true,
-    refreshInterval: 10,
-    historyLimit: 20,
-    language: "zh-CN",
-    errorPageSize: 10,
-    errorSortOrder: "newest",
-    showStructureEdgeDelta: true,
-    dashboard: { left: ["mermaid"], middle: ["status"], right: ["progress"] }
+    global: {
+      theme: "dark",
+      autoRefreshEnabled: true,
+      refreshInterval: 10000,
+      language: "zh-CN",
+    },
+    dashboard: {
+      historyLimit: 20,
+      showStructureEdgeDelta: false,
+      useTotalPendingInStatus: false,
+      layout: { left: ["mermaid"], middle: ["status"], right: ["progress"] }
+    },
+    errors: {
+      pageSize: 10,
+      sortOrder: "newest",
+      jumpToInjectionAfterRetry: true,
+    },
+    injection: {
+      showInjectableOnly: true,
+    },
   })
 });
 const result = await resp.json();
-console.log(result.ok ? "保存成功" : "保存失败");
+console.log(result.ok ? "Save successful" : "Save failed");
 ```

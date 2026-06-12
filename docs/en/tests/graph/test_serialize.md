@@ -1,32 +1,33 @@
 ﻿# Graph Serialization Utility Tests (test_serialize.py)
 
-> Last Updated: 2026/05/23
+> 📅 Last Updated: 2026/06/11
 
 ## Purpose
-Validates graph serialization and visualization formatting, ensuring graph topologies can be converted into tree-like JSON structures or readable text lists.
+Verifies graph structure serialization and visualization formatting functionality, ensuring that graph topologies can be correctly converted into JSON structures or readable text lists.
 
-## Key Test Objects
-- `build_structure_graph`: Converts an adjacency-list graph into a nested tree dictionary.
-- `format_structure_list_from_graph`: Converts the nested structure into an indented list of formatted strings.
+## Core Test Objects
+- `build_structure_graph`: Converts an adjacency-list-style graph into a nested dictionary structure.
+- `format_structure_list_from_graph`: Converts a nested structure into a formatted, indented string list.
+- `make_stage`: Test helper function that constructs a `TaskStage` from a `stage_mode` × `execution_mode` combination.
 
-## Key Test Flow
-1. **DAG serialization**: Verifies that a typical layered structure such as A -> {B, C} -> D is parsed correctly, and checks that the `is_ref` flag is set when a node is referenced more than once.
-2. **Cyclic graph serialization**: Verifies that a cyclic graph such as A -> B -> C -> A does not recurse forever and that the cycle entry is marked as `is_ref: True`.
-3. **Text formatting**: Verifies that the generated string list contains the expected indentation, function names, mode markers such as `(S:serial, E:serial)`, and reference markers such as `[Ref]`.
+## Key Test Scenarios
+1. **DAG Serialization**: Verifies that a typical layered structure (e.g., s1→{s2,s3}→s4) is correctly parsed, with attributes such as func_name, stage_mode, execution_mode, and max_workers being accurate for each node.
+2. **Cyclic Graph Serialization**: Verifies that a cyclic graph (e.g., cs1→cs2→cs3→cs1) does not cause an infinite loop during serialization.
+3. **Text Formatting**: Verifies that the generated string list contains expected mode markers (e.g., `(S:serial, E:serial, W:2)`) and reference markers (`[Ref]`).
 
 ## Test Focus
-- **Reference markers (`is_ref`)**: Ensures that repeated nodes in non-tree DAGs or cyclic graphs only show details on first appearance and are marked as references on later appearances.
-- **Recursion termination**: Ensures that the serializer recognizes visited nodes and stops recursion correctly when handling cycles.
+- **Reference Markers**: Ensures that in non-tree DAGs or cyclic graphs, nodes that appear more than once display details only on first appearance, with subsequent appearances marked as references.
+- **Recursion Termination**: Ensures the serialization algorithm correctly identifies already-visited nodes when handling circular references and terminates recursion promptly.
 
 ## How to Run
 
 ```bash
-# Run all tests
+# Run all
 pytest tests/graph/test_serialize.py -v
 
 # Match specific test names
 pytest tests/graph/test_serialize.py -k "dag" -v
-pytest tests/graph/test_serialize.py -k "cycle" -v
+pytest tests/graph/test_serialize.py -k "cyclic" -v
 pytest tests/graph/test_serialize.py -k "format" -v
 ```
 
@@ -34,12 +35,11 @@ pytest tests/graph/test_serialize.py -k "format" -v
 
 | Test | Duration |
 |------|----------|
-| `TestUtilSerialize` (DAG / cycle / formatting) | ~0.1s overall |
+| `TestUtilSerialize` (DAG/Cyclic/Formatting) | ~0.1s total |
 
 ## Important Details
-- The tests use the helper `create_mock_stage_runtime` to construct a runtime environment with mock queues and logging components.
-- Coverage includes both the JSON data layer and the final display-text layer.
+- Uses the `make_stage` helper function to construct test nodes with different `stage_mode` × `execution_mode` combinations.
+- Tests cover both the JSON data layer and the final presentation text layer.
 
 ## Notes
-- The test code lives in `tests/graph/test_serialize.py`, and the implementation lives in `src/celestialflow/graph/util_serialize.py`.
-
+- The test code is located at `tests/graph/test_serialize.py`, and the corresponding implementation is at `src/celestialflow/graph/util_serialize.py`.

@@ -1,19 +1,19 @@
-﻿# Base Spout Tests (test_spout.py)
+﻿# Spout Basic Tests (test_spout.py)
 
-> Last Updated: 2026/06/05
+> 📅 Last Updated: 2026/06/05
 
 ## Purpose
-Validates the lifecycle hooks, termination handling, and abstract-method contract of `celestialflow.funnel.core_spout.BaseSpout`, ensuring the listener thread starts, stops, and drains records before shutdown as expected.
+Verifies the lifecycle hooks, termination signal handling, and abstract method constraints of `celestialflow.funnel.core_spout.BaseSpout`, ensuring the listener thread can start, stop, and consume records before stopping as expected.
 
-## Coverage
+## Coverage Points
 - `start()` calls `_before_start()`.
-- `stop()` triggers `_after_stop()` and stops consuming newly queued records after shutdown.
+- `stop()` triggers `_after_stop()` and does not continue consuming new records after stopping.
 - The base class raises `CelestialFlowError` when `_handle_record()` is not implemented.
 
 ## Key Scenarios
-- `test_base_spout_lifecycle`: Verifies lifecycle hooks and that data queued before shutdown is still consumed.
-- `test_spout_termination_signal`: Verifies that repeated `stop()` calls are safe and that records enqueued after termination are no longer processed.
-- `test_spout_not_implemented_error`: Verifies the error message when the abstract handler is not overridden.
+- `test_base_spout_lifecycle`: Verifies start/stop hooks and that "data before stopping is still consumed."
+- `test_spout_termination_signal`: Verifies that repeated `stop()` calls are safe and that no further enqueued data is processed after termination.
+- `test_spout_not_implemented_error`: Verifies the error message when an abstract method is not overridden.
 
 ## How to Run
 
@@ -21,4 +21,3 @@ Validates the lifecycle hooks, termination handling, and abstract-method contrac
 pytest tests/funnel/test_spout.py -v
 pytest tests/funnel/test_spout.py -k "lifecycle or termination" -v
 ```
-

@@ -1,44 +1,52 @@
 ﻿# Task Metrics Tests (test_metrics.py)
 
-> Last Updated: 2026/05/23
+> 📅 Last Updated: 2026/06/11
 
 ## Purpose
-Validates the `TaskMetrics` class in `celestialflow.runtime.core_metrics`, ensuring execution statistics such as success, failure, duplication, and pending counts are computed accurately.
+Verifies the `TaskMetrics` class in `celestialflow.runtime.core_metrics`, ensuring that various statistical metrics (success, failure, duplicate, pending, etc.) accumulated during task execution are calculated accurately.
 
-## Key Test Objects
-- `TaskMetrics`: Tracks task counts and state for a single stage or globally.
+## Core Test Object
+- `TaskMetrics`: Responsible for per-stage or global task counting and status tracking.
 
-## Key Test Flow
-1. **Basic counters**: Verifies the accumulation logic of methods such as `add_task_count`, `add_success_count`, `add_error_count`, and `add_duplicate_count`.
-2. **Formula verification**: Verifies the core conservation formula `processed = succeeded + failed + duplicated`.
-3. **State checks**: Verifies the return value of `is_tasks_finished()` under different counter combinations, where Pending being 0 means `True`.
-4. **Deduplication logic**:
-   - Verifies behavior when deduplication is disabled.
-   - Verifies that with deduplication enabled, a second check for the same hash returns `True`.
-   - Verifies that `reset_state()` clears the hash set so the same task can pass again.
-5. **Retry configuration**: Verifies the logic for dynamically adding retryable exception types.
+## Test Coverage Matrix
+
+| Test Class | Case Count | Coverage Goals |
+|------------|------------|----------------|
+| `TestTaskMetricsBasic` | 8 | Basic count accumulation, formula verification, completion detection, counter reset |
+| `TestTaskMetricsDuplicate` | 3 | Dedup enable/disable, `reset_state()` clearing the hash set |
+| `TestTaskMetricsRetryExceptions` | 2 | Default retryable exceptions empty, dynamic addition of exception types |
+
+## Key Test Scenarios
+1. **Basic Counting**: Verifies the accumulation logic of `add_task_count`, `add_success_count`, `add_error_count`, `add_duplicate_count`, and similar methods.
+2. **Formula Verification**: Verifies `tasks_processed = tasks_succeeded + tasks_failed + tasks_duplicated`, and `tasks_pending = tasks_input - tasks_processed`.
+3. **Status Detection**: Verifies the return value of `is_tasks_finished()` under different count combinations (returns `True` when Pending is 0).
+4. **Dedup Logic**:
+   - Verifies that when dedup is disabled, the same hash always returns `False`.
+   - Verifies that when dedup is enabled, a second check of the same hash returns `True`.
+   - Verifies that `reset_state()` clears the hash set, allowing the same task to pass through again.
+5. **Retry Configuration**: Verifies the logic for dynamically adding retryable exception types.
 
 ## Test Focus
-- **Metric conservation**: Ensures `tasks_input` always stays consistent with `tasks_processed + tasks_pending`.
-- **Deduplication accuracy**: Verifies the hash set identifies duplicate tasks correctly and prevents redundant work.
-- **Reset behavior**: Verifies the difference between `reset_counter()` for numeric counters only and `reset_state()` for counters plus the dedupe set.
+- **Metric Conservation**: Ensures `tasks_input` always equals `tasks_processed + tasks_pending`.
+- **Dedup Accuracy**: Verifies that the hash set can effectively identify duplicate tasks and prevent redundant computation.
+- **Reset Functionality**: Verifies the distinction between `reset_counter()` (resets only values) and `reset_state()` (resets values and the dedup set).
 
 ## How to Run
 
 ```bash
-# Run all tests
+# Run all
 pytest tests/runtime/test_metrics.py -v
 
-# Run basic counter tests only
+# Basic count tests only
 pytest tests/runtime/test_metrics.py -k "count" -v
 
-# Run deduplication tests only
+# Dedup logic tests only
 pytest tests/runtime/test_metrics.py -k "duplicate" -v
 
-# Run reset tests only
+# Reset functionality tests only
 pytest tests/runtime/test_metrics.py -k "reset" -v
 
-# Run retry configuration tests only
+# Retry configuration tests only
 pytest tests/runtime/test_metrics.py -k "retry" -v
 ```
 
@@ -46,13 +54,12 @@ pytest tests/runtime/test_metrics.py -k "retry" -v
 
 | Test | Duration |
 |------|----------|
-| `TestTaskMetrics` | ~0.1s (pure logic) |
+| `TestTaskMetricsBasic` / `TestTaskMetricsDuplicate` / `TestTaskMetricsRetryExceptions` | ~0.1s (pure logic operations) |
 
 ## Important Details
-- These metrics power both dashboard display and graph-shutdown decisions.
-- The tests also cover passing the `execution_mode` parameter, even though it currently mainly affects internal locking.
+- The metrics are the data source for Dashboard display and graph-run termination detection.
+- Tests cover the passing of the `execution_mode` parameter (though it currently mainly affects internal lock usage).
 
 ## Notes
-- Metrics accuracy directly affects the automatic shutdown decision of `TaskGraph`.
-- Related implementation: `src/celestialflow/runtime/core_metrics.py`.
-
+- The accuracy of the metrics directly affects the auto-close detection of `TaskGraph`.
+- The related implementation is located at `src/celestialflow/runtime/core_metrics.py`.

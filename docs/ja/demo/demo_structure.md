@@ -2,9 +2,9 @@
 
 > 📅 最終更新日: 2026/05/24
 
-## 目的
+## 目標
 
-`core_structure.py` で事前定義された複数のグラフ構造（DAG および循環グラフ）をデモンストレーションし、チェーン、クロス、グリッド、ループ、ホイール、完全グラフなど、さまざまなトポロジーでの CelestialFlow の構築と実行方法を示します。
+`core_structure.py` であらかじめ定義された複数のグラフ構造（DAG と循環グラフ）をデモし、CelestialFlow におけるチェーン、クロス、グリッド、ループ、ホイール、完全グラフなど多様なトポロジーでの構築と実行方法を示します。
 
 ## デモ構造
 
@@ -12,13 +12,13 @@
 
 | 関数 | 構造 | 説明 |
 |------|------|------|
-| `demo_chain` | TaskChain | 5ノード線形チェーン、スレッドモード |
-| `demo_forest` | TaskGraph | 2つの独立したツリー型 DAG の共存 |
-| `demo_cross` | TaskCross | 3層クロス構造（3→1→3） |
+| `demo_chain` | TaskChain | 5 ノード線形チェーン、スレッドモード |
+| `demo_forest` | TaskGraph | 2 つの独立したツリー状 DAG が共存 |
+| `demo_cross` | TaskCross | 3 層クロス構造（3→1→3） |
 | `demo_network` | TaskCross | 多層多分岐ネットワーク（2→3→1） |
 | `demo_star` | TaskCross | 中心ノードが複数のエッジノードを指す |
-| `demo_fanin` | TaskCross | 複数のソースノードが1つのマージノードに収束 |
-| `demo_grid` | TaskGrid | 4×4 スレッドグリッド、staged スケジューリング |
+| `demo_fanin` | TaskCross | 複数のソースノードが 1 つのマージノードに合流 |
+| `demo_grid` | TaskGrid | 4×4 スレッドグリッド、staged スケジュール |
 
 #### Chain（チェーン）— `demo_chain`
 
@@ -30,7 +30,7 @@ flowchart LR
     D --> E["StageE<br/>square"]
 ```
 
-線形5ノードチェーン。データは `StageA → StageB → StageC → StageD → StageE` の順に流れ、各ノードで平方演算を実行します。`TaskChain` で構築し、`start_chain()` で起動します。
+線形 5 ノードチェーン。データは `StageA → StageB → StageC → StageD → StageE` の順に流れ、各ノードは二乗演算を実行します。`TaskChain` で構築され、`start_chain()` で起動します。
 
 #### Cross（クロス）— `demo_cross`
 
@@ -58,7 +58,7 @@ flowchart LR
     D --> G
 ```
 
-3層クロス構造（3→1→3）。`TaskCross` で構築し、`start_cross()` で起動します。
+3 層クロス構造（3→1→3）。`TaskCross` で構築され、`start_cross()` で起動します。
 
 #### Network（ネットワーク）— `demo_network`
 
@@ -88,9 +88,9 @@ flowchart LR
     B3 --> C
 ```
 
-多層多分岐ネットワークトポロジー（2→3→1）。ニューラルネットワークの順伝播構造をシミュレートします。
+多層多分岐ネットワークトポロジー（2→3→1）。ニューラルネットワークのフォワード伝播構造をシミュレートします。
 
-#### Star（スター型）— `demo_star`
+#### Star（スター）— `demo_star`
 
 ```mermaid
 flowchart LR
@@ -99,7 +99,7 @@ flowchart LR
     Core --> Side3["Side3<br/>add_15"]
 ```
 
-中心ノード `Core` が計算結果を複数のエッジノードに分配し、各エッジノードが独立して処理します。
+中心ノード `Core` が計算結果を複数のエッジノードに配信し、各エッジノードが独立して処理します。
 
 #### Fan-In（ファンイン）— `demo_fanin`
 
@@ -110,7 +110,7 @@ flowchart LR
     Source3["Source3<br/>square"] --> Merge
 ```
 
-複数のソースノード `Source1`、`Source2`、`Source3` の計算結果が1つのマージノード `Merge` に収束します。
+複数のソースノード `Source1`、`Source2`、`Source3` の計算結果が 1 つのマージノード `Merge` に合流します。
 
 #### Grid（グリッド）— `demo_grid`
 
@@ -142,16 +142,16 @@ flowchart TD
     Grid32 --> Grid33["Grid33"]
 ```
 
-4×4 グリッドトポロジー。データは左上 `Grid00` から注入され、右下 `Grid33` に向かってレイヤーごとに伝播します。
+4×4 グリッドトポロジー。データは左上 `Grid00` から注入され、右下 `Grid33` へ層ごとに伝播します。
 
 ### 循環グラフ
 
 | 関数 | 構造 | 説明 |
 |------|------|------|
-| `demo_loop` | TaskLoop | 3ノード閉ループ、セルフロック構造 |
-| `demo_wheel` | TaskWheel | 中心ノード + 4つのリングノード |
-| `demo_complete` | TaskComplete | 3ノード完全グラフ、全結合 |
-| `demo_multi_cycle` | TaskGraph | マルチサイクル相互接続グラフ：3組の2ノードサイクル（A/B/C）、A2 が B1 と C1 に分岐 |
+| `demo_loop` | TaskLoop | 3 ノード閉ループ、自己ロック構造 |
+| `demo_wheel` | TaskWheel | 中心ノード + 4 つのループノード |
+| `demo_complete` | TaskComplete | 3 ノード完全グラフ、全ペア接続 |
+| `demo_multi_cycle` | TaskGraph | 多環相互接続グラフ：3 組の 2 ノード循環（A/B/C）、A2 から B1 と C1 に出力 |
 
 #### Loop（ループ）— `demo_loop`
 
@@ -162,7 +162,7 @@ flowchart TD
     C -.->|ループバック| A
 ```
 
-3ノード閉ループセルフロック構造。`TaskLoop` で構築します。タスクは投入後、A → B → C → A の間を継続的に循環し、外部から終了されるまで続きます。
+3 ノード閉ループ自己ロック構造。`TaskLoop` で構築。タスクが入ると A → B → C → A の間を継続的に循環し、外部から終了されるまで続きます。
 
 #### Wheel（ホイール）— `demo_wheel`
 
@@ -178,7 +178,7 @@ flowchart TD
     Side4 -.->|ループバック| Core
 ```
 
-ホイールトポロジー：中心 `Core` がタスクを4つのリングノードに分配し、リングノードが処理完了後に `Core` にループバックして継続的に回転します。`TaskWheel` で構築します。
+ホイールトポロジー：中心 `Core` がタスクを 4 つのループノードに配信し、ループノードが処理完了後に `Core` にループバックし、継続的にローテーションします。`TaskWheel` で構築。
 
 #### Complete（完全グラフ）— `demo_complete`
 
@@ -189,23 +189,23 @@ flowchart TD
     N2 <--> N3
 ```
 
-3ノード完全グラフ。すべてのノードが互いに接続されています。`TaskComplete` で構築し、データは全結合トポロジー内を流れます。
+3 ノード完全グラフ。すべてのノードが相互に接続されています。`TaskComplete` で構築され、データは全接続トポロジー内を流れます。
 
-#### Multi-Cycle（マルチサイクル相互接続）— `demo_multi_cycle`
+#### Multi-Cycle（多環相互接続）— `demo_multi_cycle`
 
 ```mermaid
 flowchart TD
-    subgraph CycleA["サイクル A"]
+    subgraph CycleA["循環 A"]
         A1["A1"] --> A2["A2"]
         A2 -.->|ループバック| A1
     end
 
-    subgraph CycleB["サイクル B"]
+    subgraph CycleB["循環 B"]
         B1["B1"] --> B2["B2"]
         B2 -.->|ループバック| B1
     end
 
-    subgraph CycleC["サイクル C"]
+    subgraph CycleC["循環 C"]
         C1["C1"] --> C2["C2"]
         C2 -.->|ループバック| C1
     end
@@ -214,7 +214,7 @@ flowchart TD
     A2 --> C1
 ```
 
-3組の2ノードサイクル（A/B/C）。`A2` が `B1` と `C1` に分岐し、マルチサイクル相互接続を実現します。
+3 組の 2 ノード循環（A/B/C）。`A2` が `B1` と `C1` に出力し、多環相互接続を実現します。
 
 ### Forest（フォレスト）— `demo_forest`
 
@@ -235,20 +235,20 @@ flowchart TD
     end
 ```
 
-2つの独立したツリー型 DAG が同一の `TaskGraph` 内に共存し、互いに干渉しません。ツリー 1（A→C→E, B→D→E）とツリー 2（F→G→I, F→H→J）がそれぞれ独立して実行されます。
+2 つの独立したツリー状 DAG が同じ `TaskGraph` 内に共存し、互いに干渉しません。ツリー 1（A→C→E, B→D→E）とツリー 2（F→G→I, F→H→J）がそれぞれ独立して実行されます。
 
 ## 主要設定
 
 - DAG 構造：`stage_mode="thread"`、`execution_mode="thread"`
-- `demo_grid`：`staged` スケジューリングモードを使用（レイヤーごとの実行）
-- 循環グラフ：`put_termination_signal=False`（外部からの停止制御を推奨）
+- `demo_grid`：`staged` スケジュールモードを使用（層ごとに実行）
+- 循環グラフ：`put_termination_signal=False`（外部制御での停止を推奨）
 - すべてのデモで `Reporter` と `CelestialTree` を有効化
 
-## 起こりうる問題
+## 発生しうる問題
 
-1. **循環グラフは自動停止しない**：`demo_loop`、`demo_complete` などは `put_termination_signal=False` を使用し、プロセスを手動で終了するまで継続的にループします。
-2. **sleep 遅延の蓄積**：`add_one_sleep` には1秒の sleep が含まれ、20タスク × 複数ノード = 長い合計所要時間となります。
-3. **アサーションなし**：フレームワークが起動・実行できることのみを検証し、結果の数値は確認しません。
+1. **循環グラフは自動停止しない**：`demo_loop`、`demo_complete` などは `put_termination_signal=False` を使用し、実行後は手動でプロセスを終了するまで継続的に循環します。
+2. **sleep 遅延の蓄積**：`add_one_sleep` は 1 秒の sleep を含み、20 タスク × 多ノード = 長い総実行時間。
+3. **アサーションなし**：フレームワークが起動・実行できることのみを検証し、結果の数値はチェックしません。
 
 ## 実行方法
 
@@ -256,9 +256,9 @@ flowchart TD
 python demo/demo_structure.py
 ```
 
-## 期待される動作
+## 想定される動作
 
-実行後、各構造デモが順次実行され、各 Stage の入出力ログと最終サマリーが出力されます。
+実行後、各構造デモが順に実行され、各 Stage の入出力ログと最終サマリーが出力されます。
 
 ### DAG 構造
 
@@ -289,7 +289,7 @@ Grid33: success=5  fail=0
 [StageB] Input: 2 -> Output: 3
 [StageC] Input: 3 -> Output: 4
 [StageA] Input: 4 -> Output: 5
-... (継続的に循環し、自動停止しません)
+... (継続的に循環、自動停止しません)
 ```
 
 ```
@@ -300,11 +300,11 @@ Grid33: success=5  fail=0
 ... (継続的に循環)
 ```
 
-> **重要**：`demo_loop`、`demo_wheel`、`demo_complete` などの循環グラフは `put_termination_signal=False` を使用し、実行後に自動停止しません。**Ctrl+C** で手動終了してください。
+> **重要**：`demo_loop`、`demo_wheel`、`demo_complete` などの循環グラフは `put_termination_signal=False` を使用し、実行後は自動停止しません。**Ctrl+C** で手動終了してください。
 
 ### Forest（フォレスト）
 
-2つの独立した DAG がそれぞれ実行され、互いに干渉しません：
+2 つの独立した DAG がそれぞれ実行され、互いに干渉しません：
 
 ```
 === demo_forest (disjoint DAGs) ===
@@ -314,9 +314,9 @@ Grid33: success=5  fail=0
 [stageC] Input: ...
 ```
 
-> 各構造の実行前に `=== demo_xxx ===` の区切り線が表示され、`Summary` セクションで各ノードの成功/失敗カウントが表示されます。
+> 各構造の実行前に `=== demo_xxx ===` の区切り線が表示され、`Summary` セクションに各ノードの成功/失敗カウントが表示されます。
 
-## 依存関係
+## 依存
 
 - `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskStage`）
 - `demo_utils`

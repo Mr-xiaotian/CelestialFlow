@@ -1,15 +1,15 @@
-﻿# demo_graph.py Demo Notes
+﻿# demo_graph.py Demo Guide
 
-> 📅 Last Updated: 2026/05/24
+> 📅 Last Updated: 2026/06/11
 
-## Purpose
+## Objective
 
-Show advanced `TaskGraph` topologies in CelestialFlow: a fan-out / fan-in ETL pipeline and an asynchronous staged pipeline.
+Demonstrates advanced graph topology construction in CelestialFlow's `TaskGraph`: a fan-out/fan-in ETL pipeline and an asynchronous staged pipeline.
 
 ## Demo Scenarios
 
 ### `demo_etl_fan_out_fan_in`
-ETL pipeline with a fan-out / fan-in topology:
+ETL pipeline with fan-out/fan-in topology:
 
 ```mermaid
 flowchart LR
@@ -19,53 +19,51 @@ flowchart LR
     Enrich --> Load
 ```
 
-ASCII sketch:
+ASCII supplementary diagram:
 
 ```
 Extract ──┬── Normalize ──┬── Load
           └── Enrich ─────┘
 ```
 
-- `Extract`: generate records from IDs (thread mode, 4 workers).
-- `Normalize`: normalize record values (thread mode, 4 workers).
-- `Enrich`: add category labels to records (thread mode, 4 workers).
-- `Load`: save records (serial mode).
+- `Extract` → Generates records by ID (thread mode, 4 workers)
+- `Normalize` → Normalizes record values (thread mode, 4 workers)
+- `Enrich` → Adds category labels to records (thread mode, 4 workers)
+- `Load` → Saves records (serial mode)
 
-**Graph topology**: DAG, one-to-many fan-out plus many-to-one fan-in.
-**Scheduling mode**: `eager`.
-**After execution**: calls `graph.get_graph_summary()` to print success and failure counts.
+**Graph structure**: DAG, one-to-many fan-out + many-to-one fan-in
+**Schedule mode**: `eager`
 
 ### `demo_async_staged_pipeline`
-Two-stage asynchronous pipeline:
+Two-stage async pipeline:
 
 ```mermaid
 flowchart LR
     AsyncDouble["AsyncDouble<br/>async | 8 workers"] --> AsyncToStr["AsyncToStr<br/>async | 8 workers"]
 ```
 
-ASCII sketch:
+ASCII supplementary diagram:
 
 ```
 AsyncDouble ──> AsyncToStr
 ```
 
-- `AsyncDouble`: asynchronously doubles the input (`async`, 8 workers).
-- `AsyncToStr`: asynchronously converts results to strings (`async`, 8 workers).
+- `AsyncDouble` → Async doubles the input (async mode, 8 workers)
+- `AsyncToStr` → Async converts result to string (async mode, 8 workers)
 
-**Graph topology**: DAG, linear two-stage flow.
-**Scheduling mode**: `staged`, running layer by layer.
-**After execution**: calls `graph.get_status_snapshot()` to print success and failure counts per stage.
+**Graph structure**: DAG, linear two-stage
+**Schedule mode**: `staged` (layer-by-layer execution)
 
 ## Key Configuration
 
-- All stages use `stage_mode="thread"`.
-- The ETL pipeline uses `schedule_mode="eager"`; the async pipeline uses `schedule_mode="staged"`.
-- `execution_mode="async"` is used for coroutine task functions.
+- All stages use `stage_mode="thread"`
+- ETL pipeline uses `schedule_mode="eager"`, async pipeline uses `schedule_mode="staged"`
+- `execution_mode="async"` for coroutine task functions
 
 ## Potential Issues
 
-1. **No assertions**: this is a demo script and does not validate result correctness.
-2. **ETL functions contain sleep**: `extract_record` sleeps 0.5s, `transform_normalize` / `transform_enrich` sleep 0.3s, and `load_record` sleeps 0.2s, so a full run takes noticeable time.
+1. **No assertions**: Demo script; does not verify result correctness.
+2. **ETL functions include sleep**: `extract_record` (0.5s), `transform_normalize`/`transform_enrich` (0.3s), `load_record` (0.2s); full execution takes some time.
 
 ## How to Run
 
@@ -77,7 +75,7 @@ python demo/demo_graph.py
 
 ### ETL Pipeline (`demo_etl_fan_out_fan_in`)
 
-Execution proceeds in the order Extract -> Normalize/Enrich -> Load, and prints sleep-driven logs plus a final summary:
+Executes Extract → Normalize/Enrich → Load sequentially, output includes sleep logs and a final summary:
 
 ```
 [Extract] Input: 0 -> Output: {'id': 0, 'value': 101}
@@ -92,11 +90,11 @@ Enrich     : success=5  fail=0
 Load       : success=10 fail=0
 ```
 
-> Each `Extract` output is processed once by `Normalize` and once by `Enrich`, then both flows are merged by `Load`. With `range(5)` as input, `Load` receives 10 tasks in total.
+> Each Extract produces 1 record, processed by Normalize and Enrich respectively, then aggregated by Load. When input is `range(5)`, the Load node receives a total of 10 tasks (5 × 2 downstream).
 
 ### Async Pipeline (`demo_async_staged_pipeline`)
 
-Stages run layer by layer: `AsyncDouble` finishes before `AsyncToStr` starts.
+Layer-by-layer staged execution: AsyncDouble completes first, then AsyncToStr starts:
 
 ```
 --- Staged 1: AsyncDouble ---
@@ -112,7 +110,7 @@ AsyncDouble : success=5  fail=0  pending=0
 AsyncToStr  : success=5  fail=0  pending=0
 ```
 
-> Total runtime is roughly 3-5 seconds, mainly due to the built-in `sleep` calls.
+> Total execution time is about 3-5 seconds, primarily affected by built-in `sleep` calls.
 
 ## Dependencies
 

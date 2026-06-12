@@ -4,23 +4,23 @@
 
 ## Overview
 
-The Other module contains extension components and external integrations for the CelestialFlow framework. These components are not part of the core framework but provide important extended functionality. It mainly includes two components: CelestialTree Client and Go Worker, used for task provenance tracking and cross-language task execution, respectively.
+The Other module contains extension components and external integrations for the CelestialFlow framework. These components are not part of the core framework but provide important extended functionality. It primarily includes the CelestialTree client and Go Worker, used for task provenance tracing and cross-language task execution respectively.
 
-## File Details
+## Detailed File Descriptions
 
 ### 1. ctree_client.md - CelestialTree Client
 
-**Purpose**: Integrate with the CelestialTree event sourcing system to enable full-chain task tracing and event recording.
+**Purpose**: Integrates the CelestialTree event provenance system to enable full-chain task tracing and event recording.
 
 **Core Features**:
-- **Event Recording**: Automatically records key events during a task's lifecycle (input, success, failure, retry, split, route, etc.)
-- **Data Lineage Tracking**: Query the data sources and generation paths of results
-- **Error Root Cause Localization**: Trace the complete call chain of failed tasks
-- **Execution Tree Visualization**: Generate call tree structures of task execution
+- **Event Recording**: Automatically records key events in the task lifecycle (input, success, failure, retry, split, route, etc.)
+- **Data Lineage Tracing**: Query the data source and generation path of results
+- **Root Cause Localization**: Trace the complete call chain of failed tasks
+- **Execution Tree Visualization**: Generate the call tree structure of task execution
 
 **Key Characteristics**:
-- Integrates with CelestialTree service, supporting HTTP and gRPC communication
-- Automatic event emission without manual instrumentation
+- Integrates with the CelestialTree service, supporting HTTP and gRPC communication
+- Automatic event emission, no manual instrumentation required
 - Provides simplified provenance query interfaces
 - Supports complex scenarios such as task splitting, routing, and duplicate detection
 
@@ -41,22 +41,22 @@ error_trace = graph.get_error_trace(error_id=12345)
 
 ### 2. go_worker.md - Go Worker Task Consumer
 
-**Purpose**: A lightweight, concurrently scalable Redis-based task consumer (Worker Pool) for cross-language task execution.
+**Purpose**: A lightweight, concurrently scalable, Redis-based task consumer (Worker Pool) for cross-language task execution.
 
 **Core Features**:
-- **Task Consumption**: Continuously consume tasks from Redis queues
-- **Concurrent Execution**: Execute tasks with controllable concurrency
-- **Result Write-back**: Write execution results back to Redis
-- **Cross-language Support**: Serve as a Go-language execution node for TaskGraph
+- **Task Consumption**: Continuously consumes tasks from Redis queues
+- **Concurrent Execution**: Executes tasks with controllable concurrency
+- **Result Write-back**: Writes execution results back to Redis
+- **Cross-Language Support**: Serves as a Go-language execution node for TaskGraph
 
-**Architecture Highlights**:
+**Architectural Characteristics**:
 - **Worker Pool Pattern**: Uses goroutines and channels for concurrency control
-- **Automatic Reconnection**: Supports exponential backoff retry on Redis connection failure
-- **Pluggable Design**: Parser and Processor can be customized and extended
+- **Auto-Reconnect Mechanism**: Supports exponential backoff retry on Redis connection failures
+- **Pluggable Design**: Parser and Processor are customizable and extensible
 - **Generic Task Structure**: Uses JSON-formatted task payloads
 
 **Key Components**:
-- **TaskParser**: Parses task payloads and converts them to the format required by the Processor
+- **TaskParser**: Parses task payloads, converting them to the format required by the Processor
 - **TaskProcessor**: Executes business logic and returns computation results
 - **Worker Pool**: Manages concurrent execution and resource control
 
@@ -84,11 +84,11 @@ worker.StartWorkerPool(
    - Provides provenance data support for the `web` module
 
 2. **Go Worker**:
-   - Works in conjunction with `TaskRedisTransport` and `TaskRedisAck` nodes from the `runtime` module
+   - Works with `TaskRedisTransport` and `TaskRedisAck` nodes from the `runtime` module
    - Communicates with the Python-side TaskGraph via Redis
    - Can be used as a standalone component without mandatory dependency on the core framework
 
-### Component Collaboration
+### Inter-Component Collaboration
 
 ```
 TaskGraph (Python) → Redis → Go Worker → Redis → TaskGraph (Python)
@@ -100,16 +100,16 @@ CelestialTree Client → CelestialTree Service
    - TaskGraph generates tasks and writes them to Redis
    - Go Worker consumes tasks from Redis and executes them
    - Execution results are written back to Redis, and TaskGraph reads the results
-   - CelestialTree Client records events throughout the entire process
+   - CelestialTree client records events throughout the entire process
 
 2. **Data Flow**:
-   - Task data is transferred between Python and Go via Redis
+   - Task data is passed between Python and Go via Redis
    - Event data is sent to CelestialTree via HTTP/gRPC
-   - Provenance queries are retrieved from CelestialTree through the client API
+   - Provenance queries are obtained from CelestialTree through the client API
 
-## Architecture Highlights
+## Architectural Characteristics
 
-### 1. Loosely Coupled Design
+### 1. Loose Coupling Design
 - Each component can be deployed and used independently
 - Communication via standard protocols (Redis, HTTP)
 - No language binding, supporting multi-language extensions
@@ -122,7 +122,7 @@ CelestialTree Client → CelestialTree Service
 ### 3. Performance Optimization
 - Go Worker provides high-performance task execution
 - Concurrency control prevents resource exhaustion
-- Automatic reconnection ensures system stability
+- Auto-reconnect ensures system stability
 
 ## Usage Patterns
 
@@ -140,26 +140,26 @@ trace = graph.get_stage_input_trace("ProcessingStage")
 
 ### 2. Cross-Language Execution Pattern
 ```python
-# Python side: Define Redis transport nodes
+# Python side: define Redis transport nodes
 redis_sink = TaskRedisTransport(key="tasks:input")
 redis_ack = TaskRedisAck(key="tasks:output")
 
-# Go side: Start Worker Pool to consume tasks
-# Configure the same Redis key in go_worker/main.go
+# Go side: start Worker Pool to consume tasks
+# Configure the same Redis keys in go_worker/main.go
 ```
 
 ### 3. Hybrid Pattern
-Use CelestialTree tracing and Go Worker execution simultaneously to achieve complete observability and high-performance execution capability.
+Use CelestialTree tracing and Go Worker execution simultaneously for complete observability and high-performance execution capabilities.
 
 ## Best Practices
 
 ### 1. CelestialTree Configuration
-- Deploy a standalone CelestialTree service in production environments
-- Adjust the event sampling rate based on task volume
+- Deploy an independent CelestialTree service in production environments
+- Adjust event sampling rate based on task volume
 - Periodically clean up expired event data
 
 ### 2. Go Worker Deployment
-- Choose appropriate concurrency levels based on task types
+- Choose an appropriate concurrency level based on task type
 - Monitor Redis connection status and queue length
 - Implement custom Processors for specific business logic
 
@@ -170,7 +170,7 @@ Use CelestialTree tracing and Go Worker execution simultaneously to achieve comp
 
 ### 4. Performance Tuning
 - Adjust Redis connection pool size
-- Optimize serialization format for task payloads
+- Optimize task payload serialization format
 - Adjust Worker concurrency based on hardware resources
 
 ## Extension Suggestions
@@ -185,12 +185,12 @@ Implement custom TaskParsers to support parsing of complex task formats.
 Integrate Go Worker metrics into the framework's monitoring system for unified observability.
 
 ### 4. Multi-Language Support
-Following the Go Worker pattern, implement Worker components in other languages (such as Java, Rust).
+Following the Go Worker pattern, implement Worker components in other languages (e.g., Java, Rust).
 
 ## Notes
 
 1. **Version Compatibility**: Ensure CelestialTree client and server versions are compatible
-2. **Network Latency**: Network latency of Redis and CelestialTree will affect overall performance
+2. **Network Latency**: Network latency to Redis and CelestialTree will affect overall performance
 3. **Resource Management**: Configure Worker concurrency appropriately to avoid resource contention
 4. **Data Consistency**: Pay attention to the use of Redis transactions and atomic operations
 5. **Security Considerations**: Protect access credentials for Redis and CelestialTree

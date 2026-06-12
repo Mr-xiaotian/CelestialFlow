@@ -1,153 +1,218 @@
 # injection.ts
 
-> 📅 最終更新日: 2026/05/28
+> 📅 最終更新日: 2026/06/11
 
-タスク手動注入ページのロジックを管理します。マルチノード選択、JSON テキスト入力、JSON ファイルアップロード、終了シグナルのクイック入力、注入送信をサポートします。
+タスク手動注入ページのロジックを管理します。**下書き式アーキテクチャ**を採用：ユーザーがノードを選択して JSON 下書きを編集し、編集内容はリアルタイムで `nodeDrafts` にキャッシュされ、最終的に「一括送信」で下書きを一度にバックエンドに送信します。
+
+> ⚠️ **変更済み**: モジュールは大幅に再構築されました。旧版で説明されていた複数ノード選択（`selectedNodes`）、JSON/ファイル入力切り替え（`currentInputMethod`、`uploadedFile`）などのアーキテクチャは、`currentNodeName`+`nodeDrafts` ベースの単一ノード下書きシステムに置き換えられました。エラーログページからの再注入サポート（`preloadInjectionDraftFromError`）が新たに追加されました。
+
+## 型定義
+
+```typescript
+type ValidationState = "idle" | "success" | "error" | "neutral";
+```
 
 ## グローバル変数
 
 | 変数 | 型 | 説明 |
 |------|------|------|
-| `selectedNodes` | `{ name: string }[]` | ユーザーが現在選択している注入ターゲットノードのリスト。各ノードは `name` フィールドのみを含む |
-| `currentInputMethod` | `string` | 現在の入力モード: `json` または `file` |
-| `uploadedFile` | `object \| null` | アップロードされたファイルの名前と内容を保存 |
+| `currentNodeName` | `string \| null` | 現在選択中のノード名；`null` は未選択を示す |
+| `nodeDrafts` | `Record<string, string>` | ノード名をキーとする下書きテキストマッピング |
+| `statusHideTimer` | `ReturnType<typeof setTimeout> \| null` | 状態メッセージ自動非表示タイマー |
+
+## コアフロー
+
+```mermaid
+flowchart TD
+    A[renderNodeList] --> B[ユーザーがノードをクリック]
+    B --> C[selectNode]
+    C --> D[renderCurrentNodeEditor]
+    D --> E[ユーザーが JSON を編集]
+    E --> F[setDraftForNode]
+    F --> G[nodeDrafts 更新]
+
+    G --> H{操作タイプ}
+    H -->|検証| I[validateCurrentDraft]
+    H -->|フォーマット| J[formatCurrentDraft]
+    H -->|クリア| K[clearCurrentDraft]
+    H -->|終端子を入力| L[fillTerminationDraft]
+
+    G --> M[handleSubmit]
+    M --> N[buildPendingInjectionPayload]
+    N --> O[POST /api/push_injection_tasks]
+    O --> P[showStatus フィードバック]
+```
 
 ## 関数
 
-### `setupEventListeners()`
+### ノード選択とリスト
 
-**イベント委譲**パターンを使用してページイベントバインディングを初期化し、動的に生成されるノードリストの操作を最適化します。
+#### `renderNodeList(): void`
+`nodeStatuses` に基づいて左側の選択可能なノードリストをレンダリングします。検索フィルタリングと「注入可能ノードのみ表示」スイッチをサポートします。ノード状態は `disabled-node` クラスで注入不可ノードのインタラクションを無効化します。
 
-- **検索**: `#search-input` リアルタイムフィルタリング。
-- **検証**: `#json-textarea` リアルタイム形式検証。
-- **切替**: `.input-toggle` 入力モードの切り替え。
-- **選択**: `.button-group` 全選択/クリアの処理。
-- **送信**: `#submit-btn` 注入フローのトリガー。
+#### `selectNode(nodeName: string): void`
+現在選択中のノードを切り替えます。`currentNodeName` を更新し、ノードリストのハイライトと右側エディタを再描画します。
 
----
+#### `isInjectableNode(nodeName: string): boolean`
+ノードが注入可能かどうかを判定します（状態が実行中 `status === 1`）。
 
-### `renderNodeList(searchTerm)`
-
-`nodeStatuses` に基づいて選択可能なノードリストをレンダリングします。
-
-- **状態フィルタリング**: ノードは対応する状態バッジ（実行中/停止/未実行）を表示。
-- **操作制限**: 停止中のノードは `disabled-node` スタイルに設定され、注入対象として選択不可。
+#### `syncInjectionStateWithStatuses(): void`
+ノード状態が変化したときに注入ページの UI 状態を同期します（例：ノード状態が実行中から停止に変わった場合にエディタを無効化）。
 
 ---
 
-### `handleSubmit()`
+### エディタ
 
-タスク注入送信ロジックを実行します。
+#### `renderCurrentNodeEditor(): void`
+右側エディタをレンダリングします。現在のノード名、下書き状態タグ（`.node-side-tag`「編集済み」）、JSON テキストエリア、操作ボタングループを含みます。
 
-1. **データ取得**: 現在の `currentInputMethod` に基づいてテキストエリアの内容またはアップロードされたファイル内容を取得。
-2. **データ検証**: 選択されたノードが空でないこと、データ形式が有効な JSON（リスト構造であること）を確認。
-3. **並行注入**: 選択された各ノードに対して個別に `POST /api/push_injection_tasks` リクエストを送信。
-4. **フィードバック表示**: 注入結果をページに表示（成功/失敗/一部成功）。
-
----
-
-### `switchInputMethod(method)`
-
-JSON テキストエリアとファイルアップロードエリアの間で UI を切り替えます。
+#### `renderInjectionPage(): void`
+注入ページ全体をリフレッシュします：`renderNodeList()`、`renderCurrentNodeEditor()`、`renderDraftList()`、`updateSubmitButtonAvailability()` を呼び出します。
 
 ---
 
-### `handleFileUpload(e)`
+### 下書き管理
 
-ファイル選択イベントを処理し、`.json` ファイルの内容を読み取り、`validateJSON()` を呼び出して事前検証を行います。
+#### `setDraftForNode(nodeName: string, draftText: string): void`
+テキストを `nodeDrafts[nodeName]` に保存します。テキストが空または現在のノードと無関係な場合は下書きエントリを削除します。更新後に下書きプレビューと送信ボタン状態をリフレッシュします。
+
+#### `getJsonTextarea(): HTMLTextAreaElement`
+JSON 編集エリアの textarea 要素参照を取得します。
+
+#### `getSearchInput(): HTMLInputElement`
+ノード検索入力ボックス参照を取得します。
+
+#### `getInjectableOnlyToggle(): HTMLInputElement`
+「注入可能ノードのみ表示」スイッチ参照を取得します。
 
 ---
 
-### `fillTermination()`
+### 検証とフォーマット
 
-補助関数：JSON 入力ボックスに標準のタスク終了シグナルシーケンスをワンクリックで入力します。
+#### `validateCurrentDraft(): void`
+現在の JSON テキストエリア内の下書き内容を検証し（`parseDraftTaskList()` を呼び出し）、結果を検証メッセージエリアにレンダリングします。
 
-## データフロー
+#### `formatCurrentDraft(): void`
+現在の JSON をフォーマットし（`JSON.stringify` + `JSON.parse` で再シリアライズ、インデント 2 スペース）、テキストエリアに書き戻します。
 
-```
-1. ページ操作 -> ノード選択 + データ入力
-2. 送信クリック -> validateJSON() 検証
-3. バックエンドリクエスト -> POST /api/push_injection_tasks
-4. UI フィードバック -> 注入の成功/失敗状態を表示
-```
+#### `parseDraftTaskList(draftText: string): { ok: boolean; taskList?: unknown[]; reason?: string }`
+下書きテキストをタスクリストに解析します。`ok: false` を返す場合は失敗理由 `reason` を付加します。
+
+#### `clearCurrentDraft(): void`
+現在のノードの下書きをクリアします。
+
+#### `fillTerminationDraft(): void`
+現在のテキストエリアに標準終端子タスクテンプレート（`[{"__celestial_termination__": true}]`）を入力します。
+
+---
+
+### プレビューと送信
+
+#### `renderDraftList(): void`
+下部の下書きプレビューエリアをレンダリングし、既存の下書きがあるすべてのノードとそのペイロードプレビューを表示します。下書き解析が失敗した場合は対応するエラーメッセージを表示します。
+
+#### `buildPendingInjectionPayload(): { payload: Record<string, unknown[]>; invalidNode?: string; invalidReason?: string }`
+送信待ちの注入ペイロードを構築します。すべての `nodeDrafts` を走査してタスクリストに解析し、`{ nodeName: taskList[] }` 構造に集約します。いずれかのノードの解析が失敗した場合は `invalidNode` と `invalidReason` を返します。
+
+#### `updateSubmitButtonAvailability(): void`
+下書きの有無に基づいて送信ボタンの `disabled` 状態を制御します。
+
+#### `handleSubmit(): Promise<void>`
+送信を実行：`buildPendingInjectionPayload()` を呼び出してペイロードを構築し、`POST /api/push_injection_tasks` で送信します。送信中はボタンに回転インジケーター（`.spinner`）を表示し、完了後に結果フィードバックを表示します。
+
+---
+
+### 状態と国際化
+
+#### `showStatus(messageKey: string, type: "success" | "error"): void`
+送信結果の状態メッセージを表示します（3 秒後に自動非表示）。
+
+#### `renderStatusMessage(messageKey: string, type: "success" | "error"): string`
+アイコン付きの状態メッセージ HTML を生成します。
+
+#### `setValidationMessage(state: ValidationState, messageKey?: string): void`
+検証結果エリアの状態とテキストを設定します。
+
+#### `clearValidationMessage(): void`
+検証結果エリアをクリアします。
+
+#### `setButtonLoading(loading: boolean): void`
+送信ボタンのローディング状態を制御します（`.spinner` 要素の挿入/削除）。
+
+#### `refreshInjectionLocalizedText(): void`
+言語切り替え時に注入ページのすべての動的テキスト（検証メッセージ、状態メッセージ、送信ボタンなど）をリフレッシュします。
+
+---
+
+### モジュール間インタラクション
+
+#### `preloadInjectionDraftFromError(nodeName: string, taskData: unknown, jumpToInjectionAfterRetry?: boolean): void`
+`errors.ts` の再注入列から呼び出されます。タスクデータを対応するノードの下書きにマージします（追記であり上書きではありません）。`jumpToInjectionAfterRetry` が `true` の場合、自動的に注入タブに切り替えます。
+
+---
+
+### イベントバインディング
+
+#### `setupEventListeners(): void`
+注入ページのすべてのインタラクションイベントを初期化します（モジュールトップレベルで自動実行）：
+- **検索ボックス** (`#injection-search`): ノードリストをリアルタイムフィルタリング。
+- **検証ボタン** (`#btn-validate`): `validateCurrentDraft()` をトリガー。
+- **フォーマットボタン** (`#btn-format`): `formatCurrentDraft()` をトリガー。
+- **クリアボタン** (`#btn-clear-draft`): `clearCurrentDraft()` をトリガー。
+- **終端子ボタン** (`#btn-fill-termination`): `fillTerminationDraft()` をトリガー。
+- **送信ボタン** (`#btn-submit-all`): `handleSubmit()` をトリガー。
+- **ノードリスト** (`#injection-node-list`): イベント委譲でノード項目クリックを処理。
+- **注入可能のみ表示** (`#injectable-only-toggle`): `renderInjectionPage()` をトリガーして設定を保存。
 
 ## 使用例
 
-### タスク注入のデータ形式と使用例
-
-以下の例はタスク注入機能の典型的な操作フローとデータ構造を示します：
-
 ```typescript
-// 1. 選択されたターゲットノードをシミュレート（name フィールドのみを含む）
-const selectedNodes = [
-    { name: "StageA" },
-    { name: "StageB" },
-];
+// ノード下書きデータをシミュレート
+nodeDrafts["StageA"] = '[{"id": 1, "payload": "data1"}, {"id": 2, "payload": "data2"}]';
+nodeDrafts["StageB"] = '[{"id": 3}]';
 
-// 2. タスク注入リクエストのデータ形式
-// POST /api/push_injection_tasks
-const injectionPayload = {
-    node: "StageA",              // ターゲットノードラベル
-    task_datas: [                // タスクデータリスト
-        { id: 101, content: "file_a.csv" },
-        { id: 102, content: "file_b.csv" },
-        { id: 103, content: "file_c.csv" },
-    ],
-    timestamp: "2026-05-24T10:30:00",  // ISO 形式タイムスタンプ
-};
+// ノードを選択してエディタをレンダリング
+// selectNode("StageA");  // 自動的に renderCurrentNodeEditor() を呼び出し
 
-// 3. fetch API を使用して手動で注入を送信
-async function injectTasks(node: string, taskDatas: any[]) {
-    const res = await fetch("/api/push_injection_tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            node,
-            task_datas: taskDatas,
-            timestamp: new Date().toISOString(),
-        }),
-    });
-    return res.json();
-}
+// 現在の下書きを検証
+// validateCurrentDraft();  // 結果は .validation-message にレンダリング
 
-// 4. JSON データの正当性を検証
-function validateJSON(str: string): { valid: boolean; data?: any; error?: string } {
-    try {
-        const data = JSON.parse(str);
-        if (!Array.isArray(data)) {
-            return { valid: false, error: "データは JSON 配列形式である必要があります" };
-        }
-        return { valid: true, data };
-    } catch (e) {
-        return { valid: false, error: "JSON 形式が不正です" };
-    }
-}
+// JSON をフォーマット
+// formatCurrentDraft();
 
-// 5. validateJSON を使用して入力を検証
-const validInput = '[{"id":1}, {"id":2}]';
-const invalidInput = '{invalid json}';
+// 送信ペイロードを構築
+// const { payload, invalidNode, invalidReason } = buildPendingInjectionPayload();
+// payload = { StageA: [{id:1,...}, {id:2,...}], StageB: [{id:3}] }
 
-console.log(validateJSON(validInput));
-// { valid: true, data: [{ id: 1 }, { id: 2 }] }
+// 下書きを送信
+// await handleSubmit();
 
-console.log(validateJSON(invalidInput));
-// { valid: false, error: "JSON 形式が不正です" }
+// エラーページから下書きを事前入力（errors.ts から呼び出し）
+// preloadInjectionDraftFromError("StageA", { id: 999 }, true);
+// 自動的に注入タブに切り替え、task_999 を StageA の下書きに事前入力
+```
 
-// 6. 複数ノードへのバッチ注入
-async function injectToMultipleNodes(nodes: string[], taskDatas: any[]) {
-    const results = await Promise.allSettled(
-        nodes.map(node => injectTasks(node, taskDatas))
-    );
-    
-    const successCount = results.filter(r => r.status === "fulfilled").length;
-    const failCount = results.filter(r => r.status === "rejected").length;
-    
-    console.log(`注入完了: ${successCount} 成功, ${failCount} 失敗`);
-    return results;
-}
+## データフロー
 
-// 7. 終了シグナル注入
-// fillTermination() で入力ボックスに終了シグナルを入力
-const terminationPayload = ["TERMINATION_SIGNAL"];
-// バックエンドはこのシグナルを受信すると対応するノードのタスク処理を停止します
+```mermaid
+flowchart LR
+    subgraph "errors.ts"
+        RE[renderErrors]
+        RETRY["retry-link クリック"]
+    end
+    subgraph "injection.ts"
+        PIDE[preloadInjectionDraftFromError]
+        ND[nodeDrafts]
+        BPP[buildPendingInjectionPayload]
+        HS[handleSubmit]
+    end
+    subgraph "API"
+        API[POST /api/push_injection_tasks]
+    end
+
+    RETRY -->|stage, task| PIDE
+    PIDE --> ND
+    ND --> BPP
+    BPP --> HS
+    HS --> API
 ```

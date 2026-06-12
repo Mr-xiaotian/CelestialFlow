@@ -1,21 +1,21 @@
-# CelestialTree クライアント
+# CelestialTree Client
 
 > 📅 最終更新日: 2026/04/22
 
-CelestialFlow は `celestialtree` クライアントを統合しており、きめ細かなタスクの全チェーン追跡（Provenance）とイベント記録を実現します。
+CelestialFlow は `celestialtree` クライアントを統合し、細粒度のタスク全リンクトレース（Provenance）とイベント記録を実現します。
 
-## はじめに
+## 概要
 
-CelestialTree は独立したイベントソーシングシステムです。CelestialFlow は `CelestialTreeClient` を使用して、タスクのライフサイクル中の重要なイベント（入力、成功、失敗、リトライ、分裂、ルーティングなど）を CelestialTree サービスに送信します。
+CelestialTree は独立したイベントソーシングシステムです。CelestialFlow は `CelestialTreeClient` を通じて、タスクライフサイクル中の重要なイベント（入力、成功、失敗、リトライ、分割、ルーティングなど）を CelestialTree サービスに送信します。
 
-これにより、ユーザーは以下のことが可能になります：
-1. **データリネージの追跡**: ある結果がどの元のタスクから、どのステップを経て生成されたかをクエリできます。
-2. **エラー根本原因の特定**: 失敗したタスクの上流ソースをクエリできます。
-3. **実行ツリーの可視化**: タスク実行のコールツリーを生成できます。
+これにより、ユーザーは以下を実行できます：
+1. **データリネージの追跡**: ある結果がどの元タスクから、どのステップを経て生成されたかを照会する。
+2. **エラー根本原因の特定**: あるエラータスクの上流ソースを照会する。
+3. **実行ツリーの可視化**: タスク実行のコールツリーを生成する。
 
 ## 設定
 
-`TaskGraph` の初期化時に設定します：
+`TaskGraph` 初期化時に設定します：
 
 ```python
 graph.set_ctree(
@@ -30,22 +30,22 @@ graph.set_ctree(
 
 フレームワークは以下のタイプのイベントを自動的に発行します：
 
-- `task.input`: タスクが Stage に入ります。
-- `task.success`: タスクが正常に処理されました。
-- `task.error`: タスクの処理が失敗しました。
-- `task.retry.N`: タスクの N 回目のリトライです。
-- `task.split`: タスクが分裂しました。
-- `task.route`: タスクがルーティングされました。
-- `task.duplicate`: 重複タスクが検出されました。
-- `termination.input` / `termination.merge`: 終了シグナルのフローです。
+- `task.input`: タスクが Stage に入る。
+- `task.success`: タスク処理が成功。
+- `task.error`: タスク処理が失敗。
+- `task.retry.N`: タスクの N 回目のリトライ。
+- `task.split`: タスクの分割。
+- `task.route`: タスクのルーティング。
+- `task.duplicate`: 重複タスクの検出。
+- `termination.input` / `termination.merge`: 終了信号のフロー。
 
-## 来歴クエリ
+## トレーサビリティ照会
 
-`TaskGraph` は来歴情報をクエリするための簡素化されたラッパーメソッドを提供します：
+`TaskGraph` はトレーサビリティ情報を照会するための簡略化されたラッパーメソッドを提供します：
 
 ### get_stage_input_trace
 
-指定した Stage の現在のすべての入力タスクの来歴ツリー（つまり、各タスクの出所）を取得します。
+ある Stage の現在のすべての入力タスクのトレースツリー（すなわち、これらのタスクがそれぞれどこから来たか）を取得します。
 
 ```python
 trace_str = graph.get_stage_input_trace(stage_tag="Stage1")
@@ -54,7 +54,7 @@ print(trace_str)
 
 ### get_error_trace
 
-特定のエラー ID の来歴ツリーを取得します。
+特定のエラー ID のトレースツリーを取得します。
 
 ```python
 trace_str = graph.get_error_trace(error_id=12345)

@@ -1,190 +1,191 @@
 # web_config.ts
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/11
 
-Manages web frontend configuration loading, normalization, saving, and application. Includes theme, language, polling frequency, history length, page size, and dashboard layout.
+Manages web frontend configuration loading, normalization, saving, and application. Configuration uses a **grouped structure** (`global`, `dashboard`, `errors`, `injection`), while also supporting automatic migration of legacy flat format.
+
+> ⚠️ **Changed**: The config structure has been refactored from the old flat `WebConfig` to a grouped format. Added `LegacyWebConfig` compatibility type, `isGroupedWebConfig()` detection function, and `normalizeDashboardLayout()` layout normalization function.
 
 ## Type Definitions
 
-```ts
+### Current Grouped Configuration
+
+```typescript
+type WebGlobalConfig = {
+  theme: "light" | "dark";
+  autoRefreshEnabled: boolean;
+  refreshInterval: number;
+  language: Lang;
+};
+
+type WebDashboardConfig = {
+  historyLimit: number;
+  showStructureEdgeDelta: boolean;
+  useTotalPendingInStatus: boolean;
+  layout: DashboardLayout;
+};
+
+type WebErrorsConfig = {
+  pageSize: number;
+  sortOrder: "newest" | "oldest";
+  jumpToInjectionAfterRetry: boolean;
+};
+
+type WebInjectionConfig = {
+  showInjectableOnly: boolean;
+};
+
 type WebConfig = {
-    theme: "light" | "dark";         // UI theme
-    refreshInterval: number;          // Global polling refresh interval (ms)
-    historyLimit: number;             // History record length maintained locally by the frontend
-    language: Lang;                   // UI language (zh-CN, en, ja)
-    errorPageSize: number;            // Error log items per page
-    showStructureEdgeDelta: boolean;  // Whether to show success task deltas on structure graph edges
-    dashboard: {                      // Dashboard layout configuration
-        left: string[];
-        middle: string[];
-        right: string[];
-    };
+  global: WebGlobalConfig;
+  dashboard: WebDashboardConfig;
+  errors: WebErrorsConfig;
+  injection: WebInjectionConfig;
+};
+```
+
+### Legacy Compatibility Type
+
+```typescript
+type LegacyWebConfig = {
+  theme?: string;
+  autoRefreshEnabled?: boolean;
+  refreshInterval?: number;
+  language?: string;
+  historyLimit?: number;
+  showStructureEdgeDelta?: boolean;
+  useTotalPendingInStatus?: boolean;
+  pageSize?: number;
+  sortOrder?: string;
+  jumpToInjectionAfterRetry?: boolean;
+  showInjectableOnly?: boolean;
+  layout?: DashboardLayout;
 };
 ```
 
 ## Global Variables
 
 | Variable | Type | Description |
-|----------|------|-------------|
-| `webConfig` | `WebConfig \| null` | Current runtime configuration object |
+|------|------|------|
+| `webConfig` | `WebConfig` | Current runtime configuration object, initialized by `DEFAULT_WEB_CONFIG` at module load |
+| `saveConfigPending` | `boolean` | Whether a save request is in progress (prevents concurrent writes) |
+| `saveConfigPromise` | `Promise<boolean> \| null` | Promise of the current or most recent save operation |
+| `PANEL_SELECTOR_MAP` | `Record<string, string>` | Panel key to CSS selector mapping |
+| `CARD_TEMPLATES` | `Record<string, string>` | Card ID to HTML template mapping (mermaid, analysis, status, progress, summary) |
+| `CARD_META` | `Record<string, string>` | Card ID to i18n label key mapping |
+| `ALL_CARD_IDS` | `string[]` | Standard card ID list auto-generated from `Object.keys(CARD_TEMPLATES)` |
 | `DEFAULT_WEB_CONFIG` | `WebConfig` | Default configuration template, used for initialization and fallback |
-| `PANEL_SELECTOR_MAP` | `Record<string, string>` | Maps `left` / `middle` / `right` panel keys to CSS selectors (`.left-panel`, `.middle-panel`, `.right-panel`) |
-| `CARD_TEMPLATES` | `Record<string, string>` | HTML template strings keyed by card ID (mermaid, analysis, status, progress, summary) |
-| `CARD_META` | `Record<string, string>` | Maps card ID to its i18n label key (e.g. `mermaid` → `card.mermaid.title`) |
-| `ALL_CARD_IDS` | `string[]` | Auto-generated from `Object.keys(CARD_TEMPLATES)`, used as the canonical card ID list for the layout editor |
 
 ## Functions
 
-### `loadWebConfig()`
+### `loadWebConfig(): Promise<void>`
 
-Asynchronously loads configuration from `GET /api/pull_config`.
-
-- **Robustness**: If the request fails (e.g., backend not responding or network error), catches the exception and automatically calls `normalizeWebConfig()` to start with default configuration, ensuring the page remains basically functional.
+Asynchronously loads configuration from `GET /api/pull_config`. Automatically falls back to default configuration on failure.
 
 ---
 
-### `saveWebConfig()`
+### `saveWebConfig(): Promise<boolean>`
 
-POSTs the current `webConfig` object to `/api/push_config`. The backend persists it to `web/config.json`.
-
----
-
-### `normalizeWebConfig(rawConfig?)`
-
-Merges the raw configuration returned by the backend (which may have missing fields) with `DEFAULT_WEB_CONFIG`.
-
-- Ensures the integrity of the `dashboard` structure.
-- Provides deep merge logic.
+Persists the current `webConfig` via `POST /api/push_config`. Has **anti-concurrency** mechanism: if a save is already in progress, reuses the same Promise.
 
 ---
 
-### `applyConfig()`
+### `performSaveWebConfig(): Promise<boolean>`
 
-Syncs settings from `webConfig` to the page:
+Executes the actual POST request. Sets the `saveConfigPending` flag and returns the write result.
 
-1. **Language**: Applies `language` and updates all `data-i18n` elements on the page.
-2. **Theme**: Toggles the `dark-theme` class.
-3. **Parameter Sync**: Syncs refresh rate, history length, page size, and delta toggle to the corresponding DOM controls (e.g., Select/Checkbox).
+---
+
+### `isGroupedWebConfig(config: unknown): boolean`
+
+Detects whether a config object is the new grouped format (contains `global`, `dashboard`, `errors`, `injection` sub-objects).
+
+---
+
+### `normalizeWebConfig(rawConfig?: unknown): WebConfig`
+
+Deep-merges the raw config returned by the backend (potentially legacy flat format or with missing fields) with `DEFAULT_WEB_CONFIG`.
+
+- Auto-detects and migrates legacy flat config (`LegacyWebConfig`) to the new grouped format.
+- Ensures `dashboard.layout` integrity.
+
+---
+
+### `normalizeDashboardLayout(layout?: Partial<DashboardLayout>): DashboardLayout`
+
+Ensures the dashboard layout contains all three column keys (`left`, `middle`, `right`), filling with empty arrays when missing.
+
+---
+
+### `applyConfig(): void`
+
+Syncs various settings from `webConfig` to the page:
+
+1. **Language**: Applies `global.language` and updates all `data-i18n` elements on the page.
+2. **Theme**: Toggles the `dark-theme` class based on `global.theme`.
+3. **Parameter Sync**: Syncs refresh rate, history limit, page size, delta toggles, etc. to the corresponding DOM controls.
 4. **Layout**: Calls `applyDashboardLayout()` to rearrange cards.
 
 ---
 
-### `ensureAllCards()`
+### `ensureAllCards(): void`
 
-Executes immediately at module load time. Iterates over `CARD_TEMPLATES` to create and inject all card DOM nodes into the `#card-pool` container.
-
-- Checks for existing `.{key}-card` class elements to avoid duplicates
-- Top-level module execution (not inside a function), ensuring subsequent scripts can find elements by ID before any layout operation
+Executed immediately at module load, iterates `CARD_TEMPLATES` to create all card DOM nodes and inject them into the `#card-pool` container. Checks whether elements with corresponding class names already exist to avoid duplicate creation.
 
 ---
 
-### `applyDashboardLayout()`
+### `applyDashboardLayout(): void`
 
-Core layout logic: Dynamically moves cards across the three-column panels via DOM operations (`appendChild`).
-
-- **Dynamic Visibility**: Only cards present in the configuration are set to `display: block`.
-- **Order Control**: Cards are inserted strictly following the order in the configuration array.
+Core layout logic: implements dynamic movement of cards between three column panels via DOM manipulation (`appendChild`). Strictly follows the order in the config arrays.
 
 ## Default Configuration Reference
 
-```json
-{
-    "theme": "light",
-    "refreshInterval": 5000,
-    "historyLimit": 20,
-    "language": "zh-CN",
-    "errorPageSize": 50,
-    "showStructureEdgeDelta": false,
-    "dashboard": {
-        "left": ["mermaid", "analysis"],
-        "middle": ["status"],
-        "right": ["progress", "summary"]
-    }
-}
+```typescript
+const DEFAULT_WEB_CONFIG: WebConfig = {
+  global: {
+    theme: "light",
+    autoRefreshEnabled: true,
+    refreshInterval: 5000,
+    language: "zh-CN",
+  },
+  dashboard: {
+    historyLimit: 20,
+    showStructureEdgeDelta: false,
+    useTotalPendingInStatus: false,
+    layout: {
+      left: ["mermaid", "analysis"],
+      middle: ["status"],
+      right: ["progress", "summary"],
+    },
+  },
+  errors: {
+    pageSize: 50,
+    sortOrder: "newest",
+    jumpToInjectionAfterRetry: true,
+  },
+  injection: {
+    showInjectableOnly: false,
+  },
+};
 ```
 
 ## Usage Example
 
-### Configuration Object Structure and Reading
-
-The following example shows the complete structure of the `WebConfig` object and how to read and modify it in the browser console:
-
 ```typescript
-// 1. Complete structure of WebConfig
-// Referring to the default configuration, a complete config object contains:
-const fullConfig: WebConfig = {
-    theme: "light",
-    refreshInterval: 5000,
-    historyLimit: 20,
-    language: "zh-CN",
-    errorPageSize: 50,
-    showStructureEdgeDelta: false,
-    dashboard: {
-        left: ["mermaid", "analysis"],
-        middle: ["status"],
-        right: ["progress", "summary"],
-    },
-};
+// Read current configuration
+console.log("Theme:", webConfig.global.theme);
+console.log("Refresh Interval:", webConfig.global.refreshInterval);
+console.log("History Limit:", webConfig.dashboard.historyLimit);
+console.log("Errors Per Page:", webConfig.errors.pageSize);
+console.log("Injection Injectable Only:", webConfig.injection.showInjectableOnly);
 
-// 2. Reading current configuration (in the browser console)
-// The global variable webConfig holds the current runtime configuration
-console.log("Current config:", webConfig);
-console.log("Theme:", webConfig.theme);                   // "light" | "dark"
-console.log("Refresh interval:", webConfig.refreshInterval, "ms"); // 5000
-console.log("History limit:", webConfig.historyLimit);          // 20
-console.log("Language:", webConfig.language);                // "zh-CN"
-console.log("Error page size:", webConfig.errorPageSize);     // 50
-console.log("Structure edge delta:", webConfig.showStructureEdgeDelta); // false
-console.log("Dashboard layout:", webConfig.dashboard);
-// { left: [...], middle: [...], right: [...] }
+// Modify configuration and save
+webConfig.global.theme = "dark";
+webConfig.dashboard.historyLimit = 50;
+applyConfig();  // Immediately apply to page
+const saved = await saveWebConfig();  // Persist to backend
 
-// 3. Using normalizeWebConfig to merge configurations
-// When the backend returns a config that may be missing some fields, fill in with defaults:
-const partialConfig = {
-    theme: "dark",
-    refreshInterval: 3000,
-};
-const normalized = normalizeWebConfig(partialConfig);
-console.log("Normalized:", normalized);
-// {
-//   theme: "dark",
-//   refreshInterval: 3000,
-//   historyLimit: 20,           // default value
-//   language: "zh-CN",          // default value
-//   errorPageSize: 50,          // default value
-//   showStructureEdgeDelta: false, // default value
-//   dashboard: { left: [...], middle: [...], right: [...] } // default layout
-// }
-
-// 4. Manually modifying configuration and saving
-async function updateConfig() {
-    // Modify configuration
-    webConfig.theme = "dark";
-    webConfig.refreshInterval = 2000;
-    webConfig.language = "en";
-
-    // Apply configuration to the page
-    applyConfig();
-
-    // Save to backend
-    const saved = await saveWebConfig();
-    console.log(saved ? "Configuration saved successfully" : "Configuration save failed");
-}
-
-// 5. Dynamically adjusting dashboard layout
-function rearrangeDashboard() {
-    // Move status card to left column, structure diagram to middle column
-    webConfig.dashboard = {
-        left: ["status"],
-        middle: ["mermaid"],
-        right: ["analysis", "progress", "summary"],
-    };
-    applyDashboardLayout();
-    saveWebConfig();
-}
-
-// 6. Using default configuration as fallback on startup
-// When loadWebConfig() fails (e.g., backend not responding), fall back to default config:
-// webConfig = normalizeWebConfig();
-// This ensures the page renders properly under any circumstances
+// Legacy flat config auto-migration
+const legacy = { theme: "dark", refreshInterval: 3000, historyLimit: 10 };
+const normalized = normalizeWebConfig(legacy);
+// Auto-migrated to { global: { theme: "dark", ... }, dashboard: { historyLimit: 10, ... }, ... }
 ```

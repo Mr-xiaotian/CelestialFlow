@@ -1,8 +1,8 @@
 # TaskStructure
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/11
 
-The TaskStructure module provides various predefined task graph structures to help users quickly build complex task flows. All structures inherit from `TaskGraph`.
+The TaskStructure module provides multiple predefined task graph structures to help users quickly build complex task flows. All structures inherit from `TaskGraph`.
 
 ## Chain (Linear Chain)
 
@@ -20,7 +20,7 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskChain` is the simplest task structure, connecting multiple `TaskStage` nodes sequentially to form a linear data flow.
+`TaskChain` is the simplest task structure, connecting multiple `TaskStage` instances in sequence to form a linear data flow.
 
 ```python
 from celestialflow import TaskChain, TaskStage
@@ -32,8 +32,9 @@ stage3 = TaskStage("S3", func=func3)
 
 # Create chain
 chain = TaskChain(
+    name="DataPipeline",
     stages=[stage1, stage2, stage3],
-    stage_mode="thread",  # thread: nodes run concurrently; serial: nodes run sequentially
+    stage_mode="thread",  # thread: nodes run in parallel; serial: nodes run sequentially
     log_level="SUCCESS"
 )
 
@@ -41,16 +42,16 @@ chain = TaskChain(
 chain.start_chain(init_tasks_dict={stage1.get_name(): [data]})
 ```
 
-## Cross (Cross-Layer)
+## Cross (Cross Layers)
 
 ```mermaid
 flowchart LR
     subgraph TC[TaskCross]
         direction LR
-        
+
         S11[Stage 1-1]
         S12[Stage 1-2]
-        
+
         S21[Stage 2-1]
         S22[Stage 2-2]
 
@@ -64,7 +65,7 @@ flowchart LR
     class S11,S12,S21,S22 blueNode;
 ```
 
-`TaskCross` organizes tasks in "layers". Each layer contains multiple nodes that execute in parallel. Adjacent layers have fully-connected dependencies (every node in the previous layer connects to all nodes in the next layer).
+`TaskCross` organizes tasks into "layers". Each layer contains multiple nodes that execute in parallel. Adjacent layers establish fully connected dependencies (every node in the upper layer connects to every node in the next layer).
 
 ```python
 from celestialflow import TaskCross
@@ -75,12 +76,13 @@ layer2 = [stage_2_1, stage_2_2]
 
 # Create cross structure
 cross = TaskCross(
+    name="CrossPipeline",
     layers=[layer1, layer2],
     schedule_mode="eager"
 )
 ```
 
-## Grid
+## Grid (2D Grid)
 
 ```mermaid
 flowchart TD
@@ -101,7 +103,7 @@ flowchart TD
     class S00,S01,S10,S11 blueNode;
 ```
 
-`TaskGrid` organizes task nodes into a two-dimensional grid. Each node connects to its **right** and **below** neighbors.
+`TaskGrid` organizes task nodes into a 2D grid. Each node connects to nodes on its **right** and **below**.
 
 ```python
 from celestialflow import TaskGrid
@@ -114,12 +116,13 @@ grid_layout = [
 
 # Create grid structure
 grid = TaskGrid(
+    name="GridPipeline",
     grid=grid_layout,
     schedule_mode="eager"
 )
 ```
 
-## Loop (Ring)
+## Loop (Cyclic)
 
 ```mermaid
 flowchart LR
@@ -128,7 +131,7 @@ flowchart LR
         S1[Stage 1]
         S2[Stage 2]
         S3[Stage 3]
-        
+
         S1 --> S2 --> S3 --> S1
     end
     style TL fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
@@ -136,19 +139,20 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskLoop` connects nodes end-to-end to form a closed loop. Due to the cyclic nature, it enforces the `eager` scheduling mode.
-Note: Loop structures typically require external intervention to stop, or a specific exit condition must be set.
+`TaskLoop` connects nodes head-to-tail to form a closed loop. Due to the cyclic nature, it forces the `eager` scheduling mode.
+Note: cyclic structures typically require external intervention to stop, or specific exit conditions.
 
 ```python
 from celestialflow import TaskLoop
 
 # Create loop
 loop = TaskLoop(
+    name="FeedbackLoop",
     stages=[stage1, stage2, stage3]  # stage3 -> stage1
 )
 ```
 
-## Wheel
+## Wheel (Hub-and-Spoke)
 
 ```mermaid
 flowchart TD
@@ -158,11 +162,11 @@ flowchart TD
         R1[Ring 1]
         R2[Ring 2]
         R3[Ring 3]
-        
+
         C --> R1
         C --> R2
         C --> R3
-        
+
         R1 --> R2 --> R3 --> R1
     end
     style TW fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
@@ -170,19 +174,20 @@ flowchart TD
     class C,R1,R2,R3 blueNode;
 ```
 
-`TaskWheel` contains a center node and a ring structure. The center node connects to every node on the ring, and the ring nodes are connected end-to-end.
+`TaskWheel` comprises a center node and a ring structure. The center node connects to every node on the ring, and the ring nodes are connected head-to-tail.
 
 ```python
 from celestialflow import TaskWheel
 
 # Create wheel structure
 wheel = TaskWheel(
+    name="HubAndSpoke",
     center=center_stage,
     ring=[ring_stage1, ring_stage2, ring_stage3]
 )
 ```
 
-## Complete (Complete Graph)
+## Complete (Fully Connected Graph)
 
 ```mermaid
 flowchart LR
@@ -191,7 +196,7 @@ flowchart LR
         S1[Stage 1]
         S2[Stage 2]
         S3[Stage 3]
-        
+
         S1 <--> S2
         S2 <--> S3
         S3 <--> S1
@@ -201,27 +206,28 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskComplete` is a special structure where every node connects to all other nodes except itself.
+`TaskComplete` is a special structure where every node connects to every other node except itself.
 
 ```python
 from celestialflow import TaskComplete
 
 # Create complete graph
 complete = TaskComplete(
+    name="FullMesh",
     stages=[stage1, stage2, stage3, stage4]
 )
 ```
 
 ## Usage Examples
 
-The following examples demonstrate how to build and execute various predefined graph structures.
+The following examples demonstrate specific construction and execution of each predefined graph structure.
 
-### TaskChain Complete Example
+### TaskChain Full Example
 
 ```python
 from celestialflow import TaskChain, TaskStage
 
-# Define three stages: data cleaning → transform → aggregate
+# Define three stages: data cleaning -> transform -> aggregation
 def clean(data: str) -> str:
     return data.strip()
 
@@ -235,16 +241,16 @@ def aggregate(data: int) -> dict:
 s1 = TaskStage("Clean", func=clean)
 s2 = TaskStage("Transform", func=transform)
 s3 = TaskStage("Aggregate", func=aggregate)
-chain = TaskChain(stages=[s1, s2, s3], stage_mode="thread")
+chain = TaskChain(name="ETL", stages=[s1, s2, s3], stage_mode="thread")
 
 # Start
 chain.start_chain({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
 
 # Get results
-print(f"Chain summary: {chain.get_graph_summary()}")
+print(f"Chain status: {chain.get_status_snapshot()}")
 ```
 
-### TaskCross Complete Example
+### TaskCross Full Example
 
 ```python
 from celestialflow import TaskCross, TaskStage
@@ -256,7 +262,7 @@ def load_a(x: int) -> int:
 def load_b(x: int) -> int:
     return x * 10
 
-# Layer 2: Computation analysis
+# Layer 2: Computation & analysis
 def analyze_a(x: int) -> float:
     return x * 1.5
 
@@ -266,12 +272,12 @@ def analyze_b(x: int) -> float:
 layer1 = [TaskStage("LoadA", func=load_a), TaskStage("LoadB", func=load_b)]
 layer2 = [TaskStage("AnaA", func=analyze_a), TaskStage("AnaB", func=analyze_b)]
 
-cross = TaskCross(layers=[layer1, layer2])
+cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
 cross.start_cross({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
-print(cross.get_graph_summary())
+print(cross.get_status_snapshot())
 ```
 
-### TaskGrid Complete Example
+### TaskGrid Full Example
 
 ```python
 from celestialflow import TaskGrid, TaskStage
@@ -282,31 +288,31 @@ n01 = TaskStage("Add", func=lambda x: x + 1)
 n10 = TaskStage("Mul", func=lambda x: x * 2)
 n11 = TaskStage("Square", func=lambda x: x * x)
 
-grid = TaskGrid(grid=[[n00, n01], [n10, n11]])
+grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
 grid.start_grid({n00.get_name(): [1, 2, 3]})
-print(grid.get_graph_summary())
+print(grid.get_status_snapshot())
 ```
 
-### TaskLoop Complete Example
+### TaskLoop Full Example
 
 ```python
 from celestialflow import TaskLoop, TaskStage
 
-# Three-node ring: each node processes and passes result to next
+# Three-node cycle: each node processes and passes results to the next
 loop_stages = [
     TaskStage("Ring1", func=lambda x: x + 1),
     TaskStage("Ring2", func=lambda x: x * 2),
-    TaskStage("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 forms closed loop
+    TaskStage("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 forms the closed loop
 ]
 
-loop = TaskLoop(loop_stages)
+loop = TaskLoop(name="RingLoop", stages=loop_stages)
 loop.start_loop(
     {loop_stages[0].get_name(): [5]},
-    put_termination_signal=False,  # Ring structures need manual termination injection
+    put_termination_signal=False,  # Cyclic structure requires manual termination injection
 )
 ```
 
-### TaskWheel Complete Example
+### TaskWheel Full Example
 
 ```python
 from celestialflow import TaskWheel, TaskStage
@@ -318,12 +324,12 @@ ring_nodes = [
     TaskStage("Channel3", func=lambda x: x["processed"] + 3),
 ]
 
-wheel = TaskWheel(center=center, ring=ring_nodes)
+wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
 wheel.start_wheel({center.get_name(): [42]})
-print(wheel.get_graph_summary())
+print(wheel.get_status_snapshot())
 ```
 
-### TaskComplete Complete Example
+### TaskComplete Full Example
 
 ```python
 from celestialflow import TaskComplete, TaskStage
@@ -334,10 +340,10 @@ nodes = [
     TaskStage("N3", func=lambda x: x // 2),
 ]
 
-complete = TaskComplete(nodes)
+complete = TaskComplete(name="FullConnected", stages=nodes)
 complete.start_complete(
     {nodes[0].get_name(): [10]},
     put_termination_signal=False,
 )
-print(complete.get_graph_summary())
+print(complete.get_status_snapshot())
 ```

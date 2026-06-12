@@ -6,12 +6,12 @@
 
 ## Design Purpose
 
-In real-world projects, choosing the right execution mode is critical for performance. The benchmarking tool can:
-- Compare execution times across different modes
-- Verify parallelization effectiveness
-- Identify performance bottlenecks
+In real projects, choosing the right execution mode is critical for performance. The benchmarking tool can:
+- Compare elapsed time across different execution modes
+- Validate parallelization effects
+- Discover performance bottlenecks
 
-## Main Functions
+## Key Functions
 
 ### benchmark_executor
 
@@ -26,24 +26,24 @@ async def benchmark_executor(
     async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    Benchmark an executor.
+    Benchmarks an executor.
 
-    :param sync_executor: Synchronous executor template
-    :param async_executor: Asynchronous executor template
+    :param sync_executor: Sync executor template
+    :param async_executor: Async executor template
     :param task_source: Task source
-    :param sync_modes: Synchronous mode list, defaults to ["serial", "thread"]
-    :param async_modes: Asynchronous mode list, defaults to ["async"]
-    :return: Test results dictionary (contains use_time, sync_modes, async_modes, table)
+    :param sync_modes: List of sync modes, default ["serial", "thread"]
+    :param async_modes: List of async modes, default ["async"]
+    :return: Test result dict (contains use_time, sync_modes, async_modes, table)
     """
 ```
 
 Test flow:
-1. Clone executors (to avoid state contamination)
+1. Clone the executor (avoid state contamination)
 2. Set the execution mode for each mode
 3. Execute tasks and measure time
 4. Output time table and result table
 
-Output example:
+Sample output:
 ```
            Time
 serial     2.34s
@@ -65,26 +65,26 @@ def benchmark_graph(
     execution_async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    Benchmark a task graph.
+    Benchmarks a task graph.
 
-    :param sync_graph: Synchronous task graph template (for serial/thread modes)
-    :param async_graph: Asynchronous task graph template (for async mode)
-    :param init_tasks_dict: Initial tasks dictionary
-    :param stage_modes: Stage mode list, defaults to ["serial", "thread"]
-    :param execution_sync_modes: Synchronous execution mode list, defaults to ["serial", "thread"]
-    :param execution_async_modes: Asynchronous execution mode list, defaults to ["async"]
-    :return: Test results dictionary (contains table, stage_modes, sync_modes, async_modes)
+    :param sync_graph: Sync task graph template (for serial/thread modes)
+    :param async_graph: Async task graph template (for async mode)
+    :param init_tasks_dict: Initial task dictionary
+    :param stage_modes: List of node modes, default ["serial", "thread"]
+    :param execution_sync_modes: List of sync execution modes, default ["serial", "thread"]
+    :param execution_async_modes: List of async execution modes, default ["async"]
+    :return: Test result dict (contains table, stage_modes, sync_modes, async_modes)
     """
 ```
 
 Test flow:
-1. For each stage_mode × execution_mode combination
+1. For each `stage_mode × execution_mode` combination
 2. Clone the task graph
 3. Set `set_graph_mode(stage_mode, execution_mode)`
 4. Execute `start_graph()` and measure time
 5. Output time table
 
-Output example:
+Sample output:
 ```
 Time table:
           serial    thread    async
@@ -101,11 +101,11 @@ import asyncio
 from celestialflow import TaskExecutor
 from celestialflow.utils.util_benchmark import benchmark_executor
 
-# Define a synchronous task
+# Define sync task
 def sync_task(x):
     return x * 2
 
-# Define an asynchronous task
+# Define async task
 async def async_task(x):
     await asyncio.sleep(0.01)
     return x * 2
@@ -128,11 +128,11 @@ asyncio.run(benchmark_executor(
 from celestialflow import TaskGraph, TaskStage
 from celestialflow.utils.util_benchmark import benchmark_graph
 
-# Create sync stages
+# Create sync nodes
 stage_a = TaskStage("A", process_a)
 stage_b = TaskStage("B", process_b)
 
-# Create async stages
+# Create async nodes
 async_stage_a = TaskStage("A", async_process_a)
 async_stage_b = TaskStage("B", async_process_b)
 
@@ -160,22 +160,22 @@ benchmark_graph(
 
 | Dimension | Description |
 |-----------|-------------|
-| `serial` | Single-threaded serial execution |
+| `serial` | Single-threaded sequential execution |
 | `thread` | Thread pool concurrent execution |
-| `async` | Coroutine asynchronous execution |
+| `async` | Coroutine-based asynchronous execution |
 
 ### Task Graph Test Dimensions
 
 **Stage Mode**:
-- `serial`: Stage runs in the main thread
-- `thread`: Stage runs in a separate thread
+- `serial`: Node runs on the main thread
+- `thread`: Node runs on an independent thread
 
 **Execution Mode**:
-- `serial`: Serial execution within a stage
-- `thread`: Thread pool execution within a stage
-- `async`: Coroutine async execution within a stage
+- `serial`: Sequential execution within the node
+- `thread`: Thread pool execution within the node
+- `async`: Coroutine-based async execution within the node
 
-Combination example:
+Combination examples:
 | Stage \ Execution | serial | thread | async |
 |-------------------|--------|--------|-------|
 | serial | S-S | S-T | S-A |
@@ -185,29 +185,29 @@ Combination example:
 
 ### Time Table
 
-Displays execution time for each configuration.
+Displays the execution time for each configuration.
 
 ### Result Table
 
 Displays the successful result pairs for each configuration.
 
-### Return Values
+### Return Value
 
-`benchmark_executor` returns a dictionary containing:
-- `use_time`: Elapsed time list for each mode
-- `sync_modes`: Tested synchronous mode list
-- `async_modes`: Tested asynchronous mode list
+`benchmark_executor` returns a dict containing:
+- `use_time`: List of elapsed times for each mode
+- `sync_modes`: List of sync modes tested
+- `async_modes`: List of async modes tested
 - `table`: Formatted time table string
 
-`benchmark_graph` returns a dictionary containing:
+`benchmark_graph` returns a dict containing:
 - `table`: Formatted time table string
-- `stage_modes`: Tested stage mode list
-- `sync_modes` / `async_modes`: Tested execution mode list
+- `stage_modes`: List of node modes tested
+- `sync_modes` / `async_modes`: List of execution modes tested
 
 ## Notes
 
-1. **Cloning Mechanism**: Each test clones the original object to avoid state contamination
-2. **Fixed Tasks**: All tests use the same task list to ensure fairness
-3. **Resource Contention**: Thread mode may be affected by resource contention; multiple test runs are recommended
-4. **Async Requirement**: `benchmark_executor` is an async function and requires `await` or `asyncio.run`
-5. **Separate Graphs**: `benchmark_graph` requires separate sync and async graphs because async execution mode needs async functions
+1. **Cloning mechanism**: Each test clones the original object to avoid state contamination
+2. **Fixed tasks**: All tests use the same task list to ensure fairness
+3. **Resource contention**: Thread mode results may be affected by resource contention; multiple tests are recommended
+4. **Async requirement**: `benchmark_executor` is an async function, requiring `await` or `asyncio.run`
+5. **Graph separation**: `benchmark_graph` requires separate sync_graph and async_graph, since async execution mode requires async functions

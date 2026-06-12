@@ -1,19 +1,19 @@
 ﻿# persistence Test Package
 
-> Last Updated: 2026/06/05
+> 📅 Last Updated: 2026/06/11
 
 ## Purpose
-`tests/persistence/` covers three persistence paths for errors, logs, and successful results, validating that paired Inlet / Spout components can flush to disk or cache results correctly in background threads.
+`tests/persistence/` covers the three persistence paths (errors, logs, and success results) as well as JSONL parsing utility functions, verifying that Inlet/Spout paired components can correctly write to disk or cache results in background threads.
 
 ## Included Test Files
-- `test_fail.py`: Writes error records into JSONL.
-- `test_log.py`: Writes log records into a text file.
-- `test_success.py`: Caches successful results as `(prev_task, result)` pairs.
+- `test_fail.py`: Error records written to JSONL.
+- `test_jsonl.py`: JSONL file parsing and grouping utility functions.
+- `test_log.py`: Log records written to a text file.
+- `test_success.py`: Success results cached as `(prev_task, result)` pairs.
 
 ## How to Run
 
 ```bash
 pytest tests/persistence -v
-pytest tests/persistence -k "fail or log or success" -v
+pytest tests/persistence -k "fail or jsonl or log or success" -v
 ```
-

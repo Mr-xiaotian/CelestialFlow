@@ -1,18 +1,17 @@
 ﻿# web Test Package
 
-> Last Updated: 2026/06/05
+> 📅 Last Updated: 2026/06/11
 
 ## Purpose
-`tests/web/` covers API and page integration behavior in the CelestialFlow web layer, ensuring that status pulling, configuration pushes, structure display, and front-end static assets remain stable together.
+`tests/web/` covers the interface and page integration behavior of the CelestialFlow Web layer, ensuring snapshot isolation, status push/pull, config push, task injection, error pagination filtering, and frontend static asset integration remain stable.
 
 ## Included Test Files
-- `test_routes.py`: Web API routes and request return values.
-- `test_server.py`: Web server startup and integration behavior.
+- `conftest.py`: Provides the `web_server` and `client` fixtures.
+- `test_server.py`: Covers snapshot isolation, dashboard homepage, config API, status sync, task injection, and error pagination — Web API integration tests.
 
 ## How to Run
 
 ```bash
 pytest tests/web -v
-pytest tests/web -k "routes or server" -v
+pytest tests/web/test_server.py -v
 ```
-

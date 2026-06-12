@@ -1,35 +1,54 @@
 ﻿# Task Executor Tests (test_executor.py)
 
-> Last Updated: 2026/05/23
+> 📅 Last Updated: 2026/06/11
 
 ## Purpose
-Validates the `TaskExecutor` class in `celestialflow.stage.core_executor`, ensuring it executes tasks correctly in different concurrency modes, handles errors, and supports advanced features such as retries and deduplication.
+Validates the `TaskExecutor` class in `celestialflow.stage.core_executor`, ensuring accurate task execution, error handling, and support for advanced features (such as retry and deduplication) across various concurrency modes.
 
-## Key Test Objects
-- `TaskExecutor`: The low-level engine that executes one task's logic.
+## Core Test Target
+- `TaskExecutor`: The low-level engine that executes individual task logic.
 
-## Key Test Flow
-1. **Mode verification**:
-   - **Serial**: Sequential execution, verifying result mapping and counters.
-   - **Thread**: Parallel execution, verifying task distribution under multithreading.
-   - **Async**: Asynchronous execution, verifying coroutine handling in `start_async`.
-2. **Retry mechanism**:
-   - Verifies `max_retries`: retries happen only when exceptions match the configured `retry_exceptions`.
-   - Verifies that a task is counted as success, not failure, when a retry eventually succeeds.
-3. **Deduplication and cache**:
-   - Verifies that when `enable_duplicate_check` is enabled, identical tasks are executed only once.
-   - Verifies that `get_success_pairs()` returns correct input/output pairs for successful tasks.
-4. **Error recording**: Verifies that failed-task error type, message, and stage name are recorded correctly in `get_error_pairs()`.
+## Test Coverage Matrix
+
+| Test Class | Case Count | Coverage Goal |
+|--------|--------|---------|
+| `TestExecutorSerial` | 4 | Serial execution, error handling, retry success, non-matching exceptions not retried |
+| `TestExecutorThread` | 1 | Thread-pool parallel execution with correct counting |
+| `TestExecutorAsync` | 2 | Async execution and continuous processing logic |
+| `TestExecutorDuplicateCheck` | 2 | Behavioral comparison with dedup enabled/disabled |
+| `TestExecutorSuccessCache` | 1 | Success result caching and `get_success_pairs()` |
+| `TestExecutorConfig` | 2 | Invalid execution mode validation, `get_summary()` metadata |
+
+## Key Test Scenarios
+
+### Execution Modes
+- **Serial**: Sequential execution; verifies result mapping and counting.
+- **Thread**: Parallel execution; verifies task distribution under multi-threading (`execution_mode="thread"`).
+- **Async**: Async execution; verifies coroutine handling for `start_async` (`execution_mode="async"`).
+
+### Retry Mechanism
+- Validates `max_retries` logic: retry is triggered only when the specified `retry_exceptions` are thrown.
+- Validates that after a successful retry the final count is marked as success rather than failure.
+- Validates that non-matching exceptions (e.g., configuring retry for `RuntimeError` but throwing `ValueError`) immediately trigger failure.
+
+### Deduplication & Caching
+- Validates that when `enable_duplicate_check` is on, identical tasks execute only once and duplicates are counted under `tasks_duplicated`.
+- Validates that when `enable_duplicate_check` is off, identical tasks all execute and `tasks_duplicated` is 0.
+- Validates that `get_success_pairs()` correctly returns input-output pairs for successfully completed tasks.
+
+### Configuration Validation
+- Validates that an invalid `execution_mode` raises `ExecutionModeError` at initialization.
+- Validates that `get_summary()` returns key fields such as `name`, `func_name`, and `execution_mode`.
 
 ## Test Focus
-- **Consistency across execution modes**: Ensures task counts and result collection stay consistent across all execution modes.
-- **Retry precision**: Verifies that non-matching exceptions fail immediately, such as configuring retries for `RuntimeError` while raising `ValueError`.
-- **Concurrency safety**: Verifies that thread-pool and async modes do not lose or race result collection.
+- **Execution mode consistency**: Ensures that regardless of the execution mode used, the final task counting and result collection logic remains consistent.
+- **Retry precision**: Validates that non-matching exceptions immediately trigger failure.
+- **Concurrency safety**: Validates that result collection under thread-pool and async modes does not suffer from races or loss.
 
 ## How to Run
 
 ```bash
-# Run all tests
+# Run all
 pytest tests/stage/test_executor.py -v
 
 # Run Serial mode tests only
@@ -41,7 +60,7 @@ pytest tests/stage/test_executor.py -k "thread" -v
 # Run Async mode tests only
 pytest tests/stage/test_executor.py -k "async" -v
 
-# Run retry tests only
+# Run retry mechanism tests only
 pytest tests/stage/test_executor.py -k "retry" -v
 
 # Run deduplication tests only
@@ -50,15 +69,17 @@ pytest tests/stage/test_executor.py -k "duplicate" -v
 
 ## Performance Reference
 
-| Test | Duration |
-|------|----------|
-| `TestTaskExecutor` | ~3s (includes multithreaded and async execution) |
+| Test Class | Duration |
+|------|------|
+| `TestExecutorSerial` | ~1s |
+| `TestExecutorThread` | ~1s |
+| `TestExecutorAsync` | ~2s |
+| `TestExecutorDuplicateCheck` / `TestExecutorSuccessCache` / `TestExecutorConfig` | < 0.5s |
 
 ## Important Details
-- The `flaky` helper simulates scenarios that require retries.
-- `test_invalid_execution_mode` ensures unsupported modes fail at initialization time.
+- Uses a `flaky` closure to simulate scenarios requiring retry.
+- `test_invalid_execution_mode` ensures unsupported modes are rejected at initialization.
 
 ## Notes
-- `TaskExecutor` is the core component inside `TaskStage` that performs actual function calls.
-- Related implementation: `src/celestialflow/stage/core_executor.py`.
-
+- `TaskExecutor` is the core component of `TaskStage`, responsible for the actual function call logic.
+- Related implementation is in `src/celestialflow/stage/core_executor.py`.

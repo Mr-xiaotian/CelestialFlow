@@ -1,18 +1,18 @@
-﻿# Base Inlet Tests (test_inlet.py)
+﻿# Inlet Basic Tests (test_inlet.py)
 
-> Last Updated: 2026/06/05
+> 📅 Last Updated: 2026/06/05
 
 ## Purpose
-Validates the minimum responsibility of `celestialflow.funnel.core_inlet.BaseInlet`: data passed in by the caller is forwarded into the target queue through `_funnel()` and consumed by a running `BaseSpout` subclass.
+Verifies the minimal responsibility of `celestialflow.funnel.core_inlet.BaseInlet`: accepting data from the caller via `_funnel()`, placing it into the target queue, and having it consumed by a running `BaseSpout` subclass.
 
-## Coverage
-- `MockInlet.send()` forwards records through `_funnel()`.
+## Coverage Points
+- `MockInlet.send()` forwards records via `_funnel()`.
 - `MockSpout` consumes both string and dictionary messages from the queue.
-- When no consumer is started yet, records should still enter the queue first for later retrieval.
+- When the consumer is not started, records should still enter the queue and be available for subsequent reads.
 
 ## Key Scenarios
-- `test_inlet_to_spout_communication`: Starts `MockSpout`, sends two messages, and verifies that the consumer receives them in order.
-- `test_funnel_puts_record_into_queue`: Does not start the spout and directly asserts that the original record can be retrieved from the queue, confirming that `_funnel()` does not rewrite data.
+- `test_inlet_to_spout_communication`: Starts `MockSpout`, sends two messages, and verifies the consumer receives them in order.
+- `test_funnel_puts_record_into_queue`: Without starting the spout, directly asserts that the raw record is in the queue, confirming `_funnel()` does not mutate the data.
 
 ## How to Run
 
@@ -20,4 +20,3 @@ Validates the minimum responsibility of `celestialflow.funnel.core_inlet.BaseInl
 pytest tests/funnel/test_inlet.py -v
 pytest tests/funnel/test_inlet.py -k "communication" -v
 ```
-

@@ -1,15 +1,19 @@
-# Base Spout テスト (test_spout.py)
+# Spout 基本テスト (test_spout.py)
 
 > 📅 最終更新日: 2026/06/05
 
-## 目的
+## 役割
+`celestialflow.funnel.core_spout.BaseSpout` のライフサイクルフック、終了信号処理、抽象メソッド制約を検証し、リスニングスレッドが期待通りに起動・停止し、停止前のレコードを消費できることを確認します。
 
-spout の start/stop フック、終了処理、`_handle_record()` を実装すべき契約を検証します。
+## カバレッジポイント
+- `start()` が `_before_start()` を呼び出す。
+- `stop()` が `_after_stop()` をトリガーし、停止後は新しいレコードを消費し続けない。
+- 基底クラスで `_handle_record()` が未実装の場合、`CelestialFlowError` がスローされる。
 
-## 主要ポイント
-
-- stop 前に投入した記録が消費されることを確認します。
-- `_handle_record()` 未実装時にフレームワーク例外が発生することを確認します。
+## 主要シナリオ
+- `test_base_spout_lifecycle`: 起動/停止フックと「停止前のデータは依然として消費される」ことを検証。
+- `test_spout_termination_signal`: 重複した `stop()` 呼び出しが安全であり、終了後に後続のエンキューデータが処理されないことを検証。
+- `test_spout_not_implemented_error`: 抽象メソッドがオーバーライドされていない場合のエラーメッセージを検証。
 
 ## 実行方法
 

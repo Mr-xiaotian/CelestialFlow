@@ -1,63 +1,72 @@
 # utils.ts
 
-> 📅 Last Updated: 2026/05/24
+> 📅 Last Updated: 2026/06/11
 
-Contains common formatting utilities, UI helper logic, DOM operation wrappers, and environment detection functions for the Web frontend.
+Contains common formatting utilities, UI helper logic, DOM manipulation wrappers, and environment detection functions for the web frontend.
 
-## Number and Time Formatting
+> ⚠️ **Changed**: The `renderLocalTime()` function mentioned in older docs does not actually exist in this file. Four new functions added: `renderLabelWithTooltip()`, `switchToInjectionTab()`, `calcRemainTime()`, `format_repr()`.
 
-### `formatLargeNumber(n)`
-Converts large numbers to a human-readable format.
-- `< 10,000,000`: Uses thousand-separator comma formatting.
-- `>= 10,000,000`: Converts to HTML scientific notation (e.g., `~1.23×10⁹`).
+## Number & Time Formatting
 
-### `formatWithDelta(value, delta, deltaClass, negClass)`
-Formats a value with a delta. If the delta is non-zero, appends a colored `+N` or `-N` small text after the main value.
+### `formatLargeNumber(n: number): string`
+Converts large numbers to readable HTML format.
+- `< 10,000,000`: Uses `toLocaleString('en-US')` with thousands comma separators.
+- `>= 10,000,000`: Converts to scientific notation HTML (e.g., `~1.23×10⁹`).
 
-### `formatDuration(seconds)`
-Formats seconds into an `HH:MM:SS` or `MM:SS` string.
+### `formatWithDelta(value: number, delta: number, deltaClass: string, negClass: string): string`
+Formats a value with an increment. If the delta is non-zero, appends a colored `+N` or `-N` in a small `<small>` tag after the main value.
 
-### `formatTimestamp(timestamp)`
-Formats a Unix timestamp (seconds) into a `YYYY-MM-DD HH:MM:SS` local time string.
-```ts
-function formatTimestamp(timestamp: number): string {
-  const d = new Date(timestamp * 1000);
-  // Returns format like "2026-05-24 14:30:00"
-}
-```
+### `formatDuration(seconds: number): string`
+Formats seconds as an `HH:MM:SS` (≥1 hour) or `MM:SS` (<1 hour) string. Positive numbers show at least 1 second.
 
-### `renderLocalTime(timestamp)`
-Converts a Unix timestamp to a locale-sensitive localized date-time string (`toLocaleString()`).
+### `formatTimestamp(timestamp: number): string`
+Formats a Unix timestamp (seconds) as a `YYYY-MM-DD HH:MM:SS` local time string.
 
----
+### `calcRemainTime(processed: number, pending: number, elapsed: number): number`
+Linearly estimates remaining time based on processed count, pending count, and elapsed time. Returns 0 when `processed` or `pending` is 0.
 
-## UI and Routing Helpers
-
-### `switchToErrorsTab(nodeFilter?)`
-Global route navigation function.
-- Switches the current tab to "Error Logs".
-- If `nodeFilter` is provided, automatically populates the error filter dropdown and triggers a query.
+### `format_repr(obj: unknown, max_length: number): string`
+Formats any object as a string, truncating when exceeding `max_length` (front 2/3 + `...` + back 1/3), preserving visible forms of newlines and backslashes.
 
 ---
 
-## Security and Utilities
+## UI & Routing Helpers
 
-### `escapeHtml(str)`
-Basic HTML escaping function to prevent XSS risks when dynamically inserting text. Escapes characters: `&` `<` `>` `"` `'` `/`.
+### `switchToErrorsTab(nodeFilter?: string): void`
+Global routing jump function.
+- Switches to the "Error Log" tab (`activateTab`).
+- If `nodeFilter` is provided, sets the node filter dropdown and triggers the `change` event to start the query.
 
-### `isMobile()`
-Simple mobile device detection based on UserAgent (matches `Mobi|Android|iPhone|iPad|iPod`), used to disable interactions like drag-and-drop sorting.
+### `switchToInjectionTab(): void`
+Switches to the "Task Injection" tab.
+
+### `renderLabelWithTooltip(labelKey: string, tooltipKey: string): string`
+Renders label HTML with a tooltip bubble. Contains an `i` button (`.tooltip-trigger`) that shows the translated help text (`.tooltip-bubble`) on hover or focus.
+
+> This function is widely used by `dashboard_statuses.ts` and `dashboard_analysis.ts` to provide instant explanations for technical terms such as "stage mode" and "scheduling mode".
 
 ---
 
-## ❌ Functions Not in utils.ts
+## Security & Utilities
+
+### `escapeHtml(str: string): string`
+Basic HTML escaping function to prevent XSS risks when dynamically inserting text. Escapes: `&` `<` `>` `"` `'` `/`.
+
+### `isMobile(): boolean`
+Simple mobile detection based on UserAgent (matches `Mobi|Android|iPhone|iPad|iPod`).
+
+---
+
+## ❌ Functions NOT in utils.ts
 
 The following functions are **not** defined in `utils.ts`; they belong to `main.ts`:
 
 | Function | Actual Location | Description |
-|----------|----------------|-------------|
-| `toggleDarkTheme()` | **main.ts** | Light/dark theme switching |
-| `showSettingsSaveStatus()` | **main.ts** | Settings save status prompt |
+|------|---------|------|
+| `toggleDarkTheme()` | **main.ts** | Light/dark theme toggle |
+| `showSettingsSaveStatus()` | **main.ts** | Settings save status tip |
+
+> The `renderLocalTime()` mentioned in older docs does not exist in the source code, possibly a legacy remnant or never implemented.
 
 ---
 
@@ -70,85 +79,49 @@ flowchart LR
         B[formatWithDelta]
         C[formatDuration]
         D[formatTimestamp]
-        E[renderLocalTime]
-        F[switchToErrorsTab]
-        G[escapeHtml]
-        H[isMobile]
+        E[calcRemainTime]
+        F[format_repr]
+        G[switchToErrorsTab]
+        H[switchToInjectionTab]
+        I[renderLabelWithTooltip]
+        J[escapeHtml]
+        K[isMobile]
     end
 ```
 
-## Usage Examples
-
-### Usage Examples for formatLargeNumber / formatDuration / escapeHtml and Other Functions
-
-The following examples demonstrate the usage of all utility functions in `utils.ts` (can be run directly in the browser console):
+## Usage Example
 
 ```typescript
-// ====== 1. formatLargeNumber: Large number formatting ======
-console.log("=== formatLargeNumber ===");
-console.log(formatLargeNumber(1234));        // "1,234"
-console.log(formatLargeNumber(1234567));     // "1,234,567"
-console.log(formatLargeNumber(9999999));     // "9,999,999"
-console.log(formatLargeNumber(10000000));    // "~1.00×10⁷"
-console.log(formatLargeNumber(1234567890));  // "~1.23×10⁹"
+// ====== Number Formatting ======
+formatLargeNumber(1234567);     // "1,234,567"
+formatLargeNumber(1234567890);  // "~1.23×10⁹"
 
-// ====== 2. formatWithDelta: Value + delta display ======
-console.log("\n=== formatWithDelta ===");
-const value = 1000;
-const delta = 5;
-// Green +5 small text appended after main value
-console.log(formatWithDelta(value, delta, "delta-positive", "delta-negative"));
-// "1,000<small class="delta-positive" style="margin-left: 4px;">+5</small>"
+// ====== Delta Display ======
+formatWithDelta(1000, 5, "text-delta-success", "text-delta-success");
+// "1,000<small class="text-delta-success">+5</small>"
 
-// Negative delta displayed in red
-console.log(formatWithDelta(value, -3, "delta-positive", "delta-negative"));
-// "1,000<small class="delta-negative" style="margin-left: 4px;">-3</small>"
+// ====== Time Formatting ======
+formatDuration(3661);           // "01:01:01"
+formatTimestamp(1745400000);    // "2026-04-23 14:40:00"
 
-// Delta of 0 not displayed
-console.log(formatWithDelta(value, 0, "", ""));
-// "1,000"
+// ====== Remaining Time Estimation ======
+calcRemainTime(500, 100, 300);  // 60
 
-// ====== 3. formatDuration: Seconds formatting ======
-console.log("\n=== formatDuration ===");
-console.log(formatDuration(0));          // "00:00"
-console.log(formatDuration(45));         // "00:45"
-console.log(formatDuration(120));        // "02:00"
-console.log(formatDuration(3661));       // "01:01:01"
-console.log(formatDuration(86399));      // "23:59:59"
+// ====== String Truncation ======
+format_repr("very long string...", 10);  // "very lo...g..."
 
-// ====== 4. formatTimestamp: Timestamp formatting ======
-console.log("\n=== formatTimestamp ===");
-console.log(formatTimestamp(1745400000));
-// "2026-05-24 14:40:00" (depends on current timezone)
+// ====== Tooltip Label ======
+renderLabelWithTooltip("status.stageMode", "status.stageModeHelp");
+// Returns HTML with tooltip-trigger and tooltip-bubble
 
-// Current time
-console.log(formatTimestamp(Date.now() / 1000));
+// ====== Tab Navigation ======
+switchToErrorsTab("StageA");    // Jump to error page and filter StageA
+switchToInjectionTab();          // Jump to injection page
 
-// ====== 5. renderLocalTime: Localized time ======
-console.log("\n=== renderLocalTime ===");
-console.log(renderLocalTime(1745400000));
-// "2026/5/24 14:40:00" (depends on browser locale)
-
-// ====== 6. escapeHtml: HTML escaping ======
-console.log("\n=== escapeHtml ===");
-const userInput = '<script>alert("xss")</script>';
-console.log(escapeHtml(userInput));
+// ====== HTML Escaping ======
+escapeHtml('<script>alert("xss")</script>');
 // "&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;"
 
-console.log(escapeHtml('A&B < C > D'));
-// "A&amp;B &lt; C &gt; D"
-
-// ====== 7. isMobile: Mobile detection ======
-console.log("\n=== isMobile ===");
-console.log(isMobile());
-// Returns false on desktop browsers
-// Returns true on mobile devices
-
-// ====== 8. switchToErrorsTab: Navigate to error page ======
-console.log("\n=== switchToErrorsTab ===");
-// Navigate to error log tab without node filtering
-switchToErrorsTab();
-
-// Navigate to error log tab with specific node filtering
-// switchToErrorsTab("StageA");
+// ====== Mobile Detection ======
+isMobile();  // false on desktop, true on mobile
 ```

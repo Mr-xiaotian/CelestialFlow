@@ -1,6 +1,4 @@
-# CelestialFlow — 軽量・並列対応・グラフベースのPythonタスクスケジューリングフレームワーク
-
-> 📅 最終更新日: 2026/05/28
+# CelestialFlow —— 軽量で並列可能なグラフ構造ベースの Python タスクスケジューリングフレームワーク
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
@@ -21,42 +19,38 @@
 </p>
 
 <p align="center">
-  <a href="../../README.md">中文</a> | <a href="../en/README.md">English</a> | <a href="README.md">日本語</a>
+  <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/README.md">中文</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/README.md">English</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/README.md">日本語</a>
 </p>
 
-**CelestialFlow** は軽量ながら機能が充実したタスクフローフレームワークです。**複雑な依存関係**、**柔軟な実行モデル**、**デバイス間実行**、**リアルタイム可視化監視** を必要とする中・大規模Pythonタスクシステムに最適です。
+**CelestialFlow** は、軽量でありながら完全な機能を備えたタスクフローフレームワークで、**複雑な依存関係**、**柔軟な実行モデル**、**クロスデバイス実行**、**リアルタイム可視化監視**を必要とする中/大規模 Python タスクシステムに適しています。
 
-- Airflow/Dagsterより軽量で、すぐに使い始められます
-- multiprocessing/threadingより構造化されており、ループ・完全グラフなどの複雑な依存パターンをネイティブに表現できます
+- Airflow/Dagster より軽量で、より早く開始可能
+- multiprocessing/threading より構造化されており、loop / complete graph などの複雑な依存パターンを直接表現可能
 
-フレームワークの基本単位は **TaskExecutor** で、独立して実行可能であり、3つの実行モードをサポートします：
+フレームワークの基本ユニットは **TaskExecutor** で、独立して実行でき、3 つの実行モードをサポートします：
 
-* **シリアル（serial）**
+* **リニア（serial）**
 * **マルチスレッド（thread）**
 * **コルーチン（async）**
 
-TaskExecutorは結果キャッシュ、タスク重複排除、プログレスバー表示、複数実行モードの比較などの機能を備えており、単体でも十分に便利です。
+TaskExecutor はタスクの結果キャッシュ、タスク重複排除、プログレスバー表示、多実行モード比較などの機能を実装しており、単独でも非常に使いやすくなっています。
 
-TaskExecutorを直接使用するだけでなく、より重要なのはそのサブクラスである**TaskStage**の活用です。TaskStageは相互に接続でき、上流・下流の依存関係を持つタスクグラフ（**TaskGraph**）を構成します。下流のstageは上流の完了結果を自動的に入力として受け取り、明確なデータフローを形成します。
+ただし、TaskExecutor を直接使用する以外に、より重要なのはそのサブクラス **TaskStage** の使用です。TaskStage は相互に接続して、上流と下流の依存関係を持つタスクグラフ（**TaskGraph**）を形成できます。下流の stage は上流の実行完了結果を自動的に入力として受け取り、明確なデータフローを形成します。
 
-TaskStageのタスク実行モードはTaskExecutorと同じ3種類です：
+TaskStage のタスク実行モードも TaskExecutor と同様に 3 つを含みます。
 
-* **シリアル（serial）**
-* **マルチスレッド（thread）**
-* **コルーチン（async）**
+グラフレベルでは、各 Stage は 2 つのコンテキストモードをサポートします：
 
-グラフレベルでは、各Stageは2つのコンテキストモードをサポートします：
+* **リニア実行（serial layout）**：現在のノードが実行完了してから次のノードを起動（下流ノードは事前にタスクを受信可能ですが、すぐには実行されません）。
+* **スレッド実行（thread layout）**：現在のノードがメインプロセスの独立したスレッドで起動され、I/O 集中型タスクや pickle 不可能な関数（lambda など）に適しています。
 
-* **シリアル実行（serial layout）**：現在のノードが完了してから次のノードを起動します（下流ノードはタスクを先に受信できますが、即時実行はしません）。
-* **スレッド実行（thread layout）**：現在のノードをメインプロセス内の独立スレッドで起動します。I/O集約型タスクやpickle不可の関数（lambdaなど）に適しています。
+TaskGraph は完全な **有向グラフ構造（Directed Graph）** を構築でき、従来の有向非巡回グラフ（DAG）だけでなく、**ツリー（Tree）**、**循環（loop）**、さらには **完全グラフ（Complete Graph）** 形式のタスク依存関係も柔軟に表現できます。
 
-TaskGraphは完全な**有向グラフ（Directed Graph）**構造を構築でき、従来のDAGだけでなく、**ツリー型**、**ループ型**、さらには**完全グラフ**形式のタスク依存関係も柔軟に表現できます。
+実行とスケジューリングに加えて、CelestialFlow はさらに **CelestialTree（略称: ctree）イベント追跡システム**を導入し、各タスクとその派生動作（成功、失敗、リトライ、分割、ルーティングなど）に明確な因果関係を記録します。ctree を利用することで、任意の初期タスクから出発し、TaskGraph 内での伝播経路と実行軌跡を完全に復元でき、タスクシステムの完全な**追跡、分析、解釈**が可能になります。
 
-実行とスケジューリングに加え、CelestialFlowは**CelestialTree（略称：ctree）イベント追跡システム**を導入しています。すべてのタスクとその派生動作（成功、失敗、リトライ、分割、ルーティングなど）に対して明確な因果関係を記録します。ctreeを使用することで、任意の初期タスクからTaskGraph内での完全な伝播経路と実行軌跡を復元でき、タスクシステムの完全な**トレーサビリティ、分析、説明可能性**を実現します。
+これに加えて、CelestialFlow は Web 可視化監視をサポートし、Redis を通じてクロスプロセス、クロスデバイス連携を実現できます。同時に Go ベースの外部 worker（Redis 経由で通信）を導入し、CPU 集中型タスクを処理することで、このシナリオでの Python のパフォーマンスボトルネックを補完します。
 
-これに加えて、CelestialFlowはWebベースの可視化監視をサポートし、Redisを介したプロセス間・デバイス間の連携も可能です。さらに、Goベースの外部ワーカー（Redis経由で通信）を統合し、CPU集約型タスクを処理することで、Pythonのパフォーマンス上の制約を補完します。
-
-## プロジェクト構造
+## プロジェクト構造（Project Structure）
 
 ```mermaid
 flowchart LR
@@ -75,13 +69,13 @@ flowchart LR
 
     end
 
-    %% TaskGraphフレームのスタイル
+    %% TaskGraph の外枠を装飾
     style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
 
-    %% 統一スタイル
+    %% 統一装飾フォーマット
     classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
 
-    %% TaskStagesのスタイル
+    %% TaskStages を装飾
     class S1,S2,S3,S4 blueNode;
 
     %% ===== WebUI =====
@@ -105,15 +99,15 @@ flowchart LR
 
 ```
 
-## クイックスタート
+## クイックスタート（Quick Start）
 
-CelestialFlowのインストール：
+CelestialFlow のインストール：
 
 ```bash
-# 推奨: `uv` で依存関係と環境を管理
+# 依存関係と環境の管理に `uv` の使用を推奨
 uv pip install celestialflow
 
-# または `pip` を直接使用
+# ただし `pip` を直接使用することも可能
 pip install celestialflow
 ```
 
@@ -129,39 +123,40 @@ def square(x):
     return x ** 2
 
 if __name__ == "__main__":
-    # 2つのタスクノードを定義
-    stage1 = TaskStage(name="Adder", func=add, execution_mode="thread", unpack_task_args=True, stage_mode="thread")
-    stage2 = TaskStage(name="Squarer", func=square, execution_mode="thread", stage_mode="thread")
+    # 2 つのタスクノードを定義
+    stage1 = TaskStage(name="Adder", func=add, stage_mode="thread", execution_mode="thread", unpack_task_args=True)
+    stage2 = TaskStage(name="Squarer", func=square, stage_mode="thread", execution_mode="thread")
 
+    # タスクグラフ構造を構築
     graph = TaskGraph()
     graph.set_stages(stages=[stage1, stage2])
     graph.connect([stage1], [stage2])
 
-    # タスクを初期化して開始
+    # タスクを初期化して起動
     graph.start_graph({stage1.get_name(): [(1, 2), (3, 4), (5, 6)]})
 ```
 
-注意：.ipynbノートブックでは実行しないでください。
+.ipynb での実行は避けてください。
 
-👉 完全なクイックスタートガイドは [クイックスタート](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/quick_start.md) をご覧ください。
+👉 完全な Quick Start は [Quick Start](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/quick_start.md) をご覧ください
 
-## 参考ドキュメント
+## 詳細な読み物（Further Reading）
 
-フレームワークの全体構造とコアコンポーネントを理解するために、以下のリファレンスドキュメントが参考になります：
+フレームワークの全体構造とコアコンポーネントを理解したい場合は、以下の参考ドキュメントが役立ちます：
 
-- [stage/core_executor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/stage/core_executor.md)
-- [stage/core_stage.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/stage/core_stage.md)
-- [graph/core_graph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/graph/core_graph.md)
-- [observability/core_progress.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/observability/core_progress.md)
-- [runtime/core_metrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/runtime/core_metrics.md)
-- [runtime/core_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/runtime/core_queue.md)
-- [stage/core_stages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/stage/core_stages.md)
-- [observability/core_report.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/observability/core_report.md)
-- [graph/core_structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/graph/core_structure.md)
-- [web/core_server.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/web/core_server.md)
-- [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/other/go_worker.md)
+- [stage/core_executor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_executor.md)
+- [stage/core_stage.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stage.md)
+- [graph/core_graph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_graph.md)
+- [observability/core_progress.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_progress.md)
+- [runtime/core_metrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_metrics.md)
+- [runtime/core_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_queue.md)
+- [stage/core_stages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stages.md)
+- [observability/core_report.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_report.md)
+- [graph/core_structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_structure.md)
+- [web/core_server.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/web/core_server.md)
+- [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
 
-推奨する読書順序：
+推奨読書順序：
 
 ```mermaid
 flowchart TD
@@ -190,141 +185,96 @@ flowchart TD
     class TR,TW web;
 ```
 
-以下は補足資料としてお読みいただけます：
+以下の 3 編は補足読書として参照できます：
 
-- [runtime/util_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/runtime/util_queue.md)
-- [runtime/util_types.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/runtime/util_types.md)
-- [runtime/util_errors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/runtime/util_errors.md)
-- [persistence/core_fail.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/persistence/core_fail.md)
-- [persistence/core_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/persistence/core_log.md)
+- [runtime/util_hash.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_hash.md)
+- [runtime/util_types.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_types.md)
+- [runtime/util_errors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_errors.md)
+- [persistence/core_fail.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_fail.md)
+- [persistence/core_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md)
 
-完全な例を通じてフレームワークの動作を理解したい場合は、TaskGraphを使ってゼロからプロジェクトを構築するチュートリアルをご参照ください：
+完全なケースを通じてフレームワークの動作方法を理解したい場合は、TaskGraph を使用してゼロからプロジェクトを構築するこのチュートリアルを参照してください：
 
-[📘 チュートリアル](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/tutorial.md)
+[📘 ケースチュートリアル](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/tutorial.md)
 
-バージョン3.0.7で導入されたctree_clientとその機能に興味がある場合：
+3.0.7 バージョンで追加された ctree_client とその機能に興味がある場合は、こちらをご覧ください：
 
-[📚 CelestialTreeClient](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/other/ctree_client.md)
+[📚 CelestialTreeClient](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/ctree_client.md)
 
-さらに多くのデモコードを実行できます。各デモファイルとその関数の説明はこちら：
+さらに多くのデモコードを実行できます。各デモファイルとその中のデモ関数の説明はこちらに記録されています：
 
-[🎮 demo/](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/demo/)
+[🎮 demo/](https://github.com/Mr-xiaotian/CelestialFlow/tree/main/docs/zh-CN/demo)
 
-テストコードを実行する場合は、まず以下のドキュメントをご確認ください：
+テストコードを実行したい場合は、まず以下のドキュメント内容を確認してください：
 
-[🧪 tests/](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/tests/)
+[🧪 tests/](https://github.com/Mr-xiaotian/CelestialFlow/tree/main/docs/zh-CN/tests)
 
-ベンチマーク結果を確認したい場合 — このデータはフレームワークの一部の設計判断の根拠となっています：
+bench の内容を確認したい場合、ここのデータはフレームワークの一部設計上の意思決定の根拠となっています：
 
-[⚡ bench/](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/bench/)
+[⚡ bench/](https://github.com/Mr-xiaotian/CelestialFlow/tree/main/docs/zh-CN/bench)
 
-## 動作要件
+## 環境要件（Requirements）
 
-**CelestialFlow** はPython 3.10以上をベースとし、以下のコアコンポーネントに依存しています。  
-お使いの環境でこれらの依存関係が正常にインストールできることを確認してください（`pip install celestialflow` で自動インストールされます）。
+**CelestialFlow** は Python 3.12+ ベースで、以下のコアコンポーネントに依存します。
+お使いの環境がこれらの依存関係を正常にインストールできることを確認してください（`pip install celestialflow` で自動インストールされます）。
 
-| 依存パッケージ      | 説明 |
-| ------------------- | ---- |
-| **Python ≥ 3.11**   | 実行環境、バージョン3.11以上を推奨 |
-| **tqdm**            | オプション、タスク実行の可視化用プログレスバー |
-| **fastapi**         | Webサービスフレームワーク（タスクの可視化とリモート制御用） |
-| **uvicorn**         | FastAPI用の高性能ASGIサーバー |
-| **requests**        | タスクステータスの報告とリモート呼び出し用HTTPクライアント |
-| **networkx**        | タスクグラフ（TaskGraph）構造と依存関係分析 |
-| **jinja2**          | Web可視化インターフェースレンダリング用のFastAPIテンプレートエンジン |
-| **redis**           | オプション、分散タスク通信用（`TaskRedis*`シリーズモジュール） |
-| **celestialtree**   | オプション、タスクステータス報告とリモート呼び出し用（`ctree_client`） |
+| 依存パッケージ           | 説明 |
+| ----------------- | ---- |
+| **Python ≥ 3.12**  | 実行環境、3.12 以上を推奨 |
+| **fastapi**       | Web サービスインターフェースフレームワーク（タスク可視化とリモート制御用） |
+| **uvicorn**       | FastAPI の高性能 ASGI サーバー |
+| **requests**      | HTTP クライアントライブラリ、タスク状態レポートとリモート呼び出し用 |
+| **networkx**      | タスクグラフ（TaskGraph）構造と依存関係分析 |
+| **jinja2**        | FastAPI テンプレートエンジン、Web 可視化インターフェースレンダリング用 |
+| **tqdm**          | オプションコンポーネント、プログレスバー表示、タスク実行可視化用 |
+| **redis**         | オプションコンポーネント、分散タスク通信（`TaskRedis*` シリーズモジュール）用 |
+| **celestialtree** | オプションコンポーネント、タスク状態レポートとリモート呼び出し（`ctree_client`）用 |
 
-## ファイル構造
+## ファイル構造（File Structure）
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.2.0</em>
+  <em>celestial-flow 3.2.2</em>
 </p>
 
-（このビューは別プロジェクト [CelestialVault](https://github.com/Mr-xiaotian/CelestialVault) の `inst_file.FileTree.print_tree()` で生成されています。画像変換には [Carbon](https://carbon.now.sh) を使用しています。）
+(このビューは私の別プロジェクト [CelestialVault](https://github.com/Mr-xiaotian/CelestialVault) の `inst_file.FileTree.print_tree()` によって生成されました。画像への変換は [Carbon](https://carbon.now.sh) を利用しています。)
 
-## バージョンログ
-- 3.2.0
+## バージョンログ（Version Log）
+- 3.2.2
   - feat:
-    - [Important] `stage_mode="process"` を完全に廃止し、すべての multiprocessing 依存（MPValue、MPQueue、multiprocessing.Process）を削除しました。
-      - bench_graph_mode のデータにより、process モードはすべてのシナリオで thread モードより遅く、大量のシリアライズオーバーヘッドと pickle の制限を伴うことが判明しました。
-    - **[Important]** set_stages から手動で指定していた `root_stages` パラメータを削除し、SCC 縮合グラフによって計算される `source_stages` のセットに置き換えました。
-      - グラフ理論をかなり復習しました
-    - graph/stage/executor のデフォルトログレベルを `SUCCESS` から `INFO` に変更しました。つまりデフォルトでは開始/停止メッセージとエラーのみ表示されます
-    - Web ページに設定ボタンを追加しました
-      - 現在はリフレッシュ間隔と履歴長の設定のみサポートしています。今後さらに多くの設定を追加できます
+    - `core_server` にデータロックを追加し、並行アクセスによるエラー状態を回避
+    - フロントエンド設定パネルの表示を最適化し、現在はグローバル設定と現在のページ関連設定のみを表示
+    - 設定パネルにグローバル設定の「自動更新」オプションとエラーログページの「ソート方法」の 2 項目を追加
   - refactor:
-    - stage_mode から `process` を削除したことにより、`process` に対応するために設計されていたフレームワークの一部を削除またはリファクタリングしました
-      - 例えば、すべての MPValue と MPQueue を int と Queue に変更しました
-      - 厳密な bench テストはまだ行っていませんが、一定のパフォーマンス改善が見込まれます
-    - NetworkX グラフの構築プロセスをリファクタリングし、ノードと出辺を通じて直接構築するようになり、再帰に依存しなくなりました
-    - リトライ検出メカニズムで、元の string 型ではなく bytes 型のハッシュを計算するようにしました
-      - bench_hash_memory によると、メモリを約23%節約できます
-    - ノードステータスの delta データを Web 側の JS で計算するように移動し、不要な通信データを削減しました
+    - フロントエンド・バックエンド間通信の `summary` を削除し、ノードの全体予想終了時間は各ノードの `status` で個別に伝達され、フロントエンドで全体の予想終了時間を計算
+    - `structure_graph`（旧 `structure_json`）フィールドの内容を変更し、より簡潔になり情報の冗長性を回避、同時に後続の拡張が容易に
   - fix:
-    - InQueue.get のエラーキャッチを削除しました。これにより panic レベルのエラーが見逃される問題がありました
-- 3.2.1:
-  - feat:
-    - **[Important]** 設定ボタン機能を大幅に強化
-      - インターフェース言語の設定が可能になり、中国語・日本語・英語の3言語切替に対応
-      - エラーログの1ページあたりの表示件数を設定可能
-      - 構造図でデルタ表示の有無を設定可能（ただし現在のスタイルはやや不格好）
-      - そして最も重要な、ダッシュボードページのカードレイアウトを直接編集可能
-      - また、すべての設定を保存すると成功通知が表示されます
-    - 折れ線グラフでデータタイプを選択可能
-      - 「累計データ」、「待機キュー」、「データ変化率」を含む
-    - structure の調整
-      - すべての structure に `stage_mode` パラメータを追加し、ノードモードを統一的に制御
-      - struct 内のノードを再命名しないように変更
-    - 一部の Spout にバッファリング機構を追加
-  - refactor:
-    - **[Important]** executor の `tag` 属性を削除し、全面的に `name` 属性で代替
-      - `tag` は初期バージョンでノードを区別できなかったために設計されましたが、現在は `name` が一意性を強制するため、冗長な `tag` を使い続けると不便になります
-    - **[Important]** executor の `task_queue` と `result_queue` の定義を `__init__` に前倒し
-      - executor にとっては大きな違いはありませんが、stage にとってはより理想的でエレガントな形式です。ただ以前は `stage_mode="process"` の際に関数内に `MPQueue` を持てなかったため、graph で統一定義し process の args で注入していました
-    - **[Important]** `core_server` をリファクタリングし、`routes/` と `util_models` に分解して構造を最適化
-    - さらに、`log_queue` と `fail_queue` の注入も `graph.set_stages` に前倒しし、`stage.start_stage` が完全に入力パラメータなしで動作するように
-    - 同時に executor に `put_task` と `put_signal` を追加し、graph で再利用
-      - 以前は stage にまだ queue が定義されていなかったため、これができませんでした
-    - `core_graph` から `StageRuntime` を削除
-    - 型アノテーションの一部の `Any` をより明確な型に変更
-    - HTML からダッシュボードの card を削除し、`web-config` で定義
-    - 不要なフロントエンド・バックエンド通信を削減し、通信負荷を最適化
-      - ノード履歴情報のバックエンドからの転送を廃止し、フロントエンドで管理
-      - 「総残り時間」以外の全体統計のバックエンドデータを廃止し、フロントエンドで計算
-    - エラー保存の JSONL データ構造を最適化し、より詳細なエラー情報を保存
-    - pyright ルールを調整し、pyright 0 error / 0 warning を達成
-    - `web/` 下のほぼすべての `.ts` と `.css` ファイルをリネームし、ファイル内容の境界を整理
-    - `util_error` により多くのエラータイプを追加し、プロジェクト内のすべての能動的な raise が現在のエラー体系下にあることを保証
-    - フロントエンドコードのすべての `onclick` を削除し、`data-*` 属性に置き換え
-    - `config.json` の一部のフィールドを簡素化
-    - 不要なコードを一部削除
-  - fix:
-    - 一部の過度に広範なエラーキャッチを絞り込み
+    - 指標折れ線グラフで指標選択が無効になる問題を修正
+    - `report.stop` 内の `_refresh_all` の実行順序を変更し、thread 内のリフレッシュとの競合を回避
+    - `graph._finalize_nodes` に thread が未終了の場合の防御的チェックを追加
+    - `stage` の `start_time` が定義される前に `report` によって呼び出される問題を修正
+    - `TaskRedisTransport._transport` で `id()` を使用して task_id を計算することによる問題を修正
+    - 一部のタスクが hash 化できず panic を引き起こす問題を修正
   - chore:
-    - より多くのテストコードを追加し、`tests/` の構造を整理
-    - `bench/` の問題を修正
-      - 主に `bench_execution_mode` の2つの Fibonacci 実装で計算量が異なり、正常なモデルベンチマークができなかった問題
-    - `.github/workflows` を追加し、CI/CD を実現
-    - サポートする Python バージョンを 3.11 に更新し、一部のライブラリ要件に対応
-    - ドキュメント更新用とプロジェクトレビュー用の2つの skill を追加
+    - すべての `type: ignore` を削除
+      - かなり見栄えが良くなりました
+    - `start_*` 関数の doc-string にその関数が一回限りの呼び出し関数であることを明記
 
-過去のログの詳細：
+より多くの過去ログは以下をご覧ください：
 
-[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/change_log.md)
+[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/change_log.md)
 
-## Star履歴
+## Star 履歴トレンド（Star History）
 
-プロジェクトに興味をお持ちの方は、ぜひstarをお願いします。質問やご提案がある場合は、[Issues](https://github.com/Mr-xiaotian/CelestialFlow/issues)を提出するか、[Discussions](https://github.com/Mr-xiaotian/CelestialFlow/discussions)でお知らせください。
+プロジェクトに興味があれば、star を歓迎します。質問や提案があれば、[Issues](https://github.com/Mr-xiaotian/CelestialFlow/issues) を提出するか、[Discussion](https://github.com/Mr-xiaotian/CelestialFlow/discussions) でお知らせください。
 
 ![Star History Chart](https://api.star-history.com/svg?repos=Mr-xiaotian/CelestialFlow&type=Date)
 
-## ライセンス
-このプロジェクトはMITライセンスの下で公開されています。詳細は[LICENSE](../../LICENSE)ファイルをご覧ください。
+## ライセンス（License）
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 著者
-著者: Mr-xiaotian
-メール: mingxiaomingtian@gmail.com
-プロジェクトリンク: [https://github.com/Mr-xiaotian/CelestialFlow](https://github.com/Mr-xiaotian/CelestialFlow)
+## 作者（Author）
+Author: Mr-xiaotian
+Email: mingxiaomingtian@gmail.com
+Project Link: [https://github.com/Mr-xiaotian/CelestialFlow](https://github.com/Mr-xiaotian/CelestialFlow)

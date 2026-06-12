@@ -1,8 +1,8 @@
 # TaskErrors
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/11
 
-The TaskErrors module defines the complete custom exception hierarchy used in the CelestialFlow framework.
+The TaskErrors module defines the complete exception class system used in the CelestialFlow framework.
 
 ## Exception Hierarchy
 
@@ -29,11 +29,83 @@ CelestialFlowError
 └── TerminationMergeError           # Termination signal merge error
 ```
 
+```mermaid
+classDiagram
+    class CelestialFlowError {
+    }
+    class ConfigurationError {
+    }
+    class InvalidOptionError {
+        +field: str
+        +value: Any
+        +allowed: Iterable
+    }
+    class ExecutionModeError {
+    }
+    class StageModeError {
+    }
+    class LogLevelError {
+    }
+    class ScheduleModeError {
+    }
+    class GraphStructureError {
+    }
+    class DuplicateNodeError {
+    }
+    class UnknownNodeError {
+    }
+    class RuntimeStateError {
+    }
+    class InitializationError {
+    }
+    class GraphManagedError {
+    }
+    class RemoteWorkerError {
+    }
+    class ReporterError {
+    }
+    class CelestialTreeConnectionError {
+    }
+    class CelestialFlowTimeoutError {
+    }
+    class UnconsumedError {
+    }
+    class TaskFormatError {
+    }
+    class TerminationMergeError {
+    }
+
+    CelestialFlowError <|-- ConfigurationError
+    CelestialFlowError <|-- GraphStructureError
+    CelestialFlowError <|-- RuntimeStateError
+    CelestialFlowError <|-- RemoteWorkerError
+    CelestialFlowError <|-- ReporterError
+    CelestialFlowError <|-- CelestialTreeConnectionError
+    CelestialFlowError <|-- CelestialFlowTimeoutError
+    CelestialFlowError <|-- UnconsumedError
+    CelestialFlowError <|-- TaskFormatError
+    CelestialFlowError <|-- TerminationMergeError
+
+    ConfigurationError <|-- InvalidOptionError
+    ConfigurationError <|-- GraphStructureError
+
+    InvalidOptionError <|-- ExecutionModeError
+    InvalidOptionError <|-- StageModeError
+    InvalidOptionError <|-- LogLevelError
+    InvalidOptionError <|-- ScheduleModeError
+
+    GraphStructureError <|-- DuplicateNodeError
+    GraphStructureError <|-- UnknownNodeError
+
+    RuntimeStateError <|-- InitializationError
+    RuntimeStateError <|-- GraphManagedError
+```
+
 ## Base Class
 
 ### CelestialFlowError
 
-Base class for all custom exceptions.
+The base class for all custom exceptions.
 
 ```python
 class CelestialFlowError(Exception):
@@ -41,21 +113,21 @@ class CelestialFlowError(Exception):
     pass
 ```
 
-## Configuration Exceptions (ConfigurationError)
+## Configuration-Related Exceptions (ConfigurationError)
 
 ### ConfigurationError
 
-Base class for configuration errors (invalid parameters, unsupported combinations, etc.).
+Base class for configuration errors (illegal parameters, unsupported combinations, etc.).
 
 ```python
 class ConfigurationError(CelestialFlowError):
-    """Configuration error (invalid parameters, unsupported combinations, etc.)"""
+    """Configuration error (illegal parameters, unsupported combinations, etc.)"""
     pass
 ```
 
 ### InvalidOptionError
 
-A configuration option value is not valid.
+A specific configuration key has an illegal value.
 
 ```python
 class InvalidOptionError(ConfigurationError):
@@ -68,7 +140,7 @@ class InvalidOptionError(ConfigurationError):
         prefix: str = "Invalid",
     ):
         """
-        :param field: Configuration field name
+        :param field: Configuration key name
         :param value: Actual value passed
         :param allowed: Set of allowed values
         :param prefix: Error message prefix
@@ -82,7 +154,7 @@ class InvalidOptionError(ConfigurationError):
 
 ```python
 class ExecutionModeError(InvalidOptionError):
-    """Invalid execution_mode"""
+    """Illegal execution_mode"""
     def __init__(self, execution_mode: str, valid_modes=None):
         # valid_modes defaults to ("serial", "thread", "async")
 ```
@@ -93,7 +165,7 @@ class ExecutionModeError(InvalidOptionError):
 
 ```python
 class StageModeError(InvalidOptionError):
-    """Invalid stage_mode"""
+    """Illegal stage_mode"""
     def __init__(self, stage_mode: str, valid_modes=None):
         # valid_modes defaults to ("serial", "thread")
 ```
@@ -104,7 +176,7 @@ class StageModeError(InvalidOptionError):
 
 ```python
 class LogLevelError(InvalidOptionError):
-    """Invalid log_level"""
+    """Illegal log_level"""
     def __init__(self, log_level: str, valid_levels=None):
         # valid_levels defaults to ("TRACE", "DEBUG", "SUCCESS", "INFO", "WARNING", "ERROR", "CRITICAL")
 ```
@@ -115,7 +187,7 @@ class LogLevelError(InvalidOptionError):
 
 ```python
 class ScheduleModeError(InvalidOptionError):
-    """Invalid schedule_mode"""
+    """Illegal schedule_mode"""
     def __init__(self, schedule_mode: str, valid_modes=None):
         # valid_modes defaults to ("eager", "staged")
 ```
@@ -134,7 +206,7 @@ class GraphStructureError(ConfigurationError):
 
 ### DuplicateNodeError
 
-Duplicate node name (triggered in `set_stages` or `add_source_name` / `add_queue`).
+Duplicate node name (triggered during `set_stages` or `add_source_name` / `add_queue`).
 
 ```python
 class DuplicateNodeError(GraphStructureError):
@@ -156,7 +228,7 @@ class UnknownNodeError(GraphStructureError):
 
 ### RuntimeStateError
 
-Base class for runtime state errors (duplicate start, not initialized, etc.).
+Base class for runtime state errors (duplicate start, uninitialized, etc.).
 
 ```python
 class RuntimeStateError(CelestialFlowError):
@@ -166,7 +238,7 @@ class RuntimeStateError(CelestialFlowError):
 
 ### InitializationError
 
-Initialization error (e.g., when thread pool is not initialized).
+Initialization error (e.g., using an uninitialized thread pool).
 
 ```python
 class InitializationError(RuntimeStateError):
@@ -176,12 +248,13 @@ class InitializationError(RuntimeStateError):
 
 ### GraphManagedError
 
-Graph management error (triggered when illegal operations occur in the graph's start/stop lifecycle).
+Thrown when attempting to call `start()` directly via the standalone path while the Stage is already managed by a TaskGraph.
 
 ```python
 class GraphManagedError(RuntimeStateError):
-    """Graph management error"""
-    pass
+    """Stage is already managed by a Graph; should not be started via the standalone path."""
+    def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."):
+        ...
 ```
 
 ## External Service Exceptions
@@ -230,15 +303,15 @@ class CelestialFlowTimeoutError(CelestialFlowError, TimeoutError):
 
 ### UnconsumedError
 
-Marks unconsumed tasks.
+Marks tasks that were not consumed.
 
 ```python
 class UnconsumedError(CelestialFlowError):
-    """Exception class for marking unconsumed tasks"""
+    """Exception class used to mark unconsumed tasks"""
     pass
 ```
 
-When `TaskGraph._finalize_nodes()` finds remaining tasks in the queue, they are marked as `UnconsumedError` and persisted.
+When `TaskGraph._finalize_nodes()` finds remaining tasks in the queue, it marks them as `UnconsumedError` and persists them.
 
 ### TaskFormatError
 
@@ -262,7 +335,7 @@ class TerminationMergeError(CelestialFlowError):
 
 ## Usage Scenarios
 
-### 1. Adding Retryable Exceptions
+### 1. Adding Retriable Exceptions
 
 ```python
 executor = TaskExecutor("Processor", process, max_retries=3)
@@ -287,14 +360,14 @@ except ExecutionModeError as e:
 from celestialflow.runtime.util_errors import DuplicateNodeError
 
 try:
-    graph.set_stages([stage_a, stage_a])  # Duplicate node names
+    graph.set_stages([stage_a, stage_a])  # Duplicate node name
 except DuplicateNodeError as e:
     print(f"Duplicate node: {e}")
 ```
 
 ## Usage Examples
 
-The following examples demonstrate typical raise and catch patterns for CelestialFlow exceptions.
+The following examples demonstrate typical raise and catch patterns for various CelestialFlow exceptions.
 
 ### Configuration Exceptions
 
@@ -321,7 +394,7 @@ try:
 except StageModeError as e:
     print(f"Configuration error: {e}")
 
-# Use InvalidOptionError directly
+# Directly use InvalidOptionError
 try:
     raise InvalidOptionError(
         field="strategy",
@@ -338,7 +411,7 @@ except InvalidOptionError as e:
 from celestialflow import TaskGraph, TaskStage
 from celestialflow.runtime.util_errors import DuplicateNodeError, UnknownNodeError
 
-graph = TaskGraph()
+graph = TaskGraph(name="ErrorTestGraph")
 
 stage_a = TaskStage("A", func=lambda x: x)
 stage_b = TaskStage("A", func=lambda x: x * 2)  # Duplicate node name
@@ -350,7 +423,10 @@ except DuplicateNodeError as e:
 
 try:
     from celestialflow.runtime.util_types import TerminationSignal
-    in_queue = list(graph.stage_dict.values())[0].in_queue
+    # UnknownNodeError is triggered in in_queue._record_termination when validating the source
+    from celestialflow.runtime import TaskInQueue
+    from queue import Queue
+    in_queue = TaskInQueue(queue=Queue(), source_names=["known"], out_name="test")
     in_queue._record_termination(TerminationSignal(source="unknown_source"))
 except UnknownNodeError as e:
     print(f"Unknown source: {e}")
@@ -405,20 +481,20 @@ except CelestialTreeConnectionError as e:
     print(f"Connection failed: {e}")
 ```
 
-### Integration with TaskExecutor
+### Combined Usage with TaskExecutor
 
 ```python
 from celestialflow import TaskExecutor
 from celestialflow.runtime.util_errors import CelestialFlowError
 
-# In actual executors, exceptions are uniformly caught and recorded
+# In real executors, exceptions are uniformly caught and recorded
 executor = TaskExecutor(
     "SafeWorker",
     func=lambda x: 10 // x,
     execution_mode="serial",
     max_retries=0,
 )
-executor.start([1, 0, 2])  # The middle task will trigger ZeroDivisionError
+executor.start([1, 0, 2])  # The middle task triggers ZeroDivisionError
 
 counts = executor.get_counts()
 print(f"Success: {counts['tasks_succeeded']}, Failed: {counts['tasks_failed']}")
@@ -426,4 +502,4 @@ print(f"Success: {counts['tasks_succeeded']}, Failed: {counts['tasks_failed']}")
 
 ## Error Persistence
 
-`TaskGraph` persists unhandled errors to a local JSONL file (via `FailSpout`) during `_finalize_nodes()`. Each error record contains the error type, message, stage, event ID, and timestamp, represented by `PersistedErrorRecord`.
+`TaskGraph` persists unhandled errors to a local JSONL file (via `FailSpout`) during `_finalize_nodes()`. Each error record contains error type, message, the Stage it belongs to, event ID, and timestamp, represented by `PersistedErrorRecord`.

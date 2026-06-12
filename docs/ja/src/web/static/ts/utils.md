@@ -1,63 +1,72 @@
 # utils.ts
 
-> 📅 最終更新日: 2026/05/24
+> 📅 最終更新日: 2026/06/11
 
-Web フロントエンド共通のフォーマットツール、UI ヘルパーロジック、DOM 操作ラッパー、および環境検出関数を含みます。
+Web フロントエンド共通のフォーマットユーティリティ、UI 補助ロジック、DOM 操作ラッパー、環境検出関数を含みます。
 
-## 数値と時刻のフォーマット
+> ⚠️ **変更済み**: 旧版ドキュメントで言及されていた `renderLocalTime()` 関数は実際にはこのファイルに存在しません。`renderLabelWithTooltip()`、`switchToInjectionTab()`、`calcRemainTime()`、`format_repr()` の 4 つの関数が新たに追加されました。
 
-### `formatLargeNumber(n)`
-大きな数値を見やすい形式に変換します。
-- `< 10,000,000`: 千の位のカンマ区切りを使用します。
-- `>= 10,000,000`: HTML 科学記数法に変換します（例: `~1.23×10⁹`）。
+## 数値と時間のフォーマット
 
-### `formatWithDelta(value, delta, deltaClass, negClass)`
-増分付きの数値をフォーマットします。増分がゼロでない場合、主数値の後ろに色付きの `+N` または `-N` を小さく表示します。
+### `formatLargeNumber(n: number): string`
+大きな数値を見やすい HTML 形式に変換します。
+- `< 10,000,000`：`toLocaleString('en-US')` で 3 桁区切り。
+- `>= 10,000,000`：科学表記 HTML に変換（例：`~1.23×10⁹`）。
 
-### `formatDuration(seconds)`
-秒数を `HH:MM:SS` または `MM:SS` 文字列にフォーマットします。
+### `formatWithDelta(value: number, delta: number, deltaClass: string, negClass: string): string`
+増分付きの数値をフォーマットします。増分が非ゼロの場合、メイン数値の後ろに色付きの `+N` または `-N` 小文字 `<small>` タグを追加します。
 
-### `formatTimestamp(timestamp)`
-Unix タイムスタンプ（秒）を `YYYY-MM-DD HH:MM:SS` のローカル時間文字列にフォーマットします。
-```ts
-function formatTimestamp(timestamp: number): string {
-  const d = new Date(timestamp * 1000);
-  // "2026-05-24 14:30:00" のような形式を返します
-}
-```
+### `formatDuration(seconds: number): string`
+秒数を `HH:MM:SS`（1 時間以上）または `MM:SS`（1 時間未満）文字列にフォーマットします。正数の場合は最低 1 秒を表示します。
 
-### `renderLocalTime(timestamp)`
-Unix タイムスタンプをロケールに応じたローカライズ日時文字列に変換します（`toLocaleString()`）。
+### `formatTimestamp(timestamp: number): string`
+Unix タイムスタンプ（秒）を `YYYY-MM-DD HH:MM:SS` ローカル時間文字列にフォーマットします。
 
----
+### `calcRemainTime(processed: number, pending: number, elapsed: number): number`
+処理済み数、待機数、経過時間に基づいて残り時間を線形推定します。`processed` または `pending` が 0 の場合は 0 を返します。
 
-## UI とルーティングのヘルパー
-
-### `switchToErrorsTab(nodeFilter?)`
-グローバルルーティングジャンプ関数です。
-- 現在のタブを「エラーログ」に切り替えます。
-- `nodeFilter` が渡された場合、エラーフィルタードロップダウンを自動入力し、クエリを1回トリガーします。
+### `format_repr(obj: unknown, max_length: number): string`
+任意のオブジェクトを文字列にフォーマットし、`max_length` を超える場合は切り詰めます（前半 2/3 + `...` + 後半 1/3）。改行とバックスラッシュの可視形式を保持します。
 
 ---
 
-## セキュリティとツール
+## UI とルーティング補助
 
-### `escapeHtml(str)`
-基本的な HTML エスケープ関数です。動的テキスト挿入時の XSS リスクを防止します。エスケープ文字: `&` `<` `>` `"` `'` `/`。
+### `switchToErrorsTab(nodeFilter?: string): void`
+グローバルルーティングジャンプ関数。
+- 「エラーログ」タブに切り替えます（`activateTab`）。
+- `nodeFilter` が渡された場合、ノードフィルタードロップダウンを設定し `change` イベントをトリガーしてクエリを開始します。
 
-### `isMobile()`
-UserAgent に基づく簡易モバイル検出です（`Mobi|Android|iPhone|iPad|iPod` にマッチ）。ドラッグソートなどのインタラクションを無効化するために使用します。
+### `switchToInjectionTab(): void`
+「タスク注入」タブに切り替えます。
+
+### `renderLabelWithTooltip(labelKey: string, tooltipKey: string): string`
+ツールチップ付きのラベル HTML をレンダリングします。`i` ボタン（`.tooltip-trigger`）を含み、ホバーまたはフォーカス時に翻訳されたヒントテキスト（`.tooltip-bubble`）を表示します。
+
+> この関数は `dashboard_statuses.ts` と `dashboard_analysis.ts` で広く使用され、「ステージモード」「スケジュールモード」などの専門用語に即時説明を提供します。
+
+---
+
+## セキュリティとユーティリティ
+
+### `escapeHtml(str: string): string`
+基本的な HTML エスケープ関数。動的テキスト挿入時の XSS リスクを防止します。エスケープ対象文字：`&` `<` `>` `"` `'` `/`。
+
+### `isMobile(): boolean`
+UserAgent に基づくシンプルなモバイル端末検出（`Mobi|Android|iPhone|iPad|iPod` にマッチ）。
 
 ---
 
 ## ❌ utils.ts に属さない関数
 
-以下の関数は **`utils.ts` には定義されていません**。これらは `main.ts` に属します：
+以下の関数は `utils.ts` では**定義されておらず**、`main.ts` に属します：
 
 | 関数 | 実際の位置 | 説明 |
 |------|---------|------|
-| `toggleDarkTheme()` | **main.ts** | ライト/ダークテーマ切り替え |
-| `showSettingsSaveStatus()` | **main.ts** | 設定保存状態通知 |
+| `toggleDarkTheme()` | **main.ts** | 明暗テーマ切り替え |
+| `showSettingsSaveStatus()` | **main.ts** | 設定保存状態ヒント |
+
+> 旧版ドキュメントで言及されていた `renderLocalTime()` はソースコードに存在せず、旧版の遺留または未実装の可能性があります。
 
 ---
 
@@ -70,85 +79,49 @@ flowchart LR
         B[formatWithDelta]
         C[formatDuration]
         D[formatTimestamp]
-        E[renderLocalTime]
-        F[switchToErrorsTab]
-        G[escapeHtml]
-        H[isMobile]
+        E[calcRemainTime]
+        F[format_repr]
+        G[switchToErrorsTab]
+        H[switchToInjectionTab]
+        I[renderLabelWithTooltip]
+        J[escapeHtml]
+        K[isMobile]
     end
 ```
 
 ## 使用例
 
-### formatLargeNumber / formatDuration / escapeHtml などの関数の使用例
-
-以下は `utils.ts` 内のすべてのツール関数の使用方法を示します（ブラウザコンソールで直接実行可能）：
-
 ```typescript
-// ====== 1. formatLargeNumber: 大きな数値のフォーマット ======
-console.log("=== formatLargeNumber ===");
-console.log(formatLargeNumber(1234));        // "1,234"
-console.log(formatLargeNumber(1234567));     // "1,234,567"
-console.log(formatLargeNumber(9999999));     // "9,999,999"
-console.log(formatLargeNumber(10000000));    // "~1.00×10⁷"
-console.log(formatLargeNumber(1234567890));  // "~1.23×10⁹"
+// ====== 数値フォーマット ======
+formatLargeNumber(1234567);     // "1,234,567"
+formatLargeNumber(1234567890);  // "~1.23×10⁹"
 
-// ====== 2. formatWithDelta: 数値 + 増分表示 ======
-console.log("\n=== formatWithDelta ===");
-const value = 1000;
-const delta = 5;
-// 主数値の後ろに緑色の +5 小文字を追加
-console.log(formatWithDelta(value, delta, "delta-positive", "delta-negative"));
-// "1,000<small class="delta-positive" style="margin-left: 4px;">+5</small>"
+// ====== 増分表示 ======
+formatWithDelta(1000, 5, "text-delta-success", "text-delta-success");
+// "1,000<small class="text-delta-success">+5</small>"
 
-// 負の増分は赤色表示
-console.log(formatWithDelta(value, -3, "delta-positive", "delta-negative"));
-// "1,000<small class="delta-negative" style="margin-left: 4px;">-3</small>"
+// ====== 時間フォーマット ======
+formatDuration(3661);           // "01:01:01"
+formatTimestamp(1745400000);    // "2026-04-23 14:40:00"
 
-// 増分が 0 の場合は増分を表示しない
-console.log(formatWithDelta(value, 0, "", ""));
-// "1,000"
+// ====== 残り時間推定 ======
+calcRemainTime(500, 100, 300);  // 60
 
-// ====== 3. formatDuration: 秒数のフォーマット ======
-console.log("\n=== formatDuration ===");
-console.log(formatDuration(0));          // "00:00"
-console.log(formatDuration(45));         // "00:45"
-console.log(formatDuration(120));        // "02:00"
-console.log(formatDuration(3661));       // "01:01:01"
-console.log(formatDuration(86399));      // "23:59:59"
+// ====== 文字列切り詰め ======
+format_repr("very long string...", 10);  // "very lo...g..."
 
-// ====== 4. formatTimestamp: タイムスタンプのフォーマット ======
-console.log("\n=== formatTimestamp ===");
-console.log(formatTimestamp(1745400000));
-// "2026-05-24 14:40:00" (現在のタイムゾーンに依存)
+// ====== ツールチップラベル ======
+renderLabelWithTooltip("status.stageMode", "status.stageModeHelp");
+// tooltip-trigger と tooltip-bubble を含む HTML を返す
 
-// 現在時刻
-console.log(formatTimestamp(Date.now() / 1000));
+// ====== タブジャンプ ======
+switchToErrorsTab("StageA");    // エラーページにジャンプして StageA でフィルタ
+switchToInjectionTab();          // 注入ページにジャンプ
 
-// ====== 5. renderLocalTime: ローカライズ時刻 ======
-console.log("\n=== renderLocalTime ===");
-console.log(renderLocalTime(1745400000));
-// "2026/5/24 14:40:00" (ブラウザのロケール設定に依存)
-
-// ====== 6. escapeHtml: HTML エスケープ ======
-console.log("\n=== escapeHtml ===");
-const userInput = '<script>alert("xss")</script>';
-console.log(escapeHtml(userInput));
+// ====== HTML エスケープ ======
+escapeHtml('<script>alert("xss")</script>');
 // "&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;"
 
-console.log(escapeHtml('A&B < C > D'));
-// "A&amp;B &lt; C &gt; D"
-
-// ====== 7. isMobile: モバイル検出 ======
-console.log("\n=== isMobile ===");
-console.log(isMobile());
-// デスクトップブラウザでは false を返します
-// モバイルデバイスでは true を返します
-
-// ====== 8. switchToErrorsTab: エラーページにジャンプ ======
-console.log("\n=== switchToErrorsTab ===");
-// エラーログタブにジャンプ、ノードフィルターなし
-switchToErrorsTab();
-
-// エラーログタブにジャンプし、特定ノードでフィルター
-// switchToErrorsTab("StageA");
+// ====== モバイル検出 ======
+isMobile();  // デスクトップ false、モバイル true
 ```

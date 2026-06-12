@@ -1,8 +1,8 @@
 # BaseInlet
 
-> 📅 最終更新日: 2026/05/28
+> 📅 最終更新日: 2026/06/11
 
-`BaseInlet` はすべての Inlet クラスの基底クラスで、レコードをキューに書き込む共通機能を提供します。
+`BaseInlet` はすべての入口クラス（Inlet）の基底クラスであり、レコードをキューに書き込む汎用機能を提供します。
 
 ## クラス定義
 
@@ -15,13 +15,13 @@ class BaseInlet:
         self.queue: Any = queue
 
     def _funnel(self, record: Any) -> None:
-        """レコードをキューに入れ、対応する Spout に消費させる。"""
+        """レコードをキューに入れ、対応する Spout が消費できるようにする。"""
         self.queue.put(record)
 ```
 
-### 属性の型
+### プロパティ
 
-| 属性 | 型 | 説明 |
+| プロパティ | 型 | 説明 |
 |------|------|------|
 | `queue` | `Any` | レコードキューインスタンス。`queue.put()` でレコードを書き込む |
 
@@ -33,9 +33,9 @@ class BaseInlet:
 def _funnel(self, record: Any) -> None:
 ```
 
-- `record` を `self.queue` に入れ、対応する `Spout` に消費させる
-- サブクラスの具体的なビジネスメソッドから呼び出される
-- `queue.Queue` を使用してスレッド間の安全な通信を確保
+- `record` を `self.queue` に入れ、対応する `Spout` が消費できるようにする
+- サブクラスの具体的な業務メソッドから呼び出される
+- `queue.Queue` を使用してスレッド間の安全な通信を保証
 
 ## 継承関係
 
@@ -46,26 +46,30 @@ classDiagram
         +_funnel(record: Any) None
     }
     class LogInlet {
-        +start_executor()
-        +end_executor()
-        +put_item()
-        +get_item()
-        +termination_merge()
+        +start_graph()
+        +end_graph()
+        +start_stage()
+        +end_stage()
+        +task_success()
+        +task_error()
+        +task_retry()
+        +termination_input()
     }
     class FailInlet {
+        +start_graph()
         +start_executor()
-        +put_error()
+        +task_error()
     }
     BaseInlet <|-- LogInlet
     BaseInlet <|-- FailInlet
 ```
 
-### 継承関係の詳細
+### 継承関係の説明
 
-| サブクラス | ソースファイル | 責務 |
-|-----------|--------------|------|
-| `LogInlet` | `persistence/core_log.py` | ログ記録。タスクの入出キュー・終了の全プロセスを追跡 |
-| `FailInlet` | `persistence/core_fail.py` | エラー記録。タスクのエラー情報を JSONL に永続化 |
+| サブクラス | 所在ファイル | 責務 |
+|------|---------|------|
+| `LogInlet` | `persistence/core_log.py` | ログ記録。タスクのエンキュー/デキュー/終了の全過程を追跡 |
+| `FailInlet` | `persistence/core_fail.py` | エラー記録。タスクエラー情報を JSONL に永続化 |
 
 ## 使用例
 
@@ -80,7 +84,7 @@ class MyInlet(BaseInlet):
     def send(self, data):
         self._funnel(data)
 
-# 使用方法
+# 使用
 spout = MySpout()
 spout.start()
 inlet = MyInlet(spout.get_queue())
@@ -90,8 +94,8 @@ spout.stop()
 
 ## 注意事項
 
-1. **一方向通信**: Inlet はキューへの書き込みのみ行い、Spout が消費を担当。両者はキューを通じて分離されている
-2. **キューの提供元**: キューは対応する `BaseSpout` が作成・提供する（`get_queue()` 経由）。Inlet はキューのライフサイクルを管理しない
-3. **スレッドセーフ**: `queue.Queue` によるスレッド間安全な通信を実現
-4. **例外非発生**: `_funnel` 内部ではキュー書き込み例外を処理しない。サブクラスが呼び出し元でキャッチする必要がある
-5. **使用パターン**: 通常、1つの `BaseSpout` に1つの `BaseInlet` が対応し、プロデューサー・コンシューマーペアを形成
+1. **単方向通信**: Inlet はキューへの書き込みのみ、Spout は消費を担当。両者はキューによって分離されている
+2. **キュー出所**: キューは対応する `BaseSpout` が作成・提供し（`get_queue()` 経由）、Inlet はキューのライフサイクルに関与しない
+3. **スレッドセーフ**: `queue.Queue` を使用してスレッド間の安全な通信を実現
+4. **例外非スロー**: `_funnel` 内部ではキュー書き込み例外を処理しない。サブクラスが呼び出し元でキャッチする必要がある
+5. **使用パターン**: 通常、各 `BaseSpout` に 1 つの `BaseInlet` が対応し、プロデューサー・コンシューマーのペアを形成

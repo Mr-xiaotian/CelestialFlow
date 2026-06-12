@@ -1,15 +1,21 @@
-# tests パッケージ
+# tests テストパッケージ
 
-> 📅 最終更新日: 2026/06/05
+> 📅 最終更新日: 2026/06/11
 
-## 目的
+## 役割
+`tests/` ディレクトリは CelestialFlow の pytest テストスイートを格納します。`tests/__init__.py` は空ファイルであり、本ページはテストディレクトリ構成の説明を目的とします。
 
-`tests/` 配下の pytest スイートを索引化し、各サブパッケージの役割を説明します。
-
-## 主要ポイント
-
-- funnel、graph、observability、persistence、runtime、stage、web の各テスト群をまとめます。
-- `tests/conftest.py` に共通 helper があることを示します。
+## ディレクトリ構成
+- `tests/funnel/`: Inlet / Spout パイプラインの基本動作テスト。
+- `tests/graph/`: TaskGraph の構築とスケジューリングテスト。
+- `tests/observability/`: 実行状態レポートテスト。
+- `tests/persistence/`: エラー、ログ、成功結果の永続化テスト。
+- `tests/runtime/`: エンベロープ、キュー、ハッシュ、カウンタ、例外、推定テスト。
+- `tests/stage/`: TaskStage / TaskExecutor と組み込み Stage のテスト。
+- `tests/utils/`: クローンユーティリティとフォーマットユーティリティのテスト。
+- `tests/web/`: Web API とサービス統合テスト。
+- `tests/conftest.py`: 共通テストヘルパー。
+- `tests/__init__.py`: 空ファイル、テストパッケージのマーカー。
 
 ## 実行方法
 

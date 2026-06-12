@@ -2,14 +2,18 @@
 
 > 📅 最終更新日: 2026/06/05
 
-## 目的
+## 役割
+`tests/runtime/` は CelestialFlow のランタイムインフラストラクチャ（タスクエンベロープ、キュー、ハッシュ、カウンタ、例外型、残り時間推定を含む）をカバーし、スケジューリング層と Stage 層の基盤を保証します。
 
-envelope、queue、hash、counter、error、時間推定など、runtime 層のテストを索引化します。
-
-## 主要ポイント
-
-- graph / stage 層が依存する低レベル実行基盤を守ります。
-- 多くは純粋なランタイム契約に焦点を当てた高速ユニットテストです。
+## 含まれるテストファイル
+- `test_dispatch.py`: スケジューリングループとディスパッチロジック。
+- `test_envelope.py`: `TaskEnvelope` の属性とハッシュ動作。
+- `test_errors.py`: カスタム例外体系。
+- `test_estimators.py`: 経過時間と残り時間の推定アルゴリズム。
+- `test_hash.py`: `make_hashable` と `object_to_hash`。
+- `test_metrics.py`: カウンタと実行メトリクス集計。
+- `test_queue.py`: タスク入出力キュー。
+- `test_types.py`: 各種ランタイム値オブジェクト、列挙型、コンテキストラッパー。
 
 ## 実行方法
 

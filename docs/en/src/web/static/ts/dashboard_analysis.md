@@ -1,15 +1,29 @@
 # dashboard_analysis.ts
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/11
 
-Manages loading of graph analysis information and rendering of the analysis panel. Provides deep insights into the TaskGraph topology, such as cycle detection and layer analysis.
+Manages the loading of graph analysis information and the rendering of the analysis panel. Provides deep insight into the TaskGraph topology, such as DAG detection, layer analysis, and scheduling modes.
+
+## Type Definitions
+
+```typescript
+type AnalysisData = {
+  name: string;                    // Task graph name
+  startTime: number;               // Task graph start timestamp
+  className: string;               // Graph structure classification name (Python class name)
+  isDAG: boolean;                  // Whether the current task graph is a DAG
+  scheduleMode: string;            // Graph-level scheduling mode name (eager / staged)
+  layersDict: Record<string, unknown>; // Layer analysis results, key count used for layer count
+};
+```
 
 ## Global Variables
 
 | Variable | Type | Description |
-|----------|------|-------------|
-| `analysisData` | `Record<string, any>` | Analysis data, containing graph structure type, DAG status, etc. |
-| `analysisRev` | `number` | Data version number, used for incremental fetch decisions |
+|------|------|------|
+| `analysisData` | `AnalysisData \| null` | Topology analysis data; `null` when not loaded |
+| `analysisRev` | `number` | Data revision number, initialized to `-1`, used for incremental fetch |
+| `analysisRequestSeq` | `number` | Request sequence number, prevents old analysis responses from overwriting new results |
 
 ## Functions
 
@@ -17,99 +31,67 @@ Manages loading of graph analysis information and rendering of the analysis pane
 
 Asynchronously fetches analysis data from `GET /api/pull_analysis?known_rev=N`.
 
+- **Race protection**: Each call assigns an incremented `analysisRequestSeq`; responses with mismatched sequence numbers are discarded.
+- **Incremental mechanism**: The backend returns full data (`body.data !== null`) only when `known_rev` is stale; otherwise returns `rev` with empty data.
+- **Return value**: `Promise<boolean>` — returns `true` when the analysis revision changed and was successfully updated.
+
 ---
 
 ### `renderAnalysisInfo()`
 
-Renders analysis data to the `#analysis-info` container. If data is empty, displays "No analysis information available".
+Renders analysis data into the `#analysis-info` container. If `analysisData` is `null`, displays an internationalized empty-state placeholder.
 
-**Display Fields:**
+**Displayed fields:**
 
-| Display Label | Corresponding Field | Description |
-|---------------|---------------------|-------------|
-| `Structure Type` | `className` | Specific Python class name of the TaskGraph |
-| `Is DAG` | `isDAG` | Whether it is a directed acyclic graph; shows yellow warning style when not a DAG |
-| `Schedule Mode` | `scheduleMode` | `eager` or `staged` |
-| `Layer Count` | `layersDict` | Topological layering depth of the graph |
+| Display Label (i18n key) | Corresponding Field | Description |
+|---------|---------|------|
+| `analysis.graphName` | `name` | Task graph name |
+| `analysis.startTime` | `startTime` | Graph start timestamp (formatted when `> 0`, otherwise displays `-`) |
+| `analysis.structType` | `className` | The specific Python class name of the TaskGraph, with a tooltip bubble |
+| `analysis.isDAG` | `isDAG` | Green `.ok` class when `true`, red `.warn` class when `false` |
+| `analysis.scheduleMode` | `scheduleMode` | Graph-level scheduling mode, with a tooltip bubble |
+| `analysis.layerCount` | `layersDict` | Derives total layer count via `Object.keys(layersDict).length` |
 
 ## Data Flow
 
-```
-GET /api/pull_analysis
-  └─ loadAnalysis() -> Update analysisData
-        └─ renderAnalysisInfo() -> UI list display
+```mermaid
+sequenceDiagram
+    participant Main as main.ts<br/>refreshAll()
+    participant Analysis as dashboard_analysis.ts
+    participant API as /api/pull_analysis
+    participant DOM as #analysis-info
+
+    Main->>Analysis: loadAnalysis()
+    Analysis->>API: GET ?known_rev=N
+    API-->>Analysis: { rev, data: AnalysisData|null }
+    alt data !== null
+        Analysis->>Analysis: update analysisData / analysisRev
+        Analysis-->>Main: true
+        Main->>Analysis: renderAnalysisInfo()
+        Analysis->>DOM: render analysis info card
+    else data === null
+        Analysis-->>Main: false (no change)
+    end
 ```
 
 ## Usage Example
 
-### Analysis Data Structure and Rendering Call Chain
-
-The following example shows the structure of analysis data on the TypeScript side and the rendering flow:
-
 ```typescript
-// Typical structure of analysis data (from backend GET /api/pull_analysis)
-// Note: The backend returns snake_case fields; the frontend converts to camelCase on receipt
-const analysisPayload = {
-    analysis: {
-        className: "TaskGraph",
-        isDAG: true,
-        scheduleMode: "eager",
-        layersDict: {0: ["StageA"], 1: ["StageB", "StageC"], 2: ["StageD"]},
-    }
+// Simulated analysis data from backend
+const mockAnalysis: AnalysisData = {
+  name: "MyTaskGraph",
+  startTime: 1718000000,
+  className: "TaskGraph",
+  isDAG: true,
+  scheduleMode: "eager",
+  layersDict: { "0": ["StageA"], "1": ["StageB", "StageC"] },
 };
 
-// This data is processed and rendered through the following chain:
+// loadAnalysis() fetches and updates global variables
+// const changed = await loadAnalysis();
+// if (changed) renderAnalysisInfo();
 
-// 1. loadAnalysis() fetches and updates global variables
-// analysisData structure: Record<string, any>
-// e.g.: { className, isDAG, scheduleMode, layersDict }
-
-// 2. renderAnalysisInfo() renders it to the #analysis-info container
-//    Actual rendering logic (illustrative):
-function renderAnalysisInfoExample(data: Record<string, any>) {
-    const container = document.getElementById("analysis-info");
-    if (!container) return;
-
-    if (!data || Object.keys(data).length === 0) {
-        container.innerHTML = "<p>No analysis information available</p>";
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="analysis-item">
-            <span class="analysis-label">Structure Type</span>
-            <span class="analysis-value">${escapeHtml(data.className || "-")}</span>
-        </div>
-        <div class="analysis-item">
-            <span class="analysis-label">Is DAG</span>
-            <span class="analysis-value ${data.isDAG ? '' : 'warning'}">
-                ${data.isDAG ? "Yes (acyclic)" : "No (cycles exist)"}
-            </span>
-        </div>
-        <div class="analysis-item">
-            <span class="analysis-label">Schedule Mode</span>
-            <span class="analysis-value">${escapeHtml(data.scheduleMode || "-")}</span>
-        </div>
-        <div class="analysis-item">
-            <span class="analysis-label">Layer Count</span>
-            <span class="analysis-value">
-                ${data.layersDict ? Object.keys(data.layersDict).length : 0}
-            </span>
-        </div>
-    `;
-}
-
-// 3. Complete call chain
-async function fullAnalysisFlow() {
-    // Call fetch to pull data
-    const res = await fetch("/api/pull_analysis?known_rev=0");
-    const data = await res.json();
-
-    // Update global cache
-    // analysisData = data; (maintained internally by loadAnalysis)
-    // analysisRev = data.rev ?? 0;
-
-    // Trigger rendering
-    renderAnalysisInfoExample(data);
-}
+// renderAnalysisInfo() renders it to #analysis-info
+// if analysisData === null → display empty-state placeholder
+// otherwise render: graph name, start time, struct type, isDAG, schedule mode, layer count
 ```

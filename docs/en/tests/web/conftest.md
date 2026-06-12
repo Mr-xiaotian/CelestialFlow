@@ -1,17 +1,17 @@
 ﻿# Web Test Configuration (conftest.py)
 
-> Last Updated: 2026/05/23
+> 📅 Last Updated: 2026/05/23
 
 ## Purpose
-Provides pytest fixtures for the web server and HTTP client used by the test cases under `tests/web`, simulating a realistic front-end/back-end interaction environment.
+Provides Pytest fixtures (web server and HTTP client) for test cases under the `tests/web` directory, simulating a real frontend-backend interaction environment.
 
 ## Core Fixtures
 - `web_server`:
-  - **Function**: Initializes a `TaskWebServer` instance with default configuration.
-  - **Scope**: Creates a fresh instance before each test function.
+  - **Function**: Initializes a default-configured `TaskWebServer` instance.
+  - **Scope**: Creates a new instance before each test function.
 - `client`:
   - **Function**: Creates a synchronous HTTP client based on `FastAPI.testclient.TestClient`.
-  - **Dependency**: Depends on the `web_server` fixture and accesses its internal `app` directly.
+  - **Dependency**: Depends on the `web_server` fixture, directly accessing its internal `app` instance.
 
 ## Usage Example
 ```python
@@ -21,6 +21,5 @@ def test_api(client):
 ```
 
 ## Notes
-- The tests use FastAPI's built-in `TestClient`, so no real port listener is started. Execution stays fast and avoids port conflicts.
-- Related implementation: `src/celestialflow/web/core_server.py`.
-
+- Tests use FastAPI's built-in `TestClient`, which does not actually start a listening port — execution is efficient and there is no port-conflict risk.
+- Related implementation is in `src/celestialflow/web/core_server.py`.

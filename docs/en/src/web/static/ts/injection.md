@@ -1,153 +1,218 @@
 # injection.ts
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/11
 
-Manages the task manual injection page logic, supporting multi-node selection, JSON text input, JSON file upload, termination signal quick fill, and injection submission.
+Manages the logic for the manual task injection page. Uses a **draft-based architecture**: the user selects a node then edits a JSON draft, edit content is cached in real-time in `nodeDrafts`, and drafts are sent to the backend all at once via "batch submit".
+
+> ⚠️ **Changed**: The module has undergone a major refactoring. The old architecture with multi-node selection (`selectedNodes`), JSON/file input switching (`currentInputMethod`, `uploadedFile`) has been replaced with a single-node draft system based on `currentNodeName`+`nodeDrafts`. Added re-injection support from the error log page (`preloadInjectionDraftFromError`).
+
+## Type Definitions
+
+```typescript
+type ValidationState = "idle" | "success" | "error" | "neutral";
+```
 
 ## Global Variables
 
 | Variable | Type | Description |
-|----------|------|-------------|
-| `selectedNodes` | `{ name: string }[]` | List of injection target nodes currently selected by the user; each node contains only the `name` field |
-| `currentInputMethod` | `string` | Current input mode: `json` or `file` |
-| `uploadedFile` | `object \| null` | Stores the name and content of the uploaded file |
+|------|------|------|
+| `currentNodeName` | `string \| null` | Currently selected node name; `null` means none selected |
+| `nodeDrafts` | `Record<string, string>` | Draft text map keyed by node name |
+| `statusHideTimer` | `ReturnType<typeof setTimeout> \| null` | Status message auto-hide timer |
+
+## Core Flow
+
+```mermaid
+flowchart TD
+    A[renderNodeList] --> B[User clicks node]
+    B --> C[selectNode]
+    C --> D[renderCurrentNodeEditor]
+    D --> E[User edits JSON]
+    E --> F[setDraftForNode]
+    F --> G[nodeDrafts updated]
+
+    G --> H{Action type}
+    H -->|Validate| I[validateCurrentDraft]
+    H -->|Format| J[formatCurrentDraft]
+    H -->|Clear| K[clearCurrentDraft]
+    H -->|Fill terminator| L[fillTerminationDraft]
+
+    G --> M[handleSubmit]
+    M --> N[buildPendingInjectionPayload]
+    N --> O[POST /api/push_injection_tasks]
+    O --> P[showStatus feedback]
+```
 
 ## Functions
 
-### `setupEventListeners()`
+### Node Selection & List
 
-Initializes page event bindings using an **event delegation** pattern to optimize dynamically generated node list interactions.
+#### `renderNodeList(): void`
+Renders the left-side selectable node list based on `nodeStatuses`. Supports search filtering and an "injectable nodes only" toggle. Node states control interaction disabling of non-injectable nodes via the `disabled-node` class.
 
-- **Search**: `#search-input` real-time filtering.
-- **Validation**: `#json-textarea` real-time format validation.
-- **Toggle**: `.input-toggle` switches input mode.
-- **Selection**: `.button-group` handles select all/clear.
-- **Submit**: `#submit-btn` triggers the injection flow.
+#### `selectNode(nodeName: string): void`
+Switches the currently selected node. Updates `currentNodeName`, redraws the node list highlight and the right-side editor.
 
----
+#### `isInjectableNode(nodeName: string): boolean`
+Determines whether a node is injectable (status is running `status === 1`).
 
-### `renderNodeList(searchTerm)`
-
-Renders the selectable node list based on `nodeStatuses`.
-
-- **Status Filtering**: Nodes display corresponding status badges (Running/Stopped/Not Running).
-- **Interaction Limitation**: Stopped nodes are set to `disabled-node` style and cannot be selected for injection.
+#### `syncInjectionStateWithStatuses(): void`
+Syncs the injection page UI state when node statuses change (e.g., disabling the editor when a node transitions from running to stopped).
 
 ---
 
-### `handleSubmit()`
+### Editor
 
-Executes the task injection submission logic.
+#### `renderCurrentNodeEditor(): void`
+Renders the right-side editor, including the current node name, draft status label (`.node-side-tag` "edited"), JSON textarea, and action button group.
 
-1. **Get Data**: Retrieves textarea content or uploaded file content based on the current `currentInputMethod`.
-2. **Data Validation**: Ensures selected nodes are not empty and data format is valid JSON (must be a list structure).
-3. **Concurrent Injection**: Sends `POST /api/push_injection_tasks` requests separately for each selected node.
-4. **Feedback Display**: Shows injection results on the page (success/failure/partial success).
-
----
-
-### `switchInputMethod(method)`
-
-Switches the UI between the JSON text area and file upload area.
+#### `renderInjectionPage(): void`
+Full refresh of the injection page: calls `renderNodeList()`, `renderCurrentNodeEditor()`, `renderDraftList()`, and `updateSubmitButtonAvailability()`.
 
 ---
 
-### `handleFileUpload(e)`
+### Draft Management
 
-Handles the file selection event, reads `.json` file content and calls `validateJSON()` for pre-validation.
+#### `setDraftForNode(nodeName: string, draftText: string): void`
+Saves text to `nodeDrafts[nodeName]`. If text is empty or unrelated to the current node, deletes the draft entry. After updating, refreshes the draft preview and submit button state.
+
+#### `getJsonTextarea(): HTMLTextAreaElement`
+Gets the JSON editing textarea element reference.
+
+#### `getSearchInput(): HTMLInputElement`
+Gets the node search input element reference.
+
+#### `getInjectableOnlyToggle(): HTMLInputElement`
+Gets the "injectable nodes only" toggle reference.
 
 ---
 
-### `fillTermination()`
+### Validation & Formatting
 
-Helper function: Fills the JSON input box with a standard task termination signal sequence in one click.
+#### `validateCurrentDraft(): void`
+Validates the current draft content in the JSON textarea (calls `parseDraftTaskList()`), rendering the result to the validation message area.
 
-## Data Flow
+#### `formatCurrentDraft(): void`
+Formats the current JSON (`JSON.stringify` + `JSON.parse` re-serialized, 2-space indent) and writes it back to the textarea.
 
-```
-1. Page interaction -> Select nodes + Input data
-2. Click submit -> validateJSON() validation
-3. Backend request -> POST /api/push_injection_tasks
-4. UI feedback -> Display injection success/failure status
-```
+#### `parseDraftTaskList(draftText: string): { ok: boolean; taskList?: unknown[]; reason?: string }`
+Parses draft text into a task list. Returns `ok: false` with a `reason` describing the failure cause.
+
+#### `clearCurrentDraft(): void`
+Clears the current node's draft.
+
+#### `fillTerminationDraft(): void`
+Fills the current textarea with the standard terminator task template (`[{"__celestial_termination__": true}]`).
+
+---
+
+### Preview & Submit
+
+#### `renderDraftList(): void`
+Renders the bottom draft preview area, showing all nodes with existing drafts and their payload previews. Displays corresponding error messages when draft parsing fails.
+
+#### `buildPendingInjectionPayload(): { payload: Record<string, unknown[]>; invalidNode?: string; invalidReason?: string }`
+Builds the pending injection payload. Iterates all `nodeDrafts`, parses them as task lists, and aggregates them into a `{ nodeName: taskList[] }` structure. Returns `invalidNode` and `invalidReason` if any node fails to parse.
+
+#### `updateSubmitButtonAvailability(): void`
+Controls the submit button's `disabled` state based on whether drafts exist.
+
+#### `handleSubmit(): Promise<void>`
+Executes the submit: calls `buildPendingInjectionPayload()` to build the payload, sends it via `POST /api/push_injection_tasks`. During submission, the button shows a spinning indicator (`.spinner`); upon completion, displays the result feedback.
+
+---
+
+### Status & i18n
+
+#### `showStatus(messageKey: string, type: "success" | "error"): void`
+Displays the submission result status message (auto-hides after 3 seconds).
+
+#### `renderStatusMessage(messageKey: string, type: "success" | "error"): string`
+Generates status message HTML with an icon.
+
+#### `setValidationMessage(state: ValidationState, messageKey?: string): void`
+Sets the validation result area's state and text.
+
+#### `clearValidationMessage(): void`
+Clears the validation result area.
+
+#### `setButtonLoading(loading: boolean): void`
+Controls the submit button's loading state (inserts/removes `.spinner` element).
+
+#### `refreshInjectionLocalizedText(): void`
+Refreshes all dynamic text on the injection page when language changes (validation messages, status messages, submit button, etc.).
+
+---
+
+### Cross-Module Interaction
+
+#### `preloadInjectionDraftFromError(nodeName: string, taskData: unknown, jumpToInjectionAfterRetry?: boolean): void`
+Called by the re-injection column in `errors.ts`. Merges task data into the corresponding node's draft (appends, not overwrites). If `jumpToInjectionAfterRetry` is `true`, auto-switches to the injection tab.
+
+---
+
+### Event Bindings
+
+#### `setupEventListeners(): void`
+Initializes all injection page interaction events (module-level auto-execution):
+- **Search box** (`#injection-search`): Real-time node list filtering.
+- **Validate button** (`#btn-validate`): Triggers `validateCurrentDraft()`.
+- **Format button** (`#btn-format`): Triggers `formatCurrentDraft()`.
+- **Clear button** (`#btn-clear-draft`): Triggers `clearCurrentDraft()`.
+- **Terminator button** (`#btn-fill-termination`): Triggers `fillTerminationDraft()`.
+- **Submit button** (`#btn-submit-all`): Triggers `handleSubmit()`.
+- **Node list** (`#injection-node-list`): Event delegation for node item clicks.
+- **Injectable-only toggle** (`#injectable-only-toggle`): Triggers `renderInjectionPage()` and saves config.
 
 ## Usage Example
 
-### Task Injection Data Format and Usage
-
-The following example shows the typical operation flow and data structure of the task injection feature:
-
 ```typescript
-// 1. Simulate selected target nodes (containing only the name field)
-const selectedNodes = [
-    { name: "StageA" },
-    { name: "StageB" },
-];
+// Simulated node draft data
+nodeDrafts["StageA"] = '[{"id": 1, "payload": "data1"}, {"id": 2, "payload": "data2"}]';
+nodeDrafts["StageB"] = '[{"id": 3}]';
 
-// 2. Data format for task injection requests
-// POST /api/push_injection_tasks
-const injectionPayload = {
-    node: "StageA",              // Target node label
-    task_datas: [                // Task data list
-        { id: 101, content: "file_a.csv" },
-        { id: 102, content: "file_b.csv" },
-        { id: 103, content: "file_c.csv" },
-    ],
-    timestamp: "2026-05-24T10:30:00",  // ISO format timestamp
-};
+// Select a node and render the editor
+// selectNode("StageA");  // Auto-calls renderCurrentNodeEditor()
 
-// 3. Manually submit injection via fetch API
-async function injectTasks(node: string, taskDatas: any[]) {
-    const res = await fetch("/api/push_injection_tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            node,
-            task_datas: taskDatas,
-            timestamp: new Date().toISOString(),
-        }),
-    });
-    return res.json();
-}
+// Validate the current draft
+// validateCurrentDraft();  // Result rendered to .validation-message
 
-// 4. Validate JSON data legality
-function validateJSON(str: string): { valid: boolean; data?: any; error?: string } {
-    try {
-        const data = JSON.parse(str);
-        if (!Array.isArray(data)) {
-            return { valid: false, error: "Data must be a JSON array format" };
-        }
-        return { valid: true, data };
-    } catch (e) {
-        return { valid: false, error: "Invalid JSON format" };
-    }
-}
+// Format JSON
+// formatCurrentDraft();
 
-// 5. Use validateJSON to validate input
-const validInput = '[{"id":1}, {"id":2}]';
-const invalidInput = '{invalid json}';
+// Build the submission payload
+// const { payload, invalidNode, invalidReason } = buildPendingInjectionPayload();
+// payload = { StageA: [{id:1,...}, {id:2,...}], StageB: [{id:3}] }
 
-console.log(validateJSON(validInput));
-// { valid: true, data: [{ id: 1 }, { id: 2 }] }
+// Submit drafts
+// await handleSubmit();
 
-console.log(validateJSON(invalidInput));
-// { valid: false, error: "Invalid JSON format" }
+// Pre-fill a draft from the error page (called by errors.ts)
+// preloadInjectionDraftFromError("StageA", { id: 999 }, true);
+// Auto-switches to injection tab and pre-fills task_999 into StageA's draft
+```
 
-// 6. Batch injection to multiple nodes
-async function injectToMultipleNodes(nodes: string[], taskDatas: any[]) {
-    const results = await Promise.allSettled(
-        nodes.map(node => injectTasks(node, taskDatas))
-    );
-    
-    const successCount = results.filter(r => r.status === "fulfilled").length;
-    const failCount = results.filter(r => r.status === "rejected").length;
-    
-    console.log(`Injection complete: ${successCount} succeeded, ${failCount} failed`);
-    return results;
-}
+## Data Flow
 
-// 7. Termination signal injection
-// Fill the input box with termination signal via fillTermination()
-const terminationPayload = ["TERMINATION_SIGNAL"];
-// The backend stops processing tasks for the corresponding node upon receiving this signal
+```mermaid
+flowchart LR
+    subgraph "errors.ts"
+        RE[renderErrors]
+        RETRY["retry-link click"]
+    end
+    subgraph "injection.ts"
+        PIDE[preloadInjectionDraftFromError]
+        ND[nodeDrafts]
+        BPP[buildPendingInjectionPayload]
+        HS[handleSubmit]
+    end
+    subgraph "API"
+        API[POST /api/push_injection_tasks]
+    end
+
+    RETRY -->|stage, task| PIDE
+    PIDE --> ND
+    ND --> BPP
+    BPP --> HS
+    HS --> API
 ```

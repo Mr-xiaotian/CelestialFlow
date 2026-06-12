@@ -1,8 +1,8 @@
 # TaskTypes
 
-> 📅 Last Updated: 2026/05/24
+> 📅 Last Updated: 2026/06/11
 
-The TaskTypes module defines basic data types, enums, and helper classes used in the framework.
+The TaskTypes module defines the basic data types, enums, and helper classes used throughout the framework.
 
 ## StageStatus
 
@@ -17,7 +17,7 @@ class StageStatus(IntEnum):
 
 ## TerminationSignal
 
-A sentinel object used to mark task queue termination. When a Stage receives this signal, it indicates that no more tasks are coming from upstream and it should prepare to stop.
+A sentinel object used to mark the termination of task queues. When a Stage receives this signal, it indicates that no more tasks are coming from upstream and it should prepare to stop.
 
 ```python
 class TerminationSignal:
@@ -41,7 +41,7 @@ class TerminationIdPool:
 
 ## NoOpContext
 
-A no-op context manager, useful for disabling `with` logic (e.g., when no lock is needed).
+An empty context manager, used to disable `with` logic (e.g., when a lock is not needed).
 
 ```python
 class NoOpContext:
@@ -51,7 +51,11 @@ class NoOpContext:
 
 ## ValueWrapper
 
-A counter wrapper for single-thread/single-process use, optionally with a lock.
+A thread-local/single-process counter wrapper, with optional lock.
+
+- **Purpose**: Provides a thread-safe integer counter.
+- **Params**: `value` (`int`, default `0`) — initial value; `lock` (`Lock | None`, default `None`) — optional threading lock. When `None`, `get_lock()` returns a `NoOpContext`.
+- **Key Method**: `get_lock()` — returns the configured `Lock` or a `NoOpContext`.
 
 ```python
 class ValueWrapper:
@@ -65,37 +69,41 @@ class ValueWrapper:
 
 ## SumCounter
 
-Accumulates multiple counters (ValueWrapper) into a total sum.
+A cumulative counter that sums multiple counters (ValueWrapper).
+
+- **Purpose**: Accumulates values from multiple `ValueWrapper` instances for cross-Stage cascading statistics.
+- **Params**: `lock` (`Lock | NoOpContext | None`, default `None`) — optional thread lock. When `None`, uses `NoOpContext`.
 
 ```python
 class SumCounter:
-    def __init__(self, mode: str = "serial"):
+    def __init__(self, lock: Lock | NoOpContext | None = None):
         """
-        :param mode: Execution mode, 'serial' (no lock) or 'thread' (with lock)
+        :param lock: Optional thread lock, default None (uses NoOpContext)
         """
 ```
 
 ### Methods
 
 | Method | Description |
-|--------|-------------|
-| `add_init_value(value)` | Add an initial value |
+|------|------|
+| `add(value)` | Add initial count value |
 | `append_counter(counter)` | Append an external counter |
 | `reset()` | Reset all counters to zero |
-| `value` (property) | Accumulated total of all counters |
+| `get()` | Get the cumulative value of all counters |
+| `value` (property) | Total value accumulating all counters |
 
 ### Usage Example
 
 ```python
 from celestialflow.runtime.util_types import SumCounter, ValueWrapper
 
-counter = SumCounter(mode="thread")
-counter.add_init_value(10)
+counter = SumCounter()
+counter.add(10)
 
 sub_counter = ValueWrapper(value=5)
 counter.append_counter(sub_counter)
 
-print(counter.value)  # 15
+print(counter.get())  # 15
 ```
 
 ## CTreeEvent
@@ -103,9 +111,9 @@ print(counter.value)  # 15
 CelestialTree event name constants, used for task tracking and visualization.
 
 | Constant | Value | Trigger Timing |
-|----------|-------|----------------|
+|------|-----|---------|
 | `TASK_INPUT` | `"task.input"` | Task enters the system |
-| `TASK_SUCCESS` | `"task.success"` | Task execution succeeds |
+| `TASK_SUCCESS` | `"task.success"` | Task executes successfully |
 | `TASK_ERROR` | `"task.error"` | Task execution fails |
 | `TASK_RETRY_PREFIX` | `"task.retry."` | Retry prefix (appended with retry count) |
 | `TASK_DUPLICATE` | `"task.duplicate"` | Duplicate task detected |
@@ -114,43 +122,49 @@ CelestialTree event name constants, used for task tracking and visualization.
 
 ## PersistedErrorRecord
 
-Persisted error record dataclass.
+A persistent error record dataclass.
+
+- **Purpose**: Represents a single error record for persistent storage, used by `FailSpout`.
+- **Fields**:
+  - `ts` (`float | None`) — error timestamp
+  - `stage` (`str`) — label of the Stage where the error occurred
+  - `error_id` (`int | None`) — error event ID
+  - `error_type` (`str`) — error type name
+  - `error_message` (`str`) — error message
 
 ```python
 @dataclass(frozen=True)
 class PersistedErrorRecord:
-    error_type: str          # Error type name
-    error_message: str       # Error message
-    error_repr: str          # Full representation string of the error
-    stage: str               # Node label where the error occurred
-    error_id: int | None     # Error event ID
-    timestamp: str           # Error timestamp string
-    ts: float | None         # Error timestamp
+    ts: float | None = None         # Error timestamp
+    stage: str = ""                  # Stage label where error occurred
+    error_id: int | None = None      # Error event ID
+    error_type: str = ""             # Error type name
+    error_message: str = ""          # Error message
 
     def __str__(self) -> str: ...
     def get_group_key(self) -> tuple[str, str]:
-        """Returns (error_type, error_message) for grouping."""
+        """Return (error_type, error_message) for grouping."""
 ```
 
 ## Usage Examples
 
-The following examples demonstrate typical usage of the dataclasses and utility classes in the `util_types` module.
+The following examples demonstrate typical usage of the various dataclasses and utility classes in the `util_types` module.
 
 ### TerminationSignal and TerminationIdPool
 
 ```python
 from celestialflow.runtime.util_types import TerminationSignal, TERMINATION_SIGNAL, TerminationIdPool
 
-# Create custom termination signal
+# Create a custom termination signal
 signal = TerminationSignal(_id=42, source="my_source")
-print(f"Signal ID: {signal.id}, Source: {signal.source}")
+print(f"Signal ID: {signal.id}, source: {signal.source}")
 
-# Use global singleton
+# Use the global singleton
 print(f"Default termination signal ID: {TERMINATION_SIGNAL.id}")      # -1
-print(f"Default source: {TERMINATION_SIGNAL.source}")                # "input"
-print(f"Is same instance: {TERMINATION_SIGNAL is TerminationSignal()}")  # False (new instance each time)
+print(f"Default source: {TERMINATION_SIGNAL.source}")                 # "input"
+print(f"Same instance?: {TERMINATION_SIGNAL is TerminationSignal()}")  # False (new instance each time)
 
-# Create termination signal ID pool
+# Create a termination signal ID pool
 pool = TerminationIdPool(ids=[1, 2, 3])
 print(f"ID pool: {pool.ids}")  # [1, 2, 3]
 ```
@@ -167,7 +181,7 @@ print(f"STOPPED = {StageStatus.STOPPED.value}")          # 2
 
 # State transitions
 status = StageStatus.NOT_STARTED
-print(f"Initial status: {status.name}")
+print(f"Initial state: {status.name}")
 ```
 
 ### ValueWrapper and SumCounter
@@ -182,7 +196,7 @@ with counter.get_lock():
     counter.value += 5
 print(f"After locked increment: {counter.value}")  # 15
 
-# SumCounter: multi-counter accumulation
+# SumCounter: multi-counter accumulator
 sum_counter = SumCounter(mode="serial")
 sum_counter.add_init_value(100)
 
@@ -203,7 +217,7 @@ print(f"After reset: {sum_counter.value}")  # 0
 ```python
 from celestialflow.runtime.util_types import NoOpContext
 
-# No-op context manager for disabling with logic
+# Empty context manager, used to disable with logic
 ctx = NoOpContext()
 with ctx:
     print("This is a no-op context")
@@ -217,11 +231,11 @@ from celestialflow.runtime.util_types import CTreeEvent
 # Event name constants
 print(f"Task input event: {CTreeEvent.TASK_INPUT}")           # "task.input"
 print(f"Task success event: {CTreeEvent.TASK_SUCCESS}")       # "task.success"
-print(f"Task failure event: {CTreeEvent.TASK_ERROR}")         # "task.error"
+print(f"Task error event: {CTreeEvent.TASK_ERROR}")           # "task.error"
 print(f"Retry prefix: {CTreeEvent.TASK_RETRY_PREFIX}")        # "task.retry."
 print(f"Duplicate task event: {CTreeEvent.TASK_DUPLICATE}")   # "task.duplicate"
-print(f"Termination input event: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
-print(f"Termination merge event: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
+print(f"Termination inject event: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
+print(f"Termination merge event: {CTreeEvent.TERMINATION_MERGE}")   # "termination.merge"
 ```
 
 ### PersistedErrorRecord
@@ -229,36 +243,27 @@ print(f"Termination merge event: {CTreeEvent.TERMINATION_MERGE}")  # "terminatio
 ```python
 from celestialflow.runtime.util_types import PersistedErrorRecord
 
-# Create a persisted error record
+# Create a persistent error record
 record = PersistedErrorRecord(
     error_type="ValueError",
     error_message="Invalid input: negative value",
-    error_repr="ValueError: Invalid input: negative value",
     stage="StageA",
     error_id=123,
-    timestamp="2026-05-24T10:30:00",
     ts=1716546600.0,
 )
 
 print(f"Error type: {record.error_type}")
 print(f"Error message: {record.error_message}")
-print(f"Node: {record.stage}")
+print(f"Stage: {record.stage}")
 print(f"String representation: {record}")
 
-# Get grouping key (for grouping stats by type + message)
+# Get group key (for grouping statistics by type + message)
 group_key = record.get_group_key()
 print(f"Group key: {group_key}")  # ("ValueError", "Invalid input: negative value")
 ```
 
-## STAGE_STYLE
+## Notes
 
-Node label style configuration for CelestialTree visualization.
-
-```python
-from celestialtree import NodeLabelStyle
-
-STAGE_STYLE = NodeLabelStyle(
-    template="{base}  {payload.name}  ‹{type}›",
-    missing="-"
-)
-```
+- Thread safety of `ValueWrapper` and `SumCounter` depends on the caller passing the correct `Lock` object.
+- `NoOpContext` is used in `serial`/`async` modes as a replacement for a real lock, avoiding unnecessary lock overhead.
+- `PersistedErrorRecord` is a frozen dataclass; it is immutable after creation.

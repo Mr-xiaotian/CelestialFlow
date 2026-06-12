@@ -1,44 +1,44 @@
 ﻿# Graph Analysis Utility Tests (test_analysis.py)
 
-> Last Updated: 2026/05/23
+> 📅 Last Updated: 2026/05/23
 
 ## Purpose
-Validates the graph analysis helpers in `celestialflow.graph.util_analysis`, ensuring graph construction, level computation, and source-node lookup behave correctly.
+Verifies the graph analysis utility functions in the `celestialflow.graph.util_analysis` module, ensuring the accuracy of graph construction, level computation, and source node lookup logic.
 
-## Key Test Objects
+## Core Test Objects
 - `build_networkx_graph`: Converts an adjacency list into a NetworkX directed graph.
-- `compute_node_levels`: Computes the logical level of each node in a graph.
-- `find_source_nodes`: Finds the entry nodes, or source nodes, of a graph.
+- `compute_node_levels`: Computes the logical level of each node in the graph.
+- `find_source_nodes`: Finds the entry nodes (source nodes) of the graph.
 
 ## Key Test Flow
-1. **Graph construction tests**: Cover linear graphs, cyclic graphs, and isolated-node cases, verifying edge direction and node/edge counts.
-2. **Level computation tests**:
-   - **DAG**: Verifies increasing levels for linear chains and fan-out structures.
-   - **Cyclic graphs**: Verifies that nodes within the same strongly connected component (SCC) share one logical level.
-   - **Disconnected graphs**: Verifies that each connected component starts independently from level 0.
-3. **Source-node lookup tests**:
-   - **DAG**: Finds nodes whose in-degree is 0.
-   - **Pure cycle**: Treats the SCC as a source and returns one representative node.
-   - **Wheel topology**: Verifies that the center node is recognized as the only source.
+1. **Graph Construction Tests**: Covers linear, cyclic, and isolated-node scenarios, verifying node count, edge count, and direction.
+2. **Level Computation Tests**:
+   - **DAG**: Verifies increasing levels for linear chain and fan-out structures.
+   - **Cyclic Graph**: Verifies that nodes within a strongly connected component (SCC) share the same level.
+   - **Disconnected Graph**: Verifies that each connected component starts independently from Level 0.
+3. **Source Node Lookup Tests**:
+   - **DAG**: Finds nodes with indegree 0.
+   - **Pure Cycle**: Treats the SCC as a whole as the source, returning one representative.
+   - **Wheel Topology**: Verifies that the center node is identified as the sole source.
 
 ## Test Focus
-- **NetworkX integration**: Ensures internal structures are converted correctly.
-- **Level consistency**: Checks robustness of level computation on complex topologies such as cycles with tails.
-- **SCC handling**: Ensures cyclic references do not cause infinite loops or incorrect level layouts.
+- **NetworkX Integration**: Ensures correct internal data structure conversion.
+- **Level Consistency**: Robustness of level computation under complex topologies (e.g., cycle with a tail).
+- **SCC Handling**: Ensures circular references do not cause infinite loops or incorrect level distribution.
 
 ## How to Run
 
 ```bash
-# Run all tests
+# Run all
 pytest tests/graph/test_analysis.py -v
 
-# Run graph construction tests only
+# Graph construction tests only
 pytest tests/graph/test_analysis.py::TestBuildNetworkxGraph -v
 
-# Run level computation tests only
+# Level computation tests only
 pytest tests/graph/test_analysis.py -k "levels" -v
 
-# Run source-node tests only
+# Source node lookup tests only
 pytest tests/graph/test_analysis.py -k "source" -v
 ```
 
@@ -46,14 +46,13 @@ pytest tests/graph/test_analysis.py -k "source" -v
 
 | Test | Duration |
 |------|----------|
-| `TestBuildNetworkxGraph` | < 0.1s (in-memory only) |
+| `TestBuildNetworkxGraph` | < 0.1s (pure in-memory computation) |
 | `TestComputeNodeLevels` | < 0.1s |
 | `TestFindSourceNodes` | < 0.1s |
 
 ## Important Details
-- Lightweight mock objects are used to simulate `Stage` and `Runtime`.
-- All cases are in-memory computations, so execution is very fast.
+- Uses lightweight Mock objects to simulate `Stage` and `Runtime` environments.
+- All test cases are pure in-memory computations with extremely fast execution.
 
 ## Notes
-- The test code lives in `tests/graph/test_analysis.py`, and the implementation lives in `src/celestialflow/graph/util_analysis.py`.
-
+- The test code is located at `tests/graph/test_analysis.py`, and the corresponding implementation is at `src/celestialflow/graph/util_analysis.py`.

@@ -1,69 +1,98 @@
 # main.ts
 
-> 📅 最終更新日: 2026/05/24
+> 📅 最終更新日: 2026/06/11
 
-ダッシュボードのメインエントリポイントスクリプト。グローバル初期化、イベントリスニング、およびコアデータポーリングロジックの調整を担当します。
+ダッシュボードメインエントリスクリプト。グローバル初期化、イベントリスナー、およびコアデータポーリングロジックの調整を担当します。
 
-## 初期化フロー
+> ⚠️ **変更済み**: 旧版ドキュメントで言及されていた `loadSummary()` と `initSortableDashboard()` は削除されました。`refreshAll()` は現在 4 つのリクエスト（statuses、structure、errors、analysis）を並列実行し、summary は `renderSummary()` が直接 `nodeStatuses` に基づいてフロントエンドで集約します。`updateCurrentPageSettings()`、`activateTab()` などの設定パネル管理関数が新たに追加されました。
 
-1. **設定読み込み**: `loadWebConfig()` を呼び出してバックエンドから永続化設定を取得します。
-2. **UI 適用**: `applyConfig()` を呼び出してテーマ、言語、リフレッシュ間隔などの設定を適用します。
-3. **機能有効化**:
-   - `initSortableDashboard()`: ノードカードのドラッグ＆ドロップを有効にします。
-   - `initChart()`: Chart.js 履歴グラフを初期化します。
-   - ⚠️ `initHistoryMetricSwitcher()` は **main.ts では呼び出されません** — `dashboard_history.ts` のモジュールスコープで自動的に実行されます。
-4. **ポーリング開始**: `setInterval` で `refreshAll()` 定期リフレッシュを開始します。
+## グローバル変数
+
+| 変数 | 型 | 説明 |
+|------|------|------|
+| `refreshRate` | `number` | ポーリングリフレッシュ間隔（ミリ秒）、デフォルト `5000` |
+| `refreshIntervalId` | `ReturnType<typeof setInterval> \| null` | ポーリングタイマー ID |
+
+## DOM 要素参照
+
+| 変数 | DOM セレクタ | 説明 |
+|------|-----------|------|
+| `refreshSelect` | `#refresh-interval` | リフレッシュ間隔ドロップダウン |
+| `autoRefreshToggle` | `#auto-refresh-toggle` | 自動リフレッシュスイッチ |
+| `historyLimitSelect` | `#history-limit` | 履歴長ドロップダウン |
+| `settingsBtn` | `#settings-btn` | 設定ギアボタン |
+| `settingsPanel` | `#settings-panel` | 設定フローティングパネル |
+| `themeToggleBtn` | `#theme-toggle` | テーマ切り替えボタン |
+| `languageSelect` | `#language-select` | 言語選択ドロップダウン |
+| `errorPageSizeSelect` | `#error-page-size` | エラーページあたり件数ドロップダウン |
+| `errorJumpToInjectionToggle` | `#error-jump-to-injection-toggle` | エラーページ再注入後ジャンプスイッチ |
+| `structureEdgeDeltaToggle` | `#structure-edge-delta` | 構造図エッジ増分表示スイッチ |
+| `statusTotalPendingToggle` | `#status-total-pending-toggle` | ノード状態カード待機値モードスイッチ |
+| `injectableOnlyToggle` | `#injectable-only-toggle` | 注入ページ「注入可能ノードのみ表示」スイッチ |
+| `tabButtons` | `.tab-btn` | タブボタンリスト |
+| `tabContents` | `.tab-content` | タブコンテンツリスト |
 
 ## コア機能
 
 ### ポーリングリフレッシュ (`refreshAll`)
 
-複数の非同期リクエストを並列に発行し、最新のノード状態、グラフ構造、エラーログ、トポロジ分析、サマリー統計を取得します。
+4 つの非同期リクエストを並列実行：`loadStatuses()`、`loadStructure()`、`loadErrors()`、`loadAnalysis()`。各モジュールが返す変更フラグに基づき、必要に応じて DOM レンダリングをトリガーします。
 
-- **オンデマンドレンダリング**: 対応するデータバージョン番号（`rev`）が変更された場合のみ、DOM 再レンダリングをトリガーします。
-- **状態同期**: `loadStatuses()` が成功すると、自動的に `appendStatusSnapshotToHistory()` を駆動してフロントエンド履歴を累積します。
+```mermaid
+flowchart TD
+    RA[refreshAll] --> LS[loadStatuses]
+    RA --> LST[loadStructure]
+    RA --> LE[loadErrors]
+    RA --> LA[loadAnalysis]
+
+    LS -->|statusesChanged| RD[renderDashboard]
+    LS -->|statusesChanged| PN[populateNodeFilter]
+    LS -->|statusesChanged| RI[renderInjectionPage]
+    LS -->|statusesChanged| UC[updateChartData]
+    LS -->|statusesChanged| RS[renderSummary]
+
+    LST -->|structureChanged| RM[renderMermaidStructure]
+    LS -->|statusesChanged| RM
+
+    LE -->|errorsChanged| RE[renderErrors]
+
+    LA -->|analysisChanged| RAI[renderAnalysisInfo]
+```
 
 ### 設定インタラクション
 
-| 設定項目 | トリガー動作 |
-|-------|----------|
-| **リフレッシュ間隔** | ポーリングタイマーを更新し、`saveWebConfig()` を呼び出します |
-| **履歴長** | 即座に `trimNodeHistories()` を呼び出してローカルシーケンスをトリミングし、グラフを再描画します |
-| **画面言語** | `setLang()` + `applyI18nDOM()` を呼び出し、動的にレンダリングされるすべてのカードを全量リフレッシュします |
-| **構造図増分** | `showStructureEdgeDelta` を切り替え、即座に Mermaid 図を再描画します |
-| **ライト/ダークテーマ** | body クラス名を切り替え、`theme-toggle` のテキストとグラフのテーマカラーを同期的に更新します |
+| 設定項目 | イベント | トリガー動作 |
+|-------|------|----------|
+| **リフレッシュ間隔** | `change` | `refreshRate` を更新、設定保存、タイマー再構築 |
+| **自動リフレッシュ** | `change` | `autoRefreshEnabled` を切り替え、タイマー同期、設定保存 |
+| **履歴長** | `change` | `historyLimit` を更新、履歴トリミングして再描画、設定保存 |
+| **インターフェース言語** | `change` | `setLang()` + `applyI18nDOM()`、全カードとグラフを全量リフレッシュ |
+| **構造図増分** | `change` | `showStructureEdgeDelta` を切り替え、Mermaid 再描画、設定保存 |
+| **ノード待機モード** | `change` | `useTotalPendingInStatus` を切り替え、ノードカード再描画、設定保存 |
+| **注入ページノードフィルター** | `change` | `showInjectableOnly` を切り替え、注入ページリフレッシュ、設定保存 |
+| **エラーページサイズ** | `change` | `pageSize` を更新、エラーリスト再読み込み、設定保存 |
+| **エラー再注入ジャンプ** | `change` | `jumpToInjectionAfterRetry` を切り替え、設定保存 |
+| **明暗テーマ** | `click` | `dark-theme` クラスを切り替え、グラフテーマ色更新、設定保存 |
 
-### UI ヘルパー関数
+### UI 補助関数
 
-#### `toggleDarkTheme()`
-`body` 要素の `dark-theme` クラスを切り替え、切り替え後のブール状態を返します。
+#### `toggleDarkTheme(): boolean`
+`body` 要素上で `dark-theme` クラスを切り替え、切り替え後にダークモードかどうかを返します。
 
-#### `showSettingsSaveStatus(messageKey)`
-設定パネルの下部に時間制限付きのステータス通知（例：「保存成功」）を表示し、国際化キーマッピングをサポートします。成功時は 2 秒、失敗時は 5 秒後に自動的に非表示になります。
+#### `showSettingsSaveStatus(messageKey: string): void`
+設定パネル下部に時間制限付きの状態ヒントを表示します（成功 2 秒、失敗 5 秒後に自動非表示）。
 
-#### `updateSettingsStatusText()`
-言語切り替え後、設定ステータス通知テキストを現在の言語の翻訳に更新します。
+#### `updateSettingsStatusText(): void`
+言語切り替え後に設定状態ヒントのテキストを更新します。
 
-#### `isSettingsPanelOpen()` / `openSettingsPanel()` / `closeSettingsPanel()` / `toggleSettingsPanel()`
-設定パネルの開閉/切り替え管理。以下をサポートします：
-- ギアボタンのクリックで切り替え
-- 閉じるボタンのクリックでフォーカスを戻す
-- 空白領域のクリックで自動的に閉じる
-- `Escape` キー押下で閉じる
+#### `syncAutoRefreshTimer(): void`
+`webConfig.global.autoRefreshEnabled` に基づいてポーリングタイマーを作成またはクリアします。
 
-### フォーカスとアクセシビリティ (a11y)
+#### 設定パネル管理
+`isSettingsPanelOpen()` / `openSettingsPanel()` / `closeSettingsPanel(options?)` / `toggleSettingsPanel()` — 設定パネルの表示/非表示とフォーカス復帰を管理します。
 
-- **設定パネル**: `Escape` キーで素早く閉じることができ、閉じた後にフォーカスが自動的に設定ボタンに戻ります。
-- **状態フィードバック**: 設定保存時に、パネル下部に短時間の「保存成功」または「保存失敗」通知が表示されます（`showSettingsSaveStatus()` によって実装）。
-
-## `toggleDarkTheme()` と `showSettingsSaveStatus()` の所属
-
-| 関数 | 定義場所 | 用途 |
-|------|---------|------|
-| `toggleDarkTheme()` | **main.ts** | テーマ切り替え |
-| `showSettingsSaveStatus()` | **main.ts** | 設定保存状態フィードバック |
-
-> これら 2 つの関数は **`utils.ts` には定義されていません**。
+#### タブ管理
+`getActiveTab(): string` / `activateTab(button): void` / `updateCurrentPageSettings(): void` — 上部タブ切り替えと設定パネル内の「現在のページ専用設定」グループを管理します。
 
 ## データフロー図
 
@@ -71,116 +100,50 @@
 flowchart TD
     A["DOMContentLoaded"] --> B["loadWebConfig()"]
     B --> C["applyConfig()"]
-    C --> D["initSortableDashboard()"]
-    C --> E["initChart()"]
-    C --> F["refreshAll()<br/>(初回)"]
-    F --> G["setInterval(refreshAll, refreshRate)"]
+    C --> D["初回レンダリング（空状態）"]
+    C --> E["イベントバインディング"]
+    D --> F["refreshAll()<br/>(初回)"]
+    E --> G["syncAutoRefreshTimer()"]
+    G --> H["setInterval(refreshAll, refreshRate)"]
 
-    G --> H["refreshAll()"]
-    H --> I["loadStatuses()"]
-    H --> J["loadStructure()"]
-    H --> K["loadErrors()"]
-    H --> L["loadAnalysis()"]
-    H --> M["loadSummary()"]
+    H --> RA["refreshAll()"]
+    RA --> I["loadStatuses()"]
+    RA --> J["loadStructure()"]
+    RA --> K["loadErrors()"]
+    RA --> L["loadAnalysis()"]
 
     I --> N["statusesChanged?"]
-    N --> O["renderDashboard()"]
-    N --> P["renderNodeList()"]
-    N --> Q["updateChartData()"]
+    N -->|true| O["renderDashboard()"]
+    N -->|true| P["renderInjectionPage()"]
+    N -->|true| Q["updateChartData()"]
+    N -->|true| R["renderSummary()"]
 
-    J --> R["structureChanged?"]
-    R --> S["renderMermaidStructure()"]
+    J --> S["structureChanged?"]
+    S -->|true| T["renderMermaidStructure()"]
 
-    K --> T["errorsChanged?"]
-    T --> U["renderErrors()"]
+    K --> U["errorsChanged?"]
+    U -->|true| V["renderErrors()"]
 
-    L --> V["analysisChanged?"]
-    V --> W["renderAnalysisInfo()"]
-
-    M --> X["summaryChanged?"]
-    X --> Y["renderSummary()"]
+    L --> W["analysisChanged?"]
+    W -->|true| X["renderAnalysisInfo()"]
 ```
 
 ## 使用例
 
-### `refreshAll` 手動呼び出しとデータフロー駆動の例
-
-以下はブラウザコンソールで手動でデータリフレッシュをトリガーする方法と、コアとなるデータフロー駆動関係を示します：
-
 ```typescript
-// 1. 手動で完全なデータリフレッシュフローをトリガー
-// ブラウザコンソールで実行：
-refreshAll().then(() => {
-    console.log("全量リフレッシュ完了");
-});
+// 手動で完全リフレッシュをトリガー
+// await refreshAll();
 
-// 2. refreshAll の内部フロー概要（main.ts ソースコードに基づく）：
-// async function refreshAll() {
-//     // 5 種類のデータを並列取得
-//     const [statusesChanged, structureChanged, errorsChanged,
-//            analysisChanged, summaryChanged] = await Promise.all([
-//         loadStatuses(),
-//         loadStructure(),
-//         loadErrors(),
-//         loadAnalysis(),
-//         loadSummary(),
-//     ]);
-//
-//     // 依存関係に基づいてレンダリングを駆動：
-//     // 構造図は 構造データ + 状態データ に依存
-//     // 分析パネルは 分析データ に依存
-//     // 状態カード/ノードリスト/折れ線グラフは 状態データ に依存
-//     // サマリーパネルは サマリーデータ に依存
-//     // エラーテーブルは エラーデータ に依存
-// }
+// ポーリング頻度を変更
+// refreshRate = 2000;
+// syncAutoRefreshTimer();
 
-// 3. 単一データ読み込み関数の手動呼び出し
-async function manualDataFetch() {
-    // 状態データのみ取得
-    const statusChanged = await loadStatuses();
-    if (statusChanged) {
-        renderDashboard();           // 状態カードを更新
-        populateNodeFilter(nodeStatuses); // エラーフィルターを更新
-        renderNodeList();            // 注入ページのノードリストを更新
-        updateChartData();           // 折れ線グラフを更新
-    }
+// テーマ切り替え
+// const isDark = toggleDarkTheme();
+// themeToggleBtn.textContent = isDark ? t("theme.light") : t("theme.dark");
+// updateChartTheme();
+// renderMermaidStructure(nodeStatuses);
 
-    // 構造データのみ取得して再描画
-    const structChanged = await loadStructure();
-    if (structChanged && nodeStatuses) {
-        renderMermaidStructure(nodeStatuses);
-    }
-
-    // エラーデータのみ取得
-    const errChanged = await loadErrors(true);
-    if (errChanged) {
-        renderErrors();
-    }
-}
-
-// 4. ポーリング頻度の変更
-// デフォルトは webConfig.refreshInterval に保存されます
-// ブラウザコンソールで一時的に調整可能：
-// clearInterval(refreshIntervalId);
-// refreshRate = 2000;  // 2 秒に変更
-// refreshIntervalId = setInterval(refreshAll, refreshRate);
-
-// 5. 手動で設定保存をトリガー
-// saveWebConfig().then(success => {
-//     showSettingsSaveStatus(
-//         success ? "settings.saveSuccess" : "settings.saveFailed"
-//     );
-// });
-
-// 6. テーマ切り替え
-function toggleTheme() {
-    const isDark = toggleDarkTheme();
-    webConfig.theme = isDark ? "dark" : "light";
-    themeToggleBtn.textContent = isDark ? t("theme.light") : t("theme.dark");
-    renderMermaidStructure(nodeStatuses);
-    updateChartTheme();
-    saveWebConfig();
-}
-
-// toggleTheme();  // テーマ切り替えを実行
+// タブ切り替え
+// activateTab(document.querySelector('[data-tab="errors"]'));
 ```

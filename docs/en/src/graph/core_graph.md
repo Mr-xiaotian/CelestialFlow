@@ -1,28 +1,29 @@
 # TaskGraph
 
-> 📅 Last Updated: 2026/06/05
+> 📅 Last Updated: 2026/06/11
 
-`TaskGraph` is the core scheduler of CelestialFlow, responsible for managing dependency relationships, execution flow, resource allocation, and lifecycle of a set of `TaskStage` nodes.
+`TaskGraph` is CelestialFlow's core scheduler, responsible for managing a set of `TaskStage` nodes' dependencies, execution flow, resource allocation, and lifecycle.
 
-> Note: `TaskGraph` is a one-shot object. After one `start_graph()` run, the current instance is not guaranteed to be safely reset or started again. Recreate the graph and its stages for another run.
+> Note: `TaskGraph` is a single-use object. After a single `start_graph()` completes, the current instance is not guaranteed to be safely reset and restarted. If you need to re-execute the same workflow, create a new `TaskGraph` and associated `TaskStage` instances.
 
 ## Key Data Structures
 
-`TaskGraph` internally uses `stage_dict: dict[str, TaskStage]` to maintain the Stage mapping of all nodes. Each Stage automatically creates its corresponding `TaskInQueue` and `TaskOutQueue` during initialization, and queues are connected during the `_build_resources()` phase.
+`TaskGraph` internally uses `stage_dict: dict[str, TaskStage]` to maintain a Stage mapping for all nodes. Each Stage automatically creates corresponding `TaskInQueue` and `TaskOutQueue` instances during initialization; queues are connected during the `_build_resources()` phase.
 
 ## Initialization
 
 ```python
 class TaskGraph:
-    def __init__(self, schedule_mode: str = "eager", log_level: str = "INFO"):
+    def __init__(self, name: str, schedule_mode: str = "eager", log_level: str = "INFO"):
         ...
 ```
 
 ### Parameters
 
+- **name**: Task graph name (required)
 - **schedule_mode**: Scheduling mode
-  - `eager` (default): All nodes start concurrently at once; dependencies are controlled automatically through queue flow
-  - `staged`: Layer-by-layer execution (DAG only). Starts layers in level order; the next layer starts only after the previous layer has fully completed
+  - `eager` (default): All nodes launched concurrently at once; dependencies flow automatically through queues
+  - `staged`: Layer-by-layer execution (DAG only). Launches layers sequentially in topological order, starting the next layer only after all nodes in the current layer have completed
 - **log_level**: Log level
 
 ## Graph Construction
@@ -44,8 +45,8 @@ def set_stages(self, stages: list[TaskStage]) -> None:
 ```python
 def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
     """
-    Establish hyperedge connections: each node in from_stages connects to each node in to_stages.
-    Operates on out_edges / in_edges dictionaries; actual queue connections are completed in _build_resources().
+    Establish a hyperedge: every node in from_stages connects to every node in to_stages.
+    Operates on the out_edges / in_edges dictionaries; actual queue connections are made in _build_resources().
     """
 ```
 
@@ -55,7 +56,7 @@ def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> N
 
 ```python
 def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000) -> None:
-    """Configure the reporter to push status to the Web UI."""
+    """Configure the reporter (上报器) for pushing status to Web UI."""
 ```
 
 ### set_ctree
@@ -75,7 +76,7 @@ def set_ctree(self, use_ctree: bool = False, host: str = "127.0.0.1",
 ```python
 def set_graph_mode(self, stage_mode: str, execution_mode: str) -> None:
     """
-    Batch-set the stage_mode and execution_mode for all nodes.
+    Batch-set stage_mode and execution_mode for all nodes.
     Triggers _build_analysis() to rebuild analysis data.
     """
 ```
@@ -89,22 +90,24 @@ def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
                 put_termination_signal: bool = True) -> None:
     """
     Start the task graph. Flow:
-    1. _build_resources() — Build queue connections and counter bindings
-    2. _build_analysis() — Analyze graph structure (source nodes, levels, DAG detection)
+    1. _build_resources() — build queue connections and counter bindings
+    2. _build_analysis() — analyze graph structure (source nodes, levels, DAG detection)
     3. Start spout, inlet, reporter
-    4. put_stage_queue() — Inject initial tasks and termination signals
-    5. _execute_stages() — Execute all nodes
-    6. _finalize_nodes() — Cleanup (ensure threads finish, collect unconsumed tasks)
+    4. put_stage_queue() — inject initial tasks and termination signals
+    5. _execute_stages() — execute all nodes
+    6. _finalize_nodes() — finalize (ensure threads end, collect unconsumed tasks)
     7. Release resources
     """
 ```
 
-Lifecycle note:
-- Runtime queue bindings, predecessor links, and thread references are built for a single run.
-- Reusing the same `TaskGraph` instance after completion is not part of the supported lifecycle.
+Lifecycle constraints:
+
+- `TaskGraph` internally establishes runtime queue connections, predecessor bindings, thread references, and state snapshots during the startup process.
+- These runtime resources are designed to serve a single complete execution and are not guaranteed to be safely cleared and reused after the run ends.
+- If you need to rerun the same topology, it is recommended to re-instantiate the graph object and node objects, rather than calling `start_graph()` again on the same instance.
 
 ```python
-graph = TaskGraph(schedule_mode="eager")
+graph = TaskGraph(name="MyGraph", schedule_mode="eager")
 graph.set_stages(stages=[stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 graph.start_graph({stage_a.get_name(): [1, 2, 3, 4, 5]})
@@ -114,7 +117,7 @@ graph.start_graph({stage_a.get_name(): [1, 2, 3, 4, 5]})
 
 ```python
 def _execute_stages(self) -> None:
-    """eager mode: Start all nodes at once; staged mode: Start layer by layer."""
+    """Eager mode: launch all nodes at once; staged mode: launch layer by layer."""
 ```
 
 ### _execute_stage
@@ -123,8 +126,8 @@ def _execute_stages(self) -> None:
 def _execute_stage(self, stage: TaskStage) -> None:
     """
     Execute a single node:
-    - thread mode: Call stage.start_stage() in a new thread
-    - serial mode: Call stage.start_stage() synchronously in the current thread
+    - thread mode: call stage.start_stage() in a new thread
+    - serial mode: call stage.start_stage() synchronously in the current thread
     """
 ```
 
@@ -137,9 +140,9 @@ def put_stage_queue(self, tasks_dict: Mapping[str, Iterable[Any]],
                     put_termination_signal: bool = True) -> None:
     """
     Dynamically inject tasks into nodes. Supports:
-    - Regular tasks → Automatically wrapped as TaskEnvelope
-    - TerminationSignal objects → Direct termination signal injection
-    - put_termination_signal=True → Automatically inject termination signals to all source nodes
+    - Regular tasks → auto-wrapped as TaskEnvelope
+    - TerminationSignal objects → directly injected as termination signals
+    - put_termination_signal=True → auto-inject termination signals to all source nodes
     """
 ```
 
@@ -150,55 +153,56 @@ def put_stage_queue(self, tasks_dict: Mapping[str, Iterable[Any]],
 ```python
 def collect_runtime_snapshot(self) -> None:
     """
-    Collect runtime snapshots of all nodes and update status_dict.
-    Computes processed / pending / elapsed / remaining for each node and global remaining time.
+    Collect runtime snapshots for all nodes, updating status_dict.
+    Computes per-node processed / pending / elapsed / remaining and global remaining time.
     """
 ```
 
 ### _snapshot_one_stage
 
-Collects a snapshot of a single node, returning a dict with the following fields:
+Collects a snapshot for a single node, returning a dict with the following fields:
 
 | Field | Type | Description |
-|-------|------|-------------|
+|------|------|------|
 | `name` | `str` | Node name |
 | `func_name` | `str` | Function name |
 | `execution_mode` | `str` | Execution mode |
-| `stage_mode` | `str` | Stage mode |
-| `status` | `StageStatus` | Running status |
+| `stage_mode` | `str` | Node mode |
+| `status` | `StageStatus` | Running state |
 | `tasks_input` | `int` | Input task count |
 | `tasks_succeeded` | `int` | Success count |
 | `tasks_failed` | `int` | Failure count |
 | `tasks_duplicated` | `int` | Duplicate count |
 | `tasks_processed` | `int` | Processed count |
 | `tasks_pending` | `int` | Pending count |
+| `total_tasks_pending` | `int` | Global estimated pending count |
 | `elapsed_time` | `float` | Elapsed time |
 | `remaining_time` | `float` | Estimated remaining time |
+| `total_remaining_time` | `float` | Global estimated remaining time |
 | `task_avg_time` | `str` | Average time (formatted) |
 | `start_time` | `float` | Start timestamp |
 
 ## Query Interface
 
 | Method | Return Type | Description |
-|--------|-------------|-------------|
+|------|---------|------|
 | `get_status_snapshot()` | `dict` | Status snapshot with unified timestamp |
-| `get_graph_summary()` | `dict` | Global remaining time summary |
 | `get_graph_analysis()` | `dict` | Graph analysis info (isDAG, scheduleMode, layersDict, className) |
-| `get_structure_json()` | `list[dict]` | JSON-formatted graph structure |
-| `get_structure_list()` | `list[str]` | Bordered formatted tree text |
+| `get_structure_graph()` | `dict` | Graph structure in JSON format (nodes + edges + source_nodes) |
+| `get_structure_list()` | `list[str]` | Formatted tree text with borders |
 | `get_networkx_graph()` | `DiGraph` | networkx directed graph instance |
-| `get_fail_by_stage_dict()` | `dict[str, list]` | Failed tasks grouped by stage |
+| `get_fail_by_stage_dict()` | `dict[str, list]` | Failed tasks grouped by node |
 | `get_fail_by_error_dict()` | `dict[tuple, list]` | Failed tasks grouped by error type (key is `(error_type, error_message)` tuple) |
 | `get_total_error_num()` | `int` | Total error count |
-| `get_fallback_path()` | `str` | Absolute path to failed tasks JSONL file |
+| `get_fallback_path()` | `str` | Absolute path to the failure task JSONL file |
 | `get_source_stages()` | `list[TaskStage]` | List of source nodes |
 | `get_stage_input_trace(stage_name)` | `str` | Node input dependency tree (requires ctree enabled) |
 
-### get_fail_by_error_dict Details
+### get_fail_by_error_dict Description
 
 ```python
 def get_fail_by_error_dict(self) -> dict[tuple[str, ...], list[Any]]:
-    """Returns grouped by (error_type, error_message)."""
+    """Return grouped by (error_type, error_message)."""
 ```
 
 ## Lifecycle Diagram
@@ -215,24 +219,24 @@ flowchart TD
     START --> ANALYSIS[_build_analysis: Graph analysis]
     START -->|Inject initial tasks| PUT[put_stage_queue]
     START --> EXEC[_execute_stages]
-    EXEC -->|eager| ALL[Start all nodes at once]
-    EXEC -->|staged| LAYER[Start layer by layer]
+    EXEC -->|eager| ALL[Launch all nodes at once]
+    EXEC -->|staged| LAYER[Launch layer by layer]
     ALL --> FINALIZE[_finalize_nodes: Collect unconsumed tasks]
     LAYER --> FINALIZE
     FINALIZE --> RELEASE[_release_resources]
     RELEASE --> END[Graph execution complete]
-    
+
     START -->|Monitor| SNAPSHOT[collect_runtime_snapshot]
     SNAPSHOT --> SUMMARY[get_graph_summary]
     SNAPSHOT --> STATUS[get_status_snapshot]
 ```
 
-## Scheduling Modes Explained
+## Scheduling Modes in Detail
 
 ### Eager Mode
 
 ```
-All nodes start stage simultaneously → data flows through queues → stop when termination signal arrives
+All nodes start_stage simultaneously → data flows through queues → stop when termination signal arrives
 ```
 
 - Maximizes parallelism
@@ -245,13 +249,13 @@ All nodes start stage simultaneously → data flows through queues → stop when
 Layer 0: [Node A, Node B] → all join → Layer 1: [Node C, Node D] → ...
 ```
 
-- Layer-by-layer execution, next layer starts only after current layer fully completes
+- Layer-by-layer execution; next layer starts only after current layer fully completes
 - Only applicable to DAGs
-- Suitable for debugging, performance analysis, and resource control
+- Suitable for debugging, performance profiling, resource control
 
 ## Notes for Non-DAG Graphs
 
-For cyclic graphs, if `put_termination_signal=True`, `start_graph` will emit a `RuntimeWarning`. Termination signals may cause some nodes to exit prematurely before receiving upstream data. Recommended approach:
+For cyclic graphs, if `put_termination_signal=True`, `start_graph` will emit a `RuntimeWarning`. Termination signals may cause some nodes to exit prematurely before receiving upstream data; it is recommended to:
 
 ```python
 graph.start_graph({"source": tasks}, put_termination_signal=False)
@@ -260,4 +264,4 @@ graph.start_graph({"source": tasks}, put_termination_signal=False)
 
 ## Unconsumed Task Handling
 
-In `_finalize_nodes()`, all remaining tasks are collected via `in_queue.drain()`, marked as `UnconsumedError`, and persisted to a JSONL file through `fail_inlet`.
+In `_finalize_nodes()`, all remaining tasks are collected via `in_queue.drain()`, marked as `UnconsumedError`, and persisted to a JSONL file via `fail_inlet`.

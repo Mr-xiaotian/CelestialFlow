@@ -1,8 +1,8 @@
 # TaskStructure
 
-> 📅 最終更新日: 2026/05/28
+> 📅 最終更新日: 2026/06/11
 
-TaskStructure モジュールは、ユーザーが複雑なタスクフローを素早く構築できるよう、さまざまな定義済みタスクグラフ構造を提供します。すべての構造は `TaskGraph` を継承しています。
+TaskStructure モジュールは複数の事前定義タスクグラフ構造を提供し、ユーザーが複雑なタスクフローを迅速に構築できるようにします。すべての構造は `TaskGraph` を継承しています。
 
 ## Chain（線形チェーン）
 
@@ -20,28 +20,29 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskChain` は最もシンプルなタスク構造で、複数の `TaskStage` を順番に接続し、線形のデータフローを形成します。
+`TaskChain` は最もシンプルなタスク構造で、複数の `TaskStage` を順序通りに接続し、線形のデータフローを形成します。
 
 ```python
 from celestialflow import TaskChain, TaskStage
 
-# ステージの定義
+# ステージを定義
 stage1 = TaskStage("S1", func=func1)
 stage2 = TaskStage("S2", func=func2)
 stage3 = TaskStage("S3", func=func3)
 
-# チェーンの作成
+# チェーンを作成
 chain = TaskChain(
+    name="DataPipeline",
     stages=[stage1, stage2, stage3],
-    stage_mode="thread",  # thread: ノード並行実行; serial: ノード順次実行
+    stage_mode="thread",  # thread: ノード並行実行; serial: ノード直列実行
     log_level="SUCCESS"
 )
 
-# 開始
+# 起動
 chain.start_chain(init_tasks_dict={stage1.get_name(): [data]})
 ```
 
-## Cross（クロスレイヤー）
+## Cross（クロス層）
 
 ```mermaid
 flowchart LR
@@ -64,17 +65,18 @@ flowchart LR
     class S11,S12,S21,S22 blueNode;
 ```
 
-`TaskCross` はタスクを「レイヤー」で組織します。各レイヤーには並列実行される複数のノードが含まれます。隣接するレイヤー間のノードは全結合の依存関係を持ちます（前のレイヤーの各ノードが次のレイヤーのすべてのノードに接続）。
+`TaskCross` はタスクを「層」で組織化します。各層は複数の並行実行ノードを含みます。隣接層間のノードは全結合依存関係を確立します（上位層の各ノードが下位層の全ノードに接続）。
 
 ```python
 from celestialflow import TaskCross
 
-# レイヤーの定義
+# 層を定義
 layer1 = [stage_1_1, stage_1_2]
 layer2 = [stage_2_1, stage_2_2]
 
-# クロス構造の作成
+# クロス構造を作成
 cross = TaskCross(
+    name="CrossPipeline",
     layers=[layer1, layer2],
     schedule_mode="eager"
 )
@@ -101,19 +103,20 @@ flowchart TD
     class S00,S01,S10,S11 blueNode;
 ```
 
-`TaskGrid` はタスクノードを二次元グリッドに組織します。各ノードは**右側**と**下方**のノードに接続します。
+`TaskGrid` はタスクノードを二次元グリッドに組織化します。各ノードは**右隣**と**下隣**のノードに接続します。
 
 ```python
 from celestialflow import TaskGrid
 
-# グリッドの定義
+# グリッドを定義
 grid_layout = [
     [stage_00, stage_01],
     [stage_10, stage_11]
 ]
 
-# グリッド構造の作成
+# グリッド構造を作成
 grid = TaskGrid(
+    name="GridPipeline",
     grid=grid_layout,
     schedule_mode="eager"
 )
@@ -136,14 +139,15 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskLoop` はノードを首尾接続して閉ループを形成します。循環の特性上、`eager` スケジューリングモードが強制されます。
-注意：ループ構造は通常、外部からの介入による停止、または特定の終了条件の設定が必要です。
+`TaskLoop` はノードを首尾接続して閉ループを形成します。リングの特性上、`eager` スケジュールモードが強制されます。
+注意: リング構造は通常、停止に外部介入を必要とするか、特定の終了条件を設定する必要があります。
 
 ```python
 from celestialflow import TaskLoop
 
-# ループの作成
+# リングを作成
 loop = TaskLoop(
+    name="FeedbackLoop",
     stages=[stage1, stage2, stage3]  # stage3 -> stage1
 )
 ```
@@ -170,13 +174,14 @@ flowchart TD
     class C,R1,R2,R3 blueNode;
 ```
 
-`TaskWheel` は中心ノードとリング構造を含みます。中心ノードはリング上のすべてのノードに接続し、リング上のノードは首尾接続されます。
+`TaskWheel` は 1 つの中心ノードと 1 つのリング構造を含みます。中心ノードはリング上の各ノードに接続し、リング上のノードは首尾接続されます。
 
 ```python
 from celestialflow import TaskWheel
 
-# ホイール構造の作成
+# ホイール構造を作成
 wheel = TaskWheel(
+    name="HubAndSpoke",
     center=center_stage,
     ring=[ring_stage1, ring_stage2, ring_stage3]
 )
@@ -201,27 +206,28 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskComplete` は特殊な構造で、各ノードが自分自身を除くすべてのノードに接続します。
+`TaskComplete` は特殊な構造で、各ノードが自身を除く他のすべてのノードに接続します。
 
 ```python
 from celestialflow import TaskComplete
 
-# 完全グラフの作成
+# 完全グラフを作成
 complete = TaskComplete(
+    name="FullMesh",
     stages=[stage1, stage2, stage3, stage4]
 )
 ```
 
 ## 使用例
 
-以下に、各定義済みグラフ構造の具体的な構築と実行方法を示します。
+以下の例は各事前定義グラフ構造の具体的な構築と実行方法を示します。
 
-### TaskChain 完全な例
+### TaskChain 完全例
 
 ```python
 from celestialflow import TaskChain, TaskStage
 
-# 3つのステージを定義：データクリーニング → 変換 → 集計
+# 3 つのステージを定義: データクレンジング -> 変換 -> 集約
 def clean(data: str) -> str:
     return data.strip()
 
@@ -235,28 +241,28 @@ def aggregate(data: int) -> dict:
 s1 = TaskStage("Clean", func=clean)
 s2 = TaskStage("Transform", func=transform)
 s3 = TaskStage("Aggregate", func=aggregate)
-chain = TaskChain(stages=[s1, s2, s3], stage_mode="thread")
+chain = TaskChain(name="ETL", stages=[s1, s2, s3], stage_mode="thread")
 
-# 開始
+# 起動
 chain.start_chain({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
 
 # 結果を取得
-print(f"チェーンサマリー: {chain.get_graph_summary()}")
+print(f"チェーン状態: {chain.get_status_snapshot()}")
 ```
 
-### TaskCross 完全な例
+### TaskCross 完全例
 
 ```python
 from celestialflow import TaskCross, TaskStage
 
-# レイヤー1：データ準備
+# 第 1 層: データ準備
 def load_a(x: int) -> int:
     return x + 1
 
 def load_b(x: int) -> int:
     return x * 10
 
-# レイヤー2：計算分析
+# 第 2 層: 計算分析
 def analyze_a(x: int) -> float:
     return x * 1.5
 
@@ -266,12 +272,12 @@ def analyze_b(x: int) -> float:
 layer1 = [TaskStage("LoadA", func=load_a), TaskStage("LoadB", func=load_b)]
 layer2 = [TaskStage("AnaA", func=analyze_a), TaskStage("AnaB", func=analyze_b)]
 
-cross = TaskCross(layers=[layer1, layer2])
+cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
 cross.start_cross({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
-print(cross.get_graph_summary())
+print(cross.get_status_snapshot())
 ```
 
-### TaskGrid 完全な例
+### TaskGrid 完全例
 
 ```python
 from celestialflow import TaskGrid, TaskStage
@@ -282,31 +288,31 @@ n01 = TaskStage("Add", func=lambda x: x + 1)
 n10 = TaskStage("Mul", func=lambda x: x * 2)
 n11 = TaskStage("Square", func=lambda x: x * x)
 
-grid = TaskGrid(grid=[[n00, n01], [n10, n11]])
+grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
 grid.start_grid({n00.get_name(): [1, 2, 3]})
-print(grid.get_graph_summary())
+print(grid.get_status_snapshot())
 ```
 
-### TaskLoop 完全な例
+### TaskLoop 完全例
 
 ```python
 from celestialflow import TaskLoop, TaskStage
 
-# 3ノードリング：各ノードが処理して結果を次に渡す
+# 3 ノードリング: 各ノードが処理後に結果を次へ渡す
 loop_stages = [
     TaskStage("Ring1", func=lambda x: x + 1),
     TaskStage("Ring2", func=lambda x: x * 2),
-    TaskStage("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 が閉ループを形成
+    TaskStage("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 で閉ループを形成
 ]
 
-loop = TaskLoop(loop_stages)
+loop = TaskLoop(name="RingLoop", stages=loop_stages)
 loop.start_loop(
     {loop_stages[0].get_name(): [5]},
-    put_termination_signal=False,  # リング構造は手動での終了注入が必要
+    put_termination_signal=False,  # リング構造では手動で終了注入が必要
 )
 ```
 
-### TaskWheel 完全な例
+### TaskWheel 完全例
 
 ```python
 from celestialflow import TaskWheel, TaskStage
@@ -318,12 +324,12 @@ ring_nodes = [
     TaskStage("Channel3", func=lambda x: x["processed"] + 3),
 ]
 
-wheel = TaskWheel(center=center, ring=ring_nodes)
+wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
 wheel.start_wheel({center.get_name(): [42]})
-print(wheel.get_graph_summary())
+print(wheel.get_status_snapshot())
 ```
 
-### TaskComplete 完全な例
+### TaskComplete 完全例
 
 ```python
 from celestialflow import TaskComplete, TaskStage
@@ -334,10 +340,10 @@ nodes = [
     TaskStage("N3", func=lambda x: x // 2),
 ]
 
-complete = TaskComplete(nodes)
+complete = TaskComplete(name="FullConnected", stages=nodes)
 complete.start_complete(
     {nodes[0].get_name(): [10]},
     put_termination_signal=False,
 )
-print(complete.get_graph_summary())
+print(complete.get_status_snapshot())
 ```

@@ -1,15 +1,15 @@
 # TaskWeb
 
-> 📅 Last Updated: 2026/05/23
+> 📅 Last Updated: 2026/06/11
 
 The TaskWeb module provides a lightweight FastAPI-based web server for real-time monitoring and management of task graph execution. It acts as a relay between `TaskReporter` (backend) and the Web UI (frontend).
 
-## Starting the Server
+## Startup Methods
 
-### Command Line
+### CLI Startup
 
 ```bash
-# Default: listen on 0.0.0.0:5000
+# Default listen on 0.0.0.0:5000
 celestialflow-web
 
 # Specify port
@@ -22,15 +22,15 @@ celestialflow-web --host 127.0.0.1 --port 5005
 celestialflow-web --log-level debug
 ```
 
-### Command Line Arguments
+### CLI Parameters
 
-| Argument | Default | Description |
-|----------|---------|-------------|
+| Parameter | Default | Description |
+|-----------|---------|-------------|
 | `--host` | `0.0.0.0` | Listen address |
 | `--port` | `5000` | Listen port |
 | `--log-level` | `info` | Log level (critical/error/warning/info/debug/trace) |
 
-### Starting from Code
+### Programmatic Startup
 
 ```python
 from celestialflow import TaskWebServer
@@ -39,17 +39,17 @@ server = TaskWebServer(host="127.0.0.1", port=5005, log_level="info")
 server.start_server()
 ```
 
-## UI Panels
+## Feature Interface
 
-Visit `http://localhost:5000` (or the specified port) to access the Web UI.
+Visit `http://localhost:5000` (or the specified port) to see the Web UI.
 
 ### Main Panels
 
-| Panel | Functionality |
-|-------|---------------|
-| **Dashboard** | Real-time status overview of the task graph (structure visualization (Mermaid diagram), node count, success/failure/backlog task counts, line charts) |
+| Panel | Function |
+|-------|----------|
+| **Dashboard** | Real-time overview of task graph state (structure visualization (Mermaid diagram), node count, success/failure/backlog task counts, line charts) |
 | **Errors** | Real-time error log list |
-| **Task Injection** | Dynamically inject tasks via the web interface |
+| **Task Injection** | Dynamically inject tasks through the web interface |
 
 ### Theme Support
 
@@ -58,61 +58,65 @@ Visit `http://localhost:5000` (or the specified port) to access the Web UI.
 
 ## API Endpoints (RESTful)
 
-TaskWeb provides a set of RESTful APIs for `TaskReporter` and frontend usage. All endpoints are prefixed with `/api/`. Pull endpoints use the `pull_` naming convention, and push endpoints use the `push_` naming convention.
+TaskWeb provides a series of RESTful APIs for `TaskReporter` calls and frontend use. All endpoints use the `/api/` prefix, with pull endpoints named `pull_*` and push endpoints named `push_*`.
 
 ### Pull Endpoints (GET /api/pull_*)
 
-Used by the Web UI to fetch the latest data. Supports the `known_rev` mechanism: if the server-side data version is unchanged, `data: null` is returned to save bandwidth.
+Used by the Web UI to fetch the latest data. Supports the `known_rev` mechanism: if the server-side data version hasn't changed, returns `data: null` to save bandwidth.
 
 | Endpoint | Return Structure (data field) | Description |
 |----------|-------------------------------|-------------|
-| `pull_config` | `WebConfigModel` | Fetch global configuration such as theme, language, and refresh interval |
-| `pull_structure`| `list[dict]` | Fetch the topological structure of the task graph |
-| `pull_status` | `dict[tag, NodeStatus]` | Fetch real-time runtime metrics and unified timestamps for each node |
-| `pull_errors` | `list[dict]` | Fetch paginated error logs |
-| `pull_analysis` | `dict` | Fetch graph topology analysis results (DAG, levels, etc.) |
-| `pull_summary` | `{"total_remain": float}` | Fetch graph-level total remaining time estimate |
-| `pull_task_injection` | `list[dict]` | For TaskGraph to fetch the pending injection task queue |
+| `pull_config` | `WebConfigModel` | Fetch global configuration such as theme, language, refresh interval |
+| `pull_structure`| `list[dict]` | Fetch the topology structure of the task graph |
+| `pull_status` | `dict[tag, NodeStatus]` | Fetch real-time runtime metrics and unified timestamp for each node |
+| `pull_errors` | `list[dict]` | Paginated pull of error logs |
+| `pull_analysis` | `dict` | Fetch graph topology analysis results (DAG, layers, etc.) |
+| `pull_task_injection` | `dict[str, list[Any]]` | For TaskGraph to pull queued injection tasks (grouped by node name) |
 | `pull_interval` | `{"interval": float}` | Fetch the Reporter push interval |
 
 ### Push Endpoints (POST /api/push_*)
 
-Primarily called by `TaskReporter` to report backend runtime status.
+Primarily called by `TaskReporter` to report backend runtime state.
 
 | Endpoint | Data Model | Description |
 |----------|-----------|-------------|
-| `push_config` | `WebConfigModel` | Called by the frontend to save user settings |
-| `push_status` | `StatusModel` | Report node status snapshot + current timestamp |
-| `push_structure`| `StructureModel` | Report graph structure |
-| `push_analysis` | `AnalysisModel` | Report analysis data |
-| `push_summary` | `SummaryModel` | Report graph-level summary information |
-| `push_errors_meta` | `ErrorsMetaModel` | Push error metadata (supports caching) |
-| `push_errors_content`| `ErrorsContentModel`| Push error content (supports caching) |
+| `push_config` | `WebConfigModel` | Called by frontend, saves user settings |
+| `push_status` | `StatusModel` | Reports node status snapshot + current timestamp |
+| `push_structure`| `StructureModel` | Reports graph structure |
+| `push_analysis` | `AnalysisModel` | Reports analysis data |
+| `push_errors_meta` | `ErrorsMetaModel` | Pushes error metadata (supports caching) |
+| `push_errors_content`| `ErrorsContentModel`| Pushes error content (supports caching) |
 | `push_injection_tasks` | `TaskInjectionModel` | Frontend submits task injection requests |
 
 ## Data Models (Pydantic)
 
+> For complete model definitions, see `util_models.md`. Only core fields are listed here.
+
 ### StructureModel
+
 ```python
 class StructureModel(BaseModel):
-    items: list[dict[str, Any]]
+    structure: dict[str, Any]  # Structure snapshot, typically containing nodes, edges, source_nodes
 ```
 
 ### StatusModel
+
 ```python
 class StatusModel(BaseModel):
-    timestamp: float                 # Unified sampling timestamp
-    status: dict[str, dict[str, Any]] # Key: node tag, Value: NodeStatus
+    timestamp: float                      # Unified sampling timestamp
+    status: dict[str, dict[str, Any]]     # Key is node name, value is node status dictionary
 ```
 
 ### ErrorsMetaModel
+
 ```python
 class ErrorsMetaModel(BaseModel):
     jsonl_path: str  # JSONL file path
-    rev: int         # Version number (used for cache validation)
+    rev: int         # Version number (used for cache judgment)
 ```
 
 ### ErrorsContentModel
+
 ```python
 class ErrorsContentModel(BaseModel):
     errors: list[dict[str, Any]]
@@ -121,51 +125,68 @@ class ErrorsContentModel(BaseModel):
 ```
 
 ### AnalysisModel
+
 ```python
 class AnalysisModel(BaseModel):
     analysis: dict[str, Any]
 ```
 
-### SummaryModel
+### TaskInjectionModel
+
 ```python
-class SummaryModel(BaseModel):
-    summary: dict[str, Any]
+class TaskInjectionModel(RootModel[dict[str, list[Any]]]):
+    """Task injection request model, format: {node_name: [tasklist]}."""
 ```
 
-### TaskInjectionModel
-```python
-class TaskInjectionModel(BaseModel):
-    node: str             # Target node tag
-    task_datas: list[Any] # Task data list
-    timestamp: datetime   # Timestamp
-```
+> Unlike the old single-node format, the current model uses dictionary keys as node names and values as task lists. Request body example:
+> `{"StageA": [task1, task2], "StageB": [task3]}`
 
 ### WebConfigModel
+
+Configuration uses a nested grouping structure, no longer flat.
+
 ```python
-class WebConfigModel(BaseModel):
-    theme: str                        # "light" | "dark"
-    refreshInterval: int              # Polling interval (ms)
-    historyLimit: int                 # Frontend history retention length
-    language: str = "zh-CN"           # Interface language
-    errorPageSize: int = 10           # Error log page size
-    showStructureEdgeDelta: bool = True # Structure diagram edge delta toggle
-    dashboard: DashboardConfigModel   # Dashboard three-column layout definition
+class GlobalConfigModel(BaseModel):
+    theme: str
+    autoRefreshEnabled: bool = True
+    refreshInterval: int
+    language: str = "zh-CN"
 
 class DashboardConfigModel(BaseModel):
-    left: list[str]    # Left column card key list
-    middle: list[str]  # Middle column card key list
-    right: list[str]   # Right column card key list
+    left: list[str]
+    middle: list[str]
+    right: list[str]
+
+class DashboardPageConfigModel(BaseModel):
+    historyLimit: int
+    showStructureEdgeDelta: bool = False
+    useTotalPendingInStatus: bool = False
+    layout: DashboardConfigModel
+
+class ErrorsPageConfigModel(BaseModel):
+    pageSize: int = 10
+    sortOrder: str = "newest"
+    jumpToInjectionAfterRetry: bool = True
+
+class InjectionPageConfigModel(BaseModel):
+    showInjectableOnly: bool = True
+
+class WebConfigModel(BaseModel):
+    global_: GlobalConfigModel = Field(alias="global")
+    dashboard: DashboardPageConfigModel
+    errors: ErrorsPageConfigModel
+    injection: InjectionPageConfigModel = Field(default_factory=InjectionPageConfigModel)
 ```
 
 ## Configuration Management
 
 Web service configuration is persisted in `web/config.json`.
 
-- `load_config()` — Reads at startup and validates via `WebConfigModel`
-- `save_config(config)` — Saves configuration to JSON file, thread-safe (uses `_config_lock`)
-- `cal_interval(refresh_interval)` — Converts millisecond refresh interval to seconds, clamped to `[1.0, 60.0]`
-- **Degraded Startup**: If `config.json` fails to load, the Web service starts with hardcoded defaults, ensuring the monitoring interface is always available.
-- **Sync Mechanism**: When the frontend updates `refreshInterval`, the backend's `report_interval` is automatically synchronized, thereby affecting the `TaskReporter` push frequency.
+- `load_config()` — Read at startup and validated via `WebConfigModel`
+- `save_config(config, config_path)` — Save configuration to a JSON file, thread-safe (guaranteed by `config_lock` in the upper-level `push_config` route)
+- `cal_interval(refresh_interval)` — Convert millisecond refresh interval to seconds, range limited to `[1.0, 60.0]`
+- **Graceful degradation**: If `config.json` fails to load, the Web service starts with hardcoded defaults, ensuring the monitoring interface is always available.
+- **Sync mechanism**: When the frontend updates `refreshInterval`, the backend `report_interval` is automatically synchronized, thus affecting the `TaskReporter` push frequency.
 
 ## Integration with TaskGraph
 
@@ -188,7 +209,6 @@ TaskGraph                    TaskWeb                    Browser
     |--- push_structure ------->|--- Dashboard ----------->|
     |--- push_status ---------->|                          |
     |--- push_analysis -------->|                          |
-    |--- push_summary --------->|                          |
     |                           |                          |
     |--- push_errors_meta ----->|---- Errors ------------->|
     |--- push_errors_content -->|                          |
@@ -204,7 +224,7 @@ TaskGraph                    TaskWeb                    Browser
 
 `push_errors_meta` and `push_errors_content` support caching based on `(jsonl_path, rev)`:
 
-- If both the path and version number are unchanged, returns `{"ok": true, "cached": true}` without re-reading the file
+- If both the path and version number are unchanged, returns `{"ok": true, "cached": true}`, without re-reading the file
 - Otherwise, reloads the data and updates `_errors_meta_path` / `_errors_meta_rev`
 
 ### Graceful Degradation
@@ -220,15 +240,15 @@ When the JSONL file cannot be read, `push_errors_meta` returns a fallback indica
 }
 ```
 
-Upon receiving this response, the client falls back to using `push_errors_content` to transmit error content directly.
+Upon receiving this response, the client uses `push_errors_content` to directly pass error content.
 
 ### Task Injection Concurrency Safety
 
-The `injection_tasks` list is protected by `_task_injection_lock`. Both `push_injection_tasks` (write) and `pull_task_injection` (read with clear) operate within the lock to avoid race conditions.
+The `injection_tasks` list is protected by `_task_injection_lock`. Both `push_injection_tasks` writes and `pull_task_injection` reads (including clearing) operate within the lock, avoiding race conditions.
 
 ## Notes
 
-1. **Port Conflicts**: Ensure the specified port is not already in use.
-2. **Firewall**: Configure firewall rules if remote access is needed.
-3. **HTTPS**: For production environments, it is recommended to add HTTPS via a reverse proxy (e.g., Nginx).
-4. **Authentication**: The current version has no built-in authentication; adding an authentication layer is recommended for production environments.
+1. **Port conflicts**: Ensure the specified port is not already in use.
+2. **Firewall**: If remote access is needed, configure firewall rules.
+3. **HTTPS**: In production, it is recommended to use a reverse proxy (e.g. Nginx) to add HTTPS.
+4. **Authentication**: The current version has no built-in authentication; adding an authentication layer is recommended for production.

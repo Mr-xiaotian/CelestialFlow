@@ -1,24 +1,64 @@
 # web_config.ts
 
-> 📅 最終更新日: 2026/05/28
+> 📅 最終更新日: 2026/06/11
 
-Web フロントエンドの設定の読み込み、正規化、保存、適用を管理します。テーマ、言語、ポーリング頻度、履歴長、ページサイズ、ダッシュボードレイアウトを含みます。
+Web フロントエンドの設定読み込み、正規化、保存、適用を管理します。設定は**グループ構造**（`global`、`dashboard`、`errors`、`injection`）を採用し、旧版フラット形式の自動移行にも対応します。
+
+> ⚠️ **変更済み**: 設定構造が旧版フラット `WebConfig` からグループ形式に再構築されました。`LegacyWebConfig` 互換型、`isGroupedWebConfig()` 検出関数、`normalizeDashboardLayout()` レイアウト正規化関数が新たに追加されました。
 
 ## 型定義
 
-```ts
+### 現在のグループ設定
+
+```typescript
+type WebGlobalConfig = {
+  theme: "light" | "dark";
+  autoRefreshEnabled: boolean;
+  refreshInterval: number;
+  language: Lang;
+};
+
+type WebDashboardConfig = {
+  historyLimit: number;
+  showStructureEdgeDelta: boolean;
+  useTotalPendingInStatus: boolean;
+  layout: DashboardLayout;
+};
+
+type WebErrorsConfig = {
+  pageSize: number;
+  sortOrder: "newest" | "oldest";
+  jumpToInjectionAfterRetry: boolean;
+};
+
+type WebInjectionConfig = {
+  showInjectableOnly: boolean;
+};
+
 type WebConfig = {
-    theme: "light" | "dark";         // UI テーマ
-    refreshInterval: number;          // グローバルポーリングリフレッシュ間隔（ミリ秒）
-    historyLimit: number;             // フロントエンドがローカルで維持する履歴レコード長
-    language: Lang;                   // UI 言語（zh-CN, en, ja）
-    errorPageSize: number;            // エラーログの1ページあたりの表示件数
-    showStructureEdgeDelta: boolean;  // 構造図エッジに成功タスクのデルタを表示するか
-    dashboard: {                      // ダッシュボードレイアウト設定
-        left: string[];
-        middle: string[];
-        right: string[];
-    };
+  global: WebGlobalConfig;
+  dashboard: WebDashboardConfig;
+  errors: WebErrorsConfig;
+  injection: WebInjectionConfig;
+};
+```
+
+### 旧版互換型
+
+```typescript
+type LegacyWebConfig = {
+  theme?: string;
+  autoRefreshEnabled?: boolean;
+  refreshInterval?: number;
+  language?: string;
+  historyLimit?: number;
+  showStructureEdgeDelta?: boolean;
+  useTotalPendingInStatus?: boolean;
+  pageSize?: number;
+  sortOrder?: string;
+  jumpToInjectionAfterRetry?: boolean;
+  showInjectableOnly?: boolean;
+  layout?: DashboardLayout;
 };
 ```
 
@@ -26,165 +66,126 @@ type WebConfig = {
 
 | 変数 | 型 | 説明 |
 |------|------|------|
-| `webConfig` | `WebConfig \| null` | 現在のランタイム設定オブジェクト |
-| `DEFAULT_WEB_CONFIG` | `WebConfig` | デフォルト設定テンプレート。初期化とフォールバックに使用 |
-| `PANEL_SELECTOR_MAP` | `Record<string, string>` | `left` / `middle` / `right` パネルキーを CSS セレクター（`.left-panel`, `.middle-panel`, `.right-panel`）にマッピング |
-| `CARD_TEMPLATES` | `Record<string, string>` | カード ID（mermaid, analysis, status, progress, summary）をキーとする HTML テンプレート文字列 |
-| `CARD_META` | `Record<string, string>` | カード ID を i18n ラベルキー（例: `mermaid` → `card.mermaid.title`）にマッピング |
-| `ALL_CARD_IDS` | `string[]` | `Object.keys(CARD_TEMPLATES)` から自動生成され、レイアウトエディターの正規カード ID リストとして使用 |
+| `webConfig` | `WebConfig` | 現在のランタイム設定オブジェクト、モジュールロード時に `DEFAULT_WEB_CONFIG` で初期化 |
+| `saveConfigPending` | `boolean` | 保存リクエストが進行中かどうか（同時書き込み防止） |
+| `saveConfigPromise` | `Promise<boolean> \| null` | 現在または直近の保存操作の Promise |
+| `PANEL_SELECTOR_MAP` | `Record<string, string>` | パネルキーから CSS セレクタへのマッピング |
+| `CARD_TEMPLATES` | `Record<string, string>` | カード ID から HTML テンプレートへのマッピング（mermaid, analysis, status, progress, summary） |
+| `CARD_META` | `Record<string, string>` | カード ID から i18n ラベルキーへのマッピング |
+| `ALL_CARD_IDS` | `string[]` | `Object.keys(CARD_TEMPLATES)` から自動生成される標準カード ID リスト |
+| `DEFAULT_WEB_CONFIG` | `WebConfig` | デフォルト設定テンプレート、初期化とフォールバックに使用 |
 
 ## 関数
 
-### `loadWebConfig()`
+### `loadWebConfig(): Promise<void>`
 
-`GET /api/pull_config` から非同期で設定を読み込みます。
-
-- **堅牢性**: リクエストが失敗した場合（バックエンドが応答しない、ネットワークエラーなど）、例外をキャッチして自動的に `normalizeWebConfig()` を呼び出し、デフォルト設定で起動します。ページの基本機能を確保します。
+非同期で `GET /api/pull_config` から設定を読み込みます。失敗時は自動的にデフォルト設定にフォールバックします。
 
 ---
 
-### `saveWebConfig()`
+### `saveWebConfig(): Promise<boolean>`
 
-現在の `webConfig` オブジェクトを `/api/push_config` に POST します。バックエンドが `web/config.json` に永続化します。
-
----
-
-### `normalizeWebConfig(rawConfig?)`
-
-バックエンドから返された生の設定（フィールドが欠落している可能性あり）を `DEFAULT_WEB_CONFIG` とマージします。
-
-- `dashboard` 構造の整合性を確保。
-- 深いマージロジックを提供。
+現在の `webConfig` を `POST /api/push_config` で永続化します。**同時実行防止**機構付き：保存が進行中の場合は同じ Promise を再利用します。
 
 ---
 
-### `applyConfig()`
+### `performSaveWebConfig(): Promise<boolean>`
 
-`webConfig` の設定をページに同期します：
+実際の POST リクエストを実行します。`saveConfigPending` フラグを設定し書き込み結果を返します。
 
-1. **言語**: `language` を適用し、ページ上のすべての `data-i18n` 要素を更新。
-2. **テーマ**: `dark-theme` クラスを切り替え。
-3. **パラメータ同期**: リフレッシュレート、履歴長、ページサイズ、デルタトグルを対応する DOM コントロール（Select/Checkbox）に同期。
+---
+
+### `isGroupedWebConfig(config: unknown): boolean`
+
+設定オブジェクトが新しいグループ形式（`global`、`dashboard`、`errors`、`injection` サブオブジェクトを含む）かどうかを検出します。
+
+---
+
+### `normalizeWebConfig(rawConfig?: unknown): WebConfig`
+
+バックエンドから返された生の設定（旧版フラット形式またはフィールド欠落の可能性あり）を `DEFAULT_WEB_CONFIG` とディープマージします。
+
+- 旧版フラット設定（`LegacyWebConfig`）を新しいグループ形式に自動検出・移行します。
+- `dashboard.layout` の完全性を保証します。
+
+---
+
+### `normalizeDashboardLayout(layout?: Partial<DashboardLayout>): DashboardLayout`
+
+ダッシュボードレイアウトが 3 カラムキー（`left`、`middle`、`right`）をすべて含むことを保証し、不足時は空配列で補填します。
+
+---
+
+### `applyConfig(): void`
+
+`webConfig` 内の各設定をページに同期します：
+
+1. **言語**: `global.language` を適用し全ページの `data-i18n` 要素を更新。
+2. **テーマ**: `global.theme` に基づいて `dark-theme` クラスを切り替え。
+3. **パラメータ同期**: リフレッシュレート、履歴長、ページあたり件数、増分スイッチなどを対応する DOM コントロールに同期。
 4. **レイアウト**: `applyDashboardLayout()` を呼び出してカードを再配置。
 
 ---
 
-### `ensureAllCards()`
+### `ensureAllCards(): void`
 
-モジュール読み込み時に即時実行。`CARD_TEMPLATES` を走査してすべてのカード DOM ノードを作成し、`#card-pool` コンテナに注入します。
-
-- 重複を防ぐため、既存の `.{key}-card` クラス要素をチェック
-- モジュールレベルのトップレベル実行（関数内ではない）。後続のスクリプトがレイアウト操作前に要素を ID で見つけられることを保証
+モジュールロード時に即時実行され、`CARD_TEMPLATES` を走査してすべてのカード DOM ノードを作成し `#card-pool` コンテナに注入します。重複作成を避けるため、既存のクラス名要素の有無をチェックします。
 
 ---
 
-### `applyDashboardLayout()`
+### `applyDashboardLayout(): void`
 
-コアレイアウトロジック：DOM 操作（`appendChild`）によってカードを3カラムパネル間で動的に移動します。
-
-- **動的表示/非表示**: 設定に存在するカードのみ `display: block` に設定。
-- **順序制御**: 設定配列の順序に厳密に従ってカードを挿入。
+コアレイアウトロジック：DOM 操作（`appendChild`）でカードを 3 カラムパネル間で動的に移動します。設定配列内の順序に厳密に従います。
 
 ## デフォルト設定リファレンス
 
-```json
-{
-    "theme": "light",
-    "refreshInterval": 5000,
-    "historyLimit": 20,
-    "language": "zh-CN",
-    "errorPageSize": 50,
-    "showStructureEdgeDelta": false,
-    "dashboard": {
-        "left": ["mermaid", "analysis"],
-        "middle": ["status"],
-        "right": ["progress", "summary"]
-    }
-}
+```typescript
+const DEFAULT_WEB_CONFIG: WebConfig = {
+  global: {
+    theme: "light",
+    autoRefreshEnabled: true,
+    refreshInterval: 5000,
+    language: "zh-CN",
+  },
+  dashboard: {
+    historyLimit: 20,
+    showStructureEdgeDelta: false,
+    useTotalPendingInStatus: false,
+    layout: {
+      left: ["mermaid", "analysis"],
+      middle: ["status"],
+      right: ["progress", "summary"],
+    },
+  },
+  errors: {
+    pageSize: 50,
+    sortOrder: "newest",
+    jumpToInjectionAfterRetry: true,
+  },
+  injection: {
+    showInjectableOnly: false,
+  },
+};
 ```
 
 ## 使用例
 
-### 設定オブジェクトの構造と読み取り
-
-以下の例は `WebConfig` オブジェクトの完全な構造と、ブラウザコンソールでの読み取り・変更方法を示します：
-
 ```typescript
-// 1. WebConfig の完全な構造
-// デフォルト設定を参照すると、完全な設定オブジェクトには以下が含まれます：
-const fullConfig: WebConfig = {
-    theme: "light",
-    refreshInterval: 5000,
-    historyLimit: 20,
-    language: "zh-CN",
-    errorPageSize: 50,
-    showStructureEdgeDelta: false,
-    dashboard: {
-        left: ["mermaid", "analysis"],
-        middle: ["status"],
-        right: ["progress", "summary"],
-    },
-};
+// 現在の設定を読み取り
+console.log("テーマ:", webConfig.global.theme);
+console.log("リフレッシュ間隔:", webConfig.global.refreshInterval);
+console.log("履歴長:", webConfig.dashboard.historyLimit);
+console.log("エラー毎ページ:", webConfig.errors.pageSize);
+console.log("注入ページ注入可能のみ表示:", webConfig.injection.showInjectableOnly);
 
-// 2. 現在の設定を読み取る（ブラウザコンソールで）
-// グローバル変数 webConfig が現在のランタイム設定を保持
-console.log("現在の設定:", webConfig);
-console.log("テーマ:", webConfig.theme);                   // "light" | "dark"
-console.log("リフレッシュ間隔:", webConfig.refreshInterval, "ms"); // 5000
-console.log("履歴長:", webConfig.historyLimit);          // 20
-console.log("言語:", webConfig.language);                // "zh-CN"
-console.log("エラー毎頁:", webConfig.errorPageSize);     // 50
-console.log("構造図デルタ:", webConfig.showStructureEdgeDelta); // false
-console.log("ダッシュボードレイアウト:", webConfig.dashboard);
-// { left: [...], middle: [...], right: [...] }
+// 設定を変更して保存
+webConfig.global.theme = "dark";
+webConfig.dashboard.historyLimit = 50;
+applyConfig();  // 即座にページに適用
+const saved = await saveWebConfig();  // バックエンドに永続化
 
-// 3. normalizeWebConfig を使用して設定をマージ
-// バックエンドが一部のフィールドを欠落させて設定を返す場合、デフォルト値で補完：
-const partialConfig = {
-    theme: "dark",
-    refreshInterval: 3000,
-};
-const normalized = normalizeWebConfig(partialConfig);
-console.log("正規化後:", normalized);
-// {
-//   theme: "dark",
-//   refreshInterval: 3000,
-//   historyLimit: 20,           // デフォルト値
-//   language: "zh-CN",          // デフォルト値
-//   errorPageSize: 50,          // デフォルト値
-//   showStructureEdgeDelta: false, // デフォルト値
-//   dashboard: { left: [...], middle: [...], right: [...] } // デフォルトレイアウト
-// }
-
-// 4. 手動で設定を変更して保存
-async function updateConfig() {
-    // 設定の変更
-    webConfig.theme = "dark";
-    webConfig.refreshInterval = 2000;
-    webConfig.language = "en";
-
-    // 設定をページに適用
-    applyConfig();
-
-    // バックエンドに保存
-    const saved = await saveWebConfig();
-    console.log(saved ? "設定を保存しました" : "設定の保存に失敗しました");
-}
-
-// 5. ダッシュボードレイアウトを動的に調整
-function rearrangeDashboard() {
-    // ステータスカードを左カラムに、構造図を中央カラムに移動
-    webConfig.dashboard = {
-        left: ["status"],
-        middle: ["mermaid"],
-        right: ["analysis", "progress", "summary"],
-    };
-    applyDashboardLayout();
-    saveWebConfig();
-}
-
-// 6. 起動時にデフォルト設定をフォールバックとして使用
-// loadWebConfig() が失敗した場合（バックエンドが応答しないなど）、デフォルト設定にフォールバック：
-// webConfig = normalizeWebConfig();
-// これにより、どのような状況でもページが正常にレンダリングされることを保証
+// 旧版フラット設定の自動移行
+const legacy = { theme: "dark", refreshInterval: 3000, historyLimit: 10 };
+const normalized = normalizeWebConfig(legacy);
+// 自動移行結果: { global: { theme: "dark", ... }, dashboard: { historyLimit: 10, ... }, ... }
 ```

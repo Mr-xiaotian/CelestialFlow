@@ -2,16 +2,16 @@
 
 > 📅 Last Updated: 2026/04/22
 
-CelestialFlow integrates a `celestialtree` client for fine-grained full-chain task tracing (Provenance) and event recording.
+CelestialFlow integrates the `celestialtree` client to implement fine-grained full-chain task provenance tracking and event recording.
 
 ## Introduction
 
-CelestialTree is an independent event sourcing system. CelestialFlow uses `CelestialTreeClient` to send key events during a task's lifecycle (input, success, failure, retry, split, route, etc.) to the CelestialTree service.
+CelestialTree is an independent event provenance system. CelestialFlow uses `CelestialTreeClient` to send key events in the task lifecycle (input, success, failure, retry, split, route, etc.) to the CelestialTree service.
 
-This allows users to:
-1. **Track Data Lineage**: Query which original task produced a given result and through which steps.
-2. **Locate Error Root Causes**: Query the upstream source of a failed task.
-3. **Visualize Execution Trees**: Generate call trees of task execution.
+This enables users to:
+1. **Trace data lineage**: Query which original task, through which steps, generated a particular result.
+2. **Locate error root causes**: Query the upstream source of a failed task.
+3. **Visualize execution trees**: Generate the call tree of task execution.
 
 ## Configuration
 
@@ -28,16 +28,16 @@ graph.set_ctree(
 
 ## Event Types
 
-The framework automatically emits the following event types:
+The framework automatically emits the following types of events:
 
 - `task.input`: Task enters a Stage.
 - `task.success`: Task processed successfully.
 - `task.error`: Task processing failed.
-- `task.retry.N`: Task retry number N.
+- `task.retry.N`: Task retry attempt N.
 - `task.split`: Task split.
 - `task.route`: Task routed.
 - `task.duplicate`: Duplicate task detected.
-- `termination.input` / `termination.merge`: Termination signal flow.
+- `termination.input` / `termination.merge`: Termination signal propagation.
 
 ## Provenance Queries
 
@@ -45,7 +45,7 @@ The framework automatically emits the following event types:
 
 ### get_stage_input_trace
 
-Retrieves the provenance tree for all current input tasks of a given Stage (i.e., where each task originated from).
+Get the provenance tree for all current input tasks of a Stage (i.e., where these tasks came from).
 
 ```python
 trace_str = graph.get_stage_input_trace(stage_tag="Stage1")
@@ -54,7 +54,7 @@ print(trace_str)
 
 ### get_error_trace
 
-Retrieves the provenance tree for a specific error ID.
+Get the provenance tree for a specific error ID.
 
 ```python
 trace_str = graph.get_error_trace(error_id=12345)

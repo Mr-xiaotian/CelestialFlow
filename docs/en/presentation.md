@@ -16,35 +16,35 @@
 
 ---
 
-## Slide 2: Project Background and Motivation
+## Slide 2: Project Background & Motivation
 
 ### Why CelestialFlow?
 
-- **Pain points of existing frameworks**: Airflow relies on database scheduling and is heavy to deploy; Prefect leans toward a cloud SaaS model; Ray targets compute-intensive workloads rather than task orchestration
-- **Driven by real-world needs**: Need a task graph engine that can be embedded in Python programs with zero external dependencies
-- **Flexibility requirements**: Support not only DAGs but also cyclic graphs (looping task flows)
-- **High-performance scenarios**: Concurrent orchestration for data collection, ETL pipelines, and batch processing tasks
-- **Built-in observability**: Not an afterthought — the framework natively provides metrics, logging, and event tracing
+- **Pain Points of Existing Frameworks**: Airflow relies on database scheduling and is heavy to deploy; Prefect leans toward cloud SaaS mode; Ray targets computation-intensive tasks rather than task orchestration
+- **Real Demand-Driven**: Need a task graph engine that can be embedded into Python programs with zero external dependencies to run
+- **Flexibility Requirements**: Not only DAG support, but also cyclic graphs (looping task flows)
+- **High-Performance Scenarios**: Concurrent orchestration of data collection, ETL pipelines, and batch processing tasks
+- **Built-in Observability**: Not post-hoc monitoring, but framework-level native metrics, logging, and event provenance
 
 Notes:
-Starting from practical engineering scenarios — we need a task orchestration tool that feels "as natural as writing code" rather than a platform requiring separate deployment and operations.
+Starting from real engineering scenarios — need a task orchestration tool that feels "as natural as writing code", not a platform requiring separate deployment and operations.
 
 ---
 
-## Slide 3: What Is CelestialFlow
+## Slide 3: What is CelestialFlow
 
-### One-Line Definition
+### One-Sentence Definition
 
-> A lightweight, graph-driven task orchestration framework for Python, supporting DAG/cyclic graph topologies, multiple execution modes, Redis-based distribution, event sourcing, and real-time visualization.
+> A lightweight, graph-driven Python task orchestration framework supporting DAG/cyclic graph topologies, multiple execution modes, Redis distributed execution, event provenance, and real-time visualization.
 
 ### Core Features
 
-- **Rich graph topologies**: Six preset structures — Chain / Cross / Grid / Loop / Wheel / Complete
-- **Multi-dimensional execution model**: Stage-level (serial/thread) x Task-level (serial/thread/async) combinations
-- **Redis distribution**: Three-phase distributed task transmission — Transport → Source → Ack
-- **Event sourcing**: CelestialTree integration for full task lifecycle tracking
-- **Web dashboard**: FastAPI + ECharts + Mermaid real-time monitoring
-- **Zero platform dependency**: `pip install celestialflow` — one line to get started
+- **Rich Graph Topologies**: Chain / Cross / Grid / Loop / Wheel / Complete — six preset structures
+- **Multi-Dimensional Execution Model**: Stage-level (serial/thread) × Task-level (serial/thread/async) combinations
+- **Redis Distributed**: Transport → Source → Ack three-stage distributed task transport
+- **Event Provenance**: CelestialTree integration, full task lifecycle traceability
+- **Web Dashboard**: FastAPI + ECharts + Mermaid real-time monitoring
+- **Zero Platform Dependency**: `pip install celestialflow`, run in a single line of code
 
 ---
 
@@ -54,18 +54,18 @@ Starting from practical engineering scenarios — we need a task orchestration t
 
 - **Graph as Program**
   - `TaskGraph` as the execution unit, nodes (`TaskStage`) as processing logic, edges as data flow
-  - Complete separation of orchestration logic from business logic
+  - Orchestration logic completely separated from business logic
 
 - **Envelope Pattern**
-  - `TaskEnvelope` wraps task + hash + event ID + source information
-  - Transparently provides deduplication, tracing, and routing capabilities
+  - `TaskEnvelope` encapsulates task + hash + event ID + source information
+  - Transparently provides deduplication, provenance, and routing capabilities
 
 - **Termination Protocol**
-  - `TerminationSignal` → `TerminationIdPool` — progressive merging
-  - Ensures correct termination for both DAGs and cyclic graphs
+  - `TerminationSignal` → `TerminationIdPool` incremental merging
+  - Ensures correct termination for both DAG and cyclic graphs
 
-- **Metrics as First-Class**
-  - Every Stage has built-in `TaskMetrics` — thread-safe real-time counters
+- **Metrics as First-Class Citizens**
+  - Each Stage has built-in `TaskMetrics`, thread-safe real-time counting
 
 ---
 
@@ -84,24 +84,24 @@ graph TB
         C --> D[init_resources<br/>Create queues/connections]
         D --> E[init_analysis<br/>DAG detection/layering]
         E --> F{schedule_mode}
-        F -->|eager| G[Start all Stages concurrently]
-        F -->|staged| H[Execute layer by layer]
+        F -->|eager| G[Launch all Stages concurrently]
+        F -->|staged| H[Sequential layer-by-layer execution]
         G --> I[TaskDispatch executes tasks]
         H --> I
     end
 
     subgraph Runtime Infrastructure
         I --> J[TaskInQueue / TaskOutQueue]
-        I --> K[TaskMetrics metrics]
+        I --> K[TaskMetrics]
         I --> L[LogInlet / FailInlet]
-        I --> M[CelestialTree events]
+        I --> M[CelestialTree Events]
     end
 
     subgraph Visualization
         N[TaskWebServer] --> O[FastAPI Backend]
-        O --> P[Mermaid graph structure]
-        O --> Q[Chart.js progress curves]
-        O --> R[Real-time status cards]
+        O --> P[Mermaid Graph Structure]
+        O --> Q[Chart.js Progress Curves]
+        O --> R[Real-Time Status Cards]
     end
 
     K --> N
@@ -109,13 +109,13 @@ graph TB
 ```
 
 Notes:
-Top-down flow: User defines graph structure → Framework initializes resources and analysis → Executes according to scheduling mode → Runtime infrastructure provides queues, metrics, logging → Web layer consumes data for visualization.
+Top to bottom: User defines graph structure → Framework initializes resources and analysis → Executes per schedule mode → Runtime infrastructure provides queues, metrics, logging → Web layer consumes data for visualization.
 
 ---
 
 ## Slide 6: Core Component — TaskGraph
 
-### TaskGraph: The Graph Execution Engine
+### TaskGraph: Graph Execution Engine
 
 ```python
 TaskGraph(
@@ -124,16 +124,16 @@ TaskGraph(
 )
 ```
 
-- **Initialization**: After construction, set nodes via `graph.set_stages(stages=[...])` and establish connections via `graph.connect(...)`. Source stages are auto-computed via SCC condensation
-- **Scheduling modes**:
-  - `eager`: All Stages start concurrently; dependency ordering is naturally enforced by queues
-  - `staged`: DAG-only; layer-by-layer execution with synchronous blocking between layers
-- **State management**: `stage_runtime_dict`, `status_dict`, `stage_history` (last 20 snapshots)
-- **Graph analysis**: Builds a directed graph using NetworkX, detects DAG properties, computes topological layers
+- **Initialization**: After construction, set nodes via `graph.set_stages(stages=[...])` and establish connections via `graph.connect(...)`. Source nodes are automatically computed via SCC condensation
+- **Schedule Modes**:
+  - `eager`: All Stages launch concurrently, dependencies naturally guaranteed by queues
+  - `staged`: DAG only, layer-by-layer execution with synchronous blocking between layers
+- **State Management**: `stage_runtime_dict`, `status_dict`, `stage_history` (last 20 snapshots)
+- **Graph Analysis**: Builds directed graph based on NetworkX, detects DAG properties, computes topological layers
 
 ---
 
-## Slide 7: Core Components — TaskStage / TaskExecutor
+## Slide 7: Core Component — TaskStage / TaskExecutor
 
 ### Inheritance Hierarchy
 
@@ -163,32 +163,32 @@ classDiagram
     }
 ```
 
-- **TaskExecutor**: Core task execution — manages retries, deduplication, caching, and concurrency strategies
-- **TaskStage**: Graph node — topological relationships managed by `TaskGraph` (`graph.out_edges` / `graph.in_edges`)
-- **`graph.connect()`** establishes upstream/downstream connections between nodes
-- **`stage_mode`/`name`** are passed as constructor parameters to `TaskStage.__init__()`
+- **TaskExecutor**: Task execution core, manages retry, deduplication, caching, concurrency strategy
+- **TaskStage**: Graph node; topological relationships managed by `TaskGraph` (`graph.out_edges` / `graph.in_edges`)
+- **`graph.connect()`**: Establishes connection relationships between nodes (upstream/downstream dependencies)
+- **`stage_mode`/`name`**: Passed via `TaskStage.__init__()` constructor parameters
 
 ---
 
-## Slide 8: Core Components — Flow Control Nodes
+## Slide 8: Core Component — Flow Control Nodes
 
 ### TaskSplitter & TaskRouter
 
 | Feature | TaskSplitter | TaskRouter |
-|---------|-------------|------------|
+|------|-------------|------------|
 | Semantics | 1 → N (one-to-many split) | 1 → 1 (conditional routing) |
 | Input | Single task | Single task |
-| Output | Each element in the tuple becomes an independent task | `(target_tag, task)` routes to the specified downstream | 
-| Counter | `split_counter` propagates to downstream `task_counter` | `route_counters[tag]` propagates separately |
-| Execution mode | Serial only | Serial only |
-| Retries | None (`max_retries=0`) | None (`max_retries=0`) |
+| Output | Each element in the tuple becomes an independent task | `(target_tag, task)` routed to specified downstream |
+| Counters | `split_counter` propagates to downstream `task_counter` | `route_counters[tag]` propagated separately |
+| Execution Mode | serial only | serial only |
+| Retry | None (`max_retries=0`) | None (`max_retries=0`) |
 
-- **Counter propagation** is a key design element for ensuring `is_tasks_finished()` works correctly
-- Splitter/Router do not support concurrency, ensuring deterministic splitting/routing
+- **Counter propagation** is the key design ensuring `is_tasks_finished()` correctly judges termination
+- Splitter/Router both do not support concurrency, guaranteeing deterministic splitting/routing
 
 ---
 
-## Slide 9: Core Components — Queues and Envelopes
+## Slide 9: Core Component — Queues & Envelopes
 
 ### Data Flow Infrastructure
 
@@ -203,14 +203,14 @@ graph LR
     style Q2 fill:#f9f,stroke:#333
 ```
 
-- **TaskEnvelope**: `task` + `hash`(SHA1) + `id`(CelestialTree event) + `source`(origin)
+- **TaskEnvelope**: `task` + `hash` (SHA1) + `id` (CelestialTree event) + `source` (origin)
 - **TaskInQueue**:
-  - Multi-upstream aggregation, tracks termination signals by `source_tag`
-  - When all upstreams have sent `TerminationSignal`, merges into `TerminationIdPool` and returns
+  - Multi-upstream convergence, tracks termination signals by `source_tag`
+  - After all upstreams send `TerminationSignal`, merges into `TerminationIdPool` and returns
 - **TaskOutQueue**:
   - Broadcast mode `put()` → all downstreams
-  - Targeted mode `put_target(item, tag)` → specific downstream (used by Router)
-- **Termination protocol**: Ensures graceful shutdown of all Stages in both DAGs and cyclic graphs
+  - Targeted mode `put_target(item, tag)` → specified downstream (used by Router)
+- **Termination Protocol**: Ensures graceful exit for all Stages, whether DAG or cyclic graph
 
 ---
 
@@ -220,18 +220,18 @@ graph LR
 
 ```mermaid
 graph TD
-    subgraph Graph-level schedule_mode
-        A[eager: All concurrent]
-        B[staged: Layer-by-layer]
+    subgraph Graph-Level schedule_mode
+        A[eager: all concurrent]
+        B[staged: layer-by-layer]
     end
 
-    subgraph Stage-level stage_mode
-        C[serial: Runs in main thread]
-        D[thread: Independent thread]
+    subgraph Stage-Level stage_mode
+        C[serial: run in main thread]
+        D[thread: independent thread]
     end
 
-    subgraph Task-level execution_mode
-        E[serial: Sequential one-by-one]
+    subgraph Task-Level execution_mode
+        E[serial: sequential one-by-one]
         F[thread: ThreadPoolExecutor]
         H[async: asyncio + Semaphore]
     end
@@ -247,40 +247,40 @@ graph TD
 ```
 
 | Level | Options | Description |
-|-------|---------|-------------|
-| Graph-level `schedule_mode` | `eager` / `staged` | Controls concurrent vs sequential execution between Stages |
-| Stage-level `stage_mode` | `serial` / `thread` | Whether the Stage runs in an independent thread |
+|------|------|------|
+| Graph-level `schedule_mode` | `eager` / `staged` | Controls Stage concurrency vs. sequential |
+| Stage-level `stage_mode` | `serial` / `thread` | Whether Stage runs in an independent thread |
 | Task-level `execution_mode` | `serial` / `thread` | Concurrency strategy for tasks within a Stage |
 
 Notes:
-Note that in TaskGraph mode, task-level `async` is not available (only supported in standalone `TaskExecutor.start()`).
+Note that in TaskGraph mode, task-level `async` is not available (only supported by standalone `TaskExecutor.start()`).
 
 ---
 
-## Slide 11: Metrics and Deduplication System
+## Slide 11: Metrics & Deduplication System
 
-### TaskMetrics — Thread-Safe Real-Time Counters
+### TaskMetrics — Thread-Safe Real-Time Counting
 
-- **Four core counters**:
-  - `task_counter`: Total input tasks (including those added by Splitter/Router)
+- **Four Core Counters**:
+  - `task_counter`: Total input tasks (including Splitter/Router additions)
   - `success_counter`: Successfully processed count
   - `error_counter`: Final failure count (exceeded retry limit)
-  - `duplicate_counter`: Deduplicated count
+  - `duplicate_counter`: Deduplication interception count
 
-- **Termination check**: `is_tasks_finished()` = `total == success + error + duplicate`
+- **Termination Judgment**: `is_tasks_finished()` = `total == success + error + duplicate`
 
-- **Deduplication mechanism**:
+- **Deduplication Mechanism**:
   - `TaskEnvelope.hash` = `SHA1(pickle.dumps(task))`
   - `processed_set` records processed hashes
-  - Zero-cost deduplication — hash is computed once during envelope creation
+  - Zero-cost deduplication — hash computed once during encapsulation
 
-- **SumCounter aggregation**: Supports accurate merging of counters from multiple sources in Splitter/Router scenarios
+- **SumCounter Aggregation**: Supports accurate merging of multi-source counters in Splitter/Router scenarios
 
 ---
 
-## Slide 12: Distributed Capabilities — Redis Integration
+## Slide 12: Distributed Capability — Redis Integration
 
-### Three-Phase Redis Task Transmission
+### Three-Stage Redis Task Transport
 
 ```mermaid
 sequenceDiagram
@@ -291,45 +291,45 @@ sequenceDiagram
     Local->>Redis: TaskRedisTransport<br/>RPUSH task JSON
     Redis->>Remote: TaskRedisSource<br/>BLPOP blocking fetch
     Remote->>Remote: Execute task
-    Remote->>Redis: HSET write result
+    Remote->>Redis: HSET write result back
     Redis->>Local: TaskRedisAck<br/>Poll HGET for result
     Local->>Redis: HDEL delete result
 ```
 
 | Component | Role | Redis Operation | Execution Mode |
-|-----------|------|----------------|----------------|
+|------|------|-----------|---------|
 | `TaskRedisTransport` | Serialize and push tasks | `RPUSH` | thread, worker_limit=4 |
-| `TaskRedisSource` | Blocking task pull | `BLPOP` | serial |
+| `TaskRedisSource` | Blocking task fetch | `BLPOP` | serial |
 | `TaskRedisAck` | Wait for remote results | `HGET` → `HDEL` | serial |
 
-- **JSON serialization**: Task → `{id, task, emit_ts}` JSON string
-- **At-most-once semantics**: Results are deleted immediately after reading
-- **Timeout mechanism**: Both Source/Ack support `timeout` parameter, raising `TimeoutError` on expiry
+- **JSON Serialization**: Task → `{id, task, emit_ts}` JSON string
+- **At-most-once Semantics**: Result deleted immediately after reading
+- **Timeout Mechanism**: Source/Ack both support `timeout` parameter; throws `TimeoutError` on timeout
 
 ---
 
 ## Slide 13: CelestialTree Integration
 
-### Event Sourcing and Task Lineage
+### Event Provenance & Task Lineage
 
-- **CelestialTree**: Hierarchical event tracking system (standalone project `celestialtree>=0.1.2`)
-- **Integration points**:
-  - `TaskExecutor.set_ctree(host, http_port, grpc_port)` enables tracking
-  - `TaskExecutor.set_nullctree()` disables tracking (uses NullClient)
-  - `TaskEnvelope.id` stores the CelestialTree event ID
+- **CelestialTree**: Hierarchical event tracing system (standalone project `celestialtree>=0.1.2`)
+- **Integration Points**:
+  - `TaskExecutor.set_ctree(host, http_port, grpc_port)` enables tracing
+  - `TaskExecutor.set_nullctree()` disables tracing (uses NullClient)
+  - `TaskEnvelope.id` stores CelestialTree event ID
   - `TerminationSignal.id` / `TerminationIdPool.ids` propagates termination events
 
-- **Tracking granularity**:
-  - Each task receives a unique event ID during envelope creation
-  - Splitter splits → child events associated with parent event
-  - Termination signal merging → event ID pool aggregation
-  - Full traceability from input to completion
+- **Tracing Granularity**:
+  - Each task receives a unique event ID upon encapsulation
+  - Splitter split → child events associated with parent event
+  - Termination signal merge → event ID pool aggregation
+  - Full chain traceable from input to completion
 
-- **Design trade-off**: Event tracking is an optional dependency — zero overhead when disabled (NullClient mode)
+- **Design Trade-off**: Event tracing is an optional dependency; zero overhead when disabled (NullClient pattern)
 
 ---
 
-## Slide 14: Persistence and Error Handling
+## Slide 14: Persistence & Error Handling
 
 ### Persistence Module
 
@@ -346,20 +346,20 @@ graph LR
     end
 ```
 
-- **Spout-Inlet pattern**:
-  - Inlet side (thread-safe): Formats records and writes to shared queue
-  - Spout side (daemon thread): Consumes from queue and writes to file
-  - Graceful shutdown via `TerminationSignal`
+- **Spout-Inlet Pattern**:
+  - Inlet side (thread-safe): Formats records, writes to shared queue
+  - Spout side (daemon thread): Consumes from queue, writes to file
+  - Graceful stop via `TerminationSignal`
 
-- **Log levels**: `TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
+- **Log Levels**: `TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 
-- **Error persistence**: JSONL format containing `timestamp`, `stage`, `error_repr`, `task_repr`, and fully serialized `error` and `task`
+- **Error Persistence**: JSONL format, includes `timestamp`, `stage`, `error_repr`, `task_repr`, fully serialized `error` and `task`
 
-- **Error analysis tools**: `load_task_by_stage()`, `load_task_by_error()` — aggregate failed tasks by dimension
+- **Error Analysis Tools**: `load_task_by_stage()`, `load_task_by_error()` aggregates failed tasks by dimension
 
 ---
 
-## Slide 15: Exception Hierarchy
+## Slide 15: Exception System
 
 ### Structured Exception Hierarchy
 
@@ -375,26 +375,26 @@ CelestialFlowError (base class)
 ```
 
 - **InvalidOptionError**: Auto-generates "field=value, allowed=[...]" hint messages
-- **Fast feedback**: Configuration-level errors are raised before graph startup, not at runtime
+- **Fast Feedback**: Configuration-level errors thrown before graph startup, not at runtime
 
 ---
 
 ## Slide 16: Web Visualization System — Architecture
 
-### Technology Stack
+### Tech Stack
 
 | Layer | Technology | Purpose |
-|-------|-----------|---------|
+|----|------|------|
 | Backend | FastAPI + Uvicorn | REST API, default port 5000 |
 | Template | Jinja2 | HTML template rendering |
-| Graph structure | Mermaid.js v10 | Directed graph visualization of task graphs |
-| Time series charts | Chart.js | Node completion progress line charts |
-| Interaction enhancement | Sortable.js | Dashboard card drag-and-drop reordering |
-| Theme | CSS Variables | Dynamic light/dark theme switching |
+| Graph Structure | Mermaid.js v10 | Task graph directed graph visualization |
+| Time Series Charts | Chart.js | Node completion progress line charts |
+| Interaction Enhancement | Sortable.js | Dashboard card drag-and-drop reordering |
+| Theme | CSS Variables | Dark/light theme dynamic switching |
 
-- **CLI entry point**: `celestialflow-web --port 5000`
-- **Frontend modularity**: 9 independent JS modules, each with its own responsibility
-- **Efficient updates**: `JSON.stringify` comparison for change detection — only re-renders changed sections
+- **CLI Entry**: `celestialflow-web --port 5000`
+- **Frontend Modularization**: 9 independent JS modules, each with its own responsibility
+- **Efficient Updates**: `JSON.stringify` comparison detects changes, only renders differences
 
 ---
 
@@ -403,17 +403,17 @@ CelestialFlowError (base class)
 ### Three Core Pages
 
 **1. Dashboard**
-- Three-column layout: Left (Mermaid graph + topology info) | Center (status cards) | Right (progress curves + overall summary)
-- Status cards: Running/Stopped/Not Started badges, success/pending/failed/deduplicated counts, progress bar, time estimation
-- Card drag-and-drop reordering with layout persistence to `config.json`
+- Three-column layout: Left (Mermaid diagram + topology info) | Center (status cards) | Right (progress curves + overall summary)
+- Status cards: Running/Stopped/Not Started badges, success/pending/failure/duplicate counts, progress bar, time estimates
+- Cards support drag-and-drop reordering, layout persisted to `config.json`
 
 **2. Error Logs**
 - Paginated table: error_id / error message / node / task / timestamp
 - Keyword search + node filtering
-- Click on failure count in the dashboard to jump directly with filter applied
+- Clicking failure counts on the dashboard directly navigates and filters
 
 **3. Task Injection**
-- Searchable node list (shows running status; stopped nodes cannot be selected)
+- Searchable node list (annotated with running status; stopped nodes are unselectable)
 - JSON text input or file upload
 - One-click `TerminationSignal` injection
 
@@ -424,45 +424,45 @@ CelestialFlowError (base class)
 ### REST API Design
 
 | Direction | Endpoint | Data |
-|-----------|----------|------|
+|------|------|------|
 | Pull | `/api/pull_config` | Frontend configuration |
 | Pull | `/api/pull_structure` | Graph structure JSON |
-| Pull | `/api/pull_status` | Real-time node status |
+| Pull | `/api/pull_status` | Node real-time status |
 | Pull | `/api/pull_errors` | Error logs (with caching) |
-| Pull | `/api/pull_topology` | DAG/scheduling mode/layer info |
-| Pull | `/api/pull_summary` | Global aggregated statistics |
+| Pull | `/api/pull_topology` | DAG/schedule mode/layer info |
+| Pull | `/api/pull_summary` | Global summary statistics |
 | Pull | `/api/pull_history` | Historical snapshots (progress curve data source) |
 | Push | `/api/push_status` | Update status |
 | Push | `/api/push_structure` | Update graph structure |
-| Push | `/api/push_injection_tasks` | Inject tasks at runtime |
+| Push | `/api/push_injection_tasks` | Runtime task injection |
 | Push | `/api/push_config` | Save frontend configuration |
 
-- **Pydantic validation**: All Push endpoints use strongly typed models
-- **Error caching**: `push_errors_meta` caches file paths and version numbers to avoid re-reading JSONL files
+- **Pydantic Validation**: All Push endpoints use strong-typed models
+- **Error Caching**: `push_errors_meta` caches file paths and version numbers, avoiding repeated JSONL reads
 
 ---
 
-## Slide 19: Performance Design and Optimization
+## Slide 19: Performance Design & Optimization
 
 ### Key Performance Decisions
 
-- **Zero-copy termination detection**
-  - `is_tasks_finished()` = atomic counter comparison — no need to traverse queues or scan state
+- **Zero-Copy Termination Detection**
+  - `is_tasks_finished()` = atomic counter comparison, no need to traverse queues or scan state
 
-- **Hash once, deduplicate forever**
-  - `TaskEnvelope.hash` computes SHA1 once during envelope creation; subsequent deduplication is just a set lookup (O(1))
+- **Hash Once, Deduplicate Forever**
+  - `TaskEnvelope.hash` computed once during encapsulation via SHA1; subsequent deduplication is just set lookup (O(1))
 
-- **Factory-based queue backends**
-  - `make_queue_backend()` automatically selects `ThreadQueue` / `AsyncQueue` based on stage_mode
-  - Serial mode: zero synchronization overhead
+- **Factory-Backed Queue Backend**
+  - `make_queue_backend()` auto-selects `ThreadQueue` / `AsyncQueue` based on stage_mode
+  - Zero synchronization overhead in serial mode
 
-- **Tiered metrics counters**
-  - serial/async: `ValueWrapper` — plain int
+- **Tiered Metric Counters**
+  - serial/async: `ValueWrapper` plain int
   - thread: `ValueWrapper` + `threading.Lock`
   - Selects the lightest synchronization mechanism as needed
 
-- **Frontend incremental rendering**
-  - `JSON.stringify` comparison for change detection — only re-renders changed DOM regions
+- **Frontend Incremental Rendering**
+  - `JSON.stringify` comparison-based change detection, only re-renders changed DOM regions
 
 ---
 
@@ -480,7 +480,7 @@ graph LR
     subgraph TaskLoop
         direction LR
         L1[A] --> L2[B] --> L3[C]
-        L3 -.->|Loop| L1
+        L3 -.->|cycle| L1
     end
 
     subgraph TaskCross
@@ -493,62 +493,62 @@ graph LR
 ```
 
 | Structure | Topology Type | Description |
-|-----------|--------------|-------------|
+|------|---------|------|
 | `TaskChain` | DAG (linear) | Sequential chain A→B→C |
-| `TaskCross` | DAG (fully connected) | Fully connected between layers |
-| `TaskGrid` | DAG (grid) | Right + downward connections |
-| `TaskLoop` | Cyclic | Tail node connects back to head node |
-| `TaskWheel` | Cyclic + Hub | Hub node connected to all ring nodes |
+| `TaskCross` | DAG (fully connected) | Full inter-layer connections |
+| `TaskGrid` | DAG (grid) | Right + down connections |
+| `TaskLoop` | Cyclic | Tail node loops back to head |
+| `TaskWheel` | Cyclic + Hub | Center node connects all ring nodes |
 | `TaskComplete` | Fully connected | All nodes interconnected |
 
-- **Forced DAG**: Chain and Grid can use `schedule_mode="staged"` at construction
-- **Cyclic graphs**: Loop / Wheel / Complete must use `schedule_mode="eager"`
+- **Forced DAG**: Chain and Grid constructions can use `schedule_mode="staged"`
+- **Cyclic Graphs**: Loop / Wheel / Complete must use `schedule_mode="eager"`
 
 ---
 
 ## Slide 21: Comparison with Other Frameworks
 
-### CelestialFlow vs Mainstream Frameworks
+### CelestialFlow vs Major Frameworks
 
 | Feature | CelestialFlow | Airflow | Prefect | Ray |
-|---------|--------------|---------|---------|-----|
-| **Core positioning** | Embeddable task graph engine | Platform-level scheduling system | Cloud-native workflow | Distributed computing framework |
-| **Installation complexity** | `pip install` and go | Requires database + scheduler | Requires Server/Cloud | Requires Ray Cluster |
-| **Graph types** | DAG + cyclic graphs | DAG only | DAG only | Unrestricted (Actor model) |
-| **Cyclic task support** | Native support (Loop/Wheel) | Not supported | Not supported | Manual implementation |
-| **Execution modes** | serial/thread/async | Celery/K8s/Local | Dask/K8s | Ray Worker |
-| **Process-level isolation** | None (thread-level isolation) | Executor-level | Dispatch-level | Default isolation |
-| **Real-time visualization** | Built-in Web UI | Built-in Web UI | Built-in Cloud UI | Ray Dashboard |
-| **Event sourcing** | CelestialTree integration | No native support | No native support | No native support |
-| **Task deduplication** | Built-in SHA1 hash deduplication | No native support | No native support | No native support |
-| **Learning curve** | Low (pure Python API) | Medium-High | Medium | Medium-High |
-| **Deployment model** | Library / CLI | Standalone platform | Standalone platform/SaaS | Standalone cluster |
+|------|--------------|---------|---------|-----|
+| **Core Positioning** | Embedded task graph engine | Platform-level scheduling system | Cloud-native workflow | Distributed computing framework |
+| **Installation Complexity** | `pip install` ready | Requires database + scheduler | Requires Server/Cloud | Requires Ray Cluster |
+| **Graph Types** | DAG + cyclic graphs | DAG only | DAG only | Unrestricted (Actor model) |
+| **Cyclic Task Support** | Native support (Loop/Wheel) | Not supported | Not supported | Manual implementation |
+| **Execution Modes** | serial/thread/async | Celery/K8s/Local | Dask/K8s | Ray Worker |
+| **Process-Level Isolation** | None (thread-level) | Executor-level | Dispatch-level | Default isolation |
+| **Real-Time Visualization** | Built-in Web UI | Built-in Web UI | Built-in Cloud UI | Ray Dashboard |
+| **Event Provenance** | CelestialTree integration | No native support | No native support | No native support |
+| **Task Deduplication** | Built-in SHA1 hash dedup | No native support | No native support | No native support |
+| **Learning Curve** | Low (pure Python API) | Medium-High | Medium | Medium-High |
+| **Deployment Form** | Library / CLI | Standalone platform | Standalone platform/SaaS | Standalone cluster |
 
 ---
 
 ## Slide 22: Use Cases
 
-### Scenarios Well-Suited for CelestialFlow
+### Scenarios Suitable for CelestialFlow
 
 - **Data Collection Pipeline**
-  - Multi-stage crawler: URL discovery → Page download → Content extraction → Data ingestion
-  - Built-in deduplication prevents duplicate requests
+  - Multi-stage crawler: URL discovery → Page download → Content extraction → Data storage
+  - Natural deduplication avoids duplicate requests
 
 - **ETL / Data Processing**
-  - Splitter splits large batches → Multiple workers process concurrently → Router distributes results
-  - JSONL failure logs → Precise retries
+  - Splitter splits large batches → Multi-Worker concurrent processing → Router distributes results
+  - JSONL failure logs → precise retry
 
 - **Batch API Calls**
-  - `thread` mode for high-concurrency external API calls
-  - Built-in retries + error caching
+  - `thread` mode high-concurrency external API calls
+  - Built-in retry + error caching
 
-- **Lightweight Real-Time Stream Processing**
-  - Loop structure for continuous pull → process → write-back
-  - Redis distribution for horizontal scaling
+- **Lightweight Stream Processing**
+  - Loop structure for continuous fetch → process → write-back
+  - Redis distributed horizontal scaling
 
 - **Machine Learning Pipeline**
   - Data preprocessing → Feature engineering → Model training → Evaluation
-  - Thread mode for concurrent data pipeline processing
+  - thread mode concurrent data pipeline processing
 
 ---
 
@@ -566,7 +566,7 @@ graph LR
     E -->|data| F
 ```
 
-**Execution configuration example**:
+**Execution Configuration Example**:
 ```python
 from celestialflow import TaskStage, TaskRouter, TaskGraph
 
@@ -597,7 +597,7 @@ graph.start_graph({"discover": [seed_urls]})
 graph LR
     subgraph Local Graph
         A[Preprocessing Stage] --> B[RedisTransport<br/>RPUSH]
-        E[RedisAck<br/>HGET] --> F[Post-processing Stage]
+        E[RedisAck<br/>HGET] --> F[Postprocessing Stage]
     end
 
     subgraph Redis
@@ -608,15 +608,15 @@ graph LR
 
     subgraph Remote Worker
         C -->|BLPOP| G[RedisSource]
-        G --> H[Execute task]
+        G --> H[Execute Task]
         H -->|HSET| D
     end
 ```
 
-- The local Graph pushes tasks to a Redis List via `TaskRedisTransport`
-- The remote Worker pulls tasks via blocking `TaskRedisSource`
-- Results are written back to a Redis Hash; the local `TaskRedisAck` polls for retrieval
-- **Horizontal scaling**: Simply start multiple Worker instances for parallel consumption
+- Local Graph pushes tasks to Redis List via `TaskRedisTransport`
+- Remote Worker blocks and pulls tasks via `TaskRedisSource`
+- Results written back to Redis Hash; local `TaskRedisAck` polls to retrieve
+- **Horizontal Scaling**: Start multiple Worker instances for parallel consumption
 
 ---
 
@@ -625,52 +625,52 @@ graph LR
 ### Key Design Decisions
 
 | Decision | Choice | Trade-off |
-|----------|--------|-----------|
-| Cyclic graph support | Signal merging protocol | Increased termination logic complexity in exchange for topological flexibility |
-| execution_mode within Graph | Serial/thread only | Keeps a simple and reliable thread model |
-| Logging architecture | Queue + Spout thread | Extra daemon thread in exchange for multi-process safe writes |
-| Deduplication strategy | SHA1(pickle) | Pickle instability risk in exchange for universal object hashing |
+|------|------|------|
+| Cyclic graph support | Signal merge protocol | Increased termination logic complexity in exchange for topological flexibility |
+| execution_mode within Graph | serial/thread only | Keeps thread model simple and reliable |
+| Logging architecture | Queue + Spout thread | Adds one daemon thread in exchange for thread-safe writes |
+| Deduplication strategy | SHA1(pickle) | Pickle instability risk in exchange for universal object hashing ability |
 | Redis result retrieval | Polling HGET (0.1s) | Simple and reliable, but not real-time push |
 | Web change detection | JSON.stringify comparison | O(n) string comparison cost in exchange for implementation simplicity |
-| CelestialTree integration | Optional dependency + NullClient | Zero overhead when not tracking, but requires additional configuration |
+| CelestialTree integration | Optional dependency + NullClient | Zero overhead when not tracing, but requires extra configuration |
 
 Notes:
-Every design decision involves trade-offs. CelestialFlow prioritizes "simplicity + reliability + zero deployment dependencies," balancing complexity and functionality.
+Every design decision has trade-offs. CelestialFlow prioritizes "simple + reliable + zero deployment dependencies", balancing complexity and functionality.
 
 ---
 
 ## Slide 26: Extensibility Design
 
-### Modular Decoupling Philosophy
+### Module Decoupling Philosophy
 
 - **Stage as Plugin**
   - Implement a `func` → wrap as `TaskStage` → plug into any graph
-  - Built-in Splitter / Router / Redis series are all specializations of Stage
+  - Built-in Splitter / Router / Redis series are all Stage specializations
 
-- **Replaceable Queue Backends**
-  - `make_queue_backend(mode)` factory method with unified interface
-  - ThreadQueue / AsyncQueue — switch as needed
+- **Queue Backend Replaceable**
+  - `make_queue_backend(mode)` factory method for unified interface
+  - ThreadQueue / AsyncQueue switchable on demand
 
-- **Extensible Metrics Backends**
-  - `ValueWrapper` adapted by execution mode
-  - `SumCounter` transparently aggregates counters from multiple sources
+- **Metric Backend Extensible**
+  - `ValueWrapper` adapts per execution mode
+  - `SumCounter` transparently aggregates multi-source counters
 
-- **Customizable Persistence**
-  - Spout-Inlet pattern — just implement `_handle_record()` to customize the output target
+- **Persistence Customizable**
+  - Spout-Inlet pattern; just implement `_handle_record()` to customize output target
 
-- **Configurable Web Frontend**
-  - `config.json` controls layout, theme, and refresh interval
+- **Web Frontend Configurable**
+  - `config.json` controls layout, theme, refresh interval
   - Dashboard cards support drag-and-drop reordering
 
 ---
 
-## Slide 27: Future Roadmap
+## Slide 27: Roadmap
 
 ### Evolution Directions
 
 - **Scheduling Enhancements**
   - Priority-based task scheduling
-  - Dynamic resource-aware (CPU/memory) automatic worker_limit adjustment
+  - Dynamic resource awareness (CPU/memory) auto-adjusting worker_limit
 
 - **Distributed Enhancements**
   - Kafka / RabbitMQ as optional transport backends
@@ -682,8 +682,8 @@ Every design decision involves trade-offs. CelestialFlow prioritizes "simplicity
   - Alert rule configuration
 
 - **Developer Experience**
-  - Decorator syntax for defining Stages (`@stage(mode="thread")`)
-  - Graph visual editor (Web IDE)
+  - Decorator syntax for Stage definition (`@stage(mode="thread")`)
+  - Graph visualization editor (Web IDE)
   - Richer built-in Stage templates
 
 - **Ecosystem**
@@ -694,18 +694,18 @@ Every design decision involves trade-offs. CelestialFlow prioritizes "simplicity
 
 ## Slide 28: Summary
 
-### CelestialFlow — Core Value Proposition
+### CelestialFlow — Core Values
 
-- **Lightweight embedding**: `pip install` and go — no external service dependencies, embeds into any Python project
-- **Topological flexibility**: DAG + cyclic graphs, six preset structures, custom arbitrary topologies
-- **Rich execution model**: Three-layer dimensional combinations (Graph × Stage × Task), adapts to any concurrency scenario
-- **Distribution ready**: Redis three-phase transmission, horizontal scaling without code changes
-- **Full-chain tracing**: CelestialTree event sourcing + JSONL error persistence
-- **Built-in visualization**: Mermaid graph structure + Chart.js progress curves + real-time status panels
+- **Lightweight Embedding**: `pip install` ready, no external service dependencies, embed in any Python project
+- **Topological Flexibility**: DAG + cyclic graphs, six preset structures, custom arbitrary topologies
+- **Rich Execution Models**: Three-layer dimension combinations (Graph × Stage × Task), adapting to any concurrency scenario
+- **Distributed Ready**: Redis three-stage transport, horizontal scaling without code changes
+- **Full-Chain Tracing**: CelestialTree event provenance + JSONL error persistence
+- **Built-in Visualization**: Mermaid graph structure + Chart.js progress curves + real-time status panels
 
-### In One Line
+### One Sentence
 
-> **Orchestrate arbitrarily complex task flows the way you write Python.**
+> **Orchestrate arbitrarily complex task flows, the Python way.**
 
 ---
 
@@ -717,7 +717,7 @@ Every design decision involves trade-offs. CelestialFlow prioritizes "simplicity
 
 - Version: 3.1.4
 - Python: 3.10+
-- Install: `pip install celestialflow`
+- Dependency: `pip install celestialflow`
 - Web: `celestialflow-web`
 
 ---

@@ -1,8 +1,8 @@
 # エラー永続化 (Fail Persistence)
 
-> 📅 最終更新日: 2026/05/28
+> 📅 最終更新日: 2026/06/11
 
-`celestialflow.persistence` モジュールは堅牢なエラー収集と永続化メカニズムを提供し、マルチプロセス並行タスク実行時にすべての例外情報が安全かつ秩序正しく記録されることを保証します。後続の分析やリトライに使用できます。
+`celestialflow.persistence` モジュールは、マルチスレッド並行タスク実行時にすべての例外情報を安全かつ整然と記録し、後続の分析やリトライに利用できる堅牢なエラー収集・永続化メカニズムを提供します。
 
 コアコンポーネントは `FailSpout` と `FailInlet` です。
 
@@ -20,29 +20,22 @@ flowchart LR
     Queue -->|デーモンスレッドポーリング| Spout[FailSpout._handle_record]
     Spout -->|json.dumps + 書き込み| JSONL[fallback/*.jsonl]
     Spout -->|error_id が存在| Counter[total_error_num += 1]
-    JSONL --> Read[get_error_pairs
-永続化レコードを読み込み]
-
-    style Producer fill:#e1f5fe
-    style Queue fill:#fff3e0
-    style Spout fill:#e8f5e9
-    style JSONL fill:#f3e5f5
-    style Read fill:#c8e6c9
+    JSONL --> Read[get_error_pairs<br/>永続化済みレコードを読み込み]
 ```
 
-システムはエラーログの処理に**プロデューサー・コンシューマー**パターンを採用しています：
+システムは **プロデューサー・コンシューマー** パターンを採用してエラーログを処理します：
 
 1.  **FailInlet（プロデューサー）**:
     -   各 Worker スレッドが保持。
-    -   エラー情報とタスクメタデータを辞書にパッケージング。
-    -   パッケージングされたデータをスレッドセーフなキュー（`queue.Queue`）に投入。
+    -   エラー情報、タスクメタデータを辞書にカプセル化。
+    -   カプセル化したデータをスレッドセーフなキュー（`queue.Queue`）に投入。
 
 2.  **FailSpout（コンシューマー）**:
     -   独立したデーモンスレッドで実行。
-    -   キューを継続的に監視し、新しいエラーレコードが到着すると即座にローカルファイルに書き込む。
-    -   ファイル形式は JSONL（JSON Lines）で、ストリーミング読み取りと処理に便利。
+    -   キューを継続的に監視し、新しいエラーレコードがあれば即座にローカルファイルに書き込み。
+    -   ファイル形式は JSONL（JSON Lines）で、ストリーミング読み取りと処理が容易。
 
-この設計により、複数スレッドがファイル書き込みロックを競合することを回避し、高パフォーマンスとデータ整合性を保証します。
+この設計により、マルチスレッドがファイル書き込みロックを直接競合する問題を回避し、高パフォーマンスとデータ整合性を保証します。
 
 ## FailSpout
 
@@ -55,8 +48,9 @@ listener = FailSpout(error_source="graph_errors")
 listener.start()
 ```
 
--   `error_source`: エラーソース識別子。ファイル名の一部として使用。
--   起動後、`./fallback/{date}/` ディレクトリに `{error_source}({time}).jsonl` という名前のファイルが作成されます。
+-   `error_source`: エラーソース識別子。ファイル名の一部として使用されます。
+-   起動後、`./fallback/{date}/` ディレクトリに `{error_source}({time}).jsonl` という名前のファイルを作成します。
+-   バッチフラッシュ閾値：1 レコードごとに flush（`_flush_every = 1`）。
 
 ### ライフサイクル
 
@@ -71,7 +65,7 @@ stateDiagram-v2
 
 ### ファイルパス
 
-エラーログはデフォルトで `./fallback/` ディレクトリに日付別にアーカイブされて保存されます：
+エラーログはデフォルトで `./fallback/` ディレクトリに日付別にアーカイブされます：
 
 ```text
 ./fallback/
@@ -79,17 +73,24 @@ stateDiagram-v2
     └── graph_errors(14-30-05-123).jsonl
 ```
 
-### リスナーの停止
+### リスナー停止
 
 ```python
 listener.stop()
 ```
 
-キューに終了シグナルを送信し、バックグラウンドスレッドが残りのデータの処理を完了するのを待ってから安全に終了します。
+終了シグナルをキューに送信し、バックグラウンドスレッドが残存データを処理した後、安全に終了します。
 
 ### エラーカウンター
 
-`FailSpout` は `total_error_num` カウンターを維持し、`error_id` を持つレコードが書き込まれるたびに自動的にインクリメントします。
+`FailSpout` は `total_error_num` カウンターを保持し、`error_id` を持つレコードが書き込まれるたびに自動インクリメントされます。
+
+### 永続化済みレコードの読み取り
+
+```python
+error_pairs = listener.get_error_pairs()
+# list[tuple[Any, PersistedErrorRecord]] を返す
+```
 
 ## FailInlet
 
@@ -97,7 +98,7 @@ listener.stop()
 
 ### タスクエラーの記録
 
-タスクが失敗しリトライできない場合、`TaskExecutor` は `task_error` メソッドを呼び出してエラーを記録します：
+タスク実行が失敗しリトライ不可能な場合、`TaskExecutor` が `task_error` メソッドを呼び出してエラーを記録します：
 
 ```python
 sinker.task_error(
@@ -111,17 +112,16 @@ sinker.task_error(
 記録される JSONL 行には以下のフィールドが含まれます：
 
 | フィールド | 型 | 説明 |
-|-----------|------|------|
-| `timestamp` | `str` | エラー発生時刻（ISO 形式） |
-| `ts` | `float` | エラー発生時刻（Unix タイムスタンプ） |
+|------|------|------|
+| `timestamp` | `str` | エラー発生日時（ISO 形式） |
+| `ts` | `float` | エラー発生日時（Unix タイムスタンプ） |
 | `stage` | `str` | エラーが発生したステージ名 |
 | `error_id` | `int` | エラーの一意識別子 |
-| `error_type` | `str` | 例外タイプ名（例: `ValueError`） |
+| `error_type` | `str` | 例外型名（例：`ValueError`） |
 | `error_message` | `str` | 例外メッセージテキスト |
-| `error` | `str` | 完全なエラー表現（`error_type(error_message)`） |
-| `error_repr` | `str` | 切り詰められたエラー表現（最大 100 文字） |
-| `task_repr` | `str` | 切り詰められたタスクデータ文字列表現（最大 100 文字） |
-| `task` | `str` | 元のタスクデータの文字列形式 |
+| `task` | `Any` | `_to_retry_payload()` で変換されたタスクデータ（注入ページに再入力可能な JSON フレンドリーな構造） |
+
+> **変更点**：以前のドキュメントでは `error`、`error_repr`、`task_repr` などのフィールドが記載されていましたが、現在のソースコードの `FailInlet.task_error()` は実際には上記 7 つのフィールドのみを書き込みます。タスクデータは `_to_retry_payload()` で再帰的に JSON 互換構造に変換されてから `task` フィールドに格納されます。
 
 ### メタデータの記録
 
@@ -129,31 +129,33 @@ sinker.task_error(
 
 #### start_graph
 
-タスクグラフの構造情報を記録します。パラメータ `structure_json` は `list[Any]`（タスクグラフ構造の JSON 表現）です。
+タスクグラフの構造情報を記録します。
 
 ```python
-sinker.start_graph([
-    {"name": "StageA", "depends_on": []},
-    {"name": "StageB", "depends_on": ["StageA"]},
-])
+sinker.start_graph(
+    graph_name="my_pipeline",
+    structure_graph={"stages": ["A", "B"], "edges": [("A", "B")]}
+)
 ```
+
+> **変更点**：`start_graph` のシグネチャは `(graph_name: str, structure_graph: dict[str, Any])` です。以前のドキュメントに記載されていたパラメータ `structure_json: list[Any]` は現在のソースコードと一致しません。
 
 #### start_executor
 
-エグゼキューターの起動情報を記録します。パラメータはエグゼキューター名の文字列です。
+実行者起動情報を記録します。
 
 ```python
 sinker.start_executor("Executor-1")
 ```
 
-## データリカバリ
+## データ復旧
 
-エラーログは標準の JSONL 形式を使用しているため、これらのファイルを読み取るスクリプトを簡単に作成し、失敗したタスクデータを抽出してリトライや分析に使用できます。フレームワークは `celestialflow.persistence.util_jsonl` モジュールで豊富な読み取り補助関数を提供します。
+エラーログは標準的な JSONL 形式を採用しているため、スクリプトを作成してこれらのファイルを簡単に読み取り、失敗したタスクデータを抽出してリトライや分析に利用できます。フレームワークが提供する `celestialflow.persistence.util_jsonl` モジュールには豊富な読み取り補助関数が用意されています。
 
 ```python
 from celestialflow.persistence.util_jsonl import (
-    load_jsonl_logs,        # 汎用 JSONL 読み取り、フィールドフィルタリング対応
-    load_task_error_pairs,  # (task, error) ペアの読み込み
-    load_task_by_stage,     # stage 別にグループ化
+    load_jsonl_logs,        # 汎用 JSONL 読み取り。フィールドフィルタリング対応
+    load_task_error_pairs,  # (task, error) ペアを読み込み
+    load_task_by_stage,     # stage ごとにグループ化
 )
 ```

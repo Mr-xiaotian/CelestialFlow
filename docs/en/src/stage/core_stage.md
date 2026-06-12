@@ -1,40 +1,40 @@
 # TaskStage
 
-> 📅 Last Updated: 2026/06/05
+> 📅 Last Updated: 2026/06/11
 
-`TaskStage` is the basic unit for building a `TaskGraph`. It inherits from `TaskExecutor` and adds graph structure connection capabilities and `stage_mode` control logic.
+`TaskStage` is the fundamental building block for constructing a `TaskGraph`. It inherits from `TaskExecutor` and adds graph structure related connection capabilities and `stage_mode` control logic.
 
-> Note: `TaskStage` is also a one-shot object. Queue bindings, graph links, and runtime counters are designed for one execution lifecycle and should not be assumed reusable after completion.
+> Note: `TaskStage` is also a single-use object. It is typically managed by `TaskGraph` and participates in one complete run; after execution ends, its queue bindings, count states, and intra-graph association relationships are not guaranteed to be safely reset.
 
-## Inheritance Hierarchy
+## Inheritance
 
 `TaskExecutor` -> `TaskStage`
 
 `TaskStage` inherits all core capabilities of `TaskExecutor` (execution modes, retries, metrics monitoring, etc.) and adds inter-node connection logic.
 
-## Key Concepts
+## Core Concepts
 
-- **Stage Mode**: The scheduling logic mode of a node in the task graph.
+- **Stage Mode**: The scheduling logic mode of a node within the task graph.
   - `serial`: Serial mode, runs in the main process.
   - `thread`: Thread mode, runs in an independent thread within the main process.
-- **Execution Mode**: The concurrency mode for processing tasks internally within the node (`serial`, `thread`, `async`).
-- **Topology**: The upstream/downstream connection relationships between nodes are managed by `TaskGraph`; `TaskStage` itself does not store adjacency tables.
+- **Execution Mode**: The concurrency mode for processing tasks within a node (`serial`, `thread`, `async`), inherited from `TaskExecutor`.
+- **Topology Relationships**: Upstream/downstream connection relationships between nodes are managed by `TaskGraph`; `TaskStage` itself does not store an adjacency list.
 
 ## Initialization
 
 ```python
-class TaskStage(TaskExecutor):
+class TaskStage[T, R](TaskExecutor[T, R]):
     def __init__(
         self,
         name: str,
-        func: Callable[..., Any],
+        func: Callable[[T], R] | Callable[[T], Awaitable[R]],
         stage_mode: str = "serial",
         **kwargs: Any,
     ):
         """
         :param name: Node name (unique identifier)
         :param func: Execution function
-        :param stage_mode: Running mode in the graph ('serial' or 'thread')
+        :param stage_mode: Run mode within the graph ('serial' or 'thread')
         :param kwargs: Parameters forwarded to TaskExecutor (execution_mode, max_workers, max_retries, etc.)
         """
 ```
@@ -57,44 +57,65 @@ graph.connect([stage_a], [stage_b])
 ```python
 def set_stage_mode(self, stage_mode: str):
     """
-    Set the node's execution mode in the task graph.
+    Set the execution mode of the node within the task graph.
     :param stage_mode: 'serial' or 'thread'
     :raises StageModeError: If the mode is not supported
     """
 ```
 
-### set_execution_mode
-
-> ⚠️ This method is inherited from `TaskExecutor`; `TaskStage` does not override it.
+### set_inlet
 
 ```python
-def set_execution_mode(self, execution_mode: str):
+def set_inlet(self, fail_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]) -> None:
     """
-    Set the node's internal task processing mode.
-
-    :param execution_mode: 'serial', 'thread', or 'async'
-    :raises ExecutionModeError: If the mode is not supported
+    Initialize collectors, connecting fail/log queues to the persistence layer.
+    :param fail_queue: Failure queue
+    :param log_queue: Log queue
     """
 ```
 
-### set_name
+### Configuration Methods Inherited from TaskExecutor
 
-> ⚠️ This method is inherited from `TaskExecutor`; `TaskStage` does not override it.
+| Method | Description |
+|------|------|
+| `set_execution_mode(mode)` | Set the task processing mode within the node (`serial`/`thread`/`async`) |
+| `set_name(name)` | Set the node name |
+| `set_log_level(level)` | Set the log level |
+
+## Connection Bindings
+
+### prev_bindings
 
 ```python
-def set_name(self, name: str):
+def prev_bindings(self, pending_prev_bindings: list[TaskStage[Any, Any]]) -> None:
     """
-    Set the node name.
+    Bind upstream nodes, registering each predecessor stage's counter
+    into the current stage's task_counter.
+    """
+```
+
+### get_binding_counter
+
+```python
+def get_binding_counter(self, _downstream_name: str) -> Any:
+    """
+    Returns the counter that the downstream stage should bind to.
+    Subclasses may override (default returns success_counter).
     """
 ```
 
 ## State Management
 
-`TaskStage` uses the `StageStatus` enum to manage lifecycle:
+`TaskStage` uses the `StageStatus` enum to maintain its lifecycle:
 
-- `NOT_STARTED` (0): Initial state.
-- `RUNNING` (1): Started, listening on the queue.
-- `STOPPED` (2): Normally stopped or abnormally exited.
+```mermaid
+stateDiagram-v2
+    [*] --> NOT_STARTED: __init__()
+    NOT_STARTED --> RUNNING: start_stage()
+    RUNNING --> RUNNING: Processing tasks
+    RUNNING --> STOPPED: finally block
+    STOPPED --> [*]
+```
 
 ### State Methods
 
@@ -112,29 +133,36 @@ def get_status(self) -> StageStatus:
     """Read the current status (returns StageStatus enum)."""
 ```
 
-## Running Mechanism
+## Runtime Mechanisms
 
-When `TaskGraph` starts, each `TaskStage` determines its running method based on `stage_mode`:
+### start / start_async (Direct Calls Prohibited)
 
-- **thread mode**: Node starts in an independent thread.
-- **serial mode**: Node runs serially in the main process (typically used for debugging).
+When `TaskStage` is managed by `TaskGraph`, directly calling `start()` or `start_async()` will raise `GraphManagedError`. It should be driven uniformly by `TaskGraph.start_graph()`.
 
 ### start_stage
 
-When `TaskGraph` starts, it calls this method to start the node.
+When `TaskGraph` starts, this method is called to initiate the actual execution of the node.
 
 ```python
 def start_stage(self):
     """
-    Start node execution, selecting a scheduler based on execution_mode.
+    Based on the value of execution_mode, chooses serial, thread, or async execution.
+    Records start/end logs, manages state transitions.
     """
 ```
 
-1. Calls `_init_state()` to initialize internal state.
-2. Records start log.
-3. Marks status as `RUNNING`.
-4. Enters `TaskDispatch` loop to process tasks.
-5. On completion, cleans up resources and marks `STOPPED`.
+Lifecycle constraints:
+
+- The runtime state of `TaskStage` is established and driven by `TaskGraph` during the startup phase.
+- The current implementation does not provide thorough reset semantics for multi-run reuse.
+- When the same node needs to run again, it is recommended to create a new `TaskStage` and re-integrate it into a new `TaskGraph`.
+
+### drain_task_queue
+
+```python
+def drain_task_queue(self) -> None:
+    """Drain the task queue, moving all remaining tasks to the failure queue and marking them as UnconsumedError."""
+```
 
 ## State Snapshot
 
@@ -142,104 +170,70 @@ def start_stage(self):
 def get_summary(self) -> dict[str, Any]:
     """
     Get the current node's status summary.
-    Returns a dict containing class_name, name, func_name, execution_mode, stage_mode.
+    Returns fields inherited from TaskExecutor (name, func_name, execution_mode, max_workers)
+    plus stage_mode.
     """
-```
-
-## Execution Mode Restrictions
-
-In `TaskStage`, the available values for `execution_mode` are restricted:
-
-```python
-# Valid modes
-valid_modes = ("serial", "thread", "async")
-
-# Note: stage_mode and execution_mode are independent configurations
-```
-
-## Inheritance Extension
-
-When creating custom Stages, the following methods can be overridden:
-
-```python
-class MyStage(TaskStage):
-    def get_args(self, task):
-        """Custom argument extraction"""
-        return (task.data,)
-
-    def process_result(self, task, result):
-        """Custom result processing"""
-        return {"data": result, "metadata": task.metadata}
 ```
 
 ## Usage Examples
 
-The following examples demonstrate the complete usage of `TaskStage`, including multiple execution modes, state management, and graph connections.
+The following examples demonstrate full usage of `TaskStage`, including multiple execution modes, state management, and graph connections.
 
 ### Basic Usage (serial mode)
 
 ```python
 from celestialflow import TaskGraph, TaskStage
 
-# Create two stages using serial execution mode
 def step1(x: int) -> int:
     return x + 5
 
 def step2(x: int) -> int:
     return x * 3
 
-stage1 = TaskStage(
-    name="Step1",
-    func=step1,
-    execution_mode="serial",  # Single-threaded sequential execution
-    stage_mode="serial",      # Run in main process
-)
-stage2 = TaskStage(
-    name="Step2",
-    func=step2,
-    execution_mode="serial",
-    stage_mode="serial",
-)
+stage1 = TaskStage("Step1", func=step1, execution_mode="serial", stage_mode="serial")
+stage2 = TaskStage("Step2", func=step2, execution_mode="serial", stage_mode="serial")
 
-# Build and execute the graph
 chain = TaskGraph()
 chain.set_stages([stage1, stage2])
 chain.connect([stage1], [stage2])
 chain.start_graph({stage1.get_name(): [1, 2, 3, 4, 5]})
 
-print(f"Chain summary: {chain.get_graph_summary()}")
+for name, runtime in chain.stage_runtime_dict.items():
+    pairs = runtime.stage.get_success_pairs()
+    print(f"{name}: {len(pairs)} succeeded")
 ```
 
-### Using thread Execution Mode (I/O-Intensive)
+### Using thread execution mode (I/O intensive)
 
 ```python
 import time
 from celestialflow import TaskGraph, TaskStage
 
 def io_task(x: int) -> int:
-    time.sleep(0.05)  # Simulate network I/O
+    time.sleep(0.05)
     return x * 10
 
 stage_a = TaskStage(
     name="IOWorker",
     func=io_task,
-    execution_mode="thread",  # Thread pool concurrency
-    max_workers=4,            # 4 concurrent threads
-    stage_mode="thread",      # Run in independent thread
+    execution_mode="thread",
+    max_workers=4,
+    stage_mode="thread",
 )
 
-# Standalone execution (outside graph structure)
-stage_a.start_stage()
+graph = TaskGraph()
+graph.set_stages([stage_a])
+graph.start_graph({stage_a.get_name(): list(range(20))})
 ```
 
-### Async Mode
+### Async Mode (async)
 
 ```python
 import asyncio
 from celestialflow import TaskStage
 
 async def async_process(x: int) -> int:
-    await asyncio.sleep(0.01)  # Simulate async I/O
+    await asyncio.sleep(0.01)
     return x ** 2
 
 async_stage = TaskStage(
@@ -260,35 +254,15 @@ from celestialflow.runtime.util_types import StageStatus
 stage = TaskStage("StatusDemo", func=lambda x: x)
 
 print(f"Initial status: {stage.get_status().name}")  # NOT_STARTED
-
 stage.mark_running()
 print(f"Running: {stage.get_status().name}")   # RUNNING
-
 stage.mark_stopped()
 print(f"Stopped: {stage.get_status().name}")   # STOPPED
 ```
 
-### Custom Subclass
-
-```python
-from celestialflow import TaskStage
-
-class MyCustomStage(TaskStage):
-    def get_args(self, task):
-        """Custom argument extraction"""
-        return (task["data"],)
-
-    def process_result(self, task, result):
-        """Custom result processing"""
-        return {"original": task, "computed": result}
-
-# Using the custom stage
-stage = MyCustomStage("Custom", func=lambda x: x * 10)
-print(f"Summary: {stage.get_summary()}")
-```
-
 ## Notes
 
-1. **Name Uniqueness**: Within the same `TaskGraph`, each `TaskStage`'s `name` must be unique; otherwise, a `DuplicateNodeError` will be raised.
+1. **Name Uniqueness**: Within the same `TaskGraph`, each `TaskStage`'s `name` must be unique.
 2. **Async Support**: If `execution_mode` is set to `async`, `func` must be a coroutine function.
-3. **Resource Cleanup**: When a node stops, client connections and closure resources are automatically released.
+3. **Graph Management**: Stages managed by `TaskGraph` cannot directly call `start()` / `start_async()`.
+4. **Single Use**: The same `TaskStage` instance should not be reused after completing a run.

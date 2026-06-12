@@ -1,8 +1,8 @@
 # TaskNodes
 
-> 📅 Last updated: 2026/04/24
+> 📅 Last Updated: 2026/06/11
 
-The TaskNodes module provides various special-purpose `TaskStage` implementations for flow control, external system interaction, and other scenarios.
+The TaskNodes module provides various special-function `TaskStage` implementations for scenarios such as flow control and external system interaction.
 
 ## TaskSplitter
 
@@ -21,16 +21,16 @@ flowchart LR
 
     end
 
-    %% 美化 TaskGraph 外框
+    %% TaskGraph outer frame styling
     style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
 
-    %% 统一美化格式
+    %% Unified styling
     classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
 
-    %% 美化 TaskStages
+    %% TaskStages styling
     class T1,T2 blueNode;
 
-    %% 美化 特殊Stage
+    %% Special Stage styling
     class TS blueNode;
 
 ```
@@ -40,16 +40,27 @@ Splits a single input task into multiple output tasks. Suitable for one-to-many 
 ### Initialization
 
 ```python
-class TaskSplitter(TaskStage):
-    def __init__(self, name: str, stage_mode: str = "serial"):
+class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
+    def __init__(
+        self,
+        name: str,
+        split_item: Callable[[TItem], RItem] | None = None,
+        stage_mode: str = "serial",
+        enable_duplicate_check: bool = True,
+        log_level: str = "INFO",
+    ):
         """
         Initialize TaskSplitter.
 
         :param name: Node name
-        :param stage_mode: Node execution mode
+        :param split_item: Custom single sub-task processing function, defaults to identity mapping
+        :param stage_mode: Node run mode
+        :param enable_duplicate_check: Whether to enable duplicate checking
+        :param log_level: Log level
         """
-        # Defaults: execution_mode="serial", max_retries=0, unpack_task_args=True
 ```
+
+> **Changed**: `execution_mode` is fixed as `"serial"`, `max_retries` is fixed as `0`, and neither should be modified through external parameters. The `unpack_task_args=True` parameter mentioned in previous documentation does not exist in the current source code.
 
 ### Usage
 
@@ -57,14 +68,15 @@ class TaskSplitter(TaskStage):
 class MySplitter(TaskSplitter):
     def _split(self, *task):
         # Split input data into multiple parts
-        return task[0], task[1]  # Returns a tuple; each element becomes an independent task
+        return task[0], task[1]  # Returns a tuple, each element becomes an independent task
 ```
 
 ### Features
 
-- **Mechanism**: Takes one task as input and returns a tuple/list. Each element is wrapped into an independent `TaskEnvelope` and sent downstream.
-- **Counting**: Internally maintains a `split_counter` to track the total number of split tasks.
-- **Default configuration**: `execution_mode="serial"`, `max_retries=0`, `unpack_task_args=True`
+- **Mechanism**: Takes one input task, `_split` returns a tuple where each element is wrapped into an independent `TaskEnvelope` sent downstream.
+- **Counting**: Internally maintains `split_counter` to count total split tasks.
+- **Fixed Configuration**: `execution_mode="serial"`, `max_retries=0` (hardcoded in `__init__`).
+- **split_item**: Optional custom sub-task processing function for preprocessing each split item.
 
 ---
 
@@ -87,21 +99,21 @@ flowchart LR
 
     end
 
-    %% 美化 TaskGraph 外框
+    %% TaskGraph outer frame styling
     style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
 
-    %% 统一美化格式
+    %% Unified styling
     classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
 
-    %% 美化 TaskStages
+    %% TaskStages styling
     class T1,T2,T3 blueNode;
 
-    %% 美化 特殊Stage
+    %% Special Stage styling
     class TR blueNode;
 
 ```
 
-Routes tasks to different downstream paths based on conditions.
+Distributes tasks to different downstream paths based on conditions.
 
 ### Initialization
 
@@ -112,17 +124,16 @@ class TaskRouter(TaskStage):
         Initialize TaskRouter.
 
         :param name: Node name
-        :param stage_mode: Node execution mode
+        :param stage_mode: Node run mode
         """
-        # Defaults: execution_mode="serial", max_retries=0
 ```
 
 ### Usage
 
-Routing tasks requires returning a tuple in the format `(target_tag, data)`:
+Routing tasks must return tuples in `(target_tag, data)` format:
 
 ```python
-# Define upstream task to generate routing tuples
+# Define upstream task that generates routing tuples
 def route_logic(data):
     if data > 0:
         return ("positive_stage", data)
@@ -132,15 +143,15 @@ def route_logic(data):
 # Create router node
 router = TaskRouter("Router")
 
-# Connect downstream (target must match the tag in the routing logic)
+# Connect downstream (target must match the tag in routing logic)
 graph.connect([router], [pos_stage, neg_stage])
 ```
 
 ### Features
 
-- **Mechanism**: Receives tuples in the form `(target_tag, data)`. Routes `data` to the corresponding downstream Stage based on `target_tag`.
+- **Mechanism**: Receives tuples in `(target_tag, data)` form. Sends `data` to the corresponding downstream Stage based on `target_tag`.
 - **Counting**: Maintains independent counters `route_counters` for each target.
-- **Error handling**: If `target_tag` does not exist in the downstream list, an `InvalidOptionError` is raised.
+- **Error Handling**: If `target_tag` does not exist in the downstream list, an error is recorded.
 
 ---
 
@@ -156,20 +167,20 @@ flowchart LR
 
         RE[(Redis)]
 
-        TRSI -.-> RE -.->  TRSO
+        TRSI -.->|rpush task| RE -.->|blpop task| TRSO
 
     end
 
-    %% 美化 TaskGraph 外框
+    %% TaskGraph outer frame styling
     style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
 
-    %% 统一美化格式
+    %% Unified styling
     classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
 
-    %% 美化 特殊Stage
+    %% Special Stage styling
     class TRSI,TRSO blueNode;
 
-    %% 美化 外部结构
+    %% External structure styling
     class RE blueNode;
 
 ```
@@ -191,12 +202,12 @@ class TaskRedisTransport(TaskStage):
         db: int = 0,                    # Redis database number
         password: str | None = None,    # Redis password
         unpack_task_args: bool = False, # Whether to unpack task arguments
-        stage_mode: str = "serial",     # Node execution mode
+        stage_mode: str = "serial",     # Node run mode
     ):
         ...
 ```
 
-**Behavior**: Serializes tasks to JSON and `rpush`es them to a Redis List. Internally uses `execution_mode="thread"` and `max_workers=4` for concurrent writes.
+**Behavior**: Serializes tasks to JSON and `rpush` them to a Redis List. Internally uses `execution_mode="thread"` and `max_workers=4` for concurrent writes.
 
 ### TaskRedisSource
 
@@ -212,13 +223,13 @@ class TaskRedisSource(TaskStage):
         port: int = 6379,            # Redis port
         db: int = 0,                 # Redis database number
         password: str | None = None, # Redis password
-        timeout: int = 10,           # Blocking timeout in seconds; 0 means wait indefinitely
-        stage_mode: str = "serial",  # Node execution mode
+        timeout: int = 10,           # Block timeout in seconds, 0 means infinite wait
+        stage_mode: str = "serial",  # Node run mode
     ):
         ...
 ```
 
-**Behavior**: Uses `blpop` for blocking task retrieval. Internally uses `execution_mode="serial"`, suitable as a pipeline entry node.
+**Behavior**: Uses `blpop` for blocking task pulling. Internally uses `execution_mode="serial"`, suitable as a pipeline entry node.
 
 ### TaskRedisAck
 
@@ -239,16 +250,16 @@ flowchart LR
 
     end
 
-    %% 美化 TaskGraph 外框
+    %% TaskGraph outer frame styling
     style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
 
-    %% 统一美化格式
+    %% Unified styling
     classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
 
-    %% 美化 特殊Stage
+    %% Special Stage styling
     class TRSI,TRA blueNode;
 
-    %% 美化 外部结构
+    %% External structure styling
     class RE,G1,G2 blueNode;
 
 ```
@@ -265,21 +276,21 @@ class TaskRedisAck(TaskStage):
         port: int = 6379,            # Redis port
         db: int = 0,                 # Redis database number
         password: str | None = None, # Redis password
-        timeout: int = 10,           # Wait timeout in seconds; 0 means wait indefinitely
-        stage_mode: str = "serial",  # Node execution mode
+        timeout: int = 10,           # Wait timeout in seconds, 0 means infinite wait
+        stage_mode: str = "serial",  # Node run mode
     ):
         ...
 ```
 
-**Behavior**: Polls a Redis Hash waiting for the corresponding `task_id` result. Supports handling successful results or raising `RemoteWorkerError`.
+**Behavior**: Polls a Redis Hash waiting for the corresponding `task_id` result. Supports processing successful results or raising `RemoteWorkerError`.
 
 ---
 
 ## Prerequisites
 
-### 1. Start the Redis Service
+### 1. Start Redis Service
 
-Before running `TaskRedis*` nodes, you need to start the Redis service.
+When running `TaskRedis*` nodes, Redis service needs to be started first.
 
 ### 2. Set Environment Variables (Optional)
 
@@ -287,11 +298,8 @@ Create a `.env` file in the project root directory:
 
 ```env
 # .env
-# Redis service address
 REDIS_HOST=127.0.0.1
-# Redis service port
 REDIS_PORT=6379
-# Redis service password; leave empty if none
 REDIS_PASSWORD=your_redis_password
 ```
 
@@ -302,7 +310,6 @@ import os
 from dotenv import load_dotenv
 from celestialflow import TaskRedisTransport, TaskRedisAck, TaskRedisSource
 
-# Load environment variables
 load_dotenv()
 
 redis_host = os.getenv("REDIS_HOST", "127.0.0.1")
@@ -318,14 +325,6 @@ redis_sink = TaskRedisTransport(
 redis_ack = TaskRedisAck(
     "RedisAck",
     key="testFibonacci:output",
-    host=redis_host,
-    password=redis_password
-)
-
-# Source combination (pull tasks from Redis)
-redis_source = TaskRedisSource(
-    "RedisSource",
-    key="test_redis",
     host=redis_host,
     password=redis_password
 )
@@ -366,7 +365,74 @@ Or error format:
 
 ## Notes
 
-1. **Connection management**: The Redis client is lazily initialized on first use.
-2. **Timeout handling**: `TaskRedisSource` and `TaskRedisAck` support timeout configuration; timeouts raise `TimeoutError`.
-3. **Error propagation**: Errors returned by remote Workers are propagated via `RemoteWorkerError`.
-4. **Idempotency**: `TaskRedisAck` deletes the record from Redis after retrieving the result, ensuring one-time consumption.
+1. **Connection Management**: Redis client is lazily initialized on first use.
+2. **Timeout Handling**: `TaskRedisSource` and `TaskRedisAck` support timeout configuration; timeouts raise `TimeoutError`.
+3. **Error Propagation**: Errors returned by remote Workers are propagated via `RemoteWorkerError`.
+4. **Idempotency**: `TaskRedisAck` deletes the Redis record after retrieving the result, ensuring one-time consumption.
+
+## Usage Examples
+
+### TaskSplitter: Splitting One Record into Multiple
+
+```python
+from celestialflow import TaskGraph, TaskStage, TaskSplitter
+
+# Custom splitter: split text by lines
+class LineSplitter(TaskSplitter):
+    def _split(self, *task):
+        return tuple(task[0].split("\\n"))
+
+# Define subsequent processing stages
+source = TaskStage("Input", func=lambda x: x, stage_mode="serial")
+splitter = LineSplitter("SplitLines")
+processor = TaskStage("Process", func=lambda x: f">>> {x}", stage_mode="serial")
+
+graph = TaskGraph()
+graph.set_stages([source, splitter, processor])
+graph.connect([source], [splitter])
+graph.connect([splitter], [processor])
+
+# Input a single text with three lines, split into three independent tasks
+text_data = "line1\\nline2\\nline3"
+graph.start_graph({source.get_name(): [text_data]})
+```
+
+### TaskRouter: Dispatching Tasks by Condition
+
+```python
+from celestialflow import TaskGraph, TaskStage, TaskRouter
+
+# Define routing logic (generates tuples in (target_tag, data) format)
+def classify_number(x: int) -> tuple:
+    if x > 0:
+        return ("positive", x)
+    elif x < 0:
+        return ("negative", x)
+    else:
+        return ("zero", x)
+
+# Build graph nodes
+source = TaskStage("Source", func=classify_number, stage_mode="serial")
+router = TaskRouter("Router")
+handler_pos = TaskStage("positive", func=lambda x: f"Positive: {x}", stage_mode="serial")
+handler_neg = TaskStage("negative", func=lambda x: f"Negative: {x}", stage_mode="serial")
+handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}", stage_mode="serial")
+
+graph = TaskGraph()
+graph.set_stages([source, router, handler_pos, handler_neg, handler_zero])
+graph.connect([source], [router])
+graph.connect([router], [handler_pos, handler_neg, handler_zero])
+
+graph.start_graph({source.get_name(): [10, -5, 0, 3, -1]})
+```
+
+> **Note**: Route target tag must exactly match the downstream `TaskStage`'s `name`.
+
+---
+
+## Notes
+
+1. **Connection Management**: Redis client is lazily initialized on first use (`init_redis()` method).
+2. **Timeout Handling**: `TaskRedisSource` and `TaskRedisAck` support timeout configuration.
+3. **Error Propagation**: Errors returned by remote Workers are propagated via `RemoteWorkerError`.
+4. **Idempotency**: `TaskRedisAck` deletes the Redis record after retrieving the result, ensuring one-time consumption.

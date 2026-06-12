@@ -1,19 +1,21 @@
-﻿# tests Package
+﻿# tests Test Package
 
-> Last Updated: 2026/06/05
+> 📅 Last Updated: 2026/06/11
 
 ## Purpose
-The `tests/` directory stores the CelestialFlow pytest suite. `tests/__init__.py` is an empty file, and this page documents the test directory structure.
+The `tests/` directory contains CelestialFlow's pytest test suite. `tests/__init__.py` is an empty file; this page documents the test directory structure.
 
 ## Directory Structure
-- `tests/funnel/`: Base behavior tests for Inlet / Spout pipelines.
-- `tests/graph/`: Graph construction and scheduling tests for `TaskGraph`.
+- `tests/funnel/`: Inlet / Spout pipeline basic behavior tests.
+- `tests/graph/`: TaskGraph construction and scheduling tests.
 - `tests/observability/`: Runtime status reporting tests.
-- `tests/persistence/`: Persistence tests for errors, logs, and successful results.
-- `tests/runtime/`: Tests for envelopes, queues, hashes, counters, exceptions, and estimators.
-- `tests/stage/`: Tests for `TaskStage`, `TaskExecutor`, and built-in stages.
+- `tests/persistence/`: Error, log, and success result persistence tests.
+- `tests/runtime/`: Envelope, queue, hash, counter, exception, and estimation tests.
+- `tests/stage/`: TaskStage / TaskExecutor and built-in Stage tests.
+- `tests/utils/`: Clone utility and formatting utility tests.
 - `tests/web/`: Web API and service integration tests.
-- `tests/conftest.py`: Shared test helpers.
+- `tests/conftest.py`: Common test helpers.
+- `tests/__init__.py`: Empty file, marks the test package.
 
 ## How to Run
 
@@ -22,4 +24,3 @@ pytest tests -v
 pytest tests/runtime -v
 pytest tests/stage -k "executor or stage" -v
 ```
-

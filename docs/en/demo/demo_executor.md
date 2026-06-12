@@ -1,25 +1,25 @@
-# demo_executor.py Demo Documentation
+# demo_executor.py Demo Guide
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/11
 
-## Purpose
+## Objective
 
-Demonstrates the standalone execution capabilities of `TaskExecutor` in three execution modes (`serial`, `thread`, `async`). Showcases the complete lifecycle of exception retries, progress display, and task statistics, serving as a first-hand introductory experience to the framework.
+Demonstrates `TaskExecutor` running independently under three execution modes (`serial`, `thread`, `async`). Showcases the full lifecycle including exception retry, progress display, and task statistics, making it an ideal first hands-on experience with the framework.
 
-## Demo Contents
+## Demo Content
 
-Core strategy comparison of the three execution modes:
+Core strategy comparison across the three execution modes:
 
 ```mermaid
 flowchart TB
-    subgraph Serial["Serial Mode serial"]
+    subgraph Serial["serial mode"]
         direction LR
         T1_1["Task 1<br/>fibonacci(25)"] --> T1_2["Task 2<br/>fibonacci(26)"]
         T1_2 --> T1_3["..."]
         T1_3 --> T1_4["Task 7<br/>fibonacci(31)"]
     end
 
-    subgraph Thread["Thread Mode thread"]
+    subgraph Thread["thread mode"]
         direction LR
         T2_1["Task 1<br/>fibonacci(25)"]
         T2_2["Task 2<br/>fibonacci(26)"]
@@ -30,7 +30,7 @@ flowchart TB
         T2_7["Task 7<br/>fibonacci(31)"]
     end
 
-    subgraph Async["Async Mode async"]
+    subgraph Async["async mode"]
         direction LR
         T3_1["Task 1<br/>fibonacci_async(25)"]
         T3_2["Task 2<br/>fibonacci_async(26)"]
@@ -45,19 +45,19 @@ flowchart TB
     Input --> Thread
     Input --> Async
 
-    Serial --> Retry["Auto-retry once<br/>max_retries=1"]
+    Serial --> Retry["Auto retry 1 time<br/>max_retries=1"]
     Thread --> Retry
     Async --> Retry
 ```
 
-| Function | Mode | Task | Features |
-|----------|------|------|----------|
+| Function | Mode | Task | Feature |
+|------|------|------|------|
 | `demo_fibonacci_serial` | serial | Fibonacci computation | Single-threaded sequential execution |
-| `demo_fibonacci_thread` | thread | Fibonacci computation | 6-thread concurrent execution |
-| `demo_fibonacci_async` | async | Async Fibonacci | Coroutine-based concurrency |
+| `demo_fibonacci_thread` | thread | Fibonacci computation | 6-thread concurrency |
+| `demo_fibonacci_async` | async | Async Fibonacci | Coroutine concurrency |
 
 - **Input**: `range(25, 32) + [0, 27, None, 0, ""]`
-- **Exception design**: `0`, `None`, `""` trigger `ValueError`; the framework auto-retries once
+- **Exception design**: `0`, `None`, `""` trigger `ValueError`; the framework auto-retries 1 time
 
 ## Key Configuration
 
@@ -67,9 +67,9 @@ flowchart TB
 
 ## Potential Issues
 
-1. **Recursion depth and duration**: `fibonacci(31)` involves extremely heavy recursive calls and may take over 10 seconds in serial mode.
-2. **`asyncio` environment**: `demo_fibonacci_async` uses `asyncio.run()`, which will fail when run directly in Jupyter Notebook (Notebook already has an event loop).
-3. **No assertions**: This file is a **demo script** and contains no `assert` statements. Successful execution only means no uncaught exceptions were thrown; it does not verify result correctness.
+1. **Iterative computation latency**: The iterative computation of `fibonacci(31)` takes about 1 second in serial mode, but the overall execution includes retry and scheduling overhead, so actual total time may be longer.
+2. **`asyncio` environment**: `demo_fibonacci_async` uses `asyncio.run()`, which will error when run directly in Jupyter Notebook (Notebook already has an event loop).
+3. **No assertions**: This file is a **demo script** with no `assert` statements. Successful execution only means no uncaught exceptions were thrown; it does not verify result correctness.
 
 ## How to Run
 
@@ -79,7 +79,7 @@ python demo/demo_executor.py
 
 ## Expected Behavior
 
-Running the script will execute the three modes sequentially, producing output similar to:
+After running, the three modes execute sequentially with output similar to:
 
 ```
 ========================================
@@ -107,8 +107,8 @@ Running the script will execute the three modes sequentially, producing output s
   mode=async  success=07  fail=05  dup=0  pending=0  elapsed=0.01s
 ```
 
-> **Note**: Of the 12 tasks, 5 edge case inputs (`0`, `27`, `None`, `0`, `""`) trigger `ValueError` and are ultimately marked as failed after retries; `success=07` represents the 7 normal Fibonacci tasks.
-> All three modes use the iterative Fibonacci implementation (O(n)) from `demo_utils`, making performance comparable.
+> **Note**: Of the 12 tasks, 5 abnormal inputs (`0`, `27`, `None`, `0`, `""`) triggered `ValueError` and are ultimately marked as failures after retry; `success=07` represents the 7 Fibonacci tasks that executed normally.
+> All three modes use the iterative Fibonacci (O(n)) from `demo_utils`, with comparable performance.
 
 ## Dependencies
 

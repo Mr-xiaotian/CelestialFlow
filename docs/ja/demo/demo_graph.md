@@ -1,15 +1,15 @@
 # demo_graph.py デモ説明
 
-> 📅 最終更新日: 2026/05/24
+> 📅 最終更新日: 2026/06/11
 
-## 目的
+## 目標
 
-CelestialFlow における `TaskGraph` の高度なグラフトポロジー構築をデモンストレーションします：ファンアウト/ファンイン（fan-out/fan-in）ETL パイプライン、および非同期段階的パイプライン。
+CelestialFlow における `TaskGraph` の高度なグラフトポロジー構築：ファンアウト/ファンイン（fan-out/fan-in）ETL パイプライン、および非同期ステージドパイプラインをデモします。
 
 ## デモシナリオ
 
 ### `demo_etl_fan_out_fan_in`
-ETL パイプライン、ファンアウト/ファンイントポロジー：
+ETL パイプライン、ファンアウト/ファンイン トポロジー：
 
 ```mermaid
 flowchart LR
@@ -28,15 +28,14 @@ Extract ──┬── Normalize ──┬── Load
 
 - `Extract` → ID に基づいてレコードを生成（thread モード、4 worker）
 - `Normalize` → レコード値を正規化（thread モード、4 worker）
-- `Enrich` → レコードにカテゴリラベルを追加（thread モード、4 worker）
+- `Enrich` → レコードに分類ラベルを追加（thread モード、4 worker）
 - `Load` → レコードを保存（serial モード）
 
 **グラフ構造**：DAG、一対多ファンアウト + 多対一ファンイン
-**スケジューリングモード**：`eager`
-**実行後**：`graph.get_graph_summary()` を呼び出して成功/失敗タスク数を出力
+**スケジュールモード**：`eager`
 
 ### `demo_async_staged_pipeline`
-2段階非同期パイプライン：
+2 ステージ非同期パイプライン：
 
 ```mermaid
 flowchart LR
@@ -49,12 +48,11 @@ ASCII 補足図：
 AsyncDouble ──> AsyncToStr
 ```
 
-- `AsyncDouble` → 入力を非同期で2倍にする（async モード、8 worker）
+- `AsyncDouble` → 入力を非同期で倍にする（async モード、8 worker）
 - `AsyncToStr` → 結果を非同期で文字列に変換（async モード、8 worker）
 
-**グラフ構造**：DAG、線形2段階
-**スケジューリングモード**：`staged`（レイヤーごとの実行）
-**実行後**：`graph.get_status_snapshot()` を呼び出して各ステージの成功/失敗タスク数を出力
+**グラフ構造**：DAG、線形 2 ステージ
+**スケジュールモード**：`staged`（層ごとに実行）
 
 ## 主要設定
 
@@ -62,10 +60,10 @@ AsyncDouble ──> AsyncToStr
 - ETL パイプラインは `schedule_mode="eager"`、非同期パイプラインは `schedule_mode="staged"` を使用
 - `execution_mode="async"` はコルーチンタスク関数に使用
 
-## 起こりうる問題
+## 発生しうる問題
 
 1. **アサーションなし**：デモスクリプトであり、結果の正確性は検証しません。
-2. **ETL 関数に sleep を含む**：`extract_record`（0.5秒）、`transform_normalize`/`transform_enrich`（0.3秒）、`load_record`（0.2秒）、完全な実行には一定の時間がかかります。
+2. **ETL 関数に sleep を含む**：`extract_record`（0.5s）、`transform_normalize`/`transform_enrich`（0.3s）、`load_record`（0.2s）があり、完全な実行には一定の時間がかかります。
 
 ## 実行方法
 
@@ -73,7 +71,7 @@ AsyncDouble ──> AsyncToStr
 python demo/demo_graph.py
 ```
 
-## 期待される動作
+## 想定される動作
 
 ### ETL パイプライン（`demo_etl_fan_out_fan_in`）
 
@@ -92,11 +90,11 @@ Enrich     : success=5  fail=0
 Load       : success=10 fail=0
 ```
 
-> 各 Extract は 1 件のレコードを生成し、Normalize と Enrich でそれぞれ処理された後、Load で集約されます。入力が `range(5)` の場合、Load ノードは合計 10 個のタスクを受け取ります（5 × 2 下流）。
+> 各 Extract は 1 件のレコードを生成し、Normalize と Enrich でそれぞれ処理された後、Load で集約されます。入力が `range(5)` の場合、Load ノードは合計 10 タスク（5 × 2 下流）を受け取ります。
 
 ### 非同期パイプライン（`demo_async_staged_pipeline`）
 
-ステージごとにレイヤー実行され、まず AsyncDouble を完了してから AsyncToStr を開始します：
+ステージごとに層ごとに実行され、AsyncDouble が完了してから AsyncToStr が開始されます：
 
 ```
 --- Staged 1: AsyncDouble ---
@@ -112,9 +110,9 @@ AsyncDouble : success=5  fail=0  pending=0
 AsyncToStr  : success=5  fail=0  pending=0
 ```
 
-> 総実行時間は約 3-5 秒で、主に内蔵の `sleep` の影響を受けます。
+> 総実行時間は約 3〜5 秒で、主に組み込みの `sleep` の影響を受けます。
 
-## 依存関係
+## 依存
 
 - `celestialflow`（`TaskGraph`、`TaskStage`）
 - `demo_utils`（`extract_record`、`transform_normalize`、`transform_enrich`、`load_record`、`async_double`、`async_to_str`）

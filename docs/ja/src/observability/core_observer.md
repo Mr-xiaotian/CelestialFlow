@@ -2,7 +2,7 @@
 
 > 📅 最終更新日: 2026/05/28
 
-`BaseObserver` はエグゼキューターライフサイクルオブザーバーの基底クラスで、`TaskExecutor` が実行中にブロードキャストするイベントインターフェースを定義します。`CallbackObserver` はコールバック関数を通じてイベントを受信する軽量な実装です。
+`BaseObserver` は実行者ライフサイクルオブザーバーの基底クラスであり、`TaskExecutor` が実行中にブロードキャストするイベントインターフェースを定義します。`CallbackObserver` は軽量実装で、コールバック関数を通じてイベントを受信します。
 
 ## BaseObserver
 
@@ -16,18 +16,18 @@ class BaseObserver:
     def on_finish(self) -> None: ...
 ```
 
-すべてのメソッドはデフォルトで空の実装（ABC ではない）。サブクラスが必要に応じてオーバーライドします。
+すべてのメソッドはデフォルトで空実装（ABC ではない）。サブクラスが必要に応じてオーバーライドします。
 
 ### イベント説明
 
-| イベント | トリガータイミング | パラメータ |
-|---------|-------------------|-----------|
-| `on_start` | エグゼキューター実行開始時 | `_name`: エグゼキューター名、`_total`: 初期タスク総数 |
-| `on_task_success` | 単一タスク成功時 | `count`: 成功数（デフォルト 1） |
-| `on_task_fail` | 単一タスク失敗時 | `count`: 失敗数（デフォルト 1） |
-| `on_task_duplicate` | 重複タスク検出時 | `count`: 重複数（デフォルト 1） |
-| `on_tasks_added` | 新タスクがキューに追加された時 | `count`: 新規タスク数 |
-| `on_finish` | エグゼキューター実行完了時 | なし |
+| イベント | トリガー時期 | パラメータ |
+|------|----------|------|
+| `on_start` | 実行者が実行を開始 | `_name`: 実行者フルネーム, `_total`: 常に 0（実際のタスク数は `on_tasks_added` で通知） |
+| `on_task_success` | 単一タスクが成功 | `count`: 成功数（デフォルト 1） |
+| `on_task_fail` | 単一タスクが失敗 | `count`: 失敗数（デフォルト 1） |
+| `on_task_duplicate` | 重複タスクを検出 | `count`: 重複数（デフォルト 1） |
+| `on_tasks_added` | 新規タスクがキューに追加 | `count`: 新規タスク数 |
+| `on_finish` | 実行者が実行を終了 | なし |
 
 ### 使用方法
 
@@ -46,18 +46,18 @@ executor.add_observer(MyObserver())
 executor.start(tasks)
 ```
 
-### Observer の管理
+### Observer 管理
 
 ```python
-executor.add_observer(observer)     # オブザーバーの登録
-executor.remove_observer(observer)  # オブザーバーの削除
+executor.add_observer(observer)     # オブザーバーを登録
+executor.remove_observer(observer)  # オブザーバーを解除
 ```
 
-エグゼキューター内部では `_notify(method_name, *args, **kwargs)` を通じて、登録済みのすべてのオブザーバーにイベントをブロードキャストします。observer リストが空の場合、オブザーバーなしと等価です（Null 実装は不要）。
+実行者内部では `_notify(method_name, *args, **kwargs)` で登録済みの全オブザーバーにイベントをブロードキャストします。observer リストが空の場合、オブザーバーなしと同等（Null 実装不要）。
 
 ## CallbackObserver
 
-キーワード引数としてコールバック関数を渡すことでイベントを受信する軽量なオブザーバー。サブクラスの定義は不要です。
+軽量オブザーバー。キーワード引数でコールバック関数を渡し、サブクラス定義が不要です。
 
 ```python
 class CallbackObserver(BaseObserver):
@@ -81,11 +81,11 @@ executor.add_observer(observer)
 executor.start(tasks)
 ```
 
-関心のあるイベントのみオーバーライドし、残りは `BaseObserver` のデフォルト空実装を使用します。
+関心のあるイベントのみをオーバーライドし、残りは `BaseObserver` のデフォルト空実装に任せます。
 
-## 既存の実装
+## 既存実装
 
 | クラス | 説明 |
-|--------|------|
+|---|------|
 | `TaskProgress` | tqdm ベースのプログレスバー表示（`core_progress.md` 参照） |
 | `CallbackObserver` | コールバック関数式オブザーバー |

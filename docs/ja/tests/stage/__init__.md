@@ -1,15 +1,14 @@
 # stage テストパッケージ
 
-> 📅 最終更新日: 2026/06/05
+> 📅 最終更新日: 2026/06/11
 
-## 目的
+## 役割
+`tests/stage/` は `TaskStage`、`TaskExecutor`、および組み込み Stage コンポーネントの実行セマンティクスをカバーし、タスクの入力・出力・重複排除・終了シグナル・並行モード・ライフサイクル動作を検証します。
 
-`TaskStage`、`TaskExecutor`、組み込み stage helper のテストを索引化します。
-
-## 主要ポイント
-
-- ライフサイクル、実行モード、routing、splitting、transport を扱います。
-- graph テストをノード単位の実行観点で補完します。
+## 含まれるテストファイル
+- `test_executor.py`: `TaskExecutor` の実行とキュー消費。
+- `test_stage.py`: `TaskStage` の基本ライフサイクルと設定検証。
+- `test_stages.py`: splitter、router などの組み込み Stage コンポーネント。
 
 ## 実行方法
 

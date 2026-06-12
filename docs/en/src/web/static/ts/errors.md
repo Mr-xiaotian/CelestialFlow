@@ -1,151 +1,167 @@
 # errors.ts
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/11
 
-Manages error log paginated fetching, keyword search, node filtering, and table rendering.
+Manages paginated fetching of error logs, keyword search, node filtering, sort order switching, table rendering, and task re-injection functionality.
+
+> ⚠️ **Changed**: Error record fields have been restructured (`error_id` is now numeric, new `error_type`/`error_message` fields, `task` is `unknown`). Added sort toggle and retry (re-injection) interaction column.
+
+## Type Definitions
+
+```typescript
+type ErrorData = {
+  ts: number;            // Error occurrence timestamp, in seconds
+  stage: string;         // Node/stage name where the error occurred, used for node filtering
+  error_id: number;      // Globally unique error identifier
+  error_type: string;    // Error classification type, used to distinguish different error categories
+  error_message: string; // Specific error description
+  task: unknown;         // Task data that triggered this error, used for display and retry backfill
+};
+```
 
 ## Global Variables
 
 | Variable | Type | Description |
-|----------|------|-------------|
-| `errors` | `any[]` | Current page's error record list |
-| `currentPage` | `number` | Current page number displayed, starting from 1 |
-| `pageSize` | `number` | Items per page, synced from `webConfig` |
+|------|------|------|
+| `errors` | `ErrorData[]` | Error record list for the current page |
+| `currentPage` | `number` | Currently displayed page number, starting from 1 |
+| `pageSize` | `number` | Records per page, synced from `webConfig` |
+| `errorSortOrder` | `"newest" \| "oldest"` | Error log sort direction, default `"newest"` |
 | `totalPages` | `number` | Total pages calculated by the backend |
-| `errorsRev` | `number` | Data version number, used for incremental fetch decisions |
+| `errorsRev` | `number` | Data revision number, initialized to `-1`, used for incremental fetch |
+| `lastQueryKey` | `string` | Cached key of the last query, used to determine if filter conditions changed |
+| `errorsRequestSeq` | `number` | Request sequence number, prevents old requests from overwriting new results |
+
+## DOM Element References
+
+| Variable | DOM Selector | Description |
+|------|-----------|------|
+| `searchInput` | `#error-search` | Search keyword input |
+| `nodeFilter` | `#node-filter` | Node filter dropdown |
+| `errorSortSelect` | `#error-sort-order` | Sort order dropdown |
+| `errorsTableBody` | `#errors-table tbody` | Error table tbody |
+| `paginationContainer` | `#pager-container` | Pagination controls container |
 
 ## Functions
 
-### `buildErrorsQueryKey(page, pageSizeValue, node, keyword)`
+### `buildErrorsQueryKey(page, pageSizeValue, node, keyword, sortOrder): string`
 
-Builds a cache key string for error queries, used to determine if filter conditions have changed and whether a forced refetch is needed.
-
-- **Parameters**: Current page number, page size, node filter, search keyword
-- **Return value**: A `|`-separated combined string, e.g., `"1|10|StageA|timeout"`
-- Used together with `lastQueryKey` for query cache comparison
+Builds a cache key string for error queries. Parameters include `sortOrder` (newest/oldest), used with `lastQueryKey` to determine if filter conditions changed.
 
 ---
 
-### `buildPageList(current, total)`
+### `loadErrors(forceReload?: boolean): Promise<boolean>`
 
-Generates a pagination page number list, including the first and last pages, the current page and its surrounding pages, automatically inserting ellipsis (`…`) at gaps.
+Asynchronously fetches error log data.
 
-- **Parameters**: `current` current page number, `total` total pages
-- **Return value**: `Array<number | string>`, numeric page numbers or ellipsis strings
-- Used internally by `renderPaginationControls()` to generate page number navigation
-
----
-
-### `loadErrors(forceReload)`
-
-Asynchronously fetches error log data. Supports incremental fetching based on `known_rev`.
-
-- **Parameter**: `forceReload` (optional) - when `true`, forces ignoring cache and refetching (e.g., when search conditions change).
-- **Query parameters**: `page`, `page_size`, `node` (node filter), `keyword` (fuzzy search).
-- **Race condition protection**: Uses `errorsRequestSeq` to ensure old request results don't overwrite newer ones.
+- **Query params**: `known_rev`, `page`, `page_size`, `node`, `keyword`, `sort_order`
+- **Race protection**: Uses `errorsRequestSeq` to ensure old request results don't overwrite new ones.
+- **Force reload**: When `forceReload=true` or filter conditions change, ignores `known_rev` incremental mechanism.
+- **API endpoint**: `GET /api/pull_errors?{params}`
 
 ---
 
-### `renderErrors()`
+### `renderErrors(): void`
 
-Renders `errors` data into the `#errors-table` table and calls `renderPaginationControls()` to update the pagination bar.
+Renders `errors` data into the `#errors-table` table.
 
-**Table Columns:**
-1. Index (calculated from page number)
-2. Error ID
-3. Error Info (shows ellipsis for overflow, full text on hover)
-4. Node (Node Tag)
-5. Task (Task representation)
-6. Time (Locally formatted time)
+**Table columns (7 total):**
 
----
+| # | Column Name (i18n key) | Description |
+|---|----------------|------|
+| 1 | `#` | Global display index (computed from page number) |
+| 2 | `errors.colId` | Error ID |
+| 3 | `errors.colMessage` | Error message (truncated `format_repr` to 50 chars, full on hover) |
+| 4 | `errors.colNode` | Node name |
+| 5 | `errors.colTask` | Task data (truncated display) |
+| 6 | `errors.colTime` | Occurrence time (`formatTimestamp` formatted) |
+| 7 | `errors.colRetry` | Re-injection action: `.retry-link` (retryable) or `.retry-disabled` (unavailable) |
 
-### `goToErrorsPage(nextPage)`
-
-Pagination jump logic, triggers `loadErrors(true)` to refetch specific page data.
-
----
-
-### `populateNodeFilter(statuses)`
-
-Dynamically updates the "Filter by Node" dropdown on the error page based on dashboard node statuses.
+> Column 7 (Re-injection): When `task` exists and is not a placeholder, click/keyboard triggers `preloadInjectionDraftFromError(stage, task, jumpToInjectionAfterRetry)`, navigating to the injection page pre-filled with task data.
 
 ---
 
-### `renderPaginationControls(totalPages)`
+### `goToErrorsPage(nextPage: number): Promise<void>`
 
-Renders pagination controls, including previous/next buttons and numeric page sequence with ellipsis.
+Pagination navigation logic, clamps page number to `[1, totalPages]` range then triggers `loadErrors(true)` to re-fetch.
 
-## Interactive Features
+---
 
-- **Search Linkage**: When the search box input or node filter changes, resets `currentPage` and forces a refresh.
-- **Responsive Support**: On small-screen devices, the error table automatically switches to a card-style layout (via `errors.css` media queries).
-- **External Navigation**: Supports one-click jumping from dashboard cards to the error log tab with auto-filled filter conditions via the global function `switchToErrorsTab(node?)` (defined in `utils.ts`).
+### `buildPageList(current: number, total: number): Array<number | string>`
+
+Generates a pagination page number list, including first/last pages, current page, and ±2 adjacent pages, auto-inserting ellipsis `"…"`.
+
+---
+
+### `renderPaginationControls(totalPages: number): void`
+
+Renders pagination controls (prev/next buttons + numeric page sequence). Not rendered when `totalPages ≤ 1`.
+
+---
+
+### `populateNodeFilter(statuses: Record<string, NodeStatus>): void`
+
+Dynamically updates the error page's "filter by node" dropdown based on dashboard node statuses. Attempts to preserve the user's current filter selection.
+
+---
+
+## Event Bindings (Module-level Auto-execution)
+
+| Target Element | Event | Behavior |
+|----------|------|------|
+| `searchInput` | `input` | Reset to page 1, force reload, render table |
+| `nodeFilter` | `change` | Reset to page 1, force reload, render table |
+| `errorSortSelect` | `change` | Update `errorSortOrder` and `webConfig`, reset to page 1, reload and save config |
 
 ## Usage Example
 
-### Error Data Format and Processing
-
-The following example shows the data structure of error logs and how to manually operate them in the browser console:
-
 ```typescript
-// 1. Error record data structure (from backend)
-const errorRecord = {
-    ts: 1745400000,           // Timestamp (seconds)
-    error_id: "err_001",     // Error ID
-    error_repr: "Connection timeout after 30s",  // Error description
-    error: {                  // Raw error object
-        type: "TimeoutError",
-        message: "Connection timeout after 30s",
-        stack: "...",
-    },
-    stage: "DataLoader",     // Owning node
-    task_repr: "file_123.json", // Task identifier
-};
-
-// 2. Simulate a batch of error data
-const mockErrors = [
-    { ts: 1745400100, error_id: "E001", error_repr: "Connection timeout", stage: "StageA", task_repr: "task_1", error: {} },
-    { ts: 1745400050, error_id: "E002", error_repr: "Out of memory", stage: "StageB", task_repr: "task_5", error: {} },
-    { ts: 1745400000, error_id: "E003", error_repr: "File not found", stage: "StageA", task_repr: "task_2", error: {} },
-    { ts: 1745399950, error_id: "E004", error_repr: "Permission denied", stage: "StageC", task_repr: "task_3", error: {} },
+// Simulated error records
+const mockErrors: ErrorData[] = [
+  { ts: 1745400100, stage: "StageA", error_id: 1001, error_type: "TimeoutError", error_message: "Connection timeout", task: { id: 1 } },
+  { ts: 1745400050, stage: "StageB", error_id: 1002, error_type: "ValueError", error_message: "Invalid value", task: "task_data" },
 ];
 
-// 3. Manually call error rendering
-// Using global variables:
 // errors = mockErrors;
 // currentPage = 1;
-// renderErrors();
-// This renders the #errors-table with columns: index, error id, error info, node, task, time
+// totalPages = 5;
+// renderErrors();        // Render table
+// renderPaginationControls(5); // Render pagination
 
-// 4. Page navigation
-// goToErrorsPage(2);  // Jump to page 2, triggers loadErrors(true)
+// Navigate to page 3
+// await goToErrorsPage(3);
 
-// 5. Manually fetch errors using URL parameters
-async function fetchErrorsManually(page: number, pageSize: number, node?: string, keyword?: string) {
-    const params = new URLSearchParams({
-        page: String(page),
-        page_size: String(pageSize),
-    });
-    if (node) params.set("node", node);
-    if (keyword) params.set("keyword", keyword);
-
-    const res = await fetch(`/api/pull_errors?${params}`);
-    const data = await res.json();
-    return data;
-}
-
-// Example: Get the first 5 errors for StageA
-// fetchErrorsManually(1, 5, "StageA").then(data => console.log(data));
-
-// 6. Render pagination controls
-// renderPaginationControls(totalPages);
-// Example: When totalPages is 5, generates: < 1 2 3 4 5 >
-
-// 7. Jump from another tab to error log with auto-filter
+// Jump to error log from another tab with auto-filter
 // switchToErrorsTab("StageA");
-// This will:
-//   - Switch to the error log tab
-//   - Set the node filter dropdown to "StageA"
-//   - Trigger the query
+```
+
+## Data Flow
+
+```mermaid
+flowchart LR
+    subgraph "main.ts"
+        RA[refreshAll]
+    end
+    subgraph "errors.ts"
+        LE[loadErrors]
+        QK[buildErrorsQueryKey]
+        RE[renderErrors]
+        RP[renderPaginationControls]
+    end
+    subgraph "API"
+        API[/api/pull_errors]
+    end
+    subgraph "DOM"
+        TB[#errors-table]
+        PG[#pager-container]
+    end
+
+    RA --> LE
+    LE --> QK
+    LE --> API
+    API --> LE
+    LE --> RE
+    RE --> TB
+    RE --> RP
+    RP --> PG
 ```

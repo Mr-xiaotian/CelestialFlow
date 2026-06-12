@@ -1,26 +1,26 @@
 # Web Module
 
-> 📅 Last Updated: 2026/05/23
+> 📅 Last Updated: 2026/06/11
 
-The Web module provides an interactive monitoring and management interface, built on FastAPI and native TypeScript, supporting real-time task status visualization, error tracing, dynamic task injection, and global configuration management.
+The Web module provides an interactive monitoring and management interface built with FastAPI and native TypeScript, supporting real-time task status visualization, error tracing, dynamic task injection, and global configuration management.
 
 ## Module Overview
 
-The Web module acts as a bridge between `TaskReporter` and end users. On one hand, it serves as a RESTful API Server that receives and caches status snapshots from the runtime; on the other, it provides a high-performance, low-latency single-page application (SPA) that allows developers to intuitively observe the execution flow of graph tasks, performance bottlenecks, and exception details.
+The Web module serves as a bridge between `TaskReporter` and the end user. On one hand, it acts as a RESTful API server that receives and caches runtime status snapshots; on the other, it provides a high-performance, low-latency single-page application (SPA) that allows developers to intuitively observe task graph execution flow, performance bottlenecks, and error details.
 
 ## File Descriptions
 
 ### Core Backend Components
 
 1. **core_server.py** (`TaskWebServer`)
-   - **Purpose**: Core web server that manages data caching, version control (known_rev), and API routes.
-   - **Key Features**: Status aggregation, configuration persistence, error pagination queries, task injection relay.
+   - **Purpose**: Web core server, manages data caching, version control (known_rev), and API routing.
+   - **Key Features**: State aggregation, configuration persistence, paginated error queries, task injection relay.
 
 2. **util_error.py**
    - **Purpose**: Provides error log filtering, normalization, and pagination logic.
 
 3. **util_config.py**
-   - **Purpose**: Handles reading and writing of `config.json`, supporting degraded startup.
+   - **Purpose**: Handles `config.json` read/write, supports graceful degradation on startup.
 
 ### Core Frontend Components
 
@@ -31,24 +31,24 @@ The Web module acts as a bridge between `TaskReporter` and end users. On one han
    - **Purpose**: Renders dynamic node cards, displaying real-time performance metrics and progress bars for each stage.
 
 3. **dashboard_structure.ts**
-   - **Purpose**: Renders task graph topology structure based on Mermaid.js, supporting dynamic node coloring.
+   - **Purpose**: Renders task graph topology using Mermaid.js, supporting dynamic node coloring.
 
 4. **injection.ts**
-   - **Purpose**: Manages the task manual injection UI, supporting multi-node batch injection and file uploads.
+   - **Purpose**: Manages the manual task injection UI, supporting multi-node batch injection.
 
 5. **errors.ts**
    - **Purpose**: Handles paginated display and deep filtering of error logs.
 
-## Architecture Features
+## Architectural Highlights
 
 ### Client-Side History Accumulation
 To significantly reduce frontend-backend communication frequency, historical trend data is no longer fully pushed by the backend. Instead, the frontend accumulates and maintains it in browser memory based on continuous status snapshots.
 
 ### Incremental Pull Mechanism
-All pull endpoints (`pull_*`) support the `known_rev` mechanism. The actual payload is transmitted only when the backend data version has changed; otherwise, only the version number is returned, greatly saving polling bandwidth.
+All pull endpoints (`pull_*`) support the `known_rev` mechanism. Actual payload is only transmitted when the backend data version changes; otherwise, only the version number is returned, greatly conserving polling bandwidth.
 
-### Degraded Configuration Startup
-The system is designed with a robust initialization flow: if backend configuration loading fails, the frontend automatically falls back to the built-in `DEFAULT_WEB_CONFIG`, ensuring the monitoring dashboard renders and displays basic data under any circumstances.
+### Graceful Configuration Degradation
+The system has a robust initialization flow: if backend configuration loading fails, the frontend automatically falls back to the built-in `DEFAULT_WEB_CONFIG`, ensuring the monitoring panel can render and display basic data under any circumstances.
 
 ## Usage Patterns
 
@@ -62,11 +62,9 @@ celestialflow-web --port 5000
 ```python
 import requests
 
-# Inject new tasks into a specified node
+# Inject new tasks into a specified node (format: {node_name: [task_list]})
 requests.post("http://localhost:5000/api/push_injection_tasks", json={
-    "node": "Stage_A",
-    "task_datas": [{"id": 1, "data": "payload"}],
-    "timestamp": "2026-05-23T10:00:00"
+    "Stage_A": [{"id": 1, "data": "payload"}]
 })
 ```
 
@@ -77,7 +75,7 @@ requests.post("http://localhost:5000/api/push_injection_tasks", json={
 ```python
 from celestialflow import TaskWebServer
 
-# Create a server instance
+# Create server instance
 server = TaskWebServer(
     host="127.0.0.1",   # Listen address
     port=5000,            # Listen port
@@ -103,7 +101,7 @@ async def main():
     # 1. Start the Web server first (runs in a background thread)
     server = TaskWebServer(host="127.0.0.1", port=5000, log_level="info")
     # In a real production environment, server.start_server() would block;
-    # this example illustrates the reporter-server coordination flow
+    # this demonstrates the reporter-server coordination flow
 
     # 2. Create a task graph
     def process(x: int) -> int:

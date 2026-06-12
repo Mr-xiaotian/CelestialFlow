@@ -1,69 +1,98 @@
 # main.ts
 
-> 📅 Last Updated: 2026/05/24
+> 📅 Last Updated: 2026/06/11
 
-The dashboard main entry script, responsible for coordinating global initialization, event listeners, and core data polling logic.
+Dashboard main entry script, responsible for coordinating global initialization, event listeners, and core data polling logic.
 
-## Initialization Flow
+> ⚠️ **Changed**: The `loadSummary()` and `initSortableDashboard()` mentioned in older docs have been removed. `refreshAll()` now makes 4 parallel requests (statuses, structure, errors, analysis); summary is frontend-aggregated by `renderSummary()` directly from `nodeStatuses`. Added `updateCurrentPageSettings()`, `activateTab()` and other settings panel management functions.
 
-1. **Configuration Loading**: Calls `loadWebConfig()` to fetch persisted configuration from the backend.
-2. **UI Application**: Calls `applyConfig()` to apply settings such as theme, language, and refresh interval.
-3. **Feature Activation**:
-   - `initSortableDashboard()`: Enables node card drag-and-drop.
-   - `initChart()`: Initializes the Chart.js history chart.
-   - ⚠️ `initHistoryMetricSwitcher()` is **not called in main.ts** — it is automatically executed in the module scope of `dashboard_history.ts`.
-4. **Polling Start**: Launches `refreshAll()` periodic refresh via `setInterval`.
+## Global Variables
+
+| Variable | Type | Description |
+|------|------|------|
+| `refreshRate` | `number` | Polling refresh interval (milliseconds), default `5000` |
+| `refreshIntervalId` | `ReturnType<typeof setInterval> \| null` | Polling timer ID |
+
+## DOM Element References
+
+| Variable | DOM Selector | Description |
+|------|-----------|------|
+| `refreshSelect` | `#refresh-interval` | Refresh interval dropdown |
+| `autoRefreshToggle` | `#auto-refresh-toggle` | Auto-refresh toggle |
+| `historyLimitSelect` | `#history-limit` | History limit dropdown |
+| `settingsBtn` | `#settings-btn` | Settings gear button |
+| `settingsPanel` | `#settings-panel` | Settings floating panel |
+| `themeToggleBtn` | `#theme-toggle` | Theme toggle button |
+| `languageSelect` | `#language-select` | Language selection dropdown |
+| `errorPageSizeSelect` | `#error-page-size` | Error page size dropdown |
+| `errorJumpToInjectionToggle` | `#error-jump-to-injection-toggle` | Error page re-injection jump toggle |
+| `structureEdgeDeltaToggle` | `#structure-edge-delta` | Structure graph edge delta display toggle |
+| `statusTotalPendingToggle` | `#status-total-pending-toggle` | Node status card pending value mode toggle |
+| `injectableOnlyToggle` | `#injectable-only-toggle` | Injection page "injectable nodes only" toggle |
+| `tabButtons` | `.tab-btn` | Tab button list |
+| `tabContents` | `.tab-content` | Tab content list |
 
 ## Core Features
 
 ### Polling Refresh (`refreshAll`)
 
-Launches multiple asynchronous requests in parallel to fetch the latest node status, graph structure, error logs, topology analysis, and summary statistics.
+Launches 4 parallel async requests: `loadStatuses()`, `loadStructure()`, `loadErrors()`, `loadAnalysis()`. Based on the change flags returned by each module, triggers DOM rendering as needed.
 
-- **On-Demand Rendering**: DOM re-rendering is only triggered when the corresponding data version number (`rev`) changes.
-- **Status Sync**: After `loadStatuses()` succeeds, it automatically drives `appendStatusSnapshotToHistory()` to accumulate frontend history.
+```mermaid
+flowchart TD
+    RA[refreshAll] --> LS[loadStatuses]
+    RA --> LST[loadStructure]
+    RA --> LE[loadErrors]
+    RA --> LA[loadAnalysis]
 
-### Settings Interaction
+    LS -->|statusesChanged| RD[renderDashboard]
+    LS -->|statusesChanged| PN[populateNodeFilter]
+    LS -->|statusesChanged| RI[renderInjectionPage]
+    LS -->|statusesChanged| UC[updateChartData]
+    LS -->|statusesChanged| RS[renderSummary]
 
-| Setting | Triggered Behavior |
-|---------|--------------------|
-| **Refresh Interval** | Updates polling timer, calls `saveWebConfig()` |
-| **History Length** | Immediately calls `trimNodeHistories()` to trim local sequences and redraw charts |
-| **Interface Language** | Calls `setLang()` + `applyI18nDOM()`, and fully refreshes all dynamically rendered cards |
-| **Structure Edge Delta** | Toggles `showStructureEdgeDelta` and immediately redraws the Mermaid diagram |
-| **Light/Dark Theme** | Toggles body class name, synchronously updates `theme-toggle` text and chart theme colors |
+    LST -->|structureChanged| RM[renderMermaidStructure]
+    LS -->|statusesChanged| RM
+
+    LE -->|errorsChanged| RE[renderErrors]
+
+    LA -->|analysisChanged| RAI[renderAnalysisInfo]
+```
+
+### Settings Interactions
+
+| Setting | Event | Triggered Behavior |
+|-------|------|----------|
+| **Refresh Interval** | `change` | Update `refreshRate`, save config, rebuild timer |
+| **Auto Refresh** | `change` | Toggle `autoRefreshEnabled`, sync timer, save config |
+| **History Limit** | `change` | Update `historyLimit`, trim history and redraw, save config |
+| **UI Language** | `change` | `setLang()` + `applyI18nDOM()`, full refresh of all cards and charts |
+| **Structure Edge Delta** | `change` | Toggle `showStructureEdgeDelta`, redraw Mermaid, save config |
+| **Node Pending Mode** | `change` | Toggle `useTotalPendingInStatus`, redraw node cards, save config |
+| **Injection Node Filter** | `change` | Toggle `showInjectableOnly`, refresh injection page, save config |
+| **Error Page Size** | `change` | Update `pageSize`, reload error list, save config |
+| **Error Re-injection Jump** | `change` | Toggle `jumpToInjectionAfterRetry`, save config |
+| **Light/Dark Theme** | `click` | Toggle `dark-theme` class, update chart theme colors, save config |
 
 ### UI Helper Functions
 
-#### `toggleDarkTheme()`
-Toggles the `dark-theme` class on the `body` element and returns the resulting boolean state.
+#### `toggleDarkTheme(): boolean`
+Toggles the `dark-theme` class on the `body` element, returns whether dark mode is active after the toggle.
 
-#### `showSettingsSaveStatus(messageKey)`
-Displays a timed status message at the bottom of the settings panel (e.g., "Saved successfully"), supporting i18n key mapping. Automatically hides after 2 seconds (success) or 5 seconds (failure).
+#### `showSettingsSaveStatus(messageKey: string): void`
+Displays a time-limited status tip at the bottom of the settings panel (auto-hides after 2s for success, 5s for failure).
 
-#### `updateSettingsStatusText()`
-After a language switch, updates the settings status prompt text to the translation in the current language.
+#### `updateSettingsStatusText(): void`
+Updates the settings status tip text after language switch.
 
-#### `isSettingsPanelOpen()` / `openSettingsPanel()` / `closeSettingsPanel()` / `toggleSettingsPanel()`
-Settings panel open/close/toggle management. Supports:
-- Clicking the gear button to toggle
-- Clicking the close button and returning focus
-- Clicking outside the panel to auto-close
-- Pressing `Escape` to close
+#### `syncAutoRefreshTimer(): void`
+Creates or clears the polling timer based on `webConfig.global.autoRefreshEnabled`.
 
-### Focus and Accessibility (a11y)
+#### Settings Panel Management
+`isSettingsPanelOpen()` / `openSettingsPanel()` / `closeSettingsPanel(options?)` / `toggleSettingsPanel()` — manages settings panel visibility and focus restoration.
 
-- **Settings Panel**: Supports quick close via the `Escape` key; after closing, focus is automatically returned to the settings button.
-- **Status Feedback**: When settings are saved, a brief "Saved successfully" or "Save failed" prompt is displayed at the bottom of the panel (implemented via `showSettingsSaveStatus()`).
-
-## `toggleDarkTheme()` and `showSettingsSaveStatus()` Ownership
-
-| Function | Defined In | Purpose |
-|----------|-----------|---------|
-| `toggleDarkTheme()` | **main.ts** | Theme switching |
-| `showSettingsSaveStatus()` | **main.ts** | Settings save status feedback |
-
-> These two functions are **not** defined in `utils.ts`.
+#### Tab Management
+`getActiveTab(): string` / `activateTab(button): void` / `updateCurrentPageSettings(): void` — manages top tab switching and the "current page settings" grouping in the settings panel.
 
 ## Data Flow Diagram
 
@@ -71,116 +100,50 @@ Settings panel open/close/toggle management. Supports:
 flowchart TD
     A["DOMContentLoaded"] --> B["loadWebConfig()"]
     B --> C["applyConfig()"]
-    C --> D["initSortableDashboard()"]
-    C --> E["initChart()"]
-    C --> F["refreshAll()<br/>(first run)"]
-    F --> G["setInterval(refreshAll, refreshRate)"]
+    C --> D["Initial render (empty state)"]
+    C --> E["Event bindings"]
+    D --> F["refreshAll()<br/>(first call)"]
+    E --> G["syncAutoRefreshTimer()"]
+    G --> H["setInterval(refreshAll, refreshRate)"]
 
-    G --> H["refreshAll()"]
-    H --> I["loadStatuses()"]
-    H --> J["loadStructure()"]
-    H --> K["loadErrors()"]
-    H --> L["loadAnalysis()"]
-    H --> M["loadSummary()"]
+    H --> RA["refreshAll()"]
+    RA --> I["loadStatuses()"]
+    RA --> J["loadStructure()"]
+    RA --> K["loadErrors()"]
+    RA --> L["loadAnalysis()"]
 
     I --> N["statusesChanged?"]
-    N --> O["renderDashboard()"]
-    N --> P["renderNodeList()"]
-    N --> Q["updateChartData()"]
+    N -->|true| O["renderDashboard()"]
+    N -->|true| P["renderInjectionPage()"]
+    N -->|true| Q["updateChartData()"]
+    N -->|true| R["renderSummary()"]
 
-    J --> R["structureChanged?"]
-    R --> S["renderMermaidStructure()"]
+    J --> S["structureChanged?"]
+    S -->|true| T["renderMermaidStructure()"]
 
-    K --> T["errorsChanged?"]
-    T --> U["renderErrors()"]
+    K --> U["errorsChanged?"]
+    U -->|true| V["renderErrors()"]
 
-    L --> V["analysisChanged?"]
-    V --> W["renderAnalysisInfo()"]
-
-    M --> X["summaryChanged?"]
-    X --> Y["renderSummary()"]
+    L --> W["analysisChanged?"]
+    W -->|true| X["renderAnalysisInfo()"]
 ```
 
-## Usage Examples
-
-### Manual `refreshAll` Invocation and Data Flow-Driven Example
-
-The following example demonstrates how to manually trigger a data refresh in the browser console, as well as the core data flow-driven relationships:
+## Usage Example
 
 ```typescript
-// 1. Manually trigger the full data refresh flow
-// Execute in the browser console:
-refreshAll().then(() => {
-    console.log("全量刷新完成");
-});
+// Manually trigger a full refresh
+// await refreshAll();
 
-// 2. Internal flow of refreshAll (based on main.ts source):
-// async function refreshAll() {
-//     // Parallel fetch of 5 data types
-//     const [statusesChanged, structureChanged, errorsChanged,
-//            analysisChanged, summaryChanged] = await Promise.all([
-//         loadStatuses(),
-//         loadStructure(),
-//         loadErrors(),
-//         loadAnalysis(),
-//         loadSummary(),
-//     ]);
-//
-//     // Render driven by dependency relationships:
-//     // Structure diagram depends on structure data + status data
-//     // Analysis panel depends on analysis data
-//     // Status cards / node list / line chart depend on status data
-//     // Summary panel depends on summary data
-//     // Error table depends on error data
-// }
+// Change polling frequency
+// refreshRate = 2000;
+// syncAutoRefreshTimer();
 
-// 3. Manually invoke individual data loading functions
-async function manualDataFetch() {
-    // Fetch status data only
-    const statusChanged = await loadStatuses();
-    if (statusChanged) {
-        renderDashboard();           // Update status cards
-        populateNodeFilter(nodeStatuses); // Update error filter
-        renderNodeList();            // Update injection page node list
-        updateChartData();           // Update line chart
-    }
+// Theme toggle
+// const isDark = toggleDarkTheme();
+// themeToggleBtn.textContent = isDark ? t("theme.light") : t("theme.dark");
+// updateChartTheme();
+// renderMermaidStructure(nodeStatuses);
 
-    // Fetch structure data only and redraw
-    const structChanged = await loadStructure();
-    if (structChanged && nodeStatuses) {
-        renderMermaidStructure(nodeStatuses);
-    }
-
-    // Fetch error data only
-    const errChanged = await loadErrors(true);
-    if (errChanged) {
-        renderErrors();
-    }
-}
-
-// 4. Modify polling frequency
-// Default stored in webConfig.refreshInterval
-// Temporarily adjust in browser console:
-// clearInterval(refreshIntervalId);
-// refreshRate = 2000;  // Change to 2 seconds
-// refreshIntervalId = setInterval(refreshAll, refreshRate);
-
-// 5. Manually trigger settings save
-// saveWebConfig().then(success => {
-//     showSettingsSaveStatus(
-//         success ? "settings.saveSuccess" : "settings.saveFailed"
-//     );
-// });
-
-// 6. Theme switching
-function toggleTheme() {
-    const isDark = toggleDarkTheme();
-    webConfig.theme = isDark ? "dark" : "light";
-    themeToggleBtn.textContent = isDark ? t("theme.light") : t("theme.dark");
-    renderMermaidStructure(nodeStatuses);
-    updateChartTheme();
-    saveWebConfig();
-}
-
-// toggleTheme();  // Execute theme switch
+// Switch tabs
+// activateTab(document.querySelector('[data-tab="errors"]'));
 ```

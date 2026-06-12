@@ -2,35 +2,35 @@
 
 > 📅 最終更新日: 2026/04/22
 
-このセクションでは、**TaskGraph**の迅速なインストールと実行を案内し、サンプルを通じてタスクグラフのスケジューリングメカニズムを体験します。
+本セクションでは、**TaskGraph** を素早くインストールして実行し、サンプルを通じてそのタスクグラフスケジューリングメカニズムを体験します。
 
 ## 独立した仮想環境の作成
 
 他のプロジェクトとの依存関係の競合を避けるため、独立した環境での使用を推奨します。
 
 ```bash
-# プロジェクト仮想環境を作成（デフォルトで.venvを生成）
+# プロジェクト仮想環境を作成（デフォルトで .venv を生成）
 uv venv --python 3.10
 
-# 環境を有効化（Windows）
+# 環境をアクティベート（Windows）
 . .\.venv\Scripts\Activate.ps1
 
-# 環境を有効化（Linux/macOS）
+# 環境をアクティベート（Linux/macOS）
 source .venv/bin/activate
 ```
 
-独立した仮想環境での使用を推奨します。CelestialFlowでは`uv`による依存関係と環境の管理を推奨しています。
+独立した仮想環境での使用を推奨します。CelestialFlow は依存関係と環境の管理に `uv` の使用を推奨します。
 
-## CelestialFlowのインストール
+## CelestialFlow のインストール
 
-CelestialFlowは[PyPI](https://pypi.org/project/celestialflow/)に公開されており、ソースコードのクローン不要で`pip` / `uv pip`から直接インストールできます。
+CelestialFlow は [PyPI](https://pypi.org/project/celestialflow/) に公開されており、`pip` / `uv pip` で直接インストールできます。ソースコードのクローンは不要です。
 
 ```bash
-# 最新バージョンを直接インストール
+# 最新版を直接インストール
 uv pip install celestialflow
 ```
 
-ただし、後述のテストコードを実行したい場合や、Go言語ベースのgo_workerプログラムを使用したい場合は、プロジェクトのクローンが必要です。
+ただし、後続のテストコードを実行したい場合や、Go 言語ベースの go_worker プログラムを使用したい場合は、プロジェクトをクローンする必要があります。
 
 ```bash
 # プロジェクトをクローン
@@ -39,48 +39,48 @@ cd CelestialFlow
 uv pip install .
 ```
 
-## （オプション）.envの設定 && Web可視化の起動
+## （オプション）.env の設定 && Web 可視化の起動
 
-Web監視インターフェースは必須ではありませんが、Webページを通じてタスク実行に関するより多くの情報を得られるため、使用を推奨します。
+Web 監視インターフェースは必須ではありませんが、Web ページを通じてタスク実行のより多くの情報を取得できるため、使用を推奨します。
 
-まず、プロジェクトのルートディレクトリに`.env`ファイルを作成し、以下の内容を記入してください：
+まず、プロジェクトのルートディレクトリに `.env` ファイルを作成し、以下の内容を入力します：
 
 ```env
 # .env
-# TaskWebのリスニングアドレス
+# TaskWeb のリスンアドレス
 REPORT_HOST=127.0.0.1
-# TaskWebのリスニングポート
+# TaskWeb のリスンポート
 REPORT_PORT=5005
 ```
 
-次に、以下のコマンドでWebサービスを起動できます：
+その後、以下のコマンドで Web サービスを起動できます：
 
 ```bash
-# プロジェクトをpipでインストールした場合、現在の仮想環境でcelestialflow-webコマンドを直接使用できます
+# pip でインストールした場合、現在の仮想環境で celestialflow-web コマンドを直接使用可能
 celestialflow-web --port 5005
 
-# プロジェクトを直接cloneしてプロジェクトディレクトリにcdした場合、task_web.pyファイルを実行する必要があります
+# クローンしてプロジェクトディレクトリに cd した場合、task_web.py ファイルを実行
 python src/celestialflow/task_web.py --port 5005 
 ```
 
-デフォルトのリスニングポートは`5000`ですが、競合を避けるため、テストコードではポート`5005`を使用しています。以下にアクセスしてください：
+デフォルトのリスンポートは `5000` ですが、競合を避けるため、テストコードではポート `5005` を使用しています。以下にアクセスしてください：
 
 👉 [http://localhost:5005](http://localhost:5005)
 
-タスク構造、実行状態、エラーログの確認、およびリアルタイムでのタスク注入などの機能を利用できます。
+タスク構造、実行状態、エラーログ、リアルタイムタスク注入などの機能を確認できます。
 
-以下の画像は、テスト実行時のWebページの表示例です（デフォルトのレイアウトではありません）：
+以下はテスト実行時の Web ページ表示例であり、デフォルトの表示スタイルではありません：
 
 ![WebUI](https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/web_ui.gif)
-<p align="center"><em>gif画像は細部が圧縮されすぎています(｡•́︿•̀｡)</em></p>
+<p align="center"><em>gif 画像は多くの詳細を圧縮しています (｡•́︿•̀｡)</em></p>
 
-注意：Webインターフェースを起動していない状態で、以下の設定をした場合
+注意: Web ウィンドウを起動せずに以下の設定をした場合：
 
 ```python
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 ```
 
-[ログ](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/core_log.md)にいくつかの`WARNING`メッセージが表示されます。これはTaskReporterがTaskWebに接続できないことを示すものですが、使用には影響しません。
+[ログ](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/core_log.md)にいくつかの `WARNING` が表示されます。これは TaskReporter が TaskWeb に接続できないことを示していますが、使用には影響しません。
 
 ```log
 2025-12-10 08:57:13 WARNING [Reporter] Task injection fetch failed: ConnectTimeout
@@ -88,21 +88,21 @@ graph.set_reporter(True, host="127.0.0.1", port=5005)
 
 ## テストサンプルの実行
 
-プロジェクトには、フレームワークの機能を素早く理解するためのサンプルファイルが`tests/`ディレクトリに用意されています。
+プロジェクトには `tests/` ディレクトリに複数のサンプルファイルが用意されており、フレームワークの特性を素早く理解するのに役立ちます。
 
-テストが正常に動作するよう、まず必要なテストライブラリとdotenvライブラリをインストールしてください：
+テストを正常に実行するために、まず必要なテストライブラリと dotenv ライブラリをインストールしてください：
 ```bash
 uv pip install pytest pytest-asyncio python-dotenv
 ```
 
-まず以下のテストを実行することを推奨します：
+その後、以下のテストを最初に実行することを推奨します：
 
 ```bash
 pytest tests/test_graph.py
 pytest tests/test_stage.py
 ```
 
-- `tests/test_graph.py` には、グラフ構造に関連するテストが含まれています：DAG構築、段階的スケジューリング、スレッドモード、ループ/グリッド/完全グラフ構造など。
-- `tests/test_stage.py` には、Stageノードに関連するテストが含まれています：モード検証、タグ生成、シリアライズチェックなど。
+- `tests/test_graph.py` にはグラフ構造関連のテストが含まれます：DAG 構築、階層スケジューリング、スレッドモード、循環/グリッド/完全グラフ構造など。
+- `tests/test_stage.py` には Stage ノード関連のテストが含まれます：モード検証、ラベル生成、シリアライズチェックなど。
 
-コード実行中は、Web監視ページで実行状況を確認できます。
+コード実行中は Web 監視ページで実行状況を確認できます。
