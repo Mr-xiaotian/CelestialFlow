@@ -98,31 +98,6 @@ class FailInlet(BaseInlet):
         """
         super().__init__(fail_queue)
 
-    def start_graph(self, graph_name: str, structure_graph: dict[str, Any]) -> None:
-        """
-        在运行开始时写入任务结构元信息到失败持久化流。
-
-        :param structure_graph: 任务图结构 JSON
-        """
-        meta_item = {
-            "timestamp": datetime.now().isoformat(),
-            "graph_name": graph_name,
-            "structure": structure_graph,
-        }
-        self._funnel(meta_item)
-
-    def start_executor(self, executor_name: str) -> None:
-        """
-        在运行开始时写入执行器元信息到失败持久化流。
-
-        :param executor_name: 执行器唯一名称
-        """
-        meta_item = {
-            "timestamp": datetime.now().isoformat(),
-            "executor_name": executor_name,
-        }
-        self._funnel(meta_item)
-
     def _to_retry_payload(self, task: Any) -> Any:
         """
         将失败任务转换为可回填到注入页的 JSON 友好结构。

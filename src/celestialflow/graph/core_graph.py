@@ -397,7 +397,6 @@ class TaskGraph:
             self.fail_spout.start()
             self.log_spout.start()
             self.log_inlet.start_graph(self.name, self.get_structure_list())
-            self.fail_inlet.start_graph(self.name, self.get_structure_graph())
             self.reporter.start()
 
             self.put_stage_queue(init_tasks_dict, put_termination_signal)

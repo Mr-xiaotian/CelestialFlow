@@ -611,7 +611,6 @@ class TaskExecutor[T, R]:
 
         self._notify("on_start", self.get_full_name(), 0)
         self._put_task_queue(task_source)
-        self.fail_inlet.start_executor(self.get_name())
         self.log_inlet.start_executor(
             self.get_name(),
             self.metrics.get_task_count(),
