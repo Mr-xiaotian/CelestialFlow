@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import copy
 import os
+import tempfile
 import threading
 from typing import Any, cast
 
@@ -18,6 +19,12 @@ from fastapi.templating import (
     Jinja2Templates,
 )
 
+from ..persistence.util_sqlite import (
+    connect_errors_db,
+    load_error_records,
+    query_error_records,
+    replace_error_records,
+)
 from .routes import create_router
 from .util_cal import cal_interval
 from .util_config import load_config
@@ -61,10 +68,16 @@ class TaskWebServer:
             "edges": {},
             "source_nodes": [],
         }
-        self.error_store: list[dict[str, Any]] = []
         self.analysis_store: dict[str, Any] = {}
         self.summary_store: dict[str, Any] = {}
         self.injection_tasks: dict[str, list[Any]] = {}  # 存储前端注入任务
+        fd, errors_db_path = tempfile.mkstemp(
+            prefix="celestialflow-web-errors-", suffix=".sqlite3"
+        )
+        os.close(fd)
+        self.errors_db_path: str = errors_db_path
+        conn = connect_errors_db(self.errors_db_path)
+        conn.close()
 
         # 各类 store 的 rev + payload 需要原子读写，避免 pull 读到撕裂快照
         self.status_lock: threading.Lock = threading.Lock()
@@ -140,7 +153,7 @@ class TaskWebServer:
     ) -> None:
         """原子更新错误缓存元信息、错误内容及其版本号。"""
         with self.errors_lock:
-            self.error_store = copy.deepcopy(errors)
+            replace_error_records(self.errors_db_path, errors)
             self.errors_meta_rev = rev
             self.errors_meta_path = path
             self.store_revs["errors"] += 1
@@ -148,7 +161,21 @@ class TaskWebServer:
     def get_errors_snapshot(self) -> tuple[int, list[dict[str, Any]]]:
         """原子读取错误数据快照。"""
         with self.errors_lock:
-            return self.store_revs["errors"], copy.deepcopy(self.error_store)
+            return self.store_revs["errors"], load_error_records(self.errors_db_path)
+
+    def query_errors(
+        self,
+        page: int,
+        page_size: int,
+        node: str,
+        keyword: str,
+        sort_order: str,
+    ) -> tuple[int, int, list[dict[str, Any]]]:
+        """原子查询错误数据分页结果。"""
+        with self.errors_lock:
+            return query_error_records(
+                self.errors_db_path, page, page_size, node, keyword, sort_order
+            )
 
     def update_analysis_store(self, analysis: dict[str, Any]) -> None:
         """原子更新图分析数据及其版本号。"""

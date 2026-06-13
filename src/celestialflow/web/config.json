@@ -2,13 +2,13 @@
     "global": {
         "theme": "light",
         "autoRefreshEnabled": true,
-        "refreshInterval": 30000,
+        "refreshInterval": 2000,
         "language": "zh-CN"
     },
     "dashboard": {
         "historyLimit": 100,
         "showStructureEdgeDelta": false,
-        "useTotalPendingInStatus": true,
+        "useTotalPendingInStatus": false,
         "layout": {
             "left": [
                 "mermaid",

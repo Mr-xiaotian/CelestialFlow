@@ -12,7 +12,7 @@ def test_store_snapshot_methods_return_isolated_copies(web_server):
     web_server.update_status_store(123.0, raw_status)
     web_server.update_structure_store(raw_structure)
     web_server.update_analysis_store(raw_analysis)
-    web_server.update_errors_store(7, "dummy.jsonl", raw_errors)
+    web_server.update_errors_store(7, "dummy.sqlite3", raw_errors)
 
     _, status_timestamp, status_snapshot = web_server.get_status_snapshot()
     _, structure_snapshot = web_server.get_structure_snapshot()
@@ -176,7 +176,7 @@ def test_errors_pagination(client):
     # 注意：由于 push_errors_meta 需要真实路径，我们直接用 push_errors_content
     client.post("/api/push_errors_content", json={
         "errors": test_errors,
-        "jsonl_path": "dummy.jsonl",
+        "error_path": "dummy.sqlite3",
         "rev": 1
     })
 

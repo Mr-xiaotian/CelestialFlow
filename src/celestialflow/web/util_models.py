@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field, RootModel
+from pydantic import AliasChoices, BaseModel, Field, RootModel
 
 
 class StructureModel(BaseModel):
@@ -23,7 +23,10 @@ class StatusModel(BaseModel):
 class ErrorsMetaModel(BaseModel):
     """错误元数据模型"""
 
-    jsonl_path: str
+    error_path: str = Field(
+        validation_alias=AliasChoices("error_path", "jsonl_path"),
+        serialization_alias="error_path",
+    )
     rev: int
 
 
@@ -31,7 +34,10 @@ class ErrorsContentModel(BaseModel):
     """错误内容数据模型"""
 
     errors: list[dict[str, Any]]
-    jsonl_path: str
+    error_path: str = Field(
+        validation_alias=AliasChoices("error_path", "jsonl_path"),
+        serialization_alias="error_path",
+    )
     rev: int
 
 

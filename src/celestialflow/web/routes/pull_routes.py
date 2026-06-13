@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter
 
-from ..util_error import filter_errors, normalize_errors_query, paginate_errors
+from ..util_error import normalize_errors_query
 
 if TYPE_CHECKING:
     from ..core_server import TaskWebServer
@@ -78,7 +78,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         :param sort_order: 排序方式，支持 newest / oldest
         :return: {"rev": int, "page": int, "page_size": int, "total": int, "total_pages": int, "data": list | None}
         """
-        rev, error_store = server.get_errors_snapshot()
+        rev, _ = server.get_errors_snapshot()
         (
             normalized_page,
             normalized_page_size,
@@ -86,15 +86,17 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
             normalized_keyword,
             normalized_sort_order,
         ) = normalize_errors_query(page, page_size, node, keyword, sort_order)
-        filtered = filter_errors(error_store, normalized_node, normalized_keyword)
-        total, total_pages, page_items = paginate_errors(
-            filtered, normalized_page, normalized_page_size, normalized_sort_order
+        total, total_pages, page_items = server.query_errors(
+            normalized_page,
+            normalized_page_size,
+            normalized_node,
+            normalized_keyword,
+            normalized_sort_order,
         )
-        normalized_page = min(normalized_page, total_pages)
 
         base = {
             "rev": rev,
-            "page": normalized_page,
+            "page": min(normalized_page, total_pages),
             "page_size": normalized_page_size,
             "total": total,
             "total_pages": total_pages,

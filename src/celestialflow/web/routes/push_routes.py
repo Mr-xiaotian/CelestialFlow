@@ -10,7 +10,7 @@ from anyio.to_thread import run_sync
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from ...persistence.util_jsonl import load_jsonl_logs
+from ...persistence.util_sqlite import load_error_records
 from ..util_cal import cal_interval
 from ..util_config import save_config
 from ..util_models import (
@@ -86,13 +86,13 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
     @router.post("/api/push_errors_meta")
     async def push_errors_meta(data: ErrorsMetaModel) -> dict[str, Any]:
         """
-        通过 JSONL 文件路径+版本号加载错误日志；命中缓存则跳过读取。
+        通过错误存储路径+版本号加载错误日志；命中缓存则跳过读取。
 
         :param data: 错误元信息数据
         :return: {"ok": True, "cached": bool} 或 {"ok": False, "fallback": ..., ...}
         """
         # 命中缓存：path 和 rev 都没变 -> 不重新读取
-        if _is_errors_cache_hit(data.rev, data.jsonl_path):
+        if _is_errors_cache_hit(data.rev, data.error_path):
             return {"ok": True, "cached": True}
 
         try:
@@ -103,19 +103,11 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
             )
             errors = await run_sync_typed(
                 partial(
-                    load_jsonl_logs,
-                    path=data.jsonl_path,
-                    keys=[
-                        "ts",
-                        "stage",
-                        "error_id",
-                        "error_type",
-                        "error_message",
-                        "task",
-                    ],
+                    load_error_records,
+                    db_path=data.error_path,
                 )
             )
-            server.update_errors_store(data.rev, data.jsonl_path, errors)
+            server.update_errors_store(data.rev, data.error_path, errors)
             return {"ok": True, "cached": False}
         except Exception as e:
             return {
@@ -133,10 +125,10 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         :param data: 错误内容数据
         :return: {"ok": True, "cached": bool}
         """
-        if _is_errors_cache_hit(data.rev, data.jsonl_path):
+        if _is_errors_cache_hit(data.rev, data.error_path):
             return {"ok": True, "cached": True}
 
-        server.update_errors_store(data.rev, data.jsonl_path, data.errors)
+        server.update_errors_store(data.rev, data.error_path, data.errors)
         return {"ok": True, "cached": False}
 
     @router.post("/api/push_analysis")
