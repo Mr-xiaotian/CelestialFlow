@@ -524,7 +524,7 @@ class TaskExecutor[T, R]:
             parents=[task_id],
             payload=self.get_summary(),
         )
-        
+
         retry_envelope: TaskEnvelope[T, Any] = TaskEnvelope(
             task=task,
             id=retry_id,
@@ -566,9 +566,7 @@ class TaskExecutor[T, R]:
 
         self.metrics.add_error_count()
 
-        self.fail_inlet.task_error(
-            self.get_name(), error_id, exception, task
-        )
+        self.fail_inlet.task_error(self.get_name(), error_id, exception, task)
         self.log_inlet.task_error(
             self.get_func_name(),
             self._get_task_repr(task),

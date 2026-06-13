@@ -105,7 +105,14 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
                 partial(
                     load_jsonl_logs,
                     path=data.jsonl_path,
-                    keys=["ts", "stage", "error_id", "error_type", "error_message", "task"],
+                    keys=[
+                        "ts",
+                        "stage",
+                        "error_id",
+                        "error_type",
+                        "error_message",
+                        "task",
+                    ],
                 )
             )
             server.update_errors_store(data.rev, data.jsonl_path, errors)

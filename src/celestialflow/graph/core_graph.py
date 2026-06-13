@@ -74,7 +74,7 @@ class TaskGraph:
         - 当前 TaskGraph 实例为一次性对象。
         - 完成一次 start_graph() 后，不应复用同一实例再次启动。
         - 如需重复执行，请重新构建新的 TaskGraph 与节点对象。
-        
+
         :param name: 任务图名称
         :param schedule_mode: str, optional, default = 'eager'
             控制任务图的调度布局模式，支持以下两种策略：

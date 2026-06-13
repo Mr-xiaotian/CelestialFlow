@@ -11,6 +11,7 @@ from ..runtime.util_types import PersistedErrorRecord
 
 # ======== jsonl文件处理 ========
 
+
 def _parse_error_record(item: dict[str, Any]) -> PersistedErrorRecord:
     """
     从 JSONL 记录中解析错误记录对象
@@ -202,10 +203,7 @@ def load_task_error_pairs(
             except json.JSONDecodeError:
                 continue
 
-            has_error = any(
-                key in item
-                for key in ("error_type", "error_message")
-            )
+            has_error = any(key in item for key in ("error_type", "error_message"))
             if "task" not in item or not has_error:
                 continue
 

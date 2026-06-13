@@ -91,4 +91,6 @@ class WebConfigModel(BaseModel):
     global_: GlobalConfigModel = Field(alias="global")
     dashboard: DashboardPageConfigModel
     errors: ErrorsPageConfigModel
-    injection: InjectionPageConfigModel = Field(default_factory=InjectionPageConfigModel)
+    injection: InjectionPageConfigModel = Field(
+        default_factory=InjectionPageConfigModel
+    )

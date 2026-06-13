@@ -65,7 +65,7 @@ class TaskEnvelope[T, TPrev]:
         :return: 任务 ID
         """
         return self.id
-    
+
     def get_prev(self) -> TPrev | None:
         """
         获取前一个任务（用于结果缓存时回溯）

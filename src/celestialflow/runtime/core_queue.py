@@ -167,9 +167,7 @@ class TaskInQueue[T]:
         results: list[TaskEnvelope[T, Any]] = []
         while True:
             try:
-                item: TaskEnvelope[T, Any] | TerminationSignal = (
-                    self.queue.get_nowait()
-                )
+                item: TaskEnvelope[T, Any] | TerminationSignal = self.queue.get_nowait()
                 if isinstance(item, TaskEnvelope):
                     results.append(item)
                 else:

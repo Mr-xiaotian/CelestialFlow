@@ -163,7 +163,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
     def get_status(self) -> StageStatus:
         """读取当前状态（返回 StageStatus 枚举）。"""
         return StageStatus(self._status)
-    
+
     # ==== 任务队列 ====
     def drain_task_queue(self) -> None:
         """清空任务队列，将所有任务移至失败队列。"""
@@ -185,7 +185,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         raise GraphManagedError(
             f"Stage {self.get_name()} is managed by a TaskGraph. Use TaskGraph.start_graph() instead of calling start() directly."
         )
-    
+
     async def start_async(self, task_source: Any) -> None:
         """
         异步启动 stage，将任务源添加到任务队列。
