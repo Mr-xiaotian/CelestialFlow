@@ -14,9 +14,8 @@ from .graph import (
     TaskWheel,
 )
 from .observability import BaseObserver, CallbackObserver, TaskProgress
-from .persistence.util_jsonl import (
-    load_jsonl_logs,
-    load_task_by_error,
+from .persistence.util_sqlite import (
+    load_error_records,
     load_task_by_stage,
 )
 from .runtime.util_hash import make_hashable
@@ -57,8 +56,7 @@ __all__ = [
     "benchmark_executor",
     "benchmark_graph",
     "format_table",
-    "load_jsonl_logs",
-    "load_task_by_error",
+    "load_error_records",
     "load_task_by_stage",
     "make_hashable",
 ]

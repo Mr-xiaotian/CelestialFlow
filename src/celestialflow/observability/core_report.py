@@ -6,7 +6,7 @@ import requests
 
 from ..graph.util_types import ReporterTaskGraph
 from ..persistence import LogInlet
-from ..persistence.util_jsonl import load_jsonl_logs
+from ..persistence.util_sqlite import load_error_records
 from ..runtime.util_errors import ReporterError
 from ..runtime.util_types import TERMINATION_SIGNAL
 
@@ -151,7 +151,7 @@ class TaskReporter:
         """推送错误信息"""
         try:
             current_rev = self.task_graph.get_total_error_num()
-            jsonl_path = self.task_graph.get_fallback_path()
+            error_path = self.task_graph.get_fallback_path()
             resp = {"ok": True, "cached": False}  # 默认响应，避免未定义变量
 
             # 无新增错误，跳过
@@ -159,7 +159,7 @@ class TaskReporter:
                 return
 
             if self._push_errors_mode == "meta":
-                resp = self._push_errors_meta(current_rev, jsonl_path)
+                resp = self._push_errors_meta(current_rev, error_path)
                 if resp.get("ok"):
                     pass
                 elif resp.get("fallback") == "need_content":
@@ -168,7 +168,7 @@ class TaskReporter:
                     raise ReporterError(f"push_errors_meta failed: {resp.get('msg')}")
 
             if self._push_errors_mode == "content":
-                resp = self._push_errors_content(current_rev, jsonl_path)
+                resp = self._push_errors_content(current_rev, error_path)
                 if resp.get("ok"):
                     pass
                 else:
@@ -182,17 +182,17 @@ class TaskReporter:
         except Exception as e:
             self.log_inlet.push_errors_failed(e)
 
-    def _push_errors_meta(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:
+    def _push_errors_meta(self, current_rev: int, error_path: str) -> dict[str, Any]:
         """
         推送错误元信息
 
         :param current_rev: 当前版本号
-        :param jsonl_path: 错误日志 JSONL 文件路径
+        :param error_path: 错误存储文件路径
         :return: 服务端响应字典
         """
         payload: dict[str, Any] = {
             "rev": current_rev,
-            "jsonl_path": jsonl_path,
+            "error_path": error_path,
         }
         response: requests.Response = self._session.post(
             f"{self.base_url}/api/push_errors_meta",
@@ -201,22 +201,21 @@ class TaskReporter:
         )
         return response.json()
 
-    def _push_errors_content(self, current_rev: int, jsonl_path: str) -> dict[str, Any]:
+    def _push_errors_content(self, current_rev: int, error_path: str) -> dict[str, Any]:
         """
         推送错误内容（增量：只传 offset 之后的新增条目）
 
         :param current_rev: 当前版本号
-        :param jsonl_path: 错误日志 JSONL 文件路径
+        :param error_path: 错误存储文件路径
         :return: 服务端响应字典
         """
-        all_errors: list[dict[str, Any]] = load_jsonl_logs(
-            path=jsonl_path,
-            keys=["ts", "error_id", "error_type", "error_message", "stage", "task"],
+        all_errors: list[dict[str, Any]] = load_error_records(
+            db_path=error_path,
         )
 
         payload: dict[str, Any] = {
             "rev": current_rev,
-            "jsonl_path": jsonl_path,
+            "error_path": error_path,
             "errors": all_errors,
         }
         response: requests.Response = self._session.post(

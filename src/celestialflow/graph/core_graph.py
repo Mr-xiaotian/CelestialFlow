@@ -18,7 +18,6 @@ from networkx import DiGraph, is_directed_acyclic_graph
 
 from ..observability import NullTaskReporter, TaskReporter
 from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout
-from ..persistence.util_jsonl import load_task_by_error, load_task_by_stage
 from ..runtime import TaskInQueue, TaskOutQueue
 from ..runtime.util_constant import LEVEL_DICT, STAGE_STYLE
 from ..runtime.util_errors import (
@@ -608,26 +607,6 @@ class TaskGraph:
 
     # ==== 查询接口 ====
 
-    def get_fail_by_stage_dict(self) -> dict[str, list[Any]]:
-        """
-        获取按节点分组的失败任务字典
-
-        :return: {stage_name: [失败任务列表]}
-        """
-        if self.fail_spout.jsonl_path is None:
-            return {}
-        return load_task_by_stage(self.fail_spout.jsonl_path)
-
-    def get_fail_by_error_dict(self) -> dict[tuple[str, ...], list[Any]]:
-        """
-        获取按错误类型分组的失败任务字典
-
-        :return: {error_type: [失败任务列表]}
-        """
-        if self.fail_spout.jsonl_path is None:
-            return {}
-        return load_task_by_error(self.fail_spout.jsonl_path)
-
     def get_total_error_num(self) -> int:
         """
         获取总错误数
@@ -690,11 +669,11 @@ class TaskGraph:
         """
         获取失败任务的回退路径
 
-        :return: 失败任务 JSONL 文件的绝对路径，未设置时返回空字符串
+        :return: 失败任务持久化文件的绝对路径，未设置时返回空字符串
         """
-        if self.fail_spout.jsonl_path is None:
+        if self.fail_spout.db_path is None:
             return ""
-        return str(Path(self.fail_spout.jsonl_path).resolve())
+        return str(Path(self.fail_spout.db_path).resolve())
 
     def get_stage_input_trace(self, stage_name: str) -> str:
         """
