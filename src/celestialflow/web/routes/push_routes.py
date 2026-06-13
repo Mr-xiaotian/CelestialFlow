@@ -10,7 +10,7 @@ from anyio.to_thread import run_sync
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from ...persistence.util_sqlite import load_error_records
+from ...persistence.util_sqlite import load_error_records, load_error_records_after
 from ..util_cal import cal_interval
 from ..util_config import save_config
 from ..util_models import (
@@ -66,6 +66,8 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         :param data: 图结构数据
         :return: {"ok": True}
         """
+        if not server.is_current_graph(data.graph_id):
+            return {"ok": False}
         server.update_structure_store(data.structure)
         return {"ok": True}
 
@@ -77,11 +79,10 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         :param data: 节点状态数据
         :return: {"ok": True}
         """
+        if not server.is_current_graph(data.graph_id):
+            return {"ok": False}
         server.update_status_store(float(data.timestamp), data.status)
         return {"ok": True}
-
-    def _is_errors_cache_hit(rev: int, path: str) -> bool:
-        return server.is_errors_cache_hit(rev, path)
 
     @router.post("/api/push_errors_meta")
     async def push_errors_meta(data: ErrorsMetaModel) -> dict[str, Any]:
@@ -91,24 +92,34 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         :param data: 错误元信息数据
         :return: {"ok": True, "cached": bool} 或 {"ok": False, "fallback": ..., ...}
         """
-        # 命中缓存：path 和 rev 都没变 -> 不重新读取
-        if _is_errors_cache_hit(data.rev, data.error_path):
-            return {"ok": True, "cached": True}
-
+        if not server.is_current_graph(data.graph_id):
+            return {"ok": False}
         try:
-            # 不命中：更新 key 并全量加载
             run_sync_typed = cast(
                 Callable[..., Awaitable[list[dict[str, Any]]]],
                 run_sync,
             )
-            errors = await run_sync_typed(
-                partial(
-                    load_error_records,
-                    db_path=data.error_path,
+            append_mode = data.after_error_row_id > 0
+            if append_mode:
+                errors = await run_sync_typed(
+                    partial(
+                        load_error_records_after,
+                        db_path=data.error_path,
+                        after_row_id=data.after_error_row_id,
+                    )
                 )
+            else:
+                errors = await run_sync_typed(
+                    partial(
+                        load_error_records,
+                        db_path=data.error_path,
+                    )
+                )
+            server.update_errors_store(
+                errors,
+                append=append_mode,
             )
-            server.update_errors_store(data.rev, data.error_path, errors)
-            return {"ok": True, "cached": False}
+            return {"ok": True}
         except Exception as e:
             return {
                 "ok": False,
@@ -118,18 +129,21 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
             }
 
     @router.post("/api/push_errors_content")
-    async def push_errors_content(data: ErrorsContentModel) -> dict[str, Any]:
+    async def push_errors_content(data: ErrorsContentModel) -> dict[str, bool]:
         """
-        直接接收错误日志列表并存储；支持增量 append；命中缓存则跳过。
+        直接接收错误日志列表并存储；支持增量 append。
 
         :param data: 错误内容数据
-        :return: {"ok": True, "cached": bool}
+        :return: {"ok": True}
         """
-        if _is_errors_cache_hit(data.rev, data.error_path):
-            return {"ok": True, "cached": True}
-
-        server.update_errors_store(data.rev, data.error_path, data.errors)
-        return {"ok": True, "cached": False}
+        if not server.is_current_graph(data.graph_id):
+            return {"ok": False}
+        append_mode = data.after_error_row_id > 0
+        server.update_errors_store(
+            data.errors,
+            append=append_mode,
+        )
+        return {"ok": True}
 
     @router.post("/api/push_analysis")
     async def push_analysis(data: AnalysisModel) -> dict[str, bool]:
@@ -139,6 +153,8 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         :param data: 图分析数据
         :return: {"ok": True}
         """
+        if not server.is_current_graph(data.graph_id):
+            return {"ok": False}
         server.update_analysis_store(data.analysis)
         return {"ok": True}
 

@@ -3,9 +3,12 @@ import json
 import pytest
 
 from celestialflow.persistence.util_sqlite import (
+    append_error_records,
     connect_errors_db,
+    get_max_error_row_id,
     insert_error_record,
     load_error_records,
+    load_error_records_after,
     load_task_by_stage,
     load_task_error_pairs,
     normalize_error_record,
@@ -139,6 +142,21 @@ class TestSpliteUtils:
         assert total_pages == 1
         assert page_items[0]["error_id"] == 2
         assert page_items[0]["task"] == ["A", "B"]
+
+    def test_append_and_load_error_records_after(self, sqlite_path, sample_errors):
+        """测试按 row id 增量读取以及追加写入。"""
+        replace_error_records(sqlite_path, sample_errors[:2])
+
+        assert get_max_error_row_id(sqlite_path) == 1
+        assert load_error_records_after(sqlite_path, 1) == []
+
+        appended = append_error_records(sqlite_path, sample_errors[2:])
+        assert appended == 2
+        assert get_max_error_row_id(sqlite_path) == 3
+
+        incremental = load_error_records_after(sqlite_path, 1)
+        assert [item["id"] for item in incremental] == [2, 3]
+        assert [item["error_id"] for item in incremental] == [2, 3]
 
     def test_load_task_error_pairs_and_grouping(self, sqlite_path, sample_errors):
         """测试任务-错误配对读取以及按 stage 聚合。"""

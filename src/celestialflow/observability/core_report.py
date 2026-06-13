@@ -6,7 +6,10 @@ import requests
 
 from ..graph.util_types import ReporterTaskGraph
 from ..persistence import LogInlet
-from ..persistence.util_sqlite import load_error_records
+from ..persistence.util_sqlite import (
+    get_max_error_row_id,
+    load_error_records_after,
+)
 from ..runtime.util_errors import ReporterError
 from ..runtime.util_types import TERMINATION_SIGNAL
 
@@ -44,8 +47,11 @@ class TaskReporter:
         self._stop_flag: Event = Event()
         self._thread: Thread | None = None
         self._push_errors_mode: str = "meta"
-        self._last_pushed_errors_rev: int | None = None
         self._session: requests.Session = requests.Session()
+        self._server_has_current_graph: bool = False
+        self._server_has_structure: bool = False
+        self._server_has_analysis: bool = False
+        self._server_max_error_row_id: int = 0
 
         self.interval: int = 5
         self.history_limit: int = 20
@@ -87,30 +93,41 @@ class TaskReporter:
     def _refresh_all(self) -> None:
         """刷新所有上报内容"""
         # 拉取逻辑
-        self._pull_interval()
+        self._pull_server_state()
         self._pull_and_inject_tasks()
 
         # 收集最新的任务图状态快照，确保推送的数据是最新的
         self.task_graph.collect_runtime_snapshot()
 
         # 推送逻辑
-        self._push_errors()
+        if (not self._server_has_current_graph) or (not self._server_has_structure):
+            self._push_structure()
+        if (not self._server_has_current_graph) or (not self._server_has_analysis):
+            self._push_analysis()
         self._push_status()
-        self._push_structure()
-        self._push_analysis()
+        self._push_errors()
 
     # ==== 拉取 ====
-    def _pull_interval(self) -> None:
-        """从远程服务拉取上报间隔配置"""
+    def _pull_server_state(self) -> None:
+        """从远程服务拉取同步决策所需的状态。"""
         try:
             res = self._session.get(
-                f"{self.base_url}/api/pull_interval", timeout=self._pull_timeout()
+                f"{self.base_url}/api/pull_server_state",
+                params={"graph_id": self.task_graph.get_graph_id()},
+                timeout=self._pull_timeout(),
             )
             if not res.ok:
-                raise ReporterError(f"Failed to pull interval: {res.status_code}")
+                raise ReporterError(f"Failed to pull server state: {res.status_code}")
 
-            interval: Any = res.json().get("interval", 5)
+            payload = res.json()
+            interval: Any = payload.get("interval", 5)
             self.interval = int(max(1.0, min(float(interval), 60.0)))
+            self._server_has_current_graph = bool(
+                payload.get("is_current_graph", False)
+            )
+            self._server_has_structure = bool(payload.get("has_structure", False))
+            self._server_has_analysis = bool(payload.get("has_analysis", False))
+            self._server_max_error_row_id = int(payload.get("max_error_row_id", 0) or 0)
         except Exception as e:
             self.log_inlet.pull_interval_failed(e)
 
@@ -122,100 +139,121 @@ class TaskReporter:
             )
             if not res.ok:
                 raise ReporterError(f"Failed to pull task injection: {res.status_code}")
-
-            injection_tasks: dict[str, list[Any]] = res.json()
-            tasks_by_stage = {
-                target_stage: [
-                    task if task != "TERMINATION_SIGNAL" else TERMINATION_SIGNAL
-                    for task in task_datas
-                ]
-                for target_stage, task_datas in injection_tasks.items()
-            }
-            if not tasks_by_stage:
-                return
-
-            try:
-                self.task_graph.put_stage_queue(
-                    tasks_by_stage, put_termination_signal=False
-                )
-                for target_stage, task_datas in tasks_by_stage.items():
-                    self.log_inlet.inject_tasks_success(target_stage, task_datas)
-            except Exception as e:
-                for target_stage, task_datas in tasks_by_stage.items():
-                    self.log_inlet.inject_tasks_failed(target_stage, task_datas, e)
         except Exception as e:
             self.log_inlet.pull_tasks_failed(e)
+            return
+
+        injection_tasks: dict[str, list[Any]] = res.json()
+        tasks_by_stage = {
+            target_stage: [
+                task if task != "TERMINATION_SIGNAL" else TERMINATION_SIGNAL
+                for task in task_datas
+            ]
+            for target_stage, task_datas in injection_tasks.items()
+        }
+        if not tasks_by_stage:
+            return
+
+        try:
+            self.task_graph.put_stage_queue(
+                tasks_by_stage, put_termination_signal=False
+            )
+            for target_stage, task_datas in tasks_by_stage.items():
+                self.log_inlet.inject_tasks_success(target_stage, task_datas)
+        except Exception as e:
+            for target_stage, task_datas in tasks_by_stage.items():
+                self.log_inlet.inject_tasks_failed(target_stage, task_datas, e)
 
     # ==== 推送 ====
     def _push_errors(self) -> None:
         """推送错误信息"""
         try:
-            current_rev = self.task_graph.get_total_error_num()
             error_path = self.task_graph.get_fallback_path()
-            resp = {"ok": True, "cached": False}  # 默认响应，避免未定义变量
+            graph_id = self.task_graph.get_graph_id()
+            local_max_error_row_id = (
+                get_max_error_row_id(error_path) if error_path else 0
+            )
 
-            # 无新增错误，跳过
-            if current_rev == self._last_pushed_errors_rev:
+            if local_max_error_row_id <= 0 or not error_path:
                 return
+            
+            push_error_func_dict = {
+                "meta": self._push_errors_meta,
+                "content": self._push_errors_content,
+            }
 
-            if self._push_errors_mode == "meta":
-                resp = self._push_errors_meta(current_rev, error_path)
-                if resp.get("ok"):
-                    pass
-                elif resp.get("fallback") == "need_content":
-                    self._push_errors_mode = "content"
-                else:
-                    raise ReporterError(f"push_errors_meta failed: {resp.get('msg')}")
+            if self._server_has_current_graph:
+                after_error_row_id = self._server_max_error_row_id
+                if local_max_error_row_id <= after_error_row_id:
+                    return
+            else:
+                after_error_row_id = 0
 
-            if self._push_errors_mode == "content":
-                resp = self._push_errors_content(current_rev, error_path)
-                if resp.get("ok"):
-                    pass
-                else:
-                    raise ReporterError(
-                        f"push_errors_content failed: {resp.get('msg')}"
-                    )
-
-            if resp.get("ok") and not resp.get("cached"):
-                self._last_pushed_errors_rev = current_rev
+            push_error_func_dict[self._push_errors_mode](
+                error_path,
+                graph_id,
+                after_error_row_id,
+            )
 
         except Exception as e:
             self.log_inlet.push_errors_failed(e)
 
-    def _push_errors_meta(self, current_rev: int, error_path: str) -> dict[str, Any]:
+    def _push_errors_meta(
+        self,
+        error_path: str,
+        graph_id: str,
+        after_error_row_id: int,
+    ) -> None:
         """
         推送错误元信息
 
-        :param current_rev: 当前版本号
         :param error_path: 错误存储文件路径
-        :return: 服务端响应字典
+        :param graph_id: 当前任务图唯一标识
+        :param after_error_row_id: server 已同步到的最大错误行号
+        :return: None
         """
         payload: dict[str, Any] = {
-            "rev": current_rev,
+            "graph_id": graph_id,
             "error_path": error_path,
+            "after_error_row_id": after_error_row_id,
         }
         response: requests.Response = self._session.post(
             f"{self.base_url}/api/push_errors_meta",
             json=payload,
             timeout=self._push_timeout(),
         )
-        return response.json()
+        resp = response.json()
+        
+        if resp.get("ok"):
+            pass
+        elif resp.get("fallback") == "need_content":
+            self._push_errors_mode = "content"
+        else:
+            raise ReporterError(f"push_errors_meta failed: {resp.get('msg')}")
 
-    def _push_errors_content(self, current_rev: int, error_path: str) -> dict[str, Any]:
+    def _push_errors_content(
+        self,
+        error_path: str,
+        graph_id: str,
+        after_error_row_id: int,
+    ) -> None:
         """
         推送错误内容（增量：只传 offset 之后的新增条目）
 
-        :param current_rev: 当前版本号
         :param error_path: 错误存储文件路径
-        :return: 服务端响应字典
+        :param graph_id: 当前任务图唯一标识
+        :param after_error_row_id: server 已同步到的最大错误行号
+        :return: None
         """
-        all_errors: list[dict[str, Any]] = load_error_records(
+        all_errors: list[dict[str, Any]] = load_error_records_after(
             db_path=error_path,
+            after_row_id=after_error_row_id,
         )
 
         payload: dict[str, Any] = {
-            "rev": current_rev,
+            "graph_id": graph_id,
             "error_path": error_path,
+            "after_error_row_id": after_error_row_id,
             "errors": all_errors,
         }
         response: requests.Response = self._session.post(
@@ -223,12 +261,19 @@ class TaskReporter:
             json=payload,
             timeout=self._push_timeout(),
         )
-        return response.json()
+        resp = response.json()
+        if resp.get("ok"):
+            pass
+        else:
+            raise ReporterError(
+                f"push_errors_content failed: {resp.get('msg')}"
+            )
 
     def _push_status(self) -> None:
         """推送状态信息"""
         try:
             payload: dict[str, Any] = self.task_graph.get_status_snapshot()
+            payload["graph_id"] = self.task_graph.get_graph_id()
             _ = self._session.post(
                 f"{self.base_url}/api/push_status",
                 json=payload,
@@ -241,7 +286,10 @@ class TaskReporter:
         """推送结构信息"""
         try:
             structure: dict[str, Any] = self.task_graph.get_structure_graph()
-            payload: dict[str, Any] = {"structure": structure}
+            payload: dict[str, Any] = {
+                "graph_id": self.task_graph.get_graph_id(),
+                "structure": structure,
+            }
             _ = self._session.post(
                 f"{self.base_url}/api/push_structure",
                 json=payload,
@@ -254,7 +302,10 @@ class TaskReporter:
         """推送分析信息"""
         try:
             analysis: dict[str, Any] = self.task_graph.get_graph_analysis()
-            payload: dict[str, Any] = {"analysis": analysis}
+            payload: dict[str, Any] = {
+                "graph_id": self.task_graph.get_graph_id(),
+                "analysis": analysis,
+            }
             _ = self._session.post(
                 f"{self.base_url}/api/push_analysis",
                 json=payload,

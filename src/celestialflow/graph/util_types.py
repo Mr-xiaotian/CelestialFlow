@@ -10,6 +10,8 @@ class ReporterTaskGraph(Protocol):
 
     def collect_runtime_snapshot(self) -> None: ...
 
+    def get_graph_id(self) -> str: ...
+
     def put_stage_queue(
         self,
         tasks_dict: Mapping[str, Iterable[Any]],

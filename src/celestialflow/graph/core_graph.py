@@ -193,6 +193,7 @@ class TaskGraph:
         :param name: 任务图名称
         """
         self.name = name
+        self.graph_id = f"{name}@{int(time.time() * 1000)}"
 
     def _set_schedule_mode(self, schedule_mode: str) -> None:
         """
@@ -615,6 +616,14 @@ class TaskGraph:
         """
         return self.fail_spout.total_error_num
 
+    def get_graph_id(self) -> str:
+        """
+        获取当前任务图实例的唯一标识。
+
+        :return: graph_id
+        """
+        return self.graph_id
+
     def get_status_snapshot(self) -> dict[str, Any]:
         """
         获取带统一时间戳的状态快照
@@ -633,6 +642,7 @@ class TaskGraph:
         :return: 包含 name, startTime, is_dag, schedule_mode, class_name, layers_dict 的字典
         """
         return {
+            "graphId": self.graph_id,
             "name": self.name,
             "startTime": self.start_time,
             "className": self.__class__.__name__,

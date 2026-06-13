@@ -10,12 +10,14 @@ from pydantic import AliasChoices, BaseModel, Field, RootModel
 class StructureModel(BaseModel):
     """任务结构数据模型"""
 
+    graph_id: str = ""
     structure: dict[str, Any]
 
 
 class StatusModel(BaseModel):
     """节点状态数据模型"""
 
+    graph_id: str = ""
     timestamp: float
     status: dict[str, dict[str, Any]]
 
@@ -23,27 +25,30 @@ class StatusModel(BaseModel):
 class ErrorsMetaModel(BaseModel):
     """错误元数据模型"""
 
+    graph_id: str = ""
     error_path: str = Field(
         validation_alias=AliasChoices("error_path", "jsonl_path"),
         serialization_alias="error_path",
     )
-    rev: int
+    after_error_row_id: int = 0
 
 
 class ErrorsContentModel(BaseModel):
     """错误内容数据模型"""
 
+    graph_id: str = ""
     errors: list[dict[str, Any]]
     error_path: str = Field(
         validation_alias=AliasChoices("error_path", "jsonl_path"),
         serialization_alias="error_path",
     )
-    rev: int
+    after_error_row_id: int = 0
 
 
 class AnalysisModel(BaseModel):
     """任务分析数据模型"""
 
+    graph_id: str = ""
     analysis: dict[str, Any]
 
 

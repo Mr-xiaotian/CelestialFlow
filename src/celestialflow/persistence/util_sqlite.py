@@ -150,6 +150,29 @@ def replace_error_records(
         conn.close()
 
 
+def append_error_records(
+    db_path: str | Path, errors: Iterable[dict[str, Any]]
+) -> int:
+    """
+    将给定错误列表追加写入数据库。
+
+    :param db_path: sqlite 数据库文件路径
+    :param errors: 待追加的错误记录迭代器
+    :return: 实际追加写入的错误记录数量
+    :rtype: int
+    """
+    conn = connect_errors_db(db_path)
+    try:
+        inserted = 0
+        for item in errors:
+            if insert_error_record(conn, item):
+                inserted += 1
+        conn.commit()
+        return inserted
+    finally:
+        conn.close()
+
+
 def _decode_task_json(task_json: str) -> Any:
     """
     从 ``task_json`` 列反序列化任务对象。
@@ -198,6 +221,49 @@ def load_error_records(db_path: str | Path) -> list[dict[str, Any]]:
             """
         ).fetchall()
         return [row_to_error_dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def load_error_records_after(
+    db_path: str | Path, after_row_id: int
+) -> list[dict[str, Any]]:
+    """
+    读取指定 row id 之后的全部错误记录。
+
+    :param db_path: sqlite 数据库文件路径
+    :param after_row_id: 已同步到的最大错误行号
+    :return: 增量错误记录列表
+    :rtype: list[dict[str, Any]]
+    """
+    conn = connect_errors_db(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT id, ts, stage, error_id, error_type, error_message, task_json
+            FROM errors
+            WHERE id > ?
+            ORDER BY id ASC
+            """,
+            [after_row_id],
+        ).fetchall()
+        return [row_to_error_dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def get_max_error_row_id(db_path: str | Path) -> int:
+    """
+    获取数据库中当前最大的错误行号。
+
+    :param db_path: sqlite 数据库文件路径
+    :return: 当前最大的错误行号；无记录时返回 0
+    :rtype: int
+    """
+    conn = connect_errors_db(db_path)
+    try:
+        row = conn.execute("SELECT COALESCE(MAX(id), 0) FROM errors").fetchone()
+        return int(row[0]) if row is not None else 0
     finally:
         conn.close()
 
@@ -308,4 +374,3 @@ def load_task_by_stage(db_path: str | Path) -> dict[str, list[Any]]:
     for task, error in load_task_error_pairs(db_path):
         grouped[error.stage].append(task)
     return dict(grouped)
-

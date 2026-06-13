@@ -12,7 +12,7 @@ def test_store_snapshot_methods_return_isolated_copies(web_server):
     web_server.update_status_store(123.0, raw_status)
     web_server.update_structure_store(raw_structure)
     web_server.update_analysis_store(raw_analysis)
-    web_server.update_errors_store(7, "dummy.sqlite3", raw_errors)
+    web_server.update_errors_store(raw_errors)
 
     _, status_timestamp, status_snapshot = web_server.get_status_snapshot()
     _, structure_snapshot = web_server.get_structure_snapshot()
@@ -66,8 +66,24 @@ def test_config_api(client):
     assert "jumpToInjectionAfterRetry" in data["errors"]
     assert "showInjectableOnly" in data["injection"]
 
+def test_server_state_api(client):
+    """测试 reporter 拉取的服务端同步状态。"""
+    response = client.get("/api/pull_server_state")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["interval"] > 0
+    assert data["is_current_graph"] is True
+    assert data["has_structure"] is False
+    assert data["has_analysis"] is False
+    assert data["max_error_row_id"] == 0
+
 def test_status_push_pull(client):
     """测试状态同步链路：验证已知版本号（known_rev）下的增量拉取逻辑"""
+    graph_id = "demo@1000"
+    state = client.get(f"/api/pull_server_state?graph_id={graph_id}").json()
+    assert state["is_current_graph"] is False
+
     # 1. 推送状态
     test_timestamp = 1710000000.0
     test_status = {
@@ -80,7 +96,11 @@ def test_status_push_pull(client):
     }
     push_resp = client.post(
         "/api/push_status",
-        json={"timestamp": test_timestamp, "status": test_status},
+        json={
+            "graph_id": graph_id,
+            "timestamp": test_timestamp,
+            "status": test_status,
+        },
     )
     assert push_resp.status_code == 200
     assert push_resp.json() == {"ok": True}
@@ -161,6 +181,10 @@ def test_task_injection_requires_tasklist_mapping(client):
 
 def test_errors_pagination(client):
     """测试错误日志分页与过滤 API：验证后端对错误记录的聚合与分页逻辑是否正确"""
+    graph_id = "demo@1000"
+    state = client.get(f"/api/pull_server_state?graph_id={graph_id}").json()
+    assert state["is_current_graph"] is False
+
     # 1. 模拟推送错误数据
     test_errors = [
         {
@@ -174,11 +198,14 @@ def test_errors_pagination(client):
         for i in range(15)
     ]
     # 注意：由于 push_errors_meta 需要真实路径，我们直接用 push_errors_content
-    client.post("/api/push_errors_content", json={
-        "errors": test_errors,
-        "error_path": "dummy.sqlite3",
-        "rev": 1
-    })
+    client.post(
+        "/api/push_errors_content",
+        json={
+            "graph_id": graph_id,
+            "errors": test_errors,
+            "error_path": "dummy.sqlite3",
+        },
+    )
 
     # 2. 测试分页（第一页，每页10条）
     resp_p1 = client.get("/api/pull_errors?page=1&page_size=10")
@@ -212,3 +239,178 @@ def test_errors_pagination(client):
     assert data_oldest["sort_order"] == "oldest"
     assert len(data_oldest["data"]) == 5
     assert data_oldest["data"][0]["error_id"] == 0
+
+
+def test_errors_content_appends_for_same_graph(client):
+    """相同 graph_id 下，push_errors_content 只追加新错误。"""
+    graph_id = "demo@2000"
+
+    first_batch = [
+        {
+            "error_id": 1,
+            "stage": "s1",
+            "task": {"value": 1},
+            "error_type": "ValueError",
+            "error_message": "err1",
+            "ts": 1.0,
+        },
+        {
+            "error_id": 2,
+            "stage": "s2",
+            "task": {"value": 2},
+            "error_type": "TypeError",
+            "error_message": "err2",
+            "ts": 2.0,
+        },
+    ]
+    second_batch = [
+        {
+            "error_id": 3,
+            "stage": "s1",
+            "task": {"value": 3},
+            "error_type": "RuntimeError",
+            "error_message": "err3",
+            "ts": 3.0,
+        }
+    ]
+
+    state = client.get(f"/api/pull_server_state?graph_id={graph_id}").json()
+    assert state["is_current_graph"] is False
+
+    analysis_resp = client.post(
+        "/api/push_analysis",
+        json={
+            "graph_id": graph_id,
+            "analysis": {"graphId": graph_id, "name": "demo", "startTime": 2.0},
+        },
+    )
+    assert analysis_resp.status_code == 200
+    assert analysis_resp.json() == {"ok": True}
+
+    response = client.post(
+        "/api/push_errors_content",
+        json={
+            "graph_id": graph_id,
+            "errors": first_batch,
+            "error_path": "dummy.sqlite3",
+            "after_error_row_id": 0,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
+
+    state = client.get(f"/api/pull_server_state?graph_id={graph_id}").json()
+    assert state["is_current_graph"] is True
+    assert state["max_error_row_id"] == 2
+    assert state["has_analysis"] is True
+
+    response = client.post(
+        "/api/push_errors_content",
+        json={
+            "graph_id": graph_id,
+            "errors": second_batch,
+            "error_path": "dummy.sqlite3",
+            "after_error_row_id": 2,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
+
+    pulled = client.get("/api/pull_errors?page=1&page_size=10").json()
+    assert pulled["total"] == 3
+    assert [item["error_id"] for item in pulled["data"]] == [3, 2, 1]
+
+
+def test_newer_graph_replaces_previous_graph_context(client):
+    """较新的 graph_id 到来时，server 会切换图上下文并清空旧错误。"""
+    old_graph_id = "demo@1000"
+    new_graph_id = "demo@2000"
+
+    state = client.get(f"/api/pull_server_state?graph_id={old_graph_id}").json()
+    assert state["is_current_graph"] is False
+
+    client.post(
+        "/api/push_analysis",
+        json={
+            "graph_id": old_graph_id,
+            "analysis": {"graphId": old_graph_id, "name": "demo", "startTime": 1.0},
+        },
+    )
+    client.post(
+        "/api/push_errors_content",
+        json={
+            "graph_id": old_graph_id,
+            "errors": [
+                {
+                    "error_id": 1,
+                    "stage": "s1",
+                    "task": {"value": 1},
+                    "error_type": "ValueError",
+                    "error_message": "old",
+                    "ts": 1.0,
+                }
+            ],
+            "error_path": "old.sqlite3",
+            "after_error_row_id": 0,
+        },
+    )
+
+    state = client.get(f"/api/pull_server_state?graph_id={new_graph_id}").json()
+    assert state["is_current_graph"] is False
+    assert state["max_error_row_id"] == 0
+
+    pulled = client.get("/api/pull_errors?page=1&page_size=10").json()
+    assert pulled["total"] == 0
+
+
+def test_stale_graph_pushes_are_ignored(client):
+    """切换到新 graph 后，旧 graph 的迟到 push 不应污染当前缓存。"""
+    old_graph_id = "demo@1000"
+    new_graph_id = "demo@2000"
+
+    client.get(f"/api/pull_server_state?graph_id={old_graph_id}")
+    client.post(
+        "/api/push_analysis",
+        json={
+            "graph_id": old_graph_id,
+            "analysis": {"graphId": old_graph_id, "name": "demo", "startTime": 1.0},
+        },
+    )
+
+    client.get(f"/api/pull_server_state?graph_id={new_graph_id}")
+
+    stale_analysis = client.post(
+        "/api/push_analysis",
+        json={
+            "graph_id": old_graph_id,
+            "analysis": {"graphId": old_graph_id, "name": "old", "startTime": 1.0},
+        },
+    )
+    assert stale_analysis.status_code == 200
+    assert stale_analysis.json() == {"ok": False}
+
+    stale_errors = client.post(
+        "/api/push_errors_content",
+        json={
+            "graph_id": old_graph_id,
+            "errors": [
+                {
+                    "error_id": 1,
+                    "stage": "s1",
+                    "task": {"value": 1},
+                    "error_type": "ValueError",
+                    "error_message": "old",
+                    "ts": 1.0,
+                }
+            ],
+            "error_path": "old.sqlite3",
+            "after_error_row_id": 0,
+        },
+    )
+    assert stale_errors.status_code == 200
+    assert stale_errors.json() == {"ok": False}
+
+    state = client.get(f"/api/pull_server_state?graph_id={new_graph_id}").json()
+    assert state["is_current_graph"] is True
+    assert state["has_analysis"] is False
+    assert state["max_error_row_id"] == 0

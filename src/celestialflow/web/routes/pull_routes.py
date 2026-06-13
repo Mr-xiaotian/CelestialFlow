@@ -78,7 +78,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         :param sort_order: 排序方式，支持 newest / oldest
         :return: {"rev": int, "page": int, "page_size": int, "total": int, "total_pages": int, "data": list | None}
         """
-        rev, _ = server.get_errors_snapshot()
+        rev = server.get_errors_rev()
         (
             normalized_page,
             normalized_page_size,
@@ -119,13 +119,14 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
             return {"rev": rev, "data": None}
         return {"rev": rev, "data": analysis_store}
 
-    @router.get("/api/pull_interval")
-    def pull_interval() -> dict[str, float]:
-        """返回当前轮询间隔（秒）。
+    @router.get("/api/pull_server_state")
+    def pull_server_state(graph_id: str = "") -> dict[str, Any]:
+        """返回 reporter 同步决策所需的服务端状态。
 
-        :return: {"interval": float}
+        :param graph_id: reporter 当前任务图实例的唯一标识
+        :return: {"interval": float, "is_current_graph": bool, "has_structure": bool, "has_analysis": bool, "max_error_row_id": int}
         """
-        return {"interval": server.report_interval}
+        return server.get_server_state(graph_id)
 
     @router.get("/api/pull_task_injection")
     def pull_task_injection() -> dict[str, list[Any]]:
