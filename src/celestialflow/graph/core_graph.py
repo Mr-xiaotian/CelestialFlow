@@ -607,14 +607,6 @@ class TaskGraph:
 
     # ==== 查询接口 ====
 
-    def get_total_fallback_num(self) -> int:
-        """
-        获取总错误数
-
-        :return: 错误总数
-        """
-        return self.fallback_spout.total_fallback_num
-
     def get_graph_id(self) -> str:
         """
         获取当前任务图实例的唯一标识。

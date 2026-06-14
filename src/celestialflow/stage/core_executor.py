@@ -142,9 +142,6 @@ class TaskExecutor[T, R]:
             in_name=self.get_name(),
         )
 
-        self.fallback_queue: ThreadQueue[Any] | None = None
-        self.log_queue: ThreadQueue[Any] | None = None
-
     def init_env(
         self,
     ) -> None:
@@ -181,11 +178,11 @@ class TaskExecutor[T, R]:
         """
         初始化收集器
         """
-        self.fallback_queue = self.fallback_spout.get_queue()
-        self.fallback_inlet = FallbackInlet(self.fallback_queue)
+        fallback_queue = self.fallback_spout.get_queue()
+        self.fallback_inlet = FallbackInlet(fallback_queue)
 
-        self.log_queue = self.log_spout.get_queue()
-        self.log_inlet = LogInlet(self.log_queue, self.log_level)
+        log_queue = self.log_spout.get_queue()
+        self.log_inlet = LogInlet(log_queue, self.log_level)
 
     # ==== Observer ====
     def add_observer(self, observer: BaseObserver) -> None:

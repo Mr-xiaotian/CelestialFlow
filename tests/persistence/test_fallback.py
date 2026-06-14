@@ -14,16 +14,11 @@ class TestFailPersistence:
 
         spout.start()
         try:
-            inlet.task_fallback('s1', err_id=1, error=ValueError('oops'), task='data1')
-            inlet.task_fallback('s1', err_id=2, error=RuntimeError('fail'), task='data2')
-            wait_until(
-                lambda: spout.total_fallback_num == 2,
-                message='timeout waiting for fallback_spout to process records',
-            )
+            inlet.task_error('s1', err_id=1, error=ValueError('oops'), task='data1')
+            inlet.task_error('s1', err_id=2, error=RuntimeError('fail'), task='data2')
         finally:
             spout.stop()
 
-        assert spout.total_fallback_num == 2
         assert spout.db_path is not None
         assert spout.db_path.exists()
         assert spout.db_path.suffix == ".sqlite3"

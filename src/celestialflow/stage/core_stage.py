@@ -102,11 +102,8 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         :param fallback_queue: fallback 队列
         :param log_queue: 日志队列
         """
-        self.fallback_queue = fallback_queue
-        self.fallback_inlet = FallbackInlet(self.fallback_queue)
-
-        self.log_queue = log_queue
-        self.log_inlet = LogInlet(self.log_queue, self.log_level)
+        self.fallback_inlet = FallbackInlet(fallback_queue)
+        self.log_inlet = LogInlet(log_queue, self.log_level)
 
     # ==== 绑定 ====
     def get_binding_counter(self, _downstream_name: str) -> Any:

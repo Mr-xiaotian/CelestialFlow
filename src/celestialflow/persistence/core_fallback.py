@@ -1,4 +1,4 @@
-# persistence/core_fail.py
+# persistence/core_fallback.py
 from __future__ import annotations
 
 import sqlite3
@@ -27,7 +27,6 @@ class FallbackSpout(BaseSpout):
         self.error_source: str = error_source
         self.db_path: Path | None = None
 
-        self.total_fallback_num: int = 0
         self._conn: sqlite3.Connection | None = None
 
         # 批量刷新：每 _flush_every 条记录才 flush 一次，避免高频 I/O
@@ -47,7 +46,6 @@ class FallbackSpout(BaseSpout):
         self._conn = connect_db(self.db_path)
 
         # 初始化计数器
-        self.total_fallback_num = 0
         self._flush_counter = 0
 
     def _handle_record(self, record: dict[str, Any]) -> None:
@@ -65,7 +63,6 @@ class FallbackSpout(BaseSpout):
             if self._flush_counter >= self._flush_every:
                 self._conn.commit()
                 self._flush_counter = 0
-            self.total_fallback_num += 1
 
     def _after_stop(self) -> None:
         """关闭 sqlite 连接，确保剩余事务落盘。"""
