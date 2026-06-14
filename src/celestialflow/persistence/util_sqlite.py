@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections import defaultdict
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -235,47 +234,59 @@ def load_error_records(db_path: str | Path) -> list[dict[str, Any]]:
         conn.close()
 
 
-def load_error_records_after(
-    db_path: str | Path, after_row_id: int
-) -> list[dict[str, Any]]:
+def get_error_ids(db_path: str | Path) -> list[int]:
     """
-    读取指定 row id 之后的全部错误记录。
+    读取数据库中的全部错误 ``error_id``。
 
     :param db_path: sqlite 数据库文件路径
-    :param after_row_id: 已同步到的最大错误行号
-    :return: 增量错误记录列表
-    :rtype: list[dict[str, Any]]
+    :return: 按写入顺序排列的错误 ``error_id`` 列表
+    :rtype: list[int]
     """
     conn = connect_errors_db(db_path)
     try:
-        # 仅读取指定 row id 之后的新错误记录，用于增量同步。
+        # 读取当前错误库中的全部 error_id，供上层进行集合比对。
         rows = conn.execute(
             """
-            SELECT id, ts, stage, error_id, error_type, error_message, task_json
+            SELECT error_id
             FROM errors
-            WHERE id > ?
+            WHERE error_id IS NOT NULL
             ORDER BY id ASC
-            """,
-            [after_row_id],
+            """
         ).fetchall()
-        return [row_to_error_dict(row) for row in rows]
+        return [int(row["error_id"]) for row in rows]
     finally:
         conn.close()
 
 
-def get_max_error_row_id(db_path: str | Path) -> int:
+def load_error_records_by_ids(
+    db_path: str | Path, error_ids: Iterable[int]
+) -> list[dict[str, Any]]:
     """
-    获取数据库中当前最大的错误行号。
+    按给定 ``error_id`` 列表读取错误记录。
 
     :param db_path: sqlite 数据库文件路径
-    :return: 当前最大的错误行号；无记录时返回 0
-    :rtype: int
+    :param error_ids: 待读取的错误 ``error_id`` 列表
+    :return: 命中的错误记录列表
+    :rtype: list[dict[str, Any]]
     """
+    normalized_ids = [int(error_id) for error_id in error_ids]
+    if not normalized_ids:
+        return []
+
+    placeholders = ", ".join(["?"] * len(normalized_ids))
     conn = connect_errors_db(db_path)
     try:
-        # 读取当前最大自增行号；无记录时回退为 0。
-        row = conn.execute("SELECT COALESCE(MAX(id), 0) FROM errors").fetchone()
-        return int(row[0]) if row is not None else 0
+        # 仅读取指定 error_id 对应的错误记录，避免再依赖本地 row id 偏移量。
+        rows = conn.execute(
+            f"""
+            SELECT id, ts, stage, error_id, error_type, error_message, task_json
+            FROM errors
+            WHERE error_id IN ({placeholders})
+            ORDER BY id ASC
+            """,
+            normalized_ids,
+        ).fetchall()
+        return [row_to_error_dict(row) for row in rows]
     finally:
         conn.close()
 
@@ -379,17 +390,3 @@ def load_task_error_pairs(db_path: str | Path) -> list[tuple[Any, PersistedError
         ]
     finally:
         conn.close()
-
-
-def load_task_by_stage(db_path: str | Path) -> dict[str, list[Any]]:
-    """
-    按 ``stage`` 聚合失败任务。
-
-    :param db_path: sqlite 数据库文件路径
-    :return: 以 stage 名称分组的失败任务字典
-    :rtype: dict[str, list[Any]]
-    """
-    grouped: dict[str, list[Any]] = defaultdict(list)
-    for task, error in load_task_error_pairs(db_path):
-        grouped[error.stage].append(task)
-    return dict(grouped)

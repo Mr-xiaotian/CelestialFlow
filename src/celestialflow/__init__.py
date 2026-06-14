@@ -16,7 +16,6 @@ from .graph import (
 from .observability import BaseObserver, CallbackObserver, TaskProgress
 from .persistence.util_sqlite import (
     load_error_records,
-    load_task_by_stage,
 )
 from .runtime.util_hash import make_hashable
 from .runtime.util_types import TerminationSignal
@@ -57,6 +56,5 @@ __all__ = [
     "benchmark_graph",
     "format_table",
     "load_error_records",
-    "load_task_by_stage",
     "make_hashable",
 ]

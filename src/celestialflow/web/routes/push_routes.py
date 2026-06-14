@@ -10,7 +10,7 @@ from anyio.to_thread import run_sync
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from ...persistence.util_sqlite import load_error_records, load_error_records_after
+from ...persistence.util_sqlite import load_error_records, load_error_records_by_ids
 from ..util_cal import cal_interval
 from ..util_config import save_config
 from ..util_models import (
@@ -122,10 +122,10 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
     @router.post("/api/push_errors_meta")
     async def push_errors_meta(data: ErrorsMetaModel) -> dict[str, Any]:
         """
-        通过错误存储路径+版本号加载错误日志；命中缓存则跳过读取。
+        通过错误存储路径加载指定 ``error_id`` 的错误日志。
 
         :param data: 错误元信息数据
-        :return: {"ok": True, "cached": bool} 或 {"ok": False, "fallback": ..., ...}
+        :return: {"ok": True} 或 {"ok": False, "fallback": ..., ...}
         """
         if not server.is_current_graph(data.graph_id):
             return {"ok": False}
@@ -134,25 +134,19 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
                 Callable[..., Awaitable[list[dict[str, Any]]]],
                 run_sync,
             )
-            append_mode = data.after_error_row_id > 0
-            if append_mode:
+            if data.error_ids:
                 errors = await run_sync_typed(
                     partial(
-                        load_error_records_after,
+                        load_error_records_by_ids,
                         db_path=data.error_path,
-                        after_row_id=data.after_error_row_id,
+                        error_ids=data.error_ids,
                     )
                 )
             else:
-                errors = await run_sync_typed(
-                    partial(
-                        load_error_records,
-                        db_path=data.error_path,
-                    )
-                )
+                errors = await run_sync_typed(partial(load_error_records, db_path=data.error_path))
             server.update_errors_store(
                 errors,
-                append=append_mode,
+                append=data.append,
             )
             return {"ok": True}
         except Exception as e:
@@ -173,9 +167,8 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         """
         if not server.is_current_graph(data.graph_id):
             return {"ok": False}
-        append_mode = data.after_error_row_id > 0
         server.update_errors_store(
             data.errors,
-            append=append_mode,
+            append=data.append,
         )
         return {"ok": True}

@@ -5,11 +5,10 @@ import pytest
 from celestialflow.persistence.util_sqlite import (
     append_error_records,
     connect_errors_db,
-    get_max_error_row_id,
+    get_error_ids,
     insert_error_record,
     load_error_records,
-    load_error_records_after,
-    load_task_by_stage,
+    load_error_records_by_ids,
     load_task_error_pairs,
     normalize_error_record,
     query_error_records,
@@ -143,20 +142,18 @@ class TestSpliteUtils:
         assert page_items[0]["error_id"] == 2
         assert page_items[0]["task"] == ["A", "B"]
 
-    def test_append_and_load_error_records_after(self, sqlite_path, sample_errors):
-        """测试按 row id 增量读取以及追加写入。"""
+    def test_append_and_load_error_records_by_ids(self, sqlite_path, sample_errors):
+        """测试追加写入以及按 error_id 定位读取。"""
         replace_error_records(sqlite_path, sample_errors[:2])
 
-        assert get_max_error_row_id(sqlite_path) == 1
-        assert load_error_records_after(sqlite_path, 1) == []
+        assert get_error_ids(sqlite_path) == [1]
 
         appended = append_error_records(sqlite_path, sample_errors[2:])
         assert appended == 2
-        assert get_max_error_row_id(sqlite_path) == 3
+        assert get_error_ids(sqlite_path) == [1, 2, 3]
 
-        incremental = load_error_records_after(sqlite_path, 1)
-        assert [item["id"] for item in incremental] == [2, 3]
-        assert [item["error_id"] for item in incremental] == [2, 3]
+        selected = load_error_records_by_ids(sqlite_path, [3, 1])
+        assert [item["error_id"] for item in selected] == [1, 3]
 
     def test_load_task_error_pairs_and_grouping(self, sqlite_path, sample_errors):
         """测试任务-错误配对读取以及按 stage 聚合。"""
@@ -169,9 +166,3 @@ class TestSpliteUtils:
         assert pairs[1][0] == ["A", "B"]
         assert str(pairs[1][1]) == "RuntimeError(boom happened)"
 
-        grouped_by_stage = load_task_by_stage(sqlite_path)
-        assert grouped_by_stage["s1"] == [
-            {"id": 1, "label": "TaskOne"},
-            "PlainTask",
-        ]
-        assert grouped_by_stage["s2"] == [["A", "B"]]

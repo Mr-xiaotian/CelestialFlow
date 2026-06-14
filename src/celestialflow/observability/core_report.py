@@ -1,14 +1,15 @@
 # observability/core_report.py
 from threading import Event, Thread
-from typing import Any
+from typing import Any, cast
 
 import requests
 
 from ..graph.util_types import ReporterTaskGraph
 from ..persistence import LogInlet
 from ..persistence.util_sqlite import (
-    get_max_error_row_id,
-    load_error_records_after,
+    get_error_ids,
+    load_error_records,
+    load_error_records_by_ids,
 )
 from ..runtime.util_errors import ReporterError
 from ..runtime.util_types import TERMINATION_SIGNAL
@@ -51,7 +52,7 @@ class TaskReporter:
         self._server_has_current_graph: bool = False
         self._server_has_structure: bool = False
         self._server_has_analysis: bool = False
-        self._server_max_error_row_id: int = 0
+        self._server_error_ids: set[int] = set()
 
         self.interval: int = 5
         self.history_limit: int = 20
@@ -127,7 +128,8 @@ class TaskReporter:
             )
             self._server_has_structure = bool(payload.get("has_structure", False))
             self._server_has_analysis = bool(payload.get("has_analysis", False))
-            self._server_max_error_row_id = int(payload.get("max_error_row_id", 0) or 0)
+            error_ids = cast(list[Any], payload.get("error_ids", []) or [])
+            self._server_error_ids = {int(error_id) for error_id in error_ids}
         except Exception as e:
             self.log_inlet.pull_interval_failed(e)
 
@@ -170,29 +172,34 @@ class TaskReporter:
         try:
             error_path = self.task_graph.get_fallback_path()
             graph_id = self.task_graph.get_graph_id()
-            local_max_error_row_id = (
-                get_max_error_row_id(error_path) if error_path else 0
-            )
+            local_error_ids = get_error_ids(error_path) if error_path else []
 
-            if local_max_error_row_id <= 0 or not error_path:
+            if not local_error_ids or not error_path:
                 return
-            
+
             push_error_func_dict = {
                 "meta": self._push_errors_meta,
                 "content": self._push_errors_content,
             }
 
             if self._server_has_current_graph:
-                after_error_row_id = self._server_max_error_row_id
-                if local_max_error_row_id <= after_error_row_id:
+                missing_error_ids = [
+                    error_id
+                    for error_id in local_error_ids
+                    if error_id not in self._server_error_ids
+                ]
+                if not missing_error_ids:
                     return
+                append_mode = True
             else:
-                after_error_row_id = 0
+                missing_error_ids = local_error_ids
+                append_mode = False
 
             push_error_func_dict[self._push_errors_mode](
                 error_path,
                 graph_id,
-                after_error_row_id,
+                missing_error_ids,
+                append_mode,
             )
 
         except Exception as e:
@@ -202,20 +209,23 @@ class TaskReporter:
         self,
         error_path: str,
         graph_id: str,
-        after_error_row_id: int,
+        error_ids: list[int],
+        append: bool,
     ) -> None:
         """
         推送错误元信息
 
         :param error_path: 错误存储文件路径
         :param graph_id: 当前任务图唯一标识
-        :param after_error_row_id: server 已同步到的最大错误行号
+        :param error_ids: 本轮需要同步的错误 ``error_id`` 列表
+        :param append: 是否以追加模式写入
         :return: None
         """
         payload: dict[str, Any] = {
             "graph_id": graph_id,
             "error_path": error_path,
-            "after_error_row_id": after_error_row_id,
+            "error_ids": error_ids,
+            "append": append,
         }
         response: requests.Response = self._session.post(
             f"{self.base_url}/api/push_errors_meta",
@@ -235,25 +245,29 @@ class TaskReporter:
         self,
         error_path: str,
         graph_id: str,
-        after_error_row_id: int,
+        error_ids: list[int],
+        append: bool,
     ) -> None:
         """
-        推送错误内容（增量：只传 offset 之后的新增条目）
+        推送错误内容（仅传本轮缺失的 ``error_id`` 对应条目）
 
         :param error_path: 错误存储文件路径
         :param graph_id: 当前任务图唯一标识
-        :param after_error_row_id: server 已同步到的最大错误行号
+        :param error_ids: 本轮需要同步的错误 ``error_id`` 列表
+        :param append: 是否以追加模式写入
         :return: None
         """
-        all_errors: list[dict[str, Any]] = load_error_records_after(
-            db_path=error_path,
-            after_row_id=after_error_row_id,
+        all_errors: list[dict[str, Any]] = (
+            load_error_records_by_ids(db_path=error_path, error_ids=error_ids)
+            if append
+            else load_error_records(db_path=error_path)
         )
 
         payload: dict[str, Any] = {
             "graph_id": graph_id,
             "error_path": error_path,
-            "after_error_row_id": after_error_row_id,
+            "error_ids": error_ids,
+            "append": append,
             "errors": all_errors,
         }
         response: requests.Response = self._session.post(

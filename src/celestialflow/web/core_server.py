@@ -22,7 +22,7 @@ from fastapi.templating import (
 from ..persistence.util_sqlite import (
     append_error_records,
     connect_errors_db,
-    get_max_error_row_id,
+    get_error_ids,
     load_error_records,
     query_error_records,
     replace_error_records,
@@ -311,7 +311,7 @@ class TaskWebServer:
             "is_current_graph": is_current_graph,
             "has_structure": has_structure,
             "has_analysis": has_analysis,
-            "max_error_row_id": self.get_max_error_row_id(),
+            "error_ids": self.get_error_ids(),
         }
     
     def get_injection_tasks(self) -> dict[str, list[Any]]:
@@ -346,15 +346,15 @@ class TaskWebServer:
             )
             return rev, total, total_pages, page_items
 
-    def get_max_error_row_id(self) -> int:
+    def get_error_ids(self) -> list[int]:
         """
-        原子读取当前错误缓存中的最大错误行号。
+        原子读取当前错误缓存中的全部 ``error_id``。
 
-        :return: 当前缓存中最大的错误 row id
-        :rtype: int
+        :return: 当前缓存中的错误 ``error_id`` 列表
+        :rtype: list[int]
         """
         with self.errors_lock:
-            return get_max_error_row_id(self.errors_db_path)
+            return get_error_ids(self.errors_db_path)
 
     def get_analysis_snapshot(self) -> tuple[int, dict[str, Any] | None]:
         """
