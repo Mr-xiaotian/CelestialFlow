@@ -35,6 +35,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
     :param config_path: 配置文件路径
     """
 
+    # ==== Frontend Pushes ====
     @router.post("/api/push_config", response_model=None)
     async def push_config(data: WebConfigModel) -> dict[str, bool] | JSONResponse:
         """
@@ -58,6 +59,27 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
                     status_code=500,
                 )
 
+    @router.post("/api/push_injection_tasks", response_model=None)
+    async def push_injection_tasks(
+        data: TaskInjectionModel,
+    ) -> dict[str, bool] | JSONResponse:
+        """
+        将前端提交的注入任务追加到待执行队列。
+
+        :param data: 注入任务数据
+        :return: {"ok": True} 或 JSONResponse({"ok": False, "msg": ...}, 500)
+        """
+        try:
+            with server.task_injection_lock:
+                for node_name, task_list in data.root.items():
+                    server.injection_tasks[node_name] = task_list
+            return {"ok": True}
+        except Exception as e:
+            return JSONResponse(
+                content={"ok": False, "msg": f"任务注入失败: {e}"}, status_code=500
+            )
+
+    # ==== Reporter / Backend Pushes ====
     @router.post("/api/push_structure")
     async def push_structure(data: StructureModel) -> dict[str, bool]:
         """
@@ -69,6 +91,19 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         if not server.is_current_graph(data.graph_id):
             return {"ok": False}
         server.update_structure_store(data.structure)
+        return {"ok": True}
+
+    @router.post("/api/push_analysis")
+    async def push_analysis(data: AnalysisModel) -> dict[str, bool]:
+        """
+        更新图分析信息并递增版本号。
+
+        :param data: 图分析数据
+        :return: {"ok": True}
+        """
+        if not server.is_current_graph(data.graph_id):
+            return {"ok": False}
+        server.update_analysis_store(data.analysis)
         return {"ok": True}
 
     @router.post("/api/push_status")
@@ -144,36 +179,3 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
             append=append_mode,
         )
         return {"ok": True}
-
-    @router.post("/api/push_analysis")
-    async def push_analysis(data: AnalysisModel) -> dict[str, bool]:
-        """
-        更新图分析信息并递增版本号。
-
-        :param data: 图分析数据
-        :return: {"ok": True}
-        """
-        if not server.is_current_graph(data.graph_id):
-            return {"ok": False}
-        server.update_analysis_store(data.analysis)
-        return {"ok": True}
-
-    @router.post("/api/push_injection_tasks", response_model=None)
-    async def push_injection_tasks(
-        data: TaskInjectionModel,
-    ) -> dict[str, bool] | JSONResponse:
-        """
-        将前端提交的注入任务追加到待执行队列。
-
-        :param data: 注入任务数据
-        :return: {"ok": True} 或 JSONResponse({"ok": False, "msg": ...}, 500)
-        """
-        try:
-            with server.task_injection_lock:
-                for node_name, task_list in data.root.items():
-                    server.injection_tasks[node_name] = task_list
-            return {"ok": True}
-        except Exception as e:
-            return JSONResponse(
-                content={"ok": False, "msg": f"任务注入失败: {e}"}, status_code=500
-            )

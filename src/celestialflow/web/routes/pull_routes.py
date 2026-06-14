@@ -19,27 +19,32 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
     :param server: TaskWebServer 实例，提供数据存储与配置
     """
 
+    # ==== Reporter / Backend Pulls ====
+    @router.get("/api/pull_server_state")
+    def pull_server_state(graph_id: str = "") -> dict[str, Any]:
+        """返回 reporter 同步决策所需的服务端状态。
+
+        :param graph_id: reporter 当前任务图实例的唯一标识
+        :return: {"interval": float, "is_current_graph": bool, "has_structure": bool, "has_analysis": bool, "max_error_row_id": int}
+        """
+        return server.get_server_state(graph_id)
+
+    @router.get("/api/pull_task_injection")
+    def pull_task_injection() -> dict[str, list[Any]]:
+        """取出并清空待执行的前端注入任务映射。
+
+        :return: 待执行注入任务映射
+        """
+        return server.get_injection_tasks()
+
+    # ==== Frontend Pulls ====
     @router.get("/api/pull_config")
     def pull_config() -> dict[str, Any]:
         """获取前端配置
 
         :return: 前端配置字典
         """
-        with server.config_lock:
-            return server.config
-
-    @router.get("/api/pull_structure")
-    def pull_structure(known_rev: int = -1) -> dict[str, Any]:
-        """
-        返回图结构数据；若版本未变则返回 data=null。
-
-        :param known_rev: 客户端已知的版本号
-        :return: {"rev": int, "data": list | None}
-        """
-        rev, structure_store = server.get_structure_snapshot()
-        if known_rev == rev:
-            return {"rev": rev, "data": None}
-        return {"rev": rev, "data": structure_store}
+        return server.get_config()
 
     @router.get("/api/pull_status")
     def pull_status(known_rev: int = -1) -> dict[str, Any]:
@@ -57,6 +62,19 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
             "timestamp": status_timestamp,
             "data": status_store,
         }
+
+    @router.get("/api/pull_structure")
+    def pull_structure(known_rev: int = -1) -> dict[str, Any]:
+        """
+        返回图结构数据；若版本未变则返回 data=null。
+
+        :param known_rev: 客户端已知的版本号
+        :return: {"rev": int, "data": list | None}
+        """
+        rev, structure_store = server.get_structure_snapshot()
+        if known_rev == rev:
+            return {"rev": rev, "data": None}
+        return {"rev": rev, "data": structure_store}
 
     @router.get("/api/pull_errors")
     def pull_errors(
@@ -86,7 +104,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
             normalized_keyword,
             normalized_sort_order,
         ) = normalize_errors_query(page, page_size, node, keyword, sort_order)
-        total, total_pages, page_items = server.query_errors(
+        total, total_pages, page_items = server.get_errors(
             normalized_page,
             normalized_page_size,
             normalized_node,
@@ -118,23 +136,3 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         if known_rev == rev:
             return {"rev": rev, "data": None}
         return {"rev": rev, "data": analysis_store}
-
-    @router.get("/api/pull_server_state")
-    def pull_server_state(graph_id: str = "") -> dict[str, Any]:
-        """返回 reporter 同步决策所需的服务端状态。
-
-        :param graph_id: reporter 当前任务图实例的唯一标识
-        :return: {"interval": float, "is_current_graph": bool, "has_structure": bool, "has_analysis": bool, "max_error_row_id": int}
-        """
-        return server.get_server_state(graph_id)
-
-    @router.get("/api/pull_task_injection")
-    def pull_task_injection() -> dict[str, list[Any]]:
-        """取出并清空待执行的前端注入任务映射。
-
-        :return: 待执行注入任务映射
-        """
-        with server.task_injection_lock:
-            tasks = server.injection_tasks.copy()
-            server.injection_tasks = {}
-        return tasks

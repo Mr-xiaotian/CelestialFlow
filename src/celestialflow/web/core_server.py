@@ -252,6 +252,16 @@ class TaskWebServer:
         with self.structure_lock:
             return self.store_revs["structure"], copy.deepcopy(self.structure_store)
 
+    def get_config(self) -> dict[str, Any]:
+        """
+        读取前端配置。
+
+        :return: 前端配置字典
+        :rtype: dict[str, Any]
+        """
+        with self.config_lock:
+            return self.config
+
     def get_status_snapshot(self) -> tuple[int, float, dict[str, dict[str, Any]]]:
         """
         原子读取状态缓存快照。
@@ -303,6 +313,12 @@ class TaskWebServer:
             "has_analysis": has_analysis,
             "max_error_row_id": self.get_max_error_row_id(),
         }
+    
+    def get_injection_tasks(self) -> dict[str, list[Any]]:
+        with self.task_injection_lock:
+            tasks = self.injection_tasks.copy()
+            self.injection_tasks = {}
+            return tasks
 
     def get_errors_rev(self) -> int:
         """
@@ -314,7 +330,7 @@ class TaskWebServer:
         with self.errors_lock:
             return self.store_revs["errors"]
 
-    def query_errors(
+    def get_errors(
         self,
         page: int,
         page_size: int,
