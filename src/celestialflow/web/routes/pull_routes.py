@@ -126,12 +126,13 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
     @router.get("/api/pull_analysis")
     def pull_analysis(known_rev: int = -1) -> dict[str, Any]:
         """
-        返回图拓扑信息；若版本未变则返回 data=null。
+        返回图拓扑信息。
 
         :param known_rev: 客户端已知的版本号
         :return: {"rev": int, "data": dict | None}
         """
         rev, analysis_store = server.get_analysis_snapshot()
-        if known_rev == rev:
-            return {"rev": rev, "data": None}
-        return {"rev": rev, "data": analysis_store}
+        return {
+            "rev": rev,
+            "data": analysis_store
+        }
