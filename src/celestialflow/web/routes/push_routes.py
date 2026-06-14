@@ -11,8 +11,8 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from ...persistence.util_sqlite import (
-    load_error_records,
-    load_error_records_by_event_ids,
+    load_records,
+    load_records_by_event_ids,
 )
 from ..util_cal import cal_interval
 from ..util_config import save_config
@@ -140,13 +140,13 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
             if data.event_ids:
                 errors = await run_sync_typed(
                     partial(
-                        load_error_records_by_event_ids,
+                        load_records_by_event_ids,
                         db_path=data.error_path,
                         event_ids=data.event_ids,
                     )
                 )
             else:
-                errors = await run_sync_typed(partial(load_error_records, db_path=data.error_path))
+                errors = await run_sync_typed(partial(load_records, db_path=data.error_path))
             server.update_errors_store(
                 errors,
                 append=data.append,

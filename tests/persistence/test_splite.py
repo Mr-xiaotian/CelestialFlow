@@ -3,16 +3,18 @@ import json
 import pytest
 
 from celestialflow.persistence.util_sqlite import (
-    append_error_records,
-    connect_errors_db,
+    append_records,
+    connect_db,
+    delete_record_by_event_id,
     get_event_ids,
-    insert_error_record,
-    load_error_records,
-    load_error_records_by_event_ids,
-    load_task_error_pairs,
-    normalize_error_record,
-    query_error_records,
-    replace_error_records,
+    insert_record,
+    load_records,
+    load_records_by_event_ids,
+    load_task_records,
+    normalize_record,
+    query_records,
+    replace_records,
+    update_record_status_by_event_id,
 )
 
 
@@ -55,9 +57,9 @@ def sqlite_path(tmp_path):
 
 
 class TestSpliteUtils:
-    def test_connect_errors_db_creates_table_and_indices(self, sqlite_path):
+    def test_connect_db_creates_table_and_indices(self, sqlite_path):
         """测试建立连接时会自动创建 errors 表和必要索引。"""
-        conn = connect_errors_db(sqlite_path)
+        conn = connect_db(sqlite_path)
         try:
             table_names = {
                 row[0]
@@ -80,11 +82,11 @@ class TestSpliteUtils:
         assert "idx_errors_type_error_ts" in index_names
         assert "idx_errors_event_id" in index_names
 
-    def test_normalize_error_record(self, sample_errors):
+    def test_normalize_record(self, sample_errors):
         """测试错误记录会被归一化为 sqlite 可写格式。"""
-        assert normalize_error_record(sample_errors[0]) is None
+        assert normalize_record(sample_errors[0]) is None
 
-        normalized = normalize_error_record(sample_errors[1])
+        normalized = normalize_record(sample_errors[1])
 
         assert normalized is not None
         assert normalized["event_id"] == 1
@@ -95,18 +97,18 @@ class TestSpliteUtils:
         assert normalized["error_ts"] == 1.0
         assert json.loads(normalized["task_json"]) == {"id": 1, "label": "TaskOne"}
 
-    def test_insert_and_load_error_records(self, sqlite_path, sample_errors):
+    def test_insert_and_load_records(self, sqlite_path, sample_errors):
         """测试单条插入会忽略元信息，并能正常读回错误记录。"""
-        conn = connect_errors_db(sqlite_path)
+        conn = connect_db(sqlite_path)
         try:
-            assert insert_error_record(conn, sample_errors[0]) is False
-            assert insert_error_record(conn, sample_errors[1]) is True
-            assert insert_error_record(conn, sample_errors[2]) is True
+            assert insert_record(conn, sample_errors[0]) is False
+            assert insert_record(conn, sample_errors[1]) is True
+            assert insert_record(conn, sample_errors[2]) is True
             conn.commit()
         finally:
             conn.close()
 
-        records = load_error_records(sqlite_path)
+        records = load_records(sqlite_path)
 
         assert len(records) == 2
         assert records[0]["id"] == 1
@@ -114,11 +116,11 @@ class TestSpliteUtils:
         assert records[1]["id"] == 2
         assert records[1]["task"] == ["A", "B"]
 
-    def test_replace_and_query_error_records(self, sqlite_path, sample_errors):
+    def test_replace_and_query_records(self, sqlite_path, sample_errors):
         """测试全量覆盖写入以及分页、筛选、排序查询。"""
-        replace_error_records(sqlite_path, sample_errors)
+        replace_records(sqlite_path, sample_errors)
 
-        total, total_pages, page_items = query_error_records(
+        total, total_pages, page_items = query_records(
             sqlite_path,
             page=1,
             page_size=2,
@@ -130,7 +132,7 @@ class TestSpliteUtils:
         assert total_pages == 1
         assert [item["event_id"] for item in page_items] == [3, 1]
 
-        total, total_pages, page_items = query_error_records(
+        total, total_pages, page_items = query_records(
             sqlite_path,
             page=1,
             page_size=10,
@@ -143,24 +145,60 @@ class TestSpliteUtils:
         assert page_items[0]["event_id"] == 2
         assert page_items[0]["task"] == ["A", "B"]
 
-    def test_append_and_load_error_records_by_event_ids(self, sqlite_path, sample_errors):
+    def test_append_and_load_records_by_event_ids(self, sqlite_path, sample_errors):
         """测试追加写入以及按 event_id 定位读取。"""
-        replace_error_records(sqlite_path, sample_errors[:2])
+        replace_records(sqlite_path, sample_errors[:2])
 
         assert get_event_ids(sqlite_path) == [1]
 
-        appended = append_error_records(sqlite_path, sample_errors[2:])
+        appended = append_records(sqlite_path, sample_errors[2:])
         assert appended == 2
         assert get_event_ids(sqlite_path) == [1, 2, 3]
 
-        selected = load_error_records_by_event_ids(sqlite_path, [3, 1])
+        selected = load_records_by_event_ids(sqlite_path, [3, 1])
         assert [item["event_id"] for item in selected] == [1, 3]
 
-    def test_load_task_error_pairs_and_grouping(self, sqlite_path, sample_errors):
-        """测试任务-错误配对读取以及按 stage 聚合。"""
-        replace_error_records(sqlite_path, sample_errors)
+    def test_update_record_status_by_event_id(self, sqlite_path, sample_errors):
+        """测试按 event_id 更新记录状态与错误信息。"""
+        waiting_record = {
+            "event_id": 9,
+            "stage": "s9",
+            "status": "waiting",
+            "task": {"value": 9},
+        }
+        replace_records(sqlite_path, [waiting_record])
 
-        pairs = load_task_error_pairs(sqlite_path)
+        updated = update_record_status_by_event_id(
+            sqlite_path,
+            9,
+            "failed",
+            error_ts=9.5,
+            error_type="RuntimeError",
+            error_message="boom",
+        )
+
+        assert updated is True
+        failed_records = load_records(sqlite_path, "failed")
+        assert len(failed_records) == 1
+        assert failed_records[0]["status"] == "failed"
+        assert failed_records[0]["error_ts"] == 9.5
+        assert failed_records[0]["error_type"] == "RuntimeError"
+        assert failed_records[0]["error_message"] == "boom"
+
+    def test_delete_record_by_event_id(self, sqlite_path, sample_errors):
+        """测试按 event_id 删除记录。"""
+        replace_records(sqlite_path, sample_errors[1:])
+
+        deleted = delete_record_by_event_id(sqlite_path, 2)
+
+        assert deleted is True
+        assert [item["event_id"] for item in load_records(sqlite_path)] == [1, 3]
+
+    def test_load_task_records_and_grouping(self, sqlite_path, sample_errors):
+        """测试任务-错误配对读取以及按 stage 聚合。"""
+        replace_records(sqlite_path, sample_errors)
+
+        pairs = load_task_records(sqlite_path)
         assert len(pairs) == 3
         assert pairs[0][0] == {"id": 1, "label": "TaskOne"}
         assert pairs[0][1].error_type == "ValueError"

@@ -8,8 +8,8 @@ from ..graph.util_types import ReporterTaskGraph
 from ..persistence import LogInlet
 from ..persistence.util_sqlite import (
     get_event_ids,
-    load_error_records,
-    load_error_records_by_event_ids,
+    load_records,
+    load_records_by_event_ids,
 )
 from ..runtime.util_errors import ReporterError
 from ..runtime.util_types import TERMINATION_SIGNAL
@@ -258,9 +258,9 @@ class TaskReporter:
         :return: None
         """
         all_errors: list[dict[str, Any]] = (
-            load_error_records_by_event_ids(db_path=error_path, event_ids=event_ids)
+            load_records_by_event_ids(db_path=error_path, event_ids=event_ids)
             if append
-            else load_error_records(db_path=error_path)
+            else load_records(db_path=error_path)
         )
 
         payload: dict[str, Any] = {

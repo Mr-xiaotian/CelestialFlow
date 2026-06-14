@@ -20,12 +20,12 @@ from fastapi.templating import (
 )
 
 from ..persistence.util_sqlite import (
-    append_error_records,
-    connect_errors_db,
+    append_records,
+    connect_db,
     get_event_ids,
-    load_error_records,
-    query_error_records,
-    replace_error_records,
+    load_records,
+    query_records,
+    replace_records,
 )
 from .routes import create_router
 from .util_cal import cal_interval
@@ -79,7 +79,7 @@ class TaskWebServer:
         )
         os.close(fd)
         self.errors_db_path: str = errors_db_path
-        conn = connect_errors_db(self.errors_db_path)
+        conn = connect_db(self.errors_db_path)
         conn.close()
 
         # 各类 store 的 rev + payload 需要原子读写，避免 pull 读到撕裂快照
@@ -139,7 +139,7 @@ class TaskWebServer:
             self.analysis_store = {}
             self.store_revs["analysis"] += 1
         with self.errors_lock:
-            replace_error_records(self.errors_db_path, [])
+            replace_records(self.errors_db_path, [])
             self.store_revs["errors"] += 1
 
     def sync_graph_context(self, graph_id: str) -> bool:
@@ -225,9 +225,9 @@ class TaskWebServer:
         """
         with self.errors_lock:
             if append:
-                _ = append_error_records(self.errors_db_path, errors)
+                _ = append_records(self.errors_db_path, errors)
             else:
-                replace_error_records(self.errors_db_path, errors)
+                replace_records(self.errors_db_path, errors)
             self.store_revs["errors"] += 1
 
     def update_analysis_store(self, analysis: dict[str, Any]) -> None:
@@ -284,7 +284,7 @@ class TaskWebServer:
         :rtype: tuple[int, list[dict[str, Any]]]
         """
         with self.errors_lock:
-            return self.store_revs["errors"], load_error_records(self.errors_db_path)
+            return self.store_revs["errors"], load_records(self.errors_db_path)
 
     def get_server_state(self, graph_id: str = "") -> dict[str, Any]:
         """
@@ -341,7 +341,7 @@ class TaskWebServer:
         """
         with self.errors_lock:
             rev = self.store_revs["errors"]
-            total, total_pages, page_items = query_error_records(
+            total, total_pages, page_items = query_records(
                 self.errors_db_path, page, page_size, node, keyword, sort_order
             )
             return rev, total, total_pages, page_items

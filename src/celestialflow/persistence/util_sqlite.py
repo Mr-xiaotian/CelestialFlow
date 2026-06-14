@@ -10,12 +10,12 @@ from typing import Any
 from ..runtime.util_types import PersistedErrorRecord
 
 
-def connect_errors_db(db_path: str | Path) -> sqlite3.Connection:
+def connect_db(db_path: str | Path) -> sqlite3.Connection:
     """
-    连接错误数据库并确保表结构与索引存在。
+    连接 sqlite 数据库并确保表结构与索引存在。
 
     :param db_path: sqlite 数据库文件路径
-    :return: 可直接用于错误读写的 sqlite 连接
+    :return: 可直接用于记录读写的 sqlite 连接
     :rtype: sqlite3.Connection
     """
     path = Path(db_path)
@@ -27,13 +27,13 @@ def connect_errors_db(db_path: str | Path) -> sqlite3.Connection:
     _ = conn.execute("PRAGMA journal_mode=WAL")
     _ = conn.execute("PRAGMA synchronous=NORMAL")
     _ = conn.execute("PRAGMA foreign_keys=ON")
-    _ensure_errors_table(conn)
+    _ensure_table(conn)
     return conn
 
 
-def _ensure_errors_table(conn: sqlite3.Connection) -> None:
+def _ensure_table(conn: sqlite3.Connection) -> None:
     """
-    创建错误记录表与索引。
+    创建记录表与索引。
 
     :param conn: 已建立的 sqlite 连接
     :return: None
@@ -70,13 +70,13 @@ def _ensure_errors_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def normalize_error_record(record: dict[str, Any]) -> dict[str, Any] | None:
+def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
     """
-    将错误记录归一化为 sqlite 可写格式。
+    将记录归一化为 sqlite 可写格式。
 
-    非错误元信息记录会返回 ``None``。
+    非业务记录会返回 ``None``。
 
-    :param record: 原始错误记录字典
+    :param record: 原始记录字典
     :return: 可直接写入 sqlite 的参数字典，或 ``None``
     :rtype: dict[str, Any] | None
     """
@@ -98,22 +98,22 @@ def normalize_error_record(record: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def insert_error_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
+def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
     """
-    插入单条错误记录。
+    插入单条记录。
 
     元信息记录会被忽略。
 
     :param conn: 已建立的 sqlite 连接
     :param record: 原始错误记录字典
-    :return: 是否实际插入了一条错误记录
+    :return: 是否实际插入了一条记录
     :rtype: bool
     """
-    normalized = normalize_error_record(record)
+    normalized = normalize_record(record)
     if normalized is None:
         return False
 
-    # 插入单条归一化后的错误记录。
+    # 插入单条归一化后的记录。
     _ = conn.execute(
         """
         INSERT INTO errors (
@@ -128,27 +128,27 @@ def insert_error_record(conn: sqlite3.Connection, record: dict[str, Any]) -> boo
     return True
 
 
-def replace_error_records(
-    db_path: str | Path, errors: Iterable[dict[str, Any]]
+def replace_records(
+    db_path: str | Path, records: Iterable[dict[str, Any]]
 ) -> None:
     """
-    用给定错误列表覆盖数据库中的全部错误记录。
+    用给定记录列表覆盖数据库中的全部记录。
 
     :param db_path: sqlite 数据库文件路径
-    :param errors: 待写入的错误记录迭代器
+    :param records: 待写入的记录迭代器
     :return: None
     """
-    conn = connect_errors_db(db_path)
+    conn = connect_db(db_path)
     try:
-        # 先清空旧数据，再用新的错误列表整体覆盖。
+        # 先清空旧数据，再用新的记录列表整体覆盖。
         _ = conn.execute("DELETE FROM errors")
         normalized_rows = [
             normalized
-            for item in errors
-            if (normalized := normalize_error_record(item)) is not None
+            for item in records
+            if (normalized := normalize_record(item)) is not None
         ]
         if normalized_rows:
-            # 批量写入覆盖后的错误记录。
+            # 批量写入覆盖后的记录。
             _ = conn.executemany(
                 """
                 INSERT INTO errors (
@@ -165,22 +165,22 @@ def replace_error_records(
         conn.close()
 
 
-def append_error_records(
-    db_path: str | Path, errors: Iterable[dict[str, Any]]
+def append_records(
+    db_path: str | Path, records: Iterable[dict[str, Any]]
 ) -> int:
     """
-    将给定错误列表追加写入数据库。
+    将给定记录列表追加写入数据库。
 
     :param db_path: sqlite 数据库文件路径
-    :param errors: 待追加的错误记录迭代器
-    :return: 实际追加写入的错误记录数量
+    :param records: 待追加的记录迭代器
+    :return: 实际追加写入的记录数量
     :rtype: int
     """
-    conn = connect_errors_db(db_path)
+    conn = connect_db(db_path)
     try:
         inserted = 0
-        for item in errors:
-            if insert_error_record(conn, item):
+        for item in records:
+            if insert_record(conn, item):
                 inserted += 1
         conn.commit()
         return inserted
@@ -199,12 +199,12 @@ def _decode_task_json(task_json: str) -> Any:
     return json.loads(task_json)
 
 
-def row_to_error_dict(row: sqlite3.Row) -> dict[str, Any]:
+def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
     """
-    将 sqlite 行转换为对外错误字典。
+    将 sqlite 行转换为对外记录字典。
 
     :param row: sqlite 查询结果中的单行
-    :return: 面向上层调用方的错误记录字典
+    :return: 面向上层调用方的记录字典
     :rtype: dict[str, Any]
     """
     return {
@@ -219,26 +219,90 @@ def row_to_error_dict(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
-def load_error_records(db_path: str | Path) -> list[dict[str, Any]]:
+def load_records(
+    db_path: str | Path,
+    status: str = "failed",
+) -> list[dict[str, Any]]:
     """
-    读取数据库中的全部错误记录。
+    读取数据库中指定状态的记录。
 
     :param db_path: sqlite 数据库文件路径
-    :return: 全量错误记录列表
+    :param status: 记录状态过滤条件，默认 ``failed``
+    :return: 指定状态的记录列表
     :rtype: list[dict[str, Any]]
     """
-    conn = connect_errors_db(db_path)
+    conn = connect_db(db_path)
     try:
-        # 按写入顺序读取全部错误记录。
+        # 按写入顺序读取指定状态的记录。
         rows = conn.execute(
             """
             SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
             FROM errors
-            WHERE status = 'failed'
+            WHERE status = ?
             ORDER BY id ASC
             """
+            ,
+            [status],
         ).fetchall()
-        return [row_to_error_dict(row) for row in rows]
+        return [row_to_record_dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def update_record_status_by_event_id(
+    db_path: str | Path,
+    event_id: int,
+    status: str,
+    *,
+    error_ts: float | None = None,
+    error_type: str = "",
+    error_message: str = "",
+) -> bool:
+    """
+    按 ``event_id`` 更新记录状态与错误信息。
+
+    :param db_path: sqlite 数据库文件路径
+    :param event_id: 事件 ID
+    :param status: 目标状态
+    :param error_ts: 错误时间戳，默认 ``None``
+    :param error_type: 错误类型，默认空字符串
+    :param error_message: 错误消息，默认空字符串
+    :return: 是否更新到记录
+    :rtype: bool
+    """
+    conn = connect_db(db_path)
+    try:
+        cursor = conn.execute(
+            """
+            UPDATE errors
+            SET status = ?, error_ts = ?, error_type = ?, error_message = ?
+            WHERE event_id = ?
+            """,
+            [status, error_ts, error_type, error_message, int(event_id)],
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
+def delete_record_by_event_id(db_path: str | Path, event_id: int) -> bool:
+    """
+    按 ``event_id`` 删除记录。
+
+    :param db_path: sqlite 数据库文件路径
+    :param event_id: 待删除的事件 ID
+    :return: 是否删除到记录
+    :rtype: bool
+    """
+    conn = connect_db(db_path)
+    try:
+        cursor = conn.execute(
+            "DELETE FROM errors WHERE event_id = ?",
+            [int(event_id)],
+        )
+        conn.commit()
+        return cursor.rowcount > 0
     finally:
         conn.close()
 
@@ -251,7 +315,7 @@ def get_event_ids(db_path: str | Path) -> list[int]:
     :return: 按写入顺序排列的失败事件 ``event_id`` 列表
     :rtype: list[int]
     """
-    conn = connect_errors_db(db_path)
+    conn = connect_db(db_path)
     try:
         # 读取当前错误库中的全部失败事件 id，供上层进行集合比对。
         rows = conn.execute(
@@ -267,15 +331,18 @@ def get_event_ids(db_path: str | Path) -> list[int]:
         conn.close()
 
 
-def load_error_records_by_event_ids(
-    db_path: str | Path, event_ids: Iterable[int]
+def load_records_by_event_ids(
+    db_path: str | Path,
+    event_ids: Iterable[int],
+    status: str = "failed",
 ) -> list[dict[str, Any]]:
     """
-    按给定 ``event_id`` 列表读取错误记录。
+    按给定 ``event_id`` 列表读取指定状态的记录。
 
     :param db_path: sqlite 数据库文件路径
-    :param event_ids: 待读取的失败事件 ``event_id`` 列表
-    :return: 命中的错误记录列表
+    :param event_ids: 待读取的事件 ``event_id`` 列表
+    :param status: 记录状态过滤条件，默认 ``failed``
+    :return: 命中的记录列表
     :rtype: list[dict[str, Any]]
     """
     normalized_ids = [int(event_id) for event_id in event_ids]
@@ -283,33 +350,34 @@ def load_error_records_by_event_ids(
         return []
 
     placeholders = ", ".join(["?"] * len(normalized_ids))
-    conn = connect_errors_db(db_path)
+    conn = connect_db(db_path)
     try:
-        # 仅读取指定 event_id 对应的错误记录，避免再依赖本地 row id 偏移量。
+        # 仅读取指定 event_id 对应的记录，避免再依赖本地 row id 偏移量。
         rows = conn.execute(
             f"""
             SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
             FROM errors
-            WHERE status = 'failed' AND event_id IN ({placeholders})
+            WHERE status = ? AND event_id IN ({placeholders})
             ORDER BY id ASC
             """,
-            normalized_ids,
+            [status, *normalized_ids],
         ).fetchall()
-        return [row_to_error_dict(row) for row in rows]
+        return [row_to_record_dict(row) for row in rows]
     finally:
         conn.close()
 
 
-def query_error_records(
+def query_records(
     db_path: str | Path,
     page: int,
     page_size: int,
     node: str,
     keyword: str,
     sort_order: str,
+    status: str = "failed",
 ) -> tuple[int, int, list[dict[str, Any]]]:
     """
-    按条件查询错误记录并返回分页结果。
+    按条件查询指定状态的记录并返回分页结果。
 
     :param db_path: sqlite 数据库文件路径
     :param page: 请求页码
@@ -317,14 +385,15 @@ def query_error_records(
     :param node: 节点名称过滤条件
     :param keyword: 关键词过滤条件
     :param sort_order: 排序方式，支持 ``newest`` 或 ``oldest``
+    :param status: 记录状态过滤条件，默认 ``failed``
     :return: ``(total, total_pages, page_items)``
     :rtype: tuple[int, int, list[dict[str, Any]]]
     """
-    conn = connect_errors_db(db_path)
+    conn = connect_db(db_path)
     try:
         # 构造动态筛选条件与参数。
         where_clauses: list[str] = ["status = ?"]
-        params: list[Any] = ["failed"]
+        params: list[Any] = [status]
         if node:
             where_clauses.append("stage = ?")
             params.append(node)
@@ -361,12 +430,12 @@ def query_error_records(
         ).fetchall()
 
         # 转换为上层使用的错误字典格式。
-        return total, total_pages, [row_to_error_dict(row) for row in rows]
+        return total, total_pages, [row_to_record_dict(row) for row in rows]
     finally:
         conn.close()
 
 
-def load_task_error_pairs(db_path: str | Path) -> list[tuple[Any, PersistedErrorRecord]]:
+def load_task_records(db_path: str | Path) -> list[tuple[Any, PersistedErrorRecord]]:
     """
     读取错误数据库并返回任务与错误记录的配对列表。
 
@@ -374,7 +443,7 @@ def load_task_error_pairs(db_path: str | Path) -> list[tuple[Any, PersistedError
     :return: ``[(task, error_record), ...]``
     :rtype: list[tuple[Any, PersistedErrorRecord]]
     """
-    conn = connect_errors_db(db_path)
+    conn = connect_db(db_path)
     try:
         # 读取任务与错误信息的配对原始行，供后续组装业务对象。
         rows = conn.execute(

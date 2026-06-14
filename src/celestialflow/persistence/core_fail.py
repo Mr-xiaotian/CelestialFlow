@@ -10,7 +10,7 @@ from typing import Any, cast
 from ..funnel import BaseInlet, BaseSpout
 from ..runtime.util_errors import InitializationError
 from ..runtime.util_types import PersistedErrorRecord
-from .util_sqlite import connect_errors_db, insert_error_record, load_task_error_pairs
+from .util_sqlite import connect_db, insert_record, load_task_records
 
 
 class FailSpout(BaseSpout):
@@ -44,7 +44,7 @@ class FailSpout(BaseSpout):
             f"./fallback/{date_str}/{self.error_source}({time_str}).sqlite3"
         )
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = connect_errors_db(self.db_path)
+        self._conn = connect_db(self.db_path)
 
         # 初始化计数器
         self.total_error_num = 0
@@ -59,7 +59,7 @@ class FailSpout(BaseSpout):
         """
         if self._conn is None:
             raise InitializationError("fail database is not initialized")
-        inserted = insert_error_record(self._conn, record)
+        inserted = insert_record(self._conn, record)
         if inserted:
             self._flush_counter += 1
             if self._flush_counter >= self._flush_every:
@@ -82,7 +82,7 @@ class FailSpout(BaseSpout):
         """
         if self.db_path is None:
             return []
-        return load_task_error_pairs(str(self.db_path))
+        return load_task_records(str(self.db_path))
 
 
 class FailInlet(BaseInlet):
