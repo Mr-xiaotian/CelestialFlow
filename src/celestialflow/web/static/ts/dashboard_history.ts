@@ -10,6 +10,7 @@ type HistoryMetricKey =
   | "tasks_failed"
   | "tasks_duplicated"
   | "tasks_pending"
+  | "total_tasks_pending"
   | "delta_tasks_processed"
   | "delta_tasks_succeeded"
   | "delta_tasks_failed"
@@ -23,6 +24,7 @@ type NodeHistoryPoint = {
   tasks_failed: number;
   tasks_duplicated: number;
   tasks_pending: number;
+  total_tasks_pending: number;
 };
 
 type NodeHistory = NodeHistoryPoint[];
@@ -119,6 +121,8 @@ function getHistoryMetricLabelKey(metric: HistoryMetricKey): string {
       return "chart.metric.duplicated";
     case "tasks_pending":
       return "chart.metric.pending";
+    case "total_tasks_pending":
+      return "chart.metric.pendingGlobal";
     case "delta_tasks_processed":
       return "chart.metric.deltaProcessed";
     case "delta_tasks_succeeded":
@@ -249,6 +253,7 @@ function appendStatusSnapshotToHistory(
       tasks_failed: status.tasks_failed || 0,
       tasks_duplicated: status.tasks_duplicated || 0,
       tasks_pending: status.tasks_pending || 0,
+      total_tasks_pending: status.total_tasks_pending || 0,
     };
 
     if (!history.length) {
@@ -264,7 +269,9 @@ function appendStatusSnapshotToHistory(
           currentLastPoint.tasks_succeeded !== nextPoint.tasks_succeeded ||
           currentLastPoint.tasks_failed !== nextPoint.tasks_failed ||
           currentLastPoint.tasks_duplicated !== nextPoint.tasks_duplicated ||
-          currentLastPoint.tasks_pending !== nextPoint.tasks_pending;
+          currentLastPoint.tasks_pending !== nextPoint.tasks_pending ||
+          currentLastPoint.total_tasks_pending !==
+            nextPoint.total_tasks_pending;
         if (pointChanged) {
           history[history.length - 1] = nextPoint;
           changed = true;

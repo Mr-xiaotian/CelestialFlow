@@ -242,6 +242,10 @@ const CARD_TEMPLATES: Record<string, string> = {
           <span class="dot" style="background: var(--violet-500)"></span>
           <span class="label" data-i18n="chart.metric.pending">等待队列</span>
         </label>
+        <label class="metric-dot" data-history-metric="total_tasks_pending">
+          <span class="dot" style="background: var(--rose-500)"></span>
+          <span class="label" data-i18n="chart.metric.pendingGlobal">全局等待队列</span>
+        </label>
         <span class="metric-sep" aria-hidden="true"></span>
         <label class="metric-dot" data-history-metric="delta_tasks_processed">
           <span class="dot delta" style="border-color: var(--cornflower-500)"></span>

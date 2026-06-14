@@ -8,7 +8,7 @@
     "dashboard": {
         "historyLimit": 100,
         "showStructureEdgeDelta": false,
-        "useTotalPendingInStatus": false,
+        "useTotalPendingInStatus": true,
         "layout": {
             "left": [
                 "mermaid",
