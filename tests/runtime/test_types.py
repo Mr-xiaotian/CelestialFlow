@@ -6,7 +6,7 @@ from dataclasses import FrozenInstanceError
 from celestialflow.runtime.util_types import (
     CTreeEvent,
     NoOpContext,
-    PersistedErrorRecord,
+    PersistedFallbackRecord,
     StageStatus,
     SumCounter,
     TerminationIdPool,
@@ -222,11 +222,11 @@ class TestUtilTypes:
         """重试前缀以点结尾"""
         assert CTreeEvent.TASK_RETRY_PREFIX.endswith(".")
 
-    # ---- PersistedErrorRecord ───────────────────────────────────────
+    # ---- PersistedFallbackRecord ────────────────────────────────────
 
-    def test_persisted_error_record_construction(self):
+    def test_persisted_fallback_record_construction(self):
         """基本构造"""
-        rec = PersistedErrorRecord(
+        rec = PersistedFallbackRecord(
             error_type="ValueError",
             error_message="bad value",
         )
@@ -236,9 +236,9 @@ class TestUtilTypes:
         assert rec.event_id is None
         assert rec.ts is None
 
-    def test_persisted_error_record_full(self):
+    def test_persisted_fallback_record_full(self):
         """全字段构造"""
-        rec = PersistedErrorRecord(
+        rec = PersistedFallbackRecord(
             error_type="RuntimeError",
             error_message="crash",
             stage="Stage-1",
@@ -249,9 +249,9 @@ class TestUtilTypes:
         assert rec.event_id == 42
         assert rec.ts == 1704067200.0
 
-    def test_persisted_error_record_frozen(self):
+    def test_persisted_fallback_record_frozen(self):
         """frozen dataclass 不可修改"""
-        rec = PersistedErrorRecord(
+        rec = PersistedFallbackRecord(
             error_type="TypeError",
             error_message="msg",
         )
@@ -260,17 +260,17 @@ class TestUtilTypes:
         with pytest.raises(FrozenInstanceError):
             rec.error_type = "changed"
 
-    def test_persisted_error_record_str(self):
+    def test_persisted_fallback_record_str(self):
         """__str__ 返回 error_type(error_message)"""
-        rec = PersistedErrorRecord(
+        rec = PersistedFallbackRecord(
             error_type="KeyError",
             error_message="missing",
         )
         assert str(rec) == "KeyError(missing)"
 
-    def test_persisted_error_record_get_group_key(self):
+    def test_persisted_fallback_record_get_group_key(self):
         """get_group_key 返回 (error_type, error_message)"""
-        rec = PersistedErrorRecord(
+        rec = PersistedFallbackRecord(
             error_type="OSError",
             error_message="file not found",
         )

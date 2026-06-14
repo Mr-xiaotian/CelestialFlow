@@ -9,11 +9,11 @@ from typing import Any, cast
 
 from ..funnel import BaseInlet, BaseSpout
 from ..runtime.util_errors import InitializationError
-from ..runtime.util_types import PersistedErrorRecord
+from ..runtime.util_types import PersistedFallbackRecord
 from .util_sqlite import connect_db, insert_record, load_task_records
 
 
-class FailSpout(BaseSpout):
+class FallbackSpout(BaseSpout):
     """失败记录监听器，将错误信息写入 fallback 目录的 sqlite 文件。"""
 
     def __init__(self, error_source: str) -> None:
@@ -27,7 +27,7 @@ class FailSpout(BaseSpout):
         self.error_source: str = error_source
         self.db_path: Path | None = None
 
-        self.total_error_num: int = 0
+        self.total_fallback_num: int = 0
         self._conn: sqlite3.Connection | None = None
 
         # 批量刷新：每 _flush_every 条记录才 flush 一次，避免高频 I/O
@@ -47,7 +47,7 @@ class FailSpout(BaseSpout):
         self._conn = connect_db(self.db_path)
 
         # 初始化计数器
-        self.total_error_num = 0
+        self.total_fallback_num = 0
         self._flush_counter = 0
 
     def _handle_record(self, record: dict[str, Any]) -> None:
@@ -65,7 +65,7 @@ class FailSpout(BaseSpout):
             if self._flush_counter >= self._flush_every:
                 self._conn.commit()
                 self._flush_counter = 0
-            self.total_error_num += 1
+            self.total_fallback_num += 1
 
     def _after_stop(self) -> None:
         """关闭 sqlite 连接，确保剩余事务落盘。"""
@@ -74,7 +74,7 @@ class FailSpout(BaseSpout):
             self._conn.close()
             self._conn = None
 
-    def get_error_pairs(self) -> list[tuple[Any, PersistedErrorRecord]]:
+    def get_fallback_pairs(self) -> list[tuple[Any, PersistedFallbackRecord]]:
         """
         从 sqlite 文件中读取所有错误记录
 
@@ -85,18 +85,18 @@ class FailSpout(BaseSpout):
         return load_task_records(str(self.db_path))
 
 
-class FailInlet(BaseInlet):
+class FallbackInlet(BaseInlet):
     """
     线程安全失败记录包装类，所有失败记录通过队列发送到监听线程写入
     """
 
-    def __init__(self, fail_queue: Queue[Any]) -> None:
+    def __init__(self, fallback_queue: Queue[Any]) -> None:
         """
         初始化失败记录收集器
 
-        :param fail_queue: 失败记录队列
+        :param fallback_queue: fallback 记录队列
         """
-        super().__init__(fail_queue)
+        super().__init__(fallback_queue)
 
     def _to_retry_payload(self, task: Any) -> Any:
         """

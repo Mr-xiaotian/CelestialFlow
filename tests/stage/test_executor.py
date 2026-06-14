@@ -79,10 +79,10 @@ class TestExecutorSerial:
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 2
 
-        error_pairs = dict(executor.get_error_pairs())
-        assert error_pairs[-1].error_type == "ValueError"
-        assert "negative value: -1" in error_pairs[-1].error_message
-        assert error_pairs[-2].stage == executor.get_name()
+        fallback_pairs = dict(executor.get_fallback_pairs())
+        assert fallback_pairs[-1].error_type == "ValueError"
+        assert "negative value: -1" in fallback_pairs[-1].error_message
+        assert fallback_pairs[-2].stage == executor.get_name()
 
     def test_serial_retry(self):
         """测试串行执行器的重试机制"""

@@ -187,9 +187,9 @@ class CTreeEvent:
 
 
 @dataclass(frozen=True)
-class PersistedErrorRecord:
+class PersistedFallbackRecord:
     """
-    持久化错误记录
+    持久化 fallback 记录
 
     :param error_type: 错误类型名称
     :param error_message: 错误消息

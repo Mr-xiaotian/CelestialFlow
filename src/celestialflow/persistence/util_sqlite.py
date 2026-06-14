@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from ..runtime.util_types import PersistedErrorRecord
+from ..runtime.util_types import PersistedFallbackRecord
 
 
 def connect_db(db_path: str | Path) -> sqlite3.Connection:
@@ -435,13 +435,13 @@ def query_records(
         conn.close()
 
 
-def load_task_records(db_path: str | Path) -> list[tuple[Any, PersistedErrorRecord]]:
+def load_task_records(db_path: str | Path) -> list[tuple[Any, PersistedFallbackRecord]]:
     """
     读取错误数据库并返回任务与错误记录的配对列表。
 
     :param db_path: sqlite 数据库文件路径
     :return: ``[(task, error_record), ...]``
-    :rtype: list[tuple[Any, PersistedErrorRecord]]
+    :rtype: list[tuple[Any, PersistedFallbackRecord]]
     """
     conn = connect_db(db_path)
     try:
@@ -457,7 +457,7 @@ def load_task_records(db_path: str | Path) -> list[tuple[Any, PersistedErrorReco
         return [
             (
                 _decode_task_json(str(row["task_json"])),
-                PersistedErrorRecord(
+                PersistedFallbackRecord(
                     ts=float(row["error_ts"]) if row["error_ts"] is not None else None,
                     stage=str(row["stage"]),
                     event_id=int(row["event_id"]),

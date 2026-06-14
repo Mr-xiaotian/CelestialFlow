@@ -7,7 +7,7 @@ from collections.abc import Awaitable, Callable
 from queue import Queue as ThreadQueue
 from typing import Any
 
-from ..persistence import FailInlet, LogInlet
+from ..persistence import FallbackInlet, LogInlet
 from ..runtime import TaskInQueue, TaskOutQueue
 from ..runtime.util_errors import (
     ExecutionModeError,
@@ -35,7 +35,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
     execution_mode: str
     task_queue: TaskInQueue[T]
     result_queue: TaskOutQueue[R]
-    fail_inlet: FailInlet
+    fallback_inlet: FallbackInlet
     log_inlet: LogInlet
 
     # ==== 初始化 ====
@@ -94,16 +94,16 @@ class TaskStage[T, R](TaskExecutor[T, R]):
             raise StageModeError(stage_mode)
 
     def set_inlet(
-        self, fail_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]
+        self, fallback_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]
     ) -> None:
         """
         初始化收集器
 
-        :param fail_queue: 失败队列
+        :param fallback_queue: fallback 队列
         :param log_queue: 日志队列
         """
-        self.fail_queue = fail_queue
-        self.fail_inlet = FailInlet(self.fail_queue)
+        self.fallback_queue = fallback_queue
+        self.fallback_inlet = FallbackInlet(self.fallback_queue)
 
         self.log_queue = log_queue
         self.log_inlet = LogInlet(self.log_queue, self.log_level)

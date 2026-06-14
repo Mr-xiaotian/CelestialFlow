@@ -14,7 +14,13 @@ from celestialtree import Client as CelestialTreeClient
 from celestialtree import NullClient as NullCelestialTreeClient
 
 from ..observability import BaseObserver
-from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout, SuccessSpout
+from ..persistence import (
+    FallbackInlet,
+    FallbackSpout,
+    LogInlet,
+    LogSpout,
+    SuccessSpout,
+)
 from ..runtime import (
     TaskDispatch,
     TaskEnvelope,
@@ -25,7 +31,7 @@ from ..runtime import (
 from ..runtime.util_errors import ConfigurationError, ExecutionModeError
 from ..runtime.util_types import (
     CTreeEvent,
-    PersistedErrorRecord,
+    PersistedFallbackRecord,
     TerminationSignal,
 )
 from ..utils.util_format import format_repr
@@ -50,10 +56,10 @@ class TaskExecutor[T, R]:
     enable_duplicate_check: bool
     metrics: TaskMetrics
     dispatch: TaskDispatch[T, R]
-    fail_spout: FailSpout
+    fallback_spout: FallbackSpout
     log_spout: LogSpout
     success_spout: SuccessSpout[T, R]
-    fail_inlet: FailInlet
+    fallback_inlet: FallbackInlet
     log_inlet: LogInlet
     execution_mode: str
     _name: str
@@ -136,7 +142,7 @@ class TaskExecutor[T, R]:
             in_name=self.get_name(),
         )
 
-        self.fail_queue: ThreadQueue[Any] | None = None
+        self.fallback_queue: ThreadQueue[Any] | None = None
         self.log_queue: ThreadQueue[Any] | None = None
 
     def init_env(
@@ -159,11 +165,11 @@ class TaskExecutor[T, R]:
         """
         初始化监听器
         """
-        self.fail_spout = FailSpout("executor_errors")
+        self.fallback_spout = FallbackSpout("executor_fallbacks")
         self.log_spout = LogSpout()
         self.success_spout = SuccessSpout()
 
-        self.fail_spout.start()
+        self.fallback_spout.start()
         self.log_spout.start()
         self.success_spout.start()
 
@@ -175,8 +181,8 @@ class TaskExecutor[T, R]:
         """
         初始化收集器
         """
-        self.fail_queue = self.fail_spout.get_queue()
-        self.fail_inlet = FailInlet(self.fail_queue)
+        self.fallback_queue = self.fallback_spout.get_queue()
+        self.fallback_inlet = FallbackInlet(self.fallback_queue)
 
         self.log_queue = self.log_spout.get_queue()
         self.log_inlet = LogInlet(self.log_queue, self.log_level)
@@ -425,11 +431,11 @@ class TaskExecutor[T, R]:
         result_dict: dict[T, R | str] = {}
         for task, result in self.get_success_pairs():
             result_dict[task] = result
-        for task, error in self.get_error_pairs():
-            result_dict[task] = str(error)
+        for task, fallback in self.get_fallback_pairs():
+            result_dict[task] = str(fallback)
         return result_dict
 
-    def handle_error_dict(self) -> dict[tuple[str, str], list[T]]:
+    def handle_fallback_dict(self) -> dict[tuple[str, str], list[T]]:
         """
         处理错误字典。可根据需要覆写
 
@@ -437,11 +443,11 @@ class TaskExecutor[T, R]:
 
         :return: 按 (error_type, error_message) 分组的任务列表
         """
-        error_groups: defaultdict[tuple[str, str], list[T]] = defaultdict(list)
-        for task, error in self.get_error_pairs():
-            error_groups[error.get_group_key()].append(task)
+        fallback_groups: defaultdict[tuple[str, str], list[T]] = defaultdict(list)
+        for task, fallback in self.get_fallback_pairs():
+            fallback_groups[fallback.get_group_key()].append(task)
 
-        return dict(error_groups)  # 转换回普通字典
+        return dict(fallback_groups)  # 转换回普通字典
 
     def _get_task_repr(self, task: T) -> str:
         """
@@ -566,7 +572,7 @@ class TaskExecutor[T, R]:
 
         self.metrics.add_error_count()
 
-        self.fail_inlet.task_error(self.get_name(), error_id, exception, task)
+        self.fallback_inlet.task_error(self.get_name(), error_id, exception, task)
         self.log_inlet.task_error(
             self.get_func_name(),
             self._get_task_repr(task),
@@ -634,7 +640,7 @@ class TaskExecutor[T, R]:
             self.metrics.get_duplicate_count(),
         )
         self.log_spout.stop()
-        self.fail_spout.stop()
+        self.fallback_spout.stop()
         self.success_spout.stop()
 
     def start(self, task_source: Iterable[T]) -> None:
@@ -685,10 +691,10 @@ class TaskExecutor[T, R]:
         """
         return self.success_spout.get_success_pairs()
 
-    def get_error_pairs(self) -> list[tuple[Any, PersistedErrorRecord]]:
+    def get_fallback_pairs(self) -> list[tuple[Any, PersistedFallbackRecord]]:
         """
         获取出错任务的列表
 
         :return: (task, error_record) 元组列表
         """
-        return self.fail_spout.get_error_pairs()
+        return self.fallback_spout.get_fallback_pairs()

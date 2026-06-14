@@ -17,7 +17,7 @@ from celestialtree import (
 from networkx import DiGraph, is_directed_acyclic_graph
 
 from ..observability import NullTaskReporter, TaskReporter
-from ..persistence import FailInlet, FailSpout, LogInlet, LogSpout
+from ..persistence import FallbackInlet, FallbackSpout, LogInlet, LogSpout
 from ..runtime import TaskInQueue, TaskOutQueue
 from ..runtime.util_constant import LEVEL_DICT, STAGE_STYLE
 from ..runtime.util_errors import (
@@ -138,14 +138,14 @@ class TaskGraph:
         初始化监听器
         """
         self.log_spout = LogSpout()
-        self.fail_spout = FailSpout("graph_errors")
+        self.fallback_spout = FallbackSpout("graph_fallbacks")
 
     def _init_inlet(self) -> None:
         """
         初始化收集器
         """
         self.log_inlet = LogInlet(self.log_spout.get_queue(), self.log_level)
-        self.fail_inlet = FailInlet(self.fail_spout.get_queue())
+        self.fallback_inlet = FallbackInlet(self.fallback_spout.get_queue())
 
     # ==== 建图 ====
 
@@ -156,7 +156,7 @@ class TaskGraph:
         :param stages: 待添加的节点列表
         :raises DuplicateNodeError: 存在重复的 stage 名称
         """
-        fail_queue = self.fail_spout.get_queue()
+        fallback_queue = self.fallback_spout.get_queue()
         log_queue = self.log_spout.get_queue()
 
         for stage in stages:
@@ -166,7 +166,7 @@ class TaskGraph:
 
             self.stage_dict[stage_name] = stage
 
-            stage.set_inlet(fail_queue, log_queue)
+            stage.set_inlet(fallback_queue, log_queue)
 
     def connect(
         self,
@@ -394,7 +394,7 @@ class TaskGraph:
         self.start_time = time.time()
 
         try:
-            self.fail_spout.start()
+            self.fallback_spout.start()
             self.log_spout.start()
             self.log_inlet.start_graph(self.name, self.get_structure_list())
             self.reporter.start()
@@ -407,7 +407,7 @@ class TaskGraph:
 
             self.reporter.stop()
             self.log_inlet.end_graph(self.name, time.perf_counter() - _start)
-            self.fail_spout.stop()
+            self.fallback_spout.stop()
             self.log_spout.stop()
 
     def _execute_stages(self) -> None:
@@ -607,13 +607,13 @@ class TaskGraph:
 
     # ==== 查询接口 ====
 
-    def get_total_error_num(self) -> int:
+    def get_total_fallback_num(self) -> int:
         """
         获取总错误数
 
         :return: 错误总数
         """
-        return self.fail_spout.total_error_num
+        return self.fallback_spout.total_fallback_num
 
     def get_graph_id(self) -> str:
         """
@@ -680,9 +680,9 @@ class TaskGraph:
 
         :return: 失败任务持久化文件的绝对路径，未设置时返回空字符串
         """
-        if self.fail_spout.db_path is None:
+        if self.fallback_spout.db_path is None:
             return ""
-        return str(Path(self.fail_spout.db_path).resolve())
+        return str(Path(self.fallback_spout.db_path).resolve())
 
     def get_stage_input_trace(self, stage_name: str) -> str:
         """
