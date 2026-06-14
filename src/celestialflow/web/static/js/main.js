@@ -156,6 +156,13 @@ function activateTab(button) {
     button.classList.add("active");
     if (tab) {
         document.getElementById(tab)?.classList.add("active");
+        if (tab === "dashboard") {
+            // 结构图使用 Mermaid 渲染，切页回来后需要在可见状态下重绘一次，
+            // 否则可能保留隐藏期间的空白 SVG 布局。
+            requestAnimationFrame(() => {
+                renderMermaidStructure(nodeStatuses);
+            });
+        }
     }
     updateCurrentPageSettings();
 }
