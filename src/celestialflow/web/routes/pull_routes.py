@@ -96,7 +96,6 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         :param sort_order: 排序方式，支持 newest / oldest
         :return: {"rev": int, "page": int, "page_size": int, "total": int, "total_pages": int, "data": list | None}
         """
-        rev = server.get_errors_rev()
         (
             normalized_page,
             normalized_page_size,
@@ -104,7 +103,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
             normalized_keyword,
             normalized_sort_order,
         ) = normalize_errors_query(page, page_size, node, keyword, sort_order)
-        total, total_pages, page_items = server.get_errors(
+        rev, total, total_pages, page_items = server.get_errors_page(
             normalized_page,
             normalized_page_size,
             normalized_node,

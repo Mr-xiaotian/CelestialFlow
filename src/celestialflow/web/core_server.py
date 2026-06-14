@@ -320,39 +320,31 @@ class TaskWebServer:
             self.injection_tasks = {}
             return tasks
 
-    def get_errors_rev(self) -> int:
-        """
-        原子读取错误缓存版本号。
-
-        :return: 当前错误缓存版本号
-        :rtype: int
-        """
-        with self.errors_lock:
-            return self.store_revs["errors"]
-
-    def get_errors(
+    def get_errors_page(
         self,
         page: int,
         page_size: int,
         node: str,
         keyword: str,
         sort_order: str,
-    ) -> tuple[int, int, list[dict[str, Any]]]:
+    ) -> tuple[int, int, int, list[dict[str, Any]]]:
         """
-        原子查询错误缓存的分页结果。
+        原子读取错误缓存版本号与分页结果。
 
         :param page: 请求页码
         :param page_size: 每页大小
         :param node: 节点名称过滤条件
         :param keyword: 关键词过滤条件
         :param sort_order: 排序方式，支持 ``newest`` 或 ``oldest``
-        :return: ``(total, total_pages, page_items)``
-        :rtype: tuple[int, int, list[dict[str, Any]]]
+        :return: ``(rev, total, total_pages, page_items)``
+        :rtype: tuple[int, int, int, list[dict[str, Any]]]
         """
         with self.errors_lock:
-            return query_error_records(
+            rev = self.store_revs["errors"]
+            total, total_pages, page_items = query_error_records(
                 self.errors_db_path, page, page_size, node, keyword, sort_order
             )
+            return rev, total, total_pages, page_items
 
     def get_max_error_row_id(self) -> int:
         """
