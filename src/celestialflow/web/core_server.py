@@ -364,14 +364,18 @@ class TaskWebServer:
         with self.errors_lock:
             return get_max_error_row_id(self.errors_db_path)
 
-    def get_analysis_snapshot(self) -> tuple[int, dict[str, Any]]:
+    def get_analysis_snapshot(self) -> tuple[int, dict[str, Any] | None]:
         """
         原子读取图分析缓存快照。
 
-        :return: ``(rev, analysis_store)``
-        :rtype: tuple[int, dict[str, Any]]
+        当当前 graph 尚未产生分析数据时，返回 ``None``，供前端明确进入空态。
+
+        :return: ``(rev, analysis_store_or_none)``
+        :rtype: tuple[int, dict[str, Any] | None]
         """
         with self.analysis_lock:
+            if not self.analysis_store:
+                return self.store_revs["analysis"], None
             return self.store_revs["analysis"], copy.deepcopy(self.analysis_store)
 
     # ==== Application Lifecycle ====

@@ -19,11 +19,12 @@ async function loadAnalysis() {
         const body = (await res.json());
         if (requestSeq !== analysisRequestSeq)
             return false; // 丢弃已过时请求的返回结果
-        if (body.data === null)
-            return false;
+        const nextRev = Number(body.rev);
+        const previousAnalysisData = analysisData;
         analysisData = body.data;
-        analysisRev = body.rev;
-        return true;
+        const changed = analysisRev !== nextRev || previousAnalysisData !== analysisData;
+        analysisRev = nextRev;
+        return changed;
     }
     catch (e) {
         console.error("分析数据加载失败", e);

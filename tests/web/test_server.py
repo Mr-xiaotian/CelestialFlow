@@ -362,6 +362,9 @@ def test_newer_graph_replaces_previous_graph_context(client):
     pulled = client.get("/api/pull_errors?page=1&page_size=10").json()
     assert pulled["total"] == 0
 
+    analysis = client.get("/api/pull_analysis?known_rev=-1").json()
+    assert analysis["data"] is None
+
 
 def test_stale_graph_pushes_are_ignored(client):
     """切换到新 graph 后，旧 graph 的迟到 push 不应污染当前缓存。"""

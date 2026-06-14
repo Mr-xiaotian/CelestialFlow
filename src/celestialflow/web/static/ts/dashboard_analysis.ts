@@ -28,10 +28,13 @@ async function loadAnalysis(): Promise<boolean> {
     const res = await fetch(`/api/pull_analysis?known_rev=${analysisRev}`);
     const body = (await res.json()) as AnalysisPullResponse;
     if (requestSeq !== analysisRequestSeq) return false; // 丢弃已过时请求的返回结果
-    if (body.data === null) return false;
+    const nextRev = Number(body.rev);
+    const previousAnalysisData = analysisData;
     analysisData = body.data;
-    analysisRev = body.rev;
-    return true;
+    const changed =
+      analysisRev !== nextRev || previousAnalysisData !== analysisData;
+    analysisRev = nextRev;
+    return changed;
   } catch (e) {
     console.error("分析数据加载失败", e);
     return false;
