@@ -139,12 +139,12 @@ class FailInlet(BaseInlet):
         error_type = type(error).__name__
         error_message = str(error)
         fail_item = {
-            "timestamp": now.isoformat(),
-            "ts": now.timestamp(),
+            "event_id": err_id,
             "stage": stage_name,
-            "error_id": err_id,
+            "status": "failed",
             "error_type": error_type,
             "error_message": error_message,
-            "task": self._to_retry_payload(task),
+            "error_ts": now.timestamp(),
+            "task_json": self._to_retry_payload(task),
         }
         self._funnel(fail_item)

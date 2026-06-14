@@ -10,7 +10,10 @@ from anyio.to_thread import run_sync
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from ...persistence.util_sqlite import load_error_records, load_error_records_by_ids
+from ...persistence.util_sqlite import (
+    load_error_records,
+    load_error_records_by_event_ids,
+)
 from ..util_cal import cal_interval
 from ..util_config import save_config
 from ..util_models import (
@@ -122,7 +125,7 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
     @router.post("/api/push_errors_meta")
     async def push_errors_meta(data: ErrorsMetaModel) -> dict[str, Any]:
         """
-        通过错误存储路径加载指定 ``error_id`` 的错误日志。
+        通过错误存储路径加载指定 ``event_id`` 的错误日志。
 
         :param data: 错误元信息数据
         :return: {"ok": True} 或 {"ok": False, "fallback": ..., ...}
@@ -134,12 +137,12 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
                 Callable[..., Awaitable[list[dict[str, Any]]]],
                 run_sync,
             )
-            if data.error_ids:
+            if data.event_ids:
                 errors = await run_sync_typed(
                     partial(
-                        load_error_records_by_ids,
+                        load_error_records_by_event_ids,
                         db_path=data.error_path,
-                        error_ids=data.error_ids,
+                        event_ids=data.event_ids,
                     )
                 )
             else:

@@ -43,11 +43,12 @@ def _ensure_errors_table(conn: sqlite3.Connection) -> None:
         """
         CREATE TABLE IF NOT EXISTS errors (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ts REAL NOT NULL DEFAULT 0,
+            event_id INTEGER NOT NULL,
             stage TEXT NOT NULL DEFAULT '',
-            error_id INTEGER,
+            status TEXT NOT NULL DEFAULT 'failed',
             error_type TEXT NOT NULL DEFAULT '',
             error_message TEXT NOT NULL DEFAULT '',
+            error_ts REAL,
             task_json TEXT NOT NULL DEFAULT 'null'
         )
         """
@@ -55,16 +56,16 @@ def _ensure_errors_table(conn: sqlite3.Connection) -> None:
 
     # 为常用查询条件建立索引，减少筛选和排序开销。
     _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_errors_ts ON errors(ts)"
+        "CREATE INDEX IF NOT EXISTS idx_errors_error_ts ON errors(error_ts)"
     )
     _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_errors_stage_ts ON errors(stage, ts)"
+        "CREATE INDEX IF NOT EXISTS idx_errors_stage_error_ts ON errors(stage, error_ts)"
     )
     _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_errors_type_ts ON errors(error_type, ts)"
+        "CREATE INDEX IF NOT EXISTS idx_errors_type_error_ts ON errors(error_type, error_ts)"
     )
     _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_errors_error_id ON errors(error_id)"
+        "CREATE INDEX IF NOT EXISTS idx_errors_event_id ON errors(event_id)"
     )
     conn.commit()
 
@@ -79,21 +80,21 @@ def normalize_error_record(record: dict[str, Any]) -> dict[str, Any] | None:
     :return: 可直接写入 sqlite 的参数字典，或 ``None``
     :rtype: dict[str, Any] | None
     """
-    if record.get("error_id") is None:
+    event_id = record.get("event_id")
+    if event_id is None:
         return None
 
-    task_value = record["task_json"] if "task_json" in record else record.get("task")
     return {
-        "ts": float(record.get("ts", 0.0) or 0.0),
+        "event_id": int(event_id),
         "stage": str(record.get("stage", "") or ""),
-        "error_id": (
-            int(record["error_id"])
-            if record.get("error_id") is not None
-            else None
-        ),
+        "status": str(record.get("status", "failed") or "failed"),
         "error_type": str(record.get("error_type", "") or ""),
         "error_message": str(record.get("error_message", "") or ""),
-        "task_json": json.dumps(task_value, ensure_ascii=False),
+        "error_ts": float(record.get("error_ts", 0.0) or 0.0),
+        "task_json": json.dumps(
+            record["task_json"] if "task_json" in record else record.get("task"),
+            ensure_ascii=False,
+        ),
     }
 
 
@@ -115,8 +116,12 @@ def insert_error_record(conn: sqlite3.Connection, record: dict[str, Any]) -> boo
     # 插入单条归一化后的错误记录。
     _ = conn.execute(
         """
-        INSERT INTO errors (ts, stage, error_id, error_type, error_message, task_json)
-        VALUES (:ts, :stage, :error_id, :error_type, :error_message, :task_json)
+        INSERT INTO errors (
+            event_id, stage, status, error_type, error_message, error_ts, task_json
+        )
+        VALUES (
+            :event_id, :stage, :status, :error_type, :error_message, :error_ts, :task_json
+        )
         """,
         normalized,
     )
@@ -147,9 +152,11 @@ def replace_error_records(
             _ = conn.executemany(
                 """
                 INSERT INTO errors (
-                    ts, stage, error_id, error_type, error_message, task_json
+                    event_id, stage, status, error_type, error_message, error_ts, task_json
                 )
-                VALUES (:ts, :stage, :error_id, :error_type, :error_message, :task_json)
+                VALUES (
+                    :event_id, :stage, :status, :error_type, :error_message, :error_ts, :task_json
+                )
                 """,
                 normalized_rows,
             )
@@ -202,11 +209,12 @@ def row_to_error_dict(row: sqlite3.Row) -> dict[str, Any]:
     """
     return {
         "id": int(row["id"]),
-        "ts": float(row["ts"]),
+        "event_id": int(row["event_id"]),
         "stage": str(row["stage"]),
-        "error_id": row["error_id"],
+        "status": str(row["status"]),
         "error_type": str(row["error_type"]),
         "error_message": str(row["error_message"]),
+        "error_ts": float(row["error_ts"]),
         "task": _decode_task_json(str(row["task_json"])),
     }
 
@@ -224,8 +232,9 @@ def load_error_records(db_path: str | Path) -> list[dict[str, Any]]:
         # 按写入顺序读取全部错误记录。
         rows = conn.execute(
             """
-            SELECT id, ts, stage, error_id, error_type, error_message, task_json
+            SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
             FROM errors
+            WHERE status = 'failed'
             ORDER BY id ASC
             """
         ).fetchall()
@@ -234,54 +243,54 @@ def load_error_records(db_path: str | Path) -> list[dict[str, Any]]:
         conn.close()
 
 
-def get_error_ids(db_path: str | Path) -> list[int]:
+def get_event_ids(db_path: str | Path) -> list[int]:
     """
-    读取数据库中的全部错误 ``error_id``。
+    读取数据库中的全部失败事件 ``event_id``。
 
     :param db_path: sqlite 数据库文件路径
-    :return: 按写入顺序排列的错误 ``error_id`` 列表
+    :return: 按写入顺序排列的失败事件 ``event_id`` 列表
     :rtype: list[int]
     """
     conn = connect_errors_db(db_path)
     try:
-        # 读取当前错误库中的全部 error_id，供上层进行集合比对。
+        # 读取当前错误库中的全部失败事件 id，供上层进行集合比对。
         rows = conn.execute(
             """
-            SELECT error_id
+            SELECT event_id
             FROM errors
-            WHERE error_id IS NOT NULL
+            WHERE status = 'failed'
             ORDER BY id ASC
             """
         ).fetchall()
-        return [int(row["error_id"]) for row in rows]
+        return [int(row["event_id"]) for row in rows]
     finally:
         conn.close()
 
 
-def load_error_records_by_ids(
-    db_path: str | Path, error_ids: Iterable[int]
+def load_error_records_by_event_ids(
+    db_path: str | Path, event_ids: Iterable[int]
 ) -> list[dict[str, Any]]:
     """
-    按给定 ``error_id`` 列表读取错误记录。
+    按给定 ``event_id`` 列表读取错误记录。
 
     :param db_path: sqlite 数据库文件路径
-    :param error_ids: 待读取的错误 ``error_id`` 列表
+    :param event_ids: 待读取的失败事件 ``event_id`` 列表
     :return: 命中的错误记录列表
     :rtype: list[dict[str, Any]]
     """
-    normalized_ids = [int(error_id) for error_id in error_ids]
+    normalized_ids = [int(event_id) for event_id in event_ids]
     if not normalized_ids:
         return []
 
     placeholders = ", ".join(["?"] * len(normalized_ids))
     conn = connect_errors_db(db_path)
     try:
-        # 仅读取指定 error_id 对应的错误记录，避免再依赖本地 row id 偏移量。
+        # 仅读取指定 event_id 对应的错误记录，避免再依赖本地 row id 偏移量。
         rows = conn.execute(
             f"""
-            SELECT id, ts, stage, error_id, error_type, error_message, task_json
+            SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
             FROM errors
-            WHERE error_id IN ({placeholders})
+            WHERE status = 'failed' AND event_id IN ({placeholders})
             ORDER BY id ASC
             """,
             normalized_ids,
@@ -314,8 +323,8 @@ def query_error_records(
     conn = connect_errors_db(db_path)
     try:
         # 构造动态筛选条件与参数。
-        where_clauses: list[str] = []
-        params: list[Any] = []
+        where_clauses: list[str] = ["status = ?"]
+        params: list[Any] = ["failed"]
         if node:
             where_clauses.append("stage = ?")
             params.append(node)
@@ -342,10 +351,10 @@ def query_error_records(
         # 查询当前页数据；按 ts 和 id 排序以保持稳定顺序。
         rows = conn.execute(
             f"""
-            SELECT id, ts, stage, error_id, error_type, error_message, task_json
+            SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
             FROM errors
             {where_sql}
-            ORDER BY ts {sort_sql}, id {sort_sql}
+            ORDER BY error_ts {sort_sql}, id {sort_sql}
             LIMIT ? OFFSET ?
             """,
             [*params, page_size, offset],
@@ -370,8 +379,9 @@ def load_task_error_pairs(db_path: str | Path) -> list[tuple[Any, PersistedError
         # 读取任务与错误信息的配对原始行，供后续组装业务对象。
         rows = conn.execute(
             """
-            SELECT ts, stage, error_id, error_type, error_message, task_json
+            SELECT event_id, stage, error_type, error_message, error_ts, task_json
             FROM errors
+            WHERE status = 'failed'
             ORDER BY id ASC
             """
         ).fetchall()
@@ -379,9 +389,9 @@ def load_task_error_pairs(db_path: str | Path) -> list[tuple[Any, PersistedError
             (
                 _decode_task_json(str(row["task_json"])),
                 PersistedErrorRecord(
-                    ts=float(row["ts"]),
+                    ts=float(row["error_ts"]) if row["error_ts"] is not None else None,
                     stage=str(row["stage"]),
-                    error_id=int(row["error_id"]) if row["error_id"] is not None else None,
+                    event_id=int(row["event_id"]),
                     error_type=str(row["error_type"]),
                     error_message=str(row["error_message"]),
                 ),

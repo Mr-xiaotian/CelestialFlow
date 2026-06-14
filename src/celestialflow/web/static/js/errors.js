@@ -98,11 +98,11 @@ function renderErrors() {
             const retryClass = canRetry ? "retry-link" : "retry-disabled";
             row.innerHTML = `
         <td data-label="#">${index}</td>
-        <td class="error-id" data-label="${t("errors.colId")}">${e.error_id}</td>
+        <td class="error-id" data-label="${t("errors.colId")}">${e.event_id}</td>
         <td class="error-cell" data-label="${t("errors.colMessage")}" title="${escapeHtml(errorText)}">${escapeHtml(errorRepr)}</td>
         <td data-label="${t("errors.colNode")}">${escapeHtml(e.stage)}</td>
         <td data-label="${t("errors.colTask")}" title="${escapeHtml(taskText)}">${escapeHtml(taskRepr)}</td>
-        <td data-label="${t("errors.colTime")}">${formatTimestamp(e.ts)}</td>
+        <td data-label="${t("errors.colTime")}">${formatTimestamp(e.error_ts)}</td>
         <td data-label="${t("errors.colRetry")}"><div class="${retryClass}" role="${canRetry ? "button" : "note"}" tabindex="${canRetry ? "0" : "-1"}">${retryLabel}</div></td>
       `;
             const retryAction = row.querySelector(".retry-link");

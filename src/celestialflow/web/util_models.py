@@ -30,7 +30,7 @@ class ErrorsMetaModel(BaseModel):
         validation_alias=AliasChoices("error_path", "jsonl_path"),
         serialization_alias="error_path",
     )
-    error_ids: list[int] = []
+    event_ids: list[int] = []
     append: bool = False
 
 
@@ -43,7 +43,7 @@ class ErrorsContentModel(BaseModel):
         validation_alias=AliasChoices("error_path", "jsonl_path"),
         serialization_alias="error_path",
     )
-    error_ids: list[int] = []
+    event_ids: list[int] = []
     append: bool = False
 
 

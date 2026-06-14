@@ -25,7 +25,7 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         """返回 reporter 同步决策所需的服务端状态。
 
         :param graph_id: reporter 当前任务图实例的唯一标识
-        :return: {"interval": float, "is_current_graph": bool, "has_structure": bool, "has_analysis": bool, "error_ids": list[int]}
+        :return: {"interval": float, "is_current_graph": bool, "has_structure": bool, "has_analysis": bool, "event_ids": list[int]}
         """
         return server.get_server_state(graph_id)
 

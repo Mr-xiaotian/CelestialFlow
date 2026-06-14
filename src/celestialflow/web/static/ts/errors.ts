@@ -5,9 +5,9 @@
 
 /** 单条错误数据定义 */
 type ErrorData = {
-  ts: number; // 错误发生的时间戳，单位为秒
+  error_ts: number; // 错误发生的时间戳，单位为秒
   stage: string; // 错误发生的节点/阶段名称，用于节点筛选
-  error_id: number; // 错误的唯一标识ID，全局唯一
+  event_id: number; // 失败事件的唯一标识 ID，全局唯一
   error_type: string; // 错误的分类类型，用于区分不同类别的错误
   error_message: string; // 错误的具体描述信息，是错误的详细文本内容
   task: unknown; // 触发该错误的任务数据，同时用于展示与重试回填
@@ -128,11 +128,11 @@ function renderErrors(): void {
 
       row.innerHTML = `
         <td data-label="#">${index}</td>
-        <td class="error-id" data-label="${t("errors.colId")}">${e.error_id}</td>
+        <td class="error-id" data-label="${t("errors.colId")}">${e.event_id}</td>
         <td class="error-cell" data-label="${t("errors.colMessage")}" title="${escapeHtml(errorText)}">${escapeHtml(errorRepr)}</td>
         <td data-label="${t("errors.colNode")}">${escapeHtml(e.stage)}</td>
         <td data-label="${t("errors.colTask")}" title="${escapeHtml(taskText)}">${escapeHtml(taskRepr)}</td>
-        <td data-label="${t("errors.colTime")}">${formatTimestamp(e.ts)}</td>
+        <td data-label="${t("errors.colTime")}">${formatTimestamp(e.error_ts)}</td>
         <td data-label="${t("errors.colRetry")}"><div class="${retryClass}" role="${canRetry ? "button" : "note"}" tabindex="${canRetry ? "0" : "-1"}">${retryLabel}</div></td>
       `;
       const retryAction = row.querySelector<HTMLElement>(".retry-link");

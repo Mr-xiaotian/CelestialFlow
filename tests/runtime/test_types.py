@@ -233,7 +233,7 @@ class TestUtilTypes:
         assert rec.error_type == "ValueError"
         assert rec.error_message == "bad value"
         assert rec.stage == ""
-        assert rec.error_id is None
+        assert rec.event_id is None
         assert rec.ts is None
 
     def test_persisted_error_record_full(self):
@@ -242,11 +242,11 @@ class TestUtilTypes:
             error_type="RuntimeError",
             error_message="crash",
             stage="Stage-1",
-            error_id=42,
+            event_id=42,
             ts=1704067200.0,
         )
         assert rec.stage == "Stage-1"
-        assert rec.error_id == 42
+        assert rec.event_id == 42
         assert rec.ts == 1704067200.0
 
     def test_persisted_error_record_frozen(self):

@@ -7,9 +7,9 @@ import requests
 from ..graph.util_types import ReporterTaskGraph
 from ..persistence import LogInlet
 from ..persistence.util_sqlite import (
-    get_error_ids,
+    get_event_ids,
     load_error_records,
-    load_error_records_by_ids,
+    load_error_records_by_event_ids,
 )
 from ..runtime.util_errors import ReporterError
 from ..runtime.util_types import TERMINATION_SIGNAL
@@ -52,7 +52,7 @@ class TaskReporter:
         self._server_has_current_graph: bool = False
         self._server_has_structure: bool = False
         self._server_has_analysis: bool = False
-        self._server_error_ids: set[int] = set()
+        self._server_event_ids: set[int] = set()
 
         self.interval: int = 5
         self.history_limit: int = 20
@@ -128,8 +128,8 @@ class TaskReporter:
             )
             self._server_has_structure = bool(payload.get("has_structure", False))
             self._server_has_analysis = bool(payload.get("has_analysis", False))
-            error_ids = cast(list[Any], payload.get("error_ids", []) or [])
-            self._server_error_ids = {int(error_id) for error_id in error_ids}
+            event_ids = cast(list[Any], payload.get("event_ids", []) or [])
+            self._server_event_ids = {int(event_id) for event_id in event_ids}
         except Exception as e:
             self.log_inlet.pull_interval_failed(e)
 
@@ -172,9 +172,9 @@ class TaskReporter:
         try:
             error_path = self.task_graph.get_fallback_path()
             graph_id = self.task_graph.get_graph_id()
-            local_error_ids = get_error_ids(error_path) if error_path else []
+            local_event_ids = get_event_ids(error_path) if error_path else []
 
-            if not local_error_ids or not error_path:
+            if not local_event_ids or not error_path:
                 return
 
             push_error_func_dict = {
@@ -183,22 +183,22 @@ class TaskReporter:
             }
 
             if self._server_has_current_graph:
-                missing_error_ids = [
-                    error_id
-                    for error_id in local_error_ids
-                    if error_id not in self._server_error_ids
+                missing_event_ids = [
+                    event_id
+                    for event_id in local_event_ids
+                    if event_id not in self._server_event_ids
                 ]
-                if not missing_error_ids:
+                if not missing_event_ids:
                     return
                 append_mode = True
             else:
-                missing_error_ids = local_error_ids
+                missing_event_ids = local_event_ids
                 append_mode = False
 
             push_error_func_dict[self._push_errors_mode](
                 error_path,
                 graph_id,
-                missing_error_ids,
+                missing_event_ids,
                 append_mode,
             )
 
@@ -209,7 +209,7 @@ class TaskReporter:
         self,
         error_path: str,
         graph_id: str,
-        error_ids: list[int],
+        event_ids: list[int],
         append: bool,
     ) -> None:
         """
@@ -217,14 +217,14 @@ class TaskReporter:
 
         :param error_path: 错误存储文件路径
         :param graph_id: 当前任务图唯一标识
-        :param error_ids: 本轮需要同步的错误 ``error_id`` 列表
+        :param event_ids: 本轮需要同步的失败事件 ``event_id`` 列表
         :param append: 是否以追加模式写入
         :return: None
         """
         payload: dict[str, Any] = {
             "graph_id": graph_id,
             "error_path": error_path,
-            "error_ids": error_ids,
+            "event_ids": event_ids,
             "append": append,
         }
         response: requests.Response = self._session.post(
@@ -245,20 +245,20 @@ class TaskReporter:
         self,
         error_path: str,
         graph_id: str,
-        error_ids: list[int],
+        event_ids: list[int],
         append: bool,
     ) -> None:
         """
-        推送错误内容（仅传本轮缺失的 ``error_id`` 对应条目）
+        推送错误内容（仅传本轮缺失的 ``event_id`` 对应条目）
 
         :param error_path: 错误存储文件路径
         :param graph_id: 当前任务图唯一标识
-        :param error_ids: 本轮需要同步的错误 ``error_id`` 列表
+        :param event_ids: 本轮需要同步的失败事件 ``event_id`` 列表
         :param append: 是否以追加模式写入
         :return: None
         """
         all_errors: list[dict[str, Any]] = (
-            load_error_records_by_ids(db_path=error_path, error_ids=error_ids)
+            load_error_records_by_event_ids(db_path=error_path, event_ids=event_ids)
             if append
             else load_error_records(db_path=error_path)
         )
@@ -266,7 +266,7 @@ class TaskReporter:
         payload: dict[str, Any] = {
             "graph_id": graph_id,
             "error_path": error_path,
-            "error_ids": error_ids,
+            "event_ids": event_ids,
             "append": append,
             "errors": all_errors,
         }

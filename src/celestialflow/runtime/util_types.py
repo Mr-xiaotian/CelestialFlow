@@ -194,14 +194,14 @@ class PersistedErrorRecord:
     :param error_type: 错误类型名称
     :param error_message: 错误消息
     :param stage: 错误所属节点标签
-    :param error_id: 错误事件 ID
+    :param event_id: 错误事件 ID
     :param timestamp: 错误时间戳字符串
     :param ts: 错误时间戳
     """
 
     ts: float | None = None
     stage: str = ""
-    error_id: int | None = None
+    event_id: int | None = None
     error_type: str = ""
     error_message: str = ""
 

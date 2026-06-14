@@ -38,12 +38,12 @@ class TestFailPersistence:
         conn = sqlite3.connect(spout.db_path)
         try:
             rows = conn.execute(
-                "SELECT error_id, task_json FROM errors ORDER BY id ASC"
+                "SELECT event_id, status, task_json FROM errors ORDER BY id ASC"
             ).fetchall()
         finally:
             conn.close()
 
         assert rows == [
-            (1, '"data1"'),
-            (2, '"data2"'),
+            (1, "failed", '"data1"'),
+            (2, "failed", '"data2"'),
         ]

@@ -7,7 +7,7 @@ def test_store_snapshot_methods_return_isolated_copies(web_server):
         "source_nodes": ["s1"],
     }
     raw_analysis = {"isDAG": True}
-    raw_errors = [{"error_id": 1, "stage": "s1"}]
+    raw_errors = [{"event_id": 1, "stage": "s1"}]
 
     web_server.update_status_store(123.0, raw_status)
     web_server.update_structure_store(raw_structure)
@@ -76,7 +76,7 @@ def test_server_state_api(client):
     assert data["is_current_graph"] is True
     assert data["has_structure"] is False
     assert data["has_analysis"] is False
-    assert data["error_ids"] == []
+    assert data["event_ids"] == []
 
 def test_status_push_pull(client):
     """测试状态同步链路：验证已知版本号（known_rev）下的增量拉取逻辑"""
@@ -188,12 +188,12 @@ def test_errors_pagination(client):
     # 1. 模拟推送错误数据
     test_errors = [
         {
-            "error_id": i,
+            "event_id": i,
             "stage": f"s{i%2}",
             "task": {"value": i, "label": f"task{i}"},
             "error_type": "ValueError" if i % 2 == 0 else "TypeError",
             "error_message": f"err{i}",
-            "ts": i,
+            "error_ts": i,
         }
         for i in range(15)
     ]
@@ -215,7 +215,7 @@ def test_errors_pagination(client):
     assert data_p1["total_pages"] == 2
     assert len(data_p1["data"]) == 10
     assert data_p1["sort_order"] == "newest"
-    assert data_p1["data"][0]["error_id"] == 14
+    assert data_p1["data"][0]["event_id"] == 14
     assert data_p1["data"][0]["task"] == {"value": 14, "label": "task14"}
 
     # 3. 测试过滤 (node=s0)
@@ -228,7 +228,7 @@ def test_errors_pagination(client):
     resp_keyword = client.get("/api/pull_errors?keyword=task12")
     data_keyword = resp_keyword.json()
     assert data_keyword["total"] == 1
-    assert data_keyword["data"][0]["error_id"] == 12
+    assert data_keyword["data"][0]["event_id"] == 12
 
     resp_error_keyword = client.get("/api/pull_errors?keyword=typeerror")
     data_error_keyword = resp_error_keyword.json()
@@ -239,7 +239,7 @@ def test_errors_pagination(client):
     data_oldest = resp_oldest.json()
     assert data_oldest["sort_order"] == "oldest"
     assert len(data_oldest["data"]) == 5
-    assert data_oldest["data"][0]["error_id"] == 0
+    assert data_oldest["data"][0]["event_id"] == 0
 
 
 def test_errors_content_appends_for_same_graph(client):
@@ -248,30 +248,30 @@ def test_errors_content_appends_for_same_graph(client):
 
     first_batch = [
         {
-            "error_id": 1,
+            "event_id": 1,
             "stage": "s1",
             "task": {"value": 1},
             "error_type": "ValueError",
             "error_message": "err1",
-            "ts": 1.0,
+            "error_ts": 1.0,
         },
         {
-            "error_id": 2,
+            "event_id": 2,
             "stage": "s2",
             "task": {"value": 2},
             "error_type": "TypeError",
             "error_message": "err2",
-            "ts": 2.0,
+            "error_ts": 2.0,
         },
     ]
     second_batch = [
         {
-            "error_id": 3,
+            "event_id": 3,
             "stage": "s1",
             "task": {"value": 3},
             "error_type": "RuntimeError",
             "error_message": "err3",
-            "ts": 3.0,
+            "error_ts": 3.0,
         }
     ]
 
@@ -294,7 +294,7 @@ def test_errors_content_appends_for_same_graph(client):
             "graph_id": graph_id,
             "errors": first_batch,
             "error_path": "dummy.sqlite3",
-            "error_ids": [1, 2],
+            "event_ids": [1, 2],
             "append": False,
         },
     )
@@ -303,7 +303,7 @@ def test_errors_content_appends_for_same_graph(client):
 
     state = client.get(f"/api/pull_server_state?graph_id={graph_id}").json()
     assert state["is_current_graph"] is True
-    assert state["error_ids"] == [1, 2]
+    assert state["event_ids"] == [1, 2]
     assert state["has_analysis"] is True
 
     response = client.post(
@@ -312,7 +312,7 @@ def test_errors_content_appends_for_same_graph(client):
             "graph_id": graph_id,
             "errors": second_batch,
             "error_path": "dummy.sqlite3",
-            "error_ids": [3],
+            "event_ids": [3],
             "append": True,
         },
     )
@@ -321,7 +321,7 @@ def test_errors_content_appends_for_same_graph(client):
 
     pulled = client.get("/api/pull_errors?page=1&page_size=10").json()
     assert pulled["total"] == 3
-    assert [item["error_id"] for item in pulled["data"]] == [3, 2, 1]
+    assert [item["event_id"] for item in pulled["data"]] == [3, 2, 1]
 
 
 def test_newer_graph_replaces_previous_graph_context(client):
@@ -345,23 +345,23 @@ def test_newer_graph_replaces_previous_graph_context(client):
             "graph_id": old_graph_id,
             "errors": [
                 {
-                    "error_id": 1,
+                    "event_id": 1,
                     "stage": "s1",
                     "task": {"value": 1},
                     "error_type": "ValueError",
                     "error_message": "old",
-                    "ts": 1.0,
+                    "error_ts": 1.0,
                 }
             ],
             "error_path": "old.sqlite3",
-            "error_ids": [1],
+            "event_ids": [1],
             "append": False,
         },
     )
 
     state = client.get(f"/api/pull_server_state?graph_id={new_graph_id}").json()
     assert state["is_current_graph"] is False
-    assert state["error_ids"] == []
+    assert state["event_ids"] == []
 
     pulled = client.get("/api/pull_errors?page=1&page_size=10").json()
     assert pulled["total"] == 0
@@ -402,16 +402,16 @@ def test_stale_graph_pushes_are_ignored(client):
             "graph_id": old_graph_id,
             "errors": [
                 {
-                    "error_id": 1,
+                    "event_id": 1,
                     "stage": "s1",
                     "task": {"value": 1},
                     "error_type": "ValueError",
                     "error_message": "old",
-                    "ts": 1.0,
+                    "error_ts": 1.0,
                 }
             ],
             "error_path": "old.sqlite3",
-            "error_ids": [1],
+            "event_ids": [1],
             "append": False,
         },
     )
@@ -421,4 +421,4 @@ def test_stale_graph_pushes_are_ignored(client):
     state = client.get(f"/api/pull_server_state?graph_id={new_graph_id}").json()
     assert state["is_current_graph"] is True
     assert state["has_analysis"] is False
-    assert state["error_ids"] == []
+    assert state["event_ids"] == []

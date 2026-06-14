@@ -5,10 +5,10 @@ import pytest
 from celestialflow.persistence.util_sqlite import (
     append_error_records,
     connect_errors_db,
-    get_error_ids,
+    get_event_ids,
     insert_error_record,
     load_error_records,
-    load_error_records_by_ids,
+    load_error_records_by_event_ids,
     load_task_error_pairs,
     normalize_error_record,
     query_error_records,
@@ -22,25 +22,25 @@ def sample_errors():
     return [
         {"timestamp": "meta-only", "graph_name": "demo"},
         {
-            "ts": 1.0,
+            "error_ts": 1.0,
             "stage": "s1",
-            "error_id": 1,
+            "event_id": 1,
             "error_type": "ValueError",
             "error_message": "bad value",
             "task": {"id": 1, "label": "TaskOne"},
         },
         {
-            "ts": 2.0,
+            "error_ts": 2.0,
             "stage": "s2",
-            "error_id": 2,
+            "event_id": 2,
             "error_type": "RuntimeError",
             "error_message": "boom happened",
             "task": ["A", "B"],
         },
         {
-            "ts": 3.0,
+            "error_ts": 3.0,
             "stage": "s1",
-            "error_id": 3,
+            "event_id": 3,
             "error_type": "TypeError",
             "error_message": "wrong type",
             "task": "PlainTask",
@@ -75,10 +75,10 @@ class TestSpliteUtils:
             conn.close()
 
         assert "errors" in table_names
-        assert "idx_errors_ts" in index_names
-        assert "idx_errors_stage_ts" in index_names
-        assert "idx_errors_type_ts" in index_names
-        assert "idx_errors_error_id" in index_names
+        assert "idx_errors_error_ts" in index_names
+        assert "idx_errors_stage_error_ts" in index_names
+        assert "idx_errors_type_error_ts" in index_names
+        assert "idx_errors_event_id" in index_names
 
     def test_normalize_error_record(self, sample_errors):
         """测试错误记录会被归一化为 sqlite 可写格式。"""
@@ -87,11 +87,12 @@ class TestSpliteUtils:
         normalized = normalize_error_record(sample_errors[1])
 
         assert normalized is not None
-        assert normalized["ts"] == 1.0
+        assert normalized["event_id"] == 1
         assert normalized["stage"] == "s1"
-        assert normalized["error_id"] == 1
+        assert normalized["status"] == "failed"
         assert normalized["error_type"] == "ValueError"
         assert normalized["error_message"] == "bad value"
+        assert normalized["error_ts"] == 1.0
         assert json.loads(normalized["task_json"]) == {"id": 1, "label": "TaskOne"}
 
     def test_insert_and_load_error_records(self, sqlite_path, sample_errors):
@@ -127,7 +128,7 @@ class TestSpliteUtils:
         )
         assert total == 2
         assert total_pages == 1
-        assert [item["error_id"] for item in page_items] == [3, 1]
+        assert [item["event_id"] for item in page_items] == [3, 1]
 
         total, total_pages, page_items = query_error_records(
             sqlite_path,
@@ -139,21 +140,21 @@ class TestSpliteUtils:
         )
         assert total == 1
         assert total_pages == 1
-        assert page_items[0]["error_id"] == 2
+        assert page_items[0]["event_id"] == 2
         assert page_items[0]["task"] == ["A", "B"]
 
-    def test_append_and_load_error_records_by_ids(self, sqlite_path, sample_errors):
-        """测试追加写入以及按 error_id 定位读取。"""
+    def test_append_and_load_error_records_by_event_ids(self, sqlite_path, sample_errors):
+        """测试追加写入以及按 event_id 定位读取。"""
         replace_error_records(sqlite_path, sample_errors[:2])
 
-        assert get_error_ids(sqlite_path) == [1]
+        assert get_event_ids(sqlite_path) == [1]
 
         appended = append_error_records(sqlite_path, sample_errors[2:])
         assert appended == 2
-        assert get_error_ids(sqlite_path) == [1, 2, 3]
+        assert get_event_ids(sqlite_path) == [1, 2, 3]
 
-        selected = load_error_records_by_ids(sqlite_path, [3, 1])
-        assert [item["error_id"] for item in selected] == [1, 3]
+        selected = load_error_records_by_event_ids(sqlite_path, [3, 1])
+        assert [item["event_id"] for item in selected] == [1, 3]
 
     def test_load_task_error_pairs_and_grouping(self, sqlite_path, sample_errors):
         """测试任务-错误配对读取以及按 stage 聚合。"""
