@@ -6,9 +6,9 @@
         "language": "zh-CN"
     },
     "dashboard": {
-        "historyLimit": 100,
+        "historyLimit": 20,
         "showStructureEdgeDelta": false,
-        "useTotalPendingInStatus": true,
+        "useTotalPendingInStatus": false,
         "layout": {
             "left": [
                 "mermaid",

@@ -89,3 +89,18 @@ class TestTaskStageConfig:
         """测试在 thread 隔离模式下允许使用匿名函数（lambda）"""
         stage = TaskStage("LambdaThreadAllowed", lambda x: x + 1, stage_mode="thread")
         assert stage.get_stage_mode() == "thread"
+
+    def test_prev_binding_survives_execution_mode_switch(self):
+        """测试前驱绑定在 execution_mode 切换后仍然保留"""
+        prev_stage = TaskStage("PrevStage", add_one)
+        current_stage = TaskStage("CurrentStage", add_one)
+
+        current_stage.prev_binding(prev_stage)
+        prev_stage.metrics.add_success_count(2)
+        assert current_stage.metrics.get_task_count() == 2
+
+        current_stage.set_execution_mode("thread")
+        assert current_stage.metrics.get_task_count() == 2
+
+        prev_stage.metrics.add_success_count(1)
+        assert current_stage.metrics.get_task_count() == 3
