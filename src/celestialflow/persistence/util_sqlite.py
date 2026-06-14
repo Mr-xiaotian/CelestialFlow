@@ -9,10 +9,11 @@ from typing import Any
 
 from ..runtime.util_types import PersistedFallbackRecord
 
+# ==== 工具函数：不自持完整 conn 生命周期 ====
 
 def connect_db(db_path: str | Path) -> sqlite3.Connection:
     """
-    连接 sqlite 数据库并确保表结构与索引存在。
+    创建 sqlite 连接并交给调用方管理其生命周期。
 
     :param db_path: sqlite 数据库文件路径
     :return: 可直接用于记录读写的 sqlite 连接
@@ -33,7 +34,7 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 
 def _ensure_table(conn: sqlite3.Connection) -> None:
     """
-    创建记录表与索引。
+    在给定连接上确保记录表与索引存在。
 
     :param conn: 已建立的 sqlite 连接
     :return: None
@@ -98,9 +99,40 @@ def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _decode_task_json(task_json: str) -> Any:
+    """
+    从 ``task_json`` 列反序列化任务对象。
+
+    :param task_json: 数据库中的任务 JSON 字符串
+    :return: 反序列化后的任务对象
+    :rtype: Any
+    """
+    return json.loads(task_json)
+
+
+def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
+    """
+    将 sqlite 行转换为对外记录字典。
+
+    :param row: sqlite 查询结果中的单行
+    :return: 面向上层调用方的记录字典
+    :rtype: dict[str, Any]
+    """
+    return {
+        "id": int(row["id"]),
+        "event_id": int(row["event_id"]),
+        "stage": str(row["stage"]),
+        "status": str(row["status"]),
+        "error_type": str(row["error_type"]),
+        "error_message": str(row["error_message"]),
+        "error_ts": float(row["error_ts"]),
+        "task": _decode_task_json(str(row["task_json"])),
+    }
+
+
 def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
     """
-    插入单条记录。
+    在给定连接上插入单条记录。
 
     元信息记录会被忽略。
 
@@ -128,11 +160,13 @@ def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
     return True
 
 
+# ==== 自持完整 conn 生命周期的读写函数 ====
+
 def replace_records(
     db_path: str | Path, records: Iterable[dict[str, Any]]
 ) -> None:
     """
-    用给定记录列表覆盖数据库中的全部记录。
+    自行创建并关闭连接，用给定记录列表覆盖数据库中的全部记录。
 
     :param db_path: sqlite 数据库文件路径
     :param records: 待写入的记录迭代器
@@ -169,7 +203,7 @@ def append_records(
     db_path: str | Path, records: Iterable[dict[str, Any]]
 ) -> int:
     """
-    将给定记录列表追加写入数据库。
+    自行创建并关闭连接，将给定记录列表追加写入数据库。
 
     :param db_path: sqlite 数据库文件路径
     :param records: 待追加的记录迭代器
@@ -188,43 +222,12 @@ def append_records(
         conn.close()
 
 
-def _decode_task_json(task_json: str) -> Any:
-    """
-    从 ``task_json`` 列反序列化任务对象。
-
-    :param task_json: 数据库中的任务 JSON 字符串
-    :return: 反序列化后的任务对象
-    :rtype: Any
-    """
-    return json.loads(task_json)
-
-
-def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
-    """
-    将 sqlite 行转换为对外记录字典。
-
-    :param row: sqlite 查询结果中的单行
-    :return: 面向上层调用方的记录字典
-    :rtype: dict[str, Any]
-    """
-    return {
-        "id": int(row["id"]),
-        "event_id": int(row["event_id"]),
-        "stage": str(row["stage"]),
-        "status": str(row["status"]),
-        "error_type": str(row["error_type"]),
-        "error_message": str(row["error_message"]),
-        "error_ts": float(row["error_ts"]),
-        "task": _decode_task_json(str(row["task_json"])),
-    }
-
-
 def load_records(
     db_path: str | Path,
     status: str = "failed",
 ) -> list[dict[str, Any]]:
     """
-    读取数据库中指定状态的记录。
+    自行创建并关闭连接，读取数据库中指定状态的记录。
 
     :param db_path: sqlite 数据库文件路径
     :param status: 记录状态过滤条件，默认 ``failed``
@@ -259,7 +262,7 @@ def update_record_status_by_event_id(
     error_message: str = "",
 ) -> bool:
     """
-    按 ``event_id`` 更新记录状态与错误信息。
+    自行创建并关闭连接，按 ``event_id`` 更新记录状态与错误信息。
 
     :param db_path: sqlite 数据库文件路径
     :param event_id: 事件 ID
@@ -288,7 +291,7 @@ def update_record_status_by_event_id(
 
 def delete_record_by_event_id(db_path: str | Path, event_id: int) -> bool:
     """
-    按 ``event_id`` 删除记录。
+    自行创建并关闭连接，按 ``event_id`` 删除记录。
 
     :param db_path: sqlite 数据库文件路径
     :param event_id: 待删除的事件 ID
@@ -309,7 +312,7 @@ def delete_record_by_event_id(db_path: str | Path, event_id: int) -> bool:
 
 def get_event_ids(db_path: str | Path) -> list[int]:
     """
-    读取数据库中的全部失败事件 ``event_id``。
+    自行创建并关闭连接，读取数据库中的全部失败事件 ``event_id``。
 
     :param db_path: sqlite 数据库文件路径
     :return: 按写入顺序排列的失败事件 ``event_id`` 列表
@@ -337,7 +340,7 @@ def load_records_by_event_ids(
     status: str = "failed",
 ) -> list[dict[str, Any]]:
     """
-    按给定 ``event_id`` 列表读取指定状态的记录。
+    自行创建并关闭连接，按给定 ``event_id`` 列表读取指定状态的记录。
 
     :param db_path: sqlite 数据库文件路径
     :param event_ids: 待读取的事件 ``event_id`` 列表
@@ -377,7 +380,7 @@ def query_records(
     status: str = "failed",
 ) -> tuple[int, int, list[dict[str, Any]]]:
     """
-    按条件查询指定状态的记录并返回分页结果。
+    自行创建并关闭连接，按条件查询指定状态的记录并返回分页结果。
 
     :param db_path: sqlite 数据库文件路径
     :param page: 请求页码
@@ -437,7 +440,7 @@ def query_records(
 
 def load_task_records(db_path: str | Path) -> list[tuple[Any, PersistedFallbackRecord]]:
     """
-    读取错误数据库并返回任务与错误记录的配对列表。
+    自行创建并关闭连接，读取数据库并返回任务与记录的配对列表。
 
     :param db_path: sqlite 数据库文件路径
     :return: ``[(task, error_record), ...]``
