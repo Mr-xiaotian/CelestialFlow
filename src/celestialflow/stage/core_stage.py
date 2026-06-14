@@ -115,15 +115,14 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         """
         return self.metrics.success_counter
 
-    def prev_bindings(self, pending_prev_bindings: list[TaskStage[Any, Any]]) -> None:
+    def prev_binding(self, pending_prev_binding: TaskStage[Any, Any]) -> None:
         """
         绑定前置节点，将每个前驱 stage 的计数器注册到当前 stage 的 task_counter 中
 
-        :param pending_prev_bindings: 前置节点列表
+        :param pending_prev_binding: 前置节点
         """
-        for prev_stage in pending_prev_bindings:
-            counter = prev_stage.get_binding_counter(self.get_name())
-            self.metrics.append_task_counter(counter)
+        counter = pending_prev_binding.get_binding_counter(self.get_name())
+        self.metrics.append_task_counter(counter)
 
     # ==== 查询 ====
     def get_stage_mode(self) -> str:

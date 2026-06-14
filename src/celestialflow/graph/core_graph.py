@@ -18,7 +18,6 @@ from networkx import DiGraph, is_directed_acyclic_graph
 
 from ..observability import NullTaskReporter, TaskReporter
 from ..persistence import FallbackInlet, FallbackSpout, LogInlet, LogSpout
-from ..runtime import TaskInQueue, TaskOutQueue
 from ..runtime.util_constant import LEVEL_DICT, STAGE_STYLE
 from ..runtime.util_errors import (
     CelestialTreeConnectionError,
@@ -180,9 +179,19 @@ class TaskGraph:
         :param to_stages: 下游节点列表
         """
         for from_stage in from_stages:
+            from_name = from_stage.get_name()
+            from_out_queue = from_stage.result_queue
+
             for to_stage in to_stages:
-                self.out_edges[from_stage.get_name()].append(to_stage.get_name())
-                self.in_edges[to_stage.get_name()].append(from_stage.get_name())
+                to_name = to_stage.get_name()
+                to_in_queue = to_stage.task_queue
+
+                from_out_queue.add_queue(to_in_queue, to_name)
+                to_stage.prev_binding(from_stage)
+                to_in_queue.add_source_name(from_name)
+
+                self.out_edges[from_name].append(to_name)
+                self.in_edges[to_name].append(from_name)
 
     # ==== 配置 ====
 
@@ -291,28 +300,6 @@ class TaskGraph:
 
     # ==== 启动 ====
 
-    def _build_resources(self) -> None:
-        """
-        构建每个阶段的运行时资源（队列、计数器、前驱绑定）
-        """
-        for stage_name, current_stage in self.stage_dict.items():
-            if not self.in_edges[stage_name]:  # 如果没有前驱
-                continue
-
-            in_queue: TaskInQueue[Any] = current_stage.task_queue
-            prev_stages: list[AnyTaskStage] = []
-
-            # 遍历每个前驱，创建边队列
-            for prev_stage_name in self.in_edges[stage_name]:
-                in_queue.add_source_name(prev_stage_name)
-
-                prev_stage = self.stage_dict[prev_stage_name]
-                prev_out_queue: TaskOutQueue[Any] = prev_stage.result_queue
-                prev_out_queue.add_queue(in_queue.queue, stage_name)
-                prev_stages.append(prev_stage)
-
-            current_stage.prev_bindings(prev_stages)
-
     def _build_analysis(self) -> None:
         """
         分析任务图，计算图属性和层级信息（支持 DAG 和含环图）
@@ -374,7 +361,6 @@ class TaskGraph:
             TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
             start_graph()。如需重复执行，请创建新的 TaskGraph 实例。
         """
-        self._build_resources()
         self._build_analysis()
 
         if not self.is_dag and put_termination_signal:
