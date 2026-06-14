@@ -23,6 +23,8 @@ def connect_errors_db(db_path: str | Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+
+    # 初始化当前连接的 sqlite 运行参数，再确保表结构与索引存在。
     _ = conn.execute("PRAGMA journal_mode=WAL")
     _ = conn.execute("PRAGMA synchronous=NORMAL")
     _ = conn.execute("PRAGMA foreign_keys=ON")
@@ -37,6 +39,7 @@ def _ensure_errors_table(conn: sqlite3.Connection) -> None:
     :param conn: 已建立的 sqlite 连接
     :return: None
     """
+    # 创建错误主表。
     _ = conn.execute(
         """
         CREATE TABLE IF NOT EXISTS errors (
@@ -50,6 +53,8 @@ def _ensure_errors_table(conn: sqlite3.Connection) -> None:
         )
         """
     )
+
+    # 为常用查询条件建立索引，减少筛选和排序开销。
     _ = conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_errors_ts ON errors(ts)"
     )
@@ -107,6 +112,8 @@ def insert_error_record(conn: sqlite3.Connection, record: dict[str, Any]) -> boo
     normalized = normalize_error_record(record)
     if normalized is None:
         return False
+
+    # 插入单条归一化后的错误记录。
     _ = conn.execute(
         """
         INSERT INTO errors (ts, stage, error_id, error_type, error_message, task_json)
@@ -129,6 +136,7 @@ def replace_error_records(
     """
     conn = connect_errors_db(db_path)
     try:
+        # 先清空旧数据，再用新的错误列表整体覆盖。
         _ = conn.execute("DELETE FROM errors")
         normalized_rows = [
             normalized
@@ -136,6 +144,7 @@ def replace_error_records(
             if (normalized := normalize_error_record(item)) is not None
         ]
         if normalized_rows:
+            # 批量写入覆盖后的错误记录。
             _ = conn.executemany(
                 """
                 INSERT INTO errors (
@@ -213,6 +222,7 @@ def load_error_records(db_path: str | Path) -> list[dict[str, Any]]:
     """
     conn = connect_errors_db(db_path)
     try:
+        # 按写入顺序读取全部错误记录。
         rows = conn.execute(
             """
             SELECT id, ts, stage, error_id, error_type, error_message, task_json
@@ -238,6 +248,7 @@ def load_error_records_after(
     """
     conn = connect_errors_db(db_path)
     try:
+        # 仅读取指定 row id 之后的新错误记录，用于增量同步。
         rows = conn.execute(
             """
             SELECT id, ts, stage, error_id, error_type, error_message, task_json
@@ -262,6 +273,7 @@ def get_max_error_row_id(db_path: str | Path) -> int:
     """
     conn = connect_errors_db(db_path)
     try:
+        # 读取当前最大自增行号；无记录时回退为 0。
         row = conn.execute("SELECT COALESCE(MAX(id), 0) FROM errors").fetchone()
         return int(row[0]) if row is not None else 0
     finally:
@@ -290,6 +302,7 @@ def query_error_records(
     """
     conn = connect_errors_db(db_path)
     try:
+        # 构造动态筛选条件与参数。
         where_clauses: list[str] = []
         params: list[Any] = []
         if node:
@@ -302,6 +315,7 @@ def query_error_records(
             )
             params.extend([like_pattern, like_pattern, like_pattern])
 
+        # 先查询总数，并据此归一化分页参数。
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         total = int(
             conn.execute(
@@ -313,6 +327,8 @@ def query_error_records(
         normalized_page = min(page, total_pages)
         sort_sql = "ASC" if sort_order == "oldest" else "DESC"
         offset = (normalized_page - 1) * page_size
+
+        # 查询当前页数据；按 ts 和 id 排序以保持稳定顺序。
         rows = conn.execute(
             f"""
             SELECT id, ts, stage, error_id, error_type, error_message, task_json
@@ -323,6 +339,8 @@ def query_error_records(
             """,
             [*params, page_size, offset],
         ).fetchall()
+
+        # 转换为上层使用的错误字典格式。
         return total, total_pages, [row_to_error_dict(row) for row in rows]
     finally:
         conn.close()
@@ -338,6 +356,7 @@ def load_task_error_pairs(db_path: str | Path) -> list[tuple[Any, PersistedError
     """
     conn = connect_errors_db(db_path)
     try:
+        # 读取任务与错误信息的配对原始行，供后续组装业务对象。
         rows = conn.execute(
             """
             SELECT ts, stage, error_id, error_type, error_message, task_json
