@@ -41,7 +41,7 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
     # 创建错误主表。
     _ = conn.execute(
         """
-        CREATE TABLE IF NOT EXISTS errors (
+        CREATE TABLE IF NOT EXISTS records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             event_id INTEGER NOT NULL,
             stage TEXT NOT NULL DEFAULT '',
@@ -56,16 +56,16 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
 
     # 为常用查询条件建立索引，减少筛选和排序开销。
     _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_errors_error_ts ON errors(error_ts)"
+        "CREATE INDEX IF NOT EXISTS idx_records_error_ts ON records(error_ts)"
     )
     _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_errors_stage_error_ts ON errors(stage, error_ts)"
+        "CREATE INDEX IF NOT EXISTS idx_records_stage_error_ts ON records(stage, error_ts)"
     )
     _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_errors_type_error_ts ON errors(error_type, error_ts)"
+        "CREATE INDEX IF NOT EXISTS idx_records_type_error_ts ON records(error_type, error_ts)"
     )
     _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_errors_event_id ON errors(event_id)"
+        "CREATE INDEX IF NOT EXISTS idx_records_event_id ON records(event_id)"
     )
     conn.commit()
 
@@ -116,7 +116,7 @@ def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
     # 插入单条归一化后的记录。
     _ = conn.execute(
         """
-        INSERT INTO errors (
+        INSERT INTO records (
             event_id, stage, status, error_type, error_message, error_ts, task_json
         )
         VALUES (
@@ -141,7 +141,7 @@ def replace_records(
     conn = connect_db(db_path)
     try:
         # 先清空旧数据，再用新的记录列表整体覆盖。
-        _ = conn.execute("DELETE FROM errors")
+        _ = conn.execute("DELETE FROM records")
         normalized_rows = [
             normalized
             for item in records
@@ -151,7 +151,7 @@ def replace_records(
             # 批量写入覆盖后的记录。
             _ = conn.executemany(
                 """
-                INSERT INTO errors (
+                INSERT INTO records (
                     event_id, stage, status, error_type, error_message, error_ts, task_json
                 )
                 VALUES (
@@ -237,7 +237,7 @@ def load_records(
         rows = conn.execute(
             """
             SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
-            FROM errors
+            FROM records
             WHERE status = ?
             ORDER BY id ASC
             """
@@ -274,7 +274,7 @@ def update_record_status_by_event_id(
     try:
         cursor = conn.execute(
             """
-            UPDATE errors
+            UPDATE records
             SET status = ?, error_ts = ?, error_type = ?, error_message = ?
             WHERE event_id = ?
             """,
@@ -298,7 +298,7 @@ def delete_record_by_event_id(db_path: str | Path, event_id: int) -> bool:
     conn = connect_db(db_path)
     try:
         cursor = conn.execute(
-            "DELETE FROM errors WHERE event_id = ?",
+            "DELETE FROM records WHERE event_id = ?",
             [int(event_id)],
         )
         conn.commit()
@@ -321,7 +321,7 @@ def get_event_ids(db_path: str | Path) -> list[int]:
         rows = conn.execute(
             """
             SELECT event_id
-            FROM errors
+            FROM records
             WHERE status = 'failed'
             ORDER BY id ASC
             """
@@ -356,7 +356,7 @@ def load_records_by_event_ids(
         rows = conn.execute(
             f"""
             SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
-            FROM errors
+            FROM records
             WHERE status = ? AND event_id IN ({placeholders})
             ORDER BY id ASC
             """,
@@ -408,7 +408,7 @@ def query_records(
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         total = int(
             conn.execute(
-                f"SELECT COUNT(*) FROM errors {where_sql}",
+                f"SELECT COUNT(*) FROM records {where_sql}",
                 params,
             ).fetchone()[0]
         )
@@ -421,7 +421,7 @@ def query_records(
         rows = conn.execute(
             f"""
             SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
-            FROM errors
+            FROM records
             {where_sql}
             ORDER BY error_ts {sort_sql}, id {sort_sql}
             LIMIT ? OFFSET ?
@@ -449,7 +449,7 @@ def load_task_records(db_path: str | Path) -> list[tuple[Any, PersistedErrorReco
         rows = conn.execute(
             """
             SELECT event_id, stage, error_type, error_message, error_ts, task_json
-            FROM errors
+            FROM records
             WHERE status = 'failed'
             ORDER BY id ASC
             """

@@ -53,12 +53,12 @@ def sample_errors():
 @pytest.fixture
 def sqlite_path(tmp_path):
     """创建临时 sqlite 文件路径。"""
-    return tmp_path / "errors.sqlite3"
+    return tmp_path / "records.sqlite3"
 
 
 class TestSpliteUtils:
     def test_connect_db_creates_table_and_indices(self, sqlite_path):
-        """测试建立连接时会自动创建 errors 表和必要索引。"""
+        """测试建立连接时会自动创建 records 表和必要索引。"""
         conn = connect_db(sqlite_path)
         try:
             table_names = {
@@ -76,11 +76,11 @@ class TestSpliteUtils:
         finally:
             conn.close()
 
-        assert "errors" in table_names
-        assert "idx_errors_error_ts" in index_names
-        assert "idx_errors_stage_error_ts" in index_names
-        assert "idx_errors_type_error_ts" in index_names
-        assert "idx_errors_event_id" in index_names
+        assert "records" in table_names
+        assert "idx_records_error_ts" in index_names
+        assert "idx_records_stage_error_ts" in index_names
+        assert "idx_records_type_error_ts" in index_names
+        assert "idx_records_event_id" in index_names
 
     def test_normalize_record(self, sample_errors):
         """测试错误记录会被归一化为 sqlite 可写格式。"""

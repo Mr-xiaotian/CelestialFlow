@@ -74,12 +74,12 @@ class TaskWebServer:
         self.summary_store: dict[str, Any] = {}
         self.injection_tasks: dict[str, list[Any]] = {}  # 存储前端注入任务
         self.current_graph_id: str = ""
-        fd, errors_db_path = tempfile.mkstemp(
-            prefix="celestialflow-web-errors-", suffix=".sqlite3"
+        fd, records_db_path = tempfile.mkstemp(
+            prefix="celestialflow-web-records-", suffix=".sqlite3"
         )
         os.close(fd)
-        self.errors_db_path: str = errors_db_path
-        conn = connect_db(self.errors_db_path)
+        self.records_db_path: str = records_db_path
+        conn = connect_db(self.records_db_path)
         conn.close()
 
         # 各类 store 的 rev + payload 需要原子读写，避免 pull 读到撕裂快照
@@ -139,7 +139,7 @@ class TaskWebServer:
             self.analysis_store = {}
             self.store_revs["analysis"] += 1
         with self.errors_lock:
-            replace_records(self.errors_db_path, [])
+            replace_records(self.records_db_path, [])
             self.store_revs["errors"] += 1
 
     def sync_graph_context(self, graph_id: str) -> bool:
@@ -225,9 +225,9 @@ class TaskWebServer:
         """
         with self.errors_lock:
             if append:
-                _ = append_records(self.errors_db_path, errors)
+                _ = append_records(self.records_db_path, errors)
             else:
-                replace_records(self.errors_db_path, errors)
+                replace_records(self.records_db_path, errors)
             self.store_revs["errors"] += 1
 
     def update_analysis_store(self, analysis: dict[str, Any]) -> None:
@@ -284,7 +284,7 @@ class TaskWebServer:
         :rtype: tuple[int, list[dict[str, Any]]]
         """
         with self.errors_lock:
-            return self.store_revs["errors"], load_records(self.errors_db_path)
+            return self.store_revs["errors"], load_records(self.records_db_path)
 
     def get_server_state(self, graph_id: str = "") -> dict[str, Any]:
         """
@@ -342,7 +342,7 @@ class TaskWebServer:
         with self.errors_lock:
             rev = self.store_revs["errors"]
             total, total_pages, page_items = query_records(
-                self.errors_db_path, page, page_size, node, keyword, sort_order
+                self.records_db_path, page, page_size, node, keyword, sort_order
             )
             return rev, total, total_pages, page_items
 
@@ -354,7 +354,7 @@ class TaskWebServer:
         :rtype: list[int]
         """
         with self.errors_lock:
-            return get_event_ids(self.errors_db_path)
+            return get_event_ids(self.records_db_path)
 
     def get_analysis_snapshot(self) -> tuple[int, dict[str, Any] | None]:
         """
