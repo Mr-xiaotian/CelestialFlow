@@ -142,8 +142,8 @@ def test_reporter_accepts_node_to_tasklist_mapping() -> None:
     assert log_inlet.pull_failures == []
 
 
-def test_reporter_pushes_errors_via_content_endpoint_only(tmp_path) -> None:
-    """Reporter 只通过 push_errors_content 推送错误内容。"""
+def test_reporter_pushes_errors_via_push_errors_endpoint_only(tmp_path) -> None:
+    """Reporter 只通过 push_errors 推送错误内容。"""
     sqlite_path = tmp_path / "fallback.sqlite3"
     appended = append_records(
         sqlite_path,
@@ -171,7 +171,7 @@ def test_reporter_pushes_errors_via_content_endpoint_only(tmp_path) -> None:
     assert log_inlet.push_error_failures == []
     assert len(reporter._session.posts) == 1
     url, payload, _timeout = reporter._session.posts[0]
-    assert url.endswith("/api/push_errors_content")
+    assert url.endswith("/api/push_errors")
     assert payload["graph_id"] == "demo@1000"
     assert payload["errors"] == [
         {
@@ -234,6 +234,6 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(tmp_path) -> None
     assert log_inlet.push_error_failures == []
     assert len(reporter._session.posts) == 1
     url, payload, _timeout = reporter._session.posts[0]
-    assert url.endswith("/api/push_errors_content")
+    assert url.endswith("/api/push_errors")
     assert payload["graph_id"] == "demo@1000"
     assert [item["event_id"] for item in payload["errors"]] == [5, 7]

@@ -210,13 +210,12 @@ def test_errors_pagination(client):
         }
         for i in range(15)
     ]
-    # 错误同步已统一走 push_errors_content。
+    # 错误同步已统一走 push_errors。
     client.post(
-        "/api/push_errors_content",
+        "/api/push_errors",
         json={
             "graph_id": graph_id,
             "errors": test_errors,
-            "append": False,
         },
     )
 
@@ -254,8 +253,8 @@ def test_errors_pagination(client):
     assert data_oldest["data"][0]["event_id"] == 0
 
 
-def test_errors_content_appends_for_same_graph(client):
-    """相同 graph_id 下，push_errors_content 只追加新错误。"""
+def test_push_errors_appends_for_same_graph(client):
+    """相同 graph_id 下，push_errors 只追加新错误。"""
     graph_id = "demo@2000"
 
     first_batch = [
@@ -301,11 +300,10 @@ def test_errors_content_appends_for_same_graph(client):
     assert analysis_resp.json() == {"ok": True}
 
     response = client.post(
-        "/api/push_errors_content",
+        "/api/push_errors",
         json={
             "graph_id": graph_id,
             "errors": first_batch,
-            "append": False,
         },
     )
     assert response.status_code == 200
@@ -317,11 +315,10 @@ def test_errors_content_appends_for_same_graph(client):
     assert state["has_analysis"] is True
 
     response = client.post(
-        "/api/push_errors_content",
+        "/api/push_errors",
         json={
             "graph_id": graph_id,
             "errors": second_batch,
-            "append": True,
         },
     )
     assert response.status_code == 200
@@ -332,7 +329,7 @@ def test_errors_content_appends_for_same_graph(client):
     assert [item["event_id"] for item in pulled["data"]] == [3, 2, 1]
 
 
-def test_errors_content_duplicate_append_is_idempotent(client):
+def test_push_errors_duplicate_append_is_idempotent(client):
     """重复追加相同 event_id 时，错误缓存不应出现重复行。"""
     graph_id = "demo@3000"
     duplicated_batch = [
@@ -356,19 +353,17 @@ def test_errors_content_duplicate_append_is_idempotent(client):
     )
 
     first = client.post(
-        "/api/push_errors_content",
+        "/api/push_errors",
         json={
             "graph_id": graph_id,
             "errors": duplicated_batch,
-            "append": False,
         },
     )
     second = client.post(
-        "/api/push_errors_content",
+        "/api/push_errors",
         json={
             "graph_id": graph_id,
             "errors": duplicated_batch,
-            "append": True,
         },
     )
 
@@ -396,7 +391,7 @@ def test_newer_graph_replaces_previous_graph_context(client):
         },
     )
     client.post(
-        "/api/push_errors_content",
+        "/api/push_errors",
         json={
             "graph_id": old_graph_id,
             "errors": [
@@ -409,7 +404,6 @@ def test_newer_graph_replaces_previous_graph_context(client):
                     "error_ts": 1.0,
                 }
             ],
-            "append": False,
         },
     )
 
@@ -451,7 +445,7 @@ def test_stale_graph_pushes_are_ignored(client):
     assert stale_analysis.json() == {"ok": False}
 
     stale_errors = client.post(
-        "/api/push_errors_content",
+        "/api/push_errors",
         json={
             "graph_id": old_graph_id,
             "errors": [
@@ -464,7 +458,6 @@ def test_stale_graph_pushes_are_ignored(client):
                     "error_ts": 1.0,
                 }
             ],
-            "append": False,
         },
     )
     assert stale_errors.status_code == 200

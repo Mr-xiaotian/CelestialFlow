@@ -11,7 +11,7 @@ from ..util_cal import cal_interval
 from ..util_config import save_config
 from ..util_models import (
     AnalysisModel,
-    ErrorsContentModel,
+    ErrorsModel,
     StatusModel,
     StructureModel,
     TaskInjectionModel,
@@ -114,10 +114,10 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         server.update_status_store(float(data.timestamp), data.status)
         return {"ok": True}
 
-    @router.post("/api/push_errors_content")
-    async def push_errors_content(data: ErrorsContentModel) -> dict[str, bool]:
+    @router.post("/api/push_errors")
+    async def push_errors(data: ErrorsModel) -> dict[str, bool]:
         """
-        直接接收错误日志列表并存储；支持增量 append。
+        直接接收错误日志列表并存储。
 
         :param data: 错误内容数据
         :return: {"ok": True}

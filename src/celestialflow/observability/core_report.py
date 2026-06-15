@@ -186,43 +186,18 @@ class TaskReporter:
             if not all_errors:
                 return
 
-            self._push_errors_content(
-                graph_id,
-                all_errors,
+            payload: dict[str, Any] = {
+                "graph_id": graph_id,
+                "errors": all_errors,
+            }
+            _ = self._session.post(
+                f"{self.base_url}/api/push_errors",
+                json=payload,
+                timeout=self._push_timeout(),
             )
 
         except Exception as e:
             self.log_inlet.push_errors_failed(e)
-
-    def _push_errors_content(
-        self,
-        graph_id: str,
-        errors: list[dict[str, Any]],
-    ) -> None:
-        """
-        推送错误内容。
-
-        :param graph_id: 当前任务图唯一标识
-        :param append: 是否以追加模式写入
-        :param errors: 本轮需要同步的失败记录列表
-        :return: None
-        """
-        payload: dict[str, Any] = {
-            "graph_id": graph_id,
-            "errors": errors,
-        }
-        response: requests.Response = self._session.post(
-            f"{self.base_url}/api/push_errors_content",
-            json=payload,
-            timeout=self._push_timeout(),
-        )
-        resp = response.json()
-        if resp.get("ok"):
-            pass
-        else:
-            raise ReporterError(
-                f"push_errors_content failed: {resp.get('msg')}"
-            )
 
     def _push_status(self) -> None:
         """推送状态信息"""

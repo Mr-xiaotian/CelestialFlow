@@ -22,7 +22,7 @@ class StatusModel(BaseModel):
     status: dict[str, dict[str, Any]]
 
 
-class ErrorsContentModel(BaseModel):
+class ErrorsModel(BaseModel):
     """错误内容数据模型"""
 
     graph_id: str = ""
