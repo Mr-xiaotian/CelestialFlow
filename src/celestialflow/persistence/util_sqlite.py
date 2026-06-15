@@ -260,41 +260,16 @@ def delete_record_by_event_id(conn: sqlite3.Connection, event_id: int) -> bool:
 
 # ==== 自持完整 conn 生命周期的读写函数 ====
 
-def replace_records(
-    db_path: str | Path, records: Iterable[dict[str, Any]]
-) -> None:
+def clear_records(db_path: str | Path) -> None:
     """
-    自行创建并关闭连接，用给定记录列表覆盖数据库中的全部记录。
+    自行创建并关闭连接，直接清空数据库中的全部记录。
 
     :param db_path: sqlite 数据库文件路径
-    :param records: 待写入的记录迭代器
     :return: None
     """
     conn = connect_db(db_path)
     try:
-        # 先清空旧数据，再用新的记录列表整体覆盖。
         _ = conn.execute("DELETE FROM records")
-        deduplicated_rows: dict[int, dict[str, Any]] = {}
-        for item in records:
-            normalized = normalize_record(item)
-            if normalized is None:
-                continue
-            deduplicated_rows[int(normalized["event_id"])] = normalized
-
-        normalized_rows = list(deduplicated_rows.values())
-        if normalized_rows:
-            # 批量写入覆盖后的记录。
-            _ = conn.executemany(
-                """
-                INSERT INTO records (
-                    event_id, stage, status, error_type, error_message, error_ts, task_json, result_json
-                )
-                VALUES (
-                    :event_id, :stage, :status, :error_type, :error_message, :error_ts, :task_json, :result_json
-                )
-                """,
-                normalized_rows,
-            )
         conn.commit()
     finally:
         conn.close()
@@ -358,30 +333,6 @@ def load_records(
         conn.close()
 
 
-def get_event_ids(db_path: str | Path) -> list[int]:
-    """
-    自行创建并关闭连接，读取数据库中的全部失败事件 ``event_id``。
-
-    :param db_path: sqlite 数据库文件路径
-    :return: 按写入顺序排列的失败事件 ``event_id`` 列表
-    :rtype: list[int]
-    """
-    conn = connect_db(db_path)
-    try:
-        # 读取当前错误库中的全部失败事件 id，供上层进行集合比对。
-        rows = conn.execute(
-            """
-            SELECT event_id
-            FROM records
-            WHERE status = 'failed'
-            ORDER BY id ASC
-            """
-        ).fetchall()
-        return [int(row["event_id"]) for row in rows]
-    finally:
-        conn.close()
-
-
 def get_max_event_id_in_fail(db_path: str | Path) -> int | None:
     """
     自行创建并关闭连接，读取失败记录中的最大 ``event_id``。
@@ -413,7 +364,7 @@ def load_records_after_event_id_in_fail(
     自行创建并关闭连接，读取失败记录中 ``event_id`` 大于给定下界的条目。
 
     :param db_path: sqlite 数据库文件路径
-    :param min_event_id: 失败记录的 ``event_id`` 下界；为 ``None`` 时返回全部失败记录
+    :param min_event_id: 失败记录的 ``event_id`` 下界
     :return: 命中的失败记录列表
     :rtype: list[dict[str, Any]]
     """
@@ -428,43 +379,6 @@ def load_records_after_event_id_in_fail(
             ORDER BY event_id ASC
             """,
             [int(min_event_id)],
-        ).fetchall()
-        return [row_to_record_dict(row) for row in rows]
-    finally:
-        conn.close()
-
-
-def load_records_by_event_ids(
-    db_path: str | Path,
-    event_ids: Iterable[int],
-    status: str = "failed",
-) -> list[dict[str, Any]]:
-    """
-    自行创建并关闭连接，按给定 ``event_id`` 列表读取指定状态的记录。
-
-    :param db_path: sqlite 数据库文件路径
-    :param event_ids: 待读取的事件 ``event_id`` 列表
-    :param status: 记录状态过滤条件，默认 ``failed``
-    :return: 命中的记录列表
-    :rtype: list[dict[str, Any]]
-    """
-    normalized_ids = [int(event_id) for event_id in event_ids]
-    if not normalized_ids:
-        return []
-
-    placeholders = ", ".join(["?"] * len(normalized_ids))
-    conn = connect_db(db_path)
-    try:
-        # 仅读取指定 event_id 对应的记录，避免再依赖本地 row id 偏移量。
-        rows = conn.execute(
-            f"""
-            SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
-                 , result_json
-            FROM records
-            WHERE status = ? AND event_id IN ({placeholders})
-            ORDER BY id ASC
-            """,
-            [status, *normalized_ids],
         ).fetchall()
         return [row_to_record_dict(row) for row in rows]
     finally:

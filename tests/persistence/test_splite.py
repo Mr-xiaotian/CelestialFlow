@@ -4,19 +4,17 @@ import pytest
 
 from celestialflow.persistence.util_sqlite import (
     append_records,
+    clear_records,
     connect_db,
     delete_record_by_event_id,
-    get_event_ids,
     get_max_event_id_in_fail,
     insert_record,
     load_records,
     load_records_after_event_id_in_fail,
-    load_records_by_event_ids,
     load_task_error_records,
     load_task_result_records,
     normalize_record,
     query_records,
-    replace_records,
     promote_record_to_failed_by_event_id,
     promote_record_to_success_by_event_id,
     update_record_event_id_by_event_id,
@@ -125,9 +123,10 @@ class TestSpliteUtils:
         assert records[1]["task"] == ["A", "B"]
         assert records[1]["result"] is None
 
-    def test_replace_and_query_records(self, sqlite_path, sample_errors):
-        """测试全量覆盖写入以及分页、筛选、排序查询。"""
-        replace_records(sqlite_path, sample_errors)
+    def test_append_and_query_records(self, sqlite_path, sample_errors):
+        """测试追加写入以及分页、筛选、排序查询。"""
+        appended = append_records(sqlite_path, sample_errors)
+        assert appended == 3
 
         total, total_pages, page_items = query_records(
             sqlite_path,
@@ -154,22 +153,18 @@ class TestSpliteUtils:
         assert page_items[0]["event_id"] == 2
         assert page_items[0]["task"] == ["A", "B"]
 
-    def test_append_and_load_records_by_event_ids(self, sqlite_path, sample_errors):
-        """测试追加写入以及按 event_id 定位读取。"""
-        replace_records(sqlite_path, sample_errors[:2])
+    def test_clear_records(self, sqlite_path, sample_errors):
+        """测试直接清空 records 表。"""
+        appended = append_records(sqlite_path, sample_errors[1:])
+        assert appended == 3
 
-        assert get_event_ids(sqlite_path) == [1]
+        clear_records(sqlite_path)
 
-        appended = append_records(sqlite_path, sample_errors[2:])
-        assert appended == 2
-        assert get_event_ids(sqlite_path) == [1, 2, 3]
-
-        selected = load_records_by_event_ids(sqlite_path, [3, 1])
-        assert [item["event_id"] for item in selected] == [1, 3]
+        assert load_records(sqlite_path) == []
 
     def test_get_max_event_id_in_fail(self, sqlite_path):
         """测试只统计 failed 状态中的最大 event_id。"""
-        replace_records(
+        append_records(
             sqlite_path,
             [
                 {
@@ -198,7 +193,7 @@ class TestSpliteUtils:
 
     def test_get_max_event_id_in_fail_returns_none_when_no_failed(self, sqlite_path):
         """测试没有 failed 记录时返回 None。"""
-        replace_records(
+        append_records(
             sqlite_path,
             [
                 {
@@ -215,7 +210,7 @@ class TestSpliteUtils:
 
     def test_load_records_after_event_id_in_fail(self, sqlite_path):
         """测试按 failed 的 event_id 下界增量读取记录。"""
-        replace_records(
+        appended = append_records(
             sqlite_path,
             [
                 {
@@ -240,10 +235,7 @@ class TestSpliteUtils:
             ],
         )
 
-        assert [
-            item["event_id"]
-            for item in load_records_after_event_id_in_fail(sqlite_path, None)
-        ] == [3, 7]
+        assert appended == 3
         assert [
             item["event_id"]
             for item in load_records_after_event_id_in_fail(sqlite_path, 3)
@@ -251,12 +243,13 @@ class TestSpliteUtils:
 
     def test_append_records_skips_duplicate_event_ids(self, sqlite_path, sample_errors):
         """测试追加写入会跳过已存在的 event_id，保证重复同步幂等。"""
-        replace_records(sqlite_path, sample_errors[1:3])
+        appended = append_records(sqlite_path, sample_errors[1:3])
+        assert appended == 2
 
         appended = append_records(sqlite_path, [sample_errors[1], sample_errors[3]])
 
         assert appended == 1
-        assert get_event_ids(sqlite_path) == [1, 2, 3]
+        assert [item["event_id"] for item in load_records(sqlite_path)] == [1, 2, 3]
 
     def test_promote_record_to_failed_by_event_id(self, sqlite_path, sample_errors):
         """测试按 event_id 更新记录状态与错误信息。"""
@@ -266,7 +259,8 @@ class TestSpliteUtils:
             "status": "waiting",
             "task": {"value": 9},
         }
-        replace_records(sqlite_path, [waiting_record])
+        appended = append_records(sqlite_path, [waiting_record])
+        assert appended == 1
 
         conn = connect_db(sqlite_path)
         try:
@@ -299,7 +293,8 @@ class TestSpliteUtils:
             "status": "pending",
             "task": {"value": 8},
         }
-        replace_records(sqlite_path, [pending_record])
+        appended = append_records(sqlite_path, [pending_record])
+        assert appended == 1
 
         conn = connect_db(sqlite_path)
         try:
@@ -328,7 +323,8 @@ class TestSpliteUtils:
             "status": "pending",
             "task": {"value": 9},
         }
-        replace_records(sqlite_path, [waiting_record])
+        appended = append_records(sqlite_path, [waiting_record])
+        assert appended == 1
 
         conn = connect_db(sqlite_path)
         try:
@@ -347,7 +343,8 @@ class TestSpliteUtils:
 
     def test_delete_record_by_event_id(self, sqlite_path, sample_errors):
         """测试按 event_id 删除记录。"""
-        replace_records(sqlite_path, sample_errors[1:])
+        appended = append_records(sqlite_path, sample_errors[1:])
+        assert appended == 3
 
         conn = connect_db(sqlite_path)
         try:
@@ -361,7 +358,8 @@ class TestSpliteUtils:
 
     def test_load_task_error_records_and_grouping(self, sqlite_path, sample_errors):
         """测试任务-错误配对读取以及按 stage 聚合。"""
-        replace_records(sqlite_path, sample_errors)
+        appended = append_records(sqlite_path, sample_errors)
+        assert appended == 3
 
         pairs = load_task_error_records(sqlite_path, "s1")
         assert len(pairs) == 2
@@ -378,7 +376,8 @@ class TestSpliteUtils:
             "status": "pending",
             "task": {"value": 8},
         }
-        replace_records(sqlite_path, [pending_record])
+        appended = append_records(sqlite_path, [pending_record])
+        assert appended == 1
 
         conn = connect_db(sqlite_path)
         try:

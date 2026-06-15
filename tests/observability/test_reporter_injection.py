@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 from celestialflow.observability import TaskReporter
-from celestialflow.persistence.util_sqlite import replace_records
+from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_types import TERMINATION_SIGNAL
 
 
@@ -145,7 +145,7 @@ def test_reporter_accepts_node_to_tasklist_mapping() -> None:
 def test_reporter_pushes_errors_via_content_endpoint_only(tmp_path) -> None:
     """Reporter 只通过 push_errors_content 推送错误内容。"""
     sqlite_path = tmp_path / "fallback.sqlite3"
-    replace_records(
+    appended = append_records(
         sqlite_path,
         [
             {
@@ -158,6 +158,7 @@ def test_reporter_pushes_errors_via_content_endpoint_only(tmp_path) -> None:
             }
         ],
     )
+    assert appended == 1
 
     graph = FakeErrorGraph(sqlite_path)
     log_inlet = FakeLogInlet()
@@ -190,7 +191,7 @@ def test_reporter_pushes_errors_via_content_endpoint_only(tmp_path) -> None:
 def test_reporter_pushes_only_errors_after_server_max_event_id(tmp_path) -> None:
     """Reporter 只推送 failed 中 event_id 大于服务端水位线的记录。"""
     sqlite_path = tmp_path / "fallback.sqlite3"
-    replace_records(
+    appended = append_records(
         sqlite_path,
         [
             {
@@ -219,6 +220,7 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(tmp_path) -> None
             },
         ],
     )
+    assert appended == 3
 
     graph = FakeErrorGraph(sqlite_path)
     log_inlet = FakeLogInlet()

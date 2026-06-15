@@ -21,11 +21,11 @@ from fastapi.templating import (
 
 from ..persistence.util_sqlite import (
     append_records,
+    clear_records,
     connect_db,
     get_max_event_id_in_fail,
     load_records,
     query_records,
-    replace_records,
 )
 from .routes import create_router
 from .util_cal import cal_interval
@@ -139,7 +139,7 @@ class TaskWebServer:
             self.analysis_store = {}
             self.store_revs["analysis"] += 1
         with self.errors_lock:
-            replace_records(self.records_db_path, [])
+            clear_records(self.records_db_path)
             self.store_revs["errors"] += 1
 
     def sync_graph_context(self, graph_id: str) -> bool:
@@ -213,9 +213,6 @@ class TaskWebServer:
     ) -> None:
         """
         原子更新错误缓存及其版本号。
-
-        当 ``append`` 为 ``True`` 时，只向现有 sqlite 错误缓存追加新错误；
-        否则将以给定错误列表整体替换当前缓存。
 
         :param errors: 待写入的错误记录列表
         :return: None
