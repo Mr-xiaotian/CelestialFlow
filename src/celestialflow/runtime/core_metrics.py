@@ -15,7 +15,6 @@ class TaskMetrics:
     """
 
     lock: Lock
-    execution_mode: str
     enable_duplicate_check: bool
     retry_exceptions: tuple[type[Exception], ...]
     task_counter: SumCounter
@@ -27,16 +26,13 @@ class TaskMetrics:
     # ==== 初始化 ====
     def __init__(
         self,
-        execution_mode: str,
         enable_duplicate_check: bool = False,
     ):
         """
         初始化 TaskMetrics
 
-        :param execution_mode: 任务执行模式，可选值为 "serial", "thread" 或 "async"
         :param enable_duplicate_check: 是否启用重复任务检查，默认值为 False
         """
-        self.execution_mode = execution_mode
         self.enable_duplicate_check = enable_duplicate_check
         self.retry_exceptions = ()
 
@@ -72,14 +68,6 @@ class TaskMetrics:
         - processed_set：用于重复检测
         """
         self.processed_set = set()  # task_hash
-
-    def set_execution_mode(self, execution_mode: str) -> None:
-        """
-        设置任务执行模式
-
-        :param execution_mode: 任务执行模式，可选值为 "serial", "thread" 或 "async"
-        """
-        self.execution_mode = execution_mode
 
     # ==== 去重 ====
     def is_duplicate(self, task_hash: bytes) -> bool:

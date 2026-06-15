@@ -117,7 +117,6 @@ class TaskExecutor[T, R]:
         初始化任务指标
         """
         self.metrics = TaskMetrics(
-            execution_mode=self.execution_mode,
             enable_duplicate_check=self.enable_duplicate_check,
         )
 
@@ -243,9 +242,6 @@ class TaskExecutor[T, R]:
             raise ConfigurationError(
                 f"execution_mode is 'async' but '{self.func.__name__}' is not a coroutine function"
             )
-
-        if hasattr(self, "metrics"):
-            self.metrics.set_execution_mode(execution_mode)
 
     def set_ctree(
         self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778
