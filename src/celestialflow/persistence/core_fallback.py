@@ -14,7 +14,7 @@ from .util_sqlite import (
     connect_db,
     delete_record_by_event_id,
     insert_record,
-    load_task_records,
+    load_task_error_records,
     promote_record_to_failed_by_event_id,
     update_record_event_id_by_event_id,
 )
@@ -104,7 +104,7 @@ class FallbackSpout(BaseSpout):
             self._conn.close()
             self._conn = None
 
-    def get_fallback_pairs(self) -> list[tuple[Any, PersistedFallbackRecord]]:
+    def get_task_error_pairs(self) -> list[tuple[Any, PersistedFallbackRecord]]:
         """
         从 sqlite 文件中读取所有错误记录
 
@@ -112,7 +112,7 @@ class FallbackSpout(BaseSpout):
         """
         if self.db_path is None:
             return []
-        return load_task_records(str(self.db_path))
+        return load_task_error_records(str(self.db_path))
 
 
 class FallbackInlet(BaseInlet):

@@ -79,7 +79,7 @@ class TestExecutorSerial:
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 2
 
-        fallback_pairs = dict(executor.get_fallback_pairs())
+        fallback_pairs = dict(executor.get_task_error_pairs())
         assert fallback_pairs[-1].error_type == "ValueError"
         assert "negative value: -1" in fallback_pairs[-1].error_message
         assert fallback_pairs[-2].stage == executor.get_name()
@@ -231,7 +231,7 @@ class TestExecutorSuccessCache:
         )
         executor.start([1, 2, 3])
 
-        pairs = executor.get_success_pairs()
+        pairs = executor.get_task_result_pairs()
         result_dict = dict(pairs)
         assert result_dict[1] == 2
         assert result_dict[2] == 3

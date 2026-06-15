@@ -244,10 +244,10 @@ class TestDispatchSerial:
         assert item_b.prev == 3
         assert item_a.id != item_b.id
         wait_until(
-            lambda: executor.get_success_pairs() == [(3, 9)],
+            lambda: executor.get_task_result_pairs() == [(3, 9)],
             message="timeout waiting for success_spout to cache success result",
         )
-        assert executor.get_success_pairs() == [(3, 9)]
+        assert executor.get_task_result_pairs() == [(3, 9)]
 
 
 # ── thread ─────────────────────────────────────────────

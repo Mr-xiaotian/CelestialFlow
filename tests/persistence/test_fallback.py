@@ -30,7 +30,7 @@ class TestFailPersistence:
         assert spout.db_path.exists()
         assert spout.db_path.suffix == ".sqlite3"
 
-        pairs = spout.get_fallback_pairs()
+        pairs = spout.get_task_error_pairs()
         assert len(pairs) == 1
         assert pairs[0][0] == 'data1'
         assert pairs[0][1].error_type == 'ValueError'

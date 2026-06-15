@@ -160,6 +160,81 @@ def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
     return True
 
 
+def promote_record_to_failed_by_event_id(
+    conn: sqlite3.Connection,
+    event_id: int,
+    new_event_id: int,
+    *,
+    error_ts: float | None = None,
+    error_type: str = "",
+    error_message: str = "",
+) -> bool:
+    """
+    在给定连接上按 ``event_id`` 将记录晋升为 failed，并切换到新的事件 ID。
+
+    :param conn: 已建立的 sqlite 连接
+    :param event_id: 当前事件 ID
+    :param new_event_id: 晋升 failed 后的新事件 ID
+    :param error_ts: 错误时间戳，默认 ``None``
+    :param error_type: 错误类型，默认空字符串
+    :param error_message: 错误消息，默认空字符串
+    :return: 是否更新到记录
+    :rtype: bool
+    """
+    cursor = conn.execute(
+        """
+        UPDATE records
+        SET event_id = ?, status = 'failed', error_ts = ?, error_type = ?, error_message = ?
+        WHERE event_id = ?
+        """,
+        [int(new_event_id), error_ts, error_type, error_message, int(event_id)],
+    )
+    return cursor.rowcount > 0
+
+
+def update_record_event_id_by_event_id(
+    conn: sqlite3.Connection,
+    event_id: int,
+    new_event_id: int,
+) -> bool:
+    """
+    在给定连接上按 ``event_id`` 更新记录的 ``event_id``。
+
+    该操作用于任务重试时，将待处理记录绑定到新的运行事件 ID。
+
+    :param conn: 已建立的 sqlite 连接
+    :param event_id: 旧事件 ID
+    :param new_event_id: 新事件 ID
+    :return: 是否更新到记录
+    :rtype: bool
+    """
+    cursor = conn.execute(
+        """
+        UPDATE records
+        SET event_id = ?
+        WHERE event_id = ?
+        """,
+        [int(new_event_id), int(event_id)],
+    )
+    return cursor.rowcount > 0
+
+
+def delete_record_by_event_id(conn: sqlite3.Connection, event_id: int) -> bool:
+    """
+    在给定连接上按 ``event_id`` 删除记录。
+
+    :param conn: 已建立的 sqlite 连接
+    :param event_id: 待删除的事件 ID
+    :return: 是否删除到记录
+    :rtype: bool
+    """
+    cursor = conn.execute(
+        "DELETE FROM records WHERE event_id = ?",
+        [int(event_id)],
+    )
+    return cursor.rowcount > 0
+
+
 # ==== 自持完整 conn 生命周期的读写函数 ====
 
 def replace_records(
@@ -250,81 +325,6 @@ def load_records(
         return [row_to_record_dict(row) for row in rows]
     finally:
         conn.close()
-
-
-def promote_record_to_failed_by_event_id(
-    conn: sqlite3.Connection,
-    event_id: int,
-    new_event_id: int,
-    *,
-    error_ts: float | None = None,
-    error_type: str = "",
-    error_message: str = "",
-) -> bool:
-    """
-    在给定连接上按 ``event_id`` 将记录晋升为 failed，并切换到新的事件 ID。
-
-    :param conn: 已建立的 sqlite 连接
-    :param event_id: 当前事件 ID
-    :param new_event_id: 晋升 failed 后的新事件 ID
-    :param error_ts: 错误时间戳，默认 ``None``
-    :param error_type: 错误类型，默认空字符串
-    :param error_message: 错误消息，默认空字符串
-    :return: 是否更新到记录
-    :rtype: bool
-    """
-    cursor = conn.execute(
-        """
-        UPDATE records
-        SET event_id = ?, status = 'failed', error_ts = ?, error_type = ?, error_message = ?
-        WHERE event_id = ?
-        """,
-        [int(new_event_id), error_ts, error_type, error_message, int(event_id)],
-    )
-    return cursor.rowcount > 0
-
-
-def update_record_event_id_by_event_id(
-    conn: sqlite3.Connection,
-    event_id: int,
-    new_event_id: int,
-) -> bool:
-    """
-    在给定连接上按 ``event_id`` 更新记录的 ``event_id``。
-
-    该操作用于任务重试时，将待处理记录绑定到新的运行事件 ID。
-
-    :param conn: 已建立的 sqlite 连接
-    :param event_id: 旧事件 ID
-    :param new_event_id: 新事件 ID
-    :return: 是否更新到记录
-    :rtype: bool
-    """
-    cursor = conn.execute(
-        """
-        UPDATE records
-        SET event_id = ?
-        WHERE event_id = ?
-        """,
-        [int(new_event_id), int(event_id)],
-    )
-    return cursor.rowcount > 0
-
-
-def delete_record_by_event_id(conn: sqlite3.Connection, event_id: int) -> bool:
-    """
-    在给定连接上按 ``event_id`` 删除记录。
-
-    :param conn: 已建立的 sqlite 连接
-    :param event_id: 待删除的事件 ID
-    :return: 是否删除到记录
-    :rtype: bool
-    """
-    cursor = conn.execute(
-        "DELETE FROM records WHERE event_id = ?",
-        [int(event_id)],
-    )
-    return cursor.rowcount > 0
 
 
 def get_event_ids(db_path: str | Path) -> list[int]:
@@ -455,7 +455,7 @@ def query_records(
         conn.close()
 
 
-def load_task_records(db_path: str | Path) -> list[tuple[Any, PersistedFallbackRecord]]:
+def load_task_error_records(db_path: str | Path) -> list[tuple[Any, PersistedFallbackRecord]]:
     """
     自行创建并关闭连接，读取数据库并返回任务与记录的配对列表。
 

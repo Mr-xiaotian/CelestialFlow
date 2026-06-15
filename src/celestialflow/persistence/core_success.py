@@ -35,7 +35,7 @@ class SuccessSpout[T, R](BaseSpout):
         task = cast(T, success_record.prev)
         self.success_pairs.append((task, result))
 
-    def get_success_pairs(self) -> list[tuple[T, R]]:
+    def get_task_result_pairs(self) -> list[tuple[T, R]]:
         """
         获取成功任务与结果的 pair 列表
 

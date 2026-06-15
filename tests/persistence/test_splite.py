@@ -10,7 +10,7 @@ from celestialflow.persistence.util_sqlite import (
     insert_record,
     load_records,
     load_records_by_event_ids,
-    load_task_records,
+    load_task_error_records,
     normalize_record,
     query_records,
     replace_records,
@@ -231,11 +231,11 @@ class TestSpliteUtils:
         assert deleted is True
         assert [item["event_id"] for item in load_records(sqlite_path)] == [1, 3]
 
-    def test_load_task_records_and_grouping(self, sqlite_path, sample_errors):
+    def test_load_task_error_records_and_grouping(self, sqlite_path, sample_errors):
         """测试任务-错误配对读取以及按 stage 聚合。"""
         replace_records(sqlite_path, sample_errors)
 
-        pairs = load_task_records(sqlite_path)
+        pairs = load_task_error_records(sqlite_path)
         assert len(pairs) == 3
         assert pairs[0][0] == {"id": 1, "label": "TaskOne"}
         assert pairs[0][1].error_type == "ValueError"

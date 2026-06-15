@@ -19,13 +19,13 @@ class TestSuccessPersistence:
             spout.get_queue().put(env1)
             spout.get_queue().put(env2)
             wait_until(
-                lambda: len(spout.get_success_pairs()) == 2,
+                lambda: len(spout.get_task_result_pairs()) == 2,
                 message='timeout waiting for success_spout to process records',
             )
         finally:
             spout.stop()
 
-        pairs = spout.get_success_pairs()
+        pairs = spout.get_task_result_pairs()
         assert len(pairs) == 2
         assert pairs[0] == ('task1', 100)
         assert pairs[1] == ('task2', 200)

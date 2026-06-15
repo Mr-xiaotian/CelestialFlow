@@ -5,7 +5,6 @@ import asyncio
 import inspect
 import os
 import time
-from collections import defaultdict
 from collections.abc import Awaitable, Callable, Iterable
 from queue import Queue as ThreadQueue
 from typing import Any
@@ -416,33 +415,6 @@ class TaskExecutor[T, R]:
         self._notify("on_tasks_added", self.metrics.get_task_count() - progress_num)
         self.put_signal()
 
-    def process_result_dict(self) -> dict[T, R | str]:
-        """
-        处理结果列表。可根据需要覆写
-
-        :return: 处理后的结果列表
-        """
-        result_dict: dict[T, R | str] = {}
-        for task, result in self.get_success_pairs():
-            result_dict[task] = result
-        for task, fallback in self.get_fallback_pairs():
-            result_dict[task] = str(fallback)
-        return result_dict
-
-    def handle_fallback_dict(self) -> dict[tuple[str, str], list[T]]:
-        """
-        处理错误字典。可根据需要覆写
-
-        在这个示例中，我们将列表合并为错误组
-
-        :return: 按 (error_type, error_message) 分组的任务列表
-        """
-        fallback_groups: defaultdict[tuple[str, str], list[T]] = defaultdict(list)
-        for task, fallback in self.get_fallback_pairs():
-            fallback_groups[fallback.get_group_key()].append(task)
-
-        return dict(fallback_groups)  # 转换回普通字典
-
     def _get_task_repr(self, task: T) -> str:
         """
         获取任务对象的可读字符串表示
@@ -694,18 +666,18 @@ class TaskExecutor[T, R]:
             self._finish_start(start_time)
 
     # ==== 结果获取 ====
-    def get_success_pairs(self) -> list[tuple[T, R]]:
+    def get_task_result_pairs(self) -> list[tuple[T, R]]:
         """
         获取成功任务的列表
 
         :return: (task, result) 元组列表
         """
-        return self.success_spout.get_success_pairs()
+        return self.success_spout.get_task_result_pairs()
 
-    def get_fallback_pairs(self) -> list[tuple[Any, PersistedFallbackRecord]]:
+    def get_task_error_pairs(self) -> list[tuple[Any, PersistedFallbackRecord]]:
         """
         获取出错任务的列表
 
         :return: (task, error_record) 元组列表
         """
-        return self.fallback_spout.get_fallback_pairs()
+        return self.fallback_spout.get_task_error_pairs()
