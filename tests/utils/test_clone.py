@@ -18,12 +18,14 @@ class TestUtilClone:
             name="test_exec",
             func=lambda x: x,
             execution_mode="thread",
+            persist_result=True,
         )
         cloned = clone_executor(executor)
 
         assert cloned.get_name() == executor.get_name()
         assert cloned.func is executor.func
         assert cloned.execution_mode == executor.execution_mode
+        assert cloned.persist_result == executor.persist_result
 
     def test_clone_executor_different_object(self):
         """克隆返回的是不同对象。"""

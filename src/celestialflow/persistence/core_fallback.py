@@ -233,7 +233,6 @@ class FallbackInlet(BaseInlet):
 
     def task_fail(
         self,
-        stage_name: str,
         event_id: int,
         error_id: int,
         error: Exception,
@@ -241,7 +240,6 @@ class FallbackInlet(BaseInlet):
         """
         将 pending 记录晋升为 failed，并绑定最终的 error_id。
 
-        :param stage_name: 阶段唯一名称
         :param event_id: 当前任务事件 ID
         :param error_id: 最终错误事件 ID
         :param error: 错误信息
@@ -251,7 +249,6 @@ class FallbackInlet(BaseInlet):
         error_message = str(error)
         fail_item = {
             "__op__": "promote_failed",
-            "stage": stage_name,
             "event_id": event_id,
             "error_id": error_id,
             "error_type": error_type,

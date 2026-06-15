@@ -16,7 +16,7 @@ class TestFailPersistence:
         try:
             inlet.task_in('s1', event_id=1, task='data1')
             inlet.task_retry(event_id=1, retry_id=11)
-            inlet.task_fail('s1', event_id=11, error_id=21, error=ValueError('oops'))
+            inlet.task_fail(event_id=11, error_id=21, error=ValueError('oops'))
 
             inlet.task_in('s2', event_id=2, task='data2')
             inlet.task_success(event_id=2, result='ok2', persist=True)

@@ -540,7 +540,7 @@ class TaskExecutor[T, R]:
 
         self.metrics.add_error_count()
 
-        self.fallback_inlet.task_fail(self.get_name(), task_id, error_id, exception)
+        self.fallback_inlet.task_fail(task_id, error_id, exception)
         self.log_inlet.task_error(
             self.get_func_name(),
             self._get_task_repr(task),
