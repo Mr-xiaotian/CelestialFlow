@@ -253,93 +253,78 @@ def load_records(
 
 
 def promote_record_to_failed_by_event_id(
-    db_path: str | Path,
+    conn: sqlite3.Connection,
     event_id: int,
-    status: str,
+    new_event_id: int,
     *,
     error_ts: float | None = None,
     error_type: str = "",
     error_message: str = "",
 ) -> bool:
     """
-    自行创建并关闭连接，按 ``event_id`` 更新记录状态与错误信息。
+    在给定连接上按 ``event_id`` 将记录晋升为 failed，并切换到新的事件 ID。
 
-    :param db_path: sqlite 数据库文件路径
-    :param event_id: 事件 ID
-    :param status: 目标状态
+    :param conn: 已建立的 sqlite 连接
+    :param event_id: 当前事件 ID
+    :param new_event_id: 晋升 failed 后的新事件 ID
     :param error_ts: 错误时间戳，默认 ``None``
     :param error_type: 错误类型，默认空字符串
     :param error_message: 错误消息，默认空字符串
     :return: 是否更新到记录
     :rtype: bool
     """
-    conn = connect_db(db_path)
-    try:
-        cursor = conn.execute(
-            """
-            UPDATE records
-            SET status = ?, error_ts = ?, error_type = ?, error_message = ?
-            WHERE event_id = ?
-            """,
-            [status, error_ts, error_type, error_message, int(event_id)],
-        )
-        conn.commit()
-        return cursor.rowcount > 0
-    finally:
-        conn.close()
+    cursor = conn.execute(
+        """
+        UPDATE records
+        SET event_id = ?, status = 'failed', error_ts = ?, error_type = ?, error_message = ?
+        WHERE event_id = ?
+        """,
+        [int(new_event_id), error_ts, error_type, error_message, int(event_id)],
+    )
+    return cursor.rowcount > 0
 
 
 def update_record_event_id_by_event_id(
-    db_path: str | Path,
+    conn: sqlite3.Connection,
     event_id: int,
     new_event_id: int,
 ) -> bool:
     """
-    自行创建并关闭连接，按 ``event_id`` 更新记录的 ``event_id``。
+    在给定连接上按 ``event_id`` 更新记录的 ``event_id``。
 
     该操作用于任务重试时，将待处理记录绑定到新的运行事件 ID。
 
-    :param db_path: sqlite 数据库文件路径
+    :param conn: 已建立的 sqlite 连接
     :param event_id: 旧事件 ID
     :param new_event_id: 新事件 ID
     :return: 是否更新到记录
     :rtype: bool
     """
-    conn = connect_db(db_path)
-    try:
-        cursor = conn.execute(
-            """
-            UPDATE records
-            SET event_id = ?
-            WHERE event_id = ?
-            """,
-            [int(new_event_id), int(event_id)],
-        )
-        conn.commit()
-        return cursor.rowcount > 0
-    finally:
-        conn.close()
+    cursor = conn.execute(
+        """
+        UPDATE records
+        SET event_id = ?
+        WHERE event_id = ?
+        """,
+        [int(new_event_id), int(event_id)],
+    )
+    return cursor.rowcount > 0
 
 
-def delete_record_by_event_id(db_path: str | Path, event_id: int) -> bool:
+def delete_record_by_event_id(conn: sqlite3.Connection, event_id: int) -> bool:
     """
-    自行创建并关闭连接，按 ``event_id`` 删除记录。
+    在给定连接上按 ``event_id`` 删除记录。
 
-    :param db_path: sqlite 数据库文件路径
+    :param conn: 已建立的 sqlite 连接
     :param event_id: 待删除的事件 ID
     :return: 是否删除到记录
     :rtype: bool
     """
-    conn = connect_db(db_path)
-    try:
-        cursor = conn.execute(
-            "DELETE FROM records WHERE event_id = ?",
-            [int(event_id)],
-        )
-        conn.commit()
-        return cursor.rowcount > 0
-    finally:
-        conn.close()
+    cursor = conn.execute(
+        "DELETE FROM records WHERE event_id = ?",
+        [int(event_id)],
+    )
+    return cursor.rowcount > 0
 
 
 def get_event_ids(db_path: str | Path) -> list[int]:

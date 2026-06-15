@@ -376,6 +376,7 @@ class TaskExecutor[T, R]:
         envelope: TaskEnvelope[T, None] = TaskEnvelope(task, input_id)
         self.task_queue.put(envelope)
         self.metrics.add_task_count()
+        self.fallback_inlet.task_in(self.get_name(), input_id, task)
         self.log_inlet.task_input(
             self.get_func_name(),
             self._get_task_repr(task),
@@ -482,6 +483,7 @@ class TaskExecutor[T, R]:
         )
 
         self.metrics.add_success_count()
+        self.fallback_inlet.task_success(task_id)
 
         self.log_inlet.task_success(
             self.get_func_name(),
@@ -494,11 +496,21 @@ class TaskExecutor[T, R]:
         )
 
         for target_name in self.result_queue.target_names:
+            if target_name == "success_spout":
+                result_envelope: TaskEnvelope[R, T] = TaskEnvelope(
+                    task=result,
+                    id=result_id,
+                    prev=task,
+                )
+                self.result_queue.put_target(result_envelope, target_name)
+                continue
+
             downstream_input_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
                 payload=self.get_summary(),
             )
+            self.fallback_inlet.task_in(target_name, downstream_input_id, result)
             downstream_envelope: TaskEnvelope[R, T] = TaskEnvelope(
                 task=result,
                 id=downstream_input_id,
@@ -543,6 +555,7 @@ class TaskExecutor[T, R]:
             task_id,
             retry_id,
         )
+        self.fallback_inlet.task_retry(task_id, retry_id)
 
         return retry_envelope
 
@@ -569,7 +582,7 @@ class TaskExecutor[T, R]:
 
         self.metrics.add_error_count()
 
-        self.fallback_inlet.task_error(self.get_name(), error_id, exception, task)
+        self.fallback_inlet.task_fail(self.get_name(), task_id, error_id, exception)
         self.log_inlet.task_error(
             self.get_func_name(),
             self._get_task_repr(task),
@@ -589,6 +602,7 @@ class TaskExecutor[T, R]:
         task_id = task_envelope.get_id()
 
         self.metrics.add_duplicate_count()
+        self.fallback_inlet.task_duplicate(task_id)
         duplicate_id = self.ctree_client.emit(
             CTreeEvent.TASK_DUPLICATE,
             parents=[task_id],

@@ -169,18 +169,24 @@ class TestSpliteUtils:
         }
         replace_records(sqlite_path, [waiting_record])
 
-        updated = promote_record_to_failed_by_event_id(
-            sqlite_path,
-            9,
-            "failed",
-            error_ts=9.5,
-            error_type="RuntimeError",
-            error_message="boom",
-        )
+        conn = connect_db(sqlite_path)
+        try:
+            updated = promote_record_to_failed_by_event_id(
+                conn,
+                9,
+                19,
+                error_ts=9.5,
+                error_type="RuntimeError",
+                error_message="boom",
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
         assert updated is True
         failed_records = load_records(sqlite_path, "failed")
         assert len(failed_records) == 1
+        assert failed_records[0]["event_id"] == 19
         assert failed_records[0]["status"] == "failed"
         assert failed_records[0]["error_ts"] == 9.5
         assert failed_records[0]["error_type"] == "RuntimeError"
@@ -196,7 +202,12 @@ class TestSpliteUtils:
         }
         replace_records(sqlite_path, [waiting_record])
 
-        updated = update_record_event_id_by_event_id(sqlite_path, 9, 99)
+        conn = connect_db(sqlite_path)
+        try:
+            updated = update_record_event_id_by_event_id(conn, 9, 99)
+            conn.commit()
+        finally:
+            conn.close()
 
         assert updated is True
         pending_records = load_records(sqlite_path, "pending")
@@ -210,7 +221,12 @@ class TestSpliteUtils:
         """测试按 event_id 删除记录。"""
         replace_records(sqlite_path, sample_errors[1:])
 
-        deleted = delete_record_by_event_id(sqlite_path, 2)
+        conn = connect_db(sqlite_path)
+        try:
+            deleted = delete_record_by_event_id(conn, 2)
+            conn.commit()
+        finally:
+            conn.close()
 
         assert deleted is True
         assert [item["event_id"] for item in load_records(sqlite_path)] == [1, 3]

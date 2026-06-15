@@ -121,6 +121,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
 
         split_count = self._put_split_result(result, task_id)
         self.metrics.add_success_count()
+        self.fallback_inlet.task_success(task_id)
         self._update_split_counter(split_count)
 
         self.log_inlet.split_success(
@@ -130,12 +131,17 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
             time.perf_counter() - start_time,
         )
 
-    def _put_split_result(self, result: Iterable[RItem], task_id: int) -> int:
+    def _put_split_result(
+        self,
+        result: Iterable[RItem],
+        task_id: int,
+    ) -> int:
         """
         将 split 结果放入队列，并发出对应事件
 
         :param result: split 的结果，必须是一个可迭代对象
         :param task_id: 原始任务 ID，用于事件关联
+        :param task: 原始任务对象
         :return: split 的子任务数量
         """
         result_queue = cast(TaskOutQueue[RItem], self.result_queue)
@@ -148,11 +154,28 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
                 parents=[task_id],
                 payload=self.get_summary(),
             )
-            splitted_envelope: TaskEnvelope[RItem, None] = TaskEnvelope(
-                item,
-                split_id,
-            )
-            result_queue.put(splitted_envelope)
+            for target_name in result_queue.target_names:
+                if target_name == "success_spout":
+                    success_envelope: TaskEnvelope[RItem, Iterable[TItem]] = (
+                        TaskEnvelope(
+                            item,
+                            split_id,
+                        )
+                    )
+                    result_queue.put_target(success_envelope, target_name)
+                    continue
+
+                downstream_input_id = self.ctree_client.emit(
+                    "task.input",
+                    parents=[split_id],
+                    payload=self.get_summary(),
+                )
+                self.fallback_inlet.task_in(target_name, downstream_input_id, item)
+                downstream_envelope: TaskEnvelope[RItem, None] = TaskEnvelope(
+                    item,
+                    downstream_input_id,
+                )
+                result_queue.put_target(downstream_envelope, target_name)
 
             self.log_inlet.split_trace(
                 self.get_func_name(),
@@ -257,13 +280,8 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
             parents=[task_id],
             payload=self.get_summary(),
         )
-        routed_envelope: TaskEnvelope[T, None] = TaskEnvelope(
-            result,
-            route_id,
-        )
-        self.result_queue.put_target(routed_envelope, target)
-
         self.metrics.add_success_count()
+        self.fallback_inlet.task_success(task_id)
         self._update_route_counter(target)
 
         self.log_inlet.route_success(
@@ -274,6 +292,29 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
             task_id,
             route_id,
         )
+
+        for target_name in self.result_queue.target_names:
+            if target_name == "success_spout":
+                success_envelope: TaskEnvelope[T, T] = TaskEnvelope(
+                    result,
+                    route_id,
+                )
+                self.result_queue.put_target(success_envelope, target_name)
+                continue
+            if target_name != target:
+                continue
+
+            downstream_input_id = self.ctree_client.emit(
+                "task.input",
+                parents=[route_id],
+                payload=self.get_summary(),
+            )
+            self.fallback_inlet.task_in(target_name, downstream_input_id, result)
+            downstream_envelope: TaskEnvelope[T, T] = TaskEnvelope(
+                result,
+                downstream_input_id,
+            )
+            self.result_queue.put_target(downstream_envelope, target_name)
 
 
 # ==== TaskRedisTransport ====

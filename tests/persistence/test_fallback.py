@@ -5,8 +5,8 @@ from tests.conftest import wait_until
 
 
 class TestFailPersistence:
-    def test_fail_persistence(self, tmp_path, monkeypatch):
-        """`FallbackInlet`/`FallbackSpout` 应将 fallback 记录持久化到 sqlite。"""
+    def test_fallback_lifecycle_persistence(self, tmp_path, monkeypatch):
+        """`FallbackInlet`/`FallbackSpout` 应按生命周期维护 sqlite 记录。"""
         monkeypatch.chdir(tmp_path)
 
         spout = FallbackSpout(error_source='test_source')
@@ -14,8 +14,15 @@ class TestFailPersistence:
 
         spout.start()
         try:
-            inlet.task_error('s1', err_id=1, error=ValueError('oops'), task='data1')
-            inlet.task_error('s1', err_id=2, error=RuntimeError('fail'), task='data2')
+            inlet.task_in('s1', event_id=1, task='data1')
+            inlet.task_retry(event_id=1, retry_id=11)
+            inlet.task_fail('s1', event_id=11, error_id=21, error=ValueError('oops'))
+
+            inlet.task_in('s2', event_id=2, task='data2')
+            inlet.task_success(event_id=2)
+
+            inlet.task_in('s3', event_id=3, task='data3')
+            inlet.task_duplicate(event_id=3)
         finally:
             spout.stop()
 
@@ -24,21 +31,24 @@ class TestFailPersistence:
         assert spout.db_path.suffix == ".sqlite3"
 
         pairs = spout.get_fallback_pairs()
-        assert len(pairs) == 2
+        assert len(pairs) == 1
         assert pairs[0][0] == 'data1'
         assert pairs[0][1].error_type == 'ValueError'
-        assert pairs[1][0] == 'data2'
-        assert pairs[1][1].error_type == 'RuntimeError'
+        assert pairs[0][1].event_id == 21
+        assert pairs[0][1].stage == 's1'
 
         conn = sqlite3.connect(spout.db_path)
         try:
             rows = conn.execute(
-                "SELECT event_id, status, task_json FROM records ORDER BY id ASC"
+                """
+                SELECT event_id, stage, status, error_type, error_message, task_json
+                FROM records
+                ORDER BY id ASC
+                """
             ).fetchall()
         finally:
             conn.close()
 
         assert rows == [
-            (1, "failed", '"data1"'),
-            (2, "failed", '"data2"'),
+            (21, "s1", "failed", "ValueError", "oops", '"data1"'),
         ]
