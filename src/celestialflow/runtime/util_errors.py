@@ -218,6 +218,28 @@ class ReporterError(CelestialFlowError):
     pass
 
 
+class PersistedError(CelestialFlowError):
+    """从持久化层恢复出的错误摘要对象。"""
+
+    error_type: str
+    error_message: str
+
+    def __init__(self, error_type: str, error_message: str) -> None:
+        """
+        初始化持久化错误对象。
+
+        :param error_type: 错误类型名称
+        :param error_message: 错误消息
+        """
+        super().__init__(error_message)
+        self.error_type = error_type
+        self.error_message = error_message
+
+    def __str__(self) -> str:
+        """返回 ``ErrorType(message)`` 形式的紧凑表示。"""
+        return f"{self.error_type}({self.error_message})"
+
+
 class CelestialTreeConnectionError(CelestialFlowError):
     """CelestialTree 客户端连接失败"""
 

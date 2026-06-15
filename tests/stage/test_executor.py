@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 
 from celestialflow import TaskExecutor
-from celestialflow.runtime.util_errors import ExecutionModeError
+from celestialflow.runtime.util_errors import ExecutionModeError, PersistedError
 
 
 def build_result_dict(executor: TaskExecutor[Any, Any]) -> dict[Any, Any]:
@@ -11,8 +11,8 @@ def build_result_dict(executor: TaskExecutor[Any, Any]) -> dict[Any, Any]:
     result_dict = {}
     if executor.persist_result:
         result_dict.update(dict(executor.get_success_pairs()))
-    for task, error in executor.get_fail_pairs():
-        result_dict[task] = f"{error[0]}({error[1]})"
+    for task, error in executor.get_error_pairs():
+        result_dict[task] = str(error)
     return result_dict
 
 
@@ -79,10 +79,11 @@ class TestExecutorSerial:
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 2
 
-        fallback_pairs = dict(executor.get_fail_pairs())
-        assert fallback_pairs[-1][0] == "ValueError"
-        assert "negative value: -1" in fallback_pairs[-1][1]
-        assert fallback_pairs[-2][0] == "ValueError"
+        fallback_pairs = dict(executor.get_error_pairs())
+        assert isinstance(fallback_pairs[-1], PersistedError)
+        assert fallback_pairs[-1].error_type == "ValueError"
+        assert "negative value: -1" in fallback_pairs[-1].error_message
+        assert fallback_pairs[-2].error_type == "ValueError"
 
     def test_serial_retry(self):
         """测试串行执行器的重试机制"""

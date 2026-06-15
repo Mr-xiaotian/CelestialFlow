@@ -27,7 +27,7 @@ from ..runtime import (
     TaskMetrics,
     TaskOutQueue,
 )
-from ..runtime.util_errors import ConfigurationError, ExecutionModeError
+from ..runtime.util_errors import ConfigurationError, ExecutionModeError, PersistedError
 from ..runtime.util_types import (
     CTreeEvent,
     TerminationSignal,
@@ -670,10 +670,14 @@ class TaskExecutor[T, R]:
             return []
         return self.fallback_spout.get_task_result_pairs(self.get_name())
 
-    def get_fail_pairs(self) -> list[tuple[T, tuple[str, str]]]:
+    def get_error_pairs(self) -> list[tuple[T, PersistedError]]:
         """
         获取出错任务的列表
 
-        :return: (task, (error_type, error_message)) 元组列表
+        :return: (task, PersistedError) 元组列表
         """
-        return self.fallback_spout.get_task_error_pairs(self.get_name())
+        task_error_pairs = self.fallback_spout.get_task_error_pairs(self.get_name())
+        return [
+            (task, PersistedError(error_type, error_message))
+            for task, (error_type, error_message) in task_error_pairs
+        ]
