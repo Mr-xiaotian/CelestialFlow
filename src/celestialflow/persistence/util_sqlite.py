@@ -56,16 +56,10 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
 
     # 为常用查询条件建立索引，减少筛选和排序开销。
     _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_records_error_ts ON records(error_ts)"
-    )
-    _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_records_stage_error_ts ON records(stage, error_ts)"
-    )
-    _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_records_type_error_ts ON records(error_type, error_ts)"
-    )
-    _ = conn.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_records_event_id ON records(event_id)"
+    )
+    _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_records_status_id ON records(status, id)"
     )
     conn.commit()
 

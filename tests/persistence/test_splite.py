@@ -82,10 +82,8 @@ class TestSpliteUtils:
             conn.close()
 
         assert "records" in table_names
-        assert "idx_records_error_ts" in index_names
-        assert "idx_records_stage_error_ts" in index_names
-        assert "idx_records_type_error_ts" in index_names
         assert "idx_records_event_id" in index_names
+        assert "idx_records_status_id" in index_names
         assert any(row[1] == "idx_records_event_id" and row[2] == 1 for row in index_list)
         assert any(row[1] == "result_json" for row in result_info)
 
