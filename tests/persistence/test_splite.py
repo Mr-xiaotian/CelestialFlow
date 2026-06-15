@@ -14,7 +14,8 @@ from celestialflow.persistence.util_sqlite import (
     normalize_record,
     query_records,
     replace_records,
-    update_record_status_by_event_id,
+    promote_record_to_failed_by_event_id,
+    update_record_event_id_by_event_id,
 )
 
 
@@ -158,7 +159,7 @@ class TestSpliteUtils:
         selected = load_records_by_event_ids(sqlite_path, [3, 1])
         assert [item["event_id"] for item in selected] == [1, 3]
 
-    def test_update_record_status_by_event_id(self, sqlite_path, sample_errors):
+    def test_promote_record_to_failed_by_event_id(self, sqlite_path, sample_errors):
         """测试按 event_id 更新记录状态与错误信息。"""
         waiting_record = {
             "event_id": 9,
@@ -168,7 +169,7 @@ class TestSpliteUtils:
         }
         replace_records(sqlite_path, [waiting_record])
 
-        updated = update_record_status_by_event_id(
+        updated = promote_record_to_failed_by_event_id(
             sqlite_path,
             9,
             "failed",
@@ -184,6 +185,26 @@ class TestSpliteUtils:
         assert failed_records[0]["error_ts"] == 9.5
         assert failed_records[0]["error_type"] == "RuntimeError"
         assert failed_records[0]["error_message"] == "boom"
+
+    def test_update_record_event_id_by_event_id(self, sqlite_path):
+        """测试按 event_id 迁移记录的 event_id。"""
+        waiting_record = {
+            "event_id": 9,
+            "stage": "s9",
+            "status": "pending",
+            "task": {"value": 9},
+        }
+        replace_records(sqlite_path, [waiting_record])
+
+        updated = update_record_event_id_by_event_id(sqlite_path, 9, 99)
+
+        assert updated is True
+        pending_records = load_records(sqlite_path, "pending")
+        assert len(pending_records) == 1
+        assert pending_records[0]["event_id"] == 99
+        assert pending_records[0]["status"] == "pending"
+        assert pending_records[0]["error_type"] == ""
+        assert pending_records[0]["error_message"] == ""
 
     def test_delete_record_by_event_id(self, sqlite_path, sample_errors):
         """测试按 event_id 删除记录。"""
@@ -204,4 +225,3 @@ class TestSpliteUtils:
         assert pairs[0][1].error_type == "ValueError"
         assert pairs[1][0] == ["A", "B"]
         assert str(pairs[1][1]) == "RuntimeError(boom happened)"
-

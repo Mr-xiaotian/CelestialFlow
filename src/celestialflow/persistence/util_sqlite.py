@@ -252,7 +252,7 @@ def load_records(
         conn.close()
 
 
-def update_record_status_by_event_id(
+def promote_record_to_failed_by_event_id(
     db_path: str | Path,
     event_id: int,
     status: str,
@@ -282,6 +282,38 @@ def update_record_status_by_event_id(
             WHERE event_id = ?
             """,
             [status, error_ts, error_type, error_message, int(event_id)],
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
+def update_record_event_id_by_event_id(
+    db_path: str | Path,
+    event_id: int,
+    new_event_id: int,
+) -> bool:
+    """
+    自行创建并关闭连接，按 ``event_id`` 更新记录的 ``event_id``。
+
+    该操作用于任务重试时，将待处理记录绑定到新的运行事件 ID。
+
+    :param db_path: sqlite 数据库文件路径
+    :param event_id: 旧事件 ID
+    :param new_event_id: 新事件 ID
+    :return: 是否更新到记录
+    :rtype: bool
+    """
+    conn = connect_db(db_path)
+    try:
+        cursor = conn.execute(
+            """
+            UPDATE records
+            SET event_id = ?
+            WHERE event_id = ?
+            """,
+            [int(new_event_id), int(event_id)],
         )
         conn.commit()
         return cursor.rowcount > 0
