@@ -95,7 +95,7 @@ class TaskDispatch[T, R]:
         return signal
 
     # ==== Worker ====
-    def _worker(self, task_envelope: TaskEnvelope[T, R]) -> None:
+    def _worker(self, task_envelope: TaskEnvelope[R]) -> None:
         """
         同步执行单个任务（计时、成功/失败处理）
 
@@ -122,7 +122,7 @@ class TaskDispatch[T, R]:
                     task_envelope, exception, retry_time + 1
                 )
 
-    async def _async_worker(self, task_envelope: TaskEnvelope[T, R]) -> None:
+    async def _async_worker(self, task_envelope: TaskEnvelope[R]) -> None:
         """
         异步执行单个任务（计时、成功/失败处理）
 

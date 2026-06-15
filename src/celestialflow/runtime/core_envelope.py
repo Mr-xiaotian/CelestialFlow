@@ -4,29 +4,25 @@ from __future__ import annotations
 from .util_hash import object_to_hash
 
 
-class TaskEnvelope[T, TPrev]:
+class TaskEnvelope[T]:
     """任务信封，封装原始任务及其哈希、ID 等元信息。"""
 
-    __slots__: tuple[str, ...] = ("hash", "id", "prev", "task")
+    __slots__: tuple[str, ...] = ("hash", "id", "task")
 
     def __init__(
         self,
         task: T,
         id: int,
-        prev: TPrev | None = None,
     ):
         """
         初始化任务信封。
 
         :param task: 原始任务
         :param id: 任务 ID
-        :param prev: 前一个任务（用于结果缓存时回溯），默认 None
         """
         self.task: T = task
         self.hash: bytes | None = None
         self.id: int = id
-
-        self.prev: TPrev | None = prev
 
     def get_task(self) -> T:
         """
@@ -62,11 +58,3 @@ class TaskEnvelope[T, TPrev]:
         :return: 任务 ID
         """
         return self.id
-
-    def get_prev(self) -> TPrev | None:
-        """
-        获取前一个任务（用于结果缓存时回溯）
-
-        :return: 前一个任务
-        """
-        return self.prev

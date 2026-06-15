@@ -242,8 +242,6 @@ class TestDispatchSerial:
         assert isinstance(item_b, TaskEnvelope)
         assert item_a.task == 9
         assert item_b.task == 9
-        assert item_a.prev == 3
-        assert item_b.prev == 3
         assert item_a.id != item_b.id
         wait_until(
             lambda: executor.get_success_pairs() == [(3, 9)],

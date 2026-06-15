@@ -369,7 +369,7 @@ class TaskExecutor[T, R]:
             CTreeEvent.TASK_INPUT,
             payload=self.get_summary(),
         )
-        envelope: TaskEnvelope[T, None] = TaskEnvelope(task, input_id)
+        envelope: TaskEnvelope[T] = TaskEnvelope(task, input_id)
         self.task_queue.put(envelope)
         self.metrics.add_task_count()
         self.fallback_inlet.task_in(self.get_name(), input_id, task)
@@ -432,7 +432,7 @@ class TaskExecutor[T, R]:
 
     # ==== 结果处理 ====
     def process_task_success(
-        self, task_envelope: TaskEnvelope[T, R], result: R, start_time: float
+        self, task_envelope: TaskEnvelope[T], result: R, start_time: float
     ) -> None:
         """
         统一处理成功任务
@@ -471,19 +471,18 @@ class TaskExecutor[T, R]:
                 payload=self.get_summary(),
             )
             self.fallback_inlet.task_in(target_name, downstream_input_id, result)
-            downstream_envelope: TaskEnvelope[R, T] = TaskEnvelope(
+            downstream_envelope: TaskEnvelope[R] = TaskEnvelope(
                 task=result,
                 id=downstream_input_id,
-                prev=task,
             )
             self.result_queue.put_target(downstream_envelope, target_name)
 
     def emit_retry_envelope(
         self,
-        task_envelope: TaskEnvelope[T, R],
+        task_envelope: TaskEnvelope[T],
         exception: Exception,
         retry_time: int,
-    ) -> TaskEnvelope[T, R]:
+    ) -> TaskEnvelope[T]:
         """
         为重试任务生成新的信封 ID 并记录日志
 
@@ -501,10 +500,9 @@ class TaskExecutor[T, R]:
             payload=self.get_summary(),
         )
 
-        retry_envelope: TaskEnvelope[T, Any] = TaskEnvelope(
+        retry_envelope: TaskEnvelope[T] = TaskEnvelope(
             task=task,
             id=retry_id,
-            prev=task_envelope.get_prev(),
         )
 
         self.log_inlet.task_retry(
@@ -521,7 +519,7 @@ class TaskExecutor[T, R]:
 
     def handle_task_fail(
         self,
-        task_envelope: TaskEnvelope[T, R],
+        task_envelope: TaskEnvelope[T],
         exception: Exception,
     ) -> None:
         """
@@ -551,7 +549,7 @@ class TaskExecutor[T, R]:
             error_id,
         )
 
-    def deal_duplicate(self, task_envelope: TaskEnvelope[T, R]) -> None:
+    def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
         """
         处理重复任务
 
