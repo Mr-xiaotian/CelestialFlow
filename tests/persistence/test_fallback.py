@@ -33,9 +33,7 @@ class TestFailPersistence:
         pairs = spout.get_task_error_pairs()
         assert len(pairs) == 1
         assert pairs[0][0] == 'data1'
-        assert pairs[0][1].error_type == 'ValueError'
-        assert pairs[0][1].event_id == 21
-        assert pairs[0][1].stage == 's1'
+        assert pairs[0][1] == ('ValueError', 'oops')
 
         conn = sqlite3.connect(spout.db_path)
         try:

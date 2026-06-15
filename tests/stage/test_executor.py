@@ -6,6 +6,14 @@ from celestialflow import TaskExecutor
 from celestialflow.runtime.util_errors import ExecutionModeError
 
 
+def build_result_dict(executor: TaskExecutor[Any, Any]) -> dict[Any, Any]:
+    """按当前公开接口组装任务到结果/错误字符串的映射。"""
+    result_dict = dict(executor.get_task_result_pairs())
+    for task, error in executor.get_task_error_pairs():
+        result_dict[task] = f"{error[0]}({error[1]})"
+    return result_dict
+
+
 # =========================
 # 快速测试函数（无副作用）
 # =========================
@@ -46,7 +54,7 @@ class TestExecutorSerial:
         tasks = [1, 2, 3, 4, 5]
         executor.start(tasks)
 
-        result_dict = executor.process_result_dict()
+        result_dict = build_result_dict(executor)
         assert result_dict[1] == 2
         assert result_dict[2] == 3
         assert result_dict[3] == 4
@@ -68,7 +76,7 @@ class TestExecutorSerial:
         tasks: list[int] = [1, -1, 2, -2, 3]
         executor.start(tasks)
 
-        result_dict = executor.process_result_dict()
+        result_dict = build_result_dict(executor)
         assert result_dict[1] == 10
         assert result_dict[2] == 20
         assert result_dict[3] == 30
@@ -80,9 +88,9 @@ class TestExecutorSerial:
         assert counts["tasks_failed"] == 2
 
         fallback_pairs = dict(executor.get_task_error_pairs())
-        assert fallback_pairs[-1].error_type == "ValueError"
-        assert "negative value: -1" in fallback_pairs[-1].error_message
-        assert fallback_pairs[-2].stage == executor.get_name()
+        assert fallback_pairs[-1][0] == "ValueError"
+        assert "negative value: -1" in fallback_pairs[-1][1]
+        assert fallback_pairs[-2][0] == "ValueError"
 
     def test_serial_retry(self):
         """测试串行执行器的重试机制"""
@@ -140,7 +148,7 @@ class TestExecutorThread:
         tasks: list[int] = [1, 2, 3, 4, 5]
         executor.start(tasks)
 
-        result_dict = executor.process_result_dict()
+        result_dict = build_result_dict(executor)
         for t in tasks:
             assert result_dict[t] == t * 2
 
@@ -162,7 +170,7 @@ class TestExecutorAsync:
         tasks: list[int] = [10, 20, 30]
         await executor.start_async(tasks)
 
-        result_dict = executor.process_result_dict()
+        result_dict = build_result_dict(executor)
         assert result_dict[10] == 11
         assert result_dict[20] == 21
         assert result_dict[30] == 31
@@ -182,7 +190,7 @@ class TestExecutorAsync:
         tasks = list(range(20))
         await executor.start_async(tasks)
 
-        result_dict = executor.process_result_dict()
+        result_dict = build_result_dict(executor)
         for t in tasks:
             assert result_dict[t] == t * 2
 

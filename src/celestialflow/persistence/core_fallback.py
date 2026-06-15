@@ -9,7 +9,6 @@ from typing import Any, cast
 
 from ..funnel import BaseInlet, BaseSpout
 from ..runtime.util_errors import InitializationError
-from ..runtime.util_types import PersistedFallbackRecord
 from .util_sqlite import (
     connect_db,
     delete_record_by_event_id,
@@ -103,7 +102,7 @@ class FallbackSpout(BaseSpout):
             self._conn.close()
             self._conn = None
 
-    def get_task_error_pairs(self) -> list[tuple[Any, PersistedFallbackRecord]]:
+    def get_task_error_pairs(self) -> list[tuple[Any, tuple[str, str]]]:
         """
         从 sqlite 文件中读取所有错误记录
 

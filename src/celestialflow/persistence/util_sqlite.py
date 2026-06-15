@@ -7,8 +7,6 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from ..runtime.util_types import PersistedFallbackRecord
-
 # ==== 工具函数：不自持完整 conn 生命周期 ====
 
 def connect_db(db_path: str | Path) -> sqlite3.Connection:
@@ -489,13 +487,13 @@ def query_records(
         conn.close()
 
 
-def load_task_error_records(db_path: str | Path) -> list[tuple[Any, PersistedFallbackRecord]]:
+def load_task_error_records(db_path: str | Path) -> list[tuple[Any, tuple[str, str]]]:
     """
     自行创建并关闭连接，读取数据库并返回任务与记录的配对列表。
 
     :param db_path: sqlite 数据库文件路径
     :return: ``[(task, error_record), ...]``
-    :rtype: list[tuple[Any, PersistedFallbackRecord]]
+    :rtype: list[tuple[Any, tuple[str, str]]]]
     """
     conn = connect_db(db_path)
     try:
@@ -511,13 +509,7 @@ def load_task_error_records(db_path: str | Path) -> list[tuple[Any, PersistedFal
         return [
             (
                 _decode_json_column(str(row["task_json"])),
-                PersistedFallbackRecord(
-                    ts=float(row["error_ts"]) if row["error_ts"] is not None else None,
-                    stage=str(row["stage"]),
-                    event_id=int(row["event_id"]),
-                    error_type=str(row["error_type"]),
-                    error_message=str(row["error_message"]),
-                ),
+                (str(row["error_type"]), str(row["error_message"])),
             )
             for row in rows
         ]

@@ -6,7 +6,6 @@ from dataclasses import FrozenInstanceError
 from celestialflow.runtime.util_types import (
     CTreeEvent,
     NoOpContext,
-    PersistedFallbackRecord,
     StageStatus,
     SumCounter,
     TerminationIdPool,
@@ -221,63 +220,6 @@ class TestUtilTypes:
     def test_ctree_event_retry_prefix_ends_with_dot(self):
         """重试前缀以点结尾"""
         assert CTreeEvent.TASK_RETRY_PREFIX.endswith(".")
-
-    # ---- PersistedFallbackRecord ────────────────────────────────────
-
-    def test_persisted_fallback_record_construction(self):
-        """基本构造"""
-        rec = PersistedFallbackRecord(
-            error_type="ValueError",
-            error_message="bad value",
-        )
-        assert rec.error_type == "ValueError"
-        assert rec.error_message == "bad value"
-        assert rec.stage == ""
-        assert rec.event_id is None
-        assert rec.ts is None
-
-    def test_persisted_fallback_record_full(self):
-        """全字段构造"""
-        rec = PersistedFallbackRecord(
-            error_type="RuntimeError",
-            error_message="crash",
-            stage="Stage-1",
-            event_id=42,
-            ts=1704067200.0,
-        )
-        assert rec.stage == "Stage-1"
-        assert rec.event_id == 42
-        assert rec.ts == 1704067200.0
-
-    def test_persisted_fallback_record_frozen(self):
-        """frozen dataclass 不可修改"""
-        rec = PersistedFallbackRecord(
-            error_type="TypeError",
-            error_message="msg",
-        )
-        import pytest
-
-        with pytest.raises(FrozenInstanceError):
-            rec.error_type = "changed"
-
-    def test_persisted_fallback_record_str(self):
-        """__str__ 返回 error_type(error_message)"""
-        rec = PersistedFallbackRecord(
-            error_type="KeyError",
-            error_message="missing",
-        )
-        assert str(rec) == "KeyError(missing)"
-
-    def test_persisted_fallback_record_get_group_key(self):
-        """get_group_key 返回 (error_type, error_message)"""
-        rec = PersistedFallbackRecord(
-            error_type="OSError",
-            error_message="file not found",
-        )
-        key = rec.get_group_key()
-        assert key == ("OSError", "file not found")
-        assert isinstance(key, tuple)
-        assert len(key) == 2
 
 
 # 运行方式：

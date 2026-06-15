@@ -1,7 +1,6 @@
 # runtime/util_types.py
 from __future__ import annotations
 
-from dataclasses import dataclass
 from enum import IntEnum
 from threading import Lock
 from types import TracebackType
@@ -186,37 +185,3 @@ class CTreeEvent:
     TERMINATION_MERGE: str = "termination.merge"
 
 
-@dataclass(frozen=True)
-class PersistedFallbackRecord:
-    """
-    持久化 fallback 记录
-
-    :param error_type: 错误类型名称
-    :param error_message: 错误消息
-    :param stage: 错误所属节点标签
-    :param event_id: 错误事件 ID
-    :param timestamp: 错误时间戳字符串
-    :param ts: 错误时间戳
-    """
-
-    ts: float | None = None
-    stage: str = ""
-    event_id: int | None = None
-    error_type: str = ""
-    error_message: str = ""
-
-    def __str__(self) -> str:
-        """
-        返回错误记录的可读字符串
-
-        :return: 错误展示字符串
-        """
-        return f"{self.error_type}({self.error_message})"
-
-    def get_group_key(self) -> tuple[str, str]:
-        """
-        获取错误分组键
-
-        :return: (error_type, error_message)
-        """
-        return (self.error_type, self.error_message)

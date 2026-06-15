@@ -273,9 +273,9 @@ class TestSpliteUtils:
         pairs = load_task_error_records(sqlite_path)
         assert len(pairs) == 3
         assert pairs[0][0] == {"id": 1, "label": "TaskOne"}
-        assert pairs[0][1].error_type == "ValueError"
+        assert pairs[0][1] == ("ValueError", "bad value")
         assert pairs[1][0] == ["A", "B"]
-        assert str(pairs[1][1]) == "RuntimeError(boom happened)"
+        assert pairs[1][1] == ("RuntimeError", "boom happened")
 
     def test_load_task_result_records(self, sqlite_path):
         """测试任务-结果配对读取。"""

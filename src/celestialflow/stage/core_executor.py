@@ -30,7 +30,6 @@ from ..runtime import (
 from ..runtime.util_errors import ConfigurationError, ExecutionModeError
 from ..runtime.util_types import (
     CTreeEvent,
-    PersistedFallbackRecord,
     TerminationSignal,
 )
 from ..utils.util_format import format_repr
@@ -674,7 +673,7 @@ class TaskExecutor[T, R]:
         """
         return self.success_spout.get_task_result_pairs()
 
-    def get_task_error_pairs(self) -> list[tuple[Any, PersistedFallbackRecord]]:
+    def get_task_error_pairs(self) -> list[tuple[T, tuple[str, str]]]:
         """
         获取出错任务的列表
 
