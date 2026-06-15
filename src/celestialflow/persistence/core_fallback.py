@@ -64,7 +64,7 @@ class FallbackSpout(BaseSpout):
         """
         if self._conn is None:
             raise InitializationError("fail database is not initialized")
-        op = str(record.get("__op__", "insert"))
+        op = str(record["__op__"])
         if op == "insert":
             # 新任务进入某个 stage，写入一条 pending 记录。
             changed = insert_record(self._conn, cast(dict[str, Any], record["record"]))
@@ -89,8 +89,7 @@ class FallbackSpout(BaseSpout):
                 error_message=str(record["error_message"]),
             )
         else:
-            # 兼容未显式声明操作类型的旧写法，按插入记录处理。
-            changed = insert_record(self._conn, record)
+            raise ValueError(f"unsupported fallback operation: {op}")
         if changed:
             self._flush_counter += 1
             if self._flush_counter >= self._flush_every:

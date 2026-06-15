@@ -11,10 +11,12 @@ from celestialflow.persistence.util_sqlite import (
     load_records,
     load_records_by_event_ids,
     load_task_error_records,
+    load_task_result_records,
     normalize_record,
     query_records,
     replace_records,
     promote_record_to_failed_by_event_id,
+    promote_record_to_success_by_event_id,
     update_record_event_id_by_event_id,
 )
 
@@ -74,6 +76,7 @@ class TestSpliteUtils:
                     "SELECT name FROM sqlite_master WHERE type='index'"
                 ).fetchall()
             }
+            result_info = conn.execute("PRAGMA table_info(records)").fetchall()
         finally:
             conn.close()
 
@@ -82,6 +85,7 @@ class TestSpliteUtils:
         assert "idx_records_stage_error_ts" in index_names
         assert "idx_records_type_error_ts" in index_names
         assert "idx_records_event_id" in index_names
+        assert any(row[1] == "result_json" for row in result_info)
 
     def test_normalize_record(self, sample_errors):
         """测试错误记录会被归一化为 sqlite 可写格式。"""
@@ -114,8 +118,10 @@ class TestSpliteUtils:
         assert len(records) == 2
         assert records[0]["id"] == 1
         assert records[0]["task"] == {"id": 1, "label": "TaskOne"}
+        assert records[0]["result"] is None
         assert records[1]["id"] == 2
         assert records[1]["task"] == ["A", "B"]
+        assert records[1]["result"] is None
 
     def test_replace_and_query_records(self, sqlite_path, sample_errors):
         """测试全量覆盖写入以及分页、筛选、排序查询。"""
@@ -192,6 +198,35 @@ class TestSpliteUtils:
         assert failed_records[0]["error_type"] == "RuntimeError"
         assert failed_records[0]["error_message"] == "boom"
 
+    def test_promote_record_to_success_by_event_id(self, sqlite_path):
+        """测试按 event_id 将记录晋升为 success 并写入结果。"""
+        pending_record = {
+            "event_id": 8,
+            "stage": "s8",
+            "status": "pending",
+            "task": {"value": 8},
+        }
+        replace_records(sqlite_path, [pending_record])
+
+        conn = connect_db(sqlite_path)
+        try:
+            updated = promote_record_to_success_by_event_id(
+                conn,
+                8,
+                {"ok": True, "value": [1, 2, 3]},
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        assert updated is True
+        success_records = load_records(sqlite_path, "success")
+        assert len(success_records) == 1
+        assert success_records[0]["event_id"] == 8
+        assert success_records[0]["status"] == "success"
+        assert success_records[0]["result"] == {"ok": True, "value": [1, 2, 3]}
+        assert success_records[0]["task"] == {"value": 8}
+
     def test_update_record_event_id_by_event_id(self, sqlite_path):
         """测试按 event_id 迁移记录的 event_id。"""
         waiting_record = {
@@ -241,3 +276,28 @@ class TestSpliteUtils:
         assert pairs[0][1].error_type == "ValueError"
         assert pairs[1][0] == ["A", "B"]
         assert str(pairs[1][1]) == "RuntimeError(boom happened)"
+
+    def test_load_task_result_records(self, sqlite_path):
+        """测试任务-结果配对读取。"""
+        pending_record = {
+            "event_id": 8,
+            "stage": "s8",
+            "status": "pending",
+            "task": {"value": 8},
+        }
+        replace_records(sqlite_path, [pending_record])
+
+        conn = connect_db(sqlite_path)
+        try:
+            updated = promote_record_to_success_by_event_id(
+                conn,
+                8,
+                {"ok": True, "value": [1, 2, 3]},
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        assert updated is True
+        pairs = load_task_result_records(sqlite_path)
+        assert pairs == [({"value": 8}, {"ok": True, "value": [1, 2, 3]})]

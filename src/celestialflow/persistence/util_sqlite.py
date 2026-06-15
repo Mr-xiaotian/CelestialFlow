@@ -50,7 +50,8 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
             error_type TEXT NOT NULL DEFAULT '',
             error_message TEXT NOT NULL DEFAULT '',
             error_ts REAL,
-            task_json TEXT NOT NULL DEFAULT 'null'
+            task_json TEXT NOT NULL DEFAULT 'null',
+            result_json TEXT NOT NULL DEFAULT 'null'
         )
         """
     )
@@ -96,18 +97,22 @@ def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
             record["task_json"] if "task_json" in record else record.get("task"),
             ensure_ascii=False,
         ),
+        "result_json": json.dumps(
+            record["result_json"] if "result_json" in record else record.get("result"),
+            ensure_ascii=False,
+        ),
     }
 
 
-def _decode_task_json(task_json: str) -> Any:
+def _decode_json_column(payload_json: str) -> Any:
     """
-    从 ``task_json`` 列反序列化任务对象。
+    从 sqlite JSON 列反序列化对象。
 
-    :param task_json: 数据库中的任务 JSON 字符串
+    :param payload_json: 数据库中的 JSON 字符串
     :return: 反序列化后的任务对象
     :rtype: Any
     """
-    return json.loads(task_json)
+    return json.loads(payload_json)
 
 
 def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
@@ -126,7 +131,8 @@ def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
         "error_type": str(row["error_type"]),
         "error_message": str(row["error_message"]),
         "error_ts": float(row["error_ts"]),
-        "task": _decode_task_json(str(row["task_json"])),
+        "task": _decode_json_column(str(row["task_json"])),
+        "result": _decode_json_column(str(row["result_json"])),
     }
 
 
@@ -149,10 +155,10 @@ def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
     _ = conn.execute(
         """
         INSERT INTO records (
-            event_id, stage, status, error_type, error_message, error_ts, task_json
+            event_id, stage, status, error_type, error_message, error_ts, task_json, result_json
         )
         VALUES (
-            :event_id, :stage, :status, :error_type, :error_message, :error_ts, :task_json
+            :event_id, :stage, :status, :error_type, :error_message, :error_ts, :task_json, :result_json
         )
         """,
         normalized,
@@ -188,6 +194,31 @@ def promote_record_to_failed_by_event_id(
         WHERE event_id = ?
         """,
         [int(new_event_id), error_ts, error_type, error_message, int(event_id)],
+    )
+    return cursor.rowcount > 0
+
+
+def promote_record_to_success_by_event_id(
+    conn: sqlite3.Connection,
+    event_id: int,
+    result: Any,
+) -> bool:
+    """
+    在给定连接上按 ``event_id`` 将记录晋升为 success，并写入结果。
+
+    :param conn: 已建立的 sqlite 连接
+    :param event_id: 当前事件 ID
+    :param result: 任务结果
+    :return: 是否更新到记录
+    :rtype: bool
+    """
+    cursor = conn.execute(
+        """
+        UPDATE records
+        SET status = 'success', result_json = ?
+        WHERE event_id = ?
+        """,
+        [json.dumps(result, ensure_ascii=False), int(event_id)],
     )
     return cursor.rowcount > 0
 
@@ -261,10 +292,10 @@ def replace_records(
             _ = conn.executemany(
                 """
                 INSERT INTO records (
-                    event_id, stage, status, error_type, error_message, error_ts, task_json
+                    event_id, stage, status, error_type, error_message, error_ts, task_json, result_json
                 )
                 VALUES (
-                    :event_id, :stage, :status, :error_type, :error_message, :error_ts, :task_json
+                    :event_id, :stage, :status, :error_type, :error_message, :error_ts, :task_json, :result_json
                 )
                 """,
                 normalized_rows,
@@ -315,6 +346,7 @@ def load_records(
         rows = conn.execute(
             """
             SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
+                 , result_json
             FROM records
             WHERE status = ?
             ORDER BY id ASC
@@ -376,6 +408,7 @@ def load_records_by_event_ids(
         rows = conn.execute(
             f"""
             SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
+                 , result_json
             FROM records
             WHERE status = ? AND event_id IN ({placeholders})
             ORDER BY id ASC
@@ -441,6 +474,7 @@ def query_records(
         rows = conn.execute(
             f"""
             SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
+                 , result_json
             FROM records
             {where_sql}
             ORDER BY error_ts {sort_sql}, id {sort_sql}
@@ -476,7 +510,7 @@ def load_task_error_records(db_path: str | Path) -> list[tuple[Any, PersistedFal
         ).fetchall()
         return [
             (
-                _decode_task_json(str(row["task_json"])),
+                _decode_json_column(str(row["task_json"])),
                 PersistedFallbackRecord(
                     ts=float(row["error_ts"]) if row["error_ts"] is not None else None,
                     stage=str(row["stage"]),
@@ -484,6 +518,35 @@ def load_task_error_records(db_path: str | Path) -> list[tuple[Any, PersistedFal
                     error_type=str(row["error_type"]),
                     error_message=str(row["error_message"]),
                 ),
+            )
+            for row in rows
+        ]
+    finally:
+        conn.close()
+
+
+def load_task_result_records(db_path: str | Path) -> list[tuple[Any, Any]]:
+    """
+    自行创建并关闭连接，读取数据库并返回任务与成功结果的配对列表。
+
+    :param db_path: sqlite 数据库文件路径
+    :return: ``[(task, result), ...]``
+    :rtype: list[tuple[Any, Any]]
+    """
+    conn = connect_db(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT task_json, result_json
+            FROM records
+            WHERE status = 'success'
+            ORDER BY id ASC
+            """
+        ).fetchall()
+        return [
+            (
+                _decode_json_column(str(row["task_json"])),
+                _decode_json_column(str(row["result_json"])),
             )
             for row in rows
         ]
