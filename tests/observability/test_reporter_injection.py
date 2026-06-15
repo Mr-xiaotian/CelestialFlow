@@ -172,8 +172,6 @@ def test_reporter_pushes_errors_via_content_endpoint_only(tmp_path) -> None:
     url, payload, _timeout = reporter._session.posts[0]
     assert url.endswith("/api/push_errors_content")
     assert payload["graph_id"] == "demo@1000"
-    assert payload["event_ids"] == [1]
-    assert payload["append"] is False
     assert payload["errors"] == [
         {
             "id": 1,
@@ -187,3 +185,53 @@ def test_reporter_pushes_errors_via_content_endpoint_only(tmp_path) -> None:
             "result": None,
         }
     ]
+
+
+def test_reporter_pushes_only_errors_after_server_max_event_id(tmp_path) -> None:
+    """Reporter 只推送 failed 中 event_id 大于服务端水位线的记录。"""
+    sqlite_path = tmp_path / "fallback.sqlite3"
+    replace_records(
+        sqlite_path,
+        [
+            {
+                "event_id": 1,
+                "stage": "s1",
+                "error_type": "ValueError",
+                "error_message": "old",
+                "error_ts": 1.0,
+                "task": {"value": 1},
+            },
+            {
+                "event_id": 5,
+                "stage": "s1",
+                "error_type": "RuntimeError",
+                "error_message": "newer",
+                "error_ts": 5.0,
+                "task": {"value": 5},
+            },
+            {
+                "event_id": 7,
+                "stage": "s2",
+                "error_type": "TypeError",
+                "error_message": "latest",
+                "error_ts": 7.0,
+                "task": {"value": 7},
+            },
+        ],
+    )
+
+    graph = FakeErrorGraph(sqlite_path)
+    log_inlet = FakeLogInlet()
+    reporter = TaskReporter("127.0.0.1", 8000, graph, log_inlet)
+    reporter._session = FakePushSession()
+    reporter._server_has_current_graph = True
+    reporter._server_max_event_id_in_fail = 3
+
+    reporter._push_errors()
+
+    assert log_inlet.push_error_failures == []
+    assert len(reporter._session.posts) == 1
+    url, payload, _timeout = reporter._session.posts[0]
+    assert url.endswith("/api/push_errors_content")
+    assert payload["graph_id"] == "demo@1000"
+    assert [item["event_id"] for item in payload["errors"]] == [5, 7]

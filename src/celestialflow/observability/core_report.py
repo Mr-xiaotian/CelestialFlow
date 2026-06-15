@@ -1,15 +1,14 @@
 # observability/core_report.py
 from threading import Event, Thread
-from typing import Any, cast
+from typing import Any
 
 import requests
 
 from ..graph.util_types import ReporterTaskGraph
 from ..persistence import LogInlet
 from ..persistence.util_sqlite import (
-    get_event_ids,
     load_records,
-    load_records_by_event_ids,
+    load_records_after_event_id_in_fail,
 )
 from ..runtime.util_errors import ReporterError
 from ..runtime.util_types import TERMINATION_SIGNAL
@@ -51,7 +50,7 @@ class TaskReporter:
         self._server_has_current_graph: bool = False
         self._server_has_structure: bool = False
         self._server_has_analysis: bool = False
-        self._server_event_ids: set[int] = set()
+        self._server_max_event_id_in_fail: int | None = None
 
         self.interval: int = 5
         self.history_limit: int = 20
@@ -127,8 +126,10 @@ class TaskReporter:
             )
             self._server_has_structure = bool(payload.get("has_structure", False))
             self._server_has_analysis = bool(payload.get("has_analysis", False))
-            event_ids = cast(list[Any], payload.get("event_ids", []) or [])
-            self._server_event_ids = {int(event_id) for event_id in event_ids}
+            max_event_id = payload.get("max_event_id_in_fail")
+            self._server_max_event_id_in_fail = (
+                None if max_event_id is None else int(max_event_id)
+            )
         except Exception as e:
             self.log_inlet.pull_interval_failed(e)
 
@@ -171,29 +172,23 @@ class TaskReporter:
         try:
             fallback_path = self.task_graph.get_fallback_path()
             graph_id = self.task_graph.get_graph_id()
-            local_event_ids = get_event_ids(fallback_path) if fallback_path else []
+            if not fallback_path:
+                return
+            
+            all_errors = []
+            if not self._server_has_current_graph or self._server_max_event_id_in_fail is None:
+                all_errors = load_records(db_path=fallback_path)
+            elif self._server_has_current_graph:
+                all_errors = load_records_after_event_id_in_fail(
+                    fallback_path, self._server_max_event_id_in_fail
+                )
 
-            if not local_event_ids or not fallback_path:
+            if not all_errors:
                 return
 
-            if self._server_has_current_graph:
-                missing_event_ids = [
-                    event_id
-                    for event_id in local_event_ids
-                    if event_id not in self._server_event_ids
-                ]
-                if not missing_event_ids:
-                    return
-                append_mode = True
-            else:
-                missing_event_ids = local_event_ids
-                append_mode = False
-
             self._push_errors_content(
-                fallback_path,
                 graph_id,
-                missing_event_ids,
-                append_mode,
+                all_errors,
             )
 
         except Exception as e:
@@ -201,31 +196,20 @@ class TaskReporter:
 
     def _push_errors_content(
         self,
-        fallback_path: str,
         graph_id: str,
-        event_ids: list[int],
-        append: bool,
+        errors: list[dict[str, Any]],
     ) -> None:
         """
-        推送错误内容（仅传本轮缺失的 ``event_id`` 对应条目）
+        推送错误内容。
 
-        :param fallback_path: 错误存储文件路径
         :param graph_id: 当前任务图唯一标识
-        :param event_ids: 本轮需要同步的失败事件 ``event_id`` 列表
         :param append: 是否以追加模式写入
+        :param errors: 本轮需要同步的失败记录列表
         :return: None
         """
-        all_errors: list[dict[str, Any]] = (
-            load_records_by_event_ids(db_path=fallback_path, event_ids=event_ids)
-            if append
-            else load_records(db_path=fallback_path)
-        )
-
         payload: dict[str, Any] = {
             "graph_id": graph_id,
-            "event_ids": event_ids,
-            "append": append,
-            "errors": all_errors,
+            "errors": errors,
         }
         response: requests.Response = self._session.post(
             f"{self.base_url}/api/push_errors_content",

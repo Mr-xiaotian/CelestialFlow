@@ -76,7 +76,7 @@ def test_server_state_api(client):
     assert data["is_current_graph"] is True
     assert data["has_structure"] is False
     assert data["has_analysis"] is False
-    assert data["event_ids"] == []
+    assert data["max_event_id_in_fail"] is None
 
 
 def test_push_errors_meta_route_removed(client):
@@ -85,7 +85,6 @@ def test_push_errors_meta_route_removed(client):
         "/api/push_errors_meta",
         json={
             "graph_id": "demo@1000",
-            "event_ids": [1],
             "append": False,
         },
     )
@@ -306,7 +305,6 @@ def test_errors_content_appends_for_same_graph(client):
         json={
             "graph_id": graph_id,
             "errors": first_batch,
-            "event_ids": [1, 2],
             "append": False,
         },
     )
@@ -315,7 +313,7 @@ def test_errors_content_appends_for_same_graph(client):
 
     state = client.get(f"/api/pull_server_state?graph_id={graph_id}").json()
     assert state["is_current_graph"] is True
-    assert state["event_ids"] == [1, 2]
+    assert state["max_event_id_in_fail"] == 2
     assert state["has_analysis"] is True
 
     response = client.post(
@@ -323,7 +321,6 @@ def test_errors_content_appends_for_same_graph(client):
         json={
             "graph_id": graph_id,
             "errors": second_batch,
-            "event_ids": [3],
             "append": True,
         },
     )
@@ -363,7 +360,6 @@ def test_errors_content_duplicate_append_is_idempotent(client):
         json={
             "graph_id": graph_id,
             "errors": duplicated_batch,
-            "event_ids": [1],
             "append": False,
         },
     )
@@ -372,7 +368,6 @@ def test_errors_content_duplicate_append_is_idempotent(client):
         json={
             "graph_id": graph_id,
             "errors": duplicated_batch,
-            "event_ids": [1],
             "append": True,
         },
     )
@@ -414,14 +409,13 @@ def test_newer_graph_replaces_previous_graph_context(client):
                     "error_ts": 1.0,
                 }
             ],
-            "event_ids": [1],
             "append": False,
         },
     )
 
     state = client.get(f"/api/pull_server_state?graph_id={new_graph_id}").json()
     assert state["is_current_graph"] is False
-    assert state["event_ids"] == []
+    assert state["max_event_id_in_fail"] is None
 
     pulled = client.get("/api/pull_errors?page=1&page_size=10").json()
     assert pulled["total"] == 0
@@ -470,7 +464,6 @@ def test_stale_graph_pushes_are_ignored(client):
                     "error_ts": 1.0,
                 }
             ],
-            "event_ids": [1],
             "append": False,
         },
     )
@@ -480,4 +473,4 @@ def test_stale_graph_pushes_are_ignored(client):
     state = client.get(f"/api/pull_server_state?graph_id={new_graph_id}").json()
     assert state["is_current_graph"] is True
     assert state["has_analysis"] is False
-    assert state["event_ids"] == []
+    assert state["max_event_id_in_fail"] is None

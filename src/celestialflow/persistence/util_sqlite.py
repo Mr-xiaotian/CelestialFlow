@@ -382,6 +382,58 @@ def get_event_ids(db_path: str | Path) -> list[int]:
         conn.close()
 
 
+def get_max_event_id_in_fail(db_path: str | Path) -> int | None:
+    """
+    自行创建并关闭连接，读取失败记录中的最大 ``event_id``。
+
+    :param db_path: sqlite 数据库文件路径
+    :return: 失败记录中的最大 ``event_id``；若不存在失败记录则返回 ``None``
+    :rtype: int | None
+    """
+    conn = connect_db(db_path)
+    try:
+        row = conn.execute(
+            """
+            SELECT MAX(event_id) AS max_event_id
+            FROM records
+            WHERE status = 'failed'
+            """
+        ).fetchone()
+        max_event_id = row["max_event_id"]
+        return None if max_event_id is None else int(max_event_id)
+    finally:
+        conn.close()
+
+
+def load_records_after_event_id_in_fail(
+    db_path: str | Path,
+    min_event_id: int,
+) -> list[dict[str, Any]]:
+    """
+    自行创建并关闭连接，读取失败记录中 ``event_id`` 大于给定下界的条目。
+
+    :param db_path: sqlite 数据库文件路径
+    :param min_event_id: 失败记录的 ``event_id`` 下界；为 ``None`` 时返回全部失败记录
+    :return: 命中的失败记录列表
+    :rtype: list[dict[str, Any]]
+    """
+    conn = connect_db(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
+                    , result_json
+            FROM records
+            WHERE status = 'failed' AND event_id > ?
+            ORDER BY event_id ASC
+            """,
+            [int(min_event_id)],
+        ).fetchall()
+        return [row_to_record_dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
 def load_records_by_event_ids(
     db_path: str | Path,
     event_ids: Iterable[int],

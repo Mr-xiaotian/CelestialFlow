@@ -27,8 +27,6 @@ class ErrorsContentModel(BaseModel):
 
     graph_id: str = ""
     errors: list[dict[str, Any]]
-    event_ids: list[int] = []
-    append: bool = False
 
 
 class AnalysisModel(BaseModel):

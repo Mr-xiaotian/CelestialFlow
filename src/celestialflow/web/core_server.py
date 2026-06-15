@@ -22,7 +22,7 @@ from fastapi.templating import (
 from ..persistence.util_sqlite import (
     append_records,
     connect_db,
-    get_event_ids,
+    get_max_event_id_in_fail,
     load_records,
     query_records,
     replace_records,
@@ -210,8 +210,6 @@ class TaskWebServer:
     def update_errors_store(
         self,
         errors: list[dict[str, Any]],
-        *,
-        append: bool = False,
     ) -> None:
         """
         原子更新错误缓存及其版本号。
@@ -220,14 +218,10 @@ class TaskWebServer:
         否则将以给定错误列表整体替换当前缓存。
 
         :param errors: 待写入的错误记录列表
-        :param append: 是否以追加模式写入，默认 ``False``
         :return: None
         """
         with self.errors_lock:
-            if append:
-                _ = append_records(self.records_db_path, errors)
-            else:
-                replace_records(self.records_db_path, errors)
+            _ = append_records(self.records_db_path, errors)
             self.store_revs["errors"] += 1
 
     def update_analysis_store(self, analysis: dict[str, Any]) -> None:
@@ -311,7 +305,7 @@ class TaskWebServer:
             "is_current_graph": is_current_graph,
             "has_structure": has_structure,
             "has_analysis": has_analysis,
-            "event_ids": self.get_event_ids(),
+            "max_event_id_in_fail": self.get_max_event_id_in_fail(),
         }
     
     def get_injection_tasks(self) -> dict[str, list[Any]]:
@@ -346,15 +340,15 @@ class TaskWebServer:
             )
             return rev, total, total_pages, page_items
 
-    def get_event_ids(self) -> list[int]:
+    def get_max_event_id_in_fail(self) -> int | None:
         """
-        原子读取当前错误缓存中的全部失败事件 ``event_id``。
+        原子读取当前错误缓存中失败记录的最大 ``event_id``。
 
-        :return: 当前缓存中的失败事件 ``event_id`` 列表
-        :rtype: list[int]
+        :return: 当前缓存中失败记录的最大 ``event_id``；若不存在失败记录则返回 ``None``
+        :rtype: int | None
         """
         with self.errors_lock:
-            return get_event_ids(self.records_db_path)
+            return get_max_event_id_in_fail(self.records_db_path)
 
     def get_analysis_snapshot(self) -> tuple[int, dict[str, Any] | None]:
         """

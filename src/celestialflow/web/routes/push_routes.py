@@ -126,6 +126,5 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
             return {"ok": False}
         server.update_errors_store(
             data.errors,
-            append=data.append,
         )
         return {"ok": True}

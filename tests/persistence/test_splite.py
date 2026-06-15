@@ -7,8 +7,10 @@ from celestialflow.persistence.util_sqlite import (
     connect_db,
     delete_record_by_event_id,
     get_event_ids,
+    get_max_event_id_in_fail,
     insert_record,
     load_records,
+    load_records_after_event_id_in_fail,
     load_records_by_event_ids,
     load_task_error_records,
     load_task_result_records,
@@ -164,6 +166,88 @@ class TestSpliteUtils:
 
         selected = load_records_by_event_ids(sqlite_path, [3, 1])
         assert [item["event_id"] for item in selected] == [1, 3]
+
+    def test_get_max_event_id_in_fail(self, sqlite_path):
+        """测试只统计 failed 状态中的最大 event_id。"""
+        replace_records(
+            sqlite_path,
+            [
+                {
+                    "event_id": 5,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task": {"value": 5},
+                },
+                {
+                    "event_id": 9,
+                    "stage": "s1",
+                    "status": "success",
+                    "task": {"value": 9},
+                    "result": {"ok": True},
+                },
+                {
+                    "event_id": 7,
+                    "stage": "s2",
+                    "status": "failed",
+                    "task": {"value": 7},
+                },
+            ],
+        )
+
+        assert get_max_event_id_in_fail(sqlite_path) == 7
+
+    def test_get_max_event_id_in_fail_returns_none_when_no_failed(self, sqlite_path):
+        """测试没有 failed 记录时返回 None。"""
+        replace_records(
+            sqlite_path,
+            [
+                {
+                    "event_id": 9,
+                    "stage": "s1",
+                    "status": "success",
+                    "task": {"value": 9},
+                    "result": {"ok": True},
+                }
+            ],
+        )
+
+        assert get_max_event_id_in_fail(sqlite_path) is None
+
+    def test_load_records_after_event_id_in_fail(self, sqlite_path):
+        """测试按 failed 的 event_id 下界增量读取记录。"""
+        replace_records(
+            sqlite_path,
+            [
+                {
+                    "event_id": 3,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task": {"value": 3},
+                },
+                {
+                    "event_id": 5,
+                    "stage": "s2",
+                    "status": "success",
+                    "task": {"value": 5},
+                    "result": {"ok": True},
+                },
+                {
+                    "event_id": 7,
+                    "stage": "s3",
+                    "status": "failed",
+                    "task": {"value": 7},
+                },
+            ],
+        )
+
+        assert [
+            item["event_id"]
+            for item in load_records_after_event_id_in_fail(sqlite_path, None)
+        ] == [3, 7]
+        assert [
+            item["event_id"]
+            for item in load_records_after_event_id_in_fail(sqlite_path, 3)
+        ] == [7]
 
     def test_append_records_skips_duplicate_event_ids(self, sqlite_path, sample_errors):
         """测试追加写入会跳过已存在的 event_id，保证重复同步幂等。"""
