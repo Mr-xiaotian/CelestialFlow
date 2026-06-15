@@ -222,6 +222,7 @@ class TestDispatchSerial:
                 return current_id
 
         executor = _make_executor(_square)
+        executor.persist_result = True
         executor.ctree_client = _SequentialCtreeStub()
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
         collector_a: Queue[Any] = Queue()
@@ -229,6 +230,7 @@ class TestDispatchSerial:
         executor.result_queue.add_queue(collector_a, name="downstream_a")
         executor.result_queue.add_queue(collector_b, name="downstream_b")
 
+        executor.fallback_inlet.task_in(executor.get_name(), 0, 3)
         _put(executor, 3)
         _put_termination(executor)
         dispatch.dispatch_serial()
@@ -244,10 +246,10 @@ class TestDispatchSerial:
         assert item_b.prev == 3
         assert item_a.id != item_b.id
         wait_until(
-            lambda: executor.get_task_result_pairs() == [(3, 9)],
-            message="timeout waiting for success_spout to cache success result",
+            lambda: executor.get_success_pairs() == [(3, 9)],
+            message="timeout waiting for fallback store to persist success result",
         )
-        assert executor.get_task_result_pairs() == [(3, 9)]
+        assert executor.get_success_pairs() == [(3, 9)]
 
 
 # ── thread ─────────────────────────────────────────────

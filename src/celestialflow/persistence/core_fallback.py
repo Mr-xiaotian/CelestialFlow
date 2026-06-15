@@ -14,7 +14,9 @@ from .util_sqlite import (
     delete_record_by_event_id,
     insert_record,
     load_task_error_records,
+    load_task_result_records,
     promote_record_to_failed_by_event_id,
+    promote_record_to_success_by_event_id,
     update_record_event_id_by_event_id,
 )
 
@@ -77,6 +79,13 @@ class FallbackSpout(BaseSpout):
                 int(record["event_id"]),
                 int(record["new_event_id"]),
             )
+        elif op == "promote_success":
+            # 任务成功时，将 pending 记录晋升为 success 并写入结果。
+            changed = promote_record_to_success_by_event_id(
+                self._conn,
+                int(record["event_id"]),
+                record["result"],
+            )
         elif op == "promote_failed":
             # 任务最终失败时，将 pending 记录晋升为 failed 并补齐错误信息。
             changed = promote_record_to_failed_by_event_id(
@@ -111,6 +120,16 @@ class FallbackSpout(BaseSpout):
         if self.db_path is None:
             return []
         return load_task_error_records(str(self.db_path))
+
+    def get_task_result_pairs(self) -> list[tuple[Any, Any]]:
+        """
+        从 sqlite 文件中读取所有成功结果记录。
+
+        :return: (task, result) 元组列表
+        """
+        if self.db_path is None:
+            return []
+        return load_task_result_records(str(self.db_path))
 
 
 class FallbackInlet(BaseInlet):
@@ -167,13 +186,25 @@ class FallbackInlet(BaseInlet):
         }
         self._funnel(pending_item)
 
-    def task_success(self, event_id: int) -> None:
+    def task_success(self, event_id: int, result: Any, cache: bool = False) -> None:
         """
-        删除已成功处理任务对应的 pending 记录。
+        将已成功处理任务对应的 pending 记录晋升为 success 并写入结果。
 
         :param event_id: 当前任务事件 ID
+        :param result: 任务结果
+        :param cache: 是否缓存任务结果，默认 False
         """
-        self._funnel({"__op__": "delete", "event_id": event_id})
+        if cache:
+            self._funnel(
+            {
+                "__op__": "promote_success",
+                "event_id": event_id,
+                "result": self._to_persisted_payload(result),
+            }
+        )
+        else:
+            self._funnel({"__op__": "delete", "event_id": event_id})
+
 
     def task_retry(self, event_id: int, retry_id: int) -> None:
         """

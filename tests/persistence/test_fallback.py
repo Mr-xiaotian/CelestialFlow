@@ -19,7 +19,7 @@ class TestFailPersistence:
             inlet.task_fail('s1', event_id=11, error_id=21, error=ValueError('oops'))
 
             inlet.task_in('s2', event_id=2, task='data2')
-            inlet.task_success(event_id=2)
+            inlet.task_success(event_id=2, result='ok2')
 
             inlet.task_in('s3', event_id=3, task='data3')
             inlet.task_duplicate(event_id=3)
@@ -39,7 +39,7 @@ class TestFailPersistence:
         try:
             rows = conn.execute(
                 """
-                SELECT event_id, stage, status, error_type, error_message, task_json
+                SELECT event_id, stage, status, error_type, error_message, task_json, result_json
                 FROM records
                 ORDER BY id ASC
                 """
@@ -48,5 +48,6 @@ class TestFailPersistence:
             conn.close()
 
         assert rows == [
-            (21, "s1", "failed", "ValueError", "oops", '"data1"'),
+            (21, "s1", "failed", "ValueError", "oops", '"data1"', 'null'),
+            (2, "s2", "success", "", "", '"data2"', '"ok2"'),
         ]

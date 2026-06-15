@@ -5,6 +5,7 @@ import asyncio
 import inspect
 import os
 import time
+import warnings
 from collections.abc import Awaitable, Callable, Iterable
 from queue import Queue as ThreadQueue
 from typing import Any
@@ -18,7 +19,6 @@ from ..persistence import (
     FallbackSpout,
     LogInlet,
     LogSpout,
-    SuccessSpout,
 )
 from ..runtime import (
     TaskDispatch,
@@ -56,7 +56,6 @@ class TaskExecutor[T, R]:
     dispatch: TaskDispatch[T, R]
     fallback_spout: FallbackSpout
     log_spout: LogSpout
-    success_spout: SuccessSpout[T, R]
     fallback_inlet: FallbackInlet
     log_inlet: LogInlet
     execution_mode: str
@@ -75,6 +74,7 @@ class TaskExecutor[T, R]:
         max_retries: int = 1,
         max_info: int = 50,
         enable_duplicate_check: bool = True,
+        persist_result: bool = False,
         log_level: str = "INFO",
     ):
         """
@@ -87,6 +87,7 @@ class TaskExecutor[T, R]:
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param enable_duplicate_check: 是否启用重复检查，默认 True
+        :param persist_result: 是否缓存任务结果，默认 False
         :param log_level: 日志级别，默认 'INFO'
         :note:
             TaskExecutor 为一次性对象。完成一次 start()/start_async() 后，不应复用
@@ -101,6 +102,7 @@ class TaskExecutor[T, R]:
         self.max_retries = max_retries
         self.max_info = max_info
         self.enable_duplicate_check = enable_duplicate_check
+        self.persist_result = persist_result
         self.set_log_level(log_level)
 
         self._observers: list[BaseObserver] = []
@@ -161,13 +163,9 @@ class TaskExecutor[T, R]:
         """
         self.fallback_spout = FallbackSpout("executor_fallbacks")
         self.log_spout = LogSpout()
-        self.success_spout = SuccessSpout()
 
         self.fallback_spout.start()
         self.log_spout.start()
-        self.success_spout.start()
-
-        self.result_queue.add_queue(self.success_spout.get_queue(), "success_spout")
 
     def _init_inlet(
         self,
@@ -454,7 +452,7 @@ class TaskExecutor[T, R]:
         )
 
         self.metrics.add_success_count()
-        self.fallback_inlet.task_success(task_id)
+        self.fallback_inlet.task_success(task_id, result, cache=self.persist_result)
 
         self.log_inlet.task_success(
             self.get_func_name(),
@@ -467,15 +465,6 @@ class TaskExecutor[T, R]:
         )
 
         for target_name in self.result_queue.target_names:
-            if target_name == "success_spout":
-                result_envelope: TaskEnvelope[R, T] = TaskEnvelope(
-                    task=result,
-                    id=result_id,
-                    prev=task,
-                )
-                self.result_queue.put_target(result_envelope, target_name)
-                continue
-
             downstream_input_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
@@ -623,7 +612,6 @@ class TaskExecutor[T, R]:
         )
         self.log_spout.stop()
         self.fallback_spout.stop()
-        self.success_spout.stop()
 
     def start(self, task_source: Iterable[T]) -> None:
         """
@@ -665,18 +653,27 @@ class TaskExecutor[T, R]:
             self._finish_start(start_time)
 
     # ==== 结果获取 ====
-    def get_task_result_pairs(self) -> list[tuple[T, R]]:
+    def get_success_pairs(self) -> list[tuple[T, R]]:
         """
         获取成功任务的列表
 
         :return: (task, result) 元组列表
         """
-        return self.success_spout.get_task_result_pairs()
+        if not self.persist_result:
+            warnings.warn(
+                (
+                    "get_success_pairs() is not available when persist_result is False."
+                    "Please set persist_result to True to get success pairs."
+                ),
+                stacklevel=2,
+            )
+            return []
+        return self.fallback_spout.get_task_result_pairs()
 
-    def get_task_error_pairs(self) -> list[tuple[T, tuple[str, str]]]:
+    def get_fail_pairs(self) -> list[tuple[T, tuple[str, str]]]:
         """
         获取出错任务的列表
 
-        :return: (task, error_record) 元组列表
+        :return: (task, (error_type, error_message)) 元组列表
         """
         return self.fallback_spout.get_task_error_pairs()

@@ -118,10 +118,11 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         """
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
+        result_list = list(result)
 
-        split_count = self._put_split_result(result, task_id)
+        split_count = self._put_split_result(result_list, task_id)
         self.metrics.add_success_count()
-        self.fallback_inlet.task_success(task_id)
+        self.fallback_inlet.task_success(task_id, result_list, cache=self.persist_result)
         self._update_split_counter(split_count)
 
         self.log_inlet.split_success(
@@ -155,16 +156,6 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
                 payload=self.get_summary(),
             )
             for target_name in result_queue.target_names:
-                if target_name == "success_spout":
-                    success_envelope: TaskEnvelope[RItem, Iterable[TItem]] = (
-                        TaskEnvelope(
-                            item,
-                            split_id,
-                        )
-                    )
-                    result_queue.put_target(success_envelope, target_name)
-                    continue
-
                 downstream_input_id = self.ctree_client.emit(
                     "task.input",
                     parents=[split_id],
@@ -281,7 +272,7 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
             payload=self.get_summary(),
         )
         self.metrics.add_success_count()
-        self.fallback_inlet.task_success(task_id)
+        self.fallback_inlet.task_success(task_id, result, cache=self.persist_result)
         self._update_route_counter(target)
 
         self.log_inlet.route_success(
@@ -294,13 +285,6 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
         )
 
         for target_name in self.result_queue.target_names:
-            if target_name == "success_spout":
-                success_envelope: TaskEnvelope[T, T] = TaskEnvelope(
-                    result,
-                    route_id,
-                )
-                self.result_queue.put_target(success_envelope, target_name)
-                continue
             if target_name != target:
                 continue
 

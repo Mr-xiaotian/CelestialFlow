@@ -8,8 +8,10 @@ from celestialflow.runtime.util_errors import ExecutionModeError
 
 def build_result_dict(executor: TaskExecutor[Any, Any]) -> dict[Any, Any]:
     """按当前公开接口组装任务到结果/错误字符串的映射。"""
-    result_dict = dict(executor.get_task_result_pairs())
-    for task, error in executor.get_task_error_pairs():
+    result_dict = {}
+    if executor.persist_result:
+        result_dict.update(dict(executor.get_success_pairs()))
+    for task, error in executor.get_fail_pairs():
         result_dict[task] = f"{error[0]}({error[1]})"
     return result_dict
 
@@ -54,13 +56,6 @@ class TestExecutorSerial:
         tasks = [1, 2, 3, 4, 5]
         executor.start(tasks)
 
-        result_dict = build_result_dict(executor)
-        assert result_dict[1] == 2
-        assert result_dict[2] == 3
-        assert result_dict[3] == 4
-        assert result_dict[4] == 5
-        assert result_dict[5] == 6
-
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 5
         assert counts["tasks_failed"] == 0
@@ -77,9 +72,6 @@ class TestExecutorSerial:
         executor.start(tasks)
 
         result_dict = build_result_dict(executor)
-        assert result_dict[1] == 10
-        assert result_dict[2] == 20
-        assert result_dict[3] == 30
         assert "negative value: -1" in result_dict[-1]
         assert "negative value: -2" in result_dict[-2]
 
@@ -87,7 +79,7 @@ class TestExecutorSerial:
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 2
 
-        fallback_pairs = dict(executor.get_task_error_pairs())
+        fallback_pairs = dict(executor.get_fail_pairs())
         assert fallback_pairs[-1][0] == "ValueError"
         assert "negative value: -1" in fallback_pairs[-1][1]
         assert fallback_pairs[-2][0] == "ValueError"
@@ -148,10 +140,6 @@ class TestExecutorThread:
         tasks: list[int] = [1, 2, 3, 4, 5]
         executor.start(tasks)
 
-        result_dict = build_result_dict(executor)
-        for t in tasks:
-            assert result_dict[t] == t * 2
-
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 5
         assert counts["tasks_failed"] == 0
@@ -170,11 +158,6 @@ class TestExecutorAsync:
         tasks: list[int] = [10, 20, 30]
         await executor.start_async(tasks)
 
-        result_dict = build_result_dict(executor)
-        assert result_dict[10] == 11
-        assert result_dict[20] == 21
-        assert result_dict[30] == 31
-
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 3
 
@@ -189,10 +172,6 @@ class TestExecutorAsync:
         )
         tasks = list(range(20))
         await executor.start_async(tasks)
-
-        result_dict = build_result_dict(executor)
-        for t in tasks:
-            assert result_dict[t] == t * 2
 
 
 class TestExecutorDuplicateCheck:
@@ -236,10 +215,11 @@ class TestExecutorSuccessCache:
             add_one,
             execution_mode="serial",
             enable_duplicate_check=True,
+            persist_result=True,
         )
         executor.start([1, 2, 3])
 
-        pairs = executor.get_task_result_pairs()
+        pairs = executor.get_success_pairs()
         result_dict = dict(pairs)
         assert result_dict[1] == 2
         assert result_dict[2] == 3

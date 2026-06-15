@@ -43,7 +43,7 @@ async def benchmark_executor(
         start: float = time.perf_counter()
         cloned_executor.start(task_list)
         use_time.append([time.perf_counter() - start])
-        results.append(cloned_executor.get_task_result_pairs())
+        results.append(cloned_executor.get_success_pairs())
 
     for mode in async_modes:
         cloned_executor = clone_executor(async_executor)
@@ -52,7 +52,7 @@ async def benchmark_executor(
         start = time.perf_counter()
         await cloned_executor.start_async(task_list)
         use_time.append([time.perf_counter() - start])
-        results.append(cloned_executor.get_task_result_pairs())
+        results.append(cloned_executor.get_success_pairs())
 
     use_time_table: str = format_table(use_time, sync_modes + async_modes, ["Time"])
     results_table: str = format_table(results, sync_modes + async_modes, [])
