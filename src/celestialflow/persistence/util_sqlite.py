@@ -65,7 +65,7 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
         "CREATE INDEX IF NOT EXISTS idx_records_type_error_ts ON records(error_type, error_ts)"
     )
     _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_records_event_id ON records(event_id)"
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_records_event_id ON records(event_id)"
     )
     conn.commit()
 
@@ -280,11 +280,14 @@ def replace_records(
     try:
         # 先清空旧数据，再用新的记录列表整体覆盖。
         _ = conn.execute("DELETE FROM records")
-        normalized_rows = [
-            normalized
-            for item in records
-            if (normalized := normalize_record(item)) is not None
-        ]
+        deduplicated_rows: dict[int, dict[str, Any]] = {}
+        for item in records:
+            normalized = normalize_record(item)
+            if normalized is None:
+                continue
+            deduplicated_rows[int(normalized["event_id"])] = normalized
+
+        normalized_rows = list(deduplicated_rows.values())
         if normalized_rows:
             # 批量写入覆盖后的记录。
             _ = conn.executemany(
@@ -318,8 +321,12 @@ def append_records(
     try:
         inserted = 0
         for item in records:
-            if insert_record(conn, item):
-                inserted += 1
+            try:
+                if insert_record(conn, item):
+                    inserted += 1
+            except sqlite3.IntegrityError:
+                # event_id 已存在时跳过，保证增量同步接口具备幂等性。
+                continue
         conn.commit()
         return inserted
     finally:

@@ -335,6 +335,56 @@ def test_errors_content_appends_for_same_graph(client):
     assert [item["event_id"] for item in pulled["data"]] == [3, 2, 1]
 
 
+def test_errors_content_duplicate_append_is_idempotent(client):
+    """重复追加相同 event_id 时，错误缓存不应出现重复行。"""
+    graph_id = "demo@3000"
+    duplicated_batch = [
+        {
+            "event_id": 1,
+            "stage": "s1",
+            "task": {"value": 1},
+            "error_type": "ValueError",
+            "error_message": "err1",
+            "error_ts": 1.0,
+        }
+    ]
+
+    client.get(f"/api/pull_server_state?graph_id={graph_id}")
+    client.post(
+        "/api/push_analysis",
+        json={
+            "graph_id": graph_id,
+            "analysis": {"graphId": graph_id, "name": "demo", "startTime": 3.0},
+        },
+    )
+
+    first = client.post(
+        "/api/push_errors_content",
+        json={
+            "graph_id": graph_id,
+            "errors": duplicated_batch,
+            "event_ids": [1],
+            "append": False,
+        },
+    )
+    second = client.post(
+        "/api/push_errors_content",
+        json={
+            "graph_id": graph_id,
+            "errors": duplicated_batch,
+            "event_ids": [1],
+            "append": True,
+        },
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+
+    pulled = client.get("/api/pull_errors?page=1&page_size=10").json()
+    assert pulled["total"] == 1
+    assert [item["event_id"] for item in pulled["data"]] == [1]
+
+
 def test_newer_graph_replaces_previous_graph_context(client):
     """较新的 graph_id 到来时，server 会切换图上下文并清空旧错误。"""
     old_graph_id = "demo@1000"

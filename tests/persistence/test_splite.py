@@ -76,6 +76,7 @@ class TestSpliteUtils:
                     "SELECT name FROM sqlite_master WHERE type='index'"
                 ).fetchall()
             }
+            index_list = conn.execute("PRAGMA index_list(records)").fetchall()
             result_info = conn.execute("PRAGMA table_info(records)").fetchall()
         finally:
             conn.close()
@@ -85,6 +86,7 @@ class TestSpliteUtils:
         assert "idx_records_stage_error_ts" in index_names
         assert "idx_records_type_error_ts" in index_names
         assert "idx_records_event_id" in index_names
+        assert any(row[1] == "idx_records_event_id" and row[2] == 1 for row in index_list)
         assert any(row[1] == "result_json" for row in result_info)
 
     def test_normalize_record(self, sample_errors):
@@ -164,6 +166,15 @@ class TestSpliteUtils:
 
         selected = load_records_by_event_ids(sqlite_path, [3, 1])
         assert [item["event_id"] for item in selected] == [1, 3]
+
+    def test_append_records_skips_duplicate_event_ids(self, sqlite_path, sample_errors):
+        """测试追加写入会跳过已存在的 event_id，保证重复同步幂等。"""
+        replace_records(sqlite_path, sample_errors[1:3])
+
+        appended = append_records(sqlite_path, [sample_errors[1], sample_errors[3]])
+
+        assert appended == 1
+        assert get_event_ids(sqlite_path) == [1, 2, 3]
 
     def test_promote_record_to_failed_by_event_id(self, sqlite_path, sample_errors):
         """测试按 event_id 更新记录状态与错误信息。"""
