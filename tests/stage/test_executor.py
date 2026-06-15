@@ -208,7 +208,7 @@ class TestExecutorDuplicateCheck:
 
 
 class TestExecutorSuccessCache:
-    def test_success_cache(self):
+    def test_success_persist(self):
         """测试结果缓存机制：相同输入直接返回缓存结果"""
         executor = TaskExecutor(
             "AddOneSuccessCache",

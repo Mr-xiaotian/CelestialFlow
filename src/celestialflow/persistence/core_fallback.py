@@ -111,25 +111,27 @@ class FallbackSpout(BaseSpout):
             self._conn.close()
             self._conn = None
 
-    def get_task_error_pairs(self) -> list[tuple[Any, tuple[str, str]]]:
+    def get_task_error_pairs(self, stage: str) -> list[tuple[Any, tuple[str, str]]]:
         """
-        从 sqlite 文件中读取所有错误记录
+        从 sqlite 文件中读取指定 stage 的错误记录
 
+        :param stage: 待读取的 stage 名称
         :return: (task, error_record) 元组列表
         """
         if self.db_path is None:
             return []
-        return load_task_error_records(str(self.db_path))
+        return load_task_error_records(str(self.db_path), stage)
 
-    def get_task_result_pairs(self) -> list[tuple[Any, Any]]:
+    def get_task_result_pairs(self, stage: str) -> list[tuple[Any, Any]]:
         """
-        从 sqlite 文件中读取所有成功结果记录。
+        从 sqlite 文件中读取指定 stage 的成功结果记录。
 
+        :param stage: 待读取的 stage 名称
         :return: (task, result) 元组列表
         """
         if self.db_path is None:
             return []
-        return load_task_result_records(str(self.db_path))
+        return load_task_result_records(str(self.db_path), stage)
 
 
 class FallbackInlet(BaseInlet):
@@ -186,15 +188,15 @@ class FallbackInlet(BaseInlet):
         }
         self._funnel(pending_item)
 
-    def task_success(self, event_id: int, result: Any, cache: bool = False) -> None:
+    def task_success(self, event_id: int, result: Any, persist: bool = False) -> None:
         """
         将已成功处理任务对应的 pending 记录晋升为 success 并写入结果。
 
         :param event_id: 当前任务事件 ID
         :param result: 任务结果
-        :param cache: 是否缓存任务结果，默认 False
+        :param persist: 是否持久化任务结果，默认 False
         """
-        if cache:
+        if persist:
             self._funnel(
             {
                 "__op__": "promote_success",

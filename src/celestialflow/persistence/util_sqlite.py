@@ -487,11 +487,14 @@ def query_records(
         conn.close()
 
 
-def load_task_error_records(db_path: str | Path) -> list[tuple[Any, tuple[str, str]]]:
+def load_task_error_records(
+    db_path: str | Path, stage: str
+) -> list[tuple[Any, tuple[str, str]]]:
     """
-    自行创建并关闭连接，读取数据库并返回任务与记录的配对列表。
+    自行创建并关闭连接，读取指定 stage 的失败任务与记录配对列表。
 
     :param db_path: sqlite 数据库文件路径
+    :param stage: 待读取的 stage 名称
     :return: ``[(task, error_record), ...]``
     :rtype: list[tuple[Any, tuple[str, str]]]]
     """
@@ -502,9 +505,11 @@ def load_task_error_records(db_path: str | Path) -> list[tuple[Any, tuple[str, s
             """
             SELECT event_id, stage, error_type, error_message, error_ts, task_json
             FROM records
-            WHERE status = 'failed'
+            WHERE status = 'failed' AND stage = ?
             ORDER BY id ASC
             """
+            ,
+            [stage],
         ).fetchall()
         return [
             (
@@ -517,11 +522,12 @@ def load_task_error_records(db_path: str | Path) -> list[tuple[Any, tuple[str, s
         conn.close()
 
 
-def load_task_result_records(db_path: str | Path) -> list[tuple[Any, Any]]:
+def load_task_result_records(db_path: str | Path, stage: str) -> list[tuple[Any, Any]]:
     """
-    自行创建并关闭连接，读取数据库并返回任务与成功结果的配对列表。
+    自行创建并关闭连接，读取指定 stage 的任务与成功结果配对列表。
 
     :param db_path: sqlite 数据库文件路径
+    :param stage: 待读取的 stage 名称
     :return: ``[(task, result), ...]``
     :rtype: list[tuple[Any, Any]]
     """
@@ -531,9 +537,11 @@ def load_task_result_records(db_path: str | Path) -> list[tuple[Any, Any]]:
             """
             SELECT task_json, result_json
             FROM records
-            WHERE status = 'success'
+            WHERE status = 'success' AND stage = ?
             ORDER BY id ASC
             """
+            ,
+            [stage],
         ).fetchall()
         return [
             (

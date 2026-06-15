@@ -270,12 +270,12 @@ class TestSpliteUtils:
         """测试任务-错误配对读取以及按 stage 聚合。"""
         replace_records(sqlite_path, sample_errors)
 
-        pairs = load_task_error_records(sqlite_path)
-        assert len(pairs) == 3
+        pairs = load_task_error_records(sqlite_path, "s1")
+        assert len(pairs) == 2
         assert pairs[0][0] == {"id": 1, "label": "TaskOne"}
         assert pairs[0][1] == ("ValueError", "bad value")
-        assert pairs[1][0] == ["A", "B"]
-        assert pairs[1][1] == ("RuntimeError", "boom happened")
+        assert pairs[1][0] == "PlainTask"
+        assert pairs[1][1] == ("TypeError", "wrong type")
 
     def test_load_task_result_records(self, sqlite_path):
         """测试任务-结果配对读取。"""
@@ -299,5 +299,5 @@ class TestSpliteUtils:
             conn.close()
 
         assert updated is True
-        pairs = load_task_result_records(sqlite_path)
+        pairs = load_task_result_records(sqlite_path, "s8")
         assert pairs == [({"value": 8}, {"ok": True, "value": [1, 2, 3]})]

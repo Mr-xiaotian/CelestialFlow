@@ -452,7 +452,7 @@ class TaskExecutor[T, R]:
         )
 
         self.metrics.add_success_count()
-        self.fallback_inlet.task_success(task_id, result, cache=self.persist_result)
+        self.fallback_inlet.task_success(task_id, result, persist=self.persist_result)
 
         self.log_inlet.task_success(
             self.get_func_name(),
@@ -668,7 +668,7 @@ class TaskExecutor[T, R]:
                 stacklevel=2,
             )
             return []
-        return self.fallback_spout.get_task_result_pairs()
+        return self.fallback_spout.get_task_result_pairs(self.get_name())
 
     def get_fail_pairs(self) -> list[tuple[T, tuple[str, str]]]:
         """
@@ -676,4 +676,4 @@ class TaskExecutor[T, R]:
 
         :return: (task, (error_type, error_message)) 元组列表
         """
-        return self.fallback_spout.get_task_error_pairs()
+        return self.fallback_spout.get_task_error_pairs(self.get_name())
