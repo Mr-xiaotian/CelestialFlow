@@ -105,7 +105,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
 
     def process_task_success(
         self,
-        task_envelope: TaskEnvelope[Iterable[TItem], Any],
+        task_envelope: TaskEnvelope[Iterable[TItem]],
         result: Iterable[RItem],
         start_time: float,
     ) -> None:
@@ -162,7 +162,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
                     payload=self.get_summary(),
                 )
                 self.fallback_inlet.task_in(target_name, downstream_input_id, item)
-                downstream_envelope: TaskEnvelope[RItem, None] = TaskEnvelope(
+                downstream_envelope: TaskEnvelope[RItem] = TaskEnvelope(
                     item,
                     downstream_input_id,
                 )
@@ -252,7 +252,7 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
 
     def process_task_success(
         self,
-        task_envelope: TaskEnvelope[tuple[str, T], Any],
+        task_envelope: TaskEnvelope[tuple[str, T]],
         result: T,
         start_time: float,
     ) -> None:
@@ -294,7 +294,7 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
                 payload=self.get_summary(),
             )
             self.fallback_inlet.task_in(target_name, downstream_input_id, result)
-            downstream_envelope: TaskEnvelope[T, T] = TaskEnvelope(
+            downstream_envelope: TaskEnvelope[T] = TaskEnvelope(
                 result,
                 downstream_input_id,
             )

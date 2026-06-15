@@ -6,7 +6,7 @@ import inspect
 import time
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from .core_envelope import TaskEnvelope
 from .util_errors import ConfigurationError, InitializationError
@@ -95,7 +95,7 @@ class TaskDispatch[T, R]:
         return signal
 
     # ==== Worker ====
-    def _worker(self, task_envelope: TaskEnvelope[R]) -> None:
+    def _worker(self, task_envelope: TaskEnvelope[T]) -> None:
         """
         同步执行单个任务（计时、成功/失败处理）
 
@@ -122,7 +122,7 @@ class TaskDispatch[T, R]:
                     task_envelope, exception, retry_time + 1
                 )
 
-    async def _async_worker(self, task_envelope: TaskEnvelope[R]) -> None:
+    async def _async_worker(self, task_envelope: TaskEnvelope[T]) -> None:
         """
         异步执行单个任务（计时、成功/失败处理）
 
@@ -221,7 +221,7 @@ class TaskDispatch[T, R]:
         semaphore = asyncio.Semaphore(self.max_workers)
         pending: set[asyncio.Task[None]] = set()
 
-        async def sem_worker(envelope: TaskEnvelope[T, Any]) -> None:
+        async def sem_worker(envelope: TaskEnvelope[T]) -> None:
             async with semaphore:
                 await self._async_worker(envelope)
 

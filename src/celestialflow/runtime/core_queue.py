@@ -104,7 +104,7 @@ class TaskInQueue[T]:
         )
 
     # ==== put / get ====
-    def put(self, item: TaskEnvelope[T, Any] | TerminationSignal) -> None:
+    def put(self, item: TaskEnvelope[T] | TerminationSignal) -> None:
         """
         入队任务或终止信号
 
@@ -112,14 +112,14 @@ class TaskInQueue[T]:
         """
         self.queue.put(item)
 
-    def get(self) -> TaskEnvelope[T, Any] | TerminationIdPool:
+    def get(self) -> TaskEnvelope[T] | TerminationIdPool:
         """
         出队任务或终止符号id池
 
         :return: 出队的任务或终止符号id池
         """
         while True:
-            item: TaskEnvelope[T, Any] | TerminationSignal | TerminationIdPool = (
+            item: TaskEnvelope[T] | TerminationSignal | TerminationIdPool = (
                 self.queue.get()
             )
             result = self._deal_get_item(item)
@@ -129,8 +129,8 @@ class TaskInQueue[T]:
 
     def _deal_get_item(
         self,
-        item: TaskEnvelope[T, Any] | TerminationSignal | TerminationIdPool,
-    ) -> TaskEnvelope[T, Any] | TerminationIdPool | None:
+        item: TaskEnvelope[T] | TerminationSignal | TerminationIdPool,
+    ) -> TaskEnvelope[T] | TerminationIdPool | None:
         """
         处理出队的任务或终止符号
 
@@ -156,7 +156,7 @@ class TaskInQueue[T]:
         # 信号已记录但尚未集齐所有上游，继续等待
         return None
 
-    def drain(self) -> list[TaskEnvelope[T, Any]]:
+    def drain(self) -> list[TaskEnvelope[T]]:
         """
         清空队列中的所有任务，返回所有任务列表
         并记录 termination 状态，但不返回 TerminationIdPool
@@ -164,10 +164,10 @@ class TaskInQueue[T]:
 
         :return: 包含所有任务的列表
         """
-        results: list[TaskEnvelope[T, Any]] = []
+        results: list[TaskEnvelope[T]] = []
         while True:
             try:
-                item: TaskEnvelope[T, Any] | TerminationSignal = self.queue.get_nowait()
+                item: TaskEnvelope[T] | TerminationSignal = self.queue.get_nowait()
                 if isinstance(item, TaskEnvelope):
                     results.append(item)
                 else:
@@ -228,7 +228,7 @@ class TaskOutQueue[T]:
         self.queue_list.append(queue)
         self.target_names.append(name)
 
-    def put(self, item: TaskEnvelope[T, Any] | TerminationSignal) -> None:
+    def put(self, item: TaskEnvelope[T] | TerminationSignal) -> None:
         """
         入队任务或终止信号到所有输出队列通道
 
@@ -238,7 +238,7 @@ class TaskOutQueue[T]:
             self.put_channel(item, index)
 
     def put_target(
-        self, item: TaskEnvelope[T, Any] | TerminationSignal, name: str
+        self, item: TaskEnvelope[T] | TerminationSignal, name: str
     ) -> None:
         """
         入队任务或终止信号到指定的输出队列
@@ -249,7 +249,7 @@ class TaskOutQueue[T]:
         self.put_channel(item, self._name_to_idx[name])
 
     def put_channel(
-        self, item: TaskEnvelope[T, Any] | TerminationSignal, idx: int
+        self, item: TaskEnvelope[T] | TerminationSignal, idx: int
     ) -> None:
         """
         入队任务或终止信号到指定的输出队列通道
