@@ -106,7 +106,7 @@ class TaskExecutor[T, R]:
         self.set_log_level(log_level)
 
         self._observers: list[BaseObserver] = []
-        self.set_nullctree()
+        self.ctree_client = NullCelestialTreeClient()
 
         self._init_dispatch()
         self._init_queue()
@@ -253,13 +253,15 @@ class TaskExecutor[T, R]:
             host=host, http_port=http_port, grpc_port=grpc_port, transport="grpc"
         )
 
-    def set_nullctree(self, event_id: int | None = None) -> None:
+    def set_nullctree(
+        self, ctree_client: NullCelestialTreeClient
+    ) -> None:
         """
         设置NullCelestialTreeClient
 
-        :param event_id: 事件ID
+        :param ctree_client: NullCelestialTreeClient 实例
         """
-        self.ctree_client = NullCelestialTreeClient(event_id)
+        self.ctree_client = ctree_client
 
     def set_name(self, name: str) -> None:
         """

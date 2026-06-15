@@ -7,7 +7,7 @@ import warnings
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from celestialtree import Client as CelestialTreeClient
 from celestialtree import NullClient as NullCelestialTreeClient
@@ -162,8 +162,13 @@ class TaskGraph:
             stage_name = stage.get_name()
             if stage_name in self.stage_dict:
                 raise DuplicateNodeError(f"duplicate stage name: {stage_name}")
-
             self.stage_dict[stage_name] = stage
+            
+            if self.use_ctree:
+                stage.set_ctree(self.ctree_host, self.ctree_http_port, self.ctree_grpc_port)
+            else:
+                self.ctree_client = cast(NullCelestialTreeClient, self.ctree_client)
+                stage.set_nullctree(self.ctree_client)
 
             stage.set_inlet(fallback_queue, log_queue)
 
@@ -432,11 +437,6 @@ class TaskGraph:
 
         :param stage: 节点
         """
-        if self.use_ctree:
-            stage.set_ctree(self.ctree_host, self.ctree_http_port, self.ctree_grpc_port)
-        else:
-            stage.set_nullctree(self.ctree_client.event_id)
-
         stage.set_log_level(self.log_level)
 
         if stage.stage_mode == "thread":

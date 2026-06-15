@@ -84,9 +84,15 @@ class _AsyncRetryTwiceThenSucceed:
 
 
 class _CtreeStub:
+    def __init__(self, start_id: int = 42) -> None:
+        """使用递增事件 ID，避免与 sqlite 唯一约束冲突。"""
+        self._next_id = start_id
+
     def emit(self, event: str, **kw: Any) -> int:  # noqa: ARG002
-        """返回固定事件 ID 以替代真实 ctree。"""
-        return 42
+        """返回递增事件 ID 以替代真实 ctree。"""
+        current_id = self._next_id
+        self._next_id += 1
+        return current_id
 
 
 # ── 最小 Executor ──────────────────────────────────────
