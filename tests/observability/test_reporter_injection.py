@@ -1,6 +1,8 @@
+from pathlib import Path
 from typing import Any
 
 from celestialflow.observability import TaskReporter
+from celestialflow.persistence.util_sqlite import replace_records
 from celestialflow.runtime.util_types import TERMINATION_SIGNAL
 
 
@@ -28,6 +30,30 @@ class FakeSession:
         return FakeResponse(self.payload)
 
 
+class FakePostResponse:
+    """模拟 reporter 推送时的 HTTP 响应。"""
+
+    def __init__(self) -> None:
+        self.ok = True
+        self.status_code = 200
+
+    def json(self) -> dict[str, bool]:
+        """返回成功响应。"""
+        return {"ok": True}
+
+
+class FakePushSession:
+    """记录 reporter 的 POST 请求。"""
+
+    def __init__(self) -> None:
+        self.posts: list[tuple[str, dict[str, Any], float]] = []
+
+    def post(self, url: str, json: dict[str, Any], timeout: float) -> FakePostResponse:
+        """记录推送目标与 payload。"""
+        self.posts.append((url, json, timeout))
+        return FakePostResponse()
+
+
 class FakeTaskGraph:
     """记录 put_stage_queue 调用参数。"""
 
@@ -41,6 +67,22 @@ class FakeTaskGraph:
         self.calls.append((tasks_dict, put_termination_signal))
 
 
+class FakeErrorGraph:
+    """提供 reporter 推送错误所需的最小图接口。"""
+
+    def __init__(self, fallback_path: Path, graph_id: str = "demo@1000") -> None:
+        self._fallback_path = str(fallback_path)
+        self._graph_id = graph_id
+
+    def get_fallback_path(self) -> str:
+        """返回 fallback sqlite 路径。"""
+        return self._fallback_path
+
+    def get_graph_id(self) -> str:
+        """返回当前 graph_id。"""
+        return self._graph_id
+
+
 class FakeLogInlet:
     """记录 reporter 注入成功/失败日志。"""
 
@@ -48,6 +90,7 @@ class FakeLogInlet:
         self.successes: list[tuple[str, list[Any]]] = []
         self.failures: list[tuple[str, list[Any], Exception]] = []
         self.pull_failures: list[Exception] = []
+        self.push_error_failures: list[Exception] = []
 
     def inject_tasks_success(self, target_node: str, task_datas: list[Any]) -> None:
         """记录节点注入成功。"""
@@ -62,6 +105,10 @@ class FakeLogInlet:
     def pull_tasks_failed(self, error: Exception) -> None:
         """记录拉取失败。"""
         self.pull_failures.append(error)
+
+    def push_errors_failed(self, error: Exception) -> None:
+        """记录错误推送失败。"""
+        self.push_error_failures.append(error)
 
 
 def test_reporter_accepts_node_to_tasklist_mapping() -> None:
@@ -93,3 +140,50 @@ def test_reporter_accepts_node_to_tasklist_mapping() -> None:
     ]
     assert log_inlet.failures == []
     assert log_inlet.pull_failures == []
+
+
+def test_reporter_pushes_errors_via_content_endpoint_only(tmp_path) -> None:
+    """Reporter 只通过 push_errors_content 推送错误内容。"""
+    sqlite_path = tmp_path / "fallback.sqlite3"
+    replace_records(
+        sqlite_path,
+        [
+            {
+                "event_id": 1,
+                "stage": "s1",
+                "error_type": "ValueError",
+                "error_message": "bad value",
+                "error_ts": 1.0,
+                "task": {"value": 1},
+            }
+        ],
+    )
+
+    graph = FakeErrorGraph(sqlite_path)
+    log_inlet = FakeLogInlet()
+    reporter = TaskReporter("127.0.0.1", 8000, graph, log_inlet)
+    reporter._session = FakePushSession()
+    reporter._server_has_current_graph = False
+
+    reporter._push_errors()
+
+    assert log_inlet.push_error_failures == []
+    assert len(reporter._session.posts) == 1
+    url, payload, _timeout = reporter._session.posts[0]
+    assert url.endswith("/api/push_errors_content")
+    assert payload["graph_id"] == "demo@1000"
+    assert payload["event_ids"] == [1]
+    assert payload["append"] is False
+    assert payload["errors"] == [
+        {
+            "id": 1,
+            "event_id": 1,
+            "stage": "s1",
+            "status": "failed",
+            "error_type": "ValueError",
+            "error_message": "bad value",
+            "error_ts": 1.0,
+            "task": {"value": 1},
+            "result": None,
+        }
+    ]

@@ -2,24 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from functools import partial
 from typing import TYPE_CHECKING, Any, cast
 
-from anyio.to_thread import run_sync
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from ...persistence.util_sqlite import (
-    load_records,
-    load_records_by_event_ids,
-)
 from ..util_cal import cal_interval
 from ..util_config import save_config
 from ..util_models import (
     AnalysisModel,
     ErrorsContentModel,
-    ErrorsMetaModel,
     StatusModel,
     StructureModel,
     TaskInjectionModel,
@@ -121,44 +113,6 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
             return {"ok": False}
         server.update_status_store(float(data.timestamp), data.status)
         return {"ok": True}
-
-    @router.post("/api/push_errors_meta")
-    async def push_errors_meta(data: ErrorsMetaModel) -> dict[str, Any]:
-        """
-        通过错误存储路径加载指定 ``event_id`` 的错误日志。
-
-        :param data: 错误元信息数据
-        :return: {"ok": True} 或 {"ok": False, "fallback": ..., ...}
-        """
-        if not server.is_current_graph(data.graph_id):
-            return {"ok": False}
-        try:
-            run_sync_typed = cast(
-                Callable[..., Awaitable[list[dict[str, Any]]]],
-                run_sync,
-            )
-            if data.event_ids:
-                errors = await run_sync_typed(
-                    partial(
-                        load_records_by_event_ids,
-                        db_path=data.error_path,
-                        event_ids=data.event_ids,
-                    )
-                )
-            else:
-                errors = await run_sync_typed(partial(load_records, db_path=data.error_path))
-            server.update_errors_store(
-                errors,
-                append=data.append,
-            )
-            return {"ok": True}
-        except Exception as e:
-            return {
-                "ok": False,
-                "fallback": "need_content",
-                "reason": type(e).__name__,
-                "msg": str(e),
-            }
 
     @router.post("/api/push_errors_content")
     async def push_errors_content(data: ErrorsContentModel) -> dict[str, bool]:

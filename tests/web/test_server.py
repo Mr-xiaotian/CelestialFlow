@@ -78,6 +78,20 @@ def test_server_state_api(client):
     assert data["has_analysis"] is False
     assert data["event_ids"] == []
 
+
+def test_push_errors_meta_route_removed(client):
+    """`/api/push_errors_meta` 已删除，不应再接受请求。"""
+    response = client.post(
+        "/api/push_errors_meta",
+        json={
+            "graph_id": "demo@1000",
+            "event_ids": [1],
+            "append": False,
+        },
+    )
+
+    assert response.status_code == 404
+
 def test_status_push_pull(client):
     """测试状态同步链路：验证已知版本号（known_rev）下的增量拉取逻辑"""
     graph_id = "demo@1000"
@@ -197,13 +211,12 @@ def test_errors_pagination(client):
         }
         for i in range(15)
     ]
-    # 注意：由于 push_errors_meta 需要真实路径，我们直接用 push_errors_content
+    # 错误同步已统一走 push_errors_content。
     client.post(
         "/api/push_errors_content",
         json={
             "graph_id": graph_id,
             "errors": test_errors,
-            "error_path": "dummy.sqlite3",
             "append": False,
         },
     )
@@ -293,7 +306,6 @@ def test_errors_content_appends_for_same_graph(client):
         json={
             "graph_id": graph_id,
             "errors": first_batch,
-            "error_path": "dummy.sqlite3",
             "event_ids": [1, 2],
             "append": False,
         },
@@ -311,7 +323,6 @@ def test_errors_content_appends_for_same_graph(client):
         json={
             "graph_id": graph_id,
             "errors": second_batch,
-            "error_path": "dummy.sqlite3",
             "event_ids": [3],
             "append": True,
         },
@@ -353,7 +364,6 @@ def test_newer_graph_replaces_previous_graph_context(client):
                     "error_ts": 1.0,
                 }
             ],
-            "error_path": "old.sqlite3",
             "event_ids": [1],
             "append": False,
         },
@@ -410,7 +420,6 @@ def test_stale_graph_pushes_are_ignored(client):
                     "error_ts": 1.0,
                 }
             ],
-            "error_path": "old.sqlite3",
             "event_ids": [1],
             "append": False,
         },

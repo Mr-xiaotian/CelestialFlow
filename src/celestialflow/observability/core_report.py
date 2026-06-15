@@ -47,7 +47,6 @@ class TaskReporter:
 
         self._stop_flag: Event = Event()
         self._thread: Thread | None = None
-        self._push_errors_mode: str = "meta"
         self._session: requests.Session = requests.Session()
         self._server_has_current_graph: bool = False
         self._server_has_structure: bool = False
@@ -170,17 +169,12 @@ class TaskReporter:
     def _push_errors(self) -> None:
         """推送错误信息"""
         try:
-            error_path = self.task_graph.get_fallback_path()
+            fallback_path = self.task_graph.get_fallback_path()
             graph_id = self.task_graph.get_graph_id()
-            local_event_ids = get_event_ids(error_path) if error_path else []
+            local_event_ids = get_event_ids(fallback_path) if fallback_path else []
 
-            if not local_event_ids or not error_path:
+            if not local_event_ids or not fallback_path:
                 return
-
-            push_error_func_dict = {
-                "meta": self._push_errors_meta,
-                "content": self._push_errors_content,
-            }
 
             if self._server_has_current_graph:
                 missing_event_ids = [
@@ -195,8 +189,8 @@ class TaskReporter:
                 missing_event_ids = local_event_ids
                 append_mode = False
 
-            push_error_func_dict[self._push_errors_mode](
-                error_path,
+            self._push_errors_content(
+                fallback_path,
                 graph_id,
                 missing_event_ids,
                 append_mode,
@@ -205,45 +199,9 @@ class TaskReporter:
         except Exception as e:
             self.log_inlet.push_errors_failed(e)
 
-    def _push_errors_meta(
-        self,
-        error_path: str,
-        graph_id: str,
-        event_ids: list[int],
-        append: bool,
-    ) -> None:
-        """
-        推送错误元信息
-
-        :param error_path: 错误存储文件路径
-        :param graph_id: 当前任务图唯一标识
-        :param event_ids: 本轮需要同步的失败事件 ``event_id`` 列表
-        :param append: 是否以追加模式写入
-        :return: None
-        """
-        payload: dict[str, Any] = {
-            "graph_id": graph_id,
-            "error_path": error_path,
-            "event_ids": event_ids,
-            "append": append,
-        }
-        response: requests.Response = self._session.post(
-            f"{self.base_url}/api/push_errors_meta",
-            json=payload,
-            timeout=self._push_timeout(),
-        )
-        resp = response.json()
-        
-        if resp.get("ok"):
-            pass
-        elif resp.get("fallback") == "need_content":
-            self._push_errors_mode = "content"
-        else:
-            raise ReporterError(f"push_errors_meta failed: {resp.get('msg')}")
-
     def _push_errors_content(
         self,
-        error_path: str,
+        fallback_path: str,
         graph_id: str,
         event_ids: list[int],
         append: bool,
@@ -251,21 +209,20 @@ class TaskReporter:
         """
         推送错误内容（仅传本轮缺失的 ``event_id`` 对应条目）
 
-        :param error_path: 错误存储文件路径
+        :param fallback_path: 错误存储文件路径
         :param graph_id: 当前任务图唯一标识
         :param event_ids: 本轮需要同步的失败事件 ``event_id`` 列表
         :param append: 是否以追加模式写入
         :return: None
         """
         all_errors: list[dict[str, Any]] = (
-            load_records_by_event_ids(db_path=error_path, event_ids=event_ids)
+            load_records_by_event_ids(db_path=fallback_path, event_ids=event_ids)
             if append
-            else load_records(db_path=error_path)
+            else load_records(db_path=fallback_path)
         )
 
         payload: dict[str, Any] = {
             "graph_id": graph_id,
-            "error_path": error_path,
             "event_ids": event_ids,
             "append": append,
             "errors": all_errors,
