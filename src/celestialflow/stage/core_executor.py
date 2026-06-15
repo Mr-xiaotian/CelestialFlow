@@ -377,7 +377,7 @@ class TaskExecutor[T, R]:
             CTreeEvent.TASK_INPUT,
             payload=self.get_summary(),
         )
-        envelope: TaskEnvelope[T, None] = TaskEnvelope(task, input_id, source="input")
+        envelope: TaskEnvelope[T, None] = TaskEnvelope(task, input_id)
         self.task_queue.put(envelope)
         self.metrics.add_task_count()
         self.log_inlet.task_input(
@@ -487,7 +487,6 @@ class TaskExecutor[T, R]:
         result_envelope: TaskEnvelope[R, T] = TaskEnvelope(
             task=result,
             id=result_id,
-            source=self.get_name(),
             prev=task,
         )
 
@@ -531,7 +530,6 @@ class TaskExecutor[T, R]:
         retry_envelope: TaskEnvelope[T, Any] = TaskEnvelope(
             task=task,
             id=retry_id,
-            source=self.get_name(),
             prev=task_envelope.get_prev(),
         )
 

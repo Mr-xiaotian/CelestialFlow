@@ -151,7 +151,6 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
             splitted_envelope: TaskEnvelope[RItem, None] = TaskEnvelope(
                 item,
                 split_id,
-                source=self.get_name(),
             )
             result_queue.put(splitted_envelope)
 
@@ -259,7 +258,6 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
         routed_envelope: TaskEnvelope[T, None] = TaskEnvelope(
             result,
             route_id,
-            source=self.get_name(),
         )
         self.result_queue.put_target(routed_envelope, target)
 
