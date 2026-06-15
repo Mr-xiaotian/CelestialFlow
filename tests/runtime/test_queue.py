@@ -20,7 +20,7 @@ class TestTaskInQueue:
 
     def test_put_and_get_task(self, simple_queue):
         """入队和出队任务信封"""
-        envelope = TaskEnvelope("hello", id=1, source="input")
+        envelope = TaskEnvelope("hello", id=1)
         simple_queue.put(envelope)
 
         result = simple_queue.get()
@@ -64,8 +64,8 @@ class TestTaskInQueue:
         q = queue.Queue()
         in_queue = TaskInQueue(q, source_names=[], out_name="test")
 
-        env1 = TaskEnvelope("a", id=1, source="input")
-        env2 = TaskEnvelope("b", id=2, source="input")
+        env1 = TaskEnvelope("a", id=1)
+        env2 = TaskEnvelope("b", id=2)
         in_queue.put(env1)
         in_queue.put(env2)
 
@@ -87,7 +87,7 @@ class TestTaskOutQueue:
             in_name="src",
         )
 
-        envelope = TaskEnvelope("data", id=1, source="src")
+        envelope = TaskEnvelope("data", id=1)
         out_queue.put(envelope)
 
         assert q1.get().task == "data"
@@ -103,7 +103,7 @@ class TestTaskOutQueue:
             in_name="src",
         )
 
-        envelope = TaskEnvelope("data", id=1, source="src")
+        envelope = TaskEnvelope("data", id=1)
         out_queue.put_target(envelope, name="b")
 
         assert q1.empty()
@@ -119,7 +119,7 @@ class TestTaskOutQueue:
         q2 = queue.Queue()
         out_queue.add_queue(q2, name="b")
 
-        envelope = TaskEnvelope("x", id=1, source="src")
+        envelope = TaskEnvelope("x", id=1)
         out_queue.put(envelope)
 
         assert q1.get().task == "x"

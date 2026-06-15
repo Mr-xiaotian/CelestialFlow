@@ -480,11 +480,6 @@ class TaskExecutor[T, R]:
             parents=[task_id],
             payload=self.get_summary(),
         )
-        result_envelope: TaskEnvelope[R, T] = TaskEnvelope(
-            task=result,
-            id=result_id,
-            prev=task,
-        )
 
         self.metrics.add_success_count()
 
@@ -498,7 +493,18 @@ class TaskExecutor[T, R]:
             result_id,
         )
 
-        self.result_queue.put(result_envelope)
+        for target_name in self.result_queue.target_names:
+            downstream_input_id = self.ctree_client.emit(
+                CTreeEvent.TASK_INPUT,
+                parents=[result_id],
+                payload=self.get_summary(),
+            )
+            downstream_envelope: TaskEnvelope[R, T] = TaskEnvelope(
+                task=result,
+                id=downstream_input_id,
+                prev=task,
+            )
+            self.result_queue.put_target(downstream_envelope, target_name)
 
     def emit_retry_envelope(
         self,

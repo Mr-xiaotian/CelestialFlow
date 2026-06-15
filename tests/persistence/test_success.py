@@ -10,10 +10,10 @@ class TestSuccessPersistence:
 
         spout.start()
         try:
-            env1 = TaskEnvelope(task=100, id=1, source='s1')
+            env1 = TaskEnvelope(task=100, id=1)
             env1.prev = 'task1'
 
-            env2 = TaskEnvelope(task=200, id=2, source='s2')
+            env2 = TaskEnvelope(task=200, id=2)
             env2.prev = 'task2'
 
             spout.get_queue().put(env1)

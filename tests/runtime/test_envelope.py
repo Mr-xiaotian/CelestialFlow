@@ -8,39 +8,34 @@ class TestTaskEnvelope:
     def test_create_and_getters(self):
         """测试 TaskEnvelope 的构造函数及其 Getter 方法是否能正确还原原始数据"""
         task = {"key": "value", "num": 42}
-        envelope = TaskEnvelope(task, id=100, source="test")
+        envelope = TaskEnvelope(task, id=100)
 
         assert envelope.get_task() == task
         assert envelope.get_id() == 100
         assert isinstance(envelope.get_hash(), bytes)
         assert len(envelope.get_hash()) > 0
 
-    def test_source_preserved(self):
-        """测试 source 属性在 TaskEnvelope 中被正确保存和访问"""
-        envelope = TaskEnvelope("hello", id=1, source="input")
-        assert envelope.source == "input"
-
     def test_change_id(self):
         """测试 change_id 方法能够正确修改信封的 ID"""
-        envelope = TaskEnvelope("hello", id=1, source="input")
+        envelope = TaskEnvelope("hello", id=1)
         envelope.id = 999
         assert envelope.get_id() == 999
 
     def test_different_tasks_different_hash(self):
         """测试不同内容的项目产生不同的哈希值"""
-        env1 = TaskEnvelope("task_a", id=1, source="test")
-        env2 = TaskEnvelope("task_b", id=2, source="test")
+        env1 = TaskEnvelope("task_a", id=1)
+        env2 = TaskEnvelope("task_b", id=2)
         assert env1.get_hash() != env2.get_hash()
 
     def test_same_task_same_hash(self):
         """测试相同内容的项目产生相同的哈希值（即便 ID 不同）"""
-        env1 = TaskEnvelope("same", id=1, source="test")
-        env2 = TaskEnvelope("same", id=2, source="test")
+        env1 = TaskEnvelope("same", id=1)
+        env2 = TaskEnvelope("same", id=2)
         assert env1.get_hash() == env2.get_hash()
 
     def test_lazy_hash(self):
         """测试哈希值的延迟计算逻辑：只有在首次调用 get_hash 时才计算"""
-        envelope = TaskEnvelope("x", id=1, source="test")
+        envelope = TaskEnvelope("x", id=1)
         assert envelope.hash is None
         envelope.get_hash()
         assert envelope.hash is not None
@@ -52,8 +47,8 @@ class TestTaskEnvelope:
             def __getstate__(self):
                 raise TypeError("cannot pickle")
 
-        env1 = TaskEnvelope(UnpicklableTask(), id=101, source="test")
-        env2 = TaskEnvelope(UnpicklableTask(), id=102, source="test")
+        env1 = TaskEnvelope(UnpicklableTask(), id=101)
+        env2 = TaskEnvelope(UnpicklableTask(), id=102)
 
         hash1 = env1.get_hash()
         hash2 = env2.get_hash()
@@ -66,7 +61,7 @@ class TestTaskEnvelope:
 
     def test_slots_memory_efficient(self):
         """测试 __slots__ 限制，确保不能为 TaskEnvelope 实例动态添加非法属性"""
-        envelope = TaskEnvelope("x", id=1, source="test")
+        envelope = TaskEnvelope("x", id=1)
         with pytest.raises(AttributeError):
             envelope.extra_attr = 123
 

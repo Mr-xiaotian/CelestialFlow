@@ -20,6 +20,7 @@ from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.core_dispatch import TaskDispatch
 from celestialflow.runtime.util_types import TerminationSignal
 from celestialflow.stage import TaskExecutor
+from tests.conftest import wait_until
 
 _RESULT_COLLECTORS: WeakKeyDictionary[TaskExecutor, Queue[Any]] = WeakKeyDictionary()
 
@@ -109,7 +110,7 @@ def _make_executor(
 def _put(executor: TaskExecutor, *items: Any) -> None:
     """向执行器输入队列写入任务信封。"""
     for num, i in enumerate(items):
-        envelope = TaskEnvelope(task=i, id=num, source="test")
+        envelope = TaskEnvelope(task=i, id=num)
         executor.task_queue.put(envelope)
 
 
@@ -208,6 +209,46 @@ class TestDispatchSerial:
         assert len(results) == 1
         assert isinstance(results[0], TerminationSignal)
 
+    def test_success_fanout_creates_distinct_downstream_input_ids(self) -> None:
+        """普通 executor 成功后应为每个真实下游创建独立 input_id。"""
+
+        class _SequentialCtreeStub:
+            def __init__(self) -> None:
+                self._next_id = 100
+
+            def emit(self, event: str, **kw: Any) -> int:  # noqa: ARG002
+                current_id = self._next_id
+                self._next_id += 1
+                return current_id
+
+        executor = _make_executor(_square)
+        executor.ctree_client = _SequentialCtreeStub()
+        dispatch = TaskDispatch(executor, executor.func, max_workers=1)
+        collector_a: Queue[Any] = Queue()
+        collector_b: Queue[Any] = Queue()
+        executor.result_queue.add_queue(collector_a, name="downstream_a")
+        executor.result_queue.add_queue(collector_b, name="downstream_b")
+
+        _put(executor, 3)
+        _put_termination(executor)
+        dispatch.dispatch_serial()
+
+        item_a = collector_a.get()
+        item_b = collector_b.get()
+
+        assert isinstance(item_a, TaskEnvelope)
+        assert isinstance(item_b, TaskEnvelope)
+        assert item_a.task == 9
+        assert item_b.task == 9
+        assert item_a.prev == 3
+        assert item_b.prev == 3
+        assert item_a.id != item_b.id
+        wait_until(
+            lambda: executor.get_success_pairs() == [(3, 9)],
+            message="timeout waiting for success_spout to cache success result",
+        )
+        assert executor.get_success_pairs() == [(3, 9)]
+
 
 # ── thread ─────────────────────────────────────────────
 
@@ -228,9 +269,9 @@ class TestDispatchThread:
         """验证线程模式会统计重复任务。"""
         executor = _make_executor(_square)
         dispatch = TaskDispatch(executor, executor.func, max_workers=2)
-        executor.task_queue.put(TaskEnvelope(task=7, id=1, source="test"))
-        executor.task_queue.put(TaskEnvelope(task=7, id=2, source="test"))
-        executor.task_queue.put(TaskEnvelope(task=3, id=3, source="test"))
+        executor.task_queue.put(TaskEnvelope(task=7, id=1))
+        executor.task_queue.put(TaskEnvelope(task=7, id=2))
+        executor.task_queue.put(TaskEnvelope(task=3, id=3))
         _put_termination(executor)
         dispatch.dispatch_thread()
         results = _collect_results(executor)
