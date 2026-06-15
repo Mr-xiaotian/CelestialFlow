@@ -37,7 +37,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
     result_queue: TaskOutQueue[R]
     fallback_inlet: FallbackInlet
     log_inlet: LogInlet
-    _prev_bindings: list[TaskStage[Any, Any]]
 
     # ==== 初始化 ====
     def __init__(
@@ -61,8 +60,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         :param enable_duplicate_check: 是否启用重复检查，默认 True
         :param log_level: 日志级别，默认 'INFO'
         """
-        self._prev_bindings = []
-
         super().__init__(
             name,
             func,
@@ -96,17 +93,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         else:
             raise StageModeError(stage_mode)
 
-    def set_execution_mode(self, execution_mode: str) -> None:
-        """
-        设置执行模式，并在 metrics 重建后恢复已记录的前驱绑定。
-
-        :param execution_mode: 执行模式
-        """
-        super().set_execution_mode(execution_mode)
-
-        for prev_stage in self._prev_bindings:
-            self._apply_prev_binding(prev_stage)
-
     def set_inlet(
         self, fallback_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]
     ) -> None:
@@ -135,16 +121,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
 
         :param pending_prev_binding: 前置节点
         """
-        self._prev_bindings.append(pending_prev_binding)
-        self._apply_prev_binding(pending_prev_binding)
-
-    def _apply_prev_binding(self, prev_stage: TaskStage[Any, Any]) -> None:
-        """
-        将一个前驱 stage 的绑定计数器注册到当前 metrics。
-
-        :param prev_stage: 前驱节点
-        """
-        counter = prev_stage.get_binding_counter(self.get_name())
+        counter = pending_prev_binding.get_binding_counter(self.get_name())
         self.metrics.append_task_counter(counter)
 
     # ==== 查询 ====

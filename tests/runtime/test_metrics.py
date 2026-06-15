@@ -77,6 +77,24 @@ class TestTaskMetricsBasic:
         assert metrics.get_task_count() == 0
         assert metrics.get_success_count() == 0
 
+    def test_set_execution_mode_keeps_counters_and_lock_stable(self):
+        """测试切换 execution_mode 时不重建锁和计数器对象"""
+        metrics = TaskMetrics(execution_mode="serial")
+        lock = metrics.lock
+        task_counter = metrics.task_counter
+        success_counter = metrics.success_counter
+
+        metrics.add_task_count(3)
+        metrics.add_success_count(2)
+        metrics.set_execution_mode("thread")
+
+        assert metrics.execution_mode == "thread"
+        assert metrics.lock is lock
+        assert metrics.task_counter is task_counter
+        assert metrics.success_counter is success_counter
+        assert metrics.get_task_count() == 3
+        assert metrics.get_success_count() == 2
+
 
 class TestTaskMetricsDuplicate:
     def test_duplicate_check_disabled_always_false(self):

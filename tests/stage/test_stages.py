@@ -111,3 +111,16 @@ class TestTaskRouter:
         assert R.route_counters["target2"].value == 1
         assert T1.get_counts()["tasks_succeeded"] == 1
         assert T2.get_counts()["tasks_succeeded"] == 1
+
+    def test_router_binding_counter_uses_stable_metrics_lock(self):
+        """测试路由计数器从创建开始就绑定稳定的 metrics 锁"""
+        router = TaskRouter("Router")
+
+        counter = router.get_binding_counter("target1")
+        lock = router.metrics.lock
+
+        assert counter.get_lock() is lock
+
+        router.set_execution_mode("thread")
+
+        assert counter.get_lock() is lock

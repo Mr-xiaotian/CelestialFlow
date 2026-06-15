@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from threading import Lock
 
-from .util_types import NoOpContext, SumCounter, ValueWrapper
+from .util_types import SumCounter, ValueWrapper
 
 
 class TaskMetrics:
@@ -14,7 +14,7 @@ class TaskMetrics:
     以及可重试异常类型和去重逻辑。
     """
 
-    lock: Lock | NoOpContext
+    lock: Lock
     execution_mode: str
     enable_duplicate_check: bool
     retry_exceptions: tuple[type[Exception], ...]
@@ -40,24 +40,16 @@ class TaskMetrics:
         self.enable_duplicate_check = enable_duplicate_check
         self.retry_exceptions = ()
 
-        self._init_lock()
+        self.lock = Lock()
         self._init_counter()
         self.reset_state()
-
-    def _init_lock(self) -> None:
-        """
-        初始化锁对象（按 execution_mode 选择实现）
-        :param execution_mode: 任务执行模式，可选值为 "serial", "thread" 或 "async"
-        :param enable_duplicate_check: 是否启用重复任务检查，默认值为 False
-        """
-        self.lock = Lock() if self.execution_mode == "thread" else NoOpContext()
 
     def _init_counter(self) -> None:
         """
         初始化计数器
         """
 
-        # thread 模式下，让四个 counter 共用同一把锁（减少开销，也更一致）
+        # 统一使用同一把线程锁，保证 execution_mode 切换时 counter 对象保持稳定。
         self.task_counter = SumCounter(lock=self.lock)
         self.success_counter = ValueWrapper(value=0, lock=self.lock)
         self.error_counter = ValueWrapper(value=0, lock=self.lock)
@@ -88,8 +80,6 @@ class TaskMetrics:
         :param execution_mode: 任务执行模式，可选值为 "serial", "thread" 或 "async"
         """
         self.execution_mode = execution_mode
-        self._init_lock()
-        self._init_counter()
 
     # ==== 去重 ====
     def is_duplicate(self, task_hash: bytes) -> bool:
