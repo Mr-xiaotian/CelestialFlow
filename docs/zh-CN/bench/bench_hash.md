@@ -1,6 +1,6 @@
 # bench_hash.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/16
 
 ## 目标
 
@@ -38,9 +38,11 @@
 
 ## 基准结果（实测）
 
+### 历史结果 - Windows 哈希方法对比（时间未记录）
+
 > 环境：Windows，Python 3.10，timeit repeat=7, number=10,000
 
-### 综合排名（所有数据类型平均）
+#### 综合排名（所有数据类型平均）
 
 | 方法 | 平均耗时 | 特点 |
 |------|----------|------|
@@ -51,7 +53,7 @@
 | `json+md5` / `json+sha256` | ~25 us | 跨语言稳定，但最慢 |
 | `repr+sha1+uuid` | ~25 us | UUID 格式输出，有额外转换开销 |
 
-### 典型数据点（单位：微秒/次）
+#### 典型数据点（单位：微秒/次）
 
 | Case | best | worst | 最佳方法 |
 |------|------|-------|----------|
@@ -68,6 +70,27 @@
 - `fast_mixed` 在 bytes 和大集合上具有绝对优势（直接哈希原始字节，避免序列化）
 - `json+sha256` 和 `repr+sha1+uuid` 在所有场景下均显著慢于 pickle 方案，仅在对稳定性/格式有强需求时使用
 - pickle 系列方法在小对象上表现优异（1-3 us），但注意 pickle 的跨会话稳定性风险
+
+### 2026/06/16 - 本地复测
+
+> 环境：Windows，当前输出格式按 case 分项展示；下表摘录代表性 case（单位：微秒/次）
+
+#### 代表性数据点（本轮）
+
+| Case | 最佳方法 | 最佳耗时 | 次佳观察 |
+|------|----------|----------|----------|
+| `int` | `repr+blake2b16` | 0.872 us | `fast_mixed` 0.970 us |
+| `short_str` | `fast_mixed` | 0.760 us | `repr+blake2b16` 0.863 us |
+| `long_str_4k` | `fast_mixed` | 2.535 us | `pickle+sha1` 3.320 us |
+| `bytes_4k` | `fast_mixed` | 2.347 us | `pickle+sha1` 3.328 us |
+| `small_dict` | `pickle+blake2b16` | 1.742 us | `fast_mixed` 2.170 us |
+| `dict_100_pairs` | `pickle+sha1` | 6.456 us | `fast_mixed` 6.842 us |
+| `set_100_ints` | `pickle+sha1` | 3.104 us | `pickle+blake2b16` 3.139 us |
+
+**本轮补充结论**：
+- `fast_mixed` 在字符串和大字节串上继续保持明显优势，尤其是 `long_str_4k` 与 `bytes_4k`
+- `pickle` 系列在中大型容器对象上仍然稳定领先，特别是 `dict`、`set`、`tuple/list` 这类复合结构
+- `json` 和 `repr+sha1+uuid` 依旧显著偏慢，更适合作为稳定性或格式优先时的备选方案，而非纯性能方案
 
 ## 运行方式
 

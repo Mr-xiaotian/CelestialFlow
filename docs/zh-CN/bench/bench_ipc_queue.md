@@ -1,6 +1,6 @@
 # bench_ipc_queue.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/16
 
 ## 目标
 
@@ -34,6 +34,8 @@
 
 ## 基准结果（实测）
 
+### 历史结果 - Windows spawn int 负载（时间未记录）
+
 > 环境：Windows，Python 3.10，spawn 模式，COUNT=100,000，REPEAT=3，负载=int（8 字节）
 
 | 机制 | 平均耗时 | 吞吐量 | 相对 MPQueue |
@@ -48,6 +50,22 @@
 - **SimpleQueue 次之**：无锁实现，比 MPQueue 快 21%，但仅支持单生产者单消费者
 - **Manager().Queue 最慢**：仅为 MPQueue 的 17% 吞吐量，Manager 服务器进程成为绝对瓶颈
 - 在 CelestialFlow 的多进程队列选型中，Pipe 和 SimpleQueue 是高吞吐场景的最优解（若拓扑允许）
+
+### 2026/06/16 - Windows spawn int 负载复测
+
+> 环境：Windows，COUNT=100,000，REPEAT=3，`PAYLOAD_MODE=int`
+
+| 机制 | 平均耗时 | 吞吐量 | 相对 MPQueue |
+|------|----------|--------|-------------|
+| **MPQueue** | 0.8434s | 118,563 items/s | 1.00x |
+| **SimpleQueue** | 0.8417s | 118,806 items/s | 1.00x |
+| **Pipe** | 0.7699s | 129,881 items/s | 1.09x |
+| **Manager().Queue** | 4.5027s | 22,209 items/s | 0.19x |
+
+**本轮补充结论**：
+- `Pipe` 依然是当前机器上的最快方案，但和 `MPQueue` / `SimpleQueue` 的差距已经缩小到约 **9%**
+- `SimpleQueue` 与 `MPQueue` 这轮几乎打平，说明在 `int` 负载下两者开销都已经很低
+- `Manager().Queue` 仍然显著落后，吞吐量只有最快方案的约六分之一
 
 ## 运行方式
 

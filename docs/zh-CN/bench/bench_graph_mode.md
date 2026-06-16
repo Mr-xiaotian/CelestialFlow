@@ -1,6 +1,6 @@
 # bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/16
 
 ## 目标
 
@@ -79,9 +79,11 @@ python bench/bench_graph_mode.py
 
 ## 基准结果（实测）
 
+### 历史结果 - Windows 图模式对比（时间未记录）
+
 > 环境：Windows，Python 3.10
 
-### `bench_graph_0` — 4 节点 DAG，CPU+I/O 混合，11 个任务（含异常边界）
+#### `bench_graph_0` — 4 节点 DAG，CPU+I/O 混合，11 个任务（含异常边界）
 
 | stage_mode \ execution_mode | serial | thread | async |
 |----------------------------|--------|--------|-------|
@@ -95,7 +97,7 @@ python bench/bench_graph_mode.py
 - `execution_mode=thread` 和 `async` 均有 2-3x 加速（斐波那契计算释放 GIL 的部分 + sleep 阶段的 I/O 并发）
 - `async` 与 `thread` 性能接近，async 在 I/O 密集场景下略有优势
 
-### `bench_graph_1` — 6 节点 DAG，I/O 密集（随机 sleep），10 个任务
+#### `bench_graph_1` — 6 节点 DAG，I/O 密集（随机 sleep），10 个任务
 
 | stage_mode \ execution_mode | serial | thread | async |
 |----------------------------|--------|--------|-------|
@@ -109,7 +111,7 @@ python bench/bench_graph_mode.py
 - `async` 在 I/O 密集场景下优于 `thread`（协程切换开销小于线程切换）
 - `thread`（线程布局）在 I/O 密集场景下显著优于 `serial`（单线程串行布局），各 stage 可并行启动
 
-### `bench_graph_2` — 4 节点 DAG（Splitter→A→[B,C]），纯计算，10,000 个任务
+#### `bench_graph_2` — 4 节点 DAG（Splitter→A→[B,C]），纯计算，10,000 个任务
 
 | stage_mode \ execution_mode | serial | thread | async |
 |----------------------------|--------|--------|-------|
@@ -122,13 +124,21 @@ python bench/bench_graph_mode.py
 - `stage_mode=thread` 同样增加了开销：stage 间的线程调度在纯计算场景下是纯负担
 - **结论：纯计算密集型任务应使用 `serial` + `serial`，避免并发调度开销**
 
-### 总结
+#### 总结
 
 - `stage_mode=thread` 在 I/O 密集场景下是最优选择
 - `execution_mode=async` 在 I/O 密集场景下表现最佳，`thread` 次之，`serial` 最慢
 - **纯计算场景下 `serial` 最快**——`thread` 和 `async` 的调度开销在无 I/O 等待时无法被摊销，反而成为瓶颈
 - `async` 需要 stage 的函数为 async 函数，因此需要分别提供 sync_graph 和 async_graph
 - 总耗时包含：线程启动 + 任务执行 + 队列传输 + 终止信号传播
+
+### 2026/06/16 - 本轮尝试重跑（未稳定完成）
+
+> 环境：Windows，Reporter 服务指向 `127.0.0.1:5005`
+
+- 本轮已按当前脚本入口尝试重跑 `bench_graph_mode.py`
+- 命令在当前环境下长时间未返回稳定的完整耗时表，临时日志只落到单行表头
+- 为避免把不完整数据写成正式 benchmark 记录，本次暂不追加新的耗时表，历史结果继续保留作参考
 
 ## 依赖
 

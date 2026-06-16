@@ -1,6 +1,6 @@
 # bench_mpqueue_vs_shared_memory.py 基准测试说明
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/06/16
 
 ## 目标
 
@@ -34,23 +34,25 @@
 
 ## 基准结果（实测）
 
+### 历史结果 - Windows SharedMemory 对比（时间未记录）
+
 > 环境：Windows，Python 3.10，spawn 模式，COUNT=100,000，REPEAT=3，负载=int（8 字节），SLOT_COUNT=1024
 
-### SPSC（单生产者单消费者）
+#### SPSC（单生产者单消费者）
 
 | 机制 | 平均耗时 | 吞吐量 | 胜出方 |
 |------|----------|--------|--------|
 | MPQueue | 1.281s | 78,066 items/s | — |
 | SharedMemory ring | **0.878s** | **113,853 items/s** | ✅ **SharedMemory**（快 1.46x） |
 
-### MPSC（4 生产者 1 消费者）
+#### MPSC（4 生产者 1 消费者）
 
 | 机制 | 平均耗时 | 吞吐量 | 胜出方 |
 |------|----------|--------|--------|
 | MPQueue | **1.618s** | **61,787 items/s** | ✅ **MPQueue**（快 1.18x） |
 | SharedMemory ring | 1.905s | 52,487 items/s | — |
 
-### SPMC（1 生产者 4 消费者）
+#### SPMC（1 生产者 4 消费者）
 
 | 机制 | 平均耗时 | 吞吐量 | 胜出方 |
 |------|----------|--------|--------|
@@ -62,6 +64,21 @@
 - **MPSC**：SharedMemory 的 write_lock 成为瓶颈（4 个生产者串行写入），MPQueue 反而更快
 - **SPMC**：SharedMemory 再次领先，多个消费者可并行读取不同 slot
 - 策略建议：单生产者场景优先 SharedMemory；多生产者场景优先 MPQueue
+
+### 2026/06/16 - Windows int 负载复测
+
+> 环境：Windows，COUNT=100,000，REPEAT=3，`PAYLOAD_MODE=int`，`SLOT_COUNT=1024`
+
+| 拓扑 | MPQueue | SharedMemory ring | 胜出方 |
+|------|---------|-------------------|--------|
+| SPSC | 0.8416s | **0.5979s** | SharedMemory（1.41x） |
+| MPSC | 2.1374s | **1.0849s** | SharedMemory（1.97x） |
+| SPMC | 3.1689s | **1.0666s** | SharedMemory（2.97x） |
+
+**本轮补充结论**：
+- 本轮三种拓扑里 `SharedMemory ring` 全部领先，连历史上曾落后的 MPSC 也反超了 `MPQueue`
+- 当前机器上多消费者场景收益最大，SPMC 下 `SharedMemory` 吞吐量接近 `MPQueue` 的 3 倍
+- 这说明共享内存实现对具体机器、Python 版本和系统负载相当敏感，保留历史结果做对照仍然有价值
 
 ## 运行方式
 

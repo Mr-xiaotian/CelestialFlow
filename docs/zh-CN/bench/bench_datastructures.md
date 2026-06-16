@@ -1,6 +1,6 @@
 # bench_datastructures.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/16
 
 ## 目标
 
@@ -84,6 +84,8 @@ test_redis_multithread_plain(r, num_threads=5)   # 5 线程
 
 ## 基准结果（实测）
 
+### 历史结果 - Windows 本地 Redis（时间未记录）
+
 > 环境：Windows，Python 3.10，本地 Redis，N=10,000
 
 | 测试项 | put/set | get | 备注 |
@@ -105,6 +107,30 @@ test_redis_multithread_plain(r, num_threads=5)   # 5 线程
 - 纯内存结构（dict、thread Queue）比任何 IPC/网络方案快 2-3 个数量级
 - Redis Pipeline 是网络场景下的必选项，可将延迟从 ~2.8s 降至 ~0.15s
 - MPQueue 的 get 比 put 慢约 20x，主要受 pickle 反序列化拖累
+
+### 2026/06/16 - 本地 Redis 可用时复测
+
+> 环境：Windows，N=10,000，本轮 Redis 服务可用
+
+| 测试项 | put/set | get | 备注 |
+|--------|---------|-----|------|
+| Built-in dict | 0.0004s | 0.0002s | 单线程基准，最快 |
+| Queue (thread) | 0.0057s | 0.0063s | 线程安全队列 |
+| MPQueue | 0.0075s | 0.1294s | get 仍明显慢于 put |
+| Manager.dict | 0.3494s | 0.3848s | 代理转发开销显著 |
+| Value (number) | 0.0097s | — | 10,000 次原子自增 |
+| Redis plain | 2.5804s | 2.4552s | 逐条 RTT 主导 |
+| Redis pipeline | 0.0874s | 0.0574s | 本轮最快的 Redis 写读方案 |
+| Redis multi-thread | 0.8925s | 0.8135s | 10 线程，无 pipeline |
+| Redis hash | 2.4163s | 2.5311s | 与 plain 接近 |
+| Redis list | 2.4061s | 2.5197s | rpush/lindex |
+| Redis set | 2.4366s | 2.4330s | sadd/sismember |
+| Redis zset | 2.7509s | 2.7586s | zadd/zscore |
+
+**本轮补充结论**：
+- 纯内存结构仍然领先所有 Redis 方案 2-4 个数量级，网络 RTT 仍是主导因素
+- `Redis pipeline` 继续证明其必要性，写入相对 `plain` 快约 **29x**，读取快约 **43x**
+- `MPQueue` 这轮显著快于历史记录，但 `get` 依旧比 `put` 慢很多，序列化/反序列化成本仍在
 
 ## 依赖
 
