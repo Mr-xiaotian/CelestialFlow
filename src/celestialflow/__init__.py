@@ -13,7 +13,7 @@ from .graph import (
     TaskLoop,
     TaskWheel,
 )
-from .observability import BaseObserver, CallbackObserver, TaskProgress
+from .observability import BaseObserver, TaskProgress
 from .persistence.util_sqlite import (
     load_records,
     load_records_grouped_by_stage,
@@ -35,7 +35,6 @@ from .web import TaskWebServer
 
 __all__ = [
     "BaseObserver",
-    "CallbackObserver",
     "TaskChain",
     "TaskComplete",
     "TaskCross",

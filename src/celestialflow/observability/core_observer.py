@@ -1,9 +1,6 @@
 # observability/core_observer.py
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
-
 
 class BaseObserver:
     """执行器生命周期观察者基类，子类按需覆写。"""
@@ -53,15 +50,3 @@ class BaseObserver:
         """执行器结束回调"""
         ...
 
-
-class CallbackObserver(BaseObserver):
-    """通过回调函数创建的轻量观察者，无需定义子类。"""
-
-    def __init__(self, **callbacks: Callable[..., Any]) -> None:
-        """
-        通过回调函数创建观察者
-
-        :param callbacks: 以方法名（如 on_finish）为键的回调函数
-        """
-        for name, fn in callbacks.items():
-            setattr(self, name, fn)
