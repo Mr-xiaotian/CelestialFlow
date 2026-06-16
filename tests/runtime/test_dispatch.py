@@ -103,7 +103,7 @@ def _make_executor(
 ) -> TaskExecutor:
     """构造最小可运行的测试执行器。"""
     e = TaskExecutor(name, func, max_retries=max_retries, log_level="SUCCESS")
-    e.add_retry_exceptions(ValueError)
+    e.set_retry_exceptions(ValueError)
     e.init_env()
     e.ctree_client = _CtreeStub()
     # 通过公开 API 为测试注册结果收集队列，避免向 executor 注入测试专用属性

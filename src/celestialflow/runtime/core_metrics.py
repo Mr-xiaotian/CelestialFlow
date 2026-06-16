@@ -99,7 +99,7 @@ class TaskMetrics:
             self.processed_set.add(task_hash)
 
     # ==== 重试 ====
-    def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
+    def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
         """
         添加需要重试的异常类型
 

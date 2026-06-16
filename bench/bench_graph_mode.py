@@ -163,8 +163,8 @@ def bench_graph_0() -> None:
     graph.connect([stage1], [stage2, stage3])
     graph.connect([stage2], [stage4])
 
-    stage1.add_retry_exceptions(ValueError)
-    stage2.add_retry_exceptions(ValueError)
+    stage1.set_retry_exceptions(ValueError)
+    stage2.set_retry_exceptions(ValueError)
 
     # async graph
     async_stage1 = TaskStage("StageA", async_fibonacci, max_workers=4, max_retries=1)
@@ -179,8 +179,8 @@ def bench_graph_0() -> None:
     async_graph.connect([async_stage1], [async_stage2, async_stage3])
     async_graph.connect([async_stage2], [async_stage4])
 
-    async_stage1.add_retry_exceptions(ValueError)
-    async_stage2.add_retry_exceptions(ValueError)
+    async_stage1.set_retry_exceptions(ValueError)
+    async_stage2.set_retry_exceptions(ValueError)
 
     graph.set_reporter(True, host=report_host, port=report_port)
     async_graph.set_reporter(True, host=report_host, port=report_port)

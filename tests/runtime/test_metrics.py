@@ -108,9 +108,9 @@ class TestTaskMetricsRetryExceptions:
         metrics = TaskMetrics()
         assert metrics.retry_exceptions == ()
 
-    def test_add_retry_exceptions(self):
+    def test_set_retry_exceptions(self):
         """测试动态添加可重试异常类型"""
         metrics = TaskMetrics()
-        metrics.add_retry_exceptions(ValueError, RuntimeError)
+        metrics.set_retry_exceptions(ValueError, RuntimeError)
         assert ValueError in metrics.retry_exceptions
         assert RuntimeError in metrics.retry_exceptions

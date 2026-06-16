@@ -59,7 +59,7 @@ async def bench_executor_fibonacci() -> None:
         persist_result=True,
         # log_level="TRACE",
     )
-    executor.add_retry_exceptions(ValueError)
+    executor.set_retry_exceptions(ValueError)
     executor.add_observer(TaskProgress())
 
     executor_async = TaskExecutor(
@@ -70,7 +70,7 @@ async def bench_executor_fibonacci() -> None:
         persist_result=True,
         # log_level="TRACE",
     )
-    executor_async.add_retry_exceptions(ValueError)
+    executor_async.set_retry_exceptions(ValueError)
     executor_async.add_observer(TaskProgress())
 
     sync_modes = ["serial", "thread"]

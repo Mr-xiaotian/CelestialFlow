@@ -109,7 +109,7 @@ class TestExecutorSerial:
             execution_mode="serial",
             max_retries=2,
         )
-        executor.add_retry_exceptions(RuntimeError)
+        executor.set_retry_exceptions(RuntimeError)
         executor.start([1])
 
         counts = executor.get_counts()
@@ -127,7 +127,7 @@ class TestExecutorSerial:
             max_retries=2,
         )
         # 只重试 RuntimeError，但函数抛的是 ValueError
-        executor.add_retry_exceptions(RuntimeError)
+        executor.set_retry_exceptions(RuntimeError)
         executor.start([-1])
 
         counts = executor.get_counts()

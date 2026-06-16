@@ -302,6 +302,14 @@ class TaskExecutor[T, R]:
         """
         self.log_level = log_level.upper()
 
+    def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
+        """
+        添加需要重试的异常类型
+
+        :param exceptions: 异常类型
+        """
+        self.metrics.set_retry_exceptions(*exceptions)
+
     # ==== 查询 ====
     def get_name(self) -> str:
         """
@@ -384,14 +392,6 @@ class TaskExecutor[T, R]:
         if self.fallback_spout.db_path is None:
             return Path()
         return Path(self.fallback_spout.db_path).resolve()
-
-    def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
-        """
-        添加需要重试的异常类型
-
-        :param exceptions: 异常类型
-        """
-        self.metrics.add_retry_exceptions(*exceptions)
 
     # ==== 任务输入 ====
     def put_task(self, task: T) -> None:
