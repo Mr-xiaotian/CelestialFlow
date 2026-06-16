@@ -1,8 +1,10 @@
+from pathlib import Path
 from typing import Any
 
 import pytest
 
 from celestialflow import TaskExecutor
+from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_errors import (
     ConfigurationError,
     ExecutionModeError,
@@ -210,6 +212,52 @@ class TestExecutorDuplicateCheck:
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 6
         assert counts["tasks_duplicated"] == 0
+
+
+class TestExecutorReplay:
+    def test_start_db(self, tmp_path: Path):
+        """执行器应只读取属于自己 stage 的失败任务并启动。"""
+        sqlite_path = tmp_path / "fallback.sqlite3"
+        appended = append_records(
+            sqlite_path,
+            [
+                {
+                    "event_id": 1,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task": 1,
+                    "error_type": "ValueError",
+                    "error_message": "bad",
+                    "error_ts": 1.0,
+                },
+                {
+                    "event_id": 2,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task": 2,
+                    "error_type": "ValueError",
+                    "error_message": "bad",
+                    "error_ts": 2.0,
+                },
+                {
+                    "event_id": 3,
+                    "stage": "other",
+                    "status": "failed",
+                    "task": 99,
+                    "error_type": "ValueError",
+                    "error_message": "bad",
+                    "error_ts": 3.0,
+                },
+            ],
+        )
+        assert appended == 3
+
+        executor = TaskExecutor("s1", add_one, execution_mode="serial")
+        executor.start_db(sqlite_path)
+
+        counts = executor.get_counts()
+        assert counts["tasks_succeeded"] == 2
+        assert counts["tasks_failed"] == 0
 
 
 class TestExecutorSuccessCache:

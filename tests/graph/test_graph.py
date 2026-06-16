@@ -7,6 +7,7 @@ from celestialflow import (
     TaskGrid,
     TaskStage,
 )
+from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_errors import RuntimeStateError
 
 
@@ -139,6 +140,53 @@ class TestTaskGraphBasic:
         # stage2 只收到 2 个成功结果
         assert stage2.get_counts()["tasks_succeeded"] == 2
         assert stage2.get_counts()["tasks_failed"] == 0
+
+    def test_graph_start_db(self, tmp_path):
+        """任务图应按 stage 分组读取失败任务并启动。"""
+        sqlite_path = tmp_path / "fallback.sqlite3"
+        appended = append_records(
+            sqlite_path,
+            [
+                {
+                    "event_id": 1,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task": 1,
+                    "error_type": "ValueError",
+                    "error_message": "bad",
+                    "error_ts": 1.0,
+                },
+                {
+                    "event_id": 2,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task": 2,
+                    "error_type": "ValueError",
+                    "error_message": "bad",
+                    "error_ts": 2.0,
+                },
+                {
+                    "event_id": 3,
+                    "stage": "s2",
+                    "status": "failed",
+                    "task": 10,
+                    "error_type": "ValueError",
+                    "error_message": "bad",
+                    "error_ts": 3.0,
+                },
+            ],
+        )
+        assert appended == 3
+
+        stage1 = TaskStage("s1", add_one, execution_mode="serial")
+        stage2 = TaskStage("s2", double, execution_mode="serial")
+
+        graph = TaskGraph("test_graph_start_db")
+        graph.set_stages(stages=[stage1, stage2])
+        graph.start_graph_db(sqlite_path)
+
+        assert stage1.get_counts()["tasks_succeeded"] == 2
+        assert stage2.get_counts()["tasks_succeeded"] == 1
 
 
 # =========================

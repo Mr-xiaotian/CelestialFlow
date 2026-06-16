@@ -7,8 +7,9 @@ import os
 import time
 import warnings
 from collections.abc import Awaitable, Callable, Iterable
+from pathlib import Path
 from queue import Queue as ThreadQueue
-from typing import Any
+from typing import Any, cast
 
 from celestialtree import Client as CelestialTreeClient
 from celestialtree import NullClient as NullCelestialTreeClient
@@ -20,6 +21,7 @@ from ..persistence import (
     LogInlet,
     LogSpout,
 )
+from ..persistence.util_sqlite import load_records_grouped_by_stage
 from ..runtime import (
     TaskDispatch,
     TaskEnvelope,
@@ -373,6 +375,16 @@ class TaskExecutor[T, R]:
         """
         return self.metrics.get_counts()
 
+    def get_fallback_path(self) -> Path:
+        """
+        获取失败任务的回退路径
+
+        :return: 失败任务持久化文件的绝对路径，未设置时返回空 Path
+        """
+        if self.fallback_spout.db_path is None:
+            return Path()
+        return Path(self.fallback_spout.db_path).resolve()
+
     def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
         """
         添加需要重试的异常类型
@@ -672,6 +684,19 @@ class TaskExecutor[T, R]:
             await self.dispatch.dispatch_async()
         finally:
             self._finish_start(start_time)
+
+    def start_db(self, db_path: str | Path, status: str = "failed") -> None:
+        """
+        从 sqlite 持久化库中读取当前 stage 的失败任务并启动执行。
+
+        :param db_path: sqlite 数据库文件路径
+        :param status: 记录状态过滤条件，默认 ``failed``
+        """
+        grouped_records = load_records_grouped_by_stage(db_path, status)
+        records = grouped_records.get(self.get_name(), [])
+        executor_tasks = [cast(T, record["task"]) for record in records]
+
+        self.start(executor_tasks)
 
     # ==== 结果获取 ====
     def get_success_pairs(self) -> list[tuple[T, R]]:

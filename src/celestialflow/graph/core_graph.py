@@ -18,6 +18,7 @@ from networkx import DiGraph, is_directed_acyclic_graph
 
 from ..observability import NullTaskReporter, TaskReporter
 from ..persistence import FallbackInlet, FallbackSpout, LogInlet, LogSpout
+from ..persistence.util_sqlite import load_records_grouped_by_stage
 from ..runtime.util_constant import LEVEL_DICT, STAGE_STYLE
 from ..runtime.util_errors import (
     CelestialTreeConnectionError,
@@ -401,6 +402,29 @@ class TaskGraph:
             self.fallback_spout.stop()
             self.log_spout.stop()
 
+    def start_graph_db(
+        self,
+        db_path: str | Path,
+        status: str = "failed",
+        put_termination_signal: bool = True,
+    ) -> None:
+        """
+        从 sqlite 持久化库中读取失败任务，按 stage 分组后启动任务图。
+
+        :param db_path: sqlite 数据库文件路径
+        :param status: 记录状态过滤条件，默认 ``failed``
+        :param put_termination_signal: 是否注入终止信号，默认 True
+        """
+        grouped_records = load_records_grouped_by_stage(db_path, status)
+
+        self.start_graph(
+            {
+                stage_name: [record["task"] for record in records]
+                for stage_name, records in grouped_records.items()
+            },
+            put_termination_signal=put_termination_signal,
+        )
+
     def _execute_stages(self) -> None:
         """
         执行所有节点
@@ -652,15 +676,15 @@ class TaskGraph:
         """
         return self.networkx_graph
 
-    def get_fallback_path(self) -> str:
+    def get_fallback_path(self) -> Path:
         """
         获取失败任务的回退路径
 
-        :return: 失败任务持久化文件的绝对路径，未设置时返回空字符串
+        :return: 失败任务持久化文件的绝对路径，未设置时返回空 Path
         """
         if self.fallback_spout.db_path is None:
-            return ""
-        return str(Path(self.fallback_spout.db_path).resolve())
+            return Path()
+        return Path(self.fallback_spout.db_path).resolve()
 
     def get_stage_input_trace(self, stage_name: str) -> str:
         """

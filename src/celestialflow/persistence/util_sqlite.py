@@ -385,7 +385,8 @@ def load_records_grouped_by_stage(
         grouped_records: dict[str, list[dict[str, Any]]] = {}
         for row in rows:
             stage_name = str(row["stage"])
-            grouped_records.setdefault(stage_name, []).append(row_to_record_dict(row))
+            stage_tasks = grouped_records.setdefault(stage_name, [])
+            stage_tasks.append(row_to_record_dict(row))
         return grouped_records
     finally:
         conn.close()

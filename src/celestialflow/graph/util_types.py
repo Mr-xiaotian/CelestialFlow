@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from pathlib import Path
 from typing import Any, Protocol
 
 
@@ -18,7 +19,7 @@ class ReporterTaskGraph(Protocol):
         put_termination_signal: bool = True,
     ) -> None: ...
 
-    def get_fallback_path(self) -> str: ...
+    def get_fallback_path(self) -> Path: ...
 
     def get_status_snapshot(self) -> dict[str, Any]: ...
 
