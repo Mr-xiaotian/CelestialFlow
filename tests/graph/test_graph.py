@@ -40,6 +40,11 @@ async def async_add_offset(x: int, offset: int = 10) -> int:
     return x + offset
 
 
+async def async_add_offset_10(x: int) -> int:
+    """符合单参数执行器约束的异步偏移包装函数。"""
+    return await async_add_offset(x, 10)
+
+
 def double(x: int) -> int:
     """测试用同步乘二函数。"""
     return x * 2
@@ -55,6 +60,11 @@ def add_offset(x: int, offset: int = 10) -> int:
     if x > 30:
         raise ValueError("too large")
     return x + offset
+
+
+def add_offset_10(x: int) -> int:
+    """符合单参数执行器约束的同步偏移包装函数。"""
+    return add_offset(x, 10)
 
 
 # =========================
@@ -113,7 +123,7 @@ class TestTaskGraphBasic:
 
     def test_graph_error_propagation(self):
         """错误任务不会阻断整体流程"""
-        stage1 = TaskStage("s1", add_offset, execution_mode="serial")
+        stage1 = TaskStage("s1", add_offset_10, execution_mode="serial")
         stage2 = TaskStage("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_graph_error_propagation")
@@ -186,7 +196,7 @@ class TestTaskGraphAsync:
 
     def test_graph_async_error_propagation(self):
         """async 模式：错误任务不会阻断整体流程"""
-        stage1 = TaskStage("s1", async_add_offset, execution_mode="async")
+        stage1 = TaskStage("s1", async_add_offset_10, execution_mode="async")
         stage2 = TaskStage("s2", async_double, execution_mode="async")
 
         graph = TaskGraph("test_graph_async_error_propagation")
@@ -525,7 +535,7 @@ class TestTaskGraphThread:
     def test_graph_thread_error_propagation(self):
         """thread 模式：错误任务不会阻断整体流程"""
         stage1 = TaskStage(
-            "s1", add_offset, stage_mode="thread", execution_mode="serial"
+            "s1", add_offset_10, stage_mode="thread", execution_mode="serial"
         )
         stage2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
 

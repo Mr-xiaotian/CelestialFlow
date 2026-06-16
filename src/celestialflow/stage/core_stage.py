@@ -43,6 +43,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         self,
         name: str,
         func: Callable[[T], R] | Callable[[T], Awaitable[R]],
+        *,
         stage_mode: str = "serial",
         **kwargs: Any,
     ):
@@ -58,6 +59,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param enable_duplicate_check: 是否启用重复检查，默认 True
+        :param persist_result: 是否持久化任务结果，默认 False
         :param log_level: 日志级别，默认 'INFO'
         """
         super().__init__(

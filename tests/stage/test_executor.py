@@ -3,7 +3,11 @@ from typing import Any
 import pytest
 
 from celestialflow import TaskExecutor
-from celestialflow.runtime.util_errors import ExecutionModeError, PersistedError
+from celestialflow.runtime.util_errors import (
+    ConfigurationError,
+    ExecutionModeError,
+    PersistedError,
+)
 
 
 def build_result_dict(executor: TaskExecutor[Any, Any]) -> dict[Any, Any]:
@@ -228,6 +232,24 @@ class TestExecutorSuccessCache:
 
 
 class TestExecutorConfig:
+    def test_rejects_zero_argument_func(self):
+        """测试执行函数没有参数时应直接报配置错误。"""
+
+        def no_args() -> int:
+            return 1
+
+        with pytest.raises(ConfigurationError):
+            TaskExecutor("NoArgsExecutor", no_args, execution_mode="serial")
+
+    def test_rejects_multi_argument_func(self):
+        """测试执行函数存在多个参数时应直接报配置错误。"""
+
+        def two_args(x: int, y: int) -> int:
+            return x + y
+
+        with pytest.raises(ConfigurationError):
+            TaskExecutor("TwoArgsExecutor", two_args, execution_mode="serial")
+
     def test_invalid_execution_mode(self):
         """测试配置非法执行模式时抛出异常"""
         with pytest.raises(ExecutionModeError):

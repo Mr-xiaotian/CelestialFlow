@@ -69,6 +69,7 @@ class TaskExecutor[T, R]:
         self,
         name: str,
         func: Callable[[T], R] | Callable[[T], Awaitable[R]],
+        *,
         execution_mode: str = "serial",
         max_workers: int | None = None,
         max_retries: int = 1,
@@ -87,7 +88,7 @@ class TaskExecutor[T, R]:
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param enable_duplicate_check: 是否启用重复检查，默认 True
-        :param persist_result: 是否缓存任务结果，默认 False
+        :param persist_result: 是否持久化任务结果，默认 False
         :param log_level: 日志级别，默认 'INFO'
         :note:
             TaskExecutor 为一次性对象。完成一次 start()/start_async() 后，不应复用
@@ -217,6 +218,26 @@ class TaskExecutor[T, R]:
 
         :param func: 执行函数
         """
+        try:
+            signature = inspect.signature(func)
+        except (TypeError, ValueError) as exc:
+            raise ConfigurationError(
+                f"failed to inspect executor func '{getattr(func, '__name__', type(func).__name__)}'"
+            ) from exc
+
+        parameters = list(signature.parameters.values())
+        valid_kinds = (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        )
+        if len(parameters) != 1 or parameters[0].kind not in valid_kinds:
+            raise ConfigurationError(
+                
+                    f"TaskExecutor func '{getattr(func, '__name__', type(func).__name__)}' "
+                    "must accept exactly one positional task argument."
+                
+            )
+
         self.func: Callable[[T], R] | Callable[[T], Awaitable[R]] = func
         self._func_name = func.__name__
 

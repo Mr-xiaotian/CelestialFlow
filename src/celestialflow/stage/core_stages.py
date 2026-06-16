@@ -33,6 +33,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         self,
         name: str,
         split_item: Callable[[TItem], RItem] | None = None,
+        *,
         stage_mode: str = "serial",
         enable_duplicate_check: bool = True,
         log_level: str = "INFO",
@@ -185,7 +186,7 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
 
     route_counters: dict[str, ValueWrapper]
 
-    def __init__(self, name: str, stage_mode: str = "serial"):
+    def __init__(self, name: str, *, stage_mode: str = "serial"):
         """
         初始化 TaskRouter
 
