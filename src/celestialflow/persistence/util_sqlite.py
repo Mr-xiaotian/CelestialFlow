@@ -85,26 +85,9 @@ def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
         "error_type": str(record.get("error_type", "") or ""),
         "error_message": str(record.get("error_message", "") or ""),
         "error_ts": float(record.get("error_ts", 0.0) or 0.0),
-        "task_json": json.dumps(
-            record["task_json"] if "task_json" in record else record.get("task"),
-            ensure_ascii=False,
-        ),
-        "result_json": json.dumps(
-            record["result_json"] if "result_json" in record else record.get("result"),
-            ensure_ascii=False,
-        ),
+        "task_json": json.dumps(record["task_json"], ensure_ascii=False),
+        "result_json": json.dumps(record["result_json"], ensure_ascii=False),
     }
-
-
-def _decode_json_column(payload_json: str) -> Any:
-    """
-    从 sqlite JSON 列反序列化对象。
-
-    :param payload_json: 数据库中的 JSON 字符串
-    :return: 反序列化后的任务对象
-    :rtype: Any
-    """
-    return json.loads(payload_json)
 
 
 def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
@@ -123,8 +106,8 @@ def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
         "error_type": str(row["error_type"]),
         "error_message": str(row["error_message"]),
         "error_ts": float(row["error_ts"]),
-        "task": _decode_json_column(str(row["task_json"])),
-        "result": _decode_json_column(str(row["result_json"])),
+        "task": json.loads(str(row["task_json"])),
+        "result": json.loads(str(row["result_json"])),
     }
 
 
@@ -516,7 +499,7 @@ def load_task_error_records(
         ).fetchall()
         return [
             (
-                _decode_json_column(str(row["task_json"])),
+                json.loads(str(row["task_json"])),
                 (str(row["error_type"]), str(row["error_message"])),
             )
             for row in rows
@@ -548,8 +531,8 @@ def load_task_result_records(db_path: str | Path, stage: str) -> list[tuple[Any,
         ).fetchall()
         return [
             (
-                _decode_json_column(str(row["task_json"])),
-                _decode_json_column(str(row["result_json"])),
+                json.loads(str(row["task_json"])),
+                json.loads(str(row["result_json"])),
             )
             for row in rows
         ]

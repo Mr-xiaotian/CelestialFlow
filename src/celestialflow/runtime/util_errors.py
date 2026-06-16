@@ -140,6 +140,36 @@ class ScheduleModeError(InvalidOptionError):
         self.valid_modes = self.allowed
 
 
+class CallableParameterKindError(InvalidOptionError):
+    """可调用对象参数 kind 不合法"""
+
+    callable_name: str
+    parameter_kind: Any
+    valid_kinds: tuple[Any, ...]
+
+    def __init__(
+        self,
+        callable_name: str,
+        parameter_kind: Any,
+        valid_kinds: Iterable[Any],
+    ):
+        """
+        初始化异常。
+
+        :param callable_name: 可调用对象名称
+        :param parameter_kind: 实际参数 kind
+        :param valid_kinds: 允许的参数 kind 集合
+        """
+        super().__init__(
+            f"parameter kind of callable '{callable_name}'",
+            parameter_kind,
+            valid_kinds,
+        )
+        self.callable_name = callable_name
+        self.parameter_kind = parameter_kind
+        self.valid_kinds = self.allowed
+
+
 # ==== 图结构 ====
 
 

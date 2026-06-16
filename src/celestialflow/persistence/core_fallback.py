@@ -9,6 +9,7 @@ from typing import Any, cast
 
 from ..funnel import BaseInlet, BaseSpout
 from ..runtime.util_errors import InitializationError
+from .util_payload import to_persisted_payload
 from .util_sqlite import (
     connect_db,
     delete_record_by_event_id,
@@ -147,28 +148,6 @@ class FallbackInlet(BaseInlet):
         """
         super().__init__(fallback_queue)
 
-    def _to_persisted_payload(self, task: Any) -> Any:
-        """
-        将任务转换为可持久化的 JSON 友好结构。
-
-        :param task: 失败任务
-        :return: 可持久化的 JSON 友好结构
-        :raises: 任务类型不支持时抛出异常
-        """
-        if task is None or isinstance(task, str | int | float | bool):
-            return task
-        if isinstance(task, list | tuple | set):
-            iterable_task = cast(list[Any] | tuple[Any, ...] | set[Any], task)
-            items = list(iterable_task)
-            return [self._to_persisted_payload(item) for item in items]
-        if isinstance(task, dict):
-            task_dict = cast(dict[Any, Any], task)
-            return {
-                str(key): self._to_persisted_payload(value)
-                for key, value in task_dict.items()
-            }
-        return str(task)
-
     def task_in(self, stage_name: str, event_id: int, task: Any) -> None:
         """
         写入一条 pending 记录，表示任务已进入某个 stage。
@@ -183,7 +162,7 @@ class FallbackInlet(BaseInlet):
                 "event_id": event_id,
                 "stage": stage_name,
                 "status": "pending",
-                "task_json": self._to_persisted_payload(task),
+                "task_json": to_persisted_payload(task),
             },
         }
         self._funnel(pending_item)
@@ -201,7 +180,7 @@ class FallbackInlet(BaseInlet):
             {
                 "__op__": "promote_success",
                 "event_id": event_id,
-                "result": self._to_persisted_payload(result),
+                "result": to_persisted_payload(result),
             }
         )
         else:

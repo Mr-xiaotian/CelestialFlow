@@ -295,7 +295,7 @@ class LogInlet(BaseInlet):
             f"In '{func_name}', Task {task_repr} failed {retry_times} times and will retry: ({type(exception).__name__}). [{parent_id}->{retry_id}*]",
         )
 
-    def task_error(
+    def task_fail(
         self,
         func_name: str,
         task_repr: str,

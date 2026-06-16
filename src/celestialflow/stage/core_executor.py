@@ -35,6 +35,7 @@ from ..runtime.util_types import (
     TerminationSignal,
 )
 from ..utils.util_format import format_repr
+from .util_callable import validate_executor_func_signature
 
 
 class TaskExecutor[T, R]:
@@ -220,24 +221,11 @@ class TaskExecutor[T, R]:
 
         :param func: 执行函数
         """
-        try:
-            signature = inspect.signature(func)
-        except (TypeError, ValueError) as exc:
+        parameter_count = validate_executor_func_signature(func)
+        if parameter_count != 1:
             raise ConfigurationError(
-                f"failed to inspect executor func '{getattr(func, '__name__', type(func).__name__)}'"
-            ) from exc
-
-        parameters = list(signature.parameters.values())
-        valid_kinds = (
-            inspect.Parameter.POSITIONAL_ONLY,
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-        )
-        if len(parameters) != 1 or parameters[0].kind not in valid_kinds:
-            raise ConfigurationError(
-                
-                    f"TaskExecutor func '{getattr(func, '__name__', type(func).__name__)}' "
-                    "must accept exactly one positional task argument."
-                
+                f"TaskExecutor func '{getattr(func, '__name__', type(func).__name__)}' "
+                "must accept exactly one positional task argument."
             )
 
         self.func: Callable[[T], R] | Callable[[T], Awaitable[R]] = func
@@ -576,7 +564,7 @@ class TaskExecutor[T, R]:
         self.metrics.add_error_count()
 
         self.fallback_inlet.task_fail(task_id, error_id, exception)
-        self.log_inlet.task_error(
+        self.log_inlet.task_fail(
             self.get_func_name(),
             self._get_task_repr(task),
             exception,
