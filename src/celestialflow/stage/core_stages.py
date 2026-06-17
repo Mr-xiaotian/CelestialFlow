@@ -4,10 +4,7 @@ from collections.abc import Callable, Iterable
 from typing import Any, cast
 
 from ..runtime import TaskEnvelope, TaskOutQueue
-from ..runtime.util_errors import (
-    InvalidOptionError,
-    TaskFormatError,
-)
+from ..runtime.util_errors import InvalidOptionError
 from ..runtime.util_types import ValueWrapper
 from ..utils.util_format import format_repr
 from .core_stage import TaskStage
@@ -176,16 +173,17 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
 
 
 # ==== TaskRouter ====
-class TaskRouter[T](TaskStage[tuple[str, T], T]):
+class TaskRouter[T](TaskStage[T, tuple[str, T]]):
     """TaskRouter: 根据路由信息将任务分发到不同的下游 stage。"""
 
     route_counters: dict[str, ValueWrapper]
 
-    def __init__(self, name: str, *, stage_mode: str = "serial"):
+    def __init__(self, name: str, router: Callable[[T], str], *, stage_mode: str = "serial"):
         """
         初始化 TaskRouter
 
         :param name: 节点名称
+        :param router: 路由函数，根据任务数据返回目标 stage 的唯一名称
         :param stage_mode: 节点运行模式，默认 'serial'
         """
         super().__init__(
@@ -195,6 +193,7 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
             execution_mode="serial",
             max_retries=0,
         )
+        self.router = router
 
         self._init_extra_counter()
 
@@ -215,41 +214,29 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
         """
         self.route_counters.setdefault(
             downstream_name, ValueWrapper(0, self.metrics.lock)
-        )
+        )   
         return self.route_counters[downstream_name]
 
-    def _update_route_counter(self, target: str) -> None:
-        """
-        更新指定目标的路由计数器
-
-        :param target: 目标 stage 的唯一名称
-        """
-        self.route_counters[target].add(1)
-
-    def _route(self, routed: tuple[str, T]) -> T:
+    def _route(self, task: T) -> tuple[str, T]:
         """
         校验路由输入格式并提取目标任务
 
-        :param routed: (target_name, task) 元组
+        :param task: 任务数据
         :return: 提取出的任务数据
-        :raises TypeError: 输入不是长度为 2 的元组
         :raises InvalidOptionError: target 不在已注册的路由列表中
         """
-        if not (isinstance(routed, tuple) and len(routed) == 2):  # pyright: ignore[reportUnnecessaryIsInstance]
-            raise TaskFormatError(
-                f"TaskRouter expects tuple, got {type(routed).__name__}"
-            )
-        target, task = routed
+        target = self.router(task)
+        
         if target not in self.route_counters:
             raise InvalidOptionError(
                 "Unknown target", target, self.route_counters.keys()
             )
-        return task
+        return target, task
 
     def process_task_success(
         self,
-        task_envelope: TaskEnvelope[tuple[str, T]],
-        result: T,
+        task_envelope: TaskEnvelope[T],
+        result: tuple[str, T],
         start_time: float,
     ) -> None:
         """
@@ -259,8 +246,9 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        target, ture_task = task_envelope.get_task()
+        target, task = result
         task_id = task_envelope.get_id()
+        result_queue = cast(TaskOutQueue[T], self.result_queue)
 
         route_id = self.ctree_client.emit(
             "task.route",
@@ -268,32 +256,36 @@ class TaskRouter[T](TaskStage[tuple[str, T], T]):
             payload=self.get_summary(),
         )
         self.metrics.add_success_count()
-        self.fallback_inlet.task_success(task_id, result, persist=self.persist_result)
+        self.fallback_inlet.task_success(task_id, task, persist=self.persist_result)
         self._update_route_counter(target)
 
         self.log_inlet.route_success(
             self.get_func_name(),
-            f"({format_repr(ture_task, self.max_info)})",
+            f"({format_repr(task, self.max_info)})",
             target,
             time.perf_counter() - start_time,
             task_id,
             route_id,
         )
 
-        for target_name in self.result_queue.target_names:
-            if target_name != target:
-                continue
+        downstream_input_id = self.ctree_client.emit(
+            "task.input",
+            parents=[route_id],
+            payload=self.get_summary(),
+        )
+        self.fallback_inlet.task_in(target, downstream_input_id, task)
+        downstream_envelope: TaskEnvelope[T] = TaskEnvelope(
+            task,
+            downstream_input_id,
+        )
+        result_queue.put_target(downstream_envelope, target)
 
-            downstream_input_id = self.ctree_client.emit(
-                "task.input",
-                parents=[route_id],
-                payload=self.get_summary(),
-            )
-            self.fallback_inlet.task_in(target_name, downstream_input_id, result)
-            downstream_envelope: TaskEnvelope[T] = TaskEnvelope(
-                result,
-                downstream_input_id,
-            )
-            self.result_queue.put_target(downstream_envelope, target_name)
+    def _update_route_counter(self, target: str) -> None:
+        """
+        更新指定目标的路由计数器
+
+        :param target: 目标 stage 的唯一名称
+        """
+        self.route_counters[target].add(1)
 
 
