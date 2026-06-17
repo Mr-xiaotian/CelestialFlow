@@ -503,5 +503,5 @@ graph.put_stage_queue({
 ### 下一步
 
 - 尝试使用 `TaskRouter` 实现条件分发
-- 探索 `TaskRedisTransport` 实现跨语言协作
+- 参考 `demo/demo_redis.py`，了解如何用普通 `TaskStage` 接入 Redis / Go Worker 协作
 - 阅读其他 [API 参考](reference/stage/core_executor.md) 了解更多功能

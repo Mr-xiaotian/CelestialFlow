@@ -14,7 +14,7 @@ Python 的 TaskGraph 负责生成任务、决定调度逻辑，而 Go Worker 专
 ## 前期设置
 
 1. 启动 Redis 服务
-在运行`TaskRedis*`系节点时, 需要先启动 Redis 服务
+若要配合 `demo/demo_redis.py` 或其他 Redis 协作示例运行，需要先启动 Redis 服务。
 
 2. 设置环境变量
 然后在根目录下建立一个.env文件, 按以下格式填入:
@@ -60,12 +60,11 @@ worker.StartWorkerPool(
 )
 ```
 
-这里我们以运行 test_redis_ack_0 时的设置为例, 其中的`testFibonacci:input`与`testFibonacci:output`需要与 test_redis_ack_0 中 `TaskRedis*` dekey值相同。
+这里我们以运行 `demo_redis_ack_0` 时的设置为例。`testFibonacci` 这个前缀需要与 `demo/demo_redis.py` 中 `sleep_1_fibonacci()` 返回的 key 保持一致；`redis_push()` 会写入 `testFibonacci:input`，`redis_wait()` 会读取 `testFibonacci:output`。
 
 ```python
-# test_redis_ack_0
-redis_sink = TaskRedisTransport(key="testFibonacci:input", host=redis_host, password=redis_password)
-redis_ack = TaskRedisAck(key="testFibonacci:output", host=redis_host, password=redis_password)
+def sleep_1_fibonacci(num: int) -> Any:
+    return "testFibonacci", sleep_1(num)
 ```
 
 同时在[go_worker processor.go](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/go_worker/worker/processor.go)中选择你要使用的 Go 函数。

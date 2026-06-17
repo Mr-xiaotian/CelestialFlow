@@ -84,8 +84,8 @@ worker.StartWorkerPool(
    - 为 `web` 模块提供溯源数据支持
 
 2. **Go Worker**:
-   - 与 `runtime` 模块的 `TaskRedisTransport` 和 `TaskRedisAck` 节点配合
-   - 通过 Redis 与 Python 端的 TaskGraph 通信
+   - 与 `demo/demo_redis.py` 中的 `redis_push()` / `redis_wait()` 等 helper 配合
+   - 通过 Redis 与 Python 端的 `TaskGraph` 通信
    - 可作为独立组件使用，不强制依赖核心框架
 
 ### 组件间协作
@@ -140,9 +140,9 @@ trace = graph.get_stage_input_trace("ProcessingStage")
 
 ### 2. 跨语言执行模式
 ```python
-# Python 端：定义 Redis 传输节点
-redis_sink = TaskRedisTransport(key="tasks:input")
-redis_ack = TaskRedisAck(key="tasks:output")
+# Python 端：用普通 TaskStage 封装 demo_redis helper
+transport_stage = TaskStage("RedisTransport", redis_push)
+ack_stage = TaskStage("RedisAck", redis_wait)
 
 # Go 端：启动 Worker Pool 消费任务
 # go_worker/main.go 中配置相同的 Redis key

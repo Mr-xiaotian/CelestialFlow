@@ -14,8 +14,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Task%20Graph-DAG-blueviolet">
   <img src="https://img.shields.io/badge/Workflow-Orchestrator-7c3aed">
-  <img src="https://img.shields.io/badge/IPC-Redis%20Ready-red">
-  <img src="https://img.shields.io/badge/Distributed-Worker%20Friendly-orange">
+  <img src="https://img.shields.io/badge/Event%20Tracing-CelestialTree-0ea5e9">
+  <img src="https://img.shields.io/badge/Web-Dashboard-FastAPI-ec4899">
 </p>
 
 <p align="center">
@@ -48,7 +48,7 @@ TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支
 
 在执行与调度之外，CelestialFlow 进一步引入 **CelestialTree（简称: ctree） 事件追踪系统**，为每一个任务及其衍生行为（成功、失败、重试、拆分、路由等）记录明确的因果关系。借助 ctree，可以从任意一个初始任务出发，完整还原其在 TaskGraph 中的传播路径与执行轨迹，使任务系统可以进行完整的**追溯、分析、解释**。
 
-在此基础上，CelestialFlow 支持 Web 可视化监控，并可通过 Redis 实现跨进程、跨设备协作；同时引入基于 Go 的外部 worker（通过 Redis 通信），用于承载 CPU 密集型任务，弥补 Python 在该场景下的性能瓶颈。
+在此基础上，CelestialFlow 支持 Web 可视化监控，并提供基于 Redis 的 demo 与 Go Worker 外部协作示例，用于展示按需构建跨进程、跨设备任务协作的方式。
 
 ## 项目结构（Project Structure）
 
@@ -215,7 +215,7 @@ flowchart TD
 
 ## 环境要求（Requirements）
 
-**CelestialFlow** 基于 Python 3.12+，并依赖以下核心组件。
+**CelestialFlow** 基于 Python 3.12+，默认运行时依赖以下核心组件。
 请确保你的环境能够正常安装这些依赖（`pip install celestialflow` 会自动安装）。
 
 | 依赖包           | 说明 |
@@ -227,8 +227,9 @@ flowchart TD
 | **networkx**      | 任务图（TaskGraph）结构与依赖分析 |
 | **jinja2**        | FastAPI 模板引擎，用于 Web 可视化界面渲染 |
 | **tqdm**          | 可选组件，进度条显示，用于任务执行可视化 |
-| **redis**         | 可选组件，用于分布式任务通信（`TaskRedis*` 系列模块） |
 | **celestialtree** | 可选组件，用于任务状态上报与远程调用（`ctree_client`） |
+
+如需运行 `demo/demo_redis.py` 或 Go Worker 示例，请额外安装 `redis` 并准备 Redis 服务；这部分不属于默认运行时依赖。
 
 ## 文件结构（File Structure）
 

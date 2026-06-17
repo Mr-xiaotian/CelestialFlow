@@ -35,13 +35,13 @@
 
 ### 一句话定义
 
-> 基于 Python 的轻量级图驱动任务编排框架，支持 DAG/环形图拓扑、多执行模式、Redis 分布式、事件溯源与实时可视化。
+> 基于 Python 的轻量级图驱动任务编排框架，支持 DAG/环形图拓扑、多执行模式、事件溯源与实时可视化，并提供可选的外部协作示例。
 
 ### 核心特性
 
 - **图拓扑丰富**：Chain / Cross / Grid / Loop / Wheel / Complete 六种预置结构
 - **多维执行模型**：Stage 级 (serial/thread) × Task 级 (serial/thread/async) 组合
-- **Redis 分布式**：Transport → Source → Ack 三阶段分布式任务传输
+- **外部协作示例**：可用普通 `TaskStage` 对接 Redis / Go Worker 等外部系统
 - **事件溯源**：集成 CelestialTree，任务全生命周期可追踪
 - **Web 仪表盘**：FastAPI + ECharts + Mermaid 实时监控
 - **零平台依赖**：`pip install celestialflow`，一行代码即可运行
@@ -142,10 +142,6 @@ classDiagram
     TaskExecutor <|-- TaskStage
     TaskStage <|-- TaskSplitter
     TaskStage <|-- TaskRouter
-    TaskStage <|-- TaskRedisTransport
-    TaskStage <|-- TaskRedisSource
-    TaskStage <|-- TaskRedisAck
-
     class TaskExecutor {
         +func: Callable
         +execution_mode: str
@@ -278,33 +274,33 @@ graph TD
 
 ---
 
-## Slide 12: 分布式能力 — Redis 集成
+## Slide 12: 外部协作示例 — Redis Demo
 
-### 三阶段 Redis 任务传输
+### 用普通 TaskStage 对接 Redis / Go Worker
 
 ```mermaid
 sequenceDiagram
     participant Local as 本地 Graph
     participant Redis as Redis Server
-    participant Remote as 远程 Worker
+    participant Remote as 外部 Worker
 
-    Local->>Redis: TaskRedisTransport<br/>RPUSH task JSON
-    Redis->>Remote: TaskRedisSource<br/>BLPOP 阻塞获取
+    Local->>Redis: TaskStage(redis_push)<br/>RPUSH task JSON
+    Redis->>Remote: 外部 Worker<br/>BLPOP 阻塞获取
     Remote->>Remote: 执行任务
     Remote->>Redis: HSET 写回结果
-    Redis->>Local: TaskRedisAck<br/>轮询 HGET 获取结果
+    Redis->>Local: TaskStage(redis_wait)<br/>轮询 HGET 获取结果
     Local->>Redis: HDEL 删除结果
 ```
 
-| 组件 | 角色 | Redis 操作 | 执行模式 |
-|------|------|-----------|---------|
-| `TaskRedisTransport` | 序列化并推送任务 | `RPUSH` | thread, worker_limit=4 |
-| `TaskRedisSource` | 阻塞拉取任务 | `BLPOP` | serial |
-| `TaskRedisAck` | 等待远程结果 | `HGET` → `HDEL` | serial |
+| 组件 | 角色 | Redis 操作 | 定位 |
+|------|------|-----------|------|
+| `redis_push()` | 序列化并推送任务 | `RPUSH` | demo helper |
+| 外部 Worker / `redis_pop()` | 阻塞拉取任务 | `BLPOP` | 桥接 Redis 输入 |
+| `redis_wait()` | 等待远程结果 | `HGET` → `HDEL` | demo helper |
 
-- **JSON 序列化**：任务 → `{id, task, emit_ts}` JSON 字符串
-- **At-most-once 语义**：结果读取后立即删除
-- **超时机制**：Source/Ack 均支持 `timeout` 参数，超时抛出 `TimeoutError`
+- **协议位置**：这是一组 demo/helper 协议，不属于框架内建 Stage
+- **安装方式**：运行该方案时需要额外安装 `redis` 并启动 Redis 服务
+- **设计意图**：展示如何把外部消息系统接入普通 `TaskStage`
 
 ---
 
@@ -544,7 +540,7 @@ graph LR
 
 - **实时流处理（轻量级）**
   - Loop 结构实现持续拉取 → 处理 → 回写
-  - Redis 分布式横向扩展
+  - 可通过外部消息队列 / Worker 示例做横向扩展
 
 - **机器学习 Pipeline**
   - 数据预处理 → 特征工程 → 模型训练 → 评估
@@ -591,13 +587,13 @@ graph.start_graph({"discover": [seed_urls]})
 
 ## Slide 24: 分布式 Demo 数据流
 
-### Redis 分布式执行示例
+### Redis 外部协作示例
 
 ```mermaid
 graph LR
     subgraph 本地 Graph
-        A[预处理 Stage] --> B[RedisTransport<br/>RPUSH]
-        E[RedisAck<br/>HGET] --> F[后处理 Stage]
+        A[预处理 Stage] --> B[TaskStage<br/>redis_push]
+        E[TaskStage<br/>redis_wait] --> F[后处理 Stage]
     end
 
     subgraph Redis
@@ -606,16 +602,16 @@ graph LR
         D -->|"result"| E
     end
 
-    subgraph 远程 Worker
-        C -->|BLPOP| G[RedisSource]
+    subgraph 外部 Worker
+        C -->|BLPOP| G[redis_pop / worker]
         G --> H[执行任务]
         H -->|HSET| D
     end
 ```
 
-- 本地 Graph 通过 `TaskRedisTransport` 推送任务到 Redis List
-- 远程 Worker 通过 `TaskRedisSource` 阻塞拉取任务
-- 结果写回 Redis Hash，本地 `TaskRedisAck` 轮询获取
+- 本地 Graph 通过普通 `TaskStage(redis_push)` 推送任务到 Redis List
+- 外部 Worker 或 `redis_pop()` 从 Redis 拉取任务并执行
+- 结果写回 Redis Hash，本地 `TaskStage(redis_wait)` 轮询获取
 - **横向扩展**：启动多个 Worker 实例即可并行消费
 
 ---
@@ -630,7 +626,7 @@ graph LR
 | Graph 内 execution_mode | 仅 serial/thread | 保持简单可靠的线程模型 |
 | 日志架构 | Queue + Spout 线程 | 增加一个守护线程，换取线程安全写入 |
 | 去重策略 | SHA1(pickle) | pickle 不稳定性风险，换取通用对象哈希能力 |
-| Redis 结果获取 | 轮询 HGET (0.1s) | 简单可靠，但非实时推送 |
+| 外部结果获取 | 轮询 HGET (0.1s) | Demo 层实现简单可靠，但非实时推送 |
 | Web 变更检测 | JSON.stringify 比较 | O(n) 字符串比较成本，换取实现简洁性 |
 | CelestialTree 集成 | 可选依赖 + NullClient | 不追踪时零开销，但需要额外配置 |
 
@@ -645,7 +641,7 @@ graph LR
 
 - **Stage 即插件**
   - 实现一个 `func` → 包装为 `TaskStage` → 接入任意图
-  - 内置 Splitter / Router / Redis 系列均是 Stage 的特化
+  - 内置 Splitter / Router 是 Stage 的特化；Redis 协作由 demo 展示接入方式
 
 - **Queue 后端可替换**
   - `make_queue_backend(mode)` 工厂方法统一接口
@@ -699,7 +695,7 @@ graph LR
 - **轻量嵌入**：`pip install` 即用，无外部服务依赖，嵌入任意 Python 项目
 - **拓扑灵活**：DAG + 环形图，六种预置结构，自定义任意拓扑
 - **执行模型丰富**：三层维度组合（图级 × Stage 级 × Task 级），适配任意并发场景
-- **分布式就绪**：Redis 三阶段传输，横向扩展无需改代码
+- **外部协作友好**：可按需接入 Redis / Go Worker 等外部系统进行横向扩展
 - **全链路追踪**：CelestialTree 事件溯源 + JSONL 错误持久化
 - **可视化内建**：Mermaid 图结构 + Chart.js 进度曲线 + 实时状态面板
 
