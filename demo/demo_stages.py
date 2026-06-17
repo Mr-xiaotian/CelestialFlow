@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 
 from demo_utils import (
-    RouterWrapper,
+    router_even,
     download_sleep,
     generate_urls_sleep,
     log_urls_sleep,
@@ -111,38 +111,39 @@ def demo_splitter_1() -> None:
 
 
 def demo_router_0() -> None:
-    # 阶段定义：Origin 负责生成 (target, task)，Router 负责按 target 分发。
+    # 阶段定义：Origin 只生成任务本身，Router 负责按规则选择下游并分发。
+    a_name = "StageA"
+    b_name = "StageB"
+    
+
+    source_stage = TaskStage(
+        "Origin",
+        sleep_1,
+        stage_mode="serial",
+        execution_mode="thread",
+        max_workers=4,
+    )
     router = TaskRouter(
         "Router",
+        router_even,
         stage_mode="serial",
     )
     stage_a = TaskStage(
-        "StageA",
+        a_name,
         sleep_1,
         stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
     stage_b = TaskStage(
-        "StageB",
+        b_name,
         sleep_1,
         stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
 
-    a_name = stage_a.get_name()
-    b_name = stage_b.get_name()
-
-    source_stage = TaskStage(
-        "Origin",
-        RouterWrapper(a_name, b_name),
-        stage_mode="serial",
-        execution_mode="thread",
-        max_workers=4,
-    )
-
-    # 图组装：Origin -> Router -> {StageA, StageB}，演示条件路由。
+    # 图组装：Origin -> Router -> {StageA, StageB}，演示基于奇偶的条件路由。
     graph = TaskGraph("demo_router_0")
     graph.set_stages(
         stages=[source_stage, router, stage_a, stage_b],
@@ -152,7 +153,7 @@ def demo_router_0() -> None:
 
     graph.set_reporter(True, host=report_host, port=report_port)
 
-    # 运行入口：输入一组整数，观察奇偶任务被分发到不同下游。
+    # 运行入口：输入一组整数，观察 Router 按规则把奇偶任务分发到不同下游。
     graph.start_graph(
         {
             source_stage.get_name(): list(range(20)),
@@ -161,6 +162,6 @@ def demo_router_0() -> None:
 
 
 if __name__ == "__main__":
-    demo_splitter_0()
-    # demo_router_0()
+    # demo_splitter_0()
+    demo_router_0()
     pass

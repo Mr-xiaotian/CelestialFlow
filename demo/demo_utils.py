@@ -270,12 +270,5 @@ async def async_to_str(n: Any) -> str:
     return f"result={n}"
 
 
-class RouterWrapper:
-    def __init__(self, a_name: str, b_name: str) -> None:
-        self.a_name = a_name
-        self.b_name = b_name
-        self.__name__ = "RouterWrapper"  # 框架需要这个属性
-
-    def __call__(self, n: int) -> tuple[str, int]:
-        target = self.a_name if (n % 2 == 0) else self.b_name
-        return (target, n)
+def router_even(n: int) -> str:
+        return "StageA" if (n % 2 == 0) else "StageB"

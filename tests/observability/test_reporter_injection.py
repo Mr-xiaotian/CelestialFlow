@@ -154,7 +154,7 @@ def test_reporter_pushes_errors_via_push_errors_endpoint_only(tmp_path) -> None:
                 "error_type": "ValueError",
                 "error_message": "bad value",
                 "error_ts": 1.0,
-                "task": {"value": 1},
+                "task_json": {"value": 1},
             }
         ],
     )
@@ -200,7 +200,7 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(tmp_path) -> None
                 "error_type": "ValueError",
                 "error_message": "old",
                 "error_ts": 1.0,
-                "task": {"value": 1},
+                "task_json": {"value": 1},
             },
             {
                 "event_id": 5,
@@ -208,7 +208,7 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(tmp_path) -> None
                 "error_type": "RuntimeError",
                 "error_message": "newer",
                 "error_ts": 5.0,
-                "task": {"value": 5},
+                "task_json": {"value": 5},
             },
             {
                 "event_id": 7,
@@ -216,7 +216,7 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(tmp_path) -> None
                 "error_type": "TypeError",
                 "error_message": "latest",
                 "error_ts": 7.0,
-                "task": {"value": 7},
+                "task_json": {"value": 7},
             },
         ],
     )

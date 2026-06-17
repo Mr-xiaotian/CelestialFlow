@@ -1,6 +1,6 @@
 import pytest
 from celestialflow import TaskGraph, TaskRouter, TaskSplitter, TaskStage
-from celestialflow.runtime.util_errors import InvalidOptionError, TaskFormatError
+from celestialflow.runtime.util_errors import InvalidOptionError
 
 
 class TestTaskSplitter:
@@ -70,27 +70,23 @@ class TestTaskSplitter:
 class TestTaskRouter:
     def test_router_init(self):
         """测试 TaskRouter 的初始配置：应为串行模式且不重试"""
-        router = TaskRouter("Router")
+        router = TaskRouter("Router", lambda task: str(task))
         assert router.execution_mode == "serial"
         assert router.max_retries == 0
         assert router.route_counters == {}
 
     def test_router_route_logic(self):
-        """测试 TaskRouter 的核心路由逻辑：正确解析目标名称并提取任务数据"""
-        router = TaskRouter("Router")
+        """测试 TaskRouter 的核心路由逻辑：正确计算目标名称并返回路由结果"""
+        router = TaskRouter("Router", lambda task: "target1" if task == "data" else "unknown")
         # 预注册 target
         router.get_binding_counter("target1")
 
         # 正常路由
-        assert router._route(("target1", "data")) == "data"
+        assert router._route("data") == ("target1", "data")
 
         # 异常路由：未知 target
         with pytest.raises(InvalidOptionError):
-            router._route(("unknown", "data"))
-
-        # 异常路由：格式错误
-        with pytest.raises(TaskFormatError):
-            router._route("not_a_tuple")
+            router._route("other")
 
     def test_router_process_success(self):
         """测试 TaskRouter 在图中：成功执行后任务应被正确路由到指定目标节点"""
@@ -98,14 +94,14 @@ class TestTaskRouter:
             """测试用原样返回函数。"""
             return x
 
-        R = TaskRouter("R")
+        R = TaskRouter("R", lambda task: "target1" if task == "msg1" else "target2")
         T1 = TaskStage("target1", noop)
         T2 = TaskStage("target2", noop)
 
         graph = TaskGraph("test_router_process_success")
         graph.set_stages([R, T1, T2])
         graph.connect([R], [T1, T2])
-        graph.start_graph({R.get_name(): [("target1", "msg1"), ("target2", "msg2")]})
+        graph.start_graph({R.get_name(): ["msg1", "msg2"]})
 
         assert R.route_counters["target1"].value == 1
         assert R.route_counters["target2"].value == 1
@@ -114,7 +110,7 @@ class TestTaskRouter:
 
     def test_router_binding_counter_uses_stable_metrics_lock(self):
         """测试路由计数器从创建开始就绑定稳定的 metrics 锁"""
-        router = TaskRouter("Router")
+        router = TaskRouter("Router", lambda task: str(task))
 
         counter = router.get_binding_counter("target1")
         lock = router.metrics.lock

@@ -31,7 +31,9 @@ class LogSpout(BaseSpout):
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
         # 打开日志文件
-        self._file = self.log_path.open("a", encoding="utf-8")
+        # Use line buffering so readers can observe log lines promptly without
+        # reintroducing an explicit flush counter mechanism.
+        self._file = self.log_path.open("a", encoding="utf-8", buffering=1)
 
     def _handle_record(self, record: dict[str, Any]) -> None:
         """

@@ -33,7 +33,7 @@ def sample_errors():
             "event_id": 1,
             "error_type": "ValueError",
             "error_message": "bad value",
-            "task": {"id": 1, "label": "TaskOne"},
+            "task_json": {"id": 1, "label": "TaskOne"},
         },
         {
             "error_ts": 2.0,
@@ -41,7 +41,7 @@ def sample_errors():
             "event_id": 2,
             "error_type": "RuntimeError",
             "error_message": "boom happened",
-            "task": ["A", "B"],
+            "task_json": ["A", "B"],
         },
         {
             "error_ts": 3.0,
@@ -49,7 +49,7 @@ def sample_errors():
             "event_id": 3,
             "error_type": "TypeError",
             "error_message": "wrong type",
-            "task": "PlainTask",
+            "task_json": "PlainTask",
         },
     ]
 
@@ -172,20 +172,20 @@ class TestSpliteUtils:
                     "event_id": 5,
                     "stage": "s1",
                     "status": "failed",
-                    "task": {"value": 5},
+                    "task_json": {"value": 5},
                 },
                 {
                     "event_id": 9,
                     "stage": "s1",
                     "status": "success",
-                    "task": {"value": 9},
-                    "result": {"ok": True},
+                    "task_json": {"value": 9},
+                    "result_json": {"ok": True},
                 },
                 {
                     "event_id": 7,
                     "stage": "s2",
                     "status": "failed",
-                    "task": {"value": 7},
+                    "task_json": {"value": 7},
                 },
             ],
         )
@@ -201,8 +201,8 @@ class TestSpliteUtils:
                     "event_id": 9,
                     "stage": "s1",
                     "status": "success",
-                    "task": {"value": 9},
-                    "result": {"ok": True},
+                    "task_json": {"value": 9},
+                    "result_json": {"ok": True},
                 }
             ],
         )
@@ -218,20 +218,20 @@ class TestSpliteUtils:
                     "event_id": 3,
                     "stage": "s1",
                     "status": "failed",
-                    "task": {"value": 3},
+                    "task_json": {"value": 3},
                 },
                 {
                     "event_id": 5,
                     "stage": "s2",
                     "status": "success",
-                    "task": {"value": 5},
-                    "result": {"ok": True},
+                    "task_json": {"value": 5},
+                    "result_json": {"ok": True},
                 },
                 {
                     "event_id": 7,
                     "stage": "s3",
                     "status": "failed",
-                    "task": {"value": 7},
+                    "task_json": {"value": 7},
                 },
             ],
         )
@@ -251,7 +251,7 @@ class TestSpliteUtils:
                     "event_id": 1,
                     "stage": "s1",
                     "status": "failed",
-                    "task": {"value": 1},
+                    "task_json": {"value": 1},
                     "error_type": "ValueError",
                     "error_message": "bad",
                     "error_ts": 1.0,
@@ -260,14 +260,14 @@ class TestSpliteUtils:
                     "event_id": 2,
                     "stage": "s2",
                     "status": "success",
-                    "task": {"value": 2},
-                    "result": {"ok": True},
+                    "task_json": {"value": 2},
+                    "result_json": {"ok": True},
                 },
                 {
                     "event_id": 3,
                     "stage": "s1",
                     "status": "failed",
-                    "task": {"value": 3},
+                    "task_json": {"value": 3},
                     "error_type": "TypeError",
                     "error_message": "boom",
                     "error_ts": 3.0,
@@ -299,7 +299,7 @@ class TestSpliteUtils:
             "event_id": 9,
             "stage": "s9",
             "status": "waiting",
-            "task": {"value": 9},
+            "task_json": {"value": 9},
         }
         appended = append_records(sqlite_path, [waiting_record])
         assert appended == 1
@@ -333,7 +333,7 @@ class TestSpliteUtils:
             "event_id": 8,
             "stage": "s8",
             "status": "pending",
-            "task": {"value": 8},
+            "task_json": {"value": 8},
         }
         appended = append_records(sqlite_path, [pending_record])
         assert appended == 1
@@ -363,7 +363,7 @@ class TestSpliteUtils:
             "event_id": 9,
             "stage": "s9",
             "status": "pending",
-            "task": {"value": 9},
+            "task_json": {"value": 9},
         }
         appended = append_records(sqlite_path, [waiting_record])
         assert appended == 1
@@ -416,7 +416,7 @@ class TestSpliteUtils:
             "event_id": 8,
             "stage": "s8",
             "status": "pending",
-            "task": {"value": 8},
+            "task_json": {"value": 8},
         }
         appended = append_records(sqlite_path, [pending_record])
         assert appended == 1
