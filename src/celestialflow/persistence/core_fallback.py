@@ -38,10 +38,6 @@ class FallbackSpout(BaseSpout):
 
         self._conn: sqlite3.Connection | None = None
 
-        # 批量刷新：每 _flush_every 条记录才 flush 一次，避免高频 I/O
-        self._flush_every: int = 1
-        self._flush_counter: int = 0
-
     def _before_start(self) -> None:
         """创建 fallback 目录并打开 sqlite 文件。"""
         # 创建 fallback 目录
@@ -54,13 +50,9 @@ class FallbackSpout(BaseSpout):
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = connect_db(self.db_path)
 
-        # 初始化计数器
-        self._flush_counter = 0
-
     def _handle_record(self, record: dict[str, Any]) -> None:
         """
-        处理单条 fallback 记录，写入 sqlite 并更新计数器。
-        每 _flush_every 条记录才 flush 一次。
+        处理单条 fallback 记录并写入 sqlite。
 
         :param record: fallback 操作字典
         """
@@ -100,10 +92,7 @@ class FallbackSpout(BaseSpout):
         else:
             raise ValueError(f"unsupported fallback operation: {op}")
         if changed:
-            self._flush_counter += 1
-            if self._flush_counter >= self._flush_every:
-                self._conn.commit()
-                self._flush_counter = 0
+            self._conn.commit()
 
     def _after_stop(self) -> None:
         """关闭 sqlite 连接，确保剩余事务落盘。"""
