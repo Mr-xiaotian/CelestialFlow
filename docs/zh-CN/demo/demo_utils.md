@@ -1,6 +1,6 @@
 # demo_utils.py 演示工具说明
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/17
 
 ## 目标
 
@@ -28,12 +28,12 @@ flowchart TD
     Async --> Graph
     Async --> GraphAsync["demo_graph.py<br/>(demo_async_staged_pipeline)"]
     Fib --> Executor["demo_executor.py"]
-    Fib --> StagesRedis0["demo_stages.py<br/>(demo_redis_ack_0)"]
-    Sleep1 --> StagesRedis["demo_stages.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0, demo_router_0)"]
+    Fib --> Redis0["demo_redis.py<br/>(demo_redis_ack_0)"]
+    Sleep1 --> RedisDemo["demo_redis.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0)"]
     Url --> StagesSplitter0["demo_stages.py<br/>(demo_splitter_0)"]
-    Url --> StagesRedis2["demo_stages.py<br/>(demo_redis_ack_2)"]
+    Url --> Redis2["demo_redis.py<br/>(demo_redis_ack_2)"]
     Router --> StagesRouter0["demo_stages.py<br/>(demo_router_0)"]
-    Misc --> StagesRedis1["demo_stages.py<br/>(demo_redis_ack_1)"]
+    Misc --> Redis1["demo_redis.py<br/>(demo_redis_ack_1)"]
     Misc --> StagesSplitter1["demo_stages.py<br/>(demo_splitter_1)"]
     Compute --> Structure["demo_structure.py"]
 ```
@@ -79,7 +79,7 @@ flowchart TD
 ## 可能出现的问题
 
 1. **与 tests/test_utils.py 的重复**：修改一处时容易遗漏另一处，导致演示和单元测试的行为分化。
-2. **Windows 路径硬编码**：路径替换逻辑位于 `demo_stages.py` 中的 `DownloadStage` 和 `DownloadRedisTransport` 自定义子类，不在本文件中。
+2. **Windows 路径硬编码**：`download_to_file` 的目标路径通常需要按本机环境调整，相关示例位于 `demo_redis.py`。
 3. **`requests` 网络依赖**：`download_to_file` 需要外网访问能力，在隔离网络环境不可用。
 
 ## 运行方式

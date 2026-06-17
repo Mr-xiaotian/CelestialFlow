@@ -1,6 +1,6 @@
 # CelestialFlow 包入口
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/17
 
 ## 简介
 
@@ -30,16 +30,13 @@
 
 ### stage — 任务执行层
 
-提供任务执行器、路由分发、拆分合并及 Redis 集成支持。
+提供任务执行器、路由分发与任务拆分等执行层能力。
 
 | 导出符号 | 说明 |
 |----------|------|
 | `TaskExecutor` | 通用任务执行器，支持 serial / thread / async 三种执行模式 |
 | `TaskStage` | 图中的一个任务节点，包裹执行函数与配置 |
 | `TaskSplitter` | 任务拆分器，将一个输入拆分为多个子任务 |
-| `TaskRedisTransport` | 基于 Redis 的任务传输层 |
-| `TaskRedisSource` | Redis 数据源，从 Redis 拉取任务输入 |
-| `TaskRedisAck` | Redis 确认机制，消费后发送 ACK |
 | `TaskRouter` | 路由分发器，根据规则将任务分发到不同下游 |
 | `TerminationSignal` | 终止信号，用于控制图执行流程的结束 |
 
@@ -104,7 +101,7 @@
 
 ## `__all__` 列表
 
-完整公开 API 列表（共 26 个符号）：
+完整公开 API 列表（当前共 23 个符号）：
 
 ```python
 __all__ = [
@@ -121,9 +118,6 @@ __all__ = [
     "TaskExecutor",
     "TaskStage",
     "TaskSplitter",
-    "TaskRedisTransport",
-    "TaskRedisSource",
-    "TaskRedisAck",
     "TaskRouter",
     "TerminationSignal",
     "TaskWebServer",
