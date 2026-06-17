@@ -22,9 +22,6 @@ from .runtime.util_hash import make_hashable
 from .runtime.util_types import TerminationSignal
 from .stage import (
     TaskExecutor,
-    TaskRedisAck,
-    TaskRedisSource,
-    TaskRedisTransport,
     TaskRouter,
     TaskSplitter,
     TaskStage,
@@ -43,9 +40,6 @@ __all__ = [
     "TaskGrid",
     "TaskLoop",
     "TaskProgress",
-    "TaskRedisAck",
-    "TaskRedisSource",
-    "TaskRedisTransport",
     "TaskRouter",
     "TaskSplitter",
     "TaskStage",
