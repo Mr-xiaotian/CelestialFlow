@@ -86,7 +86,7 @@ def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
         "error_message": str(record.get("error_message", "") or ""),
         "error_ts": float(record.get("error_ts", 0.0) or 0.0),
         "task_json": json.dumps(record["task_json"], ensure_ascii=False),
-        "result_json": json.dumps(record["result_json"], ensure_ascii=False),
+        "result_json": json.dumps(record.get("result_json"), ensure_ascii=False),
     }
 
 
