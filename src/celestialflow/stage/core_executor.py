@@ -11,9 +11,6 @@ from pathlib import Path
 from queue import Queue as ThreadQueue
 from typing import Any, cast
 
-from celestialtree import Client as CelestialTreeClient
-from celestialtree import NullClient as NullCelestialTreeClient
-
 from ..observability import BaseObserver
 from ..persistence import (
     FallbackInlet,
@@ -30,6 +27,7 @@ from ..runtime import (
     TaskOutQueue,
 )
 from ..runtime.util_errors import ConfigurationError, ExecutionModeError, PersistedError
+from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_types import (
     CTreeEvent,
     TerminationSignal,
@@ -65,7 +63,7 @@ class TaskExecutor[T, R]:
     _name: str
     _func_name: str
     log_level: str
-    cree_client: CelestialTreeClient | NullCelestialTreeClient
+    ctree_client: EventClient
 
     # ==== 初始化 ====
     def __init__(
@@ -110,7 +108,7 @@ class TaskExecutor[T, R]:
         self.set_log_level(log_level)
 
         self._observers: list[BaseObserver] = []
-        self.ctree_client = NullCelestialTreeClient()
+        self.set_ctree(LocalEventClient())
 
         self.dispatch = TaskDispatch(self, self.func, self.max_workers)
         self.task_queue = TaskInQueue(
@@ -232,27 +230,11 @@ class TaskExecutor[T, R]:
                 f"execution_mode is 'async' but '{self.func.__name__}' is not a coroutine function"
             )
 
-    def set_ctree(
-        self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778
-    ) -> None:
+    def set_ctree(self, ctree_client: EventClient) -> None:
         """
-        设置 CelestialTreeClient
+        设置本地/空事件客户端。
 
-        :param host: 主机地址
-        :param http_port: HTTP 端口
-        :param grpc_port: gRPC 端口
-        """
-        self.ctree_client = CelestialTreeClient(
-            host=host, http_port=http_port, grpc_port=grpc_port, transport="grpc"
-        )
-
-    def set_nullctree(
-        self, ctree_client: NullCelestialTreeClient
-    ) -> None:
-        """
-        设置NullCelestialTreeClient
-
-        :param ctree_client: NullCelestialTreeClient 实例
+        :param ctree_client: 事件客户端实例
         """
         self.ctree_client = ctree_client
 

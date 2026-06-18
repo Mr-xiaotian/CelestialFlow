@@ -7,10 +7,8 @@ import warnings
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
-from celestialtree import Client as CelestialTreeClient
-from celestialtree import NullClient as NullCelestialTreeClient
 from networkx import DiGraph, is_directed_acyclic_graph
 
 from ..observability import NullTaskReporter, TaskReporter
@@ -18,7 +16,6 @@ from ..persistence import FallbackInlet, FallbackSpout, LogInlet, LogSpout
 from ..persistence.util_sqlite import load_records_grouped_by_stage
 from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import (
-    CelestialTreeConnectionError,
     DuplicateNodeError,
     LogLevelError,
     RuntimeStateError,
@@ -29,6 +26,7 @@ from ..runtime.util_estimators import (
     calc_global_pending,
     calc_remaining,
 )
+from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_types import TerminationSignal
 from ..stage.util_types import AnyTaskStage
 from ..utils.util_collections import cluster_by_value_sorted
@@ -96,7 +94,7 @@ class TaskGraph:
         self._set_log_level(log_level)
         self._set_schedule_mode(schedule_mode)
         self.set_reporter()
-        self.set_ctree()
+        self.set_ctree(LocalEventClient())
 
         self._init_env()
 
@@ -162,12 +160,7 @@ class TaskGraph:
                 raise DuplicateNodeError(f"duplicate stage name: {stage_name}")
             self.stage_dict[stage_name] = stage
             
-            if self.use_ctree:
-                stage.set_ctree(self.ctree_host, self.ctree_http_port, self.ctree_grpc_port)
-            else:
-                self.ctree_client = cast(NullCelestialTreeClient, self.ctree_client)
-                stage.set_nullctree(self.ctree_client)
-
+            stage.set_ctree(self.ctree_client)
             stage.set_inlet(fallback_queue, log_queue)
 
     def connect(
@@ -255,39 +248,13 @@ class TaskGraph:
         else:
             self.reporter = NullTaskReporter()
 
-    def set_ctree(
-        self,
-        use_ctree: bool = False,
-        host: str = "127.0.0.1",
-        http_port: int = 7777,
-        grpc_port: int = 7778,
-        transport: str = "grpc",
-    ) -> None:
+    def set_ctree(self, ctree_client: EventClient) -> None:
         """
-        设定事件树客户端
+        设置本地/空事件客户端。
 
-        :param use_ctree: 是否使用事件树，默认 False
-        :param host: 事件树主机地址，默认 "127.0.0.1"
-        :param http_port: 事件树 HTTP 端口，默认 7777
-        :param grpc_port: 事件树 gRPC 端口，默认 7778
-        :param transport: 传输方式, 可选 'grpc' 或 'http'，默认 'grpc'
-        :raises CelestialTreeConnectionError: 使用 ctree 但 health check 失败
+        :param ctree_client: 事件客户端实例
         """
-        self.use_ctree = use_ctree
-        self.ctree_host = host
-        self.ctree_http_port = http_port
-        self.ctree_grpc_port = grpc_port
-        self.ctree_transport = transport
-
-        self.ctree_client: CelestialTreeClient | NullCelestialTreeClient
-        if use_ctree:
-            self.ctree_client = CelestialTreeClient(
-                host=host, http_port=http_port, grpc_port=grpc_port, transport=transport
-            )
-            if not self.ctree_client.health():
-                raise CelestialTreeConnectionError()
-        else:
-            self.ctree_client = NullCelestialTreeClient()
+        self.ctree_client = ctree_client
 
     def set_graph_mode(self, stage_mode: str, execution_mode: str) -> None:
         """

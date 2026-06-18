@@ -6,6 +6,7 @@ from collections import deque
 from typing import Any, cast
 
 from ..graph import TaskGraph
+from ..runtime.util_event import clone_event_client
 from ..stage import TaskExecutor, TaskStage
 from ..stage.util_types import AnyTaskStage
 
@@ -115,14 +116,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
         cloned_to: list[AnyTaskStage] = [name_map[name] for name in to_names]
         cloned_graph.connect([cloned_from], cloned_to)
 
-    if graph.use_ctree:
-        cloned_graph.set_ctree(
-            use_ctree=True,
-            host=graph.ctree_host,
-            http_port=graph.ctree_http_port,
-            grpc_port=graph.ctree_grpc_port,
-            transport=graph.ctree_transport,
-        )
+    cloned_graph.set_ctree(clone_event_client(graph.ctree_client))
     if graph.is_report:
         cloned_graph.set_reporter(
             is_report=True,

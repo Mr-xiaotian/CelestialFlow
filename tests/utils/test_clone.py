@@ -4,6 +4,7 @@ import pytest
 
 from celestialflow.graph import TaskGraph
 from celestialflow.stage import TaskExecutor, TaskStage
+from celestialflow.runtime.util_event import LocalEventClient
 from celestialflow.utils.util_clone import clone_executor, clone_graph, clone_stage
 
 
@@ -135,6 +136,15 @@ class TestUtilClone:
         # 原图节点不受影响
         assert stage_a.execution_mode == "serial"
         assert cloned_stage_a.execution_mode == "thread"
+
+    def test_clone_graph_creates_independent_local_event_client(self):
+        """默认本地事件客户端在克隆后应保持实例独立。"""
+        graph = TaskGraph("test_clone_graph_event_client")
+        cloned = clone_graph(graph)
+
+        assert isinstance(graph.ctree_client, LocalEventClient)
+        assert isinstance(cloned.ctree_client, LocalEventClient)
+        assert cloned.ctree_client is not graph.ctree_client
 
 
 # 运行方式：
