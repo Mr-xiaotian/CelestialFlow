@@ -1,8 +1,11 @@
 # CelestialTree Client
 
-> 📅 Last Updated: 2026/04/22
+> 📅 Last Updated: 2026/06/18
 
-CelestialFlow integrates the `celestialtree` client to implement fine-grained full-chain task provenance tracking and event recording.
+CelestialFlow supports integrating the `celestialtree` client for fine-grained full-chain task provenance tracking and event recording.
+
+> `celestialtree` has now been removed from CelestialFlow's default runtime dependencies.
+> If you need the tracing capabilities described on this page, install `celestialtree` separately, or run `uv sync --group dev` in the source repository.
 
 ## Introduction
 
@@ -13,17 +16,33 @@ This enables users to:
 2. **Locate error root causes**: Query the upstream source of a failed task.
 3. **Visualize execution trees**: Generate the call tree of task execution.
 
+## Installation
+
+```bash
+# If celestialflow is already installed, just supplement with CelestialTree
+uv pip install celestialtree
+
+# If you are developing/running demos in the source repository
+uv sync --group dev
+```
+
 ## Configuration
 
-Configure during `TaskGraph` initialization:
+The current `TaskGraph.set_ctree()` accepts an event client instance, rather than the legacy `use_ctree=True` / `host=...` format.
+
+Configure after `TaskGraph` initialization:
 
 ```python
-graph.set_ctree(
-    use_ctree=True,
+from celestialtree import Client as CelestialTreeClient
+
+ctree_client = CelestialTreeClient(
     host="127.0.0.1",
     http_port=7777,
-    grpc_port=7778
+    grpc_port=7778,
+    transport="grpc",
 )
+
+graph.set_ctree(ctree_client)
 ```
 
 ## Event Types

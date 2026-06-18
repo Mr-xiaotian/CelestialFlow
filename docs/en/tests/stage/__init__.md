@@ -1,6 +1,6 @@
 ﻿# stage Test Package
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 ## Purpose
 `tests/stage/` covers `TaskStage`, `TaskExecutor`, and the execution semantics of built-in Stage components, verifying task input, output, deduplication, termination signals, concurrency modes, and lifecycle behavior.

@@ -1,6 +1,6 @@
 # demo_utils.py デモツール説明
 
-> 📅 最終更新日: 2026/05/24
+> 📅 最終更新日: 2026/06/18
 
 ## 目標
 
@@ -20,7 +20,7 @@ flowchart TD
         Url["generate_urls_sleep / log_urls_sleep / download_sleep / parse_sleep / download_to_file"]
         ETL["extract_record / transform_normalize / transform_enrich / load_record"]
         Async["async_double / async_to_str"]
-        Router["RouterWrapper"]
+        Router["router_even"]
         Misc["no_op / sum_int"]
     end
 
@@ -28,12 +28,13 @@ flowchart TD
     Async --> Graph
     Async --> GraphAsync["demo_graph.py<br/>(demo_async_staged_pipeline)"]
     Fib --> Executor["demo_executor.py"]
-    Fib --> StagesRedis0["demo_stages.py<br/>(demo_redis_ack_0)"]
-    Sleep1 --> StagesRedis["demo_stages.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0, demo_router_0)"]
+    Fib --> Executor["demo_executor.py"]
+    Fib --> Redis0["demo_redis.py<br/>(demo_redis_ack_0)"]
+    Sleep1 --> RedisDemo["demo_redis.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0)"]
     Url --> StagesSplitter0["demo_stages.py<br/>(demo_splitter_0)"]
-    Url --> StagesRedis2["demo_stages.py<br/>(demo_redis_ack_2)"]
+    Url --> Redis2["demo_redis.py<br/>(demo_redis_ack_2)"]
     Router --> StagesRouter0["demo_stages.py<br/>(demo_router_0)"]
-    Misc --> StagesRedis1["demo_stages.py<br/>(demo_redis_ack_1)"]
+    Misc --> Redis1["demo_redis.py<br/>(demo_redis_ack_1)"]
     Misc --> StagesSplitter1["demo_stages.py<br/>(demo_splitter_1)"]
     Compute --> Structure["demo_structure.py"]
 ```
@@ -69,8 +70,8 @@ flowchart TD
 - `async_double`：入力を非同期で倍にする（0.3s sleep 含む）
 - `async_to_str`：入力を非同期でフォーマット済み文字列に変換（0.2s sleep 含む）
 
-### 特殊クラス
-- `RouterWrapper`：`TaskRouter` デモ用のルーティングラッパー
+### ルーティング補助関数
+- `router_even`：`TaskRouter` デモ用のルーティング関数。偶奇性に基づいて `StageA` または `StageB` を返す
 
 ## tests/test_utils.py との関係
 
@@ -79,14 +80,14 @@ flowchart TD
 ## 発生しうる問題
 
 1. **tests/test_utils.py との重複**：一方を修正する際にもう一方を容易に見落とし、デモとユニットテストの動作が分岐する可能性があります。
-2. **Windows パスのハードコード**：パス置換ロジックは `demo_stages.py` 内の `DownloadStage` および `DownloadRedisTransport` カスタムサブクラスにあり、本ファイルには含まれません。
+2. **Windows パスのハードコード**：`download_to_file` のターゲットパスは通常ローカル環境に合わせて調整する必要があります。関連サンプルは `demo_redis.py` にあります。
 3. **`requests` ネットワーク依存**：`download_to_file` は外部ネットワークアクセスが必要で、隔離されたネットワーク環境では使用できません。
 
 ## 実行方法
 
 このファイルは共有モジュールであり、直接実行しません：
 ```python
-from demo_utils import fibonacci, sleep_1, RouterWrapper
+from demo_utils import fibonacci, sleep_1, router_even
 ```
 
 ## 依存

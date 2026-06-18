@@ -1,15 +1,15 @@
-﻿# bench_mpqueue_vs_shared_memory.py Benchmark Notes
+﻿# bench_mpqueue_vs_shared_memory.py Benchmark Guide
 
-> 📅 Last Updated: 2026/04/22
+> 📅 Last Updated: 2026/06/16
 
 ## Objective
 
 Under more complex producer-consumer topologies (SPSC, MPSC, SPMC), compare the performance of `multiprocessing.Queue` against a custom ring buffer based on `shared_memory`. Provide in-depth data for CelestialFlow's IPC optimization in high-throughput scenarios.
 
-## Test Contents
+## Test Content
 
 | Topology | Producers | Consumers | Description |
-|----------|-----------|-----------|-------------|
+|----------|-----------|-----------|------|
 | SPSC | 1 | 1 | Single producer single consumer |
 | MPSC | 4 | 1 | Multi-producer single consumer |
 | SPMC | 1 | 4 | Single producer multi-consumer |
@@ -34,26 +34,28 @@ Under more complex producer-consumer topologies (SPSC, MPSC, SPMC), compare the 
 
 ## Benchmark Results (Measured)
 
+### Historical Results - Windows SharedMemory comparison (date not recorded)
+
 > Environment: Windows, Python 3.10, spawn mode, COUNT=100,000, REPEAT=3, payload=int (8 bytes), SLOT_COUNT=1024
 
-### SPSC (Single Producer Single Consumer)
+#### SPSC (Single Producer Single Consumer)
 
 | Mechanism | Average Time | Throughput | Winner |
-|-----------|-------------|------------|--------|
+|------|----------|--------|--------|
 | MPQueue | 1.281s | 78,066 items/s | — |
 | SharedMemory ring | **0.878s** | **113,853 items/s** | ✅ **SharedMemory** (1.46x faster) |
 
-### MPSC (4 Producers 1 Consumer)
+#### MPSC (4 Producers 1 Consumer)
 
 | Mechanism | Average Time | Throughput | Winner |
-|-----------|-------------|------------|--------|
+|------|----------|--------|--------|
 | MPQueue | **1.618s** | **61,787 items/s** | ✅ **MPQueue** (1.18x faster) |
 | SharedMemory ring | 1.905s | 52,487 items/s | — |
 
-### SPMC (1 Producer 4 Consumers)
+#### SPMC (1 Producer 4 Consumers)
 
 | Mechanism | Average Time | Throughput | Winner |
-|-----------|-------------|------------|--------|
+|------|----------|--------|--------|
 | MPQueue | 2.851s | 35,070 items/s | — |
 | SharedMemory ring | **1.989s** | **50,277 items/s** | ✅ **SharedMemory** (1.43x faster) |
 
@@ -62,6 +64,21 @@ Under more complex producer-consumer topologies (SPSC, MPSC, SPMC), compare the 
 - **MPSC**: SharedMemory's write_lock becomes a bottleneck (4 producers serialized writes), making MPQueue faster instead
 - **SPMC**: SharedMemory leads again, with multiple consumers able to read different slots in parallel
 - Strategy recommendation: prefer SharedMemory for single-producer scenarios; prefer MPQueue for multi-producer scenarios
+
+### 2026/06/16 - Windows int payload retest
+
+> Environment: Windows, COUNT=100,000, REPEAT=3, `PAYLOAD_MODE=int`, `SLOT_COUNT=1024`
+
+| Topology | MPQueue | SharedMemory ring | Winner |
+|------|---------|-------------------|--------|
+| SPSC | 0.8416s | **0.5979s** | SharedMemory (1.41x) |
+| MPSC | 2.1374s | **1.0849s** | SharedMemory (1.97x) |
+| SPMC | 3.1689s | **1.0666s** | SharedMemory (2.97x) |
+
+**Supplementary conclusions for this round**:
+- In this round, `SharedMemory ring` leads across all three topologies, even surpassing `MPQueue` in MPSC where it historically trailed
+- On the current machine, the multi-consumer scenario yields the greatest benefit; under SPMC, `SharedMemory` throughput is nearly 3x that of `MPQueue`
+- This demonstrates that shared memory performance is quite sensitive to the specific machine, Python version, and system load; retaining historical results for comparison remains valuable
 
 ## How to Run
 

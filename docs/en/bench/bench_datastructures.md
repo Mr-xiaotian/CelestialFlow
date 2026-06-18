@@ -1,15 +1,15 @@
-﻿# bench_datastructures.py Benchmark Notes
+﻿# bench_datastructures.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/16
 
 ## Objective
 
 Compare the read/write performance of various Python data structures and external storage in a single-threaded environment, providing quantitative data for CelestialFlow's internal queue and persistence backend selection.
 
-## Test Contents
+## Test Content
 
 | Test Item | Description | Scale |
-|-----------|-------------|-------|
+|--------|------|------|
 | `test_builtin_dict` | Native dict put/get | N=10,000 |
 | `test_queue_thread` | `queue.Queue` single-thread read/write | N=10,000 |
 | `test_mpqueue` | `multiprocessing.Queue` cross-process read/write (deprecated, retained for reference only) | N=10,000 |
@@ -84,10 +84,12 @@ test_redis_multithread_plain(r, num_threads=5)   # 5 threads
 
 ## Benchmark Results (Measured)
 
+### Historical Results - Windows local Redis (date not recorded)
+
 > Environment: Windows, Python 3.10, local Redis, N=10,000
 
 | Test Item | put/set | get | Notes |
-|-----------|---------|-----|-------|
+|--------|---------|-----|------|
 | Built-in dict | 0.0008s | 0.0003s | Single-thread baseline, fastest |
 | Queue (thread) | 0.0101s | 0.0108s | Thread-safe queue |
 | MPQueue | 0.0149s | 0.3072s | Cross-process queue, get significantly slower due to serialization |
@@ -105,6 +107,30 @@ test_redis_multithread_plain(r, num_threads=5)   # 5 threads
 - Pure in-memory structures (dict, thread Queue) are 2-3 orders of magnitude faster than any IPC/network solution
 - Redis Pipeline is essential in networked scenarios, reducing latency from ~2.8s to ~0.15s
 - MPQueue's get is ~20x slower than put, primarily due to pickle deserialization overhead
+
+### 2026/06/16 - Local retest with Redis available
+
+> Environment: Windows, N=10,000, Redis service available for this round
+
+| Test Item | put/set | get | Notes |
+|--------|---------|-----|------|
+| Built-in dict | 0.0004s | 0.0002s | Single-thread baseline, fastest |
+| Queue (thread) | 0.0057s | 0.0063s | Thread-safe queue |
+| MPQueue | 0.0075s | 0.1294s | get still noticeably slower than put |
+| Manager.dict | 0.3494s | 0.3848s | Proxy forwarding overhead is significant |
+| Value (number) | 0.0097s | — | 10,000 atomic increments |
+| Redis plain | 2.5804s | 2.4552s | Per-item RTT dominates |
+| Redis pipeline | 0.0874s | 0.0574s | Fastest Redis read/write scheme in this round |
+| Redis multi-thread | 0.8925s | 0.8135s | 10 threads, no pipeline |
+| Redis hash | 2.4163s | 2.5311s | Comparable to plain |
+| Redis list | 2.4061s | 2.5197s | rpush/lindex |
+| Redis set | 2.4366s | 2.4330s | sadd/sismember |
+| Redis zset | 2.7509s | 2.7586s | zadd/zscore |
+
+**Supplementary conclusions for this round**:
+- Pure in-memory structures still lead all Redis solutions by 2-4 orders of magnitude; network RTT remains the dominant factor
+- `Redis pipeline` continues to prove its necessity, with writes approximately **29x** faster than `plain` and reads approximately **43x** faster
+- `MPQueue` is significantly faster this round compared to historical records, but `get` is still much slower than `put`; serialization/deserialization costs remain
 
 ## Dependencies
 

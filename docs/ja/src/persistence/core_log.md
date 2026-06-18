@@ -1,6 +1,6 @@
 # ログ永続化 (Log Persistence)
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 `celestialflow.persistence` モジュールは、マルチプロセス環境におけるログの統合収集、フォーマット、永続化の問題を解決するマルチプロセス安全なログシステムを提供します。
 
@@ -145,7 +145,7 @@ sinker = LogInlet(log_queue, log_level="SUCCESS")
 | `task_input(func_name, task_repr, source, input_id)` | DEBUG | タスクが入力キューに入ったことを記録 |
 | `task_success(func_name, task_repr, exec_mode, result_repr, use_time, parent_id, success_id)` | SUCCESS | タスク成功完了を記録 |
 | `task_retry(func_name, task_repr, retry_times, exception, parent_id, retry_id)` | WARNING | タスク失敗だがリトライがトリガーされたことを記録 |
-| `task_error(func_name, task_repr, exception, parent_id, error_id)` | ERROR | タスク失敗かつリトライ不可能を記録 |
+| `task_fail(func_name, task_repr, exception, parent_id, error_id)` | ERROR | タスク失敗かつリトライ不可能を記録 |
 | `task_duplicate(func_name, task_repr, parent_id, duplicate_id)` | WARNING | 重複タスク検出を記録 |
 
 #### Split 分割 (Splitter)
@@ -205,7 +205,7 @@ sinker.end_executor("Executor1", "thread", 4.8, 48, 1, 1)
 sinker.task_input("process_func", "task_1", "queue", 1)
 sinker.task_success("process_func", "task_1", "thread", "OK", 0.05, 1, 2)
 sinker.task_retry("process_func", "task_2", 1, TimeoutError("timeout"), 1, 3)
-sinker.task_error("process_func", "task_3", ValueError("bad"), 1, 4)
+sinker.task_fail("process_func", "task_3", ValueError("bad"), 1, 4)
 sinker.task_duplicate("process_func", "task_2", 1, 5)
 
 # 終了シグナル

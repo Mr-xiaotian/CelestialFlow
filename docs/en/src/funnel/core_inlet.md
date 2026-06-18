@@ -1,6 +1,6 @@
 # BaseInlet
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 `BaseInlet` is the base class for all inlet classes, providing the common functionality of writing records to a queue.
 
@@ -51,17 +51,19 @@ classDiagram
         +start_stage()
         +end_stage()
         +task_success()
-        +task_error()
+        +task_fail()
         +task_retry()
         +termination_input()
     }
-    class FailInlet {
-        +start_graph()
-        +start_executor()
-        +task_error()
+    class FallbackInlet {
+        +task_in()
+        +task_success()
+        +task_fail()
+        +task_retry()
+        +task_duplicate()
     }
     BaseInlet <|-- LogInlet
-    BaseInlet <|-- FailInlet
+    BaseInlet <|-- FallbackInlet
 ```
 
 ### Inheritance Description
@@ -69,7 +71,9 @@ classDiagram
 | Subclass | Source File | Responsibility |
 |------|---------|------|
 | `LogInlet` | `persistence/core_log.py` | Log recording, tracking the entire lifecycle of task enqueue/dequeue/termination |
-| `FailInlet` | `persistence/core_fail.py` | Error recording, persisting task error information to JSONL |
+| `FallbackInlet` | `persistence/core_fallback.py` | Fallback recording, persisting task lifecycle to SQLite |
+
+> ⚠️ **Changed**: The legacy `FailInlet` (`core_fail.py`) has been renamed to `FallbackInlet` (`core_fallback.py`), and `SuccessSpout` has been removed.
 
 ## Usage Example
 

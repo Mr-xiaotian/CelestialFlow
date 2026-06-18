@@ -1,6 +1,6 @@
 # globals.d.ts
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 TypeScript global type declaration file, providing complete type definitions for CDN-loaded third-party libraries (Chart.js, Sortable.js), global variables, cross-module shared functions, and backend API response structures.
 

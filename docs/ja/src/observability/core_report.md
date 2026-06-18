@@ -1,6 +1,6 @@
 # TaskReporter
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 `TaskReporter` はバックグラウンドコンポーネントで、タスクグラフの実行状態を収集しリモート Web サーバー（CelestialFlow Web UI）にレポートします。また、サーバーから制御指示（タスク注入など）をプルする役割も担います。
 
@@ -9,7 +9,7 @@
 - **状態レポート**: タスクグラフの構造、トポロジー、実行状態（カウンター）、分析データなどを定期的にプッシュ。
 - **タスク注入**: Web UI からユーザーが注入した新規タスクを受信し、実行中のタスクグラフに動的挿入。
 - **パラメータ動的調整**: サーバーから設定（レポート間隔 `interval` など）をプル可能。
-- **エラーログ同期**: エラーログの増分プッシュをサポート（メタデータモード / コンテンツモード）。
+- **エラーログ同期**: エラーログの増分プッシュ（`event_id` ベースの増分）。
 
 ## 初期化
 
@@ -19,13 +19,13 @@ class TaskReporter:
         self,
         host: str,
         port: int,
-        task_graph: "TaskGraph",
+        task_graph: ReporterTaskGraph,
         log_inlet: LogInlet,
     ) -> None:
         """
         :param host: リモートサービスのホストアドレス
         :param port: リモートサービスのポート
-        :param task_graph: タスクグラフインスタンス
+        :param task_graph: タスクグラフインスタンス（ReporterTaskGraph プロトコルを満たす）
         :param log_inlet: ログコレクターインスタンス
         """
 ```
@@ -40,20 +40,21 @@ Reporter は HTTP 経由で以下の Web API とやり取りします：
 
 | メソッド | エンドポイント | 説明 |
 |------|------|------|
-| `GET` | `/api/pull_interval` | レポート間隔設定を取得 |
+| `GET` | `/api/pull_server_state` | サーバー同期状態を取得（間隔設定、構造/分析状態、最大 event_id などを含む） |
 | `GET` | `/api/pull_task_injection` | 注入タスクを取得 |
+
+> ⚠️ **変更あり**：以前のドキュメントでは `/api/pull_interval` エンドポイントが記載されていましたが、ソースコードでは `/api/pull_server_state` に統合され、間隔設定、グラフ状態フラグ、最大失敗 event_id を一度に取得します。
 
 ### プッシュインターフェース（Push）
 
 | メソッド | エンドポイント | 説明 |
 |------|------|------|
-| `POST` | `/api/push_errors_meta` | エラーメタ情報をプッシュ（バージョン番号と JSONL パス） |
-| `POST` | `/api/push_errors_content` | エラー内容をプッシュ（増分、具体的なエラー項目を含む） |
+| `POST` | `/api/push_errors` | エラー情報をプッシュ（増分、`server_max_event_id_in_fail` ベース） |
 | `POST` | `/api/push_status` | 実行時状態スナップショットをプッシュ |
 | `POST` | `/api/push_structure` | グラフ構造情報をプッシュ |
 | `POST` | `/api/push_analysis` | グラフ分析データをプッシュ |
 
-> **変更点**：以前のドキュメントでは `/api/push_summary` エンドポイントが記載されていましたが、現在の `TaskReporter._refresh_all()` には summary のプッシュ呼び出しは含まれていません（`LogInlet` には `push_summary_failed` ログメソッドが残っていますが、Reporter からは呼び出されません）。
+> ⚠️ **変更あり**：以前のドキュメントでは `/api/push_errors_meta` と `/api/push_errors_content` の2つのエンドポイントが記載されていましたが、ソースコードでは `/api/push_errors` に統一されました。また `/api/push_summary` エンドポイントは、現在の `TaskReporter._refresh_all()` に summary のプッシュ呼び出しが含まれていません（`LogInlet` には `push_summary_failed` ログメソッドが残っていますが、Reporter からは呼び出されません）。
 
 ### インタラクションフロー
 
@@ -63,25 +64,23 @@ sequenceDiagram
     participant S as Web サーバー
 
     loop interval 秒ごと
-        R->>S: GET /api/pull_interval
-        S-->>R: {interval: 5}
+        R->>S: GET /api/pull_server_state
+        S-->>R: {interval, is_current_graph, has_structure, has_analysis, max_event_id_in_fail}
 
         R->>S: GET /api/pull_task_injection
         S-->>R: {target_stage: [task_datas]}
 
         R->>R: collect_runtime_snapshot()
 
-        alt エラーモード = meta
-            R->>S: POST /api/push_errors_meta {rev, jsonl_path}
-            S-->>R: {ok: true}
-        else エラーモード = content (fallback)
-            R->>S: POST /api/push_errors_content {rev, errors}
-            S-->>R: {ok: true}
+        alt サーバーにグラフがない または 構造がない
+            R->>S: POST /api/push_structure {graph_id, structure}
+        end
+        alt サーバーにグラフがない または 分析がない
+            R->>S: POST /api/push_analysis {graph_id, analysis}
         end
 
-        R->>S: POST /api/push_status {status_snapshot}
-        R->>S: POST /api/push_structure {structure}
-        R->>S: POST /api/push_analysis {analysis}
+        R->>S: POST /api/push_status {graph_id, status_snapshot}
+        R->>S: POST /api/push_errors {graph_id, errors}
     end
 ```
 
@@ -90,18 +89,22 @@ sequenceDiagram
 ```python
 def _refresh_all(self) -> None:
     # 1. プル
-    self._pull_interval()          # GET /api/pull_interval
-    self._pull_and_inject_tasks()  # GET /api/pull_task_injection → タスク注入
+    self._pull_server_state()       # GET /api/pull_server_state → 設定と状態を同期
+    self._pull_and_inject_tasks()   # GET /api/pull_task_injection → タスク注入
 
     # 2. スナップショット収集
     self.task_graph.collect_runtime_snapshot()
 
-    # 3. プッシュ
-    self._push_errors()      # 最初に meta モード、失敗時は content モードにフォールバック
-    self._push_status()      # POST /api/push_status
-    self._push_structure()   # POST /api/push_structure
-    self._push_analysis()    # POST /api/push_analysis
+    # 3. プッシュ（必要に応じて）
+    if (not self._server_has_current_graph) or (not self._server_has_structure):
+        self._push_structure()      # POST /api/push_structure
+    if (not self._server_has_current_graph) or (not self._server_has_analysis):
+        self._push_analysis()       # POST /api/push_analysis
+    self._push_status()             # POST /api/push_status
+    self._push_errors()             # POST /api/push_errors
 ```
+
+> ⚠️ **変更あり**：以前のドキュメントに記載されていた `_pull_interval()` は存在せず、単一の `_pull_server_state()` に置き換えられました。`_push_errors` は内部で `_server_has_current_graph` に基づき、全量エラーと増分エラーのどちらを読み込むかを決定します。
 
 ## ライフサイクル
 

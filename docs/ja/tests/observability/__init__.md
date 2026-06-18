@@ -1,6 +1,6 @@
 # observability テストパッケージ
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 ## 役割
 `tests/observability/` は実行状態の観測とタスク注入機構をカバーし、`BaseObserver`/`CallbackObserver` のライフサイクルコールバックおよび `TaskReporter` のタスク注入動作が期待通りであることを確認します。

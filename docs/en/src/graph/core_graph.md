@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 `TaskGraph` is CelestialFlow's core scheduler, responsible for managing a set of `TaskStage` nodes' dependencies, execution flow, resource allocation, and lifecycle.
 
@@ -8,7 +8,7 @@
 
 ## Key Data Structures
 
-`TaskGraph` internally uses `stage_dict: dict[str, TaskStage]` to maintain a Stage mapping for all nodes. Each Stage automatically creates corresponding `TaskInQueue` and `TaskOutQueue` instances during initialization; queues are connected during the `_build_resources()` phase.
+`TaskGraph` internally uses `stage_dict: dict[str, TaskStage]` to maintain a Stage mapping for all nodes. Queue connections are directly established during the `connect()` phase.
 
 ## Initialization
 
@@ -46,7 +46,7 @@ def set_stages(self, stages: list[TaskStage]) -> None:
 def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
     """
     Establish a hyperedge: every node in from_stages connects to every node in to_stages.
-    Operates on the out_edges / in_edges dictionaries; actual queue connections are made in _build_resources().
+    Operates on the out_edges / in_edges dictionaries; queue connections are completed directly within connect().
     """
 ```
 
@@ -56,20 +56,22 @@ def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> N
 
 ```python
 def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000) -> None:
-    """Configure the reporter (上报器) for pushing status to Web UI."""
+    """Configure the reporter for pushing status to Web UI."""
 ```
 
 ### set_ctree
 
 ```python
-def set_ctree(self, use_ctree: bool = False, host: str = "127.0.0.1",
-              http_port: int = 7777, grpc_port: int = 7778,
-              transport: str = "grpc") -> None:
+def set_ctree(self, ctree_client: EventClient) -> None:
     """
-    Configure the CelestialTree client. Validates connection health when enabled.
-    :raises CelestialTreeConnectionError: If connection fails
+    Set the shared event client for the task graph.
+    Once passed in, it is synchronized down to all current stages in the graph.
     """
 ```
+
+> By default, `TaskGraph` internally uses `LocalEventClient()` to generate local incrementing event IDs, so the core execution pipeline works correctly even without installing `celestialtree`.
+>
+> If you wish to report events to CelestialTree, you need to first install `celestialtree` separately, then construct the corresponding client instance and pass it to `set_ctree()`.
 
 ### set_graph_mode
 
@@ -90,13 +92,12 @@ def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
                 put_termination_signal: bool = True) -> None:
     """
     Start the task graph. Flow:
-    1. _build_resources() — build queue connections and counter bindings
-    2. _build_analysis() — analyze graph structure (source nodes, levels, DAG detection)
-    3. Start spout, inlet, reporter
-    4. put_stage_queue() — inject initial tasks and termination signals
-    5. _execute_stages() — execute all nodes
-    6. _finalize_nodes() — finalize (ensure threads end, collect unconsumed tasks)
-    7. Release resources
+    1. _build_analysis() — analyze graph structure (source nodes, levels, DAG detection) and build network graph
+    2. Start spout, inlet, reporter
+    3. put_stage_queue() — inject initial tasks and termination signals
+    4. _execute_stages() — execute all nodes
+    5. _finalize_nodes() — finalize (ensure threads end, collect unconsumed tasks)
+    6. Release resources
     """
 ```
 
@@ -186,23 +187,29 @@ Collects a snapshot for a single node, returning a dict with the following field
 
 | Method | Return Type | Description |
 |------|---------|------|
+| `get_graph_id()` | `str` | Get the unique identifier of the current task graph instance |
 | `get_status_snapshot()` | `dict` | Status snapshot with unified timestamp |
-| `get_graph_analysis()` | `dict` | Graph analysis info (isDAG, scheduleMode, layersDict, className) |
+| `get_graph_analysis()` | `dict` | Graph analysis info (graphId, name, startTime, className, isDAG, scheduleMode, layersDict) |
 | `get_structure_graph()` | `dict` | Graph structure in JSON format (nodes + edges + source_nodes) |
 | `get_structure_list()` | `list[str]` | Formatted tree text with borders |
 | `get_networkx_graph()` | `DiGraph` | networkx directed graph instance |
-| `get_fail_by_stage_dict()` | `dict[str, list]` | Failed tasks grouped by node |
-| `get_fail_by_error_dict()` | `dict[tuple, list]` | Failed tasks grouped by error type (key is `(error_type, error_message)` tuple) |
-| `get_total_error_num()` | `int` | Total error count |
-| `get_fallback_path()` | `str` | Absolute path to the failure task JSONL file |
+| `get_fallback_path()` | `Path` | Absolute path to the failure task JSONL file; empty Path if not set |
 | `get_source_stages()` | `list[TaskStage]` | List of source nodes |
-| `get_stage_input_trace(stage_name)` | `str` | Node input dependency tree (requires ctree enabled) |
 
-### get_fail_by_error_dict Description
+### get_graph_analysis Description
+
+`get_graph_analysis()` returns a dict with the following fields:
 
 ```python
-def get_fail_by_error_dict(self) -> dict[tuple[str, ...], list[Any]]:
-    """Return grouped by (error_type, error_message)."""
+{
+    "graphId": self.graph_id,
+    "name": self.name,
+    "startTime": self.start_time,
+    "className": self.__class__.__name__,
+    "isDAG": self.is_dag,
+    "scheduleMode": self.schedule_mode,
+    "layersDict": self.layers_dict,
+}
 ```
 
 ## Lifecycle Diagram
@@ -215,8 +222,7 @@ flowchart TD
     ENV --> INLET[_init_inlet: LogInlet + FailInlet]
     STATE --> BUILD[set_stages + connect]
     BUILD --> START[start_graph]
-    START --> RESOURCES[_build_resources: Queue connections & counter bindings]
-    START --> ANALYSIS[_build_analysis: Graph analysis]
+    START --> ANALYSIS[_build_analysis: Graph analysis & resource construction]
     START -->|Inject initial tasks| PUT[put_stage_queue]
     START --> EXEC[_execute_stages]
     EXEC -->|eager| ALL[Launch all nodes at once]
@@ -225,9 +231,8 @@ flowchart TD
     LAYER --> FINALIZE
     FINALIZE --> RELEASE[_release_resources]
     RELEASE --> END[Graph execution complete]
-
+    
     START -->|Monitor| SNAPSHOT[collect_runtime_snapshot]
-    SNAPSHOT --> SUMMARY[get_graph_summary]
     SNAPSHOT --> STATUS[get_status_snapshot]
 ```
 

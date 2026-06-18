@@ -1,6 +1,6 @@
 # bench_http_grpc.py ベンチマーク説明
 
-> 📅 最終更新日: 2026/05/09
+> 📅 最終更新日: 2026/06/18
 
 ## 目的
 
@@ -31,11 +31,13 @@ CelestialTree イベント追跡システムの異なる転送プロトコル（
 
 ## ベンチマーク結果（実測）
 
+### 履歴結果 - ローカル CelestialTree（日時未記録）
+
 > 環境：Windows、Python 3.10、TaskSplitter → TaskStage チェーン、`range(1e4)` を処理
 > 外部サービス：ローカル CelestialTree（HTTP + gRPC）
 
 | シナリオ | 所要時間 | ベースライン比 overhead |
-|----------|----------|------------------------|
+|------|------|------------------|
 | **no ctree**（ベースライン） | 4.14s | — |
 | **http ctree** | 9.46s | +129% |
 | **grpc ctree** | 9.25s | +124% |
@@ -45,6 +47,13 @@ CelestialTree イベント追跡システムの異なる転送プロトコル（
 - イベント追跡により合計所要時間が約 **2.3x** 増加（4.14s → 9.3s）
 - タスクが `no_op`（ゼロ計算）であるため overhead 比率が増幅されている。CPU 集約型タスクではこの比率は顕著に低下する
 - gRPC に顕著な優位性が見られないのは、ローカルネットワーク RTT が極めて低く、HTTP 接続再利用後の差が縮小したためと考えられる
+
+### 2026/06/16 - 今回未再実行（外部サービス利用不可）
+
+> 説明：`127.0.0.1:7777` と `127.0.0.1:7778` を確認したところ、CelestialTree の HTTP / gRPC ポートはいずれも利用不可
+
+- `bench_http_grpc.py` はローカル CelestialTree サービスに依存するため、今回新しい所要時間データは書き込まれなかった
+- 履歴結果は引き続きプロトコルオーバーヘッドのオーダー参考として使用可能だが、現在のバージョンの比較可能なデータを得るには、対応する HTTP と gRPC サービスを先に起動する必要がある
 
 ## 実行方法
 
@@ -94,5 +103,6 @@ python bench/bench_http_grpc.py
 ## 依存関係
 
 - `celestialflow`（`TaskChain`、`TaskSplitter`、`TaskStage`）
+- `celestialtree`（追加インストールが必要。ソースリポジトリでは `uv sync --group dev` で取得可能）
 - `python-dotenv`
 - 外部サービス：CelestialTree（HTTP ポート + gRPC ポート）

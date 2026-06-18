@@ -1,8 +1,10 @@
 # TaskStage
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 `TaskStage` は `TaskGraph` を構築する基本単位です。`TaskExecutor` を継承し、グラフ構造関連の接続機能と `stage_mode` 制御ロジックを追加しています。
+
+> ⚠️ **変更点**：`set_inlet` のパラメータ名が `fail_queue` から `fallback_queue` に変更されました。`prev_bindings` メソッドは `prev_binding`（単数形）にリネームされ、シグネチャがリスト受け取りから単一の `TaskStage` 受け取りに変更されました。
 
 > 注意：`TaskStage` も使い捨てオブジェクトです。通常は `TaskGraph` に管理され、一度の完全実行に参加します。実行終了後、キューバインディング、カウント状態、グラフ内関連付けが安全にリセットされることは保証されません。
 
@@ -66,10 +68,10 @@ def set_stage_mode(self, stage_mode: str):
 ### set_inlet
 
 ```python
-def set_inlet(self, fail_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]) -> None:
+def set_inlet(self, fallback_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]) -> None:
     """
-    コレクターを初期化し、fail/log キューを永続化層に接続。
-    :param fail_queue: 失敗キュー
+    コレクターを初期化し、fallback/log キューを永続化層に接続。
+    :param fallback_queue: fallback キュー
     :param log_queue: ログキュー
     """
 ```
@@ -84,12 +86,12 @@ def set_inlet(self, fail_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]) -
 
 ## 接続バインディング
 
-### prev_bindings
+### prev_binding
 
 ```python
-def prev_bindings(self, pending_prev_bindings: list[TaskStage[Any, Any]]) -> None:
+def prev_binding(self, pending_prev_binding: TaskStage[Any, Any]) -> None:
     """
-    先行ノードをバインドし、各先行 stage のカウンターを現在の stage の task_counter に登録。
+    単一の先行ノードをバインドし、そのカウンターを現在の stage の task_counter に登録。
     """
 ```
 

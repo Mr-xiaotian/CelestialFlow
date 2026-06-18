@@ -1,12 +1,12 @@
-# bench_graph_mode.py Benchmark Notes
+# bench_graph_mode.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/16
 
 ## Objective
 
 Compare the task graph execution performance of complex DAGs under different combinations of `stage_mode` (`serial` / `thread`) and `execution_mode` (`serial` / `thread` / `async`). Uses the framework's built-in `benchmark_graph` tool for matrix comparison.
 
-## Test Contents
+## Test Content
 
 ### `bench_graph_0`
 - **Structure**: 4-node DAG (`stage1 → [stage2, stage3] → stage4`)
@@ -79,9 +79,11 @@ python bench/bench_graph_mode.py
 
 ## Benchmark Results (Measured)
 
+### Historical Results - Windows graph mode comparison (date not recorded)
+
 > Environment: Windows, Python 3.10
 
-### `bench_graph_0` — 4-node DAG, CPU+I/O mixed, 11 tasks (including boundary errors)
+#### `bench_graph_0` — 4-node DAG, CPU+I/O mixed, 11 tasks (including boundary errors)
 
 | stage_mode \ execution_mode | serial | thread | async |
 |----------------------------|--------|--------|-------|
@@ -95,7 +97,7 @@ Note: `process` mode has been deprecated; bench data retained only.
 - Both `execution_mode=thread` and `async` provide 2-3x speedup (GIL-releasing portions of Fibonacci computation + I/O concurrency in sleep stages)
 - `async` and `thread` performance is close; async has a slight edge in I/O-intensive scenarios
 
-### `bench_graph_1` — 6-node DAG, I/O-intensive (random sleep), 10 tasks
+#### `bench_graph_1` — 6-node DAG, I/O-intensive (random sleep), 10 tasks
 
 | stage_mode \ execution_mode | serial | thread | async |
 |----------------------------|--------|--------|-------|
@@ -109,7 +111,7 @@ Note: `process` mode has been deprecated; bench data retained only.
 - `async` outperforms `thread` in I/O-intensive scenarios (coroutine switching overhead < thread switching)
 - `thread` (threaded layout) significantly outperforms `serial` (single-threaded serial layout) in I/O-intensive scenarios; stages can launch in parallel
 
-### `bench_graph_2` — 4-node DAG (Splitter→A→[B,C]), pure computation, 10,000 tasks
+#### `bench_graph_2` — 4-node DAG (Splitter→A→[B,C]), pure computation, 10,000 tasks
 
 | stage_mode \ execution_mode | serial | thread | async |
 |----------------------------|--------|--------|-------|
@@ -122,13 +124,21 @@ Note: `process` mode has been deprecated; bench data retained only.
 - `stage_mode=thread` also adds overhead: inter-stage thread scheduling is pure burden in pure computation scenarios
 - **Conclusion: pure computation-intensive tasks should use `serial` + `serial` to avoid concurrency scheduling overhead**
 
-### Summary
+#### Summary
 
 - `stage_mode=thread` is the optimal choice in I/O-intensive scenarios
 - `execution_mode=async` performs best in I/O-intensive scenarios, followed by `thread`, with `serial` being the slowest
 - **`serial` is fastest in pure computation scenarios** — `thread` and `async` scheduling overhead cannot be amortized without I/O waiting, and instead become bottlenecks
 - `async` requires stage functions to be async functions, hence both sync_graph and async_graph must be provided separately
 - Total time includes: thread startup + task execution + queue transfer + termination signal propagation
+
+### 2026/06/16 - Attempted rerun (not stably completed)
+
+> Environment: Windows, Reporter service pointed at `127.0.0.1:5005`
+
+- This round attempted to rerun `bench_graph_mode.py` using the current script entry points
+- The command did not return a stable complete timing table within a reasonable time in the current environment; temporary logs only yielded a single header row
+- To avoid recording incomplete data as formal benchmark records, no new timing table is appended this round; historical results remain as reference
 
 ## Dependencies
 

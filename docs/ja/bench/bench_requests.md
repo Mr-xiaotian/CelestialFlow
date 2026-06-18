@@ -1,6 +1,6 @@
 # bench_requests.py ベンチマーク説明
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/06/16
 
 ## 目的
 
@@ -15,7 +15,8 @@
 | Concurrent - no session | 毎回新しい `requests.get()` | 10 スレッド |
 | Concurrent - per-thread session | 各スレッド独立 `Session` | 10 スレッド |
 
-- **ターゲット URL**：`https://httpbin.org/get`
+- **デフォルトターゲット URL**：`http://127.0.0.1:5005/api/pull_server_state`
+- **上書き方法**：`--url` パラメータまたは `CELESTIALFLOW_BENCH_URL` 環境変数
 - **リクエスト数**：`NUM_REQUESTS = 50`
 - **タイムアウト**：`TIMEOUT = 30`
 
@@ -32,10 +33,12 @@
 
 ## ベンチマーク結果（実測）
 
+### 履歴結果 - パブリック httpbin（日時未記録）
+
 > 環境：Windows、Python 3.10、ターゲット https://httpbin.org/get、50 リクエスト、10 並行スレッド
 
 | シナリオ | 平均所要時間 | 中央値 | 標準偏差 | 最小値 | 最大値 |
-|----------|-------------|--------|---------|--------|--------|
+|------|----------|--------|--------|--------|--------|
 | **Sequential - no session** | 1144.1 ms | 1059.7 ms | 169.0 ms | 991.9 ms | 1680.1 ms |
 | **Sequential - with session** | **274.7 ms** | **166.8 ms** | 204.5 ms | 162.1 ms | 1047.7 ms |
 | **Concurrent - no session** | 1795.4 ms | 1738.8 ms | 417.9 ms | 1180.0 ms | 2837.8 ms |
@@ -46,6 +49,40 @@
 - **並行化は追加利益をもたらさなかった**：本テストでは、並行シナリオ（10 スレッド）の平均は逐次よりむしろ高かった。原因は httpbin のパブリックネットワーク遅延とサーバー側処理がボトルネックとなり、クライアント側の並行化では突破できないため
 - **スレッド毎の独立 Session は無意味**：並行シナリオでは、各スレッド独立 Session と非 Session の性能がほぼ同じ。接続再利用の利点が高並行下での接続プール競合によって相殺されるため
 - CelestialFlow への示唆：Reporter と CelestialTree HTTP クライアントは `requests.Session` をグローバル再利用すべき
+
+### 2026/06/16 - ローカル TaskWebServer
+
+> 環境：Windows、ターゲット `http://127.0.0.1:5005/api/pull_server_state`、50 リクエスト、10 並行スレッド
+> 説明：今回のテストは修正された `bench_concurrent_with_session()` に基づき、真の「スレッドごとに 1 つの Session を再利用」を実現
+
+| シナリオ | 平均所要時間 | 中央値 | 標準偏差 | 最小値 | 最大値 |
+|------|----------|--------|--------|--------|--------|
+| **Sequential - no session** | 20.7 ms | 20.6 ms | 11.6 ms | 5.5 ms | 64.7 ms |
+| **Sequential - with session** | **5.8 ms** | **5.3 ms** | 3.1 ms | 4.5 ms | 26.6 ms |
+| **Concurrent - no session** | 36.6 ms | 33.8 ms | 11.9 ms | 10.5 ms | 65.9 ms |
+| **Concurrent - per-thread session** | 32.6 ms | 34.8 ms | 6.3 ms | 9.6 ms | 46.4 ms |
+
+**今回の補足結論**：
+- ローカルの安定したターゲットでは、**逐次 Session 再利用の利益が非常に顕著**で、平均所要時間は約 **72%** 低下（20.7ms → 5.8ms）
+- 並行シナリオでは、**スレッドごとの Session 再利用**は依然として並行非 Session より優れるが、逐次シナリオより優位性が明らかに小さい。ローカルインターフェース処理とスレッドスケジューリングオーバーヘッドが主要な構成要素になっている
+- 旧版のパブリック `httpbin` 結果と比較して、ローカル結果は変動が小さく、コードレベルの接続再利用比較により適している
+- 現在のスクリプトは CelestialFlow 自身の Web インターフェース上での HTTP クライアント戦略の検証により適しており、パブリックネットワーク品質の測定には適さない
+
+### 2026/06/16 - ローカル TaskWebServer（第 2 回再テスト）
+
+> 環境：Windows、ターゲット `http://127.0.0.1:5005/api/pull_server_state`、50 リクエスト、10 並行スレッド
+
+| シナリオ | 平均所要時間 | 中央値 | 標準偏差 | 最小値 | 最大値 |
+|------|----------|--------|--------|--------|--------|
+| **Sequential - no session** | 16.0 ms | 13.1 ms | 10.1 ms | 5.7 ms | 33.0 ms |
+| **Sequential - with session** | **6.0 ms** | **5.8 ms** | 1.8 ms | 4.0 ms | 17.3 ms |
+| **Concurrent - no session** | 37.3 ms | 37.1 ms | 10.5 ms | 8.2 ms | 55.5 ms |
+| **Concurrent - per-thread session** | 33.2 ms | 35.6 ms | 6.9 ms | 10.4 ms | 39.8 ms |
+
+**今回の補足結論**：
+- 逐次シナリオでは `Session` 再利用が引き続き最も顕著な利益点で、平均所要時間は約 **62%** 低下（16.0ms → 6.0ms）
+- 並行シナリオではスレッドごとの `Session` 再利用が依然として非 Session より優れるが、利益は逐次シナリオより明らかに小さい。ローカルインターフェース処理とスレッドスケジューリングがすでに主要な割合を占めている
+- 同日の前回ローカル結果と比較して、全体の平均値はわずかに低下しており、この benchmark がサーバーのその時点の負荷とローカルマシンの状態に依然として敏感であることを示している
 
 ## 実行方法
 
@@ -69,21 +106,27 @@ CONCURRENT_WORKERS = 4     # 並行スレッド数を削減
 
 ### テストターゲットの変更
 
-```python
-TEST_URL = "https://httpbin.org/get"             # デフォルトのパブリックターゲット
-# TEST_URL = "http://localhost:8000/api/health"  # ローカルテストサービス
+```bash
+python bench/bench_requests.py --url http://127.0.0.1:5005/api/pull_server_state
+```
+
+または環境変数を使用：
+
+```bash
+set CELESTIALFLOW_BENCH_URL=http://127.0.0.1:5005/api/pull_server_state
+python bench/bench_requests.py
 ```
 
 ### 特定シナリオのみをテスト
 
-```python
-if __name__ == "__main__":
-    print("\n[1/4] Sequential - no session")
-    # test_without_session(...)             # 非 Session テストをスキップ
+`if __name__ == "__main__":` 内で不要な呼び出しをコメントアウトするだけです：
 
-    print("\n[2/4] Sequential - with session")  # Session 再利用のみテスト
-    test_with_session(TEST_URL, NUM_REQUESTS)
-    # ...
+```python
+print("\n[1/4] Sequential - no session")
+# print_stats("no session", bench_without_session(args.url, NUM_REQUESTS))
+
+print("\n[2/4] Sequential - with session")
+print_stats("with session", bench_with_session(args.url, NUM_REQUESTS))
 ```
 
 修正後に実行：

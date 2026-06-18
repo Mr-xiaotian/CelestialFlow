@@ -1,8 +1,10 @@
-# BaseObserver / CallbackObserver
+# BaseObserver
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/18
 
-`BaseObserver` is the base class for executor lifecycle observers, defining the event interfaces that `TaskExecutor` broadcasts during execution. `CallbackObserver` is a lightweight implementation that receives events via callback functions.
+`BaseObserver` is the base class for executor lifecycle observers, defining the event interfaces that `TaskExecutor` broadcasts during execution.
+
+> ⚠️ **Deprecated**: Previous documentation included a `CallbackObserver` section. The source implementation of this class has been removed from `core_observer.py` and is no longer available.
 
 ## BaseObserver
 
@@ -55,37 +57,8 @@ executor.remove_observer(observer)  # Remove observer
 
 The executor internally broadcasts events to all registered observers via `_notify(method_name, *args, **kwargs)`. When the observer list is empty, it is equivalent to having no observers (no Null implementation needed).
 
-## CallbackObserver
-
-Lightweight observer that takes callback functions via keyword arguments, no subclass definition needed.
-
-```python
-class CallbackObserver(BaseObserver):
-    def __init__(self, **callbacks):
-        for name, fn in callbacks.items():
-            setattr(self, name, fn)
-```
-
-### Usage
-
-```python
-from celestialflow import CallbackObserver, TaskExecutor
-
-observer = CallbackObserver(
-    on_task_success=lambda count=1: print(f"Success: {count}"),
-    on_finish=lambda: print("Done"),
-)
-
-executor = TaskExecutor("Test", my_func)
-executor.add_observer(observer)
-executor.start(tasks)
-```
-
-Only override the events you care about; the rest fall back to `BaseObserver`'s default empty implementations.
-
 ## Existing Implementations
 
 | Class | Description |
 |---|------|
 | `TaskProgress` | tqdm-based progress bar display (see `core_progress.md`) |
-| `CallbackObserver` | Callback function-based observer |

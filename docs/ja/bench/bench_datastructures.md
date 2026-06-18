@@ -1,6 +1,6 @@
 # bench_datastructures.py ベンチマーク説明
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/16
 
 ## 目的
 
@@ -84,10 +84,12 @@ test_redis_multithread_plain(r, num_threads=5)   # 5 スレッド
 
 ## ベンチマーク結果（実測）
 
+### 履歴結果 - Windows ローカル Redis（日時未記録）
+
 > 環境：Windows、Python 3.10、ローカル Redis、N=10,000
 
 | テスト項目 | put/set | get | 備考 |
-|------------|---------|-----|------|
+|--------|---------|-----|------|
 | Built-in dict | 0.0008s | 0.0003s | シングルスレッド基準、最速 |
 | Queue (thread) | 0.0101s | 0.0108s | スレッドセーフキュー |
 | MPQueue | 0.0149s | 0.3072s | クロスプロセスキュー、シリアライズにより get が著しく低速化 |
@@ -105,6 +107,30 @@ test_redis_multithread_plain(r, num_threads=5)   # 5 スレッド
 - 純粋なインメモリ構造（dict、thread Queue）は、あらゆる IPC/ネットワーク方式より 2-3 桁高速
 - Redis Pipeline はネットワークシナリオでの必須選択肢であり、遅延を ~2.8s から ~0.15s に削減可能
 - MPQueue の get は put より約 20x 遅く、主に pickle デシリアライズが原因
+
+### 2026/06/16 - ローカル Redis 利用可能時の再テスト
+
+> 環境：Windows、N=10,000、今回 Redis サービス利用可能
+
+| テスト項目 | put/set | get | 備考 |
+|--------|---------|-----|------|
+| Built-in dict | 0.0004s | 0.0002s | シングルスレッド基準、最速 |
+| Queue (thread) | 0.0057s | 0.0063s | スレッドセーフキュー |
+| MPQueue | 0.0075s | 0.1294s | get は依然として put より著しく遅い |
+| Manager.dict | 0.3494s | 0.3848s | プロキシ転送オーバーヘッドが顕著 |
+| Value (number) | 0.0097s | — | 10,000 回のアトミックインクリメント |
+| Redis plain | 2.5804s | 2.4552s | 逐次 RTT が主因 |
+| Redis pipeline | 0.0874s | 0.0574s | 今回最速の Redis 読み書き方式 |
+| Redis multi-thread | 0.8925s | 0.8135s | 10 スレッド、pipeline なし |
+| Redis hash | 2.4163s | 2.5311s | plain と近い |
+| Redis list | 2.4061s | 2.5197s | rpush/lindex |
+| Redis set | 2.4366s | 2.4330s | sadd/sismember |
+| Redis zset | 2.7509s | 2.7586s | zadd/zscore |
+
+**今回の補足結論**：
+- 純粋なインメモリ構造は依然としてすべての Redis 方式より 2-4 桁優位。ネットワーク RTT が引き続き主因
+- `Redis pipeline` は引き続きその必要性を証明。書き込みは `plain` 比で約 **29x** 高速、読み取りは約 **43x** 高速
+- `MPQueue` は今回履歴より顕著に高速だが、`get` は依然として `put` よりはるかに遅く、シリアライズ/デシリアライズのコストが残存
 
 ## 依存関係
 

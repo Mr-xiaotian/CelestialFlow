@@ -1,6 +1,6 @@
 # TaskReporter
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 `TaskReporter` is a background component responsible for collecting task graph runtime status and reporting it to a remote Web server (CelestialFlow Web UI). It is also responsible for pulling control commands (such as task injection) from the server.
 
@@ -9,7 +9,7 @@
 - **Status Reporting**: Periodically pushes task graph structure, topology, runtime status (counters), analysis data, etc.
 - **Task Injection**: Receives user-injected new tasks from the Web UI and dynamically inserts them into the running task graph.
 - **Dynamic Parameter Adjustment**: Supports pulling configuration from the server (such as reporting interval `interval`).
-- **Error Log Syncing**: Supports incremental error log pushing (metadata mode / content mode).
+- **Error Log Syncing**: Incrementally pushes error logs (based on `event_id` increments).
 
 ## Initialization
 
@@ -19,13 +19,13 @@ class TaskReporter:
         self,
         host: str,
         port: int,
-        task_graph: "TaskGraph",
+        task_graph: ReporterTaskGraph,
         log_inlet: LogInlet,
     ) -> None:
         """
         :param host: Remote service host address
         :param port: Remote service port
-        :param task_graph: Task graph instance
+        :param task_graph: Task graph instance (satisfying the ReporterTaskGraph protocol)
         :param log_inlet: Log collector instance
         """
 ```
@@ -40,20 +40,21 @@ The Reporter interacts with the following Web APIs via HTTP:
 
 | Method | Endpoint | Description |
 |------|------|------|
-| `GET` | `/api/pull_interval` | Retrieve reporting interval configuration |
+| `GET` | `/api/pull_server_state` | Retrieve server sync state (including interval config, structure/analysis state, max event_id, etc.) |
 | `GET` | `/api/pull_task_injection` | Retrieve injected tasks |
+
+> ⚠️ **Changed**: Previous documentation listed the `/api/pull_interval` endpoint. The source code has merged this into `/api/pull_server_state`, which retrieves interval configuration, graph state flags, and max failed event_id in one call.
 
 ### Push Endpoints
 
 | Method | Endpoint | Description |
 |------|------|------|
-| `POST` | `/api/push_errors_meta` | Push error metadata (version number and JSONL path) |
-| `POST` | `/api/push_errors_content` | Push error content (incremental, including specific error entries) |
+| `POST` | `/api/push_errors` | Push error information (incremental, based on `server_max_event_id_in_fail`) |
 | `POST` | `/api/push_status` | Push runtime status snapshot |
 | `POST` | `/api/push_structure` | Push graph structure information |
 | `POST` | `/api/push_analysis` | Push graph analysis data |
 
-> **Changed**: Previous documentation listed the `/api/push_summary` endpoint, but `TaskReporter._refresh_all()` does not include a push call for summary (`LogInlet` retains the `push_summary_failed` log method but it is not called by the Reporter).
+> ⚠️ **Changed**: Previous documentation listed `/api/push_errors_meta` and `/api/push_errors_content` as two separate endpoints. The source code has unified them into `/api/push_errors`. Previous documentation listed the `/api/push_summary` endpoint, but `TaskReporter._refresh_all()` does not include a push call for summary (`LogInlet` retains the `push_summary_failed` log method but it is not called by the Reporter).
 
 ### Interaction Flow
 
@@ -63,25 +64,23 @@ sequenceDiagram
     participant S as Web Server
 
     loop Every interval seconds
-        R->>S: GET /api/pull_interval
-        S-->>R: {interval: 5}
+        R->>S: GET /api/pull_server_state
+        S-->>R: {interval, is_current_graph, has_structure, has_analysis, max_event_id_in_fail}
 
         R->>S: GET /api/pull_task_injection
         S-->>R: {target_stage: [task_datas]}
 
         R->>R: collect_runtime_snapshot()
 
-        alt error mode = meta
-            R->>S: POST /api/push_errors_meta {rev, jsonl_path}
-            S-->>R: {ok: true}
-        else error mode = content (fallback)
-            R->>S: POST /api/push_errors_content {rev, errors}
-            S-->>R: {ok: true}
+        alt Server has no graph or no structure
+            R->>S: POST /api/push_structure {graph_id, structure}
+        end
+        alt Server has no graph or no analysis
+            R->>S: POST /api/push_analysis {graph_id, analysis}
         end
 
-        R->>S: POST /api/push_status {status_snapshot}
-        R->>S: POST /api/push_structure {structure}
-        R->>S: POST /api/push_analysis {analysis}
+        R->>S: POST /api/push_status {graph_id, status_snapshot}
+        R->>S: POST /api/push_errors {graph_id, errors}
     end
 ```
 
@@ -90,18 +89,22 @@ sequenceDiagram
 ```python
 def _refresh_all(self) -> None:
     # 1. Pull
-    self._pull_interval()          # GET /api/pull_interval
-    self._pull_and_inject_tasks()  # GET /api/pull_task_injection → inject tasks
+    self._pull_server_state()       # GET /api/pull_server_state → sync config & state
+    self._pull_and_inject_tasks()   # GET /api/pull_task_injection → inject tasks
 
     # 2. Collect snapshot
     self.task_graph.collect_runtime_snapshot()
 
-    # 3. Push
-    self._push_errors()      # Meta mode first, fallback to content mode on failure
-    self._push_status()      # POST /api/push_status
-    self._push_structure()   # POST /api/push_structure
-    self._push_analysis()    # POST /api/push_analysis
+    # 3. Push (on demand)
+    if (not self._server_has_current_graph) or (not self._server_has_structure):
+        self._push_structure()      # POST /api/push_structure
+    if (not self._server_has_current_graph) or (not self._server_has_analysis):
+        self._push_analysis()       # POST /api/push_analysis
+    self._push_status()             # POST /api/push_status
+    self._push_errors()             # POST /api/push_errors
 ```
+
+> ⚠️ **Changed**: The previously documented `_pull_interval()` no longer exists, replaced by `_pull_server_state()`. Internally, `_push_errors` decides whether to load full or incremental errors based on `_server_has_current_graph`.
 
 ## Lifecycle
 

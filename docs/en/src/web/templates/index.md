@@ -1,6 +1,6 @@
 # index.html
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 The Jinja2 template file for the Web UI, defining the complete page structure of the monitoring system.
 

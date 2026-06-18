@@ -1,6 +1,6 @@
 # Runtime モジュール
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 Runtime モジュールは CelestialFlow のタスク実行ランタイム環境を提供し、タスクスケジューリング、キュー管理、エラー処理、パフォーマンス監視などのコア機能を含みます。タスクを実際に実行するインフラストラクチャ層です。
 
@@ -20,7 +20,7 @@ from celestialflow.runtime import (
 )
 ```
 
-> **注意**: `util_constant`、`util_errors`、`util_estimators`、`util_hash`、`util_types` などのユーティリティモジュールのシンボルは `runtime/__init__.py` の `__all__` に**含まれていません**。完全修飾パスでインポートしてください（例: `from celestialflow.runtime.util_errors import ConfigurationError`）。
+> **注意**: `util_constant`、`util_errors`、`util_estimators`、`util_event`、`util_hash`、`util_types` などのユーティリティモジュールのシンボルは `runtime/__init__.py` の `__all__` に**含まれていません**。完全修飾パスでインポートしてください（例: `from celestialflow.runtime.util_errors import ConfigurationError`）。
 
 ## ファイル説明
 
@@ -42,9 +42,9 @@ from celestialflow.runtime import (
    - **主要機能**: 終了シグナルマージ、ソース名管理、キューチャネルの動的追加
 
 3. **core_envelope.py** (`TaskEnvelope`)
-   - **役割**: タスクデータラッパー。元タスクとそのハッシュ、ID、ソースなどのメタ情報をカプセル化します
-   - **格納情報**: タスクデータ、SHA1 ハッシュ値（遅延計算）、タスク ID、ソース識別子、先行タスク参照
-   - **主要機能**: データカプセル化、遅延ハッシュ計算、タスク ID と先行タスク参照
+   - **役割**: タスクデータラッパー。元タスクとそのハッシュ、ID などのメタ情報をカプセル化します
+   - **格納情報**: タスクデータ、SHA1 ハッシュ値（遅延計算）、タスク ID
+   - **主要機能**: データカプセル化、遅延ハッシュ計算
 
 ### 監視とメトリクス
 
@@ -67,8 +67,6 @@ from celestialflow.runtime import (
      - **コンテキストマネージャ**: `NoOpContext` — 空のコンテキストマネージャ。`with` ロジックの無効化に使用
      - **ライフサイクル**: `StageStatus` — IntEnum（NOT_STARTED / RUNNING / STOPPED）
      - **イベント定数**: `CTreeEvent` — タスク/終了イベント名定数（TASK_INPUT / TASK_SUCCESS / TASK_ERROR / TASK_RETRY_PREFIX / TASK_DUPLICATE / TERMINATION_INPUT / TERMINATION_MERGE）
-     - **エラーレコード**: `PersistedErrorRecord` — 永続化エラーレコード frozen dataclass（グループ化対応）
-     - **可視化**: `STAGE_STYLE` — CelestialTree ノードラベルスタイル
 
 7. **util_hash.py**
    - **役割**: オブジェクトハッシュ計算。タスク重複排除に使用
@@ -121,15 +119,11 @@ from celestialflow.runtime import (
 ```python
 from queue import Queue as ThreadQueue
 from celestialflow.runtime import TaskEnvelope, TaskMetrics, TaskInQueue, TaskOutQueue
-from celestialflow.persistence import LogInlet
 
 # 1. TaskEnvelope：タスクエンベロープの作成と操作
-envelope = TaskEnvelope(task={"data": 42}, id=1, source="input")
+envelope = TaskEnvelope(task={"data": 42}, id=1)
 print(f"タスクデータ: {envelope.get_task()}")
 print(f"タスクハッシュ: {envelope.get_hash().hex()[:8]}...")
-print(f"タスクID: {envelope.get_id()}")
-
-# リトライ時は emit_retry_envelope で新しいエンベロープを生成
 print(f"タスクID: {envelope.get_id()}")
 ```
 
@@ -175,7 +169,7 @@ out_queue = TaskOutQueue(
 )
 
 # 上流がタスクを生産
-envelope_a = TaskEnvelope(task="hello", id=1, source="producer")
+envelope_a = TaskEnvelope(task="hello", id=1)
 in_queue.put(envelope_a)
 
 # 下流がタスクを消費

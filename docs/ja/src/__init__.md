@@ -1,6 +1,6 @@
 # CelestialFlow パッケージエントリ
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 ## 概要
 
@@ -30,16 +30,13 @@
 
 ### stage — タスク実行層
 
-タスク実行器、ルーティング分散、分割マージ、Redis 統合サポートを提供します。
+タスク実行器、ルーティング分散、タスク分割などの実行層機能を提供します。
 
 | エクスポートシンボル | 説明 |
 |----------|------|
 | `TaskExecutor` | 汎用タスク実行器。serial / thread / async の3つの実行モードをサポート |
 | `TaskStage` | グラフ内のタスクノード。実行関数と設定をラップ |
 | `TaskSplitter` | タスクスプリッター。1つの入力を複数のサブタスクに分割 |
-| `TaskRedisTransport` | Redis ベースのタスク転送層 |
-| `TaskRedisSource` | Redis データソース。Redis からタスク入力を取得 |
-| `TaskRedisAck` | Redis 確認機構。消費後に ACK を送信 |
 | `TaskRouter` | ルーティング分散器。ルールに基づいてタスクを異なる下流に分散 |
 | `TerminationSignal` | 終了シグナル。グラフ実行フローの終了を制御 |
 
@@ -52,7 +49,6 @@
 | エクスポートシンボル | 説明 |
 |----------|------|
 | `BaseObserver` | オブザーバー基底クラス。on_start / on_success / on_failure などのインターフェースを定義 |
-| `CallbackObserver` | コールバック式オブザーバー。コールバック関数を渡してイベントを処理 |
 | `TaskProgress` | タスク進捗トラッカー。完了/失敗/合計をリアルタイム統計 |
 
 ---
@@ -81,13 +77,12 @@
 
 ### persistence — 永続化
 
-JSONL ログの読み込みとクエリ機能を提供します。
+SQLite ベースのレコード読み込みとクエリ機能を提供します。
 
 | エクスポートシンボル | 説明 |
 |----------|------|
-| `load_jsonl_logs` | JSONL 形式のログファイルを読み込み |
-| `load_task_by_stage` | ステージ名でフィルタリングしてタスクログを読み込み |
-| `load_task_by_error` | エラータイプでフィルタリングしてタスクログを読み込み |
+| `load_records` | SQLite データベースから全実行レコードを読み込み |
+| `load_records_grouped_by_stage` | ステージ名でグループ化して実行レコードを読み込み |
 
 ---
 
@@ -104,36 +99,31 @@ JSONL ログの読み込みとクエリ機能を提供します。
 
 ## `__all__` リスト
 
-完全な公開 API リスト（全26シンボル）：
+完全な公開 API リスト（現在 21 シンボル）：
 
 ```python
 __all__ = [
-    "TaskGraph",
-    "TaskChain",
-    "TaskLoop",
-    "TaskCross",
-    "TaskComplete",
-    "TaskWheel",
-    "TaskGrid",
     "BaseObserver",
-    "CallbackObserver",
-    "TaskProgress",
+    "TaskChain",
+    "TaskComplete",
+    "TaskCross",
     "TaskExecutor",
-    "TaskStage",
-    "TaskSplitter",
-    "TaskRedisTransport",
-    "TaskRedisSource",
-    "TaskRedisAck",
+    "TaskGraph",
+    "TaskGrid",
+    "TaskLoop",
+    "TaskProgress",
     "TaskRouter",
-    "TerminationSignal",
+    "TaskSplitter",
+    "TaskStage",
     "TaskWebServer",
-    "load_jsonl_logs",
-    "load_task_by_stage",
-    "load_task_by_error",
-    "make_hashable",
-    "format_table",
-    "benchmark_graph",
+    "TaskWheel",
+    "TerminationSignal",
     "benchmark_executor",
+    "benchmark_graph",
+    "format_table",
+    "load_records",
+    "load_records_grouped_by_stage",
+    "make_hashable",
 ]
 ```
 
@@ -165,8 +155,8 @@ init_tasks = {stage_a.get_name(): [1, 2, 3, 4, 5]}
 graph.start_graph(init_tasks)
 
 # 5. 実行結果サマリーを表示
-summary = graph.get_graph_summary()
-print("Graph summary:", summary)
+snapshot = graph.get_status_snapshot()
+print("Graph status:", snapshot["status"])
 ```
 
 ### TaskExecutor を使用した独立実行
@@ -203,8 +193,8 @@ stages = [
 
 chain = TaskChain(stages, chain_mode="serial")
 chain.start_chain({stages[0].get_name(): [1, 2, 3]})
-summary = chain.get_graph_summary()
-print("Chain summary:", summary)
+snapshot = chain.get_status_snapshot()
+print("Chain status:", snapshot["status"])
 ```
 
 ## モジュール依存関係
@@ -220,11 +210,11 @@ graph TD
     end
 
     subgraph stage
-        S["TaskExecutor<br/>TaskStage<br/>TaskSplitter<br/>TaskRedisTransport<br/>TaskRedisSource<br/>TaskRedisAck<br/>TaskRouter<br/>TerminationSignal"]
+        S["TaskExecutor<br/>TaskStage<br/>TaskSplitter<br/>TaskRouter<br/>TerminationSignal"]
     end
 
     subgraph observability
-        O["BaseObserver<br/>CallbackObserver<br/>TaskProgress"]
+        O["BaseObserver<br/>TaskProgress"]
     end
 
     subgraph utils
@@ -236,7 +226,7 @@ graph TD
     end
 
     subgraph persistence
-        P["load_jsonl_logs<br/>load_task_by_stage<br/>load_task_by_error"]
+        P["load_records<br/>load_records_grouped_by_stage"]
     end
 
     subgraph runtime

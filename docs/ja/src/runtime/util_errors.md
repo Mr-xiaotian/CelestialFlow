@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 TaskErrors モジュールは CelestialFlow フレームワークで使用される完全な例外クラス体系を定義します。
 
@@ -13,13 +13,15 @@ CelestialFlowError
 │       ├── ExecutionModeError      # ("serial", "thread", "async")
 │       ├── StageModeError          # ("serial", "thread")
 │       ├── LogLevelError           # (TRACE/DEBUG/SUCCESS/INFO/...)
-│       └── ScheduleModeError       # ("eager", "staged")
+│       ├── ScheduleModeError       # ("eager", "staged")
+│       └── CallableParameterKindError  # 呼び出し可能オブジェクトのパラメータ kind が不正
 ├── GraphStructureError
 │   ├── DuplicateNodeError          # 重複ノード名
 │   └── UnknownNodeError            # 不明なノード名
 ├── RuntimeStateError
 │   ├── InitializationError         # 初期化失敗
 │   └── GraphManagedError           # グラフ管理エラー
+├── PersistedError                  # 永続化エラーサマリ
 ├── RemoteWorkerError               # リモート Worker 実行失敗
 ├── ReporterError                   # レポーターエラー
 ├── CelestialTreeConnectionError    # CelestialTree 接続失敗
@@ -183,6 +185,36 @@ class GraphManagedError(RuntimeStateError):
     """Stage は既に Graph に管理されています。スタンドアロン経路で起動すべきではありません。"""
     def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."):
         ...
+```
+
+### CallableParameterKindError
+
+呼び出し可能オブジェクトのパラメータ kind が不正です。
+
+```python
+class CallableParameterKindError(InvalidOptionError):
+    def __init__(self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]):
+        """
+        :param callable_name: 呼び出し可能オブジェクト名
+        :param parameter_kind: 実際のパラメータ kind
+        :param valid_kinds: 許可されるパラメータ kind の集合
+        """
+```
+
+## 永続化例外
+
+### PersistedError
+
+永続化層から復元されたエラーサマリオブジェクト。
+
+```python
+class PersistedError(CelestialFlowError):
+    def __init__(self, error_type: str, error_message: str) -> None:
+        self.error_type = error_type
+        self.error_message = error_message
+
+    def __str__(self) -> str:
+        """``ErrorType(message)`` 形式のコンパクトな表現を返します。"""
 ```
 
 ## 外部サービス例外
@@ -430,4 +462,4 @@ print(f"成功: {counts['tasks_succeeded']}, 失敗: {counts['tasks_failed']}")
 
 ## 例外の永続化
 
-`TaskGraph` は `_finalize_nodes()` 内で未処理エラーをローカル JSONL ファイルに永続化します（`FailSpout` 経由）。各エラーレコードはエラー型、メッセージ、所属 Stage、イベント ID、タイムスタンプを含み、`PersistedErrorRecord` で表現されます。
+`TaskGraph` は `_finalize_nodes()` 内で未処理エラーをローカル JSONL ファイルに永続化します（`FallbackSpout` 経由）。各エラーレコードはエラー型、メッセージ、所属 Stage、イベント ID、タイムスタンプを含み、`PersistedErrorRecord` で表現されます。

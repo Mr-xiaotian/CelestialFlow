@@ -1,8 +1,11 @@
 # CelestialTree Client
 
-> 📅 最終更新日: 2026/04/22
+> 📅 最終更新日: 2026/06/18
 
-CelestialFlow は `celestialtree` クライアントを統合し、細粒度のタスク全リンクトレース（Provenance）とイベント記録を実現します。
+CelestialFlow は `celestialtree` クライアントの接続をサポートし、細粒度のタスク全リンクトレース（Provenance）とイベント記録を実現します。
+
+> `celestialtree` は現在 CelestialFlow のデフォルトランタイム依存から外されています。
+> 本ページで紹介するトレース機能が必要な場合は、`celestialtree` を別途インストールするか、ソースリポジトリで `uv sync --group dev` を実行してください。
 
 ## 概要
 
@@ -13,17 +16,33 @@ CelestialTree は独立したイベントソーシングシステムです。Cel
 2. **エラー根本原因の特定**: あるエラータスクの上流ソースを照会する。
 3. **実行ツリーの可視化**: タスク実行のコールツリーを生成する。
 
+## インストール
+
+```bash
+# celestialflow がインストール済みで、CelestialTree のみ追加する場合
+uv pip install celestialtree
+
+# ソースリポジトリで開発/デモを実行する場合
+uv sync --group dev
+```
+
 ## 設定
 
-`TaskGraph` 初期化時に設定します：
+現在の `TaskGraph.set_ctree()` はイベントクライアントインスタンスを受け取ります。旧版の `use_ctree=True` / `host=...` 形式ではありません。
+
+`TaskGraph` 初期化後に設定します：
 
 ```python
-graph.set_ctree(
-    use_ctree=True,
+from celestialtree import Client as CelestialTreeClient
+
+ctree_client = CelestialTreeClient(
     host="127.0.0.1",
     http_port=7777,
-    grpc_port=7778
+    grpc_port=7778,
+    transport="grpc",
 )
+
+graph.set_ctree(ctree_client)
 ```
 
 ## イベントタイプ

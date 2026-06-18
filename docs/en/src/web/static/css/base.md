@@ -1,6 +1,6 @@
 # base.css
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/18
 
 Responsible for the system's global base styles, dark mode switching, common components (cards, tabs, badges), responsive base layout, and card layout editor modal window styles.
 

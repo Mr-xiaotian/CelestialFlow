@@ -1,12 +1,12 @@
-# bench_execution_mode.py Benchmark Notes
+# bench_execution_mode.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/16
 
 ## Objective
 
 Compare the performance differences of `TaskExecutor` across three execution modes (`serial`, `thread`, `async`) when handling CPU-intensive tasks (Fibonacci) and I/O-intensive tasks (sleep). Uses the framework's built-in `benchmark_executor` tool for unified comparison output.
 
-## Test Contents
+## Test Content
 
 ### `bench_executor_fibonacci`
 - **Tasks**: Compute Fibonacci sequence (`n=25..31`), including invalid inputs (`0, None, ""`)
@@ -45,7 +45,7 @@ The only difference is that `fibonacci_async` has an `await` yield point every 8
 ## Key Parameters
 
 | Parameter | Value | Description |
-|-----------|-------|-------------|
+|------|-----|------|
 | `max_workers` | 6 (CPU) / 6 (I/O) | Concurrent worker count |
 | `max_retries` | 1 (CPU) / 0 (I/O) | Retry count |
 
@@ -95,24 +95,26 @@ bench_task_1: list[Any] = list(range(20, 35))
 
 ## Benchmark Results (Measured)
 
+### Historical Results - Windows execution mode comparison (date not recorded)
+
 > Environment: Windows, Python 3.10
 
-### Scenario 1: Fibonacci (CPU-intensive)
+#### Scenario 1: Fibonacci (CPU-intensive)
 Input of 12 tasks (including 5 boundary error cases), max_workers=6, max_retries=1. All three modes use the **same iterative O(n) algorithm**.
 
 | Mode | Time | Description |
-|------|------|-------------|
+|------|------|------|
 | serial | 0.0065s | Single-thread sequential execution, pure computation with no scheduling overhead |
 | thread | 0.0048s | 6 threads concurrent, constrained by GIL, limited improvement |
 | async | 0.0062s | Coroutine concurrency, await yield points in iterations allow concurrency but still limited by pure computation nature |
 
 > 🟢 All three modes are in the same order of magnitude (~5-6ms). Thread is slightly faster because GIL still offers small concurrency windows between high-frequency iteration yield points; async's `await` yield points introduce minimal coroutine scheduling overhead. Overall differences are in microseconds — CPU-intensive tasks see no significant speedup in any mode.
 
-### Scenario 2: sleep_1 (I/O-intensive)
+#### Scenario 2: sleep_1 (I/O-intensive)
 Input of 6 tasks, each sleeping 1 second, max_workers=6. Sync and async sleep behavior is consistent, so comparison results directly reflect execution mode differences.
 
 | Mode | Time | Description |
-|------|------|-------------|
+|------|------|------|
 | serial | 6.010s | Sequential sleep, total ≈ 6 × 1s |
 | thread | 1.006s | 6 threads parallel, total ≈ 1s + scheduling overhead |
 | async | 1.009s | Coroutine parallel, essentially on par with thread |
@@ -121,6 +123,31 @@ Input of 6 tasks, each sleeping 1 second, max_workers=6. Sync and async sleep be
 - **I/O-intensive tasks**: Both thread and async achieve near-theoretical optimal parallelism (~12x speedup), with negligible difference between them
 - **CPU-intensive tasks**: All three modes are in the same order of magnitude. Pure computation tasks are constrained by Python's GIL — thread offers no significant advantage; async can be concurrent at coroutine yield points but the overall improvement is limited
 - The core criterion for choosing an execution mode is **task nature**: thread/async for I/O waiting, consider GIL impact for pure computation (or consider multiprocessing)
+
+### 2026/06/16 - Local retest
+
+> Environment: Windows, current code version, ran `bench/bench_execution_mode.py` directly
+
+#### Scenario 1: Fibonacci (CPU-intensive)
+
+| Mode | Time |
+|------|------|
+| serial | 0.2191s |
+| thread | **0.1432s** |
+| async | 0.1456s |
+
+#### Scenario 2: sleep_1 (I/O-intensive)
+
+| Mode | Time |
+|------|------|
+| serial | 6.1359s |
+| thread | **1.1359s** |
+| async | 1.1485s |
+
+**Supplementary conclusions for this round**:
+- In the CPU scenario, `thread` and `async` are noticeably faster than `serial`, but the gap between them is small, suggesting that scheduling and computation mix is dominant at the current task scale
+- In the I/O scenario, `thread` and `async` remain close to the theoretical parallel ceiling, both approximately **5.3x** faster than serial
+- This retest aligns with historical conclusions: execution mode selection depends primarily on whether the task has parallelizable wait time
 
 ## Dependencies
 

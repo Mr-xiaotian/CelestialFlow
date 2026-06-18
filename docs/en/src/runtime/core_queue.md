@@ -1,13 +1,13 @@
 # TaskQueue
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 The `TaskQueue` module provides `TaskInQueue` and `TaskOutQueue`, two classes used for connecting pipelines between different Stages. They support a multi-producer, multi-consumer model and integrate termination signal merge functionality.
 
 ## Overview
 
-- **TaskInQueue**: Task input queue, aggregates tasks and termination signals from multiple upstream sources
-- **TaskOutQueue**: Task output queue, broadcasts results to one or more downstream queue channels
+- **TaskInQueue**: Task input queue, aggregating tasks and termination signals from multiple upstream sources
+- **TaskOutQueue**: Task output queue, broadcasting results to one or more downstream queue channels
 
 Both support multiple queue backends: `queue.Queue` (Thread), `asyncio.Queue` (Async).
 
@@ -15,7 +15,7 @@ Both support multiple queue backends: `queue.Queue` (Thread), `asyncio.Queue` (A
 
 ## TaskInQueue
 
-Task input queue, used for receiving, deduplicating, and merging tasks from multiple upstream sources.
+Task input queue for receiving, deduplicating, and merging tasks from multiple upstream sources.
 
 ### Initialization
 
@@ -52,10 +52,10 @@ def get(self) -> TaskEnvelope | TerminationIdPool:
     """
     Dequeue a task or termination signal ID pool.
 
-    Termination signal merge logic:
-    - If a termination signal from "input" is received → immediately return TerminationIdPool
-    - If termination signals from all source_names are received → merge and return
-    - If only partial upstream signals received → keep waiting (returns None, inner loop retries)
+    Termination signal merging logic:
+    - Receive termination signal from "input" → immediately return TerminationIdPool
+    - Receive termination signals from all source_names → merge and return
+    - Only partial upstream signals received → continue waiting (return None, loop retries internally)
     """
 ```
 
@@ -65,7 +65,7 @@ def get(self) -> TaskEnvelope | TerminationIdPool:
 def drain(self) -> list[TaskEnvelope]:
     """
     Drain all tasks from the queue, returning a list of tasks.
-    Records termination signals but does not return TerminationIdPool (only used in synchronous contexts, e.g. _finalize_nodes).
+    Records termination signals but does not return TerminationIdPool (only for synchronous environments, e.g., _finalize_nodes).
     """
 ```
 
@@ -83,7 +83,7 @@ def add_source_name(self, name: str) -> None:
 
 ## TaskOutQueue
 
-Task output queue, used to broadcast tasks to multiple downstream nodes.
+Task output queue for broadcasting tasks to multiple downstream targets.
 
 ### Initialization
 
@@ -97,9 +97,9 @@ class TaskOutQueue:
     ):
         """
         :param queue_list: List of output queues
-        :param target_names: List of downstream node names (must match the length of queue_list)
+        :param target_names: List of downstream node names (must match queue_list length)
         :param in_name: Unique name of the current node
-        :raises ConfigurationError: If the two lists have different lengths
+        :raises ConfigurationError: If the two lists have mismatched lengths
         """
 ```
 
@@ -123,7 +123,7 @@ def put_target(self, item: TaskEnvelope | TerminationSignal, name: str) -> None:
     """
 ```
 
-Used for directed distribution to a specific downstream Stage.
+Used for directed dispatch to a specific downstream Stage.
 
 #### put_channel
 
@@ -162,32 +162,32 @@ Upstream node → out_queue.put(TerminationSignal) → queue
                                                     ↓
                                         termination_dict[source] = id
                                                     ↓
-                                        All sources gathered? → yes → merge → TerminationIdPool
-                                        Direct "input" termination? → yes → return immediately
-                                        Otherwise → keep waiting
+                                        All sources collected? → Yes → merge → TerminationIdPool
+                                        Direct input termination?  → Yes → return immediately
+                                        Otherwise                 → continue waiting
 ```
 
 ### Merge Rules
 
-`TaskInQueue` waits for termination signals from all `source_names`, merging them into one `TerminationIdPool`:
+`TaskInQueue` waits for termination signals from all `source_names` and merges them into a single `TerminationIdPool`:
 
-1. Validate source legitimacy in `_record_termination` (must be in `source_names ∪ {"input"}`)
+1. In `_record_termination`, validate source legitimacy (must be in `source_names ∪ {"input"}`)
 2. If `"input"` is present → immediately return `TerminationIdPool(ids=[...])`
 3. If `_can_merge_termination()` is True → call `_merge_termination()`
-4. Otherwise, keep waiting (`_deal_get_item` returns `None`, outer `get` loop continues)
+4. Otherwise continue waiting (`_deal_get_item` returns `None`, outer `get` loop continues)
 
 ---
 
-## Usage Examples
+## Usage Example
 
-The following examples demonstrate basic usage of `TaskInQueue` and `TaskOutQueue`, including task put/get, termination signal merge, and dynamic channel addition.
+The following example demonstrates basic usage of `TaskInQueue` and `TaskOutQueue`, including task put/get, termination signal merging, and dynamic channel addition.
 
 ```python
 from queue import Queue as ThreadQueue
 from celestialflow.runtime import TaskEnvelope, TaskInQueue, TaskOutQueue
 from celestialflow.runtime.util_types import TerminationSignal
 
-# ===== TaskInQueue usage example =====
+# ===== TaskInQueue Usage Example =====
 
 # Create input queue, aggregating tasks from two upstream sources ("producer1", "producer2")
 in_queue = TaskInQueue(
@@ -197,8 +197,8 @@ in_queue = TaskInQueue(
 )
 
 # Upstream producers put tasks
-env1 = TaskEnvelope(task=100, id=1, source="producer1")
-env2 = TaskEnvelope(task=200, id=2, source="producer2")
+env1 = TaskEnvelope(task=100, id=1)
+env2 = TaskEnvelope(task=200, id=2)
 in_queue.put(env1)
 in_queue.put(env2)
 
@@ -210,9 +210,9 @@ print(f"Received task: {task1.get_task()}, source: {task1.source}")
 in_queue.add_source_name("producer3")
 print(f"Upstream source count: {len(in_queue.source_names)}")
 
-# ===== TaskOutQueue usage example =====
+# ===== TaskOutQueue Usage Example =====
 
-# Create output queue, broadcasting to two downstream nodes
+# Create output queue, broadcasting to two downstream targets
 consumer_q1 = ThreadQueue()
 consumer_q2 = ThreadQueue()
 
@@ -222,8 +222,8 @@ out_queue = TaskOutQueue(
     in_name="processor",
 )
 
-# Broadcast task to all downstream nodes
-env3 = TaskEnvelope(task="broadcast_msg", id=3, source="processor")
+# Broadcast task to all downstream
+env3 = TaskEnvelope(task="broadcast_msg", id=3)
 out_queue.put(env3)
 
 # Verify both consumers received it
@@ -234,13 +234,13 @@ print(f"consumer2 received: {consumer_q2.get().get_task()}")
 consumer_q3 = ThreadQueue()
 out_queue.add_queue(consumer_q3, "consumer3")
 
-env4 = TaskEnvelope(task="targeted_msg", id=4, source="processor")
+env4 = TaskEnvelope(task="targeted_msg", id=4)
 out_queue.put_target(env4, "consumer3")
 print(f"consumer3 received: {consumer_q3.get().get_task()}")
 
-# ===== Termination signal merge =====
+# ===== Termination Signal Merging =====
 
-# Both upstream sources send termination signals
+# Both upstream send termination signals
 in_queue.put(TerminationSignal(_id=1, source="producer1"))
 in_queue.put(TerminationSignal(_id=2, source="producer2"))
 
@@ -250,14 +250,14 @@ from celestialflow.runtime.util_types import TerminationIdPool
 if isinstance(result, TerminationIdPool):
     print(f"Received merged termination signal, containing IDs: {result.ids}")
 
-# ===== drain: flush queue =====
+# ===== drain — flush queue =====
 # Create a new queue and put residual tasks
 residual_q = TaskInQueue(
     queue=ThreadQueue(),
     source_names=["src"],
     out_name="drain_test",
 )
-residual_q.put(TaskEnvelope(task="leftover", id=5, source="src"))
+residual_q.put(TaskEnvelope(task="leftover", id=5))
 
 # drain flushes all remaining tasks
 leftovers = residual_q.drain()
@@ -267,6 +267,6 @@ print(f"Residual task count: {len(leftovers)}")
 ## Notes
 
 1. **Multi-channel**: `TaskOutQueue` manages multiple downstream queues
-2. **Source Management**: `add_source_name` and `add_queue` both prevent duplicates (`DuplicateNodeError`)
-3. **Termination Merge**: `_merge_termination` checks for missing sources and raises `TerminationMergeError` if any are missing
-4. **drain Characteristics**: Only used in synchronous contexts (`_finalize_nodes`), for collecting unconsumed tasks
+2. **Source management**: Both `add_source_name` and `add_queue` prevent duplicates (`DuplicateNodeError`)
+3. **Termination merge**: `_merge_termination` checks for missing sources and raises `TerminationMergeError` if any are absent
+4. **drain characteristics**: Only used in synchronous environments (`_finalize_nodes`) to collect unconsumed tasks

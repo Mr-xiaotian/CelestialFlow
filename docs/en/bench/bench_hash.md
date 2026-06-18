@@ -1,6 +1,6 @@
-﻿# bench_hash.py Benchmark Notes
+﻿# bench_hash.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/16
 
 ## Objective
 
@@ -38,9 +38,11 @@ Covers 11 typical data forms: `int`, `short_str`, `long_str_4k`, `bytes_4k`, `sm
 
 ## Benchmark Results (Measured)
 
+### Historical Results - Windows hash method comparison (date not recorded)
+
 > Environment: Windows, Python 3.10, timeit repeat=7, number=10,000
 
-### Overall Ranking (averaged across all data types)
+#### Overall Ranking (averaged across all data types)
 
 | Method | Average Time | Characteristics |
 |--------|-------------|-----------------|
@@ -51,7 +53,7 @@ Covers 11 typical data forms: `int`, `short_str`, `long_str_4k`, `bytes_4k`, `sm
 | `json+md5` / `json+sha256` | ~25 us | Cross-language stable, but slowest |
 | `repr+sha1+uuid` | ~25 us | UUID format output, extra conversion overhead |
 
-### Typical Data Points (unit: microseconds/call)
+#### Typical Data Points (unit: microseconds/call)
 
 | Case | best | worst | Best Method |
 |------|------|-------|-------------|
@@ -68,6 +70,27 @@ Covers 11 typical data forms: `int`, `short_str`, `long_str_4k`, `bytes_4k`, `sm
 - `fast_mixed` has an absolute advantage on bytes and large collections (direct hashing of raw bytes, avoiding serialization)
 - `json+sha256` and `repr+sha1+uuid` are significantly slower than pickle-based approaches in all scenarios; use only when stability/format requirements are strong
 - Pickle-based methods perform excellently on small objects (1-3 us), but note pickle's cross-session stability risk
+
+### 2026/06/16 - Local retest
+
+> Environment: Windows, current output format displays by case; the following table excerpts representative cases (unit: microseconds/call)
+
+#### Representative Data Points (this round)
+
+| Case | Best Method | Best Time | Runner-up Observation |
+|------|----------|----------|----------|
+| `int` | `repr+blake2b16` | 0.872 us | `fast_mixed` 0.970 us |
+| `short_str` | `fast_mixed` | 0.760 us | `repr+blake2b16` 0.863 us |
+| `long_str_4k` | `fast_mixed` | 2.535 us | `pickle+sha1` 3.320 us |
+| `bytes_4k` | `fast_mixed` | 2.347 us | `pickle+sha1` 3.328 us |
+| `small_dict` | `pickle+blake2b16` | 1.742 us | `fast_mixed` 2.170 us |
+| `dict_100_pairs` | `pickle+sha1` | 6.456 us | `fast_mixed` 6.842 us |
+| `set_100_ints` | `pickle+sha1` | 3.104 us | `pickle+blake2b16` 3.139 us |
+
+**Supplementary conclusions for this round**:
+- `fast_mixed` continues to hold a clear advantage on strings and large byte strings, especially `long_str_4k` and `bytes_4k`
+- Pickle-based methods remain stably ahead on medium-to-large container objects, especially composite structures like `dict`, `set`, `tuple/list`
+- `json` and `repr+sha1+uuid` remain significantly slower, better suited as fallback options when stability or format is prioritized over pure performance
 
 ## How to Run
 

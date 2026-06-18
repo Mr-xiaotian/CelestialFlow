@@ -1,6 +1,8 @@
 # TaskTypes
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
+
+> ⚠️ **非推奨**：旧版ドキュメントに記載されていた `PersistedErrorRecord` データクラスは現在のソースコードには存在しません。
 
 TaskTypes モジュールはフレームワークで使用される基本データ型、列挙型、補助クラスを定義します。
 
@@ -55,9 +57,9 @@ class NoOpContext:
 
 ```python
 class ValueWrapper:
-    def __init__(self, value: int = 0, lock: Lock | None = None):
+    def __init__(self, value: int, lock: Lock | NoOpContext | None = None):
         self.value = value
-        self._lock = lock
+        self._lock = lock or NoOpContext()
 
     def get_lock(self) -> Lock | NoOpContext:
         """ロックオブジェクトまたは NoOpContext（ロックなしの場合）を返します。"""
@@ -73,13 +75,15 @@ class SumCounter:
         """
         :param lock: オプションのスレッドロック。デフォルト None（NoOpContext を使用）
         """
+        self.init_value = ValueWrapper(value=0, lock=self.lock)
+        self.counters = []
 ```
 
 ### メソッド
 
 | メソッド | 説明 |
 |------|------|
-| `add(value)` | 初期カウント値を増加 |
+| `add(value)` | 初期カウント値を増加（`init_value` に加算） |
 | `append_counter(counter)` | 外部カウンターを追加 |
 | `reset()` | 全カウンターをゼロにリセット |
 | `get()` | 全カウンターの累算値を取得 |
@@ -112,24 +116,6 @@ CelestialTree イベント名定数。タスクトレーシングと可視化に
 | `TASK_DUPLICATE` | `"task.duplicate"` | 重複タスク検出 |
 | `TERMINATION_INPUT` | `"termination.input"` | 終了シグナル注入 |
 | `TERMINATION_MERGE` | `"termination.merge"` | 終了シグナルマージ |
-
-## PersistedErrorRecord
-
-永続化エラーレコードデータクラス。
-
-```python
-@dataclass(frozen=True)
-class PersistedErrorRecord:
-    ts: float | None = None         # エラータイムスタンプ
-    stage: str = ""                  # エラー所属ノードラベル
-    error_id: int | None = None      # エラーイベント ID
-    error_type: str = ""             # エラー型名
-    error_message: str = ""          # エラーメッセージ
-
-    def __str__(self) -> str: ...
-    def get_group_key(self) -> tuple[str, str]:
-        """グループ化用の (error_type, error_message) を返します。"""
-```
 
 ## 使用例
 
@@ -182,8 +168,8 @@ with counter.get_lock():
 print(f"ロック付きインクリメント後: {counter.value}")  # 15
 
 # SumCounter：複数カウンターの累算
-sum_counter = SumCounter(mode="serial")
-sum_counter.add_init_value(100)
+sum_counter = SumCounter()
+sum_counter.add(100)
 
 sub1 = ValueWrapper(value=20)
 sub2 = ValueWrapper(value=30)
@@ -221,30 +207,6 @@ print(f"リトライプレフィックス: {CTreeEvent.TASK_RETRY_PREFIX}")     
 print(f"重複タスクイベント: {CTreeEvent.TASK_DUPLICATE}")       # "task.duplicate"
 print(f"終了注入イベント: {CTreeEvent.TERMINATION_INPUT}")    # "termination.input"
 print(f"終了マージイベント: {CTreeEvent.TERMINATION_MERGE}")    # "termination.merge"
-```
-
-### PersistedErrorRecord
-
-```python
-from celestialflow.runtime.util_types import PersistedErrorRecord
-
-# 永続化エラーレコードの作成
-record = PersistedErrorRecord(
-    error_type="ValueError",
-    error_message="Invalid input: negative value",
-    stage="StageA",
-    error_id=123,
-    ts=1716546600.0,
-)
-
-print(f"エラー型: {record.error_type}")
-print(f"エラーメッセージ: {record.error_message}")
-print(f"所属ノード: {record.stage}")
-print(f"文字列表現: {record}")
-
-# グループキーの取得（型+メッセージでグループ化統計に使用）
-group_key = record.get_group_key()
-print(f"グループキー: {group_key}")  # ("ValueError", "Invalid input: negative value")
 ```
 
 ## 注意事項

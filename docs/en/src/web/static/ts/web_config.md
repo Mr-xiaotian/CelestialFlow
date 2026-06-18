@@ -1,6 +1,6 @@
 # web_config.ts
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 Manages web frontend configuration loading, normalization, saving, and application. Configuration uses a **grouped structure** (`global`, `dashboard`, `errors`, `injection`), while also supporting automatic migration of legacy flat format.
 

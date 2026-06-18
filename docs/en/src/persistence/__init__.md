@@ -1,18 +1,19 @@
 # Persistence Module
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
-The Persistence module provides CelestialFlow's data persistence functionality, including execution log recording, error information storage, and success result caching. It ensures that key data from task execution can be reliably saved and retrieved.
+The Persistence module provides CelestialFlow's data persistence functionality, including execution log recording and fallback persistence. It ensures that key data from task execution can be reliably saved and retrieved.
+
+> ⚠️ **Changed**: This module has undergone a major refactoring. `FailSpout`/`FailInlet` → `FallbackSpout`/`FallbackInlet`, `SuccessSpout` has been removed (functionality merged into `FallbackSpout`), JSONL file storage → SQLite database. Old docs `core_fail.md`, `core_success.md`, `util_jsonl.md` are still retained but marked as deprecated.
 
 ## Exported Symbols
 
 | Exported Symbol | Source Module | Description |
 |---------|---------|------|
-| `FailSpout` | `core_fail` | Failure record listener, writes error information to JSONL files in the fallback directory |
-| `FailInlet` | `core_fail` | Thread-safe failure record collector, sends errors to `FailSpout` via queue for writing |
-| `LogSpout` | `core_log` | Log listening thread, writes logs to text files in the `logs/` directory |
+| `FallbackInlet` | `core_fallback` | Thread-safe fallback record collector, sends task lifecycle events to `FallbackSpout` via queue |
+| `FallbackSpout` | `core_fallback` | Fallback record listener, writes task lifecycle to SQLite database |
 | `LogInlet` | `core_log` | Thread-safe log collector, providing rich semantic logging methods |
-| `SuccessSpout` | `core_success` | Success result listening thread, continuously reads from the success queue and caches task-result pairs |
+| `LogSpout` | `core_log` | Log listening thread, writes logs to text files in the `logs/` directory |
 
 ## File Descriptions
 
@@ -25,42 +26,33 @@ The Persistence module provides CelestialFlow's data persistence functionality, 
      - `LogInlet`: Thread-safe log collector, providing semantic logging methods (task success/failure/retry, stage start/stop, queue operations, etc.)
    - **Log Format**: Plain text format, each line contains `timestamp level message`
 
-### Error Persistence
+### Fallback Persistence
 
-2. **core_fail.py** (`FailSpout`, `FailInlet`)
-   - **Purpose**: Infrastructure for error information recording and storage
+2. **core_fallback.py** (`FallbackSpout`, `FallbackInlet`)
+   - **Purpose**: Task lifecycle fallback persistence, uniformly handling success and failure results
    - **Core Components**:
-     - `FailSpout`: Failure record listener, receives error information from the queue and writes it to JSONL files in the `fallback/` directory
-     - `FailInlet`: Thread-safe error collector, sends error information to `FailSpout` via queue for writing
-   - **Error Format**: JSONL (JSON Lines), one record per line
+     - `FallbackSpout`: Inherits `BaseSpout`, persists task lifecycle events via SQLite
+     - `FallbackInlet`: Thread-safe collector, providing `task_in`/`task_success`/`task_fail`/`task_retry`/`task_duplicate` methods
+   - **Storage Format**: SQLite database (WAL mode)
 
-### Success Result Persistence
+### Data Serialization
 
-3. **core_success.py** (`SuccessSpout`)
-   - **Purpose**: Success result listening thread, continuously reads from the success result queue and caches task-result pairs
-   - **Core Components**:
-     - `SuccessSpout`: Inherits from `BaseSpout`, caches `(task, result)` pairs
+3. **util_payload.py**
+   - **Purpose**: Recursively converts task data into JSON-friendly persistable structures
+   - **Key Function**: `to_persisted_payload(task)` — Converts arbitrary Python objects into JSON-serializable structures
 
-### JSONL Utility
+### SQLite Utilities
 
-4. **util_jsonl.py**
-   - **Purpose**: JSON Lines format support for efficient structured data storage and reading
-   - **Key Functions**:
-     - `load_jsonl_logs()`: Load log data from JSONL files, supporting selective field reading and line offsets
-     - `parse_jsonl_value()`: Smart parsing of JSONL field values (supports `ast.literal_eval` deserialization)
-     - `load_jsonl_by_key()`: Load JSONL data grouped by a specified field
-     - `load_jsonl_grouped_by_keys()`: Load JSONL data grouped by multiple fields
-     - `load_task_by_stage()`: Load error records grouped by stage
-     - `load_task_by_error()`: Load error records grouped by error and stage
-     - `load_task_error_pairs()`: Load error records, returning a list of `(task, error)` pairs
-
+4. **util_sqlite.py**
+   - **Purpose**: SQLite database connection management and CRUD operation utilities
+   - **Key Functions**: `connect_db`, `insert_record`, `load_records`, `query_records`, `load_task_error_records`, etc.
 
 ## Module Relationships
 
 ### Internal Relationships
 - All persistence classes inherit from `BaseSpout`/`BaseInlet` (defined in the Funnel module)
-- `LogSpout`/`LogInlet` and `FailSpout`/`FailInlet` are used in pairs
-- `SuccessSpout` is used independently, caching success results
+- `FallbackSpout`/`FallbackInlet` and `LogSpout`/`LogInlet` are used in pairs
+- `FallbackSpout` uniformly handles success and failure results, replacing the old standalone `SuccessSpout`
 
 ### External Relationships
 - **With Runtime Module**: Listens to logs and errors generated at runtime, references `LEVEL_DICT`
@@ -73,7 +65,6 @@ The Persistence module provides CelestialFlow's data persistence functionality, 
 ### Async Non-Blocking Design
 - Spout runs in a background thread, not blocking the main flow
 - Inlet sends data via queue, non-blocking writes
-- Batch flushing reduces I/O frequency
 
 ### Producer-Consumer Pattern
 
@@ -81,20 +72,17 @@ The Persistence module provides CelestialFlow's data persistence functionality, 
 flowchart LR
     subgraph Producer[Producer - Worker Threads]
         LogInlet[LogInlet]
-        FailInlet[FailInlet]
+        FallbackInlet[FallbackInlet]
     end
 
     LogInlet -->|_log -> _funnel| LogQueue[Log Queue<br/>queue.Queue]
-    FailInlet -->|task_error / metadata| FailQueue[Error Queue<br/>queue.Queue]
+    FallbackInlet -->|task_in / task_success / task_fail etc.| FallbackQueue[Fallback Queue<br/>queue.Queue]
 
     LogQueue -->|Daemon thread polling| LogSpout[LogSpout]
-    FailQueue -->|Daemon thread polling| FailSpout[FailSpout]
+    FallbackQueue -->|Daemon thread polling| FallbackSpout[FallbackSpout]
 
     LogSpout -->|_handle_record| LogFile[logs/*.log]
-    FailSpout -->|json.dumps| FailFile[fallback/*.jsonl]
-
-    SrcQueue[Success Queue<br/>queue.Queue] -->|Daemon thread polling| SuccessSpout[SuccessSpout]
-    SuccessSpout -->|_handle_record| Cache[(success_pairs<br/>In-memory cache)]
+    FallbackSpout -->|SQLite ops| SQLiteFile[fallback/**/*.sqlite3]
 ```
 
 ### File Naming Convention
@@ -102,31 +90,24 @@ flowchart LR
 | Persistence Type | File Path Pattern |
 |-----------|-------------|
 | Log | `logs/task_logger({date}).log` |
-| Error | `fallback/{date}/{source}({time}).jsonl` |
-
-### Batch Flush Strategy
-
-| Component | Flush Threshold | Description |
-|------|---------|------|
-| `LogSpout` | Every 5 records | High log volume, higher threshold |
-| `FailSpout` | Every 1 record | Error data is critical, immediate flush |
+| Fallback | `fallback/{date}/{source}({time}).sqlite3` |
 
 ## Usage Examples
 
 ### Basic Configuration
 
 ```python
-from celestialflow.persistence import LogSpout, LogInlet, FailSpout, FailInlet
+from celestialflow.persistence import LogSpout, LogInlet, FallbackSpout, FallbackInlet
 
 # Configure log persistence
 log_spout = LogSpout()
 log_spout.start()
 log_inlet = LogInlet(log_spout.get_queue(), log_level="SUCCESS")
 
-# Configure error persistence
-fail_spout = FailSpout(error_source="graph_errors")
-fail_spout.start()
-fail_inlet = FailInlet(fail_spout.get_queue())
+# Configure fallback persistence
+fallback_spout = FallbackSpout(error_source="graph_errors")
+fallback_spout.start()
+fallback_inlet = FallbackInlet(fallback_spout.get_queue())
 ```
 
 ### Recording Logs
@@ -138,32 +119,29 @@ log_inlet.end_stage("StageA", "thread", "thread-4", 12.5, 100, 2, 0)
 
 # Record task lifecycle
 log_inlet.task_success("func", "task1", "thread", "result", 0.05, 1, 2)
-log_inlet.task_error("func", "task2", ValueError("bad"), 3, 4)
+log_inlet.task_fail("func", "task2", ValueError("bad"), 3, 4)
 ```
 
-### Recording Errors
+### Recording Fallback
 
 ```python
-fail_inlet.start_graph("my_graph", {"stages": ["A", "B"], "edges": [("A","B")]})
-fail_inlet.start_executor("Executor-1")
-fail_inlet.task_error("StageA", 1, ValueError("invalid"), task_data)
+# Task enters
+fallback_inlet.task_in("StageA", event_id=1, task="hello")
+
+# Task succeeds
+fallback_inlet.task_success(event_id=1, result="OK", persist=True)
+
+# Task fails
+fallback_inlet.task_fail(event_id=2, error_id=10, error=ValueError("bad"))
 ```
 
-### Reading Error Data
+### Reading Persisted Data
 
 ```python
-from celestialflow.persistence.util_jsonl import (
-    load_jsonl_logs,
-    load_task_error_pairs,
-    parse_jsonl_value,
-)
+from celestialflow.persistence.util_sqlite import load_records, load_task_error_records
 
-# Read error logs
-errors = load_jsonl_logs("fallback/2026-01-01/errors(10-00-00-000).jsonl")
-
-# Get (task, error) pairs
-pairs = load_task_error_pairs("fallback/2026-01-01/errors(10-00-00-000).jsonl")
-
-# Parse task value
-task = parse_jsonl_value("[1, 2, 3]")  # Returns (1, 2, 3)
+# Read failure records
+errors = load_task_error_records("fallback/2026-06-18/errors.sqlite3", "StageA")
+for task, (error_type, error_msg) in errors:
+    print(f"{task}: {error_type} - {error_msg}")
 ```

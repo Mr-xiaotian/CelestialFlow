@@ -1,6 +1,6 @@
 # BaseInlet
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 `BaseInlet` はすべての入口クラス（Inlet）の基底クラスであり、レコードをキューに書き込む汎用機能を提供します。
 
@@ -55,13 +55,15 @@ classDiagram
         +task_retry()
         +termination_input()
     }
-    class FailInlet {
-        +start_graph()
-        +start_executor()
-        +task_error()
+    class FallbackInlet {
+        +task_in()
+        +task_success()
+        +task_fail()
+        +task_retry()
+        +task_duplicate()
     }
     BaseInlet <|-- LogInlet
-    BaseInlet <|-- FailInlet
+    BaseInlet <|-- FallbackInlet
 ```
 
 ### 継承関係の説明
@@ -69,7 +71,9 @@ classDiagram
 | サブクラス | 所在ファイル | 責務 |
 |------|---------|------|
 | `LogInlet` | `persistence/core_log.py` | ログ記録。タスクのエンキュー/デキュー/終了の全過程を追跡 |
-| `FailInlet` | `persistence/core_fail.py` | エラー記録。タスクエラー情報を JSONL に永続化 |
+| `FallbackInlet` | `persistence/core_fallback.py` | Fallback 記録。タスクライフサイクルを SQLite に永続化 |
+
+> ⚠️ **変更済み**：旧版 `FailInlet`（`core_fail.py`）は `FallbackInlet`（`core_fallback.py`）にリネームされ、`SuccessSpout` は削除されました。
 
 ## 使用例
 

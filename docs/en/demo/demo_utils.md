@@ -1,6 +1,6 @@
 # demo_utils.py Demo Utilities Guide
 
-> 📅 Last Updated: 2026/05/24
+> 📅 Last Updated: 2026/06/18
 
 ## Objective
 
@@ -20,7 +20,7 @@ flowchart TD
         Url["generate_urls_sleep / log_urls_sleep / download_sleep / parse_sleep / download_to_file"]
         ETL["extract_record / transform_normalize / transform_enrich / load_record"]
         Async["async_double / async_to_str"]
-        Router["RouterWrapper"]
+        Router["router_even"]
         Misc["no_op / sum_int"]
     end
 
@@ -28,12 +28,12 @@ flowchart TD
     Async --> Graph
     Async --> GraphAsync["demo_graph.py<br/>(demo_async_staged_pipeline)"]
     Fib --> Executor["demo_executor.py"]
-    Fib --> StagesRedis0["demo_stages.py<br/>(demo_redis_ack_0)"]
-    Sleep1 --> StagesRedis["demo_stages.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0, demo_router_0)"]
+    Fib --> Redis0["demo_redis.py<br/>(demo_redis_ack_0)"]
+    Sleep1 --> RedisDemo["demo_redis.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0)"]
     Url --> StagesSplitter0["demo_stages.py<br/>(demo_splitter_0)"]
-    Url --> StagesRedis2["demo_stages.py<br/>(demo_redis_ack_2)"]
+    Url --> Redis2["demo_redis.py<br/>(demo_redis_ack_2)"]
     Router --> StagesRouter0["demo_stages.py<br/>(demo_router_0)"]
-    Misc --> StagesRedis1["demo_stages.py<br/>(demo_redis_ack_1)"]
+    Misc --> Redis1["demo_redis.py<br/>(demo_redis_ack_1)"]
     Misc --> StagesSplitter1["demo_stages.py<br/>(demo_splitter_1)"]
     Compute --> Structure["demo_structure.py"]
 ```
@@ -69,8 +69,8 @@ flowchart TD
 - `async_double`: Async doubles input (with 0.3s sleep)
 - `async_to_str`: Async converts input to formatted string (with 0.2s sleep)
 
-### Special Classes
-- `RouterWrapper`: Routing wrapper for `TaskRouter` demos
+### Routing Helper Functions
+- `router_even`: Routing function for `TaskRouter` demos, returns `StageA` or `StageB` based on parity
 
 ## Relationship with tests/test_utils.py
 
@@ -79,14 +79,14 @@ The two files have nearly identical content. `fibonacci`/`fibonacci_async` have 
 ## Potential Issues
 
 1. **Duplication with tests/test_utils.py**: Easy to miss changes in one place when modifying the other, causing behavioral divergence between demos and unit tests.
-2. **Windows path hardcoding**: Path replacement logic resides in custom subclasses `DownloadStage` and `DownloadRedisTransport` within `demo_stages.py`, not in this file.
+2. **Windows path hardcoding**: The target path for `download_to_file` typically needs to be adjusted per the local environment; related examples are in `demo_redis.py`.
 3. **`requests` network dependency**: `download_to_file` requires external network access, unavailable in isolated network environments.
 
 ## How to Run
 
 This file is a shared module and is not run directly:
 ```python
-from demo_utils import fibonacci, sleep_1, RouterWrapper
+from demo_utils import fibonacci, sleep_1, router_even
 ```
 
 ## Dependencies

@@ -1,6 +1,6 @@
 # injection.ts
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 Manages the logic for the manual task injection page. Uses a **draft-based architecture**: the user selects a node then edits a JSON draft, edit content is cached in real-time in `nodeDrafts`, and drafts are sent to the backend all at once via "batch submit".
 

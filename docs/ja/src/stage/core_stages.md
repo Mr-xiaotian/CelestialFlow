@@ -1,6 +1,6 @@
 # TaskNodes
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 TaskNodes モジュールは、フロー制御や外部システム連携などのシナリオ向けに、さまざまな特殊機能を持つ `TaskStage` 実装を提供します。
 
@@ -119,256 +119,52 @@ flowchart LR
 
 ```python
 class TaskRouter(TaskStage):
-    def __init__(self, name: str, stage_mode: str = "serial"):
+    def __init__(
+        self,
+        name: str,
+        router: Callable[[T], str],
+        *,
+        stage_mode: str = "serial",
+    ):
         """
         TaskRouter を初期化。
 
         :param name: ノード名
+        :param router: ルーティング関数。タスクデータに基づいてターゲット stage 名を返す
         :param stage_mode: ノード実行モード
         """
 ```
 
 ### 使用方法
 
-ルーティングタスクは `(target_tag, data)` 形式のタプルを返す必要があります：
+`TaskRouter` は上流が事前に `(target_tag, data)` タプルを構築する必要がなくなり、自身が保持する `router(task) -> str` 関数が下流の決定を担当します：
 
 ```python
-# 上流タスクがルーティングタプルを生成するよう定義
-def route_logic(data):
+# ルーティング関数を定義：タスク内容に基づいて下流ノード名を返す
+def route_logic(data: int) -> str:
     if data > 0:
-        return ("positive_stage", data)
+        return "positive_stage"
     else:
-        return ("negative_stage", data)
+        return "negative_stage"
 
-# ルーターノードを作成
-router = TaskRouter("ルーター")
+# 上流は元のタスクのみを生成
+source = TaskStage("Source", func=lambda x: x)
 
-# 下流を接続（target はルーティングロジック内の tag と一致する必要あり）
+# Router が内部でルーティング判断を完了
+router = TaskRouter("ルーター", route_logic)
+
+# 下流を接続（戻り値は下流 stage 名と一致する必要あり）
 graph.connect([router], [pos_stage, neg_stage])
 ```
 
 ### 特性
 
-- **メカニズム**: `(target_tag, data)` 形式のタプルを受信。`target_tag` に基づいて `data` を対応する下流 Stage に送信。
+- **メカニズム**: 元のタスク `task` を受信し、まず `router(task)` を呼び出してターゲット名を計算し、次に元の `task` を対応する下流 Stage に送信します。
 - **カウント**: 各ターゲットに対して独立したカウンター `route_counters` を保持。
-- **エラー処理**: `target_tag` が下流リストに存在しない場合、エラーを記録。
+- **エラー処理**: `router(task)` が返すターゲット名がバインド済みの下流リストに存在しない場合、`InvalidOptionError` が送出されます。
+- **固定設定**: `execution_mode="serial"`, `max_retries=0`（`__init__` 内でハードコード）。
 
 ---
-
-## Redis 統合
-
-```mermaid
-flowchart LR
-    subgraph TG[TaskRedis*]
-        direction LR
-
-        TRSI[/TaskRedisTransport/]
-        TRSO[/TaskRedisSource/]
-
-        RE[(Redis)]
-
-        TRSI -.->|rpush task| RE -.->|blpop task| TRSO
-
-    end
-
-    %% TaskGraph 外枠の装飾
-    style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
-
-    %% 統一装飾フォーマット
-    classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
-
-    %% 特殊Stage の装飾
-    class TRSI,TRSO blueNode;
-
-    %% 外部構造の装飾
-    class RE blueNode;
-
-```
-
-Redis と連携するノードを提供し、言語間・プロセス間連携（Go Worker との連携など）によく使用されます。
-
-### TaskRedisTransport
-
-タスクを Redis List にプッシュします。
-
-```python
-class TaskRedisTransport(TaskStage):
-    def __init__(
-        self,
-        name: str,        # ノード名
-        key: str = "",                  # Redis List 名
-        host: str = "localhost",        # Redis ホストアドレス
-        port: int = 6379,               # Redis ポート
-        db: int = 0,                    # Redis データベース番号
-        password: str | None = None,    # Redis パスワード
-        unpack_task_args: bool = False, # タスクパラメータをアンパックするか
-        stage_mode: str = "serial",     # ノード実行モード
-    ):
-        ...
-```
-
-**動作**: タスクを JSON にシリアライズし、Redis List に `rpush` します。内部で `execution_mode="thread"` と `max_workers=4` を使用して並行書き込みします。
-
-### TaskRedisSource
-
-Redis List からタスクを取得し入力ソースとします。
-
-```python
-class TaskRedisSource(TaskStage):
-    def __init__(
-        self,
-        name: str,     # ノード名
-        key: str = "",               # Redis List 名
-        host: str = "localhost",     # Redis ホストアドレス
-        port: int = 6379,            # Redis ポート
-        db: int = 0,                 # Redis データベース番号
-        password: str | None = None, # Redis パスワード
-        timeout: int = 10,           # ブロッキングタイムアウト時間（秒）。0 は無限待機
-        stage_mode: str = "serial",  # ノード実行モード
-    ):
-        ...
-```
-
-**動作**: `blpop` を使用してブロッキング方式でタスクを取得。内部で `execution_mode="serial"` を使用し、パイプラインのエントリーノードに適しています。
-
-### TaskRedisAck
-
-```mermaid
-flowchart LR
-    subgraph TG[TaskRedis*]
-        direction LR
-
-        TRSI[/TaskRedisTransport/]
-        TRA[/TaskRedisAck/]
-
-        RE[(Redis)]
-        G1((GoWorker))
-        G2((GoWorker))
-
-        TRSI -.->|task| RE -.->|task| G1
-        G2 -.->|result| RE -.->|result| TRA
-
-    end
-
-    %% TaskGraph 外枠の装飾
-    style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
-
-    %% 統一装飾フォーマット
-    classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
-
-    %% 特殊Stage の装飾
-    class TRSI,TRA blueNode;
-
-    %% 外部構造の装飾
-    class RE,G1,G2 blueNode;
-
-```
-
-リモート Worker の実行結果を待機します。
-
-```python
-class TaskRedisAck(TaskStage):
-    def __init__(
-        self,
-        name: str,     # ノード名
-        key: str = "",               # Redis Hash 名（結果を格納）
-        host: str = "localhost",     # Redis ホストアドレス
-        port: int = 6379,            # Redis ポート
-        db: int = 0,                 # Redis データベース番号
-        password: str | None = None, # Redis パスワード
-        timeout: int = 10,           # 待機タイムアウト時間（秒）。0 は無限待機
-        stage_mode: str = "serial",  # ノード実行モード
-    ):
-        ...
-```
-
-**動作**: Redis Hash をポーリングして対応する `task_id` の結果を待機。成功結果の処理または `RemoteWorkerError` の送出をサポート。
-
----
-
-## 事前設定
-
-### 1. Redis サービスの起動
-
-`TaskRedis*` 系ノードを実行する際は、事前に Redis サービスを起動する必要があります。
-
-### 2. 環境変数の設定（オプション）
-
-プロジェクトルートに `.env` ファイルを作成します：
-
-```env
-# .env
-REDIS_HOST=127.0.0.1
-REDIS_PORT=6379
-REDIS_PASSWORD=your_redis_password
-```
-
-### 3. ノードの設定
-
-```python
-import os
-from dotenv import load_dotenv
-from celestialflow import TaskRedisTransport, TaskRedisAck, TaskRedisSource
-
-load_dotenv()
-
-redis_host = os.getenv("REDIS_HOST", "127.0.0.1")
-redis_password = os.getenv("REDIS_PASSWORD", "")
-
-# Transport + Ack の組み合わせ（Redis にプッシュして結果を待機）
-redis_sink = TaskRedisTransport(
-    "RedisTransport",
-    key="testFibonacci:input",
-    host=redis_host,
-    password=redis_password
-)
-redis_ack = TaskRedisAck(
-    "RedisAck",
-    key="testFibonacci:output",
-    host=redis_host,
-    password=redis_password
-)
-```
-
----
-
-## Redis データ形式
-
-### TaskRedisTransport プッシュ形式
-
-```json
-{
-    "id": 12345678,
-    "task": ["arg1", "arg2"],
-    "emit_ts": 1703001234.567
-}
-```
-
-### TaskRedisAck 期待結果形式
-
-```json
-{
-    "status": "success",
-    "result": "computed_value"
-}
-```
-
-またはエラー形式：
-```json
-{
-    "status": "error",
-    "error": "Error message"
-}
-```
-
----
-
-## 注意事項
-
-1. **接続管理**: Redis クライアントは初回使用時に遅延初期化されます。
-2. **タイムアウト処理**: `TaskRedisSource` と `TaskRedisAck` はタイムアウト設定をサポートし、タイムアウト時に `TimeoutError` が送出されます。
-3. **エラー伝播**: リモート Worker が返すエラーは `RemoteWorkerError` を通じて伝播されます。
-4. **冪等性**: `TaskRedisAck` は結果取得後に Redis 内のレコードを削除し、一回限りの消費を保証します。
 
 ## 使用例
 
@@ -402,18 +198,18 @@ graph.start_graph({source.get_name(): [text_data]})
 ```python
 from celestialflow import TaskGraph, TaskStage, TaskRouter
 
-# ルーティング判定ロジックを定義（(target_tag, data) 形式のタプルを生成）
-def classify_number(x: int) -> tuple:
+# ルーティング判定ロジックを定義（ターゲット名のみを返す）
+def classify_number(x: int) -> str:
     if x > 0:
-        return ("positive", x)
+        return "positive"
     elif x < 0:
-        return ("negative", x)
+        return "negative"
     else:
-        return ("zero", x)
+        return "zero"
 
 # グラフノードを構築
-source = TaskStage("Source", func=classify_number, stage_mode="serial")
-router = TaskRouter("Router")
+source = TaskStage("Source", func=lambda x: x, stage_mode="serial")
+router = TaskRouter("Router", classify_number)
 handler_pos = TaskStage("positive", func=lambda x: f"Positive: {x}", stage_mode="serial")
 handler_neg = TaskStage("negative", func=lambda x: f"Negative: {x}", stage_mode="serial")
 handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}", stage_mode="serial")
@@ -426,13 +222,11 @@ graph.connect([router], [handler_pos, handler_neg, handler_zero])
 graph.start_graph({source.get_name(): [10, -5, 0, 3, -1]})
 ```
 
-> **注意**: Route target tag は下流 `TaskStage` の `name` と完全一致する必要があります。
+> **注意**: `router(task)` の戻り値は下流 `TaskStage` の `name` と完全一致する必要があります。
 
 ---
 
 ## 注意事項
 
-1. **接続管理**: Redis クライアントは初回使用時に遅延初期化（`init_redis()` メソッド）されます。
-2. **タイムアウト処理**: `TaskRedisSource` と `TaskRedisAck` はタイムアウト設定をサポートします。
-3. **エラー伝播**: リモート Worker が返すエラーは `RemoteWorkerError` を通じて伝播されます。
-4. **冪等性**: `TaskRedisAck` は結果取得後に Redis 内のレコードを削除し、一回限りの消費を保証します。
+1. **構造型ノードの位置づけ**: `TaskSplitter` と `TaskRouter` はグラフ構造と下流分配セマンティクスを変更するものであり、フレームワーク内蔵ノードとして保持するのに適しています。
+2. **カスタムプロトコル実装**: Redis、メッセージキュー、RPC などの外部システムとの連携は、呼び出し側が通常の `TaskStage` で独自に実装する方が適しています。

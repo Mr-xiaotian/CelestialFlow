@@ -1,27 +1,27 @@
 # TaskEnvelope
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
-タスクデータのラッパークラスであり、各 Stage 間で転送されます。元のタスクデータ、タスクハッシュ、タスク ID、ソース情報をカプセル化します。
+タスクデータのラッパークラスであり、各 Stage 間で転送されます。元のタスクデータ、タスクハッシュ、タスク ID をカプセル化します。
+
+> ⚠️ **変更済み**：旧版ドキュメントに記載されていた `source` および `prev` フィールドはリファクタリングで削除されました。`TaskEnvelope` は現在 `hash`、`id`、`task` の 3 つのコアフィールドのみを含みます。
 
 ## 属性
 
 ```python
 class TaskEnvelope:
-    __slots__ = ("task", "hash", "id", "source", "prev")
+    __slots__ = ("hash", "id", "task")
 
-    def __init__(self, task: Any, id: int, source: str, prev: Any = None):
-        self.task = task      # 元のタスクデータ
-        self.hash = None      # ハッシュ値（遅延計算）
-        self.id = id          # タスク一意識別子
-        self.source = source  # タスクソース識別子
-        self.prev = prev      # 先行タスク（結果キャッシュの遡及用）
+    def __init__(self, task: T, id: int):
+        self.task: T = task   # 元のタスクデータ
+        self.hash: bytes | None = None  # ハッシュ値（遅延計算）
+        self.id: int = id     # タスク一意 ID
 ```
 
 ## Getter メソッド
 
 ```python
-def get_task(self) -> Any:
+def get_task(self) -> T:
     """元のタスクデータを取得します。"""
 
 def get_hash(self) -> bytes:
@@ -29,9 +29,6 @@ def get_hash(self) -> bytes:
 
 def get_id(self) -> int:
     """タスク ID を取得します。"""
-
-def get_prev(self) -> Any | None:
-    """先行タスクを取得します（結果キャッシュの遡及用）。"""
 ```
 
 ## 遅延ハッシュ
@@ -43,7 +40,7 @@ def get_prev(self) -> Any | None:
 - このフォールバック値は専用のプレフィックスを持ち、「hash 不可能タスクの一意なプレースホルダ」を意味し、他のタスクの通常の重複排除やスケジューリングに影響を与えません。
 
 ```python
-envelope = TaskEnvelope("data", id=1, source="input")
+envelope = TaskEnvelope(task="data", id=1)
 assert envelope.hash is None         # 未計算
 h = envelope.get_hash()              # 初回呼び出し、計算してキャッシュ
 assert envelope.hash is not None     # キャッシュ済み
@@ -61,7 +58,6 @@ from celestialflow.runtime import TaskEnvelope
 envelope = TaskEnvelope(
     task={"user": "alice", "score": 95},
     id=1,
-    source="input",
 )
 
 # 2. 元のタスクデータの取得
@@ -79,9 +75,6 @@ h = envelope.get_hash()
 print(f"SHA1 ハッシュ: {h.hex()[:16]}...")
 print(f"呼出後 hash はキャッシュ済み: {envelope.hash is not None}")  # True
 print(f"再呼出はキャッシュ値を返す: {envelope.get_hash() == h}")    # True
-
-# 6. 先行タスクの取得（結果キャッシュ遡及用）
-print(f"先行タスク: {envelope.get_prev()}")  # None（prev 未設定）
 ```
 
 ### 様々なデータ型
@@ -90,14 +83,10 @@ print(f"先行タスク: {envelope.get_prev()}")  # None（prev 未設定）
 from celestialflow.runtime import TaskEnvelope
 
 # 異なる型のタスクデータ
-env_str = TaskEnvelope(task="hello world", id=2, source="producer")
-env_list = TaskEnvelope(task=[1, 2, 3], id=3, source="producer")
-env_dict = TaskEnvelope(task={"key": "value"}, id=4, source="producer")
-env_none = TaskEnvelope(task=None, id=5, source="producer")
-
-# prev パラメータ: 先行タスクを記録（結果キャッシュ遡及用）
-env_with_prev = TaskEnvelope(task="data", id=6, source="producer", prev=env_str)
-print(f"先行タスクデータ: {env_with_prev.prev.get_task()}")
+env_str = TaskEnvelope(task="hello world", id=2)
+env_list = TaskEnvelope(task=[1, 2, 3], id=3)
+env_dict = TaskEnvelope(task={"key": "value"}, id=4)
+env_none = TaskEnvelope(task=None, id=5)
 ```
 
 ### hash 不可能タスクのフォールバック動作
@@ -109,8 +98,8 @@ class UnpicklableTask:
     def __getstate__(self):
         raise TypeError("cannot pickle")
 
-env1 = TaskEnvelope(task=UnpicklableTask(), id=101, source="input")
-env2 = TaskEnvelope(task=UnpicklableTask(), id=102, source="input")
+env1 = TaskEnvelope(task=UnpicklableTask(), id=101)
+env2 = TaskEnvelope(task=UnpicklableTask(), id=102)
 
 h1 = env1.get_hash()
 h2 = env2.get_hash()

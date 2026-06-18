@@ -1,6 +1,6 @@
 # Log Persistence
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 The `celestialflow.persistence` module provides a multi-process-safe logging system designed to solve the problems of unified log collection, formatting, and persistence in multi-process environments.
 
@@ -145,7 +145,7 @@ All methods are grouped by component domain as follows:
 | `task_input(func_name, task_repr, source, input_id)` | DEBUG | Records task entering the input queue |
 | `task_success(func_name, task_repr, exec_mode, result_repr, use_time, parent_id, success_id)` | SUCCESS | Records task successful completion |
 | `task_retry(func_name, task_repr, retry_times, exception, parent_id, retry_id)` | WARNING | Records task failure triggering retry |
-| `task_error(func_name, task_repr, exception, parent_id, error_id)` | ERROR | Records task failure with no retry possible |
+| `task_fail(func_name, task_repr, exception, parent_id, error_id)` | ERROR | Records task failure with no retry possible |
 | `task_duplicate(func_name, task_repr, parent_id, duplicate_id)` | WARNING | Records detection of a duplicate task |
 
 #### Splitter
@@ -205,7 +205,7 @@ sinker.end_executor("Executor1", "thread", 4.8, 48, 1, 1)
 sinker.task_input("process_func", "task_1", "queue", 1)
 sinker.task_success("process_func", "task_1", "thread", "OK", 0.05, 1, 2)
 sinker.task_retry("process_func", "task_2", 1, TimeoutError("timeout"), 1, 3)
-sinker.task_error("process_func", "task_3", ValueError("bad"), 1, 4)
+sinker.task_fail("process_func", "task_3", ValueError("bad"), 1, 4)
 sinker.task_duplicate("process_func", "task_2", 1, 5)
 
 # Termination signal

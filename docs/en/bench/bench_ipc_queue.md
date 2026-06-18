@@ -1,15 +1,15 @@
-﻿# bench_ipc_queue.py Benchmark Notes
+﻿# bench_ipc_queue.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/16
 
 ## Objective
 
 Compare the performance of various Python IPC (Inter-Process Communication) mechanisms in real cross-process scenarios: MPQueue, SimpleQueue, Pipe, Manager().Queue. Provide data to support queue selection for CelestialFlow's multiprocessing mode.
 
-## Test Contents
+## Test Content
 
 | Mechanism | Description | Topology Support |
-|-----------|-------------|------------------|
+|------|------|----------|
 | `MPQueue` | Standard multiprocessing queue | SPSC |
 | `SimpleQueue` | Lock-free simplified queue | SPSC |
 | `Pipe` | Bidirectional/unidirectional pipe | SPSC |
@@ -34,10 +34,12 @@ Compare the performance of various Python IPC (Inter-Process Communication) mech
 
 ## Benchmark Results (Measured)
 
+### Historical Results - Windows spawn int payload (date not recorded)
+
 > Environment: Windows, Python 3.10, spawn mode, COUNT=100,000, REPEAT=3, payload=int (8 bytes)
 
 | Mechanism | Average Time | Throughput | Relative to MPQueue |
-|-----------|-------------|------------|---------------------|
+|------|----------|--------|-------------|
 | **MPQueue** | 1.328s | 75,277 items/s | 1.00x |
 | **SimpleQueue** | 1.099s | 90,962 items/s | 1.21x |
 | **Pipe** | 1.006s | 99,358 items/s | 1.32x |
@@ -48,6 +50,22 @@ Compare the performance of various Python IPC (Inter-Process Communication) mech
 - **SimpleQueue is second**: Lock-free implementation, 21% faster than MPQueue, but only supports single producer single consumer
 - **Manager().Queue is slowest**: Only 17% of MPQueue throughput; the Manager server process is the absolute bottleneck
 - In CelestialFlow's multiprocessing queue selection, Pipe and SimpleQueue are the optimal solutions for high-throughput scenarios (if topology allows)
+
+### 2026/06/16 - Windows spawn int payload retest
+
+> Environment: Windows, COUNT=100,000, REPEAT=3, `PAYLOAD_MODE=int`
+
+| Mechanism | Average Time | Throughput | Relative to MPQueue |
+|------|----------|--------|-------------|
+| **MPQueue** | 0.8434s | 118,563 items/s | 1.00x |
+| **SimpleQueue** | 0.8417s | 118,806 items/s | 1.00x |
+| **Pipe** | 0.7699s | 129,881 items/s | 1.09x |
+| **Manager().Queue** | 4.5027s | 22,209 items/s | 0.19x |
+
+**Supplementary conclusions for this round**:
+- `Pipe` remains the fastest option on the current machine, but the gap with `MPQueue` / `SimpleQueue` has narrowed to about **9%**
+- `SimpleQueue` and `MPQueue` are nearly tied this round, indicating that both already have very low overhead for `int` payloads
+- `Manager().Queue` remains significantly behind, with throughput only about one-sixth of the fastest option
 
 ## How to Run
 

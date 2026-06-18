@@ -1,8 +1,10 @@
 # TaskMetrics
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 The TaskMetrics module is responsible for managing and tracking various metrics during task execution, such as input task count, success count, failure count, duplicate task count, etc. It typically exists as a component of `TaskExecutor`.
+
+> ⚠️ **Changed**: The `execution_mode` constructor parameter described in previous documentation has been removed during refactoring. All counters uniformly use `Lock` to guarantee thread safety, no longer switching strategies based on execution mode.
 
 ## Initialization
 
@@ -10,17 +12,14 @@ The TaskMetrics module is responsible for managing and tracking various metrics 
 class TaskMetrics:
     def __init__(
         self,
-        execution_mode: str,
         enable_duplicate_check: bool = False,
     ):
         """
-        :param execution_mode: Task execution mode. Options: "serial", "thread", "async"
         :param enable_duplicate_check: Whether to enable duplicate task checking, default False
         """
 ```
 
-- **execution_mode**: Determines thread-safe implementation of counters (uses `Lock` in `thread` mode)
-- **enable_duplicate_check**: Controls whether `processed_set` is maintained for dedup
+- **enable_duplicate_check**: Controls whether to maintain `processed_set` for deduplication
 
 ## Counter Management
 
@@ -33,7 +32,7 @@ TaskMetrics internally maintains four core counters:
 | `error_counter` | `ValueWrapper` | Failed task count |
 | `duplicate_counter` | `ValueWrapper` | Duplicate task count |
 
-In `thread` mode, the three `ValueWrapper` instances share a single `Lock` to reduce lock overhead.
+All `ValueWrapper` instances uniformly use `Lock` to guarantee thread safety.
 
 ### Initialization and Reset
 
@@ -49,43 +48,43 @@ def reset_state(self) -> None:
 
 ```python
 def add_task_count(self, add_count: int = 1):
-    """Thread-safely increment input task count."""
+    """Thread-safely increase the input task count."""
 
 def add_success_count(self, count: int = 1):
-    """Thread-safely increment success task count."""
+    """Thread-safely increase the successful task count."""
 
 def add_error_count(self, count: int = 1):
-    """Thread-safely increment failure task count."""
+    """Thread-safely increase the failed task count."""
 
 def add_duplicate_count(self, count: int = 1):
-    """Thread-safely increment duplicate task count."""
+    """Thread-safely increase the duplicate task count."""
 ```
 
 ### Counter Cascading
 
 ```python
 def append_task_counter(self, counter: ValueWrapper) -> None:
-    """Append an external counter to task_counter (for cross-Stage cascading statistics)."""
+    """Add an external counter to task_counter (for cross-Stage cascaded statistics)."""
 ```
 
-Cascading is used in `TaskStage.prev_bindings()` — each downstream node registers the upstream's success counter into its own `task_counter`, achieving "upstream output = downstream input" count consistency.
+Cascading is used in `TaskStage.prev_bindings()` — each downstream node registers the upstream node's success counter into its own `task_counter`, achieving "upstream output = downstream input" counting consistency.
 
-## Status Queries
+## State Queries
 
 ### is_tasks_finished
 
-Determines whether all input tasks have been processed.
+Determine whether all input tasks have been processed.
 
 ```python
 def is_tasks_finished(self) -> bool:
     """
-    Compares task_counter.value against processed (success + error + duplicate).
+    Compare task_counter.value against processed (success + error + duplicate) for equality.
     """
 ```
 
 ### get_counts
 
-Returns a snapshot dict of all current metrics.
+Get a snapshot dictionary of all current metrics.
 
 ```python
 def get_counts(self) -> dict[str, int]:
@@ -108,15 +107,15 @@ def get_error_count(self) -> int: ...
 def get_duplicate_count(self) -> int: ...
 ```
 
-## Task Dedup
+## Task Deduplication
 
-When `enable_duplicate_check=True`, a `processed_set: set[bytes]` is maintained to record the hashes of processed tasks.
+When `enable_duplicate_check=True`, maintains `processed_set: set[bytes]` recording the hash values of processed tasks.
 
 ```python
 def is_duplicate(self, task_hash: bytes) -> bool:
     """
     Atomic operation: check and mark duplicates.
-    - If the hash is not in the set, add it and return False
+    - If hash is not in the set, add it and return False
     - If already present, return True
     """
 
@@ -127,39 +126,38 @@ def add_processed_set(self, task_hash: bytes) -> None:
 ## Retry Management
 
 ```python
-def add_retry_exceptions(self, *exceptions: type[Exception]) -> None:
-    """Add exception types that should trigger retry."""
+def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
+    """Add exception types that should trigger retries."""
 ```
 
-Exception types are stored as a `tuple` in `self.retry_exceptions`. `TaskDispatch._worker` determines whether to retry via `isinstance(exception, self.retry_exceptions)`.
+Exception types are stored as a `tuple` in `self.retry_exceptions`. `TaskDispatch._worker` checks via `isinstance(exception, self.retry_exceptions)` to determine whether to retry. Each call accumulates on top of existing exception types.
 
-## Usage Examples
+## Usage Example
 
-The following examples demonstrate full usage of `TaskMetrics`, including initialization, counter operations, dedup checking, retry exception configuration, and status queries.
+The following example demonstrates full usage of `TaskMetrics`, including initialization, counter operations, deduplication checks, retry exception configuration, and state queries.
 
 ```python
 from celestialflow.runtime import TaskMetrics
 
 # 1. Initialize metrics manager (with dedup check enabled)
 metrics = TaskMetrics(
-    execution_mode="serial",
     enable_duplicate_check=True,
 )
 
-# 2. Add retriable exception types
-metrics.add_retry_exceptions(ConnectionError, TimeoutError)
+# 2. Add retryable exception types
+metrics.set_retry_exceptions(ConnectionError, TimeoutError)
 
 # 3. Simulate task processing
 # Received 5 input tasks
 metrics.add_task_count(5)
 
-# Processed 3 successfully
+# 3 processed successfully
 metrics.add_success_count(3)
 
-# Processed 1 with failure
+# 1 failed
 metrics.add_error_count(1)
 
-# Detected 1 duplicate
+# 1 duplicate detected
 metrics.add_duplicate_count(1)
 
 # 4. Query individual counter values
@@ -172,20 +170,16 @@ print(f"Duplicate count: {metrics.get_duplicate_count()}") # 1
 counts = metrics.get_counts()
 print(f"Processed: {counts['tasks_processed']}")          # 3+1+1 = 5
 print(f"Pending: {counts['tasks_pending']}")              # 0
-print(f"All finished: {metrics.is_tasks_finished()}")     # True
+print(f"All complete: {metrics.is_tasks_finished()}")     # True
 
 # 6. Dedup check example (requires enable_duplicate_check=True)
 task_hash = b"\x00\x01\x02"
-print(f"First check: {metrics.is_duplicate(task_hash)}")   # False (first time added)
-print(f"Repeat check: {metrics.is_duplicate(task_hash)}")  # True (already present)
+print(f"First check: {metrics.is_duplicate(task_hash)}")  # False (first time added)
+print(f"Repeat check: {metrics.is_duplicate(task_hash)}") # True (already exists)
 
 # 7. Reset counters
 metrics.reset_counter()
-print(f"Task count after reset: {metrics.get_task_count()}")  # 0
-
-# 8. Switch execution mode (reinitialize thread-safety strategy)
-metrics.set_execution_mode("thread")
-print(f"New mode: {metrics.execution_mode}")
+print(f"Task count after reset: {metrics.get_task_count()}") # 0
 ```
 
 ### Counter Cascading
@@ -194,22 +188,13 @@ print(f"New mode: {metrics.execution_mode}")
 from celestialflow.runtime import TaskMetrics
 from celestialflow.runtime.util_types import ValueWrapper
 
-# Create parent metrics and child counter
-parent_metrics = TaskMetrics(execution_mode="serial")
+# Create parent and child metrics
+parent_metrics = TaskMetrics()
 child_counter = ValueWrapper(value=10)
 
-# Cascade child counter to parent task_counter
+# Cascade child counter into parent task_counter
 parent_metrics.append_task_counter(child_counter)
-parent_metrics.add_task_count(5)  # Add 5 directly
+parent_metrics.add_task_count(5)  # Add 5 from self
 
 print(f"Total task count (5 + 10): {parent_metrics.get_task_count()}")  # 15
-```
-
-## Execution Mode Switching
-
-### set_execution_mode
-
-```python
-def set_execution_mode(self, execution_mode: str) -> None:
-    """Set task execution mode and reinitialize counters (switching thread-safety strategy)."""
 ```

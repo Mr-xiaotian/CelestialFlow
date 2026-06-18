@@ -1,8 +1,10 @@
 # Funnel Module
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
-The Funnel module provides CelestialFlow's queue communication infrastructure, serving as the underlying base class for `LogSpout`/`LogInlet`, `FailSpout`/`FailInlet`, and `SuccessSpout` in the Persistence module.
+The Funnel module provides CelestialFlow's queue communication infrastructure, serving as the underlying base class for `LogSpout`/`LogInlet` and `FallbackSpout`/`FallbackInlet` in the Persistence module.
+
+It is not only usable as low-level infrastructure, but can also be used independently of `TaskGraph` / `TaskStage` to build lightweight producer-consumer pipelines. For a minimal runnable example, see [demo_funnel.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/demo_funnel.md).
 
 ## Exported Symbols
 
@@ -43,26 +45,23 @@ classDiagram
     }
     class LogSpout {
     }
-    class FailSpout {
-    }
-    class SuccessSpout {
+    class FallbackSpout {
     }
     class LogInlet {
     }
-    class FailInlet {
+    class FallbackInlet {
     }
 
     BaseSpout <|-- LogSpout
-    BaseSpout <|-- FailSpout
-    BaseSpout <|-- SuccessSpout
+    BaseSpout <|-- FallbackSpout
     BaseInlet <|-- LogInlet
-    BaseInlet <|-- FailInlet
+    BaseInlet <|-- FallbackInlet
 ```
 
 ## Module Relationships
 
 ### External Relationships
-- **With Persistence Module**: `LogSpout`/`LogInlet`, `FailSpout`/`FailInlet`, and `SuccessSpout` all inherit from the base classes in this module
+- **With Persistence Module**: `LogSpout`/`LogInlet`, `FallbackSpout`/`FallbackInlet` all inherit from the base classes in this module
 - **With Runtime Module**: Uses `TerminationSignal` as the stop signal, `CelestialFlowError` as the exception type that subclasses must override
 
 ## Usage Examples

@@ -1,6 +1,6 @@
 # Observability モジュール
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 Observability モジュールは CelestialFlow の可観測性機能を提供し、実行状態の監視、進捗の可視化、Observer パターン、リモート状態レポートを含みます。タスク実行プロセスを透過的かつ監視可能にします。
 
@@ -9,20 +9,20 @@ Observability モジュールは CelestialFlow の可観測性機能を提供し
 | エクスポートシンボル | ソースモジュール | 説明 |
 |---------|---------|------|
 | `BaseObserver` | `core_observer` | 実行者ライフサイクルオブザーバーの基底クラス。`on_start`、`on_task_success`、`on_task_fail`、`on_task_duplicate`、`on_tasks_added`、`on_finish` などのイベントインターフェースを定義 |
-| `CallbackObserver` | `core_observer` | キーワード引数でコールバック関数を渡すオブザーバー実装。サブクラスの定義が不要 |
 | `TaskProgress` | `core_progress` | `tqdm` ベースのタスク進捗可視化ツール。`BaseObserver` を継承 |
 | `TaskReporter` | `core_report` | タスク状態レポーター。バックグラウンドスレッドで定期的に Web サーバーへ実行状態をプッシュし、制御指示をプル |
 | `NullTaskReporter` | `core_report` | タスクレポーターの空実装。レポート機能を無効にする際のプレースホルダー |
+
+> ⚠️ **非推奨**：以前のドキュメントでは `CallbackObserver` が記載されていましたが、このクラスのソースコード実装は `core_observer.py` から削除され、利用できなくなりました。
 
 ## ファイル説明
 
 ### コアコンポーネント
 
-1. **core_observer.py** (`BaseObserver`, `CallbackObserver`)
-   - **役割**: 実行者ライフサイクルオブザーバーの基底クラスとコールバック式オブザーバー
+1. **core_observer.py** (`BaseObserver`)
+   - **役割**: 実行者ライフサイクルオブザーバーの基底クラス
    - **主要機能**:
      - `BaseObserver`: ライフサイクルイベントインターフェースを定義。サブクラスが必要に応じてオーバーライド
-     - `CallbackObserver`: `**callbacks` キーワード引数でコールバック関数を渡し、サブクラス定義不要
 
 2. **core_progress.py** (`TaskProgress`)
    - **役割**: `tqdm` ベースのタスク進捗可視化。`BaseObserver` を継承
@@ -45,7 +45,7 @@ Observability モジュールは CelestialFlow の可観測性機能を提供し
 ## モジュール連携
 
 ### 内部連携
-- `BaseObserver` はオブザーバーパターンの基底クラスであり、`TaskProgress` と `CallbackObserver` はすべてこれに基づいて実装
+- `BaseObserver` はオブザーバーパターンの基底クラスであり、`TaskProgress` はこれに基づいて実装
 - `TaskReporter` は独立したレポートコンポーネントで、プラグ可能な設計
 - `NullTaskReporter` はレポート無効時の安全なプレースホルダーを提供
 
@@ -73,19 +73,12 @@ Observability モジュールは CelestialFlow の可観測性機能を提供し
 
 ### Observer の使用
 ```python
-from celestialflow import TaskExecutor, TaskProgress, CallbackObserver
+from celestialflow import TaskExecutor, TaskProgress
 
 # TaskProgress でプログレスバーを表示
 executor = TaskExecutor("Test", my_func)
 executor.add_observer(TaskProgress())
 executor.start(tasks)
-
-# CallbackObserver でカスタム動作
-observer = CallbackObserver(
-    on_task_success=lambda count=1: print(f"成功: {count}"),
-    on_finish=lambda: print("完了"),
-)
-executor.add_observer(observer)
 ```
 
 ### TaskReporter の使用

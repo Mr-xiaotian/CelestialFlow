@@ -1,6 +1,6 @@
 # Other Module
 
-> 📅 Last Updated: 2026/04/22
+> 📅 Last Updated: 2026/06/18
 
 ## Overview
 
@@ -26,13 +26,16 @@ The Other module contains extension components and external integrations for the
 
 **Usage Pattern**:
 ```python
-# Configure CelestialTree client
-graph.set_ctree(
-    use_ctree=True,
+from celestialtree import Client as CelestialTreeClient
+
+# After separately installing celestialtree, construct and inject the client
+ctree_client = CelestialTreeClient(
     host="127.0.0.1",
     http_port=7777,
-    grpc_port=7778
+    grpc_port=7778,
 )
+
+graph.set_ctree(ctree_client)
 
 # Query provenance information
 trace_str = graph.get_stage_input_trace(stage_tag="Stage1")
@@ -84,8 +87,8 @@ worker.StartWorkerPool(
    - Provides provenance data support for the `web` module
 
 2. **Go Worker**:
-   - Works with `TaskRedisTransport` and `TaskRedisAck` nodes from the `runtime` module
-   - Communicates with the Python-side TaskGraph via Redis
+   - Works with `redis_push()` / `redis_wait()` and similar helpers in `demo/demo_redis.py`
+   - Communicates with the Python-side `TaskGraph` via Redis
    - Can be used as a standalone component without mandatory dependency on the core framework
 
 ### Inter-Component Collaboration
@@ -128,8 +131,8 @@ CelestialTree Client → CelestialTree Service
 
 ### 1. Full-Chain Tracing Pattern
 ```python
-# Enable CelestialTree tracing
-graph.set_ctree(use_ctree=True)
+# First construct a CelestialTree client, then enable tracing
+graph.set_ctree(ctree_client)
 
 # Run the task graph
 graph.start_graph(init_tasks)
@@ -140,9 +143,9 @@ trace = graph.get_stage_input_trace("ProcessingStage")
 
 ### 2. Cross-Language Execution Pattern
 ```python
-# Python side: define Redis transport nodes
-redis_sink = TaskRedisTransport(key="tasks:input")
-redis_ack = TaskRedisAck(key="tasks:output")
+# Python side: encapsulate demo_redis helpers using ordinary TaskStage
+transport_stage = TaskStage("RedisTransport", redis_push)
+ack_stage = TaskStage("RedisAck", redis_wait)
 
 # Go side: start Worker Pool to consume tasks
 # Configure the same Redis keys in go_worker/main.go

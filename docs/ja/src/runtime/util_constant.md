@@ -1,8 +1,8 @@
 # RuntimeConstant
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
-`runtime/util_constant.py` はランタイムのグローバル定数を定義します。ログレベルマッピングテーブル `LEVEL_DICT` とノードラベルスタイル `STAGE_STYLE` が含まれます。
+`runtime/util_constant.py` はランタイムのグローバル定数を定義します。主にログレベルマッピングテーブル `LEVEL_DICT` です。
 
 ## コア定数
 
@@ -53,21 +53,9 @@ flowchart TD
     style TRA fill:#e0e0e0
 ```
 
-### STAGE_STYLE
+## 注意事項
 
-ノードラベルスタイル設定。CelestialTree 可視化に使用されます。各ノードのテンプレート形式と欠損値プレースホルダを定義します。
-
-```python
-from celestialtree import NodeLabelStyle
-
-STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(
-    template="{base}  {payload.name}  ‹{type}›", missing="-"
-)
-```
-
-> **注意**: `STAGE_STYLE` は外部パッケージ `celestialtree` の `NodeLabelStyle` に依存します。テンプレート文字列中の `{base}`、`{payload.name}`、`{type}` 変数は CelestialTree レンダリングエンジンによって注入され、ノードツリーの可視化表示に使用されます。
-
-## 使用例
+- `LEVEL_DICT` は `LogInlet` のログフィルタリングの中核的な根拠です。レベル数値を随意に変更しないでください。
 
 ### ログレベルフィルタリングロジック
 

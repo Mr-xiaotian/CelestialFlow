@@ -1,6 +1,6 @@
 # Change Log
 
-> 📅 Last Updated: 2026/06/05
+> 📅 Last Updated: 2026/06/18
 
 - 2021: Built a class supporting both multi-threaded and single-threaded processing functions
 - 2023: Added multi-process and coroutine execution modes with GPT-4's help
@@ -241,3 +241,100 @@
     - Removed all `type: ignore` comments
       - Looks much cleaner
     - Annotated `start_*` functions as single-call functions in their doc-strings
+- 3.2.3
+  - feat:
+    - **[IMPORTANT]** Added `Node Wait Uses Global Estimate` toggle in the frontend dashboard settings panel; when enabled, the original `Waiting` count on node cards is replaced by `Global Waiting`, and `Global Remaining Time` is displayed on the card
+      - This feature is very interesting; values fluctuate dramatically when toggled
+    - **[IMPORTANT]** Rewrote the task injection page, which is now far more practical than the previous version
+      - Tasks can now be configured individually per node and submitted together
+    - **[IMPORTANT]** Removed `get_args` and `process_result` methods from `TaskExecutor`, along with the `unpack_task_args` property
+      - This is a necessary change for introducing generics
+      - `process_result` was simple: it post-processed the result output by func, but the same effect can be achieved by wrapping before passing to func
+      - `get_args` was more complex: it could directly convert the `result` from the previous node into the `task` type needed by the current node, which was very flexible; but the problem was it was too flexible, creating a significant mental burden
+      - `unpack_task_args` was a mental burden brought by `get_args`: by default, `get_args` would wrap `task` into `(task, )` before sending to func, but with `unpack_task_args` enabled, it would send it directly
+    - **[IMPORTANT]** Added `name` parameter to `graph`'s `__init__`, consistent with `executor` and `stage`
+      - Breaking interface change
+      - Displayed in log `start_graph`/`end_graph` and web `graph_analysis`
+    - Completely removed `graph_summary` from frontend-backend communication; the original `Global Remaining Time` is now split into per-node `Global Waiting` and `Global Remaining Time`
+      - "Global" here means estimating how many tasks downstream can receive based on graph theory relationships from upstream remaining tasks
+      - Example: Graph relation `A -> B`, A has processed 2 tasks, 3 unprocessed; B has processed 4 tasks, 2 unprocessed. This means A's 2 successful tasks brought B a total of 6 tasks, so we can estimate B will get "3/2*6=9" tasks total. Therefore B's `Waiting` count is 2, but `Global Waiting` count is 5
+    - Added tooltip bubbles in the frontend, showing relevant info on mouse hover, such as the meaning of the newly added `Global Waiting`
+    - Removed drag-and-drop functionality for node cards in the frontend
+      - This feature was added when the web page was first created; it felt cool at the time, but now it's a bit played out
+    - Added `Task Injection` button on the frontend error log page, allowing selected tasks to be directly added to the node's pending injection task list on the task injection page
+    - Added `split_item` method to `TaskSplitter`, freely customizable
+      - The original `splitter` was heavily dependent on `get_args`; `split_item` now somewhat compensates for the lost flexibility
+  - refactor:
+    - **[IMPORTANT]** Introduced generics, while mandating Python >= 3.12
+      - The introduction of generics makes the code more type-safe and improves readability
+      - Python 3.12's syntax for generics is very intuitive
+    - Removed all `localStorage` usage from frontend code
+      - With the config file already in place, it was of limited value and more of a nuisance
+    - Moved the task queue drain operation from the graph layer to the stage layer
+      - This wasn't possible before because a node's `stage_mode` could be `process`, where the node held by the main process was not the actual running node
+      - One of the lasting impacts of version 3.2.0
+    - Optimized lock usage in `TaskMetric`
+    - Removed `change_id()` method from `TaskEnvelope`; envelopes are now immutable by default. `emit_retry_envelope` no longer modifies the original envelope's id before submitting to the worker, instead using a newly generated envelope directly
+    - Removed `error`, `error_repr`, and `task_repr` fields from error logs
+    - Modified the task injection data format in frontend-backend communication to support submitting tasks for multiple nodes simultaneously
+    - Enabled strict mode in frontend code
+    - Split the frontend `injection.css` file into multiple files
+    - Modified `config.json` data format, now categorized by effective area
+    - Tightened data types in the frontend
+    - Added `ReportTaskGraph` type, specifically for type declarations in the reporter
+  - fix:
+    - Fixed i18n localization not working on some fields
+    - Fixed the issue where clicking error numbers on the dashboard to navigate to the error log page still showed the dashboard page's settings panel
+    - Added `RequestSeq` to frontend dashboard requests to prevent two sequentially sent requests from having the later-sent request's response overwritten by the earlier-sent request's response due to latency
+    - Fixed the issue where various empty fields in the frontend only appeared after the first refresh, creating a perceptual "slow loading" experience
+  - chore:
+    - Translated and updated documentation to English/Japanese
+      - This operation consumed way too many tokens
+- 3.2.4
+  - feat:
+    - **[IMPORTANT]** Merged the original `fail_funnel` and `success_funnel` mechanisms into `fallback`, adopting `sqlite` for storage
+      - The original `jsonl`-based fail persistence mechanism was very convenient for writing, but required full reads into memory for retrieval every time, which was very cumbersome; I considered using a database service like `redis`, but really didn't want to start another third-party service. Then I unexpectedly discovered that `sqlite` perfectly met all my requirements
+      - Long live Richard!
+      - As for the original `success_funnel` mechanism, it was completely half-baked: it only worked for `executor`, not `stage`; stored entirely in memory. So this opportunity was taken to refactor and merge it into `fallback_funnel`
+      - Now `fallback_funnel` performs insert/update/delete operations on sqlite records when tasks are injected/duplicated/retried/failed/succeeded
+      - When a task succeeds, the record is deleted by default; but if the `persist_result` option in `executor` is enabled, the record is retained with the `status` field updated to `success`
+    - **[IMPORTANT]** Removed the three Redis nodes from `stages`, and added demo files explaining how to build related nodes yourself
+      - Compared to `TaskSplitter` and `TaskRouter`, these three nodes were really dispensable, and they also introduced an extra `redis` dependency
+    - **[IMPORTANT]** `celestialtree` is no longer a required dependency library; the current event declaration mechanism is based on a set of protocol interfaces, with a default local ultra-simplified implementation
+      - This was also done to avoid too many library dependencies; the `celestialtree` library includes dependencies on `grpcio` and `protobuf`, which have poor support for Python free-threading, meaning `celestialflow` couldn't run under free-threading with them — and this is something I'm very excited about
+      - According to `bench_gil_vs_nogil`, under free-threading, `executor` achieves a 5.25x improvement in CPU-intensive tasks, while `graph` achieves a 7.55x improvement. Very encouraging
+    - Added `Global Waiting Queue` to the frontend `Node Metrics Trend` card
+    - Added `start_graph_db` method to `graph`, accepting a fallback database path and performing `start_graph` based on its failed data; added `start_db` method to `executor`, accepting a fallback database path and performing `start` based on its failed data
+      - Very convenient
+  - refactor:
+    - **[IMPORTANT]** Changed server-side error data storage from native Python lists to a temporary sqlite database
+      - Under the hammer effect, I wanted to try using sqlite more
+    - Added `graph_id` based on `name` and `time.time()` as a unique identifier for each `graph`
+    - Rewrote the interaction logic between reporter and server
+      - Now at the beginning of each refresh cycle, state alignment is performed, using `graph_id` to determine whether the data held by both sides comes from the same `graph` object; if so, there's no need to re-push structure/analysis data
+      - During state alignment, if both sides have the same graph, the server returns the maximum `event_id` value from its error data; after strict validation, `event_id` is strictly incrementing in the database
+      - Merged the original `push_error_meta` and `push_error_content` in the reporter; each refresh only sends newly added error data, with new data filtered based on the server-returned max `event_id` and the local database's max `event_id`
+    - Bound more responsibilities to `graph.connect` and `graph_set_stage`
+      - Now node synchronization with `graph` on `ctree`/`reporter` is done in `graph_set_stage`
+      - And binding of `task_queue`/`result_queue` upstream/downstream, as well as `counter` binding, is done in `graph.connect`
+    - Removed irrelevant data from `TaskEnvelope`, keeping only `task`, `hash`, and `id`
+      - The `source` field should never have been added; it never served a purpose
+      - The `prev` field was for the original `success_funnel` and is no longer needed
+    - `TaskMetrics` now uniformly uses `Lock` to guard all `counter`s, regardless of the `executor`'s `execution_mode`
+      - This fixed mode sacrifices some performance but makes the code more stable
+      - According to `bench_lock_overhead`, this makes `counter` about 3.2x slower; considering counter updates are all based on `int` type, which is already fast, this is acceptable
+    - In `process_task_success`, besides the existing `task.success` declaration, a `task.input` declaration is now made before `result_envelope` enters `result_queue`
+      - To ensure globally unified `event_id` in fallback sqlite
+    - `executor.get_fail_pairs` (formerly `executor.get_error_pairs`) now returns `tuple[T, PersistedError]`
+      - `PersistedError` consists of the record's `error_type` and `error_message`
+    - Rewrote the `TaskRouter` node, which now requires a `router` function to be passed in to specify task routing direction
+    - Removed some unused methods
+      - Such as `TaskGraph.get_stage_input_trace`
+  - fix:
+    - The structure graph on the frontend dashboard page no longer appears blank after switching tabs
+      - This was a very old bug; I don't know why I hadn't fixed it until now
+  - chore:
+    - Added more demos
+    - Added more benchmarks
+    - Added `Agents.md` file
+      - I'm tired of endlessly reiterating things to AI

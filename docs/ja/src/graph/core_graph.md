@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 `TaskGraph` は CelestialFlow のコアスケジューラであり、一連の `TaskStage` ノードの依存関係、実行フロー、リソース割り当て、ライフサイクルを管理します。
 
@@ -8,7 +8,7 @@
 
 ## 主要データ構造
 
-`TaskGraph` は内部で `stage_dict: dict[str, TaskStage]` を使用して全ノードの Stage マッピングを保持します。各 Stage は初期化時に自動的に対応する `TaskInQueue` と `TaskOutQueue` を作成し、キューは `_build_resources()` フェーズで接続が確立されます。
+`TaskGraph` は内部で `stage_dict: dict[str, TaskStage]` を使用して全ノードの Stage マッピングを保持します。キュー接続は `connect()` フェーズで直接確立されます。
 
 ## 初期化
 
@@ -46,7 +46,7 @@ def set_stages(self, stages: list[TaskStage]) -> None:
 def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
     """
     ハイパーエッジ接続を確立します: from_stages の各ノードが to_stages の各ノードに接続されます。
-    out_edges / in_edges 辞書を操作し、実際のキュー接続は _build_resources() で完了します。
+    out_edges / in_edges 辞書を操作し、キュー接続は connect() 内で直接完了します。
     """
 ```
 
@@ -62,14 +62,16 @@ def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: i
 ### set_ctree
 
 ```python
-def set_ctree(self, use_ctree: bool = False, host: str = "127.0.0.1",
-              http_port: int = 7777, grpc_port: int = 7778,
-              transport: str = "grpc") -> None:
+def set_ctree(self, ctree_client: EventClient) -> None:
     """
-    CelestialTree クライアントを設定します。有効時は接続ヘルスチェックを行います。
-    :raises CelestialTreeConnectionError: 接続失敗時
+    タスクグラフ共有のイベントクライアントを設定します。
+    渡されると、現在のグラフ内の全 stage に同期して下位配信されます。
     """
 ```
+
+> デフォルトでは、`TaskGraph` は内部で `LocalEventClient()` を使用してローカルのインクリメンタルイベント ID を生成するため、`celestialtree` がインストールされていなくても、コア実行リンクは正常に動作します。
+>
+> イベントを CelestialTree に報告したい場合は、まず `celestialtree` を追加インストールし、対応するクライアントインスタンスを自身で構築して `set_ctree()` に渡す必要があります。
 
 ### set_graph_mode
 
@@ -90,13 +92,12 @@ def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
                 put_termination_signal: bool = True) -> None:
     """
     タスクグラフを起動します。フロー:
-    1. _build_resources() でキュー接続とカウンターバインディングを構築
-    2. _build_analysis() でグラフ構造を分析（ソースノード、階層、DAG 検出）
+    2. _build_analysis() でグラフ構造を分析（ソースノード、階層、DAG 検出）しネットワークグラフを構築
     3. spout、inlet、reporter を起動
     4. put_stage_queue() で初期タスクと終了シグナルを注入
-    5. _execute_stages() で全ノードを実行
-    6. _finalize_nodes() で後処理（スレッド終了保証、未消費タスク収集）
-    7. リソース解放
+    4. _execute_stages() で全ノードを実行
+    5. _finalize_nodes() で後処理（スレッド終了保証、未消費タスク収集）
+    6. リソース解放
     """
 ```
 
@@ -186,23 +187,29 @@ def collect_runtime_snapshot(self) -> None:
 
 | メソッド | 戻り値型 | 説明 |
 |------|---------|------|
+| `get_graph_id()` | `str` | 現在のタスクグラフインスタンスの一意識別子を取得 |
 | `get_status_snapshot()` | `dict` | 統一タイムスタンプ付き状態スナップショット |
-| `get_graph_analysis()` | `dict` | グラフ分析情報（isDAG、scheduleMode、layersDict、className） |
+| `get_graph_analysis()` | `dict` | グラフ分析情報（graphId, name, startTime, className, isDAG, scheduleMode, layersDict） |
 | `get_structure_graph()` | `dict` | JSON 形式のグラフ構造（nodes + edges + source_nodes） |
 | `get_structure_list()` | `list[str]` | 枠線付きフォーマット済みツリーテキスト |
 | `get_networkx_graph()` | `DiGraph` | networkx 有向グラフインスタンス |
-| `get_fail_by_stage_dict()` | `dict[str, list]` | ノード別グループ化失敗タスク |
-| `get_fail_by_error_dict()` | `dict[tuple, list]` | エラー型別グループ化失敗タスク（キーは `(error_type, error_message)` タプル） |
-| `get_total_error_num()` | `int` | 総エラー数 |
-| `get_fallback_path()` | `str` | 失敗タスク JSONL ファイルの絶対パス |
+| `get_fallback_path()` | `Path` | 失敗タスク JSONL ファイルの絶対パス。未設定時は空 Path を返す |
 | `get_source_stages()` | `list[TaskStage]` | ソースノードリスト |
-| `get_stage_input_trace(stage_name)` | `str` | ノード入力依存関係ツリー（ctree 有効時） |
 
-### get_fail_by_error_dict 説明
+### get_graph_analysis 説明
+
+`get_graph_analysis()` は以下のフィールドを含む辞書を返します：
 
 ```python
-def get_fail_by_error_dict(self) -> dict[tuple[str, ...], list[Any]]:
-    """(error_type, error_message) でグループ化して返します。"""
+{
+    "graphId": self.graph_id,
+    "name": self.name,
+    "startTime": self.start_time,
+    "className": self.__class__.__name__,
+    "isDAG": self.is_dag,
+    "scheduleMode": self.schedule_mode,
+    "layersDict": self.layers_dict,
+}
 ```
 
 ## ライフサイクル図
@@ -215,8 +222,7 @@ flowchart TD
     ENV --> INLET[_init_inlet: LogInlet + FailInlet]
     STATE --> BUILD[set_stages + connect]
     BUILD --> START[start_graph]
-    START --> RESOURCES[_build_resources: キュー接続 & カウンターバインディング]
-    START --> ANALYSIS[_build_analysis: グラフ分析]
+    START --> ANALYSIS[_build_analysis: グラフ分析とリソース構築]
     START -->|初期タスク注入| PUT[put_stage_queue]
     START --> EXEC[_execute_stages]
     EXEC -->|eager| ALL[全ノード同時起動]
@@ -227,7 +233,6 @@ flowchart TD
     RELEASE --> END[グラフ実行完了]
     
     START -->|監視| SNAPSHOT[collect_runtime_snapshot]
-    SNAPSHOT --> SUMMARY[get_graph_summary]
     SNAPSHOT --> STATUS[get_status_snapshot]
 ```
 

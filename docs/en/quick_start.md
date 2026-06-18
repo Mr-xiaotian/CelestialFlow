@@ -1,6 +1,6 @@
 ﻿# Quick Start
 
-> 📅 Last Updated: 2026/04/22
+> 📅 Last Updated: 2026/06/18
 
 This section will guide you through quickly installing and running **TaskGraph**, experiencing its task graph scheduling mechanism through examples.
 
@@ -30,14 +30,24 @@ CelestialFlow is published on [PyPI](https://pypi.org/project/celestialflow/) an
 uv pip install celestialflow
 ```
 
-However, if you want to run the subsequent test code or use the Go-based go_worker program, you will need to clone the project:
+The installation above only includes CelestialFlow's default runtime dependencies and does not include optional tracing components like `celestialtree`.
+
+If you need to enable CelestialTree event tracing, you can additionally run:
+
+```bash
+uv pip install celestialtree
+```
+
+However, if you want to run the subsequent test code or use the Go-based `go_worker` program, you will need to clone the project:
 
 ```bash
 # Clone the project
 git clone https://github.com/Mr-xiaotian/CelestialFlow.git
 cd CelestialFlow
-uv pip install .
+uv sync --group dev
 ```
+
+The `dev` dependency group already includes `pytest`, `python-dotenv`, `redis`, `celestialtree`, and other dependencies needed for development and extensions.
 
 ## (Optional) Set Up .env && Start Web Visualization
 
@@ -59,8 +69,8 @@ After that, you can start the Web service with the following command:
 # If you pip-installed the project, you can directly use the celestialflow-web command in the current virtual environment
 celestialflow-web --port 5005
 
-# If you cloned and cd'd into the project directory, you need to run the task_web.py file
-python src/celestialflow/task_web.py --port 5005 
+# If you cloned and cd'd into the project directory, you need to run core_server.py
+python -m celestialflow.web.core_server --port 5005 
 ```
 
 The default listening port is `5000`, but to avoid conflicts, the test code uses port `5005`. Visit:
@@ -90,20 +100,21 @@ then the [logs](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/s
 
 The project provides multiple example files in the `tests/` directory for quickly understanding the framework's features.
 
-To ensure tests run properly, first install the necessary test libraries and the dotenv library:
-```bash
-uv pip install pytest pytest-asyncio python-dotenv
-```
-
-Then it is recommended to run the following tests first:
+To ensure tests run properly, it is recommended to run directly from the repository root:
 
 ```bash
-pytest tests/test_graph.py
-pytest tests/test_stage.py
+uv sync --group dev
 ```
 
-- `tests/test_graph.py` contains graph-structure-related tests: DAG construction, layered scheduling, thread mode, loop/grid/complete graph structures, etc.
-- `tests/test_stage.py` contains Stage-node-related tests: mode validation, tag generation, serialization checks, etc.
+After that, it is recommended to run the following tests first:
+
+```bash
+pytest tests/graph/test_graph.py
+pytest tests/stage/test_stage.py
+```
+
+- `tests/graph/test_graph.py` contains graph-structure-related tests: DAG construction, layered scheduling, thread mode, loop/grid/complete graph structures, etc.
+- `tests/stage/test_stage.py` contains Stage-node-related tests: mode validation, tag generation, serialization checks, etc.
 
 During execution, you can monitor the running status through the Web monitoring page.
 

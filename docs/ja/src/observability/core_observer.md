@@ -1,8 +1,10 @@
-# BaseObserver / CallbackObserver
+# BaseObserver
 
-> 📅 最終更新日: 2026/05/28
+> 📅 最終更新日: 2026/06/18
 
-`BaseObserver` は実行者ライフサイクルオブザーバーの基底クラスであり、`TaskExecutor` が実行中にブロードキャストするイベントインターフェースを定義します。`CallbackObserver` は軽量実装で、コールバック関数を通じてイベントを受信します。
+`BaseObserver` は実行者ライフサイクルオブザーバーの基底クラスであり、`TaskExecutor` が実行中にブロードキャストするイベントインターフェースを定義します。
+
+> ⚠️ **非推奨**：以前のドキュメントには `CallbackObserver` セクションが含まれていましたが、このクラスのソースコード実装は `core_observer.py` から削除され、利用できなくなりました。
 
 ## BaseObserver
 
@@ -55,37 +57,8 @@ executor.remove_observer(observer)  # オブザーバーを解除
 
 実行者内部では `_notify(method_name, *args, **kwargs)` で登録済みの全オブザーバーにイベントをブロードキャストします。observer リストが空の場合、オブザーバーなしと同等（Null 実装不要）。
 
-## CallbackObserver
-
-軽量オブザーバー。キーワード引数でコールバック関数を渡し、サブクラス定義が不要です。
-
-```python
-class CallbackObserver(BaseObserver):
-    def __init__(self, **callbacks):
-        for name, fn in callbacks.items():
-            setattr(self, name, fn)
-```
-
-### 使用方法
-
-```python
-from celestialflow import CallbackObserver, TaskExecutor
-
-observer = CallbackObserver(
-    on_task_success=lambda count=1: print(f"成功: {count}"),
-    on_finish=lambda: print("完了"),
-)
-
-executor = TaskExecutor("Test", my_func)
-executor.add_observer(observer)
-executor.start(tasks)
-```
-
-関心のあるイベントのみをオーバーライドし、残りは `BaseObserver` のデフォルト空実装に任せます。
-
 ## 既存実装
 
 | クラス | 説明 |
 |---|------|
 | `TaskProgress` | tqdm ベースのプログレスバー表示（`core_progress.md` 参照） |
-| `CallbackObserver` | コールバック関数式オブザーバー |

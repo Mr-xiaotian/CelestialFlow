@@ -1,6 +1,6 @@
-﻿# bench_hash_memory.py Benchmark Notes
+﻿# bench_hash_memory.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/16
 
 ## Objective
 
@@ -9,7 +9,7 @@ Compare the memory usage and lookup performance when storing SHA1 hash values in
 ## Test Strategy
 
 | Type | Construction Method | Single Object Size | Description |
-|------|---------------------|-------------------|-------------|
+|------|---------------------|-------------------|------|
 | `str` | `randbytes(20).hex()` | 81 B | Original approach, 40-char hex string |
 | `bytes` | `randbytes(20)` | 53 B | Current approach, direct output from `hashlib.sha1().digest()` |
 | `int` | `int.from_bytes(randbytes(20), 'big')` | 48 B | Most compact, but loses fixed-length semantics |
@@ -24,6 +24,8 @@ Compare the memory usage and lookup performance when storing SHA1 hash values in
 
 ## Benchmark Results (Measured)
 
+### Historical Results - Windows 11 N=100,000 (date not recorded)
+
 > Environment: Windows 11, Python 3.14, N=100,000
 
 | Type | Single Obj(B) | Total Mem(MB) | Per Entry(B) | Build(ms) | Hit(ns) | Miss(ns) |
@@ -32,7 +34,7 @@ Compare the memory usage and lookup performance when storing SHA1 hash values in
 | `bytes` | 53 | 9.06 | 95.0 | 56.23 | 112.7 | 112.7 |
 | `int` | 48 | 8.58 | 90.0 | 69.05 | 121.9 | 112.4 |
 
-### Memory Savings (relative to str)
+#### Memory Savings (relative to str)
 
 | Type | Total Memory | Per-Entry Overhead |
 |------|-------------|-------------------|
@@ -44,6 +46,28 @@ Compare the memory usage and lookup performance when storing SHA1 hash values in
 - `bytes→int` saves only about 5% more, but `int` lacks fixed-length semantics and is less intuitive for debugging
 - All three types have no significant difference in lookup performance (~112 ns); type switching does not affect deduplication efficiency
 - **Recommended to use `bytes`**: direct return from `hashlib.sha1().digest()`, zero conversion overhead
+
+### 2026/06/16 - Local retest
+
+> Environment: Windows, N=100,000
+
+| Type | Single Obj(B) | Total Mem(MB) | Per Entry(B) | Build(ms) | Hit(ns) | Miss(ns) |
+|------|----------|-----------|---------|---------|---------|----------|
+| `str` | 81 | 11.73 | 123.0 | 62.83 | 70.8 | 69.9 |
+| `bytes` | 53 | 9.06 | 95.0 | 37.33 | 74.5 | 71.5 |
+| `int` | 48 | 8.58 | 90.0 | 47.45 | 76.3 | 70.0 |
+
+#### Memory Savings (relative to str)
+
+| Type | Total Memory | Per-Entry Overhead |
+|------|--------|---------|
+| `bytes` | 77.2% | 77.2% |
+| `int` | 73.2% | 73.2% |
+
+**Supplementary conclusions for this round**:
+- `bytes` remains the most balanced option: memory is significantly better than `str`, and build speed is fastest
+- `int` is slightly better than `bytes` in memory but slower in build speed and offers no lookup advantage
+- This round's lookup latencies overall fall in the `70-76 ns` range; the three formats have minimal differences, so dedup lookups are not the deciding factor for type selection
 
 ## How to Run
 

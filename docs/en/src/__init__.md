@@ -1,6 +1,6 @@
 # CelestialFlow Package Entry
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 ## Introduction
 
@@ -30,16 +30,13 @@ Provides various topology structure definitions, supporting DAG construction, de
 
 ### stage — Task Execution Layer
 
-Provides task executors, routing dispatch, splitting/merging, and Redis integration support.
+Provides task executors, routing dispatch, and task splitting capabilities.
 
 | Exported Symbol | Description |
 |-----------------|-------------|
 | `TaskExecutor` | General task executor, supports serial / thread / async execution modes |
 | `TaskStage` | A task node in the graph, wrapping execution function and configuration |
 | `TaskSplitter` | Task splitter, splits a single input into multiple sub-tasks |
-| `TaskRedisTransport` | Redis-based task transport layer |
-| `TaskRedisSource` | Redis data source, pulls task inputs from Redis |
-| `TaskRedisAck` | Redis acknowledgment mechanism, sends ACK after consumption |
 | `TaskRouter` | Route dispatcher, distributes tasks to different downstream based on rules |
 | `TerminationSignal` | Termination signal, used to control the end of graph execution flow |
 
@@ -52,7 +49,6 @@ Provides observer pattern support for monitoring task execution.
 | Exported Symbol | Description |
 |-----------------|-------------|
 | `BaseObserver` | Observer base class, defines on_start / on_success / on_failure interfaces |
-| `CallbackObserver` | Callback-based observer, handles events via passed callback functions |
 | `TaskProgress` | Task progress tracker, real-time statistics of completed/failed/total |
 
 ---
@@ -81,13 +77,12 @@ Provides a built-in web server for graph state monitoring and visualization.
 
 ### persistence — Persistence
 
-Provides JSONL log loading and querying functionality.
+Provides SQLite-based record loading and querying functionality.
 
 | Exported Symbol | Description |
 |-----------------|-------------|
-| `load_jsonl_logs` | Load JSONL-format log files |
-| `load_task_by_stage` | Filter and load task logs by stage name |
-| `load_task_by_error` | Filter and load task logs by error type |
+| `load_records` | Load all execution records from a SQLite database |
+| `load_records_grouped_by_stage` | Load execution records grouped by stage name |
 
 ---
 
@@ -104,36 +99,31 @@ Provides runtime helper types and utility functions.
 
 ## `__all__` List
 
-Complete public API list (26 symbols total):
+Complete public API list (21 symbols total):
 
 ```python
 __all__ = [
-    "TaskGraph",
-    "TaskChain",
-    "TaskLoop",
-    "TaskCross",
-    "TaskComplete",
-    "TaskWheel",
-    "TaskGrid",
     "BaseObserver",
-    "CallbackObserver",
-    "TaskProgress",
+    "TaskChain",
+    "TaskComplete",
+    "TaskCross",
     "TaskExecutor",
-    "TaskStage",
-    "TaskSplitter",
-    "TaskRedisTransport",
-    "TaskRedisSource",
-    "TaskRedisAck",
+    "TaskGraph",
+    "TaskGrid",
+    "TaskLoop",
+    "TaskProgress",
     "TaskRouter",
-    "TerminationSignal",
+    "TaskSplitter",
+    "TaskStage",
     "TaskWebServer",
-    "load_jsonl_logs",
-    "load_task_by_stage",
-    "load_task_by_error",
-    "make_hashable",
-    "format_table",
-    "benchmark_graph",
+    "TaskWheel",
+    "TerminationSignal",
     "benchmark_executor",
+    "benchmark_graph",
+    "format_table",
+    "load_records",
+    "load_records_grouped_by_stage",
+    "make_hashable",
 ]
 ```
 
@@ -165,8 +155,8 @@ init_tasks = {stage_a.get_name(): [1, 2, 3, 4, 5]}
 graph.start_graph(init_tasks)
 
 # 5. View execution result summary
-summary = graph.get_graph_summary()
-print("Graph summary:", summary)
+snapshot = graph.get_status_snapshot()
+print("Graph status:", snapshot["status"])
 ```
 
 ### Using TaskExecutor Independently
@@ -203,8 +193,8 @@ stages = [
 
 chain = TaskChain(stages, chain_mode="serial")
 chain.start_chain({stages[0].get_name(): [1, 2, 3]})
-summary = chain.get_graph_summary()
-print("Chain summary:", summary)
+snapshot = chain.get_status_snapshot()
+print("Chain status:", snapshot["status"])
 ```
 
 ## Module Dependency Graph
@@ -220,11 +210,11 @@ graph TD
     end
 
     subgraph stage
-        S["TaskExecutor<br/>TaskStage<br/>TaskSplitter<br/>TaskRedisTransport<br/>TaskRedisSource<br/>TaskRedisAck<br/>TaskRouter<br/>TerminationSignal"]
+        S["TaskExecutor<br/>TaskStage<br/>TaskSplitter<br/>TaskRouter<br/>TerminationSignal"]
     end
 
     subgraph observability
-        O["BaseObserver<br/>CallbackObserver<br/>TaskProgress"]
+        O["BaseObserver<br/>TaskProgress"]
     end
 
     subgraph utils
@@ -236,7 +226,7 @@ graph TD
     end
 
     subgraph persistence
-        P["load_jsonl_logs<br/>load_task_by_stage<br/>load_task_by_error"]
+        P["load_records<br/>load_records_grouped_by_stage"]
     end
 
     subgraph runtime

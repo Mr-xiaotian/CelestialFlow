@@ -1,6 +1,6 @@
 # 更新ログ（Change Log）
 
-> 📅 最終更新日: 2026/06/05
+> 📅 最終更新日: 2026/06/18
 
 - 2021: マルチスレッドとシングルスレッド処理関数をサポートするクラスを構築
 - 2023: GPT-4 の支援でマルチプロセスとコルーチン実行モードを追加
@@ -241,3 +241,86 @@
     - すべての `type: ignore` を削除
       - かなり見栄えが良くなりました
     - `start_*` 関数の doc-string にその関数が一回限りの呼び出し関数であることを明記
+- 3.2.3
+  - feat:
+    - **[IMPORTANT]** フロントエンドダッシュボード設定パネルに `ノード待機にグローバル推定を使用` スイッチを追加。オンにするとノードカードの元の `待機` 数が `グローバル待機` に置き換えられ、カードに `グローバル残り時間` が表示される
+      - この機能は非常に面白く、オン/オフで数値が大きく変動するのが見られる
+    - **[IMPORTANT]** タスク注入ページを書き直し、実用性が旧バージョンを大きく上回る
+      - ノードごとに注入タスクリストを個別設定し、まとめて送信可能
+    - **[IMPORTANT]** `TaskExecutor` から `get_args` と `process_result` メソッド、および `unpack_task_args` 属性を削除
+      - ジェネリクス導入に必要な変更
+      - `process_result` は func の出力 result を再処理するシンプルな機能だが、func に入力する前にラップしても同じ効果が得られる
+      - `get_args` は前ノードの `result` を現在のノードが必要とする `task` 型に変換できる柔軟な機能だが、柔軟すぎて使用時の認知負荷が大きい
+      - `unpack_task_args` は `get_args` がもたらす認知負荷の一例で、デフォルトでは `get_args` が `task` を `(task, )` でラップして func に送信し、`unpack_task_args` をオンにすると直接送信する
+    - **[IMPORTANT]** `graph` の init パラメータに `name` を追加し、`executor` `stage` と統一
+      - 破壊的変更
+      - ログの `start_graph` `end_graph` と Web 側の `graph_analysis` に表示される
+    - フロントエンド・バックエンド通信から `graph_summary` を完全に削除し、残っていた `グローバル残り時間` を各ノードの `グローバル待機` と `グローバル残り時間` に分割
+      - ここでの `グローバル` とは、グラフ理論に基づき、上流の残りタスク数から下流が取得できる総タスク数を推定することを意味する
+    - フロントエンドにツールチップを追加し、マウスオーバーで関連情報を表示（例：今回追加されたノード `グローバル待機` の意味）
+    - フロントエンドからノードカードのドラッグ機能を削除
+    - フロントエンドエラーログページに `タスク注入` ボタンを追加し、選択したタスクを注入ページのノード注入待ちリストに直接追加可能
+    - `TaskSplitter` に `split_item` メソッドを追加し、自由に定義可能
+  - refactor:
+    - **[IMPORTANT]** ジェネリクスを導入し、Python バージョン >=3.12 を必須に
+      - ジェネリクスにより型安全性が向上し、コードの可読性も向上
+      - 3.12 バージョンのジェネリクス表現は非常に直感的
+    - フロントエンドコードからすべての `localStorage` 使用を削除
+      - config 設定ファイルがある状況では意味が薄く、混乱を招くため
+    - タスクキューの drain 操作を graph 層から stage 層に移動
+    - `TaskMetric` のロック使用を最適化
+    - `TaskEnvelope` の `change_id()` メソッドを削除し、envelope は不変に
+    - エラーログから `error` `error_repr` `task_repr` フィールドを削除
+    - フロントエンド・バックエンド間のタスク注入データ形式を変更し、複数ノードのタスクデータ同時送信を容易に
+    - フロントエンドコードで strict チェックを有効化
+    - フロントエンドの `injection.css` を複数ファイルに分割
+    - `config.json` のデータ形式を変更し、影響範囲別に分類
+    - フロントエンドのデータ型を厳格化
+    - `ReportTaskGraph` 型を追加し、reporter の型宣言専用に
+  - fix:
+    - i18n ローカライズが一部フィールドで無効になる問題
+    - ダッシュボードのエラー数を直接クリックしてエラーログページに遷移した際、設定パネルにダッシュボードページの設定が表示される問題
+    - フロントエンドの各ダッシュボードリクエストに `RequestSeq` を追加し、前後して送信されたリクエストの遅延による返り値の上書きを防止
+    - フロントエンドの各空フィールドが最初の refresh でしか表示されない問題を修正
+  - chore:
+    - ドキュメントを英語/日本語に翻訳更新
+      - この作業は非常にトークンを消費する
+- 3.2.4
+  - feat:
+    - **[IMPORTANT]** 従来の `fail_funnel` と `success_funnel` を `fallback` に統合し、`sqlite` で保存
+      - 従来の `jsonl` ベースの fail 永続化は保存時に非常に使いやすかったが、読み取り時に毎回全量をメモリに読み込んでから検索する必要があり面倒だった
+      - Richard 万歳！
+      - 従来の `success_funnel` は完全に半製品だった：`executor` でのみ使用可能で `stage` では不可、完全にメモリ保存。今回の機会に併せてリファクタリングし `fallback_funnel` に統合
+      - 現在 `fallback_funnel` はタスクの `注入/重複/リトライ/失敗/成功` 時に sqlite 内の該当レコードに対して挿入/更新/削除操作を行う
+      - タスク成功時はデフォルトで該当レコードを削除するが、`executor` の `persist_result` オプションを有効にするとレコードを保持し `status` フィールドを `success` に更新
+    - **[IMPORTANT]** `stages` から 3 つの redis ノードを削除し、demo ファイルを追加して同様のノードを自作する方法を説明
+      - `TaskSplitter` や `TaskRouter` と比べて、この 3 つのノードはあってもなくてもよく、`redis` 依存パッケージが増えるだけ
+    - **[IMPORTANT]** `celestialtree` を依存ライブラリから除外し、既存のイベント宣言メカニズムは protocol インターフェースに基づき、デフォルトでローカルの超簡易実装を使用
+      - これもライブラリ依存を減らすため。`celestialtree` ライブラリには `grpcio` と `protobuf` の依存が含まれており、この 2 つは Python free-threading バージョンのサポートが不十分なため、これらがあると `celestialflow` は free-threading バージョンで実行できない——これは非常に期待していること
+      - `bench_gil_vs_nogil` によると、free-threading バージョンでは `executor` が CPU 負荷の高いタスクで 5.25 倍、`graph` では 7.55 倍の向上。非常に喜ばしい
+    - フロントエンドの `ノード指標推移` カードに `グローバル待機キュー` を追加
+    - `graph` に `start_graph_db` メソッドを追加し、fallback データベースアドレスを受け取って失敗データに基づき `start_graph` を実行。`executor` に `start_db` メソッドを追加し、fallback データベースアドレスを受け取って失敗データに基づき `start` を実行
+      - 非常に便利
+  - refactor:
+    - **[IMPORTANT]** server 側の error データ保存方法を Python ネイティブリストから一時 sqlite データベースに変更
+      - ハンマー効果で sqlite の使用をもっと試したい
+    - 各 `graph` に `name` と `time.time()` に基づく `graph_id` を一意な識別子として追加
+    - reporter と server 側の対話ロジックを書き直し
+      - 現在は毎回の refresh 開始時に状態同期を行い、`graph_id` で両者が保持するデータが同一 `graph` オブジェクト由来かを判断し、一致する場合は structure/analysis データを再 push しない
+      - 状態同期時に双方の graph が一致する場合、server は自身が保持するエラーデータの最大 `event_id` 値を返す（厳密な検証済み、`event_id` はデータベース内で厳密に増加）
+      - reporter の従来の `push_error_meta` と `push_error_content` を統合し、毎回のリフレッシュ時に新規エラーデータのみを送信。新規データは server が返す最大 `event_id` 値とローカルデータベースの最大 `event_id` 値でフィルタリング
+    - `graph.connect` と `graph.set_stage` により多くの責務をバインド
+    - `TaskEnvelope` から不要なデータを削除し、`task` `hash` `id` の 3 項目のみを保持
+    - `TaskMetrics` で `executor` の `execution_mode` に関わらず、すべての `counter` に `Lock` を固定使用
+    - `process_task_success` で既存の `task.success` 宣言に加え、`result_envelope` が `result_queue` に入る前に `task.input` 宣言を行う
+    - `executor.get_fail_pairs`（旧 `executor.get_error_pairs`）は `tuple[T, PersistedError]` を返す
+    - `TaskRouter` ノードを書き直し、タスクのルーティング方向を指定する `router` 関数の受け渡しを必須に
+    - 不要なメソッドを削除
+  - fix:
+    - フロントエンドダッシュボードページの構造図がタブ切替で空白表示されなくなる問題を修正
+      - これは非常に古いバグで、なぜ今まで修正しなかったのか不明
+  - chore:
+    - より多くの demo を追加
+    - より多くの benchmark を追加
+    - `Agents.md` ファイルを追加
+      - AI への延々と続く強調指示にうんざりした

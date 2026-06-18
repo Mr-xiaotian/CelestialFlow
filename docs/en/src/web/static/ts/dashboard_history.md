@@ -1,6 +1,6 @@
 # dashboard_history.ts
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 Manages the maintenance of per-node multi-metric history data and the initialization/redraw of the line chart. History data is accumulated entirely on the frontend via status snapshots, independent of any dedicated backend API.
 

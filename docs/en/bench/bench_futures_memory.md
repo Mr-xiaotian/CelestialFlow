@@ -1,6 +1,6 @@
-﻿# bench_futures_memory.py Benchmark Notes
+﻿# bench_futures_memory.py Benchmark Guide
 
-> 📅 Last Updated: 2026/05/08
+> 📅 Last Updated: 2026/06/16
 
 ## Objective
 
@@ -10,7 +10,7 @@ Purely compare the memory usage difference between "no cleanup" and "periodic cl
 
 `ThreadPoolExecutor` returns `Future` objects after submitting tasks. If all futures are appended to a list and awaited for final collection, the list grows unboundedly with the task count. Periodically filtering out completed futures can limit the list size to `max_workers * 2`.
 
-## Test Contents
+## Test Content
 
 ### `dispatch_no_cleanup`
 - All futures appended to list, no cleanup performed
@@ -23,7 +23,7 @@ Purely compare the memory usage difference between "no cleanup" and "periodic cl
 ## Key Parameters
 
 | Parameter | Value | Description |
-|-----------|-------|-------------|
+|------|-----|------|
 | `task_count` | 10K / 100K / 500K | Task count |
 | `max_workers` | 20 | Thread pool size |
 | Task function | `noop(x)` | Returns immediately, no computation overhead |
@@ -71,10 +71,12 @@ python bench/bench_futures_memory.py
 
 ## Benchmark Results (Measured)
 
+### Historical Results - Windows futures memory comparison (date not recorded)
+
 > Environment: Windows, Python 3.10, max_workers=20
 
 | Task Count | Mode | Time | Peak Memory | Memory After Completion |
-|------------|------|------|-------------|------------------------|
+|--------|------|------|----------|-----------|
 | 10,000 | no_cleanup | 0.351s | 17.94 MB | 0.20 MB |
 | 10,000 | with_cleanup | 1.589s | 0.45 MB | 0.10 MB |
 | 100,000 | no_cleanup | 5.507s | 177.01 MB | 0.18 MB |
@@ -87,6 +89,24 @@ python bench/bench_futures_memory.py
 - With periodic cleanup, peak memory stays constant at ~0.5 MB regardless of task count
 - At 500K tasks, memory savings are approximately **1800x**
 - The cleanup operation has additional time overhead (list filtering), but in a real framework where tasks have computation overhead, this overhead is negligible
+
+### 2026/06/16 - Local retest
+
+> Environment: Windows, `max_workers=20`
+
+| Task Count | Mode | Time | Peak Memory | Memory After Completion |
+|--------|------|------|----------|-----------|
+| 10,000 | no_cleanup | 0.274s | 16.32 MB | 0.29 MB |
+| 10,000 | with_cleanup | 0.643s | 0.77 MB | 0.09 MB |
+| 100,000 | no_cleanup | 2.017s | 160.49 MB | 0.15 MB |
+| 100,000 | with_cleanup | 6.470s | 0.91 MB | 0.09 MB |
+| 500,000 | no_cleanup | 10.438s | 801.63 MB | 0.14 MB |
+| 500,000 | with_cleanup | 32.127s | 1.06 MB | 0.09 MB |
+
+**Supplementary conclusions for this round**:
+- Without cleanup, peak memory still grows approximately linearly; at 500K tasks it already exceeds **800 MB**
+- Periodic cleanup keeps peak memory stably within approximately **1 MB**, but total time increases to about **3x**
+- The new results are overall faster compared to historical results, but the "trade time for space" trend is completely consistent
 
 ## Dependencies
 

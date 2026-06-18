@@ -1,6 +1,6 @@
 # Clone
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 `utils/util_clone.py` は実行器、ノード、タスクグラフのクローン機能を提供し、パフォーマンステストと設定再利用に使用します。
 
@@ -32,6 +32,7 @@ def clone_executor(executor: TaskExecutor) -> TaskExecutor:
 - `max_retries`: 最大リトライ回数
 - `max_info`: ログ情報の最大長
 - `enable_duplicate_check`: 重複チェックスイッチ
+- `persist_result`: 結果永続化スイッチ
 - `log_level`: ログレベル
 - `retry_exceptions`: リトライ可能例外リスト
 

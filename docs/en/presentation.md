@@ -1,6 +1,6 @@
 # CelestialFlow Technical Presentation
 
-> 📅 Last Updated: 2026/05/09
+> 📅 Last Updated: 2026/06/18
 
 ---
 
@@ -278,33 +278,33 @@ Note that in TaskGraph mode, task-level `async` is not available (only supported
 
 ---
 
-## Slide 12: Distributed Capability — Redis Integration
+## Slide 12: External Collaboration Example — Redis Demo
 
-### Three-Stage Redis Task Transport
+### Connecting Redis / Go Worker with Plain TaskStage
 
 ```mermaid
 sequenceDiagram
     participant Local as Local Graph
     participant Redis as Redis Server
-    participant Remote as Remote Worker
+    participant Remote as External Worker
 
-    Local->>Redis: TaskRedisTransport<br/>RPUSH task JSON
-    Redis->>Remote: TaskRedisSource<br/>BLPOP blocking fetch
+    Local->>Redis: TaskStage(redis_push)<br/>RPUSH task JSON
+    Redis->>Remote: External Worker<br/>BLPOP blocking fetch
     Remote->>Remote: Execute task
     Remote->>Redis: HSET write result back
-    Redis->>Local: TaskRedisAck<br/>Poll HGET for result
+    Redis->>Local: TaskStage(redis_wait)<br/>Poll HGET for result
     Local->>Redis: HDEL delete result
 ```
 
-| Component | Role | Redis Operation | Execution Mode |
-|------|------|-----------|---------|
-| `TaskRedisTransport` | Serialize and push tasks | `RPUSH` | thread, worker_limit=4 |
-| `TaskRedisSource` | Blocking task fetch | `BLPOP` | serial |
-| `TaskRedisAck` | Wait for remote results | `HGET` → `HDEL` | serial |
+| Component | Role | Redis Operation | Positioning |
+|------|------|-----------|------|
+| `redis_push()` | Serialize and push tasks | `RPUSH` | demo helper |
+| External Worker / `redis_pop()` | Blocking task fetch | `BLPOP` | Bridges Redis input |
+| `redis_wait()` | Wait for remote results | `HGET` → `HDEL` | demo helper |
 
-- **JSON Serialization**: Task → `{id, task, emit_ts}` JSON string
-- **At-most-once Semantics**: Result deleted immediately after reading
-- **Timeout Mechanism**: Source/Ack both support `timeout` parameter; throws `TimeoutError` on timeout
+- **Protocol Position**: This is a set of demo/helper protocols, not built-in framework Stages
+- **Installation**: Running this setup requires additionally installing `redis` and starting a Redis service
+- **Design Intent**: Demonstrates how to connect external messaging systems to a plain `TaskStage`
 
 ---
 
@@ -312,10 +312,10 @@ sequenceDiagram
 
 ### Event Provenance & Task Lineage
 
-- **CelestialTree**: Hierarchical event tracing system (standalone project `celestialtree>=0.1.2`)
+- **CelestialTree**: Hierarchical event tracing system (standalone project `celestialtree`, requires separate installation)
 - **Integration Points**:
-  - `TaskExecutor.set_ctree(host, http_port, grpc_port)` enables tracing
-  - `TaskExecutor.set_nullctree()` disables tracing (uses NullClient)
+  - `TaskExecutor.set_ctree(ctree_client)` injects an external event client
+  - Default uses `LocalEventClient()`, no dependency on CelestialTree service
   - `TaskEnvelope.id` stores CelestialTree event ID
   - `TerminationSignal.id` / `TerminationIdPool.ids` propagates termination events
 
@@ -325,7 +325,7 @@ sequenceDiagram
   - Termination signal merge → event ID pool aggregation
   - Full chain traceable from input to completion
 
-- **Design Trade-off**: Event tracing is an optional dependency; zero overhead when disabled (NullClient pattern)
+- **Design Trade-off**: Event tracing is an optional dependency; the default local mode only generates event IDs; install `celestialtree` separately when remote tracing is needed
 
 ---
 
@@ -337,25 +337,25 @@ sequenceDiagram
 graph LR
     subgraph Producer Side
         A[LogInlet] -->|Queue| B[LogSpout]
-        C[FailInlet] -->|Queue| D[FailSpout]
+        C[FallbackInlet] -->|Queue| D[FallbackSpout]
     end
 
     subgraph Consumer Side
         B --> E["logs/task_logger(DATE).log"]
-        D --> F["fallback/DATE/source(TIME).jsonl"]
+        D --> F["fallback/task_fallback.db<br/>(SQLite)"]
     end
 ```
 
 - **Spout-Inlet Pattern**:
   - Inlet side (thread-safe): Formats records, writes to shared queue
-  - Spout side (daemon thread): Consumes from queue, writes to file
+  - Spout side (daemon thread): Consumes from queue, writes to storage
   - Graceful stop via `TerminationSignal`
 
 - **Log Levels**: `TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 
-- **Error Persistence**: JSONL format, includes `timestamp`, `stage`, `error_repr`, `task_repr`, fully serialized `error` and `task`
+- **Error Persistence**: SQLite format, includes `stage_name`, `error_type`, `error_message`, `task_json`, `result_json` and other fields
 
-- **Error Analysis Tools**: `load_task_by_stage()`, `load_task_by_error()` aggregates failed tasks by dimension
+- **Error Analysis Tools**: `load_records()`, `load_records_grouped_by_stage()` aggregates failed tasks by dimension
 
 ---
 
@@ -438,7 +438,7 @@ CelestialFlowError (base class)
 | Push | `/api/push_config` | Save frontend configuration |
 
 - **Pydantic Validation**: All Push endpoints use strong-typed models
-- **Error Caching**: `push_errors_meta` caches file paths and version numbers, avoiding repeated JSONL reads
+- **Error Transmission**: `push_errors` writes directly to SQLite, no extra caching layer needed
 
 ---
 
@@ -544,7 +544,7 @@ graph LR
 
 - **Lightweight Stream Processing**
   - Loop structure for continuous fetch → process → write-back
-  - Redis distributed horizontal scaling
+  - External message queue / Worker demos for horizontal scaling
 
 - **Machine Learning Pipeline**
   - Data preprocessing → Feature engineering → Model training → Evaluation
@@ -591,13 +591,13 @@ graph.start_graph({"discover": [seed_urls]})
 
 ## Slide 24: Distributed Demo Data Flow
 
-### Redis Distributed Execution Example
+### Redis External Collaboration Example
 
 ```mermaid
 graph LR
     subgraph Local Graph
-        A[Preprocessing Stage] --> B[RedisTransport<br/>RPUSH]
-        E[RedisAck<br/>HGET] --> F[Postprocessing Stage]
+        A[Preprocessing Stage] --> B[TaskStage<br/>redis_push]
+        E[TaskStage<br/>redis_wait] --> F[Postprocessing Stage]
     end
 
     subgraph Redis
@@ -606,16 +606,16 @@ graph LR
         D -->|"result"| E
     end
 
-    subgraph Remote Worker
-        C -->|BLPOP| G[RedisSource]
+    subgraph External Worker
+        C -->|BLPOP| G[redis_pop / worker]
         G --> H[Execute Task]
         H -->|HSET| D
     end
 ```
 
-- Local Graph pushes tasks to Redis List via `TaskRedisTransport`
-- Remote Worker blocks and pulls tasks via `TaskRedisSource`
-- Results written back to Redis Hash; local `TaskRedisAck` polls to retrieve
+- Local Graph pushes tasks to Redis List via a plain `TaskStage(redis_push)`
+- External Worker or `redis_pop()` pulls tasks from Redis and executes them
+- Results written back to Redis Hash; local `TaskStage(redis_wait)` polls to retrieve
 - **Horizontal Scaling**: Start multiple Worker instances for parallel consumption
 
 ---
@@ -645,7 +645,7 @@ Every design decision has trade-offs. CelestialFlow prioritizes "simple + reliab
 
 - **Stage as Plugin**
   - Implement a `func` → wrap as `TaskStage` → plug into any graph
-  - Built-in Splitter / Router / Redis series are all Stage specializations
+  - Built-in Splitter / Router are Stage specializations; Redis collaboration is demonstrated via demos
 
 - **Queue Backend Replaceable**
   - `make_queue_backend(mode)` factory method for unified interface
@@ -699,8 +699,8 @@ Every design decision has trade-offs. CelestialFlow prioritizes "simple + reliab
 - **Lightweight Embedding**: `pip install` ready, no external service dependencies, embed in any Python project
 - **Topological Flexibility**: DAG + cyclic graphs, six preset structures, custom arbitrary topologies
 - **Rich Execution Models**: Three-layer dimension combinations (Graph × Stage × Task), adapting to any concurrency scenario
-- **Distributed Ready**: Redis three-stage transport, horizontal scaling without code changes
-- **Full-Chain Tracing**: CelestialTree event provenance + JSONL error persistence
+- **External Collaboration Friendly**: Can flexibly connect external systems like Redis / Go Worker for horizontal scaling
+- **Full-Chain Tracing**: CelestialTree event provenance + SQLite error persistence
 - **Built-in Visualization**: Mermaid graph structure + Chart.js progress curves + real-time status panels
 
 ### One Sentence

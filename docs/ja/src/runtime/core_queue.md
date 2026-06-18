@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 `TaskQueue` モジュールは `TaskInQueue` と `TaskOutQueue` の 2 つのクラスを提供し、異なる Stage 間を接続するパイプとして機能します。マルチプロデューサー・マルチコンシューマーモデルをサポートし、終了シグナル（TerminationSignal）マージ機能を統合しています。
 
@@ -197,14 +197,14 @@ in_queue = TaskInQueue(
 )
 
 # 上流プロデューサーがタスクを投入
-env1 = TaskEnvelope(task=100, id=1, source="producer1")
-env2 = TaskEnvelope(task=200, id=2, source="producer2")
+env1 = TaskEnvelope(task=100, id=1)
+env2 = TaskEnvelope(task=200, id=2)
 in_queue.put(env1)
 in_queue.put(env2)
 
 # 下流コンシューマーがタスクを取得
 task1 = in_queue.get()
-print(f"受信タスク: {task1.get_task()}, ソース: {task1.source}")
+print(f"受信タスク: {task1.get_task()}")
 
 # 新しい上流ソースを動的追加
 in_queue.add_source_name("producer3")
@@ -223,7 +223,7 @@ out_queue = TaskOutQueue(
 )
 
 # 全下流にタスクをブロードキャスト
-env3 = TaskEnvelope(task="broadcast_msg", id=3, source="processor")
+env3 = TaskEnvelope(task="broadcast_msg", id=3)
 out_queue.put(env3)
 
 # 両方のコンシューマーが受信したことを確認
@@ -234,7 +234,7 @@ print(f"consumer2 受信: {consumer_q2.get().get_task()}")
 consumer_q3 = ThreadQueue()
 out_queue.add_queue(consumer_q3, "consumer3")
 
-env4 = TaskEnvelope(task="targeted_msg", id=4, source="processor")
+env4 = TaskEnvelope(task="targeted_msg", id=4)
 out_queue.put_target(env4, "consumer3")
 print(f"consumer3 受信: {consumer_q3.get().get_task()}")
 
@@ -257,7 +257,7 @@ residual_q = TaskInQueue(
     source_names=["src"],
     out_name="drain_test",
 )
-residual_q.put(TaskEnvelope(task="leftover", id=5, source="src"))
+residual_q.put(TaskEnvelope(task="leftover", id=5))
 
 # drain で全残留タスクをクリア
 leftovers = residual_q.drain()

@@ -1,6 +1,6 @@
 # Observability Module
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 The Observability module provides CelestialFlow's observability features, including runtime status monitoring, progress visualization, the Observer pattern, and remote status reporting. It makes the task execution process transparent and monitorable.
 
@@ -9,20 +9,20 @@ The Observability module provides CelestialFlow's observability features, includ
 | Exported Symbol | Source Module | Description |
 |---------|---------|------|
 | `BaseObserver` | `core_observer` | Base class for executor lifecycle observers, defining event interfaces such as `on_start`, `on_task_success`, `on_task_fail`, `on_task_duplicate`, `on_tasks_added`, `on_finish` |
-| `CallbackObserver` | `core_observer` | Observer implementation that takes callback functions via keyword arguments, no subclass definition needed |
 | `TaskProgress` | `core_progress` | `tqdm`-based task progress visualization tool, inheriting from `BaseObserver` |
 | `TaskReporter` | `core_report` | Task status reporter, a background thread that periodically pushes runtime status to a Web server and pulls control commands |
 | `NullTaskReporter` | `core_report` | Null implementation of task reporter, used as a placeholder when reporting is disabled |
+
+> ⚠️ **Deprecated**: Previous documentation listed `CallbackObserver`. The source implementation of this class has been removed from `core_observer.py` and is no longer available.
 
 ## File Descriptions
 
 ### Core Components
 
-1. **core_observer.py** (`BaseObserver`, `CallbackObserver`)
-   - **Purpose**: Base class for executor lifecycle observers and callback-based observer
+1. **core_observer.py** (`BaseObserver`)
+   - **Purpose**: Base class for executor lifecycle observers
    - **Key Features**:
      - `BaseObserver`: Defines lifecycle event interfaces, subclasses override as needed
-     - `CallbackObserver`: Takes callback functions via `**callbacks` keyword arguments, no subclass definition needed
 
 2. **core_progress.py** (`TaskProgress`)
    - **Purpose**: `tqdm`-based task progress visualization, inheriting `BaseObserver`
@@ -45,7 +45,7 @@ The Observability module provides CelestialFlow's observability features, includ
 ## Module Relationships
 
 ### Internal Relationships
-- `BaseObserver` is the base class of the observer pattern; `TaskProgress` and `CallbackObserver` are both implemented on top of it
+- `BaseObserver` is the base class of the observer pattern; `TaskProgress` is implemented on top of it
 - `TaskReporter` is an independent reporting component, designed to be pluggable
 - `NullTaskReporter` provides a safe placeholder when reporting is turned off
 
@@ -73,19 +73,12 @@ The Observability module provides CelestialFlow's observability features, includ
 
 ### Observer Usage
 ```python
-from celestialflow import TaskExecutor, TaskProgress, CallbackObserver
+from celestialflow import TaskExecutor, TaskProgress
 
 # Use TaskProgress to show progress bar
 executor = TaskExecutor("Test", my_func)
 executor.add_observer(TaskProgress())
 executor.start(tasks)
-
-# Use CallbackObserver for custom behavior
-observer = CallbackObserver(
-    on_task_success=lambda count=1: print(f"Success: {count}"),
-    on_finish=lambda: print("Done"),
-)
-executor.add_observer(observer)
 ```
 
 ### TaskReporter Usage

@@ -1,6 +1,6 @@
 # Web Module
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 The Web module provides an interactive monitoring and management interface built with FastAPI and native TypeScript, supporting real-time task status visualization, error tracing, dynamic task injection, and global configuration management.
 

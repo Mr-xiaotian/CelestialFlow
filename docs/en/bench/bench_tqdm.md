@@ -1,12 +1,12 @@
-﻿# bench_tqdm.py Benchmark Notes
+﻿# bench_tqdm.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/16
 
 ## Objective
 
 Quantify the performance overhead of the `tqdm` progress bar in loops, helping determine whether to enable progress display for ultra-large-scale iterations (millions+).
 
-## Test Contents
+## Test Content
 
 - **With tqdm**: Each iteration calls `pbar.update(1)`
 - **Without tqdm**: Bare loop
@@ -26,10 +26,12 @@ Quantify the performance overhead of the `tqdm` progress bar in loops, helping d
 
 ## Benchmark Results (Measured)
 
+### Historical Results - Windows lightweight loop (date not recorded)
+
 > Environment: Windows, Python 3.10, data_size=1,000,000, processing logic is `item * 2`
 
 | Mode | Prep Time | Processing Time | Total Time | Relative to Without tqdm |
-|------|-----------|-----------------|------------|--------------------------|
+|------|----------|----------|--------|-------------|
 | **Without tqdm** | 0.0859s | 0.0334s | **0.1194s** | — |
 | **With tqdm** | 0.1067s | 0.3259s | **0.4325s** | **3.6x** |
 
@@ -38,6 +40,20 @@ Quantify the performance overhead of the `tqdm` progress bar in loops, helping d
 - Processing time increased from 0.033s to 0.326s, nearly 10x, indicating that in **extremely lightweight loop bodies**, tqdm's refresh overhead far exceeds actual computation
 - When per-iteration computation is larger (e.g., > 1ms), tqdm's relative overhead quickly drops to negligible (< 5%)
 - Strategy recommendation: disable tqdm or increase `miniters` for million-scale lightweight loops; safely enable for long-duration / low-count tasks
+
+### 2026/06/16 - Local retest
+
+> Environment: Windows, `data_size=1,000,000`, processing logic is `item * 2`
+
+| Mode | Prep Time | Processing Time | Total Time | Relative to Without tqdm |
+|------|----------|----------|--------|-------------|
+| **Without tqdm** | 0.0436s | 0.0207s | **0.0644s** | — |
+| **With tqdm** | 0.0679s | 0.1933s | **0.2611s** | **4.1x** |
+
+**Supplementary conclusions for this round**:
+- On the current machine, `tqdm` increases total time by approximately **4.1x**, still significantly higher than the no-progress-bar version
+- The processing phase increases from `0.0207s` to `0.1933s`, confirming that in lightweight loops the main cost still comes from refresh and terminal output
+- Compared with historical results, absolute times have decreased overall, but the conclusion that "tqdm noticeably amplifies overhead on light tasks" remains unchanged
 
 ## How to Run
 
