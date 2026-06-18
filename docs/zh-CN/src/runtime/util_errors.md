@@ -379,7 +379,7 @@ except CelestialFlowTimeoutError as e:
 
 # 任务格式错误
 try:
-    raise TaskFormatError("Expected (target, data) tuple, got str")
+    raise TaskFormatError("Malformed task input: expected structured payload, got str")
 except TaskFormatError as e:
     print(f"格式错误: {e}")
 

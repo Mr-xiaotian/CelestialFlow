@@ -144,22 +144,25 @@ graph.start_graph({raw.get_name(): ["a,b,c", "x,y,z"]})
 ```python
 from celestialflow import TaskGraph, TaskStage, TaskRouter
 
-# 定义一个生成路由信息的处理函数
-def classify(x: int) -> tuple:
+# 定义路由函数：根据任务内容返回目标节点名称
+def classify(x: int) -> str:
     if x > 0:
-        return ("positive", x)
+        return "positive"
     else:
-        return ("negative", x)
+        return "negative"
 
-source = TaskStage("Source", func=classify, stage_mode="serial")
-router = TaskRouter("Router")
+# 上游只产出原始任务
+source = TaskStage("Source", func=lambda x: x, stage_mode="serial")
+
+# Router 内部决定把任务送给哪个下游
+router = TaskRouter("Router", classify)
 pos = TaskStage("Positive", func=lambda x: f"POS: {x}", stage_mode="serial")
 neg = TaskStage("Negative", func=lambda x: f"NEG: {x}", stage_mode="serial")
 
 graph = TaskGraph()
 graph.set_stages([source, router, pos, neg])
 graph.connect([source], [router])
-graph.connect([router], [pos, neg])  # 路由到两个下游
+graph.connect([router], [pos, neg])
 
 graph.start_graph({source.get_name(): [5, -3, 10, -8]})
 ```

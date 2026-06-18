@@ -1,6 +1,6 @@
 # TaskNodes
 
-> 📅 最后更新日期: 2026/06/17
+> 📅 最后更新日期: 2026/06/18
 
 TaskNodes 模块提供了多种特殊功能的 `TaskStage` 实现，用于流控制、外部系统交互等场景。
 
@@ -119,39 +119,50 @@ flowchart LR
 
 ```python
 class TaskRouter(TaskStage):
-    def __init__(self, name: str, stage_mode: str = "serial"):
+    def __init__(
+        self,
+        name: str,
+        router: Callable[[T], str],
+        *,
+        stage_mode: str = "serial",
+    ):
         """
         初始化 TaskRouter。
 
         :param name: 节点名称
+        :param router: 路由函数，根据任务数据返回目标 stage 名称
         :param stage_mode: 节点运行模式
         """
 ```
 
 ### 使用方式
 
-路由任务需要返回 `(target_tag, data)` 格式的元组：
+`TaskRouter` 不再要求上游提前构造 `(target_tag, data)` 元组，而是由自身持有的 `router(task) -> str` 函数负责决定下游：
 
 ```python
-# 定义上游任务生成路由元组
-def route_logic(data):
+# 定义路由函数：根据任务内容返回下游节点名称
+def route_logic(data: int) -> str:
     if data > 0:
-        return ("positive_stage", data)
+        return "positive_stage"
     else:
-        return ("negative_stage", data)
+        return "negative_stage"
 
-# 创建路由节点
-router = TaskRouter("路由器")
+# 上游只产出原始任务
+source = TaskStage("Source", func=lambda x: x)
 
-# 连接下游（target 必须与路由逻辑中的 tag 匹配）
+# Router 内部完成路由决策
+router = TaskRouter("路由器", route_logic)
+
+# 连接下游（返回值必须与下游 stage 名称匹配）
 graph.connect([router], [pos_stage, neg_stage])
 ```
 
 ### 特性
 
-- **机制**: 接收 `(target_tag, data)` 形式的元组。根据 `target_tag` 将 `data` 发送到对应的下游 Stage。
+- **机制**: 接收原始任务 `task`，先调用 `router(task)` 计算目标名称，再把原始 `task` 发送到对应的下游 Stage。
 - **计数**: 为每个目标维护独立的计数器 `route_counters`。
-- **错误处理**: 如果 `target_tag` 不存在于下游列表中，会记录错误。
+- **错误处理**: 如果 `router(task)` 返回的目标名称不存在于已绑定的下游列表中，会抛出 `InvalidOptionError`。
+- **固定配置**: `execution_mode="serial"`, `max_retries=0`（在 `__init__` 中硬编码）。
 
 ---
 
@@ -187,18 +198,18 @@ graph.start_graph({source.get_name(): [text_data]})
 ```python
 from celestialflow import TaskGraph, TaskStage, TaskRouter
 
-# 定义路由判断逻辑（生成 (target_tag, data) 格式的元组）
-def classify_number(x: int) -> tuple:
+# 定义路由判断逻辑（只返回目标名称）
+def classify_number(x: int) -> str:
     if x > 0:
-        return ("positive", x)
+        return "positive"
     elif x < 0:
-        return ("negative", x)
+        return "negative"
     else:
-        return ("zero", x)
+        return "zero"
 
 # 构建图节点
-source = TaskStage("Source", func=classify_number, stage_mode="serial")
-router = TaskRouter("Router")
+source = TaskStage("Source", func=lambda x: x, stage_mode="serial")
+router = TaskRouter("Router", classify_number)
 handler_pos = TaskStage("positive", func=lambda x: f"Positive: {x}", stage_mode="serial")
 handler_neg = TaskStage("negative", func=lambda x: f"Negative: {x}", stage_mode="serial")
 handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}", stage_mode="serial")
@@ -211,7 +222,7 @@ graph.connect([router], [handler_pos, handler_neg, handler_zero])
 graph.start_graph({source.get_name(): [10, -5, 0, 3, -1]})
 ```
 
-> **注意**: Route target tag 必须与下游 `TaskStage` 的 `name` 完全匹配。
+> **注意**: `router(task)` 的返回值必须与下游 `TaskStage` 的 `name` 完全匹配。
 
 ---
 

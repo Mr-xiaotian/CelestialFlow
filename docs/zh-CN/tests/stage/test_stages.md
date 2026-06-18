@@ -1,6 +1,6 @@
 # 特化阶段测试 (test_stages.py)
 
-> 最后更新日期: 2026/06/11
+> 最后更新日期: 2026/06/18
 
 ## 作用
 验证 `celestialflow.stage.core_stages` 中特化任务节点（Splitter, Router）的功能，确保任务能被正确分裂、路由和分发。
@@ -24,12 +24,12 @@
 | 用例 | 覆盖目标 |
 |------|----------|
 | `test_router_init` | 验证默认串行模式、不重试、路由计数器为空字典 |
-| `test_router_route_logic` | 验证 `_route` 正确解析 `(target, data)` 元组；未知 target 抛出 `InvalidOptionError`；非元组格式抛出 `TaskFormatError` |
+| `test_router_route_logic` | 验证 `_route` 会调用构造时传入的路由函数，返回 `(target, task)` 结果；未知 target 抛出 `InvalidOptionError` |
 | `test_router_process_success` | 在 `TaskGraph` 中成功路由后，`route_counters` 计数正确，目标节点各收到对应数量的成功任务 |
 
 ## 测试重点
 - **一对多传播**: 验证 Splitter 的结果列表被展开成多个独立任务信封，而非广播同一结果。
-- **具名分发**: 验证 Router 通过预绑定机制将任务精确导向指定下游节点。
+- **具名分发**: 验证 Router 通过内部路由函数和预绑定机制将任务精确导向指定下游节点。
 - **状态追踪**: 验证特化节点内部的自定义计数器（`split_counter`, `route_counters`）能准确反映业务逻辑执行情况。
 
 ## 运行方式

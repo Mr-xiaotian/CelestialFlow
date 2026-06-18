@@ -1,6 +1,6 @@
 # demo_utils.py 演示工具说明
 
-> 📅 最后更新日期: 2026/06/17
+> 📅 最后更新日期: 2026/06/18
 
 ## 目标
 
@@ -20,7 +20,7 @@ flowchart TD
         Url["generate_urls_sleep / log_urls_sleep / download_sleep / parse_sleep / download_to_file"]
         ETL["extract_record / transform_normalize / transform_enrich / load_record"]
         Async["async_double / async_to_str"]
-        Router["RouterWrapper"]
+        Router["router_even"]
         Misc["no_op / sum_int"]
     end
 
@@ -69,8 +69,8 @@ flowchart TD
 - `async_double`：异步将输入翻倍（含 0.3s sleep）
 - `async_to_str`：异步将输入转为格式化字符串（含 0.2s sleep）
 
-### 特殊类
-- `RouterWrapper`：`TaskRouter` 演示用的路由包装器
+### 路由辅助函数
+- `router_even`：`TaskRouter` 演示用的路由函数，根据奇偶性返回 `StageA` 或 `StageB`
 
 ## 与 tests/test_utils.py 的关系
 
@@ -86,7 +86,7 @@ flowchart TD
 
 此文件为共享模块，不直接运行：
 ```python
-from demo_utils import fibonacci, sleep_1, RouterWrapper
+from demo_utils import fibonacci, sleep_1, router_even
 ```
 
 ## 依赖

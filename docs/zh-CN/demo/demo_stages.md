@@ -1,6 +1,6 @@
 # demo_stages.py 演示说明
 
-> 📅 最后更新日期: 2026/06/17
+> 📅 最后更新日期: 2026/06/18
 
 ## 目标
 
@@ -36,12 +36,12 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    Origin["Origin<br/>RouterWrapper"] -->|"(target, n)"| Router["Router<br/>stage_mode=serial"]
+    Origin["Origin<br/>sleep_1"] -->|"n"| Router["Router<br/>router=router_even"]
     Router -->|偶数 n % 2 == 0| StageA["StageA<br/>thread | 2 workers"]
     Router -->|奇数 n % 2 != 0| StageB["StageB<br/>thread | 2 workers"]
 ```
 
-路由逻辑：`Origin` 阶段的 `RouterWrapper` 根据输入 `n` 的奇偶性生成 `(target, n)` 元组，`Router` 根据 `target` 字段将任务分发到 `StageA`（偶数）或 `StageB`（奇数）。
+路由逻辑：`Origin` 阶段只原样产出输入整数，`TaskRouter` 持有 `router_even(n) -> str`，在 `_route()` 中根据奇偶性选择 `StageA`（偶数）或 `StageB`（奇数），再把原始任务继续分发下去。
 
 ## 关键配置
 
@@ -86,13 +86,13 @@ python demo/demo_stages.py
 
 ### `demo_router_0`（奇偶路由）
 
-Origin 根据输入奇偶性生成 `(target, n)`，Router 分发到 StageA（偶数）或 StageB（奇数）：
+Origin 只产生原始整数，Router 在内部根据奇偶性把任务分发到 StageA（偶数）或 StageB（奇数）：
 
 ```
-[Origin] Input: 0 -> RouterWrapper(0) -> ('stage_a', 0)
-[Origin] Input: 1 -> RouterWrapper(1) -> ('stage_b', 1)
-[Router] Routing 0 to stage_a
-[Router] Routing 1 to stage_b
+[Origin] Input: 0 -> sleep_1(0) -> 0
+[Origin] Input: 1 -> sleep_1(1) -> 1
+[Router] router_even(0) -> StageA
+[Router] router_even(1) -> StageB
 [StageA] Received: 0
 [StageB] Received: 1
 ...
