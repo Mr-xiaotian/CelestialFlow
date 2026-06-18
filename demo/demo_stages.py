@@ -76,7 +76,7 @@ def demo_splitter_0() -> None:
 
     graph.set_graph_mode("thread", "thread")
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(ctree_client)
+    # graph.set_ctree(ctree_client)
 
     # 运行入口：从 GenURLs 注入初始种子任务，观察 split 与回环效果。
     graph.start_graph(
@@ -114,7 +114,6 @@ def demo_router_0() -> None:
     # 阶段定义：Origin 只生成任务本身，Router 负责按规则选择下游并分发。
     a_name = "StageA"
     b_name = "StageB"
-    
 
     source_stage = TaskStage(
         "Origin",

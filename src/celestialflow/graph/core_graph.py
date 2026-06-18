@@ -96,12 +96,6 @@ class TaskGraph:
         self.set_reporter()
         self.set_ctree(LocalEventClient())
 
-        self._init_env()
-
-    def _init_env(self) -> None:
-        """
-        初始化环境
-        """
         self._init_state()
         self._init_spout()
         self._init_inlet()
@@ -250,11 +244,15 @@ class TaskGraph:
 
     def set_ctree(self, ctree_client: EventClient) -> None:
         """
-        设置本地/空事件客户端。
+        设置任务图共享的事件客户端。
 
         :param ctree_client: 事件客户端实例
         """
         self.ctree_client = ctree_client
+        if not hasattr(self, "stage_dict"):
+            return
+        for stage in self.stage_dict.values():
+            stage.set_ctree(ctree_client)
 
     def set_graph_mode(self, stage_mode: str, execution_mode: str) -> None:
         """

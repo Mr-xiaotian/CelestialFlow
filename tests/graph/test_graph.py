@@ -8,6 +8,7 @@ from celestialflow import (
     TaskStage,
 )
 from celestialflow.persistence.util_sqlite import append_records
+from celestialflow.runtime.util_event import LocalEventClient
 from celestialflow.runtime.util_errors import RuntimeStateError
 
 
@@ -72,6 +73,20 @@ def add_offset_10(x: int) -> int:
 # TaskGraph 基础测试
 # =========================
 class TestTaskGraphBasic:
+    def test_set_ctree_updates_existing_stages(self):
+        """先 set_stages 再 set_ctree 时，已有 stage 也应共享同一事件客户端。"""
+        stage1 = TaskStage("s1", add_one, execution_mode="serial")
+        stage2 = TaskStage("s2", double, execution_mode="serial")
+        graph = TaskGraph("test_set_ctree_updates_existing_stages")
+        graph.set_stages(stages=[stage1, stage2])
+
+        ctree_client = LocalEventClient()
+        graph.set_ctree(ctree_client)
+
+        assert graph.ctree_client is ctree_client
+        assert stage1.ctree_client is ctree_client
+        assert stage2.ctree_client is ctree_client
+
     def test_graph_dag_two_nodes(self):
         """简单 DAG：两个节点串行，结果正确传递"""
         stage1 = TaskStage("s1", add_one, execution_mode="serial")
