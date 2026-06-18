@@ -71,7 +71,6 @@ class TaskWebServer:
             "source_nodes": [],
         }
         self.analysis_store: dict[str, Any] = {}
-        self.summary_store: dict[str, Any] = {}
         self.injection_tasks: dict[str, list[Any]] = {}  # 存储前端注入任务
         self.current_graph_id: str = ""
         fd, records_db_path = tempfile.mkstemp(
@@ -98,7 +97,6 @@ class TaskWebServer:
             "structure": 0,
             "errors": 0,
             "analysis": 0,
-            "summary": 0,
         }
 
         # 加载配置
@@ -146,7 +144,7 @@ class TaskWebServer:
         """
         同步 server 当前持有的 graph 上下文。
 
-        当传入的 ``graph_id`` 为空时不做任何事；当其与当前 graph 不一致时，
+        当传入的 ``graph_id`` 与当前 graph 不一致时，
         server 会切换到新的 graph，并清空所有 graph 级缓存。
 
         :param graph_id: reporter 当前任务图实例的唯一标识
@@ -156,11 +154,6 @@ class TaskWebServer:
         with self.graph_context_lock:
             if self.current_graph_id == graph_id:
                 return True
-            if not graph_id:
-                return False
-            if not self.current_graph_id:
-                self.current_graph_id = graph_id
-                return False
             self.current_graph_id = graph_id
             self._reset_graph_scoped_stores()
             return False
@@ -277,14 +270,14 @@ class TaskWebServer:
         with self.errors_lock:
             return self.store_revs["errors"], load_records(self.records_db_path)
 
-    def get_server_state(self, graph_id: str = "") -> dict[str, Any]:
+    def get_server_state(self, graph_id: str) -> dict[str, Any]:
         """
         读取 reporter 同步决策所需的服务端状态。
 
         如果调用方传入 ``graph_id``，server 会先同步 graph 上下文，再返回
         当前 graph 对应的结构、分析和错误缓存摘要。
 
-        :param graph_id: reporter 当前任务图实例的唯一标识，默认空字符串
+        :param graph_id: reporter 当前任务图实例的唯一标识
         :return: 服务端同步状态摘要字典
         :rtype: dict[str, Any]
         """
