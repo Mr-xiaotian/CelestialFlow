@@ -182,8 +182,8 @@ def test_reporter_pushes_errors_via_push_errors_endpoint_only(tmp_path) -> None:
             "error_type": "ValueError",
             "error_message": "bad value",
             "error_ts": 1.0,
-            "task": {"value": 1},
-            "result": None,
+            "task_json": {"value": 1},
+            "result_json": None,
         }
     ]
 

@@ -118,11 +118,11 @@ class TestSpliteUtils:
 
         assert len(records) == 2
         assert records[0]["id"] == 1
-        assert records[0]["task"] == {"id": 1, "label": "TaskOne"}
-        assert records[0]["result"] is None
+        assert records[0]["task_json"] == {"id": 1, "label": "TaskOne"}
+        assert records[0]["result_json"] is None
         assert records[1]["id"] == 2
-        assert records[1]["task"] == ["A", "B"]
-        assert records[1]["result"] is None
+        assert records[1]["task_json"] == ["A", "B"]
+        assert records[1]["result_json"] is None
 
     def test_append_and_query_records(self, sqlite_path, sample_errors):
         """测试追加写入以及分页、筛选、排序查询。"""
@@ -152,7 +152,7 @@ class TestSpliteUtils:
         assert total == 1
         assert total_pages == 1
         assert page_items[0]["event_id"] == 2
-        assert page_items[0]["task"] == ["A", "B"]
+        assert page_items[0]["task_json"] == ["A", "B"]
 
     def test_clear_records(self, sqlite_path, sample_errors):
         """测试直接清空 records 表。"""
@@ -281,7 +281,7 @@ class TestSpliteUtils:
         assert list(grouped.keys()) == ["s1"]
         assert [item["event_id"] for item in grouped["s1"]] == [1, 3]
         assert grouped["s1"][0]["error_type"] == "ValueError"
-        assert grouped["s1"][1]["task"] == {"value": 3}
+        assert grouped["s1"][1]["task_json"] == {"value": 3}
 
     def test_append_records_skips_duplicate_event_ids(self, sqlite_path, sample_errors):
         """测试追加写入会跳过已存在的 event_id，保证重复同步幂等。"""
@@ -354,8 +354,8 @@ class TestSpliteUtils:
         assert len(success_records) == 1
         assert success_records[0]["event_id"] == 8
         assert success_records[0]["status"] == "success"
-        assert success_records[0]["result"] == {"ok": True, "value": [1, 2, 3]}
-        assert success_records[0]["task"] == {"value": 8}
+        assert success_records[0]["result_json"] == {"ok": True, "value": [1, 2, 3]}
+        assert success_records[0]["task_json"] == {"value": 8}
 
     def test_update_record_event_id_by_event_id(self, sqlite_path):
         """测试按 event_id 迁移记录的 event_id。"""

@@ -381,7 +381,7 @@ class TaskGraph:
 
         self.start_graph(
             {
-                stage_name: [record["task"] for record in records]
+                stage_name: [record["task_json"] for record in records]
                 for stage_name, records in grouped_records.items()
             },
             put_termination_signal=put_termination_signal,

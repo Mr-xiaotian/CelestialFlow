@@ -646,7 +646,7 @@ class TaskExecutor[T, R]:
         """
         grouped_records = load_records_grouped_by_stage(db_path, status)
         records = grouped_records.get(self.get_name(), [])
-        executor_tasks = [cast(T, record["task"]) for record in records]
+        executor_tasks = [cast(T, record["task_json"]) for record in records]
 
         self.start(executor_tasks)
 
