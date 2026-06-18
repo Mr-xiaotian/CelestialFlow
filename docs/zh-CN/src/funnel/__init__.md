@@ -1,8 +1,10 @@
 # Funnel 模块
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 Funnel 模块提供了 CelestialFlow 的队列通信基础设施，是 Persistence 模块中 `LogSpout`/`LogInlet`、`FailSpout`/`FailInlet` 和 `SuccessSpout` 的底层基类。
+
+它不只能作为底层基建使用，也可以脱离 `TaskGraph` / `TaskStage` 单独搭建轻量的生产者-消费者管道。一个最小可运行示例见 [demo_funnel.md](file:///d:/Project/CelestialFlow/docs/zh-CN/demo/demo_funnel.md)。
 
 ## 导出符号
 
