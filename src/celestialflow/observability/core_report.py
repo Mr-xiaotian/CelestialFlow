@@ -4,7 +4,6 @@ from typing import Any
 
 import requests
 
-from ..graph.util_types import ReporterTaskGraph
 from ..persistence import LogInlet
 from ..persistence.util_sqlite import (
     load_records,
@@ -12,6 +11,7 @@ from ..persistence.util_sqlite import (
 )
 from ..runtime.util_errors import ReporterError
 from ..runtime.util_types import TERMINATION_SIGNAL
+from .util_types import ReporterTaskGraph
 
 
 class TaskReporter:

@@ -1,4 +1,4 @@
-# graph/util_types.py
+# observability/util_types.py
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping

@@ -11,15 +11,12 @@ from typing import Any, cast
 
 from celestialtree import Client as CelestialTreeClient
 from celestialtree import NullClient as NullCelestialTreeClient
-from celestialtree import (
-    format_descendants_forest,
-)
 from networkx import DiGraph, is_directed_acyclic_graph
 
 from ..observability import NullTaskReporter, TaskReporter
 from ..persistence import FallbackInlet, FallbackSpout, LogInlet, LogSpout
 from ..persistence.util_sqlite import load_records_grouped_by_stage
-from ..runtime.util_constant import LEVEL_DICT, STAGE_STYLE
+from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import (
     CelestialTreeConnectionError,
     DuplicateNodeError,
@@ -685,22 +682,6 @@ class TaskGraph:
         if self.fallback_spout.db_path is None:
             return Path()
         return Path(self.fallback_spout.db_path).resolve()
-
-    def get_stage_input_trace(self, stage_name: str) -> str:
-        """
-        获取任务节点的输入依赖关系树
-
-        :param stage_name: 节点唯一名称
-        :return: 格式化的依赖关系树字符串
-        """
-        if not self.use_ctree:
-            return ""
-
-        input_ids: set[int] = self.input_ids[stage_name]
-        descendants = self.ctree_client.descendants_batch(list(input_ids), "meta")
-        if not descendants:
-            return ""
-        return format_descendants_forest(descendants, STAGE_STYLE)
 
     def get_source_stages(self) -> list[AnyTaskStage]:
         """
