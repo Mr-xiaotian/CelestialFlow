@@ -1,4 +1,4 @@
-# demo_redis.py 演示说明
+﻿# demo_redis.py 演示说明
 
 > 📅 最后更新日期: 2026/06/17
 
@@ -327,7 +327,7 @@ REPORT_PORT=8000
 - 按约定结构执行
 - 将结果写回对应的 output hash
 
-远程`go-worker`项目详细可见[other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/other/go_worker.md)
+远程`go-worker`项目详细可见[other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
 
 ## 运行方式
 
@@ -338,7 +338,7 @@ python demo/demo_redis.py
 # 如需其他场景，修改文件底部 main 中的入口函数
 ```
 
-也可以直接打开 [demo_redis.py](file:///d:/Project/CelestialFlow/demo/demo_redis.py)，切换最后的 `if __name__ == "__main__":` 入口。
+也可以直接打开 [demo_redis.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/demo/demo_redis.py)，切换最后的 `if __name__ == "__main__":` 入口。
 
 ## 可能出现的问题
 
@@ -364,3 +364,4 @@ python demo/demo_redis.py
 - `python-dotenv`
 - `redis`
 - 外部服务：Redis、远端 Worker（可选）、Reporter（可选）
+

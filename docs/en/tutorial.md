@@ -1,4 +1,4 @@
-# Tutorial: Building an Image Crawler
+﻿# Tutorial: Building an Image Crawler
 
 > 📅 Last Updated: 2026/05/09
 
@@ -504,4 +504,5 @@ This tutorial demonstrated the complete workflow of using CelestialFlow:
 
 - Try using `TaskRouter` for conditional dispatching
 - Explore `TaskRedisTransport` for cross-language collaboration
-- Read other [API References](reference/stage/core_executor.md) to learn more features
+- Read other [API References](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/src/stage/core_executor.md) to learn more features
+

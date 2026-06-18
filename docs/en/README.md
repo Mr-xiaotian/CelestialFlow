@@ -1,4 +1,4 @@
-# CelestialFlow — A Lightweight, Parallel, Graph-Based Python Task Scheduling Framework
+﻿# CelestialFlow — A Lightweight, Parallel, Graph-Based Python Task Scheduling Framework
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
@@ -263,7 +263,7 @@ Please ensure your environment can properly install these dependencies (`pip ins
 
 For more historical logs, see:
 
-[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/change_log.md )
+[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/change_log.md)
 
 ## Star History
 
@@ -272,9 +272,11 @@ If you're interested in the project, a star is welcome. If you have questions or
 ![Star History Chart](https://api.star-history.com/svg?repos=Mr-xiaotian/CelestialFlow&type=Date)
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/LICENSE) file for details.
 
 ## Author
 Author: Mr-xiaotian
 Email: mingxiaomingtian@gmail.com
 Project Link: [https://github.com/Mr-xiaotian/CelestialFlow](https://github.com/Mr-xiaotian/CelestialFlow)
+
+

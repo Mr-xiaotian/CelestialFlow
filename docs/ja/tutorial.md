@@ -1,4 +1,4 @@
-# チュートリアル（Tutorial）：画像クローラーの構築
+﻿# チュートリアル（Tutorial）：画像クローラーの構築
 
 > 📅 最終更新日: 2026/05/09
 
@@ -504,4 +504,5 @@ graph.put_stage_queue({
 
 - `TaskRouter` を使用した条件分岐を試す
 - `TaskRedisTransport` を使用したクロス言語連携を探る
-- 他の [API リファレンス](reference/stage/core_executor.md) を読んでさらに多くの機能を学ぶ
+- 他の [API リファレンス](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/stage/core_executor.md) を読んでさらに多くの機能を学ぶ
+

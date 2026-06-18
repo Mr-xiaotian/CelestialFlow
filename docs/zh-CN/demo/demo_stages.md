@@ -54,7 +54,7 @@ flowchart LR
 
 1. **长耗时**：`demo_splitter_0` 中各阶段含 4-6 秒随机 sleep，完整执行可能超过 1 分钟。
 2. **无断言**：演示脚本，不验证结果正确性。
-3. **Redis 示例迁移**：原先的 `demo_redis_ack_*` 与 `demo_redis_source_0` 已迁移到 [demo_redis.md](file:///d:/Project/CelestialFlow/docs/zh-CN/demo/demo_redis.md)。
+3. **Redis 示例迁移**：原先的 `demo_redis_ack_*` 与 `demo_redis_source_0` 已迁移到 [demo_redis.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/demo_redis.md)。
 
 ## 运行方式
 

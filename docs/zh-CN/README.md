@@ -1,4 +1,4 @@
-# CelestialFlow ——一个轻量级、可并行、基于图结构的 Python 任务调度框架
+﻿# CelestialFlow ——一个轻量级、可并行、基于图结构的 Python 任务调度框架
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
@@ -294,7 +294,7 @@ flowchart TD
 
 更多过往日志可看:
 
-[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/change_log.md )
+[change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/change_log.md)
 
 ## Star 历史趋势（Star History）
 
@@ -303,9 +303,11 @@ flowchart TD
 ![Star History Chart](https://api.star-history.com/svg?repos=Mr-xiaotian/CelestialFlow&type=Date)
 
 ## 许可（License）
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/LICENSE) file for details.
 
 ## 作者（Author）
 Author: Mr-xiaotian
 Email: mingxiaomingtian@gmail.com
 Project Link: [https://github.com/Mr-xiaotian/CelestialFlow](https://github.com/Mr-xiaotian/CelestialFlow)
+
+

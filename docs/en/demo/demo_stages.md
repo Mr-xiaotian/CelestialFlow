@@ -85,7 +85,7 @@ Routing logic: The `Origin` stage's `RouterWrapper` generates `(target, n)` tupl
 ## Potential Issues
 
 1. **Redis dependency**: The `demo_redis_*` series requires an available Redis service (configure `REDIS_HOST`, `REDIS_PASSWORD` in `.env`).
-2. **Go Worker setup**: Before using external Workers, complete the [setup](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/other/go_worker.md#前期设置).
+2. **Go Worker setup**: Before using external Workers, complete the [setup](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/other/go_worker.md).
 3. **Hardcoded paths**: The download URL in `demo_redis_ack_2` is a sample URL that may fail in actual network environments and paths.
 4. **Long runtime**: Stages in `demo_splitter_0` contain 4-6 seconds of random sleep; full execution may exceed 1 minute.
 5. **No assertions**: Demo script; does not verify result correctness.
@@ -143,7 +143,7 @@ Python local computation and Go Worker external computation execute in parallel,
 ...
 ```
 
-> Requires Redis and Go Worker to be started beforehand (see [setup](#)). Will not stop automatically; manual Ctrl+C required to terminate.
+> Requires Redis and Go Worker to be started beforehand (see [setup](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/other/go_worker.md)). Will not stop automatically; manual Ctrl+C required to terminate.
 
 ### `demo_splitter_1` (Large batch splitting)
 
@@ -155,3 +155,4 @@ Wraps `range(100000)` as a list fed into Splitter, outputting individually to do
 - `demo_utils`
 - `python-dotenv`
 - External services: Redis, CelestialTree (optional), Reporter (optional), Go Worker (optional)
+

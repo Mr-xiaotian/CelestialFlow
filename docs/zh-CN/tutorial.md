@@ -1,4 +1,4 @@
-# 教程（Tutorial）：构建一个图片爬虫
+﻿# 教程（Tutorial）：构建一个图片爬虫
 
 > 📅 最后更新日期: 2026/05/09
 
@@ -504,4 +504,5 @@ graph.put_stage_queue({
 
 - 尝试使用 `TaskRouter` 实现条件分发
 - 参考 `demo/demo_redis.py`，了解如何用普通 `TaskStage` 接入 Redis / Go Worker 协作
-- 阅读其他 [API 参考](reference/stage/core_executor.md) 了解更多功能
+- 阅读其他 [API 参考](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_executor.md) 了解更多功能
+

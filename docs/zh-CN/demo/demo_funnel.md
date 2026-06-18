@@ -98,9 +98,9 @@ Handled records: 3
 ## 与其他模块的关系
 
 - 如果你想看 `funnel` 作为框架底层能力如何被复用，可继续阅读：
-  - [__init__.md](file:///d:/Project/CelestialFlow/docs/zh-CN/src/funnel/__init__.md)
-  - [core_inlet.md](file:///d:/Project/CelestialFlow/docs/zh-CN/src/funnel/core_inlet.md)
-  - [core_spout.md](file:///d:/Project/CelestialFlow/docs/zh-CN/src/funnel/core_spout.md)
+  - [__init__.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/__init__.md)
+  - [core_inlet.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/core_inlet.md)
+  - [core_spout.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/core_spout.md)
 - 如果你想看它在框架内的典型落地，可参考：
   - `persistence` 里的 `LogSpout` / `LogInlet`
   - `FailSpout` / `FailInlet`

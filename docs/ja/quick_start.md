@@ -1,4 +1,4 @@
-# クイックスタート（Quick Start）
+﻿# クイックスタート（Quick Start）
 
 > 📅 最終更新日: 2026/04/22
 
@@ -80,7 +80,7 @@ python src/celestialflow/task_web.py --port 5005
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 ```
 
-[ログ](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/core_log.md)にいくつかの `WARNING` が表示されます。これは TaskReporter が TaskWeb に接続できないことを示していますが、使用には影響しません。
+[ログ](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/persistence/core_log.md)にいくつかの `WARNING` が表示されます。これは TaskReporter が TaskWeb に接続できないことを示していますが、使用には影響しません。
 
 ```log
 2025-12-10 08:57:13 WARNING [Reporter] Task injection fetch failed: ConnectTimeout
@@ -106,3 +106,4 @@ pytest tests/test_stage.py
 - `tests/test_stage.py` には Stage ノード関連のテストが含まれます：モード検証、ラベル生成、シリアライズチェックなど。
 
 コード実行中は Web 監視ページで実行状況を確認できます。
+

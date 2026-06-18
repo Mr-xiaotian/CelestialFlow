@@ -1,4 +1,4 @@
-# Quick Start
+﻿# Quick Start
 
 > 📅 Last Updated: 2026/04/22
 
@@ -80,7 +80,7 @@ Note: If you have not started the Web window but have set:
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 ```
 
-then the [logs](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/core_log.md) will contain some `WARNING` messages. This is TaskReporter indicating that it cannot connect to TaskWeb, but it does not affect usage.
+then the [logs](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/src/persistence/core_log.md) will contain some `WARNING` messages. This is TaskReporter indicating that it cannot connect to TaskWeb, but it does not affect usage.
 
 ```log
 2025-12-10 08:57:13 WARNING [Reporter] Task injection fetch failed: ConnectTimeout
@@ -106,3 +106,4 @@ pytest tests/test_stage.py
 - `tests/test_stage.py` contains Stage-node-related tests: mode validation, tag generation, serialization checks, etc.
 
 During execution, you can monitor the running status through the Web monitoring page.
+

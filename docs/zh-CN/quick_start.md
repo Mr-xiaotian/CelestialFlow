@@ -1,4 +1,4 @@
-# 快速开始（Quick Start）
+﻿# 快速开始（Quick Start）
 
 > 📅 最后更新日期: 2026/04/22
 
@@ -80,7 +80,7 @@ python src/celestialflow/task_web.py --port 5005
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 ```
 
-那么[日志](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/reference/persistence/core_log.md)中会有一些`WARNING`，那是 TaskReporter 在提示无法连接 TaskWeb。但这并不影响使用。
+那么[日志](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md)中会有一些`WARNING`，那是 TaskReporter 在提示无法连接 TaskWeb。但这并不影响使用。
 
 ```log
 2025-12-10 08:57:13 WARNING [Reporter] Task injection fetch failed: ConnectTimeout
