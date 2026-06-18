@@ -215,15 +215,15 @@ flowchart TD
 
 你可以继续运行更多的演示代码，这里记录了各个演示文件与其中的演示函数说明：
 
-[🎮demo/](https://github.com/Mr-xiaotian/CelestialFlow/tree/main/docs/zh-CN/demo)
+[🎮demo/ 总览](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/README.md)
 
-​如果你想运行测试代码, 可以先查看如下文档内容:
+如果你想运行测试代码，可以先查看如下文档内容：
 
-[🧪tests/](https://github.com/Mr-xiaotian/CelestialFlow/tree/main/docs/zh-CN/tests)
+[🧪tests/ 总览](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/tests/README.md)
 
-如果你想查看bench内容, 这里的数据成为框架中部分设计的决策依据:
+如果你想查看 bench 内容，这些数据也是框架中部分设计取舍的依据：
 
-[⚡bench/](https://github.com/Mr-xiaotian/CelestialFlow/tree/main/docs/zh-CN/bench)
+[⚡bench/ 总览](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/bench/README.md)
 
 ## 环境要求（Requirements）
 
