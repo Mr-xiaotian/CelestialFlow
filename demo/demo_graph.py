@@ -12,6 +12,8 @@ from demo_utils import (
     transform_normalize,
 )
 
+from celestialtree import Client as CelestialTreeClient
+
 from celestialflow import (
     TaskGraph,
     TaskStage,
@@ -28,6 +30,12 @@ redis_password: str = os.getenv("REDIS_PASSWORD", "")
 ctree_host: str = os.getenv("CTREE_HOST", "")
 ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
 ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
+
+ctree_client = CelestialTreeClient(
+    host=ctree_host,
+    http_port=ctree_http_port,
+    grpc_port=ctree_grpc_port,
+)
 
 
 def demo_etl_fan_out_fan_in() -> None:
@@ -72,7 +80,8 @@ def demo_etl_fan_out_fan_in() -> None:
     )
 
     graph = TaskGraph("demo_etl_fan_out_fan_in", schedule_mode="eager", log_level="INFO")
-    # graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_ctree(ctree_client)
     graph.set_stages(
         stages=[extract, normalize, enrich, load],
     )
@@ -110,7 +119,8 @@ def demo_async_staged_pipeline() -> None:
     )
 
     graph = TaskGraph("demo_async_staged_pipeline", schedule_mode="staged", log_level="INFO")
-    # graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_ctree(ctree_client)
     graph.set_stages(
         stages=[stage_double, stage_to_str],
     )

@@ -10,6 +10,8 @@ from demo_utils import (
     square,
 )
 
+from celestialtree import Client as CelestialTreeClient
+
 from celestialflow import (
     TaskChain,
     TaskComplete,
@@ -27,8 +29,14 @@ report_host: str = os.getenv("REPORT_HOST", "")
 report_port: int = int(os.getenv("REPORT_PORT", "0"))
 
 ctree_host: str = os.getenv("CTREE_HOST", "")
-ctree_http_host: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
+ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
 ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
+
+ctree_client = CelestialTreeClient(
+    host=ctree_host,
+    http_port=ctree_http_port,
+    grpc_port=ctree_grpc_port,
+)
 
 
 # ========有向无环图(DAG)========
@@ -47,9 +55,7 @@ def demo_chain() -> None:
         stage_mode="thread",
     )
     chain.set_reporter(True, host=report_host, port=report_port)
-    chain.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
+    chain.set_ctree(ctree_client)
 
     chain.start_chain(
         {
@@ -159,9 +165,7 @@ def demo_forest() -> None:
     graph.connect([stageH], [stageJ])
 
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
+    graph.set_ctree(ctree_client)
 
     # 初始任务
     init_tasks: dict[str, list[int]] = {
@@ -190,9 +194,7 @@ def demo_cross() -> None:
         schedule_mode="staged",
     )
     cross.set_reporter(True, host=report_host, port=report_port)
-    cross.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
+    cross.set_ctree(ctree_client)
 
     # 初始任务
     init_tasks = {
@@ -220,9 +222,7 @@ def demo_network() -> None:
     # 构建任务图
     cross = TaskCross("demo_network", [[A1, A2], [B1, B2, B3], [C]])
     cross.set_reporter(True, host=report_host, port=report_port)
-    cross.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
+    cross.set_ctree(ctree_client)
 
     # 初始任务（输入层）
     init_tasks = {
@@ -247,9 +247,7 @@ def demo_star() -> None:
         schedule_mode="eager",
     )
     star.set_reporter(True, host=report_host, port=report_port)
-    star.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
+    star.set_ctree(ctree_client)
 
     star.start_cross({core.get_name(): range(1, 11)})
 
@@ -268,9 +266,7 @@ def demo_fanin() -> None:
         schedule_mode="eager",
     )
     fainin.set_reporter(True, host=report_host, port=report_port)
-    fainin.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
+    fainin.set_ctree(ctree_client)
 
     fainin.start_cross(
         {
@@ -296,9 +292,7 @@ def demo_grid() -> None:
     # 2. 构建 TaskGrid 实例
     task_grid = TaskGrid("demo_grid", grid, schedule_mode="staged")
     task_grid.set_reporter(True, host=report_host, port=report_port)
-    task_grid.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
+    task_grid.set_ctree(ctree_client)
 
     # 3. 初始化任务字典，只放左上角一个任务
     init_dict: dict[str, list[int]] = {grid[0][0].get_name(): list(range(10))}
@@ -315,9 +309,7 @@ def demo_loop() -> None:
 
     loop = TaskLoop("demo_loop", [stageA, stageB, stageC])
     loop.set_reporter(True, host=report_host, port=report_port)
-    loop.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
+    loop.set_ctree(ctree_client)
 
     # 要测试的任务列表
     test_task_0 = range(1, 2)
@@ -337,9 +329,7 @@ def demo_wheel() -> None:
     # 构造 TaskCross
     wheel = TaskWheel("demo_wheel", core, [side1, side2, side3, side4])
     wheel.set_reporter(True, host=report_host, port=report_port)
-    wheel.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
+    wheel.set_ctree(ctree_client)
 
     wheel.start_wheel({core.get_name(): range(1, 11)}, True)
 
@@ -353,9 +343,7 @@ def demo_complete() -> None:
     # 构造 TaskComplete
     complete = TaskComplete("demo_complete", [n1, n2, n3])
     complete.set_reporter(True, host=report_host, port=report_port)
-    complete.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
+    complete.set_ctree(ctree_client)
 
     complete.start_complete(
         {
@@ -419,9 +407,7 @@ def demo_multi_cycle() -> None:
     graph.connect([C2], [C1])
 
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_host, grpc_port=ctree_grpc_port
-    )
+    graph.set_ctree(ctree_client)
 
     graph.start_graph({A1.get_name(): range(1, 11)}, False)
 

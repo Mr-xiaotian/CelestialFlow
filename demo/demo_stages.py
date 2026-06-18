@@ -12,6 +12,8 @@ from demo_utils import (
     sleep_1,
 )
 
+from celestialtree import Client as CelestialTreeClient
+
 from celestialflow import (
     TaskChain,
     TaskGraph,
@@ -28,6 +30,12 @@ report_port: int = int(os.getenv("REPORT_PORT", "0"))
 ctree_host: str = os.getenv("CTREE_HOST", "")
 ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
 ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
+
+ctree_client = CelestialTreeClient(
+    host=ctree_host,
+    http_port=ctree_http_port,
+    grpc_port=ctree_grpc_port,
+)
 
 
 def demo_splitter_0() -> None:
@@ -68,9 +76,7 @@ def demo_splitter_0() -> None:
 
     graph.set_graph_mode("thread", "thread")
     graph.set_reporter(True, host=report_host, port=report_port)
-    graph.set_ctree(
-        True, host=ctree_host, http_port=ctree_http_port, grpc_port=ctree_grpc_port
-    )
+    graph.set_ctree(ctree_client)
 
     # 运行入口：从 GenURLs 注入初始种子任务，观察 split 与回环效果。
     graph.start_graph(
@@ -94,13 +100,7 @@ def demo_splitter_1() -> None:
         log_level="INFO",
     )
     chain.set_reporter(True, host=report_host, port=report_port)
-    chain.set_ctree(
-        True,
-        host=ctree_host,
-        http_port=ctree_http_port,
-        grpc_port=ctree_grpc_port,
-        transport="grpc",
-    )
+    chain.set_ctree(ctree_client)
 
     # 运行入口：把 range(100_000) 包成单个任务送进 Splitter。
     chain.start_chain(
@@ -152,6 +152,7 @@ def demo_router_0() -> None:
     graph.connect([router], [stage_a, stage_b])
 
     graph.set_reporter(True, host=report_host, port=report_port)
+    # graph.set_ctree(ctree_client)
 
     # 运行入口：输入一组整数，观察 Router 按规则把奇偶任务分发到不同下游。
     graph.start_graph(
@@ -162,6 +163,6 @@ def demo_router_0() -> None:
 
 
 if __name__ == "__main__":
-    # demo_splitter_0()
-    demo_router_0()
+    demo_splitter_0()
+    # demo_router_0()
     pass

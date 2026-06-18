@@ -4,6 +4,8 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from celestialtree import Client as CelestialTreeClient
+
 from celestialflow import (
     TaskChain,
     TaskSplitter,
@@ -34,7 +36,7 @@ def bench_no_ctree() -> None:
         stage_mode="thread",
         log_level="INFO",
     )
-    chain.set_ctree(False)
+    # chain.set_ctree(False)
 
     start_time = time.perf_counter()
     chain.start_chain(
@@ -59,13 +61,13 @@ def bench_http_ctree() -> None:
         stage_mode="thread",
         log_level="INFO",
     )
-    chain.set_ctree(
-        True,
+    http_ctree_client = CelestialTreeClient(
         host=ctree_host,
         http_port=ctree_http_port,
         grpc_port=ctree_grpc_port,
         transport="http",
     )
+    chain.set_ctree(http_ctree_client)
 
     start_time = time.perf_counter()
     chain.start_chain(
@@ -90,13 +92,13 @@ def bench_grpc_ctree() -> None:
         stage_mode="thread",
         log_level="INFO",
     )
-    chain.set_ctree(
-        True,
+    grpc_ctree_client = CelestialTreeClient(
         host=ctree_host,
         http_port=ctree_http_port,
         grpc_port=ctree_grpc_port,
         transport="grpc",
     )
+    chain.set_ctree(grpc_ctree_client)
 
     start_time = time.perf_counter()
     chain.start_chain(
