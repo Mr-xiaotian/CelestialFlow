@@ -4,41 +4,7 @@
 
 ## 文件清单
 
-### TypeScript (13 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/web/static/ts/dashboard_analysis.ts` | `docs/zh-CN/src/web/static/ts/dashboard_analysis.md` |
-| 2 | `src/celestialflow/web/static/ts/dashboard_history.ts` | `docs/zh-CN/src/web/static/ts/dashboard_history.md` |
-| 3 | `src/celestialflow/web/static/ts/dashboard_statuses.ts` | `docs/zh-CN/src/web/static/ts/dashboard_statuses.md` |
-| 4 | `src/celestialflow/web/static/ts/dashboard_structure.ts` | `docs/zh-CN/src/web/static/ts/dashboard_structure.md` |
-| 5 | `src/celestialflow/web/static/ts/dashboard_summary.ts` | `docs/zh-CN/src/web/static/ts/dashboard_summary.md` |
-| 6 | `src/celestialflow/web/static/ts/errors.ts` | `docs/zh-CN/src/web/static/ts/errors.md` |
-| 7 | `src/celestialflow/web/static/ts/globals.d.ts` | `docs/zh-CN/src/web/static/ts/globals.d.md` |
-| 8 | `src/celestialflow/web/static/ts/i18n.ts` | `docs/zh-CN/src/web/static/ts/i18n.md` |
-| 9 | `src/celestialflow/web/static/ts/injection.ts` | `docs/zh-CN/src/web/static/ts/injection.md` |
-| 10 | `src/celestialflow/web/static/ts/layout_editor.ts` | `docs/zh-CN/src/web/static/ts/layout_editor.md` |
-| 11 | `src/celestialflow/web/static/ts/main.ts` | `docs/zh-CN/src/web/static/ts/main.md` |
-| 12 | `src/celestialflow/web/static/ts/utils.ts` | `docs/zh-CN/src/web/static/ts/utils.md` |
-| 13 | `src/celestialflow/web/static/ts/web_config.ts` | `docs/zh-CN/src/web/static/ts/web_config.md` |
-
-### CSS (13 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/web/static/css/_colors.css` | `docs/zh-CN/src/web/static/css/_colors.md` |
-| 2 | `src/celestialflow/web/static/css/base.css` | `docs/zh-CN/src/web/static/css/base.md` |
-| 3 | `src/celestialflow/web/static/css/dashboard.css` | `docs/zh-CN/src/web/static/css/dashboard.md` |
-| 4 | `src/celestialflow/web/static/css/dashboard_analysis.css` | `docs/zh-CN/src/web/static/css/dashboard_analysis.md` |
-| 5 | `src/celestialflow/web/static/css/dashboard_history.css` | `docs/zh-CN/src/web/static/css/dashboard_history.md` |
-| 6 | `src/celestialflow/web/static/css/dashboard_statuses.css` | `docs/zh-CN/src/web/static/css/dashboard_statuses.md` |
-| 7 | `src/celestialflow/web/static/css/dashboard_structure.css` | `docs/zh-CN/src/web/static/css/dashboard_structure.md` |
-| 8 | `src/celestialflow/web/static/css/dashboard_summary.css` | `docs/zh-CN/src/web/static/css/dashboard_summary.md` |
-| 9 | `src/celestialflow/web/static/css/errors.css` | `docs/zh-CN/src/web/static/css/errors.md` |
-| 10 | `src/celestialflow/web/static/css/injection_editor.css` | `docs/zh-CN/src/web/static/css/injection_editor.md` |
-| 11 | `src/celestialflow/web/static/css/injection_layout.css` | `docs/zh-CN/src/web/static/css/injection_layout.md` |
-| 12 | `src/celestialflow/web/static/css/injection_nodes.css` | `docs/zh-CN/src/web/static/css/injection_nodes.md` |
-| 13 | `src/celestialflow/web/static/css/injection_preview.css` | `docs/zh-CN/src/web/static/css/injection_preview.md` |
+> 具体的代码→文档对照清单由主 agent 在委派时提供。子代理以主 agent 提供的清单为准。
 
 ## 区域特化陷阱（高频错误）
 

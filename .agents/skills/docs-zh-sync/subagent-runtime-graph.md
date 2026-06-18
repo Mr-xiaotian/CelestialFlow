@@ -4,30 +4,7 @@
 
 ## 文件清单
 
-### runtime (10 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/runtime/__init__.py` | `docs/zh-CN/src/runtime/__init__.md` |
-| 2 | `src/celestialflow/runtime/core_dispatch.py` | `docs/zh-CN/src/runtime/core_dispatch.md` |
-| 3 | `src/celestialflow/runtime/core_envelope.py` | `docs/zh-CN/src/runtime/core_envelope.md` |
-| 4 | `src/celestialflow/runtime/core_metrics.py` | `docs/zh-CN/src/runtime/core_metrics.md` |
-| 5 | `src/celestialflow/runtime/core_queue.py` | `docs/zh-CN/src/runtime/core_queue.md` |
-| 6 | `src/celestialflow/runtime/util_constant.py` | `docs/zh-CN/src/runtime/util_constant.md` |
-| 7 | `src/celestialflow/runtime/util_errors.py` | `docs/zh-CN/src/runtime/util_errors.md` |
-| 8 | `src/celestialflow/runtime/util_estimators.py` | `docs/zh-CN/src/runtime/util_estimators.md` |
-| 9 | `src/celestialflow/runtime/util_hash.py` | `docs/zh-CN/src/runtime/util_hash.md` |
-| 10 | `src/celestialflow/runtime/util_types.py` | `docs/zh-CN/src/runtime/util_types.md` |
-
-### graph (5 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/graph/__init__.py` | `docs/zh-CN/src/graph/__init__.md` |
-| 2 | `src/celestialflow/graph/core_graph.py` | `docs/zh-CN/src/graph/core_graph.md` |
-| 3 | `src/celestialflow/graph/core_structure.py` | `docs/zh-CN/src/graph/core_structure.md` |
-| 4 | `src/celestialflow/graph/util_analysis.py` | `docs/zh-CN/src/graph/util_analysis.md` |
-| 5 | `src/celestialflow/graph/util_serialize.py` | `docs/zh-CN/src/graph/util_serialize.md` |
+> 具体的代码→文档对照清单由主 agent 在委派时提供。子代理以主 agent 提供的清单为准。
 
 ## 区域特化陷阱（高频错误）
 

@@ -4,46 +4,7 @@
 
 ## 文件清单
 
-### 包根入口 (1 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/__init__.py` | `docs/zh-CN/src/__init__.md` |
-
-### utils (5 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/utils/__init__.py` | `docs/zh-CN/src/utils/__init__.md` |
-| 2 | `src/celestialflow/utils/util_benchmark.py` | `docs/zh-CN/src/utils/util_benchmark.md` |
-| 3 | `src/celestialflow/utils/util_clone.py` | `docs/zh-CN/src/utils/util_clone.md` |
-| 4 | `src/celestialflow/utils/util_collections.py` | `docs/zh-CN/src/utils/util_collections.md` |
-| 5 | `src/celestialflow/utils/util_format.py` | `docs/zh-CN/src/utils/util_format.md` |
-
-### web Python 核心 (7 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/web/__init__.py` | `docs/zh-CN/src/web/__init__.md` |
-| 2 | `src/celestialflow/web/core_server.py` | `docs/zh-CN/src/web/core_server.md` |
-| 3 | `src/celestialflow/web/util_cal.py` | `docs/zh-CN/src/web/util_cal.md` |
-| 4 | `src/celestialflow/web/util_config.py` | `docs/zh-CN/src/web/util_config.md` |
-| 5 | `src/celestialflow/web/util_error.py` | `docs/zh-CN/src/web/util_error.md` |
-| 6 | `src/celestialflow/web/util_models.py` | `docs/zh-CN/src/web/util_models.md` |
-
-### web routes (3 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/web/routes/__init__.py` | `docs/zh-CN/src/web/routes/__init__.md` |
-| 2 | `src/celestialflow/web/routes/pull_routes.py` | `docs/zh-CN/src/web/routes/pull_routes.md` |
-| 3 | `src/celestialflow/web/routes/push_routes.py` | `docs/zh-CN/src/web/routes/push_routes.md` |
-
-### web templates (1 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/web/templates/index.html` | `docs/zh-CN/src/web/templates/index.md` |
+> 具体的代码→文档对照清单由主 agent 在委派时提供。子代理以主 agent 提供的清单为准。
 
 ## 区域特化陷阱（高频错误）
 

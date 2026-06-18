@@ -4,42 +4,7 @@
 
 ## 文件清单
 
-### funnel (3 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/funnel/__init__.py` | `docs/zh-CN/src/funnel/__init__.md` |
-| 2 | `src/celestialflow/funnel/core_inlet.py` | `docs/zh-CN/src/funnel/core_inlet.md` |
-| 3 | `src/celestialflow/funnel/core_spout.py` | `docs/zh-CN/src/funnel/core_spout.md` |
-
-### stage (5 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/stage/__init__.py` | `docs/zh-CN/src/stage/__init__.md` |
-| 2 | `src/celestialflow/stage/core_executor.py` | `docs/zh-CN/src/stage/core_executor.md` |
-| 3 | `src/celestialflow/stage/core_stage.py` | `docs/zh-CN/src/stage/core_stage.md` |
-| 4 | `src/celestialflow/stage/core_stages.py` | `docs/zh-CN/src/stage/core_stages.md` |
-| 5 | `src/celestialflow/stage/util_types.py` | `docs/zh-CN/src/stage/util_types.md` |
-
-### observability (4 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/observability/__init__.py` | `docs/zh-CN/src/observability/__init__.md` |
-| 2 | `src/celestialflow/observability/core_observer.py` | `docs/zh-CN/src/observability/core_observer.md` |
-| 3 | `src/celestialflow/observability/core_progress.py` | `docs/zh-CN/src/observability/core_progress.md` |
-| 4 | `src/celestialflow/observability/core_report.py` | `docs/zh-CN/src/observability/core_report.md` |
-
-### persistence (5 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `src/celestialflow/persistence/__init__.py` | `docs/zh-CN/src/persistence/__init__.md` |
-| 2 | `src/celestialflow/persistence/core_fail.py` | `docs/zh-CN/src/persistence/core_fail.md` |
-| 3 | `src/celestialflow/persistence/core_log.py` | `docs/zh-CN/src/persistence/core_log.md` |
-| 4 | `src/celestialflow/persistence/core_success.py` | `docs/zh-CN/src/persistence/core_success.md` |
-| 5 | `src/celestialflow/persistence/util_jsonl.py` | `docs/zh-CN/src/persistence/util_jsonl.md` |
+> 具体的代码→文档对照清单由主 agent 在委派时提供。子代理以主 agent 提供的清单为准。
 
 ## 区域特化陷阱（高频错误）
 

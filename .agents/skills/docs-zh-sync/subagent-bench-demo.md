@@ -4,35 +4,7 @@
 
 ## 文件清单
 
-### bench (14 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `bench/bench_datastructures.py` | `docs/zh-CN/bench/bench_datastructures.md` |
-| 2 | `bench/bench_execution_mode.py` | `docs/zh-CN/bench/bench_execution_mode.md` |
-| 3 | `bench/bench_futures_memory.py` | `docs/zh-CN/bench/bench_futures_memory.md` |
-| 4 | `bench/bench_graph_mode.py` | `docs/zh-CN/bench/bench_graph_mode.md` |
-| 5 | `bench/bench_hash.py` | `docs/zh-CN/bench/bench_hash.md` |
-| 6 | `bench/bench_hash_container.py` | `docs/zh-CN/bench/bench_hash_container.md` |
-| 7 | `bench/bench_hash_memory.py` | `docs/zh-CN/bench/bench_hash_memory.md` |
-| 8 | `bench/bench_http_grpc.py` | `docs/zh-CN/bench/bench_http_grpc.md` |
-| 9 | `bench/bench_ipc_queue.py` | `docs/zh-CN/bench/bench_ipc_queue.md` |
-| 10 | `bench/bench_mpqueue_vs_shared_memory.py` | `docs/zh-CN/bench/bench_mpqueue_vs_shared_memory.md` |
-| 11 | `bench/bench_queue.py` | `docs/zh-CN/bench/bench_queue.md` |
-| 12 | `bench/bench_requests.py` | `docs/zh-CN/bench/bench_requests.md` |
-| 13 | `bench/bench_tqdm.py` | `docs/zh-CN/bench/bench_tqdm.md` |
-| 14 | `bench/bench_utils.py` | `docs/zh-CN/bench/bench_utils.md` |
-
-### demo (6 个)
-
-| # | 代码文件 | 文档文件 |
-|---|---------|---------|
-| 1 | `demo/__init__.py` | `docs/zh-CN/demo/__init__.md` |
-| 2 | `demo/demo_executor.py` | `docs/zh-CN/demo/demo_executor.md` |
-| 3 | `demo/demo_graph.py` | `docs/zh-CN/demo/demo_graph.md` |
-| 4 | `demo/demo_stages.py` | `docs/zh-CN/demo/demo_stages.md` |
-| 5 | `demo/demo_structure.py` | `docs/zh-CN/demo/demo_structure.md` |
-| 6 | `demo/demo_utils.py` | `docs/zh-CN/demo/demo_utils.md` |
+> 具体的代码→文档对照清单由主 agent 在委派时提供。子代理以主 agent 提供的清单为准。
 
 ## 区域特化陷阱（高频错误）
 
