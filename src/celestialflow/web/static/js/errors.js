@@ -91,9 +91,11 @@ function renderErrors() {
             const row = document.createElement("tr"); // 当前表格行
             const errorText = `${e.error_type}(${e.error_message})`; // 错误完整文本
             const errorRepr = format_repr(errorText, 50); // 表格中展示的截断错误文本
-            const taskText = typeof e.task === "string" ? e.task : JSON.stringify(e.task);
+            const taskText = typeof e.task_json === "string"
+                ? e.task_json
+                : JSON.stringify(e.task_json);
             const taskRepr = format_repr(taskText, 50); // 表格中展示的截断任务文本
-            const canRetry = e.task !== undefined && !taskText.startsWith("<");
+            const canRetry = e.task_json !== undefined && !taskText.startsWith("<");
             const retryLabel = canRetry ? t("errors.retryInject") : t("errors.retryUnavailable");
             const retryClass = canRetry ? "retry-link" : "retry-disabled";
             row.innerHTML = `
@@ -108,13 +110,13 @@ function renderErrors() {
             const retryAction = row.querySelector(".retry-link");
             if (retryAction && canRetry) {
                 retryAction.addEventListener("click", () => {
-                    preloadInjectionDraftFromError(e.stage, e.task, webConfig.errors.jumpToInjectionAfterRetry);
+                    preloadInjectionDraftFromError(e.stage, e.task_json, webConfig.errors.jumpToInjectionAfterRetry);
                 });
                 retryAction.addEventListener("keydown", (event) => {
                     if (event.key !== "Enter" && event.key !== " ")
                         return;
                     event.preventDefault();
-                    preloadInjectionDraftFromError(e.stage, e.task, webConfig.errors.jumpToInjectionAfterRetry);
+                    preloadInjectionDraftFromError(e.stage, e.task_json, webConfig.errors.jumpToInjectionAfterRetry);
                 });
             }
             errorsTableBody.appendChild(row);

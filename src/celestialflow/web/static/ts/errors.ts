@@ -10,7 +10,8 @@ type ErrorData = {
   event_id: number; // 失败事件的唯一标识 ID，全局唯一
   error_type: string; // 错误的分类类型，用于区分不同类别的错误
   error_message: string; // 错误的具体描述信息，是错误的详细文本内容
-  task: unknown; // 触发该错误的任务数据，同时用于展示与重试回填
+  task_json: unknown; // 触发该错误的任务数据，同时用于展示与重试回填
+  result_json: unknown; // 成功结果或失败时的占位结果
 };
 
 // 全局状态
@@ -120,9 +121,12 @@ function renderErrors(): void {
       const row = document.createElement("tr"); // 当前表格行
       const errorText = `${e.error_type}(${e.error_message})`; // 错误完整文本
       const errorRepr = format_repr(errorText, 50); // 表格中展示的截断错误文本
-      const taskText = typeof e.task === "string" ? e.task : JSON.stringify(e.task);
+      const taskText =
+        typeof e.task_json === "string"
+          ? e.task_json
+          : JSON.stringify(e.task_json);
       const taskRepr = format_repr(taskText, 50); // 表格中展示的截断任务文本
-      const canRetry = e.task !== undefined && !taskText.startsWith("<");
+      const canRetry = e.task_json !== undefined && !taskText.startsWith("<");
       const retryLabel = canRetry ? t("errors.retryInject") : t("errors.retryUnavailable");
       const retryClass = canRetry ? "retry-link" : "retry-disabled";
 
@@ -140,7 +144,7 @@ function renderErrors(): void {
         retryAction.addEventListener("click", () => {
           preloadInjectionDraftFromError(
             e.stage,
-            e.task,
+            e.task_json,
             webConfig.errors.jumpToInjectionAfterRetry,
           );
         });
@@ -149,7 +153,7 @@ function renderErrors(): void {
           event.preventDefault();
           preloadInjectionDraftFromError(
             e.stage,
-            e.task,
+            e.task_json,
             webConfig.errors.jumpToInjectionAfterRetry,
           );
         });

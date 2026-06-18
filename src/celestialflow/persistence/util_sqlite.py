@@ -106,8 +106,8 @@ def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
         "error_type": str(row["error_type"]),
         "error_message": str(row["error_message"]),
         "error_ts": float(row["error_ts"]),
-        "task": json.loads(str(row["task_json"])),
-        "result": json.loads(str(row["result_json"])),
+        "task_json": json.loads(str(row["task_json"])),
+        "result_json": json.loads(str(row["result_json"])),
     }
 
 
