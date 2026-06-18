@@ -112,28 +112,7 @@ class TaskExecutor[T, R]:
         self._observers: list[BaseObserver] = []
         self.ctree_client = NullCelestialTreeClient()
 
-        self._init_dispatch()
-        self._init_queue()
-        self._init_metrics()
-
-    def _init_metrics(self) -> None:
-        """
-        初始化任务指标
-        """
-        self.metrics = TaskMetrics(
-            enable_duplicate_check=self.enable_duplicate_check,
-        )
-
-    def _init_dispatch(self) -> None:
-        """
-        初始化任务运行器
-        """
         self.dispatch = TaskDispatch(self, self.func, self.max_workers)
-
-    def _init_queue(self) -> None:
-        """
-        初始化输入输出队列
-        """
         self.task_queue = TaskInQueue(
             queue=ThreadQueue(),
             source_names=[],
@@ -143,6 +122,9 @@ class TaskExecutor[T, R]:
             queue_list=[],
             target_names=[],
             in_name=self.get_name(),
+        )
+        self.metrics = TaskMetrics(
+            enable_duplicate_check=self.enable_duplicate_check,
         )
 
     def init_env(

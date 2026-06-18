@@ -5,7 +5,7 @@ import asyncio
 import inspect
 import time
 from collections.abc import Awaitable, Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from .core_envelope import TaskEnvelope
@@ -13,8 +13,6 @@ from .util_errors import ConfigurationError, InitializationError
 from .util_types import CTreeEvent, TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
-    from concurrent.futures import Future
-
     from ..stage.core_executor import TaskExecutor
 
 
@@ -42,7 +40,14 @@ class TaskDispatch[T, R]:
         self._pool: ThreadPoolExecutor | None = None
 
     def _call_sync(self, task: T) -> R:
-        """调用同步任务函数；若返回 awaitable，说明模式与函数类型不匹配。"""
+        """
+        调用同步任务函数；若返回 awaitable，说明模式与函数类型不匹配。
+        
+        :param task: 任务参数
+        :return: 任务执行结果
+        :rtype: R
+        :raises ConfigurationError: 若任务函数返回 awaitable 但执行模式不是异步
+        """
         result = self.func(task)
         if inspect.isawaitable(result):
             raise ConfigurationError(
@@ -51,7 +56,14 @@ class TaskDispatch[T, R]:
         return result
 
     async def _call_async(self, task: T) -> R:
-        """调用异步任务函数；若返回值不可 await，说明模式与函数类型不匹配。"""
+        """
+        调用异步任务函数；若返回值不可 await，说明模式与函数类型不匹配。
+        
+        :param task: 任务参数
+        :return: 任务执行结果
+        :rtype: R
+        :raises ConfigurationError: 若任务函数返回非 awaitable 但执行模式是异步
+        """
         result = self.func(task)
         if not inspect.isawaitable(result):
             raise ConfigurationError(
@@ -116,6 +128,7 @@ class TaskDispatch[T, R]:
                 if retry_time >= max_retries or not isinstance(
                     exception, self.task_executor.metrics.retry_exceptions
                 ):
+                    # 如果无重试机会或非可试异常, 则直接处理失败
                     self.task_executor.handle_task_fail(task_envelope, exception)
                     return
                 task_envelope = self.task_executor.emit_retry_envelope(
