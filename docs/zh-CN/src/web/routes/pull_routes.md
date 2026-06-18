@@ -1,10 +1,10 @@
 # Pull 路由（GET）— `pull_routes`
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 ## 作用
 
-`pull_routes` 模块提供客户端**拉取**数据的全部 GET 端点。这些接口采用 **rev（版本号）守卫** 机制：当客户端传入已持有的 `known_rev` 与当前版本一致时，返回 `data: null` 以节省带宽；仅在数据变更时才返回完整数据体。
+`pull_routes` 模块提供客户端**拉取**数据的全部 GET 端点。大部分接口采用 **rev（版本号）守卫** 机制：当客户端传入已持有的 `known_rev` 与当前版本一致时，返回 `data: null` 以节省带宽；仅在数据变更时才返回完整数据体。
 
 ## 核心函数
 
@@ -21,157 +21,29 @@
 
 ## 端点
 
-### 1. `GET /api/pull_config`
+### 1. `GET /api/pull_server_state`
 
-获取前端配置。
+返回 reporter 同步决策所需的服务端状态。
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| — | — | — | 无参数 |
+| `graph_id` | `str` | `""` | Reporter 当前任务图实例的唯一标识 |
 
-**返回：** `dict[str, Any]` — 完整的 `server.config` 字典。
+**返回：** `dict[str, Any]` — 包含 `interval`、`is_current_graph`、`has_structure`、`has_analysis`、`max_event_id_in_fail`。
 
 ```json
 {
-  "global": {
-    "theme": "dark",
-    "autoRefreshEnabled": true,
-    "refreshInterval": 5000,
-    "language": "zh-CN"
-  },
-  "dashboard": {
-    "historyLimit": 20,
-    "showStructureEdgeDelta": false,
-    "useTotalPendingInStatus": false,
-    "layout": { "left": ["mermaid"], "middle": ["status"], "right": ["progress"] }
-  },
-  "errors": {
-    "pageSize": 10,
-    "sortOrder": "newest",
-    "jumpToInjectionAfterRetry": true
-  },
-  "injection": {
-    "showInjectableOnly": true
-  }
+  "interval": 5.0,
+  "is_current_graph": true,
+  "has_structure": true,
+  "has_analysis": false,
+  "max_event_id_in_fail": null
 }
 ```
 
 ---
 
-### 2. `GET /api/pull_structure`
-
-获取图结构数据（节点与边），支持 rev 守卫。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `known_rev` | `int` | `-1` | 客户端已知的版本号 |
-
-**返回：**
-
-| 字段 | 说明 |
-|------|------|
-| `rev` | 当前版本号 |
-| `data` | 图结构字典；若 `known_rev==rev` 则为 `null` |
-
-```json
-// 有更新
-{"rev": 5, "data": {"nodes": {"n1": {"label": "Task"}}, "edges": {"n1": []}, "source_nodes": ["n1"]}}
-// 无更新
-{"rev": 5, "data": null}
-```
-
----
-
-### 3. `GET /api/pull_status`
-
-获取各节点的运行状态，支持 rev 守卫。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `known_rev` | `int` | `-1` | 客户端已知的版本号 |
-
-**返回：**
-
-| 字段 | 说明 |
-|------|------|
-| `rev` | 当前版本号 |
-| `timestamp` | 状态时间戳（float） |
-| `data` | 节点状态字典；无变化时为 `null` |
-
-```json
-{"rev": 3, "timestamp": 1716883200.5, "data": {"n1": "success", ...}}
-```
-
----
-
-### 4. `GET /api/pull_errors`
-
-获取分页错误日志，支持节点/关键词过滤，支持 rev 守卫。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `known_rev` | `int` | `-1` | 客户端已知的版本号 |
-| `page` | `int` | `1` | 页码（从 1 开始） |
-| `page_size` | `int` | `10` | 每页条数 |
-| `node` | `str` | `""` | 按节点名称过滤，空字符串不生效 |
-| `keyword` | `str` | `""` | 按关键词过滤，空字符串不生效 |
-| `sort_order` | `str` | `"newest"` | 排序方式，仅支持 `newest` / `oldest` |
-
-**返回：**
-
-| 字段 | 说明 |
-|------|------|
-| `rev` | 当前版本号 |
-| `page` | 归一化后的页码 |
-| `page_size` | 归一化后的每页大小 |
-| `total` | 过滤后的总条数 |
-| `total_pages` | 总页数 |
-| `sort_order` | 实际生效的排序方式 |
-| `data` | 当前页错误列表；无变化时为 `null` |
-
-```json
-{
-  "rev": 12, "page": 1, "page_size": 10,
-  "total": 47, "total_pages": 5,
-  "data": [{"ts": "...", "error_id": "...", "error_repr": "..."}, ...]
-}
-```
-
----
-
-### 5. `GET /api/pull_analysis`
-
-获取图拓扑分析信息，支持 rev 守卫。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `known_rev` | `int` | `-1` | 客户端已知的版本号 |
-
-**返回：** `{"rev": int, "data": dict | None}`
-
-```json
-{"rev": 2, "data": {"root_count": 3, "max_depth": 5, ...}}
-```
-
----
-
-### 6. `GET /api/pull_interval`
-
-获取当前轮询间隔。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| — | — | — | 无参数 |
-
-**返回：** `{"interval": float}` — 单位为秒。
-
-```json
-{"interval": 5.0}
-```
-
----
-
-### 7. `GET /api/pull_task_injection`
+### 2. `GET /api/pull_task_injection`
 
 取出并清空当前待执行的注入任务队列。这是一个**一次性消费**端点：返回后队列清空，同一批任务不会被重复获取。
 
@@ -185,7 +57,74 @@
 {"StageA": [1, 2, 3], "StageB": [{"id": 4, "val": "x"}]}
 ```
 
-> 注意：虽然当前实现使用 GET，但这个端点具有副作用，会在读取后清空队列；它更接近“消费接口”而不是纯查询接口。
+> 注意：虽然当前实现使用 GET，但这个端点具有副作用，会在读取后清空队列；它更接近"消费接口"而不是纯查询接口。
+
+---
+
+### 3. `GET /api/pull_config`
+
+获取前端配置。
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| — | — | — | 无参数 |
+
+**返回：** `dict[str, Any]` — 完整的 `server.config` 字典，包含 `global`、`dashboard`、`errors`、`injection` 分组。
+
+---
+
+### 4. `GET /api/pull_structure`
+
+获取图结构数据（节点与边），支持 rev 守卫。
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `known_rev` | `int` | `-1` | 客户端已知的版本号 |
+
+**返回：** `{"rev": int, "data": dict | None}` — `data` 为结构字典（含 `nodes`/`edges`/`source_nodes`）；若 `known_rev==rev` 则为 `null`。
+
+---
+
+### 5. `GET /api/pull_status`
+
+获取各节点的运行状态，支持 rev 守卫。
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `known_rev` | `int` | `-1` | 客户端已知的版本号 |
+
+**返回：** `{"rev": int, "timestamp": float, "data": dict | None}`
+
+---
+
+### 6. `GET /api/pull_errors`
+
+获取分页错误日志，支持节点/关键词过滤，支持 rev 守卫。
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `known_rev` | `int` | `-1` | 客户端已知的版本号 |
+| `page` | `int` | `1` | 页码（从 1 开始） |
+| `page_size` | `int` | `10` | 每页条数 |
+| `node` | `str` | `""` | 按节点名称过滤，空字符串不生效 |
+| `keyword` | `str` | `""` | 按关键词过滤，空字符串不生效 |
+| `sort_order` | `str` | `"newest"` | 排序方式，仅支持 `newest` / `oldest` |
+
+**返回：** `{"rev": int, "page": int, "page_size": int, "total": int, "total_pages": int, "sort_order": str, "data": list | None}`
+
+---
+
+### 7. `GET /api/pull_analysis`
+
+获取图拓扑分析信息。
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `known_rev` | `int` | `-1` | 客户端已知的版本号（当前版本始终返回完整数据） |
+
+**返回：** `{"rev": int, "data": dict | None}` — 当尚未产生分析数据时 `data` 为 `None`。
+
+> ⚠️ **已变更**：`pull_analysis` 当前不执行 rev 守卫，每次均返回完整的 `data`（若分析数据存在）。此行为与 `pull_status`/`pull_structure`/`pull_errors` 不同。
 
 ## 使用示例
 

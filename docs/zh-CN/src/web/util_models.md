@@ -1,6 +1,6 @@
 # util_models
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 ## 作用
 
@@ -14,6 +14,7 @@
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
+| `graph_id` | `str` | 图实例标识，默认 `""`；用于 Reporter 端 graph 上下文校验 |
 | `structure` | `dict[str, Any]` | 结构快照字典，通常包含 `nodes`、`edges`、`source_nodes` |
 
 ### StatusModel
@@ -22,27 +23,20 @@
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
+| `graph_id` | `str` | 图实例标识，默认 `""` |
 | `timestamp` | `float` | 状态数据的时间戳（Unix） |
 | `status` | `dict[str, dict[str, Any]]` | 节点名到状态字典的映射 |
 
-### ErrorsMetaModel
-
-错误元数据模型，表示错误日志文件的元信息。
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `jsonl_path` | `str` | 错误日志 JSONL 文件路径 |
-| `rev` | `int` | 错误日志当前修订/偏移量 |
-
-### ErrorsContentModel
+### ErrorsModel
 
 错误内容数据模型，包含完整的错误记录列表。
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
+| `graph_id` | `str` | 图实例标识，默认 `""` |
 | `errors` | `list[dict[str, Any]]` | 错误记录列表，每项为错误字典 |
-| `jsonl_path` | `str` | 错误日志 JSONL 文件路径 |
-| `rev` | `int` | 错误日志当前修订/偏移量 |
+
+> ⚠️ **已变更**：`ErrorsMetaModel` 和 `ErrorsContentModel` 已合并为单一 `ErrorsModel`。错误数据直接写入 SQLite，不再通过 JSONL 文件路径/版本号缓存。
 
 ### AnalysisModel
 
@@ -50,6 +44,7 @@
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
+| `graph_id` | `str` | 图实例标识，默认 `""` |
 | `analysis` | `dict[str, Any]` | 分析结果字典 |
 
 ### TaskInjectionModel
@@ -196,20 +191,15 @@ for node_name, tasks in injection.root.items():
 ### 错误数据处理
 
 ```python
-from celestialflow.web.util_models import ErrorsContentModel, ErrorsMetaModel
-
-# 错误元数据
-meta = ErrorsMetaModel(jsonl_path="./fallback/2026-05-28/errors.jsonl", rev=150)
-print(f"错误日志路径: {meta.jsonl_path}, 当前偏移: {meta.rev}")
+from celestialflow.web.util_models import ErrorsModel
 
 # 错误内容
-errors = ErrorsContentModel(
+content = ErrorsModel(
+    graph_id="graph-001",
     errors=[
         {"error_type": "ValueError", "error_message": "Invalid input"},
         {"error_type": "TimeoutError", "error_message": "Connection lost"},
     ],
-    jsonl_path="./fallback/2026-05-28/errors.jsonl",
-    rev=152,
 )
-print(f"错误条数: {len(errors.errors)}")
+print(f"错误条数: {len(content.errors)}")
 ```

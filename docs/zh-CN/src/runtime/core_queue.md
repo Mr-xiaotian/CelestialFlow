@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 `TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了终止信号合并功能。
 
@@ -197,8 +197,8 @@ in_queue = TaskInQueue(
 )
 
 # 上游生产者放入任务
-env1 = TaskEnvelope(task=100, id=1, source="producer1")
-env2 = TaskEnvelope(task=200, id=2, source="producer2")
+env1 = TaskEnvelope(task=100, id=1)
+env2 = TaskEnvelope(task=200, id=2)
 in_queue.put(env1)
 in_queue.put(env2)
 
@@ -223,7 +223,7 @@ out_queue = TaskOutQueue(
 )
 
 # 广播任务到所有下游
-env3 = TaskEnvelope(task="broadcast_msg", id=3, source="processor")
+env3 = TaskEnvelope(task="broadcast_msg", id=3)
 out_queue.put(env3)
 
 # 验证两个消费者都收到了
@@ -234,7 +234,7 @@ print(f"consumer2 收到: {consumer_q2.get().get_task()}")
 consumer_q3 = ThreadQueue()
 out_queue.add_queue(consumer_q3, "consumer3")
 
-env4 = TaskEnvelope(task="targeted_msg", id=4, source="processor")
+env4 = TaskEnvelope(task="targeted_msg", id=4)
 out_queue.put_target(env4, "consumer3")
 print(f"consumer3 收到: {consumer_q3.get().get_task()}")
 
@@ -257,7 +257,7 @@ residual_q = TaskInQueue(
     source_names=["src"],
     out_name="drain_test",
 )
-residual_q.put(TaskEnvelope(task="leftover", id=5, source="src"))
+residual_q.put(TaskEnvelope(task="leftover", id=5))
 
 # drain 清空所有剩余任务
 leftovers = residual_q.drain()

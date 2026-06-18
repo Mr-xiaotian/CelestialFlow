@@ -7,7 +7,6 @@
 
 ## 核心测试对象
 - `BaseObserver`: 观测器基类。
-- `CallbackObserver`: 基于回调函数的观测器实现。
 - `TaskExecutor`: 被观测的任务执行器。
 
 ## 关键测试流程
@@ -50,3 +49,4 @@ pytest tests/observability/test_observer.py -k "callback" -v
 ## 注意事项
 - 观测器模式是框架实现监控、日志和进度条的基础。
 - 测试代码位于 `tests/observability/test_observer.py`。
+ 测试代码位于 `tests/observability/test_observer.py`。

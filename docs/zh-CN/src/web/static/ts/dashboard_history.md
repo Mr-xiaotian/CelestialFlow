@@ -1,6 +1,6 @@
 # dashboard_history.ts
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 管理节点多指标历史数据的维护与折线图的初始化、重绘。历史数据完全在前端通过状态快照累积，不依赖独立的后端 API。
 
@@ -14,6 +14,7 @@ type HistoryMetricKey =
   | "tasks_failed"
   | "tasks_duplicated"
   | "tasks_pending"
+  | "total_tasks_pending"
   | "delta_tasks_processed"
   | "delta_tasks_succeeded"
   | "delta_tasks_failed"
@@ -27,9 +28,10 @@ type NodeHistoryPoint = {
   tasks_failed: number;
   tasks_duplicated: number;
   tasks_pending: number;
+  total_tasks_pending: number;
 };
 
-type NodeHistory = NodeHistoryPoint[];
+  type NodeHistory = NodeHistoryPoint[];
 
 type ThemeColors = {
   text: string;   // 坐标轴与图例文字颜色
@@ -77,6 +79,7 @@ type ThemeColors = {
 | `tasks_failed` | `chart.metric.failed` |
 | `tasks_duplicated` | `chart.metric.duplicated` |
 | `tasks_pending` | `chart.metric.pending` |
+| `total_tasks_pending` | `chart.metric.pendingGlobal` |
 | `delta_tasks_processed` | `chart.metric.deltaProcessed` |
 | `delta_tasks_succeeded` | `chart.metric.deltaSucceeded` |
 | `delta_tasks_failed` | `chart.metric.deltaFailed` |
@@ -186,8 +189,8 @@ flowchart LR
 // 手动构造历史数据并渲染
 const mockHistory: Record<string, NodeHistory> = {
   "Processor": [
-    { timestamp: 1000, tasks_processed: 10, tasks_succeeded: 9, tasks_failed: 1, tasks_duplicated: 0, tasks_pending: 90 },
-    { timestamp: 1005, tasks_processed: 25, tasks_succeeded: 23, tasks_failed: 1, tasks_duplicated: 1, tasks_pending: 75 },
+    { timestamp: 1000, tasks_processed: 10, tasks_succeeded: 9, tasks_failed: 1, tasks_duplicated: 0, tasks_pending: 90, total_tasks_pending: 120 },
+    { timestamp: 1005, tasks_processed: 25, tasks_succeeded: 23, tasks_failed: 1, tasks_duplicated: 1, tasks_pending: 75, total_tasks_pending: 105 },
   ],
 };
 

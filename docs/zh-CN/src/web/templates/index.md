@@ -1,6 +1,6 @@
 # index.html
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 Web UI 的 Jinja2 模板文件，定义了监控系统的完整页面结构。
 
@@ -72,8 +72,8 @@ dashboard_analysis.js ← 拓扑分析展示
 dashboard_summary.js  ← 汇总统计
 dashboard_history.js  ← 历史图表
 injection.js          ← 任务注入逻辑
-layout_editor.js      ← 卡片布局编辑器（依赖 web_config 的 CARD_TEMPLATES、PANEL_SELECTOR_MAP 及 applyDashboardLayout）
 main.js               ← 全局入口与轮询协调
+layout_editor.js      ← 卡片布局编辑器（依赖 web_config 的 CARD_TEMPLATES、PANEL_SELECTOR_MAP 及 applyDashboardLayout）
 ```
 
 ## CSS 样式引用

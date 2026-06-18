@@ -13,7 +13,7 @@
 
 | 测试类 | 用例数 | 覆盖目标 |
 |--------|--------|---------|
-| `TestTaskEnvelope` | 8 | 构造函数/Getter、source 保留、ID 修改、哈希一致性、延迟计算、不可 hash 兜底、`__slots__` 内存限制 |
+| `TestTaskEnvelope` | 7 | 构造函数/Getter、ID 修改、哈希一致性、延迟计算、不可 hash 兜底、`__slots__` 内存限制 |
 | `TestObjectToHash` | 4 | 返回类型(bytes)、SHA1 定长 20 字节、相同输入一致、不同输入不同 |
 
 ## 关键测试场景

@@ -1,6 +1,6 @@
 # Web 模块
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 Web 模块提供了一个交互式的监控和管理界面，基于 FastAPI 与原生 TypeScript 构建，支持任务状态实时可视化、错误追溯、动态任务注入及全局配置管理。
 
@@ -24,20 +24,20 @@ Web 模块充当了 `TaskReporter` 与最终用户之间的桥梁。它一方面
 
 ### 核心前端组件
 
-1. **dashboard_history.ts**
-   - **作用**: 维护多指标历史序列，使用 Chart.js 渲染进度折线图。支持指标实时切换。
+前端 TypeScript 源文件位于 `web/static/ts/`，编译为 JS 后由 `templates/index.html` 加载：
 
-2. **dashboard_statuses.ts**
-   - **作用**: 渲染动态节点卡片，展示各阶段实时性能指标与进度条。
-
-3. **dashboard_structure.ts**
-   - **作用**: 基于 Mermaid.js 渲染任务图拓扑结构，支持动态节点着色。
-
-4. **injection.ts**
-   - **作用**: 管理任务手动注入 UI，支持多节点批量注入。
-
-5. **errors.ts**
-   - **作用**: 负责错误日志的分页展示与深度过滤。
+1. **main.ts** — 全局入口与轮询协调
+2. **utils.ts** — 通用工具函数
+3. **i18n.ts** — 国际化支持
+4. **web_config.ts** — 配置管理逻辑
+5. **dashboard_statuses.ts** — 渲染动态节点卡片，展示各阶段实时性能指标与进度条
+6. **dashboard_structure.ts** — 基于 Mermaid.js 渲染任务图拓扑结构，支持动态节点着色
+7. **dashboard_history.ts** — 维护多指标历史序列，使用 Chart.js 渲染进度折线图
+8. **dashboard_summary.ts** — 全局统计看板的渲染与更新
+9. **dashboard_analysis.ts** — 拓扑分析信息的展示
+10. **errors.ts** — 错误日志的分页展示与深度过滤
+11. **injection.ts** — 管理任务手动注入 UI，支持多节点批量注入
+12. **layout_editor.ts** — 卡片布局编辑器（依赖 web_config 的 CARD_TEMPLATES/PANEL_SELECTOR_MAP）
 
 ## 架构特点
 

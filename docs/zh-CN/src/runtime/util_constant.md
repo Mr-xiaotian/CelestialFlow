@@ -1,8 +1,8 @@
 # RuntimeConstant
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
-`runtime/util_constant.py` 定义运行时全局常量，包括日志级别映射表 `LEVEL_DICT` 和节点标签样式 `STAGE_STYLE`。
+`runtime/util_constant.py` 定义运行时全局常量，主要是日志级别映射表 `LEVEL_DICT`。
 
 ## 核心常量
 
@@ -53,19 +53,7 @@ flowchart TD
     style TRA fill:#e0e0e0
 ```
 
-### STAGE_STYLE
 
-节点标签样式配置，用于 CelestialTree 可视化。定义每个节点的模板格式和缺失值占位符。
-
-```python
-from celestialtree import NodeLabelStyle
-
-STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(
-    template="{base}  {payload.name}  ‹{type}›", missing="-"
-)
-```
-
-> **注意**：`STAGE_STYLE` 依赖 `celestialtree` 外部包的 `NodeLabelStyle`，模板字符串中的 `{base}`、`{payload.name}`、`{type}` 变量由 CelestialTree 渲染引擎注入，用于节点树的可视化展示。
 
 ## 使用示例
 

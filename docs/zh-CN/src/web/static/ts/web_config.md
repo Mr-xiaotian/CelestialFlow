@@ -1,6 +1,6 @@
 # web_config.ts
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 管理 Web 前端的配置加载、归一化、保存和应用。配置采用**分组结构**（`global`、`dashboard`、`errors`、`injection`），同时兼容旧版扁平格式的自动迁移。
 
@@ -163,7 +163,7 @@ const DEFAULT_WEB_CONFIG: WebConfig = {
     jumpToInjectionAfterRetry: true,
   },
   injection: {
-    showInjectableOnly: false,
+    showInjectableOnly: true,
   },
 };
 ```

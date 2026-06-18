@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 TaskStructure 模块提供了多种预定义的任务图结构，帮助用户快速构建复杂的任务流。所有的结构都继承自 `TaskGraph`。
 
@@ -139,7 +139,7 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskLoop` 将节点首尾相连形成闭环。由于环的特性，强制使用 `eager` 调度模式。
+`TaskLoop` 将节点首尾相连形成闭环。默认使用 `eager` 调度模式。
 注意：环结构通常需要外部干预来停止，或者设置特定的退出条件。
 
 ```python

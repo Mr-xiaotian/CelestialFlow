@@ -10,11 +10,11 @@
 
 | 类 | 类型 | 说明 |
 |----|------|------|
-| `FakeResponse` | Mock | 模拟 HTTP 响应，返回预设 JSON 载荷 |
-| `FakeSession` | Mock | 模拟 `requests.Session`，只覆写 `get` 方法 |
-| `FakeTaskGraph` | Mock | 记录 `put_stage_queue` 的调用参数 |
-| `FakeLogInlet` | Mock | 记录注入成功/失败和拉取失败的日志 |
-| `TaskReporter` | 被测类 | `celestialflow.observability` 中的注入器 |
+| `FakeResponse` / `FakePostResponse` | Mock | 模拟 HTTP 响应 |
+| `FakeSession` / `FakePushSession` | Mock | 模拟 `requests.Session` 的 GET/POST 方法 |
+| `FakeTaskGraph` / `FakeErrorGraph` | Mock | 模拟图注入与错误查询接口 |
+| `FakeLogInlet` | Mock | 记录注入成功/失败和推送事件的日志 |
+| `TaskReporter` | 被测类 | `celestialflow.observability` 中的注入与上报器 |
 
 ## 关键测试场景
 
@@ -52,7 +52,29 @@ pytest tests/observability/test_reporter_injection.py -v
 
 # 仅运行节点映射注入测试
 pytest tests/observability/test_reporter_injection.py -k "node_to_tasklist" -v
+
+# 仅运行错误推送测试
+pytest tests/observability/test_reporter_injection.py -k "push_errors" -v
 ```
+
+## 其他关键测试
+
+### test_reporter_pushes_errors_via_push_errors_endpoint_only
+
+**覆盖目标**：验证 `TaskReporter._push_errors()` 只通过 `/api/push_errors` 端点推送错误（不再使用旧的 `/api/push_errors_meta`）。
+
+- 写入一条 sqlite 错误记录
+- 设置 `_server_has_current_graph = False`（触发全量推送）
+- 断言 POST 目标 URL 末尾为 `/api/push_errors`
+- 断言 payload 包含 `graph_id` 和 `errors` 字段
+
+### test_reporter_pushes_only_errors_after_server_max_event_id
+
+**覆盖目标**：验证 Reporter 只推送 event_id 大于服务端水位线的失败记录。
+
+- 写入 3 条错误记录（event_id=1,5,7）
+- 设置 `_server_max_event_id_in_fail = 3`
+- 断言仅推送 event_id 为 5 和 7 的记录
 
 ## 注意事项
 

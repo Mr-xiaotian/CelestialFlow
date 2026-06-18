@@ -93,7 +93,7 @@ graph TB
     subgraph 运行时基础设施
         I --> J[TaskInQueue / TaskOutQueue]
         I --> K[TaskMetrics 指标]
-        I --> L[LogInlet / FailInlet]
+        I --> L[LogInlet / FallbackInlet]
         I --> M[CelestialTree 事件]
     end
 
@@ -199,7 +199,7 @@ graph LR
     style Q2 fill:#f9f,stroke:#333
 ```
 
-- **TaskEnvelope**：`task` + `hash`(SHA1) + `id`(CelestialTree 事件) + `source`(来源)
+- **TaskEnvelope**：`task` + `hash`(SHA1) + `id`(CelestialTree 事件) + `source_name`(来源节点名)
 - **TaskInQueue**：
   - 多上游汇聚，按 `source_tag` 追踪终止信号
   - 所有上游均发送 `TerminationSignal` 后，合并为 `TerminationIdPool` 返回
@@ -333,25 +333,25 @@ sequenceDiagram
 graph LR
     subgraph 生产端
         A[LogInlet] -->|Queue| B[LogSpout]
-        C[FailInlet] -->|Queue| D[FailSpout]
+        C[FallbackInlet] -->|Queue| D[FallbackSpout]
     end
 
     subgraph 消费端
         B --> E["logs/task_logger(DATE).log"]
-        D --> F["fallback/DATE/source(TIME).jsonl"]
+        D --> F["fallback/task_fallback.db<br/>(SQLite)"]
     end
 ```
 
 - **Spout-Inlet 模式**：
   - Inlet 端（线程安全）：格式化记录，写入共享队列
-  - Spout 端（守护线程）：从队列消费，写入文件
+  - Spout 端（守护线程）：从队列消费，写入存储
   - 通过 `TerminationSignal` 优雅停止
 
 - **日志分级**：`TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 
-- **错误持久化**：JSONL 格式，含 `timestamp`、`stage`、`error_repr`、`task_repr`、完整序列化的 `error` 和 `task`
+- **错误持久化**：SQLite 格式，含 `stage_name`、`error_type`、`error_message`、`task_json`、`result_json` 等字段
 
-- **错误分析工具**：`load_task_by_stage()`、`load_task_by_error()` 按维度聚合失败任务
+- **错误分析工具**：`load_records()`、`load_records_grouped_by_stage()` 按维度聚合失败任务
 
 ---
 
@@ -434,7 +434,7 @@ CelestialFlowError (基类)
 | Push | `/api/push_config` | 保存前端配置 |
 
 - **Pydantic 验证**：所有 Push 接口使用强类型模型
-- **错误缓存**：`push_errors_meta` 缓存文件路径和版本号，避免重复读取 JSONL
+- **错误传输**：`push_errors` 直写 SQLite，无需额外缓存层
 
 ---
 

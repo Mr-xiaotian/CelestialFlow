@@ -105,7 +105,7 @@ graph_copy = clone_graph(original_graph)
 from celestialflow.utils.util_collections import cluster_by_value_sorted
 
 grouped = cluster_by_value_sorted({"a": 1, "b": 2, "c": 1})
-# {"1": ["a", "c"], "2": ["b"]}
+# {1: ["a", "c"], 2: ["b"]}
 ```
 
 ### 格式化

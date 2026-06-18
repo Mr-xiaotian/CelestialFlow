@@ -1,27 +1,27 @@
 # TaskEnvelope
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
-任务数据的包装类，在各个 Stage 之间传递。它封装了原始任务数据、任务哈希、任务 ID 和来源信息。
+任务数据的包装类，在各个 Stage 之间传递。它封装了原始任务数据、任务哈希和任务 ID。
+
+> ⚠️ **已变更**：原文档描述的 `source` 和 `prev` 字段已在重构中移除，`TaskEnvelope` 当前仅包含 `hash`、`id`、`task` 三个核心字段。
 
 ## 属性
 
 ```python
 class TaskEnvelope:
-    __slots__ = ("task", "hash", "id", "source", "prev")
+    __slots__ = ("hash", "id", "task")
 
-    def __init__(self, task: Any, id: int, source: str, prev: Any = None):
-        self.task = task      # 原始任务数据
-        self.hash = None      # 哈希值（惰性计算）
-        self.id = id          # 任务唯一 ID
-        self.source = source  # 任务来源标识
-        self.prev = prev      # 前一个任务（用于结果缓存时回溯）
+    def __init__(self, task: T, id: int):
+        self.task: T = task   # 原始任务数据
+        self.hash: bytes | None = None  # 哈希值（惰性计算）
+        self.id: int = id     # 任务唯一 ID
 ```
 
 ## Getter 方法
 
 ```python
-def get_task(self) -> Any:
+def get_task(self) -> T:
     """获取原始任务数据。"""
 
 def get_hash(self) -> bytes:
@@ -29,9 +29,6 @@ def get_hash(self) -> bytes:
 
 def get_id(self) -> int:
     """获取任务 ID。"""
-
-def get_prev(self) -> Any | None:
-    """获取前一个任务（用于结果缓存时回溯）。"""
 ```
 
 ## 惰性哈希
@@ -43,7 +40,7 @@ def get_prev(self) -> Any | None:
 - 该兜底值带有专用前缀，语义上表示“不可 hash 任务的唯一占位”，避免影响其他任务的正常去重与调度。
 
 ```python
-envelope = TaskEnvelope("data", id=1, source="input")
+envelope = TaskEnvelope(task="data", id=1)
 assert envelope.hash is None         # 未计算
 h = envelope.get_hash()              # 首次调用，计算并缓存
 assert envelope.hash is not None     # 已缓存
@@ -61,7 +58,6 @@ from celestialflow.runtime import TaskEnvelope
 envelope = TaskEnvelope(
     task={"user": "alice", "score": 95},
     id=1,
-    source="input",
 )
 
 # 2. 获取原始任务数据
@@ -79,9 +75,6 @@ h = envelope.get_hash()
 print(f"SHA1 哈希: {h.hex()[:16]}...")
 print(f"调用后 hash 已缓存: {envelope.hash is not None}")  # True
 print(f"重复调用返回缓存值: {envelope.get_hash() == h}")    # True
-
-# 6. 获取前驱任务（用于结果缓存回溯）
-print(f"前驱任务: {envelope.get_prev()}")  # None（未设置 prev）
 ```
 
 ### 多种数据类型
@@ -90,14 +83,10 @@ print(f"前驱任务: {envelope.get_prev()}")  # None（未设置 prev）
 from celestialflow.runtime import TaskEnvelope
 
 # 不同类型的任务数据
-env_str = TaskEnvelope(task="hello world", id=2, source="producer")
-env_list = TaskEnvelope(task=[1, 2, 3], id=3, source="producer")
-env_dict = TaskEnvelope(task={"key": "value"}, id=4, source="producer")
-env_none = TaskEnvelope(task=None, id=5, source="producer")
-
-# prev 参数：记录前驱任务（用于结果缓存回溯）
-env_with_prev = TaskEnvelope(task="data", id=6, source="producer", prev=env_str)
-print(f"前驱任务数据: {env_with_prev.prev.get_task()}")
+env_str = TaskEnvelope(task="hello world", id=2)
+env_list = TaskEnvelope(task=[1, 2, 3], id=3)
+env_dict = TaskEnvelope(task={"key": "value"}, id=4)
+env_none = TaskEnvelope(task=None, id=5)
 ```
 
 ### 不可 hash 任务的兜底行为
@@ -109,8 +98,8 @@ class UnpicklableTask:
     def __getstate__(self):
         raise TypeError("cannot pickle")
 
-env1 = TaskEnvelope(task=UnpicklableTask(), id=101, source="input")
-env2 = TaskEnvelope(task=UnpicklableTask(), id=102, source="input")
+env1 = TaskEnvelope(task=UnpicklableTask(), id=101)
+env2 = TaskEnvelope(task=UnpicklableTask(), id=102)
 
 h1 = env1.get_hash()
 h2 = env2.get_hash()

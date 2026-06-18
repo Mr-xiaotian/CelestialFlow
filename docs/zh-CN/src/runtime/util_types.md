@@ -1,6 +1,8 @@
 # TaskTypes
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
+
+> ⚠️ **已废弃**：原文档描述的 `PersistedErrorRecord` 数据类在当前源码中已不存在。
 
 TaskTypes 模块定义了框架中使用的基础数据类型、枚举和辅助类。
 
@@ -55,9 +57,9 @@ class NoOpContext:
 
 ```python
 class ValueWrapper:
-    def __init__(self, value: int = 0, lock: Lock | None = None):
+    def __init__(self, value: int, lock: Lock | NoOpContext | None = None):
         self.value = value
-        self._lock = lock
+        self._lock = lock or NoOpContext()
 
     def get_lock(self) -> Lock | NoOpContext:
         """返回锁对象或 NoOpContext（无锁时）。"""
@@ -73,13 +75,15 @@ class SumCounter:
         """
         :param lock: 可选的线程锁，默认 None（使用 NoOpContext）
         """
+        self.init_value = ValueWrapper(value=0, lock=self.lock)
+        self.counters = []
 ```
 
 ### 方法
 
 | 方法 | 说明 |
 |------|------|
-| `add(value)` | 增加初始计数值 |
+| `add(value)` | 增加初始计数值（加到 `init_value`） |
 | `append_counter(counter)` | 追加外部计数器 |
 | `reset()` | 重置所有计数器归零 |
 | `get()` | 获取所有计数器的累加值 |
@@ -113,23 +117,7 @@ CelestialTree 事件名称常量，用于任务追踪和可视化。
 | `TERMINATION_INPUT` | `"termination.input"` | 注入终止信号 |
 | `TERMINATION_MERGE` | `"termination.merge"` | 合并终止信号 |
 
-## PersistedErrorRecord
 
-持久化错误记录数据类。
-
-```python
-@dataclass(frozen=True)
-class PersistedErrorRecord:
-    ts: float | None = None         # 错误时间戳
-    stage: str = ""                  # 错误所属节点标签
-    error_id: int | None = None      # 错误事件 ID
-    error_type: str = ""             # 错误类型名称
-    error_message: str = ""          # 错误消息
-
-    def __str__(self) -> str: ...
-    def get_group_key(self) -> tuple[str, str]:
-        """返回 (error_type, error_message) 用于分组。"""
-```
 
 ## 使用示例
 
@@ -223,29 +211,7 @@ print(f"终止注入事件: {CTreeEvent.TERMINATION_INPUT}")    # "termination.i
 print(f"终止合并事件: {CTreeEvent.TERMINATION_MERGE}")    # "termination.merge"
 ```
 
-### PersistedErrorRecord
 
-```python
-from celestialflow.runtime.util_types import PersistedErrorRecord
-
-# 创建持久化错误记录
-record = PersistedErrorRecord(
-    error_type="ValueError",
-    error_message="Invalid input: negative value",
-    stage="StageA",
-    error_id=123,
-    ts=1716546600.0,
-)
-
-print(f"错误类型: {record.error_type}")
-print(f"错误消息: {record.error_message}")
-print(f"所属节点: {record.stage}")
-print(f"字符串表示: {record}")
-
-# 获取分组键（用于按类型+消息分组统计）
-group_key = record.get_group_key()
-print(f"分组键: {group_key}")  # ("ValueError", "Invalid input: negative value")
-```
 
 ## 注意事项
 

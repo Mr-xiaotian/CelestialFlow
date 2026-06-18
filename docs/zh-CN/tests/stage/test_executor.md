@@ -16,8 +16,9 @@
 | `TestExecutorThread` | 1 | 线程池并行执行与正确计数 |
 | `TestExecutorAsync` | 2 | 异步执行与连续处理逻辑 |
 | `TestExecutorDuplicateCheck` | 2 | 去重启用/禁用的行为对比 |
+| `TestExecutorReplay` | 1 | `start_db` 从 sqlite 按 stage 读取失败任务并回放 |
 | `TestExecutorSuccessCache` | 1 | 成功结果缓存与 `get_success_pairs()` |
-| `TestExecutorConfig` | 2 | 非法执行模式校验、`get_summary()` 摘要信息 |
+| `TestExecutorConfig` | 4 | 零/多参数函数拒绝、非法执行模式校验、`get_summary()` 摘要信息 |
 
 ## 关键测试场景
 

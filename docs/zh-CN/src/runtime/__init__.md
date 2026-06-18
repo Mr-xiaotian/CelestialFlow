@@ -1,6 +1,6 @@
 # Runtime 模块
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 Runtime 模块提供了 CelestialFlow 的任务执行运行时环境，包括任务调度、队列管理、错误处理、性能监控等核心功能。它是任务实际执行的基础设施层。
 
@@ -20,7 +20,7 @@ from celestialflow.runtime import (
 )
 ```
 
-> **注意**：`util_constant`、`util_errors`、`util_estimators`、`util_hash`、`util_types` 等工具模块的符号**不在** `runtime/__init__.py` 的 `__all__` 中，需要通过完整路径导入（如 `from celestialflow.runtime.util_errors import ConfigurationError`）。
+> **注意**：`util_constant`、`util_errors`、`util_estimators`、`util_event`、`util_hash`、`util_types` 等工具模块的符号**不在** `runtime/__init__.py` 的 `__all__` 中，需要通过完整路径导入（如 `from celestialflow.runtime.util_errors import ConfigurationError`）。
 
 ## 文件说明
 
@@ -42,9 +42,9 @@ from celestialflow.runtime import (
    - **关键功能**: 终止信号合并、来源名称管理、动态添加队列通道
 
 3. **core_envelope.py** (`TaskEnvelope`)
-   - **作用**: 任务数据包装器，封装原始任务及其哈希、ID、来源等元信息
-   - **包含信息**: 任务数据、SHA1 哈希值（惰性计算）、任务 ID、来源标识、前驱任务引用
-   - **关键功能**: 数据封装、惰性哈希计算、任务 ID 与前驱任务引用
+   - **作用**: 任务数据包装器，封装原始任务及其哈希、ID 等元信息
+   - **包含信息**: 任务数据、SHA1 哈希值（惰性计算）、任务 ID
+   - **关键功能**: 数据封装、惰性哈希计算
 
 ### 监控和度量
 
@@ -67,8 +67,6 @@ from celestialflow.runtime import (
      - **上下文管理器**: `NoOpContext` — 空上下文管理器，用于禁用 `with` 逻辑
      - **生命周期**: `StageStatus` — IntEnum（NOT_STARTED / RUNNING / STOPPED）
      - **事件常量**: `CTreeEvent` — 任务/终止事件名称常量（TASK_INPUT / TASK_SUCCESS / TASK_ERROR / TASK_RETRY_PREFIX / TASK_DUPLICATE / TERMINATION_INPUT / TERMINATION_MERGE）
-     - **错误记录**: `PersistedErrorRecord` — 持久化错误记录 frozen dataclass（支持分组）
-     - **可视化**: `STAGE_STYLE` — CelestialTree 节点标签样式
 
 7. **util_hash.py**
    - **作用**: 对象哈希计算，用于任务去重
@@ -121,15 +119,11 @@ from celestialflow.runtime import (
 ```python
 from queue import Queue as ThreadQueue
 from celestialflow.runtime import TaskEnvelope, TaskMetrics, TaskInQueue, TaskOutQueue
-from celestialflow.persistence import LogInlet
 
 # 1. TaskEnvelope：创建和操作任务信封
-envelope = TaskEnvelope(task={"data": 42}, id=1, source="input")
+envelope = TaskEnvelope(task={"data": 42}, id=1)
 print(f"任务数据: {envelope.get_task()}")
 print(f"任务哈希: {envelope.get_hash().hex()[:8]}...")
-print(f"任务ID: {envelope.get_id()}")
-
-# 重试时通过 emit_retry_envelope 生成新信封
 print(f"任务ID: {envelope.get_id()}")
 ```
 
@@ -175,7 +169,7 @@ out_queue = TaskOutQueue(
 )
 
 # 上游生产任务
-envelope_a = TaskEnvelope(task="hello", id=1, source="producer")
+envelope_a = TaskEnvelope(task="hello", id=1)
 in_queue.put(envelope_a)
 
 # 下游消费任务

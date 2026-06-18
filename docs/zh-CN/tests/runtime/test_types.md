@@ -9,13 +9,12 @@
 - `TerminationSignal` / `TerminationIdPool` 的构造语义。
 - `NoOpContext` 的上下文管理行为与异常透传。
 - `ValueWrapper` 在带锁和不带锁两种模式下的读写语义。
-- `SumCounter` 的累加、重置和 thread 模式表现。
-- `StageStatus`、`CTreeEvent`、`PersistedErrorRecord` 的枚举值与不可变约束。
+- `SumCounter` 的累加、重置表现。
+- `StageStatus`、`CTreeEvent` 的枚举值。
 
 ## 关键场景
 - `ValueWrapper.get_lock()` 在不同构造方式下返回真实锁或 `NoOpContext`。
 - `SumCounter.reset()` 会同时清零初始值和子计数器。
-- `PersistedErrorRecord` 是 frozen dataclass，修改字段应抛出 `FrozenInstanceError`。
 
 ## 运行方式
 

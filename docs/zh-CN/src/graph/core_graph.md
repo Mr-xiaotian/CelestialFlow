@@ -8,7 +8,7 @@
 
 ## 关键数据结构
 
-`TaskGraph` 内部使用 `stage_dict: dict[str, TaskStage]` 维护所有节点的 Stage 映射。每个 Stage 在初始化时自动创建对应的 `TaskInQueue` 和 `TaskOutQueue`，队列通过 `_build_resources()` 阶段建立连接。
+`TaskGraph` 内部使用 `stage_dict: dict[str, TaskStage]` 维护所有节点的 Stage 映射。队列连接在 `connect()` 阶段直接建立。
 
 ## 初始化
 
@@ -46,7 +46,7 @@ def set_stages(self, stages: list[TaskStage]) -> None:
 def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
     """
     建立超边连接：from_stages 中的每个节点连接到 to_stages 中的每个节点。
-    操作的是 out_edges / in_edges 字典，实际队列连接在 _build_resources() 中完成。
+    操作的是 out_edges / in_edges 字典，队列连接在 connect() 内直接完成。
     """
 ```
 
@@ -92,13 +92,12 @@ def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
                 put_termination_signal: bool = True) -> None:
     """
     启动任务图。流程：
-    1. _build_resources() 构建队列连接和计数器绑定
-    2. _build_analysis() 分析图结构（源节点、层级、DAG 检测）
-    3. 启动 spout、inlet、reporter
-    4. put_stage_queue() 注入初始任务和终止信号
-    5. _execute_stages() 执行所有节点
-    6. _finalize_nodes() 收尾（确保线程结束、收集未消费任务）
-    7. 释放资源
+    1. _build_analysis() 分析图结构（源节点、层级、DAG 检测）并构建网络图
+    2. 启动 spout、inlet、reporter
+    3. put_stage_queue() 注入初始任务和终止信号
+    4. _execute_stages() 执行所有节点
+    5. _finalize_nodes() 收尾（确保线程结束、收集未消费任务）
+    6. 释放资源
     """
 ```
 
@@ -188,23 +187,29 @@ def collect_runtime_snapshot(self) -> None:
 
 | 方法 | 返回类型 | 说明 |
 |------|---------|------|
+| `get_graph_id()` | `str` | 获取当前任务图实例的唯一标识 |
 | `get_status_snapshot()` | `dict` | 带统一时间戳的状态快照 |
-| `get_graph_analysis()` | `dict` | 图分析信息（isDAG、scheduleMode、layersDict、className） |
+| `get_graph_analysis()` | `dict` | 图分析信息（graphId, name, startTime, className, isDAG, scheduleMode, layersDict） |
 | `get_structure_graph()` | `dict` | JSON 格式的图结构（nodes + edges + source_nodes） |
 | `get_structure_list()` | `list[str]` | 带边框的格式化树形文本 |
 | `get_networkx_graph()` | `DiGraph` | networkx 有向图实例 |
-| `get_fail_by_stage_dict()` | `dict[str, list]` | 按节点分组的失败任务 |
-| `get_fail_by_error_dict()` | `dict[tuple, list]` | 按错误类型分组的失败任务（键为 `(error_type, error_message)` 元组） |
-| `get_total_error_num()` | `int` | 总错误数 |
-| `get_fallback_path()` | `str` | 失败任务 JSONL 文件的绝对路径 |
+| `get_fallback_path()` | `Path` | 失败任务 JSONL 文件的绝对路径，未设置时返回空 Path |
 | `get_source_stages()` | `list[TaskStage]` | 源节点列表 |
-| `get_stage_input_trace(stage_name)` | `str` | 节点输入依赖关系树（需启用 ctree） |
 
-### get_fail_by_error_dict 说明
+### get_graph_analysis 说明
+
+`get_graph_analysis()` 返回包含以下字段的字典：
 
 ```python
-def get_fail_by_error_dict(self) -> dict[tuple[str, ...], list[Any]]:
-    """返回按 (error_type, error_message) 分组。"""
+{
+    "graphId": self.graph_id,
+    "name": self.name,
+    "startTime": self.start_time,
+    "className": self.__class__.__name__,
+    "isDAG": self.is_dag,
+    "scheduleMode": self.schedule_mode,
+    "layersDict": self.layers_dict,
+}
 ```
 
 ## 生命周期图
@@ -217,8 +222,7 @@ flowchart TD
     ENV --> INLET[_init_inlet: LogInlet + FailInlet]
     STATE --> BUILD[set_stages + connect]
     BUILD --> START[start_graph]
-    START --> RESOURCES[_build_resources: 队列连接 & 计数器绑定]
-    START --> ANALYSIS[_build_analysis: 图分析]
+    START --> ANALYSIS[_build_analysis: 图分析与资源构建]
     START -->|注入初始任务| PUT[put_stage_queue]
     START --> EXEC[_execute_stages]
     EXEC -->|eager| ALL[同时启动所有节点]
@@ -229,7 +233,6 @@ flowchart TD
     RELEASE --> END[图执行完成]
     
     START -->|监控| SNAPSHOT[collect_runtime_snapshot]
-    SNAPSHOT --> SUMMARY[get_graph_summary]
     SNAPSHOT --> STATUS[get_status_snapshot]
 ```
 

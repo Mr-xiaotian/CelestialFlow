@@ -36,6 +36,11 @@
   - 验证按节点（`node`）过滤逻辑。
   - 验证关键词（`keyword`）过滤逻辑。
   - 验证排序（`sort_order`）：支持 `newest` 和 `oldest` 两种。
+- `test_push_errors_appends_for_same_graph`: 相同 `graph_id` 下多次推送错误仅追加，不覆盖。
+- `test_push_errors_duplicate_append_is_idempotent`: 重复推送相同 `event_id` 不会产生重复行。
+- `test_newer_graph_replaces_previous_graph_context`: 新 `graph_id` 到来时清空旧错误缓存。
+- `test_stale_graph_pushes_are_ignored`: 切换到新图后，旧图的迟到推送不应污染当前缓存。
+- `test_push_errors_meta_route_removed`: `/api/push_errors_meta` 已删除，访问返回 404。
 
 ## 测试重点
 - **Rev 版本控制**: 确保前端刷新逻辑的高效性，避免冗余数据传输。

@@ -1,21 +1,22 @@
 # errors.ts
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 管理错误日志的分页拉取、关键词搜索、节点过滤、排序切换、表格渲染以及任务重注入功能。
 
-> ⚠️ **已变更**: 错误记录字段已重构（`error_id` 为数字、新增 `error_type`/`error_message`、`task` 为 `unknown`）。新增排序切换、重注入（retry）交互列。
+> ⚠️ **已变更**: 错误记录字段已重构（`event_id` 为数字、新增 `error_type`/`error_message`/`task_json`/`result_json`）。新增排序切换、重注入（retry）交互列。
 
 ## 类型定义
 
 ```typescript
 type ErrorData = {
-  ts: number;            // 错误发生的时间戳，单位为秒
+  error_ts: number;      // 错误发生的时间戳，单位为秒
   stage: string;         // 错误发生的节点/阶段名称，用于节点筛选
-  error_id: number;      // 错误的唯一标识 ID，全局唯一
+  event_id: number;      // 失败事件的唯一标识 ID，全局唯一
   error_type: string;    // 错误的分类类型，用于区分不同类别的错误
-  error_message: string; // 错误的具体描述信息
-  task: unknown;         // 触发该错误的任务数据，用于展示与重试回填
+  error_message: string; // 错误的具体描述信息，是错误的详细文本内容
+  task_json: unknown;    // 触发该错误的任务数据，同时用于展示与重试回填
+  result_json: unknown;  // 成功结果或失败时的占位结果
 };
 ```
 
@@ -70,14 +71,14 @@ type ErrorData = {
 | # | 列名 (i18n key) | 说明 |
 |---|----------------|------|
 | 1 | `#` | 全局展示序号（基于页码计算） |
-| 2 | `errors.colId` | 错误 ID |
-| 3 | `errors.colMessage` | 错误信息（截断 `format_repr` 50 字符，悬停显示完整） |
-| 4 | `errors.colNode` | 节点名称 |
-| 5 | `errors.colTask` | 任务数据（截断显示） |
-| 6 | `errors.colTime` | 发生时间（`formatTimestamp` 格式化） |
-| 7 | `errors.colRetry` | 重注入操作：`.retry-link`（可重试）或 `.retry-disabled`（不可用） |
+| 2 | `errors.colId` | 事件 ID（`event_id`） |
+| 3 | `errors.colMessage` | 错误信息（`error_type(error_message)`，截断 `format_repr` 50 字符，悬停显示完整） |
+| 4 | `errors.colNode` | 节点名称（`stage`） |
+| 5 | `errors.colTask` | 任务数据（`task_json` 截断显示） |
+| 6 | `errors.colTime` | 发生时间（`error_ts`，`formatTimestamp` 格式化） |
+| 7 | `errors.colRetry` | 重注入操作：当 `task_json` 存在且非占位符时为 `.retry-link`（可重试），否则 `.retry-disabled`（不可用） |
 
-> 第 7 列（重注入）：当 `task` 存在且非占位符时，点击/键盘触发调用 `preloadInjectionDraftFromError(stage, task, jumpToInjectionAfterRetry)`，可跳转至注入页预填任务数据。
+> 第 7 列（重注入）：当 `task_json` 存在且非占位符时，点击/键盘触发调用 `preloadInjectionDraftFromError(stage, task_json, jumpToInjectionAfterRetry)`，可跳转至注入页预填任务数据。
 
 ---
 
@@ -118,8 +119,8 @@ type ErrorData = {
 ```typescript
 // 模拟错误记录
 const mockErrors: ErrorData[] = [
-  { ts: 1745400100, stage: "StageA", error_id: 1001, error_type: "TimeoutError", error_message: "Connection timeout", task: { id: 1 } },
-  { ts: 1745400050, stage: "StageB", error_id: 1002, error_type: "ValueError", error_message: "Invalid value", task: "task_data" },
+  { error_ts: 1745400100, stage: "StageA", event_id: 1001, error_type: "TimeoutError", error_message: "Connection timeout", task_json: { id: 1 }, result_json: null },
+  { error_ts: 1745400050, stage: "StageB", event_id: 1002, error_type: "ValueError", error_message: "Invalid value", task_json: "task_data", result_json: null },
 ];
 
 // errors = mockErrors;

@@ -1,6 +1,6 @@
 # 日志持久化 (Log Persistence)
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 `celestialflow.persistence` 模块提供了一个多进程安全的日志系统，旨在解决多进程环境下的日志统一收集、格式化和持久化问题。
 
@@ -145,7 +145,7 @@ sinker = LogInlet(log_queue, log_level="SUCCESS")
 | `task_input(func_name, task_repr, source, input_id)` | DEBUG | 记录任务进入输入队列 |
 | `task_success(func_name, task_repr, exec_mode, result_repr, use_time, parent_id, success_id)` | SUCCESS | 记录任务成功完成 |
 | `task_retry(func_name, task_repr, retry_times, exception, parent_id, retry_id)` | WARNING | 记录任务失败但触发重试 |
-| `task_error(func_name, task_repr, exception, parent_id, error_id)` | ERROR | 记录任务失败且无法重试 |
+| `task_fail(func_name, task_repr, exception, parent_id, error_id)` | ERROR | 记录任务失败且无法重试 |
 | `task_duplicate(func_name, task_repr, parent_id, duplicate_id)` | WARNING | 记录检测到重复任务 |
 
 #### Split 拆分 (Splitter)
@@ -205,7 +205,7 @@ sinker.end_executor("Executor1", "thread", 4.8, 48, 1, 1)
 sinker.task_input("process_func", "task_1", "queue", 1)
 sinker.task_success("process_func", "task_1", "thread", "OK", 0.05, 1, 2)
 sinker.task_retry("process_func", "task_2", 1, TimeoutError("timeout"), 1, 3)
-sinker.task_error("process_func", "task_3", ValueError("bad"), 1, 4)
+sinker.task_fail("process_func", "task_3", ValueError("bad"), 1, 4)
 sinker.task_duplicate("process_func", "task_2", 1, 5)
 
 # 终止信号

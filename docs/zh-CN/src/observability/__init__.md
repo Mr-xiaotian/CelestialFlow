@@ -1,6 +1,6 @@
 # Observability 模块
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行状态监控、进度可视化、Observer 模式和远程状态上报。它使任务执行过程变得透明、可监控。
 
@@ -9,20 +9,20 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
 | 导出符号 | 来源模块 | 说明 |
 |---------|---------|------|
 | `BaseObserver` | `core_observer` | 执行器生命周期观察者基类，定义 `on_start`, `on_task_success`, `on_task_fail`, `on_task_duplicate`, `on_tasks_added`, `on_finish` 等事件接口 |
-| `CallbackObserver` | `core_observer` | 通过关键字参数传入回调函数的观察者实现，无需定义子类 |
 | `TaskProgress` | `core_progress` | 基于 `tqdm` 的任务进度可视化工具，继承自 `BaseObserver` |
 | `TaskReporter` | `core_report` | 任务状态上报器，后台线程周期性向 Web 服务器推送运行状态并拉取控制指令 |
 | `NullTaskReporter` | `core_report` | 空实现的任务上报器，作为关闭上报功能时的占位对象 |
+
+> ⚠️ **已废弃**：此前文档列出 `CallbackObserver`，该类的源码实现已从 `core_observer.py` 中移除，不再可用。
 
 ## 文件说明
 
 ### 核心组件
 
-1. **core_observer.py** (`BaseObserver`, `CallbackObserver`)
-   - **作用**: 执行器生命周期观察者基类与回调式观察者
+1. **core_observer.py** (`BaseObserver`)
+   - **作用**: 执行器生命周期观察者基类
    - **关键功能**:
      - `BaseObserver`: 定义生命周期事件接口，子类按需覆写
-     - `CallbackObserver`: 通过 `**callbacks` 关键字参数传入回调函数，无需定义子类
 
 2. **core_progress.py** (`TaskProgress`)
    - **作用**: 基于 `tqdm` 的任务进度可视化，继承 `BaseObserver`
@@ -45,7 +45,7 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
 ## 模块关联
 
 ### 内部关联
-- `BaseObserver` 是观察者模式的基类，`TaskProgress` 和 `CallbackObserver` 均基于它实现
+- `BaseObserver` 是观察者模式的基类，`TaskProgress` 基于它实现
 - `TaskReporter` 是独立的报告组件，设计为可插拔
 - `NullTaskReporter` 提供了关闭上报时的安全占位
 
@@ -73,19 +73,12 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
 
 ### Observer 使用
 ```python
-from celestialflow import TaskExecutor, TaskProgress, CallbackObserver
+from celestialflow import TaskExecutor, TaskProgress
 
 # 使用 TaskProgress 显示进度条
 executor = TaskExecutor("Test", my_func)
 executor.add_observer(TaskProgress())
 executor.start(tasks)
-
-# 使用 CallbackObserver 自定义行为
-observer = CallbackObserver(
-    on_task_success=lambda count=1: print(f"成功: {count}"),
-    on_finish=lambda: print("完成"),
-)
-executor.add_observer(observer)
 ```
 
 ### TaskReporter 使用

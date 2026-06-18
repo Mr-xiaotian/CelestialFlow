@@ -1,6 +1,6 @@
 # Clone
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 `utils/util_clone.py` 提供了克隆执行器、节点和任务图的功能，用于性能测试和配置复用。
 
@@ -32,6 +32,7 @@ def clone_executor(executor: TaskExecutor) -> TaskExecutor:
 - `max_retries`: 最大重试次数
 - `max_info`: 日志信息最大长度
 - `enable_duplicate_check`: 重复检查开关
+- `persist_result`: 结果持久化开关
 - `log_level`: 日志级别
 - `retry_exceptions`: 可重试异常列表
 

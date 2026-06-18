@@ -1,6 +1,6 @@
 # CelestialFlow 包入口
 
-> 📅 最后更新日期: 2026/06/17
+> 📅 最后更新日期: 2026/06/18
 
 ## 简介
 
@@ -49,7 +49,6 @@
 | 导出符号 | 说明 |
 |----------|------|
 | `BaseObserver` | 观察者基类，定义 on_start / on_success / on_failure 等接口 |
-| `CallbackObserver` | 回调式观察者，通过传入回调函数处理事件 |
 | `TaskProgress` | 任务进度追踪器，实时统计完成/失败/总数 |
 
 ---
@@ -78,13 +77,12 @@
 
 ### persistence — 持久化
 
-提供 JSONL 日志的加载与查询功能。
+提供基于 SQLite 的记录加载与查询功能。
 
 | 导出符号 | 说明 |
 |----------|------|
-| `load_jsonl_logs` | 加载 JSONL 格式的日志文件 |
-| `load_task_by_stage` | 按阶段名称筛选加载任务日志 |
-| `load_task_by_error` | 按错误类型筛选加载任务日志 |
+| `load_records` | 从 SQLite 数据库加载全部执行记录 |
+| `load_records_grouped_by_stage` | 按阶段名称分组加载执行记录 |
 
 ---
 
@@ -101,33 +99,31 @@
 
 ## `__all__` 列表
 
-完整公开 API 列表（当前共 23 个符号）：
+完整公开 API 列表（当前共 21 个符号）：
 
 ```python
 __all__ = [
-    "TaskGraph",
-    "TaskChain",
-    "TaskLoop",
-    "TaskCross",
-    "TaskComplete",
-    "TaskWheel",
-    "TaskGrid",
     "BaseObserver",
-    "CallbackObserver",
-    "TaskProgress",
+    "TaskChain",
+    "TaskComplete",
+    "TaskCross",
     "TaskExecutor",
-    "TaskStage",
-    "TaskSplitter",
+    "TaskGraph",
+    "TaskGrid",
+    "TaskLoop",
+    "TaskProgress",
     "TaskRouter",
-    "TerminationSignal",
+    "TaskSplitter",
+    "TaskStage",
     "TaskWebServer",
-    "load_jsonl_logs",
-    "load_task_by_stage",
-    "load_task_by_error",
-    "make_hashable",
-    "format_table",
-    "benchmark_graph",
+    "TaskWheel",
+    "TerminationSignal",
     "benchmark_executor",
+    "benchmark_graph",
+    "format_table",
+    "load_records",
+    "load_records_grouped_by_stage",
+    "make_hashable",
 ]
 ```
 
@@ -159,8 +155,8 @@ init_tasks = {stage_a.get_name(): [1, 2, 3, 4, 5]}
 graph.start_graph(init_tasks)
 
 # 5. 查看执行结果摘要
-summary = graph.get_graph_summary()
-print("Graph summary:", summary)
+snapshot = graph.get_status_snapshot()
+print("Graph status:", snapshot["status"])
 ```
 
 ### 使用 TaskExecutor 独立执行
@@ -197,8 +193,8 @@ stages = [
 
 chain = TaskChain(stages, chain_mode="serial")
 chain.start_chain({stages[0].get_name(): [1, 2, 3]})
-summary = chain.get_graph_summary()
-print("Chain summary:", summary)
+snapshot = chain.get_status_snapshot()
+print("Chain status:", snapshot["status"])
 ```
 
 ## 模块依赖关系
@@ -218,7 +214,7 @@ graph TD
     end
 
     subgraph observability
-        O["BaseObserver<br/>CallbackObserver<br/>TaskProgress"]
+        O["BaseObserver<br/>TaskProgress"]
     end
 
     subgraph utils
@@ -230,7 +226,7 @@ graph TD
     end
 
     subgraph persistence
-        P["load_jsonl_logs<br/>load_task_by_stage<br/>load_task_by_error"]
+        P["load_records<br/>load_records_grouped_by_stage"]
     end
 
     subgraph runtime

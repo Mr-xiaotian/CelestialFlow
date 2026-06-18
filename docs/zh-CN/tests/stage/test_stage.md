@@ -23,6 +23,7 @@
 | `test_invalid_execution_mode` | 非法 `execution_mode` 抛出 `ExecutionModeError` |
 | `test_summary_contains_stage_mode` | `get_summary()` 包含 `stage_mode` 和 `execution_mode` |
 | `test_lambda_allowed_in_thread` | thread 模式下允许 lambda 函数 |
+| `test_prev_binding_survives_execution_mode_switch` | 前驱绑定在 execution_mode 切换后指标仍保持同步 |
 
 ## 测试重点
 - **配置严谨性**: 确保在初始化阶段就能拦截错误的模式组合。

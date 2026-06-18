@@ -14,11 +14,11 @@
 
 | 测试类 | 用例数 | 覆盖目标 |
 |--------|--------|---------|
-| `TestDispatchSerial` | 6 | 单/多任务、重试成功、重试耗尽、终止信号单/多 ID |
+| `TestDispatchSerial` | 7 | 单/多任务、重试成功、重试耗尽、终止信号单/多 ID、success fanout 下游 input_id 独立 |
 | `TestDispatchThread` | 2 | 10 任务并发、重复任务去重统计 |
 | `TestDispatchAsync` | 2 | 10 任务协程并发、异步重试成功 |
 | `TestDispatchCoreBehavior` | 2 | 空队列+终止信号（3 模式参数化）、5 任务结果数（3 模式参数化） |
-| **合计** | **12** | |
+| **合计** | **13** | |
 
 ## 关键测试场景
 

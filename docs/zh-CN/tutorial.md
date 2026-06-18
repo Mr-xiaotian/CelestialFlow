@@ -1,6 +1,6 @@
 ﻿# 教程（Tutorial）：构建一个图片爬虫
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/06/18
 
 本教程将通过一个完整的实战项目——**百度图片爬虫**，带你从零开始学习 CelestialFlow 的使用。
 
@@ -274,7 +274,7 @@ celestialflow-web --port 5005
 ```python
 # 准备初始任务
 init_tasks = {
-    stage_search.get_tag(): ["猫咪", "小狗", "风景"]
+    stage_search.get_name(): ["猫咪", "小狗", "风景"]
 }
 
 # 启动
@@ -282,8 +282,16 @@ print("开始爬取图片...")
 graph.start_graph(init_tasks)
 
 # 获取统计
-print(f"成功: {graph.get_graph_summary().get('total_succeeded', 0)}")
-print(f"失败: {graph.get_graph_summary().get('total_failed', 0)}")
+snapshot = graph.get_status_snapshot()
+status = snapshot["status"]
+total_succeeded = sum(
+    s.get("total_succeeded", 0) for s in status.values()
+)
+total_failed = sum(
+    s.get("total_failed", 0) for s in status.values()
+)
+print(f"成功: {total_succeeded}")
+print(f"失败: {total_failed}")
 ```
 
 ---
@@ -411,14 +419,21 @@ if __name__ == "__main__":
     # 运行
     print("开始爬取图片...")
     graph.start_graph({
-        graph.source_stages[0].get_tag(): KEYWORDS
+        graph.source_stages[0].get_name(): KEYWORDS
     })
     
     # 统计
-    summary = graph.get_graph_summary()
+    snapshot = graph.get_status_snapshot()
+    status = snapshot["status"]
+    total_succeeded = sum(
+        s.get("total_succeeded", 0) for s in status.values()
+    )
+    total_failed = sum(
+        s.get("total_failed", 0) for s in status.values()
+    )
     print(f"\n爬取完成!")
-    print(f"成功: {summary.get('total_succeeded', 0)}")
-    print(f"失败: {summary.get('total_failed', 0)}")
+    print(f"成功: {total_succeeded}")
+    print(f"失败: {total_failed}")
 ```
 
 ---
@@ -469,12 +484,12 @@ from celestialflow import TerminationSignal
 
 # 注入新关键词
 graph.put_stage_queue({
-    stage_search.get_tag(): ["汽车", "美食"]
+    stage_search.get_name(): ["汽车", "美食"]
 })
 
 # 注入终止信号（停止爬取）
 graph.put_stage_queue({
-    stage_search.get_tag(): [TerminationSignal()]
+    stage_search.get_name(): [TerminationSignal()]
 })
 ```
 

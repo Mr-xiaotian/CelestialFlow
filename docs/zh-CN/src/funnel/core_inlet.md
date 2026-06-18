@@ -1,6 +1,6 @@
 # BaseInlet
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 `BaseInlet` 是所有入口类（Inlet）的基类，提供将记录写入队列的通用功能。
 
@@ -51,17 +51,19 @@ classDiagram
         +start_stage()
         +end_stage()
         +task_success()
-        +task_error()
+        +task_fail()
         +task_retry()
         +termination_input()
     }
-    class FailInlet {
-        +start_graph()
-        +start_executor()
-        +task_error()
+    class FallbackInlet {
+        +task_in()
+        +task_success()
+        +task_fail()
+        +task_retry()
+        +task_duplicate()
     }
     BaseInlet <|-- LogInlet
-    BaseInlet <|-- FailInlet
+    BaseInlet <|-- FallbackInlet
 ```
 
 ### 继承关系说明
@@ -69,7 +71,9 @@ classDiagram
 | 子类 | 所在文件 | 职责 |
 |------|---------|------|
 | `LogInlet` | `persistence/core_log.py` | 日志记录，追踪任务入队/出队/终止全过程 |
-| `FailInlet` | `persistence/core_fail.py` | 错误记录，持久化任务错误信息到 JSONL |
+| `FallbackInlet` | `persistence/core_fallback.py` | Fallback 记录，持久化任务生命周期到 SQLite |
+
+> ⚠️ **已变更**：旧版 `FailInlet`（`core_fail.py`）已重命名为 `FallbackInlet`（`core_fallback.py`），`SuccessSpout` 已移除。
 
 ## 使用示例
 

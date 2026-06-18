@@ -1,8 +1,10 @@
-# BaseObserver / CallbackObserver
+# BaseObserver
 
-> 📅 最后更新日期: 2026/05/28
+> 📅 最后更新日期: 2026/06/18
 
-`BaseObserver` 是执行器生命周期观察者的基类，定义了 `TaskExecutor` 在运行过程中会广播的事件接口。`CallbackObserver` 是轻量级实现，通过回调函数接收事件。
+`BaseObserver` 是执行器生命周期观察者的基类，定义了 `TaskExecutor` 在运行过程中会广播的事件接口。
+
+> ⚠️ **已废弃**：此前文档包含 `CallbackObserver` 章节，该类的源码实现已从 `core_observer.py` 中移除，不再可用。
 
 ## BaseObserver
 
@@ -55,37 +57,8 @@ executor.remove_observer(observer)  # 移除观察者
 
 执行器内部通过 `_notify(method_name, *args, **kwargs)` 向所有已注册的观察者广播事件。当 observer 列表为空时，等效于无观察者（不需要 Null 实现）。
 
-## CallbackObserver
-
-轻量级观察者，通过关键字参数传入回调函数，无需定义子类。
-
-```python
-class CallbackObserver(BaseObserver):
-    def __init__(self, **callbacks):
-        for name, fn in callbacks.items():
-            setattr(self, name, fn)
-```
-
-### 使用方式
-
-```python
-from celestialflow import CallbackObserver, TaskExecutor
-
-observer = CallbackObserver(
-    on_task_success=lambda count=1: print(f"成功: {count}"),
-    on_finish=lambda: print("完成"),
-)
-
-executor = TaskExecutor("Test", my_func)
-executor.add_observer(observer)
-executor.start(tasks)
-```
-
-只需覆写关心的事件，其余走 `BaseObserver` 的默认空实现。
-
 ## 已有实现
 
 | 类 | 说明 |
 |---|------|
 | `TaskProgress` | 基于 tqdm 的进度条显示（见 `core_progress.md`） |
-| `CallbackObserver` | 回调函数式观察者 |

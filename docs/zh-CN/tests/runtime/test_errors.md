@@ -21,7 +21,7 @@
 | 配置与选项 | 8 | `ConfigurationError`、`InvalidOptionError`（含自定义前缀）、`ExecutionModeError`（含自定义模式）、`StageModeError`、`LogLevelError`、`ScheduleModeError` |
 | 图结构 | 3 | `GraphStructureError`、`DuplicateNodeError`、`UnknownNodeError` |
 | 运行时与生命周期 | 4 | `RuntimeStateError`、`InitializationError`、`CelestialFlowTimeoutError`、`UnconsumedError` |
-| 外部服务与通信 | 3 | `RemoteWorkerError`、`ReporterError`、`CelestialTreeConnectionError`（默认/自定义消息） |
+| 外部服务与通信 | 4 | `RemoteWorkerError`、`ReporterError`、`CelestialTreeConnectionError`（默认+自定义消息） |
 | 任务与逻辑 | 2 | `TaskFormatError`、`TerminationMergeError` |
 
 ## 关键场景

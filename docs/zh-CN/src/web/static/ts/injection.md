@@ -1,6 +1,6 @@
 # injection.ts
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 管理任务手动注入页面的逻辑。采用**草稿式架构**：用户选择一个节点后编辑 JSON 草稿，编辑内容实时缓存在 `nodeDrafts` 中，最终通过"批量提交"将草稿一次性发送到后端。
 
@@ -9,7 +9,7 @@
 ## 类型定义
 
 ```typescript
-type ValidationState = "idle" | "success" | "error" | "neutral";
+type ValidationState = "success" | "error" | "neutral";
 ```
 
 ## 全局变量

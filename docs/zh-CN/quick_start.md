@@ -69,8 +69,8 @@ REPORT_PORT=5005
 # 如果你pip了项目，可以在当前虚拟环境下可以直接使用命令celestialflow-web
 celestialflow-web --port 5005
 
-# 如果你直接clone并cd进入项目目录，那么需要运行task_web.py文件
-python src/celestialflow/task_web.py --port 5005 
+# 如果你直接clone并cd进入项目目录，那么需要运行 core_server.py
+python -m celestialflow.web.core_server --port 5005 
 ```
 
 默认监听端口 `5000`，但为了避免冲突，测试代码中使用的都是端口 `5005`，访问：
@@ -109,11 +109,11 @@ uv sync --group dev
 之后推荐先运行以下测试：
 
 ```bash
-pytest tests/test_graph.py
-pytest tests/test_stage.py
+pytest tests/graph/test_graph.py
+pytest tests/stage/test_stage.py
 ```
 
-- `tests/test_graph.py` 包含图结构相关测试：DAG 构建、分层调度、线程模式、循环/网格/完全图结构等。
-- `tests/test_stage.py` 包含 Stage 节点相关测试：模式校验、标签生成、序列化检查等。
+- `tests/graph/test_graph.py` 包含图结构相关测试：DAG 构建、分层调度、线程模式、循环/网格/完全图结构等。
+- `tests/stage/test_stage.py` 包含 Stage 节点相关测试：模式校验、标签生成、序列化检查等。
 
 在代码运行过程中可以通过Web监视页面查看运行情况。
