@@ -1,6 +1,6 @@
 # runtime/util_constant.py
 
-from celestialtree import NodeLabelStyle
+# from celestialtree import NodeLabelStyle
 
 # 日志级别字典
 LEVEL_DICT = {
@@ -14,6 +14,6 @@ LEVEL_DICT = {
 }
 
 
-STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(
-    template="{base}  {payload.name}  ‹{type}›", missing="-"
-)
+# STAGE_STYLE: NodeLabelStyle = NodeLabelStyle(
+#     template="{base}  {payload.name}  ‹{type}›", missing="-"
+# )
