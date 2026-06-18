@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
@@ -62,14 +62,16 @@ def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: i
 ### set_ctree
 
 ```python
-def set_ctree(self, use_ctree: bool = False, host: str = "127.0.0.1",
-              http_port: int = 7777, grpc_port: int = 7778,
-              transport: str = "grpc") -> None:
+def set_ctree(self, ctree_client: EventClient) -> None:
     """
-    设定 CelestialTree 客户端。启用时会验证连接健康状态。
-    :raises CelestialTreeConnectionError: 如果连接失败
+    设置任务图共享的事件客户端。
+    传入后会同步下发给当前图中的所有 stage。
     """
 ```
+
+> 默认情况下，`TaskGraph` 会在内部使用 `LocalEventClient()` 生成本地递增事件 ID，因此即使没有安装 `celestialtree`，核心执行链路也可以正常工作。
+>
+> 如果你希望把事件上报到 CelestialTree，需要先额外安装 `celestialtree`，再自行构造对应客户端实例并传给 `set_ctree()`。
 
 ### set_graph_mode
 

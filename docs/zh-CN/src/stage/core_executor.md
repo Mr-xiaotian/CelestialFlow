@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/18
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -138,12 +138,13 @@ def handle_error_dict(self) -> dict[tuple[str, str], list[T]]:
 ## CelestialTree 集成
 
 ```python
-def set_ctree(self, host: str = "127.0.0.1", http_port: int = 7777, grpc_port: int = 7778) -> None:
-    """设置 CelestialTree 客户端（仅 gRPC 传输）。"""
-
-def set_nullctree(self, event_id: int | None = None) -> None:
-    """设置空客户端（不连接外部服务，仅生成事件 ID）。"""
+def set_ctree(self, ctree_client: EventClient) -> None:
+    """设置事件客户端实例。"""
 ```
+
+> 默认情况下，`TaskExecutor` 内部会使用 `LocalEventClient()` 生成本地递增事件 ID。
+>
+> 如果需要接入 CelestialTree，请先额外安装 `celestialtree`，再构造客户端对象并传给 `set_ctree()`；当前已经没有单独的 `set_nullctree()` 配置入口。
 
 ## 状态查询方法
 
@@ -167,7 +168,7 @@ flowchart TD
     CONFIG -->|_init_dispatch| DISPATCH[TaskDispatch 创建]
     CONFIG -->|_init_queue| QUEUE[task_queue + result_queue]
     CONFIG -->|_init_metrics| METRICS[TaskMetrics 初始化]
-    CONFIG -->|set_nullctree| CTREE[NullCelestialTreeClient]
+    CONFIG -->|set_ctree| CTREE[LocalEventClient]
 
     INIT -->|start/start_async| PREPARE[_prepare_start]
     PREPARE --> ENV[init_env:<br/>_init_state → _init_spout → _init_inlet]

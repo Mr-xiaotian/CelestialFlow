@@ -1,8 +1,11 @@
 # CelestialTree Client
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/06/18
 
-CelestialFlow 集成了 `celestialtree` 客户端，用于实现细粒度的任务全链路追踪（Provenance）和事件记录。
+CelestialFlow 支持接入 `celestialtree` 客户端，用于实现细粒度的任务全链路追踪（Provenance）和事件记录。
+
+> `celestialtree` 现已从 CelestialFlow 默认运行时依赖中移出。
+> 如果你需要本页介绍的追踪能力，请单独安装 `celestialtree`，或者在源码仓库中执行 `uv sync --group dev`。
 
 ## 简介
 
@@ -13,17 +16,33 @@ CelestialTree 是一个独立的事件溯源系统。CelestialFlow 通过 `Celes
 2. **定位错误根因**: 查询某个错误任务的上游来源。
 3. **可视化执行树**: 生成任务执行的调用树。
 
+## 安装
+
+```bash
+# 已安装 celestialflow，仅额外补装 CelestialTree
+uv pip install celestialtree
+
+# 如果你是在源码仓库中开发/运行 demo
+uv sync --group dev
+```
+
 ## 配置
 
-在 `TaskGraph` 初始化时配置：
+当前 `TaskGraph.set_ctree()` 接收的是一个事件客户端实例，而不是旧版的 `use_ctree=True` / `host=...` 形式。
+
+在 `TaskGraph` 初始化后配置：
 
 ```python
-graph.set_ctree(
-    use_ctree=True,
+from celestialtree import Client as CelestialTreeClient
+
+ctree_client = CelestialTreeClient(
     host="127.0.0.1",
     http_port=7777,
-    grpc_port=7778
+    grpc_port=7778,
+    transport="grpc",
 )
+
+graph.set_ctree(ctree_client)
 ```
 
 ## 事件类型

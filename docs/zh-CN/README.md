@@ -1,4 +1,4 @@
-﻿# CelestialFlow ——一个轻量级、可并行、基于图结构的 Python 任务调度框架
+# CelestialFlow ——一个轻量级、可并行、基于图结构的 Python 任务调度框架
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
@@ -111,6 +111,18 @@ uv pip install celestialflow
 pip install celestialflow
 ```
 
+如果你只使用 CelestialFlow 的核心调度、Web、持久化与 demo/test 之外的常规功能，上面的安装已经足够。
+
+如果你还需要启用 CelestialTree 事件追踪能力，则需要**额外安装** `celestialtree`：
+
+```bash
+# 对已发布包使用者
+uv pip install celestialtree
+
+# 如果你是 clone 仓库后的开发者/贡献者
+uv sync --group dev
+```
+
 一个简单的可运行代码:
 
 ```python
@@ -216,7 +228,7 @@ flowchart TD
 ## 环境要求（Requirements）
 
 **CelestialFlow** 基于 Python 3.12+，默认运行时依赖以下核心组件。
-请确保你的环境能够正常安装这些依赖（`pip install celestialflow` 会自动安装）。
+其中 `celestialtree` 不再属于默认运行时依赖，而是额外安装的可选组件。
 
 | 依赖包           | 说明 |
 | ----------------- | ---- |
@@ -227,9 +239,10 @@ flowchart TD
 | **networkx**      | 任务图（TaskGraph）结构与依赖分析 |
 | **jinja2**        | FastAPI 模板引擎，用于 Web 可视化界面渲染 |
 | **tqdm**          | 可选组件，进度条显示，用于任务执行可视化 |
-| **celestialtree** | 可选组件，用于任务状态上报与远程调用（`ctree_client`） |
 
 如需运行 `demo/demo_redis.py` 或 Go Worker 示例，请额外安装 `redis` 并准备 Redis 服务；这部分不属于默认运行时依赖。
+
+如需运行依赖 CelestialTree 的 demo / bench / 追踪查询，请额外安装 `celestialtree`，或直接在源码仓库中执行 `uv sync --group dev`。
 
 ## 文件结构（File Structure）
 

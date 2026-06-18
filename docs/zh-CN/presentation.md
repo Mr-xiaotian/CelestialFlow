@@ -1,6 +1,6 @@
 # CelestialFlow 技术分享
 
-> 📅 最后更新日期: 2026/05/09
+> 📅 最后更新日期: 2026/06/18
 
 ---
 
@@ -308,10 +308,10 @@ sequenceDiagram
 
 ### 事件溯源与任务血缘
 
-- **CelestialTree**：层次化事件追踪系统（独立项目 `celestialtree>=0.1.2`）
+- **CelestialTree**：层次化事件追踪系统（独立项目 `celestialtree`，需额外安装）
 - **集成点**：
-  - `TaskExecutor.set_ctree(host, http_port, grpc_port)` 启用追踪
-  - `TaskExecutor.set_nullctree()` 关闭追踪（使用 NullClient）
+  - `TaskExecutor.set_ctree(ctree_client)` 注入外部事件客户端
+  - 默认使用 `LocalEventClient()`，不依赖 CelestialTree 服务
   - `TaskEnvelope.id` 存储 CelestialTree 事件 ID
   - `TerminationSignal.id` / `TerminationIdPool.ids` 传播终止事件
 
@@ -321,7 +321,7 @@ sequenceDiagram
   - 终止信号合并 → 事件 ID 池聚合
   - 全链路从输入到完成可回溯
 
-- **设计取舍**：事件追踪为可选依赖，关闭后零开销（NullClient 模式）
+- **设计取舍**：事件追踪为可选依赖；默认本地模式仅生成事件 ID，需要远端追踪时再额外安装 `celestialtree`
 
 ---
 

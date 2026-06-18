@@ -47,7 +47,8 @@ flowchart LR
 
 - 所有 stage 默认 `stage_mode="thread"`（多线程）
 - `set_reporter(True)` 启用监控上报
-- `set_ctree(True)` 启用事件追踪
+- 默认使用 `LocalEventClient()` 生成本地事件 ID
+- 如需接入 CelestialTree，请先额外安装 `celestialtree`，再构造客户端并调用 `set_ctree(ctree_client)`
 - Redis 远端协作示例已迁移到 `demo_redis.py`
 
 ## 可能出现的问题

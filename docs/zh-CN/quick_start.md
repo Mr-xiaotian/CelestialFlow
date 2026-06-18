@@ -1,6 +1,6 @@
-﻿# 快速开始（Quick Start）
+# 快速开始（Quick Start）
 
-> 📅 最后更新日期: 2026/04/22
+> 📅 最后更新日期: 2026/06/18
 
 本节将引导你快速安装并运行 **TaskGraph**，通过示例体验其任务图调度机制。
 
@@ -30,14 +30,24 @@ CelestialFlow 已发布至 [PyPI](https://pypi.org/project/celestialflow/)，可
 uv pip install celestialflow
 ```
 
-不过如果你想要运行之后的测试代码，亦或者想使用基于Go语言的go_worker程序，那么还是需要clone项目
+上面的安装只包含 CelestialFlow 默认运行时依赖，不包含 `celestialtree` 这类可选追踪组件。
+
+如果你需要启用 CelestialTree 事件追踪，可以额外执行：
+
+```bash
+uv pip install celestialtree
+```
+
+不过如果你想要运行之后的测试代码，亦或者想使用基于 Go 语言的 `go_worker` 程序，那么还是需要 clone 项目：
 
 ```bash
 # 克隆项目
 git clone https://github.com/Mr-xiaotian/CelestialFlow.git
 cd CelestialFlow
-uv pip install .
+uv sync --group dev
 ```
+
+其中 `dev` 依赖组已经包含 `pytest`、`python-dotenv`、`redis`、`celestialtree` 等开发与扩展所需依赖。
 
 ## （可选）设置.env && 启动 Web 可视化
 
@@ -90,9 +100,10 @@ graph.set_reporter(True, host="127.0.0.1", port=5005)
 
 项目提供了多个位于 `tests/` 目录下的示例文件，用于快速了解框架特性。
 
-为了保证测试正常运行, 请先安装必要的测试库与dotenv库:
+为了保证测试正常运行，建议直接在仓库根目录执行：
+
 ```bash
-uv pip install pytest pytest-asyncio python-dotenv
+uv sync --group dev
 ```
 
 之后推荐先运行以下测试：

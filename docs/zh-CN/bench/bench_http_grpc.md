@@ -1,6 +1,6 @@
 # bench_http_grpc.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/16
+> 📅 最后更新日期: 2026/06/18
 
 ## 目标
 
@@ -103,5 +103,6 @@ python bench/bench_http_grpc.py
 ## 依赖
 
 - `celestialflow`（`TaskChain`、`TaskSplitter`、`TaskStage`）
+- `celestialtree`（需额外安装；源码仓库中可通过 `uv sync --group dev` 获取）
 - `python-dotenv`
 - 外部服务：CelestialTree（HTTP 端口 + gRPC 端口）
