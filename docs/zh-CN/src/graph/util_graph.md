@@ -2,13 +2,13 @@
 
 > 📅 最后更新日期: 2026/06/18
 
-`graph/util_graph.py` 提供一个不依赖 `networkx` 的最小图结构 `OrderGraph`，以及围绕它的一组基础图算法。
+`graph/util_graph.py` 提供最小图结构 `OrderGraph`，以及围绕它的一组基础图算法。
 
 这个文件当前定位是：
 
 - 为框架内部提供轻量、稳定顺序的图结构。
 - 承担一部分图分析能力，减少对第三方图结构的耦合。
-- 为后续替换部分 `util_analysis.py` / `networkx` 调用提供基础能力。
+- 为 `TaskGraph`、运行时估算和测试提供统一的图分析基础能力。
 
 ## 主要能力
 
@@ -76,20 +76,16 @@
 - DAG 中的普通节点会按最长前驱路径得到层级。
 - 含环图中，同一环内的节点共享同一个层级。
 
-这与 `util_analysis.py` 中“支持 DAG 和含环图的层级分析”目标是一致的，只是这里不再直接依赖 `networkx` 图对象。
+这套层级算法直接服务于当前 `TaskGraph` 的图分析过程，不再依赖外部图对象。
 
-## 与 `util_analysis.py` 的关系
+## 与 `TaskGraph` 的关系
 
-两者当前不是完全互斥关系。
+`TaskGraph` 当前在 `_build_analysis()` 阶段直接基于 `OrderGraph` 完成：
 
-- `util_analysis.py`
-  - 仍然以 `networkx.DiGraph` 为中心。
-  - 更偏向现有分析接口和与 `TaskGraph` 的直接集成。
-- `util_graph.py`
-  - 更偏向内部轻量图结构与基础算法能力。
-  - 适合作为后续图分析收口的基础模块。
-
-当前可以把 `util_graph.py` 理解为“内部算法层”，把 `util_analysis.py` 理解为“现有分析适配层”。
+- 源节点识别
+- DAG 判定
+- 节点层级计算
+- 运行时全局 pending 估算所需的拓扑与前驱访问
 
 ## 使用示例
 
@@ -151,5 +147,5 @@ print(levels)
 ## 使用建议
 
 - 如果你只需要轻量图结构和基础图算法，优先使用 `OrderGraph`。
-- 如果你需要直接对接当前 `TaskGraph.get_graph_analysis()` 这一套接口，仍以 `util_analysis.py` 为主。
-- 如果后续要逐步收缩 `networkx` 依赖，`util_graph.py` 是更合适的承接位置。
+- 如果你需要与 `TaskGraph` 的当前分析逻辑保持一致，优先使用这里的算法函数。
+- 如果你需要导出给前端或日志使用的结构数据，应继续配合 `util_serialize.py`。

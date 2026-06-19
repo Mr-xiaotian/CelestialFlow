@@ -92,7 +92,7 @@ def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
                 put_termination_signal: bool = True) -> None:
     """
     启动任务图。流程：
-    1. _build_analysis() 分析图结构（源节点、层级、DAG 检测）并构建网络图
+    1. _build_analysis() 分析图结构（源节点、层级、DAG 检测）并构建 `OrderGraph`
     2. 启动 spout、inlet、reporter
     3. put_stage_queue() 注入初始任务和终止信号
     4. _execute_stages() 执行所有节点
@@ -192,7 +192,7 @@ def collect_runtime_snapshot(self) -> None:
 | `get_graph_analysis()` | `dict` | 图分析信息（graphId, name, startTime, className, isDAG, scheduleMode, layersDict） |
 | `get_structure_graph()` | `dict` | JSON 格式的图结构（nodes + edges + source_nodes） |
 | `get_structure_list()` | `list[str]` | 带边框的格式化树形文本 |
-| `get_networkx_graph()` | `DiGraph` | networkx 有向图实例 |
+| `get_order_graph()` | `OrderGraph` | 内部有序有向图实例 |
 | `get_fallback_path()` | `Path` | 失败任务 JSONL 文件的绝对路径，未设置时返回空 Path |
 | `get_source_stages()` | `list[TaskStage]` | 源节点列表 |
 

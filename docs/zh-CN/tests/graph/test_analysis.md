@@ -1,14 +1,14 @@
 # 图分析工具测试 (test_analysis.py)
 
-> 最后更新日期: 2026/05/23
+> 最后更新日期: 2026/06/18
 
 ## 作用
-验证 `celestialflow.graph.util_analysis` 模块中的图分析工具函数，确保图构建、层级计算和源节点查找逻辑的准确性。
+验证 `celestialflow.graph.util_graph` 中的基础图分析函数，确保 `OrderGraph` 构建、层级计算和源节点查找逻辑的准确性。
 
 ## 核心测试对象
-- `build_networkx_graph`: 将邻接表转换为 NetworkX 有向图。
+- `OrderGraph.from_edges`: 将邻接表转换为 `OrderGraph`。
 - `compute_node_levels`: 计算图中各节点的逻辑层级。
-- `find_source_nodes`: 查找图的入口节点（源节点）。
+- `source_nodes`: 查找图的入口节点（源节点）。
 
 ## 关键测试流程
 1. **图构建测试**: 覆盖线性、含环和孤立节点场景，验证节点和边的数量及方向。
@@ -22,7 +22,7 @@
    - **轮式拓扑**: 验证中心节点被识别为唯一源。
 
 ## 测试重点
-- **NetworkX 集成**: 确保内部数据结构转换正确。
+- **OrderGraph 构建**: 确保内部有序图结构与邻接关系正确。
 - **层级一致性**: 复杂拓扑（如带尾巴的环）下层级计算的鲁棒性。
 - **SCC 处理**: 确保循环引用不会导致死循环或错误的层级分布。
 
@@ -33,7 +33,7 @@
 pytest tests/graph/test_analysis.py -v
 
 # 仅运行图构建测试
-pytest tests/graph/test_analysis.py::TestBuildNetworkxGraph -v
+pytest tests/graph/test_analysis.py::TestBuildOrderGraph -v
 
 # 仅运行层级计算测试
 pytest tests/graph/test_analysis.py -k "levels" -v
@@ -46,13 +46,12 @@ pytest tests/graph/test_analysis.py -k "source" -v
 
 | 测试 | 耗时 |
 |------|------|
-| `TestBuildNetworkxGraph` | < 0.1s（纯内存计算） |
+| `TestBuildOrderGraph` | < 0.1s（纯内存计算） |
 | `TestComputeNodeLevels` | < 0.1s |
 | `TestFindSourceNodes` | < 0.1s |
 
 ## 重要细节
-- 使用轻量级 Mock 对象模拟 `Stage` 和 `Runtime` 环境。
 - 测试用例均为纯内存计算，执行速度极快。
 
 ## 注意事项
-- 测试代码位于 `tests/graph/test_analysis.py`，对应实现位于 `src/celestialflow/graph/util_analysis.py`。
+- 测试代码位于 `tests/graph/test_analysis.py`，对应实现位于 `src/celestialflow/graph/util_graph.py`。

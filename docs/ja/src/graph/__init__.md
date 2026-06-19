@@ -1,6 +1,6 @@
 # Graph モジュール
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/18
 
 Graph モジュールは CelestialFlow のコアスケジューリングシステムであり、タスクノード間の依存関係、実行フロー、ライフサイクルを管理します。柔軟なタスクグラフ（TaskGraph）の構築、分析、シリアライズ機能を提供します。
 
@@ -47,12 +47,13 @@ from celestialflow.graph import (
 
 ### ユーティリティファイル
 
-3. **util_analysis.py**
-   - **役割**: `networkx` ベースのグラフ分析ツール
+3. **util_graph.py**
+   - **役割**: 軽量な順序付き有向グラフと基礎グラフアルゴリズム
    - **主要関数**:
-     - `build_networkx_graph()`: 隣接テーブルと実行時情報から `DiGraph` を構築
-     - `find_source_nodes()`: 入次数 0 のソースノードを検出
-     - `compute_node_levels()`: ノード階層を計算（DAG および循環グラフ対応）
+     - `OrderGraph`: 安定したノード順序を持つ最小順序付き有向グラフ
+     - `is_dag()` / `topo_sort()`: DAG 判定とトポロジカル走査
+     - `tarjan_scc()` / `get_condensation()`: SCC 解析と凝縮グラフ構築
+     - `compute_node_levels()`: SCC 凝縮グラフに基づくノード階層計算
 
 4. **util_serialize.py**
    - **役割**: タスクグラフ構造の JSON シリアライズとテキスト化
@@ -65,7 +66,8 @@ from celestialflow.graph import (
 ### 内部関連
 - `TaskGraph` は基底クラスであり、他のすべての構造はこれを継承します
 - `TaskChain`、`TaskLoop` などは `TaskGraph` の特殊化実装です（`set_stages` / `connect` ロジックをカプセル化）
-- 分析ツールはグラフ理論計算に `networkx` に依存します
+- `util_graph.py` は共有内部グラフ構造とグラフ理論ヘルパーを提供します
+- `TaskGraph` は現在 `OrderGraph` 上でソース検索、DAG 判定、階層解析を行います
 - シリアライズツールは実行時構造を JSON/テキストとして出力します
 
 ### 外部関連

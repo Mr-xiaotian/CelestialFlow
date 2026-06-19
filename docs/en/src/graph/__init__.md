@@ -1,6 +1,6 @@
 # Graph Module
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 The Graph module is CelestialFlow's core scheduling system, responsible for managing dependency relationships between task nodes, execution flow, and lifecycle. It provides flexible task graph construction, analysis, and serialization capabilities.
 
@@ -47,12 +47,13 @@ from celestialflow.graph import (
 
 ### Utility Files
 
-3. **util_analysis.py**
-   - **Purpose**: Graph analysis tools powered by `networkx`
+3. **util_graph.py**
+   - **Purpose**: Lightweight ordered directed graph and foundational graph algorithms
    - **Key Functions**:
-     - `build_networkx_graph()`: Build `DiGraph` from adjacency table and runtime information
-     - `find_source_nodes()`: Find source nodes with in-degree 0
-     - `compute_node_levels()`: Compute node levels (supports both DAG and cyclic graphs)
+     - `OrderGraph`: Minimal ordered directed graph with stable node iteration order
+     - `is_dag()` / `topo_sort()`: DAG detection and topological traversal
+     - `tarjan_scc()` / `get_condensation()`: SCC analysis and condensation graph construction
+     - `compute_node_levels()`: Node level computation based on SCC condensation
 
 4. **util_serialize.py**
    - **Purpose**: Task graph structure serialization to JSON and text rendering
@@ -65,7 +66,8 @@ from celestialflow.graph import (
 ### Internal Relationships
 - `TaskGraph` is the base class; all other structures inherit from it
 - `TaskChain`, `TaskLoop`, etc. are specialized implementations of `TaskGraph` (encapsulating `set_stages` / `connect` logic)
-- Analysis tools depend on `networkx` for graph-theoretic computations
+- `util_graph.py` provides the shared internal graph structure and graph-theoretic helpers
+- `TaskGraph` now performs source lookup, DAG detection, and level analysis on top of `OrderGraph`
 - Serialization tools output runtime structures as JSON/text
 
 ### External Relationships

@@ -92,7 +92,7 @@ def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
                 put_termination_signal: bool = True) -> None:
     """
     タスクグラフを起動します。フロー:
-    2. _build_analysis() でグラフ構造を分析（ソースノード、階層、DAG 検出）しネットワークグラフを構築
+    2. _build_analysis() でグラフ構造を分析（ソースノード、階層、DAG 検出）し `OrderGraph` を構築
     3. spout、inlet、reporter を起動
     4. put_stage_queue() で初期タスクと終了シグナルを注入
     4. _execute_stages() で全ノードを実行
@@ -192,7 +192,7 @@ def collect_runtime_snapshot(self) -> None:
 | `get_graph_analysis()` | `dict` | グラフ分析情報（graphId, name, startTime, className, isDAG, scheduleMode, layersDict） |
 | `get_structure_graph()` | `dict` | JSON 形式のグラフ構造（nodes + edges + source_nodes） |
 | `get_structure_list()` | `list[str]` | 枠線付きフォーマット済みツリーテキスト |
-| `get_networkx_graph()` | `DiGraph` | networkx 有向グラフインスタンス |
+| `get_order_graph()` | `OrderGraph` | 内部順序付き有向グラフインスタンス |
 | `get_fallback_path()` | `Path` | 失敗タスク JSONL ファイルの絶対パス。未設定時は空 Path を返す |
 | `get_source_stages()` | `list[TaskStage]` | ソースノードリスト |
 

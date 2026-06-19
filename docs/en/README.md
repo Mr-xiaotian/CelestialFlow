@@ -224,7 +224,6 @@ Please ensure your environment can properly install these dependencies (`pip ins
 | **fastapi**       | Web service interface framework (for task visualization and remote control) |
 | **uvicorn**       | High-performance ASGI server for FastAPI |
 | **requests**      | HTTP client library, used for task status reporting and remote calls |
-| **networkx**      | Task graph (TaskGraph) structure and dependency analysis |
 | **jinja2**        | FastAPI template engine, used for Web visualization interface rendering |
 | **tqdm**          | Optional component, progress bar display for task execution visualization |
 | **redis**         | Optional component, used for distributed task communication (`TaskRedis*` series modules) |

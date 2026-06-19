@@ -92,7 +92,7 @@ def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
                 put_termination_signal: bool = True) -> None:
     """
     Start the task graph. Flow:
-    1. _build_analysis() — analyze graph structure (source nodes, levels, DAG detection) and build network graph
+    1. _build_analysis() — analyze graph structure (source nodes, levels, DAG detection) and build `OrderGraph`
     2. Start spout, inlet, reporter
     3. put_stage_queue() — inject initial tasks and termination signals
     4. _execute_stages() — execute all nodes
@@ -192,7 +192,7 @@ Collects a snapshot for a single node, returning a dict with the following field
 | `get_graph_analysis()` | `dict` | Graph analysis info (graphId, name, startTime, className, isDAG, scheduleMode, layersDict) |
 | `get_structure_graph()` | `dict` | Graph structure in JSON format (nodes + edges + source_nodes) |
 | `get_structure_list()` | `list[str]` | Formatted tree text with borders |
-| `get_networkx_graph()` | `DiGraph` | networkx directed graph instance |
+| `get_order_graph()` | `OrderGraph` | internal ordered directed graph instance |
 | `get_fallback_path()` | `Path` | Absolute path to the failure task JSONL file; empty Path if not set |
 | `get_source_stages()` | `list[TaskStage]` | List of source nodes |
 

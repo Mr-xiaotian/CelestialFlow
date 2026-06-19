@@ -1,6 +1,6 @@
 # RuntimeEstimators
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/18
 
 `runtime/util_estimators.py` provides runtime time-consumption estimation functions.
 
@@ -12,8 +12,8 @@
 - `calc_elapsed(status, last_elapsed, last_pending, interval)`: Accumulates elapsed time by status.
   - **Params**: `status` (`StageStatus`) — current stage status; `last_elapsed` (`float`) — previous elapsed time; `last_pending` (`int`) — previous pending count; `interval` (`float`) — collection interval in seconds.
   - **Returns**: `float` — updated elapsed time. When status is `STOPPED` or `last_pending` is 0, returns `last_elapsed` unchanged.
-- `calc_global_pending(G, processed_map, pending_map)`: Estimates global pending task count based on DAG and observed metrics.
-  - **Params**: `G` (`networkx.DiGraph`) — the directed graph; `processed_map` (`dict[str, int]`) — per-node processed count; `pending_map` (`dict[str, int]`) — per-node pending count.
+- `calc_global_pending(graph, processed_map, pending_map)`: Estimates global pending task count based on DAG and observed metrics.
+  - **Params**: `graph` (`OrderGraph`) — the directed graph; `processed_map` (`dict[str, int]`) — per-node processed count; `pending_map` (`dict[str, int]`) — per-node pending count.
   - **Returns**: `dict[str, int]` — per-node estimated global pending count. Uses a conservative traversal strategy starting from leaf nodes.
 
 ## Usage Examples
@@ -66,19 +66,17 @@ print(f"Stopped node: {elapsed_stopped:.1f} seconds")  # 50.0 (no longer increas
 ### calc_global_pending: Estimate Global Pending Task Count Based on DAG
 
 ```python
-import networkx as nx
+from celestialflow.graph.util_graph import OrderGraph
 from celestialflow.runtime.util_estimators import calc_global_pending
 
 # Build a simple DAG: A -> B -> C
-G = nx.DiGraph()
-G.add_edge("A", "B")
-G.add_edge("B", "C")
+graph = OrderGraph.from_edges({"A": ["B"], "B": ["C"]}, ("A", "B", "C"))
 
 # Input observed data
 processed_map = {"A": 100, "B": 50, "C": 10}
 pending_map = {"A": 0, "B": 50, "C": 90}
 
-result = calc_global_pending(G, processed_map, pending_map)
+result = calc_global_pending(graph, processed_map, pending_map)
 for node, pending in result.items():
     print(f"Node {node}: estimated {pending} pending tasks")
 ```

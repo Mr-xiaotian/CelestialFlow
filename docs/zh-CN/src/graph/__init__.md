@@ -47,14 +47,7 @@ from celestialflow.graph import (
 
 ### 工具文件
 
-3. **util_analysis.py**
-   - **作用**: 基于 `networkx` 的图分析工具
-   - **关键函数**:
-     - `build_networkx_graph()`: 从邻接表和运行时信息构建 `DiGraph`
-     - `find_source_nodes()`: 找到入度为 0 的源节点
-     - `compute_node_levels()`: 计算节点层级（支持 DAG 和含环图）
-
-4. **util_graph.py**
+3. **util_graph.py**
    - **作用**: 轻量级有序有向图与基础图算法工具
    - **关键内容**:
      - `OrderGraph`: 最小有序有向图，维护稳定节点顺序、入边和出边邻接表
@@ -62,7 +55,7 @@ from celestialflow.graph import (
      - `tarjan_scc()` / `get_condensation()`: 强连通分量分析与凝聚图构建
      - `compute_node_levels()`: 基于 SCC 凝聚图计算节点层级
 
-5. **util_serialize.py**
+4. **util_serialize.py**
    - **作用**: 任务图结构序列化为 JSON 及文本化
    - **关键函数**:
      - `build_structure_graph()`: 从节点字典、邻接表和源节点构建结构 JSON
@@ -73,8 +66,8 @@ from celestialflow.graph import (
 ### 内部关联
 - `TaskGraph` 是基础类，所有其他结构继承自它
 - `TaskChain`、`TaskLoop` 等是 `TaskGraph` 的特化实现（封装了 `set_stages` / `connect` 逻辑）
-- `util_analysis.py` 当前仍依赖 `networkx` 进行图论计算
-- `util_graph.py` 提供框架内部可复用的轻量图结构和基础图算法
+- `util_graph.py` 提供框架内部统一复用的轻量图结构和基础图算法
+- `TaskGraph` 当前基于 `OrderGraph` 完成源节点识别、DAG 判定与层级分析
 - 序列化工具将运行时结构输出为 JSON/文本
 
 ### 外部关联

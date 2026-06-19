@@ -236,7 +236,6 @@ flowchart TD
 | **fastapi**       | Web 服务接口框架（用于任务可视化与远程控制） |
 | **uvicorn**       | FastAPI 的高性能 ASGI 服务器 |
 | **requests**      | HTTP 客户端库，用于任务状态上报与远程调用 |
-| **networkx**      | 任务图（TaskGraph）结构与依赖分析 |
 | **jinja2**        | FastAPI 模板引擎，用于 Web 可视化界面渲染 |
 | **tqdm**          | 可选组件，进度条显示，用于任务执行可视化 |
 
