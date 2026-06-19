@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
-from queue import Queue as ThreadQueue
 from typing import Any
 
 from ..persistence import FallbackInlet, LogInlet
@@ -60,7 +59,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param enable_duplicate_check: 是否启用重复检查，默认 True
         :param persist_result: 是否持久化任务结果，默认 False
-        :param log_level: 日志级别，默认 'INFO'
+        :param log_level: 日志级别，会被 Graph 中设置的 log_level 覆盖
         """
         super().__init__(
             name,
@@ -95,17 +94,15 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         else:
             raise StageModeError(stage_mode)
 
-    def set_inlet(
-        self, fallback_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]
-    ) -> None:
+    def set_inlet(self, fallback_inlet: FallbackInlet, log_inlet: LogInlet) -> None:
         """
-        初始化收集器
+        初始化收集器。
 
-        :param fallback_queue: fallback 队列
-        :param log_queue: 日志队列
+        :param fallback_inlet: fallback 监听器
+        :param log_inlet: 日志监听器
         """
-        self.fallback_inlet = FallbackInlet(fallback_queue)
-        self.log_inlet = LogInlet(log_queue, self.log_level)
+        self.fallback_inlet = fallback_inlet
+        self.log_inlet = log_inlet
 
     # ==== 绑定 ====
     def get_binding_counter(self, _downstream_name: str) -> Any:

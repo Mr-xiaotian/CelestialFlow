@@ -1,3 +1,4 @@
+from celestialflow.funnel.core_inlet import BaseInlet
 from celestialflow.persistence.core_log import LogInlet, LogSpout
 from tests.conftest import wait_until
 
@@ -8,7 +9,7 @@ class TestLogPersistence:
         monkeypatch.chdir(tmp_path)
 
         spout = LogSpout()
-        inlet = LogInlet(spout.get_queue(), log_level='INFO')
+        inlet = LogInlet(log_level='INFO').bind_spout(spout)
 
         spout.start()
         try:

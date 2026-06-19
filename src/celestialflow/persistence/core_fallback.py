@@ -4,7 +4,6 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from queue import Queue
 from typing import Any, cast
 
 from ..funnel import BaseInlet, BaseSpout
@@ -130,14 +129,6 @@ class FallbackInlet(BaseInlet):
     """
     线程安全 fallback 记录包装类，所有生命周期变更通过队列发送到监听线程写入。
     """
-
-    def __init__(self, fallback_queue: Queue[Any]) -> None:
-        """
-        初始化失败记录收集器
-
-        :param fallback_queue: fallback 记录队列
-        """
-        super().__init__(fallback_queue)
 
     def task_in(self, stage_name: str, event_id: int, task: Any) -> None:
         """

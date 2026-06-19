@@ -135,8 +135,8 @@ class TaskGraph:
 
         :return: ``None``。
         """
-        self.log_inlet = LogInlet(self.log_spout.get_queue(), self.log_level)
-        self.fallback_inlet = FallbackInlet(self.fallback_spout.get_queue())
+        self.log_inlet = LogInlet(self.log_level).bind_spout(self.log_spout)
+        self.fallback_inlet = FallbackInlet().bind_spout(self.fallback_spout)
 
     # ==== 建图 ====
 
@@ -147,9 +147,6 @@ class TaskGraph:
         :param stages: 待添加的节点列表
         :raises DuplicateNodeError: 存在重复的 stage 名称
         """
-        fallback_queue = self.fallback_spout.get_queue()
-        log_queue = self.log_spout.get_queue()
-
         for stage in stages:
             stage_name = stage.get_name()
             if stage_name in self.stage_dict:
@@ -158,7 +155,7 @@ class TaskGraph:
             self.order_graph.add_node(stage_name)
 
             stage.set_ctree(self.ctree_client)
-            stage.set_inlet(fallback_queue, log_queue)
+            stage.set_inlet(self.fallback_inlet, self.log_inlet)
 
     def connect(
         self,

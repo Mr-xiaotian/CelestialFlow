@@ -157,11 +157,8 @@ class TaskExecutor[T, R]:
         """
         初始化收集器
         """
-        fallback_queue = self.fallback_spout.get_queue()
-        self.fallback_inlet = FallbackInlet(fallback_queue)
-
-        log_queue = self.log_spout.get_queue()
-        self.log_inlet = LogInlet(log_queue, self.log_level)
+        self.fallback_inlet = FallbackInlet().bind_spout(self.fallback_spout)
+        self.log_inlet = LogInlet(self.log_level).bind_spout(self.log_spout)
 
     # ==== Observer ====
     def add_observer(self, observer: BaseObserver) -> None:

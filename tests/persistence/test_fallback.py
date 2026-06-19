@@ -1,5 +1,6 @@
 import sqlite3
 
+from celestialflow.funnel.core_inlet import BaseInlet
 from celestialflow.persistence.core_fallback import FallbackInlet, FallbackSpout
 from tests.conftest import wait_until
 
@@ -10,7 +11,7 @@ class TestFailPersistence:
         monkeypatch.chdir(tmp_path)
 
         spout = FallbackSpout(error_source='test_source')
-        inlet = FallbackInlet(spout.get_queue())
+        inlet = FallbackInlet().bind_spout(spout)
 
         spout.start()
         try:
@@ -59,7 +60,7 @@ class TestFailPersistence:
         """`FallbackSpout` 应持久化 success 结果并可读回 task-result 对。"""
         monkeypatch.chdir(tmp_path)
         spout = FallbackSpout(error_source="success_source")
-        inlet = FallbackInlet(spout.get_queue())
+        inlet = FallbackInlet().bind_spout(spout)
 
         spout.start()
         try:

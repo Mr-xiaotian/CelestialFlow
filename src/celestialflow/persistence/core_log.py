@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from queue import Queue
 from time import localtime, strftime
 from typing import Any, TextIO
 
@@ -63,14 +62,12 @@ class LogInlet(BaseInlet):
     线程安全日志包装类，所有日志通过队列发送到监听线程写入
     """
 
-    def __init__(self, log_queue: Queue[Any], log_level: str = "INFO") -> None:
+    def __init__(self, log_level: str = "INFO") -> None:
         """
-        初始化日志收集器
+        初始化日志收集器。
 
-        :param log_queue: 日志队列
         :param log_level: 日志级别，低于此级别的日志不记录，默认 "INFO"
         """
-        super().__init__(log_queue)
         self.log_level: str = log_level.upper()
 
         if self.log_level not in LEVEL_DICT:
