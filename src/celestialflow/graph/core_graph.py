@@ -9,8 +9,6 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
-from networkx import DiGraph, is_directed_acyclic_graph
-
 from ..observability import NullTaskReporter, TaskReporter
 from ..persistence import FallbackInlet, FallbackSpout, LogInlet, LogSpout
 from ..persistence.util_sqlite import load_records_grouped_by_stage
@@ -32,11 +30,7 @@ from ..runtime.util_types import TerminationSignal
 from ..stage.util_types import AnyTaskStage
 from ..utils.util_collections import cluster_by_value_sorted
 from ..utils.util_format import format_avg_time
-from .util_analysis import (
-    build_networkx_graph,
-    compute_node_levels,
-    find_source_nodes,
-)
+from .util_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
 from .util_serialize import build_structure_graph, format_structure_list_from_graph
 
 
@@ -103,7 +97,9 @@ class TaskGraph:
 
     def _init_state(self) -> None:
         """
-        初始化状态
+        初始化任务图运行时状态。
+
+        :return: ``None``。
         """
         # 用于保存所有子线程的引用
         self.threads: list[threading.Thread] = []
@@ -120,19 +116,24 @@ class TaskGraph:
         # 用于保存图结构的邻接表
         self.out_edges: dict[str, list[str]] = defaultdict(list)
         self.in_edges: dict[str, list[str]] = defaultdict(list)
+        self.order_graph = OrderGraph()
         # 用于保存任务图启动时间
         self.start_time: float = 0.0
 
     def _init_spout(self) -> None:
         """
-        初始化监听器
+        初始化图级持久化输出组件。
+
+        :return: ``None``。
         """
         self.log_spout = LogSpout()
         self.fallback_spout = FallbackSpout("graph_fallbacks")
 
     def _init_inlet(self) -> None:
         """
-        初始化收集器
+        初始化图级日志与回退收集器。
+
+        :return: ``None``。
         """
         self.log_inlet = LogInlet(self.log_spout.get_queue(), self.log_level)
         self.fallback_inlet = FallbackInlet(self.fallback_spout.get_queue())
@@ -277,19 +278,21 @@ class TaskGraph:
 
     def _build_analysis(self) -> None:
         """
-        分析任务图，计算图属性和层级信息（支持 DAG 和含环图）
+        分析任务图，计算源节点、是否为 DAG 与层级信息。
+
+        :return: ``None``。
         """
-        self.networkx_graph = build_networkx_graph(self.out_edges, self.stage_dict.keys())
-        source_names = find_source_nodes(self.networkx_graph)
+        self.order_graph = OrderGraph.from_edges(self.out_edges, self.stage_dict.keys())
+        source_names = source_nodes(self.order_graph)
         self.source_stages = [self.stage_dict[name] for name in source_names]
 
         self.structure_graph = build_structure_graph(
             self.stage_dict, self.out_edges, self.source_stages
         )
 
-        self.is_dag = is_directed_acyclic_graph(self.networkx_graph)
+        self.is_dag = is_dag(self.order_graph)
 
-        stage_level_dict = compute_node_levels(self.networkx_graph)
+        stage_level_dict = compute_node_levels(self.order_graph)
         self.layers_dict = cluster_by_value_sorted(stage_level_dict)
 
     def put_stage_queue(
@@ -526,7 +529,7 @@ class TaskGraph:
         running_pending_map: dict[str, int],
     ) -> dict[str, int]:
         """
-        根据 DAG/非 DAG 策略计算全局预计待处理任务数量
+        根据 DAG/非 DAG 策略计算全局预计待处理任务数量。
 
         :param running_processed_map: 各节点已处理任务数
         :param running_pending_map: 各节点待处理任务数
@@ -536,7 +539,7 @@ class TaskGraph:
             return running_pending_map
 
         total_pending_map = calc_global_pending(
-            self.networkx_graph,
+            self.order_graph,
             running_processed_map,
             running_pending_map,
         )
@@ -637,13 +640,13 @@ class TaskGraph:
         """
         return format_structure_list_from_graph(self.structure_graph)
 
-    def get_networkx_graph(self) -> DiGraph[Any]:
+    def get_order_graph(self) -> OrderGraph:
         """
-        获取任务图的 networkx 有向图（DiGraph）
+        获取任务图对应的有序有向图视图。
 
-        :return: networkx.DiGraph 实例
+        :return: :class:`OrderGraph` 实例
         """
-        return self.networkx_graph
+        return self.order_graph
 
     def get_fallback_path(self) -> Path:
         """

@@ -1,8 +1,7 @@
 # runtime/util_estimators.py
 from __future__ import annotations
 
-import networkx as nx
-
+from ..graph.util_graph import OrderGraph, topo_sort
 from .util_types import StageStatus
 
 
@@ -49,7 +48,7 @@ def calc_elapsed(
 
 
 def calc_global_pending(
-    G: nx.DiGraph[str],
+    graph: OrderGraph,
     processed_map: dict[str, int],
     pending_map: dict[str, int],
 ) -> dict[str, int]:
@@ -106,7 +105,7 @@ def calc_global_pending(
       而非提供平滑或乐观的 ETA。
     - 该估算结果偏保守，适合作为监控、告警或瓶颈识别指标。
 
-    :param G             : 任务依赖图（networkx.DiGraph），节点需与 map 的 key 对应
+    :param graph         : 任务依赖图，节点需与 map 的 key 对应
     :param processed_map : 每个节点已完成的任务数量
     :param pending_map   : 每个节点当前剩余的任务数量
 
@@ -116,14 +115,16 @@ def calc_global_pending(
 
     # 每个节点的 scale（上游放大系数）
     scale: dict[str, float] = {}
+    topo_order = topo_sort(graph)
+    if topo_order is None:
+        raise ValueError("calc_global_pending() requires a DAG OrderGraph")
 
-    for v in nx.topological_sort(G):
-        v_str: str = v
+    for v_str in topo_order:
         proc_v = int(processed_map.get(v_str, 0) or 0)
         pend_v = int(pending_map.get(v_str, 0) or 0)
         seen_v = proc_v + pend_v
 
-        preds: list[str] = list(G.predecessors(v_str))
+        preds = graph.predecessors(v_str)
         if not preds:
             # 没上游：就认为总量就是目前看到的量（不外推）
             total_v = seen_v

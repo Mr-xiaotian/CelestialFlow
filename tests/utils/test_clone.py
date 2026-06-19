@@ -105,15 +105,17 @@ class TestUtilClone:
         assert [s.get_name() for s in cloned.get_source_stages()] == \
                [s.get_name() for s in graph.get_source_stages()]
 
-        # 通过 networkx 图验证节点一致
-        g1_nx = graph.get_networkx_graph()
-        g2_nx = cloned.get_networkx_graph()
-        assert set(g1_nx.nodes()) == set(g2_nx.nodes())
-        assert set(g1_nx.nodes()) == {"A", "B", "C"}
+        # 通过有序图验证节点一致
+        g1_graph = graph.get_order_graph()
+        g2_graph = cloned.get_order_graph()
+        assert set(g1_graph.nodes) == set(g2_graph.nodes)
+        assert set(g1_graph.nodes) == {"A", "B", "C"}
 
-        # 通过 networkx 图验证边连接一致
-        assert set(g1_nx.edges()) == set(g2_nx.edges())
-        assert set(g1_nx.edges()) == {("A", "B"), ("B", "C")}
+        # 通过有序图验证边连接一致
+        g1_edges = {(src, dst) for src, targets in g1_graph.out_edges.items() for dst in targets}
+        g2_edges = {(src, dst) for src, targets in g2_graph.out_edges.items() for dst in targets}
+        assert g1_edges == g2_edges
+        assert g1_edges == {("A", "B"), ("B", "C")}
 
         # schedule_mode 保留
         assert cloned.schedule_mode == graph.schedule_mode

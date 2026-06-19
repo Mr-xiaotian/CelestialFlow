@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import networkx as nx
 import pytest
 
+from celestialflow.graph.util_graph import OrderGraph
 from celestialflow.runtime.util_estimators import (
     calc_elapsed,
     calc_global_pending,
@@ -134,16 +134,16 @@ def _make_linear_chain(
     nodes: list[str],
     proc: int = 100,
     pend: int = 50,
-) -> tuple[nx.DiGraph[str], dict[str, int], dict[str, int]]:
+) -> tuple[OrderGraph, dict[str, int], dict[str, int]]:
     """构建线性链图 A->B->C...，并返回统一的 processed/pending 映射。"""
-    G = nx.DiGraph()
+    graph = OrderGraph()
     for i, n in enumerate(nodes):
-        G.add_node(n)
+        graph.add_node(n)
         if i > 0:
-            G.add_edge(nodes[i - 1], n)
+            graph.add_edge(nodes[i - 1], n)
     pmap = {n: proc for n in nodes}
     pendmap = {n: pend for n in nodes}
-    return G, pmap, pendmap
+    return graph, pmap, pendmap
 
 
 class TestCalcGlobalPending:
@@ -151,10 +151,10 @@ class TestCalcGlobalPending:
 
     def test_single_node_no_preds(self):
         """单节点无上游时，估算值应退化为本节点当前 pending。"""
-        G = nx.DiGraph()
-        G.add_node("A")
+        graph = OrderGraph()
+        graph.add_node("A")
         result = calc_global_pending(
-            G,
+            graph,
             processed_map={"A": 100},
             pending_map={"A": 50},
         )
@@ -162,10 +162,10 @@ class TestCalcGlobalPending:
 
     def test_single_node_all_zero(self):
         """单节点全零输入时应返回 0。"""
-        G = nx.DiGraph()
-        G.add_node("A")
+        graph = OrderGraph()
+        graph.add_node("A")
         result = calc_global_pending(
-            G,
+            graph,
             processed_map={"A": 0},
             pending_map={"A": 0},
         )
@@ -173,8 +173,8 @@ class TestCalcGlobalPending:
 
     def test_linear_chain_three_nodes(self):
         """线性链 A->B->C 中，全局 pending 应沿链路逐级放大。"""
-        G, pmap, pendmap = _make_linear_chain(["A", "B", "C"])
-        result = calc_global_pending(G, pmap, pendmap)
+        graph, pmap, pendmap = _make_linear_chain(["A", "B", "C"])
+        result = calc_global_pending(graph, pmap, pendmap)
         # 手工推算：
         # A: seen=150,total=150,scale=150/max(1,100)=1.5,
         #    expect_pend=max(50,150-100)=50
@@ -188,12 +188,11 @@ class TestCalcGlobalPending:
 
     def test_fan_out_one_to_many(self):
         """扇出 A->B, A->C 时，同层子节点应获得相同估算值。"""
-        G = nx.DiGraph()
-        G.add_edges_from([("A", "B"), ("A", "C")])
+        graph = OrderGraph.from_edges({"A": ["B", "C"]}, ("A", "B", "C"))
         pmap = {n: 100 for n in ("A", "B", "C")}
         pendmap = {n: 50 for n in ("A", "B", "C")}
 
-        result = calc_global_pending(G, pmap, pendmap)
+        result = calc_global_pending(graph, pmap, pendmap)
         # A: seen=150,total=150,scale=1.5, expect_pend=50
         # B/C: seen=150,total=150*1.5=225, expect_pend=max(50,225-100)=125
         # 扇出不会拆分上游 scale，两个子节点各自独立继承同样的放大系数
@@ -204,12 +203,11 @@ class TestCalcGlobalPending:
 
     def test_fan_in_many_to_one(self):
         """扇入 A->C, B->C 时，下游节点应聚合所有上游的放大结果。"""
-        G = nx.DiGraph()
-        G.add_edges_from([("A", "C"), ("B", "C")])
+        graph = OrderGraph.from_edges({"A": ["C"], "B": ["C"]}, ("A", "B", "C"))
         pmap = {"A": 100, "B": 100, "C": 200}
         pendmap = {"A": 50, "B": 50, "C": 100}
 
-        result = calc_global_pending(G, pmap, pendmap)
+        result = calc_global_pending(graph, pmap, pendmap)
         # A: seen=150,total=150,scale=1.5, expect_pend=50
         # B: seen=150,total=150,scale=1.5, expect_pend=50
         # C: seen=300,k=2,obs_each=150
@@ -222,12 +220,14 @@ class TestCalcGlobalPending:
 
     def test_diamond_structure(self):
         """菱形结构中，末端节点应同时吸收来自两路上游的放大。"""
-        G = nx.DiGraph()
-        G.add_edges_from([("A", "B"), ("A", "C"), ("B", "D"), ("C", "D")])
+        graph = OrderGraph.from_edges(
+            {"A": ["B", "C"], "B": ["D"], "C": ["D"]},
+            ("A", "B", "C", "D"),
+        )
         pmap = {n: 100 for n in ("A", "B", "C", "D")}
         pendmap = {n: 50 for n in ("A", "B", "C", "D")}
 
-        result = calc_global_pending(G, pmap, pendmap)
+        result = calc_global_pending(graph, pmap, pendmap)
         # A: seen=150,total=150,scale=1.5, expect_pend=50
         # B/C: seen=150,total=150*1.5=225,scale=2.25, expect_pend=125
         # D: seen=150,k=2,obs_each=75
@@ -241,10 +241,10 @@ class TestCalcGlobalPending:
 
     def test_node_with_zero_processed(self):
         """单节点 processed=0 且 pending>0 时，应至少保留当前 pending。"""
-        G = nx.DiGraph()
-        G.add_node("A")
+        graph = OrderGraph()
+        graph.add_node("A")
         result = calc_global_pending(
-            G,
+            graph,
             processed_map={"A": 0},
             pending_map={"A": 100},
         )
@@ -252,9 +252,9 @@ class TestCalcGlobalPending:
 
     def test_all_nodes_zero_processed_still_propagates_pending(self):
         """即使全链路 processed=0，当前 pending 也会继续沿链路放大传播。"""
-        G, _, pendmap = _make_linear_chain(["A", "B", "C"], proc=0)
+        graph, _, pendmap = _make_linear_chain(["A", "B", "C"], proc=0)
         result = calc_global_pending(
-            G, {"A": 0, "B": 0, "C": 0}, pendmap
+            graph, {"A": 0, "B": 0, "C": 0}, pendmap
         )
         # A: seen=50,total=50,scale=50/max(1,0)=50, expect_pend=50
         # B: seen=50,total=50*50=2500,scale=2500, expect_pend=2500
@@ -264,18 +264,17 @@ class TestCalcGlobalPending:
 
     def test_uniform_distribution(self):
         """均匀输入下，线性链应保持严格递增的保守估算。"""
-        G, pmap, pendmap = _make_linear_chain(["A", "B", "C"])
-        result = calc_global_pending(G, pmap, pendmap)
+        graph, pmap, pendmap = _make_linear_chain(["A", "B", "C"])
+        result = calc_global_pending(graph, pmap, pendmap)
         assert result["A"] < result["B"] < result["C"]
 
     def test_bottleneck_node_large_pending(self):
         """下游瓶颈 pending 极大时，应显著推高该节点的估算值。"""
-        G = nx.DiGraph()
-        G.add_edge("A", "B")
+        graph = OrderGraph.from_edges({"A": ["B"]}, ("A", "B"))
         pmap = {"A": 100, "B": 10}
         pendmap = {"A": 50, "B": 1000}
 
-        result = calc_global_pending(G, pmap, pendmap)
+        result = calc_global_pending(graph, pmap, pendmap)
         # A: seen=150,total=150,scale=1.5, expect_pend=50
         # B: seen=1010,total=1010*1.5=1515
         #    scale=1515/max(1,10)=151.5
@@ -286,10 +285,9 @@ class TestCalcGlobalPending:
 
     def test_result_type_is_dict_str_int(self):
         """返回值应为 dict[str, int]，键与节点名一一对应。"""
-        G = nx.DiGraph()
-        G.add_edge("X", "Y")
+        graph = OrderGraph.from_edges({"X": ["Y"]}, ("X", "Y"))
         result = calc_global_pending(
-            G,
+            graph,
             processed_map={"X": 100, "Y": 100},
             pending_map={"X": 50, "Y": 50},
         )
@@ -301,10 +299,12 @@ class TestCalcGlobalPending:
 
     def test_no_negative_values(self):
         """所有返回值都应是非负整数。"""
-        G = nx.DiGraph()
-        G.add_edges_from([("A", "B"), ("A", "C"), ("B", "D"), ("C", "D")])
+        graph = OrderGraph.from_edges(
+            {"A": ["B", "C"], "B": ["D"], "C": ["D"]},
+            ("A", "B", "C", "D"),
+        )
         result = calc_global_pending(
-            G,
+            graph,
             processed_map={"A": 100, "B": 50, "C": 20, "D": 10},
             pending_map={"A": 50, "B": 30, "C": 10, "D": 100},
         )
@@ -314,10 +314,9 @@ class TestCalcGlobalPending:
 
     def test_upstream_no_data_downstream_has_pending(self):
         """上游完全无观测时，下游仍应至少保留自己的当前 pending。"""
-        G = nx.DiGraph()
-        G.add_edge("A", "B")
+        graph = OrderGraph.from_edges({"A": ["B"]}, ("A", "B"))
         result = calc_global_pending(
-            G,
+            graph,
             processed_map={"A": 0, "B": 10},
             pending_map={"A": 0, "B": 50},
         )
@@ -331,10 +330,9 @@ class TestCalcGlobalPending:
 
     def test_upstream_has_pending_only_no_processed(self):
         """上游仅有 pending 无 processed 时，仍会形成强放大系数。"""
-        G = nx.DiGraph()
-        G.add_edge("A", "B")
+        graph = OrderGraph.from_edges({"A": ["B"]}, ("A", "B"))
         result = calc_global_pending(
-            G,
+            graph,
             processed_map={"A": 0, "B": 50},
             pending_map={"A": 200, "B": 100},
         )
@@ -346,10 +344,9 @@ class TestCalcGlobalPending:
 
     def test_graph_nodes_superset_of_maps(self):
         """图中额外节点缺失观测时，应按默认 0 参与传播。"""
-        G = nx.DiGraph()
-        G.add_edges_from([("A", "B"), ("B", "C")])
+        graph = OrderGraph.from_edges({"A": ["B"], "B": ["C"]}, ("A", "B", "C"))
         result = calc_global_pending(
-            G,
+            graph,
             processed_map={"A": 100, "C": 100},
             pending_map={"A": 50, "C": 50},
         )
@@ -364,8 +361,8 @@ class TestCalcGlobalPending:
 
     def test_empty_graph(self):
         """空图应返回空字典。"""
-        G = nx.DiGraph()
-        result = calc_global_pending(G, {}, {})
+        graph = OrderGraph()
+        result = calc_global_pending(graph, {}, {})
         assert result == {}
 
 
@@ -374,9 +371,15 @@ class TestPropertyBased:
 
     def test_symmetric_linear_chains_same_estimate(self):
         """两条完全相同的独立线性链应得到完全相同的估算结果。"""
-        G = nx.DiGraph()
-        G.add_edges_from([("A1", "B1"), ("B1", "C1")])
-        G.add_edges_from([("A2", "B2"), ("B2", "C2")])
+        graph = OrderGraph.from_edges(
+            {
+                "A1": ["B1"],
+                "B1": ["C1"],
+                "A2": ["B2"],
+                "B2": ["C2"],
+            },
+            ("A1", "B1", "C1", "A2", "B2", "C2"),
+        )
 
         pmap = {}
         pendmap = {}
@@ -386,33 +389,32 @@ class TestPropertyBased:
                 pmap[name] = 100
                 pendmap[name] = 50
 
-        result = calc_global_pending(G, pmap, pendmap)
+        result = calc_global_pending(graph, pmap, pendmap)
         assert result["A1"] == result["A2"]
         assert result["B1"] == result["B2"]
         assert result["C1"] == result["C2"]
 
     def test_monotonicity_increasing_pending(self):
         """增加 pending 不应减少全局 pending 估算值。"""
-        G = nx.DiGraph()
-        G.add_edge("A", "B")
+        graph = OrderGraph.from_edges({"A": ["B"]}, ("A", "B"))
 
         # 基准
         r1 = calc_global_pending(
-            G,
+            graph,
             processed_map={"A": 100, "B": 100},
             pending_map={"A": 50, "B": 50},
         )
 
         # pending 增加
         r2 = calc_global_pending(
-            G,
+            graph,
             processed_map={"A": 100, "B": 100},
             pending_map={"A": 100, "B": 100},
         )
 
         # pending 大幅增加
         r3 = calc_global_pending(
-            G,
+            graph,
             processed_map={"A": 100, "B": 100},
             pending_map={"A": 200, "B": 200},
         )
@@ -424,18 +426,18 @@ class TestPropertyBased:
 
     def test_monotonicity_increasing_processed_reduces_estimate(self):
         """单节点上增加 processed 不应增加估算值，最多保持不变。"""
-        G = nx.DiGraph()
-        G.add_node("A")
+        graph = OrderGraph()
+        graph.add_node("A")
 
         r1 = calc_global_pending(
-            G,
+            graph,
             processed_map={"A": 100},
             pending_map={"A": 100},
         )
 
         # processed 增加，pending 和 elapsed 不变
         r2 = calc_global_pending(
-            G,
+            graph,
             processed_map={"A": 200},
             pending_map={"A": 100},
         )
