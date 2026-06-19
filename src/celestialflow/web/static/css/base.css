@@ -53,6 +53,46 @@ body {
 }
 
 /* ================================
+  🌟 通用提示区
+================================ */
+/* 顶部提示容器：用于跨页面复用的说明性提示。 */
+.tip-section {
+    background: var(--cornflower-50);
+    border-left: 4px solid var(--cornflower-500);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 0 0.5rem 0.5rem 0;
+
+    .dark-theme & {
+        background: var(--cornflower-900);
+    }
+}
+
+/* 提示区内部布局：图标与文本水平排列。 */
+.tip-content {
+    display: flex;
+    align-items: center;
+}
+
+/* 提示图标尺寸与颜色。 */
+.tip-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--cornflower-500);
+    margin-right: 0.75rem;
+}
+
+/* 提示区正文文案。 */
+.tip-text {
+    color: var(--cornflower-600);
+    font-size: 0.75rem;
+
+    .dark-theme & {
+        color: var(--carbon-300);
+    }
+}
+
+/* ================================
   🌟 头部样式
 ================================ */
 /* 页头样式：设置背景色和文字颜色，支持暗色模式 */

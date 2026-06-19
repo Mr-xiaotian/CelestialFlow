@@ -1,43 +1,6 @@
 /* ================================
   注入页布局与筛选
 ================================ */
-/* 提示区容器。 */
-#task-injection .tip-section {
-  background: var(--cornflower-50);
-  border-left: 4px solid var(--cornflower-500);
-  padding: 1rem;
-  margin-bottom: 1rem;
-  border-radius: 0 0.5rem 0.5rem 0;
-
-  .dark-theme & {
-    background: var(--cornflower-900);
-  }
-}
-
-/* 顶部提示的图标和文案布局。 */
-#task-injection .tip-content {
-  display: flex;
-  align-items: center;
-}
-
-/* 提示区图标尺寸与颜色。 */
-#task-injection .tip-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: var(--cornflower-500);
-  margin-right: 0.75rem;
-}
-
-/* 提示区正文文案。 */
-#task-injection .tip-text {
-  color: var(--cornflower-600);
-  font-size: 0.75rem;
-
-  .dark-theme & {
-    color: var(--carbon-300);
-  }
-}
-
 /* 左侧节点浏览 + 右侧编辑区的双栏布局。 */
 #task-injection .card-grid {
   display: grid;

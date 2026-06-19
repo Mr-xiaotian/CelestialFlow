@@ -63,6 +63,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "errors.noRecords": "没有错误记录",
     "errors.prevPage": "上一页",
     "errors.nextPage": "下一页",
+    "errors.tip":
+      "错误日志内容与仪表盘状态数值可能因异步刷新与落盘时序差而暂时不一致。",
     "injection.tip":
       "先从左侧选择一个节点，再为该节点单独编辑注入数据；每个节点会保留自己的草稿。",
     "injection.nodeSelection": "节点浏览",
@@ -201,6 +203,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "errors.noRecords": "No error records",
     "errors.prevPage": "Previous",
     "errors.nextPage": "Next",
+    "errors.tip":
+      "Error logs and dashboard counters may temporarily differ because refreshes and persistence happen asynchronously.",
     "injection.tip":
       "Pick a node on the left, edit injection data for that node only, and keep a separate draft for each node.",
     "injection.nodeSelection": "Node Browser",
@@ -342,6 +346,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "errors.noRecords": "エラー記録なし",
     "errors.prevPage": "前のページ",
     "errors.nextPage": "次のページ",
+    "errors.tip":
+      "非同期の更新と永続化の時差により、エラーログの内容とダッシュボードの数値が一時的に一致しないことがあります。",
     "injection.tip":
       "左側でノードを選択し、そのノード専用の注入データを編集します。ノードごとに下書きが保持されます。",
     "injection.nodeSelection": "ノード一覧",
