@@ -57,7 +57,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         :param max_workers: 同时处理数量，默认根据 CPU 核心数动态调整
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_info: 日志中每条信息的最大长度，默认 50
-        :param enable_duplicate_check: 是否启用重复检查，默认 True
+        :param enable_duplicate_check: 是否启用重复检查，默认 False
         :param persist_result: 是否持久化任务结果，默认 False
         :param log_level: 日志级别，会被 Graph 中设置的 log_level 覆盖
         """

@@ -335,7 +335,7 @@ class TestTaskGraphStructure:
         # 其余节点也会收到传递的任务
         assert grid[0][1].get_counts()["tasks_succeeded"] == 2
         assert grid[1][0].get_counts()["tasks_succeeded"] == 2
-        assert grid[1][1].get_counts()["tasks_succeeded"] == 2
+        assert grid[1][1].get_counts()["tasks_succeeded"] == 4
 
 class TestTaskGraphAnalysis:
     def test_dag_detection(self):

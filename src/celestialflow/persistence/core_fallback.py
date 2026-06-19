@@ -77,7 +77,7 @@ class FallbackSpout(BaseSpout):
             changed = promote_record_to_success_by_event_id(
                 self._conn,
                 int(record["event_id"]),
-                record["result"],
+                record["result_json"],
                 ts=float(record["ts"]),
             )
         elif op == "promote_failed":
@@ -166,7 +166,7 @@ class FallbackInlet(BaseInlet):
                     "__op__": "promote_success",
                     "event_id": event_id,
                     "ts": now.timestamp(),
-                    "result": to_persisted_payload(result),
+                    "result_json": to_persisted_payload(result),
                 }
             )
         else:

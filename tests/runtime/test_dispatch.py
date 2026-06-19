@@ -99,10 +99,19 @@ class _CtreeStub:
 
 
 def _make_executor(
-    func: Any, max_retries: int = 1, name: str = "test"
+    func: Any,
+    max_retries: int = 1,
+    name: str = "test",
+    enable_duplicate_check: bool = False,
 ) -> TaskExecutor:
     """构造最小可运行的测试执行器。"""
-    e = TaskExecutor(name, func, max_retries=max_retries, log_level="SUCCESS")
+    e = TaskExecutor(
+        name,
+        func,
+        max_retries=max_retries,
+        log_level="SUCCESS",
+        enable_duplicate_check=enable_duplicate_check,
+    )
     e.set_retry_exceptions(ValueError)
     e.init_env()
     e.ctree_client = _CtreeStub()
@@ -273,7 +282,7 @@ class TestDispatchThread:
 
     def test_thread_duplicate(self) -> None:
         """验证线程模式会统计重复任务。"""
-        executor = _make_executor(_square)
+        executor = _make_executor(_square, enable_duplicate_check=True)
         dispatch = TaskDispatch(executor, executor.func, max_workers=2)
         executor.task_queue.put(TaskEnvelope(task=7, id=1))
         executor.task_queue.put(TaskEnvelope(task=7, id=2))

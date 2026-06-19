@@ -182,6 +182,20 @@ class TestExecutorAsync:
 
 
 class TestExecutorDuplicateCheck:
+    def test_duplicate_check_disabled_by_default(self):
+        """测试默认配置下不会启用重复检查。"""
+        executor = TaskExecutor(
+            "AddOneDedupDefaultDisabled",
+            add_one,
+            execution_mode="serial",
+        )
+        tasks: list[int] = [1, 1, 2, 2, 2, 3]
+        executor.start(tasks)
+
+        counts = executor.get_counts()
+        assert counts["tasks_succeeded"] == 6
+        assert counts["tasks_duplicated"] == 0
+
     def test_duplicate_check_enabled(self):
         """测试启用重复检查时，相同任务不重复执行"""
         executor = TaskExecutor(
