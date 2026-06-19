@@ -191,6 +191,12 @@ class UnknownNodeError(GraphStructureError):
     pass
 
 
+class NodeNotFoundError(GraphStructureError):
+    """图中未找到指定节点"""
+
+    pass
+
+
 # ==== 运行时与生命周期 ====
 
 

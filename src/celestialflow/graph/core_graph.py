@@ -18,6 +18,7 @@ from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import (
     DuplicateNodeError,
     LogLevelError,
+    NodeNotFoundError,
     RuntimeStateError,
     ScheduleModeError,
 )
@@ -172,9 +173,15 @@ class TaskGraph:
             from_name = from_stage.get_name()
             from_out_queue = from_stage.result_queue
 
+            if from_name not in self.stage_dict:
+                raise NodeNotFoundError(f"from stage not found: {from_name}")
+
             for to_stage in to_stages:
                 to_name = to_stage.get_name()
                 to_in_queue = to_stage.task_queue
+
+                if to_name not in self.stage_dict:
+                    raise NodeNotFoundError(f"to stage not found: {to_name}")
 
                 from_out_queue.add_queue(to_in_queue, to_name)
                 to_stage.prev_binding(from_stage)
@@ -272,7 +279,7 @@ class TaskGraph:
         """
         分析任务图，计算图属性和层级信息（支持 DAG 和含环图）
         """
-        self.networkx_graph = build_networkx_graph(self.out_edges, self.stage_dict)
+        self.networkx_graph = build_networkx_graph(self.out_edges, self.stage_dict.keys())
         source_names = find_source_nodes(self.networkx_graph)
         self.source_stages = [self.stage_dict[name] for name in source_names]
 

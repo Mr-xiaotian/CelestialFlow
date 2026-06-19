@@ -1,27 +1,27 @@
 # graph/util_analysis.py
 from __future__ import annotations
 
-import networkx as nx
+from collections.abc import Iterable
 
-from ..stage.util_types import AnyTaskStage
+import networkx as nx
 
 
 # ======== (图论分析) ========
 def build_networkx_graph(
     out_edges: dict[str, list[str]],
-    stage_dict: dict[str, AnyTaskStage],
+    stage_names: Iterable[str],
 ) -> nx.DiGraph[str]:
     """
     从邻接表和阶段运行时信息构建 networkx 有向图
 
     :param out_edges: 邻接表 {stage_name: [next_stage_name, ...]}
-    :param stage_dict: {stage_name: AnyTaskStage}
+    :param stage_names: 阶段名称列表
     :return: 构建好的 networkx.DiGraph
     """
     G: nx.DiGraph[str] = nx.DiGraph()
 
-    for stage_name, stage in stage_dict.items():
-        G.add_node(stage_name, mode=stage.get_stage_mode())
+    for stage_name in stage_names:
+        G.add_node(stage_name)
     for src, dsts in out_edges.items():
         for dst in dsts:
             G.add_edge(src, dst)
