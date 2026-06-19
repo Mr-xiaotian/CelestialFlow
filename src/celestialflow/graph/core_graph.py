@@ -155,6 +155,7 @@ class TaskGraph:
             if stage_name in self.stage_dict:
                 raise DuplicateNodeError(f"duplicate stage name: {stage_name}")
             self.stage_dict[stage_name] = stage
+            self.order_graph.add_node(stage_name)
 
             stage.set_ctree(self.ctree_client)
             stage.set_inlet(fallback_queue, log_queue)
@@ -187,6 +188,7 @@ class TaskGraph:
                 from_out_queue.add_queue(to_in_queue, to_name)
                 to_stage.prev_binding(from_stage)
                 to_in_queue.add_source_name(from_name)
+                self.order_graph.add_edge(from_name, to_name)
 
                 self.out_edges[from_name].append(to_name)
                 self.in_edges[to_name].append(from_name)
@@ -282,7 +284,6 @@ class TaskGraph:
 
         :return: ``None``。
         """
-        self.order_graph = OrderGraph.from_edges(self.out_edges, self.stage_dict.keys())
         source_names = source_nodes(self.order_graph)
         self.source_stages = [self.stage_dict[name] for name in source_names]
 

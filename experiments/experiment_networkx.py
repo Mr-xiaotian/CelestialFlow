@@ -1,57 +1,72 @@
-import networkx as nx
+"""使用 OrderGraph 复现实验性 SCC / 凝聚图分析。"""
 
-G = nx.DiGraph()
+from __future__ import annotations
 
-# 外层结构：1-2 fanout
+from collections import deque
 
-# 分支 A：内部 3 节点循环 (A1 -> A2 -> A3 -> A1)
-# 入口 A_in 指向循环中的 A1
-G.add_edge("A1", "A2")
-G.add_edge("A2", "A3")
-G.add_edge("A3", "A1")  # 闭合循环
+from celestialflow.graph.util_graph import OrderGraph, get_condensation, source_nodes, tarjan_scc
 
-# 分支 A 的出口（从循环引出）
-G.add_edge("A3", "B1")  # A3 引出到 B1，进入分支 B
 
-# 分支 B：内部 4 节点循环 (B1 -> B2 -> B3 -> B4 -> B1)
-G.add_edge("B1", "B2")
-G.add_edge("B2", "B3")
-G.add_edge("B3", "B4")
-G.add_edge("B4", "B1")  # 闭合循环
+def bfs_reachable(graph: OrderGraph, roots: list[str]) -> set[str]:
+    """
+    计算给定根节点集合在有向图中的可达节点集合。
 
-# 分支 B 的出口
-G.add_edge("A3", "C1")
+    :param graph: 输入图。
+    :param roots: BFS 起点列表。
+    :return: 全部可达节点集合。
+    """
+    visited: set[str] = set()
+    queue = deque(roots)
+    while queue:
+        node = queue.popleft()
+        if node in visited:
+            continue
+        visited.add(node)
+        queue.extend(graph.successors(node))
+    return visited
 
-# 分支 C：内部 2 节点循环 (C1 -> C2 -> C1)
-G.add_edge("C1", "C2")
-G.add_edge("C2", "C1")
 
+graph = OrderGraph.from_edges(
+    {
+        "A1": ["A2"],
+        "A2": ["A3"],
+        "A3": ["A1", "B1", "C1"],
+        "B1": ["B2"],
+        "B2": ["B3"],
+        "B3": ["B4"],
+        "B4": ["B1"],
+        "C1": ["C2"],
+        "C2": ["C1"],
+    },
+    ("A1", "A2", "A3", "B1", "B2", "B3", "B4", "C1", "C2"),
+)
 
 # 验证结构
-print("节点:", list(G.nodes()))
-print("边:", list(G.edges()))
+print("节点:", list(graph.nodes))
+print(
+    "边:",
+    [(src, dst) for src, targets in graph.out_edges.items() for dst in targets],
+)
 print()
 
 # SCC 分析
-sccs = list(nx.strongly_connected_components(G))
+sccs = tarjan_scc(graph)
 print(f"SCC 数量: {len(sccs)}")
 for i, scc in enumerate(sccs):
-    print(f"  SCC {i}: {scc}")
+    print(f"  SCC {i}: {set(scc)}")
 
 # 缩合图
-C = nx.condensation(G)
-print(f"\n缩合图节点: {list(C.nodes(data=True))}")
-print(f"缩合图边: {list(C.edges())}")
+condensation, _ = get_condensation(graph)
+print(f"\n缩合图节点: {list(condensation.nodes)}")
+print(
+    f"缩合图边: {[(src, dst) for src, targets in condensation.out_edges.items() for dst in targets]}"
+)
 
 # Source SCC 代表点
-source_scc_ids = [n for n, d in C.in_degree() if d == 0]
-sources = [next(iter(C.nodes[scc_id]["members"])) for scc_id in source_scc_ids]
-print(f"\n源点 SCC: {source_scc_ids}")
-print(f"启动 BFS 的代表点: {sources}")
+sources = source_nodes(graph)
+print(f"\n启动 BFS 的代表点: {sources}")
 
 # 验证覆盖
-visited = set()
-for r in sources:
-    visited |= set(nx.bfs_tree(G, r).nodes())
+visited = bfs_reachable(graph, sources)
 print(f"BFS 覆盖: {visited}")
-print(f"完全覆盖: {visited == set(G.nodes())}")
+print(f"完全覆盖: {visited == set(graph.nodes)}")

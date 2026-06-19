@@ -4,6 +4,7 @@
 提供任务图构建、执行调度、实时监控、Web 可视化和持久化等核心能力。
 """
 
+from .funnel import BaseInlet, BaseSpout
 from .graph import (
     TaskChain,
     TaskComplete,
@@ -31,7 +32,9 @@ from .utils.util_format import format_table
 from .web import TaskWebServer
 
 __all__ = [
+    "BaseInlet",
     "BaseObserver",
+    "BaseSpout",
     "TaskChain",
     "TaskComplete",
     "TaskCross",
