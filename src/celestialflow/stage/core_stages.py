@@ -115,7 +115,9 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
 
         split_count = self._put_split_result(result_list, task_id)
         self.metrics.add_success_count()
-        self.fallback_inlet.task_success(task_id, result_list, persist=self.persist_result)
+        self.fallback_inlet.task_success(
+            task_id, result_list, persist=self.persist_result
+        )
         self._update_split_counter(split_count)
 
         self.log_inlet.split_success(
@@ -178,7 +180,9 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
 
     route_counters: dict[str, ValueWrapper]
 
-    def __init__(self, name: str, router: Callable[[T], str], *, stage_mode: str = "serial"):
+    def __init__(
+        self, name: str, router: Callable[[T], str], *, stage_mode: str = "serial"
+    ):
         """
         初始化 TaskRouter
 
@@ -214,7 +218,7 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
         """
         self.route_counters.setdefault(
             downstream_name, ValueWrapper(0, self.metrics.lock)
-        )   
+        )
         return self.route_counters[downstream_name]
 
     def _route(self, task: T) -> tuple[str, T]:
@@ -226,7 +230,7 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
         :raises InvalidOptionError: target 不在已注册的路由列表中
         """
         target = self.router(task)
-        
+
         if target not in self.route_counters:
             raise InvalidOptionError(
                 "Unknown target", target, self.route_counters.keys()
@@ -287,5 +291,3 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
         :param target: 目标 stage 的唯一名称
         """
         self.route_counters[target].add(1)
-
-

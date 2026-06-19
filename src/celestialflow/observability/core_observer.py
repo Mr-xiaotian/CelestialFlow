@@ -49,4 +49,3 @@ class BaseObserver:
     def on_finish(self) -> None:
         """执行器结束回调"""
         ...
-

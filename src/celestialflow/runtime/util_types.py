@@ -183,5 +183,3 @@ class CTreeEvent:
     TASK_DUPLICATE: str = "task.duplicate"
     TERMINATION_INPUT: str = "termination.input"
     TERMINATION_MERGE: str = "termination.merge"
-
-

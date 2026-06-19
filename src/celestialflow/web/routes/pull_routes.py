@@ -132,7 +132,4 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         :return: {"rev": int, "data": dict | None}
         """
         rev, analysis_store = server.get_analysis_snapshot()
-        return {
-            "rev": rev,
-            "data": analysis_store
-        }
+        return {"rev": rev, "data": analysis_store}

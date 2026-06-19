@@ -15,7 +15,7 @@ def validate_executor_func_signature(func: Callable[..., Any]) -> int:
     """
     signature = inspect.signature(func)
     parameters = list(signature.parameters.values())
-    
+
     valid_kinds = (
         inspect.Parameter.POSITIONAL_ONLY,
         inspect.Parameter.POSITIONAL_OR_KEYWORD,

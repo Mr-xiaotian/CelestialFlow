@@ -9,6 +9,7 @@ from typing import Any
 
 # ==== 工具函数：不自持完整 conn 生命周期 ====
 
+
 def connect_db(db_path: str | Path) -> sqlite3.Connection:
     """
     创建 sqlite 连接并交给调用方管理其生命周期。
@@ -243,6 +244,7 @@ def delete_record_by_event_id(conn: sqlite3.Connection, event_id: int) -> bool:
 
 # ==== 自持完整 conn 生命周期的读写函数 ====
 
+
 def clear_records(db_path: str | Path) -> None:
     """
     自行创建并关闭连接，直接清空数据库中的全部记录。
@@ -258,9 +260,7 @@ def clear_records(db_path: str | Path) -> None:
         conn.close()
 
 
-def append_records(
-    db_path: str | Path, records: Iterable[dict[str, Any]]
-) -> int:
+def append_records(db_path: str | Path, records: Iterable[dict[str, Any]]) -> int:
     """
     自行创建并关闭连接，将给定记录列表追加写入数据库。
 
@@ -307,8 +307,7 @@ def load_records(
             FROM records
             WHERE status = ?
             ORDER BY id ASC
-            """
-            ,
+            """,
             [status],
         ).fetchall()
         return [row_to_record_dict(row) for row in rows]
@@ -360,8 +359,7 @@ def load_records_grouped_by_stage(
             FROM records
             WHERE status = ?
             ORDER BY stage ASC, id ASC
-            """
-            ,
+            """,
             [status],
         ).fetchall()
 
@@ -493,8 +491,7 @@ def load_task_error_records(
             FROM records
             WHERE status = 'failed' AND stage = ?
             ORDER BY id ASC
-            """
-            ,
+            """,
             [stage],
         ).fetchall()
         return [
@@ -525,8 +522,7 @@ def load_task_result_records(db_path: str | Path, stage: str) -> list[tuple[Any,
             FROM records
             WHERE status = 'success' AND stage = ?
             ORDER BY id ASC
-            """
-            ,
+            """,
             [stage],
         ).fetchall()
         return [

@@ -42,7 +42,7 @@ class TaskDispatch[T, R]:
     def _call_sync(self, task: T) -> R:
         """
         调用同步任务函数；若返回 awaitable，说明模式与函数类型不匹配。
-        
+
         :param task: 任务参数
         :return: 任务执行结果
         :rtype: R
@@ -58,7 +58,7 @@ class TaskDispatch[T, R]:
     async def _call_async(self, task: T) -> R:
         """
         调用异步任务函数；若返回值不可 await，说明模式与函数类型不匹配。
-        
+
         :param task: 任务参数
         :return: 任务执行结果
         :rtype: R

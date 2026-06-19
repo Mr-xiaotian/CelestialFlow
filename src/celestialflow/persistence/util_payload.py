@@ -19,7 +19,6 @@ def to_persisted_payload(task: Any) -> Any:
     if isinstance(task, dict):
         task_dict = cast(dict[Any, Any], task)
         return {
-            str(key): to_persisted_payload(value)
-            for key, value in task_dict.items()
+            str(key): to_persisted_payload(value) for key, value in task_dict.items()
         }
     return str(task)

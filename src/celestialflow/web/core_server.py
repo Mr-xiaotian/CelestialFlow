@@ -297,7 +297,7 @@ class TaskWebServer:
             "has_analysis": has_analysis,
             "max_event_id_in_fail": self.get_max_event_id_in_fail(),
         }
-    
+
     def get_injection_tasks(self) -> dict[str, list[Any]]:
         with self.task_injection_lock:
             tasks = self.injection_tasks.copy()

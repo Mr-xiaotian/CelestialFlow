@@ -153,7 +153,7 @@ class TaskGraph:
             if stage_name in self.stage_dict:
                 raise DuplicateNodeError(f"duplicate stage name: {stage_name}")
             self.stage_dict[stage_name] = stage
-            
+
             stage.set_ctree(self.ctree_client)
             stage.set_inlet(fallback_queue, log_queue)
 

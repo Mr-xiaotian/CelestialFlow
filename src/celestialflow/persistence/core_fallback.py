@@ -166,15 +166,14 @@ class FallbackInlet(BaseInlet):
         """
         if persist:
             self._funnel(
-            {
-                "__op__": "promote_success",
-                "event_id": event_id,
-                "result": to_persisted_payload(result),
-            }
-        )
+                {
+                    "__op__": "promote_success",
+                    "event_id": event_id,
+                    "result": to_persisted_payload(result),
+                }
+            )
         else:
             self._funnel({"__op__": "delete", "event_id": event_id})
-
 
     def task_retry(self, event_id: int, retry_id: int) -> None:
         """

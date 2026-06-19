@@ -237,9 +237,7 @@ class TaskOutQueue[T]:
         for index, _ in enumerate(self.queue_list):
             self.put_channel(item, index)
 
-    def put_target(
-        self, item: TaskEnvelope[T] | TerminationSignal, name: str
-    ) -> None:
+    def put_target(self, item: TaskEnvelope[T] | TerminationSignal, name: str) -> None:
         """
         入队任务或终止信号到指定的输出队列
 
@@ -248,9 +246,7 @@ class TaskOutQueue[T]:
         """
         self.put_channel(item, self._name_to_idx[name])
 
-    def put_channel(
-        self, item: TaskEnvelope[T] | TerminationSignal, idx: int
-    ) -> None:
+    def put_channel(self, item: TaskEnvelope[T] | TerminationSignal, idx: int) -> None:
         """
         入队任务或终止信号到指定的输出队列通道
 

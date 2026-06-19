@@ -28,6 +28,3 @@ def normalize_errors_query(
         normalized_keyword,
         normalized_sort_order,
     )
-
-
-

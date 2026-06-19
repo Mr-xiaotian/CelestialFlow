@@ -174,9 +174,12 @@ class TaskReporter:
             graph_id = self.task_graph.get_graph_id()
             if not fallback_path:
                 return
-            
+
             all_errors = []
-            if not self._server_has_current_graph or self._server_max_event_id_in_fail is None:
+            if (
+                not self._server_has_current_graph
+                or self._server_max_event_id_in_fail is None
+            ):
                 all_errors = load_records(db_path=fallback_path)
             elif self._server_has_current_graph:
                 all_errors = load_records_after_event_id_in_fail(
