@@ -17,7 +17,6 @@ dependencies = [
     "fastapi",
     "uvicorn",
     "requests",
-    "networkx",
     "jinja2",
 ]
 
