@@ -166,7 +166,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
     def drain_task_queue(self) -> None:
         """清空任务队列，将所有任务移至失败队列。"""
         remaining_sources = self.task_queue.drain()
-        self.metrics.add_error_count(len(remaining_sources))
 
         # 持久化逻辑
         for source in remaining_sources:
