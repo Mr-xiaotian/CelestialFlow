@@ -71,6 +71,7 @@ class FallbackSpout(BaseSpout):
                 self._conn,
                 int(record["event_id"]),
                 int(record["new_event_id"]),
+                ts=float(record["ts"]),
             )
         elif op == "promote_success":
             # 任务成功时，将 pending 记录晋升为 success 并写入结果。
@@ -78,6 +79,7 @@ class FallbackSpout(BaseSpout):
                 self._conn,
                 int(record["event_id"]),
                 record["result"],
+                ts=float(record["ts"]),
             )
         elif op == "promote_failed":
             # 任务最终失败时，将 pending 记录晋升为 failed 并补齐错误信息。
@@ -85,7 +87,7 @@ class FallbackSpout(BaseSpout):
                 self._conn,
                 int(record["event_id"]),
                 int(record["error_id"]),
-                error_ts=float(record["error_ts"]),
+                ts=float(record["ts"]),
                 error_type=str(record["error_type"]),
                 error_message=str(record["error_message"]),
             )
@@ -145,10 +147,12 @@ class FallbackInlet(BaseInlet):
         :param event_id: 当前输入事件 ID
         :param task: 任务数据
         """
+        now = datetime.now()
         pending_item = {
             "__op__": "insert",
             "record": {
                 "event_id": event_id,
+                "ts": now.timestamp(),
                 "stage": stage_name,
                 "status": "pending",
                 "task_json": to_persisted_payload(task),
@@ -165,10 +169,12 @@ class FallbackInlet(BaseInlet):
         :param persist: 是否持久化任务结果，默认 False
         """
         if persist:
+            now = datetime.now()
             self._funnel(
                 {
                     "__op__": "promote_success",
                     "event_id": event_id,
+                    "ts": now.timestamp(),
                     "result": to_persisted_payload(result),
                 }
             )
@@ -182,11 +188,13 @@ class FallbackInlet(BaseInlet):
         :param event_id: 旧事件 ID
         :param retry_id: 新的 retry 事件 ID
         """
+        now = datetime.now()
         self._funnel(
             {
                 "__op__": "update_event_id",
                 "event_id": event_id,
                 "new_event_id": retry_id,
+                "ts": now.timestamp(),
             }
         )
 
@@ -220,6 +228,6 @@ class FallbackInlet(BaseInlet):
             "error_id": error_id,
             "error_type": error_type,
             "error_message": error_message,
-            "error_ts": now.timestamp(),
+            "ts": now.timestamp(),
         }
         self._funnel(fail_item)

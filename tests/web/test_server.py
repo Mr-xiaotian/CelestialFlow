@@ -7,7 +7,14 @@ def test_store_snapshot_methods_return_isolated_copies(web_server):
         "source_nodes": ["s1"],
     }
     raw_analysis = {"isDAG": True}
-    raw_errors = [{"event_id": 1, "stage": "s1", "task_json": None}]
+    raw_errors = [
+        {
+            "event_id": 1,
+            "stage": "s1",
+            "status": "failed",
+            "task_json": None,
+        }
+    ]
 
     web_server.update_status_store(123.0, raw_status)
     web_server.update_structure_store(raw_structure)
@@ -203,10 +210,11 @@ def test_errors_pagination(client):
         {
             "event_id": i,
             "stage": f"s{i%2}",
+            "status": "failed",
             "task_json": {"value": i, "label": f"task{i}"},
             "error_type": "ValueError" if i % 2 == 0 else "TypeError",
             "error_message": f"err{i}",
-            "error_ts": i,
+            "ts": i,
         }
         for i in range(15)
     ]
@@ -261,28 +269,31 @@ def test_push_errors_appends_for_same_graph(client):
         {
             "event_id": 1,
             "stage": "s1",
+            "status": "failed",
             "task_json": {"value": 1},
             "error_type": "ValueError",
             "error_message": "err1",
-            "error_ts": 1.0,
+            "ts": 1.0,
         },
         {
             "event_id": 2,
             "stage": "s2",
+            "status": "failed",
             "task_json": {"value": 2},
             "error_type": "TypeError",
             "error_message": "err2",
-            "error_ts": 2.0,
+            "ts": 2.0,
         },
     ]
     second_batch = [
         {
             "event_id": 3,
             "stage": "s1",
+            "status": "failed",
             "task_json": {"value": 3},
             "error_type": "RuntimeError",
             "error_message": "err3",
-            "error_ts": 3.0,
+            "ts": 3.0,
         }
     ]
 
@@ -336,10 +347,11 @@ def test_push_errors_duplicate_append_is_idempotent(client):
         {
             "event_id": 1,
             "stage": "s1",
+            "status": "failed",
             "task_json": {"value": 1},
             "error_type": "ValueError",
             "error_message": "err1",
-            "error_ts": 1.0,
+            "ts": 1.0,
         }
     ]
 
@@ -398,10 +410,11 @@ def test_newer_graph_replaces_previous_graph_context(client):
                 {
                     "event_id": 1,
                     "stage": "s1",
+                    "status": "failed",
                     "task_json": {"value": 1},
                     "error_type": "ValueError",
                     "error_message": "old",
-                    "error_ts": 1.0,
+                    "ts": 1.0,
                 }
             ],
         },
@@ -452,10 +465,11 @@ def test_stale_graph_pushes_are_ignored(client):
                 {
                     "event_id": 1,
                     "stage": "s1",
+                    "status": "failed",
                     "task_json": {"value": 1},
                     "error_type": "ValueError",
                     "error_message": "old",
-                    "error_ts": 1.0,
+                    "ts": 1.0,
                 }
             ],
         },

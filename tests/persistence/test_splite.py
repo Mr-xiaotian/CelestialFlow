@@ -28,24 +28,27 @@ def sample_errors():
     return [
         {"timestamp": "meta-only", "graph_name": "demo"},
         {
-            "error_ts": 1.0,
+            "ts": 1.0,
             "stage": "s1",
+            "status": "failed",
             "event_id": 1,
             "error_type": "ValueError",
             "error_message": "bad value",
             "task_json": {"id": 1, "label": "TaskOne"},
         },
         {
-            "error_ts": 2.0,
+            "ts": 2.0,
             "stage": "s2",
+            "status": "failed",
             "event_id": 2,
             "error_type": "RuntimeError",
             "error_message": "boom happened",
             "task_json": ["A", "B"],
         },
         {
-            "error_ts": 3.0,
+            "ts": 3.0,
             "stage": "s1",
+            "status": "failed",
             "event_id": 3,
             "error_type": "TypeError",
             "error_message": "wrong type",
@@ -86,6 +89,17 @@ class TestSpliteUtils:
         assert "idx_records_event_id" in index_names
         assert "idx_records_status_id" in index_names
         assert any(row[1] == "idx_records_event_id" and row[2] == 1 for row in index_list)
+        assert [row[1] for row in result_info] == [
+            "id",
+            "event_id",
+            "ts",
+            "stage",
+            "status",
+            "error_type",
+            "error_message",
+            "task_json",
+            "result_json",
+        ]
         assert any(row[1] == "result_json" for row in result_info)
 
     def test_normalize_record(self, sample_errors):
@@ -100,8 +114,16 @@ class TestSpliteUtils:
         assert normalized["status"] == "failed"
         assert normalized["error_type"] == "ValueError"
         assert normalized["error_message"] == "bad value"
-        assert normalized["error_ts"] == 1.0
+        assert normalized["ts"] == 1.0
         assert json.loads(normalized["task_json"]) == {"id": 1, "label": "TaskOne"}
+
+    def test_normalize_record_requires_stage_and_status(self):
+        """测试业务记录必须显式提供 stage 与 status。"""
+        with pytest.raises(KeyError, match="stage"):
+            normalize_record({"event_id": 1, "status": "failed", "task_json": {}})
+
+        with pytest.raises(KeyError, match="status"):
+            normalize_record({"event_id": 1, "stage": "s1", "task_json": {}})
 
     def test_insert_and_load_records(self, sqlite_path, sample_errors):
         """测试单条插入会忽略元信息，并能正常读回错误记录。"""
@@ -118,9 +140,11 @@ class TestSpliteUtils:
 
         assert len(records) == 2
         assert records[0]["id"] == 1
+        assert records[0]["ts"] == 1.0
         assert records[0]["task_json"] == {"id": 1, "label": "TaskOne"}
         assert records[0]["result_json"] is None
         assert records[1]["id"] == 2
+        assert records[1]["ts"] == 2.0
         assert records[1]["task_json"] == ["A", "B"]
         assert records[1]["result_json"] is None
 
@@ -254,7 +278,7 @@ class TestSpliteUtils:
                     "task_json": {"value": 1},
                     "error_type": "ValueError",
                     "error_message": "bad",
-                    "error_ts": 1.0,
+                    "ts": 1.0,
                 },
                 {
                     "event_id": 2,
@@ -270,7 +294,7 @@ class TestSpliteUtils:
                     "task_json": {"value": 3},
                     "error_type": "TypeError",
                     "error_message": "boom",
-                    "error_ts": 3.0,
+                    "ts": 3.0,
                 },
             ],
         )
@@ -310,7 +334,7 @@ class TestSpliteUtils:
                 conn,
                 9,
                 19,
-                error_ts=9.5,
+                ts=9.5,
                 error_type="RuntimeError",
                 error_message="boom",
             )
@@ -323,7 +347,7 @@ class TestSpliteUtils:
         assert len(failed_records) == 1
         assert failed_records[0]["event_id"] == 19
         assert failed_records[0]["status"] == "failed"
-        assert failed_records[0]["error_ts"] == 9.5
+        assert failed_records[0]["ts"] == 9.5
         assert failed_records[0]["error_type"] == "RuntimeError"
         assert failed_records[0]["error_message"] == "boom"
 
@@ -344,6 +368,7 @@ class TestSpliteUtils:
                 conn,
                 8,
                 {"ok": True, "value": [1, 2, 3]},
+                ts=8.5,
             )
             conn.commit()
         finally:
@@ -354,6 +379,7 @@ class TestSpliteUtils:
         assert len(success_records) == 1
         assert success_records[0]["event_id"] == 8
         assert success_records[0]["status"] == "success"
+        assert success_records[0]["ts"] == 8.5
         assert success_records[0]["result_json"] == {"ok": True, "value": [1, 2, 3]}
         assert success_records[0]["task_json"] == {"value": 8}
 
@@ -370,7 +396,7 @@ class TestSpliteUtils:
 
         conn = connect_db(sqlite_path)
         try:
-            updated = update_record_event_id_by_event_id(conn, 9, 99)
+            updated = update_record_event_id_by_event_id(conn, 9, 99, ts=99.5)
             conn.commit()
         finally:
             conn.close()
@@ -380,6 +406,7 @@ class TestSpliteUtils:
         assert len(pending_records) == 1
         assert pending_records[0]["event_id"] == 99
         assert pending_records[0]["status"] == "pending"
+        assert pending_records[0]["ts"] == 99.5
         assert pending_records[0]["error_type"] == ""
         assert pending_records[0]["error_message"] == ""
 
@@ -427,6 +454,7 @@ class TestSpliteUtils:
                 conn,
                 8,
                 {"ok": True, "value": [1, 2, 3]},
+                ts=8.5,
             )
             conn.commit()
         finally:

@@ -44,17 +44,16 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             event_id INTEGER NOT NULL,
-            stage TEXT NOT NULL DEFAULT '',
-            status TEXT NOT NULL DEFAULT 'failed',
+            ts REAL,
+            stage TEXT NOT NULL,
+            status TEXT NOT NULL,
             error_type TEXT NOT NULL DEFAULT '',
             error_message TEXT NOT NULL DEFAULT '',
-            error_ts REAL,
-            task_json TEXT NOT NULL DEFAULT 'null',
+            task_json TEXT NOT NULL,
             result_json TEXT NOT NULL DEFAULT 'null'
         )
         """
     )
-
     # 为常用查询条件建立索引，减少筛选和排序开销。
     _ = conn.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_records_event_id ON records(event_id)"
@@ -69,7 +68,8 @@ def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
     """
     将记录归一化为 sqlite 可写格式。
 
-    非业务记录会返回 ``None``。
+    非业务记录会返回 ``None``。业务记录必须显式提供 ``stage`` 与
+    ``status``，由调用方保证写入语义完整。
 
     :param record: 原始记录字典
     :return: 可直接写入 sqlite 的参数字典，或 ``None``
@@ -81,11 +81,11 @@ def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
 
     return {
         "event_id": int(event_id),
-        "stage": str(record.get("stage", "") or ""),
-        "status": str(record.get("status", "failed") or "failed"),
+        "stage": str(record["stage"]),
+        "status": str(record["status"]),
         "error_type": str(record.get("error_type", "") or ""),
         "error_message": str(record.get("error_message", "") or ""),
-        "error_ts": float(record.get("error_ts", 0.0) or 0.0),
+        "ts": float(record.get("ts", 0.0) or 0.0),
         "task_json": json.dumps(record["task_json"], ensure_ascii=False),
         "result_json": json.dumps(record.get("result_json"), ensure_ascii=False),
     }
@@ -102,11 +102,11 @@ def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
     return {
         "id": int(row["id"]),
         "event_id": int(row["event_id"]),
+        "ts": float(row["ts"]),
         "stage": str(row["stage"]),
         "status": str(row["status"]),
         "error_type": str(row["error_type"]),
         "error_message": str(row["error_message"]),
-        "error_ts": float(row["error_ts"]),
         "task_json": json.loads(str(row["task_json"])),
         "result_json": json.loads(str(row["result_json"])),
     }
@@ -131,10 +131,10 @@ def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
     _ = conn.execute(
         """
         INSERT INTO records (
-            event_id, stage, status, error_type, error_message, error_ts, task_json, result_json
+            event_id, ts, stage, status, error_type, error_message, task_json, result_json
         )
         VALUES (
-            :event_id, :stage, :status, :error_type, :error_message, :error_ts, :task_json, :result_json
+            :event_id, :ts, :stage, :status, :error_type, :error_message, :task_json, :result_json
         )
         """,
         normalized,
@@ -147,7 +147,7 @@ def promote_record_to_failed_by_event_id(
     event_id: int,
     new_event_id: int,
     *,
-    error_ts: float | None = None,
+    ts: float,
     error_type: str = "",
     error_message: str = "",
 ) -> bool:
@@ -157,7 +157,7 @@ def promote_record_to_failed_by_event_id(
     :param conn: 已建立的 sqlite 连接
     :param event_id: 当前事件 ID
     :param new_event_id: 晋升 failed 后的新事件 ID
-    :param error_ts: 错误时间戳，默认 ``None``
+    :param ts: 生命周期更新时间戳，默认 ``None``
     :param error_type: 错误类型，默认空字符串
     :param error_message: 错误消息，默认空字符串
     :return: 是否更新到记录
@@ -166,10 +166,10 @@ def promote_record_to_failed_by_event_id(
     cursor = conn.execute(
         """
         UPDATE records
-        SET event_id = ?, status = 'failed', error_ts = ?, error_type = ?, error_message = ?
+        SET event_id = ?, ts = ?, status = 'failed', error_type = ?, error_message = ?
         WHERE event_id = ?
         """,
-        [int(new_event_id), error_ts, error_type, error_message, int(event_id)],
+        [int(new_event_id), ts, error_type, error_message, int(event_id)],
     )
     return cursor.rowcount > 0
 
@@ -178,6 +178,8 @@ def promote_record_to_success_by_event_id(
     conn: sqlite3.Connection,
     event_id: int,
     result: Any,
+    *,
+    ts: float,
 ) -> bool:
     """
     在给定连接上按 ``event_id`` 将记录晋升为 success，并写入结果。
@@ -185,16 +187,17 @@ def promote_record_to_success_by_event_id(
     :param conn: 已建立的 sqlite 连接
     :param event_id: 当前事件 ID
     :param result: 任务结果
+    :param ts: 生命周期更新时间戳，默认 ``None``
     :return: 是否更新到记录
     :rtype: bool
     """
     cursor = conn.execute(
         """
         UPDATE records
-        SET status = 'success', result_json = ?
+        SET status = 'success', ts = ?, result_json = ?
         WHERE event_id = ?
         """,
-        [json.dumps(result, ensure_ascii=False), int(event_id)],
+        [ts, json.dumps(result, ensure_ascii=False), int(event_id)],
     )
     return cursor.rowcount > 0
 
@@ -203,6 +206,8 @@ def update_record_event_id_by_event_id(
     conn: sqlite3.Connection,
     event_id: int,
     new_event_id: int,
+    *,
+    ts: float,
 ) -> bool:
     """
     在给定连接上按 ``event_id`` 更新记录的 ``event_id``。
@@ -212,16 +217,17 @@ def update_record_event_id_by_event_id(
     :param conn: 已建立的 sqlite 连接
     :param event_id: 旧事件 ID
     :param new_event_id: 新事件 ID
+    :param ts: 生命周期更新时间戳，默认 ``None``
     :return: 是否更新到记录
     :rtype: bool
     """
     cursor = conn.execute(
         """
         UPDATE records
-        SET event_id = ?
+        SET event_id = ?, ts = ?
         WHERE event_id = ?
         """,
-        [int(new_event_id), int(event_id)],
+        [int(new_event_id), ts, int(event_id)],
     )
     return cursor.rowcount > 0
 
@@ -302,7 +308,7 @@ def load_records(
         # 按写入顺序读取指定状态的记录。
         rows = conn.execute(
             """
-            SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
+            SELECT id, event_id, ts, stage, status, error_type, error_message, task_json
                  , result_json
             FROM records
             WHERE status = ?
@@ -354,7 +360,7 @@ def load_records_grouped_by_stage(
     try:
         rows = conn.execute(
             """
-            SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
+            SELECT id, event_id, ts, stage, status, error_type, error_message, task_json
                  , result_json
             FROM records
             WHERE status = ?
@@ -389,7 +395,7 @@ def load_records_after_event_id_in_fail(
     try:
         rows = conn.execute(
             """
-            SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
+            SELECT id, event_id, ts, stage, status, error_type, error_message, task_json
                     , result_json
             FROM records
             WHERE status = 'failed' AND event_id > ?
@@ -455,11 +461,11 @@ def query_records(
         # 查询当前页数据；按 ts 和 id 排序以保持稳定顺序。
         rows = conn.execute(
             f"""
-            SELECT id, event_id, stage, status, error_type, error_message, error_ts, task_json
+            SELECT id, event_id, ts, stage, status, error_type, error_message, task_json
                  , result_json
             FROM records
             {where_sql}
-            ORDER BY error_ts {sort_sql}, id {sort_sql}
+            ORDER BY ts {sort_sql}, id {sort_sql}
             LIMIT ? OFFSET ?
             """,
             [*params, page_size, offset],
@@ -487,7 +493,7 @@ def load_task_error_records(
         # 读取任务与错误信息的配对原始行，供后续组装业务对象。
         rows = conn.execute(
             """
-            SELECT event_id, stage, error_type, error_message, error_ts, task_json
+            SELECT event_id, stage, error_type, error_message, ts, task_json
             FROM records
             WHERE status = 'failed' AND stage = ?
             ORDER BY id ASC

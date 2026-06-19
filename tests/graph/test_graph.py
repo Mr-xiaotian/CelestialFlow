@@ -169,7 +169,7 @@ class TestTaskGraphBasic:
                     "task_json": 1,
                     "error_type": "ValueError",
                     "error_message": "bad",
-                    "error_ts": 1.0,
+                    "ts": 1.0,
                 },
                 {
                     "event_id": 2,
@@ -178,7 +178,7 @@ class TestTaskGraphBasic:
                     "task_json": 2,
                     "error_type": "ValueError",
                     "error_message": "bad",
-                    "error_ts": 2.0,
+                    "ts": 2.0,
                 },
                 {
                     "event_id": 3,
@@ -187,7 +187,7 @@ class TestTaskGraphBasic:
                     "task_json": 10,
                     "error_type": "ValueError",
                     "error_message": "bad",
-                    "error_ts": 3.0,
+                    "ts": 3.0,
                 },
             ],
         )

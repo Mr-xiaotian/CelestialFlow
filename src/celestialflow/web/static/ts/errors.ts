@@ -5,7 +5,7 @@
 
 /** 单条错误数据定义 */
 type ErrorData = {
-  error_ts: number; // 错误发生的时间戳，单位为秒
+  ts: number; // 生命周期时间戳，单位为秒
   stage: string; // 错误发生的节点/阶段名称，用于节点筛选
   event_id: number; // 失败事件的唯一标识 ID，全局唯一
   error_type: string; // 错误的分类类型，用于区分不同类别的错误
@@ -120,12 +120,12 @@ function renderErrors(): void {
       const index = (currentPage - 1) * pageSize + i + 1; // 全局展示序号
       const row = document.createElement("tr"); // 当前表格行
       const errorText = `${e.error_type}(${e.error_message})`; // 错误完整文本
-      const errorRepr = format_repr(errorText, 50); // 表格中展示的截断错误文本
+      const errorRepr = format_repr(errorText, 40); // 表格中展示的截断错误文本
       const taskText =
         typeof e.task_json === "string"
           ? e.task_json
           : JSON.stringify(e.task_json);
-      const taskRepr = format_repr(taskText, 50); // 表格中展示的截断任务文本
+      const taskRepr = format_repr(taskText, 40); // 表格中展示的截断任务文本
       const canRetry = e.task_json !== undefined && !taskText.startsWith("<");
       const retryLabel = canRetry ? t("errors.retryInject") : t("errors.retryUnavailable");
       const retryClass = canRetry ? "retry-link" : "retry-disabled";
@@ -136,7 +136,7 @@ function renderErrors(): void {
         <td class="error-cell" data-label="${t("errors.colMessage")}" title="${escapeHtml(errorText)}">${escapeHtml(errorRepr)}</td>
         <td data-label="${t("errors.colNode")}">${escapeHtml(e.stage)}</td>
         <td data-label="${t("errors.colTask")}" title="${escapeHtml(taskText)}">${escapeHtml(taskRepr)}</td>
-        <td data-label="${t("errors.colTime")}">${formatTimestamp(e.error_ts)}</td>
+        <td data-label="${t("errors.colTime")}">${formatTimestamp(e.ts)}</td>
         <td data-label="${t("errors.colRetry")}"><div class="${retryClass}" role="${canRetry ? "button" : "note"}" tabindex="${canRetry ? "0" : "-1"}">${retryLabel}</div></td>
       `;
       const retryAction = row.querySelector<HTMLElement>(".retry-link");

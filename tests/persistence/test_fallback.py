@@ -39,7 +39,7 @@ class TestFailPersistence:
         try:
             rows = conn.execute(
                 """
-                SELECT event_id, stage, status, error_type, error_message, task_json, result_json
+                SELECT event_id, ts, stage, status, error_type, error_message, task_json, result_json
                 FROM records
                 ORDER BY id ASC
                 """
@@ -47,10 +47,13 @@ class TestFailPersistence:
         finally:
             conn.close()
 
-        assert rows == [
-            (21, "s1", "failed", "ValueError", "oops", '"data1"', 'null'),
-            (2, "s2", "success", "", "", '"data2"', '"ok2"'),
+        assert [row[0] for row in rows] == [21, 2]
+        assert [row[2:] for row in rows] == [
+            ("s1", "failed", "ValueError", "oops", '"data1"', 'null'),
+            ("s2", "success", "", "", '"data2"', '"ok2"'),
         ]
+        assert rows[0][1] > 0
+        assert rows[1][1] > 0
 
     def test_success_persistence(self, tmp_path, monkeypatch):
         """`FallbackSpout` 应持久化 success 结果并可读回 task-result 对。"""
