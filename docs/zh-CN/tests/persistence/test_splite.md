@@ -42,7 +42,7 @@
 
 ### 归一化
 
-- 元信息行（无 `error_ts`）返回 `None`，不存入数据库
+- 元信息行（无 `ts`）返回 `None`，不存入数据库
 - 错误记录被规范化为 `status="failed"`，`task_json` 和 `result_json` 序列化为 JSON 字符串
 
 ### 插入与读取

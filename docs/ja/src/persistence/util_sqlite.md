@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS records (
     status TEXT NOT NULL DEFAULT 'failed',
     error_type TEXT NOT NULL DEFAULT '',
     error_message TEXT NOT NULL DEFAULT '',
-    error_ts REAL,
+    ts REAL,
     task_json TEXT NOT NULL DEFAULT 'null',
     result_json TEXT NOT NULL DEFAULT 'null'
 )
@@ -70,7 +70,7 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 | 関数 | シグネチャ要点 | 説明 |
 |------|---------|------|
 | `insert_record` | `(conn, record: dict) -> bool` | 正規化後に INSERT OR REPLACE |
-| `promote_record_to_failed_by_event_id` | `(conn, event_id, error_id, error_ts, error_type, error_message) -> bool` | status + エラー情報を更新 |
+| `promote_record_to_failed_by_event_id` | `(conn, event_id, error_id, ts, error_type, error_message) -> bool` | status + エラー情報を更新 |
 | `promote_record_to_success_by_event_id` | `(conn, event_id, result) -> bool` | status='success' + result_json を更新 |
 | `update_record_event_id_by_event_id` | `(conn, old_event_id, new_event_id) -> bool` | event_id を更新（リトライ用） |
 | `delete_record_by_event_id` | `(conn, event_id) -> bool` | レコードを削除 |

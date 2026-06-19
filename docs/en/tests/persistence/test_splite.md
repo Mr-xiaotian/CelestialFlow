@@ -42,7 +42,7 @@ Validates all sqlite utility functions in the `celestialflow.persistence.util_sq
 
 ### Normalization
 
-- Metadata rows (no `error_ts`) return `None` and are not stored in the database
+- Metadata rows (no `ts`) return `None` and are not stored in the database
 - Error records are normalized to `status="failed"`, with `task_json` and `result_json` serialized as JSON strings
 
 ### Insert and Read

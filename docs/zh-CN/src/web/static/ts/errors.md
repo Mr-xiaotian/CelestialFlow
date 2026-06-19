@@ -10,7 +10,7 @@
 
 ```typescript
 type ErrorData = {
-  error_ts: number;      // 错误发生的时间戳，单位为秒
+  ts: number;      // 错误发生的时间戳，单位为秒
   stage: string;         // 错误发生的节点/阶段名称，用于节点筛选
   event_id: number;      // 失败事件的唯一标识 ID，全局唯一
   error_type: string;    // 错误的分类类型，用于区分不同类别的错误
@@ -75,7 +75,7 @@ type ErrorData = {
 | 3 | `errors.colMessage` | 错误信息（`error_type(error_message)`，截断 `format_repr` 50 字符，悬停显示完整） |
 | 4 | `errors.colNode` | 节点名称（`stage`） |
 | 5 | `errors.colTask` | 任务数据（`task_json` 截断显示） |
-| 6 | `errors.colTime` | 发生时间（`error_ts`，`formatTimestamp` 格式化） |
+| 6 | `errors.colTime` | 发生时间（`ts`，`formatTimestamp` 格式化） |
 | 7 | `errors.colRetry` | 重注入操作：当 `task_json` 存在且非占位符时为 `.retry-link`（可重试），否则 `.retry-disabled`（不可用） |
 
 > 第 7 列（重注入）：当 `task_json` 存在且非占位符时，点击/键盘触发调用 `preloadInjectionDraftFromError(stage, task_json, jumpToInjectionAfterRetry)`，可跳转至注入页预填任务数据。
@@ -119,8 +119,8 @@ type ErrorData = {
 ```typescript
 // 模拟错误记录
 const mockErrors: ErrorData[] = [
-  { error_ts: 1745400100, stage: "StageA", event_id: 1001, error_type: "TimeoutError", error_message: "Connection timeout", task_json: { id: 1 }, result_json: null },
-  { error_ts: 1745400050, stage: "StageB", event_id: 1002, error_type: "ValueError", error_message: "Invalid value", task_json: "task_data", result_json: null },
+  { ts: 1745400100, stage: "StageA", event_id: 1001, error_type: "TimeoutError", error_message: "Connection timeout", task_json: { id: 1 }, result_json: null },
+  { ts: 1745400050, stage: "StageB", event_id: 1002, error_type: "ValueError", error_message: "Invalid value", task_json: "task_data", result_json: null },
 ];
 
 // errors = mockErrors;

@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS records (
     status TEXT NOT NULL DEFAULT 'failed',
     error_type TEXT NOT NULL DEFAULT '',
     error_message TEXT NOT NULL DEFAULT '',
-    error_ts REAL,
+    ts REAL,
     task_json TEXT NOT NULL DEFAULT 'null',
     result_json TEXT NOT NULL DEFAULT 'null'
 )
@@ -70,7 +70,7 @@ The following functions require the caller to manage the `conn` lifecycle (typic
 | Function | Signature Highlights | Description |
 |------|---------|------|
 | `insert_record` | `(conn, record: dict) -> bool` | INSERT OR REPLACE after normalization |
-| `promote_record_to_failed_by_event_id` | `(conn, event_id, error_id, error_ts, error_type, error_message) -> bool` | Updates status + error info |
+| `promote_record_to_failed_by_event_id` | `(conn, event_id, error_id, ts, error_type, error_message) -> bool` | Updates status + error info |
 | `promote_record_to_success_by_event_id` | `(conn, event_id, result) -> bool` | Updates status='success' + result_json |
 | `update_record_event_id_by_event_id` | `(conn, old_event_id, new_event_id) -> bool` | Updates event_id (for retries) |
 | `delete_record_by_event_id` | `(conn, event_id) -> bool` | Deletes a record |
