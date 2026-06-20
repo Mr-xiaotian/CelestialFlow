@@ -493,7 +493,7 @@ def load_task_error_records(
         # 读取任务与错误信息的配对原始行，供后续组装业务对象。
         rows = conn.execute(
             """
-            SELECT event_id, stage, error_type, error_message, ts, task_json
+            SELECT error_type, error_message, task_json
             FROM records
             WHERE status = 'failed' AND stage = ?
             ORDER BY id ASC
