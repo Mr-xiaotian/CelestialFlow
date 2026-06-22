@@ -1,6 +1,6 @@
 # BaseSpout
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/22
 
 `BaseSpout` 是所有出口类的基类，提供后台线程监听队列并处理记录的通用功能。
 
@@ -9,7 +9,8 @@
 ```python
 class BaseSpout:
     def __init__(self):
-        self.queue = Queue()              # 线程安全队列
+        self._queue: Queue[Any] = Queue()
+        self._counter = PendingCounter()
         self._thread: Thread | None = None
 ```
 
@@ -43,12 +44,20 @@ def stop(self):
 3. 等待线程结束（`join(timeout=5)`），并将 `_thread` 置为 `None`
 4. 调用 `_after_stop()` 钩子
 
-### get_queue
+### get_queue / get_counter / get_pending_count
 
 ```python
 def get_queue(self) -> Queue[Any]:
-    """返回队列对象，供 Inlet 端使用。"""
+    """获取监听器的输入队列。"""
+
+def get_counter(self) -> PendingCounter:
+    """获取与当前监听器绑定的待处理计数器。"""
+
+def get_pending_count(self) -> int:
+    """读取当前仍未处理完成的记录数量。"""
 ```
+
+`get_pending_count()` 包含"已出队但仍在处理"的记录，因为计数在 `_handle_record()` 完成后才递减。
 
 ## 可重写方法
 
@@ -73,15 +82,20 @@ def _spout(self):
     """后台线程主循环，持续从队列拉取记录并调用 _handle_record，收到终止信号时退出。"""
     while True:
         try:
-            record = self.queue.get(timeout=0.5)
-            if isinstance(record, TerminationSignal):
-                break
-            self._handle_record(record)
+            record = self._queue.get(timeout=0.5)
         except Empty:
             continue
+
+        if isinstance(record, TerminationSignal):
+            break
+
+        try:
+            self._handle_record(record)
         except Exception:
             # 单条记录处理失败不致死线程，打印 traceback 后继续
             traceback.print_exc()
+        finally:
+            self._counter.decrement()
 ```
 
 ## 生命周期状态图
@@ -175,7 +189,7 @@ spout.get_queue().put("record_beta")
 spout.stop()
 ```
 
-### 计数 Spout
+### 查询待处理数量
 
 ```python
 from celestialflow.funnel import BaseSpout
@@ -194,14 +208,20 @@ spout.start()
 for i in range(100):
     spout.get_queue().put(i)
 
+# 等待队列排空
+import time
+time.sleep(0.5)
+print(f"待处理: {spout.get_pending_count()}")
+
 spout.stop()
 print(f"处理了 {spout.count} 条记录")  # 100
 ```
 
 ## 注意事项
 
-1. **线程安全**: 使用 `queue.Queue` 确保线程间通信安全
-2. **守护线程**: 监听线程设置为守护线程（`daemon=True`），主进程退出时自动结束
-3. **优雅停止**: 通过发送 `TerminationSignal` 通知线程停止，`join(timeout=5)` 等待最多 5 秒
-4. **异常隔离**: 单条记录处理失败打印 traceback 后继续，不会导致线程终止
-5. **队列清理**: 停止时不会清理队列中的剩余记录
+1. **线程安全**: 使用 `queue.Queue` 确保线程间通信安全。
+2. **守护线程**: 监听线程设置为守护线程（`daemon=True`），主进程退出时自动结束。
+3. **优雅停止**: 通过发送 `TerminationSignal` 通知线程停止，`join(timeout=5)` 等待最多 5 秒。
+4. **异常隔离**: 单条记录处理失败打印 traceback 后继续，不会导致线程终止。
+5. **队列清理**: 停止时不会清理队列中的剩余记录。
+6. **待处理计数**: 计数器在 `_funnel()` 入队前增加、在 `_spout()` 处理完成后减少，可用于判断数据是否全部消费。

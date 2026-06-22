@@ -1,6 +1,6 @@
 # Utils 模块
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/22
 
 Utils 模块提供了 CelestialFlow 的通用工具函数和辅助类，包括性能基准测试、数据克隆、集合操作和格式化功能。这些工具被其他模块广泛使用，提高了代码的复用性和可维护性。
 
@@ -88,8 +88,19 @@ import asyncio
 from celestialflow import TaskExecutor
 from celestialflow.utils.util_benchmark import benchmark_executor
 
-executor = TaskExecutor("Bench", my_func)
-asyncio.run(benchmark_executor(executor, async_executor, range(100)))
+
+def sync_task(x: int) -> int:
+    return x * 2
+
+
+async def async_task(x: int) -> int:
+    await asyncio.sleep(0.001)
+    return x * 2
+
+
+sync_executor = TaskExecutor("SyncBench", sync_task)
+async_executor = TaskExecutor("AsyncBench", async_task)
+asyncio.run(benchmark_executor(sync_executor, async_executor, range(100)))
 ```
 
 ### 克隆
@@ -208,7 +219,7 @@ async def run_benchmark():
     print(f"\n基准测试表格:\n{table}")
 
     # 运行原始执行器
-    await executor.start(range(100))
+    executor.start(range(100))
 
 
 asyncio.run(run_benchmark())

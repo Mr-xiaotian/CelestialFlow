@@ -1,6 +1,6 @@
 # TaskReporter
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 `TaskReporter` 是一个后台组件，负责收集任务图的运行状态并上报给远程 Web 服务器（CelestialFlow Web UI）。同时也负责从服务器拉取控制指令（如任务注入）。
 
@@ -43,8 +43,6 @@ Reporter 会通过 HTTP 与以下 Web API 交互：
 | `GET` | `/api/pull_server_state` | 获取服务器同步状态（含间隔配置、结构/分析状态、最大 event_id 等） |
 | `GET` | `/api/pull_task_injection` | 获取注入的任务 |
 
-> ⚠️ **已变更**：此前文档列出 `/api/pull_interval` 端点，源码已合并为 `/api/pull_server_state`，一次性拉取间隔配置、图状态标志和最大失败 event_id。
-
 ### 推送接口（Push）
 
 | 方法 | 端点 | 说明 |
@@ -53,8 +51,6 @@ Reporter 会通过 HTTP 与以下 Web API 交互：
 | `POST` | `/api/push_status` | 推送运行时状态快照 |
 | `POST` | `/api/push_structure` | 推送图结构信息 |
 | `POST` | `/api/push_analysis` | 推送图分析数据 |
-
-> ⚠️ **已变更**：此前文档列出 `/api/push_errors_meta` 和 `/api/push_errors_content` 两个端点，源码已统一为 `/api/push_errors`。此前文档列出 `/api/push_summary` 端点，当前 `TaskReporter._refresh_all()` 中不包含对 summary 的推送调用（`LogInlet` 保留了 `push_summary_failed` 日志方法但未被 Reporter 调用）。
 
 ### 交互流程
 
@@ -103,8 +99,6 @@ def _refresh_all(self) -> None:
     self._push_status()             # POST /api/push_status
     self._push_errors()             # POST /api/push_errors
 ```
-
-> ⚠️ **已变更**：此前文档记载的 `_pull_interval()` 已不存在，由一个 `_pull_server_state()` 替代。`_push_errors` 内部根据 `_server_has_current_graph` 决定是加载全量错误还是增量错误。
 
 ## 生命周期
 

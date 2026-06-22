@@ -1,10 +1,9 @@
 # dashboard_history.css
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/22
 
 负责节点指标历史图（Chart.js）上方的控制区域样式，包括指标切换按钮组。
 
-> ⚠️ **已变更**: 旧版文档提及的 `.history-metric-switcher` 和 `.history-metric-btn` 类名已变更为 `.metric-indicators` 和 `.metric-dot`。
 
 ## 布局设计 (`.progress-card-header`)
 

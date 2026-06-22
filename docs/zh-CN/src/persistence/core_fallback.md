@@ -1,10 +1,8 @@
 # Fallback 持久化 (Fallback Persistence)
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 `persistence/core_fallback.py` 提供了任务的 fallback（回退）持久化机制。它记录任务在整个生命周期中的状态变化（pending → success / failed），并将数据持久化到 SQLite 数据库文件中。
-
-> ⚠️ **已变更**：此文件替代了旧版的 `core_fail.py`（`FailSpout`/`FailInlet`）。旧版 `core_success.py`（`SuccessSpout`）的功能已合并到本模块中。`FallbackSpout` 统一处理失败和成功两种结果。
 
 ## 架构设计
 
@@ -110,9 +108,6 @@ result_pairs: list[tuple[Any, Any]] = fallback_spout.get_task_result_pairs("Stag
 
 ```python
 class FallbackInlet(BaseInlet):
-    def __init__(self, fallback_queue: Queue[Any]) -> None:
-        """初始化 fallback 收集器"""
-
     def task_in(self, stage_name: str, event_id: int, task: Any) -> None:
         """写入一条 pending 记录，表示任务已进入某个 stage。"""
 
@@ -145,7 +140,7 @@ fallback_spout = FallbackSpout("my_errors")
 fallback_spout.start()
 
 # 2. 创建 FallbackInlet
-fallback_inlet = FallbackInlet(fallback_spout.get_queue())
+fallback_inlet = FallbackInlet().bind_spout(fallback_spout)
 
 # 3. 记录任务生命周期
 # 任务进入 stage

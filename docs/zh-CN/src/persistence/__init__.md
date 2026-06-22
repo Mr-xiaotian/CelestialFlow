@@ -1,10 +1,8 @@
 # Persistence 模块
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 Persistence 模块提供了 CelestialFlow 的数据持久化功能，包括执行日志记录和 fallback（回退）持久化。它确保任务执行的关键数据能够可靠地保存和检索。
-
-> ⚠️ **已变更**：此模块经历大规模重构。`FailSpout`/`FailInlet` → `FallbackSpout`/`FallbackInlet`，`SuccessSpout` 已移除（功能合并到 `FallbackSpout`），JSONL 文件存储 → SQLite 数据库。旧文档 `core_fail.md`、`core_success.md`、`util_jsonl.md` 仍保留但已标注废弃。
 
 ## 导出符号
 
@@ -102,12 +100,12 @@ from celestialflow.persistence import LogSpout, LogInlet, FallbackSpout, Fallbac
 # 配置日志持久化
 log_spout = LogSpout()
 log_spout.start()
-log_inlet = LogInlet(log_spout.get_queue(), log_level="SUCCESS")
+log_inlet = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 
 # 配置 fallback 持久化
 fallback_spout = FallbackSpout(error_source="graph_errors")
 fallback_spout.start()
-fallback_inlet = FallbackInlet(fallback_spout.get_queue())
+fallback_inlet = FallbackInlet().bind_spout(fallback_spout)
 ```
 
 ### 记录日志

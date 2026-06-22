@@ -1,6 +1,6 @@
 # demo_graph.py 演示说明
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/22
 
 ## 目标
 
@@ -78,19 +78,19 @@ python demo/demo_graph.py
 依次执行 Extract → Normalize/Enrich → Load，输出包含 sleep 日志和最终摘要：
 
 ```
-[Extract] Input: 0 -> Output: {'id': 0, 'value': 101}
-[Extract] Input: 1 -> Output: {'id': 1, 'value': 102}
-[Normalize] Input: {'id': 0, 'value': 101} -> Output: {'id': 0, 'value': 0.01}
-[Enrich] Input: {'id': 0, 'value': 101} -> Output: {'id': 0, 'label': 'odd'}
+[Extract] Input: 1 -> Output: {'id': 1, 'value': 10, 'label': 'item_1'}
+[Extract] Input: 2 -> Output: {'id': 2, 'value': 20, 'label': 'item_2'}
+[Normalize] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'normalized': 0.1}
+[Enrich] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'category': 'odd'}
 ...
 --- Graph Summary ---
-Extract    : success=5  fail=0
-Normalize  : success=5  fail=0
-Enrich     : success=5  fail=0
-Load       : success=10 fail=0
+Extract    : success=15 fail=0
+Normalize  : success=15 fail=0
+Enrich     : success=15 fail=0
+Load       : success=30 fail=0
 ```
 
-> 每个 Extract 产生 1 条记录，经 Normalize 和 Enrich 分别处理后由 Load 聚合。当输入为 `range(5)` 时，Load 节点共接收 10 个任务（5 × 2 下游）。
+> 每个 Extract 产生 1 条记录，经 Normalize 和 Enrich 分别处理后由 Load 聚合。当输入为 `range(1, 16)` 时，Extract 处理 15 条记录，Normalize 与 Enrich 各接收 15 条，Load 节点共接收 30 条任务（15 × 2 下游）。
 
 ### 异步流水线（`demo_async_staged_pipeline`）
 
@@ -102,12 +102,12 @@ Load       : success=10 fail=0
 [AsyncDouble] Input: 2 -> Output: 4
 ...
 --- Staged 2: AsyncToStr ---
-[AsyncToStr] Input: 2 -> Output: 'Result: 2'
-[AsyncToStr] Input: 4 -> Output: 'Result: 4'
+[AsyncToStr] Input: 2 -> Output: 'result=2'
+[AsyncToStr] Input: 4 -> Output: 'result=4'
 ...
 --- Status Snapshot ---
-AsyncDouble : success=5  fail=0  pending=0
-AsyncToStr  : success=5  fail=0  pending=0
+AsyncDouble : success=20 fail=0  pending=0
+AsyncToStr  : success=20 fail=0  pending=0
 ```
 
 > 总执行时间约 3-5 秒，主要受内置 `sleep` 影响。

@@ -1,6 +1,6 @@
 # Pull 路由（GET）— `pull_routes`
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 ## 作用
 
@@ -124,7 +124,7 @@
 
 **返回：** `{"rev": int, "data": dict | None}` — 当尚未产生分析数据时 `data` 为 `None`。
 
-> ⚠️ **已变更**：`pull_analysis` 当前不执行 rev 守卫，每次均返回完整的 `data`（若分析数据存在）。此行为与 `pull_status`/`pull_structure`/`pull_errors` 不同。
+> **注意**：`pull_analysis` 不检查 `known_rev`，每次均返回完整数据（若分析数据存在）。此行为与 `pull_status`/`pull_structure`/`pull_errors` 不同。
 
 ## 使用示例
 

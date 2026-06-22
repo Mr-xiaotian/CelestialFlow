@@ -1,6 +1,6 @@
 # Runtime 模块
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 Runtime 模块提供了 CelestialFlow 的任务执行运行时环境，包括任务调度、队列管理、错误处理、性能监控等核心功能。它是任务实际执行的基础设施层。
 
@@ -131,7 +131,7 @@ print(f"任务ID: {envelope.get_id()}")
 # 2. TaskMetrics：指标统计
 import time
 
-metrics = TaskMetrics(execution_mode="serial", enable_duplicate_check=True)
+metrics = TaskMetrics(enable_duplicate_check=True)
 
 # 模拟任务处理过程
 metrics.add_task_count(5)
@@ -189,5 +189,5 @@ print(f"输出通道数: {len(out_queue.queue_list)}")
 1. **I/O 密集型任务**: 使用 `thread` 模式
 2. **异步任务**: 使用 `async` 模式（函数需为协程）
 3. **调试**: 使用 `serial` 模式，便于追踪单次执行
-4. **关键任务**: 配置适当的 `max_retries` 和 `add_retry_exceptions`
+4. **关键任务**: 配置适当的 `max_retries` 和 `set_retry_exceptions`
 5. **重复敏感场景**: 开启 `enable_duplicate_check=True`

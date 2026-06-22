@@ -1,6 +1,6 @@
 # TaskDispatch
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/22
 
 `TaskDispatch` 是任务调度器，负责以串行、线程或异步方式执行单个任务。它是 `TaskExecutor` 的内部组件，从 `TaskInQueue` 获取任务，调用用户函数，并将结果通过 `TaskOutQueue` 发送。
 
@@ -243,7 +243,7 @@ executor = TaskExecutor(
     execution_mode="serial",
     max_retries=3,  # 最多重试 3 次
 )
-executor.add_retry_exceptions(ConnectionError, TimeoutError)
+executor.set_retry_exceptions(ConnectionError, TimeoutError)
 executor.start([1, 2, 0, 4])
 
 counts = executor.get_counts()

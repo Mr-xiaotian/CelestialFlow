@@ -1,9 +1,9 @@
 # 运行时类型测试 (test_types.py)
 
-> 最后更新日期: 2026/06/05
+> 📅 最后更新日期: 2026/06/22
 
 ## 作用
-验证 `celestialflow.runtime.util_types` 中的值对象、枚举和包装器，包括终止信号、无操作上下文、可选加锁值包装器、求和计数器以及持久化错误记录。
+验证 `celestialflow.runtime.util_types` 中的值对象、枚举和包装器，包括终止信号、无操作上下文、可选加锁值包装器、求和计数器以及任务事件常量。
 
 ## 覆盖点
 - `TerminationSignal` / `TerminationIdPool` 的构造语义。
@@ -21,5 +21,5 @@
 ```bash
 pytest tests/runtime/test_types.py -v
 pytest tests/runtime/test_types.py -k "value_wrapper or sum_counter" -v
-pytest tests/runtime/test_types.py -k "termination or persisted_error" -v
+pytest tests/runtime/test_types.py -k "termination" -v
 ```

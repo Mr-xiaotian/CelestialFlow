@@ -1,6 +1,6 @@
 # util_error
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 Web 模块的错误查询、过滤与分页工具函数。
 
@@ -18,7 +18,7 @@ def normalize_errors_query(
 - 去除节点名与关键词的首尾空格，并将关键词转为小写。
 - `sort_order` 归一化为 `"newest"` 或 `"oldest"`，非法值默认 `"newest"`。
 
-> ⚠️ **已变更**：`filter_errors` 和 `paginate_errors` 不再存在。错误过滤与分页已改为 SQLite 层面的 `query_records` 直接处理。
+错误过滤与分页由 SQLite 层面的 `query_records` 直接处理，本模块仅负责查询参数归一化。
 
 ## 使用示例
 

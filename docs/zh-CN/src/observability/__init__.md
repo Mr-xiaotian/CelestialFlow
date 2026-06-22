@@ -1,6 +1,6 @@
 # Observability 模块
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行状态监控、进度可视化、Observer 模式和远程状态上报。它使任务执行过程变得透明、可监控。
 
@@ -12,8 +12,6 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
 | `TaskProgress` | `core_progress` | 基于 `tqdm` 的任务进度可视化工具，继承自 `BaseObserver` |
 | `TaskReporter` | `core_report` | 任务状态上报器，后台线程周期性向 Web 服务器推送运行状态并拉取控制指令 |
 | `NullTaskReporter` | `core_report` | 空实现的任务上报器，作为关闭上报功能时的占位对象 |
-
-> ⚠️ **已废弃**：此前文档列出 `CallbackObserver`，该类的源码实现已从 `core_observer.py` 中移除，不再可用。
 
 ## 文件说明
 

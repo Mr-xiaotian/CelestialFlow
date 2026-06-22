@@ -1,8 +1,7 @@
 # TaskTypes
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
-> ⚠️ **已废弃**：原文档描述的 `PersistedErrorRecord` 数据类在当前源码中已不存在。
 
 TaskTypes 模块定义了框架中使用的基础数据类型、枚举和辅助类。
 
@@ -38,7 +37,9 @@ TERMINATION_SIGNAL = TerminationSignal()
 ```python
 class TerminationIdPool:
     def __init__(self, ids: list[int]):
-        self.ids = ids
+        self.ids = ids   # 终止信号 ID 列表
+        self.id = -1     # 兼容字段，固定为 -1
+        self.source = "<signal>"  # 兼容字段，固定为 "<signal>"
 ```
 
 ## NoOpContext
@@ -170,8 +171,8 @@ with counter.get_lock():
 print(f"加锁递增后: {counter.value}")  # 15
 
 # SumCounter：多计数器累加
-sum_counter = SumCounter(mode="serial")
-sum_counter.add_init_value(100)
+sum_counter = SumCounter()
+sum_counter.add(100)
 
 sub1 = ValueWrapper(value=20)
 sub2 = ValueWrapper(value=30)
@@ -217,4 +218,3 @@ print(f"终止合并事件: {CTreeEvent.TERMINATION_MERGE}")    # "termination.m
 
 - `ValueWrapper` 和 `SumCounter` 的线程安全依赖于调用方传入正确的 `Lock` 对象。
 - `NoOpContext` 用于 `serial`/`async` 模式下替代真实锁，避免不必要的锁开销。
-- `PersistedErrorRecord` 是 frozen dataclass，创建后不可变。

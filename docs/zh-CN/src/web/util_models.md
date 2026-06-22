@@ -1,6 +1,6 @@
 # util_models
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 ## 作用
 
@@ -34,9 +34,7 @@
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `graph_id` | `str` | 图实例标识，默认 `""` |
-| `errors` | `list[dict[str, Any]]` | 错误记录列表，每项为错误字典 |
-
-> ⚠️ **已变更**：`ErrorsMetaModel` 和 `ErrorsContentModel` 已合并为单一 `ErrorsModel`。错误数据直接写入 SQLite，不再通过 JSONL 文件路径/版本号缓存。
+| `errors` | `list[dict[str, Any]]` | 错误记录列表，每项为错误字典；直接写入 SQLite 数据库 |
 
 ### AnalysisModel
 
@@ -118,7 +116,7 @@
 
 ### WebConfigModel
 
-Web UI 全局配置模型（已变更为嵌套分组结构）。
+Web UI 全局配置模型（嵌套分组结构）。
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -127,7 +125,7 @@ Web UI 全局配置模型（已变更为嵌套分组结构）。
 | `errors` | `ErrorsPageConfigModel` | — | 错误页配置 |
 | `injection` | `InjectionPageConfigModel` | `InjectionPageConfigModel()` | 注入页配置 |
 
-> **已变更**: `WebConfigModel` 由旧版的平铺字段（`theme`, `refreshInterval`, `historyLimit`...）改为嵌套分组结构。原 `theme`、`refreshInterval` 等字段移入 `GlobalConfigModel`（别名 `"global"`），`historyLimit`、`showStructureEdgeDelta` 等移入 `DashboardPageConfigModel`，`errorPageSize`、`errorSortOrder` 等移入 `ErrorsPageConfigModel`。
+配置采用嵌套分组结构：`theme`、`refreshInterval`、`language` 等位于 `GlobalConfigModel`（JSON 键为 `"global"`）；`historyLimit`、`showStructureEdgeDelta` 等位于 `DashboardPageConfigModel`；`pageSize`、`sortOrder` 等位于 `ErrorsPageConfigModel`。
 
 ## 使用示例
 

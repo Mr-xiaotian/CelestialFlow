@@ -1,31 +1,56 @@
 # BaseInlet
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
-`BaseInlet` 是所有入口类（Inlet）的基类，提供将记录写入队列的通用功能。
+`BaseInlet` 是所有入口类（Inlet）的基类，负责将记录通过队列发送到对应的 `BaseSpout`。
 
 ## 类定义
 
 ```python
 class BaseInlet:
-    def __init__(self, queue: Any) -> None:
+    _queue: Queue[Any]
+    _counter: PendingCounter
+
+    def bind_spout(self, spout: BaseSpout) -> Self:
         """
-        :param queue: 记录队列（由对应 Spout 的 get_queue() 获取）
+        将当前 inlet 绑定到给定 spout。
+
+        :param spout: 目标监听器
+        :return: 当前已绑定的 inlet 实例
         """
-        self.queue: Any = queue
+        self._queue = spout.get_queue()
+        self._counter = spout.get_counter()
+        return self
 
     def _funnel(self, record: Any) -> None:
-        """将记录放入队列，供对应的 Spout 消费。"""
-        self.queue.put(record)
+        """
+        将记录放入队列。
+
+        :param record: 待发送的记录
+        """
+        if not hasattr(self, '_queue') or not hasattr(self, '_counter'):
+            raise InitializationError("inlet is not bound to spout")
+
+        self._counter.increment()
+        try:
+            self._queue.put(record)
+        except Exception:
+            self._counter.decrement()
+            raise
 ```
 
-### 属性
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| `queue` | `Any` | 记录队列实例，通过 `queue.put()` 写入记录 |
-
 ## 核心方法
+
+### bind_spout
+
+```python
+def bind_spout(self, spout: BaseSpout) -> Self:
+```
+
+- 将当前 inlet 绑定到指定的 `BaseSpout` 实例。
+- 内部会复用 spout 的输入队列（`_queue`）和待处理计数器（`_counter`）。
+- 返回自身，支持链式调用：`LogInlet(log_level).bind_spout(spout)`。
+- 未绑定前调用 `_funnel()` 会抛出 `InitializationError`。
 
 ### _funnel（protected）
 
@@ -33,16 +58,16 @@ class BaseInlet:
 def _funnel(self, record: Any) -> None:
 ```
 
-- 将 `record` 放入 `self.queue`，供对应的 `Spout` 消费
-- 由子类在具体的业务方法中调用
-- 使用 `queue.Queue` 确保线程间安全通信
+- 将 `record` 放入与 spout 共享的队列。
+- 入队前先 `increment()` 计数；若入队失败则立即 `decrement()` 回滚。
+- 子类通常在具体的业务方法中调用此方法。
 
 ## 继承关系
 
 ```mermaid
 classDiagram
     class BaseInlet {
-        +Any queue
+        +bind_spout(spout: BaseSpout) Self
         +_funnel(record: Any) None
     }
     class LogInlet {
@@ -73,16 +98,18 @@ classDiagram
 | `LogInlet` | `persistence/core_log.py` | 日志记录，追踪任务入队/出队/终止全过程 |
 | `FallbackInlet` | `persistence/core_fallback.py` | Fallback 记录，持久化任务生命周期到 SQLite |
 
-> ⚠️ **已变更**：旧版 `FailInlet`（`core_fail.py`）已重命名为 `FallbackInlet`（`core_fallback.py`），`SuccessSpout` 已移除。
-
 ## 使用示例
 
 ```python
 from celestialflow.funnel import BaseSpout, BaseInlet
 
 class MySpout(BaseSpout):
+    def __init__(self):
+        super().__init__()
+        self.received = []
+
     def _handle_record(self, record):
-        print(record)
+        self.received.append(record)
 
 class MyInlet(BaseInlet):
     def send(self, data):
@@ -90,16 +117,20 @@ class MyInlet(BaseInlet):
 
 # 使用
 spout = MySpout()
+inlet = MyInlet().bind_spout(spout)
+
 spout.start()
-inlet = MyInlet(spout.get_queue())
 inlet.send("hello")
+inlet.send({"key": "value"})
 spout.stop()
+
+print(spout.received)
 ```
 
 ## 注意事项
 
-1. **单向通信**: Inlet 只管写入队列，Spout 负责消费，两者通过队列解耦
-2. **队列来源**: 队列由对应的 `BaseSpout` 创建并提供（通过 `get_queue()`），Inlet 不负责队列生命周期
-3. **线程安全**: 使用 `queue.Queue` 实现线程间安全通信
-4. **不抛异常**: `_funnel` 内部不处理队列写入异常，需由子类在调用处捕获
-5. **使用模式**: 通常每个 `BaseSpout` 对应一个 `BaseInlet`，形成生产者-消费者对
+1. **单向通信**: Inlet 只管写入队列，Spout 负责消费，两者通过队列解耦。
+2. **绑定方式**: 队列和计数器由 `BaseSpout` 创建并通过 `bind_spout()` 共享给 Inlet，Inlet 不直接负责队列生命周期。
+3. **线程安全**: 使用 `queue.Queue` 与 `PendingCounter`（内部加锁）实现线程间安全通信。
+4. **未绑定异常**: 若未调用 `bind_spout()` 就调用 `_funnel()`，会抛出 `InitializationError`。
+5. **使用模式**: 通常每个 `BaseSpout` 对应一个 `BaseInlet`，形成生产者-消费者对。

@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
@@ -33,7 +33,7 @@ class TaskGraph:
 ```python
 def set_stages(self, stages: list[TaskStage]) -> None:
     """
-    添加节点到任务图。为每个节点创建 TaskInQueue 和 TaskOutQueue。
+    添加节点到任务图。注册节点并注入图级 inlet 与事件客户端。
 
     :param stages: 节点列表
     :raises DuplicateNodeError: 如果节点名称重复
@@ -216,10 +216,13 @@ def collect_runtime_snapshot(self) -> None:
 
 ```mermaid
 flowchart TD
-    INIT[__init__] -->|set_schedule_mode / set_ctree / set_reporter| ENV[_init_env]
-    ENV --> STATE[_init_state]
-    ENV --> SPOUT[_init_spout: LogSpout + FailSpout]
-    ENV --> INLET[_init_inlet: LogInlet + FailInlet]
+    INIT[__init__] -->|_set_name / _set_schedule_mode / _set_log_level| SET[初始化配置]
+    INIT --> STATE[_init_state]
+    INIT --> SPOUT[_init_spout: LogSpout + FallbackSpout]
+    INIT --> INLET[_init_inlet: LogInlet + FallbackInlet]
+    SET --> STATE
+    SET --> SPOUT
+    SET --> INLET
     STATE --> BUILD[set_stages + connect]
     BUILD --> START[start_graph]
     START --> ANALYSIS[_build_analysis: 图分析与资源构建]
@@ -229,8 +232,7 @@ flowchart TD
     EXEC -->|staged| LAYER[逐层启动]
     ALL --> FINALIZE[_finalize_nodes: 收集未消费任务]
     LAYER --> FINALIZE
-    FINALIZE --> RELEASE[_release_resources]
-    RELEASE --> END[图执行完成]
+    FINALIZE --> END[图执行完成]
     
     START -->|监控| SNAPSHOT[collect_runtime_snapshot]
     SNAPSHOT --> STATUS[get_status_snapshot]
@@ -269,4 +271,4 @@ graph.start_graph({"source": tasks}, put_termination_signal=False)
 
 ## 未消费任务处理
 
-`_finalize_nodes()` 中通过 `in_queue.drain()` 收集所有剩余任务，将其标记为 `UnconsumedError` 并通过 `fail_inlet` 持久化到 JSONL 文件。
+`_finalize_nodes()` 中通过 `stage.drain_task_queue()` 收集所有剩余任务，将其标记为 `UnconsumedError` 并通过 `fallback_inlet` 持久化到 JSONL 文件（经由 `FallbackSpout` 写入回退存储）。

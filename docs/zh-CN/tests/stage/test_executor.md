@@ -1,6 +1,6 @@
 # 任务执行器测试 (test_executor.py)
 
-> 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/22
 
 ## 作用
 验证 `celestialflow.stage.core_executor` 中的 `TaskExecutor` 类，确保其在各种并发模式下能准确执行任务、处理错误并支持高级特性（如重试和去重）。
@@ -15,7 +15,7 @@
 | `TestExecutorSerial` | 4 | 串行执行、错误处理、重试成功、非匹配异常不重试 |
 | `TestExecutorThread` | 1 | 线程池并行执行与正确计数 |
 | `TestExecutorAsync` | 2 | 异步执行与连续处理逻辑 |
-| `TestExecutorDuplicateCheck` | 2 | 去重启用/禁用的行为对比 |
+| `TestExecutorDuplicateCheck` | 3 | 默认禁用、启用、显式禁用三种配置的行为对比 |
 | `TestExecutorReplay` | 1 | `start_db` 从 sqlite 按 stage 读取失败任务并回放 |
 | `TestExecutorSuccessCache` | 1 | 成功结果缓存与 `get_success_pairs()` |
 | `TestExecutorConfig` | 4 | 零/多参数函数拒绝、非法执行模式校验、`get_summary()` 摘要信息 |
@@ -33,8 +33,9 @@
 - 验证非匹配异常（如配置重试 `RuntimeError` 但抛出 `ValueError`）能立即触发失败。
 
 ### 去重与缓存
+- 验证默认配置（不指定 `enable_duplicate_check`）不会启用重复检查，相同任务会重复执行。
 - 验证 `enable_duplicate_check` 开启时，相同任务仅执行一次，重复计入 `tasks_duplicated`。
-- 验证 `enable_duplicate_check` 关闭时，相同任务全部执行，`tasks_duplicated` 为 0。
+- 验证 `enable_duplicate_check` 显式关闭时，相同任务全部执行，`tasks_duplicated` 为 0。
 - 验证 `get_success_pairs()` 能正确返回已成功任务的输入输出配对。
 
 ### 配置校验

@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
@@ -17,7 +17,8 @@ CelestialFlowError
 │       └── CallableParameterKindError  # 可调用对象参数 kind 不合法
 ├── GraphStructureError
 │   ├── DuplicateNodeError          # 重复的节点名称
-│   └── UnknownNodeError            # 未知的节点名称
+│   ├── UnknownNodeError            # 未知的节点名称
+│   └── NodeNotFoundError           # 图中未找到指定节点
 ├── RuntimeStateError
 │   ├── InitializationError         # 初始化失败
 │   └── GraphManagedError           # 图管理错误
@@ -122,6 +123,20 @@ class ScheduleModeError(InvalidOptionError):
         # valid_modes 默认为 ("eager", "staged")
 ```
 
+### CallableParameterKindError
+
+可调用对象参数 kind 不合法。
+
+```python
+class CallableParameterKindError(InvalidOptionError):
+    def __init__(self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]):
+        """
+        :param callable_name: 可调用对象名称
+        :param parameter_kind: 实际参数 kind
+        :param valid_kinds: 允许的参数 kind 集合
+        """
+```
+
 ## 图结构异常（GraphStructureError）
 
 ### GraphStructureError
@@ -151,6 +166,16 @@ class DuplicateNodeError(GraphStructureError):
 ```python
 class UnknownNodeError(GraphStructureError):
     """未知的节点名称"""
+    pass
+```
+
+### NodeNotFoundError
+
+图中未找到指定节点（在 `connect()` 或查询时触发）。
+
+```python
+class NodeNotFoundError(GraphStructureError):
+    """图中未找到指定节点"""
     pass
 ```
 
@@ -185,20 +210,6 @@ class GraphManagedError(RuntimeStateError):
     """Stage 已被 Graph 管理，不应通过 standalone 路径启动。"""
     def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."):
         ...
-```
-
-### CallableParameterKindError
-
-可调用对象参数 kind 不合法。
-
-```python
-class CallableParameterKindError(InvalidOptionError):
-    def __init__(self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]):
-        """
-        :param callable_name: 可调用对象名称
-        :param parameter_kind: 实际参数 kind
-        :param valid_kinds: 允许的参数 kind 集合
-        """
 ```
 
 ## 持久化异常
@@ -299,7 +310,7 @@ class TerminationMergeError(CelestialFlowError):
 
 ```python
 executor = TaskExecutor("Processor", process, max_retries=3)
-executor.add_retry_exceptions(ConnectionError, TimeoutError)
+executor.set_retry_exceptions(ConnectionError, TimeoutError)
 ```
 
 ### 2. 捕获配置错误

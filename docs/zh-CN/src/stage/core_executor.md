@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -36,11 +36,9 @@ class TaskExecutor[T, R]:
 | `max_workers` | `None` | 并发数量限制（None 时动态: `min(32, cpu_count+4)`） |
 | `max_retries` | `1` | 任务失败后的最大重试次数（最多执行 retries+1 次） |
 | `max_info` | `50` | 日志中每条信息的最大长度 |
-| `enable_duplicate_check` | `True` | 是否启用基于任务哈希的重复检查 |
+| `enable_duplicate_check` | `False` | 是否启用基于任务哈希的重复检查 |
 | `persist_result` | `False` | 是否持久化任务结果到 SQLite |
 | `log_level` | `"INFO"` | 日志级别 |
-
-> **已变更**：此前文档不包含 `persist_result` 参数，该参数控制是否将任务成功结果持久化到 SQLite。此前文档包含 `unpack_task_args` 参数，该参数在当前源码中不存在，已移除。
 
 ## Observer 模式
 
@@ -63,8 +61,6 @@ executor.remove_observer(observer)  # 移除观察者
 | `on_task_duplicate()` | `deal_duplicate()` | 检测到重复（无参数） |
 | `on_tasks_added(count)` | `_put_task_queue()` | 新任务加入（每 100 个通知一次） |
 | `on_finish()` | `_finish_start()` finally | 执行结束（无参数） |
-
-> **已变更**：此前文档记载 `on_start` 传递实际任务总数，源码中固定传递 `0`，实际任务数通过后续的 `on_tasks_added` 事件逐批通知。成功/失败/重复事件也不传递计数参数。
 
 ## 核心方法
 
@@ -113,8 +109,6 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
     """添加需要重试的异常类型。"""
 ```
 
-> **已变更**：此前文档记载 `add_retry_exceptions`，源码中的方法名为 `set_retry_exceptions`。
-
 ### 结果处理（核心方法）
 
 任务的结果处理通过以下方法实现：
@@ -129,8 +123,6 @@ def handle_task_fail(self, task_envelope: TaskEnvelope[T], exception: Exception)
 def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
     """处理重复任务：通知 observer、记录日志。"""
 ```
-
-> **已变更**：此前文档记载可覆写方法 `process_result()` 和 `get_args()`，当前源码中不存在这两个方法。此前文档记载 `process_result_dict()` 和 `handle_error_dict()`，当前源码中也不存在这两个方法，实际结果处理通过 `process_task_success()` 完成。
 
 ### 获取结果
 
@@ -167,8 +159,6 @@ def get_counts(self) -> dict:                 # 计数器：tasks_input/succeede
 def get_fallback_path(self) -> Path:          # fallback SQLite 文件的绝对路径
 ```
 
-> **已变更**：`get_summary()` 返回的字典键为 `name, func_name, execution_mode, max_workers`，不包含 `class_name`。
-
 ## 生命周期
 
 ```mermaid
@@ -198,8 +188,6 @@ flowchart TD
     NOTIFY_END --> LOG_END[log_inlet.end_executor]
     LOG_END --> STOP[停止 spout ×2:<br/>log_spout + fallback_spout]
 ```
-
-> **已变更**：此前流程图中出现 `_release_client` 节点（不存在于源码）、3 个 spout（`log_spout` + `fail_spout` + `success_spout`）。当前只有 2 个 spout：`log_spout` + `fallback_spout`。
 
 ## 使用示例
 

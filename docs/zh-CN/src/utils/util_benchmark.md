@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/22
 
 `utils/util_benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
@@ -128,6 +128,23 @@ asyncio.run(benchmark_executor(
 from celestialflow import TaskGraph, TaskStage
 from celestialflow.utils.util_benchmark import benchmark_graph
 
+
+def process_a(x: int) -> int:
+    return x * 2
+
+
+def process_b(x: int) -> int:
+    return x + 1
+
+
+async def async_process_a(x: int) -> int:
+    return x * 2
+
+
+async def async_process_b(x: int) -> int:
+    return x + 1
+
+
 # 创建同步节点
 stage_a = TaskStage("A", process_a)
 stage_b = TaskStage("B", process_b)
@@ -137,12 +154,12 @@ async_stage_a = TaskStage("A", async_process_a)
 async_stage_b = TaskStage("B", async_process_b)
 
 # 构建同步图
-sync_graph = TaskGraph()
+sync_graph = TaskGraph(name="SyncGraph")
 sync_graph.set_stages(stages=[stage_a, stage_b])
 sync_graph.connect([stage_a], [stage_b])
 
 # 构建异步图
-async_graph = TaskGraph()
+async_graph = TaskGraph(name="AsyncGraph")
 async_graph.set_stages(stages=[async_stage_a, async_stage_b])
 async_graph.connect([async_stage_a], [async_stage_b])
 
@@ -150,7 +167,7 @@ async_graph.connect([async_stage_a], [async_stage_b])
 benchmark_graph(
     sync_graph=sync_graph,
     async_graph=async_graph,
-    init_tasks_dict={stage_a.get_tag(): range(100)},
+    init_tasks_dict={stage_a.get_name(): range(100)},
 )
 ```
 

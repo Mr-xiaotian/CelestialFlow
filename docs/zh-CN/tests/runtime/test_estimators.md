@@ -1,6 +1,6 @@
 # 剩余时间估算测试 (test_estimators.py)
 
-> 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/22
 
 ## 作用
 验证 `calc_remaining`、`calc_elapsed` 和 `calc_global_pending` 三个估算函数，确保 CelestialFlow 在节点级和图级都能给出稳定的剩余时间预测。
@@ -22,7 +22,7 @@
 |--------|--------|---------|
 | `TestCalcRemaining` | 7 | 基础比例计算与零值边界 |
 | `TestCalcElapsed` | 7 | 基于状态机的时间累计策略 |
-| `TestCalcGlobalPending` | 15 | DAG 传播估算：线性链、扇出、扇入、菱形、瓶颈、空图等 |
+| `TestCalcGlobalPending` | 16 | DAG 传播估算：线性链、扇出、扇入、菱形、瓶颈、空图、缺失 map 数据等 |
 | `TestPropertyBased` | 3 | 对称性、单调性等属性验证 |
 
 ## 运行方式

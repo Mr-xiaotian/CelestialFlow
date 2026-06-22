@@ -1,6 +1,6 @@
 # Stage 模块
 
-> 📅 最后更新日期: 2026/06/17
+> 📅 最后更新日期: 2026/06/22
 
 Stage 模块定义了 CelestialFlow 中的任务执行单元。它提供了从基础任务执行器到复杂任务节点的完整体系，是构建任务图的基本构建块。
 
@@ -123,8 +123,8 @@ from celestialflow import TaskGraph, TaskStage, TaskSplitter
 
 # 自定义分裂器：将字符串按逗号分裂
 class CommaSplitter(TaskSplitter):
-    def _split(self, *task):
-        return tuple(task[0].split(","))
+    def _split(self, task):
+        return tuple(task.split(","))
 
 # 构建图
 raw = TaskStage("Source", func=lambda x: x, stage_mode="serial")

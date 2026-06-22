@@ -1,6 +1,6 @@
 # Web 模块
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 Web 模块提供了一个交互式的监控和管理界面，基于 FastAPI 与原生 TypeScript 构建，支持任务状态实时可视化、错误追溯、动态任务注入及全局配置管理。
 
@@ -107,7 +107,7 @@ async def main():
     def process(x: int) -> int:
         return x * 2
 
-    graph = TaskGraph(schedule_mode="eager")
+    graph = TaskGraph(name="DemoGraph", schedule_mode="eager")
     stage = TaskStage("Processor", process, execution_mode="thread")
     graph.set_stages([stage])
 
@@ -122,7 +122,7 @@ async def main():
     reporter.start()
 
     # 4. 执行任务
-    await graph.start_graph({stage.get_tag(): range(50)})
+    graph.start_graph({stage.get_name(): range(50)})
 
     # 5. 停止上报器
     reporter.stop()

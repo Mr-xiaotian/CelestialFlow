@@ -1,6 +1,6 @@
-# 图分析工具测试 (test_analysis.py)
+# 图分析工具测试 (test_utilgraph.py)
 
-> 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 ## 作用
 验证 `celestialflow.graph.util_graph` 中的基础图分析函数，确保 `OrderGraph` 构建、层级计算和源节点查找逻辑的准确性。
@@ -30,16 +30,16 @@
 
 ```bash
 # 全部执行
-pytest tests/graph/test_analysis.py -v
+pytest tests/graph/test_utilgraph.py -v
 
 # 仅运行图构建测试
-pytest tests/graph/test_analysis.py::TestBuildOrderGraph -v
+pytest tests/graph/test_utilgraph.py::TestBuildOrderGraph -v
 
 # 仅运行层级计算测试
-pytest tests/graph/test_analysis.py -k "levels" -v
+pytest tests/graph/test_utilgraph.py -k "levels" -v
 
 # 仅运行源节点查找测试
-pytest tests/graph/test_analysis.py -k "source" -v
+pytest tests/graph/test_utilgraph.py -k "source" -v
 ```
 
 ## 性能参考
@@ -54,4 +54,4 @@ pytest tests/graph/test_analysis.py -k "source" -v
 - 测试用例均为纯内存计算，执行速度极快。
 
 ## 注意事项
-- 测试代码位于 `tests/graph/test_analysis.py`，对应实现位于 `src/celestialflow/graph/util_graph.py`。
+- 测试代码位于 `tests/graph/test_utilgraph.py`，对应实现位于 `src/celestialflow/graph/util_graph.py`。

@@ -1,9 +1,9 @@
 # 任务信封测试 (test_envelope.py)
 
-> 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/22
 
 ## 作用
-验证 `celestialflow.runtime.core_envelope` 模块中的 `TaskEnvelope` 类及 `object_to_hash` 哈希工具，确保任务数据、ID、来源和哈希值在传递过程中的完整性与一致性。
+验证 `celestialflow.runtime.core_envelope` 模块中的 `TaskEnvelope` 类及 `object_to_hash` 哈希工具，确保任务数据、ID 和哈希值在传递过程中的完整性与一致性。
 
 ## 核心测试对象
 - `TaskEnvelope`: 包装任务数据的核心容器。
@@ -19,7 +19,7 @@
 ## 关键测试场景
 
 ### `TestTaskEnvelope`
-1. **基础属性**: 验证构造函数参数（task, id, source）能否通过 Getter 方法准确还原。
+1. **基础属性**: 验证构造函数参数（task, id）能否通过 Getter 方法准确还原。
 2. **哈希一致性**:
    - 验证相同内容的对象产生相同的哈希（即便 ID 不同）。
    - 验证不同内容产生不同哈希。

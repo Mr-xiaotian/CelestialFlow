@@ -1,10 +1,8 @@
 # TaskStage
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 `TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力与 `stage_mode` 控制逻辑。
-
-> ⚠️ **已变更**：`set_inlet` 的参数名从 `fail_queue` 变更为 `fallback_queue`。`prev_bindings` 方法已重命名为 `prev_binding`（单数），签名从接收列表改为接收单个 `TaskStage`。
 
 > 注意：`TaskStage` 也是一次性对象。它通常由 `TaskGraph` 管理并参与一次完整运行；运行结束后，其队列绑定、计数状态和图内关联关系不保证可被安全重置。
 
@@ -68,11 +66,11 @@ def set_stage_mode(self, stage_mode: str):
 ### set_inlet
 
 ```python
-def set_inlet(self, fallback_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]) -> None:
+def set_inlet(self, fallback_inlet: FallbackInlet, log_inlet: LogInlet) -> None:
     """
-    初始化收集器，将 fallback/log 队列接入持久化层。
-    :param fallback_queue: fallback 队列
-    :param log_queue: 日志队列
+    初始化收集器，将 fallback/log 收集器接入当前 stage。
+    :param fallback_inlet: fallback 收集器
+    :param log_inlet: 日志收集器
     """
 ```
 

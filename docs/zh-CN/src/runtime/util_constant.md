@@ -1,6 +1,6 @@
 # RuntimeConstant
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 `runtime/util_constant.py` 定义运行时全局常量，主要是日志级别映射表 `LEVEL_DICT`。
 
@@ -113,4 +113,4 @@ print(validate_level("VERBOSE"))  # False
 ## 注意事项
 
 - `LEVEL_DICT` 是 `LogInlet` 日志过滤的核心依据，不要随意修改级别数值。
-- `STAGE_STYLE` 依赖 `celestialtree` 外部包的 `NodeLabelStyle`，模板字符串中的 `{base}`、`{payload.name}`、`{type}` 变量由 CelestialTree 渲染引擎注入。
+- 源码中 `STAGE_STYLE` 目前被注释掉，未实际启用；如需恢复，需依赖 `celestialtree` 外部包的 `NodeLabelStyle`，模板字符串中的 `{base}`、`{payload.name}`、`{type}` 变量由 CelestialTree 渲染引擎注入。

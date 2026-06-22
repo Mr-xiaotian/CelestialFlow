@@ -1,6 +1,6 @@
 # Push 路由（POST）— `push_routes`
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 ## 作用
 
@@ -91,8 +91,6 @@
 
 **返回：** `{"ok": true}` 或 `{"ok": false}`
 
-> ⚠️ **已变更**：新增 `graph_id` 字段，用于 graph 上下文校验。
-
 ---
 
 ### 3. `POST /api/push_status`
@@ -115,8 +113,6 @@
 3. `server.store_revs["status"]` 自增 1
 
 **返回：** `{"ok": true}` 或 `{"ok": false}`
-
-> ⚠️ **已变更**：新增 `graph_id` 字段。
 
 ---
 
@@ -142,8 +138,6 @@
 
 **返回：** `{"ok": true}` 或 `{"ok": false}`
 
-> ⚠️ **已变更**：错误推送由旧的 `push_errors_meta`/`push_errors_content` 双端点合并为单一 `push_errors`。错误直接写入 SQLite，不再通过 JSONL 文件路径/版本号缓存。
-
 ---
 
 ### 5. `POST /api/push_analysis`
@@ -165,8 +159,6 @@
 3. `server.store_revs["analysis"]` 自增 1
 
 **返回：** `{"ok": true}` 或 `{"ok": false}`
-
-> ⚠️ **已变更**：新增 `graph_id` 字段。
 
 ---
 
@@ -209,7 +201,10 @@ BASE = "http://localhost:8000"
 requests.post(f"{BASE}/api/push_status", json={
     "graph_id": "graph-001",
     "timestamp": 1716883200.5,
-    "status": {"node_a": "running", "node_b": "success"}
+    "status": {
+        "node_a": {"state": "running", "pending": 0},
+        "node_b": {"state": "success", "pending": 0}
+    }
 })
 
 # 推送错误日志

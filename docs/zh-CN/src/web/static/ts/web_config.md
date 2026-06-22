@@ -1,6 +1,6 @@
 # web_config.ts
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 管理 Web 前端的配置加载、归一化、保存和应用。配置采用**分组结构**（`global`、`dashboard`、`errors`、`injection`），同时兼容旧版扁平格式的自动迁移。
 
@@ -47,18 +47,16 @@ type WebConfig = {
 
 ```typescript
 type LegacyWebConfig = {
-  theme?: string;
+  theme?: "light" | "dark";
   autoRefreshEnabled?: boolean;
   refreshInterval?: number;
-  language?: string;
+  language?: Lang;
   historyLimit?: number;
   showStructureEdgeDelta?: boolean;
   useTotalPendingInStatus?: boolean;
-  pageSize?: number;
-  sortOrder?: string;
-  jumpToInjectionAfterRetry?: boolean;
-  showInjectableOnly?: boolean;
-  layout?: DashboardLayout;
+  errorPageSize?: number;
+  errorSortOrder?: "newest" | "oldest";
+  dashboard?: Partial<DashboardLayout>;
 };
 ```
 
@@ -67,9 +65,9 @@ type LegacyWebConfig = {
 | 变量 | 类型 | 说明 |
 |------|------|------|
 | `webConfig` | `WebConfig` | 当前运行时的配置对象，模块加载时由 `DEFAULT_WEB_CONFIG` 初始化 |
-| `saveConfigPending` | `boolean` | 是否有保存请求正在进行中（防并发写入） |
-| `saveConfigPromise` | `Promise<boolean> \| null` | 当前或最近一次保存操作的 Promise |
-| `PANEL_SELECTOR_MAP` | `Record<string, string>` | 面板键到 CSS 选择器的映射 |
+| `saveConfigPending` | `boolean` | 是否还有新的配置变更等待落盘 |
+| `saveConfigPromise` | `Promise<boolean> \| null` | 当前正在执行的保存队列 Promise |
+| `PANEL_SELECTOR_MAP` | `Record<DashboardColumnKey, string>` | 面板键到 CSS 选择器的映射 |
 | `CARD_TEMPLATES` | `Record<string, string>` | 卡片 ID 到 HTML 模板的映射（mermaid, analysis, status, progress, summary） |
 | `CARD_META` | `Record<string, string>` | 卡片 ID 到 i18n 标签键的映射 |
 | `ALL_CARD_IDS` | `string[]` | 由 `Object.keys(CARD_TEMPLATES)` 自动生成的标准卡片 ID 列表 |
@@ -91,17 +89,17 @@ type LegacyWebConfig = {
 
 ### `performSaveWebConfig(): Promise<boolean>`
 
-执行实际的 POST 请求。设置 `saveConfigPending` 标志并返回写入结果。
+执行实际的 POST 请求，将当前 `webConfig` 快照推送到后端。并发控制由 `saveWebConfig()` 负责。
 
 ---
 
 ### `isGroupedWebConfig(config: unknown): boolean`
 
-检测配置对象是否为新的分组格式（包含 `global`、`dashboard`、`errors`、`injection` 子对象）。
+检测配置对象是否为新的分组格式（源码中通过判断是否存在 `global`、`errors` 或 `injection` 子对象来识别）。
 
 ---
 
-### `normalizeWebConfig(rawConfig?: unknown): WebConfig`
+### `normalizeWebConfig(rawConfig?: Partial<WebConfig> | LegacyWebConfig | null): WebConfig`
 
 将后端返回的原始配置（可能为旧版扁平格式或缺失字段）与 `DEFAULT_WEB_CONFIG` 深层合并。
 

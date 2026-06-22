@@ -1,6 +1,6 @@
 # bench_execution_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/16
+> 📅 最后更新日期: 2026/06/22
 
 ## 目标
 
@@ -9,7 +9,7 @@
 ## 测试内容
 
 ### `bench_executor_fibonacci`
-- **任务**：计算斐波那契数列（`n=25..31`），含异常输入（`0, None, ""`）
+- **任务**：计算斐波那契数列，输入为 `list(range(25, 32)) + [0, 27, None, 0, ""]`（共 12 个任务，含 4 个异常边界）
 - **配置**：`max_workers=6`，`max_retries=1`，重试 `ValueError`
 - **对比模式**：`serial`、`thread`、`async`
 
@@ -100,7 +100,7 @@ bench_task_1: list[Any] = list(range(20, 35))
 > 环境：Windows，Python 3.10
 
 #### 场景一：斐波那契（CPU 密集型）
-输入 12 个任务（含 5 个异常边界），max_workers=6，max_retries=1。三种模式使用**相同的迭代 O(n) 算法**。
+输入 12 个任务（含 4 个异常边界：两个 `0` 与 `None`、`""` 均会触发异常），max_workers=6，max_retries=1。三种模式使用**相同的迭代 O(n) 算法**。
 
 | 模式 | 耗时 | 说明 |
 |------|------|------|

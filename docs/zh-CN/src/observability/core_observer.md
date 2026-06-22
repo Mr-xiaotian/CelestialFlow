@@ -1,10 +1,8 @@
 # BaseObserver
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 `BaseObserver` 是执行器生命周期观察者的基类，定义了 `TaskExecutor` 在运行过程中会广播的事件接口。
-
-> ⚠️ **已废弃**：此前文档包含 `CallbackObserver` 章节，该类的源码实现已从 `core_observer.py` 中移除，不再可用。
 
 ## BaseObserver
 

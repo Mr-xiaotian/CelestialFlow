@@ -1,6 +1,6 @@
 # PersistenceSQLite
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 `persistence/util_sqlite.py` 提供 SQLite 数据库的连接管理与记录 CRUD 操作工具，是 `FallbackSpout` 和 `TaskReporter` 的底层存储引擎。
 
@@ -27,12 +27,12 @@
 CREATE TABLE IF NOT EXISTS records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id INTEGER NOT NULL,
-    stage TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'failed',
+    ts REAL,
+    stage TEXT NOT NULL,
+    status TEXT NOT NULL,
     error_type TEXT NOT NULL DEFAULT '',
     error_message TEXT NOT NULL DEFAULT '',
-    ts REAL,
-    task_json TEXT NOT NULL DEFAULT 'null',
+    task_json TEXT NOT NULL,
     result_json TEXT NOT NULL DEFAULT 'null'
 )
 ```
@@ -69,10 +69,10 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 
 | 函数 | 签名要点 | 说明 |
 |------|---------|------|
-| `insert_record` | `(conn, record: dict) -> bool` | 归一化后 INSERT OR REPLACE |
-| `promote_record_to_failed_by_event_id` | `(conn, event_id, error_id, ts, error_type, error_message) -> bool` | 更新 status + 错误信息 |
-| `promote_record_to_success_by_event_id` | `(conn, event_id, result) -> bool` | 更新 status='success' + result_json |
-| `update_record_event_id_by_event_id` | `(conn, old_event_id, new_event_id) -> bool` | 更新 event_id（用于重试） |
+| `insert_record` | `(conn, record: dict) -> bool` | 归一化后 INSERT |
+| `promote_record_to_failed_by_event_id` | `(conn, event_id, new_event_id, *, ts, error_type="", error_message="") -> bool` | 更新 event_id、status='failed' 和错误信息 |
+| `promote_record_to_success_by_event_id` | `(conn, event_id, result, *, ts) -> bool` | 更新 status='success' + result_json |
+| `update_record_event_id_by_event_id` | `(conn, old_event_id, new_event_id, *, ts) -> bool` | 更新 event_id（用于重试） |
 | `delete_record_by_event_id` | `(conn, event_id) -> bool` | 删除记录 |
 
 ### 读取操作（自行管理连接）
@@ -160,6 +160,6 @@ for item in items:
 
 - **写入函数**（insert/promote/update/delete）需要调用方传入 `conn` 并在操作后手动 `commit()`。
 - **读取函数**（load/query）内部自行管理连接生命周期，调用方无需关心连接。
-- `insert_record` 使用 `INSERT OR REPLACE`，基于 `event_id` 唯一索引进行 upsert。
+- `insert_record` 使用 `INSERT`，基于 `event_id` 唯一索引保证唯一性；外部批量写入时通常配合 `append_records` 捕获 `IntegrityError` 实现幂等。
 - 归一化函数 `normalize_record` 会过滤掉缺少 `event_id` 的记录（返回 `None`）。
 - `task_json` 和 `result_json` 存储的是 `json.dumps` 后的字符串，读取时通过 `json.loads` 还原。

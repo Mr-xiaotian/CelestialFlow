@@ -1,6 +1,6 @@
 # demo_structure.py 演示说明
 
-> 📅 最后更新日期: 2026/05/24
+> 📅 最后更新日期: 2026/06/22
 
 ## 目标
 
@@ -239,14 +239,14 @@ flowchart TD
 
 ## 关键配置
 
-- DAG 结构：`stage_mode="thread"`，`execution_mode="thread"`
+- DAG 结构：默认 `stage_mode="thread"`；`demo_chain` 的各 Stage 使用 `execution_mode="serial"`，其余多为 `execution_mode="thread"`
 - `demo_grid`：使用 `staged` 调度模式（逐层执行）
-- 有环图：`put_termination_signal=False`（建议外部控制停止）
-- 所有演示均启用 `Reporter` 和 `CelestialTree`
+- 有环图：是否自动注入终止信号因示例而异；`demo_multi_cycle` 显式传入 `False`，`demo_wheel` 传入 `True`，`demo_loop` 与 `demo_complete` 使用默认行为；运行有环图时建议准备手动终止
+- 各演示均调用 `set_reporter(True, ...)` 与 `set_ctree(ctree_client)`，实际是否生效取决于环境变量与服务端是否就绪
 
 ## 可能出现的问题
 
-1. **有环图不会自动停止**：`demo_loop`、`demo_complete` 等使用 `put_termination_signal=False`，运行后会持续循环直到手动终止进程。
+1. **有环图可能不会自动停止**：`demo_multi_cycle` 显式传入 `False`，`demo_wheel` 传入 `True`，`demo_loop` 与 `demo_complete` 使用默认行为；实际是否会持续循环取决于框架默认策略，运行前建议准备 **Ctrl+C** 手动终止。
 2. **sleep 延迟累积**：`add_one_sleep` 含 1 秒 sleep，20 个任务 × 多节点 = 长总耗时。
 3. **无断言**：仅验证框架能启动和运行，不检查结果数值。
 
@@ -258,7 +258,7 @@ python demo/demo_structure.py
 
 ## 预期行为
 
-运行后依次执行各个结构演示，输出各 Stage 的输入输出日志和最终摘要。
+`__main__` 默认只调用 `demo_chain()`，其余结构函数均被注释。取消注释后即可依次运行多个结构。
 
 ### DAG 结构
 
@@ -300,7 +300,7 @@ Grid33: success=5  fail=0
 ... (持续循环)
 ```
 
-> **重要**：`demo_loop`、`demo_wheel`、`demo_complete` 等有环图使用 `put_termination_signal=False`，运行后不会自动停止，需按 **Ctrl+C** 手动终止进程。
+> **重要**：有环图示例（`demo_loop`、`demo_wheel`、`demo_complete`、`demo_multi_cycle`）的终止信号设置各不相同，默认运行时可能持续循环，建议按 **Ctrl+C** 手动终止进程。
 
 ### Forest（森林）
 
@@ -314,7 +314,7 @@ Grid33: success=5  fail=0
 [stageC] Input: ...
 ```
 
-> 每个结构运行前会打印 `=== demo_xxx ===` 分隔线，`Summary` 部分展示各节点成功/失败计数。
+> 如果依次运行多个结构，每个结构运行前会打印 `=== demo_xxx ===` 分隔线，`Summary` 部分展示各节点成功/失败计数。
 
 ## 依赖
 

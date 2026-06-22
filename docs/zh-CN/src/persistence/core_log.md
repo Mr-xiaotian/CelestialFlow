@@ -1,6 +1,6 @@
 # 日志持久化 (Log Persistence)
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 `celestialflow.persistence` 模块提供了一个多进程安全的日志系统，旨在解决多进程环境下的日志统一收集、格式化和持久化问题。
 
@@ -100,7 +100,7 @@ logs/
 ### 初始化
 
 ```python
-sinker = LogInlet(log_queue, log_level="SUCCESS")
+sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 ```
 
 -   `log_queue`: 也就是 `LogSpout.get_queue()` 返回的队列。

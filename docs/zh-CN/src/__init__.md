@@ -1,6 +1,6 @@
 # CelestialFlow 包入口
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 ## 简介
 
@@ -9,6 +9,17 @@
 ## 模块分组
 
 按来源模块分类，每个组说明其主要用途。
+
+---
+
+### funnel — 数据入口
+
+提供任务数据入口与出口抽象，用于连接外部数据源与任务图。
+
+| 导出符号 | 说明 |
+|----------|------|
+| `BaseInlet` | 数据入口基类，定义统一的数据拉取/推送接口 |
+| `BaseSpout` | 数据出口基类，定义统一的数据输出接口 |
 
 ---
 
@@ -38,7 +49,6 @@
 | `TaskStage` | 图中的一个任务节点，包裹执行函数与配置 |
 | `TaskSplitter` | 任务拆分器，将一个输入拆分为多个子任务 |
 | `TaskRouter` | 路由分发器，根据规则将任务分发到不同下游 |
-| `TerminationSignal` | 终止信号，用于控制图执行流程的结束 |
 
 ---
 
@@ -93,17 +103,19 @@
 | 导出符号 | 说明 |
 |----------|------|
 | `make_hashable` | 将不可哈希对象（如 dict、list）转为可哈希形式 |
-| `TerminationSignal` | 终止信号（与 stage 组共用同一符号） |
+| `TerminationSignal` | 终止信号，用于控制图执行流程的结束 |
 
 ---
 
 ## `__all__` 列表
 
-完整公开 API 列表（当前共 21 个符号）：
+完整公开 API 列表（当前共 23 个符号）：
 
 ```python
 __all__ = [
+    "BaseInlet",
     "BaseObserver",
+    "BaseSpout",
     "TaskChain",
     "TaskComplete",
     "TaskCross",
@@ -146,7 +158,7 @@ stage_a = TaskStage("StageA", func=double, execution_mode="serial", stage_mode="
 stage_b = TaskStage("StageB", func=add_one, execution_mode="serial", stage_mode="serial")
 
 # 3. 构建 DAG 图
-graph = TaskGraph()
+graph = TaskGraph(name="DemoGraph")
 graph.set_stages([stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 
@@ -191,7 +203,7 @@ stages = [
     TaskStage("S3", func=lambda x: x ** 2),
 ]
 
-chain = TaskChain(stages, chain_mode="serial")
+chain = TaskChain(name="DemoChain", stages=stages, stage_mode="serial")
 chain.start_chain({stages[0].get_name(): [1, 2, 3]})
 snapshot = chain.get_status_snapshot()
 print("Chain status:", snapshot["status"])
@@ -205,12 +217,16 @@ graph TD
         Init["__init__.py"]
     end
 
+    subgraph funnel
+        F["BaseInlet<br/>BaseSpout"]
+    end
+
     subgraph graph
         G["TaskGraph<br/>TaskChain<br/>TaskLoop<br/>TaskCross<br/>TaskComplete<br/>TaskWheel<br/>TaskGrid"]
     end
 
     subgraph stage
-        S["TaskExecutor<br/>TaskStage<br/>TaskSplitter<br/>TaskRouter<br/>TerminationSignal"]
+        S["TaskExecutor<br/>TaskStage<br/>TaskSplitter<br/>TaskRouter"]
     end
 
     subgraph observability
@@ -233,6 +249,7 @@ graph TD
         R["make_hashable<br/>TerminationSignal"]
     end
 
+    Init --> F
     Init --> G
     Init --> S
     Init --> O

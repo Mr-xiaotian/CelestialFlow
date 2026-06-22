@@ -1,6 +1,6 @@
 # 格式化工具测试 (test_format.py)
 
-> 最后更新日期: 2026/05/23
+> 📅 最后更新日期: 2026/06/22
 
 ## 作用
 验证 `celestialflow.utils.util_format` 中的通用格式化工具，确保在终端输出、日志记录和报告生成时，数据能以易读且美观的方式展示。
@@ -41,7 +41,7 @@ pytest tests/utils/test_format.py -k "table" -v
 
 | 测试 | 耗时 |
 |------|------|
-| `TestFormatUtils` | ~0.1s（纯字符串处理） |
+| `TestUtilFormat` | ~0.1s（纯字符串处理） |
 
 ## 重要细节
 - 表格格式化算法会自动计算每列的最大宽度。

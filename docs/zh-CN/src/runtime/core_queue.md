@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 `TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了终止信号合并功能。
 
@@ -204,7 +204,7 @@ in_queue.put(env2)
 
 # 下游消费者获取任务
 task1 = in_queue.get()
-print(f"收到任务: {task1.get_task()}, 来源: {task1.source}")
+print(f"收到任务: {task1.get_task()}, ID: {task1.get_id()}")
 
 # 动态添加新的上游来源
 in_queue.add_source_name("producer3")

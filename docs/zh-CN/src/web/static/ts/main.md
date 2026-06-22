@@ -1,6 +1,6 @@
 # main.ts
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/22
 
 仪表盘主入口脚本，负责协调全局初始化、事件监听及核心数据轮询逻辑。
 
@@ -12,6 +12,7 @@
 |------|------|------|
 | `refreshRate` | `number` | 轮询刷新间隔（毫秒），默认 `5000` |
 | `refreshIntervalId` | `ReturnType<typeof setInterval> \| null` | 轮询定时器 ID |
+| `settingsStatusTimer` | `ReturnType<typeof setTimeout> \| null` | 设置保存状态提示自动隐藏定时器 |
 
 ## DOM 元素引用
 
@@ -31,6 +32,12 @@
 | `injectableOnlyToggle` | `#injectable-only-toggle` | 注入页"仅显示可注入节点"开关 |
 | `tabButtons` | `.tab-btn` | 页签按钮列表 |
 | `tabContents` | `.tab-content` | 页签内容列表 |
+| `settingsClose` | `#settings-close` | 设置面板关闭按钮 |
+| `settingsStatus` | `#settings-status` | 设置保存状态提示 |
+| `settingsCurrentGroup` | `#settings-current-group` | 当前页设置分组容器 |
+| `settingsCurrentLabel` | `#settings-current-label` | 当前页设置分组标题 |
+| `settingsCurrentEmpty` | `#settings-current-empty` | 当前页无专属设置提示 |
+| `settingsCurrentItems` | `[data-settings-tab]` | 当前页设置项列表 |
 
 ## 核心功能
 
@@ -90,6 +97,7 @@ flowchart TD
 
 #### 设置面板管理
 `isSettingsPanelOpen()` / `openSettingsPanel()` / `closeSettingsPanel(options?)` / `toggleSettingsPanel()` — 管理设置面板的显隐与焦点归还。
+`updateSettingsStatusText()` — 语言切换后刷新设置保存状态提示文案。
 
 #### 页签管理
 `getActiveTab(): string` / `activateTab(button): void` / `updateCurrentPageSettings(): void` — 管理顶部页签切换和设置面板中"当前页专属设置"分组。

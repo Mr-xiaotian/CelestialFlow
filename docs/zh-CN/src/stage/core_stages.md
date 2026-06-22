@@ -1,6 +1,6 @@
 # TaskNodes
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 TaskNodes 模块提供了多种特殊功能的 `TaskStage` 实现，用于流控制、外部系统交互等场景。
 
@@ -45,9 +45,8 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         self,
         name: str,
         split_item: Callable[[TItem], RItem] | None = None,
+        *,
         stage_mode: str = "serial",
-        enable_duplicate_check: bool = True,
-        log_level: str = "INFO",
     ):
         """
         初始化 TaskSplitter。
@@ -55,20 +54,16 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         :param name: 节点名称
         :param split_item: 自定义单个子任务处理函数，默认使用恒等映射
         :param stage_mode: 节点运行模式
-        :param enable_duplicate_check: 是否启用重复检查
-        :param log_level: 日志级别
         """
 ```
-
-> **已变更**：`execution_mode` 固定为 `"serial"`、`max_retries` 固定为 `0`，无需也不应通过外部参数修改。此前文档提及的 `unpack_task_args=True` 参数在当前源码中不存在。
 
 ### 使用方式
 
 ```python
 class MySplitter(TaskSplitter):
-    def _split(self, *task):
+    def _split(self, task):
         # 将输入数据分裂为多个部分
-        return task[0], task[1]  # 返回元组，每个元素成为独立任务
+        return tuple(task)
 ```
 
 ### 特性
@@ -175,8 +170,8 @@ from celestialflow import TaskGraph, TaskStage, TaskSplitter
 
 # 自定义分裂器：按行分裂文本
 class LineSplitter(TaskSplitter):
-    def _split(self, *task):
-        return tuple(task[0].split("\\n"))
+    def _split(self, task):
+        return tuple(task.split("\\n"))
 
 # 定义后续处理阶段
 source = TaskStage("Input", func=lambda x: x, stage_mode="serial")

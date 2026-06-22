@@ -1,6 +1,6 @@
 # bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/16
+> 📅 最后更新日期: 2026/06/22
 
 ## 目标
 
@@ -9,13 +9,14 @@
 ## 测试内容
 
 ### `bench_graph_0`
-- **结构**：4 节点 DAG（`stage1 → [stage2, stage3] → stage4`）
+- **结构**：4 节点 DAG，`stage1 → stage2 → stage4`，`stage1 → stage3`（stage3 为不汇入 stage4 的独立分支）
 - **任务混合**：CPU 密集型（斐波那契）、I/O 密集型（sleep）、纯计算（除二、平方）
 - **输入**：`range(25, 32) + [0, 27, None, 0, ""]`（含异常边界）
+- **重试设置**：`stage1`、`stage2` 对 `ValueError` 启用 `max_retries=1`
 - **启用服务**：Reporter
 
 ### `bench_graph_1`
-- **结构**：6 节点多层 DAG（A → [B, C] → [D, E] → F）
+- **结构**：6 节点多层 DAG（A → [B, C]；B → [D, E]；C → E；D → F）
 - **任务**：随机 0-2 秒睡眠（模拟不均匀负载）
 - **输入**：`range(10)`
 - **启用服务**：Reporter
@@ -28,7 +29,7 @@
 ## 关键配置
 
 - `benchmark_graph` 内部会遍历 `stage_mode`（`serial` / `thread`）和 `execution_mode`（`serial` / `thread` / `async`）的组合，共 **6 种组合**，每种都会完整跑一遍图
-- 本文件不直接配置这些模式，仅提供 `sync_graph`（同步函数）和 `async_graph`（异步函数）传入 `benchmark_graph`
+- 本文件不直接配置这些模式，仅提供同步 `TaskGraph` 对象与异步 `TaskGraph` 对象传入 `benchmark_graph`
 
 ## 可能出现的问题
 

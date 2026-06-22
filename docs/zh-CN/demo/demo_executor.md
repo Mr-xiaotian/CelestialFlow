@@ -1,6 +1,6 @@
 # demo_executor.py 演示说明
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/22
 
 ## 目标
 
@@ -57,7 +57,7 @@ flowchart TB
 | `demo_fibonacci_async` | async | 异步斐波那契 | 协程并发 |
 
 - **输入**：`range(25, 32) + [0, 27, None, 0, ""]`
-- **异常设计**：`0`、`None`、`""` 会触发 `ValueError`，框架自动重试 1 次
+- **异常设计**：两个 `0` 会触发 `ValueError`，框架自动重试 1 次；`None` 与 `""` 会触发类型错误，不在重试列表中直接失败
 
 ## 关键配置
 
@@ -88,7 +88,7 @@ python demo/demo_executor.py
  80%|████████████████░░░░| ...
 
 --- Summary ---
-  mode=serial  success=07  fail=05  dup=0  pending=0  elapsed=0.90s
+  mode=serial  success=08  fail=04  dup=0  pending=0  elapsed=0.90s
 
 ========================================
 [thread] Fibonacci benchmark (N=12 tasks, max_workers=6)
@@ -96,7 +96,7 @@ python demo/demo_executor.py
  80%|████████████████░░░░| ...
 
 --- Summary ---
-  mode=thread  success=07  fail=05  dup=0  pending=0  elapsed=0.86s
+  mode=thread  success=08  fail=04  dup=0  pending=0  elapsed=0.86s
 
 ========================================
 [async] Fibonacci benchmark (N=12 tasks, max_workers=6)
@@ -104,10 +104,10 @@ python demo/demo_executor.py
  80%|████████████████░░░░| ...
 
 --- Summary ---
-  mode=async  success=07  fail=05  dup=0  pending=0  elapsed=0.01s
+  mode=async  success=08  fail=04  dup=0  pending=0  elapsed=0.01s
 ```
 
-> **说明**：12 个任务中，5 个异常输入（`0`、`27`、`None`、`0`、`""`）触发 `ValueError`，经重试后最终标记为失败；`success=07` 为正常执行的 7 个斐波那契任务。
+> **说明**：12 个任务中，4 个非法输入（两个 `0`、`None`、`""`）会导致失败；其余 8 个为合法斐波那契任务，最终 `success=08`/`fail=04`。其中两个 `0` 触发 `ValueError` 并经 1 次重试后仍失败，`None`/`""` 触发类型错误。
 > 三种模式均使用 `demo_utils` 中的迭代版斐波那契（O(n)），性能可比。
 
 ## 依赖

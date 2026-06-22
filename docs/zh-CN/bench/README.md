@@ -1,6 +1,6 @@
 # bench/ 基准测试总览
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/22
 
 ## 说明
 
@@ -52,7 +52,7 @@
 |------|------|
 | `bench_lock_overhead.md` | 锁竞争与同步开销 |
 | `bench_datastructures.md` | 常见数据结构与跨进程结构性能基线 |
-| `bench_hash.md` | `make_hashable` 等哈希相关方法对比 |
+| `bench_hash.md` | 对象稳定哈希策略对比（`normalize_for_hash` + 多种序列化/哈希组合） |
 | `bench_hash_container.md` | 容器类对象哈希性能对比 |
 | `bench_hash_memory.md` | 哈希相关实现的内存占用测试 |
 | `bench_futures_memory.md` | futures 批量场景的内存开销 |
