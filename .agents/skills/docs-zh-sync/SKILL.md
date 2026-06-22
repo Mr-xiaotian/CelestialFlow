@@ -31,55 +31,67 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 
 ### 阶段 2: 扫描与区域划分
 
-1. 用 `list_directory` / `find_path` 扫描 `src/`、`bench/`、`tests/`、`demo/` 以及对应的 `docs/zh-CN/` 目录。
-2. 按以下区域拆分任务（每个子代理 **上限 15-20 个文件**）：
+按以下 **9 个固定子任务** 拆分。每个子任务文件量控制在 15–20 个以内，主 agent 不需要再做额外判断。
 
-| 区域 | 子代理 Prompt 文件 | 覆盖内容 |
-|------|-------------------|---------|
-| runtime + graph | `subagent-runtime-graph.md` | `src/celestialflow/runtime/`, `src/celestialflow/graph/` |
-| funnel + stage + observability + persistence | `subagent-funnel-stage-obs-persist.md` | `src/celestialflow/funnel/`, `stage/`, `observability/`, `persistence/` |
-| utils + web (py, routes, templates) | `subagent-utils-web.md` | `src/celestialflow/__init__.py`, `utils/`, `web/` (除 static) |
-| web/static (ts + css) | `subagent-web-static.md` | `src/celestialflow/web/static/ts/`, `static/css/` |
-| tests | `subagent-tests.md` | `tests/` 全部 |
-| bench + demo | `subagent-bench-demo.md` | `bench/`, `demo/` 全部 |
+| # | 子任务 | 子代理 Prompt 文件 | 负责扫描的代码目录/文件 |
+|---|--------|-------------------|------------------------|
+| 1 | src/runtime + graph | `subagent-runtime-graph.md` | `src/celestialflow/runtime/*.py`<br>`src/celestialflow/graph/*.py` |
+| 2 | src/funnel + stage + observability + persistence | `subagent-funnel-stage-obs-persist.md` | `src/celestialflow/funnel/*.py`<br>`src/celestialflow/stage/*.py`<br>`src/celestialflow/observability/*.py`<br>`src/celestialflow/persistence/*.py` |
+| 3 | src/utils + web（不含 static） | `subagent-utils-web.md` | `src/celestialflow/__init__.py`<br>`src/celestialflow/utils/*.py`<br>`src/celestialflow/web/*.py`（不含 `static/` 子目录） |
+| 4 | src/web/static/css | `subagent-web-static.md` | `src/celestialflow/web/static/css/*.css` |
+| 5 | src/web/static/ts | `subagent-web-static.md` | `src/celestialflow/web/static/ts/*.ts` |
+| 6 | tests/runtime + graph | `subagent-tests.md` | `tests/runtime/*.py`<br>`tests/graph/*.py` |
+| 7 | tests/其余 | `subagent-tests.md` | `tests/__init__.py`<br>`tests/conftest.py`<br>`tests/funnel/*.py`<br>`tests/stage/*.py`<br>`tests/observability/*.py`<br>`tests/persistence/*.py`<br>`tests/utils/*.py`<br>`tests/web/*.py` |
+| 8 | bench | `subagent-bench-demo.md` | `bench/*.py` |
+| 9 | demo | `subagent-bench-demo.md` | `demo/*.py` |
 
-> 如果 `src/` 文件量较大，可进一步拆分 runtime 与 graph、funnel 与 stage 等。
+执行步骤：
+
+1. 用 `Glob` 或 `Shell` 扫描每个子任务对应的代码目录，生成该子任务的代码文件清单。
+2. 按镜像规则推算每个代码文件对应的 `docs/zh-CN/` 目标文档路径。
+3. 同时扫描对应 `docs/zh-CN/` 目录，找出"有文档但无对应源码"的孤立文件，单独列出。
 
 ### 阶段 3: 委派子代理
 
-对每个区域，按以下方式组装子代理 prompt：
+按阶段 2 的 9 个子任务，一次性并行委派 9 个子代理。每个子代理的消息中必须包含：
 
-1. **读取** `_subagent-base.md`（共享规则）→ 获取路径映射、审计清单、写作规范、输出格式
-2. **读取** 对应区域的 `subagent-*.md` → 获取区域特化陷阱 + 区域差异化写作规则
-3. **主 agent 自行扫描** 该区域负责的代码目录（`src/`、`tests/`、`bench/`、`demo/`），生成代码文件清单，并推算出对应的 `docs/zh-CN/` 文档路径
-4. **同时扫描** 对应的 `docs/zh-CN/` 文档目录，找出"有文档但无对应源码"的孤立文件
-5. **拼接** 为一条完整消息，消息中必须包含：
-   - `_subagent-base.md` 的完整内容
-   - `subagent-*.md` 的完整内容
-   - 主 agent 扫描生成的**代码→文档对照清单**（含孤立文档列表）
-   - 注入当前日期 `YYYY/MM/DD`
+- 子任务编号和名称
+- 当前日期 `YYYY/MM/DD`
+- 该子任务的**代码→文档对照清单**（含孤立文档列表）
+- 需要阅读的 Skill 文件路径（子代理直接读取项目内的 `.agents/skills/docs-zh-sync/` 目录）：
+  - `_subagent-base.md`（路径映射、源文件删除/移动处理、输出格式）
+  - `_subagent-audit.md`（审计清单）
+  - `_subagent-writing.md`（写作规范、表达形式、文档骨架）
+  - 本子任务对应的 `subagent-*.md`
 
-> 委派消息中应包含 `_subagent-base.md` 的**完整内容**和 `subagent-*.md` 的**完整内容**，因为子代理无法直接读取 Skill 目录下的文件。
+主 agent 不再需要在每次委派时完整注入 `_subagent-base.md` 等内容；只需在 prompt 中给出文件路径和待处理清单。
+
+> **退化策略**：如果当前环境限制子代理读取 Skill 目录，可临时将 `_subagent-base.md`、`_subagent-audit.md`、`_subagent-writing.md` 与对应 `subagent-*.md` 的内容合并写入项目内的临时文件（如 `temp/docs-zh-sync/instructions-{子任务}.md`），让子代理读取该临时文件，执行完毕后删除。
 
 **推荐并行度**：
-- 如果所有代理可同时处理审计+写入（每个代理独立负责一个区域），可一次性并行委派 5-6 个代理
+- 正常环境下分批委派，可一次性并行委派 5-6 个代理。若环境受限，可分批执行，但需在最终汇总中明确已完成和剩余子任务。
 
 ### 阶段 4: 汇总与交付
 
 所有子代理完成后，汇总输出：
 
 - 本次扫描的区域
-- 更新或新建的文档路径（按区域分组）
+- 更新、新建、删除或移动的文档路径（按区域分组）
 - 发现的代码-文档不一致问题汇总（按严重度）
 - 仍待人工确认的歧义点
 
 如果只完成了部分区域，要明确列出已完成范围和剩余范围。
 
-汇总完成后，提醒用户检查 `docs/zh-CN/` 顶层文件（README.md、tutorial.md 等）和 `docs/zh-CN/other/` 中引用的类名/函数名/路径是否因本次变更而过期。
+汇总完成后，提醒用户检查 `docs/zh-CN/` 顶层文件（README.md、tutorial.md 等）和 `docs/zh-CN/other/` 中引用的类名/函数名/路径是否因本次变更而过期。建议提供以下快速检查项：
+
+- [ ] 搜索顶层文档中是否仍出现本次已重命名/删除的类名（如 `FailInlet` → `FallbackInlet`、`get_tag()` → `get_name()` 等）
+- [ ] 搜索顶层文档中是否仍出现已变更的构造方式（如 `TaskGraph()` 无参构造、`BaseInlet(queue)` 旧式构造等）
+- [ ] 搜索顶层文档中是否仍引用已删除的 API 端点、CSS 类名、测试文件名
+- [ ] 检查 `docs/zh-CN/other/` 中是否有因代码重构而过时的算法说明或架构图
 
 ### 降级策略
 
-如果当前环境不支持 `subagent`，则按同样的区域边界顺序串行执行，但在思考和输出中保持分区。
+如果当前环境不支持 `subagent`，则按阶段 2 的 9 个子任务顺序串行执行，每个子任务作为一个独立分区，输出格式仍遵循 `_subagent-base.md` 的要求。
 
 ## 排除项
 

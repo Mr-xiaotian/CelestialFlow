@@ -1,6 +1,8 @@
 # Subagent: Bench + Demo
 
 > 覆盖 `bench/` 和 `demo/` 目录下所有文件的中文文档。
+>
+> 开始工作前，请先阅读同目录下的 `_subagent-base.md`、`_subagent-audit.md`、`_subagent-writing.md`，再结合本文件和主 agent 提供的文件清单执行审计。
 
 ## 文件清单
 
@@ -30,7 +32,7 @@
   # 修改 N (重复次数) 来调整统计精度
   python -m bench.bench_hash
   ```
-- 用 ```bash 代码块展示运行命令。
+- 用 `bash` 标注的代码块展示运行命令。
 - 用**表格**对比不同 benchmark 场景的参数和预期结果。
 - 用 `flowchart` 展示 benchmark 的执行流程。
 - 不要声称"推荐使用 A 而非 B"，除非代码中明确表达了这一倾向。
