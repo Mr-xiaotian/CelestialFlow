@@ -57,6 +57,7 @@ class FallbackSpout(BaseSpout):
         """
         if self._conn is None:
             raise InitializationError("fail database is not initialized")
+        
         op = str(record["__op__"])
         if op == "insert":
             # 新任务进入某个 stage，写入一条 pending 记录。
