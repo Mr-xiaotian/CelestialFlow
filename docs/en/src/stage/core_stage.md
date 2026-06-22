@@ -1,10 +1,8 @@
 # TaskStage
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 `TaskStage` is the fundamental building block for constructing a `TaskGraph`. It inherits from `TaskExecutor` and adds graph structure related connection capabilities and `stage_mode` control logic.
-
-> ⚠️ **Changed**: The parameter name in `set_inlet` has changed from `fail_queue` to `fallback_queue`. The `prev_bindings` method has been renamed to `prev_binding` (singular), and the signature changed from accepting a list to accepting a single `TaskStage`.
 
 > Note: `TaskStage` is also a single-use object. It is typically managed by `TaskGraph` and participates in one complete run; after the run ends, its queue bindings, counting state, and in-graph relationships are not guaranteed to be safely reset.
 
@@ -68,11 +66,11 @@ def set_stage_mode(self, stage_mode: str):
 ### set_inlet
 
 ```python
-def set_inlet(self, fallback_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]) -> None:
+def set_inlet(self, fallback_inlet: FallbackInlet, log_inlet: LogInlet) -> None:
     """
-    Initialize collectors, connecting fallback/log queues to the persistence layer.
-    :param fallback_queue: Fallback queue
-    :param log_queue: Log queue
+    Initialize collectors, connecting fallback/log collectors to the persistence layer.
+    :param fallback_inlet: Fallback collector
+    :param log_inlet: Log collector
     """
 ```
 

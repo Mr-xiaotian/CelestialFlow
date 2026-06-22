@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 `TaskExecutor` is the core component for executing single-task logic. It is responsible for task execution, concurrency control, error handling, retry mechanisms, and logging.
 
@@ -36,11 +36,9 @@ class TaskExecutor[T, R]:
 | `max_workers` | `None` | Concurrency limit (when None: dynamic `min(32, cpu_count+4)`) |
 | `max_retries` | `1` | Maximum retry count after task failure (at most retries+1 executions) |
 | `max_info` | `50` | Maximum length per log message |
-| `enable_duplicate_check` | `True` | Whether to enable hash-based duplicate task checking |
+| `enable_duplicate_check` | `False` | Whether to enable hash-based duplicate task checking |
 | `persist_result` | `False` | Whether to persist task results to SQLite |
 | `log_level` | `"INFO"` | Log level |
-
-> **Changed**: Previous documentation did not include the `persist_result` parameter, which controls whether successful task results are persisted to SQLite. Previous documentation included the `unpack_task_args` parameter, which does not exist in the current source code and has been removed.
 
 ## Observer Pattern
 
@@ -63,8 +61,6 @@ executor.remove_observer(observer)  # Remove observer
 | `on_task_duplicate()` | `deal_duplicate()` | Duplicate detected (no parameters) |
 | `on_tasks_added(count)` | `_put_task_queue()` | New tasks added (notified every 100) |
 | `on_finish()` | `_finish_start()` finally | Execution ended (no parameters) |
-
-> **Changed**: Previous documentation stated that `on_start` passes the actual total task count; in the source code, it always passes `0`, with the actual task count notified batch-by-batch through subsequent `on_tasks_added` events. Success/failure/duplicate events also do not pass count parameters.
 
 ## Core Methods
 
@@ -113,8 +109,6 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
     """Add exception types that should trigger retries."""
 ```
 
-> **Changed**: Previous documentation referred to `add_retry_exceptions`; the method in the source code is named `set_retry_exceptions`.
-
 ### Result Handling (Core Methods)
 
 Task result handling is implemented through the following methods:
@@ -129,8 +123,6 @@ def handle_task_fail(self, task_envelope: TaskEnvelope[T], exception: Exception)
 def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
     """Handle duplicate task: notify observer, record log."""
 ```
-
-> **Changed**: Previous documentation described overridable methods `process_result()` and `get_args()`, which do not exist in the current source code. Previous documentation also described `process_result_dict()` and `handle_error_dict()`, which also do not exist; actual result handling is done through `process_task_success()`.
 
 ### Getting Results
 
@@ -167,8 +159,6 @@ def get_counts(self) -> dict:                 # Counters: tasks_input/succeeded/
 def get_fallback_path(self) -> Path:          # Absolute path to the fallback SQLite file
 ```
 
-> **Changed**: `get_summary()` returns a dict with keys `name, func_name, execution_mode, max_workers`, not including `class_name`.
-
 ## Lifecycle
 
 ```mermaid
@@ -198,8 +188,6 @@ flowchart TD
     NOTIFY_END --> LOG_END[log_inlet.end_executor]
     LOG_END --> STOP[Stop spout ×2:<br/>log_spout + fallback_spout]
 ```
-
-> **Changed**: The previous flowchart included a `_release_client` node (not present in the source code) and 3 spouts (`log_spout` + `fail_spout` + `success_spout`). Currently there are only 2 spouts: `log_spout` + `fallback_spout`.
 
 ## Usage Example
 

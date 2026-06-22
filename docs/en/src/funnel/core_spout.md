@@ -1,15 +1,16 @@
 # BaseSpout
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
-`BaseSpout` is the base class for all spout classes, providing the common functionality of listening to a queue in a background thread and processing records.
+`BaseSpout` is the base class for all outlet classes, providing the common functionality of listening to a queue in a background thread and processing records.
 
 ## Initialization
 
 ```python
 class BaseSpout:
     def __init__(self):
-        self.queue = Queue()              # Thread-safe queue
+        self._queue: Queue[Any] = Queue()
+        self._counter = PendingCounter()
         self._thread: Thread | None = None
 ```
 
@@ -43,12 +44,20 @@ Flow:
 3. Waits for the thread to finish (`join(timeout=5)`) and sets `_thread` to `None`
 4. Calls the `_after_stop()` hook
 
-### get_queue
+### get_queue / get_counter / get_pending_count
 
 ```python
 def get_queue(self) -> Queue[Any]:
-    """Return the queue object for use by the Inlet side."""
+    """Get the listener's input queue."""
+
+def get_counter(self) -> PendingCounter:
+    """Get the pending counter bound to the current listener."""
+
+def get_pending_count(self) -> int:
+    """Read the current number of records that have not yet finished processing."""
 ```
+
+`get_pending_count()` includes records that have been dequeued but are still being processed, because the counter is decremented only after `_handle_record()` completes.
 
 ## Overridable Methods
 
@@ -70,20 +79,24 @@ def _after_stop(self) -> None:
 
 ```python
 def _spout(self):
-    """Background thread main loop, continuously pulls records from the queue,
-    calls _handle_record, and exits on receiving the termination signal."""
+    """Background thread main loop, continuously pulls records from the queue and calls _handle_record, exiting on termination signal."""
     while True:
         try:
-            record = self.queue.get(timeout=0.5)
-            if isinstance(record, TerminationSignal):
-                break
-            self._handle_record(record)
+            record = self._queue.get(timeout=0.5)
         except Empty:
             continue
+
+        if isinstance(record, TerminationSignal):
+            break
+
+        try:
+            self._handle_record(record)
         except Exception:
             # Single record processing failure does not kill the thread,
             # prints traceback and continues
             traceback.print_exc()
+        finally:
+            self._counter.decrement()
 ```
 
 ## Lifecycle State Diagram
@@ -124,7 +137,7 @@ class CollectSpout(BaseSpout):
         self.collected: list[str] = []
 
     def _handle_record(self, record):
-        """Process a single record, must be overridden by subclasses"""
+        """Process a single record; subclasses must override this method"""
         self.collected.append(str(record))
 
 # Usage
@@ -177,7 +190,7 @@ spout.get_queue().put("record_beta")
 spout.stop()
 ```
 
-### Counting Spout
+### Query Pending Count
 
 ```python
 from celestialflow.funnel import BaseSpout
@@ -196,14 +209,20 @@ spout.start()
 for i in range(100):
     spout.get_queue().put(i)
 
+# Wait for the queue to drain
+import time
+time.sleep(0.5)
+print(f"Pending: {spout.get_pending_count()}")
+
 spout.stop()
 print(f"Processed {spout.count} records")  # 100
 ```
 
 ## Notes
 
-1. **Thread Safety**: Uses `queue.Queue` for safe inter-thread communication
-2. **Daemon Thread**: The listening thread is set as a daemon thread (`daemon=True`), exiting automatically when the main process exits
-3. **Graceful Stop**: Notifies the thread to stop via `TerminationSignal`, `join(timeout=5)` waits up to 5 seconds
-4. **Exception Isolation**: Single record processing failure prints traceback and continues, does not terminate the thread
-5. **Queue Cleanup**: Remaining records in the queue are not cleaned up when stopping
+1. **Thread Safety**: Uses `queue.Queue` for safe inter-thread communication.
+2. **Daemon Thread**: The listening thread is set as a daemon thread (`daemon=True`), exiting automatically when the main process exits.
+3. **Graceful Stop**: Notifies the thread to stop via `TerminationSignal`, `join(timeout=5)` waits up to 5 seconds.
+4. **Exception Isolation**: Single record processing failure prints traceback and continues, does not terminate the thread.
+5. **Queue Cleanup**: Remaining records in the queue are not cleaned up when stopping.
+6. **Pending Counter**: The counter is incremented before `_funnel()` enqueueing and decremented after `_spout()` processing completes; it can be used to determine whether all data has been consumed.

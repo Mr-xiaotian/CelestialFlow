@@ -1,6 +1,6 @@
 # TaskDispatch
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/22
 
 `TaskDispatch` はタスクディスパッチャであり、シリアル、スレッド、非同期のいずれかの方式で単一タスクを実行します。`TaskExecutor` の内部コンポーネントであり、`TaskInQueue` からタスクを取得し、ユーザー関数を呼び出し、結果を `TaskOutQueue` 経由で送信します。
 
@@ -243,7 +243,7 @@ executor = TaskExecutor(
     execution_mode="serial",
     max_retries=3,  # 最大 3 回リトライ
 )
-executor.add_retry_exceptions(ConnectionError, TimeoutError)
+executor.set_retry_exceptions(ConnectionError, TimeoutError)
 executor.start([1, 2, 0, 4])
 
 counts = executor.get_counts()

@@ -1,6 +1,6 @@
 # Web モジュール
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 Web モジュールは、FastAPI とネイティブ TypeScript で構築されたインタラクティブな監視・管理インターフェースを提供します。タスク状態のリアルタイム可視化、エラー追跡、動的タスク注入、グローバル設定管理をサポートします。
 
@@ -54,7 +54,7 @@ Web モジュールは `TaskReporter` とエンドユーザーの間のブリッ
 
 ### サーバー起動
 ```bash
-# コマンドラインツールを直接実行
+# 直接运行命令行工具
 celestialflow-web --port 5000
 ```
 
@@ -62,7 +62,7 @@ celestialflow-web --port 5000
 ```python
 import requests
 
-# 指定ノードに新しいタスクを注入（形式：{ノード名: [タスクリスト]}）
+# 注入新任务到指定节点（格式：{节点名: [任务列表]}）
 requests.post("http://localhost:5000/api/push_injection_tasks", json={
     "Stage_A": [{"id": 1, "data": "payload"}]
 })
@@ -75,14 +75,14 @@ requests.post("http://localhost:5000/api/push_injection_tasks", json={
 ```python
 from celestialflow import TaskWebServer
 
-# サーバーインスタンスを作成
+# 创建服务器实例
 server = TaskWebServer(
-    host="127.0.0.1",   # リッスンアドレス
-    port=5000,            # リッスンポート
-    log_level="info",    # ログレベル
+    host="127.0.0.1",   # 监听地址
+    port=5000,            # 监听端口
+    log_level="info",    # 日志级别
 )
 
-# サーバーを起動（ブロッキング呼び出し、継続実行）
+# 启动服务器（阻塞调用，会一直运行）
 server.start_server()
 ```
 
@@ -98,20 +98,20 @@ import asyncio
 
 
 async def main():
-    # 1. まず Web サーバーを起動（バックグラウンドスレッドで実行）
+    # 1. 先启动 Web 服务器（在后台线程中运行）
     server = TaskWebServer(host="127.0.0.1", port=5000, log_level="info")
-    # 実際の本番環境では server.start_server() がブロッキングします。
-    # ここでは reporter と server の連携フローを示します
+    # 实际生产环境中 server.start_server() 会阻塞，
+    # 此处示意 reporter 与 server 配合的流程
 
-    # 2. タスクグラフを作成
+    # 2. 创建任务图
     def process(x: int) -> int:
         return x * 2
 
-    graph = TaskGraph(schedule_mode="eager")
+    graph = TaskGraph(name="DemoGraph", schedule_mode="eager")
     stage = TaskStage("Processor", process, execution_mode="thread")
     graph.set_stages([stage])
 
-    # 3. TaskReporter を作成して起動
+    # 3. 创建并启动 TaskReporter
     log_inlet = LogInlet()
     reporter = TaskReporter(
         host="127.0.0.1",
@@ -121,10 +121,10 @@ async def main():
     )
     reporter.start()
 
-    # 4. タスクを実行
-    await graph.start_graph({stage.get_tag(): range(50)})
+    # 4. 执行任务
+    graph.start_graph({stage.get_name(): range(50)})
 
-    # 5. レポーターを停止
+    # 5. 停止上报器
     reporter.stop()
 
 

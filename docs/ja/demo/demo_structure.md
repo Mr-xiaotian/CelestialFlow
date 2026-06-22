@@ -1,10 +1,10 @@
 # demo_structure.py デモ説明
 
-> 📅 最終更新日: 2026/05/24
+> 📅 最終更新日: 2026/06/22
 
 ## 目標
 
-`core_structure.py` であらかじめ定義された複数のグラフ構造（DAG と循環グラフ）をデモし、CelestialFlow におけるチェーン、クロス、グリッド、ループ、ホイール、完全グラフなど多様なトポロジーでの構築と実行方法を示します。
+`core_structure.py` であらかじめ定義された複数のグラフ構造（DAG と循環グラフ）をデモし、CelestialFlow におけるチェーン、クロス、グリッド、ループ、ホイール、完全グラフなど多様なトポロジーでの構築と実行方法を示す。
 
 ## デモ構造
 
@@ -30,7 +30,7 @@ flowchart LR
     D --> E["StageE<br/>square"]
 ```
 
-線形 5 ノードチェーン。データは `StageA → StageB → StageC → StageD → StageE` の順に流れ、各ノードは二乗演算を実行します。`TaskChain` で構築され、`start_chain()` で起動します。
+線形 5 ノードチェーン。データは `StageA → StageB → StageC → StageD → StageE` の順に流れ、各ノードは二乗演算を実行する。`TaskChain` で構築され、`start_chain()` で起動する。
 
 #### Cross（クロス）— `demo_cross`
 
@@ -58,7 +58,7 @@ flowchart LR
     D --> G
 ```
 
-3 層クロス構造（3→1→3）。`TaskCross` で構築され、`start_cross()` で起動します。
+3 層クロス構造（3→1→3）。`TaskCross` で構築され、`start_cross()` で起動する。
 
 #### Network（ネットワーク）— `demo_network`
 
@@ -88,7 +88,7 @@ flowchart LR
     B3 --> C
 ```
 
-多層多分岐ネットワークトポロジー（2→3→1）。ニューラルネットワークのフォワード伝播構造をシミュレートします。
+多層多分岐ネットワークトポロジー（2→3→1）。ニューラルネットワークのフォワード伝播構造をシミュレートする。
 
 #### Star（スター）— `demo_star`
 
@@ -99,7 +99,7 @@ flowchart LR
     Core --> Side3["Side3<br/>add_15"]
 ```
 
-中心ノード `Core` が計算結果を複数のエッジノードに配信し、各エッジノードが独立して処理します。
+中心ノード `Core` が計算結果を複数のエッジノードに配信し、各エッジノードが独立して処理する。
 
 #### Fan-In（ファンイン）— `demo_fanin`
 
@@ -110,7 +110,7 @@ flowchart LR
     Source3["Source3<br/>square"] --> Merge
 ```
 
-複数のソースノード `Source1`、`Source2`、`Source3` の計算結果が 1 つのマージノード `Merge` に合流します。
+複数のソースノード `Source1`、`Source2`、`Source3` の計算結果が 1 つのマージノード `Merge` に合流する。
 
 #### Grid（グリッド）— `demo_grid`
 
@@ -142,7 +142,7 @@ flowchart TD
     Grid32 --> Grid33["Grid33"]
 ```
 
-4×4 グリッドトポロジー。データは左上 `Grid00` から注入され、右下 `Grid33` へ層ごとに伝播します。
+4×4 グリッドトポロジー。データは左上 `Grid00` から注入され、右下 `Grid33` へ層ごとに伝播する。
 
 ### 循環グラフ
 
@@ -162,7 +162,7 @@ flowchart TD
     C -.->|ループバック| A
 ```
 
-3 ノード閉ループ自己ロック構造。`TaskLoop` で構築。タスクが入ると A → B → C → A の間を継続的に循環し、外部から終了されるまで続きます。
+3 ノード閉ループ自己ロック構造。`TaskLoop` で構築。タスクが入ると A → B → C → A の間を継続的に循環し、外部から終了されるまで続く。
 
 #### Wheel（ホイール）— `demo_wheel`
 
@@ -178,7 +178,7 @@ flowchart TD
     Side4 -.->|ループバック| Core
 ```
 
-ホイールトポロジー：中心 `Core` がタスクを 4 つのループノードに配信し、ループノードが処理完了後に `Core` にループバックし、継続的にローテーションします。`TaskWheel` で構築。
+ホイールトポロジー：中心 `Core` がタスクを 4 つのループノードに配信し、ループノードが処理完了後に `Core` にループバックし、継続的にローテーションする。`TaskWheel` で構築。
 
 #### Complete（完全グラフ）— `demo_complete`
 
@@ -189,7 +189,7 @@ flowchart TD
     N2 <--> N3
 ```
 
-3 ノード完全グラフ。すべてのノードが相互に接続されています。`TaskComplete` で構築され、データは全接続トポロジー内を流れます。
+3 ノード完全グラフ。すべてのノードが相互に接続されている。`TaskComplete` で構築され、データは全接続トポロジー内を流れる。
 
 #### Multi-Cycle（多環相互接続）— `demo_multi_cycle`
 
@@ -214,7 +214,7 @@ flowchart TD
     A2 --> C1
 ```
 
-3 組の 2 ノード循環（A/B/C）。`A2` が `B1` と `C1` に出力し、多環相互接続を実現します。
+3 組の 2 ノード循環（A/B/C）。`A2` が `B1` と `C1` に出力し、多環相互接続を実現する。
 
 ### Forest（フォレスト）— `demo_forest`
 
@@ -235,20 +235,20 @@ flowchart TD
     end
 ```
 
-2 つの独立したツリー状 DAG が同じ `TaskGraph` 内に共存し、互いに干渉しません。ツリー 1（A→C→E, B→D→E）とツリー 2（F→G→I, F→H→J）がそれぞれ独立して実行されます。
+2 つの独立したツリー状 DAG が同じ `TaskGraph` 内に共存し、互いに干渉しない。ツリー 1（A→C→E, B→D→E）とツリー 2（F→G→I, F→H→J）がそれぞれ独立して実行される。
 
 ## 主要設定
 
-- DAG 構造：`stage_mode="thread"`、`execution_mode="thread"`
+- DAG 構造：デフォルト `stage_mode="thread"`；`demo_chain` の各 Stage は `execution_mode="serial"` を使用し、それ以外は多くが `execution_mode="thread"`
 - `demo_grid`：`staged` スケジュールモードを使用（層ごとに実行）
-- 循環グラフ：`put_termination_signal=False`（外部制御での停止を推奨）
-- すべてのデモで `Reporter` と `CelestialTree` を有効化
+- 循環グラフ：終了信号を自動注入するかどうかはサンプルによって異なる；`demo_multi_cycle` は `False` を明示的に渡し、`demo_wheel` は `True` を渡し、`demo_loop` と `demo_complete` はデフォルト動作を使用する；循環グラフを実行するときは手動終了の準備を推奨
+- 各デモは `set_reporter(True, ...)` と `set_ctree(ctree_client)` を呼び出すが、実際に有効かどうかは環境変数とサーバー側の準備状況に依存する
 
 ## 発生しうる問題
 
-1. **循環グラフは自動停止しない**：`demo_loop`、`demo_complete` などは `put_termination_signal=False` を使用し、実行後は手動でプロセスを終了するまで継続的に循環します。
+1. **循環グラフは自動停止しない可能性がある**：`demo_multi_cycle` は `False` を明示的に渡し、`demo_wheel` は `True` を渡し、`demo_loop` と `demo_complete` はデフォルト動作を使用する；実際に継続的に循環するかどうかはフレームワークのデフォルト戦略に依存するため、実行前に **Ctrl+C** で手動終了できるよう準備しておくことを推奨する。
 2. **sleep 遅延の蓄積**：`add_one_sleep` は 1 秒の sleep を含み、20 タスク × 多ノード = 長い総実行時間。
-3. **アサーションなし**：フレームワークが起動・実行できることのみを検証し、結果の数値はチェックしません。
+3. **アサーションなし**：フレームワークが起動・実行できることのみを検証し、結果の数値はチェックしない。
 
 ## 実行方法
 
@@ -258,7 +258,7 @@ python demo/demo_structure.py
 
 ## 想定される動作
 
-実行後、各構造デモが順に実行され、各 Stage の入出力ログと最終サマリーが出力されます。
+`__main__` はデフォルトで `demo_chain()` のみを呼び出し、それ以外の構造関数はすべてコメントアウトされている。コメントを解除すれば、複数の構造を順に実行できる。
 
 ### DAG 構造
 
@@ -289,7 +289,7 @@ Grid33: success=5  fail=0
 [StageB] Input: 2 -> Output: 3
 [StageC] Input: 3 -> Output: 4
 [StageA] Input: 4 -> Output: 5
-... (継続的に循環、自動停止しません)
+... (継続的に循環、自動停止しない)
 ```
 
 ```
@@ -300,11 +300,11 @@ Grid33: success=5  fail=0
 ... (継続的に循環)
 ```
 
-> **重要**：`demo_loop`、`demo_wheel`、`demo_complete` などの循環グラフは `put_termination_signal=False` を使用し、実行後は自動停止しません。**Ctrl+C** で手動終了してください。
+> **重要**：循環グラフサンプル（`demo_loop`、`demo_wheel`、`demo_complete`、`demo_multi_cycle`）の終了信号設定はそれぞれ異なり、デフォルト実行時に継続的に循環する可能性があるため、**Ctrl+C** で手動終了することを推奨する。
 
 ### Forest（フォレスト）
 
-2 つの独立した DAG がそれぞれ実行され、互いに干渉しません：
+2 つの独立した DAG がそれぞれ実行され、互いに干渉しない：
 
 ```
 === demo_forest (disjoint DAGs) ===
@@ -314,7 +314,7 @@ Grid33: success=5  fail=0
 [stageC] Input: ...
 ```
 
-> 各構造の実行前に `=== demo_xxx ===` の区切り線が表示され、`Summary` セクションに各ノードの成功/失敗カウントが表示されます。
+> 複数の構造を順に実行する場合、各構造の実行前に `=== demo_xxx ===` の区切り線が表示され、`Summary` セクションに各ノードの成功/失敗カウントが表示される。
 
 ## 依存
 

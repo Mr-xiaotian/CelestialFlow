@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 The `TaskQueue` module provides `TaskInQueue` and `TaskOutQueue`, two classes used for connecting pipelines between different Stages. They support a multi-producer, multi-consumer model and integrate termination signal merge functionality.
 
@@ -204,7 +204,7 @@ in_queue.put(env2)
 
 # Downstream consumer gets tasks
 task1 = in_queue.get()
-print(f"Received task: {task1.get_task()}, source: {task1.source}")
+print(f"Received task: {task1.get_task()}, ID: {task1.get_id()}")
 
 # Dynamically add a new upstream source
 in_queue.add_source_name("producer3")

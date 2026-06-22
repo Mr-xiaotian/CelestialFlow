@@ -1,14 +1,14 @@
 # demo_executor.py デモ説明
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/22
 
 ## 目標
 
-`TaskExecutor` の3つの実行モード（`serial`、`thread`、`async`）における独立実行能力をデモします。例外リトライ、進捗表示、タスク統計の完全なライフサイクルを示し、フレームワーク入門の第一歩として最適です。
+`TaskExecutor` の 3 つの実行モード（`serial`、`thread`、`async`）における独立実行能力をデモする。例外リトライ、進捗表示、タスク統計の完全なライフサイクルを示し、フレームワーク入門の第一歩として最適である。
 
 ## デモ内容
 
-3つの実行モードのコア戦略比較は以下の通りです：
+3 つの実行モードのコア戦略比較は以下の通り：
 
 ```mermaid
 flowchart TB
@@ -51,13 +51,13 @@ flowchart TB
 ```
 
 | 関数 | モード | タスク | 特性 |
-|------|------|------|------|
+|------|--------|--------|------|
 | `demo_fibonacci_serial` | serial | フィボナッチ計算 | シングルスレッド順次実行 |
 | `demo_fibonacci_thread` | thread | フィボナッチ計算 | 6 スレッド並行 |
 | `demo_fibonacci_async` | async | 非同期フィボナッチ | コルーチン並行 |
 
 - **入力**：`range(25, 32) + [0, 27, None, 0, ""]`
-- **例外設計**：`0`、`None`、`""` は `ValueError` をトリガーし、フレームワークが自動で 1 回リトライします
+- **例外設計**：2 つの `0` は `ValueError` をトリガーし、フレームワークが自動で 1 回リトライする。`None` と `""` は型エラーをトリガーし、リトライ対象外のため即座に失敗する
 
 ## 主要設定
 
@@ -67,9 +67,9 @@ flowchart TB
 
 ## 発生しうる問題
 
-1. **反復計算の時間コスト**：`fibonacci(31)` の反復計算は serial モードで約 1 秒必要ですが、全体実行にはリトライとスケジューリングのオーバーヘッドが含まれ、実際の合計時間はさらに長くなる可能性があります。
-2. **`asyncio` 環境**：`demo_fibonacci_async` は `asyncio.run()` を使用するため、Jupyter Notebook で直接実行するとエラーになります（Notebook には既にイベントループが存在します）。
-3. **アサーションなし**：このファイルは**デモスクリプト**であり、`assert` を含みません。実行成功は未捕捉例外がスローされなかったことのみを意味し、結果の正確性は検証しません。
+1. **反復計算の時間コスト**：`fibonacci(31)` の反復計算は serial モードで約 1 秒必要であるが、全体実行にはリトライとスケジューリングのオーバーヘッドが含まれ、実際の合計時間はさらに長くなる可能性がある。
+2. **`asyncio` 環境**：`demo_fibonacci_async` は `asyncio.run()` を使用するため、Jupyter Notebook で直接実行するとエラーになる（Notebook には既にイベントループが存在する）。
+3. **アサーションなし**：このファイルは**デモスクリプト**であり、`assert` を含まない。実行成功は未捕捉例外がスローされなかったことのみを意味し、結果の正確性は検証しない。
 
 ## 実行方法
 
@@ -79,7 +79,7 @@ python demo/demo_executor.py
 
 ## 想定される動作
 
-実行後、3つのモードが順に実行され、以下のようなフローが出力されます：
+実行後、3 つのモードが順に実行され、以下のようなフローが出力される：
 
 ```
 ========================================
@@ -88,7 +88,7 @@ python demo/demo_executor.py
  80%|████████████████░░░░| ...
 
 --- Summary ---
-  mode=serial  success=07  fail=05  dup=0  pending=0  elapsed=0.90s
+  mode=serial  success=08  fail=04  dup=0  pending=0  elapsed=0.90s
 
 ========================================
 [thread] Fibonacci benchmark (N=12 tasks, max_workers=6)
@@ -96,7 +96,7 @@ python demo/demo_executor.py
  80%|████████████████░░░░| ...
 
 --- Summary ---
-  mode=thread  success=07  fail=05  dup=0  pending=0  elapsed=0.86s
+  mode=thread  success=08  fail=04  dup=0  pending=0  elapsed=0.86s
 
 ========================================
 [async] Fibonacci benchmark (N=12 tasks, max_workers=6)
@@ -104,11 +104,11 @@ python demo/demo_executor.py
  80%|████████████████░░░░| ...
 
 --- Summary ---
-  mode=async  success=07  fail=05  dup=0  pending=0  elapsed=0.01s
+  mode=async  success=08  fail=04  dup=0  pending=0  elapsed=0.01s
 ```
 
-> **説明**：12 タスクのうち、5つの例外入力（`0`、`27`、`None`、`0`、`""`）が `ValueError` をトリガーし、リトライ後も最終的に失敗とマークされます。`success=07` は正常に実行された 7つのフィボナッチタスクです。
-> 3つのモードすべてが `demo_utils` の反復版フィボナッチ（O(n)）を使用し、パフォーマンスは同等です。
+> **説明**：12 タスクのうち、4 つの不正入力（2 つの `0`、`None`、`""`）が失敗する。残りの 8 つは正常なフィボナッチタスクであり、最終的に `success=08`/`fail=04` となる。2 つの `0` は `ValueError` をトリガーし 1 回リトライされるが、それでも失敗する。`None`/`""` は型エラーをトリガーする。
+> 3 つのモードはすべて `demo_utils` の反復版フィボナッチ（O(n)）を使用し、パフォーマンスは同等である。
 
 ## 依存
 

@@ -1,6 +1,6 @@
-﻿# Tutorial: Building an Image Crawler
+# Tutorial: Building an Image Crawler
 
-> 📅 Last Updated: 2026/05/09
+> 📅 Last Updated: 2026/06/18
 
 This tutorial will guide you through a complete hands-on project — **Baidu Image Crawler** — to learn CelestialFlow from scratch.
 
@@ -274,7 +274,7 @@ Visit http://localhost:5005 to view real-time status.
 ```python
 # Prepare initial tasks
 init_tasks = {
-    stage_search.get_tag(): ["cat", "dog", "scenery"]
+    stage_search.get_name(): ["cat", "dog", "scenery"]
 }
 
 # Start
@@ -282,8 +282,16 @@ print("Starting image crawl...")
 graph.start_graph(init_tasks)
 
 # Get statistics
-print(f"Success: {graph.get_graph_summary().get('total_succeeded', 0)}")
-print(f"Failed: {graph.get_graph_summary().get('total_failed', 0)}")
+snapshot = graph.get_status_snapshot()
+status = snapshot["status"]
+total_succeeded = sum(
+    s.get("total_succeeded", 0) for s in status.values()
+)
+total_failed = sum(
+    s.get("total_failed", 0) for s in status.values()
+)
+print(f"Success: {total_succeeded}")
+print(f"Failed: {total_failed}")
 ```
 
 ---
@@ -411,14 +419,21 @@ if __name__ == "__main__":
     # Run
     print("Starting image crawl...")
     graph.start_graph({
-        graph.source_stages[0].get_tag(): KEYWORDS
+        graph.source_stages[0].get_name(): KEYWORDS
     })
     
     # Statistics
-    summary = graph.get_graph_summary()
+    snapshot = graph.get_status_snapshot()
+    status = snapshot["status"]
+    total_succeeded = sum(
+        s.get("total_succeeded", 0) for s in status.values()
+    )
+    total_failed = sum(
+        s.get("total_failed", 0) for s in status.values()
+    )
     print(f"\nCrawl complete!")
-    print(f"Success: {summary.get('total_succeeded', 0)}")
-    print(f"Failed: {summary.get('total_failed', 0)}")
+    print(f"Success: {total_succeeded}")
+    print(f"Failed: {total_failed}")
 ```
 
 ---
@@ -469,12 +484,12 @@ from celestialflow import TerminationSignal
 
 # Inject new keywords
 graph.put_stage_queue({
-    stage_search.get_tag(): ["car", "food"]
+    stage_search.get_name(): ["car", "food"]
 })
 
 # Inject termination signal (stop crawling)
 graph.put_stage_queue({
-    stage_search.get_tag(): [TerminationSignal()]
+    stage_search.get_name(): [TerminationSignal()]
 })
 ```
 
@@ -503,6 +518,5 @@ This tutorial demonstrated the complete workflow of using CelestialFlow:
 ### Next Steps
 
 - Try using `TaskRouter` for conditional dispatching
-- Explore `TaskRedisTransport` for cross-language collaboration
+- Refer to `demo/demo_redis.py` to learn how to integrate Redis / Go Worker collaboration using ordinary `TaskStage`
 - Read other [API References](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/src/stage/core_executor.md) to learn more features
-

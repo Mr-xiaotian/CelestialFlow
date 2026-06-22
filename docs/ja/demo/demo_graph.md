@@ -1,10 +1,10 @@
 # demo_graph.py デモ説明
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/22
 
 ## 目標
 
-CelestialFlow における `TaskGraph` の高度なグラフトポロジー構築：ファンアウト/ファンイン（fan-out/fan-in）ETL パイプライン、および非同期ステージドパイプラインをデモします。
+CelestialFlow における `TaskGraph` の高度なグラフトポロジー構築：ファンアウト/ファンイン（fan-out/fan-in）ETL パイプライン、および非同期ステージドパイプラインをデモする。
 
 ## デモシナリオ
 
@@ -31,7 +31,7 @@ Extract ──┬── Normalize ──┬── Load
 - `Enrich` → レコードに分類ラベルを追加（thread モード、4 worker）
 - `Load` → レコードを保存（serial モード）
 
-**グラフ構造**：DAG、一対多ファンアウト + 多対一ファンイン
+**グラフ構造**：DAG、一対多ファンアウト + 多対一ファンイン  
 **スケジュールモード**：`eager`
 
 ### `demo_async_staged_pipeline`
@@ -51,7 +51,7 @@ AsyncDouble ──> AsyncToStr
 - `AsyncDouble` → 入力を非同期で倍にする（async モード、8 worker）
 - `AsyncToStr` → 結果を非同期で文字列に変換（async モード、8 worker）
 
-**グラフ構造**：DAG、線形 2 ステージ
+**グラフ構造**：DAG、線形 2 ステージ  
 **スケジュールモード**：`staged`（層ごとに実行）
 
 ## 主要設定
@@ -62,8 +62,8 @@ AsyncDouble ──> AsyncToStr
 
 ## 発生しうる問題
 
-1. **アサーションなし**：デモスクリプトであり、結果の正確性は検証しません。
-2. **ETL 関数に sleep を含む**：`extract_record`（0.5s）、`transform_normalize`/`transform_enrich`（0.3s）、`load_record`（0.2s）があり、完全な実行には一定の時間がかかります。
+1. **アサーションなし**：デモスクリプトであり、結果の正確性は検証しない。
+2. **ETL 関数に sleep を含む**：`extract_record`（0.5s）、`transform_normalize`/`transform_enrich`（0.3s）、`load_record`（0.2s）があり、完全な実行には一定の時間がかかる。
 
 ## 実行方法
 
@@ -75,26 +75,26 @@ python demo/demo_graph.py
 
 ### ETL パイプライン（`demo_etl_fan_out_fan_in`）
 
-Extract → Normalize/Enrich → Load の順に実行され、出力には sleep ログと最終サマリーが含まれます：
+Extract → Normalize/Enrich → Load の順に実行され、出力には sleep ログと最終サマリーが含まれる：
 
 ```
-[Extract] Input: 0 -> Output: {'id': 0, 'value': 101}
-[Extract] Input: 1 -> Output: {'id': 1, 'value': 102}
-[Normalize] Input: {'id': 0, 'value': 101} -> Output: {'id': 0, 'value': 0.01}
-[Enrich] Input: {'id': 0, 'value': 101} -> Output: {'id': 0, 'label': 'odd'}
+[Extract] Input: 1 -> Output: {'id': 1, 'value': 10, 'label': 'item_1'}
+[Extract] Input: 2 -> Output: {'id': 2, 'value': 20, 'label': 'item_2'}
+[Normalize] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'normalized': 0.1}
+[Enrich] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'category': 'odd'}
 ...
 --- Graph Summary ---
-Extract    : success=5  fail=0
-Normalize  : success=5  fail=0
-Enrich     : success=5  fail=0
-Load       : success=10 fail=0
+Extract    : success=15 fail=0
+Normalize  : success=15 fail=0
+Enrich     : success=15 fail=0
+Load       : success=30 fail=0
 ```
 
-> 各 Extract は 1 件のレコードを生成し、Normalize と Enrich でそれぞれ処理された後、Load で集約されます。入力が `range(5)` の場合、Load ノードは合計 10 タスク（5 × 2 下流）を受け取ります。
+> 各 Extract は 1 件のレコードを生成し、Normalize と Enrich でそれぞれ処理された後、Load で集約される。入力が `range(1, 16)` の場合、Extract は 15 件のレコードを処理し、Normalize と Enrich はそれぞれ 15 件を受け取り、Load ノードは合計 30 件のタスク（15 × 2 下流）を受け取る。
 
 ### 非同期パイプライン（`demo_async_staged_pipeline`）
 
-ステージごとに層ごとに実行され、AsyncDouble が完了してから AsyncToStr が開始されます：
+ステージごとに層ごとに実行され、AsyncDouble が完了してから AsyncToStr が開始される：
 
 ```
 --- Staged 1: AsyncDouble ---
@@ -102,15 +102,15 @@ Load       : success=10 fail=0
 [AsyncDouble] Input: 2 -> Output: 4
 ...
 --- Staged 2: AsyncToStr ---
-[AsyncToStr] Input: 2 -> Output: 'Result: 2'
-[AsyncToStr] Input: 4 -> Output: 'Result: 4'
+[AsyncToStr] Input: 2 -> Output: 'result=2'
+[AsyncToStr] Input: 4 -> Output: 'result=4'
 ...
 --- Status Snapshot ---
-AsyncDouble : success=5  fail=0  pending=0
-AsyncToStr  : success=5  fail=0  pending=0
+AsyncDouble : success=20 fail=0  pending=0
+AsyncToStr  : success=20 fail=0  pending=0
 ```
 
-> 総実行時間は約 3〜5 秒で、主に組み込みの `sleep` の影響を受けます。
+> 総実行時間は約 3〜5 秒で、主に組み込みの `sleep` の影響を受ける。
 
 ## 依存
 

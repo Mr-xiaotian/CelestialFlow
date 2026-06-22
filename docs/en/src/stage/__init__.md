@@ -1,6 +1,6 @@
 # Stage Module
 
-> 📅 Last Updated: 2026/06/17
+> 📅 Last Updated: 2026/06/22
 
 The Stage module defines the task execution units in CelestialFlow. It provides a complete system from basic task executors to complex task nodes, serving as the fundamental building blocks for constructing task graphs.
 
@@ -37,7 +37,7 @@ These components together form the core of task execution, each usable independe
      - Result collection and error recording
 
 2. **core_stage.py** (`TaskStage`)
-   - **Purpose**: Enhanced task node, inheriting from `TaskExecutor` with added graph structure connection capabilities
+   - **Purpose**: Enhanced task node, inheriting from `TaskExecutor`, with added graph structure connection capabilities
    - **Key Features**:
      - Supports `stage_mode` (serial/thread) to control scheduling within the Graph
      - Inlet binding (`set_inlet`) connecting fail/log queues to the persistence layer
@@ -123,8 +123,8 @@ from celestialflow import TaskGraph, TaskStage, TaskSplitter
 
 # Custom splitter: split a string by commas
 class CommaSplitter(TaskSplitter):
-    def _split(self, *task):
-        return tuple(task[0].split(","))
+    def _split(self, task):
+        return tuple(task.split(","))
 
 # Build graph
 raw = TaskStage("Source", func=lambda x: x, stage_mode="serial")

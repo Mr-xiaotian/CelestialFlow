@@ -1,6 +1,6 @@
 # util_models
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 ## Purpose
 
@@ -14,7 +14,8 @@ Task structure data model, representing the structural information of a task gra
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `structure` | `dict[str, Any]` | Structure snapshot dict, typically contains `nodes`, `edges`, `source_nodes` |
+| `graph_id` | `str` | Graph instance identifier, default `""`; used for Reporter-side graph context validation |
+| `structure` | `dict[str, Any]` | Structure snapshot dictionary, typically containing `nodes`, `edges`, `source_nodes` |
 
 ### StatusModel
 
@@ -22,27 +23,18 @@ Node status data model, representing the runtime status of each node.
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `graph_id` | `str` | Graph instance identifier, default `""` |
 | `timestamp` | `float` | Timestamp of the status data (Unix) |
 | `status` | `dict[str, dict[str, Any]]` | Mapping from node name to status dictionary |
 
-### ErrorsMetaModel
-
-Error metadata model, representing meta information about error log files.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `jsonl_path` | `str` | Error log JSONL file path |
-| `rev` | `int` | Current revision/offset of the error log |
-
-### ErrorsContentModel
+### ErrorsModel
 
 Error content data model, containing a complete list of error records.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `errors` | `list[dict[str, Any]]` | List of error records; each item is an error dictionary |
-| `jsonl_path` | `str` | Error log JSONL file path |
-| `rev` | `int` | Current revision/offset of the error log |
+| `graph_id` | `str` | Graph instance identifier, default `""` |
+| `errors` | `list[dict[str, Any]]` | List of error records; each item is an error dictionary; directly written to the SQLite database |
 
 ### AnalysisModel
 
@@ -50,6 +42,7 @@ Task analysis data model.
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `graph_id` | `str` | Graph instance identifier, default `""` |
 | `analysis` | `dict[str, Any]` | Analysis result dictionary |
 
 ### TaskInjectionModel
@@ -73,7 +66,7 @@ Task injection request model, used to dynamically insert new tasks into a runnin
 
 ### DashboardConfigModel
 
-Dashboard layout configuration model, defining frontend panel card layout.
+Dashboard layout configuration model, defining the frontend panel card layout.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -123,7 +116,7 @@ Injection page configuration model (nested under `WebConfigModel.injection`).
 
 ### WebConfigModel
 
-Web UI global configuration model (changed to a nested grouping structure).
+Web UI global configuration model (nested grouping structure).
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -132,7 +125,7 @@ Web UI global configuration model (changed to a nested grouping structure).
 | `errors` | `ErrorsPageConfigModel` | — | Error page configuration |
 | `injection` | `InjectionPageConfigModel` | `InjectionPageConfigModel()` | Injection page configuration |
 
-> **Changed**: `WebConfigModel` has been changed from the old flat field layout (`theme`, `refreshInterval`, `historyLimit`...) to a nested grouping structure. The original `theme`, `refreshInterval` etc. fields have been moved into `GlobalConfigModel` (alias `"global"`), `historyLimit`, `showStructureEdgeDelta` etc. into `DashboardPageConfigModel`, `errorPageSize`, `errorSortOrder` etc. into `ErrorsPageConfigModel`.
+Configuration uses a nested grouping structure: `theme`, `refreshInterval`, `language`, etc. are located in `GlobalConfigModel` (JSON key `"global"`); `historyLimit`, `showStructureEdgeDelta`, etc. are located in `DashboardPageConfigModel`; `pageSize`, `sortOrder`, etc. are located in `ErrorsPageConfigModel`.
 
 ## Usage Examples
 
@@ -196,53 +189,15 @@ for node_name, tasks in injection.root.items():
 ### Error Data Handling
 
 ```python
-from celestialflow.web.util_models import ErrorsContentModel, ErrorsMetaModel
-
-# Error metadata
-meta = ErrorsMetaModel(jsonl_path="./fallback/2026-05-28/errors.jsonl", rev=150)
-print(f"Error log path: {meta.jsonl_path}, current offset: {meta.rev}")
+from celestialflow.web.util_models import ErrorsModel
 
 # Error content
-errors = ErrorsContentModel(
+content = ErrorsModel(
+    graph_id="graph-001",
     errors=[
         {"error_type": "ValueError", "error_message": "Invalid input"},
         {"error_type": "TimeoutError", "error_message": "Connection lost"},
     ],
-    jsonl_path="./fallback/2026-05-28/errors.jsonl",
-    rev=152,
 )
-print(f"Error count: {len(errors.errors)}")
-```
-
-## Model Hierarchy
-
-```mermaid
-classDiagram
-    class BaseModel {
-        +model_dump()
-        +model_validate()
-    }
-    class RootModel {
-        +root
-        +model_dump()
-    }
-
-    BaseModel <|-- StructureModel
-    BaseModel <|-- StatusModel
-    BaseModel <|-- ErrorsMetaModel
-    BaseModel <|-- ErrorsContentModel
-    BaseModel <|-- AnalysisModel
-    BaseModel <|-- GlobalConfigModel
-    BaseModel <|-- DashboardConfigModel
-    BaseModel <|-- DashboardPageConfigModel
-    BaseModel <|-- ErrorsPageConfigModel
-    BaseModel <|-- InjectionPageConfigModel
-    BaseModel <|-- WebConfigModel
-    RootModel <|-- TaskInjectionModel
-
-    WebConfigModel *-- GlobalConfigModel : global_
-    WebConfigModel *-- DashboardPageConfigModel : dashboard
-    WebConfigModel *-- ErrorsPageConfigModel : errors
-    WebConfigModel *-- InjectionPageConfigModel : injection
-    DashboardPageConfigModel *-- DashboardConfigModel : layout
+print(f"Error count: {len(content.errors)}")
 ```

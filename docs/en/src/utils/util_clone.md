@@ -1,6 +1,6 @@
 # Clone
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 `utils/util_clone.py` provides functionality for cloning executors, nodes, and task graphs, used for performance testing and configuration reuse.
 
@@ -32,6 +32,7 @@ Copied attributes:
 - `max_retries`: Max retry count
 - `max_info`: Max log info length
 - `enable_duplicate_check`: Duplicate check toggle
+- `persist_result`: Result persistence toggle
 - `log_level`: Log level
 - `retry_exceptions`: List of retryable exceptions
 
@@ -81,6 +82,11 @@ Cloning flow:
 from celestialflow import TaskExecutor
 from celestialflow.utils.util_clone import clone_executor
 
+
+def process(x: int) -> int:
+    return x * 2
+
+
 # Create original executor
 executor = TaskExecutor(
     "Processor",
@@ -104,6 +110,11 @@ cloned.start(range(100))
 from celestialflow import TaskStage
 from celestialflow.utils.util_clone import clone_stage
 
+
+def process_func(x: int) -> int:
+    return x + 1
+
+
 # Create original node
 stage = TaskStage(
     "Processor",
@@ -124,17 +135,30 @@ cloned_stage.start(range(10, 20))
 ### Cloning a Task Graph
 
 ```python
-from celestialflow import TaskGraph
+from celestialflow import TaskGraph, TaskStage
 from celestialflow.utils.util_clone import clone_graph
 
+
+def process_a(x: int) -> int:
+    return x * 2
+
+
+def process_b(x: int) -> int:
+    return x + 1
+
+
 # Create original graph
-graph = TaskGraph(schedule_mode="eager")
+graph = TaskGraph(name="CloneDemo", schedule_mode="eager")
+stage_a = TaskStage("A", process_a)
+stage_b = TaskStage("B", process_b)
 graph.set_stages(stages=[stage_a, stage_b])
+graph.connect([stage_a], [stage_b])
 
 # Clone graph for testing
 cloned_graph = clone_graph(graph)
 
 # Run the cloned graph
+init_tasks = {stage_a.get_name(): [1, 2, 3]}
 cloned_graph.start_graph(init_tasks)
 ```
 
@@ -172,7 +196,7 @@ async def main():
     print(f"clone_stage: name={cloned_stg.get_name()}, mode={cloned_stg.get_stage_mode()}")
 
     # 3. clone_graph ----
-    graph = TaskGraph(schedule_mode="eager")
+    graph = TaskGraph(name="CloneDemo", schedule_mode="eager")
     a = TaskStage("A", square, execution_mode="thread")
     b = TaskStage("B", add_one, execution_mode="thread")
     graph.set_stages([a, b])
@@ -183,9 +207,9 @@ async def main():
     print(f"Connection consistency: {graph.out_edges == cloned_grp.out_edges}")
 
     # Run original and cloned graphs separately; states are completely independent
-    await graph.start_graph({a.get_tag(): [1, 2, 3]})
-    await cloned_grp.start_graph(
-        {list(cloned_grp.stage_runtime_dict.keys())[0]: [10, 20]}
+    graph.start_graph({a.get_name(): [1, 2, 3]})
+    cloned_grp.start_graph(
+        {list(cloned_grp.stage_dict.keys())[0]: [10, 20]}
     )
 
 
@@ -195,12 +219,33 @@ asyncio.run(main())
 ### Using in Benchmarking
 
 ```python
+from celestialflow import TaskGraph, TaskStage
 from celestialflow.utils.util_benchmark import benchmark_graph
+
+
+def task(x: int) -> int:
+    return x * 2
+
+
+async def async_task(x: int) -> int:
+    return x * 2
+
+
+stage_a = TaskStage("A", task)
+stage_b = TaskStage("B", task)
+async_stage_a = TaskStage("A", async_task)
+async_stage_b = TaskStage("B", async_task)
+
+sync_graph = TaskGraph(name="BenchSync")
+sync_graph.set_stages(stages=[stage_a, stage_b])
+async_graph = TaskGraph(name="BenchAsync")
+async_graph.set_stages(stages=[async_stage_a, async_stage_b])
 
 # benchmark_graph internally uses clone_graph
 results = benchmark_graph(
-    graph,
-    init_tasks_dict={stage_a.get_tag(): range(100)},
+    sync_graph=sync_graph,
+    async_graph=async_graph,
+    init_tasks_dict={stage_a.get_name(): range(100)},
     stage_modes=["serial", "thread"],
     execution_sync_modes=["serial", "thread"],
     execution_async_modes=["async"],

@@ -1,6 +1,6 @@
-﻿# Remaining Time Estimation Tests (test_estimators.py)
+# Remaining Time Estimation Tests (test_estimators.py)
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 ## Purpose
 Verifies the three estimation functions `calc_remaining`, `calc_elapsed`, and `calc_global_pending`, ensuring CelestialFlow can produce stable remaining-time predictions at both the node level and the graph level.
@@ -22,7 +22,7 @@ Verifies the three estimation functions `calc_remaining`, `calc_elapsed`, and `c
 |------------|------------|----------------|
 | `TestCalcRemaining` | 7 | Basic ratio calculation and zero-value boundaries |
 | `TestCalcElapsed` | 7 | State-machine-based elapsed time accumulation strategy |
-| `TestCalcGlobalPending` | 15 | DAG propagation estimation: linear chain, fan-out, fan-in, diamond, bottleneck, empty graph, etc. |
+| `TestCalcGlobalPending` | 16 | DAG propagation estimation: linear chain, fan-out, fan-in, diamond, bottleneck, empty graph, missing map data, etc. |
 | `TestPropertyBased` | 3 | Property verification: symmetry, monotonicity, etc. |
 
 ## How to Run

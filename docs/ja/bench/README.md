@@ -1,12 +1,12 @@
 # bench/ ベンチマーク概要
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 ## 説明
 
-本ディレクトリは `CelestialFlow` プロジェクトの各種 benchmark ドキュメントを収集し、実行モード、グラフスケジューリング、永続化、キュー、ハッシュ、ロックオーバーヘッド、ネットワークリクエスト、および Python 3.14 GIL / No-GIL 比較などのトピックをカバーします。
+本ディレクトリは `CelestialFlow` プロジェクトの各種 benchmark ドキュメントを収集し、実行モード、グラフスケジューリング、永続化、キュー、ハッシュ、ロックオーバーヘッド、ネットワークリクエスト、および Python 3.14 GIL / No-GIL 比較などのトピックをカバーする。
 
-これらの benchmark の主な用途は次の3つです：
+これらの benchmark の主な用途は次の 3 つである：
 
 - フレームワーク設計のトレードオフに定量的根拠を提供する
 - ユーザーがタスクタイプに応じて適切な実行モードを選択できるようにする
@@ -14,7 +14,7 @@
 
 ## 推奨読書順序
 
-プロジェクトのパフォーマンス特性の全体像を素早く把握したい場合は、以下の順序で読むことを推奨します：
+プロジェクトのパフォーマンス特性の全体像を素早く把握したい場合は、以下の順序で読むことを推奨する：
 
 1. `bench_execution_mode.md`：まず単一エグゼキュータの `serial / thread / async` での差異を確認
 2. `bench_graph_mode.md`：次にタスクグラフの異なる `stage_mode × execution_mode` の組み合わせパフォーマンスを確認
@@ -25,7 +25,7 @@
 ### 実行モデルとスケジューリング
 
 | ドキュメント | 説明 |
-|------|------|
+|--------------|------|
 | `bench_execution_mode.md` | `TaskExecutor` の `serial / thread / async` でのパフォーマンス比較 |
 | `bench_graph_mode.md` | `TaskGraph` の異なる `stage_mode × execution_mode` 組み合わせでのパフォーマンス比較 |
 | `bench_gil_vs_nogil.md` | Python 3.14 GIL と No-GIL 環境での CelestialFlow 実行差異 |
@@ -33,14 +33,14 @@
 ### ネットワークと外部サービス
 
 | ドキュメント | 説明 |
-|------|------|
-| `bench_http_grpc.md` | CelestialTree オフ / HTTP / gRPC の3つのトレースモードのオーバーヘッド比較 |
+|--------------|------|
+| `bench_http_grpc.md` | CelestialTree オフ / HTTP / gRPC の 3 つのトレースモードのオーバーヘッド比較 |
 | `bench_requests.md` | Web API リクエストベンチマーク |
 
 ### 永続化とキュー
 
 | ドキュメント | 説明 |
-|------|------|
+|--------------|------|
 | `bench_persistence_spout.md` | 永続化 spout のログ / fallback 書き込みパフォーマンス |
 | `bench_queue.md` | キュー実装ベンチマーク |
 | `bench_ipc_queue.md` | プロセス間キュー通信オーバーヘッドテスト |
@@ -49,10 +49,10 @@
 ### データ構造と基本オーバーヘッド
 
 | ドキュメント | 説明 |
-|------|------|
+|--------------|------|
 | `bench_lock_overhead.md` | ロック競合と同期オーバーヘッド |
 | `bench_datastructures.md` | 一般的なデータ構造とクロスプロセス構造のパフォーマンスベースライン |
-| `bench_hash.md` | `make_hashable` などのハッシュ関連メソッド比較 |
+| `bench_hash.md` | オブジェクト安定ハッシュ戦略の比較（`normalize_for_hash` + 複数のシリアライズ/ハッシュ組み合わせ） |
 | `bench_hash_container.md` | コンテナクラスオブジェクトのハッシュパフォーマンス比較 |
 | `bench_hash_memory.md` | ハッシュ関連実装のメモリ使用量テスト |
 | `bench_futures_memory.md` | futures バッチシナリオのメモリオーバーヘッド |
@@ -61,7 +61,7 @@
 
 ## 使用方法
 
-ほとんどの benchmark はプロジェクトルートから直接実行できます。例：
+ほとんどの benchmark はプロジェクトルートから直接実行できる。例：
 
 ```bash
 python bench/bench_execution_mode.py
@@ -69,12 +69,12 @@ python bench/bench_graph_mode.py
 python bench/bench_gil_vs_nogil.py
 ```
 
-このうち `bench_gil_vs_nogil.py` は GIL と No-GIL インタープリタでそれぞれ1回ずつ実行する必要があります。具体的な実行方法は以下を参照してください：
+このうち `bench_gil_vs_nogil.py` は GIL と No-GIL インタープリタでそれぞれ 1 回ずつ実行する必要がある。具体的な実行方法は以下を参照：
 
 - `bench_gil_vs_nogil.md`
 
 ## 注意事項
 
-1. 一部の benchmark は Reporter、CelestialTree、特定の HTTP インターフェースなどの外部サービスに依存します。
-2. 一部の benchmark の実行時間はローカル負荷、バックグラウンドプロセス、電源ポリシー、ネットワーク状態に敏感なため、少なくとも3回の繰り返し実行を推奨します。
-3. benchmark の結論はタスクタイプに応じて理解すべきであり、あるシナリオの最適解をすべてのワークロードにそのまま一般化できません。
+1. 一部の benchmark は Reporter、CelestialTree、特定の HTTP インターフェースなどの外部サービスに依存する。
+2. 一部の benchmark の実行時間はローカル負荷、バックグラウンドプロセス、電源ポリシー、ネットワーク状態に敏感なため、少なくとも 3 回の繰り返し実行を推奨する。
+3. benchmark の結論はタスクタイプに応じて理解すべきであり、あるシナリオの最適解をすべてのワークロードにそのまま一般化できない。

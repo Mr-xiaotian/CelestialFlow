@@ -1,8 +1,6 @@
 # TaskTypes
 
-> 📅 最終更新日: 2026/06/18
-
-> ⚠️ **非推奨**：旧版ドキュメントに記載されていた `PersistedErrorRecord` データクラスは現在のソースコードには存在しません。
+> 📅 最終更新日: 2026/06/22
 
 TaskTypes モジュールはフレームワークで使用される基本データ型、列挙型、補助クラスを定義します。
 
@@ -38,7 +36,9 @@ TERMINATION_SIGNAL = TerminationSignal()
 ```python
 class TerminationIdPool:
     def __init__(self, ids: list[int]):
-        self.ids = ids
+        self.ids = ids   # 終了シグナル ID リスト
+        self.id = -1     # 互換フィールド。固定値 -1
+        self.source = "<signal>"  # 互換フィールド。固定値 "<signal>"
 ```
 
 ## NoOpContext
@@ -213,4 +213,3 @@ print(f"終了マージイベント: {CTreeEvent.TERMINATION_MERGE}")    # "term
 
 - `ValueWrapper` と `SumCounter` のスレッドセーフ性は、呼び出し元が正しい `Lock` オブジェクトを渡すことに依存します。
 - `NoOpContext` は `serial`/`async` モードで実際のロックの代わりに使用され、不要なロックオーバーヘッドを回避します。
-- `PersistedErrorRecord` は frozen dataclass であり、作成後は不変です。

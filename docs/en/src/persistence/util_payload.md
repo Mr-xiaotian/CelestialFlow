@@ -1,10 +1,8 @@
 # PersistencePayload
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 `persistence/util_payload.py` provides a persistence serialization utility for task data, recursively converting arbitrary Python objects into JSON-friendly structures.
-
-> ⚠️ **Changed**: This file replaces the old `util_jsonl.py`. The old version provided JSONL file read/write utilities, while the new module uses SQLite storage. This file focuses on data serialization; for SQLite operations, see `util_sqlite.py`.
 
 ## Core Function
 
@@ -13,7 +11,7 @@
 ```python
 def to_persisted_payload(task: Any) -> Any:
     """
-    Converts a task into a JSON-friendly persistable structure.
+    Convert a task into a JSON-friendly persistable structure.
 
     :param task: Task data to be serialized
     :return: A JSON-friendly persistable structure
@@ -23,7 +21,7 @@ def to_persisted_payload(task: Any) -> Any:
 **Conversion Rules:**
 
 | Input Type | Output | Description |
-|---------|------|------|
+|------------|--------|-------------|
 | `None` / `str` / `int` / `float` / `bool` | Returned as-is | Already JSON-native types |
 | `list` / `tuple` / `set` | `list` | Recursively convert each element |
 | `dict` | `dict` | Keys converted to `str`, values recursively converted |
@@ -38,7 +36,7 @@ flowchart TD
     CheckType -->|Other| Str[str task]
 ```
 
-## Usage Example
+## Usage Examples
 
 ### Primitive Types Pass Through Directly
 
@@ -79,10 +77,13 @@ print(result)  # "MyTask(id=1)"
 
 ```python
 # Internal flow of FallbackInlet.task_in:
+from datetime import datetime
+
 pending_item = {
     "__op__": "insert",
     "record": {
         "event_id": event_id,
+        "ts": datetime.now().timestamp(),
         "stage": stage_name,
         "status": "pending",
         "task_json": to_persisted_payload(task),  # Auto-serialized

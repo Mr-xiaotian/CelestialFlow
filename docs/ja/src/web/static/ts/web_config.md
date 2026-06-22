@@ -1,6 +1,6 @@
 # web_config.ts
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 Web フロントエンドの設定読み込み、正規化、保存、適用を管理します。設定は**グループ構造**（`global`、`dashboard`、`errors`、`injection`）を採用し、旧版フラット形式の自動移行にも対応します。
 
@@ -47,18 +47,16 @@ type WebConfig = {
 
 ```typescript
 type LegacyWebConfig = {
-  theme?: string;
+  theme?: "light" | "dark";
   autoRefreshEnabled?: boolean;
   refreshInterval?: number;
-  language?: string;
+  language?: Lang;
   historyLimit?: number;
   showStructureEdgeDelta?: boolean;
   useTotalPendingInStatus?: boolean;
-  pageSize?: number;
-  sortOrder?: string;
-  jumpToInjectionAfterRetry?: boolean;
-  showInjectableOnly?: boolean;
-  layout?: DashboardLayout;
+  errorPageSize?: number;
+  errorSortOrder?: "newest" | "oldest";
+  dashboard?: Partial<DashboardLayout>;
 };
 ```
 
@@ -66,14 +64,14 @@ type LegacyWebConfig = {
 
 | 変数 | 型 | 説明 |
 |------|------|------|
-| `webConfig` | `WebConfig` | 現在のランタイム設定オブジェクト、モジュールロード時に `DEFAULT_WEB_CONFIG` で初期化 |
-| `saveConfigPending` | `boolean` | 保存リクエストが進行中かどうか（同時書き込み防止） |
-| `saveConfigPromise` | `Promise<boolean> \| null` | 現在または直近の保存操作の Promise |
-| `PANEL_SELECTOR_MAP` | `Record<string, string>` | パネルキーから CSS セレクタへのマッピング |
+| `webConfig` | `WebConfig` | 現在のランタイム設定オブジェクト。モジュールロード時に `DEFAULT_WEB_CONFIG` で初期化 |
+| `saveConfigPending` | `boolean` | 新しい設定変更がディスクへの書き込み待ちかどうか |
+| `saveConfigPromise` | `Promise<boolean> \| null` | 現在実行中の保存キュー Promise |
+| `PANEL_SELECTOR_MAP` | `Record<DashboardColumnKey, string>` | パネルキーから CSS セレクタへのマッピング |
 | `CARD_TEMPLATES` | `Record<string, string>` | カード ID から HTML テンプレートへのマッピング（mermaid, analysis, status, progress, summary） |
 | `CARD_META` | `Record<string, string>` | カード ID から i18n ラベルキーへのマッピング |
 | `ALL_CARD_IDS` | `string[]` | `Object.keys(CARD_TEMPLATES)` から自動生成される標準カード ID リスト |
-| `DEFAULT_WEB_CONFIG` | `WebConfig` | デフォルト設定テンプレート、初期化とフォールバックに使用 |
+| `DEFAULT_WEB_CONFIG` | `WebConfig` | デフォルト設定テンプレート。初期化とフォールバックに使用 |
 
 ## 関数
 
@@ -91,7 +89,7 @@ type LegacyWebConfig = {
 
 ### `performSaveWebConfig(): Promise<boolean>`
 
-実際の POST リクエストを実行します。`saveConfigPending` フラグを設定し書き込み結果を返します。
+実際の POST リクエストを実行し、現在の `webConfig` スナップショットをバックエンドに送信します。同時実行制御は `saveWebConfig()` が担当します。
 
 ---
 
@@ -101,11 +99,11 @@ type LegacyWebConfig = {
 
 ---
 
-### `normalizeWebConfig(rawConfig?: unknown): WebConfig`
+### `normalizeWebConfig(rawConfig?: Partial<WebConfig> | LegacyWebConfig | null): WebConfig`
 
 バックエンドから返された生の設定（旧版フラット形式またはフィールド欠落の可能性あり）を `DEFAULT_WEB_CONFIG` とディープマージします。
 
-- 旧版フラット設定（`LegacyWebConfig`）を新しいグループ形式に自動検出・移行します。
+- 旧版フラット設定（`LegacyWebConfig`）を自動検出し、新しいグループ形式に移行します。
 - `dashboard.layout` の完全性を保証します。
 
 ---
@@ -120,7 +118,7 @@ type LegacyWebConfig = {
 
 `webConfig` 内の各設定をページに同期します：
 
-1. **言語**: `global.language` を適用し全ページの `data-i18n` 要素を更新。
+1. **言語**: `global.language` を適用し、全ページの `data-i18n` 要素を更新。
 2. **テーマ**: `global.theme` に基づいて `dark-theme` クラスを切り替え。
 3. **パラメータ同期**: リフレッシュレート、履歴長、ページあたり件数、増分スイッチなどを対応する DOM コントロールに同期。
 4. **レイアウト**: `applyDashboardLayout()` を呼び出してカードを再配置。
@@ -129,7 +127,7 @@ type LegacyWebConfig = {
 
 ### `ensureAllCards(): void`
 
-モジュールロード時に即時実行され、`CARD_TEMPLATES` を走査してすべてのカード DOM ノードを作成し `#card-pool` コンテナに注入します。重複作成を避けるため、既存のクラス名要素の有無をチェックします。
+モジュールロード時に即時実行され、`CARD_TEMPLATES` を走査してすべてのカード DOM ノードを作成し `#card-pool` コンテナに注入します。重複作成を避けるため、既存の対応クラス名要素の有無をチェックします。
 
 ---
 
@@ -163,7 +161,7 @@ const DEFAULT_WEB_CONFIG: WebConfig = {
     jumpToInjectionAfterRetry: true,
   },
   injection: {
-    showInjectableOnly: false,
+    showInjectableOnly: true,
   },
 };
 ```

@@ -1,10 +1,8 @@
 # dashboard_history.css
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 Responsible for the control area styles above the node metric history chart (Chart.js), including the metric toggle button group.
-
-> ⚠️ **Changed**: The `.history-metric-switcher` and `.history-metric-btn` class names mentioned in older docs have been changed to `.metric-indicators` and `.metric-dot`.
 
 ## Layout Design (`.progress-card-header`)
 

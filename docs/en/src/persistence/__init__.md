@@ -1,15 +1,13 @@
 # Persistence Module
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 The Persistence module provides CelestialFlow's data persistence functionality, including execution log recording and fallback persistence. It ensures that key data from task execution can be reliably saved and retrieved.
-
-> ⚠️ **Changed**: This module has undergone a major refactoring. `FailSpout`/`FailInlet` → `FallbackSpout`/`FallbackInlet`, `SuccessSpout` has been removed (functionality merged into `FallbackSpout`), JSONL file storage → SQLite database. Old docs `core_fail.md`, `core_success.md`, `util_jsonl.md` are still retained but marked as deprecated.
 
 ## Exported Symbols
 
 | Exported Symbol | Source Module | Description |
-|---------|---------|------|
+|-----------------|---------------|-------------|
 | `FallbackInlet` | `core_fallback` | Thread-safe fallback record collector, sends task lifecycle events to `FallbackSpout` via queue |
 | `FallbackSpout` | `core_fallback` | Fallback record listener, writes task lifecycle to SQLite database |
 | `LogInlet` | `core_log` | Thread-safe log collector, providing rich semantic logging methods |
@@ -88,7 +86,7 @@ flowchart LR
 ### File Naming Convention
 
 | Persistence Type | File Path Pattern |
-|-----------|-------------|
+|------------------|-------------------|
 | Log | `logs/task_logger({date}).log` |
 | Fallback | `fallback/{date}/{source}({time}).sqlite3` |
 
@@ -102,12 +100,12 @@ from celestialflow.persistence import LogSpout, LogInlet, FallbackSpout, Fallbac
 # Configure log persistence
 log_spout = LogSpout()
 log_spout.start()
-log_inlet = LogInlet(log_spout.get_queue(), log_level="SUCCESS")
+log_inlet = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 
 # Configure fallback persistence
 fallback_spout = FallbackSpout(error_source="graph_errors")
 fallback_spout.start()
-fallback_inlet = FallbackInlet(fallback_spout.get_queue())
+fallback_inlet = FallbackInlet().bind_spout(fallback_spout)
 ```
 
 ### Recording Logs

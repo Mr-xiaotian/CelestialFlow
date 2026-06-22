@@ -1,6 +1,6 @@
 # ログ永続化 (Log Persistence)
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 `celestialflow.persistence` モジュールは、マルチプロセス環境におけるログの統合収集、フォーマット、永続化の問題を解決するマルチプロセス安全なログシステムを提供します。
 
@@ -100,7 +100,7 @@ logs/
 ### 初期化
 
 ```python
-sinker = LogInlet(log_queue, log_level="SUCCESS")
+sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 ```
 
 -   `log_queue`: `LogSpout.get_queue()` が返すキューです。

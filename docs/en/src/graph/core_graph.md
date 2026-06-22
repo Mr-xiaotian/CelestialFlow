@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 `TaskGraph` is CelestialFlow's core scheduler, responsible for managing a set of `TaskStage` nodes' dependencies, execution flow, resource allocation, and lifecycle.
 
@@ -33,7 +33,7 @@ class TaskGraph:
 ```python
 def set_stages(self, stages: list[TaskStage]) -> None:
     """
-    Add nodes to the task graph. Creates TaskInQueue and TaskOutQueue for each node.
+    Add nodes to the task graph. Registers nodes and injects graph-level inlet and event clients.
 
     :param stages: List of nodes
     :raises DuplicateNodeError: If node names are duplicated
@@ -92,11 +92,11 @@ def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
                 put_termination_signal: bool = True) -> None:
     """
     Start the task graph. Flow:
-    1. _build_analysis() — analyze graph structure (source nodes, levels, DAG detection) and build `OrderGraph`
+    1. _build_analysis() analyzes graph structure (source nodes, levels, DAG detection) and builds `OrderGraph`
     2. Start spout, inlet, reporter
-    3. put_stage_queue() — inject initial tasks and termination signals
-    4. _execute_stages() — execute all nodes
-    5. _finalize_nodes() — finalize (ensure threads end, collect unconsumed tasks)
+    3. put_stage_queue() injects initial tasks and termination signals
+    4. _execute_stages() executes all nodes
+    5. _finalize_nodes() finalizes (ensures threads end, collects unconsumed tasks)
     6. Release resources
     """
 ```
@@ -164,7 +164,7 @@ def collect_runtime_snapshot(self) -> None:
 Collects a snapshot for a single node, returning a dict with the following fields:
 
 | Field | Type | Description |
-|------|------|------|
+|-------|------|-------------|
 | `name` | `str` | Node name |
 | `func_name` | `str` | Function name |
 | `execution_mode` | `str` | Execution mode |
@@ -186,14 +186,14 @@ Collects a snapshot for a single node, returning a dict with the following field
 ## Query Interface
 
 | Method | Return Type | Description |
-|------|---------|------|
+|--------|-------------|-------------|
 | `get_graph_id()` | `str` | Get the unique identifier of the current task graph instance |
 | `get_status_snapshot()` | `dict` | Status snapshot with unified timestamp |
 | `get_graph_analysis()` | `dict` | Graph analysis info (graphId, name, startTime, className, isDAG, scheduleMode, layersDict) |
 | `get_structure_graph()` | `dict` | Graph structure in JSON format (nodes + edges + source_nodes) |
 | `get_structure_list()` | `list[str]` | Formatted tree text with borders |
 | `get_order_graph()` | `OrderGraph` | internal ordered directed graph instance |
-| `get_fallback_path()` | `Path` | Absolute path to the failure task JSONL file; empty Path if not set |
+| `get_fallback_path()` | `Path` | Absolute path to the fallback task JSONL file; empty Path if not set |
 | `get_source_stages()` | `list[TaskStage]` | List of source nodes |
 
 ### get_graph_analysis Description
@@ -216,10 +216,13 @@ Collects a snapshot for a single node, returning a dict with the following field
 
 ```mermaid
 flowchart TD
-    INIT[__init__] -->|set_schedule_mode / set_ctree / set_reporter| ENV[_init_env]
-    ENV --> STATE[_init_state]
-    ENV --> SPOUT[_init_spout: LogSpout + FailSpout]
-    ENV --> INLET[_init_inlet: LogInlet + FailInlet]
+    INIT[__init__] -->|_set_name / _set_schedule_mode / _set_log_level| SET[Initialize config]
+    INIT --> STATE[_init_state]
+    INIT --> SPOUT[_init_spout: LogSpout + FallbackSpout]
+    INIT --> INLET[_init_inlet: LogInlet + FallbackInlet]
+    SET --> STATE
+    SET --> SPOUT
+    SET --> INLET
     STATE --> BUILD[set_stages + connect]
     BUILD --> START[start_graph]
     START --> ANALYSIS[_build_analysis: Graph analysis & resource construction]
@@ -229,9 +232,8 @@ flowchart TD
     EXEC -->|staged| LAYER[Launch layer by layer]
     ALL --> FINALIZE[_finalize_nodes: Collect unconsumed tasks]
     LAYER --> FINALIZE
-    FINALIZE --> RELEASE[_release_resources]
-    RELEASE --> END[Graph execution complete]
-    
+    FINALIZE --> END[Graph execution complete]
+
     START -->|Monitor| SNAPSHOT[collect_runtime_snapshot]
     SNAPSHOT --> STATUS[get_status_snapshot]
 ```
@@ -269,4 +271,4 @@ graph.start_graph({"source": tasks}, put_termination_signal=False)
 
 ## Unconsumed Task Handling
 
-In `_finalize_nodes()`, all remaining tasks are collected via `in_queue.drain()`, marked as `UnconsumedError`, and persisted to a JSONL file via `fail_inlet`.
+In `_finalize_nodes()`, all remaining tasks are collected via `stage.drain_task_queue()`, marked as `UnconsumedError`, and persisted to a JSONL file through `fallback_inlet` (written to fallback storage via `FallbackSpout`).

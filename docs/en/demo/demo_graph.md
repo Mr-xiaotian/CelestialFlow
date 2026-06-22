@@ -1,6 +1,6 @@
-﻿# demo_graph.py Demo Guide
+# demo_graph.py Demo Guide
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 ## Objective
 
@@ -78,19 +78,19 @@ python demo/demo_graph.py
 Executes Extract → Normalize/Enrich → Load sequentially, output includes sleep logs and a final summary:
 
 ```
-[Extract] Input: 0 -> Output: {'id': 0, 'value': 101}
-[Extract] Input: 1 -> Output: {'id': 1, 'value': 102}
-[Normalize] Input: {'id': 0, 'value': 101} -> Output: {'id': 0, 'value': 0.01}
-[Enrich] Input: {'id': 0, 'value': 101} -> Output: {'id': 0, 'label': 'odd'}
+[Extract] Input: 1 -> Output: {'id': 1, 'value': 10, 'label': 'item_1'}
+[Extract] Input: 2 -> Output: {'id': 2, 'value': 20, 'label': 'item_2'}
+[Normalize] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'normalized': 0.1}
+[Enrich] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'category': 'odd'}
 ...
 --- Graph Summary ---
-Extract    : success=5  fail=0
-Normalize  : success=5  fail=0
-Enrich     : success=5  fail=0
-Load       : success=10 fail=0
+Extract    : success=15 fail=0
+Normalize  : success=15 fail=0
+Enrich     : success=15 fail=0
+Load       : success=30 fail=0
 ```
 
-> Each Extract produces 1 record, processed by Normalize and Enrich respectively, then aggregated by Load. When input is `range(5)`, the Load node receives a total of 10 tasks (5 × 2 downstream).
+> When the input is `range(1, 16)`, Extract processes 15 records, Normalize and Enrich each receive 15, and the Load node receives a total of 30 tasks (15 × 2 downstream).
 
 ### Async Pipeline (`demo_async_staged_pipeline`)
 
@@ -102,12 +102,12 @@ Layer-by-layer staged execution: AsyncDouble completes first, then AsyncToStr st
 [AsyncDouble] Input: 2 -> Output: 4
 ...
 --- Staged 2: AsyncToStr ---
-[AsyncToStr] Input: 2 -> Output: 'Result: 2'
-[AsyncToStr] Input: 4 -> Output: 'Result: 4'
+[AsyncToStr] Input: 2 -> Output: 'result=2'
+[AsyncToStr] Input: 4 -> Output: 'result=4'
 ...
 --- Status Snapshot ---
-AsyncDouble : success=5  fail=0  pending=0
-AsyncToStr  : success=5  fail=0  pending=0
+AsyncDouble : success=20 fail=0  pending=0
+AsyncToStr  : success=20 fail=0  pending=0
 ```
 
 > Total execution time is about 3-5 seconds, primarily affected by built-in `sleep` calls.

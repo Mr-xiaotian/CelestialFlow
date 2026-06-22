@@ -1,10 +1,10 @@
 # main.ts
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 Dashboard main entry script, responsible for coordinating global initialization, event listeners, and core data polling logic.
 
-> ⚠️ **Changed**: The `loadSummary()` and `initSortableDashboard()` mentioned in older docs have been removed. `refreshAll()` now makes 4 parallel requests (statuses, structure, errors, analysis); summary is frontend-aggregated by `renderSummary()` directly from `nodeStatuses`. Added `updateCurrentPageSettings()`, `activateTab()` and other settings panel management functions.
+> ⚠️ **Changed**: `loadSummary()` and `initSortableDashboard()` mentioned in older docs have been removed. `refreshAll()` now makes 4 parallel requests (statuses, structure, errors, analysis); summary is frontend-aggregated by `renderSummary()` directly from `nodeStatuses`. Added `updateCurrentPageSettings()`, `activateTab()`, and other settings panel management functions.
 
 ## Global Variables
 
@@ -12,6 +12,7 @@ Dashboard main entry script, responsible for coordinating global initialization,
 |------|------|------|
 | `refreshRate` | `number` | Polling refresh interval (milliseconds), default `5000` |
 | `refreshIntervalId` | `ReturnType<typeof setInterval> \| null` | Polling timer ID |
+| `settingsStatusTimer` | `ReturnType<typeof setTimeout> \| null` | Auto-hide timer for settings save status hint |
 
 ## DOM Element References
 
@@ -24,13 +25,19 @@ Dashboard main entry script, responsible for coordinating global initialization,
 | `settingsPanel` | `#settings-panel` | Settings floating panel |
 | `themeToggleBtn` | `#theme-toggle` | Theme toggle button |
 | `languageSelect` | `#language-select` | Language selection dropdown |
-| `errorPageSizeSelect` | `#error-page-size` | Error page size dropdown |
+| `errorPageSizeSelect` | `#error-page-size` | Error records per page dropdown |
 | `errorJumpToInjectionToggle` | `#error-jump-to-injection-toggle` | Error page re-injection jump toggle |
 | `structureEdgeDeltaToggle` | `#structure-edge-delta` | Structure graph edge delta display toggle |
 | `statusTotalPendingToggle` | `#status-total-pending-toggle` | Node status card pending value mode toggle |
 | `injectableOnlyToggle` | `#injectable-only-toggle` | Injection page "injectable nodes only" toggle |
 | `tabButtons` | `.tab-btn` | Tab button list |
 | `tabContents` | `.tab-content` | Tab content list |
+| `settingsClose` | `#settings-close` | Settings panel close button |
+| `settingsStatus` | `#settings-status` | Settings save status hint |
+| `settingsCurrentGroup` | `#settings-current-group` | Current page settings group container |
+| `settingsCurrentLabel` | `#settings-current-label` | Current page settings group title |
+| `settingsCurrentEmpty` | `#settings-current-empty` | Current page has no dedicated settings hint |
+| `settingsCurrentItems` | `[data-settings-tab]` | Current page settings item list |
 
 ## Core Features
 
@@ -90,6 +97,7 @@ Creates or clears the polling timer based on `webConfig.global.autoRefreshEnable
 
 #### Settings Panel Management
 `isSettingsPanelOpen()` / `openSettingsPanel()` / `closeSettingsPanel(options?)` / `toggleSettingsPanel()` — manages settings panel visibility and focus restoration.
+`updateSettingsStatusText()` — updates settings save status hint text after language switch.
 
 #### Tab Management
 `getActiveTab(): string` / `activateTab(button): void` / `updateCurrentPageSettings(): void` — manages top tab switching and the "current page settings" grouping in the settings panel.

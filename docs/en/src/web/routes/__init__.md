@@ -1,6 +1,6 @@
-# Runtime Route Assembly Entry
+# Web Route Assembly Entry
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 ## Purpose
 

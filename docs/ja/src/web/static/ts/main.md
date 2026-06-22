@@ -1,17 +1,18 @@
 # main.ts
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/22
 
 ダッシュボードメインエントリスクリプト。グローバル初期化、イベントリスナー、およびコアデータポーリングロジックの調整を担当します。
 
-> ⚠️ **変更済み**: 旧版ドキュメントで言及されていた `loadSummary()` と `initSortableDashboard()` は削除されました。`refreshAll()` は現在 4 つのリクエスト（statuses、structure、errors、analysis）を並列実行し、summary は `renderSummary()` が直接 `nodeStatuses` に基づいてフロントエンドで集約します。`updateCurrentPageSettings()`、`activateTab()` などの設定パネル管理関数が新たに追加されました。
+> ⚠️ **変更済み**: 旧版ドキュメントで言及されていた `loadSummary()` と `initSortableDashboard()` は削除されました。`refreshAll()` は現在 4 つのリクエスト（statuses、structure、errors、analysis）を並列実行し、summary は `renderSummary()` が `nodeStatuses` を直接基にフロントエンドで集約します。`updateCurrentPageSettings()`、`activateTab()` などの設定パネル管理関数が新たに追加されました。
 
 ## グローバル変数
 
 | 変数 | 型 | 説明 |
 |------|------|------|
-| `refreshRate` | `number` | ポーリングリフレッシュ間隔（ミリ秒）、デフォルト `5000` |
+| `refreshRate` | `number` | ポーリングリフレッシュ間隔（ミリ秒）。デフォルト `5000` |
 | `refreshIntervalId` | `ReturnType<typeof setInterval> \| null` | ポーリングタイマー ID |
+| `settingsStatusTimer` | `ReturnType<typeof setTimeout> \| null` | 設定保存状態ヒントの自動非表示タイマー |
 
 ## DOM 要素参照
 
@@ -31,6 +32,12 @@
 | `injectableOnlyToggle` | `#injectable-only-toggle` | 注入ページ「注入可能ノードのみ表示」スイッチ |
 | `tabButtons` | `.tab-btn` | タブボタンリスト |
 | `tabContents` | `.tab-content` | タブコンテンツリスト |
+| `settingsClose` | `#settings-close` | 設定パネル閉じるボタン |
+| `settingsStatus` | `#settings-status` | 設定保存状態ヒント |
+| `settingsCurrentGroup` | `#settings-current-group` | 現在のページ設定グループコンテナ |
+| `settingsCurrentLabel` | `#settings-current-label` | 現在のページ設定グループタイトル |
+| `settingsCurrentEmpty` | `#settings-current-empty` | 現在のページに専用設定がない場合のヒント |
+| `settingsCurrentItems` | `[data-settings-tab]` | 現在のページ設定項目リスト |
 
 ## コア機能
 
@@ -77,21 +84,27 @@ flowchart TD
 ### UI 補助関数
 
 #### `toggleDarkTheme(): boolean`
+
 `body` 要素上で `dark-theme` クラスを切り替え、切り替え後にダークモードかどうかを返します。
 
 #### `showSettingsSaveStatus(messageKey: string): void`
+
 設定パネル下部に時間制限付きの状態ヒントを表示します（成功 2 秒、失敗 5 秒後に自動非表示）。
 
 #### `updateSettingsStatusText(): void`
+
 言語切り替え後に設定状態ヒントのテキストを更新します。
 
 #### `syncAutoRefreshTimer(): void`
+
 `webConfig.global.autoRefreshEnabled` に基づいてポーリングタイマーを作成またはクリアします。
 
 #### 設定パネル管理
+
 `isSettingsPanelOpen()` / `openSettingsPanel()` / `closeSettingsPanel(options?)` / `toggleSettingsPanel()` — 設定パネルの表示/非表示とフォーカス復帰を管理します。
 
 #### タブ管理
+
 `getActiveTab(): string` / `activateTab(button): void` / `updateCurrentPageSettings(): void` — 上部タブ切り替えと設定パネル内の「現在のページ専用設定」グループを管理します。
 
 ## データフロー図

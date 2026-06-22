@@ -1,16 +1,14 @@
 # dashboard_statuses.css
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 Responsible for the layout and style definitions of dashboard node status cards, including the stat grid, four-segment progress bar, and dynamic border colors based on node status.
-
-> ⚠️ **Changed**: The `.sortable-dragging` and `.sortable-ghost` drag styles mentioned in older docs have been removed (node card drag-sort functionality has been migrated to the `layout_editor.ts` layout editor).
 
 ## Layout Structure
 
 ### Stat Grid (`.stat-grid`)
 - Uses `grid` layout, fixed at two columns.
-- Used to display core metrics such as succeeded, pending, error, duplicate, and mode.
+- Used to display core metrics such as succeeded, pending, error, and duplicate.
 
 ### Node Card (`.node-card`)
 - Adopts rounded card design (`border-radius: 1rem`).

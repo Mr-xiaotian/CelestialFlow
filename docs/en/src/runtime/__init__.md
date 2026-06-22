@@ -1,6 +1,6 @@
 # Runtime Module
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 The Runtime module provides the task execution runtime environment for CelestialFlow, including task scheduling, queue management, error handling, performance monitoring, and other core capabilities. It serves as the infrastructure layer for actual task execution.
 
@@ -131,7 +131,7 @@ print(f"Task ID: {envelope.get_id()}")
 # 2. TaskMetrics: metrics tracking
 import time
 
-metrics = TaskMetrics(execution_mode="serial", enable_duplicate_check=True)
+metrics = TaskMetrics(enable_duplicate_check=True)
 
 # Simulate task processing
 metrics.add_task_count(5)
@@ -189,5 +189,5 @@ print(f"Output channel count: {len(out_queue.queue_list)}")
 1. **I/O-intensive tasks**: Use `thread` mode
 2. **Async tasks**: Use `async` mode (function must be a coroutine)
 3. **Debugging**: Use `serial` mode for easier single-execution tracing
-4. **Critical tasks**: Configure appropriate `max_retries` and `add_retry_exceptions`
+4. **Critical tasks**: Configure appropriate `max_retries` and `set_retry_exceptions`
 5. **Duplicate-sensitive scenarios**: Enable `enable_duplicate_check=True`

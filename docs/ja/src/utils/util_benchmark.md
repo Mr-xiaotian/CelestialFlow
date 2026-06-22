@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 最終更新日: 2026/05/24
+> 📅 最終更新日: 2026/06/22
 
 `utils/util_benchmark.py` は実行器とタスクグラフのパフォーマンスベンチマークテスト機能を提供し、異なる実行モードのパフォーマンス差異を比較します。
 
@@ -26,21 +26,21 @@ async def benchmark_executor(
     async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    実行器のベンチマークテストを行います。
+    对执行器进行基准测试。
 
-    :param sync_executor: 同期実行器テンプレート
-    :param async_executor: 非同期実行器テンプレート
-    :param task_source: タスクソース
-    :param sync_modes: 同期モードリスト。デフォルト ["serial", "thread"]
-    :param async_modes: 非同期モードリスト。デフォルト ["async"]
-    :return: テスト結果辞書（use_time, sync_modes, async_modes, table を含む）
+    :param sync_executor: 同步执行器模板
+    :param async_executor: 异步执行器模板
+    :param task_source: 任务源
+    :param sync_modes: 同步模式列表，默认 ["serial", "thread"]
+    :param async_modes: 异步模式列表，默认 ["async"]
+    :return: 测试结果字典（含 use_time, sync_modes, async_modes, table）
     """
 ```
 
 テストフロー：
 1. 実行器をクローン（状態汚染を防止）
-2. 各モードに対して実行方式を設定
-3. タスクを実行し計時
+2. 各モードに実行方式を設定
+3. タスクを実行して計測
 4. 時間テーブルと結果テーブルを出力
 
 出力例：
@@ -65,23 +65,23 @@ def benchmark_graph(
     execution_async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    タスクグラフのベンチマークテストを行います。
+    对任务图进行基准测试。
 
-    :param sync_graph: 同期タスクグラフテンプレート（serial/thread モード用）
-    :param async_graph: 非同期タスクグラフテンプレート（async モード用）
-    :param init_tasks_dict: 初期タスク辞書
-    :param stage_modes: ノードモードリスト。デフォルト ["serial", "thread"]
-    :param execution_sync_modes: 同期実行モードリスト。デフォルト ["serial", "thread"]
-    :param execution_async_modes: 非同期実行モードリスト。デフォルト ["async"]
-    :return: テスト結果辞書（table, stage_modes, sync_modes, async_modes を含む）
+    :param sync_graph: 同步任务图模板（用于 serial/thread 模式）
+    :param async_graph: 异步任务图模板（用于 async 模式）
+    :param init_tasks_dict: 初始任务字典
+    :param stage_modes: 节点模式列表，默认 ["serial", "thread"]
+    :param execution_sync_modes: 同步执行模式列表，默认 ["serial", "thread"]
+    :param execution_async_modes: 异步执行模式列表，默认 ["async"]
+    :return: 测试结果字典（含 table, stage_modes, sync_modes, async_modes）
     """
 ```
 
 テストフロー：
-1. 各 `stage_mode` × `execution_mode` の組み合わせに対して
+1. 各 `stage_mode` × `execution_mode` 組み合わせについて
 2. タスクグラフをクローン
 3. `set_graph_mode(stage_mode, execution_mode)` を設定
-4. `start_graph()` を実行し計時
+4. `start_graph()` を実行して計測
 5. 時間テーブルを出力
 
 出力例：
@@ -101,20 +101,20 @@ import asyncio
 from celestialflow import TaskExecutor
 from celestialflow.utils.util_benchmark import benchmark_executor
 
-# 同期タスクを定義
+# 定义同步任务
 def sync_task(x):
     return x * 2
 
-# 非同期タスクを定義
+# 定义异步任务
 async def async_task(x):
     await asyncio.sleep(0.01)
     return x * 2
 
-# 実行器を作成
+# 创建执行器
 sync_executor = TaskExecutor("SyncBench", sync_task)
 async_executor = TaskExecutor("AsyncBench", async_task)
 
-# ベンチマークテストを実行
+# 运行基准测试
 asyncio.run(benchmark_executor(
     sync_executor=sync_executor,
     async_executor=async_executor,
@@ -128,29 +128,48 @@ asyncio.run(benchmark_executor(
 from celestialflow import TaskGraph, TaskStage
 from celestialflow.utils.util_benchmark import benchmark_graph
 
-# 同期ノードを作成
+
+# 定义同步处理函数
+def process_a(x: int) -> int:
+    return x * 2
+
+
+def process_b(x: int) -> int:
+    return x + 1
+
+
+# 定义异步处理函数
+async def async_process_a(x: int) -> int:
+    return x * 2
+
+
+async def async_process_b(x: int) -> int:
+    return x + 1
+
+
+# 创建同步节点
 stage_a = TaskStage("A", process_a)
 stage_b = TaskStage("B", process_b)
 
-# 非同期ノードを作成
+# 创建异步节点
 async_stage_a = TaskStage("A", async_process_a)
 async_stage_b = TaskStage("B", async_process_b)
 
-# 同期グラフを構築
-sync_graph = TaskGraph()
+# 构建同步图
+sync_graph = TaskGraph(name="SyncGraph")
 sync_graph.set_stages(stages=[stage_a, stage_b])
 sync_graph.connect([stage_a], [stage_b])
 
-# 非同期グラフを構築
-async_graph = TaskGraph()
+# 构建异步图
+async_graph = TaskGraph(name="AsyncGraph")
 async_graph.set_stages(stages=[async_stage_a, async_stage_b])
 async_graph.connect([async_stage_a], [async_stage_b])
 
-# ベンチマークテストを実行
+# 运行基准测试
 benchmark_graph(
     sync_graph=sync_graph,
     async_graph=async_graph,
-    init_tasks_dict={stage_a.get_tag(): range(100)},
+    init_tasks_dict={stage_a.get_name(): range(100)},
 )
 ```
 

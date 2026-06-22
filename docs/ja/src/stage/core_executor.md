@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 `TaskExecutor` は単一タスクロジックを実行するコアコンポーネントです。タスクの実行、並行性制御、エラー処理、リトライ機構、およびログ記録を担当します。
 
@@ -36,11 +36,9 @@ class TaskExecutor[T, R]:
 | `max_workers` | `None` | 並行数制限（None の場合は動的: `min(32, cpu_count+4)`） |
 | `max_retries` | `1` | タスク失敗後の最大リトライ回数（最大で retries+1 回実行） |
 | `max_info` | `50` | ログにおける各情報の最大長 |
-| `enable_duplicate_check` | `True` | タスクハッシュに基づく重複チェックを有効にするか |
+| `enable_duplicate_check` | `False` | タスクハッシュに基づく重複チェックを有効にするか |
 | `persist_result` | `False` | タスク結果を SQLite に永続化するか |
 | `log_level` | `"INFO"` | ログレベル |
-
-> **変更点**：以前のドキュメントには `persist_result` パラメータの記載がありませんでした。このパラメータはタスク成功結果を SQLite に永続化するかを制御します。以前のドキュメントには `unpack_task_args` パラメータが記載されていましたが、現在のソースコードには存在せず、削除されました。
 
 ## Observer パターン
 
@@ -49,8 +47,8 @@ class TaskExecutor[T, R]:
 ### 登録と解除
 
 ```python
-executor.add_observer(observer)     # オブザーバーを登録
-executor.remove_observer(observer)  # オブザーバーを解除
+executor.add_observer(observer)     # 注册观察者
+executor.remove_observer(observer)  # 移除观察者
 ```
 
 ### ブロードキャストイベント
@@ -64,8 +62,6 @@ executor.remove_observer(observer)  # オブザーバーを解除
 | `on_tasks_added(count)` | `_put_task_queue()` | 新規タスク追加（100 件ごとに通知） |
 | `on_finish()` | `_finish_start()` finally | 実行終了（パラメータなし） |
 
-> **変更点**：以前のドキュメントでは `on_start` が実際のタスク総数を渡すと記載されていましたが、ソースコードでは常に `0` を渡します。実際のタスク数は後続の `on_tasks_added` イベントで逐次通知されます。成功/失敗/重複イベントもカウントパラメータを渡しません。
-
 ## コアメソッド
 
 ### start / start_async / start_db
@@ -73,24 +69,24 @@ executor.remove_observer(observer)  # オブザーバーを解除
 ```python
 def start(self, task_source: Iterable[T]) -> None:
     """
-    実行者を同期的に起動。フロー：
-    1. _prepare_start() — init_env() + タスク注入 + 起動ログ記録
-    2. execution_mode に応じて dispatch の対応メソッドを呼び出し
-    3. _finish_start() — on_finish 通知 + 全 spout 停止
+    同步启动执行器。流程：
+    1. _prepare_start() — init_env() + 注入任务 + 记录启动日志
+    2. 根据 execution_mode 调用 dispatch 对应方法
+    3. _finish_start() — 通知 on_finish + 停止所有 spout
     """
 
 async def start_async(self, task_source: Iterable[T]) -> None:
     """
-    実行者を非同期的に起動。内部で execution_mode="async" を設定。
-    asyncio.run() の代わりに await dispatch.dispatch_async() を使用。
+    异步启动执行器。内部设置 execution_mode="async"。
+    使用 await dispatch.dispatch_async() 而非 asyncio.run()。
     """
 
 def start_db(self, db_path: str | Path, status: str = "failed") -> None:
     """
-    sqlite 永続化ストアから現在の stage の失敗タスクを読み取り実行を起動。
+    从 sqlite 持久化库中读取当前 stage 的失败任务并启动执行。
 
-    :param db_path: sqlite データベースファイルパス
-    :param status: レコード状態フィルタ条件。デフォルト "failed"
+    :param db_path: sqlite 数据库文件路径
+    :param status: 记录状态过滤条件，默认 "failed"
     """
 ```
 
@@ -110,10 +106,8 @@ def start_db(self, db_path: str | Path, status: str = "failed") -> None:
 
 ```python
 def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
-    """リトライが必要な例外型を追加する。"""
+    """添加需要重试的异常类型。"""
 ```
-
-> **変更点**：以前のドキュメントでは `add_retry_exceptions` と記載されていましたが、ソースコードのメソッド名は `set_retry_exceptions` です。
 
 ### 結果処理（コアメソッド）
 
@@ -121,35 +115,33 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
 
 ```python
 def process_task_success(self, task_envelope: TaskEnvelope[T], result: R, start_time: float) -> None:
-    """成功タスクの処理：observer 通知、ログ書き込み、結果エンベロープ生成、result_queue への投入。"""
+    """处理成功任务：通知 observer、写日志、生成结果封装并放入 result_queue。"""
 
 def handle_task_fail(self, task_envelope: TaskEnvelope[T], exception: Exception) -> None:
-    """失敗タスクの処理：observer 通知、fallback_inlet と log_inlet への記録。"""
+    """处理失败任务：通知 observer、记录到 fallback_inlet 和 log_inlet。"""
 
 def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
-    """重複タスクの処理：observer 通知、ログ記録。"""
+    """处理重复任务：通知 observer、记录日志。"""
 ```
-
-> **変更点**：以前のドキュメントではオーバーライド可能なメソッド `process_result()` と `get_args()` が記載されていましたが、現在のソースコードにはこれらのメソッドは存在しません。以前のドキュメントには `process_result_dict()` と `handle_error_dict()` の記載もありましたが、現在のソースコードにもこれらのメソッドは存在せず、実際の結果処理は `process_task_success()` で行われます。
 
 ### 結果の取得
 
 ```python
 def get_success_pairs(self) -> list[tuple[T, R]]:
     """
-    成功タスク (task, result) リストを取得。
-    persist_result=True が必要。それ以外の場合は空リストを返し警告を発行。
+    获取成功任务 (task, result) 列表。
+    需要 persist_result=True，否则返回空列表并发出警告。
     """
 
 def get_error_pairs(self) -> list[tuple[T, PersistedError]]:
-    """失敗タスク (task, PersistedError) リストを取得。"""
+    """获取失败任务 (task, PersistedError) 列表。"""
 ```
 
 ## CelestialTree 統合
 
 ```python
 def set_ctree(self, ctree_client: EventClient) -> None:
-    """イベントクライアントインスタンスを設定。"""
+    """设置事件客户端实例。"""
 ```
 
 > デフォルトでは、`TaskExecutor` は内部で `LocalEventClient()` を使用してローカルインクリメンタルイベント ID を生成します。
@@ -159,15 +151,13 @@ def set_ctree(self, ctree_client: EventClient) -> None:
 ## 状態照会メソッド
 
 ```python
-def get_name(self) -> str:                    # 実行者名
-def get_full_name(self) -> str:               # "name(mode-workers)" または "name(serial)"
-def get_func_name(self) -> str:               # 関数名
-def get_summary(self) -> dict:                # スナップショット：name, func_name, execution_mode, max_workers
-def get_counts(self) -> dict:                 # カウンター：tasks_input/succeeded/failed/duplicated/processed/pending
-def get_fallback_path(self) -> Path:          # fallback SQLite ファイルの絶対パス
+def get_name(self) -> str:                    # 执行器名称
+def get_full_name(self) -> str:               # "name(mode-workers)" 或 "name(serial)"
+def get_func_name(self) -> str:               # 函数名
+def get_summary(self) -> dict:                # 快照：name, func_name, execution_mode, max_workers
+def get_counts(self) -> dict:                 # 计数器：tasks_input/succeeded/failed/duplicated/processed/pending
+def get_fallback_path(self) -> Path:          # fallback SQLite 文件的绝对路径
 ```
-
-> **変更点**：`get_summary()` が返す辞書のキーは `name, func_name, execution_mode, max_workers` であり、`class_name` は含まれません。
 
 ## ライフサイクル
 
@@ -199,8 +189,6 @@ flowchart TD
     LOG_END --> STOP[spout ×2 停止:<br/>log_spout + fallback_spout]
 ```
 
-> **変更点**：以前のフローチャートには `_release_client` ノード（ソースコードに存在しません）と 3 つの spout（`log_spout` + `fail_spout` + `success_spout`）が含まれていました。現在は 2 つの spout のみです：`log_spout` + `fallback_spout`。
-
 ## 使用例
 
 ### 基本タスク実行
@@ -218,10 +206,10 @@ executor = TaskExecutor(
 )
 executor.start([1, 2, 3])
 
-# 成功/失敗結果を取得
+# 获取成功/失败结果
 success = executor.get_success_pairs()
 errors = executor.get_error_pairs()
-print(f"成功: {len(success)}, 失敗: {len(errors)}")
+print(f"成功: {len(success)}, 失败: {len(errors)}")
 ```
 
 ### SQLite から失敗タスクを復元
@@ -233,7 +221,7 @@ def process_item(x: int) -> int:
     return x * 10
 
 executor = TaskExecutor("Recovery", process_item, execution_mode="thread")
-# 永続化された失敗レコードから実行を復元
+# 从持久化的失败记录中恢复执行
 executor.start_db("fallback/2026-06-18/executor_fallbacks.sqlite3", status="failed")
 ```
 

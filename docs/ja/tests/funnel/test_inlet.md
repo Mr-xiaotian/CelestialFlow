@@ -1,6 +1,6 @@
 # Inlet 基本テスト (test_inlet.py)
 
-> 📅 最終更新日: 2026/06/05
+> 📅 最終更新日: 2026/06/22
 
 ## 役割
 `celestialflow.funnel.core_inlet.BaseInlet` の最小責務（呼び出し元から渡されたデータを `_funnel()` 経由でターゲットキューに入れ、実行中の `BaseSpout` サブクラスによって消費されること）を検証します。
@@ -13,6 +13,7 @@
 ## 主要シナリオ
 - `test_inlet_to_spout_communication`: `MockSpout` を起動後に2つのメッセージを送信し、コンシューマが最終的に順序通り受信することを検証。
 - `test_funnel_puts_record_into_queue`: spout を起動せず、キューから元のレコードを直接取得できることをアサートし、`_funnel()` がデータを改変しないことを確認。
+- `test_bind_spout_creates_bound_inlet`: `bind_spout()` が対象 spout と状態を共有する inlet を返し、レコード送信後に spout の未処理カウントが正しく増加することを検証。
 
 ## 実行方法
 

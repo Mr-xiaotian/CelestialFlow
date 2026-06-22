@@ -1,6 +1,6 @@
 # RuntimeConstant
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 `runtime/util_constant.py` はランタイムのグローバル定数を定義します。主にログレベルマッピングテーブル `LEVEL_DICT` です。
 
@@ -53,9 +53,7 @@ flowchart TD
     style TRA fill:#e0e0e0
 ```
 
-## 注意事項
-
-- `LEVEL_DICT` は `LogInlet` のログフィルタリングの中核的な根拠です。レベル数値を随意に変更しないでください。
+## 使用例
 
 ### ログレベルフィルタリングロジック
 
@@ -113,4 +111,4 @@ print(validate_level("VERBOSE"))  # False
 ## 注意事項
 
 - `LEVEL_DICT` は `LogInlet` のログフィルタリングの中核的な根拠です。レベル数値を随意に変更しないでください。
-- `STAGE_STYLE` は外部パッケージ `celestialtree` の `NodeLabelStyle` に依存します。テンプレート文字列中の `{base}`、`{payload.name}`、`{type}` 変数は CelestialTree レンダリングエンジンによって注入されます。
+- ソースコード中の `STAGE_STYLE` は現在コメントアウトされており、実際には有効化されていません。復元する場合は、外部パッケージ `celestialtree` の `NodeLabelStyle` を依存関係として追加する必要があり、テンプレート文字列中の `{base}`、`{payload.name}`、`{type}` 変数は CelestialTree レンダリングエンジンによって注入されます。

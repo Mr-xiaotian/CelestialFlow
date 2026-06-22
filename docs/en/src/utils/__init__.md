@@ -1,6 +1,6 @@
 # Utils Module
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 The Utils module provides general utility functions and helper classes for CelestialFlow, including performance benchmarking, data cloning, collection operations, and formatting utilities. These utilities are widely used by other modules, improving code reusability and maintainability.
 
@@ -88,8 +88,19 @@ import asyncio
 from celestialflow import TaskExecutor
 from celestialflow.utils.util_benchmark import benchmark_executor
 
-executor = TaskExecutor("Bench", my_func)
-asyncio.run(benchmark_executor(executor, async_executor, range(100)))
+
+def sync_task(x: int) -> int:
+    return x * 2
+
+
+async def async_task(x: int) -> int:
+    await asyncio.sleep(0.001)
+    return x * 2
+
+
+sync_executor = TaskExecutor("SyncBench", sync_task)
+async_executor = TaskExecutor("AsyncBench", async_task)
+asyncio.run(benchmark_executor(sync_executor, async_executor, range(100)))
 ```
 
 ### Cloning
@@ -105,7 +116,7 @@ graph_copy = clone_graph(original_graph)
 from celestialflow.utils.util_collections import cluster_by_value_sorted
 
 grouped = cluster_by_value_sorted({"a": 1, "b": 2, "c": 1})
-# {"1": ["a", "c"], "2": ["b"]}
+# {1: ["a", "c"], 2: ["b"]}
 ```
 
 ### Formatting
@@ -208,7 +219,7 @@ async def run_benchmark():
     print(f"\nBenchmark table:\n{table}")
 
     # Run the original executor
-    await executor.start(range(100))
+    executor.start(range(100))
 
 
 asyncio.run(run_benchmark())

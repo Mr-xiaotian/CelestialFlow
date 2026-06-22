@@ -1,6 +1,6 @@
 # Web Module
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 The Web module provides an interactive monitoring and management interface built with FastAPI and native TypeScript, supporting real-time task status visualization, error tracing, dynamic task injection, and global configuration management.
 
@@ -24,20 +24,20 @@ The Web module serves as a bridge between `TaskReporter` and the end user. On on
 
 ### Core Frontend Components
 
-1. **dashboard_history.ts**
-   - **Purpose**: Maintains multi-metric historical series, renders progress line charts using Chart.js. Supports real-time metric switching.
+Frontend TypeScript source files are located in `web/static/ts/`, compiled to JS and loaded by `templates/index.html`:
 
-2. **dashboard_statuses.ts**
-   - **Purpose**: Renders dynamic node cards, displaying real-time performance metrics and progress bars for each stage.
-
-3. **dashboard_structure.ts**
-   - **Purpose**: Renders task graph topology using Mermaid.js, supporting dynamic node coloring.
-
-4. **injection.ts**
-   - **Purpose**: Manages the manual task injection UI, supporting multi-node batch injection.
-
-5. **errors.ts**
-   - **Purpose**: Handles paginated display and deep filtering of error logs.
+1. **main.ts** — Global entry and polling coordination
+2. **utils.ts** — General utility functions
+3. **i18n.ts** — Internationalization support
+4. **web_config.ts** — Configuration management logic
+5. **dashboard_statuses.ts** — Renders dynamic node cards, displaying real-time performance metrics and progress bars for each stage
+6. **dashboard_structure.ts** — Renders task graph topology using Mermaid.js, supporting dynamic node coloring
+7. **dashboard_history.ts** — Maintains multi-metric historical series, renders progress line charts using Chart.js
+8. **dashboard_summary.ts** — Global statistics dashboard rendering and updates
+9. **dashboard_analysis.ts** — Topology analysis information display
+10. **errors.ts** — Paginated display and deep filtering of error logs
+11. **injection.ts** — Manual task injection UI management, supporting multi-node batch injection
+12. **layout_editor.ts** — Card layout editor (depends on CARD_TEMPLATES/PANEL_SELECTOR_MAP in web_config)
 
 ## Architectural Highlights
 
@@ -107,7 +107,7 @@ async def main():
     def process(x: int) -> int:
         return x * 2
 
-    graph = TaskGraph(schedule_mode="eager")
+    graph = TaskGraph(name="DemoGraph", schedule_mode="eager")
     stage = TaskStage("Processor", process, execution_mode="thread")
     graph.set_stages([stage])
 
@@ -122,7 +122,7 @@ async def main():
     reporter.start()
 
     # 4. Execute tasks
-    await graph.start_graph({stage.get_tag(): range(50)})
+    graph.start_graph({stage.get_name(): range(50)})
 
     # 5. Stop the reporter
     reporter.stop()

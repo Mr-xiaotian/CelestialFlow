@@ -1,6 +1,6 @@
-# Runtime ルート組み立てエントリ
+# Web ルート組み立てエントリ
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/22
 
 ## 役割
 
@@ -47,7 +47,7 @@ from celestialflow.web.core_server import TaskWebServer
 server = TaskWebServer(...)
 router = create_router(server)
 
-# FastAPI アプリケーションにマウント
+# 挂载到 FastAPI 应用
 from fastapi import FastAPI
 app = FastAPI()
 app.include_router(router)

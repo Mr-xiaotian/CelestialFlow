@@ -1,10 +1,8 @@
 # injection_nodes.css
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 Defines styles for the left-side node browse list of the task injection page, including node items, selected state, disabled state, and the "Edited" badge.
-
-> 🆕 **New document**: This file was split from the original merged `injection.css`, specifically covering node list styles.
 
 ## Node List Container (`.node-list`)
 

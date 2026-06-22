@@ -1,10 +1,8 @@
 # injection_editor.css
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 Defines styles for the right-side editor panel of the task injection page, including the JSON input area, validation messages, and action button groups.
-
-> 🆕 **New document**: This file was split from the original merged `injection.css`, specifically covering editor panel styles.
 
 ## Editor Container (`.injection-editor-card`)
 

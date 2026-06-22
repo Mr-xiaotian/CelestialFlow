@@ -1,6 +1,6 @@
-﻿# Specialized Stage Tests (test_stages.py)
+# Specialized Stage Tests (test_stages.py)
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 ## Purpose
 Validates the specialized task nodes (`TaskSplitter`, `TaskRouter`) in `celestialflow.stage.core_stages`, ensuring tasks can be correctly split, routed, and dispatched.
@@ -24,12 +24,13 @@ Validates the specialized task nodes (`TaskSplitter`, `TaskRouter`) in `celestia
 | Case | Coverage Goal |
 |------|----------|
 | `test_router_init` | Validates default serial mode, no retry, route counters are an empty dict |
-| `test_router_route_logic` | Validates `_route` correctly parses `(target, data)` tuples; unknown target raises `InvalidOptionError`; non-tuple format raises `TaskFormatError` |
+| `test_router_route_logic` | Validates `_route` calls the routing function passed at construction and returns `(target, task)`; unknown target raises `InvalidOptionError` |
 | `test_router_process_success` | After successful routing in a `TaskGraph`, `route_counters` counts are correct and target nodes each receive the corresponding number of successful tasks |
+| `test_router_binding_counter_uses_stable_metrics_lock` | The route counter binds to a stable metrics lock from creation and remains the same lock object after switching `execution_mode` |
 
 ## Test Focus
 - **One-to-many propagation**: Validates that the Splitter's result list is expanded into multiple independent task envelopes, not broadcast as the same result.
-- **Named dispatch**: Validates that the Router precisely directs tasks to specified downstream nodes via a pre-binding mechanism.
+- **Named dispatch**: Validates that the Router precisely directs tasks to specified downstream nodes via an internal routing function and pre-binding mechanism.
 - **State tracking**: Validates that the custom internal counters (`split_counter`, `route_counters`) of specialized nodes accurately reflect business logic execution.
 
 ## How to Run

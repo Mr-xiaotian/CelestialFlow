@@ -1,6 +1,6 @@
 # bench_graph_mode.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/16
+> 📅 Last Updated: 2026/06/22
 
 ## Objective
 
@@ -9,13 +9,13 @@ Compare the task graph execution performance of complex DAGs under different com
 ## Test Content
 
 ### `bench_graph_0`
-- **Structure**: 4-node DAG (`stage1 → [stage2, stage3] → stage4`)
+- **Structure**: 4-node DAG, `stage1 → stage2 → stage4`, `stage1 → stage3` (stage3 is an independent branch that does not merge into stage4)
 - **Task Mix**: CPU-intensive (Fibonacci), I/O-intensive (sleep), pure computation (divide by two, square)
 - **Inputs**: `range(25, 32) + [0, 27, None, 0, ""]` (includes boundary error cases)
 - **Enabled Services**: Reporter
 
 ### `bench_graph_1`
-- **Structure**: 6-node multi-layer DAG (A → [B, C] → [D, E] → F)
+- **Structure**: 6-node multi-layer DAG (A → [B, C]; B → [D, E]; C → E; D → F)
 - **Tasks**: Random 0-2 second sleep (simulating uneven load)
 - **Inputs**: `range(10)`
 - **Enabled Services**: Reporter

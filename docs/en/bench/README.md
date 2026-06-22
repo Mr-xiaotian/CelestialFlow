@@ -1,6 +1,6 @@
 # bench/ Benchmark Overview
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 ## Description
 
@@ -52,7 +52,7 @@ To quickly build a general impression of the project's performance characteristi
 |------|------|
 | `bench_lock_overhead.md` | Lock contention and synchronization overhead |
 | `bench_datastructures.md` | Performance baselines for common data structures and cross-process structures |
-| `bench_hash.md` | Comparison of hash-related methods such as `make_hashable` |
+| `bench_hash.md` | Comparison of object stable hash strategies (`normalize_for_hash` + multiple serialization/hash combinations) |
 | `bench_hash_container.md` | Hash performance comparison for container-type objects |
 | `bench_hash_memory.md` | Memory usage tests for hash-related implementations |
 | `bench_futures_memory.md` | Memory overhead for batch futures scenarios |

@@ -1,10 +1,10 @@
 # TaskNodes
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 The TaskNodes module provides various special-function `TaskStage` implementations for scenarios such as flow control and external system interaction.
 
-## TaskSplitter
+## TaskSplitter (Splitter)
 
 ```mermaid
 flowchart LR
@@ -45,9 +45,8 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         self,
         name: str,
         split_item: Callable[[TItem], RItem] | None = None,
+        *,
         stage_mode: str = "serial",
-        enable_duplicate_check: bool = True,
-        log_level: str = "INFO",
     ):
         """
         Initialize TaskSplitter.
@@ -55,20 +54,16 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         :param name: Node name
         :param split_item: Custom per-sub-task processing function, defaults to identity mapping
         :param stage_mode: Node running mode
-        :param enable_duplicate_check: Whether to enable duplicate checking
-        :param log_level: Log level
         """
 ```
-
-> **Changed**: `execution_mode` is fixed to `"serial"`, `max_retries` is fixed to `0`, and neither should nor can be modified via external parameters. The `unpack_task_args=True` parameter mentioned in previous documentation does not exist in the current source code.
 
 ### Usage
 
 ```python
 class MySplitter(TaskSplitter):
-    def _split(self, *task):
+    def _split(self, task):
         # Split input data into multiple parts
-        return task[0], task[1]  # Returns a tuple; each element becomes an independent task
+        return tuple(task)
 ```
 
 ### Characteristics
@@ -80,7 +75,7 @@ class MySplitter(TaskSplitter):
 
 ---
 
-## TaskRouter
+## TaskRouter (Router)
 
 ```mermaid
 flowchart LR
@@ -175,8 +170,8 @@ from celestialflow import TaskGraph, TaskStage, TaskSplitter
 
 # Custom splitter: split text by lines
 class LineSplitter(TaskSplitter):
-    def _split(self, *task):
-        return tuple(task[0].split("\\n"))
+    def _split(self, task):
+        return tuple(task.split("\\n"))
 
 # Define downstream processing stages
 source = TaskStage("Input", func=lambda x: x, stage_mode="serial")

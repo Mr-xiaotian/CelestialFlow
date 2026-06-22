@@ -1,6 +1,6 @@
-﻿# Task Executor Tests (test_executor.py)
+# Task Executor Tests (test_executor.py)
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 ## Purpose
 Validates the `TaskExecutor` class in `celestialflow.stage.core_executor`, ensuring accurate task execution, error handling, and support for advanced features (such as retry and deduplication) across various concurrency modes.
@@ -15,9 +15,10 @@ Validates the `TaskExecutor` class in `celestialflow.stage.core_executor`, ensur
 | `TestExecutorSerial` | 4 | Serial execution, error handling, retry success, non-matching exceptions not retried |
 | `TestExecutorThread` | 1 | Thread-pool parallel execution with correct counting |
 | `TestExecutorAsync` | 2 | Async execution and continuous processing logic |
-| `TestExecutorDuplicateCheck` | 2 | Behavioral comparison with dedup enabled/disabled |
+| `TestExecutorDuplicateCheck` | 3 | Behavioral comparison among default disabled, enabled, and explicitly disabled configurations |
+| `TestExecutorReplay` | 1 | `start_db` reads failed tasks from sqlite by stage and replays them |
 | `TestExecutorSuccessCache` | 1 | Success result caching and `get_success_pairs()` |
-| `TestExecutorConfig` | 2 | Invalid execution mode validation, `get_summary()` metadata |
+| `TestExecutorConfig` | 4 | Zero/multi-parameter function rejection, invalid execution mode validation, `get_summary()` metadata |
 
 ## Key Test Scenarios
 
@@ -32,8 +33,9 @@ Validates the `TaskExecutor` class in `celestialflow.stage.core_executor`, ensur
 - Validates that non-matching exceptions (e.g., configuring retry for `RuntimeError` but throwing `ValueError`) immediately trigger failure.
 
 ### Deduplication & Caching
+- Validates that the default configuration (without specifying `enable_duplicate_check`) does not enable duplicate checking, so identical tasks are executed repeatedly.
 - Validates that when `enable_duplicate_check` is on, identical tasks execute only once and duplicates are counted under `tasks_duplicated`.
-- Validates that when `enable_duplicate_check` is off, identical tasks all execute and `tasks_duplicated` is 0.
+- Validates that when `enable_duplicate_check` is explicitly off, identical tasks all execute and `tasks_duplicated` is 0.
 - Validates that `get_success_pairs()` correctly returns input-output pairs for successfully completed tasks.
 
 ### Configuration Validation

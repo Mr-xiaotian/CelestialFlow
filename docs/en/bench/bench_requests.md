@@ -1,6 +1,6 @@
 ﻿# bench_requests.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/16
+> 📅 Last Updated: 2026/06/22
 
 ## Objective
 
@@ -26,10 +26,10 @@ Outputs mean, median, stdev, min, max (in milliseconds) for each group of reques
 
 ## Potential Issues
 
-1. **Network fluctuation**: The target `httpbin.org` is on the public internet; latency is affected by local network and international link quality, making single-run results non-reproducible.
-2. **Connection pool not warmed up**: `requests.Session`'s connection pool establishes TCP/TLS connections on first request; the first few requests may have significantly higher latency than subsequent ones.
+1. **Default target is a local service**: The default URL is `http://127.0.0.1:5005/api/pull_server_state`. If you switch to a public target such as `httpbin.org`, latency is affected by network quality, making single-run results non-reproducible.
+2. **Connection pool not warmed up**: `requests.Session`'s connection pool establishes TCP/TLS connections on the first request; the first few requests may have significantly higher latency than subsequent ones.
 3. **GIL constraint**: Threads in `ThreadPoolExecutor` are constrained by Python's GIL; CPU-intensive parts of `requests` (e.g., TLS handshake, JSON parsing) cannot truly parallelize.
-4. **httpbin rate limiting**: Frequent testing may trigger httpbin rate limiting, returning 429 or connection resets.
+4. **Public target rate limiting**: If pointing at `httpbin.org` or similar public services, frequent testing may trigger rate limiting, returning 429 or connection resets.
 
 ## Benchmark Results (Measured)
 

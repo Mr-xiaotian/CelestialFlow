@@ -1,10 +1,8 @@
 # TaskEnvelope
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 A wrapper class for task data that is passed between Stages. It encapsulates the original task data, task hash, and task ID.
-
-> ⚠️ **Changed**: The `source` and `prev` fields described in previous documentation have been removed during refactoring. `TaskEnvelope` currently only contains three core fields: `hash`, `id`, `task`.
 
 ## Attributes
 
@@ -47,7 +45,7 @@ assert envelope.hash is not None     # Now cached
 assert envelope.get_hash() == h      # Subsequent calls return cached value
 ```
 
-## Usage Example
+## Usage Examples
 
 The following examples demonstrate core `TaskEnvelope` operations: creation, data access, lazy hash computation, and ID changes.
 

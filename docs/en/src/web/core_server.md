@@ -1,6 +1,6 @@
-# TaskWeb
+# TaskWebServer (core_server)
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 The TaskWeb module provides a lightweight FastAPI-based web server for real-time monitoring and management of task graph execution. It acts as a relay between `TaskReporter` (backend) and the Web UI (frontend).
 
@@ -39,6 +39,15 @@ server = TaskWebServer(host="127.0.0.1", port=5005, log_level="info")
 server.start_server()
 ```
 
+### CLI Entry Point
+
+`core_server.py` also provides command-line entry functions:
+
+- `parse_args()` — Parses `--host`, `--port`, `--log-level` arguments; `--log-level` is restricted to `critical` / `error` / `warning` / `info` / `debug` / `trace`.
+- `main_entry()` — Constructs a `TaskWebServer` from parsed arguments and calls `start_server()`.
+
+The command-line tool `celestialflow-web` is registered from `main_entry`.
+
 ## Feature Interface
 
 Visit `http://localhost:5000` (or the specified port) to see the Web UI.
@@ -62,17 +71,17 @@ TaskWeb provides a series of RESTful APIs for `TaskReporter` calls and frontend 
 
 ### Pull Endpoints (GET /api/pull_*)
 
-Used by the Web UI to fetch the latest data. Supports the `known_rev` mechanism: if the server-side data version hasn't changed, returns `data: null` to save bandwidth.
+Used by the Web UI to fetch the latest data. Most pull endpoints (`pull_status`, `pull_structure`, `pull_errors`, `pull_analysis`) support the `known_rev` mechanism: if the server-side data version hasn't changed, returns `data: null` to save bandwidth. `pull_config`, `pull_task_injection`, and `pull_server_state` do not use the `known_rev` mechanism and return full data every time.
 
 | Endpoint | Return Structure (data field) | Description |
 |----------|-------------------------------|-------------|
-| `pull_config` | `WebConfigModel` | Fetch global configuration such as theme, language, refresh interval |
-| `pull_structure`| `list[dict]` | Fetch the topology structure of the task graph |
-| `pull_status` | `dict[tag, NodeStatus]` | Fetch real-time runtime metrics and unified timestamp for each node |
-| `pull_errors` | `list[dict]` | Paginated pull of error logs |
-| `pull_analysis` | `dict` | Fetch graph topology analysis results (DAG, layers, etc.) |
-| `pull_task_injection` | `dict[str, list[Any]]` | For TaskGraph to pull queued injection tasks (grouped by node name) |
-| `pull_interval` | `{"interval": float}` | Fetch the Reporter push interval |
+| `pull_config` | `dict` | Fetch global configuration such as theme, language, refresh interval |
+| `pull_structure` | `dict[str, Any]` | Fetch the topology structure of the task graph (including nodes/edges/source_nodes) |
+| `pull_status` | `dict[str, dict[str, Any]]` | Fetch real-time runtime metrics and unified timestamp for each node |
+| `pull_errors` | `list[dict]` | Paginated pull of error logs, supporting node/keyword filtering and sorting |
+| `pull_analysis` | `dict[str, Any]` | Fetch graph topology analysis results |
+| `pull_task_injection` | `dict[str, list[Any]]` | For TaskGraph to pull queued injection tasks (grouped by node name, cleared after reading) |
+| `pull_server_state` | `dict[str, Any]` | Fetch server-side state needed for Reporter synchronization (interval/is_current_graph/has_structure/max_event_id_in_fail) |
 
 ### Push Endpoints (POST /api/push_*)
 
@@ -82,10 +91,9 @@ Primarily called by `TaskReporter` to report backend runtime state.
 |----------|-----------|-------------|
 | `push_config` | `WebConfigModel` | Called by frontend, saves user settings |
 | `push_status` | `StatusModel` | Reports node status snapshot + current timestamp |
-| `push_structure`| `StructureModel` | Reports graph structure |
+| `push_structure` | `StructureModel` | Reports graph structure |
 | `push_analysis` | `AnalysisModel` | Reports analysis data |
-| `push_errors_meta` | `ErrorsMetaModel` | Pushes error metadata (supports caching) |
-| `push_errors_content`| `ErrorsContentModel`| Pushes error content (supports caching) |
+| `push_errors` | `ErrorsModel` | Directly receives error content and writes to SQLite |
 | `push_injection_tasks` | `TaskInjectionModel` | Frontend submits task injection requests |
 
 ## Data Models (Pydantic)
@@ -96,39 +104,33 @@ Primarily called by `TaskReporter` to report backend runtime state.
 
 ```python
 class StructureModel(BaseModel):
-    structure: dict[str, Any]  # Structure snapshot, typically containing nodes, edges, source_nodes
+    graph_id: str = ""  # Graph instance identifier, used for Reporter-side graph context validation
+    structure: dict[str, Any]  # Structure snapshot, containing nodes, edges, source_nodes
 ```
 
 ### StatusModel
 
 ```python
 class StatusModel(BaseModel):
+    graph_id: str = ""                    # Graph instance identifier
     timestamp: float                      # Unified sampling timestamp
     status: dict[str, dict[str, Any]]     # Key is node name, value is node status dictionary
 ```
 
-### ErrorsMetaModel
+### ErrorsModel
 
 ```python
-class ErrorsMetaModel(BaseModel):
-    jsonl_path: str  # JSONL file path
-    rev: int         # Version number (used for cache judgment)
-```
-
-### ErrorsContentModel
-
-```python
-class ErrorsContentModel(BaseModel):
-    errors: list[dict[str, Any]]
-    jsonl_path: str
-    rev: int
+class ErrorsModel(BaseModel):
+    graph_id: str = ""              # Graph instance identifier
+    errors: list[dict[str, Any]]    # Error record list, directly written to SQLite database
 ```
 
 ### AnalysisModel
 
 ```python
 class AnalysisModel(BaseModel):
-    analysis: dict[str, Any]
+    graph_id: str = ""        # Graph instance identifier
+    analysis: dict[str, Any]  # Analysis result dictionary
 ```
 
 ### TaskInjectionModel
@@ -138,12 +140,12 @@ class TaskInjectionModel(RootModel[dict[str, list[Any]]]):
     """Task injection request model, format: {node_name: [tasklist]}."""
 ```
 
-> Unlike the old single-node format, the current model uses dictionary keys as node names and values as task lists. Request body example:
+> The request body is directly a mapping from node names to task lists. Example:
 > `{"StageA": [task1, task2], "StageB": [task3]}`
 
 ### WebConfigModel
 
-Configuration uses a nested grouping structure, no longer flat.
+Configuration uses a nested grouping structure.
 
 ```python
 class GlobalConfigModel(BaseModel):
@@ -182,10 +184,9 @@ class WebConfigModel(BaseModel):
 
 Web service configuration is persisted in `web/config.json`.
 
-- `load_config()` — Read at startup and validated via `WebConfigModel`
+- `load_config()` — Read at startup and validated via `WebConfigModel`; if `config.json` does not exist, raises `ConfigurationError` directly and does not start with hardcoded defaults.
 - `save_config(config, config_path)` — Save configuration to a JSON file, thread-safe (guaranteed by `config_lock` in the upper-level `push_config` route)
 - `cal_interval(refresh_interval)` — Convert millisecond refresh interval to seconds, range limited to `[1.0, 60.0]`
-- **Graceful degradation**: If `config.json` fails to load, the Web service starts with hardcoded defaults, ensuring the monitoring interface is always available.
 - **Sync mechanism**: When the frontend updates `refreshInterval`, the backend `report_interval` is automatically synchronized, thus affecting the `TaskReporter` push frequency.
 
 ## Integration with TaskGraph
@@ -193,58 +194,46 @@ Web service configuration is persisted in `web/config.json`.
 ### Enabling in TaskGraph
 
 ```python
-from celestialflow import TaskGraph
+from celestialflow import TaskGraph, TaskStage
 
-graph = TaskGraph()
+
+def process(x: int) -> int:
+    return x * 2
+
+
+stage_a = TaskStage("StageA", process, execution_mode="thread")
+graph = TaskGraph(name="DemoGraph")
 graph.set_stages(stages=[stage_a])
 graph.set_reporter(True, host="127.0.0.1", port=5005)
+init_tasks = {stage_a.get_name(): [1, 2, 3]}
 graph.start_graph(init_tasks)
 ```
 
 ### Data Flow
 
 ```
-TaskGraph                    TaskWeb                    Browser
-    |                           |                          |
-    |--- push_structure ------->|--- Dashboard ----------->|
-    |--- push_status ---------->|                          |
-    |--- push_analysis -------->|                          |
-    |                           |                          |
-    |--- push_errors_meta ----->|---- Errors ------------->|
-    |--- push_errors_content -->|                          |
-    |                           |                          |
-    |<-- pull_task_injection ---|<--- Inject Tasks --------|
-    |<-- pull_interval ---------|<--- Web Config ----------|
-    |                           |                          |
+TaskGraph                         TaskWeb                    Browser
+    |                                |                          |
+    |--- push_structure ------------>|--- Dashboard ----------->|
+    |--- push_status --------------->|                          |
+    |--- push_analysis ------------->|                          |
+    |                                |                          |
+    |--- push_errors --------------->|---- Errors ------------->|
+    |                                |                          |
+    |<-- pull_task_injection --------|<--- Inject Tasks --------|
+    |<-- pull_server_state ----------|<--- Reporter Sync -------|
+    |                                |                          |
 ```
 
 ## Error Handling
 
-### Caching Mechanism
+### SQLite Persistence
 
-`push_errors_meta` and `push_errors_content` support caching based on `(jsonl_path, rev)`:
-
-- If both the path and version number are unchanged, returns `{"ok": true, "cached": true}`, without re-reading the file
-- Otherwise, reloads the data and updates `_errors_meta_path` / `_errors_meta_rev`
-
-### Graceful Degradation
-
-When the JSONL file cannot be read, `push_errors_meta` returns a fallback indication:
-
-```json
-{
-    "ok": false,
-    "fallback": "need_content",
-    "reason": "FileNotFoundError",
-    "msg": "File not found"
-}
-```
-
-Upon receiving this response, the client uses `push_errors_content` to directly pass error content.
+Error records are directly written to the SQLite database via `append_records`, supporting efficient querying and pagination.
 
 ### Task Injection Concurrency Safety
 
-The `injection_tasks` list is protected by `_task_injection_lock`. Both `push_injection_tasks` writes and `pull_task_injection` reads (including clearing) operate within the lock, avoiding race conditions.
+The `injection_tasks` dictionary is protected by `task_injection_lock`. Both `push_injection_tasks` writes and `pull_task_injection` reads (including clearing) operate within the lock, avoiding race conditions. Injection uses **overwrite** semantics: new tasks for the same node name will overwrite the old task list.
 
 ## Notes
 

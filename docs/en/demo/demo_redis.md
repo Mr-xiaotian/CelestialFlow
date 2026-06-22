@@ -1,19 +1,19 @@
 # demo_redis.py Demo Guide
 
-> 📅 Last Updated: 2026/06/17
+> 📅 Last Updated: 2026/06/22
 
 ## Objective
 
-Demonstrate how to implement Redis task submission, result acknowledgment, and external task injection using only ordinary `TaskStage` and custom callables, without relying on built-in Redis-specific nodes.
+Demonstrates how to implement Redis task submission, result acknowledgment, and external task injection using only ordinary `TaskStage` nodes and custom callables, without relying on built-in Redis-specific nodes.
 
 ## Design Highlights
 
-- `redis_push()`: Serializes a task and writes it to a Redis List, returning a `task_id`
-- `redis_wait()`: Polls a Redis Hash, waiting for a remote Worker to write back the result
-- `redis_pop()`: Uses `BLPOP` to block and pull a task from a Redis List
-- All three capabilities are just ordinary Python methods, then attached to the graph via `TaskStage(..., func=helper.method)`
+- `redis_push(task)`: Serializes a task and writes it to a Redis List, returning `(key, task_id)`
+- `redis_wait(task)`: Polls a Redis Hash, waiting for a remote Worker to write back the result
+- `redis_pop(key)`: Uses `BLPOP` to block and pull a task from a Redis List
+- All three capabilities are just ordinary Python methods, then attached to the graph via `TaskStage(..., func=helper)`
 
-## Redis Interaction Design
+## Redis Interaction Flow
 
 ```mermaid
 flowchart LR
@@ -43,11 +43,13 @@ flowchart LR
 
 ```
 
-Provides functions for interacting with Redis, commonly used for cross-language / cross-process collaboration (e.g., working with Go Workers).
+**Note**: This Mermaid diagram is a favorite; do not delete.
 
-### RedisPush
+## Core Helper Functions
 
-Push a task to a Redis List.
+### `redis_push`
+
+Pushes a task to a Redis List.
 
 ```python
 def redis_push(task: Any) -> int:
@@ -66,11 +68,11 @@ def redis_push(task: Any) -> int:
     return key, task_id
 ```
 
-**Behavior**: Serializes the task as JSON and `rpush`es it to a Redis List. Internally uses `execution_mode="thread"` and `max_workers=4` for concurrent writes.
+**Behavior**: Splits `task` into `(key, payload)`, wraps it as JSON, and `rpush`es it to `{key}:input`. The actual return value is `(key, task_id)` for downstream `redis_wait` to use.
 
-### RedisPop
+### `redis_pop`
 
-Pull a task from a Redis List as an input source.
+Pulls a task from a Redis List as an input source.
 
 ```python
 def redis_pop(key: str) -> Any:
@@ -92,9 +94,9 @@ def redis_pop(key: str) -> Any:
     return tuple(task_payload)
 ```
 
-**Behavior**: Uses `blpop` to block and pull tasks. Internally uses `execution_mode="serial"`, suitable as a pipeline entry node.
+**Behavior**: Uses `blpop` to block and pull tasks; throws `CelestialFlowTimeoutError` on timeout.
 
-### RedisWait
+### `redis_wait`
 
 ```mermaid
 flowchart LR
@@ -127,7 +129,9 @@ flowchart LR
 
 ```
 
-Wait for execution results from a remote Worker.
+**Note**: This Mermaid diagram is a favorite; do not delete.
+
+Waits for execution results from a remote Worker.
 
 ```python
 def redis_wait(task: tuple[str, int]) -> Any:
@@ -155,52 +159,9 @@ def redis_wait(task: tuple[str, int]) -> Any:
         time.sleep(0.1)
 ```
 
-**Behavior**: Polls Redis Hash waiting for the corresponding `task_id` result. Supports handling success results or raising `RemoteWorkerError`.
+**Behavior**: Polls Redis Hash `{key}:output` waiting for the result corresponding to `task_id`. Supports handling success results or raising `RemoteWorkerError`.
 
 ## Redis Data Format
-
-### TaskRedisTransport Push Format
-
-```json
-{
-    "id": 12345678,
-    "task": ["arg1", "arg2"],
-    "emit_ts": 1703001234.567
-}
-```
-
-### TaskRedisAck Expected Result Format
-
-```json
-{
-    "status": "success",
-    "result": "computed_value"
-}
-```
-
-Or error format:
-```json
-{
-    "status": "error",
-    "error": "Error message"
-}
-```
-
----
-
-## Notes
-
-1. **Connection management**: The Redis client is lazily initialized on first use.
-2. **Timeout handling**: `TaskRedisSource` and `TaskRedisAck` support timeout configuration, throwing `TimeoutError` on timeout.
-3. **Error propagation**: Errors returned by remote Workers are propagated through `RemoteWorkerError`.
-4. **Idempotency**: `TaskRedisAck` deletes the record from Redis after retrieving the result, ensuring single consumption.
-
-## Data Protocol
-
-This demo assumes two Redis data structures by default:
-
-- Input queue: Redis List
-- Output result: Redis Hash
 
 ### Transport Push Format
 
@@ -217,7 +178,7 @@ The JSON structure written to the Redis List by `redis_push()` is as follows:
 Field descriptions:
 
 - `id`: Locally generated task number
-- `task`: Task payload, packaged uniformly as a list
+- `task`: Task payload, uniformly packaged as a list
 - `emit_ts`: Send timestamp, useful for debugging and latency investigation
 
 ### Ack Expected Result Format
@@ -254,23 +215,23 @@ The Redis List elements read by `redis_pop()` also follow the same payload struc
 
 ### `demo_redis_ack_0/1/2`
 
-Compare two execution paths: "local Python direct execution" and "sending to an external Worker via Redis".
+Compares the two paths of "local Python direct execution" and "sending to an external Worker via Redis".
 
 ```mermaid
 flowchart TB
-    Start["Start<br/>sleep_1"] --> Local["Local compute Stage<br/>Fibonacci / Sum / Download"]
+    Start["Start<br/>sleep_1_*"] --> Local["Local compute Stage<br/>Fibonacci / Sum / Download"]
     Start --> Transport["TaskStage(RedisTransport)<br/>redis_push"]
     Transport -.-> RedisIn[(Redis input list)]
     RedisOut[(Redis output hash)] -.-> Ack["TaskStage(RedisAck)<br/>redis_wait"]
 ```
 
 | Scenario | Local Node | Remote Input Key | Remote Output Key |
-|------|----------|--------------|---------------|
+|------|----------|--------------|--------------|
 | `demo_redis_ack_0` | `Fibonacci` | `testFibonacci:input` | `testFibonacci:output` |
 | `demo_redis_ack_1` | `Sum` | `testSum:input` | `testSum:output` |
 | `demo_redis_ack_2` | `Download` | `testDownload:input` | `testDownload:output` |
 
-The three scenarios differ in the local direct-computation stage:
+The three scenarios differ only in the local direct-computation stage:
 
 - `demo_redis_ack_0`: CPU-intensive Fibonacci
 - `demo_redis_ack_1`: Lightweight summation
@@ -278,22 +239,22 @@ The three scenarios differ in the local direct-computation stage:
 
 They share the same pattern:
 
-- The `Start` node produces original tasks
-- One path goes directly into a local compute stage
-- The other path goes into `RedisTransport`
-- `RedisTransport`'s output `task_id` then goes into `RedisAck`
-- Ultimately used to compare the effects of "local direct execution" vs. "remote Redis collaborative execution"
+- The `Start` node produces `(key, payload)` tuples
+- One path goes directly into the local compute stage
+- One path goes into `RedisTransport`, where `redis_push` writes to Redis
+- The `(key, task_id)` output by `RedisTransport` goes into `RedisAck`
+- `RedisAck` waits for the remote Worker to write back the result via `redis_wait`
 
 ### `demo_redis_source_0`
 
-Demonstrate how to use Redis as an external input source to the graph: one stage writes to it, another stage pulls via `BLPOP` and continues downstream processing.
+Demonstrates how to use Redis as an external input source to the graph: one stage writes to it, and another stage pulls via `BLPOP` and continues downstream processing.
 
 ```mermaid
 flowchart LR
-    Sleep0["Sleep0"] --> Transport["TaskStage(RedisTransport)"]
+    Sleep0["Sleep0<br/>sleep_1_report"] --> Transport["TaskStage(RedisTransport)<br/>redis_push"]
     Transport -.-> Redis[(Redis list)]
-    Redis -.-> Source["TaskStage(RedisSource)"] 
-    Source --> Sleep1["Sleep1"]
+    Redis -.-> Source["TaskStage(RedisSource)<br/>redis_pop"]
+    Source --> Sleep1["Sleep1<br/>sleep_1"]
 ```
 
 This scenario emphasizes "Redis as an inter-graph bridge input source":
@@ -321,46 +282,49 @@ REPORT_PORT=8000
 
 ### 3. Prepare Remote Workers (only needed for Ack scenarios)
 
-To actually observe remote result write-back in `demo_redis_ack_*`, you need external Workers that:
+To actually observe remote result write-back in `demo_redis_ack_*`, you need an external Worker that:
 
-- Pull tasks from the corresponding input list
-- Execute them according to the agreed structure
-- Write results back to the corresponding output hash
+- Pulls tasks from the corresponding input list
+- Executes them according to the agreed structure
+- Writes results back to the corresponding output hash
 
 For details on the remote `go-worker` project, see [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
 
 ## How to Run
 
 ```bash
-# Run the default example (demo_redis_ack_0)
+# Run the default example (demo_redis_source_0)
 python demo/demo_redis.py
 
-# For other scenarios, modify the entry function at the bottom of the file's main
+# For Ack scenarios, modify the entry function in main at the bottom of the file
 ```
 
 You can also directly open [demo_redis.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/demo/demo_redis.py) and switch the final `if __name__ == "__main__":` entry.
 
 ## Potential Issues
 
-1. **Timeout**: If the external Worker does not write back in time, `RedisTaskAck.wait()` throws a timeout exception
-2. **Protocol mismatch**: If the Worker's returned JSON lacks `status` or `result/error` fields, `RemoteWorkerError` is thrown
-3. **Network and path dependencies**: `demo_redis_ack_2` involves real download URLs and local paths and may fail depending on the environment
-4. **No assertions**: This is an integration demo; it does not validate business result correctness
-5. **Local `task_id` scope**: `RedisTaskTransport`'s `task_id` is an incrementing value within the current process, suitable for demos and single-end collaboration, but not equivalent to a globally distributed unique ID
-6. **Single consumption**: `RedisTaskAck` immediately calls `HDEL` after retrieving a result, so the same result is not read twice by default
+1. **Default entry switched**: The current `__main__` defaults to running `demo_redis_source_0`, not the older `demo_redis_ack_0`.
+2. **Timeout**: If the external Worker does not write back in time, `redis_wait()` throws `CelestialFlowTimeoutError`.
+3. **Protocol mismatch**: If the Worker-written JSON lacks `status` or `result/error` fields, `RemoteWorkerError` is thrown.
+4. **Network and path dependencies**: `demo_redis_ack_2` involves real download URLs and local paths `X:/Download/download_py/...`, which may fail depending on the environment.
+5. **No assertions**: This is an integration demo; it does not validate business result correctness.
+6. **Local `task_id` scope**: `redis_push`'s `task_id` is an incrementing value within the current process, suitable for demos and single-end collaboration, but not equivalent to a globally distributed unique ID.
+7. **Single consumption**: `redis_wait` immediately calls `HDEL` after retrieving a result, so the same result is not read twice by default.
 
 ## Notes
 
-1. **Connection management**: The Redis client is lazily initialized on first use and reused throughout the helper's lifecycle
-2. **Timeout handling**: Both `RedisTaskSource` and `RedisTaskAck` support `timeout`
-3. **Error propagation**: Errors returned by remote Workers are directly thrown upward via `RemoteWorkerError`
-4. **Replaceable protocol**: You can fully modify the JSON structure to match your own Worker protocol, as long as you synchronize the three helpers
-5. **Framework positioning**: What is shown here is "how to implement Redis integration using ordinary `TaskStage`", not requiring the framework to have built-in Redis nodes
+1. **Connection management**: The Redis client is lazily initialized on first use and reused throughout the helper's lifecycle.
+2. **Timeout handling**: Both `redis_pop` and `redis_wait` use the module-level `redis_timeout` (default 5 seconds).
+3. **Error propagation**: Errors returned by remote Workers are directly thrown upward via `RemoteWorkerError`.
+4. **Replaceable protocol**: You can fully modify the JSON structure to match your own Worker protocol, as long as you synchronize the three helpers.
+5. **Framework positioning**: What is shown here is "how to implement Redis integration using ordinary `TaskStage`", not a requirement for the framework to have built-in Redis nodes.
 
 ## Dependencies
 
 - `celestialflow` (`TaskGraph`, `TaskStage`)
+- `celestialflow.runtime.util_errors` (`CelestialFlowTimeoutError`, `RemoteWorkerError`)
 - `demo_utils`
 - `python-dotenv`
 - `redis`
+- `requests` (for `demo_redis_ack_2` downloads)
 - External services: Redis, remote Worker (optional), Reporter (optional)

@@ -1,6 +1,6 @@
 # PersistenceSQLite
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 `persistence/util_sqlite.py` は、SQLite データベースの接続管理とレコード CRUD 操作ツールを提供し、`FallbackSpout` および `TaskReporter` の基盤ストレージエンジンです。
 
@@ -27,12 +27,12 @@
 CREATE TABLE IF NOT EXISTS records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id INTEGER NOT NULL,
-    stage TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'failed',
+    ts REAL,
+    stage TEXT NOT NULL,
+    status TEXT NOT NULL,
     error_type TEXT NOT NULL DEFAULT '',
     error_message TEXT NOT NULL DEFAULT '',
-    ts REAL,
-    task_json TEXT NOT NULL DEFAULT 'null',
+    task_json TEXT NOT NULL,
     result_json TEXT NOT NULL DEFAULT 'null'
 )
 ```
@@ -48,10 +48,10 @@ CREATE TABLE IF NOT EXISTS records (
 ```python
 def connect_db(db_path: str | Path) -> sqlite3.Connection:
     """
-    创建 sqlite 连接并交给调用方管理其生命周期。
+    sqlite 接続を作成し、呼び出し側がそのライフサイクルを管理する。
 
-    :param db_path: sqlite 数据库文件路径
-    :return: 可直接用于记录读写的 sqlite 连接
+    :param db_path: sqlite データベースファイルパス
+    :return: レコード読み書きに直接使用可能な sqlite 接続
     """
 ```
 
@@ -69,10 +69,10 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 
 | 関数 | シグネチャ要点 | 説明 |
 |------|---------|------|
-| `insert_record` | `(conn, record: dict) -> bool` | 正規化後に INSERT OR REPLACE |
-| `promote_record_to_failed_by_event_id` | `(conn, event_id, error_id, ts, error_type, error_message) -> bool` | status + エラー情報を更新 |
-| `promote_record_to_success_by_event_id` | `(conn, event_id, result) -> bool` | status='success' + result_json を更新 |
-| `update_record_event_id_by_event_id` | `(conn, old_event_id, new_event_id) -> bool` | event_id を更新（リトライ用） |
+| `insert_record` | `(conn, record: dict) -> bool` | 正規化後に INSERT |
+| `promote_record_to_failed_by_event_id` | `(conn, event_id, new_event_id, *, ts, error_type="", error_message="") -> bool` | event_id、status='failed'、エラー情報を更新 |
+| `promote_record_to_success_by_event_id` | `(conn, event_id, result, *, ts) -> bool` | status='success' + result_json を更新 |
+| `update_record_event_id_by_event_id` | `(conn, old_event_id, new_event_id, *, ts) -> bool` | event_id を更新（リトライ用） |
 | `delete_record_by_event_id` | `(conn, event_id) -> bool` | レコードを削除 |
 
 ### 読み取り操作（接続を自己管理）
@@ -102,10 +102,10 @@ from celestialflow.persistence.util_sqlite import (
     delete_record_by_event_id,
 )
 
-# 1. 创建连接
+# 1. 接続を作成
 conn = connect_db("test_data.sqlite3")
 
-# 2. 写入记录
+# 2. レコードを書き込み
 record = {
     "event_id": 1,
     "stage": "StageA",
@@ -116,12 +116,12 @@ insert_record(conn, record)
 conn.commit()
 conn.close()
 
-# 3. 读取记录（自动管理连接）
+# 3. レコードを読み込み（接続を自動管理）
 records = load_records("test_data.sqlite3", status="pending")
 for r in records:
     print(f"event_id={r['event_id']}, task={r['task_json']}")
 
-# 4. 清理
+# 4. クリーンアップ
 Path("test_data.sqlite3").unlink()
 ```
 
@@ -151,7 +151,7 @@ total, total_pages, items = query_records(
     sort_order="newest",
     status="failed",
 )
-print(f"共 {total} 条，第 1/{total_pages} 页")
+print(f"全 {total} 件、第 1/{total_pages} ページ")
 for item in items:
     print(f"  [{item['event_id']}] {item['error_type']}: {item['error_message']}")
 ```
@@ -160,6 +160,6 @@ for item in items:
 
 - **書き込み関数**（insert/promote/update/delete）は呼び出し側で `conn` を渡し、操作後に手動で `commit()` する必要があります。
 - **読み取り関数**（load/query）は内部で接続ライフサイクルを自己管理するため、呼び出し側は接続を気にする必要がありません。
-- `insert_record` は `INSERT OR REPLACE` を使用し、`event_id` のユニークインデックスに基づいて upsert を行います。
+- `insert_record` は `INSERT` を使用し、`event_id` のユニークインデックスに基づいて一意性を保証します。外部からの一括書き込み時には通常、`append_records` と組み合わせて `IntegrityError` を捕捉し冪等性を実現します。
 - 正規化関数 `normalize_record` は `event_id` がないレコードをフィルタリングします（`None` を返します）。
 - `task_json` と `result_json` には `json.dumps` 後の文字列が格納され、読み取り時に `json.loads` で復元されます。

@@ -1,10 +1,8 @@
 # BaseObserver
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 `BaseObserver` is the base class for executor lifecycle observers, defining the event interfaces that `TaskExecutor` broadcasts during execution.
-
-> ⚠️ **Deprecated**: Previous documentation included a `CallbackObserver` section. The source implementation of this class has been removed from `core_observer.py` and is no longer available.
 
 ## BaseObserver
 
@@ -23,7 +21,7 @@ All methods have default empty implementations (not ABC); subclasses override as
 ### Event Descriptions
 
 | Event | Trigger Timing | Parameters |
-|------|----------|------|
+|-------|----------------|------------|
 | `on_start` | Executor starts running | `_name`: executor full name, `_total`: fixed at 0 (actual task count notified via `on_tasks_added`) |
 | `on_task_success` | Single task succeeds | `count`: number of successes (default 1) |
 | `on_task_fail` | Single task fails | `count`: number of failures (default 1) |
@@ -60,5 +58,5 @@ The executor internally broadcasts events to all registered observers via `_noti
 ## Existing Implementations
 
 | Class | Description |
-|---|------|
-| `TaskProgress` | tqdm-based progress bar display (see `core_progress.md`) |
+|-------|-------------|
+| `TaskProgress` | `tqdm`-based progress bar display (see `core_progress.md`) |

@@ -1,20 +1,18 @@
-﻿# Observer Tests (test_observer.py)
+# Observer Tests (test_observer.py)
 
-> 📅 Last Updated: 2026/05/23
+> 📅 Last Updated: 2026/06/22
 
 ## Purpose
 Validates the Observer mechanism in the `celestialflow.observability` module, ensuring callbacks are correctly triggered at key points in the task execution lifecycle.
 
 ## Core Test Targets
 - `BaseObserver`: Observer base class.
-- `CallbackObserver`: Observer implementation based on callback functions.
 - `TaskExecutor`: The task executor being observed.
 
 ## Key Test Flow
 1. **Lifecycle callbacks**: Validates the complete event flow from `on_start` to `on_finish`, including task success, failure, and new-task events.
 2. **Multi-observer support**: Validates that multiple observers can be simultaneously attached to the same executor and receive events independently.
 3. **Dynamic management**: Validates the logic for dynamically adding and removing observers.
-4. **Functional observation**: Validates that `CallbackObserver` can implement specific monitoring logic via parameterized lambdas or functions.
 
 ## Test Focus
 - **Event ordering**: Ensures `on_start` fires first and `on_finish` fires last.
@@ -36,9 +34,6 @@ pytest tests/observability/test_observer.py -k "lifecycle" -v
 
 # Run dynamic management tests only (add/remove observer)
 pytest tests/observability/test_observer.py -k "observer_remove" -v
-
-# Run functional observation tests only
-pytest tests/observability/test_observer.py -k "callback" -v
 ```
 
 ## Performance Reference

@@ -1,10 +1,8 @@
 # TaskMetrics
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 The TaskMetrics module is responsible for managing and tracking various metrics during task execution, such as input task count, success count, failure count, duplicate task count, etc. It typically exists as a component of `TaskExecutor`.
-
-> ⚠️ **Changed**: The `execution_mode` constructor parameter described in previous documentation has been removed during refactoring. All counters uniformly use `Lock` to guarantee thread safety, no longer switching strategies based on execution mode.
 
 ## Initialization
 
@@ -26,7 +24,7 @@ class TaskMetrics:
 TaskMetrics internally maintains four core counters:
 
 | Counter | Type | Purpose |
-|--------|------|------|
+|---------|------|---------|
 | `task_counter` | `SumCounter` | Total input task count (supports cascading) |
 | `success_counter` | `ValueWrapper` | Successful task count |
 | `error_counter` | `ValueWrapper` | Failed task count |

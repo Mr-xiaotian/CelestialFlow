@@ -1,6 +1,6 @@
-﻿# Format Utility Tests (test_format.py)
+# Format Utility Tests (test_format.py)
 
-> 📅 Last Updated: 2026/05/23
+> 📅 Last Updated: 2026/06/22
 
 ## Purpose
 Validates the general formatting utilities in `celestialflow.utils.util_format`, ensuring data can be displayed in a readable and aesthetically pleasing way during terminal output, logging, and report generation.
@@ -41,7 +41,7 @@ pytest tests/utils/test_format.py -k "table" -v
 
 | Test | Duration |
 |------|------|
-| `TestFormatUtils` | ~0.1s (pure string processing) |
+| `TestUtilFormat` | ~0.1s (pure string processing) |
 
 ## Important Details
 - The table formatting algorithm automatically calculates the maximum width of each column.

@@ -1,8 +1,6 @@
 # TaskTypes
 
-> 📅 Last Updated: 2026/06/18
-
-> ⚠️ **Deprecated**: The `PersistedErrorRecord` dataclass described in previous documentation no longer exists in the current source code.
+> 📅 Last Updated: 2026/06/22
 
 The TaskTypes module defines the basic data types, enums, and helper classes used throughout the framework.
 
@@ -38,7 +36,9 @@ Termination signal ID pool, used to store all received termination signal IDs.
 ```python
 class TerminationIdPool:
     def __init__(self, ids: list[int]):
-        self.ids = ids
+        self.ids = ids   # List of termination signal IDs
+        self.id = -1     # Compatibility field, fixed at -1
+        self.source = "<signal>"  # Compatibility field, fixed at "<signal>"
 ```
 
 ## NoOpContext
@@ -82,7 +82,7 @@ class SumCounter:
 ### Methods
 
 | Method | Description |
-|------|------|
+|--------|-------------|
 | `add(value)` | Increase the initial count value (added to `init_value`) |
 | `append_counter(counter)` | Append an external counter |
 | `reset()` | Reset all counters to zero |
@@ -108,7 +108,7 @@ print(counter.get())  # 15
 CelestialTree event name constants, used for task tracking and visualization.
 
 | Constant | Value | Trigger Timing |
-|------|-----|---------|
+|----------|-------|----------------|
 | `TASK_INPUT` | `"task.input"` | Task enters the system |
 | `TASK_SUCCESS` | `"task.success"` | Task execution succeeded |
 | `TASK_ERROR` | `"task.error"` | Task execution failed |
@@ -119,7 +119,7 @@ CelestialTree event name constants, used for task tracking and visualization.
 
 ## Usage Examples
 
-The following examples demonstrate typical usage of the dataclasses and helper classes in the `util_types` module.
+The following examples demonstrate typical usage of the data classes and helper classes in the `util_types` module.
 
 ### TerminationSignal and TerminationIdPool
 
@@ -168,8 +168,8 @@ with counter.get_lock():
 print(f"After locked increment: {counter.value}")  # 15
 
 # SumCounter: multi-counter accumulation
-sum_counter = SumCounter(mode="serial")
-sum_counter.add_init_value(100)
+sum_counter = SumCounter()
+sum_counter.add(100)
 
 sub1 = ValueWrapper(value=20)
 sub2 = ValueWrapper(value=30)
@@ -201,16 +201,15 @@ from celestialflow.runtime.util_types import CTreeEvent
 
 # Event name constants
 print(f"Task input event: {CTreeEvent.TASK_INPUT}")           # "task.input"
-print(f"Task success event: {CTreeEvent.TASK_SUCCESS}")       # "task.success"
-print(f"Task failure event: {CTreeEvent.TASK_ERROR}")         # "task.error"
+print(f"Task success event: {CTreeEvent.TASK_SUCCESS}")         # "task.success"
+print(f"Task failure event: {CTreeEvent.TASK_ERROR}")           # "task.error"
 print(f"Retry prefix: {CTreeEvent.TASK_RETRY_PREFIX}")        # "task.retry."
-print(f"Duplicate task event: {CTreeEvent.TASK_DUPLICATE}")   # "task.duplicate"
-print(f"Termination injection event: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
-print(f"Termination merge event: {CTreeEvent.TERMINATION_MERGE}")      # "termination.merge"
+print(f"Duplicate task event: {CTreeEvent.TASK_DUPLICATE}")       # "task.duplicate"
+print(f"Termination injection event: {CTreeEvent.TERMINATION_INPUT}")    # "termination.input"
+print(f"Termination merge event: {CTreeEvent.TERMINATION_MERGE}")    # "termination.merge"
 ```
 
 ## Notes
 
 - The thread safety of `ValueWrapper` and `SumCounter` depends on the caller passing the correct `Lock` object.
 - `NoOpContext` is used in `serial`/`async` modes as a substitute for a real lock, avoiding unnecessary lock overhead.
-- `PersistedErrorRecord` is a frozen dataclass and is immutable after creation.

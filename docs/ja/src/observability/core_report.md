@@ -1,6 +1,6 @@
 # TaskReporter
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 `TaskReporter` はバックグラウンドコンポーネントで、タスクグラフの実行状態を収集しリモート Web サーバー（CelestialFlow Web UI）にレポートします。また、サーバーから制御指示（タスク注入など）をプルする役割も担います。
 
@@ -43,8 +43,6 @@ Reporter は HTTP 経由で以下の Web API とやり取りします：
 | `GET` | `/api/pull_server_state` | サーバー同期状態を取得（間隔設定、構造/分析状態、最大 event_id などを含む） |
 | `GET` | `/api/pull_task_injection` | 注入タスクを取得 |
 
-> ⚠️ **変更あり**：以前のドキュメントでは `/api/pull_interval` エンドポイントが記載されていましたが、ソースコードでは `/api/pull_server_state` に統合され、間隔設定、グラフ状態フラグ、最大失敗 event_id を一度に取得します。
-
 ### プッシュインターフェース（Push）
 
 | メソッド | エンドポイント | 説明 |
@@ -53,8 +51,6 @@ Reporter は HTTP 経由で以下の Web API とやり取りします：
 | `POST` | `/api/push_status` | 実行時状態スナップショットをプッシュ |
 | `POST` | `/api/push_structure` | グラフ構造情報をプッシュ |
 | `POST` | `/api/push_analysis` | グラフ分析データをプッシュ |
-
-> ⚠️ **変更あり**：以前のドキュメントでは `/api/push_errors_meta` と `/api/push_errors_content` の2つのエンドポイントが記載されていましたが、ソースコードでは `/api/push_errors` に統一されました。また `/api/push_summary` エンドポイントは、現在の `TaskReporter._refresh_all()` に summary のプッシュ呼び出しが含まれていません（`LogInlet` には `push_summary_failed` ログメソッドが残っていますが、Reporter からは呼び出されません）。
 
 ### インタラクションフロー
 
@@ -103,8 +99,6 @@ def _refresh_all(self) -> None:
     self._push_status()             # POST /api/push_status
     self._push_errors()             # POST /api/push_errors
 ```
-
-> ⚠️ **変更あり**：以前のドキュメントに記載されていた `_pull_interval()` は存在せず、単一の `_pull_server_state()` に置き換えられました。`_push_errors` は内部で `_server_has_current_graph` に基づき、全量エラーと増分エラーのどちらを読み込むかを決定します。
 
 ## ライフサイクル
 

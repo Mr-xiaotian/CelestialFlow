@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 The TaskErrors module defines the complete exception class system used in the CelestialFlow framework.
 
@@ -17,7 +17,8 @@ CelestialFlowError
 │       └── CallableParameterKindError  # Callable parameter kind invalid
 ├── GraphStructureError
 │   ├── DuplicateNodeError          # Duplicate node name
-│   └── UnknownNodeError            # Unknown node name
+│   ├── UnknownNodeError            # Unknown node name
+│   └── NodeNotFoundError           # Specified node not found in graph
 ├── RuntimeStateError
 │   ├── InitializationError         # Initialization failure
 │   └── GraphManagedError           # Graph management error
@@ -122,6 +123,20 @@ class ScheduleModeError(InvalidOptionError):
         # valid_modes defaults to ("eager", "staged")
 ```
 
+### CallableParameterKindError
+
+Callable parameter kind is invalid.
+
+```python
+class CallableParameterKindError(InvalidOptionError):
+    def __init__(self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]):
+        """
+        :param callable_name: Callable name
+        :param parameter_kind: Actual parameter kind
+        :param valid_kinds: Allowed parameter kind set
+        """
+```
+
 ## Graph Structure Exceptions (GraphStructureError)
 
 ### GraphStructureError
@@ -154,6 +169,16 @@ class UnknownNodeError(GraphStructureError):
     pass
 ```
 
+### NodeNotFoundError
+
+Specified node not found in graph (triggered during `connect()` or queries).
+
+```python
+class NodeNotFoundError(GraphStructureError):
+    """Specified node not found in graph"""
+    pass
+```
+
 ## Runtime Exceptions (RuntimeStateError)
 
 ### RuntimeStateError
@@ -182,23 +207,9 @@ Thrown when a Stage that is managed by a TaskGraph attempts to call `start()` di
 
 ```python
 class GraphManagedError(RuntimeStateError):
-    """Stage is managed by a Graph and should not be started via the standalone path."""
+    """Stage is managed by a TaskGraph and should not be started via the standalone path."""
     def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."):
         ...
-```
-
-### CallableParameterKindError
-
-Callable parameter kind is invalid.
-
-```python
-class CallableParameterKindError(InvalidOptionError):
-    def __init__(self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]):
-        """
-        :param callable_name: Callable name
-        :param parameter_kind: Actual parameter kind
-        :param valid_kinds: Allowed parameter kind set
-        """
 ```
 
 ## Persistence Exception
@@ -299,7 +310,7 @@ class TerminationMergeError(CelestialFlowError):
 
 ```python
 executor = TaskExecutor("Processor", process, max_retries=3)
-executor.add_retry_exceptions(ConnectionError, TimeoutError)
+executor.set_retry_exceptions(ConnectionError, TimeoutError)
 ```
 
 ### 2. Catching Configuration Errors
@@ -462,4 +473,4 @@ print(f"Success: {counts['tasks_succeeded']}, Failed: {counts['tasks_failed']}")
 
 ## Exception Persistence
 
-`TaskGraph` persists unhandled errors to a local JSONL file (via `FailSpout`) during `_finalize_nodes()`. Each error record contains the error type, message, Stage, event ID, and timestamp, represented by `PersistedErrorRecord`.
+`TaskGraph` persists unhandled errors to a local JSONL file during `_finalize_nodes()`. Each error record contains the error type, message, Stage, event ID, and timestamp, represented by `PersistedErrorRecord`.

@@ -1,6 +1,6 @@
 # bench_execution_mode.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/16
+> 📅 Last Updated: 2026/06/22
 
 ## Objective
 
@@ -9,7 +9,7 @@ Compare the performance differences of `TaskExecutor` across three execution mod
 ## Test Content
 
 ### `bench_executor_fibonacci`
-- **Tasks**: Compute Fibonacci sequence (`n=25..31`), including invalid inputs (`0, None, ""`)
+- **Tasks**: Compute Fibonacci sequence, input is `list(range(25, 32)) + [0, 27, None, 0, ""]` (12 tasks, including 4 boundary error cases)
 - **Config**: `max_workers=6`, `max_retries=1`, retry on `ValueError`
 - **Compared Modes**: `serial`, `thread`, `async`
 
@@ -100,7 +100,7 @@ bench_task_1: list[Any] = list(range(20, 35))
 > Environment: Windows, Python 3.10
 
 #### Scenario 1: Fibonacci (CPU-intensive)
-Input of 12 tasks (including 5 boundary error cases), max_workers=6, max_retries=1. All three modes use the **same iterative O(n) algorithm**.
+Input of 12 tasks (including 4 boundary errors: two `0`s and `None`, `""` all trigger exceptions), max_workers=6, max_retries=1. All three modes use the **same iterative O(n) algorithm**.
 
 | Mode | Time | Description |
 |------|------|------|

@@ -1,21 +1,20 @@
 # errors.ts
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
-エラーログのページネーション取得、キーワード検索、ノードフィルタリング、ソート切り替え、テーブルレンダリング、およびタスク再注入機能を管理します。
-
-> ⚠️ **変更済み**: エラーレコードフィールドが再構築されました（`error_id` が数値型に、`error_type`/`error_message` が新設、`task` は `unknown` 型）。ソート切り替え、再注入（retry）インタラクション列が新たに追加されました。
+エラーログのページング取得、フィルタリング、表示を担当します。エラー記録の非同期取得、フロントエンドページングロジック、およびノード/キーワード検索によるフィルタ表示を行います。
 
 ## 型定義
 
 ```typescript
 type ErrorData = {
-  ts: number;            // エラー発生タイムスタンプ、単位は秒
-  stage: string;         // エラー発生ノード/ステージ名、ノードフィルタリングに使用
-  error_id: number;      // エラーの一意識別 ID、グローバルで一意
-  error_type: string;    // エラーの分類タイプ、異なるカテゴリのエラーを区別
-  error_message: string; // エラーの具体的な説明情報
-  task: unknown;         // このエラーをトリガーしたタスクデータ、表示とリトライ再投入に使用
+  ts: number;            // 生命周期时间戳，单位为秒
+  stage: string;         // 错误发生的节点/阶段名称，用于节点筛选
+  event_id: number;      // 失败事件的唯一标识 ID，全局唯一
+  error_type: string;    // 错误的分类类型
+  error_message: string; // 错误的具体描述信息
+  task_json: unknown;    // 触发该错误的任务数据，用于展示与重试回填
+  result_json: unknown;  // 成功结果或失败时的占位结果
 };
 ```
 
@@ -24,144 +23,106 @@ type ErrorData = {
 | 変数 | 型 | 説明 |
 |------|------|------|
 | `errors` | `ErrorData[]` | 現在のページのエラーレコードリスト |
-| `currentPage` | `number` | 現在表示中のページ番号、1 から開始 |
-| `pageSize` | `number` | ページあたり表示レコード数、`webConfig` から同期 |
-| `errorSortOrder` | `"newest" \| "oldest"` | エラーログソート方向、デフォルト `"newest"` |
-| `totalPages` | `number` | バックエンドが計算した総ページ数 |
-| `errorsRev` | `number` | データバージョン番号、初期値 `-1`、増分取得に使用 |
-| `lastQueryKey` | `string` | 前回クエリのキャッシュキー、フィルター条件の変化判定に使用 |
-| `errorsRequestSeq` | `number` | リクエストシーケンス番号、古いリクエストが新しい結果を上書きするのを防止 |
+| `currentPage` | `number` | 現在のページ番号。デフォルト `1` |
+| `pageSize` | `number` | 1ページあたりの表示件数。デフォルト `10`、`webConfig.errors.pageSize` と同期 |
+| `errorSortOrder` | `"newest" \| "oldest"` | 現在のエラーログソート方向。デフォルト `"newest"` |
+| `totalPages` | `number` | 総ページ数。デフォルト `1` |
+| `errorsRev` | `number` | データバージョン番号。増分取得に使用。デフォルト `-1` |
+| `lastQueryKey` | `string` | 前回クエリのキャッシュキー。フィルター条件の変化判定に使用 |
+| `errorsRequestSeq` | `number` | リクエストシーケンス番号。古いレスポンスが新しい結果を上書きするのを防止 |
 
 ## DOM 要素参照
 
 | 変数 | DOM セレクタ | 説明 |
 |------|-----------|------|
-| `searchInput` | `#error-search` | 検索キーワード入力ボックス |
-| `nodeFilter` | `#node-filter` | ノードフィルタードロップダウン |
-| `errorSortSelect` | `#error-sort-order` | ソート方法ドロップダウン |
-| `errorsTableBody` | `#errors-table tbody` | エラーテーブル tbody |
+| `searchInput` | `#error-search` | キーワード検索入力ボックス |
+| `nodeFilter` | `#node-filter` | ノードでフィルタリングするドロップダウン |
+| `errorSortSelect` | `#error-sort-order` | ソート方式ドロップダウン |
+| `errorsTableBody` | `#errors-table tbody` | エラーテーブルの tbody |
 | `paginationContainer` | `#pager-container` | ページネーションコントロールコンテナ |
 
 ## 関数
 
 ### `buildErrorsQueryKey(page, pageSizeValue, node, keyword, sortOrder): string`
 
-エラークエリのキャッシュキー文字列を構築します。パラメータに `sortOrder`（新旧）を含み、`lastQueryKey` と連携してフィルター条件の変化を判定します。
+ページング、ページサイズ、ノードフィルタ、キーワード、ソート方式を含むクエリキャッシュキーを構築します。強制全量取得が必要かどうかの判定に使用されます。
 
----
+### `loadErrors(forceReload = false): Promise<boolean>`
 
-### `loadErrors(forceReload?: boolean): Promise<boolean>`
+バックエンド `GET /api/pull_errors` から現在のフィルター条件に一致するエラーログを取得します。
 
-非同期でエラーログデータを取得します。
-
-- **クエリパラメータ**: `known_rev`, `page`, `page_size`, `node`, `keyword`, `sort_order`
-- **競合保護**: `errorsRequestSeq` を使用して古いリクエストの結果が新しいリクエストを上書きしないようにします。
-- **強制再読み込み**: `forceReload=true` またはフィルター条件が変化した場合、`known_rev` 増分メカニズムを無視します。
-- **API エンドポイント**: `GET /api/pull_errors?{params}`
-
----
+- **クエリパラメータ**: `known_rev`、`page`、`page_size`、`node`、`keyword`、`sort_order`
+- **キャッシュ戦略**: フィルター条件（`lastQueryKey`）が変化するか、`forceReload=true` の場合、`known_rev` を `-1` にリセットして強制全量取得します。
+- **競合保護**: `errorsRequestSeq` を使用して、古いレスポンスを破棄します。
+- **戻り値**: バックエンドが新しいエラーレコードデータを返した場合に `true` を返します。
 
 ### `renderErrors(): void`
 
-`errors` データを `#errors-table` テーブルにレンダリングします。
+`errors` 配列をテーブルにレンダリングします。各行にはエラー連番、イベント ID、エラー情報、ノード、タスクデータ、発生時刻、リトライボタンが含まれます。
 
-**テーブル列（全 7 列）：**
+- `task_json` が解析可能で、先頭が `<` の文字列でない場合、クリック可能な「タスク注入」リトライリンクが表示されます。
+- リトライクリック時は `preloadInjectionDraftFromError(stage, task_json, webConfig.errors.jumpToInjectionAfterRetry)` を呼び出します。
+- レコードがない場合は空状態のプレースホルダーを表示します。
 
-| # | 列名 (i18n key) | 説明 |
-|---|----------------|------|
-| 1 | `#` | グローバル表示連番（ページ番号に基づいて計算） |
-| 2 | `errors.colId` | エラー ID |
-| 3 | `errors.colMessage` | エラーメッセージ（`format_repr` で 50 文字に切り詰め、ホバーで全文表示） |
-| 4 | `errors.colNode` | ノード名 |
-| 5 | `errors.colTask` | タスクデータ（切り詰め表示） |
-| 6 | `errors.colTime` | 発生時刻（`formatTimestamp` でフォーマット） |
-| 7 | `errors.colRetry` | 再注入操作：`.retry-link`（再試行可能）または `.retry-disabled`（使用不可） |
+### `goToErrorsPage(nextPage): Promise<void>`
 
-> 第 7 列（再注入）：`task` が存在しプレースホルダーでない場合、クリック/キーボードで `preloadInjectionDraftFromError(stage, task, jumpToInjectionAfterRetry)` の呼び出しをトリガーし、注入ページにジャンプしてタスクデータを事前入力できます。
+指定ページに移動し、データを再読み込みします。目標ページ番号は `[1, totalPages]` の範囲に制限されます。
 
----
+### `buildPageList(current, total): Array<number \| string>`
 
-### `goToErrorsPage(nextPage: number): Promise<void>`
+ページ番号リストを生成します。先頭、末尾、現在ページ、前後ページを含み、間隔が 1 より大きい場合には省略記号 `…` を挿入します。
 
-ページネーションジャンプロジック。ページ番号を `[1, totalPages]` の範囲に制限した後、`loadErrors(true)` をトリガーして再取得します。
+### `renderPaginationControls(totalPages): void`
 
----
+「前へ/次へ」ボタンと省略記号付きの数字ページ番号領域からなるページネーションコントロールをレンダリングします。総ページ数 `<= 1` の場合はレンダリングしません。
 
-### `buildPageList(current: number, total: number): Array<number | string>`
+### `populateNodeFilter(statuses): void`
 
-ページネーション番号リストを生成し、先頭・末尾ページ、現在のページ、前後 2 ページを含み、自動的に省略記号 `"…"` を挿入します。
+現在のノード状態スナップショットに基づいてノードフィルタードロップダウンを埋めます。可能な限りユーザーの既存のフィルター値を保持します。選択中のノードが消えていた場合は「すべてのノード」に戻します。
 
----
+## イベントバインディング
 
-### `renderPaginationControls(totalPages: number): void`
-
-ページネーションコントロール（前へ/次へボタン + 数字ページ番号シーケンス）をレンダリングします。総ページ数 ≤ 1 の場合はレンダリングしません。
-
----
-
-### `populateNodeFilter(statuses: Record<string, NodeStatus>): void`
-
-ダッシュボードのノード状態に基づいて、エラーページの「ノードでフィルター」ドロップダウンを動的に更新します。ユーザーの現在のフィルター条件を可能な限り保持します。
-
----
-
-## イベントバインディング（モジュールレベルで自動実行）
-
-| 対象要素 | イベント | 動作 |
-|----------|------|------|
-| `searchInput` | `input` | 1 ページ目にリセット、強制再読み込み、テーブルレンダリング |
-| `nodeFilter` | `change` | 1 ページ目にリセット、強制再読み込み、テーブルレンダリング |
-| `errorSortSelect` | `change` | `errorSortOrder` と `webConfig` を更新、1 ページ目にリセット、再読み込みして設定保存 |
-
-## 使用例
-
-```typescript
-// エラーレコードをシミュレート
-const mockErrors: ErrorData[] = [
-  { ts: 1745400100, stage: "StageA", error_id: 1001, error_type: "TimeoutError", error_message: "Connection timeout", task: { id: 1 } },
-  { ts: 1745400050, stage: "StageB", error_id: 1002, error_type: "ValueError", error_message: "Invalid value", task: "task_data" },
-];
-
-// errors = mockErrors;
-// currentPage = 1;
-// totalPages = 5;
-// renderErrors();        // テーブルをレンダリング
-// renderPaginationControls(5); // ページネーションをレンダリング
-
-// 3 ページ目にジャンプ
-// await goToErrorsPage(3);
-
-// 他のタブからエラーログにジャンプして自動フィルタリング
-// switchToErrorsTab("StageA");
-```
+| 要素 | イベント | 動作 |
+|------|------|------|
+| `searchInput` | `input` | 1 ページ目に戻り、強制再取得してレンダリング |
+| `nodeFilter` | `change` | 1 ページ目に戻り、強制再取得してレンダリング |
+| `errorSortSelect` | `change` | `errorSortOrder` と `webConfig.errors.sortOrder` を更新し、1 ページ目に戻して取得・レンダリングし、`saveWebConfig()` を呼び出して設定を保存 |
 
 ## データフロー
 
 ```mermaid
-flowchart LR
-    subgraph "main.ts"
-        RA[refreshAll]
-    end
-    subgraph "errors.ts"
-        LE[loadErrors]
-        QK[buildErrorsQueryKey]
-        RE[renderErrors]
-        RP[renderPaginationControls]
-    end
-    subgraph "API"
-        API[/api/pull_errors]
-    end
-    subgraph "DOM"
-        TB[#errors-table]
-        PG[#pager-container]
-    end
+sequenceDiagram
+    participant User as ユーザー
+    participant Main as main.ts
+    participant Errors as errors.ts
+    participant API as /api/pull_errors
+    participant Injection as injection.ts
 
-    RA --> LE
-    LE --> QK
-    LE --> API
-    API --> LE
-    LE --> RE
-    RE --> TB
-    RE --> RP
-    RP --> PG
+    User->>Main: エラーページ切り替え / フィルタ入力
+    Main->>Errors: loadErrors(true)
+    Errors->>API: GET ページング/フィルタパラメータ付き
+    API-->>Errors: { rev, page, total_pages, data }
+    Errors->>Errors: errors / totalPages を更新
+    Errors->>Errors: renderErrors()
+    Errors->>Errors: renderPaginationControls()
+    User->>Errors: retry-link をクリック
+    Errors->>Injection: preloadInjectionDraftFromError(stage, task_json, jumpToInjection)
+```
+
+## 使用例
+
+```typescript
+// 直接第 3 ページに移動
+await goToErrorsPage(3);
+
+// ノードでフィルタリング（nodeFilter を設定して change イベントを発火するのと同等）
+nodeFilter.value = "Processor";
+nodeFilter.dispatchEvent(new Event("change"));
+
+// クエリキャッシュキーを構築
+const key = buildErrorsQueryKey(1, 10, "Processor", "timeout", "newest");
+// "1|10|Processor|timeout|newest"
+
+// renderErrors はグローバル errors を読み込んでテーブルをレンダリング
+// renderPaginationControls(totalPages) は下部ページネーションをレンダリング
 ```

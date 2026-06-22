@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 TaskErrors モジュールは CelestialFlow フレームワークで使用される完全な例外クラス体系を定義します。
 
@@ -17,7 +17,8 @@ CelestialFlowError
 │       └── CallableParameterKindError  # 呼び出し可能オブジェクトのパラメータ kind が不正
 ├── GraphStructureError
 │   ├── DuplicateNodeError          # 重複ノード名
-│   └── UnknownNodeError            # 不明なノード名
+│   ├── UnknownNodeError            # 不明なノード名
+│   └── NodeNotFoundError           # グラフ内に指定ノードが見つからない
 ├── RuntimeStateError
 │   ├── InitializationError         # 初期化失敗
 │   └── GraphManagedError           # グラフ管理エラー
@@ -122,6 +123,20 @@ class ScheduleModeError(InvalidOptionError):
         # valid_modes のデフォルトは ("eager", "staged")
 ```
 
+### CallableParameterKindError
+
+呼び出し可能オブジェクトのパラメータ kind が不正です。
+
+```python
+class CallableParameterKindError(InvalidOptionError):
+    def __init__(self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]):
+        """
+        :param callable_name: 呼び出し可能オブジェクト名
+        :param parameter_kind: 実際のパラメータ kind
+        :param valid_kinds: 許可されるパラメータ kind の集合
+        """
+```
+
 ## グラフ構造例外（GraphStructureError）
 
 ### GraphStructureError
@@ -151,6 +166,16 @@ class DuplicateNodeError(GraphStructureError):
 ```python
 class UnknownNodeError(GraphStructureError):
     """不明なノード名"""
+    pass
+```
+
+### NodeNotFoundError
+
+グラフ内に指定ノードが見つからない（`connect()` または照会時に発生）。
+
+```python
+class NodeNotFoundError(GraphStructureError):
+    """グラフ内に指定ノードが見つからない"""
     pass
 ```
 
@@ -185,20 +210,6 @@ class GraphManagedError(RuntimeStateError):
     """Stage は既に Graph に管理されています。スタンドアロン経路で起動すべきではありません。"""
     def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."):
         ...
-```
-
-### CallableParameterKindError
-
-呼び出し可能オブジェクトのパラメータ kind が不正です。
-
-```python
-class CallableParameterKindError(InvalidOptionError):
-    def __init__(self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]):
-        """
-        :param callable_name: 呼び出し可能オブジェクト名
-        :param parameter_kind: 実際のパラメータ kind
-        :param valid_kinds: 許可されるパラメータ kind の集合
-        """
 ```
 
 ## 永続化例外
@@ -299,7 +310,7 @@ class TerminationMergeError(CelestialFlowError):
 
 ```python
 executor = TaskExecutor("Processor", process, max_retries=3)
-executor.add_retry_exceptions(ConnectionError, TimeoutError)
+executor.set_retry_exceptions(ConnectionError, TimeoutError)
 ```
 
 ### 2. 設定エラーの捕捉

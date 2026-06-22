@@ -1,10 +1,8 @@
 # TaskStage
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 `TaskStage` は `TaskGraph` を構築する基本単位です。`TaskExecutor` を継承し、グラフ構造関連の接続機能と `stage_mode` 制御ロジックを追加しています。
-
-> ⚠️ **変更点**：`set_inlet` のパラメータ名が `fail_queue` から `fallback_queue` に変更されました。`prev_bindings` メソッドは `prev_binding`（単数形）にリネームされ、シグネチャがリスト受け取りから単一の `TaskStage` 受け取りに変更されました。
 
 > 注意：`TaskStage` も使い捨てオブジェクトです。通常は `TaskGraph` に管理され、一度の完全実行に参加します。実行終了後、キューバインディング、カウント状態、グラフ内関連付けが安全にリセットされることは保証されません。
 
@@ -34,10 +32,10 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         **kwargs: Any,
     ):
         """
-        :param name: ノード名（一意の識別子）
-        :param func: 実行関数
-        :param stage_mode: グラフ内での実行モード ('serial' または 'thread')
-        :param kwargs: TaskExecutor に透過渡しするパラメータ (execution_mode, max_workers, max_retries など)
+        :param name: 节点名称（唯一标识）
+        :param func: 执行函数
+        :param stage_mode: 在图中的运行模式 ('serial' 或 'thread')
+        :param kwargs: 透传给 TaskExecutor 的参数 (execution_mode, max_workers, max_retries 等)
         """
 ```
 
@@ -46,7 +44,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
 stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", stage_mode="thread")
 stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mode="thread")
 
-# グラフを作成してノードを接続
+# 创建图并连接节点
 graph = TaskGraph()
 graph.set_stages(stages=[stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
@@ -59,20 +57,20 @@ graph.connect([stage_a], [stage_b])
 ```python
 def set_stage_mode(self, stage_mode: str):
     """
-    タスクグラフ内でのノードの実行モードを設定。
-    :param stage_mode: 'serial' または 'thread'
-    :raises StageModeError: モードがサポートされていない場合
+    设置节点在任务图中的执行模式。
+    :param stage_mode: 'serial' 或 'thread'
+    :raises StageModeError: 如果模式不支持
     """
 ```
 
 ### set_inlet
 
 ```python
-def set_inlet(self, fallback_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any]) -> None:
+def set_inlet(self, fallback_inlet: FallbackInlet, log_inlet: LogInlet) -> None:
     """
-    コレクターを初期化し、fallback/log キューを永続化層に接続。
-    :param fallback_queue: fallback キュー
-    :param log_queue: ログキュー
+    初始化收集器，将 fallback/log 收集器接入当前 stage。
+    :param fallback_inlet: fallback 收集器
+    :param log_inlet: 日志收集器
     """
 ```
 
@@ -91,7 +89,7 @@ def set_inlet(self, fallback_queue: ThreadQueue[Any], log_queue: ThreadQueue[Any
 ```python
 def prev_binding(self, pending_prev_binding: TaskStage[Any, Any]) -> None:
     """
-    単一の先行ノードをバインドし、そのカウンターを現在の stage の task_counter に登録。
+    绑定单个前置节点，将其计数器注册到当前 stage 的 task_counter 中。
     """
 ```
 
@@ -100,7 +98,7 @@ def prev_binding(self, pending_prev_binding: TaskStage[Any, Any]) -> None:
 ```python
 def get_binding_counter(self, _downstream_name: str) -> Any:
     """
-    下流 stage がバインドすべきカウンターを返す。サブクラスでオーバーライド可能（デフォルトは success_counter を返す）。
+    返回下游 stage 应绑定的计数器，子类可覆写（默认返回 success_counter）。
     """
 ```
 
@@ -120,17 +118,17 @@ stateDiagram-v2
 ### 状態メソッド
 
 ```python
-# 実行中マーク
+# 标记运行
 def mark_running(self) -> None:
-    """マーク：stage が実行中。"""
+    """标记：stage 正在运行。"""
 
-# 停止マーク
+# 标记停止
 def mark_stopped(self) -> None:
-    """マーク：stage が停止済み（正常終了時に finally 内で呼び出し）。"""
+    """标记：stage 已停止（正常结束时在 finally 里调用）。"""
 
-# 状態取得
+# 获取状态
 def get_status(self) -> StageStatus:
-    """現在の状態を読み取り（StageStatus 列挙型を返す）。"""
+    """读取当前状态（返回 StageStatus 枚举）。"""
 ```
 
 ## 実行メカニズム
@@ -146,8 +144,8 @@ def get_status(self) -> StageStatus:
 ```python
 def start_stage(self):
     """
-    execution_mode の値に応じて、タスクをシリアル、スレッド、または非同期で実行。
-    起動/終了ログを記録し、状態遷移を管理。
+    根据 execution_mode 的值，选择串行、线程或异步执行任务。
+    记录启动/结束日志，管理状态转换。
     """
 ```
 
@@ -161,7 +159,7 @@ def start_stage(self):
 
 ```python
 def drain_task_queue(self) -> None:
-    """タスクキューをクリアし、残存する全タスクを失敗キューに移動し UnconsumedError としてマーク。"""
+    """清空任务队列，将所有剩余任务移至失败队列并标记为 UnconsumedError。"""
 ```
 
 ## 状態スナップショット
@@ -169,9 +167,9 @@ def drain_task_queue(self) -> None:
 ```python
 def get_summary(self) -> dict[str, Any]:
     """
-    現在のノードの状態サマリーを取得。
-    TaskExecutor から継承したフィールド（name, func_name, execution_mode, max_workers）
-    に加えて stage_mode を返す。
+    获取当前节点的状态摘要。
+    返回继承自 TaskExecutor 的字段（name, func_name, execution_mode, max_workers）
+    外加 stage_mode。
     """
 ```
 
@@ -242,7 +240,7 @@ async_stage = TaskStage(
     execution_mode="async",
     max_workers=4,
 )
-print(f"非同期ステージサマリー: {async_stage.get_summary()}")
+print(f"异步阶段摘要: {async_stage.get_summary()}")
 ```
 
 ### 状態管理
@@ -253,11 +251,11 @@ from celestialflow.runtime.util_types import StageStatus
 
 stage = TaskStage("StatusDemo", func=lambda x: x)
 
-print(f"初期状態: {stage.get_status().name}")  # NOT_STARTED
+print(f"初始状态: {stage.get_status().name}")  # NOT_STARTED
 stage.mark_running()
-print(f"実行中: {stage.get_status().name}")   # RUNNING
+print(f"运行中: {stage.get_status().name}")   # RUNNING
 stage.mark_stopped()
-print(f"停止済み: {stage.get_status().name}")   # STOPPED
+print(f"已停止: {stage.get_status().name}")   # STOPPED
 ```
 
 ## 注意事項

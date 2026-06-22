@@ -1,6 +1,6 @@
 # TaskReporter
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 `TaskReporter` is a background component responsible for collecting task graph runtime status and reporting it to a remote Web server (CelestialFlow Web UI). It is also responsible for pulling control commands (such as task injection) from the server.
 
@@ -39,22 +39,18 @@ The Reporter interacts with the following Web APIs via HTTP:
 ### Pull Endpoints
 
 | Method | Endpoint | Description |
-|------|------|------|
+|--------|----------|-------------|
 | `GET` | `/api/pull_server_state` | Retrieve server sync state (including interval config, structure/analysis state, max event_id, etc.) |
 | `GET` | `/api/pull_task_injection` | Retrieve injected tasks |
-
-> ⚠️ **Changed**: Previous documentation listed the `/api/pull_interval` endpoint. The source code has merged this into `/api/pull_server_state`, which retrieves interval configuration, graph state flags, and max failed event_id in one call.
 
 ### Push Endpoints
 
 | Method | Endpoint | Description |
-|------|------|------|
+|--------|----------|-------------|
 | `POST` | `/api/push_errors` | Push error information (incremental, based on `server_max_event_id_in_fail`) |
 | `POST` | `/api/push_status` | Push runtime status snapshot |
 | `POST` | `/api/push_structure` | Push graph structure information |
 | `POST` | `/api/push_analysis` | Push graph analysis data |
-
-> ⚠️ **Changed**: Previous documentation listed `/api/push_errors_meta` and `/api/push_errors_content` as two separate endpoints. The source code has unified them into `/api/push_errors`. Previous documentation listed the `/api/push_summary` endpoint, but `TaskReporter._refresh_all()` does not include a push call for summary (`LogInlet` retains the `push_summary_failed` log method but it is not called by the Reporter).
 
 ### Interaction Flow
 
@@ -103,8 +99,6 @@ def _refresh_all(self) -> None:
     self._push_status()             # POST /api/push_status
     self._push_errors()             # POST /api/push_errors
 ```
-
-> ⚠️ **Changed**: The previously documented `_pull_interval()` no longer exists, replaced by `_pull_server_state()`. Internally, `_push_errors` decides whether to load full or incremental errors based on `_server_has_current_graph`.
 
 ## Lifecycle
 

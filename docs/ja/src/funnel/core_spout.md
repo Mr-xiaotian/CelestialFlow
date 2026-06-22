@@ -1,6 +1,6 @@
 # BaseSpout
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/22
 
 `BaseSpout` はすべての出口クラスの基底クラスであり、バックグラウンドスレッドでキューを監視しレコードを処理する汎用機能を提供します。
 
@@ -9,7 +9,8 @@
 ```python
 class BaseSpout:
     def __init__(self):
-        self.queue = Queue()              # スレッドセーフなキュー
+        self._queue: Queue[Any] = Queue()
+        self._counter = PendingCounter()
         self._thread: Thread | None = None
 ```
 
@@ -43,12 +44,20 @@ def stop(self):
 3. スレッドの終了を待機（`join(timeout=5)`）し、`_thread` を `None` に設定
 4. `_after_stop()` フックを呼び出す
 
-### get_queue
+### get_queue / get_counter / get_pending_count
 
 ```python
 def get_queue(self) -> Queue[Any]:
-    """Inlet 側で使用するキューオブジェクトを返す。"""
+    """リスナーの入力キューを取得する。"""
+
+def get_counter(self) -> PendingCounter:
+    """現在のリスナーに関連付けられた待処理カウンターを取得する。"""
+
+def get_pending_count(self) -> int:
+    """現在も処理が完了していないレコード数を読み取る。"""
 ```
+
+`get_pending_count()` には「デキュー済みだがまだ処理中」のレコードも含まれます。カウントは `_handle_record()` 完了後に減少するためです。
 
 ## オーバーライド可能なメソッド
 
@@ -73,15 +82,20 @@ def _spout(self):
     """バックグラウンドスレッドのメインループ。キューから継続的にレコードを取得し _handle_record を呼び出す。終了シグナル受信時に終了。"""
     while True:
         try:
-            record = self.queue.get(timeout=0.5)
-            if isinstance(record, TerminationSignal):
-                break
-            self._handle_record(record)
+            record = self._queue.get(timeout=0.5)
         except Empty:
             continue
+
+        if isinstance(record, TerminationSignal):
+            break
+
+        try:
+            self._handle_record(record)
         except Exception:
             # 単一レコードの処理失敗はスレッドを殺さず、traceback を出力して継続
             traceback.print_exc()
+        finally:
+            self._counter.decrement()
 ```
 
 ## ライフサイクル状態図
@@ -175,7 +189,7 @@ spout.get_queue().put("record_beta")
 spout.stop()
 ```
 
-### カウンター Spout
+### 待処理数の確認
 
 ```python
 from celestialflow.funnel import BaseSpout
@@ -194,14 +208,20 @@ spout.start()
 for i in range(100):
     spout.get_queue().put(i)
 
+# キューが空になるまで待機
+import time
+time.sleep(0.5)
+print(f"待処理: {spout.get_pending_count()}")
+
 spout.stop()
 print(f"{spout.count} 件のレコードを処理しました")  # 100
 ```
 
 ## 注意事項
 
-1. **スレッドセーフ**: `queue.Queue` を使用してスレッド間通信の安全性を確保
-2. **デーモンスレッド**: 監視スレッドはデーモンスレッド（`daemon=True`）として設定され、メインプロセス終了時に自動終了
-3. **グレースフルストップ**: `TerminationSignal` を送信してスレッドに停止を通知し、`join(timeout=5)` で最大 5 秒待機
-4. **例外分離**: 単一レコードの処理失敗時は traceback を出力して続行し、スレッドは終了しない
-5. **キュー未クリア**: 停止時にキュー内の残存レコードはクリアされない
+1. **スレッドセーフ**: `queue.Queue` を使用してスレッド間通信の安全性を確保します。
+2. **デーモンスレッド**: 監視スレッドはデーモンスレッド（`daemon=True`）として設定され、メインプロセス終了時に自動終了します。
+3. **グレースフルストップ**: `TerminationSignal` を送信してスレッドに停止を通知し、`join(timeout=5)` で最大 5 秒待機します。
+4. **例外分離**: 単一レコードの処理失敗時は traceback を出力して続行し、スレッドは終了しません。
+5. **キュー未クリア**: 停止時にキュー内の残存レコードはクリアされません。
+6. **待処理カウント**: カウンターは `_funnel()` エンキュー前に増加し、`_spout()` 処理完了後に減少します。これにより、データがすべて消費されたかどうかを判断できます。

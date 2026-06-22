@@ -1,6 +1,6 @@
 # Utils モジュール
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/22
 
 Utils モジュールは CelestialFlow の汎用ユーティリティ関数と補助クラスを提供します。パフォーマンスベンチマークテスト、データクローン、コレクション操作、フォーマット機能を含みます。これらのツールは他のモジュールで広く使用され、コードの再利用性と保守性を向上させます。
 
@@ -88,8 +88,19 @@ import asyncio
 from celestialflow import TaskExecutor
 from celestialflow.utils.util_benchmark import benchmark_executor
 
-executor = TaskExecutor("Bench", my_func)
-asyncio.run(benchmark_executor(executor, async_executor, range(100)))
+
+def sync_task(x: int) -> int:
+    return x * 2
+
+
+async def async_task(x: int) -> int:
+    await asyncio.sleep(0.001)
+    return x * 2
+
+
+sync_executor = TaskExecutor("SyncBench", sync_task)
+async_executor = TaskExecutor("AsyncBench", async_task)
+asyncio.run(benchmark_executor(sync_executor, async_executor, range(100)))
 ```
 
 ### クローン
@@ -105,7 +116,7 @@ graph_copy = clone_graph(original_graph)
 from celestialflow.utils.util_collections import cluster_by_value_sorted
 
 grouped = cluster_by_value_sorted({"a": 1, "b": 2, "c": 1})
-# {"1": ["a", "c"], "2": ["b"]}
+# {1: ["a", "c"], 2: ["b"]}
 ```
 
 ### フォーマット
@@ -135,29 +146,29 @@ from celestialflow.utils.util_format import (
     format_avg_time,
 )
 
-# 1. フォーマットツール ----
+# 1. 格式化工具 ----
 print("=" * 40)
-print("フォーマットツール例")
+print("格式化工具示例")
 print("=" * 40)
 
-# format_duration: 秒 -> 可読時間
+# format_duration: 秒 -> 可读时间
 print(f"format_duration(75): {format_duration(75)}")     # 01:15
 print(f"format_duration(3661): {format_duration(3661)}") # 01:01:01
 
-# format_timestamp: タイムスタンプ -> 日付文字列
+# format_timestamp: 时间戳 -> 日期字符串
 import time
 print(f"format_timestamp(now): {format_timestamp(time.time())}")
 
-# format_avg_time: 平均処理時間
+# format_avg_time: 平均耗时
 print(f"format_avg_time(12.5, 100): {format_avg_time(12.5, 100)}")  # 0.12s/it
 print(f"format_avg_time(2.0, 1): {format_avg_time(2.0, 1)}")       # 2.00s/it
 
-# format_repr: 安全な切り詰め
+# format_repr: 安全截断
 print(f"format_repr('hello'*10, 15): {format_repr('hello'*10, 15)}")
 
-# 2. コレクション操作 ----
+# 2. 集合操作 ----
 print("\n" + "=" * 40)
-print("コレクション操作例")
+print("集合操作示例")
 print("=" * 40)
 
 task_results = {
@@ -169,15 +180,15 @@ task_results = {
 }
 clustered = cluster_by_value_sorted(task_results)
 for value, stages in clustered.items():
-    print(f"処理量 {value}: {stages}")
-# 出力：
-#   処理量 50: ['stage_b', 'stage_d']
-#   処理量 100: ['stage_a', 'stage_c']
-#   処理量 200: ['stage_e']
+    print(f"处理量 {value}: {stages}")
+# 输出：
+#   处理量 50: ['stage_b', 'stage_d']
+#   处理量 100: ['stage_a', 'stage_c']
+#   处理量 200: ['stage_e']
 
-# 3. クローンツール（ベンチマークテストとの連携）----
+# 3. 克隆工具（配合基准测试）----
 print("\n" + "=" * 40)
-print("クローンとベンチマークテスト例")
+print("克隆与基准测试示例")
 print("=" * 40)
 
 
@@ -193,22 +204,22 @@ async def run_benchmark():
         max_workers=4,
     )
 
-    # 実行器をクローンして分離された状態でテスト
+    # 克隆执行器用于隔离的状态测试
     cloned = clone_executor(executor)
-    print(f"元の実行器: {executor.get_name()}")
-    print(f"クローン実行器: {cloned.get_name()}")
-    print(f"モード一致: {executor.execution_mode == cloned.execution_mode}")
+    print(f"原始执行器: {executor.get_name()}")
+    print(f"克隆执行器: {cloned.get_name()}")
+    print(f"模式一致: {executor.execution_mode == cloned.execution_mode}")
 
-    # format_table を使用してテーブルを表示
+    # 使用 format_table 展示表格
     table = format_table(
         [[100, 0.12], [50, 0.08]],
         row_names=["thread", "serial"],
-        column_names=["タスク数", "平均処理時間(s)"],
+        column_names=["任务数", "平均耗时(s)"],
     )
-    print(f"\nベンチマークテストテーブル:\n{table}")
+    print(f"\n基准测试表格:\n{table}")
 
-    # 元の実行器を実行
-    await executor.start(range(100))
+    # 运行原始执行器
+    executor.start(range(100))
 
 
 asyncio.run(run_benchmark())

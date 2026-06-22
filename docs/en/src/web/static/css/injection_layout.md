@@ -1,18 +1,8 @@
 # injection_layout.css
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
-Defines styles for the task injection page's top hint area, search/filter, two-column layout, and responsive breakpoint styles.
-
-> 🆕 **New document**: This file was split from the original merged `injection.css`, specifically covering layout and filter styles.
-
-## Hint Area (`.tip-section`)
-
-- Located at the top of the page, light blue background (`--cornflower-50`) + dark blue left border (`4px solid --cornflower-500`).
-- Dark mode: background switches to `--cornflower-900`.
-- `.tip-content`: flex layout arranging icon and text.
-- `.tip-icon`: SVG icon, `1.25rem`, color `--cornflower-500`.
-- `.tip-text`: Hint body text, `0.75rem`.
+Defines styles for the task injection page's search/filter, two-column layout, and responsive breakpoint styles.
 
 ## Two-Column Layout (`.card-grid`)
 

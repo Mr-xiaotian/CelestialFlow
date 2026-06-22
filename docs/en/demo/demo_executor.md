@@ -1,6 +1,6 @@
 # demo_executor.py Demo Guide
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 ## Objective
 
@@ -12,14 +12,14 @@ Core strategy comparison across the three execution modes:
 
 ```mermaid
 flowchart TB
-    subgraph Serial["serial mode"]
+    subgraph Serial["Serial Mode serial"]
         direction LR
         T1_1["Task 1<br/>fibonacci(25)"] --> T1_2["Task 2<br/>fibonacci(26)"]
         T1_2 --> T1_3["..."]
         T1_3 --> T1_4["Task 7<br/>fibonacci(31)"]
     end
 
-    subgraph Thread["thread mode"]
+    subgraph Thread["Thread Mode thread"]
         direction LR
         T2_1["Task 1<br/>fibonacci(25)"]
         T2_2["Task 2<br/>fibonacci(26)"]
@@ -30,7 +30,7 @@ flowchart TB
         T2_7["Task 7<br/>fibonacci(31)"]
     end
 
-    subgraph Async["async mode"]
+    subgraph Async["Async Mode async"]
         direction LR
         T3_1["Task 1<br/>fibonacci_async(25)"]
         T3_2["Task 2<br/>fibonacci_async(26)"]
@@ -57,7 +57,7 @@ flowchart TB
 | `demo_fibonacci_async` | async | Async Fibonacci | Coroutine concurrency |
 
 - **Input**: `range(25, 32) + [0, 27, None, 0, ""]`
-- **Exception design**: `0`, `None`, `""` trigger `ValueError`; the framework auto-retries 1 time
+- **Exception design**: Two `0`s trigger `ValueError`, and the framework auto-retries 1 time; `None` and `""` trigger type errors and fail directly because they are not in the retry list
 
 ## Key Configuration
 
@@ -88,7 +88,7 @@ After running, the three modes execute sequentially with output similar to:
  80%|████████████████░░░░| ...
 
 --- Summary ---
-  mode=serial  success=07  fail=05  dup=0  pending=0  elapsed=0.90s
+  mode=serial  success=08  fail=04  dup=0  pending=0  elapsed=0.90s
 
 ========================================
 [thread] Fibonacci benchmark (N=12 tasks, max_workers=6)
@@ -96,7 +96,7 @@ After running, the three modes execute sequentially with output similar to:
  80%|████████████████░░░░| ...
 
 --- Summary ---
-  mode=thread  success=07  fail=05  dup=0  pending=0  elapsed=0.86s
+  mode=thread  success=08  fail=04  dup=0  pending=0  elapsed=0.86s
 
 ========================================
 [async] Fibonacci benchmark (N=12 tasks, max_workers=6)
@@ -104,10 +104,10 @@ After running, the three modes execute sequentially with output similar to:
  80%|████████████████░░░░| ...
 
 --- Summary ---
-  mode=async  success=07  fail=05  dup=0  pending=0  elapsed=0.01s
+  mode=async  success=08  fail=04  dup=0  pending=0  elapsed=0.01s
 ```
 
-> **Note**: Of the 12 tasks, 5 abnormal inputs (`0`, `27`, `None`, `0`, `""`) triggered `ValueError` and are ultimately marked as failures after retry; `success=07` represents the 7 Fibonacci tasks that executed normally.
+> **Note**: Of the 12 tasks, 4 invalid inputs (two `0`s, `None`, `""`) cause failures; the remaining 8 are valid Fibonacci tasks, so the final result is `success=08`/`fail=04`. The two `0`s trigger `ValueError` and still fail after 1 retry; `None`/`""` trigger type errors.
 > All three modes use the iterative Fibonacci (O(n)) from `demo_utils`, with comparable performance.
 
 ## Dependencies

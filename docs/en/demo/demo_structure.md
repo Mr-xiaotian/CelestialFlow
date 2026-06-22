@@ -1,6 +1,6 @@
 # demo_structure.py Demo Guide
 
-> 📅 Last Updated: 2026/05/24
+> 📅 Last Updated: 2026/06/22
 
 ## Objective
 
@@ -239,14 +239,14 @@ Two independent tree-shaped DAGs coexisting in the same `TaskGraph` without inte
 
 ## Key Configuration
 
-- DAG structures: `stage_mode="thread"`, `execution_mode="thread"`
+- DAG structures: default `stage_mode="thread"`; each Stage of `demo_chain` uses `execution_mode="serial"`, while most others use `execution_mode="thread"`
 - `demo_grid`: uses `staged` schedule mode (layer-by-layer execution)
-- Cyclic graphs: `put_termination_signal=False` (recommended for external stop control)
-- All demos enable `Reporter` and `CelestialTree`
+- Cyclic graphs: whether the termination signal is injected automatically varies by example; `demo_multi_cycle` explicitly passes `False`, `demo_wheel` passes `True`, and `demo_loop`/`demo_complete` use default behavior; it is recommended to prepare manual termination when running cyclic graphs
+- Each demo calls `set_reporter(True, ...)` and `set_ctree(ctree_client)`; whether they actually take effect depends on environment variables and whether the server is ready
 
 ## Potential Issues
 
-1. **Cyclic graphs do not stop automatically**: `demo_loop`, `demo_complete`, etc. use `put_termination_signal=False` and will loop continuously until the process is manually terminated.
+1. **Cyclic graphs may not stop automatically**: `demo_multi_cycle` explicitly passes `False`, `demo_wheel` passes `True`, and `demo_loop`/`demo_complete` use default behavior; whether it loops continuously depends on the framework's default policy. Prepare **Ctrl+C** for manual termination before running.
 2. **Sleep latency accumulation**: `add_one_sleep` includes 1-second sleep; 20 tasks × multiple nodes = long total duration.
 3. **No assertions**: Only verifies that the framework can start and run; does not check result values.
 
@@ -258,7 +258,7 @@ python demo/demo_structure.py
 
 ## Expected Behavior
 
-After running, each structure demo executes sequentially, outputting input/output logs for each Stage and a final summary.
+`__main__` only calls `demo_chain()` by default; all other structure functions are commented out. Uncomment them to run multiple structures in sequence.
 
 ### DAG Structures
 
@@ -300,7 +300,7 @@ Grid33: success=5  fail=0
 ... (loops continuously)
 ```
 
-> **Important**: Cyclic graphs like `demo_loop`, `demo_wheel`, `demo_complete` use `put_termination_signal=False` and will not stop automatically after running. Press **Ctrl+C** to manually terminate the process.
+> **Important**: The cyclic graph examples (`demo_loop`, `demo_wheel`, `demo_complete`, `demo_multi_cycle`) have different termination-signal settings; they may continue looping when run with the defaults, so press **Ctrl+C** to manually terminate the process.
 
 ### Forest
 

@@ -1,19 +1,17 @@
 # Observability Module
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 The Observability module provides CelestialFlow's observability features, including runtime status monitoring, progress visualization, the Observer pattern, and remote status reporting. It makes the task execution process transparent and monitorable.
 
 ## Exported Symbols
 
 | Exported Symbol | Source Module | Description |
-|---------|---------|------|
+|-----------------|---------------|-------------|
 | `BaseObserver` | `core_observer` | Base class for executor lifecycle observers, defining event interfaces such as `on_start`, `on_task_success`, `on_task_fail`, `on_task_duplicate`, `on_tasks_added`, `on_finish` |
 | `TaskProgress` | `core_progress` | `tqdm`-based task progress visualization tool, inheriting from `BaseObserver` |
 | `TaskReporter` | `core_report` | Task status reporter, a background thread that periodically pushes runtime status to a Web server and pulls control commands |
 | `NullTaskReporter` | `core_report` | Null implementation of task reporter, used as a placeholder when reporting is disabled |
-
-> ⚠️ **Deprecated**: Previous documentation listed `CallbackObserver`. The source implementation of this class has been removed from `core_observer.py` and is no longer available.
 
 ## File Descriptions
 

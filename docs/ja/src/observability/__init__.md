@@ -1,6 +1,6 @@
 # Observability モジュール
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 Observability モジュールは CelestialFlow の可観測性機能を提供し、実行状態の監視、進捗の可視化、Observer パターン、リモート状態レポートを含みます。タスク実行プロセスを透過的かつ監視可能にします。
 
@@ -12,8 +12,6 @@ Observability モジュールは CelestialFlow の可観測性機能を提供し
 | `TaskProgress` | `core_progress` | `tqdm` ベースのタスク進捗可視化ツール。`BaseObserver` を継承 |
 | `TaskReporter` | `core_report` | タスク状態レポーター。バックグラウンドスレッドで定期的に Web サーバーへ実行状態をプッシュし、制御指示をプル |
 | `NullTaskReporter` | `core_report` | タスクレポーターの空実装。レポート機能を無効にする際のプレースホルダー |
-
-> ⚠️ **非推奨**：以前のドキュメントでは `CallbackObserver` が記載されていましたが、このクラスのソースコード実装は `core_observer.py` から削除され、利用できなくなりました。
 
 ## ファイル説明
 

@@ -1,19 +1,18 @@
 # persistence テストパッケージ
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 ## 役割
-`tests/persistence/` はエラー、ログ、成功結果の 3 つの永続化パス、および JSONL 解析ユーティリティ関数をカバーし、Inlet / Spout ペアコンポーネントがバックグラウンドスレッドで正しくディスクに書き込むか結果をキャッシュできることを検証します。
+`tests/persistence/` はエラー耐障害性、ログ記録、sqlite ユーティリティ関数の3つの永続化パスをカバーし、Inlet / Spout ペアコンポーネントがバックグラウンドスレッドで正しくディスクに書き込み、またはログをバッチフラッシュできることを検証します。
 
 ## 含まれるテストファイル
-- `test_fail.py`: エラーレコードの JSONL 書き込み。
-- `test_jsonl.py`: JSONL ファイルの解析とグループ化ユーティリティ関数。
-- `test_log.py`: ログレコードのテキストファイル書き込み。
-- `test_success.py`: 成功結果の `(prev_task, result)` ペアキャッシュ。
+- `test_fallback.py`: エラーと成功結果の sqlite 永続化（`FallbackInlet` / `FallbackSpout`）。
+- `test_log.py`: ログレコードのテキストファイルへのバッチ書き込み（`LogInlet` / `LogSpout`）。
+- `test_splite.py`: sqlite ユーティリティ関数（テーブル作成、CRUD、状態マイグレーション、グループ読み込み）。
 
 ## 実行方法
 
 ```bash
 pytest tests/persistence -v
-pytest tests/persistence -k "fail or jsonl or log or success" -v
+pytest tests/persistence -k "fallback or log or splite" -v
 ```

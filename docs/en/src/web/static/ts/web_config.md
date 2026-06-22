@@ -1,6 +1,6 @@
 # web_config.ts
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 Manages web frontend configuration loading, normalization, saving, and application. Configuration uses a **grouped structure** (`global`, `dashboard`, `errors`, `injection`), while also supporting automatic migration of legacy flat format.
 
@@ -47,18 +47,16 @@ type WebConfig = {
 
 ```typescript
 type LegacyWebConfig = {
-  theme?: string;
+  theme?: "light" | "dark";
   autoRefreshEnabled?: boolean;
   refreshInterval?: number;
-  language?: string;
+  language?: Lang;
   historyLimit?: number;
   showStructureEdgeDelta?: boolean;
   useTotalPendingInStatus?: boolean;
-  pageSize?: number;
-  sortOrder?: string;
-  jumpToInjectionAfterRetry?: boolean;
-  showInjectableOnly?: boolean;
-  layout?: DashboardLayout;
+  errorPageSize?: number;
+  errorSortOrder?: "newest" | "oldest";
+  dashboard?: Partial<DashboardLayout>;
 };
 ```
 
@@ -67,9 +65,9 @@ type LegacyWebConfig = {
 | Variable | Type | Description |
 |------|------|------|
 | `webConfig` | `WebConfig` | Current runtime configuration object, initialized by `DEFAULT_WEB_CONFIG` at module load |
-| `saveConfigPending` | `boolean` | Whether a save request is in progress (prevents concurrent writes) |
-| `saveConfigPromise` | `Promise<boolean> \| null` | Promise of the current or most recent save operation |
-| `PANEL_SELECTOR_MAP` | `Record<string, string>` | Panel key to CSS selector mapping |
+| `saveConfigPending` | `boolean` | Whether there are new config changes waiting to be persisted |
+| `saveConfigPromise` | `Promise<boolean> \| null` | Current save queue Promise |
+| `PANEL_SELECTOR_MAP` | `Record<DashboardColumnKey, string>` | Panel key to CSS selector mapping |
 | `CARD_TEMPLATES` | `Record<string, string>` | Card ID to HTML template mapping (mermaid, analysis, status, progress, summary) |
 | `CARD_META` | `Record<string, string>` | Card ID to i18n label key mapping |
 | `ALL_CARD_IDS` | `string[]` | Standard card ID list auto-generated from `Object.keys(CARD_TEMPLATES)` |
@@ -91,17 +89,17 @@ Persists the current `webConfig` via `POST /api/push_config`. Has **anti-concurr
 
 ### `performSaveWebConfig(): Promise<boolean>`
 
-Executes the actual POST request. Sets the `saveConfigPending` flag and returns the write result.
+Executes the actual POST request, pushing the current `webConfig` snapshot to the backend. Concurrency control is handled by `saveWebConfig()`.
 
 ---
 
 ### `isGroupedWebConfig(config: unknown): boolean`
 
-Detects whether a config object is the new grouped format (contains `global`, `dashboard`, `errors`, `injection` sub-objects).
+Detects whether a config object is the new grouped format (source code identifies it by checking whether `global`, `errors`, or `injection` sub-objects exist).
 
 ---
 
-### `normalizeWebConfig(rawConfig?: unknown): WebConfig`
+### `normalizeWebConfig(rawConfig?: Partial<WebConfig> | LegacyWebConfig | null): WebConfig`
 
 Deep-merges the raw config returned by the backend (potentially legacy flat format or with missing fields) with `DEFAULT_WEB_CONFIG`.
 
@@ -163,7 +161,7 @@ const DEFAULT_WEB_CONFIG: WebConfig = {
     jumpToInjectionAfterRetry: true,
   },
   injection: {
-    showInjectableOnly: false,
+    showInjectableOnly: true,
   },
 };
 ```

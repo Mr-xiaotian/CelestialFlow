@@ -1,16 +1,16 @@
 # Push Routes (POST) — `push_routes`
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 ## Purpose
 
-The `push_routes` module provides all POST endpoints for the **Reporter** to **push** data to the server. Each push updates the corresponding in-memory store and increments the version number (`store_revs`), allowing clients to detect data changes via Pull routes. Error data supports **cache hit** optimization (skip reloading if path + rev are unchanged).
+The `push_routes` module provides all POST endpoints for the **Reporter** to **push** data to the server. Each push updates the corresponding in-memory store and increments the version number (`store_revs`), allowing clients to detect data changes via Pull routes. All reporter-side pushes must carry `graph_id`, and the server verifies whether it is the current graph instance.
 
 ## Core Function
 
 ### `register(router: APIRouter, server: TaskWebServer, config_path: str) -> None`
 
-Registers all 7 POST endpoints on the given `APIRouter`.
+Registers all 6 POST endpoints on the given `APIRouter`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -71,13 +71,25 @@ Save frontend configuration and update the polling interval.
 
 Update graph structure data.
 
-**Request body:** `StructureModel` (contains a `structure` field)
+**Request body:** `StructureModel` (contains `graph_id` and `structure` fields)
+
+```json
+{
+  "graph_id": "graph-001",
+  "structure": {
+    "nodes": {"n1": {"label": "MyTask"}},
+    "edges": {"n1": []},
+    "source_nodes": ["n1"]
+  }
+}
+```
 
 **Logic:**
-1. Atomically write `data.structure` into `server.structure_store`
-2. Increment `server.store_revs["structure"]` by 1
+1. Verify whether `data.graph_id` matches the current graph context; if not, return `{"ok": false}`
+2. Atomically write `data.structure` into `server.structure_store`
+3. Increment `server.store_revs["structure"]` by 1
 
-**Returns:** `{"ok": true}`
+**Returns:** `{"ok": true}` or `{"ok": false}`
 
 ---
 
@@ -85,100 +97,72 @@ Update graph structure data.
 
 Update the runtime status of each node.
 
-**Request body:** `StatusModel` (contains `timestamp` and `status` fields)
+**Request body:** `StatusModel` (contains `graph_id`, `timestamp`, and `status` fields)
+
+```json
+{
+  "graph_id": "graph-001",
+  "timestamp": 1716883200.5,
+  "status": {"node_a": "running", "node_b": "success"}
+}
+```
 
 **Logic:**
-1. Update `server.status_timestamp`
-2. Update `server.status_store`
+1. Verify whether `data.graph_id` matches the current graph context
+2. Update `server.status_timestamp` and `server.status_store`
 3. Increment `server.store_revs["status"]` by 1
 
-**Returns:** `{"ok": true}`
+**Returns:** `{"ok": true}` or `{"ok": false}`
 
 ---
 
-### 4. `POST /api/push_errors_meta`
+### 4. `POST /api/push_errors`
 
-Load error logs via JSONL file path and version number, supports cache hit.
+Directly receives an error log list and writes it to SQLite.
 
-**Request body:** `ErrorsMetaModel`
+**Request body:** `ErrorsModel` (contains `graph_id` and `errors` fields)
 
 ```json
 {
-  "rev": 5,
-  "jsonl_path": "/var/log/celestialflow/errors.jsonl"
+  "graph_id": "graph-001",
+  "errors": [
+    {"ts": "2026-06-18T10:00:00", "error_id": "e1", "error_type": "ValueError", "error_message": "..."}
+  ]
 }
 ```
 
 **Logic:**
+1. Verify whether `data.graph_id` matches the current graph context
+2. Call `append_records` to write errors to the SQLite database
+3. Increment `server.store_revs["errors"]` by 1
 
-```
-┌─────────────────────────────────────────┐
-│  Request arrives                         │
-│     ↓                                    │
-│  Cache hit? (path and rev both unchanged)│
-│     ├─ Yes → return {"cached": true}    │
-│     └─ No →                             │
-│          try:                            │
-│            call load_jsonl_logs()       │
-│            (read JSONL in a separate    │
-│             thread)                     │
-│            → update error_store         │
-│            → update cache (rev+path)    │
-│            → store_revs["errors"] += 1  │
-│            return {"cached": false}     │
-│          except:                         │
-│            return fallback=need_content │
-└─────────────────────────────────────────┘
-```
-
-**Returns:**
-- Cache hit: `{"ok": true, "cached": true}`
-- Load success: `{"ok": true, "cached": false}`
-- Load failure: `{"ok": false, "fallback": "need_content", "reason": "...", "msg": "..."}`
-
-> **Note:** On load failure, the caller should fall back to `push_errors_content` to directly send error content.
+**Returns:** `{"ok": true}` or `{"ok": false}`
 
 ---
 
-### 5. `POST /api/push_errors_content`
-
-Directly receive and store an error log list, supports cache hit.
-
-**Request body:** `ErrorsContentModel`
-
-```json
-{
-  "rev": 5,
-  "jsonl_path": "/var/log/celestialflow/errors.jsonl",
-  "errors": [{"ts": "2026-05-28T10:00:00", "error_id": "...", ...}, ...]
-}
-```
-
-**Logic:**
-- On cache hit, skip and directly return `{"cached": true}`
-- Otherwise, write into `server.error_store` and update cache and version number
-
-**Returns:**
-- Cache hit: `{"ok": true, "cached": true}`
-- Write success: `{"ok": true, "cached": false}`
-
----
-
-### 6. `POST /api/push_analysis`
+### 5. `POST /api/push_analysis`
 
 Update graph topology analysis information.
 
-**Request body:** `AnalysisModel` (contains an `analysis` field)
+**Request body:** `AnalysisModel` (contains `graph_id` and `analysis` fields)
+
+```json
+{
+  "graph_id": "graph-001",
+  "analysis": {"root_count": 3, "max_depth": 5}
+}
+```
 
 **Logic:**
-1. Update `server.analysis_store`
-2. Increment `server.store_revs["analysis"]` by 1
+1. Verify whether `data.graph_id` matches the current graph context
+2. Update `server.analysis_store`
+3. Increment `server.store_revs["analysis"]` by 1
 
-**Returns:** `{"ok": true}`
+**Returns:** `{"ok": true}` or `{"ok": false}`
 
 ---
 
-### 7. `POST /api/push_injection_tasks`
+### 6. `POST /api/push_injection_tasks`
 
 Write frontend-submitted injection tasks into the pending execution queue.
 
@@ -192,8 +176,8 @@ Write frontend-submitted injection tasks into the pending execution queue.
 ```
 
 **Logic:**
-1. Acquire `task_injection_lock`
-2. Iterate over `data.root`, write into `server.injection_tasks` in `{node_name: task_list}` format
+1. Hold the `task_injection_lock`
+2. Iterate over `data.root`, writing into `server.injection_tasks` in `{node_name: task_list}` format
 3. Release the lock
 
 > Note: The request body is directly a `{node_name: [task_list]}` format dictionary, no longer wrapping `node`/`task_datas`/`timestamp` fields. The task list for each node name will **overwrite** that node's existing pending injection tasks (not append).
@@ -215,29 +199,25 @@ BASE = "http://localhost:8000"
 
 # Push node status
 requests.post(f"{BASE}/api/push_status", json={
+    "graph_id": "graph-001",
     "timestamp": 1716883200.5,
-    "status": {"node_a": "running", "node_b": "success"}
+    "status": {
+        "node_a": {"state": "running", "pending": 0},
+        "node_b": {"state": "success", "pending": 0}
+    }
 })
 
-# Push error logs (meta mode: let the server read JSONL itself)
-resp = requests.post(f"{BASE}/api/push_errors_meta", json={
-    "rev": 5,
-    "jsonl_path": "/var/log/celestialflow/errors.jsonl"
+# Push error logs
+requests.post(f"{BASE}/api/push_errors", json={
+    "graph_id": "graph-001",
+    "errors": [
+        {"ts": "2026-06-18T10:00:00", "error_id": "e1", "error_type": "ValueError", "error_message": "Invalid input"}
+    ]
 })
-
-# If server read fails, fall back to direct content delivery
-data = resp.json()
-if not data["ok"] and data.get("fallback") == "need_content":
-    requests.post(f"{BASE}/api/push_errors_content", json={
-        "rev": 5,
-        "jsonl_path": "/var/log/celestialflow/errors.jsonl",
-        "errors": [
-            {"ts": "2026-05-28T10:00:00", "error_id": "e1", ...}
-        ]
-    })
 
 # Push structure data
 requests.post(f"{BASE}/api/push_structure", json={
+    "graph_id": "graph-001",
     "structure": {
         "nodes": {"n1": {"label": "MyTask"}},
         "edges": {"n1": []},

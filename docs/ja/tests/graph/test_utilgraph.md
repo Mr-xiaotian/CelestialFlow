@@ -1,6 +1,6 @@
-# グラフ解析ツールテスト (test_analysis.py)
+# グラフ解析ユーティリティテスト (test_utilgraph.py)
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 ## 役割
 `celestialflow.graph.util_graph` の基礎グラフ解析関数を検証し、`OrderGraph` 構築、階層計算、ソースノード検索ロジックの正確性を確認します。
@@ -22,24 +22,24 @@
    - **ホイールトポロジ**: 中心ノードが唯一のソースとして識別されることを検証。
 
 ## テストの重点
-- **OrderGraph 構築**: 内部グラフ構造の構築が正しいことを確認。
+- **OrderGraph 構築**: 内部順序グラフ構造と隣接関係が正しいことを確認。
 - **階層の一貫性**: 複雑なトポロジ（尾付き循環など）における階層計算の堅牢性。
 - **SCC 処理**: 循環参照が無限ループや誤った階層分布を引き起こさないことを確認。
 
 ## 実行方法
 
 ```bash
-# 全テスト実行
-pytest tests/graph/test_analysis.py -v
+# すべて実行
+pytest tests/graph/test_utilgraph.py -v
 
-# グラフ構築テストのみ
-pytest tests/graph/test_analysis.py::TestBuildOrderGraph -v
+# グラフ構築テストのみ実行
+pytest tests/graph/test_utilgraph.py::TestBuildOrderGraph -v
 
-# 階層計算テストのみ
-pytest tests/graph/test_analysis.py -k "levels" -v
+# 階層計算テストのみ実行
+pytest tests/graph/test_utilgraph.py -k "levels" -v
 
-# ソースノード検索テストのみ
-pytest tests/graph/test_analysis.py -k "source" -v
+# ソースノード検索テストのみ実行
+pytest tests/graph/test_utilgraph.py -k "source" -v
 ```
 
 ## パフォーマンス参考
@@ -54,4 +54,4 @@ pytest tests/graph/test_analysis.py -k "source" -v
 - テストケースはすべて純粋なメモリ計算で、実行速度が非常に速い。
 
 ## 注意事項
-- テストコードは `tests/graph/test_analysis.py` にあり、対応する実装は `src/celestialflow/graph/util_graph.py` にあります。
+- テストコードは `tests/graph/test_utilgraph.py` にあり、対応する実装は `src/celestialflow/graph/util_graph.py` にあります。

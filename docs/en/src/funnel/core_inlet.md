@@ -1,31 +1,56 @@
 # BaseInlet
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
-`BaseInlet` is the base class for all inlet classes, providing the common functionality of writing records to a queue.
+`BaseInlet` is the base class for all inlet classes, responsible for sending records to the corresponding `BaseSpout` through a queue.
 
 ## Class Definition
 
 ```python
 class BaseInlet:
-    def __init__(self, queue: Any) -> None:
+    _queue: Queue[Any]
+    _counter: PendingCounter
+
+    def bind_spout(self, spout: BaseSpout) -> Self:
         """
-        :param queue: Record queue (obtained via the corresponding Spout's get_queue())
+        Bind the current inlet to the given spout.
+
+        :param spout: Target listener
+        :return: The current inlet instance, now bound
         """
-        self.queue: Any = queue
+        self._queue = spout.get_queue()
+        self._counter = spout.get_counter()
+        return self
 
     def _funnel(self, record: Any) -> None:
-        """Put a record into the queue for consumption by the corresponding Spout."""
-        self.queue.put(record)
+        """
+        Put a record into the queue.
+
+        :param record: Record to send
+        """
+        if not hasattr(self, '_queue') or not hasattr(self, '_counter'):
+            raise InitializationError("inlet is not bound to spout")
+
+        self._counter.increment()
+        try:
+            self._queue.put(record)
+        except Exception:
+            self._counter.decrement()
+            raise
 ```
 
-### Attributes
-
-| Attribute | Type | Description |
-|------|------|------|
-| `queue` | `Any` | Record queue instance, records are written via `queue.put()` |
-
 ## Core Methods
+
+### bind_spout
+
+```python
+def bind_spout(self, spout: BaseSpout) -> Self:
+```
+
+- Binds the current inlet to the specified `BaseSpout` instance.
+- Internally reuses the spout's input queue (`_queue`) and pending counter (`_counter`).
+- Returns itself to support chaining: `LogInlet(log_level).bind_spout(spout)`.
+- Calling `_funnel()` before binding raises `InitializationError`.
 
 ### _funnel (protected)
 
@@ -33,16 +58,16 @@ class BaseInlet:
 def _funnel(self, record: Any) -> None:
 ```
 
-- Puts `record` into `self.queue` for consumption by the corresponding `Spout`
-- Called by subclasses in their concrete business methods
-- Uses `queue.Queue` to ensure thread-safe communication
+- Puts `record` into the queue shared with the spout.
+- Calls `increment()` before enqueueing; if enqueueing fails, immediately calls `decrement()` to roll back.
+- Subclasses usually call this method inside concrete business methods.
 
 ## Inheritance Relationships
 
 ```mermaid
 classDiagram
     class BaseInlet {
-        +Any queue
+        +bind_spout(spout: BaseSpout) Self
         +_funnel(record: Any) None
     }
     class LogInlet {
@@ -69,11 +94,9 @@ classDiagram
 ### Inheritance Description
 
 | Subclass | Source File | Responsibility |
-|------|---------|------|
+|----------|-------------|----------------|
 | `LogInlet` | `persistence/core_log.py` | Log recording, tracking the entire lifecycle of task enqueue/dequeue/termination |
 | `FallbackInlet` | `persistence/core_fallback.py` | Fallback recording, persisting task lifecycle to SQLite |
-
-> ⚠️ **Changed**: The legacy `FailInlet` (`core_fail.py`) has been renamed to `FallbackInlet` (`core_fallback.py`), and `SuccessSpout` has been removed.
 
 ## Usage Example
 
@@ -81,8 +104,12 @@ classDiagram
 from celestialflow.funnel import BaseSpout, BaseInlet
 
 class MySpout(BaseSpout):
+    def __init__(self):
+        super().__init__()
+        self.received = []
+
     def _handle_record(self, record):
-        print(record)
+        self.received.append(record)
 
 class MyInlet(BaseInlet):
     def send(self, data):
@@ -90,16 +117,20 @@ class MyInlet(BaseInlet):
 
 # Usage
 spout = MySpout()
+inlet = MyInlet().bind_spout(spout)
+
 spout.start()
-inlet = MyInlet(spout.get_queue())
 inlet.send("hello")
+inlet.send({"key": "value"})
 spout.stop()
+
+print(spout.received)
 ```
 
 ## Notes
 
-1. **One-Way Communication**: Inlet only writes to the queue, Spout is responsible for consumption, both are decoupled via the queue
-2. **Queue Source**: The queue is created and provided by the corresponding `BaseSpout` (via `get_queue()`), Inlet does not manage the queue lifecycle
-3. **Thread Safety**: Uses `queue.Queue` for thread-safe communication
-4. **No Exception Thrown**: `_funnel` does not handle queue write exceptions internally; subclasses should catch them at the call site
-5. **Usage Pattern**: Typically one `BaseSpout` corresponds to one `BaseInlet`, forming a producer-consumer pair
+1. **One-Way Communication**: Inlet only writes to the queue, Spout is responsible for consumption; both are decoupled via the queue.
+2. **Binding Style**: The queue and counter are created by `BaseSpout` and shared with the Inlet via `bind_spout()`; the Inlet does not manage the queue lifecycle directly.
+3. **Thread Safety**: Uses `queue.Queue` and `PendingCounter` (internally locked) for safe inter-thread communication.
+4. **Unbound Exception**: If `_funnel()` is called without first calling `bind_spout()`, `InitializationError` is raised.
+5. **Usage Pattern**: Typically one `BaseSpout` corresponds to one `BaseInlet`, forming a producer-consumer pair.

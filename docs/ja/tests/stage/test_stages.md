@@ -1,6 +1,6 @@
 # 特殊化ステージテスト (test_stages.py)
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/22
 
 ## 役割
 `celestialflow.stage.core_stages` の特殊化タスクノード（Splitter、Router）の機能を検証し、タスクが正しく分割・ルーティング・分配されることを確認します。
@@ -24,12 +24,13 @@
 | ケース | カバレッジ目標 |
 |------|----------|
 | `test_router_init` | デフォルト直列モード、リトライなし、ルートカウンタが空辞書であることを検証 |
-| `test_router_route_logic` | `_route` が `(target, data)` タプルを正しく解析すること。未知の target が `InvalidOptionError` をスローすること。非タプル形式が `TaskFormatError` をスローすることを検証 |
+| `test_router_route_logic` | `_route` が構築時に渡されたルート関数を呼び出し、`(target, task)` 結果を返すことを検証。未知の target が `InvalidOptionError` をスローすることを検証 |
 | `test_router_process_success` | `TaskGraph` 内で正常ルーティング後、`route_counters` のカウントが正しく、ターゲットノードがそれぞれ対応する数の成功タスクを受信することを検証 |
+| `test_router_binding_counter_uses_stable_metrics_lock` | ルートカウンタが作成時から安定した metrics ロックに紐づいており、`execution_mode` を切り替えても同一のロックオブジェクトを保持することを検証 |
 
 ## テストの重点
 - **1 対多の伝播**: Splitter の結果リストが同一結果のブロードキャストではなく、複数の独立したタスクエンベロープに展開されることを検証。
-- **名前付き分配**: Router が事前バインディング機構を通じてタスクを指定された下流ノードに正確に誘導することを検証。
+- **名前付き分配**: Router が内部ルート関数と事前バインディング機構を通じてタスクを指定された下流ノードに正確に誘導することを検証。
 - **状態追跡**: 特殊化ノード内部のカスタムカウンタ（`split_counter`、`route_counters`）がビジネスロジックの実行状況を正確に反映することを検証。
 
 ## 実行方法

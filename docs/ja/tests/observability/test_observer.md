@@ -1,20 +1,18 @@
 # オブザーバーテスト (test_observer.py)
 
-> 📅 最終更新日: 2026/05/23
+> 📅 最終更新日: 2026/06/22
 
 ## 役割
 `celestialflow.observability` モジュールのオブザーバー（Observer）機構を検証し、タスク実行ライフサイクルの各キーノードでコールバックが正しくトリガーされることを確認します。
 
 ## コアテスト対象
 - `BaseObserver`: オブザーバー基底クラス。
-- `CallbackObserver`: コールバック関数ベースのオブザーバー実装。
 - `TaskExecutor`: 観測対象のタスク実行者。
 
 ## 主要テストフロー
 1. **ライフサイクルコールバック**: `on_start` から `on_finish` までの完全なイベントフローを検証。タスク成功、失敗、新規タスクなどのイベントを含む。
 2. **マルチオブザーバーサポート**: 複数のオブザーバーを同一の実行者に同時にマウントし、独立してイベントを受信できることを検証。
 3. **動的管理**: オブザーバーの動的な追加と削除ロジックを検証。
-4. **関数的観測**: `CallbackObserver` がパラメータ化された lambda または関数を通じて特定の監視ロジックを実現できることを検証。
 
 ## テストの重点
 - **イベント順序**: `on_start` が最初にトリガーされ、`on_finish` が最後にトリガーされることを確認。
@@ -36,9 +34,6 @@ pytest tests/observability/test_observer.py -k "lifecycle" -v
 
 # 動的管理テストのみ実行（オブザーバーの追加/削除）
 pytest tests/observability/test_observer.py -k "observer_remove" -v
-
-# 関数的観測テストのみ実行
-pytest tests/observability/test_observer.py -k "callback" -v
 ```
 
 ## パフォーマンス参考

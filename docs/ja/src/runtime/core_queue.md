@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 `TaskQueue` モジュールは `TaskInQueue` と `TaskOutQueue` の 2 つのクラスを提供し、異なる Stage 間を接続するパイプとして機能します。マルチプロデューサー・マルチコンシューマーモデルをサポートし、終了シグナル（TerminationSignal）マージ機能を統合しています。
 
@@ -204,7 +204,7 @@ in_queue.put(env2)
 
 # 下流コンシューマーがタスクを取得
 task1 = in_queue.get()
-print(f"受信タスク: {task1.get_task()}")
+print(f"受信タスク: {task1.get_task()}, ID: {task1.get_id()}")
 
 # 新しい上流ソースを動的追加
 in_queue.add_source_name("producer3")

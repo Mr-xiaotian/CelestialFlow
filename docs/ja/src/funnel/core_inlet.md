@@ -1,31 +1,56 @@
 # BaseInlet
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
-`BaseInlet` はすべての入口クラス（Inlet）の基底クラスであり、レコードをキューに書き込む汎用機能を提供します。
+`BaseInlet` はすべての入口クラス（Inlet）の基底クラスであり、レコードをキューに書き込むことで対応する `BaseSpout` に送信する役割を担います。
 
 ## クラス定義
 
 ```python
 class BaseInlet:
-    def __init__(self, queue: Any) -> None:
+    _queue: Queue[Any]
+    _counter: PendingCounter
+
+    def bind_spout(self, spout: BaseSpout) -> Self:
         """
-        :param queue: レコードキュー（対応する Spout の get_queue() から取得）
+        現在の inlet を指定された spout に関連付ける。
+
+        :param spout: 対象リスナー
+        :return: 関連付け済みの inlet インスタンス
         """
-        self.queue: Any = queue
+        self._queue = spout.get_queue()
+        self._counter = spout.get_counter()
+        return self
 
     def _funnel(self, record: Any) -> None:
-        """レコードをキューに入れ、対応する Spout が消費できるようにする。"""
-        self.queue.put(record)
+        """
+        レコードをキューに入れる。
+
+        :param record: 送信するレコード
+        """
+        if not hasattr(self, '_queue') or not hasattr(self, '_counter'):
+            raise InitializationError("inlet is not bound to spout")
+
+        self._counter.increment()
+        try:
+            self._queue.put(record)
+        except Exception:
+            self._counter.decrement()
+            raise
 ```
 
-### プロパティ
-
-| プロパティ | 型 | 説明 |
-|------|------|------|
-| `queue` | `Any` | レコードキューインスタンス。`queue.put()` でレコードを書き込む |
-
 ## コアメソッド
+
+### bind_spout
+
+```python
+def bind_spout(self, spout: BaseSpout) -> Self:
+```
+
+- 現在の inlet を指定された `BaseSpout` インスタンスに関連付けます。
+- 内部で spout の入力キュー（`_queue`）と待処理カウンター（`_counter`）を再利用します。
+- 自身を返すため、メソッドチェーンをサポート：`LogInlet(log_level).bind_spout(spout)`。
+- 関連付け前に `_funnel()` を呼び出すと `InitializationError` が発生します。
 
 ### _funnel（protected）
 
@@ -33,16 +58,16 @@ class BaseInlet:
 def _funnel(self, record: Any) -> None:
 ```
 
-- `record` を `self.queue` に入れ、対応する `Spout` が消費できるようにする
-- サブクラスの具体的な業務メソッドから呼び出される
-- `queue.Queue` を使用してスレッド間の安全な通信を保証
+- `record` を spout と共有するキューに入れます。
+- エンキュー前に `increment()` でカウントを増やし、エンキュー失敗時は即座に `decrement()` でロールバックします。
+- サブクラスは通常、具体的な業務メソッドの内部でこのメソッドを呼び出します。
 
 ## 継承関係
 
 ```mermaid
 classDiagram
     class BaseInlet {
-        +Any queue
+        +bind_spout(spout: BaseSpout) Self
         +_funnel(record: Any) None
     }
     class LogInlet {
@@ -51,7 +76,7 @@ classDiagram
         +start_stage()
         +end_stage()
         +task_success()
-        +task_error()
+        +task_fail()
         +task_retry()
         +termination_input()
     }
@@ -73,16 +98,18 @@ classDiagram
 | `LogInlet` | `persistence/core_log.py` | ログ記録。タスクのエンキュー/デキュー/終了の全過程を追跡 |
 | `FallbackInlet` | `persistence/core_fallback.py` | Fallback 記録。タスクライフサイクルを SQLite に永続化 |
 
-> ⚠️ **変更済み**：旧版 `FailInlet`（`core_fail.py`）は `FallbackInlet`（`core_fallback.py`）にリネームされ、`SuccessSpout` は削除されました。
-
 ## 使用例
 
 ```python
 from celestialflow.funnel import BaseSpout, BaseInlet
 
 class MySpout(BaseSpout):
+    def __init__(self):
+        super().__init__()
+        self.received = []
+
     def _handle_record(self, record):
-        print(record)
+        self.received.append(record)
 
 class MyInlet(BaseInlet):
     def send(self, data):
@@ -90,16 +117,20 @@ class MyInlet(BaseInlet):
 
 # 使用
 spout = MySpout()
+inlet = MyInlet().bind_spout(spout)
+
 spout.start()
-inlet = MyInlet(spout.get_queue())
 inlet.send("hello")
+inlet.send({"key": "value"})
 spout.stop()
+
+print(spout.received)
 ```
 
 ## 注意事項
 
-1. **単方向通信**: Inlet はキューへの書き込みのみ、Spout は消費を担当。両者はキューによって分離されている
-2. **キュー出所**: キューは対応する `BaseSpout` が作成・提供し（`get_queue()` 経由）、Inlet はキューのライフサイクルに関与しない
-3. **スレッドセーフ**: `queue.Queue` を使用してスレッド間の安全な通信を実現
-4. **例外非スロー**: `_funnel` 内部ではキュー書き込み例外を処理しない。サブクラスが呼び出し元でキャッチする必要がある
-5. **使用パターン**: 通常、各 `BaseSpout` に 1 つの `BaseInlet` が対応し、プロデューサー・コンシューマーのペアを形成
+1. **単方向通信**: Inlet はキューへの書き込みのみ、Spout は消費を担当。両者はキューによって分離されています。
+2. **関連付け方式**: キューとカウンターは `BaseSpout` が作成し、`bind_spout()` を通じて Inlet と共有されます。Inlet はキューのライフサイクルに関与しません。
+3. **スレッドセーフ**: `queue.Queue` と `PendingCounter`（内部ロック）を使用してスレッド間の安全な通信を実現します。
+4. **未関連付け例外**: `bind_spout()` を呼び出さずに `_funnel()` を呼び出すと、`InitializationError` が発生します。
+5. **使用パターン**: 通常、各 `BaseSpout` に 1 つの `BaseInlet` が対応し、プロデューサー・コンシューマーのペアを形成します。

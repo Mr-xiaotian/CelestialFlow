@@ -1,11 +1,9 @@
-﻿# persistence Test Package
+# persistence Test Package
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 ## Purpose
-`tests/persistence/` covers three persistence paths (error fallback, log recording, and sqlite utility functions), verifying that Inlet/Spout paired components can correctly write to disk or batch-flush logs in background threads.
-
-> ⚠️ **Changed**: The persistence layer has migrated from JSONL format to sqlite. Old files `test_fail.py`, `test_jsonl.py`, `test_success.py` have been replaced by `test_fallback.py` and `test_splite.py`.
+`tests/persistence/` covers error fallback, log recording, and sqlite utility function persistence paths, verifying that Inlet/Spout paired components can correctly persist to disk or batch-flush logs in background threads.
 
 ## Included Test Files
 - `test_fallback.py`: Error and success result sqlite persistence (`FallbackInlet` / `FallbackSpout`).
@@ -18,11 +16,3 @@
 pytest tests/persistence -v
 pytest tests/persistence -k "fallback or log or splite" -v
 ```
-
-## Deprecated Documents
-
-| Document | Description |
-|------|------|
-| `test_fail.md` | Old JSONL error persistence → merged into `test_fallback.md` |
-| `test_jsonl.md` | Old JSONL utility functions → replaced by `test_splite.md` |
-| `test_success.md` | Old success result caching → merged into `test_fallback.md` |

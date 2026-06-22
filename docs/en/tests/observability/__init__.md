@@ -1,6 +1,6 @@
-﻿# observability Test Package
+# observability Test Package
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 ## Purpose
 `tests/observability/` covers runtime state observation and task injection/reporting mechanisms, ensuring `BaseObserver` lifecycle callbacks and `TaskReporter` task injection and error push behavior meet expectations.

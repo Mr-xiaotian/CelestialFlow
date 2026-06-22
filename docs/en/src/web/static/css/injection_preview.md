@@ -1,10 +1,8 @@
 # injection_preview.css
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
 Defines styles for the bottom draft preview area, submit button, status messages, and loading animation of the task injection page.
-
-> 🆕 **New document**: This file was split from the original merged `injection.css`, specifically covering preview and submission styles.
 
 ## Draft Preview Card (`.draft-card`)
 

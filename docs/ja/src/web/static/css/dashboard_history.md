@@ -1,10 +1,8 @@
 # dashboard_history.css
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/22
 
-ノード指標履歴グラフ（Chart.js）の上部にあるコントロールエリアのスタイルを担当し、指標切り替えボタングループを含みます。
-
-> ⚠️ **変更済み**: 旧版ドキュメントで言及されていた `.history-metric-switcher` および `.history-metric-btn` クラス名は `.metric-indicators` および `.metric-dot` に変更されました。
+ノード指標履歴グラフ（Chart.js）上部のコントロールエリアのスタイルを担当し、指標切り替えボタングループを含みます。
 
 ## レイアウト設計 (`.progress-card-header`)
 

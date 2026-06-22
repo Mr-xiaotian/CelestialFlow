@@ -1,6 +1,6 @@
 # 残り時間推定テスト (test_estimators.py)
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/06/22
 
 ## 役割
 `calc_remaining`、`calc_elapsed`、`calc_global_pending` の3つの推定関数を検証し、CelestialFlow がノードレベルとグラフレベルの両方で安定した残り時間予測を提供できることを確認します。
@@ -22,7 +22,7 @@
 |-------------|---------|--------------|
 | `TestCalcRemaining` | 7 | 基本比率計算とゼロ値境界 |
 | `TestCalcElapsed` | 7 | 状態マシンに基づく時間累積戦略 |
-| `TestCalcGlobalPending` | 15 | DAG 伝播推定：線形チェーン、ファンアウト、ファンイン、ダイヤモンド、ボトルネック、空グラフなど |
+| `TestCalcGlobalPending` | 16 | DAG 伝播推定：線形チェーン、ファンアウト、ファンイン、ダイヤモンド、ボトルネック、空グラフ、map データ欠落など |
 | `TestPropertyBased` | 3 | 対称性、単調性などの性質検証 |
 
 ## 実行方法

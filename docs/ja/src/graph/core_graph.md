@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 `TaskGraph` は CelestialFlow のコアスケジューラであり、一連の `TaskStage` ノードの依存関係、実行フロー、リソース割り当て、ライフサイクルを管理します。
 
@@ -33,7 +33,7 @@ class TaskGraph:
 ```python
 def set_stages(self, stages: list[TaskStage]) -> None:
     """
-    ノードをタスクグラフに追加します。各ノードに対して TaskInQueue と TaskOutQueue を作成します。
+    ノードをタスクグラフに追加します。ノードを登録し、グラフレベルの inlet とイベントクライアントを注入します。
 
     :param stages: ノードリスト
     :raises DuplicateNodeError: ノード名が重複している場合
@@ -92,9 +92,9 @@ def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
                 put_termination_signal: bool = True) -> None:
     """
     タスクグラフを起動します。フロー:
-    2. _build_analysis() でグラフ構造を分析（ソースノード、階層、DAG 検出）し `OrderGraph` を構築
-    3. spout、inlet、reporter を起動
-    4. put_stage_queue() で初期タスクと終了シグナルを注入
+    1. _build_analysis() でグラフ構造を分析（ソースノード、階層、DAG 検出）し `OrderGraph` を構築
+    2. spout、inlet、reporter を起動
+    3. put_stage_queue() で初期タスクと終了シグナルを注入
     4. _execute_stages() で全ノードを実行
     5. _finalize_nodes() で後処理（スレッド終了保証、未消費タスク収集）
     6. リソース解放
@@ -216,10 +216,13 @@ def collect_runtime_snapshot(self) -> None:
 
 ```mermaid
 flowchart TD
-    INIT[__init__] -->|set_schedule_mode / set_ctree / set_reporter| ENV[_init_env]
-    ENV --> STATE[_init_state]
-    ENV --> SPOUT[_init_spout: LogSpout + FailSpout]
-    ENV --> INLET[_init_inlet: LogInlet + FailInlet]
+    INIT[__init__] -->|_set_name / _set_schedule_mode / _set_log_level| SET[初期化設定]
+    INIT --> STATE[_init_state]
+    INIT --> SPOUT[_init_spout: LogSpout + FallbackSpout]
+    INIT --> INLET[_init_inlet: LogInlet + FallbackInlet]
+    SET --> STATE
+    SET --> SPOUT
+    SET --> INLET
     STATE --> BUILD[set_stages + connect]
     BUILD --> START[start_graph]
     START --> ANALYSIS[_build_analysis: グラフ分析とリソース構築]
@@ -229,8 +232,7 @@ flowchart TD
     EXEC -->|staged| LAYER[階層ごと起動]
     ALL --> FINALIZE[_finalize_nodes: 未消費タスク収集]
     LAYER --> FINALIZE
-    FINALIZE --> RELEASE[_release_resources]
-    RELEASE --> END[グラフ実行完了]
+    FINALIZE --> END[グラフ実行完了]
     
     START -->|監視| SNAPSHOT[collect_runtime_snapshot]
     SNAPSHOT --> STATUS[get_status_snapshot]
@@ -269,4 +271,4 @@ graph.start_graph({"source": tasks}, put_termination_signal=False)
 
 ## 未消費タスク処理
 
-`_finalize_nodes()` 内で `in_queue.drain()` により全残存タスクを収集し、それらを `UnconsumedError` としてマークし、`fail_inlet` を通じて JSONL ファイルに永続化します。
+`_finalize_nodes()` 内で `stage.drain_task_queue()` により全残存タスクを収集し、それらを `UnconsumedError` としてマークし、`fallback_inlet` を通じて JSONL ファイルに永続化します（`FallbackSpout` 経由でフォールバックストレージに書き込まれます）。

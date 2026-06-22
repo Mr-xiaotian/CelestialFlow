@@ -1,6 +1,6 @@
 # Runtime モジュール
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/22
 
 Runtime モジュールは CelestialFlow のタスク実行ランタイム環境を提供し、タスクスケジューリング、キュー管理、エラー処理、パフォーマンス監視などのコア機能を含みます。タスクを実際に実行するインフラストラクチャ層です。
 
@@ -131,7 +131,7 @@ print(f"タスクID: {envelope.get_id()}")
 # 2. TaskMetrics：メトリクス統計
 import time
 
-metrics = TaskMetrics(execution_mode="serial", enable_duplicate_check=True)
+metrics = TaskMetrics(enable_duplicate_check=True)
 
 # タスク処理のシミュレーション
 metrics.add_task_count(5)
@@ -189,5 +189,5 @@ print(f"出力チャネル数: {len(out_queue.queue_list)}")
 1. **I/O バウンドタスク**: `thread` モードを使用
 2. **非同期タスク**: `async` モードを使用（関数はコルーチンである必要あり）
 3. **デバッグ**: `serial` モードを使用。単一実行の追跡が容易
-4. **クリティカルタスク**: 適切な `max_retries` と `add_retry_exceptions` を設定
+4. **クリティカルタスク**: 適切な `max_retries` と `set_retry_exceptions` を設定
 5. **重複に敏感なシナリオ**: `enable_duplicate_check=True` を有効化

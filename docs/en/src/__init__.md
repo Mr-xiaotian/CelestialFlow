@@ -1,6 +1,6 @@
 # CelestialFlow Package Entry
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 ## Introduction
 
@@ -9,6 +9,17 @@ The project root entry point, which centrally exports all public APIs from submo
 ## Module Grouping
 
 Grouped by source module, with a description of each group's primary purpose.
+
+---
+
+### funnel — Data Inlet
+
+Provides task data inlet and outlet abstractions, used to connect external data sources with the task graph.
+
+| Exported Symbol | Description |
+|-----------------|-------------|
+| `BaseInlet` | Data inlet base class, defining a unified data pull/push interface |
+| `BaseSpout` | Data outlet base class, defining a unified data output interface |
 
 ---
 
@@ -38,7 +49,6 @@ Provides task executors, routing dispatch, and task splitting capabilities.
 | `TaskStage` | A task node in the graph, wrapping execution function and configuration |
 | `TaskSplitter` | Task splitter, splits a single input into multiple sub-tasks |
 | `TaskRouter` | Route dispatcher, distributes tasks to different downstream based on rules |
-| `TerminationSignal` | Termination signal, used to control the end of graph execution flow |
 
 ---
 
@@ -93,17 +103,19 @@ Provides runtime helper types and utility functions.
 | Exported Symbol | Description |
 |-----------------|-------------|
 | `make_hashable` | Converts non-hashable objects (e.g. dict, list) to hashable form |
-| `TerminationSignal` | Termination signal (shared with the stage group) |
+| `TerminationSignal` | Termination signal, used to control the end of graph execution flow |
 
 ---
 
 ## `__all__` List
 
-Complete public API list (21 symbols total):
+Complete public API list (23 symbols total):
 
 ```python
 __all__ = [
+    "BaseInlet",
     "BaseObserver",
+    "BaseSpout",
     "TaskChain",
     "TaskComplete",
     "TaskCross",
@@ -146,7 +158,7 @@ stage_a = TaskStage("StageA", func=double, execution_mode="serial", stage_mode="
 stage_b = TaskStage("StageB", func=add_one, execution_mode="serial", stage_mode="serial")
 
 # 3. Build the DAG graph
-graph = TaskGraph()
+graph = TaskGraph(name="DemoGraph")
 graph.set_stages([stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 
@@ -191,7 +203,7 @@ stages = [
     TaskStage("S3", func=lambda x: x ** 2),
 ]
 
-chain = TaskChain(stages, chain_mode="serial")
+chain = TaskChain(name="DemoChain", stages=stages, stage_mode="serial")
 chain.start_chain({stages[0].get_name(): [1, 2, 3]})
 snapshot = chain.get_status_snapshot()
 print("Chain status:", snapshot["status"])
@@ -205,12 +217,16 @@ graph TD
         Init["__init__.py"]
     end
 
+    subgraph funnel
+        F["BaseInlet<br/>BaseSpout"]
+    end
+
     subgraph graph
         G["TaskGraph<br/>TaskChain<br/>TaskLoop<br/>TaskCross<br/>TaskComplete<br/>TaskWheel<br/>TaskGrid"]
     end
 
     subgraph stage
-        S["TaskExecutor<br/>TaskStage<br/>TaskSplitter<br/>TaskRouter<br/>TerminationSignal"]
+        S["TaskExecutor<br/>TaskStage<br/>TaskSplitter<br/>TaskRouter"]
     end
 
     subgraph observability
@@ -233,6 +249,7 @@ graph TD
         R["make_hashable<br/>TerminationSignal"]
     end
 
+    Init --> F
     Init --> G
     Init --> S
     Init --> O

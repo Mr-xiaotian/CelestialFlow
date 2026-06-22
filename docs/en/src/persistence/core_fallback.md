@@ -1,10 +1,8 @@
 # Fallback Persistence
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/22
 
 `persistence/core_fallback.py` provides the fallback persistence mechanism for tasks. It records task state transitions throughout the lifecycle (pending → success / failed) and persists the data into SQLite database files.
-
-> ⚠️ **Changed**: This file replaces the old `core_fail.py` (`FailSpout`/`FailInlet`). The old `core_success.py` (`SuccessSpout`) functionality has been merged into this module. `FallbackSpout` handles both failure and success results uniformly.
 
 ## Architecture
 
@@ -14,18 +12,18 @@
 flowchart LR
     subgraph Producer["Producer - Worker Thread"]
         Inlet[FallbackInlet]
-        Inlet -->|task_in / task_success / task_fail and more| Funnel[_funnel]
+        Inlet -->|task_in / task_success / task_fail etc.| Funnel[_funnel]
     end
     Funnel --> Queue[queue.Queue]
-    Queue -->|Daemon Thread Polling| Spout[FallbackSpout._handle_record]
+    Queue -->|Daemon thread polling| Spout[FallbackSpout._handle_record]
     Spout -->|Ops: insert / delete / promote| SQLite[fallback/**/*.sqlite3]
-    SQLite --> Read[get_task_error_pairs<br/>get_task_result_pairs<br/>Read Persisted Records]
+    SQLite --> Read[get_task_error_pairs<br/>get_task_result_pairs<br/>Read persisted records]
 ```
 
 The system follows a **Producer-Consumer** pattern:
 
-1.  **FallbackInlet (Producer)****: Held by individual Worker threads, responsible for wrapping task lifecycle events into operation dictionaries and placing them into a thread-safe queue.
-2.  **FallbackSpout (Consumer)**: Runs in a dedicated daemon thread, continuously monitors the queue, and executes corresponding SQLite write operations based on the operation type.
+1. **FallbackInlet (Producer)**: Held by individual Worker threads, responsible for wrapping task lifecycle events into operation dictionaries and placing them into a thread-safe queue.
+2. **FallbackSpout (Consumer)**: Runs in a dedicated daemon thread, continuously monitors the queue, and executes corresponding SQLite write operations based on the operation type.
 
 ## FallbackSpout
 
@@ -73,7 +71,7 @@ stateDiagram-v2
 `FallbackSpout._handle_record` executes different SQLite operations based on `record["__op__"]`:
 
 | Operation | Triggered By | Description |
-|------|---------|------|
+|-----------|--------------|-------------|
 | `insert` | `task_in()` | New task enters a stage, writes a `pending` record |
 | `delete` | `task_success(persist=False)` / `task_duplicate()` | Deletes the corresponding pending record |
 | `update_event_id` | `task_retry()` | Migrates the pending record to a new retry event ID |
@@ -110,11 +108,8 @@ result_pairs: list[tuple[Any, Any]] = fallback_spout.get_task_result_pairs("Stag
 
 ```python
 class FallbackInlet(BaseInlet):
-    def __init__(self, fallback_queue: Queue[Any]) -> None:
-        """Initializes the fallback collector"""
-
     def task_in(self, stage_name: str, event_id: int, task: Any) -> None:
-        """Writes a pending record, indicating the task has entered a stage."""
+        """Write a pending record, indicating the task has entered a stage."""
 
     def task_success(self, event_id: int, result: Any, persist: bool = False) -> None:
         """
@@ -145,7 +140,7 @@ fallback_spout = FallbackSpout("my_errors")
 fallback_spout.start()
 
 # 2. Create FallbackInlet
-fallback_inlet = FallbackInlet(fallback_spout.get_queue())
+fallback_inlet = FallbackInlet().bind_spout(fallback_spout)
 
 # 3. Record task lifecycle
 # Task enters stage

@@ -1,8 +1,8 @@
 # TaskDispatch
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/06/22
 
-`TaskDispatch` is the task dispatcher (调度器), responsible for executing individual tasks in serial, thread, or async mode. It is an internal component of `TaskExecutor`, fetching tasks from `TaskInQueue`, invoking the user function, and sending results through `TaskOutQueue`.
+`TaskDispatch` is the task dispatcher, responsible for executing individual tasks in serial, thread, or async mode. It is an internal component of `TaskExecutor`, fetching tasks from `TaskInQueue`, invoking the user function, and sending results through `TaskOutQueue`.
 
 ## Initialization
 
@@ -241,7 +241,7 @@ executor = TaskExecutor(
     execution_mode="serial",
     max_retries=3,  # Retry up to 3 times
 )
-executor.add_retry_exceptions(ConnectionError, TimeoutError)
+executor.set_retry_exceptions(ConnectionError, TimeoutError)
 executor.start([1, 2, 0, 4])
 
 counts = executor.get_counts()
