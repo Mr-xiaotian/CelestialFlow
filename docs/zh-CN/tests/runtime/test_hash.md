@@ -1,6 +1,6 @@
 # 哈希工具测试 (test_hash.py)
 
-> 最后更新日期: 2026/06/05
+> 📅 最后更新日期: 2026/06/05
 
 ## 作用
 验证 `make_hashable` 与 `object_to_hash` 能稳定处理常见 Python 数据结构，为任务去重和 `TaskEnvelope.get_hash()` 提供基础保证。

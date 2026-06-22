@@ -1,6 +1,6 @@
 # 任务阶段测试 (test_stage.py)
 
-> 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/11
 
 ## 作用
 验证 `celestialflow.stage.core_stage` 中的 `TaskStage` 类，确保节点配置、运行模式切换以及标识管理符合框架设计要求。

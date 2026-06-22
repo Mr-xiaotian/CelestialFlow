@@ -1,6 +1,6 @@
 # Web 服务 API 测试 (test_server.py)
 
-> 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/11
 
 ## 作用
 验证 `celestialflow.web.core_server` 提供的 RESTful API，确保 Web 仪表盘能够正确展示图状态、拉取配置、注入任务并浏览错误日志，同时验证快照数据的隔离性。

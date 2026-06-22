@@ -1,6 +1,6 @@
 # 任务指标测试 (test_metrics.py)
 
-> 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/06/11
 
 ## 作用
 验证 `celestialflow.runtime.core_metrics` 中的 `TaskMetrics` 类，确保任务执行过程中的各项统计指标（成功、失败、重复、待处理等）计算准确。
