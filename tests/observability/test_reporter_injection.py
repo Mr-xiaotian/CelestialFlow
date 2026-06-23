@@ -123,7 +123,7 @@ def test_reporter_accepts_split_task_and_termination_payload() -> None:
         }
     )
 
-    reporter._pull_and_inject_tasks()
+    reporter._pull_injection()
 
     assert graph.calls == [
         (
@@ -154,7 +154,7 @@ def test_reporter_merges_tasks_and_termination_for_same_stage() -> None:
         }
     )
 
-    reporter._pull_and_inject_tasks()
+    reporter._pull_injection()
 
     assert graph.calls == [
         (
