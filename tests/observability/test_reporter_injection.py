@@ -9,12 +9,12 @@ from celestialflow.runtime.util_types import TERMINATION_SIGNAL
 class FakeResponse:
     """模拟 reporter 拉取注入任务时的 HTTP 响应。"""
 
-    def __init__(self, payload: dict[str, list[Any]]) -> None:
+    def __init__(self, payload: dict[str, Any]) -> None:
         self.ok = True
         self.status_code = 200
         self._payload = payload
 
-    def json(self) -> dict[str, list[Any]]:
+    def json(self) -> dict[str, Any]:
         """返回预设 JSON 载荷。"""
         return self._payload
 
@@ -22,7 +22,7 @@ class FakeResponse:
 class FakeSession:
     """模拟 requests.Session，只覆盖 reporter 需要的 get 接口。"""
 
-    def __init__(self, payload: dict[str, list[Any]]) -> None:
+    def __init__(self, payload: dict[str, Any]) -> None:
         self.payload = payload
 
     def get(self, *_args: Any, **_kwargs: Any) -> FakeResponse:
@@ -111,15 +111,15 @@ class FakeLogInlet:
         self.push_error_failures.append(error)
 
 
-def test_reporter_accepts_node_to_tasklist_mapping() -> None:
-    """Reporter 能消费 {node_name: [tasklist]} 映射并一次性注入整包任务。"""
+def test_reporter_accepts_split_task_and_termination_payload() -> None:
+    """Reporter 能消费拆分后的任务与终止符注入载荷。"""
     graph = FakeTaskGraph()
     log_inlet = FakeLogInlet()
     reporter = TaskReporter("127.0.0.1", 8000, graph, log_inlet)
     reporter._session = FakeSession(
         {
-            "StageA": [1, 2, 3],
-            "StageB": ["TERMINATION_SIGNAL"],
+            "tasks": {"StageA": [1, 2, 3]},
+            "terminations": ["StageB"],
         }
     )
 
@@ -137,6 +137,35 @@ def test_reporter_accepts_node_to_tasklist_mapping() -> None:
     assert log_inlet.successes == [
         ("StageA", [1, 2, 3]),
         ("StageB", [TERMINATION_SIGNAL]),
+    ]
+    assert log_inlet.failures == []
+    assert log_inlet.pull_failures == []
+
+
+def test_reporter_merges_tasks_and_termination_for_same_stage() -> None:
+    """同一节点同时存在任务与终止符时，应保留任务并在末尾追加终止符。"""
+    graph = FakeTaskGraph()
+    log_inlet = FakeLogInlet()
+    reporter = TaskReporter("127.0.0.1", 8000, graph, log_inlet)
+    reporter._session = FakeSession(
+        {
+            "tasks": {"StageA": [1, 2, 3]},
+            "terminations": ["StageA"],
+        }
+    )
+
+    reporter._pull_and_inject_tasks()
+
+    assert graph.calls == [
+        (
+            {
+                "StageA": [1, 2, 3, TERMINATION_SIGNAL],
+            },
+            False,
+        )
+    ]
+    assert log_inlet.successes == [
+        ("StageA", [1, 2, 3, TERMINATION_SIGNAL]),
     ]
     assert log_inlet.failures == []
     assert log_inlet.pull_failures == []

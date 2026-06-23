@@ -40,6 +40,13 @@
   flex-wrap: wrap;
 }
 
+/* 当前节点级操作按钮区域。 */
+#task-injection .editor-node-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* 当前选中的节点名称。 */
 #task-injection .current-node-name {
   font-size: 1rem;
@@ -112,12 +119,10 @@
   min-height: 0;
 }
 
-/* JSON 区顶部标签与模板按钮。 */
+/* JSON 区顶部标签。 */
 #task-injection .json-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
   margin-bottom: 0.5rem;
 }
 
@@ -129,20 +134,6 @@
 
   .dark-theme & {
     color: var(--carbon-100);
-  }
-}
-
-/* “填入终止符模板”这样的文本按钮。 */
-#task-injection .example-btn {
-  padding: 0;
-  border: none;
-  background: none;
-  font-size: 0.75rem;
-  color: var(--cornflower-500);
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    color: var(--cornflower-700);
   }
 }
 

@@ -29,13 +29,13 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         """
         return server.get_server_state(graph_id)
 
-    @router.get("/api/pull_task_injection")
-    def pull_task_injection() -> dict[str, list[Any]]:
-        """取出并清空待执行的前端注入任务映射。
+    @router.get("/api/pull_injection")
+    def pull_injection() -> dict[str, Any]:
+        """取出并清空待执行的前端注入任务与终止符。
 
-        :return: 待执行注入任务映射
+        :return: ``{"tasks": dict[str, list[Any]], "terminations": list[str]}``
         """
-        return server.get_injection_tasks()
+        return server.get_injection()
 
     # ==== Frontend Pulls ====
     @router.get("/api/pull_config")

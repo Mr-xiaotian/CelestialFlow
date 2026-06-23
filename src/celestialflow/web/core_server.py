@@ -72,6 +72,7 @@ class TaskWebServer:
         }
         self.analysis_store: dict[str, Any] = {}
         self.injection_tasks: dict[str, list[Any]] = {}  # 存储前端注入任务
+        self.injection_terminations: set[str] = set()  # 存储前端注入终止符
         self.current_graph_id: str = ""
         fd, records_db_path = tempfile.mkstemp(
             prefix="celestialflow-web-records-", suffix=".sqlite3"
@@ -298,11 +299,19 @@ class TaskWebServer:
             "max_event_id_in_fail": self.get_max_event_id_in_fail(),
         }
 
-    def get_injection_tasks(self) -> dict[str, list[Any]]:
+    def get_injection(self) -> dict[str, Any]:
+        """
+        原子取出并清空待注入任务与终止符。
+
+        :return: ``{"tasks": dict[str, list[Any]], "terminations": list[str]}``
+        :rtype: dict[str, Any]
+        """
         with self.task_injection_lock:
-            tasks = self.injection_tasks.copy()
+            tasks = copy.deepcopy(self.injection_tasks)
+            terminations = sorted(self.injection_terminations)
             self.injection_tasks = {}
-            return tasks
+            self.injection_terminations = set()
+            return {"tasks": tasks, "terminations": terminations}
 
     def get_errors_page(
         self,

@@ -66,7 +66,7 @@ const translations: Record<Lang, Record<string, string>> = {
     "errors.tip":
       "错误日志内容与仪表盘状态数值可能因异步刷新与落盘时序差而暂时不一致。",
     "injection.tip":
-      "先从左侧选择一个节点，再为该节点单独编辑注入数据；每个节点会保留自己的草稿。",
+      "先从左侧选择一个节点，再为该节点单独编辑注入数据；终止符注入是独立操作，不会混入任务列表草稿。",
     "injection.nodeSelection": "节点浏览",
     "injection.searchPlaceholder": "搜索节点...",
     "injection.dataInput": "当前节点编辑",
@@ -75,13 +75,13 @@ const translations: Record<Lang, Record<string, string>> = {
     "injection.selectNodeHint":
       "请先从左侧选择一个节点，再编辑该节点的注入数据。",
     "injection.jsonLabel": "当前节点任务列表 (JSON数组)",
-    "injection.insertTermination": "加入终止符",
+    "injection.injectTermination": "注入终止符",
     "injection.jsonPlaceholder": "请输入 JSON 数组格式的任务列表...",
     "injection.validate": "校验",
     "injection.format": "格式化",
     "injection.clearCurrentDraft": "清空当前草稿",
-    "injection.drafts": "待发送数据预览",
-    "injection.noDrafts": "暂时还没有已编辑的节点草稿",
+    "injection.drafts": "待发送任务预览",
+    "injection.noDrafts": "暂时还没有已编辑的节点任务草稿",
     "injection.noNodes": "暂无匹配节点",
     "injection.draftEdited": "已编辑",
     "injection.submitAllDrafts": "提交所有草稿",
@@ -93,6 +93,9 @@ const translations: Record<Lang, Record<string, string>> = {
     "injection.validationEmpty": "当前节点还没有注入数据",
     "injection.validationOk": "任务列表格式正确，可以提交",
     "injection.successBatch": "已成功提交 {0} 个节点草稿",
+    "injection.terminationInjecting": "注入中...",
+    "injection.terminationInjected": "已向节点 {0} 注入终止符",
+    "injection.terminationInjectFailed": "向节点 {0} 注入终止符失败，请重试",
     "injection.noDraftsToSubmit": "当前没有可提交的节点草稿",
     "injection.invalidNodeJson": "节点 {0} 的 JSON 格式不合法，请先修正",
     "injection.invalidNodeTaskList":
@@ -206,7 +209,7 @@ const translations: Record<Lang, Record<string, string>> = {
     "errors.tip":
       "Error logs and dashboard counters may temporarily differ because refreshes and persistence happen asynchronously.",
     "injection.tip":
-      "Pick a node on the left, edit injection data for that node only, and keep a separate draft for each node.",
+      "Pick a node on the left and edit injection data for that node only. Termination injection is a separate action and is not mixed into the task-list draft.",
     "injection.nodeSelection": "Node Browser",
     "injection.searchPlaceholder": "Search nodes...",
     "injection.dataInput": "Current Node Editor",
@@ -215,13 +218,13 @@ const translations: Record<Lang, Record<string, string>> = {
     "injection.selectNodeHint":
       "Select a node on the left before editing injection data for it.",
     "injection.jsonLabel": "Current Node Task List (JSON Array)",
-    "injection.insertTermination": "Append Termination Signal",
+    "injection.injectTermination": "Inject Termination",
     "injection.jsonPlaceholder": "Enter the task list as a JSON array...",
     "injection.validate": "Validate",
     "injection.format": "Format",
     "injection.clearCurrentDraft": "Clear Current Draft",
-    "injection.drafts": "Pending Payload Preview",
-    "injection.noDrafts": "No edited node drafts yet",
+    "injection.drafts": "Pending Task Preview",
+    "injection.noDrafts": "No edited node task drafts yet",
     "injection.noNodes": "No matching nodes",
     "injection.draftEdited": "Edited",
     "injection.submitAllDrafts": "Submit All Drafts",
@@ -234,6 +237,11 @@ const translations: Record<Lang, Record<string, string>> = {
     "injection.validationEmpty": "The current node draft is empty",
     "injection.validationOk": "The task list is valid and ready to submit",
     "injection.successBatch": "Submitted drafts for {0} nodes",
+    "injection.terminationInjecting": "Injecting...",
+    "injection.terminationInjected":
+      "Injected a termination signal into node {0}",
+    "injection.terminationInjectFailed":
+      "Failed to inject a termination signal into node {0}, please retry",
     "injection.noDraftsToSubmit": "There are no node drafts ready to submit",
     "injection.invalidNodeJson":
       "Node {0} contains invalid JSON, please fix it first",
@@ -349,7 +357,7 @@ const translations: Record<Lang, Record<string, string>> = {
     "errors.tip":
       "非同期の更新と永続化の時差により、エラーログの内容とダッシュボードの数値が一時的に一致しないことがあります。",
     "injection.tip":
-      "左側でノードを選択し、そのノード専用の注入データを編集します。ノードごとに下書きが保持されます。",
+      "左側でノードを選択し、そのノード専用の注入データを編集します。終了信号の注入は独立した操作で、タスクリスト下書きには混ざりません。",
     "injection.nodeSelection": "ノード一覧",
     "injection.searchPlaceholder": "ノードを検索...",
     "injection.dataInput": "現在ノードの編集",
@@ -358,13 +366,13 @@ const translations: Record<Lang, Record<string, string>> = {
     "injection.selectNodeHint":
       "左側でノードを選択してから、そのノードの注入データを編集してください。",
     "injection.jsonLabel": "現在ノードのタスクリスト (JSON配列)",
-    "injection.insertTermination": "終了信号を追加",
+    "injection.injectTermination": "終了信号を注入",
     "injection.jsonPlaceholder": "JSON 配列形式のタスクリストを入力...",
     "injection.validate": "検証",
     "injection.format": "整形",
     "injection.clearCurrentDraft": "現在の下書きを消去",
-    "injection.drafts": "送信予定データのプレビュー",
-    "injection.noDrafts": "編集済みのノード下書きはまだありません",
+    "injection.drafts": "送信予定タスクのプレビュー",
+    "injection.noDrafts": "編集済みのノードタスク下書きはまだありません",
     "injection.noNodes": "一致するノードがありません",
     "injection.draftEdited": "編集済み",
     "injection.submitAllDrafts": "すべての下書きを送信",
@@ -377,6 +385,10 @@ const translations: Record<Lang, Record<string, string>> = {
     "injection.validationEmpty": "現在ノードの下書きは空です",
     "injection.validationOk": "タスクリスト形式は有効で、そのまま送信できます",
     "injection.successBatch": "{0} 個のノード下書きを送信しました",
+    "injection.terminationInjecting": "注入中...",
+    "injection.terminationInjected": "ノード {0} に終了信号を注入しました",
+    "injection.terminationInjectFailed":
+      "ノード {0} への終了信号注入に失敗しました。再試行してください",
     "injection.noDraftsToSubmit": "送信できるノード下書きがありません",
     "injection.invalidNodeJson":
       "ノード {0} の JSON 形式が不正です。先に修正してください",

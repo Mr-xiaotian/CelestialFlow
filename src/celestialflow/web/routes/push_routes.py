@@ -15,6 +15,7 @@ from ..util_models import (
     StatusModel,
     StructureModel,
     TaskInjectionModel,
+    TerminationInjectionModel,
     WebConfigModel,
 )
 
@@ -72,6 +73,27 @@ def register(router: APIRouter, server: TaskWebServer, config_path: str) -> None
         except Exception as e:
             return JSONResponse(
                 content={"ok": False, "msg": f"任务注入失败: {e}"}, status_code=500
+            )
+
+    @router.post("/api/push_injection_terminations", response_model=None)
+    async def push_injection_terminations(
+        data: TerminationInjectionModel,
+    ) -> dict[str, bool] | JSONResponse:
+        """
+        将前端提交的终止符注入目标追加到待执行集合。
+
+        :param data: 终止符注入节点列表
+        :return: {"ok": True} 或 JSONResponse({"ok": False, "msg": ...}, 500)
+        """
+        try:
+            with server.task_injection_lock:
+                for node_name in data.root:
+                    server.injection_terminations.add(str(node_name))
+            return {"ok": True}
+        except Exception as e:
+            return JSONResponse(
+                content={"ok": False, "msg": f"终止符注入失败: {e}"},
+                status_code=500,
             )
 
     # ==== Reporter / Backend Pushes ====

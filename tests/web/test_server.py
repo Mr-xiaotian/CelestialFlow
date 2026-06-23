@@ -140,36 +140,43 @@ def test_status_push_pull(client):
     assert pull_resp_cached.json()["data"] is None
 
 def test_task_injection(client):
-    """测试任务手动注入流程：验证服务端按节点更新 task list，并在 pull 后清空。"""
+    """测试任务与终止符注入流程：验证服务端原子返回并在 pull 后清空。"""
     # 1. 注入任务
     injection_data = {
         "StageA": [1, 2, 3],
-        "StageB": ["TERMINATION_SIGNAL"],
     }
     push_resp = client.post("/api/push_injection_tasks", json=injection_data)
     assert push_resp.status_code == 200
     assert push_resp.json() == {"ok": True}
+    termination_resp = client.post(
+        "/api/push_injection_terminations", json=["StageB"]
+    )
+    assert termination_resp.status_code == 200
+    assert termination_resp.json() == {"ok": True}
 
     # 2. 拉取注入任务
-    pull_resp = client.get("/api/pull_task_injection")
+    pull_resp = client.get("/api/pull_injection")
     assert pull_resp.status_code == 200
     tasks = pull_resp.json()
-    assert tasks == injection_data
+    assert tasks == {
+        "tasks": injection_data,
+        "terminations": ["StageB"],
+    }
 
     # 3. 再次拉取应为空（已清空）
-    pull_again = client.get("/api/pull_task_injection")
-    assert pull_again.json() == {}
+    pull_again = client.get("/api/pull_injection")
+    assert pull_again.json() == {"tasks": {}, "terminations": []}
 
 
 def test_task_injection_overwrites_tasklist_per_node(client):
-    """新的 push 会逐个节点更新 task list，而不是把整包追加成列表。"""
+    """新的 push 会逐个节点更新 task list，终止符单独存储。"""
     client.post(
         "/api/push_injection_tasks",
         json={
             "StageA": [1, 2, 3],
-            "StageB": ["TERMINATION_SIGNAL"],
         },
     )
+    client.post("/api/push_injection_terminations", json=["StageB"])
 
     client.post(
         "/api/push_injection_tasks",
@@ -179,13 +186,15 @@ def test_task_injection_overwrites_tasklist_per_node(client):
         },
     )
 
-    pull_resp = client.get("/api/pull_task_injection")
+    pull_resp = client.get("/api/pull_injection")
 
     assert pull_resp.status_code == 200
     assert pull_resp.json() == {
-        "StageA": [9],
-        "StageB": ["TERMINATION_SIGNAL"],
-        "StageC": ["new"],
+        "tasks": {
+            "StageA": [9],
+            "StageC": ["new"],
+        },
+        "terminations": ["StageB"],
     }
 
 
@@ -196,6 +205,15 @@ def test_task_injection_requires_tasklist_mapping(client):
     }
 
     response = client.post("/api/push_injection_tasks", json=invalid_payload)
+
+    assert response.status_code == 422
+
+
+def test_termination_injection_requires_string_array(client):
+    """终止符注入接口要求请求体为字符串数组。"""
+    response = client.post(
+        "/api/push_injection_terminations", json={"StageA": True}
+    )
 
     assert response.status_code == 422
 

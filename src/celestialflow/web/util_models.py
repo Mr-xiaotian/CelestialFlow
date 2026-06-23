@@ -40,6 +40,10 @@ class TaskInjectionModel(RootModel[dict[str, list[Any]]]):
     """任务注入请求模型，格式为 {node_name: [tasklist]}"""
 
 
+class TerminationInjectionModel(RootModel[list[str]]):
+    """终止符注入请求模型，格式为 [node_name, ...]。"""
+
+
 class DashboardConfigModel(BaseModel):
     """仪表盘卡片布局配置模型"""
 

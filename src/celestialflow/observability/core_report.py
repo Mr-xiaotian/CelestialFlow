@@ -93,7 +93,7 @@ class TaskReporter:
         """刷新所有上报内容"""
         # 拉取逻辑
         self._pull_server_state()
-        self._pull_and_inject_tasks()
+        self._pull_injection()
 
         # 收集最新的任务图状态快照，确保推送的数据是最新的
         self.task_graph.collect_runtime_snapshot()
@@ -133,11 +133,11 @@ class TaskReporter:
         except Exception as e:
             self.log_inlet.pull_interval_failed(e)
 
-    def _pull_and_inject_tasks(self) -> None:
-        """从远程服务拉取任务注入信息并注入任务"""
+    def _pull_injection(self) -> None:
+        """从远程服务拉取任务与终止符注入信息并注入任务图。"""
         try:
             res = self._session.get(
-                f"{self.base_url}/api/pull_task_injection", timeout=self._pull_timeout()
+                f"{self.base_url}/api/pull_injection", timeout=self._pull_timeout()
             )
             if not res.ok:
                 raise ReporterError(f"Failed to pull task injection: {res.status_code}")
@@ -145,25 +145,32 @@ class TaskReporter:
             self.log_inlet.pull_tasks_failed(e)
             return
 
-        injection_tasks: dict[str, list[Any]] = res.json()
+        injection_payload: dict[str, Any] = res.json()
         tasks_by_stage = {
-            target_stage: [
-                task if task != "TERMINATION_SIGNAL" else TERMINATION_SIGNAL
-                for task in task_datas
-            ]
-            for target_stage, task_datas in injection_tasks.items()
+            str(target_stage): list(task_datas)
+            for target_stage, task_datas in injection_payload.get("tasks", {}).items()
         }
-        if not tasks_by_stage:
+        terminations_by_stage = {
+            str(target_stage): [TERMINATION_SIGNAL]
+            for target_stage in injection_payload.get("terminations", [])
+        }
+        injection_dict = {**tasks_by_stage}
+        for target_stage, task_datas in terminations_by_stage.items():
+            if target_stage in injection_dict:
+                injection_dict[target_stage].extend(task_datas)
+            else:
+                injection_dict[target_stage] = task_datas
+        if not injection_dict:
             return
 
         try:
             self.task_graph.put_stage_queue(
-                tasks_by_stage, put_termination_signal=False
+                injection_dict, put_termination_signal=False
             )
-            for target_stage, task_datas in tasks_by_stage.items():
+            for target_stage, task_datas in injection_dict.items():
                 self.log_inlet.inject_tasks_success(target_stage, task_datas)
         except Exception as e:
-            for target_stage, task_datas in tasks_by_stage.items():
+            for target_stage, task_datas in injection_dict.items():
                 self.log_inlet.inject_tasks_failed(target_stage, task_datas, e)
 
     # ==== 推送 ====

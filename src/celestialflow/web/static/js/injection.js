@@ -96,7 +96,7 @@ function getEditorButtons() {
         document.getElementById("validate-json-btn"),
         document.getElementById("format-json-btn"),
         document.getElementById("clear-draft-btn"),
-        document.getElementById("fill-termination-btn"),
+        document.getElementById("inject-termination-btn"),
     ];
 }
 // 页面初始化后立即绑定交互并绘制首屏注入页。
@@ -114,13 +114,13 @@ function setupEventListeners() {
     const validateButton = document.getElementById("validate-json-btn"); // 校验按钮
     const formatButton = document.getElementById("format-json-btn"); // 格式化按钮
     const clearButton = document.getElementById("clear-draft-btn"); // 清空草稿按钮
-    const fillTerminationButton = document.getElementById("fill-termination-btn"); // 终止信号模板按钮
+    const injectTerminationButton = document.getElementById("inject-termination-btn"); // 节点级终止符注入按钮
     const submitButton = document.getElementById("submit-btn"); // 批量提交按钮
     if (!nodeList ||
         !validateButton ||
         !formatButton ||
         !clearButton ||
-        !fillTerminationButton ||
+        !injectTerminationButton ||
         !submitButton) {
         return;
     }
@@ -153,7 +153,7 @@ function setupEventListeners() {
     });
     formatButton.addEventListener("click", formatCurrentDraft);
     clearButton.addEventListener("click", clearCurrentDraft);
-    fillTerminationButton.addEventListener("click", fillTerminationDraft);
+    injectTerminationButton.addEventListener("click", handleInjectTermination);
     submitButton.addEventListener("click", handleSubmit);
 }
 /**
@@ -539,32 +539,34 @@ function clearCurrentDraft() {
     updateSubmitButtonAvailability();
 }
 /**
- * 为当前节点填入终止信号模板。
+ * 为当前选中节点立即注入终止符。
  *
- * @returns {void}
+ * @returns {Promise<void>}
  */
-function fillTerminationDraft() {
+async function handleInjectTermination() {
     if (!currentNodeName) {
         showStatus("injection.selectNodeRequired", false);
         return;
     }
-    const currentDraft = nodeDrafts[currentNodeName] || "[]";
-    let taskList;
+    const targetNode = currentNodeName;
+    setTerminationButtonLoading(true);
     try {
-        const parsed = JSON.parse(currentDraft);
-        taskList = Array.isArray(parsed) ? parsed : [];
+        const response = await fetch("/api/push_injection_terminations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify([targetNode]),
+        });
+        if (!response.ok)
+            throw new Error(`HTTP ${response.status}`);
+        showStatus("injection.terminationInjected", true, targetNode);
     }
-    catch {
-        taskList = [];
+    catch (e) {
+        console.error(e);
+        showStatus("injection.terminationInjectFailed", false, targetNode);
     }
-    taskList.push("TERMINATION_SIGNAL");
-    const nextDraft = JSON.stringify(taskList, null, 2);
-    setDraftForNode(currentNodeName, nextDraft);
-    getJsonTextarea().value = nextDraft;
-    renderNodeList(getSearchInput().value);
-    renderDraftList();
-    validateCurrentDraft(false);
-    updateSubmitButtonAvailability();
+    finally {
+        setTerminationButtonLoading(false);
+    }
 }
 /**
  * 显示底部提交结果提示，并自动在 3 秒后隐藏。
@@ -648,6 +650,24 @@ function setButtonLoading(loading) {
         // 结束加载后恢复按钮文案，并重新按当前草稿状态判断是否可提交。
         submitBtn.innerHTML = t("injection.submitAllDrafts");
         updateSubmitButtonAvailability();
+    }
+}
+/**
+ * 设置终止符注入按钮的加载状态。
+ *
+ * @param {boolean} loading - 是否进入提交中状态
+ * @returns {void}
+ */
+function setTerminationButtonLoading(loading) {
+    const terminationBtn = document.getElementById("inject-termination-btn");
+    terminationBtn.dataset.loading = loading ? "true" : "false";
+    if (loading) {
+        terminationBtn.textContent = t("injection.terminationInjecting");
+        terminationBtn.disabled = true;
+    }
+    else {
+        terminationBtn.textContent = t("injection.injectTermination");
+        terminationBtn.disabled = !Boolean(currentNodeName);
     }
 }
 /**
