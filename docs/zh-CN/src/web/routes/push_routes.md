@@ -1,6 +1,6 @@
 # Push 路由（POST）— `push_routes`
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/06/28
 
 ## 作用
 
@@ -10,7 +10,7 @@
 
 ### `register(router: APIRouter, server: TaskWebServer, config_path: str) -> None`
 
-在给定的 `APIRouter` 上注册全部 6 个 POST 端点。
+在给定的 `APIRouter` 上注册全部 7 个 POST 端点。
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
@@ -185,6 +185,32 @@
 **返回：**
 - 成功：`{"ok": true}`
 - 失败：`{"ok": false, "msg": "任务注入失败: ..."}`（状态码 500）
+
+---
+
+### 7. `POST /api/push_injection_terminations`
+
+将前端提交的终止符注入目标追加到待执行集合。
+
+**请求体：** `TerminationInjectionModel`（`RootModel[list[str]]`）
+
+```json
+[
+  "StageA",
+  "StageB"
+]
+```
+
+> 注意：请求体直接为节点名字符串列表，每个节点名会被加入服务端的终止符集合；重复节点名会自动去重（集合语义）。
+
+**逻辑：**
+1. 持有 `task_injection_lock` 锁
+2. 遍历 `data.root`，将节点名加入 `server.injection_terminations` 集合
+3. 释放锁
+
+**返回：**
+- 成功：`{"ok": true}`
+- 失败：`{"ok": false, "msg": "终止符注入失败: ..."}`（状态码 500）
 
 ---
 

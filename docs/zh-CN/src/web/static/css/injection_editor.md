@@ -1,6 +1,6 @@
 # injection_editor.css
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/06/28
 
 负责任务注入页右侧编辑器的样式定义，包括 JSON 输入区域、校验消息、操作按钮组。
 
@@ -57,4 +57,3 @@
 ## 关联模块
 
 - 交互逻辑由 `injection.ts` 中的 `renderCurrentNodeEditor()`、`validateCurrentDraft()`、`formatCurrentDraft()` 等函数驱动。
-- "填入终止符模板"按钮由 `fillTerminationDraft()` 处理。

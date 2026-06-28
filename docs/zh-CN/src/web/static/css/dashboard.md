@@ -1,6 +1,6 @@
 # dashboard.css
 
-> 📅 最后更新日期: 2026/05/23
+> 📅 最后更新日期: 2026/06/28
 
 负责仪表盘页面的核心三栏布局架构。
 
@@ -15,6 +15,17 @@
 ## 页面显示逻辑
 
 - **选项卡切换**: 通过 `.tab-content` 和 `.tab-content.active` 配合 JS 实现不同功能页（Dashboard / Errors / Injection）的瞬间切换。
+
+## 仪表盘共享提示工具系统
+
+多个仪表盘卡片复用统一的工具提示样式，用于在指标标签旁提供补充说明：
+
+| 选择器 | 说明 |
+|--------|------|
+| `.stat-label-row` | 标签与提示触发点的水平内联 flex 排列，`gap: 0.3rem` |
+| `.tooltip-anchor` | 提示浮层锚点容器，`position: relative`，内部容纳触发按钮与气泡 |
+| `.tooltip-trigger` | 提示按钮，`1rem` 圆形，边框 `1px solid --carbon-300`，`cursor: help`，适配暗色模式 |
+| `.tooltip-bubble` | 提示气泡，绝对定位在锚点下方，深色背景白字，最大宽度限制，悬停或聚焦时显示；暗色模式下反色 |
 
 ## 响应式适配
 

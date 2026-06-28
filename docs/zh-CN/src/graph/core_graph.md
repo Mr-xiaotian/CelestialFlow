@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/06/28
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
@@ -193,7 +193,7 @@ def collect_runtime_snapshot(self) -> None:
 | `get_structure_graph()` | `dict` | JSON 格式的图结构（nodes + edges + source_nodes） |
 | `get_structure_list()` | `list[str]` | 带边框的格式化树形文本 |
 | `get_order_graph()` | `OrderGraph` | 内部有序有向图实例 |
-| `get_fallback_path()` | `Path` | 失败任务 JSONL 文件的绝对路径，未设置时返回空 Path |
+| `get_fallback_path()` | `Path` | `FallbackSpout` sqlite 回退数据库文件的绝对路径，未设置时返回空 Path |
 | `get_source_stages()` | `list[TaskStage]` | 源节点列表 |
 
 ### get_graph_analysis 说明
@@ -271,4 +271,4 @@ graph.start_graph({"source": tasks}, put_termination_signal=False)
 
 ## 未消费任务处理
 
-`_finalize_nodes()` 中通过 `stage.drain_task_queue()` 收集所有剩余任务，将其标记为 `UnconsumedError` 并通过 `fallback_inlet` 持久化到 JSONL 文件（经由 `FallbackSpout` 写入回退存储）。
+`_finalize_nodes()` 中通过 `stage.drain_task_queue()` 收集所有剩余任务，将其标记为 `UnconsumedError` 并通过 `fallback_inlet` 持久化到 sqlite 回退数据库（经由 `FallbackSpout` 写入回退存储）。

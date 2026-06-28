@@ -1,6 +1,6 @@
 # demo_stages.py 演示说明
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/28
 
 ## 目标
 
@@ -46,9 +46,10 @@ flowchart LR
 ## 关键配置
 
 - 所有 stage 默认 `stage_mode="thread"`（多线程）
+- `demo_splitter_0` 中通过 `graph.set_graph_mode("thread", "thread")` 显式设置全局 stage_mode 与 execution_mode
 - `set_reporter(True)` 启用监控上报
 - 默认使用 `LocalEventClient()` 生成本地事件 ID
-- 如需接入 CelestialTree，请先额外安装 `celestialtree`，再构造客户端并调用 `set_ctree(ctree_client)`
+- `demo_splitter_0` 与 `demo_router_0` 中 `set_ctree(ctree_client)` 被注释掉，默认不启用 CelestialTree；如需接入请先额外安装 `celestialtree`，取消注释对应调用即可
 - Redis 远端协作示例已迁移到 `demo_redis.py`
 
 ## 可能出现的问题

@@ -1,6 +1,6 @@
 # base.css
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/28
 
 负责系统的全局基础样式、暗黑模式切换、通用组件（卡片、选项卡、徽章）、响应式基础布局以及卡片布局编辑器模态窗样式。
 
@@ -13,8 +13,22 @@
 ## 核心组件样式
 
 ### 头部与导航 (`header`)
-- **控制面板 (`.control-panel`)**: 包含刷新间隔选择、设置齿轮和主题切换按钮。
-- **设置面板 (`.settings-panel`)**: 采用绝对定位悬浮在齿轮下方，支持语言切换、历史限制、每页条数等配置项。
+- **控制面板 (`.control-panel`)**: 包含刷新间隔选择、设置齿轮和主题切换按钮；内部非设置按钮在暗色模式下统一使用碳色背景与边框。
+- **刷新控制容器 (`.refresh-container`)**: 水平排列刷新间隔标签与下拉选择器，`gap: 0.5rem`。
+- **设置按钮 (`.btn-settings`)**: 透明背景、无边框，配合悬停与 `focus-visible` 反馈，适配暗色模式。
+- **设置面板 (`.settings-panel`)**: 绝对定位悬浮于齿轮下方，圆角白底卡片，暗色模式下使用 `--carbon-800` 背景。子元素包括：
+  - `.settings-header`：头部，标题与关闭按钮左右分布，底部分隔线。
+  - `.settings-title`：标题文字，`0.85rem`、`font-weight: 600`。
+  - `.settings-close`：关闭按钮，透明背景，悬停变色。
+  - `.settings-body`：主体内容容器，`padding: 0.5rem 0.75rem`。
+  - `.settings-status`：状态提示区，顶部边框分隔，`0.75rem`。
+  - `.settings-status-success` / `.settings-status-error`：成功/失败文字颜色。
+  - `.settings-item`：单条设置项，使用 `grid` 排列标签与选择器。
+  - `.settings-toggle`：开关复选框，右对齐。
+  - `.settings-divider` / `.settings-divider-label`：分组分隔线及标签。
+  - `.settings-empty`：空状态提示，居中灰字。
+  - `.settings-item-center`：居中对齐的设置项，常用于操作按钮。
+- **主题切换按钮 (`#theme-toggle`)**: 绝对定位在头部右侧，圆角长条按钮，悬停变色；窄屏下在 `@media (max-width: 2048px)` 中改为 `position: static`、`order: 3`。
 
 ### 选项卡系统 (`.tabs`)
 - 实现横向排列的页签导航，支持 `.active` 类高亮当前选中的模块（仪表盘、错误日志、任务注入）。
@@ -28,6 +42,23 @@
 - **颜色类**: 提供 `.text-success` (绿), `.text-error` (红), `.text-pending` (灰), `.text-duplicate` (橙) 等快速着色类。
 - **增量类**: `.text-delta-*` 系列用于仪表盘中显示较浅的指标变化数值。
 - **隐藏**: `.hidden` 类用于在 JS 中快速控制元素的显隐。
+- **小号字体**: `.text-sm` 设置 `font-size: 0.75rem`。
+- **碳黑色文本**: `.text-carbon` 使用 `--carbon-400` 着色。
+
+## 空占位符 (`.empty-placeholder`)
+
+用于数据为空时的居中文案占位，默认 `text-align: center`、`color: --carbon-400`、`padding: 2rem`、`font-size: 1rem`，暗色模式下颜色变浅。
+
+## 通用提示区 (`.tip-section`)
+
+跨页面复用的说明性提示条，左侧带主题色边框：
+
+| 选择器 | 说明 |
+|--------|------|
+| `.tip-section` | 提示条容器，`--cornflower-50` 背景，左侧 `4px` 实色边框，`border-radius` 仅右侧圆角 |
+| `.tip-content` | 内部水平 flex 布局，图标与文本居中对齐 |
+| `.tip-icon` | 提示图标，`1.25rem` 方形，`color: --cornflower-500`，右侧留空 `0.75rem` |
+| `.tip-text` | 提示正文，`0.75rem`，浅色 `--cornflower-600` / 暗色 `--carbon-300` |
 
 ## 模态遮罩 (`.overlay`)
 

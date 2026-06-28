@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/06/28
 
 TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
@@ -282,7 +282,7 @@ class UnconsumedError(CelestialFlowError):
     pass
 ```
 
-当 `TaskGraph._finalize_nodes()` 发现队列中有剩余任务时，将其标记为 `UnconsumedError` 并持久化。
+当 `TaskGraph._finalize_nodes()` 发现队列中有剩余任务时，会将其标记为 `UnconsumedError` 并通过 `fallback_inlet` / `FallbackSpout` 持久化到 sqlite 回退数据库。
 
 ### TaskFormatError
 
@@ -471,6 +471,12 @@ counts = executor.get_counts()
 print(f"成功: {counts['tasks_succeeded']}, 失败: {counts['tasks_failed']}")
 ```
 
-## 异常持久化
+## 未消费任务的处理
 
-`TaskGraph` 会在 `_finalize_nodes()` 中将未处理错误持久化到本地 JSONL 文件（通过 `FailSpout`）。每个错误记录包含错误类型、消息、所在 Stage、事件 ID 和时间戳，由 `PersistedErrorRecord` 表示。
+`UnconsumedError` 主要用于标记任务未被正常消费的场景。在 `TaskGraph._finalize_nodes()` 收尾阶段，会调用每个 stage 的 `drain_task_queue()`：
+
+1. 清空 stage 的任务队列，取出剩余任务。
+2. 对每个剩余任务调用 `handle_task_fail(source, UnconsumedError())`。
+3. 失败信息经 `fallback_inlet` 写入 `FallbackSpout`，最终持久化到按日期组织的 sqlite 回退数据库中。
+
+因此，未消费任务的“持久化”并不是由 `util_errors.py` 自身完成，而是依赖 Stage / Graph 层的 fallback 机制。

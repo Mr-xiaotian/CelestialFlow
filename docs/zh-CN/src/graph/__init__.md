@@ -1,6 +1,6 @@
 # Graph 模块
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/28
 
 Graph 模块是 CelestialFlow 的核心调度系统，负责管理任务节点之间的依赖关系、执行流程和生命周期。它提供了灵活的任务图构建、分析和序列化功能。
 
@@ -73,7 +73,7 @@ from celestialflow.graph import (
 ### 外部关联
 - **与 Stage 模块**: `TaskGraph` 管理 `TaskStage` 节点，每个节点通过 `start_stage` 启动
 - **与 Runtime 模块**: 使用 `TaskInQueue`/`TaskOutQueue` 作为节点间通信管道
-- **与 Persistence 模块**: 通过 `LogSpout`/`FailSpout` 实现持久化
+- **与 Persistence 模块**: 通过 `LogSpout`/`FallbackSpout` 实现持久化
 - **与 Observability 模块**: 通过 `TaskReporter` 向 Web UI 推送状态
 
 ## 使用模式

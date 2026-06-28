@@ -1,6 +1,6 @@
 {
     "global": {
-        "theme": "light",
+        "theme": "dark",
         "autoRefreshEnabled": true,
         "refreshInterval": 2000,
         "language": "zh-CN"

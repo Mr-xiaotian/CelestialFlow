@@ -1,6 +1,6 @@
 # demo/ 演示总览
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/28
 
 ## 说明
 
@@ -16,6 +16,21 @@
 2. `demo_graph.md`：再看 `TaskGraph` 如何连接 stage 形成 DAG
 3. `demo_structure.md`：继续看链、网格、环、完全图等结构化封装
 4. `demo_observer.md`：最后看运行过程中的观察与进度展示
+
+## 演示模块总览
+
+| 文档 | 源码 | 演示目标 | 是否需要外部服务 |
+|------|------|---------|:---------------:|
+| `demo_executor.md` | `demo/demo_executor.py` | `TaskExecutor` 的 serial / thread / async 三种执行模式 | 否 |
+| `demo_observer.md` | `demo/demo_observer.py` | 为 `TaskExecutor` 注册 `TaskProgress` 与自定义 `LoggingObserver` | 否 |
+| `demo_funnel.md` | `demo/demo_funnel.py` | 脱离任务图，单独使用 `BaseInlet` / `BaseSpout` 构建事件采集管道 | 否 |
+| `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` 的扇出/扇入 ETL 与异步分阶段流水线 | Reporter / CelestialTree（可选） |
+| `demo_stages.md` | `demo/demo_stages.py` | `TaskSplitter`、`TaskRouter` 与链式/环状图结构 | Reporter / CelestialTree（可选） |
+| `demo_structure.md` | `demo/demo_structure.py` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete` 等预定义拓扑 | Reporter / CelestialTree（可选） |
+| `demo_redis.md` | `demo/demo_redis.py` | 用普通 `TaskStage` 实现 Redis 任务投递、结果确认与外部任务源 | Redis、Reporter（可选） |
+| `demo_utils.md` | `demo/demo_utils.py` | 各演示脚本共享的辅助函数与任务函数 | 否 |
+
+> **注意**：表格中“是否需要外部服务”指直接运行默认入口时的强依赖；可选服务未就绪时通常只会跳过上报，不会导致 demo 退出。
 
 ## 文档索引
 

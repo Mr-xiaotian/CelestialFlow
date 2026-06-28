@@ -1,6 +1,6 @@
 # util_models
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/06/28
 
 ## 作用
 
@@ -62,6 +62,25 @@
   "StageA": [{"id": 1, "value": 42}, {"id": 2, "value": 99}],
   "StageB": [{"id": 3, "value": 55}]
 }
+```
+
+### TerminationInjectionModel
+
+终止符注入请求模型，用于向运行中的任务图注入终止目标节点。
+
+> 该模型继承自 `RootModel[list[str]]`，请求体直接为节点名字符串列表，不再包含其他包装字段。
+
+| 根值类型 | 说明 |
+|----------|------|
+| `list[str]` | 待注入终止符的节点名称列表 |
+
+**请求体示例：**
+
+```json
+[
+  "StageA",
+  "StageB"
+]
 ```
 
 ### DashboardConfigModel

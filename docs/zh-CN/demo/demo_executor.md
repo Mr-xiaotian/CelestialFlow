@@ -1,6 +1,6 @@
 # demo_executor.py 演示说明
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/06/28
 
 ## 目标
 
@@ -67,7 +67,7 @@ flowchart TB
 
 ## 可能出现的问题
 
-1. **迭代计算耗时**：`fibonacci(31)` 的迭代计算在 serial 模式下需约 1 秒，但整体执行含重试和调度开销，实际总耗时可能更长。
+1. **迭代计算耗时**：当前 `demo_utils` 中的斐波那契为迭代 O(n) 实现，`fibonacci(31)` 本身耗时极短（微秒级）；三种模式的总耗时差异主要来自 `TaskExecutor` 的调度与重试开销，而非单任务计算。
 2. **`asyncio` 环境**：`demo_fibonacci_async` 使用 `asyncio.run()`，在 Jupyter Notebook 中直接运行会报错（Notebook 已有事件循环）。
 3. **无断言**：此文件为**演示脚本**，不含 `assert`。运行成功仅代表未抛出未捕获异常，不验证结果正确性。
 
@@ -79,36 +79,16 @@ python demo/demo_executor.py
 
 ## 预期行为
 
-运行后将依次执行三种模式，输出类似以下流程：
+运行后将依次执行三种模式，主要输出为 `tqdm` 进度条，类似：
 
-```
-========================================
-[serial] Fibonacci benchmark (N=12 tasks, max_workers=6)
-========================================
- 80%|████████████████░░░░| ...
-
---- Summary ---
-  mode=serial  success=08  fail=04  dup=0  pending=0  elapsed=0.90s
-
-========================================
-[thread] Fibonacci benchmark (N=12 tasks, max_workers=6)
-========================================
- 80%|████████████████░░░░| ...
-
---- Summary ---
-  mode=thread  success=08  fail=04  dup=0  pending=0  elapsed=0.86s
-
-========================================
-[async] Fibonacci benchmark (N=12 tasks, max_workers=6)
-========================================
- 80%|████████████████░░░░| ...
-
---- Summary ---
-  mode=async  success=08  fail=04  dup=0  pending=0  elapsed=0.01s
+```text
+FibonacciSerial(serial): 100%|██████████| 12/12 [00:00<00:00, 15000.00it/s]
+FibonacciThread(thread-6): 100%|██████████| 12/12 [00:00<00:00, 4000.00it/s]
+FibonacciAsync(async-6): 100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
 ```
 
-> **说明**：12 个任务中，4 个非法输入（两个 `0`、`None`、`""`）会导致失败；其余 8 个为合法斐波那契任务，最终 `success=08`/`fail=04`。其中两个 `0` 触发 `ValueError` 并经 1 次重试后仍失败，`None`/`""` 触发类型错误。
-> 三种模式均使用 `demo_utils` 中的迭代版斐波那契（O(n)），性能可比。
+> **说明**：12 个任务中，4 个非法输入（两个 `0`、`None`、`""`）会导致失败；其余 8 个为合法斐波那契任务。其中两个 `0` 触发 `ValueError` 并经 1 次重试后仍失败，`None`/`""` 触发类型错误（不在重试列表中）。
+> 三种模式均使用 `demo_utils` 中的迭代版斐波那契（O(n)），单任务计算本身非常快，进度条上的 it/s 差异主要反映调度开销。
 
 ## 依赖
 

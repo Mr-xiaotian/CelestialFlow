@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/06/28
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -19,7 +19,7 @@ class TaskExecutor[T, R]:
         max_workers: int | None = None,
         max_retries: int = 1,
         max_info: int = 50,
-        enable_duplicate_check: bool = True,
+        enable_duplicate_check: bool = False,
         persist_result: bool = False,
         log_level: str = "INFO",
     ):

@@ -1,6 +1,6 @@
 # RuntimeEstimators
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/28
 
 `runtime/util_estimators.py` 提供运行时耗时估算函数。
 
@@ -12,7 +12,7 @@
 
 ## 使用示例
 
-以下示例展示 `RemainingTimeEstimator` 相关函数的用法。
+以下示例展示 `calc_remaining`、`calc_elapsed`、`calc_global_pending` 等估算函数的用法。
 
 ### calc_remaining：估算节点剩余时间
 

@@ -1,6 +1,6 @@
 # demo_funnel.py 演示说明
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/06/28
 
 ## 目标
 
@@ -28,6 +28,7 @@ flowchart LR
 - `EventInlet`
   - 继承 `BaseInlet`
   - 对 `_funnel()` 做了轻量封装，提供 `emit()` / `info()` / `metric()` 三个业务方法
+  - 当前源码仍通过旧版构造参数 `EventInlet(spout.get_queue())` 绑定队列，但新版 `BaseInlet` 已改为 `bind_spout()`，运行前需将源码调整为 `inlet = EventInlet(); inlet.bind_spout(spout)`
 - `demo_funnel_jsonl()`
   - 创建 `JsonlSpout` 和 `EventInlet`
   - 启动后台消费线程
