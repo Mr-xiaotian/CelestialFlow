@@ -129,6 +129,7 @@ class OrderGraph:
 
 # ==================== 功能函数 ====================
 
+
 def in_degree(graph: OrderGraph) -> dict[str, int]:
     """
     计算每个节点的入度。

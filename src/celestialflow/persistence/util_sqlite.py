@@ -20,7 +20,9 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
     """
     path = Path(db_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, check_same_thread=False) # 允许跨线程使用, 由于使用端spout指挥存在单条流离线程, 这里是安全的
+    conn = sqlite3.connect(
+        path, check_same_thread=False
+    )  # 允许跨线程使用, 由于使用端spout指挥存在单条流离线程, 这里是安全的
     conn.row_factory = sqlite3.Row
 
     # 初始化当前连接的 sqlite 运行参数，再确保表结构与索引存在。

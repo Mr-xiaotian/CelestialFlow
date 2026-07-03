@@ -36,7 +36,7 @@ class BaseInlet:
         :param record: 待发送的记录
         :return: ``None``
         """
-        if not hasattr(self, '_queue') or not hasattr(self, '_counter'):
+        if not hasattr(self, "_queue") or not hasattr(self, "_counter"):
             raise InitializationError("inlet is not bound to spout")
 
         # 先增加待处理数量，再入队；若入队失败则立即回滚计数。
