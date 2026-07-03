@@ -60,7 +60,7 @@ const DEFAULT_WEB_CONFIG: WebConfig = {
     layout: {
       left: ["mermaid", "analysis"],
       middle: ["status"],
-      right: ["progress", "summary"],
+      right: ["progress", "error-types", "summary"],
     },
   },
   errors: {
@@ -265,6 +265,27 @@ const CARD_TEMPLATES: Record<string, string> = {
         </label>
       </div>
     </div>`,
+  "error-types": `
+    <div class="card error-types-card">
+      <div class="error-types-card-header">
+        <h2 class="card-title" data-i18n="card.errorTypes.title">错误类型分布</h2>
+        <select
+          id="error-type-node-filter"
+          class="error-type-node-filter"
+          data-i18n-aria-label="errorTypes.nodeFilter"
+          aria-label="选择错误统计节点"
+        >
+          <option value="" data-i18n="errors.allNodes">全部节点</option>
+        </select>
+      </div>
+      <div id="error-type-total" class="error-type-total">当前错误总数: 0</div>
+      <div class="error-type-chart-shell">
+        <canvas id="error-type-chart"></canvas>
+      </div>
+      <div id="error-type-legend" class="error-type-legend">
+        <div class="empty-placeholder" data-i18n="errorTypes.noData">暂无错误数据</div>
+      </div>
+    </div>`,
   summary: `
     <div class="card summary-card">
       <h2 class="card-title" data-i18n="card.summary.title">总体状态摘要</h2>
@@ -285,6 +306,7 @@ const CARD_META: Record<string, string> = {
   analysis: "card.analysis.title",
   status: "card.status.title",
   progress: "card.progress.title",
+  "error-types": "card.errorTypes.title",
   summary: "card.summary.title",
 };
 
@@ -507,6 +529,7 @@ function applyDashboardLayout(): void {
       "analysis",
       "status",
       "progress",
+      "error-types",
       "summary",
       ...(dashboard.left || []),
       ...(dashboard.middle || []),

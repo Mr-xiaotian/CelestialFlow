@@ -48,6 +48,92 @@ def test_store_snapshot_methods_return_isolated_copies(web_server):
     assert errors_snapshot_after[0]["stage"] == "s1"
 
 
+def test_get_error_type_counts_returns_grouped_stats(web_server):
+    """测试 server 层可返回全部节点的错误类型聚合统计。"""
+    web_server.update_errors_store(
+        [
+            {
+                "event_id": 1,
+                "stage": "s1",
+                "status": "failed",
+                "task_json": {"value": 1},
+                "error_type": "ValueError",
+                "error_message": "bad",
+                "ts": 1.0,
+            },
+            {
+                "event_id": 2,
+                "stage": "s2",
+                "status": "failed",
+                "task_json": {"value": 2},
+                "error_type": "TypeError",
+                "error_message": "boom",
+                "ts": 2.0,
+            },
+            {
+                "event_id": 3,
+                "stage": "s1",
+                "status": "failed",
+                "task_json": {"value": 3},
+                "error_type": "ValueError",
+                "error_message": "bad again",
+                "ts": 3.0,
+            },
+        ]
+    )
+
+    rev, items = web_server.get_error_type_counts()
+
+    assert rev == web_server.store_revs["errors"]
+    assert items == [
+        {"error_type": "ValueError", "count": 2},
+        {"error_type": "TypeError", "count": 1},
+    ]
+
+
+def test_get_error_type_counts_supports_node_filter(web_server):
+    """测试 server 层错误类型聚合支持按节点过滤。"""
+    web_server.update_errors_store(
+        [
+            {
+                "event_id": 1,
+                "stage": "s1",
+                "status": "failed",
+                "task_json": {"value": 1},
+                "error_type": "ValueError",
+                "error_message": "bad",
+                "ts": 1.0,
+            },
+            {
+                "event_id": 2,
+                "stage": "s1",
+                "status": "failed",
+                "task_json": {"value": 2},
+                "error_type": "TypeError",
+                "error_message": "boom",
+                "ts": 2.0,
+            },
+            {
+                "event_id": 3,
+                "stage": "s2",
+                "status": "failed",
+                "task_json": {"value": 3},
+                "error_type": "RuntimeError",
+                "error_message": "oops",
+                "ts": 3.0,
+            },
+        ]
+    )
+
+    rev, items = web_server.get_error_type_counts("s1")
+
+    assert rev == web_server.store_revs["errors"]
+    assert items == [
+        {"error_type": "TypeError", "count": 1},
+        {"error_type": "ValueError", "count": 1},
+    ]
+
+
 def test_index_page(client):
     """测试 Web 仪表盘首页：验证 HTML 模板是否渲染正确且包含关键 DOM 容器"""
     response = client.get("/")
@@ -277,6 +363,71 @@ def test_errors_pagination(client):
     assert data_oldest["sort_order"] == "oldest"
     assert len(data_oldest["data"]) == 5
     assert data_oldest["data"][0]["event_id"] == 0
+
+
+def test_pull_error_type_counts(client):
+    """测试错误类型聚合 API：支持全部节点、单节点和缓存命中。"""
+    graph_id = "demo@1001"
+    state = client.get(f"/api/pull_server_state?graph_id={graph_id}").json()
+    assert state["is_current_graph"] is False
+
+    test_errors = [
+        {
+            "event_id": 1,
+            "stage": "s1",
+            "status": "failed",
+            "task_json": {"value": 1},
+            "error_type": "ValueError",
+            "error_message": "err1",
+            "ts": 1,
+        },
+        {
+            "event_id": 2,
+            "stage": "s1",
+            "status": "failed",
+            "task_json": {"value": 2},
+            "error_type": "TypeError",
+            "error_message": "err2",
+            "ts": 2,
+        },
+        {
+            "event_id": 3,
+            "stage": "s2",
+            "status": "failed",
+            "task_json": {"value": 3},
+            "error_type": "ValueError",
+            "error_message": "err3",
+            "ts": 3,
+        },
+    ]
+    client.post(
+        "/api/push_errors",
+        json={
+            "graph_id": graph_id,
+            "errors": test_errors,
+        },
+    )
+
+    resp_all = client.get("/api/pull_error_type_counts")
+    assert resp_all.status_code == 200
+    all_data = resp_all.json()
+    assert all_data["data"] == [
+        {"error_type": "ValueError", "count": 2},
+        {"error_type": "TypeError", "count": 1},
+    ]
+
+    resp_node = client.get("/api/pull_error_type_counts?node=s1")
+    assert resp_node.status_code == 200
+    node_data = resp_node.json()
+    assert node_data["data"] == [
+        {"error_type": "TypeError", "count": 1},
+        {"error_type": "ValueError", "count": 1},
+    ]
+
+    rev = node_data["rev"]
+    resp_cached = client.get(f"/api/pull_error_type_counts?node=s1&known_rev={rev}")
+    assert resp_cached.status_code == 200
+    assert resp_cached.json()["data"] is None
 
 
 def test_push_errors_appends_for_same_graph(client):

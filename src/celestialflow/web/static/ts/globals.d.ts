@@ -31,6 +31,13 @@ type ErrorsPullResponse = {
   data: ErrorData[] | null; // 当前页的错误记录
 };
 
+type ErrorTypeCount = {
+  error_type: string; // 错误类型名称
+  count: number; // 该类型的错误条数
+};
+
+type ErrorTypeCountsPullResponse = ApiVersionedResponse<ErrorTypeCount[]>; // 错误类型聚合响应
+
 declare function preloadInjectionDraftFromError(
   nodeName: string,
   taskData: unknown,
@@ -40,8 +47,10 @@ type ChartPoint = { x: number; y: number }; // Chart.js 折线图点坐标
 
 type ChartDataset = {
   label: string; // 数据集标签，通常为节点名
-  data: ChartPoint[]; // 折线点集合
-  borderColor?: string; // 线条颜色
+  data: ChartPoint[] | number[]; // 折线图点集合或环形图数值集合
+  borderColor?: string | string[]; // 线条颜色或扇区边框色
+  backgroundColor?: string | string[]; // 扇区背景色
+  borderWidth?: number; // 边框宽度
   fill?: boolean; // 是否填充区域
   tension?: number; // 曲线平滑程度
   hidden?: boolean; // 是否隐藏该数据集
@@ -71,25 +80,27 @@ type ChartOptions = {
   animation: boolean; // 是否启用动画
   responsive: boolean; // 是否自适应容器尺寸
   plugins: {
-    legend: {
-      labels: {
+    legend?: {
+      display?: boolean; // 是否显示内建图例
+      labels?: {
         color: string; // 图例文字颜色
       };
-      onClick: (
+      onClick?: (
         event: Event,
         legendItem: ChartLegendItem,
         legend: { chart: ChartInstance },
       ) => void; // 图例点击回调
     };
   };
-  interaction: {
+  interaction?: {
     intersect: boolean; // 是否要求鼠标必须与点相交
     mode: string; // 交互模式
   };
-  scales: {
+  scales?: {
     x: ChartScaleConfig; // X 轴配置
     y: ChartScaleConfig; // Y 轴配置
   };
+  cutout?: string; // 环形图内圈大小
 };
 
 interface ChartInstance {

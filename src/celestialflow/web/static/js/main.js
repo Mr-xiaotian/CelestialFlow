@@ -177,11 +177,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderMermaidStructure(nodeStatuses);
     renderDashboard();
     populateNodeFilter(nodeStatuses);
+    populateErrorTypeNodeFilter(nodeStatuses);
     renderErrors();
     renderAnalysisInfo();
     renderInjectionPage();
-    initChart();
+    initHistoryChart();
     updateChartData();
+    initErrorTypeChart();
+    renderErrorTypeChart();
     renderSummary();
     // ==== 事件绑定 ====
     // 点击齿轮按钮：切换设置面板显示/隐藏
@@ -272,12 +275,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderMermaidStructure(nodeStatuses);
         renderDashboard();
         populateNodeFilter(nodeStatuses);
+        populateErrorTypeNodeFilter(nodeStatuses);
         renderErrors();
         renderAnalysisInfo();
         renderNodeList();
         refreshInjectionLocalizedText();
-        initChart();
+        initHistoryChart();
         updateChartData();
+        initErrorTypeChart();
+        renderErrorTypeChart();
         showSettingsSaveStatus(await saveWebConfig() ? "settings.saveSuccess" : "settings.saveFailed");
     });
     // 切换明暗主题：更新样式并重新渲染图表
@@ -311,11 +317,12 @@ async function refreshAll() {
     // - nodeStatuses 会被 loadStatuses 更新
     // - 结构数据会被 loadStructure 使用来渲染 Mermaid 图
     // - errors 会被 loadErrors 刷新为当前筛选结果并用于错误列表渲染
-    const [statusesChanged, structureChanged, errorsChanged, analysisChanged] = await Promise.all([
+    let [statusesChanged, structureChanged, errorsChanged, analysisChanged, errorTypeCountsChanged] = await Promise.all([
         loadStatuses(), // 从后端拉取节点运行状态（处理数、等待数、失败数等），更新 nodeStatuses
         loadStructure(), // 拉取任务结构（有向图），更新 structureData
         loadErrors(), // 获取当前分页与筛选条件下的错误记录，更新 errors
         loadAnalysis(), // 获取最新分析信息，更新 analysisData
+        loadErrorTypeCounts(), // 获取错误类型聚合结果，更新仪表盘扇形图
     ]);
     // 结构图依赖结构数据，也会用节点状态给节点着色。
     if (statusesChanged || structureChanged) {
@@ -329,6 +336,7 @@ async function refreshAll() {
     if (statusesChanged) {
         renderDashboard(); // 中间节点状态卡片
         populateNodeFilter(nodeStatuses); // 错误筛选器
+        populateErrorTypeNodeFilter(nodeStatuses); // 错误类型卡片筛选器
         renderInjectionPage(); // 注入页节点列表 + 当前节点编辑区
         updateChartData(); // 右上折线图
         renderSummary(); // 右下汇总数据
@@ -336,5 +344,8 @@ async function refreshAll() {
     // 错误分页与筛选结果变更后再重绘错误表格。
     if (errorsChanged) {
         renderErrors(); // 错误表格
+    }
+    if (errorTypeCountsChanged) {
+        renderErrorTypeChart(); // 错误类型分布卡片
     }
 }

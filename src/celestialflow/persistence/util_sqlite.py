@@ -512,6 +512,50 @@ def query_records(
         conn.close()
 
 
+def query_error_type_counts(
+    db_path: str | Path,
+    node: str = "",
+    status: str = "failed",
+) -> list[dict[str, Any]]:
+    """
+    自行创建并关闭连接，按错误类型聚合指定状态的记录数量。
+
+    :param db_path: sqlite 数据库文件路径
+    :param node: 节点名称过滤条件；为空时统计全部节点
+    :param status: 记录状态过滤条件，默认 ``failed``
+    :return: ``[{"error_type": str, "count": int}, ...]``
+    :rtype: list[dict[str, Any]]
+    """
+    conn = connect_db(db_path)
+    try:
+        where_clauses: list[str] = ["status = ?"]
+        params: list[Any] = [status]
+        if node:
+            where_clauses.append("stage = ?")
+            params.append(node)
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        rows = conn.execute(
+            f"""
+            SELECT error_type, COUNT(*) AS count
+            FROM records
+            {where_sql}
+            GROUP BY error_type
+            ORDER BY count DESC, error_type ASC
+            """,
+            params,
+        ).fetchall()
+        return [
+            {
+                "error_type": str(row["error_type"]),
+                "count": int(row["count"]),
+            }
+            for row in rows
+        ]
+    finally:
+        conn.close()
+
+
 def load_task_error_records(
     db_path: str | Path, stage: str
 ) -> list[tuple[Any, tuple[str, str]]]:

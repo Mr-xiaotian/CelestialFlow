@@ -133,3 +133,17 @@ def register(router: APIRouter, server: TaskWebServer) -> None:
         """
         rev, analysis_store = server.get_analysis_snapshot()
         return {"rev": rev, "data": analysis_store}
+
+    @router.get("/api/pull_error_type_counts")
+    def pull_error_type_counts(known_rev: int = -1, node: str = "") -> dict[str, Any]:
+        """
+        返回按错误类型聚合后的统计结果；若版本未变则返回 data=null。
+
+        :param known_rev: 客户端已知的版本号，默认 -1
+        :param node: 节点名称过滤，默认 ""
+        :return: {"rev": int, "data": list[dict[str, Any]] | None}
+        """
+        rev, items = server.get_error_type_counts(node)
+        if known_rev == rev:
+            return {"rev": rev, "data": None}
+        return {"rev": rev, "data": items}

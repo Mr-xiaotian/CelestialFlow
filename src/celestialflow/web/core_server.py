@@ -25,6 +25,7 @@ from ..persistence.util_sqlite import (
     connect_db,
     get_max_event_id_in_fail,
     load_records,
+    query_error_type_counts,
     query_records,
 )
 from .routes import create_router
@@ -338,6 +339,19 @@ class TaskWebServer:
                 self.records_db_path, page, page_size, node, keyword, sort_order
             )
             return rev, total, total_pages, page_items
+
+    def get_error_type_counts(self, node: str = "") -> tuple[int, list[dict[str, Any]]]:
+        """
+        原子读取错误缓存版本号与按错误类型聚合后的统计结果。
+
+        :param node: 节点名称过滤条件；为空时统计全部节点
+        :return: ``(rev, items)``
+        :rtype: tuple[int, list[dict[str, Any]]]
+        """
+        with self.errors_lock:
+            rev = self.store_revs["errors"]
+            items = query_error_type_counts(self.records_db_path, node=node)
+            return rev, items
 
     def get_max_event_id_in_fail(self) -> int | None:
         """

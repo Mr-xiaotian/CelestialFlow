@@ -1,8 +1,8 @@
 {
     "global": {
-        "theme": "dark",
+        "theme": "light",
         "autoRefreshEnabled": true,
-        "refreshInterval": 2000,
+        "refreshInterval": 30000,
         "language": "zh-CN"
     },
     "dashboard": {
@@ -19,7 +19,7 @@
             ],
             "right": [
                 "progress",
-                "summary"
+                "error-types"
             ]
         }
     },

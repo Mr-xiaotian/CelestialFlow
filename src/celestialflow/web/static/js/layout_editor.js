@@ -6,7 +6,7 @@
 const DEFAULT_LAYOUT = {
     left: ["mermaid", "analysis"],
     middle: ["status"],
-    right: ["progress", "summary"],
+    right: ["progress", "error-types", "summary"],
 }; // 默认三栏布局，用于首次启动和重置
 let originalLayout = {
     left: [],

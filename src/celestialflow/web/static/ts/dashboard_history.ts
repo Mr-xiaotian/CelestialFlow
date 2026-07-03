@@ -156,8 +156,10 @@ function updateHistoryMetricButtons(): void {
  */
 function updateChartAxisLabels(): void {
   if (!progressChart) return;
-  progressChart.options.scales.x.title.text = t("chart.time");
-  progressChart.options.scales.y.title.text = t(
+  const scales = progressChart.options.scales;
+  if (!scales) return;
+  scales.x.title.text = t("chart.time");
+  scales.y.title.text = t(
     getHistoryMetricLabelKey(currentHistoryMetric),
   );
 }
@@ -323,7 +325,7 @@ function getChartThemeColors(): ThemeColors {
  * 创建 Chart.js 实例，配置图表选项、图例点击事件等
  * @returns {void}
  */
-function initChart(): void {
+function initHistoryChart(): void {
   const ctx = (
     document.getElementById("node-progress-chart") as HTMLCanvasElement
   ).getContext("2d"); // Chart.js 绘图上下文
@@ -406,6 +408,9 @@ function initChart(): void {
  */
 function updateChartTheme(): void {
   if (!progressChart) return;
+  const legend = progressChart.options.plugins.legend;
+  const scales = progressChart.options.scales;
+  if (!legend?.labels || !scales) return;
 
   const {
     text: textColor,
@@ -414,15 +419,15 @@ function updateChartTheme(): void {
   } = getChartThemeColors();
 
   updateChartAxisLabels();
-  progressChart.options.plugins.legend.labels.color = textColor;
-  progressChart.options.scales.x.ticks.color = textColor;
-  progressChart.options.scales.x.grid.color = gridColor;
-  progressChart.options.scales.x.title.color = textColor;
-  progressChart.options.scales.x.border.color = borderColor;
-  progressChart.options.scales.y.ticks.color = textColor;
-  progressChart.options.scales.y.grid.color = gridColor;
-  progressChart.options.scales.y.title.color = textColor;
-  progressChart.options.scales.y.border.color = borderColor;
+  legend.labels.color = textColor;
+  scales.x.ticks.color = textColor;
+  scales.x.grid.color = gridColor;
+  scales.x.title.color = textColor;
+  scales.x.border.color = borderColor;
+  scales.y.ticks.color = textColor;
+  scales.y.grid.color = gridColor;
+  scales.y.title.color = textColor;
+  scales.y.border.color = borderColor;
 
   progressChart.update();
 }

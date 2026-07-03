@@ -15,6 +15,7 @@ from celestialflow.persistence.util_sqlite import (
     load_task_error_records,
     load_task_result_records,
     normalize_record,
+    query_error_type_counts,
     query_records,
     promote_record_to_failed_by_event_id,
     promote_record_to_success_by_event_id,
@@ -306,6 +307,91 @@ class TestSpliteUtils:
         assert [item["event_id"] for item in grouped["s1"]] == [1, 3]
         assert grouped["s1"][0]["error_type"] == "ValueError"
         assert grouped["s1"][1]["task_json"] == {"value": 3}
+
+    def test_query_error_type_counts(self, sqlite_path):
+        """测试按错误类型聚合全部 failed 记录。"""
+        appended = append_records(
+            sqlite_path,
+            [
+                {
+                    "event_id": 1,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task_json": {"value": 1},
+                    "error_type": "ValueError",
+                },
+                {
+                    "event_id": 2,
+                    "stage": "s2",
+                    "status": "failed",
+                    "task_json": {"value": 2},
+                    "error_type": "TypeError",
+                },
+                {
+                    "event_id": 3,
+                    "stage": "s3",
+                    "status": "failed",
+                    "task_json": {"value": 3},
+                    "error_type": "ValueError",
+                },
+                {
+                    "event_id": 4,
+                    "stage": "s1",
+                    "status": "success",
+                    "task_json": {"value": 4},
+                    "result_json": {"ok": True},
+                    "error_type": "IgnoredError",
+                },
+            ],
+        )
+        assert appended == 4
+
+        assert query_error_type_counts(sqlite_path) == [
+            {"error_type": "ValueError", "count": 2},
+            {"error_type": "TypeError", "count": 1},
+        ]
+
+    def test_query_error_type_counts_filters_by_node(self, sqlite_path):
+        """测试按节点过滤错误类型聚合结果。"""
+        appended = append_records(
+            sqlite_path,
+            [
+                {
+                    "event_id": 1,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task_json": {"value": 1},
+                    "error_type": "ValueError",
+                },
+                {
+                    "event_id": 2,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task_json": {"value": 2},
+                    "error_type": "TypeError",
+                },
+                {
+                    "event_id": 3,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task_json": {"value": 3},
+                    "error_type": "TypeError",
+                },
+                {
+                    "event_id": 4,
+                    "stage": "s2",
+                    "status": "failed",
+                    "task_json": {"value": 4},
+                    "error_type": "RuntimeError",
+                },
+            ],
+        )
+        assert appended == 4
+
+        assert query_error_type_counts(sqlite_path, node="s1") == [
+            {"error_type": "TypeError", "count": 2},
+            {"error_type": "ValueError", "count": 1},
+        ]
 
     def test_append_records_skips_duplicate_event_ids(self, sqlite_path, sample_errors):
         """测试追加写入会跳过已存在的 event_id，保证重复同步幂等。"""
