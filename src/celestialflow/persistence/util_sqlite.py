@@ -379,6 +379,41 @@ def load_records_grouped_by_stage(
         conn.close()
 
 
+def load_tasks_grouped_by_stage(
+    db_path: str | Path,
+    status: str = "failed",
+) -> dict[str, list[dict[str, Any]]]:
+    """
+    自行创建并关闭连接，按 stage 分组读取指定状态的记录。
+
+    :param db_path: sqlite 数据库文件路径
+    :param status: 记录状态过滤条件，默认 ``failed``
+    :return: ``{stage_name: [record, ...], ...}``
+    :rtype: dict[str, list[dict[str, Any]]]
+    """
+    conn = connect_db(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT stage, task_json
+            FROM records
+            WHERE status = ?
+            ORDER BY stage ASC, id ASC
+            """,
+            [status],
+        ).fetchall()
+
+        grouped_records: dict[str, list[dict[str, Any]]] = {}
+        for row in rows:
+            stage_name = str(row["stage"])
+            task_json = str(row["task_json"])
+            stage_tasks = grouped_records.setdefault(stage_name, [])
+            stage_tasks.append(json.loads(task_json))
+        return grouped_records
+    finally:
+        conn.close()
+
+
 def load_records_after_event_id_in_fail(
     db_path: str | Path,
     min_event_id: int,

@@ -11,7 +11,7 @@ from typing import Any
 
 from ..observability import NullTaskReporter, TaskReporter
 from ..persistence import FallbackInlet, FallbackSpout, LogInlet, LogSpout
-from ..persistence.util_sqlite import load_records_grouped_by_stage
+from ..persistence.util_sqlite import load_tasks_grouped_by_stage
 from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import (
     DuplicateNodeError,
@@ -385,13 +385,10 @@ class TaskGraph:
         :param status: 记录状态过滤条件，默认 ``failed``
         :param put_termination_signal: 是否注入终止信号，默认 True
         """
-        grouped_records = load_records_grouped_by_stage(db_path, status)
+        grouped_tasks = load_tasks_grouped_by_stage(db_path, status)
 
         self.start_graph(
-            {
-                stage_name: [record["task_json"] for record in records]
-                for stage_name, records in grouped_records.items()
-            },
+            grouped_tasks,
             put_termination_signal=put_termination_signal,
         )
 
