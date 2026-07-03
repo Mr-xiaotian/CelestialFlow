@@ -248,60 +248,28 @@ flowchart TD
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.2.4</em>
+  <em>celestial-flow 3.2.5</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.2.4
+- 3.2.5
   - feat:
-    - **[IMPORTANT]** 合并原有的 `fail_funnel` 与 `success_funnel` 机制为 `fallback` , 并采用 `sqlite` 进行存储
-      - 原有基于 `jsonl` 存储的fail持久化机制在存储时非常好用, 但读取时每次都需要全量读取到内存中再进行检索, 非常麻烦; 我虽然也想过用类似 `redis` 的数据库服务, 但实在不想另外启动第三方服务. 然后我意外发现 `sqlite` 完美符合我的一切要求
-      - Richard 万岁!
-      - 至于原有的 `success_funnel` 机制完全是个半成品: 只能用于 `executor`, 而不能用于 `stage`; 完全在内存存储. 所以借着这次机会也一并重构, 合并入 `fallback_funnel`
-      - 现在 `fallback_funnel` 会在任务 `注入/重复/重试/失败/成功` 时对sqlite中相应记录进行插入/更新/删除操作
-      - 其中在任务成功时默认会删除该条记录, 但如果开启 `executor` 中的 `perist_result` 选项, 则会保留该条记录, 并将 `status` 字段更新为 `success`
-    - **[IMPORTANT]** 移除 `stages` 中的三个redis节点, 并添加demo文件, 说明如果自行构建相关节点
-      - 相比 `TaskSplitter` 与 `TaskRouter`, 这三个节点实在可有可无, 还会导致多一个 `redis` 依赖包
-    - **[IMPORTANT]** `celestialtree` 不再继续作为依赖库, 现有的事件声明机制基于一套protol接口, 并默认使用本地的超简化实现
-      - 这样做同样是为了避免太多库依赖, `celestialtree` 库包含对 `grpcio` 与 `protobuf` 的依赖, 而这两者对于python free-threading版本的支持性不太好, 因此在有他们的情况下 `celestialflow` 无法在free-threading版本下运行----而这是我非常期待的
-      - 根据 `bench_gil_vs_nogil`, 在free-threading版本下, `executor` 在cpu密集任务中会得到5.25倍提升, 而 `graph` 在cpu密集任务中则会得到7.55倍提升. 非常喜人
-    - 在前端 `节点指标走向` 卡片中添加 `全局等待队列`
-    - 在 `graph` 中添加 `start_graph_db` 方法, 接受一个fallback数据库地址, 然后根据其中失败数据进行 `start_graph`; 在 `executor` 中添加 `start_db` 方法, 接受一个fallback数据库地址, 然后根据其中失败数据进行 `start`
-      - 很方便
+    - 在 `Spout` 和 `Inlet` 中 添加 `counter`, 对 `queue` 中未消费任务的数量进行记录
+      - 在上版本大幅修改 `fallback` 机制后, `FallbackSpout` 中很有可能出现任务堆积, 进而导致误判
+    - 在web端错误日志页面对当前显示的错误数量可能与node_status中的error数量不一致的情况进行说明
+    - 在web端仪表盘页面添加错误分类的饼图
   - refactor:
-    - **[IMPORTANT]** 将server端存储error数据的方式从py原生列表改为一个临时sqlite数据库
-      - 在锤子效应下我想更多的尝试sqlite的使用
-    - 为每个 `graph` 添加基于 `name` 与 `time.time()` 的 `graph_id` 作为唯一性标识符
-    - 重写reporter与server端的交互逻辑
-      - 现在每一轮refresh开始时都会进行状态对齐, 通过 `graph_id` 确定两者所持有的数据是否来自一个 `graph` 对象, 是的话则不用重复push structure/analysis数据
-      - 在状态对齐时如果双方的graph一致, server会返回自己所持有的错误数据中最大的 `event_id` 值, 经过严格校验, `event_id` 在数据库中严格递增
-      - 将reporter中原有的 `push_error_meta` 与 `push_error_content` 合并, 每次刷新时只发送新增的错误数据, 而新增数据则根据server返回的最大 `event_id` 值与本地数据库中的最大 `event_id` 值进行筛选
-    - 为 `graph.connect` 与 `graph_set_stage` 绑定更多职责
-      - 现在节点与 `graph` 在 `ctree` `reporter` 上的同步在 `graph_set_stage` 中完成
-      - 而 `task_queue` 与 `result_queue` 的上下流绑定, 以及 `counter` 的绑定都在 `graph.connect` 中完成
-    - 删除 `TaskEnvelope` 中无关数据, 只保留 `task` `hash` `id` 三项
-      - `source` 字段本就不该添加, 它一致没有发挥作用
-      - `prev` 字段是为了原版 `success_funnel` 而服务的, 现在已经没有必要
-    - `TaskMetrics` 中固定使用 `Lock` 对所有 `counter` 进行限定, 而无关乎 `executor` 的 `execution_mode`
-      - 这种固定的模式在牺牲部分性能的情况下使得代码更加稳定
-      - 根据 `bench_lock_overhead`, 这会导致 `counter` 慢3.2倍左右, 考虑到 `counter` 的更新全部基于 `int` 类型, 本就很快, 可以接受
-    - 在 `process_task_success` 中除去已有的一次 `task.success` 声明, 会在 `result_envelope` 进入 `result_queue` 前再进行 `task.input` 声明
-      - 为了保证fallback的sqlite中 `event_id` 全局统一
-    - `executor.get_fail_pairs`(原 `executor.get_error_pairs`) 会返回 `tuple[T, PeristedError]`
-      - `PeristedError` 由记录的 `error_type` 与 `error_message` 组成
-    - 重写 `TaskRouter` 节点, 现在必须传入一个 `router` 函数, 去指定任务的路由方向
-    - 移除一些没用的方法
-      - 比如 `TaskGraph.get_stage_input_trace`
+    - 移除对 `networkx` 的依赖, 添加 `util_graph`, 实现所有图论分析
+    - `TaskExecutor` 中将 `enable_duplicate_check` 默认改为 `False`
+      - 在duplicate机制中一直有一个内存持续增长点: `processed_set`, 这导致 `enable_duplicate_check` 在大规模的任务下会导致很大的内存压力
+    - 分离server端的 `push_task` 和 `push_termination`
   - fix:
-    - 前端仪表盘页面中的结构图不会再因切换tab而显示空白
-      - 这是很古老的bug, 我不知道我为什么译制片没有修复
+    - 修复 `UnconsumedError` 在 `drain_task_queue` 中被计算两次的问题
   - chore:
-    - 添加更多demo
-    - 添加更多benchmark
-    - 添加 `Agents.md` 文件
-      - 我受够了无休止的对ai进行强调
+    - `img/` 中添加全新的 `web_display.png` 图片
+    - 完善几个skill, 现在对主agent与子agent的prompt进行分离
 
 更多过往日志可看:
 

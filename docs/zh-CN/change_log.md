@@ -338,3 +338,19 @@
     - 添加更多benchmark
     - 添加 `Agents.md` 文件
       - 我受够了无休止的对ai进行强调
+- 3.2.5
+  - feat:
+    - 在 `Spout` 和 `Inlet` 中 添加 `counter`, 对 `queue` 中未消费任务的数量进行记录
+      - 在上版本大幅修改 `fallback` 机制后, `FallbackSpout` 中很有可能出现任务堆积, 进而导致误判
+    - 在web端错误日志页面对当前显示的错误数量可能与node_status中的error数量不一致的情况进行说明
+    - 在web端仪表盘页面添加错误分类的饼图
+  - refactor:
+    - 移除对 `networkx` 的依赖, 添加 `util_graph`, 实现所有图论分析
+    - `TaskExecutor` 中将 `enable_duplicate_check` 默认改为 `False`
+      - 在duplicate机制中一直有一个内存持续增长点: `processed_set`, 这导致 `enable_duplicate_check` 在大规模的任务下会导致很大的内存压力
+    - 分离server端的 `push_task` 和 `push_termination`
+  - fix:
+    - 修复 `UnconsumedError` 在 `drain_task_queue` 中被计算两次的问题
+  - chore:
+    - `img/` 中添加全新的 `web_display.png` 图片
+    - 完善几个skill, 现在对主agent与子agent的prompt进行分离
