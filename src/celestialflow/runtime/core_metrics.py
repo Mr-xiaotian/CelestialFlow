@@ -235,3 +235,15 @@ class TaskMetrics:
             "tasks_processed": processed,
             "tasks_pending": pending,
         }
+    
+    def get_retry_error_type_names(self) -> set[str]:
+        """
+        获取当前执行器允许从持久化失败记录中恢复的错误类型名称集合。
+
+        :return: 可重试错误类型名称集合
+        :rtype: set[str]
+        """
+        return {
+            exception_type.__name__
+            for exception_type in self.retry_exceptions
+        }

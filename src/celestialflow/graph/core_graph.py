@@ -375,17 +375,37 @@ class TaskGraph:
     def start_graph_db(
         self,
         db_path: str | Path,
-        status: str = "failed",
+        statuses: Iterable[str] | None = None,
+        *,
+        filter_by_error_type: bool = False,
         put_termination_signal: bool = True,
     ) -> None:
         """
-        从 sqlite 持久化库中读取失败任务，按 stage 分组后启动任务图。
+        从 sqlite 持久化库中读取任务，按 stage 分组后启动任务图。
 
         :param db_path: sqlite 数据库文件路径
-        :param status: 记录状态过滤条件，默认 ``failed``
+        :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``
+        :param filter_by_error_type: 是否按各 stage 的 ``retry_exceptions`` 过滤
+            ``error_type``，默认 ``False``
         :param put_termination_signal: 是否注入终止信号，默认 True
         """
-        grouped_tasks = load_tasks_grouped_by_stage(db_path, status)
+        statuses = ["failed", "pending"] if statuses is None else statuses
+        grouped_records = load_tasks_grouped_by_stage(db_path, statuses)
+        grouped_tasks: dict[str, list[Any]] = {}
+
+        for name, records in grouped_records.items():
+            if filter_by_error_type and name in self.stage_dict:
+                stage = self.stage_dict[name]
+                retry_error_type_names = stage.metrics.get_retry_error_type_names()
+                records = [
+                    record
+                    for record in records
+                    if str(record["error_type"]) in retry_error_type_names
+                ]
+
+            stage_tasks = [record["task_json"] for record in records]
+            if stage_tasks:
+                grouped_tasks[name] = stage_tasks
 
         self.start_graph(
             grouped_tasks,

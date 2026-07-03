@@ -634,16 +634,36 @@ class TaskExecutor[T, R]:
         finally:
             self._finish_start(start_time)
 
-    def start_db(self, db_path: str | Path, status: str = "failed") -> None:
+    def start_db(
+        self,
+        db_path: str | Path,
+        statuses: Iterable[str] | None = None,
+        *,
+        filter_by_error_type: bool = False,
+    ) -> None:
         """
-        从 sqlite 持久化库中读取当前 stage 的失败任务并启动执行。
+        从 sqlite 持久化库中读取当前 stage 的任务并启动执行。
 
         :param db_path: sqlite 数据库文件路径
-        :param status: 记录状态过滤条件，默认 ``failed``
+        :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``
+        :param filter_by_error_type: 是否按当前执行器的 ``retry_exceptions`` 过滤
+            ``error_type``，默认 ``False``
         """
-        grouped_records = load_tasks_grouped_by_stage(db_path, status)
-        records = grouped_records.get(self.get_name(), [])
+        statuses = ["failed", "pending"] if statuses is None else statuses
+        grouped_tasks = load_tasks_grouped_by_stage(db_path, statuses)
+        records = grouped_tasks.get(self.get_name(), [])
+
+        if filter_by_error_type:
+            retry_error_type_names = self.metrics.get_retry_error_type_names()
+            records = [
+                record
+                for record in records
+                if str(record["error_type"]) in retry_error_type_names
+            ]
+
         executor_tasks = [cast(T, record["task_json"]) for record in records]
+        if not executor_tasks:
+            return
 
         self.start(executor_tasks)
 

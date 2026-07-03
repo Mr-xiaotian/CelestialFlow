@@ -230,7 +230,7 @@ class TestExecutorDuplicateCheck:
 
 class TestExecutorReplay:
     def test_start_db(self, tmp_path: Path):
-        """执行器应只读取属于自己 stage 的失败任务并启动。"""
+        """执行器默认应读取属于自己 stage 的 failed 与 pending 任务。"""
         sqlite_path = tmp_path / "fallback.sqlite3"
         appended = append_records(
             sqlite_path,
@@ -255,11 +255,64 @@ class TestExecutorReplay:
                 },
                 {
                     "event_id": 3,
+                    "stage": "s1",
+                    "status": "pending",
+                    "task_json": 3,
+                    "error_type": "",
+                    "error_message": "",
+                    "ts": 3.0,
+                },
+                {
+                    "event_id": 4,
                     "stage": "other",
                     "status": "failed",
                     "task_json": 99,
                     "error_type": "ValueError",
                     "error_message": "bad",
+                    "ts": 4.0,
+                },
+            ],
+        )
+        assert appended == 4
+
+        executor = TaskExecutor("s1", add_one, execution_mode="serial")
+        executor.start_db(sqlite_path)
+
+        counts = executor.get_counts()
+        assert counts["tasks_succeeded"] == 3
+        assert counts["tasks_failed"] == 0
+
+    def test_start_db_filters_error_type_when_enabled(self, tmp_path: Path):
+        """start_db 开启过滤时只回放命中 retry_exceptions 的记录。"""
+        sqlite_path = tmp_path / "fallback.sqlite3"
+        appended = append_records(
+            sqlite_path,
+            [
+                {
+                    "event_id": 1,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task_json": 1,
+                    "error_type": "ValueError",
+                    "error_message": "bad value",
+                    "ts": 1.0,
+                },
+                {
+                    "event_id": 2,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task_json": 2,
+                    "error_type": "RuntimeError",
+                    "error_message": "boom",
+                    "ts": 2.0,
+                },
+                {
+                    "event_id": 3,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task_json": 3,
+                    "error_type": "RuntimeError",
+                    "error_message": "boom again",
                     "ts": 3.0,
                 },
             ],
@@ -267,7 +320,12 @@ class TestExecutorReplay:
         assert appended == 3
 
         executor = TaskExecutor("s1", add_one, execution_mode="serial")
-        executor.start_db(sqlite_path)
+        executor.set_retry_exceptions(RuntimeError)
+        executor.start_db(
+            sqlite_path,
+            statuses=["failed"],
+            filter_by_error_type=True,
+        )
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 2
