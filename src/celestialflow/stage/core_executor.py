@@ -18,7 +18,7 @@ from ..persistence import (
     LogInlet,
     LogSpout,
 )
-from ..persistence.util_sqlite import load_records_grouped_by_stage
+from ..persistence.util_sqlite import load_tasks_grouped_by_stage
 from ..runtime import (
     TaskDispatch,
     TaskEnvelope,
@@ -641,7 +641,7 @@ class TaskExecutor[T, R]:
         :param db_path: sqlite 数据库文件路径
         :param status: 记录状态过滤条件，默认 ``failed``
         """
-        grouped_records = load_records_grouped_by_stage(db_path, status)
+        grouped_records = load_tasks_grouped_by_stage(db_path, status)
         records = grouped_records.get(self.get_name(), [])
         executor_tasks = [cast(T, record["task_json"]) for record in records]
 

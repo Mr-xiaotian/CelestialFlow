@@ -17,7 +17,6 @@ from .graph import (
 from .observability import BaseObserver, TaskProgress
 from .persistence.util_sqlite import (
     load_records,
-    load_records_grouped_by_stage,
     load_tasks_grouped_by_stage,
 )
 from .runtime.util_hash import make_hashable
@@ -54,7 +53,6 @@ __all__ = [
     "benchmark_graph",
     "format_table",
     "load_records",
-    "load_records_grouped_by_stage",
     "load_tasks_grouped_by_stage",
     "make_hashable",
 ]

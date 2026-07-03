@@ -10,7 +10,6 @@ from celestialflow.persistence.util_sqlite import (
     get_max_event_id_in_fail,
     insert_record,
     load_records,
-    load_records_grouped_by_stage,
     load_records_after_event_id_in_fail,
     load_task_error_records,
     load_task_result_records,
@@ -266,47 +265,6 @@ class TestSpliteUtils:
             item["event_id"]
             for item in load_records_after_event_id_in_fail(sqlite_path, 3)
         ] == [7]
-
-    def test_load_records_grouped_by_stage(self, sqlite_path):
-        """测试按 stage 分组读取 failed 记录。"""
-        appended = append_records(
-            sqlite_path,
-            [
-                {
-                    "event_id": 1,
-                    "stage": "s1",
-                    "status": "failed",
-                    "task_json": {"value": 1},
-                    "error_type": "ValueError",
-                    "error_message": "bad",
-                    "ts": 1.0,
-                },
-                {
-                    "event_id": 2,
-                    "stage": "s2",
-                    "status": "success",
-                    "task_json": {"value": 2},
-                    "result_json": {"ok": True},
-                },
-                {
-                    "event_id": 3,
-                    "stage": "s1",
-                    "status": "failed",
-                    "task_json": {"value": 3},
-                    "error_type": "TypeError",
-                    "error_message": "boom",
-                    "ts": 3.0,
-                },
-            ],
-        )
-
-        assert appended == 3
-        grouped = load_records_grouped_by_stage(sqlite_path)
-
-        assert list(grouped.keys()) == ["s1"]
-        assert [item["event_id"] for item in grouped["s1"]] == [1, 3]
-        assert grouped["s1"][0]["error_type"] == "ValueError"
-        assert grouped["s1"][1]["task_json"] == {"value": 3}
 
     def test_query_error_type_counts(self, sqlite_path):
         """测试按错误类型聚合全部 failed 记录。"""

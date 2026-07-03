@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-# ==== 工具函数：不自持完整 conn 生命周期 ====
+# ==== 连接与表结构 ====
 
 
 def connect_db(db_path: str | Path) -> sqlite3.Connection:
@@ -66,6 +66,9 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+# ==== 记录序列化工具 ====
+
+
 def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
     """
     将记录归一化为 sqlite 可写格式。
@@ -112,6 +115,9 @@ def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
         "task_json": json.loads(str(row["task_json"])),
         "result_json": json.loads(str(row["result_json"])),
     }
+
+
+# ==== 复用已有连接的写操作 ====
 
 
 def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
@@ -250,7 +256,7 @@ def delete_record_by_event_id(conn: sqlite3.Connection, event_id: int) -> bool:
     return cursor.rowcount > 0
 
 
-# ==== 自持完整 conn 生命周期的读写函数 ====
+# ==== 自持完整 conn 生命周期的写操作 ====
 
 
 def clear_records(db_path: str | Path) -> None:
@@ -293,6 +299,35 @@ def append_records(db_path: str | Path, records: Iterable[dict[str, Any]]) -> in
         conn.close()
 
 
+# ==== 自持完整 conn 生命周期的元数据读取函数 ====
+
+
+def get_max_event_id_in_fail(db_path: str | Path) -> int | None:
+    """
+    自行创建并关闭连接，读取失败记录中的最大 ``event_id``。
+
+    :param db_path: sqlite 数据库文件路径
+    :return: 失败记录中的最大 ``event_id``；若不存在失败记录则返回 ``None``
+    :rtype: int | None
+    """
+    conn = connect_db(db_path)
+    try:
+        row = conn.execute(
+            """
+            SELECT MAX(event_id) AS max_event_id
+            FROM records
+            WHERE status = 'failed'
+            """
+        ).fetchone()
+        max_event_id = row["max_event_id"]
+        return None if max_event_id is None else int(max_event_id)
+    finally:
+        conn.close()
+
+
+# ==== 自持完整 conn 生命周期的 load 函数 ====
+
+
 def load_records(
     db_path: str | Path,
     status: str = "failed",
@@ -319,64 +354,6 @@ def load_records(
             [status],
         ).fetchall()
         return [row_to_record_dict(row) for row in rows]
-    finally:
-        conn.close()
-
-
-def get_max_event_id_in_fail(db_path: str | Path) -> int | None:
-    """
-    自行创建并关闭连接，读取失败记录中的最大 ``event_id``。
-
-    :param db_path: sqlite 数据库文件路径
-    :return: 失败记录中的最大 ``event_id``；若不存在失败记录则返回 ``None``
-    :rtype: int | None
-    """
-    conn = connect_db(db_path)
-    try:
-        row = conn.execute(
-            """
-            SELECT MAX(event_id) AS max_event_id
-            FROM records
-            WHERE status = 'failed'
-            """
-        ).fetchone()
-        max_event_id = row["max_event_id"]
-        return None if max_event_id is None else int(max_event_id)
-    finally:
-        conn.close()
-
-
-def load_records_grouped_by_stage(
-    db_path: str | Path,
-    status: str = "failed",
-) -> dict[str, list[dict[str, Any]]]:
-    """
-    自行创建并关闭连接，按 stage 分组读取指定状态的记录。
-
-    :param db_path: sqlite 数据库文件路径
-    :param status: 记录状态过滤条件，默认 ``failed``
-    :return: ``{stage_name: [record, ...], ...}``
-    :rtype: dict[str, list[dict[str, Any]]]
-    """
-    conn = connect_db(db_path)
-    try:
-        rows = conn.execute(
-            """
-            SELECT id, event_id, ts, stage, status, error_type, error_message, task_json
-                 , result_json
-            FROM records
-            WHERE status = ?
-            ORDER BY stage ASC, id ASC
-            """,
-            [status],
-        ).fetchall()
-
-        grouped_records: dict[str, list[dict[str, Any]]] = {}
-        for row in rows:
-            stage_name = str(row["stage"])
-            stage_tasks = grouped_records.setdefault(stage_name, [])
-            stage_tasks.append(row_to_record_dict(row))
-        return grouped_records
     finally:
         conn.close()
 
@@ -443,6 +420,74 @@ def load_records_after_event_id_in_fail(
         return [row_to_record_dict(row) for row in rows]
     finally:
         conn.close()
+
+
+def load_task_error_records(
+    db_path: str | Path, stage: str
+) -> list[tuple[Any, tuple[str, str]]]:
+    """
+    自行创建并关闭连接，读取指定 stage 的失败任务与记录配对列表。
+
+    :param db_path: sqlite 数据库文件路径
+    :param stage: 待读取的 stage 名称
+    :return: ``[(task, error_record), ...]``
+    :rtype: list[tuple[Any, tuple[str, str]]]]
+    """
+    conn = connect_db(db_path)
+    try:
+        # 读取任务与错误信息的配对原始行，供后续组装业务对象。
+        rows = conn.execute(
+            """
+            SELECT error_type, error_message, task_json
+            FROM records
+            WHERE status = 'failed' AND stage = ?
+            ORDER BY id ASC
+            """,
+            [stage],
+        ).fetchall()
+        return [
+            (
+                json.loads(str(row["task_json"])),
+                (str(row["error_type"]), str(row["error_message"])),
+            )
+            for row in rows
+        ]
+    finally:
+        conn.close()
+
+
+def load_task_result_records(db_path: str | Path, stage: str) -> list[tuple[Any, Any]]:
+    """
+    自行创建并关闭连接，读取指定 stage 的任务与成功结果配对列表。
+
+    :param db_path: sqlite 数据库文件路径
+    :param stage: 待读取的 stage 名称
+    :return: ``[(task, result), ...]``
+    :rtype: list[tuple[Any, Any]]
+    """
+    conn = connect_db(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT task_json, result_json
+            FROM records
+            WHERE status = 'success' AND stage = ?
+            ORDER BY id ASC
+            """,
+            [stage],
+        ).fetchall()
+        return [
+            (
+                json.loads(str(row["task_json"])),
+                json.loads(str(row["result_json"])),
+            )
+            for row in rows
+        ]
+    finally:
+        conn.close()
+
+
+# ==== 自持完整 conn 生命周期的 query 函数 ====
 
 
 def query_records(
@@ -552,71 +597,6 @@ def query_error_type_counts(
                 "error_type": str(row["error_type"]),
                 "count": int(row["count"]),
             }
-            for row in rows
-        ]
-    finally:
-        conn.close()
-
-
-def load_task_error_records(
-    db_path: str | Path, stage: str
-) -> list[tuple[Any, tuple[str, str]]]:
-    """
-    自行创建并关闭连接，读取指定 stage 的失败任务与记录配对列表。
-
-    :param db_path: sqlite 数据库文件路径
-    :param stage: 待读取的 stage 名称
-    :return: ``[(task, error_record), ...]``
-    :rtype: list[tuple[Any, tuple[str, str]]]]
-    """
-    conn = connect_db(db_path)
-    try:
-        # 读取任务与错误信息的配对原始行，供后续组装业务对象。
-        rows = conn.execute(
-            """
-            SELECT error_type, error_message, task_json
-            FROM records
-            WHERE status = 'failed' AND stage = ?
-            ORDER BY id ASC
-            """,
-            [stage],
-        ).fetchall()
-        return [
-            (
-                json.loads(str(row["task_json"])),
-                (str(row["error_type"]), str(row["error_message"])),
-            )
-            for row in rows
-        ]
-    finally:
-        conn.close()
-
-
-def load_task_result_records(db_path: str | Path, stage: str) -> list[tuple[Any, Any]]:
-    """
-    自行创建并关闭连接，读取指定 stage 的任务与成功结果配对列表。
-
-    :param db_path: sqlite 数据库文件路径
-    :param stage: 待读取的 stage 名称
-    :return: ``[(task, result), ...]``
-    :rtype: list[tuple[Any, Any]]
-    """
-    conn = connect_db(db_path)
-    try:
-        rows = conn.execute(
-            """
-            SELECT task_json, result_json
-            FROM records
-            WHERE status = 'success' AND stage = ?
-            ORDER BY id ASC
-            """,
-            [stage],
-        ).fetchall()
-        return [
-            (
-                json.loads(str(row["task_json"])),
-                json.loads(str(row["result_json"])),
-            )
             for row in rows
         ]
     finally:
