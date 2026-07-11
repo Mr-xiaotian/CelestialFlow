@@ -3,9 +3,9 @@ name: "docs-zh-sync"
 description: "Audits code in src/, bench/, tests/, and demo/, then updates matching docs/zh-CN markdown by mirrored relative paths. Invoke when code changes require Chinese docs sync."
 ---
 
-# Docs Zh Sync
+# Docs Zh Sync（CelestialFlow 项目配置）
 
-用于把代码与 `docs/zh-CN` 文档持续对齐的技能。
+本文件是 CelestialFlow 项目的 `docs-zh-sync` 技能专属配置，引用通用框架 `~/.agents/skills/docs-zh-sync/`。
 
 当用户提出以下需求时，立即调用本技能：
 
@@ -14,22 +14,22 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 - 检查 `src/`、`bench/`、`tests/`、`demo/` 后批量修正文档
 - 发现文档过期、缺页、路径不一致，要求按代码现状修复
 
-## 目标
+## 通用框架
 
-检查 `src/`、`bench/`、`tests/`、`demo/` 中的 `*.py`、`*.ts`、`*.html`、`*.css` 文件，按镜像路径规则更新到 `docs/zh-CN/` 下的 `*.md` 文档。
+本技能基于通用框架 `~/.agents/skills/docs-zh-sync/SKILL.md`，该框架定义了：
 
-## 执行流程（主 Agent 协调）
+- 4 阶段执行流程（时间确认 → 扫描与区域划分 → 委派子代理 → 汇总与交付）
+- 通用审计清单（`_subagent-audit.md`）
+- 通用写作规范（`_subagent-writing.md`）
+- 通用输出格式与降级策略
 
-### 阶段 1: 时间确认
+主 agent 在执行时，应优先遵循通用框架的流程，并结合本文件的以下项目特化配置。
 
-在开始任何文档更新前，**必须确认当前日期**。该日期将用于所有文档中的 `最后更新日期` 字段，格式为 `YYYY/MM/DD`。
+---
 
-- 优先从系统信息中的 `Today's Date` 字段获取。
-- 若无法获取系统日期，应主动向用户确认。
-- 同一批次的所有文档更新使用同一日期。
-- **只更新本次实际修改过的文档的日期**；未修改的文档保持原有日期不变。
+## 项目特化：子任务划分
 
-### 阶段 2: 扫描与区域划分
+### 扫描与区域划分
 
 按以下 **9 个固定子任务** 拆分。每个子任务文件量控制在 15–20 个以内，主 agent 不需要再做额外判断。
 
@@ -47,31 +47,33 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 
 执行步骤：
 
-1. 用 `Glob` 或 `Shell` 扫描每个子任务对应的代码目录，生成该子任务的代码文件清单。
-2. 按镜像规则推算每个代码文件对应的 `docs/zh-CN/` 目标文档路径。
+1. 用 `find_path` 或 `terminal` 扫描每个子任务对应的代码目录，生成该子任务的代码文件清单。
+2. 按项目路径映射规则（见 `_subagent-base.md`）推算每个代码文件对应的 `docs/zh-CN/` 目标文档路径。
 3. 同时扫描对应 `docs/zh-CN/` 目录，找出"有文档但无对应源码"的孤立文件，单独列出。
 
-### 阶段 3: 委派子代理
+### 委派子代理
 
-按阶段 2 的 9 个子任务，一次性并行委派 9 个子代理。每个子代理的消息中必须包含：
+按上述 9 个子任务，一次性并行委派 9 个子代理。每个子代理的消息中必须包含：
 
 - 子任务编号和名称
 - 当前日期 `YYYY/MM/DD`
 - 该子任务的**代码→文档对照清单**（含孤立文档列表）
-- 需要阅读的 Skill 文件路径（子代理直接读取项目内的 `.agents/skills/docs-zh-sync/` 目录）：
-  - `_subagent-base.md`（路径映射、源文件删除/移动处理、输出格式）
-  - `_subagent-audit.md`（审计清单）
-  - `_subagent-writing.md`（写作规范、表达形式、文档骨架）
-  - 本子任务对应的 `subagent-*.md`
+- 需要阅读的 Skill 文件路径：
 
-主 agent 不再需要在每次委派时完整注入 `_subagent-base.md` 等内容；只需在 prompt 中给出文件路径和待处理清单。
+| 顺序 | 文件 | 说明 |
+|:----:|------|------|
+| 1 | `~/.agents/skills/docs-zh-sync/_subagent-base.md` | 通用规则、输出格式 |
+| 2 | `~/.agents/skills/docs-zh-sync/_subagent-audit.md` | 通用审计清单 |
+| 3 | `~/.agents/skills/docs-zh-sync/_subagent-writing.md` | 通用写作规范 |
+| 4 | 项目内 `.agents/skills/docs-zh-sync/_subagent-base.md` | 项目专属路径映射 |
+| 5 | 项目内 `.agents/skills/docs-zh-sync/subagent-*.md` | 区域特化提示 |
 
-> **退化策略**：如果当前环境限制子代理读取 Skill 目录，可临时将 `_subagent-base.md`、`_subagent-audit.md`、`_subagent-writing.md` 与对应 `subagent-*.md` 的内容合并写入项目内的临时文件（如 `temp/docs-zh-sync/instructions-{子任务}.md`），让子代理读取该临时文件，执行完毕后删除。
+> **退化策略**：如果当前环境限制子代理读取外部 Skill 目录，可临时将通用文件和项目文件合并写入项目内的临时文件（如 `temp/docs-zh-sync/instructions-{子任务}.md`），让子代理读取该临时文件，执行完毕后删除。
 
 **推荐并行度**：
 - 正常环境下分批委派，可一次性并行委派 5-6 个代理。若环境受限，可分批执行，但需在最终汇总中明确已完成和剩余子任务。
 
-### 阶段 4: 汇总与交付
+### 汇总与交付
 
 所有子代理完成后，汇总输出：
 
@@ -91,7 +93,7 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 
 ### 降级策略
 
-如果当前环境不支持 `subagent`，则按阶段 2 的 9 个子任务顺序串行执行，每个子任务作为一个独立分区，输出格式仍遵循 `_subagent-base.md` 的要求。
+如果当前环境不支持 `subagent`，则按上述 9 个子任务顺序串行执行，每个子任务作为一个独立分区，输出格式仍遵循 `_subagent-base.md` 的要求。
 
 ## 排除项
 

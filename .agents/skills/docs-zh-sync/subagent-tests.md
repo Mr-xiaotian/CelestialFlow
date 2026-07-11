@@ -2,7 +2,14 @@
 
 > 覆盖 `tests/` 目录下所有测试文件的中文文档。
 >
-> 开始工作前，请先阅读同目录下的 `_subagent-base.md`、`_subagent-audit.md`、`_subagent-writing.md`，再结合本文件和主 agent 提供的文件清单执行审计。
+> 开始工作前，请按顺序阅读：
+> 1. `~/.agents/skills/docs-zh-sync/_subagent-base.md`（通用规则、输出格式）
+> 2. `~/.agents/skills/docs-zh-sync/_subagent-audit.md`（通用审计清单）
+> 3. `~/.agents/skills/docs-zh-sync/_subagent-writing.md`（通用写作规范）
+> 4. 项目内 `.agents/skills/docs-zh-sync/_subagent-base.md`（项目专属路径映射）
+> 5. 本文件
+>
+> 再结合主 agent 提供的文件清单执行审计。
 
 ## 文件清单
 
