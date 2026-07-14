@@ -14,36 +14,19 @@ requires-python = ">=3.12"
 
 dependencies = [
     "tqdm",
-    "fastapi",
-    "uvicorn",
     "requests",
-    "jinja2",
 ]
 
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Framework :: FastAPI",
     "Topic :: Software Development :: Libraries",
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/Mr-xiaotian/CelestialFlow"
 "Bug Tracker" = "https://github.com/Mr-xiaotian/CelestialFlow/issues"
-
-[project.scripts]
-celestialflow-web = "celestialflow.web.core_server:main_entry"
-
-[tool.setuptools]
-license-files = []
-
-[tool.setuptools.package-data]
-celestialflow = [
-    "web/templates/**/*.html",
-    "web/static/**/*",
-    "web/config.json"
-]
 
 [tool.pytest.ini_options]
 addopts = "-s"

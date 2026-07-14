@@ -29,7 +29,6 @@ from .stage import (
 )
 from .utils.util_benchmark import benchmark_executor, benchmark_graph
 from .utils.util_format import format_table
-from .web import TaskWebServer
 
 __all__ = [
     "BaseInlet",
@@ -46,7 +45,6 @@ __all__ = [
     "TaskRouter",
     "TaskSplitter",
     "TaskStage",
-    "TaskWebServer",
     "TaskWheel",
     "TerminationSignal",
     "benchmark_executor",

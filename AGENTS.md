@@ -22,3 +22,10 @@
 - 如果修改对象是 `.py` 文件, 执行 `uv run pytest <相关测试文件>` 运行相关测试。
 - 如果修改对象是代码文件, 为代码添加或者更新reST风格的doc-string, 并保持与代码逻辑一致。
 - 除非特意要求, 不必同步更改docs/下的相应文档。
+
+## 与其他项目的关联
+
+### celestialflow-web
+
+- 位于: D:\Project\celestialflow-web
+- 关系: 为celestialflow提供可视化的web界面
