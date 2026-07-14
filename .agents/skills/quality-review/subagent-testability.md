@@ -41,4 +41,3 @@
 | `stage/` | `TaskExecutor` 的 `ctree_client`/`observers` 注入、队列的可替换性、时间依赖 |
 | `runtime/` | `TaskMetrics` 的状态查询、`TaskDispatch` 的线程池是否可替换 |
 | `persistence/` | SQLite 路径的可配置性、Spout 线程的可测试性 |
-| `web/` | FastAPI `TestClient` 兼容性、路由处理器的纯函数化程度 |

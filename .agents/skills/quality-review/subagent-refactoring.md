@@ -44,4 +44,3 @@
 | `graph/` | `core_graph.py` 的函数长度、`connect`/`set_stages` 的复杂度 |
 | `stage/` | Executor 的 `_execute` 相关方法、Splitter/Router 的模板方法 |
 | `runtime/` | `dispatch` 的执行循环、`queue` 的信号处理 |
-| `web/` | 路由处理函数、Pydantic model 的复用 |

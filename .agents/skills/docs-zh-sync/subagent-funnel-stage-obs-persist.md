@@ -42,7 +42,7 @@
 **observability:**
 - `core_observer.py`：用 `classDiagram` 展示 Observer 体系。说明通知回调的注册和触发机制。
 - `core_progress.py`：说明进度追踪的工作原理，示例中注意区分同步/异步调用。
-- `core_report.py`：用表格列出所有推送方法及其对应的 Web API（**只列源码中实际存在的**）。用 `sequenceDiagram` 展示 `_refresh_all()` 的推送执行顺序。
+- `core_report.py`：用表格列出所有推送方法及其对应的外部 HTTP 接口（**只列源码中实际存在的**）。用 `sequenceDiagram` 展示 `_refresh_all()` 的推送执行顺序。
 
 **persistence:**
 - `core_fail.py` / `core_success.py` / `core_log.py`：逐方法说明签名和用途。用 `flowchart` 展示持久化写入流程。

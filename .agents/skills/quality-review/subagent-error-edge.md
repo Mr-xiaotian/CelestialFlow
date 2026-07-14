@@ -42,4 +42,3 @@
 | `stage/` | Executor 异常生命周期、重试逻辑的异常分支、任务失败后的状态一致性 |
 | `persistence/` | 文件写入失败、SQLite 错误处理、spout 守护线程的异常退出 |
 | `funnel/` | Spout `_spout()` 循环中的异常分支、TerminationSignal 处理 |
-| `web/` | FastAPI 异常处理器、路由超时、WebSocket 断连 |

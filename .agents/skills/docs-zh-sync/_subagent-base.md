@@ -39,9 +39,8 @@
 | 代码文件 | 文档文件 |
 |---------|---------|
 | `src/celestialflow/runtime/util_errors.py` | `docs/zh-CN/src/runtime/util_errors.md` |
-| `src/celestialflow/web/static/ts/main.ts` | `docs/zh-CN/src/web/static/ts/main.md` |
-| `src/celestialflow/web/templates/index.html` | `docs/zh-CN/src/web/templates/index.md` |
-| `src/celestialflow/web/static/css/dashboard.css` | `docs/zh-CN/src/web/static/css/dashboard.md` |
+| `src/celestialflow/utils/util_format.py` | `docs/zh-CN/src/utils/util_format.md` |
+| `src/celestialflow/__init__.py` | `docs/zh-CN/src/__init__.md` |
 | `tests/runtime/test_queue.py` | `docs/zh-CN/tests/runtime/test_queue.md` |
 | `demo/demo_graph.py` | `docs/zh-CN/demo/demo_graph.md` |
 

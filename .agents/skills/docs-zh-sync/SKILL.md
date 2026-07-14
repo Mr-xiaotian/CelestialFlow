@@ -31,19 +31,17 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 
 ### 扫描与区域划分
 
-按以下 **9 个固定子任务** 拆分。每个子任务文件量控制在 15–20 个以内，主 agent 不需要再做额外判断。
+按以下 **7 个固定子任务** 拆分。每个子任务文件量控制在 15–20 个以内，主 agent 不需要再做额外判断。
 
 | # | 子任务 | 子代理 Prompt 文件 | 负责扫描的代码目录/文件 |
 |---|--------|-------------------|------------------------|
 | 1 | src/runtime + graph | `subagent-runtime-graph.md` | `src/celestialflow/runtime/*.py`<br>`src/celestialflow/graph/*.py` |
 | 2 | src/funnel + stage + observability + persistence | `subagent-funnel-stage-obs-persist.md` | `src/celestialflow/funnel/*.py`<br>`src/celestialflow/stage/*.py`<br>`src/celestialflow/observability/*.py`<br>`src/celestialflow/persistence/*.py` |
-| 3 | src/utils + web（不含 static） | `subagent-utils-web.md` | `src/celestialflow/__init__.py`<br>`src/celestialflow/utils/*.py`<br>`src/celestialflow/web/*.py`（不含 `static/` 子目录） |
-| 4 | src/web/static/css | `subagent-web-static.md` | `src/celestialflow/web/static/css/*.css` |
-| 5 | src/web/static/ts | `subagent-web-static.md` | `src/celestialflow/web/static/ts/*.ts` |
-| 6 | tests/runtime + graph | `subagent-tests.md` | `tests/runtime/*.py`<br>`tests/graph/*.py` |
-| 7 | tests/其余 | `subagent-tests.md` | `tests/__init__.py`<br>`tests/conftest.py`<br>`tests/funnel/*.py`<br>`tests/stage/*.py`<br>`tests/observability/*.py`<br>`tests/persistence/*.py`<br>`tests/utils/*.py`<br>`tests/web/*.py` |
-| 8 | bench | `subagent-bench-demo.md` | `bench/*.py` |
-| 9 | demo | `subagent-bench-demo.md` | `demo/*.py` |
+| 3 | src/utils + package entry | `subagent-utils.md` | `src/celestialflow/__init__.py`<br>`src/celestialflow/utils/*.py` |
+| 4 | tests/runtime + graph | `subagent-tests.md` | `tests/runtime/*.py`<br>`tests/graph/*.py` |
+| 5 | tests/其余 | `subagent-tests.md` | `tests/__init__.py`<br>`tests/conftest.py`<br>`tests/funnel/*.py`<br>`tests/stage/*.py`<br>`tests/observability/*.py`<br>`tests/persistence/*.py`<br>`tests/utils/*.py` |
+| 6 | bench | `subagent-bench-demo.md` | `bench/*.py` |
+| 7 | demo | `subagent-bench-demo.md` | `demo/*.py` |
 
 执行步骤：
 
@@ -53,7 +51,7 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 
 ### 委派子代理
 
-按上述 9 个子任务，一次性并行委派 9 个子代理。每个子代理的消息中必须包含：
+按上述 7 个子任务，一次性并行委派 7 个子代理。每个子代理的消息中必须包含：
 
 - 子任务编号和名称
 - 当前日期 `YYYY/MM/DD`
@@ -101,6 +99,6 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 
 - `docs/en/`
 - `docs/ja/`
-- 生成产物，如 `src/celestialflow/web/static/js/*.js`
+- 生成产物，如 `*.js`
 - 第三方依赖锁文件、图片、二进制资源
 - `docs/zh-CN/` 顶层文件（README.md、tutorial.md 等）和 `other/` 目录（无直接代码对应）

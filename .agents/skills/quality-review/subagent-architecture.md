@@ -15,7 +15,6 @@
 - 是否存在**循环依赖**（两个模块互相 import）？
 - 依赖方向是否符合分层架构（底层不依赖上层）？
 - `runtime/` → `stage/` → `graph/` 的依赖链是否被违反？
-- `web/` 是否直接依赖了不该依赖的内部实现细节？
 
 ### 3. 接口一致性
 - 同类模块（如 Inlet 系列、Spout 系列）的公开方法签名是否一致？
@@ -40,8 +39,7 @@
 | `graph/` | `TaskGraph` 是否承担了过多职责（调度+状态+分析+持久化）？ |
 | `stage/` | `TaskStage` → `TaskExecutor` 的继承是否合理？Splitter/Router 的泛型使用 |
 | `runtime/` | 基础设施组件（queue/dispatch/metrics）的职责边界是否清晰？ |
-| `observability/` | Observer 模式实现是否一致？Reporter 是否与 web 层过度耦合？ |
+| `observability/` | Observer 模式实现是否一致？Reporter 与外部服务通信边界是否清晰？ |
 | `persistence/` | Spout/Inlet 组合模式是否一致？持久化策略是否易于扩展？ |
 | `funnel/` | BaseSpout/BaseInlet 的抽象层级是否合理？ |
-| `web/` | 路由层/模型层/服务层的分层是否清晰？前端模块的职责划分？ |
 | `utils/` | 工具函数是否真的无状态？是否应该归属到其他模块？ |

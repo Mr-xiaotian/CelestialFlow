@@ -42,5 +42,3 @@
 |------|---------|
 | `stage/` | 泛型 `[T, R]` 是否被正确传播？`kwargs: Any` 是否能收窄？ |
 | `runtime/` | `TaskEnvelope`、`TaskMetrics` 等数据类的字段类型是否完整？ |
-| `web/` | Pydantic model 字段类型、FastAPI 路由的请求/响应类型 |
-| `web/static/ts/` | TS interface/type 定义是否完整？是否存在 `any` 逃逸？ |

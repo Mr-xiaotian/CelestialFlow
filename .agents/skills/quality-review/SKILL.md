@@ -31,14 +31,13 @@ description: "Multi-agent code quality review across architecture, type safety, 
 | B | `stage/` | Architecture, Type Safety, Error & Edge, Concurrency, Refactoring, Testability |
 | C | `runtime/` | Architecture, Type Safety, Concurrency, Refactoring, Naming & Style |
 | D | `observability/` + `persistence/` + `funnel/` | Architecture, Error & Edge, Refactoring |
-| E | `web/` | Architecture, Type Safety, Refactoring, Naming & Style |
-| F | `utils/` | Architecture, Refactoring, Naming & Style |
+| E | `utils/` | Architecture, Refactoring, Naming & Style |
 
 > 实际分组应基于扫描结果动态调整。如果某区域文件量过大（>10 个），进一步拆分子区域。
 
 ### 阶段 2: 委派子代理（区域内并行，区域间串行）
 
-主 agent **按 Group A → B → C → D → E → F 顺序串行推进**。每进入一个区域时：
+主 agent **按 Group A → B → C → D → E 顺序串行推进**。每进入一个区域时：
 
 1. **读取** 该区域所有代码文件，梳理关键类职责与模块交互关系
 2. **读取** `_subagent-base.md`（共享规则）→ 获取报告格式、严重级别等

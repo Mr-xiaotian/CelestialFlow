@@ -40,4 +40,3 @@
 |------|---------|
 | `runtime/` | `core_`/`util_` 前缀一致性、枚举值命名 |
 | `stage/` | 模式字符串常量化、方法命名是否符合生命周期语义 |
-| `web/static/ts/` | TypeScript 变量命名（camelCase）、函数命名（动词开头） |
