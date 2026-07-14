@@ -19,7 +19,11 @@ from fastapi.templating import (
     Jinja2Templates,
 )
 
-from ..persistence.util_sqlite import (
+from .routes import create_router
+from .util_cal import cal_interval
+from .util_config import load_config
+from .util_models import WebConfigModel
+from .util_sqlite import (
     append_records,
     clear_records,
     connect_db,
@@ -28,10 +32,6 @@ from ..persistence.util_sqlite import (
     query_error_type_counts,
     query_records,
 )
-from .routes import create_router
-from .util_cal import cal_interval
-from .util_config import load_config
-from .util_models import WebConfigModel
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
