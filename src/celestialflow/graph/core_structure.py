@@ -1,7 +1,4 @@
 # graph/core_structure.py
-from collections.abc import Iterable, Mapping
-from typing import Any
-
 from ..stage.util_types import AnyTaskStage
 from .core_graph import TaskGraph
 
@@ -35,19 +32,6 @@ class TaskChain(TaskGraph):
         self.set_stages(stages)
         for num in range(len(stages) - 1):
             self.connect([stages[num]], [stages[num + 1]])
-
-    def start_chain(
-        self,
-        init_tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = True,
-    ) -> None:
-        """
-        启动任务链
-
-        :param init_tasks_dict: 初始化任务字典
-        :param put_termination_signal: 是否在任务完成后发送终止信号，默认 True
-        """
-        self.start_graph(init_tasks_dict, put_termination_signal)
 
 
 class TaskCross(TaskGraph):
@@ -84,19 +68,6 @@ class TaskCross(TaskGraph):
         self.set_stages(all_stages)
         for i in range(len(layers) - 1):
             self.connect(layers[i], layers[i + 1])
-
-    def start_cross(
-        self,
-        init_tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = True,
-    ) -> None:
-        """
-        启动多层交叉结构任务图
-
-        :param init_tasks_dict: 初始化任务字典
-        :param put_termination_signal: 是否在任务完成后发送终止信号，默认 True
-        """
-        self.start_graph(init_tasks_dict, put_termination_signal)
 
 
 class TaskGrid(TaskGraph):
@@ -141,19 +112,6 @@ class TaskGrid(TaskGraph):
                 if j + 1 < cols:
                     self.connect([curr], [grid[i][j + 1]])
 
-    def start_grid(
-        self,
-        init_tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = True,
-    ) -> None:
-        """
-        启动任务网格结构
-
-        :param init_tasks_dict: 初始化任务字典
-        :param put_termination_signal: 是否在任务完成后发送终止信号，默认 True
-        """
-        self.start_graph(init_tasks_dict, put_termination_signal)
-
 
 # ========有环图========
 class TaskLoop(TaskGraph):
@@ -184,19 +142,6 @@ class TaskLoop(TaskGraph):
         for num in range(len(stages)):
             next_stage = stages[num + 1] if num < len(stages) - 1 else stages[0]
             self.connect([stages[num]], [next_stage])
-
-    def start_loop(
-        self,
-        init_tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = False,
-    ) -> None:
-        """
-        启动任务环, 环是自锁结构, 建议外部注入式停止
-
-        :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否在任务完成后发送终止信号，默认 False
-        """
-        self.start_graph(init_tasks_dict, put_termination_signal)
 
 
 class TaskWheel(TaskGraph):
@@ -233,19 +178,6 @@ class TaskWheel(TaskGraph):
             next_stage = ring[(i + 1) % len(ring)]
             self.connect([node], [next_stage])
 
-    def start_wheel(
-        self,
-        init_tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = False,
-    ) -> None:
-        """
-        启动任务轮结构
-
-        :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否注入终止信号，默认 False
-        """
-        self.start_graph(init_tasks_dict, put_termination_signal)
-
 
 class TaskComplete(TaskGraph):
     """完全图结构，每个节点都连接到除自己以外的所有其他节点。"""
@@ -276,15 +208,3 @@ class TaskComplete(TaskGraph):
             others = [s for j, s in enumerate(stages) if i != j]
             self.connect([stage], others)
 
-    def start_complete(
-        self,
-        init_tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = False,
-    ) -> None:
-        """
-        启动任务完全图, 建议外部注入式停止
-
-        :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否在任务完成后发送终止信号，默认 False
-        """
-        self.start_graph(init_tasks_dict, put_termination_signal)
