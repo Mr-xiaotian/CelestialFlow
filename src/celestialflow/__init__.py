@@ -1,7 +1,7 @@
 # __init__.py
 """CelestialFlow — 基于图结构的轻量级异步任务编排框架。
 
-提供任务图构建、执行调度、实时监控、Web 可视化和持久化等核心能力。
+提供任务图构建、执行调度、实时监控与持久化等核心能力。
 """
 
 from .funnel import BaseInlet, BaseSpout

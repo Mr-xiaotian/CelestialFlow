@@ -57,7 +57,6 @@ async def bench_executor_fibonacci() -> None:
         max_workers=6,
         max_retries=1,
         persist_result=True,
-        # log_level="TRACE",
     )
     executor.set_retry_exceptions(ValueError)
     executor.add_observer(TaskProgress())
@@ -68,7 +67,6 @@ async def bench_executor_fibonacci() -> None:
         max_workers=6,
         max_retries=1,
         persist_result=True,
-        # log_level="TRACE",
     )
     executor_async.set_retry_exceptions(ValueError)
     executor_async.add_observer(TaskProgress())
@@ -89,7 +87,6 @@ async def bench_executor_sleep() -> None:
         max_workers=6,
         max_retries=0,
         persist_result=True,
-        # log_level="TRACE",
     )
     executor.add_observer(TaskProgress())
     executor_async = TaskExecutor(
@@ -98,7 +95,6 @@ async def bench_executor_sleep() -> None:
         max_workers=6,
         max_retries=0,
         persist_result=True,
-        # log_level="TRACE",
     )
     executor_async.add_observer(TaskProgress())
 

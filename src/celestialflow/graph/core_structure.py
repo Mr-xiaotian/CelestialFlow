@@ -31,7 +31,6 @@ class TaskChain(TaskGraph):
 
         for stage in stages:
             stage.set_stage_mode(stage_mode)
-            #     stage.set_name(f"Stage {num + 1}")
 
         self.set_stages(stages)
         for num in range(len(stages) - 1):
@@ -80,7 +79,6 @@ class TaskCross(TaskGraph):
         for _, curr_layer in enumerate(layers):
             for stage in curr_layer:
                 stage.set_stage_mode(stage_mode)
-                # stage.set_name(f"Layer{i + 1}-{index + 1}")
             all_stages.extend(curr_layer)
 
         self.set_stages(all_stages)
@@ -132,7 +130,6 @@ class TaskGrid(TaskGraph):
             for j in range(cols):
                 curr = grid[i][j]
                 curr.set_stage_mode(stage_mode)
-                # curr.set_name(f"Grid-{i + 1}-{j + 1}")
                 all_stages.append(curr)
 
         self.set_stages(all_stages)
@@ -182,7 +179,6 @@ class TaskLoop(TaskGraph):
 
         for stage in stages:
             stage.set_stage_mode(stage_mode)
-            # stage.set_name(f"Stage {num + 1}")
 
         self.set_stages(stages)
         for num in range(len(stages)):
@@ -227,11 +223,9 @@ class TaskWheel(TaskGraph):
         super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
 
         center.set_stage_mode(stage_mode)
-        # center.set_name("Center")
 
         for node in ring:
             node.set_stage_mode(stage_mode)
-            # node.set_name(f"Ring-{i + 1}")
 
         self.set_stages([center, *ring])
         self.connect([center], ring)
@@ -276,7 +270,6 @@ class TaskComplete(TaskGraph):
 
         for stage in stages:
             stage.set_stage_mode(stage_mode)
-            # stage.set_name(f"Node {i + 1}")
 
         self.set_stages(stages)
         for i, stage in enumerate(stages):

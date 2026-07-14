@@ -152,7 +152,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print(f"Target URL: {args.url}")
     print(
-        "Tip: default target is the local TaskWebServer endpoint. "
+        "Tip: default target is the local benchmark endpoint. "
         "Override with --url or CELESTIALFLOW_BENCH_URL if needed."
     )
     print(f"Requests per test: {NUM_REQUESTS}")

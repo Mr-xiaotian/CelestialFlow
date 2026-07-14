@@ -346,8 +346,7 @@ class TaskGraph:
                     "some nodes (including source nodes) to shut down as soon as their current "
                     "tasks are exhausted, preventing them from consuming tasks that arrive "
                     "later from other nodes. It is recommended to set put_termination_signal=False "
-                    "and manually inject termination signals via the web interface at an "
-                    "appropriate time."
+                    "and manually inject termination signals at an appropriate time."
                 ),
                 RuntimeWarning,
                 stacklevel=2,

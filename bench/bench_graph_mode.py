@@ -273,7 +273,6 @@ def bench_graph_2() -> None:
 
 
 if __name__ == "__main__":
-    # bench_graph_0()
     bench_graph_1()
     bench_graph_2()
     pass
