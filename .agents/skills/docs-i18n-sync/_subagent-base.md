@@ -18,13 +18,14 @@
 目标文档路径由源路径直接替换语言根目录得到：
 
 ```
-docs/zh-CN/README.md           →  {OUTPUT_DIR}/README.md
+README.md                      →  {OUTPUT_DIR}/README.md
 docs/zh-CN/src/__init__.md     →  {OUTPUT_DIR}/src/__init__.md
 docs/zh-CN/src/runtime/foo.md  →  {OUTPUT_DIR}/src/runtime/foo.md
 docs/zh-CN/tests/bar.md        →  {OUTPUT_DIR}/tests/bar.md
 ```
 
 > `docs/zh-CN/` 下的任意 `.md` 文件，只要存在镜像路径，都纳入同步范围。
+> `README.md` 是特殊文件，直接映射到目标目录。
 
 ### 操作规则
 
