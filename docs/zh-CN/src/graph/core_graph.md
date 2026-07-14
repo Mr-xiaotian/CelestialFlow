@@ -56,7 +56,7 @@ def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> N
 
 ```python
 def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000) -> None:
-    """设定报告器，向 Web UI 推送状态。"""
+    """设定报告器，向 `celestialflow-web` 服务推送状态。"""
 ```
 
 ### set_ctree
@@ -266,7 +266,7 @@ Layer 0: [Node A, Node B] → 全部 join → Layer 1: [Node C, Node D] → ...
 
 ```python
 graph.start_graph({"source": tasks}, put_termination_signal=False)
-# 后续通过 Web UI 或 put_stage_queue 手动注入 TerminationSignal
+# 后续通过外部服务或 put_stage_queue 手动注入 TerminationSignal
 ```
 
 ## 未消费任务处理

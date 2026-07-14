@@ -10,7 +10,7 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
 |---------|---------|------|
 | `BaseObserver` | `core_observer` | 执行器生命周期观察者基类，定义 `on_start`, `on_task_success`, `on_task_fail`, `on_task_duplicate`, `on_tasks_added`, `on_finish` 等事件接口 |
 | `TaskProgress` | `core_progress` | 基于 `tqdm` 的任务进度可视化工具，继承自 `BaseObserver` |
-| `TaskReporter` | `core_report` | 任务状态上报器，后台线程周期性向 Web 服务器推送运行状态并拉取控制指令 |
+| `TaskReporter` | `core_report` | 任务状态上报器，后台线程周期性向 `celestialflow-web` 服务推送运行状态并拉取控制指令 |
 | `NullTaskReporter` | `core_report` | 空实现的任务上报器，作为关闭上报功能时的占位对象 |
 
 ## 文件说明
@@ -34,9 +34,9 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
    - **作用**: 任务状态上报器及其空实现
    - **关键功能**:
      - **状态上报**: 周期性推送任务图的结构、拓扑、运行状态、错误信息
-     - **任务注入**: 从 Web UI 接收用户注入的新任务，动态插入到运行中的任务图
-     - **参数调整**: 从服务器拉取配置，动态调整上报间隔等参数
-     - **错误同步**: 支持两种错误推送模式（元数据模式和内容模式）
+     - **任务注入**: 从 `celestialflow-web` 服务拉取待注入任务，动态插入到运行中的任务图
+     - **参数调整**: 从 `celestialflow-web` 服务拉取配置，动态调整上报间隔等参数
+     - **错误同步**: 基于 `event_id` 增量推送错误记录
    - **通信协议**: HTTP
    - **数据格式**: JSON
 
@@ -60,8 +60,8 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
 - **空列表等效 Null**: 当 observer 列表为空时，无任何开销
 
 ### 双向通信（TaskReporter）
-- **上行通道**: 状态数据上报到 Web 服务器
-- **下行通道**: 控制指令从 Web 服务器下发到运行实例
+- **上行通道**: 状态数据上报到celestialflow-web服务
+- **下行通道**: 控制指令从celestialflow-web服务下发到运行实例
 
 ### 容错设计
 - 网络中断时的优雅降级，不影响主流程执行
@@ -131,7 +131,7 @@ graph.set_stages([stage])
 stats_observer = StatsObserver()
 stage.add_observer(stats_observer)
 
-# 可选：启用 TaskReporter 上报到 Web UI
+# 可选：启用 TaskReporter 上报到celestialflow-web服务
 log_inlet = stage.log_inlet
 reporter = TaskReporter(
     host="127.0.0.1",
@@ -154,4 +154,4 @@ print(f"最终统计 - 成功: {stats_observer.success_count}, 失败: {stats_ob
 此示例展示了三类可观测组件的协作：
 - **自定义 Observer**: 继承 `BaseObserver` 并覆写事件方法收集统计信息
 - **TaskGraph 集成**: 通过 `TaskStage` 内置的观察者列表注册自定义观察者
-- **TaskReporter**: 将运行状态推送到 Web 服务器用于外部监控
+- **TaskReporter**: 将运行状态推送到 `celestialflow-web` 服务用于监控或控制

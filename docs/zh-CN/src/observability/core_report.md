@@ -2,12 +2,12 @@
 
 > 📅 最后更新日期: 2026/06/22
 
-`TaskReporter` 是一个后台组件，负责收集任务图的运行状态并上报给远程 Web 服务器（CelestialFlow Web UI）。同时也负责从服务器拉取控制指令（如任务注入）。
+`TaskReporter` 是一个后台组件，负责收集任务图的运行状态并上报给 `celestialflow-web` 服务。同时也负责从该服务拉取控制指令（如任务注入）。
 
 ## 功能特性
 
 - **状态上报**: 周期性推送任务图的结构、拓扑、运行状态（计数器）、分析数据等。
-- **任务注入**: 从 Web UI 接收用户注入的新任务，并动态插入到运行中的任务图中。
+- **任务注入**: 从远程服务拉取待注入的新任务，并动态插入到运行中的任务图中。
 - **参数动态调整**: 支持从服务器拉取配置（如上报间隔 `interval`）。
 - **错误日志同步**: 增量推送错误日志（基于 `event_id` 增量）。
 
@@ -34,14 +34,14 @@ class TaskReporter:
 
 ## API 交互
 
-Reporter 会通过 HTTP 与以下 Web API 交互：
+Reporter 会通过 HTTP 与以下远程接口交互：
 
 ### 拉取接口（Pull）
 
 | 方法 | 端点 | 说明 |
 |------|------|------|
 | `GET` | `/api/pull_server_state` | 获取服务器同步状态（含间隔配置、结构/分析状态、最大 event_id 等） |
-| `GET` | `/api/pull_task_injection` | 获取注入的任务 |
+| `GET` | `/api/pull_injection` | 获取注入的任务与终止信号 |
 
 ### 推送接口（Push）
 
@@ -57,14 +57,14 @@ Reporter 会通过 HTTP 与以下 Web API 交互：
 ```mermaid
 sequenceDiagram
     participant R as TaskReporter
-    participant S as Web 服务器
+    participant S as 远程服务
 
     loop 每 interval 秒
         R->>S: GET /api/pull_server_state
         S-->>R: {interval, is_current_graph, has_structure, has_analysis, max_event_id_in_fail}
 
-        R->>S: GET /api/pull_task_injection
-        S-->>R: {target_stage: [task_datas]}
+        R->>S: GET /api/pull_injection
+        S-->>R: {tasks, terminations}
 
         R->>R: collect_runtime_snapshot()
 
@@ -86,7 +86,7 @@ sequenceDiagram
 def _refresh_all(self) -> None:
     # 1. 拉取
     self._pull_server_state()       # GET /api/pull_server_state → 同步配置与状态
-    self._pull_and_inject_tasks()   # GET /api/pull_task_injection → 注入任务
+    self._pull_injection()          # GET /api/pull_injection → 注入任务
 
     # 2. 收集快照
     self.task_graph.collect_runtime_snapshot()

@@ -7,7 +7,7 @@
 
 ## 包含的测试文件
 - `test_observer.py`: 覆盖 Observer 生命周期回调、多观察器支持、动态管理。
-- `test_reporter_injection.py`: 覆盖 `TaskReporter._pull_and_inject_tasks()` 的节点映射注入与日志记录逻辑。
+- `test_reporter_injection.py`: 覆盖 `TaskReporter._pull_injection()` 的节点映射注入与日志记录逻辑。
 
 ## 运行方式
 

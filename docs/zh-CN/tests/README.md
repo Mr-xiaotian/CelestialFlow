@@ -15,7 +15,7 @@
 1. `tests/__init__.md`：先看测试目录总结构
 2. `runtime/__init__.md`：理解基础类型、队列、异常和调度原语的覆盖范围
 3. `stage/__init__.md` 与 `graph/__init__.md`：理解执行器、stage、任务图的核心测试
-4. `web/__init__.md` 与 `observability/__init__.md`：最后看 Web 与上报链路的集成测试
+4. `observability/__init__.md`：最后看 Reporter 与上报链路的集成测试
 
 ## 文档索引
 
@@ -38,8 +38,6 @@
 | `stage/__init__.md` | `TaskExecutor`、`TaskStage` 与内置 stage 相关测试 |
 | `utils/test_clone.md` | clone 工具测试 |
 | `utils/test_format.md` | format 工具测试 |
-| `web/__init__.md` | Web 服务、路由与接口行为测试 |
-
 > `tests/utils/` 下没有 `__init__.py`，因此不对应 `utils/__init__.md`。
 
 ## 如何使用
@@ -51,7 +49,6 @@ pytest tests -v
 pytest tests/runtime -v
 pytest tests/stage -v
 pytest tests/graph -v
-pytest tests/web -v
 ```
 
 也可以按关键字筛选：
@@ -66,10 +63,10 @@ pytest tests -k "executor or graph or reporter" -v
 
 - 你想知道某个模块“测没测到”：先看对应子目录的 `__init__.md`
 - 你想知道某个具体行为“怎么测的”：再看对应的 `test_*.md`
-- 你想定位协议变更的影响面：优先看 `graph/`、`stage/`、`persistence/`、`web/` 这几组文档
+- 你想定位协议变更的影响面：优先看 `graph/`、`stage/`、`persistence/`、`observability/` 这几组文档
 
 ## 注意事项
 
-1. 一些测试依赖临时文件、sqlite、事件队列或 Web 测试客户端，运行环境抖动可能影响执行时间，但不应影响断言结果。
-2. 当生产协议发生变化时，测试文档通常需要与 `src/`、`web/`、`demo/` 一起同步更新。
+1. 一些测试依赖临时文件、sqlite、事件队列或 HTTP 上报链路，运行环境抖动可能影响执行时间，但不应影响断言结果。
+2. 当生产协议发生变化时，测试文档通常需要与 `src/`、`demo/` 一起同步更新。
 3. 如果你只想快速验证当前改动，优先运行与改动目录最接近的测试子集，而不是总是跑全量测试。

@@ -15,14 +15,13 @@
   <img src="https://img.shields.io/badge/Task%20Graph-DAG-blueviolet">
   <img src="https://img.shields.io/badge/Workflow-Orchestrator-7c3aed">
   <img src="https://img.shields.io/badge/Event%20Tracing-CelestialTree-0ea5e9">
-  <img src="https://img.shields.io/badge/Web-Dashboard-FastAPI-ec4899">
 </p>
 
 <p align="center">
   <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/README.md">中文</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/README.md">English</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/README.md">日本語</a>
 </p>
 
-**CelestialFlow** 是一个轻量级但功能完全的任务流框架，适合需要 **复杂依赖关系**、**灵活执行模型**、**跨设备运行**与**实时可视化监控** 的中/大型 Python 任务系统。
+**CelestialFlow** 是一个轻量级但功能完全的任务流框架，适合需要 **复杂依赖关系**、**灵活执行模型**、**跨设备运行** 与 **可观测执行链路** 的中/大型 Python 任务系统。
 
 - 相比 Airflow/Dagster 更轻、更快开始
 - 相比 multiprocessing/threading 更结构化，可直接表达 loop / complete graph 等复杂依赖模式
@@ -48,7 +47,7 @@ TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支
 
 在执行与调度之外，CelestialFlow 进一步引入 **CelestialTree（简称: ctree） 事件追踪系统**，为每一个任务及其衍生行为（成功、失败、重试、拆分、路由等）记录明确的因果关系。借助 ctree，可以从任意一个初始任务出发，完整还原其在 TaskGraph 中的传播路径与执行轨迹，使任务系统可以进行完整的**追溯、分析、解释**。
 
-在此基础上，CelestialFlow 支持 Web 可视化监控，并提供基于 Redis 的 demo 与 Go Worker 外部协作示例，用于展示按需构建跨进程、跨设备任务协作的方式。
+在此基础上，CelestialFlow 提供事件追踪、状态上报、持久化回放，并提供基于 Redis 的 demo 与 Go Worker 外部协作示例，用于展示按需构建跨进程、跨设备任务协作的方式。
 
 ## 项目结构（Project Structure）
 
@@ -78,24 +77,9 @@ flowchart LR
     %% 美化 TaskStages
     class S1,S2,S3,S4 blueNode;
 
-    %% ===== WebUI =====
-    subgraph W[WebUI]
-        JS
-        HTML
-    end
-
-    style W fill:#ffeaf0,stroke:#d66b8c,stroke-width:2px,rx:10px,ry:10px
-    style JS fill:#ffffff,stroke:#d66b8c,rx:5px,ry:5px
-    style HTML fill:#ffffff,stroke:#d66b8c,rx:5px,ry:5px
-
-    R[TaskWeb]
-    style R fill:#f0e9ff,stroke:#8a6bc9,stroke-width:2px,rx:8px,ry:8px
-
     %% ===== Links =====
-    TG --> R 
-    R --> TG 
-    R --> W
-    W --> R
+    TG --> W[WebServer]
+    W[WebServer] --> TG 
 
 ```
 
@@ -111,7 +95,7 @@ uv pip install celestialflow
 pip install celestialflow
 ```
 
-如果你只使用 CelestialFlow 的核心调度、Web、持久化与 demo/test 之外的常规功能，上面的安装已经足够。
+如果你只使用 CelestialFlow 的核心调度、可观测性与持久化能力，上面的安装已经足够。
 
 如果你还需要启用 CelestialTree 事件追踪能力，则需要**额外安装** `celestialtree`：
 
@@ -140,7 +124,7 @@ if __name__ == "__main__":
     stage2 = TaskStage(name="Squarer", func=square, stage_mode="thread", execution_mode="thread")
 
     # 构建任务图结构
-    graph = TaskGraph()
+    graph = TaskGraph(name="DemoGraph")
     graph.set_stages(stages=[stage1, stage2])
     graph.connect([stage1], [stage2])
 
@@ -165,7 +149,6 @@ if __name__ == "__main__":
 - [stage/core_stages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stages.md)
 - [observability/core_report.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_report.md)
 - [graph/core_structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_structure.md)
-- [web/core_server.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/web/core_server.md)
 - [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
 
 推荐阅读顺序:
@@ -176,8 +159,6 @@ flowchart TD
     classDef runtime fill:#e9f8ef,stroke:#22c55e,color:#14532d;
     classDef structure fill:#fff6e6,stroke:#f59e0b,color:#78350f;
     classDef execution fill:#f3e8ff,stroke:#a855f7,color:#581c87;
-    classDef web fill:#ffeaea,stroke:#ef4444,color:#7f1d1d;
-
     TM[TaskExecutor.md] --> TS[TaskStage.md] --> TG[TaskGraph.md]
     TM --> TP[TaskProgress.md]
     TM --> TME[TaskMetrics.md]
@@ -187,14 +168,13 @@ flowchart TD
     TG --> TR[TaskReport.md]
     TG --> TSR[TaskStructure.md]
 
-    TR --> TW[TaskWeb.md]
     TN --> GW[Go Worker.md]
 
     class TM,TS,TG core;
     class TP,TME runtime;
     class TSR structure;
     class TQ,TN,GW execution;
-    class TR,TW web;
+    class TR execution;
 ```
 
 以下三篇可以作为补充阅读:
@@ -233,10 +213,7 @@ flowchart TD
 | 依赖包           | 说明 |
 | ----------------- | ---- |
 | **Python ≥ 3.12**  | 运行环境，建议使用 3.12 及以上版本 |
-| **fastapi**       | Web 服务接口框架（用于任务可视化与远程控制） |
-| **uvicorn**       | FastAPI 的高性能 ASGI 服务器 |
 | **requests**      | HTTP 客户端库，用于任务状态上报与远程调用 |
-| **jinja2**        | FastAPI 模板引擎，用于 Web 可视化界面渲染 |
 | **tqdm**          | 可选组件，进度条显示，用于任务执行可视化 |
 
 如需运行 `demo/demo_redis.py` 或 Go Worker 示例，请额外安装 `redis` 并准备 Redis 服务；这部分不属于默认运行时依赖。

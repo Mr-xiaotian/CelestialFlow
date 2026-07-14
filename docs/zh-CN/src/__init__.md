@@ -75,16 +75,6 @@
 
 ---
 
-### web — Web 服务
-
-提供内置 Web 服务器，用于图状态监控与可视化。
-
-| 导出符号 | 说明 |
-|----------|------|
-| `TaskWebServer` | 基于 FastAPI 的 Web 服务器，提供图运行时快照的 HTTP API 和可视化面板 |
-
----
-
 ### persistence — 持久化
 
 提供基于 SQLite 的记录加载与查询功能。
@@ -92,7 +82,7 @@
 | 导出符号 | 说明 |
 |----------|------|
 | `load_records` | 从 SQLite 数据库加载全部执行记录 |
-| `load_records_grouped_by_stage` | 按阶段名称分组加载执行记录 |
+| `load_tasks_grouped_by_stage` | 按阶段名称分组加载任务记录 |
 
 ---
 
@@ -109,7 +99,7 @@
 
 ## `__all__` 列表
 
-完整公开 API 列表（当前共 23 个符号）：
+完整公开 API 列表（当前共 22 个符号）：
 
 ```python
 __all__ = [
@@ -127,14 +117,13 @@ __all__ = [
     "TaskRouter",
     "TaskSplitter",
     "TaskStage",
-    "TaskWebServer",
     "TaskWheel",
     "TerminationSignal",
     "benchmark_executor",
     "benchmark_graph",
     "format_table",
     "load_records",
-    "load_records_grouped_by_stage",
+    "load_tasks_grouped_by_stage",
     "make_hashable",
 ]
 ```
@@ -237,12 +226,8 @@ graph TD
         U["benchmark_executor<br/>benchmark_graph<br/>format_table"]
     end
 
-    subgraph web
-        W["TaskWebServer"]
-    end
-
     subgraph persistence
-        P["load_records<br/>load_records_grouped_by_stage"]
+        P["load_records<br/>load_tasks_grouped_by_stage"]
     end
 
     subgraph runtime
@@ -254,7 +239,6 @@ graph TD
     Init --> S
     Init --> O
     Init --> U
-    Init --> W
     Init --> P
     Init --> R
 ```

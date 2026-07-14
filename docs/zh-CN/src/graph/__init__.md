@@ -74,7 +74,7 @@ from celestialflow.graph import (
 - **与 Stage 模块**: `TaskGraph` 管理 `TaskStage` 节点，每个节点通过 `start_stage` 启动
 - **与 Runtime 模块**: 使用 `TaskInQueue`/`TaskOutQueue` 作为节点间通信管道
 - **与 Persistence 模块**: 通过 `LogSpout`/`FallbackSpout` 实现持久化
-- **与 Observability 模块**: 通过 `TaskReporter` 向 Web UI 推送状态
+- **与 Observability 模块**: 通过 `TaskReporter` 向 `celestialflow-web` 服务推送状态并拉取注入指令
 
 ## 使用模式
 
@@ -202,5 +202,5 @@ wheel.start_wheel({center.get_name(): ["data"]})
 - 线性流程使用 `TaskChain`，无需手动 `connect`
 - 多路并行流水线使用 `TaskCross` 或手动组合
 - 有环图（`TaskLoop`/`TaskWheel`）建议 `put_termination_signal=False`，通过外部注入停止
-- 生产环境启用 `set_reporter(True)` 进行 Web 监控
+- 如需与外部监控系统对接，可启用 `set_reporter(True)`
 - 复杂 DAG 使用 `staged` 模式便于逐层调试

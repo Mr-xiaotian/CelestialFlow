@@ -35,7 +35,7 @@
 | 文档 | 说明 |
 |------|------|
 | `bench_http_grpc.md` | CelestialTree 关闭 / HTTP / gRPC 三种追踪模式的开销对比 |
-| `bench_requests.md` | Web API 请求基准测试 |
+| `bench_requests.md` | HTTP 请求复用与并发策略基准测试 |
 
 ### 持久化与队列
 

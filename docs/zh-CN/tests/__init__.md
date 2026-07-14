@@ -13,7 +13,6 @@
 - `tests/runtime/`: 信封、队列、哈希、计数器、异常与估算测试。
 - `tests/stage/`: TaskStage / TaskExecutor 与内置 Stage 测试。
 - `tests/utils/`: 克隆工具与格式化工具测试。
-- `tests/web/`: Web API 与服务集成测试。
 - `tests/conftest.py`: 通用测试 helper。
 - `tests/__init__.py`: 空文件，标记测试包。
 

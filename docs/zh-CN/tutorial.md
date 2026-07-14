@@ -1,4 +1,4 @@
-﻿# 教程（Tutorial）：构建一个图片爬虫
+# 教程（Tutorial）：构建一个图片爬虫
 
 > 📅 最后更新日期: 2026/06/18
 
@@ -10,7 +10,7 @@
 1. 分析任务流程并拆解
 2. 编写各阶段的处理函数
 3. 组装任务图并运行
-4. 通过 Web UI 监控执行状态
+4. 通过日志、进度条与状态快照监控执行状态
 
 ---
 
@@ -244,7 +244,7 @@ stage_save = TaskStage(
 from celestialflow import TaskGraph
 
 # 创建任务图
-graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
+graph = TaskGraph(name="ImageCrawler", schedule_mode="eager", log_level="SUCCESS")
 
 # 设置节点
 graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
@@ -255,19 +255,14 @@ graph.connect([stage_parse], [stage_download])
 graph.connect([stage_download], [stage_save])
 ```
 
-### 3.3 启动 Web 监控（可选）
+### 3.3 启用状态上报（可选）
 
 ```python
-# 启用 Web 监控
+# 将运行状态上报到celestialflow-web服务
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 ```
 
-启动 Web 服务：
-```bash
-celestialflow-web --port 5005
-```
-
-访问 http://localhost:5005 查看实时状态。
+主仓当前已不再内置 Web 服务。如果你有独立部署的 `celestialflow-web` 项目或自定义 HTTP 服务，可以在这里启用上报；否则可以直接跳过这一段。
 
 ### 3.4 运行任务图
 
@@ -398,7 +393,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     )
     
     # 设置连接
-    graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
+    graph = TaskGraph(name="ImageCrawler", schedule_mode="eager", log_level="SUCCESS")
     graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
@@ -414,12 +409,11 @@ if __name__ == "__main__":
     
     # 构建图
     graph = build_crawler_graph(KEYWORDS[0])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
     
     # 运行
     print("开始爬取图片...")
     graph.start_graph({
-        graph.source_stages[0].get_name(): KEYWORDS
+        "搜索页面": KEYWORDS
     })
     
     # 统计
@@ -440,30 +434,23 @@ if __name__ == "__main__":
 
 ## 第五步：运行与调试
 
-### 5.1 启动 Web 服务
+### 5.1 运行爬虫
 
 ```bash
-# 终端 1: 启动 Web 服务
-celestialflow-web --port 5005
-```
-
-### 5.2 运行爬虫
-
-```bash
-# 终端 2: 运行爬虫
+# 运行爬虫
 python crawler.py
 ```
 
-### 5.3 查看 Web UI
+### 5.2 查看运行状态
 
-打开 http://localhost:5005，你可以看到：
+运行过程中，你可以通过日志、进度条或 `graph.get_status_snapshot()` 查看：
 
-1. **Dashboard**: 实时显示各节点的处理进度
-2. **Structure**: 任务图的可视化结构
-3. **Errors**: 下载失败的图片 URL 和错误信息
-4. **Task Injection**: 动态注入新的关键词
+1. **节点处理进度**：每个阶段的成功、失败、待处理统计
+2. **图结构信息**：通过 `graph.get_structure_list()` 或 `graph.get_structure_graph()` 查看
+3. **错误信息**：下载失败的图片 URL 和异常日志
+4. **任务注入**：通过代码继续注入新的关键词
 
-### 5.4 查看结果
+### 5.3 查看结果
 
 ```bash
 # 查看下载的图片
@@ -476,7 +463,7 @@ ls images/风景/
 
 ## 扩展：动态任务注入
 
-通过 Web UI 可以动态注入新的关键词：
+你也可以通过代码动态注入新的关键词：
 
 ```python
 # 或通过代码注入
@@ -503,7 +490,7 @@ graph.put_stage_queue({
 2. **函数编写**: 为每个层级编写处理函数并单独测试
 3. **节点创建**: 将函数包装为 `TaskStage`
 4. **图组装**: 用 `TaskGraph` 组织节点关系
-5. **监控运行**: 通过 Web UI 实时监控执行状态
+5. **监控运行**: 通过日志、进度条与状态快照观察执行状态
 
 ### 关键概念回顾
 

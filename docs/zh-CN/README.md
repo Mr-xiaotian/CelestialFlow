@@ -15,14 +15,13 @@
   <img src="https://img.shields.io/badge/Task%20Graph-DAG-blueviolet">
   <img src="https://img.shields.io/badge/Workflow-Orchestrator-7c3aed">
   <img src="https://img.shields.io/badge/Event%20Tracing-CelestialTree-0ea5e9">
-  <img src="https://img.shields.io/badge/Web-Dashboard-FastAPI-ec4899">
 </p>
 
 <p align="center">
   <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/README.md">中文</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/README.md">English</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/README.md">日本語</a>
 </p>
 
-**CelestialFlow** 是一个轻量级但功能完全的任务流框架，适合需要 **复杂依赖关系**、**灵活执行模型**、**跨设备运行**与**实时可视化监控** 的中/大型 Python 任务系统。
+**CelestialFlow** 是一个轻量级但功能完全的任务流框架，适合需要 **复杂依赖关系**、**灵活执行模型**、**跨设备运行** 与 **可观测执行链路** 的中/大型 Python 任务系统。
 
 - 相比 Airflow/Dagster 更轻、更快开始
 - 相比 multiprocessing/threading 更结构化，可直接表达 loop / complete graph 等复杂依赖模式
@@ -48,7 +47,7 @@ TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支
 
 在执行与调度之外，CelestialFlow 进一步引入 **CelestialTree（简称: ctree） 事件追踪系统**，为每一个任务及其衍生行为（成功、失败、重试、拆分、路由等）记录明确的因果关系。借助 ctree，可以从任意一个初始任务出发，完整还原其在 TaskGraph 中的传播路径与执行轨迹，使任务系统可以进行完整的**追溯、分析、解释**。
 
-在此基础上，CelestialFlow 支持 Web 可视化监控，并提供基于 Redis 的 demo 与 Go Worker 外部协作示例，用于展示按需构建跨进程、跨设备任务协作的方式。
+在此基础上，CelestialFlow 提供事件追踪、状态上报、持久化回放，并提供基于 Redis 的 demo 与 Go Worker 外部协作示例，用于展示按需构建跨进程、跨设备任务协作的方式。
 
 ## 项目结构（Project Structure）
 
@@ -78,24 +77,9 @@ flowchart LR
     %% 美化 TaskStages
     class S1,S2,S3,S4 blueNode;
 
-    %% ===== WebUI =====
-    subgraph W[WebUI]
-        JS
-        HTML
-    end
-
-    style W fill:#ffeaf0,stroke:#d66b8c,stroke-width:2px,rx:10px,ry:10px
-    style JS fill:#ffffff,stroke:#d66b8c,rx:5px,ry:5px
-    style HTML fill:#ffffff,stroke:#d66b8c,rx:5px,ry:5px
-
-    R[TaskWeb]
-    style R fill:#f0e9ff,stroke:#8a6bc9,stroke-width:2px,rx:8px,ry:8px
-
     %% ===== Links =====
-    TG --> R 
-    R --> TG 
-    R --> W
-    W --> R
+    TG --> W[WebServer]
+    W[WebServer] --> TG 
 
 ```
 
@@ -111,7 +95,7 @@ uv pip install celestialflow
 pip install celestialflow
 ```
 
-如果你只使用 CelestialFlow 的核心调度、Web、持久化与 demo/test 之外的常规功能，上面的安装已经足够。
+如果你只使用 CelestialFlow 的核心调度、可观测性与持久化能力，上面的安装已经足够。
 
 如果你还需要启用 CelestialTree 事件追踪能力，则需要**额外安装** `celestialtree`：
 
@@ -140,7 +124,7 @@ if __name__ == "__main__":
     stage2 = TaskStage(name="Squarer", func=square, stage_mode="thread", execution_mode="thread")
 
     # 构建任务图结构
-    graph = TaskGraph()
+    graph = TaskGraph(name="DemoGraph")
     graph.set_stages(stages=[stage1, stage2])
     graph.connect([stage1], [stage2])
 
@@ -165,7 +149,6 @@ if __name__ == "__main__":
 - [stage/core_stages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stages.md)
 - [observability/core_report.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_report.md)
 - [graph/core_structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_structure.md)
-- [web/core_server.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/web/core_server.md)
 - [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
 
 推荐阅读顺序:
@@ -176,8 +159,6 @@ flowchart TD
     classDef runtime fill:#e9f8ef,stroke:#22c55e,color:#14532d;
     classDef structure fill:#fff6e6,stroke:#f59e0b,color:#78350f;
     classDef execution fill:#f3e8ff,stroke:#a855f7,color:#581c87;
-    classDef web fill:#ffeaea,stroke:#ef4444,color:#7f1d1d;
-
     TM[TaskExecutor.md] --> TS[TaskStage.md] --> TG[TaskGraph.md]
     TM --> TP[TaskProgress.md]
     TM --> TME[TaskMetrics.md]
@@ -187,14 +168,13 @@ flowchart TD
     TG --> TR[TaskReport.md]
     TG --> TSR[TaskStructure.md]
 
-    TR --> TW[TaskWeb.md]
     TN --> GW[Go Worker.md]
 
     class TM,TS,TG core;
     class TP,TME runtime;
     class TSR structure;
     class TQ,TN,GW execution;
-    class TR,TW web;
+    class TR execution;
 ```
 
 以下三篇可以作为补充阅读:
@@ -233,10 +213,7 @@ flowchart TD
 | 依赖包           | 说明 |
 | ----------------- | ---- |
 | **Python ≥ 3.12**  | 运行环境，建议使用 3.12 及以上版本 |
-| **fastapi**       | Web 服务接口框架（用于任务可视化与远程控制） |
-| **uvicorn**       | FastAPI 的高性能 ASGI 服务器 |
 | **requests**      | HTTP 客户端库，用于任务状态上报与远程调用 |
-| **jinja2**        | FastAPI 模板引擎，用于 Web 可视化界面渲染 |
 | **tqdm**          | 可选组件，进度条显示，用于任务执行可视化 |
 
 如需运行 `demo/demo_redis.py` 或 Go Worker 示例，请额外安装 `redis` 并准备 Redis 服务；这部分不属于默认运行时依赖。
@@ -248,60 +225,28 @@ flowchart TD
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.2.4</em>
+  <em>celestial-flow 3.2.5</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.2.4
+- 3.2.5
   - feat:
-    - **[IMPORTANT]** 合并原有的 `fail_funnel` 与 `success_funnel` 机制为 `fallback` , 并采用 `sqlite` 进行存储
-      - 原有基于 `jsonl` 存储的fail持久化机制在存储时非常好用, 但读取时每次都需要全量读取到内存中再进行检索, 非常麻烦; 我虽然也想过用类似 `redis` 的数据库服务, 但实在不想另外启动第三方服务. 然后我意外发现 `sqlite` 完美符合我的一切要求
-      - Richard 万岁!
-      - 至于原有的 `success_funnel` 机制完全是个半成品: 只能用于 `executor`, 而不能用于 `stage`; 完全在内存存储. 所以借着这次机会也一并重构, 合并入 `fallback_funnel`
-      - 现在 `fallback_funnel` 会在任务 `注入/重复/重试/失败/成功` 时对sqlite中相应记录进行插入/更新/删除操作
-      - 其中在任务成功时默认会删除该条记录, 但如果开启 `executor` 中的 `perist_result` 选项, 则会保留该条记录, 并将 `status` 字段更新为 `success`
-    - **[IMPORTANT]** 移除 `stages` 中的三个redis节点, 并添加demo文件, 说明如果自行构建相关节点
-      - 相比 `TaskSplitter` 与 `TaskRouter`, 这三个节点实在可有可无, 还会导致多一个 `redis` 依赖包
-    - **[IMPORTANT]** `celestialtree` 不再继续作为依赖库, 现有的事件声明机制基于一套protol接口, 并默认使用本地的超简化实现
-      - 这样做同样是为了避免太多库依赖, `celestialtree` 库包含对 `grpcio` 与 `protobuf` 的依赖, 而这两者对于python free-threading版本的支持性不太好, 因此在有他们的情况下 `celestialflow` 无法在free-threading版本下运行----而这是我非常期待的
-      - 根据 `bench_gil_vs_nogil`, 在free-threading版本下, `executor` 在cpu密集任务中会得到5.25倍提升, 而 `graph` 在cpu密集任务中则会得到7.55倍提升. 非常喜人
-    - 在前端 `节点指标走向` 卡片中添加 `全局等待队列`
-    - 在 `graph` 中添加 `start_graph_db` 方法, 接受一个fallback数据库地址, 然后根据其中失败数据进行 `start_graph`; 在 `executor` 中添加 `start_db` 方法, 接受一个fallback数据库地址, 然后根据其中失败数据进行 `start`
-      - 很方便
+    - 在 `Spout` 和 `Inlet` 中 添加 `counter`, 对 `queue` 中未消费任务的数量进行记录
+      - 在上版本大幅修改 `fallback` 机制后, `FallbackSpout` 中很有可能出现任务堆积, 进而导致误判
+    - 在web端错误日志页面对当前显示的错误数量可能与node_status中的error数量不一致的情况进行说明
+    - 在web端仪表盘页面添加错误分类的饼图
   - refactor:
-    - **[IMPORTANT]** 将server端存储error数据的方式从py原生列表改为一个临时sqlite数据库
-      - 在锤子效应下我想更多的尝试sqlite的使用
-    - 为每个 `graph` 添加基于 `name` 与 `time.time()` 的 `graph_id` 作为唯一性标识符
-    - 重写reporter与server端的交互逻辑
-      - 现在每一轮refresh开始时都会进行状态对齐, 通过 `graph_id` 确定两者所持有的数据是否来自一个 `graph` 对象, 是的话则不用重复push structure/analysis数据
-      - 在状态对齐时如果双方的graph一致, server会返回自己所持有的错误数据中最大的 `event_id` 值, 经过严格校验, `event_id` 在数据库中严格递增
-      - 将reporter中原有的 `push_error_meta` 与 `push_error_content` 合并, 每次刷新时只发送新增的错误数据, 而新增数据则根据server返回的最大 `event_id` 值与本地数据库中的最大 `event_id` 值进行筛选
-    - 为 `graph.connect` 与 `graph_set_stage` 绑定更多职责
-      - 现在节点与 `graph` 在 `ctree` `reporter` 上的同步在 `graph_set_stage` 中完成
-      - 而 `task_queue` 与 `result_queue` 的上下流绑定, 以及 `counter` 的绑定都在 `graph.connect` 中完成
-    - 删除 `TaskEnvelope` 中无关数据, 只保留 `task` `hash` `id` 三项
-      - `source` 字段本就不该添加, 它一致没有发挥作用
-      - `prev` 字段是为了原版 `success_funnel` 而服务的, 现在已经没有必要
-    - `TaskMetrics` 中固定使用 `Lock` 对所有 `counter` 进行限定, 而无关乎 `executor` 的 `execution_mode`
-      - 这种固定的模式在牺牲部分性能的情况下使得代码更加稳定
-      - 根据 `bench_lock_overhead`, 这会导致 `counter` 慢3.2倍左右, 考虑到 `counter` 的更新全部基于 `int` 类型, 本就很快, 可以接受
-    - 在 `process_task_success` 中除去已有的一次 `task.success` 声明, 会在 `result_envelope` 进入 `result_queue` 前再进行 `task.input` 声明
-      - 为了保证fallback的sqlite中 `event_id` 全局统一
-    - `executor.get_fail_pairs`(原 `executor.get_error_pairs`) 会返回 `tuple[T, PeristedError]`
-      - `PeristedError` 由记录的 `error_type` 与 `error_message` 组成
-    - 重写 `TaskRouter` 节点, 现在必须传入一个 `router` 函数, 去指定任务的路由方向
-    - 移除一些没用的方法
-      - 比如 `TaskGraph.get_stage_input_trace`
+    - 移除对 `networkx` 的依赖, 添加 `util_graph`, 实现所有图论分析
+    - `TaskExecutor` 中将 `enable_duplicate_check` 默认改为 `False`
+      - 在duplicate机制中一直有一个内存持续增长点: `processed_set`, 这导致 `enable_duplicate_check` 在大规模的任务下会导致很大的内存压力
+    - 分离server端的 `push_task` 和 `push_termination`
   - fix:
-    - 前端仪表盘页面中的结构图不会再因切换tab而显示空白
-      - 这是很古老的bug, 我不知道我为什么译制片没有修复
+    - 修复 `UnconsumedError` 在 `drain_task_queue` 中被计算两次的问题
   - chore:
-    - 添加更多demo
-    - 添加更多benchmark
-    - 添加 `Agents.md` 文件
-      - 我受够了无休止的对ai进行强调
+    - `img/` 中添加全新的 `web_display.png` 图片
+    - 完善几个skill, 现在对主agent与子agent的prompt进行分离
 
 更多过往日志可看:
 

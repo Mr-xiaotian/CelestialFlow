@@ -11,8 +11,8 @@
 **下一代 Python 任务编排引擎**
 
 - 轻量级 · 图驱动 · 高性能 · 可观测
-- 版本 3.1.4 | Python 3.10+
-- 支持 DAG / 环形图 / 分布式执行 / 实时可视化
+- 版本 3.1.4 | Python 3.12+
+- 支持 DAG / 环形图 / 分布式执行 / 可观测执行链路
 
 ---
 
@@ -35,7 +35,7 @@
 
 ### 一句话定义
 
-> 基于 Python 的轻量级图驱动任务编排框架，支持 DAG/环形图拓扑、多执行模式、事件溯源与实时可视化，并提供可选的外部协作示例。
+> 基于 Python 的轻量级图驱动任务编排框架，支持 DAG/环形图拓扑、多执行模式、事件溯源与状态上报，并提供可选的外部协作示例。
 
 ### 核心特性
 
@@ -43,7 +43,7 @@
 - **多维执行模型**：Stage 级 (serial/thread) × Task 级 (serial/thread/async) 组合
 - **外部协作示例**：可用普通 `TaskStage` 对接 Redis / Go Worker 等外部系统
 - **事件溯源**：集成 CelestialTree，任务全生命周期可追踪
-- **Web 仪表盘**：FastAPI + ECharts + Mermaid 实时监控
+- **状态上报链路**：通过 `TaskReporter` 与 `celestialflow-web` 服务交换状态和控制指令
 - **零平台依赖**：`pip install celestialflow`，一行代码即可运行
 
 ---
@@ -97,19 +97,18 @@ graph TB
         I --> M[CelestialTree 事件]
     end
 
-    subgraph 可视化
-        N[TaskWebServer] --> O[FastAPI Backend]
-        O --> P[Mermaid 图结构]
-        O --> Q[Chart.js 进度曲线]
-        O --> R[实时状态卡片]
+    subgraph 外部服务
+        N[TaskReporter]
+        O[HTTP API]
     end
 
     K --> N
     L --> N
+    N --> O
 ```
 
 备注：
-自上而下：用户定义图结构 → 框架初始化资源和分析 → 按调度模式执行 → 运行时基础设施提供队列、指标、日志 → Web 层消费数据做可视化。
+自上而下：用户定义图结构 → 框架初始化资源和分析 → 按调度模式执行 → 运行时基础设施提供队列、指标、日志 → `TaskReporter` 可选地把状态同步到外部服务。
 
 ---
 
@@ -375,66 +374,55 @@ CelestialFlowError (基类)
 
 ---
 
-## Slide 16: Web 可视化系统 — 架构
+## Slide 16: 状态上报链路 — 架构
 
-### 技术栈
+### 核心组成
 
 | 层 | 技术 | 用途 |
 |----|------|------|
-| Backend | FastAPI + Uvicorn | REST API，默认端口 5000 |
-| Template | Jinja2 | HTML 模板渲染 |
-| 图结构 | Mermaid.js v10 | 任务图有向图可视化 |
-| 时序图表 | Chart.js | 节点完成进度折线图 |
-| 交互增强 | Sortable.js | Dashboard 卡片拖拽排序 |
-| 主题 | CSS Variables | 深色/浅色主题动态切换 |
+| 运行侧 | `TaskReporter` | 周期性推送图结构、分析、状态、错误信息 |
+| 协议 | HTTP + JSON | 通过 pull / push 接口完成双向同步 |
+| 控制侧 | 外部服务 | 返回上报间隔、注入任务和终止信号 |
+| 存储侧 | SQLite + 日志 | 错误记录和结构化日志仍由主仓负责持久化 |
 
-- **CLI 入口**：`celestialflow-web --port 5000`
-- **前端模块化**：9 个独立 JS 模块，各司其职
-- **高效更新**：`JSON.stringify` 对比检测变更，只渲染差异部分
+- **主仓职责**：提供状态采集、错误增量同步、任务注入入口
+- **外部服务职责**：消费状态数据并按需提供监控界面或控制台
 
 ---
 
-## Slide 17: Web 可视化系统 — 功能
+## Slide 17: 状态上报链路 — 功能
 
-### 三大核心页面
+### 三类核心能力
 
-**1. 仪表盘 (Dashboard)**
-- 三栏布局：左（Mermaid 图 + 拓扑信息）| 中（状态卡片）| 右（进度曲线 + 总体摘要）
-- 状态卡片：运行/停止/未启动 徽标、成功/待处理/失败/去重计数、进度条、耗时估算
-- 卡片拖拽重排，布局持久化至 `config.json`
+**1. 状态同步**
+- 推送图结构、拓扑分析、节点状态快照
+- 支持通过 `graph_id` 判断远端是否已持有当前图
 
-**2. 错误日志 (Error Logs)**
-- 分页表格：error_id / 错误信息 / 节点 / 任务 / 时间戳
-- 关键词搜索 + 节点筛选
-- 从仪表盘点击失败计数可直接跳转并过滤
+**2. 错误同步**
+- 基于 `event_id` 增量推送错误记录
+- 复用本地 fallback sqlite 作为错误数据来源
 
-**3. 任务注入 (Task Injection)**
-- 可搜索节点列表（标注运行状态，已停止节点不可选）
-- JSON 文本输入或文件上传
-- 一键注入 `TerminationSignal`
+**3. 任务注入**
+- 从远程服务拉取待注入任务与终止信号
+- 注入过程不阻塞主执行流程
 
 ---
 
-## Slide 18: Web API 一览
+## Slide 18: TaskReporter API 一览
 
 ### REST 接口设计
 
 | 方向 | 端点 | 数据 |
 |------|------|------|
-| Pull | `/api/pull_config` | 前端配置 |
-| Pull | `/api/pull_structure` | 图结构 JSON |
-| Pull | `/api/pull_status` | 节点实时状态 |
-| Pull | `/api/pull_errors` | 错误日志（带缓存） |
-| Pull | `/api/pull_topology` | DAG/调度模式/层级信息 |
-| Pull | `/api/pull_summary` | 全局汇总统计 |
-| Pull | `/api/pull_history` | 历史快照（进度曲线数据源） |
+| Pull | `/api/pull_server_state` | 当前图同步状态、结构状态、分析状态、最大 `event_id` |
+| Pull | `/api/pull_injection` | 待注入任务与终止信号 |
 | Push | `/api/push_status` | 更新状态 |
 | Push | `/api/push_structure` | 更新图结构 |
-| Push | `/api/push_injection_tasks` | 运行时注入任务 |
-| Push | `/api/push_config` | 保存前端配置 |
+| Push | `/api/push_analysis` | 更新图分析数据 |
+| Push | `/api/push_errors` | 更新错误记录 |
 
-- **Pydantic 验证**：所有 Push 接口使用强类型模型
-- **错误传输**：`push_errors` 直写 SQLite，无需额外缓存层
+- **主仓不再内建 Web 前端**：这里只定义 `TaskReporter` 实际使用的同步接口
+- **接口设计目标**：让外部服务可以自由实现监控面板、控制台或审计系统
 
 ---
 
@@ -514,7 +502,7 @@ graph LR
 | **环形任务支持** | 原生支持（Loop/Wheel） | 不支持 | 不支持 | 手动实现 |
 | **执行模式** | serial/thread/async | Celery/K8s/Local | Dask/K8s | Ray Worker |
 | **进程级隔离** | 无（线程级隔离） | Executor 级 | Dispatch 级 | 默认隔离 |
-| **实时可视化** | 内置 Web UI | 内置 Web UI | 内置 Cloud UI | Ray Dashboard |
+| **外部监控对接** | HTTP 上报接口 | 内置 Web UI | 内置 Cloud UI | Ray Dashboard |
 | **事件溯源** | CelestialTree 集成 | 无原生支持 | 无原生支持 | 无原生支持 |
 | **任务去重** | 内置 SHA1 哈希去重 | 无原生支持 | 无原生支持 | 无原生支持 |
 | **学习曲线** | 低（纯 Python API） | 中高 | 中 | 中高 |
@@ -627,7 +615,7 @@ graph LR
 | 日志架构 | Queue + Spout 线程 | 增加一个守护线程，换取线程安全写入 |
 | 去重策略 | SHA1(pickle) | pickle 不稳定性风险，换取通用对象哈希能力 |
 | 外部结果获取 | 轮询 HGET (0.1s) | Demo 层实现简单可靠，但非实时推送 |
-| Web 变更检测 | JSON.stringify 比较 | O(n) 字符串比较成本，换取实现简洁性 |
+| 状态上报 | Reporter pull/push 协议 | 增加远端接口约定，换取监控与控制解耦 |
 | CelestialTree 集成 | 可选依赖 + NullClient | 不追踪时零开销，但需要额外配置 |
 
 备注：
@@ -654,9 +642,9 @@ graph LR
 - **持久化可定制**
   - Spout-Inlet 模式，只需实现 `_handle_record()` 即可自定义输出目标
 
-- **Web 前端配置化**
-  - `config.json` 控制布局、主题、刷新间隔
-  - Dashboard 卡片可拖拽重排
+- **状态上报链路可替换**
+  - 只约束 `TaskReporter` 的 pull / push 协议
+  - 外部服务可独立演进，不与主仓强绑定
 
 ---
 
@@ -679,7 +667,7 @@ graph LR
 
 - **开发者体验**
   - 装饰器语法定义 Stage（`@stage(mode="thread")`）
-  - 图可视化编辑器（Web IDE）
+  - 更成熟的外部监控与控制工具链
   - 更丰富的内置 Stage 模板
 
 - **生态系统**
@@ -697,7 +685,7 @@ graph LR
 - **执行模型丰富**：三层维度组合（图级 × Stage 级 × Task 级），适配任意并发场景
 - **外部协作友好**：可按需接入 Redis / Go Worker 等外部系统进行横向扩展
 - **全链路追踪**：CelestialTree 事件溯源 + JSONL 错误持久化
-- **可视化内建**：Mermaid 图结构 + Chart.js 进度曲线 + 实时状态面板
+- **可观测性内建**：状态快照、日志、错误持久化与可选状态上报
 
 ### 一句话
 
@@ -712,8 +700,7 @@ graph LR
 **CelestialFlow** — 图驱动 · 轻量级 · 高性能 · 可观测
 
 - 版本：3.1.4
-- Python：3.10+
+- Python：3.12+
 - 依赖：`pip install celestialflow`
-- Web：`celestialflow-web`
 
 ---

@@ -49,48 +49,19 @@ uv sync --group dev
 
 其中 `dev` 依赖组已经包含 `pytest`、`python-dotenv`、`redis`、`celestialtree` 等开发与扩展所需依赖。
 
-## （可选）设置.env && 启动 Web 可视化
+## （可选）配置状态上报
 
-Web监视界面并不是必须的，但可以通过网页获得任务运行的更多信息，推荐使用。
+当前主仓已不再内置 Web 服务。如果示例代码中启用了 `TaskReporter`，你可以把它指向自建 HTTP 服务或独立的 `celestialflow-web` 项目；如果你只想体验 CelestialFlow 的核心调度能力，这一节可以直接跳过。
 
-首先，在项目根目录下创建一个 `.env` 文件，并填入以下内容：
-
-```env
-# .env
-# TaskWeb的监听地址
-REPORT_HOST=127.0.0.1
-# TaskWeb的监听端口
-REPORT_PORT=5005
-```
-
-之后，你可以通过以下命令启动Web服务：
-
-```bash
-# 如果你pip了项目，可以在当前虚拟环境下可以直接使用命令celestialflow-web
-celestialflow-web --port 5005
-
-# 如果你直接clone并cd进入项目目录，那么需要运行 core_server.py
-python -m celestialflow.web.core_server --port 5005 
-```
-
-默认监听端口 `5000`，但为了避免冲突，测试代码中使用的都是端口 `5005`，访问：
-
-👉 [http://localhost:5005](http://localhost:5005)
-
-可查看任务结构、执行状态、错误日志、以及实时注入任务等功能。
-
-下图为运行测试时 web 页面的显示情况，非默认打开样式：
-
-![WebUI](https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/web_ui.gif)
-<p align="center"><em>gif图压缩了过多细节(｡•́︿•̀｡)</em></p>
-
-注意: 如果你没有启动Web窗口，同时设置了
+配置状态上报可以通过 `set_reporter` 来实现:
 
 ```python
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 ```
 
-那么[日志](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md)中会有一些`WARNING`，那是 TaskReporter 在提示无法连接 TaskWeb。但这并不影响使用。
+如果你启用了 `TaskReporter`，但目标服务没有启动，
+[日志](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md)
+中会看到一些 `WARNING`。这表示 Reporter 无法连接远程服务，但并不影响任务图本身运行。
 
 ```log
 2025-12-10 08:57:13 WARNING [Reporter] Task injection fetch failed: ConnectTimeout
@@ -116,4 +87,4 @@ pytest tests/stage/test_stage.py
 - `tests/graph/test_graph.py` 包含图结构相关测试：DAG 构建、分层调度、线程模式、循环/网格/完全图结构等。
 - `tests/stage/test_stage.py` 包含 Stage 节点相关测试：模式校验、标签生成、序列化检查等。
 
-在代码运行过程中可以通过Web监视页面查看运行情况。
+在代码运行过程中，你可以通过日志、`TaskProgress` 进度条或状态快照查看运行情况。
