@@ -276,25 +276,7 @@ class PersistedError(CelestialFlowError):
         return f"{self.error_type}({self.error_message})"
 
 
-class CelestialTreeConnectionError(CelestialFlowError):
-    """CelestialTree 客户端连接失败"""
-
-    def __init__(self, message: str = "CelestialTreeClient is not available"):
-        """
-        初始化异常。
-
-        :param message: 错误消息
-        """
-        super().__init__(message)
-
-
 # ==== 任务与逻辑 ====
-
-
-class TaskFormatError(CelestialFlowError):
-    """任务格式错误"""
-
-    pass
 
 
 class TerminationMergeError(CelestialFlowError):

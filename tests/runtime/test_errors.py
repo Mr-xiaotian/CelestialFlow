@@ -1,7 +1,6 @@
 from celestialflow.runtime.util_errors import (
     CelestialFlowError,
     CelestialFlowTimeoutError,
-    CelestialTreeConnectionError,
     ConfigurationError,
     DuplicateNodeError,
     ExecutionModeError,
@@ -14,7 +13,6 @@ from celestialflow.runtime.util_errors import (
     RuntimeStateError,
     ScheduleModeError,
     StageModeError,
-    TaskFormatError,
     TerminationMergeError,
     UnconsumedError,
     UnknownNodeError,
@@ -170,24 +168,7 @@ class TestUtilErrors:
         assert isinstance(ex, CelestialFlowError)
         assert str(ex) == "reporter connection lost"
 
-    def test_celestial_tree_connection_error_default_message(self):
-        """验证 `CelestialTreeConnectionError` 默认消息可用。"""
-        ex = CelestialTreeConnectionError()
-        assert isinstance(ex, CelestialFlowError)
-        assert "CelestialTreeClient" in str(ex)
-
-    def test_celestial_tree_connection_error_custom_message(self):
-        """验证 `CelestialTreeConnectionError` 支持自定义消息。"""
-        ex = CelestialTreeConnectionError("custom connection failure")
-        assert str(ex) == "custom connection failure"
-
     # ---- 任务与逻辑 ----
-
-    def test_task_format_error(self):
-        """验证 `TaskFormatError` 可正常保留错误消息。"""
-        ex = TaskFormatError("malformed task input")
-        assert isinstance(ex, CelestialFlowError)
-        assert str(ex) == "malformed task input"
 
     def test_termination_merge_error(self):
         """验证 `TerminationMergeError` 可正常保留错误消息。"""
