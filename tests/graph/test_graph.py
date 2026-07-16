@@ -366,7 +366,7 @@ class TestTaskGraphStructure:
         s3 = TaskStage("s3", to_str)
 
         chain = TaskChain("test_chain_structure", [s1, s2, s3])
-        chain.start_chain({s1.get_name(): [1, 2]})
+        chain.start_graph({s1.get_name(): [1, 2]})
 
         assert s1.get_counts()["tasks_succeeded"] == 2
         assert s2.get_counts()["tasks_succeeded"] == 2
@@ -378,7 +378,7 @@ class TestTaskGraphStructure:
         layer2 = [TaskStage(f"L2{i}", double) for i in range(3)]
 
         cross = TaskCross("test_cross_structure", [layer1, layer2])
-        cross.start_cross(
+        cross.start_graph(
             {
                 layer1[0].get_name(): [1],
                 layer1[1].get_name(): [2],
@@ -707,7 +707,7 @@ class TestTaskGraphThread:
         graph.set_stages(stages=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
-        
+
         graph.start_graph({s1.get_name(): [1, 2]})
 
         assert s1.get_counts()["tasks_succeeded"] == 2

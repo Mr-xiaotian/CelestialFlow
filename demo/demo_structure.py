@@ -57,7 +57,7 @@ def demo_chain() -> None:
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(ctree_client)
 
-    chain.start_chain(
+    chain.start_graph(
         {
             stageA.get_name(): range(20),
         }
@@ -203,7 +203,7 @@ def demo_cross() -> None:
         stageC.get_name(): range(11, 21),
     }
 
-    cross.start_cross(init_tasks)
+    cross.start_graph(init_tasks)
 
 
 def demo_network() -> None:
@@ -230,7 +230,7 @@ def demo_network() -> None:
         A2.get_name(): range(11, 21),
     }
 
-    cross.start_cross(init_tasks, True)
+    cross.start_graph(init_tasks, True)
 
 
 def demo_star() -> None:
@@ -249,7 +249,7 @@ def demo_star() -> None:
     star.set_reporter(True, host=report_host, port=report_port)
     star.set_ctree(ctree_client)
 
-    star.start_cross({core.get_name(): range(1, 11)})
+    star.start_graph({core.get_name(): range(1, 11)})
 
 
 def demo_fanin() -> None:
@@ -268,7 +268,7 @@ def demo_fanin() -> None:
     fainin.set_reporter(True, host=report_host, port=report_port)
     fainin.set_ctree(ctree_client)
 
-    fainin.start_cross(
+    fainin.start_graph(
         {
             source1.get_name(): range(1, 11),
             source2.get_name(): range(11, 21),
@@ -315,7 +315,7 @@ def demo_loop() -> None:
     test_task_0 = range(1, 2)
     # test_task_1 = list(test_task_0) + [0, 6, None, 0, ""]
 
-    loop.start_loop({stageA.get_name(): test_task_0})
+    loop.start_graph({stageA.get_name(): test_task_0})
 
 
 def demo_wheel() -> None:

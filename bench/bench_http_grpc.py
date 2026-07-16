@@ -39,7 +39,7 @@ def bench_no_ctree() -> None:
     # chain.set_ctree(False)
 
     start_time = time.perf_counter()
-    chain.start_chain(
+    chain.start_graph(
         {
             task_splitter.get_name(): [range(int(1e4))],
         }
@@ -70,7 +70,7 @@ def bench_http_ctree() -> None:
     chain.set_ctree(http_ctree_client)
 
     start_time = time.perf_counter()
-    chain.start_chain(
+    chain.start_graph(
         {
             task_splitter.get_name(): [range(int(1e4))],
         }
@@ -101,7 +101,7 @@ def bench_grpc_ctree() -> None:
     chain.set_ctree(grpc_ctree_client)
 
     start_time = time.perf_counter()
-    chain.start_chain(
+    chain.start_graph(
         {
             task_splitter.get_name(): [range(int(1e4))],
         }
