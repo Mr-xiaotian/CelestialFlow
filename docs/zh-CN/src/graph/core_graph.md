@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最后更新日期: 2026/06/28
+> 📅 最后更新日期: 2026/07/16
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
@@ -132,6 +132,32 @@ def _execute_stage(self, stage: TaskStage) -> None:
     """
 ```
 
+### start_graph_db
+
+```python
+def start_graph_db(
+    self,
+    db_path: str | Path,
+    statuses: Iterable[str] | None = None,
+    *,
+    filter_by_error_type: bool = False,
+    put_termination_signal: bool = True,
+) -> None:
+    """
+    从 sqlite 持久化库中读取任务，按 stage 分组后启动任务图。
+
+    :param db_path: sqlite 数据库文件路径
+    :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``
+    :param filter_by_error_type: 是否按各 stage 的 ``retry_exceptions`` 过滤
+        ``error_type``，默认 ``False``
+    :param put_termination_signal: 是否注入终止信号，默认 True
+    """
+```
+
+该方法内部调用 `load_tasks_grouped_by_stage()` 加载持久化任务记录，
+通过 `stage.metrics.get_retry_error_type_names()` 过滤可恢复的错误类型，
+最终复用 `start_graph()` 执行。
+
 ## 动态任务注入
 
 ### put_stage_queue
@@ -161,7 +187,9 @@ def collect_runtime_snapshot(self) -> None:
 
 ### _snapshot_one_stage
 
-采集单个节点的快照，返回包含以下字段的字典：
+> `_snapshot_one_stage` 返回该节点的瞬时快照字典。
+> `collect_runtime_snapshot` 在此基础上为每个节点追加 `total_tasks_pending` 和 `total_remaining_time`，形成完整的快照。
+> 下表列出完整快照中包含的所有字段：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|

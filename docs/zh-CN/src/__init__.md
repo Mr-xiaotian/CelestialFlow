@@ -193,7 +193,7 @@ stages = [
 ]
 
 chain = TaskChain(name="DemoChain", stages=stages, stage_mode="serial")
-chain.start_chain({stages[0].get_name(): [1, 2, 3]})
+chain.start_graph({stages[0].get_name(): [1, 2, 3]})
 snapshot = chain.get_status_snapshot()
 print("Chain status:", snapshot["status"])
 ```

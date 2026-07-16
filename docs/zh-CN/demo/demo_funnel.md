@@ -1,6 +1,6 @@
 # demo_funnel.py 演示说明
 
-> 📅 最后更新日期: 2026/06/28
+> 📅 最后更新日期: 2026/07/16
 
 ## 目标
 
@@ -28,7 +28,7 @@ flowchart LR
 - `EventInlet`
   - 继承 `BaseInlet`
   - 对 `_funnel()` 做了轻量封装，提供 `emit()` / `info()` / `metric()` 三个业务方法
-  - 当前源码仍通过旧版构造参数 `EventInlet(spout.get_queue())` 绑定队列，但新版 `BaseInlet` 已改为 `bind_spout()`，运行前需将源码调整为 `inlet = EventInlet(); inlet.bind_spout(spout)`
+  - 通过 `EventInlet(spout.get_queue())` 传入队列绑定到对应的 `JsonlSpout`
 - `demo_funnel_jsonl()`
   - 创建 `JsonlSpout` 和 `EventInlet`
   - 启动后台消费线程
@@ -74,9 +74,10 @@ flowchart LR
 
 ## 可能出现的问题
 
-1. **不是同步写入**：`BaseInlet` 只是把记录放进队列，真正消费发生在 `JsonlSpout` 的后台线程里。
-2. **输出目录变化**：JSONL 文件会写到当前工作目录下的 `temp/demo_funnel/`，如果从别的目录启动脚本，输出位置会随之变化。
-3. **无断言**：这是演示脚本，运行成功只说明通路打通，不代表业务语义被自动校验。
+1. **API 绑定方式**：当前源码通过 `EventInlet(spout.get_queue())` 传入队列。`BaseInlet` 已不再定义 `__init__`，改为 `bind_spout()` 方法进行绑定。若运行时遇到初始化错误，需检查 `BaseInlet` 版本与调用方式的匹配。
+2. **不是同步写入**：`BaseInlet` 只是把记录放进队列，真正消费发生在 `JsonlSpout` 的后台线程里。
+3. **输出目录变化**：JSONL 文件会写到当前工作目录下的 `temp/demo_funnel/`，如果从别的目录启动脚本，输出位置会随之变化。
+4. **无断言**：这是演示脚本，运行成功只说明通路打通，不代表业务语义被自动校验。
 
 ## 运行方式
 

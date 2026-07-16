@@ -44,7 +44,7 @@ pytest tests/graph/test_structure.py::TestTaskWheel -v
 | `TestTaskWheel` | ~1s |
 
 ## 重要细节
-- 使用 `start_loop` 方法启动测试，并配合 `put_termination_signal=True`。
+- 使用 `start_graph` 方法启动测试，并配合 `put_termination_signal=True`。
 - `TaskWheel` 通过 `set_graph_mode()` 配置后调用 `get_graph_analysis()` 进行分析。
 - 测试重点在于"分析结果"（analysis dict）而非"执行结果"。
 

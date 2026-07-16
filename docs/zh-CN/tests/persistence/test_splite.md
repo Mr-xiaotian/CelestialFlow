@@ -1,6 +1,6 @@
 # SQLite 工具测试 (test_splite.py)
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/07/16
 
 ## 作用
 
@@ -16,10 +16,10 @@
 | `load_records` | 按状态过滤读取全部记录 |
 | `append_records` | 批量追加记录（跳过重复 event_id） |
 | `query_records` | 分页、筛选、排序查询 |
+| `query_error_type_counts` | 按错误类型聚合 failed 记录数量，可按节点过滤 |
 | `clear_records` | 清空 records 表 |
 | `get_max_event_id_in_fail` | 仅统计 failed 状态的最大 event_id |
 | `load_records_after_event_id_in_fail` | 按 failed event_id 下界增量读取 |
-| `load_records_grouped_by_stage` | 按 stage 分组读取 failed 记录 |
 | `promote_record_to_failed_by_event_id` | 更新状态为 failed 并写入错误信息 |
 | `promote_record_to_success_by_event_id` | 更新状态为 success 并写入结果 |
 | `update_record_event_id_by_event_id` | 迁移记录的 event_id |
@@ -31,7 +31,7 @@
 
 | 测试类 | 用例数 | 覆盖目标 |
 |--------|--------|---------|
-| `TestSpliteUtils` | 14 | 连接建表、归一化、插入/读取、追加/去重、分页查询、清空、增量/分组读取、状态迁移、event_id 迁移、删除、配对读取 |
+| `TestSpliteUtils` | 18 | 连接建表、归一化、插入/读取、追加/去重、分页查询、清空、增量和分组读取、错误类型聚合、状态迁移、event_id 迁移、删除、配对读取 |
 
 ## 关键测试场景
 
@@ -59,6 +59,12 @@
 - `query_records` 支持 `page`/`page_size`/`node`/`keyword`/`sort_order` 参数
 - 验证排序规则（newest/oldest）和筛选准确性
 
+### 错误类型聚合
+
+- `query_error_type_counts` 按错误类型（`error_type`）聚合全部 failed 记录的数量
+- `query_error_type_counts` 支持 `node` 参数按 stage 过滤
+- 仅统计 status 为 `failed` 的记录，忽略 success 等其他状态
+
 ### 状态迁移
 
 - `promote_record_to_failed_by_event_id`: 从 waiting→failed，更新 event_id 和错误信息
@@ -67,9 +73,9 @@
 
 ### 增量与分组
 
-- `get_max_event_id_in_fail` 仅统计 failed 状态
+- `get_max_event_id_in_fail` 仅统计 failed 状态；无 failed 记录时返回 `None`
 - `load_records_after_event_id_in_fail` 按 event_id 下界增量读取
-- `load_records_grouped_by_stage` 仅返回 failed 记录，按 stage 分组
+- `load_task_error_records` 支持按 stage 过滤，返回 `(task_json, (error_type, error_message))` 列表
 
 ### 配对读取
 

@@ -30,7 +30,7 @@ flowchart LR
     D --> E["StageE<br/>square"]
 ```
 
-线性 5 节点链，数据依次经过 `StageA → StageB → StageC → StageD → StageE`，每个节点执行平方运算。由 `TaskChain` 构建，`start_chain()` 启动。
+线性 5 节点链，数据依次经过 `StageA → StageB → StageC → StageD → StageE`，每个节点执行平方运算。由 `TaskChain` 构建，`start_graph()` 启动。
 
 #### Cross（交叉）— `demo_cross`
 
@@ -58,7 +58,7 @@ flowchart LR
     D --> G
 ```
 
-3 层交叉结构（3→1→3），由 `TaskCross` 构建，`start_cross()` 启动。
+3 层交叉结构（3→1→3），由 `TaskCross` 构建，`start_graph()` 启动。
 
 #### Network（网络）— `demo_network`
 

@@ -1,35 +1,120 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/06/28
+> 📅 最后更新日期: 2026/07/16
 
 TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
 ## 异常层级
 
-```
-CelestialFlowError
-├── ConfigurationError
-│   └── InvalidOptionError
-│       ├── ExecutionModeError      # ("serial", "thread", "async")
-│       ├── StageModeError          # ("serial", "thread")
-│       ├── LogLevelError           # (TRACE/DEBUG/SUCCESS/INFO/...)
-│       ├── ScheduleModeError       # ("eager", "staged")
-│       └── CallableParameterKindError  # 可调用对象参数 kind 不合法
-├── GraphStructureError
-│   ├── DuplicateNodeError          # 重复的节点名称
-│   ├── UnknownNodeError            # 未知的节点名称
-│   └── NodeNotFoundError           # 图中未找到指定节点
-├── RuntimeStateError
-│   ├── InitializationError         # 初始化失败
-│   └── GraphManagedError           # 图管理错误
-├── PersistedError                  # 持久化错误摘要
-├── RemoteWorkerError               # 远端 Worker 执行失败
-├── ReporterError                   # 上报器错误
-├── CelestialTreeConnectionError    # CelestialTree 连接失败
-├── CelestialFlowTimeoutError       # 超时错误
-├── UnconsumedError                 # 标记未消费任务
-├── TaskFormatError                 # 任务格式错误
-└── TerminationMergeError           # 终止信号合并错误
+```mermaid
+classDiagram
+    direction TB
+
+    class CelestialFlowError {
+        +基类
+    }
+
+    class ConfigurationError {
+        +配置错误基类
+    }
+    class InvalidOptionError {
+        +field: str
+        +value: Any
+        +allowed: tuple
+        配置项值不合法
+    }
+    class ExecutionModeError {
+        +execution_mode: str
+        +valid_modes: tuple
+        execution_mode 不合法
+    }
+    class StageModeError {
+        +stage_mode: str
+        +valid_modes: tuple
+        stage_mode 不合法
+    }
+    class LogLevelError {
+        +log_level: str
+        +valid_levels: tuple
+        log_level 不合法
+    }
+    class ScheduleModeError {
+        +schedule_mode: str
+        +valid_modes: tuple
+        schedule_mode 不合法
+    }
+    class CallableParameterKindError {
+        +callable_name: str
+        +parameter_kind: Any
+        +valid_kinds: tuple
+        可调用对象参数 kind 不合法
+    }
+    class GraphStructureError {
+        +图结构错误基类
+    }
+    class DuplicateNodeError {
+        +重复的节点名称
+    }
+    class UnknownNodeError {
+        +未知的节点名称
+    }
+    class NodeNotFoundError {
+        +图中未找到指定节点
+    }
+    class RuntimeStateError {
+        +运行时状态错误基类
+    }
+    class InitializationError {
+        +初始化失败
+    }
+    class GraphManagedError {
+        +图管理错误
+    }
+    class PersistedError {
+        +error_type: str
+        +error_message: str
+        +持久化错误摘要
+    }
+    class RemoteWorkerError {
+        +远端 Worker 执行失败
+    }
+    class ReporterError {
+        +上报器错误
+    }
+    class CelestialFlowTimeoutError {
+        +超时错误
+    }
+    class UnconsumedError {
+        +标记未消费任务
+    }
+    class TerminationMergeError {
+        +终止信号合并错误
+    }
+
+    CelestialFlowError <|-- ConfigurationError
+    CelestialFlowError <|-- RuntimeStateError
+    CelestialFlowError <|-- PersistedError
+    CelestialFlowError <|-- RemoteWorkerError
+    CelestialFlowError <|-- ReporterError
+    CelestialFlowError <|-- CelestialFlowTimeoutError
+    CelestialFlowError <|-- UnconsumedError
+    CelestialFlowError <|-- TerminationMergeError
+
+    ConfigurationError <|-- InvalidOptionError
+    ConfigurationError <|-- GraphStructureError
+
+    InvalidOptionError <|-- ExecutionModeError
+    InvalidOptionError <|-- StageModeError
+    InvalidOptionError <|-- LogLevelError
+    InvalidOptionError <|-- ScheduleModeError
+    InvalidOptionError <|-- CallableParameterKindError
+
+    GraphStructureError <|-- DuplicateNodeError
+    GraphStructureError <|-- UnknownNodeError
+    GraphStructureError <|-- NodeNotFoundError
+
+    RuntimeStateError <|-- InitializationError
+    RuntimeStateError <|-- GraphManagedError
 ```
 
 ## 基类
@@ -250,17 +335,9 @@ class ReporterError(CelestialFlowError):
     pass
 ```
 
-### CelestialTreeConnectionError
-
-CelestialTree 客户端连接失败。
-
-```python
-class CelestialTreeConnectionError(CelestialFlowError):
-    def __init__(self, message: str = "CelestialTreeClient is not available"):
-        ...
-```
-
 ## 其他运行时异常
+
+### 超时异常
 
 ### CelestialFlowTimeoutError
 
@@ -283,16 +360,6 @@ class UnconsumedError(CelestialFlowError):
 ```
 
 当 `TaskGraph._finalize_nodes()` 发现队列中有剩余任务时，会将其标记为 `UnconsumedError` 并通过 `fallback_inlet` / `FallbackSpout` 持久化到 sqlite 回退数据库。
-
-### TaskFormatError
-
-任务格式错误。
-
-```python
-class TaskFormatError(CelestialFlowError):
-    """任务格式错误"""
-    pass
-```
 
 ### TerminationMergeError
 
@@ -410,7 +477,6 @@ from celestialflow.runtime.util_errors import (
     RuntimeStateError,
     CelestialFlowTimeoutError,
     UnconsumedError,
-    TaskFormatError,
     TerminationMergeError,
 )
 
@@ -419,12 +485,6 @@ try:
     raise CelestialFlowTimeoutError("Task execution timed out after 30s")
 except CelestialFlowTimeoutError as e:
     print(f"超时: {e}")
-
-# 任务格式错误
-try:
-    raise TaskFormatError("Malformed task input: expected structured payload, got str")
-except TaskFormatError as e:
-    print(f"格式错误: {e}")
 
 # 终止信号合并错误
 try:
@@ -436,20 +496,12 @@ except TerminationMergeError as e:
 ### 外部服务异常
 
 ```python
-from celestialflow.runtime.util_errors import (
-    RemoteWorkerError,
-    CelestialTreeConnectionError,
-)
+from celestialflow.runtime.util_errors import RemoteWorkerError
 
 try:
     raise RemoteWorkerError("Go worker returned status code 500")
 except RemoteWorkerError as e:
     print(f"远端 Worker 错误: {e}")
-
-try:
-    raise CelestialTreeConnectionError("Cannot connect to 127.0.0.1:7777")
-except CelestialTreeConnectionError as e:
-    print(f"连接失败: {e}")
 ```
 
 ### 结合 TaskExecutor 使用

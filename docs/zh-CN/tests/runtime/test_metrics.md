@@ -1,6 +1,6 @@
 # 任务指标测试 (test_metrics.py)
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/07/16
 
 ## 作用
 验证 `celestialflow.runtime.core_metrics` 中的 `TaskMetrics` 类，确保任务执行过程中的各项统计指标（成功、失败、重复、待处理等）计算准确。
@@ -12,7 +12,7 @@
 
 | 测试类 | 用例数 | 覆盖目标 |
 |--------|--------|---------|
-| `TestTaskMetricsBasic` | 8 | 基础计数累加、公式验证、完成判定、计数器重置 |
+| `TestTaskMetricsBasic` | 9 | 初始状态、基础计数累加、公式验证、完成判定、计数器重置 |
 | `TestTaskMetricsDuplicate` | 3 | 去重启用/禁用、`reset_state()` 清空哈希集 |
 | `TestTaskMetricsRetryExceptions` | 2 | 默认可重试异常为空、动态添加异常类型 |
 
@@ -58,7 +58,6 @@ pytest tests/runtime/test_metrics.py -k "retry" -v
 
 ## 重要细节
 - 统计指标是 Dashboard 展示和图运行终止判定的数据来源。
-- 测试覆盖了 `execution_mode` 参数的传递（虽然目前主要影响内部锁的使用）。
 
 ## 注意事项
 - 统计指标的准确性直接影响 `TaskGraph` 的自动关闭判定。

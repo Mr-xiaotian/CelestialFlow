@@ -1,9 +1,15 @@
 # 运行时类型测试 (test_types.py)
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/07/16
 
 ## 作用
 验证 `celestialflow.runtime.util_types` 中的值对象、枚举和包装器，包括终止信号、无操作上下文、可选加锁值包装器、求和计数器以及任务事件常量。
+
+## 测试覆盖矩阵
+
+| 测试类 | 用例数 | 覆盖目标 |
+|--------|--------|---------|
+| `TestUtilTypes` | 28 | `TerminationSignal` 默认/自定义/部分参数构造；`TerminationIdPool` 非空/空/单元素构造；`NoOpContext` with 语句/异常透传/直接调用 enter/exit；`ValueWrapper` 基本读写/带锁读写/上下文管理器/`get_lock` 返回锁或 NoOpContext/负数值边界；`SumCounter` 累加/初始值/reset 清零/空计数器/多次 add；`StageStatus` 枚举值/IntEnum 行为/成员数量；`CTreeEvent` 任务常量/终止常量/前缀格式 |
 
 ## 覆盖点
 - `TerminationSignal` / `TerminationIdPool` 的构造语义。

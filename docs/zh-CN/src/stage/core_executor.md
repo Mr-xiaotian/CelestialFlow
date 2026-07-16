@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/06/28
+> 📅 最后更新日期: 2026/07/16
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -81,12 +81,20 @@ async def start_async(self, task_source: Iterable[T]) -> None:
     使用 await dispatch.dispatch_async() 而非 asyncio.run()。
     """
 
-def start_db(self, db_path: str | Path, status: str = "failed") -> None:
+def start_db(
+    self,
+    db_path: str | Path,
+    statuses: Iterable[str] | None = None,
+    *,
+    filter_by_error_type: bool = False,
+) -> None:
     """
-    从 sqlite 持久化库中读取当前 stage 的失败任务并启动执行。
+    从 sqlite 持久化库中读取当前 stage 的任务并启动执行。
 
     :param db_path: sqlite 数据库文件路径
-    :param status: 记录状态过滤条件，默认 "failed"
+    :param statuses: 记录状态过滤列表，默认 ["failed", "pending"]
+    :param filter_by_error_type: 是否按当前执行器的 retry_exceptions 过滤
+        error_type，默认 False
     """
 ```
 
@@ -221,8 +229,11 @@ def process_item(x: int) -> int:
     return x * 10
 
 executor = TaskExecutor("Recovery", process_item, execution_mode="thread")
-# 从持久化的失败记录中恢复执行
-executor.start_db("fallback/2026-06-18/executor_fallbacks.sqlite3", status="failed")
+# 从持久化的失败和 pending 记录中恢复执行
+executor.start_db("fallback/2026-06-18/executor_fallbacks.sqlite3")
+
+# 也可以指定仅恢复失败记录
+executor.start_db("fallback/2026-06-18/executor_fallbacks.sqlite3", statuses=["failed"])
 ```
 
 ## 注意事项

@@ -1,6 +1,6 @@
 # demo_redis.py 演示说明
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/07/16
 
 ## 目标
 
@@ -313,7 +313,7 @@ python demo/demo_redis.py
 
 ## 注意事项
 
-1. **连接管理**：Redis 客户端在首次使用时惰性初始化，并在 helper 生命周期内复用。
+1. **连接管理**：每个 helper 函数调用 `get_redis()` 时会创建新的 Redis 客户端实例，不进行缓存或复用。
 2. **超时处理**：`redis_pop` 与 `redis_wait` 均使用模块级 `redis_timeout`（默认 5 秒）。
 3. **错误传播**：远端 Worker 返回的错误会通过 `RemoteWorkerError` 直接向上抛出。
 4. **协议可替换**：你完全可以按自己的 Worker 协议修改 JSON 结构，只要同步修改这三个 helper。

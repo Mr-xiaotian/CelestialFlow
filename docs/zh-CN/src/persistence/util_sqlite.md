@@ -1,6 +1,6 @@
 # PersistenceSQLite
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/07/16
 
 `persistence/util_sqlite.py` 提供 SQLite 数据库的连接管理与记录 CRUD 操作工具，是 `FallbackSpout` 和 `TaskReporter` 的底层存储引擎。
 
@@ -15,7 +15,7 @@
 | `update_record_event_id_by_event_id(...)` | 更新记录的 event_id |
 | `delete_record_by_event_id(conn, event_id)` | 按 event_id 删除记录 |
 | `load_records(db_path, status)` | 按状态加载记录 |
-| `load_records_grouped_by_stage(db_path, status)` | 按 stage 分组加载 |
+| `load_tasks_grouped_by_stage(db_path, statuses)` | 按 stage 分组加载 |
 | `load_records_after_event_id_in_fail(db_path, min_event_id)` | 增量加载失败记录 |
 | `query_records(db_path, page, page_size, ...)` | 分页条件查询 |
 | `load_task_error_records(db_path, stage)` | 按 stage 加载 (task, error) 对 |
@@ -82,7 +82,7 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 | 函数 | 签名要点 | 返回类型 |
 |------|---------|---------|
 | `load_records` | `(db_path, status="failed")` | `list[dict]` |
-| `load_records_grouped_by_stage` | `(db_path, status="failed")` | `dict[str, list[dict]]` |
+| `load_tasks_grouped_by_stage` | `(db_path, statuses=["failed"])` | `dict[str, list[dict]]` |
 | `load_records_after_event_id_in_fail` | `(db_path, min_event_id)` | `list[dict]` |
 | `query_records` | `(db_path, page, page_size, node, keyword, sort_order, status)` | `(total, total_pages, items)` |
 | `load_task_error_records` | `(db_path, stage)` | `list[(task, (error_type, error_message))]` |
@@ -127,12 +127,12 @@ Path("test_data.sqlite3").unlink()
 
 ### 从 TaskExecutor 恢复失败任务
 
-`TaskExecutor.start_db()` 内部调用 `load_records_grouped_by_stage`：
+`TaskExecutor.start_db()` 内部调用 `load_tasks_grouped_by_stage`：
 
 ```python
-from celestialflow.persistence.util_sqlite import load_records_grouped_by_stage
+from celestialflow.persistence.util_sqlite import load_tasks_grouped_by_stage
 
-grouped = load_records_grouped_by_stage("fallback/2026-06-18/errors.sqlite3", "failed")
+grouped = load_tasks_grouped_by_stage("fallback/2026-06-18/errors.sqlite3", ["failed"])
 # {'StageA': [{'event_id': 1, 'task_json': 'hello', ...}, ...],
 #  'StageB': [{'event_id': 2, 'task_json': 'world', ...}]}
 ```

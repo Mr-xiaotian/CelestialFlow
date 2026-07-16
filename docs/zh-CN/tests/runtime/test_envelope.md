@@ -3,7 +3,7 @@
 > 📅 最后更新日期: 2026/06/22
 
 ## 作用
-验证 `celestialflow.runtime.core_envelope` 模块中的 `TaskEnvelope` 类及 `object_to_hash` 哈希工具，确保任务数据、ID 和哈希值在传递过程中的完整性与一致性。
+验证 `celestialflow.runtime.core_envelope` 模块中的 `TaskEnvelope` 类，以及 `celestialflow.runtime.util_hash` 中的 `object_to_hash` 哈希工具，确保任务数据、ID 和哈希值在传递过程中的完整性与一致性。
 
 ## 核心测试对象
 - `TaskEnvelope`: 包装任务数据的核心容器。

@@ -1,6 +1,6 @@
 # bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/07/16
 
 ## 目标
 
@@ -84,7 +84,7 @@ python bench/bench_graph_mode.py
 
 > 环境：Windows，Python 3.10
 
-#### `bench_graph_0` — 4 节点 DAG，CPU+I/O 混合，11 个任务（含异常边界）
+#### `bench_graph_0` — 4 节点 DAG，CPU+I/O 混合，12 个任务（含异常边界）
 
 | stage_mode \ execution_mode | serial | thread | async |
 |----------------------------|--------|--------|-------|

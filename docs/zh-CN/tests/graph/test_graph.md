@@ -1,6 +1,6 @@
 # 任务图核心功能测试 (test_graph.py)
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/07/16
 
 ## 作用
 全面验证 `TaskGraph` 及其各种拓扑子类（`TaskChain`、`TaskCross`、`TaskGrid`）的核心功能，涵盖同步/异步执行、错误传播、拓扑分析、执行模式矩阵、源节点推导、含环图行为、收尾阶段安全检查及运行时快照采集。
@@ -16,7 +16,7 @@
 
 | 测试类 | 用例数 | 覆盖点 |
 |--------|--------|--------|
-| `TestTaskGraphBasic` | 6 | set_ctree 更新已有 stage、两节点 DAG、扇出、扇入、错误传播、start_graph_db |
+| `TestTaskGraphBasic` | 7 | set_ctree 更新已有 stage、两节点 DAG、扇出、扇入、错误传播、start_graph_db、错误类型过滤回放 |
 | `TestTaskGraphAsync` | 5 | async 模式两节点、扇出、扇入、错误传播、async+thread stage_mode |
 | `TestTaskGraphStructure` | 3 | Chain、Cross、Grid 结构 |
 | `TestTaskGraphAnalysis` | 2 | DAG 检测、层级计算 |
@@ -26,7 +26,7 @@
 | `TestTaskGraphThread` | 6 | thread 模式两节点、扇出、扇入、错误传播、lambda、staged 调度 |
 | `TestSourceStages` | 5 | 线性图 source、扇入 source、菱形图 source、单源 SCC 代表点、多源 SCC 各返回一点 |
 | `TestCyclicGraph` | 2 | 含环图 isDAG 检测、环内同层 + 尾巴层级 |
-| **合计** | **37** | |
+| **合计** | **38** | |
 
 > **说明**: 此处统计的是 `test_graph.py` 中的测试类。`TaskLoop` 和 `TaskWheel` 的专用测试在 `test_structure.py`。
 
@@ -45,6 +45,8 @@ graph LR
 - **扇出** (`test_graph_fan_out`): 一个上游分发到多个下游，sink_a 和 sink_b 各成功 2 个。
 - **扇入** (`test_graph_fan_in`): 多个上游汇聚到一个下游，merge 节点收到 4 个任务。
 - **错误传播** (`test_graph_error_propagation`): 验证 `50` 触发 `ValueError` 不阻断流程，下游仅接收成功任务。
+- **DB 启动** (`test_graph_start_db`): 验证从 SQLite 回放 failed/pending 任务。
+- **DB 启动过滤** (`test_graph_start_db_filters_error_type_when_enabled`): 验证按各 stage 的 `retry_exceptions` 过滤回放任务。
 
 #### 异步与并发
 - async 模式下的两节点、扇出、扇入、错误传播与同步模式语义一致。

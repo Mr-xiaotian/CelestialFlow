@@ -1,6 +1,6 @@
 # demo_stages.py 演示说明
 
-> 📅 最后更新日期: 2026/06/28
+> 📅 最后更新日期: 2026/07/16
 
 ## 目标
 
@@ -29,7 +29,7 @@ flowchart TD
 **图结构**：含环图（`parse_stage → generate_stage`）
 
 ### `demo_splitter_1`
-演示大数据包拆分：输入 `range(int(1e5))` 被包装在列表中传入 `TaskSplitter`，下游逐个接收处理，避免一次性加载过多任务到内存。
+演示大数据包拆分：输入 `range(100_000)` 被包装在列表中传入 `TaskSplitter`，下游逐个接收处理，避免一次性加载过多任务到内存。
 
 ### `demo_router_0`
 演示 `TaskRouter` 根据奇偶性将任务分发到不同下游节点。
@@ -45,8 +45,7 @@ flowchart LR
 
 ## 关键配置
 
-- 所有 stage 默认 `stage_mode="thread"`（多线程）
-- `demo_splitter_0` 中通过 `graph.set_graph_mode("thread", "thread")` 显式设置全局 stage_mode 与 execution_mode
+- 各 stage 的 `stage_mode` 因场景而异：`demo_splitter_0` 通过 `graph.set_graph_mode("thread", "thread")` 统一设为 `"thread"`；`demo_router_0` 中 `Origin` 和 `Router` 使用 `stage_mode="serial"`，下游 `StageA`/`StageB` 使用 `"thread"`；`demo_splitter_1` 通过 `TaskChain` 指定 `stage_mode="thread"`
 - `set_reporter(True)` 启用监控上报
 - 默认使用 `LocalEventClient()` 生成本地事件 ID
 - `demo_splitter_0` 与 `demo_router_0` 中 `set_ctree(ctree_client)` 被注释掉，默认不启用 CelestialTree；如需接入请先额外安装 `celestialtree`，取消注释对应调用即可
