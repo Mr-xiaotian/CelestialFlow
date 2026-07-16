@@ -1,4 +1,8 @@
 # runtime/util_constant.py
+"""CelestialFlow 运行时常量定义。
+
+提供日志级别映射等共享常量。
+"""
 
 # 日志级别字典
 LEVEL_DICT = {
