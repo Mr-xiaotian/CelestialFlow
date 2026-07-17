@@ -14,5 +14,3 @@ LEVEL_DICT = {
     "ERROR": 50,
     "CRITICAL": 60,
 }
-
-

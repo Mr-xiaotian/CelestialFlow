@@ -207,4 +207,3 @@ class TaskComplete(TaskGraph):
         for i, stage in enumerate(stages):
             others = [s for j, s in enumerate(stages) if i != j]
             self.connect([stage], others)
-
