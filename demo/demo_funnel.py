@@ -56,7 +56,7 @@ class EventInlet(BaseInlet):
 def demo_funnel_jsonl() -> None:
     output_path = Path("temp/demo_funnel/events.jsonl")
     spout = JsonlSpout(output_path)
-    inlet = EventInlet(spout.get_queue())
+    inlet = EventInlet().bind_spout(spout)
 
     spout.start()
     try:

@@ -230,28 +230,23 @@ flowchart TD
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.2.5</em>
+  <em>celestial-flow 3.2.6</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.2.5
+- 3.2.6
   - feat:
-    - 在 `Spout` 和 `Inlet` 中 添加 `counter`, 对 `queue` 中未消费任务的数量进行记录
-      - 在上版本大幅修改 `fallback` 机制后, `FallbackSpout` 中很有可能出现任务堆积, 进而导致误判
-    - 在web端错误日志页面对当前显示的错误数量可能与node_status中的error数量不一致的情况进行说明
-    - 在web端仪表盘页面添加错误分类的饼图
+    - 在 `graph` 与 `stage` 中添加直接读取db文件并重试/继续任务的方法
+      - 分别为 `start_graph_db` 与 `start_db`
   - refactor:
-    - 移除对 `networkx` 的依赖, 添加 `util_graph`, 实现所有图论分析
-    - `TaskExecutor` 中将 `enable_duplicate_check` 默认改为 `False`
-      - 在duplicate机制中一直有一个内存持续增长点: `processed_set`, 这导致 `enable_duplicate_check` 在大规模的任务下会导致很大的内存压力
-    - 分离server端的 `push_task` 和 `push_termination`
-  - fix:
-    - 修复 `UnconsumedError` 在 `drain_task_queue` 中被计算两次的问题
+    - **[IMPORTANT]** 将web部分移至单独项目 [celestialflow-web](https://github.com/Mr-xiaotian/celestialflow-web)
+      - 考虑许久的决定, 当前的web端代码与项目整体风格差异极大, 已经不再适合继续合并一处
+      - 当然这意味着 `celestialflow-web` 命令在当前项目下失效, 需要单独安装 `pip install celestialflow-web`
   - chore:
-    - `img/` 中添加全新的 `web_display.png` 图片
-    - 完善几个skill, 现在对主agent与子agent的prompt进行分离
+    - 全量更新文档, 并翻译为en/ja双语言
+    - 移除 docs/zh-CN 下的 `README.md`, 现在中文readme只保留根目录下的这一份
 
 更多过往日志可看:
 

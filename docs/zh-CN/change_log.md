@@ -354,3 +354,14 @@
   - chore:
     - `img/` 中添加全新的 `web_display.png` 图片
     - 完善几个skill, 现在对主agent与子agent的prompt进行分离
+- 3.2.6
+  - feat:
+    - 在 `graph` 与 `stage` 中添加直接读取db文件并重试/继续任务的方法
+      - 分别为 `start_graph_db` 与 `start_db`
+  - refactor:
+    - **[IMPORTANT]** 将web部分移至单独项目 [celestialflow-web](https://github.com/Mr-xiaotian/celestialflow-web)
+      - 考虑许久的决定, 当前的web端代码与项目整体风格差异极大, 已经不再适合继续合并一处
+      - 当然这意味着 `celestialflow-web` 命令在当前项目下失效, 需要单独安装 `pip install celestialflow-web`
+  - chore:
+    - 全量更新文档, 并翻译为en/ja双语言
+    - 移除 docs/zh-CN 下的 `README.md`, 现在中文readme只保留根目录下的这一份
