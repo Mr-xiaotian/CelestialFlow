@@ -25,7 +25,7 @@ docs/zh-CN/tests/bar.md        →  {OUTPUT_DIR}/tests/bar.md
 ```
 
 > `docs/zh-CN/` 下的任意 `.md` 文件，只要存在镜像路径，都纳入同步范围。
-> `README.md` 是特殊文件，直接映射到目标目录。
+> `README.md` 是特殊文件——它位于**项目根目录**（不在 `docs/zh-CN/` 下），直接映射到 `{OUTPUT_DIR}/README.md`。不受"zh-CN 无则删除"规则约束。
 
 ### 操作规则
 
