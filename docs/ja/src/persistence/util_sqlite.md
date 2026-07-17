@@ -1,6 +1,6 @@
 # PersistenceSQLite
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/07/16
 
 `persistence/util_sqlite.py` は、SQLite データベースの接続管理とレコード CRUD 操作ツールを提供し、`FallbackSpout` および `TaskReporter` の基盤ストレージエンジンです。
 
@@ -15,7 +15,7 @@
 | `update_record_event_id_by_event_id(...)` | レコードの event_id を更新 |
 | `delete_record_by_event_id(conn, event_id)` | event_id でレコードを削除 |
 | `load_records(db_path, status)` | ステータスでレコードを読み込み |
-| `load_records_grouped_by_stage(db_path, status)` | stage 別にグループ化して読み込み |
+| `load_tasks_grouped_by_stage(db_path, statuses)` | stage 別にグループ化して読み込み |
 | `load_records_after_event_id_in_fail(db_path, min_event_id)` | 失敗レコードを増分読み込み |
 | `query_records(db_path, page, page_size, ...)` | ページング条件検索 |
 | `load_task_error_records(db_path, stage)` | stage 別に (task, error) ペアを読み込み |
@@ -82,7 +82,7 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 | 関数 | シグネチャ要点 | 戻り値の型 |
 |------|---------|---------|
 | `load_records` | `(db_path, status="failed")` | `list[dict]` |
-| `load_records_grouped_by_stage` | `(db_path, status="failed")` | `dict[str, list[dict]]` |
+| `load_tasks_grouped_by_stage` | `(db_path, statuses=["failed"])` | `dict[str, list[dict]]` |
 | `load_records_after_event_id_in_fail` | `(db_path, min_event_id)` | `list[dict]` |
 | `query_records` | `(db_path, page, page_size, node, keyword, sort_order, status)` | `(total, total_pages, items)` |
 | `load_task_error_records` | `(db_path, stage)` | `list[(task, (error_type, error_message))]` |
@@ -127,12 +127,12 @@ Path("test_data.sqlite3").unlink()
 
 ### TaskExecutor からの失敗タスク復旧
 
-`TaskExecutor.start_db()` は内部で `load_records_grouped_by_stage` を呼び出します：
+`TaskExecutor.start_db()` は内部で `load_tasks_grouped_by_stage` を呼び出します：
 
 ```python
-from celestialflow.persistence.util_sqlite import load_records_grouped_by_stage
+from celestialflow.persistence.util_sqlite import load_tasks_grouped_by_stage
 
-grouped = load_records_grouped_by_stage("fallback/2026-06-18/errors.sqlite3", "failed")
+grouped = load_tasks_grouped_by_stage("fallback/2026-06-18/errors.sqlite3", ["failed"])
 # {'StageA': [{'event_id': 1, 'task_json': 'hello', ...}, ...],
 #  'StageB': [{'event_id': 2, 'task_json': 'world', ...}]}
 ```

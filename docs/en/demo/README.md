@@ -1,6 +1,6 @@
 # demo/ Demo Overview
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/28
 
 ## Description
 
@@ -16,6 +16,21 @@ If this is your first encounter with the project, we recommend reading in the fo
 2. `demo_graph.md`: Then see how `TaskGraph` connects stages into a DAG
 3. `demo_structure.md`: Continue with structured wrappers like chains, grids, rings, and complete graphs
 4. `demo_observer.md`: Finally, see observation and progress display during execution
+
+## Module Overview
+
+| Document | Source | Demo Objective | Requires External Service? |
+|------|------|---------|:---------------:|
+| `demo_executor.md` | `demo/demo_executor.py` | `TaskExecutor`'s three execution modes: serial / thread / async | No |
+| `demo_observer.md` | `demo/demo_observer.py` | Registering `TaskProgress` and custom `LoggingObserver` for `TaskExecutor` | No |
+| `demo_funnel.md` | `demo/demo_funnel.py` | Standalone use of `BaseInlet` / `BaseSpout` to build event collection pipeline, independent of task graphs | No |
+| `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` fan-out/fan-in ETL and async staged pipelines | Reporter / CelestialTree (optional) |
+| `demo_stages.md` | `demo/demo_stages.py` | `TaskSplitter`, `TaskRouter`, and chain/cyclic graph structures | Reporter / CelestialTree (optional) |
+| `demo_structure.md` | `demo/demo_structure.py` | Predefined topologies: `TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete` | Reporter / CelestialTree (optional) |
+| `demo_redis.md` | `demo/demo_redis.py` | Implementing Redis task submission, result acknowledgment, and external task sources with ordinary `TaskStage` | Redis, Reporter (optional) |
+| `demo_utils.md` | `demo/demo_utils.py` | Shared helper functions and task functions used across demo scripts | No |
+
+> **Note**: "Requires External Service?" in the table refers to hard dependencies when running the default entry point directly; optional services that are not ready will typically only skip reporting and will not cause the demo to exit.
 
 ## Document Index
 

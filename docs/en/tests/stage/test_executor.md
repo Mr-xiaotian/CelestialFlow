@@ -1,6 +1,6 @@
 # Task Executor Tests (test_executor.py)
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/07/16
 
 ## Purpose
 Validates the `TaskExecutor` class in `celestialflow.stage.core_executor`, ensuring accurate task execution, error handling, and support for advanced features (such as retry and deduplication) across various concurrency modes.
@@ -16,7 +16,7 @@ Validates the `TaskExecutor` class in `celestialflow.stage.core_executor`, ensur
 | `TestExecutorThread` | 1 | Thread-pool parallel execution with correct counting |
 | `TestExecutorAsync` | 2 | Async execution and continuous processing logic |
 | `TestExecutorDuplicateCheck` | 3 | Behavioral comparison among default disabled, enabled, and explicitly disabled configurations |
-| `TestExecutorReplay` | 1 | `start_db` reads failed tasks from sqlite by stage and replays them |
+| `TestExecutorReplay` | 2 | `start_db` reads failed/pending tasks from sqlite by stage and replays them; `start_db` with `filter_by_error_type` only replays records matching `retry_exceptions` |
 | `TestExecutorSuccessCache` | 1 | Success result caching and `get_success_pairs()` |
 | `TestExecutorConfig` | 4 | Zero/multi-parameter function rejection, invalid execution mode validation, `get_summary()` metadata |
 
@@ -81,6 +81,7 @@ pytest tests/stage/test_executor.py -k "duplicate" -v
 ## Important Details
 - Uses a `flaky` closure to simulate scenarios requiring retry.
 - `test_invalid_execution_mode` ensures unsupported modes are rejected at initialization.
+- `TestExecutorReplay.test_start_db_filters_error_type_when_enabled` verifies that when `start_db` has `filter_by_error_type` enabled, only failed records matching `retry_exceptions` are replayed, skipping non-matching error types.
 
 ## Notes
 - `TaskExecutor` is the core component of `TaskStage`, responsible for the actual function call logic.

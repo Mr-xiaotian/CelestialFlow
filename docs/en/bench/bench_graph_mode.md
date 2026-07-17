@@ -1,6 +1,6 @@
 # bench_graph_mode.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/07/16
 
 ## Objective
 
@@ -12,6 +12,7 @@ Compare the task graph execution performance of complex DAGs under different com
 - **Structure**: 4-node DAG, `stage1 → stage2 → stage4`, `stage1 → stage3` (stage3 is an independent branch that does not merge into stage4)
 - **Task Mix**: CPU-intensive (Fibonacci), I/O-intensive (sleep), pure computation (divide by two, square)
 - **Inputs**: `range(25, 32) + [0, 27, None, 0, ""]` (includes boundary error cases)
+- **Retry Settings**: `stage1`, `stage2` enable `max_retries=1` for `ValueError`
 - **Enabled Services**: Reporter
 
 ### `bench_graph_1`
@@ -28,7 +29,7 @@ Compare the task graph execution performance of complex DAGs under different com
 ## Key Configuration
 
 - `benchmark_graph` internally iterates over combinations of `stage_mode` (`serial` / `thread`) and `execution_mode` (`serial` / `thread` / `async`), for a total of **6 combinations**, each running the full graph
-- This file does not directly configure these modes; it only provides `sync_graph` (sync function) and `async_graph` (async function) to `benchmark_graph`
+- This file does not directly configure these modes; it only provides a synchronous `TaskGraph` object and an asynchronous `TaskGraph` object to `benchmark_graph`
 
 ## Potential Issues
 
@@ -83,7 +84,7 @@ python bench/bench_graph_mode.py
 
 > Environment: Windows, Python 3.10
 
-#### `bench_graph_0` — 4-node DAG, CPU+I/O mixed, 11 tasks (including boundary errors)
+#### `bench_graph_0` — 4-node DAG, CPU+I/O mixed, 12 tasks (including boundary errors)
 
 | stage_mode \ execution_mode | serial | thread | async |
 |----------------------------|--------|--------|-------|

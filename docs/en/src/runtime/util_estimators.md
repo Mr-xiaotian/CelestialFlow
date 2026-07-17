@@ -1,24 +1,18 @@
 # RuntimeEstimators
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/28
 
 `runtime/util_estimators.py` provides runtime time-consumption estimation functions.
 
 ## Main Functions
 
 - `calc_remaining(processed, pending, elapsed)`: Estimates the remaining time for a node.
-  - **Params**: `processed` (`int`) — number of processed tasks; `pending` (`int`) — number of pending tasks; `elapsed` (`float`) — elapsed time in seconds.
-  - **Returns**: `float` — estimated remaining time in seconds. Returns `0.0` when `processed` is 0.
 - `calc_elapsed(status, last_elapsed, last_pending, interval)`: Accumulates elapsed time by status.
-  - **Params**: `status` (`StageStatus`) — current stage status; `last_elapsed` (`float`) — previous elapsed time; `last_pending` (`int`) — previous pending count; `interval` (`float`) — collection interval in seconds.
-  - **Returns**: `float` — updated elapsed time. When status is `STOPPED` or `last_pending` is 0, returns `last_elapsed` unchanged.
 - `calc_global_pending(graph, processed_map, pending_map)`: Estimates global pending task count based on DAG and observed metrics.
-  - **Params**: `graph` (`OrderGraph`) — the directed graph; `processed_map` (`dict[str, int]`) — per-node processed count; `pending_map` (`dict[str, int]`) — per-node pending count.
-  - **Returns**: `dict[str, int]` — per-node estimated global pending count. Uses a conservative traversal strategy starting from leaf nodes.
 
 ## Usage Examples
 
-The following examples demonstrate usage of `RemainingTimeEstimator` related functions.
+The following examples demonstrate usage of estimation functions such as `calc_remaining`, `calc_elapsed`, and `calc_global_pending`.
 
 ### calc_remaining: Estimate Node Remaining Time
 

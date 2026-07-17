@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/07/16
 
 `TaskGraph` は CelestialFlow のコアスケジューラであり、一連の `TaskStage` ノードの依存関係、実行フロー、リソース割り当て、ライフサイクルを管理します。
 
@@ -56,7 +56,7 @@ def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> N
 
 ```python
 def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000) -> None:
-    """レポーターを設定し、Web UI に状態をプッシュします。"""
+    """レポーターを設定し、`celestialflow-web` サービスに状態をプッシュします。"""
 ```
 
 ### set_ctree
@@ -132,6 +132,32 @@ def _execute_stage(self, stage: TaskStage) -> None:
     """
 ```
 
+### start_graph_db
+
+```python
+def start_graph_db(
+    self,
+    db_path: str | Path,
+    statuses: Iterable[str] | None = None,
+    *,
+    filter_by_error_type: bool = False,
+    put_termination_signal: bool = True,
+) -> None:
+    """
+    sqlite 永続化ストアからタスクを読み込み、stage 別にグループ化してタスクグラフを起動します。
+
+    :param db_path: sqlite データベースファイルパス
+    :param statuses: レコードステータスフィルタリスト。デフォルト ``["failed", "pending"]``
+    :param filter_by_error_type: 各 stage の ``retry_exceptions`` で ``error_type`` を
+        フィルタリングするかどうか。デフォルト ``False``
+    :param put_termination_signal: 終了シグナルを注入するかどうか。デフォルト True
+    """
+```
+
+このメソッドは内部で `load_tasks_grouped_by_stage()` を呼び出して永続化タスクレコードを読み込み、
+`stage.metrics.get_retry_error_type_names()` で回復可能なエラータイプをフィルタリングし、
+最終的に `start_graph()` を再利用して実行します。
+
 ## 動的タスク注入
 
 ### put_stage_queue
@@ -161,7 +187,9 @@ def collect_runtime_snapshot(self) -> None:
 
 ### _snapshot_one_stage
 
-単一ノードのスナップショットを収集し、以下のフィールドを含む辞書を返します:
+> `_snapshot_one_stage` は当該ノードの瞬間スナップショット辞書を返します。
+> `collect_runtime_snapshot` はこれに基づいて各ノードに `total_tasks_pending` と `total_remaining_time` を追加し、完全なスナップショットを形成します。
+> 以下の表は完全なスナップショットに含まれる全フィールドを示します：
 
 | フィールド | 型 | 説明 |
 |------|------|------|
@@ -193,7 +221,7 @@ def collect_runtime_snapshot(self) -> None:
 | `get_structure_graph()` | `dict` | JSON 形式のグラフ構造（nodes + edges + source_nodes） |
 | `get_structure_list()` | `list[str]` | 枠線付きフォーマット済みツリーテキスト |
 | `get_order_graph()` | `OrderGraph` | 内部順序付き有向グラフインスタンス |
-| `get_fallback_path()` | `Path` | 失敗タスク JSONL ファイルの絶対パス。未設定時は空 Path を返す |
+| `get_fallback_path()` | `Path` | `FallbackSpout` sqlite フォールバックデータベースファイルの絶対パス。未設定時は空 Path を返す |
 | `get_source_stages()` | `list[TaskStage]` | ソースノードリスト |
 
 ### get_graph_analysis 説明
@@ -266,9 +294,9 @@ Layer 0: [Node A, Node B] → 全 join → Layer 1: [Node C, Node D] → ...
 
 ```python
 graph.start_graph({"source": tasks}, put_termination_signal=False)
-# 後続で Web UI または put_stage_queue から手動で TerminationSignal を注入
+# 後続で外部サービスまたは put_stage_queue から手動で TerminationSignal を注入
 ```
 
 ## 未消費タスク処理
 
-`_finalize_nodes()` 内で `stage.drain_task_queue()` により全残存タスクを収集し、それらを `UnconsumedError` としてマークし、`fallback_inlet` を通じて JSONL ファイルに永続化します（`FallbackSpout` 経由でフォールバックストレージに書き込まれます）。
+`_finalize_nodes()` 内で `stage.drain_task_queue()` により全残存タスクを収集し、それらを `UnconsumedError` としてマークし、`fallback_inlet` を通じて sqlite フォールバックデータベースに永続化します（`FallbackSpout` 経由でフォールバックストレージに書き込まれます）。

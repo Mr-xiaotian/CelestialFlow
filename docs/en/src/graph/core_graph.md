@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/07/16
 
 `TaskGraph` is CelestialFlow's core scheduler, responsible for managing a set of `TaskStage` nodes' dependencies, execution flow, resource allocation, and lifecycle.
 
@@ -56,7 +56,7 @@ def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> N
 
 ```python
 def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000) -> None:
-    """Configure the reporter for pushing status to Web UI."""
+    """Configure the reporter for pushing status to the `celestialflow-web` service."""
 ```
 
 ### set_ctree
@@ -132,6 +132,32 @@ def _execute_stage(self, stage: TaskStage) -> None:
     """
 ```
 
+### start_graph_db
+
+```python
+def start_graph_db(
+    self,
+    db_path: str | Path,
+    statuses: Iterable[str] | None = None,
+    *,
+    filter_by_error_type: bool = False,
+    put_termination_signal: bool = True,
+) -> None:
+    """
+    Read tasks from a sqlite persistence database, group by stage, and start the task graph.
+
+    :param db_path: Path to the sqlite database file
+    :param statuses: Record status filter list, defaults to ``["failed", "pending"]``
+    :param filter_by_error_type: Whether to filter ``error_type`` by each stage's
+        ``retry_exceptions``, default ``False``
+    :param put_termination_signal: Whether to inject termination signals, default True
+    """
+```
+
+This method internally calls `load_tasks_grouped_by_stage()` to load persisted task records,
+filters recoverable error types via `stage.metrics.get_retry_error_type_names()`,
+and ultimately reuses `start_graph()` for execution.
+
 ## Dynamic Task Injection
 
 ### put_stage_queue
@@ -161,7 +187,9 @@ def collect_runtime_snapshot(self) -> None:
 
 ### _snapshot_one_stage
 
-Collects a snapshot for a single node, returning a dict with the following fields:
+> `_snapshot_one_stage` returns an instantaneous snapshot dict for that node.
+> `collect_runtime_snapshot` appends `total_tasks_pending` and `total_remaining_time` to each node's snapshot, forming the complete snapshot.
+> The table below lists all fields included in the complete snapshot:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -192,8 +220,8 @@ Collects a snapshot for a single node, returning a dict with the following field
 | `get_graph_analysis()` | `dict` | Graph analysis info (graphId, name, startTime, className, isDAG, scheduleMode, layersDict) |
 | `get_structure_graph()` | `dict` | Graph structure in JSON format (nodes + edges + source_nodes) |
 | `get_structure_list()` | `list[str]` | Formatted tree text with borders |
-| `get_order_graph()` | `OrderGraph` | internal ordered directed graph instance |
-| `get_fallback_path()` | `Path` | Absolute path to the fallback task JSONL file; empty Path if not set |
+| `get_order_graph()` | `OrderGraph` | Internal ordered directed graph instance |
+| `get_fallback_path()` | `Path` | Absolute path to the `FallbackSpout` sqlite fallback database file; empty Path if not set |
 | `get_source_stages()` | `list[TaskStage]` | List of source nodes |
 
 ### get_graph_analysis Description
@@ -266,9 +294,9 @@ For cyclic graphs, if `put_termination_signal=True`, `start_graph` will emit a `
 
 ```python
 graph.start_graph({"source": tasks}, put_termination_signal=False)
-# Later manually inject TerminationSignal via Web UI or put_stage_queue
+# Later manually inject TerminationSignal via external services or put_stage_queue
 ```
 
 ## Unconsumed Task Handling
 
-In `_finalize_nodes()`, all remaining tasks are collected via `stage.drain_task_queue()`, marked as `UnconsumedError`, and persisted to a JSONL file through `fallback_inlet` (written to fallback storage via `FallbackSpout`).
+In `_finalize_nodes()`, all remaining tasks are collected via `stage.drain_task_queue()`, marked as `UnconsumedError`, and persisted to the sqlite fallback database through `fallback_inlet` (written to fallback storage via `FallbackSpout`).

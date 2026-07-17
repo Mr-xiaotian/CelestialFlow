@@ -1,6 +1,6 @@
 # demo/ デモ概要
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/28
 
 ## 説明
 
@@ -16,6 +16,21 @@
 2. `demo_graph.md`：次に `TaskGraph` が stage をどのようにつなげて DAG を形成するかを確認
 3. `demo_structure.md`：さらにチェーン、グリッド、ループ、完全グラフなどの構造化ラッパーを確認
 4. `demo_observer.md`：最後に実行中の観測と進捗表示を確認
+
+## デモモジュール概要
+
+| ドキュメント | ソースコード | デモ目標 | 外部サービス要否 |
+|------|------|---------|:---------------:|
+| `demo_executor.md` | `demo/demo_executor.py` | `TaskExecutor` の serial / thread / async 3 つの実行モード | 不要 |
+| `demo_observer.md` | `demo/demo_observer.py` | `TaskExecutor` に `TaskProgress` とカスタム `LoggingObserver` を登録 | 不要 |
+| `demo_funnel.md` | `demo/demo_funnel.py` | タスクグラフから独立して、`BaseInlet` / `BaseSpout` でイベント収集パイプラインを構築 | 不要 |
+| `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` のファンアウト/ファンイン ETL と非同期ステージ分割パイプライン | Reporter / CelestialTree（オプション） |
+| `demo_stages.md` | `demo/demo_stages.py` | `TaskSplitter`、`TaskRouter` とチェーン/循環グラフ構造 | Reporter / CelestialTree（オプション） |
+| `demo_structure.md` | `demo/demo_structure.py` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete` などの定義済みトポロジ | Reporter / CelestialTree（オプション） |
+| `demo_redis.md` | `demo/demo_redis.py` | 通常の `TaskStage` で Redis タスク投入、結果確認、外部タスクソースを実現 | Redis、Reporter（オプション） |
+| `demo_utils.md` | `demo/demo_utils.py` | 各デモスクリプトで共有されるヘルパー関数とタスク関数 | 不要 |
+
+> **注意**：表中の「外部サービス要否」はデフォルトエントリを直接実行する際の強い依存を指します。オプションサービスが準備できていない場合、通常はレポート送信がスキップされるだけで、デモが終了することはありません。
 
 ## ドキュメントインデックス
 

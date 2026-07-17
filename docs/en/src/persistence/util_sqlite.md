@@ -1,6 +1,6 @@
 # PersistenceSQLite
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/07/16
 
 `persistence/util_sqlite.py` provides SQLite database connection management and record CRUD operation utilities, serving as the underlying storage engine for `FallbackSpout` and `TaskReporter`.
 
@@ -15,7 +15,7 @@
 | `update_record_event_id_by_event_id(...)` | Updates a record's event_id |
 | `delete_record_by_event_id(conn, event_id)` | Deletes a record by event_id |
 | `load_records(db_path, status)` | Loads records by status |
-| `load_records_grouped_by_stage(db_path, status)` | Loads records grouped by stage |
+| `load_tasks_grouped_by_stage(db_path, statuses)` | Loads records grouped by stage |
 | `load_records_after_event_id_in_fail(db_path, min_event_id)` | Incrementally loads failed records |
 | `query_records(db_path, page, page_size, ...)` | Paginated conditional query |
 | `load_task_error_records(db_path, stage)` | Loads (task, error) pairs by stage |
@@ -82,7 +82,7 @@ The following functions internally manage `connect_db` and `close` on their own:
 | Function | Signature Highlights | Return Type |
 |----------|----------------------|-------------|
 | `load_records` | `(db_path, status="failed")` | `list[dict]` |
-| `load_records_grouped_by_stage` | `(db_path, status="failed")` | `dict[str, list[dict]]` |
+| `load_tasks_grouped_by_stage` | `(db_path, statuses=["failed"])` | `dict[str, list[dict]]` |
 | `load_records_after_event_id_in_fail` | `(db_path, min_event_id)` | `list[dict]` |
 | `query_records` | `(db_path, page, page_size, node, keyword, sort_order, status)` | `(total, total_pages, items)` |
 | `load_task_error_records` | `(db_path, stage)` | `list[(task, (error_type, error_message))]` |
@@ -127,12 +127,12 @@ Path("test_data.sqlite3").unlink()
 
 ### Recovering Failed Tasks from TaskExecutor
 
-`TaskExecutor.start_db()` internally calls `load_records_grouped_by_stage`:
+`TaskExecutor.start_db()` internally calls `load_tasks_grouped_by_stage`:
 
 ```python
-from celestialflow.persistence.util_sqlite import load_records_grouped_by_stage
+from celestialflow.persistence.util_sqlite import load_tasks_grouped_by_stage
 
-grouped = load_records_grouped_by_stage("fallback/2026-06-18/errors.sqlite3", "failed")
+grouped = load_tasks_grouped_by_stage("fallback/2026-06-18/errors.sqlite3", ["failed"])
 # {'StageA': [{'event_id': 1, 'task_json': 'hello', ...}, ...],
 #  'StageB': [{'event_id': 2, 'task_json': 'world', ...}]}
 ```

@@ -1,6 +1,6 @@
 # tests/ テスト概要
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/06/28
 
 ## 説明
 
@@ -15,7 +15,7 @@
 1. `tests/__init__.md`：まずテストディレクトリの全体構造を確認
 2. `runtime/__init__.md`：基本型、キュー、例外、スケジューリングプリミティブのカバレッジ範囲を理解
 3. `stage/__init__.md` と `graph/__init__.md`：エグゼキュータ、stage、タスクグラフのコアテストを理解
-4. `web/__init__.md` と `observability/__init__.md`：最後に Web とレポートチェーンの統合テストを確認
+4. `observability/__init__.md`：最後に Reporter とレポートチェーンの統合テストを確認
 
 ## ドキュメントインデックス
 
@@ -33,11 +33,12 @@
 | `funnel/__init__.md` | Inlet / Spout パイプライン関連テスト |
 | `graph/__init__.md` | `TaskGraph`、トポロジ分析、構造エクスポート関連テスト |
 | `observability/__init__.md` | オブザーバー、Reporter、注入、レポート関連テスト |
-| `persistence/__init__.md` | sqlite / JSONL / success / fail / log 永続化関連テスト |
+| `persistence/__init__.md` | sqlite / success / fail / log 永続化関連テスト |
 | `runtime/__init__.md` | キュー、エンベロープ、例外、推定器、カウンターなどの基本ランタイムテスト |
 | `stage/__init__.md` | `TaskExecutor`、`TaskStage`、組み込み stage 関連テスト |
-| `utils/__init__.md` | clone / format などのユーティリティ層テスト |
-| `web/__init__.md` | Web サービス、ルート、インターフェース動作テスト |
+| `utils/test_clone.md` | clone ユーティリティテスト |
+| `utils/test_format.md` | format ユーティリティテスト |
+> `tests/utils/` には `__init__.py` がないため、`utils/__init__.md` は存在しません。
 
 ## 使用方法
 
@@ -48,7 +49,6 @@ pytest tests -v
 pytest tests/runtime -v
 pytest tests/stage -v
 pytest tests/graph -v
-pytest tests/web -v
 ```
 
 キーワードでフィルタすることもできます：
@@ -63,10 +63,10 @@ pytest tests -k "executor or graph or reporter" -v
 
 - あるモジュールが「テストされているか」を知りたい場合：まず該当サブディレクトリの `__init__.md` を確認
 - ある具体的な動作が「どのようにテストされているか」を知りたい場合：次に対応する `test_*.md` を確認
-- プロトコル変更の影響範囲を特定したい場合：`graph/`、`stage/`、`persistence/`、`web/` のドキュメント群を優先的に確認
+- プロトコル変更の影響範囲を特定したい場合：`graph/`、`stage/`、`persistence/`、`observability/` のドキュメント群を優先的に確認
 
 ## 注意事項
 
-1. 一部のテストは一時ファイル、sqlite、イベントキュー、または Web テストクライアントに依存します。実行環境のジッターは実行時間に影響する可能性がありますが、アサーション結果には影響しません。
-2. 本番プロトコルが変更された場合、テストドキュメントは通常 `src/`、`web/`、`demo/` と共に同期更新する必要があります。
+1. 一部のテストは一時ファイル、sqlite、イベントキュー、または HTTP レポートチェーンに依存します。実行環境のジッターは実行時間に影響する可能性がありますが、アサーション結果には影響しません。
+2. 本番プロトコルが変更された場合、テストドキュメントは通常 `src/`、`demo/` と共に同期更新する必要があります。
 3. 現在の変更を素早く検証したいだけの場合は、変更ディレクトリに最も近いテストサブセットを優先的に実行し、常に全量テストを実行する必要はありません。

@@ -1,9 +1,15 @@
 ﻿# Hash Utility Tests (test_hash.py)
 
-> 📅 Last Updated: 2026/06/05
+> 📅 Last Updated: 2026/07/16
 
 ## Purpose
 Verifies that `make_hashable` and `object_to_hash` can stably handle common Python data structures, providing the foundational guarantee for task deduplication and `TaskEnvelope.get_hash()`.
+
+## Test Coverage Matrix
+
+| Test Class | Case Count | Coverage Goals |
+|--------|--------|---------|
+| `TestUtilHash` | 19 | Recursive conversion and hashable verification of basic types / empty containers / lists / tuples / dicts / sets / nested / mixed structures for `make_hashable`; return type / SHA1 20 bytes / idempotence / different objects different hashes / nested structures / empty container differentiation / cross-call consistency for `object_to_hash` |
 
 ## Coverage Points
 - `make_hashable` recursively converts lists, dicts, sets, and nested structures into hashable representations.

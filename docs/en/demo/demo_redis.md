@@ -1,6 +1,6 @@
 # demo_redis.py Demo Guide
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/07/16
 
 ## Objective
 
@@ -313,7 +313,7 @@ You can also directly open [demo_redis.py](https://github.com/Mr-xiaotian/Celest
 
 ## Notes
 
-1. **Connection management**: The Redis client is lazily initialized on first use and reused throughout the helper's lifecycle.
+1. **Connection management**: Each call to `get_redis()` in the helper functions creates a new Redis client instance without caching or reuse.
 2. **Timeout handling**: Both `redis_pop` and `redis_wait` use the module-level `redis_timeout` (default 5 seconds).
 3. **Error propagation**: Errors returned by remote Workers are directly thrown upward via `RemoteWorkerError`.
 4. **Replaceable protocol**: You can fully modify the JSON structure to match your own Worker protocol, as long as you synchronize the three helpers.

@@ -1,6 +1,6 @@
 # demo_executor.py Demo Guide
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/06/28
 
 ## Objective
 
@@ -67,7 +67,7 @@ flowchart TB
 
 ## Potential Issues
 
-1. **Iterative computation latency**: The iterative computation of `fibonacci(31)` takes about 1 second in serial mode, but the overall execution includes retry and scheduling overhead, so actual total time may be longer.
+1. **Iterative computation latency**: The Fibonacci implementation in `demo_utils` is iterative O(n); `fibonacci(31)` itself takes an extremely short time (microsecond-level). The total time differences across the three modes primarily come from `TaskExecutor` scheduling and retry overhead, not single-task computation.
 2. **`asyncio` environment**: `demo_fibonacci_async` uses `asyncio.run()`, which will error when run directly in Jupyter Notebook (Notebook already has an event loop).
 3. **No assertions**: This file is a **demo script** with no `assert` statements. Successful execution only means no uncaught exceptions were thrown; it does not verify result correctness.
 
@@ -79,36 +79,16 @@ python demo/demo_executor.py
 
 ## Expected Behavior
 
-After running, the three modes execute sequentially with output similar to:
+After running, the three modes execute sequentially, with the main output being `tqdm` progress bars similar to:
 
-```
-========================================
-[serial] Fibonacci benchmark (N=12 tasks, max_workers=6)
-========================================
- 80%|████████████████░░░░| ...
-
---- Summary ---
-  mode=serial  success=08  fail=04  dup=0  pending=0  elapsed=0.90s
-
-========================================
-[thread] Fibonacci benchmark (N=12 tasks, max_workers=6)
-========================================
- 80%|████████████████░░░░| ...
-
---- Summary ---
-  mode=thread  success=08  fail=04  dup=0  pending=0  elapsed=0.86s
-
-========================================
-[async] Fibonacci benchmark (N=12 tasks, max_workers=6)
-========================================
- 80%|████████████████░░░░| ...
-
---- Summary ---
-  mode=async  success=08  fail=04  dup=0  pending=0  elapsed=0.01s
+```text
+FibonacciSerial(serial): 100%|██████████| 12/12 [00:00<00:00, 15000.00it/s]
+FibonacciThread(thread-6): 100%|██████████| 12/12 [00:00<00:00, 4000.00it/s]
+FibonacciAsync(async-6): 100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
 ```
 
-> **Note**: Of the 12 tasks, 4 invalid inputs (two `0`s, `None`, `""`) cause failures; the remaining 8 are valid Fibonacci tasks, so the final result is `success=08`/`fail=04`. The two `0`s trigger `ValueError` and still fail after 1 retry; `None`/`""` trigger type errors.
-> All three modes use the iterative Fibonacci (O(n)) from `demo_utils`, with comparable performance.
+> **Note**: Of the 12 tasks, 4 invalid inputs (two `0`s, `None`, `""`) cause failures; the remaining 8 are valid Fibonacci tasks. The two `0`s trigger `ValueError` and still fail after 1 retry; `None`/`""` trigger type errors (not in the retry list).
+> All three modes use the iterative Fibonacci (O(n)) from `demo_utils`; single-task computation itself is very fast, and the it/s differences on the progress bars primarily reflect scheduling overhead.
 
 ## Dependencies
 

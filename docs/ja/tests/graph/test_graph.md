@@ -1,6 +1,6 @@
 # タスクグラフコア機能テスト (test_graph.py)
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/07/16
 
 ## 役割
 `TaskGraph` およびその各種トポロジサブクラス（`TaskChain`、`TaskCross`、`TaskGrid`）のコア機能を包括的に検証し、同期/非同期実行、エラー伝播、トポロジ解析、実行モードマトリクス、ソースノード導出、循環グラフ動作、終了段階の安全検査、ランタイムスナップショット収集をカバーします。
@@ -16,7 +16,7 @@
 
 | テストクラス | ケース数 | カバレッジポイント |
 |-------------|---------|------------------|
-| `TestTaskGraphBasic` | 4 | 2ノード DAG、ファンアウト、ファンイン、エラー伝播 |
+| `TestTaskGraphBasic` | 7 | set_ctree による既存 stage の更新、2ノード DAG、ファンアウト、ファンイン、エラー伝播、start_graph_db、エラータイプフィルタリングリプレイ |
 | `TestTaskGraphAsync` | 5 | async モード 2ノード、ファンアウト、ファンイン、エラー伝播、async+thread stage_mode |
 | `TestTaskGraphStructure` | 3 | Chain、Cross、Grid 構造 |
 | `TestTaskGraphAnalysis` | 2 | DAG 検出、階層計算 |
@@ -26,7 +26,7 @@
 | `TestTaskGraphThread` | 6 | thread モード 2ノード、ファンアウト、ファンイン、エラー伝播、lambda、staged スケジューリング |
 | `TestSourceStages` | 5 | 線形グラフ source、ファンイン source、ダイヤモンドグラフ source、単一ソースSCC代表点、複数ソースSCC各1点 |
 | `TestCyclicGraph` | 2 | 循環グラフ isDAG 検出、循環内同層 + 尾の階層 |
-| **合計** | **35** | |
+| **合計** | **38** | |
 
 > **説明**: ここでの統計は `test_graph.py` 内のテストクラスです。`TaskLoop` と `TaskWheel` の専用テストは `test_structure.py` にあります。
 
@@ -45,6 +45,8 @@ graph LR
 - **ファンアウト** (`test_graph_fan_out`): 1つの上流が複数の下流に分配され、sink_a と sink_b がそれぞれ2つ成功することを検証。
 - **ファンイン** (`test_graph_fan_in`): 複数の上流が1つの下流に集約され、merge ノードが4つのタスクを受け取ることを検証。
 - **エラー伝播** (`test_graph_error_propagation`): `50` が `ValueError` をトリガーしてもフローが中断されず、下流が成功タスクのみを受け取ることを検証。
+- **DB 起動** (`test_graph_start_db`): SQLite から failed/pending タスクをリプレイすることを検証。
+- **DB 起動フィルタリング** (`test_graph_start_db_filters_error_type_when_enabled`): 各 stage の `retry_exceptions` に基づいてリプレイタスクをフィルタリングすることを検証。
 
 #### 非同期と並行
 - async モードの2ノード、ファンアウト、ファンイン、エラー伝播は同期モードとセマンティクスが一致。

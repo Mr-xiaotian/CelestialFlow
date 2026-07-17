@@ -1,6 +1,6 @@
 # Graph モジュール
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/07/16
 
 Graph モジュールは CelestialFlow のコアスケジューリングシステムであり、タスクノード間の依存関係、実行フロー、ライフサイクルを管理します。柔軟なタスクグラフ（TaskGraph）の構築、分析、シリアライズ機能を提供します。
 
@@ -48,11 +48,11 @@ from celestialflow.graph import (
 ### ユーティリティファイル
 
 3. **util_graph.py**
-   - **役割**: 軽量な順序付き有向グラフと基礎グラフアルゴリズム
+   - **役割**: 軽量な順序付き有向グラフと基礎グラフアルゴリズムツール
    - **主要関数**:
-     - `OrderGraph`: 安定したノード順序を持つ最小順序付き有向グラフ
-     - `is_dag()` / `topo_sort()`: DAG 判定とトポロジカル走査
-     - `tarjan_scc()` / `get_condensation()`: SCC 解析と凝縮グラフ構築
+     - `OrderGraph`: 最小順序付き有向グラフ。安定したノード順序、入辺・出辺の隣接テーブルを維持
+     - `is_dag()` / `topo_sort()`: DAG 判定とトポロジカルソート
+     - `tarjan_scc()` / `get_condensation()`: 強連結成分分析と凝縮グラフ構築
      - `compute_node_levels()`: SCC 凝縮グラフに基づくノード階層計算
 
 4. **util_serialize.py**
@@ -66,22 +66,22 @@ from celestialflow.graph import (
 ### 内部関連
 - `TaskGraph` は基底クラスであり、他のすべての構造はこれを継承します
 - `TaskChain`、`TaskLoop` などは `TaskGraph` の特殊化実装です（`set_stages` / `connect` ロジックをカプセル化）
-- `util_graph.py` は共有内部グラフ構造とグラフ理論ヘルパーを提供します
-- `TaskGraph` は現在 `OrderGraph` 上でソース検索、DAG 判定、階層解析を行います
+- `util_graph.py` はフレームワーク内部で統一して再利用される軽量グラフ構造と基礎グラフアルゴリズムを提供します
+- `TaskGraph` は現在 `OrderGraph` に基づいてソースノード識別、DAG 判定、階層分析を行います
 - シリアライズツールは実行時構造を JSON/テキストとして出力します
 
 ### 外部関連
 - **Stage モジュールと**: `TaskGraph` は `TaskStage` ノードを管理し、各ノードは `start_stage` で起動します
 - **Runtime モジュールと**: `TaskInQueue`/`TaskOutQueue` をノード間通信パイプとして使用します
-- **Persistence モジュールと**: `LogSpout`/`FailSpout` を通じて永続化を実現します
-- **Observability モジュールと**: `TaskReporter` を通じて Web UI に状態をプッシュします
+- **Persistence モジュールと**: `LogSpout`/`FallbackSpout` を通じて永続化を実現します
+- **Observability モジュールと**: `TaskReporter` を通じて `celestialflow-web` サービスに状態をプッシュし、注入命令を取得します
 
 ## 使用パターン
 
 1. **タスクグラフの構築**: `TaskStage` ノードを作成 → `set_stages()` で登録 → `connect()` で依存関係を確立
 2. **構造の選択**: 一般的なパターンには `TaskChain`/`TaskCross` などの事前定義構造を直接使用可能
 3. **設定**: `set_reporter()` / `set_ctree()` で外部サービスを統合
-4. **実行**: `start_graph()` またはサブクラスの `start_chain()`/`start_cross()` などのメソッドを呼び出し
+4. **実行**: `start_graph()` を呼び出し
 5. **監視**: `collect_runtime_snapshot()` と `get_status_snapshot()` で状態を取得
 
 ## 使用例
@@ -135,7 +135,7 @@ stages = [
 ]
 
 chain = TaskChain(name="DataPipeline", stages=stages, stage_mode="serial")
-chain.start_chain({stages[0].get_name(): [" 10 ", " 20 ", " 30 "]})
+chain.start_graph({stages[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
 print(f"チェーン状態: {chain.get_status_snapshot()}")
 ```
@@ -150,7 +150,7 @@ layer1 = [TaskStage("F1", func=lambda x: x * 2), TaskStage("F2", func=lambda x: 
 layer2 = [TaskStage("G1", func=lambda x: x ** 2), TaskStage("G2", func=lambda x: -x)]
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], schedule_mode="eager")
-cross.start_cross({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
+cross.start_graph({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
 print(cross.get_status_snapshot())
 ```
 
@@ -165,7 +165,7 @@ s10 = TaskStage("C", func=lambda x: x * 2)
 s11 = TaskStage("D", func=lambda x: x * x)
 
 grid = TaskGrid(name="GridPipeline", grid=[[s00, s01], [s10, s11]])
-grid.start_grid({s00.get_name(): [1, 2]})
+grid.start_graph({s00.get_name(): [1, 2]})
 print(grid.get_status_snapshot())
 ```
 
@@ -182,7 +182,7 @@ stages = [
 
 loop = TaskLoop(name="FeedbackLoop", stages=stages)
 # リング構造では早期終了を防ぐため put_termination_signal=False を推奨
-loop.start_loop({stages[0].get_name(): [10]}, put_termination_signal=False)
+loop.start_graph({stages[0].get_name(): [10]}, put_termination_signal=False)
 ```
 
 ### TaskWheel ホイールグラフ
@@ -194,7 +194,7 @@ center = TaskStage("Center", func=lambda x: f"processed: {x}")
 ring = [TaskStage(f"R{i}", func=lambda x: f"ring-{i}: {x}") for i in range(3)]
 
 wheel = TaskWheel(name="HubAndSpoke", center=center, ring=ring)
-wheel.start_wheel({center.get_name(): ["data"]})
+wheel.start_graph({center.get_name(): ["data"]})
 ```
 
 ## ベストプラクティス
@@ -202,5 +202,5 @@ wheel.start_wheel({center.get_name(): ["data"]})
 - 線形フローには `TaskChain` を使用し、手動 `connect` は不要
 - マルチパス並行パイプラインには `TaskCross` または手動組み合わせを使用
 - 循環グラフ（`TaskLoop`/`TaskWheel`）では `put_termination_signal=False` を推奨し、外部注入で停止
-- 本番環境では `set_reporter(True)` を有効にして Web 監視
+- 外部監視システムとの連携が必要な場合は `set_reporter(True)` を有効化
 - 複雑な DAG には `staged` モードを使用し、階層ごとのデバッグを容易に

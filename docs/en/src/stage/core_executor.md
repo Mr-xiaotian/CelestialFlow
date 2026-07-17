@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/07/16
 
 `TaskExecutor` is the core component for executing single-task logic. It is responsible for task execution, concurrency control, error handling, retry mechanisms, and logging.
 
@@ -19,7 +19,7 @@ class TaskExecutor[T, R]:
         max_workers: int | None = None,
         max_retries: int = 1,
         max_info: int = 50,
-        enable_duplicate_check: bool = True,
+        enable_duplicate_check: bool = False,
         persist_result: bool = False,
         log_level: str = "INFO",
     ):
@@ -81,12 +81,20 @@ async def start_async(self, task_source: Iterable[T]) -> None:
     Uses await dispatch.dispatch_async() instead of asyncio.run().
     """
 
-def start_db(self, db_path: str | Path, status: str = "failed") -> None:
+def start_db(
+    self,
+    db_path: str | Path,
+    statuses: Iterable[str] | None = None,
+    *,
+    filter_by_error_type: bool = False,
+) -> None:
     """
-    Read failed tasks for the current stage from a sqlite persistence database and start execution.
+    Read tasks for the current stage from a sqlite persistence database and start execution.
 
-    :param db_path: sqlite database file path
-    :param status: Record status filter condition, default "failed"
+    :param db_path: Path to the sqlite database file
+    :param statuses: Record status filter list, defaults to ["failed", "pending"]
+    :param filter_by_error_type: Whether to filter error_type by the current
+        executor's retry_exceptions, default False
     """
 ```
 
@@ -189,7 +197,7 @@ flowchart TD
     LOG_END --> STOP[Stop spout ×2:<br/>log_spout + fallback_spout]
 ```
 
-## Usage Example
+## Usage Examples
 
 ### Basic Task Execution
 
@@ -221,8 +229,11 @@ def process_item(x: int) -> int:
     return x * 10
 
 executor = TaskExecutor("Recovery", process_item, execution_mode="thread")
-# Resume execution from persisted failed records
-executor.start_db("fallback/2026-06-18/executor_fallbacks.sqlite3", status="failed")
+# Resume execution from persisted failed and pending records
+executor.start_db("fallback/2026-06-18/executor_fallbacks.sqlite3")
+
+# Alternatively, specify to recover only failed records
+executor.start_db("fallback/2026-06-18/executor_fallbacks.sqlite3", statuses=["failed"])
 ```
 
 ## Notes

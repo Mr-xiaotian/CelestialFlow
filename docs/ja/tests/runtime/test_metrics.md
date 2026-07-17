@@ -1,6 +1,6 @@
 # タスクメトリクステスト (test_metrics.py)
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/07/16
 
 ## 役割
 `celestialflow.runtime.core_metrics` の `TaskMetrics` クラスを検証し、タスク実行中の各種統計指標（成功、失敗、重複、保留中など）が正確に計算されることを確認します。
@@ -12,7 +12,7 @@
 
 | テストクラス | ケース数 | カバレッジ目標 |
 |-------------|---------|--------------|
-| `TestTaskMetricsBasic` | 8 | 基本カウント累積、数式検証、完了判定、カウンタリセット |
+| `TestTaskMetricsBasic` | 9 | 基本カウント累積、数式検証、完了判定、カウンタリセット |
 | `TestTaskMetricsDuplicate` | 3 | 重複排除の有効/無効、`reset_state()` によるハッシュセットクリア |
 | `TestTaskMetricsRetryExceptions` | 2 | デフォルトのリトライ可能例外が空、動的な例外型追加 |
 
@@ -58,7 +58,6 @@ pytest tests/runtime/test_metrics.py -k "retry" -v
 
 ## 重要な詳細
 - 統計指標は Dashboard 表示とグラフ実行終了判定のデータソースです。
-- テストは `execution_mode` パラメータの伝達をカバーしています（現在は主に内部ロックの使用に影響）。
 
 ## 注意事項
 - 統計指標の正確性は `TaskGraph` の自動クローズ判定に直接影響します。

@@ -1,35 +1,120 @@
 # TaskErrors
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/07/16
 
 TaskErrors モジュールは CelestialFlow フレームワークで使用される完全な例外クラス体系を定義します。
 
 ## 例外階層
 
-```
-CelestialFlowError
-├── ConfigurationError
-│   └── InvalidOptionError
-│       ├── ExecutionModeError      # ("serial", "thread", "async")
-│       ├── StageModeError          # ("serial", "thread")
-│       ├── LogLevelError           # (TRACE/DEBUG/SUCCESS/INFO/...)
-│       ├── ScheduleModeError       # ("eager", "staged")
-│       └── CallableParameterKindError  # 呼び出し可能オブジェクトのパラメータ kind が不正
-├── GraphStructureError
-│   ├── DuplicateNodeError          # 重複ノード名
-│   ├── UnknownNodeError            # 不明なノード名
-│   └── NodeNotFoundError           # グラフ内に指定ノードが見つからない
-├── RuntimeStateError
-│   ├── InitializationError         # 初期化失敗
-│   └── GraphManagedError           # グラフ管理エラー
-├── PersistedError                  # 永続化エラーサマリ
-├── RemoteWorkerError               # リモート Worker 実行失敗
-├── ReporterError                   # レポーターエラー
-├── CelestialTreeConnectionError    # CelestialTree 接続失敗
-├── CelestialFlowTimeoutError       # タイムアウトエラー
-├── UnconsumedError                 # 未消費タスクのマーク
-├── TaskFormatError                 # タスクフォーマットエラー
-└── TerminationMergeError           # 終了シグナルマージエラー
+```mermaid
+classDiagram
+    direction TB
+
+    class CelestialFlowError {
+        +基底クラス
+    }
+
+    class ConfigurationError {
+        +設定エラー基底クラス
+    }
+    class InvalidOptionError {
+        +field: str
+        +value: Any
+        +allowed: tuple
+        設定項目の値が不正
+    }
+    class ExecutionModeError {
+        +execution_mode: str
+        +valid_modes: tuple
+        execution_mode が不正
+    }
+    class StageModeError {
+        +stage_mode: str
+        +valid_modes: tuple
+        stage_mode が不正
+    }
+    class LogLevelError {
+        +log_level: str
+        +valid_levels: tuple
+        log_level が不正
+    }
+    class ScheduleModeError {
+        +schedule_mode: str
+        +valid_modes: tuple
+        schedule_mode が不正
+    }
+    class CallableParameterKindError {
+        +callable_name: str
+        +parameter_kind: Any
+        +valid_kinds: tuple
+        呼び出し可能オブジェクトのパラメータ kind が不正
+    }
+    class GraphStructureError {
+        +グラフ構造エラー基底クラス
+    }
+    class DuplicateNodeError {
+        +重複ノード名
+    }
+    class UnknownNodeError {
+        +不明なノード名
+    }
+    class NodeNotFoundError {
+        +グラフ内に指定ノードが見つからない
+    }
+    class RuntimeStateError {
+        +実行時状態エラー基底クラス
+    }
+    class InitializationError {
+        +初期化失敗
+    }
+    class GraphManagedError {
+        +グラフ管理エラー
+    }
+    class PersistedError {
+        +error_type: str
+        +error_message: str
+        +永続化エラーサマリ
+    }
+    class RemoteWorkerError {
+        +リモート Worker 実行失敗
+    }
+    class ReporterError {
+        +レポーターエラー
+    }
+    class CelestialFlowTimeoutError {
+        +タイムアウトエラー
+    }
+    class UnconsumedError {
+        +未消費タスクのマーク
+    }
+    class TerminationMergeError {
+        +終了シグナルマージエラー
+    }
+
+    CelestialFlowError <|-- ConfigurationError
+    CelestialFlowError <|-- RuntimeStateError
+    CelestialFlowError <|-- PersistedError
+    CelestialFlowError <|-- RemoteWorkerError
+    CelestialFlowError <|-- ReporterError
+    CelestialFlowError <|-- CelestialFlowTimeoutError
+    CelestialFlowError <|-- UnconsumedError
+    CelestialFlowError <|-- TerminationMergeError
+
+    ConfigurationError <|-- InvalidOptionError
+    ConfigurationError <|-- GraphStructureError
+
+    InvalidOptionError <|-- ExecutionModeError
+    InvalidOptionError <|-- StageModeError
+    InvalidOptionError <|-- LogLevelError
+    InvalidOptionError <|-- ScheduleModeError
+    InvalidOptionError <|-- CallableParameterKindError
+
+    GraphStructureError <|-- DuplicateNodeError
+    GraphStructureError <|-- UnknownNodeError
+    GraphStructureError <|-- NodeNotFoundError
+
+    RuntimeStateError <|-- InitializationError
+    RuntimeStateError <|-- GraphManagedError
 ```
 
 ## 基底クラス
@@ -250,17 +335,9 @@ class ReporterError(CelestialFlowError):
     pass
 ```
 
-### CelestialTreeConnectionError
-
-CelestialTree クライアント接続失敗。
-
-```python
-class CelestialTreeConnectionError(CelestialFlowError):
-    def __init__(self, message: str = "CelestialTreeClient is not available"):
-        ...
-```
-
 ## その他の実行時例外
+
+### タイムアウト例外
 
 ### CelestialFlowTimeoutError
 
@@ -282,17 +359,7 @@ class UnconsumedError(CelestialFlowError):
     pass
 ```
 
-`TaskGraph._finalize_nodes()` がキュー内に残存タスクを検出した場合、それらを `UnconsumedError` としてマークし永続化します。
-
-### TaskFormatError
-
-タスクフォーマットエラー。
-
-```python
-class TaskFormatError(CelestialFlowError):
-    """タスクフォーマットエラー"""
-    pass
-```
+`TaskGraph._finalize_nodes()` がキュー内に残存タスクを検出した場合、それらを `UnconsumedError` としてマークし、`fallback_inlet` / `FallbackSpout` を通じて日付別に整理された sqlite フォールバックデータベースに永続化します。
 
 ### TerminationMergeError
 
@@ -410,7 +477,6 @@ from celestialflow.runtime.util_errors import (
     RuntimeStateError,
     CelestialFlowTimeoutError,
     UnconsumedError,
-    TaskFormatError,
     TerminationMergeError,
 )
 
@@ -419,12 +485,6 @@ try:
     raise CelestialFlowTimeoutError("Task execution timed out after 30s")
 except CelestialFlowTimeoutError as e:
     print(f"タイムアウト: {e}")
-
-# タスクフォーマットエラー
-try:
-    raise TaskFormatError("Expected (target, data) tuple, got str")
-except TaskFormatError as e:
-    print(f"フォーマットエラー: {e}")
 
 # 終了シグナルマージエラー
 try:
@@ -436,20 +496,12 @@ except TerminationMergeError as e:
 ### 外部サービス例外
 
 ```python
-from celestialflow.runtime.util_errors import (
-    RemoteWorkerError,
-    CelestialTreeConnectionError,
-)
+from celestialflow.runtime.util_errors import RemoteWorkerError
 
 try:
     raise RemoteWorkerError("Go worker returned status code 500")
 except RemoteWorkerError as e:
     print(f"リモート Worker エラー: {e}")
-
-try:
-    raise CelestialTreeConnectionError("Cannot connect to 127.0.0.1:7777")
-except CelestialTreeConnectionError as e:
-    print(f"接続失敗: {e}")
 ```
 
 ### TaskExecutor との連携
@@ -471,6 +523,12 @@ counts = executor.get_counts()
 print(f"成功: {counts['tasks_succeeded']}, 失敗: {counts['tasks_failed']}")
 ```
 
-## 例外の永続化
+## 未消費タスクの処理
 
-`TaskGraph` は `_finalize_nodes()` 内で未処理エラーをローカル JSONL ファイルに永続化します（`FallbackSpout` 経由）。各エラーレコードはエラー型、メッセージ、所属 Stage、イベント ID、タイムスタンプを含み、`PersistedErrorRecord` で表現されます。
+`UnconsumedError` は主にタスクが正常に消費されなかったシナリオをマークするために使用されます。`TaskGraph._finalize_nodes()` の後処理フェーズでは、各 stage の `drain_task_queue()` が呼び出されます：
+
+1. stage のタスクキューをクリアし、残存タスクを取り出します。
+2. 各残存タスクに対して `handle_task_fail(source, UnconsumedError())` を呼び出します。
+3. 失敗情報は `fallback_inlet` を通じて `FallbackSpout` に書き込まれ、最終的に日付別に整理された sqlite フォールバックデータベースに永続化されます。
+
+したがって、未消費タスクの「永続化」は `util_errors.py` 自身が行うのではなく、Stage / Graph 層のフォールバック機構に依存します。

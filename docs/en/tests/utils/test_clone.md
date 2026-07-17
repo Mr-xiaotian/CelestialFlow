@@ -1,6 +1,6 @@
 # Clone Utility Tests (test_clone.py)
 
-> 📅 Last Updated: 2026/05/28
+> 📅 Last Updated: 2026/06/28
 
 ## Purpose
 
@@ -28,6 +28,21 @@ Validates the three clone functions in `celestialflow.utils.util_clone` — `clo
 - Simple DAG (A→B→C): after cloning, source node, NetworkX node set, and edge set are all consistent
 - `schedule_mode` is correctly preserved
 - Modifying a node's `execution_mode` in the cloned graph does not affect the corresponding node in the original graph
+- The default local event client should remain instance-independent after cloning.
+
+## Test Coverage Matrix
+
+| Test Function | Coverage Goal |
+|----------|----------|
+| `test_clone_executor_same_attributes` | Key attributes match after cloning |
+| `test_clone_executor_different_object` | Clone returns a new object |
+| `test_clone_executor_independent` | Modifying the clone does not affect the original executor |
+| `test_clone_stage_same_attributes` | Key attributes match after cloning |
+| `test_clone_stage_different_object` | Clone returns a new object |
+| `test_clone_stage_independent` | Modifying the clone does not affect the original stage |
+| `test_clone_graph_structure` | DAG structure, source nodes, edges, `schedule_mode` are consistent |
+| `test_clone_graph_independent` | Modifying nodes in the cloned graph does not affect the original graph |
+| `test_clone_graph_creates_independent_local_event_client` | Local event client instances are independent |
 
 ## How to Run
 
@@ -55,6 +70,7 @@ pytest tests/utils/test_clone.py -k "graph" -v
 
 - When cloning a graph, node and edge consistency is verified via the NetworkX graph; accessing the source node also triggers `_build_analysis`.
 - `clone_graph` tests construct a directed acyclic graph `A → B → C` to verify graph structural integrity.
+- The `LocalEventClient` independence verification ensures the cloned graph has an independent event bus, preventing runtime state interference between instances.
 
 ## Notes
 

@@ -1,6 +1,6 @@
 # SQLite Utility Tests (test_splite.py)
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/07/16
 
 ## Purpose
 
@@ -16,10 +16,10 @@ Validates all sqlite utility functions in the `celestialflow.persistence.util_sq
 | `load_records` | Reads all records filtered by status |
 | `append_records` | Batch appends records (skips duplicate event_ids) |
 | `query_records` | Paginated, filtered, and sorted queries |
+| `query_error_type_counts` | Aggregates failed record counts by error type, with optional node filtering |
 | `clear_records` | Clears the records table |
 | `get_max_event_id_in_fail` | Gets the maximum event_id for failed status only |
 | `load_records_after_event_id_in_fail` | Incrementally reads records above a failed event_id lower bound |
-| `load_records_grouped_by_stage` | Reads failed records grouped by stage |
 | `promote_record_to_failed_by_event_id` | Updates status to failed and writes error information |
 | `promote_record_to_success_by_event_id` | Updates status to success and writes result |
 | `update_record_event_id_by_event_id` | Migrates a record's event_id |
@@ -31,7 +31,7 @@ Validates all sqlite utility functions in the `celestialflow.persistence.util_sq
 
 | Test Class | Case Count | Coverage Target |
 |--------|--------|---------|
-| `TestSpliteUtils` | 14 | Connection & table creation, normalization, insert/read, append/dedup, paginated query, clear, incremental/grouped reads, state transitions, event_id migration, deletion, paired reads |
+| `TestSpliteUtils` | 18 | Connection & table creation, normalization, insert/read, append/dedup, paginated query, clear, incremental and grouped reads, error type aggregation, state transitions, event_id migration, deletion, paired reads |
 
 ## Key Test Scenarios
 
@@ -59,6 +59,12 @@ Validates all sqlite utility functions in the `celestialflow.persistence.util_sq
 - `query_records` supports `page`/`page_size`/`node`/`keyword`/`sort_order` parameters
 - Verifies sort order rules (newest/oldest) and filtering accuracy
 
+### Error Type Aggregation
+
+- `query_error_type_counts` aggregates the counts of all failed records by error type (`error_type`)
+- `query_error_type_counts` supports filtering by stage via the `node` parameter
+- Only counts records with status `failed`, ignoring other statuses such as success
+
 ### State Transitions
 
 - `promote_record_to_failed_by_event_id`: from waiting to failed, updates event_id and error info
@@ -67,9 +73,9 @@ Validates all sqlite utility functions in the `celestialflow.persistence.util_sq
 
 ### Incremental and Grouped Reads
 
-- `get_max_event_id_in_fail` only counts failed status
+- `get_max_event_id_in_fail` only counts failed status; returns `None` when there are no failed records
 - `load_records_after_event_id_in_fail` reads incrementally by event_id lower bound
-- `load_records_grouped_by_stage` only returns failed records, grouped by stage
+- `load_task_error_records` supports filtering by stage, returning a list of `(task_json, (error_type, error_message))`
 
 ### Paired Reads
 

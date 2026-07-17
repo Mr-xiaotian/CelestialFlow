@@ -1,6 +1,6 @@
 # demo_observer.py Demo Guide
 
-> 📅 Last Updated: 2026/06/17
+> 📅 Last Updated: 2026/06/28
 
 ## Objective
 
@@ -63,7 +63,7 @@ The current `LoggingObserver` implements the following callbacks:
 2. **Current example only shows the success path**: `test_task` is currently `range(25, 32)`, so runtime will typically only see `on_start`, `on_tasks_added`, `on_task_success`, and `on_finish`.
 3. **`on_start` initial total may be 0**: The executor triggers the start event first, then informs the actual number of added tasks via `on_tasks_added`. This is normal behavior determined by the current notification order.
 4. **No assertions**: This is a demo script. It does not validate result values; it only demonstrates observer invocation timing.
-5. **Computation time varies with input**: `fibonacci(31)` takes noticeably longer than `fibonacci(25)`; total duration varies with the input range.
+5. **Computation time varies with input**: The current Fibonacci is iterative O(n); single-task time grows linearly with `n`, but the difference between `fibonacci(31)` and `fibonacci(25)` is still at the microsecond level and will not significantly affect total duration.
 
 ## How to Run
 

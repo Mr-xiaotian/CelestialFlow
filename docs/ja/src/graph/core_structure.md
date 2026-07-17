@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/07/16
 
 TaskStructure モジュールは複数の事前定義タスクグラフ構造を提供し、ユーザーが複雑なタスクフローを迅速に構築できるようにします。すべての構造は `TaskGraph` を継承しています。
 
@@ -39,7 +39,7 @@ chain = TaskChain(
 )
 
 # 起動
-chain.start_chain(init_tasks_dict={stage1.get_name(): [data]})
+chain.start_graph(init_tasks_dict={stage1.get_name(): [data]})
 ```
 
 ## Cross（クロス層）
@@ -244,7 +244,7 @@ s3 = TaskStage("Aggregate", func=aggregate)
 chain = TaskChain(name="ETL", stages=[s1, s2, s3], stage_mode="thread")
 
 # 起動
-chain.start_chain({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
+chain.start_graph({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
 
 # 結果を取得
 print(f"チェーン状態: {chain.get_status_snapshot()}")
@@ -273,7 +273,7 @@ layer1 = [TaskStage("LoadA", func=load_a), TaskStage("LoadB", func=load_b)]
 layer2 = [TaskStage("AnaA", func=analyze_a), TaskStage("AnaB", func=analyze_b)]
 
 cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
-cross.start_cross({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
+cross.start_graph({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
 print(cross.get_status_snapshot())
 ```
 
@@ -289,7 +289,7 @@ n10 = TaskStage("Mul", func=lambda x: x * 2)
 n11 = TaskStage("Square", func=lambda x: x * x)
 
 grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
-grid.start_grid({n00.get_name(): [1, 2, 3]})
+grid.start_graph({n00.get_name(): [1, 2, 3]})
 print(grid.get_status_snapshot())
 ```
 
@@ -306,7 +306,7 @@ loop_stages = [
 ]
 
 loop = TaskLoop(name="RingLoop", stages=loop_stages)
-loop.start_loop(
+loop.start_graph(
     {loop_stages[0].get_name(): [5]},
     put_termination_signal=False,  # リング構造では手動で終了注入が必要
 )
@@ -325,7 +325,7 @@ ring_nodes = [
 ]
 
 wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
-wheel.start_wheel({center.get_name(): [42]})
+wheel.start_graph({center.get_name(): [42]})
 print(wheel.get_status_snapshot())
 ```
 
@@ -341,7 +341,7 @@ nodes = [
 ]
 
 complete = TaskComplete(name="FullConnected", stages=nodes)
-complete.start_complete(
+complete.start_graph(
     {nodes[0].get_name(): [10]},
     put_termination_signal=False,
 )

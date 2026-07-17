@@ -1,6 +1,6 @@
 # Graph Module
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/07/16
 
 The Graph module is CelestialFlow's core scheduling system, responsible for managing dependency relationships between task nodes, execution flow, and lifecycle. It provides flexible task graph construction, analysis, and serialization capabilities.
 
@@ -50,10 +50,10 @@ from celestialflow.graph import (
 3. **util_graph.py**
    - **Purpose**: Lightweight ordered directed graph and foundational graph algorithms
    - **Key Functions**:
-     - `OrderGraph`: Minimal ordered directed graph with stable node iteration order
-     - `is_dag()` / `topo_sort()`: DAG detection and topological traversal
-     - `tarjan_scc()` / `get_condensation()`: SCC analysis and condensation graph construction
-     - `compute_node_levels()`: Node level computation based on SCC condensation
+     - `OrderGraph`: Minimal ordered directed graph, maintaining stable node order, in-edge and out-edge adjacency lists
+     - `is_dag()` / `topo_sort()`: DAG detection and topological sorting
+     - `tarjan_scc()` / `get_condensation()`: Strongly connected component analysis and condensation graph construction
+     - `compute_node_levels()`: Compute node levels based on SCC condensation graph
 
 4. **util_serialize.py**
    - **Purpose**: Task graph structure serialization to JSON and text rendering
@@ -66,22 +66,22 @@ from celestialflow.graph import (
 ### Internal Relationships
 - `TaskGraph` is the base class; all other structures inherit from it
 - `TaskChain`, `TaskLoop`, etc. are specialized implementations of `TaskGraph` (encapsulating `set_stages` / `connect` logic)
-- `util_graph.py` provides the shared internal graph structure and graph-theoretic helpers
-- `TaskGraph` now performs source lookup, DAG detection, and level analysis on top of `OrderGraph`
+- `util_graph.py` provides the shared internal graph structure and foundational graph algorithms
+- `TaskGraph` currently performs source node identification, DAG detection, and level analysis on top of `OrderGraph`
 - Serialization tools output runtime structures as JSON/text
 
 ### External Relationships
 - **With Stage Module**: `TaskGraph` manages `TaskStage` nodes, each node started via `start_stage`
 - **With Runtime Module**: Uses `TaskInQueue`/`TaskOutQueue` as inter-node communication pipes
-- **With Persistence Module**: Achieves persistence via `LogSpout`/`FailSpout`
-- **With Observability Module**: Pushes state to Web UI via `TaskReporter`
+- **With Persistence Module**: Achieves persistence via `LogSpout`/`FallbackSpout`
+- **With Observability Module**: Pushes state to `celestialflow-web` service and pulls injection commands via `TaskReporter`
 
 ## Usage Patterns
 
 1. **Build Task Graph**: Create `TaskStage` nodes → `set_stages()` register → `connect()` establish dependencies
 2. **Choose Structure**: For common patterns, directly use predefined structures like `TaskChain`/`TaskCross`
 3. **Configure**: Integrate external services via `set_reporter()` / `set_ctree()`
-4. **Execute**: Call `start_graph()` or subclass methods like `start_chain()`/`start_cross()`
+4. **Execute**: Call `start_graph()`
 5. **Monitor**: Use `collect_runtime_snapshot()` and `get_status_snapshot()` to obtain state
 
 ## Usage Examples
@@ -135,7 +135,7 @@ stages = [
 ]
 
 chain = TaskChain(name="DataPipeline", stages=stages, stage_mode="serial")
-chain.start_chain({stages[0].get_name(): [" 10 ", " 20 ", " 30 "]})
+chain.start_graph({stages[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
 print(f"Chain status: {chain.get_status_snapshot()}")
 ```
@@ -150,7 +150,7 @@ layer1 = [TaskStage("F1", func=lambda x: x * 2), TaskStage("F2", func=lambda x: 
 layer2 = [TaskStage("G1", func=lambda x: x ** 2), TaskStage("G2", func=lambda x: -x)]
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], schedule_mode="eager")
-cross.start_cross({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
+cross.start_graph({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
 print(cross.get_status_snapshot())
 ```
 
@@ -165,7 +165,7 @@ s10 = TaskStage("C", func=lambda x: x * 2)
 s11 = TaskStage("D", func=lambda x: x * x)
 
 grid = TaskGrid(name="GridPipeline", grid=[[s00, s01], [s10, s11]])
-grid.start_grid({s00.get_name(): [1, 2]})
+grid.start_graph({s00.get_name(): [1, 2]})
 print(grid.get_status_snapshot())
 ```
 
@@ -182,7 +182,7 @@ stages = [
 
 loop = TaskLoop(name="FeedbackLoop", stages=stages)
 # For cyclic structures, recommend put_termination_signal=False to avoid premature termination
-loop.start_loop({stages[0].get_name(): [10]}, put_termination_signal=False)
+loop.start_graph({stages[0].get_name(): [10]}, put_termination_signal=False)
 ```
 
 ### TaskWheel Wheel Graph
@@ -194,7 +194,7 @@ center = TaskStage("Center", func=lambda x: f"processed: {x}")
 ring = [TaskStage(f"R{i}", func=lambda x: f"ring-{i}: {x}") for i in range(3)]
 
 wheel = TaskWheel(name="HubAndSpoke", center=center, ring=ring)
-wheel.start_wheel({center.get_name(): ["data"]})
+wheel.start_graph({center.get_name(): ["data"]})
 ```
 
 ## Best Practices
@@ -202,5 +202,5 @@ wheel.start_wheel({center.get_name(): ["data"]})
 - Use `TaskChain` for linear flows; no need to manually `connect`
 - Use `TaskCross` or manual composition for multi-path parallel pipelines
 - For cyclic graphs (`TaskLoop`/`TaskWheel`), recommend `put_termination_signal=False` and stop via external injection
-- Enable `set_reporter(True)` in production for Web monitoring
+- Enable `set_reporter(True)` to integrate with external monitoring systems
 - Use `staged` mode for complex DAGs to facilitate layer-by-layer debugging

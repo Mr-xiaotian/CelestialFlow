@@ -1,6 +1,6 @@
 # RuntimeConstant
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/07/16
 
 `runtime/util_constant.py` defines runtime global constants, primarily the log level mapping table `LEVEL_DICT`.
 
@@ -111,4 +111,3 @@ print(validate_level("VERBOSE"))  # False
 ## Notes
 
 - `LEVEL_DICT` is the core basis for `LogInlet` log filtering; do not arbitrarily modify the numeric values.
-- `STAGE_STYLE` is currently commented out in the source and not enabled; to restore it, it depends on the `NodeLabelStyle` from the external `celestialtree` package, and the `{base}`, `{payload.name}`, `{type}` variables in the template string are injected by the CelestialTree rendering engine.

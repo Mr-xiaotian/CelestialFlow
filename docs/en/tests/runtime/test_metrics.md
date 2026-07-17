@@ -1,6 +1,6 @@
 ﻿# Task Metrics Tests (test_metrics.py)
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/07/16
 
 ## Purpose
 Verifies the `TaskMetrics` class in `celestialflow.runtime.core_metrics`, ensuring that various statistical metrics (success, failure, duplicate, pending, etc.) accumulated during task execution are calculated accurately.
@@ -12,7 +12,7 @@ Verifies the `TaskMetrics` class in `celestialflow.runtime.core_metrics`, ensuri
 
 | Test Class | Case Count | Coverage Goals |
 |------------|------------|----------------|
-| `TestTaskMetricsBasic` | 8 | Basic count accumulation, formula verification, completion detection, counter reset |
+| `TestTaskMetricsBasic` | 9 | Initial state, basic count accumulation, formula verification, completion detection, counter reset |
 | `TestTaskMetricsDuplicate` | 3 | Dedup enable/disable, `reset_state()` clearing the hash set |
 | `TestTaskMetricsRetryExceptions` | 2 | Default retryable exceptions empty, dynamic addition of exception types |
 
@@ -58,7 +58,6 @@ pytest tests/runtime/test_metrics.py -k "retry" -v
 
 ## Important Details
 - The metrics are the data source for Dashboard display and graph-run termination detection.
-- Tests cover the passing of the `execution_mode` parameter (though it currently mainly affects internal lock usage).
 
 ## Notes
 - The accuracy of the metrics directly affects the auto-close detection of `TaskGraph`.

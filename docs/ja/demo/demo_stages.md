@@ -1,6 +1,6 @@
 ﻿# demo_stages.py デモ説明
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/07/16
 
 ## 目標
 
@@ -29,7 +29,7 @@ flowchart TD
 **グラフ構造**：循環グラフ（`parse_stage → generate_stage`）
 
 ### `demo_splitter_1`
-大規模データ分割のデモ：入力 `range(int(1e5))` がリストにラップされて `TaskSplitter` に渡され、下流が 1 つずつ受信処理することで、一度に大量のタスクをメモリにロードするのを回避します。
+大規模データ分割のデモ：入力 `range(100_000)` がリストにラップされて `TaskSplitter` に渡され、下流が 1 つずつ受信処理することで、一度に大量のタスクをメモリにロードするのを回避します。
 
 ### `demo_router_0`
 `TaskRouter` が偶奇性に基づいてタスクを異なる下流ノードに振り分けるデモです。
@@ -45,10 +45,10 @@ flowchart LR
 
 ## 主要設定
 
-- すべての stage はデフォルト `stage_mode="thread"`（マルチスレッド）
+- 各 stage の `stage_mode` はシナリオによって異なる：`demo_splitter_0` は `graph.set_graph_mode("thread", "thread")` で統一して `"thread"` に設定。`demo_router_0` では `Origin` と `Router` が `stage_mode="serial"`、下流の `StageA`/`StageB` が `"thread"` を使用。`demo_splitter_1` は `TaskChain` で `stage_mode="thread"` を指定
 - `set_reporter(True)` で監視レポートを有効化
 - デフォルトで `LocalEventClient()` を使用してローカルイベント ID を生成
-- CelestialTree に接続するには、まず `celestialtree` を追加インストールし、クライアントを構築して `set_ctree(ctree_client)` を呼び出してください
+- `demo_splitter_0` と `demo_router_0` では `set_ctree(ctree_client)` がコメントアウトされており、デフォルトで CelestialTree は無効。接続するにはまず `celestialtree` を追加インストールし、対応する呼び出しのコメントを解除すること
 - Redis リモート協調サンプルは `demo_redis.py` に移行されました
 
 ## 発生しうる問題

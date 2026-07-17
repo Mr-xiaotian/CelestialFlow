@@ -1,6 +1,6 @@
 # タスク実行者テスト (test_executor.py)
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/07/16
 
 ## 役割
 `celestialflow.stage.core_executor` の `TaskExecutor` クラスを検証し、さまざまな並行モードでタスクを正確に実行し、エラーを処理し、高度な機能（リトライや重複排除など）をサポートできることを確認します。
@@ -16,7 +16,7 @@
 | `TestExecutorThread` | 1 | スレッドプール並列実行と正しいカウント |
 | `TestExecutorAsync` | 2 | 非同期実行と連続処理ロジック |
 | `TestExecutorDuplicateCheck` | 3 | デフォルト無効、有効、明示的無効の3つの設定の動作比較 |
-| `TestExecutorReplay` | 1 | `start_db` から sqlite で失敗タスクを stage ごとに読み込み再生 |
+| `TestExecutorReplay` | 2 | `start_db` から sqlite で failed/pending タスクを stage ごとに読み込みリプレイ；`start_db` と `filter_by_error_type` を組み合わせて `retry_exceptions` にヒットしたレコードのみをリプレイ |
 | `TestExecutorSuccessCache` | 1 | 成功結果キャッシュと `get_success_pairs()` |
 | `TestExecutorConfig` | 4 | ゼロ/多パラメータ関数の拒否、不正な実行モード検証、`get_summary()` サマリー情報 |
 
@@ -32,7 +32,7 @@
 - リトライ成功後、最終カウントが失敗ではなく成功としてマークされることを検証。
 - 非マッチ例外（例：`RuntimeError` をリトライ設定しているが `ValueError` がスローされた）が即座に失敗をトリガーすることを検証。
 
-### 去重とキャッシュ
+### 重複排除とキャッシュ
 - デフォルト設定（`enable_duplicate_check` 未指定）では重複チェックが無効であり、同一タスクが繰り返し実行されることを検証。
 - `enable_duplicate_check` 有効時、同一タスクは 1 回のみ実行され、重複は `tasks_duplicated` に計上されることを検証。
 - `enable_duplicate_check` が明示的に無効の場合、同一タスクがすべて実行され、`tasks_duplicated` が 0 であることを検証。
@@ -81,6 +81,7 @@ pytest tests/stage/test_executor.py -k "duplicate" -v
 ## 重要な詳細
 - `flaky` クロージャを使用してリトライが必要なシナリオをシミュレート。
 - `test_invalid_execution_mode` はサポートされていないモードが初期化時に即座にエラーとなることを確認。
+- `TestExecutorReplay.test_start_db_filters_error_type_when_enabled` は `start_db` で `filter_by_error_type` を有効にした場合、`retry_exceptions` にヒットした failed レコードのみをリプレイし、一致しないエラータイプをスキップすることを検証。
 
 ## 注意事項
 - `TaskExecutor` は `TaskStage` のコアコンポーネントであり、具体的な関数呼び出しロジックを担当。

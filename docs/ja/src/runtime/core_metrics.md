@@ -1,6 +1,6 @@
 # TaskMetrics
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/07/16
 
 TaskMetrics モジュールは、タスク実行プロセスにおける各種メトリクス（入力タスク数、成功数、失敗数、重複タスク数など）の管理と統計を担当します。通常は `TaskExecutor` のコンポーネントとして存在します。
 
@@ -130,6 +130,13 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
 ```
 
 例外型は `tuple` 形式で `self.retry_exceptions` に格納され、`TaskDispatch._worker` は `isinstance(exception, self.retry_exceptions)` でリトライ要否を判定します。呼び出しごとに既存の例外型に累積追加されます。
+
+```python
+def get_retry_error_type_names(self) -> set[str]:
+    """現在のエグゼキュータが永続化された失敗レコードから回復できるエラータイプ名の集合を取得します。"""
+```
+
+`TaskGraph.start_graph_db()` で永続化レコードを `error_type` でフィルタリングして再試行可能か判定するために使用されます。
 
 ## 使用例
 

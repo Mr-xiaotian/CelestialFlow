@@ -1,35 +1,120 @@
 # TaskErrors
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/07/16
 
 The TaskErrors module defines the complete exception class system used in the CelestialFlow framework.
 
 ## Exception Hierarchy
 
-```
-CelestialFlowError
-├── ConfigurationError
-│   └── InvalidOptionError
-│       ├── ExecutionModeError      # ("serial", "thread", "async")
-│       ├── StageModeError          # ("serial", "thread")
-│       ├── LogLevelError           # (TRACE/DEBUG/SUCCESS/INFO/...)
-│       ├── ScheduleModeError       # ("eager", "staged")
-│       └── CallableParameterKindError  # Callable parameter kind invalid
-├── GraphStructureError
-│   ├── DuplicateNodeError          # Duplicate node name
-│   ├── UnknownNodeError            # Unknown node name
-│   └── NodeNotFoundError           # Specified node not found in graph
-├── RuntimeStateError
-│   ├── InitializationError         # Initialization failure
-│   └── GraphManagedError           # Graph management error
-├── PersistedError                  # Persisted error summary
-├── RemoteWorkerError               # Remote Worker execution failure
-├── ReporterError                   # Reporter error
-├── CelestialTreeConnectionError    # CelestialTree connection failure
-├── CelestialFlowTimeoutError       # Timeout error
-├── UnconsumedError                 # Marks unconsumed tasks
-├── TaskFormatError                 # Task format error
-└── TerminationMergeError           # Termination signal merge error
+```mermaid
+classDiagram
+    direction TB
+
+    class CelestialFlowError {
+        +Base class
+    }
+
+    class ConfigurationError {
+        +Configuration error base class
+    }
+    class InvalidOptionError {
+        +field: str
+        +value: Any
+        +allowed: tuple
+        Invalid configuration value
+    }
+    class ExecutionModeError {
+        +execution_mode: str
+        +valid_modes: tuple
+        Invalid execution_mode
+    }
+    class StageModeError {
+        +stage_mode: str
+        +valid_modes: tuple
+        Invalid stage_mode
+    }
+    class LogLevelError {
+        +log_level: str
+        +valid_levels: tuple
+        Invalid log_level
+    }
+    class ScheduleModeError {
+        +schedule_mode: str
+        +valid_modes: tuple
+        Invalid schedule_mode
+    }
+    class CallableParameterKindError {
+        +callable_name: str
+        +parameter_kind: Any
+        +valid_kinds: tuple
+        Invalid callable parameter kind
+    }
+    class GraphStructureError {
+        +Graph structure error base class
+    }
+    class DuplicateNodeError {
+        +Duplicate node name
+    }
+    class UnknownNodeError {
+        +Unknown node name
+    }
+    class NodeNotFoundError {
+        +Specified node not found in graph
+    }
+    class RuntimeStateError {
+        +Runtime state error base class
+    }
+    class InitializationError {
+        +Initialization failure
+    }
+    class GraphManagedError {
+        +Graph management error
+    }
+    class PersistedError {
+        +error_type: str
+        +error_message: str
+        +Persisted error summary
+    }
+    class RemoteWorkerError {
+        +Remote Worker execution failure
+    }
+    class ReporterError {
+        +Reporter error
+    }
+    class CelestialFlowTimeoutError {
+        +Timeout error
+    }
+    class UnconsumedError {
+        +Marks unconsumed tasks
+    }
+    class TerminationMergeError {
+        +Termination signal merge error
+    }
+
+    CelestialFlowError <|-- ConfigurationError
+    CelestialFlowError <|-- RuntimeStateError
+    CelestialFlowError <|-- PersistedError
+    CelestialFlowError <|-- RemoteWorkerError
+    CelestialFlowError <|-- ReporterError
+    CelestialFlowError <|-- CelestialFlowTimeoutError
+    CelestialFlowError <|-- UnconsumedError
+    CelestialFlowError <|-- TerminationMergeError
+
+    ConfigurationError <|-- InvalidOptionError
+    ConfigurationError <|-- GraphStructureError
+
+    InvalidOptionError <|-- ExecutionModeError
+    InvalidOptionError <|-- StageModeError
+    InvalidOptionError <|-- LogLevelError
+    InvalidOptionError <|-- ScheduleModeError
+    InvalidOptionError <|-- CallableParameterKindError
+
+    GraphStructureError <|-- DuplicateNodeError
+    GraphStructureError <|-- UnknownNodeError
+    GraphStructureError <|-- NodeNotFoundError
+
+    RuntimeStateError <|-- InitializationError
+    RuntimeStateError <|-- GraphManagedError
 ```
 
 ## Base Class
@@ -250,17 +335,9 @@ class ReporterError(CelestialFlowError):
     pass
 ```
 
-### CelestialTreeConnectionError
-
-CelestialTree client connection failure.
-
-```python
-class CelestialTreeConnectionError(CelestialFlowError):
-    def __init__(self, message: str = "CelestialTreeClient is not available"):
-        ...
-```
-
 ## Other Runtime Exceptions
+
+### Timeout Exception
 
 ### CelestialFlowTimeoutError
 
@@ -282,17 +359,7 @@ class UnconsumedError(CelestialFlowError):
     pass
 ```
 
-When `TaskGraph._finalize_nodes()` finds remaining tasks in queues, they are marked as `UnconsumedError` and persisted.
-
-### TaskFormatError
-
-Task format error.
-
-```python
-class TaskFormatError(CelestialFlowError):
-    """Task format error"""
-    pass
-```
+When `TaskGraph._finalize_nodes()` finds remaining tasks in queues, they are marked as `UnconsumedError` and persisted to the sqlite fallback database via `fallback_inlet` / `FallbackSpout`.
 
 ### TerminationMergeError
 
@@ -410,7 +477,6 @@ from celestialflow.runtime.util_errors import (
     RuntimeStateError,
     CelestialFlowTimeoutError,
     UnconsumedError,
-    TaskFormatError,
     TerminationMergeError,
 )
 
@@ -419,12 +485,6 @@ try:
     raise CelestialFlowTimeoutError("Task execution timed out after 30s")
 except CelestialFlowTimeoutError as e:
     print(f"Timeout: {e}")
-
-# Task format error
-try:
-    raise TaskFormatError("Malformed task input: expected structured payload, got str")
-except TaskFormatError as e:
-    print(f"Format error: {e}")
 
 # Termination signal merge error
 try:
@@ -436,20 +496,12 @@ except TerminationMergeError as e:
 ### External Service Exceptions
 
 ```python
-from celestialflow.runtime.util_errors import (
-    RemoteWorkerError,
-    CelestialTreeConnectionError,
-)
+from celestialflow.runtime.util_errors import RemoteWorkerError
 
 try:
     raise RemoteWorkerError("Go worker returned status code 500")
 except RemoteWorkerError as e:
     print(f"Remote Worker error: {e}")
-
-try:
-    raise CelestialTreeConnectionError("Cannot connect to 127.0.0.1:7777")
-except CelestialTreeConnectionError as e:
-    print(f"Connection failed: {e}")
 ```
 
 ### Using with TaskExecutor
@@ -471,6 +523,12 @@ counts = executor.get_counts()
 print(f"Success: {counts['tasks_succeeded']}, Failed: {counts['tasks_failed']}")
 ```
 
-## Exception Persistence
+## Handling Unconsumed Tasks
 
-`TaskGraph` persists unhandled errors to a local JSONL file during `_finalize_nodes()`. Each error record contains the error type, message, Stage, event ID, and timestamp, represented by `PersistedErrorRecord`.
+`UnconsumedError` is primarily used to mark tasks that were not properly consumed. During the `TaskGraph._finalize_nodes()` finalization phase, each stage's `drain_task_queue()` is called:
+
+1. Drain the stage's task queue, collecting remaining tasks.
+2. For each remaining task, call `handle_task_fail(source, UnconsumedError())`.
+3. Failure information is written to `FallbackSpout` via `fallback_inlet`, and ultimately persisted to a date-organized sqlite fallback database.
+
+Thus, the "persistence" of unconsumed tasks is not performed by `util_errors.py` itself, but relies on the fallback mechanism at the Stage / Graph layer.

@@ -1,6 +1,6 @@
 # TaskMetrics
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/07/16
 
 The TaskMetrics module is responsible for managing and tracking various metrics during task execution, such as input task count, success count, failure count, duplicate task count, etc. It typically exists as a component of `TaskExecutor`.
 
@@ -129,6 +129,13 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
 ```
 
 Exception types are stored as a `tuple` in `self.retry_exceptions`. `TaskDispatch._worker` checks via `isinstance(exception, self.retry_exceptions)` to determine whether to retry. Each call accumulates on top of existing exception types.
+
+```python
+def get_retry_error_type_names(self) -> set[str]:
+    """Get the set of error type names that the current executor allows recovering from persisted failure records."""
+```
+
+Used in `TaskGraph.start_graph_db()` to filter retryable persisted records by `error_type`.
 
 ## Usage Example
 

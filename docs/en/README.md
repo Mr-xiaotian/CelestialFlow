@@ -15,42 +15,41 @@
   <img src="https://img.shields.io/badge/Task%20Graph-DAG-blueviolet">
   <img src="https://img.shields.io/badge/Workflow-Orchestrator-7c3aed">
   <img src="https://img.shields.io/badge/Event%20Tracing-CelestialTree-0ea5e9">
-  <img src="https://img.shields.io/badge/Web-Dashboard-FastAPI-ec4899">
 </p>
 
 <p align="center">
   <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/README.md">中文</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/README.md">English</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/README.md">日本語</a>
 </p>
 
-**CelestialFlow** is a lightweight yet fully-featured task flow framework, suitable for medium/large Python task systems that require **complex dependency relationships**, **flexible execution models**, **cross-device operation**, and **real-time visualization monitoring**.
+**CelestialFlow** is a lightweight yet fully-featured task flow framework, suitable for medium-to-large Python task systems that require **complex dependencies**, **flexible execution models**, **cross-device execution**, and **observable execution traces**.
 
-- Lighter and faster to get started than Airflow/Dagster
-- More structured than multiprocessing/threading; can directly express complex dependency patterns such as loops and complete graphs
+- Lighter and quicker to start than Airflow/Dagster
+- More structured than multiprocessing/threading, capable of directly expressing complex dependency patterns such as loops and complete graphs
 
 The basic unit of the framework is the **TaskExecutor**, which can run independently and supports three execution modes:
 
-* **Linear (serial)**
+* **Serial**
 * **Multi-threaded (thread)**
 * **Coroutine (async)**
 
-TaskExecutor implements result caching, task deduplication, progress bar display, multi-execution-mode comparison, and other features, making it quite useful even when used standalone.
+TaskExecutor implements result caching, task deduplication, progress bar display, multi-mode execution comparison, and more — it works well even when used standalone.
 
-However, beyond using TaskExecutor directly, the more important usage is through its subclass **TaskStage**. TaskStage nodes can be interconnected to form a task graph (**TaskGraph**) with upstream and downstream dependency relationships. Downstream stages automatically receive the results of upstream execution as input, forming a clear data flow.
+Beyond directly using TaskExecutor, the more important abstraction is its subclass **TaskStage**. TaskStage instances can be connected to each other, forming a task graph (**TaskGraph**) with upstream and downstream dependencies. A downstream stage automatically receives the completed results from its upstream stage as input, creating a clear data flow.
 
-TaskStage also supports the same three task execution modes as TaskExecutor.
+TaskStage supports the same three execution modes as TaskExecutor.
 
 At the graph level, each Stage supports two context modes:
 
-* **Linear execution (serial layout)**: The current node finishes execution before the next node starts (downstream nodes can receive tasks early but will not execute immediately).
-* **Thread execution (thread layout)**: The current node starts in an independent thread within the main process, suitable for I/O-intensive tasks and unpicklable functions (such as lambda).
+* **Serial execution (serial layout)**: The current node finishes before the next node starts (downstream nodes may receive tasks early but will not execute immediately).
+* **Threaded execution (thread layout)**: The current node runs in an independent thread within the main process, suitable for I/O-intensive tasks and functions that cannot be pickled (such as lambda).
 
-TaskGraph can build complete **directed graph structures**, supporting not only traditional Directed Acyclic Graphs (DAG) but also flexibly expressing **tree**, **loop**, and even **complete graph** forms of task dependencies.
+TaskGraph can construct a full **directed graph structure**, supporting not only traditional directed acyclic graphs (DAG), but also flexibly expressing **tree**, **loop**, and even **complete graph** task dependencies.
 
-Beyond execution and scheduling, CelestialFlow further introduces the **CelestialTree (abbreviated: ctree) event tracing system**, which records clear causal relationships for every task and its derived behaviors (success, failure, retry, split, route, etc.). With ctree, starting from any initial task, you can fully reconstruct its propagation path and execution trace within the TaskGraph, enabling complete **tracing, analysis, and explanation** of the task system.
+Beyond execution and scheduling, CelestialFlow further introduces the **CelestialTree (ctree) event tracing system**, which records explicit causal relationships for each task and its derivative behaviors (success, failure, retry, split, routing, etc.). With ctree, you can start from any initial task and fully reconstruct its propagation path and execution trace within the TaskGraph, enabling complete **tracing, analysis, and interpretation** of the task system.
 
-On this foundation, CelestialFlow supports Web-based visualization monitoring and provides Redis-based demos and Go Worker external collaboration examples to demonstrate how to build cross-process, cross-device task collaboration on demand.
+On this foundation, CelestialFlow provides event tracing, status reporting, persistent replay, and a Redis-based demo along with a Go Worker external collaboration example, demonstrating how to build cross-process, cross-device task collaboration on demand.
 
-## Project Structure
+## 项目结构（Project Structure）
 
 ```mermaid
 flowchart LR
@@ -69,51 +68,38 @@ flowchart LR
 
     end
 
-    %% TaskGraph border styling
+    %% Style TaskGraph outer frame
     style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
 
     %% Unified styling format
     classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
 
-    %% TaskStage styling
+    %% Style TaskStages
     class S1,S2,S3,S4 blueNode;
 
-    %% ===== WebUI =====
-    subgraph W[WebUI]
-        JS
-        HTML
-    end
-
-    style W fill:#ffeaf0,stroke:#d66b8c,stroke-width:2px,rx:10px,ry:10px
-    style JS fill:#ffffff,stroke:#d66b8c,rx:5px,ry:5px
-    style HTML fill:#ffffff,stroke:#d66b8c,rx:5px,ry:5px
-
-    R[TaskWeb]
-    style R fill:#f0e9ff,stroke:#8a6bc9,stroke-width:2px,rx:8px,ry:8px
-
     %% ===== Links =====
-    TG --> R 
-    R --> TG 
-    R --> W
-    W --> R
+    TG --> CFB[CelestialFlow Web]
+    CFB --> TG 
+
+    style CFB fill:#ffeaf0,stroke:#d66b8c,stroke-width:2px,rx:10px,ry:10px
 
 ```
 
-## Quick Start
+## 快速开始（Quick Start）
 
 Install CelestialFlow:
 
 ```bash
-# Recommended: use `uv` for dependency and environment management
+# It is recommended to use `uv` for dependency and environment management
 uv pip install celestialflow
 
-# Or directly use `pip`
+# However, you can also use `pip` directly
 pip install celestialflow
 ```
 
-If you only use CelestialFlow's core scheduling, Web, persistence, and regular features outside of demo/test, the above installation is sufficient.
+If you only need CelestialFlow's core scheduling, observability, and persistence capabilities, the above installation is sufficient.
 
-If you also need to enable CelestialTree event tracing, you need to **additionally install** `celestialtree`:
+If you also need to enable CelestialTree event tracing, you must **additionally install** `celestialtree`:
 
 ```bash
 # For published package users
@@ -140,7 +126,7 @@ if __name__ == "__main__":
     stage2 = TaskStage(name="Squarer", func=square, stage_mode="thread", execution_mode="thread")
 
     # Build the task graph structure
-    graph = TaskGraph()
+    graph = TaskGraph(name="DemoGraph")
     graph.set_stages(stages=[stage1, stage2])
     graph.connect([stage1], [stage2])
 
@@ -148,25 +134,24 @@ if __name__ == "__main__":
     graph.start_graph({stage1.get_name(): [(1, 2), (3, 4), (5, 6)]})
 ```
 
-Note: Do not run this in .ipynb files.
+Note: Do not run in a `.ipynb` file.
 
-👉 For the complete Quick Start, see [Quick Start](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/quick_start.md)
+👉 To see the full Quick Start, please refer to [Quick Start](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/quick_start.md)
 
-## Further Reading
+## 深入阅读（Further Reading）
 
-If you want to understand the overall structure and core components of the framework, the following reference documents will help:
+If you want to understand the overall architecture and core components of the framework, the following reference documents will help:
 
-- [stage/core_executor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_executor.md)
-- [stage/core_stage.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stage.md)
-- [graph/core_graph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_graph.md)
-- [observability/core_progress.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_progress.md)
-- [runtime/core_metrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_metrics.md)
-- [runtime/core_queue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_queue.md)
-- [stage/core_stages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stages.md)
-- [observability/core_report.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_report.md)
-- [graph/core_structure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_structure.md)
-- [web/core_server.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/web/core_server.md)
-- [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
+- [TaskExecutor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_executor.md)
+- [TaskStage.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stage.md)
+- [TaskGraph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_graph.md)
+- [TaskProgress.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_progress.md)
+- [TaskMetrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_metrics.md)
+- [TaskQueue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_queue.md)
+- [TaskStages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stages.md)
+- [TaskReport.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_report.md)
+- [TaskStructure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_structure.md)
+- [Go Worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
 
 Recommended reading order:
 
@@ -176,7 +161,6 @@ flowchart TD
     classDef runtime fill:#e9f8ef,stroke:#22c55e,color:#14532d;
     classDef structure fill:#fff6e6,stroke:#f59e0b,color:#78350f;
     classDef execution fill:#f3e8ff,stroke:#a855f7,color:#581c87;
-    classDef web fill:#ffeaea,stroke:#ef4444,color:#7f1d1d;
 
     TM[TaskExecutor.md] --> TS[TaskStage.md] --> TG[TaskGraph.md]
     TM --> TP[TaskProgress.md]
@@ -187,136 +171,97 @@ flowchart TD
     TG --> TR[TaskReport.md]
     TG --> TSR[TaskStructure.md]
 
-    TR --> TW[TaskWeb.md]
     TN --> GW[Go Worker.md]
 
     class TM,TS,TG core;
     class TP,TME runtime;
     class TSR structure;
     class TQ,TN,GW execution;
-    class TR,TW web;
+    class TR execution;
 ```
 
-The following can serve as supplementary reading:
+The following five can serve as supplementary reading:
 
-- [runtime/util_hash.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_hash.md)
-- [runtime/util_types.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_types.md)
-- [runtime/util_errors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_errors.md)
-- [persistence/core_fallback.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_fallback.md)
-- [persistence/core_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md)
+- [UtilHash.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_hash.md)
+- [UtilTypes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_types.md)
+- [UtilErrors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_errors.md)
+- [Fallback.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_fallback.md)
+- [Log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md)
 
-If you prefer understanding the framework's operation through a complete case study, refer to this tutorial on building a project from scratch using TaskGraph:
+If you prefer to understand the framework's operation through a complete case study, refer to this tutorial on building a project from scratch with TaskGraph:
 
 [📘 Case Tutorial](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/tutorial.md)
 
-If you're interested in the `ctree_client` and its features introduced in version 3.0.7, check out:
+If you're interested in the `ctree_client` and its functionality added in version 3.0.7, take a look at this article:
 
 [📚 CelestialTreeClient](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/ctree_client.md)
 
-You can continue running more demo code. Here is a record of each demo file and the demo functions it contains:
+You can continue running more demo code. Here is a record of each demo file and descriptions of the demo functions within:
 
 [🎮 demo/ Overview](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/README.md)
 
-If you want to run the test code, first review the following documentation:
+If you want to run test code, you can first review the following documentation:
 
 [🧪 tests/ Overview](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/tests/README.md)
 
-If you want to check the bench content, this data is also the basis for some design decisions in the framework:
+If you want to view bench content, this data also serves as the basis for some of the framework's design decisions:
 
 [⚡ bench/ Overview](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/bench/README.md)
 
-## Requirements
+## 环境要求（Requirements）
 
-**CelestialFlow** is based on Python 3.12+ and depends on the following core components at runtime.
-`celestialtree` is no longer a default runtime dependency, but an optional component installed additionally.
+**CelestialFlow** is based on Python 3.12+. The default runtime depends on the following core components.
+Note that `celestialtree` is no longer a default runtime dependency; it is an optional component installed separately.
 
-| Dependency | Description |
-| ----------------- | ---- |
-| **Python ≥ 3.12**  | Runtime environment; 3.12 or above recommended |
-| **fastapi**       | Web service interface framework (for task visualization and remote control) |
-| **uvicorn**       | High-performance ASGI server for FastAPI |
+| Dependency        | Description |
+| ----------------- | ----------- |
+| **Python ≥ 3.12** | Runtime environment; version 3.12 or above is recommended |
 | **requests**      | HTTP client library, used for task status reporting and remote calls |
-| **jinja2**        | FastAPI template engine, used for Web visualization interface rendering |
-| **tqdm**          | Optional component, progress bar display for task execution visualization |
+| **tqdm**          | Optional component; progress bar display for task execution visualization |
 
-To run `demo/demo_redis.py` or the Go Worker example, please additionally install `redis` and prepare a Redis service; this is not part of the default runtime dependency.
+- To run `demo/demo_redis.py` or the Go Worker example, please additionally install `redis` and prepare a Redis service; this is not part of the default runtime dependencies.
 
-To run demos/benches/tracing queries that depend on CelestialTree, please additionally install `celestialtree`, or directly execute `uv sync --group dev` in the source repository.
+- To run demos / benches / trace queries that depend on CelestialTree, please additionally install `celestialtree`, or execute `uv sync --group dev` directly in the source repository.
 
-## File Structure
+- To use the visual web service, please additionally install `celestialflow-web` and run `celestialflow-web --host 0.0.0.0 --port 5000`.
+
+## 文件结构（File Structure）
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
   <br/>
-  <em>celestial-flow 3.2.4</em>
+  <em>celestial-flow 3.2.6</em>
 </p>
 
-(This view was generated by `inst_file.FileTree.print_tree()` from my other project [CelestialVault](https://github.com/Mr-xiaotian/CelestialVault). Converted to an image with the help of [Carbon](https://carbon.now.sh).)
+(This view was generated by `inst_file.FileTree.print_tree()` from my other project [CelestialVault](https://github.com/Mr-xiaotian/CelestialVault). Conversion to an image was done with [Carbon](https://carbon.now.sh).)
 
-## Version Log
-- 3.2.4
+## 版本日志（Version Log）
+- 3.2.6
   - feat:
-    - **[IMPORTANT]** Merged the original `fail_funnel` and `success_funnel` mechanisms into `fallback`, using `sqlite` for storage
-      - The original JSONL-based failure persistence mechanism was very convenient for storage, but reading required loading everything into memory each time for retrieval, which was troublesome. I considered using a database service like `redis`, but didn't want to start another third-party service. Then I accidentally discovered that `sqlite` perfectly meets all my requirements
-      - Long live Richard!
-      - As for the original `success_funnel` mechanism, it was a half-finished product: only usable in `executor`, not in `stage`, and stored entirely in memory. So I took this opportunity to refactor it as well, merging it into `fallback_funnel`
-      - Now `fallback_funnel` inserts/updates/deletes corresponding records in sqlite when tasks are `injected/duplicated/retried/failed/succeeded`
-      - By default, records are deleted when tasks succeed, but if the `persist_result` option in `executor` is enabled, the record is kept and the `status` field is updated to `success`
-    - **[IMPORTANT]** Removed the three redis nodes from `stages` and added demo files explaining how to build related nodes yourself
-      - Compared to `TaskSplitter` and `TaskRouter`, these three nodes were dispensable and introduced an extra `redis` dependency
-    - **[IMPORTANT]** `celestialtree` is no longer a dependency library. The current event declaration mechanism is based on a set of proto interfaces and uses a local ultra-simplified implementation by default
-      - This was also to avoid too many library dependencies. The `celestialtree` library includes dependencies on `grpcio` and `protobuf`, and their support for Python free-threading is not very good. With them present, `celestialflow` could not run under the free-threading version — which I very much look forward to
-      - According to `bench_gil_vs_nogil`, under the free-threading version, `executor` gets a 5.25x improvement on CPU-intensive tasks, while `graph` gets a 7.55x improvement on CPU-intensive tasks. Very encouraging
-    - Added "Global Waiting Queue" to the frontend "Node Metrics Trend" card
-    - Added `start_graph_db` method to `graph`, which accepts a fallback database path and performs `start_graph` based on the failure data inside; added `start_db` method to `executor`, which accepts a fallback database path and performs `start` based on the failure data inside
-      - Very convenient
+    - Added methods in `graph` and `stage` to directly read a db file and retry/continue tasks
+      - Respectively: `start_graph_db` and `start_db`
   - refactor:
-    - **[IMPORTANT]** Changed server-side error data storage from native Python lists to a temporary sqlite database
-      - Under the hammer effect, I want to try more sqlite usage
-    - Added a `graph_id` based on `name` and `time.time()` to each `graph` as a uniqueness identifier
-    - Rewrote reporter and server-side interaction logic
-      - Now each refresh round starts with state alignment. Through `graph_id`, both sides determine whether their data comes from the same `graph` object; if so, structure/analysis data does not need to be pushed repeatedly
-      - During state alignment, if both sides have the same graph, the server returns the largest `event_id` value it holds among error data. After strict verification, `event_id` strictly increases in the database
-      - Merged reporter's original `push_error_meta` and `push_error_content`; now each refresh only sends newly added error data, and new data is filtered based on the maximum `event_id` returned by the server and the maximum `event_id` in the local database
-    - Bound more responsibilities to `graph.connect` and `graph_set_stage`
-      - Now synchronization of nodes and `graph` on `ctree` and `reporter` is completed in `graph_set_stage`
-      - And binding of upstream/downstream `task_queue` and `result_queue`, as well as binding of `counter`, are all completed in `graph.connect`
-    - Removed irrelevant data from `TaskEnvelope`, keeping only `task`, `hash`, and `id`
-      - The `source` field should not have been added; it never played a role
-      - The `prev` field served the original `success_funnel` and is no longer needed
-    - `TaskMetrics` now fixedly uses `Lock` to qualify all `counter`s, regardless of `executor`'s `execution_mode`
-      - This fixed pattern sacrifices some performance but makes the code more stable
-      - According to `bench_lock_overhead`, this makes `counter` about 3.2x slower, but considering all `counter` updates are based on `int` types and already fast, this is acceptable
-    - Removed an existing `task.success` declaration in `process_task_success`; now a `task.input` declaration is made before `result_envelope` enters `result_queue`
-      - To ensure the `event_id` in the fallback sqlite is globally unified
-    - `executor.get_fail_pairs` (formerly `executor.get_error_pairs`) returns `tuple[T, PersistedError]`
-      - `PersistedError` consists of the recorded `error_type` and `error_message`
-    - Rewrote `TaskRouter` node; now a `router` function must be passed to specify the routing direction of tasks
-    - Removed some useless methods
-      - Such as `TaskGraph.get_stage_input_trace`
-  - fix:
-    - The structure graph on the frontend dashboard page no longer displays blank when switching tabs
-      - This was a very old bug; I don't know why I didn't fix it sooner
+    - **[IMPORTANT]** Moved the web component to a separate project [celestialflow-web](https://github.com/Mr-xiaotian/celestialflow-web)
+      - A decision long considered; the current web-side code diverges significantly from the overall project style and is no longer suitable to remain merged together
+      - This of course means the `celestialflow-web` command is no longer valid in the current project; it requires a separate installation via `pip install celestialflow-web`
   - chore:
-    - Added more demos
-    - Added more benchmarks
-    - Added `Agents.md` file
-      - I'm tired of endlessly emphasizing things to AI
+    - Fully updated documentation and translated it into two additional languages: en/ja
+    - Removed `README.md` under docs/zh-CN; now the Chinese readme is kept only as this one in the root directory
 
-For more historical logs, see:
+For more past logs, see:
 
 [change_log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/change_log.md)
 
-## Star History
+## Star 历史趋势（Star History）
 
-If you're interested in the project, a star is welcome. If you have questions or suggestions, feel free to submit [Issues](https://github.com/Mr-xiaotian/CelestialFlow/issues) or let me know in [Discussion](https://github.com/Mr-xiaotian/CelestialFlow/discussions).
+If you are interested in the project, a star is welcome. If you have questions or suggestions, feel free to submit [Issues](https://github.com/Mr-xiaotian/CelestialFlow/issues) or let me know in [Discussions](https://github.com/Mr-xiaotian/CelestialFlow/discussions).
 
 ![Star History Chart](https://api.star-history.com/svg?repos=Mr-xiaotian/CelestialFlow&type=Date)
 
-## License
+## 许可（License）
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/LICENSE) file for details.
 
-## Author
+## 作者（Author）
 Author: Mr-xiaotian
 Email: mingxiaomingtian@gmail.com
 Project Link: [https://github.com/Mr-xiaotian/CelestialFlow](https://github.com/Mr-xiaotian/CelestialFlow)

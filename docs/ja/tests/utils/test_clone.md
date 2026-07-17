@@ -1,6 +1,6 @@
 # クローンユーティリティテスト (test_clone.py)
 
-> 📅 最終更新日: 2026/05/28
+> 📅 最終更新日: 2026/06/28
 
 ## 役割
 
@@ -28,6 +28,21 @@
 - 単純 DAG（A→B→C）：クローン後、ソースノード、NetworkX ノード集合、エッジ集合がすべて一致
 - `schedule_mode` が正しく保持されること
 - クローングラフ内で特定ノードの `execution_mode` を変更しても、元のグラフの対応ノードに影響しないこと
+- デフォルトのローカルイベントクライアントはクローン後もインスタンスが独立していること。
+
+## テストカバレッジマトリクス
+
+| テスト関数 | カバレッジ目標 |
+|----------|----------|
+| `test_clone_executor_same_attributes` | クローン後の主要属性が一致すること |
+| `test_clone_executor_different_object` | クローンが新しいオブジェクトを返すこと |
+| `test_clone_executor_independent` | クローンの変更が元の実行器に影響しないこと |
+| `test_clone_stage_same_attributes` | クローン後の主要属性が一致すること |
+| `test_clone_stage_different_object` | クローンが新しいオブジェクトを返すこと |
+| `test_clone_stage_independent` | クローンの変更が元の stage に影響しないこと |
+| `test_clone_graph_structure` | DAG 構造、ソースノード、エッジ、`schedule_mode` が一致すること |
+| `test_clone_graph_independent` | クローングラフのノード変更が元のグラフに影響しないこと |
+| `test_clone_graph_creates_independent_local_event_client` | ローカルイベントクライアントのインスタンスが独立していること |
 
 ## 実行方法
 
@@ -55,6 +70,7 @@ pytest tests/utils/test_clone.py -k "graph" -v
 
 - グラフクローン時に NetworkX グラフでノードとエッジの一貫性を検証し、ソースノードアクセスが同時に `_build_analysis` をトリガーします。
 - `clone_graph` テストは有向非巡回グラフ `A → B → C` を構築し、グラフ構造の完全性を検証します。
+- `LocalEventClient` の独立検証により、クローングラフが独立したイベントバスを持ち、ランタイム状態が相互に干渉しないことを確認します。
 
 ## 注意事項
 

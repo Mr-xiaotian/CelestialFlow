@@ -1,13 +1,13 @@
 # UtilsFormat
 
-> 📅 Last Updated: 2026/04/22
+> 📅 Last Updated: 2026/06/28
 
 `utils/util_format.py` provides general formatting utilities.
 
-## Key Functions
+## Main Functions
 
 - `format_repr`: Safely truncates object string representations.
-- `format_table`: Renders 2D data as a text table.
+- `format_table`: Renders 2D data as a text table, supporting `left` / `right` / `center` alignment.
 - `format_duration`: Converts seconds to a readable duration.
 - `format_timestamp`: Converts a timestamp to a date-time string.
 - `format_avg_time`: Formats average processing speed.

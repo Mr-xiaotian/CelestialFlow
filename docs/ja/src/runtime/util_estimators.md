@@ -1,6 +1,6 @@
 # RuntimeEstimators
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/07/16
 
 `runtime/util_estimators.py` は実行時経過時間推定関数を提供します。
 
@@ -12,7 +12,7 @@
 
 ## 使用例
 
-以下の例は `RemainingTimeEstimator` 関連関数の使用方法を示します。
+以下の例は `calc_remaining`、`calc_elapsed`、`calc_global_pending` などの推定関数の使用方法を示します。
 
 ### calc_remaining：ノード残り時間の推定
 

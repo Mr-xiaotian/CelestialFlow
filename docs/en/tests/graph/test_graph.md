@@ -1,6 +1,6 @@
 ﻿# Task Graph Core Feature Tests (test_graph.py)
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/07/16
 
 ## Purpose
 Comprehensively validates the core functionality of `TaskGraph` and its various topology subclasses (`TaskChain`, `TaskCross`, `TaskGrid`), covering synchronous/asynchronous execution, error propagation, topology analysis, execution mode matrix, source node derivation, cyclic graph behavior, finalization safety checks, and runtime snapshot collection.
@@ -16,7 +16,7 @@ Comprehensively validates the core functionality of `TaskGraph` and its various 
 
 | Test Class | Case Count | Coverage Points |
 |------------|------------|-----------------|
-| `TestTaskGraphBasic` | 4 | Two-node DAG, fan-out, fan-in, error propagation |
+| `TestTaskGraphBasic` | 7 | set_ctree updates existing stage, two-node DAG, fan-out, fan-in, error propagation, start_graph_db, error type filtered replay |
 | `TestTaskGraphAsync` | 5 | Async mode two-node, fan-out, fan-in, error propagation, async+thread stage_mode |
 | `TestTaskGraphStructure` | 3 | Chain, Cross, Grid structures |
 | `TestTaskGraphAnalysis` | 2 | DAG detection, level computation |
@@ -26,7 +26,7 @@ Comprehensively validates the core functionality of `TaskGraph` and its various 
 | `TestTaskGraphThread` | 6 | Thread mode two-node, fan-out, fan-in, error propagation, lambda, staged dispatch |
 | `TestSourceStages` | 5 | Linear graph source, fan-in source, diamond graph source, single-SCC representative, multi-SCC one-per-source |
 | `TestCyclicGraph` | 2 | Cyclic graph isDAG detection, same-level within cycle + tail level |
-| **Total** | **35** | |
+| **Total** | **38** | |
 
 > **Note**: The statistics here cover test classes in `test_graph.py`. Dedicated tests for `TaskLoop` and `TaskWheel` are in `test_structure.py`.
 
@@ -45,6 +45,8 @@ graph LR
 - **Fan-out** (`test_graph_fan_out`): One upstream distributes to multiple downstreams, sink_a and sink_b each succeed with 2.
 - **Fan-in** (`test_graph_fan_in`): Multiple upstreams converge to one downstream, merge node receives 4 tasks.
 - **Error propagation** (`test_graph_error_propagation`): Verifies `50` triggers `ValueError` without blocking the flow; downstream only receives successful tasks.
+- **DB startup** (`test_graph_start_db`): Verifies replay of failed/pending tasks from SQLite.
+- **DB startup filtering** (`test_graph_start_db_filters_error_type_when_enabled`): Verifies replay tasks are filtered by each stage's `retry_exceptions`.
 
 #### Async and Concurrency
 - Two-node, fan-out, fan-in, and error propagation in async mode share the same semantics as sync mode.

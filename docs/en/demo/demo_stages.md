@@ -1,6 +1,6 @@
 ﻿# demo_stages.py Demo Guide
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/07/16
 
 ## Objective
 
@@ -29,7 +29,7 @@ flowchart TD
 **Graph structure**: Cyclic graph (`parse_stage → generate_stage`)
 
 ### `demo_splitter_1`
-Demonstrates large batch splitting: input `range(int(1e5))` is wrapped in a list and passed to `TaskSplitter`, with downstream receiving items one by one, avoiding loading too many tasks into memory at once.
+Demonstrates large batch splitting: input `range(100_000)` is wrapped in a list and passed to `TaskSplitter`, with downstream receiving items one by one, avoiding loading too many tasks into memory at once.
 
 ### `demo_router_0`
 Demonstrates `TaskRouter` dispatching tasks to different downstream nodes based on parity.
@@ -45,10 +45,10 @@ Routing logic: The `Origin` stage simply outputs the original input integer; `Ta
 
 ## Key Configuration
 
-- All stages default to `stage_mode="thread"` (multi-threaded)
+- Each stage's `stage_mode` varies by scenario: `demo_splitter_0` sets all to `"thread"` via `graph.set_graph_mode("thread", "thread")`; in `demo_router_0`, `Origin` and `Router` use `stage_mode="serial"`, while downstream `StageA`/`StageB` use `"thread"`; `demo_splitter_1` specifies `stage_mode="thread"` through `TaskChain`
 - `set_reporter(True)` enables monitoring reporting
 - Uses `LocalEventClient()` by default for local event ID generation
-- To connect to CelestialTree, first install `celestialtree` separately, then construct a client and call `set_ctree(ctree_client)`
+- `set_ctree(ctree_client)` is commented out in `demo_splitter_0` and `demo_router_0`, so CelestialTree is not enabled by default; to use it, first install `celestialtree` separately and uncomment the corresponding call
 - Redis remote collaboration examples have been migrated to `demo_redis.py`
 
 ## Potential Issues

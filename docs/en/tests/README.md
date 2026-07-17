@@ -1,6 +1,6 @@
 # tests/ Test Overview
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/06/28
 
 ## Description
 
@@ -15,7 +15,7 @@ If this is your first time examining the test suite, we recommend reading in the
 1. `tests/__init__.md`: Start with the overall test directory structure
 2. `runtime/__init__.md`: Understand coverage of base types, queues, exceptions, and scheduling primitives
 3. `stage/__init__.md` and `graph/__init__.md`: Understand core tests for executors, stages, and task graphs
-4. `web/__init__.md` and `observability/__init__.md`: Finally, review integration tests for Web and reporting pipelines
+4. `observability/__init__.md`: Finally, review integration tests for Reporter and reporting pipelines
 
 ## Document Index
 
@@ -33,11 +33,12 @@ If this is your first time examining the test suite, we recommend reading in the
 | `funnel/__init__.md` | Inlet / Spout pipeline tests |
 | `graph/__init__.md` | `TaskGraph`, topological analysis, and structure export tests |
 | `observability/__init__.md` | Observer, Reporter, injection, and reporting tests |
-| `persistence/__init__.md` | sqlite / JSONL / success / fail / log persistence tests |
+| `persistence/__init__.md` | sqlite / success / fail / log persistence tests |
 | `runtime/__init__.md` | Queue, envelope, exception, estimator, counter, and other base runtime tests |
 | `stage/__init__.md` | `TaskExecutor`, `TaskStage`, and built-in stage tests |
-| `utils/__init__.md` | clone / format and other utility layer tests |
-| `web/__init__.md` | Web service, routing, and interface behavior tests |
+| `utils/test_clone.md` | clone utility tests |
+| `utils/test_format.md` | format utility tests |
+> There is no `__init__.py` under `tests/utils/`, so there is no corresponding `utils/__init__.md`.
 
 ## How to Use
 
@@ -48,7 +49,6 @@ pytest tests -v
 pytest tests/runtime -v
 pytest tests/stage -v
 pytest tests/graph -v
-pytest tests/web -v
 ```
 
 You can also filter by keyword:
@@ -63,10 +63,10 @@ We recommend using these documents in the following way:
 
 - To know whether a module "is tested": first read the corresponding subdirectory's `__init__.md`
 - To know how a specific behavior "is tested": then read the corresponding `test_*.md`
-- To assess the impact surface of a protocol change: prioritize `graph/`, `stage/`, `persistence/`, and `web/` document groups
+- To assess the impact surface of a protocol change: prioritize `graph/`, `stage/`, `persistence/`, and `observability/` document groups
 
 ## Notes
 
-1. Some tests depend on temporary files, sqlite, event queues, or web test clients. Runtime environment fluctuations may affect execution time but should not affect assertion results.
-2. When production protocols change, test documentation typically needs to be synchronized with `src/`, `web/`, and `demo/` updates.
+1. Some tests depend on temporary files, sqlite, event queues, or HTTP reporting pipelines. Runtime environment fluctuations may affect execution time but should not affect assertion results.
+2. When production protocols change, test documentation typically needs to be synchronized with `src/` and `demo/` updates.
 3. If you only want to quickly verify the current change, prioritize running the test subset closest to the changed directory rather than always running the full test suite.

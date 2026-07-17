@@ -1,6 +1,6 @@
 # SQLite ユーティリティテスト (test_splite.py)
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/07/16
 
 ## 目的
 
@@ -16,10 +16,10 @@
 | `load_records` | ステータスでフィルタして全レコードを読み取り |
 | `append_records` | レコードをバッチ追加（重複 event_id はスキップ） |
 | `query_records` | ページング、フィルタ、ソート検索 |
+| `query_error_type_counts` | エラータイプ別に failed レコード数を集計、ノードフィルタ可能 |
 | `clear_records` | records テーブルを全件クリア |
 | `get_max_event_id_in_fail` | failed 状態のみの最大 event_id を集計 |
 | `load_records_after_event_id_in_fail` | failed event_id 下限で増分読み取り |
-| `load_records_grouped_by_stage` | stage 別に failed レコードをグループ化読み取り |
 | `promote_record_to_failed_by_event_id` | ステータスを failed に更新しエラー情報を書き込み |
 | `promote_record_to_success_by_event_id` | ステータスを success に更新し結果を書き込み |
 | `update_record_event_id_by_event_id` | レコードの event_id を移行 |
@@ -31,7 +31,7 @@
 
 | テストクラス | ケース数 | カバレッジ対象 |
 |--------|--------|---------|
-| `TestSpliteUtils` | 14 | 接続・テーブル作成、正規化、挿入/読み取り、追加/重複排除、ページング検索、クリア、増分/グループ読み取り、状態遷移、event_id 移行、削除、ペア読み取り |
+| `TestSpliteUtils` | 18 | 接続・テーブル作成、正規化、挿入/読み取り、追加/重複排除、ページング検索、クリア、増分/グループ読み取り、エラータイプ集計、状態遷移、event_id 移行、削除、ペア読み取り |
 
 ## 主要テストシナリオ
 
@@ -59,6 +59,12 @@
 - `query_records` は `page`/`page_size`/`node`/`keyword`/`sort_order` パラメータをサポート
 - ソートルール（newest/oldest）とフィルタ精度を検証
 
+### エラータイプ集計
+
+- `query_error_type_counts` はエラータイプ（`error_type`）別に全 failed レコード数を集計
+- `query_error_type_counts` は `node` パラメータによる stage フィルタをサポート
+- status が `failed` のレコードのみを集計し、success など他の状態は無視
+
 ### 状態遷移
 
 - `promote_record_to_failed_by_event_id`: waiting→failed、event_id とエラー情報を更新
@@ -67,9 +73,9 @@
 
 ### 増分とグループ化
 
-- `get_max_event_id_in_fail` は failed 状態のみを集計
+- `get_max_event_id_in_fail` は failed 状態のみを集計。failed レコードがない場合は `None` を返す
 - `load_records_after_event_id_in_fail` は event_id 下限で増分読み取り
-- `load_records_grouped_by_stage` は failed レコードのみを返し、stage 別にグループ化
+- `load_task_error_records` は stage フィルタをサポートし、`(task_json, (error_type, error_message))` リストを返す
 
 ### ペア読み取り
 
@@ -79,10 +85,10 @@
 ## 実行方法
 
 ```bash
-# 全部执行
+# 全テスト実行
 pytest tests/persistence/test_splite.py -v
 
-# 按关键字匹配
+# キーワードでマッチ
 pytest tests/persistence/test_splite.py -k "connect or normalize" -v
 pytest tests/persistence/test_splite.py -k "insert or append" -v
 pytest tests/persistence/test_splite.py -k "promote" -v

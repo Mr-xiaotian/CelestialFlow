@@ -1,6 +1,6 @@
 # bench_graph_mode.py ベンチマーク説明
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/07/16
 
 ## 目的
 
@@ -84,7 +84,7 @@ python bench/bench_graph_mode.py
 
 > 環境：Windows、Python 3.10
 
-#### `bench_graph_0` — 4 ノード DAG、CPU+I/O 混合、11 タスク（異常境界を含む）
+#### `bench_graph_0` — 4 ノード DAG、CPU+I/O 混合、12 タスク（異常境界を含む）
 
 | stage_mode \ execution_mode | serial | thread | async |
 |----------------------------|--------|--------|-------|
