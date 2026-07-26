@@ -32,12 +32,18 @@ def parse_args() -> argparse.Namespace:
 
 def bench_without_session(url: str, num_requests: int) -> list[float]:
     """不使用Session，每次新建连接"""
+    # 预热
+    try:
+        requests.get(url, timeout=TIMEOUT)
+    except Exception:
+        pass
     times = []
     for i in range(num_requests):
         start = time.perf_counter()
         try:
             response = requests.get(url, timeout=TIMEOUT)
             response.raise_for_status()
+            response.content  # 消费body，确保socket可复用
             times.append(time.perf_counter() - start)
         except Exception as e:
             print(f"Request {i} failed: {e}")
@@ -46,17 +52,22 @@ def bench_without_session(url: str, num_requests: int) -> list[float]:
 
 def bench_with_session(url: str, num_requests: int) -> list[float]:
     """使用Session复用连接"""
-    session = requests.Session()
     times = []
-    for i in range(num_requests):
-        start = time.perf_counter()
+    with requests.Session() as session:
+        # 预热
         try:
-            response = session.get(url, timeout=TIMEOUT)
-            response.raise_for_status()
-            times.append(time.perf_counter() - start)
-        except Exception as e:
-            print(f"Request {i} failed: {e}")
-    session.close()
+            session.get(url, timeout=TIMEOUT)
+        except Exception:
+            pass
+        for i in range(num_requests):
+            start = time.perf_counter()
+            try:
+                response = session.get(url, timeout=TIMEOUT)
+                response.raise_for_status()
+                response.content  # 消费body，确保socket可复用
+                times.append(time.perf_counter() - start)
+            except Exception as e:
+                print(f"Request {i} failed: {e}")
     return times
 
 
@@ -64,12 +75,18 @@ def bench_concurrent_without_session(
     url: str, num_requests: int, workers: int
 ) -> list[float]:
     """并发测试 - 不使用Session"""
+    # 预热
+    try:
+        requests.get(url, timeout=TIMEOUT)
+    except Exception:
+        pass
 
     def make_request(i: int) -> float | None:
         start = time.perf_counter()
         try:
             response = requests.get(url, timeout=TIMEOUT)
             response.raise_for_status()
+            response.content  # 消费body，确保socket可复用
             return time.perf_counter() - start
         except Exception as e:
             print(f"Request {i} failed: {e}")
@@ -102,12 +119,20 @@ def bench_concurrent_with_session(
                 created_sessions.append(session)
         return session
 
+    def _warmup() -> None:
+        session = get_thread_session()
+        try:
+            session.get(url, timeout=TIMEOUT)
+        except Exception:
+            pass
+
     def make_request(i: int) -> float | None:
         start = time.perf_counter()
         try:
             session = get_thread_session()
             response = session.get(url, timeout=TIMEOUT)
             response.raise_for_status()
+            response.content  # 消费body，确保socket可复用
             return time.perf_counter() - start
         except Exception as e:
             print(f"Request {i} failed: {e}")
@@ -116,6 +141,10 @@ def bench_concurrent_with_session(
     times = []
     try:
         with ThreadPoolExecutor(max_workers=workers) as executor:
+            # 每个线程预热一次
+            warmup_futures = [executor.submit(_warmup) for _ in range(workers)]
+            for f in as_completed(warmup_futures):
+                f.result()
             futures = [executor.submit(make_request, i) for i in range(num_requests)]
             for future in as_completed(futures):
                 result = future.result()
