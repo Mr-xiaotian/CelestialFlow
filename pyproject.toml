@@ -60,6 +60,7 @@ dev = [
 include = ["src"]
 ignore = ["tests", "**/tests/**", "typings", "demo", "bench", "experiments", "examples", "temp"]
 
+pythonVersion = "3.14"
 typeCheckingMode = "strict"
 reportUnusedFunction = "none"
 reportImplicitOverride = "none"
