@@ -57,6 +57,7 @@
 | `bench_hash_memory.md` | 哈希相关实现的内存占用测试 |
 | `bench_futures_memory.md` | futures 批量场景的内存开销 |
 | `bench_tqdm.md` | 进度条输出开销测试 |
+| `bench_observer.md` | print 日志与 tqdm 进度条观察者开销对比 |
 | `bench_utils.md` | benchmark 辅助统计工具说明 |
 
 ## 如何使用

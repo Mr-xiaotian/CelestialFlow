@@ -59,7 +59,7 @@ class TaskProgress(BaseObserver):
         self._bar.close()
 
 
-class LoggingObserver(BaseObserver):
+class PrintObserver(BaseObserver):
     """基于日志输出的观察者，将任务执行进度通过 print 输出到控制台"""
 
     def __init__(self) -> None:
@@ -141,7 +141,7 @@ def demo_progress_observer() -> None:
     executor.start(test_task)
 
 
-def demo_custom_observer() -> None:
+def demo_print_observer() -> None:
     test_task: list[Any] = list(range(25, 32))
 
     executor = TaskExecutor(
@@ -151,11 +151,11 @@ def demo_custom_observer() -> None:
         max_workers=6,
         max_retries=1,
     )
-    executor.add_observer(LoggingObserver())
+    executor.add_observer(PrintObserver())
 
     executor.start(test_task)
 
 
 if __name__ == "__main__":
     demo_progress_observer()
-    demo_custom_observer()
+    demo_print_observer()
