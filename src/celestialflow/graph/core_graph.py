@@ -27,6 +27,7 @@ from ..runtime.util_estimators import (
 )
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_types import TerminationSignal
+from ..stage.core_stage import TaskStage
 from ..stage.util_types import AnyTaskStage
 from ..utils.util_collections import cluster_by_value_sorted
 from ..utils.util_format import format_avg_time
@@ -103,20 +104,27 @@ class TaskGraph:
         """
         # 用于保存所有子线程的引用
         self.threads: list[threading.Thread] = []
+
         # 用于保存每个节点的运行信息
         self.stage_dict: dict[str, AnyTaskStage] = {}
+
         # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
         self.status_dict: dict[str, dict[str, Any]] = defaultdict(dict)
+
         # 用于保存最近一次状态快照对应的统一时间戳
         self.status_timestamp: float = 0.0
+
         # 用于保存每个节点的输入任务ID集合
         self.input_ids: dict[str, set[int]] = defaultdict(set)
+
         # 用于保存源节点列表（由 _build_analysis 自动计算）
         self.source_stages: list[AnyTaskStage] = []
+
         # 用于保存图结构的邻接表
         self.out_edges: dict[str, list[str]] = defaultdict(list)
         self.in_edges: dict[str, list[str]] = defaultdict(list)
         self.order_graph = OrderGraph()
+
         # 用于保存任务图启动时间
         self.start_time: float = 0.0
 
@@ -157,10 +165,10 @@ class TaskGraph:
             stage.set_ctree(self.ctree_client)
             stage.set_inlet(self.fallback_inlet, self.log_inlet)
 
-    def connect(
+    def connect[R](
         self,
-        from_stages: list[AnyTaskStage],
-        to_stages: list[AnyTaskStage],
+        from_stages: list[TaskStage[Any, R]],
+        to_stages: list[TaskStage[R, Any]],
     ) -> None:
         """
         建立超边连接：from_stages 中的每个节点连接到 to_stages 中的每个节点。
