@@ -30,7 +30,7 @@ class TestTaskMetricsBasic:
     def test_add_error_count(self):
         """测试任务失败计数的累加逻辑"""
         metrics = TaskMetrics()
-        metrics.add_error_count(2)
+        metrics.add_fail_count(2)
         assert metrics.get_error_count() == 2
         assert metrics.get_counts()["tasks_failed"] == 2
 
@@ -46,7 +46,7 @@ class TestTaskMetricsBasic:
         metrics = TaskMetrics()
         metrics.add_task_count(10)
         metrics.add_success_count(5)
-        metrics.add_error_count(2)
+        metrics.add_fail_count(2)
         metrics.add_duplicate_count(1)
 
         counts = metrics.get_counts()
@@ -58,7 +58,7 @@ class TestTaskMetricsBasic:
         metrics = TaskMetrics()
         metrics.add_task_count(3)
         metrics.add_success_count(2)
-        metrics.add_error_count(1)
+        metrics.add_fail_count(1)
         assert metrics.is_tasks_finished() is True
 
     def test_is_tasks_finished_false(self):

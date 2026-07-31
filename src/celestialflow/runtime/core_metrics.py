@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 from threading import Lock
+from typing import TYPE_CHECKING
 
 from .util_types import SumCounter, ValueWrapper
+
+if TYPE_CHECKING:
+    from ..observability import BaseObserver
 
 
 class TaskMetrics:
@@ -35,6 +39,7 @@ class TaskMetrics:
         """
         self.enable_duplicate_check = enable_duplicate_check
         self.retry_exceptions = ()
+        self._observers: list[BaseObserver] = []
 
         self.lock = Lock()
         self._init_counter()
@@ -51,6 +56,7 @@ class TaskMetrics:
         self.error_counter = ValueWrapper(value=0, lock=self.lock)
         self.duplicate_counter = ValueWrapper(value=0, lock=self.lock)
 
+    # ==== 重置 ====
     def reset_counter(self) -> None:
         """
         重置计数器
@@ -68,6 +74,23 @@ class TaskMetrics:
         - processed_set：用于重复检测
         """
         self.processed_set = set()  # task_hash
+
+    # ==== 观察者 ====
+    def add_observer(self, observer: BaseObserver) -> None:
+        """
+        注册观察者。
+
+        :param observer: 要注册的观察者实例
+        """
+        self._observers.append(observer)
+
+    def remove_observer(self, observer: BaseObserver) -> None:
+        """
+        移除观察者。
+
+        :param observer: 要移除的观察者实例
+        """
+        self._observers.remove(observer)
 
     # ==== 去重 ====
     def is_duplicate(self, task_hash: bytes) -> bool:
@@ -125,6 +148,8 @@ class TaskMetrics:
         :param add_count: 增加的任务数
         """
         self.task_counter.add(add_count)
+        for observer in self._observers:
+            observer.on_tasks_added(add_count)
 
     def add_success_count(self, count: int = 1) -> None:
         """
@@ -135,8 +160,10 @@ class TaskMetrics:
         :param count: 增加的成功任务数量，默认值为 1。
         """
         self.success_counter.add(count)
+        for observer in self._observers:
+            observer.on_task_success(count)
 
-    def add_error_count(self, count: int = 1) -> None:
+    def add_fail_count(self, count: int = 1) -> None:
         """
         更新失败任务计数器
 
@@ -145,6 +172,8 @@ class TaskMetrics:
         :param count: 增加的失败任务数量，默认值为 1。
         """
         self.error_counter.add(count)
+        for observer in self._observers:
+            observer.on_task_fail(count)
 
     def add_duplicate_count(self, count: int = 1) -> None:
         """
@@ -155,6 +184,17 @@ class TaskMetrics:
         :param count: 增加的重复任务数量，默认值为 1。
         """
         self.duplicate_counter.add(count)
+        for observer in self._observers:
+            observer.on_task_duplicate(count)
+
+    # ==== 启动与结束 ====
+    def on_start(self, _name: str, _total: int) -> None:
+        for observer in self._observers:
+            observer.on_start(_name, _total)
+
+    def on_finish(self) -> None:
+        for observer in self._observers:
+            observer.on_finish()
 
     # ==== 查询 ====
     def is_tasks_finished(self) -> bool:

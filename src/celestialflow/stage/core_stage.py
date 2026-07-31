@@ -56,6 +56,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'，默认 'serial'
         :param max_workers: 同时处理数量，默认根据 CPU 核心数动态调整
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
+        :param max_queue_size: 任务输入队列的最大容量，默认为 0，表示无限制
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param enable_duplicate_check: 是否启用重复检查，默认 False
         :param persist_result: 是否持久化任务结果，默认 False
@@ -224,7 +225,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         finally:
             self.mark_stopped()
 
-            self._notify("on_finish")
+            self.metrics.on_finish()
             self.log_inlet.end_stage(
                 self.get_name(),
                 self.stage_mode,

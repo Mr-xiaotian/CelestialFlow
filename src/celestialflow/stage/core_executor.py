@@ -87,6 +87,7 @@ class TaskExecutor[T, R]:
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'，默认 'serial'
         :param max_workers: 同时处理数量，默认根据 CPU 核心数动态调整
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
+        :param max_queue_size: 任务输入队列的最大容量，默认为 0，表示无限制
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param enable_duplicate_check: 是否启用重复检查，默认 False
         :param persist_result: 是否持久化任务结果，默认 False
@@ -108,7 +109,6 @@ class TaskExecutor[T, R]:
         self.persist_result = persist_result
         self.set_log_level(log_level)
 
-        self._observers: list[BaseObserver] = []
         self.set_ctree(LocalEventClient())
 
         self.dispatch = TaskDispatch(self, self.func, self.max_workers)
@@ -165,7 +165,7 @@ class TaskExecutor[T, R]:
 
         :param observer: 要注册的观察者实例
         """
-        self._observers.append(observer)
+        self.metrics.add_observer(observer)
 
     def remove_observer(self, observer: BaseObserver) -> None:
         """
@@ -173,18 +173,7 @@ class TaskExecutor[T, R]:
 
         :param observer: 要移除的观察者实例
         """
-        self._observers.remove(observer)
-
-    def _notify(self, method_name: str, *args: Any, **kwargs: Any) -> None:
-        """
-        通知所有已注册的观察者调用指定方法。
-
-        :param method_name: 要调用的观察者方法名
-        :param args: 传递给观察者方法的位置参数
-        :param kwargs: 传递给观察者方法的关键字参数
-        """
-        for observer in self._observers:
-            getattr(observer, method_name)(*args, **kwargs)
+        self.metrics.remove_observer(observer)
 
     # ==== 配置 ====
     def _set_func(
@@ -354,6 +343,7 @@ class TaskExecutor[T, R]:
         envelope: TaskEnvelope[T] = TaskEnvelope(task, input_id)
         self.task_queue.put(envelope)
         self.metrics.add_task_count()
+
         self.fallback_inlet.task_in(self.get_name(), input_id, task)
         self.log_inlet.task_input(
             self.get_func_name(),
@@ -377,22 +367,6 @@ class TaskExecutor[T, R]:
             self.get_name(),
             termination_id,
         )
-
-    def _put_task_queue(self, task_source: Iterable[T]) -> None:
-        """
-        遍历任务源，逐个放入队列，末尾追加终止信号。
-
-        :param task_source: 任务源（可迭代对象）
-        """
-        progress_num = 0
-        for task in task_source:
-            self.put_task(task)
-            if self.metrics.get_task_count() % 100 == 0:
-                self._notify("on_tasks_added", 100)
-                progress_num += 100
-
-        self._notify("on_tasks_added", self.metrics.get_task_count() - progress_num)
-        self.put_signal()
 
     def _get_task_repr(self, task: T) -> str:
         """
@@ -423,7 +397,6 @@ class TaskExecutor[T, R]:
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        self._notify("on_task_success")
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
 
@@ -510,7 +483,6 @@ class TaskExecutor[T, R]:
         :param task_envelope: 失败的任务
         :param exception: 捕获的异常
         """
-        self._notify("on_task_fail")
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
 
@@ -520,7 +492,7 @@ class TaskExecutor[T, R]:
             payload=self.get_summary(),
         )
 
-        self.metrics.add_error_count()
+        self.metrics.add_fail_count()
 
         self.fallback_inlet.task_fail(task_id, error_id, exception)
         self.log_inlet.task_fail(
@@ -537,7 +509,6 @@ class TaskExecutor[T, R]:
 
         :param task_envelope: 重复的任务
         """
-        self._notify("on_task_duplicate")
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
 
@@ -566,8 +537,11 @@ class TaskExecutor[T, R]:
         start_time = time.perf_counter()
         self.init_env()
 
-        self._notify("on_start", self.get_full_name(), 0)
-        self._put_task_queue(task_source)
+        self.metrics.on_start(self.get_full_name(), 0)
+        for task in task_source:
+            self.put_task(task)
+        self.put_signal()
+
         self.log_inlet.start_executor(
             self.get_name(),
             self.metrics.get_task_count(),
@@ -581,7 +555,7 @@ class TaskExecutor[T, R]:
 
         :param start_time: 启动时的时间戳
         """
-        self._notify("on_finish")
+        self.metrics.on_finish()
         self.log_inlet.end_executor(
             self.get_name(),
             self._get_execution_mode_desc(),
