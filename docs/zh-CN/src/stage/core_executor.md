@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/07/31
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -36,6 +36,7 @@ class TaskExecutor[T, R]:
 | `max_workers` | `None` | 并发数量限制（None 时动态: `min(32, cpu_count+4)`） |
 | `max_retries` | `1` | 任务失败后的最大重试次数（最多执行 retries+1 次） |
 | `max_info` | `50` | 日志中每条信息的最大长度 |
+| `max_queue_size` | `0` | 任务输入队列的最大容量（0 表示无限制） |
 | `enable_duplicate_check` | `False` | 是否启用基于任务哈希的重复检查 |
 | `persist_result` | `False` | 是否持久化任务结果到 SQLite |
 | `log_level` | `"INFO"` | 日志级别 |

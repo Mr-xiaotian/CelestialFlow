@@ -1,6 +1,6 @@
 # PersistenceSQLite
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/07/31
 
 `persistence/util_sqlite.py` 提供 SQLite 数据库的连接管理与记录 CRUD 操作工具，是 `FallbackSpout` 和 `TaskReporter` 的底层存储引擎。
 
@@ -70,7 +70,7 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 | 函数 | 签名要点 | 说明 |
 |------|---------|------|
 | `insert_record` | `(conn, record: dict) -> bool` | 归一化后 INSERT |
-| `promote_record_to_failed_by_event_id` | `(conn, event_id, new_event_id, *, ts, error_type="", error_message="") -> bool` | 更新 event_id、status='failed' 和错误信息 |
+| `promote_record_to_failed_by_event_id` | `(conn, event_id, error_id, *, ts, error_type="", error_message="") -> bool` | 更新 event_id、status='failed' 和错误信息 |
 | `promote_record_to_success_by_event_id` | `(conn, event_id, result, *, ts) -> bool` | 更新 status='success' + result_json |
 | `update_record_event_id_by_event_id` | `(conn, old_event_id, new_event_id, *, ts) -> bool` | 更新 event_id（用于重试） |
 | `delete_record_by_event_id` | `(conn, event_id) -> bool` | 删除记录 |

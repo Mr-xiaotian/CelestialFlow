@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/07/31
 
 TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
@@ -463,8 +463,8 @@ try:
     from celestialflow.runtime.util_types import TerminationSignal
     # UnknownNodeError 在 in_queue._record_termination 验证来源时触发
     from celestialflow.runtime import TaskInQueue
-    from queue import Queue
-    in_queue = TaskInQueue(queue=Queue(), source_names=["known"], out_name="test")
+    in_queue = TaskInQueue(out_name="test")
+    in_queue.add_source_name("known")
     in_queue._record_termination(TerminationSignal(source="unknown_source"))
 except UnknownNodeError as e:
     print(f"未知来源: {e}")

@@ -1,15 +1,15 @@
 # TaskQueue
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/07/31
 
 `TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了终止信号合并功能。
 
 ## 概述
 
-- **TaskInQueue**: 任务输入队列，聚合多个上游来源的任务和终止信号
+- **TaskInQueue**: 任务输入队列，聚合多个上游来源的任务并合并终止信号
 - **TaskOutQueue**: 任务输出队列，将结果广播到一个或多个下游队列通道
 
-两者都支持多种队列后端：`queue.Queue`（Thread）、`asyncio.Queue`（Async）。
+两者都在内部使用 `queue.Queue`（线程安全队列）作为默认后端。
 
 ---
 
@@ -23,16 +23,16 @@
 class TaskInQueue:
     def __init__(
         self,
-        queue: Any,
-        source_names: list[str],
         out_name: str,
+        maxsize: int = 0,
     ):
         """
-        :param queue: 队列对象
-        :param source_names: 上游节点名称列表
         :param out_name: 当前节点唯一名称
+        :param maxsize: 队列最大容量，默认为 0（无限制）
         """
 ```
+
+队列在内部自动创建，无需外部传入。上游来源通过 `add_source_name()` 动态添加。
 
 ### 主要方法
 
@@ -55,7 +55,7 @@ def get(self) -> TaskEnvelope | TerminationIdPool:
     终止信号合并逻辑：
     - 收到来自 "input" 的终止信号 → 立即返回 TerminationIdPool
     - 收到来自所有 source_names 的终止信号 → 合并后返回
-    - 仅收到部分上游信号 → 继续等待（返回 None，内部循环重试）
+    - 仅收到部分上游信号 → 继续等待（内部循环重试）
     """
 ```
 
@@ -91,17 +91,14 @@ def add_source_name(self, name: str) -> None:
 class TaskOutQueue:
     def __init__(
         self,
-        queue_list: list[Any],
-        target_names: list[str],
         in_name: str,
     ):
         """
-        :param queue_list: 输出队列列表
-        :param target_names: 下游节点名称列表（长度须与 queue_list 一致）
-        :param in_name: 当前节点唯一名称
-        :raises ConfigurationError: 如果两个列表长度不一致
+        :param in_name: 当前节点唯一名称，用于记录日志
         """
 ```
+
+输出队列列表初始为空，通过 `add_queue()` 动态添加下游通道。
 
 ### 主要方法
 
@@ -189,12 +186,15 @@ from celestialflow.runtime.util_types import TerminationSignal
 
 # ===== TaskInQueue 使用示例 =====
 
-# 创建输入队列，聚合来自两个上游（"producer1", "producer2"）的任务
+# 创建输入队列，指定当前节点名称和队列容量
 in_queue = TaskInQueue(
-    queue=ThreadQueue(),
-    source_names=["producer1", "producer2"],
     out_name="processor",
+    maxsize=0,  # 0 表示无限制
 )
+
+# 添加上游来源名称
+in_queue.add_source_name("producer1")
+in_queue.add_source_name("producer2")
 
 # 上游生产者放入任务
 env1 = TaskEnvelope(task=100, id=1)
@@ -212,15 +212,16 @@ print(f"上游来源数: {len(in_queue.source_names)}")
 
 # ===== TaskOutQueue 使用示例 =====
 
-# 创建输出队列，广播到两个下游
-consumer_q1 = ThreadQueue()
-consumer_q2 = ThreadQueue()
-
+# 创建输出队列（初始为空，后续通过 add_queue 动态添加通道）
 out_queue = TaskOutQueue(
-    queue_list=[consumer_q1, consumer_q2],
-    target_names=["consumer1", "consumer2"],
     in_name="processor",
 )
+
+# 动态添加下游队列通道
+consumer_q1 = ThreadQueue()
+consumer_q2 = ThreadQueue()
+out_queue.add_queue(consumer_q1, "consumer1")
+out_queue.add_queue(consumer_q2, "consumer2")
 
 # 广播任务到所有下游
 env3 = TaskEnvelope(task="broadcast_msg", id=3)
@@ -253,10 +254,9 @@ if isinstance(result, TerminationIdPool):
 # ===== drain 清空队列 =====
 # 创建新队列并放入残留任务
 residual_q = TaskInQueue(
-    queue=ThreadQueue(),
-    source_names=["src"],
     out_name="drain_test",
 )
+residual_q.add_source_name("src")
 residual_q.put(TaskEnvelope(task="leftover", id=5))
 
 # drain 清空所有剩余任务

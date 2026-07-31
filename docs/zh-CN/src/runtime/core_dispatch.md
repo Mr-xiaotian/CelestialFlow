@@ -1,6 +1,6 @@
 # TaskDispatch
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/07/31
 
 `TaskDispatch` 是任务调度器，负责以串行、线程或异步方式执行单个任务。它是 `TaskExecutor` 的内部组件，从 `TaskInQueue` 获取任务，调用用户函数，并将结果通过 `TaskOutQueue` 发送。
 
@@ -8,12 +8,12 @@
 
 ```python
 class TaskDispatch:
-    def __init__(self, task_executor: TaskExecutor, func: Callable[..., Any], max_workers: int):
+    def __init__(self, task_executor: TaskExecutor[T, R], func: Callable[[T], R] | Callable[[T], Awaitable[R]], max_workers: int):
         """
         初始化任务运行器。
 
         :param task_executor: TaskExecutor 实例
-        :param func: 任务函数
+        :param func: 任务函数（同步或异步）
         :param max_workers: 工作线程/协程数量限制
         """
 ```
@@ -49,7 +49,7 @@ def dispatch_thread(self) -> None:
 执行流程：
 1. 按需初始化 `ThreadPoolExecutor`
 2. 从队列获取任务并 `submit` 到线程池
-3. 当 futures 列表达到 `max_workers * 2` 时过滤已完成者（防内存泄漏）
+3. 清理已完成 futures，当在途任务数低于 `max_workers` 时继续提交新任务
 4. 等待所有 future 完成后处理终止信号
 5. 关闭线程池
 
@@ -156,8 +156,6 @@ flowchart TD
 - `thread` → `dispatch_thread()`
 - `async` → `dispatch_async()`
 
-## 注意事项
-
 ## 使用示例
 
 `TaskDispatch` 作为 `TaskExecutor` 的内部组件，通过 `TaskExecutor` 的 `start()` 方法间接使用。
@@ -255,6 +253,6 @@ print(f"成功: {counts['tasks_succeeded']}, 失败: {counts['tasks_failed']}")
 1. **串行模式**: 同步阻塞，适合调试
 2. **线程模式**: 适合 I/O 密集型；`_release_pool` 确保资源释放
 3. **异步模式**: 函数须为协程；使用 `asyncio.to_thread` 避免阻塞
-4. **futures 清理**: `dispatch_thread` 中当列表达到 `max_workers * 2` 时清理已完成 future
+4. **futures 清理**: `dispatch_thread` 中持续清理已完成 future，保持活跃任务数不超过 `max_workers`
 5. **去重**: 在入 worker 前完成，减少无效计算
 6. **重试**: worker 内部通过循环和 `emit_retry_envelope` 实现

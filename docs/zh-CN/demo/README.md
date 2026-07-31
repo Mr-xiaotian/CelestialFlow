@@ -1,6 +1,6 @@
 # demo/ 演示总览
 
-> 📅 最后更新日期: 2026/06/28
+> 📅 最后更新日期: 2026/07/31
 
 ## 说明
 
@@ -22,7 +22,7 @@
 | 文档 | 源码 | 演示目标 | 是否需要外部服务 |
 |------|------|---------|:---------------:|
 | `demo_executor.md` | `demo/demo_executor.py` | `TaskExecutor` 的 serial / thread / async 三种执行模式 | 否 |
-| `demo_observer.md` | `demo/demo_observer.py` | 为 `TaskExecutor` 注册 `TaskProgress` 与自定义 `LoggingObserver` | 否 |
+| `demo_observer.md` | `demo/demo_observer.py` | 为 `TaskExecutor` 注册 `TaskProgress` 与自定义 `PrintObserver` | 否 |
 | `demo_funnel.md` | `demo/demo_funnel.py` | 脱离任务图，单独使用 `BaseInlet` / `BaseSpout` 构建事件采集管道 | 否 |
 | `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` 的扇出/扇入 ETL 与异步分阶段流水线 | Reporter / CelestialTree（可选） |
 | `demo_stages.md` | `demo/demo_stages.py` | `TaskSplitter`、`TaskRouter` 与链式/环状图结构 | Reporter / CelestialTree（可选） |

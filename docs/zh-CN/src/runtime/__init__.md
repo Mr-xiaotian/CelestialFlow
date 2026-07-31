@@ -1,6 +1,6 @@
 # Runtime 模块
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/07/31
 
 Runtime 模块提供了 CelestialFlow 的任务执行运行时环境，包括任务调度、队列管理、错误处理、性能监控等核心功能。它是任务实际执行的基础设施层。
 
@@ -153,20 +153,20 @@ print(f"待处理: {counts['tasks_pending']}")
 
 ```python
 # 3. TaskInQueue / TaskOutQueue：队列通信
+from queue import Queue as ThreadQueue
 
 # 创建输入队列（聚合上游任务）
 in_queue = TaskInQueue(
-    queue=ThreadQueue(),
-    source_names=["producer"],
     out_name="processor",
 )
+in_queue.add_source_name("producer")
 
 # 创建输出队列（广播到下游）
 out_queue = TaskOutQueue(
-    queue_list=[ThreadQueue()],
-    target_names=["consumer"],
     in_name="processor",
 )
+consumer_queue = ThreadQueue()
+out_queue.add_queue(consumer_queue, "consumer")
 
 # 上游生产任务
 envelope_a = TaskEnvelope(task="hello", id=1)
@@ -180,7 +180,8 @@ print(f"出队任务: {retrieved.get_task()}")
 out_queue.put(envelope_a)
 
 # 动态添加输出通道
-out_queue.add_queue(ThreadQueue(), "another_consumer")
+another_queue = ThreadQueue()
+out_queue.add_queue(another_queue, "another_consumer")
 print(f"输出通道数: {len(out_queue.queue_list)}")
 ```
 

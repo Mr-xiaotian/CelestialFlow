@@ -1,6 +1,6 @@
 # BaseObserver
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/07/31
 
 `BaseObserver` 是执行器生命周期观察者的基类，定义了 `TaskExecutor` 在运行过程中会广播的事件接口。
 
@@ -59,4 +59,4 @@ executor.remove_observer(observer)  # 移除观察者
 
 | 类 | 说明 |
 |---|------|
-| `TaskProgress` | 基于 tqdm 的进度条显示（见 `core_progress.md`） |
+| （无内置实现） | 用户可按需继承 `BaseObserver` 实现自定义观察者 |

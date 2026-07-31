@@ -1,6 +1,6 @@
 # CelestialFlow 包入口
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/07/31
 
 ## 简介
 
@@ -59,7 +59,6 @@
 | 导出符号 | 说明 |
 |----------|------|
 | `BaseObserver` | 观察者基类，定义 on_start / on_success / on_failure 等接口 |
-| `TaskProgress` | 任务进度追踪器，实时统计完成/失败/总数 |
 
 ---
 
@@ -99,7 +98,7 @@
 
 ## `__all__` 列表
 
-完整公开 API 列表（当前共 22 个符号）：
+完整公开 API 列表（当前共 21 个符号）：
 
 ```python
 __all__ = [
@@ -113,7 +112,6 @@ __all__ = [
     "TaskGraph",
     "TaskGrid",
     "TaskLoop",
-    "TaskProgress",
     "TaskRouter",
     "TaskSplitter",
     "TaskStage",
@@ -219,7 +217,7 @@ graph TD
     end
 
     subgraph observability
-        O["BaseObserver<br/>TaskProgress"]
+        O["BaseObserver"]
     end
 
     subgraph utils

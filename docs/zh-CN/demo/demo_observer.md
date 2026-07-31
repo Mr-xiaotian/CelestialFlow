@@ -1,6 +1,6 @@
 # demo_observer.py 演示说明
 
-> 📅 最后更新日期: 2026/06/28
+> 📅 最后更新日期: 2026/07/31
 
 ## 目标
 
@@ -9,7 +9,7 @@
 当前文件同时展示两种方式：
 
 - 使用内置的 `TaskProgress` 显示基于 `tqdm` 的进度条
-- 直接继承 `BaseObserver`，实现自定义 `LoggingObserver`
+- 直接继承 `BaseObserver`，实现自定义 `PrintObserver`
 
 ## 演示内容
 
@@ -18,7 +18,7 @@
 | 函数 | 说明 |
 |------|------|
 | `demo_progress_observer` | 创建 `TaskExecutor`，注册 `TaskProgress`，显示进度条 |
-| `demo_custom_observer` | 创建 `TaskExecutor`，注册 `LoggingObserver`，打印 observer 生命周期日志 |
+| `demo_print_observer` | 创建 `TaskExecutor`，注册 `PrintObserver`，打印 observer 生命周期日志 |
 
 两种 observer 的定位如下：
 
@@ -26,7 +26,7 @@
 flowchart TB
     Input["输入任务<br/>range(25, 32)"] --> Executor["TaskExecutor<br/>FibonacciSerial2 / serial"]
     Progress["TaskProgress"] -.监听.-> Executor
-    Custom["LoggingObserver"] -.监听.-> Executor
+    Custom["PrintObserver"] -.监听.-> Executor
     Executor --> Start["on_start"]
     Executor --> Added["on_tasks_added"]
     Executor --> Success["on_task_success"]
@@ -46,7 +46,7 @@ flowchart TB
 |----------|------|
 | `TaskProgress` | 用 `tqdm` 展示执行进度，适合命令行交互场景 |
 
-当前 `LoggingObserver` 实现了以下回调：
+当前 `PrintObserver` 实现了以下回调：
 
 | 回调 | 作用 |
 |------|------|
@@ -59,7 +59,7 @@ flowchart TB
 
 ## 可能出现的问题
 
-1. **默认 `main()` 目前只运行 `demo_custom_observer`**：如果要看进度条效果，需要把 `__main__` 中的调用改成 `demo_progress_observer()`。
+1. **默认 `main()` 同时运行 `demo_progress_observer` 和 `demo_print_observer`**：两个 observer 依次执行，先显示 tqdm 进度条，再输出日志。
 2. **当前示例只展示成功路径**：`test_task` 现在是 `range(25, 32)`，因此运行时通常只会看到 `on_start`、`on_tasks_added`、`on_task_success` 和 `on_finish`。
 3. **`on_start` 初始 total 可能为 0**：执行器会先触发启动事件，再通过 `on_tasks_added` 告知真正加入的任务数，这是当前通知顺序决定的正常现象。
 4. **无断言**：这是演示脚本，不验证结果数值，只用于展示 observer 调用时机。
@@ -83,9 +83,9 @@ python demo/demo_observer.py
 FibonacciSerial2(serial): 100%|████████████████████████████| 7/7 [00:00<00:00, ...it/s]
 ```
 
-### `demo_custom_observer`
+### `demo_print_observer`
 
-如果运行 `demo_custom_observer()`，会打印类似如下的 observer 生命周期日志：
+如果运行 `demo_print_observer()`，会打印类似如下的 observer 生命周期日志：
 
 ```text
 [observer] start executor=FibonacciSerial2(serial), total=0
