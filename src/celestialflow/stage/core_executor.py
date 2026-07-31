@@ -8,7 +8,6 @@ import time
 import warnings
 from collections.abc import Awaitable, Callable, Iterable
 from pathlib import Path
-from queue import Queue as ThreadQueue
 from typing import Any, cast
 
 from ..observability import BaseObserver
@@ -74,6 +73,7 @@ class TaskExecutor[T, R]:
         execution_mode: str = "serial",
         max_workers: int | None = None,
         max_retries: int = 1,
+        max_queue_size: int = 0,
         max_info: int = 50,
         enable_duplicate_check: bool = False,
         persist_result: bool = False,
@@ -102,6 +102,7 @@ class TaskExecutor[T, R]:
         self.set_execution_mode(execution_mode)
         self.max_workers = max_workers or min(32, (os.cpu_count() or 1) + 4)
         self.max_retries = max_retries
+        self.max_queue_size = max_queue_size
         self.max_info = max_info
         self.enable_duplicate_check = enable_duplicate_check
         self.persist_result = persist_result
@@ -112,13 +113,10 @@ class TaskExecutor[T, R]:
 
         self.dispatch = TaskDispatch(self, self.func, self.max_workers)
         self.task_queue = TaskInQueue(
-            queue=ThreadQueue(),
-            source_names=[],
             out_name=self.get_name(),
+            maxsize=self.max_queue_size,
         )
         self.result_queue = TaskOutQueue(
-            queue_list=[],
-            target_names=[],
             in_name=self.get_name(),
         )
         self.metrics = TaskMetrics(

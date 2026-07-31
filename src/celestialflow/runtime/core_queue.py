@@ -1,12 +1,11 @@
 # runtime/core_queue.py
 from __future__ import annotations
 
-from queue import Empty
+from queue import Empty, Queue
 from typing import Any
 
 from .core_envelope import TaskEnvelope
 from .util_errors import (
-    ConfigurationError,
     DuplicateNodeError,
     TerminationMergeError,
     UnknownNodeError,
@@ -18,29 +17,27 @@ from .util_types import TerminationIdPool, TerminationSignal
 class TaskInQueue[T]:
     """任务输入队列，聚合多个上游来源的任务和终止信号。"""
 
+    out_name: str
     queue: Any
     source_names: list[str]
-    out_name: str
     termination_dict: dict[str, int]
 
     # ==== 初始化 ====
     def __init__(
         self,
-        queue: Any,
-        source_names: list[str],
         out_name: str,
+        maxsize: int = 0,
     ) -> None:
         """
         初始化任务入队
 
-        :param queue: 队列对象
-        :param source_names: 上游节点名称列表
         :param out_name: 当前节点唯一名称
+        :param maxsize: 队列最大容量，默认为 0（无限制）
         """
-        self.queue = queue
-        self.source_names = source_names
         self.out_name = out_name
+        self.queue = Queue(maxsize=maxsize)
 
+        self.source_names = []
         self.termination_dict = {}
 
     # ==== 添加 ====
@@ -181,36 +178,26 @@ class TaskInQueue[T]:
 class TaskOutQueue[T]:
     """任务输出队列，将任务广播到一个或多个下游队列通道。"""
 
+    in_name: str
     queue_list: list[Any]
     target_names: list[str]
-    in_name: str
     _name_to_idx: dict[str, int]
 
     # ==== 初始化 ====
     def __init__(
         self,
-        queue_list: list[Any],
-        target_names: list[str],
         in_name: str,
     ) -> None:
         """
         任务输出队列类，用于管理多个输出队列
 
-        :param queue_list: 输出队列列表，每个元素为一个线程队列或异步队列
-        :param target_names: 下游节点名称列表，用于标识每个队列
         :param in_name: 当前节点唯一名称，用于记录日志
-        :raises ConfigurationError: 如果队列列表和目标名称列表长度不一致
         """
-        if len(queue_list) != len(target_names):
-            raise ConfigurationError(
-                "queue_list and target_names must have the same length"
-            )
-
-        self.queue_list = queue_list
-        self.target_names = target_names
         self.in_name = in_name
 
-        self._name_to_idx = {name: i for i, name in enumerate(target_names)}
+        self.queue_list = []
+        self.target_names = []
+        self._name_to_idx = {}
 
     # ==== put ====
 
