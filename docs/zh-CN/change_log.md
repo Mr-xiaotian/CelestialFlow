@@ -365,3 +365,12 @@
   - chore:
     - 全量更新文档, 并翻译为en/ja双语言
     - 移除 docs/zh-CN 下的 `README.md`, 现在中文readme只保留根目录下的这一份
+- 3.2.7
+  - feat:
+    - `TaskInQueue` 中添加 `maxsize` 参数, 用于限制队列最大长度
+    - 在 `graph.connect` 中添加对两个stage输入输出参数类型的检验, 如果不通过, 会有pyright报错
+  - refactor:
+    - 移除对 `tqdm` 的依赖
+      - 根据 `bench\bench_observer.py`, tqdm对轻量级任务影响有限
+      - 这次移除主要是为了完成尽量零第三方库依赖的目标
+    - 将 `observer` 的管理从 `executor` 转到 `metric`

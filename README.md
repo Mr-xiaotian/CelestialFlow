@@ -145,12 +145,12 @@ if __name__ == "__main__":
 - [TaskExecutor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_executor.md)
 - [TaskStage.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stage.md)
 - [TaskGraph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_graph.md)
-- [TaskProgress.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_progress.md)
 - [TaskMetrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_metrics.md)
 - [TaskQueue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_queue.md)
 - [TaskStages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stages.md)
 - [TaskReport.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_report.md)
 - [TaskStructure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_structure.md)
+- [BaseObserver.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_observer.md)
 - [Go Worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
 
 推荐阅读顺序:
@@ -163,7 +163,7 @@ flowchart TD
     classDef execution fill:#f3e8ff,stroke:#a855f7,color:#581c87;
 
     TM[TaskExecutor.md] --> TS[TaskStage.md] --> TG[TaskGraph.md]
-    TM --> TP[TaskProgress.md]
+    TM --> OB[BaseObserver.md]
     TM --> TME[TaskMetrics.md]
 
     TG --> TQ[TaskQueue.md]
@@ -227,26 +227,99 @@ flowchart TD
 
 ## 文件结构（File Structure）
 
+```
+📁 CelestialFlow	(471MB 982KB 22B)
+    📁 .agents        	(55KB 152B)
+        📁 skills[已折叠]	(55KB 152B)
+    📁 .claude        	(99B)
+        🗄️ settings.local.json	(99B)
+    📁 .github        	(601B)
+        📁 workflows[已折叠]	(601B)
+    📁 bench          	(150KB 552B)
+        📁 [1项排除的目录]                  	(47KB 905B)
+        🐍 bench_datastructures.py          	(6KB 690B)
+        🐍 bench_execution_mode.py          	(2KB 889B)
+        🐍 bench_futures_memory.py          	(2KB 267B)
+        🐍 bench_gil_vs_nogil.py            	(10KB 159B)
+        🐍 bench_graph_mode.py              	(7KB 173B)
+        🐍 bench_hash.py                    	(7KB 39B)
+        🐍 bench_hash_container.py          	(3KB 1009B)
+        🐍 bench_hash_memory.py             	(3KB 613B)
+        🐍 bench_http_grpc.py               	(2KB 883B)
+        🐍 bench_ipc_queue.py               	(7KB 74B)
+        🐍 bench_lock_overhead.py           	(9KB 421B)
+        🐍 bench_mpqueue_vs_shared_memory.py	(13KB 106B)
+        🐍 bench_observer.py                	(7KB 899B)
+        🐍 bench_persistence_spout.py       	(4KB 193B)
+        🐍 bench_queue.py                   	(5KB 857B)
+        🐍 bench_requests.py                	(6KB 813B)
+        🐍 bench_tqdm.py                    	(1KB 235B)
+        🐍 bench_utils.py                   	(543B)
+    📁 demo           	(105KB 440B)
+        📁 [1项排除的目录]  	(61KB 883B)
+        🐍 demo_executor.py 	(1KB 504B)
+        🐍 demo_funnel.py   	(2KB 289B)
+        🐍 demo_graph.py    	(3KB 615B)
+        🐍 demo_observer.py 	(4KB 293B)
+        🐍 demo_redis.py    	(9KB 201B)
+        🐍 demo_stages.py   	(4KB 519B)
+        🐍 demo_structure.py	(12KB 8B)
+        🐍 demo_utils.py    	(6KB 200B)
+    📁 dist           	(145KB 290B)
+        ❓ .gitignore                          	(1B)
+        ❓ celestialflow-3.2.6-py3-none-any.whl	(78KB 975B)
+        📦 celestialflow-3.2.6.tar.gz          	(66KB 338B)
+    📁 docs           	(1MB 712KB 884B)
+        📁 en[已折叠]   	(569KB 485B)
+        📁 ja[已折叠]   	(642KB 959B)
+        📁 zh-CN[已折叠]	(524KB 464B)
+    📁 experiments    	(2KB 1015B)
+        🐍 experiment_networkx.py	(1KB 878B)
+        🐍 experiment_tqdm.py    	(1KB 137B)
+    📁 img            	(5MB 871KB 242B)
+        📷 file_structure.svg  	(4MB 918KB 1000B)
+        📷 logo(old).png       	(836KB 542B)
+        📷 logo.png            	(122KB 747B)
+        📷 scc_condensation.svg	(17KB 1B)
+    📁 src            	(1MB 767KB 296B)
+        📁 celestialflow[已折叠]         	(1MB 752KB 195B)
+        📁 celestialflow.egg-info[已折叠]	(15KB 101B)
+    📁 tests          	(3MB 902KB 217B)
+        📁 funnel[已折叠]       	(96KB 481B)
+        📁 graph[已折叠]        	(631KB 532B)
+        📁 observability[已折叠]	(157KB 435B)
+        📁 persistence[已折叠]  	(359KB 68B)
+        📁 runtime[已折叠]      	(1MB 286KB 487B)
+        📁 stage[已折叠]        	(281KB 752B)
+        📁 utils[已折叠]        	(648KB 931B)
+        📁 [1项排除的目录]      	(487KB 589B)
+        🐍 conftest.py          	(1KB 38B)
+        🐍 __init__.py          	(0B)
+    📁 [9项排除的目录]	(458MB 223KB 525B)
+    ❓ .env           	(468B)
+    ❓ .gitignore     	(1KB 313B)
+    📝 AGENTS.md      	(971B)
+    ❓ LICENSE        	(1KB 65B)
+    ⚙️ pyproject.toml 	(2KB 555B)
+    📝 README.md      	(12KB 272B)
+    🔒 uv.lock        	(98KB 257B)
+```
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/file_structure.svg" alt="FileStructure" />
-  <br/>
-  <em>celestial-flow 3.2.6</em>
+  <em>celestial-flow 3.2.7</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.2.6
+- 3.2.7
   - feat:
-    - 在 `graph` 与 `stage` 中添加直接读取db文件并重试/继续任务的方法
-      - 分别为 `start_graph_db` 与 `start_db`
+    - `TaskInQueue` 中添加 `maxsize` 参数, 用于限制队列最大长度
+    - 在 `graph.connect` 中添加对两个stage输入输出参数类型的检验, 如果不通过, 会有pyright报错
   - refactor:
-    - **[IMPORTANT]** 将web部分移至单独项目 [celestialflow-web](https://github.com/Mr-xiaotian/celestialflow-web)
-      - 考虑许久的决定, 当前的web端代码与项目整体风格差异极大, 已经不再适合继续合并一处
-      - 当然这意味着 `celestialflow-web` 命令在当前项目下失效, 需要单独安装 `pip install celestialflow-web`
-  - chore:
-    - 全量更新文档, 并翻译为en/ja双语言
-    - 移除 docs/zh-CN 下的 `README.md`, 现在中文readme只保留根目录下的这一份
+    - 移除对 `tqdm` 的依赖
+      - 根据 `bench\bench_observer.py`, tqdm对轻量级任务影响有限
+      - 这次移除主要是为了完成尽量零第三方库依赖的目标
+    - 将 `observer` 的管理从 `executor` 转到 `metric`
 
 更多过往日志可看:
 
