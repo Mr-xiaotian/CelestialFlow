@@ -15,8 +15,7 @@ class TestTaskInQueue:
     @pytest.fixture
     def simple_queue(self):
         """构造一个无上游来源的简单输入队列。"""
-        q = queue.Queue()
-        return TaskInQueue(q, source_names=[], out_name="test")
+        return TaskInQueue(out_name="test")
 
     def test_put_and_get_task(self, simple_queue):
         """入队和出队任务信封"""
@@ -39,10 +38,9 @@ class TestTaskInQueue:
 
     def test_multi_source_termination_merge(self):
         """多上游终止信号合并"""
-        q = queue.Queue()
-        in_queue = TaskInQueue(
-            q, source_names=["src_a", "src_b"], out_name="sink"
-        )
+        in_queue = TaskInQueue(out_name="sink")
+        in_queue.add_source_name("src_a")
+        in_queue.add_source_name("src_b")
 
         in_queue.put(TerminationSignal(_id=10, source="src_a"))
         # 此时不应返回，因为 src_b 还没终止
@@ -61,8 +59,7 @@ class TestTaskInQueue:
 
     def test_drain_returns_remaining_tasks(self):
         """drain 应清空队列并返回所有任务"""
-        q = queue.Queue()
-        in_queue = TaskInQueue(q, source_names=[], out_name="test")
+        in_queue = TaskInQueue(out_name="test")
 
         env1 = TaskEnvelope("a", id=1)
         env2 = TaskEnvelope("b", id=2)
@@ -73,7 +70,7 @@ class TestTaskInQueue:
         assert len(remaining) == 2
         assert remaining[0].task == "a"
         assert remaining[1].task == "b"
-        assert q.empty()
+        assert in_queue.queue.empty()
 
 
 class TestTaskOutQueue:
@@ -81,11 +78,9 @@ class TestTaskOutQueue:
         """put 应向所有输出队列广播"""
         q1 = queue.Queue()
         q2 = queue.Queue()
-        out_queue = TaskOutQueue(
-            queue_list=[q1, q2],
-            target_names=["a", "b"],
-            in_name="src",
-        )
+        out_queue = TaskOutQueue(in_name="src")
+        out_queue.add_queue(q1, "a")
+        out_queue.add_queue(q2, "b")
 
         envelope = TaskEnvelope("data", id=1)
         out_queue.put(envelope)
@@ -97,11 +92,9 @@ class TestTaskOutQueue:
         """put_target 只发送到指定队列"""
         q1 = queue.Queue()
         q2 = queue.Queue()
-        out_queue = TaskOutQueue(
-            queue_list=[q1, q2],
-            target_names=["a", "b"],
-            in_name="src",
-        )
+        out_queue = TaskOutQueue(in_name="src")
+        out_queue.add_queue(q1, "a")
+        out_queue.add_queue(q2, "b")
 
         envelope = TaskEnvelope("data", id=1)
         out_queue.put_target(envelope, name="b")
@@ -112,9 +105,8 @@ class TestTaskOutQueue:
     def test_add_queue(self):
         """动态添加输出队列"""
         q1 = queue.Queue()
-        out_queue = TaskOutQueue(
-            queue_list=[q1], target_names=["a"], in_name="src"
-        )
+        out_queue = TaskOutQueue(in_name="src")
+        out_queue.add_queue(q1, "a")
 
         q2 = queue.Queue()
         out_queue.add_queue(q2, name="b")
@@ -128,8 +120,7 @@ class TestTaskOutQueue:
     def test_duplicate_queue_name_raises(self):
         """重复目标名称应报错"""
         q1 = queue.Queue()
-        out_queue = TaskOutQueue(
-            queue_list=[q1], target_names=["a"], in_name="src"
-        )
+        out_queue = TaskOutQueue(in_name="src")
+        out_queue.add_queue(q1, "a")
         with pytest.raises(DuplicateNodeError, match="duplicate queue target name"):
             out_queue.add_queue(queue.Queue(), name="a")
