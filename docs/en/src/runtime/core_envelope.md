@@ -11,9 +11,9 @@ class TaskEnvelope:
     __slots__ = ("hash", "id", "task")
 
     def __init__(self, task: T, id: int):
-        self.task: T = task   # Original task data
+        self.task: T = task  # Original task data
         self.hash: bytes | None = None  # Hash value (lazy computation)
-        self.id: int = id     # Unique task ID
+        self.id: int = id  # Unique task ID
 ```
 
 ## Getter Methods
@@ -22,8 +22,10 @@ class TaskEnvelope:
 def get_task(self) -> T:
     """Get the original task data."""
 
+
 def get_hash(self) -> bytes:
     """Get the task hash value. Lazily computed and cached on first call."""
+
 
 def get_id(self) -> int:
     """Get the task ID."""
@@ -39,10 +41,10 @@ def get_id(self) -> int:
 
 ```python
 envelope = TaskEnvelope(task="data", id=1)
-assert envelope.hash is None         # Not yet computed
-h = envelope.get_hash()              # First call — computed and cached
-assert envelope.hash is not None     # Now cached
-assert envelope.get_hash() == h      # Subsequent calls return cached value
+assert envelope.hash is None  # Not yet computed
+h = envelope.get_hash()  # First call — computed and cached
+assert envelope.hash is not None  # Now cached
+assert envelope.get_hash() == h  # Subsequent calls return cached value
 ```
 
 ## Usage Examples
@@ -72,7 +74,7 @@ print(f"Task ID: {envelope.get_id()}")  # 1
 h = envelope.get_hash()
 print(f"SHA1 hash: {h.hex()[:16]}...")
 print(f"Hash cached after call: {envelope.hash is not None}")  # True
-print(f"Repeat call returns cached value: {envelope.get_hash() == h}")    # True
+print(f"Repeat call returns cached value: {envelope.get_hash() == h}")  # True
 ```
 
 ### Multiple Data Types
@@ -92,9 +94,11 @@ env_none = TaskEnvelope(task=None, id=5)
 ```python
 from celestialflow.runtime import TaskEnvelope
 
+
 class UnpicklableTask:
     def __getstate__(self):
         raise TypeError("cannot pickle")
+
 
 env1 = TaskEnvelope(task=UnpicklableTask(), id=101)
 env2 = TaskEnvelope(task=UnpicklableTask(), id=102)

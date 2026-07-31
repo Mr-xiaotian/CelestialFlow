@@ -47,6 +47,7 @@ from celestialflow.runtime.util_errors import CallableParameterKindError
 def good_func(x: int, y: str) -> bool:
     return True
 
+
 param_count = validate_executor_func_signature(good_func)
 print(f"参数数量: {param_count}")  # 2
 
@@ -54,6 +55,7 @@ print(f"参数数量: {param_count}")  # 2
 # 不合法的执行器函数（包含 *args）
 def bad_func(*args):
     return args
+
 
 try:
     validate_executor_func_signature(bad_func)

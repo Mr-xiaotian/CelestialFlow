@@ -79,6 +79,7 @@ graph.connect([s2], [s3])
 structure = graph.get_structure_graph()
 print("JSON structure:")
 import json
+
 print(json.dumps(structure, indent=2, ensure_ascii=False))
 
 # Get formatted tree text

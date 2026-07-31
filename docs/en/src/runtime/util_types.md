@@ -11,8 +11,8 @@ Enum class representing the running state of a `TaskStage`.
 ```python
 class StageStatus(IntEnum):
     NOT_STARTED = 0  # Not started
-    RUNNING = 1      # Running
-    STOPPED = 2      # Stopped
+    RUNNING = 1  # Running
+    STOPPED = 2  # Stopped
 ```
 
 ## TerminationSignal
@@ -22,8 +22,9 @@ A sentinel object used to mark the end of a task queue. When a Stage receives th
 ```python
 class TerminationSignal:
     def __init__(self, _id: int = -1, source: str = "input"):
-        self.id = _id        # Event ID
+        self.id = _id  # Event ID
         self.source = source  # Source
+
 
 # Global singleton
 TERMINATION_SIGNAL = TerminationSignal()
@@ -36,8 +37,8 @@ Termination signal ID pool, used to store all received termination signal IDs.
 ```python
 class TerminationIdPool:
     def __init__(self, ids: list[int]):
-        self.ids = ids   # List of termination signal IDs
-        self.id = -1     # Compatibility field, fixed at -1
+        self.ids = ids  # List of termination signal IDs
+        self.id = -1  # Compatibility field, fixed at -1
         self.source = "<signal>"  # Compatibility field, fixed at "<signal>"
 ```
 
@@ -124,16 +125,22 @@ The following examples demonstrate typical usage of the data classes and helper 
 ### TerminationSignal and TerminationIdPool
 
 ```python
-from celestialflow.runtime.util_types import TerminationSignal, TERMINATION_SIGNAL, TerminationIdPool
+from celestialflow.runtime.util_types import (
+    TerminationSignal,
+    TERMINATION_SIGNAL,
+    TerminationIdPool,
+)
 
 # Create a custom termination signal
 signal = TerminationSignal(_id=42, source="my_source")
 print(f"Signal ID: {signal.id}, Source: {signal.source}")
 
 # Use the global singleton
-print(f"Default termination signal ID: {TERMINATION_SIGNAL.id}")      # -1
-print(f"Default source: {TERMINATION_SIGNAL.source}")                 # "input"
-print(f"Is same instance: {TERMINATION_SIGNAL is TerminationSignal()}")  # False (each call creates a new instance)
+print(f"Default termination signal ID: {TERMINATION_SIGNAL.id}")  # -1
+print(f"Default source: {TERMINATION_SIGNAL.source}")  # "input"
+print(
+    f"Is same instance: {TERMINATION_SIGNAL is TerminationSignal()}"
+)  # False (each call creates a new instance)
 
 # Create a termination signal ID pool
 pool = TerminationIdPool(ids=[1, 2, 3])
@@ -147,8 +154,8 @@ from celestialflow.runtime.util_types import StageStatus
 
 # Enum values
 print(f"NOT_STARTED = {StageStatus.NOT_STARTED.value}")  # 0
-print(f"RUNNING = {StageStatus.RUNNING.value}")          # 1
-print(f"STOPPED = {StageStatus.STOPPED.value}")          # 2
+print(f"RUNNING = {StageStatus.RUNNING.value}")  # 1
+print(f"STOPPED = {StageStatus.STOPPED.value}")  # 2
 
 # State transitions
 status = StageStatus.NOT_STARTED
@@ -200,13 +207,15 @@ with ctx:
 from celestialflow.runtime.util_types import CTreeEvent
 
 # Event name constants
-print(f"Task input event: {CTreeEvent.TASK_INPUT}")           # "task.input"
-print(f"Task success event: {CTreeEvent.TASK_SUCCESS}")         # "task.success"
-print(f"Task failure event: {CTreeEvent.TASK_ERROR}")           # "task.error"
-print(f"Retry prefix: {CTreeEvent.TASK_RETRY_PREFIX}")        # "task.retry."
-print(f"Duplicate task event: {CTreeEvent.TASK_DUPLICATE}")       # "task.duplicate"
-print(f"Termination injection event: {CTreeEvent.TERMINATION_INPUT}")    # "termination.input"
-print(f"Termination merge event: {CTreeEvent.TERMINATION_MERGE}")    # "termination.merge"
+print(f"Task input event: {CTreeEvent.TASK_INPUT}")  # "task.input"
+print(f"Task success event: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
+print(f"Task failure event: {CTreeEvent.TASK_ERROR}")  # "task.error"
+print(f"Retry prefix: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
+print(f"Duplicate task event: {CTreeEvent.TASK_DUPLICATE}")  # "task.duplicate"
+print(
+    f"Termination injection event: {CTreeEvent.TERMINATION_INPUT}"
+)  # "termination.input"
+print(f"Termination merge event: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
 ```
 
 ## Notes

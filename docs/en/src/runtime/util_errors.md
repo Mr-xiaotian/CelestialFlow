@@ -126,6 +126,7 @@ Base class for all custom exceptions.
 ```python
 class CelestialFlowError(Exception):
     """Base class for all CelestialFlow custom exceptions"""
+
     pass
 ```
 
@@ -138,6 +139,7 @@ Base class for configuration errors (illegal parameters, unsupported combination
 ```python
 class ConfigurationError(CelestialFlowError):
     """Configuration error (illegal parameters, unsupported combinations, etc.)"""
+
     pass
 ```
 
@@ -214,7 +216,9 @@ Callable parameter kind is invalid.
 
 ```python
 class CallableParameterKindError(InvalidOptionError):
-    def __init__(self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]):
+    def __init__(
+        self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]
+    ):
         """
         :param callable_name: Callable name
         :param parameter_kind: Actual parameter kind
@@ -231,6 +235,7 @@ Base class for graph structure errors.
 ```python
 class GraphStructureError(ConfigurationError):
     """Graph structure error"""
+
     pass
 ```
 
@@ -241,6 +246,7 @@ Duplicate node name (triggered during `set_stages` or `add_source_name` / `add_q
 ```python
 class DuplicateNodeError(GraphStructureError):
     """Duplicate node name"""
+
     pass
 ```
 
@@ -251,6 +257,7 @@ Unknown node name (triggered during termination signal source validation).
 ```python
 class UnknownNodeError(GraphStructureError):
     """Unknown node name"""
+
     pass
 ```
 
@@ -261,6 +268,7 @@ Specified node not found in graph (triggered during `connect()` or queries).
 ```python
 class NodeNotFoundError(GraphStructureError):
     """Specified node not found in graph"""
+
     pass
 ```
 
@@ -273,6 +281,7 @@ Base class for runtime state errors (duplicate start, not initialized, etc.).
 ```python
 class RuntimeStateError(CelestialFlowError):
     """Runtime state error"""
+
     pass
 ```
 
@@ -283,6 +292,7 @@ Initialization error (e.g., using thread pool when not initialized).
 ```python
 class InitializationError(RuntimeStateError):
     """Initialization error"""
+
     pass
 ```
 
@@ -293,8 +303,8 @@ Thrown when a Stage that is managed by a TaskGraph attempts to call `start()` di
 ```python
 class GraphManagedError(RuntimeStateError):
     """Stage is managed by a TaskGraph and should not be started via the standalone path."""
-    def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."):
-        ...
+
+    def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."): ...
 ```
 
 ## Persistence Exception
@@ -322,6 +332,7 @@ Thrown when a remote Worker (e.g., Go Worker) execution fails.
 ```python
 class RemoteWorkerError(CelestialFlowError):
     """Remote Worker execution failed"""
+
     pass
 ```
 
@@ -332,6 +343,7 @@ Reporter error.
 ```python
 class ReporterError(CelestialFlowError):
     """Reporter error"""
+
     pass
 ```
 
@@ -346,6 +358,7 @@ Timeout error (inherits built-in `TimeoutError`).
 ```python
 class CelestialFlowTimeoutError(CelestialFlowError, TimeoutError):
     """Timeout error"""
+
     pass
 ```
 
@@ -356,6 +369,7 @@ Marks tasks that were not consumed.
 ```python
 class UnconsumedError(CelestialFlowError):
     """Exception class used to mark unconsumed tasks"""
+
     pass
 ```
 
@@ -368,6 +382,7 @@ Termination signal merge error (triggered when upstream termination signals are 
 ```python
 class TerminationMergeError(CelestialFlowError):
     """Termination signal merge error"""
+
     pass
 ```
 
@@ -422,9 +437,9 @@ from celestialflow.runtime.util_errors import (
 try:
     stage.set_execution_mode("invalid")
 except ExecutionModeError as e:
-    print(f"Field: {e.field}")          # execution_mode
-    print(f"Passed value: {e.value}")   # invalid
-    print(f"Valid values: {e.allowed}") # ('serial', 'thread', 'async')
+    print(f"Field: {e.field}")  # execution_mode
+    print(f"Passed value: {e.value}")  # invalid
+    print(f"Valid values: {e.allowed}")  # ('serial', 'thread', 'async')
 
 # Catch StageModeError
 try:
@@ -461,9 +476,11 @@ except DuplicateNodeError as e:
 
 try:
     from celestialflow.runtime.util_types import TerminationSignal
+
     # UnknownNodeError is triggered when in_queue._record_termination validates the source
     from celestialflow.runtime import TaskInQueue
     from queue import Queue
+
     in_queue = TaskInQueue(queue=Queue(), source_names=["known"], out_name="test")
     in_queue._record_termination(TerminationSignal(source="unknown_source"))
 except UnknownNodeError as e:

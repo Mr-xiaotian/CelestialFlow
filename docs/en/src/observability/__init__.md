@@ -101,6 +101,7 @@ from celestialflow import TaskGraph, TaskStage, BaseObserver
 from celestialflow.observability import TaskReporter
 from celestialflow.persistence import LogInlet
 
+
 # 1. Custom observer: collect task execution statistics
 class StatsObserver(BaseObserver):
     def __init__(self):
@@ -114,13 +115,17 @@ class StatsObserver(BaseObserver):
         self.fail_count += count
 
     def on_finish(self):
-        print(f"Execution finished: success {self.success_count}, fail {self.fail_count}")
+        print(
+            f"Execution finished: success {self.success_count}, fail {self.fail_count}"
+        )
+
 
 # 2. Define task processing function
 def process_item(item: int) -> int:
     if item % 5 == 0:
         raise ValueError(f"Skipping number {item}")
     return item * 2
+
 
 # Create task graph
 graph = TaskGraph(schedule_mode="eager")
@@ -148,7 +153,9 @@ graph.start_graph({stage.get_name(): list(range(20))})
 reporter.stop()
 
 # View statistics
-print(f"Final stats - success: {stats_observer.success_count}, fail: {stats_observer.fail_count}")
+print(
+    f"Final stats - success: {stats_observer.success_count}, fail: {stats_observer.fail_count}"
+)
 ```
 
 This example demonstrates the collaboration of three types of observable components:

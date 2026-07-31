@@ -22,8 +22,7 @@ class TaskExecutor[T, R]:
         enable_duplicate_check: bool = False,
         persist_result: bool = False,
         log_level: str = "INFO",
-    ):
-        ...
+    ): ...
 ```
 
 ### 参数说明
@@ -48,7 +47,7 @@ class TaskExecutor[T, R]:
 ### 注册与移除
 
 ```python
-executor.add_observer(observer)     # 注册观察者
+executor.add_observer(observer)  # 注册观察者
 executor.remove_observer(observer)  # 移除观察者
 ```
 
@@ -76,11 +75,13 @@ def start(self, task_source: Iterable[T]) -> None:
     3. _finish_start() — 通知 on_finish + 停止所有 spout
     """
 
+
 async def start_async(self, task_source: Iterable[T]) -> None:
     """
     异步启动执行器。内部设置 execution_mode="async"。
     使用 await dispatch.dispatch_async() 而非 asyncio.run()。
     """
+
 
 def start_db(
     self,
@@ -123,11 +124,17 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
 任务的结果处理通过以下方法实现：
 
 ```python
-def process_task_success(self, task_envelope: TaskEnvelope[T], result: R, start_time: float) -> None:
+def process_task_success(
+    self, task_envelope: TaskEnvelope[T], result: R, start_time: float
+) -> None:
     """处理成功任务：通知 observer、写日志、生成结果封装并放入 result_queue。"""
 
-def handle_task_fail(self, task_envelope: TaskEnvelope[T], exception: Exception) -> None:
+
+def handle_task_fail(
+    self, task_envelope: TaskEnvelope[T], exception: Exception
+) -> None:
     """处理失败任务：通知 observer、记录到 fallback_inlet 和 log_inlet。"""
+
 
 def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
     """处理重复任务：通知 observer、记录日志。"""
@@ -141,6 +148,7 @@ def get_success_pairs(self) -> list[tuple[T, R]]:
     获取成功任务 (task, result) 列表。
     需要 persist_result=True，否则返回空列表并发出警告。
     """
+
 
 def get_error_pairs(self) -> list[tuple[T, PersistedError]]:
     """获取失败任务 (task, PersistedError) 列表。"""
@@ -205,8 +213,10 @@ flowchart TD
 ```python
 from celestialflow import TaskExecutor
 
+
 def process_item(x: int) -> int:
     return x * 10
+
 
 executor = TaskExecutor(
     name="Calculator",
@@ -226,8 +236,10 @@ print(f"成功: {len(success)}, 失败: {len(errors)}")
 ```python
 from celestialflow import TaskExecutor
 
+
 def process_item(x: int) -> int:
     return x * 10
+
 
 executor = TaskExecutor("Recovery", process_item, execution_mode="thread")
 # 从持久化的失败和 pending 记录中恢复执行

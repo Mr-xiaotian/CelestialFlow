@@ -8,7 +8,12 @@
 
 ```python
 class TaskDispatch:
-    def __init__(self, task_executor: TaskExecutor[T, R], func: Callable[[T], R] | Callable[[T], Awaitable[R]], max_workers: int):
+    def __init__(
+        self,
+        task_executor: TaskExecutor[T, R],
+        func: Callable[[T], R] | Callable[[T], Awaitable[R]],
+        max_workers: int,
+    ):
         """
         初始化任务运行器。
 
@@ -79,6 +84,7 @@ async def dispatch_async(self) -> None:
 def _worker(self, task_envelope: TaskEnvelope) -> None:
     """同步执行单个任务，支持重试。"""
 
+
 async def _async_worker(self, task_envelope: TaskEnvelope) -> None:
     """异步执行单个任务，支持重试。"""
 ```
@@ -92,7 +98,9 @@ async def _async_worker(self, task_envelope: TaskEnvelope) -> None:
 ### _process_termination_signal
 
 ```python
-def _process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
+def _process_termination_signal(
+    self, termination_pool: TerminationIdPool
+) -> TerminationSignal:
     """
     处理终止信号，生成 merge 事件。
 
@@ -120,6 +128,7 @@ if self.task_executor.metrics.is_duplicate(task_hash):
 ```python
 def _init_pool(self, execution_mode: str) -> None:
     """按需初始化线程池。"""
+
 
 def _release_pool(self) -> None:
     """关闭线程池，释放资源。"""
@@ -169,7 +178,7 @@ from celestialflow import TaskExecutor
 # serial 模式：单线程顺序执行，适合调试
 executor = TaskExecutor(
     "SerialWorker",
-    func=lambda x: x ** 2,
+    func=lambda x: x**2,
     execution_mode="serial",
 )
 executor.start([1, 2, 3, 4, 5])
@@ -187,9 +196,11 @@ print(f"成功: {executor.get_counts()['tasks_succeeded']}")
 from celestialflow import TaskExecutor
 import time
 
+
 def io_task(x: int) -> int:
     time.sleep(0.1)  # 模拟 I/O 操作
     return x * 10
+
 
 # thread 模式：线程池并发，适合 I/O 密集型
 executor = TaskExecutor(
@@ -210,9 +221,11 @@ print(f"成功: {counts['tasks_succeeded']}, 失败: {counts['tasks_failed']}")
 import asyncio
 from celestialflow import TaskExecutor
 
+
 async def async_task(x: int) -> int:
     await asyncio.sleep(0.05)  # 模拟异步 I/O
     return x * 100
+
 
 # async 模式：异步协程，适合网络 I/O
 executor = TaskExecutor(
@@ -233,7 +246,9 @@ print(f"成功: {counts['tasks_succeeded']}")
 from celestialflow import TaskExecutor
 
 # 配置重试策略，遇到 ConnectionError 或 TimeoutError 时自动重试
-unstable_func = lambda x: 100 // x if x != 0 else exec("raise ConnectionError('network error')")
+unstable_func = lambda x: (
+    100 // x if x != 0 else exec("raise ConnectionError('network error')")
+)
 
 executor = TaskExecutor(
     "RetryWorker",

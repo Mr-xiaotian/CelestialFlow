@@ -86,15 +86,18 @@ The following examples demonstrate the basic usage patterns of `BaseInlet` and `
 ```python
 from celestialflow.funnel import BaseSpout, BaseInlet
 
+
 # 1. Custom Spout: print received records to console
 class PrintSpout(BaseSpout):
     def _handle_record(self, record):
         print(f"Spout received: {record}")
 
+
 # 2. Custom Inlet: wrap the write interface
 class PrintInlet(BaseInlet):
     def send(self, data):
         self._funnel(data)
+
 
 # 3. Create Spout and Inlet, and bind
 spout = PrintSpout()
@@ -118,6 +121,7 @@ print("Spout stopped")
 ```python
 from celestialflow.funnel import BaseSpout
 
+
 class FileSpout(BaseSpout):
     def __init__(self, filename: str):
         super().__init__()
@@ -131,6 +135,7 @@ class FileSpout(BaseSpout):
 
     def _after_stop(self):
         print(f"Closing file: {self.filename}")
+
 
 spout = FileSpout("records.log")
 spout.start()

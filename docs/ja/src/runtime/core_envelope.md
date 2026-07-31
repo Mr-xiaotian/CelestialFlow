@@ -12,9 +12,9 @@ class TaskEnvelope:
     __slots__ = ("hash", "id", "task")
 
     def __init__(self, task: T, id: int):
-        self.task: T = task   # 元のタスクデータ
+        self.task: T = task  # 元のタスクデータ
         self.hash: bytes | None = None  # ハッシュ値（遅延計算）
-        self.id: int = id     # タスク一意 ID
+        self.id: int = id  # タスク一意 ID
 ```
 
 ## Getter メソッド
@@ -23,8 +23,10 @@ class TaskEnvelope:
 def get_task(self) -> T:
     """元のタスクデータを取得します。"""
 
+
 def get_hash(self) -> bytes:
     """タスクハッシュ値を取得します。初回呼び出し時に遅延計算されキャッシュされます。"""
+
 
 def get_id(self) -> int:
     """タスク ID を取得します。"""
@@ -40,10 +42,10 @@ def get_id(self) -> int:
 
 ```python
 envelope = TaskEnvelope(task="data", id=1)
-assert envelope.hash is None         # 未計算
-h = envelope.get_hash()              # 初回呼び出し、計算してキャッシュ
-assert envelope.hash is not None     # キャッシュ済み
-assert envelope.get_hash() == h      # 後続呼び出しはキャッシュ値を直接返す
+assert envelope.hash is None  # 未計算
+h = envelope.get_hash()  # 初回呼び出し、計算してキャッシュ
+assert envelope.hash is not None  # キャッシュ済み
+assert envelope.get_hash() == h  # 後続呼び出しはキャッシュ値を直接返す
 ```
 
 ## 使用例
@@ -73,7 +75,7 @@ print(f"タスク ID: {envelope.get_id()}")  # 1
 h = envelope.get_hash()
 print(f"SHA1 ハッシュ: {h.hex()[:16]}...")
 print(f"呼出後 hash はキャッシュ済み: {envelope.hash is not None}")  # True
-print(f"再呼出はキャッシュ値を返す: {envelope.get_hash() == h}")    # True
+print(f"再呼出はキャッシュ値を返す: {envelope.get_hash() == h}")  # True
 ```
 
 ### 様々なデータ型
@@ -93,9 +95,11 @@ env_none = TaskEnvelope(task=None, id=5)
 ```python
 from celestialflow.runtime import TaskEnvelope
 
+
 class UnpicklableTask:
     def __getstate__(self):
         raise TypeError("cannot pickle")
+
 
 env1 = TaskEnvelope(task=UnpicklableTask(), id=101)
 env2 = TaskEnvelope(task=UnpicklableTask(), id=102)

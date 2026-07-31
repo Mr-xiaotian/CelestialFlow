@@ -38,7 +38,9 @@ print(f"セット {s} → {hashable_set}")
 # set や dict のキーとして直接使用可能
 seen = set()
 seen.add(make_hashable({"name": "alice", "age": 30}))
-print(f"{"alice".upper()} は処理済みか: {make_hashable({"name": "alice", "age": 30}) in seen}")  # True
+print(
+    f"{'alice'.upper()} は処理済みか: {make_hashable({'name': 'alice', 'age': 30}) in seen}"
+)  # True
 
 # ===== object_to_hash =====
 # 任意のオブジェクトの SHA1 バイト列を計算

@@ -12,13 +12,13 @@ The Graph module defines the fundamental units of task execution and their relat
 
 ```python
 from celestialflow.graph import (
-    TaskChain,      # Linear task chain
-    TaskComplete,   # Complete graph structure
-    TaskCross,      # Multi-layer cross structure
-    TaskGraph,      # Core task graph
-    TaskGrid,       # 2D grid structure
-    TaskLoop,       # Cyclic structure
-    TaskWheel,      # Wheel structure
+    TaskChain,  # Linear task chain
+    TaskComplete,  # Complete graph structure
+    TaskCross,  # Multi-layer cross structure
+    TaskGraph,  # Core task graph
+    TaskGrid,  # 2D grid structure
+    TaskLoop,  # Cyclic structure
+    TaskWheel,  # Wheel structure
 )
 ```
 
@@ -93,15 +93,19 @@ The following examples demonstrate construction and execution of various graph s
 ```python
 from celestialflow import TaskGraph, TaskStage
 
+
 # Define stage functions
 def stage_a_func(x: int) -> int:
     return x + 1
 
+
 def stage_b_func(x: int) -> int:
     return x * 2
 
+
 def stage_c_func(x: int) -> int:
     return x - 3
+
 
 # Create nodes
 s1 = TaskStage("S1", func=stage_a_func, execution_mode="serial")
@@ -131,7 +135,7 @@ from celestialflow import TaskChain, TaskStage
 stages = [
     TaskStage("Clean", func=lambda x: x.strip().lower()),
     TaskStage("Parse", func=lambda x: int(x)),
-    TaskStage("Compute", func=lambda x: x ** 2),
+    TaskStage("Compute", func=lambda x: x**2),
 ]
 
 chain = TaskChain(name="DataPipeline", stages=stages, stage_mode="serial")
@@ -147,7 +151,7 @@ from celestialflow import TaskCross, TaskStage
 
 # Define two layers
 layer1 = [TaskStage("F1", func=lambda x: x * 2), TaskStage("F2", func=lambda x: x + 3)]
-layer2 = [TaskStage("G1", func=lambda x: x ** 2), TaskStage("G2", func=lambda x: -x)]
+layer2 = [TaskStage("G1", func=lambda x: x**2), TaskStage("G2", func=lambda x: -x)]
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], schedule_mode="eager")
 cross.start_graph({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})

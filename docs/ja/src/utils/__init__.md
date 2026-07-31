@@ -152,19 +152,20 @@ print("格式化工具示例")
 print("=" * 40)
 
 # format_duration: 秒 -> 可读时间
-print(f"format_duration(75): {format_duration(75)}")     # 01:15
-print(f"format_duration(3661): {format_duration(3661)}") # 01:01:01
+print(f"format_duration(75): {format_duration(75)}")  # 01:15
+print(f"format_duration(3661): {format_duration(3661)}")  # 01:01:01
 
 # format_timestamp: 时间戳 -> 日期字符串
 import time
+
 print(f"format_timestamp(now): {format_timestamp(time.time())}")
 
 # format_avg_time: 平均耗时
 print(f"format_avg_time(12.5, 100): {format_avg_time(12.5, 100)}")  # 0.12s/it
-print(f"format_avg_time(2.0, 1): {format_avg_time(2.0, 1)}")       # 2.00s/it
+print(f"format_avg_time(2.0, 1): {format_avg_time(2.0, 1)}")  # 2.00s/it
 
 # format_repr: 安全截断
-print(f"format_repr('hello'*10, 15): {format_repr('hello'*10, 15)}")
+print(f"format_repr('hello'*10, 15): {format_repr('hello' * 10, 15)}")
 
 # 2. 集合操作 ----
 print("\n" + "=" * 40)

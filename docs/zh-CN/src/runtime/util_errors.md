@@ -126,6 +126,7 @@ classDiagram
 ```python
 class CelestialFlowError(Exception):
     """CelestialFlow 所有自定义异常的基类"""
+
     pass
 ```
 
@@ -138,6 +139,7 @@ class CelestialFlowError(Exception):
 ```python
 class ConfigurationError(CelestialFlowError):
     """配置错误（参数非法、组合不支持等）"""
+
     pass
 ```
 
@@ -214,7 +216,9 @@ class ScheduleModeError(InvalidOptionError):
 
 ```python
 class CallableParameterKindError(InvalidOptionError):
-    def __init__(self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]):
+    def __init__(
+        self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]
+    ):
         """
         :param callable_name: 可调用对象名称
         :param parameter_kind: 实际参数 kind
@@ -231,6 +235,7 @@ class CallableParameterKindError(InvalidOptionError):
 ```python
 class GraphStructureError(ConfigurationError):
     """图结构错误"""
+
     pass
 ```
 
@@ -241,6 +246,7 @@ class GraphStructureError(ConfigurationError):
 ```python
 class DuplicateNodeError(GraphStructureError):
     """重复的节点名称"""
+
     pass
 ```
 
@@ -251,6 +257,7 @@ class DuplicateNodeError(GraphStructureError):
 ```python
 class UnknownNodeError(GraphStructureError):
     """未知的节点名称"""
+
     pass
 ```
 
@@ -261,6 +268,7 @@ class UnknownNodeError(GraphStructureError):
 ```python
 class NodeNotFoundError(GraphStructureError):
     """图中未找到指定节点"""
+
     pass
 ```
 
@@ -273,6 +281,7 @@ class NodeNotFoundError(GraphStructureError):
 ```python
 class RuntimeStateError(CelestialFlowError):
     """运行时状态错误"""
+
     pass
 ```
 
@@ -283,6 +292,7 @@ class RuntimeStateError(CelestialFlowError):
 ```python
 class InitializationError(RuntimeStateError):
     """初始化错误"""
+
     pass
 ```
 
@@ -293,8 +303,8 @@ class InitializationError(RuntimeStateError):
 ```python
 class GraphManagedError(RuntimeStateError):
     """Stage 已被 Graph 管理，不应通过 standalone 路径启动。"""
-    def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."):
-        ...
+
+    def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."): ...
 ```
 
 ## 持久化异常
@@ -322,6 +332,7 @@ class PersistedError(CelestialFlowError):
 ```python
 class RemoteWorkerError(CelestialFlowError):
     """远端 Worker 执行失败"""
+
     pass
 ```
 
@@ -332,6 +343,7 @@ class RemoteWorkerError(CelestialFlowError):
 ```python
 class ReporterError(CelestialFlowError):
     """上报器错误"""
+
     pass
 ```
 
@@ -346,6 +358,7 @@ class ReporterError(CelestialFlowError):
 ```python
 class CelestialFlowTimeoutError(CelestialFlowError, TimeoutError):
     """超时错误"""
+
     pass
 ```
 
@@ -356,6 +369,7 @@ class CelestialFlowTimeoutError(CelestialFlowError, TimeoutError):
 ```python
 class UnconsumedError(CelestialFlowError):
     """用于标记任务未消费的异常类"""
+
     pass
 ```
 
@@ -368,6 +382,7 @@ class UnconsumedError(CelestialFlowError):
 ```python
 class TerminationMergeError(CelestialFlowError):
     """终止信号合并错误"""
+
     pass
 ```
 
@@ -422,9 +437,9 @@ from celestialflow.runtime.util_errors import (
 try:
     stage.set_execution_mode("invalid")
 except ExecutionModeError as e:
-    print(f"字段: {e.field}")          # execution_mode
-    print(f"传入值: {e.value}")        # invalid
-    print(f"合法值: {e.allowed}")      # ('serial', 'thread', 'async')
+    print(f"字段: {e.field}")  # execution_mode
+    print(f"传入值: {e.value}")  # invalid
+    print(f"合法值: {e.allowed}")  # ('serial', 'thread', 'async')
 
 # 捕获 StageModeError
 try:
@@ -461,8 +476,10 @@ except DuplicateNodeError as e:
 
 try:
     from celestialflow.runtime.util_types import TerminationSignal
+
     # UnknownNodeError 在 in_queue._record_termination 验证来源时触发
     from celestialflow.runtime import TaskInQueue
+
     in_queue = TaskInQueue(out_name="test")
     in_queue.add_source_name("known")
     in_queue._record_termination(TerminationSignal(source="unknown_source"))

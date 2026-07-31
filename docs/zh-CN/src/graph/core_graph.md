@@ -14,8 +14,9 @@
 
 ```python
 class TaskGraph:
-    def __init__(self, name: str, schedule_mode: str = "eager", log_level: str = "INFO"):
-        ...
+    def __init__(
+        self, name: str, schedule_mode: str = "eager", log_level: str = "INFO"
+    ): ...
 ```
 
 ### 参数说明
@@ -55,7 +56,9 @@ def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> N
 ### set_reporter
 
 ```python
-def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000) -> None:
+def set_reporter(
+    self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000
+) -> None:
     """设定报告器，向 `celestialflow-web` 服务推送状态。"""
 ```
 
@@ -88,8 +91,11 @@ def set_graph_mode(self, stage_mode: str, execution_mode: str) -> None:
 ### start_graph
 
 ```python
-def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
-                put_termination_signal: bool = True) -> None:
+def start_graph(
+    self,
+    init_tasks_dict: Mapping[str, Iterable[Any]],
+    put_termination_signal: bool = True,
+) -> None:
     """
     启动任务图。流程：
     1. _build_analysis() 分析图结构（源节点、层级、DAG 检测）并构建 `OrderGraph`
@@ -163,8 +169,9 @@ def start_graph_db(
 ### put_stage_queue
 
 ```python
-def put_stage_queue(self, tasks_dict: Mapping[str, Iterable[Any]],
-                    put_termination_signal: bool = True) -> None:
+def put_stage_queue(
+    self, tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
+) -> None:
     """
     动态向节点注入任务。支持：
     - 普通任务 → 自动包装为 TaskEnvelope

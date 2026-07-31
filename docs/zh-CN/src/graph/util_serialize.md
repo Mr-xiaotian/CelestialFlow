@@ -75,6 +75,7 @@ graph.connect([s2], [s3])
 structure = graph.get_structure_graph()
 print("JSON 结构:")
 import json
+
 print(json.dumps(structure, indent=2, ensure_ascii=False))
 
 # 获取格式化树形文本

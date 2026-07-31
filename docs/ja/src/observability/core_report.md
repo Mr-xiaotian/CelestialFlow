@@ -85,26 +85,26 @@ sequenceDiagram
 ```python
 def _refresh_all(self) -> None:
     # 1. プル
-    self._pull_server_state()       # GET /api/pull_server_state → 設定と状態を同期
-    self._pull_and_inject_tasks()   # GET /api/pull_task_injection → タスク注入
+    self._pull_server_state()  # GET /api/pull_server_state → 設定と状態を同期
+    self._pull_and_inject_tasks()  # GET /api/pull_task_injection → タスク注入
 
     # 2. スナップショット収集
     self.task_graph.collect_runtime_snapshot()
 
     # 3. プッシュ（必要に応じて）
     if (not self._server_has_current_graph) or (not self._server_has_structure):
-        self._push_structure()      # POST /api/push_structure
+        self._push_structure()  # POST /api/push_structure
     if (not self._server_has_current_graph) or (not self._server_has_analysis):
-        self._push_analysis()       # POST /api/push_analysis
-    self._push_status()             # POST /api/push_status
-    self._push_errors()             # POST /api/push_errors
+        self._push_analysis()  # POST /api/push_analysis
+    self._push_status()  # POST /api/push_status
+    self._push_errors()  # POST /api/push_errors
 ```
 
 ## ライフサイクル
 
 ```python
 reporter.start()  # 停止フラグをクリアし、_loop() を実行するデーモンスレッドを作成
-reporter.stop()   # 停止フラグを設定し、スレッドを join（timeout=2）、最後に一度リフレッシュ
+reporter.stop()  # 停止フラグを設定し、スレッドを join（timeout=2）、最後に一度リフレッシュ
 ```
 
 `_loop()` 内では毎回 `_refresh_all()` を実行し、例外をキャッチして `log_inlet.loop_failed()` で記録。スレッドは終了しません。

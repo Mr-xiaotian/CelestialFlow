@@ -38,7 +38,9 @@ print(f"集合 {s} → {hashable_set}")
 # 可以直接用于 set 或 dict 的 key
 seen = set()
 seen.add(make_hashable({"name": "alice", "age": 30}))
-print(f"{"alice".upper()} 是否已处理: {make_hashable({"name": "alice", "age": 30}) in seen}")  # True
+print(
+    f"{'alice'.upper()} 是否已处理: {make_hashable({'name': 'alice', 'age': 30}) in seen}"
+)  # True
 
 # ===== object_to_hash =====
 # 对任意对象计算 SHA1 字节串

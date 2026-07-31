@@ -101,25 +101,30 @@ import asyncio
 from celestialflow import TaskExecutor
 from celestialflow.utils.util_benchmark import benchmark_executor
 
+
 # Define sync task
 def sync_task(x):
     return x * 2
+
 
 # Define async task
 async def async_task(x):
     await asyncio.sleep(0.01)
     return x * 2
 
+
 # Create executors
 sync_executor = TaskExecutor("SyncBench", sync_task)
 async_executor = TaskExecutor("AsyncBench", async_task)
 
 # Run benchmark
-asyncio.run(benchmark_executor(
-    sync_executor=sync_executor,
-    async_executor=async_executor,
-    task_source=range(1000),
-))
+asyncio.run(
+    benchmark_executor(
+        sync_executor=sync_executor,
+        async_executor=async_executor,
+        task_source=range(1000),
+    )
+)
 ```
 
 ### Testing a Task Graph

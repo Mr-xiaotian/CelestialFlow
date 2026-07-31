@@ -78,21 +78,21 @@ log_records = [
 ]
 
 filtered = [
-    (name, msg)
-    for name, msg in log_records
-    if LEVEL_DICT.get(name, 0) >= current_level
+    (name, msg) for name, msg in log_records if LEVEL_DICT.get(name, 0) >= current_level
 ]
 # Result only retains INFO and above levels
 print(filtered)
 # [('INFO', 'User login successful'), ('WARNING', 'Disk space low'),
 #  ('ERROR', 'Database connection failed'), ('CRITICAL', 'System crash')]
 
+
 # 3. Level comparison helper function
 def is_level_enabled(current: str, target: str) -> bool:
     return LEVEL_DICT.get(target, 0) >= LEVEL_DICT.get(current, 0)
 
-print(is_level_enabled("WARNING", "ERROR"))    # True
-print(is_level_enabled("INFO", "DEBUG"))        # False
+
+print(is_level_enabled("WARNING", "ERROR"))  # True
+print(is_level_enabled("INFO", "DEBUG"))  # False
 ```
 
 ### Log Level Validation
@@ -100,11 +100,13 @@ print(is_level_enabled("INFO", "DEBUG"))        # False
 ```python
 from celestialflow.runtime.util_constant import LEVEL_DICT
 
+
 # Validate whether a user-provided log level is valid
 def validate_level(level: str) -> bool:
     return level in LEVEL_DICT
 
-print(validate_level("INFO"))     # True
+
+print(validate_level("INFO"))  # True
 print(validate_level("VERBOSE"))  # False
 ```
 

@@ -14,8 +14,9 @@
 
 ```python
 class TaskGraph:
-    def __init__(self, name: str, schedule_mode: str = "eager", log_level: str = "INFO"):
-        ...
+    def __init__(
+        self, name: str, schedule_mode: str = "eager", log_level: str = "INFO"
+    ): ...
 ```
 
 ### Parameters
@@ -55,7 +56,9 @@ def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> N
 ### set_reporter
 
 ```python
-def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000) -> None:
+def set_reporter(
+    self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000
+) -> None:
     """Configure the reporter for pushing status to the `celestialflow-web` service."""
 ```
 
@@ -88,8 +91,11 @@ def set_graph_mode(self, stage_mode: str, execution_mode: str) -> None:
 ### start_graph
 
 ```python
-def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
-                put_termination_signal: bool = True) -> None:
+def start_graph(
+    self,
+    init_tasks_dict: Mapping[str, Iterable[Any]],
+    put_termination_signal: bool = True,
+) -> None:
     """
     Start the task graph. Flow:
     1. _build_analysis() analyzes graph structure (source nodes, levels, DAG detection) and builds `OrderGraph`
@@ -163,8 +169,9 @@ and ultimately reuses `start_graph()` for execution.
 ### put_stage_queue
 
 ```python
-def put_stage_queue(self, tasks_dict: Mapping[str, Iterable[Any]],
-                    put_termination_signal: bool = True) -> None:
+def put_stage_queue(
+    self, tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
+) -> None:
     """
     Dynamically inject tasks into nodes. Supports:
     - Regular tasks → auto-wrapped as TaskEnvelope

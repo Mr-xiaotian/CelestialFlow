@@ -12,8 +12,8 @@ TaskTypes 模块定义了框架中使用的基础数据类型、枚举和辅助�
 ```python
 class StageStatus(IntEnum):
     NOT_STARTED = 0  # 未启动
-    RUNNING = 1      # 运行中
-    STOPPED = 2      # 已停止
+    RUNNING = 1  # 运行中
+    STOPPED = 2  # 已停止
 ```
 
 ## TerminationSignal
@@ -23,8 +23,9 @@ class StageStatus(IntEnum):
 ```python
 class TerminationSignal:
     def __init__(self, _id: int = -1, source: str = "input"):
-        self.id = _id        # 事件 ID
+        self.id = _id  # 事件 ID
         self.source = source  # 来源
+
 
 # 全局单例
 TERMINATION_SIGNAL = TerminationSignal()
@@ -37,8 +38,8 @@ TERMINATION_SIGNAL = TerminationSignal()
 ```python
 class TerminationIdPool:
     def __init__(self, ids: list[int]):
-        self.ids = ids   # 终止信号 ID 列表
-        self.id = -1     # 兼容字段，固定为 -1
+        self.ids = ids  # 终止信号 ID 列表
+        self.id = -1  # 兼容字段，固定为 -1
         self.source = "<signal>"  # 兼容字段，固定为 "<signal>"
 ```
 
@@ -127,16 +128,22 @@ CelestialTree 事件名称常量，用于任务追踪和可视化。
 ### TerminationSignal 和 TerminationIdPool
 
 ```python
-from celestialflow.runtime.util_types import TerminationSignal, TERMINATION_SIGNAL, TerminationIdPool
+from celestialflow.runtime.util_types import (
+    TerminationSignal,
+    TERMINATION_SIGNAL,
+    TerminationIdPool,
+)
 
 # 创建自定义终止信号
 signal = TerminationSignal(_id=42, source="my_source")
 print(f"信号 ID: {signal.id}, 来源: {signal.source}")
 
 # 使用全局单例
-print(f"默认终止信号 ID: {TERMINATION_SIGNAL.id}")      # -1
-print(f"默认来源: {TERMINATION_SIGNAL.source}")         # "input"
-print(f"是同一个实例: {TERMINATION_SIGNAL is TerminationSignal()}")  # False（每次创建新实例）
+print(f"默认终止信号 ID: {TERMINATION_SIGNAL.id}")  # -1
+print(f"默认来源: {TERMINATION_SIGNAL.source}")  # "input"
+print(
+    f"是同一个实例: {TERMINATION_SIGNAL is TerminationSignal()}"
+)  # False（每次创建新实例）
 
 # 创建终止信号 ID 池
 pool = TerminationIdPool(ids=[1, 2, 3])
@@ -150,8 +157,8 @@ from celestialflow.runtime.util_types import StageStatus
 
 # 枚举值
 print(f"NOT_STARTED = {StageStatus.NOT_STARTED.value}")  # 0
-print(f"RUNNING = {StageStatus.RUNNING.value}")          # 1
-print(f"STOPPED = {StageStatus.STOPPED.value}")          # 2
+print(f"RUNNING = {StageStatus.RUNNING.value}")  # 1
+print(f"STOPPED = {StageStatus.STOPPED.value}")  # 2
 
 # 状态转换
 status = StageStatus.NOT_STARTED
@@ -203,13 +210,13 @@ with ctx:
 from celestialflow.runtime.util_types import CTreeEvent
 
 # 事件名称常量
-print(f"任务输入事件: {CTreeEvent.TASK_INPUT}")           # "task.input"
-print(f"任务成功事件: {CTreeEvent.TASK_SUCCESS}")         # "task.success"
-print(f"任务失败事件: {CTreeEvent.TASK_ERROR}")           # "task.error"
-print(f"重试前缀: {CTreeEvent.TASK_RETRY_PREFIX}")        # "task.retry."
-print(f"重复任务事件: {CTreeEvent.TASK_DUPLICATE}")       # "task.duplicate"
-print(f"终止注入事件: {CTreeEvent.TERMINATION_INPUT}")    # "termination.input"
-print(f"终止合并事件: {CTreeEvent.TERMINATION_MERGE}")    # "termination.merge"
+print(f"任务输入事件: {CTreeEvent.TASK_INPUT}")  # "task.input"
+print(f"任务成功事件: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
+print(f"任务失败事件: {CTreeEvent.TASK_ERROR}")  # "task.error"
+print(f"重试前缀: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
+print(f"重复任务事件: {CTreeEvent.TASK_DUPLICATE}")  # "task.duplicate"
+print(f"终止注入事件: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
+print(f"终止合并事件: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
 ```
 
 

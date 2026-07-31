@@ -100,11 +100,11 @@ graph.add_edge("A", "C")
 graph.add_edge("B", "D")
 graph.add_edge("C", "D")
 
-print(graph.nodes)                # ('A', 'B', 'C', 'D')
-print(graph.successors("A"))     # ('B', 'C')
-print(graph.predecessors("D"))   # ('B', 'C')
-print(is_dag(graph))             # True
-print(topo_sort(graph))          # ['A', 'B', 'C', 'D']
+print(graph.nodes)  # ('A', 'B', 'C', 'D')
+print(graph.successors("A"))  # ('B', 'C')
+print(graph.predecessors("D"))  # ('B', 'C')
+print(is_dag(graph))  # True
+print(topo_sort(graph))  # ['A', 'B', 'C', 'D']
 ```
 
 ### 强连通分量与凝聚图

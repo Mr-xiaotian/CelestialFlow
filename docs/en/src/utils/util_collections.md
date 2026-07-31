@@ -54,7 +54,9 @@ error_counts = {
     "gateway": 67,
 }
 grouped = cluster_by_value_sorted(error_counts)
-print("\nClustered by error count (for identifying services at the same severity level):")
+print(
+    "\nClustered by error count (for identifying services at the same severity level):"
+)
 for count, services in grouped.items():
     bar = "#" * (count // 5)
     print(f"  {count:>2} errors {bar:>15}: {services}")

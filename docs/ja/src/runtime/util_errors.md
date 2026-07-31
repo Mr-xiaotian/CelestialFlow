@@ -126,6 +126,7 @@ classDiagram
 ```python
 class CelestialFlowError(Exception):
     """CelestialFlow 全カスタム例外の基底クラス"""
+
     pass
 ```
 
@@ -138,6 +139,7 @@ class CelestialFlowError(Exception):
 ```python
 class ConfigurationError(CelestialFlowError):
     """設定エラー（不正なパラメータ、サポートされない組み合わせなど）"""
+
     pass
 ```
 
@@ -214,7 +216,9 @@ class ScheduleModeError(InvalidOptionError):
 
 ```python
 class CallableParameterKindError(InvalidOptionError):
-    def __init__(self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]):
+    def __init__(
+        self, callable_name: str, parameter_kind: Any, valid_kinds: Iterable[Any]
+    ):
         """
         :param callable_name: 呼び出し可能オブジェクト名
         :param parameter_kind: 実際のパラメータ kind
@@ -231,6 +235,7 @@ class CallableParameterKindError(InvalidOptionError):
 ```python
 class GraphStructureError(ConfigurationError):
     """グラフ構造エラー"""
+
     pass
 ```
 
@@ -241,6 +246,7 @@ class GraphStructureError(ConfigurationError):
 ```python
 class DuplicateNodeError(GraphStructureError):
     """重複ノード名"""
+
     pass
 ```
 
@@ -251,6 +257,7 @@ class DuplicateNodeError(GraphStructureError):
 ```python
 class UnknownNodeError(GraphStructureError):
     """不明なノード名"""
+
     pass
 ```
 
@@ -261,6 +268,7 @@ class UnknownNodeError(GraphStructureError):
 ```python
 class NodeNotFoundError(GraphStructureError):
     """グラフ内に指定ノードが見つからない"""
+
     pass
 ```
 
@@ -273,6 +281,7 @@ class NodeNotFoundError(GraphStructureError):
 ```python
 class RuntimeStateError(CelestialFlowError):
     """実行時状態エラー"""
+
     pass
 ```
 
@@ -283,6 +292,7 @@ class RuntimeStateError(CelestialFlowError):
 ```python
 class InitializationError(RuntimeStateError):
     """初期化エラー"""
+
     pass
 ```
 
@@ -293,8 +303,8 @@ Stage が既に TaskGraph によって管理されている場合に、スタン
 ```python
 class GraphManagedError(RuntimeStateError):
     """Stage は既に Graph に管理されています。スタンドアロン経路で起動すべきではありません。"""
-    def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."):
-        ...
+
+    def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."): ...
 ```
 
 ## 永続化例外
@@ -322,6 +332,7 @@ class PersistedError(CelestialFlowError):
 ```python
 class RemoteWorkerError(CelestialFlowError):
     """リモート Worker 実行失敗"""
+
     pass
 ```
 
@@ -332,6 +343,7 @@ class RemoteWorkerError(CelestialFlowError):
 ```python
 class ReporterError(CelestialFlowError):
     """レポーターエラー"""
+
     pass
 ```
 
@@ -346,6 +358,7 @@ class ReporterError(CelestialFlowError):
 ```python
 class CelestialFlowTimeoutError(CelestialFlowError, TimeoutError):
     """タイムアウトエラー"""
+
     pass
 ```
 
@@ -356,6 +369,7 @@ class CelestialFlowTimeoutError(CelestialFlowError, TimeoutError):
 ```python
 class UnconsumedError(CelestialFlowError):
     """タスク未消費をマークする例外クラス"""
+
     pass
 ```
 
@@ -368,6 +382,7 @@ class UnconsumedError(CelestialFlowError):
 ```python
 class TerminationMergeError(CelestialFlowError):
     """終了シグナルマージエラー"""
+
     pass
 ```
 
@@ -422,9 +437,9 @@ from celestialflow.runtime.util_errors import (
 try:
     stage.set_execution_mode("invalid")
 except ExecutionModeError as e:
-    print(f"フィールド: {e.field}")          # execution_mode
-    print(f"渡された値: {e.value}")        # invalid
-    print(f"有効な値: {e.allowed}")      # ('serial', 'thread', 'async')
+    print(f"フィールド: {e.field}")  # execution_mode
+    print(f"渡された値: {e.value}")  # invalid
+    print(f"有効な値: {e.allowed}")  # ('serial', 'thread', 'async')
 
 # StageModeError の捕捉
 try:
@@ -461,9 +476,11 @@ except DuplicateNodeError as e:
 
 try:
     from celestialflow.runtime.util_types import TerminationSignal
+
     # UnknownNodeError は in_queue._record_termination のソース検証時に発生
     from celestialflow.runtime import TaskInQueue
     from queue import Queue
+
     in_queue = TaskInQueue(queue=Queue(), source_names=["known"], out_name="test")
     in_queue._record_termination(TerminationSignal(source="unknown_source"))
 except UnknownNodeError as e:

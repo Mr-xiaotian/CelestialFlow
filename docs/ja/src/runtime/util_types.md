@@ -11,8 +11,8 @@ TaskTypes モジュールはフレームワークで使用される基本デー�
 ```python
 class StageStatus(IntEnum):
     NOT_STARTED = 0  # 未起動
-    RUNNING = 1      # 実行中
-    STOPPED = 2      # 停止済み
+    RUNNING = 1  # 実行中
+    STOPPED = 2  # 停止済み
 ```
 
 ## TerminationSignal
@@ -22,8 +22,9 @@ class StageStatus(IntEnum):
 ```python
 class TerminationSignal:
     def __init__(self, _id: int = -1, source: str = "input"):
-        self.id = _id        # イベント ID
+        self.id = _id  # イベント ID
         self.source = source  # ソース
+
 
 # グローバルシングルトン
 TERMINATION_SIGNAL = TerminationSignal()
@@ -36,8 +37,8 @@ TERMINATION_SIGNAL = TerminationSignal()
 ```python
 class TerminationIdPool:
     def __init__(self, ids: list[int]):
-        self.ids = ids   # 終了シグナル ID リスト
-        self.id = -1     # 互換フィールド。固定値 -1
+        self.ids = ids  # 終了シグナル ID リスト
+        self.id = -1  # 互換フィールド。固定値 -1
         self.source = "<signal>"  # 互換フィールド。固定値 "<signal>"
 ```
 
@@ -124,16 +125,22 @@ CelestialTree イベント名定数。タスクトレーシングと可視化に
 ### TerminationSignal と TerminationIdPool
 
 ```python
-from celestialflow.runtime.util_types import TerminationSignal, TERMINATION_SIGNAL, TerminationIdPool
+from celestialflow.runtime.util_types import (
+    TerminationSignal,
+    TERMINATION_SIGNAL,
+    TerminationIdPool,
+)
 
 # カスタム終了シグナルの作成
 signal = TerminationSignal(_id=42, source="my_source")
 print(f"シグナル ID: {signal.id}, ソース: {signal.source}")
 
 # グローバルシングルトンの使用
-print(f"デフォルト終了シグナル ID: {TERMINATION_SIGNAL.id}")      # -1
-print(f"デフォルトソース: {TERMINATION_SIGNAL.source}")         # "input"
-print(f"同一インスタンスか: {TERMINATION_SIGNAL is TerminationSignal()}")  # False（毎回新規インスタンス）
+print(f"デフォルト終了シグナル ID: {TERMINATION_SIGNAL.id}")  # -1
+print(f"デフォルトソース: {TERMINATION_SIGNAL.source}")  # "input"
+print(
+    f"同一インスタンスか: {TERMINATION_SIGNAL is TerminationSignal()}"
+)  # False（毎回新規インスタンス）
 
 # 終了シグナル ID プールの作成
 pool = TerminationIdPool(ids=[1, 2, 3])
@@ -147,8 +154,8 @@ from celestialflow.runtime.util_types import StageStatus
 
 # 列挙値
 print(f"NOT_STARTED = {StageStatus.NOT_STARTED.value}")  # 0
-print(f"RUNNING = {StageStatus.RUNNING.value}")          # 1
-print(f"STOPPED = {StageStatus.STOPPED.value}")          # 2
+print(f"RUNNING = {StageStatus.RUNNING.value}")  # 1
+print(f"STOPPED = {StageStatus.STOPPED.value}")  # 2
 
 # 状態遷移
 status = StageStatus.NOT_STARTED
@@ -200,13 +207,13 @@ with ctx:
 from celestialflow.runtime.util_types import CTreeEvent
 
 # イベント名定数
-print(f"タスク入力イベント: {CTreeEvent.TASK_INPUT}")           # "task.input"
-print(f"タスク成功イベント: {CTreeEvent.TASK_SUCCESS}")         # "task.success"
-print(f"タスク失敗イベント: {CTreeEvent.TASK_ERROR}")           # "task.error"
-print(f"リトライプレフィックス: {CTreeEvent.TASK_RETRY_PREFIX}")        # "task.retry."
-print(f"重複タスクイベント: {CTreeEvent.TASK_DUPLICATE}")       # "task.duplicate"
-print(f"終了注入イベント: {CTreeEvent.TERMINATION_INPUT}")    # "termination.input"
-print(f"終了マージイベント: {CTreeEvent.TERMINATION_MERGE}")    # "termination.merge"
+print(f"タスク入力イベント: {CTreeEvent.TASK_INPUT}")  # "task.input"
+print(f"タスク成功イベント: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
+print(f"タスク失敗イベント: {CTreeEvent.TASK_ERROR}")  # "task.error"
+print(f"リトライプレフィックス: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
+print(f"重複タスクイベント: {CTreeEvent.TASK_DUPLICATE}")  # "task.duplicate"
+print(f"終了注入イベント: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
+print(f"終了マージイベント: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
 ```
 
 ## 注意事項

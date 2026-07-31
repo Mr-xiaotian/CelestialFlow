@@ -39,6 +39,7 @@ TaskMetrics は内部に 4 つのコアカウンターを保持します:
 def reset_counter(self) -> None:
     """全カウンターをゼロにリセットします。"""
 
+
 def reset_state(self) -> None:
     """統計状態をリセットします（processed_set をクリア）。"""
 ```
@@ -49,11 +50,14 @@ def reset_state(self) -> None:
 def add_task_count(self, add_count: int = 1):
     """スレッドセーフに入力タスクカウントを増やします。"""
 
+
 def add_success_count(self, count: int = 1):
     """スレッドセーフに成功タスクカウントを増やします。"""
 
+
 def add_error_count(self, count: int = 1):
     """スレッドセーフに失敗タスクカウントを増やします。"""
+
 
 def add_duplicate_count(self, count: int = 1):
     """スレッドセーフに重複タスクカウントを増やします。"""
@@ -88,12 +92,12 @@ def is_tasks_finished(self) -> bool:
 ```python
 def get_counts(self) -> dict[str, int]:
     return {
-        "tasks_input": int,       # 入力タスク総数
-        "tasks_succeeded": int,   # 成功タスク数
-        "tasks_failed": int,      # 失敗タスク数
+        "tasks_input": int,  # 入力タスク総数
+        "tasks_succeeded": int,  # 成功タスク数
+        "tasks_failed": int,  # 失敗タスク数
         "tasks_duplicated": int,  # 重複タスク数
-        "tasks_processed": int,   # 処理済み総数
-        "tasks_pending": int,     # 保留中タスク数
+        "tasks_processed": int,  # 処理済み総数
+        "tasks_pending": int,  # 保留中タスク数
     }
 ```
 
@@ -117,6 +121,7 @@ def is_duplicate(self, task_hash: bytes) -> bool:
     - ハッシュがセットに存在しない場合、セットに追加して False を返す
     - 既存の場合、True を返す
     """
+
 
 def add_processed_set(self, task_hash: bytes) -> None:
     """タスクハッシュを処理済みセットに追加します（enable_duplicate_check=True 時のみ有効）。"""
@@ -167,25 +172,25 @@ metrics.add_error_count(1)
 metrics.add_duplicate_count(1)
 
 # 4. 各カウンター値の照会
-print(f"タスク総数: {metrics.get_task_count()}")         # 5
-print(f"成功数: {metrics.get_success_count()}")        # 3
-print(f"失敗数: {metrics.get_error_count()}")          # 1
-print(f"重複数: {metrics.get_duplicate_count()}")      # 1
+print(f"タスク総数: {metrics.get_task_count()}")  # 5
+print(f"成功数: {metrics.get_success_count()}")  # 3
+print(f"失敗数: {metrics.get_error_count()}")  # 1
+print(f"重複数: {metrics.get_duplicate_count()}")  # 1
 
 # 5. 完全なスナップショット辞書の取得
 counts = metrics.get_counts()
-print(f"処理済み: {counts['tasks_processed']}")          # 3+1+1 = 5
-print(f"保留中: {counts['tasks_pending']}")            # 0
-print(f"全完了: {metrics.is_tasks_finished()}")      # True
+print(f"処理済み: {counts['tasks_processed']}")  # 3+1+1 = 5
+print(f"保留中: {counts['tasks_pending']}")  # 0
+print(f"全完了: {metrics.is_tasks_finished()}")  # True
 
 # 6. 重複排除チェック例（enable_duplicate_check=True が必要）
 task_hash = b"\x00\x01\x02"
-print(f"初回チェック: {metrics.is_duplicate(task_hash)}")   # False（初回追加）
-print(f"重複チェック: {metrics.is_duplicate(task_hash)}")   # True（既存）
+print(f"初回チェック: {metrics.is_duplicate(task_hash)}")  # False（初回追加）
+print(f"重複チェック: {metrics.is_duplicate(task_hash)}")  # True（既存）
 
 # 7. カウンターのリセット
 metrics.reset_counter()
-print(f"リセット後タスク数: {metrics.get_task_count()}")      # 0
+print(f"リセット後タスク数: {metrics.get_task_count()}")  # 0
 ```
 
 ### カウンターカスケード

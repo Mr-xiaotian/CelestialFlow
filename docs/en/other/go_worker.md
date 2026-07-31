@@ -64,8 +64,12 @@ Here we use the setup for running test_redis_ack_0 as an example. The `testFibon
 
 ```python
 # test_redis_ack_0
-redis_sink = TaskRedisTransport(key="testFibonacci:input", host=redis_host, password=redis_password)
-redis_ack = TaskRedisAck(key="testFibonacci:output", host=redis_host, password=redis_password)
+redis_sink = TaskRedisTransport(
+    key="testFibonacci:input", host=redis_host, password=redis_password
+)
+redis_ack = TaskRedisAck(
+    key="testFibonacci:output", host=redis_host, password=redis_password
+)
 ```
 
 Also select the Go function you want to use in [go_worker processor.go](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/go_worker/worker/processor.go).

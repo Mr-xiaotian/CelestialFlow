@@ -35,7 +35,7 @@ chain = TaskChain(
     name="DataPipeline",
     stages=[stage1, stage2, stage3],
     stage_mode="thread",  # thread: 节点并行运行; serial: 节点串行运行
-    log_level="SUCCESS"
+    log_level="SUCCESS",
 )
 
 # 启动
@@ -75,11 +75,7 @@ layer1 = [stage_1_1, stage_1_2]
 layer2 = [stage_2_1, stage_2_2]
 
 # 创建交叉结构
-cross = TaskCross(
-    name="CrossPipeline",
-    layers=[layer1, layer2],
-    schedule_mode="eager"
-)
+cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], schedule_mode="eager")
 ```
 
 ## Grid (网格)
@@ -109,17 +105,10 @@ flowchart TD
 from celestialflow import TaskGrid
 
 # 定义网格
-grid_layout = [
-    [stage_00, stage_01],
-    [stage_10, stage_11]
-]
+grid_layout = [[stage_00, stage_01], [stage_10, stage_11]]
 
 # 创建网格结构
-grid = TaskGrid(
-    name="GridPipeline",
-    grid=grid_layout,
-    schedule_mode="eager"
-)
+grid = TaskGrid(name="GridPipeline", grid=grid_layout, schedule_mode="eager")
 ```
 
 ## Loop (环形)
@@ -148,7 +137,7 @@ from celestialflow import TaskLoop
 # 创建环
 loop = TaskLoop(
     name="FeedbackLoop",
-    stages=[stage1, stage2, stage3]  # stage3 -> stage1
+    stages=[stage1, stage2, stage3],  # stage3 -> stage1
 )
 ```
 
@@ -183,7 +172,7 @@ from celestialflow import TaskWheel
 wheel = TaskWheel(
     name="HubAndSpoke",
     center=center_stage,
-    ring=[ring_stage1, ring_stage2, ring_stage3]
+    ring=[ring_stage1, ring_stage2, ring_stage3],
 )
 ```
 
@@ -212,10 +201,7 @@ flowchart LR
 from celestialflow import TaskComplete
 
 # 创建完全图
-complete = TaskComplete(
-    name="FullMesh",
-    stages=[stage1, stage2, stage3, stage4]
-)
+complete = TaskComplete(name="FullMesh", stages=[stage1, stage2, stage3, stage4])
 ```
 
 ## 使用示例
@@ -227,15 +213,19 @@ complete = TaskComplete(
 ```python
 from celestialflow import TaskChain, TaskStage
 
+
 # 定义三个阶段：数据清洗 -> 转换 -> 聚合
 def clean(data: str) -> str:
     return data.strip()
 
+
 def transform(data: str) -> int:
     return int(data) * 2
 
+
 def aggregate(data: int) -> dict:
     return {"original": data // 2, "doubled": data}
+
 
 # 构建链
 s1 = TaskStage("Clean", func=clean)
@@ -255,19 +245,24 @@ print(f"链状态: {chain.get_status_snapshot()}")
 ```python
 from celestialflow import TaskCross, TaskStage
 
+
 # 第一层：数据准备
 def load_a(x: int) -> int:
     return x + 1
 
+
 def load_b(x: int) -> int:
     return x * 10
+
 
 # 第二层：计算分析
 def analyze_a(x: int) -> float:
     return x * 1.5
 
+
 def analyze_b(x: int) -> float:
     return x * 2.0
+
 
 layer1 = [TaskStage("LoadA", func=load_a), TaskStage("LoadB", func=load_b)]
 layer2 = [TaskStage("AnaA", func=analyze_a), TaskStage("AnaB", func=analyze_b)]
@@ -335,7 +330,7 @@ print(wheel.get_status_snapshot())
 from celestialflow import TaskComplete, TaskStage
 
 nodes = [
-    TaskStage("N1", func=lambda x: x ** 2),
+    TaskStage("N1", func=lambda x: x**2),
     TaskStage("N2", func=lambda x: x + 1),
     TaskStage("N3", func=lambda x: x // 2),
 ]

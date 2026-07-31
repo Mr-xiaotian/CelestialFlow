@@ -34,12 +34,14 @@ class BaseObserver:
 ```python
 from celestialflow import BaseObserver, TaskExecutor
 
+
 class MyObserver(BaseObserver):
     def on_task_success(self, count=1):
         print(f"成功: {count}")
 
     def on_task_fail(self, count=1):
         print(f"失败: {count}")
+
 
 executor = TaskExecutor("Test", my_func)
 executor.add_observer(MyObserver())
@@ -49,7 +51,7 @@ executor.start(tasks)
 ### Observer 管理
 
 ```python
-executor.add_observer(observer)     # 注册观察者
+executor.add_observer(observer)  # 注册观察者
 executor.remove_observer(observer)  # 移除观察者
 ```
 

@@ -75,9 +75,11 @@ Stage 模块包含三个层次的任务执行单元：
 ```python
 from celestialflow import TaskExecutor
 
+
 # 定义处理函数
 def process_item(x: int) -> int:
     return x * 10
+
 
 # 创建并执行
 executor = TaskExecutor(
@@ -121,10 +123,12 @@ for name, runtime in graph.stage_runtime_dict.items():
 ```python
 from celestialflow import TaskGraph, TaskStage, TaskSplitter
 
+
 # 自定义分裂器：将字符串按逗号分裂
 class CommaSplitter(TaskSplitter):
     def _split(self, task):
         return tuple(task.split(","))
+
 
 # 构建图
 raw = TaskStage("Source", func=lambda x: x, stage_mode="serial")
@@ -144,12 +148,14 @@ graph.start_graph({raw.get_name(): ["a,b,c", "x,y,z"]})
 ```python
 from celestialflow import TaskGraph, TaskStage, TaskRouter
 
+
 # 定义路由函数：根据任务内容返回目标节点名称
 def classify(x: int) -> str:
     if x > 0:
         return "positive"
     else:
         return "negative"
+
 
 # 上游只产出原始任务
 source = TaskStage("Source", func=lambda x: x, stage_mode="serial")

@@ -42,7 +42,9 @@ print(f"Set {s} → {hashable_set}")
 # Can be used directly as key in set or dict
 seen = set()
 seen.add(make_hashable({"name": "alice", "age": 30}))
-print(f"{"alice".upper()} processed?: {make_hashable({"name": "alice", "age": 30}) in seen}")  # True
+print(
+    f"{'alice'.upper()} processed?: {make_hashable({'name': 'alice', 'age': 30}) in seen}"
+)  # True
 
 # ===== object_to_hash =====
 # Compute SHA1 byte string for any object

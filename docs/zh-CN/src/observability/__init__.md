@@ -82,6 +82,7 @@ from celestialflow import TaskGraph, TaskStage, BaseObserver
 from celestialflow.observability import TaskReporter
 from celestialflow.persistence import LogInlet
 
+
 # 1. 自定义观察者：统计任务执行结果
 class StatsObserver(BaseObserver):
     def __init__(self):
@@ -97,11 +98,13 @@ class StatsObserver(BaseObserver):
     def on_finish(self):
         print(f"执行结束：成功 {self.success_count}，失败 {self.fail_count}")
 
+
 # 2. 定义任务处理函数
 def process_item(item: int) -> int:
     if item % 5 == 0:
         raise ValueError(f"跳过数字 {item}")
     return item * 2
+
 
 # 创建任务图
 graph = TaskGraph(schedule_mode="eager")
@@ -129,7 +132,9 @@ graph.start_graph({stage.get_name(): list(range(20))})
 reporter.stop()
 
 # 查看统计结果
-print(f"最终统计 - 成功: {stats_observer.success_count}, 失败: {stats_observer.fail_count}")
+print(
+    f"最终统计 - 成功: {stats_observer.success_count}, 失败: {stats_observer.fail_count}"
+)
 ```
 
 此示例展示了可观测组件的协作：

@@ -12,9 +12,9 @@ class TaskEnvelope:
     __slots__ = ("hash", "id", "task")
 
     def __init__(self, task: T, id: int):
-        self.task: T = task   # 原始任务数据
+        self.task: T = task  # 原始任务数据
         self.hash: bytes | None = None  # 哈希值（惰性计算）
-        self.id: int = id     # 任务唯一 ID
+        self.id: int = id  # 任务唯一 ID
 ```
 
 ## Getter 方法
@@ -23,8 +23,10 @@ class TaskEnvelope:
 def get_task(self) -> T:
     """获取原始任务数据。"""
 
+
 def get_hash(self) -> bytes:
     """获取任务哈希值。首次调用时惰性计算并缓存。"""
+
 
 def get_id(self) -> int:
     """获取任务 ID。"""
@@ -40,10 +42,10 @@ def get_id(self) -> int:
 
 ```python
 envelope = TaskEnvelope(task="data", id=1)
-assert envelope.hash is None         # 未计算
-h = envelope.get_hash()              # 首次调用，计算并缓存
-assert envelope.hash is not None     # 已缓存
-assert envelope.get_hash() == h      # 后续调用直接返回缓存值
+assert envelope.hash is None  # 未计算
+h = envelope.get_hash()  # 首次调用，计算并缓存
+assert envelope.hash is not None  # 已缓存
+assert envelope.get_hash() == h  # 后续调用直接返回缓存值
 ```
 
 ## 使用示例
@@ -73,7 +75,7 @@ print(f"任务 ID: {envelope.get_id()}")  # 1
 h = envelope.get_hash()
 print(f"SHA1 哈希: {h.hex()[:16]}...")
 print(f"调用后 hash 已缓存: {envelope.hash is not None}")  # True
-print(f"重复调用返回缓存值: {envelope.get_hash() == h}")    # True
+print(f"重复调用返回缓存值: {envelope.get_hash() == h}")  # True
 ```
 
 ### 多种数据类型
@@ -93,9 +95,11 @@ env_none = TaskEnvelope(task=None, id=5)
 ```python
 from celestialflow.runtime import TaskEnvelope
 
+
 class UnpicklableTask:
     def __getstate__(self):
         raise TypeError("cannot pickle")
+
 
 env1 = TaskEnvelope(task=UnpicklableTask(), id=101)
 env2 = TaskEnvelope(task=UnpicklableTask(), id=102)

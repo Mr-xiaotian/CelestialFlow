@@ -49,11 +49,11 @@ print("\n" + "=" * 50)
 print("2. format_duration: 秒数转可读时长")
 print("=" * 50)
 
-print(f"format_duration(0):       {format_duration(0)}")        # 00:00
-print(f"format_duration(59):      {format_duration(59)}")       # 00:59
-print(f"format_duration(60):      {format_duration(60)}")       # 01:00
-print(f"format_duration(3661):    {format_duration(3661)}")     # 01:01:01
-print(f"format_duration(86399):   {format_duration(86399)}")    # 23:59:59
+print(f"format_duration(0):       {format_duration(0)}")  # 00:00
+print(f"format_duration(59):      {format_duration(59)}")  # 00:59
+print(f"format_duration(60):      {format_duration(60)}")  # 01:00
+print(f"format_duration(3661):    {format_duration(3661)}")  # 01:01:01
+print(f"format_duration(86399):   {format_duration(86399)}")  # 23:59:59
 
 # ====== 3. format_timestamp ======
 print("\n" + "=" * 50)
@@ -65,7 +65,7 @@ print(f"当前时间戳: {now}")
 print(f"格式化后: {format_timestamp(now)}")  # 2026-05-24 14:30:00
 
 # 固定时间戳
-print(f"纪元开始: {format_timestamp(0)}")            # 1970-01-01 08:00:00
+print(f"纪元开始: {format_timestamp(0)}")  # 1970-01-01 08:00:00
 print(f"2026年元旦: {format_timestamp(1767225600)}")  # 2026-01-01 08:00:00 (UTC+8)
 
 # ====== 4. format_avg_time ======
@@ -74,15 +74,15 @@ print("4. format_avg_time: 格式化平均处理速度")
 print("=" * 50)
 
 # 每个任务耗时 >= 1s 时显示 s/it
-print(f"100个任务耗时200s: {format_avg_time(200.0, 100)}")   # 2.00s/it
-print(f"1个任务耗时5s:    {format_avg_time(5.0, 1)}")       # 5.00s/it
+print(f"100个任务耗时200s: {format_avg_time(200.0, 100)}")  # 2.00s/it
+print(f"1个任务耗时5s:    {format_avg_time(5.0, 1)}")  # 5.00s/it
 
 # 每个任务耗时 < 1s 时显示 it/s（取倒数）
 print(f"100个任务耗时12.5s: {format_avg_time(12.5, 100)}")  # 8.00it/s
-print(f"500个任务耗时2s:    {format_avg_time(2.0, 500)}")   # 250.00it/s
+print(f"500个任务耗时2s:    {format_avg_time(2.0, 500)}")  # 250.00it/s
 
 # 边界情况
-print(f"无数据: {format_avg_time(0.0, 0)}")                 # N/A
+print(f"无数据: {format_avg_time(0.0, 0)}")  # N/A
 
 # ====== 5. format_table (综合应用) ======
 print("\n" + "=" * 50)

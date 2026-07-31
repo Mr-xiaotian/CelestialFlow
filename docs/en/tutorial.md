@@ -65,10 +65,11 @@ First, write the processing functions for each stage and test them individually.
 import requests
 from urllib.parse import quote
 
+
 def search_images(keyword: str) -> str:
     """
     Search Baidu images by keyword and return page HTML.
-    
+
     :param keyword: Search keyword
     :return: Page HTML content
     """
@@ -79,6 +80,7 @@ def search_images(keyword: str) -> str:
     response = requests.get(url, headers=headers, timeout=10)
     response.raise_for_status()
     return response.text
+
 
 # Standalone test
 if __name__ == "__main__":
@@ -92,10 +94,11 @@ if __name__ == "__main__":
 import re
 import json
 
+
 def parse_image_urls(html: str) -> list[str]:
     """
     Parse image URL list from HTML.
-    
+
     :param html: Page HTML
     :return: List of image URLs
     """
@@ -105,6 +108,7 @@ def parse_image_urls(html: str) -> list[str]:
     # Handle escape characters
     urls = [url.replace("\\/", "/") for url in urls]
     return urls[:20]  # Limit quantity
+
 
 # Standalone test
 if __name__ == "__main__":
@@ -120,16 +124,17 @@ if __name__ == "__main__":
 ```python
 import time
 
+
 def download_image(url: str) -> bytes | None:
     """
     Download image content.
-    
+
     :param url: Image URL
     :return: Image binary data, None on failure
     """
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": "https://image.baidu.com/"
+        "Referer": "https://image.baidu.com/",
     }
     try:
         response = requests.get(url, headers=headers, timeout=15)
@@ -138,6 +143,7 @@ def download_image(url: str) -> bytes | None:
     except Exception as e:
         print(f"Download failed: {url}, error: {e}")
         return None
+
 
 # Standalone test
 if __name__ == "__main__":
@@ -155,10 +161,11 @@ if __name__ == "__main__":
 import os
 import hashlib
 
+
 def save_image(image_data: bytes, keyword: str) -> str:
     """
     Save image to local disk.
-    
+
     :param image_data: Image binary data
     :param keyword: Keyword (used to create directory)
     :return: Saved file path
@@ -166,17 +173,18 @@ def save_image(image_data: bytes, keyword: str) -> str:
     # Create directory
     save_dir = os.path.join("images", keyword)
     os.makedirs(save_dir, exist_ok=True)
-    
+
     # Use data hash as filename
     file_hash = hashlib.md5(image_data).hexdigest()[:12]
     file_path = os.path.join(save_dir, f"{file_hash}.jpg")
-    
+
     # Avoid duplicate downloads
     if not os.path.exists(file_path):
         with open(file_path, "wb") as f:
             f.write(image_data)
-    
+
     return file_path
+
 
 # Standalone test
 if __name__ == "__main__":
@@ -208,15 +216,17 @@ stage_search = TaskStage(
     max_retries=2,
 )
 
+
 # Parse stage: input HTML, output multiple image URLs (needs splitting)
 # Need a custom Splitter to split the URL list
 class URLSplitter(TaskSplitter):
     """Split URL list into individual tasks."""
-    
+
     def _split(self, html: str):
         urls = parse_image_urls(html)
         print(f"Parsed {len(urls)} image URLs")
         return tuple(urls)
+
 
 stage_parse = URLSplitter("Parse Images")
 
@@ -225,7 +235,7 @@ stage_download = TaskStage(
     "Download Images",
     func=download_image,
     execution_mode="thread",  # Network I/O intensive, use thread pool
-    max_workers=10,           # Download 10 concurrently
+    max_workers=10,  # Download 10 concurrently
     max_retries=3,
 )
 
@@ -273,9 +283,7 @@ Visit http://localhost:5005 to view real-time status.
 
 ```python
 # Prepare initial tasks
-init_tasks = {
-    stage_search.get_name(): ["cat", "dog", "scenery"]
-}
+init_tasks = {stage_search.get_name(): ["cat", "dog", "scenery"]}
 
 # Start
 print("Starting image crawl...")
@@ -284,12 +292,8 @@ graph.start_graph(init_tasks)
 # Get statistics
 snapshot = graph.get_status_snapshot()
 status = snapshot["status"]
-total_succeeded = sum(
-    s.get("total_succeeded", 0) for s in status.values()
-)
-total_failed = sum(
-    s.get("total_failed", 0) for s in status.values()
-)
+total_succeeded = sum(s.get("total_succeeded", 0) for s in status.values())
+total_failed = sum(s.get("total_failed", 0) for s in status.values())
 print(f"Success: {total_succeeded}")
 print(f"Failed: {total_failed}")
 ```
@@ -309,20 +313,24 @@ import requests
 from urllib.parse import quote
 
 from celestialflow import (
-    TaskStage, 
-    TaskSplitter, 
+    TaskStage,
+    TaskSplitter,
     TaskGraph,
 )
 
 # ========== Processing Functions ==========
 
+
 def search_images(keyword: str) -> str:
     """Search Baidu images."""
     url = f"https://image.baidu.com/search/index?tn=baiduimage&word={quote(keyword)}"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
     response = requests.get(url, headers=headers, timeout=10)
     response.raise_for_status()
     return response.text
+
 
 def parse_image_urls(html: str) -> list[str]:
     """Parse image URLs."""
@@ -330,11 +338,12 @@ def parse_image_urls(html: str) -> list[str]:
     urls = re.findall(pattern, html)
     return [url.replace("\\/", "/") for url in urls][:20]
 
+
 def download_image(url: str) -> bytes | None:
     """Download image."""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": "https://image.baidu.com/"
+        "Referer": "https://image.baidu.com/",
     }
     try:
         response = requests.get(url, headers=headers, timeout=15)
@@ -342,6 +351,7 @@ def download_image(url: str) -> bytes | None:
         return response.content
     except Exception:
         return None
+
 
 def save_image(image_data: bytes, keyword: str) -> str | None:
     """Save image."""
@@ -356,21 +366,25 @@ def save_image(image_data: bytes, keyword: str) -> str | None:
             f.write(image_data)
     return file_path
 
+
 # ========== Custom Node ==========
+
 
 class URLSplitter(TaskSplitter):
     """URL list splitter."""
-    
+
     def _split(self, html: str):
         urls = parse_image_urls(html)
         print(f"Parsed {len(urls)} image URLs")
         return tuple(urls)
 
+
 # ========== Build Task Graph ==========
+
 
 def build_crawler_graph(keyword: str) -> TaskGraph:
     """Build crawler task graph."""
-    
+
     # Create nodes
     stage_search = TaskStage(
         "Search Page",
@@ -378,9 +392,9 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         execution_mode="serial",
         max_retries=2,
     )
-    
+
     stage_parse = URLSplitter("Parse Images")
-    
+
     stage_download = TaskStage(
         "Download Images",
         func=download_image,
@@ -388,7 +402,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         max_workers=10,
         max_retries=3,
     )
-    
+
     # Use closure to pass keyword
     stage_save = TaskStage(
         "Store Files",
@@ -396,41 +410,36 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         execution_mode="serial",
         enable_duplicate_check=False,
     )
-    
+
     # Set connections
     graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
     graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
     graph.connect([stage_download], [stage_save])
-    
+
     return graph
+
 
 # ========== Main ==========
 
 if __name__ == "__main__":
     # Configuration
     KEYWORDS = ["cat", "dog", "scenery"]
-    
+
     # Build graph
     graph = build_crawler_graph(KEYWORDS[0])
     graph.set_reporter(True, host="127.0.0.1", port=5005)
-    
+
     # Run
     print("Starting image crawl...")
-    graph.start_graph({
-        graph.source_stages[0].get_name(): KEYWORDS
-    })
-    
+    graph.start_graph({graph.source_stages[0].get_name(): KEYWORDS})
+
     # Statistics
     snapshot = graph.get_status_snapshot()
     status = snapshot["status"]
-    total_succeeded = sum(
-        s.get("total_succeeded", 0) for s in status.values()
-    )
-    total_failed = sum(
-        s.get("total_failed", 0) for s in status.values()
-    )
+    total_succeeded = sum(s.get("total_succeeded", 0) for s in status.values())
+    total_failed = sum(s.get("total_failed", 0) for s in status.values())
     print(f"\nCrawl complete!")
     print(f"Success: {total_succeeded}")
     print(f"Failed: {total_failed}")
@@ -483,14 +492,10 @@ You can dynamically inject new keywords via the Web UI:
 from celestialflow import TerminationSignal
 
 # Inject new keywords
-graph.put_stage_queue({
-    stage_search.get_name(): ["car", "food"]
-})
+graph.put_stage_queue({stage_search.get_name(): ["car", "food"]})
 
 # Inject termination signal (stop crawling)
-graph.put_stage_queue({
-    stage_search.get_name(): [TerminationSignal()]
-})
+graph.put_stage_queue({stage_search.get_name(): [TerminationSignal()]})
 ```
 
 ---

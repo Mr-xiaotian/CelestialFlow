@@ -33,9 +33,11 @@ class PendingCounter:
 ```python
 from celestialflow.funnel import BaseSpout
 
+
 class PrintSpout(BaseSpout):
     def _handle_record(self, record):
         print(record)
+
 
 spout = PrintSpout()
 spout.start()

@@ -152,19 +152,20 @@ print("Formatting utility examples")
 print("=" * 40)
 
 # format_duration: seconds -> readable time
-print(f"format_duration(75): {format_duration(75)}")     # 01:15
-print(f"format_duration(3661): {format_duration(3661)}") # 01:01:01
+print(f"format_duration(75): {format_duration(75)}")  # 01:15
+print(f"format_duration(3661): {format_duration(3661)}")  # 01:01:01
 
 # format_timestamp: timestamp -> date string
 import time
+
 print(f"format_timestamp(now): {format_timestamp(time.time())}")
 
 # format_avg_time: average processing time
 print(f"format_avg_time(12.5, 100): {format_avg_time(12.5, 100)}")  # 0.12s/it
-print(f"format_avg_time(2.0, 1): {format_avg_time(2.0, 1)}")       # 2.00s/it
+print(f"format_avg_time(2.0, 1): {format_avg_time(2.0, 1)}")  # 2.00s/it
 
 # format_repr: safe truncation
-print(f"format_repr('hello'*10, 15): {format_repr('hello'*10, 15)}")
+print(f"format_repr('hello'*10, 15): {format_repr('hello' * 10, 15)}")
 
 # 2. Collection operations ----
 print("\n" + "=" * 40)

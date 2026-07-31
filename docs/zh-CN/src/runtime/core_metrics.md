@@ -39,6 +39,7 @@ TaskMetrics 内部维护四个核心计数器：
 def reset_counter(self) -> None:
     """重置所有计数器为零。"""
 
+
 def reset_state(self) -> None:
     """重置统计状态（清空 processed_set）。"""
 ```
@@ -49,11 +50,14 @@ def reset_state(self) -> None:
 def add_task_count(self, add_count: int = 1):
     """线程安全地增加输入任务计数。"""
 
+
 def add_success_count(self, count: int = 1):
     """线程安全地增加成功任务计数。"""
 
+
 def add_error_count(self, count: int = 1):
     """线程安全地增加失败任务计数。"""
+
 
 def add_duplicate_count(self, count: int = 1):
     """线程安全地增加重复任务计数。"""
@@ -88,12 +92,12 @@ def is_tasks_finished(self) -> bool:
 ```python
 def get_counts(self) -> dict[str, int]:
     return {
-        "tasks_input": int,       # 输入任务总数
-        "tasks_succeeded": int,   # 成功任务数
-        "tasks_failed": int,      # 失败任务数
+        "tasks_input": int,  # 输入任务总数
+        "tasks_succeeded": int,  # 成功任务数
+        "tasks_failed": int,  # 失败任务数
         "tasks_duplicated": int,  # 重复任务数
-        "tasks_processed": int,   # 已处理总数
-        "tasks_pending": int,     # 待处理任务数
+        "tasks_processed": int,  # 已处理总数
+        "tasks_pending": int,  # 待处理任务数
     }
 ```
 
@@ -117,6 +121,7 @@ def is_duplicate(self, task_hash: bytes) -> bool:
     - 如果哈希不在集合中，加入集合并返回 False
     - 如果已存在，返回 True
     """
+
 
 def add_processed_set(self, task_hash: bytes) -> None:
     """将任务哈希加入已处理集合（仅当 enable_duplicate_check=True 时生效）。"""
@@ -167,25 +172,25 @@ metrics.add_error_count(1)
 metrics.add_duplicate_count(1)
 
 # 4. 查询各计数器的值
-print(f"任务总数: {metrics.get_task_count()}")         # 5
-print(f"成功数: {metrics.get_success_count()}")        # 3
-print(f"失败数: {metrics.get_error_count()}")          # 1
-print(f"重复数: {metrics.get_duplicate_count()}")      # 1
+print(f"任务总数: {metrics.get_task_count()}")  # 5
+print(f"成功数: {metrics.get_success_count()}")  # 3
+print(f"失败数: {metrics.get_error_count()}")  # 1
+print(f"重复数: {metrics.get_duplicate_count()}")  # 1
 
 # 5. 获取完整快照字典
 counts = metrics.get_counts()
-print(f"已处理: {counts['tasks_processed']}")          # 3+1+1 = 5
-print(f"待处理: {counts['tasks_pending']}")            # 0
-print(f"全部完成: {metrics.is_tasks_finished()}")      # True
+print(f"已处理: {counts['tasks_processed']}")  # 3+1+1 = 5
+print(f"待处理: {counts['tasks_pending']}")  # 0
+print(f"全部完成: {metrics.is_tasks_finished()}")  # True
 
 # 6. 去重检查示例（需要 enable_duplicate_check=True）
 task_hash = b"\x00\x01\x02"
-print(f"首次检查: {metrics.is_duplicate(task_hash)}")   # False（首次加入）
-print(f"重复检查: {metrics.is_duplicate(task_hash)}")   # True（已存在）
+print(f"首次检查: {metrics.is_duplicate(task_hash)}")  # False（首次加入）
+print(f"重复检查: {metrics.is_duplicate(task_hash)}")  # True（已存在）
 
 # 7. 重置计数器
 metrics.reset_counter()
-print(f"重置后任务数: {metrics.get_task_count()}")      # 0
+print(f"重置后任务数: {metrics.get_task_count()}")  # 0
 ```
 
 ### 计数器级联

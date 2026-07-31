@@ -20,21 +20,20 @@
 
 ```python
 def is_dag(graph: OrderGraph) -> bool:
-    deg = in_degree(graph)              # ① 计算所有节点入度
-    stack = [n for n, d in deg.items() 
-             if d == 0]                 # ② 收集所有入度为0的节点
-    visited = 0                          # ③ 计数：已被剥离的节点数
+    deg = in_degree(graph)  # ① 计算所有节点入度
+    stack = [n for n, d in deg.items() if d == 0]  # ② 收集所有入度为0的节点
+    visited = 0  # ③ 计数：已被剥离的节点数
 
-    while stack:                         # ④ 不断处理入度为0的节点
-        u = stack.pop()                  # ⑤ 取出一个节点
-        visited += 1                     # ⑥ 计数+1
+    while stack:  # ④ 不断处理入度为0的节点
+        u = stack.pop()  # ⑤ 取出一个节点
+        visited += 1  # ⑥ 计数+1
 
         for v in graph._out.get(u, []):  # ⑦ 遍历它的所有出边 u→v
-            deg[v] -= 1                  # ⑧ 删除这条边：v的入度-1
-            if deg[v] == 0:              # ⑨ 如果v的入度恰好变为0
-                stack.append(v)          # ⑩ 说明v现在"安全"了，加入处理队列
+            deg[v] -= 1  # ⑧ 删除这条边：v的入度-1
+            if deg[v] == 0:  # ⑨ 如果v的入度恰好变为0
+                stack.append(v)  # ⑩ 说明v现在"安全"了，加入处理队列
 
-    return visited == len(graph._nodes) # ⑪ 全部剥离完？是则DAG
+    return visited == len(graph._nodes)  # ⑪ 全部剥离完？是则DAG
 ```
 
 ### 行ごとの解釈

@@ -41,12 +41,12 @@ if lowlink[v] == indices[v]:
 ```python
 def tarjan_scc(graph: OrderGraph) -> list[list[str]]:
     out = graph._out
-    index = 0                    # 全局时间戳计数器
-    stack: list[str] = []        # 维护当前"活跃"节点
-    on_stack: set[str] = set()   # 快速判断某节点是否在栈中
-    indices: dict[str, int] = {} # 记录每个节点的发现时间戳
-    lowlink: dict[str, int] = {} # 记录每个节点能回溯到的最小时间戳
-    sccs: list[list[str]] = []   # 结果：所有 SCC 列表
+    index = 0  # 全局时间戳计数器
+    stack: list[str] = []  # 维护当前"活跃"节点
+    on_stack: set[str] = set()  # 快速判断某节点是否在栈中
+    indices: dict[str, int] = {}  # 记录每个节点的发现时间戳
+    lowlink: dict[str, int] = {}  # 记录每个节点能回溯到的最小时间戳
+    sccs: list[list[str]] = []  # 结果：所有 SCC 列表
 ```
 
 ### 内側関数 `strongconnect(v)`
@@ -65,22 +65,21 @@ def tarjan_scc(graph: OrderGraph) -> list[list[str]]:
 **第一步**：ノード $v$ が発見される。`indices[v]` と `lowlink[v]` は最初、現在の時間戳に等しくなる。$v$ はスタックに入り、「まだ組織を見つけていない」ことを示す。
 
 ```python
-        # ② 遍历所有出边 v → w
-        for w in out.get(v, []):
-            
-            if w not in indices:
-                # 情况 A：w 未被访问过 → 树边，继续 DFS
-                strongconnect(w)
-                # 回溯后，w 的 lowlink 已经算好，用它来更新 v
-                lowlink[v] = min(lowlink[v], lowlink[w])
-            
-            elif w in on_stack:
-                # 情况 B：w 在栈中 → 回边或指向同 SCC 的横叉边
-                # w 的时间戳就是它能代表的最老祖先
-                lowlink[v] = min(lowlink[v], indices[w])
-            
-            # 情况 C（隐式 else）：w 已访问但不在栈中
-            # 说明 w 属于一个已经确定的 SCC，对 v 无影响，直接忽略
+# ② 遍历所有出边 v → w
+for w in out.get(v, []):
+    if w not in indices:
+        # 情况 A：w 未被访问过 → 树边，继续 DFS
+        strongconnect(w)
+        # 回溯后，w 的 lowlink 已经算好，用它来更新 v
+        lowlink[v] = min(lowlink[v], lowlink[w])
+
+    elif w in on_stack:
+        # 情况 B：w 在栈中 → 回边或指向同 SCC 的横叉边
+        # w 的时间戳就是它能代表的最老祖先
+        lowlink[v] = min(lowlink[v], indices[w])
+
+    # 情况 C（隐式 else）：w 已访问但不在栈中
+    # 说明 w 属于一个已经确定的 SCC，对 v 无影响，直接忽略
 ```
 
 **3 種類の辺タイプの処理**：
@@ -219,7 +218,7 @@ c → d → e
 ### 最終結果
 
 ```python
-[['f', 'e'], ['d'], ['c', 'b', 'a']]
+[["f", "e"], ["d"], ["c", "b", "a"]]
 ```
 
 **順序に注意**：これは**逆トポロジカル順**——**汇点 SCC が先に出力され**、**源点 SCC が後に出力される**。

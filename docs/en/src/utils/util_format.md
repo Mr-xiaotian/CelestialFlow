@@ -49,11 +49,11 @@ print("\n" + "=" * 50)
 print("2. format_duration: Convert seconds to readable duration")
 print("=" * 50)
 
-print(f"format_duration(0):       {format_duration(0)}")        # 00:00
-print(f"format_duration(59):      {format_duration(59)}")       # 00:59
-print(f"format_duration(60):      {format_duration(60)}")       # 01:00
-print(f"format_duration(3661):    {format_duration(3661)}")     # 01:01:01
-print(f"format_duration(86399):   {format_duration(86399)}")    # 23:59:59
+print(f"format_duration(0):       {format_duration(0)}")  # 00:00
+print(f"format_duration(59):      {format_duration(59)}")  # 00:59
+print(f"format_duration(60):      {format_duration(60)}")  # 01:00
+print(f"format_duration(3661):    {format_duration(3661)}")  # 01:01:01
+print(f"format_duration(86399):   {format_duration(86399)}")  # 23:59:59
 
 # ====== 3. format_timestamp ======
 print("\n" + "=" * 50)
@@ -65,7 +65,7 @@ print(f"Current timestamp: {now}")
 print(f"Formatted: {format_timestamp(now)}")  # 2026-05-24 14:30:00
 
 # Fixed timestamps
-print(f"Epoch start: {format_timestamp(0)}")            # 1970-01-01 08:00:00
+print(f"Epoch start: {format_timestamp(0)}")  # 1970-01-01 08:00:00
 print(f"2026 New Year: {format_timestamp(1767225600)}")  # 2026-01-01 08:00:00 (UTC+8)
 
 # ====== 4. format_avg_time ======
@@ -74,15 +74,15 @@ print("4. format_avg_time: Format average processing speed")
 print("=" * 50)
 
 # When avg time per task >= 1s, displays as s/it
-print(f"100 tasks in 200s: {format_avg_time(200.0, 100)}")   # 2.00s/it
-print(f"1 task in 5s:     {format_avg_time(5.0, 1)}")       # 5.00s/it
+print(f"100 tasks in 200s: {format_avg_time(200.0, 100)}")  # 2.00s/it
+print(f"1 task in 5s:     {format_avg_time(5.0, 1)}")  # 5.00s/it
 
 # When avg time per task < 1s, displays as it/s (reciprocal)
 print(f"100 tasks in 12.5s: {format_avg_time(12.5, 100)}")  # 8.00it/s
-print(f"500 tasks in 2s:    {format_avg_time(2.0, 500)}")   # 250.00it/s
+print(f"500 tasks in 2s:    {format_avg_time(2.0, 500)}")  # 250.00it/s
 
 # Edge case
-print(f"No data: {format_avg_time(0.0, 0)}")                 # N/A
+print(f"No data: {format_avg_time(0.0, 0)}")  # N/A
 
 # ====== 5. format_table (comprehensive) ======
 print("\n" + "=" * 50)

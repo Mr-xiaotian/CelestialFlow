@@ -12,11 +12,11 @@ Runtime モジュールは、タスク投入から結果返却までのタスク
 
 ```python
 from celestialflow.runtime import (
-    TaskDispatch,    # タスクディスパッチャ（TaskDispatch）
-    TaskEnvelope,    # タスクエンベロープ（TaskEnvelope）
-    TaskInQueue,     # タスク入力キュー
-    TaskMetrics,     # タスクメトリクス統計
-    TaskOutQueue,    # タスク出力キュー
+    TaskDispatch,  # タスクディスパッチャ（TaskDispatch）
+    TaskEnvelope,  # タスクエンベロープ（TaskEnvelope）
+    TaskInQueue,  # タスク入力キュー
+    TaskMetrics,  # タスクメトリクス統計
+    TaskOutQueue,  # タスク出力キュー
 )
 ```
 

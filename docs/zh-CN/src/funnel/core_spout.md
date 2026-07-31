@@ -50,8 +50,10 @@ def stop(self):
 def get_queue(self) -> Queue[Any]:
     """获取监听器的输入队列。"""
 
+
 def get_counter(self) -> PendingCounter:
     """获取与当前监听器绑定的待处理计数器。"""
+
 
 def get_pending_count(self) -> int:
     """读取当前仍未处理完成的记录数量。"""
@@ -66,9 +68,11 @@ def _before_start(self) -> None:
     """启动前的初始化操作。默认空实现。"""
     return None
 
+
 def _handle_record(self, _record: Any) -> None:
     """处理单条记录（子类必须覆写，否则抛出 CelestialFlowError）。"""
     raise CelestialFlowError("_handle_record must be implemented by subclasses")
+
 
 def _after_stop(self) -> None:
     """停止后的清理操作。默认空实现。"""
@@ -129,6 +133,7 @@ stateDiagram-v2
 ```python
 from celestialflow.funnel import BaseSpout
 
+
 # 自定义 Spout：将字符串记录写入列表
 class CollectSpout(BaseSpout):
     def __init__(self):
@@ -138,6 +143,7 @@ class CollectSpout(BaseSpout):
     def _handle_record(self, record):
         """处理单条记录，子类必须重写此方法"""
         self.collected.append(str(record))
+
 
 # 使用
 spout = CollectSpout()
@@ -158,6 +164,7 @@ print(f"收集了 {len(spout.collected)} 条记录")
 
 ```python
 from celestialflow.funnel import BaseSpout
+
 
 class FileWriterSpout(BaseSpout):
     def __init__(self, filepath: str):
@@ -181,6 +188,7 @@ class FileWriterSpout(BaseSpout):
             self.fh.close()
             print(f"文件已关闭: {self.filepath}")
 
+
 # 使用
 spout = FileWriterSpout("/tmp/test_spout.log")
 spout.start()
@@ -194,6 +202,7 @@ spout.stop()
 ```python
 from celestialflow.funnel import BaseSpout
 
+
 class CounterSpout(BaseSpout):
     def __init__(self):
         super().__init__()
@@ -201,6 +210,7 @@ class CounterSpout(BaseSpout):
 
     def _handle_record(self, record):
         self.count += 1
+
 
 spout = CounterSpout()
 spout.start()
@@ -210,6 +220,7 @@ for i in range(100):
 
 # 等待队列排空
 import time
+
 time.sleep(0.5)
 print(f"待处理: {spout.get_pending_count()}")
 

@@ -182,18 +182,16 @@ def add_one(x: int) -> int:
 
 async def main():
     # 1. clone_executor ----
-    executor = TaskExecutor(
-        "Square", square, execution_mode="thread", max_workers=4
-    )
+    executor = TaskExecutor("Square", square, execution_mode="thread", max_workers=4)
     cloned_exe = clone_executor(executor)
     print(f"clone_executor: 模式={cloned_exe.execution_mode}")
 
     # 2. clone_stage ----
-    stage = TaskStage(
-        "AddOne", add_one, stage_mode="serial", execution_mode="serial"
-    )
+    stage = TaskStage("AddOne", add_one, stage_mode="serial", execution_mode="serial")
     cloned_stg = clone_stage(stage)
-    print(f"clone_stage: 名称={cloned_stg.get_name()}, mode={cloned_stg.get_stage_mode()}")
+    print(
+        f"clone_stage: 名称={cloned_stg.get_name()}, mode={cloned_stg.get_stage_mode()}"
+    )
 
     # 3. clone_graph ----
     graph = TaskGraph(name="CloneDemo", schedule_mode="eager")
@@ -208,9 +206,7 @@ async def main():
 
     # 分别运行原始图和克隆图，状态完全独立
     graph.start_graph({a.get_name(): [1, 2, 3]})
-    cloned_grp.start_graph(
-        {list(cloned_grp.stage_dict.keys())[0]: [10, 20]}
-    )
+    cloned_grp.start_graph({list(cloned_grp.stage_dict.keys())[0]: [10, 20]})
 
 
 asyncio.run(main())

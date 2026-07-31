@@ -114,16 +114,27 @@ A simple runnable example:
 ```python
 from celestialflow import TaskStage, TaskGraph
 
-def add(x, y): 
+
+def add(x, y):
     return x + y
 
-def square(x): 
-    return x ** 2
+
+def square(x):
+    return x**2
+
 
 if __name__ == "__main__":
     # Define two task nodes
-    stage1 = TaskStage(name="Adder", func=add, stage_mode="thread", execution_mode="thread", unpack_task_args=True)
-    stage2 = TaskStage(name="Squarer", func=square, stage_mode="thread", execution_mode="thread")
+    stage1 = TaskStage(
+        name="Adder",
+        func=add,
+        stage_mode="thread",
+        execution_mode="thread",
+        unpack_task_args=True,
+    )
+    stage2 = TaskStage(
+        name="Squarer", func=square, stage_mode="thread", execution_mode="thread"
+    )
 
     # Build the task graph structure
     graph = TaskGraph(name="DemoGraph")

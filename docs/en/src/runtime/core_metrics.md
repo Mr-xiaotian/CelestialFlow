@@ -38,6 +38,7 @@ All `ValueWrapper` instances uniformly use `Lock` to guarantee thread safety.
 def reset_counter(self) -> None:
     """Reset all counters to zero."""
 
+
 def reset_state(self) -> None:
     """Reset statistical state (clear processed_set)."""
 ```
@@ -48,11 +49,14 @@ def reset_state(self) -> None:
 def add_task_count(self, add_count: int = 1):
     """Thread-safely increase the input task count."""
 
+
 def add_success_count(self, count: int = 1):
     """Thread-safely increase the successful task count."""
 
+
 def add_error_count(self, count: int = 1):
     """Thread-safely increase the failed task count."""
+
 
 def add_duplicate_count(self, count: int = 1):
     """Thread-safely increase the duplicate task count."""
@@ -87,12 +91,12 @@ Get a snapshot dictionary of all current metrics.
 ```python
 def get_counts(self) -> dict[str, int]:
     return {
-        "tasks_input": int,       # Total input task count
-        "tasks_succeeded": int,   # Successful task count
-        "tasks_failed": int,      # Failed task count
+        "tasks_input": int,  # Total input task count
+        "tasks_succeeded": int,  # Successful task count
+        "tasks_failed": int,  # Failed task count
         "tasks_duplicated": int,  # Duplicate task count
-        "tasks_processed": int,   # Total processed count
-        "tasks_pending": int,     # Pending task count
+        "tasks_processed": int,  # Total processed count
+        "tasks_pending": int,  # Pending task count
     }
 ```
 
@@ -116,6 +120,7 @@ def is_duplicate(self, task_hash: bytes) -> bool:
     - If hash is not in the set, add it and return False
     - If already present, return True
     """
+
 
 def add_processed_set(self, task_hash: bytes) -> None:
     """Add task hash to the processed set (only effective when enable_duplicate_check=True)."""
@@ -166,25 +171,25 @@ metrics.add_error_count(1)
 metrics.add_duplicate_count(1)
 
 # 4. Query individual counter values
-print(f"Total tasks: {metrics.get_task_count()}")         # 5
-print(f"Success count: {metrics.get_success_count()}")    # 3
-print(f"Failure count: {metrics.get_error_count()}")      # 1
-print(f"Duplicate count: {metrics.get_duplicate_count()}") # 1
+print(f"Total tasks: {metrics.get_task_count()}")  # 5
+print(f"Success count: {metrics.get_success_count()}")  # 3
+print(f"Failure count: {metrics.get_error_count()}")  # 1
+print(f"Duplicate count: {metrics.get_duplicate_count()}")  # 1
 
 # 5. Get full snapshot dict
 counts = metrics.get_counts()
-print(f"Processed: {counts['tasks_processed']}")          # 3+1+1 = 5
-print(f"Pending: {counts['tasks_pending']}")              # 0
-print(f"All complete: {metrics.is_tasks_finished()}")     # True
+print(f"Processed: {counts['tasks_processed']}")  # 3+1+1 = 5
+print(f"Pending: {counts['tasks_pending']}")  # 0
+print(f"All complete: {metrics.is_tasks_finished()}")  # True
 
 # 6. Dedup check example (requires enable_duplicate_check=True)
 task_hash = b"\x00\x01\x02"
 print(f"First check: {metrics.is_duplicate(task_hash)}")  # False (first time added)
-print(f"Repeat check: {metrics.is_duplicate(task_hash)}") # True (already exists)
+print(f"Repeat check: {metrics.is_duplicate(task_hash)}")  # True (already exists)
 
 # 7. Reset counters
 metrics.reset_counter()
-print(f"Task count after reset: {metrics.get_task_count()}") # 0
+print(f"Task count after reset: {metrics.get_task_count()}")  # 0
 ```
 
 ### Counter Cascading

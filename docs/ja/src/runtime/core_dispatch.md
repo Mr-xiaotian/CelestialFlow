@@ -8,7 +8,9 @@
 
 ```python
 class TaskDispatch:
-    def __init__(self, task_executor: TaskExecutor, func: Callable[..., Any], max_workers: int):
+    def __init__(
+        self, task_executor: TaskExecutor, func: Callable[..., Any], max_workers: int
+    ):
         """
         タスクランナーを初期化します。
 
@@ -79,6 +81,7 @@ async def dispatch_async(self) -> None:
 def _worker(self, task_envelope: TaskEnvelope) -> None:
     """単一タスクを同期的に実行し、リトライをサポートします。"""
 
+
 async def _async_worker(self, task_envelope: TaskEnvelope) -> None:
     """単一タスクを非同期に実行し、リトライをサポートします。"""
 ```
@@ -92,7 +95,9 @@ async def _async_worker(self, task_envelope: TaskEnvelope) -> None:
 ### _process_termination_signal
 
 ```python
-def _process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
+def _process_termination_signal(
+    self, termination_pool: TerminationIdPool
+) -> TerminationSignal:
     """
     終了シグナルを処理し、merge イベントを生成します。
 
@@ -120,6 +125,7 @@ if self.task_executor.metrics.is_duplicate(task_hash):
 ```python
 def _init_pool(self, execution_mode: str) -> None:
     """必要に応じてスレッドプールを初期化します。"""
+
 
 def _release_pool(self) -> None:
     """スレッドプールをシャットダウンし、リソースを解放します。"""
@@ -171,7 +177,7 @@ from celestialflow import TaskExecutor
 # serial モード: シングルスレッド順次実行、デバッグに最適
 executor = TaskExecutor(
     "SerialWorker",
-    func=lambda x: x ** 2,
+    func=lambda x: x**2,
     execution_mode="serial",
 )
 executor.start([1, 2, 3, 4, 5])
@@ -189,9 +195,11 @@ print(f"成功: {executor.get_counts()['tasks_succeeded']}")
 from celestialflow import TaskExecutor
 import time
 
+
 def io_task(x: int) -> int:
     time.sleep(0.1)  # I/O 操作をシミュレート
     return x * 10
+
 
 # thread モード: スレッドプール並行、I/O バウンドに最適
 executor = TaskExecutor(
@@ -212,9 +220,11 @@ print(f"成功: {counts['tasks_succeeded']}, 失敗: {counts['tasks_failed']}")
 import asyncio
 from celestialflow import TaskExecutor
 
+
 async def async_task(x: int) -> int:
     await asyncio.sleep(0.05)  # 非同期 I/O をシミュレート
     return x * 100
+
 
 # async モード: 非同期コルーチン、ネットワーク I/O に最適
 executor = TaskExecutor(
@@ -235,7 +245,9 @@ print(f"成功: {counts['tasks_succeeded']}")
 from celestialflow import TaskExecutor
 
 # リトライ戦略を設定。ConnectionError または TimeoutError 発生時に自動リトライ
-unstable_func = lambda x: 100 // x if x != 0 else exec("raise ConnectionError('network error')")
+unstable_func = lambda x: (
+    100 // x if x != 0 else exec("raise ConnectionError('network error')")
+)
 
 executor = TaskExecutor(
     "RetryWorker",

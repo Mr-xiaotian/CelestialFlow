@@ -75,9 +75,11 @@ The following examples demonstrate typical usage of the core classes in the stag
 ```python
 from celestialflow import TaskExecutor
 
+
 # Define a processing function
 def process_item(x: int) -> int:
     return x * 10
+
 
 # Create and execute
 executor = TaskExecutor(
@@ -121,10 +123,12 @@ for name, runtime in graph.stage_runtime_dict.items():
 ```python
 from celestialflow import TaskGraph, TaskStage, TaskSplitter
 
+
 # Custom splitter: split a string by commas
 class CommaSplitter(TaskSplitter):
     def _split(self, task):
         return tuple(task.split(","))
+
 
 # Build graph
 raw = TaskStage("Source", func=lambda x: x, stage_mode="serial")
@@ -144,12 +148,14 @@ graph.start_graph({raw.get_name(): ["a,b,c", "x,y,z"]})
 ```python
 from celestialflow import TaskGraph, TaskStage, TaskRouter
 
+
 # Define a routing function: return target node name based on task content
 def classify(x: int) -> str:
     if x > 0:
         return "positive"
     else:
         return "negative"
+
 
 # Upstream only produces raw tasks
 source = TaskStage("Source", func=lambda x: x, stage_mode="serial")

@@ -86,15 +86,18 @@ classDiagram
 ```python
 from celestialflow.funnel import BaseSpout, BaseInlet
 
+
 # 1. 自定义 Spout：将收到的记录打印到控制台
 class PrintSpout(BaseSpout):
     def _handle_record(self, record):
         print(f"Spout 收到: {record}")
 
+
 # 2. 自定义 Inlet：封装写入接口
 class PrintInlet(BaseInlet):
     def send(self, data):
         self._funnel(data)
+
 
 # 3. 创建 Spout 和 Inlet，并绑定
 spout = PrintSpout()
@@ -118,6 +121,7 @@ print("Spout 已停止")
 ```python
 from celestialflow.funnel import BaseSpout
 
+
 class FileSpout(BaseSpout):
     def __init__(self, filename: str):
         super().__init__()
@@ -131,6 +135,7 @@ class FileSpout(BaseSpout):
 
     def _after_stop(self):
         print(f"关闭文件: {self.filename}")
+
 
 spout = FileSpout("records.log")
 spout.start()

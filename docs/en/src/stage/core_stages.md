@@ -142,6 +142,7 @@ def route_logic(data: int) -> str:
     else:
         return "negative_stage"
 
+
 # Upstream only produces raw tasks
 source = TaskStage("Source", func=lambda x: x)
 
@@ -168,10 +169,12 @@ graph.connect([router], [pos_stage, neg_stage])
 ```python
 from celestialflow import TaskGraph, TaskStage, TaskSplitter
 
+
 # Custom splitter: split text by lines
 class LineSplitter(TaskSplitter):
     def _split(self, task):
         return tuple(task.split("\\n"))
+
 
 # Define downstream processing stages
 source = TaskStage("Input", func=lambda x: x, stage_mode="serial")
@@ -193,6 +196,7 @@ graph.start_graph({source.get_name(): [text_data]})
 ```python
 from celestialflow import TaskGraph, TaskStage, TaskRouter
 
+
 # Define routing decision logic (returns target name only)
 def classify_number(x: int) -> str:
     if x > 0:
@@ -202,11 +206,16 @@ def classify_number(x: int) -> str:
     else:
         return "zero"
 
+
 # Build graph nodes
 source = TaskStage("Source", func=lambda x: x, stage_mode="serial")
 router = TaskRouter("Router", classify_number)
-handler_pos = TaskStage("positive", func=lambda x: f"Positive: {x}", stage_mode="serial")
-handler_neg = TaskStage("negative", func=lambda x: f"Negative: {x}", stage_mode="serial")
+handler_pos = TaskStage(
+    "positive", func=lambda x: f"Positive: {x}", stage_mode="serial"
+)
+handler_neg = TaskStage(
+    "negative", func=lambda x: f"Negative: {x}", stage_mode="serial"
+)
 handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}", stage_mode="serial")
 
 graph = TaskGraph()

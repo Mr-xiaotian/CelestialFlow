@@ -248,6 +248,7 @@ in_queue.put(TerminationSignal(_id=2, source="producer2"))
 # get() 会自动合并所有上游的终止信号并返回 TerminationIdPool
 result = in_queue.get()
 from celestialflow.runtime.util_types import TerminationIdPool
+
 if isinstance(result, TerminationIdPool):
     print(f"收到合并终止信号，包含 IDs: {result.ids}")
 

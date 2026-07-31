@@ -80,21 +80,21 @@ log_records = [
 ]
 
 filtered = [
-    (name, msg)
-    for name, msg in log_records
-    if LEVEL_DICT.get(name, 0) >= current_level
+    (name, msg) for name, msg in log_records if LEVEL_DICT.get(name, 0) >= current_level
 ]
 # 结果只保留 INFO 及以上级别
 print(filtered)
 # [('INFO', '用户登录成功'), ('WARNING', '磁盘空间不足'),
 #  ('ERROR', '数据库连接失败'), ('CRITICAL', '系统崩溃')]
 
+
 # 3. 级别比较辅助函数
 def is_level_enabled(current: str, target: str) -> bool:
     return LEVEL_DICT.get(target, 0) >= LEVEL_DICT.get(current, 0)
 
-print(is_level_enabled("WARNING", "ERROR"))    # True
-print(is_level_enabled("INFO", "DEBUG"))        # False
+
+print(is_level_enabled("WARNING", "ERROR"))  # True
+print(is_level_enabled("INFO", "DEBUG"))  # False
 ```
 
 ### 日志级别校验
@@ -102,11 +102,13 @@ print(is_level_enabled("INFO", "DEBUG"))        # False
 ```python
 from celestialflow.runtime.util_constant import LEVEL_DICT
 
+
 # 校验用户输入的日志级别是否合法
 def validate_level(level: str) -> bool:
     return level in LEVEL_DICT
 
-print(validate_level("INFO"))     # True
+
+print(validate_level("INFO"))  # True
 print(validate_level("VERBOSE"))  # False
 ```
 

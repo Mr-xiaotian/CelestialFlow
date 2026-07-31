@@ -101,6 +101,7 @@ from celestialflow import TaskGraph, TaskStage, BaseObserver
 from celestialflow.observability import TaskReporter
 from celestialflow.persistence import LogInlet
 
+
 # 1. カスタムオブザーバー：タスク実行結果を集計
 class StatsObserver(BaseObserver):
     def __init__(self):
@@ -116,11 +117,13 @@ class StatsObserver(BaseObserver):
     def on_finish(self):
         print(f"実行終了：成功 {self.success_count}、失敗 {self.fail_count}")
 
+
 # 2. タスク処理関数を定義
 def process_item(item: int) -> int:
     if item % 5 == 0:
         raise ValueError(f"数字 {item} をスキップ")
     return item * 2
+
 
 # タスクグラフを作成
 graph = TaskGraph(schedule_mode="eager")
@@ -148,7 +151,9 @@ graph.start_graph({stage.get_name(): list(range(20))})
 reporter.stop()
 
 # 統計結果を確認
-print(f"最終統計 - 成功: {stats_observer.success_count}, 失敗: {stats_observer.fail_count}")
+print(
+    f"最終統計 - 成功: {stats_observer.success_count}, 失敗: {stats_observer.fail_count}"
+)
 ```
 
 この例は 3 種類の可観測コンポーネントの連携を示しています：

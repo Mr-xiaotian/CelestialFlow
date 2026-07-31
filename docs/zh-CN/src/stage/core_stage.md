@@ -41,8 +41,12 @@ class TaskStage[T, R](TaskExecutor[T, R]):
 
 示例：
 ```python
-stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", stage_mode="thread")
-stage_b = TaskStage("StageB", func=process_b, execution_mode="serial", stage_mode="thread")
+stage_a = TaskStage(
+    "StageA", func=process_a, execution_mode="thread", stage_mode="thread"
+)
+stage_b = TaskStage(
+    "StageB", func=process_b, execution_mode="serial", stage_mode="thread"
+)
 
 # 创建图并连接节点
 graph = TaskGraph()
@@ -122,9 +126,11 @@ stateDiagram-v2
 def mark_running(self) -> None:
     """标记：stage 正在运行。"""
 
+
 # 标记停止
 def mark_stopped(self) -> None:
     """标记：stage 已停止（正常结束时在 finally 里调用）。"""
+
 
 # 获取状态
 def get_status(self) -> StageStatus:
@@ -182,11 +188,14 @@ def get_summary(self) -> dict[str, Any]:
 ```python
 from celestialflow import TaskGraph, TaskStage
 
+
 def step1(x: int) -> int:
     return x + 5
 
+
 def step2(x: int) -> int:
     return x * 3
+
 
 stage1 = TaskStage("Step1", func=step1, execution_mode="serial", stage_mode="serial")
 stage2 = TaskStage("Step2", func=step2, execution_mode="serial", stage_mode="serial")
@@ -207,9 +216,11 @@ for name, runtime in chain.stage_runtime_dict.items():
 import time
 from celestialflow import TaskGraph, TaskStage
 
+
 def io_task(x: int) -> int:
     time.sleep(0.05)
     return x * 10
+
 
 stage_a = TaskStage(
     name="IOWorker",
@@ -230,9 +241,11 @@ graph.start_graph({stage_a.get_name(): list(range(20))})
 import asyncio
 from celestialflow import TaskStage
 
+
 async def async_process(x: int) -> int:
     await asyncio.sleep(0.01)
-    return x ** 2
+    return x**2
+
 
 async_stage = TaskStage(
     name="AsyncProcessor",
@@ -253,9 +266,9 @@ stage = TaskStage("StatusDemo", func=lambda x: x)
 
 print(f"初始状态: {stage.get_status().name}")  # NOT_STARTED
 stage.mark_running()
-print(f"运行中: {stage.get_status().name}")   # RUNNING
+print(f"运行中: {stage.get_status().name}")  # RUNNING
 stage.mark_stopped()
-print(f"已停止: {stage.get_status().name}")   # STOPPED
+print(f"已停止: {stage.get_status().name}")  # STOPPED
 ```
 
 ## 注意事项

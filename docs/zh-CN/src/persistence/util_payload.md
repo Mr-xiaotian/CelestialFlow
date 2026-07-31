@@ -43,10 +43,10 @@ flowchart TD
 ```python
 from celestialflow.persistence.util_payload import to_persisted_payload
 
-print(to_persisted_payload(42))       # 42
+print(to_persisted_payload(42))  # 42
 print(to_persisted_payload("hello"))  # "hello"
-print(to_persisted_payload(True))     # True
-print(to_persisted_payload(None))     # None
+print(to_persisted_payload(True))  # True
+print(to_persisted_payload(None))  # None
 ```
 
 ### 复合类型递归转换
@@ -62,10 +62,12 @@ print(result)  # [1, 'a', True]
 result = to_persisted_payload({"score": 95, "tags": ["a", "b"]})
 print(result)  # {'score': 95, 'tags': ['a', 'b']}
 
+
 # 自定义对象
 class MyTask:
     def __str__(self):
         return "MyTask(id=1)"
+
 
 result = to_persisted_payload(MyTask())
 print(result)  # "MyTask(id=1)"

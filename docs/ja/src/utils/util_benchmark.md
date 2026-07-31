@@ -101,25 +101,30 @@ import asyncio
 from celestialflow import TaskExecutor
 from celestialflow.utils.util_benchmark import benchmark_executor
 
+
 # 定义同步任务
 def sync_task(x):
     return x * 2
+
 
 # 定义异步任务
 async def async_task(x):
     await asyncio.sleep(0.01)
     return x * 2
 
+
 # 创建执行器
 sync_executor = TaskExecutor("SyncBench", sync_task)
 async_executor = TaskExecutor("AsyncBench", async_task)
 
 # 运行基准测试
-asyncio.run(benchmark_executor(
-    sync_executor=sync_executor,
-    async_executor=async_executor,
-    task_source=range(1000),
-))
+asyncio.run(
+    benchmark_executor(
+        sync_executor=sync_executor,
+        async_executor=async_executor,
+        task_source=range(1000),
+    )
+)
 ```
 
 ### タスクグラフのテスト

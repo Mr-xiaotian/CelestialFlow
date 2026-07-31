@@ -247,6 +247,7 @@ in_queue.put(TerminationSignal(_id=2, source="producer2"))
 # get() automatically merges all upstream termination signals and returns TerminationIdPool
 result = in_queue.get()
 from celestialflow.runtime.util_types import TerminationIdPool
+
 if isinstance(result, TerminationIdPool):
     print(f"Received merged termination signal, containing IDs: {result.ids}")
 

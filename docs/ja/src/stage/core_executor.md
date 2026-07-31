@@ -22,8 +22,7 @@ class TaskExecutor[T, R]:
         enable_duplicate_check: bool = False,
         persist_result: bool = False,
         log_level: str = "INFO",
-    ):
-        ...
+    ): ...
 ```
 
 ### パラメータ説明
@@ -47,7 +46,7 @@ class TaskExecutor[T, R]:
 ### 登録と解除
 
 ```python
-executor.add_observer(observer)     # オブザーバーを登録
+executor.add_observer(observer)  # オブザーバーを登録
 executor.remove_observer(observer)  # オブザーバーを削除
 ```
 
@@ -75,11 +74,13 @@ def start(self, task_source: Iterable[T]) -> None:
     3. _finish_start() — on_finish 通知 + 全 spout 停止
     """
 
+
 async def start_async(self, task_source: Iterable[T]) -> None:
     """
     非同期的にエグゼキュータを起動します。内部で execution_mode="async" に設定。
     asyncio.run() ではなく await dispatch.dispatch_async() を使用。
     """
+
 
 def start_db(
     self,
@@ -122,11 +123,17 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
 タスクの結果処理は以下のメソッドで実装されます：
 
 ```python
-def process_task_success(self, task_envelope: TaskEnvelope[T], result: R, start_time: float) -> None:
+def process_task_success(
+    self, task_envelope: TaskEnvelope[T], result: R, start_time: float
+) -> None:
     """成功タスクの処理：observer に通知、ログ書き込み、結果エンベロープを生成し result_queue に投入。"""
 
-def handle_task_fail(self, task_envelope: TaskEnvelope[T], exception: Exception) -> None:
+
+def handle_task_fail(
+    self, task_envelope: TaskEnvelope[T], exception: Exception
+) -> None:
     """失敗タスクの処理：observer に通知、fallback_inlet と log_inlet に記録。"""
+
 
 def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
     """重複タスクの処理：observer に通知、ログ記録。"""
@@ -140,6 +147,7 @@ def get_success_pairs(self) -> list[tuple[T, R]]:
     成功タスク (task, result) リストを取得します。
     persist_result=True が必要。それ以外の場合は空リストを返し警告を発行。
     """
+
 
 def get_error_pairs(self) -> list[tuple[T, PersistedError]]:
     """失敗タスク (task, PersistedError) リストを取得します。"""
@@ -204,8 +212,10 @@ flowchart TD
 ```python
 from celestialflow import TaskExecutor
 
+
 def process_item(x: int) -> int:
     return x * 10
+
 
 executor = TaskExecutor(
     name="Calculator",
@@ -225,8 +235,10 @@ print(f"成功: {len(success)}, 失敗: {len(errors)}")
 ```python
 from celestialflow import TaskExecutor
 
+
 def process_item(x: int) -> int:
     return x * 10
+
 
 executor = TaskExecutor("Recovery", process_item, execution_mode="thread")
 # 永続化された失敗および pending レコードから実行を復元

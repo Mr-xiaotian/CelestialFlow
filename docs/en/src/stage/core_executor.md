@@ -22,8 +22,7 @@ class TaskExecutor[T, R]:
         enable_duplicate_check: bool = False,
         persist_result: bool = False,
         log_level: str = "INFO",
-    ):
-        ...
+    ): ...
 ```
 
 ### Parameters
@@ -47,7 +46,7 @@ class TaskExecutor[T, R]:
 ### Registration and Removal
 
 ```python
-executor.add_observer(observer)     # Register observer
+executor.add_observer(observer)  # Register observer
 executor.remove_observer(observer)  # Remove observer
 ```
 
@@ -75,11 +74,13 @@ def start(self, task_source: Iterable[T]) -> None:
     3. _finish_start() — notify on_finish + stop all spouts
     """
 
+
 async def start_async(self, task_source: Iterable[T]) -> None:
     """
     Asynchronously start the executor. Internally sets execution_mode="async".
     Uses await dispatch.dispatch_async() instead of asyncio.run().
     """
+
 
 def start_db(
     self,
@@ -122,11 +123,17 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
 Task result handling is implemented through the following methods:
 
 ```python
-def process_task_success(self, task_envelope: TaskEnvelope[T], result: R, start_time: float) -> None:
+def process_task_success(
+    self, task_envelope: TaskEnvelope[T], result: R, start_time: float
+) -> None:
     """Handle successful task: notify observer, write log, generate result envelope and put into result_queue."""
 
-def handle_task_fail(self, task_envelope: TaskEnvelope[T], exception: Exception) -> None:
+
+def handle_task_fail(
+    self, task_envelope: TaskEnvelope[T], exception: Exception
+) -> None:
     """Handle failed task: notify observer, record to fallback_inlet and log_inlet."""
+
 
 def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
     """Handle duplicate task: notify observer, record log."""
@@ -140,6 +147,7 @@ def get_success_pairs(self) -> list[tuple[T, R]]:
     Get the list of successful tasks (task, result) pairs.
     Requires persist_result=True, otherwise returns an empty list with a warning.
     """
+
 
 def get_error_pairs(self) -> list[tuple[T, PersistedError]]:
     """Get the list of failed tasks (task, PersistedError) pairs."""
@@ -204,8 +212,10 @@ flowchart TD
 ```python
 from celestialflow import TaskExecutor
 
+
 def process_item(x: int) -> int:
     return x * 10
+
 
 executor = TaskExecutor(
     name="Calculator",
@@ -225,8 +235,10 @@ print(f"Success: {len(success)}, Failed: {len(errors)}")
 ```python
 from celestialflow import TaskExecutor
 
+
 def process_item(x: int) -> int:
     return x * 10
+
 
 executor = TaskExecutor("Recovery", process_item, execution_mode="thread")
 # Resume execution from persisted failed and pending records

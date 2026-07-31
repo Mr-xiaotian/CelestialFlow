@@ -92,7 +92,9 @@ Fallback データはデフォルトで `./fallback/` ディレクトリに日�
 
 ```python
 # エラーレコードを取得
-error_pairs: list[tuple[Any, tuple[str, str]]] = fallback_spout.get_task_error_pairs("StageA")
+error_pairs: list[tuple[Any, tuple[str, str]]] = fallback_spout.get_task_error_pairs(
+    "StageA"
+)
 # 返値: [(task, (error_type, error_message)), ...]
 
 # 成功結果を取得

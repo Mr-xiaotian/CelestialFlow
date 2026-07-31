@@ -50,8 +50,10 @@ def stop(self):
 def get_queue(self) -> Queue[Any]:
     """リスナーの入力キューを取得する。"""
 
+
 def get_counter(self) -> PendingCounter:
     """現在のリスナーに関連付けられた待処理カウンターを取得する。"""
+
 
 def get_pending_count(self) -> int:
     """現在も処理が完了していないレコード数を読み取る。"""
@@ -66,9 +68,11 @@ def _before_start(self) -> None:
     """起動前の初期化処理。デフォルトは空実装。"""
     return None
 
+
 def _handle_record(self, _record: Any) -> None:
     """単一レコードを処理する（サブクラスで必ずオーバーライド。未実装の場合は CelestialFlowError を送出）。"""
     raise CelestialFlowError("_handle_record must be implemented by subclasses")
+
 
 def _after_stop(self) -> None:
     """停止後のクリーンアップ処理。デフォルトは空実装。"""
@@ -129,6 +133,7 @@ stateDiagram-v2
 ```python
 from celestialflow.funnel import BaseSpout
 
+
 # カスタム Spout：文字列レコードをリストに収集
 class CollectSpout(BaseSpout):
     def __init__(self):
@@ -138,6 +143,7 @@ class CollectSpout(BaseSpout):
     def _handle_record(self, record):
         """単一レコードを処理。サブクラスで必ずオーバーライドすること"""
         self.collected.append(str(record))
+
 
 # 使用
 spout = CollectSpout()
@@ -158,6 +164,7 @@ print(f"{len(spout.collected)} 件のレコードを収集しました")
 
 ```python
 from celestialflow.funnel import BaseSpout
+
 
 class FileWriterSpout(BaseSpout):
     def __init__(self, filepath: str):
@@ -181,6 +188,7 @@ class FileWriterSpout(BaseSpout):
             self.fh.close()
             print(f"ファイルを閉じました: {self.filepath}")
 
+
 # 使用
 spout = FileWriterSpout("/tmp/test_spout.log")
 spout.start()
@@ -194,6 +202,7 @@ spout.stop()
 ```python
 from celestialflow.funnel import BaseSpout
 
+
 class CounterSpout(BaseSpout):
     def __init__(self):
         super().__init__()
@@ -201,6 +210,7 @@ class CounterSpout(BaseSpout):
 
     def _handle_record(self, record):
         self.count += 1
+
 
 spout = CounterSpout()
 spout.start()
@@ -210,6 +220,7 @@ for i in range(100):
 
 # キューが空になるまで待機
 import time
+
 time.sleep(0.5)
 print(f"待処理: {spout.get_pending_count()}")
 

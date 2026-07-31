@@ -101,14 +101,16 @@ from celestialflow.runtime.util_event import LocalEventClient, clone_event_clien
 
 # 1. 创建本地事件客户端
 client = LocalEventClient(start_id=100)
-print(f"第一个事件 ID: {client.emit(type_='task.input')}")   # 100
+print(f"第一个事件 ID: {client.emit(type_='task.input')}")  # 100
 print(f"第二个事件 ID: {client.emit(type_='task.success')}")  # 101
-print(f"第三个事件 ID: {client.emit(type_='task.error')}")    # 102
+print(f"第三个事件 ID: {client.emit(type_='task.error')}")  # 102
 
 # 2. 克隆事件客户端
 cloned = clone_event_client(client)
 print(f"克隆实例类型: {type(cloned).__name__}")  # LocalEventClient
-print(f"新实例复用了原计数吗: {cloned.emit('') == client.emit('')}")  # False（两个独立实例）
+print(
+    f"新实例复用了原计数吗: {cloned.emit('') == client.emit('')}"
+)  # False（两个独立实例）
 ```
 
 ## 注意事项

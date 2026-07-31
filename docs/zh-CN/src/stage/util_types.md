@@ -32,9 +32,11 @@ type AnyTaskStage = TaskStage[Any, Any]
 from celestialflow.stage.util_types import AnyTaskStage
 from celestialflow.stage import TaskStage
 
+
 # 当需要声明一个可以接收任意类型 Stage 的变量时
 def register_stage(stage: AnyTaskStage) -> None:
     print(f"已注册 Stage: {stage.name}")
+
 
 # 可以传入任意泛型参数的 TaskStage
 int_stage: TaskStage[int, int] = TaskStage("A", func=lambda x: x * 2)
@@ -52,9 +54,9 @@ from celestialflow.stage import TaskStage
 
 stages: list[AnyTaskStage] = []
 
-stages.append(TaskStage("A", func=lambda x: x * 2))          # TaskStage[int, int]
-stages.append(TaskStage("B", func=lambda x: x.upper()))      # TaskStage[str, str]
-stages.append(TaskStage("C", func=lambda x: len(x)))         # TaskStage[str, int]
+stages.append(TaskStage("A", func=lambda x: x * 2))  # TaskStage[int, int]
+stages.append(TaskStage("B", func=lambda x: x.upper()))  # TaskStage[str, str]
+stages.append(TaskStage("C", func=lambda x: len(x)))  # TaskStage[str, int]
 
 # 无需手动标注复杂的泛型类型
 for s in stages:

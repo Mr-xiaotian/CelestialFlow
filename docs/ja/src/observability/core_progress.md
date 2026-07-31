@@ -53,6 +53,7 @@ from celestialflow import TaskExecutor, TaskProgress
 def slow_task(n: int) -> int:
     """時間のかかるタスクをシミュレート"""
     import time
+
     time.sleep(0.05)
     return n * n
 

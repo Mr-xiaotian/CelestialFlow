@@ -34,12 +34,14 @@ All methods have default empty implementations (not ABC); subclasses override as
 ```python
 from celestialflow import BaseObserver, TaskExecutor
 
+
 class MyObserver(BaseObserver):
     def on_task_success(self, count=1):
         print(f"Success: {count}")
 
     def on_task_fail(self, count=1):
         print(f"Fail: {count}")
+
 
 executor = TaskExecutor("Test", my_func)
 executor.add_observer(MyObserver())
@@ -49,7 +51,7 @@ executor.start(tasks)
 ### Observer Management
 
 ```python
-executor.add_observer(observer)     # Register observer
+executor.add_observer(observer)  # Register observer
 executor.remove_observer(observer)  # Remove observer
 ```
 

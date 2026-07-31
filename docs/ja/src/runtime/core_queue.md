@@ -247,6 +247,7 @@ in_queue.put(TerminationSignal(_id=2, source="producer2"))
 # get() は全上流の終了シグナルを自動マージし TerminationIdPool を返す
 result = in_queue.get()
 from celestialflow.runtime.util_types import TerminationIdPool
+
 if isinstance(result, TerminationIdPool):
     print(f"マージ済み終了シグナル受信、ID 一覧: {result.ids}")
 

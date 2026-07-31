@@ -28,7 +28,7 @@ class BaseInlet:
 
         :param record: 送信するレコード
         """
-        if not hasattr(self, '_queue') or not hasattr(self, '_counter'):
+        if not hasattr(self, "_queue") or not hasattr(self, "_counter"):
             raise InitializationError("inlet is not bound to spout")
 
         self._counter.increment()
@@ -103,6 +103,7 @@ classDiagram
 ```python
 from celestialflow.funnel import BaseSpout, BaseInlet
 
+
 class MySpout(BaseSpout):
     def __init__(self):
         super().__init__()
@@ -111,9 +112,11 @@ class MySpout(BaseSpout):
     def _handle_record(self, record):
         self.received.append(record)
 
+
 class MyInlet(BaseInlet):
     def send(self, data):
         self._funnel(data)
+
 
 # 使用
 spout = MySpout()

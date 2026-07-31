@@ -50,6 +50,7 @@ class ReporterTaskGraph(Protocol):
 ```python
 from celestialflow.observability.util_types import ReporterTaskGraph
 
+
 # TaskReporter 使用 Protocol 定义依赖，避免循环引用
 class TaskReporter:
     def __init__(
@@ -58,8 +59,7 @@ class TaskReporter:
         port: int,
         task_graph: ReporterTaskGraph,  # 接受任何满足该协议的实例
         log_inlet: LogInlet,
-    ) -> None:
-        ...
+    ) -> None: ...
 ```
 
 ## 注意事項

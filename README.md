@@ -114,16 +114,27 @@ uv sync --group dev
 ```python
 from celestialflow import TaskStage, TaskGraph
 
-def add(x, y): 
+
+def add(x, y):
     return x + y
 
-def square(x): 
-    return x ** 2
+
+def square(x):
+    return x**2
+
 
 if __name__ == "__main__":
     # 定义两个任务节点
-    stage1 = TaskStage(name="Adder", func=add, stage_mode="thread", execution_mode="thread", unpack_task_args=True)
-    stage2 = TaskStage(name="Squarer", func=square, stage_mode="thread", execution_mode="thread")
+    stage1 = TaskStage(
+        name="Adder",
+        func=add,
+        stage_mode="thread",
+        execution_mode="thread",
+        unpack_task_args=True,
+    )
+    stage2 = TaskStage(
+        name="Squarer", func=square, stage_mode="thread", execution_mode="thread"
+    )
 
     # 构建任务图结构
     graph = TaskGraph(name="DemoGraph")

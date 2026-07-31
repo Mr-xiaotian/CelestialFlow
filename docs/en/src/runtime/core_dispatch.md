@@ -8,7 +8,9 @@
 
 ```python
 class TaskDispatch:
-    def __init__(self, task_executor: TaskExecutor, func: Callable[..., Any], max_workers: int):
+    def __init__(
+        self, task_executor: TaskExecutor, func: Callable[..., Any], max_workers: int
+    ):
         """
         Initialize the task runner.
 
@@ -79,6 +81,7 @@ Synchronous/asynchronous worker functions that process a single task with retry 
 def _worker(self, task_envelope: TaskEnvelope) -> None:
     """Execute a single task synchronously, with retry support."""
 
+
 async def _async_worker(self, task_envelope: TaskEnvelope) -> None:
     """Execute a single task asynchronously, with retry support."""
 ```
@@ -92,7 +95,9 @@ Retry logic:
 ### _process_termination_signal
 
 ```python
-def _process_termination_signal(self, termination_pool: TerminationIdPool) -> TerminationSignal:
+def _process_termination_signal(
+    self, termination_pool: TerminationIdPool
+) -> TerminationSignal:
     """
     Process termination signal, generating merge event.
 
@@ -120,6 +125,7 @@ if self.task_executor.metrics.is_duplicate(task_hash):
 ```python
 def _init_pool(self, execution_mode: str) -> None:
     """Initialize thread pool on demand."""
+
 
 def _release_pool(self) -> None:
     """Shut down thread pool, release resources."""
@@ -169,7 +175,7 @@ from celestialflow import TaskExecutor
 # serial mode: single-threaded sequential execution, suitable for debugging
 executor = TaskExecutor(
     "SerialWorker",
-    func=lambda x: x ** 2,
+    func=lambda x: x**2,
     execution_mode="serial",
 )
 executor.start([1, 2, 3, 4, 5])
@@ -187,9 +193,11 @@ print(f"Success: {executor.get_counts()['tasks_succeeded']}")
 from celestialflow import TaskExecutor
 import time
 
+
 def io_task(x: int) -> int:
     time.sleep(0.1)  # Simulate I/O operation
     return x * 10
+
 
 # thread mode: thread pool concurrency, suitable for I/O-bound tasks
 executor = TaskExecutor(
@@ -210,9 +218,11 @@ print(f"Success: {counts['tasks_succeeded']}, Failed: {counts['tasks_failed']}")
 import asyncio
 from celestialflow import TaskExecutor
 
+
 async def async_task(x: int) -> int:
     await asyncio.sleep(0.05)  # Simulate async I/O
     return x * 100
+
 
 # async mode: async coroutines, suitable for network I/O
 executor = TaskExecutor(
@@ -233,7 +243,9 @@ print(f"Success: {counts['tasks_succeeded']}")
 from celestialflow import TaskExecutor
 
 # Configure retry policy: auto-retry on ConnectionError or TimeoutError
-unstable_func = lambda x: 100 // x if x != 0 else exec("raise ConnectionError('network error')")
+unstable_func = lambda x: (
+    100 // x if x != 0 else exec("raise ConnectionError('network error')")
+)
 
 executor = TaskExecutor(
     "RetryWorker",

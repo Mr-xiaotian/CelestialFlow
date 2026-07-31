@@ -65,10 +65,11 @@ flowchart LR
 import requests
 from urllib.parse import quote
 
+
 def search_images(keyword: str) -> str:
     """
     根据关键词搜索百度图片，返回页面 HTML。
-    
+
     :param keyword: 搜索关键词
     :return: 页面 HTML 内容
     """
@@ -79,6 +80,7 @@ def search_images(keyword: str) -> str:
     response = requests.get(url, headers=headers, timeout=10)
     response.raise_for_status()
     return response.text
+
 
 # 单独测试
 if __name__ == "__main__":
@@ -92,10 +94,11 @@ if __name__ == "__main__":
 import re
 import json
 
+
 def parse_image_urls(html: str) -> list[str]:
     """
     从 HTML 中解析图片 URL 列表。
-    
+
     :param html: 页面 HTML
     :return: 图片 URL 列表
     """
@@ -105,6 +108,7 @@ def parse_image_urls(html: str) -> list[str]:
     # 处理转义字符
     urls = [url.replace("\\/", "/") for url in urls]
     return urls[:20]  # 限制数量
+
 
 # 单独测试
 if __name__ == "__main__":
@@ -120,16 +124,17 @@ if __name__ == "__main__":
 ```python
 import time
 
+
 def download_image(url: str) -> bytes | None:
     """
     下载图片内容。
-    
+
     :param url: 图片 URL
     :return: 图片二进制数据，失败返回 None
     """
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": "https://image.baidu.com/"
+        "Referer": "https://image.baidu.com/",
     }
     try:
         response = requests.get(url, headers=headers, timeout=15)
@@ -138,6 +143,7 @@ def download_image(url: str) -> bytes | None:
     except Exception as e:
         print(f"下载失败: {url}, 错误: {e}")
         return None
+
 
 # 单独测试
 if __name__ == "__main__":
@@ -155,10 +161,11 @@ if __name__ == "__main__":
 import os
 import hashlib
 
+
 def save_image(image_data: bytes, keyword: str) -> str:
     """
     保存图片到本地。
-    
+
     :param image_data: 图片二进制数据
     :param keyword: 关键词（用于创建目录）
     :return: 保存的文件路径
@@ -166,17 +173,18 @@ def save_image(image_data: bytes, keyword: str) -> str:
     # 创建目录
     save_dir = os.path.join("images", keyword)
     os.makedirs(save_dir, exist_ok=True)
-    
+
     # 使用数据哈希作为文件名
     file_hash = hashlib.md5(image_data).hexdigest()[:12]
     file_path = os.path.join(save_dir, f"{file_hash}.jpg")
-    
+
     # 避免重复下载
     if not os.path.exists(file_path):
         with open(file_path, "wb") as f:
             f.write(image_data)
-    
+
     return file_path
+
 
 # 单独测试
 if __name__ == "__main__":
@@ -208,15 +216,17 @@ stage_search = TaskStage(
     max_retries=2,
 )
 
+
 # 解析阶段：输入 HTML，输出多个图片 URL（需要拆分）
 # 这里需要自定义 Splitter 来拆分 URL 列表
 class URLSplitter(TaskSplitter):
     """将 URL 列表拆分为多个独立任务。"""
-    
+
     def _split(self, html: str):
         urls = parse_image_urls(html)
         print(f"解析到 {len(urls)} 个图片 URL")
         return tuple(urls)
+
 
 stage_parse = URLSplitter("解析图片")
 
@@ -225,7 +235,7 @@ stage_download = TaskStage(
     "下载图片",
     func=download_image,
     execution_mode="thread",  # 网络IO密集，使用线程池
-    max_workers=10,           # 并发下载10张
+    max_workers=10,  # 并发下载10张
     max_retries=3,
 )
 
@@ -268,9 +278,7 @@ graph.set_reporter(True, host="127.0.0.1", port=5005)
 
 ```python
 # 准备初始任务
-init_tasks = {
-    stage_search.get_name(): ["猫咪", "小狗", "风景"]
-}
+init_tasks = {stage_search.get_name(): ["猫咪", "小狗", "风景"]}
 
 # 启动
 print("开始爬取图片...")
@@ -279,12 +287,8 @@ graph.start_graph(init_tasks)
 # 获取统计
 snapshot = graph.get_status_snapshot()
 status = snapshot["status"]
-total_succeeded = sum(
-    s.get("total_succeeded", 0) for s in status.values()
-)
-total_failed = sum(
-    s.get("total_failed", 0) for s in status.values()
-)
+total_succeeded = sum(s.get("total_succeeded", 0) for s in status.values())
+total_failed = sum(s.get("total_failed", 0) for s in status.values())
 print(f"成功: {total_succeeded}")
 print(f"失败: {total_failed}")
 ```
@@ -304,20 +308,24 @@ import requests
 from urllib.parse import quote
 
 from celestialflow import (
-    TaskStage, 
-    TaskSplitter, 
+    TaskStage,
+    TaskSplitter,
     TaskGraph,
 )
 
 # ========== 处理函数 ==========
 
+
 def search_images(keyword: str) -> str:
     """搜索百度图片。"""
     url = f"https://image.baidu.com/search/index?tn=baiduimage&word={quote(keyword)}"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
     response = requests.get(url, headers=headers, timeout=10)
     response.raise_for_status()
     return response.text
+
 
 def parse_image_urls(html: str) -> list[str]:
     """解析图片 URL。"""
@@ -325,11 +333,12 @@ def parse_image_urls(html: str) -> list[str]:
     urls = re.findall(pattern, html)
     return [url.replace("\\/", "/") for url in urls][:20]
 
+
 def download_image(url: str) -> bytes | None:
     """下载图片。"""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": "https://image.baidu.com/"
+        "Referer": "https://image.baidu.com/",
     }
     try:
         response = requests.get(url, headers=headers, timeout=15)
@@ -337,6 +346,7 @@ def download_image(url: str) -> bytes | None:
         return response.content
     except Exception:
         return None
+
 
 def save_image(image_data: bytes, keyword: str) -> str | None:
     """保存图片。"""
@@ -351,21 +361,25 @@ def save_image(image_data: bytes, keyword: str) -> str | None:
             f.write(image_data)
     return file_path
 
+
 # ========== 自定义节点 ==========
+
 
 class URLSplitter(TaskSplitter):
     """URL 列表拆分器。"""
-    
+
     def _split(self, html: str):
         urls = parse_image_urls(html)
         print(f"解析到 {len(urls)} 个图片 URL")
         return tuple(urls)
 
+
 # ========== 构建任务图 ==========
+
 
 def build_crawler_graph(keyword: str) -> TaskGraph:
     """构建爬虫任务图。"""
-    
+
     # 创建节点
     stage_search = TaskStage(
         "搜索页面",
@@ -373,9 +387,9 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         execution_mode="serial",
         max_retries=2,
     )
-    
+
     stage_parse = URLSplitter("解析图片")
-    
+
     stage_download = TaskStage(
         "下载图片",
         func=download_image,
@@ -383,7 +397,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         max_workers=10,
         max_retries=3,
     )
-    
+
     # 使用闭包传递 keyword
     stage_save = TaskStage(
         "存储文件",
@@ -391,40 +405,35 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         execution_mode="serial",
         enable_duplicate_check=False,
     )
-    
+
     # 设置连接
     graph = TaskGraph(name="ImageCrawler", schedule_mode="eager", log_level="SUCCESS")
     graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
     graph.connect([stage_download], [stage_save])
-    
+
     return graph
+
 
 # ========== 主程序 ==========
 
 if __name__ == "__main__":
     # 配置
     KEYWORDS = ["猫咪", "小狗", "风景"]
-    
+
     # 构建图
     graph = build_crawler_graph(KEYWORDS[0])
-    
+
     # 运行
     print("开始爬取图片...")
-    graph.start_graph({
-        "搜索页面": KEYWORDS
-    })
-    
+    graph.start_graph({"搜索页面": KEYWORDS})
+
     # 统计
     snapshot = graph.get_status_snapshot()
     status = snapshot["status"]
-    total_succeeded = sum(
-        s.get("total_succeeded", 0) for s in status.values()
-    )
-    total_failed = sum(
-        s.get("total_failed", 0) for s in status.values()
-    )
+    total_succeeded = sum(s.get("total_succeeded", 0) for s in status.values())
+    total_failed = sum(s.get("total_failed", 0) for s in status.values())
     print(f"\n爬取完成!")
     print(f"成功: {total_succeeded}")
     print(f"失败: {total_failed}")
@@ -470,14 +479,10 @@ ls images/风景/
 from celestialflow import TerminationSignal
 
 # 注入新关键词
-graph.put_stage_queue({
-    stage_search.get_name(): ["汽车", "美食"]
-})
+graph.put_stage_queue({stage_search.get_name(): ["汽车", "美食"]})
 
 # 注入终止信号（停止爬取）
-graph.put_stage_queue({
-    stage_search.get_name(): [TerminationSignal()]
-})
+graph.put_stage_queue({stage_search.get_name(): [TerminationSignal()]})
 ```
 
 ---

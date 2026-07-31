@@ -85,26 +85,26 @@ sequenceDiagram
 ```python
 def _refresh_all(self) -> None:
     # 1. 拉取
-    self._pull_server_state()       # GET /api/pull_server_state → 同步配置与状态
-    self._pull_injection()          # GET /api/pull_injection → 注入任务
+    self._pull_server_state()  # GET /api/pull_server_state → 同步配置与状态
+    self._pull_injection()  # GET /api/pull_injection → 注入任务
 
     # 2. 收集快照
     self.task_graph.collect_runtime_snapshot()
 
     # 3. 推送（按需）
     if (not self._server_has_current_graph) or (not self._server_has_structure):
-        self._push_structure()      # POST /api/push_structure
+        self._push_structure()  # POST /api/push_structure
     if (not self._server_has_current_graph) or (not self._server_has_analysis):
-        self._push_analysis()       # POST /api/push_analysis
-    self._push_status()             # POST /api/push_status
-    self._push_errors()             # POST /api/push_errors
+        self._push_analysis()  # POST /api/push_analysis
+    self._push_status()  # POST /api/push_status
+    self._push_errors()  # POST /api/push_errors
 ```
 
 ## 生命周期
 
 ```python
 reporter.start()  # 清除停止标志，创建守护线程执行 _loop()
-reporter.stop()   # 设置停止标志，join 线程（timeout=2），最后刷新一次
+reporter.stop()  # 设置停止标志，join 线程（timeout=2），最后刷新一次
 ```
 
 `_loop()` 中每次循环执行 `_refresh_all()`，捕获异常后通过 `log_inlet.loop_failed()` 记录，不终止线程。

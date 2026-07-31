@@ -12,13 +12,13 @@ Graph モジュールはタスク実行の基本ユニットとそれらの関�
 
 ```python
 from celestialflow.graph import (
-    TaskChain,      # 線形タスクチェーン
-    TaskComplete,   # 完全グラフ構造
-    TaskCross,      # 多層クロス構造
-    TaskGraph,      # コアタスクグラフ
-    TaskGrid,       # 二次元グリッド構造
-    TaskLoop,       # リング構造
-    TaskWheel,      # ホイール構造
+    TaskChain,  # 線形タスクチェーン
+    TaskComplete,  # 完全グラフ構造
+    TaskCross,  # 多層クロス構造
+    TaskGraph,  # コアタスクグラフ
+    TaskGrid,  # 二次元グリッド構造
+    TaskLoop,  # リング構造
+    TaskWheel,  # ホイール構造
 )
 ```
 
@@ -93,15 +93,19 @@ from celestialflow.graph import (
 ```python
 from celestialflow import TaskGraph, TaskStage
 
+
 # ステージ関数を定義
 def stage_a_func(x: int) -> int:
     return x + 1
 
+
 def stage_b_func(x: int) -> int:
     return x * 2
 
+
 def stage_c_func(x: int) -> int:
     return x - 3
+
 
 # ノードを作成
 s1 = TaskStage("S1", func=stage_a_func, execution_mode="serial")
@@ -131,7 +135,7 @@ from celestialflow import TaskChain, TaskStage
 stages = [
     TaskStage("Clean", func=lambda x: x.strip().lower()),
     TaskStage("Parse", func=lambda x: int(x)),
-    TaskStage("Compute", func=lambda x: x ** 2),
+    TaskStage("Compute", func=lambda x: x**2),
 ]
 
 chain = TaskChain(name="DataPipeline", stages=stages, stage_mode="serial")
@@ -147,7 +151,7 @@ from celestialflow import TaskCross, TaskStage
 
 # 2 層を定義
 layer1 = [TaskStage("F1", func=lambda x: x * 2), TaskStage("F2", func=lambda x: x + 3)]
-layer2 = [TaskStage("G1", func=lambda x: x ** 2), TaskStage("G2", func=lambda x: -x)]
+layer2 = [TaskStage("G1", func=lambda x: x**2), TaskStage("G2", func=lambda x: -x)]
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], schedule_mode="eager")
 cross.start_graph({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})

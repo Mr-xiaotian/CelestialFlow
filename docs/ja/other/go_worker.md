@@ -64,8 +64,12 @@ worker.StartWorkerPool(
 
 ```python
 # test_redis_ack_0
-redis_sink = TaskRedisTransport(key="testFibonacci:input", host=redis_host, password=redis_password)
-redis_ack = TaskRedisAck(key="testFibonacci:output", host=redis_host, password=redis_password)
+redis_sink = TaskRedisTransport(
+    key="testFibonacci:input", host=redis_host, password=redis_password
+)
+redis_ack = TaskRedisAck(
+    key="testFibonacci:output", host=redis_host, password=redis_password
+)
 ```
 
 同時に [go_worker processor.go](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/go_worker/worker/processor.go) で使用する Go 関数を選択します。

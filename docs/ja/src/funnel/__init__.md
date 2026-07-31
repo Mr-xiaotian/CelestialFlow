@@ -86,15 +86,18 @@ classDiagram
 ```python
 from celestialflow.funnel import BaseSpout, BaseInlet
 
+
 # 1. カスタム Spout：受信したレコードをコンソールに出力
 class PrintSpout(BaseSpout):
     def _handle_record(self, record):
         print(f"Spout 受信: {record}")
 
+
 # 2. カスタム Inlet：書き込みインターフェースをカプセル化
 class PrintInlet(BaseInlet):
     def send(self, data):
         self._funnel(data)
+
 
 # 3. Spout と Inlet を作成し、関連付け
 spout = PrintSpout()
@@ -118,6 +121,7 @@ print("Spout が停止しました")
 ```python
 from celestialflow.funnel import BaseSpout
 
+
 class FileSpout(BaseSpout):
     def __init__(self, filename: str):
         super().__init__()
@@ -131,6 +135,7 @@ class FileSpout(BaseSpout):
 
     def _after_stop(self):
         print(f"ファイルを閉じる: {self.filename}")
+
 
 spout = FileSpout("records.log")
 spout.start()

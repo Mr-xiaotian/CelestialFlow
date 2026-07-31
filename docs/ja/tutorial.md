@@ -65,10 +65,11 @@ flowchart LR
 import requests
 from urllib.parse import quote
 
+
 def search_images(keyword: str) -> str:
     """
     キーワードに基づいて Baidu 画像を検索し、ページ HTML を返す。
-    
+
     :param keyword: 検索キーワード
     :return: ページ HTML コンテンツ
     """
@@ -79,6 +80,7 @@ def search_images(keyword: str) -> str:
     response = requests.get(url, headers=headers, timeout=10)
     response.raise_for_status()
     return response.text
+
 
 # 単独テスト
 if __name__ == "__main__":
@@ -92,10 +94,11 @@ if __name__ == "__main__":
 import re
 import json
 
+
 def parse_image_urls(html: str) -> list[str]:
     """
     HTML から画像 URL リストを解析する。
-    
+
     :param html: ページ HTML
     :return: 画像 URL リスト
     """
@@ -105,6 +108,7 @@ def parse_image_urls(html: str) -> list[str]:
     # エスケープ文字を処理
     urls = [url.replace("\\/", "/") for url in urls]
     return urls[:20]  # 数量を制限
+
 
 # 単独テスト
 if __name__ == "__main__":
@@ -120,16 +124,17 @@ if __name__ == "__main__":
 ```python
 import time
 
+
 def download_image(url: str) -> bytes | None:
     """
     画像コンテンツをダウンロードする。
-    
+
     :param url: 画像 URL
     :return: 画像バイナリデータ、失敗時は None
     """
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": "https://image.baidu.com/"
+        "Referer": "https://image.baidu.com/",
     }
     try:
         response = requests.get(url, headers=headers, timeout=15)
@@ -138,6 +143,7 @@ def download_image(url: str) -> bytes | None:
     except Exception as e:
         print(f"ダウンロード失敗: {url}, エラー: {e}")
         return None
+
 
 # 単独テスト
 if __name__ == "__main__":
@@ -155,10 +161,11 @@ if __name__ == "__main__":
 import os
 import hashlib
 
+
 def save_image(image_data: bytes, keyword: str) -> str:
     """
     画像をローカルに保存する。
-    
+
     :param image_data: 画像バイナリデータ
     :param keyword: キーワード（ディレクトリ作成に使用）
     :return: 保存されたファイルパス
@@ -166,17 +173,18 @@ def save_image(image_data: bytes, keyword: str) -> str:
     # ディレクトリを作成
     save_dir = os.path.join("images", keyword)
     os.makedirs(save_dir, exist_ok=True)
-    
+
     # データハッシュをファイル名として使用
     file_hash = hashlib.md5(image_data).hexdigest()[:12]
     file_path = os.path.join(save_dir, f"{file_hash}.jpg")
-    
+
     # 重複ダウンロードを回避
     if not os.path.exists(file_path):
         with open(file_path, "wb") as f:
             f.write(image_data)
-    
+
     return file_path
+
 
 # 単独テスト
 if __name__ == "__main__":
@@ -208,15 +216,17 @@ stage_search = TaskStage(
     max_retries=2,
 )
 
+
 # 解析ステージ：HTML を入力、複数の画像 URL を出力（分割が必要）
 # URL リストを個別タスクに分割するためにカスタム Splitter が必要
 class URLSplitter(TaskSplitter):
     """URL リストを複数の独立タスクに分割する。"""
-    
+
     def _split(self, html: str):
         urls = parse_image_urls(html)
         print(f"{len(urls)} 個の画像 URL を解析しました")
         return tuple(urls)
+
 
 stage_parse = URLSplitter("画像を解析")
 
@@ -225,7 +235,7 @@ stage_download = TaskStage(
     "画像をダウンロード",
     func=download_image,
     execution_mode="thread",  # ネットワーク IO 集中、スレッドプールを使用
-    max_workers=10,           # 10 枚を並行ダウンロード
+    max_workers=10,  # 10 枚を並行ダウンロード
     max_retries=3,
 )
 
@@ -273,9 +283,7 @@ http://localhost:5005 にアクセスしてリアルタイム状態を確認す�
 
 ```python
 # 初期タスクを準備
-init_tasks = {
-    stage_search.get_name(): ["猫咪", "小狗", "风景"]
-}
+init_tasks = {stage_search.get_name(): ["猫咪", "小狗", "风景"]}
 
 # 起動
 print("画像のクロールを開始...")
@@ -284,12 +292,8 @@ graph.start_graph(init_tasks)
 # 統計を取得
 snapshot = graph.get_status_snapshot()
 status = snapshot["status"]
-total_succeeded = sum(
-    s.get("total_succeeded", 0) for s in status.values()
-)
-total_failed = sum(
-    s.get("total_failed", 0) for s in status.values()
-)
+total_succeeded = sum(s.get("total_succeeded", 0) for s in status.values())
+total_failed = sum(s.get("total_failed", 0) for s in status.values())
 print(f"成功: {total_succeeded}")
 print(f"失敗: {total_failed}")
 ```
@@ -309,20 +313,24 @@ import requests
 from urllib.parse import quote
 
 from celestialflow import (
-    TaskStage, 
-    TaskSplitter, 
+    TaskStage,
+    TaskSplitter,
     TaskGraph,
 )
 
 # ========== 処理関数 ==========
 
+
 def search_images(keyword: str) -> str:
     """Baidu 画像を検索する。"""
     url = f"https://image.baidu.com/search/index?tn=baiduimage&word={quote(keyword)}"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
     response = requests.get(url, headers=headers, timeout=10)
     response.raise_for_status()
     return response.text
+
 
 def parse_image_urls(html: str) -> list[str]:
     """画像 URL を解析する。"""
@@ -330,11 +338,12 @@ def parse_image_urls(html: str) -> list[str]:
     urls = re.findall(pattern, html)
     return [url.replace("\\/", "/") for url in urls][:20]
 
+
 def download_image(url: str) -> bytes | None:
     """画像をダウンロードする。"""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": "https://image.baidu.com/"
+        "Referer": "https://image.baidu.com/",
     }
     try:
         response = requests.get(url, headers=headers, timeout=15)
@@ -342,6 +351,7 @@ def download_image(url: str) -> bytes | None:
         return response.content
     except Exception:
         return None
+
 
 def save_image(image_data: bytes, keyword: str) -> str | None:
     """画像を保存する。"""
@@ -356,21 +366,25 @@ def save_image(image_data: bytes, keyword: str) -> str | None:
             f.write(image_data)
     return file_path
 
+
 # ========== カスタムノード ==========
+
 
 class URLSplitter(TaskSplitter):
     """URL リスト分割器。"""
-    
+
     def _split(self, html: str):
         urls = parse_image_urls(html)
         print(f"{len(urls)} 個の画像 URL を解析しました")
         return tuple(urls)
 
+
 # ========== タスクグラフの構築 ==========
+
 
 def build_crawler_graph(keyword: str) -> TaskGraph:
     """クローラータスクグラフを構築する。"""
-    
+
     # ノードを作成
     stage_search = TaskStage(
         "ページを検索",
@@ -378,9 +392,9 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         execution_mode="serial",
         max_retries=2,
     )
-    
+
     stage_parse = URLSplitter("画像を解析")
-    
+
     stage_download = TaskStage(
         "画像をダウンロード",
         func=download_image,
@@ -388,7 +402,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         max_workers=10,
         max_retries=3,
     )
-    
+
     # クロージャで keyword を渡す
     stage_save = TaskStage(
         "ファイルを保存",
@@ -396,41 +410,36 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         execution_mode="serial",
         enable_duplicate_check=False,
     )
-    
+
     # 接続を設定
     graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
     graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
     graph.connect([stage_download], [stage_save])
-    
+
     return graph
+
 
 # ========== メインプログラム ==========
 
 if __name__ == "__main__":
     # 設定
     KEYWORDS = ["猫咪", "小狗", "风景"]
-    
+
     # グラフを構築
     graph = build_crawler_graph(KEYWORDS[0])
     graph.set_reporter(True, host="127.0.0.1", port=5005)
-    
+
     # 実行
     print("画像のクロールを開始...")
-    graph.start_graph({
-        graph.source_stages[0].get_name(): KEYWORDS
-    })
-    
+    graph.start_graph({graph.source_stages[0].get_name(): KEYWORDS})
+
     # 統計
     snapshot = graph.get_status_snapshot()
     status = snapshot["status"]
-    total_succeeded = sum(
-        s.get("total_succeeded", 0) for s in status.values()
-    )
-    total_failed = sum(
-        s.get("total_failed", 0) for s in status.values()
-    )
+    total_succeeded = sum(s.get("total_succeeded", 0) for s in status.values())
+    total_failed = sum(s.get("total_failed", 0) for s in status.values())
     print(f"\nクロール完了!")
     print(f"成功: {total_succeeded}")
     print(f"失敗: {total_failed}")
@@ -483,14 +492,10 @@ Web UI を通じて新しいキーワードを動的に注入できる：
 from celestialflow import TerminationSignal
 
 # 新しいキーワードを注入
-graph.put_stage_queue({
-    stage_search.get_name(): ["汽车", "美食"]
-})
+graph.put_stage_queue({stage_search.get_name(): ["汽车", "美食"]})
 
 # 終了信号を注入（クロールを停止）
-graph.put_stage_queue({
-    stage_search.get_name(): [TerminationSignal()]
-})
+graph.put_stage_queue({stage_search.get_name(): [TerminationSignal()]})
 ```
 
 ---

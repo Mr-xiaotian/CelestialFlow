@@ -32,9 +32,11 @@ type AnyTaskStage = TaskStage[Any, Any]
 from celestialflow.stage.util_types import AnyTaskStage
 from celestialflow.stage import TaskStage
 
+
 # 任意の型の Stage を受け取れる変数を宣言する場合
 def register_stage(stage: AnyTaskStage) -> None:
     print(f"Stage を登録しました: {stage.name}")
+
 
 # 任意のジェネリックパラメータを持つ TaskStage を渡せる
 int_stage: TaskStage[int, int] = TaskStage("A", func=lambda x: x * 2)
@@ -52,9 +54,9 @@ from celestialflow.stage import TaskStage
 
 stages: list[AnyTaskStage] = []
 
-stages.append(TaskStage("A", func=lambda x: x * 2))          # TaskStage[int, int]
-stages.append(TaskStage("B", func=lambda x: x.upper()))      # TaskStage[str, str]
-stages.append(TaskStage("C", func=lambda x: len(x)))         # TaskStage[str, int]
+stages.append(TaskStage("A", func=lambda x: x * 2))  # TaskStage[int, int]
+stages.append(TaskStage("B", func=lambda x: x.upper()))  # TaskStage[str, str]
+stages.append(TaskStage("C", func=lambda x: len(x)))  # TaskStage[str, int]
 
 # 複雑なジェネリック型を手動でアノテーションする必要がない
 for s in stages:

@@ -556,13 +556,15 @@ from celestialflow import TaskStage, TaskRouter, TaskGraph
 
 discover = TaskStage(discover_urls, execution_mode="serial")
 download = TaskStage(download_page, execution_mode="thread", worker_limit=20)
-router   = TaskRouter(classify_content)
+router = TaskRouter(classify_content)
 extract_article = TaskStage(extract_article, execution_mode="thread", worker_limit=10)
-extract_image   = TaskStage(extract_image, execution_mode="thread", worker_limit=10)
-store    = TaskStage(save_to_db, execution_mode="serial")
+extract_image = TaskStage(extract_image, execution_mode="thread", worker_limit=10)
+store = TaskStage(save_to_db, execution_mode="serial")
 
 graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(stages=[discover, download, router, extract_article, extract_image, store])
+graph.set_stages(
+    stages=[discover, download, router, extract_article, extract_image, store]
+)
 graph.connect([discover], [download])
 graph.connect([download], [router])
 graph.connect([router], [extract_article, extract_image])

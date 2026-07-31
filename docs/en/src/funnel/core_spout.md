@@ -50,8 +50,10 @@ Flow:
 def get_queue(self) -> Queue[Any]:
     """Get the listener's input queue."""
 
+
 def get_counter(self) -> PendingCounter:
     """Get the pending counter bound to the current listener."""
+
 
 def get_pending_count(self) -> int:
     """Read the current number of records that have not yet finished processing."""
@@ -66,9 +68,11 @@ def _before_start(self) -> None:
     """Initialization operations before starting. Default empty implementation."""
     return None
 
+
 def _handle_record(self, _record: Any) -> None:
     """Process a single record (must be overridden by subclasses, otherwise raises CelestialFlowError)."""
     raise CelestialFlowError("_handle_record must be implemented by subclasses")
+
 
 def _after_stop(self) -> None:
     """Cleanup operations after stopping. Default empty implementation."""
@@ -130,6 +134,7 @@ The following examples demonstrate how to create custom subclasses of `BaseSpout
 ```python
 from celestialflow.funnel import BaseSpout
 
+
 # Custom Spout: write string records to a list
 class CollectSpout(BaseSpout):
     def __init__(self):
@@ -139,6 +144,7 @@ class CollectSpout(BaseSpout):
     def _handle_record(self, record):
         """Process a single record; subclasses must override this method"""
         self.collected.append(str(record))
+
 
 # Usage
 spout = CollectSpout()
@@ -159,6 +165,7 @@ print(f"Collected {len(spout.collected)} records")
 
 ```python
 from celestialflow.funnel import BaseSpout
+
 
 class FileWriterSpout(BaseSpout):
     def __init__(self, filepath: str):
@@ -182,6 +189,7 @@ class FileWriterSpout(BaseSpout):
             self.fh.close()
             print(f"File closed: {self.filepath}")
 
+
 # Usage
 spout = FileWriterSpout("/tmp/test_spout.log")
 spout.start()
@@ -195,6 +203,7 @@ spout.stop()
 ```python
 from celestialflow.funnel import BaseSpout
 
+
 class CounterSpout(BaseSpout):
     def __init__(self):
         super().__init__()
@@ -202,6 +211,7 @@ class CounterSpout(BaseSpout):
 
     def _handle_record(self, record):
         self.count += 1
+
 
 spout = CounterSpout()
 spout.start()
@@ -211,6 +221,7 @@ for i in range(100):
 
 # Wait for the queue to drain
 import time
+
 time.sleep(0.5)
 print(f"Pending: {spout.get_pending_count()}")
 

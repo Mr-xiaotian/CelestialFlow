@@ -14,8 +14,9 @@
 
 ```python
 class TaskGraph:
-    def __init__(self, name: str, schedule_mode: str = "eager", log_level: str = "INFO"):
-        ...
+    def __init__(
+        self, name: str, schedule_mode: str = "eager", log_level: str = "INFO"
+    ): ...
 ```
 
 ### パラメータ説明
@@ -55,7 +56,9 @@ def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> N
 ### set_reporter
 
 ```python
-def set_reporter(self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000) -> None:
+def set_reporter(
+    self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000
+) -> None:
     """レポーターを設定し、`celestialflow-web` サービスに状態をプッシュします。"""
 ```
 
@@ -88,8 +91,11 @@ def set_graph_mode(self, stage_mode: str, execution_mode: str) -> None:
 ### start_graph
 
 ```python
-def start_graph(self, init_tasks_dict: Mapping[str, Iterable[Any]],
-                put_termination_signal: bool = True) -> None:
+def start_graph(
+    self,
+    init_tasks_dict: Mapping[str, Iterable[Any]],
+    put_termination_signal: bool = True,
+) -> None:
     """
     タスクグラフを起動します。フロー:
     1. _build_analysis() でグラフ構造を分析（ソースノード、階層、DAG 検出）し `OrderGraph` を構築
@@ -163,8 +169,9 @@ def start_graph_db(
 ### put_stage_queue
 
 ```python
-def put_stage_queue(self, tasks_dict: Mapping[str, Iterable[Any]],
-                    put_termination_signal: bool = True) -> None:
+def put_stage_queue(
+    self, tasks_dict: Mapping[str, Iterable[Any]], put_termination_signal: bool = True
+) -> None:
     """
     ノードに動的にタスクを注入します。対応:
     - 通常タスク → 自動的に TaskEnvelope にラップ

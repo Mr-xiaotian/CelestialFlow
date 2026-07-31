@@ -133,16 +133,21 @@ __all__ = [
 ```python
 from celestialflow import TaskGraph, TaskStage, TaskExecutor
 
+
 # 1. 定义任务处理函数
 def double(x: int) -> int:
     return x * 2
 
+
 def add_one(x: int) -> int:
     return x + 1
 
+
 # 2. 创建 TaskStage 节点
 stage_a = TaskStage("StageA", func=double, execution_mode="serial", stage_mode="serial")
-stage_b = TaskStage("StageB", func=add_one, execution_mode="serial", stage_mode="serial")
+stage_b = TaskStage(
+    "StageB", func=add_one, execution_mode="serial", stage_mode="serial"
+)
 
 # 3. 构建 DAG 图
 graph = TaskGraph(name="DemoGraph")
@@ -187,7 +192,7 @@ from celestialflow import TaskChain, TaskStage
 stages = [
     TaskStage("S1", func=lambda x: x * 2),
     TaskStage("S2", func=lambda x: x + 1),
-    TaskStage("S3", func=lambda x: x ** 2),
+    TaskStage("S3", func=lambda x: x**2),
 ]
 
 chain = TaskChain(name="DemoChain", stages=stages, stage_mode="serial")

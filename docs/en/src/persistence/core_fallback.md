@@ -92,7 +92,9 @@ Fallback data is saved under `./fallback/` directory by default, archived by dat
 
 ```python
 # Get error records
-error_pairs: list[tuple[Any, tuple[str, str]]] = fallback_spout.get_task_error_pairs("StageA")
+error_pairs: list[tuple[Any, tuple[str, str]]] = fallback_spout.get_task_error_pairs(
+    "StageA"
+)
 # Returns [(task, (error_type, error_message)), ...]
 
 # Get success results

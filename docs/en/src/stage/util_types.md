@@ -32,9 +32,11 @@ type AnyTaskStage = TaskStage[Any, Any]
 from celestialflow.stage.util_types import AnyTaskStage
 from celestialflow.stage import TaskStage
 
+
 # When you need to declare a variable that can accept any type of Stage
 def register_stage(stage: AnyTaskStage) -> None:
     print(f"Registered Stage: {stage.name}")
+
 
 # Can pass TaskStage with any generic parameters
 int_stage: TaskStage[int, int] = TaskStage("A", func=lambda x: x * 2)
@@ -52,9 +54,9 @@ from celestialflow.stage import TaskStage
 
 stages: list[AnyTaskStage] = []
 
-stages.append(TaskStage("A", func=lambda x: x * 2))          # TaskStage[int, int]
-stages.append(TaskStage("B", func=lambda x: x.upper()))      # TaskStage[str, str]
-stages.append(TaskStage("C", func=lambda x: len(x)))         # TaskStage[str, int]
+stages.append(TaskStage("A", func=lambda x: x * 2))  # TaskStage[int, int]
+stages.append(TaskStage("B", func=lambda x: x.upper()))  # TaskStage[str, str]
+stages.append(TaskStage("C", func=lambda x: len(x)))  # TaskStage[str, int]
 
 # No need to manually annotate complex generic types
 for s in stages:

@@ -101,14 +101,16 @@ from celestialflow.runtime.util_event import LocalEventClient, clone_event_clien
 
 # 1. ローカルイベントクライアントを作成
 client = LocalEventClient(start_id=100)
-print(f"最初のイベント ID: {client.emit(type_='task.input')}")   # 100
+print(f"最初のイベント ID: {client.emit(type_='task.input')}")  # 100
 print(f"2 番目のイベント ID: {client.emit(type_='task.success')}")  # 101
-print(f"3 番目のイベント ID: {client.emit(type_='task.error')}")    # 102
+print(f"3 番目のイベント ID: {client.emit(type_='task.error')}")  # 102
 
 # 2. イベントクライアントをクローン
 cloned = clone_event_client(client)
 print(f"クローンインスタンスの型: {type(cloned).__name__}")  # LocalEventClient
-print(f"新しいインスタンスは元のカウントを再利用するか: {cloned.emit('') == client.emit('')}")  # False（2 つの独立したインスタンス）
+print(
+    f"新しいインスタンスは元のカウントを再利用するか: {cloned.emit('') == client.emit('')}"
+)  # False（2 つの独立したインスタンス）
 ```
 
 ## 注意事項
