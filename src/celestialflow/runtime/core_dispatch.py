@@ -210,9 +210,14 @@ class TaskDispatch[T, R]:
                 if self._pool is None:
                     raise InitializationError("execution pool has not been initialized")
 
-                futures.append(self._pool.submit(self._worker, envelope))
-                if len(futures) >= self.max_workers * 2:
+                # 等待在途任务数低于水位线
+                while True:
+                    # 清理已完成的任务
                     futures = [f for f in futures if not f.done()]
+                    if len(futures) < self.max_workers:
+                        break
+                    time.sleep(0.001)  # 简短让出
+                futures.append(self._pool.submit(self._worker, envelope))
 
             # 等待当前批次的所有任务完成
             for future in futures:
