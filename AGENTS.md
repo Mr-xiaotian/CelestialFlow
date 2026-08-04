@@ -23,6 +23,10 @@
 - 如果修改对象是代码文件, 为代码添加或者更新reST风格的doc-string, 并保持与代码逻辑一致。
 - 除非特意要求, 不必同步更改docs/下的相应文档。
 
+### 关于error
+
+- 项目中所有error都用 `src/celestialflow/runtime/util_errors.py` 中的自定义异常类抛出。
+
 ## 与其他项目的关联
 
 ### celestialflow-web
