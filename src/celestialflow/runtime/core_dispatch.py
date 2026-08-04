@@ -5,7 +5,7 @@ import asyncio
 import inspect
 import time
 from collections.abc import Awaitable, Callable
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from typing import TYPE_CHECKING
 
 from .core_envelope import TaskEnvelope
@@ -194,7 +194,7 @@ class TaskDispatch[T, R]:
             task_queue = self.task_executor.task_queue
             result_queue = self.task_executor.result_queue
 
-            futures: list[Future[None]] = []  # 用于存储线程池提交的任务
+            pending: set[Future[None]] = set()  # 用于存储等待执行的任务
 
             while True:
                 envelope = task_queue.get()
@@ -210,18 +210,15 @@ class TaskDispatch[T, R]:
                 if self._pool is None:
                     raise InitializationError("execution pool has not been initialized")
 
-                # 等待在途任务数低于水位线
-                while True:
-                    # 清理已完成的任务
-                    futures = [f for f in futures if not f.done()]
-                    if len(futures) < self.max_workers:
-                        break
-                    time.sleep(0.001)  # 简短让出
-                futures.append(self._pool.submit(self._worker, envelope))
+                # 等待有空闲 slot
+                while len(pending) >= self.max_workers:
+                    _done, pending = wait(pending, return_when=FIRST_COMPLETED)
+
+                pending.add(self._pool.submit(self._worker, envelope))
 
             # 等待当前批次的所有任务完成
-            for future in futures:
-                future.result()
+            while pending:
+                _done, pending = wait(pending, return_when=FIRST_COMPLETED)
             result_queue.put(termination_signal)
 
         finally:
