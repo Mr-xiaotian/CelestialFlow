@@ -443,7 +443,7 @@ class TestTaskGraphAnalysis:
 
 
 class TestTaskGraphFinalize:
-    def test_finalize_nodes_raises_if_stage_threads_still_alive(self):
+    def test_finalize_stages_raises_if_stage_threads_still_alive(self):
         """收尾阶段若仍有存活线程，应中止危险清理并抛出运行时异常。"""
         graph = TaskGraph("test_finalize_nodes_raises_if_stage_threads_still_alive")
 
@@ -467,7 +467,7 @@ class TestTaskGraphFinalize:
             RuntimeStateError,
             match="alive stage threads remain after finalize",
         ):
-            graph._finalize_nodes()
+            graph._finalize_stages()
 
         assert stage.get_status().value == 0
 
