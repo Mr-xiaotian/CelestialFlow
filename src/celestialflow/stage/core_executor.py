@@ -60,6 +60,7 @@ class TaskExecutor[T, R]:
     log_inlet: LogInlet
     execution_mode: str
     _name: str
+    func: Callable[[T], R] | Callable[[T], Awaitable[R]]
     _func_name: str
     log_level: str
     ctree_client: EventClient
@@ -192,7 +193,7 @@ class TaskExecutor[T, R]:
                 "must accept exactly one positional task argument."
             )
 
-        self.func: Callable[[T], R] | Callable[[T], Awaitable[R]] = func
+        self.func = func
         self._func_name = func.__name__
 
     def set_execution_mode(self, execution_mode: str) -> None:

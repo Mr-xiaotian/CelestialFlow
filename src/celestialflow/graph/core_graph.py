@@ -45,6 +45,34 @@ class TaskGraph:
     - 如需再次运行相同流程，请重新创建 TaskGraph 实例及其关联的 TaskStage。
     """
 
+    # ==== Class-level type annotations ====
+    name: str
+    graph_id: str
+    schedule_mode: str
+    log_level: str
+    threads: list[threading.Thread]
+    stage_dict: dict[str, AnyTaskStage]
+    status_dict: dict[str, dict[str, Any]]
+    status_timestamp: float
+    input_ids: dict[str, set[int]]
+    source_stages: list[AnyTaskStage]
+    out_edges: dict[str, list[str]]
+    in_edges: dict[str, list[str]]
+    order_graph: OrderGraph
+    start_time: float
+    log_spout: LogSpout
+    fallback_spout: FallbackSpout
+    log_inlet: LogInlet
+    fallback_inlet: FallbackInlet
+    is_report: bool
+    report_host: str
+    report_port: int
+    reporter: TaskReporter | NullTaskReporter
+    ctree_client: EventClient
+    structure_graph: dict[str, Any]
+    is_dag: bool
+    layers_dict: dict[int, list[str]]
+
     # ==== 初始化 ====
 
     def __init__(
@@ -103,30 +131,30 @@ class TaskGraph:
         :return: ``None``。
         """
         # 用于保存所有子线程的引用
-        self.threads: list[threading.Thread] = []
+        self.threads = []
 
         # 用于保存每个节点的运行信息
-        self.stage_dict: dict[str, AnyTaskStage] = {}
+        self.stage_dict = {}
 
         # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
-        self.status_dict: dict[str, dict[str, Any]] = defaultdict(dict)
+        self.status_dict = defaultdict(dict)
 
         # 用于保存最近一次状态快照对应的统一时间戳
-        self.status_timestamp: float = 0.0
+        self.status_timestamp = 0.0
 
         # 用于保存每个节点的输入任务ID集合
-        self.input_ids: dict[str, set[int]] = defaultdict(set)
+        self.input_ids = defaultdict(set)
 
         # 用于保存源节点列表（由 _build_analysis 自动计算）
-        self.source_stages: list[AnyTaskStage] = []
+        self.source_stages = []
 
         # 用于保存图结构的邻接表
-        self.out_edges: dict[str, list[str]] = defaultdict(list)
-        self.in_edges: dict[str, list[str]] = defaultdict(list)
+        self.out_edges = defaultdict(list)
+        self.in_edges = defaultdict(list)
         self.order_graph = OrderGraph()
 
         # 用于保存任务图启动时间
-        self.start_time: float = 0.0
+        self.start_time = 0.0
 
     def _init_spout(self) -> None:
         """
@@ -246,7 +274,6 @@ class TaskGraph:
         self.is_report = is_report
         self.report_host = host
         self.report_port = port
-        self.reporter: TaskReporter | NullTaskReporter
         if is_report:
             self.reporter = TaskReporter(
                 host=host,
