@@ -1,4 +1,15 @@
-from celestialflow import TaskLoop, TaskStage, TaskWheel
+import pytest
+
+from celestialflow import (
+    TaskChain,
+    TaskComplete,
+    TaskCross,
+    TaskGrid,
+    TaskLoop,
+    TaskStage,
+    TaskWheel,
+)
+from celestialflow.runtime.util_errors import InvalidStructureError
 
 
 def add_one(x: int) -> int:
@@ -86,3 +97,65 @@ class TestTaskWheel:
         sources = wheel.get_source_stages()
         assert len(sources) == 1
         assert sources[0].get_name() == center.get_name()
+
+
+# =========================
+# 结构输入校验测试
+# =========================
+class TestStructureValidation:
+    """空输入/非法输入校验：应抛出 ValueError 而非崩溃或静默构造空图。"""
+
+    def test_chain_empty_stages_raises(self):
+        """TaskChain 空 stages 应抛出 InvalidStructureError。"""
+        with pytest.raises(InvalidStructureError):
+            TaskChain("c", [])
+
+    def test_cross_empty_layers_raises(self):
+        """TaskCross 空 layers 应抛出 InvalidStructureError。"""
+        with pytest.raises(InvalidStructureError):
+            TaskCross("x", [])
+
+    def test_cross_empty_layer_raises(self):
+        """TaskCross 包含空层应抛出 InvalidStructureError。"""
+        s1 = TaskStage("s1", add_one)
+        with pytest.raises(InvalidStructureError):
+            TaskCross("x", [[], [s1]])
+
+    def test_grid_empty_raises(self):
+        """TaskGrid 空网格应抛出 InvalidStructureError 而非 IndexError。"""
+        with pytest.raises(InvalidStructureError):
+            TaskGrid("g", [])
+
+    def test_grid_empty_row_raises(self):
+        """TaskGrid 首行为空应抛出 InvalidStructureError。"""
+        with pytest.raises(InvalidStructureError):
+            TaskGrid("g", [[]])
+
+    def test_grid_ragged_rows_raises(self):
+        """TaskGrid 行长度不一致应抛出 InvalidStructureError。"""
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+        with pytest.raises(InvalidStructureError):
+            TaskGrid("g", [[s1, s2], [s2]])
+
+    def test_loop_empty_stages_raises(self):
+        """TaskLoop 空 stages 应抛出 InvalidStructureError。"""
+        with pytest.raises(InvalidStructureError):
+            TaskLoop("l", [])
+
+    def test_wheel_empty_ring_raises(self):
+        """TaskWheel 空 ring 应抛出 InvalidStructureError。"""
+        center = TaskStage("center", add_one)
+        with pytest.raises(InvalidStructureError):
+            TaskWheel("w", center, [])
+
+    def test_complete_single_node_raises(self):
+        """TaskComplete 单节点（无法构成边）应抛出 InvalidStructureError。"""
+        s1 = TaskStage("s1", add_one)
+        with pytest.raises(InvalidStructureError):
+            TaskComplete("c", [s1])
+
+    def test_complete_empty_stages_raises(self):
+        """TaskComplete 空 stages 应抛出 InvalidStructureError。"""
+        with pytest.raises(InvalidStructureError):
+            TaskComplete("c", [])

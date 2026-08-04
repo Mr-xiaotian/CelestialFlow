@@ -197,6 +197,12 @@ class NodeNotFoundError(GraphStructureError):
     pass
 
 
+class InvalidStructureError(GraphStructureError):
+    """无效的图结构输入（空节点列表、空网格、行长度不一致、节点数量不足等）"""
+
+    pass
+
+
 # ==== 运行时与生命周期 ====
 
 
