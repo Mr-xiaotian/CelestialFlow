@@ -5,7 +5,12 @@ import asyncio
 import inspect
 import time
 from collections.abc import Awaitable, Callable
-from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
+from concurrent.futures import (
+    FIRST_COMPLETED,
+    Future,
+    ThreadPoolExecutor,
+    wait,
+)
 from typing import TYPE_CHECKING
 
 from .core_envelope import TaskEnvelope
@@ -217,8 +222,7 @@ class TaskDispatch[T, R]:
                 pending.add(self._pool.submit(self._worker, envelope))
 
             # 等待当前批次的所有任务完成
-            while pending:
-                _done, pending = wait(pending, return_when=FIRST_COMPLETED)
+            _done, pending = wait(pending)
             result_queue.put(termination_signal)
 
         finally:
