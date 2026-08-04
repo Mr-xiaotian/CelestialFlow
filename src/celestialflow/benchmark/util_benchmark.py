@@ -1,4 +1,4 @@
-# utils/util_benchmark.py
+# benchmark/util_benchmark.py
 from __future__ import annotations
 
 import time
@@ -7,8 +7,8 @@ from typing import Any
 
 from ..graph import TaskGraph
 from ..stage import TaskExecutor
+from ..utils.util_format import format_table
 from .util_clone import clone_executor, clone_graph
-from .util_format import format_table
 
 type AnyTaskExecutor = TaskExecutor[Any, Any]
 

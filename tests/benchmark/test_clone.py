@@ -5,7 +5,7 @@ import pytest
 from celestialflow.graph import TaskGraph
 from celestialflow.stage import TaskExecutor, TaskStage
 from celestialflow.runtime.util_event import LocalEventClient
-from celestialflow.utils.util_clone import clone_executor, clone_graph, clone_stage
+from celestialflow.benchmark.util_clone import clone_executor, clone_graph, clone_stage
 
 
 class TestUtilClone:

@@ -4,6 +4,7 @@
 提供任务图构建、执行调度、实时监控与持久化等核心能力。
 """
 
+from .benchmark.util_benchmark import benchmark_executor, benchmark_graph
 from .funnel import BaseInlet, BaseSpout
 from .graph import (
     TaskChain,
@@ -27,7 +28,6 @@ from .stage import (
     TaskSplitter,
     TaskStage,
 )
-from .utils.util_benchmark import benchmark_executor, benchmark_graph
 from .utils.util_format import format_table
 
 __all__ = [
