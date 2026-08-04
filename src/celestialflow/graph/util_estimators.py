@@ -1,8 +1,8 @@
-# runtime/util_estimators.py
+# graph/util_estimators.py
 from __future__ import annotations
 
-from ..graph.util_graph import OrderGraph, topo_sort
-from .util_types import StageStatus
+from ..runtime.util_types import StageStatus
+from .util_graph import OrderGraph, topo_sort
 
 
 # ==== calculate ====
