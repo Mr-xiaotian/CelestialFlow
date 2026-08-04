@@ -397,14 +397,13 @@ class TaskGraph:
 
             self.put_stage_queue(init_tasks_dict, put_termination_signal)
             self._execute_stages()
+            self._finalize_stages()
 
         finally:
-            self._finalize_nodes()
-
             self.reporter.stop()
             self.log_inlet.end_graph(self.name, time.perf_counter() - _start)
-            self.fallback_spout.stop()
             self.log_spout.stop()
+            self.fallback_spout.stop()
 
     def start_graph_db(
         self,
@@ -498,7 +497,7 @@ class TaskGraph:
 
     # ==== 终止与清理 ====
 
-    def _finalize_nodes(self) -> None:
+    def _finalize_stages(self) -> None:
         """
         确保所有线程安全结束，更新节点状态，并导出每个节点队列剩余任务。
         """
