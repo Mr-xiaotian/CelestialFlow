@@ -532,39 +532,38 @@ class TaskExecutor[T, R]:
         )
 
     # ==== 启动 ====
-    def _prepare_start(self, task_source: Iterable[T]) -> float:
+
+    def _prepare_start(self, task_source: Iterable[T]) -> None:
         """
         启动前准备：初始化环境、注入任务、记录启动日志。
 
         :param task_source: 任务源
-        :return: 启动时间戳
+        :return: ``None``
         """
-        start_time = time.perf_counter()
         self.init_env()
 
-        self.metrics.on_start(self.get_full_name(), 0)
         for task in task_source:
             self.put_task(task)
         self.put_signal()
 
+        self.metrics.on_start(self.get_full_name(), 0)
         self.log_inlet.start_executor(
             self.get_name(),
             self.metrics.get_task_count(),
             self._get_execution_mode_desc(),
         )
-        return start_time
 
-    def _finish_start(self, start_time: float) -> None:
+    def _finish_start(self, start_perf: float) -> None:
         """
         启动后清理：释放客户端、记录结束日志、停止 spout。
 
-        :param start_time: 启动时的时间戳
+        :param start_perf: 启动时的时间戳
         """
         self.metrics.on_finish()
         self.log_inlet.end_executor(
             self.get_name(),
             self._get_execution_mode_desc(),
-            time.perf_counter() - start_time,
+            time.perf_counter() - start_perf,
             self.metrics.get_success_count(),
             self.metrics.get_error_count(),
             self.metrics.get_duplicate_count(),
@@ -574,16 +573,20 @@ class TaskExecutor[T, R]:
 
     def start(self, task_source: Iterable[T]) -> None:
         """
-        根据 execution_mode 的值，选择串行、线程或异步执行任务。
+        根据 execution_mode 的值，选择串行或线程方式执行任务。
+
+        async 模式不支持通过本方法启动，请使用 :meth:`start_async`。
 
         :param task_source: 任务迭代器或者生成器
-        :raises ExecutionModeError: execution_mode 为非法值时触发
+        :raises ExecutionModeError: execution_mode 不是 'serial' 或 'thread' 时触发
         :note:
             TaskExecutor 为一次性对象；当前实例完成一次 start() 后，不保证可安全再次
             调用 start()。如需再次执行，请创建新的 TaskExecutor。
         """
-        start_time = self._prepare_start(task_source)
+        start_perf = time.perf_counter()
         try:
+            self._prepare_start(task_source)
+
             if self.execution_mode == "thread":
                 self.dispatch.dispatch_thread()
             elif self.execution_mode == "serial":
@@ -591,7 +594,7 @@ class TaskExecutor[T, R]:
             else:
                 raise ExecutionModeError(self.execution_mode)
         finally:
-            self._finish_start(start_time)
+            self._finish_start(start_perf)
 
     async def start_async(self, task_source: Iterable[T]) -> None:
         """
@@ -605,11 +608,12 @@ class TaskExecutor[T, R]:
         if self.execution_mode != "async":
             raise AsyncModeError(self.execution_mode)
 
-        start_time = self._prepare_start(task_source)
+        start_perf = time.perf_counter()
         try:
+            self._prepare_start(task_source)
             await self.dispatch.dispatch_async()
         finally:
-            self._finish_start(start_time)
+            self._finish_start(start_perf)
 
     def start_db(
         self,

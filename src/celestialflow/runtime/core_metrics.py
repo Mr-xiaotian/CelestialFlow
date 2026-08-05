@@ -189,10 +189,14 @@ class TaskMetrics:
 
     # ==== 启动与结束 ====
     def on_start(self, _name: str, _total: int) -> None:
+        """
+        """
         for observer in self._observers:
             observer.on_start(_name, _total)
 
     def on_finish(self) -> None:
+        """
+        """
         for observer in self._observers:
             observer.on_finish()
 

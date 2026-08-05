@@ -86,7 +86,6 @@ class AsyncModeError(InvalidOptionError):
         初始化异常。
 
         :param execution_mode: 非法的执行模式值
-        :param valid_modes: 允许的执行模式列表
         """
         valid_modes = ("async",)
         super().__init__("execution mode", execution_mode, valid_modes)

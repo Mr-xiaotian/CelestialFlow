@@ -358,19 +358,20 @@ class TaskGraph:
 
     # ==== 执行 ====
 
-    def start_graph(
+    def _prepare_start_graph(
         self,
         init_tasks_dict: Mapping[str, Iterable[Any]],
         put_termination_signal: bool = True,
     ) -> None:
         """
-        启动任务链
+        启动前准备：图分析、非 DAG 警告、启动运行时资源并注入任务。
+
+        本方法会创建线程与文件句柄等运行时资源，调用方应保证在 finally 中
+        执行 :meth:`_finish_start_graph` 完成收尾。
 
         :param init_tasks_dict: 任务列表
         :param put_termination_signal: 是否注入终止信号，默认 True
-        :note:
-            TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
-            start_graph()。如需重复执行，请创建新的 TaskGraph 实例。
+        :return: ``None``
         """
         self._build_analysis()
 
@@ -386,24 +387,48 @@ class TaskGraph:
                 RuntimeWarning,
                 stacklevel=2,
             )
-        _start = time.perf_counter()
+
+        self.fallback_spout.start()
+        self.log_spout.start()
+        self.log_inlet.start_graph(self.name, self.get_structure_list())
+        self.reporter.start()
+
+        self.put_stage_queue(init_tasks_dict, put_termination_signal)
+
+    def _finish_start_graph(self, start_perf: float) -> None:
+        """
+        启动后收尾：停止上报器、记录图结束日志并关闭 spout。
+
+        :param start_perf: 启动时刻的 ``perf_counter`` 时间戳，用于计算运行耗时
+        :return: ``None``
+        """
+        self.reporter.stop()
+        self.log_inlet.end_graph(self.name, time.perf_counter() - start_perf)
+        self.log_spout.stop()
+        self.fallback_spout.stop()
+
+    def start_graph(
+        self,
+        init_tasks_dict: Mapping[str, Iterable[Any]],
+        put_termination_signal: bool = True,
+    ) -> None:
+        """
+        启动任务链
+
+        :param init_tasks_dict: 任务列表
+        :param put_termination_signal: 是否注入终止信号，默认 True
+        :note:
+            TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
+            start_graph()。如需重复执行，请创建新的 TaskGraph 实例。
+        """
+        start_perf = time.perf_counter()
         self.start_time = time.time()
-
         try:
-            self.fallback_spout.start()
-            self.log_spout.start()
-            self.log_inlet.start_graph(self.name, self.get_structure_list())
-            self.reporter.start()
-
-            self.put_stage_queue(init_tasks_dict, put_termination_signal)
+            self._prepare_start_graph(init_tasks_dict, put_termination_signal)
             self._execute_stages()
             self._finalize_stages()
-
         finally:
-            self.reporter.stop()
-            self.log_inlet.end_graph(self.name, time.perf_counter() - _start)
-            self.log_spout.stop()
-            self.fallback_spout.stop()
+            self._finish_start_graph(start_perf)
 
     def start_graph_db(
         self,

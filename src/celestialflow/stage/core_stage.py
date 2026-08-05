@@ -170,22 +170,18 @@ class TaskStage[T, R](TaskExecutor[T, R]):
             self.handle_task_fail(source, UnconsumedError())
 
     # ==== 启动 ====
-    def _prepare_start_stage(self) -> float:
+    def _prepare_start_stage(self) -> None:
         """
         启动前准备：记录启动时间、初始化状态并标记 stage 为运行中。
 
         :return: 启动时刻的 ``perf_counter`` 时间戳，用于计算本次运行耗时
         """
-        start_perf = time.perf_counter()
-        self.start_time = time.time()
         self._init_state()
 
         self.log_inlet.start_stage(
             self.get_name(), self.stage_mode, self._get_execution_mode_desc()
         )
         self.mark_running()
-
-        return start_perf
 
     def _finish_start_stage(self, start_perf: float) -> None:
         """
@@ -240,8 +236,11 @@ class TaskStage[T, R](TaskExecutor[T, R]):
             TaskStage 为一次性对象；当前实例完成一次 start_stage() 生命周期后，不保
             证可安全再次运行。需要重复执行时请重新创建 TaskStage。
         """
-        start_perf = self._prepare_start_stage()
+        start_perf = time.perf_counter()
+        self.start_time = time.time()
         try:
+            self._prepare_start_stage()
+
             # 根据模式运行对应的任务处理函数
             if self.execution_mode == "thread":
                 self.dispatch.dispatch_thread()
@@ -267,8 +266,10 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         if self.execution_mode != "async":
             raise AsyncModeError(self.execution_mode)
 
-        start_perf = self._prepare_start_stage()
+        start_perf = time.perf_counter()
+        self.start_time = time.time()
         try:
+            self._prepare_start_stage()
             await self.dispatch.dispatch_async()
         finally:
             self._finish_start_stage(start_perf)
