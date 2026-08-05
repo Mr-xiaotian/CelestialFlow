@@ -603,7 +603,7 @@ class TaskExecutor[T, R]:
             安全再次调用。需要重复执行时请创建新的 TaskExecutor。
         """
         if self.execution_mode != "async":
-            raise AsyncModeError("execution mode", self.execution_mode)
+            raise AsyncModeError(self.execution_mode)
 
         start_time = self._prepare_start(task_source)
         try:

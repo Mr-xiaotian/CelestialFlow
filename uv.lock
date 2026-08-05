@@ -31,7 +31,7 @@ wheels = [
 
 [[package]]
 name = "celestialflow"
-version = "3.2.7"
+version = "3.2.8"
 source = { editable = "." }
 dependencies = [
     { name = "requests" },

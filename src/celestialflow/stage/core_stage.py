@@ -1,7 +1,6 @@
 # stage/core_stage.py
 from __future__ import annotations
 
-import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -9,6 +8,7 @@ from typing import Any
 from ..persistence import FallbackInlet, LogInlet
 from ..runtime import TaskInQueue, TaskOutQueue
 from ..runtime.util_errors import (
+    AsyncModeError,
     ExecutionModeError,
     GraphManagedError,
     StageModeError,
@@ -170,6 +170,43 @@ class TaskStage[T, R](TaskExecutor[T, R]):
             self.handle_task_fail(source, UnconsumedError())
 
     # ==== 启动 ====
+    def _prepare_start_stage(self) -> float:
+        """
+        启动前准备：记录启动时间、初始化状态并标记 stage 为运行中。
+
+        :return: 启动时刻的 ``perf_counter`` 时间戳，用于计算本次运行耗时
+        """
+        start_perf = time.perf_counter()
+        self.start_time = time.time()
+        self._init_state()
+
+        self.log_inlet.start_stage(
+            self.get_name(), self.stage_mode, self._get_execution_mode_desc()
+        )
+        self.mark_running()
+
+        return start_perf
+
+    def _finish_start_stage(self, start_perf: float) -> None:
+        """
+        启动后收尾：标记 stage 停止、结束指标统计并记录结束日志。
+
+        :param start_perf: :meth:`_prepare_start_stage` 返回的启动时间戳
+        :return: ``None``
+        """
+        self.mark_stopped()
+
+        self.metrics.on_finish()
+        self.log_inlet.end_stage(
+            self.get_name(),
+            self.stage_mode,
+            self._get_execution_mode_desc(),
+            time.perf_counter() - start_perf,
+            self.metrics.get_success_count(),
+            self.metrics.get_error_count(),
+            self.metrics.get_duplicate_count(),
+        )
+
     def start(self, task_source: Any) -> None:
         """
         启动 stage，将任务源添加到任务队列。
@@ -194,44 +231,44 @@ class TaskStage[T, R](TaskExecutor[T, R]):
 
     def start_stage(self) -> None:
         """
-        根据 execution_mode 的值，选择串行、线程或异步执行任务。
+        根据 execution_mode 的值，选择串行或线程方式执行任务。
 
-        :raises ExecutionModeError: execution_mode 不为合法值时触发
+        async 模式不支持通过本方法启动，请使用 :meth:`start_stage_async`。
+
+        :raises ExecutionModeError: execution_mode 不是 'serial' 或 'thread' 时触发
         :note:
             TaskStage 为一次性对象；当前实例完成一次 start_stage() 生命周期后，不保
             证可安全再次运行。需要重复执行时请重新创建 TaskStage。
         """
-        _start = time.perf_counter()
-        self.start_time = time.time()
-
-        self._init_state()
-
-        self.log_inlet.start_stage(
-            self.get_name(), self.stage_mode, self._get_execution_mode_desc()
-        )
-        self.mark_running()
-
+        start_perf = self._prepare_start_stage()
         try:
             # 根据模式运行对应的任务处理函数
             if self.execution_mode == "thread":
                 self.dispatch.dispatch_thread()
             elif self.execution_mode == "serial":
                 self.dispatch.dispatch_serial()
-            elif self.execution_mode == "async":
-                asyncio.run(self.dispatch.dispatch_async())
             else:
                 raise ExecutionModeError(self.execution_mode)
-
         finally:
-            self.mark_stopped()
+            self._finish_start_stage(start_perf)
 
-            self.metrics.on_finish()
-            self.log_inlet.end_stage(
-                self.get_name(),
-                self.stage_mode,
-                self._get_execution_mode_desc(),
-                time.perf_counter() - _start,
-                self.metrics.get_success_count(),
-                self.metrics.get_error_count(),
-                self.metrics.get_duplicate_count(),
-            )
+    async def start_stage_async(self) -> None:
+        """
+        以异步模式执行任务，适合在已运行事件循环的上下文中调用。
+
+        与 :meth:`start_stage` 的区别：async 模式不再内部调用 ``asyncio.run``，
+        而是直接 ``await`` 异步调度器，避免嵌套事件循环导致的崩溃。
+
+        :raises AsyncModeError: execution_mode 不是 'async' 时触发
+        :note:
+            TaskStage 为一次性对象；当前实例完成一次 start_stage_async() 生命周期后，
+            不保证可安全再次运行。需要重复执行时请重新创建 TaskStage。
+        """
+        if self.execution_mode != "async":
+            raise AsyncModeError(self.execution_mode)
+
+        start_perf = self._prepare_start_stage()
+        try:
+            await self.dispatch.dispatch_async()
+        finally:
+            self._finish_start_stage(start_perf)

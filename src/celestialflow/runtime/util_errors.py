@@ -81,7 +81,7 @@ class AsyncModeError(InvalidOptionError):
     execution_mode: str
     valid_modes: tuple[str, ...]
 
-    def __init__(self, field: str, execution_mode: str):
+    def __init__(self, execution_mode: str):
         """
         初始化异常。
 
@@ -89,7 +89,7 @@ class AsyncModeError(InvalidOptionError):
         :param valid_modes: 允许的执行模式列表
         """
         valid_modes = ("async",)
-        super().__init__(field, execution_mode, valid_modes)
+        super().__init__("execution mode", execution_mode, valid_modes)
         self.execution_mode = execution_mode
         self.valid_modes = self.allowed  # 兼容旧字段名
 
