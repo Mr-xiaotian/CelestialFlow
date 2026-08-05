@@ -275,7 +275,8 @@ class TestTaskGraphBasic:
 # TaskGraph async 模式测试
 # =========================
 class TestTaskGraphAsync:
-    def test_graph_async_two_nodes(self):
+    @pytest.mark.asyncio
+    async def test_graph_async_two_nodes(self):
         """async 模式：两个节点串行，结果正确传递"""
         stage1 = TaskStage("s1", async_add_one, execution_mode="async")
         stage2 = TaskStage("s2", async_double, execution_mode="async")
@@ -284,12 +285,13 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        graph.start_graph({stage1.get_name(): [1, 2, 3]})
+        await graph.start_graph_async({stage1.get_name(): [1, 2, 3]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 3
         assert stage2.get_counts()["tasks_succeeded"] == 3
 
-    def test_graph_async_fan_out(self):
+    @pytest.mark.asyncio
+    async def test_graph_async_fan_out(self):
         """async 模式：扇出"""
         source = TaskStage("src", async_add_one, execution_mode="async")
         sink_a = TaskStage("sink_a", async_double, execution_mode="async")
@@ -299,13 +301,14 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
-        graph.start_graph({source.get_name(): [1, 2]})
+        await graph.start_graph_async({source.get_name(): [1, 2]})
 
         assert source.get_counts()["tasks_succeeded"] == 2
         assert sink_a.get_counts()["tasks_succeeded"] == 2
         assert sink_b.get_counts()["tasks_succeeded"] == 2
 
-    def test_graph_async_fan_in(self):
+    @pytest.mark.asyncio
+    async def test_graph_async_fan_in(self):
         """async 模式：扇入"""
         source_a = TaskStage("src_a", async_add_one, execution_mode="async")
         source_b = TaskStage("src_b", async_double, execution_mode="async")
@@ -315,7 +318,7 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[source_a, source_b, merge])
         graph.connect([source_a, source_b], [merge])
 
-        graph.start_graph(
+        await graph.start_graph_async(
             {
                 source_a.get_name(): [1, 2],
                 source_b.get_name(): [10, 20],
@@ -324,7 +327,8 @@ class TestTaskGraphAsync:
 
         assert merge.get_counts()["tasks_succeeded"] == 4
 
-    def test_graph_async_error_propagation(self):
+    @pytest.mark.asyncio
+    async def test_graph_async_error_propagation(self):
         """async 模式：错误任务不会阻断整体流程"""
         stage1 = TaskStage("s1", async_add_offset_10, execution_mode="async")
         stage2 = TaskStage("s2", async_double, execution_mode="async")
@@ -333,13 +337,14 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        graph.start_graph({stage1.get_name(): [1, 50, 2]})
+        await graph.start_graph_async({stage1.get_name(): [1, 50, 2]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 2
         assert stage1.get_counts()["tasks_failed"] == 1
         assert stage2.get_counts()["tasks_succeeded"] == 2
 
-    def test_graph_async_thread_stage_mode(self):
+    @pytest.mark.asyncio
+    async def test_graph_async_thread_stage_mode(self):
         """async + thread stage_mode：线程中运行异步任务"""
         stage1 = TaskStage(
             "s1", async_add_one, stage_mode="thread", execution_mode="async"
@@ -352,7 +357,7 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        graph.start_graph({stage1.get_name(): [1, 2, 3]})
+        await graph.start_graph_async({stage1.get_name(): [1, 2, 3]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 3
         assert stage2.get_counts()["tasks_succeeded"] == 3
@@ -526,7 +531,8 @@ class TestStageExecutionMatrix:
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
 
-    def test_serial_async(self):
+    @pytest.mark.asyncio
+    async def test_serial_async(self):
         """测试串行 Stage + 异步执行模式"""
         s1 = TaskStage(
             "s1",
@@ -546,7 +552,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph("test_serial_async")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        graph.start_graph({s1.get_name(): [1, 2, 3, 4, 5]})
+        await graph.start_graph_async({s1.get_name(): [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -583,7 +589,8 @@ class TestStageExecutionMatrix:
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
 
-    def test_thread_async(self):
+    @pytest.mark.asyncio
+    async def test_thread_async(self):
         """测试线程隔离 Stage + 异步执行模式"""
         s1 = TaskStage(
             "s1",
@@ -603,7 +610,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph("test_thread_async")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        graph.start_graph({s1.get_name(): [1, 2, 3, 4, 5]})
+        await graph.start_graph_async({s1.get_name(): [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5

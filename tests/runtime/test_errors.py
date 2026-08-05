@@ -60,7 +60,7 @@ class TestUtilErrors:
         assert isinstance(ex, CelestialFlowError)
         assert isinstance(ex, InvalidOptionError)
         assert ex.execution_mode == "parallel"
-        assert ex.valid_modes == ("serial", "thread", "async")
+        assert ex.valid_modes == ("serial", "thread")
         assert "parallel" in str(ex)
 
     def test_execution_mode_error_custom_valid_modes(self):
