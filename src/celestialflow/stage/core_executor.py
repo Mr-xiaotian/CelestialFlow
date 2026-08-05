@@ -1,7 +1,6 @@
 # stage/core_executor.py
 from __future__ import annotations
 
-import asyncio
 import inspect
 import os
 import time
@@ -25,7 +24,12 @@ from ..runtime import (
     TaskMetrics,
     TaskOutQueue,
 )
-from ..runtime.util_errors import ConfigurationError, ExecutionModeError, PersistedError
+from ..runtime.util_errors import (
+    AsyncModeError,
+    ConfigurationError,
+    ExecutionModeError,
+    PersistedError,
+)
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_types import (
     CTreeEvent,
@@ -584,8 +588,6 @@ class TaskExecutor[T, R]:
                 self.dispatch.dispatch_thread()
             elif self.execution_mode == "serial":
                 self.dispatch.dispatch_serial()
-            elif self.execution_mode == "async":
-                asyncio.run(self.dispatch.dispatch_async())
             else:
                 raise ExecutionModeError(self.execution_mode)
         finally:
@@ -600,7 +602,9 @@ class TaskExecutor[T, R]:
             TaskExecutor 为一次性对象；当前实例完成一次 start_async() 后，不保证可
             安全再次调用。需要重复执行时请创建新的 TaskExecutor。
         """
-        self.set_execution_mode("async")
+        if self.execution_mode != "async":
+            raise AsyncModeError("execution mode", self.execution_mode)
+
         start_time = self._prepare_start(task_source)
         try:
             await self.dispatch.dispatch_async()
