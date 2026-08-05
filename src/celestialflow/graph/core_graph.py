@@ -165,7 +165,7 @@ class TaskGraph:
         :return: ``None``。
         """
         self.log_spout = LogSpout()
-        self.fallback_spout = FallbackSpout("graph_fallbacks")
+        self.fallback_spout = FallbackSpout()
 
     def _init_inlet(self) -> None:
         """

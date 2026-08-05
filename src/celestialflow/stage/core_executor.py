@@ -148,7 +148,7 @@ class TaskExecutor[T, R]:
         """
         初始化监听器
         """
-        self.fallback_spout = FallbackSpout("executor_fallbacks")
+        self.fallback_spout = FallbackSpout()
         self.log_spout = LogSpout()
 
         self.fallback_spout.start()

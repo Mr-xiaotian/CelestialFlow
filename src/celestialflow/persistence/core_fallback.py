@@ -24,7 +24,7 @@ from .util_sqlite import (
 class FallbackSpout(BaseSpout):
     """Fallback 记录监听器，将任务生命周期写入 fallback 目录的 sqlite 文件。"""
 
-    def __init__(self, error_source: str) -> None:
+    def __init__(self) -> None:
         """
         初始化失败记录监听器
 
@@ -32,7 +32,6 @@ class FallbackSpout(BaseSpout):
         """
         super().__init__()
 
-        self.error_source: str = error_source
         self.db_path: Path | None = None
 
         self._conn: sqlite3.Connection | None = None
@@ -44,7 +43,7 @@ class FallbackSpout(BaseSpout):
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%H-%M-%S-%f")[:-3]
         self.db_path = Path(
-            f"./fallback/{date_str}/{self.error_source}({time_str}).sqlite3"
+            f"./fallbacks/{date_str}/fallback({time_str}).sqlite3"
         )
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = connect_db(self.db_path)

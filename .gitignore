@@ -60,7 +60,7 @@ Thumbs.db
 # Project specific
 # ===============================
 profile/
-fallback/
+fallbacks/
 examples/
 result.json
 *.exe
