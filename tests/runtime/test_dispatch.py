@@ -349,7 +349,15 @@ class TestDispatchAsync:
 
 
 class _CrashOnFailObserver(BaseObserver):
-    """``on_task_fail`` 抛异常，模拟失败处理链中的 observer 崩溃。"""
+    """``on_task_fail`` 抛异常，通过 ``on_observer_error`` 捕获。"""
+
+    def __init__(self) -> None:
+        """初始化错误记录列表。"""
+        self.errors: list[tuple[str, Exception]] = []
+
+    def on_observer_error(self, method_name: str, exception: Exception) -> None:
+        """记录回调异常。"""
+        self.errors.append((method_name, exception))
 
     def on_task_fail(self, _count: int = 1) -> None:
         """失败计数回调，直接抛异常。"""
@@ -411,13 +419,15 @@ class TestWorkerCrashKeepsTerminationSignal:
 
     @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
     def test_fail_handler_crash_keeps_termination(self, mode: str) -> None:
-        """失败处理链崩溃（observer 抛异常）时，调度不中断且终止信号仍发出。"""
+        """失败处理链崩溃（observer 抛异常）时，异常被 ``on_observer_error`` 捕获，
+        终止信号照常发出，不触发 ``worker_crash``。"""
         executor = _make_executor(
             _async_always_fail if mode == "async" else _always_fail,
             max_retries=0,
             name="crash_fail",
         )
-        executor.metrics.add_observer(_CrashOnFailObserver())
+        observer = _CrashOnFailObserver()
+        executor.metrics.add_observer(observer)
         recording = _RecordingLogInlet()
         executor.log_inlet = recording
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
@@ -426,11 +436,15 @@ class TestWorkerCrashKeepsTerminationSignal:
         _put_termination(executor)
         _run_dispatch(dispatch, mode)
 
+        # 异常在 observer 层被捕获，不应到达 worker_crash
+        assert len(observer.errors) == 1
+        assert observer.errors[0][0] == "on_task_fail"
+        assert isinstance(observer.errors[0][1], RuntimeError)
+        assert len(recording.crashes) == 0
+
         results = _collect_results(executor)
         assert len(results) == 1
         assert isinstance(results[0], TerminationSignal)
-        assert len(recording.crashes) == 1
-        assert isinstance(recording.crashes[0], RuntimeError)
         assert executor.metrics.get_error_count() == 1
 
     @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
