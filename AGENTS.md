@@ -32,5 +32,5 @@
 
 ### celestialflow-web
 
-- 位于: D:\Project\celestialflow-web
+- 位于: ..\celestialflow-web
 - 关系: 为celestialflow提供可视化的web界面

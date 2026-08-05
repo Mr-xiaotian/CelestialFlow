@@ -118,27 +118,30 @@ class TaskDispatch[T, R]:
 
         :param task_envelope: 包含任务信息的信封
         """
-        task: T = task_envelope.get_task()
-        max_retries: int = self.task_executor.max_retries
+        try:
+            task: T = task_envelope.get_task()
+            max_retries: int = self.task_executor.max_retries
 
-        for retry_time in range(max_retries + 1):
-            try:
-                start_time = time.perf_counter()
-                result: R = self._call_sync(task)
-                self.task_executor.process_task_success(
-                    task_envelope, result, start_time
-                )
-                return
-            except Exception as exception:
-                if retry_time >= max_retries or not isinstance(
-                    exception, self.task_executor.metrics.retry_exceptions
-                ):
-                    # 如果无重试机会或非可试异常, 则直接处理失败
-                    self.task_executor.handle_task_fail(task_envelope, exception)
+            for retry_time in range(max_retries + 1):
+                try:
+                    start_time = time.perf_counter()
+                    result: R = self._call_sync(task)
+                    self.task_executor.process_task_success(
+                        task_envelope, result, start_time
+                    )
                     return
-                task_envelope = self.task_executor.emit_retry_envelope(
-                    task_envelope, exception, retry_time + 1
-                )
+                except Exception as exception:
+                    if retry_time >= max_retries or not isinstance(
+                        exception, self.task_executor.metrics.retry_exceptions
+                    ):
+                        # 如果无重试机会或非可试异常, 则直接处理失败
+                        self.task_executor.handle_task_fail(task_envelope, exception)
+                        return
+                    task_envelope = self.task_executor.emit_retry_envelope(
+                        task_envelope, exception, retry_time + 1
+                    )
+        except Exception as e:
+            self.task_executor.log_inlet.worker_crash(e)
 
     async def _async_worker(self, task_envelope: TaskEnvelope[T]) -> None:
         """
@@ -146,26 +149,29 @@ class TaskDispatch[T, R]:
 
         :param task_envelope: 包含任务信息的信封
         """
-        task: T = task_envelope.get_task()
-        max_retries: int = self.task_executor.max_retries
+        try:
+            task: T = task_envelope.get_task()
+            max_retries: int = self.task_executor.max_retries
 
-        for retry_time in range(max_retries + 1):
-            try:
-                start_time = time.perf_counter()
-                result: R = await self._call_async(task)
-                self.task_executor.process_task_success(
-                    task_envelope, result, start_time
-                )
-                return
-            except Exception as exception:
-                if retry_time >= max_retries or not isinstance(
-                    exception, self.task_executor.metrics.retry_exceptions
-                ):
-                    self.task_executor.handle_task_fail(task_envelope, exception)
+            for retry_time in range(max_retries + 1):
+                try:
+                    start_time = time.perf_counter()
+                    result: R = await self._call_async(task)
+                    self.task_executor.process_task_success(
+                        task_envelope, result, start_time
+                    )
                     return
-                task_envelope = self.task_executor.emit_retry_envelope(
-                    task_envelope, exception, retry_time + 1
-                )
+                except Exception as exception:
+                    if retry_time >= max_retries or not isinstance(
+                        exception, self.task_executor.metrics.retry_exceptions
+                    ):
+                        self.task_executor.handle_task_fail(task_envelope, exception)
+                        return
+                    task_envelope = self.task_executor.emit_retry_envelope(
+                        task_envelope, exception, retry_time + 1
+                    )
+        except Exception as e:
+            self.task_executor.log_inlet.worker_crash(e)
 
     # ==== Dispatch ====
     def dispatch_serial(self) -> None:

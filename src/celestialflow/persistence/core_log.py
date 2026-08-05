@@ -213,6 +213,20 @@ class LogInlet(BaseInlet):
             + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
+    # ==== worker ====
+    def worker_crash(self, exception: Exception) -> None:
+        """
+        记录工作器崩溃
+
+        :param exception: 异常对象
+        """
+        exception_type = type(exception).__name__
+        exception_text = str(exception).replace("\n", " ")
+        self._log(
+            "CRITICAL",
+            f"Worker crashed: ({exception_type}){exception_text}.",
+        )
+
     # ==== task ====
     def task_input(
         self, func_name: str, task_repr: str, source: str, input_id: int
@@ -297,10 +311,11 @@ class LogInlet(BaseInlet):
         :param parent_id: 父记录 ID
         :param error_id: 错误记录 ID
         """
+        exception_type = type(exception).__name__
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "ERROR",
-            f"In '{func_name}', Task {task_repr} failed and can't retry: ({type(exception).__name__}){exception_text}. [{parent_id}->{error_id}*]",
+            f"In '{func_name}', Task {task_repr} failed and can't retry: ({exception_type}){exception_text}. [{parent_id}->{error_id}*]",
         )
 
     def task_duplicate(
