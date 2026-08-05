@@ -9,7 +9,11 @@ from celestialflow import (
 )
 from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_event import LocalEventClient
-from celestialflow.runtime.util_errors import RuntimeStateError
+from celestialflow.runtime.util_errors import (
+    NodeNotFoundError,
+    RuntimeStateError,
+    StageModeError,
+)
 
 
 # =========================
@@ -86,6 +90,26 @@ class TestTaskGraphBasic:
         assert graph.ctree_client is ctree_client
         assert stage1.ctree_client is ctree_client
         assert stage2.ctree_client is ctree_client
+
+    def test_put_stage_queue_unknown_stage_raises(self):
+        """put_stage_queue 包含图中不存在的 stage 名称时应抛出 NodeNotFoundError。"""
+        graph = TaskGraph("test_put_stage_queue_unknown_stage")
+        stage = TaskStage("s1", add_one, execution_mode="serial")
+        graph.set_stages(stages=[stage])
+
+        with pytest.raises(NodeNotFoundError):
+            graph.put_stage_queue({"unknown_stage": [1]})
+
+    def test_execute_stage_unknown_stage_mode_raises(self):
+        """_execute_stage 遇到非法 stage_mode 时应抛出 StageModeError 而非静默降级。"""
+        stage = TaskStage("s1", add_one, stage_mode="serial", execution_mode="serial")
+
+        graph = TaskGraph("test_execute_stage_unknown_stage_mode")
+        graph.set_stages(stages=[stage])
+        stage.stage_mode = "invalid_mode"  # 绕过 set_stage_mode 校验，模拟非法状态
+
+        with pytest.raises(StageModeError):
+            graph._execute_stage(stage)
 
     def test_graph_dag_two_nodes(self):
         """简单 DAG：两个节点串行，结果正确传递"""

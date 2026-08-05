@@ -20,6 +20,7 @@ from ..runtime.util_errors import (
     NodeNotFoundError,
     RuntimeStateError,
     ScheduleModeError,
+    StageModeError,
 )
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_types import TerminationSignal
@@ -339,10 +340,11 @@ class TaskGraph:
 
         :param tasks_dict: 待处理的任务字典
         :param put_termination_signal: 是否放入终止信号，默认 True
+        :raises NodeNotFoundError: tasks_dict 中包含图中不存在的 stage 名称时抛出
         """
         for name, tasks in tasks_dict.items():
             if name not in self.stage_dict:
-                continue
+                raise NodeNotFoundError(f"unknown stage name: {name}")
             stage: AnyTaskStage = self.stage_dict[name]
 
             for task in tasks:
@@ -556,6 +558,7 @@ class TaskGraph:
         执行单个节点
 
         :param stage: 节点
+        :raises StageModeError: stage.stage_mode 不是 'serial' 或 'thread' 时抛出
         """
         stage.set_log_level(self.log_level)
 
@@ -568,8 +571,10 @@ class TaskGraph:
             )
             t.start()
             self.threads.append(t)
-        else:
+        elif stage.stage_mode == "serial":
             stage.start_stage()
+        else:
+            raise StageModeError(stage.stage_mode)
 
     async def _execute_stage_async(self, stage: AnyTaskStage) -> None:
         """
