@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "celestialflow"
-version = "3.2.7"
+version = "3.2.8"
 description = "A flexible GRAPH-based task orchestration framework."
 readme = "README.md"
 license = { text = "MIT" }
@@ -26,6 +26,9 @@ classifiers = [
 [project.urls]
 "Homepage" = "https://github.com/Mr-xiaotian/CelestialFlow"
 "Bug Tracker" = "https://github.com/Mr-xiaotian/CelestialFlow/issues"
+
+[tool.uv]
+index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
 [tool.pytest.ini_options]
 addopts = "-s"
