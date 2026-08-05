@@ -26,6 +26,7 @@
 ### 关于error
 
 - 项目中所有error都用 `src/celestialflow/runtime/util_errors.py` 中的自定义异常类抛出。
+- 如果需要的错误类在 `util_errors.py` 中不存在，依照格式自行添加
 
 ## 与其他项目的关联
 
