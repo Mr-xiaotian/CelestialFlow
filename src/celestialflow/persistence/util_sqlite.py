@@ -360,7 +360,7 @@ def load_records(
 
 def load_tasks_grouped_by_stage(
     db_path: str | Path,
-    statuses: Iterable[str] = ["failed"],
+    statuses: Iterable[str] = ("failed",),
 ) -> dict[str, list[dict[str, Any]]]:
     """
     自行创建并关闭连接，按 stage 分组读取指定状态的记录。
