@@ -1,6 +1,7 @@
 # graph/core_graph.py
 from __future__ import annotations
 
+import asyncio
 import threading
 import time
 import warnings
@@ -430,6 +431,35 @@ class TaskGraph:
         finally:
             self._finish_start_graph(start_perf)
 
+    async def start_graph_async(
+        self,
+        init_tasks_dict: Mapping[str, Iterable[Any]],
+        put_termination_signal: bool = True,
+    ) -> None:
+        """
+        以异步方式启动任务图，适合在已运行事件循环的上下文中调用。
+
+        与 :meth:`start_graph` 的区别：
+        - async 执行模式的节点通过 :meth:`TaskStage.start_stage_async` 以协程方式运行，
+          不再内部调用 ``asyncio.run``，避免嵌套事件循环导致的崩溃。
+        - serial / thread 执行模式的节点通过 ``asyncio.to_thread`` 在独立线程中运行，
+          避免阻塞事件循环。
+
+        :param init_tasks_dict: 任务列表
+        :param put_termination_signal: 是否注入终止信号，默认 True
+        :note:
+            TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
+            start_graph_async()。如需重复执行，请创建新的 TaskGraph 实例。
+        """
+        start_perf = time.perf_counter()
+        self.start_time = time.time()
+        try:
+            self._prepare_start_graph(init_tasks_dict, put_termination_signal)
+            await self._execute_stages_async()
+            self._finalize_stages()
+        finally:
+            self._finish_start_graph(start_perf)
+
     def start_graph_db(
         self,
         db_path: str | Path,
@@ -485,7 +515,7 @@ class TaskGraph:
             # staged schedule_mode：一层层地顺序执行
             for layer_level, layer in self.layers_dict.items():
                 self.log_inlet.start_layer(layer, layer_level)
-                start_time = time.perf_counter()
+                start_perf = time.perf_counter()
 
                 threads: list[threading.Thread] = []
                 for stage_name in layer:
@@ -498,7 +528,28 @@ class TaskGraph:
                 for t in threads:
                     t.join()
 
-                self.log_inlet.end_layer(layer, time.perf_counter() - start_time)
+                self.log_inlet.end_layer(layer, time.perf_counter() - start_perf)
+
+    async def _execute_stages_async(self) -> None:
+        """
+        异步执行所有节点：eager 全并发，staged 逐层执行。
+        """
+        if self.schedule_mode == "eager":
+            tasks = [
+                asyncio.create_task(self._execute_stage_async(stage))
+                for stage in self.stage_dict.values()
+            ]
+            await asyncio.gather(*tasks)
+        elif self.schedule_mode == "staged":
+            for layer_level, layer in self.layers_dict.items():
+                self.log_inlet.start_layer(layer, layer_level)
+                start_perf = time.perf_counter()
+                tasks = [
+                    asyncio.create_task(self._execute_stage_async(self.stage_dict[name]))
+                    for name in layer
+                ]
+                await asyncio.gather(*tasks)
+                self.log_inlet.end_layer(layer, time.perf_counter() - start_perf)
 
     def _execute_stage(self, stage: AnyTaskStage) -> None:
         """
@@ -519,6 +570,18 @@ class TaskGraph:
             self.threads.append(t)
         else:
             stage.start_stage()
+
+    async def _execute_stage_async(self, stage: AnyTaskStage) -> None:
+        """
+        异步执行单个节点：async 模式走协程，其余模式走线程池。
+
+        :param stage: 节点
+        """
+        stage.set_log_level(self.log_level)
+        if stage.execution_mode == "async":
+            await stage.start_stage_async()
+        else:
+            await asyncio.to_thread(stage.start_stage)
 
     # ==== 终止与清理 ====
 
