@@ -6,7 +6,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from celestialflow import TaskGraph, TaskStage, TaskSplitter, benchmark_graph
+from celestialflow import TaskGraph, TaskSplitter, TaskStage, benchmark_graph
 
 load_dotenv()
 report_host = os.getenv("REPORT_HOST", "127.0.0.1")
@@ -84,9 +84,7 @@ async def async_sleep_random_F(n: Any) -> Any:
 def fibonacci(n: Any) -> int:
     if n <= 0:
         raise ValueError("n must be a positive integer")
-    elif n == 1:
-        return 1
-    elif n == 2:
+    elif n == 1 or n == 2:
         return 1
     else:
         return fibonacci(n - 1) + fibonacci(n - 2)
@@ -132,7 +130,7 @@ async def async_multiply_two(x: int) -> int:
     return x * 2
 
 
-def bench_graph_0() -> None:
+async def bench_graph_0() -> None:
     stage1 = TaskStage(
         "StageA",
         fibonacci,
@@ -182,20 +180,20 @@ def bench_graph_0() -> None:
     async_stage1.set_retry_exceptions(ValueError)
     async_stage2.set_retry_exceptions(ValueError)
 
-    graph.set_reporter(True, host=report_host, port=report_port)
-    async_graph.set_reporter(True, host=report_host, port=report_port)
+    # graph.set_reporter(True, host=report_host, port=report_port)
+    # async_graph.set_reporter(True, host=report_host, port=report_port)
 
-    bench_task_1: list[Any] = list(range(25, 32)) + [0, 27, None, 0, ""]
+    bench_task_1: list[Any] = [*list(range(25, 32)), 0, 27, None, 0, ""]
 
     input_tasks = {
         stage1.get_name(): bench_task_1,
         async_stage1.get_name(): bench_task_1,
     }
 
-    benchmark_graph(graph, async_graph, input_tasks)
+    await benchmark_graph(graph, async_graph, input_tasks)
 
 
-def bench_graph_1() -> None:
+async def bench_graph_1() -> None:
     A = TaskStage("StageA", sleep_random_A, max_workers=5)
     B = TaskStage("StageB", sleep_random_B, max_workers=5)
     C = TaskStage("StageC", sleep_random_C, max_workers=5)
@@ -237,10 +235,10 @@ def bench_graph_1() -> None:
         aA.get_name(): range(10),
     }
 
-    benchmark_graph(graph, async_graph, input_tasks)
+    await benchmark_graph(graph, async_graph, input_tasks)
 
 
-def bench_graph_2() -> None:
+async def bench_graph_2() -> None:
     S = TaskSplitter("Splitter")
     A = TaskStage("StageA", add_one, max_workers=20)
     B = TaskStage("StageB", multiply_two, max_workers=20)
@@ -269,10 +267,11 @@ def bench_graph_2() -> None:
         aS.get_name(): [range(10_000)],
     }
 
-    benchmark_graph(graph, async_graph, input_tasks)
+    await benchmark_graph(graph, async_graph, input_tasks)
 
 
 if __name__ == "__main__":
-    bench_graph_1()
-    bench_graph_2()
+    # asyncio.run(bench_graph_0())
+    asyncio.run(bench_graph_1())
+    asyncio.run(bench_graph_2())
     pass

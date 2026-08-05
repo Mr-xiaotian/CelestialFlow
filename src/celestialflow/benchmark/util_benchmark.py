@@ -68,7 +68,7 @@ async def benchmark_executor(
     }
 
 
-def benchmark_graph(
+async def benchmark_graph(
     sync_graph: TaskGraph,
     async_graph: TaskGraph,
     init_tasks_dict: Mapping[str, Iterable[Any]],
@@ -88,19 +88,20 @@ def benchmark_graph(
     :return: 包含测试结果的字典
     """
     stage_modes = stage_modes or ["serial", "thread"]
-    sync_modes = execution_sync_modes or ["serial", "thread"]
-    async_modes = execution_async_modes or ["async"]
+    execution_sync_modes = execution_sync_modes or ["serial", "thread"]
+    execution_async_modes = execution_async_modes or ["async"]
 
     base_tasks: dict[str, list[Any]] = {
         stage_name: list(tasks) for stage_name, tasks in init_tasks_dict.items()
     }
-    execution_modes: list[str] = sync_modes + async_modes
+    execution_modes: list[str] = execution_sync_modes + execution_async_modes
 
     test_table_list: list[list[float]] = []
 
     for stage_mode in stage_modes:
         time_list: list[float] = []
-        for execution_mode in sync_modes:
+
+        for execution_mode in execution_sync_modes:
             cloned_graph: TaskGraph = clone_graph(sync_graph)
             cloned_graph.set_graph_mode(stage_mode, execution_mode)
 
@@ -111,7 +112,7 @@ def benchmark_graph(
             cloned_graph.start_graph(run_tasks)
             time_list.append(time.perf_counter() - start_time)
 
-        for execution_mode in async_modes:
+        for execution_mode in execution_async_modes:
             cloned_graph = clone_graph(async_graph)
             cloned_graph.set_graph_mode(stage_mode, execution_mode)
 
@@ -119,7 +120,7 @@ def benchmark_graph(
                 stage_name: list(tasks) for stage_name, tasks in base_tasks.items()
             }
             start_time = time.perf_counter()
-            cloned_graph.start_graph(run_tasks)
+            await cloned_graph.start_graph_async(run_tasks)
             time_list.append(time.perf_counter() - start_time)
 
         test_table_list.append(time_list)
@@ -134,6 +135,6 @@ def benchmark_graph(
     return {
         "table": time_table,
         "stage_modes": stage_modes,
-        "sync_modes": sync_modes,
-        "async_modes": async_modes if async_graph else [],
+        "sync_modes": execution_sync_modes,
+        "async_modes": execution_async_modes if async_graph else [],
     }
