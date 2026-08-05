@@ -16,6 +16,8 @@ from weakref import WeakKeyDictionary
 
 import pytest
 
+from celestialflow.observability import BaseObserver
+from celestialflow.persistence import LogInlet
 from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.core_dispatch import TaskDispatch
 from celestialflow.runtime.util_types import TerminationSignal
@@ -36,6 +38,12 @@ def _square(x: Any) -> Any:
 async def _async_square(x: Any) -> Any:
     """测试用异步平方函数。"""
     return x * x
+
+
+async def _async_always_fail(_x: Any) -> None:
+    """测试用异步函数，始终抛出异常。"""
+    msg = "async boom"
+    raise ValueError(msg)
 
 
 def _always_fail(_x: Any) -> None:
@@ -335,6 +343,118 @@ class TestDispatchAsync:
 
 
 # ── 参数化 ──────────────────────────────────────────────
+
+
+# ── worker 崩溃兜底 ────────────────────────────────────
+
+
+class _CrashOnFailObserver(BaseObserver):
+    """``on_task_fail`` 抛异常，模拟失败处理链中的 observer 崩溃。"""
+
+    def on_task_fail(self, _count: int = 1) -> None:
+        """失败计数回调，直接抛异常。"""
+        msg = "observer boom"
+        raise RuntimeError(msg)
+
+
+class _RecordingLogInlet(LogInlet):
+    """记录 ``worker_crash`` 调用，其余日志置为空操作。"""
+
+    def __init__(self) -> None:
+        """初始化崩溃记录列表。"""
+        super().__init__("SUCCESS")
+        self.crashes: list[Exception] = []
+
+    def _log(self, level: str, message: str | None = None) -> None:
+        """空操作，避免依赖真实 spout 队列。"""
+        return None
+
+    def worker_crash(self, exception: Exception) -> None:
+        """记录崩溃异常。"""
+        self.crashes.append(exception)
+
+
+class _CrashRetryLogInlet(_RecordingLogInlet):
+    """``task_retry`` 抛异常，模拟重试信封生成链中的日志崩溃。"""
+
+    def task_retry(
+        self,
+        func_name: str,
+        task_repr: str,
+        retry_times: int,
+        exception: Exception,
+        parent_id: int,
+        retry_id: int,
+    ) -> None:
+        """重试日志回调，直接抛异常。"""
+        msg = "retry log boom"
+        raise RuntimeError(msg)
+
+
+def _run_dispatch(dispatch: TaskDispatch[Any, Any], mode: str) -> None:
+    """按模式运行调度器。"""
+    if mode == "serial":
+        dispatch.dispatch_serial()
+    elif mode == "thread":
+        dispatch.dispatch_thread()
+    else:
+
+        async def _run_async() -> None:
+            """执行异步调度分支。"""
+            await dispatch.dispatch_async()
+
+        asyncio.run(_run_async())
+
+
+class TestWorkerCrashKeepsTerminationSignal:
+    """回归测试：失败/重试处理链自身崩溃时，终止信号仍必须发出。"""
+
+    @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
+    def test_fail_handler_crash_keeps_termination(self, mode: str) -> None:
+        """失败处理链崩溃（observer 抛异常）时，调度不中断且终止信号仍发出。"""
+        executor = _make_executor(
+            _async_always_fail if mode == "async" else _always_fail,
+            max_retries=0,
+            name="crash_fail",
+        )
+        executor.metrics.add_observer(_CrashOnFailObserver())
+        recording = _RecordingLogInlet()
+        executor.log_inlet = recording
+        dispatch = TaskDispatch(executor, executor.func, max_workers=1)
+
+        _put(executor, 42)
+        _put_termination(executor)
+        _run_dispatch(dispatch, mode)
+
+        results = _collect_results(executor)
+        assert len(results) == 1
+        assert isinstance(results[0], TerminationSignal)
+        assert len(recording.crashes) == 1
+        assert isinstance(recording.crashes[0], RuntimeError)
+        assert executor.metrics.get_error_count() == 1
+
+    @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
+    def test_retry_handler_crash_keeps_termination(self, mode: str) -> None:
+        """重试信封生成崩溃（日志抛异常）时，调度不中断且终止信号仍发出。"""
+        executor = _make_executor(
+            _async_always_fail if mode == "async" else _always_fail,
+            max_retries=1,
+            name="crash_retry",
+        )
+        recording = _CrashRetryLogInlet()
+        executor.log_inlet = recording
+        dispatch = TaskDispatch(executor, executor.func, max_workers=1)
+
+        _put(executor, 42)
+        _put_termination(executor)
+        _run_dispatch(dispatch, mode)
+
+        results = _collect_results(executor)
+        assert len(results) == 1
+        assert isinstance(results[0], TerminationSignal)
+        assert len(recording.crashes) == 1
+        assert isinstance(recording.crashes[0], RuntimeError)
+        assert executor.metrics.get_error_count() == 0
 
 
 class TestDispatchCoreBehavior:
