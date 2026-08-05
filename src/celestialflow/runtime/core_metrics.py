@@ -95,8 +95,9 @@ class TaskMetrics:
     # ==== 去重 ====
     def is_duplicate(self, task_hash: bytes) -> bool:
         """
-        检查任务是否重复, 是原子操作
-        不管有多少 worker thread, is_duplicate 本身只会被 executor thread 线性操作
+        检查任务是否重复。
+
+        该方法仅在 executor 线程中被串行调用，因此检查与记录之间无需额外加锁。
 
         :param task_hash: 任务的哈希值
         :return: 如果启用了去重检查且任务哈希存在于已处理集合中，返回 True；否则返回 False。

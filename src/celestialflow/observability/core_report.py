@@ -62,7 +62,7 @@ class TaskReporter:
         self._thread.start()
 
     def stop(self) -> None:
-        """停止上报器线程"""
+        """停止上报器线程，并执行最后一次上报与资源清理。"""
         if self._thread is None:
             return
 

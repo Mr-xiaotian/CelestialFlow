@@ -627,7 +627,7 @@ class TaskGraph:
         :param last_status: 上一次快照的状态字典（用于累计 elapsed_time）
         :param interval: 快照采集间隔
         :return: (stage_snapshot_dict, running_metrics)，其中
-            running_metrics = (processed, pending, elapsed, remaining)
+            running_metrics = (processed, pending)，用于全局 pending 估算
         """
         status = stage.get_status()
         stage_counts = stage.get_counts()

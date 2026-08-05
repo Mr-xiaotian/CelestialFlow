@@ -85,17 +85,10 @@ def calc_global_pending(
       用于显式放大潜在的拥塞与瓶颈风险。
 
     - 预计剩余任务数：
-        remain_tasks_v = max(0, total_v - processed_v)
+        expect_pend_v = max(pend_v, total_v - proc_v)
+        即至少保留当前观测到的 pending，同时按上游放大后的总量外推。
 
-    - 若节点已处理过任务（processed_v > 0）：
-        avg_time = elapsed_v / processed_v
-        expected_remain_time[v] = remain_tasks_v * avg_time
-      否则：
-        expected_remain_time[v] = 0
-        （表示尚无法基于历史速度进行时间外推）
-
-    全局待处理任务数量定义为：
-        所有节点 remain_tasks_v 的最大值。
+    本实现仅输出各节点预计剩余任务数（任务量），不进行时间维度的外推。
 
     算法特性与设计取向：
     - 假设任务图为有向无环图（DAG），调用方需保证这一前提。

@@ -22,7 +22,7 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(
         path, check_same_thread=False
-    )  # 允许跨线程使用, 由于使用端spout指挥存在单条流离线程, 这里是安全的
+    )  # 允许跨线程使用；使用端 spout 仅有单个消费线程，这里并发写入是安全的
     conn.row_factory = sqlite3.Row
 
     # 初始化当前连接的 sqlite 运行参数，再确保表结构与索引存在。
@@ -165,7 +165,7 @@ def promote_record_to_failed_by_event_id(
     :param conn: 已建立的 sqlite 连接
     :param event_id: 当前事件 ID
     :param new_event_id: 晋升 failed 后的新事件 ID
-    :param ts: 生命周期更新时间戳，默认 ``None``
+    :param ts: 生命周期更新时间戳
     :param error_type: 错误类型，默认空字符串
     :param error_message: 错误消息，默认空字符串
     :return: 是否更新到记录
@@ -195,7 +195,7 @@ def promote_record_to_success_by_event_id(
     :param conn: 已建立的 sqlite 连接
     :param event_id: 当前事件 ID
     :param result: 任务结果
-    :param ts: 生命周期更新时间戳，默认 ``None``
+    :param ts: 生命周期更新时间戳
     :return: 是否更新到记录
     :rtype: bool
     """
@@ -225,7 +225,7 @@ def update_record_event_id_by_event_id(
     :param conn: 已建立的 sqlite 连接
     :param event_id: 旧事件 ID
     :param new_event_id: 新事件 ID
-    :param ts: 生命周期更新时间戳，默认 ``None``
+    :param ts: 生命周期更新时间戳
     :return: 是否更新到记录
     :rtype: bool
     """
@@ -442,7 +442,7 @@ def load_task_error_records(
     :param db_path: sqlite 数据库文件路径
     :param stage: 待读取的 stage 名称
     :return: ``[(task, error_record), ...]``
-    :rtype: list[tuple[Any, tuple[str, str]]]]
+    :rtype: list[tuple[Any, tuple[str, str]]]
     """
     conn = connect_db(db_path)
     try:

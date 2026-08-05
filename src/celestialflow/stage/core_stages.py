@@ -131,7 +131,6 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
 
         :param result: split 的结果，必须是一个可迭代对象
         :param task_id: 原始任务 ID，用于事件关联
-        :param task: 原始任务对象
         :return: split 的子任务数量
         """
         result_queue = cast(TaskOutQueue[RItem], self.result_queue)

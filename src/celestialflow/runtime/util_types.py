@@ -79,7 +79,7 @@ class ValueWrapper:
 
         :param value: 初始值
         :param lock: 可选的线程锁，默认 None
-        :note: 如果 lock 为 None，则则使用 NoOpContext 作为默认锁
+        :note: 如果 lock 为 None，则使用 NoOpContext 作为默认锁
         """
         self.value = value
         self._lock = lock or NoOpContext()
