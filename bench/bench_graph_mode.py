@@ -180,8 +180,8 @@ async def bench_graph_0() -> None:
     async_stage1.set_retry_exceptions(ValueError)
     async_stage2.set_retry_exceptions(ValueError)
 
-    # graph.set_reporter(True, host=report_host, port=report_port)
-    # async_graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_reporter(True, host=report_host, port=report_port)
+    async_graph.set_reporter(True, host=report_host, port=report_port)
 
     bench_task_1: list[Any] = [*list(range(25, 32)), 0, 27, None, 0, ""]
 

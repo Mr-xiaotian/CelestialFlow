@@ -1,6 +1,6 @@
 # bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/08/05
 
 ## 目标
 
@@ -46,13 +46,15 @@ python bench/bench_graph_mode.py
 
 ### 单独运行某个测试场景
 
+> `benchmark_graph` 已改为 `async` 函数，`bench_graph_*` 均为 `async def`，需通过 `asyncio.run()` 调用。
+
 在 `bench/bench_graph_mode.py` 的 `main()` 中可选择只运行某个场景：
 
 ```python
 if __name__ == "__main__":
-    bench_graph_0()     # 运行 4 节点 DAG 混合场景（默认已注释）
-    bench_graph_1()     # 当前启用：6 节点多层 DAG
-    bench_graph_2()     # 当前启用：Splitter 吞吐量测试
+    asyncio.run(bench_graph_0())     # 运行 4 节点 DAG 混合场景（默认已注释）
+    asyncio.run(bench_graph_1())     # 当前启用：6 节点多层 DAG
+    asyncio.run(bench_graph_2())     # 当前启用：Splitter 吞吐量测试
 ```
 
 ### 调整输入规模
@@ -133,13 +135,42 @@ python bench/bench_graph_mode.py
 - `async` 需要 stage 的函数为 async 函数，因此需要分别提供 sync_graph 和 async_graph
 - 总耗时包含：线程启动 + 任务执行 + 队列传输 + 终止信号传播
 
-### 2026/06/16 - 本轮尝试重跑（未稳定完成）
+### 2026/08/05 — `start_graph_async` 重构后重跑
 
-> 环境：Windows，Reporter 服务指向 `127.0.0.1:5005`
+> 环境：Windows，Python 3.14，Reporter 服务指向 `127.0.0.1:5000`（关闭时跳过）
+> 变更：`benchmark_graph` 改为 `async` 函数，`async` execution mode 使用 `start_graph_async` 而非 `start_graph`
 
-- 本轮已按当前脚本入口尝试重跑 `bench_graph_mode.py`
-- 命令在当前环境下长时间未返回稳定的完整耗时表，临时日志只落到单行表头
-- 为避免把不完整数据写成正式 benchmark 记录，本次暂不追加新的耗时表，历史结果继续保留作参考
+#### `bench_graph_0` — 4 节点 DAG，CPU+I/O 混合，12 个任务（含异常边界）
+
+| stage_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 14.45s | 9.82s | 9.44s |
+| **thread** | 14.16s | 9.46s | 9.50s |
+
+- CPU 密集型（斐波那契）场景下 `async` 与 `thread` execution_mode 性能接近
+- `stage_mode=thread` 相比 `serial` 无明显优势（GIL + 混合负载中 sleep 占比不高）
+
+#### `bench_graph_1` — 6 节点 DAG，I/O 密集（随机 sleep），10 个任务
+
+| stage_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 74.11s | 19.11s | 12.12s |
+| **thread** | 25.07s | 11.08s | 11.12s |
+
+- `async` execution_mode 在 I/O 密集场景下首次正确生效（之前误走同步路径），性能显著提升
+- `serial`+`async`（12.12s）比历史同配置 `serial`+`async`（14.14s）略有提升，验证协程路径正确性
+
+#### `bench_graph_2` — 4 节点 DAG（Splitter→A→[B,C]），纯计算，10,000 个任务
+
+| stage_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 7.48s | 8.32s | 10.20s |
+| **thread** | 7.43s | 8.20s | 10.18s |
+
+- `serial`+`serial` 仍为最快组合（7.48s），纯计算场景结论不变
+- `async` 执行路径正确运行，但因无 I/O 等待，协程开销仍导致约 1.4x 减速
+
+> 注意：本轮结果与历史结果（2026/07/16 前）数值差异较大，原因是旧版中 `execution_mode="async"` 时实际走的是 `start_graph` 同步路径（`start_stage` 内部调用 `asyncio.run`），新版通过 `start_graph_async` 正确走协程路径，历史数据不再可比。
 
 ## 依赖
 

@@ -1,8 +1,8 @@
 # Benchmark
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/05
 
-`utils/util_benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
+`benchmark/util_benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
 ## 设计目的
 
@@ -56,7 +56,7 @@ async      0.67s
 对 `TaskGraph` 进行基准测试。
 
 ```python
-def benchmark_graph(
+async def benchmark_graph(
     sync_graph: TaskGraph,
     async_graph: TaskGraph,
     init_tasks_dict: Mapping[str, Iterable],
@@ -81,7 +81,7 @@ def benchmark_graph(
 1. 对每种 `stage_mode` × `execution_mode` 组合
 2. 克隆任务图
 3. 设置 `set_graph_mode(stage_mode, execution_mode)`
-4. 执行 `start_graph()` 并计时
+4. 同步模式执行 `start_graph()`，异步模式执行 `start_graph_async()` 并计时
 5. 输出时间表格
 
 输出示例：
@@ -130,8 +130,9 @@ asyncio.run(
 ### 测试任务图
 
 ```python
+import asyncio
 from celestialflow import TaskGraph, TaskStage
-from celestialflow.utils.util_benchmark import benchmark_graph
+from celestialflow.benchmark.util_benchmark import benchmark_graph
 
 
 def process_a(x: int) -> int:
@@ -168,11 +169,13 @@ async_graph = TaskGraph(name="AsyncGraph")
 async_graph.set_stages(stages=[async_stage_a, async_stage_b])
 async_graph.connect([async_stage_a], [async_stage_b])
 
-# 运行基准测试
-benchmark_graph(
-    sync_graph=sync_graph,
-    async_graph=async_graph,
-    init_tasks_dict={stage_a.get_name(): range(100)},
+# 运行基准测试（benchmark_graph 已改为 async 函数，需要 await）
+asyncio.run(
+    benchmark_graph(
+        sync_graph=sync_graph,
+        async_graph=async_graph,
+        init_tasks_dict={stage_a.get_name(): range(100)},
+    )
 )
 ```
 
@@ -231,5 +234,5 @@ benchmark_graph(
 1. **克隆机制**: 每次测试都会克隆原始对象，避免状态污染
 2. **任务固定**: 所有测试使用相同的任务列表，保证公平性
 3. **资源竞争**: 线程模式可能因资源竞争影响结果，建议多次测试
-4. **异步要求**: `benchmark_executor` 是异步函数，需要 `await` 或 `asyncio.run`
+4. **异步要求**: `benchmark_executor` 和 `benchmark_graph` 都是异步函数，需要 `await` 或 `asyncio.run`
 5. **图的分离**: `benchmark_graph` 需要分别提供 sync_graph 和 async_graph，因为 async 执行模式需要 async 函数
