@@ -180,8 +180,8 @@ async def bench_graph_0() -> None:
     async_stage1.set_retry_exceptions(ValueError)
     async_stage2.set_retry_exceptions(ValueError)
 
-    graph.set_reporter(True, host=report_host, port=report_port)
-    async_graph.set_reporter(True, host=report_host, port=report_port)
+    # graph.set_reporter(True, host=report_host, port=report_port)
+    # async_graph.set_reporter(True, host=report_host, port=report_port)
 
     bench_task_1: list[Any] = [*list(range(25, 32)), 0, 27, None, 0, ""]
 
@@ -190,6 +190,7 @@ async def bench_graph_0() -> None:
         async_stage1.get_name(): bench_task_1,
     }
 
+    print("bench_graph_0")
     await benchmark_graph(graph, async_graph, input_tasks)
 
 
@@ -227,14 +228,15 @@ async def bench_graph_1() -> None:
     async_graph.connect([aC], [aE])
     async_graph.connect([aD], [aF])
 
-    graph.set_reporter(True, host=report_host, port=report_port)
-    async_graph.set_reporter(True, host=report_host, port=report_port)
+    # graph.set_reporter(True, host=report_host, port=report_port)
+    # async_graph.set_reporter(True, host=report_host, port=report_port)
 
     input_tasks = {
         A.get_name(): range(10),
         aA.get_name(): range(10),
     }
 
+    print("bench_graph_1")
     await benchmark_graph(graph, async_graph, input_tasks)
 
 
@@ -259,19 +261,23 @@ async def bench_graph_2() -> None:
     async_graph.connect([aS], [aA])
     async_graph.connect([aA], [aB, aC])
 
-    graph.set_reporter(True, host=report_host, port=report_port)
-    async_graph.set_reporter(True, host=report_host, port=report_port)
+    # graph.set_reporter(True, host=report_host, port=report_port)
+    # async_graph.set_reporter(True, host=report_host, port=report_port)
 
     input_tasks = {
         S.get_name(): [range(10_000)],
         aS.get_name(): [range(10_000)],
     }
 
+    print("bench_graph_2")
     await benchmark_graph(graph, async_graph, input_tasks)
 
 
+async def main_async() -> None:
+    await bench_graph_0()
+    await bench_graph_1()
+    await bench_graph_2()
+
+
 if __name__ == "__main__":
-    # asyncio.run(bench_graph_0())
-    asyncio.run(bench_graph_1())
-    asyncio.run(bench_graph_2())
-    pass
+    asyncio.run(main_async())

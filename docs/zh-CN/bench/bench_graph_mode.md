@@ -137,40 +137,44 @@ python bench/bench_graph_mode.py
 
 ### 2026/08/05 — `start_graph_async` 重构后重跑
 
-> 环境：Windows，Python 3.14，Reporter 服务指向 `127.0.0.1:5000`（关闭时跳过）
+> 环境：Windows，Python 3.14，Reporter **已关闭**（避免 HTTP timeout 干扰耗时）
 > 变更：`benchmark_graph` 改为 `async` 函数，`async` execution mode 使用 `start_graph_async` 而非 `start_graph`
 
 #### `bench_graph_0` — 4 节点 DAG，CPU+I/O 混合，12 个任务（含异常边界）
 
 | stage_mode \ execution_mode | serial | thread | async |
 |----------------------------|--------|--------|-------|
-| **serial** | 14.45s | 9.82s | 9.44s |
-| **thread** | 14.16s | 9.46s | 9.50s |
+| **serial** | 8.36s | 1.38s | 1.39s |
+| **thread** | 8.11s | 1.39s | 1.38s |
 
-- CPU 密集型（斐波那契）场景下 `async` 与 `thread` execution_mode 性能接近
-- `stage_mode=thread` 相比 `serial` 无明显优势（GIL + 混合负载中 sleep 占比不高）
+- I/O 部分（`sleep_1`）占比不高时，`thread` 和 `async` 仍能带来约 **6x** 加速
+- `stage_mode` 在该场景下影响不大（thread 布局的开销被任务执行时间掩盖）
 
 #### `bench_graph_1` — 6 节点 DAG，I/O 密集（随机 sleep），10 个任务
 
 | stage_mode \ execution_mode | serial | thread | async |
 |----------------------------|--------|--------|-------|
-| **serial** | 74.11s | 19.11s | 12.12s |
-| **thread** | 25.07s | 11.08s | 11.12s |
+| **serial** | 69.04s | 12.03s | 6.05s |
+| **thread** | 19.02s | 6.02s | 8.06s |
 
-- `async` execution_mode 在 I/O 密集场景下首次正确生效（之前误走同步路径），性能显著提升
-- `serial`+`async`（12.12s）比历史同配置 `serial`+`async`（14.14s）略有提升，验证协程路径正确性
+- 最优组合：`serial`+`async`（6.05s），比最差 `serial`+`serial`（69.04s）快 **11.4x**
+- `stage_mode=thread` + `execution_mode=async`（8.06s）反而慢于 `serial`+`async`（6.05s），原因是 thread stage 间的线程切换 + async 协程调度产生了双重开销
+- `execution_mode=async` 在 I/O 密集场景下首次正确生效（之前误走同步路径），优势明显
 
 #### `bench_graph_2` — 4 节点 DAG（Splitter→A→[B,C]），纯计算，10,000 个任务
 
 | stage_mode \ execution_mode | serial | thread | async |
 |----------------------------|--------|--------|-------|
-| **serial** | 7.48s | 8.32s | 10.20s |
-| **thread** | 7.43s | 8.20s | 10.18s |
+| **serial** | 2.65s | 3.18s | 6.05s |
+| **thread** | 2.55s | 4.64s | 5.50s |
 
-- `serial`+`serial` 仍为最快组合（7.48s），纯计算场景结论不变
-- `async` 执行路径正确运行，但因无 I/O 等待，协程开销仍导致约 1.4x 减速
+- `serial`+`serial`（2.65s）最快，纯计算场景结论不变
+- `async` 因无 I/O 等待，协程调度开销导致减速约 **2.3x**
+- 整体比旧版（带 Reporter）快了约 3x，验证 Reporter 的 HTTP timeout 在前轮数据中贡献了大量额外耗时
 
-> 注意：本轮结果与历史结果（2026/07/16 前）数值差异较大，原因是旧版中 `execution_mode="async"` 时实际走的是 `start_graph` 同步路径（`start_stage` 内部调用 `asyncio.run`），新版通过 `start_graph_async` 正确走协程路径，历史数据不再可比。
+> **Reporter 影响说明**：前一轮数据中 Reporter 服务未运行，后台线程每 5 秒一次 HTTP 请求等待 timeout，显著拉长了整体耗时。本轮全部关闭 Reporter 后，数据更准确地反映框架本身的调度性能。
+>
+> 旧版（2026/07/16 前）`execution_mode="async"` 时实际走的是 `start_graph` 同步路径（`start_stage` 内部调用 `asyncio.run`），新版通过 `start_graph_async` 正确走协程路径，历史数据不再可比。
 
 ## 依赖
 
