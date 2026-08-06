@@ -379,6 +379,9 @@ class TaskGraph:
             self._prepare_start_graph(init_tasks_dict, put_termination_signal)
             self._execute_stages()
             self._finalize_stages()
+        except Exception as exception:
+            get_log_inlet().graph_crash(self.name, exception)
+            raise
         finally:
             self._finish_start_graph(start_perf)
 
@@ -408,6 +411,9 @@ class TaskGraph:
             self._prepare_start_graph(init_tasks_dict, put_termination_signal)
             await self._execute_stages_async()
             self._finalize_stages()
+        except Exception as exception:
+            get_log_inlet().graph_crash(self.name, exception)
+            raise
         finally:
             self._finish_start_graph(start_perf)
 

@@ -235,6 +235,9 @@ class TaskStage[T, R](TaskExecutor[T, R]):
                 self.dispatch.dispatch_serial()
             else:
                 raise ExecutionModeError(self.execution_mode)
+        except Exception as exception:
+            get_log_inlet().stage_crash(self.get_name(), exception)
+            raise
         finally:
             self._finish_start_stage(start_perf)
 
@@ -258,5 +261,8 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         try:
             self._prepare_start_stage()
             await self.dispatch.dispatch_async()
+        except Exception as exception:
+            get_log_inlet().stage_crash(self.get_name(), exception)
+            raise
         finally:
             self._finish_start_stage(start_perf)

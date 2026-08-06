@@ -112,6 +112,20 @@ class LogInlet(BaseInlet):
         """
         self._log("INFO", f"Graph '{graph_name}' end. Use {use_time:.2f}s.")
 
+    def graph_crash(self, graph_name: str, exception: Exception) -> None:
+        """
+        记录任务图崩溃。
+
+        :param graph_name: 任务图名称
+        :param exception: 异常对象
+        """
+        exception_type = type(exception).__name__
+        exception_text = str(exception).replace("\n", " ")
+        self._log(
+            "CRITICAL",
+            f"Graph '{graph_name}' crashed: ({exception_type}){exception_text}.",
+        )
+
     # ==== layer ====
     def start_layer(self, layer: list[str], layer_level: int) -> None:
         """
@@ -175,6 +189,20 @@ class LogInlet(BaseInlet):
             + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
+    def stage_crash(self, stage_name: str, exception: Exception) -> None:
+        """
+        记录节点崩溃。
+
+        :param stage_name: 节点名称
+        :param exception: 异常对象
+        """
+        exception_type = type(exception).__name__
+        exception_text = str(exception).replace("\n", " ")
+        self._log(
+            "CRITICAL",
+            f"Stage '{stage_name}' crashed: ({exception_type}){exception_text}.",
+        )
+
     # ==== executor ====
     def start_executor(
         self, executor_name: str, task_num: int, execution_mode_desc: str
@@ -212,6 +240,20 @@ class LogInlet(BaseInlet):
             "INFO",
             f"Executor '{executor_name}' end; execute tasks by {execution_mode_desc}. Use {use_time:.2f}s. "
             + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
+        )
+
+    def executor_crash(self, executor_name: str, exception: Exception) -> None:
+        """
+        记录执行器崩溃。
+
+        :param executor_name: 执行器名称
+        :param exception: 异常对象
+        """
+        exception_type = type(exception).__name__
+        exception_text = str(exception).replace("\n", " ")
+        self._log(
+            "CRITICAL",
+            f"Executor '{executor_name}' crashed: ({exception_type}){exception_text}.",
         )
 
     # ==== worker ====

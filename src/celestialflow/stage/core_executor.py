@@ -560,6 +560,9 @@ class TaskExecutor[T, R]:
                 self.dispatch.dispatch_serial()
             else:
                 raise ExecutionModeError(self.execution_mode)
+        except Exception as exception:
+            get_log_inlet().executor_crash(self.get_name(), exception)
+            raise
         finally:
             self._finish_start(start_perf)
 
@@ -579,6 +582,9 @@ class TaskExecutor[T, R]:
         try:
             self._prepare_start(task_source)
             await self.dispatch.dispatch_async()
+        except Exception as exception:
+            get_log_inlet().executor_crash(self.get_name(), exception)
+            raise
         finally:
             self._finish_start(start_perf)
 
