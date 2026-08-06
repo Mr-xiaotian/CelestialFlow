@@ -4,6 +4,9 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
+from .util_constant import LEVEL_DICT
+from .util_errors import LogLevelError
+
 
 def load_log_level_from_pyproject() -> str:
     """
@@ -25,7 +28,11 @@ def load_log_level_from_pyproject() -> str:
                     .get("celestialflow", {})
                     .get("log_level", "INFO")
                 )
-                return str(level).upper()
+
+                log_level = str(level).upper()
+                if log_level not in LEVEL_DICT:
+                    raise LogLevelError(log_level)
+                return log_level
             except tomllib.TOMLDecodeError:
                 continue
     return "INFO"

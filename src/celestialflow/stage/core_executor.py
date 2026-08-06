@@ -62,7 +62,6 @@ class TaskExecutor[T, R]:
     _name: str
     func: Callable[[T], R] | Callable[[T], Awaitable[R]]
     _func_name: str
-    log_level: str
     ctree_client: EventClient
 
     # ==== 初始化 ====
@@ -78,7 +77,6 @@ class TaskExecutor[T, R]:
         max_info: int = 50,
         enable_duplicate_check: bool = False,
         persist_result: bool = False,
-        log_level: str = "INFO",
     ):
         """
         初始化 TaskExecutor
@@ -92,7 +90,6 @@ class TaskExecutor[T, R]:
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param enable_duplicate_check: 是否启用重复检查，默认 False
         :param persist_result: 是否持久化任务结果，默认 False
-        :param log_level: 日志级别，默认 'INFO'
         :note:
             TaskExecutor 为一次性对象。完成一次 start()/start_async() 后，不应复用
             同一实例再次启动；如需重复执行，请重新创建实例。
@@ -108,7 +105,6 @@ class TaskExecutor[T, R]:
         self.max_info = max_info
         self.enable_duplicate_check = enable_duplicate_check
         self.persist_result = persist_result
-        self.set_log_level(log_level)
 
         self.set_ctree(LocalEventClient())
 
@@ -212,14 +208,6 @@ class TaskExecutor[T, R]:
         :param name: 节点/管理器名称
         """
         self._name = name
-
-    def set_log_level(self, log_level: str) -> None:
-        """
-        设置日志级别
-
-        :param log_level: 日志级别
-        """
-        self.log_level = log_level.upper()
 
     def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
         """

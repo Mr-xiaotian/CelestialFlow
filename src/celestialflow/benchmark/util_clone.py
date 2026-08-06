@@ -29,7 +29,6 @@ def _get_clone_init_kwargs[T, R](
         "max_info": executor.max_info,
         "enable_duplicate_check": executor.enable_duplicate_check,
         "persist_result": executor.persist_result,
-        "log_level": executor.log_level,
     }
 
 
@@ -104,7 +103,6 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     cloned_graph: TaskGraph = TaskGraph(
         name=graph.name,
         schedule_mode=graph.schedule_mode,
-        log_level=graph.log_level,
     )
     cloned_graph.set_stages(all_cloned_stages)
 

@@ -13,10 +13,8 @@ from typing import Any
 from ..observability import NullTaskReporter, TaskReporter
 from ..persistence import get_fallback_spout, get_log_inlet, get_log_spout
 from ..persistence.util_sqlite import load_tasks_grouped_by_stage
-from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import (
     DuplicateNodeError,
-    LogLevelError,
     NodeNotFoundError,
     RuntimeStateError,
     ScheduleModeError,
@@ -51,7 +49,6 @@ class TaskGraph:
     name: str
     graph_id: str
     schedule_mode: str
-    log_level: str
     threads: list[threading.Thread]
     stage_dict: dict[str, AnyTaskStage]
     status_dict: dict[str, dict[str, Any]]
@@ -77,7 +74,6 @@ class TaskGraph:
         self,
         name: str,
         schedule_mode: str = "eager",
-        log_level: str = "INFO",
     ) -> None:
         """
         初始化 TaskGraph 实例。
@@ -101,19 +97,8 @@ class TaskGraph:
                 分层执行模式。任务图必须为有向无环图（DAG）。
                 节点按层级顺序逐层启动，确保上层所有任务完成后再启动下一层。
                 更利于调试、性能分析和阶段性资源控制。
-
-        :param log_level: str, optional, default = 'INFO'
-            日志级别，支持以下级别：
-            - 'TRACE'
-            - 'DEBUG'
-            - 'SUCCESS'
-            - 'INFO'
-            - 'WARNING'
-            - 'ERROR'
-            - 'CRITICAL'
         """
         self._set_name(name)
-        self._set_log_level(log_level)
         self._set_schedule_mode(schedule_mode)
         self.set_reporter()
         self.set_ctree(LocalEventClient())
@@ -227,16 +212,6 @@ class TaskGraph:
             self.schedule_mode = "staged"
         else:
             raise ScheduleModeError(schedule_mode)
-
-    def _set_log_level(self, level: str = "INFO") -> None:
-        """
-        设置日志级别
-
-        :param level: 日志级别, 默认为 "INFO"
-        """
-        self.log_level = level.upper()
-        if self.log_level not in LEVEL_DICT:
-            raise LogLevelError(self.log_level)
 
     def set_reporter(
         self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000
@@ -536,8 +511,6 @@ class TaskGraph:
         :param stage: 节点
         :raises StageModeError: stage.stage_mode 不是 'serial' 或 'thread' 时抛出
         """
-        stage.set_log_level(self.log_level)
-
         if stage.stage_mode == "thread":
             t = threading.Thread(
                 target=stage.start_stage,
@@ -558,7 +531,6 @@ class TaskGraph:
 
         :param stage: 节点
         """
-        stage.set_log_level(self.log_level)
         if stage.execution_mode == "async":
             await stage.start_stage_async()
         else:

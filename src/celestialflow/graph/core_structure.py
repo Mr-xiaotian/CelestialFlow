@@ -14,7 +14,6 @@ class TaskChain(TaskGraph):
         stages: list[AnyTaskStage],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
-        log_level: str = "INFO",
     ) -> None:
         """
         TaskChain: 线性任务链结构
@@ -23,13 +22,12 @@ class TaskChain(TaskGraph):
         :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点
         :param schedule_mode: 控制任务链中各节点的运行模式, 可选 'eager' 或 'staged'，默认 'eager'
         :param stage_mode: 统一设置链中所有节点的 stage_mode，默认 'thread'
-        :param log_level: 日志级别，默认 'INFO'
         :raises InvalidStructureError: stages 为空时抛出
         """
         if not stages:
             raise InvalidStructureError("stages must not be empty")
 
-        super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(name=name, schedule_mode=schedule_mode)
 
         for stage in stages:
             stage.set_stage_mode(stage_mode)
@@ -48,7 +46,6 @@ class TaskCross(TaskGraph):
         layers: list[list[AnyTaskStage]],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
-        log_level: str = "INFO",
     ) -> None:
         """
         TaskCross: 多层任务交叉结构
@@ -60,7 +57,6 @@ class TaskCross(TaskGraph):
             相邻层之间的所有节点将建立全连接依赖（即每个上一层节点都连接到下一层所有节点）。
         :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
         :param stage_mode: 统一设置所有节点的 stage_mode，默认 'thread'
-        :param log_level: 日志级别，默认 'INFO'
         :raises InvalidStructureError: layers 为空或包含空层时抛出
         """
         if not layers or any(not layer for layer in layers):
@@ -68,7 +64,7 @@ class TaskCross(TaskGraph):
                 "layers must not be empty and must not contain empty layers"
             )
 
-        super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(name=name, schedule_mode=schedule_mode)
 
         all_stages: list[AnyTaskStage] = []
         for _, curr_layer in enumerate(layers):
@@ -90,7 +86,6 @@ class TaskGrid(TaskGraph):
         grid: list[list[AnyTaskStage]],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
-        log_level: str = "INFO",
     ) -> None:
         """
         TaskGrid: 任务网格结构
@@ -102,7 +97,6 @@ class TaskGrid(TaskGraph):
             每个节点将连接到其右侧和下方的节点。
         :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
         :param stage_mode: 统一设置所有节点的 stage_mode，默认 'thread'
-        :param log_level: 日志级别，默认 'INFO'
         :raises InvalidStructureError: grid 为空、首行为空或各行长度不一致时抛出
         """
         if not grid or not grid[0]:
@@ -110,7 +104,7 @@ class TaskGrid(TaskGraph):
         if any(len(row) != len(grid[0]) for row in grid):
             raise InvalidStructureError("all grid rows must have the same length")
 
-        super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(name=name, schedule_mode=schedule_mode)
 
         rows, cols = len(grid), len(grid[0])
         all_stages: list[AnyTaskStage] = []
@@ -140,7 +134,6 @@ class TaskLoop(TaskGraph):
         stages: list[AnyTaskStage],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
-        log_level: str = "INFO",
     ) -> None:
         """
         TaskLoop:  任务环结构
@@ -148,13 +141,12 @@ class TaskLoop(TaskGraph):
         :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点, 形成一个闭环
         :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
         :param stage_mode: 统一设置环中所有节点的 stage_mode，默认 'thread'
-        :param log_level: 日志级别，默认 'INFO'
         :raises InvalidStructureError: stages 为空时抛出
         """
         if not stages:
             raise InvalidStructureError("stages must not be empty")
 
-        super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(name=name, schedule_mode=schedule_mode)
 
         for stage in stages:
             stage.set_stage_mode(stage_mode)
@@ -175,7 +167,6 @@ class TaskWheel(TaskGraph):
         ring: list[AnyTaskStage],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
-        log_level: str = "INFO",
     ) -> None:
         """
         wheel: 特殊的有环图, 他有结构意义上的起点, 中心节点连向环, 环相连成闭环
@@ -184,13 +175,12 @@ class TaskWheel(TaskGraph):
         :param ring: 环节点
         :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
         :param stage_mode: 统一设置中心及环中所有节点的 stage_mode，默认 'thread'
-        :param log_level: 日志级别，默认 'INFO'
         :raises InvalidStructureError: ring 为空时抛出
         """
         if not ring:
             raise InvalidStructureError("ring must not be empty")
 
-        super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(name=name, schedule_mode=schedule_mode)
 
         center.set_stage_mode(stage_mode)
 
@@ -213,7 +203,6 @@ class TaskComplete(TaskGraph):
         stages: list[AnyTaskStage],
         schedule_mode: str = "eager",
         stage_mode: str = "thread",
-        log_level: str = "INFO",
     ) -> None:
         """
         TaskComplete: 完全图结构，每个节点都连向除自己以外的所有其他节点
@@ -221,7 +210,6 @@ class TaskComplete(TaskGraph):
         :param stages: 所有 TaskStage 节点
         :param schedule_mode: 控制任务图的调度布局模式，默认 'eager'
         :param stage_mode: 统一设置所有节点的 stage_mode，默认 'thread'
-        :param log_level: 日志级别，默认 'INFO'
         :raises InvalidStructureError: stages 少于 2 个节点时抛出（完全图至少需要 2 个节点才能构成边）
         """
         if len(stages) < 2:
@@ -229,7 +217,7 @@ class TaskComplete(TaskGraph):
                 "stages must contain at least 2 nodes to form a complete graph"
             )
 
-        super().__init__(name=name, schedule_mode=schedule_mode, log_level=log_level)
+        super().__init__(name=name, schedule_mode=schedule_mode)
 
         for stage in stages:
             stage.set_stage_mode(stage_mode)
