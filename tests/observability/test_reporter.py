@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from celestialflow.observability import TaskReporter
 from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_types import TERMINATION_SIGNAL
@@ -111,11 +113,17 @@ class FakeLogInlet:
         self.push_error_failures.append(error)
 
 
-def test_reporter_accepts_split_task_and_termination_payload() -> None:
+def test_reporter_accepts_split_task_and_termination_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Reporter 能消费拆分后的任务与终止符注入载荷。"""
     graph = FakeTaskGraph()
     log_inlet = FakeLogInlet()
-    reporter = TaskReporter("127.0.0.1", 8000, graph, log_inlet)
+    monkeypatch.setattr(
+        "celestialflow.observability.core_report.get_log_inlet",
+        lambda: log_inlet,
+    )
+    reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakeSession(
         {
             "tasks": {"StageA": [1, 2, 3]},
@@ -142,11 +150,17 @@ def test_reporter_accepts_split_task_and_termination_payload() -> None:
     assert log_inlet.pull_failures == []
 
 
-def test_reporter_merges_tasks_and_termination_for_same_stage() -> None:
+def test_reporter_merges_tasks_and_termination_for_same_stage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """同一节点同时存在任务与终止符时，应保留任务并在末尾追加终止符。"""
     graph = FakeTaskGraph()
     log_inlet = FakeLogInlet()
-    reporter = TaskReporter("127.0.0.1", 8000, graph, log_inlet)
+    monkeypatch.setattr(
+        "celestialflow.observability.core_report.get_log_inlet",
+        lambda: log_inlet,
+    )
+    reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakeSession(
         {
             "tasks": {"StageA": [1, 2, 3]},
@@ -171,7 +185,9 @@ def test_reporter_merges_tasks_and_termination_for_same_stage() -> None:
     assert log_inlet.pull_failures == []
 
 
-def test_reporter_pushes_errors_via_push_errors_endpoint_only(tmp_path) -> None:
+def test_reporter_pushes_errors_via_push_errors_endpoint_only(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Reporter 只通过 push_errors 推送错误内容。"""
     sqlite_path = tmp_path / "fallback.sqlite3"
     appended = append_records(
@@ -192,7 +208,11 @@ def test_reporter_pushes_errors_via_push_errors_endpoint_only(tmp_path) -> None:
 
     graph = FakeErrorGraph(sqlite_path)
     log_inlet = FakeLogInlet()
-    reporter = TaskReporter("127.0.0.1", 8000, graph, log_inlet)
+    monkeypatch.setattr(
+        "celestialflow.observability.core_report.get_log_inlet",
+        lambda: log_inlet,
+    )
+    reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
     reporter._server_has_current_graph = False
 
@@ -218,7 +238,9 @@ def test_reporter_pushes_errors_via_push_errors_endpoint_only(tmp_path) -> None:
     ]
 
 
-def test_reporter_pushes_only_errors_after_server_max_event_id(tmp_path) -> None:
+def test_reporter_pushes_only_errors_after_server_max_event_id(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Reporter 只推送 failed 中 event_id 大于服务端水位线的记录。"""
     sqlite_path = tmp_path / "fallback.sqlite3"
     appended = append_records(
@@ -257,7 +279,11 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(tmp_path) -> None
 
     graph = FakeErrorGraph(sqlite_path)
     log_inlet = FakeLogInlet()
-    reporter = TaskReporter("127.0.0.1", 8000, graph, log_inlet)
+    monkeypatch.setattr(
+        "celestialflow.observability.core_report.get_log_inlet",
+        lambda: log_inlet,
+    )
+    reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
     reporter._server_has_current_graph = True
     reporter._server_max_event_id_in_fail = 3

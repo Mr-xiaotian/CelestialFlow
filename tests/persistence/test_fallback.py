@@ -10,7 +10,7 @@ class TestFailPersistence:
         """`FallbackInlet`/`FallbackSpout` 应按生命周期维护 sqlite 记录。"""
         monkeypatch.chdir(tmp_path)
 
-        spout = FallbackSpout(error_source='test_source')
+        spout = FallbackSpout()
         inlet = FallbackInlet().bind_spout(spout)
 
         spout.start()
@@ -59,7 +59,7 @@ class TestFailPersistence:
     def test_success_persistence(self, tmp_path, monkeypatch):
         """`FallbackSpout` 应持久化 success 结果并可读回 task-result 对。"""
         monkeypatch.chdir(tmp_path)
-        spout = FallbackSpout(error_source="success_source")
+        spout = FallbackSpout()
         inlet = FallbackInlet().bind_spout(spout)
 
         spout.start()

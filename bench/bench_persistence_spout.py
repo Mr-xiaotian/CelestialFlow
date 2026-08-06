@@ -29,8 +29,8 @@ class BenchLogSpout(LogSpout):
 
 
 class BenchFallbackSpout(FallbackSpout):
-    def __init__(self, base_dir: Path, error_source: str = "bench_fallback") -> None:
-        super().__init__(error_source)
+    def __init__(self, base_dir: Path) -> None:
+        super().__init__()
         self._base_dir = base_dir
 
     def _before_start(self) -> None:

@@ -19,9 +19,9 @@ import pytest
 from celestialflow.observability import BaseObserver
 from celestialflow.persistence import LogInlet
 from celestialflow.runtime import TaskEnvelope
-from celestialflow.runtime.core_dispatch import TaskDispatch
 from celestialflow.runtime.util_types import TerminationSignal
 from celestialflow.stage import TaskExecutor
+from celestialflow.stage.core_dispatch import TaskDispatch
 from tests.conftest import wait_until
 
 _RESULT_COLLECTORS: WeakKeyDictionary[TaskExecutor, Queue[Any]] = WeakKeyDictionary()
@@ -253,7 +253,9 @@ class TestDispatchSerial:
         executor.result_queue.add_queue(collector_a, name="downstream_a")
         executor.result_queue.add_queue(collector_b, name="downstream_b")
 
-        executor.fallback_inlet.task_in(executor.get_name(), 0, 3)
+        from celestialflow.persistence import get_fallback_inlet
+
+        get_fallback_inlet().task_in(executor.get_name(), 0, 3)
         _put(executor, 3)
         _put_termination(executor)
         dispatch.dispatch_serial()
@@ -349,13 +351,13 @@ class TestDispatchAsync:
 
 
 class _CrashOnFailObserver(BaseObserver):
-    """``on_task_fail`` 抛异常，通过 ``on_observer_error`` 捕获。"""
+    """``on_task_fail`` 抛异常，通过 ``observer_error`` 捕获。"""
 
     def __init__(self) -> None:
         """初始化错误记录列表。"""
         self.errors: list[tuple[str, Exception]] = []
 
-    def on_observer_error(self, method_name: str, exception: Exception) -> None:
+    def observer_error(self, method_name: str, exception: Exception) -> None:
         """记录回调异常。"""
         self.errors.append((method_name, exception))
 
@@ -418,7 +420,9 @@ class TestWorkerCrashKeepsTerminationSignal:
     """回归测试：失败/重试处理链自身崩溃时，终止信号仍必须发出。"""
 
     @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
-    def test_fail_handler_crash_keeps_termination(self, mode: str) -> None:
+    def test_fail_handler_crash_keeps_termination(
+        self, mode: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """失败处理链崩溃（observer 抛异常）时，异常被 ``on_observer_error`` 捕获，
         终止信号照常发出，不触发 ``worker_crash``。"""
         executor = _make_executor(
@@ -429,7 +433,14 @@ class TestWorkerCrashKeepsTerminationSignal:
         observer = _CrashOnFailObserver()
         executor.metrics.add_observer(observer)
         recording = _RecordingLogInlet()
-        executor.log_inlet = recording
+        monkeypatch.setattr(
+            "celestialflow.stage.core_executor.get_log_inlet",
+            lambda: recording,
+        )
+        monkeypatch.setattr(
+            "celestialflow.stage.core_dispatch.get_log_inlet",
+            lambda: recording,
+        )
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
 
         _put(executor, 42)
@@ -448,7 +459,9 @@ class TestWorkerCrashKeepsTerminationSignal:
         assert executor.metrics.get_error_count() == 1
 
     @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
-    def test_retry_handler_crash_keeps_termination(self, mode: str) -> None:
+    def test_retry_handler_crash_keeps_termination(
+        self, mode: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """重试信封生成崩溃（日志抛异常）时，调度不中断且终止信号仍发出。"""
         executor = _make_executor(
             _async_always_fail if mode == "async" else _always_fail,
@@ -456,7 +469,14 @@ class TestWorkerCrashKeepsTerminationSignal:
             name="crash_retry",
         )
         recording = _CrashRetryLogInlet()
-        executor.log_inlet = recording
+        monkeypatch.setattr(
+            "celestialflow.stage.core_executor.get_log_inlet",
+            lambda: recording,
+        )
+        monkeypatch.setattr(
+            "celestialflow.stage.core_dispatch.get_log_inlet",
+            lambda: recording,
+        )
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
 
         _put(executor, 42)
