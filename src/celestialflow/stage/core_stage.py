@@ -5,7 +5,7 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from ..persistence import FallbackInlet, LogInlet
+from ..persistence import get_log_inlet
 from ..runtime import TaskInQueue, TaskOutQueue
 from ..runtime.util_errors import (
     AsyncModeError,
@@ -34,8 +34,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
     execution_mode: str
     task_queue: TaskInQueue[T]
     result_queue: TaskOutQueue[R]
-    fallback_inlet: FallbackInlet
-    log_inlet: LogInlet
 
     # ==== 初始化 ====
     def __init__(
@@ -94,16 +92,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
             self.stage_mode = "serial"
         else:
             raise StageModeError(stage_mode)
-
-    def set_inlet(self, fallback_inlet: FallbackInlet, log_inlet: LogInlet) -> None:
-        """
-        初始化收集器。
-
-        :param fallback_inlet: fallback 监听器
-        :param log_inlet: 日志监听器
-        """
-        self.fallback_inlet = fallback_inlet
-        self.log_inlet = log_inlet
 
     # ==== 绑定 ====
     def get_binding_counter(self, _downstream_name: str) -> Any:
@@ -178,7 +166,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         """
         self._init_state()
 
-        self.log_inlet.start_stage(
+        get_log_inlet().start_stage(
             self.get_name(), self.stage_mode, self._get_execution_mode_desc()
         )
         self.mark_running()
@@ -193,7 +181,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         self.mark_stopped()
 
         self.metrics.on_finish()
-        self.log_inlet.end_stage(
+        get_log_inlet().end_stage(
             self.get_name(),
             self.stage_mode,
             self._get_execution_mode_desc(),

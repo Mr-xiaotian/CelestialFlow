@@ -3,6 +3,7 @@ import time
 from collections.abc import Callable, Iterable
 from typing import Any, cast
 
+from ..persistence import get_fallback_inlet, get_log_inlet
 from ..runtime import TaskEnvelope, TaskOutQueue
 from ..runtime.util_errors import InvalidOptionError
 from ..runtime.util_types import ValueWrapper
@@ -109,12 +110,12 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
 
         split_count = self._put_split_result(result_list, task_id)
         self.metrics.add_success_count()
-        self.fallback_inlet.task_success(
+        get_fallback_inlet().task_success(
             task_id, result_list, persist=self.persist_result
         )
         self._update_split_counter(split_count)
 
-        self.log_inlet.split_success(
+        get_log_inlet().split_success(
             self.get_func_name(),
             self._get_task_repr(task),
             split_count,
@@ -149,14 +150,14 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
                     parents=[split_id],
                     payload=self.get_summary(),
                 )
-                self.fallback_inlet.task_in(target_name, downstream_input_id, item)
+                get_fallback_inlet().task_in(target_name, downstream_input_id, item)
                 downstream_envelope: TaskEnvelope[RItem] = TaskEnvelope(
                     item,
                     downstream_input_id,
                 )
                 result_queue.put_target(downstream_envelope, target_name)
 
-            self.log_inlet.split_trace(
+            get_log_inlet().split_trace(
                 self.get_func_name(),
                 idx + 1,
                 split_count,
@@ -253,10 +254,10 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
             payload=self.get_summary(),
         )
         self.metrics.add_success_count()
-        self.fallback_inlet.task_success(task_id, task, persist=self.persist_result)
+        get_fallback_inlet().task_success(task_id, task, persist=self.persist_result)
         self._update_route_counter(target)
 
-        self.log_inlet.route_success(
+        get_log_inlet().route_success(
             self.get_func_name(),
             f"({format_repr(task, self.max_info)})",
             target,
@@ -270,7 +271,7 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
             parents=[route_id],
             payload=self.get_summary(),
         )
-        self.fallback_inlet.task_in(target, downstream_input_id, task)
+        get_fallback_inlet().task_in(target, downstream_input_id, task)
         downstream_envelope: TaskEnvelope[T] = TaskEnvelope(
             task,
             downstream_input_id,

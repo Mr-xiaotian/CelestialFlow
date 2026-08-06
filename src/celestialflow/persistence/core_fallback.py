@@ -25,11 +25,7 @@ class FallbackSpout(BaseSpout):
     """Fallback 记录监听器，将任务生命周期写入 fallback 目录的 sqlite 文件。"""
 
     def __init__(self) -> None:
-        """
-        初始化失败记录监听器
-
-        :param error_source: 错误来源标识（用于文件命名）
-        """
+        """初始化失败记录监听器"""
         super().__init__()
 
         self.db_path: Path | None = None
@@ -42,9 +38,7 @@ class FallbackSpout(BaseSpout):
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%H-%M-%S-%f")[:-3]
-        self.db_path = Path(
-            f"./fallbacks/{date_str}/fallback({time_str}).sqlite3"
-        )
+        self.db_path = Path(f"./fallbacks/{date_str}/fallback({time_str}).sqlite3")
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = connect_db(self.db_path)
 
@@ -222,3 +216,23 @@ class FallbackInlet(BaseInlet):
             "ts": now.timestamp(),
         }
         self._funnel(fail_item)
+
+
+# ==== 全局单例 ====
+
+_fallback_spout = FallbackSpout()
+_fallback_inlet = FallbackInlet().bind_spout(_fallback_spout)
+
+
+def get_fallback_spout() -> FallbackSpout:
+    """
+    获取全局唯一的 FallbackSpout 实例。
+    """
+    return _fallback_spout
+
+
+def get_fallback_inlet() -> FallbackInlet:
+    """
+    获取全局唯一的 FallbackInlet 实例（已绑定到全局 FallbackSpout）。
+    """
+    return _fallback_inlet

@@ -6,6 +6,7 @@ from time import localtime, strftime
 from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
+from ..runtime.util_config import load_log_level_from_pyproject
 from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import InitializationError, LogLevelError
 
@@ -571,3 +572,26 @@ class LogInlet(BaseInlet):
             "WARNING",
             f"[Reporter] Push 'history' failed: {type(exception).__name__}({exception}).",
         )
+
+
+# ==== 全局单例 ====
+
+_log_spout = LogSpout()
+_log_inlet = LogInlet(load_log_level_from_pyproject()).bind_spout(_log_spout)
+
+
+def get_log_spout() -> LogSpout:
+    """
+    获取全局唯一的 LogSpout 实例。
+    """
+    return _log_spout
+
+
+def get_log_inlet() -> LogInlet:
+    """
+    获取全局唯一的 LogInlet 实例（已绑定到全局 LogSpout）。
+
+    log_level 从 ``pyproject.toml`` 的 ``[tool.celestialflow]`` 节读取，
+    默认 ``"INFO"``。
+    """
+    return _log_inlet

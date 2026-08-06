@@ -4,7 +4,7 @@ from typing import Any
 
 import requests
 
-from ..persistence import LogInlet
+from ..persistence import LogInlet, get_log_inlet
 from ..persistence.util_sqlite import (
     load_records,
     load_records_after_event_id_in_fail,
@@ -30,7 +30,6 @@ class TaskReporter:
         host: str,
         port: int,
         task_graph: ReporterTaskGraph,
-        log_inlet: LogInlet,
     ) -> None:
         """
         初始化任务上报器
@@ -38,12 +37,11 @@ class TaskReporter:
         :param host: 远程服务主机地址
         :param port: 远程服务端口
         :param task_graph: 任务图实例
-        :param log_inlet: 日志收集器实例
         """
         self.base_url: str = f"http://{host}:{port}"
         self.task_graph: ReporterTaskGraph = task_graph
-        self.log_inlet: LogInlet = log_inlet
 
+        self.log_inlet: LogInlet = get_log_inlet()
         self._stop_flag: Event = Event()
         self._thread: Thread | None = None
         self._session: requests.Session = requests.Session()

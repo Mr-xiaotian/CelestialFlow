@@ -11,14 +11,13 @@ from typing import Any, cast
 
 from ..observability import BaseObserver
 from ..persistence import (
-    FallbackInlet,
-    FallbackSpout,
-    LogInlet,
-    LogSpout,
+    get_fallback_inlet,
+    get_fallback_spout,
+    get_log_inlet,
+    get_log_spout,
 )
 from ..persistence.util_sqlite import load_tasks_grouped_by_stage
 from ..runtime import (
-    TaskDispatch,
     TaskEnvelope,
     TaskInQueue,
     TaskMetrics,
@@ -36,6 +35,7 @@ from ..runtime.util_types import (
     TerminationSignal,
 )
 from ..utils.util_format import format_repr
+from .core_dispatch import TaskDispatch
 from .util_callable import validate_executor_func_signature
 
 
@@ -58,10 +58,6 @@ class TaskExecutor[T, R]:
     enable_duplicate_check: bool
     metrics: TaskMetrics
     dispatch: TaskDispatch[T, R]
-    fallback_spout: FallbackSpout
-    log_spout: LogSpout
-    fallback_inlet: FallbackInlet
-    log_inlet: LogInlet
     execution_mode: str
     _name: str
     func: Callable[[T], R] | Callable[[T], Awaitable[R]]
@@ -135,33 +131,15 @@ class TaskExecutor[T, R]:
         初始化环境
         """
         self._init_state()
-        self._init_spout()
-        self._init_inlet()
+
+        get_fallback_spout().start()
+        get_log_spout().start()
 
     def _init_state(self) -> None:
         """
         初始化任务状态
         """
         self.metrics.reset_state()
-
-    def _init_spout(self) -> None:
-        """
-        初始化监听器
-        """
-        self.fallback_spout = FallbackSpout()
-        self.log_spout = LogSpout()
-
-        self.fallback_spout.start()
-        self.log_spout.start()
-
-    def _init_inlet(
-        self,
-    ) -> None:
-        """
-        初始化收集器
-        """
-        self.fallback_inlet = FallbackInlet().bind_spout(self.fallback_spout)
-        self.log_inlet = LogInlet(self.log_level).bind_spout(self.log_spout)
 
     # ==== Observer ====
     def add_observer(self, observer: BaseObserver) -> None:
@@ -330,9 +308,10 @@ class TaskExecutor[T, R]:
 
         :return: 失败任务持久化文件的绝对路径，未设置时返回空 Path
         """
-        if self.fallback_spout.db_path is None:
+        db_path = get_fallback_spout().db_path
+        if db_path is None:
             return Path()
-        return Path(self.fallback_spout.db_path).resolve()
+        return Path(db_path).resolve()
 
     # ==== 任务输入 ====
     def put_task(self, task: T) -> None:
@@ -349,8 +328,8 @@ class TaskExecutor[T, R]:
         self.task_queue.put(envelope)
         self.metrics.add_task_count()
 
-        self.fallback_inlet.task_in(self.get_name(), input_id, task)
-        self.log_inlet.task_input(
+        get_fallback_inlet().task_in(self.get_name(), input_id, task)
+        get_log_inlet().task_input(
             self.get_func_name(),
             self._get_task_repr(task),
             self.get_name(),
@@ -367,7 +346,7 @@ class TaskExecutor[T, R]:
         )
         signal = TerminationSignal(termination_id, source="input")
         self.task_queue.put(signal)
-        self.log_inlet.termination_input(
+        get_log_inlet().termination_input(
             self.get_func_name(),
             self.get_name(),
             termination_id,
@@ -412,9 +391,9 @@ class TaskExecutor[T, R]:
         )
 
         self.metrics.add_success_count()
-        self.fallback_inlet.task_success(task_id, result, persist=self.persist_result)
+        get_fallback_inlet().task_success(task_id, result, persist=self.persist_result)
 
-        self.log_inlet.task_success(
+        get_log_inlet().task_success(
             self.get_func_name(),
             self._get_task_repr(task),
             self.execution_mode,
@@ -430,7 +409,7 @@ class TaskExecutor[T, R]:
                 parents=[result_id],
                 payload=self.get_summary(),
             )
-            self.fallback_inlet.task_in(target_name, downstream_input_id, result)
+            get_fallback_inlet().task_in(target_name, downstream_input_id, result)
             downstream_envelope: TaskEnvelope[R] = TaskEnvelope(
                 task=result,
                 id=downstream_input_id,
@@ -465,7 +444,7 @@ class TaskExecutor[T, R]:
             id=retry_id,
         )
 
-        self.log_inlet.task_retry(
+        get_log_inlet().task_retry(
             self.get_func_name(),
             self._get_task_repr(task),
             retry_time,
@@ -473,7 +452,7 @@ class TaskExecutor[T, R]:
             task_id,
             retry_id,
         )
-        self.fallback_inlet.task_retry(task_id, retry_id)
+        get_fallback_inlet().task_retry(task_id, retry_id)
 
         return retry_envelope
 
@@ -499,8 +478,8 @@ class TaskExecutor[T, R]:
 
         self.metrics.add_fail_count()
 
-        self.fallback_inlet.task_fail(task_id, error_id, exception)
-        self.log_inlet.task_fail(
+        get_fallback_inlet().task_fail(task_id, error_id, exception)
+        get_log_inlet().task_fail(
             self.get_func_name(),
             self._get_task_repr(task),
             exception,
@@ -518,13 +497,13 @@ class TaskExecutor[T, R]:
         task_id = task_envelope.get_id()
 
         self.metrics.add_duplicate_count()
-        self.fallback_inlet.task_duplicate(task_id)
+        get_fallback_inlet().task_duplicate(task_id)
         duplicate_id = self.ctree_client.emit(
             CTreeEvent.TASK_DUPLICATE,
             parents=[task_id],
             payload=self.get_summary(),
         )
-        self.log_inlet.task_duplicate(
+        get_log_inlet().task_duplicate(
             self.get_func_name(),
             self._get_task_repr(task),
             task_id,
@@ -547,7 +526,7 @@ class TaskExecutor[T, R]:
         self.put_signal()
 
         self.metrics.on_start(self.get_full_name(), 0)
-        self.log_inlet.start_executor(
+        get_log_inlet().start_executor(
             self.get_name(),
             self.metrics.get_task_count(),
             self._get_execution_mode_desc(),
@@ -560,7 +539,7 @@ class TaskExecutor[T, R]:
         :param start_perf: 启动时的时间戳
         """
         self.metrics.on_finish()
-        self.log_inlet.end_executor(
+        get_log_inlet().end_executor(
             self.get_name(),
             self._get_execution_mode_desc(),
             time.perf_counter() - start_perf,
@@ -568,8 +547,8 @@ class TaskExecutor[T, R]:
             self.metrics.get_error_count(),
             self.metrics.get_duplicate_count(),
         )
-        self.log_spout.stop()
-        self.fallback_spout.stop()
+        get_log_spout().stop()
+        get_fallback_spout().stop()
 
     def start(self, task_source: Iterable[T]) -> None:
         """
@@ -664,7 +643,7 @@ class TaskExecutor[T, R]:
                 stacklevel=2,
             )
             return []
-        return self.fallback_spout.get_task_result_pairs(self.get_name())
+        return get_fallback_spout().get_task_result_pairs(self.get_name())
 
     def get_error_pairs(self) -> list[tuple[T, PersistedError]]:
         """
@@ -672,7 +651,7 @@ class TaskExecutor[T, R]:
 
         :return: (task, PersistedError) 元组列表
         """
-        task_error_pairs = self.fallback_spout.get_task_error_pairs(self.get_name())
+        task_error_pairs = get_fallback_spout().get_task_error_pairs(self.get_name())
         return [
             (task, PersistedError(error_type, error_message))
             for task, (error_type, error_message) in task_error_pairs

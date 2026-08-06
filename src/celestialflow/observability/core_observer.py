@@ -4,14 +4,16 @@ from __future__ import annotations
 import functools
 from typing import Any
 
-_OBSERVER_METHODS = frozenset({
-    "on_start",
-    "on_task_success",
-    "on_task_fail",
-    "on_task_duplicate",
-    "on_tasks_added",
-    "on_finish",
-})
+_OBSERVER_METHODS = frozenset(
+    {
+        "on_start",
+        "on_task_success",
+        "on_task_fail",
+        "on_task_duplicate",
+        "on_tasks_added",
+        "on_finish",
+    }
+)
 
 
 class BaseObserver:

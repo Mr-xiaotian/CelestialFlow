@@ -1,4 +1,4 @@
-# runtime/core_dispatch.py
+# stage/core_dispatch.py
 from __future__ import annotations
 
 import asyncio
@@ -13,12 +13,13 @@ from concurrent.futures import (
 )
 from typing import TYPE_CHECKING
 
-from .core_envelope import TaskEnvelope
-from .util_errors import ConfigurationError, InitializationError
-from .util_types import CTreeEvent, TerminationIdPool, TerminationSignal
+from ..persistence import get_log_inlet
+from ..runtime.core_envelope import TaskEnvelope
+from ..runtime.util_errors import ConfigurationError, InitializationError
+from ..runtime.util_types import CTreeEvent, TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
-    from ..stage.core_executor import TaskExecutor
+    from .core_executor import TaskExecutor
 
 
 class TaskDispatch[T, R]:
@@ -106,7 +107,7 @@ class TaskDispatch[T, R]:
             termination_id,
             source=self.task_executor.get_name(),
         )
-        self.task_executor.log_inlet.termination_merge(
+        get_log_inlet().termination_merge(
             self.task_executor.get_func_name(), parent_ids, termination_id
         )
         return signal
@@ -141,7 +142,7 @@ class TaskDispatch[T, R]:
                         task_envelope, exception, retry_time + 1
                     )
         except Exception as e:
-            self.task_executor.log_inlet.worker_crash(e)
+            get_log_inlet().worker_crash(e)
 
     async def _async_worker(self, task_envelope: TaskEnvelope[T]) -> None:
         """
@@ -171,7 +172,7 @@ class TaskDispatch[T, R]:
                         task_envelope, exception, retry_time + 1
                     )
         except Exception as e:
-            self.task_executor.log_inlet.worker_crash(e)
+            get_log_inlet().worker_crash(e)
 
     # ==== Dispatch ====
     def dispatch_serial(self) -> None:

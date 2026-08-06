@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from ..observability import NullTaskReporter, TaskReporter
-from ..persistence import FallbackInlet, FallbackSpout, LogInlet, LogSpout
+from ..persistence import get_fallback_spout, get_log_inlet, get_log_spout
 from ..persistence.util_sqlite import load_tasks_grouped_by_stage
 from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import (
@@ -62,10 +62,6 @@ class TaskGraph:
     in_edges: dict[str, list[str]]
     order_graph: OrderGraph
     start_time: float
-    log_spout: LogSpout
-    fallback_spout: FallbackSpout
-    log_inlet: LogInlet
-    fallback_inlet: FallbackInlet
     is_report: bool
     report_host: str
     report_port: int
@@ -123,8 +119,6 @@ class TaskGraph:
         self.set_ctree(LocalEventClient())
 
         self._init_state()
-        self._init_spout()
-        self._init_inlet()
 
     def _init_state(self) -> None:
         """
@@ -158,24 +152,6 @@ class TaskGraph:
         # 用于保存任务图启动时间
         self.start_time = 0.0
 
-    def _init_spout(self) -> None:
-        """
-        初始化图级持久化输出组件。
-
-        :return: ``None``。
-        """
-        self.log_spout = LogSpout()
-        self.fallback_spout = FallbackSpout()
-
-    def _init_inlet(self) -> None:
-        """
-        初始化图级日志与回退收集器。
-
-        :return: ``None``。
-        """
-        self.log_inlet = LogInlet(self.log_level).bind_spout(self.log_spout)
-        self.fallback_inlet = FallbackInlet().bind_spout(self.fallback_spout)
-
     # ==== 建图 ====
 
     def set_stages(self, stages: list[AnyTaskStage]) -> None:
@@ -193,7 +169,6 @@ class TaskGraph:
             self.order_graph.add_node(stage_name)
 
             stage.set_ctree(self.ctree_client)
-            stage.set_inlet(self.fallback_inlet, self.log_inlet)
 
     def connect[R](
         self,
@@ -281,7 +256,6 @@ class TaskGraph:
                 host=host,
                 port=port,
                 task_graph=self,
-                log_inlet=self.log_inlet,
             )
         else:
             self.reporter = NullTaskReporter()
@@ -391,9 +365,9 @@ class TaskGraph:
                 stacklevel=2,
             )
 
-        self.fallback_spout.start()
-        self.log_spout.start()
-        self.log_inlet.start_graph(self.name, self.get_structure_list())
+        get_fallback_spout().start()
+        get_log_spout().start()
+        get_log_inlet().start_graph(self.name, self.get_structure_list())
         self.reporter.start()
 
         self.put_stage_queue(init_tasks_dict, put_termination_signal)
@@ -406,9 +380,9 @@ class TaskGraph:
         :return: ``None``
         """
         self.reporter.stop()
-        self.log_inlet.end_graph(self.name, time.perf_counter() - start_perf)
-        self.log_spout.stop()
-        self.fallback_spout.stop()
+        get_log_inlet().end_graph(self.name, time.perf_counter() - start_perf)
+        get_log_spout().stop()
+        get_fallback_spout().stop()
 
     def start_graph(
         self,
@@ -516,7 +490,7 @@ class TaskGraph:
         elif self.schedule_mode == "staged":
             # staged schedule_mode：一层层地顺序执行
             for layer_level, layer in self.layers_dict.items():
-                self.log_inlet.start_layer(layer, layer_level)
+                get_log_inlet().start_layer(layer, layer_level)
                 start_perf = time.perf_counter()
 
                 threads: list[threading.Thread] = []
@@ -530,7 +504,7 @@ class TaskGraph:
                 for t in threads:
                     t.join()
 
-                self.log_inlet.end_layer(layer, time.perf_counter() - start_perf)
+                get_log_inlet().end_layer(layer, time.perf_counter() - start_perf)
 
     async def _execute_stages_async(self) -> None:
         """
@@ -544,14 +518,16 @@ class TaskGraph:
             await asyncio.gather(*tasks)
         elif self.schedule_mode == "staged":
             for layer_level, layer in self.layers_dict.items():
-                self.log_inlet.start_layer(layer, layer_level)
+                get_log_inlet().start_layer(layer, layer_level)
                 start_perf = time.perf_counter()
                 tasks = [
-                    asyncio.create_task(self._execute_stage_async(self.stage_dict[name]))
+                    asyncio.create_task(
+                        self._execute_stage_async(self.stage_dict[name])
+                    )
                     for name in layer
                 ]
                 await asyncio.gather(*tasks)
-                self.log_inlet.end_layer(layer, time.perf_counter() - start_perf)
+                get_log_inlet().end_layer(layer, time.perf_counter() - start_perf)
 
     def _execute_stage(self, stage: AnyTaskStage) -> None:
         """
@@ -795,9 +771,10 @@ class TaskGraph:
 
         :return: 失败任务持久化文件的绝对路径，未设置时返回空 Path
         """
-        if self.fallback_spout.db_path is None:
+        db_path = get_fallback_spout().db_path
+        if db_path is None:
             return Path()
-        return Path(self.fallback_spout.db_path).resolve()
+        return Path(db_path).resolve()
 
     def get_source_stages(self) -> list[AnyTaskStage]:
         """

@@ -191,12 +191,20 @@ class TaskMetrics:
     # ==== 启动与结束 ====
     def on_start(self, _name: str, _total: int) -> None:
         """
+        广播执行器启动事件。
+
+        :param _name: 执行器全名
+        :param _total: 任务总数
+        :return: ``None``
         """
         for observer in self._observers:
             observer.on_start(_name, _total)
 
     def on_finish(self) -> None:
         """
+        广播执行器结束事件。
+
+        :return: ``None``
         """
         for observer in self._observers:
             observer.on_finish()
