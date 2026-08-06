@@ -59,6 +59,9 @@ dev = [
     "tqdm",
 ]
 
+[tool.celestialflow]
+log_level = "INFO"
+
 [tool.pyright]
 include = ["src"]
 ignore = ["tests", "**/tests/**", "typings", "demo", "bench", "experiments", "examples", "temp"]
