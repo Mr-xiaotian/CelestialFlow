@@ -34,7 +34,6 @@ def bench_no_ctree() -> None:
         "bench_no_ctree",
         [task_splitter, process_stage],
         stage_mode="thread",
-        log_level="INFO",
     )
     # chain.set_ctree(False)
 
@@ -59,7 +58,6 @@ def bench_http_ctree() -> None:
         "bench_http_ctree",
         [task_splitter, process_stage],
         stage_mode="thread",
-        log_level="INFO",
     )
     http_ctree_client = CelestialTreeClient(
         host=ctree_host,
@@ -90,7 +88,6 @@ def bench_grpc_ctree() -> None:
         "bench_grpc_ctree",
         [task_splitter, process_stage],
         stage_mode="thread",
-        log_level="INFO",
     )
     grpc_ctree_client = CelestialTreeClient(
         host=ctree_host,

@@ -66,7 +66,7 @@ def demo_splitter_0() -> None:
     )
 
     # 图组装：Generator 同时连到 Logger 和 Splitter，Parser 再回环到 Generator。
-    graph = TaskGraph("demo_splitter_0", log_level="INFO")
+    graph = TaskGraph("demo_splitter_0")
     graph.set_stages(
         stages=[generate_stage, logger_stage, splitter, download_stage, parse_stage],
     )
@@ -97,7 +97,6 @@ def demo_splitter_1() -> None:
         "demo_splitter_1",
         [task_splitter, process_stage],
         stage_mode="thread",
-        log_level="INFO",
     )
     chain.set_reporter(True, host=report_host, port=report_port)
     chain.set_ctree(ctree_client)

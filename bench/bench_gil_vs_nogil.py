@@ -63,7 +63,6 @@ def build_executor(name: str, func: Any, execution_mode: str, max_workers: int):
         func,
         execution_mode=execution_mode,
         max_workers=max_workers,
-        log_level="CRITICAL",
         persist_result=False,
         enable_duplicate_check=False,
     )
@@ -84,7 +83,6 @@ def build_chain_graph(
         stage_mode=stage_mode,
         execution_mode=execution_mode,
         max_workers=max_workers,
-        log_level="CRITICAL",
         persist_result=False,
         enable_duplicate_check=False,
     )
@@ -94,7 +92,6 @@ def build_chain_graph(
         stage_mode=stage_mode,
         execution_mode=execution_mode,
         max_workers=max_workers,
-        log_level="CRITICAL",
         persist_result=False,
         enable_duplicate_check=False,
     )
@@ -104,12 +101,11 @@ def build_chain_graph(
         stage_mode=stage_mode,
         execution_mode=execution_mode,
         max_workers=max_workers,
-        log_level="CRITICAL",
         persist_result=False,
         enable_duplicate_check=False,
     )
 
-    graph = TaskGraph(name, schedule_mode="eager", log_level="CRITICAL")
+    graph = TaskGraph(name, schedule_mode="eager")
     graph.set_stages([stage1, stage2, stage3])
     graph.connect([stage1], [stage2])
     graph.connect([stage2], [stage3])

@@ -117,7 +117,6 @@ def _make_executor(
         name,
         func,
         max_retries=max_retries,
-        log_level="SUCCESS",
         enable_duplicate_check=enable_duplicate_check,
     )
     e.set_retry_exceptions(ValueError)
