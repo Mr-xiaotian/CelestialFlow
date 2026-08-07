@@ -331,6 +331,51 @@ class TestExecutorReplay:
         assert counts["tasks_succeeded"] == 2
         assert counts["tasks_failed"] == 0
 
+    def test_start_db_filter_keeps_pending_records(self, tmp_path: Path):
+        """start_db 开启过滤时仍应保留 pending 记录。"""
+        sqlite_path = tmp_path / "fallback.sqlite3"
+        appended = append_records(
+            sqlite_path,
+            [
+                {
+                    "event_id": 1,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task_json": 1,
+                    "error_type": "ValueError",
+                    "error_message": "bad value",
+                    "ts": 1.0,
+                },
+                {
+                    "event_id": 2,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task_json": 2,
+                    "error_type": "RuntimeError",
+                    "error_message": "boom",
+                    "ts": 2.0,
+                },
+                {
+                    "event_id": 3,
+                    "stage": "s1",
+                    "status": "pending",
+                    "task_json": 3,
+                    "error_type": "",
+                    "error_message": "",
+                    "ts": 3.0,
+                },
+            ],
+        )
+        assert appended == 3
+
+        executor = TaskExecutor("s1", add_one, execution_mode="serial")
+        executor.set_retry_exceptions(RuntimeError)
+        executor.start_db(sqlite_path, filter_by_error_type=True)
+
+        counts = executor.get_counts()
+        assert counts["tasks_succeeded"] == 2
+        assert counts["tasks_failed"] == 0
+
 
 class TestExecutorSuccessCache:
     def test_success_persist(self):

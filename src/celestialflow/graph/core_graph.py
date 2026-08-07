@@ -475,6 +475,7 @@ class TaskGraph:
                     record
                     for record in records
                     if str(record["error_type"]) in retry_error_type_names
+                    or record["status"] == "pending"
                 ]
 
             stage_tasks = [record["task_json"] for record in records]

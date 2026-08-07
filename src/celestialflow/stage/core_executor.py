@@ -632,7 +632,8 @@ class TaskExecutor[T, R]:
             records = [
                 record
                 for record in records
-                if str(record["error_type"]) in retry_error_type_names
+                if str(record["error_type"]) in retry_error_type_names 
+                or record["status"] == "pending"
             ]
 
         executor_tasks = [cast(T, record["task_json"]) for record in records]
