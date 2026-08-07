@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 from demo_utils import download_to_file, fibonacci, sleep_1, sum_int
 
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskStage, TaskReporter
 from celestialflow.runtime.util_errors import CelestialFlowTimeoutError, RemoteWorkerError
 
 load_dotenv()
@@ -179,7 +179,7 @@ def demo_redis_ack_0() -> None:
     graph.set_stages([start_stage, transport_stage, ack_stage, fibonacci_stage])
     graph.connect([start_stage], [transport_stage, fibonacci_stage])
     graph.connect([transport_stage], [ack_stage])
-    graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_reporter(TaskReporter(report_host, report_port, graph))
 
     test_task: list[Any] = list(range(25, 37)) + [0, 27, None, 0, ""]
     graph.start_graph({start_stage.get_name(): test_task})
@@ -221,7 +221,7 @@ def demo_redis_ack_1() -> None:
     graph.set_stages([start_stage, transport_stage, ack_stage, sum_stage])
     graph.connect([start_stage], [transport_stage, sum_stage])
     graph.connect([transport_stage], [ack_stage])
-    graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_reporter(TaskReporter(report_host, report_port, graph))
 
     test_task: list[tuple[int, int]] = [
         (random.randint(1, 100), random.randint(1, 100)) for _ in range(12)
@@ -265,7 +265,7 @@ def demo_redis_ack_2() -> None:
     graph.set_stages([start_stage, transport_stage, ack_stage, download_stage])
     graph.connect([start_stage], [transport_stage, download_stage])
     graph.connect([transport_stage], [ack_stage])
-    graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_reporter(TaskReporter(report_host, report_port, graph))
 
     download_links: list[tuple[str, str]] = [
         (
@@ -314,7 +314,7 @@ def demo_redis_source_0() -> None:
     graph.set_stages([sleep_stage_0, transport_stage, source_stage, sleep_stage_1])
     graph.connect([sleep_stage_0], [transport_stage])
     graph.connect([source_stage], [sleep_stage_1])
-    graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_reporter(TaskReporter(report_host, report_port, graph))
 
     graph.start_graph(
         {

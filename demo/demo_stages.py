@@ -20,6 +20,7 @@ from celestialflow import (
     TaskRouter,
     TaskSplitter,
     TaskStage,
+    TaskReporter,
 )
 
 load_dotenv()
@@ -75,7 +76,7 @@ def demo_splitter_0() -> None:
     graph.connect([parse_stage], [generate_stage])
 
     graph.set_graph_mode("thread", "thread")
-    graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
 
     # 运行入口：从 GenURLs 注入初始种子任务，观察 split 与回环效果。
@@ -98,7 +99,7 @@ def demo_splitter_1() -> None:
         [task_splitter, process_stage],
         stage_mode="thread",
     )
-    chain.set_reporter(True, host=report_host, port=report_port)
+    chain.set_reporter(TaskReporter(report_host, report_port, chain))
     chain.set_ctree(ctree_client)
 
     # 运行入口：把 range(100_000) 包成单个任务送进 Splitter。
@@ -149,7 +150,7 @@ def demo_router_0() -> None:
     graph.connect([source_stage], [router])
     graph.connect([router], [stage_a, stage_b])
 
-    graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
 
     # 运行入口：输入一组整数，观察 Router 按规则把奇偶任务分发到不同下游。

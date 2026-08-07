@@ -17,6 +17,7 @@ from celestialtree import Client as CelestialTreeClient
 from celestialflow import (
     TaskGraph,
     TaskStage,
+    TaskReporter,
 )
 
 load_dotenv()
@@ -80,7 +81,7 @@ def demo_etl_fan_out_fan_in() -> None:
     )
 
     graph = TaskGraph("demo_etl_fan_out_fan_in", schedule_mode="eager")
-    graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_reporter(TaskReporter(report_host, report_port, graph))
     graph.set_ctree(ctree_client)
     graph.set_stages(
         stages=[extract, normalize, enrich, load],
@@ -119,7 +120,7 @@ def demo_async_staged_pipeline() -> None:
     )
 
     graph = TaskGraph("demo_async_staged_pipeline", schedule_mode="staged")
-    graph.set_reporter(True, host=report_host, port=report_port)
+    graph.set_reporter(TaskReporter(report_host, report_port, graph))
     graph.set_ctree(ctree_client)
     graph.set_stages(
         stages=[stage_double, stage_to_str],
