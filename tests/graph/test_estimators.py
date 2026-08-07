@@ -3,11 +3,8 @@ from __future__ import annotations
 import pytest
 
 from celestialflow.graph.util_graph import OrderGraph
-from celestialflow.graph.util_estimators import (
-    calc_elapsed,
-    calc_global_pending,
-    calc_remaining,
-)
+from celestialflow.graph.util_estimators import calc_global_pending
+from celestialflow.runtime.util_estimators import calc_elapsed, calc_remaining
 from celestialflow.runtime.util_types import StageStatus
 
 

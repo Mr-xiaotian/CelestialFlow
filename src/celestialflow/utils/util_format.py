@@ -183,24 +183,4 @@ def format_timestamp(timestamp: float) -> str:
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def format_avg_time(elapsed: float, processed: int) -> str:
-    """
-    格式化平均时间（秒/任务或任务/秒）。
 
-    :param elapsed: 总耗时（秒）
-    :param processed: 已处理任务数
-    :return: 格式化后的平均时间字符串
-    """
-    if elapsed and processed:
-        avg_time = elapsed / processed
-        if avg_time >= 1.0:
-            # 显示 "X.XX s/it"
-            avg_time_str = f"{avg_time:.2f}s/it"
-        else:
-            # 显示 "X.XX it/s"（取倒数）
-            its_per_sec = processed / elapsed if elapsed else 0
-            avg_time_str = f"{its_per_sec:.2f}it/s"
-    else:
-        avg_time_str = "N/A"
-
-    return avg_time_str

@@ -1,50 +1,7 @@
 # graph/util_estimators.py
 from __future__ import annotations
 
-from ..runtime.util_types import StageStatus
 from .util_graph import OrderGraph, topo_sort
-
-
-# ==== calculate ====
-def calc_remaining(processed: float, pending: float, elapsed: float) -> float:
-    """
-    基于已处理任务,剩余任务以及已消耗时间来计算剩余时间.
-    不要瞧不起均值,在大规模数据下它可能是最有效的.
-
-    :param processed: 已处理任务数
-    :param pending: 待处理任务数
-    :param elapsed: 已消耗时间（秒）
-    :return: 预计剩余时间（秒）
-    """
-    if processed and pending:
-        return pending / processed * elapsed
-    return 0
-
-
-def calc_elapsed(
-    status: StageStatus,
-    last_elapsed: float,
-    last_pending: int,
-    interval: float,
-) -> float:
-    """
-    更新时间消耗
-
-    :param status: 节点状态
-    :param last_elapsed: 上一次累计的消耗时间（秒）
-    :param last_pending: 上一次的待处理任务数
-    :param interval: 快照采集间隔（秒）
-    :return: 更新后的消耗时间（秒）
-    """
-    if status in (StageStatus.RUNNING, StageStatus.STOPPED):
-        elapsed = last_elapsed
-        if last_pending:
-            # 如果上一次活跃, 那么无论当前状况，累计一次更新时间
-            elapsed += interval
-    else:
-        elapsed = 0
-
-    return elapsed
 
 
 def calc_global_pending(
@@ -60,13 +17,13 @@ def calc_global_pending(
     - pending_map:   当前尚未完成的任务数
 
     核心思想：
-    1. 将每个节点当前“已见任务量”定义为：
+    1. 将每个节点当前"已见任务量"定义为：
          seen = processed + pending
     2. 假设下游节点当前已见任务，平均来自其所有上游节点（多上游等贡献假设）。
-    3. 使用拓扑序在 DAG 上递推估算每个节点的“预计总输入任务量 total”，
+    3. 使用拓扑序在 DAG 上递推估算每个节点的"预计总输入任务量 total"，
        并据此计算一个放大系数 scale，用于将上游的潜在负载继续传播给下游。
     4. 通过节点的历史平均处理速度（elapsed / processed），
-       将“预计剩余任务量”转换为“预计剩余时间”。
+       将"预计剩余任务量"转换为"预计剩余时间"。
 
     具体计算过程（对每个节点 v）：
     - seen_v = processed_v + pending_v
@@ -80,7 +37,7 @@ def calc_global_pending(
     - 定义节点的放大系数：
         scale[v] = total_v / max(1, processed_v)
 
-      该定义刻意使用“已完成任务数”作为分母，
+      该定义刻意使用"已完成任务数"作为分母，
       当 processed 很小但 total 很大时，会产生较大的 scale，
       用于显式放大潜在的拥塞与瓶颈风险。
 
@@ -92,7 +49,7 @@ def calc_global_pending(
 
     算法特性与设计取向：
     - 假设任务图为有向无环图（DAG），调用方需保证这一前提。
-    - 多上游场景下采用“等贡献”假设，不区分不同上游的真实产出比例。
+    - 多上游场景下采用"等贡献"假设，不区分不同上游的真实产出比例。
     - 使用 processed 作为放大基准会在系统早期或严重堆积时产生较大的估计值，
       这是有意的设计选择，用于提前暴露潜在的拥塞与失速风险，
       而非提供平滑或乐观的 ETA。

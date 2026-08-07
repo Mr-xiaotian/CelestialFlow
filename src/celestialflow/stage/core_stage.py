@@ -14,6 +14,11 @@ from ..runtime.util_errors import (
     StageModeError,
     UnconsumedError,
 )
+from ..runtime.util_estimators import (
+    calc_elapsed,
+    calc_remaining,
+    format_avg_time,
+)
 from ..runtime.util_types import StageStatus
 from .core_executor import TaskExecutor
 
@@ -29,6 +34,8 @@ class TaskStage[T, R](TaskExecutor[T, R]):
 
     # Class-level type annotations (TaskStage-specific)
     _status: int
+    _last_elapsed: float
+    _last_pending: int
     start_time: float
     stage_mode: str
     execution_mode: str
@@ -70,12 +77,14 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         self._init_status()
 
     def _init_status(self) -> None:
-        """初始化 stage 状态。"""
+        """初始化 stage 状态与快照缓存。"""
         if not hasattr(self, "_status"):
             self._status = int(StageStatus.NOT_STARTED)
 
         # Reporter 可能会在 stage 真正启动前先采集一次快照。
         self.start_time = 0.0
+        self._last_elapsed = 0.0
+        self._last_pending = 0
 
     # ==== 配置 ====
     def set_stage_mode(self, stage_mode: str) -> None:
@@ -146,6 +155,38 @@ class TaskStage[T, R](TaskExecutor[T, R]):
     def get_status(self) -> StageStatus:
         """读取当前状态（返回 StageStatus 枚举）。"""
         return StageStatus(self._status)
+
+    def snapshot(self, interval: float) -> dict[str, Any]:
+        """
+        采集当前 stage 的运行时快照。
+
+        :param interval: 快照采集间隔（秒）
+        :return: 包含状态、计数、耗时估算等信息的快照字典
+        """
+        status = self.get_status()
+        stage_counts = self.get_counts()
+
+        elapsed = calc_elapsed(status, self._last_elapsed, self._last_pending, interval)
+        remaining = calc_remaining(
+            stage_counts["tasks_processed"],
+            stage_counts["tasks_pending"],
+            elapsed,
+        )
+        avg_time_str = format_avg_time(elapsed, stage_counts["tasks_processed"])
+
+        # 更新缓存供下次快照使用
+        self._last_elapsed = elapsed
+        self._last_pending = int(stage_counts["tasks_pending"] or 0)
+
+        return {
+            **self.get_summary(),
+            "status": status,
+            **stage_counts,
+            "start_time": self.start_time,
+            "elapsed_time": elapsed,
+            "remaining_time": remaining,
+            "task_avg_time": avg_time_str,
+        }
 
     # ==== 任务队列 ====
     def drain_task_queue(self) -> None:

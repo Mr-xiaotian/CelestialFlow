@@ -20,17 +20,13 @@ from ..runtime.util_errors import (
     ScheduleModeError,
     StageModeError,
 )
+from ..runtime.util_estimators import calc_remaining
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_types import TerminationSignal
 from ..stage.core_stage import TaskStage
 from ..stage.util_types import AnyTaskStage
 from ..utils.util_collections import cluster_by_value_sorted
-from ..utils.util_format import format_avg_time
-from .util_estimators import (
-    calc_elapsed,
-    calc_global_pending,
-    calc_remaining,
-)
+from .util_estimators import calc_global_pending
 from .util_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
 from .util_serialize import build_structure_graph, format_structure_list_from_graph
 
@@ -598,50 +594,6 @@ class TaskGraph:
 
     # ==== 运行时监控 ====
 
-    def _snapshot_one_stage(
-        self,
-        stage: AnyTaskStage,
-        last_status: dict[str, Any],
-        interval: float,
-    ) -> tuple[dict[str, Any], tuple[int, int]]:
-        """
-        计算单个 stage 的运行时快照
-        :param stage: 节点实例
-        :param last_status: 上一次快照的状态字典（用于累计 elapsed_time）
-        :param interval: 快照采集间隔
-        :return: (stage_snapshot_dict, running_metrics)，其中
-            running_metrics = (processed, pending)，用于全局 pending 估算
-        """
-        status = stage.get_status()
-        stage_counts = stage.get_counts()
-
-        start_time = stage.start_time
-        last_elapsed: float = float(last_status.get("elapsed_time", 0))
-        last_pending: int = int(last_status.get("tasks_pending", 0))
-        elapsed = calc_elapsed(status, last_elapsed, last_pending, interval)
-
-        remaining = calc_remaining(
-            stage_counts["tasks_processed"], stage_counts["tasks_pending"], elapsed
-        )
-
-        # 计算平均时间（秒/任务）并格式化为字符串
-        avg_time_str = format_avg_time(elapsed, stage_counts["tasks_processed"])
-
-        snapshot: dict[str, Any] = {
-            **stage.get_summary(),
-            "status": status,
-            **stage_counts,
-            "start_time": start_time,
-            "elapsed_time": elapsed,
-            "remaining_time": remaining,
-            "task_avg_time": avg_time_str,
-        }
-
-        processed = int(stage_counts["tasks_processed"] or 0)
-        pending = int(stage_counts["tasks_pending"] or 0)
-
-        return snapshot, (processed, pending)
-
     def _calc_graph_pending(
         self,
         running_processed_map: dict[str, int],
@@ -666,7 +618,10 @@ class TaskGraph:
 
     def collect_runtime_snapshot(self) -> None:
         """
-        收集运行时快照
+        收集运行时快照。
+
+        遍历所有 stage 采集各节点快照，然后计算 DAG 感知的全局 pending 估算值，
+        并补充到每个节点的快照中。
         """
         status_dict: dict[str, dict[str, Any]] = {}
         now = time.time()
@@ -677,19 +632,15 @@ class TaskGraph:
         running_pending_map: dict[str, int] = {}
 
         for stage_name, stage in self.stage_dict.items():
-            last_status = self.status_dict.get(stage_name, {})
-
-            snapshot, (processed, pending) = self._snapshot_one_stage(
-                stage,
-                last_status,
-                interval,
-            )
-
+            snapshot = stage.snapshot(interval)
             status_dict[stage_name] = snapshot
 
-            # 更新各节点的 processed, pending, remaining 数据
-            running_processed_map[stage_name] = processed
-            running_pending_map[stage_name] = pending
+            running_processed_map[stage_name] = int(
+                snapshot["tasks_processed"] or 0
+            )
+            running_pending_map[stage_name] = int(
+                snapshot["tasks_pending"] or 0
+            )
 
         total_pending_map = self._calc_graph_pending(
             running_processed_map,
