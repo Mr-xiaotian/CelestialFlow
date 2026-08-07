@@ -181,6 +181,3 @@ def format_timestamp(timestamp: float) -> str:
     :return: 格式化后的时间字符串
     """
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
-
-
-

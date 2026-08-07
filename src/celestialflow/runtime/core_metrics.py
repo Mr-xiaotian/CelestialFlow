@@ -273,7 +273,7 @@ class TaskMetrics:
                 - tasks_pending: 等待处理任务数
         """
         input_count = self.task_counter.value
-        
+
         with self.lock:
             succeeded = self.success_counter.value
             failed = self.fail_counter.value

@@ -78,7 +78,7 @@ class TaskReporter:
 
         self._stop_flag.set()
         self._thread.join(timeout=2)
-        
+
         if self._thread.is_alive():
             raise ReporterError("Reporter thread is still running.")
 

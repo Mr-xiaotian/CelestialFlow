@@ -214,9 +214,7 @@ class TaskGraph:
         else:
             raise ScheduleModeError(schedule_mode)
 
-    def set_reporter(
-        self, reporter: ReporterProtocol
-    ) -> None:
+    def set_reporter(self, reporter: ReporterProtocol) -> None:
         """
         设定报告器
 
@@ -617,12 +615,8 @@ class TaskGraph:
             snapshot = stage.snapshot(interval)
             status_dict[stage_name] = snapshot
 
-            running_processed_map[stage_name] = int(
-                snapshot["tasks_processed"] or 0
-            )
-            running_pending_map[stage_name] = int(
-                snapshot["tasks_pending"] or 0
-            )
+            running_processed_map[stage_name] = int(snapshot["tasks_processed"] or 0)
+            running_pending_map[stage_name] = int(snapshot["tasks_pending"] or 0)
 
         total_pending_map = self._calc_graph_pending(
             running_processed_map,

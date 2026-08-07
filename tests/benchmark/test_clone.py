@@ -2,6 +2,7 @@
 
 import pytest
 
+from celestialflow.observability import TaskReporter
 from celestialflow.graph import TaskGraph
 from celestialflow.stage import TaskExecutor, TaskStage
 from celestialflow.runtime.util_event import LocalEventClient
@@ -147,6 +148,17 @@ class TestUtilClone:
         assert isinstance(graph.ctree_client, LocalEventClient)
         assert isinstance(cloned.ctree_client, LocalEventClient)
         assert cloned.ctree_client is not graph.ctree_client
+
+    def test_clone_graph_rebinds_task_reporter_to_cloned_graph(self):
+        """带 TaskReporter 的图在克隆后应绑定新的 reporter 实例。"""
+        graph = TaskGraph("test_clone_graph_reporter")
+        graph.set_reporter(TaskReporter("127.0.0.1", 8000, graph))
+
+        cloned = clone_graph(graph)
+
+        assert isinstance(cloned.reporter, TaskReporter)
+        assert cloned.reporter is not graph.reporter
+        assert cloned.reporter.task_graph is cloned
 
 
 # 运行方式：
