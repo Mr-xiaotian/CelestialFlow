@@ -10,7 +10,7 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
-from ..observability import NullTaskReporter, TaskReporter
+from ..observability import NullTaskReporter, ReporterProtocol
 from ..persistence import get_fallback_spout, get_log_inlet, get_log_spout
 from ..persistence.util_sqlite import load_tasks_grouped_by_stage
 from ..runtime.util_errors import (
@@ -58,7 +58,7 @@ class TaskGraph:
     is_report: bool
     report_host: str
     report_port: int
-    reporter: TaskReporter | NullTaskReporter
+    reporter: ReporterProtocol
     ctree_client: EventClient
     structure_graph: dict[str, Any]
     is_dag: bool
@@ -96,7 +96,7 @@ class TaskGraph:
         """
         self._set_name(name)
         self._set_schedule_mode(schedule_mode)
-        self.set_reporter()
+        self.set_reporter(NullTaskReporter())
         self.set_ctree(LocalEventClient())
 
         self._init_state()
@@ -215,7 +215,7 @@ class TaskGraph:
             raise ScheduleModeError(schedule_mode)
 
     def set_reporter(
-        self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000
+        self, reporter: ReporterProtocol
     ) -> None:
         """
         设定报告器
@@ -224,17 +224,7 @@ class TaskGraph:
         :param host: 报告器主机地址，默认 "127.0.0.1"
         :param port: 报告器端口，默认 5000
         """
-        self.is_report = is_report
-        self.report_host = host
-        self.report_port = port
-        if is_report:
-            self.reporter = TaskReporter(
-                host=host,
-                port=port,
-                task_graph=self,
-            )
-        else:
-            self.reporter = NullTaskReporter()
+        self.reporter = reporter
 
     def set_ctree(self, ctree_client: EventClient) -> None:
         """

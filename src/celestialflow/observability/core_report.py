@@ -1,6 +1,6 @@
 # observability/core_report.py
 from threading import Event, Thread
-from typing import Any
+from typing import Any, Protocol
 
 import requests
 
@@ -12,6 +12,18 @@ from ..persistence.util_sqlite import (
 from ..runtime.util_errors import ReporterError
 from ..runtime.util_types import TERMINATION_SIGNAL
 from .util_types import ReporterTaskGraph
+
+
+class ReporterProtocol(Protocol):
+    """Reporter 依赖方所需的最小接口。"""
+
+    interval: int
+
+    def start(self) -> None:
+        """启动 reporter。"""
+
+    def stop(self) -> None:
+        """停止 reporter。"""
 
 
 class TaskReporter:
