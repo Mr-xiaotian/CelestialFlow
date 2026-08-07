@@ -520,7 +520,7 @@ class TaskExecutor[T, R]:
             self._get_execution_mode_desc(),
         )
 
-    def _finish_start(self, start_perf: float) -> None:
+    def _finish_start(self, start_perf: float) -> list[Exception]:
         """
         启动后清理：释放客户端、记录结束日志、停止 spout。
 
@@ -535,8 +535,18 @@ class TaskExecutor[T, R]:
             self.metrics.get_error_count(),
             self.metrics.get_duplicate_count(),
         )
-        get_log_spout().stop()
-        get_fallback_spout().stop()
+
+        error_list: list[Exception] = []
+        try:
+            get_log_spout().stop()
+        except Exception as exception:
+            error_list.append(exception)
+        try:
+            get_fallback_spout().stop()
+        except Exception as exception:
+            error_list.append(exception)
+
+        return error_list
 
     def start(self, task_source: Iterable[T]) -> None:
         """
@@ -551,6 +561,8 @@ class TaskExecutor[T, R]:
             调用 start()。如需再次执行，请创建新的 TaskExecutor。
         """
         start_perf = time.perf_counter()
+        error_list: list[Exception] = []
+
         try:
             self._prepare_start(task_source)
 
@@ -561,16 +573,19 @@ class TaskExecutor[T, R]:
             else:
                 raise ExecutionModeError(self.execution_mode)
         except Exception as exception:
-            get_log_inlet().executor_crash(self.get_name(), exception)
-            raise
+            error_list.append(exception)
         finally:
-            self._finish_start(start_perf)
+            error_list.extend(self._finish_start(start_perf))
+
+        if error_list:
+            raise ExceptionGroup("Errors occurred during execution", error_list)
 
     async def start_async(self, task_source: Iterable[T]) -> None:
         """
         异步地执行任务。
 
         :param task_source: 任务迭代器或者生成器
+        :raises AsyncModeError: execution_mode 不是 'async' 时触发
         :note:
             TaskExecutor 为一次性对象；当前实例完成一次 start_async() 后，不保证可
             安全再次调用。需要重复执行时请创建新的 TaskExecutor。
@@ -579,14 +594,19 @@ class TaskExecutor[T, R]:
             raise AsyncModeError(self.execution_mode)
 
         start_perf = time.perf_counter()
+        error_list: list[Exception] = []
+
         try:
             self._prepare_start(task_source)
             await self.dispatch.dispatch_async()
         except Exception as exception:
             get_log_inlet().executor_crash(self.get_name(), exception)
-            raise
+            error_list.append(exception)
         finally:
-            self._finish_start(start_perf)
+            error_list.extend(self._finish_start(start_perf))
+
+        if error_list:
+            raise ExceptionGroup("Errors occurred during execution", error_list)
 
     def start_db(
         self,

@@ -104,3 +104,49 @@ class TestTaskStageConfig:
 
         prev_stage.metrics.add_success_count(1)
         assert current_stage.metrics.get_task_count() == 3
+
+
+class TestTaskStageStartErrors:
+    def test_start_stage_raises_exception_group_after_finish(self, monkeypatch):
+        """同步 start_stage 应在 finish 后统一抛出收集到的异常。"""
+        stage = TaskStage("StageErrorGroupSync", add_one, execution_mode="serial")
+
+        def crash_prepare() -> None:
+            raise ValueError("prepare failed")
+
+        monkeypatch.setattr(stage, "_prepare_start_stage", crash_prepare)
+        monkeypatch.setattr(
+            stage,
+            "_finish_start_stage",
+            lambda _start_perf: [RuntimeError("finish failed")],
+        )
+
+        with pytest.raises(ExceptionGroup) as exc_info:
+            stage.start_stage()
+
+        messages = [str(exception) for exception in exc_info.value.exceptions]
+        assert messages == ["prepare failed", "finish failed"]
+
+    @pytest.mark.asyncio
+    async def test_start_stage_async_raises_exception_group_after_finish(
+        self,
+        monkeypatch,
+    ):
+        """异步 start_stage_async 应在 finish 后统一抛出收集到的异常。"""
+        stage = TaskStage("StageErrorGroupAsync", async_add_one, execution_mode="async")
+
+        def crash_prepare() -> None:
+            raise ValueError("prepare failed")
+
+        monkeypatch.setattr(stage, "_prepare_start_stage", crash_prepare)
+        monkeypatch.setattr(
+            stage,
+            "_finish_start_stage",
+            lambda _start_perf: [RuntimeError("finish failed")],
+        )
+
+        with pytest.raises(ExceptionGroup) as exc_info:
+            await stage.start_stage_async()
+
+        messages = [str(exception) for exception in exc_info.value.exceptions]
+        assert messages == ["prepare failed", "finish failed"]

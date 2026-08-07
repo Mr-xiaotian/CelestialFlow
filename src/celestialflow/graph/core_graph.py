@@ -347,17 +347,35 @@ class TaskGraph:
 
         self.put_stage_queue(init_tasks_dict, put_termination_signal)
 
-    def _finish_start_graph(self, start_perf: float) -> None:
+    def _finish_start_graph(self, start_perf: float) -> list[Exception]:
         """
         启动后收尾：停止上报器、记录图结束日志并关闭 spout。
 
         :param start_perf: 启动时刻的 ``perf_counter`` 时间戳，用于计算运行耗时
-        :return: ``None``
+        :return: 收集到的收尾阶段异常列表
         """
-        self.reporter.stop()
-        get_log_inlet().end_graph(self.name, time.perf_counter() - start_perf)
-        get_log_spout().stop()
-        get_fallback_spout().stop()
+        error_list: list[Exception] = []
+
+        try:
+            self.reporter.stop()
+        except Exception as exception:
+            error_list.append(exception)
+
+        try:
+            get_log_inlet().end_graph(self.name, time.perf_counter() - start_perf)
+        except Exception as exception:
+            error_list.append(exception)
+
+        try:
+            get_log_spout().stop()
+        except Exception as exception:
+            error_list.append(exception)
+        try:
+            get_fallback_spout().stop()
+        except Exception as exception:
+            error_list.append(exception)
+
+        return error_list
 
     def start_graph(
         self,
@@ -375,15 +393,18 @@ class TaskGraph:
         """
         start_perf = time.perf_counter()
         self.start_time = time.time()
+        error_list: list[Exception] = []
         try:
             self._prepare_start_graph(init_tasks_dict, put_termination_signal)
             self._execute_stages()
             self._finalize_stages()
         except Exception as exception:
-            get_log_inlet().graph_crash(self.name, exception)
-            raise
+            error_list.append(exception)
         finally:
-            self._finish_start_graph(start_perf)
+            error_list.extend(self._finish_start_graph(start_perf))
+
+        if error_list:
+            raise ExceptionGroup("Errors occurred during graph execution", error_list)
 
     async def start_graph_async(
         self,
@@ -407,15 +428,18 @@ class TaskGraph:
         """
         start_perf = time.perf_counter()
         self.start_time = time.time()
+        error_list: list[Exception] = []
         try:
             self._prepare_start_graph(init_tasks_dict, put_termination_signal)
             await self._execute_stages_async()
             self._finalize_stages()
         except Exception as exception:
-            get_log_inlet().graph_crash(self.name, exception)
-            raise
+            error_list.append(exception)
         finally:
-            self._finish_start_graph(start_perf)
+            error_list.extend(self._finish_start_graph(start_perf))
+
+        if error_list:
+            raise ExceptionGroup("Errors occurred during graph execution", error_list)
 
     def start_graph_db(
         self,

@@ -170,25 +170,39 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         )
         self.mark_running()
 
-    def _finish_start_stage(self, start_perf: float) -> None:
+    def _finish_start_stage(self, start_perf: float) -> list[Exception]:
         """
         启动后收尾：标记 stage 停止、结束指标统计并记录结束日志。
 
         :param start_perf: :meth:`_prepare_start_stage` 返回的启动时间戳
-        :return: ``None``
+        :return: 收集到的收尾阶段异常列表
         """
-        self.mark_stopped()
+        error_list: list[Exception] = []
 
-        self.metrics.on_finish()
-        get_log_inlet().end_stage(
-            self.get_name(),
-            self.stage_mode,
-            self._get_execution_mode_desc(),
-            time.perf_counter() - start_perf,
-            self.metrics.get_success_count(),
-            self.metrics.get_error_count(),
-            self.metrics.get_duplicate_count(),
-        )
+        try:
+            self.mark_stopped()
+        except Exception as exception:
+            error_list.append(exception)
+
+        try:
+            self.metrics.on_finish()
+        except Exception as exception:
+            error_list.append(exception)
+
+        try:
+            get_log_inlet().end_stage(
+                self.get_name(),
+                self.stage_mode,
+                self._get_execution_mode_desc(),
+                time.perf_counter() - start_perf,
+                self.metrics.get_success_count(),
+                self.metrics.get_error_count(),
+                self.metrics.get_duplicate_count(),
+            )
+        except Exception as exception:
+            error_list.append(exception)
+
+        return error_list
 
     def start(self, task_source: Any) -> None:
         """
@@ -225,6 +239,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         """
         start_perf = time.perf_counter()
         self.start_time = time.time()
+        error_list: list[Exception] = []
         try:
             self._prepare_start_stage()
 
@@ -236,10 +251,12 @@ class TaskStage[T, R](TaskExecutor[T, R]):
             else:
                 raise ExecutionModeError(self.execution_mode)
         except Exception as exception:
-            get_log_inlet().stage_crash(self.get_name(), exception)
-            raise
+            error_list.append(exception)
         finally:
-            self._finish_start_stage(start_perf)
+            error_list.extend(self._finish_start_stage(start_perf))
+
+        if error_list:
+            raise ExceptionGroup("Errors occurred during stage execution", error_list)
 
     async def start_stage_async(self) -> None:
         """
@@ -258,11 +275,14 @@ class TaskStage[T, R](TaskExecutor[T, R]):
 
         start_perf = time.perf_counter()
         self.start_time = time.time()
+        error_list: list[Exception] = []
         try:
             self._prepare_start_stage()
             await self.dispatch.dispatch_async()
         except Exception as exception:
-            get_log_inlet().stage_crash(self.get_name(), exception)
-            raise
+            error_list.append(exception)
         finally:
-            self._finish_start_stage(start_perf)
+            error_list.extend(self._finish_start_stage(start_perf))
+
+        if error_list:
+            raise ExceptionGroup("Errors occurred during stage execution", error_list)

@@ -6,7 +6,7 @@ from queue import Empty, Queue
 from threading import Thread
 from typing import Any
 
-from ..runtime.util_errors import CelestialFlowError
+from ..runtime.util_errors import CelestialFlowError, RuntimeStateError
 from ..runtime.util_types import TERMINATION_SIGNAL, TerminationSignal
 from .util_count import PendingCounter
 
@@ -59,8 +59,11 @@ class BaseSpout:
             return
 
         self._queue.put(TERMINATION_SIGNAL)
+
         if self._thread.is_alive():
             self._thread.join(timeout=5)
+        if self._thread.is_alive():
+            raise RuntimeStateError("Spout thread did not terminate within 5 seconds.")
 
         self._thread = None
         self._after_stop()

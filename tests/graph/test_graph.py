@@ -294,11 +294,61 @@ class TestTaskGraphBasic:
         assert stage1.get_counts()["tasks_succeeded"] == 1
         assert stage2.get_counts()["tasks_succeeded"] == 1
 
+    def test_start_graph_raises_exception_group_after_finish(self, monkeypatch):
+        """同步 start_graph 应在 finish 后统一抛出收集到的异常。"""
+        graph = TaskGraph("test_start_graph_raises_exception_group_after_finish")
+
+        def crash_prepare(
+            _init_tasks_dict,
+            _put_termination_signal: bool = True,
+        ) -> None:
+            raise ValueError("prepare failed")
+
+        monkeypatch.setattr(graph, "_prepare_start_graph", crash_prepare)
+        monkeypatch.setattr(
+            graph,
+            "_finish_start_graph",
+            lambda _start_perf: [RuntimeError("finish failed")],
+        )
+
+        with pytest.raises(ExceptionGroup) as exc_info:
+            graph.start_graph({})
+
+        messages = [str(exception) for exception in exc_info.value.exceptions]
+        assert messages == ["prepare failed", "finish failed"]
+
 
 # =========================
 # TaskGraph async 模式测试
 # =========================
 class TestTaskGraphAsync:
+    @pytest.mark.asyncio
+    async def test_start_graph_async_raises_exception_group_after_finish(
+        self,
+        monkeypatch,
+    ):
+        """异步 start_graph_async 应在 finish 后统一抛出收集到的异常。"""
+        graph = TaskGraph("test_start_graph_async_raises_exception_group_after_finish")
+
+        def crash_prepare(
+            _init_tasks_dict,
+            _put_termination_signal: bool = True,
+        ) -> None:
+            raise ValueError("prepare failed")
+
+        monkeypatch.setattr(graph, "_prepare_start_graph", crash_prepare)
+        monkeypatch.setattr(
+            graph,
+            "_finish_start_graph",
+            lambda _start_perf: [RuntimeError("finish failed")],
+        )
+
+        with pytest.raises(ExceptionGroup) as exc_info:
+            await graph.start_graph_async({})
+
+        messages = [str(exception) for exception in exc_info.value.exceptions]
+        assert messages == ["prepare failed", "finish failed"]
+
     @pytest.mark.asyncio
     async def test_graph_async_two_nodes(self):
         """async 模式：两个节点串行，结果正确传递"""
