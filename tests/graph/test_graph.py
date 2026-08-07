@@ -11,7 +11,6 @@ from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_event import LocalEventClient
 from celestialflow.runtime.util_errors import (
     NodeNotFoundError,
-    RuntimeStateError,
     StageModeError,
 )
 
@@ -519,36 +518,6 @@ class TestTaskGraphAnalysis:
         assert s1.get_name() in layers[0]
         assert s2.get_name() in layers[1]
         assert s3.get_name() in layers[2]
-
-
-class TestTaskGraphFinalize:
-    def test_finalize_stages_raises_if_stage_threads_still_alive(self):
-        """收尾阶段若仍有存活线程，应中止危险清理并抛出运行时异常。"""
-        graph = TaskGraph("test_finalize_nodes_raises_if_stage_threads_still_alive")
-
-        class AliveThread:
-            name = "slow-stage"
-
-            def join(self, timeout=None) -> None:
-                """模拟 `join()` 调用但不真正结束线程。"""
-                return None
-
-            def is_alive(self) -> bool:
-                """始终报告线程仍然存活。"""
-                return True
-
-        graph.threads = [AliveThread()]
-
-        stage = TaskStage("slow-stage", add_one)
-        graph.stage_dict = {stage.get_name(): stage}
-
-        with pytest.raises(
-            RuntimeStateError,
-            match="alive stage threads remain after finalize",
-        ):
-            graph._finalize_stages()
-
-        assert stage.get_status().value == 0
 
 
 class TestTaskGraphRuntimeSnapshot:

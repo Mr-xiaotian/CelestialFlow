@@ -16,7 +16,6 @@ from ..persistence.util_sqlite import load_tasks_grouped_by_stage
 from ..runtime.util_errors import (
     DuplicateNodeError,
     NodeNotFoundError,
-    RuntimeStateError,
     ScheduleModeError,
     StageModeError,
 )
@@ -353,6 +352,18 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
+            # 收集并持久化每个 stage 中未消费的任务
+            for stage in self.stage_dict.values():
+                stage.drain_task_queue()
+        except Exception as exception:
+            error_list.append(exception)
+
+        try:
+            self.collect_runtime_snapshot()
+        except Exception as exception:
+            error_list.append(exception)
+
+        try:
             self.reporter.stop()
         except Exception as exception:
             error_list.append(exception)
@@ -393,7 +404,6 @@ class TaskGraph:
         try:
             self._prepare_start_graph(init_tasks_dict, put_termination_signal)
             self._execute_stages()
-            self._finalize_stages()
         except Exception as exception:
             error_list.append(exception)
         finally:
@@ -428,7 +438,6 @@ class TaskGraph:
         try:
             self._prepare_start_graph(init_tasks_dict, put_termination_signal)
             await self._execute_stages_async()
-            self._finalize_stages()
         except Exception as exception:
             error_list.append(exception)
         finally:
@@ -561,36 +570,6 @@ class TaskGraph:
             await stage.start_stage_async()
         else:
             await asyncio.to_thread(stage.start_stage)
-
-    # ==== 终止与清理 ====
-
-    def _finalize_stages(self) -> None:
-        """
-        确保所有线程安全结束，更新节点状态，并导出每个节点队列剩余任务。
-        """
-        # 确保所有线程安全结束（线程不可 terminate，仅做 cooperative join）
-        alive_thread_names: list[str] = []
-        for t in self.threads:
-            t.join(timeout=10)
-            if t.is_alive():
-                alive_thread_names.append(t.name)
-
-        if alive_thread_names:
-            stage_names = ", ".join(sorted(alive_thread_names))
-            raise RuntimeStateError(
-                "TaskGraph shutdown incomplete; alive stage threads remain after finalize: "
-                f"{stage_names}"
-            )
-
-        # 更新所有节点状态为"已停止"
-        for stage in self.stage_dict.values():
-            stage.mark_stopped()
-
-        # 收集并持久化每个 stage 中未消费的任务
-        for stage in self.stage_dict.values():
-            stage.drain_task_queue()
-
-        self.collect_runtime_snapshot()
 
     # ==== 运行时监控 ====
 
