@@ -50,6 +50,7 @@ class TaskGraph:
     status_timestamp: float
     input_ids: dict[str, set[int]]
     source_stages: list[AnyTaskStage]
+    _analysis_dirty: bool
     out_edges: dict[str, list[str]]
     in_edges: dict[str, list[str]]
     order_graph: OrderGraph
@@ -128,6 +129,7 @@ class TaskGraph:
         self.out_edges = defaultdict(list)
         self.in_edges = defaultdict(list)
         self.order_graph = OrderGraph()
+        self._analysis_dirty = True
 
         # 用于保存任务图启动时间
         self.start_time = 0.0
@@ -149,6 +151,8 @@ class TaskGraph:
             self.order_graph.add_node(stage_name)
 
             stage.set_ctree(self.ctree_client)
+
+        self._analysis_dirty = True
 
     def connect[R](
         self,
@@ -182,6 +186,8 @@ class TaskGraph:
 
                 self.out_edges[from_name].append(to_name)
                 self.in_edges[to_name].append(from_name)
+
+        self._analysis_dirty = True
 
     # ==== 配置 ====
 
@@ -256,6 +262,11 @@ class TaskGraph:
 
     # ==== 启动 ====
 
+    def _ensure_analysis(self) -> None:
+        """按需重建图分析缓存。"""
+        if self._analysis_dirty:
+            self._build_analysis()
+
     def _build_analysis(self) -> None:
         """
         分析任务图，计算源节点、是否为 DAG 与层级信息。
@@ -273,6 +284,7 @@ class TaskGraph:
 
         stage_level_dict = compute_node_levels(self.order_graph)
         self.layers_dict = cluster_by_value_sorted(stage_level_dict)
+        self._analysis_dirty = False
 
     def put_stage_queue(
         self,
@@ -664,6 +676,7 @@ class TaskGraph:
 
         :return: 包含 name, startTime, is_dag, schedule_mode, class_name, layers_dict 的字典
         """
+        self._ensure_analysis()
         return {
             "graphId": self.graph_id,
             "name": self.name,
@@ -680,6 +693,7 @@ class TaskGraph:
 
         :return: JSON 格式的任务图结构字典
         """
+        self._ensure_analysis()
         return self.structure_graph
 
     def get_structure_list(self) -> list[str]:
@@ -688,7 +702,17 @@ class TaskGraph:
 
         :return: 带边框的格式化字符串列表
         """
+        self._ensure_analysis()
         return format_structure_list_from_graph(self.structure_graph)
+
+    def get_source_stages(self) -> list[AnyTaskStage]:
+        """
+        获取源节点列表
+
+        :return: 源节点列表
+        """
+        self._ensure_analysis()
+        return self.source_stages
 
     def get_order_graph(self) -> OrderGraph:
         """
@@ -708,12 +732,3 @@ class TaskGraph:
         if db_path is None:
             return Path()
         return Path(db_path).resolve()
-
-    def get_source_stages(self) -> list[AnyTaskStage]:
-        """
-        获取源节点列表
-
-        :return: 源节点列表
-        """
-        self._build_analysis()  # 确保 source_stages 已更新
-        return self.source_stages

@@ -541,6 +541,46 @@ class TestTaskGraphStructure:
         assert grid[1][1].get_counts()["tasks_succeeded"] == 4
 
 class TestTaskGraphAnalysis:
+    def test_getters_build_analysis_on_demand(self):
+        """分析与结构 getter 在未显式 build 时也应可直接使用。"""
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+
+        graph = TaskGraph("test_getters_build_analysis_on_demand")
+        graph.set_stages(stages=[s1, s2])
+        graph.connect([s1], [s2])
+
+        analysis = graph.get_graph_analysis()
+        structure_graph = graph.get_structure_graph()
+        structure_list = graph.get_structure_list()
+        source_names = {stage.get_name() for stage in graph.get_source_stages()}
+
+        assert analysis["isDAG"] is True
+        assert s1.get_name() in analysis["layersDict"][0]
+        assert structure_graph
+        assert structure_list
+        assert source_names == {s1.get_name()}
+
+    def test_getters_refresh_analysis_after_connect(self):
+        """结构变更后 getter 应自动重建分析缓存。"""
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+
+        graph = TaskGraph("test_getters_refresh_analysis_after_connect")
+        graph.set_stages(stages=[s1, s2])
+
+        initial_sources = {stage.get_name() for stage in graph.get_source_stages()}
+        assert initial_sources == {s1.get_name(), s2.get_name()}
+
+        graph.connect([s1], [s2])
+
+        refreshed_sources = {stage.get_name() for stage in graph.get_source_stages()}
+        analysis = graph.get_graph_analysis()
+
+        assert refreshed_sources == {s1.get_name()}
+        assert s1.get_name() in analysis["layersDict"][0]
+        assert s2.get_name() in analysis["layersDict"][1]
+
     def test_dag_detection(self):
         """DAG 检测正确"""
         s1 = TaskStage("s1", add_one)
