@@ -31,7 +31,7 @@ class TestTaskMetricsBasic:
         """测试任务失败计数的累加逻辑"""
         metrics = TaskMetrics()
         metrics.add_fail_count(2)
-        assert metrics.get_error_count() == 2
+        assert metrics.get_fail_count() == 2
         assert metrics.get_counts()["tasks_failed"] == 2
 
     def test_add_duplicate_count(self):

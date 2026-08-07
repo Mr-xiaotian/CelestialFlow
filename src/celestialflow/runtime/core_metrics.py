@@ -23,7 +23,7 @@ class TaskMetrics:
     retry_exceptions: tuple[type[Exception], ...]
     task_counter: SumCounter
     success_counter: ValueWrapper
-    error_counter: ValueWrapper
+    fail_counter: ValueWrapper
     duplicate_counter: ValueWrapper
     processed_set: set[bytes]
 
@@ -53,7 +53,7 @@ class TaskMetrics:
         # 统一使用同一把线程锁，保证 execution_mode 切换时 counter 对象保持稳定。
         self.task_counter = SumCounter(lock=self.lock)
         self.success_counter = ValueWrapper(value=0, lock=self.lock)
-        self.error_counter = ValueWrapper(value=0, lock=self.lock)
+        self.fail_counter = ValueWrapper(value=0, lock=self.lock)
         self.duplicate_counter = ValueWrapper(value=0, lock=self.lock)
 
     # ==== 重置 ====
@@ -63,7 +63,7 @@ class TaskMetrics:
         """
         self.task_counter.reset()
         self.success_counter.reset()
-        self.error_counter.reset()
+        self.fail_counter.reset()
         self.duplicate_counter.reset()
 
     def reset_state(self) -> None:
@@ -172,7 +172,7 @@ class TaskMetrics:
 
         :param count: 增加的失败任务数量，默认值为 1。
         """
-        self.error_counter.add(count)
+        self.fail_counter.add(count)
         for observer in self._observers:
             observer.on_task_fail(count)
 
@@ -223,7 +223,7 @@ class TaskMetrics:
         with self.lock:
             processed = (
                 self.success_counter.value
-                + self.error_counter.value
+                + self.fail_counter.value
                 + self.duplicate_counter.value
             )
         return total == processed
@@ -244,13 +244,13 @@ class TaskMetrics:
         """
         return self.success_counter.get()
 
-    def get_error_count(self) -> int:
+    def get_fail_count(self) -> int:
         """
         获取当前的失败任务数
 
         :return: 当前的失败任务数
         """
-        return self.error_counter.get()
+        return self.fail_counter.get()
 
     def get_duplicate_count(self) -> int:
         """
@@ -276,7 +276,7 @@ class TaskMetrics:
         
         with self.lock:
             succeeded = self.success_counter.value
-            failed = self.error_counter.value
+            failed = self.fail_counter.value
             duplicated = self.duplicate_counter.value
 
         processed = succeeded + failed + duplicated

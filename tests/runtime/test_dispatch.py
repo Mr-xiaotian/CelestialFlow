@@ -455,7 +455,7 @@ class TestWorkerCrashKeepsTerminationSignal:
         results = _collect_results(executor)
         assert len(results) == 1
         assert isinstance(results[0], TerminationSignal)
-        assert executor.metrics.get_error_count() == 1
+        assert executor.metrics.get_fail_count() == 1
 
     @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
     def test_retry_handler_crash_keeps_termination(
@@ -487,7 +487,7 @@ class TestWorkerCrashKeepsTerminationSignal:
         assert isinstance(results[0], TerminationSignal)
         assert len(recording.crashes) == 1
         assert isinstance(recording.crashes[0], RuntimeError)
-        assert executor.metrics.get_error_count() == 0
+        assert executor.metrics.get_fail_count() == 0
 
 
 class TestDispatchCoreBehavior:

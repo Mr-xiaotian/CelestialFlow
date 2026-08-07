@@ -532,7 +532,7 @@ class TaskExecutor[T, R]:
             self._get_execution_mode_desc(),
             time.perf_counter() - start_perf,
             self.metrics.get_success_count(),
-            self.metrics.get_error_count(),
+            self.metrics.get_fail_count(),
             self.metrics.get_duplicate_count(),
         )
 
