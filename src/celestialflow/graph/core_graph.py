@@ -179,8 +179,8 @@ class TaskGraph:
                 if to_name not in self.stage_dict:
                     raise NodeNotFoundError(f"to stage not found: {to_name}")
 
-                from_out_queue.add_queue(to_in_queue, to_name)
                 to_stage.prev_binding(from_stage)
+                from_out_queue.add_queue(to_in_queue, to_name)
                 to_in_queue.add_source_name(from_name)
                 self.order_graph.add_edge(from_name, to_name)
 

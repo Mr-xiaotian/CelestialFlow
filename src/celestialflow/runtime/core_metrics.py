@@ -218,13 +218,14 @@ class TaskMetrics:
 
         :return: 如果所有任务都已处理完毕，返回 True；否则返回 False。
         """
+        total = self.task_counter.value
+
         with self.lock:
             processed = (
                 self.success_counter.value
                 + self.error_counter.value
                 + self.duplicate_counter.value
             )
-            total = self.task_counter.value
         return total == processed
 
     def get_task_count(self) -> int:
@@ -271,8 +272,9 @@ class TaskMetrics:
                 - tasks_processed: 已处理任务总数
                 - tasks_pending: 等待处理任务数
         """
+        input_count = self.task_counter.value
+        
         with self.lock:
-            input_count = self.task_counter.value
             succeeded = self.success_counter.value
             failed = self.error_counter.value
             duplicated = self.duplicate_counter.value
