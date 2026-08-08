@@ -127,7 +127,7 @@ class OrderGraph:
         return f"OrderGraph(nodes={n}, edges={e})"
 
 
-# ==================== 功能函数 ====================
+# ==== 功能函数 ====
 
 
 def in_degree(graph: OrderGraph) -> dict[str, int]:

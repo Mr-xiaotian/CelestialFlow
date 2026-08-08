@@ -31,8 +31,8 @@ class LogSpout(BaseSpout):
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
         # 打开日志文件
-        # Use line buffering so readers can observe log lines promptly without
-        # reintroducing an explicit flush counter mechanism.
+        # 使用行缓冲，让读取方能及时看到新增日志，
+        # 同时避免重新引入显式的刷新计数机制。
         self._file = self.log_path.open("a", encoding="utf-8", buffering=1)
 
     def _handle_record(self, record: dict[str, Any]) -> None:
@@ -93,7 +93,7 @@ class LogInlet(BaseInlet):
             {"timestamp": timestamp, "level": level_upper, "message": message}
         )
 
-    # ==== graph ====
+    # ==== 任务图 ====
     def start_graph(self, graph_name: str, structure_list: list[str]) -> None:
         """
         记录任务图启动及结构信息
@@ -126,7 +126,7 @@ class LogInlet(BaseInlet):
             f"Graph '{graph_name}' crashed: ({exception_type}){exception_text}.",
         )
 
-    # ==== layer ====
+    # ==== 分层调度 ====
     def start_layer(self, layer: list[str], layer_level: int) -> None:
         """
         记录分层调度中某一层的启动
@@ -145,7 +145,7 @@ class LogInlet(BaseInlet):
         """
         self._log("INFO", f"Layer '{layer}' end. Use {use_time:.2f}s.")
 
-    # ==== stage ====
+    # ==== 节点 ====
     def start_stage(
         self,
         stage_name: str,
@@ -203,7 +203,7 @@ class LogInlet(BaseInlet):
             f"Stage '{stage_name}' crashed: ({exception_type}){exception_text}.",
         )
 
-    # ==== executor ====
+    # ==== 执行器 ====
     def start_executor(
         self, executor_name: str, task_num: int, execution_mode_desc: str
     ) -> None:
@@ -256,7 +256,7 @@ class LogInlet(BaseInlet):
             f"Executor '{executor_name}' crashed: ({exception_type}){exception_text}.",
         )
 
-    # ==== worker ====
+    # ==== 工作线程 ====
     def worker_crash(self, exception: Exception) -> None:
         """
         记录工作器崩溃
@@ -270,7 +270,7 @@ class LogInlet(BaseInlet):
             f"Worker crashed: ({exception_type}){exception_text}.",
         )
 
-    # ==== task ====
+    # ==== 任务 ====
     def task_input(
         self, func_name: str, task_repr: str, source: str, input_id: int
     ) -> None:
@@ -377,7 +377,7 @@ class LogInlet(BaseInlet):
             f"In '{func_name}', Task {task_repr} has been duplicated. [{parent_id}->{duplicate_id}*]",
         )
 
-    # ==== splitter ====
+    # ==== 拆分器 ====
     def split_trace(
         self,
         func_name: str,
@@ -416,7 +416,7 @@ class LogInlet(BaseInlet):
             f"In '{func_name}', Task {task_repr} has split into {split_count} parts. Used {use_time:.2f}s.",
         )
 
-    # ==== router ====
+    # ==== 路由器 ====
     def route_success(
         self,
         func_name: str,
@@ -441,7 +441,7 @@ class LogInlet(BaseInlet):
             f"In '{func_name}', Task {task_repr} has routed to {target_node}. Used {use_time:.2f}s. [{parent_id}->{route_id}*]",
         )
 
-    # ==== termination ====
+    # ==== 终止信号 ====
     def termination_input(
         self, func_name: str, source: str, termination_id: int
     ) -> None:
@@ -472,7 +472,7 @@ class LogInlet(BaseInlet):
             f"In '{func_name}', Termination merge. [{parent_ids}->{termination_id}*]",
         )
 
-    # ==== reporter ====
+    # ==== 上报器 ====
     def stop_reporter(self) -> None:
         """记录上报器停止"""
         self._log("DEBUG", "[Reporter] Stopped.")

@@ -6,7 +6,7 @@ from typing import Any
 from ..stage.util_types import AnyTaskStage
 
 
-# ======== 处理图结构 ========
+# ==== 图结构处理 ====
 def build_structure_graph(
     stage_dict: dict[str, AnyTaskStage],
     out_edges: dict[str, list[str]],
@@ -76,10 +76,10 @@ def format_structure_list_from_graph(
         """
         node = nodes.get(node_name, {})
         visited_note = " [Ref]" if is_ref else ""
-        F = node.get("func_name", "?")  # F
-        S = node.get("stage_mode", "?")  # S
-        E = node.get("execution_mode", "?")  # E
-        W = node.get("max_workers", "?")  # W
+        F = node.get("func_name", "?")  # 函数名
+        S = node.get("stage_mode", "?")  # 节点模式
+        E = node.get("execution_mode", "?")  # 执行模式
+        W = node.get("max_workers", "?")  # 最大工作数
 
         return f"{node_name}::{F} (S:{S}, E:{E}, W:{W}){visited_note}"
 
@@ -101,7 +101,7 @@ def format_structure_list_from_graph(
 
         expanded_nodes.add(node_name)
 
-        # 子节点的 prefix 取决于当前节点是不是 last：last -> 空白，否则竖线延续
+        # 子节点缩进取决于当前节点是否为最后一个：最后一个留空，否则延续竖线
         child_prefix = prefix + ("    " if is_last else "│   ")
         next_stages = edges.get(node_name, []) or []
         for i, child_name in enumerate(next_stages):
@@ -110,7 +110,7 @@ def format_structure_list_from_graph(
             )
         return lines
 
-    # 专门处理 root：不画连接符，不产生祖先竖线
+    # 根节点不画连接符，也不继承祖先竖线
     def build_root_lines(root_name: str) -> list[str]:
         """
         构建根节点及其子树的树形显示行。

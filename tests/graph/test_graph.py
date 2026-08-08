@@ -293,6 +293,64 @@ class TestTaskGraphBasic:
         assert stage1.get_counts()["tasks_succeeded"] == 1
         assert stage2.get_counts()["tasks_succeeded"] == 1
 
+    def test_graph_start_db_filter_keeps_pending_records(self, tmp_path):
+        """图级 DB 过滤开启时，pending 记录仍应继续回放。"""
+        sqlite_path = tmp_path / "fallback.sqlite3"
+        appended = append_records(
+            sqlite_path,
+            [
+                {
+                    "event_id": 1,
+                    "stage": "s1",
+                    "status": "failed",
+                    "task_json": 1,
+                    "error_type": "ValueError",
+                    "error_message": "bad",
+                    "ts": 1.0,
+                },
+                {
+                    "event_id": 2,
+                    "stage": "s1",
+                    "status": "pending",
+                    "task_json": 2,
+                    "error_type": "",
+                    "error_message": "",
+                    "ts": 2.0,
+                },
+                {
+                    "event_id": 3,
+                    "stage": "s2",
+                    "status": "failed",
+                    "task_json": 10,
+                    "error_type": "RuntimeError",
+                    "error_message": "boom",
+                    "ts": 3.0,
+                },
+                {
+                    "event_id": 4,
+                    "stage": "s2",
+                    "status": "pending",
+                    "task_json": 20,
+                    "error_type": "",
+                    "error_message": "",
+                    "ts": 4.0,
+                },
+            ],
+        )
+        assert appended == 4
+
+        stage1 = TaskStage("s1", add_one, execution_mode="serial")
+        stage2 = TaskStage("s2", double, execution_mode="serial")
+        stage1.set_retry_exceptions(RuntimeError)
+        stage2.set_retry_exceptions(ValueError)
+
+        graph = TaskGraph("test_graph_start_db_filter_keeps_pending_records")
+        graph.set_stages(stages=[stage1, stage2])
+        graph.start_graph_db(sqlite_path, filter_by_error_type=True)
+
+        assert stage1.get_counts()["tasks_succeeded"] == 1
+        assert stage2.get_counts()["tasks_succeeded"] == 1
+
     def test_start_graph_raises_exception_group_after_finish(self, monkeypatch):
         """同步 start_graph 应在 finish 后统一抛出收集到的异常。"""
         graph = TaskGraph("test_start_graph_raises_exception_group_after_finish")
@@ -483,6 +541,46 @@ class TestTaskGraphStructure:
         assert grid[1][1].get_counts()["tasks_succeeded"] == 4
 
 class TestTaskGraphAnalysis:
+    def test_getters_build_analysis_on_demand(self):
+        """分析与结构 getter 在未显式 build 时也应可直接使用。"""
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+
+        graph = TaskGraph("test_getters_build_analysis_on_demand")
+        graph.set_stages(stages=[s1, s2])
+        graph.connect([s1], [s2])
+
+        analysis = graph.get_graph_analysis()
+        structure_graph = graph.get_structure_graph()
+        structure_list = graph.get_structure_list()
+        source_names = {stage.get_name() for stage in graph.get_source_stages()}
+
+        assert analysis["isDAG"] is True
+        assert s1.get_name() in analysis["layersDict"][0]
+        assert structure_graph
+        assert structure_list
+        assert source_names == {s1.get_name()}
+
+    def test_getters_refresh_analysis_after_connect(self):
+        """结构变更后 getter 应自动重建分析缓存。"""
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+
+        graph = TaskGraph("test_getters_refresh_analysis_after_connect")
+        graph.set_stages(stages=[s1, s2])
+
+        initial_sources = {stage.get_name() for stage in graph.get_source_stages()}
+        assert initial_sources == {s1.get_name(), s2.get_name()}
+
+        graph.connect([s1], [s2])
+
+        refreshed_sources = {stage.get_name() for stage in graph.get_source_stages()}
+        analysis = graph.get_graph_analysis()
+
+        assert refreshed_sources == {s1.get_name()}
+        assert s1.get_name() in analysis["layersDict"][0]
+        assert s2.get_name() in analysis["layersDict"][1]
+
     def test_dag_detection(self):
         """DAG 检测正确"""
         s1 = TaskStage("s1", add_one)

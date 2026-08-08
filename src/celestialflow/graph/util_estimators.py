@@ -63,7 +63,7 @@ def calc_global_pending(
     """
     expected_pending_map: dict[str, int] = {}
 
-    # 每个节点的 scale（上游放大系数）
+    # 每个节点的放大系数（用于传播上游负载）
     scale: dict[str, float] = {}
     topo_order = topo_sort(graph)
     if topo_order is None:
@@ -76,7 +76,7 @@ def calc_global_pending(
 
         preds = graph.predecessors(v_str)
         if not preds:
-            # 没上游：就认为总量就是目前看到的量（不外推）
+            # 没有上游时，总量就等于当前观测到的任务量
             total_v = seen_v
         else:
             k = float(len(preds))
@@ -85,10 +85,10 @@ def calc_global_pending(
             for u in preds:
                 total_v += obs_each * scale.get(u, 1.0)
 
-        scale[v_str] = total_v / max(1, proc_v)  # 下游放大系数
-        expect_pend_v = max(pend_v, total_v - proc_v)  # 理论上expect_pend_v >= pend_v
+        scale[v_str] = total_v / max(1, proc_v)  # 当前节点的放大系数
+        expect_pend_v = max(pend_v, total_v - proc_v)  # 理论上预计值不会小于当前值
 
-        # 时间估算：需要 avg time（秒/任务）
+        # 这里只输出预计待处理任务量，不做时间维度估算
         expected_pending_map[v_str] = int(expect_pend_v)
 
     return expected_pending_map

@@ -10,7 +10,7 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
-from ..observability import NullTaskReporter, TaskReporter
+from ..observability import NullTaskReporter, ReporterProtocol
 from ..persistence import get_fallback_spout, get_log_inlet, get_log_spout
 from ..persistence.util_sqlite import load_tasks_grouped_by_stage
 from ..runtime.util_errors import (
@@ -40,7 +40,7 @@ class TaskGraph:
     - 如需再次运行相同流程，请重新创建 TaskGraph 实例及其关联的 TaskStage。
     """
 
-    # ==== Class-level type annotations ====
+    # ==== 类级类型注解 ====
     name: str
     graph_id: str
     schedule_mode: str
@@ -50,14 +50,12 @@ class TaskGraph:
     status_timestamp: float
     input_ids: dict[str, set[int]]
     source_stages: list[AnyTaskStage]
+    _analysis_dirty: bool
     out_edges: dict[str, list[str]]
     in_edges: dict[str, list[str]]
     order_graph: OrderGraph
     start_time: float
-    is_report: bool
-    report_host: str
-    report_port: int
-    reporter: TaskReporter | NullTaskReporter
+    reporter: ReporterProtocol
     ctree_client: EventClient
     structure_graph: dict[str, Any]
     is_dag: bool
@@ -95,7 +93,7 @@ class TaskGraph:
         """
         self._set_name(name)
         self._set_schedule_mode(schedule_mode)
-        self.set_reporter()
+        self.set_reporter(NullTaskReporter())
         self.set_ctree(LocalEventClient())
 
         self._init_state()
@@ -128,6 +126,7 @@ class TaskGraph:
         self.out_edges = defaultdict(list)
         self.in_edges = defaultdict(list)
         self.order_graph = OrderGraph()
+        self._analysis_dirty = True
 
         # 用于保存任务图启动时间
         self.start_time = 0.0
@@ -149,6 +148,8 @@ class TaskGraph:
             self.order_graph.add_node(stage_name)
 
             stage.set_ctree(self.ctree_client)
+
+        self._analysis_dirty = True
 
     def connect[R](
         self,
@@ -175,13 +176,15 @@ class TaskGraph:
                 if to_name not in self.stage_dict:
                     raise NodeNotFoundError(f"to stage not found: {to_name}")
 
-                from_out_queue.add_queue(to_in_queue, to_name)
                 to_stage.prev_binding(from_stage)
+                from_out_queue.add_queue(to_in_queue, to_name)
                 to_in_queue.add_source_name(from_name)
                 self.order_graph.add_edge(from_name, to_name)
 
                 self.out_edges[from_name].append(to_name)
                 self.in_edges[to_name].append(from_name)
+
+        self._analysis_dirty = True
 
     # ==== 配置 ====
 
@@ -208,27 +211,13 @@ class TaskGraph:
         else:
             raise ScheduleModeError(schedule_mode)
 
-    def set_reporter(
-        self, is_report: bool = False, host: str = "127.0.0.1", port: int = 5000
-    ) -> None:
+    def set_reporter(self, reporter: ReporterProtocol) -> None:
         """
-        设定报告器
+        设定任务图绑定的 reporter。
 
-        :param is_report: 是否启用报告器，默认 False
-        :param host: 报告器主机地址，默认 "127.0.0.1"
-        :param port: 报告器端口，默认 5000
+        :param reporter: 需绑定到当前任务图的 reporter 实例
         """
-        self.is_report = is_report
-        self.report_host = host
-        self.report_port = port
-        if is_report:
-            self.reporter = TaskReporter(
-                host=host,
-                port=port,
-                task_graph=self,
-            )
-        else:
-            self.reporter = NullTaskReporter()
+        self.reporter = reporter
 
     def set_ctree(self, ctree_client: EventClient) -> None:
         """
@@ -256,6 +245,11 @@ class TaskGraph:
 
     # ==== 启动 ====
 
+    def _ensure_analysis(self) -> None:
+        """按需重建图分析缓存。"""
+        if self._analysis_dirty:
+            self._build_analysis()
+
     def _build_analysis(self) -> None:
         """
         分析任务图，计算源节点、是否为 DAG 与层级信息。
@@ -273,6 +267,7 @@ class TaskGraph:
 
         stage_level_dict = compute_node_levels(self.order_graph)
         self.layers_dict = cluster_by_value_sorted(stage_level_dict)
+        self._analysis_dirty = False
 
     def put_stage_queue(
         self,
@@ -352,7 +347,7 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            # 收集并持久化每个 stage 中未消费的任务
+            # 收集并持久化每个节点中未消费的任务
             for stage in self.stage_dict.values():
                 stage.drain_task_queue()
         except Exception as exception:
@@ -475,6 +470,7 @@ class TaskGraph:
                     record
                     for record in records
                     if str(record["error_type"]) in retry_error_type_names
+                    or record["status"] == "pending"
                 ]
 
             stage_tasks = [record["task_json"] for record in records]
@@ -491,14 +487,14 @@ class TaskGraph:
         执行所有节点
         """
         if self.schedule_mode == "eager":
-            # eager schedule_mode：一次性执行所有节点
+            # eager 调度模式：一次性执行所有节点
             for stage in self.stage_dict.values():
                 self._execute_stage(stage)
 
             for t in self.threads:
                 t.join()
         elif self.schedule_mode == "staged":
-            # staged schedule_mode：一层层地顺序执行
+            # staged 调度模式：按层顺序执行
             for layer_level, layer in self.layers_dict.items():
                 get_log_inlet().start_layer(layer, layer_level)
                 start_perf = time.perf_counter()
@@ -510,7 +506,7 @@ class TaskGraph:
                     if stage.stage_mode == "thread":
                         threads.append(self.threads[-1])
 
-                # join 当前层的所有线程
+                # 等待当前层的所有线程结束
                 for t in threads:
                     t.join()
 
@@ -606,7 +602,7 @@ class TaskGraph:
         now = time.time()
         interval = self.reporter.interval
 
-        # 为全局预计 tasks_pending 收集数据
+        # 为全局预计待处理任务数收集数据
         running_processed_map: dict[str, int] = {}
         running_pending_map: dict[str, int] = {}
 
@@ -614,12 +610,8 @@ class TaskGraph:
             snapshot = stage.snapshot(interval)
             status_dict[stage_name] = snapshot
 
-            running_processed_map[stage_name] = int(
-                snapshot["tasks_processed"] or 0
-            )
-            running_pending_map[stage_name] = int(
-                snapshot["tasks_pending"] or 0
-            )
+            running_processed_map[stage_name] = int(snapshot["tasks_processed"] or 0)
+            running_pending_map[stage_name] = int(snapshot["tasks_pending"] or 0)
 
         total_pending_map = self._calc_graph_pending(
             running_processed_map,
@@ -663,6 +655,7 @@ class TaskGraph:
 
         :return: 包含 name, startTime, is_dag, schedule_mode, class_name, layers_dict 的字典
         """
+        self._ensure_analysis()
         return {
             "graphId": self.graph_id,
             "name": self.name,
@@ -679,6 +672,7 @@ class TaskGraph:
 
         :return: JSON 格式的任务图结构字典
         """
+        self._ensure_analysis()
         return self.structure_graph
 
     def get_structure_list(self) -> list[str]:
@@ -687,7 +681,17 @@ class TaskGraph:
 
         :return: 带边框的格式化字符串列表
         """
+        self._ensure_analysis()
         return format_structure_list_from_graph(self.structure_graph)
+
+    def get_source_stages(self) -> list[AnyTaskStage]:
+        """
+        获取源节点列表
+
+        :return: 源节点列表
+        """
+        self._ensure_analysis()
+        return self.source_stages
 
     def get_order_graph(self) -> OrderGraph:
         """
@@ -707,12 +711,3 @@ class TaskGraph:
         if db_path is None:
             return Path()
         return Path(db_path).resolve()
-
-    def get_source_stages(self) -> list[AnyTaskStage]:
-        """
-        获取源节点列表
-
-        :return: 源节点列表
-        """
-        self._build_analysis()  # 确保 source_stages 已更新
-        return self.source_stages

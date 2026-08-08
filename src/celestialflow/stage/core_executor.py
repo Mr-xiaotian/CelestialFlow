@@ -49,7 +49,7 @@ class TaskExecutor[T, R]:
     - 如需重复执行同一逻辑，请重新创建新的 TaskExecutor 实例。
     """
 
-    # Class-level type annotations
+    # ==== 类级类型注解 ====
     task_queue: TaskInQueue[T]
     result_queue: TaskOutQueue[R]
     max_workers: int
@@ -137,7 +137,7 @@ class TaskExecutor[T, R]:
         """
         self.metrics.reset_state()
 
-    # ==== Observer ====
+    # ==== 观察者 ====
     def add_observer(self, observer: BaseObserver) -> None:
         """
         注册观察者。
@@ -532,7 +532,7 @@ class TaskExecutor[T, R]:
             self._get_execution_mode_desc(),
             time.perf_counter() - start_perf,
             self.metrics.get_success_count(),
-            self.metrics.get_error_count(),
+            self.metrics.get_fail_count(),
             self.metrics.get_duplicate_count(),
         )
 
@@ -633,6 +633,7 @@ class TaskExecutor[T, R]:
                 record
                 for record in records
                 if str(record["error_type"]) in retry_error_type_names
+                or record["status"] == "pending"
             ]
 
         executor_tasks = [cast(T, record["task_json"]) for record in records]

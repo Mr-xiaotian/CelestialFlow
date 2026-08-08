@@ -360,14 +360,14 @@ def load_records(
 
 def load_tasks_grouped_by_stage(
     db_path: str | Path,
-    statuses: Iterable[str] = ("failed",),
+    statuses: Iterable[str] = ("failed", "pending"),
 ) -> dict[str, list[dict[str, Any]]]:
     """
     自行创建并关闭连接，按 stage 分组读取指定状态的记录。
 
     :param db_path: sqlite 数据库文件路径
     :param statuses: 记录状态过滤条件；可传单个状态或状态列表
-    :return: ``{stage_name: [{"task_json": task, "error_type": str}, ...], ...}``
+    :return: ``{stage_name: [{"task_json": task, "error_type": str, "status": str}, ...], ...}``
     :rtype: dict[str, list[dict[str, Any]]]
     """
     conn = connect_db(db_path)
@@ -378,7 +378,7 @@ def load_tasks_grouped_by_stage(
         placeholders = ", ".join("?" for _ in statuses)
         rows = conn.execute(
             f"""
-            SELECT stage, task_json, error_type
+            SELECT stage, task_json, error_type, status
             FROM records
             WHERE status IN ({placeholders})
             ORDER BY stage ASC, id ASC
@@ -391,12 +391,14 @@ def load_tasks_grouped_by_stage(
             stage_name = str(row["stage"])
             task_json = str(row["task_json"])
             error_type = str(row["error_type"])
+            status = str(row["status"])
 
             stage_tasks = grouped_records.setdefault(stage_name, [])
             stage_tasks.append(
                 {
                     "task_json": json.loads(task_json),
                     "error_type": error_type,
+                    "status": status,
                 }
             )
         return grouped_records

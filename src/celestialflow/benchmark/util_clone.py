@@ -4,8 +4,11 @@ from __future__ import annotations
 import inspect
 from collections import deque
 from typing import Any, cast
+from urllib.parse import urlparse
 
 from ..graph import TaskGraph
+from ..observability import NullTaskReporter, ReporterProtocol, TaskReporter
+from ..runtime.util_errors import ConfigurationError
 from ..runtime.util_event import clone_event_client
 from ..stage import TaskExecutor, TaskStage
 from ..stage.util_types import AnyTaskStage
@@ -70,6 +73,32 @@ def clone_stage[T, R](
     return cloned
 
 
+def _clone_reporter(
+    reporter: ReporterProtocol,
+    task_graph: TaskGraph,
+) -> ReporterProtocol:
+    """
+    克隆 reporter 配置并绑定到新的任务图实例。
+
+    :param reporter: 原任务图绑定的 reporter
+    :param task_graph: 新的任务图实例
+    :return: 新的 reporter
+    :raises ConfigurationError: reporter 类型不支持克隆
+    """
+    if isinstance(reporter, NullTaskReporter):
+        return NullTaskReporter()
+
+    if isinstance(reporter, TaskReporter):
+        parsed = urlparse(reporter.base_url)
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or 80
+        return TaskReporter(host=host, port=port, task_graph=task_graph)
+
+    raise ConfigurationError(
+        f"unsupported reporter type for clone_graph(): {type(reporter).__name__}"
+    )
+
+
 def clone_graph(graph: TaskGraph) -> TaskGraph:
     """
     克隆任务图
@@ -77,7 +106,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     :param graph: 要克隆的任务图
     :return: 克隆任务图
     """
-    # BFS 收集所有 stage（通过 graph.out_edges）
+    # 通过广度优先遍历收集所有节点（沿用任务图出边表的顺序）
     visited: set[str] = set()
     ordered_stages: list[AnyTaskStage] = []
     queue: deque[AnyTaskStage] = deque(graph.get_source_stages())
@@ -92,12 +121,12 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
             next_stage: AnyTaskStage = graph.stage_dict[next_stage_name]
             queue.append(next_stage)
 
-    # 建立 old_name -> cloned_stage 映射
+    # 建立原节点名到克隆节点的映射
     name_map: dict[str, AnyTaskStage] = {}
     for stage in ordered_stages:
         name_map[stage.get_name()] = clone_stage(stage)
 
-    # 构建新 graph
+    # 构建新的任务图
     all_cloned_stages: list[AnyTaskStage] = list(name_map.values())
 
     cloned_graph: TaskGraph = TaskGraph(
@@ -115,11 +144,6 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
         cloned_graph.connect([cloned_from], cloned_to)
 
     cloned_graph.set_ctree(clone_event_client(graph.ctree_client))
-    if graph.is_report:
-        cloned_graph.set_reporter(
-            is_report=True,
-            host=graph.report_host,
-            port=graph.report_port,
-        )
+    cloned_graph.set_reporter(_clone_reporter(graph.reporter, cloned_graph))
 
     return cloned_graph

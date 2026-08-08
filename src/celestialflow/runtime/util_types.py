@@ -23,7 +23,7 @@ class TerminationSignal:
         self.source = source
 
 
-# 单例 termination signal
+# 单例终止信号
 TERMINATION_SIGNAL = TerminationSignal()
 
 

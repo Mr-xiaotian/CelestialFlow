@@ -15,7 +15,7 @@ from .graph import (
     TaskLoop,
     TaskWheel,
 )
-from .observability import BaseObserver
+from .observability import BaseObserver, TaskReporter
 from .persistence.util_sqlite import (
     load_records,
     load_tasks_grouped_by_stage,
@@ -41,6 +41,7 @@ __all__ = [
     "TaskGraph",
     "TaskGrid",
     "TaskLoop",
+    "TaskReporter",
     "TaskRouter",
     "TaskSplitter",
     "TaskStage",

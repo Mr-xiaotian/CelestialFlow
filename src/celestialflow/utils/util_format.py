@@ -7,7 +7,7 @@ from itertools import zip_longest
 from typing import Any
 
 
-# ======== format函数 ========
+# ==== 格式化函数 ====
 def format_repr(obj: Any, max_length: int) -> str:
     """
     将对象格式化为字符串，自动转义换行、截断超长文本。
@@ -181,6 +181,3 @@ def format_timestamp(timestamp: float) -> str:
     :return: 格式化后的时间字符串
     """
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
-
-
-
