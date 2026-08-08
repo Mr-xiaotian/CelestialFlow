@@ -117,7 +117,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
 
         get_log_inlet().split_success(
             self.get_func_name(),
-            self._get_task_repr(task),
+            self._get_repr(task),
             split_count,
             time.perf_counter() - start_time,
         )
@@ -144,7 +144,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
                 parents=[task_id],
                 payload=self.get_summary(),
             )
-            for target_name in result_queue.target_names:
+            for target_name in result_queue.get_target_names():
                 downstream_input_id = self.ctree_client.emit(
                     "task.input",
                     parents=[split_id],
