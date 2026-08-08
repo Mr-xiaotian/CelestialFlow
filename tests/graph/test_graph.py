@@ -10,8 +10,8 @@ from celestialflow import (
 from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_event import LocalEventClient
 from celestialflow.runtime.util_errors import (
+    InvalidOptionError,
     NodeNotFoundError,
-    StageModeError,
 )
 
 
@@ -107,7 +107,7 @@ class TestTaskGraphBasic:
         graph.set_stages(stages=[stage])
         stage.stage_mode = "invalid_mode"  # 绕过 set_stage_mode 校验，模拟非法状态
 
-        with pytest.raises(StageModeError):
+        with pytest.raises(InvalidOptionError):
             graph._execute_stage(stage)
 
     def test_graph_dag_two_nodes(self):

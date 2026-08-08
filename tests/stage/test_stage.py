@@ -1,10 +1,7 @@
 import pytest
 
 from celestialflow import TaskStage
-from celestialflow.runtime.util_errors import (
-    ExecutionModeError,
-    StageModeError,
-)
+from celestialflow.runtime.util_errors import InvalidOptionError
 
 
 # =========================
@@ -50,7 +47,7 @@ class TestTaskStageConfig:
 
     def test_invalid_stage_mode(self):
         """测试非法节点模式配置：应抛出特定的 StageModeError 异常"""
-        with pytest.raises(StageModeError):
+        with pytest.raises(InvalidOptionError):
             TaskStage("AddOneInvalidStageMode", add_one, stage_mode="invalid")
 
     def test_valid_execution_mode_serial(self):
@@ -70,7 +67,7 @@ class TestTaskStageConfig:
 
     def test_invalid_execution_mode(self):
         """测试非法执行模式配置：应抛出特定的 ExecutionModeError 异常"""
-        with pytest.raises(ExecutionModeError):
+        with pytest.raises(InvalidOptionError):
             TaskStage("AddOneInvalidExecMode", add_one, execution_mode="invalid")
 
     def test_summary_contains_stage_mode(self):

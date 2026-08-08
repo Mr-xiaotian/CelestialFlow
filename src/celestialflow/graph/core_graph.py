@@ -15,9 +15,8 @@ from ..persistence import get_fallback_spout, get_log_inlet, get_log_spout
 from ..persistence.util_sqlite import load_tasks_grouped_by_stage
 from ..runtime.util_errors import (
     DuplicateNodeError,
+    InvalidOptionError,
     NodeNotFoundError,
-    ScheduleModeError,
-    StageModeError,
 )
 from ..runtime.util_estimators import calc_remaining
 from ..runtime.util_event import EventClient, LocalEventClient
@@ -202,14 +201,12 @@ class TaskGraph:
         设置任务链的执行模式
 
         :param schedule_mode: 节点执行模式, 可选值为 'eager' 或 'staged'
-        :raises ScheduleModeError: schedule_mode 不是 'eager' 或 'staged'
+        :raises InvalidOptionError: schedule_mode 不是 'eager' 或 'staged'
         """
-        if schedule_mode == "eager":
-            self.schedule_mode = "eager"
-        elif schedule_mode == "staged":
-            self.schedule_mode = "staged"
-        else:
-            raise ScheduleModeError(schedule_mode)
+        valid_modes = ("eager", "staged")
+        if schedule_mode not in valid_modes:
+            raise InvalidOptionError("schedule mode", schedule_mode, valid_modes)
+        self.schedule_mode = schedule_mode
 
     def set_reporter(self, reporter: ReporterProtocol) -> None:
         """
@@ -554,7 +551,7 @@ class TaskGraph:
         elif stage.stage_mode == "serial":
             stage.start_stage()
         else:
-            raise StageModeError(stage.stage_mode)
+            raise InvalidOptionError("stage mode", stage.stage_mode, ("serial", "thread"))
 
     async def _execute_stage_async(self, stage: AnyTaskStage) -> None:
         """

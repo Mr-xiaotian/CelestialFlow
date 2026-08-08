@@ -7,13 +7,7 @@ from typing import Any
 
 from ..persistence import get_log_inlet
 from ..runtime import TaskInQueue, TaskOutQueue
-from ..runtime.util_errors import (
-    AsyncModeError,
-    ExecutionModeError,
-    GraphManagedError,
-    StageModeError,
-    UnconsumedError,
-)
+from ..runtime.util_errors import GraphManagedError, InvalidOptionError, UnconsumedError
 from ..runtime.util_estimators import (
     calc_elapsed,
     calc_remaining,
@@ -92,14 +86,12 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'thread'（线程）
 
         :param stage_mode: 当前节点执行模式
-        :raises StageModeError: stage_mode 不是 'serial' 或 'thread'
+        :raises InvalidOptionError: stage_mode 不是 'serial' 或 'thread'
         """
-        if stage_mode == "thread":
-            self.stage_mode = "thread"
-        elif stage_mode == "serial":
-            self.stage_mode = "serial"
-        else:
-            raise StageModeError(stage_mode)
+        valid_modes = ("serial", "thread")
+        if stage_mode not in valid_modes:
+            raise InvalidOptionError("stage mode", stage_mode, valid_modes)
+        self.stage_mode = stage_mode
 
     # ==== 绑定 ====
     def get_binding_counter(self, _downstream_name: str) -> Any:
@@ -290,7 +282,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
             elif self.execution_mode == "serial":
                 self.dispatch.dispatch_serial()
             else:
-                raise ExecutionModeError(self.execution_mode)
+                raise InvalidOptionError("execution mode", self.execution_mode, ("serial", "thread"))
         except Exception as exception:
             error_list.append(exception)
         finally:
@@ -306,13 +298,13 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         与 :meth:`start_stage` 的区别：async 模式不再内部调用 ``asyncio.run``，
         而是直接 ``await`` 异步调度器，避免嵌套事件循环导致的崩溃。
 
-        :raises AsyncModeError: execution_mode 不是 'async' 时触发
+        :raises InvalidOptionError: execution_mode 不是 'async' 时触发
         :note:
             TaskStage 为一次性对象；当前实例完成一次 start_stage_async() 生命周期后，
             不保证可安全再次运行。需要重复执行时请重新创建 TaskStage。
         """
         if self.execution_mode != "async":
-            raise AsyncModeError(self.execution_mode)
+            raise InvalidOptionError("execution mode", self.execution_mode, ("async",))
 
         start_perf = time.perf_counter()
         self.start_time = time.time()

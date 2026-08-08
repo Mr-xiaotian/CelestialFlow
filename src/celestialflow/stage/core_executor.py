@@ -23,12 +23,7 @@ from ..runtime import (
     TaskMetrics,
     TaskOutQueue,
 )
-from ..runtime.util_errors import (
-    AsyncModeError,
-    ConfigurationError,
-    ExecutionModeError,
-    PersistedError,
-)
+from ..runtime.util_errors import ConfigurationError, InvalidOptionError, PersistedError
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import format_repr
 from ..runtime.util_types import (
@@ -179,14 +174,13 @@ class TaskExecutor[T, R]:
         设置执行模式
 
         :param execution_mode: 执行模式，可以是 'thread'（线程）, 'async'（异步）, 'serial'（串行）
-        :raises ExecutionModeError: execution_mode 不是合法值
+        :raises InvalidOptionError: execution_mode 不是合法值
         :raises ConfigurationError: 异步模式下 func 不是协程函数
         """
         valid_modes = ("serial", "thread", "async")
-        if execution_mode in valid_modes:
-            self.execution_mode = execution_mode
-        else:
-            raise ExecutionModeError(execution_mode)
+        if execution_mode not in valid_modes:
+            raise InvalidOptionError("execution mode", execution_mode, valid_modes)
+        self.execution_mode = execution_mode
 
         if execution_mode == "async" and not inspect.iscoroutinefunction(self.func):
             raise ConfigurationError(
@@ -562,7 +556,7 @@ class TaskExecutor[T, R]:
             elif self.execution_mode == "serial":
                 self.dispatch.dispatch_serial()
             else:
-                raise ExecutionModeError(self.execution_mode)
+                raise InvalidOptionError("execution mode", self.execution_mode, ("serial", "thread"))
         except Exception as exception:
             error_list.append(exception)
         finally:
@@ -576,13 +570,13 @@ class TaskExecutor[T, R]:
         异步地执行任务。
 
         :param task_source: 任务迭代器或者生成器
-        :raises AsyncModeError: execution_mode 不是 'async' 时触发
+        :raises InvalidOptionError: execution_mode 不是 'async' 时触发
         :note:
             TaskExecutor 为一次性对象；当前实例完成一次 start_async() 后，不保证可
             安全再次调用。需要重复执行时请创建新的 TaskExecutor。
         """
         if self.execution_mode != "async":
-            raise AsyncModeError(self.execution_mode)
+            raise InvalidOptionError("execution mode", self.execution_mode, ("async",))
 
         start_perf = time.perf_counter()
         error_list: list[Exception] = []

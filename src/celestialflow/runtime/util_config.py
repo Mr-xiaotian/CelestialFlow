@@ -5,7 +5,7 @@ import tomllib
 from pathlib import Path
 
 from .util_constant import LEVEL_DICT
-from .util_errors import LogLevelError
+from .util_errors import InvalidOptionError
 
 
 def load_log_level_from_pyproject() -> str:
@@ -31,7 +31,9 @@ def load_log_level_from_pyproject() -> str:
 
                 log_level = str(level).upper()
                 if log_level not in LEVEL_DICT:
-                    raise LogLevelError(log_level)
+                    raise InvalidOptionError(
+                        "log level", log_level, tuple(LEVEL_DICT.keys())
+                    )
                 return log_level
             except tomllib.TOMLDecodeError:
                 continue
