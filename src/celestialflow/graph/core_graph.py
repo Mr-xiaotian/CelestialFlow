@@ -21,10 +21,10 @@ from ..runtime.util_errors import (
 )
 from ..runtime.util_estimators import calc_remaining
 from ..runtime.util_event import EventClient, LocalEventClient
+from ..runtime.util_format import cluster_by_value_sorted
 from ..runtime.util_types import TerminationSignal
 from ..stage.core_stage import TaskStage
 from ..stage.util_types import AnyTaskStage
-from ..utils.util_collections import cluster_by_value_sorted
 from .util_estimators import calc_global_pending
 from .util_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
 from .util_serialize import build_structure_graph, format_structure_list_from_graph

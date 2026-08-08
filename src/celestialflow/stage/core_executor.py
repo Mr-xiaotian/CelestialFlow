@@ -30,11 +30,11 @@ from ..runtime.util_errors import (
     PersistedError,
 )
 from ..runtime.util_event import EventClient, LocalEventClient
+from ..runtime.util_format import format_repr
 from ..runtime.util_types import (
     CTreeEvent,
     TerminationSignal,
 )
-from ..utils.util_format import format_repr
 from .core_dispatch import TaskDispatch
 from .util_callable import validate_executor_func_signature
 

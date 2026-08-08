@@ -1,6 +1,7 @@
 # utils/util_format.py
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
 from itertools import zip_longest
@@ -181,3 +182,17 @@ def format_timestamp(timestamp: float) -> str:
     :return: 格式化后的时间字符串
     """
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def cluster_by_value_sorted(input_dict: dict[str, int]) -> dict[int, list[str]]:
+    """
+    按值聚类，并确保按 value（键）升序排序
+
+    :param input_dict: 输入字典
+    :return: 聚类后的字典，键为值，值为键的列表
+    """
+    clusters: defaultdict[int, list[str]] = defaultdict(list)
+    for key, val in input_dict.items():
+        clusters[val].append(key)
+
+    return dict(sorted(clusters.items()))  # 按键排序
