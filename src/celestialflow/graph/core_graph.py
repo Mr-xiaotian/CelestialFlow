@@ -40,7 +40,7 @@ class TaskGraph:
     - 如需再次运行相同流程，请重新创建 TaskGraph 实例及其关联的 TaskStage。
     """
 
-    # ==== Class-level type annotations ====
+    # ==== 类级类型注解 ====
     name: str
     graph_id: str
     schedule_mode: str
@@ -347,7 +347,7 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            # 收集并持久化每个 stage 中未消费的任务
+            # 收集并持久化每个节点中未消费的任务
             for stage in self.stage_dict.values():
                 stage.drain_task_queue()
         except Exception as exception:
@@ -487,14 +487,14 @@ class TaskGraph:
         执行所有节点
         """
         if self.schedule_mode == "eager":
-            # eager schedule_mode：一次性执行所有节点
+            # eager 调度模式：一次性执行所有节点
             for stage in self.stage_dict.values():
                 self._execute_stage(stage)
 
             for t in self.threads:
                 t.join()
         elif self.schedule_mode == "staged":
-            # staged schedule_mode：一层层地顺序执行
+            # staged 调度模式：按层顺序执行
             for layer_level, layer in self.layers_dict.items():
                 get_log_inlet().start_layer(layer, layer_level)
                 start_perf = time.perf_counter()
@@ -506,7 +506,7 @@ class TaskGraph:
                     if stage.stage_mode == "thread":
                         threads.append(self.threads[-1])
 
-                # join 当前层的所有线程
+                # 等待当前层的所有线程结束
                 for t in threads:
                     t.join()
 
@@ -602,7 +602,7 @@ class TaskGraph:
         now = time.time()
         interval = self.reporter.interval
 
-        # 为全局预计 tasks_pending 收集数据
+        # 为全局预计待处理任务数收集数据
         running_processed_map: dict[str, int] = {}
         running_pending_map: dict[str, int] = {}
 

@@ -4,7 +4,7 @@ import pickle
 from typing import Any, cast
 
 
-# ======== 处理hash任务 ========
+# ==== 哈希工具 ====
 def make_hashable(obj: Any) -> Any:
     """
     把 obj 转换成可哈希的形式。
@@ -15,13 +15,13 @@ def make_hashable(obj: Any) -> Any:
     if isinstance(obj, tuple | list):
         return tuple(make_hashable(e) for e in cast(list[Any], obj))
     elif isinstance(obj, dict):
-        # dict 转换成 (key, value) 对的元组，且按 key 排序以确保哈希结果一致
+        # 将字典转换成按 key 排序的 (key, value) 元组，保证哈希结果稳定
         obj_dict = cast(dict[Any, Any], obj)
         return tuple(
             sorted((make_hashable(k), make_hashable(v)) for k, v in obj_dict.items())
         )
     elif isinstance(obj, set):
-        # set 转换成排序后的 tuple
+        # 将集合转换成排序后的元组
         return tuple(sorted(make_hashable(e) for e in cast(set[Any], obj)))
     else:
         # 基本类型直接返回

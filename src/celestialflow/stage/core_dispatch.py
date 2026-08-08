@@ -112,7 +112,7 @@ class TaskDispatch[T, R]:
         )
         return signal
 
-    # ==== Worker ====
+    # ==== 工作执行 ====
     def _worker(self, task_envelope: TaskEnvelope[T]) -> None:
         """
         同步执行单个任务（计时、成功/失败处理）
@@ -174,7 +174,7 @@ class TaskDispatch[T, R]:
         except Exception as e:
             get_log_inlet().worker_crash(e)
 
-    # ==== Dispatch ====
+    # ==== 调度 ====
     def dispatch_serial(self) -> None:
         """
         串行地执行任务
@@ -222,7 +222,7 @@ class TaskDispatch[T, R]:
                 if self._pool is None:
                     raise InitializationError("execution pool has not been initialized")
 
-                # 等待有空闲 slot
+                # 等待出现空闲执行槽位
                 while len(pending) >= self.max_workers:
                     _done, pending = wait(pending, return_when=FIRST_COMPLETED)
 

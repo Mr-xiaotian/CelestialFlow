@@ -32,7 +32,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
     - 如需再次运行相同节点，请重新创建新的 TaskStage，并重新接入新的 TaskGraph。
     """
 
-    # Class-level type annotations (TaskStage-specific)
+    # ==== 类级类型注解 ====
     _status: int
     _last_elapsed: float
     _last_pending: int
@@ -81,7 +81,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         if not hasattr(self, "_status"):
             self._status = int(StageStatus.NOT_STARTED)
 
-        # Reporter 可能会在 stage 真正启动前先采集一次快照。
+        # 上报器可能会在节点真正启动前先采集一次快照。
         self.start_time = 0.0
         self._last_elapsed = 0.0
         self._last_pending = 0

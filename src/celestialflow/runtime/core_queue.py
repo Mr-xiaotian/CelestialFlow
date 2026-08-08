@@ -13,7 +13,7 @@ from .util_errors import (
 from .util_types import TerminationIdPool, TerminationSignal
 
 
-# ==== TaskInQueue ====
+# ==== 输入队列 ====
 class TaskInQueue[T]:
     """任务输入队列，聚合多个上游来源的任务和终止信号。"""
 
@@ -100,7 +100,7 @@ class TaskInQueue[T]:
             ids=[self.termination_dict[name] for name in self.source_names]
         )
 
-    # ==== put / get ====
+    # ==== 入队与出队 ====
     def put(self, item: TaskEnvelope[T] | TerminationSignal) -> None:
         """
         入队任务或终止信号
@@ -174,7 +174,7 @@ class TaskInQueue[T]:
         return results
 
 
-# ==== TaskOutQueue ====
+# ==== 输出队列 ====
 class TaskOutQueue[T]:
     """任务输出队列，将任务广播到一个或多个下游队列通道。"""
 
@@ -199,7 +199,7 @@ class TaskOutQueue[T]:
         self.target_names = []
         self._name_to_idx = {}
 
-    # ==== put ====
+    # ==== 入队 ====
 
     def add_queue(self, queue: Any, name: str) -> None:
         """

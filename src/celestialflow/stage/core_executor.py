@@ -49,7 +49,7 @@ class TaskExecutor[T, R]:
     - 如需重复执行同一逻辑，请重新创建新的 TaskExecutor 实例。
     """
 
-    # Class-level type annotations
+    # ==== 类级类型注解 ====
     task_queue: TaskInQueue[T]
     result_queue: TaskOutQueue[R]
     max_workers: int
@@ -137,7 +137,7 @@ class TaskExecutor[T, R]:
         """
         self.metrics.reset_state()
 
-    # ==== Observer ====
+    # ==== 观察者 ====
     def add_observer(self, observer: BaseObserver) -> None:
         """
         注册观察者。

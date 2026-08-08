@@ -73,7 +73,7 @@ class TaskMetrics:
 
         - processed_set：用于重复检测
         """
-        self.processed_set = set()  # task_hash
+        self.processed_set = set()  # 已处理任务哈希集合
 
     # ==== 观察者 ====
     def add_observer(self, observer: BaseObserver) -> None:

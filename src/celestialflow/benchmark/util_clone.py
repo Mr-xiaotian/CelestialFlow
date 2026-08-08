@@ -106,7 +106,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     :param graph: 要克隆的任务图
     :return: 克隆任务图
     """
-    # BFS 收集所有 stage（通过 graph.out_edges）
+    # 通过广度优先遍历收集所有节点（沿用任务图出边表的顺序）
     visited: set[str] = set()
     ordered_stages: list[AnyTaskStage] = []
     queue: deque[AnyTaskStage] = deque(graph.get_source_stages())
@@ -121,12 +121,12 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
             next_stage: AnyTaskStage = graph.stage_dict[next_stage_name]
             queue.append(next_stage)
 
-    # 建立 old_name -> cloned_stage 映射
+    # 建立原节点名到克隆节点的映射
     name_map: dict[str, AnyTaskStage] = {}
     for stage in ordered_stages:
         name_map[stage.get_name()] = clone_stage(stage)
 
-    # 构建新 graph
+    # 构建新的任务图
     all_cloned_stages: list[AnyTaskStage] = list(name_map.values())
 
     cloned_graph: TaskGraph = TaskGraph(

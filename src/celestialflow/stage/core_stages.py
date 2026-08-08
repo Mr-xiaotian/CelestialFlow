@@ -11,7 +11,7 @@ from ..utils.util_format import format_repr
 from .core_stage import TaskStage
 
 
-# ==== TaskSplitter ====
+# ==== 任务拆分器 ====
 class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
     """TaskSplitter: 将单个任务拆分为多个子任务，注入下游队列。
 
@@ -168,7 +168,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         return split_count
 
 
-# ==== TaskRouter ====
+# ==== 任务路由器 ====
 class TaskRouter[T](TaskStage[T, tuple[str, T]]):
     """TaskRouter: 根据路由信息将任务分发到不同的下游 stage。"""
 
