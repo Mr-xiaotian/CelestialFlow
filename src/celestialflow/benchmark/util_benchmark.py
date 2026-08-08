@@ -129,7 +129,7 @@ async def benchmark_graph(
         test_table_list,
         stage_modes,
         execution_modes,
-        r"stage\execution",
+        "stage/execution",
     )
     print(f"Time table:\n{time_table}")
     return {

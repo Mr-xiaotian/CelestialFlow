@@ -67,7 +67,7 @@ class TaskCross(TaskGraph):
         super().__init__(name=name, schedule_mode=schedule_mode)
 
         all_stages: list[AnyTaskStage] = []
-        for _, curr_layer in enumerate(layers):
+        for curr_layer in layers:
             for stage in curr_layer:
                 stage.set_stage_mode(stage_mode)
             all_stages.extend(curr_layer)

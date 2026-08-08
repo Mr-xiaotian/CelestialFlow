@@ -7,7 +7,7 @@ from .util_hash import object_to_hash
 class TaskEnvelope[T]:
     """任务信封，封装原始任务及其哈希、ID 等元信息。"""
 
-    __slots__: tuple[str, ...] = ("hash", "id", "task")
+    __slots__: tuple[str, ...] = ("_hash", "_id", "_task")
 
     def __init__(
         self,
@@ -20,9 +20,9 @@ class TaskEnvelope[T]:
         :param task: 原始任务
         :param id: 任务 ID
         """
-        self.task: T = task
-        self.hash: bytes | None = None
-        self.id: int = id
+        self._task: T = task
+        self._hash: bytes | None = None
+        self._id: int = id
 
     def get_task(self) -> T:
         """
@@ -30,7 +30,7 @@ class TaskEnvelope[T]:
 
         :return: 原始任务
         """
-        return self.task
+        return self._task
 
     def get_hash(self) -> bytes:
         """
@@ -40,16 +40,16 @@ class TaskEnvelope[T]:
 
         :return: 任务哈希
         """
-        if self.hash is not None:
-            return self.hash
+        if self._hash is not None:
+            return self._hash
 
         try:
-            self.hash = object_to_hash(self.task)
+            self._hash = object_to_hash(self._task)
         except Exception:
             # 不可 hash 的任务退化为仅当前 envelope 唯一的兜底值。
             # 使用长度和前缀都区别于 SHA1 的字节串，避免与正常内容哈希冲突。
-            self.hash = f"__unhashable_task__:{self.id}".encode("ascii")
-        return self.hash
+            self._hash = f"__unhashable_task__:{self._id}".encode("ascii")
+        return self._hash
 
     def get_id(self) -> int:
         """
@@ -57,4 +57,4 @@ class TaskEnvelope[T]:
 
         :return: 任务 ID
         """
-        return self.id
+        return self._id
