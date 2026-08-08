@@ -7,7 +7,6 @@ from ..persistence import get_fallback_inlet, get_log_inlet
 from ..runtime import TaskEnvelope, TaskOutQueue
 from ..runtime.util_errors import InvalidOptionError
 from ..runtime.util_types import ValueWrapper
-from ..utils.util_format import format_repr
 from .core_stage import TaskStage
 
 
@@ -259,7 +258,7 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
 
         get_log_inlet().route_success(
             self.get_func_name(),
-            f"({format_repr(task, self.max_info)})",
+            self._get_repr(task),
             target,
             time.perf_counter() - start_time,
             task_id,

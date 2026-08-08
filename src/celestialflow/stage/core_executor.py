@@ -319,7 +319,7 @@ class TaskExecutor[T, R]:
         get_fallback_inlet().task_in(self.get_name(), input_id, task)
         get_log_inlet().task_input(
             self.get_func_name(),
-            self._get_task_repr(task),
+            self._get_repr(task),
             self.get_name(),
             input_id,
         )
@@ -340,23 +340,14 @@ class TaskExecutor[T, R]:
             termination_id,
         )
 
-    def _get_task_repr(self, task: T) -> str:
+    def _get_repr(self, task: T | R) -> str:
         """
-        获取任务对象的可读字符串表示
+        获取任务/结果对象的可读字符串表示
 
         :param task: 任务对象
         :return: 任务信息字符串
         """
         return f"({format_repr(task, self.max_info)})"
-
-    def _get_result_repr(self, result: Any) -> str:
-        """
-        获取结果信息
-
-        :param result: 任务结果
-        :return: 结果信息字符串
-        """
-        return f"({format_repr(result, self.max_info)})"
 
     # ==== 结果处理 ====
     def process_task_success(
@@ -383,15 +374,15 @@ class TaskExecutor[T, R]:
 
         get_log_inlet().task_success(
             self.get_func_name(),
-            self._get_task_repr(task),
+            self._get_repr(task),
             self.execution_mode,
-            self._get_result_repr(result),
+            self._get_repr(result),
             time.perf_counter() - start_time,
             task_id,
             result_id,
         )
 
-        for target_name in self.result_queue.target_names:
+        for target_name in self.result_queue.get_target_names():
             downstream_input_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
@@ -434,7 +425,7 @@ class TaskExecutor[T, R]:
 
         get_log_inlet().task_retry(
             self.get_func_name(),
-            self._get_task_repr(task),
+            self._get_repr(task),
             retry_time,
             exception,
             task_id,
@@ -469,7 +460,7 @@ class TaskExecutor[T, R]:
         get_fallback_inlet().task_fail(task_id, error_id, exception)
         get_log_inlet().task_fail(
             self.get_func_name(),
-            self._get_task_repr(task),
+            self._get_repr(task),
             exception,
             task_id,
             error_id,
@@ -493,7 +484,7 @@ class TaskExecutor[T, R]:
         )
         get_log_inlet().task_duplicate(
             self.get_func_name(),
-            self._get_task_repr(task),
+            self._get_repr(task),
             task_id,
             duplicate_id,
         )
