@@ -55,9 +55,6 @@ class TaskGraph:
     in_edges: dict[str, list[str]]
     order_graph: OrderGraph
     start_time: float
-    is_report: bool
-    report_host: str
-    report_port: int
     reporter: ReporterProtocol
     ctree_client: EventClient
     structure_graph: dict[str, Any]
@@ -216,11 +213,9 @@ class TaskGraph:
 
     def set_reporter(self, reporter: ReporterProtocol) -> None:
         """
-        设定报告器
+        设定任务图绑定的 reporter。
 
-        :param is_report: 是否启用报告器，默认 False
-        :param host: 报告器主机地址，默认 "127.0.0.1"
-        :param port: 报告器端口，默认 5000
+        :param reporter: 需绑定到当前任务图的 reporter 实例
         """
         self.reporter = reporter
 
