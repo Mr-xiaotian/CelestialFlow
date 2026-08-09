@@ -1,4 +1,4 @@
-.PHONY: format build
+.PHONY: format build test
 
 format:
 	uv run ruff format .
@@ -7,3 +7,6 @@ format:
 build:
 	rm -rf dist
 	uv build
+
+test:
+	uv run pytest tests
