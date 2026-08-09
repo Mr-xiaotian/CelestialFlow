@@ -1,5 +1,6 @@
 # stage/core_stages.py
 import time
+import warnings
 from collections.abc import Callable, Iterable
 from typing import Any, cast
 
@@ -52,7 +53,15 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         self.split_counter = ValueWrapper(0, self.metrics.lock)
 
     def set_execution_mode(self, execution_mode: str) -> None:
-        """覆写父类方法，将执行模式固定为串行"""
+        """覆写父类方法，将执行模式固定为串行并提示不支持其他模式。"""
+        if execution_mode != "serial":
+            warnings.warn(
+                (
+                    "TaskSplitter only accepts execution_mode='serial'. "
+                    f"Got {execution_mode!r}; it will remain 'serial'."
+                ),
+                stacklevel=2,
+            )
         super().set_execution_mode("serial")
 
     def get_binding_counter(self, _downstream_name: str) -> Any:

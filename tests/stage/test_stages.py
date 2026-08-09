@@ -11,6 +11,15 @@ class TestTaskSplitter:
         assert splitter.max_retries == 0
         assert splitter.split_counter.get() == 0
 
+    def test_splitter_warns_when_execution_mode_is_not_serial(self):
+        """测试 TaskSplitter 在设置非 serial 模式时会给出警告并保持 serial。"""
+        splitter = TaskSplitter("SplitterWarn")
+
+        with pytest.warns(UserWarning, match="TaskSplitter only accepts"):
+            splitter.set_execution_mode("thread")
+
+        assert splitter.execution_mode == "serial"
+
     def test_splitter_process_success(self):
         """测试 TaskSplitter 在图中：成功执行后下游应收到分裂后的独立任务"""
         def noop(x):
