@@ -1,6 +1,6 @@
 from typing import Any
 
-from demo_utils import fibonacci, fibonacci_async
+from demo_utils import fibonacci
 from tqdm import tqdm
 
 from celestialflow import BaseObserver, TaskExecutor
@@ -138,7 +138,8 @@ def demo_progress_observer() -> None:
     )
     executor.add_observer(TaskProgress())
 
-    executor.start(test_task)
+    executor.put_tasks(test_task)
+    executor.start()
 
 
 def demo_print_observer() -> None:
@@ -153,7 +154,8 @@ def demo_print_observer() -> None:
     )
     executor.add_observer(PrintObserver())
 
-    executor.start(test_task)
+    executor.put_tasks(test_task)
+    executor.start()
 
 
 if __name__ == "__main__":

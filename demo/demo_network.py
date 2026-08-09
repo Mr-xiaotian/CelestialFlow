@@ -86,11 +86,13 @@ def demo_network_step1() -> None:
     print("─── Step 1: 每个节点 y = w*x + b ───\n")
     print(f"  A1(x) = 0.5 * x,  输入: {init_tasks[A1.get_name()]}")
     print(f"  A2(x) = 2.0 * x,  输入: {init_tasks[A2.get_name()]}")
-    print(f"  B1..B3(x) = 1.0 * x")
-    print(f"  C(x) = 1.0 * x")
+    print("  B1..B3(x) = 1.0 * x")
+    print("  C(x) = 1.0 * x")
     print("  运行中...")
 
-    cross.start_graph(init_tasks, True)
+    A1.put_tasks(init_tasks[A1.get_name()], put_termination_signal=True)
+    A2.put_tasks(init_tasks[A2.get_name()], put_termination_signal=True)
+    cross.start_graph()
 
     # ── 收集结果 ──────────────────────────────────────────────
     success_pairs = C.get_success_pairs()

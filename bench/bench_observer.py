@@ -14,7 +14,6 @@ from tqdm import tqdm
 
 from celestialflow import BaseObserver, TaskExecutor
 
-
 # ── 工作函数 ──────────────────────────────────────────────────────────
 
 
@@ -24,9 +23,7 @@ def fibonacci(n: Any) -> int:
         raise TypeError("n must be an integer")
     elif n <= 0:
         raise ValueError("n must be a positive integer")
-    elif n == 1:
-        return 1
-    elif n == 2:
+    elif n == 1 or n == 2:
         return 1
     prev, curr = 1, 1
     for _ in range(3, n + 1):
@@ -191,7 +188,8 @@ def run_benchmark(
         executor.add_observer(observer)
 
     start = time.perf_counter()
-    executor.start(task_data)
+    executor.put_tasks(task_data)
+    executor.start()
     elapsed = time.perf_counter() - start
     return elapsed
 
@@ -270,7 +268,7 @@ def bench_observer_multirun() -> None:
         print(f"  Run {run + 1}: no={t_no:.4f}s  print={t_print:.4f}s  "
               f"tqdm={t_tqdm:.4f}s")
 
-    print("\n--- Summary (averaged over {} runs) ---".format(runs))
+    print(f"\n--- Summary (averaged over {runs} runs) ---")
     for key, times in results.items():
         avg = sum(times) / len(times)
         print(f"  {key:15s}: avg={avg:.4f}s  "

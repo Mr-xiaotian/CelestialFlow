@@ -7,7 +7,7 @@ from celestialflow import TaskExecutor, TaskProgress
 
 
 def demo_fibonacci_serial() -> None:
-    test_task_1: list[Any] = list(range(25, 32)) + [0, 27, None, 0, ""]
+    test_task_1: list[Any] = [*list(range(25, 32)), 0, 27, None, 0, ""]
 
     executor = TaskExecutor(
         "FibonacciSerial",
@@ -19,11 +19,12 @@ def demo_fibonacci_serial() -> None:
     executor.set_retry_exceptions(ValueError)
     executor.add_observer(TaskProgress())
 
-    executor.start(test_task_1)
+    executor.put_tasks(test_task_1)
+    executor.start()
 
 
 def demo_fibonacci_thread() -> None:
-    test_task_1: list[Any] = list(range(25, 32)) + [0, 27, None, 0, ""]
+    test_task_1: list[Any] = [*list(range(25, 32)), 0, 27, None, 0, ""]
 
     executor = TaskExecutor(
         "FibonacciThread",
@@ -35,11 +36,12 @@ def demo_fibonacci_thread() -> None:
     executor.set_retry_exceptions(ValueError)
     executor.add_observer(TaskProgress())
 
-    executor.start(test_task_1)
+    executor.put_tasks(test_task_1)
+    executor.start()
 
 
 async def demo_fibonacci_async() -> None:
-    test_task_1: list[Any] = list(range(25, 32)) + [0, 27, None, 0, ""]
+    test_task_1: list[Any] = [*list(range(25, 32)), 0, 27, None, 0, ""]
 
     executor = TaskExecutor(
         "FibonacciAsync",
@@ -51,7 +53,8 @@ async def demo_fibonacci_async() -> None:
     executor.set_retry_exceptions(ValueError)
     executor.add_observer(TaskProgress())
 
-    await executor.start_async(test_task_1)
+    executor.put_tasks(test_task_1)
+    await executor.start_async()
 
 
 if __name__ == "__main__":

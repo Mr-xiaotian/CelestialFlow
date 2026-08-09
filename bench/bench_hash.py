@@ -5,7 +5,8 @@ import pickle
 import statistics
 import timeit
 import uuid
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from celestialflow import format_table
 

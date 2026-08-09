@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import struct
 import time
+from collections.abc import Iterable
 from multiprocessing import (
     Lock,
     Process,
@@ -14,7 +15,7 @@ from multiprocessing import (
 from multiprocessing import (
     Queue as MPQueue,
 )
-from typing import Any, Iterable
+from typing import Any
 
 from bench_utils import summarize
 
@@ -49,7 +50,7 @@ def make_payload(i: int, mode: str) -> bytes:
     if mode == "int":
         return struct.pack("<Q", i)
     if mode == "small":
-        return f"item-{i}".encode("utf-8")
+        return f"item-{i}".encode()
     if mode == "medium":
         return (f"{i}-" + ("x" * 128)).encode("utf-8")
     if mode == "large":

@@ -6,7 +6,12 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from celestialflow import TaskGraph, TaskSplitter, TaskStage, TaskReporter, benchmark_graph
+from celestialflow import (
+    TaskGraph,
+    TaskSplitter,
+    TaskStage,
+    benchmark_graph,
+)
 
 load_dotenv()
 report_host = os.getenv("REPORT_HOST", "127.0.0.1")

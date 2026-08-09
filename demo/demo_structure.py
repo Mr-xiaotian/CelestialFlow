@@ -1,7 +1,6 @@
 import os
 
-from dotenv import load_dotenv
-
+from celestialtree import Client as CelestialTreeClient
 from demo_utils import (
     add_5,
     add_10,
@@ -9,8 +8,7 @@ from demo_utils import (
     add_one_sleep,
     square,
 )
-
-from celestialtree import Client as CelestialTreeClient
+from dotenv import load_dotenv
 
 from celestialflow import (
     TaskChain,
@@ -19,9 +17,9 @@ from celestialflow import (
     TaskGraph,
     TaskGrid,
     TaskLoop,
+    TaskReporter,
     TaskStage,
     TaskWheel,
-    TaskReporter,
 )
 
 load_dotenv()
@@ -58,11 +56,8 @@ def demo_chain() -> None:
     chain.set_reporter(TaskReporter(report_host, report_port, chain))
     chain.set_ctree(ctree_client)
 
-    chain.start_graph(
-        {
-            stageA.get_name(): range(20),
-        }
-    )
+    stageA.put_tasks(range(20))
+    chain.start_graph()
 
 
 def demo_forest() -> None:
@@ -175,7 +170,10 @@ def demo_forest() -> None:
         stageF.get_name(): list(range(21, 31)),
     }
 
-    graph.start_graph(init_tasks)
+    stageA.put_tasks(init_tasks[stageA.get_name()])
+    stageB.put_tasks(init_tasks[stageB.get_name()])
+    stageF.put_tasks(init_tasks[stageF.get_name()])
+    graph.start_graph()
 
 
 def demo_cross() -> None:
@@ -204,7 +202,10 @@ def demo_cross() -> None:
         stageC.get_name(): range(11, 21),
     }
 
-    cross.start_graph(init_tasks)
+    stageA.put_tasks(init_tasks[stageA.get_name()], put_termination_signal=True)
+    stageB.put_tasks(init_tasks[stageB.get_name()], put_termination_signal=True)
+    stageC.put_tasks(init_tasks[stageC.get_name()], put_termination_signal=True)
+    cross.start_graph()
 
 
 def demo_network() -> None:
@@ -231,7 +232,9 @@ def demo_network() -> None:
         A2.get_name(): range(11, 21),
     }
 
-    cross.start_graph(init_tasks, True)
+    A1.put_tasks(init_tasks[A1.get_name()], put_termination_signal=True)
+    A2.put_tasks(init_tasks[A2.get_name()], put_termination_signal=True)
+    cross.start_graph()
 
 
 def demo_star() -> None:
@@ -250,7 +253,8 @@ def demo_star() -> None:
     star.set_reporter(TaskReporter(report_host, report_port, star))
     star.set_ctree(ctree_client)
 
-    star.start_graph({core.get_name(): range(1, 11)})
+    core.put_tasks(range(1, 11))
+    star.start_graph()
 
 
 def demo_fanin() -> None:
@@ -269,13 +273,10 @@ def demo_fanin() -> None:
     fainin.set_reporter(TaskReporter(report_host, report_port, fainin))
     fainin.set_ctree(ctree_client)
 
-    fainin.start_graph(
-        {
-            source1.get_name(): range(1, 11),
-            source2.get_name(): range(11, 21),
-            source3.get_name(): range(21, 31),
-        }
-    )
+    source1.put_tasks(range(1, 11), put_termination_signal=True)
+    source2.put_tasks(range(11, 21), put_termination_signal=True)
+    source3.put_tasks(range(21, 31), put_termination_signal=True)
+    fainin.start_graph()
 
 
 def demo_grid() -> None:
@@ -299,7 +300,8 @@ def demo_grid() -> None:
     init_dict: dict[str, list[int]] = {grid[0][0].get_name(): list(range(10))}
 
     # 4. 启动任务图
-    task_grid.start_graph(init_dict)
+    grid[0][0].put_tasks(init_dict[grid[0][0].get_name()])
+    task_grid.start_graph()
 
 
 # ========有环图========
@@ -316,7 +318,8 @@ def demo_loop() -> None:
     test_task_0 = range(1, 2)
     # test_task_1 = list(test_task_0) + [0, 6, None, 0, ""]
 
-    loop.start_graph({stageA.get_name(): test_task_0})
+    stageA.put_tasks(test_task_0)
+    loop.start_graph()
 
 
 def demo_wheel() -> None:
@@ -332,7 +335,8 @@ def demo_wheel() -> None:
     wheel.set_reporter(TaskReporter(report_host, report_port, wheel))
     wheel.set_ctree(ctree_client)
 
-    wheel.start_wheel({core.get_name(): range(1, 11)}, True)
+    core.put_tasks(range(1, 11), put_termination_signal=True)
+    wheel.start_graph()
 
 
 def demo_complete() -> None:
@@ -346,13 +350,10 @@ def demo_complete() -> None:
     complete.set_reporter(TaskReporter(report_host, report_port, complete))
     complete.set_ctree(ctree_client)
 
-    complete.start_complete(
-        {
-            n1.get_name(): range(1, 11),
-            n2.get_name(): range(11, 21),
-            n3.get_name(): range(21, 31),
-        }
-    )
+    n1.put_tasks(range(1, 11), put_termination_signal=True)
+    n2.put_tasks(range(11, 21), put_termination_signal=True)
+    n3.put_tasks(range(21, 31), put_termination_signal=True)
+    complete.start_graph()
 
 
 def demo_multi_cycle() -> None:
@@ -410,7 +411,8 @@ def demo_multi_cycle() -> None:
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
     graph.set_ctree(ctree_client)
 
-    graph.start_graph({A1.get_name(): range(1, 11)}, False)
+    A1.put_tasks(range(1, 11), put_termination_signal=False)
+    graph.start_graph()
 
 
 if __name__ == "__main__":

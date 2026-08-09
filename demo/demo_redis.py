@@ -6,12 +6,14 @@ from itertools import count
 from typing import Any, cast
 
 import redis
+from demo_utils import download_to_file, fibonacci, sleep_1, sum_int
 from dotenv import load_dotenv
 
-from demo_utils import download_to_file, fibonacci, sleep_1, sum_int
-
-from celestialflow import TaskGraph, TaskStage, TaskReporter
-from celestialflow.runtime.util_errors import CelestialFlowTimeoutError, RemoteWorkerError
+from celestialflow import TaskGraph, TaskReporter, TaskStage
+from celestialflow.runtime.util_errors import (
+    CelestialFlowTimeoutError,
+    RemoteWorkerError,
+)
 
 load_dotenv()
 
@@ -181,8 +183,9 @@ def demo_redis_ack_0() -> None:
     graph.connect([transport_stage], [ack_stage])
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
 
-    test_task: list[Any] = list(range(25, 37)) + [0, 27, None, 0, ""]
-    graph.start_graph({start_stage.get_name(): test_task})
+    test_task: list[Any] = [*list(range(25, 37)), 0, 27, None, 0, ""]
+    start_stage.put_tasks(test_task)
+    graph.start_graph()
 
 
 def demo_redis_ack_1() -> None:
@@ -226,7 +229,8 @@ def demo_redis_ack_1() -> None:
     test_task: list[tuple[int, int]] = [
         (random.randint(1, 100), random.randint(1, 100)) for _ in range(12)
     ]
-    graph.start_graph({start_stage.get_name(): test_task})
+    start_stage.put_tasks(test_task)
+    graph.start_graph()
 
 
 def demo_redis_ack_2() -> None:
@@ -277,7 +281,8 @@ def demo_redis_ack_2() -> None:
             "X:/Download/download_py/steam_2949210.jpg",
         ),
     ]
-    graph.start_graph({start_stage.get_name(): download_links})
+    start_stage.put_tasks(download_links)
+    graph.start_graph()
 
 
 def demo_redis_source_0() -> None:
@@ -316,12 +321,12 @@ def demo_redis_source_0() -> None:
     graph.connect([source_stage], [sleep_stage_1])
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
 
-    graph.start_graph(
-        {
-            sleep_stage_0.get_name(): list(range(25, 37)),
-            source_stage.get_name(): ["testReport:input" for i in range(12)],
-        }
+    sleep_stage_0.put_tasks(list(range(25, 37)), put_termination_signal=True)
+    source_stage.put_tasks(
+        ["testReport:input" for i in range(12)],
+        put_termination_signal=True,
     )
+    graph.start_graph()
 
 
 if __name__ == "__main__":

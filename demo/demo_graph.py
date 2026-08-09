@@ -1,8 +1,7 @@
 import os
 from typing import Any
 
-from dotenv import load_dotenv
-
+from celestialtree import Client as CelestialTreeClient
 from demo_utils import (
     async_double,
     async_to_str,
@@ -11,13 +10,12 @@ from demo_utils import (
     transform_enrich,
     transform_normalize,
 )
-
-from celestialtree import Client as CelestialTreeClient
+from dotenv import load_dotenv
 
 from celestialflow import (
     TaskGraph,
-    TaskStage,
     TaskReporter,
+    TaskStage,
 )
 
 load_dotenv()
@@ -90,7 +88,8 @@ def demo_etl_fan_out_fan_in() -> None:
     graph.connect([normalize, enrich], [load])
 
     raw_ids = list(range(1, 16))
-    graph.start_graph({extract.get_name(): raw_ids})
+    extract.put_tasks(raw_ids)
+    graph.start_graph()
 
 
 def demo_async_staged_pipeline() -> None:
@@ -128,7 +127,8 @@ def demo_async_staged_pipeline() -> None:
     graph.connect([stage_double], [stage_to_str])
 
     tasks: list[Any] = list(range(1, 21))
-    graph.start_graph({stage_double.get_name(): tasks})
+    stage_double.put_tasks(tasks)
+    graph.start_graph()
 
 
 

@@ -2,9 +2,8 @@ import os
 import time
 from typing import Any
 
-from dotenv import load_dotenv
-
 from celestialtree import Client as CelestialTreeClient
+from dotenv import load_dotenv
 
 from celestialflow import (
     TaskChain,
@@ -38,11 +37,8 @@ def bench_no_ctree() -> None:
     # chain.set_ctree(False)
 
     start_time = time.perf_counter()
-    chain.start_graph(
-        {
-            task_splitter.get_name(): [range(int(1e4))],
-        }
-    )
+    task_splitter.put_tasks([range(int(1e4))])
+    chain.start_graph()
     end_time = time.perf_counter()
     print(f"bench_no_ctree: {end_time - start_time}")
 
@@ -68,11 +64,8 @@ def bench_http_ctree() -> None:
     chain.set_ctree(http_ctree_client)
 
     start_time = time.perf_counter()
-    chain.start_graph(
-        {
-            task_splitter.get_name(): [range(int(1e4))],
-        }
-    )
+    task_splitter.put_tasks([range(int(1e4))])
+    chain.start_graph()
     end_time = time.perf_counter()
     print(f"bench_http_ctree: {end_time - start_time}")
 
@@ -98,11 +91,8 @@ def bench_grpc_ctree() -> None:
     chain.set_ctree(grpc_ctree_client)
 
     start_time = time.perf_counter()
-    chain.start_graph(
-        {
-            task_splitter.get_name(): [range(int(1e4))],
-        }
-    )
+    task_splitter.put_tasks([range(int(1e4))])
+    chain.start_graph()
     end_time = time.perf_counter()
     print(f"bench_grpc_ctree: {end_time - start_time}")
 

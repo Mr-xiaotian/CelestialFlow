@@ -1,8 +1,9 @@
 import random
 import sys
 import tracemalloc
+from collections.abc import Callable
 from time import perf_counter
-from typing import Any, Callable
+from typing import Any
 
 # ========== 配置 ==========
 N = 100_000

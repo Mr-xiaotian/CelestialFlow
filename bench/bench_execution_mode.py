@@ -2,7 +2,7 @@ import asyncio
 import time
 from typing import Any
 
-from celestialflow import TaskExecutor, TaskProgress, benchmark_executor
+from celestialflow import TaskExecutor, benchmark_executor
 
 
 def fibonacci(n: Any) -> int:
@@ -11,9 +11,7 @@ def fibonacci(n: Any) -> int:
         raise TypeError("n must be an integer")
     elif n <= 0:
         raise ValueError("n must be a positive integer")
-    elif n == 1:
-        return 1
-    elif n == 2:
+    elif n == 1 or n == 2:
         return 1
     else:
         prev, curr = 1, 1
@@ -27,9 +25,7 @@ async def fibonacci_async(n: Any) -> int:
         raise TypeError("n must be an integer")
     elif n <= 0:
         raise ValueError("n must be a positive integer")
-    elif n == 1:
-        return 1
-    elif n == 2:
+    elif n == 1 or n == 2:
         return 1
     else:
         prev, curr = 1, 1

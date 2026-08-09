@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Callable
 from multiprocessing import (
     Manager,
     Pipe,
@@ -13,7 +14,7 @@ from multiprocessing import (
     Queue as MPQueue,
 )
 from multiprocessing.connection import Connection
-from typing import Any, Callable
+from typing import Any
 
 from bench_utils import summarize
 

@@ -23,9 +23,7 @@ def fibonacci(n: Any) -> int:
     """同步版斐波那契 — 迭代 O(n)"""
     if n <= 0:
         raise ValueError("n must be a positive integer")
-    elif n == 1:
-        return 1
-    elif n == 2:
+    elif n == 1 or n == 2:
         return 1
     else:
         prev, curr = 1, 1
@@ -38,9 +36,7 @@ async def fibonacci_async(n: Any) -> int:
     """异步版斐波那契 — 迭代 O(n)，每 8 轮出让事件循环"""
     if n <= 0:
         raise ValueError("n must be a positive integer")
-    elif n == 1:
-        return 1
-    elif n == 2:
+    elif n == 1 or n == 2:
         return 1
     else:
         prev, curr = 1, 1

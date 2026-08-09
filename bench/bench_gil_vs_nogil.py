@@ -121,7 +121,8 @@ def measure_executor(
 ) -> RunStats:
     executor = build_executor(name, func, execution_mode, workers)
     start = time.perf_counter()
-    executor.start(items)
+    executor.put_tasks(items)
+    executor.start()
     seconds = time.perf_counter() - start
     success_count = executor.metrics.get_success_count()
     if success_count != len(items):
@@ -146,7 +147,8 @@ def measure_graph(
 ) -> RunStats:
     graph, sink_stage = build_chain_graph(name, funcs, stage_mode, execution_mode, workers)
     start = time.perf_counter()
-    graph.start_graph({f"{name}_stage_1": items})
+    graph.stage_dict[f"{name}_stage_1"].put_tasks(items)
+    graph.start_graph()
     seconds = time.perf_counter() - start
     success_count = sink_stage.metrics.get_success_count()
     if success_count != len(items):
