@@ -4,6 +4,7 @@ from __future__ import annotations
 from threading import Lock
 from typing import TYPE_CHECKING
 
+from ..runtime.util_types import StageStatus
 from .util_types import SumCounter, ValueWrapper
 
 if TYPE_CHECKING:
@@ -40,6 +41,7 @@ class TaskMetrics:
         self.enable_duplicate_check = enable_duplicate_check
         self.retry_exceptions = ()
         self._observers: list[BaseObserver] = []
+        self._status = int(StageStatus.NOT_STARTED)
 
         self.lock = Lock()
         self._init_counter()
@@ -299,3 +301,16 @@ class TaskMetrics:
         :rtype: set[str]
         """
         return {exception_type.__name__ for exception_type in self.retry_exceptions}
+
+    # ==== 状态 ====
+    def mark_running(self) -> None:
+        """标记：stage 正在运行。"""
+        self._status = int(StageStatus.RUNNING)
+
+    def mark_stopped(self) -> None:
+        """标记：stage 已停止（正常结束时在 finally 里调用）。"""
+        self._status = int(StageStatus.STOPPED)
+
+    def get_status(self) -> StageStatus:
+        """读取当前状态（返回 StageStatus 枚举）。"""
+        return StageStatus(self._status)

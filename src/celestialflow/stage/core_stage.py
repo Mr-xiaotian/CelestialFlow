@@ -13,7 +13,6 @@ from ..runtime.util_estimators import (
     calc_remaining,
     format_avg_time,
 )
-from ..runtime.util_types import StageStatus
 from .core_executor import TaskExecutor
 
 
@@ -72,8 +71,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
 
     def _init_status(self) -> None:
         """初始化 stage 状态与快照缓存。"""
-        if not hasattr(self, "_status"):
-            self._status = int(StageStatus.NOT_STARTED)
 
         # 上报器可能会在节点真正启动前先采集一次快照。
         self.start_time = 0.0
@@ -135,19 +132,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
             "stage_mode": self.get_stage_mode(),
         }
 
-    # ==== 状态 ====
-    def mark_running(self) -> None:
-        """标记：stage 正在运行。"""
-        self._status = int(StageStatus.RUNNING)
-
-    def mark_stopped(self) -> None:
-        """标记：stage 已停止（正常结束时在 finally 里调用）。"""
-        self._status = int(StageStatus.STOPPED)
-
-    def get_status(self) -> StageStatus:
-        """读取当前状态（返回 StageStatus 枚举）。"""
-        return StageStatus(self._status)
-
     def snapshot(self, interval: float) -> dict[str, Any]:
         """
         采集当前 stage 的运行时快照。
@@ -155,7 +139,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         :param interval: 快照采集间隔（秒）
         :return: 包含状态、计数、耗时估算等信息的快照字典
         """
-        status = self.get_status()
+        status = self.metrics.get_status()
         stage_counts = self.get_counts()
 
         elapsed = calc_elapsed(status, self._last_elapsed, self._last_pending, interval)
@@ -196,12 +180,12 @@ class TaskStage[T, R](TaskExecutor[T, R]):
 
         :return: 启动时刻的 ``perf_counter`` 时间戳，用于计算本次运行耗时
         """
-        self._init_state()
+        self.metrics.reset_state()
 
         get_log_inlet().start_stage(
             self.get_name(), self.stage_mode, self._get_execution_mode_desc()
         )
-        self.mark_running()
+        self.metrics.mark_running()
 
     def _finish_start_stage(self, start_perf: float) -> list[Exception]:
         """
@@ -213,7 +197,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         error_list: list[Exception] = []
 
         try:
-            self.mark_stopped()
+            self.metrics.mark_stopped()
         except Exception as exception:
             error_list.append(exception)
 
