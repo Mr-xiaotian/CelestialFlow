@@ -16,12 +16,14 @@ from .core_log import (
     get_log_inlet,
     get_log_spout,
 )
+from .core_scope import funnel_scope
 
 __all__ = [
     "FallbackInlet",
     "FallbackSpout",
     "LogInlet",
     "LogSpout",
+    "funnel_scope",
     "get_fallback_inlet",
     "get_fallback_spout",
     "get_log_inlet",
