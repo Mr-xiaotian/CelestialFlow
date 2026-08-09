@@ -9,7 +9,10 @@ from typing import Any, Protocol
 class ReporterTaskGraph(Protocol):
     """TaskReporter 依赖的最小任务图接口。"""
 
-    stage_dict: Mapping[str, ReporterTaskStage]
+    @property
+    def stage_dict(self) -> Mapping[str, ReporterTaskStage]:
+        """返回按名称索引的只读节点映射。"""
+        ...
 
     def collect_runtime_snapshot(self) -> None: ...
 

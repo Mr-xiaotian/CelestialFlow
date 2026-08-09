@@ -41,7 +41,8 @@ async def benchmark_executor(
         cloned_executor.set_execution_mode(mode)
 
         start: float = time.perf_counter()
-        cloned_executor.start(task_list)
+        cloned_executor.put_tasks(task_list)
+        cloned_executor.start()
         use_time.append([time.perf_counter() - start])
         results.append(cloned_executor.get_success_pairs())
 
@@ -50,7 +51,8 @@ async def benchmark_executor(
         cloned_executor.set_execution_mode(mode)
 
         start = time.perf_counter()
-        await cloned_executor.start_async(task_list)
+        cloned_executor.put_tasks(task_list)
+        await cloned_executor.start_async()
         use_time.append([time.perf_counter() - start])
         results.append(cloned_executor.get_success_pairs())
 
@@ -108,8 +110,10 @@ async def benchmark_graph(
             run_tasks: dict[str, list[Any]] = {
                 stage_name: list(tasks) for stage_name, tasks in base_tasks.items()
             }
+            for stage_name, tasks in run_tasks.items():
+                cloned_graph.stage_dict[stage_name].put_tasks(tasks)
             start_time: float = time.perf_counter()
-            cloned_graph.start_graph(run_tasks)
+            cloned_graph.start_graph()
             time_list.append(time.perf_counter() - start_time)
 
         for execution_mode in execution_async_modes:
@@ -119,8 +123,10 @@ async def benchmark_graph(
             run_tasks = {
                 stage_name: list(tasks) for stage_name, tasks in base_tasks.items()
             }
+            for stage_name, tasks in run_tasks.items():
+                cloned_graph.stage_dict[stage_name].put_tasks(tasks)
             start_time = time.perf_counter()
-            await cloned_graph.start_graph_async(run_tasks)
+            await cloned_graph.start_graph_async()
             time_list.append(time.perf_counter() - start_time)
 
         test_table_list.append(time_list)
