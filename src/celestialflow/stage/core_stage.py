@@ -181,11 +181,11 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         :return: 启动时刻的 ``perf_counter`` 时间戳，用于计算本次运行耗时
         """
         self.metrics.reset_state()
-
+        self.metrics.on_start(self.get_full_name(), 0)
+        
         get_log_inlet().start_stage(
             self.get_name(), self.stage_mode, self._get_execution_mode_desc()
         )
-        self.metrics.mark_running()
 
     def _finish_start_stage(self, start_perf: float) -> list[Exception]:
         """
@@ -195,11 +195,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         :return: 收集到的收尾阶段异常列表
         """
         error_list: list[Exception] = []
-
-        try:
-            self.metrics.mark_stopped()
-        except Exception as exception:
-            error_list.append(exception)
 
         try:
             self.metrics.on_finish()

@@ -17,7 +17,7 @@ from weakref import WeakKeyDictionary
 import pytest
 
 from celestialflow.observability import BaseObserver
-from celestialflow.persistence import LogInlet
+from celestialflow.persistence import LogInlet, get_fallback_spout, get_log_spout
 from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.util_types import TerminationSignal
 from celestialflow.stage import TaskExecutor
@@ -25,6 +25,16 @@ from celestialflow.stage.core_dispatch import TaskDispatch
 from tests.conftest import wait_until
 
 _RESULT_COLLECTORS: WeakKeyDictionary[TaskExecutor, Queue[Any]] = WeakKeyDictionary()
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_global_spouts() -> None:
+    """为每个用例清理全局 spout，避免后台线程与持久化状态串扰。"""
+    get_log_spout().stop()
+    get_fallback_spout().stop()
+    yield
+    get_log_spout().stop()
+    get_fallback_spout().stop()
 
 
 # ── 工具函数 ──────────────────────────────────────────
@@ -120,7 +130,9 @@ def _make_executor(
         enable_duplicate_check=enable_duplicate_check,
     )
     e.set_retry_exceptions(ValueError)
-    e.init_env()
+    e.metrics.reset_state()
+    get_fallback_spout().start()
+    get_log_spout().start()
     e.ctree_client = _CtreeStub()
     # 通过公开 API 为测试注册结果收集队列，避免向 executor 注入测试专用属性
     collector: Queue[Any] = Queue()

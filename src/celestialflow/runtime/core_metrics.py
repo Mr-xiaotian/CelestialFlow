@@ -199,6 +199,7 @@ class TaskMetrics:
         :param _total: 任务总数
         :return: ``None``
         """
+        self._status = int(StageStatus.RUNNING)
         for observer in self._observers:
             observer.on_start(_name, _total)
 
@@ -208,6 +209,7 @@ class TaskMetrics:
 
         :return: ``None``
         """
+        self._status = int(StageStatus.STOPPED)
         for observer in self._observers:
             observer.on_finish()
 
@@ -301,15 +303,6 @@ class TaskMetrics:
         :rtype: set[str]
         """
         return {exception_type.__name__ for exception_type in self.retry_exceptions}
-
-    # ==== 状态 ====
-    def mark_running(self) -> None:
-        """标记：stage 正在运行。"""
-        self._status = int(StageStatus.RUNNING)
-
-    def mark_stopped(self) -> None:
-        """标记：stage 已停止（正常结束时在 finally 里调用）。"""
-        self._status = int(StageStatus.STOPPED)
 
     def get_status(self) -> StageStatus:
         """读取当前状态（返回 StageStatus 枚举）。"""

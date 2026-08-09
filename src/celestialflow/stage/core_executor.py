@@ -115,23 +115,6 @@ class TaskExecutor[T, R]:
             enable_duplicate_check=self.enable_duplicate_check,
         )
 
-    def init_env(
-        self,
-    ) -> None:
-        """
-        初始化环境
-        """
-        self._init_state()
-
-        get_fallback_spout().start()
-        get_log_spout().start()
-
-    def _init_state(self) -> None:
-        """
-        初始化任务状态
-        """
-        self.metrics.reset_state()
-
     # ==== 观察者 ====
     def add_observer(self, observer: BaseObserver) -> None:
         """
@@ -492,13 +475,17 @@ class TaskExecutor[T, R]:
         :param task_source: 任务源
         :return: ``None``
         """
-        self.init_env()
+
+        get_fallback_spout().start()
+        get_log_spout().start()
 
         for task in task_source:
             self.put_task(task)
         self.put_signal()
 
+        self.metrics.reset_state()
         self.metrics.on_start(self.get_full_name(), 0)
+
         get_log_inlet().start_executor(
             self.get_name(),
             self.metrics.get_task_count(),
@@ -511,17 +498,25 @@ class TaskExecutor[T, R]:
 
         :param start_perf: 启动时的时间戳
         """
-        self.metrics.on_finish()
-        get_log_inlet().end_executor(
-            self.get_name(),
-            self._get_execution_mode_desc(),
-            time.perf_counter() - start_perf,
-            self.metrics.get_success_count(),
-            self.metrics.get_fail_count(),
-            self.metrics.get_duplicate_count(),
-        )
-
         error_list: list[Exception] = []
+
+        try:
+            self.metrics.on_finish()
+        except Exception as exception:
+            error_list.append(exception)
+
+        try:
+            get_log_inlet().end_executor(
+                self.get_name(),
+                self._get_execution_mode_desc(),
+                time.perf_counter() - start_perf,
+                self.metrics.get_success_count(),
+                self.metrics.get_fail_count(),
+                self.metrics.get_duplicate_count(),
+            )
+        except Exception as exception:
+            error_list.append(exception)
+
         try:
             get_log_spout().stop()
         except Exception as exception:
