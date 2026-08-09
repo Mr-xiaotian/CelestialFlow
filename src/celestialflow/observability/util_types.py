@@ -1,7 +1,7 @@
 # observability/util_types.py
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -9,15 +9,11 @@ from typing import Any, Protocol
 class ReporterTaskGraph(Protocol):
     """TaskReporter 依赖的最小任务图接口。"""
 
+    stage_dict: Mapping[str, ReporterTaskStage]
+
     def collect_runtime_snapshot(self) -> None: ...
 
     def get_graph_id(self) -> str: ...
-
-    def put_stage_queue(
-        self,
-        tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = True,
-    ) -> None: ...
 
     def get_fallback_path(self) -> Path: ...
 
@@ -26,3 +22,11 @@ class ReporterTaskGraph(Protocol):
     def get_structure_graph(self) -> dict[str, Any]: ...
 
     def get_graph_analysis(self) -> dict[str, Any]: ...
+
+
+class ReporterTaskStage(Protocol):
+    """TaskReporter 依赖的最小任务阶段接口。"""
+
+    def put_task(self, task: Any) -> None: ...
+
+    def put_signal(self) -> None: ...

@@ -279,6 +279,23 @@ class TaskExecutor[T, R]:
         return Path(db_path).resolve()
 
     # ==== 任务输入 ====
+    def put_tasks(
+        self,
+        task_source: Iterable[T],
+        *,
+        put_termination_signal: bool = True,
+    ) -> None:
+        """
+        将多个任务封装为 TaskEnvelope 并放入队列。
+
+        :param task_source: 任务来源可迭代对象
+        :param put_termination_signal: 是否在任务队列末尾放入终止信号，默认 True
+        """
+        for task in task_source:
+            self.put_task(task)
+        if put_termination_signal:
+            self.put_signal()
+
     def put_task(self, task: T) -> None:
         """
         将单个任务封装为 TaskEnvelope 并放入队列。
@@ -468,7 +485,7 @@ class TaskExecutor[T, R]:
 
     # ==== 启动 ====
 
-    def _prepare_start(self, task_source: Iterable[T]) -> None:
+    def _prepare_start(self) -> None:
         """
         启动前准备：初始化环境、注入任务、记录启动日志。
 
@@ -478,10 +495,6 @@ class TaskExecutor[T, R]:
 
         get_fallback_spout().start()
         get_log_spout().start()
-
-        for task in task_source:
-            self.put_task(task)
-        self.put_signal()
 
         self.metrics.reset_state()
         self.metrics.on_start(self.get_full_name(), 0)
@@ -528,13 +541,12 @@ class TaskExecutor[T, R]:
 
         return error_list
 
-    def start(self, task_source: Iterable[T]) -> None:
+    def start(self) -> None:
         """
         根据 execution_mode 的值，选择串行或线程方式执行任务。
 
         async 模式不支持通过本方法启动，请使用 :meth:`start_async`。
 
-        :param task_source: 任务迭代器或者生成器
         :raises ExecutionModeError: execution_mode 不是 'serial' 或 'thread' 时触发
         :note:
             TaskExecutor 为一次性对象；当前实例完成一次 start() 后，不保证可安全再次
@@ -544,14 +556,16 @@ class TaskExecutor[T, R]:
         error_list: list[Exception] = []
 
         try:
-            self._prepare_start(task_source)
+            self._prepare_start()
 
             if self.execution_mode == "thread":
                 self.dispatch.dispatch_thread()
             elif self.execution_mode == "serial":
                 self.dispatch.dispatch_serial()
             else:
-                raise InvalidOptionError("execution mode", self.execution_mode, ("serial", "thread"))
+                raise InvalidOptionError(
+                    "execution mode", self.execution_mode, ("serial", "thread")
+                )
         except Exception as exception:
             error_list.append(exception)
         finally:
@@ -560,11 +574,10 @@ class TaskExecutor[T, R]:
         if error_list:
             raise ExceptionGroup("Errors occurred during execution", error_list)
 
-    async def start_async(self, task_source: Iterable[T]) -> None:
+    async def start_async(self) -> None:
         """
         异步地执行任务。
 
-        :param task_source: 任务迭代器或者生成器
         :raises InvalidOptionError: execution_mode 不是 'async' 时触发
         :note:
             TaskExecutor 为一次性对象；当前实例完成一次 start_async() 后，不保证可
@@ -577,7 +590,7 @@ class TaskExecutor[T, R]:
         error_list: list[Exception] = []
 
         try:
-            self._prepare_start(task_source)
+            self._prepare_start()
             await self.dispatch.dispatch_async()
         except Exception as exception:
             get_log_inlet().executor_crash(self.get_name(), exception)
@@ -620,7 +633,8 @@ class TaskExecutor[T, R]:
         if not executor_tasks:
             return
 
-        self.start(executor_tasks)
+        self.put_tasks(executor_tasks)
+        self.start()
 
     # ==== 结果获取 ====
     def get_success_pairs(self) -> list[tuple[T, R]]:

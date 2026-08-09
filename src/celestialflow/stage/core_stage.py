@@ -7,7 +7,7 @@ from typing import Any
 
 from ..persistence import get_log_inlet
 from ..runtime import TaskInQueue, TaskOutQueue
-from ..runtime.util_errors import GraphManagedError, InvalidOptionError, UnconsumedError
+from ..runtime.util_errors import InvalidOptionError, UnconsumedError
 from ..runtime.util_estimators import (
     calc_elapsed,
     calc_remaining,
@@ -182,7 +182,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         """
         self.metrics.reset_state()
         self.metrics.on_start(self.get_full_name(), 0)
-        
+
         get_log_inlet().start_stage(
             self.get_name(), self.stage_mode, self._get_execution_mode_desc()
         )
@@ -216,28 +216,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
 
         return error_list
 
-    def start(self, task_source: Any) -> None:
-        """
-        启动 stage，将任务源添加到任务队列。
-
-        :param task_source: 任务源，包含任务和任务 ID
-        :raises GraphManagedError: stage 被 graph 管理，不能直接调用 start()
-        """
-        raise GraphManagedError(
-            f"Stage {self.get_name()} is managed by a TaskGraph. Use TaskGraph.start_graph() instead of calling start() directly."
-        )
-
-    async def start_async(self, task_source: Any) -> None:
-        """
-        异步启动 stage，将任务源添加到任务队列。
-
-        :param task_source: 任务源，包含任务和任务 ID
-        :raises GraphManagedError: stage 被 graph 管理，不能直接调用 start_async()
-        """
-        raise GraphManagedError(
-            f"Stage {self.get_name()} is managed by a TaskGraph. Use TaskGraph.start_graph() instead of calling start_async() directly."
-        )
-
     def start_stage(self) -> None:
         """
         根据 execution_mode 的值，选择串行或线程方式执行任务。
@@ -261,7 +239,9 @@ class TaskStage[T, R](TaskExecutor[T, R]):
             elif self.execution_mode == "serial":
                 self.dispatch.dispatch_serial()
             else:
-                raise InvalidOptionError("execution mode", self.execution_mode, ("serial", "thread"))
+                raise InvalidOptionError(
+                    "execution mode", self.execution_mode, ("serial", "thread")
+                )
         except Exception as exception:
             error_list.append(exception)
         finally:

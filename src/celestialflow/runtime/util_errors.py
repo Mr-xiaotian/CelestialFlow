@@ -56,7 +56,6 @@ class InvalidOptionError(ConfigurationError):
         self.allowed = allowed_tuple
 
 
-
 class CallableParameterKindError(InvalidOptionError):
     """可调用对象参数 kind 不合法"""
 

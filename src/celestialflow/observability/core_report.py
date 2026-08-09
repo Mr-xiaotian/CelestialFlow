@@ -162,32 +162,23 @@ class TaskReporter:
             return
 
         injection_payload: dict[str, Any] = res.json()
-        tasks_by_stage = {
-            str(target_stage): list(task_datas)
-            for target_stage, task_datas in injection_payload.get("tasks", {}).items()
-        }
-        terminations_by_stage = {
-            str(target_stage): [TERMINATION_SIGNAL]
-            for target_stage in injection_payload.get("terminations", [])
-        }
-        injection_dict = {**tasks_by_stage}
-        for target_stage, task_datas in terminations_by_stage.items():
-            if target_stage in injection_dict:
-                injection_dict[target_stage].extend(task_datas)
-            else:
-                injection_dict[target_stage] = task_datas
-        if not injection_dict:
-            return
-
-        try:
-            self.task_graph.put_stage_queue(
-                injection_dict, put_termination_signal=False
-            )
-            for target_stage, task_datas in injection_dict.items():
+        for target_stage, task_datas in injection_payload.get("tasks", {}).items():
+            try:
+                stage = self.task_graph.stage_dict[target_stage]
+                stage.put_task(task_datas)
                 self.log_inlet.inject_tasks_success(target_stage, task_datas)
-        except Exception as e:
-            for target_stage, task_datas in injection_dict.items():
+            except Exception as e:
                 self.log_inlet.inject_tasks_failed(target_stage, task_datas, e)
+
+        for target_stage in injection_payload.get("terminations", []):
+            try:
+                stage = self.task_graph.stage_dict[target_stage]
+                stage.put_signal()
+                self.log_inlet.inject_tasks_success(target_stage, [TERMINATION_SIGNAL])
+            except Exception as e:
+                self.log_inlet.inject_tasks_failed(
+                    target_stage, [TERMINATION_SIGNAL], e
+                )
 
     # ==== 推送 ====
     def _push_errors(self) -> None:

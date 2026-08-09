@@ -4,9 +4,8 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-import warnings
 from collections import defaultdict
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +20,6 @@ from ..runtime.util_errors import (
 from ..runtime.util_estimators import calc_remaining
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import cluster_by_value_sorted
-from ..runtime.util_types import TerminationSignal
 from ..stage.core_stage import TaskStage
 from ..stage.util_types import AnyTaskStage
 from .util_estimators import calc_global_pending
@@ -266,32 +264,10 @@ class TaskGraph:
         self.layers_dict = cluster_by_value_sorted(stage_level_dict)
         self._analysis_dirty = False
 
-    def put_stage_queue(
-        self,
-        tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = True,
-    ) -> None:
+    def put_source_signal(self) -> None:
         """
-        将任务放入队列
-
-        :param tasks_dict: 待处理的任务字典
-        :param put_termination_signal: 是否放入终止信号，默认 True
-        :raises NodeNotFoundError: tasks_dict 中包含图中不存在的 stage 名称时抛出
+        将终止信号放入所有源节点的队列中。
         """
-        for name, tasks in tasks_dict.items():
-            if name not in self.stage_dict:
-                raise NodeNotFoundError(f"unknown stage name: {name}")
-            stage: AnyTaskStage = self.stage_dict[name]
-
-            for task in tasks:
-                if isinstance(task, TerminationSignal):
-                    stage.put_signal()
-                else:
-                    stage.put_task(task)
-
-        if not put_termination_signal:
-            return
-
         for source_stage in self.source_stages:
             source_stage.put_signal()
 
@@ -299,8 +275,6 @@ class TaskGraph:
 
     def _prepare_start_graph(
         self,
-        init_tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = True,
     ) -> None:
         """
         启动前准备：图分析、非 DAG 警告、启动运行时资源并注入任务。
@@ -314,25 +288,10 @@ class TaskGraph:
         """
         self._build_analysis()
 
-        if not self.is_dag and put_termination_signal:
-            warnings.warn(
-                (
-                    "Early injection of termination signals in a non-DAG graph may cause "
-                    "some nodes (including source nodes) to shut down as soon as their current "
-                    "tasks are exhausted, preventing them from consuming tasks that arrive "
-                    "later from other nodes. It is recommended to set put_termination_signal=False "
-                    "and manually inject termination signals at an appropriate time."
-                ),
-                RuntimeWarning,
-                stacklevel=2,
-            )
-
         get_fallback_spout().start()
         get_log_spout().start()
         get_log_inlet().start_graph(self.name, self.get_structure_list())
         self.reporter.start()
-
-        self.put_stage_queue(init_tasks_dict, put_termination_signal)
 
     def _finish_start_graph(self, start_perf: float) -> list[Exception]:
         """
@@ -378,8 +337,6 @@ class TaskGraph:
 
     def start_graph(
         self,
-        init_tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = True,
     ) -> None:
         """
         启动任务链
@@ -394,7 +351,7 @@ class TaskGraph:
         self.start_time = time.time()
         error_list: list[Exception] = []
         try:
-            self._prepare_start_graph(init_tasks_dict, put_termination_signal)
+            self._prepare_start_graph()
             self._execute_stages()
         except Exception as exception:
             error_list.append(exception)
@@ -406,8 +363,6 @@ class TaskGraph:
 
     async def start_graph_async(
         self,
-        init_tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = True,
     ) -> None:
         """
         以异步方式启动任务图，适合在已运行事件循环的上下文中调用。
@@ -428,7 +383,7 @@ class TaskGraph:
         self.start_time = time.time()
         error_list: list[Exception] = []
         try:
-            self._prepare_start_graph(init_tasks_dict, put_termination_signal)
+            self._prepare_start_graph()
             await self._execute_stages_async()
         except Exception as exception:
             error_list.append(exception)
@@ -457,11 +412,10 @@ class TaskGraph:
         """
         statuses = ["failed", "pending"] if statuses is None else statuses
         grouped_records = load_tasks_grouped_by_stage(db_path, statuses)
-        grouped_tasks: dict[str, list[Any]] = {}
 
         for name, records in grouped_records.items():
+            stage = self.stage_dict[name]
             if filter_by_error_type and name in self.stage_dict:
-                stage = self.stage_dict[name]
                 retry_error_type_names = stage.metrics.get_retry_error_type_names()
                 records = [
                     record
@@ -471,13 +425,12 @@ class TaskGraph:
                 ]
 
             stage_tasks = [record["task_json"] for record in records]
-            if stage_tasks:
-                grouped_tasks[name] = stage_tasks
+            stage.put_tasks(stage_tasks)
 
-        self.start_graph(
-            grouped_tasks,
-            put_termination_signal=put_termination_signal,
-        )
+        if put_termination_signal:
+            self.put_source_signal()
+
+        self.start_graph()
 
     def _execute_stages(self) -> None:
         """
@@ -551,7 +504,9 @@ class TaskGraph:
         elif stage.stage_mode == "serial":
             stage.start_stage()
         else:
-            raise InvalidOptionError("stage mode", stage.stage_mode, ("serial", "thread"))
+            raise InvalidOptionError(
+                "stage mode", stage.stage_mode, ("serial", "thread")
+            )
 
     async def _execute_stage_async(self, stage: AnyTaskStage) -> None:
         """

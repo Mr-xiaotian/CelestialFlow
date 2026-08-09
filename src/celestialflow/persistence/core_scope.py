@@ -20,7 +20,7 @@ def funnel_scope() -> Generator[None, None, None]:
     :raises ExceptionGroup: 进入或退出作用域时存在一个或多个异常
     """
     error_list: list[Exception] = []
-    
+
     try:
         get_fallback_spout().start()
         get_log_spout().start()
