@@ -6,8 +6,8 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 from ..graph import TaskGraph
+from ..runtime.util_format import format_table
 from ..stage import TaskExecutor
-from ..utils.util_format import format_table
 from .util_clone import clone_executor, clone_graph
 
 type AnyTaskExecutor = TaskExecutor[Any, Any]
@@ -129,7 +129,7 @@ async def benchmark_graph(
         test_table_list,
         stage_modes,
         execution_modes,
-        r"stage\execution",
+        "stage/execution",
     )
     print(f"Time table:\n{time_table}")
     return {

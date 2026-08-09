@@ -23,18 +23,13 @@ from ..runtime import (
     TaskMetrics,
     TaskOutQueue,
 )
-from ..runtime.util_errors import (
-    AsyncModeError,
-    ConfigurationError,
-    ExecutionModeError,
-    PersistedError,
-)
+from ..runtime.util_errors import ConfigurationError, InvalidOptionError, PersistedError
 from ..runtime.util_event import EventClient, LocalEventClient
+from ..runtime.util_format import format_repr
 from ..runtime.util_types import (
     CTreeEvent,
     TerminationSignal,
 )
-from ..utils.util_format import format_repr
 from .core_dispatch import TaskDispatch
 from .util_callable import validate_executor_func_signature
 
@@ -179,14 +174,13 @@ class TaskExecutor[T, R]:
         设置执行模式
 
         :param execution_mode: 执行模式，可以是 'thread'（线程）, 'async'（异步）, 'serial'（串行）
-        :raises ExecutionModeError: execution_mode 不是合法值
+        :raises InvalidOptionError: execution_mode 不是合法值
         :raises ConfigurationError: 异步模式下 func 不是协程函数
         """
         valid_modes = ("serial", "thread", "async")
-        if execution_mode in valid_modes:
-            self.execution_mode = execution_mode
-        else:
-            raise ExecutionModeError(execution_mode)
+        if execution_mode not in valid_modes:
+            raise InvalidOptionError("execution mode", execution_mode, valid_modes)
+        self.execution_mode = execution_mode
 
         if execution_mode == "async" and not inspect.iscoroutinefunction(self.func):
             raise ConfigurationError(
@@ -319,7 +313,7 @@ class TaskExecutor[T, R]:
         get_fallback_inlet().task_in(self.get_name(), input_id, task)
         get_log_inlet().task_input(
             self.get_func_name(),
-            self._get_task_repr(task),
+            self._get_repr(task),
             self.get_name(),
             input_id,
         )
@@ -340,23 +334,14 @@ class TaskExecutor[T, R]:
             termination_id,
         )
 
-    def _get_task_repr(self, task: T) -> str:
+    def _get_repr(self, task: T | R) -> str:
         """
-        获取任务对象的可读字符串表示
+        获取任务/结果对象的可读字符串表示
 
         :param task: 任务对象
         :return: 任务信息字符串
         """
         return f"({format_repr(task, self.max_info)})"
-
-    def _get_result_repr(self, result: Any) -> str:
-        """
-        获取结果信息
-
-        :param result: 任务结果
-        :return: 结果信息字符串
-        """
-        return f"({format_repr(result, self.max_info)})"
 
     # ==== 结果处理 ====
     def process_task_success(
@@ -383,15 +368,15 @@ class TaskExecutor[T, R]:
 
         get_log_inlet().task_success(
             self.get_func_name(),
-            self._get_task_repr(task),
+            self._get_repr(task),
             self.execution_mode,
-            self._get_result_repr(result),
+            self._get_repr(result),
             time.perf_counter() - start_time,
             task_id,
             result_id,
         )
 
-        for target_name in self.result_queue.target_names:
+        for target_name in self.result_queue.get_target_names():
             downstream_input_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
@@ -434,7 +419,7 @@ class TaskExecutor[T, R]:
 
         get_log_inlet().task_retry(
             self.get_func_name(),
-            self._get_task_repr(task),
+            self._get_repr(task),
             retry_time,
             exception,
             task_id,
@@ -469,7 +454,7 @@ class TaskExecutor[T, R]:
         get_fallback_inlet().task_fail(task_id, error_id, exception)
         get_log_inlet().task_fail(
             self.get_func_name(),
-            self._get_task_repr(task),
+            self._get_repr(task),
             exception,
             task_id,
             error_id,
@@ -493,7 +478,7 @@ class TaskExecutor[T, R]:
         )
         get_log_inlet().task_duplicate(
             self.get_func_name(),
-            self._get_task_repr(task),
+            self._get_repr(task),
             task_id,
             duplicate_id,
         )
@@ -571,7 +556,7 @@ class TaskExecutor[T, R]:
             elif self.execution_mode == "serial":
                 self.dispatch.dispatch_serial()
             else:
-                raise ExecutionModeError(self.execution_mode)
+                raise InvalidOptionError("execution mode", self.execution_mode, ("serial", "thread"))
         except Exception as exception:
             error_list.append(exception)
         finally:
@@ -585,13 +570,13 @@ class TaskExecutor[T, R]:
         异步地执行任务。
 
         :param task_source: 任务迭代器或者生成器
-        :raises AsyncModeError: execution_mode 不是 'async' 时触发
+        :raises InvalidOptionError: execution_mode 不是 'async' 时触发
         :note:
             TaskExecutor 为一次性对象；当前实例完成一次 start_async() 后，不保证可
             安全再次调用。需要重复执行时请创建新的 TaskExecutor。
         """
         if self.execution_mode != "async":
-            raise AsyncModeError(self.execution_mode)
+            raise InvalidOptionError("execution mode", self.execution_mode, ("async",))
 
         start_perf = time.perf_counter()
         error_list: list[Exception] = []

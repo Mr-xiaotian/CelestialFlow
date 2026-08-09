@@ -37,10 +37,9 @@ class OrderGraph:
         """
         self.add_node(u)
         self.add_node(v)
+        # 改为 self._in 无区别，因为 self._out 和 self._in 的维护是原子操作
         if v not in self._out[u]:
             self._out[u].append(v)
-            self._in[v].append(u)
-        elif u not in self._in[v]:
             self._in[v].append(u)
 
     @property

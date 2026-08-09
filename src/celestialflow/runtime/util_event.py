@@ -46,7 +46,7 @@ class LocalEventClient:
         :param payload: 事件载荷，当前实现不使用
         :return: 递增事件 ID
         """
-        _ = type_, parents, message, payload
+        # _ = type_, parents, message, payload
         with self._lock:
             current_id = self._next_id
             self._next_id += 1

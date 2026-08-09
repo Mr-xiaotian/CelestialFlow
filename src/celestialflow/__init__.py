@@ -20,6 +20,7 @@ from .persistence.util_sqlite import (
     load_records,
     load_tasks_grouped_by_stage,
 )
+from .runtime.util_format import format_table
 from .runtime.util_hash import make_hashable
 from .runtime.util_types import TerminationSignal
 from .stage import (
@@ -28,7 +29,6 @@ from .stage import (
     TaskSplitter,
     TaskStage,
 )
-from .utils.util_format import format_table
 
 __all__ = [
     "BaseInlet",

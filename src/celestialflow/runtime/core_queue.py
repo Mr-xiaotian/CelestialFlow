@@ -18,7 +18,7 @@ class TaskInQueue[T]:
     """任务输入队列，聚合多个上游来源的任务和终止信号。"""
 
     out_name: str
-    queue: Any
+    queue: Queue[TaskEnvelope[T] | TerminationSignal]
     source_names: list[str]
     termination_dict: dict[str, int]
 
@@ -119,12 +119,12 @@ class TaskInQueue[T]:
             item: TaskEnvelope[T] | TerminationSignal | TerminationIdPool = (
                 self.queue.get()
             )
-            result = self._deal_get_item(item)
+            result = self._process_item(item)
             if result is None:
                 continue
             return result
 
-    def _deal_get_item(
+    def _process_item(
         self,
         item: TaskEnvelope[T] | TerminationSignal | TerminationIdPool,
     ) -> TaskEnvelope[T] | TerminationIdPool | None:
@@ -179,9 +179,7 @@ class TaskOutQueue[T]:
     """任务输出队列，将任务广播到一个或多个下游队列通道。"""
 
     in_name: str
-    queue_list: list[Any]
-    target_names: list[str]
-    _name_to_idx: dict[str, int]
+    _queues: dict[str, Queue[TaskEnvelope[T] | TerminationSignal]]  # name → queue
 
     # ==== 初始化 ====
     def __init__(
@@ -195,9 +193,7 @@ class TaskOutQueue[T]:
         """
         self.in_name = in_name
 
-        self.queue_list = []
-        self.target_names = []
-        self._name_to_idx = {}
+        self._queues = {}
 
     # ==== 入队 ====
 
@@ -209,11 +205,9 @@ class TaskOutQueue[T]:
         :param name: 队列的目标节点名称，用于标识该队列
         :raises DuplicateNodeError: 如果名称已存在于队列列表中
         """
-        if name in self._name_to_idx:
+        if name in self._queues:
             raise DuplicateNodeError(f"duplicate queue target name: {name}")
-        self._name_to_idx[name] = len(self.queue_list)
-        self.queue_list.append(queue)
-        self.target_names.append(name)
+        self._queues[name] = queue
 
     def put(self, item: TaskEnvelope[T] | TerminationSignal) -> None:
         """
@@ -221,8 +215,8 @@ class TaskOutQueue[T]:
 
         :param item: 要入队的任务或终止信号
         """
-        for index, _ in enumerate(self.queue_list):
-            self.put_channel(item, index)
+        for name in self._queues:
+            self.put_target(item, name)
 
     def put_target(self, item: TaskEnvelope[T] | TerminationSignal, name: str) -> None:
         """
@@ -231,13 +225,14 @@ class TaskOutQueue[T]:
         :param item: 要入队的任务或终止信号
         :param name: 输出队列目标节点名称，用于标识该队列通道
         """
-        self.put_channel(item, self._name_to_idx[name])
+        self._queues[name].put(item)
 
-    def put_channel(self, item: TaskEnvelope[T] | TerminationSignal, idx: int) -> None:
-        """
-        入队任务或终止信号到指定的输出队列通道
+    # ==== 查询 ====
 
-        :param item: 要入队的任务或终止信号
-        :param idx: 输出队列通道的索引
+    def get_target_names(self) -> list[str]:
         """
-        self.queue_list[idx].put(item)
+        获取所有输出队列的目标节点名称
+
+        :return: 输出队列目标节点名称列表
+        """
+        return list(self._queues.keys())

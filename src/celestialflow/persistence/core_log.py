@@ -8,7 +8,7 @@ from typing import Any, TextIO
 from ..funnel import BaseInlet, BaseSpout
 from ..runtime.util_config import load_log_level_from_pyproject
 from ..runtime.util_constant import LEVEL_DICT
-from ..runtime.util_errors import InitializationError, LogLevelError
+from ..runtime.util_errors import InitializationError, InvalidOptionError
 
 
 class LogSpout(BaseSpout):
@@ -72,7 +72,9 @@ class LogInlet(BaseInlet):
         self.log_level: str = log_level.upper()
 
         if self.log_level not in LEVEL_DICT:
-            raise LogLevelError(self.log_level)
+            raise InvalidOptionError(
+                "log level", self.log_level, tuple(LEVEL_DICT.keys())
+            )
 
     def _log(self, level: str, message: str | None = None) -> None:
         """

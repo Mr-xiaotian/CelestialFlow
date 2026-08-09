@@ -3,16 +3,12 @@ from celestialflow.runtime.util_errors import (
     CelestialFlowTimeoutError,
     ConfigurationError,
     DuplicateNodeError,
-    ExecutionModeError,
     GraphStructureError,
     InitializationError,
     InvalidOptionError,
-    LogLevelError,
     RemoteWorkerError,
     ReporterError,
     RuntimeStateError,
-    ScheduleModeError,
-    StageModeError,
     TerminationMergeError,
     UnconsumedError,
     UnknownNodeError,
@@ -55,52 +51,45 @@ class TestUtilErrors:
         assert "Bad " in str(ex)
 
     def test_execution_mode_error(self):
-        """验证 `ExecutionModeError` 会暴露非法执行模式信息。"""
-        ex = ExecutionModeError("parallel")
+        """验证非法 execution_mode 会暴露字段信息。"""
+        ex = InvalidOptionError("execution mode", "parallel", ("serial", "thread"))
         assert isinstance(ex, CelestialFlowError)
-        assert isinstance(ex, InvalidOptionError)
-        assert ex.execution_mode == "parallel"
-        assert ex.valid_modes == ("serial", "thread")
+        assert isinstance(ex, ConfigurationError)
+        assert ex.field == "execution mode"
+        assert ex.value == "parallel"
+        assert ex.allowed == ("serial", "thread")
         assert "parallel" in str(ex)
 
-    def test_execution_mode_error_custom_valid_modes(self):
-        """验证 `ExecutionModeError` 支持自定义可选模式。"""
-        ex = ExecutionModeError("batch", valid_modes=("serial", "batch"))
-        assert ex.valid_modes == ("serial", "batch")
-
     def test_stage_mode_error(self):
-        """验证 `StageModeError` 会暴露非法节点模式信息。"""
-        ex = StageModeError("process")
+        """验证非法 stage_mode 会暴露字段信息。"""
+        ex = InvalidOptionError("stage mode", "process", ("serial", "thread"))
         assert isinstance(ex, CelestialFlowError)
-        assert isinstance(ex, InvalidOptionError)
-        assert ex.stage_mode == "process"
-        assert ex.valid_modes == ("serial", "thread")
+        assert isinstance(ex, ConfigurationError)
+        assert ex.field == "stage mode"
+        assert ex.value == "process"
+        assert ex.allowed == ("serial", "thread")
         assert "process" in str(ex)
 
     def test_log_level_error(self):
-        """验证 `LogLevelError` 会暴露非法日志级别信息。"""
-        ex = LogLevelError("VERBOSE")
-        assert isinstance(ex, CelestialFlowError)
-        assert isinstance(ex, InvalidOptionError)
-        assert ex.log_level == "VERBOSE"
-        assert ex.valid_levels == (
-            "TRACE",
-            "DEBUG",
-            "SUCCESS",
-            "INFO",
-            "WARNING",
-            "ERROR",
-            "CRITICAL",
+        """验证非法 log_level 会暴露字段信息。"""
+        ex = InvalidOptionError(
+            "log level", "VERBOSE",
+            ("TRACE", "DEBUG", "SUCCESS", "INFO", "WARNING", "ERROR", "CRITICAL"),
         )
+        assert isinstance(ex, CelestialFlowError)
+        assert isinstance(ex, ConfigurationError)
+        assert ex.field == "log level"
+        assert ex.value == "VERBOSE"
         assert "VERBOSE" in str(ex)
 
     def test_schedule_mode_error(self):
-        """验证 `ScheduleModeError` 会暴露非法调度模式信息。"""
-        ex = ScheduleModeError("lazy")
+        """验证非法 schedule_mode 会暴露字段信息。"""
+        ex = InvalidOptionError("schedule mode", "lazy", ("eager", "staged"))
         assert isinstance(ex, CelestialFlowError)
-        assert isinstance(ex, InvalidOptionError)
-        assert ex.schedule_mode == "lazy"
-        assert ex.valid_modes == ("eager", "staged")
+        assert isinstance(ex, ConfigurationError)
+        assert ex.field == "schedule mode"
+        assert ex.value == "lazy"
+        assert ex.allowed == ("eager", "staged")
         assert "lazy" in str(ex)
 
     # ---- 图结构 ----

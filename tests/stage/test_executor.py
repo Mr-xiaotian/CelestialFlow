@@ -7,7 +7,7 @@ from celestialflow import TaskExecutor
 from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_errors import (
     ConfigurationError,
-    ExecutionModeError,
+    InvalidOptionError,
     PersistedError,
 )
 
@@ -417,7 +417,7 @@ class TestExecutorConfig:
 
     def test_invalid_execution_mode(self):
         """测试配置非法执行模式时抛出异常"""
-        with pytest.raises(ExecutionModeError):
+        with pytest.raises(InvalidOptionError):
             TaskExecutor("AddOneInvalidMode", add_one, execution_mode="invalid")
 
     def test_get_summary(self):

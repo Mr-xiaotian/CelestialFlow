@@ -8,7 +8,6 @@ from ..persistence import get_fallback_inlet, get_log_inlet
 from ..runtime import TaskEnvelope, TaskOutQueue
 from ..runtime.util_errors import InvalidOptionError
 from ..runtime.util_types import ValueWrapper
-from ..utils.util_format import format_repr
 from .core_stage import TaskStage
 
 
@@ -126,7 +125,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
 
         get_log_inlet().split_success(
             self.get_func_name(),
-            self._get_task_repr(task),
+            self._get_repr(task),
             split_count,
             time.perf_counter() - start_time,
         )
@@ -153,7 +152,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
                 parents=[task_id],
                 payload=self.get_summary(),
             )
-            for target_name in result_queue.target_names:
+            for target_name in result_queue.get_target_names():
                 downstream_input_id = self.ctree_client.emit(
                     "task.input",
                     parents=[split_id],
@@ -268,7 +267,7 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
 
         get_log_inlet().route_success(
             self.get_func_name(),
-            f"({format_repr(task, self.max_info)})",
+            self._get_repr(task),
             target,
             time.perf_counter() - start_time,
             task_id,

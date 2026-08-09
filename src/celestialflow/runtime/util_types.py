@@ -31,8 +31,6 @@ class TerminationIdPool:
     """终止信号id池，用于存储所有已接收的终止信号"""
 
     ids: list[int]
-    id: int
-    source: str
 
     def __init__(self, ids: list[int]) -> None:
         """
@@ -41,8 +39,6 @@ class TerminationIdPool:
         :param ids: 终止信号 ID 列表
         """
         self.ids = ids
-        self.id = -1
-        self.source = "<signal>"
 
 
 class NoOpContext:

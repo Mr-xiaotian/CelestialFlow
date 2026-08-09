@@ -172,7 +172,6 @@ class TestDispatchSerial:
         task_results = results[:-1]
         assert len(task_results) == 1
         assert task_results[0].get_task() == 9
-        assert task_results[0].task == 9
 
     def test_multiple_tasks(self) -> None:
         """验证串行模式能处理多个任务。"""
@@ -196,7 +195,7 @@ class TestDispatchSerial:
         results = _collect_results(executor)
         task_results = [r for r in results if not isinstance(r, TerminationSignal)]
         assert len(task_results) == 1
-        assert task_results[0].task == 25
+        assert task_results[0].get_task() == 25
         assert func.calls == 3
 
     def test_retry_exhausted(self) -> None:
@@ -264,9 +263,9 @@ class TestDispatchSerial:
 
         assert isinstance(item_a, TaskEnvelope)
         assert isinstance(item_b, TaskEnvelope)
-        assert item_a.task == 9
-        assert item_b.task == 9
-        assert item_a.id != item_b.id
+        assert item_a.get_task() == 9
+        assert item_b.get_task() == 9
+        assert item_a.get_id() != item_b.get_id()
         wait_until(
             lambda: executor.get_success_pairs() == [(3, 9)],
             message="timeout waiting for fallback store to persist success result",

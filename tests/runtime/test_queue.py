@@ -24,8 +24,8 @@ class TestTaskInQueue:
 
         result = simple_queue.get()
         assert isinstance(result, TaskEnvelope)
-        assert result.task == "hello"
-        assert result.id == 1
+        assert result.get_task() == "hello"
+        assert result.get_id() == 1
 
     def test_input_termination_direct_exit(self, simple_queue):
         """外部注入的终止信号应直接返回"""
@@ -68,8 +68,8 @@ class TestTaskInQueue:
 
         remaining = in_queue.drain()
         assert len(remaining) == 2
-        assert remaining[0].task == "a"
-        assert remaining[1].task == "b"
+        assert remaining[0].get_task() == "a"
+        assert remaining[1].get_task() == "b"
         assert in_queue.queue.empty()
 
 
@@ -85,8 +85,8 @@ class TestTaskOutQueue:
         envelope = TaskEnvelope("data", id=1)
         out_queue.put(envelope)
 
-        assert q1.get().task == "data"
-        assert q2.get().task == "data"
+        assert q1.get().get_task() == "data"
+        assert q2.get().get_task() == "data"
 
     def test_put_target_single_queue(self):
         """put_target 只发送到指定队列"""
@@ -100,7 +100,7 @@ class TestTaskOutQueue:
         out_queue.put_target(envelope, name="b")
 
         assert q1.empty()
-        assert q2.get().task == "data"
+        assert q2.get().get_task() == "data"
 
     def test_add_queue(self):
         """动态添加输出队列"""
@@ -114,8 +114,8 @@ class TestTaskOutQueue:
         envelope = TaskEnvelope("x", id=1)
         out_queue.put(envelope)
 
-        assert q1.get().task == "x"
-        assert q2.get().task == "x"
+        assert q1.get().get_task() == "x"
+        assert q2.get().get_task() == "x"
 
     def test_duplicate_queue_name_raises(self):
         """重复目标名称应报错"""
