@@ -60,7 +60,8 @@ class TestExecutorSerial:
         """测试串行执行器的基本任务处理"""
         executor = TaskExecutor("AddOneSerial", add_one, execution_mode="serial")
         tasks = [1, 2, 3, 4, 5]
-        executor.start(tasks)
+        executor.put_tasks(tasks)
+        executor.start()
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 5
@@ -75,7 +76,8 @@ class TestExecutorSerial:
             execution_mode="serial",
         )
         tasks: list[int] = [1, -1, 2, -2, 3]
-        executor.start(tasks)
+        executor.put_tasks(tasks)
+        executor.start()
 
         result_dict = build_result_dict(executor)
         assert "negative value: -1" in result_dict[-1]
@@ -110,7 +112,8 @@ class TestExecutorSerial:
             max_retries=2,
         )
         executor.set_retry_exceptions(RuntimeError)
-        executor.start([1])
+        executor.put_tasks([1])
+        executor.start()
 
         counts = executor.get_counts()
         # 最终成功，失败计数应为 0（重试不计入最终失败）
@@ -128,7 +131,8 @@ class TestExecutorSerial:
         )
         # 只重试 RuntimeError，但函数抛的是 ValueError
         executor.set_retry_exceptions(RuntimeError)
-        executor.start([-1])
+        executor.put_tasks([-1])
+        executor.start()
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 0
@@ -145,7 +149,8 @@ class TestExecutorThread:
             max_workers=4,
         )
         tasks: list[int] = [1, 2, 3, 4, 5]
-        executor.start(tasks)
+        executor.put_tasks(tasks)
+        executor.start()
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 5
@@ -163,7 +168,8 @@ class TestExecutorAsync:
             max_workers=4,
         )
         tasks: list[int] = [10, 20, 30]
-        await executor.start_async(tasks)
+        executor.put_tasks(tasks)
+        await executor.start_async()
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 3
@@ -178,7 +184,8 @@ class TestExecutorAsync:
             max_workers=4,
         )
         tasks = list(range(20))
-        await executor.start_async(tasks)
+        executor.put_tasks(tasks)
+        await executor.start_async()
 
 
 class TestExecutorDuplicateCheck:
@@ -190,7 +197,8 @@ class TestExecutorDuplicateCheck:
             execution_mode="serial",
         )
         tasks: list[int] = [1, 1, 2, 2, 2, 3]
-        executor.start(tasks)
+        executor.put_tasks(tasks)
+        executor.start()
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 6
@@ -205,7 +213,8 @@ class TestExecutorDuplicateCheck:
             enable_duplicate_check=True,
         )
         tasks: list[int] = [1, 1, 2, 2, 2, 3]
-        executor.start(tasks)
+        executor.put_tasks(tasks)
+        executor.start()
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 3
@@ -221,7 +230,8 @@ class TestExecutorDuplicateCheck:
             enable_duplicate_check=False,
         )
         tasks: list[int] = [1, 1, 2, 2, 2, 3]
-        executor.start(tasks)
+        executor.put_tasks(tasks)
+        executor.start()
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 6
@@ -387,7 +397,8 @@ class TestExecutorSuccessCache:
             enable_duplicate_check=True,
             persist_result=True,
         )
-        executor.start([1, 2, 3])
+        executor.put_tasks([1, 2, 3])
+        executor.start()
 
         pairs = executor.get_success_pairs()
         result_dict = dict(pairs)

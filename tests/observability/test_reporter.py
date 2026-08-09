@@ -56,17 +56,30 @@ class FakePushSession:
         return FakePostResponse()
 
 
-class FakeTaskGraph:
-    """记录 put_stage_queue 调用参数。"""
+class FakeStage:
+    """记录显式任务注入调用。"""
 
     def __init__(self) -> None:
-        self.calls: list[tuple[dict[str, list[Any]], bool]] = []
+        self.task_calls: list[Any] = []
+        self.signal_calls = 0
 
-    def put_stage_queue(
-        self, tasks_dict: dict[str, list[Any]], put_termination_signal: bool = True
-    ) -> None:
-        """保存 reporter 注入到图中的任务字典。"""
-        self.calls.append((tasks_dict, put_termination_signal))
+    def put_task(self, task: Any) -> None:
+        """记录单次任务注入。"""
+        self.task_calls.append(task)
+
+    def put_signal(self) -> None:
+        """记录终止信号注入。"""
+        self.signal_calls += 1
+
+
+class FakeTaskGraph:
+    """提供 reporter 拉取注入所需的最小图接口。"""
+
+    def __init__(self) -> None:
+        self.stage_dict: dict[str, FakeStage] = {
+            "StageA": FakeStage(),
+            "StageB": FakeStage(),
+        }
 
 
 class FakeErrorGraph:
@@ -133,15 +146,10 @@ def test_reporter_accepts_split_task_and_termination_payload(
 
     reporter._pull_injection()
 
-    assert graph.calls == [
-        (
-            {
-                "StageA": [1, 2, 3],
-                "StageB": [TERMINATION_SIGNAL],
-            },
-            False,
-        )
-    ]
+    assert graph.stage_dict["StageA"].task_calls == [[1, 2, 3]]
+    assert graph.stage_dict["StageA"].signal_calls == 0
+    assert graph.stage_dict["StageB"].task_calls == []
+    assert graph.stage_dict["StageB"].signal_calls == 1
     assert log_inlet.successes == [
         ("StageA", [1, 2, 3]),
         ("StageB", [TERMINATION_SIGNAL]),
@@ -170,16 +178,11 @@ def test_reporter_merges_tasks_and_termination_for_same_stage(
 
     reporter._pull_injection()
 
-    assert graph.calls == [
-        (
-            {
-                "StageA": [1, 2, 3, TERMINATION_SIGNAL],
-            },
-            False,
-        )
-    ]
+    assert graph.stage_dict["StageA"].task_calls == [[1, 2, 3]]
+    assert graph.stage_dict["StageA"].signal_calls == 1
     assert log_inlet.successes == [
-        ("StageA", [1, 2, 3, TERMINATION_SIGNAL]),
+        ("StageA", [1, 2, 3]),
+        ("StageA", [TERMINATION_SIGNAL]),
     ]
     assert log_inlet.failures == []
     assert log_inlet.pull_failures == []
