@@ -56,8 +56,7 @@ def demo_chain() -> None:
     chain.set_reporter(TaskReporter(report_host, report_port, chain))
     chain.set_ctree(ctree_client)
 
-    stageA.put_tasks(range(20))
-    chain.start_graph()
+    chain.run({"StageA": list(range(20))})
 
 
 def demo_forest() -> None:
@@ -170,10 +169,7 @@ def demo_forest() -> None:
         stageF.get_name(): list(range(21, 31)),
     }
 
-    stageA.put_tasks(init_tasks[stageA.get_name()])
-    stageB.put_tasks(init_tasks[stageB.get_name()])
-    stageF.put_tasks(init_tasks[stageF.get_name()])
-    graph.start_graph()
+    graph.run(init_tasks)
 
 
 def demo_cross() -> None:
@@ -202,10 +198,7 @@ def demo_cross() -> None:
         stageC.get_name(): range(11, 21),
     }
 
-    stageA.put_tasks(init_tasks[stageA.get_name()], put_termination_signal=True)
-    stageB.put_tasks(init_tasks[stageB.get_name()], put_termination_signal=True)
-    stageC.put_tasks(init_tasks[stageC.get_name()], put_termination_signal=True)
-    cross.start_graph()
+    cross.run({name: list(tasks) for name, tasks in init_tasks.items()})
 
 
 def demo_network() -> None:
@@ -232,9 +225,7 @@ def demo_network() -> None:
         A2.get_name(): range(11, 21),
     }
 
-    A1.put_tasks(init_tasks[A1.get_name()], put_termination_signal=True)
-    A2.put_tasks(init_tasks[A2.get_name()], put_termination_signal=True)
-    cross.start_graph()
+    cross.run({name: list(tasks) for name, tasks in init_tasks.items()})
 
 
 def demo_star() -> None:
@@ -253,8 +244,7 @@ def demo_star() -> None:
     star.set_reporter(TaskReporter(report_host, report_port, star))
     star.set_ctree(ctree_client)
 
-    core.put_tasks(range(1, 11))
-    star.start_graph()
+    star.run({"Core": list(range(1, 11))})
 
 
 def demo_fanin() -> None:
@@ -273,10 +263,13 @@ def demo_fanin() -> None:
     fainin.set_reporter(TaskReporter(report_host, report_port, fainin))
     fainin.set_ctree(ctree_client)
 
-    source1.put_tasks(range(1, 11), put_termination_signal=True)
-    source2.put_tasks(range(11, 21), put_termination_signal=True)
-    source3.put_tasks(range(21, 31), put_termination_signal=True)
-    fainin.start_graph()
+    fainin.run(
+        {
+            "Source1": list(range(1, 11)),
+            "Source2": list(range(11, 21)),
+            "Source3": list(range(21, 31)),
+        }
+    )
 
 
 def demo_grid() -> None:
@@ -300,8 +293,7 @@ def demo_grid() -> None:
     init_dict: dict[str, list[int]] = {grid[0][0].get_name(): list(range(10))}
 
     # 4. 启动任务图
-    grid[0][0].put_tasks(init_dict[grid[0][0].get_name()])
-    task_grid.start_graph()
+    task_grid.run(init_dict)
 
 
 # ========有环图========
@@ -318,8 +310,7 @@ def demo_loop() -> None:
     test_task_0 = range(1, 2)
     # test_task_1 = list(test_task_0) + [0, 6, None, 0, ""]
 
-    stageA.put_tasks(test_task_0)
-    loop.start_graph()
+    loop.run({"StageA": list(test_task_0)})
 
 
 def demo_wheel() -> None:
@@ -335,8 +326,7 @@ def demo_wheel() -> None:
     wheel.set_reporter(TaskReporter(report_host, report_port, wheel))
     wheel.set_ctree(ctree_client)
 
-    core.put_tasks(range(1, 11), put_termination_signal=True)
-    wheel.start_graph()
+    wheel.run({"Core": list(range(1, 11))})
 
 
 def demo_complete() -> None:
@@ -350,10 +340,13 @@ def demo_complete() -> None:
     complete.set_reporter(TaskReporter(report_host, report_port, complete))
     complete.set_ctree(ctree_client)
 
-    n1.put_tasks(range(1, 11), put_termination_signal=True)
-    n2.put_tasks(range(11, 21), put_termination_signal=True)
-    n3.put_tasks(range(21, 31), put_termination_signal=True)
-    complete.start_graph()
+    complete.run(
+        {
+            "Node1": list(range(1, 11)),
+            "Node2": list(range(11, 21)),
+            "Node3": list(range(21, 31)),
+        }
+    )
 
 
 def demo_multi_cycle() -> None:
@@ -411,8 +404,7 @@ def demo_multi_cycle() -> None:
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
     graph.set_ctree(ctree_client)
 
-    A1.put_tasks(range(1, 11), put_termination_signal=False)
-    graph.start_graph()
+    graph.run({"A1": list(range(1, 11))}, if_put_signal=False)
 
 
 if __name__ == "__main__":

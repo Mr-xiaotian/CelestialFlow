@@ -188,8 +188,7 @@ def run_benchmark(
         executor.add_observer(observer)
 
     start = time.perf_counter()
-    executor.put_tasks(task_data)
-    executor.start()
+    executor.run(task_data)
     elapsed = time.perf_counter() - start
     return elapsed
 

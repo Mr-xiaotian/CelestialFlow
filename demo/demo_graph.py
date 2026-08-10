@@ -88,8 +88,7 @@ def demo_etl_fan_out_fan_in() -> None:
     graph.connect([normalize, enrich], [load])
 
     raw_ids = list(range(1, 16))
-    extract.put_tasks(raw_ids)
-    graph.start_graph()
+    graph.run({"Extract": raw_ids})
 
 
 def demo_async_staged_pipeline() -> None:
@@ -127,8 +126,7 @@ def demo_async_staged_pipeline() -> None:
     graph.connect([stage_double], [stage_to_str])
 
     tasks: list[Any] = list(range(1, 21))
-    stage_double.put_tasks(tasks)
-    graph.start_graph()
+    graph.run({"AsyncDouble": tasks})
 
 
 

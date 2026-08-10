@@ -184,8 +184,7 @@ def demo_redis_ack_0() -> None:
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
 
     test_task: list[Any] = [*list(range(25, 37)), 0, 27, None, 0, ""]
-    start_stage.put_tasks(test_task)
-    graph.start_graph()
+    graph.run({"Start": test_task})
 
 
 def demo_redis_ack_1() -> None:
@@ -229,8 +228,7 @@ def demo_redis_ack_1() -> None:
     test_task: list[tuple[int, int]] = [
         (random.randint(1, 100), random.randint(1, 100)) for _ in range(12)
     ]
-    start_stage.put_tasks(test_task)
-    graph.start_graph()
+    graph.run({"Start": test_task})
 
 
 def demo_redis_ack_2() -> None:
@@ -281,8 +279,7 @@ def demo_redis_ack_2() -> None:
             "X:/Download/download_py/steam_2949210.jpg",
         ),
     ]
-    start_stage.put_tasks(download_links)
-    graph.start_graph()
+    graph.run({"Start": download_links})
 
 
 def demo_redis_source_0() -> None:
@@ -321,12 +318,12 @@ def demo_redis_source_0() -> None:
     graph.connect([source_stage], [sleep_stage_1])
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
 
-    sleep_stage_0.put_tasks(list(range(25, 37)), put_termination_signal=True)
-    source_stage.put_tasks(
-        ["testReport:input" for i in range(12)],
-        put_termination_signal=True,
+    graph.run(
+        {
+            "Sleep0": list(range(25, 37)),
+            "RedisSource": ["testReport:input" for _ in range(12)],
+        }
     )
-    graph.start_graph()
 
 
 if __name__ == "__main__":

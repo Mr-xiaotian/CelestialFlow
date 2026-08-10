@@ -72,7 +72,6 @@ def demo_network_step1() -> None:
         [[A1, A2], [B1, B2, B3], [C]],
         stage_mode="thread",
     )
-    cross.set_reporter(False)
 
     # ── 输入数据 ──────────────────────────────────────────────
     # A1 接收 [1, 2, 3, 4, 5]
@@ -90,9 +89,7 @@ def demo_network_step1() -> None:
     print("  C(x) = 1.0 * x")
     print("  运行中...")
 
-    A1.put_tasks(init_tasks[A1.get_name()], put_termination_signal=True)
-    A2.put_tasks(init_tasks[A2.get_name()], put_termination_signal=True)
-    cross.start_graph()
+    cross.run(init_tasks)
 
     # ── 收集结果 ──────────────────────────────────────────────
     success_pairs = C.get_success_pairs()

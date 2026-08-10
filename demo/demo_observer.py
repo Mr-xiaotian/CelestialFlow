@@ -138,8 +138,7 @@ def demo_progress_observer() -> None:
     )
     executor.add_observer(TaskProgress())
 
-    executor.put_tasks(test_task)
-    executor.start()
+    executor.run(test_task)
 
 
 def demo_print_observer() -> None:
@@ -154,8 +153,7 @@ def demo_print_observer() -> None:
     )
     executor.add_observer(PrintObserver())
 
-    executor.put_tasks(test_task)
-    executor.start()
+    executor.run(test_task)
 
 
 if __name__ == "__main__":

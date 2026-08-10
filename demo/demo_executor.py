@@ -19,8 +19,7 @@ def demo_fibonacci_serial() -> None:
     executor.set_retry_exceptions(ValueError)
     executor.add_observer(TaskProgress())
 
-    executor.put_tasks(test_task_1)
-    executor.start()
+    executor.run(test_task_1)
 
 
 def demo_fibonacci_thread() -> None:
@@ -36,8 +35,7 @@ def demo_fibonacci_thread() -> None:
     executor.set_retry_exceptions(ValueError)
     executor.add_observer(TaskProgress())
 
-    executor.put_tasks(test_task_1)
-    executor.start()
+    executor.run(test_task_1)
 
 
 async def demo_fibonacci_async() -> None:
@@ -53,8 +51,7 @@ async def demo_fibonacci_async() -> None:
     executor.set_retry_exceptions(ValueError)
     executor.add_observer(TaskProgress())
 
-    executor.put_tasks(test_task_1)
-    await executor.start_async()
+    await executor.run_async(test_task_1)
 
 
 if __name__ == "__main__":

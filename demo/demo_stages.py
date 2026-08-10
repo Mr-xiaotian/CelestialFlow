@@ -78,11 +78,10 @@ def demo_splitter_0() -> None:
     # graph.set_ctree(ctree_client)
 
     # 运行入口：从 GenURLs 注入初始种子任务，观察 split 与回环效果。
-    generate_stage.put_tasks(
-        [*list(range(10)), 1, 2, 3, 6, 7, 8, 9],
-        put_termination_signal=False,
+    graph.run(
+        {"GenURLs": [*list(range(10)), 1, 2, 3, 6, 7, 8, 9]},
+        if_put_signal=False,
     )
-    graph.start_graph()
 
 
 def demo_splitter_1() -> None:
@@ -100,8 +99,7 @@ def demo_splitter_1() -> None:
     chain.set_ctree(ctree_client)
 
     # 运行入口：把 range(100_000) 包成单个任务送进 Splitter。
-    task_splitter.put_tasks([range(100_000)])
-    chain.start_graph()
+    chain.run({"Splitter": [range(100_000)]})
 
 
 def demo_router_0() -> None:
@@ -148,8 +146,7 @@ def demo_router_0() -> None:
     # graph.set_ctree(ctree_client)
 
     # 运行入口：输入一组整数，观察 Router 按规则把奇偶任务分发到不同下游。
-    source_stage.put_tasks(list(range(20)))
-    graph.start_graph()
+    graph.run({"Origin": list(range(20))})
 
 
 if __name__ == "__main__":
