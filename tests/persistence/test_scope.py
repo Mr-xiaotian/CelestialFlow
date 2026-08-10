@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from queue import Empty
 
 import pytest
 
@@ -17,11 +18,25 @@ from tests.conftest import wait_until
 @pytest.fixture(autouse=True)
 def _cleanup_global_spouts() -> None:
     """为每个用例清理全局 spout，避免后台线程与文件状态串扰。"""
-    get_log_spout().stop()
-    get_fallback_spout().stop()
+    _reset_spout(get_log_spout())
+    _reset_spout(get_fallback_spout())
     yield
-    get_log_spout().stop()
-    get_fallback_spout().stop()
+    _reset_spout(get_log_spout())
+    _reset_spout(get_fallback_spout())
+
+
+def _reset_spout(spout) -> None:
+    """停止并清空全局 spout，避免历史队列记录污染当前用例。"""
+    spout.stop()
+    while True:
+        try:
+            _ = spout.get_queue().get_nowait()
+        except Empty:
+            break
+
+    counter = spout.get_counter()
+    while counter.get_count() > 0:
+        counter.decrement()
 
 
 class TestFunnelScope:

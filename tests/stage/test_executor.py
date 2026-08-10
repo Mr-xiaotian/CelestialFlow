@@ -76,8 +76,7 @@ class TestExecutorSerial:
             execution_mode="serial",
         )
         tasks: list[int] = [1, -1, 2, -2, 3]
-        executor.put_tasks(tasks)
-        executor.start()
+        executor.run(tasks)
 
         result_dict = build_result_dict(executor)
         assert "negative value: -1" in result_dict[-1]
@@ -239,7 +238,7 @@ class TestExecutorDuplicateCheck:
 
 
 class TestExecutorReplay:
-    def test_start_db(self, tmp_path: Path):
+    def test_restore_db(self, tmp_path: Path):
         """执行器默认应读取属于自己 stage 的 failed 与 pending 任务。"""
         sqlite_path = tmp_path / "fallback.sqlite3"
         appended = append_records(
@@ -286,14 +285,14 @@ class TestExecutorReplay:
         assert appended == 4
 
         executor = TaskExecutor("s1", add_one, execution_mode="serial")
-        executor.start_db(sqlite_path)
+        executor.restore_db(sqlite_path)
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 0
 
-    def test_start_db_filters_error_type_when_enabled(self, tmp_path: Path):
-        """start_db 开启过滤时只回放命中 retry_exceptions 的记录。"""
+    def test_restore_db_filters_error_type_when_enabled(self, tmp_path: Path):
+        """restore_db 开启过滤时只回放命中 retry_exceptions 的记录。"""
         sqlite_path = tmp_path / "fallback.sqlite3"
         appended = append_records(
             sqlite_path,
@@ -331,7 +330,7 @@ class TestExecutorReplay:
 
         executor = TaskExecutor("s1", add_one, execution_mode="serial")
         executor.set_retry_exceptions(RuntimeError)
-        executor.start_db(
+        executor.restore_db(
             sqlite_path,
             statuses=["failed"],
             filter_by_error_type=True,
@@ -341,8 +340,8 @@ class TestExecutorReplay:
         assert counts["tasks_succeeded"] == 2
         assert counts["tasks_failed"] == 0
 
-    def test_start_db_filter_keeps_pending_records(self, tmp_path: Path):
-        """start_db 开启过滤时仍应保留 pending 记录。"""
+    def test_restore_db_filter_keeps_pending_records(self, tmp_path: Path):
+        """restore_db 开启过滤时仍应保留 pending 记录。"""
         sqlite_path = tmp_path / "fallback.sqlite3"
         appended = append_records(
             sqlite_path,
@@ -380,7 +379,7 @@ class TestExecutorReplay:
 
         executor = TaskExecutor("s1", add_one, execution_mode="serial")
         executor.set_retry_exceptions(RuntimeError)
-        executor.start_db(sqlite_path, filter_by_error_type=True)
+        executor.restore_db(sqlite_path, filter_by_error_type=True)
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 2
@@ -397,8 +396,7 @@ class TestExecutorSuccessCache:
             enable_duplicate_check=True,
             persist_result=True,
         )
-        executor.put_tasks([1, 2, 3])
-        executor.start()
+        executor.run([1, 2, 3])
 
         pairs = executor.get_success_pairs()
         result_dict = dict(pairs)

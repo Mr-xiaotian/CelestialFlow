@@ -122,8 +122,7 @@ class TestTaskGraphBasic:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        stage1.put_tasks([1, 2, 3])
-        graph.start_graph()
+        graph.run({"s1": [1, 2, 3]})
 
         # stage1 结果: 2, 3, 4 -> stage2 结果: 4, 6, 8
         assert stage1.get_counts()["tasks_succeeded"] == 3
@@ -139,8 +138,7 @@ class TestTaskGraphBasic:
         graph.set_stages(stages=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
-        source.put_tasks([1, 2])
-        graph.start_graph()
+        graph.run({"src": [1, 2]})
 
         assert source.get_counts()["tasks_succeeded"] == 2
         assert sink_a.get_counts()["tasks_succeeded"] == 2
@@ -156,9 +154,7 @@ class TestTaskGraphBasic:
         graph.set_stages(stages=[source_a, source_b, merge])
         graph.connect([source_a, source_b], [merge])
 
-        source_a.put_tasks([1, 2], put_termination_signal=True)
-        source_b.put_tasks([10, 20], put_termination_signal=True)
-        graph.start_graph()
+        graph.run({"SrcA": [1, 2], "SrcB": [10, 20]})
 
         assert merge.get_counts()["tasks_succeeded"] == 4
 
@@ -171,8 +167,7 @@ class TestTaskGraphBasic:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        stage1.put_tasks([1, 50, 2])
-        graph.start_graph()
+        graph.run({"s1": [1, 50, 2]})
 
         # stage1: 1->11, 50->error, 2->12
         assert stage1.get_counts()["tasks_succeeded"] == 2
@@ -182,7 +177,7 @@ class TestTaskGraphBasic:
         assert stage2.get_counts()["tasks_succeeded"] == 2
         assert stage2.get_counts()["tasks_failed"] == 0
 
-    def test_graph_start_db(self, tmp_path):
+    def test_graph_restore_db(self, tmp_path):
         """任务图默认应按 stage 分组读取 failed 与 pending 任务并启动。"""
         sqlite_path = tmp_path / "fallback.sqlite3"
         appended = append_records(
@@ -231,15 +226,15 @@ class TestTaskGraphBasic:
         stage1 = TaskStage("s1", add_one, execution_mode="serial")
         stage2 = TaskStage("s2", double, execution_mode="serial")
 
-        graph = TaskGraph("test_graph_start_db")
+        graph = TaskGraph("test_graph_restore_db")
         graph.set_stages(stages=[stage1, stage2])
-        graph.start_graph_db(sqlite_path)
+        graph.restore_db(sqlite_path)
 
         assert stage1.get_counts()["tasks_succeeded"] == 2
         assert stage2.get_counts()["tasks_succeeded"] == 2
 
-    def test_graph_start_db_filters_error_type_when_enabled(self, tmp_path):
-        """图级 DB 启动开启过滤时，应按各 stage 的 retry_exceptions 回放。"""
+    def test_graph_restore_db_filters_error_type_when_enabled(self, tmp_path):
+        """图级 restore_db 开启过滤时，应按各 stage 的 retry_exceptions 回放。"""
         sqlite_path = tmp_path / "fallback.sqlite3"
         appended = append_records(
             sqlite_path,
@@ -289,15 +284,15 @@ class TestTaskGraphBasic:
         stage1.set_retry_exceptions(RuntimeError)
         stage2.set_retry_exceptions(ValueError)
 
-        graph = TaskGraph("test_graph_start_db_filters_error_type")
+        graph = TaskGraph("test_graph_restore_db_filters_error_type")
         graph.set_stages(stages=[stage1, stage2])
-        graph.start_graph_db(sqlite_path, statuses=["failed"], filter_by_error_type=True)
+        graph.restore_db(sqlite_path, statuses=["failed"], filter_by_error_type=True)
 
         assert stage1.get_counts()["tasks_succeeded"] == 1
         assert stage2.get_counts()["tasks_succeeded"] == 1
 
-    def test_graph_start_db_filter_keeps_pending_records(self, tmp_path):
-        """图级 DB 过滤开启时，pending 记录仍应继续回放。"""
+    def test_graph_restore_db_filter_keeps_pending_records(self, tmp_path):
+        """图级 restore_db 过滤开启时，pending 记录仍应继续回放。"""
         sqlite_path = tmp_path / "fallback.sqlite3"
         appended = append_records(
             sqlite_path,
@@ -347,29 +342,29 @@ class TestTaskGraphBasic:
         stage1.set_retry_exceptions(RuntimeError)
         stage2.set_retry_exceptions(ValueError)
 
-        graph = TaskGraph("test_graph_start_db_filter_keeps_pending_records")
+        graph = TaskGraph("test_graph_restore_db_filter_keeps_pending_records")
         graph.set_stages(stages=[stage1, stage2])
-        graph.start_graph_db(sqlite_path, filter_by_error_type=True)
+        graph.restore_db(sqlite_path, filter_by_error_type=True)
 
         assert stage1.get_counts()["tasks_succeeded"] == 1
         assert stage2.get_counts()["tasks_succeeded"] == 1
 
-    def test_start_graph_raises_exception_group_after_finish(self, monkeypatch):
-        """同步 start_graph 应在 finish 后统一抛出收集到的异常。"""
-        graph = TaskGraph("test_start_graph_raises_exception_group_after_finish")
+    def test_start_raises_exception_group_after_finish(self, monkeypatch):
+        """同步 start 应在 finish 后统一抛出收集到的异常。"""
+        graph = TaskGraph("test_start_raises_exception_group_after_finish")
 
         def crash_prepare() -> None:
             raise ValueError("prepare failed")
 
-        monkeypatch.setattr(graph, "_prepare_start_graph", crash_prepare)
+        monkeypatch.setattr(graph, "_prepare_start", crash_prepare)
         monkeypatch.setattr(
             graph,
-            "_finish_start_graph",
+            "_finish_start",
             lambda _start_perf: [RuntimeError("finish failed")],
         )
 
         with pytest.raises(ExceptionGroup) as exc_info:
-            graph.start_graph()
+            graph.start()
 
         messages = [str(exception) for exception in exc_info.value.exceptions]
         assert messages == ["prepare failed", "finish failed"]
@@ -380,25 +375,25 @@ class TestTaskGraphBasic:
 # =========================
 class TestTaskGraphAsync:
     @pytest.mark.asyncio
-    async def test_start_graph_async_raises_exception_group_after_finish(
+    async def test_start_async_raises_exception_group_after_finish(
         self,
         monkeypatch,
     ):
-        """异步 start_graph_async 应在 finish 后统一抛出收集到的异常。"""
-        graph = TaskGraph("test_start_graph_async_raises_exception_group_after_finish")
+        """异步 start_async 应在 finish 后统一抛出收集到的异常。"""
+        graph = TaskGraph("test_start_async_raises_exception_group_after_finish")
 
         def crash_prepare() -> None:
             raise ValueError("prepare failed")
 
-        monkeypatch.setattr(graph, "_prepare_start_graph", crash_prepare)
+        monkeypatch.setattr(graph, "_prepare_start", crash_prepare)
         monkeypatch.setattr(
             graph,
-            "_finish_start_graph",
+            "_finish_start",
             lambda _start_perf: [RuntimeError("finish failed")],
         )
 
         with pytest.raises(ExceptionGroup) as exc_info:
-            await graph.start_graph_async()
+            await graph.start_async()
 
         messages = [str(exception) for exception in exc_info.value.exceptions]
         assert messages == ["prepare failed", "finish failed"]
@@ -413,8 +408,7 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        stage1.put_tasks([1, 2, 3])
-        await graph.start_graph_async()
+        await graph.run_async({"s1": [1, 2, 3]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 3
         assert stage2.get_counts()["tasks_succeeded"] == 3
@@ -430,8 +424,7 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
-        source.put_tasks([1, 2])
-        await graph.start_graph_async()
+        await graph.run_async({"src": [1, 2]})
 
         assert source.get_counts()["tasks_succeeded"] == 2
         assert sink_a.get_counts()["tasks_succeeded"] == 2
@@ -448,9 +441,7 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[source_a, source_b, merge])
         graph.connect([source_a, source_b], [merge])
 
-        source_a.put_tasks([1, 2], put_termination_signal=True)
-        source_b.put_tasks([10, 20], put_termination_signal=True)
-        await graph.start_graph_async()
+        await graph.run_async({"src_a": [1, 2], "src_b": [10, 20]})
 
         assert merge.get_counts()["tasks_succeeded"] == 4
 
@@ -464,8 +455,7 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        stage1.put_tasks([1, 50, 2])
-        await graph.start_graph_async()
+        await graph.run_async({"s1": [1, 50, 2]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 2
         assert stage1.get_counts()["tasks_failed"] == 1
@@ -486,7 +476,7 @@ class TestTaskGraphAsync:
         graph.connect([stage1], [stage2])
 
         stage1.put_tasks([1, 2, 3])
-        await graph.start_graph_async()
+        await graph.start_async()
 
         assert stage1.get_counts()["tasks_succeeded"] == 3
         assert stage2.get_counts()["tasks_succeeded"] == 3
@@ -500,8 +490,7 @@ class TestTaskGraphStructure:
         s3 = TaskStage("s3", to_str)
 
         chain = TaskChain("test_chain_structure", [s1, s2, s3])
-        s1.put_tasks([1, 2])
-        chain.start_graph()
+        chain.run({"s1": [1, 2]})
 
         assert s1.get_counts()["tasks_succeeded"] == 2
         assert s2.get_counts()["tasks_succeeded"] == 2
@@ -513,9 +502,7 @@ class TestTaskGraphStructure:
         layer2 = [TaskStage(f"L2{i}", double) for i in range(3)]
 
         cross = TaskCross("test_cross_structure", [layer1, layer2])
-        layer1[0].put_tasks([1], put_termination_signal=True)
-        layer1[1].put_tasks([2], put_termination_signal=True)
-        cross.start_graph()
+        cross.run({"L10": [1], "L11": [2]})
 
         for s in layer1:
             assert s.get_counts()["tasks_succeeded"] == 1
@@ -527,8 +514,7 @@ class TestTaskGraphStructure:
         """TaskGrid：网格结构正确连接"""
         grid = [[TaskStage(f"g{i}{j}", add_one) for j in range(2)] for i in range(2)]
         task_grid = TaskGrid("test_grid_structure", grid)
-        grid[0][0].put_tasks([1, 2])
-        task_grid.start_graph()
+        task_grid.run({"g00": [1, 2]})
 
         # 左上角根节点处理 2 个任务
         assert grid[0][0].get_counts()["tasks_succeeded"] == 2
@@ -587,9 +573,9 @@ class TestTaskGraphAnalysis:
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
 
-        # 调用 build_analysis（通过 start_graph 触发）
+        # 调用 build_analysis（通过 start 触发）
         s1.put_tasks([1])
-        graph.start_graph()
+        graph.start()
 
         analysis = graph.get_graph_analysis()
         assert analysis["isDAG"] is True
@@ -607,7 +593,7 @@ class TestTaskGraphAnalysis:
         graph.connect([s2], [s3])
 
         s1.put_tasks([1])
-        graph.start_graph()
+        graph.start()
 
         analysis = graph.get_graph_analysis()
         layers = analysis["layersDict"]
@@ -649,8 +635,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph("test_serial_serial")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        s1.put_tasks([1, 2, 3, 4, 5])
-        graph.start_graph()
+        graph.run({"s1": [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -667,8 +652,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph("test_serial_thread")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        s1.put_tasks([1, 2, 3, 4, 5])
-        graph.start_graph()
+        graph.run({"s1": [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -694,8 +678,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph("test_serial_async")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        s1.put_tasks([1, 2, 3, 4, 5])
-        await graph.start_graph_async()
+        await graph.run_async({"s1": [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -710,8 +693,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph("test_thread_serial")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        s1.put_tasks([1, 2, 3, 4, 5])
-        graph.start_graph()
+        graph.run({"s1": [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -728,8 +710,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph("test_thread_thread")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        s1.put_tasks([1, 2, 3, 4, 5])
-        graph.start_graph()
+        graph.run({"s1": [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -755,8 +736,7 @@ class TestStageExecutionMatrix:
         graph = TaskGraph("test_thread_async")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
-        s1.put_tasks([1, 2, 3, 4, 5])
-        await graph.start_graph_async()
+        await graph.run_async({"s1": [1, 2, 3, 4, 5]})
 
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
@@ -775,8 +755,7 @@ class TestTaskGraphThread:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        stage1.put_tasks([1, 2, 3])
-        graph.start_graph()
+        graph.run({"s1": [1, 2, 3]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 3
         assert stage2.get_counts()["tasks_succeeded"] == 3
@@ -791,8 +770,7 @@ class TestTaskGraphThread:
         graph.set_stages(stages=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
-        source.put_tasks([1, 2])
-        graph.start_graph()
+        graph.run({"src": [1, 2]})
 
         assert source.get_counts()["tasks_succeeded"] == 2
         assert sink_a.get_counts()["tasks_succeeded"] == 2
@@ -808,9 +786,7 @@ class TestTaskGraphThread:
         graph.set_stages(stages=[source_a, source_b, merge])
         graph.connect([source_a, source_b], [merge])
 
-        source_a.put_tasks([1, 2], put_termination_signal=True)
-        source_b.put_tasks([10, 20], put_termination_signal=True)
-        graph.start_graph()
+        graph.run({"SrcA": [1, 2], "SrcB": [10, 20]})
 
         assert merge.get_counts()["tasks_succeeded"] == 4
 
@@ -825,8 +801,7 @@ class TestTaskGraphThread:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        stage1.put_tasks([1, 50, 2])
-        graph.start_graph()
+        graph.run({"s1": [1, 50, 2]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 2
         assert stage1.get_counts()["tasks_failed"] == 1
@@ -845,8 +820,7 @@ class TestTaskGraphThread:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        stage1.put_tasks([1, 2, 3])
-        graph.start_graph()
+        graph.run({"s1": [1, 2, 3]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 3
         assert stage2.get_counts()["tasks_succeeded"] == 3
@@ -862,8 +836,7 @@ class TestTaskGraphThread:
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
 
-        s1.put_tasks([1, 2])
-        graph.start_graph()
+        graph.run({"s1": [1, 2]})
 
         assert s1.get_counts()["tasks_succeeded"] == 2
         assert s2.get_counts()["tasks_succeeded"] == 2
@@ -885,8 +858,7 @@ class TestSourceStages:
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
 
-        s1.put_tasks([1])
-        graph.start_graph()
+        graph.run({"s1": [1]})
 
         sources = graph.get_source_stages()
         assert len(sources) == 1
@@ -903,9 +875,7 @@ class TestSourceStages:
         graph.connect([s1], [s3])
         graph.connect([s2], [s3])
 
-        s1.put_tasks([1], put_termination_signal=True)
-        s2.put_tasks([2], put_termination_signal=True)
-        graph.start_graph()
+        graph.run({"s1": [1], "s2": [2]})
 
         source_names = {s.get_name() for s in graph.get_source_stages()}
         assert source_names == {s1.get_name(), s2.get_name()}
@@ -922,8 +892,7 @@ class TestSourceStages:
         graph.connect([s1], [s2, s3])
         graph.connect([s2, s3], [s4])
 
-        s1.put_tasks([1])
-        graph.start_graph()
+        graph.run({"s1": [1]})
 
         sources = graph.get_source_stages()
         assert len(sources) == 1
@@ -988,8 +957,8 @@ class TestCyclicGraph:
         graph.connect([s2], [s3])
         graph.connect([s3], [s1])
 
-        s1.put_tasks([1], put_termination_signal=True)
-        graph.start_graph()
+        s1.put_tasks([1], if_put_signal=True)
+        graph.start()
 
         analysis = graph.get_graph_analysis()
         assert analysis["isDAG"] is False
@@ -1008,8 +977,8 @@ class TestCyclicGraph:
         graph.connect([s3], [s1])
         graph.connect([s1], [s4])
 
-        s1.put_tasks([1], put_termination_signal=True)
-        graph.start_graph()
+        s1.put_tasks([1], if_put_signal=True)
+        graph.start()
 
         analysis = graph.get_graph_analysis()
         layers = analysis["layersDict"]

@@ -1,4 +1,3 @@
-from celestialflow.funnel.core_inlet import BaseInlet
 from celestialflow.persistence.core_log import LogInlet, LogSpout
 from tests.conftest import wait_until
 
@@ -16,7 +15,7 @@ class TestLogPersistence:
             inlet.start_graph("test_graph", ['test message'])
             inlet.task_retry('func', 'hello world', 1, ValueError('oops'), 0, 1)
             inlet.end_graph("test_graph", 1.0)
-            inlet.start_stage('stage', 'normal', 'parallel-4')
+            inlet.start_executor('stage', 1, 'parallel-4')
             wait_until(
                 lambda: spout.log_path.exists()
                 and 'test message' in spout.log_path.read_text(encoding='utf-8')

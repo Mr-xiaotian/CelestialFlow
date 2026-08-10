@@ -33,8 +33,7 @@ class TestTaskSplitter:
         graph = TaskGraph("test_splitter_process_success")
         graph.set_stages([S, A])
         graph.connect([S], [A])
-        S.put_tasks([[1, 2, 3]])
-        graph.start_graph()
+        graph.run({"S": [[1, 2, 3]]})
 
         assert S.split_counter.get() == 3
         assert A.get_counts()["tasks_succeeded"] == 3
@@ -50,8 +49,7 @@ class TestTaskSplitter:
         graph = TaskGraph("test_splitter_allows_empty_iterable")
         graph.set_stages([S, A])
         graph.connect([S], [A])
-        S.put_tasks([[]])
-        graph.start_graph()
+        graph.run({"S": [[]]})
 
         assert S.split_counter.get() == 0
         assert A.get_counts()["tasks_succeeded"] == 0
@@ -67,8 +65,7 @@ class TestTaskSplitter:
         graph = TaskGraph("test_splitter_supports_generator_input")
         graph.set_stages([S, A])
         graph.connect([S], [A])
-        S.put_tasks([(i for i in [1, 2, 3])])
-        graph.start_graph()
+        graph.run({"S": [(i for i in [1, 2, 3])]})
 
         assert S.split_counter.get() == 3
         assert A.get_counts()["tasks_succeeded"] == 3
@@ -114,8 +111,7 @@ class TestTaskRouter:
         graph = TaskGraph("test_router_process_success")
         graph.set_stages([R, T1, T2])
         graph.connect([R], [T1, T2])
-        R.put_tasks(["msg1", "msg2"])
-        graph.start_graph()
+        graph.run({"R": ["msg1", "msg2"]})
 
         assert R.route_counters["target1"].value == 1
         assert R.route_counters["target2"].value == 1
