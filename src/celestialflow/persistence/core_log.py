@@ -147,64 +147,6 @@ class LogInlet(BaseInlet):
         """
         self._log("INFO", f"Layer '{layer}' end. Use {use_time:.2f}s.")
 
-    # ==== 节点 ====
-    def start_stage(
-        self,
-        stage_name: str,
-        stage_mode: str,
-        execution_mode_desc: str,
-    ) -> None:
-        """
-        记录节点启动
-
-        :param stage_name: 节点名称
-        :param stage_mode: 节点运行模式
-        :param execution_mode_desc: 任务执行模式描述
-        """
-        text = f"Stage '{stage_name}' start in {stage_mode}; execute tasks by {execution_mode_desc}."
-        self._log("INFO", text)
-
-    def end_stage(
-        self,
-        stage_name: str,
-        stage_mode: str,
-        execution_mode_desc: str,
-        use_time: float,
-        success_num: int,
-        failed_num: int,
-        duplicated_num: int,
-    ) -> None:
-        """
-        记录节点结束及统计
-
-        :param stage_name: 节点名称
-        :param stage_mode: 节点运行模式
-        :param execution_mode_desc: 任务执行模式描述
-        :param use_time: 节点运行耗时（秒）
-        :param success_num: 成功任务数量
-        :param failed_num: 失败任务数量
-        :param duplicated_num: 重复任务数量
-        """
-        self._log(
-            "INFO",
-            f"Stage '{stage_name}' end in {stage_mode}; execute tasks by {execution_mode_desc}. Use {use_time:.2f}s. "
-            + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
-        )
-
-    def stage_crash(self, stage_name: str, exception: Exception) -> None:
-        """
-        记录节点崩溃。
-
-        :param stage_name: 节点名称
-        :param exception: 异常对象
-        """
-        exception_type = type(exception).__name__
-        exception_text = str(exception).replace("\n", " ")
-        self._log(
-            "CRITICAL",
-            f"Stage '{stage_name}' crashed: ({exception_type}){exception_text}.",
-        )
-
     # ==== 执行器 ====
     def start_executor(
         self, executor_name: str, task_num: int, execution_mode_desc: str

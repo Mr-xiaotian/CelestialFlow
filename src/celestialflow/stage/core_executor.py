@@ -11,10 +11,10 @@ from typing import Any, cast
 
 from ..observability import BaseObserver
 from ..persistence import (
+    funnel_scope,
     get_fallback_inlet,
     get_fallback_spout,
     get_log_inlet,
-    get_log_spout,
 )
 from ..persistence.util_sqlite import load_tasks_grouped_by_stage
 from ..runtime import (
@@ -283,17 +283,17 @@ class TaskExecutor[T, R]:
         self,
         task_source: Iterable[T],
         *,
-        put_termination_signal: bool = True,
+        if_put_signal: bool = True,
     ) -> None:
         """
         将多个任务封装为 TaskEnvelope 并放入队列。
 
         :param task_source: 任务来源可迭代对象
-        :param put_termination_signal: 是否在任务队列末尾放入终止信号，默认 True
+        :param if_put_signal: 是否在任务队列末尾放入终止信号，默认 True
         """
         for task in task_source:
             self.put_task(task)
-        if put_termination_signal:
+        if if_put_signal:
             self.put_signal()
 
     def put_task(self, task: T) -> None:
@@ -483,6 +483,75 @@ class TaskExecutor[T, R]:
             duplicate_id,
         )
 
+    # ==== 执行 ====
+
+    def run(self, 
+        task_source: Iterable[T],
+        *,
+        if_put_signal: bool = True,
+    ) -> None:
+        """
+        执行任务
+
+        :param task_source: 任务源
+        :param if_put_signal: 是否注入终止信号，默认 True
+        :return: ``None``
+        """
+        with funnel_scope():
+            self.put_tasks(task_source, if_put_signal=if_put_signal)
+            self.start()
+
+    async def run_async(self,
+        task_source: Iterable[T],
+        *,
+        if_put_signal: bool = True,
+    ) -> None:
+        """
+        异步启动任务执行器
+
+        :param task_source: 任务源
+        :param if_put_signal: 是否注入终止信号，默认 True
+        :return: ``None``
+        """
+        with funnel_scope():
+            self.put_tasks(task_source, if_put_signal=if_put_signal)
+            await self.start_async()
+
+    def restore_db(
+        self,
+        db_path: str | Path,
+        statuses: Iterable[str] | None = None,
+        *,
+        filter_by_error_type: bool = False,
+    ) -> None:
+        """
+        从 sqlite 持久化库中读取当前 stage 的任务并启动执行。
+
+        :param db_path: sqlite 数据库文件路径
+        :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``
+        :param filter_by_error_type: 是否按当前执行器的 ``retry_exceptions`` 过滤
+            ``error_type``，默认 ``False``
+        """
+        statuses = ["failed", "pending"] if statuses is None else statuses
+        grouped_tasks = load_tasks_grouped_by_stage(db_path, statuses)
+        records = grouped_tasks.get(self.get_name(), [])
+
+        if filter_by_error_type:
+            retry_error_type_names = self.metrics.get_retry_error_type_names()
+            records = [
+                record
+                for record in records
+                if str(record["error_type"]) in retry_error_type_names
+                or record["status"] == "pending"
+            ]
+
+        executor_tasks = [cast(T, record["task_json"]) for record in records]
+        if not executor_tasks:
+            return
+
+        self.put_tasks(executor_tasks)
+        self.start()
+
     # ==== 启动 ====
 
     def _prepare_start(self) -> None:
@@ -492,10 +561,6 @@ class TaskExecutor[T, R]:
         :param task_source: 任务源
         :return: ``None``
         """
-
-        get_fallback_spout().start()
-        get_log_spout().start()
-
         self.metrics.reset_state()
         self.metrics.on_start(self.get_full_name(), 0)
 
@@ -514,11 +579,6 @@ class TaskExecutor[T, R]:
         error_list: list[Exception] = []
 
         try:
-            self.metrics.on_finish()
-        except Exception as exception:
-            error_list.append(exception)
-
-        try:
             get_log_inlet().end_executor(
                 self.get_name(),
                 self._get_execution_mode_desc(),
@@ -531,11 +591,7 @@ class TaskExecutor[T, R]:
             error_list.append(exception)
 
         try:
-            get_log_spout().stop()
-        except Exception as exception:
-            error_list.append(exception)
-        try:
-            get_fallback_spout().stop()
+            self.metrics.on_finish()
         except Exception as exception:
             error_list.append(exception)
 
@@ -553,6 +609,7 @@ class TaskExecutor[T, R]:
             调用 start()。如需再次执行，请创建新的 TaskExecutor。
         """
         start_perf = time.perf_counter()
+        self.start_time = time.time()
         error_list: list[Exception] = []
 
         try:
@@ -587,6 +644,7 @@ class TaskExecutor[T, R]:
             raise InvalidOptionError("execution mode", self.execution_mode, ("async",))
 
         start_perf = time.perf_counter()
+        self.start_time = time.time()
         error_list: list[Exception] = []
 
         try:
@@ -600,41 +658,6 @@ class TaskExecutor[T, R]:
 
         if error_list:
             raise ExceptionGroup("Errors occurred during execution", error_list)
-
-    def start_db(
-        self,
-        db_path: str | Path,
-        statuses: Iterable[str] | None = None,
-        *,
-        filter_by_error_type: bool = False,
-    ) -> None:
-        """
-        从 sqlite 持久化库中读取当前 stage 的任务并启动执行。
-
-        :param db_path: sqlite 数据库文件路径
-        :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``
-        :param filter_by_error_type: 是否按当前执行器的 ``retry_exceptions`` 过滤
-            ``error_type``，默认 ``False``
-        """
-        statuses = ["failed", "pending"] if statuses is None else statuses
-        grouped_tasks = load_tasks_grouped_by_stage(db_path, statuses)
-        records = grouped_tasks.get(self.get_name(), [])
-
-        if filter_by_error_type:
-            retry_error_type_names = self.metrics.get_retry_error_type_names()
-            records = [
-                record
-                for record in records
-                if str(record["error_type"]) in retry_error_type_names
-                or record["status"] == "pending"
-            ]
-
-        executor_tasks = [cast(T, record["task_json"]) for record in records]
-        if not executor_tasks:
-            return
-
-        self.put_tasks(executor_tasks)
-        self.start()
 
     # ==== 结果获取 ====
     def get_success_pairs(self) -> list[tuple[T, R]]:

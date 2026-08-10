@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ..observability import NullTaskReporter, ReporterProtocol
-from ..persistence import get_fallback_spout, get_log_inlet, get_log_spout
+from ..persistence import funnel_scope, get_fallback_spout, get_log_inlet
 from ..persistence.util_sqlite import load_tasks_grouped_by_stage
 from ..runtime.util_errors import (
     DuplicateNodeError,
@@ -238,7 +238,7 @@ class TaskGraph:
             stage.set_execution_mode(execution_mode)
         self._build_analysis()
 
-    # ==== 启动 ====
+    # ==== 分析图 ====
 
     def _ensure_analysis(self) -> None:
         """按需重建图分析缓存。"""
@@ -273,14 +273,96 @@ class TaskGraph:
 
     # ==== 执行 ====
 
-    def _prepare_start_graph(
+    def run(
+        self,
+        init_tasks_dict: dict[str, list[Any]],
+        *,
+        if_put_signal: bool = True,
+    ) -> None:
+        """
+        运行任务链，注入初始任务并启动执行。
+
+        :param init_tasks_dict: 任务列表
+        :param if_put_signal: 是否注入终止信号，默认 True
+        :return: ``None``
+        """
+        with funnel_scope():
+            for stage_name, tasks in init_tasks_dict.items():
+                self.stage_dict[stage_name].put_tasks(tasks)
+            if if_put_signal:
+                self.put_source_signal()
+            self.start()
+
+    async def run_async(
+        self,
+        init_tasks_dict: dict[str, list[Any]],
+        *,
+        if_put_signal: bool = True,
+    ) -> None:
+        """
+        运行任务链，注入初始任务并启动执行。
+
+        :param init_tasks_dict: 任务列表
+        :param if_put_signal: 是否注入终止信号，默认 True
+        :return: ``None``
+        """
+        with funnel_scope():
+            for stage_name, tasks in init_tasks_dict.items():
+                self.stage_dict[stage_name].put_tasks(tasks)
+            if if_put_signal:
+                self.put_source_signal()
+            await self.start_async()
+
+    def restore_db(
+        self,
+        db_path: str | Path,
+        statuses: Iterable[str] | None = None,
+        *,
+        filter_by_error_type: bool = False,
+        if_put_signal: bool = True,
+    ) -> None:
+        """
+        从 sqlite 持久化库中读取任务，按 stage 分组后启动任务图。
+
+        :param db_path: sqlite 数据库文件路径
+        :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``
+        :param filter_by_error_type: 是否按各 stage 的 ``retry_exceptions`` 过滤
+            ``error_type``，默认 ``False``
+        :param put_termination_signal: 是否注入终止信号，默认 True
+        """
+        statuses = ["failed", "pending"] if statuses is None else statuses
+        grouped_records = load_tasks_grouped_by_stage(db_path, statuses)
+
+        with funnel_scope():
+            for name, records in grouped_records.items():
+                stage = self.stage_dict[name]
+                if filter_by_error_type and name in self.stage_dict:
+                    retry_error_type_names = stage.metrics.get_retry_error_type_names()
+                    records = [
+                        record
+                        for record in records
+                        if str(record["error_type"]) in retry_error_type_names
+                        or record["status"] == "pending"
+                    ]
+
+                stage_tasks = [record["task_json"] for record in records]
+                stage.put_tasks(stage_tasks)
+
+            if if_put_signal:
+                self.put_source_signal()
+
+            self.start()     
+
+    # ==== 启动 ====
+
+    def _prepare_start(
         self,
     ) -> None:
         """
         启动前准备：图分析、非 DAG 警告、启动运行时资源并注入任务。
 
         本方法会创建线程与文件句柄等运行时资源，调用方应保证在 finally 中
-        执行 :meth:`_finish_start_graph` 完成收尾。
+        执行 :meth:`_finish_start` 完成收尾。
 
         :param init_tasks_dict: 任务列表
         :param put_termination_signal: 是否注入终止信号，默认 True
@@ -288,12 +370,10 @@ class TaskGraph:
         """
         self._build_analysis()
 
-        get_fallback_spout().start()
-        get_log_spout().start()
         get_log_inlet().start_graph(self.name, self.get_structure_list())
         self.reporter.start()
 
-    def _finish_start_graph(self, start_perf: float) -> list[Exception]:
+    def _finish_start(self, start_perf: float) -> list[Exception]:
         """
         启动后收尾：停止上报器、记录图结束日志并关闭 spout。
 
@@ -324,18 +404,9 @@ class TaskGraph:
         except Exception as exception:
             error_list.append(exception)
 
-        try:
-            get_log_spout().stop()
-        except Exception as exception:
-            error_list.append(exception)
-        try:
-            get_fallback_spout().stop()
-        except Exception as exception:
-            error_list.append(exception)
-
         return error_list
 
-    def start_graph(
+    def start(
         self,
     ) -> None:
         """
@@ -345,92 +416,55 @@ class TaskGraph:
         :param put_termination_signal: 是否注入终止信号，默认 True
         :note:
             TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
-            start_graph()。如需重复执行，请创建新的 TaskGraph 实例。
+            start()。如需重复执行，请创建新的 TaskGraph 实例。
         """
         start_perf = time.perf_counter()
         self.start_time = time.time()
         error_list: list[Exception] = []
+
         try:
-            self._prepare_start_graph()
+            self._prepare_start()
             self._execute_stages()
         except Exception as exception:
             error_list.append(exception)
         finally:
-            error_list.extend(self._finish_start_graph(start_perf))
+            error_list.extend(self._finish_start(start_perf))
 
         if error_list:
             raise ExceptionGroup("Errors occurred during graph execution", error_list)
 
-    async def start_graph_async(
+    async def start_async(
         self,
     ) -> None:
         """
         以异步方式启动任务图，适合在已运行事件循环的上下文中调用。
 
-        与 :meth:`start_graph` 的区别：
+        与 :meth:`start_async` 的区别：
         - async 执行模式的节点通过 :meth:`TaskStage.start_stage_async` 以协程方式运行，
           不再内部调用 ``asyncio.run``，避免嵌套事件循环导致的崩溃。
         - serial / thread 执行模式的节点通过 ``asyncio.to_thread`` 在独立线程中运行，
           避免阻塞事件循环。
 
         :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否注入终止信号，默认 True
+        :param if_put_signal: 是否注入终止信号，默认 True
         :note:
             TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
-            start_graph_async()。如需重复执行，请创建新的 TaskGraph 实例。
+            start_async()。如需重复执行，请创建新的 TaskGraph 实例。
         """
         start_perf = time.perf_counter()
         self.start_time = time.time()
         error_list: list[Exception] = []
+
         try:
-            self._prepare_start_graph()
+            self._prepare_start()
             await self._execute_stages_async()
         except Exception as exception:
             error_list.append(exception)
         finally:
-            error_list.extend(self._finish_start_graph(start_perf))
+            error_list.extend(self._finish_start(start_perf))
 
         if error_list:
             raise ExceptionGroup("Errors occurred during graph execution", error_list)
-
-    def start_graph_db(
-        self,
-        db_path: str | Path,
-        statuses: Iterable[str] | None = None,
-        *,
-        filter_by_error_type: bool = False,
-        put_termination_signal: bool = True,
-    ) -> None:
-        """
-        从 sqlite 持久化库中读取任务，按 stage 分组后启动任务图。
-
-        :param db_path: sqlite 数据库文件路径
-        :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``
-        :param filter_by_error_type: 是否按各 stage 的 ``retry_exceptions`` 过滤
-            ``error_type``，默认 ``False``
-        :param put_termination_signal: 是否注入终止信号，默认 True
-        """
-        statuses = ["failed", "pending"] if statuses is None else statuses
-        grouped_records = load_tasks_grouped_by_stage(db_path, statuses)
-
-        for name, records in grouped_records.items():
-            stage = self.stage_dict[name]
-            if filter_by_error_type and name in self.stage_dict:
-                retry_error_type_names = stage.metrics.get_retry_error_type_names()
-                records = [
-                    record
-                    for record in records
-                    if str(record["error_type"]) in retry_error_type_names
-                    or record["status"] == "pending"
-                ]
-
-            stage_tasks = [record["task_json"] for record in records]
-            stage.put_tasks(stage_tasks)
-
-        if put_termination_signal:
-            self.put_source_signal()
-
-        self.start_graph()
 
     def _execute_stages(self) -> None:
         """
@@ -494,7 +528,7 @@ class TaskGraph:
         """
         if stage.stage_mode == "thread":
             t = threading.Thread(
-                target=stage.start_stage,
+                target=stage.start,
                 args=(),
                 name=stage.get_name(),
                 daemon=True,
@@ -502,7 +536,7 @@ class TaskGraph:
             t.start()
             self.threads.append(t)
         elif stage.stage_mode == "serial":
-            stage.start_stage()
+            stage.start()
         else:
             raise InvalidOptionError(
                 "stage mode", stage.stage_mode, ("serial", "thread")
@@ -515,9 +549,9 @@ class TaskGraph:
         :param stage: 节点
         """
         if stage.execution_mode == "async":
-            await stage.start_stage_async()
+            await stage.start_async()
         else:
-            await asyncio.to_thread(stage.start_stage)
+            await asyncio.to_thread(stage.start)
 
     # ==== 运行时监控 ====
 

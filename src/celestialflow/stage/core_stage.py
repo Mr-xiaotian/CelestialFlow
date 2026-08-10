@@ -1,11 +1,9 @@
 # stage/core_stage.py
 from __future__ import annotations
 
-import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from ..persistence import get_log_inlet
 from ..runtime import TaskInQueue, TaskOutQueue
 from ..runtime.util_errors import InvalidOptionError, UnconsumedError
 from ..runtime.util_estimators import (
@@ -173,108 +171,3 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         for source in remaining_sources:
             self.handle_task_fail(source, UnconsumedError())
 
-    # ==== 启动 ====
-    def _prepare_start_stage(self) -> None:
-        """
-        启动前准备：记录启动时间、初始化状态并标记 stage 为运行中。
-
-        :return: 启动时刻的 ``perf_counter`` 时间戳，用于计算本次运行耗时
-        """
-        self.metrics.reset_state()
-        self.metrics.on_start(self.get_full_name(), 0)
-
-        get_log_inlet().start_stage(
-            self.get_name(), self.stage_mode, self._get_execution_mode_desc()
-        )
-
-    def _finish_start_stage(self, start_perf: float) -> list[Exception]:
-        """
-        启动后收尾：标记 stage 停止、结束指标统计并记录结束日志。
-
-        :param start_perf: :meth:`_prepare_start_stage` 返回的启动时间戳
-        :return: 收集到的收尾阶段异常列表
-        """
-        error_list: list[Exception] = []
-
-        try:
-            self.metrics.on_finish()
-        except Exception as exception:
-            error_list.append(exception)
-
-        try:
-            get_log_inlet().end_stage(
-                self.get_name(),
-                self.stage_mode,
-                self._get_execution_mode_desc(),
-                time.perf_counter() - start_perf,
-                self.metrics.get_success_count(),
-                self.metrics.get_fail_count(),
-                self.metrics.get_duplicate_count(),
-            )
-        except Exception as exception:
-            error_list.append(exception)
-
-        return error_list
-
-    def start_stage(self) -> None:
-        """
-        根据 execution_mode 的值，选择串行或线程方式执行任务。
-
-        async 模式不支持通过本方法启动，请使用 :meth:`start_stage_async`。
-
-        :raises ExecutionModeError: execution_mode 不是 'serial' 或 'thread' 时触发
-        :note:
-            TaskStage 为一次性对象；当前实例完成一次 start_stage() 生命周期后，不保
-            证可安全再次运行。需要重复执行时请重新创建 TaskStage。
-        """
-        start_perf = time.perf_counter()
-        self.start_time = time.time()
-        error_list: list[Exception] = []
-        try:
-            self._prepare_start_stage()
-
-            # 根据模式运行对应的任务处理函数
-            if self.execution_mode == "thread":
-                self.dispatch.dispatch_thread()
-            elif self.execution_mode == "serial":
-                self.dispatch.dispatch_serial()
-            else:
-                raise InvalidOptionError(
-                    "execution mode", self.execution_mode, ("serial", "thread")
-                )
-        except Exception as exception:
-            error_list.append(exception)
-        finally:
-            error_list.extend(self._finish_start_stage(start_perf))
-
-        if error_list:
-            raise ExceptionGroup("Errors occurred during stage execution", error_list)
-
-    async def start_stage_async(self) -> None:
-        """
-        以异步模式执行任务，适合在已运行事件循环的上下文中调用。
-
-        与 :meth:`start_stage` 的区别：async 模式不再内部调用 ``asyncio.run``，
-        而是直接 ``await`` 异步调度器，避免嵌套事件循环导致的崩溃。
-
-        :raises InvalidOptionError: execution_mode 不是 'async' 时触发
-        :note:
-            TaskStage 为一次性对象；当前实例完成一次 start_stage_async() 生命周期后，
-            不保证可安全再次运行。需要重复执行时请重新创建 TaskStage。
-        """
-        if self.execution_mode != "async":
-            raise InvalidOptionError("execution mode", self.execution_mode, ("async",))
-
-        start_perf = time.perf_counter()
-        self.start_time = time.time()
-        error_list: list[Exception] = []
-        try:
-            self._prepare_start_stage()
-            await self.dispatch.dispatch_async()
-        except Exception as exception:
-            error_list.append(exception)
-        finally:
-            error_list.extend(self._finish_start_stage(start_perf))
-
-        if error_list:
-            raise ExceptionGroup("Errors occurred during stage execution", error_list)
