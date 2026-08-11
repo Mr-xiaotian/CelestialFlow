@@ -275,14 +275,14 @@ class TaskGraph:
 
     def run(
         self,
-        init_tasks_dict: dict[str, list[Any]],
+        init_tasks_dict: dict[str, Iterable[Any]],
         *,
         if_put_signal: bool = True,
     ) -> None:
         """
         运行任务链，注入初始任务并启动执行。
 
-        :param init_tasks_dict: 任务列表
+        :param init_tasks_dict: 任务列表字典，键为 stage 名称，值为任务列表
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
@@ -351,7 +351,7 @@ class TaskGraph:
             if if_put_signal:
                 self.put_source_signal()
 
-            self.start()     
+            self.start()
 
     # ==== 启动 ====
 
@@ -403,6 +403,8 @@ class TaskGraph:
             get_log_inlet().end_graph(self.name, time.perf_counter() - start_perf)
         except Exception as exception:
             error_list.append(exception)
+
+        self.threads.clear()   # 清理已 join 的线程引用
 
         return error_list
 

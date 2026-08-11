@@ -80,10 +80,11 @@ class TaskReporter:
         self._thread.join(timeout=2)
 
         if self._thread.is_alive():
+            self._session.close()
             raise ReporterError("Reporter thread is still running.")
 
         self._thread = None
-        self._refresh_all()  # 最后一次
+        self._loop()  # 最后一次
         self._session.close()
         self.log_inlet.stop_reporter()
 
