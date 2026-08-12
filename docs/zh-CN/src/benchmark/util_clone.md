@@ -1,8 +1,8 @@
 # Clone
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/12
 
-`utils/util_clone.py` 提供了克隆执行器、节点和任务图的功能，用于性能测试和配置复用。
+`benchmark/util_clone.py` 提供了克隆执行器、节点和任务图的功能，用于性能测试和配置复用。
 
 ## 设计目的
 
@@ -15,12 +15,14 @@
 克隆 `TaskExecutor` 实例。
 
 ```python
-def clone_executor(executor: TaskExecutor) -> TaskExecutor:
+def clone_executor[T, R](
+    executor: TaskExecutor[T, R],
+) -> TaskExecutor[T, R]:
     """
     克隆执行器。
 
     :param executor: 要克隆的执行器
-    :return: 新的执行器实例
+    :return: 克隆执行器
     """
 ```
 
@@ -33,20 +35,21 @@ def clone_executor(executor: TaskExecutor) -> TaskExecutor:
 - `max_info`: 日志信息最大长度
 - `enable_duplicate_check`: 重复检查开关
 - `persist_result`: 结果持久化开关
-- `log_level`: 日志级别
-- `retry_exceptions`: 可重试异常列表
+- `retry_exceptions`: 可重试异常列表（通过 `set_retry_exceptions()` 设置）
 
 ### clone_stage
 
 克隆 `TaskStage` 实例。
 
 ```python
-def clone_stage(stage: TaskStage) -> TaskStage:
+def clone_stage[T, R](
+    stage: TaskStage[T, R],
+) -> TaskStage[T, R]:
     """
     克隆节点。
 
     :param stage: 要克隆的节点
-    :return: 新的节点实例
+    :return: 克隆节点
     """
 ```
 
@@ -71,7 +74,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
 1. 遍历原图所有节点（BFS）
 2. 克隆每个节点并建立映射
 3. 重建节点间的连接关系
-4. 复制图配置（schedule_mode, log_level）
+4. 复制图配置（name, schedule_mode）
 5. 复制 CelestialTree 和 Reporter 配置
 
 ## 使用示例
@@ -80,7 +83,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
 
 ```python
 from celestialflow import TaskExecutor
-from celestialflow.utils.util_clone import clone_executor
+from celestialflow.benchmark.util_clone import clone_executor
 
 
 def process(x: int) -> int:
@@ -108,7 +111,7 @@ cloned.start(range(100))
 
 ```python
 from celestialflow import TaskStage
-from celestialflow.utils.util_clone import clone_stage
+from celestialflow.benchmark.util_clone import clone_stage
 
 
 def process_func(x: int) -> int:
@@ -136,7 +139,7 @@ cloned_stage.start(range(10, 20))
 
 ```python
 from celestialflow import TaskGraph, TaskStage
-from celestialflow.utils.util_clone import clone_graph
+from celestialflow.benchmark.util_clone import clone_graph
 
 
 def process_a(x: int) -> int:
@@ -169,7 +172,7 @@ cloned_graph.start_graph(init_tasks)
 ```python
 import asyncio
 from celestialflow import TaskExecutor, TaskStage, TaskGraph
-from celestialflow.utils.util_clone import clone_executor, clone_stage, clone_graph
+from celestialflow.benchmark.util_clone import clone_executor, clone_stage, clone_graph
 
 
 def square(x: int) -> int:
@@ -216,7 +219,7 @@ asyncio.run(main())
 
 ```python
 from celestialflow import TaskGraph, TaskStage
-from celestialflow.utils.util_benchmark import benchmark_graph
+from celestialflow.benchmark.util_benchmark import benchmark_graph
 
 
 def task(x: int) -> int:

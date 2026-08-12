@@ -1,10 +1,10 @@
 # 任务调度核心测试 (test_dispatch.py)
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/08/12
 
 ## 作用
 
-验证 `celestialflow.runtime.core_dispatch.TaskDispatch` 在 `serial`、`thread`、`async` 三种调度模式下的核心行为：任务执行、异常重试、重复去重和终止信号处理。
+验证 `celestialflow.stage.core_dispatch.TaskDispatch` 在 `serial`、`thread`、`async` 三种调度模式下的核心行为：任务执行、异常重试、重复去重、终止信号处理和 worker 崩溃兜底。
 
 ## 核心测试对象
 
@@ -17,8 +17,9 @@
 | `TestDispatchSerial` | 7 | 单/多任务、重试成功、重试耗尽、终止信号单/多 ID、success fanout 下游 input_id 独立 |
 | `TestDispatchThread` | 2 | 10 任务并发、重复任务去重统计 |
 | `TestDispatchAsync` | 2 | 10 任务协程并发、异步重试成功 |
-| `TestDispatchCoreBehavior` | 2 | 空队列+终止信号（3 模式参数化）、5 任务结果数（3 模式参数化） |
-| **合计** | **13** | |
+| `TestWorkerCrashKeepsTerminationSignal` | 2 | 失败处理链崩溃、重试信封生成崩溃时终止信号照常发出（3 模式参数化） |
+| `TestDispatchCoreBehavior` | 2 | 空队列 + 终止信号（3 模式参数化）、5 任务结果数（3 模式参数化） |
+| **合计** | **15** | |
 
 ## 关键测试场景
 
@@ -27,6 +28,7 @@
 - 重试成功（前 N 次抛异常，最后成功）
 - 重试耗尽（始终抛异常，最终无成功结果）
 - 终止信号合并（单 ID / 多 ID）
+- success fanout 为每个真实下游创建独立 input_id
 
 ### `TestDispatchThread` — 线程调度
 - 10 任务并发（4 worker），验证正确收集结果
@@ -36,6 +38,11 @@
 - 10 任务协程并发（4 worker）
 - 异步重试成功（3 次调用后返回正确值）
 
+### `TestWorkerCrashKeepsTerminationSignal` — Worker 崩溃兜底（回归测试）
+- 失败处理链崩溃（observer 抛异常）：异常被 `observer_error` 捕获，终止信号照常发出，不触发 `worker_crash`
+- 重试信封生成崩溃（日志抛异常）：调度不中断，终止信号仍发出，`worker_crash` 记录异常
+- 以上两种场景均以 `serial`/`thread`/`async` 三种模式参数化运行
+
 ### `TestDispatchCoreBehavior` — 跨模式参数化
 - 空队列 + 终止信号：三种模式均正确退出
 - 5 任务结果数：三种模式均输出 5 个结果 + 终止信号
@@ -44,19 +51,22 @@
 
 ```bash
 # 全部执行
-pytest tests/runtime/test_dispatch.py -v
+pytest tests/stage/test_dispatch.py -v
 
 # 仅运行串行调度测试
-pytest tests/runtime/test_dispatch.py -k "Serial" -v
+pytest tests/stage/test_dispatch.py -k "Serial" -v
 
 # 仅运行线程调度测试
-pytest tests/runtime/test_dispatch.py -k "Thread" -v
+pytest tests/stage/test_dispatch.py -k "Thread" -v
 
 # 仅运行异步调度测试
-pytest tests/runtime/test_dispatch.py -k "Async" -v
+pytest tests/stage/test_dispatch.py -k "Async" -v
+
+# 仅运行 worker 崩溃兜底测试
+pytest tests/stage/test_dispatch.py -k "Crash" -v
 
 # 仅运行跨模式参数化测试
-pytest tests/runtime/test_dispatch.py -k "CoreBehavior" -v
+pytest tests/stage/test_dispatch.py -k "CoreBehavior" -v
 ```
 
 ## 性能参考
@@ -66,6 +76,7 @@ pytest tests/runtime/test_dispatch.py -k "CoreBehavior" -v
 | `TestDispatchSerial` | ~0.1s |
 | `TestDispatchThread` | ~0.2s |
 | `TestDispatchAsync` | ~0.2s |
+| `TestWorkerCrashKeepsTerminationSignal` | ~0.3s |
 | `TestDispatchCoreBehavior` | ~0.3s |
 
 ## 重要细节
@@ -74,8 +85,9 @@ pytest tests/runtime/test_dispatch.py -k "CoreBehavior" -v
 - 终止信号通过公开 API `task_queue.put(TerminationSignal(...))` 注入，而非直接操作内部 `TerminationIdPool`。
 - 异步测试使用 `asyncio.run()` 创建独立事件循环，避免与已有循环冲突。
 - `_make_executor` 通过 `result_queue.add_queue()` 公开 API 为测试注册结果收集队列，避免向 executor 注入测试专用属性。
+- `TestWorkerCrashKeepsTerminationSignal` 使用 `_CrashOnFailObserver` 和 `_CrashRetryLogInlet` 模拟处理链崩溃，验证终止信号兜底机制。
 
 ## 注意事项
 
 - 调度器是 `TaskExecutor` 和 `TaskStage` 的底层执行引擎，其正确性直接影响整个框架的任务执行。
-- 相关实现位于 `src/celestialflow/runtime/core_dispatch.py`。
+- 相关实现位于 `src/celestialflow/stage/core_dispatch.py`。

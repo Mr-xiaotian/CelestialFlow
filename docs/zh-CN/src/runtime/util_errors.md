@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/07/31
+> 📅 最后更新日期: 2026/08/12
 
 TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
@@ -23,26 +23,6 @@ classDiagram
         +allowed: tuple
         配置项值不合法
     }
-    class ExecutionModeError {
-        +execution_mode: str
-        +valid_modes: tuple
-        execution_mode 不合法
-    }
-    class StageModeError {
-        +stage_mode: str
-        +valid_modes: tuple
-        stage_mode 不合法
-    }
-    class LogLevelError {
-        +log_level: str
-        +valid_levels: tuple
-        log_level 不合法
-    }
-    class ScheduleModeError {
-        +schedule_mode: str
-        +valid_modes: tuple
-        schedule_mode 不合法
-    }
     class CallableParameterKindError {
         +callable_name: str
         +parameter_kind: Any
@@ -60,6 +40,9 @@ classDiagram
     }
     class NodeNotFoundError {
         +图中未找到指定节点
+    }
+    class InvalidStructureError {
+        +无效的图结构输入
     }
     class RuntimeStateError {
         +运行时状态错误基类
@@ -103,15 +86,12 @@ classDiagram
     ConfigurationError <|-- InvalidOptionError
     ConfigurationError <|-- GraphStructureError
 
-    InvalidOptionError <|-- ExecutionModeError
-    InvalidOptionError <|-- StageModeError
-    InvalidOptionError <|-- LogLevelError
-    InvalidOptionError <|-- ScheduleModeError
     InvalidOptionError <|-- CallableParameterKindError
 
     GraphStructureError <|-- DuplicateNodeError
     GraphStructureError <|-- UnknownNodeError
     GraphStructureError <|-- NodeNotFoundError
+    GraphStructureError <|-- InvalidStructureError
 
     RuntimeStateError <|-- InitializationError
     RuntimeStateError <|-- GraphManagedError
@@ -164,50 +144,6 @@ class InvalidOptionError(ConfigurationError):
         :param prefix: 错误消息前缀
         """
         # 示例: "Invalid execution mode: xxx. Valid options are ('serial', 'thread', 'async')."
-```
-
-### ExecutionModeError
-
-`execution_mode` 配置错误。
-
-```python
-class ExecutionModeError(InvalidOptionError):
-    """非法的 execution_mode"""
-    def __init__(self, execution_mode: str, valid_modes=None):
-        # valid_modes 默认为 ("serial", "thread", "async")
-```
-
-### StageModeError
-
-`stage_mode` 配置错误。
-
-```python
-class StageModeError(InvalidOptionError):
-    """非法的 stage_mode"""
-    def __init__(self, stage_mode: str, valid_modes=None):
-        # valid_modes 默认为 ("serial", "thread")
-```
-
-### LogLevelError
-
-`log_level` 配置错误。
-
-```python
-class LogLevelError(InvalidOptionError):
-    """非法的 log_level"""
-    def __init__(self, log_level: str, valid_levels=None):
-        # valid_levels 默认为 ("TRACE", "DEBUG", "SUCCESS", "INFO", "WARNING", "ERROR", "CRITICAL")
-```
-
-### ScheduleModeError
-
-`schedule_mode` 配置错误。
-
-```python
-class ScheduleModeError(InvalidOptionError):
-    """非法的 schedule_mode"""
-    def __init__(self, schedule_mode: str, valid_modes=None):
-        # valid_modes 默认为 ("eager", "staged")
 ```
 
 ### CallableParameterKindError
@@ -398,13 +334,18 @@ executor.set_retry_exceptions(ConnectionError, TimeoutError)
 ### 2. 捕获配置错误
 
 ```python
-from celestialflow.runtime.util_errors import ExecutionModeError
+from celestialflow.runtime.util_errors import InvalidOptionError
 
 try:
-    stage.set_execution_mode("invalid_mode")
-except ExecutionModeError as e:
-    print(f"无效的执行模式: {e.execution_mode}")
-    print(f"有效选项: {e.valid_modes}")
+    raise InvalidOptionError(
+        field="execution_mode",
+        value="invalid",
+        allowed=("serial", "thread", "async"),
+    )
+except InvalidOptionError as e:
+    print(f"字段: {e.field}")
+    print(f"传入值: {e.value}")
+    print(f"合法值: {e.allowed}")
 ```
 
 ### 3. 图结构验证
@@ -425,29 +366,9 @@ except DuplicateNodeError as e:
 ### 配置异常
 
 ```python
-from celestialflow.runtime.util_errors import (
-    ExecutionModeError,
-    StageModeError,
-    LogLevelError,
-    ScheduleModeError,
-    InvalidOptionError,
-)
+from celestialflow.runtime.util_errors import InvalidOptionError
 
-# 捕获 ExecutionModeError
-try:
-    stage.set_execution_mode("invalid")
-except ExecutionModeError as e:
-    print(f"字段: {e.field}")  # execution_mode
-    print(f"传入值: {e.value}")  # invalid
-    print(f"合法值: {e.allowed}")  # ('serial', 'thread', 'async')
-
-# 捕获 StageModeError
-try:
-    stage.set_stage_mode("invalid")
-except StageModeError as e:
-    print(f"配置错误: {e}")
-
-# 直接使用 InvalidOptionError
+# 使用 InvalidOptionError
 try:
     raise InvalidOptionError(
         field="strategy",
@@ -455,7 +376,9 @@ try:
         allowed=("conservative", "balanced"),
     )
 except InvalidOptionError as e:
-    print(f"错误: {e}")
+    print(f"字段: {e.field}")
+    print(f"传入值: {e.value}")
+    print(f"合法值: {e.allowed}")
 ```
 
 ### 图结构异常
@@ -521,24 +444,7 @@ except RemoteWorkerError as e:
     print(f"远端 Worker 错误: {e}")
 ```
 
-### 结合 TaskExecutor 使用
 
-```python
-from celestialflow import TaskExecutor
-from celestialflow.runtime.util_errors import CelestialFlowError
-
-# 在实际执行器中，异常被统一捕获并记录
-executor = TaskExecutor(
-    "SafeWorker",
-    func=lambda x: 10 // x,
-    execution_mode="serial",
-    max_retries=0,
-)
-executor.start([1, 0, 2])  # 中间任务会触发 ZeroDivisionError
-
-counts = executor.get_counts()
-print(f"成功: {counts['tasks_succeeded']}, 失败: {counts['tasks_failed']}")
-```
 
 ## 未消费任务的处理
 

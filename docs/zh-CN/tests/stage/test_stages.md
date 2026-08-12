@@ -1,6 +1,6 @@
 # 特化阶段测试 (test_stages.py)
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/12
 
 ## 作用
 验证 `celestialflow.stage.core_stages` 中特化任务节点（Splitter, Router）的功能，确保任务能被正确分裂、路由和分发。
@@ -11,10 +11,11 @@
 
 ## 关键测试场景
 
-### `TestTaskSplitter` — 任务分裂器
+### `TestTaskSplitter` — 任务分裂器（6 个用例）
 | 用例 | 覆盖目标 |
 |------|----------|
 | `test_splitter_init` | 验证默认串行模式、不重试、初始计数器为 0 |
+| `test_splitter_warns_when_execution_mode_is_not_serial` | 非 serial 模式设置时发出警告并保持 serial |
 | `test_splitter_process_success` | 在 `TaskGraph` 中成功执行后下游收到 3 个独立任务，`split_counter` 计数正确 |
 | `test_splitter_allows_empty_iterable` | 空可迭代输入产生 0 个子任务，不抛异常 |
 | `test_splitter_supports_generator_input` | 一次性迭代器（generator）输入仍能正确拆分并分发所有子任务 |

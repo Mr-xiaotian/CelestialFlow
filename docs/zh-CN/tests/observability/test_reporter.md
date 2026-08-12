@@ -1,6 +1,6 @@
-# Reporter 注入与上报测试 (test_reporter_injection.py)
+# Reporter 注入与上报测试 (test_reporter.py)
 
-> 📅 最后更新日期: 2026/06/28
+> 📅 最后更新日期: 2026/08/12
 
 ## 作用
 
@@ -83,16 +83,16 @@ sequenceDiagram
 
 ```bash
 # 执行全部注入与上报测试
-pytest tests/observability/test_reporter_injection.py -v
+pytest tests/observability/test_reporter.py -v
 
 # 仅运行注入载荷解析测试
-pytest tests/observability/test_reporter_injection.py -k "accepts_split" -v
+pytest tests/observability/test_reporter.py -k "accepts_split" -v
 
 # 仅运行合并规则测试
-pytest tests/observability/test_reporter_injection.py -k "merges" -v
+pytest tests/observability/test_reporter.py -k "merges" -v
 
 # 仅运行错误推送测试
-pytest tests/observability/test_reporter_injection.py -k "push_errors" -v
+pytest tests/observability/test_reporter.py -k "push_errors" -v
 ```
 
 ## 注意事项

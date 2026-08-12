@@ -1,6 +1,6 @@
 # 任务指标测试 (test_metrics.py)
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/08/12
 
 ## 作用
 验证 `celestialflow.runtime.core_metrics` 中的 `TaskMetrics` 类，确保任务执行过程中的各项统计指标（成功、失败、重复、待处理等）计算准确。
@@ -17,7 +17,7 @@
 | `TestTaskMetricsRetryExceptions` | 2 | 默认可重试异常为空、动态添加异常类型 |
 
 ## 关键测试场景
-1. **基础计数**: 验证 `add_task_count`, `add_success_count`, `add_error_count`, `add_duplicate_count` 等方法的累加逻辑。
+1. **基础计数**: 验证 `add_task_count`、`add_success_count`、`add_fail_count`、`add_duplicate_count` 等方法的累加逻辑。
 2. **公式验证**: 验证 `tasks_processed = tasks_succeeded + tasks_failed + tasks_duplicated`，以及 `tasks_pending = tasks_input - tasks_processed`。
 3. **状态判定**: 验证 `is_tasks_finished()` 在不同计数组合下的返回结果（Pending 为 0 时为 True）。
 4. **去重逻辑**:

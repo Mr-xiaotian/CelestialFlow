@@ -1,6 +1,6 @@
 # Fallback 持久化 (Fallback Persistence)
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/12
 
 `persistence/core_fallback.py` 提供了任务的 fallback（回退）持久化机制。它记录任务在整个生命周期中的状态变化（pending → success / failed），并将数据持久化到 SQLite 数据库文件中。
 
@@ -33,16 +33,14 @@ flowchart LR
 
 ```python
 class FallbackSpout(BaseSpout):
-    def __init__(self, error_source: str) -> None:
-        """
-        :param error_source: 错误来源标识（用于文件命名）
-        """
+    def __init__(self) -> None:
+        """初始化失败记录监听器"""
 ```
 
-启动后，会在 `./fallback/{date}/` 目录下创建一个 `{error_source}({time}).sqlite3` 文件。
+启动后，会在 `./fallbacks/{date}/` 目录下创建一个 `fallback({time}).sqlite3` 文件。
 
 ```python
-fallback_spout = FallbackSpout("executor_fallbacks")
+fallback_spout = FallbackSpout()
 fallback_spout.start()
 ```
 
@@ -80,12 +78,12 @@ stateDiagram-v2
 
 ### 文件路径
 
-Fallback 数据默认保存在 `./fallback/` 目录下，按日期归档：
+Fallback 数据默认保存在 `./fallbacks/` 目录下，按日期归档：
 
 ```text
-./fallback/
+./fallbacks/
 └── 2026-06-18/
-    └── executor_fallbacks(14-30-05-123).sqlite3
+    └── fallback(14-30-05-123).sqlite3
 ```
 
 ### 读取已持久化记录
@@ -138,7 +136,7 @@ class FallbackInlet(BaseInlet):
 from celestialflow.persistence import FallbackSpout, FallbackInlet
 
 # 1. 创建并启动 FallbackSpout
-fallback_spout = FallbackSpout("my_errors")
+fallback_spout = FallbackSpout()
 fallback_spout.start()
 
 # 2. 创建 FallbackInlet

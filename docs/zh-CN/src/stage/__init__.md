@@ -1,6 +1,6 @@
 # Stage 模块
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/12
 
 Stage 模块定义了 CelestialFlow 中的任务执行单元。它提供了从基础任务执行器到复杂任务节点的完整体系，是构建任务图的基本构建块。
 
@@ -50,7 +50,10 @@ Stage 模块包含三个层次的任务执行单元：
      - `TaskSplitter`: 将输入分发给多个子任务
      - `TaskRouter`: 根据条件路由任务到不同的下游节点
 
-4. **util_types.py** (`AnyTaskStage`)
+4. **core_dispatch.py** (`TaskDispatch`)
+   - **作用**: 任务调度器，根据执行模式（serial/thread/async）从 `TaskInQueue` 获取任务并调用用户函数
+
+5. **util_types.py** (`AnyTaskStage`)
    - **作用**: 提供 `TaskStage[Any, Any]` 的类型别名，用于任意泛型参数的 Stage 通配标注
 
 ## 模块关联
@@ -87,7 +90,7 @@ executor = TaskExecutor(
     func=process_item,
     execution_mode="serial",
 )
-executor.start([1, 2, 3])
+executor.run([1, 2, 3])
 
 # 获取结果
 success = executor.get_success_pairs()

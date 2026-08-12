@@ -1,6 +1,6 @@
 # 日志持久化 (Log Persistence)
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/12
 
 `celestialflow.persistence` 模块提供了一个多进程安全的日志系统，旨在解决多进程环境下的日志统一收集、格式化和持久化问题。
 
@@ -116,6 +116,7 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 |------|---------|------|
 | `start_graph(graph_name, structure_list)` | INFO | 记录任务图启动及结构信息 |
 | `end_graph(graph_name, use_time)` | INFO | 记录任务图结束及耗时 |
+| `graph_crash(graph_name, exception)` | CRITICAL | 记录任务图崩溃 |
 
 #### 分层调度 (Layer)
 
@@ -124,19 +125,24 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 | `start_layer(layer, layer_level)` | INFO | 记录分层的启动 |
 | `end_layer(layer, use_time)` | INFO | 记录分层的结束及耗时 |
 
-#### 阶段节点 (Stage)
-
-| 方法 | 日志级别 | 说明 |
-|------|---------|------|
-| `start_stage(stage_name, stage_mode, execution_mode_desc)` | INFO | 记录节点启动 |
-| `end_stage(stage_name, stage_mode, execution_mode_desc, use_time, success_num, failed_num, duplicated_num)` | INFO | 记录节点结束及统计 |
-
 #### 执行器 (Executor)
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
 | `start_executor(executor_name, task_num, execution_mode_desc)` | INFO | 记录执行器启动 |
 | `end_executor(executor_name, execution_mode_desc, use_time, success_num, failed_num, duplicated_num)` | INFO | 记录执行器结束及统计 |
+
+#### 执行器崩溃
+
+| 方法 | 日志级别 | 说明 |
+|------|---------|------|
+| `executor_crash(executor_name, exception)` | CRITICAL | 记录执行器崩溃 |
+
+#### 工作线程 (Worker)
+
+| 方法 | 日志级别 | 说明 |
+|------|---------|------|
+| `worker_crash(exception)` | CRITICAL | 记录工作器崩溃 |
 
 #### 任务生命周期 (Task)
 
@@ -177,6 +183,7 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 | `pull_interval_failed(exception)` | WARNING | 记录拉取上报间隔失败 |
 | `pull_history_limit_failed(exception)` | WARNING | 记录拉取历史限制失败 |
 | `pull_tasks_failed(exception)` | WARNING | 记录拉取任务注入失败 |
+| `pull_history_limit_failed(exception)` | WARNING | 记录拉取历史限制失败 |
 | `inject_tasks_success(target_node, task_datas)` | INFO | 记录任务注入成功 |
 | `inject_tasks_failed(target_node, task_datas, exception)` | WARNING | 记录任务注入失败 |
 | `push_errors_failed(exception)` | WARNING | 记录推送错误信息失败 |
@@ -184,7 +191,6 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 | `push_structure_failed(exception)` | WARNING | 记录推送结构信息失败 |
 | `push_analysis_failed(exception)` | WARNING | 记录推送分析信息失败 |
 | `push_summary_failed(exception)` | WARNING | 记录推送摘要信息失败 |
-| `push_history_failed(exception)` | WARNING | 记录推送历史信息失败 |
 
 ### 使用示例
 
@@ -192,10 +198,6 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 # 图生命周期
 sinker.start_graph("my_graph", ["NodeA -> NodeB", "NodeB -> NodeC"])
 sinker.end_graph("my_graph", 12.34)
-
-# 阶段周期
-sinker.start_stage("ProcessStage", "thread", "thread-4")
-sinker.end_stage("ProcessStage", "thread", "thread-4", 5.2, 100, 2, 0)
 
 # 执行器周期
 sinker.start_executor("Executor1", 50, "thread")

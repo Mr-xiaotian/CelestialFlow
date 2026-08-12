@@ -1,14 +1,14 @@
 # RuntimeEstimators
 
-> 📅 最后更新日期: 2026/06/28
+> 📅 最后更新日期: 2026/08/12
 
 `runtime/util_estimators.py` 提供运行时耗时估算函数。
 
 ## 主要函数
 
-- `calc_remaining(processed, pending, elapsed)`：估算节点剩余时间。
+- `calc_remaining(processed, pending, elapsed)`：基于均值估算节点剩余时间。
 - `calc_elapsed(status, last_elapsed, last_pending, interval)`：按状态累计耗时。
-- `calc_global_pending(graph, processed_map, pending_map)`：基于 DAG 与观测指标估算全局待处理任务数。
+- `format_avg_time(elapsed, processed)`：格式化平均处理速度（秒/任务或任务/秒）。
 
 ## 使用示例
 
@@ -57,25 +57,21 @@ elapsed_stopped = calc_elapsed(
 print(f"已停止节点: {elapsed_stopped:.1f} 秒")  # 50.0（不再增加）
 ```
 
-### calc_global_pending：基于 DAG 估算全局待处理任务数
+### format_avg_time：格式化平均处理速度
 
 ```python
-from celestialflow.graph.util_graph import OrderGraph
-from celestialflow.runtime.util_estimators import calc_global_pending
+from celestialflow.runtime.util_estimators import format_avg_time
 
-# 构建一个简单的 DAG: A -> B -> C
-graph = OrderGraph.from_edges({"A": ["B"], "B": ["C"]}, ("A", "B", "C"))
+# 每个任务耗时 >= 1s 时显示 s/it
+print(format_avg_time(200.0, 100))  # 2.00s/it
 
-# 输入观测数据
-processed_map = {"A": 100, "B": 50, "C": 10}
-pending_map = {"A": 0, "B": 50, "C": 90}
+# 每个任务耗时 < 1s 时显示 it/s（取倒数）
+print(format_avg_time(12.5, 100))  # 8.00it/s
 
-result = calc_global_pending(graph, processed_map, pending_map)
-for node, pending in result.items():
-    print(f"节点 {node}: 预计待处理 {pending} 个任务")
+# 无数据
+print(format_avg_time(0.0, 0))  # N/A
 ```
 
 ## 用途
 
 - 驱动监控面板 ETA 展示。
-- 辅助识别潜在拥塞节点。

@@ -1,6 +1,6 @@
 # CelestialFlow 包入口
 
-> 📅 最后更新日期: 2026/07/31
+> 📅 最后更新日期: 2026/08/12
 
 ## 简介
 
@@ -59,18 +59,18 @@
 | 导出符号 | 说明 |
 |----------|------|
 | `BaseObserver` | 观察者基类，定义 on_start / on_success / on_failure 等接口 |
+| `TaskReporter` | 任务报告器，通过 HTTP 上报任务执行事件 |
 
 ---
 
-### utils — 工具集
+### benchmark — 基准测试
 
-提供基准测试与格式化工具。
+提供执行器与任务图的性能基准测试能力。
 
 | 导出符号 | 说明 |
 |----------|------|
 | `benchmark_executor` | 对同步/异步 `TaskExecutor` 进行多模式基准测试 |
 | `benchmark_graph` | 对整个任务图进行基准测试 |
-| `format_table` | 格式化表格输出，用于控制台展示对比数据 |
 
 ---
 
@@ -91,6 +91,7 @@
 
 | 导出符号 | 说明 |
 |----------|------|
+| `format_table` | 格式化表格输出，用于控制台展示对比数据 |
 | `make_hashable` | 将不可哈希对象（如 dict、list）转为可哈希形式 |
 | `TerminationSignal` | 终止信号，用于控制图执行流程的结束 |
 
@@ -98,7 +99,7 @@
 
 ## `__all__` 列表
 
-完整公开 API 列表（当前共 21 个符号）：
+完整公开 API 列表（当前共 22 个符号）：
 
 ```python
 __all__ = [
@@ -112,6 +113,7 @@ __all__ = [
     "TaskGraph",
     "TaskGrid",
     "TaskLoop",
+    "TaskReporter",
     "TaskRouter",
     "TaskSplitter",
     "TaskStage",
@@ -222,11 +224,11 @@ graph TD
     end
 
     subgraph observability
-        O["BaseObserver"]
+        O["BaseObserver<br/>TaskReporter"]
     end
 
-    subgraph utils
-        U["benchmark_executor<br/>benchmark_graph<br/>format_table"]
+    subgraph benchmark
+        U["benchmark_executor<br/>benchmark_graph"]
     end
 
     subgraph persistence
@@ -234,7 +236,7 @@ graph TD
     end
 
     subgraph runtime
-        R["make_hashable<br/>TerminationSignal"]
+        R["format_table<br/>make_hashable<br/>TerminationSignal"]
     end
 
     Init --> F

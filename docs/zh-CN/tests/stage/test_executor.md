@@ -1,6 +1,6 @@
 # 任务执行器测试 (test_executor.py)
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/08/12
 
 ## 作用
 验证 `celestialflow.stage.core_executor` 中的 `TaskExecutor` 类，确保其在各种并发模式下能准确执行任务、处理错误并支持高级特性（如重试和去重）。
@@ -16,7 +16,7 @@
 | `TestExecutorThread` | 1 | 线程池并行执行与正确计数 |
 | `TestExecutorAsync` | 2 | 异步执行与连续处理逻辑 |
 | `TestExecutorDuplicateCheck` | 3 | 默认禁用、启用、显式禁用三种配置的行为对比 |
-| `TestExecutorReplay` | 2 | `start_db` 从 sqlite 按 stage 读取失败/pending 任务并回放；`start_db` 配合 `filter_by_error_type` 只回放命中 `retry_exceptions` 的记录 |
+| `TestExecutorReplay` | 3 | `restore_db` 从 sqlite 按 stage 读取失败/pending 任务并回放；配合 `filter_by_error_type` 只回放命中 `retry_exceptions` 的 failed 记录；过滤时仍保留 pending 记录 |
 | `TestExecutorSuccessCache` | 1 | 成功结果缓存与 `get_success_pairs()` |
 | `TestExecutorConfig` | 4 | 零/多参数函数拒绝、非法执行模式校验、`get_summary()` 摘要信息 |
 
@@ -39,7 +39,7 @@
 - 验证 `get_success_pairs()` 能正确返回已成功任务的输入输出配对。
 
 ### 配置校验
-- 验证非法 `execution_mode` 在初始化时抛出 `ExecutionModeError`。
+- 非法 `execution_mode` 在初始化时抛出 `InvalidOptionError`。
 - 验证 `get_summary()` 返回 `name`、`func_name`、`execution_mode` 等关键字段。
 
 ## 测试重点
@@ -81,7 +81,8 @@ pytest tests/stage/test_executor.py -k "duplicate" -v
 ## 重要细节
 - 使用 `flaky` 闭包模拟需要重试的场景。
 - `test_invalid_execution_mode` 确保不支持的模式在初始化时即报错。
-- `TestExecutorReplay.test_start_db_filters_error_type_when_enabled` 验证 `start_db` 开启 `filter_by_error_type` 时只回放命中 `retry_exceptions` 的 failed 记录，跳过不匹配的错误类型。
+- `TestExecutorReplay.test_restore_db_filters_error_type_when_enabled` 验证 `restore_db` 开启 `filter_by_error_type` 时只回放命中 `retry_exceptions` 的 failed 记录，跳过不匹配的错误类型。
+- `TestExecutorReplay.test_restore_db_filter_keeps_pending_records` 验证过滤时仍保留 pending 记录。
 
 ## 注意事项
 - `TaskExecutor` 是 `TaskStage` 的核心组件，负责具体的函数调用逻辑。

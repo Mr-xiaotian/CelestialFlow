@@ -1,6 +1,6 @@
 # demo/ 演示总览
 
-> 📅 最后更新日期: 2026/07/31
+> 📅 最后更新日期: 2026/08/12
 
 ## 说明
 
@@ -28,6 +28,7 @@
 | `demo_stages.md` | `demo/demo_stages.py` | `TaskSplitter`、`TaskRouter` 与链式/环状图结构 | Reporter / CelestialTree（可选） |
 | `demo_structure.md` | `demo/demo_structure.py` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete` 等预定义拓扑 | Reporter / CelestialTree（可选） |
 | `demo_redis.md` | `demo/demo_redis.py` | 用普通 `TaskStage` 实现 Redis 任务投递、结果确认与外部任务源 | Redis、Reporter（可选） |
+| `demo_network.md` | `demo/demo_network.py` | 用 `TaskCross` 构建神经网络拓扑与参数化线性节点 | 否 |
 | `demo_utils.md` | `demo/demo_utils.py` | 各演示脚本共享的辅助函数与任务函数 | 否 |
 
 > **注意**：表格中“是否需要外部服务”指直接运行默认入口时的强依赖；可选服务未就绪时通常只会跳过上报，不会导致 demo 退出。
@@ -42,6 +43,7 @@
 | `demo_graph.md` | DAG 任务图、ETL 流程与 staged/eager 调度演示 |
 | `demo_structure.md` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop` 等结构化图封装演示 |
 | `demo_stages.md` | `TaskStage`、`TaskSplitter`、`TaskRouter` 等 stage 级能力说明 |
+| `demo_network.md` | `TaskCross` 多层神经网络拓扑与参数化节点演示 |
 
 ### 观察、管道与扩展
 

@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/07/31
+> 📅 最后更新日期: 2026/08/12
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -17,11 +17,11 @@ class TaskExecutor[T, R]:
         *,
         execution_mode: str = "serial",
         max_workers: int | None = None,
+        max_queue_size: int = 0,
         max_retries: int = 1,
         max_info: int = 50,
         enable_duplicate_check: bool = False,
         persist_result: bool = False,
-        log_level: str = "INFO",
     ): ...
 ```
 
@@ -38,7 +38,6 @@ class TaskExecutor[T, R]:
 | `max_queue_size` | `0` | 任务输入队列的最大容量（0 表示无限制） |
 | `enable_duplicate_check` | `False` | 是否启用基于任务哈希的重复检查 |
 | `persist_result` | `False` | 是否持久化任务结果到 SQLite |
-| `log_level` | `"INFO"` | 日志级别 |
 
 ## Observer 模式
 
@@ -64,26 +63,24 @@ executor.remove_observer(observer)  # 移除观察者
 
 ## 核心方法
 
-### start / start_async / start_db
+### run / run_async / restore_db
 
 ```python
-def start(self, task_source: Iterable[T]) -> None:
+def run(self, task_source: Iterable[T], *, if_put_signal: bool = True) -> None:
     """
-    同步启动执行器。流程：
-    1. _prepare_start() — init_env() + 注入任务 + 记录启动日志
-    2. 根据 execution_mode 调用 dispatch 对应方法
-    3. _finish_start() — 通知 on_finish + 停止所有 spout
+    同步运行执行器（含 funnel_scope 生命周期）。内部依次调用
+    put_tasks() 和 start()。
     """
 
 
-async def start_async(self, task_source: Iterable[T]) -> None:
+async def run_async(self, task_source: Iterable[T], *, if_put_signal: bool = True) -> None:
     """
-    异步启动执行器。内部设置 execution_mode="async"。
-    使用 await dispatch.dispatch_async() 而非 asyncio.run()。
+    异步运行执行器（含 funnel_scope 生命周期）。内部依次调用
+    put_tasks() 和 start_async()。
     """
 
 
-def start_db(
+def restore_db(
     self,
     db_path: str | Path,
     statuses: Iterable[str] | None = None,
@@ -104,7 +101,7 @@ def start_db(
 
 - 执行过程中会创建并持有队列、`spout/inlet`、统计状态和调度器运行期资源。
 - 当前实现按单次运行设计，不保证在一次执行结束后可被完整重置。
-- 如果需要多轮执行同一逻辑，请新建执行器实例，而不是重复调用同一对象的 `start()` / `start_async()` / `start_db()`。
+- 如果需要多轮执行同一逻辑，请新建执行器实例，而不是重复调用同一对象的 `run()` / `run_async()` / `restore_db()`。
 
 ## 错误处理
 
@@ -223,7 +220,7 @@ executor = TaskExecutor(
     func=process_item,
     execution_mode="serial",
 )
-executor.start([1, 2, 3])
+executor.run([1, 2, 3])
 
 # 获取成功/失败结果
 success = executor.get_success_pairs()
@@ -243,10 +240,10 @@ def process_item(x: int) -> int:
 
 executor = TaskExecutor("Recovery", process_item, execution_mode="thread")
 # 从持久化的失败和 pending 记录中恢复执行
-executor.start_db("fallback/2026-06-18/executor_fallbacks.sqlite3")
+executor.restore_db("fallback/2026-06-18/executor_fallbacks.sqlite3")
 
 # 也可以指定仅恢复失败记录
-executor.start_db("fallback/2026-06-18/executor_fallbacks.sqlite3", statuses=["failed"])
+executor.restore_db("fallback/2026-06-18/executor_fallbacks.sqlite3", statuses=["failed"])
 ```
 
 ## 注意事项

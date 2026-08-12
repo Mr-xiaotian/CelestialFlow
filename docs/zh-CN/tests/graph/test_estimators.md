@@ -1,6 +1,6 @@
 # 剩余时间估算测试 (test_estimators.py)
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/12
 
 ## 作用
 验证 `calc_remaining`、`calc_elapsed` 和 `calc_global_pending` 三个估算函数，确保 CelestialFlow 在节点级和图级都能给出稳定的剩余时间预测。
@@ -28,7 +28,7 @@
 ## 运行方式
 
 ```bash
-pytest tests/runtime/test_estimators.py -v
-pytest tests/runtime/test_estimators.py -k "calc_remaining or calc_elapsed" -v
-pytest tests/runtime/test_estimators.py -k "global_pending" -v
+pytest tests/graph/test_estimators.py -v
+pytest tests/graph/test_estimators.py -k "calc_remaining or calc_elapsed" -v
+pytest tests/graph/test_estimators.py -k "global_pending" -v
 ```

@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 最后更新日期: 2026/08/05
+> 📅 最后更新日期: 2026/08/12
 
 `benchmark/util_benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
@@ -19,9 +19,9 @@
 
 ```python
 async def benchmark_executor(
-    sync_executor: TaskExecutor,
-    async_executor: TaskExecutor,
-    task_source: Iterable,
+    sync_executor: TaskExecutor[Any, Any],
+    async_executor: TaskExecutor[Any, Any],
+    task_source: Iterable[Any],
     sync_modes: list[str] | None = None,
     async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -30,7 +30,7 @@ async def benchmark_executor(
 
     :param sync_executor: 同步执行器模板
     :param async_executor: 异步执行器模板
-    :param task_source: 任务源
+    :param task_source: 任务源，用于生成任务列表
     :param sync_modes: 同步模式列表，默认 ["serial", "thread"]
     :param async_modes: 异步模式列表，默认 ["async"]
     :return: 测试结果字典（含 use_time, sync_modes, async_modes, table）
@@ -59,7 +59,7 @@ async      0.67s
 async def benchmark_graph(
     sync_graph: TaskGraph,
     async_graph: TaskGraph,
-    init_tasks_dict: Mapping[str, Iterable],
+    init_tasks_dict: Mapping[str, Iterable[Any]],
     stage_modes: list[str] | None = None,
     execution_sync_modes: list[str] | None = None,
     execution_async_modes: list[str] | None = None,
@@ -69,7 +69,7 @@ async def benchmark_graph(
 
     :param sync_graph: 同步任务图模板（用于 serial/thread 模式）
     :param async_graph: 异步任务图模板（用于 async 模式）
-    :param init_tasks_dict: 初始任务字典
+    :param init_tasks_dict: 初始任务字典，键为任务标签，值为任务列表
     :param stage_modes: 节点模式列表，默认 ["serial", "thread"]
     :param execution_sync_modes: 同步执行模式列表，默认 ["serial", "thread"]
     :param execution_async_modes: 异步执行模式列表，默认 ["async"]
@@ -99,7 +99,7 @@ thread    2.12s     1.89s     1.65s
 ```python
 import asyncio
 from celestialflow import TaskExecutor
-from celestialflow.utils.util_benchmark import benchmark_executor
+from celestialflow.benchmark.util_benchmark import benchmark_executor
 
 
 # 定义同步任务

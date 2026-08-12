@@ -1,6 +1,6 @@
 # Persistence 模块
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/12
 
 Persistence 模块提供了 CelestialFlow 的数据持久化功能，包括执行日志记录和 fallback（回退）持久化。它确保任务执行的关键数据能够可靠地保存和检索。
 
@@ -12,6 +12,11 @@ Persistence 模块提供了 CelestialFlow 的数据持久化功能，包括执�
 | `FallbackSpout` | `core_fallback` | Fallback 记录监听器，将任务生命周期写入 SQLite 数据库 |
 | `LogInlet` | `core_log` | 线程安全的日志收集器，提供丰富的语义化日志方法 |
 | `LogSpout` | `core_log` | 日志监听线程，将日志写入 `logs/` 目录的文本文件 |
+| `funnel_scope` | `core_scope` | 管理全局 FallbackSpout 与 LogSpout 生命周期的上下文管理器 |
+| `get_fallback_inlet` | `core_fallback` | 获取全局唯一的 FallbackInlet 实例 |
+| `get_fallback_spout` | `core_fallback` | 获取全局唯一的 FallbackSpout 实例 |
+| `get_log_inlet` | `core_log` | 获取全局唯一的 LogInlet 实例 |
+| `get_log_spout` | `core_log` | 获取全局唯一的 LogSpout 实例 |
 
 ## 文件说明
 
@@ -33,15 +38,21 @@ Persistence 模块提供了 CelestialFlow 的数据持久化功能，包括执�
      - `FallbackInlet`: 线程安全收集器，提供 `task_in`/`task_success`/`task_fail`/`task_retry`/`task_duplicate` 方法
    - **存储格式**: SQLite 数据库（WAL 模式）
 
+### 作用域管理
+
+3. **core_scope.py** (`funnel_scope`)
+   - **作用**: 管理全局 FallbackSpout 与 LogSpout 生命周期的上下文管理器
+   - **关键功能**: 进入时启动两个 spout，退出时停止并收集异常
+
 ### 数据序列化
 
-3. **util_payload.py**
+4. **util_payload.py**
    - **作用**: 将任务数据递归转换为 JSON 友好的持久化结构
    - **关键函数**: `to_persisted_payload(task)` — 将任意 Python 对象转为可 JSON 序列化的结构
 
 ### SQLite 工具
 
-4. **util_sqlite.py**
+5. **util_sqlite.py**
    - **作用**: SQLite 数据库的连接管理和 CRUD 操作工具
    - **关键函数**: `connect_db`、`insert_record`、`load_records`、`query_records`、`load_task_error_records` 等
 
@@ -95,25 +106,22 @@ flowchart LR
 ### 基础配置
 
 ```python
-from celestialflow.persistence import LogSpout, LogInlet, FallbackSpout, FallbackInlet
+from celestialflow.persistence import funnel_scope
 
-# 配置日志持久化
-log_spout = LogSpout()
-log_spout.start()
-log_inlet = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
-
-# 配置 fallback 持久化
-fallback_spout = FallbackSpout(error_source="graph_errors")
-fallback_spout.start()
-fallback_inlet = FallbackInlet().bind_spout(fallback_spout)
+# 使用 funnel_scope 统一管理生命周期
+with funnel_scope():
+    # FallbackSpout 和 LogSpout 已自动启动
+    # 执行业务逻辑...
+    ...
+# 退出作用域时两个 Spout 已自动停止
 ```
 
 ### 记录日志
 
 ```python
-# 记录阶段启停
-log_inlet.start_stage("StageA", "thread", "thread-4")
-log_inlet.end_stage("StageA", "thread", "thread-4", 12.5, 100, 2, 0)
+# 记录执行器启停
+log_inlet.start_executor("StageA", 100, "thread")
+log_inlet.end_executor("StageA", "thread", 12.5, 98, 2, 0)
 
 # 记录任务生命周期
 log_inlet.task_success("func", "task1", "thread", "result", 0.05, 1, 2)

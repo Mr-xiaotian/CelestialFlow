@@ -1,6 +1,6 @@
 # bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/08/05
+> 📅 最后更新日期: 2026/08/12
 
 ## 目标
 
@@ -13,13 +13,13 @@
 - **任务混合**：CPU 密集型（斐波那契）、I/O 密集型（sleep）、纯计算（除二、平方）
 - **输入**：`range(25, 32) + [0, 27, None, 0, ""]`（含异常边界）
 - **重试设置**：`stage1`、`stage2` 对 `ValueError` 启用 `max_retries=1`
-- **启用服务**：Reporter
+- **Reporter**：默认关闭（代码中已注释，可通过取消注释启用）
 
 ### `bench_graph_1`
 - **结构**：6 节点多层 DAG（A → [B, C]；B → [D, E]；C → E；D → F）
 - **任务**：随机 0-2 秒睡眠（模拟不均匀负载）
 - **输入**：`range(10)`
-- **启用服务**：Reporter
+- **Reporter**：默认关闭（代码中已注释，可通过取消注释启用）
 
 ### `bench_graph_2`
 - **结构**：4 节点 DAG（Splitter → A → [B, C]），使用 `TaskSplitter` 展开输入

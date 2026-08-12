@@ -1,6 +1,6 @@
 # TaskTypes
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/12
 
 
 TaskTypes 模块定义了框架中使用的基础数据类型、枚举和辅助类。
@@ -39,8 +39,6 @@ TERMINATION_SIGNAL = TerminationSignal()
 class TerminationIdPool:
     def __init__(self, ids: list[int]):
         self.ids = ids  # 终止信号 ID 列表
-        self.id = -1  # 兼容字段，固定为 -1
-        self.source = "<signal>"  # 兼容字段，固定为 "<signal>"
 ```
 
 ## NoOpContext

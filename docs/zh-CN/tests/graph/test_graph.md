@@ -1,6 +1,6 @@
 # 任务图核心功能测试 (test_graph.py)
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/08/12
 
 ## 作用
 全面验证 `TaskGraph` 及其各种拓扑子类（`TaskChain`、`TaskCross`、`TaskGrid`）的核心功能，涵盖同步/异步执行、错误传播、拓扑分析、执行模式矩阵、源节点推导、含环图行为、收尾阶段安全检查及运行时快照采集。
@@ -16,17 +16,16 @@
 
 | 测试类 | 用例数 | 覆盖点 |
 |--------|--------|--------|
-| `TestTaskGraphBasic` | 7 | set_ctree 更新已有 stage、两节点 DAG、扇出、扇入、错误传播、start_graph_db、错误类型过滤回放 |
-| `TestTaskGraphAsync` | 5 | async 模式两节点、扇出、扇入、错误传播、async+thread stage_mode |
+| `TestTaskGraphBasic` | 11 | set_ctree 更新已有 stage、未知 stage 名称查找异常、非法 stage_mode 异常、两节点 DAG、扇出、扇入、错误传播、DB 回放、DB 错误类型过滤回放、DB 保留 pending 记录、finish 后统一抛出异常组 |
+| `TestTaskGraphAsync` | 6 | async 模式两节点、扇出、扇入、错误传播、async+thread stage_mode、async finish 后统一抛出异常组 |
 | `TestTaskGraphStructure` | 3 | Chain、Cross、Grid 结构 |
-| `TestTaskGraphAnalysis` | 2 | DAG 检测、层级计算 |
-| `TestTaskGraphFinalize` | 1 | 收尾阶段线程安全检查 |
+| `TestTaskGraphAnalysis` | 4 | getter 按需构建分析、结构变更后自动重建缓存、DAG 检测、层级计算 |
 | `TestTaskGraphRuntimeSnapshot` | 1 | Reporter 快照采集对未启动 Stage 的容错 |
 | `TestStageExecutionMatrix` | 6 | serial/thread stage_mode × serial/thread/async execution_mode |
 | `TestTaskGraphThread` | 6 | thread 模式两节点、扇出、扇入、错误传播、lambda、staged 调度 |
 | `TestSourceStages` | 5 | 线性图 source、扇入 source、菱形图 source、单源 SCC 代表点、多源 SCC 各返回一点 |
 | `TestCyclicGraph` | 2 | 含环图 isDAG 检测、环内同层 + 尾巴层级 |
-| **合计** | **38** | |
+| **合计** | **44** | |
 
 > **说明**: 此处统计的是 `test_graph.py` 中的测试类。`TaskLoop` 和 `TaskWheel` 的专用测试在 `test_structure.py`。
 
@@ -45,12 +44,18 @@ graph LR
 - **扇出** (`test_graph_fan_out`): 一个上游分发到多个下游，sink_a 和 sink_b 各成功 2 个。
 - **扇入** (`test_graph_fan_in`): 多个上游汇聚到一个下游，merge 节点收到 4 个任务。
 - **错误传播** (`test_graph_error_propagation`): 验证 `50` 触发 `ValueError` 不阻断流程，下游仅接收成功任务。
-- **DB 启动** (`test_graph_start_db`): 验证从 SQLite 回放 failed/pending 任务。
-- **DB 启动过滤** (`test_graph_start_db_filters_error_type_when_enabled`): 验证按各 stage 的 `retry_exceptions` 过滤回放任务。
+- **DB 启动** (`test_graph_restore_db`): 验证从 SQLite 回放 failed/pending 任务。
+- **DB 启动过滤** (`test_graph_restore_db_filters_error_type_when_enabled`): 验证按各 stage 的 `retry_exceptions` 过滤回放任务。
+- **DB 保留 pending 记录** (`test_graph_restore_db_filter_keeps_pending_records`): 验证过滤开启时 pending 记录仍继续回放。
+- **未知 stage 名称异常** (`test_graph_stage_lookup_unknown_stage_raises`): 显式按 stage 注入任务时，不存在的 stage 名称应抛出 `NodeNotFoundError`。
+- **非法 stage_mode 异常** (`test_execute_stage_unknown_stage_mode_raises`): `_execute_stage` 遇到非法 `stage_mode` 时应抛出异常而非静默降级。
+- **set_ctree 更新已有 stage** (`test_set_ctree_updates_existing_stages`): 先 `set_stages` 再 `set_ctree` 时，已有 stage 也应共享同一事件客户端。
+- **finish 后统一抛出异常组** (`test_start_raises_exception_group_after_finish`): 同步 `start` 在 finish 后统一抛出收集到的异常。
 
 #### 异步与并发
 - async 模式下的两节点、扇出、扇入、错误传播与同步模式语义一致。
 - `test_graph_async_thread_stage_mode`: 验证 `stage_mode="thread"` + `execution_mode="async"` 组合。
+- `test_start_async_raises_exception_group_after_finish`: 异步 `start_async` 在 finish 后统一抛出异常组。
 
 #### 执行模式矩阵 (`TestStageExecutionMatrix`)
 覆盖 `stage_mode` × `execution_mode` 全部 **6 种组合**：
@@ -67,11 +72,13 @@ graph LR
 每个用例使用 5 个输入任务的两节点 DAG，各验证两 stage 各成功 5 个。
 
 #### 图结构分析 (`TestTaskGraphAnalysis`)
+- **按需构建** (`test_getters_build_analysis_on_demand`): 分析与结构 getter 在未显式 build 时也应可直接使用。
+- **自动重建缓存** (`test_getters_refresh_analysis_after_connect`): 结构变更后 getter 应自动重建分析缓存。
 - **DAG 检测** (`test_dag_detection`): `isDAG` 标记应正确反映图是否有环。
 - **层级计算** (`test_layer_computation`): 线性链 A→B→C 的拓扑层级为 {A:0, B:1, C:2}。
 
-#### 收尾与快照
-- **收尾安全检查** (`TestTaskGraphFinalize`): 验证 `_finalize_nodes()` 在仍有存活线程时抛出 `RuntimeStateError`，阻止危险清理。
+#### 快照与收尾
+- **收尾异常组** (`test_start_raises_exception_group_after_finish`): 同步 `start` 在 finish 后统一抛出 ExceptionGroup。
 - **快照容错** (`TestTaskGraphRuntimeSnapshot`): 验证 Reporter 在节点尚未启动（无 `start_time`）时采集快照不会崩溃。
 
 #### 复杂结构 (`TestTaskGraphStructure`)
@@ -98,7 +105,7 @@ graph LR
 #### 含环图 (`TestCyclicGraph`)
 | 用例 | 验证点 |
 |------|--------|
-| `test_cyclic_isDAG_false` | s1→s2→s3→s1 的 `isDAG` 应为 `False` |
+| `test_cyclic_is_dag_false` | s1→s2→s3→s1 的 `isDAG` 应为 `False` |
 | `test_cyclic_layers` | 环内节点 (s1,s2,s3) 同层，尾巴 s4 在环层级 + 1 |
 
 ### 运行时快照
@@ -141,7 +148,6 @@ pytest tests/graph/test_graph.py::TestTaskGraphAnalysis -v
 | `TestTaskGraphAsync` | ~3s |
 | `TestTaskGraphStructure` | ~5s |
 | `TestTaskGraphAnalysis` | ~1s |
-| `TestTaskGraphFinalize` | < 0.1s |
 | `TestTaskGraphRuntimeSnapshot` | < 0.1s |
 | `TestStageExecutionMatrix` | ~5s |
 | `TestTaskGraphThread` | ~4s |

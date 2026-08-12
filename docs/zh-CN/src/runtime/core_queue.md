@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 最后更新日期: 2026/07/31
+> 📅 最后更新日期: 2026/08/12
 
 `TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了终止信号合并功能。
 
@@ -122,16 +122,7 @@ def put_target(self, item: TaskEnvelope | TerminationSignal, name: str) -> None:
 
 用于向指定下游 Stage 定向分发。
 
-#### put_channel
 
-```python
-def put_channel(self, item: TaskEnvelope | TerminationSignal, idx: int) -> None:
-    """
-    入队到指定索引的输出通道。
-
-    :param idx: 输出通道索引
-    """
-```
 
 ### 辅助方法
 

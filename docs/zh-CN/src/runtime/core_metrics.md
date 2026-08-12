@@ -1,6 +1,6 @@
 # TaskMetrics
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/08/12
 
 TaskMetrics 模块负责管理和统计任务执行过程中的各项指标，如输入任务数、成功数、失败数、重复任务数等。它通常作为 `TaskExecutor` 的一个组件存在。
 
@@ -28,7 +28,7 @@ TaskMetrics 内部维护四个核心计数器：
 |--------|------|------|
 | `task_counter` | `SumCounter` | 总输入任务数（支持级联） |
 | `success_counter` | `ValueWrapper` | 成功任务数 |
-| `error_counter` | `ValueWrapper` | 失败任务数 |
+| `fail_counter` | `ValueWrapper` | 失败任务数 |
 | `duplicate_counter` | `ValueWrapper` | 重复任务数 |
 
 所有 `ValueWrapper` 统一使用 `Lock` 保证线程安全。
@@ -47,8 +47,11 @@ def reset_state(self) -> None:
 ### 计数器操作
 
 ```python
-def add_task_count(self, add_count: int = 1):
-    """线程安全地增加输入任务计数。"""
+def add_fail_count(self, count: int = 1):
+    """线程安全地增加失败任务计数。"""
+
+
+```
 
 
 def add_success_count(self, count: int = 1):
@@ -62,7 +65,6 @@ def add_error_count(self, count: int = 1):
 def add_duplicate_count(self, count: int = 1):
     """线程安全地增加重复任务计数。"""
 ```
-
 ### 计数器级联
 
 ```python
@@ -106,7 +108,7 @@ def get_counts(self) -> dict[str, int]:
 ```python
 def get_task_count(self) -> int: ...
 def get_success_count(self) -> int: ...
-def get_error_count(self) -> int: ...
+def get_fail_count(self) -> int: ...
 def get_duplicate_count(self) -> int: ...
 ```
 
@@ -117,7 +119,7 @@ def get_duplicate_count(self) -> int: ...
 ```python
 def is_duplicate(self, task_hash: bytes) -> bool:
     """
-    原子操作：检查并标记重复。
+    检查并标记重复（该方法在 executor 线程中串行调用，无需额外加锁）。
     - 如果哈希不在集合中，加入集合并返回 False
     - 如果已存在，返回 True
     """
@@ -166,7 +168,7 @@ metrics.add_task_count(5)
 metrics.add_success_count(3)
 
 # 处理失败 1 个
-metrics.add_error_count(1)
+metrics.add_fail_count(1)
 
 # 检测到重复任务 1 个
 metrics.add_duplicate_count(1)
@@ -174,7 +176,7 @@ metrics.add_duplicate_count(1)
 # 4. 查询各计数器的值
 print(f"任务总数: {metrics.get_task_count()}")  # 5
 print(f"成功数: {metrics.get_success_count()}")  # 3
-print(f"失败数: {metrics.get_error_count()}")  # 1
+print(f"失败数: {metrics.get_fail_count()}")  # 1
 print(f"重复数: {metrics.get_duplicate_count()}")  # 1
 
 # 5. 获取完整快照字典

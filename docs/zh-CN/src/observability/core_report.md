@@ -1,6 +1,6 @@
 # TaskReporter
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/12
 
 `TaskReporter` 是一个后台组件，负责收集任务图的运行状态并上报给 `celestialflow-web` 服务。同时也负责从该服务拉取控制指令（如任务注入）。
 
@@ -20,13 +20,11 @@ class TaskReporter:
         host: str,
         port: int,
         task_graph: ReporterTaskGraph,
-        log_inlet: LogInlet,
     ) -> None:
         """
         :param host: 远程服务主机地址
         :param port: 远程服务端口
         :param task_graph: 任务图实例（满足 ReporterTaskGraph 协议）
-        :param log_inlet: 日志收集器实例
         """
 ```
 

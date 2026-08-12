@@ -1,13 +1,13 @@
 # TaskDispatch
 
-> 📅 最后更新日期: 2026/07/31
+> 📅 最后更新日期: 2026/08/12
 
-`TaskDispatch` 是任务调度器，负责以串行、线程或异步方式执行单个任务。它是 `TaskExecutor` 的内部组件，从 `TaskInQueue` 获取任务，调用用户函数，并将结果通过 `TaskOutQueue` 发送。
+`stage/core_dispatch.py` 定义了 `TaskDispatch` 类，它是 `TaskExecutor` 的内部组件，负责以串行、线程或异步方式执行单个任务。它从 `TaskInQueue` 获取任务，调用用户函数，并将结果通过 `TaskOutQueue` 发送。
 
 ## 初始化
 
 ```python
-class TaskDispatch:
+class TaskDispatch[T, R]:
     def __init__(
         self,
         task_executor: TaskExecutor[T, R],

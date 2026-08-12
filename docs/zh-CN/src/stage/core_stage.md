@@ -1,6 +1,6 @@
 # TaskStage
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/12
 
 `TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力与 `stage_mode` 控制逻辑。
 
@@ -63,18 +63,7 @@ def set_stage_mode(self, stage_mode: str):
     """
     设置节点在任务图中的执行模式。
     :param stage_mode: 'serial' 或 'thread'
-    :raises StageModeError: 如果模式不支持
-    """
-```
-
-### set_inlet
-
-```python
-def set_inlet(self, fallback_inlet: FallbackInlet, log_inlet: LogInlet) -> None:
-    """
-    初始化收集器，将 fallback/log 收集器接入当前 stage。
-    :param fallback_inlet: fallback 收集器
-    :param log_inlet: 日志收集器
+    :raises InvalidOptionError: 如果模式不支持
     """
 ```
 
@@ -84,7 +73,6 @@ def set_inlet(self, fallback_inlet: FallbackInlet, log_inlet: LogInlet) -> None:
 |------|------|
 | `set_execution_mode(mode)` | 设置节点内部的任务处理模式（`serial`/`thread`/`async`） |
 | `set_name(name)` | 设置节点名称 |
-| `set_log_level(level)` | 设置日志级别 |
 
 ## 连接绑定
 
@@ -106,54 +94,26 @@ def get_binding_counter(self, _downstream_name: str) -> Any:
     """
 ```
 
-## 状态管理
+## 状态快照
 
-`TaskStage` 使用 `StageStatus` 枚举维护生命周期：
+`TaskStage` 通过 `snapshot()` 方法采集运行时快照，包含状态、计数、耗时估算等信息。
 
-```mermaid
-stateDiagram-v2
-    [*] --> NOT_STARTED: __init__()
-    NOT_STARTED --> RUNNING: start_stage()
-    RUNNING --> RUNNING: 处理任务中
-    RUNNING --> STOPPED: finally 块
-    STOPPED --> [*]
-```
-
-### 状态方法
+### snapshot
 
 ```python
-# 标记运行
-def mark_running(self) -> None:
-    """标记：stage 正在运行。"""
-
-
-# 标记停止
-def mark_stopped(self) -> None:
-    """标记：stage 已停止（正常结束时在 finally 里调用）。"""
-
-
-# 获取状态
-def get_status(self) -> StageStatus:
-    """读取当前状态（返回 StageStatus 枚举）。"""
+def snapshot(self, interval: float) -> dict[str, Any]:
+    """
+    采集当前 stage 的运行时快照。
+    :param interval: 快照采集间隔（秒）
+    :return: 包含状态、计数、耗时估算等信息的快照字典
+    """
 ```
 
 ## 运行机制
 
-### start / start_async（被禁止直接调用）
+### start / start_async
 
-当 `TaskStage` 被 `TaskGraph` 管理时，直接调用 `start()` 或 `start_async()` 会抛出 `GraphManagedError`。应由 `TaskGraph.start_graph()` 统一驱动。
-
-### start_stage
-
-当 `TaskGraph` 启动时，会调用此方法启动节点的实际执行。
-
-```python
-def start_stage(self):
-    """
-    根据 execution_mode 的值，选择串行、线程或异步执行任务。
-    记录启动/结束日志，管理状态转换。
-    """
-```
+当 `TaskStage` 被 `TaskGraph` 管理时，由 `TaskGraph.start_graph()` 统一驱动节点的实际执行。
 
 生命周期约束：
 
@@ -235,6 +195,31 @@ graph.set_stages([stage_a])
 graph.start_graph({stage_a.get_name(): list(range(20))})
 ```
 
+### 使用 thread 执行模式（I/O 密集型）
+
+```python
+import time
+from celestialflow import TaskGraph, TaskStage
+
+
+def io_task(x: int) -> int:
+    time.sleep(0.05)
+    return x * 10
+
+
+stage_a = TaskStage(
+    name="IOWorker",
+    func=io_task,
+    execution_mode="thread",
+    max_workers=4,
+    stage_mode="thread",
+)
+
+graph = TaskGraph()
+graph.set_stages([stage_a])
+graph.start_graph({stage_a.get_name(): list(range(20))})
+```
+
 ### 异步模式（async）
 
 ```python
@@ -256,19 +241,19 @@ async_stage = TaskStage(
 print(f"异步阶段摘要: {async_stage.get_summary()}")
 ```
 
-### 状态管理
+### 快照采集
 
 ```python
 from celestialflow import TaskStage
-from celestialflow.runtime.util_types import StageStatus
 
-stage = TaskStage("StatusDemo", func=lambda x: x)
+stage = TaskStage("SnapshotDemo", func=lambda x: x)
 
-print(f"初始状态: {stage.get_status().name}")  # NOT_STARTED
-stage.mark_running()
-print(f"运行中: {stage.get_status().name}")  # RUNNING
-stage.mark_stopped()
-print(f"已停止: {stage.get_status().name}")  # STOPPED
+# 采集运行时快照
+snapshot = stage.snapshot(interval=1.0)
+print(f"节点: {snapshot['name']}")
+print(f"状态: {snapshot['status']}")
+print(f"已处理: {snapshot['tasks_processed']}")
+print(f"待处理: {snapshot['tasks_pending']}")
 ```
 
 ## 注意事项

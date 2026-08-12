@@ -1,6 +1,6 @@
 # Graph 模块
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/08/12
 
 Graph 模块是 CelestialFlow 的核心调度系统，负责管理任务节点之间的依赖关系、执行流程和生命周期。它提供了灵活的任务图构建、分析和序列化功能。
 
@@ -81,7 +81,7 @@ from celestialflow.graph import (
 1. **构建任务图**: 创建 `TaskStage` 节点 → `set_stages()` 注册 → `connect()` 建立依赖
 2. **选择结构**: 对常见模式可直接使用 `TaskChain`/`TaskCross` 等预定义结构
 3. **配置**: 通过 `set_reporter()` / `set_ctree()` 集成外部服务
-4. **执行**: 调用 `start_graph()`
+4. **执行**: 调用 `run()` 或 `run_async()`
 5. **监控**: 使用 `collect_runtime_snapshot()` 和 `get_status_snapshot()` 获取状态
 
 ## 使用示例
@@ -119,7 +119,7 @@ graph.connect([s1], [s2])
 graph.connect([s2], [s3])
 
 # 执行
-graph.start_graph({s1.get_name(): [1, 2, 3]})
+graph.run({s1.get_name(): [1, 2, 3]})
 
 # 图分析
 analysis = graph.get_graph_analysis()
@@ -139,7 +139,7 @@ stages = [
 ]
 
 chain = TaskChain(name="DataPipeline", stages=stages, stage_mode="serial")
-chain.start_graph({stages[0].get_name(): [" 10 ", " 20 ", " 30 "]})
+chain.run({stages[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
 print(f"链状态: {chain.get_status_snapshot()}")
 ```
@@ -154,7 +154,7 @@ layer1 = [TaskStage("F1", func=lambda x: x * 2), TaskStage("F2", func=lambda x: 
 layer2 = [TaskStage("G1", func=lambda x: x**2), TaskStage("G2", func=lambda x: -x)]
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], schedule_mode="eager")
-cross.start_graph({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
+cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
 print(cross.get_status_snapshot())
 ```
 
@@ -169,7 +169,7 @@ s10 = TaskStage("C", func=lambda x: x * 2)
 s11 = TaskStage("D", func=lambda x: x * x)
 
 grid = TaskGrid(name="GridPipeline", grid=[[s00, s01], [s10, s11]])
-grid.start_graph({s00.get_name(): [1, 2]})
+grid.run({s00.get_name(): [1, 2]})
 print(grid.get_status_snapshot())
 ```
 
@@ -185,8 +185,8 @@ stages = [
 ]
 
 loop = TaskLoop(name="FeedbackLoop", stages=stages)
-# 环结构建议 put_termination_signal=False 避免提前终止
-loop.start_graph({stages[0].get_name(): [10]}, put_termination_signal=False)
+# 环结构建议 if_put_signal=False 避免提前终止
+loop.run({stages[0].get_name(): [10]}, if_put_signal=False)
 ```
 
 ### TaskWheel 轮状图
@@ -198,13 +198,13 @@ center = TaskStage("Center", func=lambda x: f"processed: {x}")
 ring = [TaskStage(f"R{i}", func=lambda x: f"ring-{i}: {x}") for i in range(3)]
 
 wheel = TaskWheel(name="HubAndSpoke", center=center, ring=ring)
-wheel.start_graph({center.get_name(): ["data"]})
+wheel.run({center.get_name(): ["data"]})
 ```
 
 ## 最佳实践
 
 - 线性流程使用 `TaskChain`，无需手动 `connect`
 - 多路并行流水线使用 `TaskCross` 或手动组合
-- 有环图（`TaskLoop`/`TaskWheel`）建议 `put_termination_signal=False`，通过外部注入停止
-- 如需与外部监控系统对接，可启用 `set_reporter(True)`
+- 有环图（`TaskLoop`/`TaskWheel`）建议 `if_put_signal=False`，通过外部注入停止
+- 如需与外部监控系统对接，可使用 `set_reporter()`
 - 复杂 DAG 使用 `staged` 模式便于逐层调试

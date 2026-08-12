@@ -1,6 +1,6 @@
 # RuntimeConstant
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/08/12
 
 `runtime/util_constant.py` 定义运行时全局常量，主要是日志级别映射表 `LEVEL_DICT`。
 
@@ -114,4 +114,4 @@ print(validate_level("VERBOSE"))  # False
 
 ## 注意事项
 
-- `LEVEL_DICT` 是 `LogInlet` 日志过滤的核心依据，不要随意修改级别数值。
+- `LEVEL_DICT` 被 `util_config` 中 `load_log_level_from_pyproject()` 用于校验用户配置的日志级别，不要随意修改级别数值。

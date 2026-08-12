@@ -1,6 +1,6 @@
 # Observability 模块
 
-> 📅 最后更新日期: 2026/07/31
+> 📅 最后更新日期: 2026/08/12
 
 Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行状态监控、Observer 模式和远程状态上报。它使任务执行过程变得透明、可监控。
 
@@ -9,8 +9,9 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
 | 导出符号 | 来源模块 | 说明 |
 |---------|---------|------|
 | `BaseObserver` | `core_observer` | 执行器生命周期观察者基类，定义 `on_start`, `on_task_success`, `on_task_fail`, `on_task_duplicate`, `on_tasks_added`, `on_finish` 等事件接口 |
-| `TaskReporter` | `core_report` | 任务状态上报器，后台线程周期性向 `celestialflow-web` 服务推送运行状态并拉取控制指令 |
 | `NullTaskReporter` | `core_report` | 空实现的任务上报器，作为关闭上报功能时的占位对象 |
+| `ReporterProtocol` | `core_report` | Reporter 依赖方所需的最小接口协议 |
+| `TaskReporter` | `core_report` | 任务状态上报器，后台线程周期性向 `celestialflow-web` 服务推送运行状态并拉取控制指令 |
 
 ## 文件说明
 
@@ -51,8 +52,8 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
 - **空列表等效 Null**: 当 observer 列表为空时，无任何开销
 
 ### 双向通信（TaskReporter）
-- **上行通道**: 状态数据上报到celestialflow-web服务
-- **下行通道**: 控制指令从celestialflow-web服务下发到运行实例
+- **上行通道**: 状态数据上报到 celestialflow-web 服务
+- **下行通道**: 控制指令从 celestialflow-web 服务下发到运行实例
 
 ### 容错设计
 - 网络中断时的优雅降级，不影响主流程执行
@@ -68,7 +69,6 @@ reporter = TaskReporter(
     host="127.0.0.1",
     port=5000,
     task_graph=my_task_graph,
-    log_inlet=log_inlet,
 )
 reporter.start()
 ```
@@ -115,13 +115,11 @@ graph.set_stages([stage])
 stats_observer = StatsObserver()
 stage.add_observer(stats_observer)
 
-# 可选：启用 TaskReporter 上报到celestialflow-web服务
-log_inlet = stage.log_inlet
+# 可选：启用 TaskReporter 上报到 celestialflow-web 服务
 reporter = TaskReporter(
     host="127.0.0.1",
     port=5000,
     task_graph=graph,
-    log_inlet=log_inlet,
 )
 reporter.start()
 

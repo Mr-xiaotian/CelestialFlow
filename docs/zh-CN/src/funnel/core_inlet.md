@@ -1,6 +1,6 @@
 # BaseInlet
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/12
 
 `BaseInlet` 是所有入口类（Inlet）的基类，负责将记录通过队列发送到对应的 `BaseSpout`。
 
@@ -73,8 +73,9 @@ classDiagram
     class LogInlet {
         +start_graph()
         +end_graph()
-        +start_stage()
-        +end_stage()
+        +start_executor()
+        +end_executor()
+        +task_input()
         +task_success()
         +task_fail()
         +task_retry()
