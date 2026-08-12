@@ -1,6 +1,7 @@
 # benchmark/util_benchmark.py
 from __future__ import annotations
 
+from posix import sync
 import time
 from collections.abc import Iterable, Mapping
 from typing import Any
@@ -107,26 +108,22 @@ async def benchmark_graph(
             cloned_graph: TaskGraph = clone_graph(sync_graph)
             cloned_graph.set_graph_mode(stage_mode, execution_mode)
 
-            run_tasks: dict[str, list[Any]] = {
+            sync_run_tasks: dict[str, Iterable[Any]] = {
                 stage_name: list(tasks) for stage_name, tasks in base_tasks.items()
             }
-            for stage_name, tasks in run_tasks.items():
-                cloned_graph.stage_dict[stage_name].put_tasks(tasks)
             start_time: float = time.perf_counter()
-            cloned_graph.start_graph()
+            cloned_graph.run(sync_run_tasks)
             time_list.append(time.perf_counter() - start_time)
 
         for execution_mode in execution_async_modes:
             cloned_graph = clone_graph(async_graph)
             cloned_graph.set_graph_mode(stage_mode, execution_mode)
 
-            run_tasks = {
+            async_run_tasks: dict[str, Iterable[Any]] = {
                 stage_name: list(tasks) for stage_name, tasks in base_tasks.items()
             }
-            for stage_name, tasks in run_tasks.items():
-                cloned_graph.stage_dict[stage_name].put_tasks(tasks)
             start_time = time.perf_counter()
-            await cloned_graph.start_graph_async()
+            await cloned_graph.run_async(async_run_tasks)
             time_list.append(time.perf_counter() - start_time)
 
         test_table_list.append(time_list)

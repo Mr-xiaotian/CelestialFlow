@@ -295,7 +295,7 @@ class TaskGraph:
 
     async def run_async(
         self,
-        init_tasks_dict: dict[str, list[Any]],
+        init_tasks_dict: dict[str, Iterable[Any]],
         *,
         if_put_signal: bool = True,
     ) -> None:
