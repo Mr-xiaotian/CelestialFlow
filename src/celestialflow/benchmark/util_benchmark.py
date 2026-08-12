@@ -1,7 +1,6 @@
 # benchmark/util_benchmark.py
 from __future__ import annotations
 
-from posix import sync
 import time
 from collections.abc import Iterable, Mapping
 from typing import Any
