@@ -73,7 +73,9 @@ def run(self, task_source: Iterable[T], *, if_put_signal: bool = True) -> None:
     """
 
 
-async def run_async(self, task_source: Iterable[T], *, if_put_signal: bool = True) -> None:
+async def run_async(
+    self, task_source: Iterable[T], *, if_put_signal: bool = True
+) -> None:
     """
     异步运行执行器（含 funnel_scope 生命周期）。内部依次调用
     put_tasks() 和 start_async()。
@@ -243,7 +245,9 @@ executor = TaskExecutor("Recovery", process_item, execution_mode="thread")
 executor.restore_db("fallback/2026-06-18/executor_fallbacks.sqlite3")
 
 # 也可以指定仅恢复失败记录
-executor.restore_db("fallback/2026-06-18/executor_fallbacks.sqlite3", statuses=["failed"])
+executor.restore_db(
+    "fallback/2026-06-18/executor_fallbacks.sqlite3", statuses=["failed"]
+)
 ```
 
 ## 注意事项

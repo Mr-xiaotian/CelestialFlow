@@ -170,4 +170,3 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         # 持久化逻辑
         for source in remaining_sources:
             self.handle_task_fail(source, UnconsumedError())
-

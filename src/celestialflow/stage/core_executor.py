@@ -485,7 +485,8 @@ class TaskExecutor[T, R]:
 
     # ==== 执行 ====
 
-    def run(self, 
+    def run(
+        self,
         task_source: Iterable[T],
         *,
         if_put_signal: bool = True,
@@ -501,7 +502,8 @@ class TaskExecutor[T, R]:
             self.put_tasks(task_source, if_put_signal=if_put_signal)
             self.start()
 
-    async def run_async(self,
+    async def run_async(
+        self,
         task_source: Iterable[T],
         *,
         if_put_signal: bool = True,

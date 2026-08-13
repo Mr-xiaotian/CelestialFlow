@@ -49,8 +49,6 @@ def reset_state(self) -> None:
 ```python
 def add_fail_count(self, count: int = 1):
     """线程安全地增加失败任务计数。"""
-
-
 ```
 
 

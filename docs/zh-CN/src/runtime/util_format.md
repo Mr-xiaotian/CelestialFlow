@@ -78,11 +78,11 @@ print(format_repr("hello world", 50))  # hello world
 print(format_repr("A" * 100, 30))  # AAAAAAAAAAAAAAAAAAAA...CCCCCCCCCC
 
 # format_duration：时间格式化
-print(format_duration(59))    # 00:59
+print(format_duration(59))  # 00:59
 print(format_duration(3661))  # 01:01:01
 
 # format_timestamp：时间戳格式化
-print(format_timestamp(0))          # 1970-01-01 08:00:00
+print(format_timestamp(0))  # 1970-01-01 08:00:00
 
 # format_table：表格渲染
 data = [

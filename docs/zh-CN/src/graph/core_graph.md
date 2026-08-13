@@ -14,9 +14,7 @@
 
 ```python
 class TaskGraph:
-    def __init__(
-        self, name: str, schedule_mode: str = "eager"
-    ): ...
+    def __init__(self, name: str, schedule_mode: str = "eager"): ...
 ```
 
 ### 参数说明

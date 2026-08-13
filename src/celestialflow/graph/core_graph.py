@@ -404,7 +404,7 @@ class TaskGraph:
         except Exception as exception:
             error_list.append(exception)
 
-        self.threads.clear()   # 清理已 join 的线程引用
+        self.threads.clear()  # 清理已 join 的线程引用
 
         return error_list
 
