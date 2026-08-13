@@ -374,3 +374,42 @@
       - 根据 `bench\bench_observer.py`, tqdm对轻量级任务影响有限
       - 这次移除主要是为了完成尽量零第三方库依赖的目标
     - 将 `observer` 的管理从 `executor` 转到 `metric`
+- 3.2.8
+  - feat:
+    - [IMPORTANT] 添加 `TaskGraph.run_async`, 现在可以直接进行图级别的异步
+      - 根据 `bench_graph_mode.py` 最新测试, 在I/O密集型任务中, `serial`+`async`（6.05s），比 `serial`+`serial`（69.04s）快 **11.4x**
+    - 在 `core_structure` 中添加报错校验
+    - 不再允许设置 `execution_mode=async` 时调用 `TashExecutor.start`(如今的`TashExecutor.run`), 只能调用 `TashExecutor.run_async`
+    - 另外调用 `TashExecutor.run_async` 时也会进行模式检查, 不是 `execution_mode=async` 就会抛出异常
+    - 在 `BaseObserver` 中添加 `observer_error`, 用于处理 `BaseObserver.on_*` 函数的报错
+    - 在 `TaskGraph._finish_start_graph` `TaskExecutor._finish_start` 中对所有执行步骤进行 `try-except`, 以使收尾步骤尽量全部完成
+    - 添加 `core_scope`, 用于独立控制 `funnel` 的生命周期, 并用于 `TaskGraph.run/run_async` `TaskExecutor.run/run_async`
+  - refactor:
+    - [IMPORTANT] 原 `TaskGraph.start_graph/start_graph_async` `TaskExecutor.start/start_async` 已被重命名为 `TaskGraph.run/run_async` `TaskExecutor.run/run_async`
+      - 破坏性更新
+      - 其底层缘由是为了合并 `TaskStage.start_stage/start_stage_async` 与 `TaskExecutor.start/start_async` 而做出的一系列重构之一
+      - 现在的 `TaskGraph.start/start_async` `TaskExecutor.start/start_async` 不再接受任务, 而是专注于处理现有任务列表中的任务
+    - [IMPORTANT] 将funnel从 `TaskGraph` `TaskExecutor` 中的显性调用与显性传递, 改为所有使用端均从独立文件中import
+      - 一来是因为原先的传递链太丑了, 二来是为了简化 `TaskExecutor.start/start_async` 逻辑, 为其与 `TaskStage.start_stage/start_stage_async` 的合并做准备
+    - 移动部分文件以解决部分模块级的循环引用问题
+      - 原先并非文件级循环引用, 在使用上并无问题
+    - 修改 `TaskDispatch.dispatch_thread` 中处理已完成future的逻辑, 避免cpu浪费
+    - 删除 `util_errors` 中一些不必要的错误类
+    - 将 `TaskGraph._finalize_stages` 进行拆分, 删除不必要的机制, 将剩余机制移至其他方法
+    - 修改 `TaskGraph.set_reporter` 的逻辑, 使其与 `set_ctree` 保持一致
+    - 将 `TaskOutQueue` 中的 `queue_list|target_name|_name_to_idx` 改为 `_queues`, 并删除 `put_channel`
+      - 我有些困惑为什么最初我没有这么做
+    - 在 `TaskExecutor` 中合并 `_get_task_repr` and `_get_result_repr`
+      - 这两个方法原先差异巨大, 但后来经过多次其他部分的重构, 现在逻辑已经一致
+    - 将 `TaskStage` 中的 `_status` 交给 `TaskMetrics` 维护
+      - 依旧是为了合并 `TaskExecutor.start/start_async` 与 `TaskStage.start_stage/start_stage_async`
+    - 移除 `TaskGraph` 中的 `put_stage_queue`
+      - 任务输入完全使用 `TaskExecutor` 中的 `put_task` `put_signal` 方法
+  - fix:
+    - 在 `TaskDispatch.worker/worker_async` 中添加错误捕捉, 捕捉为 `CRITICAL` 级错误
+      - 避免 `worker` 级出错导致计数错误, 永远无法退出
+    - 在 `spout` 与 `reporter` 的 `stop` 操作中添加对于线程没有成功 `join` 的报错
+    - 修复 `TaskGraph.restore_db` 与 `TaskExecutor.restore_db` 中开启 `filter_by_error_type=Ture` 时跳过 `status=pending` 任务记录的问题
+    - 修复 `TaskGraph` 中部分 `get_*` 方法依赖 `_build_analysis` 的产物, 但 `_build_analysis` 未执行导致的问题
+    - 修复 `TaskMetrics` 中 `get_counts` 与 `is_tasks_finished` 中可能导致死锁的问题
+    - 修复 `TaskReporter` 中 `stop` 里进行的最后一次 `_refresh_all` 没有错误捕捉, 导致后续收尾未完成的问题

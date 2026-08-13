@@ -239,98 +239,125 @@ flowchart TD
 ## 文件结构（File Structure）
 
 ```
-📁 CelestialFlow	(471MB 982KB 22B)
-    📁 .agents        	(55KB 152B)
-        📁 skills[已折叠]	(55KB 152B)
-    📁 .claude        	(99B)
-        🗄️ settings.local.json	(99B)
-    📁 .github        	(601B)
-        📁 workflows[已折叠]	(601B)
-    📁 bench          	(150KB 552B)
-        📁 [1项排除的目录]                  	(47KB 905B)
+📁 CelestialFlow	(587MB 684KB 313B)
+    📁 bench           	(296KB 842B)
+        📁 [1项排除的目录]                  	(194KB 222B)
         🐍 bench_datastructures.py          	(6KB 690B)
-        🐍 bench_execution_mode.py          	(2KB 889B)
-        🐍 bench_futures_memory.py          	(2KB 267B)
-        🐍 bench_gil_vs_nogil.py            	(10KB 159B)
-        🐍 bench_graph_mode.py              	(7KB 173B)
-        🐍 bench_hash.py                    	(7KB 39B)
+        🐍 bench_execution_mode.py          	(2KB 831B)
+        🐍 bench_futures_memory.py          	(2KB 269B)
+        🐍 bench_gil_vs_nogil.py            	(10KB 7B)
+        🐍 bench_graph_mode.py              	(7KB 450B)
+        🐍 bench_hash.py                    	(7KB 67B)
         🐍 bench_hash_container.py          	(3KB 1009B)
-        🐍 bench_hash_memory.py             	(3KB 613B)
-        🐍 bench_http_grpc.py               	(2KB 883B)
-        🐍 bench_ipc_queue.py               	(7KB 74B)
+        🐍 bench_hash_memory.py             	(3KB 642B)
+        🐍 bench_http_grpc.py               	(2KB 608B)
+        🐍 bench_ipc_queue.py               	(7KB 104B)
         🐍 bench_lock_overhead.py           	(9KB 421B)
-        🐍 bench_mpqueue_vs_shared_memory.py	(13KB 106B)
-        🐍 bench_observer.py                	(7KB 899B)
-        🐍 bench_persistence_spout.py       	(4KB 193B)
+        🐍 bench_mpqueue_vs_shared_memory.py	(13KB 127B)
+        🐍 bench_observer.py                	(7KB 860B)
+        🐍 bench_persistence_spout.py       	(4KB 279B)
         🐍 bench_queue.py                   	(5KB 857B)
         🐍 bench_requests.py                	(6KB 813B)
         🐍 bench_tqdm.py                    	(1KB 235B)
         🐍 bench_utils.py                   	(543B)
-    📁 demo           	(105KB 440B)
-        📁 [1项排除的目录]  	(61KB 883B)
-        🐍 demo_executor.py 	(1KB 504B)
+    📁 demo            	(147KB 87B)
+        📁 [1项排除的目录]  	(100KB 9B)
+        🐍 demo_executor.py 	(1KB 495B)
         🐍 demo_funnel.py   	(2KB 289B)
-        🐍 demo_graph.py    	(3KB 615B)
-        🐍 demo_observer.py 	(4KB 293B)
-        🐍 demo_redis.py    	(9KB 201B)
-        🐍 demo_stages.py   	(4KB 519B)
-        🐍 demo_structure.py	(12KB 8B)
-        🐍 demo_utils.py    	(6KB 200B)
-    📁 dist           	(145KB 290B)
+        🐍 demo_graph.py    	(3KB 565B)
+        🐍 demo_network.py  	(3KB 879B)
+        🐍 demo_observer.py 	(4KB 270B)
+        🐍 demo_redis.py    	(9KB 144B)
+        🐍 demo_stages.py   	(4KB 336B)
+        🐍 demo_structure.py	(12KB 24B)
+        🐍 demo_utils.py    	(6KB 148B)
+    📁 dist            	(147KB 48B)
         ❓ .gitignore                          	(1B)
-        ❓ celestialflow-3.2.6-py3-none-any.whl	(78KB 975B)
-        📦 celestialflow-3.2.6.tar.gz          	(66KB 338B)
-    📁 docs           	(1MB 712KB 884B)
-        📁 en[已折叠]   	(569KB 485B)
-        📁 ja[已折叠]   	(642KB 959B)
-        📁 zh-CN[已折叠]	(524KB 464B)
-    📁 experiments    	(2KB 1015B)
+        ❓ celestialflow-3.2.7-py3-none-any.whl	(79KB 235B)
+        📦 celestialflow-3.2.7.tar.gz          	(67KB 836B)
+    📁 docs            	(1MB 722KB 21B)
+        📁 en[已折叠]   	(568KB 991B)
+        📁 ja[已折叠]   	(642KB 383B)
+        📁 zh-CN[已折叠]	(534KB 695B)
+    📁 experiments     	(2KB 1015B)
         🐍 experiment_networkx.py	(1KB 878B)
         🐍 experiment_tqdm.py    	(1KB 137B)
-    📁 img            	(5MB 871KB 242B)
+    📁 img             	(5MB 871KB 242B)
         📷 file_structure.svg  	(4MB 918KB 1000B)
         📷 logo(old).png       	(836KB 542B)
         📷 logo.png            	(122KB 747B)
         📷 scc_condensation.svg	(17KB 1B)
-    📁 src            	(1MB 767KB 296B)
-        📁 celestialflow[已折叠]         	(1MB 752KB 195B)
-        📁 celestialflow.egg-info[已折叠]	(15KB 101B)
-    📁 tests          	(3MB 902KB 217B)
-        📁 funnel[已折叠]       	(96KB 481B)
-        📁 graph[已折叠]        	(631KB 532B)
-        📁 observability[已折叠]	(157KB 435B)
-        📁 persistence[已折叠]  	(359KB 68B)
-        📁 runtime[已折叠]      	(1MB 286KB 487B)
-        📁 stage[已折叠]        	(281KB 752B)
-        📁 utils[已折叠]        	(648KB 931B)
+    📁 src             	(1MB 858KB 89B)
+        📁 celestialflow[已折叠]         	(1MB 839KB 629B)
+        📁 celestialflow.egg-info[已折叠]	(18KB 484B)
+    📁 tests           	(4MB 167KB 552B)
+        📁 benchmark[已折叠]    	(38KB 197B)
+        📁 funnel[已折叠]       	(96KB 363B)
+        📁 graph[已折叠]        	(721KB 564B)
+        📁 observability[已折叠]	(189KB 236B)
+        📁 persistence[已折叠]  	(388KB 426B)
+        📁 runtime[已折叠]      	(1MB 295KB 529B)
+        📁 stage[已折叠]        	(382KB 155B)
+        📁 utils[已折叠]        	(639KB 527B)
         📁 [1项排除的目录]      	(487KB 589B)
         🐍 conftest.py          	(1KB 38B)
         🐍 __init__.py          	(0B)
-    📁 [9项排除的目录]	(458MB 223KB 525B)
-    ❓ .env           	(468B)
-    ❓ .gitignore     	(1KB 313B)
-    📝 AGENTS.md      	(971B)
-    ❓ LICENSE        	(1KB 65B)
-    ⚙️ pyproject.toml 	(2KB 555B)
-    📝 README.md      	(12KB 272B)
-    🔒 uv.lock        	(98KB 257B)
+    📁 [12项排除的目录]	(573MB 420KB 160B)
+    ❓ .env            	(468B)
+    ❓ .gitignore      	(1KB 314B)
+    📝 AGENTS.md       	(1KB 173B)
+    ❓ LICENSE         	(1KB 65B)
+    ❓ Makefile        	(155B)
+    ⚙️ pyproject.toml  	(2KB 668B)
+    📝 README.md       	(19KB 24B)
+    🔒 uv.lock         	(97KB 510B)
 ```
 <p align="center">
-  <em>celestial-flow 3.2.7</em>
+  <em>celestial-flow 3.2.8</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.2.7
+- 3.2.8
   - feat:
-    - `TaskInQueue` 中添加 `maxsize` 参数, 用于限制队列最大长度
-    - 在 `graph.connect` 中添加对两个stage输入输出参数类型的检验, 如果不通过, 会有pyright报错
+    - [IMPORTANT] 添加 `TaskGraph.run_async`, 现在可以直接进行图级别的异步
+      - 根据 `bench_graph_mode.py` 最新测试, 在I/O密集型任务中, `serial`+`async`（6.05s），比 `serial`+`serial`（69.04s）快 **11.4x**
+    - 在 `core_structure` 中添加报错校验
+    - 不再允许设置 `execution_mode=async` 时调用 `TashExecutor.start`(如今的`TashExecutor.run`), 只能调用 `TashExecutor.run_async`
+    - 另外调用 `TashExecutor.run_async` 时也会进行模式检查, 不是 `execution_mode=async` 就会抛出异常
+    - 在 `BaseObserver` 中添加 `observer_error`, 用于处理 `BaseObserver.on_*` 函数的报错
+    - 在 `TaskGraph._finish_start_graph` `TaskExecutor._finish_start` 中对所有执行步骤进行 `try-except`, 以使收尾步骤尽量全部完成
+    - 添加 `core_scope`, 用于独立控制 `funnel` 的生命周期, 并用于 `TaskGraph.run/run_async` `TaskExecutor.run/run_async`
   - refactor:
-    - 移除对 `tqdm` 的依赖
-      - 根据 `bench\bench_observer.py`, tqdm对轻量级任务影响有限
-      - 这次移除主要是为了完成尽量零第三方库依赖的目标
-    - 将 `observer` 的管理从 `executor` 转到 `metric`
+    - [IMPORTANT] 原 `TaskGraph.start_graph/start_graph_async` `TaskExecutor.start/start_async` 已被重命名为 `TaskGraph.run/run_async` `TaskExecutor.run/run_async`
+      - 破坏性更新
+      - 其底层缘由是为了合并 `TaskStage.start_stage/start_stage_async` 与 `TaskExecutor.start/start_async` 而做出的一系列重构之一
+      - 现在的 `TaskGraph.start/start_async` `TaskExecutor.start/start_async` 不再接受任务, 而是专注于处理现有任务列表中的任务
+    - [IMPORTANT] 将funnel从 `TaskGraph` `TaskExecutor` 中的显性调用与显性传递, 改为所有使用端均从独立文件中import
+      - 一来是因为原先的传递链太丑了, 二来是为了简化 `TaskExecutor.start/start_async` 逻辑, 为其与 `TaskStage.start_stage/start_stage_async` 的合并做准备
+    - 移动部分文件以解决部分模块级的循环引用问题
+      - 原先并非文件级循环引用, 在使用上并无问题
+    - 修改 `TaskDispatch.dispatch_thread` 中处理已完成future的逻辑, 避免cpu浪费
+    - 删除 `util_errors` 中一些不必要的错误类
+    - 将 `TaskGraph._finalize_stages` 进行拆分, 删除不必要的机制, 将剩余机制移至其他方法
+    - 修改 `TaskGraph.set_reporter` 的逻辑, 使其与 `set_ctree` 保持一致
+    - 将 `TaskOutQueue` 中的 `queue_list|target_name|_name_to_idx` 改为 `_queues`, 并删除 `put_channel`
+      - 我有些困惑为什么最初我没有这么做
+    - 在 `TaskExecutor` 中合并 `_get_task_repr` and `_get_result_repr`
+      - 这两个方法原先差异巨大, 但后来经过多次其他部分的重构, 现在逻辑已经一致
+    - 将 `TaskStage` 中的 `_status` 交给 `TaskMetrics` 维护
+      - 依旧是为了合并 `TaskExecutor.start/start_async` 与 `TaskStage.start_stage/start_stage_async`
+    - 移除 `TaskGraph` 中的 `put_stage_queue`
+      - 任务输入完全使用 `TaskExecutor` 中的 `put_task` `put_signal` 方法
+  - fix:
+    - 在 `TaskDispatch.worker/worker_async` 中添加错误捕捉, 捕捉为 `CRITICAL` 级错误
+      - 避免 `worker` 级出错导致计数错误, 永远无法退出
+    - 在 `spout` 与 `reporter` 的 `stop` 操作中添加对于线程没有成功 `join` 的报错
+    - 修复 `TaskGraph.restore_db` 与 `TaskExecutor.restore_db` 中开启 `filter_by_error_type=Ture` 时跳过 `status=pending` 任务记录的问题
+    - 修复 `TaskGraph` 中部分 `get_*` 方法依赖 `_build_analysis` 的产物, 但 `_build_analysis` 未执行导致的问题
+    - 修复 `TaskMetrics` 中 `get_counts` 与 `is_tasks_finished` 中可能导致死锁的问题
+    - 修复 `TaskReporter` 中 `stop` 里进行的最后一次 `_refresh_all` 没有错误捕捉, 导致后续收尾未完成的问题
 
 更多过往日志可看:
 
