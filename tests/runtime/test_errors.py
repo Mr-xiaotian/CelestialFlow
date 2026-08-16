@@ -82,16 +82,6 @@ class TestUtilErrors:
         assert ex.value == "VERBOSE"
         assert "VERBOSE" in str(ex)
 
-    def test_schedule_mode_error(self):
-        """验证非法 schedule_mode 会暴露字段信息。"""
-        ex = InvalidOptionError("schedule mode", "lazy", ("eager", "staged"))
-        assert isinstance(ex, CelestialFlowError)
-        assert isinstance(ex, ConfigurationError)
-        assert ex.field == "schedule mode"
-        assert ex.value == "lazy"
-        assert ex.allowed == ("eager", "staged")
-        assert "lazy" in str(ex)
-
     # ---- 图结构 ----
 
     def test_graph_structure_error(self):

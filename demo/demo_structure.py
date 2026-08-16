@@ -186,7 +186,6 @@ def demo_cross() -> None:
     cross = TaskCross(
         "demo_cross",
         [[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]],
-        schedule_mode="staged",
     )
     cross.set_reporter(TaskReporter(report_host, report_port, cross))
     cross.set_ctree(ctree_client)
@@ -239,7 +238,6 @@ def demo_star() -> None:
     star = TaskCross(
         "demo_star",
         [[core], [side1, side2, side3]],
-        schedule_mode="eager",
     )
     star.set_reporter(TaskReporter(report_host, report_port, star))
     star.set_ctree(ctree_client)
@@ -258,7 +256,6 @@ def demo_fanin() -> None:
     fainin = TaskCross(
         "demo_fanin",
         [[source1, source2, source3], [merge]],
-        schedule_mode="eager",
     )
     fainin.set_reporter(TaskReporter(report_host, report_port, fainin))
     fainin.set_ctree(ctree_client)
@@ -285,7 +282,7 @@ def demo_grid() -> None:
     ]
 
     # 2. 构建 TaskGrid 实例
-    task_grid = TaskGrid("demo_grid", grid, schedule_mode="staged")
+    task_grid = TaskGrid("demo_grid", grid)
     task_grid.set_reporter(TaskReporter(report_host, report_port, task_grid))
     task_grid.set_ctree(ctree_client)
 
@@ -380,7 +377,7 @@ def demo_multi_cycle() -> None:
         "C2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
     )
 
-    graph = TaskGraph("demo_multi_cycle", schedule_mode="staged")
+    graph = TaskGraph("demo_multi_cycle")
     graph.set_stages(
         stages=[A1, A2, B1, B2, C1, C2],
     )

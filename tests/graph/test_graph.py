@@ -579,7 +579,6 @@ class TestTaskGraphAnalysis:
 
         analysis = graph.get_graph_analysis()
         assert analysis["isDAG"] is True
-        assert analysis["scheduleMode"] == "eager"
 
     def test_layer_computation(self):
         """DAG 层级计算正确"""
@@ -825,13 +824,13 @@ class TestTaskGraphThread:
         assert stage1.get_counts()["tasks_succeeded"] == 3
         assert stage2.get_counts()["tasks_succeeded"] == 3
 
-    def test_graph_thread_staged_schedule(self):
-        """thread 模式：staged 调度模式下正常工作"""
+    def test_graph_thread_schedule(self):
+        """thread 模式下线性链正常工作"""
         s1 = TaskStage("s1", add_one, stage_mode="thread", execution_mode="serial")
         s2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
         s3 = TaskStage("s3", to_str, stage_mode="thread", execution_mode="serial")
 
-        graph = TaskGraph("test_graph_thread_staged_schedule", schedule_mode="staged")
+        graph = TaskGraph("test_graph_thread_schedule")
         graph.set_stages(stages=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])

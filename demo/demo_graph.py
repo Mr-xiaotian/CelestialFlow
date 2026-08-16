@@ -78,7 +78,7 @@ def demo_etl_fan_out_fan_in() -> None:
         execution_mode="serial",
     )
 
-    graph = TaskGraph("demo_etl_fan_out_fan_in", schedule_mode="eager")
+    graph = TaskGraph("demo_etl_fan_out_fan_in")
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
     graph.set_ctree(ctree_client)
     graph.set_stages(
@@ -91,15 +91,14 @@ def demo_etl_fan_out_fan_in() -> None:
     graph.run({"Extract": raw_ids})
 
 
-def demo_async_staged_pipeline() -> None:
+def demo_async_pipeline() -> None:
     """
-    Two-stage async pipeline with staged scheduling:
+    Two-stage async pipeline:
 
         AsyncDouble ──> AsyncToStr
 
     Demonstrates:
     - execution_mode="async" for coroutine-based task functions
-    - schedule_mode="staged" for layer-by-layer execution
     - Retrieving per-stage status after completion
     """
     stage_double = TaskStage(
@@ -117,7 +116,7 @@ def demo_async_staged_pipeline() -> None:
         max_workers=8,
     )
 
-    graph = TaskGraph("demo_async_staged_pipeline", schedule_mode="staged")
+    graph = TaskGraph("demo_async_pipeline")
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
     graph.set_ctree(ctree_client)
     graph.set_stages(
@@ -132,5 +131,5 @@ def demo_async_staged_pipeline() -> None:
 
 if __name__ == "__main__":
     demo_etl_fan_out_fan_in()
-    # demo_async_staged_pipeline()
+    # demo_async_pipeline()
     pass

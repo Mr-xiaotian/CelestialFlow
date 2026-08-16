@@ -105,7 +105,7 @@ def build_chain_graph(
         enable_duplicate_check=False,
     )
 
-    graph = TaskGraph(name, schedule_mode="eager")
+    graph = TaskGraph(name)
     graph.set_stages([stage1, stage2, stage3])
     graph.connect([stage1], [stage2])
     graph.connect([stage2], [stage3])

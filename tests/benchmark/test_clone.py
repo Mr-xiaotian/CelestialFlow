@@ -90,12 +90,12 @@ class TestUtilClone:
     # ── clone_graph ────────────────────────────────────────────────
 
     def test_clone_graph_structure(self):
-        """构造简单 DAG (A→B→C)，克隆后验证节点数、边连接、schedule_mode 一致。"""
+        """构造简单 DAG (A→B→C)，克隆后验证节点数、边连接一致。"""
         stage_a = TaskStage(name="A", func=lambda x: x)
         stage_b = TaskStage(name="B", func=lambda x: x)
         stage_c = TaskStage(name="C", func=lambda x: x)
 
-        graph = TaskGraph("test_clone_graph_structure", schedule_mode="staged")
+        graph = TaskGraph("test_clone_graph_structure")
         graph.set_stages([stage_a, stage_b, stage_c])
         graph.connect([stage_a], [stage_b])
         graph.connect([stage_b], [stage_c])
@@ -118,15 +118,12 @@ class TestUtilClone:
         assert g1_edges == g2_edges
         assert g1_edges == {("A", "B"), ("B", "C")}
 
-        # schedule_mode 保留
-        assert cloned.schedule_mode == graph.schedule_mode
-
     def test_clone_graph_independent(self):
         """克隆图的节点修改不影响原图节点。"""
         stage_a = TaskStage(name="A", func=lambda x: x, execution_mode="serial")
         stage_b = TaskStage(name="B", func=lambda x: x, execution_mode="serial")
 
-        graph = TaskGraph("test_clone_graph_independent", schedule_mode="eager")
+        graph = TaskGraph("test_clone_graph_independent")
         graph.set_stages([stage_a, stage_b])
         graph.connect([stage_a], [stage_b])
 
