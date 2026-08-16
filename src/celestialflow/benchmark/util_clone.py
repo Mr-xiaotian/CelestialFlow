@@ -129,10 +129,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     # 构建新的任务图
     all_cloned_stages: list[AnyTaskStage] = list(name_map.values())
 
-    cloned_graph: TaskGraph = TaskGraph(
-        name=graph.name,
-        schedule_mode=graph.schedule_mode,
-    )
+    cloned_graph: TaskGraph = TaskGraph(name=graph.name)
     cloned_graph.set_stages(all_cloned_stages)
 
     # 重建连接

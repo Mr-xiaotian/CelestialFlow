@@ -40,7 +40,6 @@ class TaskGraph:
     # ==== 类级类型注解 ====
     name: str
     graph_id: str
-    schedule_mode: str
     threads: list[threading.Thread]
     stage_dict: dict[str, AnyTaskStage]
     status_dict: dict[str, dict[str, Any]]
@@ -63,14 +62,13 @@ class TaskGraph:
     def __init__(
         self,
         name: str,
-        schedule_mode: str = "eager",
     ) -> None:
         """
         初始化 TaskGraph 实例。
 
         TaskGraph 表示一组 TaskStage 节点所构成的任务图，可用于构建并行、串行、
-        分层等多种形式的任务执行流程。通过分析图结构和调度布局策略，实现灵活的
-        DAG 任务调度控制。
+        分层等多种形式的任务执行流程。所有节点一次性调度并发执行，依赖关系通过
+        队列流自动控制。
 
         生命周期说明：
         - 当前 TaskGraph 实例为一次性对象。
@@ -78,18 +76,8 @@ class TaskGraph:
         - 如需重复执行，请重新构建新的 TaskGraph 与节点对象。
 
         :param name: 任务图名称
-        :param schedule_mode: str, optional, default = 'eager'
-            控制任务图的调度布局模式，支持以下两种策略：
-            - 'eager'：
-                默认模式。所有节点一次性调度并发执行，依赖关系通过队列流自动控制。
-                适用于最大化并行度的执行场景。
-            - 'staged'：
-                分层执行模式。任务图必须为有向无环图（DAG）。
-                节点按层级顺序逐层启动，确保上层所有任务完成后再启动下一层。
-                更利于调试、性能分析和阶段性资源控制。
         """
         self._set_name(name)
-        self._set_schedule_mode(schedule_mode)
         self.set_reporter(NullTaskReporter())
         self.set_ctree(LocalEventClient())
 
@@ -193,18 +181,6 @@ class TaskGraph:
         """
         self.name = name
         self.graph_id = f"{name}@{int(time.time() * 1000)}"
-
-    def _set_schedule_mode(self, schedule_mode: str) -> None:
-        """
-        设置任务链的执行模式
-
-        :param schedule_mode: 节点执行模式, 可选值为 'eager' 或 'staged'
-        :raises InvalidOptionError: schedule_mode 不是 'eager' 或 'staged'
-        """
-        valid_modes = ("eager", "staged")
-        if schedule_mode not in valid_modes:
-            raise InvalidOptionError("schedule mode", schedule_mode, valid_modes)
-        self.schedule_mode = schedule_mode
 
     def set_reporter(self, reporter: ReporterProtocol) -> None:
         """
@@ -471,55 +447,24 @@ class TaskGraph:
     def _execute_stages(self) -> None:
         """
         执行所有节点
+
+        所有节点一次性调度并发执行，依赖关系通过队列流自动控制。
         """
-        if self.schedule_mode == "eager":
-            # eager 调度模式：一次性执行所有节点
-            for stage in self.stage_dict.values():
-                self._execute_stage(stage)
+        for stage in self.stage_dict.values():
+            self._execute_stage(stage)
 
-            for t in self.threads:
-                t.join()
-        elif self.schedule_mode == "staged":
-            # staged 调度模式：按层顺序执行
-            for layer_level, layer in self.layers_dict.items():
-                get_log_inlet().start_layer(layer, layer_level)
-                start_perf = time.perf_counter()
-
-                threads: list[threading.Thread] = []
-                for stage_name in layer:
-                    stage: AnyTaskStage = self.stage_dict[stage_name]
-                    self._execute_stage(stage)
-                    if stage.stage_mode == "thread":
-                        threads.append(self.threads[-1])
-
-                # 等待当前层的所有线程结束
-                for t in threads:
-                    t.join()
-
-                get_log_inlet().end_layer(layer, time.perf_counter() - start_perf)
+        for t in self.threads:
+            t.join()
 
     async def _execute_stages_async(self) -> None:
         """
-        异步执行所有节点：eager 全并发，staged 逐层执行。
+        异步执行所有节点：全图并发执行。
         """
-        if self.schedule_mode == "eager":
-            tasks = [
-                asyncio.create_task(self._execute_stage_async(stage))
-                for stage in self.stage_dict.values()
-            ]
-            await asyncio.gather(*tasks)
-        elif self.schedule_mode == "staged":
-            for layer_level, layer in self.layers_dict.items():
-                get_log_inlet().start_layer(layer, layer_level)
-                start_perf = time.perf_counter()
-                tasks = [
-                    asyncio.create_task(
-                        self._execute_stage_async(self.stage_dict[name])
-                    )
-                    for name in layer
-                ]
-                await asyncio.gather(*tasks)
-                get_log_inlet().end_layer(layer, time.perf_counter() - start_perf)
+        tasks = [
+            asyncio.create_task(self._execute_stage_async(stage))
+            for stage in self.stage_dict.values()
+        ]
+        await asyncio.gather(*tasks)
 
     def _execute_stage(self, stage: AnyTaskStage) -> None:
         """
@@ -641,7 +586,7 @@ class TaskGraph:
         """
         获取任务图的分析信息
 
-        :return: 包含 name, startTime, is_dag, schedule_mode, class_name, layers_dict 的字典
+        :return: 包含 graphId, name, startTime, className, isDAG, layersDict 的字典
         """
         self._ensure_analysis()
         return {
@@ -650,7 +595,6 @@ class TaskGraph:
             "startTime": self.start_time,
             "className": self.__class__.__name__,
             "isDAG": self.is_dag,
-            "scheduleMode": self.schedule_mode,
             "layersDict": self.layers_dict,
         }
 
