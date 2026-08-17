@@ -77,11 +77,10 @@ def format_structure_list_from_graph(
         node = nodes.get(node_name, {})
         visited_note = " [Ref]" if is_ref else ""
         F = node.get("func_name", "?")  # 函数名
-        S = node.get("stage_mode", "?")  # 节点模式
         E = node.get("execution_mode", "?")  # 执行模式
         W = node.get("max_workers", "?")  # 最大工作数
 
-        return f"{node_name}::{F} (S:{S}, E:{E}, W:{W}){visited_note}"
+        return f"{node_name}::{F} (E:{E}, W:{W}){visited_note}"
 
     # 只渲染"子节点"（有父节点）——保证一定画连接符
     def build_child_lines(node_name: str, prefix: str, is_last: bool) -> list[str]:

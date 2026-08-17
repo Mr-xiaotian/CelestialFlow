@@ -26,20 +26,16 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         self,
         name: str,
         split_item: Callable[[TItem], RItem] | None = None,
-        *,
-        stage_mode: str = "serial",
     ):
         """
         初始化 TaskSplitter
 
         :param name: 节点名称
         :param split_item: 自定义单个子任务处理函数，默认使用恒等映射
-        :param stage_mode: 节点运行模式，默认 'serial'
         """
         super().__init__(
             name=name,
             func=self._split,
-            stage_mode=stage_mode,
             execution_mode="serial",
             max_retries=0,
         )
@@ -183,19 +179,17 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
     route_counters: dict[str, ValueWrapper]
 
     def __init__(
-        self, name: str, router: Callable[[T], str], *, stage_mode: str = "serial"
+        self, name: str, router: Callable[[T], str]
     ):
         """
         初始化 TaskRouter
 
         :param name: 节点名称
         :param router: 路由函数，根据任务数据返回目标 stage 的唯一名称
-        :param stage_mode: 节点运行模式，默认 'serial'
         """
         super().__init__(
             name=name,
             func=self._route,
-            stage_mode=stage_mode,
             execution_mode="serial",
             max_retries=0,
         )

@@ -40,6 +40,7 @@ class TaskGraph:
     # ==== 类级类型注解 ====
     name: str
     graph_id: str
+    graph_mode: str
     threads: list[threading.Thread]
     stage_dict: dict[str, AnyTaskStage]
     status_dict: dict[str, dict[str, Any]]
@@ -62,6 +63,7 @@ class TaskGraph:
     def __init__(
         self,
         name: str,
+        graph_mode: str = "thread",
     ) -> None:
         """
         初始化 TaskGraph 实例。
@@ -76,8 +78,10 @@ class TaskGraph:
         - 如需重复执行，请重新构建新的 TaskGraph 与节点对象。
 
         :param name: 任务图名称
+        :param graph_mode: 图执行模式, 可选值为 'serial'（串行）或 'thread'（线程），默认 'thread'
         """
         self._set_name(name)
+        self.set_graph_mode(graph_mode)
         self.set_reporter(NullTaskReporter())
         self.set_ctree(LocalEventClient())
 
@@ -182,6 +186,28 @@ class TaskGraph:
         self.name = name
         self.graph_id = f"{name}@{int(time.time() * 1000)}"
 
+    def set_graph_mode(self, graph_mode: str) -> None:
+        """
+        设置图执行模式。
+
+        :param graph_mode: 图执行模式, 可选值为 'serial'（串行）或 'thread'（线程）或 'async'（异步）
+        :raises InvalidOptionError: graph_mode 不是 'serial' 或 'thread' 或 'async'
+        """
+        valid_modes = ("serial", "thread", "async")
+        if graph_mode not in valid_modes:
+            raise InvalidOptionError("graph mode", graph_mode, valid_modes)
+        self.graph_mode = graph_mode
+
+    def set_stage_execution_mode(self, execution_mode: str) -> None:
+        """
+        设置任务链的执行模式
+
+        :param execution_mode: 节点内部执行模式, 可选值为 'serial', 'thread' 或 'async'
+        """
+        for stage in self.stage_dict.values():
+            stage.set_execution_mode(execution_mode)
+        self._build_analysis()
+
     def set_reporter(self, reporter: ReporterProtocol) -> None:
         """
         设定任务图绑定的 reporter。
@@ -201,18 +227,6 @@ class TaskGraph:
             return
         for stage in self.stage_dict.values():
             stage.set_ctree(ctree_client)
-
-    def set_graph_mode(self, stage_mode: str, execution_mode: str) -> None:
-        """
-        设置任务链的执行模式
-
-        :param stage_mode: 节点执行模式, 可选值为 'serial' 或 'thread'
-        :param execution_mode: 节点内部执行模式, 可选值为 'serial', 'thread' 或 'async'
-        """
-        for stage in self.stage_dict.values():
-            stage.set_stage_mode(stage_mode)
-            stage.set_execution_mode(execution_mode)
-        self._build_analysis()
 
     # ==== 分析图 ====
 
@@ -384,14 +398,12 @@ class TaskGraph:
 
         return error_list
 
-    def start(
-        self,
-    ) -> None:
+    def start(self) -> None:
         """
-        启动任务链
+        启动任务链。
 
-        :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否注入终止信号，默认 True
+        根据 :attr:`graph_mode` 选择串行或线程方式启动所有节点。
+
         :note:
             TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
             start()。如需重复执行，请创建新的 TaskGraph 实例。
@@ -402,7 +414,15 @@ class TaskGraph:
 
         try:
             self._prepare_start()
-            self._execute_stages()
+
+            if self.graph_mode == "serial":
+                self._execute_stages_serial()
+            elif self.graph_mode == "thread":
+                self._execute_stages_thread()
+            else:
+                raise InvalidOptionError(
+                    "graph mode", self.graph_mode, ("serial", "thread")
+                )
         except Exception as exception:
             error_list.append(exception)
         finally:
@@ -411,9 +431,7 @@ class TaskGraph:
         if error_list:
             raise ExceptionGroup("Errors occurred during graph execution", error_list)
 
-    async def start_async(
-        self,
-    ) -> None:
+    async def start_async(self) -> None:
         """
         以异步方式启动任务图，适合在已运行事件循环的上下文中调用。
 
@@ -429,6 +447,9 @@ class TaskGraph:
             TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
             start_async()。如需重复执行，请创建新的 TaskGraph 实例。
         """
+        if self.graph_mode != "async":
+            raise InvalidOptionError("graph mode", self.graph_mode, ("async",))
+
         start_perf = time.perf_counter()
         self.start_time = time.time()
         error_list: list[Exception] = []
@@ -444,14 +465,30 @@ class TaskGraph:
         if error_list:
             raise ExceptionGroup("Errors occurred during graph execution", error_list)
 
-    def _execute_stages(self) -> None:
+    def _execute_stages_serial(self) -> None:
         """
-        执行所有节点
+        以串行方式逐个执行所有节点。
 
-        所有节点一次性调度并发执行，依赖关系通过队列流自动控制。
+        按节点注册顺序依次执行，每个节点执行完毕后才启动下一个。
         """
         for stage in self.stage_dict.values():
-            self._execute_stage(stage)
+            stage.start()
+
+    def _execute_stages_thread(self) -> None:
+        """
+        以线程方式并发执行所有节点。
+
+        每个节点在独立线程中启动，最后统一等待所有线程结束。
+        """
+        for stage in self.stage_dict.values():
+            t = threading.Thread(
+                target=stage.start,
+                args=(),
+                name=stage.get_name(),
+                daemon=True,
+            )
+            t.start()
+            self.threads.append(t)
 
         for t in self.threads:
             t.join()
@@ -465,29 +502,6 @@ class TaskGraph:
             for stage in self.stage_dict.values()
         ]
         await asyncio.gather(*tasks)
-
-    def _execute_stage(self, stage: AnyTaskStage) -> None:
-        """
-        执行单个节点
-
-        :param stage: 节点
-        :raises StageModeError: stage.stage_mode 不是 'serial' 或 'thread' 时抛出
-        """
-        if stage.stage_mode == "thread":
-            t = threading.Thread(
-                target=stage.start,
-                args=(),
-                name=stage.get_name(),
-                daemon=True,
-            )
-            t.start()
-            self.threads.append(t)
-        elif stage.stage_mode == "serial":
-            stage.start()
-        else:
-            raise InvalidOptionError(
-                "stage mode", stage.stage_mode, ("serial", "thread")
-            )
 
     async def _execute_stage_async(self, stage: AnyTaskStage) -> None:
         """

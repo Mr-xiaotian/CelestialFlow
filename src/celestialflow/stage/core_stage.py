@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from ..runtime import TaskInQueue, TaskOutQueue
-from ..runtime.util_errors import InvalidOptionError, UnconsumedError
+from ..runtime.util_errors import UnconsumedError
 from ..runtime.util_estimators import (
     calc_elapsed,
     calc_remaining,
@@ -15,7 +15,7 @@ from .core_executor import TaskExecutor
 
 
 class TaskStage[T, R](TaskExecutor[T, R]):
-    """任务阶段节点，继承 TaskExecutor 并增加图结构连接与 stage_mode 控制能力。
+    """任务阶段节点，继承 TaskExecutor 并增加图结构连接能力。
 
     注意：
     - TaskStage 是一次性对象，通常由 TaskGraph 管理并参与一次完整运行。
@@ -28,7 +28,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
     _last_elapsed: float
     _last_pending: int
     start_time: float
-    stage_mode: str
     execution_mode: str
     task_queue: TaskInQueue[T]
     result_queue: TaskOutQueue[R]
@@ -38,14 +37,11 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         self,
         name: str,
         func: Callable[[T], R] | Callable[[T], Awaitable[R]],
-        *,
-        stage_mode: str = "serial",
         **kwargs: Any,
-    ):
+    ) -> None:
         """
         :param name: 节点名称
         :param func: 可调用对象
-        :param stage_mode: 当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'thread'（线程）, 默认 'serial'
         :note:
             TaskStage 为一次性对象。完成一次由 TaskGraph 驱动的运行后，不应复用当前
             实例再次参与新的运行流程；如需重复执行，请重新创建实例。
@@ -63,8 +59,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
             **kwargs,
         )
 
-        self.set_stage_mode(stage_mode)
-
         self._init_status()
 
     def _init_status(self) -> None:
@@ -74,19 +68,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         self.start_time = 0.0
         self._last_elapsed = 0.0
         self._last_pending = 0
-
-    # ==== 配置 ====
-    def set_stage_mode(self, stage_mode: str) -> None:
-        """
-        设置当前节点在graph中的执行模式, 可以是 'serial'（串行）或 'thread'（线程）
-
-        :param stage_mode: 当前节点执行模式
-        :raises InvalidOptionError: stage_mode 不是 'serial' 或 'thread'
-        """
-        valid_modes = ("serial", "thread")
-        if stage_mode not in valid_modes:
-            raise InvalidOptionError("stage mode", stage_mode, valid_modes)
-        self.stage_mode = stage_mode
 
     # ==== 绑定 ====
     def get_binding_counter(self, _downstream_name: str) -> Any:
@@ -108,28 +89,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         self.metrics.append_task_counter(counter)
 
     # ==== 查询 ====
-    def get_stage_mode(self) -> str:
-        """
-        获取当前节点在graph中的执行模式
-
-        :return: 当前节点执行模式
-        """
-        return self.stage_mode
-
-    def get_summary(self) -> dict[str, Any]:
-        """
-        获取当前节点的状态快照
-            - name / execution_mode 等来自 TaskExecutor（执行实体视角）
-            - stage_mode 表示任务图中的逻辑节点语义
-
-        :return: 当前节点状态快照
-        包括执行器名称(name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)、节点模式(stage_mode)
-        """
-        return {
-            **super().get_summary(),
-            "stage_mode": self.get_stage_mode(),
-        }
-
     def snapshot(self, interval: float) -> dict[str, Any]:
         """
         采集当前 stage 的运行时快照。

@@ -59,7 +59,6 @@ def clone_stage[T, R](
     :return: 克隆节点
     """
     kwargs: dict[str, Any] = _get_clone_init_kwargs(stage)
-    kwargs["stage_mode"] = stage.get_stage_mode()
 
     stage_cls = type(stage)
     init_params = set(inspect.signature(stage_cls.__init__).parameters.keys()) - {
@@ -129,7 +128,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     # 构建新的任务图
     all_cloned_stages: list[AnyTaskStage] = list(name_map.values())
 
-    cloned_graph: TaskGraph = TaskGraph(name=graph.name)
+    cloned_graph: TaskGraph = TaskGraph(name=graph.name, graph_mode=graph.graph_mode)
     cloned_graph.set_stages(all_cloned_stages)
 
     # 重建连接

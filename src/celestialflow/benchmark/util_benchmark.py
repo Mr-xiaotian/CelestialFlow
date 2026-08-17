@@ -74,7 +74,7 @@ async def benchmark_graph(
     sync_graph: TaskGraph,
     async_graph: TaskGraph,
     init_tasks_dict: Mapping[str, Iterable[Any]],
-    stage_modes: list[str] | None = None,
+    graph_modes: list[str] | None = None,
     execution_sync_modes: list[str] | None = None,
     execution_async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -84,12 +84,12 @@ async def benchmark_graph(
     :param sync_graph: 同步任务图（用于 serial/thread 模式）
     :param async_graph: 异步任务图（用于 async 模式）
     :param init_tasks_dict: 初始任务字典，键为任务标签，值为任务列表
-    :param stage_modes: 要测试的节点执行模式列表，默认包括 "serial", "thread"
+    :param graph_modes: 要测试的图执行模式列表，默认包括 "serial", "thread"
     :param execution_sync_modes: 同步执行模式列表，默认 ["serial", "thread"]
     :param execution_async_modes: 异步执行模式列表，默认 ["async"]
     :return: 包含测试结果的字典
     """
-    stage_modes = stage_modes or ["serial", "thread"]
+    graph_modes = graph_modes or ["serial", "thread"]
     execution_sync_modes = execution_sync_modes or ["serial", "thread"]
     execution_async_modes = execution_async_modes or ["async"]
 
@@ -100,12 +100,12 @@ async def benchmark_graph(
 
     test_table_list: list[list[float]] = []
 
-    for stage_mode in stage_modes:
+    for graph_mode in graph_modes:
         time_list: list[float] = []
 
         for execution_mode in execution_sync_modes:
             cloned_graph: TaskGraph = clone_graph(sync_graph)
-            cloned_graph.set_graph_mode(stage_mode, execution_mode)
+            cloned_graph.set_stage_execution_mode(execution_mode)
 
             sync_run_tasks: dict[str, Iterable[Any]] = {
                 stage_name: list(tasks) for stage_name, tasks in base_tasks.items()
@@ -116,7 +116,8 @@ async def benchmark_graph(
 
         for execution_mode in execution_async_modes:
             cloned_graph = clone_graph(async_graph)
-            cloned_graph.set_graph_mode(stage_mode, execution_mode)
+            cloned_graph.set_graph_mode(graph_mode)
+            cloned_graph.set_stage_execution_mode(execution_mode)
 
             async_run_tasks: dict[str, Iterable[Any]] = {
                 stage_name: list(tasks) for stage_name, tasks in base_tasks.items()
@@ -129,14 +130,14 @@ async def benchmark_graph(
 
     time_table: str = format_table(
         test_table_list,
-        stage_modes,
+        graph_modes,
         execution_modes,
-        "stage/execution",
+        "graph/execution",
     )
     print(f"Time table:\n{time_table}")
     return {
         "table": time_table,
-        "stage_modes": stage_modes,
+        "graph_modes": graph_modes,
         "sync_modes": execution_sync_modes,
         "async_modes": execution_async_modes if async_graph else [],
     }
