@@ -105,6 +105,7 @@ async def benchmark_graph(
 
         for execution_mode in execution_sync_modes:
             cloned_graph: TaskGraph = clone_graph(sync_graph)
+            cloned_graph.set_graph_mode(graph_mode)
             cloned_graph.set_stage_execution_mode(execution_mode)
 
             sync_run_tasks: dict[str, Iterable[Any]] = {
@@ -116,7 +117,7 @@ async def benchmark_graph(
 
         for execution_mode in execution_async_modes:
             cloned_graph = clone_graph(async_graph)
-            cloned_graph.set_graph_mode(graph_mode)
+            cloned_graph.set_graph_mode("async")
             cloned_graph.set_stage_execution_mode(execution_mode)
 
             async_run_tasks: dict[str, Iterable[Any]] = {

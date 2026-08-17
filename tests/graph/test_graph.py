@@ -102,17 +102,6 @@ class TestTaskGraphBasic:
                 raise NodeNotFoundError("stage not found: unknown_stage")
             pending_stage.put_tasks([1])
 
-    def test_execute_stage_unknown_stage_mode_raises(self):
-        """_execute_stage 遇到非法 stage_mode 时应抛出 StageModeError 而非静默降级。"""
-        stage = TaskStage("s1", add_one, stage_mode="serial", execution_mode="serial")
-
-        graph = TaskGraph("test_execute_stage_unknown_stage_mode")
-        graph.set_stages(stages=[stage])
-        stage.stage_mode = "invalid_mode"  # 绕过 set_stage_mode 校验，模拟非法状态
-
-        with pytest.raises(InvalidOptionError):
-            graph._execute_stage(stage)
-
     def test_graph_dag_two_nodes(self):
         """简单 DAG：两个节点串行，结果正确传递"""
         stage1 = TaskStage("s1", add_one, execution_mode="serial")
@@ -380,7 +369,9 @@ class TestTaskGraphAsync:
         monkeypatch,
     ):
         """异步 start_async 应在 finish 后统一抛出收集到的异常。"""
-        graph = TaskGraph("test_start_async_raises_exception_group_after_finish")
+        graph = TaskGraph(
+            "test_start_async_raises_exception_group_after_finish", graph_mode="async"
+        )
 
         def crash_prepare() -> None:
             raise ValueError("prepare failed")
@@ -404,7 +395,7 @@ class TestTaskGraphAsync:
         stage1 = TaskStage("s1", async_add_one, execution_mode="async")
         stage2 = TaskStage("s2", async_double, execution_mode="async")
 
-        graph = TaskGraph("test_graph_async_two_nodes")
+        graph = TaskGraph("test_graph_async_two_nodes", graph_mode="async")
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
@@ -420,7 +411,7 @@ class TestTaskGraphAsync:
         sink_a = TaskStage("sink_a", async_double, execution_mode="async")
         sink_b = TaskStage("sink_b", async_to_str, execution_mode="async")
 
-        graph = TaskGraph("test_graph_async_fan_out")
+        graph = TaskGraph("test_graph_async_fan_out", graph_mode="async")
         graph.set_stages(stages=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
@@ -437,7 +428,7 @@ class TestTaskGraphAsync:
         source_b = TaskStage("src_b", async_double, execution_mode="async")
         merge = TaskStage("merge", async_to_str, execution_mode="async")
 
-        graph = TaskGraph("test_graph_async_fan_in")
+        graph = TaskGraph("test_graph_async_fan_in", graph_mode="async")
         graph.set_stages(stages=[source_a, source_b, merge])
         graph.connect([source_a, source_b], [merge])
 
@@ -451,7 +442,7 @@ class TestTaskGraphAsync:
         stage1 = TaskStage("s1", async_add_offset_10, execution_mode="async")
         stage2 = TaskStage("s2", async_double, execution_mode="async")
 
-        graph = TaskGraph("test_graph_async_error_propagation")
+        graph = TaskGraph("test_graph_async_error_propagation", graph_mode="async")
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
@@ -462,16 +453,12 @@ class TestTaskGraphAsync:
         assert stage2.get_counts()["tasks_succeeded"] == 2
 
     @pytest.mark.asyncio
-    async def test_graph_async_thread_stage_mode(self):
-        """async + thread stage_mode：线程中运行异步任务"""
-        stage1 = TaskStage(
-            "s1", async_add_one, stage_mode="thread", execution_mode="async"
-        )
-        stage2 = TaskStage(
-            "s2", async_double, stage_mode="thread", execution_mode="async"
-        )
+    async def test_graph_async_execution_mode(self):
+        """async execution_mode：两个节点串行"""
+        stage1 = TaskStage("s1", async_add_one, execution_mode="async")
+        stage2 = TaskStage("s2", async_double, execution_mode="async")
 
-        graph = TaskGraph("test_graph_async_thread_stage_mode")
+        graph = TaskGraph("test_graph_async_execution_mode", graph_mode="async")
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
@@ -619,19 +606,19 @@ class TestTaskGraphRuntimeSnapshot:
 
 
 # =========================
-# stage_mode × execution_mode 2×3 矩阵测试
+# graph_mode × execution_mode 矩阵测试
 # =========================
 class TestStageExecutionMatrix:
-    """覆盖 stage_mode(serial/thread) × execution_mode(serial/thread/async) 全部 6 种组合"""
+    """覆盖 graph_mode(serial/thread/async) × execution_mode(serial/thread/async) 组合"""
 
-    # ---- serial stage_mode ----
+    # ---- serial graph_mode ----
 
     def test_serial_serial(self):
-        """测试串行 Stage + 串行执行模式"""
-        s1 = TaskStage("s1", add_one, stage_mode="serial", execution_mode="serial")
-        s2 = TaskStage("s2", double, stage_mode="serial", execution_mode="serial")
+        """测试串行图模式 + 串行执行模式"""
+        s1 = TaskStage("s1", add_one, execution_mode="serial")
+        s2 = TaskStage("s2", double, execution_mode="serial")
 
-        graph = TaskGraph("test_serial_serial")
+        graph = TaskGraph("test_serial_serial", graph_mode="serial")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
         graph.run({"s1": [1, 2, 3, 4, 5]})
@@ -640,15 +627,11 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
     def test_serial_thread(self):
-        """测试串行 Stage + 线程池执行模式"""
-        s1 = TaskStage(
-            "s1", add_one, stage_mode="serial", execution_mode="thread", max_workers=4
-        )
-        s2 = TaskStage(
-            "s2", double, stage_mode="serial", execution_mode="thread", max_workers=4
-        )
+        """测试串行图模式 + 线程池执行模式"""
+        s1 = TaskStage("s1", add_one, execution_mode="thread", max_workers=4)
+        s2 = TaskStage("s2", double, execution_mode="thread", max_workers=4)
 
-        graph = TaskGraph("test_serial_thread")
+        graph = TaskGraph("test_serial_thread", graph_mode="serial")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
         graph.run({"s1": [1, 2, 3, 4, 5]})
@@ -656,40 +639,14 @@ class TestStageExecutionMatrix:
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
 
-    @pytest.mark.asyncio
-    async def test_serial_async(self):
-        """测试串行 Stage + 异步执行模式"""
-        s1 = TaskStage(
-            "s1",
-            async_add_one,
-            stage_mode="serial",
-            execution_mode="async",
-            max_workers=4,
-        )
-        s2 = TaskStage(
-            "s2",
-            async_double,
-            stage_mode="serial",
-            execution_mode="async",
-            max_workers=4,
-        )
-
-        graph = TaskGraph("test_serial_async")
-        graph.set_stages(stages=[s1, s2])
-        graph.connect([s1], [s2])
-        await graph.run_async({"s1": [1, 2, 3, 4, 5]})
-
-        assert s1.get_counts()["tasks_succeeded"] == 5
-        assert s2.get_counts()["tasks_succeeded"] == 5
-
-    # ---- thread stage_mode ----
+    # ---- thread graph_mode ----
 
     def test_thread_serial(self):
-        """测试线程隔离 Stage + 串行执行模式"""
-        s1 = TaskStage("s1", add_one, stage_mode="thread", execution_mode="serial")
-        s2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
+        """测试线程图模式 + 串行执行模式"""
+        s1 = TaskStage("s1", add_one, execution_mode="serial")
+        s2 = TaskStage("s2", double, execution_mode="serial")
 
-        graph = TaskGraph("test_thread_serial")
+        graph = TaskGraph("test_thread_serial", graph_mode="thread")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
         graph.run({"s1": [1, 2, 3, 4, 5]})
@@ -698,15 +655,11 @@ class TestStageExecutionMatrix:
         assert s2.get_counts()["tasks_succeeded"] == 5
 
     def test_thread_thread(self):
-        """测试线程隔离 Stage + 线程池执行模式"""
-        s1 = TaskStage(
-            "s1", add_one, stage_mode="thread", execution_mode="thread", max_workers=4
-        )
-        s2 = TaskStage(
-            "s2", double, stage_mode="thread", execution_mode="thread", max_workers=4
-        )
+        """测试线程图模式 + 线程池执行模式"""
+        s1 = TaskStage("s1", add_one, execution_mode="thread", max_workers=4)
+        s2 = TaskStage("s2", double, execution_mode="thread", max_workers=4)
 
-        graph = TaskGraph("test_thread_thread")
+        graph = TaskGraph("test_thread_thread", graph_mode="thread")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
         graph.run({"s1": [1, 2, 3, 4, 5]})
@@ -714,25 +667,43 @@ class TestStageExecutionMatrix:
         assert s1.get_counts()["tasks_succeeded"] == 5
         assert s2.get_counts()["tasks_succeeded"] == 5
 
-    @pytest.mark.asyncio
-    async def test_thread_async(self):
-        """测试线程隔离 Stage + 异步执行模式"""
-        s1 = TaskStage(
-            "s1",
-            async_add_one,
-            stage_mode="thread",
-            execution_mode="async",
-            max_workers=4,
-        )
-        s2 = TaskStage(
-            "s2",
-            async_double,
-            stage_mode="thread",
-            execution_mode="async",
-            max_workers=4,
-        )
+    # ---- async graph_mode ----
 
-        graph = TaskGraph("test_thread_async")
+    @pytest.mark.asyncio
+    async def test_async_serial(self):
+        """测试异步图模式 + 串行执行模式"""
+        s1 = TaskStage("s1", add_one, execution_mode="serial")
+        s2 = TaskStage("s2", double, execution_mode="serial")
+
+        graph = TaskGraph("test_async_serial", graph_mode="async")
+        graph.set_stages(stages=[s1, s2])
+        graph.connect([s1], [s2])
+        await graph.run_async({"s1": [1, 2, 3, 4, 5]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 5
+        assert s2.get_counts()["tasks_succeeded"] == 5
+
+    @pytest.mark.asyncio
+    async def test_async_thread(self):
+        """测试异步图模式 + 线程池执行模式"""
+        s1 = TaskStage("s1", add_one, execution_mode="thread", max_workers=4)
+        s2 = TaskStage("s2", double, execution_mode="thread", max_workers=4)
+
+        graph = TaskGraph("test_async_thread", graph_mode="async")
+        graph.set_stages(stages=[s1, s2])
+        graph.connect([s1], [s2])
+        await graph.run_async({"s1": [1, 2, 3, 4, 5]})
+
+        assert s1.get_counts()["tasks_succeeded"] == 5
+        assert s2.get_counts()["tasks_succeeded"] == 5
+
+    @pytest.mark.asyncio
+    async def test_async_async(self):
+        """测试异步图模式 + 异步执行模式"""
+        s1 = TaskStage("s1", async_add_one, execution_mode="async", max_workers=4)
+        s2 = TaskStage("s2", async_double, execution_mode="async", max_workers=4)
+
+        graph = TaskGraph("test_async_async", graph_mode="async")
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
         await graph.run_async({"s1": [1, 2, 3, 4, 5]})
@@ -747,10 +718,10 @@ class TestStageExecutionMatrix:
 class TestTaskGraphThread:
     def test_graph_thread_two_nodes(self):
         """thread 模式：两个节点串行，结果正确传递"""
-        stage1 = TaskStage("s1", add_one, stage_mode="thread", execution_mode="serial")
-        stage2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
+        stage1 = TaskStage("s1", add_one, execution_mode="serial")
+        stage2 = TaskStage("s2", double, execution_mode="serial")
 
-        graph = TaskGraph("test_graph_thread_two_nodes")
+        graph = TaskGraph("test_graph_thread_two_nodes", graph_mode="thread")
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
@@ -761,11 +732,11 @@ class TestTaskGraphThread:
 
     def test_graph_thread_fan_out(self):
         """thread 模式：扇出"""
-        source = TaskStage("src", add_one, stage_mode="thread", execution_mode="serial")
-        sink_a = TaskStage("SinkA", double, stage_mode="thread", execution_mode="serial")
-        sink_b = TaskStage("SinkB", to_str, stage_mode="thread", execution_mode="serial")
+        source = TaskStage("src", add_one, execution_mode="serial")
+        sink_a = TaskStage("SinkA", double, execution_mode="serial")
+        sink_b = TaskStage("SinkB", to_str, execution_mode="serial")
 
-        graph = TaskGraph("test_graph_thread_fan_out")
+        graph = TaskGraph("test_graph_thread_fan_out", graph_mode="thread")
         graph.set_stages(stages=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
@@ -777,11 +748,11 @@ class TestTaskGraphThread:
 
     def test_graph_thread_fan_in(self):
         """thread 模式：扇入"""
-        source_a = TaskStage("SrcA", add_one, stage_mode="thread", execution_mode="serial")
-        source_b = TaskStage("SrcB", double, stage_mode="thread", execution_mode="serial")
-        merge = TaskStage("merge", to_str, stage_mode="thread", execution_mode="serial")
+        source_a = TaskStage("SrcA", add_one, execution_mode="serial")
+        source_b = TaskStage("SrcB", double, execution_mode="serial")
+        merge = TaskStage("merge", to_str, execution_mode="serial")
 
-        graph = TaskGraph("test_graph_thread_fan_in")
+        graph = TaskGraph("test_graph_thread_fan_in", graph_mode="thread")
         graph.set_stages(stages=[source_a, source_b, merge])
         graph.connect([source_a, source_b], [merge])
 
@@ -791,12 +762,10 @@ class TestTaskGraphThread:
 
     def test_graph_thread_error_propagation(self):
         """thread 模式：错误任务不会阻断整体流程"""
-        stage1 = TaskStage(
-            "s1", add_offset_10, stage_mode="thread", execution_mode="serial"
-        )
-        stage2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
+        stage1 = TaskStage("s1", add_offset_10, execution_mode="serial")
+        stage2 = TaskStage("s2", double, execution_mode="serial")
 
-        graph = TaskGraph("test_graph_thread_error_propagation")
+        graph = TaskGraph("test_graph_thread_error_propagation", graph_mode="thread")
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
@@ -808,14 +777,10 @@ class TestTaskGraphThread:
 
     def test_graph_thread_with_lambda(self):
         """thread 模式：支持 lambda 函数"""
-        stage1 = TaskStage(
-            "s1", lambda x: x + 1, stage_mode="thread", execution_mode="serial"
-        )
-        stage2 = TaskStage(
-            "s2", lambda x: x * 2, stage_mode="thread", execution_mode="serial"
-        )
+        stage1 = TaskStage("s1", lambda x: x + 1, execution_mode="serial")
+        stage2 = TaskStage("s2", lambda x: x * 2, execution_mode="serial")
 
-        graph = TaskGraph("test_graph_thread_with_lambda")
+        graph = TaskGraph("test_graph_thread_with_lambda", graph_mode="thread")
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
@@ -826,11 +791,11 @@ class TestTaskGraphThread:
 
     def test_graph_thread_schedule(self):
         """thread 模式下线性链正常工作"""
-        s1 = TaskStage("s1", add_one, stage_mode="thread", execution_mode="serial")
-        s2 = TaskStage("s2", double, stage_mode="thread", execution_mode="serial")
-        s3 = TaskStage("s3", to_str, stage_mode="thread", execution_mode="serial")
+        s1 = TaskStage("s1", add_one, execution_mode="serial")
+        s2 = TaskStage("s2", double, execution_mode="serial")
+        s3 = TaskStage("s3", to_str, execution_mode="serial")
 
-        graph = TaskGraph("test_graph_thread_schedule")
+        graph = TaskGraph("test_graph_thread_schedule", graph_mode="thread")
         graph.set_stages(stages=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
@@ -946,11 +911,11 @@ class TestSourceStages:
 class TestCyclicGraph:
     def test_cyclic_is_dag_false(self):
         """含环图 is_dag 为 False"""
-        s1 = TaskStage("s1", add_one, stage_mode="thread")
-        s2 = TaskStage("s2", double, stage_mode="thread")
-        s3 = TaskStage("s3", to_str, stage_mode="thread")
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+        s3 = TaskStage("s3", to_str)
 
-        graph = TaskGraph("test_cyclic_is_dag_false")
+        graph = TaskGraph("test_cyclic_is_dag_false", graph_mode="thread")
         graph.set_stages(stages=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
@@ -964,12 +929,12 @@ class TestCyclicGraph:
 
     def test_cyclic_layers(self):
         """环内节点同层，尾巴节点层级更高"""
-        s1 = TaskStage("s1", add_one, stage_mode="thread")
-        s2 = TaskStage("s2", double, stage_mode="thread")
-        s3 = TaskStage("s3", to_str, stage_mode="thread")
-        s4 = TaskStage("s4", add_one, stage_mode="thread")
+        s1 = TaskStage("s1", add_one)
+        s2 = TaskStage("s2", double)
+        s3 = TaskStage("s3", to_str)
+        s4 = TaskStage("s4", add_one)
 
-        graph = TaskGraph("test_cyclic_layers")
+        graph = TaskGraph("test_cyclic_layers", graph_mode="thread")
         graph.set_stages(stages=[s1, s2, s3, s4])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])

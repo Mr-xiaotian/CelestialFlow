@@ -77,7 +77,8 @@ class TestTaskWheel:
         r3 = TaskStage("r3", add_one)
 
         wheel = TaskWheel("test_wheel_analysis", center, [r1, r2, r3])
-        wheel.set_graph_mode("thread", "serial")
+        wheel.set_graph_mode("thread")
+        wheel.set_stage_execution_mode("serial")
 
         analysis = wheel.get_graph_analysis()
         assert analysis["isDAG"] is False
@@ -94,7 +95,8 @@ class TestTaskWheel:
         r2 = TaskStage("r2", to_str)
 
         wheel = TaskWheel("test_wheel_source_stages", center, [r1, r2])
-        wheel.set_graph_mode("thread", "serial")
+        wheel.set_graph_mode("thread")
+        wheel.set_stage_execution_mode("serial")
 
         sources = wheel.get_source_stages()
         assert len(sources) == 1

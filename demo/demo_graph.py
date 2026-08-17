@@ -53,32 +53,28 @@ def demo_etl_fan_out_fan_in() -> None:
     extract = TaskStage(
         "Extract",
         extract_record,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
     )
     normalize = TaskStage(
         "Normalize",
         transform_normalize,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
     )
     enrich = TaskStage(
         "Enrich",
         transform_enrich,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
     )
     load = TaskStage(
         "Load",
         load_record,
-        stage_mode="thread",
         execution_mode="serial",
     )
 
-    graph = TaskGraph("demo_etl_fan_out_fan_in")
+    graph = TaskGraph("demo_etl_fan_out_fan_in", graph_mode="thread")
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
     graph.set_ctree(ctree_client)
     graph.set_stages(
@@ -91,7 +87,7 @@ def demo_etl_fan_out_fan_in() -> None:
     graph.run({"Extract": raw_ids})
 
 
-def demo_async_pipeline() -> None:
+async def demo_async_pipeline() -> None:
     """
     Two-stage async pipeline:
 
@@ -104,19 +100,17 @@ def demo_async_pipeline() -> None:
     stage_double = TaskStage(
         "AsyncDouble",
         async_double,
-        stage_mode="thread",
         execution_mode="async",
         max_workers=8,
     )
     stage_to_str = TaskStage(
         "AsyncToStr",
         async_to_str,
-        stage_mode="thread",
         execution_mode="async",
         max_workers=8,
     )
 
-    graph = TaskGraph("demo_async_pipeline")
+    graph = TaskGraph("demo_async_pipeline", graph_mode="async")
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
     graph.set_ctree(ctree_client)
     graph.set_stages(
@@ -125,7 +119,7 @@ def demo_async_pipeline() -> None:
     graph.connect([stage_double], [stage_to_str])
 
     tasks: list[Any] = list(range(1, 21))
-    graph.run({"AsyncDouble": tasks})
+    await graph.run_async({"AsyncDouble": tasks})
 
 
 

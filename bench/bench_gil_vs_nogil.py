@@ -71,7 +71,7 @@ def build_executor(name: str, func: Any, execution_mode: str, max_workers: int):
 def build_chain_graph(
     name: str,
     funcs: list[Any],
-    stage_mode: str,
+    graph_mode: str,
     execution_mode: str,
     max_workers: int,
 ):
@@ -80,7 +80,6 @@ def build_chain_graph(
     stage1 = TaskStage(
         f"{name}_stage_1",
         funcs[0],
-        stage_mode=stage_mode,
         execution_mode=execution_mode,
         max_workers=max_workers,
         persist_result=False,
@@ -89,7 +88,6 @@ def build_chain_graph(
     stage2 = TaskStage(
         f"{name}_stage_2",
         funcs[1],
-        stage_mode=stage_mode,
         execution_mode=execution_mode,
         max_workers=max_workers,
         persist_result=False,
@@ -98,14 +96,13 @@ def build_chain_graph(
     stage3 = TaskStage(
         f"{name}_stage_3",
         funcs[2],
-        stage_mode=stage_mode,
         execution_mode=execution_mode,
         max_workers=max_workers,
         persist_result=False,
         enable_duplicate_check=False,
     )
 
-    graph = TaskGraph(name)
+    graph = TaskGraph(name, graph_mode=graph_mode)
     graph.set_stages([stage1, stage2, stage3])
     graph.connect([stage1], [stage2])
     graph.connect([stage2], [stage3])
@@ -138,13 +135,13 @@ def measure_executor(
 
 def measure_graph(
     name: str,
-    stage_mode: str,
+    graph_mode: str,
     execution_mode: str,
     items: list[int],
     workers: int,
     funcs: list[Any],
 ) -> RunStats:
-    graph, sink_stage = build_chain_graph(name, funcs, stage_mode, execution_mode, workers)
+    graph, sink_stage = build_chain_graph(name, funcs, graph_mode, execution_mode, workers)
     start = time.perf_counter()
     graph.run({f"{name}_stage_1": items})
     seconds = time.perf_counter() - start

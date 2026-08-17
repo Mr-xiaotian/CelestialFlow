@@ -51,7 +51,6 @@ def demo_chain() -> None:
     chain = TaskChain(
         "demo_chain",
         [stageA, stageB, stageC, stageD, stageE],
-        stage_mode="thread",
     )
     chain.set_reporter(TaskReporter(report_host, report_port, chain))
     chain.set_ctree(ctree_client)
@@ -64,35 +63,30 @@ def demo_forest() -> None:
     stageA = TaskStage(
         "stageA",
         add_one_sleep,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
     stageB = TaskStage(
         "stageB",
         add_one_sleep,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
     stageC = TaskStage(
         "stageC",
         add_one_sleep,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
     stageD = TaskStage(
         "stageD",
         add_one_sleep,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
     stageE = TaskStage(
         "stageE",
         add_one_sleep,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
@@ -101,35 +95,30 @@ def demo_forest() -> None:
     stageF = TaskStage(
         "stageF",
         add_one_sleep,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
     stageG = TaskStage(
         "stageG",
         add_one_sleep,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
     stageH = TaskStage(
         "stageH",
         add_one_sleep,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
     stageI = TaskStage(
         "stageI",
         add_one_sleep,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
     stageJ = TaskStage(
         "stageJ",
         add_one_sleep,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
@@ -357,24 +346,24 @@ def demo_multi_cycle() -> None:
 
     # 定义节点
     A1 = TaskStage(
-        "A1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
+        "A1", add_one_sleep, execution_mode="thread", max_workers=2
     )
     A2 = TaskStage(
-        "A2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
+        "A2", add_one_sleep, execution_mode="thread", max_workers=2
     )
 
     B1 = TaskStage(
-        "B1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
+        "B1", add_one_sleep, execution_mode="thread", max_workers=2
     )
     B2 = TaskStage(
-        "B2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
+        "B2", add_one_sleep, execution_mode="thread", max_workers=2
     )
 
     C1 = TaskStage(
-        "C1", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
+        "C1", add_one_sleep, execution_mode="thread", max_workers=2
     )
     C2 = TaskStage(
-        "C2", add_one_sleep, stage_mode="thread", execution_mode="thread", max_workers=2
+        "C2", add_one_sleep, execution_mode="thread", max_workers=2
     )
 
     graph = TaskGraph("demo_multi_cycle")

@@ -152,28 +152,24 @@ def demo_redis_ack_0() -> None:
     start_stage = TaskStage(
         "Start",
         sleep_1_fibonacci,
-        stage_mode="serial",
         execution_mode="thread",
         max_workers=4,
     )
     transport_stage = TaskStage(
         "RedisTransport",
         redis_push,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
     )
     ack_stage = TaskStage(
         "RedisAck",
         redis_wait,
-        stage_mode="thread",
         execution_mode="serial",
         enable_duplicate_check=False,
     )
     fibonacci_stage = TaskStage(
         "Fibonacci",
         fibonacci_wrapper,
-        stage_mode="thread",
         execution_mode="thread",
     )
 
@@ -193,28 +189,24 @@ def demo_redis_ack_1() -> None:
     start_stage = TaskStage(
         "Start",
         sleep_1_sum,
-        stage_mode="serial",
         execution_mode="thread",
         max_workers=4,
     )
     transport_stage = TaskStage(
         "RedisTransport",
         redis_push,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
     )
     ack_stage = TaskStage(
         "RedisAck",
         redis_wait,
-        stage_mode="thread",
         execution_mode="serial",
         enable_duplicate_check=False,
     )
     sum_stage = TaskStage(
         "Sum",
         sum_int_wrapper,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
     )
@@ -237,28 +229,24 @@ def demo_redis_ack_2() -> None:
     start_stage = TaskStage(
         "Start",
         sleep_1_download,
-        stage_mode="serial",
         execution_mode="thread",
         max_workers=4,
     )
     transport_stage = TaskStage(
         "RedisTransport",
         redis_push,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
     )
     ack_stage = TaskStage(
         "RedisAck",
         redis_wait,
-        stage_mode="thread",
         execution_mode="serial",
         enable_duplicate_check=False,
     )
     download_stage = TaskStage(
         "Download",
         download_to_file_wrapper,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
     )
@@ -288,27 +276,23 @@ def demo_redis_source_0() -> None:
     sleep_stage_0 = TaskStage(
         "Sleep0",
         sleep_1_report,
-        stage_mode="thread",
         execution_mode="serial",
     )
     transport_stage = TaskStage(
         "RedisTransport",
         redis_push,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=4,
     )
     source_stage = TaskStage(
         "RedisSource",
         redis_pop,
-        stage_mode="thread",
         execution_mode="serial",
         enable_duplicate_check=False,
     )
     sleep_stage_1 = TaskStage(
         "Sleep1",
         sleep_1,
-        stage_mode="thread",
         execution_mode="serial",
     )
 

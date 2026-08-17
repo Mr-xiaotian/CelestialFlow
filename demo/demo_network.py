@@ -37,32 +37,32 @@ def demo_network_step1() -> None:
     # A2 的权重设为 2.0，偏置 0.0 → A2(x) = 2.0 * x
     A1 = TaskStage(
         "A1", linear(0.5, 0.0),
-        stage_mode="thread", execution_mode="thread", max_workers=2,
+        execution_mode="thread", max_workers=2,
     )
     A2 = TaskStage(
         "A2", linear(2.0, 0.0),
-        stage_mode="thread", execution_mode="thread", max_workers=2,
+        execution_mode="thread", max_workers=2,
     )
 
     # ── 隐藏层 ────────────────────────────────────────────────
     # 给每个 B 不同的权重，观察 Fan-in 时独立处理的效果
     B1 = TaskStage(
         "B1", linear(1.0, 0.0),
-        stage_mode="thread", execution_mode="thread", max_workers=2,
+        execution_mode="thread", max_workers=2,
     )
     B2 = TaskStage(
         "B2", linear(1.0, 0.0),
-        stage_mode="thread", execution_mode="thread", max_workers=2,
+        execution_mode="thread", max_workers=2,
     )
     B3 = TaskStage(
         "B3", linear(1.0, 0.0),
-        stage_mode="thread", execution_mode="thread", max_workers=2,
+        execution_mode="thread", max_workers=2,
     )
 
     # ── 输出层 ────────────────────────────────────────────────
     C = TaskStage(
         "C", linear(1.0, 0.0),
-        stage_mode="thread", execution_mode="thread", max_workers=2,
+        execution_mode="thread", max_workers=2,
         persist_result=True,
     )
 
@@ -70,7 +70,7 @@ def demo_network_step1() -> None:
     cross = TaskCross(
         "demo_network_step1",
         [[A1, A2], [B1, B2, B3], [C]],
-        stage_mode="thread",
+        graph_mode="thread",
     )
 
     # ── 输入数据 ──────────────────────────────────────────────

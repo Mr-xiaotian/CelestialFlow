@@ -11,22 +11,20 @@ async def async_noop(x: int) -> int:
     return x
 
 
-def make_stage(
-    name: str, stage_mode: str, execution_mode: str
-) -> TaskStage[int, int]:
-    """根据模式组合构造测试节点。"""
+def make_stage(name: str, execution_mode: str) -> TaskStage[int, int]:
+    """根据执行模式构造测试节点。"""
     func = async_noop if execution_mode == "async" else (lambda x: x)
-    return TaskStage(name, func, stage_mode=stage_mode, execution_mode=execution_mode, max_workers=2)
+    return TaskStage(name, func, execution_mode=execution_mode, max_workers=2)
 
 
 class TestUtilSerialize:
     @pytest.fixture
     def mock_graph_data(self) -> dict[str, object]:
         """构造一组 DAG 与环图序列化测试样本。"""
-        s1 = make_stage("s1", "serial", "serial")
-        s2 = make_stage("s2", "thread", "async")
-        s3 = make_stage("s3", "serial", "serial")
-        s4 = make_stage("s4", "thread", "thread")
+        s1 = make_stage("s1", "serial")
+        s2 = make_stage("s2", "async")
+        s3 = make_stage("s3", "serial")
+        s4 = make_stage("s4", "thread")
 
         stage_dict = {s.get_name(): s for s in [s1, s2, s3, s4]}
 
@@ -37,9 +35,9 @@ class TestUtilSerialize:
             s4.get_name(): [],
         }
 
-        cs1 = make_stage("cs1", "serial", "serial")
-        cs2 = make_stage("cs2", "serial", "serial")
-        cs3 = make_stage("cs3", "serial", "serial")
+        cs1 = make_stage("cs1", "serial")
+        cs2 = make_stage("cs2", "serial")
+        cs3 = make_stage("cs3", "serial")
 
         cyclic_stage_dict = {s.get_name(): s for s in [cs1, cs2, cs3]}
 
@@ -69,7 +67,6 @@ class TestUtilSerialize:
         assert graph["source_nodes"] == ["s1"]
         assert set(graph["nodes"]) == {"s1", "s2", "s3", "s4"}
         assert graph["nodes"]["s1"]["func_name"] == "<lambda>"
-        assert graph["nodes"]["s2"]["stage_mode"] == "thread"
         assert graph["nodes"]["s2"]["execution_mode"] == "async"
         assert graph["nodes"]["s4"]["max_workers"] == 2
         assert graph["edges"] == out_edges
@@ -96,5 +93,5 @@ class TestUtilSerialize:
         formatted_list = format_structure_list_from_graph(graph)
 
         assert len(formatted_list) > 0
-        assert "s1::<lambda> (S:serial, E:serial, W:2)" in formatted_list[1]
+        assert "s1::<lambda> (E:serial, W:2)" in formatted_list[1]
         assert any("[Ref]" in line for line in formatted_list)

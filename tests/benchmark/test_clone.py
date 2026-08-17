@@ -53,18 +53,13 @@ class TestUtilClone:
     # ── clone_stage ────────────────────────────────────────────────
 
     def test_clone_stage_same_attributes(self):
-        """克隆后 name / func / execution_mode / stage_mode 应与原对象相同。"""
-        stage = TaskStage(
-            name="test_stage",
-            func=lambda x: x,
-            stage_mode="thread",
-        )
+        """克隆后 name / func / execution_mode 应与原对象相同。"""
+        stage = TaskStage(name="test_stage", func=lambda x: x)
         cloned = clone_stage(stage)
 
         assert cloned.get_name() == stage.get_name()
         assert cloned.func is stage.func
         assert cloned.execution_mode == stage.execution_mode
-        assert cloned.stage_mode == stage.stage_mode
 
     def test_clone_stage_different_object(self):
         """克隆返回的是不同对象。"""

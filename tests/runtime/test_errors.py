@@ -60,14 +60,14 @@ class TestUtilErrors:
         assert ex.allowed == ("serial", "thread")
         assert "parallel" in str(ex)
 
-    def test_stage_mode_error(self):
-        """验证非法 stage_mode 会暴露字段信息。"""
-        ex = InvalidOptionError("stage mode", "process", ("serial", "thread"))
+    def test_graph_mode_error(self):
+        """验证非法 graph_mode 会暴露字段信息。"""
+        ex = InvalidOptionError("graph mode", "process", ("serial", "thread", "async"))
         assert isinstance(ex, CelestialFlowError)
         assert isinstance(ex, ConfigurationError)
-        assert ex.field == "stage mode"
+        assert ex.field == "graph mode"
         assert ex.value == "process"
-        assert ex.allowed == ("serial", "thread")
+        assert ex.allowed == ("serial", "thread", "async")
         assert "process" in str(ex)
 
     def test_log_level_error(self):

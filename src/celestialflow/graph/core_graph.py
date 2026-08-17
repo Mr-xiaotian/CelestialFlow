@@ -78,7 +78,7 @@ class TaskGraph:
         - 如需重复执行，请重新构建新的 TaskGraph 与节点对象。
 
         :param name: 任务图名称
-        :param graph_mode: 图执行模式, 可选值为 'serial'（串行）或 'thread'（线程），默认 'thread'
+        :param graph_mode: 图执行模式, 可选值为 'serial'（串行）、'thread'（线程）或 'async'（异步），默认 'thread'
         """
         self._set_name(name)
         self.set_graph_mode(graph_mode)

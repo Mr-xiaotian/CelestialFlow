@@ -73,7 +73,8 @@ def demo_splitter_0() -> None:
     graph.connect([splitter], [download_stage, parse_stage])
     graph.connect([parse_stage], [generate_stage])
 
-    graph.set_graph_mode("thread", "thread")
+    graph.set_graph_mode("thread")
+    graph.set_stage_execution_mode("thread")
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
 
@@ -93,7 +94,6 @@ def demo_splitter_1() -> None:
     chain = TaskChain(
         "demo_splitter_1",
         [task_splitter, process_stage],
-        stage_mode="thread",
     )
     chain.set_reporter(TaskReporter(report_host, report_port, chain))
     chain.set_ctree(ctree_client)
@@ -110,26 +110,22 @@ def demo_router_0() -> None:
     source_stage = TaskStage(
         "Origin",
         sleep_1,
-        stage_mode="serial",
         execution_mode="thread",
         max_workers=4,
     )
     router = TaskRouter(
         "Router",
         router_even,
-        stage_mode="serial",
     )
     stage_a = TaskStage(
         a_name,
         sleep_1,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )
     stage_b = TaskStage(
         b_name,
         sleep_1,
-        stage_mode="thread",
         execution_mode="thread",
         max_workers=2,
     )

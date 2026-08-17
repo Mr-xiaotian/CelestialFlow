@@ -35,21 +35,6 @@ class TestTaskStageConfig:
         assert old_name != new_name
         assert new_name == "NewName"
 
-    def test_valid_stage_mode_serial(self):
-        """测试合法节点模式：serial（串行隔离）"""
-        stage = TaskStage("AddOneSerialMode", add_one, stage_mode="serial")
-        assert stage.get_stage_mode() == "serial"
-
-    def test_valid_stage_mode_thread(self):
-        """测试合法节点模式：thread（线程隔离）"""
-        stage = TaskStage("AddOneThreadMode", add_one, stage_mode="thread")
-        assert stage.get_stage_mode() == "thread"
-
-    def test_invalid_stage_mode(self):
-        """测试非法节点模式配置：应抛出特定的 StageModeError 异常"""
-        with pytest.raises(InvalidOptionError):
-            TaskStage("AddOneInvalidStageMode", add_one, stage_mode="invalid")
-
     def test_valid_execution_mode_serial(self):
         """测试合法执行模式：serial（单线程执行）"""
         stage = TaskStage("AddOneSerialExec", add_one, execution_mode="serial")
@@ -70,22 +55,15 @@ class TestTaskStageConfig:
         with pytest.raises(InvalidOptionError):
             TaskStage("AddOneInvalidExecMode", add_one, execution_mode="invalid")
 
-    def test_summary_contains_stage_mode(self):
-        """测试 Stage 的状态摘要信息是否包含节点模式及其执行配置"""
+    def test_summary_contains_execution_mode(self):
+        """测试 Stage 的状态摘要信息是否包含执行模式配置"""
         stage = TaskStage(
             "AddOneThreadExec",
             add_one,
-            stage_mode="thread",
             execution_mode="thread",
         )
         summary = stage.get_summary()
-        assert summary["stage_mode"] == "thread"
         assert summary["execution_mode"] == "thread"
-
-    def test_lambda_allowed_in_thread(self):
-        """测试在 thread 隔离模式下允许使用匿名函数（lambda）"""
-        stage = TaskStage("LambdaThreadAllowed", lambda x: x + 1, stage_mode="thread")
-        assert stage.get_stage_mode() == "thread"
 
     def test_prev_binding_survives_execution_mode_switch(self):
         """测试前驱绑定在 execution_mode 切换后仍然保留"""
