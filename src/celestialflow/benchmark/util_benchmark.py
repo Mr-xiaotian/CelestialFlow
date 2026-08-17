@@ -18,55 +18,47 @@ async def benchmark_executor(
     sync_executor: AnyTaskExecutor,
     async_executor: AnyTaskExecutor,
     task_source: Iterable[Any],
-    sync_modes: list[str] | None = None,
-    async_modes: list[str] | None = None,
+    execution_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     对执行器进行基准测试
 
-    :param sync_executor: 同步执行器
-    :param async_executor: 异步执行器
+    :param sync_executor: 同步执行器模板（用于 serial/thread execution_mode）
+    :param async_executor: 异步执行器模板（用于 async execution_mode）
     :param task_source: 任务源，用于生成任务列表
-    :param sync_modes: 同步执行模式列表，默认 ["serial", "thread"]
-    :param async_modes: 异步执行模式列表，默认 ["async"]
+    :param execution_modes: 执行模式列表，默认 ["serial", "thread", "async"]
     :return: 包含测试结果的字典
     """
     task_list: list[Any] = list(task_source)
-    sync_modes = sync_modes or ["serial", "thread"]
-    async_modes = async_modes or ["async"]
+    execution_modes = execution_modes or ["serial", "thread", "async"]
 
     use_time: list[list[float]] = []
     results: list[list[tuple[Any, Any]]] = []
-    for mode in sync_modes:
-        cloned_executor: AnyTaskExecutor = clone_executor(sync_executor)
-        cloned_executor.set_execution_mode(mode)
-
-        start: float = time.perf_counter()
-        cloned_executor.put_tasks(task_list)
-        cloned_executor.start()
-        use_time.append([time.perf_counter() - start])
-        results.append(cloned_executor.get_success_pairs())
-
-    for mode in async_modes:
-        cloned_executor = clone_executor(async_executor)
+    for mode in execution_modes:
+        if mode == "async":
+            cloned_executor = clone_executor(async_executor)
+        else:
+            cloned_executor = clone_executor(sync_executor)
         cloned_executor.set_execution_mode(mode)
 
         start = time.perf_counter()
         cloned_executor.put_tasks(task_list)
-        await cloned_executor.start_async()
+        if mode == "async":
+            await cloned_executor.start_async()
+        else:
+            cloned_executor.start()
         use_time.append([time.perf_counter() - start])
         results.append(cloned_executor.get_success_pairs())
 
-    use_time_table: str = format_table(use_time, sync_modes + async_modes, ["Time"])
-    results_table: str = format_table(results, sync_modes + async_modes, [])
+    use_time_table: str = format_table(use_time, execution_modes, ["Time"])
+    results_table: str = format_table(results, execution_modes, [])
 
     print(f"Use time:\n{use_time_table}\n")
     print(f"Results:\n{results_table}\n")
 
     return {
         "use_time": use_time,
-        "sync_modes": sync_modes,
-        "async_modes": async_modes,
+        "execution_modes": execution_modes,
         "table": use_time_table,
     }
 
