@@ -245,9 +245,8 @@ results = benchmark_graph(
     sync_graph=sync_graph,
     async_graph=async_graph,
     init_tasks_dict={stage_a.get_name(): range(100)},
-    stage_modes=["serial", "thread"],
-    execution_sync_modes=["serial", "thread"],
-    execution_async_modes=["async"],
+    graph_modes=["serial", "thread", "async"],
+    execution_modes=["serial", "thread", "async"],
 )
 ```
 

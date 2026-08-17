@@ -22,26 +22,24 @@ async def benchmark_executor(
     sync_executor: TaskExecutor[Any, Any],
     async_executor: TaskExecutor[Any, Any],
     task_source: Iterable[Any],
-    sync_modes: list[str] | None = None,
-    async_modes: list[str] | None = None,
+    execution_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     对执行器进行基准测试。
 
-    :param sync_executor: 同步执行器模板
-    :param async_executor: 异步执行器模板
+    :param sync_executor: 同步执行器模板（用于 serial/thread execution_mode）
+    :param async_executor: 异步执行器模板（用于 async execution_mode）
     :param task_source: 任务源，用于生成任务列表
-    :param sync_modes: 同步模式列表，默认 ["serial", "thread"]
-    :param async_modes: 异步模式列表，默认 ["async"]
-    :return: 测试结果字典（含 use_time, sync_modes, async_modes, table）
+    :param execution_modes: 执行模式列表，默认 ["serial", "thread", "async"]
+    :return: 测试结果字典（含 use_time, execution_modes, table）
     """
 ```
 
 测试流程：
 1. 克隆执行器（避免状态污染）
-2. 对每种模式设置执行方式
-3. 执行任务并计时
-4. 输出时间表格和结果表格
+2. 遍历 `execution_modes`
+3. `serial/thread` 使用 `sync_executor.start()`，`async` 使用 `async_executor.start_async()`
+4. 输出时间表格
 
 输出示例：
 ```
@@ -61,8 +59,7 @@ async def benchmark_graph(
     async_graph: TaskGraph,
     init_tasks_dict: Mapping[str, Iterable[Any]],
     graph_modes: list[str] | None = None,
-    execution_sync_modes: list[str] | None = None,
-    execution_async_modes: list[str] | None = None,
+    execution_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     对任务图进行基准测试。
@@ -71,9 +68,8 @@ async def benchmark_graph(
     :param async_graph: 异步任务图模板（用于 async execution_mode）
     :param init_tasks_dict: 初始任务字典，键为任务标签，值为任务列表
     :param graph_modes: 图执行模式列表，默认 ["serial", "thread", "async"]
-    :param execution_sync_modes: 同步执行模式列表，默认 ["serial", "thread"]
-    :param execution_async_modes: 异步执行模式列表，默认 ["async"]
-    :return: 测试结果字典（含 use_time, table, graph_modes, execution_modes, sync_modes, async_modes）
+    :param execution_modes: 执行模式列表，默认 ["serial", "thread", "async"]
+    :return: 测试结果字典（含 use_time, table, graph_modes, execution_modes）
     """
 ```
 
@@ -126,6 +122,7 @@ asyncio.run(
         sync_executor=sync_executor,
         async_executor=async_executor,
         task_source=range(1000),
+        execution_modes=["serial", "thread", "async"],
     )
 )
 ```
@@ -217,16 +214,11 @@ asyncio.run(
 
 显示每种配置的执行时间。
 
-### 结果表格
-
-显示每种配置的成功结果对。
-
 ### 返回值
 
 `benchmark_executor` 返回包含以下内容的字典：
 - `use_time`: 各模式的耗时列表
-- `sync_modes`: 测试的同步模式列表
-- `async_modes`: 测试的异步模式列表
+- `execution_modes`: 测试的执行模式列表
 - `table`: 格式化后的时间表格字符串
 
 `benchmark_graph` 返回包含以下内容的字典：
@@ -234,7 +226,6 @@ asyncio.run(
 - `table`: 格式化后的时间表格字符串
  - `graph_modes`: 测试的图模式列表
  - `execution_modes`: 时间表格的完整列顺序
- - `sync_modes` / `async_modes`: 用于构造列的执行模式列表
 
 ## 注意事项
 
@@ -242,5 +233,5 @@ asyncio.run(
 2. **任务固定**: 所有测试使用相同的任务列表，保证公平性
 3. **资源竞争**: 线程模式可能因资源竞争影响结果，建议多次测试
 4. **异步要求**: `benchmark_executor` 和 `benchmark_graph` 都是异步函数，需要 `await` 或 `asyncio.run`
-5. **图的分离**: `benchmark_graph` 需要分别提供 `sync_graph` 和 `async_graph`，因为 `execution_mode="async"` 需要 async 函数
-6. **矩阵完整性**: 当前实现默认覆盖 `serial/thread/async × serial/thread/async` 的 9 种组合
+5. **模板分离**: `benchmark_executor` 与 `benchmark_graph` 都需要分别提供同步/异步模板，因为 `execution_mode="async"` 需要 async 函数
+6. **矩阵完整性**: `benchmark_graph` 当前实现默认覆盖 `serial/thread/async × serial/thread/async` 的 9 种组合

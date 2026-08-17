@@ -35,8 +35,6 @@ class TestBenchmarkGraph:
 
         assert result["graph_modes"] == ["serial", "thread", "async"]
         assert result["execution_modes"] == ["serial", "thread", "async"]
-        assert result["sync_modes"] == ["serial", "thread"]
-        assert result["async_modes"] == ["async"]
         assert len(result["use_time"]) == 3
         assert all(len(row) == 3 for row in result["use_time"])
 
