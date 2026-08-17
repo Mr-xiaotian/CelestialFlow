@@ -1,6 +1,6 @@
 # bench_execution_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/18
 
 ## 目标
 
@@ -69,9 +69,8 @@ python bench/bench_execution_mode.py
 
 ```python
 async def main():
-    # 仅运行斐波那契测试
     await bench_executor_fibonacci()
-    # await bench_executor_sleep()  # 注释掉 sleep 测试
+    await bench_executor_sleep()
 ```
 
 ```bash
@@ -148,6 +147,31 @@ bench_task_1: list[Any] = list(range(20, 35))
 - CPU 场景下 `thread` 与 `async` 明显快于 `serial`，但两者差距很小，说明当前任务规模下调度与计算混合占主导
 - I/O 场景下 `thread` 与 `async` 依旧接近理论并行上限，均比串行快约 **5.3x**
 - 这轮复测和历史结论一致：执行模式选择首先取决于任务是否存在可并行等待时间
+
+### 2026/08/18 - 本地复测
+
+> 环境：macOS，Python 3.14.3，当前代码版本直接运行 `bench/bench_execution_mode.py`
+
+#### 场景一：斐波那契（CPU 密集型）
+
+| 模式 | 耗时 |
+|------|------|
+| serial | 0.0004185s |
+| thread | 0.0005510s |
+| async | 0.0007913s |
+
+#### 场景二：sleep_1（I/O 密集型）
+
+| 模式 | 耗时 |
+|------|------|
+| serial | 6.0200s |
+| thread | 1.0064s |
+| async | 1.0025s |
+
+**本轮补充结论**：
+- CPU 场景下，当前输入规模非常小，`serial` 反而是最快的；`thread` 与 `async` 的额外调度开销已经超过了并发收益
+- I/O 场景下，`thread` 与 `async` 依旧接近理论并行上限，均把总耗时压到约 1 秒，其中 `async` 略快但差距可以忽略
+- 这轮结果比 2026/06/16 的 CPU 数据低很多，主要是因为当前脚本中的斐波那契实现已改为**迭代 O(n)**，不再是高开销的递归版本；因此两轮 CPU benchmark 不应直接比较绝对值
 
 ## 依赖
 

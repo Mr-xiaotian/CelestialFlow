@@ -68,6 +68,7 @@ async def bench_executor_fibonacci() -> None:
     # executor_async.add_observer(TaskProgress())
 
     execution_modes = ["serial", "thread", "async"]
+    print("bench_executor_fibonacci")
     await benchmark_executor(executor, executor_async, bench_task_1, execution_modes)
 
 
@@ -92,6 +93,7 @@ async def bench_executor_sleep() -> None:
     # executor_async.add_observer(TaskProgress())
 
     execution_modes = ["serial", "thread", "async"]
+    print("bench_executor_sleep")
     await benchmark_executor(executor, executor_async, task_list, execution_modes)
 
 
