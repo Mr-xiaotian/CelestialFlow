@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/17
 
 `benchmark/util_benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
@@ -60,36 +60,39 @@ async def benchmark_graph(
     sync_graph: TaskGraph,
     async_graph: TaskGraph,
     init_tasks_dict: Mapping[str, Iterable[Any]],
-    stage_modes: list[str] | None = None,
+    graph_modes: list[str] | None = None,
     execution_sync_modes: list[str] | None = None,
     execution_async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     对任务图进行基准测试。
 
-    :param sync_graph: 同步任务图模板（用于 serial/thread 模式）
-    :param async_graph: 异步任务图模板（用于 async 模式）
+    :param sync_graph: 同步任务图模板（用于 serial/thread execution_mode）
+    :param async_graph: 异步任务图模板（用于 async execution_mode）
     :param init_tasks_dict: 初始任务字典，键为任务标签，值为任务列表
-    :param stage_modes: 节点模式列表，默认 ["serial", "thread"]
+    :param graph_modes: 图执行模式列表，默认 ["serial", "thread", "async"]
     :param execution_sync_modes: 同步执行模式列表，默认 ["serial", "thread"]
     :param execution_async_modes: 异步执行模式列表，默认 ["async"]
-    :return: 测试结果字典（含 table, stage_modes, sync_modes, async_modes）
+    :return: 测试结果字典（含 use_time, table, graph_modes, execution_modes, sync_modes, async_modes）
     """
 ```
 
 测试流程：
-1. 对每种 `stage_mode` × `execution_mode` 组合
+1. 对每种 `graph_mode` × `execution_mode` 组合
 2. 克隆任务图
-3. 设置 `set_graph_mode(stage_mode, execution_mode)`
-4. 同步模式执行 `start_graph()`，异步模式执行 `start_graph_async()` 并计时
+3. 设置 `set_graph_mode(graph_mode)` 与 `set_stage_execution_mode(execution_mode)`
+4. `graph_mode="async"` 时执行 `run_async()`；其余图模式执行 `run()`
+5. `serial/thread + async` 组合在基准函数内部通过 `asyncio.to_thread(...)` 启动，避免与 `benchmark_graph()` 自身的事件循环冲突
 5. 输出时间表格
 
 输出示例：
 ```
 Time table:
-          serial    thread    async
-serial    5.23s     3.45s     3.21s
-thread    2.12s     1.89s     1.65s
+| graph/execution | serial | thread | async |
+|-----------------|--------|--------|-------|
+| serial          | 5.23s  | 3.45s  | 3.21s |
+| thread          | 2.12s  | 1.89s  | 1.65s |
+| async           | 2.05s  | 1.73s  | 1.42s |
 ```
 
 ## 使用示例
@@ -191,9 +194,10 @@ asyncio.run(
 
 ### 任务图测试维度
 
-**Stage Mode (节点模式)**：
+**Graph Mode (图模式)**：
 - `serial`: 节点在主线程运行
 - `thread`: 节点在独立线程运行
+- `async`: 图在事件循环中统一调度；同步节点转入线程执行，异步节点直接协程执行
 
 **Execution Mode (执行模式)**：
 - `serial`: 节点内部串行执行
@@ -201,10 +205,11 @@ asyncio.run(
 - `async`: 节点内部协程异步执行
 
 组合示例：
-| Stage \ Execution | serial | thread | async |
+| Graph \ Execution | serial | thread | async |
 |-------------------|--------|--------|-------|
 | serial | S-S | S-T | S-A |
 | thread | T-S | T-T | T-A |
+| async  | A-S | A-T | A-A |
 
 ## 输出信息
 
@@ -225,9 +230,11 @@ asyncio.run(
 - `table`: 格式化后的时间表格字符串
 
 `benchmark_graph` 返回包含以下内容的字典：
+ - `use_time`: 3×3（或自定义维度）的耗时矩阵
 - `table`: 格式化后的时间表格字符串
-- `stage_modes`: 测试的节点模式列表
-- `sync_modes` / `async_modes`: 测试的执行模式列表
+ - `graph_modes`: 测试的图模式列表
+ - `execution_modes`: 时间表格的完整列顺序
+ - `sync_modes` / `async_modes`: 用于构造列的执行模式列表
 
 ## 注意事项
 
@@ -235,4 +242,5 @@ asyncio.run(
 2. **任务固定**: 所有测试使用相同的任务列表，保证公平性
 3. **资源竞争**: 线程模式可能因资源竞争影响结果，建议多次测试
 4. **异步要求**: `benchmark_executor` 和 `benchmark_graph` 都是异步函数，需要 `await` 或 `asyncio.run`
-5. **图的分离**: `benchmark_graph` 需要分别提供 sync_graph 和 async_graph，因为 async 执行模式需要 async 函数
+5. **图的分离**: `benchmark_graph` 需要分别提供 `sync_graph` 和 `async_graph`，因为 `execution_mode="async"` 需要 async 函数
+6. **矩阵完整性**: 当前实现默认覆盖 `serial/thread/async × serial/thread/async` 的 9 种组合

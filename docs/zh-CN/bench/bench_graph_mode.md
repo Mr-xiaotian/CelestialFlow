@@ -1,10 +1,10 @@
 # bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/17
 
 ## 目标
 
-对比不同 `stage_mode`（`serial` / `thread`）和 `execution_mode`（`serial` / `thread` / `async`）组合下，复杂 DAG 的任务图执行性能。使用框架内置的 `benchmark_graph` 工具进行矩阵式对比。
+对比不同 `graph_mode`（`serial` / `thread` / `async`）和 `execution_mode`（`serial` / `thread` / `async`）组合下，复杂 DAG 的任务图执行性能。使用框架内置的 `benchmark_graph` 工具进行 3×3 矩阵式对比。
 
 ## 测试内容
 
@@ -28,13 +28,14 @@
 
 ## 关键配置
 
-- `benchmark_graph` 内部会遍历 `stage_mode`（`serial` / `thread`）和 `execution_mode`（`serial` / `thread` / `async`）的组合，共 **6 种组合**，每种都会完整跑一遍图
-- 本文件不直接配置这些模式，仅提供同步 `TaskGraph` 对象与异步 `TaskGraph` 对象传入 `benchmark_graph`
+- `benchmark_graph` 内部会遍历 `graph_mode`（`serial` / `thread` / `async`）和 `execution_mode`（`serial` / `thread` / `async`）的组合，共 **9 种组合**
+- 同步节点模板通过 `graph` 传入，异步节点模板通过 `async_graph` 传入；`benchmark_graph` 会按列选择合适的模板
+- 当组合为 `serial/thread + async` 时，基准函数会在后台线程中调用同步图入口，以避免与自身事件循环冲突
 
 ## 可能出现的问题
 
 1. **环境变量依赖**：`REPORT_HOST` 等必须从 `.env` 加载，若未配置会导致 reporter 连接失败。
-2. **总耗时长**：`benchmark_graph` 会运行 `len(stage_modes) × len(execution_modes)` 次完整图执行，含 I/O 延迟时总时间可达数分钟。
+2. **总耗时长**：`benchmark_graph` 会运行 `len(graph_modes) × len(execution_modes)` 次完整图执行，含 I/O 延迟时总时间可达数分钟。
 
 ## 运行方式
 
@@ -46,15 +47,18 @@ python bench/bench_graph_mode.py
 
 ### 单独运行某个测试场景
 
-> `benchmark_graph` 已改为 `async` 函数，`bench_graph_*` 均为 `async def`，需通过 `asyncio.run()` 调用。
+> `benchmark_graph` 已改为 `async` 函数，`bench_graph_*` 均为 `async def`，需通过 `main_async()` 或 `asyncio.run()` 调用。
 
-在 `bench/bench_graph_mode.py` 的 `main()` 中可选择只运行某个场景：
+在 `bench/bench_graph_mode.py` 的 `main_async()` 中可选择只运行某个场景：
 
 ```python
+async def main_async() -> None:
+    # await bench_graph_0()
+    # await bench_graph_1()
+    await bench_graph_2()
+
 if __name__ == "__main__":
-    asyncio.run(bench_graph_0())     # 运行 4 节点 DAG 混合场景（默认已注释）
-    asyncio.run(bench_graph_1())     # 当前启用：6 节点多层 DAG
-    asyncio.run(bench_graph_2())     # 当前启用：Splitter 吞吐量测试
+    asyncio.run(main_async())
 ```
 
 ### 调整输入规模
@@ -134,6 +138,57 @@ python bench/bench_graph_mode.py
 - **纯计算场景下 `serial` 最快**——`thread` 和 `async` 的调度开销在无 I/O 等待时无法被摊销，反而成为瓶颈
 - `async` 需要 stage 的函数为 async 函数，因此需要分别提供 sync_graph 和 async_graph
 - 总耗时包含：线程启动 + 任务执行 + 队列传输 + 终止信号传播
+
+### 2026/08/05 — `start_graph_async` 重构后重跑
+
+> 环境：macOS，Python 3.14，Reporter **已关闭**（避免 HTTP timeout 干扰耗时）
+> 变更：`benchmark_graph` 改为 `async` 函数，`async` execution mode 使用 `start_graph_async` 而非 `start_graph`
+
+#### `bench_graph_0` — 4 节点 DAG，CPU+I/O 混合，12 个任务（含异常边界）
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 8.17s | 1.17s | 1.16s |
+| **thread** | 8.06s | 1.17s | 1.17s |
+| **async**  | 8.05s | 1.17s | 1.15s |
+
+- 三行差距极小，说明该场景的主导因素仍是节点内部的并发方式，而不是图层面的启动方式
+- `execution_mode=thread` 与 `async` 都把总耗时压到了约 1.15s–1.17s，相比 `serial` 列约有 **7x** 提升
+- `graph_mode="async"` 没有额外带来明显收益，说明在这个 4 节点混合 DAG 中，图调度成本已被任务执行时间掩盖
+
+#### `bench_graph_1` — 6 节点 DAG，I/O 密集（随机 sleep），10 个任务
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 71.19s | 12.03s | 13.03s |
+| **thread** | 21.05s | 7.03s  | 6.02s  |
+| **async**  | 30.07s | 7.02s  | 6.01s  |
+
+- 最优组合是 `async + async`（6.01s）与 `thread + async`（6.02s），两者几乎持平
+- 图层面从 `serial` 提升到 `thread/async` 的收益非常明显：即使 `execution_mode=serial`，也能从 71.19s 降到 21.05s 或 30.07s
+- `execution_mode=thread` 和 `async` 在 `thread/async graph_mode` 下都显著优于纯串行，说明该场景主要受益于 I/O 重叠与多节点并发启动
+
+#### `bench_graph_2` — 4 节点 DAG（Splitter→A→[B,C]），纯计算，10,000 个任务
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 1.10s | 1.63s | 2.10s |
+| **thread** | 1.10s | 1.56s | 2.41s |
+| **async**  | 1.11s | 1.56s | 1.92s |
+
+- `serial + serial` 仍然是最优解，说明纯计算型小任务场景下，直接函数调用开销最低
+- `execution_mode=thread` 会引入线程池提交与同步开销，因此整体慢于 `serial`
+- `execution_mode=async` 最慢，原因仍然是协程创建与调度成本无法被 I/O 等待摊销
+- 该场景含 `TaskSplitter`，它始终固定为 `execution_mode="serial"`；因此这组数据是“以 Splitter 为串行入口的混合模式” benchmark，而不是所有节点都严格切到同一种 execution mode
+
+#### 本轮总结
+
+- `benchmark_graph` 现在已经能直接输出完整的 `3 × 3` 组合矩阵
+- 对 I/O 密集 DAG，`graph_mode=thread/async` 搭配 `execution_mode=thread/async` 的收益最明显
+- 对混合型 DAG，节点内部并发方式比图层面的启动方式更主导结果
+- 对纯计算微任务，`serial + serial` 依然最稳妥，额外并发层通常只会放大调度开销
+
+> 本轮数据与 2026/08/05 的结果不可直接逐列比较：一方面运行环境从 Windows 切换到了 macOS；另一方面矩阵已从原先不完整的组合扩展为完整 9 宫格，`async` 列的语义也已修正。
 
 ### 2026/08/05 — `start_graph_async` 重构后重跑
 
