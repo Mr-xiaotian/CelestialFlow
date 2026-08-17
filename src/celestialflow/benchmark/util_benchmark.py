@@ -1,6 +1,7 @@
 # benchmark/util_benchmark.py
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import Iterable, Mapping
 from typing import Any
@@ -79,17 +80,21 @@ async def benchmark_graph(
     execution_async_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    对任务图进行基准测试
+    对任务图进行基准测试，覆盖 ``graph_mode × execution_mode`` 的全部组合。
 
-    :param sync_graph: 同步任务图（用于 serial/thread 模式）
-    :param async_graph: 异步任务图（用于 async 模式）
+    - ``sync_graph`` 用于 ``execution_mode in {"serial", "thread"}`` 的单元格；
+    - ``async_graph`` 用于 ``execution_mode == "async"`` 的单元格；
+    - ``graph_mode`` 决定当前单元格使用 ``run()`` 还是 ``run_async()`` 启动。
+
+    :param sync_graph: 同步任务图模板（用于 serial/thread execution_mode）
+    :param async_graph: 异步任务图模板（用于 async execution_mode）
     :param init_tasks_dict: 初始任务字典，键为任务标签，值为任务列表
-    :param graph_modes: 要测试的图执行模式列表，默认包括 "serial", "thread"
+    :param graph_modes: 要测试的图执行模式列表，默认包括 "serial", "thread", "async"
     :param execution_sync_modes: 同步执行模式列表，默认 ["serial", "thread"]
     :param execution_async_modes: 异步执行模式列表，默认 ["async"]
     :return: 包含测试结果的字典
     """
-    graph_modes = graph_modes or ["serial", "thread"]
+    graph_modes = graph_modes or ["serial", "thread", "async"]
     execution_sync_modes = execution_sync_modes or ["serial", "thread"]
     execution_async_modes = execution_async_modes or ["async"]
 
@@ -112,19 +117,25 @@ async def benchmark_graph(
                 stage_name: list(tasks) for stage_name, tasks in base_tasks.items()
             }
             start_time: float = time.perf_counter()
-            cloned_graph.run(sync_run_tasks)
+            if graph_mode == "async":
+                await cloned_graph.run_async(sync_run_tasks)
+            else:
+                cloned_graph.run(sync_run_tasks)
             time_list.append(time.perf_counter() - start_time)
 
         for execution_mode in execution_async_modes:
             cloned_graph = clone_graph(async_graph)
-            cloned_graph.set_graph_mode("async")
+            cloned_graph.set_graph_mode(graph_mode)
             cloned_graph.set_stage_execution_mode(execution_mode)
 
             async_run_tasks: dict[str, Iterable[Any]] = {
                 stage_name: list(tasks) for stage_name, tasks in base_tasks.items()
             }
             start_time = time.perf_counter()
-            await cloned_graph.run_async(async_run_tasks)
+            if graph_mode == "async":
+                await cloned_graph.run_async(async_run_tasks)
+            else:
+                await asyncio.to_thread(cloned_graph.run, async_run_tasks)
             time_list.append(time.perf_counter() - start_time)
 
         test_table_list.append(time_list)
@@ -137,8 +148,10 @@ async def benchmark_graph(
     )
     print(f"Time table:\n{time_table}")
     return {
+        "use_time": test_table_list,
         "table": time_table,
         "graph_modes": graph_modes,
+        "execution_modes": execution_modes,
         "sync_modes": execution_sync_modes,
         "async_modes": execution_async_modes if async_graph else [],
     }

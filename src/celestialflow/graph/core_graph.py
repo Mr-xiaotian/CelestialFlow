@@ -404,6 +404,12 @@ class TaskGraph:
 
         根据 :attr:`graph_mode` 选择串行或线程方式启动所有节点。
 
+        提示：
+        - 本方法为同步启动入口。
+        - 若当前线程已运行事件循环，且图中包含 ``execution_mode='async'`` 的节点，
+          可能触发 ``asyncio.run`` 的嵌套限制；此时更适合使用 :meth:`start_async`
+          或 :meth:`run_async`。
+
         :note:
             TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
             start()。如需重复执行，请创建新的 TaskGraph 实例。
@@ -472,7 +478,7 @@ class TaskGraph:
         按节点注册顺序依次执行，每个节点执行完毕后才启动下一个。
         """
         for stage in self.stage_dict.values():
-            stage.start()
+            self._execute_stage(stage)
 
     def _execute_stages_thread(self) -> None:
         """
@@ -482,8 +488,8 @@ class TaskGraph:
         """
         for stage in self.stage_dict.values():
             t = threading.Thread(
-                target=stage.start,
-                args=(),
+                target=self._execute_stage,
+                args=(stage,),
                 name=stage.get_name(),
                 daemon=True,
             )
@@ -502,6 +508,17 @@ class TaskGraph:
             for stage in self.stage_dict.values()
         ]
         await asyncio.gather(*tasks)
+
+    def _execute_stage(self, stage: AnyTaskStage) -> None:
+        """
+        在同步图启动路径下执行单个节点。
+
+        :param stage: 节点
+        """
+        if stage.execution_mode == "async":
+            asyncio.run(stage.start_async())
+        else:
+            stage.start()
 
     async def _execute_stage_async(self, stage: AnyTaskStage) -> None:
         """
