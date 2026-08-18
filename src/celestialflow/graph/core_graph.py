@@ -622,6 +622,7 @@ class TaskGraph:
         self._ensure_analysis()
         return {
             "graphId": self.graph_id,
+            "graphMode": self.graph_mode,
             "name": self.name,
             "startTime": self.start_time,
             "className": self.__class__.__name__,
