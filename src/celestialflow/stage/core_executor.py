@@ -172,7 +172,7 @@ class TaskExecutor[T, R]:
 
     def set_ctree(self, ctree_client: EventClient) -> None:
         """
-        设置本地/空事件客户端。
+        设置执行器使用的事件客户端。
 
         :param ctree_client: 事件客户端实例
         """
@@ -246,10 +246,11 @@ class TaskExecutor[T, R]:
 
     def get_summary(self) -> dict[str, Any]:
         """
-        获取当前节点的状态快照
+        获取当前节点的基础摘要信息。
 
-        :return: 当前节点状态快照，
-            包括执行器名称(name)、函数名(func_name)、类型名(class_name)、执行模式(execution_mode)
+        :return: 当前节点摘要，
+            包括执行器名称 ``name``、函数名 ``func_name``、执行模式
+            ``execution_mode`` 与 ``max_workers``
         """
         return {
             "name": self.get_name(),
@@ -435,7 +436,7 @@ class TaskExecutor[T, R]:
         exception: Exception,
     ) -> None:
         """
-        准备失败任务的结果信封
+        记录失败任务并持久化错误信息。
 
         :param task_envelope: 失败的任务
         :param exception: 捕获的异常
@@ -558,9 +559,8 @@ class TaskExecutor[T, R]:
 
     def _prepare_start(self) -> None:
         """
-        启动前准备：初始化环境、注入任务、记录启动日志。
+        启动前准备：重置运行期状态并记录启动日志。
 
-        :param task_source: 任务源
         :return: ``None``
         """
         self.metrics.reset_state()
@@ -574,7 +574,7 @@ class TaskExecutor[T, R]:
 
     def _finish_start(self, start_perf: float) -> list[Exception]:
         """
-        启动后清理：释放客户端、记录结束日志、停止 spout。
+        启动后清理：记录结束日志并广播执行结束事件。
 
         :param start_perf: 启动时的时间戳
         """

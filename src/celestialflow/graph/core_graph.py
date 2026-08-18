@@ -293,7 +293,7 @@ class TaskGraph:
         """
         运行任务链，注入初始任务并启动执行。
 
-        :param init_tasks_dict: 任务列表
+        :param init_tasks_dict: 初始任务字典，键为 stage 名称，值为任务可迭代对象
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
@@ -319,7 +319,8 @@ class TaskGraph:
         :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``
         :param filter_by_error_type: 是否按各 stage 的 ``retry_exceptions`` 过滤
             ``error_type``，默认 ``False``
-        :param put_termination_signal: 是否注入终止信号，默认 True
+        :param if_put_signal: 是否在恢复任务注入后，为所有源节点补发终止信号，
+            默认 ``True``
         """
         statuses = ["failed", "pending"] if statuses is None else statuses
         grouped_records = load_tasks_grouped_by_stage(db_path, statuses)
@@ -372,7 +373,10 @@ class TaskGraph:
 
     def _finish_start(self, start_perf: float) -> list[Exception]:
         """
-        启动后收尾：停止上报器、记录图结束日志并关闭 spout。
+        启动后收尾：回收图内状态、停止上报器并记录结束日志。
+
+        ``fallback`` / ``log`` spout 的启停由外层 ``funnel_scope()`` 统一管理，
+        本方法只负责图对象自身的收尾逻辑。
 
         :param start_perf: 启动时刻的 ``perf_counter`` 时间戳，用于计算运行耗时
         :return: 收集到的收尾阶段异常列表
@@ -448,14 +452,11 @@ class TaskGraph:
         """
         以异步方式启动任务图，适合在已运行事件循环的上下文中调用。
 
-        与 :meth:`start_async` 的区别：
-        - async 执行模式的节点通过 :meth:`TaskStage.start_stage_async` 以协程方式运行，
+        与同步 :meth:`start` 的区别：
+        - async 执行模式的节点通过 :meth:`TaskStage.start_async` 以协程方式运行，
           不再内部调用 ``asyncio.run``，避免嵌套事件循环导致的崩溃。
         - serial / thread 执行模式的节点通过 ``asyncio.to_thread`` 在独立线程中运行，
           避免阻塞事件循环。
-
-        :param init_tasks_dict: 任务列表
-        :param if_put_signal: 是否注入终止信号，默认 True
         :note:
             TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
             start_async()。如需重复执行，请创建新的 TaskGraph 实例。
@@ -624,7 +625,8 @@ class TaskGraph:
         """
         获取任务图的分析信息
 
-        :return: 包含 graphId, name, startTime, className, isDAG, layersDict 的字典
+        :return: 包含 ``graphId``、``graphMode``、``name``、``startTime``、
+            ``className``、``isDAG`` 与 ``layersDict`` 的字典
         """
         self._ensure_analysis()
         return {
@@ -674,7 +676,7 @@ class TaskGraph:
 
     def get_fallback_path(self) -> Path:
         """
-        获取失败任务的回退路径
+        获取失败任务持久化 sqlite 文件路径。
 
         :return: 失败任务持久化文件的绝对路径，未设置时返回空 Path
         """
