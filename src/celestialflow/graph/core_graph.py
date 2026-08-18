@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
+import warnings
 from collections import defaultdict
 from collections.abc import Iterable
 from pathlib import Path
@@ -349,16 +350,22 @@ class TaskGraph:
         self,
     ) -> None:
         """
-        启动前准备：图分析、非 DAG 警告、启动运行时资源并注入任务。
+        启动前准备：图分析、必要警告与运行时资源启动。
 
         本方法会创建线程与文件句柄等运行时资源，调用方应保证在 finally 中
         执行 :meth:`_finish_start` 完成收尾。
 
-        :param init_tasks_dict: 任务列表
-        :param put_termination_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
         self._build_analysis()
+        if not self.is_dag and self.graph_mode == "serial":
+            warnings.warn(
+                "TaskGraph contains a cycle while graph_mode='serial'; "
+                "serial startup may block or leave tasks unconsumed. "
+                "Consider using graph_mode='thread' or 'async'.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         get_log_inlet().start_graph(self.name, self.get_structure_list())
         self.reporter.start()
