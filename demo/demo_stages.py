@@ -131,7 +131,7 @@ def demo_router_0() -> None:
     )
 
     # 图组装：Origin -> Router -> {StageA, StageB}，演示基于奇偶的条件路由。
-    graph = TaskGraph("demo_router_0")
+    graph = TaskGraph("demo_router_0", graph_mode="thread")
     graph.set_stages(
         stages=[source_stage, router, stage_a, stage_b],
     )
