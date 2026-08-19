@@ -1,6 +1,6 @@
 # Stage 模块
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 Stage 模块定义了 CelestialFlow 中的任务执行单元。它提供了从基础任务执行器到复杂任务节点的完整体系，是构建任务图的基本构建块。
 
@@ -9,7 +9,7 @@ Stage 模块定义了 CelestialFlow 中的任务执行单元。它提供了从�
 | 导出符号 | 来源模块 | 说明 |
 |---------|---------|------|
 | `TaskExecutor` | `core_executor` | 基础任务执行器，支持 serial/thread/async 三种执行模式 |
-| `TaskStage` | `core_stage` | 增强型任务节点，继承 TaskExecutor，增加图连接能力与 stage_mode 控制 |
+| `TaskStage` | `core_stage` | 增强型任务节点，继承 TaskExecutor，增加图连接能力 |
 | `TaskSplitter` | `core_stages` | 预定义节点：将单个任务拆分为多个子任务 |
 | `TaskRouter` | `core_stages` | 预定义节点：根据条件路由任务到不同下游 |
 
@@ -39,10 +39,9 @@ Stage 模块包含三个层次的任务执行单元：
 2. **core_stage.py** (`TaskStage`)
    - **作用**: 增强型任务节点，继承自 `TaskExecutor`，增加了图结构连接能力
    - **关键功能**:
-     - 支持 `stage_mode`（serial/thread）控制节点在 Graph 中的调度方式
-     - Inlet 绑定（`set_inlet`）将 fail/log 队列接入持久化层
-     - 前置节点计数器绑定（`prev_bindings`）
-     - 状态管理和生命周期控制（`NOT_STARTED → RUNNING → STOPPED`）
+     - `prev_binding()` / `get_binding_counter()` 实现前后置节点计数器绑定
+     - 状态快照（`snapshot()`）支持进度估算
+     - 队列排空（`drain_task_queue()`）将未消费任务标记失败
 
 3. **core_stages.py** (预定义节点: `TaskSplitter`, `TaskRouter`)
    - **作用**: 常见结构型任务模式的预实现
@@ -104,8 +103,8 @@ for task, result in success:
 from celestialflow import TaskGraph, TaskStage
 
 # 创建阶段节点
-stage_a = TaskStage("StageA", func=lambda x: x + 1, stage_mode="thread")
-stage_b = TaskStage("StageB", func=lambda x: x * 2, stage_mode="serial")
+stage_a = TaskStage("StageA", func=lambda x: x + 1, execution_mode="thread")
+stage_b = TaskStage("StageB", func=lambda x: x * 2, execution_mode="serial")
 
 # 构建图
 graph = TaskGraph()
@@ -134,9 +133,9 @@ class CommaSplitter(TaskSplitter):
 
 
 # 构建图
-raw = TaskStage("Source", func=lambda x: x, stage_mode="serial")
+raw = TaskStage("Source", func=lambda x: x, execution_mode="serial")
 splitter = CommaSplitter("Splitter")
-processor = TaskStage("Process", func=lambda x: x.strip().upper(), stage_mode="thread")
+processor = TaskStage("Process", func=lambda x: x.strip().upper(), execution_mode="thread")
 
 graph = TaskGraph()
 graph.set_stages([raw, splitter, processor])
@@ -161,12 +160,12 @@ def classify(x: int) -> str:
 
 
 # 上游只产出原始任务
-source = TaskStage("Source", func=lambda x: x, stage_mode="serial")
+source = TaskStage("Source", func=lambda x: x, execution_mode="serial")
 
 # Router 内部决定把任务送给哪个下游
 router = TaskRouter("Router", classify)
-pos = TaskStage("Positive", func=lambda x: f"POS: {x}", stage_mode="serial")
-neg = TaskStage("Negative", func=lambda x: f"NEG: {x}", stage_mode="serial")
+pos = TaskStage("Positive", func=lambda x: f"POS: {x}", execution_mode="serial")
+neg = TaskStage("Negative", func=lambda x: f"NEG: {x}", execution_mode="serial")
 
 graph = TaskGraph()
 graph.set_stages([source, router, pos, neg])

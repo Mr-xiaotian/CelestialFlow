@@ -1,6 +1,6 @@
 # 任务图核心功能测试 (test_graph.py)
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 ## 作用
 全面验证 `TaskGraph` 及其各种拓扑子类（`TaskChain`、`TaskCross`、`TaskGrid`）的核心功能，涵盖同步/异步执行、错误传播、拓扑分析、执行模式矩阵、源节点推导、含环图行为、收尾阶段安全检查及运行时快照采集。
@@ -16,16 +16,16 @@
 
 | 测试类 | 用例数 | 覆盖点 |
 |--------|--------|--------|
-| `TestTaskGraphBasic` | 11 | set_ctree 更新已有 stage、未知 stage 名称查找异常、非法 stage_mode 异常、两节点 DAG、扇出、扇入、错误传播、DB 回放、DB 错误类型过滤回放、DB 保留 pending 记录、finish 后统一抛出异常组 |
-| `TestTaskGraphAsync` | 6 | async 模式两节点、扇出、扇入、错误传播、async+thread stage_mode、async finish 后统一抛出异常组 |
+| `TestTaskGraphBasic` | 10 | set_ctree 更新已有 stage、未知 stage 名称查找异常、两节点 DAG、扇出、扇入、错误传播、DB 回放、DB 错误类型过滤回放、DB 保留 pending 记录、finish 后统一抛出异常组 |
+| `TestTaskGraphAsync` | 6 | async 模式两节点、扇出、扇入、错误传播、async execution_mode、async finish 后统一抛出异常组 |
 | `TestTaskGraphStructure` | 3 | Chain、Cross、Grid 结构 |
 | `TestTaskGraphAnalysis` | 4 | getter 按需构建分析、结构变更后自动重建缓存、DAG 检测、层级计算 |
 | `TestTaskGraphRuntimeSnapshot` | 1 | Reporter 快照采集对未启动 Stage 的容错 |
-| `TestStageExecutionMatrix` | 6 | serial/thread stage_mode × serial/thread/async execution_mode |
+| `TestStageExecutionMatrix` | 7 | serial/thread/async graph_mode × serial/thread/async execution_mode |
 | `TestTaskGraphThread` | 6 | thread 模式两节点、扇出、扇入、错误传播、lambda、staged 调度 |
 | `TestSourceStages` | 5 | 线性图 source、扇入 source、菱形图 source、单源 SCC 代表点、多源 SCC 各返回一点 |
-| `TestCyclicGraph` | 2 | 含环图 isDAG 检测、环内同层 + 尾巴层级 |
-| **合计** | **44** | |
+| `TestCyclicGraph` | 3 | serial 模式含环图警告、含环图 isDAG 检测、环内同层 + 尾巴层级 |
+| **合计** | **45** | |
 
 > **说明**: 此处统计的是 `test_graph.py` 中的测试类。`TaskLoop` 和 `TaskWheel` 的专用测试在 `test_structure.py`。
 
@@ -48,26 +48,26 @@ graph LR
 - **DB 启动过滤** (`test_graph_restore_db_filters_error_type_when_enabled`): 验证按各 stage 的 `retry_exceptions` 过滤回放任务。
 - **DB 保留 pending 记录** (`test_graph_restore_db_filter_keeps_pending_records`): 验证过滤开启时 pending 记录仍继续回放。
 - **未知 stage 名称异常** (`test_graph_stage_lookup_unknown_stage_raises`): 显式按 stage 注入任务时，不存在的 stage 名称应抛出 `NodeNotFoundError`。
-- **非法 stage_mode 异常** (`test_execute_stage_unknown_stage_mode_raises`): `_execute_stage` 遇到非法 `stage_mode` 时应抛出异常而非静默降级。
 - **set_ctree 更新已有 stage** (`test_set_ctree_updates_existing_stages`): 先 `set_stages` 再 `set_ctree` 时，已有 stage 也应共享同一事件客户端。
 - **finish 后统一抛出异常组** (`test_start_raises_exception_group_after_finish`): 同步 `start` 在 finish 后统一抛出收集到的异常。
 
 #### 异步与并发
 - async 模式下的两节点、扇出、扇入、错误传播与同步模式语义一致。
-- `test_graph_async_thread_stage_mode`: 验证 `stage_mode="thread"` + `execution_mode="async"` 组合。
+- `test_graph_async_execution_mode`: 验证 `graph_mode="async"` + `execution_mode="async"` 组合。
 - `test_start_async_raises_exception_group_after_finish`: 异步 `start_async` 在 finish 后统一抛出异常组。
 
 #### 执行模式矩阵 (`TestStageExecutionMatrix`)
-覆盖 `stage_mode` × `execution_mode` 全部 **6 种组合**：
+覆盖 `graph_mode` × `execution_mode` 全部 **7 种组合**：
 
-| 用例 | stage_mode | execution_mode |
+| 用例 | graph_mode | execution_mode |
 |------|-----------|----------------|
 | `test_serial_serial` | serial | serial |
 | `test_serial_thread` | serial | thread |
-| `test_serial_async` | serial | async |
 | `test_thread_serial` | thread | serial |
 | `test_thread_thread` | thread | thread |
-| `test_thread_async` | thread | async |
+| `test_async_serial` | async | serial |
+| `test_async_thread` | async | thread |
+| `test_async_async` | async | async |
 
 每个用例使用 5 个输入任务的两节点 DAG，各验证两 stage 各成功 5 个。
 
@@ -89,7 +89,7 @@ graph LR
 | Grid | 2×2 网格 | 4 | 网格状连接 |
 
 #### 线程模式 (`TestTaskGraphThread`)
-验证 `stage_mode="thread"` 下的 fan-out、fan-in、错误传播、lambda 函数支持及 staged 调度。
+验证 `graph_mode="thread"` 下的 fan-out、fan-in、错误传播、lambda 函数支持及 staged 调度。
 
 #### 源节点推导 (`TestSourceStages`)
 5 个用例覆盖以下场景：
@@ -105,17 +105,18 @@ graph LR
 #### 含环图 (`TestCyclicGraph`)
 | 用例 | 验证点 |
 |------|--------|
+| `test_cyclic_serial_graph_warns` | serial graph_mode 下含环图启动时应给出 `UserWarning` |
 | `test_cyclic_is_dag_false` | s1→s2→s3→s1 的 `isDAG` 应为 `False` |
 | `test_cyclic_layers` | 环内节点 (s1,s2,s3) 同层，尾巴 s4 在环层级 + 1 |
 
 ### 运行时快照
-`get_graph_summary()` 返回的是上一次 `collect_runtime_snapshot()` 的快照数据。在未启用 `TaskReporter` 的测试中必须手动调用。
+`collect_runtime_snapshot()` 写入的快照数据保存在 `TaskGraph.status_dict` 中，可被 Reporter 等组件读取。
 
 ## 重要细节
 
 ### 终止信号行为
-- 含环图使用 `put_termination_signal=True` 以确保测试退出。
-- 非 DAG 图在 eager 模式下会触发 `RuntimeWarning`，测试调整为宽松断言（`>= 1`）。
+- 含环图使用 `if_put_signal=True` 注入终止信号以确保测试退出。
+- serial graph_mode 下含环图启动时会触发 `UserWarning`（而非 `RuntimeWarning`）。
 
 ### Lambda 支持
 线程模式下可使用 lambda 作为任务函数（`test_graph_thread_with_lambda`）。

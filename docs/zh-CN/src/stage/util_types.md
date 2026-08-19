@@ -1,6 +1,6 @@
 # StageTypes
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/08/19
 
 `stage/util_types.py` 定义 Stage 模块的类型别名，提供泛型 Stage 的便捷引用。
 
@@ -35,7 +35,7 @@ from celestialflow.stage import TaskStage
 
 # 当需要声明一个可以接收任意类型 Stage 的变量时
 def register_stage(stage: AnyTaskStage) -> None:
-    print(f"已注册 Stage: {stage.name}")
+    print(f"已注册 Stage: {stage.get_name()}")
 
 
 # 可以传入任意泛型参数的 TaskStage
@@ -60,7 +60,7 @@ stages.append(TaskStage("C", func=lambda x: len(x)))  # TaskStage[str, int]
 
 # 无需手动标注复杂的泛型类型
 for s in stages:
-    print(f"  {s.name}: {s}")
+    print(f"  {s.get_name()}")
 ```
 
 ## 注意事项

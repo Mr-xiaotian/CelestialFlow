@@ -1,6 +1,6 @@
 # Clone
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 `benchmark/util_clone.py` 提供了克隆执行器、节点和任务图的功能，用于性能测试和配置复用。
 
@@ -53,8 +53,7 @@ def clone_stage[T, R](
     """
 ```
 
-除了 `TaskExecutor` 的属性外，还会复制：
-- `stage_mode`: 节点模式
+除了 `TaskExecutor` 的属性外，还会通过 `TaskStage.__init__` 的关键字参数过滤机制复制子类（如 `TaskSplitter`、`TaskRouter`）特有的初始化参数。
 
 ### clone_graph
 
@@ -74,7 +73,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
 1. 遍历原图所有节点（BFS）
 2. 克隆每个节点并建立映射
 3. 重建节点间的连接关系
-4. 复制图配置（name, schedule_mode）
+4. 复制图配置（name, graph_mode）
 5. 复制 CelestialTree 和 Reporter 配置
 
 ## 使用示例
@@ -103,8 +102,8 @@ executor = TaskExecutor(
 cloned = clone_executor(executor)
 
 # 两个执行器独立运行
-executor.start(range(100))
-cloned.start(range(100))
+executor.run(range(100))
+cloned.run(range(100))
 ```
 
 ### 克隆节点（TaskStage）
@@ -122,7 +121,6 @@ def process_func(x: int) -> int:
 stage = TaskStage(
     "Processor",
     process_func,
-    stage_mode="thread",
     execution_mode="thread",
     max_workers=4,
 )
@@ -131,8 +129,8 @@ stage = TaskStage(
 cloned_stage = clone_stage(stage)
 
 # 原始节点和克隆节点独立运行，互不影响
-stage.start(range(10))
-cloned_stage.start(range(10, 20))
+stage.run(range(10))
+cloned_stage.run(range(10, 20))
 ```
 
 ### 克隆任务图
@@ -151,7 +149,7 @@ def process_b(x: int) -> int:
 
 
 # 创建原始图
-graph = TaskGraph(name="CloneDemo", schedule_mode="eager")
+graph = TaskGraph(name="CloneDemo", graph_mode="thread")
 stage_a = TaskStage("A", process_a)
 stage_b = TaskStage("B", process_b)
 graph.set_stages(stages=[stage_a, stage_b])
@@ -162,7 +160,7 @@ cloned_graph = clone_graph(graph)
 
 # 运行克隆的图
 init_tasks = {stage_a.get_name(): [1, 2, 3]}
-cloned_graph.start_graph(init_tasks)
+cloned_graph.run(init_tasks)
 ```
 
 ## 综合示例
@@ -190,26 +188,24 @@ async def main():
     print(f"clone_executor: 模式={cloned_exe.execution_mode}")
 
     # 2. clone_stage ----
-    stage = TaskStage("AddOne", add_one, stage_mode="serial", execution_mode="serial")
+    stage = TaskStage("AddOne", add_one, execution_mode="serial")
     cloned_stg = clone_stage(stage)
-    print(
-        f"clone_stage: 名称={cloned_stg.get_name()}, mode={cloned_stg.get_stage_mode()}"
-    )
+    print(f"clone_stage: 名称={cloned_stg.get_name()}, 模式={cloned_stg.execution_mode}")
 
     # 3. clone_graph ----
-    graph = TaskGraph(name="CloneDemo", schedule_mode="eager")
+    graph = TaskGraph(name="CloneDemo", graph_mode="thread")
     a = TaskStage("A", square, execution_mode="thread")
     b = TaskStage("B", add_one, execution_mode="thread")
     graph.set_stages([a, b])
     graph.connect([a], [b])
 
     cloned_grp = clone_graph(graph)
-    print(f"clone_graph: 调度模式={cloned_grp.schedule_mode}")
+    print(f"clone_graph: 图模式={cloned_grp.graph_mode}")
     print(f"连接关系一致: {graph.out_edges == cloned_grp.out_edges}")
 
     # 分别运行原始图和克隆图，状态完全独立
-    graph.start_graph({a.get_name(): [1, 2, 3]})
-    cloned_grp.start_graph({list(cloned_grp.stage_dict.keys())[0]: [10, 20]})
+    graph.run({a.get_name(): [1, 2, 3]})
+    cloned_grp.run({list(cloned_grp.stage_dict.keys())[0]: [10, 20]})
 
 
 asyncio.run(main())

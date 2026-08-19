@@ -1,10 +1,10 @@
 # Reporter 注入与上报测试 (test_reporter.py)
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 ## 作用
 
-验证 `celestialflow.observability.core_report` 中 `TaskReporter` 的任务注入与错误推送逻辑：Reporter 从远端拉取拆分后的任务与终止符载荷后，能否正确合并并注入到图队列；同时验证错误推送的端点选择、去重与增量推送行为。
+验证 `celestialflow.observability.core_report` 中 `TaskReporter` 的任务注入与错误推送逻辑：Reporter 从远端拉取拆分后的任务与终止符载荷后，能否正确按节点分别调用 `put_task` / `put_signal` 注入；同时验证错误推送的端点选择与基于服务端水位线的增量推送行为。
 
 ## 核心测试对象
 
@@ -20,12 +20,13 @@
 
 ### `test_reporter_accepts_split_task_and_termination_payload`
 
-**覆盖目标**：验证 `TaskReporter._pull_injection()` 能消费服务端返回的拆分载荷 `{"tasks": {...}, "terminations": [...]}`，并将任务与终止符一并注入图队列。
+**覆盖目标**：验证 `TaskReporter._pull_injection()` 能消费服务端返回的拆分载荷 `{"tasks": {...}, "terminations": [...]}`，并将任务与终止符分别通过 `put_task` / `put_signal` 注入到对应阶段。
 
 **断言意图**：
 
-- `graph.put_stage_queue` 被调用一次，参数为合并后的任务字典（终止符节点映射到 `TERMINATION_SIGNAL` 单例），且 `put_termination_signal=False`。
-- `log_inlet.inject_tasks_success` 分别记录 StageA 的任务注入和 StageB 的终止符注入。
+- `StageA` 的 `task_calls` 包含一条任务批次 `[1, 2, 3]`，`signal_calls` 为 0。
+- `StageB` 的 `task_calls` 为空，但 `signal_calls` 为 1（仅有终止信号被注入）。
+- `log_inlet.successes` 记录两条成功日志：StageA 的任务注入 `(StageA, [1, 2, 3])` 与 StageB 的终止符注入 `(StageB, [TERMINATION_SIGNAL])`。
 - 无失败日志（`failures`、`pull_failures` 均为空）。
 
 ```mermaid
@@ -37,21 +38,22 @@ sequenceDiagram
 
     R->>S: GET /api/pull_injection
     S-->>R: {"tasks": {"StageA": [1,2,3]}, "terminations": ["StageB"]}
-    R->>R: 合并 tasks 与 terminations
-    R->>G: put_stage_queue({"StageA": [1,2,3], "StageB": [TERMINATION_SIGNAL]}, False)
-    G-->>R: 记录调用
-    R->>L: inject_tasks_success("StageA", [1,2,3])
+    R->>R: 拆分 tasks 与 terminations
+    R->>G: put_task([1, 2, 3]) → StageA
+    R->>G: put_signal() → StageB
+    G-->>R: 记录 task_calls / signal_calls
+    R->>L: inject_tasks_success("StageA", [1, 2, 3])
     R->>L: inject_tasks_success("StageB", [TERMINATION_SIGNAL])
 ```
 
 ### `test_reporter_merges_tasks_and_termination_for_same_stage`
 
-**覆盖目标**：同一节点同时出现在 `tasks` 与 `terminations` 中时，应保留任务列表并在末尾追加终止符，而不是互相覆盖。
+**覆盖目标**：同一节点同时出现在 `tasks` 与 `terminations` 中时，应保留任务列表并在该节点上额外发送一次 `put_signal()`，而不是互相覆盖。
 
 **断言意图**：
 
-- `graph.put_stage_queue` 被调用一次，StageA 的任务列表为 `[1, 2, 3, TERMINATION_SIGNAL]`。
-- `log_inlet.successes` 仅包含一条 StageA 注入记录。
+- `StageA` 的 `task_calls` 仅包含 `[1, 2, 3]`（任务与终止符分别调用 `put_task` / `put_signal`），`signal_calls` 为 1。
+- `log_inlet.successes` 包含两条记录：先 `(StageA, [1, 2, 3])`（任务注入），再 `(StageA, [TERMINATION_SIGNAL])`（终止符注入）。
 
 ### `test_reporter_pushes_errors_via_push_errors_endpoint_only`
 

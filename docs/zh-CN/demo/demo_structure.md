@@ -1,6 +1,6 @@
 # demo_structure.py 演示说明
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/19
 
 ## 目标
 
@@ -30,7 +30,7 @@ flowchart LR
     D --> E["StageE<br/>square"]
 ```
 
-线性 5 节点链，数据依次经过 `StageA → StageB → StageC → StageD → StageE`，每个节点执行平方运算。由 `TaskChain` 构建，`start_graph()` 启动。
+线性 5 节点链，数据依次经过 `StageA → StageB → StageC → StageD → StageE`，每个节点执行平方运算。由 `TaskChain` 构建，`chain.run({"StageA": list(range(20))})` 启动。
 
 #### Cross（交叉）— `demo_cross`
 
@@ -58,7 +58,7 @@ flowchart LR
     D --> G
 ```
 
-3 层交叉结构（3→1→3），由 `TaskCross` 构建，`start_graph()` 启动。
+3 层交叉结构（3→1→3），由 `TaskCross` 构建，`cross.run(...)` 启动。
 
 #### Network（网络）— `demo_network`
 
@@ -239,14 +239,14 @@ flowchart TD
 
 ## 关键配置
 
-- DAG 结构：默认 `stage_mode="thread"`；`demo_chain` 的各 Stage 使用 `execution_mode="serial"`，其余多为 `execution_mode="thread"`
-- `demo_grid`：使用 `staged` 调度模式（逐层执行）
-- 有环图：是否自动注入终止信号因示例而异；`demo_multi_cycle` 显式传入 `False`，`demo_wheel` 传入 `True`，`demo_loop` 与 `demo_complete` 使用默认行为；运行有环图时建议准备手动终止
-- 各演示均调用 `set_reporter(True, ...)` 与 `set_ctree(ctree_client)`，实际是否生效取决于环境变量与服务端是否就绪
+- DAG 结构：默认 `graph_mode="thread"`（`demo_chain` 的 `TaskChain` 不显式传 `graph_mode`）；`demo_chain` 的各 Stage 使用 `execution_mode="serial"`，其余多为 `execution_mode="thread"`
+- `demo_grid`：源码中未显式设置 staged 调度模式，依赖 `TaskGrid` 默认行为
+- 有环图：是否自动注入终止信号因示例而异；仅 `demo_multi_cycle` 显式传入 `if_put_signal=False`，`demo_loop` / `demo_wheel` / `demo_complete` 使用默认行为（未传 `if_put_signal`）；运行有环图时建议准备手动终止
+- 各演示均通过 `<graph>.set_reporter(TaskReporter(report_host, report_port, <graph>))` 接入 Reporter，通过 `<graph>.set_ctree(ctree_client)` 接入 CelestialTree（`demo_chain` 中 `set_ctree` 被注释）；实际是否生效取决于 `REPORT_HOST`/`REPORT_PORT`/`CTREE_HOST` 等环境变量与服务端是否就绪
 
 ## 可能出现的问题
 
-1. **有环图可能不会自动停止**：`demo_multi_cycle` 显式传入 `False`，`demo_wheel` 传入 `True`，`demo_loop` 与 `demo_complete` 使用默认行为；实际是否会持续循环取决于框架默认策略，运行前建议准备 **Ctrl+C** 手动终止。
+1. **有环图可能不会自动停止**：仅 `demo_multi_cycle` 显式传入 `if_put_signal=False`，`demo_loop` / `demo_wheel` / `demo_complete` 使用默认行为（未传 `if_put_signal`）；实际是否会持续循环取决于框架默认策略，运行前建议准备 **Ctrl+C** 手动终止。
 2. **sleep 延迟累积**：`add_one_sleep` 含 1 秒 sleep，20 个任务 × 多节点 = 长总耗时。
 3. **无断言**：仅验证框架能启动和运行，不检查结果数值。
 
@@ -318,7 +318,7 @@ Grid33: success=5  fail=0
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskStage`）
+- `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskStage`、`TaskReporter`）
 - `demo_utils`
 - `python-dotenv`
 - 外部服务：CelestialTree（可选）、Reporter（可选）

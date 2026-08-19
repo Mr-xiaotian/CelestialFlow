@@ -1,6 +1,6 @@
 # TaskNodes
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/19
 
 TaskNodes 模块提供了多种特殊功能的 `TaskStage` 实现，用于流控制、外部系统交互等场景。
 
@@ -45,15 +45,12 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         self,
         name: str,
         split_item: Callable[[TItem], RItem] | None = None,
-        *,
-        stage_mode: str = "serial",
     ):
         """
         初始化 TaskSplitter。
 
         :param name: 节点名称
         :param split_item: 自定义单个子任务处理函数，默认使用恒等映射
-        :param stage_mode: 节点运行模式
         """
 ```
 
@@ -113,20 +110,15 @@ flowchart LR
 ### 初始化
 
 ```python
-class TaskRouter(TaskStage):
+class TaskRouter[T](TaskStage[T, tuple[str, T]]):
     def __init__(
-        self,
-        name: str,
-        router: Callable[[T], str],
-        *,
-        stage_mode: str = "serial",
+        self, name: str, router: Callable[[T], str]
     ):
         """
         初始化 TaskRouter。
 
         :param name: 节点名称
         :param router: 路由函数，根据任务数据返回目标 stage 名称
-        :param stage_mode: 节点运行模式
         """
 ```
 
@@ -177,9 +169,9 @@ class LineSplitter(TaskSplitter):
 
 
 # 定义后续处理阶段
-source = TaskStage("Input", func=lambda x: x, stage_mode="serial")
+source = TaskStage("Input", func=lambda x: x)
 splitter = LineSplitter("SplitLines")
-processor = TaskStage("Process", func=lambda x: f">>> {x}", stage_mode="serial")
+processor = TaskStage("Process", func=lambda x: f">>> {x}")
 
 graph = TaskGraph()
 graph.set_stages([source, splitter, processor])
@@ -208,15 +200,15 @@ def classify_number(x: int) -> str:
 
 
 # 构建图节点
-source = TaskStage("Source", func=lambda x: x, stage_mode="serial")
+source = TaskStage("Source", func=lambda x: x)
 router = TaskRouter("Router", classify_number)
 handler_pos = TaskStage(
-    "positive", func=lambda x: f"Positive: {x}", stage_mode="serial"
+    "positive", func=lambda x: f"Positive: {x}"
 )
 handler_neg = TaskStage(
-    "negative", func=lambda x: f"Negative: {x}", stage_mode="serial"
+    "negative", func=lambda x: f"Negative: {x}"
 )
-handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}", stage_mode="serial")
+handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}")
 
 graph = TaskGraph()
 graph.set_stages([source, router, handler_pos, handler_neg, handler_zero])

@@ -1,6 +1,6 @@
 # demo_stages.py 演示说明
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/08/19
 
 ## 目标
 
@@ -45,10 +45,9 @@ flowchart LR
 
 ## 关键配置
 
-- 各 stage 的 `stage_mode` 因场景而异：`demo_splitter_0` 通过 `graph.set_graph_mode("thread", "thread")` 统一设为 `"thread"`；`demo_router_0` 中 `Origin` 和 `Router` 使用 `stage_mode="serial"`，下游 `StageA`/`StageB` 使用 `"thread"`；`demo_splitter_1` 通过 `TaskChain` 指定 `stage_mode="thread"`
-- `set_reporter(True)` 启用监控上报
-- 默认使用 `LocalEventClient()` 生成本地事件 ID
-- `demo_splitter_0` 与 `demo_router_0` 中 `set_ctree(ctree_client)` 被注释掉，默认不启用 CelestialTree；如需接入请先额外安装 `celestialtree`，取消注释对应调用即可
+- 各 stage 默认走 `execution_mode="thread"`（未显式设置时由框架决定），其中 `demo_splitter_0` 通过 `graph.set_graph_mode("thread")` 与 `graph.set_stage_execution_mode("thread")` 两条独立调用统一设为 `"thread"`；`demo_splitter_1` 通过 `TaskChain` 间接走 `execution_mode="thread"`、`max_workers=50`
+- `demo_router_0` 中 `Origin`/`StageA`/`StageB` 均使用 `execution_mode="thread"`（`max_workers=4` / `2` / `2`），`Router` 为 `TaskRouter` 节点，本身不使用 `execution_mode`
+- 监控通过 `graph.set_reporter(TaskReporter(report_host, report_port, graph))` 接入 `REPORT_HOST`/`REPORT_PORT` 环境变量对应的远端 Reporter；`graph.set_ctree(ctree_client)` 默认被注释掉，不启用 CelestialTree；如需接入请先额外安装 `celestialtree` 并取消对应注释
 - Redis 远端协作示例已迁移到 `demo_redis.py`
 
 ## 可能出现的问题
@@ -105,7 +104,7 @@ Origin 只产生原始整数，Router 在内部根据奇偶性把任务分发到
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskStage`、`TaskChain`、`TaskSplitter`、`TaskRouter`）
+- `celestialflow`（`TaskGraph`、`TaskStage`、`TaskChain`、`TaskSplitter`、`TaskRouter`、`TaskReporter`）
 - `demo_utils`
 - `python-dotenv`
 - 外部服务：CelestialTree（可选）、Reporter（可选）

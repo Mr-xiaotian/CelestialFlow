@@ -1,6 +1,6 @@
 # PersistenceSQLite
 
-> 📅 最后更新日期: 2026/07/31
+> 📅 最后更新日期: 2026/08/19
 
 `persistence/util_sqlite.py` 提供 SQLite 数据库的连接管理与记录 CRUD 操作工具，是 `FallbackSpout` 和 `TaskReporter` 的底层存储引擎。
 
@@ -127,7 +127,7 @@ Path("test_data.sqlite3").unlink()
 
 ### 从 TaskExecutor 恢复失败任务
 
-`TaskExecutor.start_db()` 内部调用 `load_tasks_grouped_by_stage`：
+`TaskExecutor.restore_db()` 内部调用 `load_tasks_grouped_by_stage`：
 
 ```python
 from celestialflow.persistence.util_sqlite import load_tasks_grouped_by_stage

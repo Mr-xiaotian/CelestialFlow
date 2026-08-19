@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 TaskStructure 模块提供了多种预定义的任务图结构，帮助用户快速构建复杂的任务流。所有的结构都继承自 `TaskGraph`。
 
@@ -34,7 +34,7 @@ stage3 = TaskStage("S3", func=func3)
 chain = TaskChain(
     name="DataPipeline",
     stages=[stage1, stage2, stage3],
-    stage_mode="thread",  # thread: 节点并行运行; serial: 节点串行运行
+    graph_mode="thread",  # thread: 节点并行运行; serial: 节点串行运行
 )
 
 # 启动
@@ -74,7 +74,7 @@ layer1 = [stage_1_1, stage_1_2]
 layer2 = [stage_2_1, stage_2_2]
 
 # 创建交叉结构
-cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], schedule_mode="eager")
+cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 ```
 
 ## Grid (网格)
@@ -107,7 +107,7 @@ from celestialflow import TaskGrid
 grid_layout = [[stage_00, stage_01], [stage_10, stage_11]]
 
 # 创建网格结构
-grid = TaskGrid(name="GridPipeline", grid=grid_layout, schedule_mode="eager")
+grid = TaskGrid(name="GridPipeline", grid=grid_layout, graph_mode="thread")
 ```
 
 ## Loop (环形)
@@ -127,7 +127,7 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskLoop` 将节点首尾相连形成闭环。默认使用 `eager` 调度模式。
+`TaskLoop` 将节点首尾相连形成闭环。默认使用 `thread` 图执行模式。
 注意：环结构通常需要外部干预来停止，或者设置特定的退出条件。
 
 ```python
@@ -230,7 +230,7 @@ def aggregate(data: int) -> dict:
 s1 = TaskStage("Clean", func=clean)
 s2 = TaskStage("Transform", func=transform)
 s3 = TaskStage("Aggregate", func=aggregate)
-chain = TaskChain(name="ETL", stages=[s1, s2, s3], stage_mode="thread")
+chain = TaskChain(name="ETL", stages=[s1, s2, s3], graph_mode="thread")
 
 # 启动
 chain.run({s1.get_name(): [" 10 ", " 20 ", " 30 "]})

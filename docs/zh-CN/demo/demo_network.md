@@ -1,6 +1,6 @@
 # demo_network.py 演示说明
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 ## 目标
 
@@ -44,7 +44,7 @@ flowchart LR
 
 #### 构建方式
 
-- 使用 `TaskCross` 构建 2-3-1 三层拓扑，`stage_mode="thread"`
+- 使用 `TaskCross` 构建 2-3-1 三层拓扑，`graph_mode="thread"`
 - **输入层**：`A1(x) = 0.5x`、`A2(x) = 2.0x`，分别接收不同的输入范围
 - **隐藏层**：`B1..B3(x) = 1.0x`，三个节点并行处理两个输入层的 Fan-in 结果
 - **输出层**：`C(x) = 1.0x`，设置 `persist_result=True` 以保留所有接收到的结果
@@ -72,7 +72,7 @@ def linear(w: float, b: float):
 | B1~B3 | `linear(1.0, 0.0)` | 1.0 | 0.0 | 2 | 来自 A1/A2 的 Fan-in |
 | C | `linear(1.0, 0.0)` | 1.0 | 0.0 | 2 | 来自 B1~B3 的 Fan-in |
 
-- 所有 Stage 使用 `stage_mode="thread"`、`execution_mode="thread"`
+- 所有 Stage 使用 `execution_mode="thread"`，`TaskCross` 整体使用 `graph_mode="thread"`
 - 输出层 C 额外设置 `persist_result=True`
 
 ## 设计意图

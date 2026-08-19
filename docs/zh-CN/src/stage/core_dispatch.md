@@ -1,6 +1,6 @@
 # TaskDispatch
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 `stage/core_dispatch.py` 定义了 `TaskDispatch` 类，它是 `TaskExecutor` 的内部组件，负责以串行、线程或异步方式执行单个任务。它从 `TaskInQueue` 获取任务，调用用户函数，并将结果通过 `TaskOutQueue` 发送。
 
@@ -181,7 +181,7 @@ executor = TaskExecutor(
     func=lambda x: x**2,
     execution_mode="serial",
 )
-executor.start([1, 2, 3, 4, 5])
+executor.run([1, 2, 3, 4, 5])
 
 success_pairs = executor.get_success_pairs()
 for task, result in success_pairs:
@@ -209,7 +209,7 @@ executor = TaskExecutor(
     execution_mode="thread",
     max_workers=4,
 )
-executor.start([1, 2, 3, 4, 5])
+executor.run([1, 2, 3, 4, 5])
 
 counts = executor.get_counts()
 print(f"成功: {counts['tasks_succeeded']}, 失败: {counts['tasks_failed']}")
@@ -234,7 +234,7 @@ executor = TaskExecutor(
     execution_mode="async",
     max_workers=4,
 )
-executor.start([1, 2, 3])
+asyncio.run(executor.run_async([1, 2, 3]))
 
 counts = executor.get_counts()
 print(f"成功: {counts['tasks_succeeded']}")
@@ -257,7 +257,7 @@ executor = TaskExecutor(
     max_retries=3,  # 最多重试 3 次
 )
 executor.set_retry_exceptions(ConnectionError, TimeoutError)
-executor.start([1, 2, 0, 4])
+executor.run([1, 2, 0, 4])
 
 counts = executor.get_counts()
 print(f"成功: {counts['tasks_succeeded']}, 失败: {counts['tasks_failed']}")

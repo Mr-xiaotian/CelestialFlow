@@ -1,6 +1,6 @@
 # demo_graph.py 演示说明
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/19
 
 ## 目标
 
@@ -32,9 +32,9 @@ Extract ──┬── Normalize ──┬── Load
 - `Load` → 保存记录（serial 模式）
 
 **图结构**：DAG，一对多扇出 + 多对一扇入
-**调度模式**：`eager`
+**图模式**：`graph_mode="thread"`
 
-### `demo_async_staged_pipeline`
+### `demo_async_pipeline`
 两阶段异步流水线：
 
 ```mermaid
@@ -52,13 +52,13 @@ AsyncDouble ──> AsyncToStr
 - `AsyncToStr` → 异步将结果转为字符串（async 模式，8 worker）
 
 **图结构**：DAG，线性两阶段
-**调度模式**：`staged`（逐层执行）
+**图模式**：`graph_mode="async"`
 
 ## 关键配置
 
-- 所有 stage 使用 `stage_mode="thread"`
-- ETL 管道使用 `schedule_mode="eager"`，异步管道使用 `schedule_mode="staged"`
-- `execution_mode="async"` 用于协程任务函数
+- 各 Stage 通过 `TaskStage(..., execution_mode="thread" | "async")` 显式指定执行模式
+- ETL 管道与异步管道分别通过 `TaskGraph(..., graph_mode="thread")` 与 `graph_mode="async"` 指定图模式
+- `execution_mode="async"` 用于协程任务函数（`async_double`、`async_to_str`）
 
 ## 可能出现的问题
 
@@ -75,7 +75,9 @@ python demo/demo_graph.py
 
 ### ETL 管道（`demo_etl_fan_out_fan_in`）
 
-依次执行 Extract → Normalize/Enrich → Load，输出包含 sleep 日志和最终摘要：
+依次执行 Extract → Normalize/Enrich → Load，每个 Stage 内部通过 `print` 或 sleep
+休眠输出执行日志。脚本本身不主动打印最终的 Graph Summary 或各 Stage 计数，
+需人工确认（mock 输出仅作示意）。
 
 ```
 [Extract] Input: 1 -> Output: {'id': 1, 'value': 10, 'label': 'item_1'}
@@ -83,38 +85,28 @@ python demo/demo_graph.py
 [Normalize] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'normalized': 0.1}
 [Enrich] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'category': 'odd'}
 ...
---- Graph Summary ---
-Extract    : success=15 fail=0
-Normalize  : success=15 fail=0
-Enrich     : success=15 fail=0
-Load       : success=30 fail=0
 ```
 
 > 每个 Extract 产生 1 条记录，经 Normalize 和 Enrich 分别处理后由 Load 聚合。当输入为 `range(1, 16)` 时，Extract 处理 15 条记录，Normalize 与 Enrich 各接收 15 条，Load 节点共接收 30 条任务（15 × 2 下游）。
 
-### 异步流水线（`demo_async_staged_pipeline`）
+### 异步流水线（`demo_async_pipeline`）
 
-分阶段逐层执行，先完成 AsyncDouble 再启动 AsyncToStr：
+两阶段顺序执行：先 `AsyncDouble` 完成所有 20 个任务，再 `AsyncToStr` 逐个接收并格式化输出。
 
 ```
---- Staged 1: AsyncDouble ---
 [AsyncDouble] Input: 1 -> Output: 2
 [AsyncDouble] Input: 2 -> Output: 4
 ...
---- Staged 2: AsyncToStr ---
 [AsyncToStr] Input: 2 -> Output: 'result=2'
 [AsyncToStr] Input: 4 -> Output: 'result=4'
 ...
---- Status Snapshot ---
-AsyncDouble : success=20 fail=0  pending=0
-AsyncToStr  : success=20 fail=0  pending=0
 ```
 
-> 总执行时间约 3-5 秒，主要受内置 `sleep` 影响。
+> 总执行时间约 1-3 秒（需人工确认），主要受内置 `sleep`（`async_double` 0.3s + `async_to_str` 0.2s）和 8 协程并发调度影响。
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskStage`）
+- `celestialflow`（`TaskGraph`、`TaskStage`、`TaskReporter`）
 - `demo_utils`（`extract_record`、`transform_normalize`、`transform_enrich`、`load_record`、`async_double`、`async_to_str`）
 - `python-dotenv`
 - 外部服务：CelestialTree（可选）、Reporter（可选）

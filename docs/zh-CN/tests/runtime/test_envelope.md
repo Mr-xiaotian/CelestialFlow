@@ -1,6 +1,6 @@
 # 任务信封测试 (test_envelope.py)
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/19
 
 ## 作用
 验证 `celestialflow.runtime.core_envelope` 模块中的 `TaskEnvelope` 类，以及 `celestialflow.runtime.util_hash` 中的 `object_to_hash` 哈希工具，确保任务数据、ID 和哈希值在传递过程中的完整性与一致性。
@@ -13,7 +13,7 @@
 
 | 测试类 | 用例数 | 覆盖目标 |
 |--------|--------|---------|
-| `TestTaskEnvelope` | 7 | 构造函数/Getter、ID 修改、哈希一致性、延迟计算、不可 hash 兜底、`__slots__` 内存限制 |
+| `TestTaskEnvelope` | 7 | 构造函数/Getter、ID 查询、哈希一致性、延迟计算、不可 hash 兜底、`__slots__` 内存限制 |
 | `TestObjectToHash` | 4 | 返回类型(bytes)、SHA1 定长 20 字节、相同输入一致、不同输入不同 |
 
 ## 关键测试场景
@@ -38,7 +38,6 @@
 - **不可变性模拟**: 虽然 `TaskEnvelope` 不是严格不可变的，但通过 `__slots__` 限制了其扩展性。
 - **哈希鲁棒性**: 确保 `object_to_hash` 能处理各种 Python 数据类型。
 - **失败降级策略**: 确保不可 hash 任务不会因为哈希计算失败而中断其他任务处理流程。
-- **ID 修改**: 验证 `id` 属性的可写性（`envelope.id = 999`），用于在流转过程中重新标记任务。
 
 ## 运行方式
 

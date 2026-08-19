@@ -1,6 +1,6 @@
 # bench_execution_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/08/18
+> 📅 最后更新日期: 2026/08/19
 
 ## 目标
 
@@ -171,8 +171,8 @@ bench_task_1: list[Any] = list(range(20, 35))
 **本轮补充结论**：
 - CPU 场景下，当前输入规模非常小，`serial` 反而是最快的；`thread` 与 `async` 的额外调度开销已经超过了并发收益
 - I/O 场景下，`thread` 与 `async` 依旧接近理论并行上限，均把总耗时压到约 1 秒，其中 `async` 略快但差距可以忽略
-- 这轮结果比 2026/06/16 的 CPU 数据低很多，主要是因为当前脚本中的斐波那契实现已改为**迭代 O(n)**，不再是高开销的递归版本；因此两轮 CPU benchmark 不应直接比较绝对值
+- 这轮结果比 2026/06/16 的 CPU 数据低很多，主要是因为运行环境从 Windows 切换到了 macOS（CPU 单核性能、Python 实现细节等差异）；两轮 CPU benchmark 不应直接比较绝对值
 
 ## 依赖
 
-- `celestialflow`（`TaskExecutor`、`TaskProgress`、`benchmark_executor`）
+- `celestialflow`（`TaskExecutor`、`benchmark_executor`，以及可选的 `TaskProgress`，本脚本未启用）

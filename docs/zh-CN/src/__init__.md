@@ -1,6 +1,6 @@
 # CelestialFlow 包入口
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 ## 简介
 
@@ -146,10 +146,8 @@ def add_one(x: int) -> int:
 
 
 # 2. 创建 TaskStage 节点
-stage_a = TaskStage("StageA", func=double, execution_mode="serial", stage_mode="serial")
-stage_b = TaskStage(
-    "StageB", func=add_one, execution_mode="serial", stage_mode="serial"
-)
+stage_a = TaskStage("StageA", func=double, execution_mode="serial")
+stage_b = TaskStage("StageB", func=add_one, execution_mode="serial")
 
 # 3. 构建 DAG 图
 graph = TaskGraph(name="DemoGraph")
@@ -158,7 +156,7 @@ graph.connect([stage_a], [stage_b])
 
 # 4. 执行图
 init_tasks = {stage_a.get_name(): [1, 2, 3, 4, 5]}
-graph.start_graph(init_tasks)
+graph.run(init_tasks)
 
 # 5. 查看执行结果摘要
 snapshot = graph.get_status_snapshot()
@@ -174,7 +172,7 @@ from celestialflow import TaskExecutor
 
 # 创建执行器并传入数据迭代器
 executor = TaskExecutor("Adder", func=lambda x: x + 10, execution_mode="serial")
-executor.start([1, 2, 3])
+executor.run([1, 2, 3])
 
 # 获取执行结果
 success_pairs = executor.get_success_pairs()
@@ -197,8 +195,8 @@ stages = [
     TaskStage("S3", func=lambda x: x**2),
 ]
 
-chain = TaskChain(name="DemoChain", stages=stages, stage_mode="serial")
-chain.start_graph({stages[0].get_name(): [1, 2, 3]})
+chain = TaskChain(name="DemoChain", stages=stages)
+chain.run({stages[0].get_name(): [1, 2, 3]})
 snapshot = chain.get_status_snapshot()
 print("Chain status:", snapshot["status"])
 ```

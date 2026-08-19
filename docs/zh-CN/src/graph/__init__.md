@@ -1,6 +1,6 @@
 # Graph 模块
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 Graph 模块是 CelestialFlow 的核心调度系统，负责管理任务节点之间的依赖关系、执行流程和生命周期。它提供了灵活的任务图构建、分析和序列化功能。
 
@@ -30,10 +30,10 @@ from celestialflow.graph import (
    - **作用**: 核心调度器，管理 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期
    - **关键功能**:
      - 建立节点间的依赖关系（`set_stages` / `connect`）
-     - 执行任务图（`eager` 一次性启动 / `staged` 分层执行）
-     - 运行时监控快照和全局剩余时间估算
-     - 动态任务注入（`put_stage_queue`）
-     - 错误持久化和未消费任务处理
+     - 执行任务图（`start` / `start_async`，按 `graph_mode` 串行/线程/异步执行）
+     - 运行时监控快照和全局剩余时间估算（`collect_runtime_snapshot`）
+     - 初始任务与持久化任务注入（`run` / `run_async` / `restore_db`）
+     - 错误持久化和未消费任务处理（`drain_task_queue`）
 
 2. **core_structure.py**（预定义图结构）
    - **作用**: 提供六种预定义的任务图结构，简化常见模式
@@ -71,7 +71,7 @@ from celestialflow.graph import (
 - 序列化工具将运行时结构输出为 JSON/文本
 
 ### 外部关联
-- **与 Stage 模块**: `TaskGraph` 管理 `TaskStage` 节点，每个节点通过 `start_stage` 启动
+- **与 Stage 模块**: `TaskGraph` 管理 `TaskStage` 节点，每个节点通过 `start` / `start_async` 启动
 - **与 Runtime 模块**: 使用 `TaskInQueue`/`TaskOutQueue` 作为节点间通信管道
 - **与 Persistence 模块**: 通过 `LogSpout`/`FallbackSpout` 实现持久化
 - **与 Observability 模块**: 通过 `TaskReporter` 向 `celestialflow-web` 服务推送状态并拉取注入指令
@@ -113,7 +113,7 @@ s2 = TaskStage("S2", func=stage_b_func, execution_mode="serial")
 s3 = TaskStage("S3", func=stage_c_func, execution_mode="serial")
 
 # 构建 DAG: S1 -> S2 -> S3
-graph = TaskGraph(name="MyGraph", schedule_mode="eager")
+graph = TaskGraph(name="MyGraph", graph_mode="thread")
 graph.set_stages([s1, s2, s3])
 graph.connect([s1], [s2])
 graph.connect([s2], [s3])
@@ -138,7 +138,7 @@ stages = [
     TaskStage("Compute", func=lambda x: x**2),
 ]
 
-chain = TaskChain(name="DataPipeline", stages=stages, stage_mode="serial")
+chain = TaskChain(name="DataPipeline", stages=stages, graph_mode="thread")
 chain.run({stages[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
 print(f"链状态: {chain.get_status_snapshot()}")
@@ -153,7 +153,7 @@ from celestialflow import TaskCross, TaskStage
 layer1 = [TaskStage("F1", func=lambda x: x * 2), TaskStage("F2", func=lambda x: x + 3)]
 layer2 = [TaskStage("G1", func=lambda x: x**2), TaskStage("G2", func=lambda x: -x)]
 
-cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], schedule_mode="eager")
+cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
 print(cross.get_status_snapshot())
 ```
@@ -207,4 +207,4 @@ wheel.run({center.get_name(): ["data"]})
 - 多路并行流水线使用 `TaskCross` 或手动组合
 - 有环图（`TaskLoop`/`TaskWheel`）建议 `if_put_signal=False`，通过外部注入停止
 - 如需与外部监控系统对接，可使用 `set_reporter()`
-- 复杂 DAG 使用 `staged` 模式便于逐层调试
+- 异步执行使用 `TaskGraph` 的 `graph_mode="async"`，并通过 `start_async()` / `run_async()` 启动

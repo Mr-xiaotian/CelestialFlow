@@ -1,6 +1,6 @@
 # 特定图结构测试 (test_structure.py)
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 ## 作用
 验证 `TaskLoop` 和 `TaskWheel` 两种预定义含环图结构的专用分析能力，以及各类预定义图结构（`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`）的输入校验，确保空/非法输入不会导致静默构造或崩溃。
@@ -77,8 +77,8 @@ pytest tests/graph/test_structure.py::TestStructureValidation -v
 | `TestStructureValidation` | < 0.1s（纯构造校验） |
 
 ## 重要细节
-- 使用 `start_graph` 方法启动测试，并配合 `put_termination_signal=True`。
-- `TaskWheel` 通过 `set_graph_mode()` 配置后调用 `get_graph_analysis()` 进行分析。
+- 使用 `start()` 方法启动测试，并配合 `put_tasks(..., if_put_signal=True)` 注入终止信号。
+- `TaskWheel` 通过 `set_graph_mode()` 与 `set_stage_execution_mode()` 配置后调用 `get_graph_analysis()` 进行分析。
 - 测试重点在于"分析结果"（analysis dict）而非"执行结果"。
 - 输入校验测试均为纯构造操作，不涉及图启动。
 

@@ -1,6 +1,6 @@
 # 日志持久化 (Log Persistence)
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 `celestialflow.persistence` 模块提供了一个多进程安全的日志系统，旨在解决多进程环境下的日志统一收集、格式化和持久化问题。
 
@@ -183,7 +183,6 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 | `pull_interval_failed(exception)` | WARNING | 记录拉取上报间隔失败 |
 | `pull_history_limit_failed(exception)` | WARNING | 记录拉取历史限制失败 |
 | `pull_tasks_failed(exception)` | WARNING | 记录拉取任务注入失败 |
-| `pull_history_limit_failed(exception)` | WARNING | 记录拉取历史限制失败 |
 | `inject_tasks_success(target_node, task_datas)` | INFO | 记录任务注入成功 |
 | `inject_tasks_failed(target_node, task_datas, exception)` | WARNING | 记录任务注入失败 |
 | `push_errors_failed(exception)` | WARNING | 记录推送错误信息失败 |

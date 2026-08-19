@@ -1,6 +1,6 @@
 # TaskMetrics
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 TaskMetrics 模块负责管理和统计任务执行过程中的各项指标，如输入任务数、成功数、失败数、重复任务数等。它通常作为 `TaskExecutor` 的一个组件存在。
 
@@ -47,17 +47,16 @@ def reset_state(self) -> None:
 ### 计数器操作
 
 ```python
+def add_task_count(self, add_count: int = 1):
+    """线程安全地增加输入任务计数。"""
+
+
 def add_fail_count(self, count: int = 1):
     """线程安全地增加失败任务计数。"""
-```
 
 
 def add_success_count(self, count: int = 1):
     """线程安全地增加成功任务计数。"""
-
-
-def add_error_count(self, count: int = 1):
-    """线程安全地增加失败任务计数。"""
 
 
 def add_duplicate_count(self, count: int = 1):
@@ -70,7 +69,7 @@ def append_task_counter(self, counter: ValueWrapper) -> None:
     """添加外部计数器到 task_counter（用于跨 Stage 级联统计）。"""
 ```
 
-级联用于 `TaskStage.prev_bindings()` — 每个下游节点将上游的成功计数器注册到自己的 `task_counter`，实现"上游产出 = 下游输入"的计数一致性。
+级联用于 `TaskStage.prev_binding()` — 每个下游节点将上游的成功计数器注册到自己的 `task_counter`，实现"上游产出 = 下游输入"的计数一致性。
 
 ## 状态查询
 
@@ -81,7 +80,7 @@ def append_task_counter(self, counter: ValueWrapper) -> None:
 ```python
 def is_tasks_finished(self) -> bool:
     """
-    比较 task_counter.value 与 processed (success + error + duplicate) 是否相等。
+    比较 task_counter.value 与 processed (success + fail + duplicate) 是否相等。
     """
 ```
 
@@ -141,7 +140,7 @@ def get_retry_error_type_names(self) -> set[str]:
     """获取当前执行器允许从持久化失败记录中恢复的错误类型名称集合。"""
 ```
 
-在 `TaskGraph.start_graph_db()` 中用于按 `error_type` 过滤可重试的持久化记录。
+在 `TaskGraph.restore_db()` 中用于按 `error_type` 过滤可重试的持久化记录。
 
 ## 使用示例
 

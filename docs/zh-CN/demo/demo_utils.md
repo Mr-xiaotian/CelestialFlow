@@ -1,6 +1,6 @@
 # demo_utils.py 演示工具说明
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/08/19
 
 ## 目标
 
@@ -26,7 +26,7 @@ flowchart TD
 
     ETL --> Graph["demo_graph.py<br/>(demo_etl_fan_out_fan_in)"]
     Async --> Graph
-    Async --> GraphAsync["demo_graph.py<br/>(demo_async_staged_pipeline)"]
+    Async --> GraphAsync["demo_graph.py<br/>(demo_async_pipeline)"]
     Fib --> Executor["demo_executor.py"]
     Fib --> Redis0["demo_redis.py<br/>(demo_redis_ack_0)"]
     Sleep1 --> RedisDemo["demo_redis.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0)"]

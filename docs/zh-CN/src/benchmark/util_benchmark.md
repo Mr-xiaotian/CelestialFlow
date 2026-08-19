@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 最后更新日期: 2026/08/17
+> 📅 最后更新日期: 2026/08/19
 
 `benchmark/util_benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
@@ -38,7 +38,7 @@ async def benchmark_executor(
 测试流程：
 1. 克隆执行器（避免状态污染）
 2. 遍历 `execution_modes`
-3. `serial/thread` 使用 `sync_executor.start()`，`async` 使用 `async_executor.start_async()`
+3. 调用 `put_tasks()` 注入任务；`serial/thread` 走 `start()`，`async` 走 `start_async()`
 4. 输出时间表格
 
 输出示例：
@@ -79,7 +79,7 @@ async def benchmark_graph(
 3. 设置 `set_graph_mode(graph_mode)` 与 `set_stage_execution_mode(execution_mode)`
 4. `graph_mode="async"` 时执行 `run_async()`；其余图模式执行 `run()`
 5. `serial/thread + async` 组合在基准函数内部通过 `asyncio.to_thread(...)` 启动，避免与 `benchmark_graph()` 自身的事件循环冲突
-5. 输出时间表格
+6. 输出时间表格
 
 输出示例：
 ```

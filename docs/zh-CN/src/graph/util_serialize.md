@@ -1,6 +1,6 @@
 # GraphSerialize
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/08/19
 
 `graph/util_serialize.py` 负责 TaskGraph 的结构序列化与文本化。
 
@@ -48,11 +48,11 @@ for line in rendered:
     print(line)
 
 # 输出示例：
-# +-------------------------------------------+
-# | Fetch::<lambda> (S:serial, E:serial)       |
-# | ╘-->Parse::<lambda> (S:serial, E:serial)   |
-# |     ╘-->Save::<lambda> (S:serial, E:serial)|
-# +-------------------------------------------+
+# +---------------------------------------------------+
+# | Fetch::<lambda> (E:serial, W:1)                    |
+# | ╘-->Parse::<lambda> (E:serial, W:1)                |
+# |     ╘-->Save::<lambda> (E:serial, W:1)              |
+# +---------------------------------------------------+
 ```
 
 ### 通过 TaskGraph 内置方法

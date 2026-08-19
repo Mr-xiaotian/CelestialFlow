@@ -1,6 +1,6 @@
 # TaskQueue
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 `TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接不同 Stage 的管道。它们支持多生产者、多消费者模型，并集成了终止信号合并功能。
 
@@ -65,7 +65,7 @@ def get(self) -> TaskEnvelope | TerminationIdPool:
 def drain(self) -> list[TaskEnvelope]:
     """
     清空队列中的所有任务，返回任务列表。
-    记录终止信号但不会返回 TerminationIdPool（仅用于同步环境，如 _finalize_nodes）。
+    记录终止信号但不会返回 TerminationIdPool（仅用于同步环境，如 _finish_start）。
     """
 ```
 
@@ -162,7 +162,7 @@ def add_queue(self, queue: Any, name: str) -> None:
 1. 在 `_record_termination` 中验证 source 合法性（须在 `source_names ∪ {"input"}` 中）
 2. 若 `"input"` 存在 → 立即返回 `TerminationIdPool(ids=[...])`
 3. 若 `_can_merge_termination()` 为 True → 调用 `_merge_termination()`
-4. 否则继续等待（`_deal_get_item` 返回 `None`，外层 `get` 循环继续）
+4. 否则继续等待（`_process_item` 返回 `None`，外层 `get` 循环继续）
 
 ---
 
@@ -261,4 +261,4 @@ print(f"残留任务数: {len(leftovers)}")
 1. **多通道**: `TaskOutQueue` 管理多个下游队列
 2. **来源管理**: `add_source_name` 和 `add_queue` 均防重（`DuplicateNodeError`）
 3. **终止合并**: `_merge_termination` 会检查是否遗漏 source，遗漏则抛 `TerminationMergeError`
-4. **drain 特性**: 仅在同步环境（`_finalize_nodes`）中使用，用于收集未消费任务
+4. **drain 特性**: 仅在同步环境（`_finish_start`）中使用，用于收集未消费任务

@@ -1,6 +1,6 @@
 # bench_datastructures.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/16
+> 📅 最后更新日期: 2026/08/19
 
 ## 目标
 
@@ -12,9 +12,9 @@
 |--------|------|------|
 | `test_builtin_dict` | 原生字典 put/get | N=10,000 |
 | `test_queue_thread` | `queue.Queue` 单线程读写 | N=10,000 |
-| `test_mpqueue` | `multiprocessing.Queue` 跨进程读写（已废弃，仅保留供参考） | N=10,000 |
+| `test_mpqueue` | `multiprocessing.Queue` 跨进程读写 | N=10,000 |
 | `test_manager_dict` | `Manager().dict` 跨进程读写 | N=10,000 |
-| `test_value_number` | `multiprocessing.Value` 原子自增（已废弃，仅保留供参考） | N=10,000 |
+| `test_value_number` | `multiprocessing.Value` 原子自增 | N=10,000 |
 | `test_redis_plain` | Redis 逐条 set/get | N=10,000 |
 | `test_redis_pipeline` | Redis Pipeline 批量 set/get | N=10,000 |
 | `test_redis_multithread_plain` | Redis 多线程并发写入 | N=10,000 / 10 threads |
@@ -33,7 +33,7 @@
 1. **Redis 连接失败**：若 `.env` 中 Redis 配置缺失或服务未启动，Redis 相关测试会被跳过，仅输出警告。
 2. **MPQueue 的缓冲区限制**：`mpqueue_worker` 中先 put 全部 N 个元素再 get，当 N 很大时可能触发的 OS 管道缓冲区上限（尤其在 Linux 上）。
 
-> **注意**：`test_mpqueue` 和 `test_value_number` 使用的 `multiprocessing.Queue` 和 `multiprocessing.Value` 已不再被框架内部使用（`stage_mode="process"` 已移除）。这些基准测试仍在脚本中默认运行，主要用于与纯内存方案做跨进程性能基线对比，保留供参考。
+> **注意**：当前脚本仍会默认运行 `test_mpqueue` 和 `test_value_number`，用于与纯内存方案做跨进程性能基线对比。`stage_mode="process"` 已在框架中移除，因此这些测试不反映当前框架内部行为，仅用于历史性能参考。
 
 ## 运行方式
 

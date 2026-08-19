@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -54,12 +54,12 @@ executor.remove_observer(observer)  # 移除观察者
 
 | 事件 | 触发位置 | 说明 |
 |------|---------|------|
-| `on_start(name, total)` | `_prepare_start()` | 执行开始（注意：total 固定为 0，实际任务数通过 `on_tasks_added` 通知） |
-| `on_task_success()` | `process_task_success()` | 任务成功（无参数，Observer 需自行获取计数） |
-| `on_task_fail()` | `handle_task_fail()` | 任务失败（无参数） |
-| `on_task_duplicate()` | `deal_duplicate()` | 检测到重复（无参数） |
-| `on_tasks_added(count)` | `_put_task_queue()` | 新任务加入（每 100 个通知一次） |
-| `on_finish()` | `_finish_start()` finally | 执行结束（无参数） |
+| `on_start(name, total)` | `metrics.on_start()` | 执行开始（注意：total 固定为 0，实际任务数通过 `on_tasks_added` 通知） |
+| `on_task_success(count=1)` | `metrics.add_success_count()` | 任务成功（count 为本次新增的计数） |
+| `on_task_fail(count=1)` | `metrics.add_fail_count()` | 任务失败（count 为本次新增的计数） |
+| `on_task_duplicate(count=1)` | `metrics.add_duplicate_count()` | 检测到重复（count 为本次新增的计数） |
+| `on_tasks_added(count)` | `metrics.add_task_count()` | 新任务加入队列 |
+| `on_finish()` | `metrics.on_finish()` | 执行结束 |
 
 ## 核心方法
 
@@ -180,17 +180,13 @@ def get_fallback_path(self) -> Path:          # fallback SQLite 文件的绝对�
 ```mermaid
 flowchart TD
     INIT[__init__] -->|set_name, _set_func| CONFIG[set_execution_mode<br/>set max_workers/retries/info]
-    CONFIG -->|_init_dispatch| DISPATCH[TaskDispatch 创建]
-    CONFIG -->|_init_queue| QUEUE[task_queue + result_queue]
-    CONFIG -->|_init_metrics| METRICS[TaskMetrics 初始化]
+    CONFIG -->|创建| DISPATCH[TaskDispatch]
+    CONFIG -->|创建| QUEUE[task_queue + result_queue]
+    CONFIG -->|创建| METRICS[TaskMetrics 初始化]
     CONFIG -->|set_ctree| CTREE[LocalEventClient]
 
     INIT -->|start/start_async| PREPARE[_prepare_start]
-    PREPARE --> ENV[init_env:<br/>_init_state → _init_spout → _init_inlet]
-    ENV --> PUT[_put_task_queue:<br/>遍历 task_source → put_task → put_signal]
-    PUT --> NOTIFY_START[_notify: on_start]
-    NOTIFY_START --> LOG_START[fallback_inlet.task_in<br/>log_inlet.start_executor]
-
+    PREPARE --> LOG_START[log_inlet.start_executor]
     LOG_START --> RUN{dispatch 循环}
     RUN -->|serial| SERIAL[dispatch_serial]
     RUN -->|thread| THREAD[dispatch_thread]
@@ -200,10 +196,11 @@ flowchart TD
     THREAD --> FINISH
     ASYNC --> FINISH
 
-    FINISH --> NOTIFY_END[_notify: on_finish]
-    NOTIFY_END --> LOG_END[log_inlet.end_executor]
-    LOG_END --> STOP[停止 spout ×2:<br/>log_spout + fallback_spout]
+    FINISH --> LOG_END[log_inlet.end_executor]
+    LOG_END --> METRICS_FINISH[metrics.on_finish]
 ```
+
+> 全局 `FallbackSpout` / `LogSpout` 的后台线程由 `funnel_scope` 负责启动与停止。`TaskExecutor` 自身不直接管理这两个 spout。
 
 ## 使用示例
 
@@ -261,4 +258,4 @@ executor.restore_db(
 - `process_task_success` 会创建结果信封并放入 `result_queue`
 - `handle_task_fail` 会将错误记录写入 `fallback_inlet`
 - `deal_duplicate` 处理重复任务并记录日志
-- `_init_spout` 会自动创建并启动 `FallbackSpout`、`LogSpout` 两个后台线程
+- 全局 `FallbackSpout` / `LogSpout` 的后台线程由 `funnel_scope` 启动与停止，`TaskExecutor` 自身不直接创建它们

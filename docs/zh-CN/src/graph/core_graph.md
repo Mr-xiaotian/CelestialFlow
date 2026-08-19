@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
@@ -14,15 +14,16 @@
 
 ```python
 class TaskGraph:
-    def __init__(self, name: str, schedule_mode: str = "eager"): ...
+    def __init__(self, name: str, graph_mode: str = "serial"): ...
 ```
 
 ### 参数说明
 
 - **name**: 任务图名称（必填）
-- **schedule_mode**: 调度模式
-  - `eager`（默认）: 所有节点一次性并发启动，依赖通过队列流自动控制
-  - `staged`: 分层执行（仅 DAG）。按层级顺序逐层启动，上一层全部完成后才启动下一层
+- **graph_mode**: 图执行模式
+  - `serial`（默认）: 串行执行，按节点注册顺序逐个执行
+  - `thread`: 线程并发执行，每个节点在独立线程中启动
+  - `async`: 异步并发执行，需要在已运行事件循环的上下文中调用（见 [`start_async`](#start_async)）
 
 ## 图构建
 
@@ -78,9 +79,18 @@ def set_ctree(self, ctree_client: EventClient) -> None:
 ### set_graph_mode
 
 ```python
-def set_graph_mode(self, stage_mode: str, execution_mode: str) -> None:
+def set_graph_mode(self, graph_mode: str) -> None:
     """
-    批量设置所有节点的 stage_mode 和 execution_mode。
+    设置图执行模式，可选值为 'serial'、'thread' 或 'async'。
+    """
+```
+
+### set_stage_execution_mode
+
+```python
+def set_stage_execution_mode(self, execution_mode: str) -> None:
+    """
+    批量设置所有节点的 execution_mode（'serial'、'thread' 或 'async'）。
     会触发 _build_analysis() 重建分析数据。
     """
 ```
@@ -109,7 +119,7 @@ def run(
 ```python
 async def run_async(
     self,
-    init_tasks_dict: dict[str, list[Any]],
+    init_tasks_dict: dict[str, Iterable[Any]],
     *,
     if_put_signal: bool = True,
 ) -> None:
@@ -149,27 +159,57 @@ def restore_db(
 - 如果需要重新跑同一套拓扑，推荐重新实例化图对象与节点对象，而不是再次调用同一实例的 `run()`。
 
 ```python
-graph = TaskGraph(name="MyGraph", schedule_mode="eager")
+graph = TaskGraph(name="MyGraph", graph_mode="thread")
 graph.set_stages(stages=[stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 graph.run({stage_a.get_name(): [1, 2, 3, 4, 5]})
 ```
 
-### _execute_stages
+### start
 
 ```python
-def _execute_stages(self) -> None:
-    """eager 模式：一次性启动所有节点；staged 模式：逐层启动。"""
+def start(self) -> None:
+    """
+    启动任务图（同步入口）。
+    根据 graph_mode 选择 _execute_stages_serial() 或 _execute_stages_thread()。
+    """
 ```
 
-### _execute_stage
+### start_async
 
 ```python
-def _execute_stage(self, stage: TaskStage) -> None:
+async def start_async(self) -> None:
     """
-    执行单个节点：
-    - thread 模式：在新线程中调用 stage.start_stage()
-    - serial 模式：当前线程同步调用 stage.start_stage()
+    异步启动任务图。要求 graph_mode='async'，否则抛出 InvalidOptionError。
+    """
+```
+
+### _execute_stages_serial / _execute_stages_thread / _execute_stages_async
+
+```python
+def _execute_stages_serial(self) -> None:
+    """按节点注册顺序串行执行。"""
+
+def _execute_stages_thread(self) -> None:
+    """每个节点在独立线程中启动，最后统一 join。"""
+
+async def _execute_stages_async(self) -> None:
+    """全图并发执行。"""
+```
+
+### _execute_stage / _execute_stage_async
+
+```python
+def _execute_stage(self, stage: AnyTaskStage) -> None:
+    """
+    在同步图启动路径下执行单个节点。
+    - async 节点走 asyncio.run(stage.start_async())
+    - 其他节点走 stage.start()
+    """
+
+async def _execute_stage_async(self, stage: AnyTaskStage) -> None:
+    """
+    异步执行单个节点：async 走协程，其余走 asyncio.to_thread(stage.start)。
     """
 ```
 
@@ -194,7 +234,7 @@ def collect_runtime_snapshot(self) -> None:
 | `name` | `str` | 节点名称 |
 | `func_name` | `str` | 函数名 |
 | `execution_mode` | `str` | 执行模式 |
-| `stage_mode` | `str` | 节点模式 |
+| `max_workers` | `int` | 最大并发工作数 |
 | `status` | `StageStatus` | 运行状态 |
 | `tasks_input` | `int` | 输入任务数 |
 | `tasks_succeeded` | `int` | 成功数 |
@@ -215,7 +255,7 @@ def collect_runtime_snapshot(self) -> None:
 |------|---------|------|
 | `get_graph_id()` | `str` | 获取当前任务图实例的唯一标识 |
 | `get_status_snapshot()` | `dict` | 带统一时间戳的状态快照 |
-| `get_graph_analysis()` | `dict` | 图分析信息（graphId, name, startTime, className, isDAG, scheduleMode, layersDict） |
+| `get_graph_analysis()` | `dict` | 图分析信息（graphId, graphMode, name, startTime, className, isDAG, layersDict） |
 | `get_structure_graph()` | `dict` | JSON 格式的图结构（nodes + edges + source_nodes） |
 | `get_structure_list()` | `list[str]` | 带边框的格式化树形文本 |
 | `get_order_graph()` | `OrderGraph` | 内部有序有向图实例 |
@@ -229,11 +269,11 @@ def collect_runtime_snapshot(self) -> None:
 ```python
 {
     "graphId": self.graph_id,
+    "graphMode": self.graph_mode,
     "name": self.name,
     "startTime": self.start_time,
     "className": self.__class__.__name__,
     "isDAG": self.is_dag,
-    "scheduleMode": self.schedule_mode,
     "layersDict": self.layers_dict,
 }
 ```
@@ -243,44 +283,55 @@ def collect_runtime_snapshot(self) -> None:
 ```mermaid
 flowchart TD
     INIT[__init__] --> INIT_STATE[_init_state]
-    INIT --> SPOUT[_init_spout]
-    INIT --> INLET[_init_inlet]
     INIT_STATE --> BUILD[set_stages + connect]
-    BUILD --> RUN[run]
-    RUN -->|注入初始任务| PUT[stage.put_tasks]
+    BUILD --> PREPARE[_prepare_start]
+    PREPARE --> START[start / start_async]
+    START -->|serial| SER[_execute_stages_serial]
+    START -->|thread| THR[_execute_stages_thread]
+    START -->|async| ASY[_execute_stages_async]
+    SER --> FINISH[_finish_start]
+    THR --> FINISH
+    ASY --> FINISH
+    FINISH -->|drain_task_queue| DRAIN[收集未消费任务]
+    DRAIN --> SNAP[collect_runtime_snapshot]
+    SNAP --> END[图执行完成]
+
+    SNAP --> STATUS[get_status_snapshot]
+
+    RUN[run / run_async] -->|注入初始任务| PUT[stage.put_tasks]
     RUN -->|注入终止信号| SIGNAL[put_source_signal]
-    RUN --> EXEC[_execute_stages]
-    EXEC -->|eager| ALL[同时启动所有节点]
-    EXEC -->|staged| LAYER[逐层启动]
-    ALL --> FINALIZE[_finalize_nodes: 收集未消费任务]
-    LAYER --> FINALIZE
-    FINALIZE --> END[图执行完成]
-    
-    RUN -->|监控| SNAPSHOT[collect_runtime_snapshot]
-    SNAPSHOT --> STATUS[get_status_snapshot]
 ```
 
-## 调度模式详解
+## 图执行模式详解
 
-### Eager 模式
+### serial 模式
 
 ```
-所有节点同时 start_stage → 数据通过队列流动 → 终止信号到达后停止
+按节点注册顺序同步执行 stage.start() → 数据通过队列流动 → 终止信号到达后停止
+```
+
+- 按注册顺序逐节点同步执行
+- 默认模式
+- 适用场景：调试、串行流水线
+
+### thread 模式
+
+```
+为每个节点启动独立线程 → stage.start() → join 全部线程
 ```
 
 - 最大化并行度
-- 适用于大多数场景
-- 有环图建议使用此模式
+- 适用场景：CPU/IO 混合型并发流水线
 
-### Staged 模式
+### async 模式
 
 ```
-Layer 0: [Node A, Node B] → 全部 join → Layer 1: [Node C, Node D] → ...
+异步执行所有节点（asyncio.gather）→ 需在已有事件循环中调用 start_async()
 ```
 
-- 逐层执行，每层完全结束后启动下一层
-- 仅适用于 DAG
-- 适合调试、性能分析、资源控制
+- 全图并发协程执行
+- `serial` / `thread` 模式下的节点通过 `asyncio.to_thread` 在独立线程中运行，避免阻塞事件循环
+- 适用场景：需要与其它异步系统集成
 
 ## 非 DAG 图的注意事项
 
@@ -293,4 +344,4 @@ graph.run({"source": tasks}, if_put_signal=False)
 
 ## 未消费任务处理
 
-`_finalize_nodes()` 中通过 `stage.drain_task_queue()` 收集所有剩余任务，将其标记为 `UnconsumedError` 并通过 `fallback_inlet` 持久化到 sqlite 回退数据库（经由 `FallbackSpout` 写入回退存储）。
+`_finish_start()` 中通过遍历 `stage_dict` 调用每个 stage 的 `drain_task_queue()` 收集所有剩余任务，将其标记为 `UnconsumedError` 并通过 `fallback_inlet` 持久化到 sqlite 回退数据库（经由 `FallbackSpout` 写入回退存储）。

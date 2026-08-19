@@ -1,6 +1,6 @@
 # Persistence 模块
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 Persistence 模块提供了 CelestialFlow 的数据持久化功能，包括执行日志记录和 fallback（回退）持久化。它确保任务执行的关键数据能够可靠地保存和检索。
 
@@ -99,7 +99,7 @@ flowchart LR
 | 持久化类型 | 文件路径模式 |
 |-----------|-------------|
 | 日志 | `logs/task_logger({日期}).log` |
-| Fallback | `fallback/{日期}/{来源}({时间}).sqlite3` |
+| Fallback | `./fallbacks/{日期}/fallback({时间}).sqlite3` |
 
 ## 使用示例
 

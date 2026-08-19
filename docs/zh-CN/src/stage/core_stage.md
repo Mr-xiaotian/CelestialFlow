@@ -1,8 +1,8 @@
 # TaskStage
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
-`TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力与 `stage_mode` 控制逻辑。
+`TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力。
 
 > 注意：`TaskStage` 也是一次性对象。它通常由 `TaskGraph` 管理并参与一次完整运行；运行结束后，其队列绑定、计数状态和图内关联关系不保证可被安全重置。
 
@@ -14,9 +14,6 @@
 
 ## 核心概念
 
-- **Stage Mode**: 节点在任务图中的调度逻辑模式。
-  - `serial`: 串行模式，在主进程中运行。
-  - `thread`: 线程模式，在主进程中以独立线程运行。
 - **Execution Mode**: 节点内部处理任务的并发模式（`serial`, `thread`, `async`），继承自 `TaskExecutor`。
 - **拓扑关系**: 节点间的上下游连接关系由 `TaskGraph` 管理，`TaskStage` 自身不存储邻接表。
 
@@ -28,24 +25,24 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         self,
         name: str,
         func: Callable[[T], R] | Callable[[T], Awaitable[R]],
-        stage_mode: str = "serial",
         **kwargs: Any,
-    ):
+    ) -> None:
         """
         :param name: 节点名称（唯一标识）
         :param func: 执行函数
-        :param stage_mode: 在图中的运行模式 ('serial' 或 'thread')
-        :param kwargs: 透传给 TaskExecutor 的参数 (execution_mode, max_workers, max_retries 等)
+        :param kwargs: 透传给 TaskExecutor 的参数
+            （execution_mode, max_workers, max_retries, max_queue_size,
+            max_info, enable_duplicate_check, persist_result 等）
         """
 ```
 
 示例：
 ```python
 stage_a = TaskStage(
-    "StageA", func=process_a, execution_mode="thread", stage_mode="thread"
+    "StageA", func=process_a, execution_mode="thread", max_workers=4
 )
 stage_b = TaskStage(
-    "StageB", func=process_b, execution_mode="serial", stage_mode="thread"
+    "StageB", func=process_b, execution_mode="serial"
 )
 
 # 创建图并连接节点
@@ -55,17 +52,6 @@ graph.connect([stage_a], [stage_b])
 ```
 
 ## 配置方法
-
-### set_stage_mode
-
-```python
-def set_stage_mode(self, stage_mode: str):
-    """
-    设置节点在任务图中的执行模式。
-    :param stage_mode: 'serial' 或 'thread'
-    :raises InvalidOptionError: 如果模式不支持
-    """
-```
 
 ### 继承自 TaskExecutor 的配置方法
 
@@ -128,14 +114,14 @@ def drain_task_queue(self) -> None:
     """清空任务队列，将所有剩余任务移至失败队列并标记为 UnconsumedError。"""
 ```
 
-## 状态快照
+## 状态摘要
 
 ```python
 def get_summary(self) -> dict[str, Any]:
     """
     获取当前节点的状态摘要。
-    返回继承自 TaskExecutor 的字段（name, func_name, execution_mode, max_workers）
-    外加 stage_mode。
+    返回继承自 TaskExecutor 的字段
+    （name, func_name, execution_mode, max_workers）。
     """
 ```
 
@@ -157,8 +143,8 @@ def step2(x: int) -> int:
     return x * 3
 
 
-stage1 = TaskStage("Step1", func=step1, execution_mode="serial", stage_mode="serial")
-stage2 = TaskStage("Step2", func=step2, execution_mode="serial", stage_mode="serial")
+stage1 = TaskStage("Step1", func=step1, execution_mode="serial")
+stage2 = TaskStage("Step2", func=step2, execution_mode="serial")
 
 chain = TaskGraph()
 chain.set_stages([stage1, stage2])
@@ -187,32 +173,6 @@ stage_a = TaskStage(
     func=io_task,
     execution_mode="thread",
     max_workers=4,
-    stage_mode="thread",
-)
-
-graph = TaskGraph()
-graph.set_stages([stage_a])
-graph.start_graph({stage_a.get_name(): list(range(20))})
-```
-
-### 使用 thread 执行模式（I/O 密集型）
-
-```python
-import time
-from celestialflow import TaskGraph, TaskStage
-
-
-def io_task(x: int) -> int:
-    time.sleep(0.05)
-    return x * 10
-
-
-stage_a = TaskStage(
-    name="IOWorker",
-    func=io_task,
-    execution_mode="thread",
-    max_workers=4,
-    stage_mode="thread",
 )
 
 graph = TaskGraph()

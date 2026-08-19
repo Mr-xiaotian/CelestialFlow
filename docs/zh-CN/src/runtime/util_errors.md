@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/19
 
 TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
@@ -309,7 +309,7 @@ class UnconsumedError(CelestialFlowError):
     pass
 ```
 
-当 `TaskGraph._finalize_nodes()` 发现队列中有剩余任务时，会将其标记为 `UnconsumedError` 并通过 `fallback_inlet` / `FallbackSpout` 持久化到 sqlite 回退数据库。
+当 `TaskGraph._finish_start()` 收尾阶段遍历所有 stage 调用 `drain_task_queue()` 发现队列中有剩余任务时，会将其标记为 `UnconsumedError` 并通过 `fallback_inlet` / `FallbackSpout` 持久化到 sqlite 回退数据库。
 
 ### TerminationMergeError
 
@@ -448,7 +448,7 @@ except RemoteWorkerError as e:
 
 ## 未消费任务的处理
 
-`UnconsumedError` 主要用于标记任务未被正常消费的场景。在 `TaskGraph._finalize_nodes()` 收尾阶段，会调用每个 stage 的 `drain_task_queue()`：
+`UnconsumedError` 主要用于标记任务未被正常消费的场景。在 `TaskGraph._finish_start()` 收尾阶段，会调用每个 stage 的 `drain_task_queue()`：
 
 1. 清空 stage 的任务队列，取出剩余任务。
 2. 对每个剩余任务调用 `handle_task_fail(source, UnconsumedError())`。
