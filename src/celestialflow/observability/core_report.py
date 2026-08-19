@@ -84,7 +84,7 @@ class TaskReporter:
             raise ReporterError("Reporter thread is still running.")
 
         self._thread = None
-        self._loop()  # 最后一次
+        self._refresh_all()  # 最后一次
         self._session.close()
         self.log_inlet.stop_reporter()
 
@@ -100,28 +100,28 @@ class TaskReporter:
     def _loop(self) -> None:
         """上报器主循环"""
         while not self._stop_flag.is_set():
-            try:
-                self._refresh_all()
-            except Exception as e:
-                self.log_inlet.loop_failed(e)
+            self._refresh_all()
             _ = self._stop_flag.wait(self.interval)
 
     def _refresh_all(self) -> None:
         """刷新所有上报内容"""
-        # 拉取逻辑
-        self._pull_server_state()
-        self._pull_injection()
+        try:
+            # 拉取逻辑
+            self._pull_server_state()
+            self._pull_injection()
 
-        # 收集最新的任务图状态快照，确保推送的数据是最新的
-        self.task_graph.collect_runtime_snapshot()
+            # 收集最新的任务图状态快照，确保推送的数据是最新的
+            self.task_graph.collect_runtime_snapshot()
 
-        # 推送逻辑
-        if (not self._server_has_current_graph) or (not self._server_has_structure):
-            self._push_structure()
-        if (not self._server_has_current_graph) or (not self._server_has_analysis):
-            self._push_analysis()
-        self._push_status()
-        self._push_errors()
+            # 推送逻辑
+            if (not self._server_has_current_graph) or (not self._server_has_structure):
+                self._push_structure()
+            if (not self._server_has_current_graph) or (not self._server_has_analysis):
+                self._push_analysis()
+            self._push_status()
+            self._push_errors()
+        except Exception as e:
+            self.log_inlet.loop_failed(e)
 
     # ==== 拉取 ====
     def _pull_server_state(self) -> None:
