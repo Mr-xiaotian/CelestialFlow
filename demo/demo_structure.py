@@ -53,7 +53,7 @@ def demo_chain() -> None:
         [stageA, stageB, stageC, stageD, stageE],
     )
     chain.set_reporter(TaskReporter(report_host, report_port, chain))
-    chain.set_ctree(ctree_client)
+    # chain.set_ctree(ctree_client)
 
     chain.run({"StageA": list(range(20))})
 

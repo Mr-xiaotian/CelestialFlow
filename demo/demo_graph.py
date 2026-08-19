@@ -1,3 +1,4 @@
+import asyncio
 import os
 from typing import Any
 
@@ -22,9 +23,6 @@ load_dotenv()
 
 report_host: str = os.getenv("REPORT_HOST", "")
 report_port: int = int(os.getenv("REPORT_PORT", "0"))
-
-redis_host: str = os.getenv("REDIS_HOST", "")
-redis_password: str = os.getenv("REDIS_PASSWORD", "")
 
 ctree_host: str = os.getenv("CTREE_HOST", "")
 ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
@@ -76,7 +74,7 @@ def demo_etl_fan_out_fan_in() -> None:
 
     graph = TaskGraph("demo_etl_fan_out_fan_in", graph_mode="thread")
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
-    graph.set_ctree(ctree_client)
+    # graph.set_ctree(ctree_client)
     graph.set_stages(
         stages=[extract, normalize, enrich, load],
     )
@@ -112,7 +110,7 @@ async def demo_async_pipeline() -> None:
 
     graph = TaskGraph("demo_async_pipeline", graph_mode="async")
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
-    graph.set_ctree(ctree_client)
+    # graph.set_ctree(ctree_client)
     graph.set_stages(
         stages=[stage_double, stage_to_str],
     )
@@ -124,6 +122,6 @@ async def demo_async_pipeline() -> None:
 
 
 if __name__ == "__main__":
-    demo_etl_fan_out_fan_in()
-    # demo_async_pipeline()
+    # demo_etl_fan_out_fan_in()
+    asyncio.run(demo_async_pipeline())
     pass
