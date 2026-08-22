@@ -19,6 +19,8 @@ def raise_on_negative(x):
     if x < 0:
         raise ValueError(f"negative value: {x}")
     return x * 10
+
+
 class TestExecutorObserver:
     def test_observer_lifecycle(self):
         """observer 在执行过程中收到完整生命周期回调"""
@@ -55,8 +57,7 @@ class TestExecutorObserver:
         observer = RecordingObserver()
         executor = TaskExecutor("ObserverTest", add_one, execution_mode="serial")
         executor.add_observer(observer)
-        executor.put_tasks([1, 2, 3])
-        executor.start()
+        executor.run([1, 2, 3])
 
         event_types = [e[0] for e in observer.events]
         assert "start" in event_types
@@ -85,8 +86,7 @@ class TestExecutorObserver:
             "ObserverErrorTest", raise_on_negative, execution_mode="serial"
         )
         executor.add_observer(observer)
-        executor.put_tasks([1, -1, 2])
-        executor.start()
+        executor.run([1, -1, 2])
 
         assert observer.successes == 2
         assert observer.failures == 1
@@ -94,8 +94,7 @@ class TestExecutorObserver:
     def test_no_observer_works(self):
         """没有 observer 时正常运行"""
         executor = TaskExecutor("NoObserver", add_one, execution_mode="serial")
-        executor.put_tasks([1, 2, 3])
-        executor.start()
+        executor.run([1, 2, 3])
         assert executor.get_counts()["tasks_succeeded"] == 3
 
     def test_multiple_observers(self):
@@ -114,8 +113,7 @@ class TestExecutorObserver:
         executor = TaskExecutor("MultiObserver", add_one, execution_mode="serial")
         executor.add_observer(o1)
         executor.add_observer(o2)
-        executor.put_tasks([1, 2])
-        executor.start()
+        executor.run([1, 2])
 
         assert o1.count == 2
         assert o2.count == 2
@@ -136,7 +134,6 @@ class TestExecutorObserver:
         executor = TaskExecutor("RemoveObserver", add_one, execution_mode="serial")
         executor.add_observer(observer)
         executor.remove_observer(observer)
-        executor.put_tasks([1, 2])
-        executor.start()
+        executor.run([1, 2])
 
         assert observer.count == 0

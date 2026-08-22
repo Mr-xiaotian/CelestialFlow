@@ -100,7 +100,7 @@ class TestTaskGraphBasic:
             pending_stage = graph.stage_dict.get("unknown_stage")
             if pending_stage is None:
                 raise NodeNotFoundError("stage not found: unknown_stage")
-            pending_stage.put_tasks([1])
+            pending_stage.put_task(1)
 
     def test_graph_dag_two_nodes(self):
         """简单 DAG：两个节点串行，结果正确传递"""
@@ -462,8 +462,7 @@ class TestTaskGraphAsync:
         graph.set_stages(stages=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
-        stage1.put_tasks([1, 2, 3])
-        await graph.start_async()
+        await graph.run_async({"s1": [1, 2, 3]})
 
         assert stage1.get_counts()["tasks_succeeded"] == 3
         assert stage2.get_counts()["tasks_succeeded"] == 3
@@ -560,9 +559,8 @@ class TestTaskGraphAnalysis:
         graph.set_stages(stages=[s1, s2])
         graph.connect([s1], [s2])
 
-        # 调用 build_analysis（通过 start 触发）
-        s1.put_tasks([1])
-        graph.start()
+        # 调用 build_analysis（通过 run 触发）
+        graph.run({"s1": [1]})
 
         analysis = graph.get_graph_analysis()
         assert analysis["isDAG"] is True
@@ -578,8 +576,7 @@ class TestTaskGraphAnalysis:
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
 
-        s1.put_tasks([1])
-        graph.start()
+        graph.run({"s1": [1]})
 
         analysis = graph.get_graph_analysis()
         layers = analysis["layersDict"]
@@ -910,7 +907,7 @@ class TestSourceStages:
 # =========================
 class TestCyclicGraph:
     def test_cyclic_serial_graph_warns(self):
-        """环图在 serial graph_mode 下启动时应给出警告。"""
+        """环图在 serial graph_mode 下分析时应给出警告。"""
         s1 = TaskStage("s1", add_one)
         s2 = TaskStage("s2", double)
         s3 = TaskStage("s3", to_str)
@@ -921,13 +918,11 @@ class TestCyclicGraph:
         graph.connect([s2], [s3])
         graph.connect([s3], [s1])
 
-        s1.put_tasks([1], if_put_signal=True)
-
         with pytest.warns(
             UserWarning,
             match=r"TaskGraph contains a cycle while graph_mode='serial'",
         ):
-            graph.start()
+            graph.get_source_stages()
 
     def test_cyclic_is_dag_false(self):
         """含环图 is_dag 为 False"""
@@ -941,8 +936,7 @@ class TestCyclicGraph:
         graph.connect([s2], [s3])
         graph.connect([s3], [s1])
 
-        s1.put_tasks([1], if_put_signal=True)
-        graph.start()
+        graph.run({"s1": [1]})
 
         analysis = graph.get_graph_analysis()
         assert analysis["isDAG"] is False
@@ -961,8 +955,7 @@ class TestCyclicGraph:
         graph.connect([s3], [s1])
         graph.connect([s1], [s4])
 
-        s1.put_tasks([1], if_put_signal=True)
-        graph.start()
+        graph.run({"s1": [1]})
 
         analysis = graph.get_graph_analysis()
         layers = analysis["layersDict"]

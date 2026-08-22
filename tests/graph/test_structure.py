@@ -38,8 +38,7 @@ class TestTaskLoop:
         s3 = TaskStage("s3", to_str)
 
         loop = TaskLoop("test_loop_analysis", [s1, s2, s3])
-        s1.put_tasks([1], if_put_signal=True)
-        loop.start()
+        loop.run({"s1": [1]})
 
         analysis = loop.get_graph_analysis()
         assert analysis["isDAG"] is False
@@ -57,8 +56,7 @@ class TestTaskLoop:
         s2 = TaskStage("s2", double)
 
         loop = TaskLoop("test_loop_source_stages", [s1, s2])
-        s1.put_tasks([1], if_put_signal=True)
-        loop.start()
+        loop.run({"s1": [1]})
 
         sources = loop.get_source_stages()
         assert len(sources) == 1
