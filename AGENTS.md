@@ -18,8 +18,7 @@
 
 ### 修改完文件
 
-- 如果修改对象是 `src/**/*.py` 文件, 执行 `uv run ruff check --fix .` 与 `uv run pyright .` 检查并修复代码格式与类型错误。
-- 如果修改对象是 `src/**/*.py` 文件, 执行 `uv run pytest <相关测试文件>` 运行相关测试。
+- 如果修改对象是 `src/**/*.py` 文件, 执行 `uv run ruff check --fix .` 与 `uv run pyright .` 检查并修复代码格式与类型错误; 执行 `uv run pytest <相关测试文件>` 运行相关测试。
 - 如果修改对象是代码文件, 为代码添加或者更新reST风格的doc-string, 并保持与代码逻辑一致。
 - 除非特意要求, 不必同步更改docs/下的相应文档。
 
@@ -27,6 +26,11 @@
 
 - 项目中所有error都用 `src/celestialflow/runtime/util_errors.py` 中的自定义异常类抛出。
 - 如果需要的错误类在 `util_errors.py` 中不存在，依照格式自行添加
+
+### 关于测试
+
+- 所有的测试都应该能够快速完成，也就是不能有 long-running 的测试
+- 相对的，每次执行 `uv run pytest <相关测试文件>` 的执行时间都应该在 10 秒以内，如果超出意味着卡在了某一项中, 应该检查并修复，而不是一直等待
 
 ## 与其他项目的关联
 
