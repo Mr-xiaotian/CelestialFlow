@@ -255,6 +255,15 @@ class TaskGraph:
         self.layers_dict = cluster_by_value_sorted(stage_level_dict)
         self._analysis_dirty = False
 
+        if not self.is_dag and self.graph_mode == "serial":
+            warnings.warn(
+                "TaskGraph contains a cycle while graph_mode='serial'; "
+                "serial startup may block or leave tasks unconsumed. "
+                "Consider using graph_mode='thread' or 'async'.",
+                UserWarning,
+                stacklevel=2,
+            )
+
     def put_source_signal(self) -> None:
         """
         将终止信号放入所有源节点的队列中。
@@ -277,9 +286,11 @@ class TaskGraph:
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
+        self._build_analysis()
         with funnel_scope():
             for stage_name, tasks in init_tasks_dict.items():
-                self.stage_dict[stage_name].put_tasks(tasks)
+                for task in tasks:
+                    self.stage_dict[stage_name].put_task(task)
             if if_put_signal:
                 self.put_source_signal()
             self.start()
@@ -297,9 +308,11 @@ class TaskGraph:
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
+        self._build_analysis()
         with funnel_scope():
             for stage_name, tasks in init_tasks_dict.items():
-                self.stage_dict[stage_name].put_tasks(tasks)
+                for task in tasks:
+                    self.stage_dict[stage_name].put_task(task)
             if if_put_signal:
                 self.put_source_signal()
             await self.start_async()
@@ -324,26 +337,21 @@ class TaskGraph:
         """
         statuses = ["failed", "pending"] if statuses is None else statuses
         grouped_records = load_tasks_grouped_by_stage(db_path, statuses)
+        tasks: dict[str, Iterable[Any]] = {}
 
-        with funnel_scope():
-            for name, records in grouped_records.items():
-                stage = self.stage_dict[name]
-                if filter_by_error_type and name in self.stage_dict:
-                    retry_error_type_names = stage.metrics.get_retry_error_type_names()
-                    records = [
-                        record
-                        for record in records
-                        if str(record["error_type"]) in retry_error_type_names
-                        or record["status"] == "pending"
-                    ]
+        for name, records in grouped_records.items():
+            stage = self.stage_dict[name]
+            if filter_by_error_type and name in self.stage_dict:
+                retry_error_type_names = stage.metrics.get_retry_error_type_names()
+                records = [
+                    record
+                    for record in records
+                    if str(record["error_type"]) in retry_error_type_names
+                    or record["status"] == "pending"
+                ]
+            tasks[name] = [record["task_json"] for record in records]
 
-                stage_tasks = [record["task_json"] for record in records]
-                stage.put_tasks(stage_tasks)
-
-            if if_put_signal:
-                self.put_source_signal()
-
-            self.start()
+        self.run(tasks, if_put_signal=if_put_signal)
 
     # ==== 启动 ====
 
@@ -358,16 +366,6 @@ class TaskGraph:
 
         :return: ``None``
         """
-        self._build_analysis()
-        if not self.is_dag and self.graph_mode == "serial":
-            warnings.warn(
-                "TaskGraph contains a cycle while graph_mode='serial'; "
-                "serial startup may block or leave tasks unconsumed. "
-                "Consider using graph_mode='thread' or 'async'.",
-                UserWarning,
-                stacklevel=2,
-            )
-
         get_log_inlet().start_graph(self.name, self.get_structure_list())
         self.reporter.start()
 

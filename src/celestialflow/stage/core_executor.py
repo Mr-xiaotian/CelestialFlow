@@ -280,23 +280,6 @@ class TaskExecutor[T, R]:
         return Path(db_path).resolve()
 
     # ==== 任务输入 ====
-    def put_tasks(
-        self,
-        task_source: Iterable[T],
-        *,
-        if_put_signal: bool = True,
-    ) -> None:
-        """
-        将多个任务封装为 TaskEnvelope 并放入队列。
-
-        :param task_source: 任务来源可迭代对象
-        :param if_put_signal: 是否在任务队列末尾放入终止信号，默认 True
-        """
-        for task in task_source:
-            self.put_task(task)
-        if if_put_signal:
-            self.put_signal()
-
     def put_task(self, task: T) -> None:
         """
         将单个任务封装为 TaskEnvelope 并放入队列。
@@ -500,7 +483,10 @@ class TaskExecutor[T, R]:
         :return: ``None``
         """
         with funnel_scope():
-            self.put_tasks(task_source, if_put_signal=if_put_signal)
+            for task in task_source:
+                self.put_task(task)
+            if if_put_signal:
+                self.put_signal()
             self.start()
 
     async def run_async(
@@ -517,7 +503,10 @@ class TaskExecutor[T, R]:
         :return: ``None``
         """
         with funnel_scope():
-            self.put_tasks(task_source, if_put_signal=if_put_signal)
+            for task in task_source:
+                self.put_task(task)
+            if if_put_signal:
+                self.put_signal()
             await self.start_async()
 
     def restore_db(
@@ -538,6 +527,7 @@ class TaskExecutor[T, R]:
         statuses = ["failed", "pending"] if statuses is None else statuses
         grouped_tasks = load_tasks_grouped_by_stage(db_path, statuses)
         records = grouped_tasks.get(self.get_name(), [])
+        tasks: Iterable[T] = []
 
         if filter_by_error_type:
             retry_error_type_names = self.metrics.get_retry_error_type_names()
@@ -547,13 +537,10 @@ class TaskExecutor[T, R]:
                 if str(record["error_type"]) in retry_error_type_names
                 or record["status"] == "pending"
             ]
+        tasks = [cast(T, record["task_json"]) for record in records]
 
-        executor_tasks = [cast(T, record["task_json"]) for record in records]
-        if not executor_tasks:
-            return
+        self.run(tasks)
 
-        self.put_tasks(executor_tasks)
-        self.start()
 
     # ==== 启动 ====
 
