@@ -33,7 +33,7 @@ class TaskGraph:
 
     注意：
     - TaskGraph 是一次性对象，设计上只应启动一次。
-    - start_graph() 执行后，内部会建立并持有运行期资源、队列绑定和线程状态，
+    - start() / start_async() 执行后，内部会建立并持有运行期资源、队列绑定和线程状态，
       不保证可被安全重置或重复启动。
     - 如需再次运行相同流程，请重新创建 TaskGraph 实例及其关联的 TaskStage。
     """
@@ -75,7 +75,7 @@ class TaskGraph:
 
         生命周期说明：
         - 当前 TaskGraph 实例为一次性对象。
-        - 完成一次 start_graph() 后，不应复用同一实例再次启动。
+        - 完成一次 start() / start_async() 后，不应复用同一实例再次启动。
         - 如需重复执行，请重新构建新的 TaskGraph 与节点对象。
 
         :param name: 任务图名称

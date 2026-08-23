@@ -592,7 +592,7 @@ class TaskExecutor[T, R]:
 
         async 模式不支持通过本方法启动，请使用 :meth:`start_async`。
 
-        :raises ExecutionModeError: execution_mode 不是 'serial' 或 'thread' 时触发
+        :raises InvalidOptionError: execution_mode 不是 'serial' 或 'thread' 时触发
         :note:
             TaskExecutor 为一次性对象；当前实例完成一次 start() 后，不保证可安全再次
             调用 start()。如需再次执行，请创建新的 TaskExecutor。

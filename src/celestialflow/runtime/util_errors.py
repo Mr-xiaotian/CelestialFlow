@@ -139,7 +139,7 @@ class GraphManagedError(RuntimeStateError):
 
     def __init__(
         self,
-        message: str = "This stage is managed by a TaskGraph. Use TaskGraph.start_graph() instead of calling start() directly.",
+        message: str = "This stage is managed by a TaskGraph. Use TaskGraph.start()/start_async() or TaskGraph.run()/run_async() instead of calling stage.start() directly.",
     ) -> None:
         """
         初始化异常。
