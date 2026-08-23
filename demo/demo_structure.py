@@ -55,7 +55,7 @@ def demo_chain() -> None:
     chain.set_reporter(TaskReporter(report_host, report_port, chain))
     # chain.set_ctree(ctree_client)
 
-    chain.run({"StageA": list(range(20))})
+    chain.run({"StageA": list(range(20))}, if_put_signal=False)
 
 
 def demo_forest() -> None:
@@ -149,7 +149,7 @@ def demo_forest() -> None:
     graph.connect([stageH], [stageJ])
 
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
-    graph.set_ctree(ctree_client)
+    # graph.set_ctree(ctree_client)
 
     # 初始任务
     init_tasks: dict[str, list[int]] = {
@@ -177,7 +177,7 @@ def demo_cross() -> None:
         [[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]],
     )
     cross.set_reporter(TaskReporter(report_host, report_port, cross))
-    cross.set_ctree(ctree_client)
+    # cross.set_ctree(ctree_client)
 
     # 初始任务
     init_tasks = {
@@ -205,7 +205,7 @@ def demo_network() -> None:
     # 构建任务图
     cross = TaskCross("demo_network", [[A1, A2], [B1, B2, B3], [C]])
     cross.set_reporter(TaskReporter(report_host, report_port, cross))
-    cross.set_ctree(ctree_client)
+    # cross.set_ctree(ctree_client)
 
     # 初始任务（输入层）
     init_tasks = {
@@ -229,7 +229,7 @@ def demo_star() -> None:
         [[core], [side1, side2, side3]],
     )
     star.set_reporter(TaskReporter(report_host, report_port, star))
-    star.set_ctree(ctree_client)
+    # star.set_ctree(ctree_client)
 
     star.run({"Core": list(range(1, 11))})
 
@@ -247,7 +247,7 @@ def demo_fanin() -> None:
         [[source1, source2, source3], [merge]],
     )
     fainin.set_reporter(TaskReporter(report_host, report_port, fainin))
-    fainin.set_ctree(ctree_client)
+    # fainin.set_ctree(ctree_client)
 
     fainin.run(
         {
@@ -273,7 +273,7 @@ def demo_grid() -> None:
     # 2. 构建 TaskGrid 实例
     task_grid = TaskGrid("demo_grid", grid)
     task_grid.set_reporter(TaskReporter(report_host, report_port, task_grid))
-    task_grid.set_ctree(ctree_client)
+    # task_grid.set_ctree(ctree_client)
 
     # 3. 初始化任务字典，只放左上角一个任务
     init_dict: dict[str, list[int]] = {grid[0][0].get_name(): list(range(10))}
@@ -290,13 +290,13 @@ def demo_loop() -> None:
 
     loop = TaskLoop("demo_loop", [stageA, stageB, stageC])
     loop.set_reporter(TaskReporter(report_host, report_port, loop))
-    loop.set_ctree(ctree_client)
+    # loop.set_ctree(ctree_client)
 
     # 要测试的任务列表
-    test_task_0 = range(1, 2)
+    test_task_0 = range(10)
     # test_task_1 = list(test_task_0) + [0, 6, None, 0, ""]
 
-    loop.run({"StageA": list(test_task_0)})
+    loop.run({"StageA": list(test_task_0)}, if_put_signal=False)
 
 
 def demo_wheel() -> None:
@@ -310,28 +310,28 @@ def demo_wheel() -> None:
     # 构造 TaskCross
     wheel = TaskWheel("demo_wheel", core, [side1, side2, side3, side4])
     wheel.set_reporter(TaskReporter(report_host, report_port, wheel))
-    wheel.set_ctree(ctree_client)
+    # wheel.set_ctree(ctree_client)
 
-    wheel.run({"Core": list(range(1, 11))})
+    wheel.run({"Core": list(range(1, 11))}, if_put_signal=False)
 
 
 def demo_complete() -> None:
     # 创建 3 个节点，每个节点有不同偏移
-    n1 = TaskStage("Node1", add_5, execution_mode="thread", max_workers=5)
-    n2 = TaskStage("Node2", add_10, execution_mode="thread", max_workers=5)
-    n3 = TaskStage("Node3", square, execution_mode="thread", max_workers=5)
+    n1 = TaskStage("Node1", add_5, execution_mode="serial", max_workers=5)
+    n2 = TaskStage("Node2", add_10, execution_mode="serial", max_workers=5)
+    n3 = TaskStage("Node3", square, execution_mode="serial", max_workers=5)
 
     # 构造 TaskComplete
     complete = TaskComplete("demo_complete", [n1, n2, n3])
     complete.set_reporter(TaskReporter(report_host, report_port, complete))
-    complete.set_ctree(ctree_client)
+    # complete.set_ctree(ctree_client)
 
     complete.run(
         {
             "Node1": list(range(1, 11)),
             "Node2": list(range(11, 21)),
             "Node3": list(range(21, 31)),
-        }
+        }, if_put_signal=False
     )
 
 
@@ -388,7 +388,7 @@ def demo_multi_cycle() -> None:
     graph.connect([C2], [C1])
 
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
-    graph.set_ctree(ctree_client)
+    # graph.set_ctree(ctree_client)
 
     graph.run({"A1": list(range(1, 11))}, if_put_signal=False)
 
