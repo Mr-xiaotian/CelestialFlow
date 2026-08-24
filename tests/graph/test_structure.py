@@ -58,9 +58,9 @@ class TestTaskLoop:
         loop = TaskLoop("test_loop_source_stages", [s1, s2])
         loop.run({"s1": [1]})
 
-        sources = loop.get_source_stages()
-        assert len(sources) == 1
-        assert sources[0].get_name() in {s1.get_name(), s2.get_name()}
+        source_names = loop.get_source_names()
+        assert len(source_names) == 1
+        assert source_names[0] in {s1.get_name(), s2.get_name()}
 
 
 # =========================
@@ -96,9 +96,9 @@ class TestTaskWheel:
         wheel.set_graph_mode("thread")
         wheel.set_stage_execution_mode("serial")
 
-        sources = wheel.get_source_stages()
-        assert len(sources) == 1
-        assert sources[0].get_name() == center.get_name()
+        source_names = wheel.get_source_names()
+        assert len(source_names) == 1
+        assert source_names[0] == center.get_name()
 
 
 # =========================

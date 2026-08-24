@@ -108,7 +108,9 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     # 通过广度优先遍历收集所有节点（沿用任务图出边表的顺序）
     visited: set[str] = set()
     ordered_stages: list[AnyTaskStage] = []
-    queue: deque[AnyTaskStage] = deque(graph.get_source_stages())
+    queue: deque[AnyTaskStage] = deque(
+        graph.stage_dict[source_name] for source_name in graph.get_source_names()
+    )
     while queue:
         stage: AnyTaskStage = queue.popleft()
         stage_name: str = stage.get_name()

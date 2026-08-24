@@ -522,7 +522,7 @@ class TestTaskGraphAnalysis:
         analysis = graph.get_graph_analysis()
         structure_graph = graph.get_structure_graph()
         structure_list = graph.get_structure_list()
-        source_names = {stage.get_name() for stage in graph.get_source_stages()}
+        source_names = set(graph.get_source_names())
 
         assert analysis["isDAG"] is True
         assert s1.get_name() in analysis["layersDict"][0]
@@ -538,12 +538,12 @@ class TestTaskGraphAnalysis:
         graph = TaskGraph("test_getters_refresh_analysis_after_connect")
         graph.set_stages(stages=[s1, s2])
 
-        initial_sources = {stage.get_name() for stage in graph.get_source_stages()}
+        initial_sources = set(graph.get_source_names())
         assert initial_sources == {s1.get_name(), s2.get_name()}
 
         graph.connect([s1], [s2])
 
-        refreshed_sources = {stage.get_name() for stage in graph.get_source_stages()}
+        refreshed_sources = set(graph.get_source_names())
         analysis = graph.get_graph_analysis()
 
         assert refreshed_sources == {s1.get_name()}
@@ -821,9 +821,9 @@ class TestSourceStages:
 
         graph.run({"s1": [1]})
 
-        sources = graph.get_source_stages()
-        assert len(sources) == 1
-        assert sources[0].get_name() == s1.get_name()
+        source_names = graph.get_source_names()
+        assert len(source_names) == 1
+        assert source_names[0] == s1.get_name()
 
     def test_source_stages_fan_in(self):
         """两个入口汇入一点"""
@@ -838,7 +838,7 @@ class TestSourceStages:
 
         graph.run({"s1": [1], "s2": [2]})
 
-        source_names = {s.get_name() for s in graph.get_source_stages()}
+        source_names = set(graph.get_source_names())
         assert source_names == {s1.get_name(), s2.get_name()}
 
     def test_source_stages_diamond(self):
@@ -855,9 +855,9 @@ class TestSourceStages:
 
         graph.run({"s1": [1]})
 
-        sources = graph.get_source_stages()
-        assert len(sources) == 1
-        assert sources[0].get_name() == s1.get_name()
+        source_names = graph.get_source_names()
+        assert len(source_names) == 1
+        assert source_names[0] == s1.get_name()
 
     def test_source_stages_cycle_returns_one_source_scc_member(self):
         """单个源 SCC 只返回一个代表点"""
@@ -871,7 +871,7 @@ class TestSourceStages:
         graph.connect([s2], [s3])
         graph.connect([s3], [s1])
 
-        source_names = {stage.get_name() for stage in graph.get_source_stages()}
+        source_names = set(graph.get_source_names())
         cycle_names = {s1.get_name(), s2.get_name(), s3.get_name()}
 
         assert len(source_names) == 1
@@ -893,7 +893,7 @@ class TestSourceStages:
         graph.connect([s4], [s3])
         graph.connect([s2, s4], [s5])
 
-        source_names = {stage.get_name() for stage in graph.get_source_stages()}
+        source_names = set(graph.get_source_names())
         source_scc_a = {s1.get_name(), s2.get_name()}
         source_scc_b = {s3.get_name(), s4.get_name()}
 
@@ -922,7 +922,7 @@ class TestCyclicGraph:
             UserWarning,
             match=r"TaskGraph contains a cycle while graph_mode='serial'",
         ):
-            graph.get_source_stages()
+            graph.get_source_names()
 
     def test_cyclic_is_dag_false(self):
         """含环图 is_dag 为 False"""

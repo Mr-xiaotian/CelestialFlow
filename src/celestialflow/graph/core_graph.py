@@ -47,10 +47,10 @@ class TaskGraph:
     status_dict: dict[str, dict[str, Any]]
     status_timestamp: float
     input_ids: dict[str, set[int]]
-    source_stages: list[AnyTaskStage]
     _analysis_dirty: bool
     out_edges: dict[str, list[str]]
     in_edges: dict[str, list[str]]
+    source_names: list[str]
     order_graph: OrderGraph
     start_time: float
     reporter: ReporterProtocol
@@ -110,7 +110,7 @@ class TaskGraph:
         self.input_ids = defaultdict(set)
 
         # 用于保存源节点列表（由 _build_analysis 自动计算）
-        self.source_stages = []
+        self.source_names = []
 
         # 用于保存图结构的邻接表
         self.out_edges = defaultdict(list)
@@ -242,11 +242,11 @@ class TaskGraph:
 
         :return: ``None``。
         """
-        source_names = source_nodes(self.order_graph)
-        self.source_stages = [self.stage_dict[name] for name in source_names]
+        self.source_names = source_nodes(self.order_graph)
+        source_stages = [self.stage_dict[name] for name in self.source_names]
 
         self.structure_graph = build_structure_graph(
-            self.stage_dict, self.out_edges, self.source_stages
+            self.stage_dict, self.out_edges, source_stages
         )
 
         self.is_dag = is_dag(self.order_graph)
@@ -268,8 +268,8 @@ class TaskGraph:
         """
         将终止信号放入所有源节点的队列中。
         """
-        for source_stage in self.source_stages:
-            source_stage.put_signal()
+        for source_name in self.source_names:
+            self.stage_dict[source_name].put_signal()
 
     # ==== 执行 ====
 
@@ -655,14 +655,14 @@ class TaskGraph:
         self._ensure_analysis()
         return format_structure_list_from_graph(self.structure_graph)
 
-    def get_source_stages(self) -> list[AnyTaskStage]:
+    def get_source_names(self) -> list[str]:
         """
         获取源节点列表
 
         :return: 源节点列表
         """
         self._ensure_analysis()
-        return self.source_stages
+        return self.source_names
 
     def get_order_graph(self) -> OrderGraph:
         """
