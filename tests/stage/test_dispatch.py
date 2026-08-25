@@ -255,7 +255,6 @@ class TestDispatchSerial:
                 return current_id
 
         executor = _make_executor(_square)
-        executor.persist_result = True
         executor.ctree_client = _SequentialCtreeStub()
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
         collector_a: Queue[Any] = Queue()

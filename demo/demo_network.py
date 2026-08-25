@@ -63,7 +63,6 @@ def demo_network_step1() -> None:
     C = TaskStage(
         "C", linear(1.0, 0.0),
         execution_mode="thread", max_workers=2,
-        persist_result=True,
     )
 
     # ── 构建图 ────────────────────────────────────────────────

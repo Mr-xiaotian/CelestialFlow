@@ -56,7 +56,6 @@ def demo_splitter_0() -> None:
         "Downloader",
         download_sleep,
         max_workers=4,
-        persist_result=True,
     )
     parse_stage = TaskStage(
         "Parser",

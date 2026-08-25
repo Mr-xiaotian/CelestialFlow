@@ -63,7 +63,6 @@ def build_executor(name: str, func: Any, execution_mode: str, max_workers: int):
         func,
         execution_mode=execution_mode,
         max_workers=max_workers,
-        persist_result=False,
         enable_duplicate_check=False,
     )
 
@@ -82,7 +81,6 @@ def build_chain_graph(
         funcs[0],
         execution_mode=execution_mode,
         max_workers=max_workers,
-        persist_result=False,
         enable_duplicate_check=False,
     )
     stage2 = TaskStage(
@@ -90,7 +88,6 @@ def build_chain_graph(
         funcs[1],
         execution_mode=execution_mode,
         max_workers=max_workers,
-        persist_result=False,
         enable_duplicate_check=False,
     )
     stage3 = TaskStage(
@@ -98,7 +95,6 @@ def build_chain_graph(
         funcs[2],
         execution_mode=execution_mode,
         max_workers=max_workers,
-        persist_result=False,
         enable_duplicate_check=False,
     )
 

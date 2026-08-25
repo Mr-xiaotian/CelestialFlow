@@ -14,9 +14,7 @@ from celestialflow.runtime.util_errors import (
 
 def build_result_dict(executor: TaskExecutor[Any, Any]) -> dict[Any, Any]:
     """按当前公开接口组装任务到结果/错误字符串的映射。"""
-    result_dict = {}
-    if executor.persist_result:
-        result_dict.update(dict(executor.get_success_pairs()))
+    result_dict = dict(executor.get_success_pairs())
     for task, error in executor.get_error_pairs():
         result_dict[task] = str(error)
     return result_dict
@@ -385,7 +383,6 @@ class TestExecutorSuccessCache:
             add_one,
             execution_mode="serial",
             enable_duplicate_check=True,
-            persist_result=True,
         )
         executor.run([1, 2, 3])
 
