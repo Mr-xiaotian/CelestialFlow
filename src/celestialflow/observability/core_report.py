@@ -185,9 +185,9 @@ class TaskReporter:
     def _push_errors(self) -> None:
         """推送错误信息"""
         try:
-            fallback_path = self.task_graph.get_fallback_path()
+            lifecycle_path = self.task_graph.get_lifecycle_path()
             graph_id = self.task_graph.get_graph_id()
-            if not fallback_path:
+            if not lifecycle_path:
                 return
 
             all_errors = []
@@ -195,10 +195,10 @@ class TaskReporter:
                 not self._server_has_current_graph
                 or self._server_max_event_id_in_fail is None
             ):
-                all_errors = load_records(db_path=fallback_path)
+                all_errors = load_records(db_path=lifecycle_path)
             elif self._server_has_current_graph:
                 all_errors = load_records_after_event_id_in_fail(
-                    fallback_path, self._server_max_event_id_in_fail
+                    lifecycle_path, self._server_max_event_id_in_fail
                 )
 
             if not all_errors:

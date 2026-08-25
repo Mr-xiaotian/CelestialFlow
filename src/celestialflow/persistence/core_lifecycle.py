@@ -1,4 +1,4 @@
-# persistence/core_fallback.py
+# persistence/core_lifecycle.py
 from __future__ import annotations
 
 import sqlite3
@@ -21,11 +21,11 @@ from .util_sqlite import (
 )
 
 
-class FallbackSpout(BaseSpout):
-    """Fallback 记录监听器，将任务生命周期写入 fallback 目录的 sqlite 文件。"""
+class LifecycleSpout(BaseSpout):
+    """Lifecycle 记录监听器，将任务生命周期写入 lifecycle 目录的 sqlite 文件。"""
 
     def __init__(self) -> None:
-        """初始化失败记录监听器"""
+        """初始化生命周期记录监听器。"""
         super().__init__()
 
         self.db_path: Path | None = None
@@ -33,23 +33,23 @@ class FallbackSpout(BaseSpout):
         self._conn: sqlite3.Connection | None = None
 
     def _before_start(self) -> None:
-        """创建 fallback 目录并打开 sqlite 文件。"""
-        # 创建 fallback 目录
+        """创建 lifecycle 目录并打开 sqlite 文件。"""
+        # 创建 lifecycle 目录
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%H-%M-%S-%f")[:-3]
-        self.db_path = Path(f"./fallbacks/{date_str}/fallback({time_str}).sqlite3")
+        self.db_path = Path(f"./lifecycles/{date_str}/flow_lifecycle({time_str}).sqlite3")
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = connect_db(self.db_path)
 
     def _handle_record(self, record: dict[str, Any]) -> None:
         """
-        处理单条 fallback 记录并写入 sqlite。
+        处理单条 lifecycle 记录并写入 sqlite。
 
-        :param record: fallback 操作字典
+        :param record: lifecycle 操作字典
         """
         if self._conn is None:
-            raise InitializationError("fail database is not initialized")
+            raise InitializationError("lifecycle database is not initialized")
 
         op = str(record["__op__"])
         if op == "insert":
@@ -85,7 +85,7 @@ class FallbackSpout(BaseSpout):
                 error_message=str(record["error_message"]),
             )
         else:
-            raise ValueError(f"unsupported fallback operation: {op}")
+            raise ValueError(f"unsupported lifecycle operation: {op}")
         if changed:
             self._conn.commit()
 
@@ -119,9 +119,9 @@ class FallbackSpout(BaseSpout):
         return load_task_result_records(str(self.db_path), stage)
 
 
-class FallbackInlet(BaseInlet):
+class LifecycleInlet(BaseInlet):
     """
-    线程安全 fallback 记录包装类，所有生命周期变更通过队列发送到监听线程写入。
+    线程安全 lifecycle 记录包装类，所有生命周期变更通过队列发送到监听线程写入。
     """
 
     def task_in(self, stage_name: str, event_id: int, task: Any) -> None:
@@ -220,19 +220,19 @@ class FallbackInlet(BaseInlet):
 
 # ==== 全局单例 ====
 
-_fallback_spout = FallbackSpout()
-_fallback_inlet = FallbackInlet().bind_spout(_fallback_spout)
+_lifecycle_spout = LifecycleSpout()
+_lifecycle_inlet = LifecycleInlet().bind_spout(_lifecycle_spout)
 
 
-def get_fallback_spout() -> FallbackSpout:
+def get_lifecycle_spout() -> LifecycleSpout:
     """
-    获取全局唯一的 FallbackSpout 实例。
+    获取全局唯一的 LifecycleSpout 实例。
     """
-    return _fallback_spout
+    return _lifecycle_spout
 
 
-def get_fallback_inlet() -> FallbackInlet:
+def get_lifecycle_inlet() -> LifecycleInlet:
     """
-    获取全局唯一的 FallbackInlet 实例（已绑定到全局 FallbackSpout）。
+    获取全局唯一的 LifecycleInlet 实例（已绑定到全局 LifecycleSpout）。
     """
-    return _fallback_inlet
+    return _lifecycle_inlet

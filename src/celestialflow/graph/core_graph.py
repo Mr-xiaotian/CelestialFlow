@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from ..observability import NullTaskReporter, ReporterProtocol
-from ..persistence import funnel_scope, get_fallback_spout, get_log_inlet
+from ..persistence import funnel_scope, get_lifecycle_spout, get_log_inlet
 from ..persistence.util_sqlite import load_tasks_grouped_by_stage
 from ..runtime.util_errors import (
     DuplicateNodeError,
@@ -373,7 +373,7 @@ class TaskGraph:
         """
         启动后收尾：回收图内状态、停止上报器并记录结束日志。
 
-        ``fallback`` / ``log`` spout 的启停由外层 ``funnel_scope()`` 统一管理，
+        ``lifecycle`` / ``log`` spout 的启停由外层 ``funnel_scope()`` 统一管理，
         本方法只负责图对象自身的收尾逻辑。
 
         :param start_perf: 启动时刻的 ``perf_counter`` 时间戳，用于计算运行耗时
@@ -672,13 +672,13 @@ class TaskGraph:
         """
         return self.order_graph
 
-    def get_fallback_path(self) -> Path:
+    def get_lifecycle_path(self) -> Path:
         """
-        获取失败任务持久化 sqlite 文件路径。
+        获取任务生命周期持久化 sqlite 文件路径。
 
-        :return: 失败任务持久化文件的绝对路径，未设置时返回空 Path
+        :return: 生命周期持久化文件的绝对路径，未设置时返回空 Path
         """
-        db_path = get_fallback_spout().db_path
+        db_path = get_lifecycle_spout().db_path
         if db_path is None:
             return Path()
         return Path(db_path).resolve()

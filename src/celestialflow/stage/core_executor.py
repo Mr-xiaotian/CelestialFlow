@@ -12,8 +12,8 @@ from typing import Any, cast
 from ..observability import BaseObserver
 from ..persistence import (
     funnel_scope,
-    get_fallback_inlet,
-    get_fallback_spout,
+    get_lifecycle_inlet,
+    get_lifecycle_spout,
     get_log_inlet,
 )
 from ..persistence.util_sqlite import load_tasks_grouped_by_stage
@@ -268,13 +268,13 @@ class TaskExecutor[T, R]:
         """
         return self.metrics.get_counts()
 
-    def get_fallback_path(self) -> Path:
+    def get_lifecycle_path(self) -> Path:
         """
-        获取失败任务的回退路径
+        获取任务生命周期持久化路径。
 
-        :return: 失败任务持久化文件的绝对路径，未设置时返回空 Path
+        :return: 生命周期持久化文件的绝对路径，未设置时返回空 Path
         """
-        db_path = get_fallback_spout().db_path
+        db_path = get_lifecycle_spout().db_path
         if db_path is None:
             return Path()
         return Path(db_path).resolve()
@@ -294,7 +294,7 @@ class TaskExecutor[T, R]:
         self.task_queue.put(envelope)
         self.metrics.add_task_count()
 
-        get_fallback_inlet().task_in(self.get_name(), input_id, task)
+        get_lifecycle_inlet().task_in(self.get_name(), input_id, task)
         get_log_inlet().task_input(
             self.get_func_name(),
             self._get_repr(task),
@@ -348,7 +348,7 @@ class TaskExecutor[T, R]:
         )
 
         self.metrics.add_success_count()
-        get_fallback_inlet().task_success(task_id, result, persist=self.persist_result)
+        get_lifecycle_inlet().task_success(task_id, result, persist=self.persist_result)
 
         get_log_inlet().task_success(
             self.get_func_name(),
@@ -366,7 +366,7 @@ class TaskExecutor[T, R]:
                 parents=[result_id],
                 payload=self.get_summary(),
             )
-            get_fallback_inlet().task_in(target_name, downstream_input_id, result)
+            get_lifecycle_inlet().task_in(target_name, downstream_input_id, result)
             downstream_envelope: TaskEnvelope[R] = TaskEnvelope(
                 task=result,
                 id=downstream_input_id,
@@ -409,7 +409,7 @@ class TaskExecutor[T, R]:
             task_id,
             retry_id,
         )
-        get_fallback_inlet().task_retry(task_id, retry_id)
+        get_lifecycle_inlet().task_retry(task_id, retry_id)
 
         return retry_envelope
 
@@ -435,7 +435,7 @@ class TaskExecutor[T, R]:
 
         self.metrics.add_fail_count()
 
-        get_fallback_inlet().task_fail(task_id, error_id, exception)
+        get_lifecycle_inlet().task_fail(task_id, error_id, exception)
         get_log_inlet().task_fail(
             self.get_func_name(),
             self._get_repr(task),
@@ -454,7 +454,7 @@ class TaskExecutor[T, R]:
         task_id = task_envelope.get_id()
 
         self.metrics.add_duplicate_count()
-        get_fallback_inlet().task_duplicate(task_id)
+        get_lifecycle_inlet().task_duplicate(task_id)
         duplicate_id = self.ctree_client.emit(
             CTreeEvent.TASK_DUPLICATE,
             parents=[task_id],
@@ -664,7 +664,7 @@ class TaskExecutor[T, R]:
                 stacklevel=2,
             )
             return []
-        return get_fallback_spout().get_task_result_pairs(self.get_name())
+        return get_lifecycle_spout().get_task_result_pairs(self.get_name())
 
     def get_error_pairs(self) -> list[tuple[T, PersistedError]]:
         """
@@ -672,7 +672,7 @@ class TaskExecutor[T, R]:
 
         :return: (task, PersistedError) 元组列表
         """
-        task_error_pairs = get_fallback_spout().get_task_error_pairs(self.get_name())
+        task_error_pairs = get_lifecycle_spout().get_task_error_pairs(self.get_name())
         return [
             (task, PersistedError(error_type, error_message))
             for task, (error_type, error_message) in task_error_pairs

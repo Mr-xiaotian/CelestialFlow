@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from contextlib import contextmanager
 
-from .core_fallback import get_fallback_spout
+from .core_lifecycle import get_lifecycle_spout
 from .core_log import get_log_spout
 
 
@@ -12,7 +12,7 @@ def funnel_scope() -> Generator[None, None, None]:
     """
     管理全局 funnel 生命周期的单层作用域。
 
-    - 进入作用域时启动全局 ``fallback`` / ``log`` spout
+    - 进入作用域时启动全局 ``lifecycle`` / ``log`` spout
     - 退出作用域时统一停止 spout
     - 当前实现不承诺嵌套作用域复用
     :return: ``None``
@@ -22,7 +22,7 @@ def funnel_scope() -> Generator[None, None, None]:
     error_list: list[Exception] = []
 
     try:
-        get_fallback_spout().start()
+        get_lifecycle_spout().start()
         get_log_spout().start()
         yield
     except Exception as exception:
@@ -33,7 +33,7 @@ def funnel_scope() -> Generator[None, None, None]:
         except Exception as exception:
             error_list.append(exception)
         try:
-            get_fallback_spout().stop()
+            get_lifecycle_spout().stop()
         except Exception as exception:
             error_list.append(exception)
 
