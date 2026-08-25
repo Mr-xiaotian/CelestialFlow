@@ -85,13 +85,13 @@ class FakeTaskGraph:
 class FakeErrorGraph:
     """提供 reporter 推送错误所需的最小图接口。"""
 
-    def __init__(self, fallback_path: Path, graph_id: str = "demo@1000") -> None:
-        self._fallback_path = str(fallback_path)
+    def __init__(self, lifecycle_path: Path, graph_id: str = "demo@1000") -> None:
+        self._lifecycle_path = str(lifecycle_path)
         self._graph_id = graph_id
 
-    def get_fallback_path(self) -> str:
-        """返回 fallback sqlite 路径。"""
-        return self._fallback_path
+    def get_lifecycle_path(self) -> str:
+        """返回 lifecycle sqlite 路径。"""
+        return self._lifecycle_path
 
     def get_graph_id(self) -> str:
         """返回当前 graph_id。"""
@@ -192,7 +192,7 @@ def test_reporter_pushes_errors_via_push_errors_endpoint_only(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reporter 只通过 push_errors 推送错误内容。"""
-    sqlite_path = tmp_path / "fallback.sqlite3"
+    sqlite_path = tmp_path / "lifecycle.sqlite3"
     appended = append_records(
         sqlite_path,
         [
@@ -245,7 +245,7 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reporter 只推送 failed 中 event_id 大于服务端水位线的记录。"""
-    sqlite_path = tmp_path / "fallback.sqlite3"
+    sqlite_path = tmp_path / "lifecycle.sqlite3"
     appended = append_records(
         sqlite_path,
         [

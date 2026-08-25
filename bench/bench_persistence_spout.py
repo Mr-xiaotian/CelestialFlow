@@ -12,7 +12,7 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from celestialflow.persistence.core_fallback import FallbackSpout
+from celestialflow.persistence.core_lifecycle import LifecycleSpout
 from celestialflow.persistence.core_log import LogSpout
 from celestialflow.persistence.util_sqlite import connect_db
 
@@ -28,13 +28,13 @@ class BenchLogSpout(LogSpout):
         self._file = self.log_path.open("a", encoding="utf-8")
 
 
-class BenchFallbackSpout(FallbackSpout):
+class BenchLifecycleSpout(LifecycleSpout):
     def __init__(self, base_dir: Path) -> None:
         super().__init__()
         self._base_dir = base_dir
 
     def _before_start(self) -> None:
-        self.db_path = self._base_dir / "bench_fallback.sqlite3"
+        self.db_path = self._base_dir / "bench_lifecycle.sqlite3"
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = connect_db(self.db_path)
 
@@ -50,7 +50,7 @@ def build_log_records(count: int) -> list[dict[str, Any]]:
     ]
 
 
-def build_fallback_insert_records(count: int) -> list[dict[str, Any]]:
+def build_lifecycle_insert_records(count: int) -> list[dict[str, Any]]:
     return [
         {
             "__op__": "insert",
@@ -94,7 +94,7 @@ def print_result(name: str, result: dict[str, float]) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Benchmark LogSpout and FallbackSpout drain throughput."
+        description="Benchmark LogSpout and LifecycleSpout drain throughput."
     )
     parser.add_argument(
         "--log-count",
@@ -103,10 +103,10 @@ def parse_args() -> argparse.Namespace:
         help="Preloaded log records for LogSpout benchmark.",
     )
     parser.add_argument(
-        "--fallback-count",
+        "--lifecycle-count",
         type=int,
         default=20_000,
-        help="Preloaded fallback insert records for FallbackSpout benchmark.",
+        help="Preloaded lifecycle insert records for LifecycleSpout benchmark.",
     )
     return parser.parse_args()
 
@@ -115,7 +115,7 @@ def main() -> None:
     args = parse_args()
     print("Running persistence spout benchmarks...")
     print(f"  log-count:      {args.log_count:,}")
-    print(f"  fallback-count: {args.fallback_count:,}")
+    print(f"  lifecycle-count: {args.lifecycle_count:,}")
     print("  model: preload queue -> start spout -> drain all queued records")
 
     with tempfile.TemporaryDirectory(prefix="cf_bench_log_") as log_dir_str:
@@ -123,13 +123,16 @@ def main() -> None:
         log_result = run_spout_bench(log_spout, build_log_records(args.log_count))
         print_result("LogSpout", log_result)
 
-    with tempfile.TemporaryDirectory(prefix="cf_bench_fallback_") as fallback_dir_str:
-        fallback_spout = BenchFallbackSpout(Path(fallback_dir_str))
-        fallback_result = run_spout_bench(
-            fallback_spout,
-            build_fallback_insert_records(args.fallback_count),
+    with tempfile.TemporaryDirectory(prefix="cf_bench_lifecycle_") as lifecycle_dir_str:
+        lifecycle_spout = BenchLifecycleSpout(Path(lifecycle_dir_str))
+        lifecycle_result = run_spout_bench(
+            lifecycle_spout,
+            build_lifecycle_insert_records(args.lifecycle_count),
         )
-        print_result("FallbackSpout (insert + commit per changed record)", fallback_result)
+        print_result(
+            "LifecycleSpout (insert + commit per changed record)",
+            lifecycle_result,
+        )
 
 
 if __name__ == "__main__":

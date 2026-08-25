@@ -1,17 +1,17 @@
 import sqlite3
 
 from celestialflow.funnel.core_inlet import BaseInlet
-from celestialflow.persistence.core_fallback import FallbackInlet, FallbackSpout
+from celestialflow.persistence.core_lifecycle import LifecycleInlet, LifecycleSpout
 from tests.conftest import wait_until
 
 
-class TestFailPersistence:
-    def test_fallback_lifecycle_persistence(self, tmp_path, monkeypatch):
-        """`FallbackInlet`/`FallbackSpout` 应按生命周期维护 sqlite 记录。"""
+class TestLifecyclePersistence:
+    def test_lifecycle_persistence(self, tmp_path, monkeypatch):
+        """`LifecycleInlet`/`LifecycleSpout` 应按生命周期维护 sqlite 记录。"""
         monkeypatch.chdir(tmp_path)
 
-        spout = FallbackSpout()
-        inlet = FallbackInlet().bind_spout(spout)
+        spout = LifecycleSpout()
+        inlet = LifecycleInlet().bind_spout(spout)
 
         spout.start()
         try:
@@ -57,10 +57,10 @@ class TestFailPersistence:
         assert rows[1][1] > 0
 
     def test_success_persistence(self, tmp_path, monkeypatch):
-        """`FallbackSpout` 应持久化 success 结果并可读回 task-result 对。"""
+        """`LifecycleSpout` 应持久化 success 结果并可读回 task-result 对。"""
         monkeypatch.chdir(tmp_path)
-        spout = FallbackSpout()
-        inlet = FallbackInlet().bind_spout(spout)
+        spout = LifecycleSpout()
+        inlet = LifecycleInlet().bind_spout(spout)
 
         spout.start()
         try:

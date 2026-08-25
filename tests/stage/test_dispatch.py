@@ -17,7 +17,7 @@ from weakref import WeakKeyDictionary
 import pytest
 
 from celestialflow.observability import BaseObserver
-from celestialflow.persistence import LogInlet, get_fallback_spout, get_log_spout
+from celestialflow.persistence import LogInlet, get_lifecycle_spout, get_log_spout
 from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.util_types import TerminationSignal
 from celestialflow.stage import TaskExecutor
@@ -31,10 +31,10 @@ _RESULT_COLLECTORS: WeakKeyDictionary[TaskExecutor, Queue[Any]] = WeakKeyDiction
 def _cleanup_global_spouts() -> None:
     """为每个用例清理全局 spout，避免后台线程与持久化状态串扰。"""
     get_log_spout().stop()
-    get_fallback_spout().stop()
+    get_lifecycle_spout().stop()
     yield
     get_log_spout().stop()
-    get_fallback_spout().stop()
+    get_lifecycle_spout().stop()
 
 
 # ── 工具函数 ──────────────────────────────────────────
@@ -131,7 +131,7 @@ def _make_executor(
     )
     e.set_retry_exceptions(ValueError)
     e.metrics.reset_state()
-    get_fallback_spout().start()
+    get_lifecycle_spout().start()
     get_log_spout().start()
     e.ctree_client = _CtreeStub()
     # 通过公开 API 为测试注册结果收集队列，避免向 executor 注入测试专用属性
@@ -263,9 +263,9 @@ class TestDispatchSerial:
         executor.result_queue.add_queue(collector_a, name="downstream_a")
         executor.result_queue.add_queue(collector_b, name="downstream_b")
 
-        from celestialflow.persistence import get_fallback_inlet
+        from celestialflow.persistence import get_lifecycle_inlet
 
-        get_fallback_inlet().task_in(executor.get_name(), 0, 3)
+        get_lifecycle_inlet().task_in(executor.get_name(), 0, 3)
         _put(executor, 3)
         _put_termination(executor)
         dispatch.dispatch_serial()
@@ -280,7 +280,7 @@ class TestDispatchSerial:
         assert item_a.get_id() != item_b.get_id()
         wait_until(
             lambda: executor.get_success_pairs() == [(3, 9)],
-            message="timeout waiting for fallback store to persist success result",
+            message="timeout waiting for lifecycle store to persist success result",
         )
         assert executor.get_success_pairs() == [(3, 9)]
 

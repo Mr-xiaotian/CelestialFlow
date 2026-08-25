@@ -85,11 +85,11 @@ class TestExecutorSerial:
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 2
 
-        fallback_pairs = dict(executor.get_error_pairs())
-        assert isinstance(fallback_pairs[-1], PersistedError)
-        assert fallback_pairs[-1].error_type == "ValueError"
-        assert "negative value: -1" in fallback_pairs[-1].error_message
-        assert fallback_pairs[-2].error_type == "ValueError"
+        lifecycle_pairs = dict(executor.get_error_pairs())
+        assert isinstance(lifecycle_pairs[-1], PersistedError)
+        assert lifecycle_pairs[-1].error_type == "ValueError"
+        assert "negative value: -1" in lifecycle_pairs[-1].error_message
+        assert lifecycle_pairs[-2].error_type == "ValueError"
 
     def test_serial_retry(self):
         """测试串行执行器的重试机制"""
@@ -231,7 +231,7 @@ class TestExecutorDuplicateCheck:
 class TestExecutorReplay:
     def test_restore_db(self, tmp_path: Path):
         """执行器默认应读取属于自己 stage 的 failed 与 pending 任务。"""
-        sqlite_path = tmp_path / "fallback.sqlite3"
+        sqlite_path = tmp_path / "lifecycle.sqlite3"
         appended = append_records(
             sqlite_path,
             [
@@ -284,7 +284,7 @@ class TestExecutorReplay:
 
     def test_restore_db_filters_error_type_when_enabled(self, tmp_path: Path):
         """restore_db 开启过滤时只回放命中 retry_exceptions 的记录。"""
-        sqlite_path = tmp_path / "fallback.sqlite3"
+        sqlite_path = tmp_path / "lifecycle.sqlite3"
         appended = append_records(
             sqlite_path,
             [
@@ -333,7 +333,7 @@ class TestExecutorReplay:
 
     def test_restore_db_filter_keeps_pending_records(self, tmp_path: Path):
         """restore_db 开启过滤时仍应保留 pending 记录。"""
-        sqlite_path = tmp_path / "fallback.sqlite3"
+        sqlite_path = tmp_path / "lifecycle.sqlite3"
         appended = append_records(
             sqlite_path,
             [

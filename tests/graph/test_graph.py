@@ -168,7 +168,7 @@ class TestTaskGraphBasic:
 
     def test_graph_restore_db(self, tmp_path):
         """任务图默认应按 stage 分组读取 failed 与 pending 任务并启动。"""
-        sqlite_path = tmp_path / "fallback.sqlite3"
+        sqlite_path = tmp_path / "lifecycle.sqlite3"
         appended = append_records(
             sqlite_path,
             [
@@ -224,7 +224,7 @@ class TestTaskGraphBasic:
 
     def test_graph_restore_db_filters_error_type_when_enabled(self, tmp_path):
         """图级 restore_db 开启过滤时，应按各 stage 的 retry_exceptions 回放。"""
-        sqlite_path = tmp_path / "fallback.sqlite3"
+        sqlite_path = tmp_path / "lifecycle.sqlite3"
         appended = append_records(
             sqlite_path,
             [
@@ -282,7 +282,7 @@ class TestTaskGraphBasic:
 
     def test_graph_restore_db_filter_keeps_pending_records(self, tmp_path):
         """图级 restore_db 过滤开启时，pending 记录仍应继续回放。"""
-        sqlite_path = tmp_path / "fallback.sqlite3"
+        sqlite_path = tmp_path / "lifecycle.sqlite3"
         appended = append_records(
             sqlite_path,
             [
