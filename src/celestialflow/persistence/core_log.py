@@ -27,7 +27,7 @@ class LogSpout(BaseSpout):
         """创建 logs 目录并打开日志文件"""
         # 创建 logs 目录
         now = strftime("%Y-%m-%d", localtime())
-        self.log_path = Path(f"logs/task_logger({now}).log")
+        self.log_path = Path(f"logs/flow_log({now}).log")
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
         # 打开日志文件
