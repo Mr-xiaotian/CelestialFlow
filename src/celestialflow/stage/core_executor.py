@@ -4,7 +4,6 @@ from __future__ import annotations
 import inspect
 import os
 import time
-import warnings
 from collections.abc import Awaitable, Callable, Iterable
 from pathlib import Path
 from typing import Any, cast
@@ -71,7 +70,6 @@ class TaskExecutor[T, R]:
         max_queue_size: int = 0,
         max_info: int = 50,
         enable_duplicate_check: bool = False,
-        persist_result: bool = False,
     ):
         """
         初始化 TaskExecutor
@@ -84,7 +82,6 @@ class TaskExecutor[T, R]:
         :param max_queue_size: 任务输入队列的最大容量，默认为 0，表示无限制
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param enable_duplicate_check: 是否启用重复检查，默认 False
-        :param persist_result: 是否持久化任务结果，默认 False
         :note:
             TaskExecutor 为一次性对象。完成一次 start()/start_async() 后，不应复用
             同一实例再次启动；如需重复执行，请重新创建实例。
@@ -99,7 +96,6 @@ class TaskExecutor[T, R]:
         self.max_queue_size = max_queue_size
         self.max_info = max_info
         self.enable_duplicate_check = enable_duplicate_check
-        self.persist_result = persist_result
 
         self.set_ctree(LocalEventClient())
 
@@ -348,7 +344,7 @@ class TaskExecutor[T, R]:
         )
 
         self.metrics.add_success_count()
-        get_lifecycle_inlet().task_success(task_id, result, persist=self.persist_result)
+        get_lifecycle_inlet().task_success(task_id, result)
 
         get_log_inlet().task_success(
             self.get_func_name(),
@@ -655,15 +651,6 @@ class TaskExecutor[T, R]:
 
         :return: (task, result) 元组列表
         """
-        if not self.persist_result:
-            warnings.warn(
-                (
-                    "get_success_pairs() is not available when persist_result is False."
-                    "Please set persist_result to True to get success pairs."
-                ),
-                stacklevel=2,
-            )
-            return []
         return get_lifecycle_spout().get_task_result_pairs(self.get_name())
 
     def get_error_pairs(self) -> list[tuple[T, PersistedError]]:

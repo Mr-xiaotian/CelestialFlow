@@ -114,9 +114,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
 
         split_count = self._put_split_result(result_list, task_id)
         self.metrics.add_success_count()
-        get_lifecycle_inlet().task_success(
-            task_id, result_list, persist=self.persist_result
-        )
+        get_lifecycle_inlet().task_success(task_id, result_list)
         self._update_split_counter(split_count)
 
         get_log_inlet().split_success(
@@ -256,7 +254,7 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
             payload=self.get_summary(),
         )
         self.metrics.add_success_count()
-        get_lifecycle_inlet().task_success(task_id, task, persist=self.persist_result)
+        get_lifecycle_inlet().task_success(task_id, task)
         self._update_route_counter(target)
 
         get_log_inlet().route_success(

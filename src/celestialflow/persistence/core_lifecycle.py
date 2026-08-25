@@ -56,7 +56,7 @@ class LifecycleSpout(BaseSpout):
             # 新任务进入某个 stage，写入一条 pending 记录。
             changed = insert_record(self._conn, cast(dict[str, Any], record["record"]))
         elif op == "delete":
-            # 任务成功或重复时，删除对应的 pending 记录。
+            # 任务重复时，删除对应的 pending 记录。
             changed = delete_record_by_event_id(self._conn, int(record["event_id"]))
         elif op == "update_event_id":
             # 任务重试时，将 pending 记录迁移到新的 retry 事件 ID。
@@ -145,26 +145,22 @@ class LifecycleInlet(BaseInlet):
         }
         self._funnel(pending_item)
 
-    def task_success(self, event_id: int, result: Any, persist: bool = False) -> None:
+    def task_success(self, event_id: int, result: Any) -> None:
         """
         将已成功处理任务对应的 pending 记录晋升为 success 并写入结果。
 
         :param event_id: 当前任务事件 ID
         :param result: 任务结果
-        :param persist: 是否持久化任务结果，默认 False
         """
-        if persist:
-            now = datetime.now()
-            self._funnel(
-                {
-                    "__op__": "promote_success",
-                    "event_id": event_id,
-                    "ts": now.timestamp(),
-                    "result_json": to_persisted_payload(result),
-                }
-            )
-        else:
-            self._funnel({"__op__": "delete", "event_id": event_id})
+        now = datetime.now()
+        self._funnel(
+            {
+                "__op__": "promote_success",
+                "event_id": event_id,
+                "ts": now.timestamp(),
+                "result_json": to_persisted_payload(result),
+            }
+        )
 
     def task_retry(self, event_id: int, retry_id: int) -> None:
         """

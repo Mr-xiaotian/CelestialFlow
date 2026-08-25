@@ -51,7 +51,6 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         :param max_queue_size: 任务输入队列的最大容量，默认为 0，表示无限制
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param enable_duplicate_check: 是否启用重复检查，默认 False
-        :param persist_result: 是否持久化任务结果，默认 False
         """
         super().__init__(
             name,
