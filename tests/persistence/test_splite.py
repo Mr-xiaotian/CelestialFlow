@@ -18,7 +18,6 @@ from celestialflow.persistence.util_sqlite import (
     query_records,
     promote_record_to_failed_by_event_id,
     promote_record_to_success_by_event_id,
-    update_record_event_id_by_event_id,
 )
 
 
@@ -426,33 +425,6 @@ class TestSpliteUtils:
         assert success_records[0]["ts"] == 8.5
         assert success_records[0]["result_json"] == {"ok": True, "value": [1, 2, 3]}
         assert success_records[0]["task_json"] == {"value": 8}
-
-    def test_update_record_event_id_by_event_id(self, sqlite_path):
-        """测试按 event_id 迁移记录的 event_id。"""
-        waiting_record = {
-            "event_id": 9,
-            "stage": "s9",
-            "status": "pending",
-            "task_json": {"value": 9},
-        }
-        appended = append_records(sqlite_path, [waiting_record])
-        assert appended == 1
-
-        conn = connect_db(sqlite_path)
-        try:
-            updated = update_record_event_id_by_event_id(conn, 9, 99, ts=99.5)
-            conn.commit()
-        finally:
-            conn.close()
-
-        assert updated is True
-        pending_records = load_records(sqlite_path, "pending")
-        assert len(pending_records) == 1
-        assert pending_records[0]["event_id"] == 99
-        assert pending_records[0]["status"] == "pending"
-        assert pending_records[0]["ts"] == 99.5
-        assert pending_records[0]["error_type"] == ""
-        assert pending_records[0]["error_message"] == ""
 
     def test_delete_record_by_event_id(self, sqlite_path, sample_errors):
         """测试按 event_id 删除记录。"""
