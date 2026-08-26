@@ -57,7 +57,7 @@ class TestFunnelScope:
 
             get_log_inlet().start_graph("scope_graph", ["hello scope"])
             get_lifecycle_inlet().task_in("scope_stage", event_id=1, task="data")
-            get_lifecycle_inlet().task_success(event_id=1, result="ok", persist=True)
+            get_lifecycle_inlet().task_success(event_id=1, result="ok")
 
         assert get_log_spout()._thread is None
         assert get_lifecycle_spout()._thread is None

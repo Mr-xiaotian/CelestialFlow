@@ -394,7 +394,7 @@ class _RecordingLogInlet(LogInlet):
 
 
 class _CrashRetryLogInlet(_RecordingLogInlet):
-    """``task_retry`` 抛异常，模拟重试信封生成链中的日志崩溃。"""
+    """``task_retry`` 抛异常，模拟重试日志链中的崩溃。"""
 
     def task_retry(
         self,
@@ -402,8 +402,7 @@ class _CrashRetryLogInlet(_RecordingLogInlet):
         task_repr: str,
         retry_times: int,
         exception: Exception,
-        parent_id: int,
-        retry_id: int,
+        task_id: int,
     ) -> None:
         """重试日志回调，直接抛异常。"""
         msg = "retry log boom"

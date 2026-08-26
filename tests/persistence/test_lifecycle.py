@@ -1,8 +1,6 @@
 import sqlite3
 
-from celestialflow.funnel.core_inlet import BaseInlet
 from celestialflow.persistence.core_lifecycle import LifecycleInlet, LifecycleSpout
-from tests.conftest import wait_until
 
 
 class TestLifecyclePersistence:
@@ -15,14 +13,14 @@ class TestLifecyclePersistence:
 
         spout.start()
         try:
-            inlet.task_in('s1', event_id=1, task='data1')
+            inlet.task_in("s1", event_id=1, task="data1")
             inlet.task_retry(event_id=1, retry_id=11)
-            inlet.task_fail(event_id=11, error_id=21, error=ValueError('oops'))
+            inlet.task_fail(event_id=11, error_id=21, error=ValueError("oops"))
 
-            inlet.task_in('s2', event_id=2, task='data2')
-            inlet.task_success(event_id=2, result='ok2', persist=True)
+            inlet.task_in("s2", event_id=2, task="data2")
+            inlet.task_success(event_id=2, result="ok2")
 
-            inlet.task_in('s3', event_id=3, task='data3')
+            inlet.task_in("s3", event_id=3, task="data3")
             inlet.task_duplicate(event_id=3)
         finally:
             spout.stop()
@@ -33,8 +31,8 @@ class TestLifecyclePersistence:
 
         pairs = spout.get_task_error_pairs("s1")
         assert len(pairs) == 1
-        assert pairs[0][0] == 'data1'
-        assert pairs[0][1] == ('ValueError', 'oops')
+        assert pairs[0][0] == "data1"
+        assert pairs[0][1] == ("ValueError", "oops")
 
         conn = sqlite3.connect(spout.db_path)
         try:
@@ -65,9 +63,9 @@ class TestLifecyclePersistence:
         spout.start()
         try:
             inlet.task_in("s1", event_id=1, task="task1")
-            inlet.task_success(event_id=1, result=100, persist=True)
+            inlet.task_success(event_id=1, result=100)
             inlet.task_in("s2", event_id=2, task="task2")
-            inlet.task_success(event_id=2, result=200, persist=True)
+            inlet.task_success(event_id=2, result=200)
         finally:
             spout.stop()
 
