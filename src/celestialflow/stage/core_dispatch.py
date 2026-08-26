@@ -138,9 +138,9 @@ class TaskDispatch[T, R]:
                         # 如果无重试机会或非可试异常, 则直接处理失败
                         self.task_executor.handle_task_fail(task_envelope, exception)
                         return
-                    task_envelope = self.task_executor.emit_retry_envelope(
-                        task_envelope, exception, retry_time + 1
-                    )
+                    # 重试
+                    self.task_executor.log_task_retry(task_envelope, exception, retry_time)
+                    
         except Exception as e:
             get_log_inlet().worker_crash(e)
 
@@ -168,9 +168,9 @@ class TaskDispatch[T, R]:
                     ):
                         self.task_executor.handle_task_fail(task_envelope, exception)
                         return
-                    task_envelope = self.task_executor.emit_retry_envelope(
-                        task_envelope, exception, retry_time + 1
-                    )
+                    # 重试
+                    self.task_executor.log_task_retry(task_envelope, exception, retry_time)
+                    
         except Exception as e:
             get_log_inlet().worker_crash(e)
 

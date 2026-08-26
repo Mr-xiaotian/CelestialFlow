@@ -129,6 +129,7 @@ class TaskExecutor[T, R]:
         self.metrics.remove_observer(observer)
 
     # ==== 配置 ====
+
     def _set_func(
         self,
         func: Callable[[T], R] | Callable[[T], Awaitable[R]],
@@ -324,6 +325,7 @@ class TaskExecutor[T, R]:
         return f"({format_repr(task, self.max_info)})"
 
     # ==== 结果处理 ====
+
     def process_task_success(
         self, task_envelope: TaskEnvelope[T], result: R, start_time: float
     ) -> None:
@@ -369,46 +371,6 @@ class TaskExecutor[T, R]:
             )
             self.result_queue.put_target(downstream_envelope, target_name)
 
-    def emit_retry_envelope(
-        self,
-        task_envelope: TaskEnvelope[T],
-        exception: Exception,
-        retry_time: int,
-    ) -> TaskEnvelope[T]:
-        """
-        为重试任务生成新的信封 ID 并记录日志
-
-        :param task_envelope: 发生异常的任务
-        :param exception: 捕获的异常
-        :param retry_time: 当前重试次数
-        :return: 重试的任务信封
-        """
-        task = task_envelope.get_task()
-        task_id = task_envelope.get_id()
-
-        retry_id = self.ctree_client.emit(
-            f"{CTreeEvent.TASK_RETRY_PREFIX}{retry_time}",
-            parents=[task_id],
-            payload=self.get_summary(),
-        )
-
-        retry_envelope: TaskEnvelope[T] = TaskEnvelope(
-            task=task,
-            id=retry_id,
-        )
-
-        get_log_inlet().task_retry(
-            self.get_func_name(),
-            self._get_repr(task),
-            retry_time,
-            exception,
-            task_id,
-            retry_id,
-        )
-        get_lifecycle_inlet().task_retry(task_id, retry_id)
-
-        return retry_envelope
-
     def handle_task_fail(
         self,
         task_envelope: TaskEnvelope[T],
@@ -438,6 +400,30 @@ class TaskExecutor[T, R]:
             exception,
             task_id,
             error_id,
+        )
+
+    def log_task_retry(
+        self,
+        task_envelope: TaskEnvelope[T],
+        exception: Exception,
+        retry_time: int,
+    ):
+        """
+        为重试任务生成新的信封 ID 并记录日志
+
+        :param task_envelope: 发生异常的任务
+        :param exception: 捕获的异常
+        :param retry_time: 当前重试次数
+        """
+        task = task_envelope.get_task()
+        task_id = task_envelope.get_id()
+
+        get_log_inlet().task_retry(
+            self.get_func_name(),
+            self._get_repr(task),
+            retry_time,
+            exception,
+            task_id,
         )
 
     def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
@@ -645,6 +631,7 @@ class TaskExecutor[T, R]:
             raise ExceptionGroup("Errors occurred during execution", error_list)
 
     # ==== 结果获取 ====
+
     def get_success_pairs(self) -> list[tuple[T, R]]:
         """
         获取成功任务的列表

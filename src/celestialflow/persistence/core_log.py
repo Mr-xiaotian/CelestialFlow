@@ -257,30 +257,6 @@ class LogInlet(BaseInlet):
             f"In '{func_name}', Task {task_repr} succeeded by {execution_mode}. Result is {result_repr}. Used {use_time:.2f}s. [{parent_id}->{success_id}*]",
         )
 
-    def task_retry(
-        self,
-        func_name: str,
-        task_repr: str,
-        retry_times: int,
-        exception: Exception,
-        parent_id: int,
-        retry_id: int,
-    ) -> None:
-        """
-        记录任务重试
-
-        :param func_name: 任务函数名称
-        :param task_repr: 任务表示
-        :param retry_times: 已重试次数
-        :param exception: 导致重试的异常
-        :param parent_id: 父记录 ID
-        :param retry_id: 重试记录 ID
-        """
-        self._log(
-            "WARNING",
-            f"In '{func_name}', Task {task_repr} failed {retry_times} times and will retry: ({type(exception).__name__}). [{parent_id}->{retry_id}*]",
-        )
-
     def task_fail(
         self,
         func_name: str,
@@ -303,6 +279,28 @@ class LogInlet(BaseInlet):
         self._log(
             "ERROR",
             f"In '{func_name}', Task {task_repr} failed and can't retry: ({exception_type}){exception_text}. [{parent_id}->{error_id}*]",
+        )
+
+    def task_retry(
+        self,
+        func_name: str,
+        task_repr: str,
+        retry_times: int,
+        exception: Exception,
+        task_id: int,
+    ) -> None:
+        """
+        记录任务重试
+
+        :param func_name: 任务函数名称
+        :param task_repr: 任务表示
+        :param retry_times: 已重试次数
+        :param exception: 导致重试的异常
+        :param task_id: 任务记录 ID
+        """
+        self._log(
+            "WARNING",
+            f"In '{func_name}', Task {task_repr} failed {retry_times} times and will retry: ({type(exception).__name__}). [{task_id}*]",
         )
 
     def task_duplicate(
