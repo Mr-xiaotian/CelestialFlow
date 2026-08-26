@@ -54,20 +54,26 @@ class OrderGraph:
     @property
     def out_edges(self) -> dict[str, list[str]]:
         """
-        返回出边邻接表的深拷贝视图。
+        返回出边邻接表的引用视图（非拷贝）。
+
+        返回的字典与内部存储共享，调用方**不应修改**；如需修改图结构，
+        请使用 :meth:`add_node` / :meth:`add_edge` 以保证入边、出边同步维护。
 
         :return: ``{node: [successor, ...]}``。
         """
-        return {k: list(v) for k, v in self._out.items()}
+        return self._out
 
     @property
     def in_edges(self) -> dict[str, list[str]]:
         """
-        返回入边邻接表的深拷贝视图。
+        返回入边邻接表的引用视图（非拷贝）。
+
+        返回的字典与内部存储共享，调用方**不应修改**；如需修改图结构，
+        请使用 :meth:`add_node` / :meth:`add_edge` 以保证入边、出边同步维护。
 
         :return: ``{node: [predecessor, ...]}``。
         """
-        return {k: list(v) for k, v in self._in.items()}
+        return self._in
 
     def has_node(self, name: str) -> bool:
         """

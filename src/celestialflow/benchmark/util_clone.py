@@ -104,7 +104,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     :param graph: 要克隆的任务图
     :return: 克隆任务图
     """
-    # 通过广度优先遍历收集所有节点（沿用任务图出边表的顺序）
+    # 通过广度优先遍历收集所有节点（沿用任务图有序图的出边顺序）
     visited: set[str] = set()
     ordered_stages: list[AnyTaskStage] = []
     queue: deque[AnyTaskStage] = deque(
@@ -117,7 +117,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
             continue
         visited.add(stage_name)
         ordered_stages.append(stage)
-        for next_stage_name in graph.out_edges.get(stage_name, []):
+        for next_stage_name in graph.order_graph.out_edges.get(stage_name, []):
             next_stage: AnyTaskStage = graph.stage_dict[next_stage_name]
             queue.append(next_stage)
 
@@ -133,7 +133,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     cloned_graph.set_stages(all_cloned_stages)
 
     # 重建连接
-    for from_name, to_names in graph.out_edges.items():
+    for from_name, to_names in graph.order_graph.out_edges.items():
         if not to_names:
             continue
         cloned_from: AnyTaskStage = name_map[from_name]

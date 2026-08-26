@@ -48,8 +48,6 @@ class TaskGraph:
     status_timestamp: float
     input_ids: dict[str, set[int]]
     _analysis_dirty: bool
-    out_edges: dict[str, list[str]]
-    in_edges: dict[str, list[str]]
     source_names: list[str]
     order_graph: OrderGraph
     start_time: float
@@ -113,8 +111,6 @@ class TaskGraph:
         self.source_names = []
 
         # 用于保存图结构的邻接表
-        self.out_edges = defaultdict(list)
-        self.in_edges = defaultdict(list)
         self.order_graph = OrderGraph()
         self._analysis_dirty = True
 
@@ -170,9 +166,6 @@ class TaskGraph:
                 from_out_queue.add_queue(to_in_queue, to_name)
                 to_in_queue.add_source_name(from_name)
                 self.order_graph.add_edge(from_name, to_name)
-
-                self.out_edges[from_name].append(to_name)
-                self.in_edges[to_name].append(from_name)
 
         self._analysis_dirty = True
 
@@ -246,7 +239,7 @@ class TaskGraph:
         source_stages = [self.stage_dict[name] for name in self.source_names]
 
         self.structure_graph = build_structure_graph(
-            self.stage_dict, self.out_edges, source_stages
+            self.stage_dict, self.order_graph.out_edges, source_stages
         )
 
         self.is_dag = is_dag(self.order_graph)
