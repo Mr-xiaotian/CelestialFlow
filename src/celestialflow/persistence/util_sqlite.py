@@ -210,36 +210,6 @@ def promote_record_to_success_by_event_id(
     return cursor.rowcount > 0
 
 
-def update_record_event_id_by_event_id(
-    conn: sqlite3.Connection,
-    event_id: int,
-    new_event_id: int,
-    *,
-    ts: float,
-) -> bool:
-    """
-    在给定连接上按 ``event_id`` 更新记录的 ``event_id``。
-
-    该操作用于任务重试时，将待处理记录绑定到新的运行事件 ID。
-
-    :param conn: 已建立的 sqlite 连接
-    :param event_id: 旧事件 ID
-    :param new_event_id: 新事件 ID
-    :param ts: 生命周期更新时间戳
-    :return: 是否更新到记录
-    :rtype: bool
-    """
-    cursor = conn.execute(
-        """
-        UPDATE records
-        SET event_id = ?, ts = ?
-        WHERE event_id = ?
-        """,
-        [int(new_event_id), ts, int(event_id)],
-    )
-    return cursor.rowcount > 0
-
-
 def delete_record_by_event_id(conn: sqlite3.Connection, event_id: int) -> bool:
     """
     在给定连接上按 ``event_id`` 删除记录。

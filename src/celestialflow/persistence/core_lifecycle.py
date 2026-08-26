@@ -17,7 +17,6 @@ from .util_sqlite import (
     load_task_result_records,
     promote_record_to_failed_by_event_id,
     promote_record_to_success_by_event_id,
-    update_record_event_id_by_event_id,
 )
 
 
@@ -58,14 +57,6 @@ class LifecycleSpout(BaseSpout):
         elif op == "delete":
             # 任务重复时，删除对应的 pending 记录。
             changed = delete_record_by_event_id(self._conn, int(record["event_id"]))
-        elif op == "update_event_id":
-            # 任务重试时，将 pending 记录迁移到新的 retry 事件 ID。
-            changed = update_record_event_id_by_event_id(
-                self._conn,
-                int(record["event_id"]),
-                int(record["new_event_id"]),
-                ts=float(record["ts"]),
-            )
         elif op == "promote_success":
             # 任务成功时，将 pending 记录晋升为 success 并写入结果。
             changed = promote_record_to_success_by_event_id(
@@ -159,23 +150,6 @@ class LifecycleInlet(BaseInlet):
                 "event_id": event_id,
                 "ts": now.timestamp(),
                 "result_json": to_persisted_payload(result),
-            }
-        )
-
-    def task_retry(self, event_id: int, retry_id: int) -> None:
-        """
-        将 pending 记录迁移到新的 retry 事件 ID。
-
-        :param event_id: 旧事件 ID
-        :param retry_id: 新的 retry 事件 ID
-        """
-        now = datetime.now()
-        self._funnel(
-            {
-                "__op__": "update_event_id",
-                "event_id": event_id,
-                "new_event_id": retry_id,
-                "ts": now.timestamp(),
             }
         )
 
