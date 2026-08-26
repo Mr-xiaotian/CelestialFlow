@@ -175,10 +175,12 @@ def tarjan_scc(graph: OrderGraph) -> list[list[str]]:
     返回的 SCC 列表顺序为凝聚图的逆拓扑序，这与之前使用的
     NetworkX condensation 行为保持一致。
 
+    本实现使用显式栈帧模拟递归 DFS，避免深链图触发 Python 递归上限
+    （默认约 1000 层），输出与递归版完全等价。
+
     :param graph: 输入图。
     :return: SCC 节点分组列表。
     """
-    out = graph.out_edges
     index = 0
     stack: list[str] = []
     on_stack: set[str] = set()
@@ -186,34 +188,50 @@ def tarjan_scc(graph: OrderGraph) -> list[list[str]]:
     lowlink: dict[str, int] = {}
     sccs: list[list[str]] = []
 
-    def strongconnect(v: str) -> None:
-        nonlocal index
-        indices[v] = lowlink[v] = index
+    for start in graph.nodes:
+        if start in indices:
+            continue
+        # 进入 start，与递归版 strongconnect(start) 的初始化等价。
+        indices[start] = lowlink[start] = index
         index += 1
-        stack.append(v)
-        on_stack.add(v)
+        stack.append(start)
+        on_stack.add(start)
+        # 显式调用栈帧：(node, 按插入顺序的后继序列, 下一个待处理后继下标)。
+        frames: list[tuple[str, tuple[str, ...], int]] = [
+            (start, graph.successors(start), 0)
+        ]
 
-        # 深度优先遍历并在回溯时更新 lowlink，用于识别 SCC 根节点。
-        for w in out.get(v, []):
-            if w not in indices:
-                strongconnect(w)
-                lowlink[v] = min(lowlink[v], lowlink[w])
-            elif w in on_stack:
-                lowlink[v] = min(lowlink[v], indices[w])
-
-        if lowlink[v] == indices[v]:
-            scc: list[str] = []
-            while True:
-                w = stack.pop()
-                on_stack.remove(w)
-                scc.append(w)
-                if w == v:
-                    break
-            sccs.append(scc)
-
-    for v in graph.nodes:
-        if v not in indices:
-            strongconnect(v)
+        while frames:
+            v, succs, pos = frames[-1]
+            if pos < len(succs):
+                w = succs[pos]
+                frames[-1] = (v, succs, pos + 1)
+                if w not in indices:
+                    # 树边：向下递归 strongconnect(w)。
+                    indices[w] = lowlink[w] = index
+                    index += 1
+                    stack.append(w)
+                    on_stack.add(w)
+                    frames.append((w, graph.successors(w), 0))
+                elif w in on_stack:
+                    # 回边或指向同 SCC 的横叉边。
+                    lowlink[v] = min(lowlink[v], indices[w])
+            else:
+                # 全部后继处理完毕，回溯：
+                # 先结算 v 自身是否为 SCC 根，再把 lowlink 传给父帧。
+                frames.pop()
+                if lowlink[v] == indices[v]:
+                    scc: list[str] = []
+                    while True:
+                        w = stack.pop()
+                        on_stack.remove(w)
+                        scc.append(w)
+                        if w == v:
+                            break
+                    sccs.append(scc)
+                if frames:
+                    parent = frames[-1][0]
+                    lowlink[parent] = min(lowlink[parent], lowlink[v])
 
     return sccs
 
