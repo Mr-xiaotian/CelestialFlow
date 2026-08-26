@@ -242,8 +242,8 @@ class TestDispatchSerial:
         assert len(results) == 1
         assert isinstance(results[0], TerminationSignal)
 
-    def test_success_fanout_creates_distinct_downstream_input_ids(self) -> None:
-        """普通 executor 成功后应为每个真实下游创建独立 input_id。"""
+    def test_success_fanout_creates_distinct_downstream_ids(self) -> None:
+        """普通 executor 成功后应为每个真实下游创建独立任务 ID。"""
 
         class _SequentialCtreeStub:
             def __init__(self) -> None:

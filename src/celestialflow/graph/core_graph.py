@@ -46,7 +46,6 @@ class TaskGraph:
     stage_dict: dict[str, AnyTaskStage]
     status_dict: dict[str, dict[str, Any]]
     status_timestamp: float
-    input_ids: dict[str, set[int]]
     _analysis_dirty: bool
     source_names: list[str]
     order_graph: OrderGraph
@@ -89,8 +88,6 @@ class TaskGraph:
     def _init_state(self) -> None:
         """
         初始化任务图运行时状态。
-
-        :return: ``None``。
         """
         # 用于保存所有子线程的引用
         self.threads = []
@@ -103,9 +100,6 @@ class TaskGraph:
 
         # 用于保存最近一次状态快照对应的统一时间戳
         self.status_timestamp = 0.0
-
-        # 用于保存每个节点的输入任务ID集合
-        self.input_ids = defaultdict(set)
 
         # 用于保存源节点列表（由 _build_analysis 自动计算）
         self.source_names = []
