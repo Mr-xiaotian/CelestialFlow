@@ -1,7 +1,7 @@
 # graph/util_estimators.py
 from __future__ import annotations
 
-from .util_graph import OrderGraph, topo_sort
+from .util_order_graph import OrderGraph, topo_sort
 
 
 def calc_global_pending(

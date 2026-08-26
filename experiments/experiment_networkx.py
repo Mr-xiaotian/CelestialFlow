@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 
-from celestialflow.graph.util_graph import OrderGraph, get_condensation, source_nodes, tarjan_scc
+from celestialflow.graph.util_order_graph import OrderGraph, get_condensation, source_nodes, tarjan_scc
 
 
 def bfs_reachable(graph: OrderGraph, roots: list[str]) -> set[str]:

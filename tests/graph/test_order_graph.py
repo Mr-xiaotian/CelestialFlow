@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from celestialflow import TaskGraph, TaskStage
-from celestialflow.graph.util_graph import (
+from celestialflow.graph.util_order_graph import (
     OrderGraph,
     compute_node_levels,
     source_nodes,
