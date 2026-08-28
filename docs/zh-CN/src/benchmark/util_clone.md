@@ -198,7 +198,9 @@ async def main():
     # 2. clone_stage ----
     stage = TaskStage("AddOne", add_one, execution_mode="serial")
     cloned_stg = clone_stage(stage)
-    print(f"clone_stage: 名称={cloned_stg.get_name()}, 模式={cloned_stg.execution_mode}")
+    print(
+        f"clone_stage: 名称={cloned_stg.get_name()}, 模式={cloned_stg.execution_mode}"
+    )
 
     # 3. clone_graph ----
     graph = TaskGraph(name="CloneDemo", graph_mode="thread")
@@ -209,7 +211,9 @@ async def main():
 
     cloned_grp = clone_graph(graph)
     print(f"clone_graph: 图模式={cloned_grp.graph_mode}")
-    print(f"连接关系一致: {graph.order_graph.out_edges == cloned_grp.order_graph.out_edges}")
+    print(
+        f"连接关系一致: {graph.order_graph.out_edges == cloned_grp.order_graph.out_edges}"
+    )
 
     # 分别运行原始图和克隆图，状态完全独立
     graph.run({a.get_name(): [1, 2, 3]})

@@ -37,7 +37,9 @@ class LifecycleSpout(BaseSpout):
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%H-%M-%S-%f")[:-3]
-        self.db_path = Path(f"./lifecycles/{date_str}/flow_lifecycle({time_str}).sqlite3")
+        self.db_path = Path(
+            f"./lifecycles/{date_str}/flow_lifecycle({time_str}).sqlite3"
+        )
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = connect_db(self.db_path)
 

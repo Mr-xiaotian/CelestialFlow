@@ -38,12 +38,8 @@ class TaskStage[T, R](TaskExecutor[T, R]):
 
 示例：
 ```python
-stage_a = TaskStage(
-    "StageA", func=process_a, execution_mode="thread", max_workers=4
-)
-stage_b = TaskStage(
-    "StageB", func=process_b, execution_mode="serial"
-)
+stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", max_workers=4)
+stage_b = TaskStage("StageB", func=process_b, execution_mode="serial")
 
 # 创建图并连接节点
 graph = TaskGraph("DemoGraph")

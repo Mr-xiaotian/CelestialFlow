@@ -114,9 +114,7 @@ flowchart LR
 
 ```python
 class TaskRouter[T](TaskStage[T, tuple[str, T]]):
-    def __init__(
-        self, name: str, router: Callable[[T], str]
-    ):
+    def __init__(self, name: str, router: Callable[[T], str]):
         """
         初始化 TaskRouter。
 
@@ -211,12 +209,8 @@ def classify_number(x: int) -> str:
 # 构建图节点
 source = TaskStage("Source", func=lambda x: x)
 router = TaskRouter("Router", classify_number)
-handler_pos = TaskStage(
-    "positive", func=lambda x: f"Positive: {x}"
-)
-handler_neg = TaskStage(
-    "negative", func=lambda x: f"Negative: {x}"
-)
+handler_pos = TaskStage("positive", func=lambda x: f"Positive: {x}")
+handler_neg = TaskStage("negative", func=lambda x: f"Negative: {x}")
 handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}")
 
 graph = TaskGraph("RouterDemo")

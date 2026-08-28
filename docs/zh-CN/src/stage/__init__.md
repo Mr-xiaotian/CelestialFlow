@@ -135,7 +135,9 @@ class CommaSplitter(TaskSplitter):
 # 构建图
 raw = TaskStage("Source", func=lambda x: x, execution_mode="serial")
 splitter = CommaSplitter("Splitter")
-processor = TaskStage("Process", func=lambda x: x.strip().upper(), execution_mode="thread")
+processor = TaskStage(
+    "Process", func=lambda x: x.strip().upper(), execution_mode="thread"
+)
 
 graph = TaskGraph("SplitDemo")
 graph.set_stages([raw, splitter, processor])

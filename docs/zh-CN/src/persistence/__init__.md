@@ -160,7 +160,9 @@ lifecycle_inlet.task_fail(event_id=2, error_id=10, error=ValueError("bad"))
 from celestialflow.persistence.util_sqlite import load_records, load_task_error_records
 
 # 读取失败记录
-errors = load_task_error_records("lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3", "StageA")
+errors = load_task_error_records(
+    "lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3", "StageA"
+)
 for task, (error_type, error_msg) in errors:
     print(f"{task}: {error_type} - {error_msg}")
 ```
