@@ -413,3 +413,37 @@
     - 修复 `TaskGraph` 中部分 `get_*` 方法依赖 `_build_analysis` 的产物, 但 `_build_analysis` 未执行导致的问题
     - 修复 `TaskMetrics` 中 `get_counts` 与 `is_tasks_finished` 中可能导致死锁的问题
     - 修复 `TaskReporter` 中 `stop` 里进行的最后一次 `_refresh_all` 没有错误捕捉, 导致后续收尾未完成的问题
+- 3.2.9
+  - feat:
+    - [IMPORTANT] 移除 `stage` 中 `stage_mode`，并添加 `graph_mode`
+      - 破坏性更新
+      - `stage_mode` 可以细粒度的控制每个 `TaskStage` 在图中的模式，但经过多年使用，我认为这种细粒度的控制并无必要，反而无谓的增加理解成本
+      - `graph_mode` 则提供了更粗粒度的控制，用于统一控制所有 `TaskStage` 在图中是串行/多线程/并发运行，适用于大多数场景
+      - 同时完善了 `graph_mode`(serial/thread/async) * `execution_mode`(serial/thread/async) 总共 9 种组合模式
+    - 移除 `schedule_mode`
+      - 破坏性更新
+      - 这个模式带来了许多复杂度，但没有与原先的 `stage_mode / execution_mode` 产生明显的组合优势
+    - 在 `get_graph_analysis` 中添加 `graph_mode`
+      - 这个函数主要用于给web端提供信息
+      - web端代码已经同步修改
+    - 添加新的 `warning` 项，当图不是 dag 且 `graph_mode=serial` 时触发
+    - 移除 `task_executor` 中的参数 `persist_result`
+      - 这是为了简化代码逻辑，同时也使所有任务的最终状态（包括：成功/失败/未执行）都能被统一存储
+    - 将 `task.retry` 事件降级，不再申请单独事件ID，不再在 `lifecycle` 中留痕
+  - reafactor:
+    - 合并 `benchmark` 相关函数对 sync 与 async 两种模式的执行
+      - 性能无差异，代码好看一些
+    - 将原本的 `fallback` 改名为 `lifecycle`
+      - 早在重构原本的 `fail` 时就想起个更恰当的名字，这个版本才实现
+    - 将 `graph.source_lists` 改为 `graph.source_names`
+      - `graph.source_lists` 直接存储节点的引用，而 `graph.source_names` 存储节点的名称
+    - 所有的 `log` / `lifecycle` 文件统一改名为 `flow_log` / `flow_lifecycle`
+    - 删除 `graph` 中的 `out_edges` `in_edges`
+      - 现在由 `OrderGraph` 负责管理边关系
+    - 在 `tarjan_scc` 中使用 DFS 取代原先的递归逻辑
+    - 将 `util_graph` 改名为 `util_order_graph`
+  - fix:
+    - 修复最后一次 report 无法正常上传的问题
+    - 修复 `graph.run` / `graph.run_async` 中 `is_put_signal` 参数没有生效的问题
+  - chore：
+    - 更新文档
