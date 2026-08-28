@@ -1,6 +1,6 @@
 # Benchmark 模块
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/26
 
 提供执行器/任务图的克隆（clone）与基准测试（benchmark）能力。该模块位于依赖链顶层，可依赖其他模块，但不应被其他模块依赖。
 
@@ -9,26 +9,29 @@
 | 文件 | 说明 |
 |------|------|
 | `util_benchmark.py` | 执行器与任务图性能基准测试 |
-| `util_clone.py` | 执行器、节点与任务图深度克隆工具 |
+| `util_clone.py` | 执行器、节点与任务图克隆工具 |
 
 ## 导出符号
 
-此模块未定义 `__all__`，所有公用函数均通过 `__init__.py` 包入口集中导出。直接可用的符号包括：
+`benchmark/__init__.py` 只包含模块 docstring：既未定义 `__all__`，也没有任何 import，因此子包本身不导出符号（`from celestialflow.benchmark import ...` 会抛出 `ImportError`）。相关函数通过以下两种方式暴露：
 
-| 符号 | 来源 | 说明 |
-|------|------|------|
-| `benchmark_executor` | `util_benchmark` | 对同步/异步 `TaskExecutor` 进行多模式基准测试 |
-| `benchmark_graph` | `util_benchmark` | 对整个 `TaskGraph` 进行基准测试 |
-| `clone_executor` | `util_clone` | 克隆 `TaskExecutor` 实例 |
-| `clone_stage` | `util_clone` | 克隆 `TaskStage` 节点 |
-| `clone_graph` | `util_clone` | 克隆完整 `TaskGraph`（含连接关系） |
+- `benchmark_executor`、`benchmark_graph` 由顶层包入口 `celestialflow/__init__.py` 集中导出，可直接 `from celestialflow import ...`。
+- 全部 5 个函数均可通过子模块路径按需导入。
+
+| 符号 | 定义位置 | 推荐导入方式 | 说明 |
+|------|---------|-------------|------|
+| `benchmark_executor` | `util_benchmark.py` | `from celestialflow import benchmark_executor` | 对同步/异步 `TaskExecutor` 进行多模式基准测试 |
+| `benchmark_graph` | `util_benchmark.py` | `from celestialflow import benchmark_graph` | 对整个 `TaskGraph` 进行多模式基准测试 |
+| `clone_executor` | `util_clone.py` | `from celestialflow.benchmark.util_clone import clone_executor` | 克隆 `TaskExecutor` 实例 |
+| `clone_stage` | `util_clone.py` | `from celestialflow.benchmark.util_clone import clone_stage` | 克隆 `TaskStage` 节点 |
+| `clone_graph` | `util_clone.py` | `from celestialflow.benchmark.util_clone import clone_graph` | 克隆完整 `TaskGraph`（含连接关系） |
+
+> 注：`clone_executor` / `clone_stage` / `clone_graph` 不在顶层包入口的 `__all__` 中，仅供 `util_benchmark` 内部使用或按需导入。
 
 ## 使用示例
 
 ```python
-import asyncio
-from celestialflow import TaskGraph, TaskStage, TaskExecutor
-from celestialflow.benchmark.util_benchmark import benchmark_executor
+from celestialflow import TaskGraph, TaskStage
 from celestialflow.benchmark.util_clone import clone_graph
 
 
@@ -74,6 +77,8 @@ graph TD
     end
 
     UB --> UC
+    UB --> S
+    UB --> G
     UB --> R
     UC --> S
     UC --> G

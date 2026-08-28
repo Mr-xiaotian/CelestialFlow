@@ -1,6 +1,6 @@
 # Benchmark
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 `benchmark/util_benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
@@ -36,17 +36,20 @@ async def benchmark_executor(
 ```
 
 测试流程：
-1. 克隆执行器（避免状态污染）
-2. 遍历 `execution_modes`
-3. 调用 `put_tasks()` 注入任务；`serial/thread` 走 `start()`，`async` 走 `start_async()`
-4. 输出时间表格
+1. 克隆执行器模板（`async` 模式克隆 `async_executor`，其余模式克隆 `sync_executor`），避免状态污染
+2. 调用 `set_execution_mode(mode)` 设置当前测试模式
+3. `serial`/`thread` 模式：调用 `run(task_list)`（内部完成任务注入、终止信号注入并启动）；`async` 模式：调用 `await run_async(task_list)`
+4. 记录各模式耗时，通过 `format_table` 输出时间表格
 
-输出示例：
+输出示例（`format_table` 生成的带边框表格，数值单位为秒）：
 ```
-           Time
-serial     2.34s
-thread     0.89s
-async      0.67s
++--------+--------+
+| #      | Time   |
++--------+--------+
+| serial | 2.3401 |
+| thread | 0.8932 |
+| async  | 0.6714 |
++--------+--------+
 ```
 
 ### benchmark_graph
@@ -74,21 +77,21 @@ async def benchmark_graph(
 ```
 
 测试流程：
-1. 对每种 `graph_mode` × `execution_mode` 组合
-2. 克隆任务图
-3. 设置 `set_graph_mode(graph_mode)` 与 `set_stage_execution_mode(execution_mode)`
-4. `graph_mode="async"` 时执行 `run_async()`；其余图模式执行 `run()`
-5. `serial/thread + async` 组合在基准函数内部通过 `asyncio.to_thread(...)` 启动，避免与 `benchmark_graph()` 自身的事件循环冲突
-6. 输出时间表格
+1. 遍历 `graph_modes` × `execution_modes` 的全部组合
+2. 克隆任务图（`execution_mode="async"` 时克隆 `async_graph`，否则克隆 `sync_graph`）
+3. 调用 `set_graph_mode(graph_mode)` 与 `set_stage_execution_mode(execution_mode)`
+4. `graph_mode="async"` 时执行 `await run_async()`；其余图模式执行 `run()`，其中 `execution_mode="async"` 的组合在函数内部通过 `asyncio.to_thread(...)` 启动，避免与 `benchmark_graph()` 自身的事件循环冲突
+5. 记录耗时，通过 `format_table` 输出时间表格
 
-输出示例：
+输出示例（数值单位为秒）：
 ```
-Time table:
-| graph/execution | serial | thread | async |
-|-----------------|--------|--------|-------|
-| serial          | 5.23s  | 3.45s  | 3.21s |
-| thread          | 2.12s  | 1.89s  | 1.65s |
-| async           | 2.05s  | 1.73s  | 1.42s |
++-----------------+--------+--------+--------+
+| graph/execution | serial | thread | async  |
++-----------------+--------+--------+--------+
+| serial          | 5.2341 | 3.4512 | 3.2123 |
+| thread          | 2.1234 | 1.8912 | 1.6543 |
+| async           | 2.0534 | 1.7345 | 1.4234 |
++-----------------+--------+--------+--------+
 ```
 
 ## 使用示例
@@ -169,7 +172,7 @@ async_graph = TaskGraph(name="AsyncGraph")
 async_graph.set_stages(stages=[async_stage_a, async_stage_b])
 async_graph.connect([async_stage_a], [async_stage_b])
 
-# 运行基准测试（benchmark_graph 已改为 async 函数，需要 await）
+# 运行基准测试（benchmark_graph 为 async 函数，需要 await）
 asyncio.run(
     benchmark_graph(
         sync_graph=sync_graph,
@@ -217,15 +220,15 @@ asyncio.run(
 ### 返回值
 
 `benchmark_executor` 返回包含以下内容的字典：
-- `use_time`: 各模式的耗时列表
+- `use_time`: 各模式的耗时列表（与 `execution_modes` 一一对应）
 - `execution_modes`: 测试的执行模式列表
 - `table`: 格式化后的时间表格字符串
 
 `benchmark_graph` 返回包含以下内容的字典：
- - `use_time`: 3×3（或自定义维度）的耗时矩阵
+- `use_time`: `graph_modes × execution_modes` 的耗时矩阵（行、列与表格对应）
 - `table`: 格式化后的时间表格字符串
- - `graph_modes`: 测试的图模式列表
- - `execution_modes`: 时间表格的完整列顺序
+- `graph_modes`: 测试的图模式列表（对应表格的行）
+- `execution_modes`: 测试的执行模式列表（对应表格的列）
 
 ## 注意事项
 

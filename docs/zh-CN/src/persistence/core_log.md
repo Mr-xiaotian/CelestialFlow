@@ -1,8 +1,8 @@
 # 日志持久化 (Log Persistence)
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
-`celestialflow.persistence` 模块提供了一个多进程安全的日志系统，旨在解决多进程环境下的日志统一收集、格式化和持久化问题。
+`persistence/core_log.py` 模块提供了一个线程安全的日志系统，通过生产者-消费者模式将日志统一收集、格式化和持久化到 `logs/` 目录下的文本文件。
 
 核心组件包括 `LogSpout` 和 `LogInlet`。
 
@@ -47,11 +47,11 @@ LEVEL_DICT[log_level]?}
     style Funnel fill:#c8e6c9
 ```
 
-与错误持久化类似，日志系统也采用了 **Logger-Listener** 模式：
+日志系统采用 **Logger-Listener** 模式：
 
 1.  **LogInlet (生产者)**:
     -   包装类，被各个 Worker 线程持有。
-    -   提供丰富的语义化方法（如 `task_success`, `start_stage` 等）。
+    -   提供丰富的语义化方法（如 `task_success`, `start_graph` 等）。
     -   将日志消息和级别封装后放入线程安全队列 (`queue.Queue`)。
     -   支持基于日志级别的过滤，减少不必要的通信。
 
@@ -84,13 +84,13 @@ listener = LogSpout()
 listener.start()
 ```
 
-启动后，日志将写入 `logs/task_logger({date}).log` 文件。
+启动后，日志将写入 `logs/flow_log({date}).log` 文件。
 
 ### 文件路径
 
 ```text
 logs/
-└── task_logger(2026-05-24).log
+└── flow_log(2026-05-24).log
 ```
 
 ## LogInlet
@@ -150,7 +150,7 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 |------|---------|------|
 | `task_input(func_name, task_repr, source, input_id)` | DEBUG | 记录任务进入输入队列 |
 | `task_success(func_name, task_repr, exec_mode, result_repr, use_time, parent_id, success_id)` | SUCCESS | 记录任务成功完成 |
-| `task_retry(func_name, task_repr, retry_times, exception, parent_id, retry_id)` | WARNING | 记录任务失败但触发重试 |
+| `task_retry(func_name, task_repr, retry_times, exception, task_id)` | WARNING | 记录任务失败但触发重试 |
 | `task_fail(func_name, task_repr, exception, parent_id, error_id)` | ERROR | 记录任务失败且无法重试 |
 | `task_duplicate(func_name, task_repr, parent_id, duplicate_id)` | WARNING | 记录检测到重复任务 |
 
@@ -190,6 +190,7 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 | `push_structure_failed(exception)` | WARNING | 记录推送结构信息失败 |
 | `push_analysis_failed(exception)` | WARNING | 记录推送分析信息失败 |
 | `push_summary_failed(exception)` | WARNING | 记录推送摘要信息失败 |
+| `push_history_failed(exception)` | WARNING | 记录推送历史信息失败 |
 
 ### 使用示例
 
@@ -205,7 +206,7 @@ sinker.end_executor("Executor1", "thread", 4.8, 48, 1, 1)
 # 任务生命周期
 sinker.task_input("process_func", "task_1", "queue", 1)
 sinker.task_success("process_func", "task_1", "thread", "OK", 0.05, 1, 2)
-sinker.task_retry("process_func", "task_2", 1, TimeoutError("timeout"), 1, 3)
+sinker.task_retry("process_func", "task_2", 1, TimeoutError("timeout"), 1)
 sinker.task_fail("process_func", "task_3", ValueError("bad"), 1, 4)
 sinker.task_duplicate("process_func", "task_2", 1, 5)
 

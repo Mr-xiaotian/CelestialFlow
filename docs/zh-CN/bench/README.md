@@ -1,6 +1,6 @@
 # bench/ 基准测试总览
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/26
 
 ## 说明
 
@@ -17,7 +17,7 @@
 如果你想快速建立对项目性能特征的整体印象，建议按下面顺序阅读：
 
 1. `bench_execution_mode.md`：先看单执行器在 `serial / thread / async` 下的差异
-2. `bench_graph_mode.md`：再看任务图在不同 `stage_mode × execution_mode` 下的组合表现
+2. `bench_graph_mode.md`：再看任务图在不同 `graph_mode × execution_mode` 下的组合表现
 3. `bench_gil_vs_nogil.md`：最后看 Python 3.14 free-threading 对 CelestialFlow 的影响
 
 ## 文档索引
@@ -27,7 +27,7 @@
 | 文档 | 说明 |
 |------|------|
 | `bench_execution_mode.md` | `TaskExecutor` 在 `serial / thread / async` 下的性能对比 |
-| `bench_graph_mode.md` | `TaskGraph` 在不同 `stage_mode × execution_mode` 组合下的性能对比 |
+| `bench_graph_mode.md` | `TaskGraph` 在不同 `graph_mode × execution_mode` 组合下的性能对比 |
 | `bench_gil_vs_nogil.md` | Python 3.14 GIL 与 No-GIL 环境下的 CelestialFlow 运行差异 |
 
 ### 网络与外部服务
@@ -41,7 +41,7 @@
 
 | 文档 | 说明 |
 |------|------|
-| `bench_persistence_spout.md` | 持久化 spout 的日志 / fallback 写入性能 |
+| `bench_persistence_spout.md` | 持久化 spout 的日志 / lifecycle 写入性能 |
 | `bench_queue.md` | 队列实现基准测试 |
 | `bench_ipc_queue.md` | 进程间队列通信开销测试 |
 | `bench_mpqueue_vs_shared_memory.md` | `multiprocessing.Queue` 与共享内存方案对比 |

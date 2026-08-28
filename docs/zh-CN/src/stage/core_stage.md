@@ -1,6 +1,6 @@
 # TaskStage
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 `TaskStage` 是构建 `TaskGraph` 的基本单元。它继承自 `TaskExecutor`，并增加了图结构相关的连接能力。
 
@@ -32,7 +32,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         :param func: 执行函数
         :param kwargs: 透传给 TaskExecutor 的参数
             （execution_mode, max_workers, max_retries, max_queue_size,
-            max_info, enable_duplicate_check, persist_result 等）
+            max_info, enable_duplicate_check 等）
         """
 ```
 
@@ -46,7 +46,7 @@ stage_b = TaskStage(
 )
 
 # 创建图并连接节点
-graph = TaskGraph()
+graph = TaskGraph("DemoGraph")
 graph.set_stages(stages=[stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 ```
@@ -99,7 +99,7 @@ def snapshot(self, interval: float) -> dict[str, Any]:
 
 ### start / start_async
 
-当 `TaskStage` 被 `TaskGraph` 管理时，由 `TaskGraph.start_graph()` 统一驱动节点的实际执行。
+当 `TaskStage` 被 `TaskGraph` 管理时，由 `TaskGraph.run()` / `start()` 统一驱动节点的实际执行。
 
 生命周期约束：
 
@@ -113,6 +113,32 @@ def snapshot(self, interval: float) -> dict[str, Any]:
 def drain_task_queue(self) -> None:
     """清空任务队列，将所有剩余任务移至失败队列并标记为 UnconsumedError。"""
 ```
+
+## 状态转换
+
+`TaskStage` 的运行状态由内部 `TaskMetrics.get_status()` 提供，返回 `StageStatus` 枚举：
+
+```mermaid
+stateDiagram-v2
+    [*] --> NOT_STARTED: __init__()
+    NOT_STARTED --> RUNNING: metrics.on_start()<br/>(TaskGraph 启动阶段调用)
+    RUNNING --> RUNNING: 任务执行中<br/>(snapshot() 可随时采集)
+    RUNNING --> STOPPED: metrics.on_finish()<br/>(执行结束后调用)
+    STOPPED --> [*]
+```
+
+- 状态由 `TaskExecutor._prepare_start()` 中的 `metrics.on_start()` 置为 `RUNNING`，由 `_finish_start()` 中的 `metrics.on_finish()` 置为 `STOPPED`。
+- `snapshot()` 返回的快照字典中的 `status` 字段即当前状态值。
+
+## 连接与队列协作
+
+`TaskStage` 自身不存储邻接表，图连接由 `TaskGraph.connect()` 统一建立，并触发三个协作动作：
+
+1. `to_stage.prev_binding(from_stage)`：把前驱的 `get_binding_counter()` 计数器（默认 `metrics.success_counter`）追加到当前 stage 的 `task_counter`，使下游 pending 统计能感知上游在途任务。
+2. `from_stage.result_queue.add_queue(to_stage.task_queue, to_name)`：把下游输入队列注册为上游结果的投放目标。
+3. `to_stage.task_queue.add_source_name(from_name)`：登记上游来源名称。
+
+任务执行结束后，`TaskGraph._finish_start()` 会对每个 stage 调用 `drain_task_queue()`，将输入队列中仍未消费的任务统一标记失败。
 
 ## 状态摘要
 
@@ -146,13 +172,13 @@ def step2(x: int) -> int:
 stage1 = TaskStage("Step1", func=step1, execution_mode="serial")
 stage2 = TaskStage("Step2", func=step2, execution_mode="serial")
 
-chain = TaskGraph()
+chain = TaskGraph("ChainDemo")
 chain.set_stages([stage1, stage2])
 chain.connect([stage1], [stage2])
-chain.start_graph({stage1.get_name(): [1, 2, 3, 4, 5]})
+chain.run({stage1.get_name(): [1, 2, 3, 4, 5]})
 
-for name, runtime in chain.stage_runtime_dict.items():
-    pairs = runtime.stage.get_success_pairs()
+for name, stage in chain.stage_dict.items():
+    pairs = stage.get_success_pairs()
     print(f"{name}: {len(pairs)} 成功")
 ```
 
@@ -175,9 +201,9 @@ stage_a = TaskStage(
     max_workers=4,
 )
 
-graph = TaskGraph()
+graph = TaskGraph("IOGraph")
 graph.set_stages([stage_a])
-graph.start_graph({stage_a.get_name(): list(range(20))})
+graph.run({stage_a.get_name(): list(range(20))})
 ```
 
 ### 异步模式（async）

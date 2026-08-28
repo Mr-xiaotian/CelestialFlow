@@ -1,6 +1,6 @@
 # Observability 模块
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/26
 
 Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行状态监控、Observer 模式和远程状态上报。它使任务执行过程变得透明、可监控。
 
@@ -40,16 +40,16 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
 - `NullTaskReporter` 提供了关闭上报时的安全占位
 
 ### 外部关联
-- **与 Stage 模块**: `TaskExecutor` 持有 `list[BaseObserver]`，通过 `add_observer()` / `remove_observer()` 管理观察者
+- **与 Stage 模块**: `TaskExecutor` 内部 `TaskMetrics` 持有 `list[BaseObserver]`，通过 `add_observer()` / `remove_observer()` 管理观察者
 - **与 Graph 模块**: `TaskReporter` 收集任务图的结构和拓扑信息
 - **与 Persistence 模块**: 获取持久化的日志和错误数据，依赖 `LogInlet`
 
 ## 架构特点
 
 ### Observer 模式
-- **多播**: `TaskExecutor` 内部维护 `list[BaseObserver]`，在生命周期节点广播事件
-- **同步分发**: 事件通过 `_notify(method_name, *args, **kwargs)` 同步调用所有观察者
-- **空列表等效 Null**: 当 observer 列表为空时，无任何开销
+- **多播**: `TaskExecutor` 内部的 `TaskMetrics` 维护 `list[BaseObserver]`，在计数变化与启停节点广播事件
+- **同步分发**: 在 `add_success_count` / `add_fail_count` / `add_task_count` / `on_start` / `on_finish` 等方法中同步调用所有已注册观察者的对应回调
+- **异常隔离**: 子类覆写的回调会被 `__init_subclass__` 自动包装，异常统一交给 `observer_error()` 兜底，不会逃逸到框架
 
 ### 双向通信（TaskReporter）
 - **上行通道**: 状态数据上报到 celestialflow-web 服务
@@ -80,7 +80,6 @@ reporter.start()
 ```python
 from celestialflow import TaskGraph, TaskStage, BaseObserver
 from celestialflow.observability import TaskReporter
-from celestialflow.persistence import LogInlet
 
 
 # 1. 自定义观察者：统计任务执行结果
@@ -107,7 +106,7 @@ def process_item(item: int) -> int:
 
 
 # 创建任务图
-graph = TaskGraph(schedule_mode="eager")
+graph = TaskGraph("ObsDemo")
 stage = TaskStage("Processor", process_item, execution_mode="thread", max_workers=4)
 graph.set_stages([stage])
 
@@ -124,7 +123,7 @@ reporter = TaskReporter(
 reporter.start()
 
 # 启动任务图
-graph.start_graph({stage.get_name(): list(range(20))})
+graph.run({stage.get_name(): list(range(20))})
 
 # 停止上报器
 reporter.stop()

@@ -1,6 +1,6 @@
 # bench_hash.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/16
+> 📅 最后更新日期: 2026/08/26
 
 ## 目标
 
@@ -15,7 +15,7 @@
 | `pickle+blake2b16` | `pickle.dumps` | BLAKE2b(16B) | 更快，短摘要 |
 | `json+md5` | 自定义 JSON | MD5 | 跨语言稳定，但仅支持 JSON 可序列化类型 |
 | `json+sha256` | 自定义 JSON | SHA256 | 更安全，但更慢 |
-| `repr+md5` | `repr(normalized)` | MD5 | 可读性好，但 `set`/`dict` 顺序敏感 |
+| `repr+md5` | `repr(normalized)` | MD5 | 可读性好；`normalize_for_hash` 已对 `set`/`dict`/`tuple`/`list`/`bytes` 排序归一，输出稳定 |
 | `repr+sha1+uuid` | `repr(normalized)` | SHA1→UUID | 格式化为标准 UUID |
 | `repr+blake2b16` | `repr(normalized)` | BLAKE2b(16B) | 快速 + 短摘要 |
 | `fast_mixed` | 类型分支（bytes/str/repr/pickle） | SHA1 | 对基础类型走捷径，对复杂对象回退 pickle |
@@ -37,6 +37,8 @@
 4. **大对象内存压力**：`long_str_4k`、`bytes_4k` 在 10,000 次重复测试中可能短暂占用大量内存。
 
 ## 基准结果（实测）
+
+> 🟢 本节各表格中的耗时均为历史实测数据，无法从源码验证，需人工确认。
 
 ### 历史结果 - Windows 哈希方法对比（时间未记录）
 

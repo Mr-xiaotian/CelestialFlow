@@ -1,6 +1,6 @@
 # bench_queue.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/16
+> 📅 最后更新日期: 2026/08/26
 
 ## 目标
 
@@ -27,6 +27,8 @@
 4. **Redis `flushdb`**：测试开始前会执行 `flushdb`，若连接到生产 Redis 实例，将导致数据丢失。
 
 ## 基准结果（实测）
+
+> 🟢 本节各表格中的耗时均为历史实测数据，无法从源码验证，需人工确认。
 
 ### 历史结果 - Windows 本地队列与 Redis（时间未记录）
 
@@ -101,11 +103,11 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     COUNT = 10_000
 
-    # test_threadqueue_perf(COUNT)        # 注释掉线程队列
-    test_mpqueue_perf(COUNT)              # 仅测试 MPQueue
-    # test_manager_queue_perf(COUNT)      # 跳过 Manager 队列
-    # test_redis_list_perf(COUNT)         # 跳过 Redis
-    # test_redis_stream_perf(COUNT)
+    # test_threadqueue_perf(COUNT)           # 注释掉线程队列
+    test_mpqueue_perf(COUNT)                 # 仅测试 MPQueue
+    # test_manager_queue_perf(COUNT)         # 跳过 Manager 队列
+    # test_redis_list_perf(redis_client, COUNT)   # 跳过 Redis（注意需传入已连接的 redis_client）
+    # test_redis_stream_perf(redis_client, COUNT)
 ```
 
 修改后运行：

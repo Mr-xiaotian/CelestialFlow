@@ -1,6 +1,6 @@
 # Clone
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 `benchmark/util_clone.py` 提供了克隆执行器、节点和任务图的功能，用于性能测试和配置复用。
 
@@ -34,12 +34,11 @@ def clone_executor[T, R](
 - `max_retries`: 最大重试次数
 - `max_info`: 日志信息最大长度
 - `enable_duplicate_check`: 重复检查开关
-- `persist_result`: 结果持久化开关
 - `retry_exceptions`: 可重试异常列表（通过 `set_retry_exceptions()` 设置）
 
 ### clone_stage
 
-克隆 `TaskStage` 实例。
+克隆 `TaskStage` 节点。
 
 ```python
 def clone_stage[T, R](
@@ -53,7 +52,16 @@ def clone_stage[T, R](
     """
 ```
 
-除了 `TaskExecutor` 的属性外，还会通过 `TaskStage.__init__` 的关键字参数过滤机制复制子类（如 `TaskSplitter`、`TaskRouter`）特有的初始化参数。
+克隆步骤：
+1. 复用 executor 风格参数集合（`name` / `func` / `execution_mode` / `max_workers` / `max_retries` / `max_info` / `enable_duplicate_check`）
+2. 通过 `inspect.signature` 检查节点类 `__init__` 的参数集合，只保留两者的交集，避免把节点类不接受的参数传入
+3. 以过滤后的参数构造与原节点**同类型**的新实例
+4. 复制 `retry_exceptions`
+
+参数过滤的影响：
+- 普通 `TaskStage` 的 `__init__` 为 `(name, func, **kwargs)`，过滤后只保留 `name` 与 `func`，`execution_mode` 等运行配置不会复制（克隆结果使用默认配置）。
+- `TaskSplitter` 的 `__init__` 仅接受 `name` / `split_item`，克隆时只传入 `name`，拆分逻辑由类自身默认实现提供。
+- `TaskRouter` 的 `__init__` 要求必填 `router`，而该参数不在可过滤集合内，直接克隆 `TaskRouter` 会抛出 `TypeError`。
 
 ### clone_graph
 
@@ -70,11 +78,11 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
 ```
 
 克隆流程：
-1. 遍历原图所有节点（BFS）
-2. 克隆每个节点并建立映射
-3. 重建节点间的连接关系
-4. 复制图配置（name, graph_mode）
-5. 复制 CelestialTree 和 Reporter 配置
+1. 从源节点出发按 BFS（广度优先）遍历原图（`graph.order_graph.out_edges` 的出边顺序）收集全部节点
+2. 克隆每个节点并建立原节点名 → 克隆节点的映射
+3. 通过 `set_stages()` 注册全部克隆节点，并用 `connect()` 重建节点间的连接关系
+4. 复制图配置（`name`, `graph_mode`）
+5. 复制 CelestialTree（`clone_event_client`）与 Reporter 配置（`NullTaskReporter` / `TaskReporter` 可克隆，其余类型抛出 `ConfigurationError`）
 
 ## 使用示例
 
@@ -201,7 +209,7 @@ async def main():
 
     cloned_grp = clone_graph(graph)
     print(f"clone_graph: 图模式={cloned_grp.graph_mode}")
-    print(f"连接关系一致: {graph.out_edges == cloned_grp.out_edges}")
+    print(f"连接关系一致: {graph.order_graph.out_edges == cloned_grp.order_graph.out_edges}")
 
     # 分别运行原始图和克隆图，状态完全独立
     graph.run({a.get_name(): [1, 2, 3]})
@@ -214,6 +222,7 @@ asyncio.run(main())
 ### 在基准测试中使用
 
 ```python
+import asyncio
 from celestialflow import TaskGraph, TaskStage
 from celestialflow.benchmark.util_benchmark import benchmark_graph
 
@@ -226,24 +235,29 @@ async def async_task(x: int) -> int:
     return x * 2
 
 
-stage_a = TaskStage("A", task)
-stage_b = TaskStage("B", task)
-async_stage_a = TaskStage("A", async_task)
-async_stage_b = TaskStage("B", async_task)
+async def main():
+    stage_a = TaskStage("A", task)
+    stage_b = TaskStage("B", task)
+    async_stage_a = TaskStage("A", async_task)
+    async_stage_b = TaskStage("B", async_task)
 
-sync_graph = TaskGraph(name="BenchSync")
-sync_graph.set_stages(stages=[stage_a, stage_b])
-async_graph = TaskGraph(name="BenchAsync")
-async_graph.set_stages(stages=[async_stage_a, async_stage_b])
+    sync_graph = TaskGraph(name="BenchSync")
+    sync_graph.set_stages(stages=[stage_a, stage_b])
+    async_graph = TaskGraph(name="BenchAsync")
+    async_graph.set_stages(stages=[async_stage_a, async_stage_b])
 
-# benchmark_graph 内部使用 clone_graph
-results = benchmark_graph(
-    sync_graph=sync_graph,
-    async_graph=async_graph,
-    init_tasks_dict={stage_a.get_name(): range(100)},
-    graph_modes=["serial", "thread", "async"],
-    execution_modes=["serial", "thread", "async"],
-)
+    # benchmark_graph 内部使用 clone_graph，返回结果字典
+    results = await benchmark_graph(
+        sync_graph=sync_graph,
+        async_graph=async_graph,
+        init_tasks_dict={stage_a.get_name(): range(100)},
+        graph_modes=["serial", "thread", "async"],
+        execution_modes=["serial", "thread", "async"],
+    )
+    print(results["table"])
+
+
+asyncio.run(main())
 ```
 
 ## 注意事项
@@ -252,3 +266,4 @@ results = benchmark_graph(
 2. **连接重建**: 克隆图时会重建节点间的连接关系
 3. **函数引用**: 克隆只复制函数引用，不复制函数本身
 4. **性能开销**: 克隆大型图有一定开销，但比重新构建更快
+5. **配置回退**: `clone_stage` 只复制节点类 `__init__` 接受的参数，普通 `TaskStage` 的执行模式等运行配置会回退为默认值；`TaskRouter` 因 `router` 必填参数缺失而无法克隆

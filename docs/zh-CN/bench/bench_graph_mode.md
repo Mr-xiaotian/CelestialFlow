@@ -1,6 +1,6 @@
 # bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/08/17
+> 📅 最后更新日期: 2026/08/26
 
 ## 目标
 
@@ -34,7 +34,7 @@
 
 ## 可能出现的问题
 
-1. **环境变量依赖**：`REPORT_HOST` 等必须从 `.env` 加载，若未配置会导致 reporter 连接失败。
+1. **Reporter 默认关闭**：脚本中的 `set_reporter(...)` 调用均被注释，即使 `.env` 未配置 `REPORT_HOST`/`REPORT_PORT` 也不会连接 reporter；仅当取消注释启用 reporter 时，才需要保证 `.env` 中配置了对应地址且服务可达。
 2. **总耗时长**：`benchmark_graph` 会运行 `len(graph_modes) × len(execution_modes)` 次完整图执行，含 I/O 延迟时总时间可达数分钟。
 
 ## 运行方式
@@ -85,6 +85,8 @@ python bench/bench_graph_mode.py
 ```
 
 ## 基准结果（实测）
+
+> 🟢 本节各表格中的耗时均为历史实测数据，无法从源码验证，需人工确认。其中早期表格中的 `process` 行对应已废除的 `stage_mode="process"`，仅作历史参考。
 
 ### 历史结果 - Windows 图模式对比（时间未记录）
 

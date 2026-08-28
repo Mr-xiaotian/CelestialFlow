@@ -1,10 +1,12 @@
 # bench_ipc_queue.py 基准测试说明
 
-> 📅 最后更新日期: 2026/06/16
+> 📅 最后更新日期: 2026/08/26
 
 ## 目标
 
 在真实跨进程场景下对比多种 Python IPC（进程间通信）机制的性能：MPQueue、SimpleQueue、Pipe、Manager().Queue。为 CelestialFlow 在多进程模式下的队列选型提供数据支持。
+
+> **注意**：框架已移除 `stage_mode="process"` 及内部 multiprocessing 依赖（见 change log），因此本脚本结果不再反映框架当前内部行为，仅作为跨进程 IPC 性能的历史参考。
 
 ## 测试内容
 
@@ -16,7 +18,7 @@
 | `Manager().Queue` | 基于 Manager 服务器的队列 | SPSC |
 
 - **规模**：`COUNT = 100_000`，`REPEAT = 3`
-- **负载模式**：`int`（8 字节）、`small`（~16 字节）、`medium`（~144 字节）、`large`（~4104 字节）
+- **负载模式**：`int`（Python 整数对象）、`small`（~16 字节）、`medium`（~144 字节）、`large`（~4104 字节）
 - **校验**：通过 checksum 验证数据完整性（无丢失、无损坏）
 
 ## 关键实现
@@ -33,6 +35,8 @@
 4. **Windows `spawn` 序列化开销**：所有 payload 必须通过 pickle 在父子进程间传输，大对象序列化/反序列化时间会占主导。
 
 ## 基准结果（实测）
+
+> 🟢 本节各表格中的耗时/吞吐量均为历史实测数据，无法从源码验证，需人工确认。
 
 ### 历史结果 - Windows spawn int 负载（时间未记录）
 

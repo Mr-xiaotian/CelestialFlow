@@ -1,6 +1,6 @@
 # demo_structure.py 演示说明
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 ## 目标
 
@@ -241,12 +241,12 @@ flowchart TD
 
 - DAG 结构：默认 `graph_mode="thread"`（`demo_chain` 的 `TaskChain` 不显式传 `graph_mode`）；`demo_chain` 的各 Stage 使用 `execution_mode="serial"`，其余多为 `execution_mode="thread"`
 - `demo_grid`：源码中未显式设置 staged 调度模式，依赖 `TaskGrid` 默认行为
-- 有环图：是否自动注入终止信号因示例而异；仅 `demo_multi_cycle` 显式传入 `if_put_signal=False`，`demo_loop` / `demo_wheel` / `demo_complete` 使用默认行为（未传 `if_put_signal`）；运行有环图时建议准备手动终止
+- 有环图：`demo_loop` / `demo_wheel` / `demo_complete` / `demo_multi_cycle` 均显式传入 `if_put_signal=False`（即不会自动注入终止信号）；运行有环图时建议准备手动终止
 - 各演示均通过 `<graph>.set_reporter(TaskReporter(report_host, report_port, <graph>))` 接入 Reporter，通过 `<graph>.set_ctree(ctree_client)` 接入 CelestialTree（`demo_chain` 中 `set_ctree` 被注释）；实际是否生效取决于 `REPORT_HOST`/`REPORT_PORT`/`CTREE_HOST` 等环境变量与服务端是否就绪
 
 ## 可能出现的问题
 
-1. **有环图可能不会自动停止**：仅 `demo_multi_cycle` 显式传入 `if_put_signal=False`，`demo_loop` / `demo_wheel` / `demo_complete` 使用默认行为（未传 `if_put_signal`）；实际是否会持续循环取决于框架默认策略，运行前建议准备 **Ctrl+C** 手动终止。
+1. **有环图可能不会自动停止**：四个有环图示例均显式传入 `if_put_signal=False`（不注入自动终止信号）。其中 `demo_wheel` 的 `Core` 使用 `square`（不抛异常），任务会持续回环轮转；其余示例的任务递增到 `add_one_sleep` 的异常阈值（n>30）后不再产生新任务，同样不会自动退出。运行前建议准备 **Ctrl+C** 手动终止。
 2. **sleep 延迟累积**：`add_one_sleep` 含 1 秒 sleep，20 个任务 × 多节点 = 长总耗时。
 3. **无断言**：仅验证框架能启动和运行，不检查结果数值。
 
@@ -260,6 +260,8 @@ python demo/demo_structure.py
 
 `__main__` 默认只调用 `demo_chain()`，其余结构函数均被注释。取消注释后即可依次运行多个结构。
 
+以下输出均为预期输出 (mock)，具体日志格式取决于框架输出。
+
 ### DAG 结构
 
 ```
@@ -272,13 +274,13 @@ python demo/demo_structure.py
 ```
 
 ```
-=== demo_grid (4x4 grid, staged scheduling) ===
+=== demo_grid (4x4 grid) ===
 [Grid00] -> [Grid01] [Grid10]
 [Grid01] -> [Grid02] [Grid11]
 ...
 --- Summary ---
-Grid00: success=5  fail=0
-Grid33: success=5  fail=0
+Grid00: success=9  fail=1
+Grid33: success=180  fail=0
 ```
 
 ### 有环图
@@ -300,7 +302,7 @@ Grid33: success=5  fail=0
 ... (持续循环)
 ```
 
-> **重要**：有环图示例（`demo_loop`、`demo_wheel`、`demo_complete`、`demo_multi_cycle`）的终止信号设置各不相同，默认运行时可能持续循环，建议按 **Ctrl+C** 手动终止进程。
+> **重要**：有环图示例（`demo_loop`、`demo_wheel`、`demo_complete`、`demo_multi_cycle`）均显式传入 `if_put_signal=False`，不会自动注入终止信号，默认运行时可能持续循环，建议按 **Ctrl+C** 手动终止进程。
 
 ### Forest（森林）
 
@@ -314,7 +316,8 @@ Grid33: success=5  fail=0
 [stageC] Input: ...
 ```
 
-> 如果依次运行多个结构，每个结构运行前会打印 `=== demo_xxx ===` 分隔线，`Summary` 部分展示各节点成功/失败计数。
+> 如果依次运行多个结构，`Summary` 部分展示各节点成功/失败计数。
+> `demo_grid` 的计数为 mock 推算：`Grid00` 输入 `range(10)`，其中 `0` 触发 `add_one_sleep` 的 `ValueError` 而失败，剩余任务沿 4×4 网格向下传播，`Grid33` 共汇聚 180 条任务。
 
 ## 依赖
 

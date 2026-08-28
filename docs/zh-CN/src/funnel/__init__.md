@@ -1,8 +1,8 @@
 # Funnel 模块
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/26
 
-Funnel 模块提供了 CelestialFlow 的队列通信基础设施，是 Persistence 模块中 `LogSpout`/`LogInlet` 和 `FallbackSpout`/`FallbackInlet` 的底层基类。
+Funnel 模块提供了 CelestialFlow 的队列通信基础设施，是 Persistence 模块中 `LogSpout`/`LogInlet` 和 `LifecycleSpout`/`LifecycleInlet` 的底层基类。
 
 它不只是能作为底层基建使用，也可以脱离 `TaskGraph` / `TaskStage` 单独搭建轻量的生产者-消费者管道。一个最小可运行示例见 [demo_funnel.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/demo_funnel.md)。
 
@@ -57,24 +57,24 @@ classDiagram
     }
     class LogSpout {
     }
-    class FallbackSpout {
+    class LifecycleSpout {
     }
     class LogInlet {
     }
-    class FallbackInlet {
+    class LifecycleInlet {
     }
 
     BaseSpout <|-- LogSpout
-    BaseSpout <|-- FallbackSpout
+    BaseSpout <|-- LifecycleSpout
     BaseInlet <|-- LogInlet
-    BaseInlet <|-- FallbackInlet
+    BaseInlet <|-- LifecycleInlet
     BaseSpout "1" --> "1" PendingCounter
 ```
 
 ## 模块关联
 
 ### 外部关联
-- **与 Persistence 模块**: `LogSpout`/`LogInlet`、`FallbackSpout`/`FallbackInlet` 均继承自本模块基类
+- **与 Persistence 模块**: `LogSpout`/`LogInlet`、`LifecycleSpout`/`LifecycleInlet` 均继承自本模块基类
 - **与 Runtime 模块**: 使用 `TerminationSignal` 作为停止信号、`CelestialFlowError` 作为子类必须覆写的异常类型
 
 ## 使用示例

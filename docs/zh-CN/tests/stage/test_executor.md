@@ -1,6 +1,6 @@
 # 任务执行器测试 (test_executor.py)
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/26
 
 ## 作用
 验证 `celestialflow.stage.core_executor` 中的 `TaskExecutor` 类，确保其在各种并发模式下能准确执行任务、处理错误并支持高级特性（如重试和去重）。
@@ -25,7 +25,7 @@
 ### 执行模式
 - **Serial**: 顺序执行，验证结果映射和计数。
 - **Thread**: 并行执行，验证多线程下的任务分发（`execution_mode="thread"`）。
-- **Async**: 异步执行，验证 `start_async` 的协程处理（`execution_mode="async"`）。
+- **Async**: 异步执行，验证 `run_async` 的协程处理（`execution_mode="async"`）。
 
 ### 重试机制
 - 验证 `max_retries` 逻辑：只有在指定的 `retry_exceptions` 抛出时才触发重试。

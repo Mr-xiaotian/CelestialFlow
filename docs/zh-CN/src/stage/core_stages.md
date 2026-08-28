@@ -1,8 +1,8 @@
-# TaskNodes
+# TaskStages
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
-TaskNodes 模块提供了多种特殊功能的 `TaskStage` 实现，用于流控制、外部系统交互等场景。
+`stage/core_stages.py` 提供了两种内建的结构型 `TaskStage` 特化：`TaskSplitter`（拆分器）与 `TaskRouter`（路由器）。它们改变的是图结构与下游分发语义，用于常见的流水线编排场景。
 
 ## TaskSplitter (分裂器)
 
@@ -61,6 +61,9 @@ class MySplitter(TaskSplitter):
     def _split(self, task):
         # 将输入数据分裂为多个部分
         return tuple(task)
+
+
+splitter = MySplitter("MySplitter")
 ```
 
 ### 特性
@@ -139,9 +142,15 @@ def route_logic(data: int) -> str:
 source = TaskStage("Source", func=lambda x: x)
 
 # Router 内部完成路由决策
-router = TaskRouter("路由器", route_logic)
+router = TaskRouter("Router", route_logic)
 
 # 连接下游（返回值必须与下游 stage 名称匹配）
+pos_stage = TaskStage("positive_stage", func=lambda x: x)
+neg_stage = TaskStage("negative_stage", func=lambda x: x)
+
+graph = TaskGraph("RouterGuide")
+graph.set_stages([source, router, pos_stage, neg_stage])
+graph.connect([source], [router])
 graph.connect([router], [pos_stage, neg_stage])
 ```
 
@@ -165,7 +174,7 @@ from celestialflow import TaskGraph, TaskStage, TaskSplitter
 # 自定义分裂器：按行分裂文本
 class LineSplitter(TaskSplitter):
     def _split(self, task):
-        return tuple(task.split("\\n"))
+        return tuple(task.split("\n"))
 
 
 # 定义后续处理阶段
@@ -179,8 +188,8 @@ graph.connect([source], [splitter])
 graph.connect([splitter], [processor])
 
 # 输入一条包含三行的文本，分裂为三个独立任务
-text_data = "line1\\nline2\\nline3"
-graph.start_graph({source.get_name(): [text_data]})
+text_data = "line1\nline2\nline3"
+graph.run({source.get_name(): [text_data]})
 ```
 
 ### TaskRouter：按条件分发任务
@@ -210,12 +219,12 @@ handler_neg = TaskStage(
 )
 handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}")
 
-graph = TaskGraph()
+graph = TaskGraph("RouterDemo")
 graph.set_stages([source, router, handler_pos, handler_neg, handler_zero])
 graph.connect([source], [router])
 graph.connect([router], [handler_pos, handler_neg, handler_zero])
 
-graph.start_graph({source.get_name(): [10, -5, 0, 3, -1]})
+graph.run({source.get_name(): [10, -5, 0, 3, -1]})
 ```
 
 > **注意**: `router(task)` 的返回值必须与下游 `TaskStage` 的 `name` 完全匹配。

@@ -1,6 +1,6 @@
 # 任务调度核心测试 (test_dispatch.py)
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/26
 
 ## 作用
 
@@ -14,7 +14,7 @@
 
 | 测试类 | 用例数 | 覆盖目标 |
 |--------|--------|---------|
-| `TestDispatchSerial` | 7 | 单/多任务、重试成功、重试耗尽、终止信号单/多 ID、success fanout 下游 input_id 独立 |
+| `TestDispatchSerial` | 7 | 单/多任务、重试成功、重试耗尽、终止信号单/多 ID、success fanout 下游任务 ID 独立 |
 | `TestDispatchThread` | 2 | 10 任务并发、重复任务去重统计 |
 | `TestDispatchAsync` | 2 | 10 任务协程并发、异步重试成功 |
 | `TestWorkerCrashKeepsTerminationSignal` | 2 | 失败处理链崩溃、重试信封生成崩溃时终止信号照常发出（3 模式参数化） |
@@ -28,11 +28,11 @@
 - 重试成功（前 N 次抛异常，最后成功）
 - 重试耗尽（始终抛异常，最终无成功结果）
 - 终止信号合并（单 ID / 多 ID）
-- success fanout 为每个真实下游创建独立 input_id
+- success fanout 为每个真实下游节点创建独立的任务 ID（`get_id()` 互不相同）
 
 ### `TestDispatchThread` — 线程调度
 - 10 任务并发（4 worker），验证正确收集结果
-- 重复任务去重（同一 hash 投递两次，仅执行一次，`duplicate_count` 计数为 1）
+- 重复任务去重（相同任务两次入队，`metrics.get_duplicate_count()` 计数为 1，结果中至少保留一条执行结果）
 
 ### `TestDispatchAsync` — 异步调度
 - 10 任务协程并发（4 worker）

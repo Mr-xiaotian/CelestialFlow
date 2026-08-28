@@ -1,6 +1,6 @@
 # BaseSpout
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/08/26
 
 `BaseSpout` 是所有出口类的基类，提供后台线程监听队列并处理记录的通用功能。
 
@@ -41,8 +41,8 @@ def stop(self):
 流程：
 1. 若 `_thread` 为 `None`，直接返回
 2. 发送 `TERMINATION_SIGNAL` 到队列
-3. 等待线程结束（`join(timeout=5)`），并将 `_thread` 置为 `None`
-4. 调用 `_after_stop()` 钩子
+3. `join(timeout=5)` 等待线程结束；若 5 秒后线程仍存活，抛出 `RuntimeStateError("Spout thread did not terminate within 5 seconds.")`
+4. 将 `_thread` 置为 `None`，调用 `_after_stop()` 钩子
 
 ### get_queue / get_counter / get_pending_count
 
@@ -232,7 +232,7 @@ print(f"处理了 {spout.count} 条记录")  # 100
 
 1. **线程安全**: 使用 `queue.Queue` 确保线程间通信安全。
 2. **守护线程**: 监听线程设置为守护线程（`daemon=True`），主进程退出时自动结束。
-3. **优雅停止**: 通过发送 `TerminationSignal` 通知线程停止，`join(timeout=5)` 等待最多 5 秒。
+3. **优雅停止**: 通过发送 `TerminationSignal` 通知线程停止，`join(timeout=5)` 等待最多 5 秒；超时未停止会抛出 `RuntimeStateError`。
 4. **异常隔离**: 单条记录处理失败打印 traceback 后继续，不会导致线程终止。
 5. **队列清理**: 停止时不会清理队列中的剩余记录。
 6. **待处理计数**: 计数器在 `_funnel()` 入队前增加、在 `_spout()` 处理完成后减少，可用于判断数据是否全部消费。

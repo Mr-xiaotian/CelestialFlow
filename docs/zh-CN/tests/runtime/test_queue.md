@@ -1,6 +1,6 @@
 # 运行时队列测试 (test_queue.py)
 
-> 📅 最后更新日期: 2026/06/11
+> 📅 最后更新日期: 2026/08/26
 
 ## 作用
 验证任务在不同节点（Stage）间流转的队列管理逻辑，包括任务的入队出队、终止信号的合并与广播、以及队列的动态扩展。
@@ -12,6 +12,8 @@
 ## 关键测试场景
 
 ### `TestTaskInQueue` — 输入队列
+`simple_queue` fixture 构造一个无上游来源的输入队列（仅 `out_name`），供单源用例复用。
+
 | 用例 | 覆盖目标 |
 |------|----------|
 | `test_put_and_get_task` | 基础存取：入队和出队 `TaskEnvelope` |
@@ -21,6 +23,8 @@
 | `test_drain_returns_remaining_tasks` | `drain()` 清空队列并返回全部剩余任务 |
 
 ### `TestTaskOutQueue` — 输出队列
+输出队列使用标准库 `queue.Queue` 作为真实落点，验证广播/定向发送的可见结果。
+
 | 用例 | 覆盖目标 |
 |------|----------|
 | `test_put_broadcasts_to_all` | `put()` 向所有下游队列广播 |

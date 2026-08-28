@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
@@ -309,7 +309,7 @@ class UnconsumedError(CelestialFlowError):
     pass
 ```
 
-当 `TaskGraph._finish_start()` 收尾阶段遍历所有 stage 调用 `drain_task_queue()` 发现队列中有剩余任务时，会将其标记为 `UnconsumedError` 并通过 `fallback_inlet` / `FallbackSpout` 持久化到 sqlite 回退数据库。
+当 `TaskGraph._finish_start()` 收尾阶段遍历所有 stage 调用 `drain_task_queue()` 发现队列中有剩余任务时，会将其标记为 `UnconsumedError` 并通过 `get_lifecycle_inlet()` / `LifecycleSpout` 持久化到按日期组织的 lifecycle sqlite 数据库。
 
 ### TerminationMergeError
 
@@ -327,6 +327,8 @@ class TerminationMergeError(CelestialFlowError):
 ### 1. 添加可重试异常
 
 ```python
+from celestialflow import TaskExecutor
+
 executor = TaskExecutor("Processor", process, max_retries=3)
 executor.set_retry_exceptions(ConnectionError, TimeoutError)
 ```
@@ -452,6 +454,6 @@ except RemoteWorkerError as e:
 
 1. 清空 stage 的任务队列，取出剩余任务。
 2. 对每个剩余任务调用 `handle_task_fail(source, UnconsumedError())`。
-3. 失败信息经 `fallback_inlet` 写入 `FallbackSpout`，最终持久化到按日期组织的 sqlite 回退数据库中。
+3. 失败信息经 `get_lifecycle_inlet()` 写入 `LifecycleSpout`（`task_fail()` 将 pending 记录晋升为 failed），最终持久化到按日期组织的 lifecycle sqlite 数据库（`./lifecycles/YYYY-MM-DD/flow_lifecycle(...).sqlite3`）。
 
-因此，未消费任务的“持久化”并不是由 `util_errors.py` 自身完成，而是依赖 Stage / Graph 层的 fallback 机制。
+因此，未消费任务的“持久化”并不是由 `util_errors.py` 自身完成，而是依赖 Stage / Graph 层的生命周期（lifecycle）持久化机制。

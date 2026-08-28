@@ -1,6 +1,6 @@
 # SQLite 工具测试 (test_splite.py)
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/08/26
 
 ## 作用
 
@@ -22,7 +22,6 @@
 | `load_records_after_event_id_in_fail` | 按 failed event_id 下界增量读取 |
 | `promote_record_to_failed_by_event_id` | 更新状态为 failed 并写入错误信息 |
 | `promote_record_to_success_by_event_id` | 更新状态为 success 并写入结果 |
-| `update_record_event_id_by_event_id` | 迁移记录的 event_id |
 | `delete_record_by_event_id` | 按 event_id 删除记录 |
 | `load_task_error_records` | 按 stage 读取 task-error 对 |
 | `load_task_result_records` | 按 stage 读取 task-result 对 |
@@ -31,7 +30,7 @@
 
 | 测试类 | 用例数 | 覆盖目标 |
 |--------|--------|---------|
-| `TestSpliteUtils` | 18 | 连接建表、归一化、插入/读取、追加/去重、分页查询、清空、增量和分组读取、错误类型聚合、状态迁移、event_id 迁移、删除、配对读取 |
+| `TestSpliteUtils` | 17 | 连接建表、归一化、插入/读取、追加/去重、分页查询、清空、增量和分组读取、错误类型聚合、状态迁移、删除、配对读取 |
 
 ## 关键测试场景
 
@@ -42,7 +41,7 @@
 
 ### 归一化
 
-- 元信息行（无 `ts`）返回 `None`，不存入数据库
+- 缺少 `event_id` 的元信息行（如仅含 `timestamp` / `graph_name`）返回 `None`，不存入数据库
 - 错误记录被规范化为 `status="failed"`，`task_json` 和 `result_json` 序列化为 JSON 字符串
 
 ### 插入与读取
@@ -67,9 +66,8 @@
 
 ### 状态迁移
 
-- `promote_record_to_failed_by_event_id`: 从 waiting→failed，更新 event_id 和错误信息
+- `promote_record_to_failed_by_event_id`: 从 waiting→failed，将 event_id 迁移到新错误事件 ID 并写入错误信息
 - `promote_record_to_success_by_event_id`: 从 pending→success，写入结果
-- `update_record_event_id_by_event_id`: 保留当前状态，仅迁移 event_id
 
 ### 增量与分组
 

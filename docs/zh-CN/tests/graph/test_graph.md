@@ -1,6 +1,6 @@
 # 任务图核心功能测试 (test_graph.py)
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 ## 作用
 全面验证 `TaskGraph` 及其各种拓扑子类（`TaskChain`、`TaskCross`、`TaskGrid`）的核心功能，涵盖同步/异步执行、错误传播、拓扑分析、执行模式矩阵、源节点推导、含环图行为、收尾阶段安全检查及运行时快照采集。
@@ -115,7 +115,7 @@ graph LR
 ## 重要细节
 
 ### 终止信号行为
-- 含环图使用 `if_put_signal=True` 注入终止信号以确保测试退出。
+- 含环图通过 `run()` 启动并注入任务（`run` 默认 `if_put_signal=True`，自动为源节点补发终止信号）以确保测试退出。
 - serial graph_mode 下含环图启动时会触发 `UserWarning`（而非 `RuntimeWarning`）。
 
 ### Lambda 支持

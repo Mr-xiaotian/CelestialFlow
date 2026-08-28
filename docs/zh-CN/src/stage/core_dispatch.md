@@ -1,6 +1,6 @@
 # TaskDispatch
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 `stage/core_dispatch.py` 定义了 `TaskDispatch` 类，它是 `TaskExecutor` 的内部组件，负责以串行、线程或异步方式执行单个任务。它从 `TaskInQueue` 获取任务，调用用户函数，并将结果通过 `TaskOutQueue` 发送。
 
@@ -89,11 +89,12 @@ async def _async_worker(self, task_envelope: TaskEnvelope) -> None:
     """异步执行单个任务，支持重试。"""
 ```
 
-重试逻辑：
-- 在 `max_retries + 1` 次尝试内循环
-- 成功时调用 `process_task_success`
-- 异常若在 `retry_exceptions` 中且未达上限，发重试信封继续
-- 否则调用 `handle_task_fail`
+重试逻辑（两处实现相同）：
+- 在 `for retry_time in range(max_retries + 1)` 循环内执行任务
+- 成功时调用 `process_task_success` 后返回
+- 异常若在 `retry_exceptions` 中且未达 `max_retries`，调用 `log_task_retry()` 记录日志后进入下一次循环重试
+- 否则调用 `handle_task_fail()` 处理失败并返回
+- 若内层处理之外仍抛出异常（如 `process_task_success` / `handle_task_fail` / `log_task_retry` 内部出错），则由外层 `try` 捕获并调用 `get_log_inlet().worker_crash(e)` 记录，不向上抛
 
 ### _process_termination_signal
 
@@ -142,9 +143,10 @@ flowchart LR
     DISPATCH -->|终止时| PROC[_process_termination_signal]
     DISPATCH -->|去重检查| DUP[metrics.is_duplicate / deal_duplicate]
     DISPATCH -->|执行| WORKER[_worker/_async_worker]
-    WORKER -->|成功| SUCCESS[process_task_success → result_queue]
-    WORKER -->|可重试异常| RETRY[emit_retry_envelope → 重试]
-    WORKER -->|不可重试异常| FAIL[handle_task_fail → fail_inlet]
+    WORKER -->|成功| SUCCESS[process_task_success → 写入下游 result_queue]
+    WORKER -->|可重试异常| RETRY[log_task_retry → 循环内重试]
+    WORKER -->|不可重试异常| FAIL[handle_task_fail → lifecycle/log inlet]
+    WORKER -->|外层异常| CRASH[get_log_inlet().worker_crash]
     DISPATCH -->|TerminationSignal| RQ[TaskOutQueue]
 ```
 
@@ -157,7 +159,7 @@ flowchart TD
     TE -->|提供| RQ[result_queue: TaskOutQueue]
     TE -->|提供| MET[metrics: TaskMetrics]
     DISPATCH -->|调用| FUNC[func 用户函数]
-    DISPATCH -->|调用| TE_METHODS[process_task_success / handle_task_fail / emit_retry_envelope]
+    DISPATCH -->|调用| TE_METHODS[process_task_success / handle_task_fail / log_task_retry / deal_duplicate]
 ```
 
 `TaskExecutor` 根据 `execution_mode` 选择调用方式：
@@ -270,4 +272,4 @@ print(f"成功: {counts['tasks_succeeded']}, 失败: {counts['tasks_failed']}")
 3. **异步模式**: 函数须为协程；使用 `asyncio.to_thread` 避免阻塞
 4. **futures 清理**: `dispatch_thread` 中持续清理已完成 future，保持活跃任务数不超过 `max_workers`
 5. **去重**: 在入 worker 前完成，减少无效计算
-6. **重试**: worker 内部通过循环和 `emit_retry_envelope` 实现
+6. **重试**: worker 内部通过 `for retry_time in range(max_retries + 1)` 循环实现，不额外发送重试信封

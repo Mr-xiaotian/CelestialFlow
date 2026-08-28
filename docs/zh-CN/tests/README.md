@@ -1,6 +1,6 @@
 # tests/ 测试总览
 
-> 📅 最后更新日期: 2026/06/28
+> 📅 最后更新日期: 2026/08/26
 
 ## 说明
 
@@ -33,12 +33,11 @@
 | `funnel/__init__.md` | Inlet / Spout 管道相关测试 |
 | `graph/__init__.md` | `TaskGraph`、拓扑分析与结构导出相关测试 |
 | `observability/__init__.md` | 观察者、Reporter、注入与上报相关测试 |
-| `persistence/__init__.md` | sqlite / success / fail / log 持久化相关测试 |
+| `persistence/__init__.md` | 生命周期 / 日志 / sqlite 工具等持久化相关测试 |
 | `runtime/__init__.md` | 队列、信封、异常、估算器、计数器等基础运行时测试 |
-| `stage/__init__.md` | `TaskExecutor`、`TaskStage` 与内置 stage 相关测试 |
-| `utils/test_clone.md` | clone 工具测试 |
-| `utils/test_format.md` | format 工具测试 |
-> `tests/utils/` 下没有 `__init__.py`，因此不对应 `utils/__init__.md`。
+| `stage/__init__.md` | `TaskExecutor`、`TaskStage`、`TaskDispatch` 与内置 stage 相关测试 |
+| `benchmark/test_benchmark.md` | `benchmark_graph` / `benchmark_executor` 基准测试 |
+| `benchmark/test_clone.md` | clone 工具测试 |
 
 ## 如何使用
 

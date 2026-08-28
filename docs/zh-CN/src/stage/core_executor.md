@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -17,11 +17,10 @@ class TaskExecutor[T, R]:
         *,
         execution_mode: str = "serial",
         max_workers: int | None = None,
-        max_queue_size: int = 0,
         max_retries: int = 1,
+        max_queue_size: int = 0,
         max_info: int = 50,
         enable_duplicate_check: bool = False,
-        persist_result: bool = False,
     ): ...
 ```
 
@@ -37,7 +36,6 @@ class TaskExecutor[T, R]:
 | `max_info` | `50` | 日志中每条信息的最大长度 |
 | `max_queue_size` | `0` | 任务输入队列的最大容量（0 表示无限制） |
 | `enable_duplicate_check` | `False` | 是否启用基于任务哈希的重复检查 |
-| `persist_result` | `False` | 是否持久化任务结果到 SQLite |
 
 ## Observer 模式
 
@@ -68,8 +66,8 @@ executor.remove_observer(observer)  # 移除观察者
 ```python
 def run(self, task_source: Iterable[T], *, if_put_signal: bool = True) -> None:
     """
-    同步运行执行器（含 funnel_scope 生命周期）。内部依次调用
-    put_tasks() 和 start()。
+    同步运行执行器（含 funnel_scope 生命周期）。内部依次
+    put_task() 注入所有任务、put_signal() 注入终止信号，再调用 start()。
     """
 
 
@@ -77,8 +75,8 @@ async def run_async(
     self, task_source: Iterable[T], *, if_put_signal: bool = True
 ) -> None:
     """
-    异步运行执行器（含 funnel_scope 生命周期）。内部依次调用
-    put_tasks() 和 start_async()。
+    异步运行执行器（含 funnel_scope 生命周期）。内部依次
+    put_task() 注入所有任务、put_signal() 注入终止信号，再 await start_async()。
     """
 
 
@@ -109,9 +107,9 @@ def restore_db(
 
 ### 重试逻辑
 
-异常在 `TaskDispatch._worker` 中被分类：
-- **可重试异常**: 如果在 `retry_exceptions` 中且未达 `max_retries`，通过 `emit_retry_envelope()` 更新任务 ID 并重试
-- **不可重试异常**: 任务标记为失败，记录错误日志，放入 `fallback_inlet`
+异常在 `TaskDispatch._worker` / `_async_worker` 的分类循环中被处理：
+- **可重试异常**: 如果在 `retry_exceptions` 中且未达 `max_retries`，调用 `log_task_retry()` 记录日志后进入下一次循环重试
+- **不可重试异常**: 调用 `handle_task_fail()` 将记录写入 `LifecycleInlet`（SQLite）与 `LogInlet`（日志文件）
 
 ```python
 def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
@@ -132,7 +130,7 @@ def process_task_success(
 def handle_task_fail(
     self, task_envelope: TaskEnvelope[T], exception: Exception
 ) -> None:
-    """处理失败任务：通知 observer、记录到 fallback_inlet 和 log_inlet。"""
+    """处理失败任务：通知 observer、记录到 LifecycleInlet 和 LogInlet。"""
 
 
 def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
@@ -145,7 +143,7 @@ def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
 def get_success_pairs(self) -> list[tuple[T, R]]:
     """
     获取成功任务 (task, result) 列表。
-    需要 persist_result=True，否则返回空列表并发出警告。
+    从全局 LifecycleSpout 的 SQLite 记录中按本执行器名称读取。
     """
 
 
@@ -172,7 +170,7 @@ def get_full_name(self) -> str:               # "name(mode-workers)" 或 "name(s
 def get_func_name(self) -> str:               # 函数名
 def get_summary(self) -> dict:                # 快照：name, func_name, execution_mode, max_workers
 def get_counts(self) -> dict:                 # 计数器：tasks_input/succeeded/failed/duplicated/processed/pending
-def get_fallback_path(self) -> Path:          # fallback SQLite 文件的绝对路径
+def get_lifecycle_path(self) -> Path:         # 全局 lifecycle SQLite 文件的绝对路径（未设置时返回空 Path）
 ```
 
 ## 生命周期
@@ -186,7 +184,8 @@ flowchart TD
     CONFIG -->|set_ctree| CTREE[LocalEventClient]
 
     INIT -->|start/start_async| PREPARE[_prepare_start]
-    PREPARE --> LOG_START[log_inlet.start_executor]
+    PREPARE --> METRICS_START[metrics.on_start - 广播执行开始事件]
+    METRICS_START --> LOG_START[log_inlet.start_executor]
     LOG_START --> RUN{dispatch 循环}
     RUN -->|serial| SERIAL[dispatch_serial]
     RUN -->|thread| THREAD[dispatch_thread]
@@ -200,7 +199,7 @@ flowchart TD
     LOG_END --> METRICS_FINISH[metrics.on_finish]
 ```
 
-> 全局 `FallbackSpout` / `LogSpout` 的后台线程由 `funnel_scope` 负责启动与停止。`TaskExecutor` 自身不直接管理这两个 spout。
+> 全局 `LifecycleSpout` / `LogSpout` 的后台线程由 `funnel_scope` 负责启动与停止。`TaskExecutor` 自身不直接管理这两个 spout。
 
 ## 使用示例
 
@@ -239,11 +238,11 @@ def process_item(x: int) -> int:
 
 executor = TaskExecutor("Recovery", process_item, execution_mode="thread")
 # 从持久化的失败和 pending 记录中恢复执行
-executor.restore_db("fallback/2026-06-18/executor_fallbacks.sqlite3")
+executor.restore_db("lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3")
 
 # 也可以指定仅恢复失败记录
 executor.restore_db(
-    "fallback/2026-06-18/executor_fallbacks.sqlite3", statuses=["failed"]
+    "lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3", statuses=["failed"]
 )
 ```
 
@@ -256,6 +255,6 @@ executor.restore_db(
 | `async` | 网络 I/O | 函数须为协程；使用 `start_async` 而非 `start` |
 
 - `process_task_success` 会创建结果信封并放入 `result_queue`
-- `handle_task_fail` 会将错误记录写入 `fallback_inlet`
+- `handle_task_fail` 会将错误记录写入 `LifecycleInlet` 与 `LogInlet`
 - `deal_duplicate` 处理重复任务并记录日志
-- 全局 `FallbackSpout` / `LogSpout` 的后台线程由 `funnel_scope` 启动与停止，`TaskExecutor` 自身不直接创建它们
+- 全局 `LifecycleSpout` / `LogSpout` 的后台线程由 `funnel_scope` 启动与停止，`TaskExecutor` 自身不直接创建它们

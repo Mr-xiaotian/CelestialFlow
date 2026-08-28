@@ -1,6 +1,6 @@
 # Graph 模块
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 Graph 模块是 CelestialFlow 的核心调度系统，负责管理任务节点之间的依赖关系、执行流程和生命周期。它提供了灵活的任务图构建、分析和序列化功能。
 
@@ -47,7 +47,7 @@ from celestialflow.graph import (
 
 ### 工具文件
 
-3. **util_graph.py**
+3. **util_order_graph.py**
    - **作用**: 轻量级有序有向图与基础图算法工具
    - **关键内容**:
      - `OrderGraph`: 最小有序有向图，维护稳定节点顺序、入边和出边邻接表
@@ -66,7 +66,7 @@ from celestialflow.graph import (
 ### 内部关联
 - `TaskGraph` 是基础类，所有其他结构继承自它
 - `TaskChain`、`TaskLoop` 等是 `TaskGraph` 的特化实现（封装了 `set_stages` / `connect` 逻辑）
-- `util_graph.py` 提供框架内部统一复用的轻量图结构和基础图算法
+- `util_order_graph.py` 提供框架内部统一复用的轻量图结构和基础图算法
 - `TaskGraph` 当前基于 `OrderGraph` 完成源节点识别、DAG 判定与层级分析
 - 序列化工具将运行时结构输出为 JSON/文本
 

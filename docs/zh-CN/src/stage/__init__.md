@@ -1,6 +1,6 @@
 # Stage 模块
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 Stage 模块定义了 CelestialFlow 中的任务执行单元。它提供了从基础任务执行器到复杂任务节点的完整体系，是构建任务图的基本构建块。
 
@@ -65,7 +65,7 @@ Stage 模块包含三个层次的任务执行单元：
 ### 外部关联
 - **与 Graph 模块**: `TaskStage` 是 `TaskGraph` 的基本构建单元
 - **与 Runtime 模块**: 使用 `TaskInQueue` / `TaskOutQueue` 进行节点间通信，依赖 `TaskDispatch` 执行
-- **与 Persistence 模块**: 通过 `FallbackInlet` / `LogInlet` 持久化任务状态
+- **与 Persistence 模块**: 通过 `LifecycleInlet` / `LogInlet` 持久化任务状态
 - **与 Observability 模块**: 通过 `add_observer()` 注册 `BaseObserver` 子类
 
 ## 使用示例
@@ -111,12 +111,12 @@ graph = TaskGraph()
 graph.set_stages([stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 
-# 执行
-graph.start_graph({stage_a.get_name(): [5, 10, 15]})
+# 执行（同步入口）
+graph.run({stage_a.get_name(): [5, 10, 15]})
 
 # 阶段快照
-for name, runtime in graph.stage_runtime_dict.items():
-    summary = runtime.stage.get_summary()
+for name, stage in graph.stage_dict.items():
+    summary = stage.get_summary()
     print(f"{name}: {summary}")
 ```
 
@@ -137,12 +137,12 @@ raw = TaskStage("Source", func=lambda x: x, execution_mode="serial")
 splitter = CommaSplitter("Splitter")
 processor = TaskStage("Process", func=lambda x: x.strip().upper(), execution_mode="thread")
 
-graph = TaskGraph()
+graph = TaskGraph("SplitDemo")
 graph.set_stages([raw, splitter, processor])
 graph.connect([raw], [splitter])
 graph.connect([splitter], [processor])
 
-graph.start_graph({raw.get_name(): ["a,b,c", "x,y,z"]})
+graph.run({raw.get_name(): ["a,b,c", "x,y,z"]})
 ```
 
 ### TaskRouter 使用示例
@@ -167,12 +167,12 @@ router = TaskRouter("Router", classify)
 pos = TaskStage("Positive", func=lambda x: f"POS: {x}", execution_mode="serial")
 neg = TaskStage("Negative", func=lambda x: f"NEG: {x}", execution_mode="serial")
 
-graph = TaskGraph()
+graph = TaskGraph("RouterDemo")
 graph.set_stages([source, router, pos, neg])
 graph.connect([source], [router])
 graph.connect([router], [pos, neg])
 
-graph.start_graph({source.get_name(): [5, -3, 10, -8]})
+graph.run({source.get_name(): [5, -3, 10, -8]})
 ```
 
 ## 设计原则

@@ -1,6 +1,6 @@
 # TaskReporter
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/26
 
 `TaskReporter` 是一个后台组件，负责收集任务图的运行状态并上报给 `celestialflow-web` 服务。同时也负责从该服务拉取控制指令（如任务注入）。
 
@@ -104,6 +104,11 @@ def _refresh_all(self) -> None:
 reporter.start()  # 清除停止标志，创建守护线程执行 _loop()
 reporter.stop()  # 设置停止标志，join 线程（timeout=2），最后刷新一次
 ```
+
+`stop()` 细节：
+1. 若线程未启动（`_thread is None`）直接返回；
+2. 设置停止标志并 `join(timeout=2)`；若线程仍未结束，关闭会话并抛出 `ReporterError("Reporter thread is still running.")`；
+3. 正常结束时再做一次 `_refresh_all()` 作为最终推送，随后关闭 HTTP 会话并调用 `log_inlet.stop_reporter()` 记录停止日志。
 
 `_loop()` 中每次循环执行 `_refresh_all()`，捕获异常后通过 `log_inlet.loop_failed()` 记录，不终止线程。
 

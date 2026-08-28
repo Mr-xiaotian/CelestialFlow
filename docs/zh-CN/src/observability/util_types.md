@@ -1,6 +1,6 @@
 # ReporterTaskGraph
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 `observability/util_types.py` 定义了 `TaskReporter` 依赖的任务图协议接口 `ReporterTaskGraph` 与任务阶段协议接口 `ReporterTaskStage`。它们是 `Protocol` 类，使得 `TaskReporter` 无需导入具体的 `TaskGraph` / `TaskStage` 类型即可声明依赖。
 
@@ -23,7 +23,7 @@ class ReporterTaskGraph(Protocol):
 
     def get_graph_id(self) -> str: ...
 
-    def get_fallback_path(self) -> Path: ...
+    def get_lifecycle_path(self) -> Path: ...
 
     def get_status_snapshot(self) -> dict[str, Any]: ...
 
@@ -37,7 +37,7 @@ class ReporterTaskGraph(Protocol):
 | `stage_dict` | `Mapping[str, ReporterTaskStage]` | 返回按名称索引的只读节点映射（property） |
 | `collect_runtime_snapshot()` | `None` | 收集最新运行时快照 |
 | `get_graph_id()` | `str` | 获取当前任务图的唯一标识 |
-| `get_fallback_path()` | `Path` | 获取 fallback 持久化文件路径 |
+| `get_lifecycle_path()` | `Path` | 获取生命周期持久化文件路径 |
 | `get_status_snapshot()` | `dict[str, Any]` | 获取运行状态快照（各 stage 计数等） |
 | `get_structure_graph()` | `dict[str, Any]` | 获取图结构信息（节点与边） |
 | `get_graph_analysis()` | `dict[str, Any]` | 获取图分析数据（拓扑信息等） |

@@ -1,6 +1,6 @@
 # BaseInlet
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/26
 
 `BaseInlet` 是所有入口类（Inlet）的基类，负责将记录通过队列发送到对应的 `BaseSpout`。
 
@@ -81,15 +81,14 @@ classDiagram
         +task_retry()
         +termination_input()
     }
-    class FallbackInlet {
+    class LifecycleInlet {
         +task_in()
         +task_success()
         +task_fail()
-        +task_retry()
         +task_duplicate()
     }
     BaseInlet <|-- LogInlet
-    BaseInlet <|-- FallbackInlet
+    BaseInlet <|-- LifecycleInlet
 ```
 
 ### 继承关系说明
@@ -97,7 +96,7 @@ classDiagram
 | 子类 | 所在文件 | 职责 |
 |------|---------|------|
 | `LogInlet` | `persistence/core_log.py` | 日志记录，追踪任务入队/出队/终止全过程 |
-| `FallbackInlet` | `persistence/core_fallback.py` | Fallback 记录，持久化任务生命周期到 SQLite |
+| `LifecycleInlet` | `persistence/core_lifecycle.py` | 生命周期记录，将任务进入/成功/失败/判重持久化到 SQLite |
 
 ## 使用示例
 

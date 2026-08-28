@@ -1,16 +1,16 @@
 # 作用域管理测试 (test_scope.py)
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/26
 
 ## 作用
 
-验证 `celestialflow.persistence.core_scope` 中 `funnel_scope()` 上下文管理器对全局 LogSpout / FallbackSpout 生命周期的自动管理，确保进入作用域时启动后台线程、退出时正确清理并完成持久化。
+验证 `celestialflow.persistence.core_scope` 中 `funnel_scope()` 上下文管理器对全局 LogSpout / LifecycleSpout 生命周期的自动管理，确保进入作用域时启动后台线程、退出时正确清理并完成持久化。
 
 ## 核心测试对象
 
-- `funnel_scope()`: 上下文管理器，自动管理全局 log/fallback spout 的启动与停止。
-- `get_log_spout()` / `get_fallback_spout()`: 获取全局单例 spout。
-- `get_log_inlet()` / `get_fallback_inlet()`: 获取对应的 inlet 入口。
+- `funnel_scope()`: 上下文管理器，自动管理全局 log/lifecycle spout 的启动与停止。
+- `get_log_spout()` / `get_lifecycle_spout()`: 获取全局单例 spout。
+- `get_log_inlet()` / `get_lifecycle_inlet()`: 获取对应的 inlet 入口。
 
 ## 测试覆盖矩阵
 
@@ -24,8 +24,8 @@
 
 验证 `funnel_scope()` 进入时启动两个全局 spout 的后台线程，退出时自动停止并清理线程引用。
 
-- 在作用域内断言 `log_spout._thread` 和 `fallback_spout._thread` 不为空且存活。
-- 通过 `get_log_inlet().start_graph()` 写入日志、`get_fallback_inlet().task_in()` + `task_success()` 写 sqlite。
+- 在作用域内断言 `log_spout._thread` 和 `lifecycle_spout._thread` 不为空且存活。
+- 通过 `get_log_inlet().start_graph()` 写入日志、`get_lifecycle_inlet().task_in()` + `task_success()` 写 sqlite。
 - 退出作用域后断言 `_thread` 为 `None`，且日志文件与 sqlite 文件已持久化并包含正确内容。
 
 ### `test_funnel_scope_is_reusable`

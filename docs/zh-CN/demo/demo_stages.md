@@ -1,6 +1,6 @@
 # demo_stages.py 演示说明
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 ## 目标
 
@@ -53,8 +53,9 @@ flowchart LR
 ## 可能出现的问题
 
 1. **长耗时**：`demo_splitter_0` 中各阶段含 4-6 秒随机 sleep，完整执行可能超过 1 分钟。
-2. **无断言**：演示脚本，不验证结果正确性。
-3. **Redis 示例迁移**：原先的 `demo_redis_ack_*` 与 `demo_redis_source_0` 已迁移到 [demo_redis.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/demo_redis.md)。
+2. **含回环，可能不自动结束**：`demo_splitter_0` 存在 `Parser → GenURLs` 回环，且 `graph.run(..., if_put_signal=False)` 不注入自动终止信号；部分 URL（如解析成功的 `url_1_1`）会不断产生新 URL 继续循环，若长时间没有新输出，建议按 **Ctrl+C** 手动终止。
+3. **无断言**：演示脚本，不验证结果正确性。
+4. **Redis 示例迁移**：原先的 `demo_redis_ack_*` 与 `demo_redis_source_0` 已迁移到 [demo_redis.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/demo_redis.md)。
 
 ## 运行方式
 
@@ -66,7 +67,11 @@ python demo/demo_stages.py
 # 如将 demo_splitter_0() 替换为 demo_router_0()
 ```
 
+> **注意**：当前 `__main__` 默认仅调用 `demo_splitter_0()`；`demo_splitter_1()` 与 `demo_router_0()` 均未被调用，需要手动在 `main()` 中执行或取消注释才能运行。
+
 ## 预期行为
+
+以下输出均为预期输出 (mock)，具体日志格式取决于框架输出。
 
 ### `demo_splitter_0`（爬虫工作流）
 

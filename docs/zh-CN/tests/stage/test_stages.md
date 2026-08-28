@@ -1,6 +1,6 @@
 # 特化阶段测试 (test_stages.py)
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/08/26
 
 ## 作用
 验证 `celestialflow.stage.core_stages` 中特化任务节点（Splitter, Router）的功能，确保任务能被正确分裂、路由和分发。
@@ -55,7 +55,7 @@ pytest tests/stage/test_stages.py -k "router" -v
 | `TestTaskRouter` | ~0.2s |
 
 ## 重要细节
-- 测试使用 `TaskGraph.connect()` 和 `TaskGraph.start_graph()` 构建真实的图执行环境进行验证，而非使用 mock 队列截获输出。
+- 测试使用 `TaskGraph.set_stages()` / `connect()` 建图，并通过 `graph.run()` 构建真实的图执行环境进行验证，而非使用 mock 队列截获输出。
 - 内置的 `split_counter` 和 `route_counters` 通过特化 Stage 的内部机制自动维护。
 
 ## 注意事项

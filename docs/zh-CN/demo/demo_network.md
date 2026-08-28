@@ -1,6 +1,6 @@
 # demo_network.py 演示说明
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 ## 目标
 
@@ -28,7 +28,7 @@ flowchart LR
         B3["B3<br/>y = 1.0 * x"]
     end
     subgraph Output["输出层"]
-        C["C<br/>y = 1.0 * x<br/>persist_result=True"]
+        C["C<br/>y = 1.0 * x"]
     end
 
     A1 --> B1
@@ -47,8 +47,8 @@ flowchart LR
 - 使用 `TaskCross` 构建 2-3-1 三层拓扑，`graph_mode="thread"`
 - **输入层**：`A1(x) = 0.5x`、`A2(x) = 2.0x`，分别接收不同的输入范围
 - **隐藏层**：`B1..B3(x) = 1.0x`，三个节点并行处理两个输入层的 Fan-in 结果
-- **输出层**：`C(x) = 1.0x`，设置 `persist_result=True` 以保留所有接收到的结果
-- 运行后通过 `C.get_success_pairs()` 收集前 10 条 `(输入 → 输出)` 对并打印
+- **输出层**：`C(x) = 1.0x`，汇聚 B1~B3 的全部结果
+- 运行后通过 `C.get_success_pairs()`（从生命周期存储读取成功结果）收集前 10 条 `(输入 → 输出)` 对并打印
 
 #### 核心函数
 
@@ -73,7 +73,7 @@ def linear(w: float, b: float):
 | C | `linear(1.0, 0.0)` | 1.0 | 0.0 | 2 | 来自 B1~B3 的 Fan-in |
 
 - 所有 Stage 使用 `execution_mode="thread"`，`TaskCross` 整体使用 `graph_mode="thread"`
-- 输出层 C 额外设置 `persist_result=True`
+- 输出层 C 在运行后调用 `get_success_pairs()` 读取全部成功结果（无需额外持久化配置）
 
 ## 设计意图
 
@@ -117,15 +117,15 @@ python demo/demo_network.py
 
   C 的 (输入 → 输出) 前 10 条:
      0.5  →  0.5
-     2.0  →  2.0
      1.0  →  1.0
+     1.5  →  1.5
+     2.0  →  2.0
+     2.5  →  2.5
     22.0  →  22.0
-     5.5  →  5.5
-     1.0  →  1.0
-    11.0  →  11.0
-     2.0  →  2.0
-     0.5  →  0.5
-     1.0  →  1.0
+    24.0  →  24.0
+    26.0  →  26.0
+    28.0  →  28.0
+    30.0  →  30.0
 ```
 
 > 由于当前各隐藏节点权重均为 1.0，C 的输出值直接等于输入值。

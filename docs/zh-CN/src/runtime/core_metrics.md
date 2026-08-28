@@ -1,6 +1,6 @@
 # TaskMetrics
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 TaskMetrics 模块负责管理和统计任务执行过程中的各项指标，如输入任务数、成功数、失败数、重复任务数等。它通常作为 `TaskExecutor` 的一个组件存在。
 
@@ -71,6 +71,36 @@ def append_task_counter(self, counter: ValueWrapper) -> None:
 
 级联用于 `TaskStage.prev_binding()` — 每个下游节点将上游的成功计数器注册到自己的 `task_counter`，实现"上游产出 = 下游输入"的计数一致性。
 
+## 观察者管理
+
+```python
+def add_observer(self, observer: BaseObserver) -> None:
+    """注册观察者。"""
+
+
+def remove_observer(self, observer: BaseObserver) -> None:
+    """移除观察者。"""
+```
+
+已注册的观察者会在任务计数变化时收到回调：
+
+| 计数方法 | 观察者回调 |
+|---------|-----------|
+| `add_task_count()` | `on_tasks_added(count)` |
+| `add_success_count()` | `on_task_success(count)` |
+| `add_fail_count()` | `on_task_fail(count)` |
+| `add_duplicate_count()` | `on_task_duplicate(count)` |
+| `on_start()` | `on_start(name, total)`（广播执行器启动） |
+| `on_finish()` | `on_finish()`（广播执行器结束） |
+
+## 生命周期状态
+
+`TaskMetrics` 内部维护 `_status`（`StageStatus` 枚举），执行器启动/结束时更新：
+
+- `on_start(name, total)`：将状态置为 `StageStatus.RUNNING`，并广播启动事件。
+- `on_finish()`：将状态置为 `StageStatus.STOPPED`，并广播结束事件。
+- `get_status()`：读取当前状态，返回 `StageStatus` 枚举。
+
 ## 状态查询
 
 ### is_tasks_finished
@@ -133,7 +163,7 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
     """添加需要重试的异常类型。"""
 ```
 
-异常类型以 `tuple` 形式存储在 `self.retry_exceptions` 中，`TaskDispatch._worker` 通过 `isinstance(exception, self.retry_exceptions)` 判断是否重试。每次调用会累加到已有异常类型之上。
+异常类型以 `tuple` 形式存储在 `self.retry_exceptions` 中，`TaskDispatch._worker` / `_async_worker` 通过 `isinstance(exception, self.task_executor.metrics.retry_exceptions)` 判断是否重试。每次调用会累加到已有异常类型之上。
 
 ```python
 def get_retry_error_type_names(self) -> set[str]:

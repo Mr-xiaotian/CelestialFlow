@@ -1,10 +1,10 @@
 # demo_utils.py 演示工具说明
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 ## 目标
 
-为 `demo/` 目录下的演示脚本提供共享的测试函数和辅助类。与 `tests/test_utils.py` 内容基本一致，是演示代码的专用工具库。
+为 `demo/` 目录下的演示脚本提供共享的测试函数和辅助类，是演示代码的专用工具库。
 
 ## 函数与演示文件的关系
 
@@ -72,13 +72,13 @@ flowchart TD
 ### 路由辅助函数
 - `router_even`：`TaskRouter` 演示用的路由函数，根据奇偶性返回 `StageA` 或 `StageB`
 
-## 与 tests/test_utils.py 的关系
+## 与 tests/ 的关系
 
-两个文件内容几乎完全相同，`fibonacci`/`fibonacci_async` 已统一为迭代 O(n) 版本（与 `bench/bench_execution_mode.py` 保持一致）。历史原因可能是演示代码从测试代码中分离出来时保留了副本。维护时建议保持两者同步，或考虑将公共工具提取到 `celestialflow/utils/` 下的独立模块。
+本文件 docstring 声明其函数“用于测试文件”（Shared helper functions and classes used across test files），且 `fibonacci`/`fibonacci_async` 为迭代 O(n) 版本（与 `bench/bench_execution_mode.py` 保持一致）。不过当前 `tests/` 目录下并不存在 `test_utils.py`（`tests/utils/` 为空），也没有测试文件引用 `demo_utils`。后续如需让测试复用这些函数，建议将公共工具提取到 `celestialflow/utils/` 下的独立模块。
 
 ## 可能出现的问题
 
-1. **与 tests/test_utils.py 的重复**：修改一处时容易遗漏另一处，导致演示和单元测试的行为分化。
+1. **与 tests/ 无同步副本**：当前 `tests/` 中不存在同名的 `test_utils.py`，若未来在测试侧复制了这些函数，修改一处时容易遗漏另一处，导致演示和单元测试的行为分化。
 2. **Windows 路径硬编码**：`download_to_file` 的目标路径通常需要按本机环境调整，相关示例位于 `demo_redis.py`。
 3. **`requests` 网络依赖**：`download_to_file` 需要外网访问能力，在隔离网络环境不可用。
 

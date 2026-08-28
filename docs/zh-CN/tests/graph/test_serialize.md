@@ -1,6 +1,6 @@
 # 图序列化工具测试 (test_serialize.py)
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/26
 
 ## 作用
 验证图结构的序列化和可视化格式化功能，确保图拓扑能被正确转换为 JSON 结构或易读的文本列表。
@@ -10,8 +10,14 @@
 - `format_structure_list_from_graph`: 将嵌套结构转换为带缩进的格式化字符串列表。
 - `make_stage`: 测试辅助函数，根据 `execution_mode` 构造 `TaskStage`。
 
+## 测试覆盖矩阵
+
+| 测试类 | 用例数 | 覆盖目标 | 关键断言 |
+|--------|--------|---------|---------|
+| `TestUtilSerialize` | 3 | DAG/环图序列化与文本格式化 | `source_nodes`、`nodes` 集合与邻接表一致；`func_name` / `execution_mode` / `max_workers` 正确；格式化列表含 `(E:serial, W:2)` 与 `[Ref]` 标记 |
+
 ## 关键测试场景
-1. **DAG 序列化**: 验证典型的分层结构（如 s1→{s2,s3}→s4）能否被正确解析，各节点 func_name、stage_mode、execution_mode、max_workers 等属性是否准确。
+1. **DAG 序列化** (`test_build_structure_graph_dag`): 验证典型的分层结构（如 s1→{s2,s3}→s4）能否被正确解析，各节点 func_name、execution_mode、max_workers 等属性是否准确。
 2. **循环图序列化**: 验证含环图（如 cs1→cs2→cs3→cs1）在序列化时不会陷入死循环。
 3. **文本格式化**: 验证生成的字符串列表是否包含预期的模式标记（如 `(E:serial, W:2)`）以及引用标记（`[Ref]`）。
 
@@ -38,7 +44,8 @@ pytest tests/graph/test_serialize.py -k "format" -v
 | `TestUtilSerialize`（DAG/循环/格式化） | ~0.1s 整体 |
 
 ## 重要细节
-- 使用 `make_stage` 辅助函数根据 `execution_mode` 构造 `TaskStage`（`async` 时使用 `async_noop`，否则使用恒等 lambda）。
+- `make_stage` 辅助函数根据 `execution_mode` 构造 `TaskStage`（`async` 时使用模块级 `async_noop`，否则使用恒等 lambda），`max_workers=2`。
+- `mock_graph_data` fixture 同时准备 DAG（s1→{s2,s3}→s4）与环图（cs1→cs2→cs3→cs1）两组阶段字典与邻接表样本。
 - 测试覆盖了 JSON 数据层和最终展示文本层。
 
 ## 注意事项
