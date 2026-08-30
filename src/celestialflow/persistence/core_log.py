@@ -114,39 +114,6 @@ class LogInlet(BaseInlet):
         """
         self._log("INFO", f"Graph '{graph_name}' end. Use {use_time:.2f}s.")
 
-    def graph_crash(self, graph_name: str, exception: Exception) -> None:
-        """
-        记录任务图崩溃。
-
-        :param graph_name: 任务图名称
-        :param exception: 异常对象
-        """
-        exception_type = type(exception).__name__
-        exception_text = str(exception).replace("\n", " ")
-        self._log(
-            "CRITICAL",
-            f"Graph '{graph_name}' crashed: ({exception_type}){exception_text}.",
-        )
-
-    # ==== 分层调度 ====
-    def start_layer(self, layer: list[str], layer_level: int) -> None:
-        """
-        记录分层调度中某一层的启动
-
-        :param layer: 层节点名称列表
-        :param layer_level: 层级深度
-        """
-        self._log("INFO", f"Layer '{layer}' start. Layer level: {layer_level}.")
-
-    def end_layer(self, layer: list[str], use_time: float) -> None:
-        """
-        记录分层调度中某一层的结束
-
-        :param layer: 层节点名称列表
-        :param use_time: 该层运行耗时（秒）
-        """
-        self._log("INFO", f"Layer '{layer}' end. Use {use_time:.2f}s.")
-
     # ==== 执行器 ====
     def start_executor(
         self, executor_name: str, task_num: int, execution_mode_desc: str
