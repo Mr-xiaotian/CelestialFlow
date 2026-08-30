@@ -110,9 +110,6 @@ class TaskReporter:
             self._pull_server_state()
             self._pull_injection()
 
-            # 收集最新的任务图状态快照，确保推送的数据是最新的
-            self.task_graph.collect_runtime_snapshot()
-
             # 推送逻辑
             if (not self._server_has_current_graph) or (not self._server_has_structure):
                 self._push_structure()
@@ -220,8 +217,14 @@ class TaskReporter:
     def _push_status(self) -> None:
         """推送状态信息"""
         try:
-            payload: dict[str, Any] = self.task_graph.get_status_snapshot()
-            payload["graph_id"] = self.task_graph.get_graph_id()
+            # 收集最新的任务图状态快照，确保推送的数据是最新的
+            status_dict, now = self.task_graph.collect_runtime_snapshot()
+
+            payload: dict[str, Any] = {
+                "graph_id" : self.task_graph.get_graph_id(),
+                "status": status_dict,
+                "timestamp": now,
+            }
             _ = self._session.post(
                 f"{self.base_url}/api/push_status",
                 json=payload,

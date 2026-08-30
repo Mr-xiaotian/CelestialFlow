@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from collections import defaultdict
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -44,8 +43,6 @@ class TaskGraph:
     graph_mode: str
     threads: list[threading.Thread]
     stage_dict: dict[str, AnyTaskStage]
-    status_dict: dict[str, dict[str, Any]]
-    status_timestamp: float
     _analysis_dirty: bool
     source_names: list[str]
     order_graph: OrderGraph
@@ -93,12 +90,6 @@ class TaskGraph:
 
         # 用于保存每个节点的运行信息
         self.stage_dict = {}
-
-        # 用于保存每个节点的上一次collect_runtime_snapshot()的状态信息
-        self.status_dict = defaultdict(dict)
-
-        # 用于保存最近一次状态快照对应的统一时间戳
-        self.status_timestamp = 0.0
 
         # 用于保存源节点列表（由 _build_analysis 自动计算）
         self.source_names = []
@@ -368,11 +359,6 @@ class TaskGraph:
             error_list.append(exception)
 
         try:
-            self.collect_runtime_snapshot()
-        except Exception as exception:
-            error_list.append(exception)
-
-        try:
             self.reporter.stop()
         except Exception as exception:
             error_list.append(exception)
@@ -547,12 +533,14 @@ class TaskGraph:
         )
         return total_pending_map
 
-    def collect_runtime_snapshot(self) -> None:
+    def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
         """
-        收集运行时快照。
+        采集一次运行时快照并返回。
 
         遍历所有 stage 采集各节点快照，然后计算 DAG 感知的全局 pending 估算值，
-        并补充到每个节点的快照中。
+        并补充到每个节点的快照（``total_tasks_pending`` / ``total_remaining_time``）中。
+
+        :return: ``(status_dict, status_timestamp)`` —— 各节点快照字典与统一采集时间戳
         """
         status_dict: dict[str, dict[str, Any]] = {}
         now = time.time()
@@ -581,8 +569,7 @@ class TaskGraph:
                 stage_status["elapsed_time"],
             )
 
-        self.status_dict = status_dict
-        self.status_timestamp = now
+        return status_dict, now
 
     # ==== 查询接口 ====
 
@@ -623,17 +610,6 @@ class TaskGraph:
         """
         self._ensure_analysis()
         return self.source_names
-
-    def get_status_snapshot(self) -> dict[str, Any]:
-        """
-        获取带统一时间戳的状态快照
-
-        :return: {"timestamp": float, "status": {...}}
-        """
-        return {
-            "timestamp": self.status_timestamp,
-            "status": self.status_dict,
-        }
 
     def get_graph_analysis(self) -> dict[str, Any]:
         """

@@ -596,9 +596,9 @@ class TestTaskGraphRuntimeSnapshot:
         graph.stage_dict = {stage.get_name(): stage}
         graph.is_dag = False
 
-        graph.collect_runtime_snapshot()
+        status_dict, _ = graph.collect_runtime_snapshot()
 
-        snapshot = graph.status_dict[stage.get_name()]
+        snapshot = status_dict[stage.get_name()]
         assert snapshot["status"].value == 0
         assert snapshot["start_time"] == 0.0
         assert snapshot["elapsed_time"] == 0
