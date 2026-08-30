@@ -1,4 +1,4 @@
-# graph/util_serialize.py
+# graph/util_render.py
 from __future__ import annotations
 
 from typing import Any

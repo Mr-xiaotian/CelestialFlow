@@ -25,7 +25,7 @@ from ..stage.core_stage import TaskStage
 from ..stage.util_types import AnyTaskStage
 from .util_estimators import calc_global_pending
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
-from .util_serialize import render_structure_list
+from .util_render import render_structure_list
 
 
 class TaskGraph:
