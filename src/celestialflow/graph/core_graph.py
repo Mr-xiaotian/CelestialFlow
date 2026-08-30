@@ -25,7 +25,7 @@ from ..stage.core_stage import TaskStage
 from ..stage.util_types import AnyTaskStage
 from .util_estimators import calc_global_pending
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
-from .util_serialize import build_structure_graph, format_structure_list_from_graph
+from .util_serialize import format_structure_list_from_graph
 
 
 class TaskGraph:
@@ -52,7 +52,6 @@ class TaskGraph:
     start_time: float
     reporter: ReporterProtocol
     ctree_client: EventClient
-    structure_graph: dict[str, Any]
     is_dag: bool
     layers_dict: dict[int, list[str]]
 
@@ -231,12 +230,6 @@ class TaskGraph:
         :return: ``None``。
         """
         self.source_names = source_nodes(self.order_graph)
-        source_stages = [self.stage_dict[name] for name in self.source_names]
-
-        self.structure_graph = build_structure_graph(
-            self.stage_dict, self.order_graph.out_edges, source_stages
-        )
-
         self.is_dag = is_dag(self.order_graph)
 
         stage_level_dict = compute_node_levels(self.order_graph)
@@ -601,6 +594,36 @@ class TaskGraph:
         """
         return self.graph_id
 
+    def get_stages_summary(self) -> dict[str, dict[str, Any]]:
+        """
+        获取所有任务阶段的摘要信息
+
+        :return: 任务阶段摘要信息字典
+        """
+        nodes: dict[str, dict[str, Any]] = {}
+
+        for stage_name, stage in self.stage_dict.items():
+            nodes[stage_name] = dict(stage.get_summary())
+        return nodes
+
+    def get_edges(self) -> dict[str, list[str]]:
+        """
+        获取任务图的边邻接表。
+
+        :return: 边信息邻接表 ``{stage_name: [next_stage_name, ...]}``；
+            与底层图结构共享引用，调用方应只读
+        """
+        return self.order_graph.out_edges
+
+    def get_source_names(self) -> list[str]:
+        """
+        获取源节点列表
+
+        :return: 源节点列表
+        """
+        self._ensure_analysis()
+        return self.source_names
+
     def get_status_snapshot(self) -> dict[str, Any]:
         """
         获取带统一时间戳的状态快照
@@ -630,15 +653,6 @@ class TaskGraph:
             "layersDict": self.layers_dict,
         }
 
-    def get_structure_graph(self) -> dict[str, Any]:
-        """
-        获取任务图的 JSON 结构
-
-        :return: JSON 格式的任务图结构字典
-        """
-        self._ensure_analysis()
-        return self.structure_graph
-
     def get_structure_list(self) -> list[str]:
         """
         获取任务图的格式化结构列表
@@ -646,16 +660,11 @@ class TaskGraph:
         :return: 带边框的格式化字符串列表
         """
         self._ensure_analysis()
-        return format_structure_list_from_graph(self.structure_graph)
-
-    def get_source_names(self) -> list[str]:
-        """
-        获取源节点列表
-
-        :return: 源节点列表
-        """
-        self._ensure_analysis()
-        return self.source_names
+        return format_structure_list_from_graph(
+            self.get_stages_summary(),
+            self.order_graph.out_edges,
+            self.source_names,
+        )
 
     def get_order_graph(self) -> OrderGraph:
         """

@@ -233,10 +233,11 @@ class TaskReporter:
     def _push_structure(self) -> None:
         """推送结构信息"""
         try:
-            structure: dict[str, Any] = self.task_graph.get_structure_graph()
             payload: dict[str, Any] = {
                 "graph_id": self.task_graph.get_graph_id(),
-                "structure": structure,
+                "nodes": self.task_graph.get_stages_summary(),
+                "edges": self.task_graph.get_edges(),
+                "source_nodes": self.task_graph.get_source_names(),
             }
             _ = self._session.post(
                 f"{self.base_url}/api/push_structure",

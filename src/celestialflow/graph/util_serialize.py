@@ -3,46 +3,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..stage.util_types import AnyTaskStage
-
 
 # ==== 图结构处理 ====
-def build_structure_graph(
-    stage_dict: dict[str, AnyTaskStage],
-    out_edges: dict[str, list[str]],
-    source_stages: list[AnyTaskStage],
-) -> dict[str, Any]:
-    """
-    从源节点、邻接表和节点字典构建标准化图结构。
-
-    返回的结构采用 ``nodes + edges + source_nodes`` 形式：
-    - ``nodes``: 以节点名为 key 的节点元信息字典
-    - ``edges``: 邻接表 {stage_name: [next_stage_name, ...]}
-    - ``source_nodes``: 图入口节点名称列表
-
-    :param stage_dict: {stage_name: AnyTaskStage}
-    :param out_edges: 邻接表 {stage_name: [next_stage_name, ...]}
-    :param source_stages: 源节点列表
-    :return: 标准化图结构字典
-    """
-    nodes: dict[str, dict[str, Any]] = {}
-    edges: dict[str, list[str]] = {}
-
-    for stage_name, stage in stage_dict.items():
-        node_summary = dict(stage.get_summary())
-        node_summary.pop("name", None)
-        nodes[stage_name] = node_summary
-        edges[stage_name] = list(out_edges.get(stage_name, []))
-
-    return {
-        "nodes": nodes,
-        "edges": edges,
-        "source_nodes": [stage.get_name() for stage in source_stages],
-    }
-
-
 def format_structure_list_from_graph(
-    structure: dict[str, Any] | None = None,
+    nodes: dict[str, dict[str, Any]],
+    edges: dict[str, list[str]],
+    source_nodes: list[str],
 ) -> list[str]:
     """
     从标准化图结构生成格式化任务结构文本列表（带边框）。
@@ -50,11 +16,6 @@ def format_structure_list_from_graph(
     :param structure: ``nodes + edges + source_nodes`` 形式的图结构
     :return: 带边框的格式化字符串列表
     """
-
-    nodes: dict[str, dict[str, Any]] = dict((structure or {}).get("nodes", {}) or {})
-    edges: dict[str, list[str]] = dict((structure or {}).get("edges", {}) or {})
-    source_nodes: list[str] = list((structure or {}).get("source_nodes", []) or [])
-
     if not nodes:
         return ["+ No stages defined +"]
 
