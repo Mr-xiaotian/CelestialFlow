@@ -25,7 +25,7 @@ from ..stage.core_stage import TaskStage
 from ..stage.util_types import AnyTaskStage
 from .util_estimators import calc_global_pending
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
-from .util_serialize import format_structure_list_from_graph
+from .util_serialize import render_structure_list
 
 
 class TaskGraph:
@@ -660,7 +660,7 @@ class TaskGraph:
         :return: 带边框的格式化字符串列表
         """
         self._ensure_analysis()
-        return format_structure_list_from_graph(
+        return render_structure_list(
             self.get_stages_summary(),
             self.order_graph.out_edges,
             self.source_names,

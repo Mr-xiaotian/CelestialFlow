@@ -5,15 +5,23 @@ from typing import Any
 
 
 # ==== 图结构处理 ====
-def format_structure_list_from_graph(
+def render_structure_list(
     nodes: dict[str, dict[str, Any]],
     edges: dict[str, list[str]],
     source_nodes: list[str],
 ) -> list[str]:
     """
-    从标准化图结构生成格式化任务结构文本列表（带边框）。
+    从图结构（节点元信息、邻接表、源节点）生成带边框的树形文本列表。
 
-    :param structure: ``nodes + edges + source_nodes`` 形式的图结构
+    渲染规则：
+    - 以 ``source_nodes`` 为根，按 ``edges`` 邻接表展开为树形文本；
+    - 环或共享子图节点只展开一次，再次出现时标记 ``[Ref]``；
+    - 未从任意根渲染到的节点（孤立节点）追加在末尾；
+    - 根节点不画连接符，子节点使用 ``╞-->`` / ``╘-->`` 连接符。
+
+    :param nodes: {stage_name: 节点元信息字典}
+    :param edges: 邻接表 {stage_name: [next_stage_name, ...]}
+    :param source_nodes: 源节点名称列表
     :return: 带边框的格式化字符串列表
     """
     if not nodes:
@@ -43,68 +51,64 @@ def format_structure_list_from_graph(
 
         return f"{node_name}::{F} (E:{E}, W:{W}){visited_note}"
 
-    # 只渲染"子节点"（有父节点）——保证一定画连接符
-    def build_child_lines(node_name: str, prefix: str, is_last: bool) -> list[str]:
-        """
-        递归构建子节点的树形显示行。
+    # 显式栈迭代的 DFS 先序遍历，避免深链图触发 Python 递归上限（默认约 1000 层）。
+    # 栈帧: (node_name, prefix, is_last, is_root)。is_root 表示根节点：
+    # 根节点不画连接符且其子节点前缀为空；其余节点前缀由父节点的 is_last 决定。
+    lines: list[str] = []
+    stack: list[tuple[str, str, bool, bool]] = []
 
-        :param node_name: 子节点名称
+    def visit(node_name: str, prefix: str, is_last: bool, is_root: bool) -> None:
+        """
+        输出节点行，并将未展开子节点按逆序压入栈（保证弹栈顺序为 DFS 先序）。
+
+        :param node_name: 节点名称
         :param prefix: 当前行的缩进前缀
         :param is_last: 是否为同级最后一个节点
-        :return: 格式化的行列表
+        :param is_root: 是否为根节点（不画连接符，子节点前缀为空）
+        :return: ``None``
         """
-        connector = "╘-->" if is_last else "╞-->"
-        is_ref = node_name in expanded_nodes
-        lines = [f"{prefix}{connector}{node_label(node_name, is_ref=is_ref)}"]
-        if is_ref:
-            return lines
+        if is_root:
+            lines.append(node_label(node_name, is_ref=node_name in expanded_nodes))
+        else:
+            connector = "╘-->" if is_last else "╞-->"
+            lines.append(
+                f"{prefix}{connector}"
+                f"{node_label(node_name, is_ref=node_name in expanded_nodes)}"
+            )
+        if node_name in expanded_nodes:
+            return
 
         expanded_nodes.add(node_name)
 
         # 子节点缩进取决于当前节点是否为最后一个：最后一个留空，否则延续竖线
-        child_prefix = prefix + ("    " if is_last else "│   ")
-        next_stages = edges.get(node_name, []) or []
-        for i, child_name in enumerate(next_stages):
-            lines.extend(
-                build_child_lines(child_name, child_prefix, i == len(next_stages) - 1)
+        child_prefix = "" if is_root else prefix + ("    " if is_last else "│   ")
+        next_stages = edges.get(node_name, [])
+        for i in range(len(next_stages) - 1, -1, -1):
+            stack.append(
+                (next_stages[i], child_prefix, i == len(next_stages) - 1, False)
             )
-        return lines
 
-    # 根节点不画连接符，也不继承祖先竖线
-    def build_root_lines(root_name: str) -> list[str]:
-        """
-        构建根节点及其子树的树形显示行。
-
-        :param root_name: 根节点名称
-        :return: 格式化的行列表
-        """
-        is_ref = root_name in expanded_nodes
-        lines = [node_label(root_name, is_ref=is_ref)]
-        if is_ref:
-            return lines
-
-        expanded_nodes.add(root_name)
-        next_stages = edges.get(root_name, []) or []
-        for i, child_name in enumerate(next_stages):
-            lines.extend(build_child_lines(child_name, "", i == len(next_stages) - 1))
-        return lines
-
-    all_lines: list[str] = []
     rendered_roots: list[str] = []
     for root_name in source_nodes:
-        if all_lines:
-            all_lines.append("")  # 根之间留空行
-        all_lines.extend(build_root_lines(root_name))
+        if lines:
+            lines.append("")  # 根之间留空行
+        stack.append((root_name, "", False, True))
+        while stack:
+            node_name, prefix, is_last, is_root = stack.pop()
+            visit(node_name, prefix, is_last, is_root)
         rendered_roots.append(root_name)
 
     for node_name in nodes:
         if node_name in rendered_roots or node_name in expanded_nodes:
             continue
-        if all_lines:
-            all_lines.append("")
-        all_lines.extend(build_root_lines(node_name))
+        if lines:
+            lines.append("")
+        stack.append((node_name, "", False, True))
+        while stack:
+            node_name, prefix, is_last, is_root = stack.pop()
+            visit(node_name, prefix, is_last, is_root)
 
-    max_length = max(len(line) for line in all_lines)
-    content_lines = [f"| {line.ljust(max_length)} |" for line in all_lines]
+    max_length = max(len(line) for line in lines)
+    content_lines = [f"| {line.ljust(max_length)} |" for line in lines]
     border = "+" + "-" * (max_length + 2) + "+"
     return [border, *content_lines, border]
