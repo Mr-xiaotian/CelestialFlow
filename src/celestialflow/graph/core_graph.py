@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-import warnings
 from collections import defaultdict
 from collections.abc import Iterable
 from pathlib import Path
@@ -14,6 +13,7 @@ from ..observability import NullTaskReporter, ReporterProtocol
 from ..persistence import funnel_scope, get_lifecycle_spout, get_log_inlet
 from ..persistence.util_sqlite import load_tasks_grouped_by_stage
 from ..runtime.util_errors import (
+    ConfigurationError,
     DuplicateNodeError,
     InvalidOptionError,
     NodeNotFoundError,
@@ -227,6 +227,7 @@ class TaskGraph:
         """
         分析任务图，计算源节点、是否为 DAG 与层级信息。
 
+        :raises ConfigurationError: serial 模式下图含环（非 DAG）时触发
         :return: ``None``。
         """
         self.source_names = source_nodes(self.order_graph)
@@ -243,12 +244,10 @@ class TaskGraph:
         self._analysis_dirty = False
 
         if not self.is_dag and self.graph_mode == "serial":
-            warnings.warn(
+            raise ConfigurationError(
                 "TaskGraph contains a cycle while graph_mode='serial'; "
                 "serial startup may block or leave tasks unconsumed. "
-                "Consider using graph_mode='thread' or 'async'.",
-                UserWarning,
-                stacklevel=2,
+                "Consider using graph_mode='thread' or 'async'."
             )
 
     def put_source_signal(self) -> None:
@@ -466,12 +465,19 @@ class TaskGraph:
 
     def _execute_stages_serial(self) -> None:
         """
-        以串行方式逐个执行所有节点。
+        以串行方式按层展开的拓扑序执行所有节点。
 
-        按节点注册顺序依次执行，每个节点执行完毕后才启动下一个。
+        层间按层级升序、层内按注册顺序逐个执行，每个节点执行完毕后才
+        启动下一个。层展开序保证每个节点的所有上游都先于它启动，因此
+        执行顺序不再依赖节点注册顺序。
+
+        注：图分析（:attr:`layers_dict`）由 :meth:`_prepare_start` 经
+        :meth:`get_structure_list` 保证已构建。
         """
-        for stage in self.stage_dict.values():
-            self._execute_stage(stage)
+        for stage_name_list in self.layers_dict.values():
+            for stage_name in stage_name_list:
+                stage = self.stage_dict[stage_name]
+                self._execute_stage(stage)
 
     def _execute_stages_thread(self) -> None:
         """

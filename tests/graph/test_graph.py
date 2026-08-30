@@ -9,7 +9,7 @@ from celestialflow import (
 )
 from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_errors import (
-    InvalidOptionError,
+    ConfigurationError,
     NodeNotFoundError,
 )
 from celestialflow.runtime.util_event import LocalEventClient
@@ -865,7 +865,10 @@ class TestSourceStages:
         s2 = TaskStage("s2", double)
         s3 = TaskStage("s3", to_str)
 
-        graph = TaskGraph("test_source_stages_cycle_returns_one_source_scc_member")
+        graph = TaskGraph(
+            "test_source_stages_cycle_returns_one_source_scc_member",
+            graph_mode="thread",
+        )
         graph.set_stages(stages=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
@@ -885,7 +888,10 @@ class TestSourceStages:
         s4 = TaskStage("s4", add_one)
         s5 = TaskStage("s5", double)
 
-        graph = TaskGraph("test_source_stages_returns_one_member_per_source_scc")
+        graph = TaskGraph(
+            "test_source_stages_returns_one_member_per_source_scc",
+            graph_mode="thread",
+        )
         graph.set_stages(stages=[s1, s2, s3, s4, s5])
         graph.connect([s1], [s2])
         graph.connect([s2], [s1])
@@ -906,20 +912,20 @@ class TestSourceStages:
 # 含环图测试
 # =========================
 class TestCyclicGraph:
-    def test_cyclic_serial_graph_warns(self):
-        """环图在 serial graph_mode 下分析时应给出警告。"""
+    def test_cyclic_serial_graph_raises(self):
+        """环图在 serial graph_mode 下分析时应抛出配置错误。"""
         s1 = TaskStage("s1", add_one)
         s2 = TaskStage("s2", double)
         s3 = TaskStage("s3", to_str)
 
-        graph = TaskGraph("test_cyclic_serial_graph_warns", graph_mode="serial")
+        graph = TaskGraph("test_cyclic_serial_graph_raises", graph_mode="serial")
         graph.set_stages(stages=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
         graph.connect([s3], [s1])
 
-        with pytest.warns(
-            UserWarning,
+        with pytest.raises(
+            ConfigurationError,
             match=r"TaskGraph contains a cycle while graph_mode='serial'",
         ):
             graph.get_source_names()
