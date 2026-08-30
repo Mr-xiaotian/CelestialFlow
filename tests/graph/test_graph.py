@@ -520,13 +520,15 @@ class TestTaskGraphAnalysis:
         graph.connect([s1], [s2])
 
         analysis = graph.get_graph_analysis()
-        structure_graph = graph.get_structure_graph()
+        stages_summary = graph.get_stages_summary()
+        edges = graph.get_edges()
         structure_list = graph.get_structure_list()
         source_names = set(graph.get_source_names())
 
         assert analysis["isDAG"] is True
         assert s1.get_name() in analysis["layersDict"][0]
-        assert structure_graph
+        assert set(stages_summary) == {s1.get_name(), s2.get_name()}
+        assert edges == {s1.get_name(): [s2.get_name()], s2.get_name(): []}
         assert structure_list
         assert source_names == {s1.get_name()}
 

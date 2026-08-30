@@ -8,7 +8,6 @@ from celestialflow.graph.util_order_graph import (
     tarjan_scc,
 )
 
-
 DEEP = 5000  # 超过 Python 默认递归上限(~1000)，用于回归迭代版 tarjan_scc
 
 
@@ -187,8 +186,8 @@ class TestDeepGraphRegression:
         for i in range(DEEP - 1):
             graph.connect([stages[i]], [stages[i + 1]])
 
-        structure = graph.get_structure_graph()
-        assert len(structure["nodes"]) == DEEP
+        stages_summary = graph.get_stages_summary()
+        assert len(stages_summary) == DEEP
         assert graph.get_source_names() == ["n0"]
 
         analysis = graph.get_graph_analysis()
