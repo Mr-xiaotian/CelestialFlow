@@ -83,11 +83,9 @@ class TaskReporter:
 
 # 满足 ReporterTaskStage 协议的最小实现示例
 class MinimalStage:
-    def put_task(self, task):
-        ...
+    def put_task(self, task): ...
 
-    def put_signal(self):
-        ...
+    def put_signal(self): ...
 ```
 
 ## 注意事项

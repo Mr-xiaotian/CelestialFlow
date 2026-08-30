@@ -190,8 +190,10 @@ async def start_async(self) -> None:
 def _execute_stages_serial(self) -> None:
     """按节点注册顺序串行执行。"""
 
+
 def _execute_stages_thread(self) -> None:
     """每个节点在独立线程中启动，最后统一 join。"""
+
 
 async def _execute_stages_async(self) -> None:
     """全图并发执行。"""
@@ -206,6 +208,7 @@ def _execute_stage(self, stage: AnyTaskStage) -> None:
     - async 节点走 asyncio.run(stage.start_async())
     - 其他节点走 stage.start()
     """
+
 
 async def _execute_stage_async(self, stage: AnyTaskStage) -> None:
     """

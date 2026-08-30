@@ -5,8 +5,7 @@ format:
 	uv run ruff check --fix .
 
 build:
-	rm -rf dist
-	uv build
+	uv build --clear
 
 test:
 	uv run pytest tests

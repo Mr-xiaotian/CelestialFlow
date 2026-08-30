@@ -176,9 +176,7 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
 
     route_counters: dict[str, ValueWrapper]
 
-    def __init__(
-        self, name: str, router: Callable[[T], str]
-    ):
+    def __init__(self, name: str, router: Callable[[T], str]):
         """
         初始化 TaskRouter
 

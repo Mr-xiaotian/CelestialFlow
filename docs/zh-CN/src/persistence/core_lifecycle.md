@@ -75,7 +75,9 @@ Lifecycle 数据默认保存在 `./lifecycles/` 目录下，按日期归档：
 
 ```python
 # 获取错误记录
-error_pairs: list[tuple[Any, tuple[str, str]]] = lifecycle_spout.get_task_error_pairs("StageA")
+error_pairs: list[tuple[Any, tuple[str, str]]] = lifecycle_spout.get_task_error_pairs(
+    "StageA"
+)
 # 返回 [(task, (error_type, error_message)), ...]
 
 # 获取成功结果
