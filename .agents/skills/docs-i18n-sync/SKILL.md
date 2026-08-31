@@ -18,7 +18,7 @@ description: "Syncs translations from docs/zh-CN (source of truth) to docs/en/ a
 
 本技能基于通用框架 `~/.agents/skills/docs-i18n-sync/SKILL.md`，该框架定义了：
 
-- 4 阶段执行流程（时间确认 → 扫描与差异检测 → 委派子代理 → 汇总与交付）
+- 3 阶段执行流程（扫描与差异检测 → 委派子代理 → 汇总与交付）
 - 通用翻译规则（`_subagent-base.md`）
 - 通用输出格式与降级策略
 - 跨平台扫描脚本 `scan_i18n_diff.py`（含重命名候选检测）
