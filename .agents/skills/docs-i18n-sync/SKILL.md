@@ -3,9 +3,9 @@ name: "docs-i18n-sync"
 description: "Syncs translations from docs/zh-CN (source of truth) to docs/en/ and docs/ja/ by mirrored structure. Invoke when zh-CN docs have been updated and English/Japanese translations need to follow."
 ---
 
-# Docs I18n Sync
+# Docs I18n Sync（CelestialFlow 项目配置）
 
-用于以 `docs/zh-CN` 为唯一事实来源，将内容同步翻译至 `docs/en/`（英语）和 `docs/ja/`（日语）的技能。
+本文件是 CelestialFlow 项目的 `docs-i18n-sync` 技能专属配置，引用通用框架 `~/.agents/skills/docs-i18n-sync/`。
 
 当用户提出以下需求时，立即调用本技能：
 
@@ -14,104 +14,95 @@ description: "Syncs translations from docs/zh-CN (source of truth) to docs/en/ a
 - 检查三语文档的一致性，修复翻译过期或缺失
 - 发现 en/ja 文档与 zh-CN 内容、结构不一致，要求按 zh-CN 现状修复
 
-## 目标
+## 通用框架
 
-以 `docs/zh-CN/` 为唯一权威来源，将其全部内容忠实翻译到：
+本技能基于通用框架 `~/.agents/skills/docs-i18n-sync/SKILL.md`，该框架定义了：
 
-- `docs/en/` — 英语
-- `docs/ja/` — 日语
+- 4 阶段执行流程（时间确认 → 扫描与差异检测 → 委派子代理 → 汇总与交付）
+- 通用翻译规则（`_subagent-base.md`）
+- 通用输出格式与降级策略
+- 跨平台扫描脚本 `scan_i18n_diff.py`（含重命名候选检测）
 
-两套译文的结构、文件名、目录树均与 `docs/zh-CN/` 完全镜像。
+主 agent 在执行时，应优先遵循通用框架的流程，并结合本文件的以下项目特化配置。
 
-## 执行流程（主 Agent 协调）
+---
 
-### 阶段 1: 前置检查
+## 项目特化：源 / 目标语言
 
-1. 确认 `docs/zh-CN/` 存在且包含 `.md` 文件。
-2. 若 `docs/en/` 或 `docs/ja/` 不存在，创建空目录结构（镜像 `docs/zh-CN/` 的目录树）。
+| 角色 | 路径 | 日期行格式 |
+|------|------|-----------|
+| 源（唯一权威） | `docs/zh-CN/` | `> 📅 最后更新日期: YYYY/MM/DD` |
+| 目标 1 | `docs/en/` | `> 📅 Last Updated: YYYY/MM/DD` |
+| 目标 2 | `docs/ja/` | `> 📅 最終更新日: YYYY/MM/DD` |
 
-### 阶段 2: 差异检测
+## 项目特化：扫描命令
 
-扫描 `docs/zh-CN/` 下所有 `.md` 文件（递归），对每个文件判定与对应 en/ja 文档的状态：
+调用全局 `scan_i18n_diff.py` 生成翻译任务清单（Manifest）：
 
-| 条件 | 操作 |
-|------|------|
-| zh-CN 有，en/ja 无 | → **新建** |
-| zh-CN 有，en/ja 有，但 zh-CN 的 `最后更新日期` 晚于 en/ja | → **更新**（需进一步做内容比对，见下文） |
-| zh-CN 有，en/ja 有，日期相同或 en/ja 更新 | → **跳过** |
-| zh-CN 无，en/ja 有 | → **删除**（废弃内容） |
-| zh-CN 文件的同名文件在 en/ja 中**路径不同** | → **移动**（文件被迁移到新目录） |
+```bash
+# 单行调用。$HOME 在 Bash 与 PowerShell 下均会自动展开为主目录（Windows 下为 %USERPROFILE%）。
+uv run python $HOME/.agents/skills/docs-i18n-sync/scan_i18n_diff.py --project-root . --source docs/zh-CN --targets en:docs/en ja:docs/ja
+```
 
-> 日期比较以文档开头的 `> 📅 最后更新日期:` / `> 📅 Last Updated:` / `> 📅 最終更新日:` 行中的 `YYYY/MM/DD` 值为准。
+> 注：脚本的 `--rename-threshold` 默认 0.5，可按需调整。
 
-#### 无日期行文件的处理
+## 项目特化：子任务划分
 
-如果 zh-CN 文件**没有日期行**（如 `README.md` 等概述文件），按以下规则判定：
+EN 与 JA **天然并行**，可一次性并行委派 2 个子代理（每语言一个）。每个子代理的 FILES 清单中**不包含 SKIP 文件**（SKIP 由主 agent 自己从 Manifest 中过滤掉，传入子代理只会让 prompt 臃肿）。
 
-| 条件 | 操作 |
-|------|------|
-| en/ja 中**不存在**该文件 | → **新建** |
-| en/ja 中**存在**，且文件大小（排除日期行差异）与 zh-CN 不同 | → **更新** |
-| en/ja 中**存在**，文件大小相同 | → **跳过** |
+| # | 子任务 | TARGET_LANG | OUTPUT_DIR | DATE_LABEL |
+|---|--------|:-----------:|:----------:|:----------:|
+| 1 | EN 翻译 | `English` | `docs/en/` | `> 📅 Last Updated:` |
+| 2 | JA 翻译 | `日本語` | `docs/ja/` | `> 📅 最終更新日:` |
 
-#### UPDATE 二次确认：内容比对降级
+**分批策略**（参考全局框架，但 CelestialFlow 文件数较少时通常不触发）：
 
-日期过期不代表内容一定变更。对标记为 **UPDATE** 的文件，做一次快速内容比对：
-
-- 比较 zh-CN 与 en/ja 文件的**字节大小**（排除日期行，即忽略首行 `📅` 相关的 ~30 字节差异）
-- 如果大小相同 → 降级为 **SKIP**（内容实际未变，只是日期被批量刷新）
-- 如果大小不同 → 保持 **UPDATE**
-
-### 阶段 3: 委派子代理
-
-en 和 ja **天然并行**，可同时委派两个子代理。
-
-对每个目标语言，按以下方式组装 prompt：
-
-1. **读取** `_subagent-base.md`（翻译规则）→ 获取路径映射、翻译规则、质量要求、输出格式
-2. **注入** 目标语言参数：
-
-| 参数 | EN | JA |
-|------|:--:|:--:|
-| 目标语言名 | English | 日本語 |
-| 输出目录 | `docs/en/` | `docs/ja/` |
-| 日期行格式 | `> 📅 Last Updated: YYYY/MM/DD` | `> 📅 最終更新日: YYYY/MM/DD` |
-
-3. **注入** 差异检测结果（需要新建/更新/移动/删除的文件清单，来自阶段 2）
-4. 通过 `spawn_agent` 委派
-
-> 委派消息中应包含 `_subagent-base.md` 的**完整内容**（子代理无法直接读取 Skill 目录下的文件）+ 本文件中的差异化参数 + 文件清单。
-
-#### 分批策略
-
-根据待处理文件总数决定子代理数量：
-
-| 待处理文件数 | 策略 |
-|:---------:|------|
+| 该语言待处理文件数 | 策略 |
+|:-----------------:|------|
 | ≤ 20 | 单代理处理整个语言 |
-| 21–60 | 按 3 批拆分：① `bench/`+`demo/`+`other/`+顶层文件 ② `src/`（全部子目录） ③ `tests/`（全部子目录） |
+| 21–60 | 按 3 批拆分：① `bench/` + `demo/` + `other/` + 顶层文件 ② `src/`（全部子目录） ③ `tests/`（全部子目录） |
 | > 60 | 在上述基础上，将 `src/` 和 `tests/` 按子目录进一步拆分，确保每批 ≤ 25 个文件 |
 
 > 如果某批只有 SKIP 文件（无实际操作），可以省略该批。
 
-### 阶段 4: 汇总与交付
+## 委派子代理
 
-所有子代理完成后，汇总输出：
+每个子代理的消息中必须包含：
 
-- 本次同步的语言区域（EN / JA / 两者）
-- 更新的文档路径（按语言分组）
-- 新建的文档路径（按语言分组）
-- 删除的文档路径（按语言分组，如有）
-- 发现的问题（如 zh-CN 中疑似错误、Mermaid 图表中未翻译的遗留文本等）
+- 目标语言参数（见上表）
+- 差异清单（来自 Manifest，仅保留该语言且非 SKIP 的动作）
+- 需要阅读的 Skill 文件路径：
 
-如果只完成了部分语言或部分区域，要明确列出已完成范围和剩余范围。
+| 顺序 | 文件 | 说明 |
+|:----:|------|------|
+| 1 | `~/.agents/skills/docs-i18n-sync/_subagent-base.md` | 通用翻译规则、输出格式 |
+| 2 | 项目内 `.agents/skills/docs-i18n-sync/_subagent-base.md` | 项目特化路径映射 |
 
-### 降级策略
+> **退化策略**：如果当前环境限制子代理读取外部 Skill 目录，可临时将通用文件和项目文件合并写入项目内的临时文件（如 `temp/docs-i18n-sync/instructions-{lang}.md`），让子代理读取该临时文件，执行完毕后删除。
 
-如果当前环境不支持 `subagent`，则按 EN → JA 顺序串行执行，在思考和输出中保持分区。
+### Manifest 使用约定
+
+主 agent 从脚本输出中读取每个语言区域的 5 类动作：
+
+- `NEW` / `UPDATE` / `MOVE` / `DELETE` → 传给对应子代理处理
+- `SKIP` → 主 agent 自己消费，不进入子代理 prompt
+
+子代理无需理解"为什么是 SKIP"，只需要按 NEW/UPDATE/MOVE/DELETE 翻译即可。
+
+## 顶层文件处理
+
+CelestialFlow 当前在 `docs/zh-CN/` 顶层有以下文件：
+
+- `change_log.md`、`presentation.md`、`quick_start.md`、`tutorial.md`
+
+它们在 `docs/en/` 与 `docs/ja/` 中存在镜像，纳入常规扫描范围。脚本会自动识别并归入对应动作类别。
+
+> **注意**：本项目目前**没有**项目根的 `README.md`（也不在 `docs/zh-CN/` 下）。如果未来引入根级 `README.md`，可通过 `scan_i18n_diff.py --root-file README.md` 纳入扫描范围。
 
 ## 排除项
 
+除非用户明确要求，否则通常不处理：
+
 - `docs/zh-CN/` 本身（只读不写）。
 - 非 `.md` 文件（图片、二进制资源等）。
-- 由其他 skill 负责的"代码 → zh-CN 文档"同步任务。
+- 由 `docs-zh-sync` 技能负责的"代码 → zh-CN 文档"同步任务。
