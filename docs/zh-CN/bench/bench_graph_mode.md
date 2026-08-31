@@ -34,7 +34,7 @@
 
 ## 可能出现的问题
 
-1. **Reporter 默认关闭**：脚本中的 `set_reporter(...)` 调用均被注释，即使 `.env` 未配置 `REPORT_HOST`/`REPORT_PORT` 也不会连接 reporter；仅当取消注释启用 reporter 时，才需要保证 `.env` 中配置了对应地址且服务可达。
+1. **Reporter 默认关闭**：当前脚本中没有任何 `set_reporter(...)` 或 `add_observer(...)` 调用，因此无论 `.env` 中是否配置了 `REPORT_HOST`/`REPORT_PORT` 都**不会**自动连接 reporter；如需启用 reporter，需要在 `bench_graph_*` 内部显式调用 `graph.set_reporter(...)` 并保证服务可达。
 2. **总耗时长**：`benchmark_graph` 会运行 `len(graph_modes) × len(execution_modes)` 次完整图执行，含 I/O 延迟时总时间可达数分钟。
 
 ## 运行方式

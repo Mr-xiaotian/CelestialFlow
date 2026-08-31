@@ -1,6 +1,6 @@
 # 图分析工具测试 (test_order_graph.py)
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/08/31
 
 ## 作用
 验证 `celestialflow.graph.util_order_graph` 中的基础图分析能力，包括 `OrderGraph` 构建、层级计算（`compute_node_levels`）、源节点查找（`source_nodes`）、SCC 划分（`tarjan_scc`），以及深度超过 Python 默认递归上限（约 1000）时的迭代算法回归。
@@ -19,7 +19,7 @@
 | `TestBuildOrderGraph` | 3 | 线性链 / 含环 / 孤立节点的图构建 | 节点数、边总数、`successors` 邻接方向正确 |
 | `TestComputeNodeLevels` | 5 | 线性 DAG、扇出 DAG、简单环、带尾巴的环、不连通图 | 层级递增、B/C 同层、环内共享层级、尾巴比环高一层、各连通分量独立从 0 开始 |
 | `TestFindSourceNodes` | 4 | 线性 DAG、多源、纯环、轮状拓扑 | 入度为 0 的源节点；纯环 SCC 返回一个代表点；Center 是唯一 source |
-| `TestDeepGraphRegression` | 3 | 5000 节点深链 / 深环 / 经 TaskGraph 全链路建图 | 深链 SCC 全单点、无 RecursionError；深环收敛为单一 SCC；`get_structure_graph` / `get_source_names` / `get_graph_analysis` 正常 |
+| `TestDeepGraphRegression` | 3 | 5000 节点深链 / 深环 / 经 TaskGraph 全链路建图 | 深链 SCC 全单点、无 RecursionError；深环收敛为单一 SCC；`get_stages_summary` / `get_source_names` / `get_graph_analysis` 正常 |
 | **合计** | **15** | | |
 
 ## 关键测试流程
@@ -36,7 +36,7 @@
 4. **深图回归** (`TestDeepGraphRegression`):
    - 深链（5000 节点）：`tarjan_scc` 全部为单点 SCC、源节点为 `n0`、层级线性递增到 4999。
    - 深环（5000 节点）：全部节点收敛为单一 SCC。
-   - 深链经 `TaskGraph`（`graph_mode="thread"`）全链路建图与分析不崩溃，`layersDict[4999] == ["n4999"]`。
+   - 深链经 `TaskGraph`（`graph_mode="thread"`）全链路建图与分析不崩溃，`layersDict[4999] == ["n4999"]`，`get_stages_summary()` 返回 5000 个 stage，`get_source_names() == ["n0"]`。
 
 ## 测试辅助函数
 - `_make_graph(edges)`: 从边定义（含隐式出现的下游节点）构造测试图。

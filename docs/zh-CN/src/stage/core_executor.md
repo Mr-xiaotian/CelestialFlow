@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/08/31
 
 `TaskExecutor` 是执行单一任务逻辑的核心组件。它负责任务的执行、并发控制、错误处理、重试机制以及日志记录。
 
@@ -33,8 +33,8 @@ class TaskExecutor[T, R]:
 | `execution_mode` | `"serial"` | 执行模式：`"serial"` / `"thread"` / `"async"` |
 | `max_workers` | `None` | 并发数量限制（None 时动态: `min(32, cpu_count+4)`） |
 | `max_retries` | `1` | 任务失败后的最大重试次数（最多执行 retries+1 次） |
-| `max_info` | `50` | 日志中每条信息的最大长度 |
 | `max_queue_size` | `0` | 任务输入队列的最大容量（0 表示无限制） |
+| `max_info` | `50` | 日志中每条信息的最大长度 |
 | `enable_duplicate_check` | `False` | 是否启用基于任务哈希的重复检查 |
 
 ## Observer 模式
@@ -159,8 +159,7 @@ def set_ctree(self, ctree_client: EventClient) -> None:
 ```
 
 > 默认情况下，`TaskExecutor` 内部会使用 `LocalEventClient()` 生成本地递增事件 ID。
->
-> 如果需要接入 CelestialTree，请先额外安装 `celestialtree`，再构造客户端对象并传给 `set_ctree()`；当前已经没有单独的 `set_nullctree()` 配置入口。
+> 如果需要接入 CelestialTree，请先额外安装 `celestialtree`，再构造客户端对象并传给 `set_ctree()`。
 
 ## 状态查询方法
 

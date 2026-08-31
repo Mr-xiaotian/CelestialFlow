@@ -1,6 +1,6 @@
 # demo_executor.py 演示说明
 
-> 📅 最后更新日期: 2026/06/28
+> 📅 最后更新日期: 2026/08/31
 
 ## 目标
 
@@ -57,7 +57,7 @@ flowchart TB
 | `demo_fibonacci_async` | async | 异步斐波那契 | 协程并发 |
 
 - **输入**：`range(25, 32) + [0, 27, None, 0, ""]`
-- **异常设计**：两个 `0` 会触发 `ValueError`，框架自动重试 1 次；`None` 与 `""` 会触发类型错误，不在重试列表中直接失败
+- **异常设计**：两个 `0` 与 `None` 会触发 `ValueError`（在 Python 3 中 `None <= 0` 为 `True`），因 `set_retry_exceptions(ValueError)` 自动重试 1 次后仍失败；`""` 会触发类型错误（`<=` 不支持 `str` 与 `int` 比较），不在重试列表中直接失败
 
 ## 关键配置
 
@@ -87,10 +87,11 @@ FibonacciThread(thread-6): 100%|██████████| 12/12 [00:00<00:
 FibonacciAsync(async-6): 100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
 ```
 
-> **说明**：12 个任务中，4 个非法输入（两个 `0`、`None`、`""`）会导致失败；其余 8 个为合法斐波那契任务。其中两个 `0` 触发 `ValueError` 并经 1 次重试后仍失败，`None`/`""` 触发类型错误（不在重试列表中）。
+> **说明**：12 个任务中，4 个非法输入（两个 `0`、`None`、`""`）会导致失败；其余 8 个为合法斐波那契任务。其中两个 `0` 与 `None` 触发 `ValueError`（在 Python 3 中 `None <= 0` 为 `True`），并经 1 次重试后仍失败；`""` 触发类型错误（不在重试列表中）。
 > 三种模式均使用 `demo_utils` 中的迭代版斐波那契（O(n)），单任务计算本身非常快，进度条上的 it/s 差异主要反映调度开销。
 
 ## 依赖
 
-- `celestialflow`（`TaskExecutor`、`TaskProgress`）
+- `celestialflow`（`TaskExecutor`）
 - `demo_utils`（`fibonacci`、`fibonacci_async`）
+- `demo_observer`（`TaskProgress`，由本仓库同目录下 `demo_observer.py` 提供；当前文件 `demo_executor.py` 中仍保留 `from celestialflow import TaskProgress` 的写法，但 `celestialflow` 已不再导出该类，实际使用请改为 `from demo_observer import TaskProgress`）

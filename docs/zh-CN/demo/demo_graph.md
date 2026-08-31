@@ -1,6 +1,6 @@
 # demo_graph.py 演示说明
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/08/31
 
 ## 目标
 
@@ -71,7 +71,7 @@ AsyncDouble ──> AsyncToStr
 python demo/demo_graph.py
 ```
 
-> **注意**：当前 `__main__` 只调用 `asyncio.run(demo_async_pipeline())`；`demo_etl_fan_out_fan_in()` 在 `__main__` 中被注释，需要手动取消注释才会运行 ETL 场景。
+> **注意**：当前 `__main__` 会依次调用 `demo_etl_fan_out_fan_in()` 与 `asyncio.run(demo_async_pipeline())`，两个演示场景都会运行。
 
 ## 预期行为
 

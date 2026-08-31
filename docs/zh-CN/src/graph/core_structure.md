@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/31
 
 TaskStructure 模块提供了多种预定义的任务图结构，帮助用户快速构建复杂的任务流。所有的结构都继承自 `TaskGraph`。
 
@@ -235,8 +235,9 @@ chain = TaskChain(name="ETL", stages=[s1, s2, s3], graph_mode="thread")
 # 启动
 chain.run({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
 
-# 获取结果
-print(f"链状态: {chain.get_status_snapshot()}")
+# 获取结果快照
+snapshot, _ = chain.collect_runtime_snapshot()
+print(f"链阶段数: {len(snapshot)}")
 ```
 
 ### TaskCross 完整示例
@@ -268,7 +269,7 @@ layer2 = [TaskStage("AnaA", func=analyze_a), TaskStage("AnaB", func=analyze_b)]
 
 cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
-print(cross.get_status_snapshot())
+print(cross.collect_runtime_snapshot())
 ```
 
 ### TaskGrid 完整示例
@@ -284,7 +285,7 @@ n11 = TaskStage("Square", func=lambda x: x * x)
 
 grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
 grid.run({n00.get_name(): [1, 2, 3]})
-print(grid.get_status_snapshot())
+print(grid.collect_runtime_snapshot())
 ```
 
 ### TaskLoop 完整示例
@@ -320,7 +321,7 @@ ring_nodes = [
 
 wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
 wheel.run({center.get_name(): [42]})
-print(wheel.get_status_snapshot())
+print(wheel.collect_runtime_snapshot())
 ```
 
 ### TaskComplete 完整示例
@@ -339,5 +340,5 @@ complete.run(
     {nodes[0].get_name(): [10]},
     if_put_signal=False,
 )
-print(complete.get_status_snapshot())
+print(complete.collect_runtime_snapshot())
 ```

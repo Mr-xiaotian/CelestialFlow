@@ -1,6 +1,6 @@
 # TaskGraph
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/08/31
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期。
 
@@ -8,7 +8,7 @@
 
 ## 关键数据结构
 
-`TaskGraph` 内部使用 `stage_dict: dict[str, TaskStage]` 维护所有节点的 Stage 映射。队列连接在 `connect()` 阶段直接建立。图分析基于内部维护的 `OrderGraph` 实例。
+`TaskGraph` 内部使用 `stage_dict: dict[str, TaskStage]` 维护所有节点的 Stage 映射，队列连接在 `connect()` 阶段直接建立。图分析基于内部维护的 `OrderGraph` 实例（`self.order_graph`），其 `out_edges` / `in_edges` 是入/出边邻接表引用视图。
 
 ## 初始化
 
@@ -21,7 +21,7 @@ class TaskGraph:
 
 - **name**: 任务图名称（必填）
 - **graph_mode**: 图执行模式
-  - `serial`（默认）: 串行执行，按节点注册顺序逐个执行
+  - `serial`（默认）: 串行执行，按层级（`layers_dict`）拓扑序逐层执行
   - `thread`: 线程并发执行，每个节点在独立线程中启动
   - `async`: 异步并发执行，需要在已运行事件循环的上下文中调用（见 [`start_async`](#start_async)）
 
@@ -45,7 +45,7 @@ def set_stages(self, stages: list[TaskStage]) -> None:
 def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
     """
     建立超边连接：from_stages 中的每个节点连接到 to_stages 中的每个节点。
-    操作的是 out_edges / in_edges 字典，队列连接在 connect() 内直接完成。
+    操作的是 self.order_graph 的 out_edges / in_edges 字典，队列连接在 connect() 内直接完成。
     """
 ```
 
@@ -188,11 +188,11 @@ async def start_async(self) -> None:
 
 ```python
 def _execute_stages_serial(self) -> None:
-    """按节点注册顺序串行执行。"""
+    """按层级（layers_dict）拓扑序逐层、逐个串行执行。"""
 
 
 def _execute_stages_thread(self) -> None:
-    """每个节点在独立线程中启动，最后统一 join。"""
+    """每个节点在独立守护线程中启动，最后统一 join。"""
 
 
 async def _execute_stages_async(self) -> None:
@@ -221,10 +221,12 @@ async def _execute_stage_async(self, stage: AnyTaskStage) -> None:
 ### collect_runtime_snapshot
 
 ```python
-def collect_runtime_snapshot(self) -> None:
+def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
     """
-    收集所有节点的运行时快照，更新 status_dict。
-    计算每个节点的 processed / pending / elapsed / remaining 及全局剩余时间。
+    收集所有节点的运行时快照，计算 DAG 感知的全局 pending 估算值，
+    并补充到每个节点的快照（total_tasks_pending / total_remaining_time）中。
+
+    :return: (status_dict, status_timestamp) —— 各节点快照字典与统一采集时间戳
     """
 ```
 
@@ -257,13 +259,13 @@ def collect_runtime_snapshot(self) -> None:
 | 方法 | 返回类型 | 说明 |
 |------|---------|------|
 | `get_graph_id()` | `str` | 获取当前任务图实例的唯一标识 |
-| `get_status_snapshot()` | `dict` | 带统一时间戳的状态快照 |
+| `get_stages_summary()` | `dict[str, dict[str, Any]]` | 所有任务阶段摘要信息 |
+| `get_edges()` | `dict[str, list[str]]` | 出边邻接表（与内部 `OrderGraph` 共享引用，调用方应只读） |
+| `get_source_names()` | `list[str]` | 源节点名称列表 |
 | `get_graph_analysis()` | `dict` | 图分析信息（graphId, graphMode, name, startTime, className, isDAG, layersDict） |
-| `get_structure_graph()` | `dict` | JSON 格式的图结构（nodes + edges + source_nodes） |
 | `get_structure_list()` | `list[str]` | 带边框的格式化树形文本 |
 | `get_order_graph()` | `OrderGraph` | 内部有序有向图实例 |
-| `get_fallback_path()` | `Path` | 回退数据库文件的绝对路径，未设置时返回空 Path |
-| `get_source_stages()` | `list[TaskStage]` | 源节点列表 |
+| `get_lifecycle_path()` | `Path` | 任务生命周期持久化 sqlite 文件的绝对路径，未设置时返回空 Path |
 
 ### get_graph_analysis 说明
 
@@ -299,9 +301,9 @@ flowchart TD
     DRAIN --> SNAP[collect_runtime_snapshot]
     SNAP --> END[图执行完成]
 
-    SNAP --> STATUS[get_status_snapshot]
+    SNAP --> STATUS[collect_runtime_snapshot]
 
-    RUN[run / run_async] -->|注入初始任务| PUT[stage.put_tasks]
+    RUN[run / run_async] -->|注入初始任务| PUT[stage.put_task]
     RUN -->|注入终止信号| SIGNAL[put_source_signal]
 ```
 
@@ -310,10 +312,10 @@ flowchart TD
 ### serial 模式
 
 ```
-按节点注册顺序同步执行 stage.start() → 数据通过队列流动 → 终止信号到达后停止
+按 layers_dict 层级拓扑序逐层同步执行 stage.start() → 数据通过队列流动 → 终止信号到达后停止
 ```
 
-- 按注册顺序逐节点同步执行
+- 按层级（拓扑序）逐层同步执行，层内按注册顺序
 - 默认模式
 - 适用场景：调试、串行流水线
 
@@ -338,13 +340,20 @@ flowchart TD
 
 ## 非 DAG 图的注意事项
 
-对于有环图，若 `if_put_signal=True`，`run` 会发出 `RuntimeWarning`。终止信号可能导致部分节点在接收上游数据前就提前退出，建议：
+对于有环图（`TaskLoop` / `TaskWheel` 等），若 `graph_mode='serial'` 且图含环（非 DAG），
+`_build_analysis` 会抛出 `ConfigurationError`，提示切换到 `thread` 或 `async` 模式。
+
+若在 `thread` / `async` 模式下使用有环图，建议在 `run` 时设置 `if_put_signal=False`，
+由外部显式注入 `TerminationSignal` 控制停止时机，否则终止信号可能让部分节点在收到
+上游数据前提前退出。
 
 ```python
 graph.run({"source": tasks}, if_put_signal=False)
-# 后续通过 stage.put_tasks 或外部手动注入 TerminationSignal
+# 后续通过 stage.put_task 或外部手动注入 TerminationSignal
 ```
 
 ## 未消费任务处理
 
-`_finish_start()` 中通过遍历 `stage_dict` 调用每个 stage 的 `drain_task_queue()` 收集所有剩余任务，将其标记为 `UnconsumedError` 并通过 `fallback_inlet` 持久化到 sqlite 回退数据库（经由 `FallbackSpout` 写入回退存储）。
+`_finish_start()` 中通过遍历 `stage_dict` 调用每个 stage 的 `drain_task_queue()` 收集所有剩余任务，
+将其标记为 `UnconsumedError` 并通过 `get_lifecycle_spout`（`LifecycleSpout`）按日期组织的 lifecycle
+sqlite 持久化文件中记录失败信息。

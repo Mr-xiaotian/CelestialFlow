@@ -1,6 +1,6 @@
 # 任务生命周期持久化 (Lifecycle Persistence)
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/08/31
 
 `persistence/core_lifecycle.py` 负责任务生命周期（Lifecycle）的持久化：记录任务在整个生命周期中的状态变化（pending → success / failed / 删除），并将数据写入 `lifecycles/` 目录下的 SQLite 数据库文件。核心组件为 `LifecycleSpout` 与 `LifecycleInlet`。
 
@@ -162,4 +162,3 @@ lifecycle_spout.stop()
 1. **SQLite 存储**：使用 WAL 模式 + `check_same_thread=False`，支持跨线程读写（见 `util_sqlite.connect_db`）。
 2. **即时 commit**：每次写操作实际改动记录后立即 commit，保证数据不丢失。
 3. **Inlet 只写队列**：不直接操作数据库，所有 I/O 在 `LifecycleSpout` 的后台线程中完成。
-4. **与旧 Fallback 的关系**：`LifecycleSpout`/`LifecycleInlet` 取代了旧版 `FallbackSpout`/`FallbackInlet`，职责从"失败回退持久化"扩展为完整任务生命周期记录（pending / success / failed / duplicate）。

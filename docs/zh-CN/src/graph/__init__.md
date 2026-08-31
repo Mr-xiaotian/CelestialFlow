@@ -1,6 +1,6 @@
 # Graph 模块
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/08/31
 
 Graph 模块是 CelestialFlow 的核心调度系统，负责管理任务节点之间的依赖关系、执行流程和生命周期。它提供了灵活的任务图构建、分析和序列化功能。
 
@@ -55,11 +55,10 @@ from celestialflow.graph import (
      - `tarjan_scc()` / `get_condensation()`: 强连通分量分析与凝聚图构建
      - `compute_node_levels()`: 基于 SCC 凝聚图计算节点层级
 
-4. **util_serialize.py**
-   - **作用**: 任务图结构序列化为 JSON 及文本化
+4. **util_render.py**
+   - **作用**: 将图结构渲染为带边框的树形文本列表
    - **关键函数**:
-     - `build_structure_graph()`: 从节点字典、邻接表和源节点构建结构 JSON
-     - `format_structure_list_from_graph()`: 格式化为可打印树形文本
+     - `render_structure_list()`: 从节点字典、邻接表和源节点生成带边框的树形文本
 
 ## 模块关联
 
@@ -68,12 +67,12 @@ from celestialflow.graph import (
 - `TaskChain`、`TaskLoop` 等是 `TaskGraph` 的特化实现（封装了 `set_stages` / `connect` 逻辑）
 - `util_order_graph.py` 提供框架内部统一复用的轻量图结构和基础图算法
 - `TaskGraph` 当前基于 `OrderGraph` 完成源节点识别、DAG 判定与层级分析
-- 序列化工具将运行时结构输出为 JSON/文本
+- `util_render.py` 将运行时结构输出为带边框的树形文本列表
 
 ### 外部关联
 - **与 Stage 模块**: `TaskGraph` 管理 `TaskStage` 节点，每个节点通过 `start` / `start_async` 启动
 - **与 Runtime 模块**: 使用 `TaskInQueue`/`TaskOutQueue` 作为节点间通信管道
-- **与 Persistence 模块**: 通过 `LogSpout`/`FallbackSpout` 实现持久化
+- **与 Persistence 模块**: 通过 `LifecycleSpout` 实现持久化
 - **与 Observability 模块**: 通过 `TaskReporter` 向 `celestialflow-web` 服务推送状态并拉取注入指令
 
 ## 使用模式
@@ -82,7 +81,7 @@ from celestialflow.graph import (
 2. **选择结构**: 对常见模式可直接使用 `TaskChain`/`TaskCross` 等预定义结构
 3. **配置**: 通过 `set_reporter()` / `set_ctree()` 集成外部服务
 4. **执行**: 调用 `run()` 或 `run_async()`
-5. **监控**: 使用 `collect_runtime_snapshot()` 和 `get_status_snapshot()` 获取状态
+5. **监控**: 使用 `collect_runtime_snapshot()` 获取状态快照
 
 ## 使用示例
 
@@ -141,7 +140,10 @@ stages = [
 chain = TaskChain(name="DataPipeline", stages=stages, graph_mode="thread")
 chain.run({stages[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
-print(f"链状态: {chain.get_status_snapshot()}")
+# 监控：通过 collect_runtime_snapshot 采集一次运行时快照
+snapshot, ts = chain.collect_runtime_snapshot()
+print(f"快照时间戳: {ts}")
+print(f"节点 0 快照: {snapshot[stages[0].get_name()]}")
 ```
 
 ### TaskCross 交叉层
@@ -155,7 +157,7 @@ layer2 = [TaskStage("G1", func=lambda x: x**2), TaskStage("G2", func=lambda x: -
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
-print(cross.get_status_snapshot())
+print(cross.collect_runtime_snapshot())
 ```
 
 ### TaskGrid 网格
@@ -170,7 +172,7 @@ s11 = TaskStage("D", func=lambda x: x * x)
 
 grid = TaskGrid(name="GridPipeline", grid=[[s00, s01], [s10, s11]])
 grid.run({s00.get_name(): [1, 2]})
-print(grid.get_status_snapshot())
+print(grid.collect_runtime_snapshot())
 ```
 
 ### TaskLoop 环形图

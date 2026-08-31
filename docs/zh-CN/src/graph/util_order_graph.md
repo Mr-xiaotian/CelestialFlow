@@ -1,8 +1,8 @@
 # OrderGraph 与图算法工具
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/08/31
 
-`graph/util_graph.py` 提供最小图结构 `OrderGraph`，以及围绕它的一组基础图算法。
+`graph/util_order_graph.py` 提供最小图结构 `OrderGraph`，以及围绕它的一组基础图算法。
 
 这个文件当前定位是：
 
@@ -24,8 +24,8 @@
 - `add_node(name)`：添加节点，幂等。
 - `add_edge(u, v)`：添加有向边，自动补齐端点节点并去重。
 - `nodes`：按注册顺序返回全部节点。
-- `out_edges`：返回出边邻接表拷贝。
-- `in_edges`：返回入边邻接表拷贝。
+- `out_edges`：返回出边邻接表引用视图（**与内部存储共享，调用方不应修改**）。
+- `in_edges`：返回入边邻接表引用视图（**与内部存储共享，调用方不应修改**）。
 - `successors(name)`：返回后继节点。
 - `predecessors(name)`：返回前驱节点。
 - `has_node(name)`：判断节点是否存在。
@@ -92,7 +92,7 @@
 ### 基础构图
 
 ```python
-from celestialflow.graph.util_graph import OrderGraph, is_dag, topo_sort
+from celestialflow.graph.util_order_graph import OrderGraph, is_dag, topo_sort
 
 graph = OrderGraph()
 graph.add_edge("A", "B")
@@ -110,7 +110,7 @@ print(topo_sort(graph))  # ['A', 'B', 'C', 'D']
 ### 强连通分量与凝聚图
 
 ```python
-from celestialflow.graph.util_graph import (
+from celestialflow.graph.util_order_graph import (
     OrderGraph,
     get_condensation,
     tarjan_scc,
@@ -133,7 +133,7 @@ print(cond.out_edges)
 ### 节点层级
 
 ```python
-from celestialflow.graph.util_graph import OrderGraph, compute_node_levels
+from celestialflow.graph.util_order_graph import OrderGraph, compute_node_levels
 
 graph = OrderGraph()
 graph.add_edge("Input", "Clean")
@@ -148,4 +148,4 @@ print(levels)
 
 - 如果你只需要轻量图结构和基础图算法，优先使用 `OrderGraph`。
 - 如果你需要与 `TaskGraph` 的当前分析逻辑保持一致，优先使用这里的算法函数。
-- 如果你需要导出给前端或日志使用的结构数据，应继续配合 `util_serialize.py`。
+- 如果你需要导出可打印的图结构文本，应继续配合 `util_render.py`。

@@ -1,6 +1,6 @@
 # demo_observer.py 演示说明
 
-> 📅 最后更新日期: 2026/07/31
+> 📅 最后更新日期: 2026/08/31
 
 ## 目标
 
@@ -8,7 +8,7 @@
 
 当前文件同时展示两种方式：
 
-- 使用内置的 `TaskProgress` 显示基于 `tqdm` 的进度条
+- 使用本文件内自定义的 `TaskProgress`（基于 `tqdm` 的进度条观察者）
 - 直接继承 `BaseObserver`，实现自定义 `PrintObserver`
 
 ## 演示内容

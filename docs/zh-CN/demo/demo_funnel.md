@@ -1,6 +1,6 @@
 # demo_funnel.py 演示说明
 
-> 📅 最后更新日期: 2026/07/31
+> 📅 最后更新日期: 2026/08/31
 
 ## 目标
 
@@ -103,9 +103,10 @@ Handled records: 3
   - [core_inlet.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/core_inlet.md)
   - [core_spout.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/core_spout.md)
 - 如果你想看它在框架内的典型落地，可参考：
-  - `persistence` 里的 `LogSpout` / `LogInlet`
-  - `FailSpout` / `FailInlet`
-  - `SuccessSpout`
+  - `persistence` 里的 `LogSpout` / `LogInlet`（写入 `logs/` 目录）
+  - `persistence` 里的 `LifecycleSpout` / `LifecycleInlet`（写入 SQLite 生命周期库）
+
+> **历史变更说明**：早期版本曾存在 `FailSpout` / `FailInlet` 与 `SuccessSpout` 等独立管道，自 3.2.4 起 `fail_funnel` 与 `success_funnel` 已合并为基于 SQLite 的 `fallback` 机制，相关类不再保留。
 
 ## 依赖
 

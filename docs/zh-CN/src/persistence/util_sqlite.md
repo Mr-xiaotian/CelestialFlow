@@ -1,13 +1,11 @@
 # PersistenceSQLite
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/08/31
 
 `persistence/util_sqlite.py` 提供 SQLite 数据库的连接管理与记录 CRUD 操作工具，是 `LifecycleSpout` 和 `TaskReporter` 的底层存储引擎。
 
 ## 核心函数概览
 
-| 函数 | 说明 |
-|------|------|
 | 函数 | 说明 |
 |------|------|
 | `connect_db(db_path)` | 创建 SQLite 连接，配置 WAL 模式，确保表结构 |
@@ -83,8 +81,6 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 
 以下函数内部自行 `connect_db` 并 `close`：
 
-| 函数 | 签名要点 | 返回类型 |
-|------|---------|---------|
 | 函数 | 签名要点 | 返回类型 |
 |------|---------|---------|
 | `load_records` | `(db_path, status="failed")` | `list[dict]` |

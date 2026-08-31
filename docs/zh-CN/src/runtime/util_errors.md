@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/08/31
 
 TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
@@ -50,9 +50,6 @@ classDiagram
     class InitializationError {
         +初始化失败
     }
-    class GraphManagedError {
-        +图管理错误
-    }
     class PersistedError {
         +error_type: str
         +error_message: str
@@ -94,7 +91,6 @@ classDiagram
     GraphStructureError <|-- InvalidStructureError
 
     RuntimeStateError <|-- InitializationError
-    RuntimeStateError <|-- GraphManagedError
 ```
 
 ## 基类
@@ -230,17 +226,6 @@ class InitializationError(RuntimeStateError):
     """初始化错误"""
 
     pass
-```
-
-### GraphManagedError
-
-当 Stage 已被 TaskGraph 管理时，尝试通过 standalone 路径直接调用 `start()` 时抛出。
-
-```python
-class GraphManagedError(RuntimeStateError):
-    """Stage 已被 Graph 管理，不应通过 standalone 路径启动。"""
-
-    def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."): ...
 ```
 
 ## 持久化异常

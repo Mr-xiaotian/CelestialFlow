@@ -1,6 +1,6 @@
 # ReporterTaskGraph
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/08/31
 
 `observability/util_types.py` 定义了 `TaskReporter` 依赖的任务图协议接口 `ReporterTaskGraph` 与任务阶段协议接口 `ReporterTaskStage`。它们是 `Protocol` 类，使得 `TaskReporter` 无需导入具体的 `TaskGraph` / `TaskStage` 类型即可声明依赖。
 
@@ -19,28 +19,31 @@ class ReporterTaskGraph(Protocol):
         """返回按名称索引的只读节点映射。"""
         ...
 
-    def collect_runtime_snapshot(self) -> None: ...
-
     def get_graph_id(self) -> str: ...
+
+    def get_stages_summary(self) -> dict[str, dict[str, Any]]: ...
+
+    def get_edges(self) -> dict[str, list[str]]: ...
+
+    def get_source_names(self) -> list[str]: ...
 
     def get_lifecycle_path(self) -> Path: ...
 
-    def get_status_snapshot(self) -> dict[str, Any]: ...
-
-    def get_structure_graph(self) -> dict[str, Any]: ...
-
     def get_graph_analysis(self) -> dict[str, Any]: ...
+
+    def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]: ...
 ```
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
 | `stage_dict` | `Mapping[str, ReporterTaskStage]` | 返回按名称索引的只读节点映射（property） |
-| `collect_runtime_snapshot()` | `None` | 收集最新运行时快照 |
 | `get_graph_id()` | `str` | 获取当前任务图的唯一标识 |
+| `get_stages_summary()` | `dict[str, dict[str, Any]]` | 返回所有 stage 的摘要（`name`、`func_name`、`execution_mode`、`max_workers` 等） |
+| `get_edges()` | `dict[str, list[str]]` | 返回图结构中的边集合（`{from_name: [to_name, ...]}`） |
+| `get_source_names()` | `list[str]` | 返回所有无上游输入的源 stage 名称 |
 | `get_lifecycle_path()` | `Path` | 获取生命周期持久化文件路径 |
-| `get_status_snapshot()` | `dict[str, Any]` | 获取运行状态快照（各 stage 计数等） |
-| `get_structure_graph()` | `dict[str, Any]` | 获取图结构信息（节点与边） |
 | `get_graph_analysis()` | `dict[str, Any]` | 获取图分析数据（拓扑信息等） |
+| `collect_runtime_snapshot()` | `tuple[dict[str, Any], float]` | 收集最新运行时快照（按 stage 聚合的状态字典 + 采集时间戳） |
 
 ### ReporterTaskStage
 

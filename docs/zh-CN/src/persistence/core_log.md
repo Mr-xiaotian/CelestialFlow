@@ -1,6 +1,6 @@
 # 日志持久化 (Log Persistence)
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/08/31
 
 `persistence/core_log.py` 模块提供了一个线程安全的日志系统，通过生产者-消费者模式将日志统一收集、格式化和持久化到 `logs/` 目录下的文本文件。
 
@@ -116,14 +116,6 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 |------|---------|------|
 | `start_graph(graph_name, structure_list)` | INFO | 记录任务图启动及结构信息 |
 | `end_graph(graph_name, use_time)` | INFO | 记录任务图结束及耗时 |
-| `graph_crash(graph_name, exception)` | CRITICAL | 记录任务图崩溃 |
-
-#### 分层调度 (Layer)
-
-| 方法 | 日志级别 | 说明 |
-|------|---------|------|
-| `start_layer(layer, layer_level)` | INFO | 记录分层的启动 |
-| `end_layer(layer, use_time)` | INFO | 记录分层的结束及耗时 |
 
 #### 执行器 (Executor)
 
