@@ -1,23 +1,26 @@
 # PersistenceSQLite
 
-> 📅 最終更新日: 2026/07/16
+> 📅 最終更新日: 2026/08/31
 
-`persistence/util_sqlite.py` は、SQLite データベースの接続管理とレコード CRUD 操作ツールを提供し、`FallbackSpout` および `TaskReporter` の基盤ストレージエンジンです。
+`persistence/util_sqlite.py` は、SQLite データベースの接続管理とレコード CRUD 操作ツールを提供し、`LifecycleSpout` および `TaskReporter` の基盤ストレージエンジンです。
 
 ## コア関数概要
 
 | 関数 | 説明 |
 |------|------|
 | `connect_db(db_path)` | SQLite 接続を作成し、WAL モードを設定、テーブル構造を確保 |
-| `insert_record(conn, record)` | レコードを1件挿入 |
-| `promote_record_to_failed_by_event_id(...)` | pending レコードを failed に昇格 |
-| `promote_record_to_success_by_event_id(...)` | pending レコードを success に昇格 |
-| `update_record_event_id_by_event_id(...)` | レコードの event_id を更新 |
+| `insert_record(conn, record)` | レコードを 1 件挿入 |
+| `promote_record_to_failed_by_event_id(...)` | レコードを failed に昇格し、新しい event_id に切り替え |
+| `promote_record_to_success_by_event_id(...)` | レコードを success に昇格し、結果を書き込む |
 | `delete_record_by_event_id(conn, event_id)` | event_id でレコードを削除 |
+| `clear_records(db_path)` | データベース内の全レコードをクリア |
+| `append_records(db_path, records)` | バッチ追加書き込み。event_id 衝突時はスキップ（冪等） |
+| `get_max_event_id_in_fail(db_path)` | 失敗レコード内の最大 event_id を読み込み |
 | `load_records(db_path, status)` | ステータスでレコードを読み込み |
 | `load_tasks_grouped_by_stage(db_path, statuses)` | stage 別にグループ化して読み込み |
-| `load_records_after_event_id_in_fail(db_path, min_event_id)` | 失敗レコードを増分読み込み |
+| `load_records_after_event_id_in_fail(db_path, min_event_id)` | 失敗レコードの増分読み込み |
 | `query_records(db_path, page, page_size, ...)` | ページング条件検索 |
+| `query_error_type_counts(db_path, node, status)` | エラータイプ別に集計 |
 | `load_task_error_records(db_path, stage)` | stage 別に (task, error) ペアを読み込み |
 | `load_task_result_records(db_path, stage)` | stage 別に (task, result) ペアを読み込み |
 
@@ -65,14 +68,13 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 
 ### 書き込み操作（conn を渡す必要あり）
 
-以下の関数は呼び出し側で `conn` のライフサイクルを管理する必要があります（通常は `FallbackSpout` が保持）：
+以下の関数は呼び出し側で `conn` のライフサイクルを管理する必要があります（通常は `LifecycleSpout` が保持）：
 
 | 関数 | シグネチャ要点 | 説明 |
 |------|---------|------|
 | `insert_record` | `(conn, record: dict) -> bool` | 正規化後に INSERT |
 | `promote_record_to_failed_by_event_id` | `(conn, event_id, new_event_id, *, ts, error_type="", error_message="") -> bool` | event_id、status='failed'、エラー情報を更新 |
 | `promote_record_to_success_by_event_id` | `(conn, event_id, result, *, ts) -> bool` | status='success' + result_json を更新 |
-| `update_record_event_id_by_event_id` | `(conn, old_event_id, new_event_id, *, ts) -> bool` | event_id を更新（リトライ用） |
 | `delete_record_by_event_id` | `(conn, event_id) -> bool` | レコードを削除 |
 
 ### 読み取り操作（接続を自己管理）
@@ -82,9 +84,10 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 | 関数 | シグネチャ要点 | 戻り値の型 |
 |------|---------|---------|
 | `load_records` | `(db_path, status="failed")` | `list[dict]` |
-| `load_tasks_grouped_by_stage` | `(db_path, statuses=["failed"])` | `dict[str, list[dict]]` |
+| `load_tasks_grouped_by_stage` | `(db_path, statuses=("failed", "pending"))` | `dict[str, list[dict]]` |
 | `load_records_after_event_id_in_fail` | `(db_path, min_event_id)` | `list[dict]` |
-| `query_records` | `(db_path, page, page_size, node, keyword, sort_order, status)` | `(total, total_pages, items)` |
+| `query_records` | `(db_path, page, page_size, node, keyword, sort_order, status="failed")` | `(total, total_pages, items)` |
+| `query_error_type_counts` | `(db_path, node="", status="failed")` | `list[dict]` |
 | `load_task_error_records` | `(db_path, stage)` | `list[(task, (error_type, error_message))]` |
 | `load_task_result_records` | `(db_path, stage)` | `list[(task, result)]` |
 
@@ -127,14 +130,17 @@ Path("test_data.sqlite3").unlink()
 
 ### TaskExecutor からの失敗タスク復旧
 
-`TaskExecutor.start_db()` は内部で `load_tasks_grouped_by_stage` を呼び出します：
+`TaskExecutor.restore_db()` は内部で `load_tasks_grouped_by_stage` を呼び出します：
 
 ```python
 from celestialflow.persistence.util_sqlite import load_tasks_grouped_by_stage
 
-grouped = load_tasks_grouped_by_stage("fallback/2026-06-18/errors.sqlite3", ["failed"])
-# {'StageA': [{'event_id': 1, 'task_json': 'hello', ...}, ...],
-#  'StageB': [{'event_id': 2, 'task_json': 'world', ...}]}
+grouped = load_tasks_grouped_by_stage(
+    "lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3",
+    ["failed", "pending"],
+)
+# {'StageA': [{'task_json': 'hello', 'error_type': '', 'status': 'pending'}, ...],
+#  'StageB': [{'task_json': 'world', 'error_type': 'ValueError', 'status': 'failed'}]}
 ```
 
 ### エラーレコードのページング検索
@@ -143,7 +149,7 @@ grouped = load_tasks_grouped_by_stage("fallback/2026-06-18/errors.sqlite3", ["fa
 from celestialflow.persistence.util_sqlite import query_records
 
 total, total_pages, items = query_records(
-    db_path="fallback/2026-06-18/errors.sqlite3",
+    db_path="lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3",
     page=1,
     page_size=20,
     node="",
@@ -158,8 +164,8 @@ for item in items:
 
 ## 注意事項
 
-- **書き込み関数**（insert/promote/update/delete）は呼び出し側で `conn` を渡し、操作後に手動で `commit()` する必要があります。
+- **書き込み関数**（insert/promote/delete、および `LifecycleSpout._handle_record` 中の組み合わせ呼び出し）は呼び出し側で `conn` を渡し、操作後に手動で `commit()` する必要があります。`clear_records` と `append_records` は内部で接続を自己管理します。
 - **読み取り関数**（load/query）は内部で接続ライフサイクルを自己管理するため、呼び出し側は接続を気にする必要がありません。
-- `insert_record` は `INSERT` を使用し、`event_id` のユニークインデックスに基づいて一意性を保証します。外部からの一括書き込み時には通常、`append_records` と組み合わせて `IntegrityError` を捕捉し冪等性を実現します。
+- `insert_record` は `INSERT` を使用し、`event_id` のユニークインデックスに基づいて一意性を保証します。外部からの一括書き込み時には通常 `append_records` と組み合わせて `IntegrityError` を捕捉し冪等性を実現します。
 - 正規化関数 `normalize_record` は `event_id` がないレコードをフィルタリングします（`None` を返します）。
 - `task_json` と `result_json` には `json.dumps` 後の文字列が格納され、読み取り時に `json.loads` で復元されます。

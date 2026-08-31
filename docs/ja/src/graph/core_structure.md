@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 最終更新日: 2026/07/16
+> 📅 最終更新日: 2026/08/31
 
 TaskStructure モジュールは複数の事前定義タスクグラフ構造を提供し、ユーザーが複雑なタスクフローを迅速に構築できるようにします。すべての構造は `TaskGraph` を継承しています。
 
@@ -34,12 +34,11 @@ stage3 = TaskStage("S3", func=func3)
 chain = TaskChain(
     name="DataPipeline",
     stages=[stage1, stage2, stage3],
-    stage_mode="thread",  # thread: ノード並行実行; serial: ノード直列実行
-    log_level="SUCCESS",
+    graph_mode="thread",  # thread: ノード並行実行; serial: ノード直列実行
 )
 
 # 起動
-chain.start_graph(init_tasks_dict={stage1.get_name(): [data]})
+chain.run({stage1.get_name(): [data]})
 ```
 
 ## Cross（クロス層）
@@ -75,7 +74,7 @@ layer1 = [stage_1_1, stage_1_2]
 layer2 = [stage_2_1, stage_2_2]
 
 # クロス構造を作成
-cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], schedule_mode="eager")
+cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 ```
 
 ## Grid（グリッド）
@@ -108,7 +107,7 @@ from celestialflow import TaskGrid
 grid_layout = [[stage_00, stage_01], [stage_10, stage_11]]
 
 # グリッド構造を作成
-grid = TaskGrid(name="GridPipeline", grid=grid_layout, schedule_mode="eager")
+grid = TaskGrid(name="GridPipeline", grid=grid_layout, graph_mode="thread")
 ```
 
 ## Loop（リング）
@@ -128,8 +127,8 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskLoop` はノードを首尾接続して閉ループを形成します。デフォルトで `eager` スケジュールモードを使用します。
-注意: リング構造は通常、停止に外部介入を必要とするか、特定の終了条件を設定する必要があります。
+`TaskLoop` はノードを首尾接続して閉ループを形成します。デフォルトで `thread` グラフ実行モードを使用します。
+注意：リング構造は通常、停止に外部介入を必要とするか、特定の終了条件を設定する必要があります。
 
 ```python
 from celestialflow import TaskLoop
@@ -231,13 +230,14 @@ def aggregate(data: int) -> dict:
 s1 = TaskStage("Clean", func=clean)
 s2 = TaskStage("Transform", func=transform)
 s3 = TaskStage("Aggregate", func=aggregate)
-chain = TaskChain(name="ETL", stages=[s1, s2, s3], stage_mode="thread")
+chain = TaskChain(name="ETL", stages=[s1, s2, s3], graph_mode="thread")
 
 # 起動
-chain.start_graph({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
+chain.run({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
 
-# 結果を取得
-print(f"チェーン状態: {chain.get_status_snapshot()}")
+# 結果スナップショットを取得
+snapshot, _ = chain.collect_runtime_snapshot()
+print(f"チェーンステージ数: {len(snapshot)}")
 ```
 
 ### TaskCross 完全例
@@ -268,8 +268,8 @@ layer1 = [TaskStage("LoadA", func=load_a), TaskStage("LoadB", func=load_b)]
 layer2 = [TaskStage("AnaA", func=analyze_a), TaskStage("AnaB", func=analyze_b)]
 
 cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
-cross.start_graph({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
-print(cross.get_status_snapshot())
+cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
+print(cross.collect_runtime_snapshot())
 ```
 
 ### TaskGrid 完全例
@@ -284,8 +284,8 @@ n10 = TaskStage("Mul", func=lambda x: x * 2)
 n11 = TaskStage("Square", func=lambda x: x * x)
 
 grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
-grid.start_graph({n00.get_name(): [1, 2, 3]})
-print(grid.get_status_snapshot())
+grid.run({n00.get_name(): [1, 2, 3]})
+print(grid.collect_runtime_snapshot())
 ```
 
 ### TaskLoop 完全例
@@ -301,9 +301,9 @@ loop_stages = [
 ]
 
 loop = TaskLoop(name="RingLoop", stages=loop_stages)
-loop.start_graph(
+loop.run(
     {loop_stages[0].get_name(): [5]},
-    put_termination_signal=False,  # リング構造では手動で終了注入が必要
+    if_put_signal=False,  # リング構造では手動で終了注入が必要
 )
 ```
 
@@ -320,8 +320,8 @@ ring_nodes = [
 ]
 
 wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
-wheel.start_graph({center.get_name(): [42]})
-print(wheel.get_status_snapshot())
+wheel.run({center.get_name(): [42]})
+print(wheel.collect_runtime_snapshot())
 ```
 
 ### TaskComplete 完全例
@@ -336,9 +336,9 @@ nodes = [
 ]
 
 complete = TaskComplete(name="FullConnected", stages=nodes)
-complete.start_graph(
+complete.run(
     {nodes[0].get_name(): [10]},
-    put_termination_signal=False,
+    if_put_signal=False,
 )
-print(complete.get_status_snapshot())
+print(complete.collect_runtime_snapshot())
 ```

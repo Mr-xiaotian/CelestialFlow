@@ -1,6 +1,6 @@
-﻿# bench_requests.py Benchmark Guide
+# bench_requests.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/26
 
 ## Objective
 
@@ -27,9 +27,8 @@ Outputs mean, median, stdev, min, max (in milliseconds) for each group of reques
 ## Potential Issues
 
 1. **Default target is a local service**: The default URL is `http://127.0.0.1:5005/api/pull_server_state`. If you switch to a public target such as `httpbin.org`, latency is affected by network quality, making single-run results non-reproducible.
-2. **Connection pool not warmed up**: `requests.Session`'s connection pool establishes TCP/TLS connections on the first request; the first few requests may have significantly higher latency than subsequent ones.
-3. **GIL constraint**: Threads in `ThreadPoolExecutor` are constrained by Python's GIL; CPU-intensive parts of `requests` (e.g., TLS handshake, JSON parsing) cannot truly parallelize.
-4. **Public target rate limiting**: If pointing at `httpbin.org` or similar public services, frequent testing may trigger rate limiting, returning 429 or connection resets.
+2. **GIL constraint**: Threads in `ThreadPoolExecutor` are constrained by Python's GIL; CPU-intensive parts of `requests` (e.g., TLS handshake, JSON parsing) cannot truly parallelize.
+3. **Public target rate limiting**: If pointing at `httpbin.org` or similar public services, frequent testing may trigger rate limiting, returning 429 or connection resets.
 
 ## Benchmark Results (Measured)
 
@@ -83,6 +82,24 @@ Outputs mean, median, stdev, min, max (in milliseconds) for each group of reques
 - In the serial scenario, `Session` reuse remains the most significant gain, with average time dropping about **62%** (16.0ms → 6.0ms)
 - In the concurrent scenario, per-thread `Session` reuse still beats no-Session, but the gain is noticeably smaller than in the serial scenario, indicating that local interface processing and thread scheduling already account for the majority
 - Compared with the same day's previous local results, overall means have slightly declined, showing that this benchmark remains sensitive to the server's load and local machine state at the time
+
+### 2026/07/26 - Local TaskWebServer (with warm-up optimization)
+
+> Environment: Windows, target `http://127.0.0.1:5005/api/pull_server_state`, 50 requests, 10 concurrent threads
+> Note: This round's test is based on the script with warm-up added (each scenario sends 1 request before timing to establish the connection, and each concurrent thread is warmed up once); results are more stable
+
+| Scenario | Mean | Median | Stdev | Min | Max |
+|------|----------|--------|--------|--------|--------|
+| **Sequential - no session** | 25.8 ms | 30.2 ms | 9.0 ms | 5.7 ms | 33.2 ms |
+| **Sequential - with session** | **5.9 ms** | **5.7 ms** | 0.8 ms | 4.6 ms | 8.3 ms |
+| **Concurrent - no session** | 36.0 ms | 36.0 ms | 12.0 ms | 9.3 ms | 60.8 ms |
+| **Concurrent - per-thread session** | 34.5 ms | 36.7 ms | 7.0 ms | 8.5 ms | 40.3 ms |
+
+**Conclusions for this round**:
+- After warm-up, Session reuse stability is significantly improved: stdev drops from previous 1.8–3.1ms to **0.8ms**, indicating the first-request handshake overhead has been eliminated
+- In the serial scenario, Session reuse delivers about **4.4x** gain (25.8ms → 5.9ms), with very little variance (max only 8.3ms)
+- In the concurrent scenario, per-thread Session is still slightly better than no Session (34.5ms vs 36.0ms), but the gap is small, indicating that local interface processing and thread scheduling are now dominant
+- The no-Session serial result (25.8ms) is slightly higher than previous rounds (16.0–20.7ms), which may be due to local socket recycling latency after the warm-up request takes up one extra connection; this is considered normal variance
 
 ## How to Run
 

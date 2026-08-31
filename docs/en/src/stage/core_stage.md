@@ -1,8 +1,8 @@
 # TaskStage
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/26
 
-`TaskStage` is the fundamental building block for constructing a `TaskGraph`. It inherits from `TaskExecutor` and adds graph structure related connection capabilities and `stage_mode` control logic.
+`TaskStage` is the fundamental building block for constructing a `TaskGraph`. It inherits from `TaskExecutor` and adds graph structure related connection capabilities.
 
 > Note: `TaskStage` is also a single-use object. It is typically managed by `TaskGraph` and participates in one complete run; after the run ends, its queue bindings, counting state, and in-graph relationships are not guaranteed to be safely reset.
 
@@ -14,9 +14,6 @@
 
 ## Core Concepts
 
-- **Stage Mode**: The scheduling logic mode of a node within the task graph.
-  - `serial`: Serial mode, runs in the main process.
-  - `thread`: Thread mode, runs in a separate thread within the main process.
 - **Execution Mode**: The concurrency mode for processing tasks within the node (`serial`, `thread`, `async`), inherited from `TaskExecutor`.
 - **Topology Relationships**: The upstream/downstream connection relationships between nodes are managed by `TaskGraph`; `TaskStage` itself does not store adjacency lists.
 
@@ -28,55 +25,29 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         self,
         name: str,
         func: Callable[[T], R] | Callable[[T], Awaitable[R]],
-        stage_mode: str = "serial",
         **kwargs: Any,
-    ):
+    ) -> None:
         """
         :param name: Node name (unique identifier)
         :param func: Execution function
-        :param stage_mode: Running mode within the graph ('serial' or 'thread')
-        :param kwargs: Parameters forwarded to TaskExecutor (execution_mode, max_workers, max_retries, etc.)
+        :param kwargs: Parameters forwarded to TaskExecutor
+            (execution_mode, max_workers, max_retries, max_queue_size,
+            max_info, enable_duplicate_check, etc.)
         """
 ```
 
 Example:
 ```python
-stage_a = TaskStage(
-    "StageA", func=process_a, execution_mode="thread", stage_mode="thread"
-)
-stage_b = TaskStage(
-    "StageB", func=process_b, execution_mode="serial", stage_mode="thread"
-)
+stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", max_workers=4)
+stage_b = TaskStage("StageB", func=process_b, execution_mode="serial")
 
 # Create graph and connect nodes
-graph = TaskGraph()
+graph = TaskGraph("DemoGraph")
 graph.set_stages(stages=[stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 ```
 
 ## Configuration Methods
-
-### set_stage_mode
-
-```python
-def set_stage_mode(self, stage_mode: str):
-    """
-    Set the node's execution mode within the task graph.
-    :param stage_mode: 'serial' or 'thread'
-    :raises StageModeError: If the mode is not supported
-    """
-```
-
-### set_inlet
-
-```python
-def set_inlet(self, fallback_inlet: FallbackInlet, log_inlet: LogInlet) -> None:
-    """
-    Initialize collectors, connecting fallback/log collectors to the persistence layer.
-    :param fallback_inlet: Fallback collector
-    :param log_inlet: Log collector
-    """
-```
 
 ### Configuration Methods Inherited from TaskExecutor
 
@@ -84,7 +55,6 @@ def set_inlet(self, fallback_inlet: FallbackInlet, log_inlet: LogInlet) -> None:
 |------|------|
 | `set_execution_mode(mode)` | Set the node's internal task processing mode (`serial`/`thread`/`async`) |
 | `set_name(name)` | Set the node name |
-| `set_log_level(level)` | Set the log level |
 
 ## Connection Binding
 
@@ -106,54 +76,26 @@ def get_binding_counter(self, _downstream_name: str) -> Any:
     """
 ```
 
-## State Management
+## State Snapshot
 
-`TaskStage` uses the `StageStatus` enum to maintain its lifecycle:
+`TaskStage` uses the `snapshot()` method to collect runtime snapshots, including state, counts, time estimation, etc.
 
-```mermaid
-stateDiagram-v2
-    [*] --> NOT_STARTED: __init__()
-    NOT_STARTED --> RUNNING: start_stage()
-    RUNNING --> RUNNING: Processing tasks
-    RUNNING --> STOPPED: finally block
-    STOPPED --> [*]
-```
-
-### State Methods
+### snapshot
 
 ```python
-# Mark as running
-def mark_running(self) -> None:
-    """Mark: stage is running."""
-
-
-# Mark as stopped
-def mark_stopped(self) -> None:
-    """Mark: stage has stopped (called in finally block on normal completion)."""
-
-
-# Get status
-def get_status(self) -> StageStatus:
-    """Read the current status (returns StageStatus enum)."""
+def snapshot(self, interval: float) -> dict[str, Any]:
+    """
+    Collect a runtime snapshot of the current stage.
+    :param interval: Snapshot collection interval (seconds)
+    :return: A snapshot dictionary containing state, counts, time estimation, etc.
+    """
 ```
 
 ## Execution Mechanisms
 
-### start / start_async (prohibited from direct invocation)
+### start / start_async
 
-When a `TaskStage` is managed by `TaskGraph`, directly calling `start()` or `start_async()` will raise `GraphManagedError`. Execution should be driven uniformly by `TaskGraph.start_graph()`.
-
-### start_stage
-
-When `TaskGraph` starts, it calls this method to launch the node's actual execution.
-
-```python
-def start_stage(self):
-    """
-    Based on the value of execution_mode, choose serial, thread, or async execution.
-    Records start/end logs, manages state transitions.
-    """
-```
+When `TaskStage` is managed by `TaskGraph`, execution is driven uniformly by `TaskGraph.run()` / `start()`.
 
 Lifecycle constraints:
 
@@ -168,14 +110,40 @@ def drain_task_queue(self) -> None:
     """Drain the task queue, moving all remaining tasks to the failed queue and marking them as UnconsumedError."""
 ```
 
-## State Snapshot
+## State Transitions
+
+The runtime state of `TaskStage` is provided by the internal `TaskMetrics.get_status()`, returning a `StageStatus` enum:
+
+```mermaid
+stateDiagram-v2
+    [*] --> NOT_STARTED: __init__()
+    NOT_STARTED --> RUNNING: metrics.on_start()<br/>(called by TaskGraph during startup)
+    RUNNING --> RUNNING: Task executing<br/>(snapshot() can be collected at any time)
+    RUNNING --> STOPPED: metrics.on_finish()<br/>(called after execution ends)
+    STOPPED --> [*]
+```
+
+- The status is set to `RUNNING` by `metrics.on_start()` in `TaskExecutor._prepare_start()`, and to `STOPPED` by `metrics.on_finish()` in `_finish_start()`.
+- The `status` field in the snapshot dictionary returned by `snapshot()` is the current status value.
+
+## Connection and Queue Coordination
+
+`TaskStage` itself does not store adjacency lists; graph connections are established uniformly by `TaskGraph.connect()`, which triggers three coordination actions:
+
+1. `to_stage.prev_binding(from_stage)`: Append the predecessor's `get_binding_counter()` counter (default `metrics.success_counter`) to the current stage's `task_counter`, so the downstream pending statistics can sense in-flight upstream tasks.
+2. `from_stage.result_queue.add_queue(to_stage.task_queue, to_name)`: Register the downstream input queue as the upstream result delivery target.
+3. `to_stage.task_queue.add_source_name(from_name)`: Register the upstream source name.
+
+After task execution ends, `TaskGraph._finish_start()` calls `drain_task_queue()` on each stage, uniformly marking any unconsumed tasks in the input queue as failed.
+
+## State Summary
 
 ```python
 def get_summary(self) -> dict[str, Any]:
     """
     Get the current node's status summary.
-    Returns fields inherited from TaskExecutor (name, func_name, execution_mode, max_workers)
-    plus stage_mode.
+    Returns fields inherited from TaskExecutor
+    (name, func_name, execution_mode, max_workers).
     """
 ```
 
@@ -197,16 +165,16 @@ def step2(x: int) -> int:
     return x * 3
 
 
-stage1 = TaskStage("Step1", func=step1, execution_mode="serial", stage_mode="serial")
-stage2 = TaskStage("Step2", func=step2, execution_mode="serial", stage_mode="serial")
+stage1 = TaskStage("Step1", func=step1, execution_mode="serial")
+stage2 = TaskStage("Step2", func=step2, execution_mode="serial")
 
-chain = TaskGraph()
+chain = TaskGraph("ChainDemo")
 chain.set_stages([stage1, stage2])
 chain.connect([stage1], [stage2])
-chain.start_graph({stage1.get_name(): [1, 2, 3, 4, 5]})
+chain.run({stage1.get_name(): [1, 2, 3, 4, 5]})
 
-for name, runtime in chain.stage_runtime_dict.items():
-    pairs = runtime.stage.get_success_pairs()
+for name, stage in chain.stage_dict.items():
+    pairs = stage.get_success_pairs()
     print(f"{name}: {len(pairs)} succeeded")
 ```
 
@@ -227,12 +195,11 @@ stage_a = TaskStage(
     func=io_task,
     execution_mode="thread",
     max_workers=4,
-    stage_mode="thread",
 )
 
-graph = TaskGraph()
+graph = TaskGraph("IOGraph")
 graph.set_stages([stage_a])
-graph.start_graph({stage_a.get_name(): list(range(20))})
+graph.run({stage_a.get_name(): list(range(20))})
 ```
 
 ### Async Mode (async)
@@ -256,19 +223,19 @@ async_stage = TaskStage(
 print(f"Async stage summary: {async_stage.get_summary()}")
 ```
 
-### State Management
+### Snapshot Collection
 
 ```python
 from celestialflow import TaskStage
-from celestialflow.runtime.util_types import StageStatus
 
-stage = TaskStage("StatusDemo", func=lambda x: x)
+stage = TaskStage("SnapshotDemo", func=lambda x: x)
 
-print(f"Initial state: {stage.get_status().name}")  # NOT_STARTED
-stage.mark_running()
-print(f"Running: {stage.get_status().name}")  # RUNNING
-stage.mark_stopped()
-print(f"Stopped: {stage.get_status().name}")  # STOPPED
+# Collect runtime snapshot
+snapshot = stage.snapshot(interval=1.0)
+print(f"Node: {snapshot['name']}")
+print(f"Status: {snapshot['status']}")
+print(f"Processed: {snapshot['tasks_processed']}")
+print(f"Pending: {snapshot['tasks_pending']}")
 ```
 
 ## Notes

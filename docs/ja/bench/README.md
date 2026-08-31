@@ -1,6 +1,6 @@
 # bench/ ベンチマーク概要
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/26
 
 ## 説明
 
@@ -8,7 +8,7 @@
 
 これらの benchmark の主な用途は次の 3 つである：
 
-- フレームワーク設計のトレードオフに定量的根拠を提供する
+- フレームワーク設計のトレードオフに定量的な根拠を提供する
 - ユーザーがタスクタイプに応じて適切な実行モードを選択できるようにする
 - 異なる実装戦略におけるスループット、レイテンシ、リソースオーバーヘッドの差異を記録する
 
@@ -17,7 +17,7 @@
 プロジェクトのパフォーマンス特性の全体像を素早く把握したい場合は、以下の順序で読むことを推奨する：
 
 1. `bench_execution_mode.md`：まず単一エグゼキュータの `serial / thread / async` での差異を確認
-2. `bench_graph_mode.md`：次にタスクグラフの異なる `stage_mode × execution_mode` の組み合わせパフォーマンスを確認
+2. `bench_graph_mode.md`：次にタスクグラフの異なる `graph_mode × execution_mode` の組み合わせパフォーマンスを確認
 3. `bench_gil_vs_nogil.md`：最後に Python 3.14 free-threading が CelestialFlow に与える影響を確認
 
 ## ドキュメントインデックス
@@ -27,7 +27,7 @@
 | ドキュメント | 説明 |
 |--------------|------|
 | `bench_execution_mode.md` | `TaskExecutor` の `serial / thread / async` でのパフォーマンス比較 |
-| `bench_graph_mode.md` | `TaskGraph` の異なる `stage_mode × execution_mode` 組み合わせでのパフォーマンス比較 |
+| `bench_graph_mode.md` | `TaskGraph` の異なる `graph_mode × execution_mode` 組み合わせでのパフォーマンス比較 |
 | `bench_gil_vs_nogil.md` | Python 3.14 GIL と No-GIL 環境での CelestialFlow 実行差異 |
 
 ### ネットワークと外部サービス
@@ -35,13 +35,13 @@
 | ドキュメント | 説明 |
 |--------------|------|
 | `bench_http_grpc.md` | CelestialTree オフ / HTTP / gRPC の 3 つのトレースモードのオーバーヘッド比較 |
-| `bench_requests.md` | Web API リクエストベンチマーク |
+| `bench_requests.md` | HTTP リクエストの复用と並行戦略のベンチマーク |
 
 ### 永続化とキュー
 
 | ドキュメント | 説明 |
 |--------------|------|
-| `bench_persistence_spout.md` | 永続化 spout のログ / fallback 書き込みパフォーマンス |
+| `bench_persistence_spout.md` | 永続化 spout のログ / lifecycle 書き込みパフォーマンス |
 | `bench_queue.md` | キュー実装ベンチマーク |
 | `bench_ipc_queue.md` | プロセス間キュー通信オーバーヘッドテスト |
 | `bench_mpqueue_vs_shared_memory.md` | `multiprocessing.Queue` と共有メモリ方式の比較 |
@@ -57,6 +57,7 @@
 | `bench_hash_memory.md` | ハッシュ関連実装のメモリ使用量テスト |
 | `bench_futures_memory.md` | futures バッチシナリオのメモリオーバーヘッド |
 | `bench_tqdm.md` | プログレスバー出力オーバーヘッドテスト |
+| `bench_observer.md` | print ログと tqdm プログレスバーオブザーバーのオーバーヘッド比較 |
 | `bench_utils.md` | benchmark 補助統計ツールの説明 |
 
 ## 使用方法

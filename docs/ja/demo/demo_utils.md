@@ -1,10 +1,10 @@
 # demo_utils.py デモツール説明
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/08/26
 
 ## 目標
 
-`demo/` ディレクトリ以下のデモスクリプトに共有のテスト関数とヘルパークラスを提供します。`tests/test_utils.py` と内容はほぼ同一で、デモコード専用のツールライブラリです。
+`demo/` ディレクトリ以下のデモスクリプトに共有のテスト関数とヘルパークラスを提供します。デモコード専用のツールライブラリです。
 
 ## 関数とデモファイルの関係
 
@@ -26,8 +26,7 @@ flowchart TD
 
     ETL --> Graph["demo_graph.py<br/>(demo_etl_fan_out_fan_in)"]
     Async --> Graph
-    Async --> GraphAsync["demo_graph.py<br/>(demo_async_staged_pipeline)"]
-    Fib --> Executor["demo_executor.py"]
+    Async --> GraphAsync["demo_graph.py<br/>(demo_async_pipeline)"]
     Fib --> Executor["demo_executor.py"]
     Fib --> Redis0["demo_redis.py<br/>(demo_redis_ack_0)"]
     Sleep1 --> RedisDemo["demo_redis.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0)"]
@@ -73,13 +72,13 @@ flowchart TD
 ### ルーティング補助関数
 - `router_even`：`TaskRouter` デモ用のルーティング関数。偶奇性に基づいて `StageA` または `StageB` を返す
 
-## tests/test_utils.py との関係
+## tests/ との関係
 
-2 つのファイルの内容はほぼ完全に同一で、`fibonacci`/`fibonacci_async` は反復 O(n) バージョンに統一されています（`bench/bench_execution_mode.py` と一致）。歴史的な理由として、デモコードがテストコードから分離される際にコピーが保持された可能性があります。メンテナンス時は両者の同期を維持するか、共通ツールを `celestialflow/utils/` 以下の独立モジュールに抽出することを検討してください。
+本ファイルの docstring は「テストファイル向け」と謳っていますが（Shared helper functions and classes used across test files）、現在は `tests/` 配下に `test_utils.py` は存在しません（`tests/utils/` は空）。テストファイルから `demo_utils` を参照しているものもありません。今後テスト側でこれらの関数を再利用する予定があれば、共通ツールを `celestialflow/utils/` 配下の独立モジュールに抽出することを推奨します。
 
 ## 発生しうる問題
 
-1. **tests/test_utils.py との重複**：一方を修正する際にもう一方を容易に見落とし、デモとユニットテストの動作が分岐する可能性があります。
+1. **tests/ との同期コピーなし**：現在は `tests/` 配下に同名の `test_utils.py` が存在しないため、仮にテスト側で同等の関数をコピーしてしまうと、一方を修正する際に他方を漏らして挙動が分岐するおそれがあります。
 2. **Windows パスのハードコード**：`download_to_file` のターゲットパスは通常ローカル環境に合わせて調整する必要があります。関連サンプルは `demo_redis.py` にあります。
 3. **`requests` ネットワーク依存**：`download_to_file` は外部ネットワークアクセスが必要で、隔離されたネットワーク環境では使用できません。
 

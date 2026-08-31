@@ -1,6 +1,6 @@
 # タスクメトリクステスト (test_metrics.py)
 
-> 📅 最終更新日: 2026/07/16
+> 📅 最終更新日: 2026/08/12
 
 ## 役割
 `celestialflow.runtime.core_metrics` の `TaskMetrics` クラスを検証し、タスク実行中の各種統計指標（成功、失敗、重複、保留中など）が正確に計算されることを確認します。
@@ -17,7 +17,7 @@
 | `TestTaskMetricsRetryExceptions` | 2 | デフォルトのリトライ可能例外が空、動的な例外型追加 |
 
 ## 主要テストシナリオ
-1. **基本カウント**: `add_task_count`、`add_success_count`、`add_error_count`、`add_duplicate_count` などのメソッドの累積ロジックを検証。
+1. **基本カウント**: `add_task_count`、`add_success_count`、`add_fail_count`、`add_duplicate_count` などのメソッドの累積ロジックを検証。
 2. **数式検証**: `tasks_processed = tasks_succeeded + tasks_failed + tasks_duplicated` および `tasks_pending = tasks_input - tasks_processed` を検証。
 3. **状態判定**: `is_tasks_finished()` が異なるカウント組み合わせで正しい結果を返すことを検証（Pending が0の場合に True）。
 4. **重複排除ロジック**:

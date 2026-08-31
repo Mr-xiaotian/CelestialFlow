@@ -1,10 +1,10 @@
 # demo_utils.py Demo Utilities Guide
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/08/26
 
 ## Objective
 
-Provides shared test functions and helper classes for demo scripts in the `demo/` directory. Content is largely identical to `tests/test_utils.py`; it is a dedicated utility library for demo code.
+Provides shared test functions and helper classes for demo scripts in the `demo/` directory. It is a dedicated utility library for demo code.
 
 ## Relationship Between Functions and Demo Files
 
@@ -26,7 +26,7 @@ flowchart TD
 
     ETL --> Graph["demo_graph.py<br/>(demo_etl_fan_out_fan_in)"]
     Async --> Graph
-    Async --> GraphAsync["demo_graph.py<br/>(demo_async_staged_pipeline)"]
+    Async --> GraphAsync["demo_graph.py<br/>(demo_async_pipeline)"]
     Fib --> Executor["demo_executor.py"]
     Fib --> Redis0["demo_redis.py<br/>(demo_redis_ack_0)"]
     Sleep1 --> RedisDemo["demo_redis.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0)"]
@@ -72,13 +72,13 @@ flowchart TD
 ### Routing Helper Functions
 - `router_even`: Routing function for `TaskRouter` demos, returns `StageA` or `StageB` based on parity
 
-## Relationship with tests/test_utils.py
+## Relationship with tests/
 
-The two files have nearly identical content. `fibonacci`/`fibonacci_async` have been unified to the iterative O(n) version (consistent with `bench/bench_execution_mode.py`). The historical reason may be that demo code retained a copy when it was separated from test code. During maintenance, it's recommended to keep both in sync, or consider extracting common utilities into a standalone module under `celestialflow/utils/`.
+The docstring of this file states that its functions are "used for test files" (Shared helper functions and classes used across test files), and `fibonacci`/`fibonacci_async` are iterative O(n) versions (consistent with `bench/bench_execution_mode.py`). However, there is currently no `test_utils.py` under the `tests/` directory (`tests/utils/` is empty), and no test file references `demo_utils`. If tests are to reuse these functions in the future, it is recommended to extract common utilities into a standalone module under `celestialflow/utils/`.
 
 ## Potential Issues
 
-1. **Duplication with tests/test_utils.py**: Easy to miss changes in one place when modifying the other, causing behavioral divergence between demos and unit tests.
+1. **No synchronized copy with tests/**: There is currently no `test_utils.py` with the same name under `tests/`. If the test side duplicates these functions in the future, modifying one location is easy to miss the other, causing behavioral divergence between demos and unit tests.
 2. **Windows path hardcoding**: The target path for `download_to_file` typically needs to be adjusted per the local environment; related examples are in `demo_redis.py`.
 3. **`requests` network dependency**: `download_to_file` requires external network access, unavailable in isolated network environments.
 

@@ -1,17 +1,17 @@
 # Observability モジュール
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/26
 
-Observability モジュールは CelestialFlow の可観測性機能を提供し、実行状態の監視、進捗の可視化、Observer パターン、リモート状態レポートを含みます。タスク実行プロセスを透過的かつ監視可能にします。
+Observability モジュールは CelestialFlow の可観測性機能を提供し、実行状態の監視、Observer パターン、リモート状態レポートを含みます。タスク実行プロセスを透過的かつ監視可能にします。
 
 ## エクスポートシンボル
 
 | エクスポートシンボル | ソースモジュール | 説明 |
 |---------|---------|------|
 | `BaseObserver` | `core_observer` | 実行者ライフサイクルオブザーバーの基底クラス。`on_start`、`on_task_success`、`on_task_fail`、`on_task_duplicate`、`on_tasks_added`、`on_finish` などのイベントインターフェースを定義 |
-| `TaskProgress` | `core_progress` | `tqdm` ベースのタスク進捗可視化ツール。`BaseObserver` を継承 |
-| `TaskReporter` | `core_report` | タスク状態レポーター。バックグラウンドスレッドで定期的に Web サーバーへ実行状態をプッシュし、制御指示をプル |
 | `NullTaskReporter` | `core_report` | タスクレポーターの空実装。レポート機能を無効にする際のプレースホルダー |
+| `ReporterProtocol` | `core_report` | レポーター依存者が必要とする最小限のインターフェースプロトコル |
+| `TaskReporter` | `core_report` | タスク状態レポーター。バックグラウンドスレッドで定期的に `celestialflow-web` サービスに実行状態をプッシュし、制御指示をプル |
 
 ## ファイル説明
 
@@ -22,62 +22,44 @@ Observability モジュールは CelestialFlow の可観測性機能を提供し
    - **主要機能**:
      - `BaseObserver`: ライフサイクルイベントインターフェースを定義。サブクラスが必要に応じてオーバーライド
 
-2. **core_progress.py** (`TaskProgress`)
-   - **役割**: `tqdm` ベースのタスク進捗可視化。`BaseObserver` を継承
-   - **主要機能**:
-     - `on_start` でプログレスバーを作成
-     - `on_task_success/fail/duplicate` で進捗を更新
-     - `on_tasks_added` で総タスク数を動的に増加
-     - `on_finish` でプログレスバーを閉じる
-
-3. **core_report.py** (`TaskReporter`, `NullTaskReporter`)
+2. **core_report.py** (`TaskReporter`, `NullTaskReporter`)
    - **役割**: タスク状態レポーターとその空実装
    - **主要機能**:
      - **状態レポート**: タスクグラフの構造、トポロジー、実行状態、エラー情報を定期的にプッシュ
-     - **タスク注入**: Web UI からユーザーが注入した新規タスクを受信し、実行中のタスクグラフに動的挿入
-     - **パラメータ調整**: サーバーから設定をプルし、レポート間隔などのパラメータを動的調整
-     - **エラー同期**: 2 種類のエラープッシュモード（メタデータモードとコンテンツモード）をサポート
+     - **タスク注入**: `celestialflow-web` サービスから注入タスクをプルし、実行中のタスクグラフに動的挿入
+     - **パラメータ調整**: `celestialflow-web` サービスから設定をプルし、レポート間隔などのパラメータを動的調整
+     - **エラー同期**: `event_id` に基づくエラーレコードの増分プッシュ
    - **通信プロトコル**: HTTP
    - **データ形式**: JSON
 
 ## モジュール連携
 
 ### 内部連携
-- `BaseObserver` はオブザーバーパターンの基底クラスであり、`TaskProgress` はこれに基づいて実装
+- `BaseObserver` はオブザーバーパターンの基底クラス
 - `TaskReporter` は独立したレポートコンポーネントで、プラグ可能な設計
 - `NullTaskReporter` はレポート無効時の安全なプレースホルダーを提供
 
 ### 外部連携
-- **Stage モジュールとの連携**: `TaskExecutor` は `list[BaseObserver]` を保持し、`add_observer()` / `remove_observer()` でオブザーバーを管理
+- **Stage モジュールとの連携**: `TaskExecutor` 内部の `TaskMetrics` が `list[BaseObserver]` を保持し、`add_observer()` / `remove_observer()` でオブザーバーを管理
 - **Graph モジュールとの連携**: `TaskReporter` はタスクグラフの構造とトポロジー情報を収集
 - **Persistence モジュールとの連携**: 永続化されたログとエラーデータを取得し、`LogInlet` に依存
 
 ## アーキテクチャ特性
 
 ### Observer パターン
-- **マルチキャスト**: `TaskExecutor` 内部で `list[BaseObserver]` を保持し、ライフサイクルの節目でイベントをブロードキャスト
-- **同期配信**: イベントは `_notify(method_name, *args, **kwargs)` で全オブザーバーに同期的に呼び出し
-- **空リストは Null 相当**: observer リストが空の場合、オーバーヘッドなし
+- **マルチキャスト**: `TaskExecutor` 内部の `TaskMetrics` が `list[BaseObserver]` を維持し、カウント変化と起動/停止時にイベントをブロードキャスト
+- **同期配信**: `add_success_count` / `add_fail_count` / `add_task_count` / `on_start` / `on_finish` などのメソッドで、登録済みの全オブザーバーの対応コールバックを同期的に呼び出し
+- **例外分離**: サブクラスのオーバーライドコールバックは `__init_subclass__` で自動的にラップされ、例外は一律 `observer_error()` に委譲され、フレームワークに伝播しない
 
 ### 双方向通信（TaskReporter）
-- **アップリンク**: 状態データを Web サーバーにレポート
-- **ダウンリンク**: 制御指示を Web サーバーから実行インスタンスに配信
+- **アップリンク**: 状態データを celestialflow-web サービスにレポート
+- **ダウンリンク**: 制御指示を celestialflow-web サービスから実行インスタンスに配信
 
 ### フォールトトレラント設計
 - ネットワーク断時のグレースフルデグラデーション。メインフロー実行に影響しない
 - `NullTaskReporter` はレポート無効時のオーバーヘッドゼロのプレースホルダー
 
 ## 使用パターン
-
-### Observer の使用
-```python
-from celestialflow import TaskExecutor, TaskProgress
-
-# TaskProgress でプログレスバーを表示
-executor = TaskExecutor("Test", my_func)
-executor.add_observer(TaskProgress())
-executor.start(tasks)
-```
 
 ### TaskReporter の使用
 ```python
@@ -87,7 +69,6 @@ reporter = TaskReporter(
     host="127.0.0.1",
     port=5000,
     task_graph=my_task_graph,
-    log_inlet=log_inlet,
 )
 reporter.start()
 ```
@@ -99,7 +80,6 @@ reporter.start()
 ```python
 from celestialflow import TaskGraph, TaskStage, BaseObserver
 from celestialflow.observability import TaskReporter
-from celestialflow.persistence import LogInlet
 
 
 # 1. カスタムオブザーバー：タスク実行結果を集計
@@ -126,7 +106,7 @@ def process_item(item: int) -> int:
 
 
 # タスクグラフを作成
-graph = TaskGraph(schedule_mode="eager")
+graph = TaskGraph("ObsDemo")
 stage = TaskStage("Processor", process_item, execution_mode="thread", max_workers=4)
 graph.set_stages([stage])
 
@@ -134,18 +114,16 @@ graph.set_stages([stage])
 stats_observer = StatsObserver()
 stage.add_observer(stats_observer)
 
-# オプション：TaskReporter を有効化して Web UI にレポート
-log_inlet = stage.log_inlet
+# オプション：TaskReporter を有効化して celestialflow-web サービスにレポート
 reporter = TaskReporter(
     host="127.0.0.1",
     port=5000,
     task_graph=graph,
-    log_inlet=log_inlet,
 )
 reporter.start()
 
 # タスクグラフを起動
-graph.start_graph({stage.get_name(): list(range(20))})
+graph.run({stage.get_name(): list(range(20))})
 
 # レポーターを停止
 reporter.stop()
@@ -156,7 +134,7 @@ print(
 )
 ```
 
-この例は 3 種類の可観測コンポーネントの連携を示しています：
+この例は可観測コンポーネントの連携を示しています：
 - **カスタム Observer**: `BaseObserver` を継承しイベントメソッドをオーバーライドして統計情報を収集
 - **TaskGraph 統合**: `TaskStage` 組み込みのオブザーバーリストを通じてカスタムオブザーバーを登録
-- **TaskReporter**: 実行状態を Web サーバーにプッシュして外部監視に利用
+- **TaskReporter**: 実行状態を `celestialflow-web` サービスにプッシュして監視や制御に利用

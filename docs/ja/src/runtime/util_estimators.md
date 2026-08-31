@@ -1,18 +1,18 @@
 # RuntimeEstimators
 
-> 📅 最終更新日: 2026/07/16
+> 📅 最終更新日: 2026/08/19
 
 `runtime/util_estimators.py` は実行時経過時間推定関数を提供します。
 
 ## 主要関数
 
-- `calc_remaining(processed, pending, elapsed)`: ノードの残り時間を推定します。
-- `calc_elapsed(status, last_elapsed, last_pending, interval)`: 状態別に経過時間を累計します。
-- `calc_global_pending(graph, processed_map, pending_map)`: DAG と観測メトリクスに基づいてグローバル保留タスク数を推定します。
+- `calc_remaining(processed, pending, elapsed)`：平均値に基づきノードの残り時間を推定します。
+- `calc_elapsed(status, last_elapsed, last_pending, interval)`：状態別に経過時間を累計します。
+- `format_avg_time(elapsed, processed)`：平均処理速度をフォーマットします（秒/タスク または タスク/秒）。
 
 ## 使用例
 
-以下の例は `calc_remaining`、`calc_elapsed`、`calc_global_pending` などの推定関数の使用方法を示します。
+以下の例は `calc_remaining`、`calc_elapsed`、`format_avg_time` などの推定関数の使用方法を示します。
 
 ### calc_remaining：ノード残り時間の推定
 
@@ -57,25 +57,21 @@ elapsed_stopped = calc_elapsed(
 print(f"停止済みノード: {elapsed_stopped:.1f} 秒")  # 50.0（増加しない）
 ```
 
-### calc_global_pending：DAG に基づくグローバル保留タスク数の推定
+### format_avg_time：平均処理速度のフォーマット
 
 ```python
-from celestialflow.graph.util_graph import OrderGraph
-from celestialflow.runtime.util_estimators import calc_global_pending
+from celestialflow.runtime.util_estimators import format_avg_time
 
-# 単純な DAG を構築: A -> B -> C
-graph = OrderGraph.from_edges({"A": ["B"], "B": ["C"]}, ("A", "B", "C"))
+# タスクあたり時間 >= 1s の場合、s/it を表示
+print(format_avg_time(200.0, 100))  # 2.00s/it
 
-# 観測データを入力
-processed_map = {"A": 100, "B": 50, "C": 10}
-pending_map = {"A": 0, "B": 50, "C": 90}
+# タスクあたり時間 < 1s の場合、it/s を表示（逆数を取る）
+print(format_avg_time(12.5, 100))  # 8.00it/s
 
-result = calc_global_pending(graph, processed_map, pending_map)
-for node, pending in result.items():
-    print(f"ノード {node}: 推定保留 {pending} タスク")
+# データなし
+print(format_avg_time(0.0, 0))  # N/A
 ```
 
 ## 用途
 
 - 監視パネルの ETA 表示の駆動。
-- 潜在的な輻輳ノードの識別補助。

@@ -1,6 +1,6 @@
 # bench/ Benchmark Overview
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/26
 
 ## Description
 
@@ -17,7 +17,7 @@ These benchmarks serve three main purposes:
 To quickly build a general impression of the project's performance characteristics, we recommend reading in the following order:
 
 1. `bench_execution_mode.md`: First, see the differences of a single executor under `serial / thread / async`
-2. `bench_graph_mode.md`: Then, see the combined performance of task graphs under different `stage_mode × execution_mode` combinations
+2. `bench_graph_mode.md`: Then, see the combined performance of task graphs under different `graph_mode × execution_mode` combinations
 3. `bench_gil_vs_nogil.md`: Finally, see the impact of Python 3.14 free-threading on CelestialFlow
 
 ## Document Index
@@ -27,7 +27,7 @@ To quickly build a general impression of the project's performance characteristi
 | Document | Description |
 |------|------|
 | `bench_execution_mode.md` | Performance comparison of `TaskExecutor` under `serial / thread / async` |
-| `bench_graph_mode.md` | Performance comparison of `TaskGraph` under different `stage_mode × execution_mode` combinations |
+| `bench_graph_mode.md` | Performance comparison of `TaskGraph` under different `graph_mode × execution_mode` combinations |
 | `bench_gil_vs_nogil.md` | CelestialFlow runtime differences under Python 3.14 GIL vs. No-GIL environments |
 
 ### Networking and External Services
@@ -41,7 +41,7 @@ To quickly build a general impression of the project's performance characteristi
 
 | Document | Description |
 |------|------|
-| `bench_persistence_spout.md` | Log / fallback write performance for persistence spouts |
+| `bench_persistence_spout.md` | Log / lifecycle write performance for persistence spouts |
 | `bench_queue.md` | Queue implementation benchmarks |
 | `bench_ipc_queue.md` | Inter-process queue communication overhead tests |
 | `bench_mpqueue_vs_shared_memory.md` | Comparison of `multiprocessing.Queue` vs. shared memory approaches |
@@ -57,6 +57,7 @@ To quickly build a general impression of the project's performance characteristi
 | `bench_hash_memory.md` | Memory usage tests for hash-related implementations |
 | `bench_futures_memory.md` | Memory overhead for batch futures scenarios |
 | `bench_tqdm.md` | Progress bar output overhead tests |
+| `bench_observer.md` | Overhead comparison between print log and tqdm progress bar observers |
 | `bench_utils.md` | Benchmark auxiliary statistics utility documentation |
 
 ## How to Use

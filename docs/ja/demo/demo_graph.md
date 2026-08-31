@@ -1,10 +1,10 @@
 # demo_graph.py デモ説明
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/31
 
 ## 目標
 
-CelestialFlow における `TaskGraph` の高度なグラフトポロジー構築：ファンアウト/ファンイン（fan-out/fan-in）ETL パイプライン、および非同期ステージドパイプラインをデモする。
+CelestialFlow における `TaskGraph` の高度なグラフトポロジー構築をデモする：ファンアウト/ファンイン（fan-out/fan-in）ETL パイプライン、および非同期ステージ分割パイプライン。
 
 ## デモシナリオ
 
@@ -31,10 +31,10 @@ Extract ──┬── Normalize ──┬── Load
 - `Enrich` → レコードに分類ラベルを追加（thread モード、4 worker）
 - `Load` → レコードを保存（serial モード）
 
-**グラフ構造**：DAG、一対多ファンアウト + 多対一ファンイン  
-**スケジュールモード**：`eager`
+**グラフ構造**：DAG、一対多ファンアウト + 多対一ファンイン
+**グラフモード**：`graph_mode="thread"`
 
-### `demo_async_staged_pipeline`
+### `demo_async_pipeline`
 2 ステージ非同期パイプライン：
 
 ```mermaid
@@ -51,14 +51,14 @@ AsyncDouble ──> AsyncToStr
 - `AsyncDouble` → 入力を非同期で倍にする（async モード、8 worker）
 - `AsyncToStr` → 結果を非同期で文字列に変換（async モード、8 worker）
 
-**グラフ構造**：DAG、線形 2 ステージ  
-**スケジュールモード**：`staged`（層ごとに実行）
+**グラフ構造**：DAG、線形 2 ステージ
+**グラフモード**：`graph_mode="async"`
 
 ## 主要設定
 
-- すべての stage は `stage_mode="thread"` を使用
-- ETL パイプラインは `schedule_mode="eager"`、非同期パイプラインは `schedule_mode="staged"` を使用
-- `execution_mode="async"` はコルーチンタスク関数に使用
+- 各 Stage は `TaskStage(..., execution_mode="thread" | "async")` で実行モードを明示的に指定
+- ETL パイプラインと非同期パイプラインはそれぞれ `TaskGraph(..., graph_mode="thread")` と `graph_mode="async"` でグラフモードを指定
+- `execution_mode="async"` はコルーチンタスク関数（`async_double`、`async_to_str`）に使用
 
 ## 発生しうる問題
 
@@ -71,11 +71,13 @@ AsyncDouble ──> AsyncToStr
 python demo/demo_graph.py
 ```
 
+> **注意**：現在の `__main__` は `demo_etl_fan_out_fan_in()` と `asyncio.run(demo_async_pipeline())` を順に呼び出し、両方のデモシナリオが実行される。
+
 ## 想定される動作
 
 ### ETL パイプライン（`demo_etl_fan_out_fan_in`）
 
-Extract → Normalize/Enrich → Load の順に実行され、出力には sleep ログと最終サマリーが含まれる：
+Extract → Normalize/Enrich → Load の順に実行され、各 Stage は内部で `print` または sleep 休止により実行ログを出力する。スクリプト自身は最終的な Graph Summary や各 Stage のカウントを能動的には出力しないため、手動で確認が必要（mock 出力は参考のみ）。
 
 ```
 [Extract] Input: 1 -> Output: {'id': 1, 'value': 10, 'label': 'item_1'}
@@ -83,38 +85,28 @@ Extract → Normalize/Enrich → Load の順に実行され、出力には sleep
 [Normalize] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'normalized': 0.1}
 [Enrich] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'category': 'odd'}
 ...
---- Graph Summary ---
-Extract    : success=15 fail=0
-Normalize  : success=15 fail=0
-Enrich     : success=15 fail=0
-Load       : success=30 fail=0
 ```
 
 > 各 Extract は 1 件のレコードを生成し、Normalize と Enrich でそれぞれ処理された後、Load で集約される。入力が `range(1, 16)` の場合、Extract は 15 件のレコードを処理し、Normalize と Enrich はそれぞれ 15 件を受け取り、Load ノードは合計 30 件のタスク（15 × 2 下流）を受け取る。
 
-### 非同期パイプライン（`demo_async_staged_pipeline`）
+### 非同期パイプライン（`demo_async_pipeline`）
 
-ステージごとに層ごとに実行され、AsyncDouble が完了してから AsyncToStr が開始される：
+2 ステージが順次実行される。まず `AsyncDouble` が 20 タスクすべてを完了し、その後 `AsyncToStr` が個別に受信してフォーマット出力する。
 
 ```
---- Staged 1: AsyncDouble ---
 [AsyncDouble] Input: 1 -> Output: 2
 [AsyncDouble] Input: 2 -> Output: 4
 ...
---- Staged 2: AsyncToStr ---
 [AsyncToStr] Input: 2 -> Output: 'result=2'
 [AsyncToStr] Input: 4 -> Output: 'result=4'
 ...
---- Status Snapshot ---
-AsyncDouble : success=20 fail=0  pending=0
-AsyncToStr  : success=20 fail=0  pending=0
 ```
 
-> 総実行時間は約 3〜5 秒で、主に組み込みの `sleep` の影響を受ける。
+> 総実行時間は約 1〜3 秒（手動確認が必要）で、主に組み込みの `sleep`（`async_double` 0.3s + `async_to_str` 0.2s）と 8 コルーチン並行スケジューリングの影響を受ける。
 
-## 依存
+## 依存関係
 
-- `celestialflow`（`TaskGraph`、`TaskStage`）
+- `celestialflow`（`TaskGraph`、`TaskStage`、`TaskReporter`）
 - `demo_utils`（`extract_record`、`transform_normalize`、`transform_enrich`、`load_record`、`async_double`、`async_to_str`）
 - `python-dotenv`
 - 外部サービス：CelestialTree（オプション）、Reporter（オプション）

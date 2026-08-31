@@ -1,6 +1,6 @@
 # demo_observer.py Demo Guide
 
-> 📅 Last Updated: 2026/06/28
+> 📅 Last Updated: 2026/08/31
 
 ## Objective
 
@@ -8,8 +8,8 @@ Demonstrate how to register different types of observers for `TaskExecutor` in C
 
 This file showcases two approaches simultaneously:
 
-- Using the built-in `TaskProgress` to display a `tqdm`-based progress bar
-- Directly inheriting `BaseObserver` to implement a custom `LoggingObserver`
+- Using the custom `TaskProgress` (a `tqdm`-based progress bar observer) defined in this file
+- Directly inheriting `BaseObserver` to implement a custom `PrintObserver`
 
 ## Demo Content
 
@@ -18,7 +18,7 @@ The current demo contains two entry functions:
 | Function | Description |
 |------|------|
 | `demo_progress_observer` | Create `TaskExecutor`, register `TaskProgress`, display progress bar |
-| `demo_custom_observer` | Create `TaskExecutor`, register `LoggingObserver`, print observer lifecycle logs |
+| `demo_print_observer` | Create `TaskExecutor`, register `PrintObserver`, print observer lifecycle logs |
 
 The roles of the two observer types:
 
@@ -26,7 +26,7 @@ The roles of the two observer types:
 flowchart TB
     Input["Input tasks<br/>range(25, 32)"] --> Executor["TaskExecutor<br/>FibonacciSerial2 / serial"]
     Progress["TaskProgress"] -.monitor.-> Executor
-    Custom["LoggingObserver"] -.monitor.-> Executor
+    Custom["PrintObserver"] -.monitor.-> Executor
     Executor --> Start["on_start"]
     Executor --> Added["on_tasks_added"]
     Executor --> Success["on_task_success"]
@@ -46,7 +46,7 @@ Built-in observer:
 |----------|------|
 | `TaskProgress` | Display execution progress using `tqdm`, suitable for CLI interactive scenarios |
 
-The current `LoggingObserver` implements the following callbacks:
+The current `PrintObserver` implements the following callbacks:
 
 | Callback | Purpose |
 |------|------|
@@ -59,7 +59,7 @@ The current `LoggingObserver` implements the following callbacks:
 
 ## Potential Issues
 
-1. **Default `main()` currently only runs `demo_custom_observer`**: To see the progress bar effect, change the call in `__main__` to `demo_progress_observer()`.
+1. **Default `main()` runs both `demo_progress_observer` and `demo_print_observer`**: Both observers execute in sequence, first showing the tqdm progress bar, then outputting logs.
 2. **Current example only shows the success path**: `test_task` is currently `range(25, 32)`, so runtime will typically only see `on_start`, `on_tasks_added`, `on_task_success`, and `on_finish`.
 3. **`on_start` initial total may be 0**: The executor triggers the start event first, then informs the actual number of added tasks via `on_tasks_added`. This is normal behavior determined by the current notification order.
 4. **No assertions**: This is a demo script. It does not validate result values; it only demonstrates observer invocation timing.
@@ -83,9 +83,9 @@ If the entry point is switched to `demo_progress_observer()`, the terminal will 
 FibonacciSerial2(serial): 100%|████████████████████████████| 7/7 [00:00<00:00, ...it/s]
 ```
 
-### `demo_custom_observer`
+### `demo_print_observer`
 
-If running `demo_custom_observer()`, it prints observer lifecycle logs similar to:
+If running `demo_print_observer()`, it prints observer lifecycle logs similar to:
 
 ```text
 [observer] start executor=FibonacciSerial2(serial), total=0

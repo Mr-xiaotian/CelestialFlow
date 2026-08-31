@@ -1,6 +1,6 @@
-﻿# bench_http_grpc.py Benchmark Guide
+# bench_http_grpc.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/08/26
 
 ## Objective
 

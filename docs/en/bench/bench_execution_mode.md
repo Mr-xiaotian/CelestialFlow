@@ -1,6 +1,6 @@
 # bench_execution_mode.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/26
 
 ## Objective
 
@@ -120,7 +120,7 @@ Input of 6 tasks, each sleeping 1 second, max_workers=6. Sync and async sleep be
 | async | 1.009s | Coroutine parallel, essentially on par with thread |
 
 **Key Takeaways**:
-- **I/O-intensive tasks**: Both thread and async achieve near-theoretical optimal parallelism (~12x speedup), with negligible difference between them
+- **I/O-intensive tasks**: Both thread and async achieve near-theoretical optimal parallelism (~6x speedup), with negligible difference between them
 - **CPU-intensive tasks**: All three modes are in the same order of magnitude. Pure computation tasks are constrained by Python's GIL — thread offers no significant advantage; async can be concurrent at coroutine yield points but the overall improvement is limited
 - The core criterion for choosing an execution mode is **task nature**: thread/async for I/O waiting, consider GIL impact for pure computation (or consider multiprocessing)
 
@@ -149,6 +149,31 @@ Input of 6 tasks, each sleeping 1 second, max_workers=6. Sync and async sleep be
 - In the I/O scenario, `thread` and `async` remain close to the theoretical parallel ceiling, both approximately **5.3x** faster than serial
 - This retest aligns with historical conclusions: execution mode selection depends primarily on whether the task has parallelizable wait time
 
+### 2026/08/18 - Local retest
+
+> Environment: macOS, Python 3.14.3, current code version, ran `bench/bench_execution_mode.py` directly
+
+#### Scenario 1: Fibonacci (CPU-intensive)
+
+| Mode | Time |
+|------|------|
+| serial | 0.0004185s |
+| thread | 0.0005510s |
+| async | 0.0007913s |
+
+#### Scenario 2: sleep_1 (I/O-intensive)
+
+| Mode | Time |
+|------|------|
+| serial | 6.0200s |
+| thread | 1.0064s |
+| async | 1.0025s |
+
+**Supplementary conclusions for this round**:
+- In the CPU scenario, the current input scale is very small, so `serial` is actually the fastest; the extra scheduling overhead of `thread` and `async` has exceeded the concurrency benefit
+- In the I/O scenario, `thread` and `async` are still close to the theoretical parallel ceiling, both compressing total time to about 1 second; `async` is slightly faster but the difference is negligible
+- This round's results are much lower than the 2026/06/16 CPU data, mainly because the runtime environment switched from Windows to macOS (differences in single-core CPU performance, Python implementation details, etc.); the CPU benchmarks from the two rounds should not be directly compared in absolute terms
+
 ## Dependencies
 
-- `celestialflow` (`TaskExecutor`, `TaskProgress`, `benchmark_executor`)
+- `celestialflow` (`TaskExecutor`, `benchmark_executor`, and optional `TaskProgress`, not enabled in this script)

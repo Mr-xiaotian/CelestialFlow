@@ -1,8 +1,8 @@
 # Log Persistence
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/31
 
-The `celestialflow.persistence` module provides a multi-process-safe logging system, designed to solve the problems of unified log collection, formatting, and persistence in multi-process environments.
+`persistence/core_log.py` provides a thread-safe logging system that, via a producer-consumer pattern, uniformly collects, formats, and persists logs to text files under the `logs/` directory.
 
 The core components include `LogSpout` and `LogInlet`.
 
@@ -47,17 +47,17 @@ write to queue]
     style Funnel fill:#c8e6c9
 ```
 
-Similar to error persistence, the logging system also uses the **Logger-Listener** pattern:
+The logging system uses the **Logger-Listener** pattern:
 
-1. **LogInlet (Producer)**:
-    - Wrapper class, held by individual Worker threads.
-    - Provides rich semantic methods (such as `task_success`, `start_stage`, etc.).
-    - Encapsulates log messages and levels before placing them into a thread-safe queue (`queue.Queue`).
-    - Supports log-level-based filtering to reduce unnecessary communication.
+1.  **LogInlet (Producer)**:
+    -   Wrapper class, held by individual Worker threads.
+    -   Provides rich semantic methods (such as `task_success`, `start_graph`, etc.).
+    -   Encapsulates log messages and levels before placing them into a thread-safe queue (`queue.Queue`).
+    -   Supports log-level-based filtering to reduce unnecessary communication.
 
-2. **LogSpout (Consumer)**:
-    - Runs in an independent daemon thread.
-    - Retrieves log records from the queue and writes them to a file.
+2.  **LogSpout (Consumer)**:
+    -   Runs in an independent daemon thread.
+    -   Retrieves log records from the queue and writes them to a file.
 
 ## Log Levels
 
@@ -84,13 +84,13 @@ listener = LogSpout()
 listener.start()
 ```
 
-After startup, logs are written to the `logs/task_logger({date}).log` file.
+After startup, logs are written to the `logs/flow_log({date}).log` file.
 
 ### File Path
 
 ```text
 logs/
-└── task_logger(2026-05-24).log
+└── flow_log(2026-05-24).log
 ```
 
 ## LogInlet
@@ -103,8 +103,8 @@ logs/
 sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 ```
 
-- `log_queue`: The queue returned by `LogSpout.get_queue()`.
-- `log_level`: Sets the minimum log level for this Inlet; logs below this level will not be sent to the queue.
+-   `log_queue`: The queue returned by `LogSpout.get_queue()`.
+-   `log_level`: Sets the minimum log level for this Inlet; logs below this level will not be sent to the queue.
 
 ### Method Categories
 
@@ -113,65 +113,63 @@ All methods are grouped by component domain as follows:
 #### Task Graph (Graph)
 
 | Method | Log Level | Description |
-|--------|-----------|-------------|
+|------|---------|------|
 | `start_graph(graph_name, structure_list)` | INFO | Records task graph startup and structure information |
 | `end_graph(graph_name, use_time)` | INFO | Records task graph completion and elapsed time |
-
-#### Layered Scheduling (Layer)
-
-| Method | Log Level | Description |
-|--------|-----------|-------------|
-| `start_layer(layer, layer_level)` | INFO | Records layer startup |
-| `end_layer(layer, use_time)` | INFO | Records layer completion and elapsed time |
-
-#### Stage Node (Stage)
-
-| Method | Log Level | Description |
-|--------|-----------|-------------|
-| `start_stage(stage_name, stage_mode, execution_mode_desc)` | INFO | Records node startup |
-| `end_stage(stage_name, stage_mode, execution_mode_desc, use_time, success_num, failed_num, duplicated_num)` | INFO | Records node completion and statistics |
 
 #### Executor
 
 | Method | Log Level | Description |
-|--------|-----------|-------------|
+|------|---------|------|
 | `start_executor(executor_name, task_num, execution_mode_desc)` | INFO | Records executor startup |
 | `end_executor(executor_name, execution_mode_desc, use_time, success_num, failed_num, duplicated_num)` | INFO | Records executor completion and statistics |
+
+#### Executor Crash
+
+| Method | Log Level | Description |
+|------|---------|------|
+| `executor_crash(executor_name, exception)` | CRITICAL | Records executor crash |
+
+#### Worker Thread (Worker)
+
+| Method | Log Level | Description |
+|------|---------|------|
+| `worker_crash(exception)` | CRITICAL | Records worker crash |
 
 #### Task Lifecycle (Task)
 
 | Method | Log Level | Description |
-|--------|-----------|-------------|
+|------|---------|------|
 | `task_input(func_name, task_repr, source, input_id)` | DEBUG | Records task entering the input queue |
 | `task_success(func_name, task_repr, exec_mode, result_repr, use_time, parent_id, success_id)` | SUCCESS | Records task successful completion |
-| `task_retry(func_name, task_repr, retry_times, exception, parent_id, retry_id)` | WARNING | Records task failure triggering retry |
+| `task_retry(func_name, task_repr, retry_times, exception, task_id)` | WARNING | Records task failure triggering retry |
 | `task_fail(func_name, task_repr, exception, parent_id, error_id)` | ERROR | Records task failure with no retry possible |
 | `task_duplicate(func_name, task_repr, parent_id, duplicate_id)` | WARNING | Records detection of a duplicate task |
 
 #### Split (Splitter)
 
 | Method | Log Level | Description |
-|--------|-----------|-------------|
+|------|---------|------|
 | `split_trace(func_name, part_index, part_total, parent_id, split_id)` | TRACE | Records split sub-task dispatch |
 | `split_success(func_name, task_repr, split_count, use_time)` | SUCCESS | Records split success |
 
 #### Router
 
 | Method | Log Level | Description |
-|--------|-----------|-------------|
+|------|---------|------|
 | `route_success(func_name, task_repr, target_node, use_time, parent_id, route_id)` | SUCCESS | Records successful task routing |
 
 #### Termination Signal
 
 | Method | Log Level | Description |
-|--------|-----------|-------------|
+|------|---------|------|
 | `termination_input(func_name, source, termination_id)` | DEBUG | Records termination signal input |
 | `termination_merge(func_name, parent_ids, termination_id)` | TRACE | Records termination signal merge |
 
 #### Reporter
 
 | Method | Log Level | Description |
-|--------|-----------|-------------|
+|------|---------|------|
 | `stop_reporter()` | DEBUG | Records reporter stop |
 | `loop_failed(exception)` | ERROR | Records reporter loop error |
 | `pull_interval_failed(exception)` | WARNING | Records pull interval failure |
@@ -193,10 +191,6 @@ All methods are grouped by component domain as follows:
 sinker.start_graph("my_graph", ["NodeA -> NodeB", "NodeB -> NodeC"])
 sinker.end_graph("my_graph", 12.34)
 
-# Stage lifecycle
-sinker.start_stage("ProcessStage", "thread", "thread-4")
-sinker.end_stage("ProcessStage", "thread", "thread-4", 5.2, 100, 2, 0)
-
 # Executor lifecycle
 sinker.start_executor("Executor1", 50, "thread")
 sinker.end_executor("Executor1", "thread", 4.8, 48, 1, 1)
@@ -204,7 +198,7 @@ sinker.end_executor("Executor1", "thread", 4.8, 48, 1, 1)
 # Task lifecycle
 sinker.task_input("process_func", "task_1", "queue", 1)
 sinker.task_success("process_func", "task_1", "thread", "OK", 0.05, 1, 2)
-sinker.task_retry("process_func", "task_2", 1, TimeoutError("timeout"), 1, 3)
+sinker.task_retry("process_func", "task_2", 1, TimeoutError("timeout"), 1)
 sinker.task_fail("process_func", "task_3", ValueError("bad"), 1, 4)
 sinker.task_duplicate("process_func", "task_2", 1, 5)
 

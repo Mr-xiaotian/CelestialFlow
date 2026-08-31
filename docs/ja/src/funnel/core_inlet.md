@@ -1,8 +1,8 @@
 # BaseInlet
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/26
 
-`BaseInlet` はすべての入口クラス（Inlet）の基底クラスであり、レコードをキューに書き込むことで対応する `BaseSpout` に送信する役割を担います。
+`BaseInlet` はすべての入口クラス（Inlet）の基底クラスであり、レコードをキューを通じて対応する `BaseSpout` に送信する役割を担います。
 
 ## クラス定義
 
@@ -60,7 +60,7 @@ def _funnel(self, record: Any) -> None:
 
 - `record` を spout と共有するキューに入れます。
 - エンキュー前に `increment()` でカウントを増やし、エンキュー失敗時は即座に `decrement()` でロールバックします。
-- サブクラスは通常、具体的な業務メソッドの内部でこのメソッドを呼び出します。
+- サブクラスは通常、具体的な業務メソッド内でこのメソッドを呼び出します。
 
 ## 継承関係
 
@@ -73,22 +73,22 @@ classDiagram
     class LogInlet {
         +start_graph()
         +end_graph()
-        +start_stage()
-        +end_stage()
+        +start_executor()
+        +end_executor()
+        +task_input()
         +task_success()
         +task_fail()
         +task_retry()
         +termination_input()
     }
-    class FallbackInlet {
+    class LifecycleInlet {
         +task_in()
         +task_success()
         +task_fail()
-        +task_retry()
         +task_duplicate()
     }
     BaseInlet <|-- LogInlet
-    BaseInlet <|-- FallbackInlet
+    BaseInlet <|-- LifecycleInlet
 ```
 
 ### 継承関係の説明
@@ -96,7 +96,7 @@ classDiagram
 | サブクラス | 所在ファイル | 責務 |
 |------|---------|------|
 | `LogInlet` | `persistence/core_log.py` | ログ記録。タスクのエンキュー/デキュー/終了の全過程を追跡 |
-| `FallbackInlet` | `persistence/core_fallback.py` | Fallback 記録。タスクライフサイクルを SQLite に永続化 |
+| `LifecycleInlet` | `persistence/core_lifecycle.py` | ライフサイクル記録。タスクの進入/成功/失敗/重複検出を SQLite に永続化 |
 
 ## 使用例
 

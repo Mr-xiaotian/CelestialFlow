@@ -1,6 +1,6 @@
 # TaskExecutor
 
-> 📅 Last Updated: 2026/07/16
+> 📅 Last Updated: 2026/08/31
 
 `TaskExecutor` is the core component for executing single-task logic. It is responsible for task execution, concurrency control, error handling, retry mechanisms, and logging.
 
@@ -18,10 +18,9 @@ class TaskExecutor[T, R]:
         execution_mode: str = "serial",
         max_workers: int | None = None,
         max_retries: int = 1,
+        max_queue_size: int = 0,
         max_info: int = 50,
         enable_duplicate_check: bool = False,
-        persist_result: bool = False,
-        log_level: str = "INFO",
     ): ...
 ```
 
@@ -34,10 +33,9 @@ class TaskExecutor[T, R]:
 | `execution_mode` | `"serial"` | Execution mode: `"serial"` / `"thread"` / `"async"` |
 | `max_workers` | `None` | Concurrency limit (when None: dynamic `min(32, cpu_count+4)`) |
 | `max_retries` | `1` | Maximum retry count after task failure (at most retries+1 executions) |
+| `max_queue_size` | `0` | Maximum capacity of the task input queue (0 means unlimited) |
 | `max_info` | `50` | Maximum length per log message |
 | `enable_duplicate_check` | `False` | Whether to enable hash-based duplicate task checking |
-| `persist_result` | `False` | Whether to persist task results to SQLite |
-| `log_level` | `"INFO"` | Log level |
 
 ## Observer Pattern
 
@@ -54,35 +52,35 @@ executor.remove_observer(observer)  # Remove observer
 
 | Event | Trigger Location | Description |
 |------|---------|------|
-| `on_start(name, total)` | `_prepare_start()` | Execution starts (note: total is fixed at 0; actual task count is notified via `on_tasks_added`) |
-| `on_task_success()` | `process_task_success()` | Task succeeded (no parameters; Observer must obtain counts itself) |
-| `on_task_fail()` | `handle_task_fail()` | Task failed (no parameters) |
-| `on_task_duplicate()` | `deal_duplicate()` | Duplicate detected (no parameters) |
-| `on_tasks_added(count)` | `_put_task_queue()` | New tasks added (notified every 100) |
-| `on_finish()` | `_finish_start()` finally | Execution ended (no parameters) |
+| `on_start(name, total)` | `metrics.on_start()` | Execution starts (note: total is fixed at 0; actual task count is notified via `on_tasks_added`) |
+| `on_task_success(count=1)` | `metrics.add_success_count()` | Task succeeded (count is the increment added in this call) |
+| `on_task_fail(count=1)` | `metrics.add_fail_count()` | Task failed (count is the increment added in this call) |
+| `on_task_duplicate(count=1)` | `metrics.add_duplicate_count()` | Duplicate detected (count is the increment added in this call) |
+| `on_tasks_added(count)` | `metrics.add_task_count()` | New tasks added to the queue |
+| `on_finish()` | `metrics.on_finish()` | Execution ended |
 
 ## Core Methods
 
-### start / start_async / start_db
+### run / run_async / restore_db
 
 ```python
-def start(self, task_source: Iterable[T]) -> None:
+def run(self, task_source: Iterable[T], *, if_put_signal: bool = True) -> None:
     """
-    Synchronously start the executor. Flow:
-    1. _prepare_start() — init_env() + inject tasks + record start log
-    2. Call dispatch method corresponding to execution_mode
-    3. _finish_start() — notify on_finish + stop all spouts
+    Synchronously run the executor (with funnel_scope lifecycle). Internally calls
+    put_task() to inject all tasks, put_signal() to inject termination signal, then start().
     """
 
 
-async def start_async(self, task_source: Iterable[T]) -> None:
+async def run_async(
+    self, task_source: Iterable[T], *, if_put_signal: bool = True
+) -> None:
     """
-    Asynchronously start the executor. Internally sets execution_mode="async".
-    Uses await dispatch.dispatch_async() instead of asyncio.run().
+    Asynchronously run the executor (with funnel_scope lifecycle). Internally calls
+    put_task() to inject all tasks, put_signal() to inject termination signal, then await start_async().
     """
 
 
-def start_db(
+def restore_db(
     self,
     db_path: str | Path,
     statuses: Iterable[str] | None = None,
@@ -103,15 +101,15 @@ Lifecycle constraints:
 
 - During execution, queues, `spout/inlet` instances, statistical state, and dispatcher runtime resources are created and held.
 - The current implementation is designed for single-run use and is not guaranteed to be fully resettable after one execution completes.
-- If you need multiple rounds of the same logic, create a new executor instance rather than calling `start()` / `start_async()` / `start_db()` repeatedly on the same object.
+- If you need multiple rounds of the same logic, create a new executor instance rather than calling `run()` / `run_async()` / `restore_db()` repeatedly on the same object.
 
 ## Error Handling
 
 ### Retry Logic
 
-Exceptions are classified in `TaskDispatch._worker`:
-- **Retryable exceptions**: If in `retry_exceptions` and `max_retries` not reached, update task ID via `emit_retry_envelope()` and retry
-- **Non-retryable exceptions**: Task marked as failed, error logged, placed into `fallback_inlet`
+Exceptions are handled in the classification loop within `TaskDispatch._worker` / `_async_worker`:
+- **Retryable exceptions**: If in `retry_exceptions` and not yet reaching `max_retries`, call `log_task_retry()` to log and enter the next loop iteration to retry
+- **Non-retryable exceptions**: Call `handle_task_fail()` to write the record to `LifecycleInlet` (SQLite) and `LogInlet` (log file)
 
 ```python
 def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
@@ -132,7 +130,7 @@ def process_task_success(
 def handle_task_fail(
     self, task_envelope: TaskEnvelope[T], exception: Exception
 ) -> None:
-    """Handle failed task: notify observer, record to fallback_inlet and log_inlet."""
+    """Handle failed task: notify observer, record to LifecycleInlet and LogInlet."""
 
 
 def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
@@ -145,7 +143,7 @@ def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
 def get_success_pairs(self) -> list[tuple[T, R]]:
     """
     Get the list of successful tasks (task, result) pairs.
-    Requires persist_result=True, otherwise returns an empty list with a warning.
+    Reads from the global LifecycleSpout's SQLite records filtered by this executor's name.
     """
 
 
@@ -161,8 +159,7 @@ def set_ctree(self, ctree_client: EventClient) -> None:
 ```
 
 > By default, `TaskExecutor` internally uses `LocalEventClient()` to generate local incrementing event IDs.
->
-> If you need to connect to CelestialTree, first install `celestialtree` separately, then construct a client object and pass it to `set_ctree()`; there is no longer a separate `set_nullctree()` configuration entry point.
+> If you need to connect to CelestialTree, first install `celestialtree` separately, then construct a client object and pass it to `set_ctree()`.
 
 ## State Query Methods
 
@@ -172,7 +169,7 @@ def get_full_name(self) -> str:               # "name(mode-workers)" or "name(se
 def get_func_name(self) -> str:               # Function name
 def get_summary(self) -> dict:                # Snapshot: name, func_name, execution_mode, max_workers
 def get_counts(self) -> dict:                 # Counters: tasks_input/succeeded/failed/duplicated/processed/pending
-def get_fallback_path(self) -> Path:          # Absolute path to the fallback SQLite file
+def get_lifecycle_path(self) -> Path:         # Absolute path to the global lifecycle SQLite file (empty Path when unset)
 ```
 
 ## Lifecycle
@@ -180,17 +177,14 @@ def get_fallback_path(self) -> Path:          # Absolute path to the fallback SQ
 ```mermaid
 flowchart TD
     INIT[__init__] -->|set_name, _set_func| CONFIG[set_execution_mode<br/>set max_workers/retries/info]
-    CONFIG -->|_init_dispatch| DISPATCH[TaskDispatch created]
-    CONFIG -->|_init_queue| QUEUE[task_queue + result_queue]
-    CONFIG -->|_init_metrics| METRICS[TaskMetrics initialized]
+    CONFIG -->|create| DISPATCH[TaskDispatch]
+    CONFIG -->|create| QUEUE[task_queue + result_queue]
+    CONFIG -->|create| METRICS[TaskMetrics initialized]
     CONFIG -->|set_ctree| CTREE[LocalEventClient]
 
     INIT -->|start/start_async| PREPARE[_prepare_start]
-    PREPARE --> ENV[init_env:<br/>_init_state → _init_spout → _init_inlet]
-    ENV --> PUT[_put_task_queue:<br/>iterate task_source → put_task → put_signal]
-    PUT --> NOTIFY_START[_notify: on_start]
-    NOTIFY_START --> LOG_START[fallback_inlet.task_in<br/>log_inlet.start_executor]
-
+    PREPARE --> METRICS_START[metrics.on_start - broadcast execution start event]
+    METRICS_START --> LOG_START[log_inlet.start_executor]
     LOG_START --> RUN{dispatch loop}
     RUN -->|serial| SERIAL[dispatch_serial]
     RUN -->|thread| THREAD[dispatch_thread]
@@ -200,10 +194,11 @@ flowchart TD
     THREAD --> FINISH
     ASYNC --> FINISH
 
-    FINISH --> NOTIFY_END[_notify: on_finish]
-    NOTIFY_END --> LOG_END[log_inlet.end_executor]
-    LOG_END --> STOP[Stop spout ×2:<br/>log_spout + fallback_spout]
+    FINISH --> LOG_END[log_inlet.end_executor]
+    LOG_END --> METRICS_FINISH[metrics.on_finish]
 ```
+
+> The background threads of the global `LifecycleSpout` / `LogSpout` are started and stopped by `funnel_scope`. `TaskExecutor` itself does not directly manage these two spouts.
 
 ## Usage Examples
 
@@ -222,7 +217,7 @@ executor = TaskExecutor(
     func=process_item,
     execution_mode="serial",
 )
-executor.start([1, 2, 3])
+executor.run([1, 2, 3])
 
 # Get success/failure results
 success = executor.get_success_pairs()
@@ -242,21 +237,23 @@ def process_item(x: int) -> int:
 
 executor = TaskExecutor("Recovery", process_item, execution_mode="thread")
 # Resume execution from persisted failed and pending records
-executor.start_db("fallback/2026-06-18/executor_fallbacks.sqlite3")
+executor.restore_db("lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3")
 
 # Alternatively, specify to recover only failed records
-executor.start_db("fallback/2026-06-18/executor_fallbacks.sqlite3", statuses=["failed"])
+executor.restore_db(
+    "lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3", statuses=["failed"]
+)
 ```
 
 ## Notes
 
 | Mode | Use Case | Cautions |
-|------|----------|---------|
+|------|----------|----------|
 | `serial` | Debugging, simple tasks | No concurrency, single thread |
 | `thread` | I/O-intensive | Mind GIL constraints, internally uses thread pool |
 | `async` | Network I/O | Function must be a coroutine; use `start_async` not `start` |
 
 - `process_task_success` creates a result envelope and puts it into `result_queue`
-- `handle_task_fail` writes error records to `fallback_inlet`
+- `handle_task_fail` writes error records to `LifecycleInlet` and `LogInlet`
 - `deal_duplicate` handles duplicate tasks and logs them
-- `_init_spout` automatically creates and starts two background threads: `FallbackSpout` and `LogSpout`
+- The background threads of the global `LifecycleSpout` / `LogSpout` are started and stopped by `funnel_scope`; `TaskExecutor` itself does not directly create them

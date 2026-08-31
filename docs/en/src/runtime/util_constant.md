@@ -1,6 +1,6 @@
 # RuntimeConstant
 
-> 📅 Last Updated: 2026/07/16
+> 📅 Last Updated: 2026/08/12
 
 `runtime/util_constant.py` defines runtime global constants, primarily the log level mapping table `LEVEL_DICT`.
 
@@ -52,6 +52,8 @@ flowchart TD
     style DEB fill:#9e9e9e,color:#fff
     style TRA fill:#e0e0e0
 ```
+
+
 
 ## Usage Examples
 
@@ -112,4 +114,4 @@ print(validate_level("VERBOSE"))  # False
 
 ## Notes
 
-- `LEVEL_DICT` is the core basis for `LogInlet` log filtering; do not arbitrarily modify the numeric values.
+- `LEVEL_DICT` is used by `load_log_level_from_pyproject()` in `util_config` to validate the user-configured log level; do not arbitrarily modify the numeric values.

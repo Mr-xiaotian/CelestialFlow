@@ -1,6 +1,6 @@
 # TaskMetrics
 
-> 📅 最終更新日: 2026/07/16
+> 📅 最終更新日: 2026/08/26
 
 TaskMetrics モジュールは、タスク実行プロセスにおける各種メトリクス（入力タスク数、成功数、失敗数、重複タスク数など）の管理と統計を担当します。通常は `TaskExecutor` のコンポーネントとして存在します。
 
@@ -28,7 +28,7 @@ TaskMetrics は内部に 4 つのコアカウンターを保持します:
 |--------|------|------|
 | `task_counter` | `SumCounter` | 総入力タスク数（カスケード対応） |
 | `success_counter` | `ValueWrapper` | 成功タスク数 |
-| `error_counter` | `ValueWrapper` | 失敗タスク数 |
+| `fail_counter` | `ValueWrapper` | 失敗タスク数 |
 | `duplicate_counter` | `ValueWrapper` | 重複タスク数 |
 
 すべての `ValueWrapper` は統一して `Lock` でスレッドセーフを保証します。
@@ -51,26 +51,55 @@ def add_task_count(self, add_count: int = 1):
     """スレッドセーフに入力タスクカウントを増やします。"""
 
 
+def add_fail_count(self, count: int = 1):
+    """スレッドセーフに失敗タスクカウントを増やします。"""
+
+
 def add_success_count(self, count: int = 1):
     """スレッドセーフに成功タスクカウントを増やします。"""
-
-
-def add_error_count(self, count: int = 1):
-    """スレッドセーフに失敗タスクカウントを増やします。"""
 
 
 def add_duplicate_count(self, count: int = 1):
     """スレッドセーフに重複タスクカウントを増やします。"""
 ```
-
-### カウンターカスケード
+### カウンターレベルでのカスケード
 
 ```python
 def append_task_counter(self, counter: ValueWrapper) -> None:
     """外部カウンターを task_counter に追加します（Stage 間カスケード統計用）。"""
 ```
 
-カスケードは `TaskStage.prev_bindings()` で使用されます — 各下流ノードは上流の成功カウンターを自身の `task_counter` に登録し、「上流の出力 = 下流の入力」というカウントの一貫性を実現します。
+カスケードは `TaskStage.prev_binding()` で使用されます — 各下流ノードは上流の成功カウンターを自身の `task_counter` に登録し、「上流の出力 = 下流の入力」というカウントの一貫性を実現します。
+
+## オブザーバー管理
+
+```python
+def add_observer(self, observer: BaseObserver) -> None:
+    """オブザーバーを登録します。"""
+
+
+def remove_observer(self, observer: BaseObserver) -> None:
+    """オブザーバーを削除します。"""
+```
+
+登録済みオブザーバーはタスクカウント変化時にコールバックを受信します:
+
+| カウントメソッド | オブザーバーのコールバック |
+|---------|-----------|
+| `add_task_count()` | `on_tasks_added(count)` |
+| `add_success_count()` | `on_task_success(count)` |
+| `add_fail_count()` | `on_task_fail(count)` |
+| `add_duplicate_count()` | `on_task_duplicate(count)` |
+| `on_start()` | `on_start(name, total)`（エグゼキュータ起動をブロードキャスト） |
+| `on_finish()` | `on_finish()`（エグゼキュータ終了をブロードキャスト） |
+
+## ライフサイクル状態
+
+`TaskMetrics` は内部に `_status`（`StageStatus` 列挙型）を保持し、エグゼキュータの起動/終了時に更新されます：
+
+- `on_start(name, total)`：状態を `StageStatus.RUNNING` に設定し、起動イベントをブロードキャスト
+- `on_finish()`：状態を `StageStatus.STOPPED` に設定し、終了イベントをブロードキャスト
+- `get_status()`：現在の状態を取得。`StageStatus` 列挙型を返します
 
 ## 状態照会
 
@@ -81,7 +110,7 @@ def append_task_counter(self, counter: ValueWrapper) -> None:
 ```python
 def is_tasks_finished(self) -> bool:
     """
-    task_counter.value と processed（success + error + duplicate）が等しいかを比較します。
+    task_counter.value と processed（success + fail + duplicate）が等しいかを比較します。
     """
 ```
 
@@ -106,7 +135,7 @@ def get_counts(self) -> dict[str, int]:
 ```python
 def get_task_count(self) -> int: ...
 def get_success_count(self) -> int: ...
-def get_error_count(self) -> int: ...
+def get_fail_count(self) -> int: ...
 def get_duplicate_count(self) -> int: ...
 ```
 
@@ -117,7 +146,7 @@ def get_duplicate_count(self) -> int: ...
 ```python
 def is_duplicate(self, task_hash: bytes) -> bool:
     """
-    アトミック操作: 重複をチェックしてマークします。
+    重複をチェックしてマークします（このメソッドはエグゼキュータスレッド内でシリアルに呼び出されるため、追加ロック不要）。
     - ハッシュがセットに存在しない場合、セットに追加して False を返す
     - 既存の場合、True を返す
     """
@@ -134,14 +163,14 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
     """リトライが必要な例外型を追加します。"""
 ```
 
-例外型は `tuple` 形式で `self.retry_exceptions` に格納され、`TaskDispatch._worker` は `isinstance(exception, self.retry_exceptions)` でリトライ要否を判定します。呼び出しごとに既存の例外型に累積追加されます。
+例外型は `tuple` 形式で `self.retry_exceptions` に格納され、`TaskDispatch._worker` / `_async_worker` は `isinstance(exception, self.task_executor.metrics.retry_exceptions)` でリトライ要否を判定します。呼び出しごとに既存の例外型に累積追加されます。
 
 ```python
 def get_retry_error_type_names(self) -> set[str]:
     """現在のエグゼキュータが永続化された失敗レコードから回復できるエラータイプ名の集合を取得します。"""
 ```
 
-`TaskGraph.start_graph_db()` で永続化レコードを `error_type` でフィルタリングして再試行可能か判定するために使用されます。
+`TaskGraph.restore_db()` で永続化レコードを `error_type` でフィルタリングして再試行可能か判定するために使用されます。
 
 ## 使用例
 
@@ -166,7 +195,7 @@ metrics.add_task_count(5)
 metrics.add_success_count(3)
 
 # 1 つ失敗
-metrics.add_error_count(1)
+metrics.add_fail_count(1)
 
 # 1 つ重複検出
 metrics.add_duplicate_count(1)
@@ -174,7 +203,7 @@ metrics.add_duplicate_count(1)
 # 4. 各カウンター値の照会
 print(f"タスク総数: {metrics.get_task_count()}")  # 5
 print(f"成功数: {metrics.get_success_count()}")  # 3
-print(f"失敗数: {metrics.get_error_count()}")  # 1
+print(f"失敗数: {metrics.get_fail_count()}")  # 1
 print(f"重複数: {metrics.get_duplicate_count()}")  # 1
 
 # 5. 完全なスナップショット辞書の取得
@@ -193,7 +222,7 @@ metrics.reset_counter()
 print(f"リセット後タスク数: {metrics.get_task_count()}")  # 0
 ```
 
-### カウンターカスケード
+### カウンターレベルでのカスケード
 
 ```python
 from celestialflow.runtime import TaskMetrics
@@ -209,3 +238,4 @@ parent_metrics.add_task_count(5)  # 自身に 5 追加
 
 print(f"総タスク数 (5 + 10) : {parent_metrics.get_task_count()}")  # 15
 ```
+

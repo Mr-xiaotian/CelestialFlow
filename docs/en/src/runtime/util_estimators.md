@@ -1,18 +1,18 @@
 # RuntimeEstimators
 
-> 📅 Last Updated: 2026/06/28
+> 📅 Last Updated: 2026/08/19
 
 `runtime/util_estimators.py` provides runtime time-consumption estimation functions.
 
 ## Main Functions
 
-- `calc_remaining(processed, pending, elapsed)`: Estimates the remaining time for a node.
+- `calc_remaining(processed, pending, elapsed)`: Estimates the remaining time for a node based on averages.
 - `calc_elapsed(status, last_elapsed, last_pending, interval)`: Accumulates elapsed time by status.
-- `calc_global_pending(graph, processed_map, pending_map)`: Estimates global pending task count based on DAG and observed metrics.
+- `format_avg_time(elapsed, processed)`: Formats the average processing speed (seconds/task or tasks/second).
 
 ## Usage Examples
 
-The following examples demonstrate usage of estimation functions such as `calc_remaining`, `calc_elapsed`, and `calc_global_pending`.
+The following examples demonstrate the usage of estimation functions such as `calc_remaining`, `calc_elapsed`, and `format_avg_time`.
 
 ### calc_remaining: Estimate Node Remaining Time
 
@@ -57,25 +57,21 @@ elapsed_stopped = calc_elapsed(
 print(f"Stopped node: {elapsed_stopped:.1f} seconds")  # 50.0 (no longer increasing)
 ```
 
-### calc_global_pending: Estimate Global Pending Task Count Based on DAG
+### format_avg_time: Format Average Processing Speed
 
 ```python
-from celestialflow.graph.util_graph import OrderGraph
-from celestialflow.runtime.util_estimators import calc_global_pending
+from celestialflow.runtime.util_estimators import format_avg_time
 
-# Build a simple DAG: A -> B -> C
-graph = OrderGraph.from_edges({"A": ["B"], "B": ["C"]}, ("A", "B", "C"))
+# When avg time per task >= 1s, displays as s/it
+print(format_avg_time(200.0, 100))  # 2.00s/it
 
-# Input observed data
-processed_map = {"A": 100, "B": 50, "C": 10}
-pending_map = {"A": 0, "B": 50, "C": 90}
+# When avg time per task < 1s, displays as it/s (reciprocal)
+print(format_avg_time(12.5, 100))  # 8.00it/s
 
-result = calc_global_pending(graph, processed_map, pending_map)
-for node, pending in result.items():
-    print(f"Node {node}: estimated {pending} pending tasks")
+# No data
+print(format_avg_time(0.0, 0))  # N/A
 ```
 
 ## Use Cases
 
 - Driving monitoring dashboard ETA display.
-- Assisting in identifying potential congested nodes.

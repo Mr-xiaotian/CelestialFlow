@@ -1,10 +1,10 @@
-# TaskNodes
+# TaskStages
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/26
 
-TaskNodes モジュールは、フロー制御や外部システム連携などのシナリオ向けに、さまざまな特殊機能を持つ `TaskStage` 実装を提供します。
+`stage/core_stages.py` は 2 種類の内蔵構造型 `TaskStage` 特殊化を提供します：`TaskSplitter`（スプリッター）と `TaskRouter`（ルーター）です。これらはグラフ構造と下流分配セマンティクスを変更するもので、一般的なパイプライン編成シナリオ向けです。
 
-## TaskSplitter（スプリッター）
+## TaskSplitter (スプリッター)
 
 ```mermaid
 flowchart LR
@@ -21,10 +21,10 @@ flowchart LR
 
     end
 
-    %% 美化 TaskGraph 外框
+    %% 美化 TaskGraph 外枠
     style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
 
-    %% 统一美化格式
+    %% 統一美化フォーマット
     classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
 
     %% 美化 TaskStages
@@ -45,15 +45,12 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         self,
         name: str,
         split_item: Callable[[TItem], RItem] | None = None,
-        *,
-        stage_mode: str = "serial",
     ):
         """
-        初始化 TaskSplitter。
+        TaskSplitter を初期化します。
 
-        :param name: 节点名称
-        :param split_item: 自定义单个子任务处理函数，默认使用恒等映射
-        :param stage_mode: 节点运行模式
+        :param name: ノード名
+        :param split_item: カスタム単一サブタスク処理関数。デフォルトは恒等写像を使用
         """
 ```
 
@@ -62,8 +59,11 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
 ```python
 class MySplitter(TaskSplitter):
     def _split(self, task):
-        # 将输入数据分裂为多个部分
+        # 入力データを複数の部分に分割
         return tuple(task)
+
+
+splitter = MySplitter("MySplitter")
 ```
 
 ### 特性
@@ -75,7 +75,7 @@ class MySplitter(TaskSplitter):
 
 ---
 
-## TaskRouter（ルーター）
+## TaskRouter (ルーター)
 
 ```mermaid
 flowchart LR
@@ -94,10 +94,10 @@ flowchart LR
 
     end
 
-    %% 美化 TaskGraph 外框
+    %% 美化 TaskGraph 外枠
     style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
 
-    %% 统一美化格式
+    %% 統一美化フォーマット
     classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
 
     %% 美化 TaskStages
@@ -113,20 +113,13 @@ flowchart LR
 ### 初期化
 
 ```python
-class TaskRouter(TaskStage):
-    def __init__(
-        self,
-        name: str,
-        router: Callable[[T], str],
-        *,
-        stage_mode: str = "serial",
-    ):
+class TaskRouter[T](TaskStage[T, tuple[str, T]]):
+    def __init__(self, name: str, router: Callable[[T], str]):
         """
-        初始化 TaskRouter。
+        TaskRouter を初期化します。
 
-        :param name: 节点名称
-        :param router: 路由函数，根据任务数据返回目标 stage 名称
-        :param stage_mode: 节点运行模式
+        :param name: ノード名
+        :param router: ルーティング関数。タスクデータに応じてターゲット stage 名を返す
         """
 ```
 
@@ -135,7 +128,7 @@ class TaskRouter(TaskStage):
 `TaskRouter` は上流が事前に `(target_tag, data)` タプルを構築する必要がなくなり、自身が保持する `router(task) -> str` 関数が下流の決定を担当します：
 
 ```python
-# 定义路由函数：根据任务内容返回下游节点名称
+# ルーティング関数を定義：タスク内容に応じて下流ノード名を返す
 def route_logic(data: int) -> str:
     if data > 0:
         return "positive_stage"
@@ -143,13 +136,19 @@ def route_logic(data: int) -> str:
         return "negative_stage"
 
 
-# 上游只产出原始任务
+# 上流は元のタスクのみを生成
 source = TaskStage("Source", func=lambda x: x)
 
-# Router 内部完成路由决策
-router = TaskRouter("路由器", route_logic)
+# Router が内部でルーティング決定
+router = TaskRouter("Router", route_logic)
 
-# 连接下游（返回值必须与下游 stage 名称匹配）
+# 下流を接続（戻り値は下流 stage 名と一致しなければならない）
+pos_stage = TaskStage("positive_stage", func=lambda x: x)
+neg_stage = TaskStage("negative_stage", func=lambda x: x)
+
+graph = TaskGraph("RouterGuide")
+graph.set_stages([source, router, pos_stage, neg_stage])
+graph.connect([source], [router])
 graph.connect([router], [pos_stage, neg_stage])
 ```
 
@@ -170,25 +169,25 @@ graph.connect([router], [pos_stage, neg_stage])
 from celestialflow import TaskGraph, TaskStage, TaskSplitter
 
 
-# 自定义分裂器：按行分裂文本
+# カスタムスプリッター：テキストを行で分割
 class LineSplitter(TaskSplitter):
     def _split(self, task):
-        return tuple(task.split("\\n"))
+        return tuple(task.split("\n"))
 
 
-# 定义后续处理阶段
-source = TaskStage("Input", func=lambda x: x, stage_mode="serial")
+# 後続処理ステージを定義
+source = TaskStage("Input", func=lambda x: x)
 splitter = LineSplitter("SplitLines")
-processor = TaskStage("Process", func=lambda x: f">>> {x}", stage_mode="serial")
+processor = TaskStage("Process", func=lambda x: f">>> {x}")
 
 graph = TaskGraph()
 graph.set_stages([source, splitter, processor])
 graph.connect([source], [splitter])
 graph.connect([splitter], [processor])
 
-# 输入一条包含三行的文本，分裂为三个独立任务
-text_data = "line1\\nline2\\nline3"
-graph.start_graph({source.get_name(): [text_data]})
+# 3 行を含むテキストを入力し、3 つの独立タスクに分割
+text_data = "line1\nline2\nline3"
+graph.run({source.get_name(): [text_data]})
 ```
 
 ### TaskRouter：条件に応じたタスク振り分け
@@ -197,7 +196,7 @@ graph.start_graph({source.get_name(): [text_data]})
 from celestialflow import TaskGraph, TaskStage, TaskRouter
 
 
-# 定义路由判断逻辑（只返回目标名称）
+# ルーティング判定ロジックを定義（ターゲット名のみを返す）
 def classify_number(x: int) -> str:
     if x > 0:
         return "positive"
@@ -207,23 +206,19 @@ def classify_number(x: int) -> str:
         return "zero"
 
 
-# 构建图节点
-source = TaskStage("Source", func=lambda x: x, stage_mode="serial")
+# グラフノードを構築
+source = TaskStage("Source", func=lambda x: x)
 router = TaskRouter("Router", classify_number)
-handler_pos = TaskStage(
-    "positive", func=lambda x: f"Positive: {x}", stage_mode="serial"
-)
-handler_neg = TaskStage(
-    "negative", func=lambda x: f"Negative: {x}", stage_mode="serial"
-)
-handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}", stage_mode="serial")
+handler_pos = TaskStage("positive", func=lambda x: f"Positive: {x}")
+handler_neg = TaskStage("negative", func=lambda x: f"Negative: {x}")
+handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}")
 
-graph = TaskGraph()
+graph = TaskGraph("RouterDemo")
 graph.set_stages([source, router, handler_pos, handler_neg, handler_zero])
 graph.connect([source], [router])
 graph.connect([router], [handler_pos, handler_neg, handler_zero])
 
-graph.start_graph({source.get_name(): [10, -5, 0, 3, -1]})
+graph.run({source.get_name(): [10, -5, 0, 3, -1]})
 ```
 
 > **注意**: `router(task)` の戻り値は下流 `TaskStage` の `name` と完全一致する必要があります。

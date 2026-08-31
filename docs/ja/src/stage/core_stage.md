@@ -1,8 +1,8 @@
 # TaskStage
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/26
 
-`TaskStage` は `TaskGraph` を構築する基本単位です。`TaskExecutor` を継承し、グラフ構造関連の接続機能と `stage_mode` 制御ロジックを追加しています。
+`TaskStage` は `TaskGraph` を構築する基本単位です。`TaskExecutor` を継承し、グラフ構造関連の接続機能を追加しています。
 
 > 注意：`TaskStage` も使い捨てオブジェクトです。通常は `TaskGraph` に管理され、一度の完全実行に参加します。実行終了後、キューバインディング、カウント状態、グラフ内関連付けが安全にリセットされることは保証されません。
 
@@ -14,9 +14,6 @@
 
 ## コアコンセプト
 
-- **Stage Mode**: タスクグラフ内でのノードのスケジューリングロジックモード。
-  - `serial`: シリアルモード。メインプロセス内で実行。
-  - `thread`: スレッドモード。メインプロセス内で独立スレッドとして実行。
 - **Execution Mode**: ノード内部でタスクを処理する並行モード（`serial`, `thread`, `async`）。`TaskExecutor` から継承。
 - **トポロジー関係**: ノード間の上下游接続関係は `TaskGraph` が管理し、`TaskStage` 自身は隣接リストを保持しません。
 
@@ -28,63 +25,36 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         self,
         name: str,
         func: Callable[[T], R] | Callable[[T], Awaitable[R]],
-        stage_mode: str = "serial",
         **kwargs: Any,
-    ):
+    ) -> None:
         """
-        :param name: 节点名称（唯一标识）
-        :param func: 执行函数
-        :param stage_mode: 在图中的运行模式 ('serial' 或 'thread')
-        :param kwargs: 透传给 TaskExecutor 的参数 (execution_mode, max_workers, max_retries 等)
+        :param name: ノード名（一意識別子）
+        :param func: 実行関数
+        :param kwargs: TaskExecutor にそのまま渡されるパラメータ
+            （execution_mode, max_workers, max_retries, max_queue_size,
+            max_info, enable_duplicate_check など）
         """
 ```
 
 例：
 ```python
-stage_a = TaskStage(
-    "StageA", func=process_a, execution_mode="thread", stage_mode="thread"
-)
-stage_b = TaskStage(
-    "StageB", func=process_b, execution_mode="serial", stage_mode="thread"
-)
+stage_a = TaskStage("StageA", func=process_a, execution_mode="thread", max_workers=4)
+stage_b = TaskStage("StageB", func=process_b, execution_mode="serial")
 
-# 创建图并连接节点
-graph = TaskGraph()
+# グラフを作成してノードを接続
+graph = TaskGraph("DemoGraph")
 graph.set_stages(stages=[stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 ```
 
 ## 設定メソッド
 
-### set_stage_mode
-
-```python
-def set_stage_mode(self, stage_mode: str):
-    """
-    设置节点在任务图中的执行模式。
-    :param stage_mode: 'serial' 或 'thread'
-    :raises StageModeError: 如果模式不支持
-    """
-```
-
-### set_inlet
-
-```python
-def set_inlet(self, fallback_inlet: FallbackInlet, log_inlet: LogInlet) -> None:
-    """
-    初始化收集器，将 fallback/log 收集器接入当前 stage。
-    :param fallback_inlet: fallback 收集器
-    :param log_inlet: 日志收集器
-    """
-```
-
 ### TaskExecutor から継承した設定メソッド
 
 | メソッド | 説明 |
 |------|------|
-| `set_execution_mode(mode)` | ノード内部のタスク処理モードを設定（`serial`/`thread`/`async`） |
+| `set_execution_mode(mode)` | ノード内部のタスク処理モード（`serial`/`thread`/`async`）を設定 |
 | `set_name(name)` | ノード名を設定 |
-| `set_log_level(level)` | ログレベルを設定 |
 
 ## 接続バインディング
 
@@ -93,7 +63,7 @@ def set_inlet(self, fallback_inlet: FallbackInlet, log_inlet: LogInlet) -> None:
 ```python
 def prev_binding(self, pending_prev_binding: TaskStage[Any, Any]) -> None:
     """
-    绑定单个前置节点，将其计数器注册到当前 stage 的 task_counter 中。
+    単一の前置ノードをバインドし、そのカウンターを現在の stage の task_counter に登録します。
     """
 ```
 
@@ -102,58 +72,30 @@ def prev_binding(self, pending_prev_binding: TaskStage[Any, Any]) -> None:
 ```python
 def get_binding_counter(self, _downstream_name: str) -> Any:
     """
-    返回下游 stage 应绑定的计数器，子类可覆写（默认返回 success_counter）。
+    下流 stage がバインドすべきカウンターを返します。サブクラスで上書き可能（デフォルトは success_counter）。
     """
 ```
 
-## 状態管理
+## 状態スナップショット
 
-`TaskStage` は `StageStatus` 列挙型を使用してライフサイクルを管理します：
+`TaskStage` は `snapshot()` メソッドによりランタイムスナップショットを収集し、状態、カウント、経過時間推定などの情報を含みます。
 
-```mermaid
-stateDiagram-v2
-    [*] --> NOT_STARTED: __init__()
-    NOT_STARTED --> RUNNING: start_stage()
-    RUNNING --> RUNNING: タスク処理中
-    RUNNING --> STOPPED: finally ブロック
-    STOPPED --> [*]
-```
-
-### 状態メソッド
+### snapshot
 
 ```python
-# 标记运行
-def mark_running(self) -> None:
-    """标记：stage 正在运行。"""
-
-
-# 标记停止
-def mark_stopped(self) -> None:
-    """标记：stage 已停止（正常结束时在 finally 里调用）。"""
-
-
-# 获取状态
-def get_status(self) -> StageStatus:
-    """读取当前状态（返回 StageStatus 枚举）。"""
+def snapshot(self, interval: float) -> dict[str, Any]:
+    """
+    現在の stage のランタイムスナップショットを収集します。
+    :param interval: スナップショット収集間隔（秒）
+    :return: 状態、カウント、経過時間推定などを含むスナップショット辞書
+    """
 ```
 
 ## 実行メカニズム
 
-### start / start_async（直接呼び出し禁止）
+### run / run_async
 
-`TaskStage` が `TaskGraph` に管理されている場合、`start()` または `start_async()` を直接呼び出すと `GraphManagedError` が送出されます。`TaskGraph.start_graph()` による統一起動が必要です。
-
-### start_stage
-
-`TaskGraph` が起動されると、このメソッドが呼び出されてノードの実際の実行が開始されます。
-
-```python
-def start_stage(self):
-    """
-    根据 execution_mode 的值，选择串行、线程或异步执行任务。
-    记录启动/结束日志，管理状态转换。
-    """
-```
+`TaskStage` が `TaskGraph` に管理されている場合、`TaskGraph.run()` / `start()` が各ノードの実際の実行を統一的に駆動します。
 
 ライフサイクル制約：
 
@@ -165,23 +107,49 @@ def start_stage(self):
 
 ```python
 def drain_task_queue(self) -> None:
-    """清空任务队列，将所有剩余任务移至失败队列并标记为 UnconsumedError。"""
+    """タスクキューをクリアし、残った全タスクを失敗キューに移して UnconsumedError としてマークします。"""
 ```
 
-## 状態スナップショット
+## 状態遷移
+
+`TaskStage` の実行状態は内部の `TaskMetrics.get_status()` によって提供され、`StageStatus` 列挙型を返します：
+
+```mermaid
+stateDiagram-v2
+    [*] --> NOT_STARTED: __init__()
+    NOT_STARTED --> RUNNING: metrics.on_start()<br/>(TaskGraph 起動フェーズで呼び出し)
+    RUNNING --> RUNNING: タスク実行中<br/>(snapshot() でいつでも収集可能)
+    RUNNING --> STOPPED: metrics.on_finish()<br/>(実行終了後に呼び出し)
+    STOPPED --> [*]
+```
+
+- 状態は `TaskExecutor._prepare_start()` 内の `metrics.on_start()` により `RUNNING` に設定され、`_finish_start()` 内の `metrics.on_finish()` により `STOPPED` に設定されます。
+- `snapshot()` が返すスナップショット辞書の `status` フィールドが現在の状態値です。
+
+## 接続とキューの連携
+
+`TaskStage` 自身は隣接リストを保持せず、グラフ接続は `TaskGraph.connect()` が一元的に確立し、3 つの連携動作を引き起こします：
+
+1. `to_stage.prev_binding(from_stage)`：前段の `get_binding_counter()` カウンター（デフォルト `metrics.success_counter`）を現在の stage の `task_counter` に追加し、下流の pending 統計が上流通過中のタスクを認識できるようにします。
+2. `from_stage.result_queue.add_queue(to_stage.task_queue, to_name)`：下流入力キューを上流結果の配信ターゲットとして登録します。
+3. `to_stage.task_queue.add_source_name(from_name)`：上流ソース名を登録します。
+
+タスク実行終了後、`TaskGraph._finish_start()` は各 stage に対して `drain_task_queue()` を呼び出し、入力キュー内の未消費タスクをすべて失敗としてマークします。
+
+## 状態サマリ
 
 ```python
 def get_summary(self) -> dict[str, Any]:
     """
-    获取当前节点的状态摘要。
-    返回继承自 TaskExecutor 的字段（name, func_name, execution_mode, max_workers）
-    外加 stage_mode。
+    現在のノードの状態サマリを取得します。
+    TaskExecutor から継承したフィールドを返します
+    （name, func_name, execution_mode, max_workers）。
     """
 ```
 
 ## 使用例
 
-以下は `TaskStage` の完全な使用法を示す例で、複数の実行モード、状態管理、グラフ接続を含みます。
+以下の例は `TaskStage` の完全な使用法を示す例で、複数の実行モード、状態管理、グラフ接続を含みます。
 
 ### 基本的な使用法（serial モード）
 
@@ -197,16 +165,16 @@ def step2(x: int) -> int:
     return x * 3
 
 
-stage1 = TaskStage("Step1", func=step1, execution_mode="serial", stage_mode="serial")
-stage2 = TaskStage("Step2", func=step2, execution_mode="serial", stage_mode="serial")
+stage1 = TaskStage("Step1", func=step1, execution_mode="serial")
+stage2 = TaskStage("Step2", func=step2, execution_mode="serial")
 
-chain = TaskGraph()
+chain = TaskGraph("ChainDemo")
 chain.set_stages([stage1, stage2])
 chain.connect([stage1], [stage2])
-chain.start_graph({stage1.get_name(): [1, 2, 3, 4, 5]})
+chain.run({stage1.get_name(): [1, 2, 3, 4, 5]})
 
-for name, runtime in chain.stage_runtime_dict.items():
-    pairs = runtime.stage.get_success_pairs()
+for name, stage in chain.stage_dict.items():
+    pairs = stage.get_success_pairs()
     print(f"{name}: {len(pairs)} 成功")
 ```
 
@@ -227,12 +195,11 @@ stage_a = TaskStage(
     func=io_task,
     execution_mode="thread",
     max_workers=4,
-    stage_mode="thread",
 )
 
-graph = TaskGraph()
+graph = TaskGraph("IOGraph")
 graph.set_stages([stage_a])
-graph.start_graph({stage_a.get_name(): list(range(20))})
+graph.run({stage_a.get_name(): list(range(20))})
 ```
 
 ### 非同期モード（async）
@@ -253,27 +220,27 @@ async_stage = TaskStage(
     execution_mode="async",
     max_workers=4,
 )
-print(f"异步阶段摘要: {async_stage.get_summary()}")
+print(f"非同期ステージサマリ: {async_stage.get_summary()}")
 ```
 
-### 状態管理
+### スナップショット収集
 
 ```python
 from celestialflow import TaskStage
-from celestialflow.runtime.util_types import StageStatus
 
-stage = TaskStage("StatusDemo", func=lambda x: x)
+stage = TaskStage("SnapshotDemo", func=lambda x: x)
 
-print(f"初始状态: {stage.get_status().name}")  # NOT_STARTED
-stage.mark_running()
-print(f"运行中: {stage.get_status().name}")  # RUNNING
-stage.mark_stopped()
-print(f"已停止: {stage.get_status().name}")  # STOPPED
+# ランタイムスナップショットを収集
+snapshot = stage.snapshot(interval=1.0)
+print(f"ノード: {snapshot['name']}")
+print(f"状態: {snapshot['status']}")
+print(f"処理済み: {snapshot['tasks_processed']}")
+print(f"保留中: {snapshot['tasks_pending']}")
 ```
 
 ## 注意事項
 
 1. **名前の一意性**: 同一の `TaskGraph` 内では、各 `TaskStage` の `name` は一意でなければならない。
 2. **非同期サポート**: `execution_mode` が `async` に設定されている場合、`func` はコルーチン関数である必要がある。
-3. **Graph 管理**: `TaskGraph` に管理されている Stage では `start()` / `start_async()` を直接呼び出せない。
+3. **Graph 管理**: `TaskGraph` に管理されている Stage では `run()` / `run_async()` を直接呼び出せない。
 4. **使い捨て**: 実行完了後、同一の `TaskStage` インスタンスを再利用すべきではない。

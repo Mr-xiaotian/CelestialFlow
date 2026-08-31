@@ -1,6 +1,6 @@
-﻿# bench_datastructures.py Benchmark Guide
+# bench_datastructures.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/16
+> 📅 Last Updated: 2026/08/26
 
 ## Objective
 
@@ -12,9 +12,9 @@ Compare the read/write performance of various Python data structures and externa
 |--------|------|------|
 | `test_builtin_dict` | Native dict put/get | N=10,000 |
 | `test_queue_thread` | `queue.Queue` single-thread read/write | N=10,000 |
-| `test_mpqueue` | `multiprocessing.Queue` cross-process read/write (deprecated, retained for reference only) | N=10,000 |
+| `test_mpqueue` | `multiprocessing.Queue` cross-process read/write | N=10,000 |
 | `test_manager_dict` | `Manager().dict` cross-process read/write | N=10,000 |
-| `test_value_number` | `multiprocessing.Value` atomic increment (deprecated, retained for reference only) | N=10,000 |
+| `test_value_number` | `multiprocessing.Value` atomic increment | N=10,000 |
 | `test_redis_plain` | Redis individual set/get | N=10,000 |
 | `test_redis_pipeline` | Redis Pipeline batch set/get | N=10,000 |
 | `test_redis_multithread_plain` | Redis multi-thread concurrent writes | N=10,000 / 10 threads |
@@ -33,7 +33,7 @@ Compare the read/write performance of various Python data structures and externa
 1. **Redis connection failure**: If Redis config is missing in `.env` or the service is not running, Redis-related tests will be skipped with a warning only.
 2. **MPQueue buffer limit**: The `mpqueue_worker` puts all N elements first before getting, which may hit the OS pipe buffer limit when N is large (especially on Linux).
 
-> **Note**: `test_mpqueue` and `test_value_number` use `multiprocessing.Queue` and `multiprocessing.Value`, which are no longer used internally by the framework (`stage_mode="process"` has been removed). These benchmarks still run by default in the script, primarily serving as a cross-process performance baseline comparison against pure in-memory solutions, retained for reference.
+> **Note**: The script still runs `test_mpqueue` and `test_value_number` by default, for cross-process performance baseline comparison against pure in-memory solutions. `stage_mode="process"` has been removed from the framework, so these tests do not reflect the framework's current internal behavior and are retained only as historical performance references.
 
 ## How to Run
 

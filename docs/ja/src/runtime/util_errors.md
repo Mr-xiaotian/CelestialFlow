@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最終更新日: 2026/07/16
+> 📅 最終更新日: 2026/08/31
 
 TaskErrors モジュールは CelestialFlow フレームワークで使用される完全な例外クラス体系を定義します。
 
@@ -23,26 +23,6 @@ classDiagram
         +allowed: tuple
         設定項目の値が不正
     }
-    class ExecutionModeError {
-        +execution_mode: str
-        +valid_modes: tuple
-        execution_mode が不正
-    }
-    class StageModeError {
-        +stage_mode: str
-        +valid_modes: tuple
-        stage_mode が不正
-    }
-    class LogLevelError {
-        +log_level: str
-        +valid_levels: tuple
-        log_level が不正
-    }
-    class ScheduleModeError {
-        +schedule_mode: str
-        +valid_modes: tuple
-        schedule_mode が不正
-    }
     class CallableParameterKindError {
         +callable_name: str
         +parameter_kind: Any
@@ -61,14 +41,14 @@ classDiagram
     class NodeNotFoundError {
         +グラフ内に指定ノードが見つからない
     }
+    class InvalidStructureError {
+        +無効なグラフ構造入力
+    }
     class RuntimeStateError {
         +実行時状態エラー基底クラス
     }
     class InitializationError {
         +初期化失敗
-    }
-    class GraphManagedError {
-        +グラフ管理エラー
     }
     class PersistedError {
         +error_type: str
@@ -103,18 +83,14 @@ classDiagram
     ConfigurationError <|-- InvalidOptionError
     ConfigurationError <|-- GraphStructureError
 
-    InvalidOptionError <|-- ExecutionModeError
-    InvalidOptionError <|-- StageModeError
-    InvalidOptionError <|-- LogLevelError
-    InvalidOptionError <|-- ScheduleModeError
     InvalidOptionError <|-- CallableParameterKindError
 
     GraphStructureError <|-- DuplicateNodeError
     GraphStructureError <|-- UnknownNodeError
     GraphStructureError <|-- NodeNotFoundError
+    GraphStructureError <|-- InvalidStructureError
 
     RuntimeStateError <|-- InitializationError
-    RuntimeStateError <|-- GraphManagedError
 ```
 
 ## 基底クラス
@@ -164,50 +140,6 @@ class InvalidOptionError(ConfigurationError):
         :param prefix: エラーメッセージのプレフィックス
         """
         # 例: "Invalid execution mode: xxx. Valid options are ('serial', 'thread', 'async')."
-```
-
-### ExecutionModeError
-
-`execution_mode` 設定エラー。
-
-```python
-class ExecutionModeError(InvalidOptionError):
-    """不正な execution_mode"""
-    def __init__(self, execution_mode: str, valid_modes=None):
-        # valid_modes のデフォルトは ("serial", "thread", "async")
-```
-
-### StageModeError
-
-`stage_mode` 設定エラー。
-
-```python
-class StageModeError(InvalidOptionError):
-    """不正な stage_mode"""
-    def __init__(self, stage_mode: str, valid_modes=None):
-        # valid_modes のデフォルトは ("serial", "thread")
-```
-
-### LogLevelError
-
-`log_level` 設定エラー。
-
-```python
-class LogLevelError(InvalidOptionError):
-    """不正な log_level"""
-    def __init__(self, log_level: str, valid_levels=None):
-        # valid_levels のデフォルトは ("TRACE", "DEBUG", "SUCCESS", "INFO", "WARNING", "ERROR", "CRITICAL")
-```
-
-### ScheduleModeError
-
-`schedule_mode` 設定エラー。
-
-```python
-class ScheduleModeError(InvalidOptionError):
-    """不正な schedule_mode"""
-    def __init__(self, schedule_mode: str, valid_modes=None):
-        # valid_modes のデフォルトは ("eager", "staged")
 ```
 
 ### CallableParameterKindError
@@ -296,17 +228,6 @@ class InitializationError(RuntimeStateError):
     pass
 ```
 
-### GraphManagedError
-
-Stage が既に TaskGraph によって管理されている場合に、スタンドアロン経路で直接 `start()` を呼び出そうとすると送出されます。
-
-```python
-class GraphManagedError(RuntimeStateError):
-    """Stage は既に Graph に管理されています。スタンドアロン経路で起動すべきではありません。"""
-
-    def __init__(self, message: str = "This stage is managed by a TaskGraph. ..."): ...
-```
-
 ## 永続化例外
 
 ### PersistedError
@@ -373,7 +294,7 @@ class UnconsumedError(CelestialFlowError):
     pass
 ```
 
-`TaskGraph._finalize_nodes()` がキュー内に残存タスクを検出した場合、それらを `UnconsumedError` としてマークし、`fallback_inlet` / `FallbackSpout` を通じて日付別に整理された sqlite フォールバックデータベースに永続化します。
+`TaskGraph._finish_start()` の後処理フェーズで全 stage を走査し `drain_task_queue()` を呼び出した結果、キューの残余タスクが検出された場合、それらは `UnconsumedError` としてマークされ、`get_lifecycle_inlet()` / `LifecycleSpout` を介して日付別に整理された lifecycle sqlite データベースに永続化されます。
 
 ### TerminationMergeError
 
@@ -391,6 +312,8 @@ class TerminationMergeError(CelestialFlowError):
 ### 1. リトライ可能例外の追加
 
 ```python
+from celestialflow import TaskExecutor
+
 executor = TaskExecutor("Processor", process, max_retries=3)
 executor.set_retry_exceptions(ConnectionError, TimeoutError)
 ```
@@ -398,13 +321,18 @@ executor.set_retry_exceptions(ConnectionError, TimeoutError)
 ### 2. 設定エラーの捕捉
 
 ```python
-from celestialflow.runtime.util_errors import ExecutionModeError
+from celestialflow.runtime.util_errors import InvalidOptionError
 
 try:
-    stage.set_execution_mode("invalid_mode")
-except ExecutionModeError as e:
-    print(f"無効な実行モード: {e.execution_mode}")
-    print(f"有効なオプション: {e.valid_modes}")
+    raise InvalidOptionError(
+        field="execution_mode",
+        value="invalid",
+        allowed=("serial", "thread", "async"),
+    )
+except InvalidOptionError as e:
+    print(f"フィールド: {e.field}")
+    print(f"渡された値: {e.value}")
+    print(f"有効な値: {e.allowed}")
 ```
 
 ### 3. グラフ構造検証
@@ -425,29 +353,9 @@ except DuplicateNodeError as e:
 ### 設定例外
 
 ```python
-from celestialflow.runtime.util_errors import (
-    ExecutionModeError,
-    StageModeError,
-    LogLevelError,
-    ScheduleModeError,
-    InvalidOptionError,
-)
+from celestialflow.runtime.util_errors import InvalidOptionError
 
-# ExecutionModeError の捕捉
-try:
-    stage.set_execution_mode("invalid")
-except ExecutionModeError as e:
-    print(f"フィールド: {e.field}")  # execution_mode
-    print(f"渡された値: {e.value}")  # invalid
-    print(f"有効な値: {e.allowed}")  # ('serial', 'thread', 'async')
-
-# StageModeError の捕捉
-try:
-    stage.set_stage_mode("invalid")
-except StageModeError as e:
-    print(f"設定エラー: {e}")
-
-# InvalidOptionError の直接使用
+# InvalidOptionError の使用
 try:
     raise InvalidOptionError(
         field="strategy",
@@ -455,7 +363,9 @@ try:
         allowed=("conservative", "balanced"),
     )
 except InvalidOptionError as e:
-    print(f"エラー: {e}")
+    print(f"フィールド: {e.field}")
+    print(f"渡された値: {e.value}")
+    print(f"有効な値: {e.allowed}")
 ```
 
 ### グラフ構造例外
@@ -479,9 +389,9 @@ try:
 
     # UnknownNodeError は in_queue._record_termination のソース検証時に発生
     from celestialflow.runtime import TaskInQueue
-    from queue import Queue
 
-    in_queue = TaskInQueue(queue=Queue(), source_names=["known"], out_name="test")
+    in_queue = TaskInQueue(out_name="test")
+    in_queue.add_source_name("known")
     in_queue._record_termination(TerminationSignal(source="unknown_source"))
 except UnknownNodeError as e:
     print(f"不明なソース: {e}")
@@ -521,31 +431,14 @@ except RemoteWorkerError as e:
     print(f"リモート Worker エラー: {e}")
 ```
 
-### TaskExecutor との連携
 
-```python
-from celestialflow import TaskExecutor
-from celestialflow.runtime.util_errors import CelestialFlowError
-
-# 実際のエグゼキュータでは、例外は統一的に捕捉され記録されます
-executor = TaskExecutor(
-    "SafeWorker",
-    func=lambda x: 10 // x,
-    execution_mode="serial",
-    max_retries=0,
-)
-executor.start([1, 0, 2])  # 中間タスクで ZeroDivisionError が発生
-
-counts = executor.get_counts()
-print(f"成功: {counts['tasks_succeeded']}, 失敗: {counts['tasks_failed']}")
-```
 
 ## 未消費タスクの処理
 
-`UnconsumedError` は主にタスクが正常に消費されなかったシナリオをマークするために使用されます。`TaskGraph._finalize_nodes()` の後処理フェーズでは、各 stage の `drain_task_queue()` が呼び出されます：
+`UnconsumedError` は主にタスクが正常に消費されなかったシナリオをマークするために使用されます。`TaskGraph._finish_start()` の後処理フェーズでは、各 stage の `drain_task_queue()` が呼び出されます：
 
 1. stage のタスクキューをクリアし、残存タスクを取り出します。
 2. 各残存タスクに対して `handle_task_fail(source, UnconsumedError())` を呼び出します。
-3. 失敗情報は `fallback_inlet` を通じて `FallbackSpout` に書き込まれ、最終的に日付別に整理された sqlite フォールバックデータベースに永続化されます。
+3. 失敗情報は `get_lifecycle_inlet()` を介して `LifecycleSpout`（`task_fail()` が pending レコードを failed に昇格）に書き込まれ、最終的に日付別に整理された lifecycle sqlite データベース（`./lifecycles/YYYY-MM-DD/flow_lifecycle(...).sqlite3`）に永続化されます。
 
-したがって、未消費タスクの「永続化」は `util_errors.py` 自身が行うのではなく、Stage / Graph 層のフォールバック機構に依存します。
+したがって、未消費タスクの「永続化」は `util_errors.py` 自身が行うのではなく、Stage / Graph 層のライフサイクル（lifecycle）永続化機構に依存します。

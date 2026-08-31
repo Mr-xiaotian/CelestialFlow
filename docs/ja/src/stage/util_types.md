@@ -1,6 +1,6 @@
 # StageTypes
 
-> 📅 最終更新日: 2026/06/11
+> 📅 最終更新日: 2026/08/19
 
 `stage/util_types.py` は Stage モジュールの型エイリアスを定義し、ジェネリック Stage への簡便な参照を提供します。
 
@@ -35,7 +35,7 @@ from celestialflow.stage import TaskStage
 
 # 任意の型の Stage を受け取れる変数を宣言する場合
 def register_stage(stage: AnyTaskStage) -> None:
-    print(f"Stage を登録しました: {stage.name}")
+    print(f"Stage を登録しました: {stage.get_name()}")
 
 
 # 任意のジェネリックパラメータを持つ TaskStage を渡せる
@@ -60,7 +60,7 @@ stages.append(TaskStage("C", func=lambda x: len(x)))  # TaskStage[str, int]
 
 # 複雑なジェネリック型を手動でアノテーションする必要がない
 for s in stages:
-    print(f"  {s.name}: {s}")
+    print(f"  {s.get_name()}")
 ```
 
 ## 注意事項

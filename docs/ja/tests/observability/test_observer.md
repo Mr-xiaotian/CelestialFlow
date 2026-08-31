@@ -1,6 +1,6 @@
 # オブザーバーテスト (test_observer.py)
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/26
 
 ## 役割
 `celestialflow.observability` モジュールのオブザーバー（Observer）機構を検証し、タスク実行ライフサイクルの各キーノードでコールバックが正しくトリガーされることを確認します。
@@ -9,24 +9,30 @@
 - `BaseObserver`: オブザーバー基底クラス。
 - `TaskExecutor`: 観測対象のタスク実行者。
 
-## 主要テストフロー
-1. **ライフサイクルコールバック**: `on_start` から `on_finish` までの完全なイベントフローを検証。タスク成功、失敗、新規タスクなどのイベントを含む。
-2. **マルチオブザーバーサポート**: 複数のオブザーバーを同一の実行者に同時にマウントし、独立してイベントを受信できることを検証。
-3. **動的管理**: オブザーバーの動的な追加と削除ロジックを検証。
+## テストカバレッジマトリックス
+
+| テストクラス | ケース | カバレッジ対象 |
+|------------|------|--------------|
+| `TestExecutorObserver` | `test_observer_lifecycle` | 完全なライフサイクルコールバック：`on_start` が出現、`on_task_success` コールバック回数がタスク数（3 回）と一致、`on_finish` が最後にトリガー |
+| `TestExecutorObserver` | `test_observer_with_errors` | 失敗コールバック：3 タスク中 2 成功 1 失敗、成功/失敗カウントが正確 |
+| `TestExecutorObserver` | `test_no_observer_works` | observer 未マウントでもエグゼキュータは正常に動作し、カウントに影響しない |
+| `TestExecutorObserver` | `test_multiple_observers` | 複数の observer を同時にマウント、それぞれ独立に同一コールバックを受信 |
+| `TestExecutorObserver` | `test_remove_observer` | `remove_observer()` でアンバインド後はいかなるコールバックも受信しない |
 
 ## テストの重点
 - **イベント順序**: `on_start` が最初にトリガーされ、`on_finish` が最後にトリガーされることを確認。
 - **失敗キャプチャ**: タスクが例外をスローしたときに `on_task_fail` が正しく呼び出され、カウントが正確であることを検証。
-- **デフォルト動作**: オーバーライドされていないメソッドは基底クラスの空実装を通り、例外が発生しないことを検証。
+- **オブザーバー組み合わせ**: 複数 observer のマウントとアンバインド（除去後の副作用なし）を検証。
 
 ## 重要な詳細
-- `RecordingObserver` や `CountObserver` などの Mock クラスを使用してイベントを収集・検証します。
-- `test_remove_observer` はアンバインド後のオブザーバーが副作用を生じないことを確認します。
+- `RecordingObserver`、`CountObserver`、`Counter` などの Mock クラスを使用してイベントを収集・検証します。
+- `RecordingObserver` は `on_start` / `on_task_success` / `on_task_fail` / `on_task_duplicate` / `on_tasks_added` / `on_finish` をオーバーライドし、`on_task_success` と `on_task_fail` はデフォルトのカウント引数 `count=1` を持ちます。
+- `test_remove_observer` はアンバインド後のオブザーバーが副作用を生まないことを確認します。
 
 ## 実行方法
 
 ```bash
-# すべて実行
+# 全部実行
 pytest tests/observability/test_observer.py -v
 
 # ライフサイクルコールバックテストのみ実行
@@ -39,7 +45,7 @@ pytest tests/observability/test_observer.py -k "observer_remove" -v
 ## パフォーマンス参考
 
 | テスト | 所要時間 |
-|------|------|
+|--------|---------|
 | `TestExecutorObserver` | ~2s（タスク実行を含む） |
 
 ## 注意事項

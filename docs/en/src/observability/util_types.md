@@ -1,8 +1,8 @@
 # ReporterTaskGraph
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/08/31
 
-`observability/util_types.py` defines the task graph protocol interface `ReporterTaskGraph` that `TaskReporter` depends on. It is a `Protocol` class, allowing `TaskReporter` to declare its dependency without importing the concrete `TaskGraph` type.
+`observability/util_types.py` defines the task graph protocol interface `ReporterTaskGraph` and the task stage protocol interface `ReporterTaskStage` on which `TaskReporter` depends. They are `Protocol` classes, allowing `TaskReporter` to declare its dependency without importing concrete `TaskGraph` / `TaskStage` types.
 
 ## Core Types
 
@@ -12,43 +12,66 @@ The minimal task graph interface protocol that `TaskReporter` depends on.
 
 ```python
 class ReporterTaskGraph(Protocol):
-    """TaskReporter 依赖的最小任务图接口。"""
+    """Minimum task graph interface required by TaskReporter."""
 
-    def collect_runtime_snapshot(self) -> None: ...
+    @property
+    def stage_dict(self) -> Mapping[str, ReporterTaskStage]:
+        """Return a read-only mapping of nodes indexed by name."""
+        ...
 
     def get_graph_id(self) -> str: ...
 
-    def put_stage_queue(
-        self,
-        tasks_dict: Mapping[str, Iterable[Any]],
-        put_termination_signal: bool = True,
-    ) -> None: ...
+    def get_stages_summary(self) -> dict[str, dict[str, Any]]: ...
 
-    def get_fallback_path(self) -> Path: ...
+    def get_edges(self) -> dict[str, list[str]]: ...
 
-    def get_status_snapshot(self) -> dict[str, Any]: ...
+    def get_source_names(self) -> list[str]: ...
 
-    def get_structure_graph(self) -> dict[str, Any]: ...
+    def get_lifecycle_path(self) -> Path: ...
 
     def get_graph_analysis(self) -> dict[str, Any]: ...
+
+    def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]: ...
 ```
 
-| Method | Return Type | Description |
+| Method | Return | Description |
 |------|--------|------|
-| `collect_runtime_snapshot()` | `None` | Collects the latest runtime snapshot |
-| `get_graph_id()` | `str` | Gets the current task graph's unique identifier |
-| `put_stage_queue(tasks_dict, put_termination_signal)` | `None` | Puts injected tasks into the specified stage's queue |
-| `get_fallback_path()` | `Path` | Gets the fallback persistence file path |
-| `get_status_snapshot()` | `dict[str, Any]` | Gets the runtime status snapshot (per-stage counts, etc.) |
-| `get_structure_graph()` | `dict[str, Any]` | Gets graph structure information (nodes and edges) |
-| `get_graph_analysis()` | `dict[str, Any]` | Gets graph analysis data (topology info, etc.) |
+| `stage_dict` | `Mapping[str, ReporterTaskStage]` | Returns a read-only mapping of nodes indexed by name (property) |
+| `get_graph_id()` | `str` | Get the unique identifier of the current task graph |
+| `get_stages_summary()` | `dict[str, dict[str, Any]]` | Returns the summary of all stages (`name`, `func_name`, `execution_mode`, `max_workers`, etc.) |
+| `get_edges()` | `dict[str, list[str]]` | Returns the edge set in the graph structure (`{from_name: [to_name, ...]}`) |
+| `get_source_names()` | `list[str]` | Returns the names of all source stages with no upstream input |
+| `get_lifecycle_path()` | `Path` | Get the path to the lifecycle persistence file |
+| `get_graph_analysis()` | `dict[str, Any]` | Get graph analysis data (topology info, etc.) |
+| `collect_runtime_snapshot()` | `tuple[dict[str, Any], float]` | Collect the latest runtime snapshot (per-stage aggregated status dict + collection timestamp) |
 
-## Usage Example
+### ReporterTaskStage
+
+The minimal task stage interface protocol that `TaskReporter` depends on (only used when the graph exposes stages via `stage_dict`).
+
+```python
+class ReporterTaskStage(Protocol):
+    """Minimum task stage interface required by TaskReporter."""
+
+    def put_task(self, task: Any) -> None: ...
+
+    def put_signal(self) -> None: ...
+```
+
+| Method | Return | Description |
+|------|--------|------|
+| `put_task(task)` | `None` | Inject a single task into the stage's input queue (for dynamic task injection) |
+| `put_signal()` | `None` | Put a termination signal into the stage's input queue |
+
+## Usage Examples
 
 ### Type Annotation in TaskReporter
 
 ```python
-from celestialflow.observability.util_types import ReporterTaskGraph
+from celestialflow.observability.util_types import (
+    ReporterTaskGraph,
+    ReporterTaskStage,
+)
 
 
 # TaskReporter uses Protocol to define dependencies, avoiding circular imports
@@ -58,12 +81,18 @@ class TaskReporter:
         host: str,
         port: int,
         task_graph: ReporterTaskGraph,  # Accepts any instance satisfying the protocol
-        log_inlet: LogInlet,
     ) -> None: ...
+
+
+# Minimal implementation satisfying the ReporterTaskStage protocol
+class MinimalStage:
+    def put_task(self, task): ...
+
+    def put_signal(self): ...
 ```
 
 ## Notes
 
-- `ReporterTaskGraph` is a `typing.Protocol`, which uses structural subtyping — any class implementing these methods will be recognized by the type checker as satisfying the protocol.
-- Using the Protocol pattern avoids circular dependencies between `TaskReporter` and `TaskGraph`.
+- `ReporterTaskGraph` and `ReporterTaskStage` are both `typing.Protocol`, using structural subtyping — any class implementing the corresponding methods is recognized by the type checker as satisfying the protocol.
+- Using the Protocol pattern avoids circular dependencies between `TaskReporter` and `TaskGraph` / `TaskStage`.
 - This file is imported and used by `core_report.py`.

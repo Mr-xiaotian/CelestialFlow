@@ -1,6 +1,6 @@
 # Specialized Stage Tests (test_stages.py)
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/26
 
 ## Purpose
 Validates the specialized task nodes (`TaskSplitter`, `TaskRouter`) in `celestialflow.stage.core_stages`, ensuring tasks can be correctly split, routed, and dispatched.
@@ -11,10 +11,11 @@ Validates the specialized task nodes (`TaskSplitter`, `TaskRouter`) in `celestia
 
 ## Key Test Scenarios
 
-### `TestTaskSplitter` — Task Splitter
+### `TestTaskSplitter` — Task Splitter (6 cases)
 | Case | Coverage Goal |
 |------|----------|
 | `test_splitter_init` | Validates default serial mode, no retry, initial counter is 0 |
+| `test_splitter_warns_when_execution_mode_is_not_serial` | Warns and remains in serial mode when a non-serial `execution_mode` is set |
 | `test_splitter_process_success` | After successful execution in a `TaskGraph`, downstream receives 3 independent tasks; `split_counter` count is correct |
 | `test_splitter_allows_empty_iterable` | Empty iterable input produces 0 subtasks without raising an exception |
 | `test_splitter_supports_generator_input` | Single-use iterator (generator) input still correctly splits and dispatches all subtasks |
@@ -49,12 +50,12 @@ pytest tests/stage/test_stages.py -k "router" -v
 ## Performance Reference
 
 | Test | Duration |
-|------|------|
+|------|----------|
 | `TestTaskSplitter` | ~0.2s |
 | `TestTaskRouter` | ~0.2s |
 
 ## Important Details
-- Tests use `TaskGraph.connect()` and `TaskGraph.start_graph()` to construct a real graph execution environment for verification, rather than using mock queues to intercept output.
+- Tests use `TaskGraph.set_stages()` / `connect()` to construct the graph, and `graph.run()` to build a real graph execution environment for verification, rather than using mock queues to intercept output.
 - Built-in `split_counter` and `route_counters` are automatically maintained by the internal mechanisms of the specialized Stages.
 
 ## Notes

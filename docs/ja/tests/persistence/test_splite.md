@@ -1,6 +1,6 @@
 # SQLite ユーティリティテスト (test_splite.py)
 
-> 📅 最終更新日: 2026/07/16
+> 📅 最終更新日: 2026/08/26
 
 ## 目的
 
@@ -22,7 +22,6 @@
 | `load_records_after_event_id_in_fail` | failed event_id 下限で増分読み取り |
 | `promote_record_to_failed_by_event_id` | ステータスを failed に更新しエラー情報を書き込み |
 | `promote_record_to_success_by_event_id` | ステータスを success に更新し結果を書き込み |
-| `update_record_event_id_by_event_id` | レコードの event_id を移行 |
 | `delete_record_by_event_id` | event_id でレコードを削除 |
 | `load_task_error_records` | stage 別に task-error ペアを読み取り |
 | `load_task_result_records` | stage 別に task-result ペアを読み取り |
@@ -30,8 +29,8 @@
 ## テストカバレッジマトリックス
 
 | テストクラス | ケース数 | カバレッジ対象 |
-|--------|--------|---------|
-| `TestSpliteUtils` | 18 | 接続・テーブル作成、正規化、挿入/読み取り、追加/重複排除、ページング検索、クリア、増分/グループ読み取り、エラータイプ集計、状態遷移、event_id 移行、削除、ペア読み取り |
+|------------|---------|------------|
+| `TestSpliteUtils` | 17 | 接続・テーブル作成、正規化、挿入/読み取り、追加/重複排除、ページング検索、クリア、増分/グループ読み取り、エラータイプ集計、状態遷移、削除、ペア読み取り |
 
 ## 主要テストシナリオ
 
@@ -42,7 +41,7 @@
 
 ### 正規化
 
-- メタ情報行（`ts` なし）は `None` を返し、データベースに保存されない
+- `event_id` を欠くメタ情報行（例：`timestamp` / `graph_name` のみ）は `None` を返し、データベースに保存されない
 - エラーレコードは `status="failed"` に正規化され、`task_json` と `result_json` は JSON 文字列にシリアライズされる
 
 ### 挿入と読み取り
@@ -67,9 +66,8 @@
 
 ### 状態遷移
 
-- `promote_record_to_failed_by_event_id`: waiting→failed、event_id とエラー情報を更新
+- `promote_record_to_failed_by_event_id`: waiting→failed、event_id を新しいエラー event ID に移行しエラー情報を書き込み
 - `promote_record_to_success_by_event_id`: pending→success、結果を書き込み
-- `update_record_event_id_by_event_id`: 現在の状態を保持し、event_id のみ移行
 
 ### 増分とグループ化
 

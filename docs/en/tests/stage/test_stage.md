@@ -1,6 +1,6 @@
-﻿# Task Stage Tests (test_stage.py)
+# Task Stage Tests (test_stage.py)
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/08/19
 
 ## Purpose
 Validates the `TaskStage` class in `celestialflow.stage.core_stage`, ensuring node configuration, execution mode switching, and identity management meet the framework's design requirements.
@@ -10,24 +10,30 @@ Validates the `TaskStage` class in `celestialflow.stage.core_stage`, ensuring no
 
 ## Test Coverage Matrix
 
+### `TestTaskStageConfig` — Node Configuration Validation (8 cases)
+
 | Case | Coverage Goal |
 |------|----------|
 | `test_stage_name_identity` | `name` is the unique identifier |
 | `test_stage_name_changes_with_name` | Identity updates synchronously after `set_name()` |
-| `test_valid_stage_mode_serial` | `stage_mode="serial"` is valid |
-| `test_valid_stage_mode_thread` | `stage_mode="thread"` is valid |
-| `test_invalid_stage_mode` | Invalid `stage_mode` raises `StageModeError` |
 | `test_valid_execution_mode_serial` | `execution_mode="serial"` is valid |
 | `test_valid_execution_mode_thread` | `execution_mode="thread"` is valid |
 | `test_valid_execution_mode_async` | `execution_mode="async"` is valid |
-| `test_invalid_execution_mode` | Invalid `execution_mode` raises `ExecutionModeError` |
-| `test_summary_contains_stage_mode` | `get_summary()` includes `stage_mode` and `execution_mode` |
-| `test_lambda_allowed_in_thread` | Lambda functions are allowed in thread mode |
+| `test_invalid_execution_mode` | Invalid `execution_mode` raises `InvalidOptionError` |
+| `test_summary_contains_execution_mode` | `get_summary()` includes `execution_mode` field |
+| `test_prev_binding_survives_execution_mode_switch` | Predecessor binding keeps metrics synchronized after switching `execution_mode` |
+
+### `TestTaskStageStartErrors` — Exception Group Collection (2 cases)
+
+| Case | Coverage Goal |
+|------|----------|
+| `test_start_raises_exception_group_after_finish` | Synchronous `start` raises collected exceptions as a group after `finish` |
+| `test_start_async_raises_exception_group_after_finish` | Async `start_async` raises exceptions as a group after `finish` |
 
 ## Test Focus
-- **Configuration rigor**: Ensures invalid mode combinations are caught at initialization.
-- **Metadata synchronization**: Validates the stability of the Stage name as a graph reference key.
-- **Mode semantics**: Distinguishes between the responsibilities of "Node Isolation Mode (Stage Mode)" and "Task Execution Mode (Execution Mode)".
+- **Configuration rigor**: Ensures that invalid execution modes are intercepted at initialization, and invalid modes raise `InvalidOptionError`.
+- **Metadata synchronization**: Validates the stability of the Stage name as a graph reference key, and that predecessor binding remains synchronized after switching `execution_mode`.
+- **Exception group collection**: Pre- and post- exceptions from the synchronous/async `start` lifecycle should be uniformly raised as `ExceptionGroup`.
 
 ## How to Run
 
@@ -38,22 +44,20 @@ pytest tests/stage/test_stage.py -v
 # Run identity management tests only
 pytest tests/stage/test_stage.py -k "name" -v
 
-# Run mode validation tests only
+# Run execution mode validation tests only
 pytest tests/stage/test_stage.py -k "mode" -v
-
-# Run Lambda support tests only
-pytest tests/stage/test_stage.py -k "lambda" -v
 ```
 
 ## Performance Reference
 
 | Test | Duration |
-|------|------|
+|------|----------|
 | `TestTaskStageConfig` | ~0.2s (pure config validation, no task execution) |
+| `TestTaskStageStartErrors` | ~0.3s (includes monkeypatch exception injection) |
 
 ## Important Details
 - `TaskStage` does not directly execute tasks; it orchestrates execution by configuring a `TaskExecutor` and managing a `Queue`.
-- `test_lambda_allowed_in_thread` is an important validation of task function flexibility under thread-isolation mode.
+- `TestTaskStageStartErrors` uses monkeypatch to inject exceptions into `_prepare_start` and `_finish_start` to verify the exception group collection mechanism.
 
 ## Notes
 - Task stages are the building blocks of `TaskGraph`.

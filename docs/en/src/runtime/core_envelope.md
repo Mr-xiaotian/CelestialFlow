@@ -1,19 +1,20 @@
 # TaskEnvelope
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/12
 
 A wrapper class for task data that is passed between Stages. It encapsulates the original task data, task hash, and task ID.
+
 
 ## Attributes
 
 ```python
 class TaskEnvelope:
-    __slots__ = ("hash", "id", "task")
+    __slots__ = ("_hash", "_id", "_task")
 
     def __init__(self, task: T, id: int):
-        self.task: T = task  # Original task data
-        self.hash: bytes | None = None  # Hash value (lazy computation)
-        self.id: int = id  # Unique task ID
+        self._task: T = task  # Original task data
+        self._hash: bytes | None = None  # Hash value (lazy computation)
+        self._id: int = id  # Unique task ID
 ```
 
 ## Getter Methods
@@ -33,23 +34,23 @@ def get_id(self) -> int:
 
 ## Lazy Hashing
 
-`hash` is `None` at construction time and is only computed on the first call to `get_hash()`. This avoids wasting computational resources when deduplication checks are not needed.
+`_hash` is `None` at construction time and is only computed on the first call to `get_hash()`. This avoids wasting computational resources in scenarios where deduplication checks are not needed.
 
 - For normally serializable tasks, `get_hash()` uses `object_to_hash()` to generate a stable SHA1 byte string.
-- If a task object cannot be pickled / hashed, `get_hash()` no longer throws the exception directly to the caller; instead, it falls back to a fallback byte string that is unique to that `TaskEnvelope` only.
-- This fallback value carries a dedicated prefix, semantically indicating "unique placeholder for an unhashable task", preventing interference with normal task deduplication and scheduling.
+- If a task object cannot be pickled / hashed, `get_hash()` no longer throws the exception directly to the caller; instead, it falls back to a fallback byte string that is unique only to that `TaskEnvelope`.
+- This fallback value carries a dedicated prefix, semantically indicating "unique placeholder for an unhashable task", to avoid affecting the normal deduplication and scheduling of other tasks.
 
 ```python
 envelope = TaskEnvelope(task="data", id=1)
-assert envelope.hash is None  # Not yet computed
-h = envelope.get_hash()  # First call — computed and cached
-assert envelope.hash is not None  # Now cached
-assert envelope.get_hash() == h  # Subsequent calls return cached value
+assert envelope._hash is None  # Not yet computed
+h = envelope.get_hash()  # First call, computed and cached
+assert envelope._hash is not None  # Cached
+assert envelope.get_hash() == h  # Subsequent calls return the cached value
 ```
 
 ## Usage Examples
 
-The following examples demonstrate core `TaskEnvelope` operations: creation, data access, lazy hash computation, and ID changes.
+The following examples demonstrate the core operations of `TaskEnvelope`, including creation, data access, lazy hash computation, and ID changes.
 
 ```python
 from celestialflow.runtime import TaskEnvelope
@@ -65,7 +66,7 @@ task = envelope.get_task()
 print(f"Task data: {task}")  # {"user": "alice", "score": 95}
 
 # 3. Check initial state (hash not yet computed — lazy evaluation)
-print(f"Initial hash: {envelope.hash}")  # None
+print(f"Initial hash: {envelope._hash}")  # None
 
 # 4. Get the task ID
 print(f"Task ID: {envelope.get_id()}")  # 1
@@ -73,7 +74,7 @@ print(f"Task ID: {envelope.get_id()}")  # 1
 # 5. First call to get_hash() computes and caches SHA1
 h = envelope.get_hash()
 print(f"SHA1 hash: {h.hex()[:16]}...")
-print(f"Hash cached after call: {envelope.hash is not None}")  # True
+print(f"Hash cached after call: {envelope._hash is not None}")  # True
 print(f"Repeat call returns cached value: {envelope.get_hash() == h}")  # True
 ```
 

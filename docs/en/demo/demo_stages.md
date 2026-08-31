@@ -1,6 +1,6 @@
-﻿# demo_stages.py Demo Guide
+# demo_stages.py Demo Guide
 
-> 📅 Last Updated: 2026/07/16
+> 📅 Last Updated: 2026/08/26
 
 ## Objective
 
@@ -45,17 +45,17 @@ Routing logic: The `Origin` stage simply outputs the original input integer; `Ta
 
 ## Key Configuration
 
-- Each stage's `stage_mode` varies by scenario: `demo_splitter_0` sets all to `"thread"` via `graph.set_graph_mode("thread", "thread")`; in `demo_router_0`, `Origin` and `Router` use `stage_mode="serial"`, while downstream `StageA`/`StageB` use `"thread"`; `demo_splitter_1` specifies `stage_mode="thread"` through `TaskChain`
-- `set_reporter(True)` enables monitoring reporting
-- Uses `LocalEventClient()` by default for local event ID generation
-- `set_ctree(ctree_client)` is commented out in `demo_splitter_0` and `demo_router_0`, so CelestialTree is not enabled by default; to use it, first install `celestialtree` separately and uncomment the corresponding call
+- Each stage defaults to `execution_mode="thread"` (when not explicitly set, the framework decides); in `demo_splitter_0`, two independent calls `graph.set_graph_mode("thread")` and `graph.set_stage_execution_mode("thread")` uniformly set it to `"thread"`; `demo_splitter_1` indirectly uses `execution_mode="thread"`, `max_workers=50` via `TaskChain`
+- In `demo_router_0`, `Origin`/`StageA`/`StageB` all use `execution_mode="thread"` (`max_workers=4` / `2` / `2`); `Router` is a `TaskRouter` node and does not use `execution_mode` itself
+- Monitoring is wired in via `graph.set_reporter(TaskReporter(report_host, report_port, graph))`, connecting to the remote Reporter corresponding to the `REPORT_HOST`/`REPORT_PORT` environment variables; `graph.set_ctree(ctree_client)` is commented out by default and does not enable CelestialTree; to wire it in, first install `celestialtree` separately and uncomment the corresponding call
 - Redis remote collaboration examples have been migrated to `demo_redis.py`
 
 ## Potential Issues
 
 1. **Long runtime**: Stages in `demo_splitter_0` contain 4-6 seconds of random sleep; full execution may exceed 1 minute.
-2. **No assertions**: Demo script; does not verify result correctness.
-3. **Redis examples migrated**: The former `demo_redis_ack_*` and `demo_redis_source_0` have been migrated to [demo_redis.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/demo_redis.md).
+2. **Contains a loopback, may not auto-terminate**: `demo_splitter_0` has a `Parser → GenURLs` loopback, and `graph.run(..., if_put_signal=False)` does not inject an automatic termination signal; some URLs (e.g., successfully parsed `url_1_1`) will keep producing new URLs and continue looping. If there is no new output for a long time, it is recommended to manually terminate with **Ctrl+C**.
+3. **No assertions**: Demo script; does not verify result correctness.
+4. **Redis examples migrated**: The former `demo_redis_ack_*` and `demo_redis_source_0` have been migrated to [demo_redis.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/demo_redis.md).
 
 ## How to Run
 
@@ -105,7 +105,7 @@ Wraps `range(100000)` as a list fed into Splitter, outputting individually to do
 
 ## Dependencies
 
-- `celestialflow` (`TaskGraph`, `TaskStage`, `TaskChain`, `TaskSplitter`, `TaskRouter`)
+- `celestialflow` (`TaskGraph`, `TaskStage`, `TaskChain`, `TaskSplitter`, `TaskRouter`, `TaskReporter`)
 - `demo_utils`
 - `python-dotenv`
 - External services: CelestialTree (optional), Reporter (optional)

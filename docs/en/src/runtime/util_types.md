@@ -1,6 +1,7 @@
 # TaskTypes
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/12
+
 
 The TaskTypes module defines the basic data types, enums, and helper classes used throughout the framework.
 
@@ -38,8 +39,6 @@ Termination signal ID pool, used to store all received termination signal IDs.
 class TerminationIdPool:
     def __init__(self, ids: list[int]):
         self.ids = ids  # List of termination signal IDs
-        self.id = -1  # Compatibility field, fixed at -1
-        self.source = "<signal>"  # Compatibility field, fixed at "<signal>"
 ```
 
 ## NoOpContext
@@ -117,6 +116,8 @@ CelestialTree event name constants, used for task tracking and visualization.
 | `TASK_DUPLICATE` | `"task.duplicate"` | Duplicate task detected |
 | `TERMINATION_INPUT` | `"termination.input"` | Termination signal injected |
 | `TERMINATION_MERGE` | `"termination.merge"` | Termination signals merged |
+
+
 
 ## Usage Examples
 
@@ -212,11 +213,11 @@ print(f"Task success event: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
 print(f"Task failure event: {CTreeEvent.TASK_ERROR}")  # "task.error"
 print(f"Retry prefix: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
 print(f"Duplicate task event: {CTreeEvent.TASK_DUPLICATE}")  # "task.duplicate"
-print(
-    f"Termination injection event: {CTreeEvent.TERMINATION_INPUT}"
-)  # "termination.input"
+print(f"Termination injection event: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
 print(f"Termination merge event: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
 ```
+
+
 
 ## Notes
 

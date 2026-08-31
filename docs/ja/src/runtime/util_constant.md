@@ -1,6 +1,6 @@
 # RuntimeConstant
 
-> 📅 最終更新日: 2026/07/16
+> 📅 最終更新日: 2026/08/12
 
 `runtime/util_constant.py` はランタイムのグローバル定数を定義します。主にログレベルマッピングテーブル `LEVEL_DICT` です。
 
@@ -114,4 +114,4 @@ print(validate_level("VERBOSE"))  # False
 
 ## 注意事項
 
-- `LEVEL_DICT` は `LogInlet` のログフィルタリングの中核的な根拠です。レベル数値を随意に変更しないでください。
+- `LEVEL_DICT` は `util_config` の `load_log_level_from_pyproject()` がユーザー設定のログレベルを検証するために使用します。レベル数値を随意に変更しないでください。

@@ -41,12 +41,12 @@ if lowlink[v] == indices[v]:
 ```python
 def tarjan_scc(graph: OrderGraph) -> list[list[str]]:
     out = graph._out
-    index = 0  # 全局时间戳计数器
-    stack: list[str] = []  # 维护当前"活跃"节点
-    on_stack: set[str] = set()  # 快速判断某节点是否在栈中
-    indices: dict[str, int] = {}  # 记录每个节点的发现时间戳
-    lowlink: dict[str, int] = {}  # 记录每个节点能回溯到的最小时间戳
-    sccs: list[list[str]] = []  # 结果：所有 SCC 列表
+    index = 0  # global timestamp counter
+    stack: list[str] = []  # maintains currently "active" nodes
+    on_stack: set[str] = set()  # fast check whether a node is on the stack
+    indices: dict[str, int] = {}  # records each node's discovery timestamp
+    lowlink: dict[str, int] = {}  # records each node's smallest backtrackable timestamp
+    sccs: list[list[str]] = []  # result: list of all SCCs
 ```
 
 ### Inner function `strongconnect(v)`
@@ -55,7 +55,7 @@ def tarjan_scc(graph: OrderGraph) -> list[list[str]]:
     def strongconnect(v: str) -> None:
         nonlocal index
         
-        # ① 初始化：给 v 打上时间戳，lowlink 先等于自己
+        # ① initialize: timestamp v, lowlink initially equals itself
         indices[v] = lowlink[v] = index
         index += 1
         stack.append(v)
@@ -65,21 +65,21 @@ def tarjan_scc(graph: OrderGraph) -> list[list[str]]:
 **Step 1**: Node $v$ is discovered. `indices[v]` and `lowlink[v]` are initially set to the current timestamp. $v$ is pushed onto the stack, indicating it has "not yet found its organization".
 
 ```python
-# ② 遍历所有出边 v → w
+# ② iterate all outgoing edges v → w
 for w in out.get(v, []):
     if w not in indices:
-        # 情况 A：w 未被访问过 → 树边，继续 DFS
+        # Case A: w has not been visited → tree edge, continue DFS
         strongconnect(w)
-        # 回溯后，w 的 lowlink 已经算好，用它来更新 v
+        # after backtracking, w's lowlink is already computed, use it to update v
         lowlink[v] = min(lowlink[v], lowlink[w])
 
     elif w in on_stack:
-        # 情况 B：w 在栈中 → 回边或指向同 SCC 的横叉边
-        # w 的时间戳就是它能代表的最老祖先
+        # Case B: w is on the stack → back edge or cross edge pointing to the same SCC
+        # w's timestamp represents the oldest ancestor it can stand for
         lowlink[v] = min(lowlink[v], indices[w])
 
-    # 情况 C（隐式 else）：w 已访问但不在栈中
-    # 说明 w 属于一个已经确定的 SCC，对 v 无影响，直接忽略
+    # Case C (implicit else): w has been visited but is not on the stack
+    # means w belongs to a finalized SCC, no effect on v, ignore directly
 ```
 
 **Handling of the three edge types**:
@@ -91,7 +91,7 @@ for w in out.get(v, []):
 | **C** | `w in indices` and `w not in on_stack` | Cross edge / forward edge pointing to a **completed SCC** | Ignore, because that SCC is already closed and $v$ cannot form a new strong connection through it |
 
 ```python
-        # ③ 判定：v 是不是某个 SCC 的根？
+        # ③ decision: is v the root of some SCC?
         if lowlink[v] == indices[v]:
             scc = []
             while True:

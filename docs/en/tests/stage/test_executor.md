@@ -1,6 +1,6 @@
 # Task Executor Tests (test_executor.py)
 
-> 📅 Last Updated: 2026/07/16
+> 📅 Last Updated: 2026/08/26
 
 ## Purpose
 Validates the `TaskExecutor` class in `celestialflow.stage.core_executor`, ensuring accurate task execution, error handling, and support for advanced features (such as retry and deduplication) across various concurrency modes.
@@ -16,7 +16,7 @@ Validates the `TaskExecutor` class in `celestialflow.stage.core_executor`, ensur
 | `TestExecutorThread` | 1 | Thread-pool parallel execution with correct counting |
 | `TestExecutorAsync` | 2 | Async execution and continuous processing logic |
 | `TestExecutorDuplicateCheck` | 3 | Behavioral comparison among default disabled, enabled, and explicitly disabled configurations |
-| `TestExecutorReplay` | 2 | `start_db` reads failed/pending tasks from sqlite by stage and replays them; `start_db` with `filter_by_error_type` only replays records matching `retry_exceptions` |
+| `TestExecutorReplay` | 3 | `restore_db` reads failed/pending tasks from sqlite by stage and replays them; with `filter_by_error_type` only replays failed records matching `retry_exceptions`; pending records are kept during filtering |
 | `TestExecutorSuccessCache` | 1 | Success result caching and `get_success_pairs()` |
 | `TestExecutorConfig` | 4 | Zero/multi-parameter function rejection, invalid execution mode validation, `get_summary()` metadata |
 
@@ -25,7 +25,7 @@ Validates the `TaskExecutor` class in `celestialflow.stage.core_executor`, ensur
 ### Execution Modes
 - **Serial**: Sequential execution; verifies result mapping and counting.
 - **Thread**: Parallel execution; verifies task distribution under multi-threading (`execution_mode="thread"`).
-- **Async**: Async execution; verifies coroutine handling for `start_async` (`execution_mode="async"`).
+- **Async**: Async execution; verifies coroutine handling for `run_async` (`execution_mode="async"`).
 
 ### Retry Mechanism
 - Validates `max_retries` logic: retry is triggered only when the specified `retry_exceptions` are thrown.
@@ -39,7 +39,7 @@ Validates the `TaskExecutor` class in `celestialflow.stage.core_executor`, ensur
 - Validates that `get_success_pairs()` correctly returns input-output pairs for successfully completed tasks.
 
 ### Configuration Validation
-- Validates that an invalid `execution_mode` raises `ExecutionModeError` at initialization.
+- Validates that an invalid `execution_mode` raises `InvalidOptionError` at initialization.
 - Validates that `get_summary()` returns key fields such as `name`, `func_name`, and `execution_mode`.
 
 ## Test Focus
@@ -81,7 +81,8 @@ pytest tests/stage/test_executor.py -k "duplicate" -v
 ## Important Details
 - Uses a `flaky` closure to simulate scenarios requiring retry.
 - `test_invalid_execution_mode` ensures unsupported modes are rejected at initialization.
-- `TestExecutorReplay.test_start_db_filters_error_type_when_enabled` verifies that when `start_db` has `filter_by_error_type` enabled, only failed records matching `retry_exceptions` are replayed, skipping non-matching error types.
+- `TestExecutorReplay.test_restore_db_filters_error_type_when_enabled` verifies that when `restore_db` has `filter_by_error_type` enabled, only failed records matching `retry_exceptions` are replayed, skipping non-matching error types.
+- `TestExecutorReplay.test_restore_db_filter_keeps_pending_records` verifies that pending records are kept during filtering.
 
 ## Notes
 - `TaskExecutor` is the core component of `TaskStage`, responsible for the actual function call logic.

@@ -1,32 +1,32 @@
 # demo_observer.py デモ説明
 
-> 📅 最終更新日: 2026/06/28
+> 📅 最終更新日: 2026/08/31
 
 ## 目標
 
-CelestialFlow において `TaskExecutor` に異なるタイプの observer を登録する方法を示します。
+CelestialFlow において `TaskExecutor` に異なるタイプの observer を登録する方法を示す。
 
-現在のファイルでは 2 つの方法を同時に紹介しています：
+現在のファイルでは 2 つの方法を同時に紹介している：
 
-- 組み込みの `TaskProgress` を使用して `tqdm` ベースのプログレスバーを表示
-- `BaseObserver` を直接継承してカスタム `LoggingObserver` を実装
+- 本ファイル内のカスタム `TaskProgress` を使用（`tqdm` ベースのプログレスバー observer）
+- `BaseObserver` を直接継承してカスタム `PrintObserver` を実装
 
 ## デモ内容
 
-現在のデモには 2 つのエントリ関数が含まれています：
+現在のデモには 2 つのエントリ関数が含まれている：
 
 | 関数 | 説明 |
 |------|------|
 | `demo_progress_observer` | `TaskExecutor` を作成し、`TaskProgress` を登録してプログレスバーを表示 |
-| `demo_custom_observer` | `TaskExecutor` を作成し、`LoggingObserver` を登録して observer ライフサイクルログを出力 |
+| `demo_print_observer` | `TaskExecutor` を作成し、`PrintObserver` を登録して observer ライフサイクルログを出力 |
 
-2 種類の observer の位置づけは以下の通りです：
+2 種類の observer の位置づけは以下の通り：
 
 ```mermaid
 flowchart TB
     Input["入力タスク<br/>range(25, 32)"] --> Executor["TaskExecutor<br/>FibonacciSerial2 / serial"]
     Progress["TaskProgress"] -.監視.-> Executor
-    Custom["LoggingObserver"] -.監視.-> Executor
+    Custom["PrintObserver"] -.監視.-> Executor
     Executor --> Start["on_start"]
     Executor --> Added["on_tasks_added"]
     Executor --> Success["on_task_success"]
@@ -46,7 +46,7 @@ flowchart TB
 |----------|------|
 | `TaskProgress` | `tqdm` で実行進捗を表示。CLI インタラクションシーンに適している |
 
-現在の `LoggingObserver` は以下のコールバックを実装しています：
+現在の `PrintObserver` は以下のコールバックを実装している：
 
 | コールバック | 役割 |
 |------|------|
@@ -59,11 +59,11 @@ flowchart TB
 
 ## 発生しうる問題
 
-1. **デフォルトの `main()` は現在 `demo_custom_observer` のみを実行**: プログレスバーの効果を見たい場合は、`__main__` 内の呼び出しを `demo_progress_observer()` に変更する必要があります。
-2. **現在のサンプルは成功パスのみを表示**: `test_task` は現在 `range(25, 32)` であるため、実行時には通常 `on_start`、`on_tasks_added`、`on_task_success`、`on_finish` のみが表示されます。
-3. **`on_start` の初期 total が 0 になる可能性がある**: executor はまず起動イベントを発火し、その後 `on_tasks_added` を通じて実際に追加されたタスク数を通知します。これは現在の通知順序による正常な現象です。
-4. **アサーションなし**: これはデモスクリプトであり、結果の数値を検証せず、observer の呼び出しタイミングを示すためだけに使用されます。
-5. **計算所要時間は入力に影響される**: 現在は反復 O(n) フィボナッチであり、単一タスクの所要時間は `n` に比例して線形増加するが、`fibonacci(31)` と `fibonacci(25)` の差は依然としてマイクロ秒レベルであり、合計所要時間に顕著な影響は与えない。
+1. **デフォルトの `main()` は `demo_progress_observer` と `demo_print_observer` の両方を順に実行する**：2 つの observer が順次実行され、まず tqdm プログレスバーが表示され、その後ログが出力される。
+2. **現在のサンプルは成功パスのみを表示**：`test_task` は現在 `range(25, 32)` であるため、実行時には通常 `on_start`、`on_tasks_added`、`on_task_success`、`on_finish` のみが表示される。
+3. **`on_start` の初期 total が 0 になる可能性がある**：executor はまず起動イベントを発火し、その後 `on_tasks_added` を通じて実際に追加されたタスク数を通知する。これは現在の通知順序による正常な現象である。
+4. **アサーションなし**：これはデモスクリプトであり、結果の数値を検証せず、observer の呼び出しタイミングを示すためだけに使用される。
+5. **計算所要時間は入力に影響される**：現在は反復 O(n) フィボナッチであり、単一タスクの所要時間は `n` に比例して線形増加するが、`fibonacci(31)` と `fibonacci(25)` の差は依然としてマイクロ秒レベルであり、合計所要時間に顕著な影響を与えない。
 
 ## 実行方法
 
@@ -73,19 +73,19 @@ python demo/demo_observer.py
 
 ## 期待される動作
 
-実行後、以下のような observer ライフサイクルログが表示されます：
+実行後、以下のような observer ライフサイクルログが出力される：
 
 ### `demo_progress_observer`
 
-エントリを `demo_progress_observer()` に切り替えた場合、ターミナルには以下のようなプログレスバーが表示されます：
+エントリを `demo_progress_observer()` に切り替えた場合、ターミナルには以下のようなプログレスバーが表示される：
 
 ```text
 FibonacciSerial2(serial): 100%|████████████████████████████| 7/7 [00:00<00:00, ...it/s]
 ```
 
-### `demo_custom_observer`
+### `demo_print_observer`
 
-`demo_custom_observer()` を実行した場合、以下のような observer ライフサイクルログが表示されます：
+`demo_print_observer()` を実行した場合、以下のような observer ライフサイクルログが出力される：
 
 ```text
 [observer] start executor=FibonacciSerial2(serial), total=0
@@ -106,12 +106,12 @@ FibonacciSerial2(serial): 100%|████████████████�
 test_task = list(range(25, 32)) + [0, 27, None, 0, ""]
 ```
 
-これにより以下がトリガーされやすくなります：
+これにより以下がトリガーされやすくなる：
 
 - `on_task_fail`
 - `on_task_duplicate`
 
-## 依存
+## 依存関係
 
 - `celestialflow`（`BaseObserver`、`TaskExecutor`、`TaskProgress`）
 - `demo_utils`（`fibonacci`）

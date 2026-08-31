@@ -1,10 +1,10 @@
 # TaskStructure
 
-> 📅 Last Updated: 2026/07/16
+> 📅 Last Updated: 2026/08/31
 
 The TaskStructure module provides multiple predefined task graph structures to help users quickly build complex task flows. All structures inherit from `TaskGraph`.
 
-## Chain
+## Chain (Linear Chain)
 
 ```mermaid
 flowchart LR
@@ -34,15 +34,14 @@ stage3 = TaskStage("S3", func=func3)
 chain = TaskChain(
     name="DataPipeline",
     stages=[stage1, stage2, stage3],
-    stage_mode="thread",  # thread: nodes run in parallel; serial: nodes run sequentially
-    log_level="SUCCESS",
+    graph_mode="thread",  # thread: nodes run in parallel; serial: nodes run sequentially
 )
 
 # Start
-chain.start_graph(init_tasks_dict={stage1.get_name(): [data]})
+chain.run({stage1.get_name(): [data]})
 ```
 
-## Cross
+## Cross (Cross Layers)
 
 ```mermaid
 flowchart LR
@@ -75,7 +74,7 @@ layer1 = [stage_1_1, stage_1_2]
 layer2 = [stage_2_1, stage_2_2]
 
 # Create cross structure
-cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], schedule_mode="eager")
+cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 ```
 
 ## Grid
@@ -108,10 +107,10 @@ from celestialflow import TaskGrid
 grid_layout = [[stage_00, stage_01], [stage_10, stage_11]]
 
 # Create grid structure
-grid = TaskGrid(name="GridPipeline", grid=grid_layout, schedule_mode="eager")
+grid = TaskGrid(name="GridPipeline", grid=grid_layout, graph_mode="thread")
 ```
 
-## Loop
+## Loop (Cyclic)
 
 ```mermaid
 flowchart LR
@@ -128,7 +127,7 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskLoop` connects nodes head-to-tail to form a closed loop. Defaults to the `eager` scheduling mode.
+`TaskLoop` connects nodes head-to-tail to form a closed loop. Defaults to the `thread` graph execution mode.
 Note: Loop structures typically require external intervention to stop, or specific exit conditions must be set.
 
 ```python
@@ -176,7 +175,7 @@ wheel = TaskWheel(
 )
 ```
 
-## Complete
+## Complete (Complete Graph)
 
 ```mermaid
 flowchart LR
@@ -231,13 +230,14 @@ def aggregate(data: int) -> dict:
 s1 = TaskStage("Clean", func=clean)
 s2 = TaskStage("Transform", func=transform)
 s3 = TaskStage("Aggregate", func=aggregate)
-chain = TaskChain(name="ETL", stages=[s1, s2, s3], stage_mode="thread")
+chain = TaskChain(name="ETL", stages=[s1, s2, s3], graph_mode="thread")
 
 # Start
-chain.start_graph({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
+chain.run({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
 
 # Get results
-print(f"Chain status: {chain.get_status_snapshot()}")
+snapshot, _ = chain.collect_runtime_snapshot()
+print(f"Chain stage count: {len(snapshot)}")
 ```
 
 ### TaskCross Full Example
@@ -268,8 +268,8 @@ layer1 = [TaskStage("LoadA", func=load_a), TaskStage("LoadB", func=load_b)]
 layer2 = [TaskStage("AnaA", func=analyze_a), TaskStage("AnaB", func=analyze_b)]
 
 cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
-cross.start_graph({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
-print(cross.get_status_snapshot())
+cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
+print(cross.collect_runtime_snapshot())
 ```
 
 ### TaskGrid Full Example
@@ -284,8 +284,8 @@ n10 = TaskStage("Mul", func=lambda x: x * 2)
 n11 = TaskStage("Square", func=lambda x: x * x)
 
 grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
-grid.start_graph({n00.get_name(): [1, 2, 3]})
-print(grid.get_status_snapshot())
+grid.run({n00.get_name(): [1, 2, 3]})
+print(grid.collect_runtime_snapshot())
 ```
 
 ### TaskLoop Full Example
@@ -301,9 +301,9 @@ loop_stages = [
 ]
 
 loop = TaskLoop(name="RingLoop", stages=loop_stages)
-loop.start_graph(
+loop.run(
     {loop_stages[0].get_name(): [5]},
-    put_termination_signal=False,  # Loop structures require manual termination injection
+    if_put_signal=False,  # Loop structures require manual termination injection
 )
 ```
 
@@ -320,8 +320,8 @@ ring_nodes = [
 ]
 
 wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
-wheel.start_graph({center.get_name(): [42]})
-print(wheel.get_status_snapshot())
+wheel.run({center.get_name(): [42]})
+print(wheel.collect_runtime_snapshot())
 ```
 
 ### TaskComplete Full Example
@@ -336,9 +336,9 @@ nodes = [
 ]
 
 complete = TaskComplete(name="FullConnected", stages=nodes)
-complete.start_graph(
+complete.run(
     {nodes[0].get_name(): [10]},
-    put_termination_signal=False,
+    if_put_signal=False,
 )
-print(complete.get_status_snapshot())
+print(complete.collect_runtime_snapshot())
 ```

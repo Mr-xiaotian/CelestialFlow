@@ -1,6 +1,6 @@
 # BaseSpout
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/26
 
 `BaseSpout` is the base class for all outlet classes, providing the common functionality of listening to a queue in a background thread and processing records.
 
@@ -41,8 +41,8 @@ def stop(self):
 Flow:
 1. If `_thread` is `None`, returns immediately
 2. Sends `TERMINATION_SIGNAL` to the queue
-3. Waits for the thread to finish (`join(timeout=5)`) and sets `_thread` to `None`
-4. Calls the `_after_stop()` hook
+3. Waits for the thread to finish (`join(timeout=5)`); if the thread is still alive after 5 seconds, raises `RuntimeStateError("Spout thread did not terminate within 5 seconds.")`
+4. Sets `_thread` to `None` and calls the `_after_stop()` hook
 
 ### get_queue / get_counter / get_pending_count
 
@@ -233,7 +233,7 @@ print(f"Processed {spout.count} records")  # 100
 
 1. **Thread Safety**: Uses `queue.Queue` for safe inter-thread communication.
 2. **Daemon Thread**: The listening thread is set as a daemon thread (`daemon=True`), exiting automatically when the main process exits.
-3. **Graceful Stop**: Notifies the thread to stop via `TerminationSignal`, `join(timeout=5)` waits up to 5 seconds.
+3. **Graceful Stop**: Notifies the thread to stop via `TerminationSignal`, `join(timeout=5)` waits up to 5 seconds; a timeout raises `RuntimeStateError`.
 4. **Exception Isolation**: Single record processing failure prints traceback and continues, does not terminate the thread.
 5. **Queue Cleanup**: Remaining records in the queue are not cleaned up when stopping.
 6. **Pending Counter**: The counter is incremented before `_funnel()` enqueueing and decremented after `_spout()` processing completes; it can be used to determine whether all data has been consumed.

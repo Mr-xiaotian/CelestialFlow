@@ -1,6 +1,6 @@
-﻿# Runtime Queue Tests (test_queue.py)
+# Runtime Queue Tests (test_queue.py)
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/08/26
 
 ## Purpose
 Verifies the queue management logic for task flow between different nodes (Stages), including task enqueue/dequeue, termination signal merging and broadcasting, and dynamic queue expansion.
@@ -12,6 +12,8 @@ Verifies the queue management logic for task flow between different nodes (Stage
 ## Key Test Scenarios
 
 ### `TestTaskInQueue` — Input Queue
+The `simple_queue` fixture constructs an input queue without any upstream source (only `out_name`) for reuse in single-source cases.
+
 | Case | Coverage Goal |
 |------|---------------|
 | `test_put_and_get_task` | Basic access: enqueue and dequeue `TaskEnvelope` |
@@ -21,6 +23,8 @@ Verifies the queue management logic for task flow between different nodes (Stage
 | `test_drain_returns_remaining_tasks` | `drain()` empties the queue and returns all remaining tasks |
 
 ### `TestTaskOutQueue` — Output Queue
+The output queue uses the standard library `queue.Queue` as the actual sink, verifying the visible result of broadcast/targeted delivery.
+
 | Case | Coverage Goal |
 |------|---------------|
 | `test_put_broadcasts_to_all` | `put()` broadcasts to all downstream queues |

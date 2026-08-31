@@ -1,6 +1,6 @@
-﻿# bench_hash.py Benchmark Guide
+# bench_hash.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/16
+> 📅 Last Updated: 2026/08/26
 
 ## Objective
 
@@ -15,7 +15,7 @@ Systematically compare 9 object→hash string serialization + hashing strategies
 | `pickle+blake2b16` | `pickle.dumps` | BLAKE2b(16B) | Faster, short digest |
 | `json+md5` | Custom JSON | MD5 | Cross-language stable, but only supports JSON-serializable types |
 | `json+sha256` | Custom JSON | SHA256 | More secure, but slower |
-| `repr+md5` | `repr(normalized)` | MD5 | Good readability, but `set`/`dict` order-sensitive |
+| `repr+md5` | `repr(normalized)` | MD5 | Good readability; `normalize_for_hash` already normalizes `set`/`dict`/`tuple`/`list`/`bytes` by sorting, output is stable |
 | `repr+sha1+uuid` | `repr(normalized)` | SHA1→UUID | Formatted as standard UUID |
 | `repr+blake2b16` | `repr(normalized)` | BLAKE2b(16B) | Fast + short digest |
 | `fast_mixed` | Type dispatch (bytes/str/repr/pickle) | SHA1 | Shortcut for basic types, fallback to pickle for complex objects |

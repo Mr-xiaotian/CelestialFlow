@@ -1,62 +1,72 @@
 # Persistence Module
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/26
 
-The Persistence module provides CelestialFlow's data persistence functionality, including execution log recording and fallback persistence. It ensures that key data from task execution can be reliably saved and retrieved.
+The Persistence module provides CelestialFlow's data persistence capabilities, including task Lifecycle recording and execution Logs. It ensures that key data from task execution can be reliably saved and retrieved.
 
 ## Exported Symbols
 
 | Exported Symbol | Source Module | Description |
-|-----------------|---------------|-------------|
-| `FallbackInlet` | `core_fallback` | Thread-safe fallback record collector, sends task lifecycle events to `FallbackSpout` via queue |
-| `FallbackSpout` | `core_fallback` | Fallback record listener, writes task lifecycle to SQLite database |
+|---------|---------|------|
+| `LifecycleInlet` | `core_lifecycle` | Thread-safe lifecycle record collector, sends task lifecycle events to `LifecycleSpout` via queue |
+| `LifecycleSpout` | `core_lifecycle` | Lifecycle record listener, writes task lifecycle to SQLite database |
 | `LogInlet` | `core_log` | Thread-safe log collector, providing rich semantic logging methods |
 | `LogSpout` | `core_log` | Log listening thread, writes logs to text files in the `logs/` directory |
+| `funnel_scope` | `core_scope` | Context manager that manages the lifecycle of the global `LifecycleSpout` and `LogSpout` |
+| `get_lifecycle_inlet` | `core_lifecycle` | Get the global unique `LifecycleInlet` instance |
+| `get_lifecycle_spout` | `core_lifecycle` | Get the global unique `LifecycleSpout` instance |
+| `get_log_inlet` | `core_log` | Get the global unique `LogInlet` instance |
+| `get_log_spout` | `core_log` | Get the global unique `LogSpout` instance |
 
 ## File Descriptions
 
+### Lifecycle Persistence
+
+1. **core_lifecycle.py** (`LifecycleSpout`, `LifecycleInlet`)
+   - **Purpose**: Persistence of task lifecycle, uniformly records task pending / success / failed / duplicate states
+   - **Core Components**:
+     - `LifecycleSpout`: Inherits `BaseSpout`, persists task lifecycle events via SQLite
+     - `LifecycleInlet`: Thread-safe collector, providing `task_in` / `task_success` / `task_fail` / `task_duplicate` methods
+   - **Storage Format**: SQLite database (WAL mode), files located under the `lifecycles/` directory
+
 ### Log Persistence
 
-1. **core_log.py** (`LogSpout`, `LogInlet`)
+2. **core_log.py** (`LogSpout`, `LogInlet`)
    - **Purpose**: Infrastructure for log recording and storage
    - **Core Components**:
-     - `LogSpout`: Log listening thread, receives log messages from the queue and writes them to text files in the `logs/` directory
-     - `LogInlet`: Thread-safe log collector, providing semantic logging methods (task success/failure/retry, stage start/stop, queue operations, etc.)
+     - `LogSpout`: Log listening thread, receives log messages from the queue and writes them to text files under the `logs/` directory
+     - `LogInlet`: Thread-safe log collector, providing semantic logging methods (task success/failure/retry, graph/layer start/stop, reporter events, etc.)
    - **Log Format**: Plain text format, each line contains `timestamp level message`
 
-### Fallback Persistence
+### Scope Management
 
-2. **core_fallback.py** (`FallbackSpout`, `FallbackInlet`)
-   - **Purpose**: Task lifecycle fallback persistence, uniformly handling success and failure results
-   - **Core Components**:
-     - `FallbackSpout`: Inherits `BaseSpout`, persists task lifecycle events via SQLite
-     - `FallbackInlet`: Thread-safe collector, providing `task_in`/`task_success`/`task_fail`/`task_retry`/`task_duplicate` methods
-   - **Storage Format**: SQLite database (WAL mode)
+3. **core_scope.py** (`funnel_scope`)
+   - **Purpose**: Context manager that manages the lifecycle of the global `LifecycleSpout` and `LogSpout`
+   - **Key Features**: Starts the two spouts on entry, stops and collects exceptions on exit; throws uniformly as `ExceptionGroup`
 
 ### Data Serialization
 
-3. **util_payload.py**
+4. **util_payload.py**
    - **Purpose**: Recursively converts task data into JSON-friendly persistable structures
    - **Key Function**: `to_persisted_payload(task)` — Converts arbitrary Python objects into JSON-serializable structures
 
 ### SQLite Utilities
 
-4. **util_sqlite.py**
+5. **util_sqlite.py**
    - **Purpose**: SQLite database connection management and CRUD operation utilities
-   - **Key Functions**: `connect_db`, `insert_record`, `load_records`, `query_records`, `load_task_error_records`, etc.
+   - **Key Functions**: `connect_db`, `insert_record`, `promote_record_to_*`, `load_records`, `query_records`, `load_task_error_records`, etc.
 
 ## Module Relationships
 
 ### Internal Relationships
 - All persistence classes inherit from `BaseSpout`/`BaseInlet` (defined in the Funnel module)
-- `FallbackSpout`/`FallbackInlet` and `LogSpout`/`LogInlet` are used in pairs
-- `FallbackSpout` uniformly handles success and failure results, replacing the old standalone `SuccessSpout`
+- `LifecycleSpout`/`LifecycleInlet` and `LogSpout`/`LogInlet` are used in pairs, with their lifecycle uniformly managed by `funnel_scope`
 
 ### External Relationships
 - **With Runtime Module**: Listens to logs and errors generated at runtime, references `LEVEL_DICT`
-- **With Stage Module**: Records task execution status and results
-- **With Observability Module**: Provides raw data for monitoring and analysis
-- **With Funnel Module**: Inherits from `BaseSpout`/`BaseInlet` base classes
+- **With Stage Module**: Records task execution status and results; `TaskExecutor` writes records via `get_log_inlet()` / `get_lifecycle_inlet()`
+- **With Observability Module**: Provides raw data for monitoring and analysis; `TaskReporter` reads failure records from the lifecycle database and pushes them incrementally
+- **With Funnel Module**: Inherits `BaseSpout`/`BaseInlet` base classes
 
 ## Architecture Features
 
@@ -70,67 +80,78 @@ The Persistence module provides CelestialFlow's data persistence functionality, 
 flowchart LR
     subgraph Producer[Producer - Worker Threads]
         LogInlet[LogInlet]
-        FallbackInlet[FallbackInlet]
+        LifecycleInlet[LifecycleInlet]
     end
 
     LogInlet -->|_log -> _funnel| LogQueue[Log Queue<br/>queue.Queue]
-    FallbackInlet -->|task_in / task_success / task_fail etc.| FallbackQueue[Fallback Queue<br/>queue.Queue]
+    LifecycleInlet -->|task_in / task_success / task_fail etc.| LifecycleQueue[Lifecycle Queue<br/>queue.Queue]
 
     LogQueue -->|Daemon thread polling| LogSpout[LogSpout]
-    FallbackQueue -->|Daemon thread polling| FallbackSpout[FallbackSpout]
+    LifecycleQueue -->|Daemon thread polling| LifecycleSpout[LifecycleSpout]
 
     LogSpout -->|_handle_record| LogFile[logs/*.log]
-    FallbackSpout -->|SQLite ops| SQLiteFile[fallback/**/*.sqlite3]
+    LifecycleSpout -->|SQLite ops| SQLiteFile[lifecycles/**/*.sqlite3]
 ```
 
 ### File Naming Convention
 
 | Persistence Type | File Path Pattern |
-|------------------|-------------------|
-| Log | `logs/task_logger({date}).log` |
-| Fallback | `fallback/{date}/{source}({time}).sqlite3` |
+|-----------|-------------|
+| Log | `logs/flow_log({date}).log` |
+| Lifecycle | `./lifecycles/{date}/flow_lifecycle({time}).sqlite3` |
+
+### Batch Refresh Strategy
+
+- Log files are written with **line buffering** (`buffering=1`), so readers can see new logs in a timely manner without an explicit refresh counter.
+- Lifecycle SQLite writes use **immediate commit**: `LifecycleSpout._handle_record()` calls `commit()` immediately after each operation actually modifies a record, ensuring no data is lost; `_after_stop()` performs one final `commit()` as a safety net.
+- Global spouts do not start/stop with individual executors; they are started and stopped together by `funnel_scope` (or inside `TaskGraph.run()`) for the entire runtime, avoiding frequent file handle opens/closes.
 
 ## Usage Examples
 
 ### Basic Configuration
 
 ```python
-from celestialflow.persistence import LogSpout, LogInlet, FallbackSpout, FallbackInlet
+from celestialflow.persistence import funnel_scope
 
-# Configure log persistence
-log_spout = LogSpout()
-log_spout.start()
-log_inlet = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
-
-# Configure fallback persistence
-fallback_spout = FallbackSpout(error_source="graph_errors")
-fallback_spout.start()
-fallback_inlet = FallbackInlet().bind_spout(fallback_spout)
+# Use funnel_scope to uniformly manage lifecycle
+with funnel_scope():
+    # LifecycleSpout and LogSpout are automatically started
+    # Run business logic...
+    ...
+# Both spouts are automatically stopped when the scope exits
 ```
 
 ### Recording Logs
 
 ```python
-# Record stage start/stop
-log_inlet.start_stage("StageA", "thread", "thread-4")
-log_inlet.end_stage("StageA", "thread", "thread-4", 12.5, 100, 2, 0)
+from celestialflow.persistence import get_log_inlet
+
+log_inlet = get_log_inlet()
+
+# Record executor start/stop
+log_inlet.start_executor("StageA", 100, "thread")
+log_inlet.end_executor("StageA", "thread", 12.5, 98, 2, 0)
 
 # Record task lifecycle
 log_inlet.task_success("func", "task1", "thread", "result", 0.05, 1, 2)
 log_inlet.task_fail("func", "task2", ValueError("bad"), 3, 4)
 ```
 
-### Recording Fallback
+### Recording Lifecycle
 
 ```python
+from celestialflow.persistence import get_lifecycle_inlet
+
+lifecycle_inlet = get_lifecycle_inlet()
+
 # Task enters
-fallback_inlet.task_in("StageA", event_id=1, task="hello")
+lifecycle_inlet.task_in("StageA", event_id=1, task="hello")
 
 # Task succeeds
-fallback_inlet.task_success(event_id=1, result="OK", persist=True)
+lifecycle_inlet.task_success(event_id=1, result="OK")
 
 # Task fails
-fallback_inlet.task_fail(event_id=2, error_id=10, error=ValueError("bad"))
+lifecycle_inlet.task_fail(event_id=2, error_id=10, error=ValueError("bad"))
 ```
 
 ### Reading Persisted Data
@@ -139,7 +160,9 @@ fallback_inlet.task_fail(event_id=2, error_id=10, error=ValueError("bad"))
 from celestialflow.persistence.util_sqlite import load_records, load_task_error_records
 
 # Read failure records
-errors = load_task_error_records("fallback/2026-06-18/errors.sqlite3", "StageA")
+errors = load_task_error_records(
+    "lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3", "StageA"
+)
 for task, (error_type, error_msg) in errors:
     print(f"{task}: {error_type} - {error_msg}")
 ```

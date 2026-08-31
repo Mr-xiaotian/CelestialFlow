@@ -1,6 +1,6 @@
 # demo_executor.py デモ説明
 
-> 📅 最終更新日: 2026/06/28
+> 📅 最終更新日: 2026/08/31
 
 ## 目標
 
@@ -57,7 +57,7 @@ flowchart TB
 | `demo_fibonacci_async` | async | 非同期フィボナッチ | コルーチン並行 |
 
 - **入力**：`range(25, 32) + [0, 27, None, 0, ""]`
-- **例外設計**：2 つの `0` は `ValueError` をトリガーし、フレームワークが自動で 1 回リトライする。`None` と `""` は型エラーをトリガーし、リトライ対象外のため即座に失敗する
+- **例外設計**：2 つの `0` と `None` は `ValueError` をトリガーし（Python 3 では `None <= 0` が `True`）、`set_retry_exceptions(ValueError)` により自動的に 1 回リトライされた後でも失敗する。`""` は型エラー（`<=` は `str` と `int` の比較をサポートしない）をトリガーし、リトライリストにないため直接失敗する
 
 ## 主要設定
 
@@ -79,7 +79,7 @@ python demo/demo_executor.py
 
 ## 想定される動作
 
-実行後、3 つのモードが順に実行され、主な出力は `tqdm` プログレスバーとなります。例：
+実行後、3 つのモードが順に実行され、主な出力は `tqdm` プログレスバーとなる。例：
 
 ```text
 FibonacciSerial(serial): 100%|██████████| 12/12 [00:00<00:00, 15000.00it/s]
@@ -87,10 +87,11 @@ FibonacciThread(thread-6): 100%|██████████| 12/12 [00:00<00:
 FibonacciAsync(async-6): 100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
 ```
 
-> **説明**：12 タスクのうち、4 つの不正入力（2 つの `0`、`None`、`""`）が失敗する。残りの 8 つは正常なフィボナッチタスクである。このうち 2 つの `0` は `ValueError` をトリガーし 1 回リトライされるがそれでも失敗する。`None`/`""` は型エラーをトリガーする（リトライ対象外）。
+> **説明**：12 タスクのうち、4 つの不正入力（2 つの `0`、`None`、`""`）が失敗する。残りの 8 つは正常なフィボナッチタスクである。このうち 2 つの `0` と `None` は `ValueError` をトリガーし（Python 3 では `None <= 0` が `True`）、1 回リトライされた後でも失敗する。`""` は型エラーをトリガーする（リトライ対象外）。
 > 3 つのモードはいずれも `demo_utils` の反復版フィボナッチ（O(n)）を使用し、単一タスクの計算自体は非常に高速である。プログレスバー上の it/s の差は主にスケジューリングオーバーヘッドを反映している。
 
-## 依存
+## 依存関係
 
-- `celestialflow`（`TaskExecutor`、`TaskProgress`）
+- `celestialflow`（`TaskExecutor`）
 - `demo_utils`（`fibonacci`、`fibonacci_async`）
+- `demo_observer`（`TaskProgress`、本リポジトリの同ディレクトリの `demo_observer.py` が提供。現在のファイル `demo_executor.py` には依然として `from celestialflow import TaskProgress` という書き方が残っているが、`celestialflow` はこのクラスをもうエクスポートしていないため、実際の使用では `from demo_observer import TaskProgress` に変更すること）

@@ -1,6 +1,6 @@
 # SQLite Utility Tests (test_splite.py)
 
-> 📅 Last Updated: 2026/07/16
+> 📅 Last Updated: 2026/08/26
 
 ## Purpose
 
@@ -22,7 +22,6 @@ Validates all sqlite utility functions in the `celestialflow.persistence.util_sq
 | `load_records_after_event_id_in_fail` | Incrementally reads records above a failed event_id lower bound |
 | `promote_record_to_failed_by_event_id` | Updates status to failed and writes error information |
 | `promote_record_to_success_by_event_id` | Updates status to success and writes result |
-| `update_record_event_id_by_event_id` | Migrates a record's event_id |
 | `delete_record_by_event_id` | Deletes a record by event_id |
 | `load_task_error_records` | Reads task-error pairs by stage |
 | `load_task_result_records` | Reads task-result pairs by stage |
@@ -31,7 +30,7 @@ Validates all sqlite utility functions in the `celestialflow.persistence.util_sq
 
 | Test Class | Case Count | Coverage Target |
 |--------|--------|---------|
-| `TestSpliteUtils` | 18 | Connection & table creation, normalization, insert/read, append/dedup, paginated query, clear, incremental and grouped reads, error type aggregation, state transitions, event_id migration, deletion, paired reads |
+| `TestSpliteUtils` | 17 | Connection & table creation, normalization, insert/read, append/dedup, paginated query, clear, incremental and grouped reads, error type aggregation, state transitions, deletion, paired reads |
 
 ## Key Test Scenarios
 
@@ -42,7 +41,7 @@ Validates all sqlite utility functions in the `celestialflow.persistence.util_sq
 
 ### Normalization
 
-- Metadata rows (no `ts`) return `None` and are not stored in the database
+- Metadata rows missing `event_id` (e.g., containing only `timestamp` / `graph_name`) return `None` and are not stored in the database
 - Error records are normalized to `status="failed"`, with `task_json` and `result_json` serialized as JSON strings
 
 ### Insert and Read
@@ -67,9 +66,8 @@ Validates all sqlite utility functions in the `celestialflow.persistence.util_sq
 
 ### State Transitions
 
-- `promote_record_to_failed_by_event_id`: from waiting to failed, updates event_id and error info
+- `promote_record_to_failed_by_event_id`: from waiting to failed, migrates event_id to the new error event ID and writes error info
 - `promote_record_to_success_by_event_id`: from pending to success, writes result
-- `update_record_event_id_by_event_id`: retains current status, only migrates event_id
 
 ### Incremental and Grouped Reads
 

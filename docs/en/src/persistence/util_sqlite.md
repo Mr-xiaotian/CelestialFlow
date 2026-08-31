@@ -1,8 +1,8 @@
 # PersistenceSQLite
 
-> 📅 Last Updated: 2026/07/16
+> 📅 Last Updated: 2026/08/31
 
-`persistence/util_sqlite.py` provides SQLite database connection management and record CRUD operation utilities, serving as the underlying storage engine for `FallbackSpout` and `TaskReporter`.
+`persistence/util_sqlite.py` provides SQLite database connection management and record CRUD operation utilities, serving as the underlying storage engine for `LifecycleSpout` and `TaskReporter`.
 
 ## Core Function Overview
 
@@ -10,14 +10,17 @@
 |----------|-------------|
 | `connect_db(db_path)` | Creates a SQLite connection, configures WAL mode, and ensures table structure |
 | `insert_record(conn, record)` | Inserts a record |
-| `promote_record_to_failed_by_event_id(...)` | Promotes a pending record to failed |
-| `promote_record_to_success_by_event_id(...)` | Promotes a pending record to success |
-| `update_record_event_id_by_event_id(...)` | Updates a record's event_id |
+| `promote_record_to_failed_by_event_id(...)` | Promotes a record to failed and switches to a new event_id |
+| `promote_record_to_success_by_event_id(...)` | Promotes a record to success and writes the result |
 | `delete_record_by_event_id(conn, event_id)` | Deletes a record by event_id |
+| `clear_records(db_path)` | Clears all records in the database |
+| `append_records(db_path, records)` | Batch append writes; skips on event_id conflict (idempotent) |
+| `get_max_event_id_in_fail(db_path)` | Reads the maximum event_id among failure records |
 | `load_records(db_path, status)` | Loads records by status |
 | `load_tasks_grouped_by_stage(db_path, statuses)` | Loads records grouped by stage |
-| `load_records_after_event_id_in_fail(db_path, min_event_id)` | Incrementally loads failed records |
+| `load_records_after_event_id_in_fail(db_path, min_event_id)` | Incrementally loads failure records |
 | `query_records(db_path, page, page_size, ...)` | Paginated conditional query |
+| `query_error_type_counts(db_path, node, status)` | Aggregated counts by error type |
 | `load_task_error_records(db_path, stage)` | Loads (task, error) pairs by stage |
 | `load_task_result_records(db_path, stage)` | Loads (task, result) pairs by stage |
 
@@ -65,14 +68,13 @@ Automatic configuration:
 
 ### Write Operations (requires passing `conn`)
 
-The following functions require the caller to manage the `conn` lifecycle (typically held by `FallbackSpout`):
+The following functions require the caller to manage the `conn` lifecycle (typically held by `LifecycleSpout`):
 
 | Function | Signature Highlights | Description |
 |----------|----------------------|-------------|
 | `insert_record` | `(conn, record: dict) -> bool` | Normalizes and INSERTs |
 | `promote_record_to_failed_by_event_id` | `(conn, event_id, new_event_id, *, ts, error_type="", error_message="") -> bool` | Updates event_id, status='failed', and error info |
 | `promote_record_to_success_by_event_id` | `(conn, event_id, result, *, ts) -> bool` | Updates status='success' + result_json |
-| `update_record_event_id_by_event_id` | `(conn, old_event_id, new_event_id, *, ts) -> bool` | Updates event_id (for retries) |
 | `delete_record_by_event_id` | `(conn, event_id) -> bool` | Deletes a record |
 
 ### Read Operations (self-managed connection)
@@ -82,9 +84,10 @@ The following functions internally manage `connect_db` and `close` on their own:
 | Function | Signature Highlights | Return Type |
 |----------|----------------------|-------------|
 | `load_records` | `(db_path, status="failed")` | `list[dict]` |
-| `load_tasks_grouped_by_stage` | `(db_path, statuses=["failed"])` | `dict[str, list[dict]]` |
+| `load_tasks_grouped_by_stage` | `(db_path, statuses=("failed", "pending"))` | `dict[str, list[dict]]` |
 | `load_records_after_event_id_in_fail` | `(db_path, min_event_id)` | `list[dict]` |
-| `query_records` | `(db_path, page, page_size, node, keyword, sort_order, status)` | `(total, total_pages, items)` |
+| `query_records` | `(db_path, page, page_size, node, keyword, sort_order, status="failed")` | `(total, total_pages, items)` |
+| `query_error_type_counts` | `(db_path, node="", status="failed")` | `list[dict]` |
 | `load_task_error_records` | `(db_path, stage)` | `list[(task, (error_type, error_message))]` |
 | `load_task_result_records` | `(db_path, stage)` | `list[(task, result)]` |
 
@@ -127,14 +130,17 @@ Path("test_data.sqlite3").unlink()
 
 ### Recovering Failed Tasks from TaskExecutor
 
-`TaskExecutor.start_db()` internally calls `load_tasks_grouped_by_stage`:
+`TaskExecutor.restore_db()` internally calls `load_tasks_grouped_by_stage`:
 
 ```python
 from celestialflow.persistence.util_sqlite import load_tasks_grouped_by_stage
 
-grouped = load_tasks_grouped_by_stage("fallback/2026-06-18/errors.sqlite3", ["failed"])
-# {'StageA': [{'event_id': 1, 'task_json': 'hello', ...}, ...],
-#  'StageB': [{'event_id': 2, 'task_json': 'world', ...}]}
+grouped = load_tasks_grouped_by_stage(
+    "lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3",
+    ["failed", "pending"],
+)
+# {'StageA': [{'task_json': 'hello', 'error_type': '', 'status': 'pending'}, ...],
+#  'StageB': [{'task_json': 'world', 'error_type': 'ValueError', 'status': 'failed'}]}
 ```
 
 ### Paginated Error Record Query
@@ -143,7 +149,7 @@ grouped = load_tasks_grouped_by_stage("fallback/2026-06-18/errors.sqlite3", ["fa
 from celestialflow.persistence.util_sqlite import query_records
 
 total, total_pages, items = query_records(
-    db_path="fallback/2026-06-18/errors.sqlite3",
+    db_path="lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3",
     page=1,
     page_size=20,
     node="",
@@ -158,7 +164,7 @@ for item in items:
 
 ## Notes
 
-- **Write functions** (insert/promote/update/delete) require the caller to pass `conn` and manually `commit()` after operations.
+- **Write functions** (insert/promote/delete, and the combined calls in `LifecycleSpout._handle_record`) require the caller to pass `conn` and manually `commit()` after operations; `clear_records` and `append_records` manage connections internally.
 - **Read functions** (load/query) internally manage the connection lifecycle; callers don't need to worry about connections.
 - `insert_record` uses `INSERT`, guaranteeing uniqueness based on the `event_id` unique index; external batch writes usually cooperate with `append_records` to capture `IntegrityError` and achieve idempotency.
 - The normalization function `normalize_record` filters out records missing `event_id` (returns `None`).

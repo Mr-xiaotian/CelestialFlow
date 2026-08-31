@@ -1,6 +1,6 @@
 # bench_execution_mode.py ベンチマーク説明
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/26
 
 ## 目的
 
@@ -69,13 +69,12 @@ python bench/bench_execution_mode.py
 
 ```python
 async def main():
-    # 仅运行斐波那契测试
     await bench_executor_fibonacci()
-    # await bench_executor_sleep()  # 注释掉 sleep 测试
+    await bench_executor_sleep()
 ```
 
 ```bash
-# 修改后运行
+# 修正後に実行
 python bench/bench_execution_mode.py
 ```
 
@@ -92,6 +91,8 @@ bench_task_1: list[Any] = list(range(20, 35))
 ```
 
 ## ベンチマーク結果（実測）
+
+> 🟢 本セクションの各表の所要時間は過去の実測データであり、ソースコードからは検証できないため、手動で確認する必要がある。
 
 ### 履歴結果 - Windows 実行モード比較（日時未記録）
 
@@ -118,7 +119,7 @@ bench_task_1: list[Any] = list(range(20, 35))
 | async | 1.009s | コルーチン並列。thread とほぼ同等 |
 
 **主要な結論**：
-- **I/O 集約型タスク**：thread と async の両方がほぼ理論最適な並列度（~12x の高速化）を達成し、両者の差は無視できる
+- **I/O 集約型タスク**：thread と async の両方がほぼ理論最適な並列度（~6x の高速化）を達成し、両者の差は無視できる
 - **CPU 集約型タスク**：3 モードとも同じ桁の所要時間。純粋計算タスクは Python GIL に制限され、thread に顕著な利点はない。async はコルーチン譲渡ポイントで並行性を得られるが、全体的な改善は限定的
 - 実行モード選択の核心的な基準は**タスクの本質**：I/O 待機には thread/async を使用し、純粋計算には GIL の影響を考慮する（またはマルチプロセスを検討）
 
@@ -147,6 +148,31 @@ bench_task_1: list[Any] = list(range(20, 35))
 - I/O シナリオでは `thread` と `async` は依然として理論的な並列上限に近く、いずれも直列より約 **5.3x** 高速
 - 今回の再テストは履歴の結論と一致：実行モードの選択はまず、タスクに並列化可能な待機時間が存在するかに依存する
 
+### 2026/08/18 - ローカル再テスト
+
+> 環境：macOS、Python 3.14.3、現在のコードバージョンで `bench/bench_execution_mode.py` を直接実行
+
+#### シナリオ 1：フィボナッチ（CPU 集約型）
+
+| モード | 所要時間 |
+|--------|----------|
+| serial | 0.0004185s |
+| thread | 0.0005510s |
+| async | 0.0007913s |
+
+#### シナリオ 2：sleep_1（I/O 集約型）
+
+| モード | 所要時間 |
+|--------|----------|
+| serial | 6.0200s |
+| thread | 1.0064s |
+| async | 1.0025s |
+
+**今回の補足結論**：
+- CPU シナリオでは、現在の入力規模が非常に小さいため、`serial` が逆に最速となっている。`thread` と `async` の追加のスケジューリングオーバーヘッドが並列化の利得を上回っている
+- I/O シナリオでは、`thread` と `async` は依然として理論的な並列上限に近く、合計時間を約 1 秒に抑えており、`async` がわずかに速いが差は無視できる
+- 今回の結果は 2026/06/16 の CPU データより大幅に低くなっているが、これは主に実行環境が Windows から macOS に変わったためである（CPU 単核性能、Python 実装の詳細などの差異）。2 回の CPU benchmark の絶対値を直接比較してはならない
+
 ## 依存関係
 
-- `celestialflow`（`TaskExecutor`、`TaskProgress`、`benchmark_executor`）
+- `celestialflow`（`TaskExecutor`、`benchmark_executor`、およびオプションの `TaskProgress`、本スクリプトでは未有効化）

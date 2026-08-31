@@ -1,10 +1,10 @@
 # Funnel モジュール
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/31
 
-Funnel モジュールは CelestialFlow のキュー通信インフラストラクチャを提供し、Persistence モジュールの `LogSpout`/`LogInlet` や `FallbackSpout`/`FallbackInlet` の基底クラスです。
+Funnel モジュールは CelestialFlow のキュー通信インフラストラクチャを提供し、Persistence モジュールの `LogSpout`/`LogInlet` および `LifecycleSpout`/`LifecycleInlet` の基底クラスです。
 
-永続化の下位基盤としてだけでなく、`TaskGraph` / `TaskStage` から切り離して軽量な producer-consumer パイプラインを単独で構築することもできます。最小限の動作サンプルは [demo_funnel.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/demo_funnel.md) を参照してください。
+永続化の下位基盤としてだけでなく、`TaskGraph` / `TaskStage` から切り離して軽量な producer-consumer パイプラインを単独で構築することもできます。
 
 ## エクスポートシンボル
 
@@ -57,24 +57,24 @@ classDiagram
     }
     class LogSpout {
     }
-    class FallbackSpout {
+    class LifecycleSpout {
     }
     class LogInlet {
     }
-    class FallbackInlet {
+    class LifecycleInlet {
     }
 
     BaseSpout <|-- LogSpout
-    BaseSpout <|-- FallbackSpout
+    BaseSpout <|-- LifecycleSpout
     BaseInlet <|-- LogInlet
-    BaseInlet <|-- FallbackInlet
+    BaseInlet <|-- LifecycleInlet
     BaseSpout "1" --> "1" PendingCounter
 ```
 
 ## モジュール連携
 
 ### 外部連携
-- **Persistence モジュールとの連携**: `LogSpout`/`LogInlet`、`FallbackSpout`/`FallbackInlet` はいずれも本モジュールの基底クラスを継承
+- **Persistence モジュールとの連携**: `LogSpout`/`LogInlet`、`LifecycleSpout`/`LifecycleInlet` はいずれも本モジュールの基底クラスを継承
 - **Runtime モジュールとの連携**: 停止シグナルとして `TerminationSignal` を使用、サブクラスが必ずオーバーライドすべき例外型として `CelestialFlowError` を使用
 
 ## 使用例

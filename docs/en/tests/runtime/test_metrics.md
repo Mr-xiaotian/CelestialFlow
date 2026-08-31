@@ -1,6 +1,6 @@
-﻿# Task Metrics Tests (test_metrics.py)
+# Task Metrics Tests (test_metrics.py)
 
-> 📅 Last Updated: 2026/07/16
+> 📅 Last Updated: 2026/08/12
 
 ## Purpose
 Verifies the `TaskMetrics` class in `celestialflow.runtime.core_metrics`, ensuring that various statistical metrics (success, failure, duplicate, pending, etc.) accumulated during task execution are calculated accurately.
@@ -17,7 +17,7 @@ Verifies the `TaskMetrics` class in `celestialflow.runtime.core_metrics`, ensuri
 | `TestTaskMetricsRetryExceptions` | 2 | Default retryable exceptions empty, dynamic addition of exception types |
 
 ## Key Test Scenarios
-1. **Basic Counting**: Verifies the accumulation logic of `add_task_count`, `add_success_count`, `add_error_count`, `add_duplicate_count`, and similar methods.
+1. **Basic Counting**: Verifies the accumulation logic of `add_task_count`, `add_success_count`, `add_fail_count`, and similar methods.
 2. **Formula Verification**: Verifies `tasks_processed = tasks_succeeded + tasks_failed + tasks_duplicated`, and `tasks_pending = tasks_input - tasks_processed`.
 3. **Status Detection**: Verifies the return value of `is_tasks_finished()` under different count combinations (returns `True` when Pending is 0).
 4. **Dedup Logic**:

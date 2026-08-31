@@ -1,6 +1,6 @@
 # demo_executor.py Demo Guide
 
-> 📅 Last Updated: 2026/06/28
+> 📅 Last Updated: 2026/08/31
 
 ## Objective
 
@@ -57,7 +57,7 @@ flowchart TB
 | `demo_fibonacci_async` | async | Async Fibonacci | Coroutine concurrency |
 
 - **Input**: `range(25, 32) + [0, 27, None, 0, ""]`
-- **Exception design**: Two `0`s trigger `ValueError`, and the framework auto-retries 1 time; `None` and `""` trigger type errors and fail directly because they are not in the retry list
+- **Exception design**: Two `0`s and `None` trigger `ValueError` (in Python 3, `None <= 0` is `True`); due to `set_retry_exceptions(ValueError)` they still fail after 1 auto-retry; `""` triggers a type error (`<=` does not support comparing `str` and `int`), which is not in the retry list and fails directly
 
 ## Key Configuration
 
@@ -87,10 +87,11 @@ FibonacciThread(thread-6): 100%|██████████| 12/12 [00:00<00:
 FibonacciAsync(async-6): 100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
 ```
 
-> **Note**: Of the 12 tasks, 4 invalid inputs (two `0`s, `None`, `""`) cause failures; the remaining 8 are valid Fibonacci tasks. The two `0`s trigger `ValueError` and still fail after 1 retry; `None`/`""` trigger type errors (not in the retry list).
+> **Note**: Of the 12 tasks, 4 invalid inputs (two `0`s, `None`, `""`) cause failures; the remaining 8 are valid Fibonacci tasks. The two `0`s and `None` trigger `ValueError` (in Python 3, `None <= 0` is `True`) and still fail after 1 retry; `""` triggers a type error (not in the retry list).
 > All three modes use the iterative Fibonacci (O(n)) from `demo_utils`; single-task computation itself is very fast, and the it/s differences on the progress bars primarily reflect scheduling overhead.
 
 ## Dependencies
 
-- `celestialflow` (`TaskExecutor`, `TaskProgress`)
+- `celestialflow` (`TaskExecutor`)
 - `demo_utils` (`fibonacci`, `fibonacci_async`)
+- `demo_observer` (`TaskProgress`, provided by `demo_observer.py` in the same directory of this repository; the current `demo_executor.py` still keeps the `from celestialflow import TaskProgress` import style, but `celestialflow` no longer exports this class. For actual use, change it to `from demo_observer import TaskProgress`)

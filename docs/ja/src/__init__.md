@@ -1,6 +1,6 @@
 # CelestialFlow パッケージエントリ
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/19
 
 ## 概要
 
@@ -59,29 +59,18 @@
 | エクスポートシンボル | 説明 |
 |----------|------|
 | `BaseObserver` | オブザーバー基底クラス。on_start / on_success / on_failure などのインターフェースを定義 |
-| `TaskProgress` | タスク進捗トラッカー。完了/失敗/合計をリアルタイム統計 |
+| `TaskReporter` | タスクレポーター。HTTP 経由でタスク実行イベントをレポート |
 
 ---
 
-### utils — ユーティリティセット
+### benchmark — ベンチマークテスト
 
-ベンチマークテストとフォーマットツールを提供します。
+実行器とタスクグラフのパフォーマンステスト機能を提供します。
 
 | エクスポートシンボル | 説明 |
 |----------|------|
 | `benchmark_executor` | 同期/非同期 `TaskExecutor` のマルチモードベンチマークテスト |
 | `benchmark_graph` | タスクグラフ全体のベンチマークテスト |
-| `format_table` | テーブル出力のフォーマット。コンソールでの比較データ表示に使用 |
-
----
-
-### web — Web サービス
-
-組み込み Web サーバーを提供し、グラフ状態の監視と可視化を行います。
-
-| エクスポートシンボル | 説明 |
-|----------|------|
-| `TaskWebServer` | FastAPI ベースの Web サーバー。グラフ実行時スナップショットの HTTP API と可視化パネルを提供 |
 
 ---
 
@@ -92,7 +81,7 @@ SQLite ベースのレコード読み込みとクエリ機能を提供します�
 | エクスポートシンボル | 説明 |
 |----------|------|
 | `load_records` | SQLite データベースから全実行レコードを読み込み |
-| `load_records_grouped_by_stage` | ステージ名でグループ化して実行レコードを読み込み |
+| `load_tasks_grouped_by_stage` | ステージ名でグループ化して実行レコードを読み込み |
 
 ---
 
@@ -102,6 +91,7 @@ SQLite ベースのレコード読み込みとクエリ機能を提供します�
 
 | エクスポートシンボル | 説明 |
 |----------|------|
+| `format_table` | テーブル出力のフォーマット。コンソールでの比較データ表示に使用 |
 | `make_hashable` | ハッシュ不可オブジェクト（dict、list など）をハッシュ可能形式に変換 |
 | `TerminationSignal` | 終了シグナル。グラフ実行フローの終了を制御 |
 
@@ -109,7 +99,7 @@ SQLite ベースのレコード読み込みとクエリ機能を提供します�
 
 ## `__all__` リスト
 
-完全な公開 API リスト（現在 23 シンボル）：
+完全な公開 API リスト（現在 22 シンボル）：
 
 ```python
 __all__ = [
@@ -123,18 +113,17 @@ __all__ = [
     "TaskGraph",
     "TaskGrid",
     "TaskLoop",
-    "TaskProgress",
+    "TaskReporter",
     "TaskRouter",
     "TaskSplitter",
     "TaskStage",
-    "TaskWebServer",
     "TaskWheel",
     "TerminationSignal",
     "benchmark_executor",
     "benchmark_graph",
     "format_table",
     "load_records",
-    "load_records_grouped_by_stage",
+    "load_tasks_grouped_by_stage",
     "make_hashable",
 ]
 ```
@@ -157,10 +146,8 @@ def add_one(x: int) -> int:
 
 
 # 2. TaskStage ノードを作成
-stage_a = TaskStage("StageA", func=double, execution_mode="serial", stage_mode="serial")
-stage_b = TaskStage(
-    "StageB", func=add_one, execution_mode="serial", stage_mode="serial"
-)
+stage_a = TaskStage("StageA", func=double, execution_mode="serial")
+stage_b = TaskStage("StageB", func=add_one, execution_mode="serial")
 
 # 3. DAG グラフを構築
 graph = TaskGraph(name="DemoGraph")
@@ -169,7 +156,7 @@ graph.connect([stage_a], [stage_b])
 
 # 4. グラフを実行
 init_tasks = {stage_a.get_name(): [1, 2, 3, 4, 5]}
-graph.start_graph(init_tasks)
+graph.run(init_tasks)
 
 # 5. 実行結果サマリーを表示
 snapshot = graph.get_status_snapshot()
@@ -185,7 +172,7 @@ from celestialflow import TaskExecutor
 
 # 実行器を作成しデータイテレータを渡す
 executor = TaskExecutor("Adder", func=lambda x: x + 10, execution_mode="serial")
-executor.start([1, 2, 3])
+executor.run([1, 2, 3])
 
 # 実行結果を取得
 success_pairs = executor.get_success_pairs()
@@ -208,8 +195,8 @@ stages = [
     TaskStage("S3", func=lambda x: x**2),
 ]
 
-chain = TaskChain(name="DemoChain", stages=stages, stage_mode="serial")
-chain.start_chain({stages[0].get_name(): [1, 2, 3]})
+chain = TaskChain(name="DemoChain", stages=stages)
+chain.run({stages[0].get_name(): [1, 2, 3]})
 snapshot = chain.get_status_snapshot()
 print("Chain status:", snapshot["status"])
 ```
@@ -235,23 +222,19 @@ graph TD
     end
 
     subgraph observability
-        O["BaseObserver<br/>TaskProgress"]
+        O["BaseObserver<br/>TaskReporter"]
     end
 
-    subgraph utils
-        U["benchmark_executor<br/>benchmark_graph<br/>format_table"]
-    end
-
-    subgraph web
-        W["TaskWebServer"]
+    subgraph benchmark
+        U["benchmark_executor<br/>benchmark_graph"]
     end
 
     subgraph persistence
-        P["load_records<br/>load_records_grouped_by_stage"]
+        P["load_records<br/>load_tasks_grouped_by_stage"]
     end
 
     subgraph runtime
-        R["make_hashable<br/>TerminationSignal"]
+        R["format_table<br/>make_hashable<br/>TerminationSignal"]
     end
 
     Init --> F
@@ -259,7 +242,6 @@ graph TD
     Init --> S
     Init --> O
     Init --> U
-    Init --> W
     Init --> P
     Init --> R
 ```

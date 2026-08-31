@@ -20,20 +20,20 @@ Take this code as an example:
 
 ```python
 def is_dag(graph: OrderGraph) -> bool:
-    deg = in_degree(graph)  # ① 计算所有节点入度
-    stack = [n for n, d in deg.items() if d == 0]  # ② 收集所有入度为0的节点
-    visited = 0  # ③ 计数：已被剥离的节点数
+    deg = in_degree(graph)  # ① compute in-degree of all nodes
+    stack = [n for n, d in deg.items() if d == 0]  # ② collect all nodes with in-degree 0
+    visited = 0  # ③ counter: number of nodes already peeled off
 
-    while stack:  # ④ 不断处理入度为0的节点
-        u = stack.pop()  # ⑤ 取出一个节点
-        visited += 1  # ⑥ 计数+1
+    while stack:  # ④ keep processing nodes with in-degree 0
+        u = stack.pop()  # ⑤ take out a node
+        visited += 1  # ⑥ counter +1
 
-        for v in graph._out.get(u, []):  # ⑦ 遍历它的所有出边 u→v
-            deg[v] -= 1  # ⑧ 删除这条边：v的入度-1
-            if deg[v] == 0:  # ⑨ 如果v的入度恰好变为0
-                stack.append(v)  # ⑩ 说明v现在"安全"了，加入处理队列
+        for v in graph._out.get(u, []):  # ⑦ iterate all outgoing edges u→v
+            deg[v] -= 1  # ⑧ delete this edge: v's in-degree -1
+            if deg[v] == 0:  # ⑨ if v's in-degree happens to become 0
+                stack.append(v)  # ⑩ v is now "safe", add to the processing queue
 
-    return visited == len(graph._nodes)  # ⑪ 全部剥离完？是则DAG
+    return visited == len(graph._nodes)  # ⑪ all peeled off? then DAG
 ```
 
 ### Line-by-line explanation

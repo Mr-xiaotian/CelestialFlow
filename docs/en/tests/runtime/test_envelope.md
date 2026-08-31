@@ -1,6 +1,6 @@
 # Task Envelope Tests (test_envelope.py)
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/19
 
 ## Purpose
 Verifies the `TaskEnvelope` class and the `object_to_hash` hashing utility in the `celestialflow.runtime.core_envelope` module, ensuring the integrity and consistency of task data, IDs, and hash values during transit.
@@ -13,7 +13,7 @@ Verifies the `TaskEnvelope` class and the `object_to_hash` hashing utility in th
 
 | Test Class | Case Count | Coverage Goals |
 |------------|------------|----------------|
-| `TestTaskEnvelope` | 7 | Constructor/getters, ID mutation, hash consistency, lazy computation, unhashable fallback, `__slots__` memory restriction |
+| `TestTaskEnvelope` | 7 | Constructor/getters, ID query, hash consistency, lazy computation, unhashable fallback, `__slots__` memory restriction |
 | `TestObjectToHash` | 4 | Return type (bytes), SHA1 fixed 20 bytes, same-input consistency, different-input divergence |
 
 ## Key Test Scenarios
@@ -38,7 +38,6 @@ Verifies the `TaskEnvelope` class and the `object_to_hash` hashing utility in th
 - **Immutability simulation**: Although `TaskEnvelope` is not strictly immutable, `__slots__` restricts its extensibility.
 - **Hash robustness**: Ensures `object_to_hash` can handle various Python data types.
 - **Failure degradation strategy**: Ensures that unhashable tasks do not interrupt other task processing flows due to hash computation failures.
-- **ID mutation**: Verifies that the `id` attribute is writable (`envelope.id = 999`), allowing tasks to be re-tagged during transit.
 
 ## How to Run
 

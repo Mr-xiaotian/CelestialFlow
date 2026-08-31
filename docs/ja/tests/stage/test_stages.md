@@ -1,6 +1,6 @@
 # 特殊化ステージテスト (test_stages.py)
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/26
 
 ## 役割
 `celestialflow.stage.core_stages` の特殊化タスクノード（Splitter、Router）の機能を検証し、タスクが正しく分割・ルーティング・分配されることを確認します。
@@ -11,10 +11,11 @@
 
 ## 主要テストシナリオ
 
-### `TestTaskSplitter` — タスクスプリッター
+### `TestTaskSplitter` — タスクスプリッター（6 ケース）
 | ケース | カバレッジ目標 |
 |------|----------|
 | `test_splitter_init` | デフォルト直列モード、リトライなし、初期カウンタが 0 であることを検証 |
+| `test_splitter_warns_when_execution_mode_is_not_serial` | serial 以外のモードを設定すると警告を発し、serial のままとなることを検証 |
 | `test_splitter_process_success` | `TaskGraph` 内で正常実行後、下流が 3 つの独立タスクを受信し、`split_counter` のカウントが正しいことを検証 |
 | `test_splitter_allows_empty_iterable` | 空のイテラブル入力が 0 個のサブタスクを生成し、例外をスローしないことを検証 |
 | `test_splitter_supports_generator_input` | 1 回限りのイテレータ（generator）入力でも正しく分割し、すべてのサブタスクを分配できることを検証 |
@@ -54,7 +55,7 @@ pytest tests/stage/test_stages.py -k "router" -v
 | `TestTaskRouter` | ~0.2s |
 
 ## 重要な詳細
-- テストは `TaskGraph.connect()` と `TaskGraph.start_graph()` を使用して実際のグラフ実行環境を構築して検証し、mock キューによる出力の傍受は行いません。
+- テストは `TaskGraph.set_stages()` / `connect()` を使用してグラフを構築し、`graph.run()` で実際のグラフ実行環境を構築して検証します。mock キューによる出力の傍受は行いません。
 - 組み込みの `split_counter` と `route_counters` は特殊化 Stage の内部機構によって自動的に維持されます。
 
 ## 注意事項

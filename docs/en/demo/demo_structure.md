@@ -1,6 +1,6 @@
 # demo_structure.py Demo Guide
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/26
 
 ## Objective
 
@@ -58,7 +58,7 @@ flowchart LR
     D --> G
 ```
 
-3-layer cross structure (3→1→3). Built with `TaskCross`, started via `start_cross()`.
+3-layer cross structure (3→1→3). Built with `TaskCross`, started via `cross.run(...)`.
 
 #### Network — `demo_network`
 
@@ -239,14 +239,14 @@ Two independent tree-shaped DAGs coexisting in the same `TaskGraph` without inte
 
 ## Key Configuration
 
-- DAG structures: default `stage_mode="thread"`; each Stage of `demo_chain` uses `execution_mode="serial"`, while most others use `execution_mode="thread"`
-- `demo_grid`: uses `staged` schedule mode (layer-by-layer execution)
-- Cyclic graphs: whether the termination signal is injected automatically varies by example; `demo_multi_cycle` explicitly passes `False`, `demo_wheel` passes `True`, and `demo_loop`/`demo_complete` use default behavior; it is recommended to prepare manual termination when running cyclic graphs
-- Each demo calls `set_reporter(True, ...)` and `set_ctree(ctree_client)`; whether they actually take effect depends on environment variables and whether the server is ready
+- DAG structures: default `graph_mode="thread"` (`TaskChain` of `demo_chain` does not explicitly pass `graph_mode`); each Stage of `demo_chain` uses `execution_mode="serial"`, while most others use `execution_mode="thread"`
+- `demo_grid`: source code does not explicitly set staged schedule mode, relying on `TaskGrid`'s default behavior
+- Cyclic graphs: `demo_loop` / `demo_wheel` / `demo_complete` / `demo_multi_cycle` all explicitly pass `if_put_signal=False` (i.e., no automatic termination signal injected); it is recommended to prepare manual termination when running cyclic graphs
+- Each demo wires in the Reporter via `<graph>.set_reporter(TaskReporter(report_host, report_port, <graph>))`, and CelestialTree via `<graph>.set_ctree(ctree_client)` (`set_ctree` is commented out in `demo_chain`); whether they actually take effect depends on whether environment variables like `REPORT_HOST`/`REPORT_PORT`/`CTREE_HOST` and the server are ready
 
 ## Potential Issues
 
-1. **Cyclic graphs may not stop automatically**: `demo_multi_cycle` explicitly passes `False`, `demo_wheel` passes `True`, and `demo_loop`/`demo_complete` use default behavior; whether it loops continuously depends on the framework's default policy. Prepare **Ctrl+C** for manual termination before running.
+1. **Cyclic graphs may not stop automatically**: All four cyclic graph examples explicitly pass `if_put_signal=False` (no automatic termination signal injected). Among them, `demo_wheel`'s `Core` uses `square` (does not throw), so tasks keep looping and rotating; the other examples' tasks grow to `add_one_sleep`'s exception threshold (n>30) before stopping producing new tasks, and likewise will not auto-exit. Prepare **Ctrl+C** for manual termination before running.
 2. **Sleep latency accumulation**: `add_one_sleep` includes 1-second sleep; 20 tasks × multiple nodes = long total duration.
 3. **No assertions**: Only verifies that the framework can start and run; does not check result values.
 
@@ -272,13 +272,13 @@ python demo/demo_structure.py
 ```
 
 ```
-=== demo_grid (4x4 grid, staged scheduling) ===
+=== demo_grid (4x4 grid) ===
 [Grid00] -> [Grid01] [Grid10]
 [Grid01] -> [Grid02] [Grid11]
 ...
 --- Summary ---
-Grid00: success=5  fail=0
-Grid33: success=5  fail=0
+Grid00: success=9  fail=1
+Grid33: success=180  fail=0
 ```
 
 ### Cyclic Graphs
@@ -300,7 +300,7 @@ Grid33: success=5  fail=0
 ... (loops continuously)
 ```
 
-> **Important**: The cyclic graph examples (`demo_loop`, `demo_wheel`, `demo_complete`, `demo_multi_cycle`) have different termination-signal settings; they may continue looping when run with the defaults, so press **Ctrl+C** to manually terminate the process.
+> **Important**: The cyclic graph examples (`demo_loop`, `demo_wheel`, `demo_complete`, `demo_multi_cycle`) all explicitly pass `if_put_signal=False`, so no automatic termination signal is injected. When run with the defaults, they may continue looping, so press **Ctrl+C** to manually terminate the process.
 
 ### Forest
 
@@ -314,11 +314,12 @@ Two independent DAGs run separately without interference:
 [stageC] Input: ...
 ```
 
-> Each structure prints a `=== demo_xxx ===` separator before running; the `Summary` section shows success/failure counts for each node.
+> When running multiple structures in sequence, the `Summary` section shows success/failure counts for each node.
+> The counts in `demo_grid` are mock estimates: `Grid00` inputs `range(10)`, where `0` triggers `add_one_sleep`'s `ValueError` and fails, the remaining tasks propagate down the 4×4 grid, and `Grid33` aggregates 180 tasks.
 
 ## Dependencies
 
-- `celestialflow` (`TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete`, `TaskStage`)
+- `celestialflow` (`TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete`, `TaskStage`, `TaskReporter`)
 - `demo_utils`
 - `python-dotenv`
 - External services: CelestialTree (optional), Reporter (optional)

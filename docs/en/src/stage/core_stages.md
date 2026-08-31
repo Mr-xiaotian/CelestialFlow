@@ -1,8 +1,8 @@
-# TaskNodes
+# TaskStages
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/26
 
-The TaskNodes module provides various special-function `TaskStage` implementations for scenarios such as flow control and external system interaction.
+`stage/core_stages.py` provides two built-in structural `TaskStage` specializations: `TaskSplitter` and `TaskRouter`. They modify the graph structure and downstream dispatch semantics, and are used for common pipeline orchestration scenarios.
 
 ## TaskSplitter (Splitter)
 
@@ -45,15 +45,12 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         self,
         name: str,
         split_item: Callable[[TItem], RItem] | None = None,
-        *,
-        stage_mode: str = "serial",
     ):
         """
         Initialize TaskSplitter.
 
         :param name: Node name
         :param split_item: Custom per-sub-task processing function, defaults to identity mapping
-        :param stage_mode: Node running mode
         """
 ```
 
@@ -64,6 +61,9 @@ class MySplitter(TaskSplitter):
     def _split(self, task):
         # Split input data into multiple parts
         return tuple(task)
+
+
+splitter = MySplitter("MySplitter")
 ```
 
 ### Characteristics
@@ -113,20 +113,13 @@ Dispatches tasks to different downstream paths based on conditions.
 ### Initialization
 
 ```python
-class TaskRouter(TaskStage):
-    def __init__(
-        self,
-        name: str,
-        router: Callable[[T], str],
-        *,
-        stage_mode: str = "serial",
-    ):
+class TaskRouter[T](TaskStage[T, tuple[str, T]]):
+    def __init__(self, name: str, router: Callable[[T], str]):
         """
         Initialize TaskRouter.
 
         :param name: Node name
         :param router: Routing function that returns the target stage name based on task data
-        :param stage_mode: Node running mode
         """
 ```
 
@@ -150,6 +143,12 @@ source = TaskStage("Source", func=lambda x: x)
 router = TaskRouter("Router", route_logic)
 
 # Connect downstream (return value must match downstream stage name)
+pos_stage = TaskStage("positive_stage", func=lambda x: x)
+neg_stage = TaskStage("negative_stage", func=lambda x: x)
+
+graph = TaskGraph("RouterGuide")
+graph.set_stages([source, router, pos_stage, neg_stage])
+graph.connect([source], [router])
 graph.connect([router], [pos_stage, neg_stage])
 ```
 
@@ -173,13 +172,13 @@ from celestialflow import TaskGraph, TaskStage, TaskSplitter
 # Custom splitter: split text by lines
 class LineSplitter(TaskSplitter):
     def _split(self, task):
-        return tuple(task.split("\\n"))
+        return tuple(task.split("\n"))
 
 
 # Define downstream processing stages
-source = TaskStage("Input", func=lambda x: x, stage_mode="serial")
+source = TaskStage("Input", func=lambda x: x)
 splitter = LineSplitter("SplitLines")
-processor = TaskStage("Process", func=lambda x: f">>> {x}", stage_mode="serial")
+processor = TaskStage("Process", func=lambda x: f">>> {x}")
 
 graph = TaskGraph()
 graph.set_stages([source, splitter, processor])
@@ -187,8 +186,8 @@ graph.connect([source], [splitter])
 graph.connect([splitter], [processor])
 
 # Input a single text with three lines, split into three independent tasks
-text_data = "line1\\nline2\\nline3"
-graph.start_graph({source.get_name(): [text_data]})
+text_data = "line1\nline2\nline3"
+graph.run({source.get_name(): [text_data]})
 ```
 
 ### TaskRouter: Dispatch Tasks by Condition
@@ -208,22 +207,18 @@ def classify_number(x: int) -> str:
 
 
 # Build graph nodes
-source = TaskStage("Source", func=lambda x: x, stage_mode="serial")
+source = TaskStage("Source", func=lambda x: x)
 router = TaskRouter("Router", classify_number)
-handler_pos = TaskStage(
-    "positive", func=lambda x: f"Positive: {x}", stage_mode="serial"
-)
-handler_neg = TaskStage(
-    "negative", func=lambda x: f"Negative: {x}", stage_mode="serial"
-)
-handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}", stage_mode="serial")
+handler_pos = TaskStage("positive", func=lambda x: f"Positive: {x}")
+handler_neg = TaskStage("negative", func=lambda x: f"Negative: {x}")
+handler_zero = TaskStage("zero", func=lambda x: f"Zero: {x}")
 
-graph = TaskGraph()
+graph = TaskGraph("RouterDemo")
 graph.set_stages([source, router, handler_pos, handler_neg, handler_zero])
 graph.connect([source], [router])
 graph.connect([router], [handler_pos, handler_neg, handler_zero])
 
-graph.start_graph({source.get_name(): [10, -5, 0, 3, -1]})
+graph.run({source.get_name(): [10, -5, 0, 3, -1]})
 ```
 
 > **Note**: The return value of `router(task)` must exactly match the `name` of the downstream `TaskStage`.

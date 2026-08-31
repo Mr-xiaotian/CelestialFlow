@@ -1,6 +1,6 @@
 # PersistencePayload
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/26
 
 `persistence/util_payload.py` provides a persistence serialization utility for task data, recursively converting arbitrary Python objects into JSON-friendly structures.
 
@@ -73,12 +73,12 @@ result = to_persisted_payload(MyTask())
 print(result)  # "MyTask(id=1)"
 ```
 
-### Usage in FallbackInlet
+### Usage in LifecycleInlet
 
-`to_persisted_payload` is mainly called internally by `FallbackInlet` to convert task data into JSON strings storable in SQLite:
+`to_persisted_payload` is mainly called internally by `LifecycleInlet` to convert task data into JSON strings storable in SQLite:
 
 ```python
-# Internal flow of FallbackInlet.task_in:
+# Internal flow of LifecycleInlet.task_in:
 from datetime import datetime
 
 pending_item = {
@@ -96,5 +96,5 @@ pending_item = {
 ## Notes
 
 - The serialization strategy is **best-effort**: for objects that cannot be directly JSON-serialized, it falls back to `str()` string representation.
-- The function result is written to the `task_json` or `result_json` field of SQLite via `json.dumps` internally by `FallbackSpout`.
-- Difference from the old `util_jsonl.py`: the new version no longer handles JSONL file I/O, focusing solely on data format conversion.
+- The function result is written to the `task_json` or `result_json` field of SQLite via `json.dumps` internally by `LifecycleSpout` (via the `util_sqlite` layer).
+- This module is only responsible for data format conversion; it does not involve any file I/O.

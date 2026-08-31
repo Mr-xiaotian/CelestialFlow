@@ -1,6 +1,6 @@
 # demo_graph.py Demo Guide
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/31
 
 ## Objective
 
@@ -32,9 +32,9 @@ Extract ──┬── Normalize ──┬── Load
 - `Load` → Saves records (serial mode)
 
 **Graph structure**: DAG, one-to-many fan-out + many-to-one fan-in
-**Schedule mode**: `eager`
+**Graph mode**: `graph_mode="thread"`
 
-### `demo_async_staged_pipeline`
+### `demo_async_pipeline`
 Two-stage async pipeline:
 
 ```mermaid
@@ -52,13 +52,13 @@ AsyncDouble ──> AsyncToStr
 - `AsyncToStr` → Async converts result to string (async mode, 8 workers)
 
 **Graph structure**: DAG, linear two-stage
-**Schedule mode**: `staged` (layer-by-layer execution)
+**Graph mode**: `graph_mode="async"`
 
 ## Key Configuration
 
-- All stages use `stage_mode="thread"`
-- ETL pipeline uses `schedule_mode="eager"`, async pipeline uses `schedule_mode="staged"`
-- `execution_mode="async"` for coroutine task functions
+- Each Stage explicitly specifies its execution mode via `TaskStage(..., execution_mode="thread" | "async")`
+- The ETL and async pipelines specify graph mode via `TaskGraph(..., graph_mode="thread")` and `graph_mode="async")` respectively
+- `execution_mode="async"` is used for coroutine task functions (`async_double`, `async_to_str`)
 
 ## Potential Issues
 
@@ -75,7 +75,7 @@ python demo/demo_graph.py
 
 ### ETL Pipeline (`demo_etl_fan_out_fan_in`)
 
-Executes Extract → Normalize/Enrich → Load sequentially, output includes sleep logs and a final summary:
+Executes Extract → Normalize/Enrich → Load sequentially, each Stage internally outputs execution logs through `print` or sleep. The script itself does not actively print the final Graph Summary or per-Stage counts; manual confirmation is required (the mock output is for illustration only).
 
 ```
 [Extract] Input: 1 -> Output: {'id': 1, 'value': 10, 'label': 'item_1'}
@@ -92,29 +92,24 @@ Load       : success=30 fail=0
 
 > When the input is `range(1, 16)`, Extract processes 15 records, Normalize and Enrich each receive 15, and the Load node receives a total of 30 tasks (15 × 2 downstream).
 
-### Async Pipeline (`demo_async_staged_pipeline`)
+### Async Pipeline (`demo_async_pipeline`)
 
-Layer-by-layer staged execution: AsyncDouble completes first, then AsyncToStr starts:
+Two-stage sequential execution: `AsyncDouble` first completes all 20 tasks, then `AsyncToStr` receives them one by one and formats the output.
 
 ```
---- Staged 1: AsyncDouble ---
 [AsyncDouble] Input: 1 -> Output: 2
 [AsyncDouble] Input: 2 -> Output: 4
 ...
---- Staged 2: AsyncToStr ---
 [AsyncToStr] Input: 2 -> Output: 'result=2'
 [AsyncToStr] Input: 4 -> Output: 'result=4'
 ...
---- Status Snapshot ---
-AsyncDouble : success=20 fail=0  pending=0
-AsyncToStr  : success=20 fail=0  pending=0
 ```
 
-> Total execution time is about 3-5 seconds, primarily affected by built-in `sleep` calls.
+> Total execution time is about 1-3 seconds (requires manual confirmation), primarily affected by the built-in `sleep` (`async_double` 0.3s + `async_to_str` 0.2s) and 8 concurrent coroutine scheduling.
 
 ## Dependencies
 
-- `celestialflow` (`TaskGraph`, `TaskStage`)
+- `celestialflow` (`TaskGraph`, `TaskStage`, `TaskReporter`)
 - `demo_utils` (`extract_record`, `transform_normalize`, `transform_enrich`, `load_record`, `async_double`, `async_to_str`)
 - `python-dotenv`
 - External services: CelestialTree (optional), Reporter (optional)

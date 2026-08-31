@@ -1,6 +1,6 @@
 # TaskEnvelope
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/12
 
 タスクデータのラッパークラスであり、各 Stage 間で転送されます。元のタスクデータ、タスクハッシュ、タスク ID をカプセル化します。
 
@@ -9,12 +9,12 @@
 
 ```python
 class TaskEnvelope:
-    __slots__ = ("hash", "id", "task")
+    __slots__ = ("_hash", "_id", "_task")
 
     def __init__(self, task: T, id: int):
-        self.task: T = task  # 元のタスクデータ
-        self.hash: bytes | None = None  # ハッシュ値（遅延計算）
-        self.id: int = id  # タスク一意 ID
+        self._task: T = task  # 元のタスクデータ
+        self._hash: bytes | None = None  # ハッシュ値（遅延計算）
+        self._id: int = id  # タスク一意 ID
 ```
 
 ## Getter メソッド
@@ -34,7 +34,7 @@ def get_id(self) -> int:
 
 ## 遅延ハッシュ
 
-`hash` は構築時には `None` であり、初回の `get_hash()` 呼び出し時に初めて計算されます。これにより、重複排除チェックが不要なシナリオでの計算リソース浪費を防ぎます。
+`_hash` は構築時には `None` であり、初回の `get_hash()` 呼び出し時に初めて計算されます。これにより、重複排除チェックが不要なシナリオでの計算リソース浪費を防ぎます。
 
 - 正常にシリアライズ可能なタスクの場合、`get_hash()` は `object_to_hash()` を使用して安定した SHA1 バイト列を生成します。
 - タスクオブジェクトが pickle / hash 不可能な場合、`get_hash()` は例外を呼び出し元に直接送出せず、現在の `TaskEnvelope` に固有のフォールバックバイト列にフォールバックします。
@@ -42,9 +42,9 @@ def get_id(self) -> int:
 
 ```python
 envelope = TaskEnvelope(task="data", id=1)
-assert envelope.hash is None  # 未計算
+assert envelope._hash is None  # 未計算
 h = envelope.get_hash()  # 初回呼び出し、計算してキャッシュ
-assert envelope.hash is not None  # キャッシュ済み
+assert envelope._hash is not None  # キャッシュ済み
 assert envelope.get_hash() == h  # 後続呼び出しはキャッシュ値を直接返す
 ```
 
@@ -66,7 +66,7 @@ task = envelope.get_task()
 print(f"タスクデータ: {task}")  # {"user": "alice", "score": 95}
 
 # 3. 初期状態の確認（hash は未計算 — 遅延評価）
-print(f"初期 hash: {envelope.hash}")  # None
+print(f"初期 hash: {envelope._hash}")  # None
 
 # 4. タスク ID の取得
 print(f"タスク ID: {envelope.get_id()}")  # 1
@@ -74,7 +74,7 @@ print(f"タスク ID: {envelope.get_id()}")  # 1
 # 5. get_hash() 初回呼び出し時に SHA1 を計算しキャッシュ
 h = envelope.get_hash()
 print(f"SHA1 ハッシュ: {h.hex()[:16]}...")
-print(f"呼出後 hash はキャッシュ済み: {envelope.hash is not None}")  # True
+print(f"呼出後 hash はキャッシュ済み: {envelope._hash is not None}")  # True
 print(f"再呼出はキャッシュ値を返す: {envelope.get_hash() == h}")  # True
 ```
 

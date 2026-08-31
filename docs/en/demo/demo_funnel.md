@@ -1,6 +1,6 @@
 # demo_funnel.py Demo Guide
 
-> 📅 Last Updated: 2026/07/16
+> 📅 Last Updated: 2026/08/31
 
 ## Objective
 
@@ -28,7 +28,7 @@ This demo consists of two custom classes and one entry point:
 - `EventInlet`
   - Inherits `BaseInlet`
   - Provides a lightweight wrapper over `_funnel()`, offering three business methods: `emit()` / `info()` / `metric()`
-  - Passes the queue via `EventInlet(spout.get_queue())` to bind to the corresponding `JsonlSpout`
+  - Binds to the corresponding `JsonlSpout` via `EventInlet().bind_spout(spout)`
 - `demo_funnel_jsonl()`
   - Creates `JsonlSpout` and `EventInlet`
   - Starts the background consumer thread
@@ -74,10 +74,9 @@ This demo consists of two custom classes and one entry point:
 
 ## Potential Issues
 
-1. **API binding approach**: The current source code passes the queue via `EventInlet(spout.get_queue())`. `BaseInlet` no longer defines `__init__`; instead it provides a `bind_spout()` method for binding. If initialization errors occur at runtime, check that the `BaseInlet` version matches the calling convention.
-2. **Not synchronous writes**: `BaseInlet` only puts records into the queue; actual consumption happens in `JsonlSpout`'s background thread.
-3. **Output directory varies**: The JSONL file is written to `temp/demo_funnel/` under the current working directory. If the script is launched from a different directory, the output location will change accordingly.
-4. **No assertions**: This is a demo script. Successful execution only means the pipeline works; it does not mean business semantics are automatically validated.
+1. **Not synchronous writes**: `BaseInlet` only puts records into the queue; actual consumption happens in `JsonlSpout`'s background thread.
+2. **Output directory varies**: The JSONL file is written to `temp/demo_funnel/` under the current working directory. If the script is launched from a different directory, the output location will change accordingly.
+3. **No assertions**: This is a demo script. Successful execution only means the pipeline works; it does not mean business semantics are automatically validated.
 
 ## How to Run
 
@@ -104,9 +103,10 @@ Handled records: 3
   - [core_inlet.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/core_inlet.md)
   - [core_spout.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/core_spout.md)
 - If you want to see its typical use within the framework, refer to:
-  - `LogSpout` / `LogInlet` in `persistence`
-  - `FailSpout` / `FailInlet`
-  - `SuccessSpout`
+  - `LogSpout` / `LogInlet` in `persistence` (writes to the `logs/` directory)
+  - `LifecycleSpout` / `LifecycleInlet` in `persistence` (writes to the SQLite lifecycle database)
+
+> **Historical change note**: Earlier versions had separate `FailSpout` / `FailInlet` and `SuccessSpout` pipelines. Since 3.2.4, `fail_funnel` and `success_funnel` have been merged into a SQLite-based `fallback` mechanism, and the related classes are no longer retained.
 
 ## Dependencies
 

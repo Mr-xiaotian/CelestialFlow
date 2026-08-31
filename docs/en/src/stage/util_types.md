@@ -1,6 +1,6 @@
 # StageTypes
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/08/19
 
 `stage/util_types.py` defines type aliases for the Stage module, providing convenient references for generic Stages.
 
@@ -35,7 +35,7 @@ from celestialflow.stage import TaskStage
 
 # When you need to declare a variable that can accept any type of Stage
 def register_stage(stage: AnyTaskStage) -> None:
-    print(f"Registered Stage: {stage.name}")
+    print(f"Registered Stage: {stage.get_name()}")
 
 
 # Can pass TaskStage with any generic parameters
@@ -60,7 +60,7 @@ stages.append(TaskStage("C", func=lambda x: len(x)))  # TaskStage[str, int]
 
 # No need to manually annotate complex generic types
 for s in stages:
-    print(f"  {s.name}: {s}")
+    print(f"  {s.get_name()}")
 ```
 
 ## Notes

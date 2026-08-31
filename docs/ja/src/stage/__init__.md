@@ -1,6 +1,6 @@
 # Stage モジュール
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/26
 
 Stage モジュールは CelestialFlow におけるタスク実行ユニットを定義します。基本的なタスク実行者から複雑なタスクノードまでの完全な体系を提供し、タスクグラフを構築するための基本構成要素です。
 
@@ -9,7 +9,7 @@ Stage モジュールは CelestialFlow におけるタスク実行ユニット�
 | エクスポートシンボル | ソースモジュール | 説明 |
 |---------|---------|------|
 | `TaskExecutor` | `core_executor` | 基本タスク実行者。serial/thread/async の 3 つの実行モードをサポート |
-| `TaskStage` | `core_stage` | 拡張タスクノード。TaskExecutor を継承し、グラフ接続機能と stage_mode 制御を追加 |
+| `TaskStage` | `core_stage` | 拡張タスクノード。TaskExecutor を継承し、グラフ接続機能を追加 |
 | `TaskSplitter` | `core_stages` | 定義済みノード：単一タスクを複数のサブタスクに分割 |
 | `TaskRouter` | `core_stages` | 定義済みノード：条件に応じてタスクを異なる下流にルーティング |
 
@@ -39,10 +39,9 @@ Stage モジュールは 3 つの階層のタスク実行ユニットで構成�
 2. **core_stage.py** (`TaskStage`)
    - **役割**: 拡張タスクノード。`TaskExecutor` を継承し、グラフ構造の接続機能を追加
    - **主要機能**:
-     - `stage_mode`（serial/thread）による Graph 内でのスケジューリング方式の制御
-     - Inlet バインディング（`set_inlet`）による fallback/log キューの永続化層への接続
-     - 先行ノードカウンターバインディング（`prev_bindings`）
-     - 状態管理とライフサイクル制御（`NOT_STARTED → RUNNING → STOPPED`）
+     - `prev_binding()` / `get_binding_counter()` による前後ノードカウンターバインディング
+     - 状態スナップショット（`snapshot()`）による進捗推定のサポート
+     - キュードレイン（`drain_task_queue()`）による未消費タスクの失敗マーキング
 
 3. **core_stages.py** (定義済みノード: `TaskSplitter`, `TaskRouter`)
    - **役割**: 一般的な構造型タスクパターンの事前実装
@@ -50,21 +49,24 @@ Stage モジュールは 3 つの階層のタスク実行ユニットで構成�
      - `TaskSplitter`: 入力を複数のサブタスクに分配
      - `TaskRouter`: 条件に応じてタスクを異なる下流ノードにルーティング
 
-4. **util_types.py** (`AnyTaskStage`)
+4. **core_dispatch.py** (`TaskDispatch`)
+   - **役割**: タスクスケジューラ。実行モード（serial/thread/async）に基づき `TaskInQueue` からタスクを取得し、ユーザー関数を呼び出します
+
+5. **util_types.py** (`AnyTaskStage`)
    - **役割**: 任意のジェネリックパラメータを持つ Stage のための `TaskStage[Any, Any]` 型エイリアスを提供
 
-## モジュール連携
+## モジュール関連
 
-### 内部連携
+### 内部関連
 - `TaskStage` は `TaskExecutor` を継承し、グラフ接続機能を拡張
 - 定義済みノードはすべて `TaskStage` の特殊化実装
 - すべてのノードは `TaskGraph` 内で組み合わせて使用可能
 
-### 外部連携
-- **Graph モジュールとの連携**: `TaskStage` は `TaskGraph` の基本構成単位
-- **Runtime モジュールとの連携**: ノード間通信に `TaskInQueue` / `TaskOutQueue` を使用し、`TaskDispatch` に依存して実行
-- **Persistence モジュールとの連携**: `FallbackInlet` / `LogInlet` を通じてタスク状態を永続化
-- **Observability モジュールとの連携**: `add_observer()` を通じて `BaseObserver` サブクラスを登録
+### 外部関連
+- **Graph モジュール**: `TaskStage` は `TaskGraph` の基本構成単位
+- **Runtime モジュール**: ノード間通信に `TaskInQueue` / `TaskOutQueue` を使用し、`TaskDispatch` に依存して実行
+- **Persistence モジュール**: `LifecycleInlet` / `LogInlet` を介してタスク状態を永続化
+- **Observability モジュール**: `add_observer()` を介して `BaseObserver` サブクラスを登録
 
 ## 使用例
 
@@ -76,20 +78,20 @@ Stage モジュールは 3 つの階層のタスク実行ユニットで構成�
 from celestialflow import TaskExecutor
 
 
-# 定义处理函数
+# 処理関数を定義
 def process_item(x: int) -> int:
     return x * 10
 
 
-# 创建并执行
+# 作成して実行
 executor = TaskExecutor(
     name="Calculator",
     func=process_item,
     execution_mode="serial",
 )
-executor.start([1, 2, 3])
+executor.run([1, 2, 3])
 
-# 获取结果
+# 結果を取得
 success = executor.get_success_pairs()
 for task, result in success:
     print(f"{task} -> {result}")
@@ -100,21 +102,21 @@ for task, result in success:
 ```python
 from celestialflow import TaskGraph, TaskStage
 
-# 创建阶段节点
-stage_a = TaskStage("StageA", func=lambda x: x + 1, stage_mode="thread")
-stage_b = TaskStage("StageB", func=lambda x: x * 2, stage_mode="serial")
+# ステージノードを作成
+stage_a = TaskStage("StageA", func=lambda x: x + 1, execution_mode="thread")
+stage_b = TaskStage("StageB", func=lambda x: x * 2, execution_mode="serial")
 
-# 构建图
+# グラフを構築
 graph = TaskGraph()
 graph.set_stages([stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 
-# 执行
-graph.start_graph({stage_a.get_name(): [5, 10, 15]})
+# 実行（同期エントリ）
+graph.run({stage_a.get_name(): [5, 10, 15]})
 
-# 阶段快照
-for name, runtime in graph.stage_runtime_dict.items():
-    summary = runtime.stage.get_summary()
+# ステージスナップショット
+for name, stage in graph.stage_dict.items():
+    summary = stage.get_summary()
     print(f"{name}: {summary}")
 ```
 
@@ -124,23 +126,25 @@ for name, runtime in graph.stage_runtime_dict.items():
 from celestialflow import TaskGraph, TaskStage, TaskSplitter
 
 
-# 自定义分裂器：将字符串按逗号分裂
+# カスタムスプリッター：文字列をカンマで分割
 class CommaSplitter(TaskSplitter):
     def _split(self, task):
         return tuple(task.split(","))
 
 
-# 构建图
-raw = TaskStage("Source", func=lambda x: x, stage_mode="serial")
+# グラフを構築
+raw = TaskStage("Source", func=lambda x: x, execution_mode="serial")
 splitter = CommaSplitter("Splitter")
-processor = TaskStage("Process", func=lambda x: x.strip().upper(), stage_mode="thread")
+processor = TaskStage(
+    "Process", func=lambda x: x.strip().upper(), execution_mode="thread"
+)
 
-graph = TaskGraph()
+graph = TaskGraph("SplitDemo")
 graph.set_stages([raw, splitter, processor])
 graph.connect([raw], [splitter])
 graph.connect([splitter], [processor])
 
-graph.start_graph({raw.get_name(): ["a,b,c", "x,y,z"]})
+graph.run({raw.get_name(): ["a,b,c", "x,y,z"]})
 ```
 
 ### TaskRouter 使用例
@@ -149,7 +153,7 @@ graph.start_graph({raw.get_name(): ["a,b,c", "x,y,z"]})
 from celestialflow import TaskGraph, TaskStage, TaskRouter
 
 
-# 定义路由函数：根据任务内容返回目标节点名称
+# ルーティング関数を定義：タスク内容に応じてターゲットノード名を返す
 def classify(x: int) -> str:
     if x > 0:
         return "positive"
@@ -157,20 +161,20 @@ def classify(x: int) -> str:
         return "negative"
 
 
-# 上游只产出原始任务
-source = TaskStage("Source", func=lambda x: x, stage_mode="serial")
+# 上流は元のタスクのみを生成
+source = TaskStage("Source", func=lambda x: x, execution_mode="serial")
 
-# Router 内部决定把任务送给哪个下游
+# Router が内部でタスクを下流に振り分け
 router = TaskRouter("Router", classify)
-pos = TaskStage("Positive", func=lambda x: f"POS: {x}", stage_mode="serial")
-neg = TaskStage("Negative", func=lambda x: f"NEG: {x}", stage_mode="serial")
+pos = TaskStage("Positive", func=lambda x: f"POS: {x}", execution_mode="serial")
+neg = TaskStage("Negative", func=lambda x: f"NEG: {x}", execution_mode="serial")
 
-graph = TaskGraph()
+graph = TaskGraph("RouterDemo")
 graph.set_stages([source, router, pos, neg])
 graph.connect([source], [router])
 graph.connect([router], [pos, neg])
 
-graph.start_graph({source.get_name(): [5, -3, 10, -8]})
+graph.run({source.get_name(): [5, -3, 10, -8]})
 ```
 
 ## 設計原則

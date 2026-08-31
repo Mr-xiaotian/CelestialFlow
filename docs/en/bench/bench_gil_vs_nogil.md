@@ -1,6 +1,6 @@
 # bench_gil_vs_nogil.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/08/26
 
 ## Objective
 
@@ -28,7 +28,7 @@ Script file: `bench/bench_gil_vs_nogil.py`
 - **CPU tasks**: Execute pure Python integer loops and hash-based mixed operations, aiming to stress Python bytecode execution overhead
 - **I/O tasks**: `time.sleep()` to simulate blocking waits
 - **Graph structure**: Fixed as a simple 3-stage series pipeline to avoid topology differences confounding results
-- **Log level**: Unified to `CRITICAL` to minimize log overhead contaminating the benchmark
+- **Persistence / duplicate check disabled**: `TaskExecutor` / `TaskStage` are explicitly constructed with `enable_duplicate_check=False`, so the benchmark does not trigger duplicate-check logic
 - **Repetitions**: Each workload runs 3 times by default, with average / min / max statistics
 
 ## Key Configuration
@@ -100,7 +100,7 @@ python bench/bench_gil_vs_nogil.py --cpu-loops 200000 --pipeline-loops 100000
 ## Potential Issues
 
 1. **Must run twice separately**: The script does not automatically switch Python environments. You need to collect both outputs yourself when comparing results.
-2. **First run writes to fallback sqlite**: `TaskExecutor` / `TaskGraph` create a `fallback/` directory at runtime, so the script first changes the working directory to the repository root to avoid temporary path or permission issues.
+2. **Script changes working directory**: `prepare_runtime_root()` calls `os.chdir()` to switch to the repository root, making it convenient to run from subdirectories or temporary terminals.
 3. **Do not mix results from different parameters**: If the GIL and No-GIL runs use different parameters, the results are not comparable.
 4. **CPU frequency fluctuations may affect results**: Under Windows, background load, thermal management, and power policies can cause jitter in individual runs, hence the default of 3 repetitions with averaging.
 

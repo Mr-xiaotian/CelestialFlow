@@ -1,6 +1,7 @@
 # TaskTypes
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/12
+
 
 TaskTypes モジュールはフレームワークで使用される基本データ型、列挙型、補助クラスを定義します。
 
@@ -38,8 +39,6 @@ TERMINATION_SIGNAL = TerminationSignal()
 class TerminationIdPool:
     def __init__(self, ids: list[int]):
         self.ids = ids  # 終了シグナル ID リスト
-        self.id = -1  # 互換フィールド。固定値 -1
-        self.source = "<signal>"  # 互換フィールド。固定値 "<signal>"
 ```
 
 ## NoOpContext
@@ -117,6 +116,8 @@ CelestialTree イベント名定数。タスクトレーシングと可視化に
 | `TASK_DUPLICATE` | `"task.duplicate"` | 重複タスク検出 |
 | `TERMINATION_INPUT` | `"termination.input"` | 終了シグナル注入 |
 | `TERMINATION_MERGE` | `"termination.merge"` | 終了シグナルマージ |
+
+
 
 ## 使用例
 
@@ -215,6 +216,8 @@ print(f"重複タスクイベント: {CTreeEvent.TASK_DUPLICATE}")  # "task.dupl
 print(f"終了注入イベント: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
 print(f"終了マージイベント: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
 ```
+
+
 
 ## 注意事項
 

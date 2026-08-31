@@ -1,6 +1,6 @@
 # tests/ Test Overview
 
-> 📅 Last Updated: 2026/06/28
+> 📅 Last Updated: 2026/08/26
 
 ## Description
 
@@ -33,12 +33,11 @@ If this is your first time examining the test suite, we recommend reading in the
 | `funnel/__init__.md` | Inlet / Spout pipeline tests |
 | `graph/__init__.md` | `TaskGraph`, topological analysis, and structure export tests |
 | `observability/__init__.md` | Observer, Reporter, injection, and reporting tests |
-| `persistence/__init__.md` | sqlite / success / fail / log persistence tests |
+| `persistence/__init__.md` | Lifecycle / log / sqlite utility persistence tests |
 | `runtime/__init__.md` | Queue, envelope, exception, estimator, counter, and other base runtime tests |
-| `stage/__init__.md` | `TaskExecutor`, `TaskStage`, and built-in stage tests |
-| `utils/test_clone.md` | clone utility tests |
-| `utils/test_format.md` | format utility tests |
-> There is no `__init__.py` under `tests/utils/`, so there is no corresponding `utils/__init__.md`.
+| `stage/__init__.md` | `TaskExecutor`, `TaskStage`, `TaskDispatch`, and built-in stage tests |
+| `benchmark/test_benchmark.md` | `benchmark_graph` / `benchmark_executor` benchmark tests |
+| `benchmark/test_clone.md` | clone utility tests |
 
 ## How to Use
 

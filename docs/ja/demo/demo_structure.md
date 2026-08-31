@@ -1,6 +1,6 @@
 # demo_structure.py デモ説明
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/26
 
 ## 目標
 
@@ -30,7 +30,7 @@ flowchart LR
     D --> E["StageE<br/>square"]
 ```
 
-線形 5 ノードチェーン。データは `StageA → StageB → StageC → StageD → StageE` の順に流れ、各ノードは二乗演算を実行する。`TaskChain` で構築され、`start_chain()` で起動する。
+線形 5 ノードチェーン。データは `StageA → StageB → StageC → StageD → StageE` の順に流れ、各ノードは二乗演算を実行する。`TaskChain` で構築され、`chain.run({"StageA": list(range(20))})` で起動する。
 
 #### Cross（クロス）— `demo_cross`
 
@@ -58,7 +58,7 @@ flowchart LR
     D --> G
 ```
 
-3 層クロス構造（3→1→3）。`TaskCross` で構築され、`start_cross()` で起動する。
+3 層クロス構造（3→1→3）。`TaskCross` で構築され、`cross.run(...)` で起動する。
 
 #### Network（ネットワーク）— `demo_network`
 
@@ -239,14 +239,14 @@ flowchart TD
 
 ## 主要設定
 
-- DAG 構造：デフォルト `stage_mode="thread"`；`demo_chain` の各 Stage は `execution_mode="serial"` を使用し、それ以外は多くが `execution_mode="thread"`
-- `demo_grid`：`staged` スケジュールモードを使用（層ごとに実行）
-- 循環グラフ：終了信号を自動注入するかどうかはサンプルによって異なる；`demo_multi_cycle` は `False` を明示的に渡し、`demo_wheel` は `True` を渡し、`demo_loop` と `demo_complete` はデフォルト動作を使用する；循環グラフを実行するときは手動終了の準備を推奨
-- 各デモは `set_reporter(True, ...)` と `set_ctree(ctree_client)` を呼び出すが、実際に有効かどうかは環境変数とサーバー側の準備状況に依存する
+- DAG 構造：デフォルト `graph_mode="thread"`（`demo_chain` の `TaskChain` は `graph_mode` を明示的に渡さない）。`demo_chain` の各 Stage は `execution_mode="serial"` を使用し、それ以外は多くが `execution_mode="thread"`
+- `demo_grid`：ソースコードでは staged スケジュールモードを明示的に設定しておらず、`TaskGrid` のデフォルト動作に依存する
+- 循環グラフ：`demo_loop` / `demo_wheel` / `demo_complete` / `demo_multi_cycle` はいずれも明示的に `if_put_signal=False` を渡す（つまり自動終了シグナルを注入しない）。循環グラフを実行するときは手動終了の準備を推奨
+- 各デモは `<graph>.set_reporter(TaskReporter(report_host, report_port, <graph>))` を通じて Reporter に接続し、`<graph>.set_ctree(ctree_client)` を通じて CelestialTree に接続する（`demo_chain` では `set_ctree` がコメントアウトされている）。実際に有効かどうかは `REPORT_HOST`/`REPORT_PORT`/`CTREE_HOST` などの環境変数とサービス側の準備状況に依存する
 
 ## 発生しうる問題
 
-1. **循環グラフは自動停止しない可能性がある**：`demo_multi_cycle` は `False` を明示的に渡し、`demo_wheel` は `True` を渡し、`demo_loop` と `demo_complete` はデフォルト動作を使用する；実際に継続的に循環するかどうかはフレームワークのデフォルト戦略に依存するため、実行前に **Ctrl+C** で手動終了できるよう準備しておくことを推奨する。
+1. **循環グラフが自動停止しない可能性がある**：4 つの循環グラフサンプルはいずれも明示的に `if_put_signal=False` を渡す（自動終了シグナルを注入しない）。うち `demo_wheel` の `Core` は `square` を使用するため（例外をスローしない）、タスクは継続的にループバックしてローテーションする。それ以外のサンプルは、タスクが `add_one_sleep` の例外閾値（n>30）まで増加した後、新しいタスクを生成しなくなるため、やはり自動的に終了しない。実行前に **Ctrl+C** で手動終了できるよう準備しておくことを推奨。
 2. **sleep 遅延の蓄積**：`add_one_sleep` は 1 秒の sleep を含み、20 タスク × 多ノード = 長い総実行時間。
 3. **アサーションなし**：フレームワークが起動・実行できることのみを検証し、結果の数値はチェックしない。
 
@@ -260,6 +260,8 @@ python demo/demo_structure.py
 
 `__main__` はデフォルトで `demo_chain()` のみを呼び出し、それ以外の構造関数はすべてコメントアウトされている。コメントを解除すれば、複数の構造を順に実行できる。
 
+以下の出力はすべて期待される出力（mock）であり、具体的なログ形式はフレームワークの出力に依存する。
+
 ### DAG 構造
 
 ```
@@ -272,13 +274,13 @@ python demo/demo_structure.py
 ```
 
 ```
-=== demo_grid (4x4 grid, staged scheduling) ===
+=== demo_grid (4x4 grid) ===
 [Grid00] -> [Grid01] [Grid10]
 [Grid01] -> [Grid02] [Grid11]
 ...
 --- Summary ---
-Grid00: success=5  fail=0
-Grid33: success=5  fail=0
+Grid00: success=9  fail=1
+Grid33: success=180  fail=0
 ```
 
 ### 循環グラフ
@@ -300,7 +302,7 @@ Grid33: success=5  fail=0
 ... (継続的に循環)
 ```
 
-> **重要**：循環グラフサンプル（`demo_loop`、`demo_wheel`、`demo_complete`、`demo_multi_cycle`）の終了信号設定はそれぞれ異なり、デフォルト実行時に継続的に循環する可能性があるため、**Ctrl+C** で手動終了することを推奨する。
+> **重要**：循環グラフサンプル（`demo_loop`、`demo_wheel`、`demo_complete`、`demo_multi_cycle`）はいずれも明示的に `if_put_signal=False` を渡すため、終了シグナルが自動注入されず、デフォルト実行時に継続的にループする可能性がある。**Ctrl+C** で手動終了することを推奨。
 
 ### Forest（フォレスト）
 
@@ -314,11 +316,12 @@ Grid33: success=5  fail=0
 [stageC] Input: ...
 ```
 
-> 複数の構造を順に実行する場合、各構造の実行前に `=== demo_xxx ===` の区切り線が表示され、`Summary` セクションに各ノードの成功/失敗カウントが表示される。
+> 複数の構造を順に実行する場合、`Summary` セクションに各ノードの成功/失敗カウントが表示される。
+> `demo_grid` のカウントは mock の推計：`Grid00` は `range(10)` を入力とし、そのうち `0` が `add_one_sleep` の `ValueError` をトリガーして失敗する。残りのタスクは 4×4 グリッドに沿って下方に伝播し、`Grid33` には合計 180 件のタスクが集約される。
 
-## 依存
+## 依存関係
 
-- `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskStage`）
+- `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskStage`、`TaskReporter`）
 - `demo_utils`
 - `python-dotenv`
 - 外部サービス：CelestialTree（オプション）、Reporter（オプション）

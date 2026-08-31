@@ -1,6 +1,6 @@
-﻿# bench_hash_container.py Benchmark Guide
+# bench_hash_container.py Benchmark Guide
 
-> 📅 Last Updated: 2026/06/16
+> 📅 Last Updated: 2026/08/26
 
 ## Objective
 

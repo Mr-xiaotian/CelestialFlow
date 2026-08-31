@@ -1,6 +1,6 @@
 # BaseSpout
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/26
 
 `BaseSpout` はすべての出口クラスの基底クラスであり、バックグラウンドスレッドでキューを監視しレコードを処理する汎用機能を提供します。
 
@@ -41,8 +41,8 @@ def stop(self):
 フロー：
 1. `_thread` が `None` の場合、そのままリターン
 2. `TERMINATION_SIGNAL` をキューに送信
-3. スレッドの終了を待機（`join(timeout=5)`）し、`_thread` を `None` に設定
-4. `_after_stop()` フックを呼び出す
+3. スレッドの終了を待機（`join(timeout=5)`）。5 秒経過してもスレッドが終了しない場合は `RuntimeStateError("Spout thread did not terminate within 5 seconds.")` を送出
+4. `_thread` を `None` に設定し、`_after_stop()` フックを呼び出す
 
 ### get_queue / get_counter / get_pending_count
 
@@ -232,7 +232,7 @@ print(f"{spout.count} 件のレコードを処理しました")  # 100
 
 1. **スレッドセーフ**: `queue.Queue` を使用してスレッド間通信の安全性を確保します。
 2. **デーモンスレッド**: 監視スレッドはデーモンスレッド（`daemon=True`）として設定され、メインプロセス終了時に自動終了します。
-3. **グレースフルストップ**: `TerminationSignal` を送信してスレッドに停止を通知し、`join(timeout=5)` で最大 5 秒待機します。
+3. **グレースフルストップ**: `TerminationSignal` を送信してスレッドに停止を通知し、`join(timeout=5)` で最大 5 秒待機します。タイムアウトして停止しなかった場合は `RuntimeStateError` を送出します。
 4. **例外分離**: 単一レコードの処理失敗時は traceback を出力して続行し、スレッドは終了しません。
 5. **キュー未クリア**: 停止時にキュー内の残存レコードはクリアされません。
 6. **待処理カウント**: カウンターは `_funnel()` エンキュー前に増加し、`_spout()` 処理完了後に減少します。これにより、データがすべて消費されたかどうかを判断できます。

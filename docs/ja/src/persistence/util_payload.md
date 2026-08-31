@@ -1,6 +1,6 @@
 # PersistencePayload
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/08/26
 
 `persistence/util_payload.py` は、タスクデータの永続化シリアライゼーションツールを提供し、任意の Python オブジェクトを再帰的に JSON フレンドリーな構造に変換します。
 
@@ -24,7 +24,7 @@ def to_persisted_payload(task: Any) -> Any:
 |---------|------|------|
 | `None` / `str` / `int` / `float` / `bool` | そのまま返す | 既に JSON ネイティブ型 |
 | `list` / `tuple` / `set` | `list` | 各要素を再帰的に変換 |
-| `dict` | `dict` | key を `str` に、value を再帰的に変換 |
+| `dict` | `dict` | key を `str` に変換し、value を再帰的に変換 |
 | その他の型 | `str(task)` | 文字列表現に変換 |
 
 ```mermaid
@@ -73,12 +73,12 @@ result = to_persisted_payload(MyTask())
 print(result)  # "MyTask(id=1)"
 ```
 
-### FallbackInlet での使用
+### LifecycleInlet での使用
 
-`to_persisted_payload` は主に `FallbackInlet` 内部で自動的に呼び出され、タスクデータを SQLite に保存可能な JSON 文字列に変換します：
+`to_persisted_payload` は主に `LifecycleInlet` 内部で自動的に呼び出され、タスクデータを SQLite に保存可能な JSON 文字列に変換します：
 
 ```python
-# FallbackInlet.task_in 内部フロー：
+# LifecycleInlet.task_in 内部フロー：
 from datetime import datetime
 
 pending_item = {
@@ -95,6 +95,6 @@ pending_item = {
 
 ## 注意事項
 
-- シリアライゼーション戦略は**ベストエフォート**です：直接 JSON シリアライズできないオブジェクトは、`str()` による文字列表現にフォールバックします。
-- 関数の結果は `FallbackSpout` 内部で `json.dumps` により SQLite の `task_json` または `result_json` フィールドに書き込まれます。
-- 旧版 `util_jsonl.py` との違い：新版は JSONL ファイルの読み書きを扱わず、データフォーマット変換のみを担当します。
+- シリアライゼーション戦略は**ベストエフォート**：直接 JSON シリアライズできないオブジェクトは `str()` による文字列表現にフォールバック。
+- 関数の結果は最終的に `LifecycleSpout` により `util_sqlite` 層で `json.dumps` 形式に変換され、SQLite の `task_json` または `result_json` フィールドに書き込まれます。
+- 本モジュールはデータフォーマット変換のみを担当し、ファイル読み書きには関与しません。

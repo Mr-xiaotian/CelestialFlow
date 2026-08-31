@@ -1,6 +1,6 @@
 # CelestialFlow Package Entry
 
-> 📅 Last Updated: 2026/06/22
+> 📅 Last Updated: 2026/08/19
 
 ## Introduction
 
@@ -59,29 +59,18 @@ Provides observer pattern support for monitoring task execution.
 | Exported Symbol | Description |
 |-----------------|-------------|
 | `BaseObserver` | Observer base class, defines on_start / on_success / on_failure interfaces |
-| `TaskProgress` | Task progress tracker, real-time statistics of completed/failed/total |
+| `TaskReporter` | Task reporter, reports task execution events via HTTP |
 
 ---
 
-### utils — Utilities
+### benchmark — Benchmark
 
-Provides benchmarking and formatting utilities.
+Provides performance benchmarking capabilities for executors and task graphs.
 
 | Exported Symbol | Description |
 |-----------------|-------------|
 | `benchmark_executor` | Multi-mode benchmark testing for sync/async `TaskExecutor` |
 | `benchmark_graph` | Benchmark testing for the entire task graph |
-| `format_table` | Formatted table output, for console display of comparison data |
-
----
-
-### web — Web Service
-
-Provides a built-in web server for graph state monitoring and visualization.
-
-| Exported Symbol | Description |
-|-----------------|-------------|
-| `TaskWebServer` | FastAPI-based web server, providing HTTP API for graph runtime snapshots and a visualization panel |
 
 ---
 
@@ -92,7 +81,7 @@ Provides SQLite-based record loading and querying functionality.
 | Exported Symbol | Description |
 |-----------------|-------------|
 | `load_records` | Load all execution records from a SQLite database |
-| `load_records_grouped_by_stage` | Load execution records grouped by stage name |
+| `load_tasks_grouped_by_stage` | Load task records grouped by stage name |
 
 ---
 
@@ -102,6 +91,7 @@ Provides runtime helper types and utility functions.
 
 | Exported Symbol | Description |
 |-----------------|-------------|
+| `format_table` | Formatted table output, for console display of comparison data |
 | `make_hashable` | Converts non-hashable objects (e.g. dict, list) to hashable form |
 | `TerminationSignal` | Termination signal, used to control the end of graph execution flow |
 
@@ -109,7 +99,7 @@ Provides runtime helper types and utility functions.
 
 ## `__all__` List
 
-Complete public API list (23 symbols total):
+Complete public API list (22 symbols total):
 
 ```python
 __all__ = [
@@ -123,18 +113,17 @@ __all__ = [
     "TaskGraph",
     "TaskGrid",
     "TaskLoop",
-    "TaskProgress",
+    "TaskReporter",
     "TaskRouter",
     "TaskSplitter",
     "TaskStage",
-    "TaskWebServer",
     "TaskWheel",
     "TerminationSignal",
     "benchmark_executor",
     "benchmark_graph",
     "format_table",
     "load_records",
-    "load_records_grouped_by_stage",
+    "load_tasks_grouped_by_stage",
     "make_hashable",
 ]
 ```
@@ -157,10 +146,8 @@ def add_one(x: int) -> int:
 
 
 # 2. Create TaskStage nodes
-stage_a = TaskStage("StageA", func=double, execution_mode="serial", stage_mode="serial")
-stage_b = TaskStage(
-    "StageB", func=add_one, execution_mode="serial", stage_mode="serial"
-)
+stage_a = TaskStage("StageA", func=double, execution_mode="serial")
+stage_b = TaskStage("StageB", func=add_one, execution_mode="serial")
 
 # 3. Build the DAG graph
 graph = TaskGraph(name="DemoGraph")
@@ -169,7 +156,7 @@ graph.connect([stage_a], [stage_b])
 
 # 4. Execute the graph
 init_tasks = {stage_a.get_name(): [1, 2, 3, 4, 5]}
-graph.start_graph(init_tasks)
+graph.run(init_tasks)
 
 # 5. View execution result summary
 snapshot = graph.get_status_snapshot()
@@ -185,7 +172,7 @@ from celestialflow import TaskExecutor
 
 # Create an executor and pass a data iterator
 executor = TaskExecutor("Adder", func=lambda x: x + 10, execution_mode="serial")
-executor.start([1, 2, 3])
+executor.run([1, 2, 3])
 
 # Get execution results
 success_pairs = executor.get_success_pairs()
@@ -208,8 +195,8 @@ stages = [
     TaskStage("S3", func=lambda x: x**2),
 ]
 
-chain = TaskChain(name="DemoChain", stages=stages, stage_mode="serial")
-chain.start_chain({stages[0].get_name(): [1, 2, 3]})
+chain = TaskChain(name="DemoChain", stages=stages)
+chain.run({stages[0].get_name(): [1, 2, 3]})
 snapshot = chain.get_status_snapshot()
 print("Chain status:", snapshot["status"])
 ```
@@ -235,23 +222,19 @@ graph TD
     end
 
     subgraph observability
-        O["BaseObserver<br/>TaskProgress"]
+        O["BaseObserver<br/>TaskReporter"]
     end
 
-    subgraph utils
-        U["benchmark_executor<br/>benchmark_graph<br/>format_table"]
-    end
-
-    subgraph web
-        W["TaskWebServer"]
+    subgraph benchmark
+        U["benchmark_executor<br/>benchmark_graph"]
     end
 
     subgraph persistence
-        P["load_records<br/>load_records_grouped_by_stage"]
+        P["load_records<br/>load_tasks_grouped_by_stage"]
     end
 
     subgraph runtime
-        R["make_hashable<br/>TerminationSignal"]
+        R["format_table<br/>make_hashable<br/>TerminationSignal"]
     end
 
     Init --> F
@@ -259,7 +242,6 @@ graph TD
     Init --> S
     Init --> O
     Init --> U
-    Init --> W
     Init --> P
     Init --> R
 ```
