@@ -97,7 +97,22 @@ CelestialFlow 当前在 `docs/zh-CN/` 顶层有以下文件：
 
 它们在 `docs/en/` 与 `docs/ja/` 中存在镜像，纳入常规扫描范围。脚本会自动识别并归入对应动作类别。
 
-> **注意**：本项目目前**没有**项目根的 `README.md`（也不在 `docs/zh-CN/` 下）。如果未来引入根级 `README.md`，可通过 `scan_i18n_diff.py --root-file README.md` 纳入扫描范围。
+## 项目根 README 翻译（必须遵守）
+
+本项目根目录存在 `README.md`（中文为主，含 logo、Star History、License、Author 等），是面向用户的主入口文档。**必须**翻译到英文与日文。
+
+**映射方式**：通过 `scan_i18n_diff.py --root-file README.md` 把项目根的 `README.md` 视为源，翻译到 `docs/en/README.md` 与 `docs/ja/README.md`。
+
+**特殊说明**：
+
+- `docs/zh-CN/` 下**不放置** `README.md` 镜像（与本节约定的源在项目根保持一致）。
+- `docs/{en,ja}/README.md` 由本节规则生成，**不要**被「`docs/zh-CN/` 是唯一事实来源」误判为 DELETE——该文件的源不在 `docs/zh-CN/`，而在项目根。
+
+扫描命令示例：
+
+```bash
+uv run python $HOME/.agents/skills/docs-i18n-sync/scan_i18n_diff.py --project-root . --source docs/zh-CN --targets en:docs/en ja:docs/ja --root-file README.md
+```
 
 ## 排除项
 
