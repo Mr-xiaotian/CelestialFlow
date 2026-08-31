@@ -1,6 +1,6 @@
 # bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/08/31
 
 ## 目标
 
@@ -11,8 +11,8 @@
 ### `bench_graph_0`
 - **结构**：4 节点 DAG，`stage1 → stage2 → stage4`，`stage1 → stage3`（stage3 为不汇入 stage4 的独立分支）
 - **任务混合**：CPU 密集型（斐波那契）、I/O 密集型（sleep）、纯计算（除二、平方）
-- **输入**：`range(25, 32) + [0, 27, None, 0, ""]`（含异常边界）
-- **重试设置**：`stage1`、`stage2` 对 `ValueError` 启用 `max_retries=1`
+- **输入**：`range(25, 32)`（7 个纯成功任务；早期版本含异常输入，已移除）
+- **重试设置**：`stage1`、`stage2` 对 `ValueError` 启用 `max_retries=1`（当前输入下不触发）
 - **Reporter**：默认关闭（代码中已注释，可通过取消注释启用）
 
 ### `bench_graph_1`
@@ -232,6 +232,54 @@ python bench/bench_graph_mode.py
 - 对纯计算微任务，`serial + serial` 依然最稳妥，额外并发层通常只会放大调度开销
 
 > 本轮数据与 2026/08/05 的结果不可直接逐列比较：一方面运行环境从 Windows 切换到了 macOS；另一方面矩阵已从原先不完整的组合扩展为完整 9 宫格，`async` 列的语义也已修正。
+
+### 2026/08/31 — bench_graph_0 去除异常输入后重跑（Windows）
+
+> 环境：Windows，Python 3.14.3，Reporter **未启用**
+> 变更：`bench_graph_0` 的输入由 `range(25, 32) + [0, 27, None, 0, ""]`（含异常边界）改为纯 `range(25, 32)`，排除失败任务重试路径对耗时的影响
+
+#### `bench_graph_0` — 4 节点 DAG，CPU+I/O 混合，7 个任务（纯成功路径）
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 7.34s | 1.37s | 1.37s |
+| **thread** | 7.06s | 1.38s | 1.39s |
+| **async**  | 7.08s | 1.37s | 1.41s |
+
+- 相比含异常输入的旧版（serial 列约 8.1–8.4s），去除失败输入后 serial 列降到约 7.06–7.34s，省下的是失败任务的重试与错误处理开销（约 1s）
+- `thread` / `async` 列几乎不变（约 1.37–1.41s）：失败任务本身执行极快（fibonacci(0) 立即抛错），对并发模式影响可忽略
+- 结论不变：`graph_mode` 三行差距极小，节点内部 `execution_mode` 仍是主导因素
+
+#### `bench_graph_1` — 6 节点 DAG，I/O 密集（随机 sleep），10 个任务
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 79.05s | 12.03s | 12.10s |
+| **thread** | 20.02s | 7.02s  | 6.06s  |
+| **async**  | 21.03s | 8.02s  | 6.06s  |
+
+- 最优组合：`thread + async`（6.06s）与 `async + async`（6.06s），与 08/17 结论一致
+- 随机 sleep（0–2s × 全图约 60 个任务）导致单轮数据方差较大（如 `serial+serial` 在 74–79s 间波动），对比时应看多轮趋势而非单轮绝对值
+
+#### `bench_graph_2` — 4 节点 DAG（Splitter→A→[B,C]），纯计算，10,000 个任务
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 4.59s | 3.67s | 6.42s |
+| **thread** | 2.96s | 3.79s | 6.82s |
+| **async**  | 3.05s | 5.48s | 5.69s |
+
+- 本轮 `thread + serial`（2.96s）为最快组合，`serial + serial`（4.59s）反而偏慢；与历史多轮中 `serial+serial` 一直占优（1.10s / 2.65s）的趋势不一致，推测为系统负载或 CPU 频率波动导致，需复测确认
+- `execution_mode=async` 仍最慢（5.69–6.82s），纯计算场景的协程调度开销结论稳定
+- 该场景含 `TaskSplitter`，始终固定为 `execution_mode="serial"`，因此 `thread`/`async` 列只对下游 A/B/C 生效
+
+#### 本轮总结
+
+- `bench_graph_0` 纯化后：`execution_mode` 主导、`graph_mode` 无关的结论更加清晰，且失败路径开销约 1s 的量化被验证
+- I/O 密集（bench_graph_1）：`graph_mode=thread/async` + `execution_mode=async` 依旧最优
+- 纯计算（bench_graph_2）：`async` 依旧最慢，但 `serial+serial` 与 `thread+serial` 的排序在本轮出现反转，单轮波动大，结论以多轮为准
+
+> 本轮运行环境（Windows）与 2026/08/17 的 macOS 数据不可直接逐列比较。
 
 ## 依赖
 

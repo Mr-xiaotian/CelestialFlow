@@ -4,18 +4,12 @@ import random
 from time import sleep
 from typing import Any
 
-from dotenv import load_dotenv
-
 from celestialflow import (
     TaskGraph,
     TaskSplitter,
     TaskStage,
     benchmark_graph,
 )
-
-load_dotenv()
-report_host = os.getenv("REPORT_HOST", "127.0.0.1")
-report_port = int(os.getenv("REPORT_PORT", "5000"))
 
 
 def sleep_1(n: Any) -> Any:
@@ -185,14 +179,9 @@ async def bench_graph_0() -> None:
     async_stage1.set_retry_exceptions(ValueError)
     async_stage2.set_retry_exceptions(ValueError)
 
-    # graph.set_reporter(TaskReporter(report_host, report_port, graph))
-    # async_graph.set_reporter(TaskReporter(report_host, report_port, async_graph))
-
-    bench_task_1: list[Any] = [*list(range(25, 32)), 0, 27, None, 0, ""]
-
     input_tasks = {
-        stage1.get_name(): bench_task_1,
-        async_stage1.get_name(): bench_task_1,
+        stage1.get_name(): range(25, 32),
+        async_stage1.get_name(): range(25, 32),
     }
 
     print("bench_graph_0")
@@ -233,9 +222,6 @@ async def bench_graph_1() -> None:
     async_graph.connect([aC], [aE])
     async_graph.connect([aD], [aF])
 
-    # graph.set_reporter(TaskReporter(report_host, report_port, graph))
-    # async_graph.set_reporter(TaskReporter(report_host, report_port, async_graph))
-
     input_tasks = {
         A.get_name(): range(10),
         aA.get_name(): range(10),
@@ -265,9 +251,6 @@ async def bench_graph_2() -> None:
     async_graph.set_stages(stages=[aS, aA, aB, aC])
     async_graph.connect([aS], [aA])
     async_graph.connect([aA], [aB, aC])
-
-    # graph.set_reporter(TaskReporter(report_host, report_port, graph))
-    # async_graph.set_reporter(TaskReporter(report_host, report_port, async_graph))
 
     input_tasks = {
         S.get_name(): [range(10_000)],
