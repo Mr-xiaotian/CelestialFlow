@@ -33,15 +33,15 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 
 按以下 **7 个固定子任务** 拆分。每个子任务文件量控制在 15–20 个以内，主 agent 不需要再做额外判断。
 
-| # | 子任务 | 子代理 Prompt 文件 | 负责扫描的代码目录/文件 |
-|---|--------|-------------------|------------------------|
-| 1 | src/runtime + graph | `subagent-runtime-graph.md` | `src/celestialflow/runtime/*.py`<br>`src/celestialflow/graph/*.py` |
-| 2 | src/funnel + stage + observability + persistence | `subagent-funnel-stage-obs-persist.md` | `src/celestialflow/funnel/*.py`<br>`src/celestialflow/stage/*.py`<br>`src/celestialflow/observability/*.py`<br>`src/celestialflow/persistence/*.py` |
-| 3 | src/utils + package entry | `subagent-utils.md` | `src/celestialflow/__init__.py`<br>`src/celestialflow/utils/*.py` |
-| 4 | tests/runtime + graph | `subagent-tests.md` | `tests/runtime/*.py`<br>`tests/graph/*.py` |
-| 5 | tests/其余 | `subagent-tests.md` | `tests/__init__.py`<br>`tests/conftest.py`<br>`tests/funnel/*.py`<br>`tests/stage/*.py`<br>`tests/observability/*.py`<br>`tests/persistence/*.py`<br>`tests/utils/*.py` |
-| 6 | bench | `subagent-bench-demo.md` | `bench/*.py` |
-| 7 | demo | `subagent-bench-demo.md` | `demo/*.py` |
+| # | 子任务 | 负责扫描的代码目录/文件 |
+|---|--------|------------------------|
+| 1 | src/runtime + graph | `src/celestialflow/runtime/*.py`<br>`src/celestialflow/graph/*.py` |
+| 2 | src/funnel + stage + observability + persistence | `src/celestialflow/funnel/*.py`<br>`src/celestialflow/stage/*.py`<br>`src/celestialflow/observability/*.py`<br>`src/celestialflow/persistence/*.py` |
+| 3 | src/包入口 + benchmark | `src/celestialflow/__init__.py`<br>`src/celestialflow/benchmark/*.py` |
+| 4 | tests/runtime + graph | `tests/runtime/*.py`<br>`tests/graph/*.py` |
+| 5 | tests/其余 | `tests/__init__.py`<br>`tests/conftest.py`<br>`tests/funnel/*.py`<br>`tests/stage/*.py`<br>`tests/observability/*.py`<br>`tests/persistence/*.py`<br>`tests/benchmark/*.py` |
+| 6 | bench | `bench/*.py` |
+| 7 | demo | `demo/*.py` |
 
 执行步骤：
 
@@ -86,6 +86,7 @@ done
 - 子任务编号和名称
 - 当前日期 `YYYY/MM/DD`
 - 该子任务的**代码→文档对照清单**（含孤立文档列表）
+- **本区域本次需要重点核对的内容**（由主代理根据当前代码改动手写 2-3 条）
 - 需要阅读的 Skill 文件路径：
 
 | 顺序 | 文件 | 说明 |
@@ -94,7 +95,6 @@ done
 | 2 | `~/.agents/skills/docs-zh-sync/_subagent-audit.md` | 通用审计清单 |
 | 3 | `~/.agents/skills/docs-zh-sync/_subagent-writing.md` | 通用写作规范 |
 | 4 | 项目内 `.agents/skills/docs-zh-sync/_subagent-base.md` | 项目专属路径映射 |
-| 5 | 项目内 `.agents/skills/docs-zh-sync/subagent-*.md` | 区域特化提示 |
 
 > **退化策略**：如果当前环境限制子代理读取外部 Skill 目录，可临时将通用文件和项目文件合并写入项目内的临时文件（如 `temp/docs-zh-sync/instructions-{子任务}.md`），让子代理读取该临时文件，执行完毕后删除。
 
@@ -165,7 +165,7 @@ done
 
 ### 降级策略
 
-如果当前环境不支持 `subagent`，则按上述 9 个子任务顺序串行执行，每个子任务作为一个独立分区，输出格式仍遵循 `_subagent-base.md` 的要求。
+如果当前环境不支持 `subagent`，则按上述 7 个子任务顺序串行执行，每个子任务作为一个独立分区，输出格式仍遵循 `_subagent-base.md` 的要求。
 
 ## 排除项
 

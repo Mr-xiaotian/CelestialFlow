@@ -9,7 +9,6 @@
 > 2. `~/.agents/skills/docs-zh-sync/_subagent-audit.md`（通用审计清单）
 > 3. `~/.agents/skills/docs-zh-sync/_subagent-writing.md`（通用写作规范）
 > 4. 本文件（项目专属路径映射）
-> 5. 主 agent 指定的区域 `subagent-*.md`
 
 ---
 
