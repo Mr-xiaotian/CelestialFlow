@@ -45,39 +45,21 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 
 执行步骤：
 
-1. 用 `find_path` 或 `terminal` 扫描每个子任务对应的代码目录，生成该子任务的代码文件清单。
-2. 按项目路径映射规则（见 `_subagent-base.md`）推算每个代码文件对应的 `docs/zh-CN/` 目标文档路径。
-3. 同时扫描对应 `docs/zh-CN/` 目录，找出"有文档但无对应源码"的孤立文件，单独列出。
+1. **调用全局扫描脚本** 生成对照清单（Manifest）。脚本与平台无关，跨 Windows / macOS / Linux：
 
-**扫描提速**：步骤 1–3 可使用以下 Shell 模板一次生成镜像路径对照表（替换 `SRC_DIR` 和 `DOC_DIR` 为对应子任务的目录）：
+   ```bash
+   # 单行调用。$HOME 在 Bash 与 PowerShell 下均会自动展开为主目录（Windows 下为 %USERPROFILE%）。
+   uv run python $HOME/.agents/skills/docs-zh-sync/scan_manifest.py --project-root . --pairs src/celestialflow/runtime:docs/zh-CN/src/runtime src/celestialflow/graph:docs/zh-CN/src/graph ...
+   ```
 
-```bash
-# 生成代码→文档镜像路径对照表
-# 用法: 替换 SRC_DIR 为代码目录, DOC_DIR 为 docs/zh-CN 对应目录
-SRC_DIR="src/celestialflow/runtime"
-DOC_DIR="docs/zh-CN/src/runtime"
-for f in $(find "$SRC_DIR" -maxdepth 1 -name '*.py' ! -name '__pycache__' | sort); do
-  base=$(basename "$f")
-  doc="${base%.py}.md"
-  doc="${doc/__init__.py/__init__.md}"
-  if [ -f "$DOC_DIR/$doc" ]; then
-    echo "📄 $f -> $DOC_DIR/$doc  (exists)"
-  else
-    echo "🆕 $f -> $DOC_DIR/$doc  (missing)"
-  fi
-done
-# 找出孤立文档
-for d in $(find "$DOC_DIR" -maxdepth 1 -name '*.md' | sort); do
-  base=$(basename "$d")
-  src="${base%.md}.py"
-  src="${src/__init__.md/__init__.py}"
-  if [ ! -f "$SRC_DIR/$src" ]; then
-    echo "🗑 $d  (orphan, no source)"
-  fi
-done
-```
+   脚本输出 Markdown 三表格式（`exists` / `missing` / `orphans`）或 JSON，可直接复制进子代理 prompt。多 pair 场景直接在 `--pairs` 后空格分隔追加。
 
-> 提示：主 agent 可将该模板适配到每个子任务的目录后运行，用输出结果直接构建对照清单。
+2. **核对 Manifest 分类**：
+   - `exists`：代码与文档都存在 → 需审计内容一致性。
+   - `missing`：代码存在但无对应文档 → 需新建。
+   - `orphans`：文档存在但无对应源码 → 需删除或移动。
+
+3. **利用脚本的重命名候选提示**。脚本在 `orphans` 表的"处理建议"列会标注"疑似重命名：X -> Y（相似度 0.56）"。重命名场景下（如源码 `util_serialize.py` 改名为 `util_render.py`），文档侧不需要新建，主 agent 应直接指引对应子代理把旧文档 `util_serialize.md` 改写为新文档 `util_render.md`，而不是让子代理临场判断。阈值可通过 `--rename-threshold` 调整（默认 0.5）。
 
 ### 委派子代理
 
@@ -143,25 +125,27 @@ done
 
 如果只完成了部分区域，要明确列出已完成范围和剩余范围。
 
-汇总完成后，由主 agent 自行扫描 `docs/zh-CN/` 顶层文件（README.md、tutorial.md、quick_start.md、presentation.md、change_log.md 等）和 `docs/zh-CN/other/`，检查引用的类名/函数名/路径是否因本次变更而过期。
+汇总完成后，由主 agent 直接处理 `docs/zh-CN/` 顶层文件（README.md、tutorial.md、quick_start.md、presentation.md、change_log.md 等）和 `docs/zh-CN/other/`：
 
-扫描方式：使用 `grep` 搜索本次变更中涉及的旧名（重命名/删除的 API、异常、路径、文件名等），无需读取或修改文件内容。
+1. **列出所有顶层文档**。可使用 `scan_manifest.py` 的 `--top-level` 选项（如 `uv run python $HOME/.agents/skills/docs-zh-sync/scan_manifest.py --top-level docs/zh-CN --top-level docs/zh-CN/other`），或直接 `Get-ChildItem docs/zh-CN/*.md docs/zh-CN/other/*.md`。
+2. **本次变更中涉及的旧名集合**（重命名/删除的 API、异常、路径、文件名、测试名等）由主 agent 从子代理汇报中汇总得出。
+3. **逐文件扫描并修复**：对每个顶层文档用 `grep`（或 `rg` / `Grep` 工具）搜索旧名，命中后直接修改为新名；无法确定改写的（如 `change_log.md` 的历史记录）保留不动。
+4. **修改的文档同步刷新"最后更新日期"**。
 
-将扫描结果直接汇报给用户，格式如下：
+将处理结果直接写入汇总报告：
 
 ```markdown
-### 顶层文档快速检查
+### 顶层文档处理
 
 | 检查项 | 结果 |
 |--------|:----:|
-| 旧 API `start_graph()` / `start_db()` | ✅/🔴 匹配行: ... |
+| 旧 API `start_graph()` / `start_db()` | ✅ 已替换为 `start()` / `start_db()`（行 12、45） |
 | 旧路径 `tests/utils/` / `src/utils/` | ✅ 无残留 |
+| 旧类名 `FallbackInlet` | 🔴 presentation.md L23、L67；已替换为 `LifecycleInlet` |
 | ... | ... |
 
-涉及文件：`quick_start.md`、`tutorial.md`、...
+涉及文件：`quick_start.md`、`tutorial.md`、`presentation.md`。
 ```
-
-> 注意：此步骤**只扫描不修改**，仅向用户汇报发现。
 
 ### 降级策略
 
@@ -175,5 +159,3 @@ done
 - `docs/ja/`
 - 生成产物，如 `*.js`
 - 第三方依赖锁文件、图片、二进制资源
-- `docs/zh-CN/` 顶层文件（README.md、tutorial.md 等）和 `other/` 目录（无直接代码对应）
-  > ⚠️ 此排除仅限制**修改/新建/删除**操作。汇总阶段的**扫描检查（只读）**不受此限制。
