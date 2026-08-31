@@ -270,7 +270,7 @@ class TaskDispatch[T, R]:
             pending.add(task)
             task.add_done_callback(pending.discard)
 
-        _ = await asyncio.gather(*pending)
+        _ = await asyncio.gather(*pending, return_exceptions=True)
         result_queue.put(termination_signal)
 
     # ==== 清理 ====
