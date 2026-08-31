@@ -134,21 +134,6 @@ class InitializationError(RuntimeStateError):
     pass
 
 
-class GraphManagedError(RuntimeStateError):
-    """Stage 已被 Graph 管理，不应通过 standalone 路径启动。"""
-
-    def __init__(
-        self,
-        message: str = "This stage is managed by a TaskGraph. Use TaskGraph.start()/start_async() or TaskGraph.run()/run_async() instead of calling stage.start() directly.",
-    ) -> None:
-        """
-        初始化异常。
-
-        :param message: 错误消息
-        """
-        super().__init__(message)
-
-
 class CelestialFlowTimeoutError(CelestialFlowError, TimeoutError):
     """超时错误"""
 
