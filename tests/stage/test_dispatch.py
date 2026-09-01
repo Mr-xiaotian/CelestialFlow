@@ -398,7 +398,7 @@ class _CrashRetryLogInlet(_RecordingLogInlet):
 
     def task_retry(
         self,
-        func_name: str,
+        executor_name: str,
         task_repr: str,
         retry_times: int,
         exception: Exception,
