@@ -112,6 +112,7 @@ class TaskStage[T, R](TaskExecutor[T, R]):
 
         return {
             "name": self.get_name(),
+            "class_name": self._get_class_name(),
             "execution_mode": self.execution_mode,
             "max_workers": self.max_workers,
             "status": status,
