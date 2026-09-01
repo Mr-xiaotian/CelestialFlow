@@ -112,15 +112,14 @@ class TaskStage[T, R](TaskExecutor[T, R]):
 
         return {
             "name": self.get_name(),
-            "func_name": self.get_func_name(),
             "execution_mode": self.execution_mode,
             "max_workers": self.max_workers,
             "status": status,
-            **stage_counts,
             "start_time": self.start_time,
             "elapsed_time": elapsed,
             "remaining_time": remaining,
             "task_avg_time": avg_time_str,
+            **stage_counts,
         }
 
     # ==== 任务队列 ====

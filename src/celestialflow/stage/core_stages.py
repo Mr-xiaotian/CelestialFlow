@@ -118,7 +118,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
         self._update_split_counter(split_count)
 
         get_log_inlet().split_success(
-            self.get_func_name(),
+            self.get_name(),
             self._get_repr(task),
             split_count,
             time.perf_counter() - start_time,
@@ -158,7 +158,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
                 result_queue.put_target(downstream_envelope, target_name)
 
             get_log_inlet().split_trace(
-                self.get_func_name(),
+                self.get_name(),
                 idx + 1,
                 split_count,
                 task_id,
@@ -253,7 +253,7 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
         self._update_route_counter(target)
 
         get_log_inlet().route_success(
-            self.get_func_name(),
+            self.get_name(),
             self._get_repr(task),
             target,
             time.perf_counter() - start_time,

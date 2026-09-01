@@ -107,7 +107,7 @@ class TaskDispatch[T, R]:
             source=self.task_executor.get_name(),
         )
         get_log_inlet().termination_merge(
-            self.task_executor.get_func_name(), parent_ids, termination_id
+            self.task_executor.get_name(), parent_ids, termination_id
         )
         return signal
 
