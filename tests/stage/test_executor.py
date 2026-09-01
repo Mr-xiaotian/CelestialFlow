@@ -417,10 +417,9 @@ class TestExecutorConfig:
         with pytest.raises(InvalidOptionError):
             TaskExecutor("AddOneInvalidMode", add_one, execution_mode="invalid")
 
-    def test_get_summary(self):
-        """测试获取执行器状态摘要信息"""
+    def test_name_func_and_execution_mode(self):
+        """测试执行器名称、函数名与执行模式配置"""
         executor = TaskExecutor("AddOneSummary", add_one, execution_mode="serial")
-        summary = executor.get_summary()
-        assert summary["name"] == "AddOneSummary"
-        assert summary["func_name"] == "add_one"
-        assert summary["execution_mode"] == "serial"
+        assert executor.get_name() == "AddOneSummary"
+        assert executor.get_func_name() == "add_one"
+        assert executor.execution_mode == "serial"

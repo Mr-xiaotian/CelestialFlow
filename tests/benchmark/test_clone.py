@@ -96,7 +96,7 @@ class TestUtilClone:
         cloned = clone_graph(graph)
 
         # 源节点一致（同时触发 cloned 图的 _build_analysis）
-        assert cloned.get_source_names() == graph.get_source_names()
+        assert cloned.get_source_stages() == graph.get_source_stages()
 
         # 通过有序图验证节点一致
         g1_graph = graph.get_order_graph()

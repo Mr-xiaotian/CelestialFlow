@@ -186,9 +186,9 @@ class TestDeepGraphRegression:
         for i in range(DEEP - 1):
             graph.connect([stages[i]], [stages[i + 1]])
 
-        stages_summary = graph.get_stages_summary()
-        assert len(stages_summary) == DEEP
-        assert graph.get_source_names() == ["n0"]
+        stages = graph.get_stages()
+        assert len(stages) == DEEP
+        assert graph.get_source_stages() == ["n0"]
 
         analysis = graph.get_graph_analysis()
         assert analysis["isDAG"] is True

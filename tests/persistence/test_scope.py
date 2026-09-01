@@ -55,7 +55,7 @@ class TestFunnelScope:
             assert log_spout._thread.is_alive()
             assert lifecycle_spout._thread.is_alive()
 
-            get_log_inlet().start_graph("scope_graph", ["hello scope"])
+            get_log_inlet().start_graph("scope_graph", "thread", ["hello scope"])
             get_lifecycle_inlet().task_in("scope_stage", event_id=1, task="data")
             get_lifecycle_inlet().task_success(event_id=1, result="ok")
 
@@ -124,7 +124,7 @@ class TestFunnelScope:
         with pytest.raises(
             ExceptionGroup, match="Errors occurred during funnel scope"
         ), funnel_scope():
-            get_log_inlet().start_graph("scope_graph", ["body failure"])
+            get_log_inlet().start_graph("scope_graph", "thread", ["body failure"])
             wait_until(
                 lambda: get_log_spout().log_path is not None,
                 message="timeout waiting for log scope to initialize",
@@ -141,7 +141,7 @@ class TestFunnelScope:
         monkeypatch.chdir(tmp_path)
 
         with funnel_scope():
-            get_log_inlet().start_graph("scope_graph", ["single layer"])
+            get_log_inlet().start_graph("scope_graph", "thread", ["single layer"])
             wait_until(
                 lambda: get_log_spout().log_path is not None,
                 message="timeout waiting for log scope to initialize",

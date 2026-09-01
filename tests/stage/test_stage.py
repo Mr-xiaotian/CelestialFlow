@@ -62,8 +62,8 @@ class TestTaskStageConfig:
             add_one,
             execution_mode="thread",
         )
-        summary = stage.get_summary()
-        assert summary["execution_mode"] == "thread"
+        snapshot = stage.snapshot(interval=0.1)
+        assert snapshot["execution_mode"] == "thread"
 
     def test_prev_binding_survives_execution_mode_switch(self):
         """测试前驱绑定在 execution_mode 切换后仍然保留"""
