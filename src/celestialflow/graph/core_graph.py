@@ -336,7 +336,7 @@ class TaskGraph:
 
         :return: ``None``
         """
-        get_log_inlet().start_graph(self.name, self.get_structure_list())
+        get_log_inlet().start_graph(self.name, self.graph_mode, self.get_structure_list())
         self.reporter.start()
 
     def _finish_start(self, start_perf: float) -> list[Exception]:
@@ -581,17 +581,13 @@ class TaskGraph:
         """
         return self.graph_id
 
-    def get_stages_summary(self) -> dict[str, dict[str, Any]]:
+    def get_stages(self) -> list[str]:
         """
-        获取所有任务阶段的摘要信息
+        获取所有任务阶段的名称列表
 
-        :return: 任务阶段摘要信息字典
+        :return: 任务阶段名称列表
         """
-        nodes: dict[str, dict[str, Any]] = {}
-
-        for stage_name, stage in self.stage_dict.items():
-            nodes[stage_name] = dict(stage.get_summary())
-        return nodes
+        return list(self.stage_dict.keys())
 
     def get_edges(self) -> dict[str, list[str]]:
         """
@@ -602,7 +598,7 @@ class TaskGraph:
         """
         return self.order_graph.out_edges
 
-    def get_source_names(self) -> list[str]:
+    def get_source_stages(self) -> list[str]:
         """
         获取源节点列表
 
@@ -637,9 +633,9 @@ class TaskGraph:
         """
         self._ensure_analysis()
         return render_structure_list(
-            self.get_stages_summary(),
-            self.order_graph.out_edges,
-            self.source_names,
+            self.get_stages(),
+            self.get_edges(),
+            self.get_source_stages(),
         )
 
     def get_order_graph(self) -> OrderGraph:

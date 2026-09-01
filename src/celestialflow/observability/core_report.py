@@ -238,9 +238,9 @@ class TaskReporter:
         try:
             payload: dict[str, Any] = {
                 "graph_id": self.task_graph.get_graph_id(),
-                "nodes": self.task_graph.get_stages_summary(),
+                "nodes": self.task_graph.get_stages(),
                 "edges": self.task_graph.get_edges(),
-                "source_nodes": self.task_graph.get_source_names(),
+                "source_nodes": self.task_graph.get_source_stages(),
             }
             _ = self._session.post(
                 f"{self.base_url}/api/push_structure",

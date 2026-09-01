@@ -76,15 +76,13 @@ class LogInlet(BaseInlet):
                 "log level", self.log_level, tuple(LEVEL_DICT.keys())
             )
 
-    def _log(self, level: str, message: str | None = None) -> None:
+    def _log(self, level: str, message: str) -> None:
         """
         记录一条日志，低于当前日志级别的消息将被忽略
 
         :param level: 日志级别
-        :param message: 日志消息内容，默认 None（跳过）
+        :param message: 日志消息内容
         """
-        if message is None:
-            return
         timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime())
         level_upper = level.upper()
         if level_upper not in LEVEL_DICT:
@@ -96,13 +94,15 @@ class LogInlet(BaseInlet):
         )
 
     # ==== 任务图 ====
-    def start_graph(self, graph_name: str, structure_list: list[str]) -> None:
+    def start_graph(self, graph_name: str, graph_mode: str, structure_list: list[str]) -> None:
         """
         记录任务图启动及结构信息
 
+        :param graph_name: 任务图名称
+        :param graph_mode: 任务图运行模式
         :param structure_list: 任务图结构信息列表
         """
-        self._log("INFO", f"Graph '{graph_name}' start. Graph structure:")
+        self._log("INFO", f"Graph '{graph_name}' start by {graph_mode}. Graph structure:")
         for line in structure_list:
             self._log("INFO", line)
 
@@ -110,6 +110,7 @@ class LogInlet(BaseInlet):
         """
         记录任务图结束
 
+        :param graph_name: 任务图名称
         :param use_time: 任务图运行耗时（秒）
         """
         self._log("INFO", f"Graph '{graph_name}' end. Use {use_time:.2f}s.")

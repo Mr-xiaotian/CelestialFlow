@@ -144,13 +144,11 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
             split_id = self.ctree_client.emit(
                 "task.split",
                 parents=[task_id],
-                payload=self.get_summary(),
             )
             for target_name in result_queue.get_target_names():
                 downstream_input_id = self.ctree_client.emit(
                     "task.input",
                     parents=[split_id],
-                    payload=self.get_summary(),
                 )
                 get_lifecycle_inlet().task_in(target_name, downstream_input_id, item)
                 downstream_envelope: TaskEnvelope[RItem] = TaskEnvelope(
@@ -249,7 +247,6 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
         route_id = self.ctree_client.emit(
             "task.route",
             parents=[task_id],
-            payload=self.get_summary(),
         )
         self.metrics.add_success_count()
         get_lifecycle_inlet().task_success(task_id, task)
@@ -267,7 +264,6 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
         downstream_input_id = self.ctree_client.emit(
             "task.input",
             parents=[route_id],
-            payload=self.get_summary(),
         )
         get_lifecycle_inlet().task_in(target, downstream_input_id, task)
         downstream_envelope: TaskEnvelope[T] = TaskEnvelope(

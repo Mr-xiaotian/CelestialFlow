@@ -108,7 +108,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     visited: set[str] = set()
     ordered_stages: list[AnyTaskStage] = []
     queue: deque[AnyTaskStage] = deque(
-        graph.stage_dict[source_name] for source_name in graph.get_source_names()
+        graph.stage_dict[source_name] for source_name in graph.get_source_stages()
     )
     while queue:
         stage: AnyTaskStage = queue.popleft()

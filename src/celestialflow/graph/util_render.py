@@ -1,12 +1,10 @@
 # graph/util_render.py
 from __future__ import annotations
 
-from typing import Any
-
 
 # ==== 图结构处理 ====
 def render_structure_list(
-    nodes: dict[str, dict[str, Any]],
+    nodes: list[str],
     edges: dict[str, list[str]],
     source_nodes: list[str],
 ) -> list[str]:
@@ -19,7 +17,7 @@ def render_structure_list(
     - 未从任意根渲染到的节点（孤立节点）追加在末尾；
     - 根节点不画连接符，子节点使用 ``╞-->`` / ``╘-->`` 连接符。
 
-    :param nodes: {stage_name: 节点元信息字典}
+    :param nodes: 节点名称列表
     :param edges: 邻接表 {stage_name: [next_stage_name, ...]}
     :param source_nodes: 源节点名称列表
     :return: 带边框的格式化字符串列表
@@ -43,13 +41,8 @@ def render_structure_list(
         :param is_ref: 是否按引用节点展示
         :return: 格式化的标签字符串
         """
-        node = nodes.get(node_name, {})
         visited_note = " [Ref]" if is_ref else ""
-        F = node.get("func_name", "?")  # 函数名
-        E = node.get("execution_mode", "?")  # 执行模式
-        W = node.get("max_workers", "?")  # 最大工作数
-
-        return f"{node_name}::{F} (E:{E}, W:{W}){visited_note}"
+        return f"{node_name}{visited_note}"
 
     # 显式栈迭代的 DFS 先序遍历，避免深链图触发 Python 递归上限（默认约 1000 层）。
     # 栈帧: (node_name, prefix, is_last, is_root)。is_root 表示根节点：

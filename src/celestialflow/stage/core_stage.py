@@ -111,7 +111,10 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         self._last_pending = int(stage_counts["tasks_pending"] or 0)
 
         return {
-            **self.get_summary(),
+            "name": self.get_name(),
+            "func_name": self.get_func_name(),
+            "execution_mode": self.execution_mode,
+            "max_workers": self.max_workers,
             "status": status,
             **stage_counts,
             "start_time": self.start_time,

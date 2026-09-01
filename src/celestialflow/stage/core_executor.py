@@ -241,21 +241,6 @@ class TaskExecutor[T, R]:
             else f"{self.execution_mode}-{self.max_workers}"
         )
 
-    def get_summary(self) -> dict[str, Any]:
-        """
-        获取当前节点的基础摘要信息。
-
-        :return: 当前节点摘要，
-            包括执行器名称 ``name``、函数名 ``func_name``、执行模式
-            ``execution_mode`` 与 ``max_workers``
-        """
-        return {
-            "name": self.get_name(),
-            "func_name": self.get_func_name(),
-            "execution_mode": self.execution_mode,
-            "max_workers": self.max_workers,
-        }
-
     def get_counts(self) -> dict[str, Any]:
         """
         获取当前节点的计数器
@@ -285,7 +270,6 @@ class TaskExecutor[T, R]:
         """
         input_id = self.ctree_client.emit(
             CTreeEvent.TASK_INPUT,
-            payload=self.get_summary(),
         )
         envelope: TaskEnvelope[T] = TaskEnvelope(task, input_id)
         self.task_queue.put(envelope)
@@ -305,7 +289,6 @@ class TaskExecutor[T, R]:
         """
         termination_id = self.ctree_client.emit(
             CTreeEvent.TERMINATION_INPUT,
-            payload=self.get_summary(),
         )
         signal = TerminationSignal(termination_id, source="input")
         self.task_queue.put(signal)
@@ -342,7 +325,6 @@ class TaskExecutor[T, R]:
         result_id = self.ctree_client.emit(
             CTreeEvent.TASK_SUCCESS,
             parents=[task_id],
-            payload=self.get_summary(),
         )
 
         self.metrics.add_success_count()
@@ -362,7 +344,6 @@ class TaskExecutor[T, R]:
             downstream_input_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
-                payload=self.get_summary(),
             )
             get_lifecycle_inlet().task_in(target_name, downstream_input_id, result)
             downstream_envelope: TaskEnvelope[R] = TaskEnvelope(
@@ -388,7 +369,6 @@ class TaskExecutor[T, R]:
         error_id = self.ctree_client.emit(
             CTreeEvent.TASK_ERROR,
             parents=[task_id],
-            payload=self.get_summary(),
         )
 
         self.metrics.add_fail_count()
@@ -440,7 +420,6 @@ class TaskExecutor[T, R]:
         duplicate_id = self.ctree_client.emit(
             CTreeEvent.TASK_DUPLICATE,
             parents=[task_id],
-            payload=self.get_summary(),
         )
         get_log_inlet().task_duplicate(
             self.get_func_name(),

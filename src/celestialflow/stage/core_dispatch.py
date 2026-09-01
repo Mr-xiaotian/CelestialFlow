@@ -101,7 +101,6 @@ class TaskDispatch[T, R]:
         termination_id: int = self.task_executor.ctree_client.emit(
             CTreeEvent.TERMINATION_MERGE,
             parents=parent_ids,
-            payload=self.task_executor.get_summary(),
         )
         signal = TerminationSignal(
             termination_id,
