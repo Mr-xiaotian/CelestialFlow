@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import datetime
 from itertools import zip_longest
 from typing import Any
 
@@ -155,33 +154,6 @@ def format_table(
     # 拼接表格
     table: str = f"{separator}\n{header}\n{separator}\n{rows}\n{separator}"
     return table
-
-
-def format_duration(seconds: int) -> str:
-    """
-    将秒数格式化为 HH:MM:SS 或 MM:SS（自动省略前导零）
-
-    :param seconds: 秒数
-    :return: 格式化后的时间字符串
-    """
-    seconds = int(seconds)
-    hours, remainder = divmod(seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-
-    if hours > 0:
-        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-    else:
-        return f"{minutes:02d}:{seconds:02d}"
-
-
-def format_timestamp(timestamp: float) -> str:
-    """
-    将时间戳格式化为 YYYY-MM-DD HH:MM:SS
-
-    :param timestamp: 时间戳（秒）
-    :return: 格式化后的时间字符串
-    """
-    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def cluster_by_value_sorted(input_dict: dict[str, int]) -> dict[int, list[str]]:

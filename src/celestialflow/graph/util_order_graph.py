@@ -75,15 +75,6 @@ class OrderGraph:
         """
         return self._in
 
-    def has_node(self, name: str) -> bool:
-        """
-        判断节点是否存在。
-
-        :param name: 节点名称。
-        :return: 若节点存在则返回 ``True``。
-        """
-        return name in self._nodes
-
     def successors(self, name: str) -> tuple[str, ...]:
         """
         按插入顺序返回后继节点。

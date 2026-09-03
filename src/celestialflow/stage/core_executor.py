@@ -198,19 +198,6 @@ class TaskExecutor[T, R]:
         """
         return self._name
 
-    def get_full_name(self) -> str:
-        """
-        获取当前节点/管理器全名
-
-        :return: 当前节点/管理器全名，格式为 "name(execution_mode-max_workers)"
-        """
-        extra_desc = (
-            f"{self.execution_mode}-{self.max_workers}"
-            if self.execution_mode != "serial"
-            else "serial"
-        )
-        return f"{self.get_name()}({extra_desc})"
-
     def _get_class_name(self) -> str:
         """
         获取当前节点类名
@@ -499,7 +486,7 @@ class TaskExecutor[T, R]:
         :return: ``None``
         """
         self.metrics.reset_state()
-        self.metrics.on_start(self.get_full_name(), 0)
+        self.metrics.on_start(f"{self.get_name()}({self._get_execution_mode_desc()})", 0)
 
         get_log_inlet().start_executor(
             self.get_name(),

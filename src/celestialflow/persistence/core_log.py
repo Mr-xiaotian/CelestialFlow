@@ -407,17 +407,6 @@ class LogInlet(BaseInlet):
             f"[Reporter] Pull 'interval' failed: {type(exception).__name__}({exception}).",
         )
 
-    def pull_history_limit_failed(self, exception: Exception) -> None:
-        """
-        记录拉取历史限制失败
-
-        :param exception: 拉取历史限制时发生的异常
-        """
-        self._log(
-            "WARNING",
-            f"[Reporter] Pull 'history limit' failed: {type(exception).__name__}({exception}).",
-        )
-
     def pull_tasks_failed(self, exception: Exception) -> None:
         """
         记录拉取任务注入失败
@@ -499,28 +488,6 @@ class LogInlet(BaseInlet):
         self._log(
             "WARNING",
             f"[Reporter] Push 'analysis' failed: {type(exception).__name__}({exception}).",
-        )
-
-    def push_summary_failed(self, exception: Exception) -> None:
-        """
-        记录推送摘要信息失败
-
-        :param exception: 推送时发生的异常
-        """
-        self._log(
-            "WARNING",
-            f"[Reporter] Push 'summary' failed: {type(exception).__name__}({exception}).",
-        )
-
-    def push_history_failed(self, exception: Exception) -> None:
-        """
-        记录推送历史信息失败
-
-        :param exception: 推送时发生的异常
-        """
-        self._log(
-            "WARNING",
-            f"[Reporter] Push 'history' failed: {type(exception).__name__}({exception}).",
         )
 
 
