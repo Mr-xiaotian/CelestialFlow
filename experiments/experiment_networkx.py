@@ -26,20 +26,24 @@ def bfs_reachable(graph: OrderGraph, roots: list[str]) -> set[str]:
     return visited
 
 
-graph = OrderGraph.from_edges(
-    {
-        "A1": ["A2"],
-        "A2": ["A3"],
-        "A3": ["A1", "B1", "C1"],
-        "B1": ["B2"],
-        "B2": ["B3"],
-        "B3": ["B4"],
-        "B4": ["B1"],
-        "C1": ["C2"],
-        "C2": ["C1"],
-    },
-    ("A1", "A2", "A3", "B1", "B2", "B3", "B4", "C1", "C2"),
-)
+edges = {
+    "A1": ["A2"],
+    "A2": ["A3"],
+    "A3": ["A1", "B1", "C1"],
+    "B1": ["B2"],
+    "B2": ["B3"],
+    "B3": ["B4"],
+    "B4": ["B1"],
+    "C1": ["C2"],
+    "C2": ["C1"],
+}
+
+graph = OrderGraph()
+for name in edges:
+    graph.add_node(name)
+for u, targets in edges.items():
+    for v in targets:
+        graph.add_edge(u, v)
 
 # 验证结构
 print("节点:", list(graph.nodes))

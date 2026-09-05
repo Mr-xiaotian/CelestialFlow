@@ -143,6 +143,17 @@ def _make_linear_chain(
     return graph, pmap, pendmap
 
 
+def _make_graph(edges: dict[str, list[str]]) -> OrderGraph:
+    """根据边定义构造用于分析的测试图（空邻接的键作为孤立节点保留）。"""
+    graph = OrderGraph()
+    for name in edges:
+        graph.add_node(name)
+    for u, targets in edges.items():
+        for v in targets:
+            graph.add_edge(u, v)
+    return graph
+
+
 class TestCalcGlobalPending:
     """calc_global_pending — 基于 DAG 传播估算各节点的全局待处理量。"""
 
@@ -185,7 +196,7 @@ class TestCalcGlobalPending:
 
     def test_fan_out_one_to_many(self):
         """扇出 A->B, A->C 时，同层子节点应获得相同估算值。"""
-        graph = OrderGraph.from_edges({"A": ["B", "C"]}, ("A", "B", "C"))
+        graph = _make_graph({"A": ["B", "C"]})
         pmap = {n: 100 for n in ("A", "B", "C")}
         pendmap = {n: 50 for n in ("A", "B", "C")}
 
@@ -200,7 +211,7 @@ class TestCalcGlobalPending:
 
     def test_fan_in_many_to_one(self):
         """扇入 A->C, B->C 时，下游节点应聚合所有上游的放大结果。"""
-        graph = OrderGraph.from_edges({"A": ["C"], "B": ["C"]}, ("A", "B", "C"))
+        graph = _make_graph({"A": ["C"], "B": ["C"]})
         pmap = {"A": 100, "B": 100, "C": 200}
         pendmap = {"A": 50, "B": 50, "C": 100}
 
@@ -217,10 +228,7 @@ class TestCalcGlobalPending:
 
     def test_diamond_structure(self):
         """菱形结构中，末端节点应同时吸收来自两路上游的放大。"""
-        graph = OrderGraph.from_edges(
-            {"A": ["B", "C"], "B": ["D"], "C": ["D"]},
-            ("A", "B", "C", "D"),
-        )
+        graph = _make_graph({"A": ["B", "C"], "B": ["D"], "C": ["D"]})
         pmap = {n: 100 for n in ("A", "B", "C", "D")}
         pendmap = {n: 50 for n in ("A", "B", "C", "D")}
 
@@ -267,7 +275,7 @@ class TestCalcGlobalPending:
 
     def test_bottleneck_node_large_pending(self):
         """下游瓶颈 pending 极大时，应显著推高该节点的估算值。"""
-        graph = OrderGraph.from_edges({"A": ["B"]}, ("A", "B"))
+        graph = _make_graph({"A": ["B"]})
         pmap = {"A": 100, "B": 10}
         pendmap = {"A": 50, "B": 1000}
 
@@ -282,7 +290,7 @@ class TestCalcGlobalPending:
 
     def test_result_type_is_dict_str_int(self):
         """返回值应为 dict[str, int]，键与节点名一一对应。"""
-        graph = OrderGraph.from_edges({"X": ["Y"]}, ("X", "Y"))
+        graph = _make_graph({"X": ["Y"]})
         result = calc_global_pending(
             graph,
             processed_map={"X": 100, "Y": 100},
@@ -296,10 +304,7 @@ class TestCalcGlobalPending:
 
     def test_no_negative_values(self):
         """所有返回值都应是非负整数。"""
-        graph = OrderGraph.from_edges(
-            {"A": ["B", "C"], "B": ["D"], "C": ["D"]},
-            ("A", "B", "C", "D"),
-        )
+        graph = _make_graph({"A": ["B", "C"], "B": ["D"], "C": ["D"]})
         result = calc_global_pending(
             graph,
             processed_map={"A": 100, "B": 50, "C": 20, "D": 10},
@@ -311,7 +316,7 @@ class TestCalcGlobalPending:
 
     def test_upstream_no_data_downstream_has_pending(self):
         """上游完全无观测时，下游仍应至少保留自己的当前 pending。"""
-        graph = OrderGraph.from_edges({"A": ["B"]}, ("A", "B"))
+        graph = _make_graph({"A": ["B"]})
         result = calc_global_pending(
             graph,
             processed_map={"A": 0, "B": 10},
@@ -327,7 +332,7 @@ class TestCalcGlobalPending:
 
     def test_upstream_has_pending_only_no_processed(self):
         """上游仅有 pending 无 processed 时，仍会形成强放大系数。"""
-        graph = OrderGraph.from_edges({"A": ["B"]}, ("A", "B"))
+        graph = _make_graph({"A": ["B"]})
         result = calc_global_pending(
             graph,
             processed_map={"A": 0, "B": 50},
@@ -341,7 +346,7 @@ class TestCalcGlobalPending:
 
     def test_graph_nodes_superset_of_maps(self):
         """图中额外节点缺失观测时，应按默认 0 参与传播。"""
-        graph = OrderGraph.from_edges({"A": ["B"], "B": ["C"]}, ("A", "B", "C"))
+        graph = _make_graph({"A": ["B"], "B": ["C"]})
         result = calc_global_pending(
             graph,
             processed_map={"A": 100, "C": 100},
@@ -368,14 +373,8 @@ class TestPropertyBased:
 
     def test_symmetric_linear_chains_same_estimate(self):
         """两条完全相同的独立线性链应得到完全相同的估算结果。"""
-        graph = OrderGraph.from_edges(
-            {
-                "A1": ["B1"],
-                "B1": ["C1"],
-                "A2": ["B2"],
-                "B2": ["C2"],
-            },
-            ("A1", "B1", "C1", "A2", "B2", "C2"),
+        graph = _make_graph(
+            {"A1": ["B1"], "B1": ["C1"], "A2": ["B2"], "B2": ["C2"]}
         )
 
         pmap = {}
@@ -393,7 +392,7 @@ class TestPropertyBased:
 
     def test_monotonicity_increasing_pending(self):
         """增加 pending 不应减少全局 pending 估算值。"""
-        graph = OrderGraph.from_edges({"A": ["B"]}, ("A", "B"))
+        graph = _make_graph({"A": ["B"]})
 
         # 基准
         r1 = calc_global_pending(

@@ -12,11 +12,14 @@ DEEP = 5000  # 超过 Python 默认递归上限(~1000)，用于回归迭代版 t
 
 
 def _make_graph(edges: dict[str, list[str]]) -> OrderGraph:
-    """根据边定义构造用于分析的测试图。"""
-    stage_names = set(edges.keys())
-    for dsts in edges.values():
-        stage_names.update(dsts)
-    return OrderGraph.from_edges(edges, stage_names)
+    """根据边定义构造用于分析的测试图（空邻接的键作为孤立节点保留）。"""
+    graph = OrderGraph()
+    for name in edges:
+        graph.add_node(name)
+    for u, targets in edges.items():
+        for v in targets:
+            graph.add_edge(u, v)
+    return graph
 
 
 def _make_chain(depth: int) -> OrderGraph:
