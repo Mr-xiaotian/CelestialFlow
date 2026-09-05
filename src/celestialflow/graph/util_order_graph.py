@@ -8,8 +8,8 @@ class OrderGraph:
     """用于内部图分析辅助函数的最小有序有向图。"""
 
     def __init__(self) -> None:
-        # 用 dict 充当有序集合，保证节点遍历顺序稳定。
-        self._nodes: dict[str, None] = {}
+        # 节点集合由 _in / _out 的键共同表达（无删除操作，故两字典键始终一致，
+        # 且按插入序排列，保证节点遍历顺序稳定）。
         self._in: dict[str, list[str]] = {}
         self._out: dict[str, list[str]] = {}
 
@@ -20,10 +20,9 @@ class OrderGraph:
         :param name: 节点名称。
         :return: ``None``。
         """
-        if name not in self._nodes:
-            self._nodes[name] = None
-            self._out.setdefault(name, [])
-            self._in.setdefault(name, [])
+        if name not in self._out:
+            self._out[name] = []
+            self._in[name] = []
 
     def add_edge(self, u: str, v: str) -> None:
         """
@@ -47,9 +46,11 @@ class OrderGraph:
         """
         按插入顺序返回全部节点名称。
 
+        节点顺序由邻接表键的插入序提供，因此不需要额外维护节点集合。
+
         :return: 稳定顺序的节点序列。
         """
-        return tuple(self._nodes)
+        return tuple(self._out)
 
     @property
     def out_edges(self) -> dict[str, list[str]]:
@@ -118,7 +119,7 @@ class OrderGraph:
         return g
 
     def __repr__(self) -> str:
-        n = len(self._nodes)
+        n = len(self._out)
         e = sum(len(t) for t in self._out.values())
         return f"OrderGraph(nodes={n}, edges={e})"
 
