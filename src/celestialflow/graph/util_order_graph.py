@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Iterable
 
 
 class OrderGraph:
@@ -93,30 +92,6 @@ class OrderGraph:
         :return: 前驱节点名称序列。
         """
         return tuple(self._in.get(name, ()))
-
-    @classmethod
-    def from_edges(
-        cls,
-        out_edges: dict[str, list[str]],
-        stage_names: Iterable[str] | None = None,
-    ) -> OrderGraph:
-        """
-        从邻接数据构建图。
-
-        ``stage_names`` 用于保留那些未出现在出边邻接表中的孤立节点。
-
-        :param out_edges: 出边邻接表。
-        :param stage_names: 可选的显式节点名称集合。
-        :return: 构建后的 :class:`OrderGraph`。
-        """
-        g = cls()
-        if stage_names is not None:
-            for name in stage_names:
-                g.add_node(name)
-        for u, targets in out_edges.items():
-            for v in targets:
-                g.add_edge(u, v)
-        return g
 
     def __repr__(self) -> str:
         n = len(self._out)
