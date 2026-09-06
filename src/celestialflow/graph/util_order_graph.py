@@ -41,23 +41,18 @@ class OrderGraph:
             self._in[v].append(u)
 
     @property
-    def nodes(self) -> tuple[str, ...]:
+    def nodes(self) -> list[str]:
         """
         按插入顺序返回全部节点名称。
 
-        节点顺序由邻接表键的插入序提供，因此不需要额外维护节点集合。
-
         :return: 稳定顺序的节点序列。
         """
-        return tuple(self._out)
+        return list(self._out.keys())
 
     @property
     def out_edges(self) -> dict[str, list[str]]:
         """
         返回出边邻接表的引用视图（非拷贝）。
-
-        返回的字典与内部存储共享，调用方**不应修改**；如需修改图结构，
-        请使用 :meth:`add_node` / :meth:`add_edge` 以保证入边、出边同步维护。
 
         :return: ``{node: [successor, ...]}``。
         """
@@ -67,9 +62,6 @@ class OrderGraph:
     def in_edges(self) -> dict[str, list[str]]:
         """
         返回入边邻接表的引用视图（非拷贝）。
-
-        返回的字典与内部存储共享，调用方**不应修改**；如需修改图结构，
-        请使用 :meth:`add_node` / :meth:`add_edge` 以保证入边、出边同步维护。
 
         :return: ``{node: [predecessor, ...]}``。
         """

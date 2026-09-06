@@ -587,7 +587,7 @@ class TaskGraph:
 
         :return: 任务阶段名称列表
         """
-        return list(self.stage_dict.keys())
+        return self.order_graph.nodes
 
     def get_edges(self) -> dict[str, list[str]]:
         """
