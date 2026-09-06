@@ -37,10 +37,13 @@ class TaskExecutor[T, R]:
     """任务执行器基类，支持串行、线程和异步三种执行模式。
 
     注意：
-    - TaskExecutor 是一次性对象，设计上只应执行一次完整的 start()/start_async() 生命周期。
-    - 执行过程中会创建并持有队列、spout/inlet、统计状态等运行期资源，
-      不保证在一次运行结束后可被安全重置并再次复用。
-    - 如需重复执行同一逻辑，请重新创建新的 TaskExecutor 实例。
+    - ``start()`` / ``start_async()`` 为一次性调用；启动并运行完成后，不保证当前实例可被
+      安全重置并再次复用。如需重复执行同一逻辑，请重新创建新的 TaskExecutor 实例。
+    - 启动前的 setter（``set_execution_mode`` / ``set_retry_exceptions`` / ``set_ctree`` /
+      ``add_observer`` 等）允许在 start 之前多次调用。
+    - 任务输入/结果队列、metrics 状态与 ctree 客户端由执行器自身持有；全局
+      ``LifecycleSpout`` / ``LogSpout`` 由 :func:`funnel_scope` 负责启停，TaskExecutor
+      自身不直接持有 spout/inlet 实例。
     """
 
     # ==== 类级类型注解 ====
@@ -82,8 +85,8 @@ class TaskExecutor[T, R]:
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param enable_duplicate_check: 是否启用重复检查，默认 False
         :note:
-            TaskExecutor 为一次性对象。完成一次 start()/start_async() 后，不应复用
-            同一实例再次启动；如需重复执行，请重新创建实例。
+            ``start()`` / ``start_async()`` 为一次性调用；启动前的 setter 与 observer
+            注册允许重复调用。
         """
 
         self.set_name(name)
@@ -529,8 +532,7 @@ class TaskExecutor[T, R]:
 
         :raises InvalidOptionError: execution_mode 不是 'serial' 或 'thread' 时触发
         :note:
-            TaskExecutor 为一次性对象；当前实例完成一次 start() 后，不保证可安全再次
-            调用 start()。如需再次执行，请创建新的 TaskExecutor。
+            ``start()`` 为一次性调用；启动前的 setter 与 observer 注册允许重复调用。
         """
         start_perf = time.perf_counter()
         self.start_time = time.time()
@@ -561,8 +563,7 @@ class TaskExecutor[T, R]:
 
         :raises InvalidOptionError: execution_mode 不是 'async' 时触发
         :note:
-            TaskExecutor 为一次性对象；当前实例完成一次 start_async() 后，不保证可
-            安全再次调用。需要重复执行时请创建新的 TaskExecutor。
+            ``start_async()`` 为一次性调用；启动前的 setter 与 observer 注册允许重复调用。
         """
         if self.execution_mode != "async":
             raise InvalidOptionError("execution mode", self.execution_mode, ("async",))

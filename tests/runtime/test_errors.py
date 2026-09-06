@@ -50,8 +50,8 @@ class TestUtilErrors:
         ex = InvalidOptionError("retries", 0, [1, 2, 3], prefix="Bad")
         assert "Bad " in str(ex)
 
-    def test_execution_mode_error(self):
-        """验证非法 execution_mode 会暴露字段信息。"""
+    def test_invalid_execution_mode_option(self):
+        """验证非法 execution_mode 选项会暴露字段信息。"""
         ex = InvalidOptionError("execution mode", "parallel", ("serial", "thread"))
         assert isinstance(ex, CelestialFlowError)
         assert isinstance(ex, ConfigurationError)
@@ -158,4 +158,4 @@ class TestUtilErrors:
 
 # 运行方式:
 #   cd D:\Project\CelestialFlow
-#   python -m pytest tests/utils/test_utils_errors.py -v
+#   python -m pytest tests/runtime/test_errors.py -v

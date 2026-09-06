@@ -8,7 +8,7 @@ def to_persisted_payload(task: Any) -> Any:
 
     基本类型原样保留，容器类型递归转换，其他类型回退为字符串。
 
-    :param task: 失败任务
+    :param task: 任务
     :return: 可持久化的 JSON 友好结构
     """
     if task is None or isinstance(task, str | int | float | bool):

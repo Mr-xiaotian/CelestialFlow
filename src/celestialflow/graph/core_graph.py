@@ -31,10 +31,11 @@ class TaskGraph:
     """任务图核心类，负责构建、连接和调度一组 TaskStage 节点。
 
     注意：
-    - TaskGraph 是一次性对象，设计上只应启动一次。
-    - start() / start_async() 执行后，内部会建立并持有运行期资源、队列绑定和线程状态，
-      不保证可被安全重置或重复启动。
-    - 如需再次运行相同流程，请重新创建 TaskGraph 实例及其关联的 TaskStage。
+    - ``start()`` / ``start_async()`` 为一次性调用；启动并运行完成后，不保证当前实例可
+      被安全重置或重复启动。如需再次运行相同流程，请重新创建 TaskGraph 实例及其关联的
+      TaskStage。
+    - 构建期方法（``set_stages`` / ``connect`` / ``set_graph_mode`` / ``set_stage_execution_mode`` 等）
+      在启动前可多次调用，图分析缓存会随之按需重建（``_analysis_dirty`` 标记）。
     """
 
     # ==== 类级类型注解 ====
@@ -381,12 +382,11 @@ class TaskGraph:
         提示：
         - 本方法为同步启动入口。
         - 若当前线程已运行事件循环，且图中包含 ``execution_mode='async'`` 的节点，
-          可能触发 ``asyncio.run`` 的嵌套限制；此时更适合使用 :meth:`start_async`
-          或 :meth:`run_async`。
+          同步路径仍会通过 ``asyncio.run`` 启动该节点，可能触发 ``asyncio.run`` 的
+          嵌套限制；此时更适合使用 :meth:`start_async` 或 :meth:`run_async`。
 
         :note:
-            TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
-            start()。如需重复执行，请创建新的 TaskGraph 实例。
+            ``start()`` 为一次性调用；构建期方法在启动前可多次调用。
         """
         start_perf = time.perf_counter()
         self.start_time = time.time()
@@ -417,12 +417,12 @@ class TaskGraph:
 
         与同步 :meth:`start` 的区别：
         - async 执行模式的节点通过 :meth:`TaskStage.start_async` 以协程方式运行，
-          不再内部调用 ``asyncio.run``，避免嵌套事件循环导致的崩溃。
+          本路径不会在节点内部再调用 ``asyncio.run``，避免嵌套事件循环导致的崩溃；
+          同步 :meth:`start` 路径则会为 ``async`` 节点调用 ``asyncio.run``，参见对应文档。
         - serial / thread 执行模式的节点通过 ``asyncio.to_thread`` 在独立线程中运行，
           避免阻塞事件循环。
         :note:
-            TaskGraph 为一次性对象；当前实例启动并运行完成后，不保证可安全再次调用
-            start_async()。如需重复执行，请创建新的 TaskGraph 实例。
+            ``start_async()`` 为一次性调用；构建期方法在启动前可多次调用。
         """
         if self.graph_mode != "async":
             raise InvalidOptionError("graph mode", self.graph_mode, ("async",))

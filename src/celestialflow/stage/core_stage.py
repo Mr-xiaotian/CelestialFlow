@@ -18,9 +18,10 @@ class TaskStage[T, R](TaskExecutor[T, R]):
     """任务阶段节点，继承 TaskExecutor 并增加图结构连接能力。
 
     注意：
-    - TaskStage 是一次性对象，通常由 TaskGraph 管理并参与一次完整运行。
-    - 一次运行后，其队列绑定、计数状态和图内关联关系不保证可被安全重置。
-    - 如需再次运行相同节点，请重新创建新的 TaskStage，并重新接入新的 TaskGraph。
+    - ``start()`` / ``start_async()`` 为一次性调用；运行前的 setter（``set_execution_mode`` /
+      ``set_retry_exceptions`` / ``set_ctree`` / ``add_observer`` 等）允许重复调用。
+    - 一次运行后，队列绑定、计数状态与图内关联关系不保证可被安全重置。如需再次运行相同
+      节点，请重新创建新的 TaskStage 并接入新的 TaskGraph。
     """
 
     # ==== 类级类型注解 ====
@@ -42,15 +43,15 @@ class TaskStage[T, R](TaskExecutor[T, R]):
         """
         :param name: 节点名称
         :param func: 可调用对象
-        :note:
-            TaskStage 为一次性对象。完成一次由 TaskGraph 驱动的运行后，不应复用当前
-            实例再次参与新的运行流程；如需重复执行，请重新创建实例。
         :param execution_mode: 执行模式，可选 'serial', 'thread', 'async'，默认 'serial'
         :param max_workers: 同时处理数量，默认根据 CPU 核心数动态调整
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_queue_size: 任务输入队列的最大容量，默认为 0，表示无限制
         :param max_info: 日志中每条信息的最大长度，默认 50
         :param enable_duplicate_check: 是否启用重复检查，默认 False
+        :note:
+            ``start()`` / ``start_async()`` 为一次性调用；运行前的 setter 与 observer
+            注册允许重复调用。
         """
         super().__init__(
             name,
