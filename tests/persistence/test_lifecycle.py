@@ -13,13 +13,13 @@ class TestLifecyclePersistence:
 
         spout.start()
         try:
-            inlet.task_in("s1", event_id=1, task="data1")
+            inlet.task_input("s1", event_id=1, task="data1")
             inlet.task_fail(event_id=1, error_id=21, error=ValueError("oops"))
 
-            inlet.task_in("s2", event_id=2, task="data2")
+            inlet.task_input("s2", event_id=2, task="data2")
             inlet.task_success(event_id=2, result="ok2")
 
-            inlet.task_in("s3", event_id=3, task="data3")
+            inlet.task_input("s3", event_id=3, task="data3")
             inlet.task_duplicate(event_id=3)
         finally:
             spout.stop()
@@ -61,9 +61,9 @@ class TestLifecyclePersistence:
 
         spout.start()
         try:
-            inlet.task_in("s1", event_id=1, task="task1")
+            inlet.task_input("s1", event_id=1, task="task1")
             inlet.task_success(event_id=1, result=100)
-            inlet.task_in("s2", event_id=2, task="task2")
+            inlet.task_input("s2", event_id=2, task="task2")
             inlet.task_success(event_id=2, result=200)
         finally:
             spout.stop()

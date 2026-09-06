@@ -252,7 +252,7 @@ class TaskExecutor[T, R]:
         self.task_queue.put(envelope)
         self.metrics.add_task_count()
 
-        get_lifecycle_inlet().task_in(self.get_name(), input_id, task)
+        get_lifecycle_inlet().task_input(self.get_name(), input_id, task)
         get_log_inlet().task_input(
             self.get_name(),
             self._get_repr(task),
@@ -320,7 +320,7 @@ class TaskExecutor[T, R]:
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
             )
-            get_lifecycle_inlet().task_in(target_name, downstream_input_id, result)
+            get_lifecycle_inlet().task_input(target_name, downstream_input_id, result)
             downstream_envelope: TaskEnvelope[R] = TaskEnvelope(
                 task=result,
                 id=downstream_input_id,

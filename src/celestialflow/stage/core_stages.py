@@ -150,7 +150,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
                     "task.input",
                     parents=[split_id],
                 )
-                get_lifecycle_inlet().task_in(target_name, downstream_input_id, item)
+                get_lifecycle_inlet().task_input(target_name, downstream_input_id, item)
                 downstream_envelope: TaskEnvelope[RItem] = TaskEnvelope(
                     item,
                     downstream_input_id,
@@ -265,7 +265,7 @@ class TaskRouter[T](TaskStage[T, tuple[str, T]]):
             "task.input",
             parents=[route_id],
         )
-        get_lifecycle_inlet().task_in(target, downstream_input_id, task)
+        get_lifecycle_inlet().task_input(target, downstream_input_id, task)
         downstream_envelope: TaskEnvelope[T] = TaskEnvelope(
             task,
             downstream_input_id,

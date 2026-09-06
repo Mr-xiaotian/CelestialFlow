@@ -117,7 +117,7 @@ class LifecycleInlet(BaseInlet):
     线程安全 lifecycle 记录包装类，所有生命周期变更通过队列发送到监听线程写入。
     """
 
-    def task_in(self, stage_name: str, event_id: int, task: Any) -> None:
+    def task_input(self, stage_name: str, event_id: int, task: Any) -> None:
         """
         写入一条 pending 记录，表示任务已进入某个 stage。
 

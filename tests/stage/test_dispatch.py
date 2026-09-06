@@ -264,7 +264,7 @@ class TestDispatchSerial:
 
         from celestialflow.persistence import get_lifecycle_inlet
 
-        get_lifecycle_inlet().task_in(executor.get_name(), 0, 3)
+        get_lifecycle_inlet().task_input(executor.get_name(), 0, 3)
         _put(executor, 3)
         _put_termination(executor)
         dispatch.dispatch_serial()
