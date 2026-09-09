@@ -185,13 +185,13 @@ class TestDeepGraphRegression:
         """深链经 TaskGraph 全链路建图与分析不崩"""
         graph = TaskGraph("deep", graph_mode="thread")
         stages = [TaskExecutor(f"n{i}", lambda x: x) for i in range(DEEP)]
-        graph.set_stages(stages)
+        graph.set_nodes(stages)
         for i in range(DEEP - 1):
             graph.connect([stages[i]], [stages[i + 1]])
 
-        stages = graph.get_stages()
+        stages = graph.get_nodes()
         assert len(stages) == DEEP
-        assert graph.get_source_stages() == ["n0"]
+        assert graph.get_source_nodes() == ["n0"]
 
         analysis = graph.get_graph_analysis()
         assert analysis["isDAG"] is True

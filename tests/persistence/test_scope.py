@@ -12,7 +12,7 @@ from celestialflow.persistence import (
     get_log_inlet,
     get_log_spout,
 )
-from tests.conftest import wait_until
+from conftest import wait_until
 
 
 @pytest.fixture(autouse=True)

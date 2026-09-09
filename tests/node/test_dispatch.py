@@ -20,9 +20,9 @@ from celestialflow.observability import BaseObserver
 from celestialflow.persistence import LogInlet, get_lifecycle_spout, get_log_spout
 from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.util_types import TerminationSignal
-from celestialflow.stage import TaskExecutor
-from celestialflow.stage.core_dispatch import TaskDispatch
-from tests.conftest import wait_until
+from celestialflow.node import TaskExecutor
+from celestialflow.node.core_dispatch import TaskDispatch
+from conftest import wait_until
 
 _RESULT_COLLECTORS: WeakKeyDictionary[TaskExecutor, Queue[Any]] = WeakKeyDictionary()
 
@@ -442,11 +442,11 @@ class TestWorkerCrashKeepsTerminationSignal:
         executor.metrics.add_observer(observer)
         recording = _RecordingLogInlet()
         monkeypatch.setattr(
-            "celestialflow.stage.core_executor.get_log_inlet",
+            "celestialflow.node.core_node.get_log_inlet",
             lambda: recording,
         )
         monkeypatch.setattr(
-            "celestialflow.stage.core_dispatch.get_log_inlet",
+            "celestialflow.node.core_dispatch.get_log_inlet",
             lambda: recording,
         )
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
@@ -478,11 +478,11 @@ class TestWorkerCrashKeepsTerminationSignal:
         )
         recording = _CrashRetryLogInlet()
         monkeypatch.setattr(
-            "celestialflow.stage.core_executor.get_log_inlet",
+            "celestialflow.node.core_node.get_log_inlet",
             lambda: recording,
         )
         monkeypatch.setattr(
-            "celestialflow.stage.core_dispatch.get_log_inlet",
+            "celestialflow.node.core_dispatch.get_log_inlet",
             lambda: recording,
         )
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)

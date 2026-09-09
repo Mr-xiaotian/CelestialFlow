@@ -1,5 +1,5 @@
 from celestialflow.persistence.core_log import LogInlet, LogSpout
-from tests.conftest import wait_until
+from conftest import wait_until
 
 
 class TestLogPersistence:

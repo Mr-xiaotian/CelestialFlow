@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 
 from celestialflow import (
     TaskChain,
@@ -77,11 +77,11 @@ def add_offset_10(x: int) -> int:
 # =========================
 class TestTaskGraphBasic:
     def test_set_ctree_updates_existing_stages(self):
-        """先 set_stages 再 set_ctree 时，已有 stage 也应共享同一事件客户端。"""
+        """先 set_nodes 再 set_ctree 时，已有 stage 也应共享同一事件客户端。"""
         stage1 = TaskExecutor("s1", add_one, execution_mode="serial")
         stage2 = TaskExecutor("s2", double, execution_mode="serial")
         graph = TaskGraph("test_set_ctree_updates_existing_stages")
-        graph.set_stages(stages=[stage1, stage2])
+        graph.set_nodes(nodes=[stage1, stage2])
 
         ctree_client = LocalEventClient()
         graph.set_ctree(ctree_client)
@@ -94,10 +94,10 @@ class TestTaskGraphBasic:
         """显式按 stage 注入任务时，不存在的 stage 名称应抛出 NodeNotFoundError。"""
         graph = TaskGraph("test_put_stage_queue_unknown_stage")
         stage = TaskExecutor("s1", add_one, execution_mode="serial")
-        graph.set_stages(stages=[stage])
+        graph.set_nodes(nodes=[stage])
 
         with pytest.raises(NodeNotFoundError):
-            pending_stage = graph.stage_dict.get("unknown_stage")
+            pending_stage = graph.node_dict.get("unknown_stage")
             if pending_stage is None:
                 raise NodeNotFoundError("stage not found: unknown_stage")
             pending_stage.put_task(1)
@@ -108,7 +108,7 @@ class TestTaskGraphBasic:
         stage2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_graph_dag_two_nodes")
-        graph.set_stages(stages=[stage1, stage2])
+        graph.set_nodes(nodes=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.run({"s1": [1, 2, 3]})
@@ -124,7 +124,7 @@ class TestTaskGraphBasic:
         sink_b = TaskExecutor("SinkB", to_str, execution_mode="serial")
 
         graph = TaskGraph("test_graph_fan_out")
-        graph.set_stages(stages=[source, sink_a, sink_b])
+        graph.set_nodes(nodes=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
         graph.run({"src": [1, 2]})
@@ -140,7 +140,7 @@ class TestTaskGraphBasic:
         merge = TaskExecutor("merge", to_str, execution_mode="serial")
 
         graph = TaskGraph("test_graph_fan_in")
-        graph.set_stages(stages=[source_a, source_b, merge])
+        graph.set_nodes(nodes=[source_a, source_b, merge])
         graph.connect([source_a, source_b], [merge])
 
         graph.run({"SrcA": [1, 2], "SrcB": [10, 20]})
@@ -153,7 +153,7 @@ class TestTaskGraphBasic:
         stage2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_graph_error_propagation")
-        graph.set_stages(stages=[stage1, stage2])
+        graph.set_nodes(nodes=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.run({"s1": [1, 50, 2]})
@@ -216,7 +216,7 @@ class TestTaskGraphBasic:
         stage2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_graph_restore_db")
-        graph.set_stages(stages=[stage1, stage2])
+        graph.set_nodes(nodes=[stage1, stage2])
         graph.restore_db(sqlite_path)
 
         assert stage1.get_counts()["tasks_succeeded"] == 2
@@ -274,7 +274,7 @@ class TestTaskGraphBasic:
         stage2.set_retry_exceptions(ValueError)
 
         graph = TaskGraph("test_graph_restore_db_filters_error_type")
-        graph.set_stages(stages=[stage1, stage2])
+        graph.set_nodes(nodes=[stage1, stage2])
         graph.restore_db(sqlite_path, statuses=["failed"], filter_by_error_type=True)
 
         assert stage1.get_counts()["tasks_succeeded"] == 1
@@ -332,7 +332,7 @@ class TestTaskGraphBasic:
         stage2.set_retry_exceptions(ValueError)
 
         graph = TaskGraph("test_graph_restore_db_filter_keeps_pending_records")
-        graph.set_stages(stages=[stage1, stage2])
+        graph.set_nodes(nodes=[stage1, stage2])
         graph.restore_db(sqlite_path, filter_by_error_type=True)
 
         assert stage1.get_counts()["tasks_succeeded"] == 1
@@ -396,7 +396,7 @@ class TestTaskGraphAsync:
         stage2 = TaskExecutor("s2", async_double, execution_mode="async")
 
         graph = TaskGraph("test_graph_async_two_nodes", graph_mode="async")
-        graph.set_stages(stages=[stage1, stage2])
+        graph.set_nodes(nodes=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         await graph.run_async({"s1": [1, 2, 3]})
@@ -412,7 +412,7 @@ class TestTaskGraphAsync:
         sink_b = TaskExecutor("sink_b", async_to_str, execution_mode="async")
 
         graph = TaskGraph("test_graph_async_fan_out", graph_mode="async")
-        graph.set_stages(stages=[source, sink_a, sink_b])
+        graph.set_nodes(nodes=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
         await graph.run_async({"src": [1, 2]})
@@ -429,7 +429,7 @@ class TestTaskGraphAsync:
         merge = TaskExecutor("merge", async_to_str, execution_mode="async")
 
         graph = TaskGraph("test_graph_async_fan_in", graph_mode="async")
-        graph.set_stages(stages=[source_a, source_b, merge])
+        graph.set_nodes(nodes=[source_a, source_b, merge])
         graph.connect([source_a, source_b], [merge])
 
         await graph.run_async({"src_a": [1, 2], "src_b": [10, 20]})
@@ -443,7 +443,7 @@ class TestTaskGraphAsync:
         stage2 = TaskExecutor("s2", async_double, execution_mode="async")
 
         graph = TaskGraph("test_graph_async_error_propagation", graph_mode="async")
-        graph.set_stages(stages=[stage1, stage2])
+        graph.set_nodes(nodes=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         await graph.run_async({"s1": [1, 50, 2]})
@@ -459,7 +459,7 @@ class TestTaskGraphAsync:
         stage2 = TaskExecutor("s2", async_double, execution_mode="async")
 
         graph = TaskGraph("test_graph_async_execution_mode", graph_mode="async")
-        graph.set_stages(stages=[stage1, stage2])
+        graph.set_nodes(nodes=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         await graph.run_async({"s1": [1, 2, 3]})
@@ -516,14 +516,14 @@ class TestTaskGraphAnalysis:
         s2 = TaskExecutor("s2", double)
 
         graph = TaskGraph("test_getters_build_analysis_on_demand")
-        graph.set_stages(stages=[s1, s2])
+        graph.set_nodes(nodes=[s1, s2])
         graph.connect([s1], [s2])
 
         analysis = graph.get_graph_analysis()
-        stages = graph.get_stages()
+        stages = graph.get_nodes()
         edges = graph.get_edges()
         structure_list = graph.get_structure_list()
-        source_names = set(graph.get_source_stages())
+        source_names = set(graph.get_source_nodes())
 
         assert analysis["isDAG"] is True
         assert s1.get_name() in analysis["layersDict"][0]
@@ -538,14 +538,14 @@ class TestTaskGraphAnalysis:
         s2 = TaskExecutor("s2", double)
 
         graph = TaskGraph("test_getters_refresh_analysis_after_connect")
-        graph.set_stages(stages=[s1, s2])
+        graph.set_nodes(nodes=[s1, s2])
 
-        initial_sources = set(graph.get_source_stages())
+        initial_sources = set(graph.get_source_nodes())
         assert initial_sources == {s1.get_name(), s2.get_name()}
 
         graph.connect([s1], [s2])
 
-        refreshed_sources = set(graph.get_source_stages())
+        refreshed_sources = set(graph.get_source_nodes())
         analysis = graph.get_graph_analysis()
 
         assert refreshed_sources == {s1.get_name()}
@@ -558,7 +558,7 @@ class TestTaskGraphAnalysis:
         s2 = TaskExecutor("s2", double)
 
         graph = TaskGraph("test_dag_detection")
-        graph.set_stages(stages=[s1, s2])
+        graph.set_nodes(nodes=[s1, s2])
         graph.connect([s1], [s2])
 
         # 调用 build_analysis（通过 run 触发）
@@ -574,7 +574,7 @@ class TestTaskGraphAnalysis:
         s3 = TaskExecutor("s3", to_str)
 
         graph = TaskGraph("test_layer_computation")
-        graph.set_stages(stages=[s1, s2, s3])
+        graph.set_nodes(nodes=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
 
@@ -593,7 +593,7 @@ class TestTaskGraphRuntimeSnapshot:
         """Reporter 在节点尚未启动时采集快照也不应因缺少 start_time 崩溃。"""
         graph = TaskGraph("test_collect_runtime_snapshot_tolerates_not_started_stage")
         stage = TaskExecutor("idle-stage", add_one)
-        graph.stage_dict = {stage.get_name(): stage}
+        graph.node_dict = {stage.get_name(): stage}
         graph.is_dag = False
 
         status_dict, _ = graph.collect_runtime_snapshot()
@@ -618,7 +618,7 @@ class TestStageExecutionMatrix:
         s2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_serial_serial", graph_mode="serial")
-        graph.set_stages(stages=[s1, s2])
+        graph.set_nodes(nodes=[s1, s2])
         graph.connect([s1], [s2])
         graph.run({"s1": [1, 2, 3, 4, 5]})
 
@@ -631,7 +631,7 @@ class TestStageExecutionMatrix:
         s2 = TaskExecutor("s2", double, execution_mode="thread", max_workers=4)
 
         graph = TaskGraph("test_serial_thread", graph_mode="serial")
-        graph.set_stages(stages=[s1, s2])
+        graph.set_nodes(nodes=[s1, s2])
         graph.connect([s1], [s2])
         graph.run({"s1": [1, 2, 3, 4, 5]})
 
@@ -646,7 +646,7 @@ class TestStageExecutionMatrix:
         s2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_thread_serial", graph_mode="thread")
-        graph.set_stages(stages=[s1, s2])
+        graph.set_nodes(nodes=[s1, s2])
         graph.connect([s1], [s2])
         graph.run({"s1": [1, 2, 3, 4, 5]})
 
@@ -659,7 +659,7 @@ class TestStageExecutionMatrix:
         s2 = TaskExecutor("s2", double, execution_mode="thread", max_workers=4)
 
         graph = TaskGraph("test_thread_thread", graph_mode="thread")
-        graph.set_stages(stages=[s1, s2])
+        graph.set_nodes(nodes=[s1, s2])
         graph.connect([s1], [s2])
         graph.run({"s1": [1, 2, 3, 4, 5]})
 
@@ -675,7 +675,7 @@ class TestStageExecutionMatrix:
         s2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_async_serial", graph_mode="async")
-        graph.set_stages(stages=[s1, s2])
+        graph.set_nodes(nodes=[s1, s2])
         graph.connect([s1], [s2])
         await graph.run_async({"s1": [1, 2, 3, 4, 5]})
 
@@ -689,7 +689,7 @@ class TestStageExecutionMatrix:
         s2 = TaskExecutor("s2", double, execution_mode="thread", max_workers=4)
 
         graph = TaskGraph("test_async_thread", graph_mode="async")
-        graph.set_stages(stages=[s1, s2])
+        graph.set_nodes(nodes=[s1, s2])
         graph.connect([s1], [s2])
         await graph.run_async({"s1": [1, 2, 3, 4, 5]})
 
@@ -703,7 +703,7 @@ class TestStageExecutionMatrix:
         s2 = TaskExecutor("s2", async_double, execution_mode="async", max_workers=4)
 
         graph = TaskGraph("test_async_async", graph_mode="async")
-        graph.set_stages(stages=[s1, s2])
+        graph.set_nodes(nodes=[s1, s2])
         graph.connect([s1], [s2])
         await graph.run_async({"s1": [1, 2, 3, 4, 5]})
 
@@ -721,7 +721,7 @@ class TestTaskGraphThread:
         stage2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_graph_thread_two_nodes", graph_mode="thread")
-        graph.set_stages(stages=[stage1, stage2])
+        graph.set_nodes(nodes=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.run({"s1": [1, 2, 3]})
@@ -736,7 +736,7 @@ class TestTaskGraphThread:
         sink_b = TaskExecutor("SinkB", to_str, execution_mode="serial")
 
         graph = TaskGraph("test_graph_thread_fan_out", graph_mode="thread")
-        graph.set_stages(stages=[source, sink_a, sink_b])
+        graph.set_nodes(nodes=[source, sink_a, sink_b])
         graph.connect([source], [sink_a, sink_b])
 
         graph.run({"src": [1, 2]})
@@ -752,7 +752,7 @@ class TestTaskGraphThread:
         merge = TaskExecutor("merge", to_str, execution_mode="serial")
 
         graph = TaskGraph("test_graph_thread_fan_in", graph_mode="thread")
-        graph.set_stages(stages=[source_a, source_b, merge])
+        graph.set_nodes(nodes=[source_a, source_b, merge])
         graph.connect([source_a, source_b], [merge])
 
         graph.run({"SrcA": [1, 2], "SrcB": [10, 20]})
@@ -765,7 +765,7 @@ class TestTaskGraphThread:
         stage2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_graph_thread_error_propagation", graph_mode="thread")
-        graph.set_stages(stages=[stage1, stage2])
+        graph.set_nodes(nodes=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.run({"s1": [1, 50, 2]})
@@ -780,7 +780,7 @@ class TestTaskGraphThread:
         stage2 = TaskExecutor("s2", lambda x: x * 2, execution_mode="serial")
 
         graph = TaskGraph("test_graph_thread_with_lambda", graph_mode="thread")
-        graph.set_stages(stages=[stage1, stage2])
+        graph.set_nodes(nodes=[stage1, stage2])
         graph.connect([stage1], [stage2])
 
         graph.run({"s1": [1, 2, 3]})
@@ -795,7 +795,7 @@ class TestTaskGraphThread:
         s3 = TaskExecutor("s3", to_str, execution_mode="serial")
 
         graph = TaskGraph("test_graph_thread_schedule", graph_mode="thread")
-        graph.set_stages(stages=[s1, s2, s3])
+        graph.set_nodes(nodes=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
 
@@ -817,13 +817,13 @@ class TestSourceStages:
         s3 = TaskExecutor("s3", to_str)
 
         graph = TaskGraph("test_source_stages_linear")
-        graph.set_stages(stages=[s1, s2, s3])
+        graph.set_nodes(nodes=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
 
         graph.run({"s1": [1]})
 
-        source_names = graph.get_source_stages()
+        source_names = graph.get_source_nodes()
         assert len(source_names) == 1
         assert source_names[0] == s1.get_name()
 
@@ -834,13 +834,13 @@ class TestSourceStages:
         s3 = TaskExecutor("s3", to_str)
 
         graph = TaskGraph("test_source_stages_fan_in")
-        graph.set_stages(stages=[s1, s2, s3])
+        graph.set_nodes(nodes=[s1, s2, s3])
         graph.connect([s1], [s3])
         graph.connect([s2], [s3])
 
         graph.run({"s1": [1], "s2": [2]})
 
-        source_names = set(graph.get_source_stages())
+        source_names = set(graph.get_source_nodes())
         assert source_names == {s1.get_name(), s2.get_name()}
 
     def test_source_stages_diamond(self):
@@ -851,13 +851,13 @@ class TestSourceStages:
         s4 = TaskExecutor("s4", add_one)
 
         graph = TaskGraph("test_source_stages_diamond")
-        graph.set_stages(stages=[s1, s2, s3, s4])
+        graph.set_nodes(nodes=[s1, s2, s3, s4])
         graph.connect([s1], [s2, s3])
         graph.connect([s2, s3], [s4])
 
         graph.run({"s1": [1]})
 
-        source_names = graph.get_source_stages()
+        source_names = graph.get_source_nodes()
         assert len(source_names) == 1
         assert source_names[0] == s1.get_name()
 
@@ -871,12 +871,12 @@ class TestSourceStages:
             "test_source_stages_cycle_returns_one_source_scc_member",
             graph_mode="thread",
         )
-        graph.set_stages(stages=[s1, s2, s3])
+        graph.set_nodes(nodes=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
         graph.connect([s3], [s1])
 
-        source_names = set(graph.get_source_stages())
+        source_names = set(graph.get_source_nodes())
         cycle_names = {s1.get_name(), s2.get_name(), s3.get_name()}
 
         assert len(source_names) == 1
@@ -894,14 +894,14 @@ class TestSourceStages:
             "test_source_stages_returns_one_member_per_source_scc",
             graph_mode="thread",
         )
-        graph.set_stages(stages=[s1, s2, s3, s4, s5])
+        graph.set_nodes(nodes=[s1, s2, s3, s4, s5])
         graph.connect([s1], [s2])
         graph.connect([s2], [s1])
         graph.connect([s3], [s4])
         graph.connect([s4], [s3])
         graph.connect([s2, s4], [s5])
 
-        source_names = set(graph.get_source_stages())
+        source_names = set(graph.get_source_nodes())
         source_scc_a = {s1.get_name(), s2.get_name()}
         source_scc_b = {s3.get_name(), s4.get_name()}
 
@@ -921,7 +921,7 @@ class TestCyclicGraph:
         s3 = TaskExecutor("s3", to_str)
 
         graph = TaskGraph("test_cyclic_serial_graph_raises", graph_mode="serial")
-        graph.set_stages(stages=[s1, s2, s3])
+        graph.set_nodes(nodes=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
         graph.connect([s3], [s1])
@@ -930,7 +930,7 @@ class TestCyclicGraph:
             ConfigurationError,
             match=r"TaskGraph contains a cycle while graph_mode='serial'",
         ):
-            graph.get_source_stages()
+            graph.get_source_nodes()
 
     def test_cyclic_is_dag_false(self):
         """含环图 is_dag 为 False"""
@@ -939,7 +939,7 @@ class TestCyclicGraph:
         s3 = TaskExecutor("s3", to_str)
 
         graph = TaskGraph("test_cyclic_is_dag_false", graph_mode="thread")
-        graph.set_stages(stages=[s1, s2, s3])
+        graph.set_nodes(nodes=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
         graph.connect([s3], [s1])
@@ -957,7 +957,7 @@ class TestCyclicGraph:
         s4 = TaskExecutor("s4", add_one)
 
         graph = TaskGraph("test_cyclic_layers", graph_mode="thread")
-        graph.set_stages(stages=[s1, s2, s3, s4])
+        graph.set_nodes(nodes=[s1, s2, s3, s4])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
         graph.connect([s3], [s1])

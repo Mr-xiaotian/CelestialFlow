@@ -58,7 +58,7 @@ class TestTaskLoop:
         loop = TaskLoop("test_loop_source_stages", [s1, s2])
         loop.run({"s1": [1]})
 
-        source_names = loop.get_source_stages()
+        source_names = loop.get_source_nodes()
         assert len(source_names) == 1
         assert source_names[0] in {s1.get_name(), s2.get_name()}
 
@@ -76,7 +76,7 @@ class TestTaskWheel:
 
         wheel = TaskWheel("test_wheel_analysis", center, [r1, r2, r3])
         wheel.set_graph_mode("thread")
-        wheel.set_stage_execution_mode("serial")
+        wheel.set_node_execution_mode("serial")
 
         analysis = wheel.get_graph_analysis()
         assert analysis["isDAG"] is False
@@ -94,9 +94,9 @@ class TestTaskWheel:
 
         wheel = TaskWheel("test_wheel_source_stages", center, [r1, r2])
         wheel.set_graph_mode("thread")
-        wheel.set_stage_execution_mode("serial")
+        wheel.set_node_execution_mode("serial")
 
-        source_names = wheel.get_source_stages()
+        source_names = wheel.get_source_nodes()
         assert len(source_names) == 1
         assert source_names[0] == center.get_name()
 

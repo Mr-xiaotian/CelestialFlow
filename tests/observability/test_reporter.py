@@ -56,7 +56,7 @@ class FakePushSession:
         return FakePostResponse()
 
 
-class FakeStage:
+class FakeNode:
     """记录显式任务注入调用。"""
 
     def __init__(self) -> None:
@@ -76,9 +76,9 @@ class FakeTaskGraph:
     """提供 reporter 拉取注入所需的最小图接口。"""
 
     def __init__(self) -> None:
-        self.stage_dict: dict[str, FakeStage] = {
-            "StageA": FakeStage(),
-            "StageB": FakeStage(),
+        self.node_dict: dict[str, FakeNode] = {
+            "StageA": FakeNode(),
+            "StageB": FakeNode(),
         }
 
 
@@ -146,10 +146,10 @@ def test_reporter_accepts_split_task_and_termination_payload(
 
     reporter._pull_injection()
 
-    assert graph.stage_dict["StageA"].task_calls == [[1, 2, 3]]
-    assert graph.stage_dict["StageA"].signal_calls == 0
-    assert graph.stage_dict["StageB"].task_calls == []
-    assert graph.stage_dict["StageB"].signal_calls == 1
+    assert graph.node_dict["StageA"].task_calls == [[1, 2, 3]]
+    assert graph.node_dict["StageA"].signal_calls == 0
+    assert graph.node_dict["StageB"].task_calls == []
+    assert graph.node_dict["StageB"].signal_calls == 1
     assert log_inlet.successes == [
         ("StageA", [1, 2, 3]),
         ("StageB", [TERMINATION_SIGNAL]),
@@ -178,8 +178,8 @@ def test_reporter_merges_tasks_and_termination_for_same_stage(
 
     reporter._pull_injection()
 
-    assert graph.stage_dict["StageA"].task_calls == [[1, 2, 3]]
-    assert graph.stage_dict["StageA"].signal_calls == 1
+    assert graph.node_dict["StageA"].task_calls == [[1, 2, 3]]
+    assert graph.node_dict["StageA"].signal_calls == 1
     assert log_inlet.successes == [
         ("StageA", [1, 2, 3]),
         ("StageA", [TERMINATION_SIGNAL]),

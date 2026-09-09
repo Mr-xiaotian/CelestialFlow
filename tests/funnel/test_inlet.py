@@ -2,7 +2,7 @@ import pytest
 
 from celestialflow.funnel.core_inlet import BaseInlet
 from celestialflow.funnel.core_spout import BaseSpout
-from tests.conftest import wait_until
+from conftest import wait_until
 
 
 class MockSpout(BaseSpout):

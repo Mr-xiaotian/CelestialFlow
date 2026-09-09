@@ -1,10 +1,10 @@
-"""Tests for util_clone module."""
+﻿"""Tests for util_clone module."""
 
 import pytest
 
 from celestialflow.observability import TaskReporter
 from celestialflow.graph import TaskGraph
-from celestialflow.stage import TaskExecutor
+from celestialflow import TaskExecutor
 from celestialflow.runtime.util_event import LocalEventClient
 from celestialflow.benchmark.util_clone import clone_executor, clone_graph
 
@@ -89,14 +89,14 @@ class TestUtilClone:
         stage_c = TaskExecutor(name="C", func=lambda x: x)
 
         graph = TaskGraph("test_clone_graph_structure")
-        graph.set_stages([stage_a, stage_b, stage_c])
+        graph.set_nodes([stage_a, stage_b, stage_c])
         graph.connect([stage_a], [stage_b])
         graph.connect([stage_b], [stage_c])
 
         cloned = clone_graph(graph)
 
         # 源节点一致（同时触发 cloned 图的 _build_analysis）
-        assert cloned.get_source_stages() == graph.get_source_stages()
+        assert cloned.get_source_nodes() == graph.get_source_nodes()
 
         # 通过有序图验证节点一致
         g1_graph = graph.get_order_graph()
@@ -116,13 +116,13 @@ class TestUtilClone:
         stage_b = TaskExecutor(name="B", func=lambda x: x, execution_mode="serial")
 
         graph = TaskGraph("test_clone_graph_independent")
-        graph.set_stages([stage_a, stage_b])
+        graph.set_nodes([stage_a, stage_b])
         graph.connect([stage_a], [stage_b])
 
         cloned = clone_graph(graph)
 
         # 修改克隆图中节点 A 的 execution_mode
-        cloned_stage_a = cloned.stage_dict["A"]
+        cloned_stage_a = cloned.node_dict["A"]
         cloned_stage_a.set_execution_mode("thread")
 
         # 原图节点不受影响

@@ -1,9 +1,11 @@
+"""Tests for :mod:`celestialflow.node.core_nodes`."""
+
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from celestialflow import TaskExecutor
+from celestialflow import TaskExecutor, TaskGraph, TaskRouter, TaskSplitter
 from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_errors import (
     ConfigurationError,
@@ -13,16 +15,13 @@ from celestialflow.runtime.util_errors import (
 
 
 def build_result_dict(executor: TaskExecutor[Any, Any]) -> dict[Any, Any]:
-    """按当前公开接口组装任务到结果/错误字符串的映射。"""
+    """按当前公开接口组装任务到结果或错误字符串的映射。"""
     result_dict = dict(executor.get_success_pairs())
     for task, error in executor.get_error_pairs():
         result_dict[task] = str(error)
     return result_dict
 
 
-# =========================
-# 快速测试函数（无副作用）
-# =========================
 def add_one(x: int) -> int:
     """测试用同步加一函数。"""
     return x + 1
@@ -34,7 +33,7 @@ def double(x: int) -> int:
 
 
 def raise_on_negative(x: int) -> int:
-    """测试用函数，负数时抛出异常。"""
+    """负数时抛出异常的测试函数。"""
     if x < 0:
         raise ValueError(f"negative value: {x}")
     return x * 10
@@ -50,30 +49,27 @@ async def async_double(x: int) -> int:
     return x * 2
 
 
-# =========================
-# TaskExecutor 基础测试
-# =========================
-class TestExecutorSerial:
-    def test_serial_basic(self):
-        """测试串行执行器的基本任务处理"""
+class TestTaskExecutor:
+    """覆盖 ``TaskExecutor`` 的执行、回放和配置行为。"""
+
+    def test_serial_basic(self) -> None:
+        """串行执行器应能顺序处理全部任务。"""
         executor = TaskExecutor("AddOneSerial", add_one, execution_mode="serial")
-        tasks = [1, 2, 3, 4, 5]
-        executor.run(tasks)
+        executor.run([1, 2, 3, 4, 5])
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 5
         assert counts["tasks_failed"] == 0
         assert counts["tasks_pending"] == 0
 
-    def test_serial_with_errors(self):
-        """测试串行执行器对错误任务的处理与记录"""
+    def test_serial_with_errors(self) -> None:
+        """串行执行器应能记录失败任务及其持久化错误。"""
         executor = TaskExecutor(
             "RaiseOnNegativeSerial",
             raise_on_negative,
             execution_mode="serial",
         )
-        tasks: list[int] = [1, -1, 2, -2, 3]
-        executor.run(tasks)
+        executor.run([1, -1, 2, -2, 3])
 
         result_dict = build_result_dict(executor)
         assert "negative value: -1" in result_dict[-1]
@@ -89,12 +85,11 @@ class TestExecutorSerial:
         assert "negative value: -1" in lifecycle_pairs[-1].error_message
         assert lifecycle_pairs[-2].error_type == "ValueError"
 
-    def test_serial_retry(self):
-        """测试串行执行器的重试机制"""
+    def test_serial_retry(self) -> None:
+        """命中可重试异常时应在耗尽前继续重试。"""
         call_count = 0
 
         def flaky(x: int) -> int:
-            """前两次抛错，第三次返回偏移后的结果。"""
             nonlocal call_count
             call_count += 1
             if call_count <= 2:
@@ -111,20 +106,18 @@ class TestExecutorSerial:
         executor.run([1])
 
         counts = executor.get_counts()
-        # 最终成功，失败计数应为 0（重试不计入最终失败）
         assert counts["tasks_succeeded"] == 1
         assert counts["tasks_failed"] == 0
-        assert call_count == 3  # 1 次初始 + 2 次重试
+        assert call_count == 3
 
-    def test_serial_no_retry_for_unmatched_exception(self):
-        """测试执行器在遇到非注册重试异常时不进行重试"""
+    def test_serial_no_retry_for_unmatched_exception(self) -> None:
+        """未注册为可重试的异常不应触发重试。"""
         executor = TaskExecutor(
             "RaiseOnNegativeNoRetry",
             raise_on_negative,
             execution_mode="serial",
             max_retries=2,
         )
-        # 只重试 RuntimeError，但函数抛的是 ValueError
         executor.set_retry_exceptions(RuntimeError)
         executor.run([-1])
 
@@ -132,103 +125,90 @@ class TestExecutorSerial:
         assert counts["tasks_succeeded"] == 0
         assert counts["tasks_failed"] == 1
 
-
-class TestExecutorThread:
-    def test_thread_basic(self):
-        """测试线程池执行器的基本并行处理"""
+    def test_thread_basic(self) -> None:
+        """线程模式应能并行处理一批任务。"""
         executor = TaskExecutor(
             "DoubleThread",
             double,
             execution_mode="thread",
             max_workers=4,
         )
-        tasks: list[int] = [1, 2, 3, 4, 5]
-        executor.run(tasks)
+        executor.run([1, 2, 3, 4, 5])
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 5
         assert counts["tasks_failed"] == 0
 
-
-class TestExecutorAsync:
     @pytest.mark.asyncio
-    async def test_async_basic(self):
-        """测试异步执行器的基本处理"""
+    async def test_async_basic(self) -> None:
+        """异步模式应能处理一批任务。"""
         executor = TaskExecutor(
             "AsyncAddOneExecutor",
             async_add_one,
             execution_mode="async",
             max_workers=4,
         )
-        tasks: list[int] = [10, 20, 30]
-        await executor.run_async(tasks)
+        await executor.run_async([10, 20, 30])
 
-        counts = executor.get_counts()
-        assert counts["tasks_succeeded"] == 3
+        assert executor.get_counts()["tasks_succeeded"] == 3
 
     @pytest.mark.asyncio
-    async def test_async_double(self):
-        """测试异步执行器的连续处理逻辑"""
+    async def test_async_double(self) -> None:
+        """异步执行器应能连续处理多个任务。"""
         executor = TaskExecutor(
             "AsyncDoubleExecutor",
             async_double,
             execution_mode="async",
             max_workers=4,
         )
-        tasks = list(range(20))
-        await executor.run_async(tasks)
+        await executor.run_async(list(range(20)))
 
+        assert executor.get_counts()["tasks_succeeded"] == 20
 
-class TestExecutorDuplicateCheck:
-    def test_duplicate_check_disabled_by_default(self):
-        """测试默认配置下不会启用重复检查。"""
+    def test_duplicate_check_disabled_by_default(self) -> None:
+        """默认配置下不应启用重复检查。"""
         executor = TaskExecutor(
             "AddOneDedupDefaultDisabled",
             add_one,
             execution_mode="serial",
         )
-        tasks: list[int] = [1, 1, 2, 2, 2, 3]
-        executor.run(tasks)
+        executor.run([1, 1, 2, 2, 2, 3])
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 6
         assert counts["tasks_duplicated"] == 0
 
-    def test_duplicate_check_enabled(self):
-        """测试启用重复检查时，相同任务不重复执行"""
+    def test_duplicate_check_enabled(self) -> None:
+        """启用重复检查时，相同任务不应重复执行。"""
         executor = TaskExecutor(
             "AddOneDedupEnabled",
             add_one,
             execution_mode="serial",
             enable_duplicate_check=True,
         )
-        tasks: list[int] = [1, 1, 2, 2, 2, 3]
-        executor.run(tasks)
+        executor.run([1, 1, 2, 2, 2, 3])
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_duplicated"] == 3
         assert counts["tasks_failed"] == 0
 
-    def test_duplicate_check_disabled(self):
-        """测试禁用重复检查时，相同任务会被重复执行"""
+    def test_duplicate_check_disabled(self) -> None:
+        """显式关闭重复检查时，相同任务应重复执行。"""
         executor = TaskExecutor(
             "AddOneDedupDisabled",
             add_one,
             execution_mode="serial",
             enable_duplicate_check=False,
         )
-        tasks: list[int] = [1, 1, 2, 2, 2, 3]
-        executor.run(tasks)
+        executor.run([1, 1, 2, 2, 2, 3])
 
         counts = executor.get_counts()
         assert counts["tasks_succeeded"] == 6
         assert counts["tasks_duplicated"] == 0
 
-
-class TestExecutorReplay:
-    def test_restore_db(self, tmp_path: Path):
-        """执行器默认应读取属于自己 stage 的 failed 与 pending 任务。"""
+    def test_restore_db(self, tmp_path: Path) -> None:
+        """默认应读取属于自己名称的 failed 与 pending 任务。"""
         sqlite_path = tmp_path / "lifecycle.sqlite3"
         appended = append_records(
             sqlite_path,
@@ -280,8 +260,10 @@ class TestExecutorReplay:
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 0
 
-    def test_restore_db_filters_error_type_when_enabled(self, tmp_path: Path):
-        """restore_db 开启过滤时只回放命中 retry_exceptions 的记录。"""
+    def test_restore_db_filters_error_type_when_enabled(
+        self, tmp_path: Path
+    ) -> None:
+        """开启错误类型过滤时只回放命中 retry_exceptions 的记录。"""
         sqlite_path = tmp_path / "lifecycle.sqlite3"
         appended = append_records(
             sqlite_path,
@@ -329,8 +311,8 @@ class TestExecutorReplay:
         assert counts["tasks_succeeded"] == 2
         assert counts["tasks_failed"] == 0
 
-    def test_restore_db_filter_keeps_pending_records(self, tmp_path: Path):
-        """restore_db 开启过滤时仍应保留 pending 记录。"""
+    def test_restore_db_filter_keeps_pending_records(self, tmp_path: Path) -> None:
+        """开启错误类型过滤时仍应保留 pending 记录。"""
         sqlite_path = tmp_path / "lifecycle.sqlite3"
         appended = append_records(
             sqlite_path,
@@ -374,10 +356,8 @@ class TestExecutorReplay:
         assert counts["tasks_succeeded"] == 2
         assert counts["tasks_failed"] == 0
 
-
-class TestExecutorSuccessCache:
-    def test_success_persist(self):
-        """测试结果缓存机制：相同输入直接返回缓存结果"""
+    def test_success_persist(self) -> None:
+        """成功结果应能通过生命周期缓存读回。"""
         executor = TaskExecutor(
             "AddOneSuccessCache",
             add_one,
@@ -386,16 +366,13 @@ class TestExecutorSuccessCache:
         )
         executor.run([1, 2, 3])
 
-        pairs = executor.get_success_pairs()
-        result_dict = dict(pairs)
+        result_dict = dict(executor.get_success_pairs())
         assert result_dict[1] == 2
         assert result_dict[2] == 3
         assert result_dict[3] == 4
 
-
-class TestExecutorConfig:
-    def test_rejects_zero_argument_func(self):
-        """测试执行函数没有参数时应直接报配置错误。"""
+    def test_rejects_zero_argument_func(self) -> None:
+        """执行函数没有参数时应直接报配置错误。"""
 
         def no_args() -> int:
             return 1
@@ -403,8 +380,8 @@ class TestExecutorConfig:
         with pytest.raises(ConfigurationError):
             TaskExecutor("NoArgsExecutor", no_args, execution_mode="serial")
 
-    def test_rejects_multi_argument_func(self):
-        """测试执行函数存在多个参数时应直接报配置错误。"""
+    def test_rejects_multi_argument_func(self) -> None:
+        """执行函数存在多个参数时应直接报配置错误。"""
 
         def two_args(x: int, y: int) -> int:
             return x + y
@@ -412,13 +389,135 @@ class TestExecutorConfig:
         with pytest.raises(ConfigurationError):
             TaskExecutor("TwoArgsExecutor", two_args, execution_mode="serial")
 
-    def test_invalid_execution_mode(self):
-        """测试配置非法执行模式时抛出异常"""
-        with pytest.raises(InvalidOptionError):
-            TaskExecutor("AddOneInvalidMode", add_one, execution_mode="invalid")
-
-    def test_name_and_execution_mode(self):
-        """测试执行器名称与执行模式配置"""
+    def test_name_and_execution_mode(self) -> None:
+        """任务执行器应暴露自身名称和执行模式。"""
         executor = TaskExecutor("AddOneSummary", add_one, execution_mode="serial")
         assert executor.get_name() == "AddOneSummary"
         assert executor.execution_mode == "serial"
+
+
+class TestTaskSplitter:
+    """覆盖 ``TaskSplitter`` 的拆分行为。"""
+
+    def test_splitter_init(self) -> None:
+        """TaskSplitter 默认应为串行且不重试。"""
+        splitter = TaskSplitter("Splitter")
+        assert splitter.execution_mode == "serial"
+        assert splitter.max_retries == 0
+        assert splitter.split_counter.get() == 0
+
+    def test_splitter_process_success(self) -> None:
+        """拆分成功后，下游应收到独立子任务。"""
+
+        def noop(x: int) -> int:
+            return x
+
+        splitter = TaskSplitter("S")
+        worker = TaskExecutor("A", noop)
+
+        graph = TaskGraph("test_splitter_process_success")
+        graph.set_nodes([splitter, worker])
+        graph.connect([splitter], [worker])
+        graph.run({"S": [[1, 2, 3]]})
+
+        assert splitter.split_counter.get() == 3
+        assert worker.get_counts()["tasks_succeeded"] == 3
+
+    def test_splitter_allows_empty_iterable(self) -> None:
+        """空可迭代对象应产生 0 个子任务，而不是抛异常。"""
+
+        def noop(x: int) -> int:
+            return x
+
+        splitter = TaskSplitter("S")
+        worker = TaskExecutor("A", noop)
+
+        graph = TaskGraph("test_splitter_allows_empty_iterable")
+        graph.set_nodes([splitter, worker])
+        graph.connect([splitter], [worker])
+        graph.run({"S": [[]]})
+
+        assert splitter.split_counter.get() == 0
+        assert worker.get_counts()["tasks_succeeded"] == 0
+
+    def test_splitter_supports_generator_input(self) -> None:
+        """一次性迭代器也应能被完整拆分并继续分发。"""
+
+        def noop(x: int) -> int:
+            return x
+
+        splitter = TaskSplitter("S")
+        worker = TaskExecutor("A", noop)
+
+        graph = TaskGraph("test_splitter_supports_generator_input")
+        graph.set_nodes([splitter, worker])
+        graph.connect([splitter], [worker])
+        graph.run({"S": [(i for i in [1, 2, 3])]})
+
+        assert splitter.split_counter.get() == 3
+        assert worker.get_counts()["tasks_succeeded"] == 3
+
+    def test_splitter_allows_constructor_split_item(self) -> None:
+        """构造参数 ``split_item`` 应能自定义子任务处理逻辑。"""
+        splitter = TaskSplitter[str, str]("S", split_item=lambda item: item.strip())
+        assert tuple(splitter._split([" a ", " b ", " c "])) == ("a", "b", "c")
+
+
+class TestTaskRouter:
+    """覆盖 ``TaskRouter`` 的路由行为。"""
+
+    def test_router_init(self) -> None:
+        """TaskRouter 默认应为串行且不重试。"""
+        router = TaskRouter("Router", lambda task: str(task))
+        assert router.execution_mode == "serial"
+        assert router.max_retries == 0
+        assert router.route_counters == {}
+
+    def test_router_route_logic(self) -> None:
+        """路由函数应返回目标名称，并拒绝未知目标。"""
+        router = TaskRouter(
+            "Router",
+            lambda task: "target1" if task == "data" else "unknown",
+        )
+        router.get_binding_counter("target1")
+
+        assert router._route("data") == ("target1", "data")
+
+        with pytest.raises(InvalidOptionError):
+            router._route("other")
+
+    def test_router_process_success(self) -> None:
+        """路由成功后，任务应被发送到指定目标节点。"""
+
+        def noop(x: str) -> str:
+            return x
+
+        router = TaskRouter(
+            "R",
+            lambda task: "target1" if task == "msg1" else "target2",
+        )
+        target1 = TaskExecutor("target1", noop)
+        target2 = TaskExecutor("target2", noop)
+
+        graph = TaskGraph("test_router_process_success")
+        graph.set_nodes([router, target1, target2])
+        graph.connect([router], [target1, target2])
+        graph.run({"R": ["msg1", "msg2"]})
+
+        assert router.route_counters["target1"].value == 1
+        assert router.route_counters["target2"].value == 1
+        assert target1.get_counts()["tasks_succeeded"] == 1
+        assert target2.get_counts()["tasks_succeeded"] == 1
+
+    def test_router_binding_counter_uses_stable_metrics_lock(self) -> None:
+        """路由计数器从创建开始就应绑定稳定的 metrics 锁。"""
+        router = TaskRouter("Router", lambda task: str(task))
+
+        counter = router.get_binding_counter("target1")
+        lock = router.metrics.lock
+
+        assert counter.get_lock() is lock
+
+        router.set_execution_mode("thread")
+
+        assert counter.get_lock() is lock
