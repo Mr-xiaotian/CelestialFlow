@@ -1,4 +1,4 @@
-# stage/core_executor.py
+# stage/core_node.py
 from __future__ import annotations
 
 import inspect
@@ -38,21 +38,22 @@ from ..runtime.util_format import format_repr
 from ..runtime.util_types import (
     CTreeEvent,
     TerminationSignal,
+    ValueWrapper,
 )
 from .core_dispatch import TaskDispatch
 from .util_callable import validate_executor_func_signature
 
 
-class TaskExecutor[T, R]:
+class BaseTaskNode[T, R]:
     """任务执行器基类，支持串行、线程和异步三种执行模式。
 
     注意：
     - ``start()`` / ``start_async()`` 为一次性调用；启动并运行完成后，不保证当前实例可被
-      安全重置并再次复用。如需重复执行同一逻辑，请重新创建新的 TaskExecutor 实例。
+      安全重置并再次复用。如需重复执行同一逻辑，请重新创建新的 BaseTaskNode 实例。
     - 启动前的 setter（``set_execution_mode`` / ``set_retry_exceptions`` / ``set_ctree`` /
       ``add_observer`` 等）允许在 start 之前多次调用。
     - 任务输入/结果队列、metrics 状态与 ctree 客户端由执行器自身持有；全局
-      ``LifecycleSpout`` / ``LogSpout`` 由 :func:`funnel_scope` 负责启停，TaskExecutor
+      ``LifecycleSpout`` / ``LogSpout`` 由 :func:`funnel_scope` 负责启停，BaseTaskNode
       自身不直接持有 spout/inlet 实例。
     """
 
@@ -86,7 +87,7 @@ class TaskExecutor[T, R]:
         enable_duplicate_check: bool = False,
     ):
         """
-        初始化 TaskExecutor
+        初始化 BaseTaskNode
 
         :param name: 节点/管理器名称
         :param func: 可调用对象
@@ -113,7 +114,11 @@ class TaskExecutor[T, R]:
 
         self.set_ctree(LocalEventClient())
 
-        self.dispatch = TaskDispatch(self, self.func, self.max_workers)
+        # IDE 类型检查器会把这里的 ``self`` 视为更宽的 ``Self``，
+        # 显式收窄为 ``BaseTaskNode[T, R]`` 可避免初始化阶段的误报。
+        self.dispatch = TaskDispatch(
+            cast(BaseTaskNode[T, R], self), self.func, self.max_workers
+        )
         self.task_queue = TaskInQueue(
             out_name=self.get_name(),
             maxsize=self.max_queue_size,
@@ -161,7 +166,7 @@ class TaskExecutor[T, R]:
         parameter_count = validate_executor_func_signature(func)
         if parameter_count != 1:
             raise ConfigurationError(
-                f"TaskExecutor func '{getattr(func, '__name__', type(func).__name__)}' "
+                f"BaseTaskNode func '{getattr(func, '__name__', type(func).__name__)}' "
                 "must accept exactly one positional task argument."
             )
 
@@ -294,16 +299,16 @@ class TaskExecutor[T, R]:
         }
     
     # ==== 绑定 ====
-    def get_binding_counter(self, _downstream_name: str) -> Any:
+    def get_binding_counter(self, _downstream_name: str) -> ValueWrapper:
         """
         返回下游 stage 应绑定的计数器，子类可覆写。
 
         :param _downstream_name: 下游 stage 的唯一名称
         :return: 计数器实例
         """
-        return self.metrics.success_counter
+        raise NotImplementedError
 
-    def prev_binding(self, pending_prev_binding: TaskExecutor[Any, Any]) -> None:
+    def prev_binding(self, pending_prev_binding: BaseTaskNode[Any, Any]) -> None:
         """
         绑定前置节点，将每个前驱 stage 的计数器注册到当前 stage 的 task_counter 中
 
@@ -376,38 +381,7 @@ class TaskExecutor[T, R]:
         :param result: 任务的结果
         :param start_time: 任务开始时间
         """
-        task = task_envelope.get_task()
-        task_id = task_envelope.get_id()
-
-        result_id = self.ctree_client.emit(
-            CTreeEvent.TASK_SUCCESS,
-            parents=[task_id],
-        )
-
-        self.metrics.add_success_count()
-        get_lifecycle_inlet().task_success(task_id, result)
-
-        get_log_inlet().task_success(
-            self.get_name(),
-            self._get_repr(task),
-            self.execution_mode,
-            self._get_repr(result),
-            time.perf_counter() - start_time,
-            task_id,
-            result_id,
-        )
-
-        for target_name in self.result_queue.get_target_names():
-            downstream_input_id = self.ctree_client.emit(
-                CTreeEvent.TASK_INPUT,
-                parents=[result_id],
-            )
-            get_lifecycle_inlet().task_input(target_name, downstream_input_id, result)
-            downstream_envelope: TaskEnvelope[R] = TaskEnvelope(
-                task=result,
-                id=downstream_input_id,
-            )
-            self.result_queue.put_target(downstream_envelope, target_name)
+        raise NotImplementedError
 
     def handle_task_fail(
         self,

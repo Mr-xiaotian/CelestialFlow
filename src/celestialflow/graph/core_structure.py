@@ -1,6 +1,6 @@
 # graph/core_structure.py
 from ..runtime.util_errors import InvalidStructureError
-from ..stage.util_types import AnyTaskExecutor
+from ..stage.util_types import AnyTaskNode
 from .core_graph import TaskGraph
 
 
@@ -11,7 +11,7 @@ class TaskChain(TaskGraph):
     def __init__(
         self,
         name: str,
-        stages: list[AnyTaskExecutor],
+        stages: list[AnyTaskNode],
         graph_mode: str = "thread",
     ) -> None:
         """
@@ -33,13 +33,13 @@ class TaskChain(TaskGraph):
             self.connect([stages[num]], [stages[num + 1]])
 
 
-class TaskCross(TaskGraph):
+class TaskCross(TaskGraph):     
     """多层交叉结构，每层内部并行，层之间全连接。"""
 
     def __init__(
         self,
         name: str,
-        layers: list[list[AnyTaskExecutor]],
+        layers: list[list[AnyTaskNode]],
         graph_mode: str = "thread",
     ) -> None:
         """
@@ -61,7 +61,7 @@ class TaskCross(TaskGraph):
 
         super().__init__(name=name, graph_mode=graph_mode)
 
-        all_stages: list[AnyTaskExecutor] = []
+        all_stages: list[AnyTaskNode] = []
         for curr_layer in layers:
             all_stages.extend(curr_layer)
 
@@ -76,7 +76,7 @@ class TaskGrid(TaskGraph):
     def __init__(
         self,
         name: str,
-        grid: list[list[AnyTaskExecutor]],
+        grid: list[list[AnyTaskNode]],
         graph_mode: str = "thread",
     ) -> None:
         """
@@ -99,7 +99,7 @@ class TaskGrid(TaskGraph):
         super().__init__(name=name, graph_mode=graph_mode)
 
         rows, cols = len(grid), len(grid[0])
-        all_stages: list[AnyTaskExecutor] = []
+        all_stages: list[AnyTaskNode] = []
         for i in range(rows):
             for j in range(cols):
                 curr = grid[i][j]
@@ -122,7 +122,7 @@ class TaskLoop(TaskGraph):
     def __init__(
         self,
         name: str,
-        stages: list[AnyTaskExecutor],
+        stages: list[AnyTaskNode],
         graph_mode: str = "thread",
     ) -> None:
         """
@@ -150,8 +150,8 @@ class TaskWheel(TaskGraph):
     def __init__(
         self,
         name: str,
-        center: AnyTaskExecutor,
-        ring: list[AnyTaskExecutor],
+        center: AnyTaskNode,
+        ring: list[AnyTaskNode],
         graph_mode: str = "thread",
     ) -> None:
         """
@@ -181,7 +181,7 @@ class TaskComplete(TaskGraph):
     def __init__(
         self,
         name: str,
-        stages: list[AnyTaskExecutor],
+        stages: list[AnyTaskNode],
         graph_mode: str = "thread",
     ) -> None:
         """

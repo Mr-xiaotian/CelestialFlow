@@ -1,18 +1,85 @@
-# stage/core_stages.py
+# stage/core_nodes.py
 import time
-import warnings
 from collections.abc import Callable, Iterable
-from typing import Any, cast
+from typing import cast
 
 from ..persistence import get_lifecycle_inlet, get_log_inlet
 from ..runtime import TaskEnvelope, TaskOutQueue
 from ..runtime.util_errors import InvalidOptionError
-from ..runtime.util_types import ValueWrapper
-from .core_executor import TaskExecutor
+from ..runtime.util_types import CTreeEvent, ValueWrapper
+from .core_node import BaseTaskNode
 
+
+# ==== 任务执行器 ====
+class TaskExecutor[T, R](BaseTaskNode[T, R]):
+    """任务执行器基类，支持串行、线程和异步三种执行模式。
+
+    注意：
+    - ``start()`` / ``start_async()`` 为一次性调用；启动并运行完成后，不保证当前实例可被
+      安全重置并再次复用。如需重复执行同一逻辑，请重新创建新的 TaskExecutor 实例。
+    - 启动前的 setter（``set_execution_mode`` / ``set_retry_exceptions`` / ``set_ctree`` /
+      ``add_observer`` 等）允许在 start 之前多次调用。
+    - 任务输入/结果队列、metrics 状态与 ctree 客户端由执行器自身持有；全局
+      ``LifecycleSpout`` / ``LogSpout`` 由 :func:`funnel_scope` 负责启停，TaskExecutor
+      自身不直接持有 spout/inlet 实例。
+    """
+    
+    # ==== 覆写方法 ====
+
+    def get_binding_counter(self, _downstream_name: str) -> ValueWrapper:
+        """
+        返回下游 stage 应绑定的计数器，子类可覆写。
+
+        :param _downstream_name: 下游 stage 的唯一名称
+        :return: 计数器实例
+        """
+        return self.metrics.success_counter
+
+    def process_task_success(
+        self, task_envelope: TaskEnvelope[T], result: R, start_time: float
+    ) -> None:
+        """
+        统一处理成功任务
+
+        :param task_envelope: 完成的任务
+        :param result: 任务的结果
+        :param start_time: 任务开始时间
+        """
+        task = task_envelope.get_task()
+        task_id = task_envelope.get_id()
+
+        result_id = self.ctree_client.emit(
+            CTreeEvent.TASK_SUCCESS,
+            parents=[task_id],
+        )
+
+        self.metrics.add_success_count()
+        get_lifecycle_inlet().task_success(task_id, result)
+
+        get_log_inlet().task_success(
+            self.get_name(),
+            self._get_repr(task),
+            self.execution_mode,
+            self._get_repr(result),
+            time.perf_counter() - start_time,
+            task_id,
+            result_id,
+        )
+
+        for target_name in self.result_queue.get_target_names():
+            downstream_input_id = self.ctree_client.emit(
+                CTreeEvent.TASK_INPUT,
+                parents=[result_id],
+            )
+            get_lifecycle_inlet().task_input(target_name, downstream_input_id, result)
+            downstream_envelope: TaskEnvelope[R] = TaskEnvelope(
+                task=result,
+                id=downstream_input_id,
+            )
+            self.result_queue.put_target(downstream_envelope, target_name)
 
 # ==== 任务拆分器 ====
-class TaskSplitter[TItem, RItem](TaskExecutor[Iterable[TItem], Iterable[RItem]]):
+class TaskSplitter[TItem, RItem](BaseTaskNode[Iterable[TItem], Iterable[RItem]]):
     """TaskSplitter: 将单个任务拆分为多个子任务，注入下游队列。
 
     可通过 `split_item` 参数自定义对子任务的处理逻辑。
@@ -41,25 +108,11 @@ class TaskSplitter[TItem, RItem](TaskExecutor[Iterable[TItem], Iterable[RItem]])
         )
 
         self.split_item = split_item or self._identity_split_item
-        self._init_extra_counter()
-
-    def _init_extra_counter(self) -> None:
-        """初始化 split 计数器，用于跟踪 split 产生的子任务总数"""
         self.split_counter = ValueWrapper(0, self.metrics.lock)
 
-    def set_execution_mode(self, execution_mode: str) -> None:
-        """覆写父类方法，将执行模式固定为串行并提示不支持其他模式。"""
-        if execution_mode != "serial":
-            warnings.warn(
-                (
-                    "TaskSplitter only accepts execution_mode='serial'. "
-                    f"Got {execution_mode!r}; it will remain 'serial'."
-                ),
-                stacklevel=2,
-            )
-        super().set_execution_mode("serial")
+    # === 覆写方法 ===
 
-    def get_binding_counter(self, _downstream_name: str) -> Any:
+    def get_binding_counter(self, _downstream_name: str) -> ValueWrapper:
         """
         返回下游 stage 应绑定的计数器
 
@@ -67,33 +120,6 @@ class TaskSplitter[TItem, RItem](TaskExecutor[Iterable[TItem], Iterable[RItem]])
         :return: split 计数器实例
         """
         return self.split_counter
-
-    def _update_split_counter(self, add_value: int) -> None:
-        """
-        更新 split 计数器
-
-        :param add_value: 增加的子任务数量
-        """
-        self.split_counter.add(add_value)
-
-    @staticmethod
-    def _identity_split_item(task: TItem) -> RItem:
-        """
-        默认的单个子任务处理逻辑。
-
-        :param task: 拆分出的单个子任务
-        :return: 处理后的单个子任务
-        """
-        return cast(RItem, task)
-
-    def _split(self, task: Iterable[TItem]) -> Iterable[RItem]:
-        """
-        将可迭代任务拆分并物化为稳定元组，避免一次性迭代器被重复消费。
-
-        :param task: 任务对象
-        :return: 子任务元组
-        """
-        return (self.split_item(item) for item in task)
 
     def process_task_success(
         self,
@@ -123,6 +149,35 @@ class TaskSplitter[TItem, RItem](TaskExecutor[Iterable[TItem], Iterable[RItem]])
             split_count,
             time.perf_counter() - start_time,
         )
+
+    # === 私有方法 ===
+
+    def _update_split_counter(self, add_value: int) -> None:
+        """
+        更新 split 计数器
+
+        :param add_value: 增加的子任务数量
+        """
+        self.split_counter.add(add_value)
+
+    @staticmethod
+    def _identity_split_item(task: TItem) -> RItem:
+        """
+        默认的单个子任务处理逻辑。
+
+        :param task: 拆分出的单个子任务
+        :return: 处理后的单个子任务
+        """
+        return cast(RItem, task)
+
+    def _split(self, task: Iterable[TItem]) -> Iterable[RItem]:
+        """
+        将可迭代任务拆分并物化为稳定元组，避免一次性迭代器被重复消费。
+
+        :param task: 任务对象
+        :return: 子任务元组
+        """
+        return (self.split_item(item) for item in task)
 
     def _put_split_result(
         self,
@@ -169,7 +224,7 @@ class TaskSplitter[TItem, RItem](TaskExecutor[Iterable[TItem], Iterable[RItem]])
 
 
 # ==== 任务路由器 ====
-class TaskRouter[T](TaskExecutor[T, tuple[str, T]]):
+class TaskRouter[T](BaseTaskNode[T, tuple[str, T]]):
     """TaskRouter: 根据路由信息将任务分发到不同的下游 stage。"""
 
     route_counters: dict[str, ValueWrapper]
@@ -188,18 +243,11 @@ class TaskRouter[T](TaskExecutor[T, tuple[str, T]]):
             max_retries=0,
         )
         self.router = router
-
-        self._init_extra_counter()
-
-    def _init_extra_counter(self) -> None:
-        """
-        初始化路由计数器
-
-        每个 target_name 一个计数器，用于让不同下游 stage 的 task_counter 统计正确。
-        """
         self.route_counters = {}
 
-    def get_binding_counter(self, downstream_name: str) -> Any:
+    # === 覆写方法 ===
+
+    def get_binding_counter(self, downstream_name: str) -> ValueWrapper:
         """
         返回下游 stage 应绑定的计数器，按唯一名称查找或创建
 
@@ -210,22 +258,6 @@ class TaskRouter[T](TaskExecutor[T, tuple[str, T]]):
             downstream_name, ValueWrapper(0, self.metrics.lock)
         )
         return self.route_counters[downstream_name]
-
-    def _route(self, task: T) -> tuple[str, T]:
-        """
-        校验路由输入格式并提取目标任务
-
-        :param task: 任务数据
-        :return: 提取出的任务数据
-        :raises InvalidOptionError: target 不在已注册的路由列表中
-        """
-        target = self.router(task)
-
-        if target not in self.route_counters:
-            raise InvalidOptionError(
-                "Unknown target", target, self.route_counters.keys()
-            )
-        return target, task
 
     def process_task_success(
         self,
@@ -272,6 +304,24 @@ class TaskRouter[T](TaskExecutor[T, tuple[str, T]]):
         )
         result_queue.put_target(downstream_envelope, target)
 
+    # === 私有方法 ===
+
+    def _route(self, task: T) -> tuple[str, T]:
+        """
+        校验路由输入格式并提取目标任务
+
+        :param task: 任务数据
+        :return: 提取出的任务数据
+        :raises InvalidOptionError: target 不在已注册的路由列表中
+        """
+        target = self.router(task)
+
+        if target not in self.route_counters:
+            raise InvalidOptionError(
+                "Unknown target", target, self.route_counters.keys()
+            )
+        return target, task
+    
     def _update_route_counter(self, target: str) -> None:
         """
         更新指定目标的路由计数器

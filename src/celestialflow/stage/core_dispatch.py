@@ -19,7 +19,7 @@ from ..runtime.util_errors import ConfigurationError, InitializationError
 from ..runtime.util_types import CTreeEvent, TerminationIdPool, TerminationSignal
 
 if TYPE_CHECKING:
-    from .core_executor import TaskExecutor
+    from .core_node import BaseTaskNode
 
 
 class TaskDispatch[T, R]:
@@ -28,7 +28,7 @@ class TaskDispatch[T, R]:
     # ==== 初始化 ====
     def __init__(
         self,
-        task_executor: TaskExecutor[T, R],
+        task_executor: BaseTaskNode[T, R],
         func: Callable[[T], R] | Callable[[T], Awaitable[R]],
         max_workers: int,
     ):

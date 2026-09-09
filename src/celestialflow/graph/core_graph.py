@@ -20,8 +20,7 @@ from ..runtime.util_errors import (
 from ..runtime.util_estimators import calc_remaining
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import cluster_by_value_sorted
-from ..stage.core_executor import TaskExecutor
-from ..stage.util_types import AnyTaskExecutor
+from ..stage.util_types import AnyTaskNode
 from .util_estimators import calc_global_pending
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
 from .util_render import render_structure_list
@@ -43,7 +42,7 @@ class TaskGraph:
     graph_id: str
     graph_mode: str
     threads: list[threading.Thread]
-    stage_dict: dict[str, AnyTaskExecutor]
+    stage_dict: dict[str, AnyTaskNode]
     _analysis_dirty: bool
     source_names: list[str]
     order_graph: OrderGraph
@@ -104,7 +103,7 @@ class TaskGraph:
 
     # ==== 建图 ====
 
-    def set_stages(self, stages: list[AnyTaskExecutor]) -> None:
+    def set_stages(self, stages: list[AnyTaskNode]) -> None:
         """
         添加节点到任务图中
 
@@ -124,8 +123,8 @@ class TaskGraph:
 
     def connect[R](
         self,
-        from_stages: list[TaskExecutor[Any, R]],
-        to_stages: list[TaskExecutor[R, Any]],
+        from_stages: list[AnyTaskNode],
+        to_stages: list[AnyTaskNode],
     ) -> None:
         """
         建立超边连接：from_stages 中的每个节点连接到 to_stages 中的每个节点。
@@ -487,7 +486,7 @@ class TaskGraph:
         ]
         await asyncio.gather(*tasks)
 
-    def _execute_stage(self, stage: AnyTaskExecutor) -> None:
+    def _execute_stage(self, stage: AnyTaskNode) -> None:
         """
         在同步图启动路径下执行单个节点。
 
@@ -498,7 +497,7 @@ class TaskGraph:
         else:
             stage.start()
 
-    async def _execute_stage_async(self, stage: AnyTaskExecutor) -> None:
+    async def _execute_stage_async(self, stage: AnyTaskNode) -> None:
         """
         异步执行单个节点：async 模式走协程，其余模式走线程池。
 
