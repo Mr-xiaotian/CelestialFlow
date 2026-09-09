@@ -1,4 +1,4 @@
-﻿# observability/util_types.py
+# observability/util_types.py
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -10,7 +10,7 @@ class ReporterTaskGraph(Protocol):
     """TaskReporter 依赖的最小任务图接口。"""
 
     @property
-    def node_dict(self) -> Mapping[str, ReporterTaskExecutor]:
+    def node_dict(self) -> Mapping[str, ReporterTaskNode]:
         """返回按名称索引的只读节点映射。"""
         ...
 
@@ -29,8 +29,8 @@ class ReporterTaskGraph(Protocol):
     def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]: ...
 
 
-class ReporterTaskExecutor(Protocol):
-    """TaskReporter 依赖的最小执行器接口。"""
+class ReporterTaskNode(Protocol):
+    """TaskReporter 依赖的最小节点接口。"""
 
     def put_task(self, task: Any) -> None: ...
 

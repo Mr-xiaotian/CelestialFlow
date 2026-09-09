@@ -28,9 +28,9 @@ class TaskExecutor[T, R](BaseTaskNode[T, R]):
 
     def get_binding_counter(self, _downstream_name: str) -> ValueWrapper:
         """
-        返回下游 stage 应绑定的计数器，子类可覆写。
+        返回下游节点应绑定的计数器，子类可覆写。
 
-        :param _downstream_name: 下游 stage 的唯一名称
+        :param _downstream_name: 下游节点的唯一名称
         :return: 计数器实例
         """
         return self.metrics.success_counter
@@ -115,9 +115,9 @@ class TaskSplitter[TItem, RItem](BaseTaskNode[Iterable[TItem], Iterable[RItem]])
 
     def get_binding_counter(self, _downstream_name: str) -> ValueWrapper:
         """
-        返回下游 stage 应绑定的计数器
+        返回下游节点应绑定的计数器。
 
-        :param _downstream_name: 下游 stage 的唯一名称
+        :param _downstream_name: 下游节点的唯一名称
         :return: split 计数器实例
         """
         return self.split_counter
@@ -226,7 +226,7 @@ class TaskSplitter[TItem, RItem](BaseTaskNode[Iterable[TItem], Iterable[RItem]])
 
 # ==== 任务路由器 ====
 class TaskRouter[T](BaseTaskNode[T, tuple[str, T]]):
-    """TaskRouter: 根据路由信息将任务分发到不同的下游 stage。"""
+    """TaskRouter: 根据路由信息将任务分发到不同的下游节点。"""
 
     route_counters: dict[str, ValueWrapper]
 
@@ -235,7 +235,7 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T]]):
         初始化 TaskRouter
 
         :param name: 节点名称
-        :param router: 路由函数，根据任务数据返回目标 stage 的唯一名称
+        :param router: 路由函数，根据任务数据返回目标节点的唯一名称
         """
         super().__init__(
             name=name,
@@ -250,9 +250,9 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T]]):
 
     def get_binding_counter(self, downstream_name: str) -> ValueWrapper:
         """
-        返回下游 stage 应绑定的计数器，按唯一名称查找或创建
+        返回下游节点应绑定的计数器，按唯一名称查找或创建。
 
-        :param downstream_name: 下游 stage 的唯一名称
+        :param downstream_name: 下游节点的唯一名称
         :return: 对应下游的路由计数器实例
         """
         self.route_counters.setdefault(
@@ -327,6 +327,6 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T]]):
         """
         更新指定目标的路由计数器
 
-        :param target: 目标 stage 的唯一名称
+        :param target: 目标节点的唯一名称
         """
         self.route_counters[target].add(1)

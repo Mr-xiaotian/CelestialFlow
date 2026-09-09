@@ -1,4 +1,4 @@
-﻿import os
+import os
 
 from celestialtree import Client as CelestialTreeClient
 from demo_utils import (
@@ -38,13 +38,13 @@ ctree_client = CelestialTreeClient(
 
 
 def demo_splitter_0() -> None:
-    # 阶段定义：生成 URL、记录日志、拆分批量结果、下载资源、解析新 URL。
-    generate_stage = TaskExecutor(
+    # 节点定义：生成 URL、记录日志、拆分批量结果、下载资源、解析新 URL。
+    generate_node = TaskExecutor(
         "GenURLs",
         generate_urls_sleep,
         max_workers=4,
     )
-    logger_stage = TaskExecutor(
+    logger_node = TaskExecutor(
         "Logger",
         log_urls_sleep,
         max_workers=4,
@@ -52,12 +52,12 @@ def demo_splitter_0() -> None:
     splitter = TaskSplitter(
         "Splitter",
     )
-    download_stage = TaskExecutor(
+    download_node = TaskExecutor(
         "Downloader",
         download_sleep,
         max_workers=4,
     )
-    parse_stage = TaskExecutor(
+    parse_node = TaskExecutor(
         "Parser",
         parse_sleep,
         max_workers=4,
@@ -66,11 +66,11 @@ def demo_splitter_0() -> None:
     # 图组装：Generator 同时连到 Logger 和 Splitter，Parser 再回环到 Generator。
     graph = TaskGraph("demo_splitter_0")
     graph.set_nodes(
-        stages=[generate_stage, logger_stage, splitter, download_stage, parse_stage],
+        nodes=[generate_node, logger_node, splitter, download_node, parse_node],
     )
-    graph.connect([generate_stage], [logger_stage, splitter])
-    graph.connect([splitter], [download_stage, parse_stage])
-    graph.connect([parse_stage], [generate_stage])
+    graph.connect([generate_node], [logger_node, splitter])
+    graph.connect([splitter], [download_node, parse_node])
+    graph.connect([parse_node], [generate_node])
 
     graph.set_graph_mode("thread")
     graph.set_node_execution_mode("thread")
@@ -85,14 +85,14 @@ def demo_splitter_0() -> None:
 
 
 def demo_splitter_1() -> None:
-    # 阶段定义：用 Splitter 把一个大 iterable 拆成大量细粒度任务。
+    # 节点定义：用 Splitter 把一个大 iterable 拆成大量细粒度任务。
     task_splitter = TaskSplitter("Splitter")
-    process_stage = TaskExecutor("Process", no_op, execution_mode="thread", max_workers=50)
+    process_node = TaskExecutor("Process", no_op, execution_mode="thread", max_workers=50)
 
-    # 链式结构：这里不需要手动 connect，直接用 TaskChain 串起两个阶段。
+    # 链式结构：这里不需要手动 connect，直接用 TaskChain 串起两个节点。
     chain = TaskChain(
         "demo_splitter_1",
-        [task_splitter, process_stage],
+        [task_splitter, process_node],
     )
     chain.set_reporter(TaskReporter(report_host, report_port, chain))
     chain.set_ctree(ctree_client)
@@ -102,11 +102,11 @@ def demo_splitter_1() -> None:
 
 
 def demo_router_0() -> None:
-    # 阶段定义：Origin 只生成任务本身，Router 负责按规则选择下游并分发。
-    a_name = "StageA"
-    b_name = "StageB"
+    # 节点定义：Origin 只生成任务本身，Router 负责按规则选择下游并分发。
+    a_name = "NodeA"
+    b_name = "NodeB"
 
-    source_stage = TaskExecutor(
+    source_node = TaskExecutor(
         "Origin",
         sleep_1,
         execution_mode="thread",
@@ -116,26 +116,26 @@ def demo_router_0() -> None:
         "Router",
         router_even,
     )
-    stage_a = TaskExecutor(
+    node_a = TaskExecutor(
         a_name,
         sleep_1,
         execution_mode="thread",
         max_workers=2,
     )
-    stage_b = TaskExecutor(
+    node_b = TaskExecutor(
         b_name,
         sleep_1,
         execution_mode="thread",
         max_workers=2,
     )
 
-    # 图组装：Origin -> Router -> {StageA, StageB}，演示基于奇偶的条件路由。
+    # 图组装：Origin -> Router -> {NodeA, NodeB}，演示基于奇偶的条件路由。
     graph = TaskGraph("demo_router_0", graph_mode="thread")
     graph.set_nodes(
-        stages=[source_stage, router, stage_a, stage_b],
+        nodes=[source_node, router, node_a, node_b],
     )
-    graph.connect([source_stage], [router])
-    graph.connect([router], [stage_a, stage_b])
+    graph.connect([source_node], [router])
+    graph.connect([router], [node_a, node_b])
 
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)

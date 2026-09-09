@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from celestialflow import TaskGraph, TaskExecutor
 from celestialflow.graph.util_order_graph import (
@@ -184,13 +184,13 @@ class TestDeepGraphRegression:
     def test_deep_chain_through_taskgraph(self):
         """深链经 TaskGraph 全链路建图与分析不崩"""
         graph = TaskGraph("deep", graph_mode="thread")
-        stages = [TaskExecutor(f"n{i}", lambda x: x) for i in range(DEEP)]
-        graph.set_nodes(stages)
+        nodes = [TaskExecutor(f"n{i}", lambda x: x) for i in range(DEEP)]
+        graph.set_nodes(nodes)
         for i in range(DEEP - 1):
-            graph.connect([stages[i]], [stages[i + 1]])
+            graph.connect([nodes[i]], [nodes[i + 1]])
 
-        stages = graph.get_nodes()
-        assert len(stages) == DEEP
+        node_names = graph.get_nodes()
+        assert len(node_names) == DEEP
         assert graph.get_source_nodes() == ["n0"]
 
         analysis = graph.get_graph_analysis()

@@ -1,4 +1,4 @@
-﻿import os
+import os
 
 from celestialtree import Client as CelestialTreeClient
 from demo_utils import (
@@ -41,83 +41,83 @@ ctree_client = CelestialTreeClient(
 # ========有向无环图(DAG)========
 def demo_chain() -> None:
     # 构建 DAG: A ➝ B ➝ C ➝ D ➝ E
-    stageA = TaskExecutor("StageA", square, execution_mode="serial", max_workers=2)
-    stageB = TaskExecutor("StageB", square, execution_mode="serial", max_workers=2)
-    stageC = TaskExecutor("StageC", square, execution_mode="serial", max_workers=2)
-    stageD = TaskExecutor("StageD", square, execution_mode="serial", max_workers=2)
-    stageE = TaskExecutor("StageE", square, execution_mode="serial", max_workers=2)
+    node_a = TaskExecutor("NodeA", square, execution_mode="serial", max_workers=2)
+    node_b = TaskExecutor("NodeB", square, execution_mode="serial", max_workers=2)
+    node_c = TaskExecutor("NodeC", square, execution_mode="serial", max_workers=2)
+    node_d = TaskExecutor("NodeD", square, execution_mode="serial", max_workers=2)
+    node_e = TaskExecutor("NodeE", square, execution_mode="serial", max_workers=2)
 
     # 设置图结构
     chain = TaskChain(
         "demo_chain",
-        [stageA, stageB, stageC, stageD, stageE],
+        [node_a, node_b, node_c, node_d, node_e],
     )
     chain.set_reporter(TaskReporter(report_host, report_port, chain))
     # chain.set_ctree(ctree_client)
 
-    chain.run({"StageA": list(range(20))}, if_put_signal=False)
+    chain.run({"NodeA": list(range(20))}, if_put_signal=False)
 
 
 def demo_forest() -> None:
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
-    stageA = TaskExecutor(
-        "stageA",
+    node_a = TaskExecutor(
+        "node_a",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageB = TaskExecutor(
-        "stageB",
+    node_b = TaskExecutor(
+        "node_b",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageC = TaskExecutor(
-        "stageC",
+    node_c = TaskExecutor(
+        "node_c",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageD = TaskExecutor(
-        "stageD",
+    node_d = TaskExecutor(
+        "node_d",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageE = TaskExecutor(
-        "stageE",
+    node_e = TaskExecutor(
+        "node_e",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
 
     # 构建 DAG: F ➝ G ➝ I；F ➝ H ➝ J
-    stageF = TaskExecutor(
-        "stageF",
+    node_f = TaskExecutor(
+        "node_f",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageG = TaskExecutor(
-        "stageG",
+    node_g = TaskExecutor(
+        "node_g",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageH = TaskExecutor(
-        "stageH",
+    node_h = TaskExecutor(
+        "node_h",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageI = TaskExecutor(
-        "stageI",
+    node_i = TaskExecutor(
+        "node_i",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageJ = TaskExecutor(
-        "stageJ",
+    node_j = TaskExecutor(
+        "node_j",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
@@ -126,36 +126,36 @@ def demo_forest() -> None:
     # 设置图结构
     graph = TaskGraph("demo_forest", graph_mode="thread")
     graph.set_nodes(
-        stages=[
-            stageA,
-            stageB,
-            stageC,
-            stageD,
-            stageE,
-            stageF,
-            stageG,
-            stageH,
-            stageI,
-            stageJ,
+        nodes=[
+            node_a,
+            node_b,
+            node_c,
+            node_d,
+            node_e,
+            node_f,
+            node_g,
+            node_h,
+            node_i,
+            node_j,
         ],
     )
-    graph.connect([stageA], [stageC])
-    graph.connect([stageB], [stageD])
-    graph.connect([stageC], [stageE])
-    graph.connect([stageD], [stageE])
+    graph.connect([node_a], [node_c])
+    graph.connect([node_b], [node_d])
+    graph.connect([node_c], [node_e])
+    graph.connect([node_d], [node_e])
 
-    graph.connect([stageF], [stageG, stageH])
-    graph.connect([stageG], [stageI])
-    graph.connect([stageH], [stageJ])
+    graph.connect([node_f], [node_g, node_h])
+    graph.connect([node_g], [node_i])
+    graph.connect([node_h], [node_j])
 
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
 
     # 初始任务
     init_tasks: dict[str, list[int]] = {
-        stageA.get_name(): list(range(1, 11)),
-        stageB.get_name(): list(range(11, 21)),
-        stageF.get_name(): list(range(21, 31)),
+        node_a.get_name(): list(range(1, 11)),
+        node_b.get_name(): list(range(11, 21)),
+        node_f.get_name(): list(range(21, 31)),
     }
 
     graph.run(init_tasks)
@@ -163,27 +163,27 @@ def demo_forest() -> None:
 
 def demo_cross() -> None:
     # 构建 DAG
-    stageA = TaskExecutor("StageA", add_one_sleep, execution_mode="thread", max_workers=2)
-    stageB = TaskExecutor("StageB", add_one_sleep, execution_mode="thread", max_workers=2)
-    stageC = TaskExecutor("StageC", add_one_sleep, execution_mode="thread", max_workers=2)
-    stageD = TaskExecutor("StageD", add_one_sleep, execution_mode="thread", max_workers=5)
-    stageE = TaskExecutor("StageE", add_one_sleep, execution_mode="thread", max_workers=2)
-    stageF = TaskExecutor("StageF", add_one_sleep, execution_mode="thread", max_workers=2)
-    stageG = TaskExecutor("StageG", add_one_sleep, execution_mode="thread", max_workers=2)
+    node_a = TaskExecutor("NodeA", add_one_sleep, execution_mode="thread", max_workers=2)
+    node_b = TaskExecutor("NodeB", add_one_sleep, execution_mode="thread", max_workers=2)
+    node_c = TaskExecutor("NodeC", add_one_sleep, execution_mode="thread", max_workers=2)
+    node_d = TaskExecutor("NodeD", add_one_sleep, execution_mode="thread", max_workers=5)
+    node_e = TaskExecutor("NodeE", add_one_sleep, execution_mode="thread", max_workers=2)
+    node_f = TaskExecutor("NodeF", add_one_sleep, execution_mode="thread", max_workers=2)
+    node_g = TaskExecutor("NodeG", add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 构建 TaskCross
     cross = TaskCross(
         "demo_cross",
-        [[stageA, stageB, stageC], [stageD], [stageE, stageF, stageG]],
+        [[node_a, node_b, node_c], [node_d], [node_e, node_f, node_g]],
     )
     cross.set_reporter(TaskReporter(report_host, report_port, cross))
     # cross.set_ctree(ctree_client)
 
     # 初始任务
     init_tasks = {
-        stageA.get_name(): range(1, 11),  # random_values(100, "str"),
-        stageB.get_name(): range(6, 16),
-        stageC.get_name(): range(11, 21),
+        node_a.get_name(): range(1, 11),  # random_values(100, "str"),
+        node_b.get_name(): range(6, 16),
+        node_c.get_name(): range(11, 21),
     }
 
     cross.run({name: list(tasks) for name, tasks in init_tasks.items()})
@@ -284,11 +284,11 @@ def demo_grid() -> None:
 
 # ========有环图========
 def demo_loop() -> None:
-    stageA = TaskExecutor("StageA", add_one_sleep, execution_mode="serial")
-    stageB = TaskExecutor("StageB", add_one_sleep, execution_mode="serial")
-    stageC = TaskExecutor("StageC", add_one_sleep, execution_mode="serial")
+    node_a = TaskExecutor("NodeA", add_one_sleep, execution_mode="serial")
+    node_b = TaskExecutor("NodeB", add_one_sleep, execution_mode="serial")
+    node_c = TaskExecutor("NodeC", add_one_sleep, execution_mode="serial")
 
-    loop = TaskLoop("demo_loop", [stageA, stageB, stageC])
+    loop = TaskLoop("demo_loop", [node_a, node_b, node_c])
     loop.set_reporter(TaskReporter(report_host, report_port, loop))
     # loop.set_ctree(ctree_client)
 
@@ -296,7 +296,7 @@ def demo_loop() -> None:
     test_task_0 = range(10)
     # test_task_1 = list(test_task_0) + [0, 6, None, 0, ""]
 
-    loop.run({"StageA": list(test_task_0)}, if_put_signal=False)
+    loop.run({"NodeA": list(test_task_0)}, if_put_signal=False)
 
 
 def demo_wheel() -> None:
@@ -368,7 +368,7 @@ def demo_multi_cycle() -> None:
 
     graph = TaskGraph("demo_multi_cycle", graph_mode="thread")
     graph.set_nodes(
-        stages=[A1, A2, B1, B2, C1, C2],
+        nodes=[A1, A2, B1, B2, C1, C2],
     )
 
     # 分支 A 循环

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import json
@@ -76,22 +76,22 @@ def build_chain_graph(
 ):
     from celestialflow import TaskGraph, TaskExecutor
 
-    stage1 = TaskExecutor(
-        f"{name}_stage_1",
+    node1 = TaskExecutor(
+        f"{name}_node_1",
         funcs[0],
         execution_mode=execution_mode,
         max_workers=max_workers,
         enable_duplicate_check=False,
     )
-    stage2 = TaskExecutor(
-        f"{name}_stage_2",
+    node2 = TaskExecutor(
+        f"{name}_node_2",
         funcs[1],
         execution_mode=execution_mode,
         max_workers=max_workers,
         enable_duplicate_check=False,
     )
-    stage3 = TaskExecutor(
-        f"{name}_stage_3",
+    node3 = TaskExecutor(
+        f"{name}_node_3",
         funcs[2],
         execution_mode=execution_mode,
         max_workers=max_workers,
@@ -99,10 +99,10 @@ def build_chain_graph(
     )
 
     graph = TaskGraph(name, graph_mode=graph_mode)
-    graph.set_nodes([stage1, stage2, stage3])
-    graph.connect([stage1], [stage2])
-    graph.connect([stage2], [stage3])
-    return graph, stage3
+    graph.set_nodes([node1, node2, node3])
+    graph.connect([node1], [node2])
+    graph.connect([node2], [node3])
+    return graph, node3
 
 
 def measure_executor(
@@ -137,11 +137,11 @@ def measure_graph(
     workers: int,
     funcs: list[Any],
 ) -> RunStats:
-    graph, sink_stage = build_chain_graph(name, funcs, graph_mode, execution_mode, workers)
+    graph, sink_node = build_chain_graph(name, funcs, graph_mode, execution_mode, workers)
     start = time.perf_counter()
-    graph.run({f"{name}_stage_1": items})
+    graph.run({f"{name}_node_1": items})
     seconds = time.perf_counter() - start
-    success_count = sink_stage.metrics.get_success_count()
+    success_count = sink_node.metrics.get_success_count()
     if success_count != len(items):
         raise RuntimeError(
             f"{name} success count mismatch: expected {len(items)}, got {success_count}"

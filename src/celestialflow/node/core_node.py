@@ -45,14 +45,14 @@ from .util_callable import validate_executor_func_signature
 
 
 class BaseTaskNode[T, R]:
-    """任务执行器基类，支持串行、线程和异步三种执行模式。
+    """任务节点基类，支持串行、线程和异步三种执行模式。
 
     注意：
     - ``start()`` / ``start_async()`` 为一次性调用；启动并运行完成后，不保证当前实例可被
       安全重置并再次复用。如需重复执行同一逻辑，请重新创建新的 BaseTaskNode 实例。
     - 启动前的 setter（``set_execution_mode`` / ``set_retry_exceptions`` / ``set_ctree`` /
       ``add_observer`` 等）允许在 start 之前多次调用。
-    - 任务输入/结果队列、metrics 状态与 ctree 客户端由执行器自身持有；全局
+    - 任务输入/结果队列、metrics 状态与 ctree 客户端由节点自身持有；全局
       ``LifecycleSpout`` / ``LogSpout`` 由 :func:`funnel_scope` 负责启停，BaseTaskNode
       自身不直接持有 spout/inlet 实例。
     """
@@ -192,7 +192,7 @@ class BaseTaskNode[T, R]:
 
     def set_ctree(self, ctree_client: EventClient) -> None:
         """
-        设置执行器使用的事件客户端。
+        设置节点使用的事件客户端。
 
         :param ctree_client: 事件客户端实例
         """
@@ -265,25 +265,25 @@ class BaseTaskNode[T, R]:
 
     def snapshot(self, interval: float) -> dict[str, Any]:
         """
-        采集当前 stage 的运行时快照。
+        采集当前节点的运行时快照。
 
         :param interval: 快照采集间隔（秒）
         :return: 包含状态、计数、耗时估算等信息的快照字典
         """
         status = self.metrics.get_status()
-        stage_counts = self.get_counts()
+        node_counts = self.get_counts()
 
         elapsed = calc_elapsed(status, self._last_elapsed, self._last_pending, interval)
         remaining = calc_remaining(
-            stage_counts["tasks_processed"],
-            stage_counts["tasks_pending"],
+            node_counts["tasks_processed"],
+            node_counts["tasks_pending"],
             elapsed,
         )
-        avg_time_str = format_avg_time(elapsed, stage_counts["tasks_processed"])
+        avg_time_str = format_avg_time(elapsed, node_counts["tasks_processed"])
 
         # 更新缓存供下次快照使用
         self._last_elapsed = elapsed
-        self._last_pending = int(stage_counts["tasks_pending"] or 0)
+        self._last_pending = int(node_counts["tasks_pending"] or 0)
 
         return {
             "name": self.get_name(),
@@ -295,22 +295,22 @@ class BaseTaskNode[T, R]:
             "elapsed_time": elapsed,
             "remaining_time": remaining,
             "task_avg_time": avg_time_str,
-            **stage_counts,
+            **node_counts,
         }
 
     # ==== 绑定 ====
     def get_binding_counter(self, _downstream_name: str) -> ValueWrapper:
         """
-        返回下游 stage 应绑定的计数器，子类可覆写。
+        返回下游节点应绑定的计数器，子类可覆写。
 
-        :param _downstream_name: 下游 stage 的唯一名称
+        :param _downstream_name: 下游节点的唯一名称
         :return: 计数器实例
         """
         raise NotImplementedError
 
     def prev_binding(self, pending_prev_binding: BaseTaskNode[Any, Any]) -> None:
         """
-        绑定前置节点，将每个前驱 stage 的计数器注册到当前 stage 的 task_counter 中
+        绑定前置节点，将每个前驱节点的计数器注册到当前节点的 task_counter 中。
 
         :param pending_prev_binding: 前置节点
         """
@@ -509,7 +509,7 @@ class BaseTaskNode[T, R]:
         filter_by_error_type: bool = False,
     ) -> None:
         """
-        从 sqlite 持久化库中读取当前 stage 的任务并启动执行。
+        从 sqlite 持久化库中读取当前节点的任务并启动执行。
 
         :param db_path: sqlite 数据库文件路径
         :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``

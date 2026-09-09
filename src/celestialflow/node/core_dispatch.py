@@ -28,18 +28,18 @@ class TaskDispatch[T, R]:
     # ==== 初始化 ====
     def __init__(
         self,
-        task_executor: BaseTaskNode[T, R],
+        task_node: BaseTaskNode[T, R],
         func: Callable[[T], R] | Callable[[T], Awaitable[R]],
         max_workers: int,
     ):
         """
         初始化任务运行器
 
-        :param task_executor: 任务执行器
+        :param task_node: 任务节点
         :param func: 任务函数
         :param max_workers: 工作线程数量限制
         """
-        self.task_executor = task_executor
+        self.task_node = task_node
         self.func = func
         self.max_workers = max_workers
 
@@ -98,16 +98,16 @@ class TaskDispatch[T, R]:
         :return: 合并后的终止信号
         """
         parent_ids = termination_pool.ids
-        termination_id: int = self.task_executor.ctree_client.emit(
+        termination_id: int = self.task_node.ctree_client.emit(
             CTreeEvent.TERMINATION_MERGE,
             parents=parent_ids,
         )
         signal = TerminationSignal(
             termination_id,
-            source=self.task_executor.get_name(),
+            source=self.task_node.get_name(),
         )
         get_log_inlet().termination_merge(
-            self.task_executor.get_name(), parent_ids, termination_id
+            self.task_node.get_name(), parent_ids, termination_id
         )
         return signal
 
@@ -120,25 +120,25 @@ class TaskDispatch[T, R]:
         """
         try:
             task: T = task_envelope.get_task()
-            max_retries: int = self.task_executor.max_retries
+            max_retries: int = self.task_node.max_retries
 
             for retry_time in range(max_retries + 1):
                 try:
                     start_time = time.perf_counter()
                     result: R = self._call_sync(task)
-                    self.task_executor.process_task_success(
+                    self.task_node.process_task_success(
                         task_envelope, result, start_time
                     )
                     return
                 except Exception as exception:
                     if retry_time >= max_retries or not isinstance(
-                        exception, self.task_executor.metrics.retry_exceptions
+                        exception, self.task_node.metrics.retry_exceptions
                     ):
                         # 如果无重试机会或非可试异常, 则直接处理失败
-                        self.task_executor.handle_task_fail(task_envelope, exception)
+                        self.task_node.handle_task_fail(task_envelope, exception)
                         return
                     # 重试
-                    self.task_executor.log_task_retry(
+                    self.task_node.log_task_retry(
                         task_envelope, exception, retry_time
                     )
 
@@ -153,24 +153,24 @@ class TaskDispatch[T, R]:
         """
         try:
             task: T = task_envelope.get_task()
-            max_retries: int = self.task_executor.max_retries
+            max_retries: int = self.task_node.max_retries
 
             for retry_time in range(max_retries + 1):
                 try:
                     start_time = time.perf_counter()
                     result: R = await self._call_async(task)
-                    self.task_executor.process_task_success(
+                    self.task_node.process_task_success(
                         task_envelope, result, start_time
                     )
                     return
                 except Exception as exception:
                     if retry_time >= max_retries or not isinstance(
-                        exception, self.task_executor.metrics.retry_exceptions
+                        exception, self.task_node.metrics.retry_exceptions
                     ):
-                        self.task_executor.handle_task_fail(task_envelope, exception)
+                        self.task_node.handle_task_fail(task_envelope, exception)
                         return
                     # 重试
-                    self.task_executor.log_task_retry(
+                    self.task_node.log_task_retry(
                         task_envelope, exception, retry_time
                     )
 
@@ -182,8 +182,8 @@ class TaskDispatch[T, R]:
         """
         串行地执行任务
         """
-        task_queue = self.task_executor.task_queue
-        result_queue = self.task_executor.result_queue
+        task_queue = self.task_node.task_queue
+        result_queue = self.task_node.result_queue
 
         while True:
             envelope = task_queue.get()
@@ -192,8 +192,8 @@ class TaskDispatch[T, R]:
                 break
 
             task_hash = envelope.get_hash()
-            if self.task_executor.metrics.is_duplicate(task_hash):
-                self.task_executor.deal_duplicate(envelope)
+            if self.task_node.metrics.is_duplicate(task_hash):
+                self.task_node.deal_duplicate(envelope)
                 continue
 
             self._worker(envelope)
@@ -206,8 +206,8 @@ class TaskDispatch[T, R]:
         """
         self._init_pool(execution_mode="thread")
         try:
-            task_queue = self.task_executor.task_queue
-            result_queue = self.task_executor.result_queue
+            task_queue = self.task_node.task_queue
+            result_queue = self.task_node.result_queue
 
             pending: set[Future[None]] = set()  # 用于存储等待执行的任务
 
@@ -218,8 +218,8 @@ class TaskDispatch[T, R]:
                     break
 
                 task_hash = envelope.get_hash()
-                if self.task_executor.metrics.is_duplicate(task_hash):
-                    self.task_executor.deal_duplicate(envelope)
+                if self.task_node.metrics.is_duplicate(task_hash):
+                    self.task_node.deal_duplicate(envelope)
                     continue
 
                 if self._pool is None:
@@ -242,10 +242,10 @@ class TaskDispatch[T, R]:
     async def dispatch_async(self) -> None:
         """
         异步地执行任务，限制并发数量。
-        支持流式到达的任务（stage 模式），边收边跑。
+        支持流式到达的任务，边收边跑。
         """
-        task_queue = self.task_executor.task_queue
-        result_queue = self.task_executor.result_queue
+        task_queue = self.task_node.task_queue
+        result_queue = self.task_node.result_queue
 
         semaphore = asyncio.Semaphore(self.max_workers)
         pending: set[asyncio.Task[None]] = set()
@@ -261,8 +261,8 @@ class TaskDispatch[T, R]:
                 break
 
             task_hash = envelope.get_hash()
-            if self.task_executor.metrics.is_duplicate(task_hash):
-                self.task_executor.deal_duplicate(envelope)
+            if self.task_node.metrics.is_duplicate(task_hash):
+                self.task_node.deal_duplicate(envelope)
                 continue
 
             task = asyncio.create_task(sem_worker(envelope))

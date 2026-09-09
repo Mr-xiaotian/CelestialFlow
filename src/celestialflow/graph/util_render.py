@@ -18,12 +18,12 @@ def render_structure_list(
     - 根节点不画连接符，子节点使用 ``╞-->`` / ``╘-->`` 连接符。
 
     :param nodes: 节点名称列表
-    :param edges: 邻接表 {stage_name: [next_stage_name, ...]}
+    :param edges: 邻接表 {node_name: [next_node_name, ...]}
     :param source_nodes: 源节点名称列表
     :return: 带边框的格式化字符串列表
     """
     if not nodes:
-        return ["+ No stages defined +"]
+        return ["+ No nodes defined +"]
 
     if not source_nodes:
         child_names = {child for child_list in edges.values() for child in child_list}
@@ -75,10 +75,10 @@ def render_structure_list(
 
         # 子节点缩进取决于当前节点是否为最后一个：最后一个留空，否则延续竖线
         child_prefix = "" if is_root else prefix + ("    " if is_last else "│   ")
-        next_stages = edges.get(node_name, [])
-        for i in range(len(next_stages) - 1, -1, -1):
+        next_nodes = edges.get(node_name, [])
+        for i in range(len(next_nodes) - 1, -1, -1):
             stack.append(
-                (next_stages[i], child_prefix, i == len(next_stages) - 1, False)
+                (next_nodes[i], child_prefix, i == len(next_nodes) - 1, False)
             )
 
     rendered_roots: list[str] = []

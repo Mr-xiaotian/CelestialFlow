@@ -20,7 +20,7 @@ class TestUtilRender:
         """空结构应返回占位提示。"""
         rendered_list = render_structure_list([], {}, [])
 
-        assert rendered_list == ["+ No stages defined +"]
+        assert rendered_list == ["+ No nodes defined +"]
 
     def test_render_structure_list_cycle(self):
         """环图应只展开一次，重复节点标记为 [Ref]。"""

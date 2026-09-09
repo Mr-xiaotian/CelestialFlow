@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import os
 from typing import Any
 
@@ -43,9 +43,9 @@ def demo_etl_fan_out_fan_in() -> None:
                   └── Enrich ─────┘
 
     Demonstrates:
-    - Fan-out: one stage feeds two parallel downstream stages
-    - Fan-in: two stages merge into one downstream stage
-    - Mixed execution modes across stages
+    - Fan-out: one node feeds two parallel downstream nodes
+    - Fan-in: two nodes merge into one downstream node
+    - Mixed execution modes across nodes
     - Querying graph summary after execution
     """
     extract = TaskExecutor(
@@ -76,7 +76,7 @@ def demo_etl_fan_out_fan_in() -> None:
     # graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
     graph.set_nodes(
-        stages=[extract, normalize, enrich, load],
+        nodes=[extract, normalize, enrich, load],
     )
     graph.connect([extract], [normalize, enrich])
     graph.connect([normalize, enrich], [load])
@@ -87,21 +87,21 @@ def demo_etl_fan_out_fan_in() -> None:
 
 async def demo_async_pipeline() -> None:
     """
-    Two-stage async pipeline:
+    Two-node async pipeline:
 
         AsyncDouble ──> AsyncToStr
 
     Demonstrates:
     - execution_mode="async" for coroutine-based task functions
-    - Retrieving per-stage status after completion
+    - Retrieving per-node status after completion
     """
-    stage_double = TaskExecutor(
+    double_node = TaskExecutor(
         "AsyncDouble",
         async_double,
         execution_mode="async",
         max_workers=8,
     )
-    stage_to_str = TaskExecutor(
+    to_str_node = TaskExecutor(
         "AsyncToStr",
         async_to_str,
         execution_mode="async",
@@ -112,9 +112,9 @@ async def demo_async_pipeline() -> None:
     # graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
     graph.set_nodes(
-        stages=[stage_double, stage_to_str],
+        nodes=[double_node, to_str_node],
     )
-    graph.connect([stage_double], [stage_to_str])
+    graph.connect([double_node], [to_str_node])
 
     tasks: list[Any] = list(range(1, 21))
     await graph.run_async({"AsyncDouble": tasks})

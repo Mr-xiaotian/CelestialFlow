@@ -130,58 +130,58 @@ async def async_multiply_two(x: int) -> int:
 
 
 async def bench_graph_0() -> None:
-    stage1 = TaskExecutor(
-        "StageA",
+    node1 = TaskExecutor(
+        "NodeA",
         fibonacci,
         max_workers=4,
         max_retries=1,
     )
-    stage2 = TaskExecutor(
-        "StageB1",
+    node2 = TaskExecutor(
+        "NodeB1",
         square,
         max_workers=4,
         max_retries=1,
     )
-    stage3 = TaskExecutor(
-        "StageB2",
+    node3 = TaskExecutor(
+        "NodeB2",
         sleep_1,
         max_workers=4,
     )
-    stage4 = TaskExecutor(
-        "StageC",
+    node4 = TaskExecutor(
+        "NodeC",
         divide_by_two,
         max_workers=4,
     )
 
     graph = TaskGraph("bench_graph_0")
     graph.set_nodes(
-        stages=[stage1, stage2, stage3, stage4],
+        nodes=[node1, node2, node3, node4],
     )
-    graph.connect([stage1], [stage2, stage3])
-    graph.connect([stage2], [stage4])
+    graph.connect([node1], [node2, node3])
+    graph.connect([node2], [node4])
 
-    stage1.set_retry_exceptions(ValueError)
-    stage2.set_retry_exceptions(ValueError)
+    node1.set_retry_exceptions(ValueError)
+    node2.set_retry_exceptions(ValueError)
 
     # async graph
-    async_stage1 = TaskExecutor("StageA", async_fibonacci, max_workers=4, max_retries=1)
-    async_stage2 = TaskExecutor("StageB1", async_square, max_workers=4, max_retries=1)
-    async_stage3 = TaskExecutor("StageB2", async_sleep_1, max_workers=4)
-    async_stage4 = TaskExecutor("StageC", async_divide_by_two, max_workers=4)
+    async_node1 = TaskExecutor("NodeA", async_fibonacci, max_workers=4, max_retries=1)
+    async_node2 = TaskExecutor("NodeB1", async_square, max_workers=4, max_retries=1)
+    async_node3 = TaskExecutor("NodeB2", async_sleep_1, max_workers=4)
+    async_node4 = TaskExecutor("NodeC", async_divide_by_two, max_workers=4)
 
     async_graph = TaskGraph("bench_graph_0_async")
     async_graph.set_nodes(
-        stages=[async_stage1, async_stage2, async_stage3, async_stage4],
+        nodes=[async_node1, async_node2, async_node3, async_node4],
     )
-    async_graph.connect([async_stage1], [async_stage2, async_stage3])
-    async_graph.connect([async_stage2], [async_stage4])
+    async_graph.connect([async_node1], [async_node2, async_node3])
+    async_graph.connect([async_node2], [async_node4])
 
-    async_stage1.set_retry_exceptions(ValueError)
-    async_stage2.set_retry_exceptions(ValueError)
+    async_node1.set_retry_exceptions(ValueError)
+    async_node2.set_retry_exceptions(ValueError)
 
     input_tasks = {
-        stage1.get_name(): range(25, 32),
-        async_stage1.get_name(): range(25, 32),
+        node1.get_name(): range(25, 32),
+        async_node1.get_name(): range(25, 32),
     }
 
     print("bench_graph_0")
@@ -189,16 +189,16 @@ async def bench_graph_0() -> None:
 
 
 async def bench_graph_1() -> None:
-    A = TaskExecutor("StageA", sleep_random_A, max_workers=5)
-    B = TaskExecutor("StageB", sleep_random_B, max_workers=5)
-    C = TaskExecutor("StageC", sleep_random_C, max_workers=5)
-    D = TaskExecutor("StageD", sleep_random_D, max_workers=5)
-    E = TaskExecutor("StageE", sleep_random_E, max_workers=5)
-    F = TaskExecutor("StageF", sleep_random_F, max_workers=5)
+    A = TaskExecutor("NodeA", sleep_random_A, max_workers=5)
+    B = TaskExecutor("NodeB", sleep_random_B, max_workers=5)
+    C = TaskExecutor("NodeC", sleep_random_C, max_workers=5)
+    D = TaskExecutor("NodeD", sleep_random_D, max_workers=5)
+    E = TaskExecutor("NodeE", sleep_random_E, max_workers=5)
+    F = TaskExecutor("NodeF", sleep_random_F, max_workers=5)
 
     graph = TaskGraph("bench_graph_1")
     graph.set_nodes(
-        stages=[A, B, C, D, E, F],
+        nodes=[A, B, C, D, E, F],
     )
     graph.connect([A], [B, C])
     graph.connect([B], [D, E])
@@ -206,16 +206,16 @@ async def bench_graph_1() -> None:
     graph.connect([D], [F])
 
     # async graph
-    aA = TaskExecutor("StageA", async_sleep_random_A, max_workers=5)
-    aB = TaskExecutor("StageB", async_sleep_random_B, max_workers=5)
-    aC = TaskExecutor("StageC", async_sleep_random_C, max_workers=5)
-    aD = TaskExecutor("StageD", async_sleep_random_D, max_workers=5)
-    aE = TaskExecutor("StageE", async_sleep_random_E, max_workers=5)
-    aF = TaskExecutor("StageF", async_sleep_random_F, max_workers=5)
+    aA = TaskExecutor("NodeA", async_sleep_random_A, max_workers=5)
+    aB = TaskExecutor("NodeB", async_sleep_random_B, max_workers=5)
+    aC = TaskExecutor("NodeC", async_sleep_random_C, max_workers=5)
+    aD = TaskExecutor("NodeD", async_sleep_random_D, max_workers=5)
+    aE = TaskExecutor("NodeE", async_sleep_random_E, max_workers=5)
+    aF = TaskExecutor("NodeF", async_sleep_random_F, max_workers=5)
 
     async_graph = TaskGraph("bench_graph_1_async")
     async_graph.set_nodes(
-        stages=[aA, aB, aC, aD, aE, aF],
+        nodes=[aA, aB, aC, aD, aE, aF],
     )
     async_graph.connect([aA], [aB, aC])
     async_graph.connect([aB], [aD, aE])
@@ -233,9 +233,9 @@ async def bench_graph_1() -> None:
 
 async def bench_graph_2() -> None:
     S = TaskSplitter("Splitter")
-    A = TaskExecutor("StageA", add_one, max_workers=20)
-    B = TaskExecutor("StageB", multiply_two, max_workers=20)
-    C = TaskExecutor("StageC", multiply_two, max_workers=20)
+    A = TaskExecutor("NodeA", add_one, max_workers=20)
+    B = TaskExecutor("NodeB", multiply_two, max_workers=20)
+    C = TaskExecutor("NodeC", multiply_two, max_workers=20)
 
     graph = TaskGraph("bench_graph_2")
     graph.set_nodes(nodes=[S, A, B, C])
@@ -243,9 +243,9 @@ async def bench_graph_2() -> None:
     graph.connect([A], [B, C])
 
     aS = TaskSplitter("Splitter")
-    aA = TaskExecutor("StageA", async_add_one, max_workers=20)
-    aB = TaskExecutor("StageB", async_multiply_two, max_workers=20)
-    aC = TaskExecutor("StageC", async_multiply_two, max_workers=20)
+    aA = TaskExecutor("NodeA", async_add_one, max_workers=20)
+    aB = TaskExecutor("NodeB", async_multiply_two, max_workers=20)
+    aC = TaskExecutor("NodeC", async_multiply_two, max_workers=20)
 
     async_graph = TaskGraph("bench_graph_2_async")
     async_graph.set_nodes(nodes=[aS, aA, aB, aC])

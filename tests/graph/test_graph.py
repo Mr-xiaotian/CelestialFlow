@@ -76,46 +76,46 @@ def add_offset_10(x: int) -> int:
 # TaskGraph 基础测试
 # =========================
 class TestTaskGraphBasic:
-    def test_set_ctree_updates_existing_stages(self):
-        """先 set_nodes 再 set_ctree 时，已有 stage 也应共享同一事件客户端。"""
-        stage1 = TaskExecutor("s1", add_one, execution_mode="serial")
-        stage2 = TaskExecutor("s2", double, execution_mode="serial")
-        graph = TaskGraph("test_set_ctree_updates_existing_stages")
-        graph.set_nodes(nodes=[stage1, stage2])
+    def test_set_ctree_updates_existing_nodes(self):
+        """先 set_nodes 再 set_ctree 时，已有节点也应共享同一事件客户端。"""
+        node1 = TaskExecutor("s1", add_one, execution_mode="serial")
+        node2 = TaskExecutor("s2", double, execution_mode="serial")
+        graph = TaskGraph("test_set_ctree_updates_existing_nodes")
+        graph.set_nodes(nodes=[node1, node2])
 
         ctree_client = LocalEventClient()
         graph.set_ctree(ctree_client)
 
         assert graph.ctree_client is ctree_client
-        assert stage1.ctree_client is ctree_client
-        assert stage2.ctree_client is ctree_client
+        assert node1.ctree_client is ctree_client
+        assert node2.ctree_client is ctree_client
 
-    def test_graph_stage_lookup_unknown_stage_raises(self):
-        """显式按 stage 注入任务时，不存在的 stage 名称应抛出 NodeNotFoundError。"""
-        graph = TaskGraph("test_put_stage_queue_unknown_stage")
-        stage = TaskExecutor("s1", add_one, execution_mode="serial")
-        graph.set_nodes(nodes=[stage])
+    def test_graph_node_lookup_unknown_node_raises(self):
+        """显式按节点注入任务时，不存在的节点名称应抛出 NodeNotFoundError。"""
+        graph = TaskGraph("test_put_node_queue_unknown_node")
+        node = TaskExecutor("s1", add_one, execution_mode="serial")
+        graph.set_nodes(nodes=[node])
 
         with pytest.raises(NodeNotFoundError):
-            pending_stage = graph.node_dict.get("unknown_stage")
-            if pending_stage is None:
-                raise NodeNotFoundError("stage not found: unknown_stage")
-            pending_stage.put_task(1)
+            pending_node = graph.node_dict.get("unknown_node")
+            if pending_node is None:
+                raise NodeNotFoundError("node not found: unknown_node")
+            pending_node.put_task(1)
 
     def test_graph_dag_two_nodes(self):
         """简单 DAG：两个节点串行，结果正确传递"""
-        stage1 = TaskExecutor("s1", add_one, execution_mode="serial")
-        stage2 = TaskExecutor("s2", double, execution_mode="serial")
+        node1 = TaskExecutor("s1", add_one, execution_mode="serial")
+        node2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_graph_dag_two_nodes")
-        graph.set_nodes(nodes=[stage1, stage2])
-        graph.connect([stage1], [stage2])
+        graph.set_nodes(nodes=[node1, node2])
+        graph.connect([node1], [node2])
 
         graph.run({"s1": [1, 2, 3]})
 
-        # stage1 结果: 2, 3, 4 -> stage2 结果: 4, 6, 8
-        assert stage1.get_counts()["tasks_succeeded"] == 3
-        assert stage2.get_counts()["tasks_succeeded"] == 3
+        # node1 结果: 2, 3, 4 -> node2 结果: 4, 6, 8
+        assert node1.get_counts()["tasks_succeeded"] == 3
+        assert node2.get_counts()["tasks_succeeded"] == 3
 
     def test_graph_fan_out(self):
         """扇出：一个节点到多个下游"""
@@ -149,25 +149,25 @@ class TestTaskGraphBasic:
 
     def test_graph_error_propagation(self):
         """错误任务不会阻断整体流程"""
-        stage1 = TaskExecutor("s1", add_offset_10, execution_mode="serial")
-        stage2 = TaskExecutor("s2", double, execution_mode="serial")
+        node1 = TaskExecutor("s1", add_offset_10, execution_mode="serial")
+        node2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_graph_error_propagation")
-        graph.set_nodes(nodes=[stage1, stage2])
-        graph.connect([stage1], [stage2])
+        graph.set_nodes(nodes=[node1, node2])
+        graph.connect([node1], [node2])
 
         graph.run({"s1": [1, 50, 2]})
 
-        # stage1: 1->11, 50->error, 2->12
-        assert stage1.get_counts()["tasks_succeeded"] == 2
-        assert stage1.get_counts()["tasks_failed"] == 1
+        # node1: 1->11, 50->error, 2->12
+        assert node1.get_counts()["tasks_succeeded"] == 2
+        assert node1.get_counts()["tasks_failed"] == 1
 
-        # stage2 只收到 2 个成功结果
-        assert stage2.get_counts()["tasks_succeeded"] == 2
-        assert stage2.get_counts()["tasks_failed"] == 0
+        # node2 只收到 2 个成功结果
+        assert node2.get_counts()["tasks_succeeded"] == 2
+        assert node2.get_counts()["tasks_failed"] == 0
 
     def test_graph_restore_db(self, tmp_path):
-        """任务图默认应按 stage 分组读取 failed 与 pending 任务并启动。"""
+        """任务图默认应按节点名分组读取 failed 与 pending 任务并启动。"""
         sqlite_path = tmp_path / "lifecycle.sqlite3"
         appended = append_records(
             sqlite_path,
@@ -212,18 +212,18 @@ class TestTaskGraphBasic:
         )
         assert appended == 4
 
-        stage1 = TaskExecutor("s1", add_one, execution_mode="serial")
-        stage2 = TaskExecutor("s2", double, execution_mode="serial")
+        node1 = TaskExecutor("s1", add_one, execution_mode="serial")
+        node2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_graph_restore_db")
-        graph.set_nodes(nodes=[stage1, stage2])
+        graph.set_nodes(nodes=[node1, node2])
         graph.restore_db(sqlite_path)
 
-        assert stage1.get_counts()["tasks_succeeded"] == 2
-        assert stage2.get_counts()["tasks_succeeded"] == 2
+        assert node1.get_counts()["tasks_succeeded"] == 2
+        assert node2.get_counts()["tasks_succeeded"] == 2
 
     def test_graph_restore_db_filters_error_type_when_enabled(self, tmp_path):
-        """图级 restore_db 开启过滤时，应按各 stage 的 retry_exceptions 回放。"""
+        """图级 restore_db 开启过滤时，应按各节点的 retry_exceptions 回放。"""
         sqlite_path = tmp_path / "lifecycle.sqlite3"
         appended = append_records(
             sqlite_path,
@@ -268,17 +268,17 @@ class TestTaskGraphBasic:
         )
         assert appended == 4
 
-        stage1 = TaskExecutor("s1", add_one, execution_mode="serial")
-        stage2 = TaskExecutor("s2", double, execution_mode="serial")
-        stage1.set_retry_exceptions(RuntimeError)
-        stage2.set_retry_exceptions(ValueError)
+        node1 = TaskExecutor("s1", add_one, execution_mode="serial")
+        node2 = TaskExecutor("s2", double, execution_mode="serial")
+        node1.set_retry_exceptions(RuntimeError)
+        node2.set_retry_exceptions(ValueError)
 
         graph = TaskGraph("test_graph_restore_db_filters_error_type")
-        graph.set_nodes(nodes=[stage1, stage2])
+        graph.set_nodes(nodes=[node1, node2])
         graph.restore_db(sqlite_path, statuses=["failed"], filter_by_error_type=True)
 
-        assert stage1.get_counts()["tasks_succeeded"] == 1
-        assert stage2.get_counts()["tasks_succeeded"] == 1
+        assert node1.get_counts()["tasks_succeeded"] == 1
+        assert node2.get_counts()["tasks_succeeded"] == 1
 
     def test_graph_restore_db_filter_keeps_pending_records(self, tmp_path):
         """图级 restore_db 过滤开启时，pending 记录仍应继续回放。"""
@@ -326,17 +326,17 @@ class TestTaskGraphBasic:
         )
         assert appended == 4
 
-        stage1 = TaskExecutor("s1", add_one, execution_mode="serial")
-        stage2 = TaskExecutor("s2", double, execution_mode="serial")
-        stage1.set_retry_exceptions(RuntimeError)
-        stage2.set_retry_exceptions(ValueError)
+        node1 = TaskExecutor("s1", add_one, execution_mode="serial")
+        node2 = TaskExecutor("s2", double, execution_mode="serial")
+        node1.set_retry_exceptions(RuntimeError)
+        node2.set_retry_exceptions(ValueError)
 
         graph = TaskGraph("test_graph_restore_db_filter_keeps_pending_records")
-        graph.set_nodes(nodes=[stage1, stage2])
+        graph.set_nodes(nodes=[node1, node2])
         graph.restore_db(sqlite_path, filter_by_error_type=True)
 
-        assert stage1.get_counts()["tasks_succeeded"] == 1
-        assert stage2.get_counts()["tasks_succeeded"] == 1
+        assert node1.get_counts()["tasks_succeeded"] == 1
+        assert node2.get_counts()["tasks_succeeded"] == 1
 
     def test_start_raises_exception_group_after_finish(self, monkeypatch):
         """同步 start 应在 finish 后统一抛出收集到的异常。"""
@@ -392,17 +392,17 @@ class TestTaskGraphAsync:
     @pytest.mark.asyncio
     async def test_graph_async_two_nodes(self):
         """async 模式：两个节点串行，结果正确传递"""
-        stage1 = TaskExecutor("s1", async_add_one, execution_mode="async")
-        stage2 = TaskExecutor("s2", async_double, execution_mode="async")
+        node1 = TaskExecutor("s1", async_add_one, execution_mode="async")
+        node2 = TaskExecutor("s2", async_double, execution_mode="async")
 
         graph = TaskGraph("test_graph_async_two_nodes", graph_mode="async")
-        graph.set_nodes(nodes=[stage1, stage2])
-        graph.connect([stage1], [stage2])
+        graph.set_nodes(nodes=[node1, node2])
+        graph.connect([node1], [node2])
 
         await graph.run_async({"s1": [1, 2, 3]})
 
-        assert stage1.get_counts()["tasks_succeeded"] == 3
-        assert stage2.get_counts()["tasks_succeeded"] == 3
+        assert node1.get_counts()["tasks_succeeded"] == 3
+        assert node2.get_counts()["tasks_succeeded"] == 3
 
     @pytest.mark.asyncio
     async def test_graph_async_fan_out(self):
@@ -439,33 +439,33 @@ class TestTaskGraphAsync:
     @pytest.mark.asyncio
     async def test_graph_async_error_propagation(self):
         """async 模式：错误任务不会阻断整体流程"""
-        stage1 = TaskExecutor("s1", async_add_offset_10, execution_mode="async")
-        stage2 = TaskExecutor("s2", async_double, execution_mode="async")
+        node1 = TaskExecutor("s1", async_add_offset_10, execution_mode="async")
+        node2 = TaskExecutor("s2", async_double, execution_mode="async")
 
         graph = TaskGraph("test_graph_async_error_propagation", graph_mode="async")
-        graph.set_nodes(nodes=[stage1, stage2])
-        graph.connect([stage1], [stage2])
+        graph.set_nodes(nodes=[node1, node2])
+        graph.connect([node1], [node2])
 
         await graph.run_async({"s1": [1, 50, 2]})
 
-        assert stage1.get_counts()["tasks_succeeded"] == 2
-        assert stage1.get_counts()["tasks_failed"] == 1
-        assert stage2.get_counts()["tasks_succeeded"] == 2
+        assert node1.get_counts()["tasks_succeeded"] == 2
+        assert node1.get_counts()["tasks_failed"] == 1
+        assert node2.get_counts()["tasks_succeeded"] == 2
 
     @pytest.mark.asyncio
     async def test_graph_async_execution_mode(self):
         """async execution_mode：两个节点串行"""
-        stage1 = TaskExecutor("s1", async_add_one, execution_mode="async")
-        stage2 = TaskExecutor("s2", async_double, execution_mode="async")
+        node1 = TaskExecutor("s1", async_add_one, execution_mode="async")
+        node2 = TaskExecutor("s2", async_double, execution_mode="async")
 
         graph = TaskGraph("test_graph_async_execution_mode", graph_mode="async")
-        graph.set_nodes(nodes=[stage1, stage2])
-        graph.connect([stage1], [stage2])
+        graph.set_nodes(nodes=[node1, node2])
+        graph.connect([node1], [node2])
 
         await graph.run_async({"s1": [1, 2, 3]})
 
-        assert stage1.get_counts()["tasks_succeeded"] == 3
-        assert stage2.get_counts()["tasks_succeeded"] == 3
+        assert node1.get_counts()["tasks_succeeded"] == 3
+        assert node2.get_counts()["tasks_succeeded"] == 3
 
 
 class TestTaskGraphStructure:
@@ -520,14 +520,14 @@ class TestTaskGraphAnalysis:
         graph.connect([s1], [s2])
 
         analysis = graph.get_graph_analysis()
-        stages = graph.get_nodes()
+        node_names = graph.get_nodes()
         edges = graph.get_edges()
         structure_list = graph.get_structure_list()
         source_names = set(graph.get_source_nodes())
 
         assert analysis["isDAG"] is True
         assert s1.get_name() in analysis["layersDict"][0]
-        assert set(stages) == {s1.get_name(), s2.get_name()}
+        assert set(node_names) == {s1.get_name(), s2.get_name()}
         assert edges == {s1.get_name(): [s2.get_name()], s2.get_name(): []}
         assert structure_list
         assert source_names == {s1.get_name()}
@@ -589,16 +589,16 @@ class TestTaskGraphAnalysis:
 
 
 class TestTaskGraphRuntimeSnapshot:
-    def test_collect_runtime_snapshot_tolerates_not_started_stage(self):
+    def test_collect_runtime_snapshot_tolerates_not_started_node(self):
         """Reporter 在节点尚未启动时采集快照也不应因缺少 start_time 崩溃。"""
-        graph = TaskGraph("test_collect_runtime_snapshot_tolerates_not_started_stage")
-        stage = TaskExecutor("idle-stage", add_one)
-        graph.node_dict = {stage.get_name(): stage}
+        graph = TaskGraph("test_collect_runtime_snapshot_tolerates_not_started_node")
+        node = TaskExecutor("idle-node", add_one)
+        graph.node_dict = {node.get_name(): node}
         graph.is_dag = False
 
         status_dict, _ = graph.collect_runtime_snapshot()
 
-        snapshot = status_dict[stage.get_name()]
+        snapshot = status_dict[node.get_name()]
         assert snapshot["status"].value == 0
         assert snapshot["start_time"] == 0.0
         assert snapshot["elapsed_time"] == 0
@@ -607,7 +607,7 @@ class TestTaskGraphRuntimeSnapshot:
 # =========================
 # graph_mode × execution_mode 矩阵测试
 # =========================
-class TestStageExecutionMatrix:
+class TestNodeExecutionMatrix:
     """覆盖 graph_mode(serial/thread/async) × execution_mode(serial/thread/async) 组合"""
 
     # ---- serial graph_mode ----
@@ -717,17 +717,17 @@ class TestStageExecutionMatrix:
 class TestTaskGraphThread:
     def test_graph_thread_two_nodes(self):
         """thread 模式：两个节点串行，结果正确传递"""
-        stage1 = TaskExecutor("s1", add_one, execution_mode="serial")
-        stage2 = TaskExecutor("s2", double, execution_mode="serial")
+        node1 = TaskExecutor("s1", add_one, execution_mode="serial")
+        node2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_graph_thread_two_nodes", graph_mode="thread")
-        graph.set_nodes(nodes=[stage1, stage2])
-        graph.connect([stage1], [stage2])
+        graph.set_nodes(nodes=[node1, node2])
+        graph.connect([node1], [node2])
 
         graph.run({"s1": [1, 2, 3]})
 
-        assert stage1.get_counts()["tasks_succeeded"] == 3
-        assert stage2.get_counts()["tasks_succeeded"] == 3
+        assert node1.get_counts()["tasks_succeeded"] == 3
+        assert node2.get_counts()["tasks_succeeded"] == 3
 
     def test_graph_thread_fan_out(self):
         """thread 模式：扇出"""
@@ -761,32 +761,32 @@ class TestTaskGraphThread:
 
     def test_graph_thread_error_propagation(self):
         """thread 模式：错误任务不会阻断整体流程"""
-        stage1 = TaskExecutor("s1", add_offset_10, execution_mode="serial")
-        stage2 = TaskExecutor("s2", double, execution_mode="serial")
+        node1 = TaskExecutor("s1", add_offset_10, execution_mode="serial")
+        node2 = TaskExecutor("s2", double, execution_mode="serial")
 
         graph = TaskGraph("test_graph_thread_error_propagation", graph_mode="thread")
-        graph.set_nodes(nodes=[stage1, stage2])
-        graph.connect([stage1], [stage2])
+        graph.set_nodes(nodes=[node1, node2])
+        graph.connect([node1], [node2])
 
         graph.run({"s1": [1, 50, 2]})
 
-        assert stage1.get_counts()["tasks_succeeded"] == 2
-        assert stage1.get_counts()["tasks_failed"] == 1
-        assert stage2.get_counts()["tasks_succeeded"] == 2
+        assert node1.get_counts()["tasks_succeeded"] == 2
+        assert node1.get_counts()["tasks_failed"] == 1
+        assert node2.get_counts()["tasks_succeeded"] == 2
 
     def test_graph_thread_with_lambda(self):
         """thread 模式：支持 lambda 函数"""
-        stage1 = TaskExecutor("s1", lambda x: x + 1, execution_mode="serial")
-        stage2 = TaskExecutor("s2", lambda x: x * 2, execution_mode="serial")
+        node1 = TaskExecutor("s1", lambda x: x + 1, execution_mode="serial")
+        node2 = TaskExecutor("s2", lambda x: x * 2, execution_mode="serial")
 
         graph = TaskGraph("test_graph_thread_with_lambda", graph_mode="thread")
-        graph.set_nodes(nodes=[stage1, stage2])
-        graph.connect([stage1], [stage2])
+        graph.set_nodes(nodes=[node1, node2])
+        graph.connect([node1], [node2])
 
         graph.run({"s1": [1, 2, 3]})
 
-        assert stage1.get_counts()["tasks_succeeded"] == 3
-        assert stage2.get_counts()["tasks_succeeded"] == 3
+        assert node1.get_counts()["tasks_succeeded"] == 3
+        assert node2.get_counts()["tasks_succeeded"] == 3
 
     def test_graph_thread_schedule(self):
         """thread 模式下线性链正常工作"""
@@ -807,16 +807,16 @@ class TestTaskGraphThread:
 
 
 # =========================
-# source_stages 自动推导测试
+# source_nodes 自动推导测试
 # =========================
-class TestSourceStages:
-    def test_source_stages_linear(self):
+class TestSourceNodes:
+    def test_source_nodes_linear(self):
         """线性图：source 只有头节点"""
         s1 = TaskExecutor("s1", add_one)
         s2 = TaskExecutor("s2", double)
         s3 = TaskExecutor("s3", to_str)
 
-        graph = TaskGraph("test_source_stages_linear")
+        graph = TaskGraph("test_source_nodes_linear")
         graph.set_nodes(nodes=[s1, s2, s3])
         graph.connect([s1], [s2])
         graph.connect([s2], [s3])
@@ -827,13 +827,13 @@ class TestSourceStages:
         assert len(source_names) == 1
         assert source_names[0] == s1.get_name()
 
-    def test_source_stages_fan_in(self):
+    def test_source_nodes_fan_in(self):
         """两个入口汇入一点"""
         s1 = TaskExecutor("s1", add_one)
         s2 = TaskExecutor("s2", double)
         s3 = TaskExecutor("s3", to_str)
 
-        graph = TaskGraph("test_source_stages_fan_in")
+        graph = TaskGraph("test_source_nodes_fan_in")
         graph.set_nodes(nodes=[s1, s2, s3])
         graph.connect([s1], [s3])
         graph.connect([s2], [s3])
@@ -843,14 +843,14 @@ class TestSourceStages:
         source_names = set(graph.get_source_nodes())
         assert source_names == {s1.get_name(), s2.get_name()}
 
-    def test_source_stages_diamond(self):
+    def test_source_nodes_diamond(self):
         """菱形图 A→{B,C}→D：source 只有 A"""
         s1 = TaskExecutor("s1", add_one)
         s2 = TaskExecutor("s2", double)
         s3 = TaskExecutor("s3", to_str)
         s4 = TaskExecutor("s4", add_one)
 
-        graph = TaskGraph("test_source_stages_diamond")
+        graph = TaskGraph("test_source_nodes_diamond")
         graph.set_nodes(nodes=[s1, s2, s3, s4])
         graph.connect([s1], [s2, s3])
         graph.connect([s2, s3], [s4])
@@ -861,14 +861,14 @@ class TestSourceStages:
         assert len(source_names) == 1
         assert source_names[0] == s1.get_name()
 
-    def test_source_stages_cycle_returns_one_source_scc_member(self):
+    def test_source_nodes_cycle_returns_one_source_scc_member(self):
         """单个源 SCC 只返回一个代表点"""
         s1 = TaskExecutor("s1", add_one)
         s2 = TaskExecutor("s2", double)
         s3 = TaskExecutor("s3", to_str)
 
         graph = TaskGraph(
-            "test_source_stages_cycle_returns_one_source_scc_member",
+            "test_source_nodes_cycle_returns_one_source_scc_member",
             graph_mode="thread",
         )
         graph.set_nodes(nodes=[s1, s2, s3])
@@ -882,7 +882,7 @@ class TestSourceStages:
         assert len(source_names) == 1
         assert source_names <= cycle_names
 
-    def test_source_stages_returns_one_member_per_source_scc(self):
+    def test_source_nodes_returns_one_member_per_source_scc(self):
         """多个源 SCC 时，每个源 SCC 各返回一个代表点"""
         s1 = TaskExecutor("s1", add_one)
         s2 = TaskExecutor("s2", double)
@@ -891,7 +891,7 @@ class TestSourceStages:
         s5 = TaskExecutor("s5", double)
 
         graph = TaskGraph(
-            "test_source_stages_returns_one_member_per_source_scc",
+            "test_source_nodes_returns_one_member_per_source_scc",
             graph_mode="thread",
         )
         graph.set_nodes(nodes=[s1, s2, s3, s4, s5])
@@ -974,6 +974,6 @@ class TestCyclicGraph:
                 cycle_layer = layer_idx
                 break
         assert cycle_layer is not None
-        for stage_name in cycle_names:
-            assert stage_name in layers[cycle_layer]
+        for node_name in cycle_names:
+            assert node_name in layers[cycle_layer]
         assert s4.get_name() in layers[cycle_layer + 1]

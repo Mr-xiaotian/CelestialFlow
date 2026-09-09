@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 
 from celestialflow import (
     TaskChain,
@@ -44,18 +44,18 @@ class TestTaskLoop:
         assert analysis["isDAG"] is False
 
         layers = analysis["layersDict"]
-        stage_names = {s1.get_name(), s2.get_name(), s3.get_name()}
+        node_names = {s1.get_name(), s2.get_name(), s3.get_name()}
         for layer_names in layers.values():
             if s1.get_name() in layer_names:
-                assert stage_names.issubset(set(layer_names))
+                assert node_names.issubset(set(layer_names))
                 break
 
-    def test_loop_source_stages(self):
+    def test_loop_source_nodes(self):
         """测试 TaskLoop 的源节点推导：对于纯环结构，应返回环内的一个代表节点作为注入点"""
         s1 = TaskExecutor("s1", add_one)
         s2 = TaskExecutor("s2", double)
 
-        loop = TaskLoop("test_loop_source_stages", [s1, s2])
+        loop = TaskLoop("test_loop_source_nodes", [s1, s2])
         loop.run({"s1": [1]})
 
         source_names = loop.get_source_nodes()
@@ -86,13 +86,13 @@ class TestTaskWheel:
         ring_names = {r1.get_name(), r2.get_name(), r3.get_name()}
         assert ring_names.issubset(set(layers[1]))
 
-    def test_wheel_source_stages(self):
+    def test_wheel_source_nodes(self):
         """测试 TaskWheel 的源节点推导：应仅返回 Center 节点作为唯一入口"""
         center = TaskExecutor("center", add_one)
         r1 = TaskExecutor("r1", double)
         r2 = TaskExecutor("r2", to_str)
 
-        wheel = TaskWheel("test_wheel_source_stages", center, [r1, r2])
+        wheel = TaskWheel("test_wheel_source_nodes", center, [r1, r2])
         wheel.set_graph_mode("thread")
         wheel.set_node_execution_mode("serial")
 
@@ -107,8 +107,8 @@ class TestTaskWheel:
 class TestStructureValidation:
     """空输入/非法输入校验：应抛出 ValueError 而非崩溃或静默构造空图。"""
 
-    def test_chain_empty_stages_raises(self):
-        """TaskChain 空 stages 应抛出 InvalidStructureError。"""
+    def test_chain_empty_nodes_raises(self):
+        """TaskChain 空节点列表应抛出 InvalidStructureError。"""
         with pytest.raises(InvalidStructureError):
             TaskChain("c", [])
 
@@ -140,8 +140,8 @@ class TestStructureValidation:
         with pytest.raises(InvalidStructureError):
             TaskGrid("g", [[s1, s2], [s2]])
 
-    def test_loop_empty_stages_raises(self):
-        """TaskLoop 空 stages 应抛出 InvalidStructureError。"""
+    def test_loop_empty_nodes_raises(self):
+        """TaskLoop 空节点列表应抛出 InvalidStructureError。"""
         with pytest.raises(InvalidStructureError):
             TaskLoop("l", [])
 
@@ -157,7 +157,7 @@ class TestStructureValidation:
         with pytest.raises(InvalidStructureError):
             TaskComplete("c", [s1])
 
-    def test_complete_empty_stages_raises(self):
-        """TaskComplete 空 stages 应抛出 InvalidStructureError。"""
+    def test_complete_empty_nodes_raises(self):
+        """TaskComplete 空节点列表应抛出 InvalidStructureError。"""
         with pytest.raises(InvalidStructureError):
             TaskComplete("c", [])
