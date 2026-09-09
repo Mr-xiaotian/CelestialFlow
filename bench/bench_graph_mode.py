@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import os
 import random
 from time import sleep
@@ -154,7 +154,7 @@ async def bench_graph_0() -> None:
     )
 
     graph = TaskGraph("bench_graph_0")
-    graph.set_stages(
+    graph.set_nodes(
         stages=[stage1, stage2, stage3, stage4],
     )
     graph.connect([stage1], [stage2, stage3])
@@ -170,7 +170,7 @@ async def bench_graph_0() -> None:
     async_stage4 = TaskExecutor("StageC", async_divide_by_two, max_workers=4)
 
     async_graph = TaskGraph("bench_graph_0_async")
-    async_graph.set_stages(
+    async_graph.set_nodes(
         stages=[async_stage1, async_stage2, async_stage3, async_stage4],
     )
     async_graph.connect([async_stage1], [async_stage2, async_stage3])
@@ -197,7 +197,7 @@ async def bench_graph_1() -> None:
     F = TaskExecutor("StageF", sleep_random_F, max_workers=5)
 
     graph = TaskGraph("bench_graph_1")
-    graph.set_stages(
+    graph.set_nodes(
         stages=[A, B, C, D, E, F],
     )
     graph.connect([A], [B, C])
@@ -214,7 +214,7 @@ async def bench_graph_1() -> None:
     aF = TaskExecutor("StageF", async_sleep_random_F, max_workers=5)
 
     async_graph = TaskGraph("bench_graph_1_async")
-    async_graph.set_stages(
+    async_graph.set_nodes(
         stages=[aA, aB, aC, aD, aE, aF],
     )
     async_graph.connect([aA], [aB, aC])
@@ -238,7 +238,7 @@ async def bench_graph_2() -> None:
     C = TaskExecutor("StageC", multiply_two, max_workers=20)
 
     graph = TaskGraph("bench_graph_2")
-    graph.set_stages(stages=[S, A, B, C])
+    graph.set_nodes(nodes=[S, A, B, C])
     graph.connect([S], [A])
     graph.connect([A], [B, C])
 
@@ -248,7 +248,7 @@ async def bench_graph_2() -> None:
     aC = TaskExecutor("StageC", async_multiply_two, max_workers=20)
 
     async_graph = TaskGraph("bench_graph_2_async")
-    async_graph.set_stages(stages=[aS, aA, aB, aC])
+    async_graph.set_nodes(nodes=[aS, aA, aB, aC])
     async_graph.connect([aS], [aA])
     async_graph.connect([aA], [aB, aC])
 

@@ -99,7 +99,7 @@ def build_chain_graph(
     )
 
     graph = TaskGraph(name, graph_mode=graph_mode)
-    graph.set_stages([stage1, stage2, stage3])
+    graph.set_nodes([stage1, stage2, stage3])
     graph.connect([stage1], [stage2])
     graph.connect([stage2], [stage3])
     return graph, stage3

@@ -125,7 +125,7 @@ def demo_forest() -> None:
 
     # 设置图结构
     graph = TaskGraph("demo_forest", graph_mode="thread")
-    graph.set_stages(
+    graph.set_nodes(
         stages=[
             stageA,
             stageB,
@@ -367,7 +367,7 @@ def demo_multi_cycle() -> None:
     )
 
     graph = TaskGraph("demo_multi_cycle", graph_mode="thread")
-    graph.set_stages(
+    graph.set_nodes(
         stages=[A1, A2, B1, B2, C1, C2],
     )
 

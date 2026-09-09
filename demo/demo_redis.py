@@ -174,7 +174,7 @@ def demo_redis_ack_0() -> None:
     )
 
     graph = TaskGraph("demo_redis_ack_0", graph_mode="thread")
-    graph.set_stages([start_stage, transport_stage, ack_stage, fibonacci_stage])
+    graph.set_nodes([start_stage, transport_stage, ack_stage, fibonacci_stage])
     graph.connect([start_stage], [transport_stage, fibonacci_stage])
     graph.connect([transport_stage], [ack_stage])
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
@@ -212,7 +212,7 @@ def demo_redis_ack_1() -> None:
     )
 
     graph = TaskGraph("demo_redis_ack_1", graph_mode="thread")
-    graph.set_stages([start_stage, transport_stage, ack_stage, sum_stage])
+    graph.set_nodes([start_stage, transport_stage, ack_stage, sum_stage])
     graph.connect([start_stage], [transport_stage, sum_stage])
     graph.connect([transport_stage], [ack_stage])
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
@@ -252,7 +252,7 @@ def demo_redis_ack_2() -> None:
     )
 
     graph = TaskGraph("demo_redis_ack_2", graph_mode="thread")
-    graph.set_stages([start_stage, transport_stage, ack_stage, download_stage])
+    graph.set_nodes([start_stage, transport_stage, ack_stage, download_stage])
     graph.connect([start_stage], [transport_stage, download_stage])
     graph.connect([transport_stage], [ack_stage])
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
@@ -297,7 +297,7 @@ def demo_redis_source_0() -> None:
     )
 
     graph = TaskGraph("demo_redis_source_0", graph_mode="thread")
-    graph.set_stages([sleep_stage_0, transport_stage, source_stage, sleep_stage_1])
+    graph.set_nodes([sleep_stage_0, transport_stage, source_stage, sleep_stage_1])
     graph.connect([sleep_stage_0], [transport_stage])
     graph.connect([source_stage], [sleep_stage_1])
     graph.set_reporter(TaskReporter(report_host, report_port, graph))

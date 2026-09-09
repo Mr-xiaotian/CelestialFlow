@@ -75,7 +75,7 @@ def demo_etl_fan_out_fan_in() -> None:
     graph = TaskGraph("demo_etl_fan_out_fan_in", graph_mode="thread")
     # graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
-    graph.set_stages(
+    graph.set_nodes(
         stages=[extract, normalize, enrich, load],
     )
     graph.connect([extract], [normalize, enrich])
@@ -111,7 +111,7 @@ async def demo_async_pipeline() -> None:
     graph = TaskGraph("demo_async_pipeline", graph_mode="async")
     # graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
-    graph.set_stages(
+    graph.set_nodes(
         stages=[stage_double, stage_to_str],
     )
     graph.connect([stage_double], [stage_to_str])

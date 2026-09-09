@@ -65,7 +65,7 @@ def demo_splitter_0() -> None:
 
     # 图组装：Generator 同时连到 Logger 和 Splitter，Parser 再回环到 Generator。
     graph = TaskGraph("demo_splitter_0")
-    graph.set_stages(
+    graph.set_nodes(
         stages=[generate_stage, logger_stage, splitter, download_stage, parse_stage],
     )
     graph.connect([generate_stage], [logger_stage, splitter])
@@ -73,7 +73,7 @@ def demo_splitter_0() -> None:
     graph.connect([parse_stage], [generate_stage])
 
     graph.set_graph_mode("thread")
-    graph.set_stage_execution_mode("thread")
+    graph.set_node_execution_mode("thread")
     graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
 
@@ -131,7 +131,7 @@ def demo_router_0() -> None:
 
     # 图组装：Origin -> Router -> {StageA, StageB}，演示基于奇偶的条件路由。
     graph = TaskGraph("demo_router_0", graph_mode="thread")
-    graph.set_stages(
+    graph.set_nodes(
         stages=[source_stage, router, stage_a, stage_b],
     )
     graph.connect([source_stage], [router])
