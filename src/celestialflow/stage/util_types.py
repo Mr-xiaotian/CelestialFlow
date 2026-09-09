@@ -1,6 +1,6 @@
 # stage/util_types.py
 from typing import Any
 
-from .core_stage import TaskStage
+from .core_executor import TaskExecutor
 
-type AnyTaskStage = TaskStage[Any, Any]
+type AnyTaskExecutor = TaskExecutor[Any, Any]

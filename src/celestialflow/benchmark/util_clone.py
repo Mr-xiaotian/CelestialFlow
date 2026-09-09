@@ -1,7 +1,6 @@
 # benchmark/util_clone.py
 from __future__ import annotations
 
-import inspect
 from collections import deque
 from typing import Any, cast
 from urllib.parse import urlparse
@@ -10,8 +9,8 @@ from ..graph import TaskGraph
 from ..observability import NullTaskReporter, ReporterProtocol, TaskReporter
 from ..runtime.util_errors import ConfigurationError
 from ..runtime.util_event import clone_event_client
-from ..stage import TaskExecutor, TaskStage
-from ..stage.util_types import AnyTaskStage
+from ..stage import TaskExecutor
+from ..stage.util_types import AnyTaskExecutor
 
 
 def _get_clone_init_kwargs[T, R](
@@ -48,29 +47,6 @@ def clone_executor[T, R](
     return cloned
 
 
-def clone_stage[T, R](
-    stage: TaskStage[T, R],
-) -> TaskStage[T, R]:
-    """
-    克隆节点
-
-    :param stage: 要克隆的节点
-    :return: 克隆节点
-    """
-    kwargs: dict[str, Any] = _get_clone_init_kwargs(stage)
-
-    stage_cls = type(stage)
-    init_params = set(inspect.signature(stage_cls.__init__).parameters.keys()) - {
-        "self"
-    }
-    filtered_kwargs = {k: v for k, v in kwargs.items() if k in init_params}
-
-    cloned: TaskStage[T, R] = stage_cls(**filtered_kwargs)
-
-    cloned.set_retry_exceptions(*stage.metrics.retry_exceptions)
-    return cloned
-
-
 def _clone_reporter(
     reporter: ReporterProtocol,
     task_graph: TaskGraph,
@@ -101,33 +77,36 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     """
     克隆任务图
 
+    图中的节点现在统一使用 ``TaskExecutor``，因此这里直接复用
+    :func:`clone_executor` 克隆所有节点。
+
     :param graph: 要克隆的任务图
     :return: 克隆任务图
     """
     # 通过广度优先遍历收集所有节点（沿用任务图有序图的出边顺序）
     visited: set[str] = set()
-    ordered_stages: list[AnyTaskStage] = []
-    queue: deque[AnyTaskStage] = deque(
+    ordered_stages: list[AnyTaskExecutor] = []
+    queue: deque[AnyTaskExecutor] = deque(
         graph.stage_dict[source_name] for source_name in graph.get_source_stages()
     )
     while queue:
-        stage: AnyTaskStage = queue.popleft()
+        stage: AnyTaskExecutor = queue.popleft()
         stage_name: str = stage.get_name()
         if stage_name in visited:
             continue
         visited.add(stage_name)
         ordered_stages.append(stage)
         for next_stage_name in graph.order_graph.out_edges.get(stage_name, []):
-            next_stage: AnyTaskStage = graph.stage_dict[next_stage_name]
+            next_stage: AnyTaskExecutor = graph.stage_dict[next_stage_name]
             queue.append(next_stage)
 
     # 建立原节点名到克隆节点的映射
-    name_map: dict[str, AnyTaskStage] = {}
+    name_map: dict[str, AnyTaskExecutor] = {}
     for stage in ordered_stages:
-        name_map[stage.get_name()] = clone_stage(stage)
+        name_map[stage.get_name()] = clone_executor(stage)
 
     # 构建新的任务图
-    all_cloned_stages: list[AnyTaskStage] = list(name_map.values())
+    all_cloned_stages: list[AnyTaskExecutor] = list(name_map.values())
 
     cloned_graph: TaskGraph = TaskGraph(name=graph.name, graph_mode=graph.graph_mode)
     cloned_graph.set_stages(all_cloned_stages)
@@ -136,8 +115,8 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     for from_name, to_names in graph.order_graph.out_edges.items():
         if not to_names:
             continue
-        cloned_from: AnyTaskStage = name_map[from_name]
-        cloned_to: list[AnyTaskStage] = [name_map[name] for name in to_names]
+        cloned_from: AnyTaskExecutor = name_map[from_name]
+        cloned_to: list[AnyTaskExecutor] = [name_map[name] for name in to_names]
         cloned_graph.connect([cloned_from], cloned_to)
 
     cloned_graph.set_ctree(clone_event_client(graph.ctree_client))

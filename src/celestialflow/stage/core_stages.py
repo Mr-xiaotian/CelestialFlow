@@ -8,11 +8,11 @@ from ..persistence import get_lifecycle_inlet, get_log_inlet
 from ..runtime import TaskEnvelope, TaskOutQueue
 from ..runtime.util_errors import InvalidOptionError
 from ..runtime.util_types import ValueWrapper
-from .core_stage import TaskStage
+from .core_executor import TaskExecutor
 
 
 # ==== 任务拆分器 ====
-class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
+class TaskSplitter[TItem, RItem](TaskExecutor[Iterable[TItem], Iterable[RItem]]):
     """TaskSplitter: 将单个任务拆分为多个子任务，注入下游队列。
 
     可通过 `split_item` 参数自定义对子任务的处理逻辑。
@@ -169,7 +169,7 @@ class TaskSplitter[TItem, RItem](TaskStage[Iterable[TItem], Iterable[RItem]]):
 
 
 # ==== 任务路由器 ====
-class TaskRouter[T](TaskStage[T, tuple[str, T]]):
+class TaskRouter[T](TaskExecutor[T, tuple[str, T]]):
     """TaskRouter: 根据路由信息将任务分发到不同的下游 stage。"""
 
     route_counters: dict[str, ValueWrapper]

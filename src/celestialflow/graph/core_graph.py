@@ -20,20 +20,20 @@ from ..runtime.util_errors import (
 from ..runtime.util_estimators import calc_remaining
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import cluster_by_value_sorted
-from ..stage.core_stage import TaskStage
-from ..stage.util_types import AnyTaskStage
+from ..stage.core_executor import TaskExecutor
+from ..stage.util_types import AnyTaskExecutor
 from .util_estimators import calc_global_pending
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
 from .util_render import render_structure_list
 
 
 class TaskGraph:
-    """任务图核心类，负责构建、连接和调度一组 TaskStage 节点。
+    """任务图核心类，负责构建、连接和调度一组 TaskExecutor 节点。
 
     注意：
     - ``start()`` / ``start_async()`` 为一次性调用；启动并运行完成后，不保证当前实例可
       被安全重置或重复启动。如需再次运行相同流程，请重新创建 TaskGraph 实例及其关联的
-      TaskStage。
+      TaskExecutor。
     - 构建期方法（``set_stages`` / ``connect`` / ``set_graph_mode`` / ``set_stage_execution_mode`` 等）
       在启动前可多次调用，图分析缓存会随之按需重建（``_analysis_dirty`` 标记）。
     """
@@ -43,7 +43,7 @@ class TaskGraph:
     graph_id: str
     graph_mode: str
     threads: list[threading.Thread]
-    stage_dict: dict[str, AnyTaskStage]
+    stage_dict: dict[str, AnyTaskExecutor]
     _analysis_dirty: bool
     source_names: list[str]
     order_graph: OrderGraph
@@ -63,7 +63,7 @@ class TaskGraph:
         """
         初始化 TaskGraph 实例。
 
-        TaskGraph 表示一组 TaskStage 节点所构成的任务图，可用于构建并行、串行、
+        TaskGraph 表示一组 TaskExecutor 节点所构成的任务图，可用于构建并行、串行、
         分层等多种形式的任务执行流程。所有节点一次性调度并发执行，依赖关系通过
         队列流自动控制。
 
@@ -104,7 +104,7 @@ class TaskGraph:
 
     # ==== 建图 ====
 
-    def set_stages(self, stages: list[AnyTaskStage]) -> None:
+    def set_stages(self, stages: list[AnyTaskExecutor]) -> None:
         """
         添加节点到任务图中
 
@@ -124,8 +124,8 @@ class TaskGraph:
 
     def connect[R](
         self,
-        from_stages: list[TaskStage[Any, R]],
-        to_stages: list[TaskStage[R, Any]],
+        from_stages: list[TaskExecutor[Any, R]],
+        to_stages: list[TaskExecutor[R, Any]],
     ) -> None:
         """
         建立超边连接：from_stages 中的每个节点连接到 to_stages 中的每个节点。
@@ -416,7 +416,7 @@ class TaskGraph:
         以异步方式启动任务图，适合在已运行事件循环的上下文中调用。
 
         与同步 :meth:`start` 的区别：
-        - async 执行模式的节点通过 :meth:`TaskStage.start_async` 以协程方式运行，
+        - async 执行模式的节点通过 :meth:`TaskExecutor.start_async` 以协程方式运行，
           本路径不会在节点内部再调用 ``asyncio.run``，避免嵌套事件循环导致的崩溃；
           同步 :meth:`start` 路径则会为 ``async`` 节点调用 ``asyncio.run``，参见对应文档。
         - serial / thread 执行模式的节点通过 ``asyncio.to_thread`` 在独立线程中运行，
@@ -487,7 +487,7 @@ class TaskGraph:
         ]
         await asyncio.gather(*tasks)
 
-    def _execute_stage(self, stage: AnyTaskStage) -> None:
+    def _execute_stage(self, stage: AnyTaskExecutor) -> None:
         """
         在同步图启动路径下执行单个节点。
 
@@ -498,7 +498,7 @@ class TaskGraph:
         else:
             stage.start()
 
-    async def _execute_stage_async(self, stage: AnyTaskStage) -> None:
+    async def _execute_stage_async(self, stage: AnyTaskExecutor) -> None:
         """
         异步执行单个节点：async 模式走协程，其余模式走线程池。
 

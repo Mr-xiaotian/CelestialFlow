@@ -27,7 +27,6 @@ from .stage import (
     TaskExecutor,
     TaskRouter,
     TaskSplitter,
-    TaskStage,
 )
 
 __all__ = [
@@ -44,7 +43,6 @@ __all__ = [
     "TaskReporter",
     "TaskRouter",
     "TaskSplitter",
-    "TaskStage",
     "TaskWheel",
     "TerminationSignal",
     "benchmark_executor",

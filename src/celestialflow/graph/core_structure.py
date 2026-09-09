@@ -1,24 +1,24 @@
 # graph/core_structure.py
 from ..runtime.util_errors import InvalidStructureError
-from ..stage.util_types import AnyTaskStage
+from ..stage.util_types import AnyTaskExecutor
 from .core_graph import TaskGraph
 
 
 # ==== 有向无环图（DAG） ====
 class TaskChain(TaskGraph):
-    """线性任务链，将多个 Stage 按顺序串行或并行连接。"""
+    """线性任务链，将多个任务执行器按顺序串行或并行连接。"""
 
     def __init__(
         self,
         name: str,
-        stages: list[AnyTaskStage],
+        stages: list[AnyTaskExecutor],
         graph_mode: str = "thread",
     ) -> None:
         """
         TaskChain: 线性任务链结构
-        该结构将多个 TaskStage 节点按顺序连接，形成一个线性的数据流图。
+        该结构将多个任务执行器按顺序连接，形成一个线性的数据流图。
 
-        :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点
+        :param stages: 执行器列表，每个节点将连接到下一个节点
         :param graph_mode: 图执行模式, 可选值为 'serial'、'thread' 或 'async'，
             默认 'thread'
         :raises InvalidStructureError: stages 为空时抛出
@@ -39,16 +39,16 @@ class TaskCross(TaskGraph):
     def __init__(
         self,
         name: str,
-        layers: list[list[AnyTaskStage]],
+        layers: list[list[AnyTaskExecutor]],
         graph_mode: str = "thread",
     ) -> None:
         """
         TaskCross: 多层任务交叉结构
-        该结构将任务按"层"组织，每层可以包含多个并行执行的 TaskStage 节点，
+        该结构将任务按"层"组织，每层可以包含多个并行执行的执行器节点，
         不同层之间通过依赖关系连接，形成跨层的数据流图。
 
         :param layers:
-            按层划分的任务节点列表。每个子列表代表一层，列表中的 TaskStage 将并行执行。
+            按层划分的任务节点列表。每个子列表代表一层，列表中的节点将并行执行。
             相邻层之间的所有节点将建立全连接依赖（即每个上一层节点都连接到下一层所有节点）。
         :param graph_mode: 图执行模式, 可选值为 'serial'、'thread' 或 'async'，
             默认 'thread'
@@ -61,7 +61,7 @@ class TaskCross(TaskGraph):
 
         super().__init__(name=name, graph_mode=graph_mode)
 
-        all_stages: list[AnyTaskStage] = []
+        all_stages: list[AnyTaskExecutor] = []
         for curr_layer in layers:
             all_stages.extend(curr_layer)
 
@@ -76,7 +76,7 @@ class TaskGrid(TaskGraph):
     def __init__(
         self,
         name: str,
-        grid: list[list[AnyTaskStage]],
+        grid: list[list[AnyTaskExecutor]],
         graph_mode: str = "thread",
     ) -> None:
         """
@@ -85,7 +85,7 @@ class TaskGrid(TaskGraph):
         形成一个网格状的数据流图。
 
         :param grid:
-            任务网格，每个子列表代表一行，列表中的 TaskStage 将按行并行执行。
+            任务网格，每个子列表代表一行，列表中的节点将按行并行执行。
             每个节点将连接到其右侧和下方的节点。
         :param graph_mode: 图执行模式, 可选值为 'serial'、'thread' 或 'async'，
             默认 'thread'
@@ -99,7 +99,7 @@ class TaskGrid(TaskGraph):
         super().__init__(name=name, graph_mode=graph_mode)
 
         rows, cols = len(grid), len(grid[0])
-        all_stages: list[AnyTaskStage] = []
+        all_stages: list[AnyTaskExecutor] = []
         for i in range(rows):
             for j in range(cols):
                 curr = grid[i][j]
@@ -122,13 +122,13 @@ class TaskLoop(TaskGraph):
     def __init__(
         self,
         name: str,
-        stages: list[AnyTaskStage],
+        stages: list[AnyTaskExecutor],
         graph_mode: str = "thread",
     ) -> None:
         """
         TaskLoop:  任务环结构
 
-        :param stages: TaskStage 列表, 每个 TaskStage 节点将连接到下一个节点, 形成一个闭环
+        :param stages: 执行器列表，每个节点将连接到下一个节点，形成一个闭环
         :param graph_mode: 图执行模式, 可选值为 'serial'、'thread' 或 'async'，
             默认 'thread'
         :raises InvalidStructureError: stages 为空时抛出
@@ -150,8 +150,8 @@ class TaskWheel(TaskGraph):
     def __init__(
         self,
         name: str,
-        center: AnyTaskStage,
-        ring: list[AnyTaskStage],
+        center: AnyTaskExecutor,
+        ring: list[AnyTaskExecutor],
         graph_mode: str = "thread",
     ) -> None:
         """
@@ -181,13 +181,13 @@ class TaskComplete(TaskGraph):
     def __init__(
         self,
         name: str,
-        stages: list[AnyTaskStage],
+        stages: list[AnyTaskExecutor],
         graph_mode: str = "thread",
     ) -> None:
         """
         TaskComplete: 完全图结构，每个节点都连向除自己以外的所有其他节点
 
-        :param stages: 所有 TaskStage 节点
+        :param stages: 所有节点
         :param graph_mode: 图执行模式, 可选值为 'serial'、'thread' 或 'async'，
             默认 'thread'
         :raises InvalidStructureError: stages 少于 2 个节点时抛出（完全图至少需要 2 个节点才能构成边）

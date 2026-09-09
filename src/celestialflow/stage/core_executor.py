@@ -22,7 +22,17 @@ from ..runtime import (
     TaskMetrics,
     TaskOutQueue,
 )
-from ..runtime.util_errors import ConfigurationError, InvalidOptionError, PersistedError
+from ..runtime.util_errors import (
+    ConfigurationError,
+    InvalidOptionError,
+    PersistedError,
+    UnconsumedError,
+)
+from ..runtime.util_estimators import (
+    calc_elapsed,
+    calc_remaining,
+    format_avg_time,
+)
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import format_repr
 from ..runtime.util_types import (
@@ -47,6 +57,9 @@ class TaskExecutor[T, R]:
     """
 
     # ==== 类级类型注解 ====
+    _name: str
+    _last_elapsed: float
+    _last_pending: int
     task_queue: TaskInQueue[T]
     result_queue: TaskOutQueue[R]
     max_workers: int
@@ -56,7 +69,6 @@ class TaskExecutor[T, R]:
     metrics: TaskMetrics
     dispatch: TaskDispatch[T, R]
     execution_mode: str
-    _name: str
     func: Callable[[T], R] | Callable[[T], Awaitable[R]]
     ctree_client: EventClient
 
@@ -112,6 +124,11 @@ class TaskExecutor[T, R]:
         self.metrics = TaskMetrics(
             enable_duplicate_check=self.enable_duplicate_check,
         )
+
+        # 上报器可能会在节点真正启动前先采集一次快照。
+        self.start_time = 0.0
+        self._last_elapsed = 0.0
+        self._last_pending = 0
 
     # ==== 观察者 ====
     def add_observer(self, observer: BaseObserver) -> None:
@@ -239,9 +256,63 @@ class TaskExecutor[T, R]:
         db_path = get_lifecycle_spout().db_path
         if db_path is None:
             return Path()
-        return Path(db_path).resolve()
+        return Path(db_path).resolve()    
+    
+    def snapshot(self, interval: float) -> dict[str, Any]:
+        """
+        采集当前 stage 的运行时快照。
 
-    # ==== 任务输入 ====
+        :param interval: 快照采集间隔（秒）
+        :return: 包含状态、计数、耗时估算等信息的快照字典
+        """
+        status = self.metrics.get_status()
+        stage_counts = self.get_counts()
+
+        elapsed = calc_elapsed(status, self._last_elapsed, self._last_pending, interval)
+        remaining = calc_remaining(
+            stage_counts["tasks_processed"],
+            stage_counts["tasks_pending"],
+            elapsed,
+        )
+        avg_time_str = format_avg_time(elapsed, stage_counts["tasks_processed"])
+
+        # 更新缓存供下次快照使用
+        self._last_elapsed = elapsed
+        self._last_pending = int(stage_counts["tasks_pending"] or 0)
+
+        return {
+            "name": self.get_name(),
+            "class_name": self._get_class_name(),
+            "execution_mode": self.execution_mode,
+            "max_workers": self.max_workers,
+            "status": status,
+            "start_time": self.start_time,
+            "elapsed_time": elapsed,
+            "remaining_time": remaining,
+            "task_avg_time": avg_time_str,
+            **stage_counts,
+        }
+    
+    # ==== 绑定 ====
+    def get_binding_counter(self, _downstream_name: str) -> Any:
+        """
+        返回下游 stage 应绑定的计数器，子类可覆写。
+
+        :param _downstream_name: 下游 stage 的唯一名称
+        :return: 计数器实例
+        """
+        return self.metrics.success_counter
+
+    def prev_binding(self, pending_prev_binding: TaskExecutor[Any, Any]) -> None:
+        """
+        绑定前置节点，将每个前驱 stage 的计数器注册到当前 stage 的 task_counter 中
+
+        :param pending_prev_binding: 前置节点
+        """
+        counter = pending_prev_binding.get_binding_counter(self.get_name())
+        self.metrics.append_task_counter(counter)
+
+    # ==== 任务队列 ====
     def put_task(self, task: T) -> None:
         """
         将单个任务封装为 TaskEnvelope 并放入队列。
@@ -275,6 +346,14 @@ class TaskExecutor[T, R]:
             self.get_name(),
             termination_id,
         )
+
+    def drain_task_queue(self) -> None:
+        """清空任务队列，将所有任务移至失败队列。"""
+        remaining_sources = self.task_queue.drain()
+
+        # 持久化逻辑
+        for source in remaining_sources:
+            self.handle_task_fail(source, UnconsumedError())
 
     def _get_repr(self, task: T | R) -> str:
         """

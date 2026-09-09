@@ -10,7 +10,7 @@ class ReporterTaskGraph(Protocol):
     """TaskReporter 依赖的最小任务图接口。"""
 
     @property
-    def stage_dict(self) -> Mapping[str, ReporterTaskStage]:
+    def stage_dict(self) -> Mapping[str, ReporterTaskExecutor]:
         """返回按名称索引的只读节点映射。"""
         ...
 
@@ -29,8 +29,8 @@ class ReporterTaskGraph(Protocol):
     def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]: ...
 
 
-class ReporterTaskStage(Protocol):
-    """TaskReporter 依赖的最小任务阶段接口。"""
+class ReporterTaskExecutor(Protocol):
+    """TaskReporter 依赖的最小执行器接口。"""
 
     def put_task(self, task: Any) -> None: ...
 
