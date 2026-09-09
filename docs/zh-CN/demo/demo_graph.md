@@ -1,6 +1,6 @@
 # demo_graph.py 演示说明
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 ## 目标
 
@@ -56,7 +56,7 @@ AsyncDouble ──> AsyncToStr
 
 ## 关键配置
 
-- 各 Stage 通过 `TaskStage(..., execution_mode="thread" | "async")` 显式指定执行模式
+- 各 Stage 通过 `TaskExecutor(..., execution_mode="thread" | "async")` 显式指定执行模式
 - ETL 管道与异步管道分别通过 `TaskGraph(..., graph_mode="thread")` 与 `graph_mode="async"` 指定图模式
 - `execution_mode="async"` 用于协程任务函数（`async_double`、`async_to_str`）
 
@@ -108,7 +108,7 @@ python demo/demo_graph.py
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskStage`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskReporter`）
 - `demo_utils`（`extract_record`、`transform_normalize`、`transform_enrich`、`load_record`、`async_double`、`async_to_str`）
 - `python-dotenv`
 - 外部服务：CelestialTree（可选）、Reporter（可选）

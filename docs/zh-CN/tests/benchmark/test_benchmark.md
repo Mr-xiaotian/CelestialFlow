@@ -1,6 +1,6 @@
-# 性能基准测试 (test_benchmark.py)
+# tests/benchmark/test_benchmark.py
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/09/09
 
 ## 作用
 
@@ -10,7 +10,8 @@
 
 - `benchmark_graph`: 接受同步与异步两个 `TaskGraph` 实例，对两者进行 `graph_mode × execution_mode` 的 3×3 组合基准测试。
 - `benchmark_executor`: 接受同步与异步两个 `TaskExecutor` 实例，对 `execution_mode` 的三种取值进行基准测试。
-- `TaskGraph` / `TaskStage` / `TaskExecutor`: 用于构造最小可运行的图与执行器。
+- `TaskGraph`: 通过 `set_nodes([TaskExecutor(...)])` 构造最小可运行图，节点类型为 `TaskExecutor`（不再使用 `TaskStage` / `set_stages`）。
+- `TaskExecutor`: 构造最小可运行的同步/异步执行器。
 
 ## 测试覆盖矩阵
 
@@ -23,8 +24,9 @@
 
 ### `test_benchmark_graph_covers_all_nine_combinations`
 
-- 构造同步图 `sync_graph`（含一个 serial 模式的 `TaskStage`）与异步图 `async_graph`（`graph_mode="async"`，含一个 async 模式的 `TaskStage`）。
-- 以 `{"s": [1, 2, 3]}` 作为初始任务调用 `benchmark_graph`。
+- 构造同步图 `sync_graph`（`TaskGraph("sync_graph")` + `set_nodes([TaskExecutor("s", add_one, execution_mode="serial")])`）。
+- 构造异步图 `async_graph`（`TaskGraph("async_graph", graph_mode="async")` + `set_nodes([TaskExecutor("s", async_add_one, execution_mode="async")])`）。
+- 以 `{"s": [1, 2, 3]}` 作为初始任务调用 `await benchmark_graph(sync_graph, async_graph, {"s": [1, 2, 3]})`。
 - 断言：
   - 返回字典的 `graph_modes` 等于 `["serial", "thread", "async"]`。
   - `execution_modes` 等于 `["serial", "thread", "async"]`。
@@ -32,15 +34,15 @@
 
 ### `test_benchmark_executor_returns_execution_modes`
 
-- 构造同步执行器 `sync_executor`（`execution_mode="serial"`）与异步执行器 `async_executor`（`execution_mode="async"`）。
-- 以 `[1, 2, 3]` 作为任务列表调用 `benchmark_executor`。
+- 构造同步执行器 `sync_executor`（`execution_mode="serial"`，同步函数 `add_one`）与异步执行器 `async_executor`（`execution_mode="async"`，异步函数 `async_add_one`）。
+- 以 `[1, 2, 3]` 作为任务列表调用 `await benchmark_executor(sync_executor, async_executor, [1, 2, 3])`。
 - 断言：
   - 返回字典的 `execution_modes` 等于 `["serial", "thread", "async"]`。
   - `use_time` 是 3 行 1 列的二维列表（每个 execution_mode 一条结果）。
 
 ```mermaid
 flowchart LR
-    A[构造 sync/async 图] --> B[benchmark_graph]
+    A[构造 sync/async 图<br/>TaskGraph.set_nodes] --> B[benchmark_graph]
     B --> C["graph_modes × execution_modes<br/>3×3 use_time 矩阵"]
 
     D[构造 sync/async 执行器] --> E[benchmark_executor]

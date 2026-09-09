@@ -1,6 +1,6 @@
 # 任务图核心功能测试 (test_graph.py)
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 ## 作用
 全面验证 `TaskGraph` 及其各种拓扑子类（`TaskChain`、`TaskCross`、`TaskGrid`）的核心功能，涵盖同步/异步执行、错误传播、拓扑分析、执行模式矩阵、源节点推导、含环图行为、收尾阶段安全检查及运行时快照采集。
@@ -8,7 +8,7 @@
 ## 核心测试对象
 - `TaskGraph`: 通用任务图容器
 - `TaskChain`, `TaskCross`, `TaskGrid`: 预定义拓扑结构
-- `TaskStage`: 图节点定义
+- `TaskExecutor`: 图节点定义
 
 ## 测试范围
 
@@ -48,7 +48,7 @@ graph LR
 - **DB 启动过滤** (`test_graph_restore_db_filters_error_type_when_enabled`): 验证按各 stage 的 `retry_exceptions` 过滤回放任务。
 - **DB 保留 pending 记录** (`test_graph_restore_db_filter_keeps_pending_records`): 验证过滤开启时 pending 记录仍继续回放。
 - **未知 stage 名称异常** (`test_graph_stage_lookup_unknown_stage_raises`): 显式按 stage 注入任务时，不存在的 stage 名称应抛出 `NodeNotFoundError`。
-- **set_ctree 更新已有 stage** (`test_set_ctree_updates_existing_stages`): 先 `set_stages` 再 `set_ctree` 时，已有 stage 也应共享同一事件客户端。
+- **set_ctree 更新已有 stage** (`test_set_ctree_updates_existing_stages`): 先 `set_nodes` 再 `set_ctree` 时，已有 stage 也应共享同一事件客户端。
 - **finish 后统一抛出异常组** (`test_start_raises_exception_group_after_finish`): 同步 `start` 在 finish 后统一抛出收集到的异常。
 
 #### 异步与并发
@@ -105,7 +105,7 @@ graph LR
 #### 含环图 (`TestCyclicGraph`)
 | 用例 | 验证点 |
 |------|--------|
-| `test_cyclic_serial_graph_raises` | serial graph_mode 下调用 `get_source_names()` 时含环图应抛出 `ConfigurationError`（匹配 `"TaskGraph contains a cycle while graph_mode='serial'"`） |
+| `test_cyclic_serial_graph_raises` | serial graph_mode 下调用 `get_source_nodes()` 时含环图应抛出 `ConfigurationError`（匹配 `"TaskGraph contains a cycle while graph_mode='serial'"`） |
 | `test_cyclic_is_dag_false` | s1→s2→s3→s1 的 `isDAG` 应为 `False` |
 | `test_cyclic_layers` | 环内节点 (s1,s2,s3) 同层，尾巴 s4 在环层级 + 1 |
 
@@ -116,7 +116,7 @@ graph LR
 
 ### 终止信号行为
 - 含环图通过 `run()` 启动并注入任务（`run` 默认 `if_put_signal=True`，自动为源节点补发终止信号）以确保测试退出。
-- serial graph_mode 下含环图调用 `get_source_names()` 时会触发 `ConfigurationError`（见 `test_cyclic_serial_graph_raises`）。
+- serial graph_mode 下含环图调用 `get_source_nodes()` 时会触发 `ConfigurationError`（见 `test_cyclic_serial_graph_raises`）。
 
 ### Lambda 支持
 线程模式下可使用 lambda 作为任务函数（`test_graph_thread_with_lambda`）。
@@ -126,7 +126,7 @@ graph LR
 | 依赖 | 说明 |
 |------|------|
 | `pytest` | 测试框架 |
-| `celestialflow` | `TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskStage` |
+| `celestialflow` | `TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskExecutor` |
 
 ## 运行方式
 

@@ -1,13 +1,13 @@
-# 观测器测试 (test_observer.py)
+# tests/observability/test_observer.py
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 ## 作用
-验证 `celestialflow.observability` 模块中的观测器（Observer）机制，确保任务执行生命周期中的各个关键节点能正确触发回调。
+验证 `celestialflow` 包导出的 `BaseObserver` 与 `TaskExecutor` 之间的回调契约，确保任务执行生命周期中的关键节点能正确触发 `BaseObserver` 的覆写方法。
 
 ## 核心测试对象
-- `BaseObserver`: 观测器基类。
-- `TaskExecutor`: 被观测的任务执行器。
+- `BaseObserver`: 来自 `celestialflow.observability`，观测器基类，提供 `on_start` / `on_task_success` / `on_task_fail` / `on_task_duplicate` / `on_tasks_added` / `on_finish` 等回调钩子。
+- `TaskExecutor`: 来自 `celestialflow.node`，被观测的任务执行器（测试中通过顶层 `celestialflow` 包导入）。
 
 ## 测试覆盖矩阵
 
@@ -26,8 +26,10 @@
 
 ## 重要细节
 - 使用 `RecordingObserver`、`CountObserver`、`Counter` 等 Mock 类来收集和验证事件。
-- `RecordingObserver` 覆写 `on_start` / `on_task_success` / `on_task_fail` / `on_task_duplicate` / `on_tasks_added` / `on_finish`，其中 `on_task_success` 与 `on_task_fail` 带默认计数参数 `count=1`。
-- `test_remove_observer` 确保解绑后的观测器不再产生副作用。
+- `RecordingObserver` 覆写 `on_start` / `on_task_success` / `on_task_fail` / `on_task_duplicate` / `on_tasks_added` / `on_finish`，其中 `on_task_success` 与 `on_task_fail` 显式声明 `count=1` 默认参数。
+- `CountObserver` 仅覆写 `on_task_success` / `on_task_fail`，通过累加 `count` 字段实现聚合统计。
+- `test_remove_observer` 通过 `executor.remove_observer(observer)` 解绑后再次 `run`，断言 `observer.count == 0`。
+- 所有用例都使用 `execution_mode="serial"` 模式，便于按顺序断言事件。
 
 ## 运行方式
 

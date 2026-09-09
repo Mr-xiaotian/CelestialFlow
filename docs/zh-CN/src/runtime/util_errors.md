@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
@@ -173,7 +173,7 @@ class GraphStructureError(ConfigurationError):
 
 ### DuplicateNodeError
 
-重复的节点名称（在 `set_stages` 或 `add_source_name` / `add_queue` 时触发）。
+重复的节点名称（在 `set_nodes` 或 `add_source_name` / `add_queue` 时触发）。
 
 ```python
 class DuplicateNodeError(GraphStructureError):
@@ -294,7 +294,7 @@ class UnconsumedError(CelestialFlowError):
     pass
 ```
 
-当 `TaskGraph._finish_start()` 收尾阶段遍历所有 stage 调用 `drain_task_queue()` 发现队列中有剩余任务时，会将其标记为 `UnconsumedError` 并通过 `get_lifecycle_inlet()` / `LifecycleSpout` 持久化到按日期组织的 lifecycle sqlite 数据库。
+当 `TaskGraph._finish_start()` 收尾阶段遍历所有节点调用 `drain_task_queue()` 发现队列中有剩余任务时，会将其标记为 `UnconsumedError` 并通过 `get_lifecycle_inlet()` / `LifecycleSpout` 持久化到按日期组织的 lifecycle sqlite 数据库。
 
 ### TerminationMergeError
 
@@ -341,7 +341,7 @@ except InvalidOptionError as e:
 from celestialflow.runtime.util_errors import DuplicateNodeError
 
 try:
-    graph.set_stages([stage_a, stage_a])  # 同名节点
+    graph.set_nodes([stage_a, stage_a])  # 同名节点
 except DuplicateNodeError as e:
     print(f"重复节点: {e}")
 ```
@@ -371,16 +371,16 @@ except InvalidOptionError as e:
 ### 图结构异常
 
 ```python
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 from celestialflow.runtime.util_errors import DuplicateNodeError, UnknownNodeError
 
 graph = TaskGraph(name="ErrorTestGraph")
 
-stage_a = TaskStage("A", func=lambda x: x)
-stage_b = TaskStage("A", func=lambda x: x * 2)  # 同名节点
+stage_a = TaskExecutor("A", func=lambda x: x)
+stage_b = TaskExecutor("A", func=lambda x: x * 2)  # 同名节点
 
 try:
-    graph.set_stages([stage_a, stage_b])
+    graph.set_nodes([stage_a, stage_b])
 except DuplicateNodeError as e:
     print(f"重复节点: {e}")
 
@@ -435,10 +435,10 @@ except RemoteWorkerError as e:
 
 ## 未消费任务的处理
 
-`UnconsumedError` 主要用于标记任务未被正常消费的场景。在 `TaskGraph._finish_start()` 收尾阶段，会调用每个 stage 的 `drain_task_queue()`：
+`UnconsumedError` 主要用于标记任务未被正常消费的场景。在 `TaskGraph._finish_start()` 收尾阶段，会调用每个节点的 `drain_task_queue()`：
 
-1. 清空 stage 的任务队列，取出剩余任务。
+1. 清空节点的任务队列，取出剩余任务。
 2. 对每个剩余任务调用 `handle_task_fail(source, UnconsumedError())`。
 3. 失败信息经 `get_lifecycle_inlet()` 写入 `LifecycleSpout`（`task_fail()` 将 pending 记录晋升为 failed），最终持久化到按日期组织的 lifecycle sqlite 数据库（`./lifecycles/YYYY-MM-DD/flow_lifecycle(...).sqlite3`）。
 
-因此，未消费任务的“持久化”并不是由 `util_errors.py` 自身完成，而是依赖 Stage / Graph 层的生命周期（lifecycle）持久化机制。
+因此，未消费任务的“持久化”并不是由 `util_errors.py` 自身完成，而是依赖 Graph / Node 层的生命周期（lifecycle）持久化机制。

@@ -1,8 +1,8 @@
 # BaseObserver
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
-`BaseObserver` 是执行器生命周期观察者的基类，定义了 `TaskExecutor` 在运行过程中会广播的事件接口。
+`BaseObserver` 是执行器生命周期观察者的基类，定义了 `BaseTaskNode`（及其子类 `TaskExecutor` / `TaskSplitter` / `TaskRouter`）在运行过程中会广播的事件接口。
 
 ## BaseObserver
 
@@ -43,7 +43,7 @@ class BaseObserver:
 
 事件并非通过统一的 `_notify()` 分发，而是由框架在具体位置直接调用：
 
-- `TaskMetrics.on_start(name, total)` → 广播 `on_start`（由 `TaskExecutor._prepare_start()` 调用，`total` 固定传 `0`）
+- `TaskMetrics.on_start(name, total)` → 广播 `on_start`（由 `BaseTaskNode._prepare_start()` 调用，`total` 固定传 `0`）
 - `TaskMetrics.add_task_count(count)` → 广播 `on_tasks_added`
 - `TaskMetrics.add_success_count(count)` / `add_fail_count(count)` / `add_duplicate_count(count)` → 分别广播对应回调
 - `TaskMetrics.on_finish()` → 广播 `on_finish`

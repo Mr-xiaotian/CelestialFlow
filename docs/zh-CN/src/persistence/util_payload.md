@@ -1,6 +1,6 @@
 # PersistencePayload
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 `persistence/util_payload.py` 提供任务数据的持久化序列化工具，将任意 Python 对象递归转换为 JSON 友好的结构。
 
@@ -78,7 +78,7 @@ print(result)  # "MyTask(id=1)"
 `to_persisted_payload` 主要在 `LifecycleInlet` 内部自动调用，用于将任务数据转换为 SQLite 可存储的 JSON 字符串：
 
 ```python
-# LifecycleInlet.task_in 内部流程：
+# LifecycleInlet.task_input 内部流程：
 from datetime import datetime
 
 pending_item = {

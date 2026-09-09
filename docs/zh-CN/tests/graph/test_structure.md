@@ -1,6 +1,6 @@
 # 特定图结构测试 (test_structure.py)
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 ## 作用
 验证 `TaskLoop` 和 `TaskWheel` 两种预定义含环图结构的专用分析能力，以及各类预定义图结构（`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`）的输入校验，确保空/非法输入不会导致静默构造或崩溃。
@@ -28,7 +28,7 @@
 
 ### TaskWheel 分析
 - 验证中心节点（Center）处于第 0 层，而外环节点（Ring）处于第 1 层。
-- 验证 `get_source_names()` 仅返回 Center 节点，确保任务从中心注入。
+- 验证 `get_source_nodes()` 仅返回 Center 节点，确保任务从中心注入。
 
 ### 结构输入校验 (`TestStructureValidation`)
 覆盖全部 6 种预定义图结构的空/非法输入边界：
@@ -78,7 +78,7 @@ pytest tests/graph/test_structure.py::TestStructureValidation -v
 
 ## 重要细节
 - `TaskLoop` 通过 `run()` 启动并注入任务（`run` 默认 `if_put_signal=True`，自动为源节点补发终止信号以确保测试退出）。
-- `TaskWheel` 不执行任务：通过 `set_graph_mode()` 与 `set_stage_execution_mode()` 配置后，直接调用 `get_graph_analysis()` / `get_source_names()` 做静态分析。
+- `TaskWheel` 不执行任务：通过 `set_graph_mode()` 与 `set_node_execution_mode()` 配置后，直接调用 `get_graph_analysis()` / `get_source_nodes()` 做静态分析。
 - 测试重点在于"分析结果"（analysis dict）而非"执行结果"。
 - 输入校验测试均为纯构造操作，不涉及图启动。
 

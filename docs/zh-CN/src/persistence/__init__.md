@@ -1,6 +1,6 @@
 # Persistence 模块
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 Persistence 模块提供了 CelestialFlow 的数据持久化能力，包括任务生命周期（Lifecycle）记录与执行日志（Log）。它确保任务执行的关键数据能够可靠地保存和检索。
 
@@ -26,7 +26,7 @@ Persistence 模块提供了 CelestialFlow 的数据持久化能力，包括任�
    - **作用**: 任务生命周期的持久化，统一记录任务的 pending / success / failed / duplicate 状态
    - **核心组件**:
      - `LifecycleSpout`: 继承 `BaseSpout`，通过 SQLite 持久化任务生命周期事件
-     - `LifecycleInlet`: 线程安全收集器，提供 `task_in`/`task_success`/`task_fail`/`task_duplicate` 方法
+     - `LifecycleInlet`: 线程安全收集器，提供 `task_input`/`task_success`/`task_fail`/`task_duplicate` 方法
    - **存储格式**: SQLite 数据库（WAL 模式），文件位于 `lifecycles/` 目录
 
 ### 日志持久化
@@ -64,7 +64,7 @@ Persistence 模块提供了 CelestialFlow 的数据持久化能力，包括任�
 
 ### 外部关联
 - **与 Runtime 模块**: 监听运行时产生的日志和错误，引用 `LEVEL_DICT`
-- **与 Stage 模块**: 记录任务执行状态和结果，`TaskExecutor` 通过 `get_log_inlet()` / `get_lifecycle_inlet()` 写入记录
+- **与 Node 模块**: 记录任务执行状态和结果，`BaseTaskNode`（如 `TaskExecutor`）通过 `get_log_inlet()` / `get_lifecycle_inlet()` 写入记录
 - **与 Observability 模块**: 提供原始数据用于监控和分析，`TaskReporter` 读取 lifecycle 数据库中的失败记录并增量推送
 - **与 Funnel 模块**: 继承 `BaseSpout`/`BaseInlet` 基类
 
@@ -84,7 +84,7 @@ flowchart LR
     end
 
     LogInlet -->|_log -> _funnel| LogQueue[日志队列<br/>queue.Queue]
-    LifecycleInlet -->|task_in / task_success / task_fail 等| LifecycleQueue[Lifecycle 队列<br/>queue.Queue]
+    LifecycleInlet -->|task_input / task_success / task_fail 等| LifecycleQueue[Lifecycle 队列<br/>queue.Queue]
 
     LogQueue -->|守护线程轮询| LogSpout[LogSpout]
     LifecycleQueue -->|守护线程轮询| LifecycleSpout[LifecycleSpout]
@@ -144,8 +144,8 @@ from celestialflow.persistence import get_lifecycle_inlet
 
 lifecycle_inlet = get_lifecycle_inlet()
 
-# 任务进入
-lifecycle_inlet.task_in("StageA", event_id=1, task="hello")
+# 任务输入
+lifecycle_inlet.task_input("StageA", event_id=1, task="hello")
 
 # 任务成功
 lifecycle_inlet.task_success(event_id=1, result="OK")

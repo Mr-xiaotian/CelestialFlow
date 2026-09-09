@@ -1,6 +1,6 @@
 # demo_observer.py 演示说明
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 ## 目标
 
@@ -113,5 +113,5 @@ test_task = list(range(25, 32)) + [0, 27, None, 0, ""]
 
 ## 依赖
 
-- `celestialflow`（`BaseObserver`、`TaskExecutor`、`TaskProgress`）
+- `celestialflow`（`BaseObserver`、`TaskExecutor`；`TaskProgress` 由本仓库同目录的 `demo_observer.py` 本地定义）
 - `demo_utils`（`fibonacci`）

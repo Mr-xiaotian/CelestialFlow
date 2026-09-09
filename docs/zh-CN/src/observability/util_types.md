@@ -1,8 +1,8 @@
-# ReporterTaskGraph
+# observability/util_types.py
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
-`observability/util_types.py` 定义了 `TaskReporter` 依赖的任务图协议接口 `ReporterTaskGraph` 与任务阶段协议接口 `ReporterTaskStage`。它们是 `Protocol` 类，使得 `TaskReporter` 无需导入具体的 `TaskGraph` / `TaskStage` 类型即可声明依赖。
+`observability/util_types.py` 定义了 `TaskReporter` 依赖的最小任务图协议接口 `ReporterTaskGraph` 与最小执行器协议接口 `ReporterTaskExecutor`。它们是 `Protocol` 类，使得 `TaskReporter` 无需导入具体的 `TaskGraph` / `BaseTaskNode` 类型即可声明依赖。
 
 ## 核心类型
 
@@ -15,17 +15,17 @@ class ReporterTaskGraph(Protocol):
     """TaskReporter 依赖的最小任务图接口。"""
 
     @property
-    def stage_dict(self) -> Mapping[str, ReporterTaskStage]:
+    def node_dict(self) -> Mapping[str, ReporterTaskExecutor]:
         """返回按名称索引的只读节点映射。"""
         ...
 
     def get_graph_id(self) -> str: ...
 
-    def get_stages_summary(self) -> dict[str, dict[str, Any]]: ...
+    def get_nodes(self) -> list[str]: ...
 
     def get_edges(self) -> dict[str, list[str]]: ...
 
-    def get_source_names(self) -> list[str]: ...
+    def get_source_nodes(self) -> list[str]: ...
 
     def get_lifecycle_path(self) -> Path: ...
 
@@ -36,22 +36,22 @@ class ReporterTaskGraph(Protocol):
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
-| `stage_dict` | `Mapping[str, ReporterTaskStage]` | 返回按名称索引的只读节点映射（property） |
+| `node_dict` | `Mapping[str, ReporterTaskExecutor]` | 返回按名称索引的只读节点映射（property） |
 | `get_graph_id()` | `str` | 获取当前任务图的唯一标识 |
-| `get_stages_summary()` | `dict[str, dict[str, Any]]` | 返回所有 stage 的摘要（`name`、`func_name`、`execution_mode`、`max_workers` 等） |
+| `get_nodes()` | `list[str]` | 返回所有节点名称 |
 | `get_edges()` | `dict[str, list[str]]` | 返回图结构中的边集合（`{from_name: [to_name, ...]}`） |
-| `get_source_names()` | `list[str]` | 返回所有无上游输入的源 stage 名称 |
+| `get_source_nodes()` | `list[str]` | 返回所有无上游输入的源节点名称 |
 | `get_lifecycle_path()` | `Path` | 获取生命周期持久化文件路径 |
 | `get_graph_analysis()` | `dict[str, Any]` | 获取图分析数据（拓扑信息等） |
-| `collect_runtime_snapshot()` | `tuple[dict[str, Any], float]` | 收集最新运行时快照（按 stage 聚合的状态字典 + 采集时间戳） |
+| `collect_runtime_snapshot()` | `tuple[dict[str, Any], float]` | 收集最新运行时快照（按节点聚合的状态字典 + 采集时间戳） |
 
-### ReporterTaskStage
+### ReporterTaskExecutor
 
-`TaskReporter` 依赖的最小任务阶段接口协议（仅当图通过 `stage_dict` 暴露阶段时使用）。
+`TaskReporter` 依赖的最小执行器（节点）接口协议。
 
 ```python
-class ReporterTaskStage(Protocol):
-    """TaskReporter 依赖的最小任务阶段接口。"""
+class ReporterTaskExecutor(Protocol):
+    """TaskReporter 依赖的最小执行器接口。"""
 
     def put_task(self, task: Any) -> None: ...
 
@@ -60,8 +60,8 @@ class ReporterTaskStage(Protocol):
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
-| `put_task(task)` | `None` | 将单条任务注入阶段输入队列（用于动态任务注入） |
-| `put_signal()` | `None` | 向阶段输入队列放入终止信号 |
+| `put_task(task)` | `None` | 将单条任务注入节点输入队列（用于动态任务注入） |
+| `put_signal()` | `None` | 向节点输入队列放入终止信号 |
 
 ## 使用示例
 
@@ -70,7 +70,7 @@ class ReporterTaskStage(Protocol):
 ```python
 from celestialflow.observability.util_types import (
     ReporterTaskGraph,
-    ReporterTaskStage,
+    ReporterTaskExecutor,
 )
 
 
@@ -84,8 +84,8 @@ class TaskReporter:
     ) -> None: ...
 
 
-# 满足 ReporterTaskStage 协议的最小实现示例
-class MinimalStage:
+# 满足 ReporterTaskExecutor 协议的最小实现示例
+class MinimalExecutor:
     def put_task(self, task): ...
 
     def put_signal(self): ...
@@ -93,6 +93,6 @@ class MinimalStage:
 
 ## 注意事项
 
-- `ReporterTaskGraph` 与 `ReporterTaskStage` 都是 `typing.Protocol`，属于结构化类型（structural subtyping），任何实现了对应方法的类都会被类型检查器视为满足该协议。
-- 使用 Protocol 设计避免了 `TaskReporter` 与 `TaskGraph` / `TaskStage` 之间的循环依赖。
+- `ReporterTaskGraph` 与 `ReporterTaskExecutor` 都是 `typing.Protocol`，属于结构化类型（structural subtyping），任何实现了对应方法的类都会被类型检查器视为满足该协议。
+- 使用 Protocol 设计避免了 `TaskReporter` 与 `TaskGraph` / `BaseTaskNode` 之间的循环依赖。
 - 该文件被 `core_report.py` 导入使用。

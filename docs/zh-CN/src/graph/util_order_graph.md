@@ -1,6 +1,6 @@
 # OrderGraph 与图算法工具
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 `graph/util_order_graph.py` 提供最小图结构 `OrderGraph`，以及围绕它的一组基础图算法。
 
@@ -28,8 +28,6 @@
 - `in_edges`：返回入边邻接表引用视图（**与内部存储共享，调用方不应修改**）。
 - `successors(name)`：返回后继节点。
 - `predecessors(name)`：返回前驱节点。
-- `has_node(name)`：判断节点是否存在。
-- `from_edges(out_edges, stage_names=None)`：从邻接表构建 `OrderGraph`。
 
 ### 图算法
 
@@ -45,14 +43,9 @@
 
 ## 设计特点
 
-### 为什么不是 `list`
+### 内部存储
 
-`OrderGraph` 的 `_nodes` 内部使用 `dict[str, None]` 而不是 `list[str]`，原因是它需要同时满足两件事：
-
-- 节点存在性判断要快。
-- 节点遍历顺序要稳定。
-
-如果用 `list`，判重和查存在都是线性复杂度；如果用普通 `set`，虽然查存在快，但顺序不稳定。`dict` 在这里等价于一个“有序集合”，更适合这个场景。
+`OrderGraph` 在内部使用两份邻接表（`_in: dict[str, list[str]]` 与 `_out: dict[str, list[str]]`）共同表达节点集合与边集合。`add_node` / `add_edge` 不删除节点，节点遍历顺序由 Python `dict` 的插入序保证，节点集合与边集合因此始终保持稳定。
 
 ### 为什么保留顺序
 

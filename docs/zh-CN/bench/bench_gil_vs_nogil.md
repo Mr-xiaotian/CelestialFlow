@@ -1,6 +1,6 @@
 # bench_gil_vs_nogil.py 基准测试说明
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 ## 目标
 
@@ -28,7 +28,7 @@
 - **CPU 任务**：执行纯 Python 整数循环和哈希式混合运算，尽量压中 Python 字节码执行开销
 - **I/O 任务**：`time.sleep()` 模拟阻塞等待
 - **图结构**：固定为 3 个 stage 的简单串联流水线，避免图拓扑差异干扰结果
-- **落盘/重复检查关闭**：`TaskExecutor` / `TaskStage` 构建时显式设置 `enable_duplicate_check=False`，因此 benchmark 不会触发重复检查逻辑
+- **落盘/重复检查关闭**：`TaskExecutor` 构建时显式设置 `enable_duplicate_check=False`，因此 benchmark 不会触发重复检查逻辑
 - **重复次数**：默认每个 workload 运行 3 次，并统计平均值 / 最小值 / 最大值
 
 ## 关键配置

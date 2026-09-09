@@ -1,17 +1,17 @@
 # demo_redis.py 演示说明
 
-> 📅 最后更新日期: 2026/07/16
+> 📅 最后更新日期: 2026/09/09
 
 ## 目标
 
-演示如何在不依赖内建 Redis 特殊节点的前提下，仅使用普通 `TaskStage` 和自定义 callable 实现 Redis 任务投递、结果确认与外部任务注入。
+演示如何在不依赖内建 Redis 特殊节点的前提下，仅使用普通 `TaskExecutor` 和自定义 callable 实现 Redis 任务投递、结果确认与外部任务注入。
 
 ## 设计要点
 
 - `redis_push(task)`：把任务序列化后写入 Redis List，并返回 `(key, task_id)`
 - `redis_wait(task)`：轮询 Redis Hash，等待远端 Worker 写回结果
 - `redis_pop(key)`：用 `BLPOP` 从 Redis List 中阻塞拉取任务
-- 以上三种能力都只是普通 Python 方法，然后通过 `TaskStage(..., func=helper)` 挂到图里
+- 以上三种能力都只是普通 Python 方法，然后通过 `TaskExecutor(..., func=helper)` 挂到图里
 
 ## Redis 交互流程
 
@@ -220,9 +220,9 @@ def redis_wait(task: tuple[str, int]) -> Any:
 ```mermaid
 flowchart TB
     Start["Start<br/>sleep_1_*"] --> Local["本地计算 Stage<br/>Fibonacci / Sum / Download"]
-    Start --> Transport["TaskStage(RedisTransport)<br/>redis_push"]
+    Start --> Transport["TaskExecutor(RedisTransport)<br/>redis_push"]
     Transport -.-> RedisIn[(Redis input list)]
-    RedisOut[(Redis output hash)] -.-> Ack["TaskStage(RedisAck)<br/>redis_wait"]
+    RedisOut[(Redis output hash)] -.-> Ack["TaskExecutor(RedisAck)<br/>redis_wait"]
 ```
 
 | 场景 | 本地节点 | 远端输入 key | 远端结果 key |
@@ -251,9 +251,9 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    Sleep0["Sleep0<br/>sleep_1_report"] --> Transport["TaskStage(RedisTransport)<br/>redis_push"]
+    Sleep0["Sleep0<br/>sleep_1_report"] --> Transport["TaskExecutor(RedisTransport)<br/>redis_push"]
     Transport -.-> Redis[(Redis list)]
-    Redis -.-> Source["TaskStage(RedisSource)<br/>redis_pop"]
+    Redis -.-> Source["TaskExecutor(RedisSource)<br/>redis_pop"]
     Source --> Sleep1["Sleep1<br/>sleep_1"]
 ```
 
@@ -317,11 +317,11 @@ python demo/demo_redis.py
 2. **超时处理**：`redis_pop` 与 `redis_wait` 均使用模块级 `redis_timeout`（默认 5 秒）。
 3. **错误传播**：远端 Worker 返回的错误会通过 `RemoteWorkerError` 直接向上抛出。
 4. **协议可替换**：你完全可以按自己的 Worker 协议修改 JSON 结构，只要同步修改这三个 helper。
-5. **框架定位**：这里展示的是“如何用普通 `TaskStage` 实现 Redis 集成”，而不是要求框架内建 Redis 节点。
+5. **框架定位**：这里展示的是“如何用普通 `TaskExecutor` 实现 Redis 集成”，而不是要求框架内建 Redis 节点。
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskStage`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`）
 - `celestialflow.runtime.util_errors`（`CelestialFlowTimeoutError`、`RemoteWorkerError`）
 - `demo_utils`
 - `python-dotenv`

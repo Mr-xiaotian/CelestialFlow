@@ -1,6 +1,6 @@
 # 日志持久化 (Log Persistence)
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 `persistence/core_log.py` 模块提供了一个线程安全的日志系统，通过生产者-消费者模式将日志统一收集、格式化和持久化到 `logs/` 目录下的文本文件。
 
@@ -114,7 +114,7 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `start_graph(graph_name, structure_list)` | INFO | 记录任务图启动及结构信息 |
+| `start_graph(graph_name, graph_mode, structure_list)` | INFO | 记录任务图启动及结构信息 |
 | `end_graph(graph_name, use_time)` | INFO | 记录任务图结束及耗时 |
 
 #### 执行器 (Executor)
@@ -140,31 +140,31 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `task_input(func_name, task_repr, source, input_id)` | DEBUG | 记录任务进入输入队列 |
-| `task_success(func_name, task_repr, exec_mode, result_repr, use_time, parent_id, success_id)` | SUCCESS | 记录任务成功完成 |
-| `task_retry(func_name, task_repr, retry_times, exception, task_id)` | WARNING | 记录任务失败但触发重试 |
-| `task_fail(func_name, task_repr, exception, parent_id, error_id)` | ERROR | 记录任务失败且无法重试 |
-| `task_duplicate(func_name, task_repr, parent_id, duplicate_id)` | WARNING | 记录检测到重复任务 |
+| `task_input(executor_name, task_repr, input_id)` | DEBUG | 记录任务进入输入队列 |
+| `task_success(executor_name, task_repr, execution_mode, result_repr, use_time, parent_id, success_id)` | SUCCESS | 记录任务成功完成 |
+| `task_retry(executor_name, task_repr, retry_times, exception, task_id)` | WARNING | 记录任务失败但触发重试 |
+| `task_fail(executor_name, task_repr, exception, parent_id, error_id)` | ERROR | 记录任务失败且无法重试 |
+| `task_duplicate(executor_name, task_repr, parent_id, duplicate_id)` | WARNING | 记录检测到重复任务 |
 
 #### Split 拆分 (Splitter)
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `split_trace(func_name, part_index, part_total, parent_id, split_id)` | TRACE | 记录 split 子任务分发 |
-| `split_success(func_name, task_repr, split_count, use_time)` | SUCCESS | 记录 split 成功 |
+| `split_trace(executor_name, part_index, part_total, parent_id, split_id)` | TRACE | 记录 split 子任务分发 |
+| `split_success(executor_name, task_repr, split_count, use_time)` | SUCCESS | 记录 split 成功 |
 
 #### Router 路由 (Router)
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `route_success(func_name, task_repr, target_node, use_time, parent_id, route_id)` | SUCCESS | 记录任务路由成功 |
+| `route_success(executor_name, task_repr, target_node, use_time, parent_id, route_id)` | SUCCESS | 记录任务路由成功 |
 
 #### 终止信号 (Termination)
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `termination_input(func_name, source, termination_id)` | DEBUG | 记录终止信号输入 |
-| `termination_merge(func_name, parent_ids, termination_id)` | TRACE | 记录终止信号合并 |
+| `termination_input(executor_name, termination_id)` | DEBUG | 记录终止信号输入 |
+| `termination_merge(executor_name, parent_ids, termination_id)` | TRACE | 记录终止信号合并 |
 
 #### 上报器 (Reporter)
 
@@ -173,7 +173,6 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 | `stop_reporter()` | DEBUG | 记录上报器停止 |
 | `loop_failed(exception)` | ERROR | 记录上报器循环错误 |
 | `pull_interval_failed(exception)` | WARNING | 记录拉取上报间隔失败 |
-| `pull_history_limit_failed(exception)` | WARNING | 记录拉取历史限制失败 |
 | `pull_tasks_failed(exception)` | WARNING | 记录拉取任务注入失败 |
 | `inject_tasks_success(target_node, task_datas)` | INFO | 记录任务注入成功 |
 | `inject_tasks_failed(target_node, task_datas, exception)` | WARNING | 记录任务注入失败 |
@@ -181,14 +180,12 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 | `push_status_failed(exception)` | WARNING | 记录推送状态信息失败 |
 | `push_structure_failed(exception)` | WARNING | 记录推送结构信息失败 |
 | `push_analysis_failed(exception)` | WARNING | 记录推送分析信息失败 |
-| `push_summary_failed(exception)` | WARNING | 记录推送摘要信息失败 |
-| `push_history_failed(exception)` | WARNING | 记录推送历史信息失败 |
 
 ### 使用示例
 
 ```python
 # 图生命周期
-sinker.start_graph("my_graph", ["NodeA -> NodeB", "NodeB -> NodeC"])
+sinker.start_graph("my_graph", "thread", ["NodeA -> NodeB", "NodeB -> NodeC"])
 sinker.end_graph("my_graph", 12.34)
 
 # 执行器周期
@@ -196,21 +193,21 @@ sinker.start_executor("Executor1", 50, "thread")
 sinker.end_executor("Executor1", "thread", 4.8, 48, 1, 1)
 
 # 任务生命周期
-sinker.task_input("process_func", "task_1", "queue", 1)
-sinker.task_success("process_func", "task_1", "thread", "OK", 0.05, 1, 2)
-sinker.task_retry("process_func", "task_2", 1, TimeoutError("timeout"), 1)
-sinker.task_fail("process_func", "task_3", ValueError("bad"), 1, 4)
-sinker.task_duplicate("process_func", "task_2", 1, 5)
+sinker.task_input("Executor1", "task_1", 1)
+sinker.task_success("Executor1", "task_1", "thread", "OK", 0.05, 1, 2)
+sinker.task_retry("Executor1", "task_2", 1, TimeoutError("timeout"), 1)
+sinker.task_fail("Executor1", "task_3", ValueError("bad"), 1, 4)
+sinker.task_duplicate("Executor1", "task_2", 1, 5)
 
 # 终止信号
-sinker.termination_input("process_func", "queue", 1)
-sinker.termination_merge("process_func", [1, 2], 3)
+sinker.termination_input("Executor1", 1)
+sinker.termination_merge("Executor1", [1, 2], 3)
 
 # 上报器事件
 sinker.inject_tasks_success("StageA", ["task_10", "task_11"])
 sinker.inject_tasks_failed("StageA", ["task_10"], RuntimeError("conflict"))
 sinker.push_errors_failed(ConnectionError("timeout"))
-sinker.push_history_failed(ConnectionError("timeout"))
+sinker.push_status_failed(ConnectionError("timeout"))
 ```
 
 通过使用这些专用方法，而不是通用的 `info()` 或 `debug()`，可以确保生成的日志易于阅读和机器解析。

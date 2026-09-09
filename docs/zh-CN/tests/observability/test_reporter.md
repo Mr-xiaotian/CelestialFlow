@@ -1,6 +1,6 @@
-# Reporter 注入与上报测试 (test_reporter.py)
+# tests/observability/test_reporter.py
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/09/09
 
 ## 作用
 
@@ -13,6 +13,7 @@
 | `FakeResponse` / `FakePostResponse` | Mock | 模拟 HTTP GET/POST 响应 |
 | `FakeSession` / `FakePushSession` | Mock | 模拟 `requests.Session` 的 GET/POST 方法并记录调用 |
 | `FakeTaskGraph` / `FakeErrorGraph` | Mock | 模拟图注入接口与错误查询接口 |
+| `FakeNode` | Mock | 记录单节点 `put_task` / `put_signal` 调用 |
 | `FakeLogInlet` | Mock | 记录注入成功/失败、拉取失败、推送失败日志 |
 | `TaskReporter` | 被测类 | `celestialflow.observability` 中的注入与上报器 |
 
@@ -20,7 +21,7 @@
 
 ### `test_reporter_accepts_split_task_and_termination_payload`
 
-**覆盖目标**：验证 `TaskReporter._pull_injection()` 能消费服务端返回的拆分载荷 `{"tasks": {...}, "terminations": [...]}`，并将任务与终止符分别通过 `put_task` / `put_signal` 注入到对应阶段。
+**覆盖目标**：验证 `TaskReporter._pull_injection()` 能消费服务端返回的拆分载荷 `{"tasks": {...}, "terminations": [...]}`，并将任务与终止符分别通过 `put_task` / `put_signal` 注入到对应节点。
 
 **断言意图**：
 
@@ -28,6 +29,7 @@
 - `StageB` 的 `task_calls` 为空，但 `signal_calls` 为 1（仅有终止信号被注入）。
 - `log_inlet.successes` 记录两条成功日志：StageA 的任务注入 `(StageA, [1, 2, 3])` 与 StageB 的终止符注入 `(StageB, [TERMINATION_SIGNAL])`。
 - 无失败日志（`failures`、`pull_failures` 均为空）。
+- 通过 `monkeypatch.setattr` 将 `celestialflow.observability.core_report.get_log_inlet` 替换为返回 `log_inlet`，以隔离全局日志注入器。
 
 ```mermaid
 sequenceDiagram
@@ -62,7 +64,7 @@ sequenceDiagram
 - 写入一条 sqlite 错误记录。
 - 设置 `_server_has_current_graph = False`（触发全量推送）。
 - 断言 POST 目标 URL 末尾为 `/api/push_errors`。
-- 断言 payload 包含 `graph_id` 和 `errors` 字段，错误记录字段与 sqlite 记录一致。
+- 断言 payload 包含 `graph_id` 和 `errors` 字段，错误记录字段与 sqlite 记录一致（包含 `id` / `event_id` / `stage` / `status` / `error_type` / `error_message` / `ts` / `task_json` / `result_json`）。
 
 ### `test_reporter_pushes_only_errors_after_server_max_event_id`
 
@@ -76,7 +78,7 @@ sequenceDiagram
 
 | 测试函数 | 覆盖目标 |
 |----------|----------|
-| `test_reporter_accepts_split_task_and_termination_payload` | 拆分载荷解析、任务与终止符合并注入、注入成功日志 |
+| `test_reporter_accepts_split_task_and_termination_payload` | 拆分载荷解析、任务与终止符分别注入、注入成功日志 |
 | `test_reporter_merges_tasks_and_termination_for_same_stage` | 同节点任务与终止符的合并规则 |
 | `test_reporter_pushes_errors_via_push_errors_endpoint_only` | 错误推送端点统一为 `/api/push_errors`、全量推送 payload 结构 |
 | `test_reporter_pushes_only_errors_after_server_max_event_id` | 基于服务端水位线的增量错误推送 |
@@ -100,6 +102,6 @@ pytest tests/observability/test_reporter.py -k "push_errors" -v
 ## 注意事项
 
 - 测试使用 Fake 对象完全隔离网络依赖，`TaskReporter` 的实际 HTTP 行为在其他测试中验证。
-- 任务载荷与终止符在远端已拆分，Reporter 端负责重新合并并替换终止符为 `TERMINATION_SIGNAL` 单例。
+- 任务载荷与终止符在远端已拆分，Reporter 端负责分别调用 `put_task` / `put_signal`，并在日志中将终止符记为 `[TERMINATION_SIGNAL]` 单例列表。
 - `FakePushSession` 会记录每次 POST 的 URL、JSON payload 与 timeout，便于断言推送内容而不依赖真实网络。
 - 相关实现位于 `src/celestialflow/observability/core_report.py`。

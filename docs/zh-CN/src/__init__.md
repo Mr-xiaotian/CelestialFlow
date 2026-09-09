@@ -1,6 +1,6 @@
 # CelestialFlow 包入口
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/09/09
 
 ## 简介
 
@@ -39,16 +39,17 @@
 
 ---
 
-### stage — 任务执行层
+### node — 任务执行层
 
 提供任务执行器、路由分发与任务拆分等执行层能力。
 
 | 导出符号 | 说明 |
 |----------|------|
-| `TaskExecutor` | 通用任务执行器，支持 serial / thread / async 三种执行模式 |
-| `TaskStage` | 图中的一个任务节点，包裹执行函数与配置 |
+| `TaskExecutor` | 通用任务执行器，支持 serial / thread / async 三种执行模式；可作为图节点直接接入 `TaskGraph` |
 | `TaskSplitter` | 任务拆分器，将一个输入拆分为多个子任务 |
 | `TaskRouter` | 路由分发器，根据规则将任务分发到不同下游 |
+
+> 注：`BaseTaskNode`、`TaskDispatch` 等内部抽象类不再作为公共 API 导出，外部代码应仅依赖上表中的 `TaskExecutor` / `TaskSplitter` / `TaskRouter`。
 
 ---
 
@@ -99,7 +100,7 @@
 
 ## `__all__` 列表
 
-完整公开 API 列表（当前共 22 个符号）：
+完整公开 API 列表（当前共 21 个符号）：
 
 ```python
 __all__ = [
@@ -116,7 +117,6 @@ __all__ = [
     "TaskReporter",
     "TaskRouter",
     "TaskSplitter",
-    "TaskStage",
     "TaskWheel",
     "TerminationSignal",
     "benchmark_executor",
@@ -133,7 +133,7 @@ __all__ = [
 以下示例演示如何从包入口导入并使用 CelestialFlow 的核心功能构建和执行任务图。
 
 ```python
-from celestialflow import TaskGraph, TaskStage, TaskExecutor
+from celestialflow import TaskGraph, TaskExecutor
 
 
 # 1. 定义任务处理函数
@@ -145,13 +145,13 @@ def add_one(x: int) -> int:
     return x + 1
 
 
-# 2. 创建 TaskStage 节点
-stage_a = TaskStage("StageA", func=double, execution_mode="serial")
-stage_b = TaskStage("StageB", func=add_one, execution_mode="serial")
+# 2. 创建 TaskExecutor 节点
+stage_a = TaskExecutor("StageA", func=double, execution_mode="serial")
+stage_b = TaskExecutor("StageB", func=add_one, execution_mode="serial")
 
 # 3. 构建 DAG 图
 graph = TaskGraph(name="DemoGraph")
-graph.set_stages([stage_a, stage_b])
+graph.set_nodes([stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 
 # 4. 执行图
@@ -187,16 +187,16 @@ print("Counts:", counts)
 ### 使用预定义图结构
 
 ```python
-from celestialflow import TaskChain, TaskStage
+from celestialflow import TaskChain, TaskExecutor
 
-stages = [
-    TaskStage("S1", func=lambda x: x * 2),
-    TaskStage("S2", func=lambda x: x + 1),
-    TaskStage("S3", func=lambda x: x**2),
+nodes = [
+    TaskExecutor("S1", func=lambda x: x * 2),
+    TaskExecutor("S2", func=lambda x: x + 1),
+    TaskExecutor("S3", func=lambda x: x**2),
 ]
 
-chain = TaskChain(name="DemoChain", stages=stages)
-chain.run({stages[0].get_name(): [1, 2, 3]})
+chain = TaskChain(name="DemoChain", nodes=nodes)
+chain.run({nodes[0].get_name(): [1, 2, 3]})
 snapshot = chain.get_status_snapshot()
 print("Chain status:", snapshot["status"])
 ```
@@ -217,8 +217,8 @@ graph TD
         G["TaskGraph<br/>TaskChain<br/>TaskLoop<br/>TaskCross<br/>TaskComplete<br/>TaskWheel<br/>TaskGrid"]
     end
 
-    subgraph stage
-        S["TaskExecutor<br/>TaskStage<br/>TaskSplitter<br/>TaskRouter"]
+    subgraph node
+        S["TaskExecutor<br/>TaskSplitter<br/>TaskRouter"]
     end
 
     subgraph observability

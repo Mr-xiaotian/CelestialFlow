@@ -1,13 +1,12 @@
 # TaskTypes
 
-> 📅 最后更新日期: 2026/08/12
-
+> 📅 最后更新日期: 2026/09/09
 
 TaskTypes 模块定义了框架中使用的基础数据类型、枚举和辅助类。
 
 ## StageStatus
 
-枚举类，表示 `TaskStage` 的运行状态。
+枚举类，表示任务图节点（`BaseTaskNode` 及其子类，如 `TaskExecutor`、`TaskSplitter`、`TaskRouter`）的运行状态。
 
 ```python
 class StageStatus(IntEnum):
@@ -18,7 +17,7 @@ class StageStatus(IntEnum):
 
 ## TerminationSignal
 
-用于标记任务队列终止的哨兵对象。当 Stage 接收到此信号时，表示上游已无更多任务，应当准备停止。
+用于标记任务队列终止的哨兵对象。当节点接收到此信号时，表示上游已无更多任务，应当准备停止。
 
 ```python
 class TerminationSignal:

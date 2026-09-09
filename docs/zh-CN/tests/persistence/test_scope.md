@@ -1,6 +1,6 @@
-# 作用域管理测试 (test_scope.py)
+# tests/persistence/test_scope.py
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 ## 作用
 
@@ -25,8 +25,10 @@
 验证 `funnel_scope()` 进入时启动两个全局 spout 的后台线程，退出时自动停止并清理线程引用。
 
 - 在作用域内断言 `log_spout._thread` 和 `lifecycle_spout._thread` 不为空且存活。
-- 通过 `get_log_inlet().start_graph()` 写入日志、`get_lifecycle_inlet().task_in()` + `task_success()` 写 sqlite。
+- 通过 `get_log_inlet().start_graph("scope_graph", "thread", ["hello scope"])` 写入日志。
+- 通过 `get_lifecycle_inlet().task_input("scope_stage", event_id=1, task="data")` + `task_success(event_id=1, result="ok")` 写 sqlite。
 - 退出作用域后断言 `_thread` 为 `None`，且日志文件与 sqlite 文件已持久化并包含正确内容。
+- 验证 sqlite 中 `records` 表内容为 `[("scope_stage", "success", '"data"', '"ok"')]`。
 
 ### `test_funnel_scope_is_reusable`
 
@@ -38,7 +40,7 @@
 
 验证作用域内部抛出异常时，`funnel_scope()` 仍执行收尾清理。
 
-- 在 `funnel_scope()` 内部抛出 `RuntimeError`。
+- 在 `funnel_scope()` 内部抛出 `RuntimeError("body boom")`。
 - 断言异常以 `ExceptionGroup` 形式抛出（匹配 `"Errors occurred during funnel scope"`）。
 - 退出后断言两个全局 spout 的 `_thread` 均为 `None`。
 
@@ -62,6 +64,6 @@ pytest tests/persistence/test_scope.py -k "reusable" -v
 
 ## 注意事项
 
-- 每个用例使用 `autouse` fixture `_cleanup_global_spouts` 前后清理全局 spout，避免后台线程与文件状态串扰。
+- 每个用例使用 `autouse` fixture `_cleanup_global_spouts` 在用例前后清理全局 spout：调用 `stop()`、清空队列、归零内部计数器，避免后台线程与文件状态串扰。
 - 测试使用 `monkeypatch.chdir(tmp_path)` 切换工作目录，确保日志与 sqlite 文件写入临时路径。
 - 相关实现位于 `src/celestialflow/persistence/core_scope.py`。

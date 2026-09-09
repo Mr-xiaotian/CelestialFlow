@@ -1,6 +1,6 @@
-# SQLite 工具测试 (test_splite.py)
+# tests/persistence/test_splite.py
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 ## 作用
 
@@ -11,20 +11,20 @@
 | 函数 | 说明 |
 |------|------|
 | `connect_db` | 建立连接并自动创建 records 表和索引 |
-| `normalize_record` | 将错误记录归一化为 sqlite 可写格式 |
-| `insert_record` | 单条插入记录（忽略元信息行） |
-| `load_records` | 按状态过滤读取全部记录 |
-| `append_records` | 批量追加记录（跳过重复 event_id） |
-| `query_records` | 分页、筛选、排序查询 |
-| `query_error_type_counts` | 按错误类型聚合 failed 记录数量，可按节点过滤 |
+| `normalize_record` | 将错误记录归一化为 sqlite 可写格式，缺少 `stage` 或 `status` 时抛出 `KeyError` |
+| `insert_record` | 单条插入记录（忽略元信息行，返回 `False`） |
+| `load_records` | 按状态过滤读取全部记录，可选 `status` 参数 |
+| `append_records` | 批量追加记录（跳过重复 event_id，返回实际写入条数） |
+| `query_records` | 分页、筛选、排序查询（`page` / `page_size` / `node` / `keyword` / `sort_order`） |
+| `query_error_type_counts` | 按错误类型聚合 failed 记录数量，可按 `node` 过滤 |
 | `clear_records` | 清空 records 表 |
-| `get_max_event_id_in_fail` | 仅统计 failed 状态的最大 event_id |
+| `get_max_event_id_in_fail` | 仅统计 failed 状态的最大 event_id；无记录时返回 `None` |
 | `load_records_after_event_id_in_fail` | 按 failed event_id 下界增量读取 |
-| `promote_record_to_failed_by_event_id` | 更新状态为 failed 并写入错误信息 |
+| `promote_record_to_failed_by_event_id` | 更新状态为 failed 并写入错误信息（`event_id` 会被替换为错误事件 ID） |
 | `promote_record_to_success_by_event_id` | 更新状态为 success 并写入结果 |
 | `delete_record_by_event_id` | 按 event_id 删除记录 |
-| `load_task_error_records` | 按 stage 读取 task-error 对 |
-| `load_task_result_records` | 按 stage 读取 task-result 对 |
+| `load_task_error_records` | 按 stage 读取 `(task_json, (error_type, error_message))` 列表 |
+| `load_task_result_records` | 按 stage 读取 `(task_json, result_json)` 列表 |
 
 ## 测试覆盖矩阵
 
@@ -36,49 +36,53 @@
 
 ### 建表与索引
 
-- `connect_db` 自动创建 `records` 表及 `idx_records_event_id`、`idx_records_status_id` 索引
-- 验证 `result_json` 字段存在
+- `connect_db` 自动创建 `records` 表及 `idx_records_event_id`、`idx_records_status_id` 索引。
+- 验证 `result_json` 字段存在，并核对表结构字段顺序为 `id / event_id / ts / stage / status / error_type / error_message / task_json / result_json`。
 
 ### 归一化
 
-- 缺少 `event_id` 的元信息行（如仅含 `timestamp` / `graph_name`）返回 `None`，不存入数据库
-- 错误记录被规范化为 `status="failed"`，`task_json` 和 `result_json` 序列化为 JSON 字符串
+- 缺少 `event_id` 的元信息行（如仅含 `timestamp` / `graph_name`）返回 `None`，不存入数据库。
+- 业务记录缺少 `stage` 或 `status` 时 `normalize_record` 抛出 `KeyError`。
+- 错误记录被规范化为 `status="failed"`，`task_json` 序列化为 JSON 字符串。
 
 ### 插入与读取
 
-- 元信息行插入返回 `False`，不写入
-- `load_records` 可按 `status` 过滤
+- 元信息行 `insert_record` 返回 `False`，不写入。
+- `load_records` 可按 `status` 过滤（如 `"failed"` / `"success"`）。
+- `load_records` 读回时 `task_json` / `result_json` 字段被反序列化为 Python 对象。
 
 ### 追加与去重
 
-- `append_records` 跳过已存在的 `event_id`，保证重复同步幂等
+- `append_records` 跳过已存在的 `event_id`，保证重复同步幂等。
+- 返回值为实际写入的记录数。
 
 ### 分页查询
 
-- `query_records` 支持 `page`/`page_size`/`node`/`keyword`/`sort_order` 参数
-- 验证排序规则（newest/oldest）和筛选准确性
+- `query_records` 支持 `page` / `page_size` / `node` / `keyword` / `sort_order` 参数。
+- 验证 `newest` / `oldest` 排序以及 `keyword` 关键字模糊匹配。
+- 返回元组 `(total, total_pages, page_items)`。
 
 ### 错误类型聚合
 
-- `query_error_type_counts` 按错误类型（`error_type`）聚合全部 failed 记录的数量
-- `query_error_type_counts` 支持 `node` 参数按 stage 过滤
-- 仅统计 status 为 `failed` 的记录，忽略 success 等其他状态
+- `query_error_type_counts` 按错误类型（`error_type`）聚合全部 failed 记录的数量，按 `count` 降序排列。
+- `query_error_type_counts` 支持 `node` 参数按 stage 过滤。
+- 仅统计 status 为 `failed` 的记录，忽略 success 等其他状态。
 
 ### 状态迁移
 
-- `promote_record_to_failed_by_event_id`: 从 waiting→failed，将 event_id 迁移到新错误事件 ID 并写入错误信息
-- `promote_record_to_success_by_event_id`: 从 pending→success，写入结果
+- `promote_record_to_failed_by_event_id`: 从 waiting→failed，将 event_id 迁移到新错误事件 ID 并写入错误信息。
+- `promote_record_to_success_by_event_id`: 从 pending→success，写入结果并保留原 event_id。
 
 ### 增量与分组
 
-- `get_max_event_id_in_fail` 仅统计 failed 状态；无 failed 记录时返回 `None`
-- `load_records_after_event_id_in_fail` 按 event_id 下界增量读取
-- `load_task_error_records` 支持按 stage 过滤，返回 `(task_json, (error_type, error_message))` 列表
+- `get_max_event_id_in_fail` 仅统计 failed 状态；无 failed 记录时返回 `None`。
+- `load_records_after_event_id_in_fail` 按 event_id 下界增量读取。
+- `load_task_error_records` 支持按 stage 过滤，返回 `(task_json, (error_type, error_message))` 列表。
 
 ### 配对读取
 
-- `load_task_error_records` 返回 `(task_json, (error_type, error_message))` 列表，支持按 stage 过滤
-- `load_task_result_records` 返回 `(task_json, result_json)` 列表
+- `load_task_error_records` 返回 `(task_json, (error_type, error_message))` 列表，支持按 stage 过滤。
+- `load_task_result_records` 返回 `(task_json, result_json)` 列表。
 
 ## 运行方式
 
@@ -96,6 +100,7 @@ pytest tests/persistence/test_splite.py -k "load_task" -v
 
 ## 注意事项
 
-- 测试使用 `tmp_path` fixture 创建临时 sqlite 文件，在测试结束后自动清理
-- `sample_errors` fixture 提供 3 条有效错误记录 + 1 条元信息行作为测试数据集
-- 相关实现位于 `src/celestialflow/persistence/util_sqlite.py`
+- 测试使用 `tmp_path` fixture 创建临时 sqlite 文件，在测试结束后自动清理。
+- `sample_errors` fixture 提供 3 条有效错误记录 + 1 条元信息行作为测试数据集；`sqlite_path` fixture 提供 `tmp_path / "records.sqlite3"` 路径。
+- 源文件名 `test_splite.py` 为历史拼写遗留（应为 splitter），本任务范围仅文档，不涉及重命名。
+- 相关实现位于 `src/celestialflow/persistence/util_sqlite.py`。

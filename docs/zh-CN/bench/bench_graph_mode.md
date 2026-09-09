@@ -1,6 +1,6 @@
 # bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 ## 目标
 
@@ -283,6 +283,6 @@ python bench/bench_graph_mode.py
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskStage`、`benchmark_graph`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`、`benchmark_graph`）
 - `python-dotenv`
 - 外部服务：Reporter 服务（可选）

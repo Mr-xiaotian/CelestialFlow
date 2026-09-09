@@ -1,6 +1,6 @@
 # bench_http_grpc.py 基准测试说明
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 ## 目标
 
@@ -14,9 +14,9 @@
 | `bench_http_ctree` | 通过 HTTP 协议向 CelestialTree 上报事件 |
 | `bench_grpc_ctree` | 通过 gRPC 协议向 CelestialTree 上报事件 |
 
-- **图结构**：`TaskSplitter → TaskStage` 的简单链
+- **图结构**：`TaskSplitter → TaskExecutor` 的简单链
 - **任务**：`no_op` 恒等函数（处理 `range(1e4)`）
-- **配置**：`execution_mode="thread"`，`max_workers=50`（`TaskSplitter` 默认串行，`TaskStage` 不显式设置 `stage_mode`）
+- **配置**：`execution_mode="thread"`，`max_workers=50`（`TaskSplitter` 默认串行，`TaskExecutor` 自身亦不显式设置 `execution_mode`，因已在构造时直接传参）
 
 ## 关键配置
 
@@ -35,7 +35,7 @@
 
 ### 历史结果 - 本地 CelestialTree（时间未记录）
 
-> 环境：Windows，Python 3.10，TaskSplitter → TaskStage 链，处理 `range(1e4)`
+> 环境：Windows，Python 3.10，TaskSplitter → TaskExecutor 链，处理 `range(1e4)`
 > 外部服务：本地 CelestialTree（HTTP + gRPC）
 
 | 场景 | 耗时 | overhead vs 基线 |
@@ -104,7 +104,7 @@ python bench/bench_http_grpc.py
 
 ## 依赖
 
-- `celestialflow`（`TaskChain`、`TaskSplitter`、`TaskStage`）
+- `celestialflow`（`TaskChain`、`TaskSplitter`、`TaskExecutor`）
 - `celestialtree`（需额外安装；源码仓库中可通过 `uv sync --group dev` 获取）
 - `python-dotenv`
 - 外部服务：CelestialTree（HTTP 端口 + gRPC 端口）

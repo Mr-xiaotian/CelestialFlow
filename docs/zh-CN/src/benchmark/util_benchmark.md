@@ -1,8 +1,10 @@
-# Benchmark
+# benchmark/util_benchmark.py
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 `benchmark/util_benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
+
+> ⚠️ 本文件定义的是 benchmark 内部工具函数，不是公共 API；`benchmark_executor` 与 `benchmark_graph` 通过 `celestialflow/__init__.py` 集中导出后才是受支持的公共 API。
 
 ## 设计目的
 
@@ -78,8 +80,8 @@ async def benchmark_graph(
 
 测试流程：
 1. 遍历 `graph_modes` × `execution_modes` 的全部组合
-2. 克隆任务图（`execution_mode="async"` 时克隆 `async_graph`，否则克隆 `sync_graph`）
-3. 调用 `set_graph_mode(graph_mode)` 与 `set_stage_execution_mode(execution_mode)`
+2. 克隆任务图（`execution_mode="async"` 时克隆 `async_graph`，否则克隆 `sync_graph`）。`clone_graph` 内部断言所有节点都是 `TaskExecutor`，若含 `TaskSplitter` 等特化节点会抛出 `ConfigurationError`
+3. 调用 `set_graph_mode(graph_mode)` 与 `set_node_execution_mode(execution_mode)`
 4. `graph_mode="async"` 时执行 `await run_async()`；其余图模式执行 `run()`，其中 `execution_mode="async"` 的组合在函数内部通过 `asyncio.to_thread(...)` 启动，避免与 `benchmark_graph()` 自身的事件循环冲突
 5. 记录耗时，通过 `format_table` 输出时间表格
 
@@ -134,7 +136,7 @@ asyncio.run(
 
 ```python
 import asyncio
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 from celestialflow.benchmark.util_benchmark import benchmark_graph
 
 
@@ -155,21 +157,21 @@ async def async_process_b(x: int) -> int:
 
 
 # 创建同步节点
-stage_a = TaskStage("A", process_a)
-stage_b = TaskStage("B", process_b)
+stage_a = TaskExecutor("A", process_a)
+stage_b = TaskExecutor("B", process_b)
 
 # 创建异步节点
-async_stage_a = TaskStage("A", async_process_a)
-async_stage_b = TaskStage("B", async_process_b)
+async_stage_a = TaskExecutor("A", async_process_a)
+async_stage_b = TaskExecutor("B", async_process_b)
 
 # 构建同步图
 sync_graph = TaskGraph(name="SyncGraph")
-sync_graph.set_stages(stages=[stage_a, stage_b])
+sync_graph.set_nodes(nodes=[stage_a, stage_b])
 sync_graph.connect([stage_a], [stage_b])
 
 # 构建异步图
 async_graph = TaskGraph(name="AsyncGraph")
-async_graph.set_stages(stages=[async_stage_a, async_stage_b])
+async_graph.set_nodes(nodes=[async_stage_a, async_stage_b])
 async_graph.connect([async_stage_a], [async_stage_b])
 
 # 运行基准测试（benchmark_graph 为 async 函数，需要 await）
@@ -238,3 +240,5 @@ asyncio.run(
 4. **异步要求**: `benchmark_executor` 和 `benchmark_graph` 都是异步函数，需要 `await` 或 `asyncio.run`
 5. **模板分离**: `benchmark_executor` 与 `benchmark_graph` 都需要分别提供同步/异步模板，因为 `execution_mode="async"` 需要 async 函数
 6. **矩阵完整性**: `benchmark_graph` 当前实现默认覆盖 `serial/thread/async × serial/thread/async` 的 9 种组合
+7. **节点类型限制**: 内部使用的 `clone_graph` 仅支持 `TaskExecutor` 节点；图中含 `TaskSplitter` / `TaskRouter` 等特化节点时会抛出 `ConfigurationError`
+8. **内部工具**: `util_benchmark.py` 本体属于 benchmark 内部模块，外部代码请通过 `from celestialflow import benchmark_executor / benchmark_graph` 访问

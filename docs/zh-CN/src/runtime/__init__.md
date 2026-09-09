@@ -1,12 +1,12 @@
 # Runtime 模块
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/09/09
 
 Runtime 模块提供了 CelestialFlow 任务运行时的核心基础设施，包括任务信封（Envelope）、队列（Queue）、指标统计（Metrics）等组件。
 
 ## 模块概述
 
-Runtime 模块负责管理任务执行过程中的数据包装、队列通信和指标统计。它不负责任务调度本身（调度由 Stage 模块负责），而是提供运行期基础组件供上层使用。
+Runtime 模块负责管理任务执行过程中的数据包装、队列通信和指标统计。它不负责任务调度本身（调度由 Graph 模块负责），而是提供运行期基础组件供上层使用。
 
 ### 公开导出符号 (`__all__`)
 
@@ -82,8 +82,8 @@ from celestialflow.runtime import (
 - 所有错误通过 `CelestialFlowError` 及其子类统一处理
 
 ### 外部关联
-- **与 Stage 模块**: Stage 使用 `TaskInQueue`/`TaskOutQueue` 作为节点间通信管道
-- **与 Graph 模块**: 为 `TaskGraph` 提供队列和指标基础设施
+- **与 Graph 模块**: `TaskGraph` 管理 `TaskExecutor` / `TaskSplitter` / `TaskRouter` 等节点，使用 `TaskInQueue`/`TaskOutQueue` 作为节点间通信管道
+- **与 Node 模块**: 节点对象（`BaseTaskNode` 及其子类）持有 `TaskMetrics`，并使用 `TaskInQueue`/`TaskOutQueue` 收发数据
 
 ## 使用示例
 

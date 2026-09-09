@@ -1,6 +1,6 @@
-# Spout 基础测试 (test_spout.py)
+# tests/funnel/test_spout.py
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/09/09
 
 ## 作用
 验证 `celestialflow.funnel.core_spout.BaseSpout` 的生命周期钩子、终止信号处理和抽象方法约束，确保监听线程能够按预期启动、停止并消费停止前的记录。
@@ -8,6 +8,8 @@
 ## 覆盖点
 - `start()` 会调用 `_before_start()`。
 - `stop()` 会触发 `_after_stop()`，并在停止后不再继续消费新记录。
+- `stop()` 之后可再次 `start()`，重启后的 spout 仍能继续消费新记录。
+- `stop()` 支持重复调用，重复调用不会引发异常。
 - 基类未实现 `_handle_record()` 时应抛出 `CelestialFlowError`。
 
 ## 测试覆盖矩阵

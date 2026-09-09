@@ -1,10 +1,10 @@
 # demo_funnel.py 演示说明
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 ## 目标
 
-演示 `funnel` 模块可以脱离 `TaskGraph`、`TaskStage` 和 `TaskExecutor` 单独使用。这个示例直接基于 `BaseInlet` 和 `BaseSpout` 组装一个最小的“事件采集 -> 后台消费 -> JSONL 落地”管道。
+演示 `funnel` 模块可以脱离 `TaskGraph` 和 `TaskExecutor` 单独使用。这个示例直接基于 `BaseInlet` 和 `BaseSpout` 组装一个最小的“事件采集 -> 后台消费 -> JSONL 落地”管道。
 
 ## 演示内容
 

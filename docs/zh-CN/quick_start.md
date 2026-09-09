@@ -1,6 +1,6 @@
 # 快速开始（Quick Start）
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/09/09
 
 本节将引导你快速安装并运行 **TaskGraph**，通过示例体验其任务图调度机制。
 
@@ -81,10 +81,10 @@ uv sync --group dev
 
 ```bash
 pytest tests/graph/test_graph.py
-pytest tests/stage/test_stage.py
+pytest tests/node/test_node.py
 ```
 
 - `tests/graph/test_graph.py` 包含图结构相关测试：DAG 构建、分层调度、线程模式、循环/网格/完全图结构等。
-- `tests/stage/test_stage.py` 包含 Stage 节点相关测试：模式校验、标签生成、序列化检查等。
+- `tests/node/test_node.py` 包含节点相关测试：类型、估算器、计数器等。
 
-在代码运行过程中，你可以通过日志、`TaskProgress` 进度条或状态快照查看运行情况。
+在代码运行过程中，你可以通过日志、`BaseObserver`（如 `TqdmObserver` 进度条）或状态快照查看运行情况。

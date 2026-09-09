@@ -1,6 +1,6 @@
 # demo_network.py 演示说明
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 ## 目标
 
@@ -52,7 +52,7 @@ flowchart LR
 
 #### 核心函数
 
-**`linear(w, b)`**：闭包工厂函数，返回 `_forward(x) -> w * x + b`。满足 `TaskStage`
+**`linear(w, b)`**：闭包工厂函数，返回 `_forward(x) -> w * x + b`。满足 `TaskExecutor`
 对 `func` 只接收一个位置参数的约束，通过闭包固定权重和偏置，无需为每个权重组合
 单独定义函数。
 
@@ -134,4 +134,4 @@ python demo/demo_network.py
 
 ## 依赖
 
-- `celestialflow`（`TaskCross`、`TaskStage`）
+- `celestialflow`（`TaskCross`、`TaskExecutor`）

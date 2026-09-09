@@ -1,6 +1,6 @@
 # 教程（Tutorial）：构建一个图片爬虫
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/09/09
 
 本教程将通过一个完整的实战项目——**百度图片爬虫**，带你从零开始学习 CelestialFlow 的使用。
 
@@ -201,15 +201,15 @@ if __name__ == "__main__":
 
 ## 第三步：组装任务图
 
-处理函数验证无误后，我们将它们分配到各自的 `TaskStage`，然后用 `TaskGraph` 组织结构。
+处理函数验证无误后，我们将它们分配到各自的 `TaskExecutor`，然后用 `TaskGraph` 组织结构。
 
 ### 3.1 创建节点
 
 ```python
-from celestialflow import TaskStage, TaskSplitter
+from celestialflow import TaskExecutor, TaskSplitter
 
 # 搜索阶段：输入关键词，输出 HTML
-stage_search = TaskStage(
+stage_search = TaskExecutor(
     "搜索页面",
     func=search_images,
     execution_mode="serial",  # 只有一个关键词，串行即可
@@ -231,7 +231,7 @@ class URLSplitter(TaskSplitter):
 stage_parse = URLSplitter("解析图片")
 
 # 下载阶段：输入 URL，输出图片数据
-stage_download = TaskStage(
+stage_download = TaskExecutor(
     "下载图片",
     func=download_image,
     execution_mode="thread",  # 网络IO密集，使用线程池
@@ -240,7 +240,7 @@ stage_download = TaskStage(
 )
 
 # 存储阶段：输入图片数据，输出文件路径
-stage_save = TaskStage(
+stage_save = TaskExecutor(
     "存储文件",
     func=lambda data: save_image(data, "猫咪") if data else None,
     execution_mode="serial",
@@ -254,10 +254,10 @@ stage_save = TaskStage(
 from celestialflow import TaskGraph
 
 # 创建任务图
-graph = TaskGraph(name="ImageCrawler", schedule_mode="eager", log_level="SUCCESS")
+graph = TaskGraph(name="ImageCrawler", graph_mode="eager", log_level="SUCCESS")
 
 # 设置节点
-graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
+graph.set_nodes(stages=[stage_search, stage_parse, stage_download, stage_save])
 
 # 设置节点间的连接关系
 graph.connect([stage_search], [stage_parse])
@@ -269,7 +269,7 @@ graph.connect([stage_download], [stage_save])
 
 ```python
 # 将运行状态上报到celestialflow-web服务
-graph.set_reporter(True, host="127.0.0.1", port=5005)
+graph.set_reporter(TaskReporter(report_host, report_port, graph))
 ```
 
 主仓当前已不再内置 Web 服务。如果你有独立部署的 `celestialflow-web` 项目或自定义 HTTP 服务，可以在这里启用上报；否则可以直接跳过这一段。
@@ -282,15 +282,7 @@ init_tasks = {stage_search.get_name(): ["猫咪", "小狗", "风景"]}
 
 # 启动
 print("开始爬取图片...")
-graph.start_graph(init_tasks)
-
-# 获取统计
-snapshot = graph.get_status_snapshot()
-status = snapshot["status"]
-total_succeeded = sum(s.get("total_succeeded", 0) for s in status.values())
-total_failed = sum(s.get("total_failed", 0) for s in status.values())
-print(f"成功: {total_succeeded}")
-print(f"失败: {total_failed}")
+graph.run(init_tasks)
 ```
 
 ---
@@ -308,9 +300,10 @@ import requests
 from urllib.parse import quote
 
 from celestialflow import (
-    TaskStage,
+    TaskExecutor,
     TaskSplitter,
     TaskGraph,
+    TaskReporter,
 )
 
 # ========== 处理函数 ==========
@@ -381,7 +374,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     """构建爬虫任务图。"""
 
     # 创建节点
-    stage_search = TaskStage(
+    stage_search = TaskExecutor(
         "搜索页面",
         func=search_images,
         execution_mode="serial",
@@ -390,7 +383,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
 
     stage_parse = URLSplitter("解析图片")
 
-    stage_download = TaskStage(
+    stage_download = TaskExecutor(
         "下载图片",
         func=download_image,
         execution_mode="thread",
@@ -399,7 +392,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     )
 
     # 使用闭包传递 keyword
-    stage_save = TaskStage(
+    stage_save = TaskExecutor(
         "存储文件",
         func=lambda data: save_image(data, keyword),
         execution_mode="serial",
@@ -407,8 +400,8 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     )
 
     # 设置连接
-    graph = TaskGraph(name="ImageCrawler", schedule_mode="eager", log_level="SUCCESS")
-    graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
+    graph = TaskGraph(name="ImageCrawler", graph_mode="eager", log_level="SUCCESS")
+    graph.set_nodes(stages=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
     graph.connect([stage_download], [stage_save])
@@ -427,16 +420,12 @@ if __name__ == "__main__":
 
     # 运行
     print("开始爬取图片...")
-    graph.start_graph({"搜索页面": KEYWORDS})
+    graph.run({"搜索页面": KEYWORDS})
 
     # 统计
-    snapshot = graph.get_status_snapshot()
-    status = snapshot["status"]
-    total_succeeded = sum(s.get("total_succeeded", 0) for s in status.values())
-    total_failed = sum(s.get("total_failed", 0) for s in status.values())
     print(f"\n爬取完成!")
-    print(f"成功: {total_succeeded}")
-    print(f"失败: {total_failed}")
+    print(f"成功: {stage_search.get_counts()['tasks_succeeded']}")
+    print(f"失败: {stage_search.get_counts()['tasks_failed']}")
 ```
 
 ---
@@ -452,12 +441,12 @@ python crawler.py
 
 ### 5.2 查看运行状态
 
-运行过程中，你可以通过日志、进度条或 `graph.get_status_snapshot()` 查看：
+运行过程中，你可以通过日志、进度条或节点 `snapshot()` 快照查看：
 
-1. **节点处理进度**：每个阶段的成功、失败、待处理统计
+1. **节点处理进度**：每个阶段的成功、失败、待处理统计（通过 `get_counts()` 或 `snapshot()` 获取）
 2. **图结构信息**：通过 `graph.get_structure_list()` 或 `graph.get_structure_graph()` 查看
 3. **错误信息**：下载失败的图片 URL 和异常日志
-4. **任务注入**：通过代码继续注入新的关键词
+4. **任务注入**：通过 `node.put_task()` 继续注入新的关键词，或 `node.put_signal()` 注入终止信号
 
 ### 5.3 查看结果
 
@@ -479,10 +468,11 @@ ls images/风景/
 from celestialflow import TerminationSignal
 
 # 注入新关键词
-graph.put_stage_queue({stage_search.get_name(): ["汽车", "美食"]})
+for keyword in ["汽车", "美食"]:
+    stage_search.put_task(keyword)
 
 # 注入终止信号（停止爬取）
-graph.put_stage_queue({stage_search.get_name(): [TerminationSignal()]})
+stage_search.put_signal()
 ```
 
 ---
@@ -493,7 +483,7 @@ graph.put_stage_queue({stage_search.get_name(): [TerminationSignal()]})
 
 1. **任务分析**: 将复杂任务拆解为独立的层级
 2. **函数编写**: 为每个层级编写处理函数并单独测试
-3. **节点创建**: 将函数包装为 `TaskStage`
+3. **节点创建**: 将函数包装为 `TaskExecutor`
 4. **图组装**: 用 `TaskGraph` 组织节点关系
 5. **监控运行**: 通过日志、进度条与状态快照观察执行状态
 
@@ -501,15 +491,15 @@ graph.put_stage_queue({stage_search.get_name(): [TerminationSignal()]})
 
 | 概念 | 说明 |
 |------|------|
-| `TaskStage` | 任务节点，包装处理函数 |
+| `TaskExecutor` | 任务节点，包装处理函数 |
 | `TaskSplitter` | 分裂器，将一个任务拆分为多个 |
 | `TaskGraph` | 任务图，组织节点关系和执行流程 |
-| `stage_mode` | 节点运行模式（serial/thread） |
+| `graph_mode` | 图运行模式（serial/thread） |
 | `execution_mode` | 节点内部执行模式（serial/thread/async） |
 
 ### 下一步
 
 - 尝试使用 `TaskRouter` 实现条件分发
-- 参考 `demo/demo_redis.py`，了解如何用普通 `TaskStage` 接入 Redis / Go Worker 协作
-- 阅读其他 [API 参考](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_executor.md) 了解更多功能
+- 参考 `demo/demo_redis.py`，了解如何用普通 `TaskExecutor` 接入 Redis / Go Worker 协作
+- 阅读其他 [API 参考](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/node/core_node.md) 了解更多功能
 

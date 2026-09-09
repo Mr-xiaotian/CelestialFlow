@@ -1,18 +1,18 @@
 # GraphRender
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 `graph/util_render.py` 提供将图结构渲染为带边框的树形文本列表的工具，被 `TaskGraph.get_structure_list()` 直接调用，用于在日志/CLI 中可视化任务图拓扑。
 
 ## 主要能力
 
-- `render_structure_list(nodes, edges, source_nodes)`：从节点元信息、邻接表和源节点列表生成带边框的树形文本列表。
+- `render_structure_list(nodes, edges, source_nodes)`：从节点名称列表、邻接表和源节点列表生成带边框的树形文本列表。
 
 ## render_structure_list
 
 ```python
 def render_structure_list(
-    nodes: dict[str, dict[str, Any]],
+    nodes: list[str],
     edges: dict[str, list[str]],
     source_nodes: list[str],
 ) -> list[str]: ...
@@ -31,9 +31,9 @@ def render_structure_list(
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| `nodes` | `dict[str, dict[str, Any]]` | 节点元信息字典，每个节点需包含 `func_name` / `execution_mode` / `max_workers` 字段 |
-| `edges` | `dict[str, list[str]]` | 出边邻接表 `{stage_name: [next_stage_name, ...]}` |
-| `source_nodes` | `list[str]` | 源节点名称列表；为空时会自动从 `edges` 推断或取 `nodes` 第一个键 |
+| `nodes` | `list[str]` | 节点名称列表，按注册顺序传入 |
+| `edges` | `dict[str, list[str]]` | 出边邻接表 `{node_name: [next_node_name, ...]}` |
+| `source_nodes` | `list[str]` | 源节点名称列表；为空时会自动从 `edges` 推断或取 `nodes` 第一个元素 |
 
 ### 返回值
 
@@ -48,12 +48,8 @@ def render_structure_list(
 ```python
 from celestialflow.graph.util_render import render_structure_list
 
-# 节点元信息：通常来自 TaskGraph.get_stages_summary()
-nodes = {
-    "Fetch": {"func_name": "fetch_data", "execution_mode": "serial", "max_workers": 1},
-    "Parse": {"func_name": "parse_data", "execution_mode": "thread", "max_workers": 4},
-    "Save":  {"func_name": "save_data",  "execution_mode": "async",  "max_workers": 8},
-}
+# 节点名称列表
+nodes = ["Fetch", "Parse", "Save"]
 
 # 出边邻接表
 edges = {
@@ -69,11 +65,11 @@ for line in lines:
     print(line)
 
 # 输出示例：
-# +---------------------------------------------------------------------------+
-# | Fetch::fetch_data (E:serial, W:1)                                          |
-# | ╘-->Parse::parse_data (E:thread, W:4)                                      |
-# |     ╘-->Save::save_data (E:async, W:8)                                     |
-# +---------------------------------------------------------------------------+
+# +--------------------------+
+# | Fetch                    |
+# | ╘-->Parse                |
+# |     ╘-->Save             |
+# +--------------------------+
 ```
 
 ### 处理空图
@@ -81,23 +77,23 @@ for line in lines:
 ```python
 from celestialflow.graph.util_render import render_structure_list
 
-print(render_structure_list({}, {}, []))
+print(render_structure_list([], {}, []))
 # ['+ No stages defined +']
 ```
 
 ### 通过 TaskGraph 内置方法
 
-`TaskGraph.get_structure_list()` 会自动收集 `get_stages_summary()`、`order_graph.out_edges` 与 `source_names`，并调用 `render_structure_list`：
+`TaskGraph.get_structure_list()` 会自动收集 `get_nodes()`、`order_graph.out_edges` 与 `get_source_nodes()`，并调用 `render_structure_list`：
 
 ```python
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 
-s1 = TaskStage("Step1", func=lambda x: x.upper())
-s2 = TaskStage("Step2", func=lambda x: len(x))
-s3 = TaskStage("Step3", func=lambda x: x * 10)
+s1 = TaskExecutor("Step1", func=lambda x: x.upper())
+s2 = TaskExecutor("Step2", func=lambda x: len(x))
+s3 = TaskExecutor("Step3", func=lambda x: x * 10)
 
 graph = TaskGraph(name="RenderDemo", graph_mode="thread")
-graph.set_stages([s1, s2, s3])
+graph.set_nodes([s1, s2, s3])
 graph.connect([s1], [s2])
 graph.connect([s2], [s3])
 
@@ -119,4 +115,4 @@ for line in tree_lines:
 ## 与其他模块的关系
 
 - `TaskGraph.get_structure_list()` 是该函数的主要调用点，用于在日志和监控面板中可视化拓扑。
-- 输入中的 `nodes` 字段名（`func_name` / `execution_mode` / `max_workers`）与 `TaskStage.get_summary()` 的输出字段保持一致。
+- 该函数只依赖节点名称列表与邻接表，并不直接读取节点对象的属性；任何提供等价邻接表的图结构都可作为输入。

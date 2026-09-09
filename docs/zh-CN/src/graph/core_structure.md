@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 TaskStructure 模块提供了多种预定义的任务图结构，帮助用户快速构建复杂的任务流。所有的结构都继承自 `TaskGraph`。
 
@@ -20,20 +20,20 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskChain` 是最简单的任务结构，将多个 `TaskStage` 按顺序连接，形成线性的数据流。
+`TaskChain` 是最简单的任务结构，将多个 `TaskExecutor` 节点按顺序连接，形成线性的数据流。
 
 ```python
-from celestialflow import TaskChain, TaskStage
+from celestialflow import TaskChain, TaskExecutor
 
 # 定义阶段
-stage1 = TaskStage("S1", func=func1)
-stage2 = TaskStage("S2", func=func2)
-stage3 = TaskStage("S3", func=func3)
+stage1 = TaskExecutor("S1", func=func1)
+stage2 = TaskExecutor("S2", func=func2)
+stage3 = TaskExecutor("S3", func=func3)
 
 # 创建链
 chain = TaskChain(
     name="DataPipeline",
-    stages=[stage1, stage2, stage3],
+    nodes=[stage1, stage2, stage3],
     graph_mode="thread",  # thread: 节点并行运行; serial: 节点串行运行
 )
 
@@ -136,7 +136,7 @@ from celestialflow import TaskLoop
 # 创建环
 loop = TaskLoop(
     name="FeedbackLoop",
-    stages=[stage1, stage2, stage3],  # stage3 -> stage1
+    nodes=[stage1, stage2, stage3],  # stage3 -> stage1
 )
 ```
 
@@ -200,7 +200,7 @@ flowchart LR
 from celestialflow import TaskComplete
 
 # 创建完全图
-complete = TaskComplete(name="FullMesh", stages=[stage1, stage2, stage3, stage4])
+complete = TaskComplete(name="FullMesh", nodes=[stage1, stage2, stage3, stage4])
 ```
 
 ## 使用示例
@@ -210,7 +210,7 @@ complete = TaskComplete(name="FullMesh", stages=[stage1, stage2, stage3, stage4]
 ### TaskChain 完整示例
 
 ```python
-from celestialflow import TaskChain, TaskStage
+from celestialflow import TaskChain, TaskExecutor
 
 
 # 定义三个阶段：数据清洗 -> 转换 -> 聚合
@@ -227,10 +227,10 @@ def aggregate(data: int) -> dict:
 
 
 # 构建链
-s1 = TaskStage("Clean", func=clean)
-s2 = TaskStage("Transform", func=transform)
-s3 = TaskStage("Aggregate", func=aggregate)
-chain = TaskChain(name="ETL", stages=[s1, s2, s3], graph_mode="thread")
+s1 = TaskExecutor("Clean", func=clean)
+s2 = TaskExecutor("Transform", func=transform)
+s3 = TaskExecutor("Aggregate", func=aggregate)
+chain = TaskChain(name="ETL", nodes=[s1, s2, s3], graph_mode="thread")
 
 # 启动
 chain.run({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
@@ -243,7 +243,7 @@ print(f"链阶段数: {len(snapshot)}")
 ### TaskCross 完整示例
 
 ```python
-from celestialflow import TaskCross, TaskStage
+from celestialflow import TaskCross, TaskExecutor
 
 
 # 第一层：数据准备
@@ -264,8 +264,8 @@ def analyze_b(x: int) -> float:
     return x * 2.0
 
 
-layer1 = [TaskStage("LoadA", func=load_a), TaskStage("LoadB", func=load_b)]
-layer2 = [TaskStage("AnaA", func=analyze_a), TaskStage("AnaB", func=analyze_b)]
+layer1 = [TaskExecutor("LoadA", func=load_a), TaskExecutor("LoadB", func=load_b)]
+layer2 = [TaskExecutor("AnaA", func=analyze_a), TaskExecutor("AnaB", func=analyze_b)]
 
 cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
@@ -275,13 +275,13 @@ print(cross.collect_runtime_snapshot())
 ### TaskGrid 完整示例
 
 ```python
-from celestialflow import TaskGrid, TaskStage
+from celestialflow import TaskGrid, TaskExecutor
 
 # 2x2 网格
-n00 = TaskStage("Init", func=lambda x: x)
-n01 = TaskStage("Add", func=lambda x: x + 1)
-n10 = TaskStage("Mul", func=lambda x: x * 2)
-n11 = TaskStage("Square", func=lambda x: x * x)
+n00 = TaskExecutor("Init", func=lambda x: x)
+n01 = TaskExecutor("Add", func=lambda x: x + 1)
+n10 = TaskExecutor("Mul", func=lambda x: x * 2)
+n11 = TaskExecutor("Square", func=lambda x: x * x)
 
 grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
 grid.run({n00.get_name(): [1, 2, 3]})
@@ -291,18 +291,18 @@ print(grid.collect_runtime_snapshot())
 ### TaskLoop 完整示例
 
 ```python
-from celestialflow import TaskLoop, TaskStage
+from celestialflow import TaskLoop, TaskExecutor
 
 # 三节点环：每个节点处理后将结果传给下一个
-loop_stages = [
-    TaskStage("Ring1", func=lambda x: x + 1),
-    TaskStage("Ring2", func=lambda x: x * 2),
-    TaskStage("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 形成闭环
+loop_nodes = [
+    TaskExecutor("Ring1", func=lambda x: x + 1),
+    TaskExecutor("Ring2", func=lambda x: x * 2),
+    TaskExecutor("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 形成闭环
 ]
 
-loop = TaskLoop(name="RingLoop", stages=loop_stages)
+loop = TaskLoop(name="RingLoop", nodes=loop_nodes)
 loop.run(
-    {loop_stages[0].get_name(): [5]},
+    {loop_nodes[0].get_name(): [5]},
     if_put_signal=False,  # 环结构需手动注入终止
 )
 ```
@@ -310,13 +310,13 @@ loop.run(
 ### TaskWheel 完整示例
 
 ```python
-from celestialflow import TaskWheel, TaskStage
+from celestialflow import TaskWheel, TaskExecutor
 
-center = TaskStage("Hub", func=lambda x: {"input": x, "processed": x * 10})
+center = TaskExecutor("Hub", func=lambda x: {"input": x, "processed": x * 10})
 ring_nodes = [
-    TaskStage("Channel1", func=lambda x: x["processed"] + 1),
-    TaskStage("Channel2", func=lambda x: x["processed"] + 2),
-    TaskStage("Channel3", func=lambda x: x["processed"] + 3),
+    TaskExecutor("Channel1", func=lambda x: x["processed"] + 1),
+    TaskExecutor("Channel2", func=lambda x: x["processed"] + 2),
+    TaskExecutor("Channel3", func=lambda x: x["processed"] + 3),
 ]
 
 wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
@@ -327,15 +327,15 @@ print(wheel.collect_runtime_snapshot())
 ### TaskComplete 完整示例
 
 ```python
-from celestialflow import TaskComplete, TaskStage
+from celestialflow import TaskComplete, TaskExecutor
 
 nodes = [
-    TaskStage("N1", func=lambda x: x**2),
-    TaskStage("N2", func=lambda x: x + 1),
-    TaskStage("N3", func=lambda x: x // 2),
+    TaskExecutor("N1", func=lambda x: x**2),
+    TaskExecutor("N2", func=lambda x: x + 1),
+    TaskExecutor("N3", func=lambda x: x // 2),
 ]
 
-complete = TaskComplete(name="FullConnected", stages=nodes)
+complete = TaskComplete(name="FullConnected", nodes=nodes)
 complete.run(
     {nodes[0].get_name(): [10]},
     if_put_signal=False,

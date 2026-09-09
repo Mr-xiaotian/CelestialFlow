@@ -1,10 +1,10 @@
 # bench_observer.py 基准测试说明
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 ## 目标
 
-对比 `TaskExecutor` 在同一批任务下，**无观察者**、**print 日志**（`PrintObserver`）与 **tqdm 进度条**（`TqdmObserver`）三种场景的执行耗时，量化观察者回调带来的性能开销。
+对比 `TaskExecutor` 在同一批任务下，**无观察者**、**print 日志**（`PrintObserver`）与 **tqdm 进度条**（`TqdmObserver`，由 `bench_observer.py` 内定义）三种场景的执行耗时，量化观察者回调带来的性能开销。
 
 帮助用户根据任务规模与实时反馈需求，选择合适的观察策略。
 

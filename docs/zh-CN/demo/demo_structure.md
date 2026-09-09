@@ -1,6 +1,6 @@
 # demo_structure.py 演示说明
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 ## 目标
 
@@ -321,7 +321,7 @@ Grid33: success=180  fail=0
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskStage`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskExecutor`、`TaskReporter`）
 - `demo_utils`
 - `python-dotenv`
 - 外部服务：CelestialTree（可选）、Reporter（可选）

@@ -1,6 +1,6 @@
-# Inlet 基础测试 (test_inlet.py)
+# tests/funnel/test_inlet.py
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/09/09
 
 ## 作用
 验证 `celestialflow.funnel.core_inlet.BaseInlet` 的最小职责：把调用方传入的数据经由 `_funnel()` 放入目标队列，并被运行中的 `BaseSpout` 子类消费。
@@ -9,6 +9,7 @@
 - `MockInlet.send()` 通过 `_funnel()` 转发记录。
 - `MockSpout` 从队列消费字符串和字典两类消息。
 - 未启动消费者时，记录仍应先进入队列，供后续读取。
+- `bind_spout()` 返回与目标 spout 共享状态的 inlet，且 `inlet` 自身类型保持为 `MockInlet`。
 
 ## 测试覆盖矩阵
 

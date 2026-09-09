@@ -1,8 +1,8 @@
 # RuntimeFormat
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/09/09
 
-`runtime/util_format.py` 提供通用格式化工具函数，包括字符串截断、表格渲染、时间格式化等功能。
+`runtime/util_format.py` 提供通用格式化工具函数，包括字符串截断、表格渲染和按值聚类等。
 
 > 注意：当前文件路径为 `src/celestialflow/runtime/util_format.py`，旧路径 `src/celestialflow/utils/util_format.py` 已废弃。
 
@@ -12,8 +12,6 @@
 |------|------|
 | `format_repr(obj, max_length)` | 安全截断对象字符串，自动转义换行和反斜杠 |
 | `format_table(data, ...)` | 将二维数据渲染为文本表格，支持 `left` / `right` / `center` 对齐 |
-| `format_duration(seconds)` | 秒数转可读时长（`MM:SS` 或 `HH:MM:SS`） |
-| `format_timestamp(timestamp)` | 时间戳转 `YYYY-MM-DD HH:MM:SS` 格式字符串 |
 | `cluster_by_value_sorted(input_dict)` | 按值聚类，按 value 升序排序 |
 
 ## format_repr
@@ -39,22 +37,6 @@ def format_table(
 
 格式化二维数据为带边框的文本表格。支持自动生成 Excel 风格列名（A, B, ..., Z, AA, AB...）。
 
-## format_duration
-
-```python
-def format_duration(seconds: int) -> str: ...
-```
-
-将秒数格式化为 `HH:MM:SS` 或 `MM:SS`，小时为 0 时自动省略前导零。
-
-## format_timestamp
-
-```python
-def format_timestamp(timestamp: float) -> str: ...
-```
-
-将时间戳（秒）格式化为 `YYYY-MM-DD HH:MM:SS`。
-
 ## cluster_by_value_sorted
 
 ```python
@@ -69,20 +51,11 @@ def cluster_by_value_sorted(input_dict: dict[str, int]) -> dict[int, list[str]]:
 from celestialflow.runtime.util_format import (
     format_repr,
     format_table,
-    format_duration,
-    format_timestamp,
 )
 
 # format_repr：安全截断
 print(format_repr("hello world", 50))  # hello world
 print(format_repr("A" * 100, 30))  # AAAAAAAAAAAAAAAAAAAA...CCCCCCCCCC
-
-# format_duration：时间格式化
-print(format_duration(59))  # 00:59
-print(format_duration(3661))  # 01:01:01
-
-# format_timestamp：时间戳格式化
-print(format_timestamp(0))  # 1970-01-01 08:00:00
 
 # format_table：表格渲染
 data = [

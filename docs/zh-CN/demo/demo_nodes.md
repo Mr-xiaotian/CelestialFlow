@@ -1,10 +1,10 @@
-# demo_stages.py 演示说明
+# demo_nodes.py 演示说明
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
 ## 目标
 
-演示 CelestialFlow 中结构型特殊 Stage 节点的使用：`TaskSplitter`（任务拆分）和 `TaskRouter`（任务路由）。展示循环依赖、批量拆分和条件分发等图结构能力。
+演示 CelestialFlow 中结构型特殊节点的使用：`TaskSplitter`（任务拆分）和 `TaskRouter`（任务路由），以及 `BaseTaskNode` 体系下的多节点协作。展示循环依赖、批量拆分和条件分发等图结构能力。
 
 ## 演示场景
 
@@ -45,8 +45,9 @@ flowchart LR
 
 ## 关键配置
 
-- 各 stage 默认走 `execution_mode="thread"`（未显式设置时由框架决定），其中 `demo_splitter_0` 通过 `graph.set_graph_mode("thread")` 与 `graph.set_stage_execution_mode("thread")` 两条独立调用统一设为 `"thread"`；`demo_splitter_1` 通过 `TaskChain` 间接走 `execution_mode="thread"`、`max_workers=50`
-- `demo_router_0` 中 `Origin`/`StageA`/`StageB` 均使用 `execution_mode="thread"`（`max_workers=4` / `2` / `2`），`Router` 为 `TaskRouter` 节点，本身不使用 `execution_mode`
+- `demo_splitter_0` 通过 `graph.set_graph_mode("thread")` 与 `graph.set_node_execution_mode("thread")` 两条独立调用统一将各 `TaskExecutor` 节点设为 `"thread"` 模式（`max_workers=4`）；`TaskSplitter` 不显式设置执行模式，仅作为拆分节点透传任务
+- `demo_splitter_1` 通过 `TaskChain` 间接走 `execution_mode="thread"`、`max_workers=50`（`Process` 阶段）
+- `demo_router_0` 中 `Origin` / `StageA` / `StageB` 均使用 `execution_mode="thread"`（`max_workers=4` / `2` / `2`），`Router` 为 `TaskRouter` 节点，本身不消耗 `execution_mode`
 - 监控通过 `graph.set_reporter(TaskReporter(report_host, report_port, graph))` 接入 `REPORT_HOST`/`REPORT_PORT` 环境变量对应的远端 Reporter；`graph.set_ctree(ctree_client)` 默认被注释掉，不启用 CelestialTree；如需接入请先额外安装 `celestialtree` 并取消对应注释
 - Redis 远端协作示例已迁移到 `demo_redis.py`
 
@@ -61,7 +62,7 @@ flowchart LR
 
 ```bash
 # 运行默认演示（demo_splitter_0）
-python demo/demo_stages.py
+python demo/demo_nodes.py
 
 # 修改 main() 后可运行其他场景
 # 如将 demo_splitter_0() 替换为 demo_router_0()
@@ -109,7 +110,7 @@ Origin 只产生原始整数，Router 在内部根据奇偶性把任务分发到
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskStage`、`TaskChain`、`TaskSplitter`、`TaskRouter`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskChain`、`TaskSplitter`、`TaskRouter`、`TaskReporter`）
 - `demo_utils`
 - `python-dotenv`
 - 外部服务：CelestialTree（可选）、Reporter（可选）

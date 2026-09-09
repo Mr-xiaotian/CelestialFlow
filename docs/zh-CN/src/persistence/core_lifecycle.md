@@ -1,6 +1,6 @@
 # 任务生命周期持久化 (Lifecycle Persistence)
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 `persistence/core_lifecycle.py` 负责任务生命周期（Lifecycle）的持久化：记录任务在整个生命周期中的状态变化（pending → success / failed / 删除），并将数据写入 `lifecycles/` 目录下的 SQLite 数据库文件。核心组件为 `LifecycleSpout` 与 `LifecycleInlet`。
 
@@ -12,7 +12,7 @@
 flowchart LR
     subgraph Producer["生产者 - Worker 线程"]
         Inlet[LifecycleInlet]
-        Inlet -->|task_in / task_success / task_fail 等| Funnel[_funnel]
+        Inlet -->|task_input / task_success / task_fail 等| Funnel[_funnel]
     end
     Funnel --> Queue[queue.Queue]
     Queue -->|守护线程轮询| Spout[LifecycleSpout._handle_record]
@@ -54,7 +54,7 @@ lifecycle_spout.start()
 
 | 操作 | 触发方法 | 说明 |
 |------|---------|------|
-| `insert` | `LifecycleInlet.task_in()` | 新任务进入 stage，写入一条 `pending` 记录 |
+| `insert` | `LifecycleInlet.task_input()` | 新任务进入 stage，写入一条 `pending` 记录 |
 | `delete` | `LifecycleInlet.task_duplicate()` | 删除重复任务对应的 pending 记录 |
 | `promote_success` | `LifecycleInlet.task_success()` | 将 pending 晋升为 `success`，写入结果 JSON |
 | `promote_failed` | `LifecycleInlet.task_fail()` | 将 pending 晋升为 `failed`，更新 event_id 并写入错误类型与消息 |
@@ -95,7 +95,7 @@ result_pairs: list[tuple[Any, Any]] = lifecycle_spout.get_task_result_pairs("Sta
 
 ```python
 class LifecycleInlet(BaseInlet):
-    def task_in(self, stage_name: str, event_id: int, task: Any) -> None:
+    def task_input(self, stage_name: str, event_id: int, task: Any) -> None:
         """写入一条 pending 记录，表示任务已进入某个 stage。"""
 
     def task_success(self, event_id: int, result: Any) -> None:
@@ -110,7 +110,7 @@ class LifecycleInlet(BaseInlet):
 
 说明：
 
-- `task_in` 中 `task` 通过 `to_persisted_payload()` 序列化为 JSON 友好结构后存入 `task_json` 字段。
+- `task_input` 中 `task` 通过 `to_persisted_payload()` 序列化为 JSON 友好结构后存入 `task_json` 字段。
 - `task_fail` 会将 `error_type`（异常类名）与 `error_message`（`str(error)`）一并持久化。
 - `LifecycleInlet` 只写队列，不直接操作数据库；所有 I/O 都在 `LifecycleSpout` 的后台线程中完成。
 
@@ -121,7 +121,7 @@ get_lifecycle_spout() -> LifecycleSpout  # 全局唯一的 LifecycleSpout 实例
 get_lifecycle_inlet() -> LifecycleInlet  # 全局唯一的 LifecycleInlet 实例（已绑定到全局 spout）
 ```
 
-框架各执行组件（`TaskExecutor` / `TaskSplitter` / `TaskRouter` / `TaskGraph`）统一通过 `get_lifecycle_inlet()` 记录生命周期事件，`TaskExecutor.get_success_pairs()` 与 `get_error_pairs()` 则通过 `get_lifecycle_spout()` 读取结果。
+框架各执行组件（`BaseTaskNode` / `TaskSplitter` / `TaskRouter` / `TaskGraph`）统一通过 `get_lifecycle_inlet()` 记录生命周期事件，`BaseTaskNode.get_success_pairs()` 与 `get_error_pairs()` 则通过 `get_lifecycle_spout()` 读取结果。
 
 ## 使用示例
 
@@ -138,7 +138,7 @@ lifecycle_spout.start()
 lifecycle_inlet = LifecycleInlet().bind_spout(lifecycle_spout)
 
 # 3. 记录任务生命周期
-lifecycle_inlet.task_in("StageA", event_id=1, task="hello")
+lifecycle_inlet.task_input("StageA", event_id=1, task="hello")
 
 # 任务成功：pending -> success
 lifecycle_inlet.task_success(event_id=1, result="OK")

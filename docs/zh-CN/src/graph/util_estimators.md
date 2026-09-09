@@ -1,6 +1,6 @@
 # GraphEstimators
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 `graph/util_estimators.py` 提供基于任务图（DAG）的全局待处理任务数估算函数。
 
@@ -50,7 +50,9 @@ from celestialflow.graph.util_order_graph import OrderGraph
 from celestialflow.graph.util_estimators import calc_global_pending
 
 # 构建一个简单的 DAG: A -> B -> C
-graph = OrderGraph.from_edges({"A": ["B"], "B": ["C"]}, ("A", "B", "C"))
+graph = OrderGraph()
+for u, v in [("A", "B"), ("B", "C")]:
+    graph.add_edge(u, v)
 
 # 输入观测数据
 processed_map = {"A": 100, "B": 50, "C": 10}

@@ -1,12 +1,12 @@
 # Graph 模块
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/09
 
 Graph 模块是 CelestialFlow 的核心调度系统，负责管理任务节点之间的依赖关系、执行流程和生命周期。它提供了灵活的任务图构建、分析和序列化功能。
 
 ## 模块概述
 
-Graph 模块定义了任务执行的基本单元和它们之间的关系，形成一个有向图。每个节点代表一个 `TaskStage`，边代表数据流依赖关系。该模块确保任务按照正确的拓扑顺序执行，并处理并发、错误处理和资源管理。
+Graph 模块定义了任务执行的基本单元和它们之间的关系，形成一个有向图。每个节点是 `celestialflow.node` 中定义的 `BaseTaskNode` 派生对象（公共 API 包括 `TaskExecutor`、`TaskSplitter`、`TaskRouter`），边代表数据流依赖关系。该模块确保任务按照正确的拓扑顺序执行，并处理并发、错误处理和资源管理。
 
 ### 公开导出符号 (`__all__`)
 
@@ -27,9 +27,9 @@ from celestialflow.graph import (
 ### 核心文件
 
 1. **core_graph.py** (`TaskGraph`)
-   - **作用**: 核心调度器，管理 `TaskStage` 节点的依赖关系、执行流程、资源分配和生命周期
+   - **作用**: 核心调度器，管理任务节点（`BaseTaskNode` 派生对象）的依赖关系、执行流程、资源分配和生命周期
    - **关键功能**:
-     - 建立节点间的依赖关系（`set_stages` / `connect`）
+     - 建立节点间的依赖关系（`set_nodes` / `connect`）
      - 执行任务图（`start` / `start_async`，按 `graph_mode` 串行/线程/异步执行）
      - 运行时监控快照和全局剩余时间估算（`collect_runtime_snapshot`）
      - 初始任务与持久化任务注入（`run` / `run_async` / `restore_db`）
@@ -64,20 +64,20 @@ from celestialflow.graph import (
 
 ### 内部关联
 - `TaskGraph` 是基础类，所有其他结构继承自它
-- `TaskChain`、`TaskLoop` 等是 `TaskGraph` 的特化实现（封装了 `set_stages` / `connect` 逻辑）
+- `TaskChain`、`TaskLoop` 等是 `TaskGraph` 的特化实现（封装了 `set_nodes` / `connect` 逻辑）
 - `util_order_graph.py` 提供框架内部统一复用的轻量图结构和基础图算法
 - `TaskGraph` 当前基于 `OrderGraph` 完成源节点识别、DAG 判定与层级分析
 - `util_render.py` 将运行时结构输出为带边框的树形文本列表
 
 ### 外部关联
-- **与 Stage 模块**: `TaskGraph` 管理 `TaskStage` 节点，每个节点通过 `start` / `start_async` 启动
+- **与 Node 模块**: 任务图节点（`TaskExecutor` / `TaskSplitter` / `TaskRouter`）由 `celestialflow.node` 提供，`TaskGraph` 仅负责装配、连接与调度
 - **与 Runtime 模块**: 使用 `TaskInQueue`/`TaskOutQueue` 作为节点间通信管道
 - **与 Persistence 模块**: 通过 `LifecycleSpout` 实现持久化
 - **与 Observability 模块**: 通过 `TaskReporter` 向 `celestialflow-web` 服务推送状态并拉取注入指令
 
 ## 使用模式
 
-1. **构建任务图**: 创建 `TaskStage` 节点 → `set_stages()` 注册 → `connect()` 建立依赖
+1. **构建任务图**: 创建 `TaskExecutor` 节点（按需使用 `TaskSplitter` / `TaskRouter`）→ `set_nodes()` 注册 → `connect()` 建立依赖
 2. **选择结构**: 对常见模式可直接使用 `TaskChain`/`TaskCross` 等预定义结构
 3. **配置**: 通过 `set_reporter()` / `set_ctree()` 集成外部服务
 4. **执行**: 调用 `run()` 或 `run_async()`
@@ -90,7 +90,7 @@ from celestialflow.graph import (
 ### 基础 TaskGraph 构建
 
 ```python
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 
 
 # 定义阶段函数
@@ -107,13 +107,13 @@ def stage_c_func(x: int) -> int:
 
 
 # 创建节点
-s1 = TaskStage("S1", func=stage_a_func, execution_mode="serial")
-s2 = TaskStage("S2", func=stage_b_func, execution_mode="serial")
-s3 = TaskStage("S3", func=stage_c_func, execution_mode="serial")
+s1 = TaskExecutor("S1", func=stage_a_func, execution_mode="serial")
+s2 = TaskExecutor("S2", func=stage_b_func, execution_mode="serial")
+s3 = TaskExecutor("S3", func=stage_c_func, execution_mode="serial")
 
 # 构建 DAG: S1 -> S2 -> S3
 graph = TaskGraph(name="MyGraph", graph_mode="thread")
-graph.set_stages([s1, s2, s3])
+graph.set_nodes([s1, s2, s3])
 graph.connect([s1], [s2])
 graph.connect([s2], [s3])
 
@@ -129,31 +129,31 @@ print(f"层级: {analysis['layersDict']}")
 ### TaskChain 线性链
 
 ```python
-from celestialflow import TaskChain, TaskStage
+from celestialflow import TaskChain, TaskExecutor
 
-stages = [
-    TaskStage("Clean", func=lambda x: x.strip().lower()),
-    TaskStage("Parse", func=lambda x: int(x)),
-    TaskStage("Compute", func=lambda x: x**2),
+nodes = [
+    TaskExecutor("Clean", func=lambda x: x.strip().lower()),
+    TaskExecutor("Parse", func=lambda x: int(x)),
+    TaskExecutor("Compute", func=lambda x: x**2),
 ]
 
-chain = TaskChain(name="DataPipeline", stages=stages, graph_mode="thread")
-chain.run({stages[0].get_name(): [" 10 ", " 20 ", " 30 "]})
+chain = TaskChain(name="DataPipeline", nodes=nodes, graph_mode="thread")
+chain.run({nodes[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
 # 监控：通过 collect_runtime_snapshot 采集一次运行时快照
 snapshot, ts = chain.collect_runtime_snapshot()
 print(f"快照时间戳: {ts}")
-print(f"节点 0 快照: {snapshot[stages[0].get_name()]}")
+print(f"节点 0 快照: {snapshot[nodes[0].get_name()]}")
 ```
 
 ### TaskCross 交叉层
 
 ```python
-from celestialflow import TaskCross, TaskStage
+from celestialflow import TaskCross, TaskExecutor
 
 # 定义两层
-layer1 = [TaskStage("F1", func=lambda x: x * 2), TaskStage("F2", func=lambda x: x + 3)]
-layer2 = [TaskStage("G1", func=lambda x: x**2), TaskStage("G2", func=lambda x: -x)]
+layer1 = [TaskExecutor("F1", func=lambda x: x * 2), TaskExecutor("F2", func=lambda x: x + 3)]
+layer2 = [TaskExecutor("G1", func=lambda x: x**2), TaskExecutor("G2", func=lambda x: -x)]
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
@@ -163,12 +163,12 @@ print(cross.collect_runtime_snapshot())
 ### TaskGrid 网格
 
 ```python
-from celestialflow import TaskGrid, TaskStage
+from celestialflow import TaskGrid, TaskExecutor
 
-s00 = TaskStage("A", func=lambda x: x)
-s01 = TaskStage("B", func=lambda x: x + 1)
-s10 = TaskStage("C", func=lambda x: x * 2)
-s11 = TaskStage("D", func=lambda x: x * x)
+s00 = TaskExecutor("A", func=lambda x: x)
+s01 = TaskExecutor("B", func=lambda x: x + 1)
+s10 = TaskExecutor("C", func=lambda x: x * 2)
+s11 = TaskExecutor("D", func=lambda x: x * x)
 
 grid = TaskGrid(name="GridPipeline", grid=[[s00, s01], [s10, s11]])
 grid.run({s00.get_name(): [1, 2]})
@@ -178,26 +178,26 @@ print(grid.collect_runtime_snapshot())
 ### TaskLoop 环形图
 
 ```python
-from celestialflow import TaskLoop, TaskStage
+from celestialflow import TaskLoop, TaskExecutor
 
-stages = [
-    TaskStage("L1", func=lambda x: x + 1),
-    TaskStage("L2", func=lambda x: x * 2),
-    TaskStage("L3", func=lambda x: x - 1),  # L3 -> L1 形成环
+nodes = [
+    TaskExecutor("L1", func=lambda x: x + 1),
+    TaskExecutor("L2", func=lambda x: x * 2),
+    TaskExecutor("L3", func=lambda x: x - 1),  # L3 -> L1 形成环
 ]
 
-loop = TaskLoop(name="FeedbackLoop", stages=stages)
+loop = TaskLoop(name="FeedbackLoop", nodes=nodes)
 # 环结构建议 if_put_signal=False 避免提前终止
-loop.run({stages[0].get_name(): [10]}, if_put_signal=False)
+loop.run({nodes[0].get_name(): [10]}, if_put_signal=False)
 ```
 
 ### TaskWheel 轮状图
 
 ```python
-from celestialflow import TaskWheel, TaskStage
+from celestialflow import TaskWheel, TaskExecutor
 
-center = TaskStage("Center", func=lambda x: f"processed: {x}")
-ring = [TaskStage(f"R{i}", func=lambda x: f"ring-{i}: {x}") for i in range(3)]
+center = TaskExecutor("Center", func=lambda x: f"processed: {x}")
+ring = [TaskExecutor(f"R{i}", func=lambda x: f"ring-{i}: {x}") for i in range(3)]
 
 wheel = TaskWheel(name="HubAndSpoke", center=center, ring=ring)
 wheel.run({center.get_name(): ["data"]})

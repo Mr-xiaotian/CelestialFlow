@@ -1,8 +1,8 @@
 # TaskMetrics
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/09
 
-TaskMetrics 模块负责管理和统计任务执行过程中的各项指标，如输入任务数、成功数、失败数、重复任务数等。它通常作为 `TaskExecutor` 的一个组件存在。
+TaskMetrics 模块负责管理和统计任务执行过程中的各项指标，如输入任务数、成功数、失败数、重复任务数等。它通常作为任务节点（如 `TaskExecutor`、`TaskSplitter`、`TaskRouter`）的一个组件存在。
 
 
 ## 初始化
@@ -66,10 +66,10 @@ def add_duplicate_count(self, count: int = 1):
 
 ```python
 def append_task_counter(self, counter: ValueWrapper) -> None:
-    """添加外部计数器到 task_counter（用于跨 Stage 级联统计）。"""
+    """添加外部计数器到 task_counter（用于跨节点级联统计）。"""
 ```
 
-级联用于 `TaskStage.prev_binding()` — 每个下游节点将上游的成功计数器注册到自己的 `task_counter`，实现"上游产出 = 下游输入"的计数一致性。
+级联用于任务节点之间的 `prev_binding()` —— 每个下游节点将上游的成功计数器注册到自己的 `task_counter`，实现"上游产出 = 下游输入"的计数一致性。该调用由 `TaskGraph.connect()` 在建立超边连接时统一触发。
 
 ## 观察者管理
 
@@ -163,7 +163,7 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
     """添加需要重试的异常类型。"""
 ```
 
-异常类型以 `tuple` 形式存储在 `self.retry_exceptions` 中，`TaskDispatch._worker` / `_async_worker` 通过 `isinstance(exception, self.task_executor.metrics.retry_exceptions)` 判断是否重试。每次调用会累加到已有异常类型之上。
+异常类型以 `tuple` 形式存储在 `self.retry_exceptions` 中，`TaskDispatch._worker` / `_async_worker` 通过 `isinstance(exception, self.task_executor.metrics.retry_exceptions)` 判断是否重试。这里 `task_executor` 字段名沿用历史命名，实际指向承载 `TaskDispatch` 的 `BaseTaskNode` 节点实例（即 `TaskExecutor` / `TaskSplitter` / `TaskRouter`）。每次调用会累加到已有异常类型之上。
 
 ```python
 def get_retry_error_type_names(self) -> set[str]:

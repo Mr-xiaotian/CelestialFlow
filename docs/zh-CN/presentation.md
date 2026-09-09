@@ -1,6 +1,6 @@
 # CelestialFlow 技术分享
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/09/09
 
 ---
 
@@ -41,7 +41,7 @@
 
 - **图拓扑丰富**：Chain / Cross / Grid / Loop / Wheel / Complete 六种预置结构
 - **多维执行模型**：Stage 级 (serial/thread) × Task 级 (serial/thread/async) 组合
-- **外部协作示例**：可用普通 `TaskStage` 对接 Redis / Go Worker 等外部系统
+- **外部协作示例**：可用普通 `TaskExecutor` 对接 Redis / Go Worker 等外部系统
 - **事件溯源**：集成 CelestialTree，任务全生命周期可追踪
 - **状态上报链路**：通过 `TaskReporter` 与 `celestialflow-web` 服务交换状态和控制指令
 - **零平台依赖**：`pip install celestialflow`，一行代码即可运行
@@ -53,7 +53,7 @@
 ### 设计哲学
 
 - **图即程序 (Graph as Program)**
-  - 以 `TaskGraph` 为执行单元，节点 (`TaskStage`) 为处理逻辑，边为数据流
+  - 以 `TaskGraph` 为执行单元，节点 (`TaskExecutor`) 为处理逻辑，边为数据流
   - 编排逻辑与业务逻辑彻底分离
 
 - **信封模式 (Envelope Pattern)**
@@ -76,15 +76,15 @@
 ```mermaid
 graph TB
     subgraph 用户代码
-        A[定义 TaskStage] --> B[构建 TaskGraph]
-        B --> C[调用 start_graph]
+        A[定义 TaskExecutor] --> B[构建 TaskGraph]
+        B --> C[调用 graph.run]
     end
 
     subgraph CelestialFlow 核心
         C --> D[init_resources<br/>创建队列/连接]
         D --> E[init_analysis<br/>DAG检测/分层]
-        E --> F{schedule_mode}
-        F -->|eager| G[并发启动所有 Stage]
+        E --> F{graph_mode}
+        F -->|eager| G[并发启动所有节点]
         F -->|staged| H[逐层顺序执行]
         G --> I[TaskDispatch 执行任务]
         H --> I
@@ -93,7 +93,7 @@ graph TB
     subgraph 运行时基础设施
         I --> J[TaskInQueue / TaskOutQueue]
         I --> K[TaskMetrics 指标]
-        I --> L[LogInlet / FallbackInlet]
+        I --> L[LogInlet / LifecycleInlet]
         I --> M[CelestialTree 事件]
     end
 
@@ -118,50 +118,49 @@ graph TB
 
 ```python
 TaskGraph(
-    schedule_mode: str = "eager",   # "eager" | "staged"
+    graph_mode: str = "eager",   # "eager" | "staged"
     log_level: str = "SUCCESS"
 )
 ```
 
-- **初始化**: 构造后通过 `graph.set_stages(stages=[...])` 设置节点，通过 `graph.connect(...)` 建立连接。源节点通过 SCC 凝聚自动计算
+- **初始化**: 构造后通过 `graph.set_nodes(stages=[...])` 设置节点，通过 `graph.connect(...)` 建立连接。源节点通过 SCC 凝聚自动计算
 - **调度模式**：
-  - `eager`：所有 Stage 并发启动，依赖关系由队列自然保证
+  - `eager`：所有节点并发启动，依赖关系由队列自然保证
   - `staged`：仅 DAG 可用，逐层执行，层间同步阻塞
-- **状态管理**：`stage_runtime_dict`、`status_dict`、`stage_history`（最近 20 快照）
+- **状态管理**：`node_dict`（节点对象集合）、`status_dict`（运行时状态）、`snapshot()`（最近 20 快照）
 - **图分析**：基于 NetworkX 构建有向图，检测 DAG 性质，计算拓扑层级
 
 ---
 
-## Slide 7: 核心组件 — TaskStage / TaskExecutor
+## Slide 7: 核心组件 — TaskExecutor / TaskSplitter / TaskRouter
 
 ### 继承关系
 
 ```mermaid
 classDiagram
-    TaskExecutor <|-- TaskStage
-    TaskStage <|-- TaskSplitter
-    TaskStage <|-- TaskRouter
-    class TaskExecutor {
+    BaseTaskNode <|-- TaskExecutor
+    TaskExecutor <|-- TaskSplitter
+    TaskExecutor <|-- TaskRouter
+    class BaseTaskNode {
         +func: Callable
         +execution_mode: str
-        +worker_limit: int
+        +max_workers: int
         +max_retries: int
         +metrics: TaskMetrics
         +start(task_source)
         +start_async(task_source)
     }
 
-    class TaskStage {
-        +stage_mode: str
-        +_status: int
-        +start_stage()
+    class TaskExecutor {
+        +name: str
     }
 ```
 
-- **TaskExecutor**：任务执行核心，管理重试、去重、缓存、并发策略
-- **TaskStage**：图节点，拓扑关系由 `TaskGraph` 管理（`graph.out_edges` / `graph.in_edges`）
+- **BaseTaskNode**：所有运行节点的基类，定义共性骨架（队列、metrics、生命周期）
+- **TaskExecutor**：通用任务执行器，管理重试、去重、缓存、并发策略；用户直接构造使用
+- **TaskSplitter / TaskRouter**：图结构型特化节点，改变下游分发语义
 - **`graph.connect()`** 建立节点间的连接关系（上下游依赖）
-- **`stage_mode`/`name`** 通过 `TaskStage.__init__()` 构造参数传入
+- **`name` / `execution_mode`** 通过 `__init__()` 构造参数传入
 
 ---
 
@@ -175,11 +174,11 @@ classDiagram
 | 输入 | 单任务 | 单任务 |
 | 输出 | tuple 中的每个元素成为独立任务 | `(target_tag, task)` 路由到指定下游 |
 | 计数器 | `split_counter` 传播至下游 `task_counter` | `route_counters[tag]` 分别传播 |
-| 执行模式 | 仅 serial | 仅 serial |
-| 重试 | 无（`max_retries=0`） | 无（`max_retries=0`） |
+| 执行模式 | 默认 serial，可在创建时指定 | 默认 serial，可在创建时指定 |
+| 重试 | 默认 0，可在创建时指定 | 默认 0，可在创建时指定 |
 
-- **计数器传播**是确保 `is_tasks_finished()` 正确判断的关键设计
-- Splitter/Router 均不支持并发，保证拆分/路由的确定性
+- **计数器传播**是确保下游 `is_tasks_finished()` 正确判断的关键设计
+- Splitter/Router 的 `serial` / `max_retries=0` 为默认配置，可在构造时覆盖（具体参数见 `core_nodes.py`）
 
 ---
 
@@ -189,10 +188,10 @@ classDiagram
 
 ```mermaid
 graph LR
-    A[Stage A] -->|TaskOutQueue.put| Q1[Queue]
-    Q1 -->|TaskInQueue.get| B[Stage B]
+    A[Node A] -->|TaskOutQueue.put| Q1[Queue]
+    Q1 -->|TaskInQueue.get| B[Node B]
     A -->|TaskOutQueue.put| Q2[Queue]
-    Q2 -->|TaskInQueue.get| C[Stage C]
+    Q2 -->|TaskInQueue.get| C[Node C]
 
     style Q1 fill:#f9f,stroke:#333
     style Q2 fill:#f9f,stroke:#333
@@ -205,7 +204,7 @@ graph LR
 - **TaskOutQueue**：
   - 广播模式 `put()` → 所有下游
   - 定向模式 `put_target(item, tag)` → 指定下游（Router 使用）
-- **终止协议**：保证无论 DAG 还是环形图，所有 Stage 都能优雅退出
+- **终止协议**：保证无论 DAG 还是环形图，所有节点都能优雅退出
 
 ---
 
@@ -215,17 +214,17 @@ graph LR
 
 ```mermaid
 graph TD
-    subgraph 图级调度 schedule_mode
+    subgraph 图级调度 graph_mode
         A[eager: 全部并发]
         B[staged: 逐层执行]
     end
 
-    subgraph Stage级 stage_mode
+    subgraph 节点级 execution_mode
         C[serial: 主线程内运行]
         D[thread: 独立线程]
     end
 
-    subgraph Task级 execution_mode
+    subgraph 任务级 execution_mode
         E[serial: 串行逐个]
         F[thread: ThreadPoolExecutor]
         H[async: asyncio + Semaphore]
@@ -243,12 +242,11 @@ graph TD
 
 | 层级 | 选项 | 说明 |
 |------|------|------|
-| 图级 `schedule_mode` | `eager` / `staged` | 控制 Stage 间并发 vs 顺序 |
-| Stage 级 `stage_mode` | `serial` / `thread` | Stage 是否在独立线程中运行 |
-| Task 级 `execution_mode` | `serial` / `thread` | Stage 内任务的并发策略 |
+| 图级 `graph_mode` | `eager` / `staged` | 控制节点间并发 vs 顺序 |
+| 节点级 `execution_mode` | `serial` / `thread` / `async` | 节点内任务的并发策略 |
 
 备注：
-注意在 TaskGraph 模式下，task 级的 `async` 不可用（仅 standalone `TaskExecutor.start()` 支持）。
+注意在 TaskGraph 模式下，节点级的 `async` 也可使用（每个节点都持有自己的 `TaskDispatch`）。
 
 ---
 
@@ -275,7 +273,7 @@ graph TD
 
 ## Slide 12: 外部协作示例 — Redis Demo
 
-### 用普通 TaskStage 对接 Redis / Go Worker
+### 用普通 TaskExecutor 对接 Redis / Go Worker
 
 ```mermaid
 sequenceDiagram
@@ -283,11 +281,11 @@ sequenceDiagram
     participant Redis as Redis Server
     participant Remote as 外部 Worker
 
-    Local->>Redis: TaskStage(redis_push)<br/>RPUSH task JSON
+    Local->>Redis: TaskExecutor(redis_push)<br/>RPUSH task JSON
     Redis->>Remote: 外部 Worker<br/>BLPOP 阻塞获取
     Remote->>Remote: 执行任务
     Remote->>Redis: HSET 写回结果
-    Redis->>Local: TaskStage(redis_wait)<br/>轮询 HGET 获取结果
+    Redis->>Local: TaskExecutor(redis_wait)<br/>轮询 HGET 获取结果
     Local->>Redis: HDEL 删除结果
 ```
 
@@ -297,9 +295,9 @@ sequenceDiagram
 | 外部 Worker / `redis_pop()` | 阻塞拉取任务 | `BLPOP` | 桥接 Redis 输入 |
 | `redis_wait()` | 等待远程结果 | `HGET` → `HDEL` | demo helper |
 
-- **协议位置**：这是一组 demo/helper 协议，不属于框架内建 Stage
+- **协议位置**：这是一组 demo/helper 协议，不属于框架内建节点
 - **安装方式**：运行该方案时需要额外安装 `redis` 并启动 Redis 服务
-- **设计意图**：展示如何把外部消息系统接入普通 `TaskStage`
+- **设计意图**：展示如何把外部消息系统接入普通 `TaskExecutor`
 
 ---
 
@@ -332,12 +330,12 @@ sequenceDiagram
 graph LR
     subgraph 生产端
         A[LogInlet] -->|Queue| B[LogSpout]
-        C[FallbackInlet] -->|Queue| D[FallbackSpout]
+        C[LifecycleInlet] -->|Queue| D[LifecycleSpout]
     end
 
     subgraph 消费端
         B --> E["logs/task_logger(DATE).log"]
-        D --> F["fallback/task_fallback.db<br/>(SQLite)"]
+        D --> F["lifecycle/task_lifecycle.db<br/>(SQLite)"]
     end
 ```
 
@@ -437,7 +435,7 @@ CelestialFlowError (基类)
   - `TaskEnvelope.hash` 在封装阶段计算一次 SHA1，后续去重仅 set lookup (O(1))
 
 - **工厂化队列后端**
-  - `make_queue_backend()` 根据 stage_mode 自动选择 `ThreadQueue` / `AsyncQueue`
+  - 框架内部按 `execution_mode` 选择 `ThreadQueue` / `AsyncQueue`
   - 串行模式零同步开销
 
 - **指标计数器分级**
@@ -485,8 +483,8 @@ graph LR
 | `TaskWheel` | 环形+Hub | 中心节点连接环上所有节点 |
 | `TaskComplete` | 全连接 | 所有节点互连 |
 
-- **强制 DAG**：Chain 和 Grid 构造时设置 `schedule_mode="staged"` 可用
-- **环形图**：Loop / Wheel / Complete 必须使用 `schedule_mode="eager"`
+- **强制 DAG**：Chain 和 Grid 构造时设置 `graph_mode="staged"` 可用
+- **环形图**：Loop / Wheel / Complete 必须使用 `graph_mode="eager"`
 
 ---
 
@@ -542,27 +540,27 @@ graph LR
 
 ```mermaid
 graph LR
-    A["🔗 URL 发现<br/>(TaskStage)"] -->|urls| B["📥 页面下载<br/>(TaskStage, thread×20)"]
+    A["🔗 URL 发现<br/>(TaskExecutor)"] -->|urls| B["📥 页面下载<br/>(TaskExecutor, thread×20)"]
     B -->|html| C["🔀 内容路由<br/>(TaskRouter)"]
-    C -->|type=article| D["📝 文章提取<br/>(TaskStage, thread×10)"]
-    C -->|type=image| E["🖼 图片提取<br/>(TaskStage, thread×10)"]
-    D -->|data| F["💾 数据存储<br/>(TaskStage)"]
+    C -->|type=article| D["📝 文章提取<br/>(TaskExecutor, thread×10)"]
+    C -->|type=image| E["🖼 图片提取<br/>(TaskExecutor, thread×10)"]
+    D -->|data| F["💾 数据存储<br/>(TaskExecutor)"]
     E -->|data| F
 ```
 
 **执行配置示例**：
 ```python
-from celestialflow import TaskStage, TaskRouter, TaskGraph
+from celestialflow import TaskExecutor, TaskRouter, TaskGraph
 
-discover = TaskStage(discover_urls, execution_mode="serial")
-download = TaskStage(download_page, execution_mode="thread", worker_limit=20)
-router = TaskRouter(classify_content)
-extract_article = TaskStage(extract_article, execution_mode="thread", worker_limit=10)
-extract_image = TaskStage(extract_image, execution_mode="thread", worker_limit=10)
-store = TaskStage(save_to_db, execution_mode="serial")
+discover = TaskExecutor("discover_urls", discover_urls, execution_mode="serial")
+download = TaskExecutor("download_page", download_page, execution_mode="thread", max_workers=20)
+router = TaskRouter("classify", classify_content)
+extract_article = TaskExecutor("extract_article", extract_article, execution_mode="thread", max_workers=10)
+extract_image = TaskExecutor("extract_image", extract_image, execution_mode="thread", max_workers=10)
+store = TaskExecutor("save_to_db", save_to_db, execution_mode="serial")
 
-graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(
+graph = TaskGraph(graph_mode="eager")
+graph.set_nodes(
     stages=[discover, download, router, extract_article, extract_image, store]
 )
 graph.connect([discover], [download])
@@ -570,7 +568,7 @@ graph.connect([download], [router])
 graph.connect([router], [extract_article, extract_image])
 graph.connect([extract_article, extract_image], [store])
 
-graph.start_graph({"discover": [seed_urls]})
+graph.run({"discover_urls": [seed_urls]})
 ```
 
 ---
@@ -582,8 +580,8 @@ graph.start_graph({"discover": [seed_urls]})
 ```mermaid
 graph LR
     subgraph 本地 Graph
-        A[预处理 Stage] --> B[TaskStage<br/>redis_push]
-        E[TaskStage<br/>redis_wait] --> F[后处理 Stage]
+        A[预处理节点] --> B[TaskExecutor<br/>redis_push]
+        E[TaskExecutor<br/>redis_wait] --> F[后处理节点]
     end
 
     subgraph Redis
@@ -599,9 +597,9 @@ graph LR
     end
 ```
 
-- 本地 Graph 通过普通 `TaskStage(redis_push)` 推送任务到 Redis List
+- 本地 Graph 通过普通 `TaskExecutor("redis_push", redis_push)` 推送任务到 Redis List
 - 外部 Worker 或 `redis_pop()` 从 Redis 拉取任务并执行
-- 结果写回 Redis Hash，本地 `TaskStage(redis_wait)` 轮询获取
+- 结果写回 Redis Hash，本地 `TaskExecutor("redis_wait", redis_wait)` 轮询获取
 - **横向扩展**：启动多个 Worker 实例即可并行消费
 
 ---
@@ -613,7 +611,7 @@ graph LR
 | 决策 | 选择 | 取舍 |
 |------|------|------|
 | 环形图支持 | 信号合并协议 | 增加终止逻辑复杂度，换取拓扑灵活性 |
-| Graph 内 execution_mode | 仅 serial/thread | 保持简单可靠的线程模型 |
+| 节点 `execution_mode` | serial/thread/async | 保持简单可靠的线程模型 |
 | 日志架构 | Queue + Spout 线程 | 增加一个守护线程，换取线程安全写入 |
 | 去重策略 | SHA1(pickle) | pickle 不稳定性风险，换取通用对象哈希能力 |
 | 外部结果获取 | 轮询 HGET (0.1s) | Demo 层实现简单可靠，但非实时推送 |
@@ -629,13 +627,12 @@ graph LR
 
 ### 模块解耦思想
 
-- **Stage 即插件**
-  - 实现一个 `func` → 包装为 `TaskStage` → 接入任意图
-  - 内置 Splitter / Router 是 Stage 的特化；Redis 协作由 demo 展示接入方式
+- **Node 即插件**
+  - 实现一个 `func` → 包装为 `TaskExecutor` → 接入任意图
+  - 内置 Splitter / Router 是 Executor 的特化；Redis 协作由 demo 展示接入方式
 
 - **Queue 后端可替换**
-  - `make_queue_backend(mode)` 工厂方法统一接口
-  - ThreadQueue / AsyncQueue 按需切换
+  - 框架内部按 `execution_mode` 选择 `ThreadQueue` / `AsyncQueue`
 
 - **指标后端可扩展**
   - `ValueWrapper` 按执行模式适配
@@ -656,7 +653,7 @@ graph LR
 
 - **调度增强**
   - 基于优先级的任务调度
-  - 动态资源感知（CPU/内存）自动调节 worker_limit
+  - 动态资源感知（CPU/内存）自动调节 max_workers
 
 - **分布式增强**
   - Kafka / RabbitMQ 作为可选传输后端
@@ -668,9 +665,9 @@ graph LR
   - 告警规则配置
 
 - **开发者体验**
-  - 装饰器语法定义 Stage（`@stage(mode="thread")`）
+  - 装饰器语法定义节点
   - 更成熟的外部监控与控制工具链
-  - 更丰富的内置 Stage 模板
+  - 更丰富的内置节点模板
 
 - **生态系统**
   - CelestialTree 深度集成（因果推断、影响分析）
@@ -684,7 +681,7 @@ graph LR
 
 - **轻量嵌入**：`pip install` 即用，无外部服务依赖，嵌入任意 Python 项目
 - **拓扑灵活**：DAG + 环形图，六种预置结构，自定义任意拓扑
-- **执行模型丰富**：三层维度组合（图级 × Stage 级 × Task 级），适配任意并发场景
+- **执行模型丰富**：双层维度组合（图级 × 节点级），适配任意并发场景
 - **外部协作友好**：可按需接入 Redis / Go Worker 等外部系统进行横向扩展
 - **全链路追踪**：CelestialTree 事件溯源 + JSONL 错误持久化
 - **可观测性内建**：状态快照、日志、错误持久化与可选状态上报
