@@ -1,4 +1,4 @@
-# benchmark/util_clone.py
+﻿# benchmark/util_clone.py
 from __future__ import annotations
 
 from collections import deque
@@ -6,11 +6,11 @@ from typing import Any, cast
 from urllib.parse import urlparse
 
 from ..graph import TaskGraph
+from ..node import TaskExecutor
+from ..node.util_types import AnyTaskNode
 from ..observability import NullTaskReporter, ReporterProtocol, TaskReporter
 from ..runtime.util_errors import ConfigurationError
 from ..runtime.util_event import clone_event_client
-from ..stage import TaskExecutor
-from ..stage.util_types import AnyTaskNode
 
 
 def _get_clone_init_kwargs[T, R](
@@ -88,7 +88,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     visited: set[str] = set()
     ordered_stages: list[TaskExecutor[Any, Any]] = []
     queue: deque[AnyTaskNode] = deque(
-        graph.stage_dict[source_name] for source_name in graph.get_source_stages()
+        graph.node_dict[source_name] for source_name in graph.get_source_nodes()
     )
     while queue:
         stage_node: AnyTaskNode = queue.popleft()
@@ -103,7 +103,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
         visited.add(stage_name)
         ordered_stages.append(stage)
         for next_stage_name in graph.order_graph.out_edges.get(stage_name, []):
-            next_stage: AnyTaskNode = graph.stage_dict[next_stage_name]
+            next_stage: AnyTaskNode = graph.node_dict[next_stage_name]
             queue.append(next_stage)
 
     # 建立原节点名到克隆节点的映射
@@ -115,7 +115,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     all_cloned_stages: list[AnyTaskNode] = list(name_map.values())
 
     cloned_graph: TaskGraph = TaskGraph(name=graph.name, graph_mode=graph.graph_mode)
-    cloned_graph.set_stages(all_cloned_stages)
+    cloned_graph.set_nodes(all_cloned_stages)
 
     # 重建连接
     for from_name, to_names in graph.order_graph.out_edges.items():

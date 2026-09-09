@@ -1,4 +1,4 @@
-# stage/core_dispatch.py
+# node/core_dispatch.py
 from __future__ import annotations
 
 import asyncio

@@ -1,4 +1,4 @@
-# stage/core_nodes.py
+# node/core_nodes.py
 import time
 from collections.abc import Callable, Iterable
 from typing import cast
@@ -23,7 +23,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R]):
       ``LifecycleSpout`` / ``LogSpout`` 由 :func:`funnel_scope` 负责启停，TaskExecutor
       自身不直接持有 spout/inlet 实例。
     """
-    
+
     # ==== 覆写方法 ====
 
     def get_binding_counter(self, _downstream_name: str) -> ValueWrapper:
@@ -77,6 +77,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R]):
                 id=downstream_input_id,
             )
             self.result_queue.put_target(downstream_envelope, target_name)
+
 
 # ==== 任务拆分器 ====
 class TaskSplitter[TItem, RItem](BaseTaskNode[Iterable[TItem], Iterable[RItem]]):
@@ -321,7 +322,7 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T]]):
                 "Unknown target", target, self.route_counters.keys()
             )
         return target, task
-    
+
     def _update_route_counter(self, target: str) -> None:
         """
         更新指定目标的路由计数器

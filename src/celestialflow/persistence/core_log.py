@@ -94,7 +94,9 @@ class LogInlet(BaseInlet):
         )
 
     # ==== 任务图 ====
-    def start_graph(self, graph_name: str, graph_mode: str, structure_list: list[str]) -> None:
+    def start_graph(
+        self, graph_name: str, graph_mode: str, structure_list: list[str]
+    ) -> None:
         """
         记录任务图启动及结构信息
 
@@ -102,7 +104,9 @@ class LogInlet(BaseInlet):
         :param graph_mode: 任务图运行模式
         :param structure_list: 任务图结构信息列表
         """
-        self._log("INFO", f"Graph '{graph_name}' start by {graph_mode}. Graph structure:")
+        self._log(
+            "INFO", f"Graph '{graph_name}' start by {graph_mode}. Graph structure:"
+        )
         for line in structure_list:
             self._log("INFO", line)
 
@@ -183,9 +187,7 @@ class LogInlet(BaseInlet):
         )
 
     # ==== 任务 ====
-    def task_input(
-        self, executor_name: str, task_repr: str, input_id: int
-    ) -> None:
+    def task_input(self, executor_name: str, task_repr: str, input_id: int) -> None:
         """
         记录任务输入
 
@@ -351,9 +353,7 @@ class LogInlet(BaseInlet):
         )
 
     # ==== 终止信号 ====
-    def termination_input(
-        self, executor_name: str, termination_id: int
-    ) -> None:
+    def termination_input(self, executor_name: str, termination_id: int) -> None:
         """
         记录终止信号输入
 

@@ -15,6 +15,11 @@ from .graph import (
     TaskLoop,
     TaskWheel,
 )
+from .node import (
+    TaskExecutor,
+    TaskRouter,
+    TaskSplitter,
+)
 from .observability import BaseObserver, TaskReporter
 from .persistence.util_sqlite import (
     load_records,
@@ -23,11 +28,6 @@ from .persistence.util_sqlite import (
 from .runtime.util_format import format_table
 from .runtime.util_hash import make_hashable
 from .runtime.util_types import TerminationSignal
-from .stage import (
-    TaskExecutor,
-    TaskRouter,
-    TaskSplitter,
-)
 
 __all__ = [
     "BaseInlet",

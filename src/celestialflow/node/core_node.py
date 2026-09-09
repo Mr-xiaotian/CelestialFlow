@@ -1,4 +1,4 @@
-# stage/core_node.py
+# node/core_node.py
 from __future__ import annotations
 
 import inspect
@@ -261,8 +261,8 @@ class BaseTaskNode[T, R]:
         db_path = get_lifecycle_spout().db_path
         if db_path is None:
             return Path()
-        return Path(db_path).resolve()    
-    
+        return Path(db_path).resolve()
+
     def snapshot(self, interval: float) -> dict[str, Any]:
         """
         采集当前 stage 的运行时快照。
@@ -297,7 +297,7 @@ class BaseTaskNode[T, R]:
             "task_avg_time": avg_time_str,
             **stage_counts,
         }
-    
+
     # ==== 绑定 ====
     def get_binding_counter(self, _downstream_name: str) -> ValueWrapper:
         """
@@ -542,7 +542,9 @@ class BaseTaskNode[T, R]:
         :return: ``None``
         """
         self.metrics.reset_state()
-        self.metrics.on_start(f"{self.get_name()}({self._get_execution_mode_desc()})", 0)
+        self.metrics.on_start(
+            f"{self.get_name()}({self._get_execution_mode_desc()})", 0
+        )
 
         get_log_inlet().start_executor(
             self.get_name(),

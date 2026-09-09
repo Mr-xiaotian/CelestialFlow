@@ -1,4 +1,4 @@
-# stage/util_callable.py
+# node/util_callable.py
 import inspect
 from collections.abc import Callable
 from typing import Any

@@ -1,4 +1,4 @@
-# benchmark/util_benchmark.py
+﻿# benchmark/util_benchmark.py
 from __future__ import annotations
 
 import asyncio
@@ -7,8 +7,8 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 from ..graph import TaskGraph
+from ..node import TaskExecutor
 from ..runtime.util_format import format_table
-from ..stage import TaskExecutor
 from .util_clone import clone_executor, clone_graph
 
 type AnyTaskExecutor = TaskExecutor[Any, Any]
@@ -97,7 +97,7 @@ async def benchmark_graph(
                 else clone_graph(sync_graph)
             )
             cloned_graph.set_graph_mode(graph_mode)
-            cloned_graph.set_stage_execution_mode(execution_mode)
+            cloned_graph.set_node_execution_mode(execution_mode)
 
             run_tasks: dict[str, Iterable[Any]] = {
                 stage_name: list(tasks) for stage_name, tasks in base_tasks.items()

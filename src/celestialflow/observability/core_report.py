@@ -160,22 +160,22 @@ class TaskReporter:
             return
 
         injection_payload: dict[str, Any] = res.json()
-        for target_stage, task_datas in injection_payload.get("tasks", {}).items():
+        for target_node, task_datas in injection_payload.get("tasks", {}).items():
             try:
-                stage = self.task_graph.stage_dict[target_stage]
-                stage.put_task(task_datas)
-                self.log_inlet.inject_tasks_success(target_stage, task_datas)
+                node = self.task_graph.node_dict[target_node]
+                node.put_task(task_datas)
+                self.log_inlet.inject_tasks_success(target_node, task_datas)
             except Exception as e:
-                self.log_inlet.inject_tasks_failed(target_stage, task_datas, e)
+                self.log_inlet.inject_tasks_failed(target_node, task_datas, e)
 
-        for target_stage in injection_payload.get("terminations", []):
+        for target_node in injection_payload.get("terminations", []):
             try:
-                stage = self.task_graph.stage_dict[target_stage]
-                stage.put_signal()
-                self.log_inlet.inject_tasks_success(target_stage, [TERMINATION_SIGNAL])
+                node = self.task_graph.node_dict[target_node]
+                node.put_signal()
+                self.log_inlet.inject_tasks_success(target_node, [TERMINATION_SIGNAL])
             except Exception as e:
                 self.log_inlet.inject_tasks_failed(
-                    target_stage, [TERMINATION_SIGNAL], e
+                    target_node, [TERMINATION_SIGNAL], e
                 )
 
     # ==== 推送 ====
@@ -221,7 +221,7 @@ class TaskReporter:
             status_dict, now = self.task_graph.collect_runtime_snapshot()
 
             payload: dict[str, Any] = {
-                "graph_id" : self.task_graph.get_graph_id(),
+                "graph_id": self.task_graph.get_graph_id(),
                 "status": status_dict,
                 "timestamp": now,
             }
@@ -238,9 +238,9 @@ class TaskReporter:
         try:
             payload: dict[str, Any] = {
                 "graph_id": self.task_graph.get_graph_id(),
-                "nodes": self.task_graph.get_stages(),
+                "nodes": self.task_graph.get_nodes(),
                 "edges": self.task_graph.get_edges(),
-                "source_nodes": self.task_graph.get_source_stages(),
+                "source_nodes": self.task_graph.get_source_nodes(),
             }
             _ = self._session.post(
                 f"{self.base_url}/api/push_structure",

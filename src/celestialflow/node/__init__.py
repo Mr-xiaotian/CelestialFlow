@@ -1,4 +1,4 @@
-# stage/__init__.py
+# node/__init__.py
 """CelestialFlow 阶段模块。
 
 提供可直接作为图节点使用的任务执行器，以及拆分器（Splitter）

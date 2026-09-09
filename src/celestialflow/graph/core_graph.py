@@ -1,4 +1,4 @@
-# graph/core_graph.py
+﻿# graph/core_graph.py
 from __future__ import annotations
 
 import asyncio
@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from ..node.util_types import AnyTaskNode
 from ..observability import NullTaskReporter, ReporterProtocol
 from ..persistence import funnel_scope, get_lifecycle_spout, get_log_inlet
 from ..persistence.util_sqlite import load_tasks_grouped_by_stage
@@ -20,20 +21,19 @@ from ..runtime.util_errors import (
 from ..runtime.util_estimators import calc_remaining
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import cluster_by_value_sorted
-from ..stage.util_types import AnyTaskNode
 from .util_estimators import calc_global_pending
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
 from .util_render import render_structure_list
 
 
 class TaskGraph:
-    """任务图核心类，负责构建、连接和调度一组 TaskExecutor 节点。
+    """任务图核心类，负责构建、连接和调度一组任务节点。
 
     注意：
     - ``start()`` / ``start_async()`` 为一次性调用；启动并运行完成后，不保证当前实例可
       被安全重置或重复启动。如需再次运行相同流程，请重新创建 TaskGraph 实例及其关联的
-      TaskExecutor。
-    - 构建期方法（``set_stages`` / ``connect`` / ``set_graph_mode`` / ``set_stage_execution_mode`` 等）
+      节点对象。
+    - 构建期方法（``set_nodes`` / ``connect`` / ``set_graph_mode`` / ``set_node_execution_mode`` 等）
       在启动前可多次调用，图分析缓存会随之按需重建（``_analysis_dirty`` 标记）。
     """
 
@@ -42,7 +42,7 @@ class TaskGraph:
     graph_id: str
     graph_mode: str
     threads: list[threading.Thread]
-    stage_dict: dict[str, AnyTaskNode]
+    node_dict: dict[str, AnyTaskNode]
     _analysis_dirty: bool
     source_names: list[str]
     order_graph: OrderGraph
@@ -62,7 +62,7 @@ class TaskGraph:
         """
         初始化 TaskGraph 实例。
 
-        TaskGraph 表示一组 TaskExecutor 节点所构成的任务图，可用于构建并行、串行、
+        TaskGraph 表示一组任务节点所构成的任务图，可用于构建并行、串行、
         分层等多种形式的任务执行流程。所有节点一次性调度并发执行，依赖关系通过
         队列流自动控制。
 
@@ -89,7 +89,7 @@ class TaskGraph:
         self.threads = []
 
         # 用于保存每个节点的运行信息
-        self.stage_dict = {}
+        self.node_dict = {}
 
         # 用于保存源节点列表（由 _build_analysis 自动计算）
         self.source_names = []
@@ -103,50 +103,50 @@ class TaskGraph:
 
     # ==== 建图 ====
 
-    def set_stages(self, stages: list[AnyTaskNode]) -> None:
+    def set_nodes(self, nodes: list[AnyTaskNode]) -> None:
         """
         添加节点到任务图中
 
-        :param stages: 待添加的节点列表
-        :raises DuplicateNodeError: 存在重复的 stage 名称
+        :param nodes: 待添加的节点列表
+        :raises DuplicateNodeError: 存在重复的节点名称
         """
-        for stage in stages:
-            stage_name = stage.get_name()
-            if stage_name in self.stage_dict:
-                raise DuplicateNodeError(f"duplicate stage name: {stage_name}")
-            self.stage_dict[stage_name] = stage
-            self.order_graph.add_node(stage_name)
+        for node in nodes:
+            node_name = node.get_name()
+            if node_name in self.node_dict:
+                raise DuplicateNodeError(f"duplicate node name: {node_name}")
+            self.node_dict[node_name] = node
+            self.order_graph.add_node(node_name)
 
-            stage.set_ctree(self.ctree_client)
+            node.set_ctree(self.ctree_client)
 
         self._analysis_dirty = True
 
     def connect[R](
         self,
-        from_stages: list[AnyTaskNode],
-        to_stages: list[AnyTaskNode],
+        from_nodes: list[AnyTaskNode],
+        to_nodes: list[AnyTaskNode],
     ) -> None:
         """
-        建立超边连接：from_stages 中的每个节点连接到 to_stages 中的每个节点。
+        建立超边连接：`from_nodes` 中的每个节点连接到 `to_nodes` 中的每个节点。
 
-        :param from_stages: 上游节点列表
-        :param to_stages: 下游节点列表
+        :param from_nodes: 上游节点列表
+        :param to_nodes: 下游节点列表
         """
-        for from_stage in from_stages:
-            from_name = from_stage.get_name()
-            from_out_queue = from_stage.result_queue
+        for from_node in from_nodes:
+            from_name = from_node.get_name()
+            from_out_queue = from_node.result_queue
 
-            if from_name not in self.stage_dict:
-                raise NodeNotFoundError(f"from stage not found: {from_name}")
+            if from_name not in self.node_dict:
+                raise NodeNotFoundError(f"from node not found: {from_name}")
 
-            for to_stage in to_stages:
-                to_name = to_stage.get_name()
-                to_in_queue = to_stage.task_queue
+            for to_node in to_nodes:
+                to_name = to_node.get_name()
+                to_in_queue = to_node.task_queue
 
-                if to_name not in self.stage_dict:
-                    raise NodeNotFoundError(f"to stage not found: {to_name}")
+                if to_name not in self.node_dict:
+                    raise NodeNotFoundError(f"to node not found: {to_name}")
 
-                to_stage.prev_binding(from_stage)
+                to_node.prev_binding(from_node)
                 from_out_queue.add_queue(to_in_queue, to_name)
                 to_in_queue.add_source_name(from_name)
                 self.order_graph.add_edge(from_name, to_name)
@@ -176,14 +176,14 @@ class TaskGraph:
             raise InvalidOptionError("graph mode", graph_mode, valid_modes)
         self.graph_mode = graph_mode
 
-    def set_stage_execution_mode(self, execution_mode: str) -> None:
+    def set_node_execution_mode(self, execution_mode: str) -> None:
         """
         设置任务链的执行模式
 
         :param execution_mode: 节点内部执行模式, 可选值为 'serial', 'thread' 或 'async'
         """
-        for stage in self.stage_dict.values():
-            stage.set_execution_mode(execution_mode)
+        for node in self.node_dict.values():
+            node.set_execution_mode(execution_mode)
         self._build_analysis()
 
     def set_reporter(self, reporter: ReporterProtocol) -> None:
@@ -201,10 +201,10 @@ class TaskGraph:
         :param ctree_client: 事件客户端实例
         """
         self.ctree_client = ctree_client
-        if not hasattr(self, "stage_dict"):
+        if not hasattr(self, "node_dict"):
             return
-        for stage in self.stage_dict.values():
-            stage.set_ctree(ctree_client)
+        for node in self.node_dict.values():
+            node.set_ctree(ctree_client)
 
     # ==== 分析图 ====
 
@@ -223,8 +223,8 @@ class TaskGraph:
         self.source_names = source_nodes(self.order_graph)
         self.is_dag = is_dag(self.order_graph)
 
-        stage_level_dict = compute_node_levels(self.order_graph)
-        self.layers_dict = cluster_by_value_sorted(stage_level_dict)
+        node_level_dict = compute_node_levels(self.order_graph)
+        self.layers_dict = cluster_by_value_sorted(node_level_dict)
         self._analysis_dirty = False
 
         if not self.is_dag and self.graph_mode == "serial":
@@ -239,7 +239,7 @@ class TaskGraph:
         将终止信号放入所有源节点的队列中。
         """
         for source_name in self.source_names:
-            self.stage_dict[source_name].put_signal()
+            self.node_dict[source_name].put_signal()
 
     # ==== 执行 ====
 
@@ -252,15 +252,15 @@ class TaskGraph:
         """
         运行任务链，注入初始任务并启动执行。
 
-        :param init_tasks_dict: 任务列表字典，键为 stage 名称，值为任务列表
+        :param init_tasks_dict: 任务列表字典，键为节点名称，值为任务列表
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
         self._build_analysis()
         with funnel_scope():
-            for stage_name, tasks in init_tasks_dict.items():
+            for node_name, tasks in init_tasks_dict.items():
                 for task in tasks:
-                    self.stage_dict[stage_name].put_task(task)
+                    self.node_dict[node_name].put_task(task)
             if if_put_signal:
                 self.put_source_signal()
             self.start()
@@ -274,15 +274,15 @@ class TaskGraph:
         """
         运行任务链，注入初始任务并启动执行。
 
-        :param init_tasks_dict: 初始任务字典，键为 stage 名称，值为任务可迭代对象
+        :param init_tasks_dict: 初始任务字典，键为节点名称，值为任务可迭代对象
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
         self._build_analysis()
         with funnel_scope():
-            for stage_name, tasks in init_tasks_dict.items():
+            for node_name, tasks in init_tasks_dict.items():
                 for task in tasks:
-                    self.stage_dict[stage_name].put_task(task)
+                    self.node_dict[node_name].put_task(task)
             if if_put_signal:
                 self.put_source_signal()
             await self.start_async()
@@ -296,11 +296,11 @@ class TaskGraph:
         if_put_signal: bool = True,
     ) -> None:
         """
-        从 sqlite 持久化库中读取任务，按 stage 分组后启动任务图。
+        从 sqlite 持久化库中读取任务，按持久化记录中的节点名分组后启动任务图。
 
         :param db_path: sqlite 数据库文件路径
         :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``
-        :param filter_by_error_type: 是否按各 stage 的 ``retry_exceptions`` 过滤
+        :param filter_by_error_type: 是否按各节点的 ``retry_exceptions`` 过滤
             ``error_type``，默认 ``False``
         :param if_put_signal: 是否在恢复任务注入后，为所有源节点补发终止信号，
             默认 ``True``
@@ -310,9 +310,9 @@ class TaskGraph:
         tasks: dict[str, Iterable[Any]] = {}
 
         for name, records in grouped_records.items():
-            stage = self.stage_dict[name]
-            if filter_by_error_type and name in self.stage_dict:
-                retry_error_type_names = stage.metrics.get_retry_error_type_names()
+            node = self.node_dict[name]
+            if filter_by_error_type and name in self.node_dict:
+                retry_error_type_names = node.metrics.get_retry_error_type_names()
                 records = [
                     record
                     for record in records
@@ -336,7 +336,9 @@ class TaskGraph:
 
         :return: ``None``
         """
-        get_log_inlet().start_graph(self.name, self.graph_mode, self.get_structure_list())
+        get_log_inlet().start_graph(
+            self.name, self.graph_mode, self.get_structure_list()
+        )
         self.reporter.start()
 
     def _finish_start(self, start_perf: float) -> list[Exception]:
@@ -353,8 +355,8 @@ class TaskGraph:
 
         try:
             # 收集并持久化每个节点中未消费的任务
-            for stage in self.stage_dict.values():
-                stage.drain_task_queue()
+            for node in self.node_dict.values():
+                node.drain_task_queue()
         except Exception as exception:
             error_list.append(exception)
 
@@ -395,9 +397,9 @@ class TaskGraph:
             self._prepare_start()
 
             if self.graph_mode == "serial":
-                self._execute_stages_serial()
+                self._execute_nodes_serial()
             elif self.graph_mode == "thread":
-                self._execute_stages_thread()
+                self._execute_nodes_thread()
             else:
                 raise InvalidOptionError(
                     "graph mode", self.graph_mode, ("serial", "thread")
@@ -432,7 +434,7 @@ class TaskGraph:
 
         try:
             self._prepare_start()
-            await self._execute_stages_async()
+            await self._execute_nodes_async()
         except Exception as exception:
             error_list.append(exception)
         finally:
@@ -441,7 +443,7 @@ class TaskGraph:
         if error_list:
             raise ExceptionGroup("Errors occurred during graph execution", error_list)
 
-    def _execute_stages_serial(self) -> None:
+    def _execute_nodes_serial(self) -> None:
         """
         以串行方式按层展开的拓扑序执行所有节点。
 
@@ -452,22 +454,22 @@ class TaskGraph:
         注：图分析（:attr:`layers_dict`）由 :meth:`_prepare_start` 经
         :meth:`get_structure_list` 保证已构建。
         """
-        for stage_name_list in self.layers_dict.values():
-            for stage_name in stage_name_list:
-                stage = self.stage_dict[stage_name]
-                self._execute_stage(stage)
+        for node_name_list in self.layers_dict.values():
+            for node_name in node_name_list:
+                node = self.node_dict[node_name]
+                self._execute_node(node)
 
-    def _execute_stages_thread(self) -> None:
+    def _execute_nodes_thread(self) -> None:
         """
         以线程方式并发执行所有节点。
 
         每个节点在独立线程中启动，最后统一等待所有线程结束。
         """
-        for stage in self.stage_dict.values():
+        for node in self.node_dict.values():
             t = threading.Thread(
-                target=self._execute_stage,
-                args=(stage,),
-                name=stage.get_name(),
+                target=self._execute_node,
+                args=(node,),
+                name=node.get_name(),
                 daemon=True,
             )
             t.start()
@@ -476,37 +478,37 @@ class TaskGraph:
         for t in self.threads:
             t.join()
 
-    async def _execute_stages_async(self) -> None:
+    async def _execute_nodes_async(self) -> None:
         """
         异步执行所有节点：全图并发执行。
         """
         tasks = [
-            asyncio.create_task(self._execute_stage_async(stage))
-            for stage in self.stage_dict.values()
+            asyncio.create_task(self._execute_node_async(node))
+            for node in self.node_dict.values()
         ]
         await asyncio.gather(*tasks)
 
-    def _execute_stage(self, stage: AnyTaskNode) -> None:
+    def _execute_node(self, node: AnyTaskNode) -> None:
         """
         在同步图启动路径下执行单个节点。
 
-        :param stage: 节点
+        :param node: 节点
         """
-        if stage.execution_mode == "async":
-            asyncio.run(stage.start_async())
+        if node.execution_mode == "async":
+            asyncio.run(node.start_async())
         else:
-            stage.start()
+            node.start()
 
-    async def _execute_stage_async(self, stage: AnyTaskNode) -> None:
+    async def _execute_node_async(self, node: AnyTaskNode) -> None:
         """
         异步执行单个节点：async 模式走协程，其余模式走线程池。
 
-        :param stage: 节点
+        :param node: 节点
         """
-        if stage.execution_mode == "async":
-            await stage.start_async()
+        if node.execution_mode == "async":
+            await node.start_async()
         else:
-            await asyncio.to_thread(stage.start)
+            await asyncio.to_thread(node.start)
 
     # ==== 运行时监控 ====
 
@@ -536,7 +538,7 @@ class TaskGraph:
         """
         采集一次运行时快照并返回。
 
-        遍历所有 stage 采集各节点快照，然后计算 DAG 感知的全局 pending 估算值，
+        遍历所有节点采集运行时快照，然后计算 DAG 感知的全局 pending 估算值，
         并补充到每个节点的快照（``total_tasks_pending`` / ``total_remaining_time``）中。
 
         :return: ``(status_dict, status_timestamp)`` —— 各节点快照字典与统一采集时间戳
@@ -549,23 +551,23 @@ class TaskGraph:
         running_processed_map: dict[str, int] = {}
         running_pending_map: dict[str, int] = {}
 
-        for stage_name, stage in self.stage_dict.items():
-            snapshot = stage.snapshot(interval)
-            status_dict[stage_name] = snapshot
+        for node_name, node in self.node_dict.items():
+            snapshot = node.snapshot(interval)
+            status_dict[node_name] = snapshot
 
-            running_processed_map[stage_name] = int(snapshot["tasks_processed"] or 0)
-            running_pending_map[stage_name] = int(snapshot["tasks_pending"] or 0)
+            running_processed_map[node_name] = int(snapshot["tasks_processed"] or 0)
+            running_pending_map[node_name] = int(snapshot["tasks_pending"] or 0)
 
         total_pending_map = self._calc_graph_pending(
             running_processed_map,
             running_pending_map,
         )
-        for stage_name, stage_status in status_dict.items():
-            stage_status["total_tasks_pending"] = total_pending_map[stage_name]
-            stage_status["total_remaining_time"] = calc_remaining(
-                stage_status["tasks_processed"],
-                stage_status["total_tasks_pending"],
-                stage_status["elapsed_time"],
+        for node_name, node_status in status_dict.items():
+            node_status["total_tasks_pending"] = total_pending_map[node_name]
+            node_status["total_remaining_time"] = calc_remaining(
+                node_status["tasks_processed"],
+                node_status["total_tasks_pending"],
+                node_status["elapsed_time"],
             )
 
         return status_dict, now
@@ -580,11 +582,11 @@ class TaskGraph:
         """
         return self.graph_id
 
-    def get_stages(self) -> list[str]:
+    def get_nodes(self) -> list[str]:
         """
-        获取所有任务阶段的名称列表
+        获取所有任务节点的名称列表
 
-        :return: 任务阶段名称列表
+        :return: 任务节点名称列表
         """
         return self.order_graph.nodes
 
@@ -592,12 +594,12 @@ class TaskGraph:
         """
         获取任务图的边邻接表。
 
-        :return: 边信息邻接表 ``{stage_name: [next_stage_name, ...]}``；
+        :return: 边信息邻接表 ``{node_name: [next_node_name, ...]}``；
             与底层图结构共享引用，调用方应只读
         """
         return self.order_graph.out_edges
 
-    def get_source_stages(self) -> list[str]:
+    def get_source_nodes(self) -> list[str]:
         """
         获取源节点列表
 
@@ -632,9 +634,9 @@ class TaskGraph:
         """
         self._ensure_analysis()
         return render_structure_list(
-            self.get_stages(),
+            self.get_nodes(),
             self.get_edges(),
-            self.get_source_stages(),
+            self.get_source_nodes(),
         )
 
     def get_order_graph(self) -> OrderGraph:

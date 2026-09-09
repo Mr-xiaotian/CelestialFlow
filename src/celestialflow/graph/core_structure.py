@@ -1,6 +1,6 @@
-# graph/core_structure.py
+﻿# graph/core_structure.py
+from ..node.util_types import AnyTaskNode
 from ..runtime.util_errors import InvalidStructureError
-from ..stage.util_types import AnyTaskNode
 from .core_graph import TaskGraph
 
 
@@ -11,29 +11,29 @@ class TaskChain(TaskGraph):
     def __init__(
         self,
         name: str,
-        stages: list[AnyTaskNode],
+        nodes: list[AnyTaskNode],
         graph_mode: str = "thread",
     ) -> None:
         """
         TaskChain: 线性任务链结构
         该结构将多个任务执行器按顺序连接，形成一个线性的数据流图。
 
-        :param stages: 执行器列表，每个节点将连接到下一个节点
+        :param nodes: 节点列表，每个节点将连接到下一个节点
         :param graph_mode: 图执行模式, 可选值为 'serial'、'thread' 或 'async'，
             默认 'thread'
-        :raises InvalidStructureError: stages 为空时抛出
+        :raises InvalidStructureError: nodes 为空时抛出
         """
-        if not stages:
-            raise InvalidStructureError("stages must not be empty")
+        if not nodes:
+            raise InvalidStructureError("nodes must not be empty")
 
         super().__init__(name=name, graph_mode=graph_mode)
 
-        self.set_stages(stages)
-        for num in range(len(stages) - 1):
-            self.connect([stages[num]], [stages[num + 1]])
+        self.set_nodes(nodes)
+        for num in range(len(nodes) - 1):
+            self.connect([nodes[num]], [nodes[num + 1]])
 
 
-class TaskCross(TaskGraph):     
+class TaskCross(TaskGraph):
     """多层交叉结构，每层内部并行，层之间全连接。"""
 
     def __init__(
@@ -61,11 +61,11 @@ class TaskCross(TaskGraph):
 
         super().__init__(name=name, graph_mode=graph_mode)
 
-        all_stages: list[AnyTaskNode] = []
+        all_nodes: list[AnyTaskNode] = []
         for curr_layer in layers:
-            all_stages.extend(curr_layer)
+            all_nodes.extend(curr_layer)
 
-        self.set_stages(all_stages)
+        self.set_nodes(all_nodes)
         for i in range(len(layers) - 1):
             self.connect(layers[i], layers[i + 1])
 
@@ -99,13 +99,13 @@ class TaskGrid(TaskGraph):
         super().__init__(name=name, graph_mode=graph_mode)
 
         rows, cols = len(grid), len(grid[0])
-        all_stages: list[AnyTaskNode] = []
+        all_nodes: list[AnyTaskNode] = []
         for i in range(rows):
             for j in range(cols):
                 curr = grid[i][j]
-                all_stages.append(curr)
+                all_nodes.append(curr)
 
-        self.set_stages(all_stages)
+        self.set_nodes(all_nodes)
         for i in range(rows):
             for j in range(cols):
                 curr = grid[i][j]
@@ -122,26 +122,26 @@ class TaskLoop(TaskGraph):
     def __init__(
         self,
         name: str,
-        stages: list[AnyTaskNode],
+        nodes: list[AnyTaskNode],
         graph_mode: str = "thread",
     ) -> None:
         """
         TaskLoop:  任务环结构
 
-        :param stages: 执行器列表，每个节点将连接到下一个节点，形成一个闭环
+        :param nodes: 节点列表，每个节点将连接到下一个节点，形成一个闭环
         :param graph_mode: 图执行模式, 可选值为 'serial'、'thread' 或 'async'，
             默认 'thread'
-        :raises InvalidStructureError: stages 为空时抛出
+        :raises InvalidStructureError: nodes 为空时抛出
         """
-        if not stages:
-            raise InvalidStructureError("stages must not be empty")
+        if not nodes:
+            raise InvalidStructureError("nodes must not be empty")
 
         super().__init__(name=name, graph_mode=graph_mode)
 
-        self.set_stages(stages)
-        for num in range(len(stages)):
-            next_stage = stages[num + 1] if num < len(stages) - 1 else stages[0]
-            self.connect([stages[num]], [next_stage])
+        self.set_nodes(nodes)
+        for num in range(len(nodes)):
+            next_node = nodes[num + 1] if num < len(nodes) - 1 else nodes[0]
+            self.connect([nodes[num]], [next_node])
 
 
 class TaskWheel(TaskGraph):
@@ -168,11 +168,11 @@ class TaskWheel(TaskGraph):
 
         super().__init__(name=name, graph_mode=graph_mode)
 
-        self.set_stages([center, *ring])
+        self.set_nodes([center, *ring])
         self.connect([center], ring)
         for i, node in enumerate(ring):
-            next_stage = ring[(i + 1) % len(ring)]
-            self.connect([node], [next_stage])
+            next_node = ring[(i + 1) % len(ring)]
+            self.connect([node], [next_node])
 
 
 class TaskComplete(TaskGraph):
@@ -181,25 +181,25 @@ class TaskComplete(TaskGraph):
     def __init__(
         self,
         name: str,
-        stages: list[AnyTaskNode],
+        nodes: list[AnyTaskNode],
         graph_mode: str = "thread",
     ) -> None:
         """
         TaskComplete: 完全图结构，每个节点都连向除自己以外的所有其他节点
 
-        :param stages: 所有节点
+        :param nodes: 所有节点
         :param graph_mode: 图执行模式, 可选值为 'serial'、'thread' 或 'async'，
             默认 'thread'
-        :raises InvalidStructureError: stages 少于 2 个节点时抛出（完全图至少需要 2 个节点才能构成边）
+        :raises InvalidStructureError: nodes 少于 2 个节点时抛出（完全图至少需要 2 个节点才能构成边）
         """
-        if len(stages) < 2:
+        if len(nodes) < 2:
             raise InvalidStructureError(
-                "stages must contain at least 2 nodes to form a complete graph"
+                "nodes must contain at least 2 nodes to form a complete graph"
             )
 
         super().__init__(name=name, graph_mode=graph_mode)
 
-        self.set_stages(stages)
-        for i, stage in enumerate(stages):
-            others = [s for j, s in enumerate(stages) if i != j]
-            self.connect([stage], others)
+        self.set_nodes(nodes)
+        for i, node in enumerate(nodes):
+            others = [s for j, s in enumerate(nodes) if i != j]
+            self.connect([node], others)
