@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
@@ -74,23 +74,23 @@ def build_chain_graph(
     execution_mode: str,
     max_workers: int,
 ):
-    from celestialflow import TaskGraph, TaskStage
+    from celestialflow import TaskGraph, TaskExecutor
 
-    stage1 = TaskStage(
+    stage1 = TaskExecutor(
         f"{name}_stage_1",
         funcs[0],
         execution_mode=execution_mode,
         max_workers=max_workers,
         enable_duplicate_check=False,
     )
-    stage2 = TaskStage(
+    stage2 = TaskExecutor(
         f"{name}_stage_2",
         funcs[1],
         execution_mode=execution_mode,
         max_workers=max_workers,
         enable_duplicate_check=False,
     )
-    stage3 = TaskStage(
+    stage3 = TaskExecutor(
         f"{name}_stage_3",
         funcs[2],
         execution_mode=execution_mode,

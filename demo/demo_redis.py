@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 import random
 import time
@@ -9,7 +9,7 @@ import redis
 from demo_utils import download_to_file, fibonacci, sleep_1, sum_int
 from dotenv import load_dotenv
 
-from celestialflow import TaskGraph, TaskReporter, TaskStage
+from celestialflow import TaskGraph, TaskReporter, TaskExecutor
 from celestialflow.runtime.util_errors import (
     CelestialFlowTimeoutError,
     RemoteWorkerError,
@@ -149,25 +149,25 @@ def _normalize_result(result: Any) -> Any:
 def demo_redis_ack_0() -> None:
     """演示 Redis 任务确认"""
 
-    start_stage = TaskStage(
+    start_stage = TaskExecutor(
         "Start",
         sleep_1_fibonacci,
         execution_mode="thread",
         max_workers=4,
     )
-    transport_stage = TaskStage(
+    transport_stage = TaskExecutor(
         "RedisTransport",
         redis_push,
         execution_mode="thread",
         max_workers=4,
     )
-    ack_stage = TaskStage(
+    ack_stage = TaskExecutor(
         "RedisAck",
         redis_wait,
         execution_mode="serial",
         enable_duplicate_check=False,
     )
-    fibonacci_stage = TaskStage(
+    fibonacci_stage = TaskExecutor(
         "Fibonacci",
         fibonacci_wrapper,
         execution_mode="thread",
@@ -186,25 +186,25 @@ def demo_redis_ack_0() -> None:
 def demo_redis_ack_1() -> None:
     """演示 Redis 任务确认"""
 
-    start_stage = TaskStage(
+    start_stage = TaskExecutor(
         "Start",
         sleep_1_sum,
         execution_mode="thread",
         max_workers=4,
     )
-    transport_stage = TaskStage(
+    transport_stage = TaskExecutor(
         "RedisTransport",
         redis_push,
         execution_mode="thread",
         max_workers=4,
     )
-    ack_stage = TaskStage(
+    ack_stage = TaskExecutor(
         "RedisAck",
         redis_wait,
         execution_mode="serial",
         enable_duplicate_check=False,
     )
-    sum_stage = TaskStage(
+    sum_stage = TaskExecutor(
         "Sum",
         sum_int_wrapper,
         execution_mode="thread",
@@ -226,25 +226,25 @@ def demo_redis_ack_1() -> None:
 def demo_redis_ack_2() -> None:
     """演示 Redis 任务确认"""
 
-    start_stage = TaskStage(
+    start_stage = TaskExecutor(
         "Start",
         sleep_1_download,
         execution_mode="thread",
         max_workers=4,
     )
-    transport_stage = TaskStage(
+    transport_stage = TaskExecutor(
         "RedisTransport",
         redis_push,
         execution_mode="thread",
         max_workers=4,
     )
-    ack_stage = TaskStage(
+    ack_stage = TaskExecutor(
         "RedisAck",
         redis_wait,
         execution_mode="serial",
         enable_duplicate_check=False,
     )
-    download_stage = TaskStage(
+    download_stage = TaskExecutor(
         "Download",
         download_to_file_wrapper,
         execution_mode="thread",
@@ -273,24 +273,24 @@ def demo_redis_ack_2() -> None:
 def demo_redis_source_0() -> None:
     """演示 Redis 任务确认"""
 
-    sleep_stage_0 = TaskStage(
+    sleep_stage_0 = TaskExecutor(
         "Sleep0",
         sleep_1_report,
         execution_mode="serial",
     )
-    transport_stage = TaskStage(
+    transport_stage = TaskExecutor(
         "RedisTransport",
         redis_push,
         execution_mode="thread",
         max_workers=4,
     )
-    source_stage = TaskStage(
+    source_stage = TaskExecutor(
         "RedisSource",
         redis_pop,
         execution_mode="serial",
         enable_duplicate_check=False,
     )
-    sleep_stage_1 = TaskStage(
+    sleep_stage_1 = TaskExecutor(
         "Sleep1",
         sleep_1,
         execution_mode="serial",

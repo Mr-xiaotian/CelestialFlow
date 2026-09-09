@@ -4,13 +4,13 @@ import pytest
 
 from celestialflow.observability import TaskReporter
 from celestialflow.graph import TaskGraph
-from celestialflow.stage import TaskExecutor, TaskStage
+from celestialflow.stage import TaskExecutor
 from celestialflow.runtime.util_event import LocalEventClient
-from celestialflow.benchmark.util_clone import clone_executor, clone_graph, clone_stage
+from celestialflow.benchmark.util_clone import clone_executor, clone_graph
 
 
 class TestUtilClone:
-    """Tests for clone utilities: clone_executor, clone_stage, clone_graph."""
+    """Tests for clone utilities: clone_executor and clone_graph."""
 
     # ── clone_executor ─────────────────────────────────────────────
 
@@ -48,32 +48,32 @@ class TestUtilClone:
         assert executor.execution_mode == "serial"
         assert cloned.execution_mode == "thread"
 
-    # ── clone_stage ────────────────────────────────────────────────
+    # ── graph node cloning via clone_executor ────────────────────────
 
-    def test_clone_stage_same_attributes(self):
-        """克隆后 name / func / execution_mode 应与原对象相同。"""
-        stage = TaskStage(name="test_stage", func=lambda x: x)
-        cloned = clone_stage(stage)
+    def test_clone_graph_node_same_attributes(self):
+        """作为图节点使用时，clone_executor 仍应保留核心属性。"""
+        stage = TaskExecutor(name="test_stage", func=lambda x: x)
+        cloned = clone_executor(stage)
 
         assert cloned.get_name() == stage.get_name()
         assert cloned.func is stage.func
         assert cloned.execution_mode == stage.execution_mode
 
-    def test_clone_stage_different_object(self):
-        """克隆返回的是不同对象。"""
-        stage = TaskStage(name="test_stage", func=lambda x: x)
-        cloned = clone_stage(stage)
+    def test_clone_graph_node_different_object(self):
+        """作为图节点使用时，克隆返回的仍应是独立对象。"""
+        stage = TaskExecutor(name="test_stage", func=lambda x: x)
+        cloned = clone_executor(stage)
 
         assert cloned is not stage
 
-    def test_clone_stage_independent(self):
-        """修改克隆的 execution_mode 不影响原 stage。"""
-        stage = TaskStage(
+    def test_clone_graph_node_independent(self):
+        """作为图节点使用时，修改克隆对象不应影响原对象。"""
+        stage = TaskExecutor(
             name="test_stage",
             func=lambda x: x,
             execution_mode="serial",
         )
-        cloned = clone_stage(stage)
+        cloned = clone_executor(stage)
 
         cloned.set_execution_mode("thread")
 
@@ -84,9 +84,9 @@ class TestUtilClone:
 
     def test_clone_graph_structure(self):
         """构造简单 DAG (A→B→C)，克隆后验证节点数、边连接一致。"""
-        stage_a = TaskStage(name="A", func=lambda x: x)
-        stage_b = TaskStage(name="B", func=lambda x: x)
-        stage_c = TaskStage(name="C", func=lambda x: x)
+        stage_a = TaskExecutor(name="A", func=lambda x: x)
+        stage_b = TaskExecutor(name="B", func=lambda x: x)
+        stage_c = TaskExecutor(name="C", func=lambda x: x)
 
         graph = TaskGraph("test_clone_graph_structure")
         graph.set_stages([stage_a, stage_b, stage_c])
@@ -112,8 +112,8 @@ class TestUtilClone:
 
     def test_clone_graph_independent(self):
         """克隆图的节点修改不影响原图节点。"""
-        stage_a = TaskStage(name="A", func=lambda x: x, execution_mode="serial")
-        stage_b = TaskStage(name="B", func=lambda x: x, execution_mode="serial")
+        stage_a = TaskExecutor(name="A", func=lambda x: x, execution_mode="serial")
+        stage_b = TaskExecutor(name="B", func=lambda x: x, execution_mode="serial")
 
         graph = TaskGraph("test_clone_graph_independent")
         graph.set_stages([stage_a, stage_b])

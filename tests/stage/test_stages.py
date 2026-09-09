@@ -1,6 +1,6 @@
-import pytest
+﻿import pytest
 
-from celestialflow import TaskGraph, TaskRouter, TaskSplitter, TaskStage
+from celestialflow import TaskGraph, TaskRouter, TaskSplitter, TaskExecutor
 from celestialflow.runtime.util_errors import InvalidOptionError
 
 
@@ -28,7 +28,7 @@ class TestTaskSplitter:
             return x
 
         S = TaskSplitter("S")
-        A = TaskStage("A", noop)
+        A = TaskExecutor("A", noop)
 
         graph = TaskGraph("test_splitter_process_success")
         graph.set_stages([S, A])
@@ -44,7 +44,7 @@ class TestTaskSplitter:
             return x
 
         S = TaskSplitter("S")
-        A = TaskStage("A", noop)
+        A = TaskExecutor("A", noop)
 
         graph = TaskGraph("test_splitter_allows_empty_iterable")
         graph.set_stages([S, A])
@@ -60,7 +60,7 @@ class TestTaskSplitter:
             return x
 
         S = TaskSplitter("S")
-        A = TaskStage("A", noop)
+        A = TaskExecutor("A", noop)
 
         graph = TaskGraph("test_splitter_supports_generator_input")
         graph.set_stages([S, A])
@@ -105,8 +105,8 @@ class TestTaskRouter:
             return x
 
         R = TaskRouter("R", lambda task: "target1" if task == "msg1" else "target2")
-        T1 = TaskStage("target1", noop)
-        T2 = TaskStage("target2", noop)
+        T1 = TaskExecutor("target1", noop)
+        T2 = TaskExecutor("target2", noop)
 
         graph = TaskGraph("test_router_process_success")
         graph.set_stages([R, T1, T2])

@@ -4,7 +4,7 @@ import pytest
 
 from celestialflow.benchmark.util_benchmark import benchmark_executor, benchmark_graph
 from celestialflow.graph import TaskGraph
-from celestialflow.stage import TaskExecutor, TaskStage
+from celestialflow.stage import TaskExecutor
 
 
 def add_one(x: int) -> int:
@@ -24,11 +24,11 @@ class TestBenchmarkGraph:
     async def test_benchmark_graph_covers_all_nine_combinations(self):
         """benchmark_graph 应返回 3×3 的完整 graph/execution 组合矩阵。"""
         sync_graph = TaskGraph("sync_graph")
-        sync_graph.set_stages([TaskStage("s", add_one, execution_mode="serial")])
+        sync_graph.set_stages([TaskExecutor("s", add_one, execution_mode="serial")])
 
         async_graph = TaskGraph("async_graph", graph_mode="async")
         async_graph.set_stages(
-            [TaskStage("s", async_add_one, execution_mode="async")]
+            [TaskExecutor("s", async_add_one, execution_mode="async")]
         )
 
         result = await benchmark_graph(sync_graph, async_graph, {"s": [1, 2, 3]})

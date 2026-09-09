@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 
 from celestialflow import (
     TaskChain,
@@ -6,7 +6,7 @@ from celestialflow import (
     TaskCross,
     TaskGrid,
     TaskLoop,
-    TaskStage,
+    TaskExecutor,
     TaskWheel,
 )
 from celestialflow.runtime.util_errors import InvalidStructureError
@@ -33,9 +33,9 @@ def to_str(x: int) -> str:
 class TestTaskLoop:
     def test_loop_analysis(self):
         """测试 TaskLoop 的结构分析：应识别为非 DAG，且所有环内节点处于同一逻辑层级"""
-        s1 = TaskStage("s1", add_one)
-        s2 = TaskStage("s2", double)
-        s3 = TaskStage("s3", to_str)
+        s1 = TaskExecutor("s1", add_one)
+        s2 = TaskExecutor("s2", double)
+        s3 = TaskExecutor("s3", to_str)
 
         loop = TaskLoop("test_loop_analysis", [s1, s2, s3])
         loop.run({"s1": [1]})
@@ -52,8 +52,8 @@ class TestTaskLoop:
 
     def test_loop_source_stages(self):
         """测试 TaskLoop 的源节点推导：对于纯环结构，应返回环内的一个代表节点作为注入点"""
-        s1 = TaskStage("s1", add_one)
-        s2 = TaskStage("s2", double)
+        s1 = TaskExecutor("s1", add_one)
+        s2 = TaskExecutor("s2", double)
 
         loop = TaskLoop("test_loop_source_stages", [s1, s2])
         loop.run({"s1": [1]})
@@ -69,10 +69,10 @@ class TestTaskLoop:
 class TestTaskWheel:
     def test_wheel_analysis(self):
         """测试 TaskWheel 的结构分析：Center 应在第 0 层，Ring 节点应在第 1 层"""
-        center = TaskStage("center", add_one)
-        r1 = TaskStage("r1", double)
-        r2 = TaskStage("r2", to_str)
-        r3 = TaskStage("r3", add_one)
+        center = TaskExecutor("center", add_one)
+        r1 = TaskExecutor("r1", double)
+        r2 = TaskExecutor("r2", to_str)
+        r3 = TaskExecutor("r3", add_one)
 
         wheel = TaskWheel("test_wheel_analysis", center, [r1, r2, r3])
         wheel.set_graph_mode("thread")
@@ -88,9 +88,9 @@ class TestTaskWheel:
 
     def test_wheel_source_stages(self):
         """测试 TaskWheel 的源节点推导：应仅返回 Center 节点作为唯一入口"""
-        center = TaskStage("center", add_one)
-        r1 = TaskStage("r1", double)
-        r2 = TaskStage("r2", to_str)
+        center = TaskExecutor("center", add_one)
+        r1 = TaskExecutor("r1", double)
+        r2 = TaskExecutor("r2", to_str)
 
         wheel = TaskWheel("test_wheel_source_stages", center, [r1, r2])
         wheel.set_graph_mode("thread")
@@ -119,7 +119,7 @@ class TestStructureValidation:
 
     def test_cross_empty_layer_raises(self):
         """TaskCross 包含空层应抛出 InvalidStructureError。"""
-        s1 = TaskStage("s1", add_one)
+        s1 = TaskExecutor("s1", add_one)
         with pytest.raises(InvalidStructureError):
             TaskCross("x", [[], [s1]])
 
@@ -135,8 +135,8 @@ class TestStructureValidation:
 
     def test_grid_ragged_rows_raises(self):
         """TaskGrid 行长度不一致应抛出 InvalidStructureError。"""
-        s1 = TaskStage("s1", add_one)
-        s2 = TaskStage("s2", double)
+        s1 = TaskExecutor("s1", add_one)
+        s2 = TaskExecutor("s2", double)
         with pytest.raises(InvalidStructureError):
             TaskGrid("g", [[s1, s2], [s2]])
 
@@ -147,13 +147,13 @@ class TestStructureValidation:
 
     def test_wheel_empty_ring_raises(self):
         """TaskWheel 空 ring 应抛出 InvalidStructureError。"""
-        center = TaskStage("center", add_one)
+        center = TaskExecutor("center", add_one)
         with pytest.raises(InvalidStructureError):
             TaskWheel("w", center, [])
 
     def test_complete_single_node_raises(self):
         """TaskComplete 单节点（无法构成边）应抛出 InvalidStructureError。"""
-        s1 = TaskStage("s1", add_one)
+        s1 = TaskExecutor("s1", add_one)
         with pytest.raises(InvalidStructureError):
             TaskComplete("c", [s1])
 

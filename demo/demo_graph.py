@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import os
 from typing import Any
 
@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from celestialflow import (
     TaskGraph,
     TaskReporter,
-    TaskStage,
+    TaskExecutor,
 )
 
 load_dotenv()
@@ -48,25 +48,25 @@ def demo_etl_fan_out_fan_in() -> None:
     - Mixed execution modes across stages
     - Querying graph summary after execution
     """
-    extract = TaskStage(
+    extract = TaskExecutor(
         "Extract",
         extract_record,
         execution_mode="thread",
         max_workers=4,
     )
-    normalize = TaskStage(
+    normalize = TaskExecutor(
         "Normalize",
         transform_normalize,
         execution_mode="thread",
         max_workers=4,
     )
-    enrich = TaskStage(
+    enrich = TaskExecutor(
         "Enrich",
         transform_enrich,
         execution_mode="thread",
         max_workers=4,
     )
-    load = TaskStage(
+    load = TaskExecutor(
         "Load",
         load_record,
         execution_mode="serial",
@@ -95,13 +95,13 @@ async def demo_async_pipeline() -> None:
     - execution_mode="async" for coroutine-based task functions
     - Retrieving per-stage status after completion
     """
-    stage_double = TaskStage(
+    stage_double = TaskExecutor(
         "AsyncDouble",
         async_double,
         execution_mode="async",
         max_workers=8,
     )
-    stage_to_str = TaskStage(
+    stage_to_str = TaskExecutor(
         "AsyncToStr",
         async_to_str,
         execution_mode="async",

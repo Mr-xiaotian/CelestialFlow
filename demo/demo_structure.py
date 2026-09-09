@@ -1,4 +1,4 @@
-import os
+﻿import os
 
 from celestialtree import Client as CelestialTreeClient
 from demo_utils import (
@@ -18,7 +18,7 @@ from celestialflow import (
     TaskGrid,
     TaskLoop,
     TaskReporter,
-    TaskStage,
+    TaskExecutor,
     TaskWheel,
 )
 
@@ -41,11 +41,11 @@ ctree_client = CelestialTreeClient(
 # ========有向无环图(DAG)========
 def demo_chain() -> None:
     # 构建 DAG: A ➝ B ➝ C ➝ D ➝ E
-    stageA = TaskStage("StageA", square, execution_mode="serial", max_workers=2)
-    stageB = TaskStage("StageB", square, execution_mode="serial", max_workers=2)
-    stageC = TaskStage("StageC", square, execution_mode="serial", max_workers=2)
-    stageD = TaskStage("StageD", square, execution_mode="serial", max_workers=2)
-    stageE = TaskStage("StageE", square, execution_mode="serial", max_workers=2)
+    stageA = TaskExecutor("StageA", square, execution_mode="serial", max_workers=2)
+    stageB = TaskExecutor("StageB", square, execution_mode="serial", max_workers=2)
+    stageC = TaskExecutor("StageC", square, execution_mode="serial", max_workers=2)
+    stageD = TaskExecutor("StageD", square, execution_mode="serial", max_workers=2)
+    stageE = TaskExecutor("StageE", square, execution_mode="serial", max_workers=2)
 
     # 设置图结构
     chain = TaskChain(
@@ -60,31 +60,31 @@ def demo_chain() -> None:
 
 def demo_forest() -> None:
     # 构建 DAG: A ➝ B ➝ E；C ➝ D ➝ E
-    stageA = TaskStage(
+    stageA = TaskExecutor(
         "stageA",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageB = TaskStage(
+    stageB = TaskExecutor(
         "stageB",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageC = TaskStage(
+    stageC = TaskExecutor(
         "stageC",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageD = TaskStage(
+    stageD = TaskExecutor(
         "stageD",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageE = TaskStage(
+    stageE = TaskExecutor(
         "stageE",
         add_one_sleep,
         execution_mode="thread",
@@ -92,31 +92,31 @@ def demo_forest() -> None:
     )
 
     # 构建 DAG: F ➝ G ➝ I；F ➝ H ➝ J
-    stageF = TaskStage(
+    stageF = TaskExecutor(
         "stageF",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageG = TaskStage(
+    stageG = TaskExecutor(
         "stageG",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageH = TaskStage(
+    stageH = TaskExecutor(
         "stageH",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageI = TaskStage(
+    stageI = TaskExecutor(
         "stageI",
         add_one_sleep,
         execution_mode="thread",
         max_workers=2,
     )
-    stageJ = TaskStage(
+    stageJ = TaskExecutor(
         "stageJ",
         add_one_sleep,
         execution_mode="thread",
@@ -163,13 +163,13 @@ def demo_forest() -> None:
 
 def demo_cross() -> None:
     # 构建 DAG
-    stageA = TaskStage("StageA", add_one_sleep, execution_mode="thread", max_workers=2)
-    stageB = TaskStage("StageB", add_one_sleep, execution_mode="thread", max_workers=2)
-    stageC = TaskStage("StageC", add_one_sleep, execution_mode="thread", max_workers=2)
-    stageD = TaskStage("StageD", add_one_sleep, execution_mode="thread", max_workers=5)
-    stageE = TaskStage("StageE", add_one_sleep, execution_mode="thread", max_workers=2)
-    stageF = TaskStage("StageF", add_one_sleep, execution_mode="thread", max_workers=2)
-    stageG = TaskStage("StageG", add_one_sleep, execution_mode="thread", max_workers=2)
+    stageA = TaskExecutor("StageA", add_one_sleep, execution_mode="thread", max_workers=2)
+    stageB = TaskExecutor("StageB", add_one_sleep, execution_mode="thread", max_workers=2)
+    stageC = TaskExecutor("StageC", add_one_sleep, execution_mode="thread", max_workers=2)
+    stageD = TaskExecutor("StageD", add_one_sleep, execution_mode="thread", max_workers=5)
+    stageE = TaskExecutor("StageE", add_one_sleep, execution_mode="thread", max_workers=2)
+    stageF = TaskExecutor("StageF", add_one_sleep, execution_mode="thread", max_workers=2)
+    stageG = TaskExecutor("StageG", add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 构建 TaskCross
     cross = TaskCross(
@@ -191,16 +191,16 @@ def demo_cross() -> None:
 
 def demo_network() -> None:
     # 输入层
-    A1 = TaskStage("A1", add_one_sleep, execution_mode="thread", max_workers=2)
-    A2 = TaskStage("A2", add_one_sleep, execution_mode="thread", max_workers=2)
+    A1 = TaskExecutor("A1", add_one_sleep, execution_mode="thread", max_workers=2)
+    A2 = TaskExecutor("A2", add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 隐藏层
-    B1 = TaskStage("B1", add_one_sleep, execution_mode="thread", max_workers=2)
-    B2 = TaskStage("B2", add_one_sleep, execution_mode="thread", max_workers=2)
-    B3 = TaskStage("B3", add_one_sleep, execution_mode="thread", max_workers=2)
+    B1 = TaskExecutor("B1", add_one_sleep, execution_mode="thread", max_workers=2)
+    B2 = TaskExecutor("B2", add_one_sleep, execution_mode="thread", max_workers=2)
+    B3 = TaskExecutor("B3", add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 输出层
-    C = TaskStage("C", add_one_sleep, execution_mode="thread", max_workers=2)
+    C = TaskExecutor("C", add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 构建任务图
     cross = TaskCross("demo_network", [[A1, A2], [B1, B2, B3], [C]])
@@ -218,10 +218,10 @@ def demo_network() -> None:
 
 def demo_star() -> None:
     # 定义核心与边节点函数
-    core = TaskStage("Core", square)
-    side1 = TaskStage("Side1", add_5)
-    side2 = TaskStage("Side2", add_10)
-    side3 = TaskStage("Side3", add_15)
+    core = TaskExecutor("Core", square)
+    side1 = TaskExecutor("Side1", add_5)
+    side2 = TaskExecutor("Side2", add_10)
+    side3 = TaskExecutor("Side3", add_15)
 
     # 构造 TaskCross
     star = TaskCross(
@@ -236,10 +236,10 @@ def demo_star() -> None:
 
 def demo_fanin() -> None:
     # 创建 3 个节点，每个节点有不同偏移
-    source1 = TaskStage("Source1", add_5)
-    source2 = TaskStage("Source2", add_10)
-    source3 = TaskStage("Source3", square)
-    merge = TaskStage("Merge", add_one_sleep, execution_mode="thread", max_workers=2)
+    source1 = TaskExecutor("Source1", add_5)
+    source2 = TaskExecutor("Source2", add_10)
+    source3 = TaskExecutor("Source3", square)
+    merge = TaskExecutor("Merge", add_one_sleep, execution_mode="thread", max_workers=2)
 
     # 构造 TaskCross
     fainin = TaskCross(
@@ -262,7 +262,7 @@ def demo_grid() -> None:
     # 1. 构造网格
     grid = [
         [
-            TaskStage(
+            TaskExecutor(
                 f"Grid{r}{c}", add_one_sleep, execution_mode="thread", max_workers=2
             )
             for c in range(4)
@@ -284,9 +284,9 @@ def demo_grid() -> None:
 
 # ========有环图========
 def demo_loop() -> None:
-    stageA = TaskStage("StageA", add_one_sleep, execution_mode="serial")
-    stageB = TaskStage("StageB", add_one_sleep, execution_mode="serial")
-    stageC = TaskStage("StageC", add_one_sleep, execution_mode="serial")
+    stageA = TaskExecutor("StageA", add_one_sleep, execution_mode="serial")
+    stageB = TaskExecutor("StageB", add_one_sleep, execution_mode="serial")
+    stageC = TaskExecutor("StageC", add_one_sleep, execution_mode="serial")
 
     loop = TaskLoop("demo_loop", [stageA, stageB, stageC])
     loop.set_reporter(TaskReporter(report_host, report_port, loop))
@@ -301,11 +301,11 @@ def demo_loop() -> None:
 
 def demo_wheel() -> None:
     # 定义核心与边节点函数
-    core = TaskStage("Core", square)
-    side1 = TaskStage("Side1", add_one_sleep)
-    side2 = TaskStage("Side2", add_one_sleep)
-    side3 = TaskStage("Side3", add_one_sleep)
-    side4 = TaskStage("Side4", add_one_sleep)
+    core = TaskExecutor("Core", square)
+    side1 = TaskExecutor("Side1", add_one_sleep)
+    side2 = TaskExecutor("Side2", add_one_sleep)
+    side3 = TaskExecutor("Side3", add_one_sleep)
+    side4 = TaskExecutor("Side4", add_one_sleep)
 
     # 构造 TaskCross
     wheel = TaskWheel("demo_wheel", core, [side1, side2, side3, side4])
@@ -317,9 +317,9 @@ def demo_wheel() -> None:
 
 def demo_complete() -> None:
     # 创建 3 个节点，每个节点有不同偏移
-    n1 = TaskStage("Node1", add_5, execution_mode="serial", max_workers=5)
-    n2 = TaskStage("Node2", add_10, execution_mode="serial", max_workers=5)
-    n3 = TaskStage("Node3", square, execution_mode="serial", max_workers=5)
+    n1 = TaskExecutor("Node1", add_5, execution_mode="serial", max_workers=5)
+    n2 = TaskExecutor("Node2", add_10, execution_mode="serial", max_workers=5)
+    n3 = TaskExecutor("Node3", square, execution_mode="serial", max_workers=5)
 
     # 构造 TaskComplete
     complete = TaskComplete("demo_complete", [n1, n2, n3])
@@ -345,24 +345,24 @@ def demo_multi_cycle() -> None:
     """
 
     # 定义节点
-    A1 = TaskStage(
+    A1 = TaskExecutor(
         "A1", add_one_sleep, execution_mode="thread", max_workers=2
     )
-    A2 = TaskStage(
+    A2 = TaskExecutor(
         "A2", add_one_sleep, execution_mode="thread", max_workers=2
     )
 
-    B1 = TaskStage(
+    B1 = TaskExecutor(
         "B1", add_one_sleep, execution_mode="thread", max_workers=2
     )
-    B2 = TaskStage(
+    B2 = TaskExecutor(
         "B2", add_one_sleep, execution_mode="thread", max_workers=2
     )
 
-    C1 = TaskStage(
+    C1 = TaskExecutor(
         "C1", add_one_sleep, execution_mode="thread", max_workers=2
     )
-    C2 = TaskStage(
+    C2 = TaskExecutor(
         "C2", add_one_sleep, execution_mode="thread", max_workers=2
     )
 

@@ -1,4 +1,4 @@
-import os
+﻿import os
 
 from celestialtree import Client as CelestialTreeClient
 from demo_utils import (
@@ -18,7 +18,7 @@ from celestialflow import (
     TaskReporter,
     TaskRouter,
     TaskSplitter,
-    TaskStage,
+    TaskExecutor,
 )
 
 load_dotenv()
@@ -39,12 +39,12 @@ ctree_client = CelestialTreeClient(
 
 def demo_splitter_0() -> None:
     # 阶段定义：生成 URL、记录日志、拆分批量结果、下载资源、解析新 URL。
-    generate_stage = TaskStage(
+    generate_stage = TaskExecutor(
         "GenURLs",
         generate_urls_sleep,
         max_workers=4,
     )
-    logger_stage = TaskStage(
+    logger_stage = TaskExecutor(
         "Logger",
         log_urls_sleep,
         max_workers=4,
@@ -52,12 +52,12 @@ def demo_splitter_0() -> None:
     splitter = TaskSplitter(
         "Splitter",
     )
-    download_stage = TaskStage(
+    download_stage = TaskExecutor(
         "Downloader",
         download_sleep,
         max_workers=4,
     )
-    parse_stage = TaskStage(
+    parse_stage = TaskExecutor(
         "Parser",
         parse_sleep,
         max_workers=4,
@@ -87,7 +87,7 @@ def demo_splitter_0() -> None:
 def demo_splitter_1() -> None:
     # 阶段定义：用 Splitter 把一个大 iterable 拆成大量细粒度任务。
     task_splitter = TaskSplitter("Splitter")
-    process_stage = TaskStage("Process", no_op, execution_mode="thread", max_workers=50)
+    process_stage = TaskExecutor("Process", no_op, execution_mode="thread", max_workers=50)
 
     # 链式结构：这里不需要手动 connect，直接用 TaskChain 串起两个阶段。
     chain = TaskChain(
@@ -106,7 +106,7 @@ def demo_router_0() -> None:
     a_name = "StageA"
     b_name = "StageB"
 
-    source_stage = TaskStage(
+    source_stage = TaskExecutor(
         "Origin",
         sleep_1,
         execution_mode="thread",
@@ -116,13 +116,13 @@ def demo_router_0() -> None:
         "Router",
         router_even,
     )
-    stage_a = TaskStage(
+    stage_a = TaskExecutor(
         a_name,
         sleep_1,
         execution_mode="thread",
         max_workers=2,
     )
-    stage_b = TaskStage(
+    stage_b = TaskExecutor(
         b_name,
         sleep_1,
         execution_mode="thread",

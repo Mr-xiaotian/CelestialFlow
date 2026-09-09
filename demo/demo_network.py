@@ -1,4 +1,4 @@
-# demo/demo_network.py — Step 1: 给每个节点加上权重和偏置
+﻿# demo/demo_network.py — Step 1: 给每个节点加上权重和偏置
 #
 # 从一个最小的改动开始：把 add_one_sleep(x) = x + 1
 # 换成 y = w * x + b，每个节点有自己的 (w, b)。
@@ -13,13 +13,13 @@
 
 from __future__ import annotations
 
-from celestialflow import TaskCross, TaskStage
+from celestialflow import TaskCross, TaskExecutor
 
 
 def linear(w: float, b: float):
     """返回一个线性函数 y = w * x + b。
 
-    ``TaskStage`` 要求 func 只接收一个位置参数，
+    ``TaskExecutor`` 要求 func 只接收一个位置参数，
     这里用闭包把 (w, b) 固定住。
     """
 
@@ -35,32 +35,32 @@ def demo_network_step1() -> None:
     # ── 输入层 ────────────────────────────────────────────────
     # A1 的权重设为 0.5，偏置 0.0 → A1(x) = 0.5 * x
     # A2 的权重设为 2.0，偏置 0.0 → A2(x) = 2.0 * x
-    A1 = TaskStage(
+    A1 = TaskExecutor(
         "A1", linear(0.5, 0.0),
         execution_mode="thread", max_workers=2,
     )
-    A2 = TaskStage(
+    A2 = TaskExecutor(
         "A2", linear(2.0, 0.0),
         execution_mode="thread", max_workers=2,
     )
 
     # ── 隐藏层 ────────────────────────────────────────────────
     # 给每个 B 不同的权重，观察 Fan-in 时独立处理的效果
-    B1 = TaskStage(
+    B1 = TaskExecutor(
         "B1", linear(1.0, 0.0),
         execution_mode="thread", max_workers=2,
     )
-    B2 = TaskStage(
+    B2 = TaskExecutor(
         "B2", linear(1.0, 0.0),
         execution_mode="thread", max_workers=2,
     )
-    B3 = TaskStage(
+    B3 = TaskExecutor(
         "B3", linear(1.0, 0.0),
         execution_mode="thread", max_workers=2,
     )
 
     # ── 输出层 ────────────────────────────────────────────────
-    C = TaskStage(
+    C = TaskExecutor(
         "C", linear(1.0, 0.0),
         execution_mode="thread", max_workers=2,
     )
