@@ -488,7 +488,7 @@ class BaseTaskNode[T, R]:
         if_put_signal: bool = True,
     ) -> None:
         """
-        异步启动任务执行器
+        异步启动任务节点
 
         :param task_source: 任务源
         :param if_put_signal: 是否注入终止信号，默认 True
@@ -546,7 +546,7 @@ class BaseTaskNode[T, R]:
             f"{self.get_name()}({self._get_execution_mode_desc()})", 0
         )
 
-        get_log_inlet().start_executor(
+        get_log_inlet().node_start(
             self.get_name(),
             self.metrics.get_task_count(),
             self._get_execution_mode_desc(),
@@ -561,7 +561,7 @@ class BaseTaskNode[T, R]:
         error_list: list[Exception] = []
 
         try:
-            get_log_inlet().end_executor(
+            get_log_inlet().node_end(
                 self.get_name(),
                 self._get_execution_mode_desc(),
                 time.perf_counter() - start_perf,
@@ -631,7 +631,7 @@ class BaseTaskNode[T, R]:
             self._prepare_start()
             await self.dispatch.dispatch_async()
         except Exception as exception:
-            get_log_inlet().executor_crash(self.get_name(), exception)
+            get_log_inlet().node_crash(self.get_name(), exception)
             error_list.append(exception)
         finally:
             error_list.extend(self._finish_start(start_perf))

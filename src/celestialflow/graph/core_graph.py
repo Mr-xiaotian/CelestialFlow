@@ -336,7 +336,7 @@ class TaskGraph:
 
         :return: ``None``
         """
-        get_log_inlet().start_graph(
+        get_log_inlet().graph_start(
             self.name, self.graph_mode, self.get_structure_list()
         )
         self.reporter.start()
@@ -366,7 +366,7 @@ class TaskGraph:
             error_list.append(exception)
 
         try:
-            get_log_inlet().end_graph(self.name, time.perf_counter() - start_perf)
+            get_log_inlet().graph_end(self.name, time.perf_counter() - start_perf)
         except Exception as exception:
             error_list.append(exception)
 

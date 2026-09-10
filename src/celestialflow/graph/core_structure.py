@@ -1,4 +1,4 @@
-﻿# graph/core_structure.py
+# graph/core_structure.py
 from ..node.util_types import AnyTaskNode
 from ..runtime.util_errors import InvalidStructureError
 from .core_graph import TaskGraph
@@ -6,7 +6,7 @@ from .core_graph import TaskGraph
 
 # ==== 有向无环图（DAG） ====
 class TaskChain(TaskGraph):
-    """线性任务链，将多个任务执行器按顺序串行或并行连接。"""
+    """线性任务链，将多个任务节点按顺序串行或并行连接。"""
 
     def __init__(
         self,
@@ -16,7 +16,7 @@ class TaskChain(TaskGraph):
     ) -> None:
         """
         TaskChain: 线性任务链结构
-        该结构将多个任务执行器按顺序连接，形成一个线性的数据流图。
+        该结构将多个任务节点按顺序连接，形成一个线性的数据流图。
 
         :param nodes: 节点列表，每个节点将连接到下一个节点
         :param graph_mode: 图执行模式, 可选值为 'serial'、'thread' 或 'async'，

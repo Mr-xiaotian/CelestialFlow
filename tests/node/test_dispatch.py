@@ -106,7 +106,7 @@ class _CtreeStub:
         """使用递增事件 ID，避免与 sqlite 唯一约束冲突。"""
         self._next_id = start_id
 
-    def emit(self, event: str, **kw: Any) -> int:  # noqa: ARG002
+    def emit(self, event: str, **kw: Any) -> int:
         """返回递增事件 ID 以替代真实 ctree。"""
         current_id = self._next_id
         self._next_id += 1
@@ -249,7 +249,7 @@ class TestDispatchSerial:
             def __init__(self) -> None:
                 self._next_id = 100
 
-            def emit(self, event: str, **kw: Any) -> int:  # noqa: ARG002
+            def emit(self, event: str, **kw: Any) -> int:
                 current_id = self._next_id
                 self._next_id += 1
                 return current_id
@@ -398,9 +398,9 @@ class _CrashRetryLogInlet(_RecordingLogInlet):
 
     def task_retry(
         self,
-        executor_name: str,
+            node_name: str,
         task_repr: str,
-        retry_times: int,
+            fail_times: int,
         exception: Exception,
         task_id: int,
     ) -> None:

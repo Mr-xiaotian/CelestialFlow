@@ -94,7 +94,7 @@ class LogInlet(BaseInlet):
         )
 
     # ==== 任务图 ====
-    def start_graph(
+    def graph_start(
         self, graph_name: str, graph_mode: str, structure_list: list[str]
     ) -> None:
         """
@@ -110,7 +110,7 @@ class LogInlet(BaseInlet):
         for line in structure_list:
             self._log("INFO", line)
 
-    def end_graph(self, graph_name: str, use_time: float) -> None:
+    def graph_end(self, graph_name: str, use_time: float) -> None:
         """
         记录任务图结束
 
@@ -119,23 +119,26 @@ class LogInlet(BaseInlet):
         """
         self._log("INFO", f"Graph '{graph_name}' end. Use {use_time:.2f}s.")
 
-    # ==== 执行器 ====
-    def start_executor(
-        self, executor_name: str, task_num: int, execution_mode_desc: str
+    # ==== 节点 ====
+    def node_start(
+        self, node_name: str, task_num: int, execution_mode_desc: str
     ) -> None:
         """
-        记录执行器启动
+        记录节点启动
 
-        :param executor_name: 执行器名称
+        :param node_name: 节点名称
         :param task_num: 任务数量
         :param execution_mode_desc: 执行模式描述
         """
-        text = f"Executor '{executor_name}' start; execute {task_num} tasks by {execution_mode_desc}."
+        text = (
+            f"Node '{node_name}' start; "
+            + f"execute {task_num} tasks by {execution_mode_desc}."
+        )
         self._log("INFO", text)
 
-    def end_executor(
+    def node_end(
         self,
-        executor_name: str,
+        node_name: str,
         execution_mode_desc: str,
         use_time: float,
         success_num: int,
@@ -143,33 +146,33 @@ class LogInlet(BaseInlet):
         duplicated_num: int,
     ) -> None:
         """
-        记录执行器结束及统计
+        记录节点结束及统计
 
-        :param executor_name: 执行器名称
+        :param node_name: 节点名称
         :param execution_mode_desc: 执行模式描述
-        :param use_time: 执行器运行耗时（秒）
+        :param use_time: 节点运行耗时（秒）
         :param success_num: 成功任务数量
         :param failed_num: 失败任务数量
         :param duplicated_num: 重复任务数量
         """
         self._log(
             "INFO",
-            f"Executor '{executor_name}' end; execute tasks by {execution_mode_desc}. Use {use_time:.2f}s. "
+            f"Node '{node_name}' end; execute tasks by {execution_mode_desc}. Use {use_time:.2f}s. "
             + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 
-    def executor_crash(self, executor_name: str, exception: Exception) -> None:
+    def node_crash(self, node_name: str, exception: Exception) -> None:
         """
-        记录执行器崩溃。
+        记录节点崩溃。
 
-        :param executor_name: 执行器名称
+        :param node_name: 节点名称
         :param exception: 异常对象
         """
         exception_type = type(exception).__name__
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "CRITICAL",
-            f"Executor '{executor_name}' crashed: ({exception_type}){exception_text}.",
+            f"Node '{node_name}' crashed: ({exception_type}){exception_text}.",
         )
 
     # ==== 工作线程 ====
@@ -187,22 +190,22 @@ class LogInlet(BaseInlet):
         )
 
     # ==== 任务 ====
-    def task_input(self, executor_name: str, task_repr: str, input_id: int) -> None:
+    def task_input(self, node_name: str, task_repr: str, input_id: int) -> None:
         """
         记录任务输入
 
-        :param executor_name: 任务执行器名称
+        :param node_name: 任务节点名称
         :param task_repr: 任务表示
         :param input_id: 输入记录 ID
         """
         self._log(
             "DEBUG",
-            f"In '{executor_name}', Task {task_repr} input. [{input_id}*]",
+            f"In '{node_name}', Task {task_repr} input. [{input_id}*]",
         )
 
     def task_success(
-        self,
-        executor_name: str,
+            self,
+            node_name: str,
         task_repr: str,
         execution_mode: str,
         result_repr: str,
@@ -213,7 +216,7 @@ class LogInlet(BaseInlet):
         """
         记录任务成功
 
-        :param executor_name: 任务执行器名称
+        :param node_name: 任务节点名称
         :param task_repr: 任务表示
         :param execution_mode: 执行模式
         :param result_repr: 结果表示
@@ -223,12 +226,12 @@ class LogInlet(BaseInlet):
         """
         self._log(
             "SUCCESS",
-            f"In '{executor_name}', Task {task_repr} succeeded by {execution_mode}. Result is {result_repr}. Used {use_time:.2f}s. [{parent_id}->{success_id}*]",
+            f"In '{node_name}', Task {task_repr} succeeded by {execution_mode}. Result is {result_repr}. Used {use_time:.2f}s. [{parent_id}->{success_id}*]",
         )
 
     def task_fail(
-        self,
-        executor_name: str,
+            self,
+            node_name: str,
         task_repr: str,
         exception: Exception,
         parent_id: int,
@@ -237,7 +240,7 @@ class LogInlet(BaseInlet):
         """
         记录任务失败
 
-        :param executor_name: 任务执行器名称
+        :param node_name: 任务节点名称
         :param task_repr: 任务表示
         :param exception: 导致失败的异常
         :param parent_id: 父记录 ID
@@ -247,12 +250,12 @@ class LogInlet(BaseInlet):
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "ERROR",
-            f"In '{executor_name}', Task {task_repr} failed and can't retry: ({exception_type}){exception_text}. [{parent_id}->{error_id}*]",
+            f"In '{node_name}', Task {task_repr} failed and can't retry: ({exception_type}){exception_text}. [{parent_id}->{error_id}*]",
         )
 
     def task_retry(
-        self,
-        executor_name: str,
+            self,
+            node_name: str,
         task_repr: str,
         fail_times: int,
         exception: Exception,
@@ -261,7 +264,7 @@ class LogInlet(BaseInlet):
         """
         记录任务重试
 
-        :param executor_name: 任务执行器名称
+        :param node_name: 任务节点名称
         :param task_repr: 任务表示
         :param fail_times: 已失败次数
         :param exception: 导致重试的异常
@@ -269,29 +272,29 @@ class LogInlet(BaseInlet):
         """
         self._log(
             "WARNING",
-            f"In '{executor_name}', Task {task_repr} failed {fail_times} times and will retry: ({type(exception).__name__}). [{task_id}*]",
+            f"In '{node_name}', Task {task_repr} failed {fail_times} times and will retry: ({type(exception).__name__}). [{task_id}*]",
         )
 
     def task_duplicate(
-        self, executor_name: str, task_repr: str, parent_id: int, duplicate_id: int
+        self, node_name: str, task_repr: str, parent_id: int, duplicate_id: int
     ) -> None:
         """
         记录重复任务
 
-        :param executor_name: 任务执行器名称
+        :param node_name: 任务节点名称
         :param task_repr: 任务表示
         :param parent_id: 父记录 ID
         :param duplicate_id: 重复记录 ID
         """
         self._log(
             "WARNING",
-            f"In '{executor_name}', Task {task_repr} has been duplicated. [{parent_id}->{duplicate_id}*]",
+            f"In '{node_name}', Task {task_repr} has been duplicated. [{parent_id}->{duplicate_id}*]",
         )
 
     # ==== 拆分器 ====
     def split_trace(
-        self,
-        executor_name: str,
+            self,
+            node_name: str,
         part_index: int,
         part_total: int,
         parent_id: int,
@@ -300,7 +303,7 @@ class LogInlet(BaseInlet):
         """
         记录 split 子任务分发
 
-        :param executor_name: 任务执行器名称
+        :param node_name: 任务节点名称
         :param part_index: 分片索引
         :param part_total: 分片总数
         :param parent_id: 父记录 ID
@@ -308,29 +311,29 @@ class LogInlet(BaseInlet):
         """
         self._log(
             "TRACE",
-            f"In '{executor_name}', Task split part {part_index}/{part_total}. [{parent_id}->{split_id}*]",
+            f"In '{node_name}', Task split part {part_index}/{part_total}. [{parent_id}->{split_id}*]",
         )
 
     def split_success(
-        self, executor_name: str, task_repr: str, split_count: int, use_time: float
+        self, node_name: str, task_repr: str, split_count: int, use_time: float
     ) -> None:
         """
         记录 split 成功
 
-        :param executor_name: 任务执行器名称
+        :param node_name: 任务节点名称
         :param task_repr: 任务表示
         :param split_count: 拆分数量
         :param use_time: 拆分耗时（秒）
         """
         self._log(
             "SUCCESS",
-            f"In '{executor_name}', Task {task_repr} has split into {split_count} parts. Used {use_time:.2f}s.",
+            f"In '{node_name}', Task {task_repr} has split into {split_count} parts. Used {use_time:.2f}s.",
         )
 
     # ==== 路由器 ====
     def route_success(
-        self,
-        executor_name: str,
+            self,
+            node_name: str,
         task_repr: str,
         target_node: str,
         use_time: float,
@@ -340,7 +343,7 @@ class LogInlet(BaseInlet):
         """
         记录路由成功
 
-        :param executor_name: 任务执行器名称
+        :param node_name: 任务节点名称
         :param task_repr: 任务表示
         :param target_node: 路由目标节点
         :param use_time: 路由耗时（秒）
@@ -349,35 +352,35 @@ class LogInlet(BaseInlet):
         """
         self._log(
             "SUCCESS",
-            f"In '{executor_name}', Task {task_repr} has routed to {target_node}. Used {use_time:.2f}s. [{parent_id}->{route_id}*]",
+            f"In '{node_name}', Task {task_repr} has routed to {target_node}. Used {use_time:.2f}s. [{parent_id}->{route_id}*]",
         )
 
     # ==== 终止信号 ====
-    def termination_input(self, executor_name: str, termination_id: int) -> None:
+    def termination_input(self, node_name: str, termination_id: int) -> None:
         """
         记录终止信号输入
 
-        :param executor_name: 任务执行器名称
+        :param node_name: 任务节点名称
         :param termination_id: 终止记录 ID
         """
         self._log(
             "DEBUG",
-            f"In '{executor_name}', Termination input. [{termination_id}*]",
+            f"In '{node_name}', Termination input. [{termination_id}*]",
         )
 
     def termination_merge(
-        self, executor_name: str, parent_ids: list[int], termination_id: int
+        self, node_name: str, parent_ids: list[int], termination_id: int
     ) -> None:
         """
         记录终止信号合并
 
-        :param executor_name: 任务执行器名称
+        :param node_name: 任务节点名称
         :param parent_ids: 父记录 ID 列表
         :param termination_id: 终止记录 ID
         """
         self._log(
             "TRACE",
-            f"In '{executor_name}', Termination merge. [{parent_ids}->{termination_id}*]",
+            f"In '{node_name}', Termination merge. [{parent_ids}->{termination_id}*]",
         )
 
     # ==== 上报器 ====
