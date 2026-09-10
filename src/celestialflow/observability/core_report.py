@@ -205,11 +205,13 @@ class TaskReporter:
                 "graph_id": graph_id,
                 "errors": all_errors,
             }
-            _ = self._session.post(
+            res = self._session.post(
                 f"{self.base_url}/api/push_errors",
                 json=payload,
                 timeout=self._push_timeout(),
             )
+            if not res.ok:
+                raise ReporterError(f"Failed to push errors: {res.status_code}")
 
         except Exception as e:
             self.log_inlet.push_errors_failed(e)
@@ -225,11 +227,14 @@ class TaskReporter:
                 "status": status_dict,
                 "timestamp": now,
             }
-            _ = self._session.post(
+            res = self._session.post(
                 f"{self.base_url}/api/push_status",
                 json=payload,
                 timeout=self._push_timeout(),
             )
+            if not res.ok:
+                raise ReporterError(f"Failed to push status: {res.status_code}")
+            
         except Exception as e:
             self.log_inlet.push_status_failed(e)
 
@@ -242,11 +247,14 @@ class TaskReporter:
                 "edges": self.task_graph.get_edges(),
                 "source_nodes": self.task_graph.get_source_nodes(),
             }
-            _ = self._session.post(
+            res = self._session.post(
                 f"{self.base_url}/api/push_structure",
                 json=payload,
                 timeout=self._push_timeout(),
             )
+            if not res.ok:
+                raise ReporterError(f"Failed to push structure: {res.status_code}")
+            
         except Exception as e:
             self.log_inlet.push_structure_failed(e)
 
@@ -258,11 +266,14 @@ class TaskReporter:
                 "graph_id": self.task_graph.get_graph_id(),
                 "analysis": analysis,
             }
-            _ = self._session.post(
+            res = self._session.post(
                 f"{self.base_url}/api/push_analysis",
                 json=payload,
                 timeout=self._push_timeout(),
             )
+            if not res.ok:
+                raise ReporterError(f"Failed to push analysis: {res.status_code}")
+            
         except Exception as e:
             self.log_inlet.push_analysis_failed(e)
 
