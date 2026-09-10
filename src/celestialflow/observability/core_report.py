@@ -163,7 +163,8 @@ class TaskReporter:
         for target_node, task_datas in injection_payload.get("tasks", {}).items():
             try:
                 node = self.task_graph.node_dict[target_node]
-                node.put_task(task_datas)
+                for task in task_datas:
+                    node.put_task(task)
                 self.log_inlet.inject_tasks_success(target_node, task_datas)
             except Exception as e:
                 self.log_inlet.inject_tasks_failed(target_node, task_datas, e)

@@ -146,7 +146,7 @@ def test_reporter_accepts_split_task_and_termination_payload(
 
     reporter._pull_injection()
 
-    assert graph.node_dict["StageA"].task_calls == [[1, 2, 3]]
+    assert graph.node_dict["StageA"].task_calls == [1, 2, 3]
     assert graph.node_dict["StageA"].signal_calls == 0
     assert graph.node_dict["StageB"].task_calls == []
     assert graph.node_dict["StageB"].signal_calls == 1
@@ -178,7 +178,7 @@ def test_reporter_merges_tasks_and_termination_for_same_stage(
 
     reporter._pull_injection()
 
-    assert graph.node_dict["StageA"].task_calls == [[1, 2, 3]]
+    assert graph.node_dict["StageA"].task_calls == [1, 2, 3]
     assert graph.node_dict["StageA"].signal_calls == 1
     assert log_inlet.successes == [
         ("StageA", [1, 2, 3]),
