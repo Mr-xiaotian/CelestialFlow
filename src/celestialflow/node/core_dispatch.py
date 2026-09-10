@@ -122,7 +122,7 @@ class TaskDispatch[T, R]:
             task: T = task_envelope.get_task()
             max_retries: int = self.task_node.max_retries
 
-            for retry_time in range(max_retries + 1):
+            for fail_times in range(1, max_retries + 2):
                 try:
                     start_time = time.perf_counter()
                     result: R = self._call_sync(task)
@@ -131,7 +131,7 @@ class TaskDispatch[T, R]:
                     )
                     return
                 except Exception as exception:
-                    if retry_time >= max_retries or not isinstance(
+                    if fail_times > max_retries or not isinstance(
                         exception, self.task_node.metrics.retry_exceptions
                     ):
                         # 如果无重试机会或非可试异常, 则直接处理失败
@@ -139,7 +139,7 @@ class TaskDispatch[T, R]:
                         return
                     # 重试
                     self.task_node.log_task_retry(
-                        task_envelope, exception, retry_time
+                        task_envelope, exception, fail_times
                     )
 
         except Exception as e:
@@ -155,7 +155,7 @@ class TaskDispatch[T, R]:
             task: T = task_envelope.get_task()
             max_retries: int = self.task_node.max_retries
 
-            for retry_time in range(max_retries + 1):
+            for fail_times in range(1, max_retries + 2):
                 try:
                     start_time = time.perf_counter()
                     result: R = await self._call_async(task)
@@ -164,14 +164,14 @@ class TaskDispatch[T, R]:
                     )
                     return
                 except Exception as exception:
-                    if retry_time >= max_retries or not isinstance(
+                    if fail_times > max_retries or not isinstance(
                         exception, self.task_node.metrics.retry_exceptions
                     ):
                         self.task_node.handle_task_fail(task_envelope, exception)
                         return
                     # 重试
                     self.task_node.log_task_retry(
-                        task_envelope, exception, retry_time
+                        task_envelope, exception, fail_times
                     )
 
         except Exception as e:

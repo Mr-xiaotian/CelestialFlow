@@ -254,7 +254,7 @@ class LogInlet(BaseInlet):
         self,
         executor_name: str,
         task_repr: str,
-        retry_times: int,
+        fail_times: int,
         exception: Exception,
         task_id: int,
     ) -> None:
@@ -263,13 +263,13 @@ class LogInlet(BaseInlet):
 
         :param executor_name: 任务执行器名称
         :param task_repr: 任务表示
-        :param retry_times: 已重试次数
+        :param fail_times: 已失败次数
         :param exception: 导致重试的异常
         :param task_id: 任务记录 ID
         """
         self._log(
             "WARNING",
-            f"In '{executor_name}', Task {task_repr} failed {retry_times} times and will retry: ({type(exception).__name__}). [{task_id}*]",
+            f"In '{executor_name}', Task {task_repr} failed {fail_times} times and will retry: ({type(exception).__name__}). [{task_id}*]",
         )
 
     def task_duplicate(

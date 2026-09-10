@@ -417,14 +417,14 @@ class BaseTaskNode[T, R]:
         self,
         task_envelope: TaskEnvelope[T],
         exception: Exception,
-        retry_time: int,
+        fail_times: int,
     ):
         """
         为重试任务生成新的信封 ID 并记录日志
 
         :param task_envelope: 发生异常的任务
         :param exception: 捕获的异常
-        :param retry_time: 当前重试次数
+        :param fail_times: 当前失败次数
         """
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
@@ -432,7 +432,7 @@ class BaseTaskNode[T, R]:
         get_log_inlet().task_retry(
             self.get_name(),
             self._get_repr(task),
-            retry_time,
+            fail_times,
             exception,
             task_id,
         )
