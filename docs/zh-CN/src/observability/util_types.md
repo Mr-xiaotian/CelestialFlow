@@ -1,8 +1,8 @@
 # observability/util_types.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/10
 
-`observability/util_types.py` 定义了 `TaskReporter` 依赖的最小任务图协议接口 `ReporterTaskGraph` 与最小执行器协议接口 `ReporterTaskExecutor`。它们是 `Protocol` 类，使得 `TaskReporter` 无需导入具体的 `TaskGraph` / `BaseTaskNode` 类型即可声明依赖。
+`observability/util_types.py` 定义了 `TaskReporter` 依赖的最小任务图协议接口 `ReporterTaskGraph` 与最小节点协议接口 `ReporterTaskNode`。它们是 `Protocol` 类，使得 `TaskReporter` 无需导入具体的 `TaskGraph` / `BaseTaskNode` 类型即可声明依赖。
 
 ## 核心类型
 
@@ -15,7 +15,7 @@ class ReporterTaskGraph(Protocol):
     """TaskReporter 依赖的最小任务图接口。"""
 
     @property
-    def node_dict(self) -> Mapping[str, ReporterTaskExecutor]:
+    def node_dict(self) -> Mapping[str, ReporterTaskNode]:
         """返回按名称索引的只读节点映射。"""
         ...
 
@@ -36,7 +36,7 @@ class ReporterTaskGraph(Protocol):
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
-| `node_dict` | `Mapping[str, ReporterTaskExecutor]` | 返回按名称索引的只读节点映射（property） |
+| `node_dict` | `Mapping[str, ReporterTaskNode]` | 返回按名称索引的只读节点映射（property） |
 | `get_graph_id()` | `str` | 获取当前任务图的唯一标识 |
 | `get_nodes()` | `list[str]` | 返回所有节点名称 |
 | `get_edges()` | `dict[str, list[str]]` | 返回图结构中的边集合（`{from_name: [to_name, ...]}`） |
@@ -45,13 +45,13 @@ class ReporterTaskGraph(Protocol):
 | `get_graph_analysis()` | `dict[str, Any]` | 获取图分析数据（拓扑信息等） |
 | `collect_runtime_snapshot()` | `tuple[dict[str, Any], float]` | 收集最新运行时快照（按节点聚合的状态字典 + 采集时间戳） |
 
-### ReporterTaskExecutor
+### ReporterTaskNode
 
-`TaskReporter` 依赖的最小执行器（节点）接口协议。
+`TaskReporter` 依赖的最小节点接口协议。
 
 ```python
-class ReporterTaskExecutor(Protocol):
-    """TaskReporter 依赖的最小执行器接口。"""
+class ReporterTaskNode(Protocol):
+    """TaskReporter 依赖的最小节点接口。"""
 
     def put_task(self, task: Any) -> None: ...
 
@@ -70,7 +70,7 @@ class ReporterTaskExecutor(Protocol):
 ```python
 from celestialflow.observability.util_types import (
     ReporterTaskGraph,
-    ReporterTaskExecutor,
+    ReporterTaskNode,
 )
 
 
@@ -84,8 +84,8 @@ class TaskReporter:
     ) -> None: ...
 
 
-# 满足 ReporterTaskExecutor 协议的最小实现示例
-class MinimalExecutor:
+# 满足 ReporterTaskNode 协议的最小实现示例
+class MinimalNode:
     def put_task(self, task): ...
 
     def put_signal(self): ...
@@ -93,6 +93,6 @@ class MinimalExecutor:
 
 ## 注意事项
 
-- `ReporterTaskGraph` 与 `ReporterTaskExecutor` 都是 `typing.Protocol`，属于结构化类型（structural subtyping），任何实现了对应方法的类都会被类型检查器视为满足该协议。
+- `ReporterTaskGraph` 与 `ReporterTaskNode` 都是 `typing.Protocol`，属于结构化类型（structural subtyping），任何实现了对应方法的类都会被类型检查器视为满足该协议。
 - 使用 Protocol 设计避免了 `TaskReporter` 与 `TaskGraph` / `BaseTaskNode` 之间的循环依赖。
 - 该文件被 `core_report.py` 导入使用。
