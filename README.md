@@ -26,28 +26,35 @@
 - 相比 Airflow/Dagster 更轻、更快开始
 - 相比 multiprocessing/threading 更结构化，可直接表达 loop / complete graph 等复杂依赖模式
 
-框架的基本单元为 **TaskExecutor**，可独立运行，并支持三种执行模式：
+框架的基本单元为 **任务节点**（统一继承自内部基类 `BaseTaskNode`），目前对外暴露三种具体节点实现，可独立运行，也可互相连接成图：
+
+* **TaskExecutor** — 通用任务执行器
+* **TaskSplitter** — 将一个输入拆分为多个子任务
+* **TaskRouter** — 根据条件将任务路由到不同下游
+
+三种节点都支持以下执行模式：
 
 * **线性（serial）**
 * **多线程（thread）**
 * **协程（async）**
 
-TaskExecutor 实现了对任务的结果缓存，任务去重，进度条显示，多执行模式比较等功能，单独使用也很好用。
+`TaskExecutor` 实现了对任务的结果缓存、任务去重、进度条显示、多执行模式比较等功能，单独使用也很好用。
 
-但除去直接使用 TaskExecutor，更重要的是使用其子类**TaskStage**。TaskStage 可以互相连接，形成具有上游与下游依赖关系的任务图（**TaskGraph**）。下游 stage 会自动接收上游执行完成的结果作为输入，从而形成明确的数据流。
+节点之间通过 **TaskGraph** 互相连接，形成具有上游与下游依赖关系的任务图。下游节点会自动接收上游执行完成的结果作为输入，从而形成明确的数据流。TaskGraph 同时提供 `TaskChain` / `TaskCross` / `TaskGrid` / `TaskLoop` / `TaskWheel` / `TaskComplete` 等预置拓扑结构，方便快速搭建常见依赖模式。
 
-TaskStage 的任务执行模式同样包含三种，与TaskExecutor中一致。
+在图级别上，通过 `graph_mode` 统一控制图中所有节点的运行方式：
 
-在图级别上，每个 Stage 支持两种上下文模式：
+* **线性（serial layout）**：当前节点执行完毕再启动下一节点（下游节点可提前接收任务但不会立即执行）。
+* **多线程（thread layout）**：当前节点在主进程的独立线程中启动，适合 I/O 密集型任务和不可 pickle 的函数（如 lambda）。
+* **协程（async layout）**：当前节点以协程方式启动，适合 I/O 密集型异步任务。
 
-* **线性执行（serial layout）**：当前节点执行完毕再启动下一节点（下游节点可提前接收任务但不会立即执行）。
-* **线程执行（thread layout）**：当前节点在主进程的独立线程中启动，适合 I/O 密集型任务和不可 pickle 的函数（如 lambda）。
+`graph_mode` × `execution_mode` 共可组合出 9 种执行模式，覆盖绝大多数场景。
 
 TaskGraph 能构建完整的 **有向图结构（Directed Graph）**，不仅支持传统的有向无环图（DAG），也能灵活表达 **树形（Tree）**、**环形（loop）** 乃至于 **完全图（Complete Graph）** 形式的任务依赖。
 
-在执行与调度之外，CelestialFlow 进一步引入 **CelestialTree（简称: ctree） 事件追踪系统**，为每一个任务及其衍生行为（成功、失败、重试、拆分、路由等）记录明确的因果关系。借助 ctree，可以从任意一个初始任务出发，完整还原其在 TaskGraph 中的传播路径与执行轨迹，使任务系统可以进行完整的**追溯、分析、解释**。
+在执行与调度之外，CelestialFlow 进一步引入 **CelestialTree（简称: ctree）事件追踪系统**，为每一个任务及其衍生行为（成功、失败、重试、拆分、路由等）记录明确的因果关系。借助 ctree，可以从任意一个初始任务出发，完整还原其在 TaskGraph 中的传播路径与执行轨迹，使任务系统可以进行完整的**追溯、分析、解释**。自 3.2.4 起，`ctree` 默认使用本地超简化实现，不强制依赖 `celestialtree` 外部包；如需 gRPC 远程追踪能力，可再额外安装。
 
-在此基础上，CelestialFlow 提供事件追踪、状态上报、持久化回放，并提供基于 Redis 的 demo 与 Go Worker 外部协作示例，用于展示按需构建跨进程、跨设备任务协作的方式。
+在此基础上，CelestialFlow 提供事件追踪、状态上报、持久化回放等功能。Web 可视化界面由独立项目 [celestialflow-web](https://github.com/Mr-xiaotian/celestialflow-web) 提供，二者通过 HTTP 协议协作。
 
 ## 项目结构（Project Structure）
 
@@ -58,10 +65,10 @@ flowchart LR
     subgraph TG[TaskGraph]
         direction LR
 
-        S1[TaskStage A]
-        S2[TaskStage B]
-        S3[TaskStage C]
-        S4[TaskStage D]
+        S1[TaskExecutor A]
+        S2[TaskSplitter B]
+        S3[TaskExecutor C]
+        S4[TaskRouter D]
 
         S1 --> S2 --> S3 --> S1
         S1 --> S4
@@ -74,12 +81,12 @@ flowchart LR
     %% 统一美化格式
     classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
 
-    %% 美化 TaskStages
+    %% 美化 TaskNodes
     class S1,S2,S3,S4 blueNode;
 
     %% ===== Links =====
     TG --> CFB[CelestialFlow Web]
-    CFB --> TG 
+    CFB --> TG
 
     style CFB fill:#ffeaf0,stroke:#d66b8c,stroke-width:2px,rx:10px,ry:10px
 
@@ -112,7 +119,7 @@ uv sync --group dev
 一个简单的可运行代码:
 
 ```python
-from celestialflow import TaskStage, TaskGraph
+from celestialflow import TaskExecutor, TaskGraph
 
 
 def add(x, y):
@@ -125,24 +132,26 @@ def square(x):
 
 if __name__ == "__main__":
     # 定义两个任务节点
-    stage1 = TaskStage(
+    executor_1 = TaskExecutor(
         name="Adder",
         func=add,
-        stage_mode="thread",
         execution_mode="thread",
-        unpack_task_args=True,
+        max_workers=4,
     )
-    stage2 = TaskStage(
-        name="Squarer", func=square, stage_mode="thread", execution_mode="thread"
+    executor_2 = TaskExecutor(
+        name="Squarer",
+        func=square,
+        execution_mode="thread",
+        max_workers=4,
     )
 
     # 构建任务图结构
-    graph = TaskGraph(name="DemoGraph")
-    graph.set_stages(stages=[stage1, stage2])
-    graph.connect([stage1], [stage2])
+    graph = TaskGraph(name="DemoGraph", graph_mode="thread")
+    graph.set_nodes(nodes=[executor_1, executor_2])
+    graph.connect([executor_1], [executor_2])
 
     # 初始化任务并启动
-    graph.start_graph({stage1.get_name(): [(1, 2), (3, 4), (5, 6)]})
+    graph.run({"Adder": [(1, 2), (3, 4), (5, 6)]})
 ```
 
 注意不要在.ipynb中运行。
@@ -153,12 +162,11 @@ if __name__ == "__main__":
 
 若你想了解框架的整体结构与核心组件，下面的参考文档会对你有帮助：
 
-- [TaskExecutor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_executor.md)
-- [TaskStage.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stage.md)
+- [BaseTaskNode.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/node/core_node.md)
+- [TaskExecutor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/node/core_nodes.md)
 - [TaskGraph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_graph.md)
 - [TaskMetrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_metrics.md)
 - [TaskQueue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_queue.md)
-- [TaskStages.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/stage/core_stages.md)
 - [TaskReport.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_report.md)
 - [TaskStructure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_structure.md)
 - [BaseObserver.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_observer.md)
@@ -173,21 +181,20 @@ flowchart TD
     classDef structure fill:#fff6e6,stroke:#f59e0b,color:#78350f;
     classDef execution fill:#f3e8ff,stroke:#a855f7,color:#581c87;
 
-    TM[TaskExecutor.md] --> TS[TaskStage.md] --> TG[TaskGraph.md]
-    TM --> OB[BaseObserver.md]
-    TM --> TME[TaskMetrics.md]
+    BTN[BaseTaskNode.md] --> TE[TaskExecutor.md] --> TG[TaskGraph.md]
+    TE --> OB[BaseObserver.md]
+    TE --> TME[TaskMetrics.md]
 
     TG --> TQ[TaskQueue.md]
-    TG --> TN[TaskStages.md]
     TG --> TR[TaskReport.md]
     TG --> TSR[TaskStructure.md]
 
-    TN --> GW[Go Worker.md]
+    TG --> GW[Go Worker.md]
 
-    class TM,TS,TG core;
-    class TP,TME runtime;
+    class BTN,TE,TG core;
+    class TME runtime;
     class TSR structure;
-    class TQ,TN,GW execution;
+    class TQ,GW execution;
     class TR execution;
 ```
 
@@ -196,7 +203,7 @@ flowchart TD
 - [UtilHash.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_hash.md)
 - [UtilTypes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_types.md)
 - [UtilErrors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_errors.md)
-- [Fallback.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_fallback.md)
+- [Lifecycle.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_lifecycle.md)
 - [Log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md)
 
 如果你更喜欢通过完整案例理解框架的运行方式，可以参考这篇利用 TaskGraph 从零开始构建项目的教程：
@@ -221,36 +228,34 @@ flowchart TD
 
 ## 环境要求（Requirements）
 
-**CelestialFlow** 基于 Python 3.12+，默认运行时依赖以下核心组件。
-其中 `celestialtree` 不再属于默认运行时依赖，而是额外安装的可选组件。
+**CelestialFlow** 基于 Python 3.12+，默认运行时仅依赖极简的核心组件。
 
 | 依赖包           | 说明 |
 | ----------------- | ---- |
 | **Python ≥ 3.12**  | 运行环境，建议使用 3.12 及以上版本 |
 | **requests**      | HTTP 客户端库，用于任务状态上报与远程调用 |
-| **tqdm**          | 可选组件，进度条显示，用于任务执行可视化 |
 
-- 如需运行 `demo/demo_redis.py` 或 Go Worker 示例，请额外安装 `redis` 并准备 Redis 服务；这部分不属于默认运行时依赖。
+- `tqdm` 已不再是默认运行时依赖（自 3.2.7 起移除）。如需在 demo 中体验 `TaskProgress` 进度条，可自行 `uv pip install tqdm`。
+- `celestialtree` 也**不再是必需依赖**（自 3.2.4 起）：事件追踪默认使用本地超简化实现，可零外部依赖运行。如需 gRPC 远程追踪能力，请额外安装 `celestialtree`，或在源码仓库中执行 `uv sync --group dev`。
+- 旧版 demo / bench 中的 Redis 节点已在 3.2.4 移除，本项目运行时不再依赖 Redis。
 
-- 如需运行依赖 CelestialTree 的 demo / bench / 追踪查询，请额外安装 `celestialtree`，或直接在源码仓库中执行 `uv sync --group dev`。
-
-- 如需使用可视化的Web服务, 请额外安装 `celestialflow-web` 并运行 `celestialflow-web --host 0.0.0.0 --port 5000`。
+- 如需使用可视化的 Web 服务，请前往独立项目 [celestialflow-web](https://github.com/Mr-xiaotian/celestialflow-web) 安装并运行 `celestialflow-web --host 0.0.0.0 --port 5000`。
 
 ## 文件结构（File Structure）
 
 ```
-📁 CelestialFlow	(588MB 419KB 930B)
-    📁 bench           	(296KB 806B)
+📁 CelestialFlow	(664MB 611KB 462B)
+    📁 bench           	(296KB 101B)
         📁 [1项排除的目录]                  	(194KB 222B)
         🐍 bench_datastructures.py          	(6KB 690B)
         🐍 bench_execution_mode.py          	(2KB 707B)
         🐍 bench_futures_memory.py          	(2KB 269B)
-        🐍 bench_gil_vs_nogil.py            	(10KB 121B)
-        🐍 bench_graph_mode.py              	(7KB 450B)
+        🐍 bench_gil_vs_nogil.py            	(10KB 101B)
+        🐍 bench_graph_mode.py              	(6KB 774B)
         🐍 bench_hash.py                    	(7KB 67B)
         🐍 bench_hash_container.py          	(3KB 1009B)
         🐍 bench_hash_memory.py             	(3KB 642B)
-        🐍 bench_http_grpc.py               	(2KB 521B)
+        🐍 bench_http_grpc.py               	(2KB 536B)
         🐍 bench_ipc_queue.py               	(7KB 104B)
         🐍 bench_lock_overhead.py           	(9KB 421B)
         🐍 bench_mpqueue_vs_shared_memory.py	(13KB 127B)
@@ -260,101 +265,86 @@ flowchart TD
         🐍 bench_requests.py                	(6KB 813B)
         🐍 bench_tqdm.py                    	(1KB 235B)
         🐍 bench_utils.py                   	(543B)
-    📁 demo            	(145KB 1012B)
+    📁 demo            	(146KB 197B)
         📁 [1项排除的目录]  	(100KB 9B)
         🐍 demo_executor.py 	(1KB 495B)
         🐍 demo_funnel.py   	(2KB 289B)
-        🐍 demo_graph.py    	(3KB 227B)
-        🐍 demo_network.py  	(3KB 729B)
+        🐍 demo_graph.py    	(3KB 222B)
+        🐍 demo_network.py  	(3KB 756B)
+        🐍 demo_nodes.py    	(4KB 212B)
         🐍 demo_observer.py 	(4KB 270B)
-        🐍 demo_redis.py    	(9KB 81B)
-        🐍 demo_stages.py   	(4KB 219B)
-        🐍 demo_structure.py	(11KB 593B)
+        🐍 demo_redis.py    	(9KB 131B)
+        🐍 demo_structure.py	(11KB 737B)
         🐍 demo_utils.py    	(6KB 148B)
-    📁 dist            	(302KB 861B)
-        ❓ .gitignore                          	(1B)
-        ❓ celestialflow-3.2.7-py3-none-any.whl	(79KB 235B)
-        📦 celestialflow-3.2.7.tar.gz          	(67KB 836B)
-        ❓ celestialflow-3.2.8-py3-none-any.whl	(83KB 244B)
-        📦 celestialflow-3.2.8.tar.gz          	(72KB 569B)
-    📁 docs            	(1MB 756KB 830B)
-        📁 en[已折叠]   	(568KB 991B)
-        📁 ja[已折叠]   	(642KB 383B)
-        📁 zh-CN[已折叠]	(569KB 480B)
-    📁 experiments     	(2KB 1021B)
-        🐍 experiment_networkx.py	(1KB 884B)
+    📁 docs            	(1MB 914KB 89B)
+        📁 en[已折叠]   	(632KB 604B)
+        📁 ja[已折叠]   	(718KB 778B)
+        📁 zh-CN[已折叠]	(586KB 755B)
+    📁 experiments     	(3KB 21B)
+        🐍 experiment_networkx.py	(1KB 908B)
         🐍 experiment_tqdm.py    	(1KB 137B)
     📁 img             	(5MB 871KB 242B)
         📷 file_structure.svg  	(4MB 918KB 1000B)
         📷 logo(old).png       	(836KB 542B)
         📷 logo.png            	(122KB 747B)
         📷 scc_condensation.svg	(17KB 1B)
-    📁 src             	(1MB 873KB 44B)
-        📁 celestialflow[已折叠]         	(1MB 852KB 902B)
-        📁 celestialflow.egg-info[已折叠]	(20KB 166B)
-    📁 tests           	(4MB 170KB 251B)
-        📁 benchmark[已折叠]    	(39KB 852B)
-        📁 funnel[已折叠]       	(96KB 363B)
-        📁 graph[已折叠]        	(724KB 404B)
-        📁 observability[已折叠]	(189KB 230B)
-        📁 persistence[已折叠]  	(387KB 877B)
-        📁 runtime[已折叠]      	(1MB 295KB 264B)
-        📁 stage[已折叠]        	(381KB 203B)
-        📁 utils[已折叠]        	(639KB 527B)
-        📁 [1项排除的目录]      	(487KB 589B)
+    📁 src             	(1MB 822KB 642B)
+        📁 celestialflow[已折叠]         	(1MB 822KB 642B)
+    📁 tests           	(4MB 290KB 989B)
+        📁 benchmark[已折叠]    	(45KB 270B)
+        📁 funnel[已折叠]       	(96KB 339B)
+        📁 graph[已折叠]        	(768KB 424B)
+        📁 node[已折叠]         	(451KB 840B)
+        📁 observability[已折叠]	(188KB 1001B)
+        📁 persistence[已折叠]  	(393KB 151B)
+        📁 runtime[已折叠]      	(1MB 290KB 858B)
+        📁 [1项排除的目录]      	(487KB 637B)
         🐍 conftest.py          	(1KB 38B)
-        🐍 __init__.py          	(0B)
-    📁 [12项排除的目录]	(573MB 949KB 913B)
+    📁 [12项排除的目录]	(650MB 21KB 212B)
     ❓ .env            	(468B)
     ❓ .gitignore      	(1KB 315B)
     📝 AGENTS.md       	(1KB 434B)
     ❓ LICENSE         	(1KB 65B)
-    ❓ Makefile        	(155B)
+    ❓ Makefile        	(149B)
     ⚙️ pyproject.toml  	(2KB 668B)
-    📝 README.md       	(17KB 465B)
-    🔒 uv.lock         	(121KB 572B)
+    📝 README.md       	(17KB 298B)
+    🔒 uv.lock         	(120KB 752B)
 ```
 <p align="center">
-  <em>celestial-flow 3.2.9</em>
+  <em>celestial-flow 3.3.0</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.2.9
+- 3.3.0
   - feat:
-    - [IMPORTANT] 移除 `stage` 中 `stage_mode`，并添加 `graph_mode`
-      - 破坏性更新
-      - `stage_mode` 可以细粒度的控制每个 `TaskStage` 在图中的模式，但经过多年使用，我认为这种细粒度的控制并无必要，反而无谓的增加理解成本
-      - `graph_mode` 则提供了更粗粒度的控制，用于统一控制所有 `TaskStage` 在图中是串行/多线程/并发运行，适用于大多数场景
-      - 同时完善了 `graph_mode`(serial/thread/async) * `execution_mode`(serial/thread/async) 总共 9 种组合模式
-    - 移除 `schedule_mode`
-      - 破坏性更新
-      - 这个模式带来了许多复杂度，但没有与原先的 `stage_mode / execution_mode` 产生明显的组合优势
-    - 在 `get_graph_analysis` 中添加 `graph_mode`
-      - 这个函数主要用于给web端提供信息
-      - web端代码已经同步修改
-    - 添加新的 `warning` 项，当图不是 dag 且 `graph_mode=serial` 时触发
-    - 移除 `task_executor` 中的参数 `persist_result`
-      - 这是为了简化代码逻辑，同时也使所有任务的最终状态（包括：成功/失败/未执行）都能被统一存储
-    - 将 `task.retry` 事件降级，不再申请单独事件ID，不再在 `lifecycle` 中留痕
-  - reafactor:
-    - 合并 `benchmark` 相关函数对 sync 与 async 两种模式的执行
-      - 性能无差异，代码好看一些
-    - 将原本的 `fallback` 改名为 `lifecycle`
-      - 早在重构原本的 `fail` 时就想起个更恰当的名字，这个版本才实现
-    - 将 `graph.source_lists` 改为 `graph.source_names`
-      - `graph.source_lists` 直接存储节点的引用，而 `graph.source_names` 存储节点的名称
-    - 所有的 `log` / `lifecycle` 文件统一改名为 `flow_log` / `flow_lifecycle`
-    - 删除 `graph` 中的 `out_edges` `in_edges`
-      - 现在由 `OrderGraph` 负责管理边关系
-    - 在 `tarjan_scc` 中使用 DFS 取代原先的递归逻辑
-    - 将 `util_graph` 改名为 `util_order_graph`
+    - 现在 `TaskExecutor` 中完全删除了 `func_name` 参数
+      - 在有 `executor_name` 表达节点后, 这层暴露是不必要的
+      - 同时也是为了与 `CelestialGraw` 的状态做统一
+    - 在向 `reporter` 发送状态时, 包含图的 `class_name` 信息
+    - 移除 `OrderGraph` 中的 `from_edges` 方法
+  - refactor:
+    - [IMPORTANT] 重构原有的 `executor/stage` 结构
+      - 原本为 `executor -> stage -> splitter/router`, 三层结构过于复杂
+      - 现在删除 `stage` 层, 添加 `BaseTaskNode`, 作为 graph 唯一识别的节点, 而 `executor` 视为与 `splitter/router` 同级别的节点
+      - 当前结构为 `BaseTaskNode -> executor/splitter/router`
+    - 重构 `render_structure_list`(原 `format_structure_list_from_graph`) 的实现
+      - 现在使用广度优先, 而不是原先的递归
+      - 同时输入参数直接使用 `list[str]` 形式的节点名称列表, 这意味着不再显示 `func_name` `execution_mode` 等信息
+    - 修改原本对于 `collect_runtime_snapshot` 奇怪的调用方式
+      - 现在reporter端会在 `_push_status` 中直接调用 `collect_runtime_snapshot`
+    - 删除 `TaskExecutor` 中的 `get_summary`, 这层包装实际上是多余的
+      - 同时所有的 `event_client.emit` 也不再附带 `summary` 信息
+    - 删除 `OrderGraph` 中的 `_node` 参数
+      - 之前这个参数提供: 所有节点名称; 节点的插入顺序
+      - 现在前者由 `_out` 提供, 后者不再重视
+    - `LifecycleInlet` 中的 `task_in` 改名为 `task_input`, 保持与 log 端一致
   - fix:
-    - 修复最后一次 report 无法正常上传的问题
-    - 修复 `graph.run` / `graph.run_async` 中 `is_put_signal` 参数没有生效的问题
-  - chore：
-    - 更新文档
+    - 修复 `execution_mode = async` 时, worker崩溃被忽略的问题
+    - 修复任务重试日志中 `retry_times` 的含义模糊, 现在使用 `fail_times`
+    - 修复 reporter 的 `_push_*` 方法中, 不处理返回值的问题
+    - 修复 `TaskReporter._pull_injection` 中, 对拉取的任务列表错误 `put_task` 的问题
 
 更多过往日志可看:
 

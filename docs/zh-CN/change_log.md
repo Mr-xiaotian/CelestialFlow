@@ -1,6 +1,6 @@
 # 更新日志（Change Log）
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/09/10
 
 - 2021: 建立一个支持多线程与单线程处理函数的类
 - 2023: 在 GPT-4 帮助下添加多进程与协程运行模式
@@ -447,3 +447,31 @@
     - 修复 `graph.run` / `graph.run_async` 中 `is_put_signal` 参数没有生效的问题
   - chore：
     - 更新文档
+- 3.3.0
+  - feat:
+    - 现在 `TaskExecutor` 中完全删除了 `func_name` 参数
+      - 在有 `executor_name` 表达节点后, 这层暴露是不必要的
+      - 同时也是为了与 `CelestialGraw` 的状态做统一
+    - 在向 `reporter` 发送状态时, 包含图的 `class_name` 信息
+    - 移除 `OrderGraph` 中的 `from_edges` 方法
+  - refactor:
+    - [IMPORTANT] 重构原有的 `executor/stage` 结构
+      - 原本为 `executor -> stage -> splitter/router`, 三层结构过于复杂
+      - 现在删除 `stage` 层, 添加 `BaseTaskNode`, 作为 graph 唯一识别的节点, 而 `executor` 视为与 `splitter/router` 同级别的节点
+      - 当前结构为 `BaseTaskNode -> executor/splitter/router`
+    - 重构 `render_structure_list`(原 `format_structure_list_from_graph`) 的实现
+      - 现在使用广度优先, 而不是原先的递归
+      - 同时输入参数直接使用 `list[str]` 形式的节点名称列表, 这意味着不再显示 `func_name` `execution_mode` 等信息
+    - 修改原本对于 `collect_runtime_snapshot` 奇怪的调用方式
+      - 现在reporter端会在 `_push_status` 中直接调用 `collect_runtime_snapshot`
+    - 删除 `TaskExecutor` 中的 `get_summary`, 这层包装实际上是多余的
+      - 同时所有的 `event_client.emit` 也不再附带 `summary` 信息
+    - 删除 `OrderGraph` 中的 `_node` 参数
+      - 之前这个参数提供: 所有节点名称; 节点的插入顺序
+      - 现在前者由 `_out` 提供, 后者不再重视
+    - `LifecycleInlet` 中的 `task_in` 改名为 `task_input`, 保持与 log 端一致
+  - fix:
+    - 修复 `execution_mode = async` 时, worker崩溃被忽略的问题
+    - 修复任务重试日志中 `retry_times` 的含义模糊, 现在使用 `fail_times`
+    - 修复 reporter 的 `_push_*` 方法中, 不处理返回值的问题
+    - 修复 `TaskReporter._pull_injection` 中, 对拉取的任务列表错误 `put_task` 的问题
