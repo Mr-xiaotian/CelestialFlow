@@ -1,8 +1,8 @@
 # BaseObserver
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
-`BaseObserver` is the base class for executor lifecycle observers, defining the event interfaces that `TaskExecutor` broadcasts during execution.
+`BaseObserver` is the base class for executor lifecycle observers, defining the event interfaces that `BaseTaskNode` (and its subclasses `TaskExecutor` / `TaskSplitter` / `TaskRouter`) broadcasts during execution.
 
 ## BaseObserver
 
@@ -43,12 +43,12 @@ All methods have default empty implementations (not ABC); subclasses override as
 
 Events are not dispatched via a unified `_notify()`, but invoked directly by the framework at specific points:
 
-- `TaskMetrics.on_start(name, total)` → broadcasts `on_start` (called by `TaskExecutor._prepare_start()`, `total` is always `0`)
+- `TaskMetrics.on_start(name, total)` → broadcasts `on_start` (called by `BaseTaskNode._prepare_start()`, `total` is always `0`)
 - `TaskMetrics.add_task_count(count)` → broadcasts `on_tasks_added`
 - `TaskMetrics.add_success_count(count)` / `add_fail_count(count)` / `add_duplicate_count(count)` → broadcast the corresponding callbacks
 - `TaskMetrics.on_finish()` → broadcasts `on_finish`
 
-Observers are registered via `executor.add_observer(observer)` (stored internally in `TaskMetrics._observers`). When the observer list is empty, the broadcast loop is a no-op.
+Observers are registered via `node.add_observer(observer)` (stored internally in `TaskMetrics._observers`). When the observer list is empty, the broadcast loop is a no-op.
 
 ### Usage
 
@@ -64,6 +64,7 @@ class MyObserver(BaseObserver):
         print(f"Fail: {count}")
 
 
+```python
 executor = TaskExecutor("Test", my_func)
 executor.add_observer(MyObserver())
 executor.run([1, 2, 3])
@@ -72,8 +73,9 @@ executor.run([1, 2, 3])
 ### Observer Management
 
 ```python
-executor.add_observer(observer)  # Register observer
-executor.remove_observer(observer)  # Remove observer
+node.add_observer(observer)  # Register observer
+node.remove_observer(observer)  # Remove observer
+```
 ```
 
 ## Existing Implementations

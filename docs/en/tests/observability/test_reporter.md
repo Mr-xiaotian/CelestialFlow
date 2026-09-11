@@ -1,10 +1,10 @@
-# Reporter Injection and Push Tests (test_reporter.py)
+# tests/observability/test_reporter.py
 
-> 📅 Last Updated: 2026/08/19
+> 📅 Last Updated: 2026/09/09
 
 ## Purpose
 
-Validates the task injection and error push logic of `TaskReporter` in `celestialflow.observability.core_report`: after the Reporter pulls split tasks and termination signal payloads from the remote, it verifies that the tasks and termination signals are correctly injected to the corresponding stages via `put_task` / `put_signal` respectively; also validates the endpoint selection for error push and the incremental push behavior based on the server-side watermark.
+Validates the task injection and error push logic of `TaskReporter` in `celestialflow.observability.core_report`: after the Reporter pulls split tasks and termination signal payloads from the remote, it verifies that the tasks and termination signals are correctly injected into the corresponding nodes via `put_task` / `put_signal` respectively; also validates the endpoint selection for error push and the incremental push behavior based on the server-side watermark.
 
 ## Core Test Objects
 
@@ -13,6 +13,7 @@ Validates the task injection and error push logic of `TaskReporter` in `celestia
 | `FakeResponse` / `FakePostResponse` | Mock | Simulates HTTP GET/POST responses |
 | `FakeSession` / `FakePushSession` | Mock | Simulates `requests.Session` GET/POST methods and records calls |
 | `FakeTaskGraph` / `FakeErrorGraph` | Mock | Simulates graph injection interface and error query interface |
+| `FakeNode` | Mock | Records single-node `put_task` / `put_signal` calls |
 | `FakeLogInlet` | Mock | Records logs for injection success/failure, pull failure, and push failure |
 | `TaskReporter` | Class Under Test | The injector and reporter in `celestialflow.observability` |
 
@@ -20,7 +21,7 @@ Validates the task injection and error push logic of `TaskReporter` in `celestia
 
 ### `test_reporter_accepts_split_task_and_termination_payload`
 
-**Coverage Goal**: Validates that `TaskReporter._pull_injection()` can consume the split payload `{"tasks": {...}, "terminations": [...]}` returned by the server, and inject the tasks and termination signals to the corresponding stages via `put_task` / `put_signal` respectively.
+**Coverage Goal**: Validates that `TaskReporter._pull_injection()` can consume the split payload `{"tasks": {...}, "terminations": [...]}` returned by the server, and inject the tasks and termination signals into the corresponding nodes via `put_task` / `put_signal` respectively.
 
 **Assertion Intent**:
 
@@ -28,6 +29,7 @@ Validates the task injection and error push logic of `TaskReporter` in `celestia
 - `StageB`'s `task_calls` is empty, but `signal_calls` is 1 (only the termination signal is injected).
 - `log_inlet.successes` records two success logs: task injection for StageA `(StageA, [1, 2, 3])` and termination signal injection for StageB `(StageB, [TERMINATION_SIGNAL])`.
 - No failure logs (`failures` and `pull_failures` are both empty).
+- Replaces `celestialflow.observability.core_report.get_log_inlet` via `monkeypatch.setattr` to return `log_inlet`, isolating the global log injector.
 
 ```mermaid
 sequenceDiagram
@@ -62,7 +64,7 @@ sequenceDiagram
 - Writes one sqlite error record.
 - Sets `_server_has_current_graph = False` (triggers full push).
 - Asserts the POST target URL ends with `/api/push_errors`.
-- Asserts the payload contains `graph_id` and `errors` fields, and the error record fields match the sqlite record.
+- Asserts the payload contains `graph_id` and `errors` fields, and the error record fields match the sqlite record (including `id` / `event_id` / `stage` / `status` / `error_type` / `error_message` / `ts` / `task_json` / `result_json`).
 
 ### `test_reporter_pushes_only_errors_after_server_max_event_id`
 
@@ -76,7 +78,7 @@ sequenceDiagram
 
 | Test Function | Coverage Target |
 |----------|----------|
-| `test_reporter_accepts_split_task_and_termination_payload` | Split payload parsing, merged task and termination injection, injection success logging |
+| `test_reporter_accepts_split_task_and_termination_payload` | Split payload parsing, task and termination signal injected separately, injection success logging |
 | `test_reporter_merges_tasks_and_termination_for_same_stage` | Merge rules for tasks and termination signals on the same node |
 | `test_reporter_pushes_errors_via_push_errors_endpoint_only` | Error push endpoint unified as `/api/push_errors`, full push payload structure |
 | `test_reporter_pushes_only_errors_after_server_max_event_id` | Incremental error push based on server watermark |
@@ -100,6 +102,6 @@ pytest tests/observability/test_reporter.py -k "push_errors" -v
 ## Notes
 
 - Tests use Fake objects to completely isolate network dependencies; `TaskReporter`'s actual HTTP behavior is verified in other tests.
-- Task payloads and termination signals are already split at the remote end; the Reporter side is responsible for re-merging them and replacing termination signals with the `TERMINATION_SIGNAL` singleton.
+- Task payloads and termination signals are already split at the remote end; the Reporter side is responsible for calling `put_task` / `put_signal` respectively, and records the termination signal as the `[TERMINATION_SIGNAL]` singleton list in the log.
 - `FakePushSession` records the URL, JSON payload, and timeout of each POST, making it easy to assert push content without depending on a real network.
 - The related implementation is located at `src/celestialflow/observability/core_report.py`.

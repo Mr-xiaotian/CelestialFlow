@@ -1,8 +1,8 @@
-# ReporterTaskGraph
+# observability/util_types.py
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/10
 
-`observability/util_types.py` defines the task graph protocol interface `ReporterTaskGraph` and the task stage protocol interface `ReporterTaskStage` on which `TaskReporter` depends. They are `Protocol` classes, allowing `TaskReporter` to declare its dependency without importing concrete `TaskGraph` / `TaskStage` types.
+`observability/util_types.py` defines the minimal task graph protocol interface `ReporterTaskGraph` and the minimal node protocol interface `ReporterTaskNode` on which `TaskReporter` depends. They are `Protocol` classes, allowing `TaskReporter` to declare its dependency without importing the concrete `TaskGraph` / `BaseTaskNode` types.
 
 ## Core Types
 
@@ -15,17 +15,17 @@ class ReporterTaskGraph(Protocol):
     """Minimum task graph interface required by TaskReporter."""
 
     @property
-    def stage_dict(self) -> Mapping[str, ReporterTaskStage]:
+    def node_dict(self) -> Mapping[str, ReporterTaskNode]:
         """Return a read-only mapping of nodes indexed by name."""
         ...
 
     def get_graph_id(self) -> str: ...
 
-    def get_stages_summary(self) -> dict[str, dict[str, Any]]: ...
+    def get_nodes(self) -> list[str]: ...
 
     def get_edges(self) -> dict[str, list[str]]: ...
 
-    def get_source_names(self) -> list[str]: ...
+    def get_source_nodes(self) -> list[str]: ...
 
     def get_lifecycle_path(self) -> Path: ...
 
@@ -35,23 +35,23 @@ class ReporterTaskGraph(Protocol):
 ```
 
 | Method | Return | Description |
-|------|--------|------|
-| `stage_dict` | `Mapping[str, ReporterTaskStage]` | Returns a read-only mapping of nodes indexed by name (property) |
+|--------|--------|-------------|
+| `node_dict` | `Mapping[str, ReporterTaskNode]` | Returns a read-only mapping of nodes indexed by name (property) |
 | `get_graph_id()` | `str` | Get the unique identifier of the current task graph |
-| `get_stages_summary()` | `dict[str, dict[str, Any]]` | Returns the summary of all stages (`name`, `func_name`, `execution_mode`, `max_workers`, etc.) |
+| `get_nodes()` | `list[str]` | Returns the names of all nodes |
 | `get_edges()` | `dict[str, list[str]]` | Returns the edge set in the graph structure (`{from_name: [to_name, ...]}`) |
-| `get_source_names()` | `list[str]` | Returns the names of all source stages with no upstream input |
+| `get_source_nodes()` | `list[str]` | Returns the names of all source nodes with no upstream input |
 | `get_lifecycle_path()` | `Path` | Get the path to the lifecycle persistence file |
 | `get_graph_analysis()` | `dict[str, Any]` | Get graph analysis data (topology info, etc.) |
-| `collect_runtime_snapshot()` | `tuple[dict[str, Any], float]` | Collect the latest runtime snapshot (per-stage aggregated status dict + collection timestamp) |
+| `collect_runtime_snapshot()` | `tuple[dict[str, Any], float]` | Collect the latest runtime snapshot (per-node aggregated status dict + collection timestamp) |
 
-### ReporterTaskStage
+### ReporterTaskNode
 
-The minimal task stage interface protocol that `TaskReporter` depends on (only used when the graph exposes stages via `stage_dict`).
+The minimal node interface protocol that `TaskReporter` depends on.
 
 ```python
-class ReporterTaskStage(Protocol):
-    """Minimum task stage interface required by TaskReporter."""
+class ReporterTaskNode(Protocol):
+    """Minimum node interface required by TaskReporter."""
 
     def put_task(self, task: Any) -> None: ...
 
@@ -59,9 +59,9 @@ class ReporterTaskStage(Protocol):
 ```
 
 | Method | Return | Description |
-|------|--------|------|
-| `put_task(task)` | `None` | Inject a single task into the stage's input queue (for dynamic task injection) |
-| `put_signal()` | `None` | Put a termination signal into the stage's input queue |
+|--------|--------|-------------|
+| `put_task(task)` | `None` | Inject a single task into the node's input queue (for dynamic task injection) |
+| `put_signal()` | `None` | Put a termination signal into the node's input queue |
 
 ## Usage Examples
 
@@ -70,7 +70,7 @@ class ReporterTaskStage(Protocol):
 ```python
 from celestialflow.observability.util_types import (
     ReporterTaskGraph,
-    ReporterTaskStage,
+    ReporterTaskNode,
 )
 
 
@@ -84,8 +84,8 @@ class TaskReporter:
     ) -> None: ...
 
 
-# Minimal implementation satisfying the ReporterTaskStage protocol
-class MinimalStage:
+# Minimal implementation satisfying the ReporterTaskNode protocol
+class MinimalNode:
     def put_task(self, task): ...
 
     def put_signal(self): ...
@@ -93,6 +93,6 @@ class MinimalStage:
 
 ## Notes
 
-- `ReporterTaskGraph` and `ReporterTaskStage` are both `typing.Protocol`, using structural subtyping — any class implementing the corresponding methods is recognized by the type checker as satisfying the protocol.
-- Using the Protocol pattern avoids circular dependencies between `TaskReporter` and `TaskGraph` / `TaskStage`.
+- `ReporterTaskGraph` and `ReporterTaskNode` are both `typing.Protocol`, using structural subtyping — any class implementing the corresponding methods is recognized by the type checker as satisfying the protocol.
+- Using the Protocol pattern avoids circular dependencies between `TaskReporter` and `TaskGraph` / `BaseTaskNode`.
 - This file is imported and used by `core_report.py`.

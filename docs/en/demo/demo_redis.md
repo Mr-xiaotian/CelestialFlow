@@ -1,17 +1,17 @@
 # demo_redis.py Demo Guide
 
-> 📅 Last Updated: 2026/07/16
+> 📅 Last Updated: 2026/09/09
 
 ## Objective
 
-Demonstrates how to implement Redis task submission, result acknowledgment, and external task injection using only ordinary `TaskStage` nodes and custom callables, without relying on built-in Redis-specific nodes.
+Demonstrates how to implement Redis task submission, result acknowledgment, and external task injection using only ordinary `TaskExecutor` nodes and custom callables, without relying on built-in Redis-specific nodes.
 
 ## Design Highlights
 
 - `redis_push(task)`: Serializes a task and writes it to a Redis List, returning `(key, task_id)`
 - `redis_wait(task)`: Polls a Redis Hash, waiting for a remote Worker to write back the result
 - `redis_pop(key)`: Uses `BLPOP` to block and pull a task from a Redis List
-- All three capabilities are just ordinary Python methods, then attached to the graph via `TaskStage(..., func=helper)`
+- All three capabilities are just ordinary Python methods, then attached to the graph via `TaskExecutor(..., func=helper)`
 
 ## Redis Interaction Flow
 
@@ -220,9 +220,9 @@ Compares the two paths of "local Python direct execution" and "sending to an ext
 ```mermaid
 flowchart TB
     Start["Start<br/>sleep_1_*"] --> Local["Local compute Stage<br/>Fibonacci / Sum / Download"]
-    Start --> Transport["TaskStage(RedisTransport)<br/>redis_push"]
+    Start --> Transport["TaskExecutor(RedisTransport)<br/>redis_push"]
     Transport -.-> RedisIn[(Redis input list)]
-    RedisOut[(Redis output hash)] -.-> Ack["TaskStage(RedisAck)<br/>redis_wait"]
+    RedisOut[(Redis output hash)] -.-> Ack["TaskExecutor(RedisAck)<br/>redis_wait"]
 ```
 
 | Scenario | Local Node | Remote Input Key | Remote Output Key |
@@ -251,9 +251,9 @@ Demonstrates how to use Redis as an external input source to the graph: one stag
 
 ```mermaid
 flowchart LR
-    Sleep0["Sleep0<br/>sleep_1_report"] --> Transport["TaskStage(RedisTransport)<br/>redis_push"]
+    Sleep0["Sleep0<br/>sleep_1_report"] --> Transport["TaskExecutor(RedisTransport)<br/>redis_push"]
     Transport -.-> Redis[(Redis list)]
-    Redis -.-> Source["TaskStage(RedisSource)<br/>redis_pop"]
+    Redis -.-> Source["TaskExecutor(RedisSource)<br/>redis_pop"]
     Source --> Sleep1["Sleep1<br/>sleep_1"]
 ```
 
@@ -288,7 +288,7 @@ To actually observe remote result write-back in `demo_redis_ack_*`, you need an 
 - Executes them according to the agreed structure
 - Writes results back to the corresponding output hash
 
-For details on the remote `go-worker` project, see [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
+For details on the remote `go-worker` project, see [other/go_worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/other/go_worker.md)
 
 ## How to Run
 
@@ -317,11 +317,11 @@ You can also directly open [demo_redis.py](https://github.com/Mr-xiaotian/Celest
 2. **Timeout handling**: Both `redis_pop` and `redis_wait` use the module-level `redis_timeout` (default 5 seconds).
 3. **Error propagation**: Errors returned by remote Workers are directly thrown upward via `RemoteWorkerError`.
 4. **Replaceable protocol**: You can fully modify the JSON structure to match your own Worker protocol, as long as you synchronize the three helpers.
-5. **Framework positioning**: What is shown here is "how to implement Redis integration using ordinary `TaskStage`", not a requirement for the framework to have built-in Redis nodes.
+5. **Framework positioning**: What is shown here is "how to implement Redis integration using ordinary `TaskExecutor`", not a requirement for the framework to have built-in Redis nodes.
 
 ## Dependencies
 
-- `celestialflow` (`TaskGraph`, `TaskStage`)
+- `celestialflow` (`TaskGraph`, `TaskExecutor`)
 - `celestialflow.runtime.util_errors` (`CelestialFlowTimeoutError`, `RemoteWorkerError`)
 - `demo_utils`
 - `python-dotenv`

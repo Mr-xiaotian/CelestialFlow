@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 The TaskErrors module defines the complete exception class system used in the CelestialFlow framework.
 
@@ -153,7 +153,7 @@ class CallableParameterKindError(InvalidOptionError):
     ):
         """
         :param callable_name: Callable name
-        :param callable_name: Actual parameter kind
+        :param parameter_kind: Actual parameter kind
         :param valid_kinds: Allowed parameter kind set
         """
 ```
@@ -173,7 +173,7 @@ class GraphStructureError(ConfigurationError):
 
 ### DuplicateNodeError
 
-Duplicate node name (triggered during `set_stages` or `add_source_name` / `add_queue`).
+Duplicate node name (triggered during `set_nodes` or `add_source_name` / `add_queue`).
 
 ```python
 class DuplicateNodeError(GraphStructureError):
@@ -341,7 +341,7 @@ except InvalidOptionError as e:
 from celestialflow.runtime.util_errors import DuplicateNodeError
 
 try:
-    graph.set_stages([stage_a, stage_a])  # Duplicate node name
+    graph.set_nodes([stage_a, stage_a])  # Duplicate node name
 except DuplicateNodeError as e:
     print(f"Duplicate node: {e}")
 ```
@@ -371,16 +371,16 @@ except InvalidOptionError as e:
 ### Graph Structure Exceptions
 
 ```python
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 from celestialflow.runtime.util_errors import DuplicateNodeError, UnknownNodeError
 
 graph = TaskGraph(name="ErrorTestGraph")
 
-stage_a = TaskStage("A", func=lambda x: x)
-stage_b = TaskStage("A", func=lambda x: x * 2)  # Duplicate node name
+stage_a = TaskExecutor("A", func=lambda x: x)
+stage_b = TaskExecutor("A", func=lambda x: x * 2)  # Duplicate node name
 
 try:
-    graph.set_stages([stage_a, stage_b])
+    graph.set_nodes([stage_a, stage_b])
 except DuplicateNodeError as e:
     print(f"Duplicate node: {e}")
 
@@ -435,10 +435,10 @@ except RemoteWorkerError as e:
 
 ## Handling Unconsumed Tasks
 
-`UnconsumedError` is primarily used to mark tasks that were not properly consumed. During the `TaskGraph._finish_start()` finalization phase, each stage's `drain_task_queue()` is called:
+`UnconsumedError` is primarily used to mark tasks that were not properly consumed. During the `TaskGraph._finish_start()` finalization phase, each node's `drain_task_queue()` is called:
 
-1. Drain the stage's task queue, collecting remaining tasks.
+1. Drain the node's task queue, collecting remaining tasks.
 2. For each remaining task, call `handle_task_fail(source, UnconsumedError())`.
 3. Failure information is written to `LifecycleSpout` via `get_lifecycle_inlet()` (`task_fail()` promotes pending records to failed), and ultimately persisted to a date-organized lifecycle sqlite database (`./lifecycles/YYYY-MM-DD/flow_lifecycle(...).sqlite3`).
 
-Thus, the "persistence" of unconsumed tasks is not performed by `util_errors.py` itself, but relies on the lifecycle persistence mechanism at the Stage / Graph layer.
+Thus, the "persistence" of unconsumed tasks is not performed by `util_errors.py` itself, but relies on the lifecycle persistence mechanism at the Graph / Node layer.

@@ -1,14 +1,14 @@
 # TaskGraph
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/09
 
-`TaskGraph` は CelestialFlow のコアスケジューラであり、一連の `TaskStage` ノードの依存関係、実行フロー、リソース割り当て、ライフサイクルを管理します。
+`TaskGraph` は CelestialFlow のコアスケジューラであり、一連のタスクノード（`BaseTaskNode` 派生オブジェクト、パブリック API は `TaskExecutor`、`TaskSplitter`、`TaskRouter`）の依存関係、実行フロー、リソース割り当て、ライフサイクルを管理します。
 
-> 注意: `TaskGraph` は単一回使用のオブジェクトです。一度 `run()` が完了した後、現在のインスタンスが安全にリセットされて再起動できることは保証されません。同じフローを繰り返し実行する必要がある場合は、新しい `TaskGraph` と関連する `TaskStage` を再作成してください。
+> 注意: `TaskGraph` は単一回使用のオブジェクトです。一度 `run()` が完了した後、現在のインスタンスが安全にリセットされて再起動できることは保証されません。同じフローを繰り返し実行する必要がある場合は、新しい `TaskGraph` と関連するタスクノードを再作成してください。
 
 ## 主要データ構造
 
-`TaskGraph` は内部で `stage_dict: dict[str, TaskStage]` を使用して全ノードの Stage マッピングを保持し、キュー接続は `connect()` フェーズで直接確立されます。グラフ分析は内部で維持される `OrderGraph` インスタンス（`self.order_graph`）に基づき、その `out_edges` / `in_edges` は入辺・出辺隣接テーブルの参照ビューです。
+`TaskGraph` は内部で `node_dict: dict[str, AnyTaskNode]` を使用して全ノードのマッピングを保持し、キュー接続は `connect()` フェーズで直接確立されます。グラフ分析は内部で維持される `OrderGraph` インスタンス（`self.order_graph`）に基づき、その `out_edges` / `in_edges` は入辺・出辺隣接テーブルの参照ビューです。
 
 ## 初期化
 
@@ -27,14 +27,14 @@ class TaskGraph:
 
 ## グラフ構築
 
-### set_stages
+### set_nodes
 
 ```python
-def set_stages(self, stages: list[TaskStage]) -> None:
+def set_nodes(self, nodes: list[AnyTaskNode]) -> None:
     """
     ノードをタスクグラフに追加します。ノードを登録し、グラフレベルのイベントクライアントを注入します。
 
-    :param stages: ノードリスト
+    :param nodes: ノードリスト
     :raises DuplicateNodeError: ノード名が重複している場合
     """
 ```
@@ -42,9 +42,13 @@ def set_stages(self, stages: list[TaskStage]) -> None:
 ### connect
 
 ```python
-def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
+def connect[R](
+    self,
+    from_nodes: list[AnyTaskNode],
+    to_nodes: list[AnyTaskNode],
+) -> None:
     """
-    ハイパーエッジ接続を確立します: from_stages の各ノードが to_stages の各ノードに接続されます。
+    ハイパーエッジ接続を確立します: from_nodes の各ノードが to_nodes の各ノードに接続されます。
     self.order_graph の out_edges / in_edges 辞書を操作し、キュー接続は connect() 内で直接完了します。
     """
 ```
@@ -68,7 +72,7 @@ def set_reporter(self, reporter: ReporterProtocol) -> None:
 def set_ctree(self, ctree_client: EventClient) -> None:
     """
     タスクグラフ共有のイベントクライアントを設定します。
-    渡されると、現在のグラフ内の全 stage に同期して下位配信されます。
+    渡されると、現在のグラフ内の全ノードに同期して下位配信されます。
     """
 ```
 
@@ -85,10 +89,10 @@ def set_graph_mode(self, graph_mode: str) -> None:
     """
 ```
 
-### set_stage_execution_mode
+### set_node_execution_mode
 
 ```python
-def set_stage_execution_mode(self, execution_mode: str) -> None:
+def set_node_execution_mode(self, execution_mode: str) -> None:
     """
     全ノードの execution_mode を一括設定します（'serial'、'thread'、'async'）。
     _build_analysis() をトリガーして分析データを再構築します。
@@ -138,17 +142,17 @@ def restore_db(
     if_put_signal: bool = True,
 ) -> None:
     """
-    sqlite 永続化ライブラリからタスクを読み込み、stage 別にグループ化してタスクグラフを起動します。
+    sqlite 永続化ライブラリからタスクを読み込み、ノード別にグループ化してタスクグラフを起動します。
 
     :param db_path: sqlite データベースファイルパス
     :param statuses: レコードステータスフィルタリスト。デフォルト ``["failed", "pending"]``
-    :param filter_by_error_type: 各 stage の ``retry_exceptions`` で ``error_type`` をフィルタリングするかどうか。デフォルト ``False``
+    :param filter_by_error_type: 各ノードの ``retry_exceptions`` で ``error_type`` をフィルタリングするかどうか。デフォルト ``False``
     :param if_put_signal: 終了シグナルを注入するかどうか。デフォルト True
     """
 ```
 
-このメソッドは内部で `load_tasks_grouped_by_stage()` を呼び出して永続化タスクレコードを読み込み、
-`stage.metrics.get_retry_error_type_names()` で回復可能なエラータイプをフィルタリングし、
+このメソッドは内部で `load_tasks_grouped_by_node()` を呼び出して永続化タスクレコードを読み込み、
+`node.metrics.get_retry_error_type_names()` で回復可能なエラータイプをフィルタリングし、
 最終的に `start()` を再利用して実行します。
 
 ### ライフサイクル制約
@@ -159,9 +163,9 @@ def restore_db(
 
 ```python
 graph = TaskGraph(name="MyGraph", graph_mode="thread")
-graph.set_stages(stages=[stage_a, stage_b])
-graph.connect([stage_a], [stage_b])
-graph.run({stage_a.get_name(): [1, 2, 3, 4, 5]})
+graph.set_nodes(nodes=[node_a, node_b])
+graph.connect([node_a], [node_b])
+graph.run({node_a.get_name(): [1, 2, 3, 4, 5]})
 ```
 
 ### start
@@ -170,7 +174,7 @@ graph.run({stage_a.get_name(): [1, 2, 3, 4, 5]})
 def start(self) -> None:
     """
     タスクグラフを起動します（同期エントリ）。
-    graph_mode に応じて _execute_stages_serial() または _execute_stages_thread() を選択します。
+    graph_mode に応じて _execute_nodes_serial() または _execute_nodes_thread() を選択します。
     """
 ```
 
@@ -183,35 +187,35 @@ async def start_async(self) -> None:
     """
 ```
 
-### _execute_stages_serial / _execute_stages_thread / _execute_stages_async
+### _execute_nodes_serial / _execute_nodes_thread / _execute_nodes_async
 
 ```python
-def _execute_stages_serial(self) -> None:
+def _execute_nodes_serial(self) -> None:
     """階層（layers_dict）のトポロジカル順に従い、層ごとに各ノードを逐次直列実行。"""
 
 
-def _execute_stages_thread(self) -> None:
+def _execute_nodes_thread(self) -> None:
     """各ノードを独立したデーモンスレッドで起動し、最後に一括 join。"""
 
 
-async def _execute_stages_async(self) -> None:
+async def _execute_nodes_async(self) -> None:
     """グラフ全体を並行実行。"""
 ```
 
-### _execute_stage / _execute_stage_async
+### _execute_node / _execute_node_async
 
 ```python
-def _execute_stage(self, stage: AnyTaskStage) -> None:
+def _execute_node(self, node: AnyTaskNode) -> None:
     """
     同期グラフ起動パスで単一ノードを実行します。
-    - async ノードは asyncio.run(stage.start_async())
-    - その他のノードは stage.start()
+    - async ノードは asyncio.run(node.start_async())
+    - その他のノードは node.start()
     """
 
 
-async def _execute_stage_async(self, stage: AnyTaskStage) -> None:
+async def _execute_node_async(self, node: AnyTaskNode) -> None:
     """
-    単一ノードを非同期実行：async はそのまま、それ以外は asyncio.to_thread(stage.start)。
+    単一ノードを非同期実行：async はそのまま、それ以外は asyncio.to_thread(node.start)。
     """
 ```
 
@@ -228,7 +232,7 @@ def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
     """
 ```
 
-このメソッドは全 stage を反復して `stage.snapshot(interval)` を呼び出し各ノードのスナップショットを収集し、DAG 認識のグローバル pending 推定値を計算して各ノードのスナップショットに追記します。
+このメソッドは全ノードを反復して `node.snapshot(interval)` を呼び出し各ノードのスナップショットを収集し、DAG 認識のグローバル pending 推定値を計算して各ノードのスナップショットに追記します。
 
 以下の表は完全なスナップショットに含まれる全フィールドを示します：
 
@@ -257,9 +261,9 @@ def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
 | メソッド | 戻り値型 | 説明 |
 |------|---------|------|
 | `get_graph_id()` | `str` | 現在のタスクグラフインスタンスの一意識別子を取得 |
-| `get_stages_summary()` | `dict[str, dict[str, Any]]` | 全タスクステージのサマリ情報 |
+| `get_nodes()` | `list[str]` | 登録順に全ノード名を返す |
 | `get_edges()` | `dict[str, list[str]]` | 出辺隣接テーブル（内部 `OrderGraph` との共有参照。呼び出し側は読み取り専用とすべき） |
-| `get_source_names()` | `list[str]` | ソースノード名のリスト |
+| `get_source_nodes()` | `list[str]` | ソースノード名のリスト |
 | `get_graph_analysis()` | `dict` | グラフ分析情報（graphId, graphMode, name, startTime, className, isDAG, layersDict） |
 | `get_structure_list()` | `list[str]` | 枠線付きのフォーマット済みツリーテキスト |
 | `get_order_graph()` | `OrderGraph` | 内部の順序付き有向グラフインスタンス |
@@ -286,12 +290,12 @@ def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
 ```mermaid
 flowchart TD
     INIT[__init__] --> INIT_STATE[_init_state]
-    INIT_STATE --> BUILD[set_stages + connect]
+    INIT_STATE --> BUILD[set_nodes + connect]
     BUILD --> PREPARE[_prepare_start]
     PREPARE --> START[start / start_async]
-    START -->|serial| SER[_execute_stages_serial]
-    START -->|thread| THR[_execute_stages_thread]
-    START -->|async| ASY[_execute_stages_async]
+    START -->|serial| SER[_execute_nodes_serial]
+    START -->|thread| THR[_execute_nodes_thread]
+    START -->|async| ASY[_execute_nodes_async]
     SER --> FINISH[_finish_start]
     THR --> FINISH
     ASY --> FINISH
@@ -301,7 +305,7 @@ flowchart TD
 
     SNAP --> STATUS[collect_runtime_snapshot]
 
-    RUN[run / run_async] -->|初期タスク注入| PUT[stage.put_task]
+    RUN[run / run_async] -->|初期タスク注入| PUT[node.put_task]
     RUN -->|終了シグナル注入| SIGNAL[put_source_signal]
 ```
 
@@ -310,7 +314,7 @@ flowchart TD
 ### serial モード
 
 ```
-layers_dict の階層トポロジカル順に従い、層ごとに stage.start() を同期実行 → データがキューを通じてフロー → 終了シグナル到達後に停止
+layers_dict の階層トポロジカル順に従い、層ごとに node.start() を同期実行 → データがキューを通じてフロー → 終了シグナル到達後に停止
 ```
 
 - 階層（トポロジカル順）ごとに同期実行。層内は登録順
@@ -320,7 +324,7 @@ layers_dict の階層トポロジカル順に従い、層ごとに stage.start()
 ### thread モード
 
 ```
-各ノードに対して独立スレッドを起動 → stage.start() → 全スレッドを join
+各ノードに対して独立スレッドを起動 → node.start() → 全スレッドを join
 ```
 
 - 並列度を最大化
@@ -347,11 +351,11 @@ layers_dict の階層トポロジカル順に従い、層ごとに stage.start()
 
 ```python
 graph.run({"source": tasks}, if_put_signal=False)
-# その後 stage.put_task または外部から手動で TerminationSignal を注入
+# その後 node.put_task または外部から手動で TerminationSignal を注入
 ```
 
 ## 未消費タスク処理
 
-`_finish_start()` 内で `stage_dict` を反復し、各 stage の `drain_task_queue()` を呼び出して全残存タスクを収集し、
+`_finish_start()` 内で `node_dict` を反復し、各ノードの `drain_task_queue()` を呼び出して全残存タスクを収集し、
 それらを `UnconsumedError` としてマークし、`get_lifecycle_spout`（`LifecycleSpout`）を通じて日付別に組織された lifecycle
 sqlite 永続化ファイルに失敗情報を記録します。

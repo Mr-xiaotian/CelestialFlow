@@ -1,6 +1,6 @@
 # TaskStructure
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/09
 
 TaskStructure モジュールは複数の事前定義タスクグラフ構造を提供し、ユーザーが複雑なタスクフローを迅速に構築できるようにします。すべての構造は `TaskGraph` を継承しています。
 
@@ -10,9 +10,9 @@ TaskStructure モジュールは複数の事前定義タスクグラフ構造を
 flowchart LR
     subgraph TC[TaskChain]
         direction LR
-        S1[Stage 1]
-        S2[Stage 2]
-        S3[Stage 3]
+        S1[Node 1]
+        S2[Node 2]
+        S3[Node 3]
         S1 --> S2 --> S3
     end
     style TC fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
@@ -20,25 +20,25 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskChain` は最もシンプルなタスク構造で、複数の `TaskStage` を順序通りに接続し、線形のデータフローを形成します。
+`TaskChain` は最もシンプルなタスク構造で、複数の `TaskExecutor` を順序通りに接続し、線形のデータフローを形成します。
 
 ```python
-from celestialflow import TaskChain, TaskStage
+from celestialflow import TaskChain, TaskExecutor
 
-# ステージを定義
-stage1 = TaskStage("S1", func=func1)
-stage2 = TaskStage("S2", func=func2)
-stage3 = TaskStage("S3", func=func3)
+# ノードを定義
+node1 = TaskExecutor("N1", func=func1)
+node2 = TaskExecutor("N2", func=func2)
+node3 = TaskExecutor("N3", func=func3)
 
 # チェーンを作成
 chain = TaskChain(
     name="DataPipeline",
-    stages=[stage1, stage2, stage3],
+    nodes=[node1, node2, node3],
     graph_mode="thread",  # thread: ノード並行実行; serial: ノード直列実行
 )
 
 # 起動
-chain.run({stage1.get_name(): [data]})
+chain.run({node1.get_name(): [data]})
 ```
 
 ## Cross（クロス層）
@@ -48,11 +48,11 @@ flowchart LR
     subgraph TC[TaskCross]
         direction LR
         
-        S11[Stage 1-1]
-        S12[Stage 1-2]
+        S11[Node 1-1]
+        S12[Node 1-2]
         
-        S21[Stage 2-1]
-        S22[Stage 2-2]
+        S21[Node 2-1]
+        S22[Node 2-2]
 
         S11 --> S21
         S11 --> S22
@@ -70,8 +70,8 @@ flowchart LR
 from celestialflow import TaskCross
 
 # 層を定義
-layer1 = [stage_1_1, stage_1_2]
-layer2 = [stage_2_1, stage_2_2]
+layer1 = [node_1_1, node_1_2]
+layer2 = [node_2_1, node_2_2]
 
 # クロス構造を作成
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
@@ -83,10 +83,10 @@ cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thr
 flowchart TD
     subgraph TG[TaskGrid]
         direction TB
-        S00[Stage 0,0]
-        S01[Stage 0,1]
-        S10[Stage 1,0]
-        S11[Stage 1,1]
+        S00[Node 0,0]
+        S01[Node 0,1]
+        S10[Node 1,0]
+        S11[Node 1,1]
 
         S00 --> S01
         S00 --> S10
@@ -104,7 +104,7 @@ flowchart TD
 from celestialflow import TaskGrid
 
 # グリッドを定義
-grid_layout = [[stage_00, stage_01], [stage_10, stage_11]]
+grid_layout = [[node_00, node_01], [node_10, node_11]]
 
 # グリッド構造を作成
 grid = TaskGrid(name="GridPipeline", grid=grid_layout, graph_mode="thread")
@@ -116,9 +116,9 @@ grid = TaskGrid(name="GridPipeline", grid=grid_layout, graph_mode="thread")
 flowchart LR
     subgraph TL[TaskLoop]
         direction LR
-        S1[Stage 1]
-        S2[Stage 2]
-        S3[Stage 3]
+        S1[Node 1]
+        S2[Node 2]
+        S3[Node 3]
         
         S1 --> S2 --> S3 --> S1
     end
@@ -136,7 +136,7 @@ from celestialflow import TaskLoop
 # リングを作成
 loop = TaskLoop(
     name="FeedbackLoop",
-    stages=[stage1, stage2, stage3],  # stage3 -> stage1
+    nodes=[node1, node2, node3],  # node3 -> node1
 )
 ```
 
@@ -170,8 +170,8 @@ from celestialflow import TaskWheel
 # ホイール構造を作成
 wheel = TaskWheel(
     name="HubAndSpoke",
-    center=center_stage,
-    ring=[ring_stage1, ring_stage2, ring_stage3],
+    center=center_node,
+    ring=[ring_node1, ring_node2, ring_node3],
 )
 ```
 
@@ -181,9 +181,9 @@ wheel = TaskWheel(
 flowchart LR
     subgraph TC[TaskComplete]
         direction LR
-        S1[Stage 1]
-        S2[Stage 2]
-        S3[Stage 3]
+        S1[Node 1]
+        S2[Node 2]
+        S3[Node 3]
         
         S1 <--> S2
         S2 <--> S3
@@ -200,7 +200,7 @@ flowchart LR
 from celestialflow import TaskComplete
 
 # 完全グラフを作成
-complete = TaskComplete(name="FullMesh", stages=[stage1, stage2, stage3, stage4])
+complete = TaskComplete(name="FullMesh", nodes=[node1, node2, node3, node4])
 ```
 
 ## 使用例
@@ -210,10 +210,10 @@ complete = TaskComplete(name="FullMesh", stages=[stage1, stage2, stage3, stage4]
 ### TaskChain 完全例
 
 ```python
-from celestialflow import TaskChain, TaskStage
+from celestialflow import TaskChain, TaskExecutor
 
 
-# 3 つのステージを定義: データクレンジング -> 変換 -> 集約
+# 3 つのノードを定義: データクレンジング -> 変換 -> 集約
 def clean(data: str) -> str:
     return data.strip()
 
@@ -227,23 +227,23 @@ def aggregate(data: int) -> dict:
 
 
 # チェーンを構築
-s1 = TaskStage("Clean", func=clean)
-s2 = TaskStage("Transform", func=transform)
-s3 = TaskStage("Aggregate", func=aggregate)
-chain = TaskChain(name="ETL", stages=[s1, s2, s3], graph_mode="thread")
+s1 = TaskExecutor("Clean", func=clean)
+s2 = TaskExecutor("Transform", func=transform)
+s3 = TaskExecutor("Aggregate", func=aggregate)
+chain = TaskChain(name="ETL", nodes=[s1, s2, s3], graph_mode="thread")
 
 # 起動
 chain.run({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
 
 # 結果スナップショットを取得
 snapshot, _ = chain.collect_runtime_snapshot()
-print(f"チェーンステージ数: {len(snapshot)}")
+print(f"チェーンノード数: {len(snapshot)}")
 ```
 
 ### TaskCross 完全例
 
 ```python
-from celestialflow import TaskCross, TaskStage
+from celestialflow import TaskCross, TaskExecutor
 
 
 # 第 1 層: データ準備
@@ -264,8 +264,8 @@ def analyze_b(x: int) -> float:
     return x * 2.0
 
 
-layer1 = [TaskStage("LoadA", func=load_a), TaskStage("LoadB", func=load_b)]
-layer2 = [TaskStage("AnaA", func=analyze_a), TaskStage("AnaB", func=analyze_b)]
+layer1 = [TaskExecutor("LoadA", func=load_a), TaskExecutor("LoadB", func=load_b)]
+layer2 = [TaskExecutor("AnaA", func=analyze_a), TaskExecutor("AnaB", func=analyze_b)]
 
 cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
@@ -275,13 +275,13 @@ print(cross.collect_runtime_snapshot())
 ### TaskGrid 完全例
 
 ```python
-from celestialflow import TaskGrid, TaskStage
+from celestialflow import TaskGrid, TaskExecutor
 
 # 2x2 グリッド
-n00 = TaskStage("Init", func=lambda x: x)
-n01 = TaskStage("Add", func=lambda x: x + 1)
-n10 = TaskStage("Mul", func=lambda x: x * 2)
-n11 = TaskStage("Square", func=lambda x: x * x)
+n00 = TaskExecutor("Init", func=lambda x: x)
+n01 = TaskExecutor("Add", func=lambda x: x + 1)
+n10 = TaskExecutor("Mul", func=lambda x: x * 2)
+n11 = TaskExecutor("Square", func=lambda x: x * x)
 
 grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
 grid.run({n00.get_name(): [1, 2, 3]})
@@ -291,18 +291,18 @@ print(grid.collect_runtime_snapshot())
 ### TaskLoop 完全例
 
 ```python
-from celestialflow import TaskLoop, TaskStage
+from celestialflow import TaskLoop, TaskExecutor
 
 # 3 ノードリング: 各ノードが処理後に結果を次へ渡す
-loop_stages = [
-    TaskStage("Ring1", func=lambda x: x + 1),
-    TaskStage("Ring2", func=lambda x: x * 2),
-    TaskStage("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 で閉ループを形成
+loop_nodes = [
+    TaskExecutor("Ring1", func=lambda x: x + 1),
+    TaskExecutor("Ring2", func=lambda x: x * 2),
+    TaskExecutor("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 で閉ループを形成
 ]
 
-loop = TaskLoop(name="RingLoop", stages=loop_stages)
+loop = TaskLoop(name="RingLoop", nodes=loop_nodes)
 loop.run(
-    {loop_stages[0].get_name(): [5]},
+    {loop_nodes[0].get_name(): [5]},
     if_put_signal=False,  # リング構造では手動で終了注入が必要
 )
 ```
@@ -310,13 +310,13 @@ loop.run(
 ### TaskWheel 完全例
 
 ```python
-from celestialflow import TaskWheel, TaskStage
+from celestialflow import TaskWheel, TaskExecutor
 
-center = TaskStage("Hub", func=lambda x: {"input": x, "processed": x * 10})
+center = TaskExecutor("Hub", func=lambda x: {"input": x, "processed": x * 10})
 ring_nodes = [
-    TaskStage("Channel1", func=lambda x: x["processed"] + 1),
-    TaskStage("Channel2", func=lambda x: x["processed"] + 2),
-    TaskStage("Channel3", func=lambda x: x["processed"] + 3),
+    TaskExecutor("Channel1", func=lambda x: x["processed"] + 1),
+    TaskExecutor("Channel2", func=lambda x: x["processed"] + 2),
+    TaskExecutor("Channel3", func=lambda x: x["processed"] + 3),
 ]
 
 wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
@@ -327,15 +327,15 @@ print(wheel.collect_runtime_snapshot())
 ### TaskComplete 完全例
 
 ```python
-from celestialflow import TaskComplete, TaskStage
+from celestialflow import TaskComplete, TaskExecutor
 
 nodes = [
-    TaskStage("N1", func=lambda x: x**2),
-    TaskStage("N2", func=lambda x: x + 1),
-    TaskStage("N3", func=lambda x: x // 2),
+    TaskExecutor("N1", func=lambda x: x**2),
+    TaskExecutor("N2", func=lambda x: x + 1),
+    TaskExecutor("N3", func=lambda x: x // 2),
 ]
 
-complete = TaskComplete(name="FullConnected", stages=nodes)
+complete = TaskComplete(name="FullConnected", nodes=nodes)
 complete.run(
     {nodes[0].get_name(): [10]},
     if_put_signal=False,

@@ -1,6 +1,6 @@
 # Observability Module
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 The Observability module provides CelestialFlow's observability features, including runtime status monitoring, the Observer pattern, and remote status reporting. It makes the task execution process transparent and monitorable.
 
@@ -40,14 +40,14 @@ The Observability module provides CelestialFlow's observability features, includ
 - `NullTaskReporter` provides a safe placeholder when reporting is turned off
 
 ### External Relationships
-- **With Stage Module**: `TaskExecutor`'s internal `TaskMetrics` holds `list[BaseObserver]`, managed via `add_observer()` / `remove_observer()`
+- **With Node Module**: `BaseTaskNode`'s internal `TaskMetrics` holds `list[BaseObserver]`, managed via `add_observer()` / `remove_observer()`
 - **With Graph Module**: `TaskReporter` collects task graph structure and topology information
 - **With Persistence Module**: Obtains persisted log and error data, depends on `LogInlet`
 
 ## Architecture Features
 
 ### Observer Pattern
-- **Multicast**: `TaskExecutor`'s internal `TaskMetrics` maintains `list[BaseObserver]`, broadcasting events on count changes and node start/stop
+- **Multicast**: `BaseTaskNode`'s internal `TaskMetrics` maintains `list[BaseObserver]`, broadcasting events on count changes and node start/stop
 - **Synchronous Dispatch**: All registered observers' corresponding callbacks are synchronously invoked in methods such as `add_success_count` / `add_fail_count` / `add_task_count` / `on_start` / `on_finish`
 - **Exception Isolation**: Subclass-overridden callbacks are automatically wrapped by `__init_subclass__`; exceptions are uniformly caught by `observer_error()` and do not escape into the framework
 
@@ -78,7 +78,7 @@ reporter.start()
 ### Custom Observer + TaskReporter Combined Usage
 
 ```python
-from celestialflow import TaskGraph, TaskStage, BaseObserver
+from celestialflow import TaskGraph, TaskExecutor, BaseObserver
 from celestialflow.observability import TaskReporter
 
 
@@ -107,12 +107,12 @@ def process_item(item: int) -> int:
 
 # Create task graph
 graph = TaskGraph("ObsDemo")
-stage = TaskStage("Processor", process_item, execution_mode="thread", max_workers=4)
-graph.set_stages([stage])
+node = TaskExecutor("Processor", process_item, execution_mode="thread", max_workers=4)
+graph.set_nodes([node])
 
-# Register custom observer to stage's executor
+# Register custom observer to node's executor
 stats_observer = StatsObserver()
-stage.add_observer(stats_observer)
+node.add_observer(stats_observer)
 
 # Optional: Enable TaskReporter to push to the celestialflow-web service
 reporter = TaskReporter(
@@ -123,7 +123,7 @@ reporter = TaskReporter(
 reporter.start()
 
 # Start task graph
-graph.run({stage.get_name(): list(range(20))})
+graph.run({node.get_name(): list(range(20))})
 
 # Stop reporter
 reporter.stop()
@@ -136,5 +136,5 @@ print(
 
 This example demonstrates the collaboration of observability components:
 - **Custom Observer**: Inherits `BaseObserver` and overrides event methods to collect statistics
-- **TaskGraph Integration**: Registers custom observers via `TaskStage`'s built-in observer list
+- **TaskGraph Integration**: Registers custom observers via `BaseTaskNode`'s built-in observer list
 - **TaskReporter**: Pushes runtime status to the `celestialflow-web` service for monitoring or control

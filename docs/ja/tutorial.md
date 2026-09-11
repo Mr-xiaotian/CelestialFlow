@@ -1,22 +1,22 @@
-﻿# チュートリアル（Tutorial）：画像クローラーの構築
+# チュートリアル（Tutorial）：画像クローラーの構築
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/09/09
 
-本チュートリアルでは、完全な実践プロジェクト——**Baidu 画像クローラー**を通じて、CelestialFlow の使用方法をゼロから学ぶ。
+本チュートリアルでは、完全な実践プロジェクト——**Baidu 画像クローラー**を通じて、CelestialFlow の使用方法をゼロから学びます。
 
 ## プロジェクト目標
 
-Baidu 画像検索結果をクロールし、指定したキーワードの画像をローカルにダウンロードする。以下を学ぶ：
+Baidu 画像検索結果をクロールし、指定したキーワードの画像をローカルにダウンロードします。以下を学びます：
 1. タスクフローの分析と分解
-2. 各ステージの処理関数の作成
+2. 各段階の処理関数の作成
 3. タスクグラフの組み立てと実行
-4. Web UI による実行状態の監視
+4. ログ、進捗バー、状態スナップショットによる実行状態の監視
 
 ---
 
 ## ステップ 1：タスクの分析と分解
 
-コーディングを始める前に、クローラーの実行フローを分析する必要がある：
+コーディングを始める前に、クローラーの実行フローを分析する必要があります：
 
 ```
 ユーザーがキーワードを入力 → ページを検索 → 画像リストを解析 → 画像をダウンロード → ファイルを保存
@@ -57,7 +57,7 @@ flowchart LR
 
 ## ステップ 2：処理関数の作成
 
-まず、各ステージの処理関数を作成し、個別にテスト検証する。
+まず、各段階の処理関数を作成し、個別にテスト検証します。
 
 ### 2.1 ページ検索
 
@@ -201,15 +201,15 @@ if __name__ == "__main__":
 
 ## ステップ 3：タスクグラフの組み立て
 
-処理関数の検証が完了したら、それぞれを `TaskStage` に割り当て、`TaskGraph` で構造を整理する。
+処理関数の検証が完了したら、それらを各 `TaskExecutor` に割り当て、`TaskGraph` で構造を整理します。
 
 ### 3.1 ノードの作成
 
 ```python
-from celestialflow import TaskStage, TaskSplitter
+from celestialflow import TaskExecutor, TaskSplitter
 
 # 検索ステージ：キーワードを入力、HTML を出力
-stage_search = TaskStage(
+stage_search = TaskExecutor(
     "ページを検索",
     func=search_images,
     execution_mode="serial",  # キーワードは1つだけ、シリアルで十分
@@ -231,7 +231,7 @@ class URLSplitter(TaskSplitter):
 stage_parse = URLSplitter("画像を解析")
 
 # ダウンロードステージ：URL を入力、画像データを出力
-stage_download = TaskStage(
+stage_download = TaskExecutor(
     "画像をダウンロード",
     func=download_image,
     execution_mode="thread",  # ネットワーク IO 集中、スレッドプールを使用
@@ -240,7 +240,7 @@ stage_download = TaskStage(
 )
 
 # 保存ステージ：画像データを入力、ファイルパスを出力
-stage_save = TaskStage(
+stage_save = TaskExecutor(
     "ファイルを保存",
     func=lambda data: save_image(data, "猫咪") if data else None,
     execution_mode="serial",
@@ -254,10 +254,10 @@ stage_save = TaskStage(
 from celestialflow import TaskGraph
 
 # タスクグラフを作成
-graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
+graph = TaskGraph(name="ImageCrawler", graph_mode="eager", log_level="SUCCESS")
 
 # ノードを設定
-graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
+graph.set_nodes(stages=[stage_search, stage_parse, stage_download, stage_save])
 
 # ノード間の接続関係を設定
 graph.connect([stage_search], [stage_parse])
@@ -265,19 +265,14 @@ graph.connect([stage_parse], [stage_download])
 graph.connect([stage_download], [stage_save])
 ```
 
-### 3.3 Web 監視の起動（オプション）
+### 3.3 状態レポートの有効化（オプション）
 
 ```python
-# Web 監視を有効化
-graph.set_reporter(True, host="127.0.0.1", port=5005)
+# 実行状態を celestialflow-web サービスにレポート
+graph.set_reporter(TaskReporter(report_host, report_port, graph))
 ```
 
-Web サービスを起動：
-```bash
-celestialflow-web --port 5005
-```
-
-http://localhost:5005 にアクセスしてリアルタイム状態を確認する。
+現在の主リポジトリには Web サービスは内蔵されていません。独立した `celestialflow-web` プロジェクトをデプロイしている場合、またはカスタム HTTP サービスがある場合は、ここでレポートを有効にできます。それ以外の場合はこのセクションをスキップできます。
 
 ### 3.4 タスクグラフの実行
 
@@ -287,22 +282,14 @@ init_tasks = {stage_search.get_name(): ["猫咪", "小狗", "风景"]}
 
 # 起動
 print("画像のクロールを開始...")
-graph.start_graph(init_tasks)
-
-# 統計を取得
-snapshot = graph.get_status_snapshot()
-status = snapshot["status"]
-total_succeeded = sum(s.get("total_succeeded", 0) for s in status.values())
-total_failed = sum(s.get("total_failed", 0) for s in status.values())
-print(f"成功: {total_succeeded}")
-print(f"失敗: {total_failed}")
+graph.run(init_tasks)
 ```
 
 ---
 
 ## ステップ 4：完全なコード
 
-すべてのコードを 1 つのファイルに統合する：
+すべてのコードを 1 つのファイルに統合します：
 
 ```python
 # crawler.py
@@ -313,9 +300,10 @@ import requests
 from urllib.parse import quote
 
 from celestialflow import (
-    TaskStage,
+    TaskExecutor,
     TaskSplitter,
     TaskGraph,
+    TaskReporter,
 )
 
 # ========== 処理関数 ==========
@@ -386,7 +374,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     """クローラータスクグラフを構築する。"""
 
     # ノードを作成
-    stage_search = TaskStage(
+    stage_search = TaskExecutor(
         "ページを検索",
         func=search_images,
         execution_mode="serial",
@@ -395,7 +383,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
 
     stage_parse = URLSplitter("画像を解析")
 
-    stage_download = TaskStage(
+    stage_download = TaskExecutor(
         "画像をダウンロード",
         func=download_image,
         execution_mode="thread",
@@ -404,7 +392,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     )
 
     # クロージャで keyword を渡す
-    stage_save = TaskStage(
+    stage_save = TaskExecutor(
         "ファイルを保存",
         func=lambda data: save_image(data, keyword),
         execution_mode="serial",
@@ -412,8 +400,8 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     )
 
     # 接続を設定
-    graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
-    graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
+    graph = TaskGraph(name="ImageCrawler", graph_mode="eager", log_level="SUCCESS")
+    graph.set_nodes(stages=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
     graph.connect([stage_download], [stage_save])
@@ -429,50 +417,38 @@ if __name__ == "__main__":
 
     # グラフを構築
     graph = build_crawler_graph(KEYWORDS[0])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     # 実行
     print("画像のクロールを開始...")
-    graph.start_graph({graph.source_stages[0].get_name(): KEYWORDS})
+    graph.run({"ページを検索": KEYWORDS})
 
     # 統計
-    snapshot = graph.get_status_snapshot()
-    status = snapshot["status"]
-    total_succeeded = sum(s.get("total_succeeded", 0) for s in status.values())
-    total_failed = sum(s.get("total_failed", 0) for s in status.values())
     print(f"\nクロール完了!")
-    print(f"成功: {total_succeeded}")
-    print(f"失敗: {total_failed}")
+    print(f"成功: {stage_search.get_counts()['tasks_succeeded']}")
+    print(f"失敗: {stage_search.get_counts()['tasks_failed']}")
 ```
 
 ---
 
 ## ステップ 5：実行とデバッグ
 
-### 5.1 Web サービスの起動
+### 5.1 クローラーの実行
 
 ```bash
-# ターミナル 1: Web サービスを起動
-celestialflow-web --port 5005
-```
-
-### 5.2 クローラーの実行
-
-```bash
-# ターミナル 2: クローラーを実行
+# クローラーを実行
 python crawler.py
 ```
 
-### 5.3 Web UI の確認
+### 5.2 実行状態の確認
 
-http://localhost:5005 を開くと、以下を確認できる：
+実行中は、ログ、進捗バー、またはノードの `snapshot()` スナップショットで確認できます：
 
-1. **Dashboard**: 各ノードの処理進捗をリアルタイム表示
-2. **Structure**: タスクグラフの可視化構造
-3. **Errors**: ダウンロードに失敗した画像 URL とエラー情報
-4. **Task Injection**: 新しいキーワードを動的に注入
+1. **ノード処理進捗**：各段階の成功、失敗、待処理統計（`get_counts()` または `snapshot()` で取得）
+2. **グラフ構造情報**：`graph.get_structure_list()` または `graph.get_structure_graph()` で確認
+3. **エラー情報**：ダウンロードに失敗した画像 URL と例外ログ
+4. **タスク注入**：`node.put_task()` で新しいキーワードを注入、`node.put_signal()` で終了信号を注入
 
-### 5.4 結果の確認
+### 5.3 結果の確認
 
 ```bash
 # ダウンロードした画像を確認
@@ -485,43 +461,44 @@ ls images/风景/
 
 ## 拡張：動的タスク注入
 
-Web UI を通じて新しいキーワードを動的に注入できる：
+コードで新しいキーワードを動的に注入することもできます：
 
 ```python
-# またはコードで注入
+# コードで注入
 from celestialflow import TerminationSignal
 
 # 新しいキーワードを注入
-graph.put_stage_queue({stage_search.get_name(): ["汽车", "美食"]})
+for keyword in ["汽车", "美食"]:
+    stage_search.put_task(keyword)
 
 # 終了信号を注入（クロールを停止）
-graph.put_stage_queue({stage_search.get_name(): [TerminationSignal()]})
+stage_search.put_signal()
 ```
 
 ---
 
 ## まとめ
 
-本チュートリアルでは CelestialFlow の完全な使用フローを示した：
+本チュートリアルでは CelestialFlow の完全な使用フローを示しました：
 
 1. **タスク分析**: 複雑なタスクを独立した階層に分解
 2. **関数作成**: 各階層の処理関数を作成し個別にテスト
-3. **ノード作成**: 関数を `TaskStage` にラップ
+3. **ノード作成**: 関数を `TaskExecutor` にラップ
 4. **グラフ組み立て**: `TaskGraph` でノード関係を整理
-5. **監視実行**: Web UI で実行状態をリアルタイム監視
+5. **監視実行**: ログ、進捗バー、状態スナップショットで実行状態を観察
 
 ### 主要概念の復習
 
 | 概念 | 説明 |
 |------|------|
-| `TaskStage` | タスクノード、処理関数をラップ |
+| `TaskExecutor` | タスクノード、処理関数をラップ |
 | `TaskSplitter` | 分割器、1 つのタスクを複数に分割 |
 | `TaskGraph` | タスクグラフ、ノード関係と実行フローを整理 |
-| `stage_mode` | ノード実行モード（serial/thread） |
+| `graph_mode` | グラフ実行モード（serial/thread） |
 | `execution_mode` | ノード内部実行モード（serial/thread/async） |
 
 ### 次のステップ
 
 - `TaskRouter` を使用した条件分岐を試す
-- `demo/demo_redis.py` を参考に、通常の `TaskStage` で Redis / Go Worker 協力に接続する方法を学ぶ
-- 他の [API リファレンス](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/src/stage/core_executor.md) を読んでさらに多くの機能を学ぶ
+- `demo/demo_redis.py` を参考に、通常の `TaskExecutor` で Redis / Go Worker 協力に接続する方法を学ぶ
+- 他の [API リファレンス](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/node/core_node.md) を読んでさらに多くの機能を学ぶ

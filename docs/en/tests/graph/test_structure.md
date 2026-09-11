@@ -1,6 +1,6 @@
 # Specific Graph Structure Tests (test_structure.py)
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 ## Purpose
 Verifies the dedicated analysis capabilities of two predefined cyclic graph structures, `TaskLoop` and `TaskWheel`, as well as the input validation for various predefined graph structures (`TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete`), ensuring that empty/illegal inputs do not cause silent construction or crashes.
@@ -28,7 +28,7 @@ Verifies the dedicated analysis capabilities of two predefined cyclic graph stru
 
 ### TaskWheel Analysis
 - Verifies that the center node (Center) is at Level 0 while the ring node (Ring) is at Level 1.
-- Verifies that `get_source_names()` only returns the Center node, ensuring tasks are injected from the center.
+- Verifies that `get_source_nodes()` only returns the Center node, ensuring tasks are injected from the center.
 
 ### Structure Input Validation (`TestStructureValidation`)
 Covers empty/illegal input boundaries for all 6 predefined graph structures:
@@ -78,7 +78,7 @@ pytest tests/graph/test_structure.py::TestStructureValidation -v
 
 ## Important Details
 - `TaskLoop` is started via `run()` and injects tasks (`run` defaults to `if_put_signal=True`, automatically emitting a termination signal for the source node to ensure test exit).
-- `TaskWheel` does not execute tasks: after configuring via `set_graph_mode()` and `set_stage_execution_mode()`, it directly calls `get_graph_analysis()` / `get_source_names()` for static analysis.
+- `TaskWheel` does not execute tasks: after configuring via `set_graph_mode()` and `set_node_execution_mode()`, it directly calls `get_graph_analysis()` / `get_source_nodes()` for static analysis.
 - The test focus is on "analysis results" (analysis dict) rather than "execution results."
 - The input validation tests are pure construction operations and do not involve graph startup.
 

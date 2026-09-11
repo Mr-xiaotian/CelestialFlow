@@ -1,6 +1,6 @@
 # Task Graph Core Feature Tests (test_graph.py)
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 ## Purpose
 Comprehensively validates the core functionality of `TaskGraph` and its various topology subclasses (`TaskChain`, `TaskCross`, `TaskGrid`), covering synchronous/asynchronous execution, error propagation, topology analysis, execution mode matrix, source node derivation, cyclic graph behavior, finalization safety checks, and runtime snapshot collection.
@@ -8,7 +8,7 @@ Comprehensively validates the core functionality of `TaskGraph` and its various 
 ## Core Test Objects
 - `TaskGraph`: General-purpose task graph container
 - `TaskChain`, `TaskCross`, `TaskGrid`: Predefined topology structures
-- `TaskStage`: Graph node definition
+- `TaskExecutor`: Graph node definition
 
 ## Test Scope
 
@@ -48,7 +48,7 @@ graph LR
 - **DB startup filtering** (`test_graph_restore_db_filters_error_type_when_enabled`): Verifies replay tasks are filtered by each stage's `retry_exceptions`.
 - **DB keeps pending records** (`test_graph_restore_db_filter_keeps_pending_records`): Verifies that pending records continue to be replayed when filtering is enabled.
 - **Unknown stage name error** (`test_graph_stage_lookup_unknown_stage_raises`): When injecting tasks into a stage by explicit name, a non-existent stage name should raise `NodeNotFoundError`.
-- **set_ctree updates existing stage** (`test_set_ctree_updates_existing_stages`): When `set_stages` is called before `set_ctree`, the existing stage should also share the same event client.
+- **set_ctree updates existing stage** (`test_set_ctree_updates_existing_stages`): When `set_nodes` is called before `set_ctree`, the existing stage should also share the same event client.
 - **Unified exception group after finish** (`test_start_raises_exception_group_after_finish`): Synchronous `start` raises collected exceptions in a unified manner after finish.
 
 #### Async and Concurrency
@@ -105,7 +105,7 @@ Verifies fan-out, fan-in, error propagation, lambda function support, and staged
 #### Cyclic Graph (`TestCyclicGraph`)
 | Case | Verification Point |
 |------|--------|
-| `test_cyclic_serial_graph_raises` | Calling `get_source_names()` in serial graph_mode on a cyclic graph should raise `ConfigurationError` (matches `"TaskGraph contains a cycle while graph_mode='serial'"`) |
+| `test_cyclic_serial_graph_raises` | Calling `get_source_nodes()` in serial graph_mode on a cyclic graph should raise `ConfigurationError` (matches `"TaskGraph contains a cycle while graph_mode='serial'"`) |
 | `test_cyclic_is_dag_false` | `isDAG` for s1→s2→s3→s1 should be `False` |
 | `test_cyclic_layers` | Cycle nodes (s1,s2,s3) share the same level, tail s4 is at cycle level + 1 |
 
@@ -116,7 +116,7 @@ The snapshot data written by `collect_runtime_snapshot()` is stored in `TaskGrap
 
 ### Termination Signal Behavior
 - Cyclic graphs use `run()` to start and inject tasks (`run` defaults to `if_put_signal=True`, automatically emitting a termination signal for the source node) to ensure test exit.
-- Calling `get_source_names()` in serial graph_mode on a cyclic graph triggers `ConfigurationError` (see `test_cyclic_serial_graph_raises`).
+- Calling `get_source_nodes()` in serial graph_mode on a cyclic graph triggers `ConfigurationError` (see `test_cyclic_serial_graph_raises`).
 
 ### Lambda Support
 Lambda functions can be used as task functions in thread mode (`test_graph_thread_with_lambda`).
@@ -126,7 +126,7 @@ Lambda functions can be used as task functions in thread mode (`test_graph_threa
 | Dependency | Description |
 |------|------|
 | `pytest` | Test framework |
-| `celestialflow` | `TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskStage` |
+| `celestialflow` | `TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskExecutor` |
 
 ## How to Run
 

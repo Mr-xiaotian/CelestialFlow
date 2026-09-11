@@ -1,6 +1,6 @@
 # スコープ管理テスト (test_scope.py)
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
 ## 役割
 
@@ -25,8 +25,10 @@
 `funnel_scope()` 進入時に2つのグローバル spout のバックグラウンドスレッドが起動され、退出時に自動停止してスレッド参照がクリーンアップされることを検証。
 
 - スコープ内で `log_spout._thread` と `lifecycle_spout._thread` が非 None かつ生存していることをアサート。
-- `get_log_inlet().start_graph()` でログ書き込み、`get_lifecycle_inlet().task_in()` + `task_success()` で sqlite 書き込み。
+- `get_log_inlet().start_graph("scope_graph", "thread", ["hello scope"])` でログ書き込み。
+- `get_lifecycle_inlet().task_input("scope_stage", event_id=1, task="data")` + `task_success(event_id=1, result="ok")` で sqlite に書き込み。
 - スコープ退出後、`_thread` が `None` であり、ログファイルと sqlite ファイルが永続化されて正しい内容を含むことをアサート。
+- sqlite の `records` テーブル内容が `[("scope_stage", "success", '"data"', '"ok"')]` であることを検証。
 
 ### `test_funnel_scope_is_reusable`
 
@@ -38,7 +40,7 @@
 
 スコープ内部で例外がスローされた場合でも、`funnel_scope()` がクリーンアップを実行することを検証。
 
-- `funnel_scope()` 内で `RuntimeError` をスロー。
+- `funnel_scope()` 内で `RuntimeError("body boom")` をスロー。
 - 例外が `ExceptionGroup` としてスローされることをアサート（`"Errors occurred during funnel scope"` にマッチ）。
 - 退出後、2 つのグローバル spout の `_thread` がどちらも `None` であることをアサート。
 
@@ -62,6 +64,6 @@ pytest tests/persistence/test_scope.py -k "reusable" -v
 
 ## 注意事項
 
-- 各ケースは autouse フィクスチャ `_cleanup_global_spouts` を使用して前後にグローバル spout をクリーンアップし、バックグラウンドスレッドとファイル状態の干渉を防ぎます。
+- 各ケースは autouse フィクスチャ `_cleanup_global_spouts` を使用して前後でグローバル spout をクリーンアップ（`stop()` の呼び出し、キューを空にする、内部カウンタのリセット）し、バックグラウンドスレッドとファイル状態の干渉を防ぎます。
 - テストは `monkeypatch.chdir(tmp_path)` で作業ディレクトリを切り替え、ログと sqlite ファイルが一時パスに書き込まれることを保証します。
 - 関連実装は `src/celestialflow/persistence/core_scope.py` にあります。

@@ -1,6 +1,6 @@
 # TaskErrors
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/09
 
 TaskErrors モジュールは CelestialFlow フレームワークで使用される完全な例外クラス体系を定義します。
 
@@ -173,7 +173,7 @@ class GraphStructureError(ConfigurationError):
 
 ### DuplicateNodeError
 
-重複ノード名（`set_stages` または `add_source_name` / `add_queue` 時に発生）。
+重複ノード名（`set_nodes` または `add_source_name` / `add_queue` 時に発生）。
 
 ```python
 class DuplicateNodeError(GraphStructureError):
@@ -294,7 +294,7 @@ class UnconsumedError(CelestialFlowError):
     pass
 ```
 
-`TaskGraph._finish_start()` の後処理フェーズで全 stage を走査し `drain_task_queue()` を呼び出した結果、キューの残余タスクが検出された場合、それらは `UnconsumedError` としてマークされ、`get_lifecycle_inlet()` / `LifecycleSpout` を介して日付別に整理された lifecycle sqlite データベースに永続化されます。
+`TaskGraph._finish_start()` の後処理フェーズで全ノードを走査し `drain_task_queue()` を呼び出した結果、キューの残余タスクが検出された場合、それらは `UnconsumedError` としてマークされ、`get_lifecycle_inlet()` / `LifecycleSpout` を介して日付別に整理された lifecycle sqlite データベースに永続化されます。
 
 ### TerminationMergeError
 
@@ -341,7 +341,7 @@ except InvalidOptionError as e:
 from celestialflow.runtime.util_errors import DuplicateNodeError
 
 try:
-    graph.set_stages([stage_a, stage_a])  # 同名ノード
+    graph.set_nodes([node_a, node_a])  # 同名ノード
 except DuplicateNodeError as e:
     print(f"重複ノード: {e}")
 ```
@@ -371,16 +371,16 @@ except InvalidOptionError as e:
 ### グラフ構造例外
 
 ```python
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 from celestialflow.runtime.util_errors import DuplicateNodeError, UnknownNodeError
 
 graph = TaskGraph(name="ErrorTestGraph")
 
-stage_a = TaskStage("A", func=lambda x: x)
-stage_b = TaskStage("A", func=lambda x: x * 2)  # 同名ノード
+node_a = TaskExecutor("A", func=lambda x: x)
+node_b = TaskExecutor("A", func=lambda x: x * 2)  # 同名ノード
 
 try:
-    graph.set_stages([stage_a, stage_b])
+    graph.set_nodes([node_a, node_b])
 except DuplicateNodeError as e:
     print(f"重複ノード: {e}")
 
@@ -435,10 +435,10 @@ except RemoteWorkerError as e:
 
 ## 未消費タスクの処理
 
-`UnconsumedError` は主にタスクが正常に消費されなかったシナリオをマークするために使用されます。`TaskGraph._finish_start()` の後処理フェーズでは、各 stage の `drain_task_queue()` が呼び出されます：
+`UnconsumedError` は主にタスクが正常に消費されなかったシナリオをマークするために使用されます。`TaskGraph._finish_start()` の後処理フェーズでは、各ノードの `drain_task_queue()` が呼び出されます：
 
-1. stage のタスクキューをクリアし、残存タスクを取り出します。
+1. ノードのタスクキューをクリアし、残存タスクを取り出します。
 2. 各残存タスクに対して `handle_task_fail(source, UnconsumedError())` を呼び出します。
 3. 失敗情報は `get_lifecycle_inlet()` を介して `LifecycleSpout`（`task_fail()` が pending レコードを failed に昇格）に書き込まれ、最終的に日付別に整理された lifecycle sqlite データベース（`./lifecycles/YYYY-MM-DD/flow_lifecycle(...).sqlite3`）に永続化されます。
 
-したがって、未消費タスクの「永続化」は `util_errors.py` 自身が行うのではなく、Stage / Graph 層のライフサイクル（lifecycle）永続化機構に依存します。
+したがって、未消費タスクの「永続化」は `util_errors.py` 自身が行うのではなく、Graph / Node 層のライフサイクル（lifecycle）永続化機構に依存します。

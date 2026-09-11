@@ -1,6 +1,6 @@
 # demo_structure.py Demo Guide
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 ## Objective
 
@@ -30,7 +30,7 @@ flowchart LR
     D --> E["StageE<br/>square"]
 ```
 
-Linear 5-node chain; data passes sequentially through `StageA → StageB → StageC → StageD → StageE`, each node performing a square operation. Built with `TaskChain`, started via `start_chain()`.
+Linear 5-node chain; data passes sequentially through `StageA → StageB → StageC → StageD → StageE`, each node performing a square operation. Built with `TaskChain`, started via `chain.run({"StageA": list(range(20))})`.
 
 #### Cross — `demo_cross`
 
@@ -319,7 +319,7 @@ Two independent DAGs run separately without interference:
 
 ## Dependencies
 
-- `celestialflow` (`TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete`, `TaskStage`, `TaskReporter`)
+- `celestialflow` (`TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete`, `TaskExecutor`, `TaskReporter`)
 - `demo_utils`
 - `python-dotenv`
 - External services: CelestialTree (optional), Reporter (optional)

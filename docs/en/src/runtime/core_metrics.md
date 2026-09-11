@@ -1,8 +1,8 @@
 # TaskMetrics
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
-The TaskMetrics module is responsible for managing and tracking various metrics during task execution, such as input task count, success count, failure count, duplicate task count, etc. It typically exists as a component of `TaskExecutor`.
+The TaskMetrics module is responsible for managing and tracking various metrics during task execution, such as input task count, success count, failure count, duplicate task count, etc. It typically exists as a component of a task node (such as `TaskExecutor`, `TaskSplitter`, `TaskRouter`).
 
 
 ## Initialization
@@ -66,10 +66,10 @@ def add_duplicate_count(self, count: int = 1):
 
 ```python
 def append_task_counter(self, counter: ValueWrapper) -> None:
-    """Add an external counter to task_counter (for cross-Stage cascaded statistics)."""
+    """Add an external counter to task_counter (for cross-node cascaded statistics)."""
 ```
 
-Cascading is used in `TaskStage.prev_binding()` — each downstream node registers the upstream node's success counter into its own `task_counter`, achieving "upstream output = downstream input" counting consistency.
+Cascading is used in inter-node `prev_binding()` — each downstream node registers the upstream node's success counter into its own `task_counter`, achieving "upstream output = downstream input" counting consistency. This call is triggered uniformly by `TaskGraph.connect()` when establishing hyperedge connections.
 
 ## Observer Management
 
@@ -163,7 +163,7 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
     """Add exception types that should trigger retries."""
 ```
 
-Exception types are stored as a `tuple` in `self.retry_exceptions`. `TaskDispatch._worker` / `_async_worker` determine whether to retry via `isinstance(exception, self.task_executor.metrics.retry_exceptions)`. Each call accumulates on top of existing exception types.
+Exception types are stored as a `tuple` in `self.retry_exceptions`. `TaskDispatch._worker` / `_async_worker` determine whether to retry via `isinstance(exception, self.task_executor.metrics.retry_exceptions)`. The `task_executor` field name here is a historical convention, and in fact points to the `BaseTaskNode` instance (i.e., `TaskExecutor` / `TaskSplitter` / `TaskRouter`) that hosts `TaskDispatch`. Each call accumulates on top of existing exception types.
 
 ```python
 def get_retry_error_type_names(self) -> set[str]:
@@ -238,4 +238,3 @@ parent_metrics.add_task_count(5)  # Add 5 from self
 
 print(f"Total task count (5 + 10): {parent_metrics.get_task_count()}")  # 15
 ```
-

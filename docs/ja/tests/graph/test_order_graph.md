@@ -1,6 +1,6 @@
 # グラフ解析ユーティリティテスト (test_order_graph.py)
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/09
 
 ## 役割
 `celestialflow.graph.util_order_graph` の基礎グラフ解析能力を検証します。`OrderGraph` 構築、階層計算（`compute_node_levels`）、ソースノード検索（`source_nodes`）、SCC 分割（`tarjan_scc`）、および深さが Python のデフォルト再帰上限（約 1000）を超える場合の反復アルゴリズムのリグレッションを含みます。
@@ -19,7 +19,7 @@
 | `TestBuildOrderGraph` | 3 | 線形鎖 / 循環あり / 孤立ノードのグラフ構築 | ノード数、エッジ総数、`successors` 隣接方向が正しい |
 | `TestComputeNodeLevels` | 5 | 線形 DAG、ファンアウト DAG、単純循環、尾付き循環、非連結グラフ | 階層が単調増加、B/C 同層、循環内で階層共有、尾は循環より1層高い、各連結成分が独立に0から開始 |
 | `TestFindSourceNodes` | 4 | 線形 DAG、複数ソース、純粋な循環、ホイール型トポロジ | 入次数0のソースノード、純粋な循環 SCC は代表点1つを返す、Center は唯一の source |
-| `TestDeepGraphRegression` | 3 | 5000 ノードの深鎖 / 深環 / TaskGraph 経由のフルチェーン構築 | 深鎖の SCC は全て単点、RecursionError なし、深環は単一 SCC に収束、`get_stages_summary` / `get_source_names` / `get_graph_analysis` が正常動作 |
+| `TestDeepGraphRegression` | 3 | 5000 ノードの深鎖 / 深環 / TaskGraph 経由のフルチェーン構築 | 深鎖の SCC は全て単点、RecursionError なし、深環は単一 SCC に収束、`get_source_nodes` / `get_graph_analysis` が正常動作 |
 | **合計** | **15** | | |
 
 ## 主要テストフロー
@@ -36,7 +36,7 @@
 4. **深グラフリグレッション** (`TestDeepGraphRegression`):
    - 深鎖（5000 ノード）：`tarjan_scc` は全て単点 SCC、ソースノードは `n0`、階層は 0 から 4999 へ線形に増加。
    - 深環（5000 ノード）：全ノードが単一 SCC に収束。
-   - 深鎖を `TaskGraph`（`graph_mode="thread"`）経由でフルチェーン構築・解析してもクラッシュせず、`layersDict[4999] == ["n4999"]`、`get_stages_summary()` は 5000 ステージを返し、`get_source_names() == ["n0"]`。
+   - 深鎖を `TaskGraph`（`graph_mode="thread"`）経由でフルチェーン構築・解析してもクラッシュせず、`layersDict[4999] == ["n4999"]`、`get_nodes()` は 5000 ノードを返し、`get_source_names() == ["n0"]`。
 
 ## テストヘルパー関数
 - `_make_graph(edges)`: エッジ定義（暗黙に出現する下流ノードを含む）からテストグラフを構築。

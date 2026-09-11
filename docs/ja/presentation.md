@@ -1,6 +1,6 @@
 # CelestialFlow 技術共有
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/09/09
 
 ---
 
@@ -11,8 +11,8 @@
 **次世代 Python タスクオーケストレーションエンジン**
 
 - 軽量 · グラフ駆動 · 高性能 · 可観測
-- バージョン 3.1.4 | Python 3.10+
-- DAG / 循環グラフ / 分散実行 / リアルタイム可視化をサポート
+- バージョン 3.1.4 | Python 3.12+
+- DAG / 循環グラフ / 分散実行 / 可観測実行チェーンをサポート
 
 ---
 
@@ -35,16 +35,16 @@
 
 ### 一言定義
 
-> Python ベースの軽量グラフ駆動タスクオーケストレーションフレームワーク。DAG/循環グラフトポロジー、多実行モード、Redis 分散、イベントソーシング、リアルタイム可視化をサポート。
+> Python ベースの軽量グラフ駆動タスクオーケストレーションフレームワーク。DAG/循環グラフトポロジー、多実行モード、イベントソース、状態レポートをサポートし、オプションの外部連携サンプルを提供。
 
 ### コア特性
 
-- **グラフトポロジー豊富**：Chain / Cross / Grid / Loop / Wheel / Complete の 6 種のプリセット構造
+- **グラフトポロジー豊富**：Chain / Cross / Grid / Loop / Wheel / Complete の6種のプリセット構造
 - **多次元実行モデル**：Stage 級 (serial/thread) × Task 級 (serial/thread/async) の組み合わせ
-- **Redis 分散**：Transport → Source → Ack の 3 段階分散タスク転送
-- **イベントソーシング**：CelestialTree と統合、タスクの全ライフサイクルを追跡可能
-- **Web ダッシュボード**：FastAPI + ECharts + Mermaid によるリアルタイム監視
-- **ゼロプラットフォーム依存**：`pip install celestialflow`、1 行のコードで実行可能
+- **外部連携サンプル**：通常の `TaskExecutor` で Redis / Go Worker などの外部システムに接続可能
+- **イベントソース**：CelestialTree 統合、タスクの全ライフサイクルを追跡可能
+- **状態レポートチェーン**：`TaskReporter` と `celestialflow-web` サービスによる状態と制御命令の交換
+- **ゼロプラットフォーム依存**：`pip install celestialflow`、1行のコードで実行可能
 
 ---
 
@@ -53,7 +53,7 @@
 ### 設計哲学
 
 - **グラフすなわちプログラム (Graph as Program)**
-  - `TaskGraph` を実行ユニットとし、ノード (`TaskStage`) を処理ロジック、エッジをデータフローとする
+  - `TaskGraph` を実行ユニットとし、ノード (`TaskExecutor`) を処理ロジック、エッジをデータフローとする
   - オーケストレーションロジックとビジネスロジックを完全に分離
 
 - **エンベロープパターン (Envelope Pattern)**
@@ -76,15 +76,15 @@
 ```mermaid
 graph TB
     subgraph ユーザーコード
-        A[TaskStage を定義] --> B[TaskGraph を構築]
-        B --> C[start_graph を呼び出し]
+        A[TaskExecutor を定義] --> B[TaskGraph を構築]
+        B --> C[graph.run を呼び出し]
     end
 
     subgraph CelestialFlow コア
         C --> D[init_resources<br/>キュー/接続を作成]
         D --> E[init_analysis<br/>DAG検出/階層化]
-        E --> F{schedule_mode}
-        F -->|eager| G[全 Stage を並行起動]
+        E --> F{graph_mode}
+        F -->|eager| G[全ノードを並行起動]
         F -->|staged| H[層ごとに順次実行]
         G --> I[TaskDispatch がタスクを実行]
         H --> I
@@ -93,23 +93,22 @@ graph TB
     subgraph ランタイム基盤
         I --> J[TaskInQueue / TaskOutQueue]
         I --> K[TaskMetrics 指標]
-        I --> L[LogInlet / FailInlet]
+        I --> L[LogInlet / LifecycleInlet]
         I --> M[CelestialTree イベント]
     end
 
-    subgraph 可視化
-        N[TaskWebServer] --> O[FastAPI Backend]
-        O --> P[Mermaid グラフ構造]
-        O --> Q[Chart.js 進捗曲線]
-        O --> R[リアルタイム状態カード]
+    subgraph 外部サービス
+        N[TaskReporter]
+        O[HTTP API]
     end
 
     K --> N
     L --> N
+    N --> O
 ```
 
 備考：
-上から下へ：ユーザーがグラフ構造を定義 → フレームワークがリソースと分析を初期化 → スケジュールモードに従って実行 → ランタイム基盤がキュー、指標、ログを提供 → Web 層がデータを消費して可視化。
+上から下へ：ユーザーがグラフ構造を定義 → フレームワークがリソースと分析を初期化 → スケジュールモードに従って実行 → ランタイム基盤がキュー、指標、ログを提供 → `TaskReporter` がオプションで外部サービスに状態を同期。
 
 ---
 
@@ -119,54 +118,49 @@ graph TB
 
 ```python
 TaskGraph(
-    schedule_mode: str = "eager",   # "eager" | "staged"
+    graph_mode: str = "eager",   # "eager" | "staged"
     log_level: str = "SUCCESS"
 )
 ```
 
-- **初期化**: 構築後に `graph.set_stages(stages=[...])` でノードを設定し、`graph.connect(...)` で接続を確立。ソースノードは SCC 凝縮により自動計算
+- **初期化**: 構築後に `graph.set_nodes(stages=[...])` でノードを設定し、`graph.connect(...)` で接続を確立。ソースノードは SCC 凝縮により自動計算
 - **スケジュールモード**：
-  - `eager`：全 Stage を並行起動、依存関係はキューが自然に保証
+  - `eager`：全ノードを並行起動、依存関係はキューが自然に保証
   - `staged`：DAG のみ利用可能、層ごとに実行、層間は同期ブロック
-- **状態管理**：`stage_runtime_dict`、`status_dict`、`stage_history`（直近 20 スナップショット）
+- **状態管理**：`node_dict`（ノードオブジェクト集合）、`status_dict`（ランタイム状態）、`snapshot()`（直近 20 スナップショット）
 - **グラフ分析**：NetworkX ベースで有向グラフを構築、DAG 性質を検出、トポロジー階層を計算
 
 ---
 
-## Slide 7: コアコンポーネント — TaskStage / TaskExecutor
+## Slide 7: コアコンポーネント — TaskExecutor / TaskSplitter / TaskRouter
 
 ### 継承関係
 
 ```mermaid
 classDiagram
-    TaskExecutor <|-- TaskStage
-    TaskStage <|-- TaskSplitter
-    TaskStage <|-- TaskRouter
-    TaskStage <|-- TaskRedisTransport
-    TaskStage <|-- TaskRedisSource
-    TaskStage <|-- TaskRedisAck
-
-    class TaskExecutor {
+    BaseTaskNode <|-- TaskExecutor
+    TaskExecutor <|-- TaskSplitter
+    TaskExecutor <|-- TaskRouter
+    class BaseTaskNode {
         +func: Callable
         +execution_mode: str
-        +worker_limit: int
+        +max_workers: int
         +max_retries: int
         +metrics: TaskMetrics
         +start(task_source)
         +start_async(task_source)
     }
 
-    class TaskStage {
-        +stage_mode: str
-        +_status: int
-        +start_stage()
+    class TaskExecutor {
+        +name: str
     }
 ```
 
-- **TaskExecutor**：タスク実行コア。リトライ、重複排除、キャッシュ、並行戦略を管理
-- **TaskStage**：グラフノード。トポロジー関係は `TaskGraph` が管理（`graph.out_edges` / `graph.in_edges`）
+- **BaseTaskNode**：全ランタイムノードの基底クラス、共通骨格（キュー、metrics、ライフサイクル）を定義
+- **TaskExecutor**：汎用タスクエグゼキュータ。リトライ、重複排除、キャッシュ、並行戦略を管理。ユーザーが直接構築して使用
+- **TaskSplitter / TaskRouter**：グラフ構造型特化ノード、下流配布セマンティクスを変更
 - **`graph.connect()`** でノード間の接続関係（上流・下流依存）を確立
-- **`stage_mode`/`name`** は `TaskStage.__init__()` の構築パラメータで渡す
+- **`name` / `execution_mode`** は `__init__()` 構築パラメータで渡す
 
 ---
 
@@ -180,11 +174,11 @@ classDiagram
 | 入力 | 単一タスク | 単一タスク |
 | 出力 | tuple の各要素が独立タスクに | `(target_tag, task)` で指定下流にルーティング |
 | カウンター | `split_counter` が下流の `task_counter` に伝播 | `route_counters[tag]` がそれぞれ伝播 |
-| 実行モード | serial のみ | serial のみ |
-| リトライ | なし（`max_retries=0`） | なし（`max_retries=0`） |
+| 実行モード | デフォルト serial、作成時に指定可能 | デフォルト serial、作成時に指定可能 |
+| リトライ | デフォルト 0、作成時に指定可能 | デフォルト 0、作成時に指定可能 |
 
-- **カウンター伝播**は `is_tasks_finished()` の正確な判定を保証する重要な設計
-- Splitter/Router は並行をサポートせず、分割/ルーティングの決定性を保証
+- **カウンター伝播**は下流 `is_tasks_finished()` の正確な判定を保証する重要な設計
+- Splitter/Router の `serial` / `max_retries=0` がデフォルト設定で、構築時に上書き可能（具体パラメータは `core_nodes.py` を参照）
 
 ---
 
@@ -194,43 +188,43 @@ classDiagram
 
 ```mermaid
 graph LR
-    A[Stage A] -->|TaskOutQueue.put| Q1[Queue]
-    Q1 -->|TaskInQueue.get| B[Stage B]
+    A[Node A] -->|TaskOutQueue.put| Q1[Queue]
+    Q1 -->|TaskInQueue.get| B[Node B]
     A -->|TaskOutQueue.put| Q2[Queue]
-    Q2 -->|TaskInQueue.get| C[Stage C]
+    Q2 -->|TaskInQueue.get| C[Node C]
 
     style Q1 fill:#f9f,stroke:#333
     style Q2 fill:#f9f,stroke:#333
 ```
 
-- **TaskEnvelope**：`task` + `hash`(SHA1) + `id`(CelestialTree イベント) + `source`(ソース)
+- **TaskEnvelope**：`task` + `hash`(SHA1) + `id`(CelestialTree イベント) + `source_name`(ソースノード名)
 - **TaskInQueue**：
   - 多上流集約、`source_tag` で終了信号を追跡
   - 全上流が `TerminationSignal` を送信後、`TerminationIdPool` にマージして返却
 - **TaskOutQueue**：
   - ブロードキャストモード `put()` → 全下流
   - 指向モード `put_target(item, tag)` → 指定下流（Router が使用）
-- **終了プロトコル**：DAG でも循環グラフでも、全 Stage が優雅に終了できることを保証
+- **終了プロトコル**：DAG でも循環グラフでも、全ノードが優雅に終了できることを保証
 
 ---
 
 ## Slide 10: 実行モデル
 
-### 3 層実行次元
+### 3層実行次元
 
 ```mermaid
 graph TD
-    subgraph グラフ級スケジュール schedule_mode
-        A[eager: 全並行]
-        B[staged: 層ごと実行]
+    subgraph グラフ級スケジュール graph_mode
+        A[eager: 全部並行]
+        B[staged: 層ごとに実行]
     end
 
-    subgraph Stage級 stage_mode
+    subgraph ノード級 execution_mode
         C[serial: メインスレッド内実行]
         D[thread: 独立スレッド]
     end
 
-    subgraph Task級 execution_mode
+    subgraph タスク級 execution_mode
         E[serial: シリアル逐次]
         F[thread: ThreadPoolExecutor]
         H[async: asyncio + Semaphore]
@@ -248,12 +242,11 @@ graph TD
 
 | 階層 | オプション | 説明 |
 |------|------|------|
-| グラフ級 `schedule_mode` | `eager` / `staged` | Stage 間の並行 vs 順序を制御 |
-| Stage 級 `stage_mode` | `serial` / `thread` | Stage を独立スレッドで実行するかどうか |
-| Task 級 `execution_mode` | `serial` / `thread` | Stage 内タスクの並行戦略 |
+| グラフ級 `graph_mode` | `eager` / `staged` | ノード間の並行 vs 順序を制御 |
+| ノード級 `execution_mode` | `serial` / `thread` / `async` | ノード内タスクの並行戦略 |
 
 備考：
-TaskGraph モードでは、task 級の `async` は使用不可（スタンドアロン `TaskExecutor.start()` のみサポート）。
+TaskGraph モードでは、ノード級の `async` も使用可能（各ノードはそれぞれ自分の `TaskDispatch` を保持）。
 
 ---
 
@@ -261,7 +254,7 @@ TaskGraph モードでは、task 級の `async` は使用不可（スタンド�
 
 ### TaskMetrics — スレッドセーフなリアルタイムカウント
 
-- **4 大コアカウンター**：
+- **4大コアカウンター**：
   - `task_counter`：総入力タスク数（Splitter/Router 追加分を含む）
   - `success_counter`：成功処理数
   - `error_counter`：最終失敗数（リトライ回数超過）
@@ -272,50 +265,50 @@ TaskGraph モードでは、task 級の `async` は使用不可（スタンド�
 - **重複排除メカニズム**：
   - `TaskEnvelope.hash` = `SHA1(pickle.dumps(task))`
   - `processed_set` が処理済みハッシュを記録
-  - ゼロコスト重複排除——ハッシュはカプセル化段階で 1 回計算
+  - ゼロコスト重複排除——ハッシュはカプセル化段階で1回計算
 
 - **SumCounter 集約**：Splitter/Router シナリオでの多ソースカウンターの正確なマージをサポート
 
 ---
 
-## Slide 12: 分散能力 — Redis 統合
+## Slide 12: 外部連携サンプル — Redis Demo
 
-### 3 段階 Redis タスク転送
+### 通常の TaskExecutor で Redis / Go Worker に接続
 
 ```mermaid
 sequenceDiagram
     participant Local as ローカル Graph
     participant Redis as Redis Server
-    participant Remote as リモート Worker
+    participant Remote as 外部 Worker
 
-    Local->>Redis: TaskRedisTransport<br/>RPUSH task JSON
-    Redis->>Remote: TaskRedisSource<br/>BLPOP ブロッキング取得
+    Local->>Redis: TaskExecutor(redis_push)<br/>RPUSH task JSON
+    Redis->>Remote: 外部 Worker<br/>BLPOP ブロッキング取得
     Remote->>Remote: タスクを実行
     Remote->>Redis: HSET 結果を書き戻し
-    Redis->>Local: TaskRedisAck<br/>ポーリング HGET で結果を取得
+    Redis->>Local: TaskExecutor(redis_wait)<br/>ポーリング HGET で結果を取得
     Local->>Redis: HDEL 結果を削除
 ```
 
-| コンポーネント | 役割 | Redis 操作 | 実行モード |
-|------|------|-----------|---------|
-| `TaskRedisTransport` | シリアライズしてタスクをプッシュ | `RPUSH` | thread, worker_limit=4 |
-| `TaskRedisSource` | ブロッキングでタスクをプル | `BLPOP` | serial |
-| `TaskRedisAck` | リモート結果を待機 | `HGET` → `HDEL` | serial |
+| コンポーネント | 役割 | Redis 操作 | 位置付け |
+|------|------|-----------|------|
+| `redis_push()` | シリアライズしてタスクをプッシュ | `RPUSH` | demo helper |
+| 外部 Worker / `redis_pop()` | ブロッキングでタスクをプル | `BLPOP` | Redis 入力のブリッジ |
+| `redis_wait()` | リモート結果を待機 | `HGET` → `HDEL` | demo helper |
 
-- **JSON シリアライズ**：タスク → `{id, task, emit_ts}` JSON 文字列
-- **At-most-once セマンティクス**：結果読み取り後即座に削除
-- **タイムアウトメカニズム**：Source/Ack ともに `timeout` パラメータをサポート、タイムアウト時は `TimeoutError` をスロー
+- **プロトコル位置**：これは demo/helper プロトコルのセットで、フレームワーク内蔵ノードではない
+- **インストール方法**：このソリューションを実行する場合、追加で `redis` をインストールし Redis サービスを起動する必要がある
+- **設計意図**：外部メッセージシステムを通常の `TaskExecutor` に統合する方法を示す
 
 ---
 
 ## Slide 13: CelestialTree との統合
 
-### イベントソーシングとタスクリネージ
+### イベントソースとタスクリネージ
 
-- **CelestialTree**：階層的イベント追跡システム（独立プロジェクト `celestialtree>=0.1.2`）
+- **CelestialTree**：階層的イベント追跡システム（独立プロジェクト `celestialtree`、追加インストールが必要）
 - **統合ポイント**：
-  - `TaskExecutor.set_ctree(host, http_port, grpc_port)` で追跡を有効化
-  - `TaskExecutor.set_nullctree()` で追跡を無効化（NullClient を使用）
+  - `TaskExecutor.set_ctree(ctree_client)` で外部イベントクライアントを注入
+  - デフォルトで `LocalEventClient()` を使用し、CelestialTree サービスに依存しない
   - `TaskEnvelope.id` が CelestialTree イベント ID を保存
   - `TerminationSignal.id` / `TerminationIdPool.ids` が終了イベントを伝播
 
@@ -325,7 +318,7 @@ sequenceDiagram
   - 終了信号マージ → イベント ID プール集約
   - 全リンクが入力から完了まで遡及可能
 
-- **設計トレードオフ**：イベント追跡はオプション依存、無効時はゼロオーバーヘッド（NullClient モード）
+- **設計トレードオフ**：イベント追跡はオプション依存；デフォルトローカルモードではイベント ID のみ生成し、リモート追跡が必要な場合は別途 `celestialtree` をインストール
 
 ---
 
@@ -337,25 +330,25 @@ sequenceDiagram
 graph LR
     subgraph 生産端
         A[LogInlet] -->|Queue| B[LogSpout]
-        C[FailInlet] -->|Queue| D[FailSpout]
+        C[LifecycleInlet] -->|Queue| D[LifecycleSpout]
     end
 
     subgraph 消費端
         B --> E["logs/task_logger(DATE).log"]
-        D --> F["fallback/DATE/source(TIME).jsonl"]
+        D --> F["lifecycle/task_lifecycle.db<br/>(SQLite)"]
     end
 ```
 
 - **Spout-Inlet パターン**：
   - Inlet 端（スレッドセーフ）：レコードをフォーマットし、共有キューに書き込み
-  - Spout 端（デーモンスレッド）：キューから消費し、ファイルに書き込み
+  - Spout 端（デーモンスレッド）：キューから消費し、ストレージに書き込み
   - `TerminationSignal` で優雅に停止
 
 - **ログレベル**：`TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 
-- **エラー永続化**：JSONL 形式、`timestamp`、`stage`、`error_repr`、`task_repr`、完全にシリアライズされた `error` と `task` を含む
+- **エラー永続化**：SQLite 形式、`stage_name`、`error_type`、`error_message`、`task_json`、`result_json` などのフィールドを含む
 
-- **エラー分析ツール**：`load_task_by_stage()`、`load_task_by_error()` で次元ごとに失敗タスクを集約
+- **エラー分析ツール**：`load_records()`、`load_records_grouped_by_stage()` で次元ごとに失敗タスクを集約
 
 ---
 
@@ -379,66 +372,55 @@ CelestialFlowError (基底クラス)
 
 ---
 
-## Slide 16: Web 可視化システム — アーキテクチャ
+## Slide 16: 状態レポートチェーン — アーキテクチャ
 
-### 技術スタック
+### コア構成
 
 | 層 | 技術 | 用途 |
 |----|------|------|
-| Backend | FastAPI + Uvicorn | REST API、デフォルトポート 5000 |
-| Template | Jinja2 | HTML テンプレートレンダリング |
-| グラフ構造 | Mermaid.js v10 | タスクグラフ有向グラフ可視化 |
-| 時系列チャート | Chart.js | ノード完了進捗折れ線グラフ |
-| インタラクション強化 | Sortable.js | Dashboard カードドラッグソート |
-| テーマ | CSS Variables | ダーク/ライトテーマ動的切替 |
+| ランタイム側 | `TaskReporter` | グラフ構造、分析、状態、エラー情報を周期的にプッシュ |
+| プロトコル | HTTP + JSON | pull / push インターフェースで双方向同期 |
+| 制御側 | 外部サービス | レポート間隔、タスク注入、終了信号を返却 |
+| ストレージ側 | SQLite + ログ | エラーレコードと構造化ログの永続化は主リポジトリが担当 |
 
-- **CLI エントリ**：`celestialflow-web --port 5000`
-- **フロントエンドモジュール化**：9 個の独立 JS モジュール、各々役割分担
-- **効率的な更新**：`JSON.stringify` 比較で変更を検出し、差分部分のみレンダリング
+- **主リポジトリの責務**：状態収集、エラー増分同期、タスク注入入口を提供
+- **外部サービスの責務**：状態データを消費し、必要に応じて監視画面やコンソールを提供
 
 ---
 
-## Slide 17: Web 可視化システム — 機能
+## Slide 17: 状態レポートチェーン — 機能
 
-### 3 大コアページ
+### 3大コア能力
 
-**1. ダッシュボード (Dashboard)**
-- 3 カラムレイアウト：左（Mermaid 図 + トポロジー情報）| 中（状態カード）| 右（進捗曲線 + 全体サマリー）
-- 状態カード：実行中/停止/未起動 バッジ、成功/保留/失敗/重複排除カウント、プログレスバー、所要時間推定
-- カードドラッグ再配置、レイアウトは `config.json` に永続化
+**1. 状態同期**
+- グラフ構造、トポロジー分析、ノード状態スナップショットをプッシュ
+- `graph_id` でリモート側が現在のグラフをすでに保持しているかを判断可能
 
-**2. エラーログ (Error Logs)**
-- ページングテーブル：error_id / エラー情報 / ノード / タスク / タイムスタンプ
-- キーワード検索 + ノードフィルター
-- ダッシュボードから失敗カウントをクリックして直接ジャンプ・フィルター可能
+**2. エラー同期**
+- `event_id` ベースでエラーレコードを増分プッシュ
+- ローカルの fallback sqlite をエラーデータソースとして再利用
 
-**3. タスク注入 (Task Injection)**
-- 検索可能なノードリスト（実行状態を表示、停止済みノードは選択不可）
-- JSON テキスト入力またはファイルアップロード
-- ワンクリックで `TerminationSignal` を注入
+**3. タスク注入**
+- リモートサービスから注入待ちタスクと終了信号をプル
+- 注入プロセスはメイン実行フローをブロックしない
 
 ---
 
-## Slide 18: Web API 一覧
+## Slide 18: TaskReporter API 一覧
 
 ### REST インターフェース設計
 
 | 方向 | エンドポイント | データ |
 |------|------|------|
-| Pull | `/api/pull_config` | フロントエンド設定 |
-| Pull | `/api/pull_structure` | グラフ構造 JSON |
-| Pull | `/api/pull_status` | ノードリアルタイム状態 |
-| Pull | `/api/pull_errors` | エラーログ（キャッシュ付き） |
-| Pull | `/api/pull_topology` | DAG/スケジュールモード/階層情報 |
-| Pull | `/api/pull_summary` | グローバル集計統計 |
-| Pull | `/api/pull_history` | 履歴スナップショット（進捗曲線データソース） |
+| Pull | `/api/pull_server_state` | 現在のグラフ同期状態、構造状態、分析状態、最大 `event_id` |
+| Pull | `/api/pull_injection` | 注入待ちタスクと終了信号 |
 | Push | `/api/push_status` | 状態を更新 |
 | Push | `/api/push_structure` | グラフ構造を更新 |
-| Push | `/api/push_injection_tasks` | ランタイムタスク注入 |
-| Push | `/api/push_config` | フロントエンド設定を保存 |
+| Push | `/api/push_analysis` | グラフ分析データを更新 |
+| Push | `/api/push_errors` | エラーレコードを更新 |
 
-- **Pydantic 検証**：全 Push インターフェースは強型モデルを使用
-- **エラーキャッシュ**：`push_errors_meta` がファイルパスとバージョン番号をキャッシュし、JSONL の重複読み取りを回避
+- **主リポジトリには Web フロントエンドを内蔵しない**：ここでは `TaskReporter` が実際に使用する同期インターフェースのみを定義
+- **インターフェース設計目標**：外部サービスが監視画面、コンソール、監査システムを自由に実装できるようにする
 
 ---
 
@@ -449,11 +431,11 @@ CelestialFlowError (基底クラス)
 - **ゼロコピー終了検出**
   - `is_tasks_finished()` = アトミックカウンター比較、キュー走査や状態スキャン不要
 
-- **ハッシュ 1 回、重複排除一生**
-  - `TaskEnvelope.hash` はカプセル化段階で SHA1 を 1 回計算、以降の重複排除は set lookup (O(1)) のみ
+- **ハッシュ1回、重複排除一生**
+  - `TaskEnvelope.hash` はカプセル化段階で SHA1 を1回計算、以降の重複排除は set lookup (O(1)) のみ
 
 - **ファクトリ化キューバックエンド**
-  - `make_queue_backend()` が stage_mode に応じて `ThreadQueue` / `AsyncQueue` を自動選択
+  - フレームワーク内部で `execution_mode` に応じて `ThreadQueue` / `AsyncQueue` を選択
   - シリアルモードはゼロ同期オーバーヘッド
 
 - **指標カウンターのレベル分け**
@@ -462,13 +444,13 @@ CelestialFlowError (基底クラス)
   - 必要に応じて最も軽量な同期メカニズムを選択
 
 - **フロントエンド増分レンダリング**
-  - `JSON.stringify` 比較によるクモ型変更検出、変更された DOM 領域のみ再レンダリング
+  - `JSON.stringify` 比較によるスパイダー型変更検出、変更された DOM 領域のみ再レンダリング
 
 ---
 
 ## Slide 20: プリセットグラフ構造
 
-### 6 種のそのまま使えるトポロジーテンプレート
+### 6種のそのまま使えるトポロジーテンプレート
 
 ```mermaid
 graph LR
@@ -501,8 +483,8 @@ graph LR
 | `TaskWheel` | 循環+Hub | 中心ノードが環上の全ノードに接続 |
 | `TaskComplete` | 全結合 | 全ノード相互接続 |
 
-- **強制 DAG**：Chain と Grid は構築時に `schedule_mode="staged"` を設定して利用可能
-- **循環グラフ**：Loop / Wheel / Complete は `schedule_mode="eager"` 必須
+- **強制 DAG**：Chain と Grid は構築時に `graph_mode="staged"` を設定して利用可能
+- **循環グラフ**：Loop / Wheel / Complete は `graph_mode="eager"` 必須
 
 ---
 
@@ -518,8 +500,8 @@ graph LR
 | **循環タスクサポート** | ネイティブサポート（Loop/Wheel） | 非サポート | 非サポート | 手動実装 |
 | **実行モード** | serial/thread/async | Celery/K8s/Local | Dask/K8s | Ray Worker |
 | **プロセス級隔離** | なし（スレッド級隔離） | Executor 級 | Dispatch 級 | デフォルト隔離 |
-| **リアルタイム可視化** | 内蔵 Web UI | 内蔵 Web UI | 内蔵 Cloud UI | Ray Dashboard |
-| **イベントソーシング** | CelestialTree 統合 | ネイティブサポートなし | ネイティブサポートなし | ネイティブサポートなし |
+| **外部監視接続** | HTTP レポートインターフェース | 内蔵 Web UI | 内蔵 Cloud UI | Ray Dashboard |
+| **イベントソース** | CelestialTree 統合 | ネイティブサポートなし | ネイティブサポートなし | ネイティブサポートなし |
 | **タスク重複排除** | 内蔵 SHA1 ハッシュ重複排除 | ネイティブサポートなし | ネイティブサポートなし | ネイティブサポートなし |
 | **学習曲線** | 低（純粋 Python API） | 中高 | 中 | 中高 |
 | **デプロイ形態** | ライブラリ / CLI | 独立プラットフォーム | 独立プラットフォーム/SaaS | 独立クラスター |
@@ -544,7 +526,7 @@ graph LR
 
 - **リアルタイムストリーム処理（軽量級）**
   - Loop 構造で継続的プル → 処理 → 書き戻しを実現
-  - Redis 分散水平拡張
+  - 外部メッセージキュー / Worker サンプルで水平拡張可能
 
 - **機械学習 Pipeline**
   - データ前処理 → 特徴量エンジニアリング → モデル訓練 → 評価
@@ -558,27 +540,27 @@ graph LR
 
 ```mermaid
 graph LR
-    A["🔗 URL 発見<br/>(TaskStage)"] -->|urls| B["📥 ページダウンロード<br/>(TaskStage, thread×20)"]
+    A["🔗 URL 発見<br/>(TaskExecutor)"] -->|urls| B["📥 ページダウンロード<br/>(TaskExecutor, thread×20)"]
     B -->|html| C["🔀 コンテンツルーティング<br/>(TaskRouter)"]
-    C -->|type=article| D["📝 記事抽出<br/>(TaskStage, thread×10)"]
-    C -->|type=image| E["🖼 画像抽出<br/>(TaskStage, thread×10)"]
-    D -->|data| F["💾 データ保存<br/>(TaskStage)"]
+    C -->|type=article| D["📝 記事抽出<br/>(TaskExecutor, thread×10)"]
+    C -->|type=image| E["🖼 画像抽出<br/>(TaskExecutor, thread×10)"]
+    D -->|data| F["💾 データ保存<br/>(TaskExecutor)"]
     E -->|data| F
 ```
 
 **実行設定例**：
 ```python
-from celestialflow import TaskStage, TaskRouter, TaskGraph
+from celestialflow import TaskExecutor, TaskRouter, TaskGraph
 
-discover = TaskStage(discover_urls, execution_mode="serial")
-download = TaskStage(download_page, execution_mode="thread", worker_limit=20)
-router = TaskRouter(classify_content)
-extract_article = TaskStage(extract_article, execution_mode="thread", worker_limit=10)
-extract_image = TaskStage(extract_image, execution_mode="thread", worker_limit=10)
-store = TaskStage(save_to_db, execution_mode="serial")
+discover = TaskExecutor("discover_urls", discover_urls, execution_mode="serial")
+download = TaskExecutor("download_page", download_page, execution_mode="thread", max_workers=20)
+router = TaskRouter("classify", classify_content)
+extract_article = TaskExecutor("extract_article", extract_article, execution_mode="thread", max_workers=10)
+extract_image = TaskExecutor("extract_image", extract_image, execution_mode="thread", max_workers=10)
+store = TaskExecutor("save_to_db", save_to_db, execution_mode="serial")
 
-graph = TaskGraph(schedule_mode="eager")
-graph.set_stages(
+graph = TaskGraph(graph_mode="eager")
+graph.set_nodes(
     stages=[discover, download, router, extract_article, extract_image, store]
 )
 graph.connect([discover], [download])
@@ -586,20 +568,20 @@ graph.connect([download], [router])
 graph.connect([router], [extract_article, extract_image])
 graph.connect([extract_article, extract_image], [store])
 
-graph.start_graph({"discover": [seed_urls]})
+graph.run({"discover_urls": [seed_urls]})
 ```
 
 ---
 
-## Slide 24: 分散デモデータフロー
+## Slide 24: 分散 Demo データフロー
 
-### Redis 分散実行例
+### Redis 外部連携サンプル
 
 ```mermaid
 graph LR
     subgraph ローカル Graph
-        A[前処理 Stage] --> B[RedisTransport<br/>RPUSH]
-        E[RedisAck<br/>HGET] --> F[後処理 Stage]
+        A[前処理ノード] --> B[TaskExecutor<br/>redis_push]
+        E[TaskExecutor<br/>redis_wait] --> F[後処理ノード]
     end
 
     subgraph Redis
@@ -608,17 +590,17 @@ graph LR
         D -->|"result"| E
     end
 
-    subgraph リモート Worker
-        C -->|BLPOP| G[RedisSource]
+    subgraph 外部 Worker
+        C -->|BLPOP| G[redis_pop / worker]
         G --> H[タスクを実行]
         H -->|HSET| D
     end
 ```
 
-- ローカル Graph が `TaskRedisTransport` でタスクを Redis List にプッシュ
-- リモート Worker が `TaskRedisSource` でブロッキングプル
-- 結果を Redis Hash に書き戻し、ローカル `TaskRedisAck` がポーリング取得
-- **水平拡張**：複数 Worker インスタンスを起動すれば並行消費可能
+- ローカル Graph が通常の `TaskExecutor("redis_push", redis_push)` でタスクを Redis List にプッシュ
+- 外部 Worker または `redis_pop()` が Redis からタスクをプルして実行
+- 結果を Redis Hash に書き戻し、ローカル `TaskExecutor("redis_wait", redis_wait)` がポーリング取得
+- **水平拡張**：複数の Worker インスタンスを起動すれば並行消費可能
 
 ---
 
@@ -629,11 +611,11 @@ graph LR
 | 決定 | 選択 | トレードオフ |
 |------|------|------|
 | 循環グラフサポート | 信号マージプロトコル | 終了ロジックの複雑度増加と引き換えにトポロジー柔軟性を獲得 |
-| Graph 内 execution_mode | serial/thread のみ | シンプルで信頼性の高いスレッドモデルを維持 |
-| ログアーキテクチャ | Queue + Spout スレッド | 1 つのデーモンスレッド増加と引き換えにスレッドセーフ書き込みを獲得 |
+| ノード `execution_mode` | serial/thread/async | シンプルで信頼性の高いスレッドモデルを維持 |
+| ログアーキテクチャ | Queue + Spout スレッド | 1つのデーモンスレッド増加と引き換えにスレッドセーフ書き込みを獲得 |
 | 重複排除戦略 | SHA1(pickle) | pickle 不安定性リスクと引き換えに汎用オブジェクトハッシュ能力を獲得 |
-| Redis 結果取得 | ポーリング HGET (0.1s) | シンプルで信頼性が高いが、リアルタイムプッシュではない |
-| Web 変更検出 | JSON.stringify 比較 | O(n) 文字列比較コストと引き換えに実装の簡潔さを獲得 |
+| 外部結果取得 | ポーリング HGET (0.1s) | Demo 層の実装はシンプルかつ信頼性が高いが、リアルタイムプッシュではない |
+| 状態レポート | Reporter pull/push プロトコル | リモートインターフェース約定増加と引き換えに監視と制御の疎結合を獲得 |
 | CelestialTree 統合 | オプション依存 + NullClient | 追跡なし時はゼロオーバーヘッドだが、追加設定が必要 |
 
 備考：
@@ -645,13 +627,12 @@ graph LR
 
 ### モジュール疎結合の思想
 
-- **Stage すなわちプラグイン**
-  - 1 つの `func` を実装 → `TaskStage` にラップ → 任意のグラフに接続
-  - 内蔵 Splitter / Router / Redis シリーズはすべて Stage の特化
+- **Node すなわちプラグイン**
+  - 1つの `func` を実装 → `TaskExecutor` にラップ → 任意のグラフに接続
+  - 内蔵 Splitter / Router は Executor の特化；Redis 連携は demo で接続方法を示す
 
 - **キューバックエンド交換可能**
-  - `make_queue_backend(mode)` ファクトリメソッドで統一インターフェース
-  - ThreadQueue / AsyncQueue を必要に応じて切替
+  - フレームワーク内部で `execution_mode` に応じて `ThreadQueue` / `AsyncQueue` を選択
 
 - **指標バックエンド拡張可能**
   - `ValueWrapper` が実行モードに応じて適応
@@ -660,9 +641,9 @@ graph LR
 - **永続化カスタマイズ可能**
   - Spout-Inlet パターン、`_handle_record()` を実装するだけで出力先をカスタマイズ可能
 
-- **Web フロントエンド設定化**
-  - `config.json` がレイアウト、テーマ、リフレッシュ間隔を制御
-  - Dashboard カードはドラッグ再配置可能
+- **状態レポートチェーン交換可能**
+  - `TaskReporter` の pull / push プロトコルのみを規定
+  - 外部サービスは主リポジトリと強く結合せず独立に進化可能
 
 ---
 
@@ -672,7 +653,7 @@ graph LR
 
 - **スケジューリング強化**
   - 優先度ベースのタスクスケジューリング
-  - 動的リソース感知（CPU/メモリ）による worker_limit の自動調整
+  - 動的リソース感知（CPU/メモリ）による `max_workers` の自動調整
 
 - **分散強化**
   - Kafka / RabbitMQ をオプションの転送バックエンドとして
@@ -684,9 +665,9 @@ graph LR
   - アラートルール設定
 
 - **開発者体験**
-  - デコレータ構文で Stage を定義（`@stage(mode="thread")`）
-  - グラフ可視化エディタ（Web IDE）
-  - より豊富な内蔵 Stage テンプレート
+  - デコレータ構文でノードを定義
+  - より成熟した外部監視・制御ツールチェーン
+  - より豊富な内蔵ノードテンプレート
 
 - **エコシステム**
   - CelestialTree 深層統合（因果推論、影響分析）
@@ -699,11 +680,11 @@ graph LR
 ### CelestialFlow — コアバリュー
 
 - **軽量埋め込み**：`pip install` 即利用、外部サービス依存なし、任意の Python プロジェクトに埋め込み可能
-- **トポロジー柔軟**：DAG + 循環グラフ、6 種のプリセット構造、任意トポロジーをカスタマイズ可能
-- **実行モデル豊富**：3 層次元の組み合わせ（グラフ級 × Stage 級 × Task 級）、あらゆる並行シナリオに適応
-- **分散準備完了**：Redis 3 段階転送、コード変更不要で水平拡張
-- **全リンク追跡**：CelestialTree イベントソーシング + JSONL エラー永続化
-- **可視化内蔵**：Mermaid グラフ構造 + Chart.js 進捗曲線 + リアルタイム状態パネル
+- **トポロジー柔軟**：DAG + 循環グラフ、6種のプリセット構造、任意トポロジーをカスタマイズ可能
+- **実行モデル豊富**：2層次元の組み合わせ（グラフ級 × ノード級）、あらゆる並行シナリオに適応
+- **外部連携フレンドリー**：必要に応じて Redis / Go Worker などの外部システムに接続し水平拡張可能
+- **全リンク追跡**：CelestialTree イベントソース + JSONL エラー永続化
+- **可観測性内蔵**：状態スナップショット、ログ、エラー永続化とオプション状態レポート
 
 ### 一言
 
@@ -718,8 +699,7 @@ graph LR
 **CelestialFlow** — グラフ駆動 · 軽量 · 高性能 · 可観測
 
 - バージョン：3.1.4
-- Python：3.10+
+- Python：3.12+
 - 依存：`pip install celestialflow`
-- Web：`celestialflow-web`
 
 ---

@@ -1,6 +1,6 @@
 # demo_structure.py デモ説明
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
 ## 目標
 
@@ -239,10 +239,10 @@ flowchart TD
 
 ## 主要設定
 
-- DAG 構造：デフォルト `graph_mode="thread"`（`demo_chain` の `TaskChain` は `graph_mode` を明示的に渡さない）。`demo_chain` の各 Stage は `execution_mode="serial"` を使用し、それ以外は多くが `execution_mode="thread"`
+- DAG 構造：デフォルト `graph_mode="thread"`（`demo_chain` の `TaskChain` は `graph_mode` を明示的に渡さない）。`demo_chain` の各ノードは `execution_mode="serial"` を使用し、それ以外は多くが `execution_mode="thread"`
 - `demo_grid`：ソースコードでは staged スケジュールモードを明示的に設定しておらず、`TaskGrid` のデフォルト動作に依存する
 - 循環グラフ：`demo_loop` / `demo_wheel` / `demo_complete` / `demo_multi_cycle` はいずれも明示的に `if_put_signal=False` を渡す（つまり自動終了シグナルを注入しない）。循環グラフを実行するときは手動終了の準備を推奨
-- 各デモは `<graph>.set_reporter(TaskReporter(report_host, report_port, <graph>))` を通じて Reporter に接続し、`<graph>.set_ctree(ctree_client)` を通じて CelestialTree に接続する（`demo_chain` では `set_ctree` がコメントアウトされている）。実際に有効かどうかは `REPORT_HOST`/`REPORT_PORT`/`CTREE_HOST` などの環境変数とサービス側の準備状況に依存する
+- 各デモは `<graph>.set_reporter(TaskReporter(report_host, report_port, <graph>))` を通じて Reporter に接続する。実際に有効かどうかは `REPORT_HOST`/`REPORT_PORT` などの環境変数とサービス側の準備状況に依存する
 
 ## 発生しうる問題
 
@@ -321,7 +321,7 @@ Grid33: success=180  fail=0
 
 ## 依存関係
 
-- `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskStage`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskExecutor`、`TaskReporter`）
 - `demo_utils`
 - `python-dotenv`
-- 外部サービス：CelestialTree（オプション）、Reporter（オプション）
+- 外部サービス：Reporter（オプション）

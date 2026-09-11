@@ -1,6 +1,6 @@
 # Inlet Basic Tests (test_inlet.py)
 
-> 📅 Last Updated: 2026/08/19
+> 📅 Last Updated: 2026/09/09
 
 ## Purpose
 Verifies the minimal responsibility of `celestialflow.funnel.core_inlet.BaseInlet`: accepting data from the caller via `_funnel()`, placing it into the target queue, and having it consumed by a running `BaseSpout` subclass.
@@ -9,6 +9,7 @@ Verifies the minimal responsibility of `celestialflow.funnel.core_inlet.BaseInle
 - `MockInlet.send()` forwards records via `_funnel()`.
 - `MockSpout` consumes both string and dictionary messages from the queue.
 - When the consumer is not started, records should still enter the queue first and be available for subsequent reads.
+- `bind_spout()` returns an inlet sharing state with the target spout, and the `inlet` itself remains of type `MockInlet`.
 
 ## Test Coverage Matrix
 

@@ -1,10 +1,10 @@
 # demo_graph.py デモ説明
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/09
 
 ## 目標
 
-CelestialFlow における `TaskGraph` の高度なグラフトポロジー構築をデモする：ファンアウト/ファンイン（fan-out/fan-in）ETL パイプライン、および非同期ステージ分割パイプライン。
+CelestialFlow における `TaskGraph` の高度なグラフトポロジー構築をデモする：ファンアウト/ファンイン（fan-out/fan-in）ETL パイプライン、および非同期ノード分割パイプライン。
 
 ## デモシナリオ
 
@@ -35,7 +35,7 @@ Extract ──┬── Normalize ──┬── Load
 **グラフモード**：`graph_mode="thread"`
 
 ### `demo_async_pipeline`
-2 ステージ非同期パイプライン：
+2 ノード非同期パイプライン：
 
 ```mermaid
 flowchart LR
@@ -51,12 +51,12 @@ AsyncDouble ──> AsyncToStr
 - `AsyncDouble` → 入力を非同期で倍にする（async モード、8 worker）
 - `AsyncToStr` → 結果を非同期で文字列に変換（async モード、8 worker）
 
-**グラフ構造**：DAG、線形 2 ステージ
+**グラフ構造**：DAG、線形 2 ノード
 **グラフモード**：`graph_mode="async"`
 
 ## 主要設定
 
-- 各 Stage は `TaskStage(..., execution_mode="thread" | "async")` で実行モードを明示的に指定
+- 各ノードは `TaskExecutor(..., execution_mode="thread" | "async")` で実行モードを明示的に指定
 - ETL パイプラインと非同期パイプラインはそれぞれ `TaskGraph(..., graph_mode="thread")` と `graph_mode="async"` でグラフモードを指定
 - `execution_mode="async"` はコルーチンタスク関数（`async_double`、`async_to_str`）に使用
 
@@ -77,7 +77,7 @@ python demo/demo_graph.py
 
 ### ETL パイプライン（`demo_etl_fan_out_fan_in`）
 
-Extract → Normalize/Enrich → Load の順に実行され、各 Stage は内部で `print` または sleep 休止により実行ログを出力する。スクリプト自身は最終的な Graph Summary や各 Stage のカウントを能動的には出力しないため、手動で確認が必要（mock 出力は参考のみ）。
+Extract → Normalize/Enrich → Load の順に実行され、各ノードは内部で `print` または sleep 休止により実行ログを出力する。スクリプト自身は最終的な Graph Summary や各ノードのカウントを能動的には出力しないため、手動で確認が必要（mock 出力は参考のみ）。
 
 ```
 [Extract] Input: 1 -> Output: {'id': 1, 'value': 10, 'label': 'item_1'}
@@ -91,7 +91,7 @@ Extract → Normalize/Enrich → Load の順に実行され、各 Stage は内�
 
 ### 非同期パイプライン（`demo_async_pipeline`）
 
-2 ステージが順次実行される。まず `AsyncDouble` が 20 タスクすべてを完了し、その後 `AsyncToStr` が個別に受信してフォーマット出力する。
+2 ノードが順次実行される。まず `AsyncDouble` が 20 タスクすべてを完了し、その後 `AsyncToStr` が個別に受信してフォーマット出力する。
 
 ```
 [AsyncDouble] Input: 1 -> Output: 2
@@ -106,7 +106,7 @@ Extract → Normalize/Enrich → Load の順に実行され、各 Stage は内�
 
 ## 依存関係
 
-- `celestialflow`（`TaskGraph`、`TaskStage`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskReporter`）
 - `demo_utils`（`extract_record`、`transform_normalize`、`transform_enrich`、`load_record`、`async_double`、`async_to_str`）
 - `python-dotenv`
-- 外部サービス：CelestialTree（オプション）、Reporter（オプション）
+- 外部サービス：Reporter（オプション）

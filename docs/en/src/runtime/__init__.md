@@ -1,12 +1,12 @@
 # Runtime Module
 
-> 📅 Last Updated: 2026/08/12
+> 📅 Last Updated: 2026/09/09
 
 The Runtime module provides the core infrastructure for CelestialFlow task execution, including task envelopes (`Envelope`), queues (`Queue`), and metrics (`Metrics`).
 
 ## Module Overview
 
-The Runtime module is responsible for managing data packaging, queue communication, and metrics tracking during task execution. It is not responsible for task scheduling itself (scheduling is handled by the Stage module), but rather provides fundamental runtime components for upper layers.
+The Runtime module is responsible for managing data packaging, queue communication, and metrics tracking during task execution. It is not responsible for task scheduling itself (scheduling is handled by the Graph module), but rather provides fundamental runtime components for upper layers.
 
 ### Publicly Exported Symbols (`__all__`)
 
@@ -82,8 +82,8 @@ from celestialflow.runtime import (
 - All errors are uniformly handled via `CelestialFlowError` and its subclasses
 
 ### External Relationships
-- **With Stage Module**: Stage uses `TaskInQueue`/`TaskOutQueue` as inter-node communication pipes
-- **With Graph Module**: Provides queue and metrics infrastructure for `TaskGraph`
+- **With Graph Module**: `TaskGraph` manages `TaskExecutor` / `TaskSplitter` / `TaskRouter` and other nodes, using `TaskInQueue`/`TaskOutQueue` as inter-node communication pipes
+- **With Node Module**: Node objects (`BaseTaskNode` and its subclasses) hold `TaskMetrics` and use `TaskInQueue`/`TaskOutQueue` for data transfer
 
 ## Usage Examples
 

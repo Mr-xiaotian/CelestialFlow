@@ -1,6 +1,6 @@
 # Tutorial: Building an Image Crawler
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/09/09
 
 This tutorial will guide you through a complete hands-on project — **Baidu Image Crawler** — to learn CelestialFlow from scratch.
 
@@ -10,7 +10,7 @@ Crawl Baidu image search results and download images for specified keywords to y
 1. Analyze and decompose the task flow
 2. Write processing functions for each stage
 3. Assemble and run the task graph
-4. Monitor execution status via the Web UI
+4. Monitor execution status via logs, progress bar and status snapshots
 
 ---
 
@@ -201,15 +201,15 @@ if __name__ == "__main__":
 
 ## Step 3: Assemble the Task Graph
 
-After verifying the processing functions, assign them to their respective `TaskStage` nodes and organize them with `TaskGraph`.
+After verifying the processing functions, assign them to their respective `TaskExecutor` nodes and organize them with `TaskGraph`.
 
 ### 3.1 Create Nodes
 
 ```python
-from celestialflow import TaskStage, TaskSplitter
+from celestialflow import TaskExecutor, TaskSplitter
 
 # Search stage: input keyword, output HTML
-stage_search = TaskStage(
+stage_search = TaskExecutor(
     "Search Page",
     func=search_images,
     execution_mode="serial",  # Only one keyword, serial is sufficient
@@ -231,7 +231,7 @@ class URLSplitter(TaskSplitter):
 stage_parse = URLSplitter("Parse Images")
 
 # Download stage: input URL, output image data
-stage_download = TaskStage(
+stage_download = TaskExecutor(
     "Download Images",
     func=download_image,
     execution_mode="thread",  # Network I/O intensive, use thread pool
@@ -240,7 +240,7 @@ stage_download = TaskStage(
 )
 
 # Store stage: input image data, output file path
-stage_save = TaskStage(
+stage_save = TaskExecutor(
     "Store Files",
     func=lambda data: save_image(data, "cat") if data else None,
     execution_mode="serial",
@@ -254,10 +254,10 @@ stage_save = TaskStage(
 from celestialflow import TaskGraph
 
 # Create task graph
-graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
+graph = TaskGraph(name="ImageCrawler", graph_mode="eager", log_level="SUCCESS")
 
 # Set nodes
-graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
+graph.set_nodes(stages=[stage_search, stage_parse, stage_download, stage_save])
 
 # Set connection relationships between nodes
 graph.connect([stage_search], [stage_parse])
@@ -265,19 +265,14 @@ graph.connect([stage_parse], [stage_download])
 graph.connect([stage_download], [stage_save])
 ```
 
-### 3.3 Start Web Monitoring (Optional)
+### 3.3 Enable Status Reporting (Optional)
 
 ```python
-# Enable Web monitoring
-graph.set_reporter(True, host="127.0.0.1", port=5005)
+# Report running status to the celestialflow-web service
+graph.set_reporter(TaskReporter(report_host, report_port, graph))
 ```
 
-Start the Web service:
-```bash
-celestialflow-web --port 5005
-```
-
-Visit http://localhost:5005 to view real-time status.
+The main repo no longer includes a built-in Web service. If you have an independently deployed `celestialflow-web` project or a custom HTTP service, you can enable reporting here; otherwise you can skip this section.
 
 ### 3.4 Run the Task Graph
 
@@ -287,15 +282,7 @@ init_tasks = {stage_search.get_name(): ["cat", "dog", "scenery"]}
 
 # Start
 print("Starting image crawl...")
-graph.start_graph(init_tasks)
-
-# Get statistics
-snapshot = graph.get_status_snapshot()
-status = snapshot["status"]
-total_succeeded = sum(s.get("total_succeeded", 0) for s in status.values())
-total_failed = sum(s.get("total_failed", 0) for s in status.values())
-print(f"Success: {total_succeeded}")
-print(f"Failed: {total_failed}")
+graph.run(init_tasks)
 ```
 
 ---
@@ -313,9 +300,10 @@ import requests
 from urllib.parse import quote
 
 from celestialflow import (
-    TaskStage,
+    TaskExecutor,
     TaskSplitter,
     TaskGraph,
+    TaskReporter,
 )
 
 # ========== Processing Functions ==========
@@ -386,7 +374,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     """Build crawler task graph."""
 
     # Create nodes
-    stage_search = TaskStage(
+    stage_search = TaskExecutor(
         "Search Page",
         func=search_images,
         execution_mode="serial",
@@ -395,7 +383,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
 
     stage_parse = URLSplitter("Parse Images")
 
-    stage_download = TaskStage(
+    stage_download = TaskExecutor(
         "Download Images",
         func=download_image,
         execution_mode="thread",
@@ -404,7 +392,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     )
 
     # Use closure to pass keyword
-    stage_save = TaskStage(
+    stage_save = TaskExecutor(
         "Store Files",
         func=lambda data: save_image(data, keyword),
         execution_mode="serial",
@@ -412,8 +400,8 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
     )
 
     # Set connections
-    graph = TaskGraph(schedule_mode="eager", log_level="SUCCESS")
-    graph.set_stages(stages=[stage_search, stage_parse, stage_download, stage_save])
+    graph = TaskGraph(name="ImageCrawler", graph_mode="eager", log_level="SUCCESS")
+    graph.set_nodes(stages=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
     graph.connect([stage_download], [stage_save])
@@ -429,50 +417,38 @@ if __name__ == "__main__":
 
     # Build graph
     graph = build_crawler_graph(KEYWORDS[0])
-    graph.set_reporter(True, host="127.0.0.1", port=5005)
 
     # Run
     print("Starting image crawl...")
-    graph.start_graph({graph.source_stages[0].get_name(): KEYWORDS})
+    graph.run({"Search Page": KEYWORDS})
 
     # Statistics
-    snapshot = graph.get_status_snapshot()
-    status = snapshot["status"]
-    total_succeeded = sum(s.get("total_succeeded", 0) for s in status.values())
-    total_failed = sum(s.get("total_failed", 0) for s in status.values())
     print(f"\nCrawl complete!")
-    print(f"Success: {total_succeeded}")
-    print(f"Failed: {total_failed}")
+    print(f"Success: {stage_search.get_counts()['tasks_succeeded']}")
+    print(f"Failed: {stage_search.get_counts()['tasks_failed']}")
 ```
 
 ---
 
 ## Step 5: Run and Debug
 
-### 5.1 Start Web Service
+### 5.1 Run the Crawler
 
 ```bash
-# Terminal 1: Start Web service
-celestialflow-web --port 5005
-```
-
-### 5.2 Run the Crawler
-
-```bash
-# Terminal 2: Run the crawler
+# Run the crawler
 python crawler.py
 ```
 
-### 5.3 View Web UI
+### 5.2 View Running Status
 
-Open http://localhost:5005, you can see:
+During execution, you can monitor through logs, progress bar, or node `snapshot()` snapshots:
 
-1. **Dashboard**: Real-time display of processing progress for each node
-2. **Structure**: Visualized structure of the task graph
-3. **Errors**: Failed image URLs and error information
-4. **Task Injection**: Dynamically inject new keywords
+1. **Node Processing Progress**: Success, failure, and pending statistics for each stage (obtained via `get_counts()` or `snapshot()`)
+2. **Graph Structure Information**: View via `graph.get_structure_list()` or `graph.get_structure_graph()`
+3. **Error Information**: Failed image URLs and exception logs
+4. **Task Injection**: Continue injecting new keywords via `node.put_task()`, or inject a termination signal via `node.put_signal()`
 
-### 5.4 View Results
+### 5.3 View Results
 
 ```bash
 # View downloaded images
@@ -485,17 +461,18 @@ ls images/scenery/
 
 ## Extension: Dynamic Task Injection
 
-You can dynamically inject new keywords via the Web UI:
+You can also dynamically inject new keywords via code:
 
 ```python
 # Or inject via code
 from celestialflow import TerminationSignal
 
 # Inject new keywords
-graph.put_stage_queue({stage_search.get_name(): ["car", "food"]})
+for keyword in ["car", "food"]:
+    stage_search.put_task(keyword)
 
 # Inject termination signal (stop crawling)
-graph.put_stage_queue({stage_search.get_name(): [TerminationSignal()]})
+stage_search.put_signal()
 ```
 
 ---
@@ -506,22 +483,22 @@ This tutorial demonstrated the complete workflow of using CelestialFlow:
 
 1. **Task Analysis**: Decompose complex tasks into independent layers
 2. **Function Writing**: Write processing functions for each layer and test individually
-3. **Node Creation**: Wrap functions as `TaskStage`
+3. **Node Creation**: Wrap functions as `TaskExecutor`
 4. **Graph Assembly**: Organize node relationships with `TaskGraph`
-5. **Monitor & Run**: Monitor execution status in real time via the Web UI
+5. **Monitor & Run**: Monitor execution status via logs, progress bar, and status snapshots
 
 ### Key Concept Review
 
 | Concept | Description |
 |------|------|
-| `TaskStage` | Task node, wrapping a processing function |
+| `TaskExecutor` | Task node, wrapping a processing function |
 | `TaskSplitter` | Splitter, splitting one task into multiple |
 | `TaskGraph` | Task graph, organizing node relationships and execution flow |
-| `stage_mode` | Node running mode (serial/thread) |
+| `graph_mode` | Graph running mode (serial/thread) |
 | `execution_mode` | Node internal execution mode (serial/thread/async) |
 
 ### Next Steps
 
 - Try using `TaskRouter` for conditional dispatching
-- Refer to `demo/demo_redis.py` to learn how to integrate Redis / Go Worker collaboration using ordinary `TaskStage`
-- Read other [API References](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/src/stage/core_executor.md) to learn more features
+- Refer to `demo/demo_redis.py` to learn how to integrate Redis / Go Worker collaboration using ordinary `TaskExecutor`
+- Read other [API References](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/node/core_node.md) to learn more features

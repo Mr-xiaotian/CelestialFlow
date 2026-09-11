@@ -1,18 +1,18 @@
 # GraphRender
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 `graph/util_render.py` provides a utility for rendering graph structures as framed, tree-shaped text lists. It is called directly by `TaskGraph.get_structure_list()` to visualize the task graph topology in logs / CLI output.
 
 ## Main Capabilities
 
-- `render_structure_list(nodes, edges, source_nodes)`: generate a framed, tree-shaped text list from node metadata, the adjacency map, and the source node list.
+- `render_structure_list(nodes, edges, source_nodes)`: generate a framed, tree-shaped text list from a node name list, the adjacency map, and the source node list.
 
 ## render_structure_list
 
 ```python
 def render_structure_list(
-    nodes: dict[str, dict[str, Any]],
+    nodes: list[str],
     edges: dict[str, list[str]],
     source_nodes: list[str],
 ) -> list[str]: ...
@@ -31,9 +31,9 @@ def render_structure_list(
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `nodes` | `dict[str, dict[str, Any]]` | Node metadata dictionary; each node must include `func_name` / `execution_mode` / `max_workers` fields |
-| `edges` | `dict[str, list[str]]` | Outgoing adjacency map `{stage_name: [next_stage_name, ...]}` |
-| `source_nodes` | `list[str]` | List of source node names; when empty, it is auto-inferred from `edges` or taken from the first key of `nodes` |
+| `nodes` | `list[str]` | Node name list, passed in registration order |
+| `edges` | `dict[str, list[str]]` | Outgoing adjacency map `{node_name: [next_node_name, ...]}` |
+| `source_nodes` | `list[str]` | List of source node names; when empty, it is auto-inferred from `edges` or taken from the first element of `nodes` |
 
 ### Return Value
 
@@ -48,12 +48,8 @@ The following examples show direct calls to `render_structure_list`, as well as 
 ```python
 from celestialflow.graph.util_render import render_structure_list
 
-# Node metadata: usually from TaskGraph.get_stages_summary()
-nodes = {
-    "Fetch": {"func_name": "fetch_data", "execution_mode": "serial", "max_workers": 1},
-    "Parse": {"func_name": "parse_data", "execution_mode": "thread", "max_workers": 4},
-    "Save":  {"func_name": "save_data",  "execution_mode": "async",  "max_workers": 8},
-}
+# Node name list
+nodes = ["Fetch", "Parse", "Save"]
 
 # Outgoing adjacency map
 edges = {
@@ -69,11 +65,11 @@ for line in lines:
     print(line)
 
 # Example output:
-# +---------------------------------------------------------------------------+
-# | Fetch::fetch_data (E:serial, W:1)                                          |
-# | ╘-->Parse::parse_data (E:thread, W:4)                                      |
-# |     ╘-->Save::save_data (E:async, W:8)                                     |
-# +---------------------------------------------------------------------------+
+# +--------------------------+
+# | Fetch                    |
+# | ╘-->Parse                |
+# |     ╘-->Save             |
+# +--------------------------+
 ```
 
 ### Handling Empty Graph
@@ -81,23 +77,23 @@ for line in lines:
 ```python
 from celestialflow.graph.util_render import render_structure_list
 
-print(render_structure_list({}, {}, []))
+print(render_structure_list([], {}, []))
 # ['+ No stages defined +']
 ```
 
 ### Via TaskGraph Built-in Method
 
-`TaskGraph.get_structure_list()` automatically collects `get_stages_summary()`, `order_graph.out_edges`, and `source_names`, then calls `render_structure_list`:
+`TaskGraph.get_structure_list()` automatically collects `get_nodes()`, `order_graph.out_edges`, and `get_source_nodes()`, then calls `render_structure_list`:
 
 ```python
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 
-s1 = TaskStage("Step1", func=lambda x: x.upper())
-s2 = TaskStage("Step2", func=lambda x: len(x))
-s3 = TaskStage("Step3", func=lambda x: x * 10)
+s1 = TaskExecutor("Step1", func=lambda x: x.upper())
+s2 = TaskExecutor("Step2", func=lambda x: len(x))
+s3 = TaskExecutor("Step3", func=lambda x: x * 10)
 
 graph = TaskGraph(name="RenderDemo", graph_mode="thread")
-graph.set_stages([s1, s2, s3])
+graph.set_nodes([s1, s2, s3])
 graph.connect([s1], [s2])
 graph.connect([s2], [s3])
 
@@ -119,4 +115,4 @@ for line in tree_lines:
 ## Relationship with Other Modules
 
 - `TaskGraph.get_structure_list()` is the main caller of this function, used to visualize the topology in logs and monitoring panels.
-- The field names in the `nodes` input (`func_name` / `execution_mode` / `max_workers`) are kept consistent with the output fields of `TaskStage.get_summary()`.
+- This function only depends on the node name list and the adjacency map; it does not directly read attributes from node objects. Any graph structure providing an equivalent adjacency map can serve as input.

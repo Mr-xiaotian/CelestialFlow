@@ -1,6 +1,6 @@
 # Log Persistence Tests (test_log.py)
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 ## Purpose
 Validates `LogInlet` and `LogSpout` from `celestialflow.persistence.core_log`, ensuring that graph lifecycle events (start/end), task retry events, and node startup events can be asynchronously batch-flushed to a log file with the correct log level markers preserved.
@@ -10,7 +10,7 @@ Validates `LogInlet` and `LogSpout` from `celestialflow.persistence.core_log`, e
 | Class | Description |
 |----|------|
 | `LogInlet` | Initialized with `log_level='INFO'`, provides `start_graph()` / `task_retry()` / `end_graph()` / `start_executor()` write methods |
-| `LogSpout` | Background thread that batch-flushes records from the queue to a log file |
+| `LogSpout` | Background thread that batch-flushes records from the queue to a log file, with the path being `logs/flow_log(<date>).log` |
 
 ## Test Coverage Matrix
 
@@ -22,12 +22,12 @@ Validates `LogInlet` and `LogSpout` from `celestialflow.persistence.core_log`, e
 
 ### `test_log_persistence`
 
-- `start_graph("test_graph", ['test message'])` writes a graph startup message
-- `task_retry('func', 'hello world', 1, ValueError('oops'), 0)` writes a WARNING-level log with exception information
-- `end_graph("test_graph", 1.0)` writes a graph end event
-- `start_executor('stage', 1, 'parallel-4')` writes a node startup record
-- Uses `wait_until` to poll until the log file exists and contains key content such as 'test message' and 'hello world'
-- Ultimately asserts that the log file contains both `INFO` and `WARNING` level markers
+- `start_graph("test_graph", "thread", ['test message'])` writes a graph startup message (parameter order: graph name / graph mode / structure list).
+- `task_retry('func', 'hello world', 1, ValueError('oops'), 0)` writes a WARNING-level log with exception information.
+- `end_graph("test_graph", 1.0)` writes a graph end event and elapsed time.
+- `start_executor('stage', 1, 'parallel-4')` writes a node startup record (node name / task count / mode).
+- Uses `wait_until` to poll until the log file exists and contains key content such as 'test message' and 'hello world'.
+- Ultimately asserts that the log file contains both `INFO` and `WARNING` level markers.
 
 ## How to Run
 
@@ -38,6 +38,7 @@ pytest tests/persistence/test_log.py -k "log_persistence" -v
 
 ## Notes
 
-- Tests use `monkeypatch.chdir(tmp_path)` to switch the working directory, ensuring log files are written to a temporary path
-- The specific log file path is obtained via the `spout.log_path` property
-- The related implementation is in `src/celestialflow/persistence/core_log.py`
+- Tests use `monkeypatch.chdir(tmp_path)` to switch the working directory, ensuring log files are written to the `logs/` directory under the temporary path.
+- The specific log file path is obtained via the `spout.log_path` property.
+- The related implementation is in `src/celestialflow/persistence/core_log.py`.
+

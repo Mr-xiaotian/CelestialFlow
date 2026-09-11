@@ -1,8 +1,8 @@
 # BaseObserver
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
-`BaseObserver` は実行者ライフサイクルオブザーバーの基底クラスであり、`TaskExecutor` が実行中にブロードキャストするイベントインターフェースを定義します。
+`BaseObserver` は実行器ライフサイクルオブザーバーの基底クラスであり、`BaseTaskNode`（およびそのサブクラス `TaskExecutor` / `TaskSplitter` / `TaskRouter`）が実行中にブロードキャストするイベントインターフェースを定義します。
 
 ## BaseObserver
 
@@ -24,12 +24,12 @@ class BaseObserver:
 
 | イベント | トリガー時期 | パラメータ |
 |------|----------|------|
-| `on_start` | 実行者が実行を開始 | `_name`: 実行者フルネーム, `_total`: 常に 0（実際のタスク数は `on_tasks_added` で通知） |
+| `on_start` | 実行器が実行を開始 | `_name`: 実行器フルネーム, `_total`: 常に 0（実際のタスク数は `on_tasks_added` で通知） |
 | `on_task_success` | 単一タスクが成功 | `count`: 成功数（デフォルト 1） |
 | `on_task_fail` | 単一タスクが失敗 | `count`: 失敗数（デフォルト 1） |
 | `on_task_duplicate` | 重複タスクを検出 | `count`: 重複数（デフォルト 1） |
 | `on_tasks_added` | 新規タスクがキューに追加 | `count`: 新規タスク数 |
-| `on_finish` | 実行者が実行を終了 | なし |
+| `on_finish` | 実行器が実行を終了 | なし |
 | `observer_error` | オブザーバーコールバックが例外を送出した時 | `method_name`: 例外が発生したコールバック名, `exception`: 捕捉された例外 |
 
 ### 自動例外ラッパーメカニズム
@@ -43,7 +43,7 @@ class BaseObserver:
 
 イベントは統一された `_notify()` で配信されるのではなく、フレームワークが特定の箇所で直接呼び出します：
 
-- `TaskMetrics.on_start(name, total)` → `on_start` をブロードキャスト（`TaskExecutor._prepare_start()` から呼び出され、`total` は常に `0` が渡される）
+- `TaskMetrics.on_start(name, total)` → `on_start` をブロードキャスト（`BaseTaskNode._prepare_start()` から呼び出され、`total` は常に `0` が渡される）
 - `TaskMetrics.add_task_count(count)` → `on_tasks_added` をブロードキャスト
 - `TaskMetrics.add_success_count(count)` / `add_fail_count(count)` / `add_duplicate_count(count)` → 対応するコールバックをブロードキャスト
 - `TaskMetrics.on_finish()` → `on_finish` をブロードキャスト

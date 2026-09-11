@@ -1,6 +1,6 @@
 # demo_network.py Demo Guide
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 ## Objective
 
@@ -48,7 +48,7 @@ flowchart LR
 
 #### Core Function
 
-**`linear(w, b)`**: A closure factory function that returns `_forward(x) -> w * x + b`. It satisfies `TaskStage`'s constraint that `func` accepts only one positional argument; by using a closure to fix the weight and bias, no separate function needs to be defined for every weight combination.
+**`linear(w, b)`**: A closure factory function that returns `_forward(x) -> w * x + b`. It satisfies `TaskExecutor`'s constraint that `func` accepts only one positional argument; by using a closure to fix the weight and bias, no separate function needs to be defined for every weight combination.
 
 ```python
 def linear(w: float, b: float):
@@ -122,4 +122,4 @@ After running, the script prints node configuration information and the input �
 
 ## Dependencies
 
-- `celestialflow` (`TaskCross`, `TaskStage`)
+- `celestialflow` (`TaskCross`, `TaskExecutor`)

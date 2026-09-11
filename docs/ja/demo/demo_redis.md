@@ -1,17 +1,17 @@
 # demo_redis.py デモ説明
 
-> 📅 最終更新日: 2026/07/16
+> 📅 最終更新日: 2026/09/09
 
 ## 目標
 
-組み込みの Redis 特殊ノードに依存せず、通常の `TaskStage` とカスタム callable のみを使用して、Redis タスク投入、結果確認、外部タスク注入を実現する方法を示す。
+組み込みの Redis 特殊ノードに依存せず、通常の `TaskExecutor` とカスタム callable のみを使用して、Redis タスク投入、結果確認、外部タスク注入を実現する方法を示す。
 
 ## 設計ポイント
 
 - `redis_push(task)`：タスクをシリアライズして Redis List に書き込み、`(key, task_id)` を返す
 - `redis_wait(task)`：Redis Hash をポーリングし、リモート Worker が結果を書き戻すのを待つ
 - `redis_pop(key)`：`BLPOP` を使って Redis List からブロッキング取得する
-- 上記 3 つの機能はいずれも通常の Python メソッドであり、`TaskStage(..., func=helper)` を通じてグラフに接続される
+- 上記 3 つの機能はいずれも通常の Python メソッドであり、`TaskExecutor(..., func=helper)` を通じてグラフに接続される
 
 ## Redis インタラクション設計
 
@@ -220,9 +220,9 @@ def redis_wait(task: tuple[str, int]) -> Any:
 ```mermaid
 flowchart TB
     Start["Start<br/>sleep_1_*"] --> Local["本地计算 Stage<br/>Fibonacci / Sum / Download"]
-    Start --> Transport["TaskStage(RedisTransport)<br/>redis_push"]
+    Start --> Transport["TaskExecutor(RedisTransport)<br/>redis_push"]
     Transport -.-> RedisIn[(Redis input list)]
-    RedisOut[(Redis output hash)] -.-> Ack["TaskStage(RedisAck)<br/>redis_wait"]
+    RedisOut[(Redis output hash)] -.-> Ack["TaskExecutor(RedisAck)<br/>redis_wait"]
 ```
 
 | シナリオ | ローカルノード | リモート入力 key | リモート結果 key |
@@ -231,7 +231,7 @@ flowchart TB
 | `demo_redis_ack_1` | `Sum` | `testSum:input` | `testSum:output` |
 | `demo_redis_ack_2` | `Download` | `testDownload:input` | `testDownload:output` |
 
-3 つのシナリオの違いはローカル直算 stage である：
+3 つのシナリオの違いはローカル直算ノードである：
 
 - `demo_redis_ack_0`：CPU 集約型フィボナッチ
 - `demo_redis_ack_1`：軽量な合計計算
@@ -240,20 +240,20 @@ flowchart TB
 これらは共通のパターンを使用する：
 
 - `Start` ノードが `(key, payload)` タプルを生成する
-- 一方の経路は直接ローカル計算 stage に入る
+- 一方の経路は直接ローカル計算ノードに入る
 - もう一方の経路は `RedisTransport` に入り、`redis_push` によって Redis に書き込まれる
 - `RedisTransport` の出力 `(key, task_id)` は `RedisAck` に入る
 - `RedisAck` は `redis_wait` を通じて、リモート Worker が結果を書き戻すのを待つ
 
 ### `demo_redis_source_0`
 
-Redis をグラフ外の入力ソースとして使用する方法を示す。まず 1 つの stage が書き込み、別の stage が `BLPOP` で取得して下流処理を続行する。
+Redis をグラフ外の入力ソースとして使用する方法を示す。まず 1 つのノードが書き込み、別のノードが `BLPOP` で取得して下流処理を続行する。
 
 ```mermaid
 flowchart LR
-    Sleep0["Sleep0<br/>sleep_1_report"] --> Transport["TaskStage(RedisTransport)<br/>redis_push"]
+    Sleep0["Sleep0<br/>sleep_1_report"] --> Transport["TaskExecutor(RedisTransport)<br/>redis_push"]
     Transport -.-> Redis[(Redis list)]
-    Redis -.-> Source["TaskStage(RedisSource)<br/>redis_pop"]
+    Redis -.-> Source["TaskExecutor(RedisSource)<br/>redis_pop"]
     Source --> Sleep1["Sleep1<br/>sleep_1"]
 ```
 
@@ -317,11 +317,11 @@ python demo/demo_redis.py
 2. **タイムアウト処理**：`redis_pop` と `redis_wait` はいずれもモジュールレベルの `redis_timeout`（デフォルト 5 秒）を使用する。
 3. **エラー伝播**：リモート Worker が返すエラーは `RemoteWorkerError` を通じて直接上位に送出される。
 4. **プロトコル置換可能**：独自の Worker プロトコルに合わせて JSON 構造を自由に変更できる。その際は 3 つの helper も同期して修正すること。
-5. **フレームワークの位置づけ**：ここで示しているのは「通常の `TaskStage` を使って Redis 統合を実現する方法」であり、フレームワークに Redis ノードを組み込むことを要求するものではない。
+5. **フレームワークの位置づけ**：ここで示しているのは「通常の `TaskExecutor` を使って Redis 統合を実現する方法」であり、フレームワークに Redis ノードを組み込むことを要求するものではない。
 
 ## 依存
 
-- `celestialflow`（`TaskGraph`、`TaskStage`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`）
 - `celestialflow.runtime.util_errors`（`CelestialFlowTimeoutError`、`RemoteWorkerError`）
 - `demo_utils`
 - `python-dotenv`

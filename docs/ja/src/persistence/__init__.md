@@ -1,6 +1,6 @@
 # Persistence モジュール
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
 Persistence モジュールは CelestialFlow のデータ永続化機能を提供し、タスクライフサイクル（Lifecycle）記録と実行ログ（Log）を含みます。タスク実行の重要なデータを確実に保存・取得できるようにします。
 
@@ -26,7 +26,7 @@ Persistence モジュールは CelestialFlow のデータ永続化機能を提�
    - **役割**: タスクライフサイクルの永続化。タスクの pending / success / failed / duplicate 状態を統一的に記録
    - **コアコンポーネント**:
      - `LifecycleSpout`: `BaseSpout` を継承し、SQLite でタスクライフサイクルイベントを永続化
-     - `LifecycleInlet`: スレッドセーフなコレクター。`task_in`/`task_success`/`task_fail`/`task_duplicate` メソッドを提供
+     - `LifecycleInlet`: スレッドセーフなコレクター。`task_input`/`task_success`/`task_fail`/`task_duplicate` メソッドを提供
    - **ストレージ形式**: SQLite データベース（WAL モード）。`lifecycles/` ディレクトリ配下に配置
 
 ### ログ永続化
@@ -64,7 +64,7 @@ Persistence モジュールは CelestialFlow のデータ永続化機能を提�
 
 ### 外部連携
 - **Runtime モジュールとの連携**: ランタイムが生成するログとエラーを監視し、`LEVEL_DICT` を参照
-- **Stage モジュールとの連携**: タスク実行状態と結果を記録。`TaskExecutor` は `get_log_inlet()` / `get_lifecycle_inlet()` を通じて書き込み
+- **Node モジュールとの連携**: タスク実行状態と結果を記録。`BaseTaskNode`（`TaskExecutor` など）は `get_log_inlet()` / `get_lifecycle_inlet()` を通じて書き込み
 - **Observability モジュールとの連携**: 監視と分析のための生データを提供。`TaskReporter` は lifecycle データベースから失敗レコードを読み出し増分プッシュ
 - **Funnel モジュールとの連携**: `BaseSpout`/`BaseInlet` 基底クラスを継承
 
@@ -84,7 +84,7 @@ flowchart LR
     end
 
     LogInlet -->|_log -> _funnel| LogQueue[ログキュー<br/>queue.Queue]
-    LifecycleInlet -->|task_in / task_success / task_fail 等| LifecycleQueue[Lifecycle キュー<br/>queue.Queue]
+    LifecycleInlet -->|task_input / task_success / task_fail 等| LifecycleQueue[Lifecycle キュー<br/>queue.Queue]
 
     LogQueue -->|デーモンスレッドポーリング| LogSpout[LogSpout]
     LifecycleQueue -->|デーモンスレッドポーリング| LifecycleSpout[LifecycleSpout]
@@ -129,8 +129,8 @@ from celestialflow.persistence import get_log_inlet
 log_inlet = get_log_inlet()
 
 # 実行者起動停止を記録
-log_inlet.start_executor("StageA", 100, "thread")
-log_inlet.end_executor("StageA", "thread", 12.5, 98, 2, 0)
+log_inlet.start_executor("NodeA", 100, "thread")
+log_inlet.end_executor("NodeA", "thread", 12.5, 98, 2, 0)
 
 # タスクライフサイクルを記録
 log_inlet.task_success("func", "task1", "thread", "result", 0.05, 1, 2)
@@ -145,7 +145,7 @@ from celestialflow.persistence import get_lifecycle_inlet
 lifecycle_inlet = get_lifecycle_inlet()
 
 # タスクが入る
-lifecycle_inlet.task_in("StageA", event_id=1, task="hello")
+lifecycle_inlet.task_input("NodeA", event_id=1, task="hello")
 
 # タスク成功
 lifecycle_inlet.task_success(event_id=1, result="OK")
@@ -161,7 +161,7 @@ from celestialflow.persistence.util_sqlite import load_records, load_task_error_
 
 # 失敗レコードを読み取り
 errors = load_task_error_records(
-    "lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3", "StageA"
+    "lifecycles/2026-08-26/flow_lifecycle(10-00-00-123).sqlite3", "NodeA"
 )
 for task, (error_type, error_msg) in errors:
     print(f"{task}: {error_type} - {error_msg}")

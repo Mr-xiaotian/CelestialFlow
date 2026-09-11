@@ -1,10 +1,10 @@
 # demo_funnel.py デモ説明
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/09
 
 ## 目標
 
-`funnel` モジュールが `TaskGraph`、`TaskStage`、`TaskExecutor` から独立して使用できることを示す。この例では `BaseInlet` と `BaseSpout` を直接ベースにして、最小限の「イベント収集 -> バックグラウンド消費 -> JSONL 出力」パイプラインを構築する。
+`funnel` モジュールが `TaskGraph` と `TaskExecutor` から独立して使用できることを示す。この例では `BaseInlet` と `BaseSpout` を直接ベースにして、最小限の「イベント収集 -> バックグラウンド消費 -> JSONL 出力」パイプラインを構築する。
 
 ## デモ内容
 

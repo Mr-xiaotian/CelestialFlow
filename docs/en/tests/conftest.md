@@ -1,6 +1,6 @@
-﻿# Global Test Configuration (conftest.py)
+# tests/conftest.py
 
-> 📅 Last Updated: 2026/06/11
+> 📅 Last Updated: 2026/09/09
 
 ## Purpose
 Serves as the root-level configuration file for the entire `tests/` directory, responsible for initializing the test environment, loading environment variables, and providing common test helper functions.
@@ -21,4 +21,4 @@ Serves as the root-level configuration file for the entire `tests/` directory, r
 
 ## Notes
 - This file is automatically recognized by Pytest.
-- If global-level fixtures need to be added, they should be defined in this file.
+- This file does not define any `pytest.fixture`; it only provides the two test helper functions `wait_until` / `assert_stays_true` and `.env` loading logic. If you need to add a global-level fixture, it should be defined in this file.

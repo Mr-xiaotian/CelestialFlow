@@ -1,8 +1,10 @@
-# Benchmark
+# benchmark/util_benchmark.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 `benchmark/util_benchmark.py` provides performance benchmarking functionality for executors and task graphs, used to compare performance differences across execution modes.
+
+> ⚠️ This file defines internal benchmark utility functions, not public API; `benchmark_executor` and `benchmark_graph` become the supported public API only after being exported through `celestialflow/__init__.py`.
 
 ## Design Purpose
 
@@ -78,8 +80,8 @@ async def benchmark_graph(
 
 Test flow:
 1. Iterate over all combinations of `graph_modes` × `execution_modes`
-2. Clone the task graph (clone `async_graph` when `execution_mode="async"`, otherwise clone `sync_graph`)
-3. Call `set_graph_mode(graph_mode)` and `set_stage_execution_mode(execution_mode)`
+2. Clone the task graph (clone `async_graph` when `execution_mode="async"`, otherwise clone `sync_graph`). `clone_graph` internally asserts that all nodes are `TaskExecutor`; if specialized nodes such as `TaskSplitter` are present, it raises `ConfigurationError`
+3. Call `set_graph_mode(graph_mode)` and `set_node_execution_mode(execution_mode)`
 4. When `graph_mode="async"`, execute `await run_async()`; for other graph modes, execute `run()`, where combinations with `execution_mode="async"` are internally started via `asyncio.to_thread(...)` to avoid conflict with `benchmark_graph()`'s own event loop
 5. Record the elapsed time and output a time table via `format_table`
 
@@ -134,7 +136,7 @@ asyncio.run(
 
 ```python
 import asyncio
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 from celestialflow.benchmark.util_benchmark import benchmark_graph
 
 
@@ -155,29 +157,29 @@ async def async_process_b(x: int) -> int:
 
 
 # Create sync nodes
-stage_a = TaskStage("A", process_a)
-stage_b = TaskStage("B", process_b)
+node_a = TaskExecutor("A", process_a)
+node_b = TaskExecutor("B", process_b)
 
 # Create async nodes
-async_stage_a = TaskStage("A", async_process_a)
-async_stage_b = TaskStage("B", async_process_b)
+async_node_a = TaskExecutor("A", async_process_a)
+async_node_b = TaskExecutor("B", async_process_b)
 
 # Build sync graph
 sync_graph = TaskGraph(name="SyncGraph")
-sync_graph.set_stages(stages=[stage_a, stage_b])
-sync_graph.connect([stage_a], [stage_b])
+sync_graph.set_nodes(nodes=[node_a, node_b])
+sync_graph.connect([node_a], [node_b])
 
 # Build async graph
 async_graph = TaskGraph(name="AsyncGraph")
-async_graph.set_stages(stages=[async_stage_a, async_stage_b])
-async_graph.connect([async_stage_a], [async_stage_b])
+async_graph.set_nodes(nodes=[async_node_a, async_node_b])
+async_graph.connect([async_node_a], [async_node_b])
 
 # Run benchmark (benchmark_graph is an async function, requires await)
 asyncio.run(
     benchmark_graph(
         sync_graph=sync_graph,
         async_graph=async_graph,
-        init_tasks_dict={stage_a.get_name(): range(100)},
+        init_tasks_dict={node_a.get_name(): range(100)},
     )
 )
 ```
@@ -187,7 +189,7 @@ asyncio.run(
 ### Executor Test Dimensions
 
 | Dimension | Description |
-|------|------|
+|-----------|-------------|
 | `serial` | Single-threaded sequential execution |
 | `thread` | Thread pool concurrent execution |
 | `async` | Coroutine-based asynchronous execution |
@@ -238,3 +240,5 @@ Displays the execution time for each configuration.
 4. **Async requirement**: Both `benchmark_executor` and `benchmark_graph` are async functions, requiring `await` or `asyncio.run`
 5. **Template separation**: Both `benchmark_executor` and `benchmark_graph` require separate sync/async templates, since `execution_mode="async"` needs async functions
 6. **Matrix completeness**: The current implementation of `benchmark_graph` defaults to covering all 9 combinations of `serial/thread/async × serial/thread/async`
+7. **Node type limitation**: The internally used `clone_graph` only supports `TaskExecutor` nodes; if the graph contains specialized nodes such as `TaskSplitter` / `TaskRouter`, `ConfigurationError` is raised
+8. **Internal tool**: `util_benchmark.py` itself is an internal benchmark module; external code should access it via `from celestialflow import benchmark_executor / benchmark_graph`

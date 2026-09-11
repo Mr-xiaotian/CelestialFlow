@@ -1,6 +1,6 @@
 # CelestialFlow パッケージエントリ
 
-> 📅 最終更新日: 2026/08/19
+> 📅 最終更新日: 2026/09/09
 
 ## 概要
 
@@ -39,16 +39,17 @@
 
 ---
 
-### stage — タスク実行層
+### node — タスク実行層
 
 タスク実行器、ルーティング分散、タスク分割などの実行層機能を提供します。
 
 | エクスポートシンボル | 説明 |
 |----------|------|
-| `TaskExecutor` | 汎用タスク実行器。serial / thread / async の3つの実行モードをサポート |
-| `TaskStage` | グラフ内のタスクノード。実行関数と設定をラップ |
+| `TaskExecutor` | 汎用タスク実行器。serial / thread / async の3つの実行モードをサポート；図ノードとして `TaskGraph` に直接接続可能 |
 | `TaskSplitter` | タスクスプリッター。1つの入力を複数のサブタスクに分割 |
 | `TaskRouter` | ルーティング分散器。ルールに基づいてタスクを異なる下流に分散 |
+
+> 注：`BaseTaskNode`、`TaskDispatch` などの内部抽象クラスは公共 API としてエクスポートされません。外部コードは上表の `TaskExecutor` / `TaskSplitter` / `TaskRouter` のみに依存してください。
 
 ---
 
@@ -99,7 +100,7 @@ SQLite ベースのレコード読み込みとクエリ機能を提供します�
 
 ## `__all__` リスト
 
-完全な公開 API リスト（現在 22 シンボル）：
+完全な公開 API リスト（現在 21 シンボル）：
 
 ```python
 __all__ = [
@@ -116,7 +117,6 @@ __all__ = [
     "TaskReporter",
     "TaskRouter",
     "TaskSplitter",
-    "TaskStage",
     "TaskWheel",
     "TerminationSignal",
     "benchmark_executor",
@@ -133,7 +133,7 @@ __all__ = [
 以下の例は、パッケージエントリからインポートして CelestialFlow のコア機能でタスクグラフを構築・実行する方法を示します。
 
 ```python
-from celestialflow import TaskGraph, TaskStage, TaskExecutor
+from celestialflow import TaskGraph, TaskExecutor
 
 
 # 1. タスク処理関数を定義
@@ -145,17 +145,17 @@ def add_one(x: int) -> int:
     return x + 1
 
 
-# 2. TaskStage ノードを作成
-stage_a = TaskStage("StageA", func=double, execution_mode="serial")
-stage_b = TaskStage("StageB", func=add_one, execution_mode="serial")
+# 2. TaskExecutor ノードを作成
+node_a = TaskExecutor("NodeA", func=double, execution_mode="serial")
+node_b = TaskExecutor("NodeB", func=add_one, execution_mode="serial")
 
 # 3. DAG グラフを構築
 graph = TaskGraph(name="DemoGraph")
-graph.set_stages([stage_a, stage_b])
-graph.connect([stage_a], [stage_b])
+graph.set_nodes([node_a, node_b])
+graph.connect([node_a], [node_b])
 
 # 4. グラフを実行
-init_tasks = {stage_a.get_name(): [1, 2, 3, 4, 5]}
+init_tasks = {node_a.get_name(): [1, 2, 3, 4, 5]}
 graph.run(init_tasks)
 
 # 5. 実行結果サマリーを表示
@@ -187,16 +187,16 @@ print("Counts:", counts)
 ### 定義済みグラフ構造の使用
 
 ```python
-from celestialflow import TaskChain, TaskStage
+from celestialflow import TaskChain, TaskExecutor
 
-stages = [
-    TaskStage("S1", func=lambda x: x * 2),
-    TaskStage("S2", func=lambda x: x + 1),
-    TaskStage("S3", func=lambda x: x**2),
+nodes = [
+    TaskExecutor("N1", func=lambda x: x * 2),
+    TaskExecutor("N2", func=lambda x: x + 1),
+    TaskExecutor("N3", func=lambda x: x**2),
 ]
 
-chain = TaskChain(name="DemoChain", stages=stages)
-chain.run({stages[0].get_name(): [1, 2, 3]})
+chain = TaskChain(name="DemoChain", nodes=nodes)
+chain.run({nodes[0].get_name(): [1, 2, 3]})
 snapshot = chain.get_status_snapshot()
 print("Chain status:", snapshot["status"])
 ```
@@ -217,8 +217,8 @@ graph TD
         G["TaskGraph<br/>TaskChain<br/>TaskLoop<br/>TaskCross<br/>TaskComplete<br/>TaskWheel<br/>TaskGrid"]
     end
 
-    subgraph stage
-        S["TaskExecutor<br/>TaskStage<br/>TaskSplitter<br/>TaskRouter"]
+    subgraph node
+        S["TaskExecutor<br/>TaskSplitter<br/>TaskRouter"]
     end
 
     subgraph observability

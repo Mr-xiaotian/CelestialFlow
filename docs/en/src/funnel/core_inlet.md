@@ -1,6 +1,6 @@
 # BaseInlet
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 `BaseInlet` is the base class for all inlet classes, responsible for sending records to the corresponding `BaseSpout` through a queue.
 
@@ -82,7 +82,7 @@ classDiagram
         +termination_input()
     }
     class LifecycleInlet {
-        +task_in()
+        +task_input()
         +task_success()
         +task_fail()
         +task_duplicate()

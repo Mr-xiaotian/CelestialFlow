@@ -1,12 +1,12 @@
 # Graph Module
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 The Graph module is CelestialFlow's core scheduling system, responsible for managing dependency relationships between task nodes, execution flow, and lifecycle. It provides flexible task graph construction, analysis, and serialization capabilities.
 
 ## Module Overview
 
-The Graph module defines the fundamental units of task execution and their relationships, forming a directed graph. Each node represents a `TaskStage`, and edges represent data flow dependencies. This module ensures that tasks execute in the correct topological order and handles concurrency, error handling, and resource management.
+The Graph module defines the fundamental units of task execution and their relationships, forming a directed graph. Each node is a `BaseTaskNode` derivative object defined in `celestialflow.node` (the public API includes `TaskExecutor`, `TaskSplitter`, `TaskRouter`), and edges represent data flow dependencies. This module ensures that tasks execute in the correct topological order and handles concurrency, error handling, and resource management.
 
 ### Public Exports (`__all__`)
 
@@ -27,9 +27,9 @@ from celestialflow.graph import (
 ### Core Files
 
 1. **core_graph.py** (`TaskGraph`)
-   - **Purpose**: Core scheduler, manages `TaskStage` node dependencies, execution flow, resource allocation, and lifecycle
+   - **Purpose**: Core scheduler, manages dependency relationships, execution flow, resource allocation, and lifecycle of task nodes (`BaseTaskNode` derivatives)
    - **Key Features**:
-     - Establish inter-node dependencies (`set_stages` / `connect`)
+     - Establish inter-node dependencies (`set_nodes` / `connect`)
      - Execute task graphs (`start` / `start_async`, runs in serial/thread/async according to `graph_mode`)
      - Runtime monitoring snapshots and global remaining time estimation (`collect_runtime_snapshot`)
      - Initial task and persisted task injection (`run` / `run_async` / `restore_db`)
@@ -64,20 +64,20 @@ from celestialflow.graph import (
 
 ### Internal Relationships
 - `TaskGraph` is the base class; all other structures inherit from it
-- `TaskChain`, `TaskLoop`, etc. are specialized implementations of `TaskGraph` (encapsulating `set_stages` / `connect` logic)
+- `TaskChain`, `TaskLoop`, etc. are specialized implementations of `TaskGraph` (encapsulating `set_nodes` / `connect` logic)
 - `util_order_graph.py` provides the shared internal graph structure and foundational graph algorithms
 - `TaskGraph` currently performs source node identification, DAG detection, and level analysis on top of `OrderGraph`
 - `util_render.py` outputs runtime structures as bordered tree-style text
 
 ### External Relationships
-- **With Stage Module**: `TaskGraph` manages `TaskStage` nodes, each started via `start` / `start_async`
+- **With Node Module**: Task graph nodes (`TaskExecutor` / `TaskSplitter` / `TaskRouter`) are provided by `celestialflow.node`; `TaskGraph` is only responsible for assembly, connection, and scheduling
 - **With Runtime Module**: Uses `TaskInQueue`/`TaskOutQueue` as inter-node communication pipes
 - **With Persistence Module**: Achieves persistence via `LifecycleSpout`
 - **With Observability Module**: Pushes state to `celestialflow-web` service and pulls injection commands via `TaskReporter`
 
 ## Usage Patterns
 
-1. **Build Task Graph**: Create `TaskStage` nodes → `set_stages()` register → `connect()` establish dependencies
+1. **Build Task Graph**: Create `TaskExecutor` nodes (use `TaskSplitter` / `TaskRouter` as needed) → `set_nodes()` register → `connect()` establish dependencies
 2. **Choose Structure**: For common patterns, directly use predefined structures like `TaskChain`/`TaskCross`
 3. **Configure**: Integrate external services via `set_reporter()` / `set_ctree()`
 4. **Execute**: Call `run()` or `run_async()`
@@ -90,7 +90,7 @@ The following examples demonstrate construction and execution of various graph s
 ### Basic TaskGraph Construction
 
 ```python
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 
 
 # Define stage functions
@@ -107,13 +107,13 @@ def stage_c_func(x: int) -> int:
 
 
 # Create nodes
-s1 = TaskStage("S1", func=stage_a_func, execution_mode="serial")
-s2 = TaskStage("S2", func=stage_b_func, execution_mode="serial")
-s3 = TaskStage("S3", func=stage_c_func, execution_mode="serial")
+s1 = TaskExecutor("S1", func=stage_a_func, execution_mode="serial")
+s2 = TaskExecutor("S2", func=stage_b_func, execution_mode="serial")
+s3 = TaskExecutor("S3", func=stage_c_func, execution_mode="serial")
 
 # Build DAG: S1 -> S2 -> S3
 graph = TaskGraph(name="MyGraph", graph_mode="thread")
-graph.set_stages([s1, s2, s3])
+graph.set_nodes([s1, s2, s3])
 graph.connect([s1], [s2])
 graph.connect([s2], [s3])
 
@@ -129,31 +129,31 @@ print(f"Layers: {analysis['layersDict']}")
 ### TaskChain Linear Chain
 
 ```python
-from celestialflow import TaskChain, TaskStage
+from celestialflow import TaskChain, TaskExecutor
 
-stages = [
-    TaskStage("Clean", func=lambda x: x.strip().lower()),
-    TaskStage("Parse", func=lambda x: int(x)),
-    TaskStage("Compute", func=lambda x: x**2),
+nodes = [
+    TaskExecutor("Clean", func=lambda x: x.strip().lower()),
+    TaskExecutor("Parse", func=lambda x: int(x)),
+    TaskExecutor("Compute", func=lambda x: x**2),
 ]
 
-chain = TaskChain(name="DataPipeline", stages=stages, graph_mode="thread")
-chain.run({stages[0].get_name(): [" 10 ", " 20 ", " 30 "]})
+chain = TaskChain(name="DataPipeline", nodes=nodes, graph_mode="thread")
+chain.run({nodes[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
 # Monitor: collect one runtime snapshot via collect_runtime_snapshot
 snapshot, ts = chain.collect_runtime_snapshot()
 print(f"Snapshot timestamp: {ts}")
-print(f"Node 0 snapshot: {snapshot[stages[0].get_name()]}")
+print(f"Node 0 snapshot: {snapshot[nodes[0].get_name()]}")
 ```
 
 ### TaskCross Cross Layers
 
 ```python
-from celestialflow import TaskCross, TaskStage
+from celestialflow import TaskCross, TaskExecutor
 
 # Define two layers
-layer1 = [TaskStage("F1", func=lambda x: x * 2), TaskStage("F2", func=lambda x: x + 3)]
-layer2 = [TaskStage("G1", func=lambda x: x**2), TaskStage("G2", func=lambda x: -x)]
+layer1 = [TaskExecutor("F1", func=lambda x: x * 2), TaskExecutor("F2", func=lambda x: x + 3)]
+layer2 = [TaskExecutor("G1", func=lambda x: x**2), TaskExecutor("G2", func=lambda x: -x)]
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
@@ -163,12 +163,12 @@ print(cross.collect_runtime_snapshot())
 ### TaskGrid Grid
 
 ```python
-from celestialflow import TaskGrid, TaskStage
+from celestialflow import TaskGrid, TaskExecutor
 
-s00 = TaskStage("A", func=lambda x: x)
-s01 = TaskStage("B", func=lambda x: x + 1)
-s10 = TaskStage("C", func=lambda x: x * 2)
-s11 = TaskStage("D", func=lambda x: x * x)
+s00 = TaskExecutor("A", func=lambda x: x)
+s01 = TaskExecutor("B", func=lambda x: x + 1)
+s10 = TaskExecutor("C", func=lambda x: x * 2)
+s11 = TaskExecutor("D", func=lambda x: x * x)
 
 grid = TaskGrid(name="GridPipeline", grid=[[s00, s01], [s10, s11]])
 grid.run({s00.get_name(): [1, 2]})
@@ -178,26 +178,26 @@ print(grid.collect_runtime_snapshot())
 ### TaskLoop Cyclic Graph
 
 ```python
-from celestialflow import TaskLoop, TaskStage
+from celestialflow import TaskLoop, TaskExecutor
 
-stages = [
-    TaskStage("L1", func=lambda x: x + 1),
-    TaskStage("L2", func=lambda x: x * 2),
-    TaskStage("L3", func=lambda x: x - 1),  # L3 -> L1 forms the cycle
+nodes = [
+    TaskExecutor("L1", func=lambda x: x + 1),
+    TaskExecutor("L2", func=lambda x: x * 2),
+    TaskExecutor("L3", func=lambda x: x - 1),  # L3 -> L1 forms the cycle
 ]
 
-loop = TaskLoop(name="FeedbackLoop", stages=stages)
+loop = TaskLoop(name="FeedbackLoop", nodes=nodes)
 # For cyclic structures, recommend if_put_signal=False to avoid premature termination
-loop.run({stages[0].get_name(): [10]}, if_put_signal=False)
+loop.run({nodes[0].get_name(): [10]}, if_put_signal=False)
 ```
 
 ### TaskWheel Wheel Graph
 
 ```python
-from celestialflow import TaskWheel, TaskStage
+from celestialflow import TaskWheel, TaskExecutor
 
-center = TaskStage("Center", func=lambda x: f"processed: {x}")
-ring = [TaskStage(f"R{i}", func=lambda x: f"ring-{i}: {x}") for i in range(3)]
+center = TaskExecutor("Center", func=lambda x: f"processed: {x}")
+ring = [TaskExecutor(f"R{i}", func=lambda x: f"ring-{i}: {x}") for i in range(3)]
 
 wheel = TaskWheel(name="HubAndSpoke", center=center, ring=ring)
 wheel.run({center.get_name(): ["data"]})

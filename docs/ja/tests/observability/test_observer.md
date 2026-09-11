@@ -1,13 +1,13 @@
 # オブザーバーテスト (test_observer.py)
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
 ## 役割
-`celestialflow.observability` モジュールのオブザーバー（Observer）機構を検証し、タスク実行ライフサイクルの各キーノードでコールバックが正しくトリガーされることを確認します。
+`celestialflow` パッケージからエクスポートされる `BaseObserver` と `TaskExecutor` の間のコールバック契約を検証し、タスク実行ライフサイクルにおけるキーノードで `BaseObserver` のオーバーライドメソッドが正しくトリガーされることを確認します。
 
 ## コアテスト対象
-- `BaseObserver`: オブザーバー基底クラス。
-- `TaskExecutor`: 観測対象のタスク実行者。
+- `BaseObserver`: `celestialflow.observability` 由来のオブザーバー基底クラス。`on_start` / `on_task_success` / `on_task_fail` / `on_task_duplicate` / `on_tasks_added` / `on_finish` などのコールバックフックを提供。
+- `TaskExecutor`: `celestialflow.node` 由来の被観測タスクエグゼキュータ（テストではトップレベル `celestialflow` パッケージからインポート）。
 
 ## テストカバレッジマトリックス
 
@@ -26,8 +26,10 @@
 
 ## 重要な詳細
 - `RecordingObserver`、`CountObserver`、`Counter` などの Mock クラスを使用してイベントを収集・検証します。
-- `RecordingObserver` は `on_start` / `on_task_success` / `on_task_fail` / `on_task_duplicate` / `on_tasks_added` / `on_finish` をオーバーライドし、`on_task_success` と `on_task_fail` はデフォルトのカウント引数 `count=1` を持ちます。
-- `test_remove_observer` はアンバインド後のオブザーバーが副作用を生まないことを確認します。
+- `RecordingObserver` は `on_start` / `on_task_success` / `on_task_fail` / `on_task_duplicate` / `on_tasks_added` / `on_finish` をオーバーライドし、`on_task_success` と `on_task_fail` はデフォルトのカウント引数 `count=1` を明示的に宣言します。
+- `CountObserver` は `on_task_success` / `on_task_fail` のみをオーバーライドし、`count` フィールドを累積することで集約統計を実現します。
+- `test_remove_observer` は `executor.remove_observer(observer)` でアンバインド後に再度 `run` を呼び出し、`observer.count == 0` をアサートします。
+- すべてのケースは `execution_mode="serial"` モードを使用しており、イベントを順序通りにアサートできます。
 
 ## 実行方法
 

@@ -1,6 +1,6 @@
 # bench_graph_mode.py Benchmark Guide
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 ## Objective
 
@@ -283,6 +283,6 @@ Note: `process` mode has been deprecated; bench data retained only.
 
 ## Dependencies
 
-- `celestialflow` (`TaskGraph`, `TaskStage`, `benchmark_graph`)
+- `celestialflow` (`TaskGraph`, `TaskExecutor`, `benchmark_graph`)
 - `python-dotenv`
 - External Service: Reporter service (optional)

@@ -1,8 +1,8 @@
 # TaskQueue
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
-`TaskQueue` モジュールは `TaskInQueue` と `TaskOutQueue` の 2 つのクラスを提供し、異なる Stage 間を接続するパイプとして機能します。マルチプロデューサー・マルチコンシューマーモデルをサポートし、終了シグナル（TerminationSignal）マージ機能を統合しています。
+`TaskQueue` モジュールは `TaskInQueue` と `TaskOutQueue` の 2 つのクラスを提供し、異なるノード間を接続するパイプとして機能します。マルチプロデューサー・マルチコンシューマーモデルをサポートし、終了シグナル（TerminationSignal）マージ機能を統合しています。
 
 ## 概要
 
@@ -116,11 +116,11 @@ def put_target(self, item: TaskEnvelope | TerminationSignal, name: str) -> None:
     """
     指定された名前の出力チャネルにエンキューします。
 
-    :param name: 下流 Stage 名
+    :param name: 下流ノード名
     """
 ```
 
-指定された下流 Stage への定向配信に使用します。
+指定された下流ノードへの定向配信に使用します。
 
 #### get_target_names
 

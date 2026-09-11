@@ -1,6 +1,6 @@
 # PersistencePayload
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 `persistence/util_payload.py` provides a persistence serialization utility for task data, recursively converting arbitrary Python objects into JSON-friendly structures.
 
@@ -78,7 +78,7 @@ print(result)  # "MyTask(id=1)"
 `to_persisted_payload` is mainly called internally by `LifecycleInlet` to convert task data into JSON strings storable in SQLite:
 
 ```python
-# Internal flow of LifecycleInlet.task_in:
+# Internal flow of LifecycleInlet.task_input:
 from datetime import datetime
 
 pending_item = {

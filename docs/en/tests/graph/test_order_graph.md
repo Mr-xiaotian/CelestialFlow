@@ -1,6 +1,6 @@
 # Graph Analysis Utility Tests (test_order_graph.py)
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 ## Purpose
 Validates the basic graph analysis functions in `celestialflow.graph.util_order_graph`, including `OrderGraph` construction, level computation (`compute_node_levels`), source node lookup (`source_nodes`), SCC partitioning (`tarjan_scc`), and regression tests for iterative algorithms when depth exceeds Python's default recursion limit (approximately 1000).
@@ -19,7 +19,7 @@ Validates the basic graph analysis functions in `celestialflow.graph.util_order_
 | `TestBuildOrderGraph` | 3 | Linear chain / cyclic / isolated-node graph construction | Node count, total edges, `successors` adjacency direction are correct |
 | `TestComputeNodeLevels` | 5 | Linear DAG, fan-out DAG, simple cycle, cycle with tail, disconnected graph | Levels increase monotonically, B/C are at the same level, nodes within a cycle share a level, tail is one level above the cycle, each connected component starts independently from 0 |
 | `TestFindSourceNodes` | 4 | Linear DAG, multi-source, pure cycle, wheel topology | Source nodes have in-degree 0; pure-cycle SCC returns one representative; Center is the unique source |
-| `TestDeepGraphRegression` | 3 | 5000-node deep chain / deep ring / full pipeline through TaskGraph | Deep-chain SCCs are all single points, no `RecursionError`; deep ring converges to a single SCC; `get_stages_summary` / `get_source_names` / `get_graph_analysis` work normally |
+| `TestDeepGraphRegression` | 3 | 5000-node deep chain / deep ring / full pipeline through TaskGraph | Deep-chain SCCs are all single points, no `RecursionError`; deep ring converges to a single SCC; `get_source_nodes` / `get_graph_analysis` work normally |
 | **Total** | **15** | | |
 
 ## Key Test Flow
@@ -36,7 +36,7 @@ Validates the basic graph analysis functions in `celestialflow.graph.util_order_
 4. **Deep-Graph Regression** (`TestDeepGraphRegression`):
    - Deep chain (5000 nodes): `tarjan_scc` produces all single-point SCCs, source node is `n0`, levels increase linearly to 4999.
    - Deep ring (5000 nodes): All nodes converge to a single SCC.
-   - Deep chain through `TaskGraph` (`graph_mode="thread"`) full pipeline construction and analysis does not crash; `layersDict[4999] == ["n4999"]`, `get_stages_summary()` returns 5000 stages, `get_source_names() == ["n0"]`.
+   - Deep chain through `TaskGraph` (`graph_mode="thread"`) full pipeline construction and analysis does not crash; `layersDict[4999] == ["n4999"]`, `get_nodes()` returns 5000 stages, `get_source_nodes() == ["n0"]`.
 
 ## Test Helper Functions
 - `_make_graph(edges)`: Constructs a test graph from an edge definition (including implicitly appearing downstream nodes).

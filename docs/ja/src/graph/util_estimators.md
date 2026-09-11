@@ -1,6 +1,6 @@
 # GraphEstimators
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/09
 
 `graph/util_estimators.py` は、タスクグラフ（DAG）に基づくグローバルな未処理タスク数の推定関数を提供します。
 
@@ -50,7 +50,9 @@ from celestialflow.graph.util_order_graph import OrderGraph
 from celestialflow.graph.util_estimators import calc_global_pending
 
 # 単純な DAG を構築: A -> B -> C
-graph = OrderGraph.from_edges({"A": ["B"], "B": ["C"]}, ("A", "B", "C"))
+graph = OrderGraph()
+for u, v in [("A", "B"), ("B", "C")]:
+    graph.add_edge(u, v)
 
 # 観測データを入力
 processed_map = {"A": 100, "B": 50, "C": 10}

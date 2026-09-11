@@ -1,6 +1,6 @@
 # Performance Benchmark Tests (test_benchmark.py)
 
-> 📅 Last Updated: 2026/08/19
+> 📅 Last Updated: 2026/09/09
 
 ## Purpose
 
@@ -10,7 +10,8 @@ Validates the `benchmark_graph` and `benchmark_executor` benchmark functions in 
 
 - `benchmark_graph`: Accepts synchronous and asynchronous `TaskGraph` instances and benchmarks them across the `graph_mode × execution_mode` 3×3 combinations.
 - `benchmark_executor`: Accepts synchronous and asynchronous `TaskExecutor` instances and benchmarks them across the three values of `execution_mode`.
-- `TaskGraph` / `TaskStage` / `TaskExecutor`: Used to construct the minimal runnable graph and executor.
+- `TaskGraph`: Constructed via `set_nodes([TaskExecutor(...)])` to build a minimal runnable graph; the node type is `TaskExecutor` (`TaskStage` / `set_stages` are no longer used).
+- `TaskExecutor`: Used to construct the minimal runnable synchronous/asynchronous executor.
 
 ## Test Coverage Matrix
 
@@ -23,8 +24,9 @@ Validates the `benchmark_graph` and `benchmark_executor` benchmark functions in 
 
 ### `test_benchmark_graph_covers_all_nine_combinations`
 
-- Constructs a sync graph `sync_graph` (containing one `TaskStage` in serial mode) and an async graph `async_graph` (`graph_mode="async"`, containing one `TaskStage` in async mode).
-- Calls `benchmark_graph` with `{"s": [1, 2, 3]}` as the initial tasks.
+- Constructs a sync graph `sync_graph` (`TaskGraph("sync_graph")` + `set_nodes([TaskExecutor("s", add_one, execution_mode="serial")])`).
+- Constructs an async graph `async_graph` (`TaskGraph("async_graph", graph_mode="async")` + `set_nodes([TaskExecutor("s", async_add_one, execution_mode="async")])`).
+- Calls `await benchmark_graph(sync_graph, async_graph, {"s": [1, 2, 3]})` with `{"s": [1, 2, 3]}` as the initial tasks.
 - Asserts:
   - The returned dictionary's `graph_modes` equals `["serial", "thread", "async"]`.
   - `execution_modes` equals `["serial", "thread", "async"]`.
@@ -32,15 +34,15 @@ Validates the `benchmark_graph` and `benchmark_executor` benchmark functions in 
 
 ### `test_benchmark_executor_returns_execution_modes`
 
-- Constructs a sync executor `sync_executor` (`execution_mode="serial"`) and an async executor `async_executor` (`execution_mode="async"`).
-- Calls `benchmark_executor` with `[1, 2, 3]` as the task list.
+- Constructs a sync executor `sync_executor` (`execution_mode="serial"`, sync function `add_one`) and an async executor `async_executor` (`execution_mode="async"`, async function `async_add_one`).
+- Calls `await benchmark_executor(sync_executor, async_executor, [1, 2, 3])` with `[1, 2, 3]` as the task list.
 - Asserts:
   - The returned dictionary's `execution_modes` equals `["serial", "thread", "async"]`.
   - `use_time` is a 2D list of 3 rows by 1 column (one result per `execution_mode`).
 
 ```mermaid
 flowchart LR
-    A[Construct sync/async graphs] --> B[benchmark_graph]
+    A[Construct sync/async graphs<br/>TaskGraph.set_nodes] --> B[benchmark_graph]
     B --> C["graph_modes × execution_modes<br/>3×3 use_time matrix"]
 
     D[Construct sync/async executors] --> E[benchmark_executor]

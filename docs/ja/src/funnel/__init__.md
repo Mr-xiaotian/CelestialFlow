@@ -1,10 +1,10 @@
 # Funnel モジュール
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/09
 
 Funnel モジュールは CelestialFlow のキュー通信インフラストラクチャを提供し、Persistence モジュールの `LogSpout`/`LogInlet` および `LifecycleSpout`/`LifecycleInlet` の基底クラスです。
 
-永続化の下位基盤としてだけでなく、`TaskGraph` / `TaskStage` から切り離して軽量な producer-consumer パイプラインを単独で構築することもできます。
+永続化の下位基盤としてだけでなく、`TaskGraph` / `BaseTaskNode` から切り離して軽量な producer-consumer パイプラインを単独で構築することもできます。
 
 ## エクスポートシンボル
 

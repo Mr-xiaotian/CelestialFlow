@@ -1,6 +1,6 @@
 # demo_graph.py Demo Guide
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 ## Objective
 
@@ -56,8 +56,8 @@ AsyncDouble ──> AsyncToStr
 
 ## Key Configuration
 
-- Each Stage explicitly specifies its execution mode via `TaskStage(..., execution_mode="thread" | "async")`
-- The ETL and async pipelines specify graph mode via `TaskGraph(..., graph_mode="thread")` and `graph_mode="async")` respectively
+- Each Stage explicitly specifies its execution mode via `TaskExecutor(..., execution_mode="thread" | "async")`
+- The ETL and async pipelines specify graph mode via `TaskGraph(..., graph_mode="thread")` and `graph_mode="async"` respectively
 - `execution_mode="async"` is used for coroutine task functions (`async_double`, `async_to_str`)
 
 ## Potential Issues
@@ -71,6 +71,8 @@ AsyncDouble ──> AsyncToStr
 python demo/demo_graph.py
 ```
 
+> **Note**: The current `__main__` will call `demo_etl_fan_out_fan_in()` and `asyncio.run(demo_async_pipeline())` in sequence; both demo scenarios will run.
+
 ## Expected Behavior
 
 ### ETL Pipeline (`demo_etl_fan_out_fan_in`)
@@ -83,11 +85,6 @@ Executes Extract → Normalize/Enrich → Load sequentially, each Stage internal
 [Normalize] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'normalized': 0.1}
 [Enrich] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'category': 'odd'}
 ...
---- Graph Summary ---
-Extract    : success=15 fail=0
-Normalize  : success=15 fail=0
-Enrich     : success=15 fail=0
-Load       : success=30 fail=0
 ```
 
 > When the input is `range(1, 16)`, Extract processes 15 records, Normalize and Enrich each receive 15, and the Load node receives a total of 30 tasks (15 × 2 downstream).
@@ -109,7 +106,7 @@ Two-stage sequential execution: `AsyncDouble` first completes all 20 tasks, then
 
 ## Dependencies
 
-- `celestialflow` (`TaskGraph`, `TaskStage`, `TaskReporter`)
+- `celestialflow` (`TaskGraph`, `TaskExecutor`, `TaskReporter`)
 - `demo_utils` (`extract_record`, `transform_normalize`, `transform_enrich`, `load_record`, `async_double`, `async_to_str`)
 - `python-dotenv`
 - External services: CelestialTree (optional), Reporter (optional)

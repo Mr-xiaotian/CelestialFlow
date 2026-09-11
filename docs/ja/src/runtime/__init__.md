@@ -1,12 +1,12 @@
 # Runtime モジュール
 
-> 📅 最終更新日: 2026/08/12
+> 📅 最終更新日: 2026/09/09
 
 Runtime モジュールは CelestialFlow タスク実行ランタイムのコアインフラストラクチャを提供し、タスクエンベロープ（Envelope）、キュー（Queue）、メトリクス統計（Metrics）などのコンポーネントを含みます。
 
 ## モジュール概要
 
-Runtime モジュールは、タスク実行プロセスにおけるデータラッパー、キュー通信、メトリクス統計を管理します。タスクスケジューリング自体は担当せず（スケジューリングは Stage モジュールが担当）、上層が利用するランタイム基礎コンポーネントを提供します。
+Runtime モジュールは、タスク実行プロセスにおけるデータラッパー、キュー通信、メトリクス統計を管理します。タスクスケジューリング自体は担当せず（スケジューリングは Graph モジュールが担当）、上層が利用するランタイム基礎コンポーネントを提供します。
 
 ### 公開エクスポートシンボル (`__all__`)
 
@@ -65,7 +65,7 @@ from celestialflow.runtime import (
    - **主要クラス**: `EventClient`（Protocol）、`LocalEventClient`、`clone_event_client()`
 
 9. **util_constant.py**
-   - **役割**: ランタイムグローバル定数定義（ログレベルマッピングなど）
+   - **役割**: ランタイム定数定義（ログレベルマッピングなど）
 
 10. **util_config.py**
     - **役割**: ランタイム設定ロード（pyproject.toml からログレベルを読み取りなど）
@@ -82,8 +82,8 @@ from celestialflow.runtime import (
 - すべてのエラーは `CelestialFlowError` およびそのサブクラスを通じて統一的に処理
 
 ### 外部関連
-- **Stage モジュール**: Stage は `TaskInQueue`/`TaskOutQueue` をノード間通信パイプラインとして使用
-- **Graph モジュール**: `TaskGraph` にキューとメトリクスのインフラストラクチャを提供
+- **Graph モジュールとの連携**: `TaskGraph` は `TaskExecutor` / `TaskSplitter` / `TaskRouter` などのノードを管理し、ノード間通信パイプラインとして `TaskInQueue`/`TaskOutQueue` を使用
+- **Node モジュールとの連携**: ノードオブジェクト（`BaseTaskNode` およびそのサブクラス）は `TaskMetrics` を保持し、`TaskInQueue`/`TaskOutQueue` を使用してデータを送受信
 
 ## 使用例
 

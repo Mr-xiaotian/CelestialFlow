@@ -1,6 +1,6 @@
 # demo_network.py デモ説明
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
 ## 目的
 
@@ -52,7 +52,7 @@ flowchart LR
 
 #### コア関数
 
-**`linear(w, b)`**：クロージャファクトリ関数で、`_forward(x) -> w * x + b` を返します。`TaskStage`
+**`linear(w, b)`**：クロージャファクトリ関数で、`_forward(x) -> w * x + b` を返します。`TaskExecutor`
 が `func` に位置引数 1 つのみを要求する制約を満たしつつ、クロージャで重みとバイアスを固定するため、
 各重み組み合わせに対して関数を個別に定義する必要がありません。
 
@@ -72,7 +72,7 @@ def linear(w: float, b: float):
 | B1~B3 | `linear(1.0, 0.0)` | 1.0 | 0.0 | 2 | A1/A2 からの Fan-in |
 | C | `linear(1.0, 0.0)` | 1.0 | 0.0 | 2 | B1~B3 からの Fan-in |
 
-- すべての Stage は `execution_mode="thread"` を使用し、`TaskCross` 全体は `graph_mode="thread"` を使用する
+- すべてのノードは `execution_mode="thread"` を使用し、`TaskCross` 全体は `graph_mode="thread"` を使用する
 - 出力層 C は実行後に `get_success_pairs()` を呼び出してすべての成功結果を読み取る（追加の永続化設定は不要）
 
 ## 設計意図
@@ -134,4 +134,4 @@ python demo/demo_network.py
 
 ## 依存関係
 
-- `celestialflow`（`TaskCross`、`TaskStage`）
+- `celestialflow`（`TaskCross`、`TaskExecutor`）

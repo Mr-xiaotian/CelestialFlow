@@ -1,13 +1,12 @@
 # TaskTypes
 
-> 📅 最終更新日: 2026/08/12
-
+> 📅 最終更新日: 2026/09/09
 
 TaskTypes モジュールはフレームワークで使用される基本データ型、列挙型、補助クラスを定義します。
 
 ## StageStatus
 
-`TaskStage` の実行状態を表す列挙型です。
+タスクグラフノード（`BaseTaskNode` およびそのサブクラス、`TaskExecutor`、`TaskSplitter`、`TaskRouter` など）の実行状態を表す列挙型です。
 
 ```python
 class StageStatus(IntEnum):
@@ -18,7 +17,7 @@ class StageStatus(IntEnum):
 
 ## TerminationSignal
 
-タスクキュー終了をマークするセンチネルオブジェクト。Stage がこのシグナルを受信すると、上流にタスクがもう存在しないことを示し、停止準備に入るべきです。
+タスクキュー終了をマークするセンチネルオブジェクト。ノードがこのシグナルを受信すると、上流にタスクがもう存在しないことを示し、停止準備に入るべきです。
 
 ```python
 class TerminationSignal:

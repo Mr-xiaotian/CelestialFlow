@@ -1,10 +1,10 @@
 # Reporter 注入とレポートテスト (test_reporter.py)
 
-> 📅 最終更新日: 2026/08/19
+> 📅 最終更新日: 2026/09/09
 
 ## 役割
 
-`celestialflow.observability.core_report` の `TaskReporter` におけるタスク注入とエラープッシュロジックを検証します——Reporter がリモートから分割されたタスクと終了シグナルペイロードを取得した後、ノードごとに正しく `put_task` / `put_signal` 注入を呼び出せるかどうか、またエラープッシュのエンドポイント選択とサーバ側水位線に基づく増分プッシュ動作を検証します。
+`celestialflow.observability.core_report` の `TaskReporter` におけるタスク注入とエラープッシュロジックを検証します。Reporter がリモートから分割されたタスクと終了シグナルペイロードを取得した後、ノードごとに正しく `put_task` / `put_signal` 注入を呼び出せるかどうか、またエラープッシュのエンドポイント選択とサーバ側水位線に基づく増分プッシュ動作を検証します。
 
 ## コアテスト対象
 
@@ -13,6 +13,7 @@
 | `FakeResponse` / `FakePostResponse` | Mock | HTTP GET/POST レスポンスをシミュレート |
 | `FakeSession` / `FakePushSession` | Mock | `requests.Session` の GET/POST メソッドをシミュレートし、呼び出しを記録 |
 | `FakeTaskGraph` / `FakeErrorGraph` | Mock | グラフ注入インターフェースとエラークエリインターフェースをシミュレート |
+| `FakeNode` | Mock | 単一ノードの `put_task` / `put_signal` 呼び出しを記録 |
 | `FakeLogInlet` | Mock | 注入成功/失敗、取得失敗、プッシュ失敗のログを記録 |
 | `TaskReporter` | 被テストクラス | `celestialflow.observability` 内の注入・レポーター |
 
@@ -20,7 +21,7 @@
 
 ### `test_reporter_accepts_split_task_and_termination_payload`
 
-**カバレッジ目標**: `TaskReporter._pull_injection()` がサーバーから返された分割ペイロード `{"tasks": {...}, "terminations": [...]}` を消費し、タスクと終了シグナルをそれぞれ `put_task` / `put_signal` 経由で対応する段階に注入できることを検証。
+**カバレッジ目標**: `TaskReporter._pull_injection()` がサーバーから返された分割ペイロード `{"tasks": {...}, "terminations": [...]}` を消費し、タスクと終了シグナルをそれぞれ `put_task` / `put_signal` 経由で対応するノードに注入できることを検証。
 
 **アサーションの意図**:
 
@@ -28,6 +29,7 @@
 - `StageB` の `task_calls` は空だが、`signal_calls` は 1（終了シグナルのみが注入される）。
 - `log_inlet.successes` に2件の成功ログを記録：StageA のタスク注入 `(StageA, [1, 2, 3])` と StageB の終了シグナル注入 `(StageB, [TERMINATION_SIGNAL])`。
 - 失敗ログなし（`failures`、`pull_failures` がともに空）。
+- `monkeypatch.setattr` で `celestialflow.observability.core_report.get_log_inlet` を `log_inlet` を返す関数に差し替え、グローバルなログインジェクタを隔離する。
 
 ```mermaid
 sequenceDiagram
@@ -62,7 +64,7 @@ sequenceDiagram
 - sqlite エラーレコードを 1 件書き込む。
 - `_server_has_current_graph = False` を設定（全量プッシュをトリガー）。
 - POST 先 URL の末尾が `/api/push_errors` であることをアサート。
-- ペイロードに `graph_id` と `errors` フィールドが含まれ、エラーレコードのフィールドが sqlite レコードと一致することをアサート。
+- ペイロードに `graph_id` と `errors` フィールドが含まれ、エラーレコードのフィールドが sqlite レコードと一致することをアサート（`id` / `event_id` / `stage` / `status` / `error_type` / `error_message` / `ts` / `task_json` / `result_json` を含む）。
 
 ### `test_reporter_pushes_only_errors_after_server_max_event_id`
 
@@ -75,8 +77,8 @@ sequenceDiagram
 ## テストカバレッジマトリクス
 
 | テスト関数 | カバレッジ目標 |
-|----------|----------|
-| `test_reporter_accepts_split_task_and_termination_payload` | 分割ペイロード解析、タスクと終了シグナルのマージ注入、注入成功ログ |
+|----------|--------------|
+| `test_reporter_accepts_split_task_and_termination_payload` | 分割ペイロード解析、タスクと終了シグナルの分割注入、注入成功ログ |
 | `test_reporter_merges_tasks_and_termination_for_same_stage` | 同一ノードにおけるタスクと終了シグナルのマージルール |
 | `test_reporter_pushes_errors_via_push_errors_endpoint_only` | エラープッシュエンドポイントの `/api/push_errors` への統一、全量プッシュペイロード構造 |
 | `test_reporter_pushes_only_errors_after_server_max_event_id` | サーバー側水位線に基づく増分エラープッシュ |
@@ -100,6 +102,6 @@ pytest tests/observability/test_reporter.py -k "push_errors" -v
 ## 注意事項
 
 - テストは Fake オブジェクトを使用してネットワーク依存を完全に分離します。`TaskReporter` の実際の HTTP 動作は他のテストで検証されます。
-- タスクペイロードと終了シグナルはリモート側で既に分割されており、Reporter 側で再マージし、終了シグナルを `TERMINATION_SIGNAL` シングルトンに置換します。
+- タスクペイロードと終了シグナルはリモート側で既に分割されており、Reporter 側はそれぞれ `put_task` / `put_signal` を呼び出す役割を担い、ログには終了シグナルを `[TERMINATION_SIGNAL]` のシングルトンリストとして記録します。
 - `FakePushSession` は毎回の POST の URL、JSON ペイロード、タイムアウトを記録し、実際のネットワークに依存せずにプッシュ内容をアサートできます。
 - 関連実装は `src/celestialflow/observability/core_report.py` にあります。

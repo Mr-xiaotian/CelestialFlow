@@ -1,8 +1,8 @@
 # TaskQueue
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
-The `TaskQueue` module provides `TaskInQueue` and `TaskOutQueue`, two classes used for connecting pipelines between different Stages. They support a multi-producer, multi-consumer model and integrate termination signal merge functionality.
+The `TaskQueue` module provides `TaskInQueue` and `TaskOutQueue`, two classes used for connecting pipelines between different nodes. They support a multi-producer, multi-consumer model and integrate termination signal merge functionality.
 
 ## Overview
 
@@ -116,11 +116,11 @@ def put_target(self, item: TaskEnvelope | TerminationSignal, name: str) -> None:
     """
     Enqueue to the output channel with the specified name.
 
-    :param name: Downstream Stage name
-    """
+    :param name: Downstream node name
+        """
 ```
 
-Used for directed dispatch to a specific downstream Stage.
+Used for directed dispatch to a specific downstream node.
 
 #### get_target_names
 

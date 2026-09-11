@@ -1,6 +1,6 @@
 # Change Log
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/09/10
 
 - 2021: Built a class supporting both multi-threaded and single-threaded processing functions
 - 2023: Added multi-process and coroutine execution modes with GPT-4's help
@@ -338,3 +338,140 @@
     - Added more benchmarks
     - Added `Agents.md` file
       - I'm tired of endlessly reiterating things to AI
+- 3.2.5
+  - feat:
+    - Added `counter` to `Spout` and `Inlet` to record the number of unconsumed tasks in the `queue`
+      - After the major changes to the `fallback` mechanism in the previous version, `FallbackSpout` is likely to experience task accumulation, leading to misjudgment
+    - Added a note in the web error log page when the number of errors displayed may differ from the error count in node_status
+    - Added a pie chart of error categories to the web dashboard page
+  - refactor:
+    - Removed the dependency on `networkx`; added `util_graph` to implement all graph theory analysis
+    - Changed the default of `enable_duplicate_check` in `TaskExecutor` to `False`
+      - There has always been a memory growth point in the duplicate mechanism: `processed_set`, which causes `enable_duplicate_check` to put a lot of memory pressure under large-scale tasks
+    - Separated `push_task` and `push_termination` on the server side
+  - fix:
+    - Fixed the issue where `UnconsumedError` was counted twice in `drain_task_queue`
+  - chore:
+    - Added a brand new `web_display.png` image in `img/`
+    - Refined several skills; now the prompts for the main agent and sub-agents are separated
+- 3.2.6
+  - feat:
+    - Added methods in `graph` and `stage` to directly read db files and retry/continue tasks
+      - Namely `start_graph_db` and `start_db`
+  - refactor:
+    - **[IMPORTANT]** Moved the web portion to a separate project [celestialflow-web](https://github.com/Mr-xiaotian/celestialflow-web)
+      - A long-considered decision; the current web code differs significantly in style from the rest of the project, and is no longer suitable to be merged together
+      - Of course this means the `celestialflow-web` command is no longer available in the current project; it needs to be installed separately via `pip install celestialflow-web`
+  - chore:
+    - Fully updated documentation, translated to en/ja bilingual
+    - Removed `README.md` under `docs/zh-CN`; the Chinese readme now only keeps the one in the project root
+- 3.2.7
+  - feat:
+    - Added `maxsize` parameter to `TaskInQueue` to limit the maximum queue length
+    - Added validation of input/output parameter types for two stages in `graph.connect`; if validation fails, a pyright error is raised
+  - refactor:
+    - Removed the dependency on `tqdm`
+      - According to `bench\bench_observer.py`, tqdm has limited impact on lightweight tasks
+      - This removal is mainly to accomplish the goal of minimizing third-party library dependencies
+    - Moved the management of `observer` from `executor` to `metric`
+- 3.2.8
+  - feat:
+    - [IMPORTANT] Added `TaskGraph.run_async`, now supporting graph-level async directly
+      - According to the latest `bench_graph_mode.py` tests, in I/O-intensive tasks, `serial`+`async` (6.05s) is **11.4x** faster than `serial`+`serial` (69.04s)
+    - Added error validation in `core_structure`
+    - No longer allowed to call `TashExecutor.start` (now `TashExecutor.run`) when `execution_mode=async`; only `TashExecutor.run_async` can be called
+    - Additionally, when calling `TashExecutor.run_async`, a mode check is also performed — if it's not `execution_mode=async`, an exception is raised
+    - Added `observer_error` to `BaseObserver` to handle errors in `BaseObserver.on_*` functions
+    - Added `try-except` to all execution steps in `TaskGraph._finish_start_graph` and `TaskExecutor._finish_start`, to ensure cleanup steps complete as much as possible
+    - Added `core_scope` to independently control the lifecycle of `funnel`, used in `TaskGraph.run/run_async` and `TaskExecutor.run/run_async`
+  - refactor:
+    - [IMPORTANT] Renamed the original `TaskGraph.start_graph/start_graph_async` and `TaskExecutor.start/start_async` to `TaskGraph.run/run_async` and `TaskExecutor.run/run_async`
+      - Breaking change
+      - The underlying reason is part of a series of refactors to merge `TaskStage.start_stage/start_stage_async` with `TaskExecutor.start/start_async`
+      - The new `TaskGraph.start/start_async` and `TaskExecutor.start/start_async` no longer accept tasks, but focus on processing tasks in the existing task list
+    - [IMPORTANT] Changed funnel from being explicitly called and explicitly passed in `TaskGraph` and `TaskExecutor` to being imported from independent files in all usage points
+      - First, the original passing chain was ugly; second, to simplify `TaskExecutor.start/start_async` logic in preparation for merging with `TaskStage.start_stage/start_stage_async`
+    - Moved some files to resolve module-level circular reference issues
+      - Originally not file-level circular references; no problem in usage
+    - Modified the logic for handling completed futures in `TaskDispatch.dispatch_thread` to avoid CPU waste
+    - Removed some unnecessary error classes in `util_errors`
+    - Split `TaskGraph._finalize_stages`; removed unnecessary mechanisms and moved the remaining mechanisms to other methods
+    - Modified the logic of `TaskGraph.set_reporter` to be consistent with `set_ctree`
+    - Changed `queue_list|target_name|_name_to_idx` in `TaskOutQueue` to `_queues`, and removed `put_channel`
+      - I'm a bit puzzled why I didn't do this originally
+    - Merged `_get_task_repr` and `_get_result_repr` in `TaskExecutor`
+      - These two methods were originally very different, but after multiple refactors in other parts, the logic is now consistent
+    - Moved `_status` in `TaskStage` to `TaskMetrics` for maintenance
+      - Still in preparation for merging `TaskExecutor.start/start_async` with `TaskStage.start_stage/start_stage_async`
+    - Removed `put_stage_queue` in `TaskGraph`
+      - Task input now uses `put_task` and `put_signal` in `TaskExecutor` entirely
+  - fix:
+    - Added error catching in `TaskDispatch.worker/worker_async`, caught as `CRITICAL` level errors
+      - Avoid `worker`-level errors causing counting errors and making it impossible to exit
+    - Added error reporting for threads that did not successfully `join` in the `stop` operations of `spout` and `reporter`
+    - Fixed the issue where `TaskGraph.restore_db` and `TaskExecutor.restore_db` would skip `status=pending` task records when `filter_by_error_type=True` was enabled
+    - Fixed the issue where some `get_*` methods in `TaskGraph` depended on the product of `_build_analysis`, but `_build_analysis` was not executed
+    - Fixed the issue where `get_counts` and `is_tasks_finished` in `TaskMetrics` could cause deadlocks
+    - Fixed the issue in `TaskReporter` where the last `_refresh_all` performed in `stop` had no error catching, causing subsequent cleanup to be incomplete
+- 3.2.9
+  - feat:
+    - [IMPORTANT] Removed `stage_mode` in `stage`, and added `graph_mode`
+      - Breaking change
+      - `stage_mode` provides fine-grained control over the mode of each `TaskStage` in the graph, but after years of use, I believe this fine-grained control is unnecessary and only adds to the cognitive burden
+      - `graph_mode` provides coarser-grained control, used to uniformly control whether all `TaskStage`s in the graph run serially/multi-threaded/concurrently, suitable for most scenarios
+      - Also completed 9 combinations of `graph_mode` (serial/thread/async) * `execution_mode` (serial/thread/async)
+    - Removed `schedule_mode`
+      - Breaking change
+      - This mode brought much complexity but did not provide obvious combination advantages with the original `stage_mode / execution_mode`
+    - Added `graph_mode` to `get_graph_analysis`
+      - This function is mainly used to provide information to the web end
+      - Web end code has been modified synchronously
+    - Added new `warning` item, triggered when the graph is not a dag and `graph_mode=serial`
+    - Removed the `persist_result` parameter from `task_executor`
+      - This is to simplify the code logic and also to enable all final task statuses (including: success/failure/unexecuted) to be uniformly stored
+    - Downgraded the `task.retry` event, no longer applying for a separate event ID, no longer leaving traces in `lifecycle`
+  - refactor:
+    - Merged `benchmark`-related function execution for both sync and async modes
+      - No performance difference, the code is a bit cleaner
+    - Renamed the original `fallback` to `lifecycle`
+      - I had been thinking of a more appropriate name since refactoring the original `fail`, and only implemented it in this version
+    - Changed `graph.source_lists` to `graph.source_names`
+      - `graph.source_lists` directly stores node references, while `graph.source_names` stores node names
+    - Unified all `log`/`lifecycle` file names to `flow_log`/`flow_lifecycle`
+    - Removed `out_edges` and `in_edges` in `graph`
+      - Now edge relationships are managed by `OrderGraph`
+    - Used DFS in `tarjan_scc` to replace the original recursive logic
+    - Renamed `util_graph` to `util_order_graph`
+  - fix:
+    - Fixed the issue where the last report could not upload properly
+    - Fixed the issue where the `is_put_signal` parameter did not take effect in `graph.run` / `graph.run_async`
+  - chore:
+    - Updated documentation
+- 3.3.0
+  - feat:
+    - The `func_name` parameter is now completely removed from `TaskExecutor`
+      - With `executor_name` expressing the node, this layer of exposure is unnecessary
+      - This is also to be consistent with the state of `CelestialGraw`
+    - When sending status to `reporter`, include the graph's `class_name` information
+    - Removed the `from_edges` method in `OrderGraph`
+  - refactor:
+    - [IMPORTANT] Refactored the original `executor/stage` structure
+      - Originally a three-layer structure of `executor -> stage -> splitter/router`, which was overly complex
+      - Now the `stage` layer is removed, and `BaseTaskNode` is added as the only node recognized by the graph, while `executor` is treated as a node of the same level as `splitter/router`
+      - The current structure is `BaseTaskNode -> executor/splitter/router`
+    - Refactored the implementation of `render_structure_list` (formerly `format_structure_list_from_graph`)
+      - Now uses breadth-first instead of the original recursion
+      - At the same time, the input parameters directly use a list of node names in the form of `list[str]`, which means information like `func_name` and `execution_mode` is no longer displayed
+    - Modified the previously strange way of calling `collect_runtime_snapshot`
+      - Now the reporter will directly call `collect_runtime_snapshot` in `_push_status`
+    - Removed `get_summary` in `TaskExecutor`; this layer of wrapping is actually redundant
+      - At the same time, all `event_client.emit` no longer carries `summary` information
+    - Removed the `_node` parameter in `OrderGraph`
+      - Previously this parameter provided: all node names; node insertion order
+      - Now the former is provided by `_out`, while the latter is no longer valued
+    - Renamed `task_in` in `LifecycleInlet` to `task_input` to be consistent with the log side
+  - fix:
+    - Fixed the issue where worker crashes were ignored when `execution_mode = async`
+    - Fixed the ambiguous meaning of `retry_times` in task retry logs; now uses `fail_times`
+    - Fixed the issue where return values were not handled in reporter's `_push_*` methods
+    - Fixed the issue in `TaskReporter._pull_injection` where the wrong `put_task` was performed on the pulled task list

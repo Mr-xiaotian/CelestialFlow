@@ -1,6 +1,6 @@
 # タスクグラフコア機能テスト (test_graph.py)
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/09
 
 ## 役割
 `TaskGraph` およびその各種トポロジサブクラス（`TaskChain`、`TaskCross`、`TaskGrid`）のコア機能を包括的に検証し、同期/非同期実行、エラー伝播、トポロジ解析、実行モードマトリクス、ソースノード導出、循環グラフ動作、終了段階の安全検査、ランタイムスナップショット収集をカバーします。
@@ -8,7 +8,7 @@
 ## コアテスト対象
 - `TaskGraph`: 汎用タスクグラフコンテナ
 - `TaskChain`, `TaskCross`, `TaskGrid`: 事前定義トポロジ構造
-- `TaskStage`: グラフノード定義
+- `TaskExecutor`: グラフノード定義
 
 ## テスト範囲
 
@@ -16,11 +16,11 @@
 
 | テストクラス | ケース数 | カバレッジポイント |
 |-------------|---------|------------------|
-| `TestTaskGraphBasic` | 10 | set_ctree による既存 stage の更新、未知 stage 名検索例外、2ノード DAG、ファンアウト、ファンイン、エラー伝播、DB リプレイ、DB エラータイプフィルタリプレイ、DB での pending 保持、finish 後の例外グループ一括送出 |
+| `TestTaskGraphBasic` | 10 | set_ctree による既存ノードの更新、未知ノード名検索例外、2ノード DAG、ファンアウト、ファンイン、エラー伝播、DB リプレイ、DB エラータイプフィルタリプレイ、DB での pending 保持、finish 後の例外グループ一括送出 |
 | `TestTaskGraphAsync` | 6 | async モード 2ノード、ファンアウト、ファンイン、エラー伝播、async execution_mode、async finish 後の例外グループ一括送出 |
 | `TestTaskGraphStructure` | 3 | Chain、Cross、Grid 構造 |
 | `TestTaskGraphAnalysis` | 4 | ゲッターのオンデマンド構築、構造変更後の自動再構築、DAG 検出、階層計算 |
-| `TestTaskGraphRuntimeSnapshot` | 1 | Reporter スナップショット収集の未起動 Stage に対する耐障害性 |
+| `TestTaskGraphRuntimeSnapshot` | 1 | Reporter スナップショット収集の未起動ノードに対する耐障害性 |
 | `TestStageExecutionMatrix` | 7 | serial/thread/async graph_mode × serial/thread/async execution_mode |
 | `TestTaskGraphThread` | 6 | thread モード 2ノード、ファンアウト、ファンイン、エラー伝播、lambda、staged スケジューリング |
 | `TestSourceStages` | 5 | 線形グラフ source、ファンイン source、ダイヤモンドグラフ source、単一ソース SCC 代表点、複数ソース SCC 各1点 |
@@ -45,10 +45,10 @@ graph LR
 - **ファンイン** (`test_graph_fan_in`): 複数の上流が1つの下流に集約され、merge ノードが4つのタスクを受け取ることを検証。
 - **エラー伝播** (`test_graph_error_propagation`): `50` が `ValueError` をトリガーしてもフローが中断されず、下流が成功タスクのみを受け取ることを検証。
 - **DB 起動** (`test_graph_restore_db`): SQLite から failed/pending タスクをリプレイすることを検証。
-- **DB 起動フィルタリング** (`test_graph_restore_db_filters_error_type_when_enabled`): 各 stage の `retry_exceptions` に基づいてリプレイタスクをフィルタリングすることを検証。
+- **DB 起動フィルタリング** (`test_graph_restore_db_filters_error_type_when_enabled`): 各ノードの `retry_exceptions` に基づいてリプレイタスクをフィルタリングすることを検証。
 - **DB で pending を保持** (`test_graph_restore_db_filter_keeps_pending_records`): フィルタ有効時、pending レコードのリプレイが継続されることを検証。
-- **未知 stage 名例外** (`test_graph_stage_lookup_unknown_stage_raises`): stage を明示指定してタスク注入する際、存在しない stage 名は `NodeNotFoundError` をスローすべき。
-- **set_ctree で既存 stage を更新** (`test_set_ctree_updates_existing_stages`): 先に `set_stages` を呼んだ後で `set_ctree` を呼ぶ場合、既存 stage も同じイベントクライアントを共有すべき。
+- **未知ノード名例外** (`test_graph_stage_lookup_unknown_stage_raises`): ノードを明示指定してタスク注入する際、存在しないノード名は `NodeNotFoundError` をスローすべき。
+- **set_ctree で既存ノードを更新** (`test_set_ctree_updates_existing_stages`): 先に `set_nodes` を呼んだ後で `set_ctree` を呼ぶ場合、既存ノードも同じイベントクライアントを共有すべき。
 - **finish 後の例外グループ一括送出** (`test_start_raises_exception_group_after_finish`): 同期 `start` が finish 後に収集された例外を一括送出することを検証。
 
 #### 非同期と並行
@@ -69,7 +69,7 @@ graph LR
 | `test_async_thread` | async | thread |
 | `test_async_async` | async | async |
 
-各ケースは5つの入力タスクを持つ2ノード DAG を使用し、2つの stage がそれぞれ5つ成功することを検証。
+各ケースは5つの入力タスクを持つ2ノード DAG を使用し、2つのノードがそれぞれ5つ成功することを検証。
 
 #### グラフ構造解析 (`TestTaskGraphAnalysis`)
 - **オンデマンド構築** (`test_getters_build_analysis_on_demand`): 解析と構造のゲッターは明示的に build しなくても直接利用可能なはず。
@@ -126,7 +126,7 @@ graph LR
 | 依存 | 説明 |
 |------|------|
 | `pytest` | テストフレームワーク |
-| `celestialflow` | `TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskStage` |
+| `celestialflow` | `TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskExecutor` |
 
 ## 実行方法
 

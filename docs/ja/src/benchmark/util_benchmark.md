@@ -1,8 +1,10 @@
-# Benchmark
+# benchmark/util_benchmark.py
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
 `benchmark/util_benchmark.py` は実行器とタスクグラフのパフォーマンスベンチマークテスト機能を提供し、異なる実行モードのパフォーマンス差異を比較します。
+
+> ⚠️ 本ファイルはベンチマーク内部のツール関数を定義するもので、公共 API ではありません。`benchmark_executor` と `benchmark_graph` は `celestialflow/__init__.py` で集中エクスポートされた後に、サポートされる公共 API となります。
 
 ## 設計目的
 
@@ -78,8 +80,8 @@ async def benchmark_graph(
 
 テストフロー:
 1. `graph_modes` × `execution_modes` のすべての組み合わせをイテレート
-2. タスクグラフをクローン（`execution_mode="async"` の場合は `async_graph` を、それ以外は `sync_graph` をクローン）
-3. `set_graph_mode(graph_mode)` と `set_stage_execution_mode(execution_mode)` を呼び出し
+2. タスクグラフをクローン（`execution_mode="async"` の場合は `async_graph` を、それ以外は `sync_graph` をクローン）。`clone_graph` 内部では全ノードが `TaskExecutor` であることがアサートされ、`TaskSplitter` などの特化ノードを含む場合は `ConfigurationError` を送出します
+3. `set_graph_mode(graph_mode)` と `set_node_execution_mode(execution_mode)` を呼び出し
 4. `graph_mode="async"` の場合は `await run_async()` を実行; その他のグラフモードでは `run()` を実行。このうち `execution_mode="async"` の組み合わせは関数内部で `asyncio.to_thread(...)` により起動され、`benchmark_graph()` 自身のイベントループとの競合を回避
 5. 実行時間を記録し、`format_table` で時間テーブルを出力
 
@@ -134,7 +136,7 @@ asyncio.run(
 
 ```python
 import asyncio
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 from celestialflow.benchmark.util_benchmark import benchmark_graph
 
 
@@ -155,29 +157,29 @@ async def async_process_b(x: int) -> int:
 
 
 # 同期ノードを作成
-stage_a = TaskStage("A", process_a)
-stage_b = TaskStage("B", process_b)
+node_a = TaskExecutor("A", process_a)
+node_b = TaskExecutor("B", process_b)
 
 # 非同期ノードを作成
-async_stage_a = TaskStage("A", async_process_a)
-async_stage_b = TaskStage("B", async_process_b)
+async_node_a = TaskExecutor("A", async_process_a)
+async_node_b = TaskExecutor("B", async_process_b)
 
 # 同期グラフを構築
 sync_graph = TaskGraph(name="SyncGraph")
-sync_graph.set_stages(stages=[stage_a, stage_b])
-sync_graph.connect([stage_a], [stage_b])
+sync_graph.set_nodes(nodes=[node_a, node_b])
+sync_graph.connect([node_a], [node_b])
 
 # 非同期グラフを構築
 async_graph = TaskGraph(name="AsyncGraph")
-async_graph.set_stages(stages=[async_stage_a, async_stage_b])
-async_graph.connect([async_stage_a], [async_stage_b])
+async_graph.set_nodes(nodes=[async_node_a, async_node_b])
+async_graph.connect([async_node_a], [async_node_b])
 
 # ベンチマークテストを実行（benchmark_graph は async 関数なので await が必要）
 asyncio.run(
     benchmark_graph(
         sync_graph=sync_graph,
         async_graph=async_graph,
-        init_tasks_dict={stage_a.get_name(): range(100)},
+        init_tasks_dict={node_a.get_name(): range(100)},
     )
 )
 ```
@@ -238,3 +240,5 @@ asyncio.run(
 4. **非同期要件**: `benchmark_executor` と `benchmark_graph` はどちらも非同期関数であり、`await` または `asyncio.run` が必要
 5. **テンプレートの分離**: `benchmark_executor` と `benchmark_graph` はどちらも同期/非同期テンプレートをそれぞれ別に提供する必要があります。`execution_mode="async"` には async 関数が必要なため
 6. **マトリックスの完全性**: `benchmark_graph` の現在の実装はデフォルトで `serial/thread/async × serial/thread/async` の 9 通りの組み合わせをカバーします
+7. **ノード型制限**: 内部で使用される `clone_graph` は `TaskExecutor` ノードのみサポート；`TaskSplitter` / `TaskRouter` などの特化ノードが含まれる場合は `ConfigurationError` を送出します
+8. **内部ツール**: `util_benchmark.py` 自体はベンチマークの内部モジュールです。外部コードは `from celestialflow import benchmark_executor / benchmark_graph` を通じてアクセスしてください

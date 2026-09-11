@@ -1,18 +1,18 @@
 # GraphRender
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/09
 
 `graph/util_render.py` は、グラフ構造を枠付きのツリー型テキストリストにレンダリングするユーティリティを提供し、`TaskGraph.get_structure_list()` から直接呼び出されます。ログ/CLI におけるタスクグラフのトポロジー可視化に使用されます。
 
 ## 主な能力
 
-- `render_structure_list(nodes, edges, source_nodes)`：ノードのメタ情報、隣接リスト、ソースノードリストから、枠付きのツリー型テキストリストを生成します。
+- `render_structure_list(nodes, edges, source_nodes)`：ノード名リスト、隣接リスト、ソースノードリストから、枠付きのツリー型テキストリストを生成します。
 
 ## render_structure_list
 
 ```python
 def render_structure_list(
-    nodes: dict[str, dict[str, Any]],
+    nodes: list[str],
     edges: dict[str, list[str]],
     source_nodes: list[str],
 ) -> list[str]: ...
@@ -31,9 +31,9 @@ def render_structure_list(
 
 | パラメータ | 型 | 説明 |
 |------|------|------|
-| `nodes` | `dict[str, dict[str, Any]]` | ノードのメタ情報辞書。各ノードには `func_name` / `execution_mode` / `max_workers` フィールドを含める必要があります |
-| `edges` | `dict[str, list[str]]` | 出辺隣接リスト `{stage_name: [next_stage_name, ...]}` |
-| `source_nodes` | `list[str]` | ソースノード名リスト。空の場合、`edges` から自動的に推測するか、`nodes` の最初のキーを取得します |
+| `nodes` | `list[str]` | ノード名リスト。登録順に渡す |
+| `edges` | `dict[str, list[str]]` | 出辺隣接リスト `{node_name: [next_node_name, ...]}` |
+| `source_nodes` | `list[str]` | ソースノード名リスト。空の場合、`edges` から自動的に推測するか、`nodes` の先頭要素を取得します |
 
 ### 戻り値
 
@@ -48,12 +48,8 @@ def render_structure_list(
 ```python
 from celestialflow.graph.util_render import render_structure_list
 
-# ノードメタ情報: 通常は TaskGraph.get_stages_summary() から取得
-nodes = {
-    "Fetch": {"func_name": "fetch_data", "execution_mode": "serial", "max_workers": 1},
-    "Parse": {"func_name": "parse_data", "execution_mode": "thread", "max_workers": 4},
-    "Save":  {"func_name": "save_data",  "execution_mode": "async",  "max_workers": 8},
-}
+# ノード名リスト
+nodes = ["Fetch", "Parse", "Save"]
 
 # 出辺隣接リスト
 edges = {
@@ -69,11 +65,11 @@ for line in lines:
     print(line)
 
 # 出力例：
-# +---------------------------------------------------------------------------+
-# | Fetch::fetch_data (E:serial, W:1)                                          |
-# | ╘-->Parse::parse_data (E:thread, W:4)                                      |
-# |     ╘-->Save::save_data (E:async, W:8)                                     |
-# +---------------------------------------------------------------------------+
+# +--------------------------+
+# | Fetch                    |
+# | ╘-->Parse                |
+# |     ╘-->Save             |
+# +--------------------------+
 ```
 
 ### 空グラフの処理
@@ -81,23 +77,23 @@ for line in lines:
 ```python
 from celestialflow.graph.util_render import render_structure_list
 
-print(render_structure_list({}, {}, []))
-# ['+ No stages defined +']
+print(render_structure_list([], {}, []))
+# ['+ No nodes defined +']
 ```
 
 ### TaskGraph 内蔵メソッド経由
 
-`TaskGraph.get_structure_list()` は `get_stages_summary()`、`order_graph.out_edges`、`source_names` を自動的に収集し、`render_structure_list` を呼び出します：
+`TaskGraph.get_structure_list()` は `get_nodes()`、`order_graph.out_edges` と `get_source_nodes()` を自動的に収集し、`render_structure_list` を呼び出します：
 
 ```python
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 
-s1 = TaskStage("Step1", func=lambda x: x.upper())
-s2 = TaskStage("Step2", func=lambda x: len(x))
-s3 = TaskStage("Step3", func=lambda x: x * 10)
+s1 = TaskExecutor("Step1", func=lambda x: x.upper())
+s2 = TaskExecutor("Step2", func=lambda x: len(x))
+s3 = TaskExecutor("Step3", func=lambda x: x * 10)
 
 graph = TaskGraph(name="RenderDemo", graph_mode="thread")
-graph.set_stages([s1, s2, s3])
+graph.set_nodes([s1, s2, s3])
 graph.connect([s1], [s2])
 graph.connect([s2], [s3])
 
@@ -119,4 +115,4 @@ for line in tree_lines:
 ## 他のモジュールとの関係
 
 - `TaskGraph.get_structure_list()` は本関数の主要な呼び出しポイントであり、ログやモニタリングパネルでトポロジーを可視化するために使用されます。
-- 入力の `nodes` フィールド名（`func_name` / `execution_mode` / `max_workers`）は `TaskStage.get_summary()` の出力フィールドと一致しています。
+- 本関数はノード名リストと隣接リストのみに依存し、ノードオブジェクトの属性を直接読み取りません。同等の隣接リストを提供する任意のグラフ構造を入力として受け取れます。

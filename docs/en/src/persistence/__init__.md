@@ -1,6 +1,6 @@
 # Persistence Module
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 The Persistence module provides CelestialFlow's data persistence capabilities, including task Lifecycle recording and execution Logs. It ensures that key data from task execution can be reliably saved and retrieved.
 
@@ -26,7 +26,7 @@ The Persistence module provides CelestialFlow's data persistence capabilities, i
    - **Purpose**: Persistence of task lifecycle, uniformly records task pending / success / failed / duplicate states
    - **Core Components**:
      - `LifecycleSpout`: Inherits `BaseSpout`, persists task lifecycle events via SQLite
-     - `LifecycleInlet`: Thread-safe collector, providing `task_in` / `task_success` / `task_fail` / `task_duplicate` methods
+     - `LifecycleInlet`: Thread-safe collector, providing `task_input` / `task_success` / `task_fail` / `task_duplicate` methods
    - **Storage Format**: SQLite database (WAL mode), files located under the `lifecycles/` directory
 
 ### Log Persistence
@@ -64,7 +64,7 @@ The Persistence module provides CelestialFlow's data persistence capabilities, i
 
 ### External Relationships
 - **With Runtime Module**: Listens to logs and errors generated at runtime, references `LEVEL_DICT`
-- **With Stage Module**: Records task execution status and results; `TaskExecutor` writes records via `get_log_inlet()` / `get_lifecycle_inlet()`
+- **With Node Module**: Records task execution status and results; `BaseTaskNode` (e.g. `TaskExecutor`) writes records via `get_log_inlet()` / `get_lifecycle_inlet()`
 - **With Observability Module**: Provides raw data for monitoring and analysis; `TaskReporter` reads failure records from the lifecycle database and pushes them incrementally
 - **With Funnel Module**: Inherits `BaseSpout`/`BaseInlet` base classes
 
@@ -84,7 +84,7 @@ flowchart LR
     end
 
     LogInlet -->|_log -> _funnel| LogQueue[Log Queue<br/>queue.Queue]
-    LifecycleInlet -->|task_in / task_success / task_fail etc.| LifecycleQueue[Lifecycle Queue<br/>queue.Queue]
+    LifecycleInlet -->|task_input / task_success / task_fail etc.| LifecycleQueue[Lifecycle Queue<br/>queue.Queue]
 
     LogQueue -->|Daemon thread polling| LogSpout[LogSpout]
     LifecycleQueue -->|Daemon thread polling| LifecycleSpout[LifecycleSpout]
@@ -145,7 +145,7 @@ from celestialflow.persistence import get_lifecycle_inlet
 lifecycle_inlet = get_lifecycle_inlet()
 
 # Task enters
-lifecycle_inlet.task_in("StageA", event_id=1, task="hello")
+lifecycle_inlet.task_input("StageA", event_id=1, task="hello")
 
 # Task succeeds
 lifecycle_inlet.task_success(event_id=1, result="OK")

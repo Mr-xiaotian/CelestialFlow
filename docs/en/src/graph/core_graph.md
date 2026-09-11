@@ -1,14 +1,14 @@
 # TaskGraph
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
-`TaskGraph` is CelestialFlow's core scheduler, responsible for managing a set of `TaskStage` nodes' dependencies, execution flow, resource allocation, and lifecycle.
+`TaskGraph` is CelestialFlow's core scheduler, responsible for managing a set of task nodes (`BaseTaskNode` derivative objects; the public API includes `TaskExecutor`, `TaskSplitter`, `TaskRouter`), their dependencies, execution flow, resource allocation, and lifecycle.
 
-> Note: `TaskGraph` is a single-use object. After a single `run()` completes, the current instance is not guaranteed to be safely reset and restarted. If you need to re-execute the same workflow, create a new `TaskGraph` and associated `TaskStage` instances.
+> Note: `TaskGraph` is a single-use object. After a single `run()` completes, the current instance is not guaranteed to be safely reset and restarted. If you need to re-execute the same workflow, create a new `TaskGraph` and the associated task nodes.
 
 ## Key Data Structures
 
-`TaskGraph` internally uses `stage_dict: dict[str, TaskStage]` to maintain a Stage mapping for all nodes. Queue connections are directly established during the `connect()` phase. Graph analysis is based on an internally maintained `OrderGraph` instance (`self.order_graph`), whose `out_edges` / `in_edges` are reference views of the in/out adjacency lists.
+`TaskGraph` internally uses `node_dict: dict[str, AnyTaskNode]` to maintain the mapping for all nodes. Queue connections are directly established during the `connect()` phase. Graph analysis is based on an internally maintained `OrderGraph` instance (`self.order_graph`), whose `out_edges` / `in_edges` are reference views of the in/out adjacency lists.
 
 ## Initialization
 
@@ -27,14 +27,14 @@ class TaskGraph:
 
 ## Graph Construction
 
-### set_stages
+### set_nodes
 
 ```python
-def set_stages(self, stages: list[TaskStage]) -> None:
+def set_nodes(self, nodes: list[AnyTaskNode]) -> None:
     """
     Add nodes to the task graph. Registers nodes and injects graph-level event clients.
 
-    :param stages: List of nodes
+    :param nodes: List of nodes
     :raises DuplicateNodeError: If node names are duplicated
     """
 ```
@@ -42,9 +42,13 @@ def set_stages(self, stages: list[TaskStage]) -> None:
 ### connect
 
 ```python
-def connect(self, from_stages: list[TaskStage], to_stages: list[TaskStage]) -> None:
+def connect[R](
+    self,
+    from_nodes: list[AnyTaskNode],
+    to_nodes: list[AnyTaskNode],
+) -> None:
     """
-    Establish a hyperedge: every node in from_stages connects to every node in to_stages.
+    Establish a hyperedge: every node in from_nodes connects to every node in to_nodes.
     Operates on self.order_graph's out_edges / in_edges dictionaries; queue connections are completed directly within connect().
     """
 ```
@@ -68,7 +72,7 @@ def set_reporter(self, reporter: ReporterProtocol) -> None:
 def set_ctree(self, ctree_client: EventClient) -> None:
     """
     Set the shared event client for the task graph.
-    Once set, it is synchronized down to all current stages in the graph.
+    Once set, it is synchronized down to all current nodes in the graph.
     """
 ```
 
@@ -85,10 +89,10 @@ def set_graph_mode(self, graph_mode: str) -> None:
     """
 ```
 
-### set_stage_execution_mode
+### set_node_execution_mode
 
 ```python
-def set_stage_execution_mode(self, execution_mode: str) -> None:
+def set_node_execution_mode(self, execution_mode: str) -> None:
     """
     Batch-set execution_mode ('serial', 'thread', or 'async') for all nodes.
     Triggers _build_analysis() to rebuild analysis data.
@@ -138,18 +142,18 @@ def restore_db(
     if_put_signal: bool = True,
 ) -> None:
     """
-    Read tasks from a sqlite persistence database, group by stage, and start the task graph.
+    Read tasks from a sqlite persistence database, group by node, and start the task graph.
 
     :param db_path: Path to the sqlite database file
     :param statuses: Record status filter list, defaults to ``["failed", "pending"]``
-    :param filter_by_error_type: Whether to filter ``error_type`` by each stage's
+    :param filter_by_error_type: Whether to filter ``error_type`` by each node's
         ``retry_exceptions``, default ``False``
     :param if_put_signal: Whether to inject termination signal, default True
     """
 ```
 
 This method internally calls `load_tasks_grouped_by_stage()` to load persisted task records,
-filters recoverable error types via `stage.metrics.get_retry_error_type_names()`,
+filters recoverable error types via `node.metrics.get_retry_error_type_names()`,
 and ultimately reuses `start()` for execution.
 
 ### Lifecycle Constraints
@@ -160,9 +164,9 @@ and ultimately reuses `start()` for execution.
 
 ```python
 graph = TaskGraph(name="MyGraph", graph_mode="thread")
-graph.set_stages(stages=[stage_a, stage_b])
-graph.connect([stage_a], [stage_b])
-graph.run({stage_a.get_name(): [1, 2, 3, 4, 5]})
+graph.set_nodes(nodes=[node_a, node_b])
+graph.connect([node_a], [node_b])
+graph.run({node_a.get_name(): [1, 2, 3, 4, 5]})
 ```
 
 ### start
@@ -171,7 +175,7 @@ graph.run({stage_a.get_name(): [1, 2, 3, 4, 5]})
 def start(self) -> None:
     """
     Start the task graph (sync entry).
-    Selects _execute_stages_serial() or _execute_stages_thread() according to graph_mode.
+    Selects _execute_nodes_serial() or _execute_nodes_thread() according to graph_mode.
     """
 ```
 
@@ -184,35 +188,35 @@ async def start_async(self) -> None:
     """
 ```
 
-### _execute_stages_serial / _execute_stages_thread / _execute_stages_async
+### _execute_nodes_serial / _execute_nodes_thread / _execute_nodes_async
 
 ```python
-def _execute_stages_serial(self) -> None:
+def _execute_nodes_serial(self) -> None:
     """Execute serially layer by layer in topological order (layers_dict), one node at a time."""
 
 
-def _execute_stages_thread(self) -> None:
+def _execute_nodes_thread(self) -> None:
     """Each node is launched in its own daemon thread; all threads are joined at the end."""
 
 
-async def _execute_stages_async(self) -> None:
+async def _execute_nodes_async(self) -> None:
     """Concurrent execution across the entire graph."""
 ```
 
-### _execute_stage / _execute_stage_async
+### _execute_node / _execute_node_async
 
 ```python
-def _execute_stage(self, stage: AnyTaskStage) -> None:
+def _execute_node(self, node: AnyTaskNode) -> None:
     """
     Execute a single node on the sync graph start path.
-    - async nodes go through asyncio.run(stage.start_async())
-    - other nodes go through stage.start()
+    - async nodes go through asyncio.run(node.start_async())
+    - other nodes go through node.start()
     """
 
 
-async def _execute_stage_async(self, stage: AnyTaskStage) -> None:
+async def _execute_node_async(self, node: AnyTaskNode) -> None:
     """
-    Async execution of a single node: async goes through coroutine; others go through asyncio.to_thread(stage.start).
+    Async execution of a single node: async goes through coroutine; others go through asyncio.to_thread(node.start).
     """
 ```
 
@@ -230,7 +234,7 @@ def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
     """
 ```
 
-This method iterates over all stages, calling `stage.snapshot(interval)` to collect each node's snapshot, then computes a DAG-aware global pending estimate and appends it to each node's snapshot.
+This method iterates over all nodes, calling `node.snapshot(interval)` to collect each node's snapshot, then computes a DAG-aware global pending estimate and appends it to each node's snapshot.
 
 The table below lists all fields contained in the complete snapshot:
 
@@ -259,9 +263,9 @@ The table below lists all fields contained in the complete snapshot:
 | Method | Return Type | Description |
 |--------|-------------|-------------|
 | `get_graph_id()` | `str` | Get the unique identifier of the current task graph instance |
-| `get_stages_summary()` | `dict[str, dict[str, Any]]` | Summary information of all task stages |
+| `get_nodes()` | `list[str]` | All node names in registration order |
 | `get_edges()` | `dict[str, list[str]]` | Outgoing edge adjacency list (shares reference with the internal `OrderGraph`, caller should treat as read-only) |
-| `get_source_names()` | `list[str]` | List of source node names |
+| `get_source_nodes()` | `list[str]` | List of source node names |
 | `get_graph_analysis()` | `dict` | Graph analysis info (graphId, graphMode, name, startTime, className, isDAG, layersDict) |
 | `get_structure_list()` | `list[str]` | Formatted tree text with borders |
 | `get_order_graph()` | `OrderGraph` | Internal ordered directed graph instance |
@@ -288,12 +292,12 @@ The table below lists all fields contained in the complete snapshot:
 ```mermaid
 flowchart TD
     INIT[__init__] --> INIT_STATE[_init_state]
-    INIT_STATE --> BUILD[set_stages + connect]
+    INIT_STATE --> BUILD[set_nodes + connect]
     BUILD --> PREPARE[_prepare_start]
     PREPARE --> START[start / start_async]
-    START -->|serial| SER[_execute_stages_serial]
-    START -->|thread| THR[_execute_stages_thread]
-    START -->|async| ASY[_execute_stages_async]
+    START -->|serial| SER[_execute_nodes_serial]
+    START -->|thread| THR[_execute_nodes_thread]
+    START -->|async| ASY[_execute_nodes_async]
     SER --> FINISH[_finish_start]
     THR --> FINISH
     ASY --> FINISH
@@ -303,7 +307,7 @@ flowchart TD
 
     SNAP --> STATUS[collect_runtime_snapshot]
 
-    RUN[run / run_async] -->|Inject initial tasks| PUT[stage.put_task]
+    RUN[run / run_async] -->|Inject initial tasks| PUT[node.put_task]
     RUN -->|Inject termination signal| SIGNAL[put_source_signal]
 ```
 
@@ -312,7 +316,7 @@ flowchart TD
 ### serial mode
 
 ```
-Run layer by layer in topological order of layers_dict → stage.start() synchronously → data flows through queues → stop when termination signal arrives
+Run layer by layer in topological order of layers_dict → node.start() synchronously → data flows through queues → stop when termination signal arrives
 ```
 
 - Run synchronously layer by layer (topological order), within layer by registration order
@@ -322,7 +326,7 @@ Run layer by layer in topological order of layers_dict → stage.start() synchro
 ### thread mode
 
 ```
-Launch a separate thread for each node → stage.start() → join all threads
+Launch a separate thread for each node → node.start() → join all threads
 ```
 
 - Maximize parallelism
@@ -348,11 +352,11 @@ and let an external component explicitly inject `TerminationSignal` to control s
 
 ```python
 graph.run({"source": tasks}, if_put_signal=False)
-# Later inject TerminationSignal manually via stage.put_task or external injection
+# Later inject TerminationSignal manually via node.put_task or external injection
 ```
 
 ## Unconsumed Task Handling
 
-In `_finish_start()`, all remaining tasks are collected by iterating over `stage_dict` and calling each stage's `drain_task_queue()`,
+In `_finish_start()`, all remaining tasks are collected by iterating over `node_dict` and calling each node's `drain_task_queue()`,
 marking them as `UnconsumedError` and recording failure information to the lifecycle sqlite persistence file
 organized by date via `get_lifecycle_spout` (`LifecycleSpout`).

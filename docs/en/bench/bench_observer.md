@@ -1,6 +1,6 @@
 # bench_observer.py Benchmark Guide
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 ## Objective
 

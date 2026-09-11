@@ -1,6 +1,6 @@
-﻿# Quick Start
+# Quick Start
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/09/09
 
 This section will guide you through quickly installing and running **TaskGraph**, experiencing its task graph scheduling mechanism through examples.
 
@@ -49,48 +49,17 @@ uv sync --group dev
 
 The `dev` dependency group already includes `pytest`, `python-dotenv`, `redis`, `celestialtree`, and other dependencies needed for development and extensions.
 
-## (Optional) Set Up .env && Start Web Visualization
+## (Optional) Set Up Status Reporting
 
-The Web monitoring interface is not mandatory, but it provides more information about task execution through a web page and is recommended.
+The main repo no longer includes a built-in Web service. If the example code enables `TaskReporter`, you can point it to a self-hosted HTTP service or a standalone `celestialflow-web` project; if you only want to experience the core scheduling capabilities of CelestialFlow, this section can be skipped.
 
-First, create a `.env` file in the project root directory and fill in the following:
-
-```env
-# .env
-# TaskWeb listening address
-REPORT_HOST=127.0.0.1
-# TaskWeb listening port
-REPORT_PORT=5005
-```
-
-After that, you can start the Web service with the following command:
-
-```bash
-# If you pip-installed the project, you can directly use the celestialflow-web command in the current virtual environment
-celestialflow-web --port 5005
-
-# If you cloned and cd'd into the project directory, you need to run core_server.py
-python -m celestialflow.web.core_server --port 5005 
-```
-
-The default listening port is `5000`, but to avoid conflicts, the test code uses port `5005`. Visit:
-
-👉 [http://localhost:5005](http://localhost:5005)
-
-to view task structure, execution status, error logs, and features like real-time task injection.
-
-Below is the Web page display during test execution (not the default layout):
-
-![WebUI](https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/web_ui.gif)
-<p align="center"><em>The gif compression loses too much detail (｡•́︿•̀｡)</em></p>
-
-Note: If you have not started the Web window but have set:
+Configuring status reporting can be done via `set_reporter`:
 
 ```python
 graph.set_reporter(True, host="127.0.0.1", port=5005)
 ```
 
-then the [logs](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/src/persistence/core_log.md) will contain some `WARNING` messages. This is TaskReporter indicating that it cannot connect to TaskWeb, but it does not affect usage.
+If you enable `TaskReporter` but the target service is not started, the [logs](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md) will contain some `WARNING` messages. This indicates that Reporter cannot connect to the remote service, but it does not affect the task graph's own operation.
 
 ```log
 2025-12-10 08:57:13 WARNING [Reporter] Task injection fetch failed: ConnectTimeout
@@ -110,11 +79,10 @@ After that, it is recommended to run the following tests first:
 
 ```bash
 pytest tests/graph/test_graph.py
-pytest tests/stage/test_stage.py
+pytest tests/node/test_node.py
 ```
 
 - `tests/graph/test_graph.py` contains graph-structure-related tests: DAG construction, layered scheduling, thread mode, loop/grid/complete graph structures, etc.
-- `tests/stage/test_stage.py` contains Stage-node-related tests: mode validation, tag generation, serialization checks, etc.
+- `tests/node/test_node.py` contains node-related tests: types, estimators, counters, etc.
 
-During execution, you can monitor the running status through the Web monitoring page.
-
+During execution, you can monitor the running status through logs, `BaseObserver` (e.g. `TqdmObserver` progress bar), or status snapshots.

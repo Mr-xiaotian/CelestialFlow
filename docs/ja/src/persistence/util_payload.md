@@ -1,6 +1,6 @@
 # PersistencePayload
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
 `persistence/util_payload.py` は、タスクデータの永続化シリアライゼーションツールを提供し、任意の Python オブジェクトを再帰的に JSON フレンドリーな構造に変換します。
 
@@ -78,7 +78,7 @@ print(result)  # "MyTask(id=1)"
 `to_persisted_payload` は主に `LifecycleInlet` 内部で自動的に呼び出され、タスクデータを SQLite に保存可能な JSON 文字列に変換します：
 
 ```python
-# LifecycleInlet.task_in 内部フロー：
+# LifecycleInlet.task_input 内部フロー：
 from datetime import datetime
 
 pending_item = {
@@ -86,7 +86,7 @@ pending_item = {
     "record": {
         "event_id": event_id,
         "ts": datetime.now().timestamp(),
-        "stage": stage_name,
+        "node": node_name,
         "status": "pending",
         "task_json": to_persisted_payload(task),  # 自動シリアライズ
     },

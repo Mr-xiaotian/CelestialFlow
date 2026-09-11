@@ -1,6 +1,6 @@
 # Lifecycle Persistence
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 `persistence/core_lifecycle.py` handles task lifecycle persistence: it records task state transitions throughout the lifecycle (pending → success / failed / deleted), and writes the data into SQLite database files under the `lifecycles/` directory. The core components are `LifecycleSpout` and `LifecycleInlet`.
 
@@ -12,7 +12,7 @@
 flowchart LR
     subgraph Producer["Producer - Worker Thread"]
         Inlet[LifecycleInlet]
-        Inlet -->|task_in / task_success / task_fail etc.| Funnel[_funnel]
+        Inlet -->|task_input / task_success / task_fail etc.| Funnel[_funnel]
     end
     Funnel --> Queue[queue.Queue]
     Queue -->|Daemon thread polling| Spout[LifecycleSpout._handle_record]
@@ -54,7 +54,7 @@ lifecycle_spout.start()
 
 | Operation | Triggered By | Description |
 |-----------|--------------|-------------|
-| `insert` | `LifecycleInlet.task_in()` | A new task enters a stage; writes a `pending` record |
+| `insert` | `LifecycleInlet.task_input()` | A new task enters a stage; writes a `pending` record |
 | `delete` | `LifecycleInlet.task_duplicate()` | Deletes the pending record for a duplicate task |
 | `promote_success` | `LifecycleInlet.task_success()` | Promotes the pending record to `success`; writes the result JSON |
 | `promote_failed` | `LifecycleInlet.task_fail()` | Promotes the pending record to `failed`; updates event_id and writes the error type and message |
@@ -95,7 +95,7 @@ Both methods return an empty list when `db_path` has not yet been initialized.
 
 ```python
 class LifecycleInlet(BaseInlet):
-    def task_in(self, stage_name: str, event_id: int, task: Any) -> None:
+    def task_input(self, stage_name: str, event_id: int, task: Any) -> None:
         """Write a pending record indicating that a task has entered a stage."""
 
     def task_success(self, event_id: int, result: Any) -> None:
@@ -110,7 +110,7 @@ class LifecycleInlet(BaseInlet):
 
 Notes:
 
-- In `task_in`, `task` is serialized via `to_persisted_payload()` into a JSON-friendly structure and stored in the `task_json` field.
+- In `task_input`, `task` is serialized via `to_persisted_payload()` into a JSON-friendly structure and stored in the `task_json` field.
 - `task_fail` persists `error_type` (exception class name) together with `error_message` (`str(error)`).
 - `LifecycleInlet` only writes to the queue and does not directly operate on the database; all I/O is performed in the background thread of `LifecycleSpout`.
 
@@ -121,7 +121,7 @@ get_lifecycle_spout() -> LifecycleSpout  # The globally unique LifecycleSpout in
 get_lifecycle_inlet() -> LifecycleInlet  # The globally unique LifecycleInlet instance (already bound to the global spout)
 ```
 
-The framework's execution components (`TaskExecutor` / `TaskSplitter` / `TaskRouter` / `TaskGraph`) uniformly use `get_lifecycle_inlet()` to record lifecycle events, while `TaskExecutor.get_success_pairs()` and `get_error_pairs()` read results through `get_lifecycle_spout()`.
+The framework's execution components (`BaseTaskNode` / `TaskSplitter` / `TaskRouter` / `TaskGraph`) uniformly use `get_lifecycle_inlet()` to record lifecycle events, while `BaseTaskNode.get_success_pairs()` and `get_error_pairs()` read results through `get_lifecycle_spout()`.
 
 ## Usage Examples
 
@@ -138,7 +138,7 @@ lifecycle_spout.start()
 lifecycle_inlet = LifecycleInlet().bind_spout(lifecycle_spout)
 
 # 3. Record task lifecycle
-lifecycle_inlet.task_in("StageA", event_id=1, task="hello")
+lifecycle_inlet.task_input("StageA", event_id=1, task="hello")
 
 # Task succeeded: pending -> success
 lifecycle_inlet.task_success(event_id=1, result="OK")

@@ -1,6 +1,6 @@
 # demo_observer.py Demo Guide
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 ## Objective
 
@@ -113,5 +113,5 @@ This makes it easier to trigger:
 
 ## Dependencies
 
-- `celestialflow` (`BaseObserver`, `TaskExecutor`, `TaskProgress`)
+- `celestialflow` (`BaseObserver`, `TaskExecutor`; `TaskProgress` is locally defined by `demo_observer.py` in the same directory of this repository)
 - `demo_utils` (`fibonacci`)

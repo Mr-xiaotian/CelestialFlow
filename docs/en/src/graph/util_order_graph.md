@@ -1,6 +1,6 @@
 # OrderGraph and Graph Algorithm Utilities
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 `graph/util_order_graph.py` provides the minimal graph structure `OrderGraph` along with a set of basic graph algorithms built around it.
 

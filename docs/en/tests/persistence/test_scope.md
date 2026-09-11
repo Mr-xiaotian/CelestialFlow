@@ -1,6 +1,6 @@
 # Scope Management Tests (test_scope.py)
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 ## Purpose
 
@@ -25,8 +25,10 @@ Verifies the `funnel_scope()` context manager in `celestialflow.persistence.core
 Verifies that entering `funnel_scope()` starts the background threads of two global spouts, and that exit automatically stops and cleans up thread references.
 
 - Within the scope, asserts that `log_spout._thread` and `lifecycle_spout._thread` are non-empty and alive.
-- Writes logs via `get_log_inlet().start_graph()`, and writes to sqlite via `get_lifecycle_inlet().task_in()` + `task_success()`.
+- Writes logs via `get_log_inlet().start_graph("scope_graph", "thread", ["hello scope"])`.
+- Writes to sqlite via `get_lifecycle_inlet().task_input("scope_stage", event_id=1, task="data")` + `task_success(event_id=1, result="ok")`.
 - After exiting the scope, asserts that `_thread` is `None`, and the log file and sqlite file have been persisted and contain the correct content.
+- Verifies that the `records` table in sqlite contains `[("scope_stage", "success", '"data"', '"ok"')]`.
 
 ### `test_funnel_scope_is_reusable`
 
@@ -38,7 +40,7 @@ Verifies that `funnel_scope()` supports multiple independent enter/exit operatio
 
 Verifies that when an exception is raised inside the scope, `funnel_scope()` still performs finalization cleanup.
 
-- Raises a `RuntimeError` inside `funnel_scope()`.
+- Raises a `RuntimeError("body boom")` inside `funnel_scope()`.
 - Asserts that the exception is raised as an `ExceptionGroup` (matches `"Errors occurred during funnel scope"`).
 - After exit, asserts that `_thread` is `None` for both global spouts.
 
@@ -62,6 +64,6 @@ pytest tests/persistence/test_scope.py -k "reusable" -v
 
 ## Notes
 
-- Each case uses the `autouse` fixture `_cleanup_global_spouts` to clean up the global spouts before and after, avoiding cross-contamination of background threads and file state.
+- Each case uses the `autouse` fixture `_cleanup_global_spouts` to clean up the global spouts before and after: calls `stop()`, empties the queue, and zeros internal counters, avoiding cross-contamination of background threads and file state.
 - Tests use `monkeypatch.chdir(tmp_path)` to switch the working directory, ensuring log and sqlite files are written to a temporary path.
 - The related implementation is located at `src/celestialflow/persistence/core_scope.py`.

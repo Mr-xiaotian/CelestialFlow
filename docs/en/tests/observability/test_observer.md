@@ -1,13 +1,13 @@
-# Observer Tests (test_observer.py)
+# tests/observability/test_observer.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 ## Purpose
-Validates the Observer mechanism in the `celestialflow.observability` module, ensuring callbacks are correctly triggered at key points in the task execution lifecycle.
+Validates the callback contract between `BaseObserver` and `TaskExecutor` exported by the `celestialflow` package, ensuring that key points in the task execution lifecycle correctly trigger the override methods of `BaseObserver`.
 
 ## Core Test Objects
-- `BaseObserver`: Observer base class.
-- `TaskExecutor`: The task executor being observed.
+- `BaseObserver`: From `celestialflow.observability`, the observer base class providing callback hooks such as `on_start` / `on_task_success` / `on_task_fail` / `on_task_duplicate` / `on_tasks_added` / `on_finish`.
+- `TaskExecutor`: From `celestialflow.node`, the observed task executor (in tests it is imported through the top-level `celestialflow` package).
 
 ## Test Coverage Matrix
 
@@ -26,8 +26,10 @@ Validates the Observer mechanism in the `celestialflow.observability` module, en
 
 ## Important Details
 - Uses mock classes such as `RecordingObserver`, `CountObserver`, and `Counter` to collect and verify events.
-- `RecordingObserver` overrides `on_start` / `on_task_success` / `on_task_fail` / `on_task_duplicate` / `on_tasks_added` / `on_finish`, where `on_task_success` and `on_task_fail` have a default count parameter `count=1`.
-- `test_remove_observer` ensures that the unbound observer no longer produces side effects.
+- `RecordingObserver` overrides `on_start` / `on_task_success` / `on_task_fail` / `on_task_duplicate` / `on_tasks_added` / `on_finish`, where `on_task_success` and `on_task_fail` explicitly declare a default `count=1` parameter.
+- `CountObserver` only overrides `on_task_success` / `on_task_fail`, accumulating the `count` field for aggregate statistics.
+- `test_remove_observer` calls `executor.remove_observer(observer)` to unbind, then runs again, asserting `observer.count == 0`.
+- All cases use the `execution_mode="serial"` mode to facilitate sequential event assertions.
 
 ## How to Run
 

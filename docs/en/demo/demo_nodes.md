@@ -1,0 +1,116 @@
+# demo_nodes.py Demo Guide
+
+> 📅 Last Updated: 2026/09/09
+
+## Objective
+
+Demonstrates structural special nodes in CelestialFlow: `TaskSplitter` (task splitting) and `TaskRouter` (task routing), as well as multi-node collaboration under the `BaseTaskNode` system. Showcases graph structure capabilities including cyclic dependencies, batch splitting, and conditional dispatching.
+
+## Demo Scenarios
+
+### `demo_splitter_0`
+Simulates a crawler workflow:
+
+```mermaid
+flowchart TD
+    GenURLs["GenURLs<br/>Generate URL list"] -->|direct output| Logger["Logger<br/>Log crawl info"]
+    GenURLs -->|direct output| Splitter["Splitter<br/>Split URL list into individual URLs"]
+    Splitter -->|single URL| Downloader["Downloader<br/>Download resource"]
+    Splitter -->|single URL| Parser["Parser<br/>Parse new URLs"]
+    Parser -.->|loopback| GenURLs
+```
+
+- `GenURLs` → Generates URL list
+- `Logger` → Logs crawl information
+- `Splitter` → Splits URL list into individual URLs
+- `Downloader` → Downloads resources
+- `Parser` → Parses new URLs and loops back to `GenURLs`
+
+**Graph structure**: Cyclic graph (`parse_stage → generate_stage`)
+
+### `demo_splitter_1`
+Demonstrates large batch splitting: input `range(100_000)` is wrapped in a list and passed to `TaskSplitter`, with downstream receiving items one by one, avoiding loading too many tasks into memory at once.
+
+### `demo_router_0`
+Demonstrates `TaskRouter` dispatching tasks to different downstream nodes based on parity.
+
+```mermaid
+flowchart LR
+    Origin["Origin<br/>sleep_1"] -->|"n"| Router["Router<br/>router=router_even"]
+    Router -->|even n % 2 == 0| StageA["StageA<br/>thread | 2 workers"]
+    Router -->|odd n % 2 != 0| StageB["StageB<br/>thread | 2 workers"]
+```
+
+Routing logic: The `Origin` stage simply outputs the original input integer; `TaskRouter` holds `router_even(n) -> str` and, in `_route()`, selects `StageA` (even) or `StageB` (odd) based on parity, then dispatches the raw task downstream.
+
+## Key Configuration
+
+- `demo_splitter_0` uses two independent calls `graph.set_graph_mode("thread")` and `graph.set_node_execution_mode("thread")` to uniformly set each `TaskExecutor` node to `"thread"` mode (`max_workers=4`); `TaskSplitter` does not explicitly set an execution mode and only acts as a splitting node passing tasks through.
+- `demo_splitter_1` indirectly uses `execution_mode="thread"`, `max_workers=50` (the `Process` stage) via `TaskChain`.
+- In `demo_router_0`, `Origin` / `StageA` / `StageB` all use `execution_mode="thread"` (`max_workers=4` / `2` / `2`); `Router` is a `TaskRouter` node and does not consume `execution_mode` itself.
+- Monitoring is wired in via `graph.set_reporter(TaskReporter(report_host, report_port, graph))`, connecting to the remote Reporter corresponding to the `REPORT_HOST`/`REPORT_PORT` environment variables; `graph.set_ctree(ctree_client)` is commented out by default and does not enable CelestialTree; to wire it in, first install `celestialtree` separately and uncomment the corresponding call.
+- Redis remote collaboration examples have been migrated to `demo_redis.py`.
+
+## Potential Issues
+
+1. **Long runtime**: Stages in `demo_splitter_0` contain 4-6 seconds of random sleep; full execution may exceed 1 minute.
+2. **Contains a loopback, may not auto-terminate**: `demo_splitter_0` has a `Parser → GenURLs` loopback, and `graph.run(..., if_put_signal=False)` does not inject an automatic termination signal; some URLs (e.g., successfully parsed `url_1_1`) will keep producing new URLs and continue looping. If there is no new output for a long time, it is recommended to manually terminate with **Ctrl+C**.
+3. **No assertions**: Demo script; does not verify result correctness.
+4. **Redis examples migrated**: The former `demo_redis_ack_*` and `demo_redis_source_0` have been migrated to [demo_redis.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/demo/demo_redis.md).
+
+## How to Run
+
+```bash
+# Run default demo (demo_splitter_0)
+python demo/demo_nodes.py
+
+# Modify main() to run other scenarios
+# e.g., replace demo_splitter_0() with demo_router_0()
+```
+
+> **Note**: The current `__main__` only calls `demo_splitter_0()` by default; neither `demo_splitter_1()` nor `demo_router_0()` is called. You need to execute or uncomment them manually inside `main()` to run them.
+
+## Expected Behavior
+
+The following outputs are all expected outputs (mock); the specific log format depends on the framework output.
+
+### `demo_splitter_0` (Crawler workflow)
+
+Generates URLs, splits via Splitter, Downloader and Parser process in parallel, Parser results loop back to Generator:
+
+```
+[GenURLs] Generated 3 URLs
+[Splitter] Splitting 3 URLs...
+[Downloader] Downloading url_0...
+[Parser] Parsing url_0...
+[Logger] Logging: url_0
+[Downloader] Downloading url_1...
+...
+```
+
+> Contains random sleep (4-6 seconds); total execution time may exceed 1 minute.
+
+### `demo_router_0` (Parity routing)
+
+Origin produces raw integers; Router internally dispatches tasks to StageA (even) or StageB (odd) based on parity:
+
+```
+[Origin] Input: 0 -> sleep_1(0) -> 0
+[Origin] Input: 1 -> sleep_1(1) -> 1
+[Router] router_even(0) -> StageA
+[Router] router_even(1) -> StageB
+[StageA] Received: 0
+[StageB] Received: 1
+...
+```
+
+### `demo_splitter_1` (Large batch splitting)
+
+Wraps `range(100000)` as a list fed into Splitter, outputting individually to downstream for processing, with no additional output logs.
+
+## Dependencies
+
+- `celestialflow` (`TaskGraph`, `TaskExecutor`, `TaskChain`, `TaskSplitter`, `TaskRouter`, `TaskReporter`)
+- `demo_utils`
+- `python-dotenv`
+- External services: CelestialTree (optional), Reporter (optional)

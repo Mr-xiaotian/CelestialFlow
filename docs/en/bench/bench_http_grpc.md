@@ -1,6 +1,6 @@
 # bench_http_grpc.py Benchmark Guide
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 ## Objective
 
@@ -14,9 +14,9 @@ Quantitatively compare the performance overhead of the CelestialTree event track
 | `bench_http_ctree` | Report events to CelestialTree via HTTP |
 | `bench_grpc_ctree` | Report events to CelestialTree via gRPC |
 
-- **Graph structure**: Simple chain of `TaskSplitter → TaskStage`
+- **Graph structure**: Simple chain of `TaskSplitter → TaskExecutor`
 - **Tasks**: `no_op` identity function (processing `range(1e4)`)
-- **Config**: `stage_mode="thread"`, `execution_mode="thread"`, `max_workers=50`
+- **Config**: `execution_mode="thread"`, `max_workers=50` (`TaskSplitter` defaults to serial; `TaskExecutor` itself does not explicitly set `execution_mode` since it is passed directly at construction time)
 
 ## Key Configuration
 
@@ -31,9 +31,11 @@ Quantitatively compare the performance overhead of the CelestialTree event track
 
 ## Benchmark Results (Measured)
 
+> 🟢 All timing data in the tables of this section is historical measured data and cannot be verified from source code; manual confirmation is required.
+
 ### Historical Results - Local CelestialTree (date not recorded)
 
-> Environment: Windows, Python 3.10, TaskSplitter → TaskStage chain, processing `range(1e4)`
+> Environment: Windows, Python 3.10, TaskSplitter → TaskExecutor chain, processing `range(1e4)`
 > External Service: local CelestialTree (HTTP + gRPC)
 
 | Scenario | Time | Overhead vs Baseline |
@@ -102,7 +104,7 @@ python bench/bench_http_grpc.py
 
 ## Dependencies
 
-- `celestialflow` (`TaskChain`, `TaskSplitter`, `TaskStage`)
+- `celestialflow` (`TaskChain`, `TaskSplitter`, `TaskExecutor`)
 - `celestialtree` (requires additional installation; available via `uv sync --group dev` in the source repository)
 - `python-dotenv`
 - External Service: CelestialTree (HTTP port + gRPC port)

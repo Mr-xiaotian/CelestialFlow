@@ -1,6 +1,6 @@
 # demo_utils.py デモツール説明
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
 ## 目標
 
@@ -30,11 +30,11 @@ flowchart TD
     Fib --> Executor["demo_executor.py"]
     Fib --> Redis0["demo_redis.py<br/>(demo_redis_ack_0)"]
     Sleep1 --> RedisDemo["demo_redis.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0)"]
-    Url --> StagesSplitter0["demo_stages.py<br/>(demo_splitter_0)"]
+    Url --> NodesSplitter0["demo_nodes.py<br/>(demo_splitter_0)"]
     Url --> Redis2["demo_redis.py<br/>(demo_redis_ack_2)"]
-    Router --> StagesRouter0["demo_stages.py<br/>(demo_router_0)"]
+    Router --> NodesRouter0["demo_nodes.py<br/>(demo_router_0)"]
     Misc --> Redis1["demo_redis.py<br/>(demo_redis_ack_1)"]
-    Misc --> StagesSplitter1["demo_stages.py<br/>(demo_splitter_1)"]
+    Misc --> NodesSplitter1["demo_nodes.py<br/>(demo_splitter_1)"]
     Compute --> Structure["demo_structure.py"]
 ```
 
@@ -55,7 +55,7 @@ flowchart TD
 - `operate_sleep` / `operate_sleep_A~E`：二項演算、1 秒遅延
 - `add_one_sleep`：複数条件の例外境界を含む（`n>30`、`n==0`、`n is None`）
 
-### URL 処理関数（demo_stages 用）
+### URL 処理関数（demo_nodes 用）
 - `generate_urls_sleep` / `log_urls_sleep` / `download_sleep` / `parse_sleep`
 - `download_to_file`：実際の HTTP ダウンロードでローカルファイルに保存
 

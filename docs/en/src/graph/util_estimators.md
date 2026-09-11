@@ -1,6 +1,6 @@
 # GraphEstimators
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 `graph/util_estimators.py` provides a function for estimating the global number of pending tasks based on a task graph (DAG).
 
@@ -50,7 +50,9 @@ from celestialflow.graph.util_order_graph import OrderGraph
 from celestialflow.graph.util_estimators import calc_global_pending
 
 # Build a simple DAG: A -> B -> C
-graph = OrderGraph.from_edges({"A": ["B"], "B": ["C"]}, ("A", "B", "C"))
+graph = OrderGraph()
+for u, v in [("A", "B"), ("B", "C")]:
+    graph.add_edge(u, v)
 
 # Input observation data
 processed_map = {"A": 100, "B": 50, "C": 10}

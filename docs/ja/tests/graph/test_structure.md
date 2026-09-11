@@ -1,6 +1,6 @@
 # 特定グラフ構造テスト (test_structure.py)
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
 ## 役割
 `TaskLoop` と `TaskWheel` の2つの事前定義循環グラフ構造の専用解析能力を検証し、ならびに各種事前定義グラフ構造（`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`）の入力検証を行い、空入力や不正入力で静的に構築されたりクラッシュが発生したりしないことを確認します。
@@ -16,7 +16,7 @@
 |------------|---------|--------------|
 | `TestTaskLoop` | 2 | isDAG が False と識別、循環内ノード同層、ソースノード導出が代表点1つを返す |
 | `TestTaskWheel` | 2 | Center が第0層、Ring が第1層、ソースノードが Center のみを返す |
-| `TestStructureValidation` | 10 | 空 stages / 空 layers / 空グリッド / 先頭行空 / 行長不一致 / 単一ノード Complete / 各構造の空入力検証 |
+| `TestStructureValidation` | 10 | 空 nodes / 空 layers / 空グリッド / 先頭行空 / 行長不一致 / 単一ノード Complete / 各構造の空入力検証 |
 | **合計** | **14** | |
 
 ## 主要テストフロー
@@ -28,7 +28,7 @@
 
 ### TaskWheel 解析
 - 中心ノード（Center）が第0層にあり、外側の循環ノード（Ring）が第1層にあることを検証。
-- `get_source_names()` が Center ノードのみを返し、タスクが中心から注入されることを検証。
+- `get_source_names()` は Center ノードのみを返し、タスクが中心から注入されることを検証。
 
 ### 構造入力検証 (`TestStructureValidation`)
 全 6 種類の事前定義グラフ構造に対する空/不正入力の境界をカバー：
@@ -78,7 +78,7 @@ pytest tests/graph/test_structure.py::TestStructureValidation -v
 
 ## 重要な詳細
 - `TaskLoop` は `run()` で起動しタスクを注入します（`run` のデフォルトは `if_put_signal=True` で、ソースノードに終了シグナルを自動補完してテストの終了を保証）。
-- `TaskWheel` はタスクを実行しません。`set_graph_mode()` と `set_stage_execution_mode()` で設定した後、`get_graph_analysis()` / `get_source_names()` を直接呼び出して静的解析を行います。
+- `TaskWheel` はタスクを実行しません。`set_graph_mode()` と `set_node_execution_mode()` で設定した後、`get_graph_analysis()` / `get_source_names()` を直接呼び出して静的解析を行います。
 - テストの重点は「実行結果」ではなく「解析結果」（analysis dict）にあります。
 - 入力検証テストはすべて純粋な構築操作であり、グラフの起動を伴いません。
 

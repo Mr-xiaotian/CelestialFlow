@@ -1,13 +1,13 @@
 # TaskTypes
 
-> 📅 Last Updated: 2026/08/12
+> 📅 Last Updated: 2026/09/09
 
 
 The TaskTypes module defines the basic data types, enums, and helper classes used throughout the framework.
 
 ## StageStatus
 
-Enum class representing the running state of a `TaskStage`.
+Enum class representing the running state of a task graph node (`BaseTaskNode` and its subclasses, such as `TaskExecutor`, `TaskSplitter`, `TaskRouter`).
 
 ```python
 class StageStatus(IntEnum):
@@ -18,7 +18,7 @@ class StageStatus(IntEnum):
 
 ## TerminationSignal
 
-A sentinel object used to mark the end of a task queue. When a Stage receives this signal, it indicates that the upstream has no more tasks and the Stage should prepare to stop.
+A sentinel object used to mark the end of a task queue. When a node receives this signal, it indicates that the upstream has no more tasks and the node should prepare to stop.
 
 ```python
 class TerminationSignal:

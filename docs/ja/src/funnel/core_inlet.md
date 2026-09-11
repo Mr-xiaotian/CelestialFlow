@@ -1,6 +1,6 @@
 # BaseInlet
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
 `BaseInlet` はすべての入口クラス（Inlet）の基底クラスであり、レコードをキューを通じて対応する `BaseSpout` に送信する役割を担います。
 
@@ -82,7 +82,7 @@ classDiagram
         +termination_input()
     }
     class LifecycleInlet {
-        +task_in()
+        +task_input()
         +task_success()
         +task_fail()
         +task_duplicate()

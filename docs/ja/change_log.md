@@ -1,6 +1,6 @@
 # 更新ログ（Change Log）
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/09/10
 
 - 2021: マルチスレッドとシングルスレッド処理関数をサポートするクラスを構築
 - 2023: GPT-4 の支援でマルチプロセスとコルーチン実行モードを追加
@@ -257,10 +257,13 @@
       - ログの `start_graph` `end_graph` と Web 側の `graph_analysis` に表示される
     - フロントエンド・バックエンド通信から `graph_summary` を完全に削除し、残っていた `グローバル残り時間` を各ノードの `グローバル待機` と `グローバル残り時間` に分割
       - ここでの `グローバル` とは、グラフ理論に基づき、上流の残りタスク数から下流が取得できる総タスク数を推定することを意味する
+      - 例：グラフ関係 `A -> B`、A はタスク 2 処理済・未処理 3、B はタスク 4 処理済・未処理 2。これは A が成功した 2 タスクが B に合計 6 タスクをもたらすことを意味し、これに基づき B は合計「3/2*6=9」タスクを取得できると推定できる。したがって B の `待機` タスク数は 2 だが、`グローバル待機` タスク数は 5
     - フロントエンドにツールチップを追加し、マウスオーバーで関連情報を表示（例：今回追加されたノード `グローバル待機` の意味）
     - フロントエンドからノードカードのドラッグ機能を削除
+      - この機能は Web ページ追加時に実装したもの。当時はクールだと思ったが、今はやや飽きた
     - フロントエンドエラーログページに `タスク注入` ボタンを追加し、選択したタスクを注入ページのノード注入待ちリストに直接追加可能
     - `TaskSplitter` に `split_item` メソッドを追加し、自由に定義可能
+      - 元の `splitter` は `get_args` に大きく依存していたが、`split_item` メソッドでその欠落した柔軟性をある程度補填
   - refactor:
     - **[IMPORTANT]** ジェネリクスを導入し、Python バージョン >=3.12 を必須に
       - ジェネリクスにより型安全性が向上し、コードの可読性も向上
@@ -268,8 +271,10 @@
     - フロントエンドコードからすべての `localStorage` 使用を削除
       - config 設定ファイルがある状況では意味が薄く、混乱を招くため
     - タスクキューの drain 操作を graph 層から stage 層に移動
+      - 以前はノードの `stage_mode` が `process` の可能性があり、その場合メインプロセスが保持するノードは実際に動作するノードではなかったため
+      - 3.2.0 バージョンがもたらした永続的な影響の一つ
     - `TaskMetric` のロック使用を最適化
-    - `TaskEnvelope` の `change_id()` メソッドを削除し、envelope は不変に
+    - `TaskEnvelope` の `change_id()` メソッドを削除し、envelope はデフォルトで不変に。同時に `emit_retry_envelope` では元の envelope の id を変更して worker に再投入せず、新規生成した envelope を直接使用
     - エラーログから `error` `error_repr` `task_repr` フィールドを削除
     - フロントエンド・バックエンド間のタスク注入データ形式を変更し、複数ノードのタスクデータ同時送信を容易に
     - フロントエンドコードで strict チェックを有効化
@@ -280,26 +285,27 @@
   - fix:
     - i18n ローカライズが一部フィールドで無効になる問題
     - ダッシュボードのエラー数を直接クリックしてエラーログページに遷移した際、設定パネルにダッシュボードページの設定が表示される問題
-    - フロントエンドの各ダッシュボードリクエストに `RequestSeq` を追加し、前後して送信されたリクエストの遅延による返り値の上書きを防止
-    - フロントエンドの各空フィールドが最初の refresh でしか表示されない問題を修正
+    - フロントエンドの各ダッシュボードリクエストに `RequestSeq` を追加し、前後して送信された 2 つのリクエストが遅延関係で先のリクエストの返り値が後のリクエストの返り値を上書きしてしまう問題を防止
+    - フロントエンドの各空フィールドが最初の refresh でしか表示されない問題を修正、体感的に「読み込み」が遅く感じる
   - chore:
     - ドキュメントを英語/日本語に翻訳更新
       - この作業は非常にトークンを消費する
 - 3.2.4
   - feat:
     - **[IMPORTANT]** 従来の `fail_funnel` と `success_funnel` を `fallback` に統合し、`sqlite` で保存
-      - 従来の `jsonl` ベースの fail 永続化は保存時に非常に使いやすかったが、読み取り時に毎回全量をメモリに読み込んでから検索する必要があり面倒だった
+      - 従来の `jsonl` ベースの fail 永続化は保存時に非常に使いやすかったが、読み取り時に毎回全量をメモリに読み込んでから検索する必要があり面倒だった; `redis` のようなデータベースサービスも考えたが、サードパーティサービスを別途起動したくない
+      - そこで `sqlite` がすべての要件にぴったり合うと気付いた
       - Richard 万歳！
-      - 従来の `success_funnel` は完全に半製品だった：`executor` でのみ使用可能で `stage` では不可、完全にメモリ保存。今回の機会に併せてリファクタリングし `fallback_funnel` に統合
+      - 従来の `success_funnel` 機構は完全に半製品だった：`executor` でのみ使用可能で `stage` では不可、完全にメモリ保存。今回の機会に併せてリファクタリングし `fallback_funnel` に統合
       - 現在 `fallback_funnel` はタスクの `注入/重複/リトライ/失敗/成功` 時に sqlite 内の該当レコードに対して挿入/更新/削除操作を行う
-      - タスク成功時はデフォルトで該当レコードを削除するが、`executor` の `persist_result` オプションを有効にするとレコードを保持し `status` フィールドを `success` に更新
+      - タスク成功時はデフォルトで該当レコードを削除するが、`executor` の `perist_result` オプションを有効にするとレコードを保持し `status` フィールドを `success` に更新
     - **[IMPORTANT]** `stages` から 3 つの redis ノードを削除し、demo ファイルを追加して同様のノードを自作する方法を説明
       - `TaskSplitter` や `TaskRouter` と比べて、この 3 つのノードはあってもなくてもよく、`redis` 依存パッケージが増えるだけ
-    - **[IMPORTANT]** `celestialtree` を依存ライブラリから除外し、既存のイベント宣言メカニズムは protocol インターフェースに基づき、デフォルトでローカルの超簡易実装を使用
+    - **[IMPORTANT]** `celestialtree` を依存ライブラリから除外し、既存のイベント宣言メカニズムは protol インターフェースに基づき、デフォルトでローカルの超簡易実装を使用
       - これもライブラリ依存を減らすため。`celestialtree` ライブラリには `grpcio` と `protobuf` の依存が含まれており、この 2 つは Python free-threading バージョンのサポートが不十分なため、これらがあると `celestialflow` は free-threading バージョンで実行できない——これは非常に期待していること
-      - `bench_gil_vs_nogil` によると、free-threading バージョンでは `executor` が CPU 負荷の高いタスクで 5.25 倍、`graph` では 7.55 倍の向上。非常に喜ばしい
-    - フロントエンドの `ノード指標推移` カードに `グローバル待機キュー` を追加
-    - `graph` に `start_graph_db` メソッドを追加し、fallback データベースアドレスを受け取って失敗データに基づき `start_graph` を実行。`executor` に `start_db` メソッドを追加し、fallback データベースアドレスを受け取って失敗データに基づき `start` を実行
+      - `bench_gil_vs_nogil` によると、free-threading バージョンでは `executor` が CPU 密集タスクで 5.25 倍、`graph` では 7.55 倍の向上。非常に喜ばしい
+    - フロントエンド `ノード指標推移` カードに `グローバル待機キュー` を追加
+    - `graph` に `start_graph_db` メソッドを追加し、fallback データベースアドレスを受け取り失敗データに基づき `start_graph` を実行。`executor` に `start_db` メソッドを追加し、fallback データベースアドレスを受け取り失敗データに基づき `start` を実行
       - 非常に便利
   - refactor:
     - **[IMPORTANT]** server 側の error データ保存方法を Python ネイティブリストから一時 sqlite データベースに変更
@@ -309,13 +315,22 @@
       - 現在は毎回の refresh 開始時に状態同期を行い、`graph_id` で両者が保持するデータが同一 `graph` オブジェクト由来かを判断し、一致する場合は structure/analysis データを再 push しない
       - 状態同期時に双方の graph が一致する場合、server は自身が保持するエラーデータの最大 `event_id` 値を返す（厳密な検証済み、`event_id` はデータベース内で厳密に増加）
       - reporter の従来の `push_error_meta` と `push_error_content` を統合し、毎回のリフレッシュ時に新規エラーデータのみを送信。新規データは server が返す最大 `event_id` 値とローカルデータベースの最大 `event_id` 値でフィルタリング
-    - `graph.connect` と `graph.set_stage` により多くの責務をバインド
+    - `graph.connect` と `graph_set_stage` により多くの責務をバインド
+      - 現在、ノードと `graph` の `ctree` `reporter` 上の同期は `graph_set_stage` で完了
+      - `task_queue` と `result_queue` の上り下流バインド、および `counter` のバインドはすべて `graph.connect` で完了
     - `TaskEnvelope` から不要なデータを削除し、`task` `hash` `id` の 3 項目のみを保持
+      - `source` フィールドはそもそも追加すべきではなく、一度も役割を果たしていない
+      - `prev` フィールドは旧 `success_funnel` 向けで、もう必要ない
     - `TaskMetrics` で `executor` の `execution_mode` に関わらず、すべての `counter` に `Lock` を固定使用
-    - `process_task_success` で既存の `task.success` 宣言に加え、`result_envelope` が `result_queue` に入る前に `task.input` 宣言を行う
-    - `executor.get_fail_pairs`（旧 `executor.get_error_pairs`）は `tuple[T, PersistedError]` を返す
+      - この固定パターンは一部のパフォーマンスを犠牲にするが、コードをより安定させる
+      - `bench_lock_overhead` によると、これにより `counter` は約 3.2 倍遅くなるが、`counter` の更新はすべて `int` 型ベースで元々高速なので許容範囲
+    - `process_task_success` で既存の `task.success` 宣言を除き、`result_envelope` が `result_queue` に入る前に `task.input` 宣言を行う
+      - fallback の sqlite 内で `event_id` がグローバルに統一されることを保証するため
+    - `executor.get_fail_pairs`（旧 `executor.get_error_pairs`）は `tuple[T, PeristedError]` を返す
+      - `PeristedError` は記録の `error_type` と `error_message` で構成
     - `TaskRouter` ノードを書き直し、タスクのルーティング方向を指定する `router` 関数の受け渡しを必須に
     - 不要なメソッドを削除
+      - 例：`TaskGraph.get_stage_input_trace`
   - fix:
     - フロントエンドダッシュボードページの構造図がタブ切替で空白表示されなくなる問題を修正
       - これは非常に古いバグで、なぜ今まで修正しなかったのか不明
@@ -324,3 +339,140 @@
     - より多くの benchmark を追加
     - `Agents.md` ファイルを追加
       - AI への延々と続く強調指示にうんざりした
+- 3.2.5
+  - feat:
+    - `Spout` と `Inlet` に `counter` を追加し、`queue` 内の未消費タスク数を記録
+      - 前バージョンで `fallback` 機構を大幅に変更した後、`FallbackSpout` 内でタスクが堆積しやすく、誤判定を引き起こしやすい
+    - Web 側エラーログページで、現在の表示エラー数が `node_status` のエラー数と一致しない可能性がある状況を説明
+    - Web 側ダッシュボードページにエラー分類の円グラフを追加
+  - refactor:
+    - `networkx` への依存を削除し、`util_graph` を追加してすべてのグラフ理論分析を実装
+    - `TaskExecutor` の `enable_duplicate_check` のデフォルトを `False` に変更
+      - duplicate 機構にはメモリが継続的に増加する点があり：`processed_set`。これが `enable_duplicate_check` を大規模タスクで大きなメモリ圧迫を引き起こす原因だった
+    - server 側の `push_task` と `push_termination` を分離
+  - fix:
+    - `drain_task_queue` で `UnconsumedError` が 2 回計算される問題を修正
+  - chore:
+    - `img/` に新しい `web_display.png` 画像を追加
+    - いくつかの skill を改善し、主 agent とサブ agent の prompt を分離
+- 3.2.6
+  - feat:
+    - `graph` と `stage` に、db ファイルを直接読み取りタスクを再試行/続行するメソッドを追加
+      - それぞれ `start_graph_db` と `start_db`
+  - refactor:
+    - **[IMPORTANT]** web 部分を独立プロジェクト [celestialflow-web](https://github.com/Mr-xiaotian/celestialflow-web) に分離
+      - 長い間検討していた決定。現在の Web 側コードはプロジェクト全体のスタイルとの差が大きく、一緒に併合し続けるのはもはや適切ではない
+      - もちろんこれは現在のプロジェクトで `celestialflow-web` コマンドが無効になることを意味する。別途 `pip install celestialflow-web` でインストールが必要
+  - chore:
+    - ドキュメントを全量更新し、en/ja の 2 言語に翻訳
+    - `docs/zh-CN` 下の `README.md` を削除。現在、中国語 readme はルート下のこの 1 つだけ
+- 3.2.7
+  - feat:
+    - `TaskInQueue` に `maxsize` パラメータを追加し、キューの最大長を制限
+    - `graph.connect` に 2 つの stage の入出力パラメータ型のチェックを追加。通らない場合 pyright エラー
+  - refactor:
+    - `tqdm` への依存を削除
+      - `bench\bench_observer.py` によると、tqdm は軽量タスクへの影響が限定的
+      - 今回の削除は主に「可能な限りサードパーティライブラリ依存をゼロにする」という目標を完遂するため
+    - `observer` の管理を `executor` から `metric` へ移行
+- 3.2.8
+  - feat:
+    - [IMPORTANT] `TaskGraph.run_async` を追加し、グラフレベルの非同期を直接実行可能に
+      - 最新の `bench_graph_mode.py` テストによると、I/O 密集タスクで、`serial`+`async`（6.05s）は `serial`+`serial`（69.04s）より **11.4x** 高速
+    - `core_structure` にエラー検証を追加
+    - `execution_mode=async` 設定時に `TashExecutor.start`（現在の `TashExecutor.run`）の呼び出しを許可せず、`TashExecutor.run_async` のみ呼び出し可能に
+    - また `TashExecutor.run_async` 呼び出し時にもモードチェックを行い、`execution_mode=async` でない場合は例外をスロー
+    - `BaseObserver` に `observer_error` を追加し、`BaseObserver.on_*` 関数のエラー処理用
+    - `TaskGraph._finish_start_graph` `TaskExecutor._finish_start` で全実行ステップに `try-except` を適用し、終了ステップをできる限り完了させる
+    - `core_scope` を追加し、`funnel` のライフサイクルを独立制御。`TaskGraph.run/run_async` `TaskExecutor.run/run_async` で使用
+  - refactor:
+    - [IMPORTANT] 元の `TaskGraph.start_graph/start_graph_async` `TaskExecutor.start/start_async` を `TaskGraph.run/run_async` `TaskExecutor.run/run_async` にリネーム
+      - 破壊的変更
+      - その根本理由は `TaskStage.start_stage/start_stage_async` と `TaskExecutor.start/start_async` の統合を目指す一連のリファクタリングの 1 つ
+      - 新しい `TaskGraph.start/start_async` `TaskExecutor.start/start_async` はタスクを受け取らず、既存タスクリスト内のタスク処理に専念
+    - [IMPORTANT] funnel を `TaskGraph` `TaskExecutor` 内での明示的呼び出し・明示的受け渡しから、すべての使用側で独立ファイルから import する方式に変更
+      - 一つには従来の受け渡しチェーンが見苦しすぎたため、もう一つは `TaskExecutor.start/start_async` ロジック簡略化のためで、`TaskStage.start_stage/start_stage_async` との統合準備
+    - 一部のファイルを移動し、一部のモジュールレベルの循環参照問題を解決
+      - 元々はファイルレベルの循環参照ではなく、使用上は問題なかった
+    - `TaskDispatch.dispatch_thread` 内の完了済み future の処理ロジックを修正し、CPU 浪費を回避
+    - `util_errors` の一部の不要なエラークラスを削除
+    - `TaskGraph._finalize_stages` を分割し、不要な機構を削除し、残った機構を他のメソッドへ移動
+    - `TaskGraph.set_reporter` のロジックを修正し、`set_ctree` と一致させた
+    - `TaskOutQueue` の `queue_list|target_name|_name_to_idx` を `_queues` に変更し、`put_channel` を削除
+      - なぜ最初からそうしなかったのか困惑
+    - `TaskExecutor` 内の `_get_task_repr` と `_get_result_repr` をマージ
+      - これら 2 つのメソッドは元々大きな違いがあったが、その後の多数のリファクタリングを経てロジックが一致した
+    - `TaskStage` の `_status` を `TaskMetrics` 管理に移行
+      - これも `TaskExecutor.start/start_async` と `TaskStage.start_stage/start_stage_async` の統合のため
+    - `TaskGraph` の `put_stage_queue` を削除
+      - タスク入力は `TaskExecutor` の `put_task` `put_signal` メソッドを完全使用
+  - fix:
+    - `TaskDispatch.worker/worker_async` にエラー捕捉を追加し、`CRITICAL` レベルのエラーとして捕捉
+      - `worker` レベルのエラーでカウントが狂い、永続に終了できなくなる問題を回避
+    - `spout` と `reporter` の `stop` 操作に、thread の `join` 失敗エラーを追加
+    - `TaskGraph.restore_db` と `TaskExecutor.restore_db` で `filter_by_error_type=Ture` を有効にした際、`status=pending` のタスクレコードをスキップする問題を修正
+    - `TaskGraph` の一部の `get_*` メソッドが `_build_analysis` の生成物に依存していたが、`_build_analysis` 未実行で発生する問題を修正
+    - `TaskMetrics` の `get_counts` と `is_tasks_finished` でデッドロックの可能性を修正
+    - `TaskReporter` の `stop` 内で行われた最後の `_refresh_all` にエラー捕捉がなく、後続のクリーンアップが完了しない問題を修正
+- 3.2.9
+  - feat:
+    - [IMPORTANT] `stage` から `stage_mode` を削除し、`graph_mode` を追加
+      - 破壊的変更
+      - `stage_mode` は各 `TaskStage` のグラフ内のモードを細粒度制御できるが、長年の使用を経て、この細粒度制御は不要であり、理解コストをいたずらに増やすだけだと判断
+      - `graph_mode` はより粗粒度の制御を提供し、グラフ内の全 `TaskStage` のシリアル/マルチスレッド/並行実行を統一制御する。ほとんどのシナリオに適応
+      - 同時に `graph_mode`(serial/thread/async) * `execution_mode`(serial/thread/async) の合計 9 種の組み合わせモードを完備
+    - `schedule_mode` を削除
+      - 破壊的変更
+      - このモードは多くの複雑さをもたらしたが、元の `stage_mode / execution_mode` と明らかな組み合わせ優位性を生まなかった
+    - `get_graph_analysis` に `graph_mode` を追加
+      - この関数は主に Web 端に情報を提供するもの
+      - Web 端のコードは同期して修正済
+    - 図が dag ではなくかつ `graph_mode=serial` の場合、新しい `warning` 項目をトリガー
+    - `task_executor` の `persist_result` パラメータを削除
+      - コードロジック簡略化のため。同時に全タスクの最終状態（成功/失敗/未実行を含む）を統一保存可能に
+    - `task.retry` イベントを降格させ、単独のイベント ID を申請せず、`lifecycle` に痕跡を残さない
+  - reafactor:
+    - `benchmark` 関連関数の sync と async 両モード実行をマージ
+      - パフォーマンス差異なし、コードの見栄えが向上
+    - 元の `fallback` を `lifecycle` にリネーム
+      - 元の `fail` をリファクタリングした時点でより適切な名前にすべきだったが、このバージョンでようやく実現
+    - `graph.source_lists` を `graph.source_names` に変更
+      - `graph.source_lists` はノードの参照を直接保存し、`graph.source_names` はノード名を保存
+    - すべての `log` / `lifecycle` ファイルを統一して `flow_log` / `flow_lifecycle` にリネーム
+    - `graph` の `out_edges` `in_edges` を削除
+      - 辺関係の管理は `OrderGraph` が担当
+    - `tarjan_scc` で再帰ロジックを DFS に置換
+    - `util_graph` を `util_order_graph` にリネーム
+  - fix:
+    - 最後の report が正常にアップロードできない問題を修正
+    - `graph.run` / `graph.run_async` で `is_put_signal` パラメータが効かない問題を修正
+  - chore：
+    - ドキュメント更新
+- 3.3.0
+  - feat:
+    - 現在 `TaskExecutor` から `func_name` パラメータを完全削除
+      - `executor_name` でノードを表現できるようになった今、この層の露出は不要
+      - 同時に `CelestialGraw` の状態との統一のため
+    - `reporter` への状態送信時、グラフの `class_name` 情報を含める
+    - `OrderGraph` から `from_edges` メソッドを削除
+  - refactor:
+    - [IMPORTANT] 元の `executor/stage` 構造をリファクタリング
+      - 元は `executor -> stage -> splitter/router` の 3 層構造で過度に複雑
+      - 現在は `stage` 層を削除し、`BaseTaskNode` を追加。graph が唯一識別するノードとし、`executor` は `splitter/router` と同レベルのノードとみなす
+      - 現在の構造は `BaseTaskNode -> executor/splitter/router`
+    - `render_structure_list`（元 `format_structure_list_from_graph`）の実装をリファクタリング
+      - 元の再帰から BFS に変更
+      - 同時に入力パラメータは `list[str]` 形式のノード名リストを直接使用。これは `func_name` `execution_mode` 等の情報を表示しないことを意味する
+    - 元の奇妙な `collect_runtime_snapshot` 呼び出し方式を修正
+      - 現在 reporter 端は `_push_status` 内で `collect_runtime_snapshot` を直接呼び出す
+    - `TaskExecutor` の `get_summary` を削除。この層のパッケージングは実際には冗長
+      - 同時にすべての `event_client.emit` も `summary` 情報を添付しない
+    - `OrderGraph` の `_node` パラメータを削除
+      - 以前このパラメータは：全ノード名、ノードの挿入順序、を提供
+      - 前者は現在 `_out` が提供し、後者は重視しない
+    - `LifecycleInlet` の `task_in` を `task_input` にリネームし、log 端との一貫性を保つ
+  - fix:
+    - `execution_mode = async` 時、worker クラッシュが無視される問題を修正
+    - タスクリトライログの `retry_times` の意味が曖昧な問題を修正。`fail_times` を使用
+    - reporter の `_push_*` メソッドで返り値を処理しない問題を修正
+    - `TaskReporter._pull_injection` で、プルしたタスクリストを誤って `put_task` する問題を修正

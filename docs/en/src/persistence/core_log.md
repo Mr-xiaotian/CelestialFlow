@@ -1,6 +1,6 @@
 # Log Persistence
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 `persistence/core_log.py` provides a thread-safe logging system that, via a producer-consumer pattern, uniformly collects, formats, and persists logs to text files under the `logs/` directory.
 
@@ -114,7 +114,7 @@ All methods are grouped by component domain as follows:
 
 | Method | Log Level | Description |
 |------|---------|------|
-| `start_graph(graph_name, structure_list)` | INFO | Records task graph startup and structure information |
+| `start_graph(graph_name, graph_mode, structure_list)` | INFO | Records task graph startup and structure information |
 | `end_graph(graph_name, use_time)` | INFO | Records task graph completion and elapsed time |
 
 #### Executor
@@ -140,31 +140,31 @@ All methods are grouped by component domain as follows:
 
 | Method | Log Level | Description |
 |------|---------|------|
-| `task_input(func_name, task_repr, source, input_id)` | DEBUG | Records task entering the input queue |
-| `task_success(func_name, task_repr, exec_mode, result_repr, use_time, parent_id, success_id)` | SUCCESS | Records task successful completion |
-| `task_retry(func_name, task_repr, retry_times, exception, task_id)` | WARNING | Records task failure triggering retry |
-| `task_fail(func_name, task_repr, exception, parent_id, error_id)` | ERROR | Records task failure with no retry possible |
-| `task_duplicate(func_name, task_repr, parent_id, duplicate_id)` | WARNING | Records detection of a duplicate task |
+| `task_input(executor_name, task_repr, input_id)` | DEBUG | Records task entering the input queue |
+| `task_success(executor_name, task_repr, execution_mode, result_repr, use_time, parent_id, success_id)` | SUCCESS | Records task successful completion |
+| `task_retry(executor_name, task_repr, retry_times, exception, task_id)` | WARNING | Records task failure triggering retry |
+| `task_fail(executor_name, task_repr, exception, parent_id, error_id)` | ERROR | Records task failure with no retry possible |
+| `task_duplicate(executor_name, task_repr, parent_id, duplicate_id)` | WARNING | Records detection of a duplicate task |
 
 #### Split (Splitter)
 
 | Method | Log Level | Description |
 |------|---------|------|
-| `split_trace(func_name, part_index, part_total, parent_id, split_id)` | TRACE | Records split sub-task dispatch |
-| `split_success(func_name, task_repr, split_count, use_time)` | SUCCESS | Records split success |
+| `split_trace(executor_name, part_index, part_total, parent_id, split_id)` | TRACE | Records split sub-task dispatch |
+| `split_success(executor_name, task_repr, split_count, use_time)` | SUCCESS | Records split success |
 
 #### Router
 
 | Method | Log Level | Description |
 |------|---------|------|
-| `route_success(func_name, task_repr, target_node, use_time, parent_id, route_id)` | SUCCESS | Records successful task routing |
+| `route_success(executor_name, task_repr, target_node, use_time, parent_id, route_id)` | SUCCESS | Records successful task routing |
 
 #### Termination Signal
 
 | Method | Log Level | Description |
 |------|---------|------|
-| `termination_input(func_name, source, termination_id)` | DEBUG | Records termination signal input |
-| `termination_merge(func_name, parent_ids, termination_id)` | TRACE | Records termination signal merge |
+| `termination_input(executor_name, termination_id)` | DEBUG | Records termination signal input |
+| `termination_merge(executor_name, parent_ids, termination_id)` | TRACE | Records termination signal merge |
 
 #### Reporter
 
@@ -173,7 +173,6 @@ All methods are grouped by component domain as follows:
 | `stop_reporter()` | DEBUG | Records reporter stop |
 | `loop_failed(exception)` | ERROR | Records reporter loop error |
 | `pull_interval_failed(exception)` | WARNING | Records pull interval failure |
-| `pull_history_limit_failed(exception)` | WARNING | Records pull history limit failure |
 | `pull_tasks_failed(exception)` | WARNING | Records pull task injection failure |
 | `inject_tasks_success(target_node, task_datas)` | INFO | Records successful task injection |
 | `inject_tasks_failed(target_node, task_datas, exception)` | WARNING | Records task injection failure |
@@ -181,14 +180,12 @@ All methods are grouped by component domain as follows:
 | `push_status_failed(exception)` | WARNING | Records push status info failure |
 | `push_structure_failed(exception)` | WARNING | Records push structure info failure |
 | `push_analysis_failed(exception)` | WARNING | Records push analysis info failure |
-| `push_summary_failed(exception)` | WARNING | Records push summary info failure |
-| `push_history_failed(exception)` | WARNING | Records push history info failure |
 
 ### Usage Example
 
 ```python
 # Graph lifecycle
-sinker.start_graph("my_graph", ["NodeA -> NodeB", "NodeB -> NodeC"])
+sinker.start_graph("my_graph", "thread", ["NodeA -> NodeB", "NodeB -> NodeC"])
 sinker.end_graph("my_graph", 12.34)
 
 # Executor lifecycle
@@ -196,21 +193,21 @@ sinker.start_executor("Executor1", 50, "thread")
 sinker.end_executor("Executor1", "thread", 4.8, 48, 1, 1)
 
 # Task lifecycle
-sinker.task_input("process_func", "task_1", "queue", 1)
-sinker.task_success("process_func", "task_1", "thread", "OK", 0.05, 1, 2)
-sinker.task_retry("process_func", "task_2", 1, TimeoutError("timeout"), 1)
-sinker.task_fail("process_func", "task_3", ValueError("bad"), 1, 4)
-sinker.task_duplicate("process_func", "task_2", 1, 5)
+sinker.task_input("Executor1", "task_1", 1)
+sinker.task_success("Executor1", "task_1", "thread", "OK", 0.05, 1, 2)
+sinker.task_retry("Executor1", "task_2", 1, TimeoutError("timeout"), 1)
+sinker.task_fail("Executor1", "task_3", ValueError("bad"), 1, 4)
+sinker.task_duplicate("Executor1", "task_2", 1, 5)
 
 # Termination signal
-sinker.termination_input("process_func", "queue", 1)
-sinker.termination_merge("process_func", [1, 2], 3)
+sinker.termination_input("Executor1", 1)
+sinker.termination_merge("Executor1", [1, 2], 3)
 
 # Reporter events
 sinker.inject_tasks_success("StageA", ["task_10", "task_11"])
 sinker.inject_tasks_failed("StageA", ["task_10"], RuntimeError("conflict"))
 sinker.push_errors_failed(ConnectionError("timeout"))
-sinker.push_history_failed(ConnectionError("timeout"))
+sinker.push_status_failed(ConnectionError("timeout"))
 ```
 
 By using these dedicated methods instead of generic `info()` or `debug()`, the generated logs are easy to read and machine-parse.

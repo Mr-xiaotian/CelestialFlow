@@ -1,6 +1,6 @@
 # タスクライフサイクル永続化 (Lifecycle Persistence)
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/09
 
 `persistence/core_lifecycle.py` は、タスクライフサイクル（Lifecycle）の永続化を担当します：タスクのライフサイクル全体における状態変化（pending → success / failed / 削除）を記録し、データを `lifecycles/` ディレクトリ下の SQLite データベースファイルに書き込みます。中核コンポーネントは `LifecycleSpout` と `LifecycleInlet` です。
 
@@ -12,10 +12,10 @@
 flowchart LR
     subgraph Producer["プロデューサー - Worker スレッド"]
         Inlet[LifecycleInlet]
-        Inlet -->|task_in / task_success / task_fail 等| Funnel[_funnel]
+        Inlet -->|task_input / task_success / task_fail 等| Funnel[_funnel]
     end
     Funnel --> Queue[queue.Queue]
-    Queue -->|デーモンスレッドがポーリング| Spout[LifecycleSpout._handle_record]
+    Queue -->|デーモンスレッドポーリング| Spout[LifecycleSpout._handle_record]
     Spout -->|操作: insert / delete / promote| SQLite[lifecycles/**/*.sqlite3]
     SQLite --> Read[get_task_error_pairs<br/>get_task_result_pairs<br/>永続化済みレコードの読み取り]
 ```
@@ -54,7 +54,7 @@ lifecycle_spout.start()
 
 | 操作 | トリガーメソッド | 説明 |
 |------|---------|------|
-| `insert` | `LifecycleInlet.task_in()` | 新規タスクが stage に入り、`pending` レコードを書き込む |
+| `insert` | `LifecycleInlet.task_input()` | 新規タスクが node に入り、`pending` レコードを書き込む |
 | `delete` | `LifecycleInlet.task_duplicate()` | 重複判定されたタスクに対応する pending レコードを削除 |
 | `promote_success` | `LifecycleInlet.task_success()` | pending を `success` に昇格させ、結果 JSON を書き込む |
 | `promote_failed` | `LifecycleInlet.task_fail()` | pending を `failed` に昇格させ、event_id を更新してエラータイプとメッセージを書き込む |
@@ -76,12 +76,12 @@ Lifecycle データはデフォルトで `./lifecycles/` ディレクトリ下�
 ```python
 # エラーレコードを取得
 error_pairs: list[tuple[Any, tuple[str, str]]] = lifecycle_spout.get_task_error_pairs(
-    "StageA"
+    "NodeA"
 )
 # 返値: [(task, (error_type, error_message)), ...]
 
 # 成功結果を取得
-result_pairs: list[tuple[Any, Any]] = lifecycle_spout.get_task_result_pairs("StageA")
+result_pairs: list[tuple[Any, Any]] = lifecycle_spout.get_task_result_pairs("NodeA")
 # 返値: [(task, result), ...]
 ```
 
@@ -95,8 +95,8 @@ result_pairs: list[tuple[Any, Any]] = lifecycle_spout.get_task_result_pairs("Sta
 
 ```python
 class LifecycleInlet(BaseInlet):
-    def task_in(self, stage_name: str, event_id: int, task: Any) -> None:
-        """pending レコードを書き込み、タスクが stage に入ったことを示します。"""
+    def task_input(self, node_name: str, event_id: int, task: Any) -> None:
+        """pending レコードを書き込み、タスクが node に入ったことを示します。"""
 
     def task_success(self, event_id: int, result: Any) -> None:
         """pending レコードを success に昇格させ、結果を書き込みます。"""
@@ -110,7 +110,7 @@ class LifecycleInlet(BaseInlet):
 
 説明：
 
-- `task_in` の `task` は `to_persisted_payload()` によって JSON フレンドリな構造にシリアライズされ、`task_json` フィールドに保存されます。
+- `task_input` の `task` は `to_persisted_payload()` によって JSON フレンドリな構造にシリアライズされ、`task_json` フィールドに保存されます。
 - `task_fail` は `error_type`（例外クラス名）と `error_message`（`str(error)`）を併せて永続化します。
 - `LifecycleInlet` はキューへの書き込みのみを行い、データベースを直接操作しません。すべての I/O は `LifecycleSpout` のバックグラウンドスレッドで実行されます。
 
@@ -121,7 +121,7 @@ get_lifecycle_spout() -> LifecycleSpout  # グローバルで唯一の Lifecycle
 get_lifecycle_inlet() -> LifecycleInlet  # グローバルで唯一の LifecycleInlet インスタンス（グローバル spout にバインド済み）
 ```
 
-フレームワークの各実行コンポーネント（`TaskExecutor` / `TaskSplitter` / `TaskRouter` / `TaskGraph`）は `get_lifecycle_inlet()` を介してライフサイクルイベントを記録し、`TaskExecutor.get_success_pairs()` と `get_error_pairs()` は `get_lifecycle_spout()` を介して結果を読み取ります。
+フレームワークの各実行コンポーネント（`BaseTaskNode` / `TaskSplitter` / `TaskRouter` / `TaskGraph`）は `get_lifecycle_inlet()` を介してライフサイクルイベントを記録し、`BaseTaskNode.get_success_pairs()` と `get_error_pairs()` は `get_lifecycle_spout()` を介して結果を読み取ります。
 
 ## 使用例
 
@@ -138,7 +138,7 @@ lifecycle_spout.start()
 lifecycle_inlet = LifecycleInlet().bind_spout(lifecycle_spout)
 
 # 3. タスクのライフサイクルを記録
-lifecycle_inlet.task_in("StageA", event_id=1, task="hello")
+lifecycle_inlet.task_input("NodeA", event_id=1, task="hello")
 
 # タスク成功: pending -> success
 lifecycle_inlet.task_success(event_id=1, result="OK")
@@ -147,7 +147,7 @@ lifecycle_inlet.task_success(event_id=1, result="OK")
 lifecycle_inlet.task_fail(event_id=2, error_id=10, error=ValueError("bad input"))
 
 # 4. 永続化データを取得
-errors = lifecycle_spout.get_task_error_pairs("StageA")
+errors = lifecycle_spout.get_task_error_pairs("NodeA")
 for task, (error_type, error_msg) in errors:
     print(f"失敗タスク: {task}, エラー: {error_type}: {error_msg}")
 

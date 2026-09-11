@@ -1,8 +1,8 @@
 # TaskMetrics
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/09
 
-TaskMetrics モジュールは、タスク実行プロセスにおける各種メトリクス（入力タスク数、成功数、失敗数、重複タスク数など）の管理と統計を担当します。通常は `TaskExecutor` のコンポーネントとして存在します。
+TaskMetrics モジュールは、タスク実行プロセスにおける各種メトリクス（入力タスク数、成功数、失敗数、重複タスク数など）の管理と統計を担当します。通常はタスクノード（`TaskExecutor`、`TaskSplitter`、`TaskRouter` など）のコンポーネントとして存在します。
 
 
 ## 初期化
@@ -66,10 +66,10 @@ def add_duplicate_count(self, count: int = 1):
 
 ```python
 def append_task_counter(self, counter: ValueWrapper) -> None:
-    """外部カウンターを task_counter に追加します（Stage 間カスケード統計用）。"""
+    """外部カウンターを task_counter に追加します（ノード間カスケード統計用）。"""
 ```
 
-カスケードは `TaskStage.prev_binding()` で使用されます — 各下流ノードは上流の成功カウンターを自身の `task_counter` に登録し、「上流の出力 = 下流の入力」というカウントの一貫性を実現します。
+カスケードはタスクノード間のバインディングで使用されます — 各下流ノードは上流の成功カウンターを自身の `task_counter` に登録し、「上流の出力 = 下流の入力」というカウントの一貫性を実現します。この呼び出しは `TaskGraph.connect()` がハイパーエッジ接続を確立する際に統一的にトリガーされます。
 
 ## オブザーバー管理
 
@@ -163,7 +163,7 @@ def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
     """リトライが必要な例外型を追加します。"""
 ```
 
-例外型は `tuple` 形式で `self.retry_exceptions` に格納され、`TaskDispatch._worker` / `_async_worker` は `isinstance(exception, self.task_executor.metrics.retry_exceptions)` でリトライ要否を判定します。呼び出しごとに既存の例外型に累積追加されます。
+例外型は `tuple` 形式で `self.retry_exceptions` に格納され、`TaskDispatch._worker` / `_async_worker` は `isinstance(exception, self.task_node.metrics.retry_exceptions)` でリトライ要否を判定します。ここでの `task_node` フィールド名は歴史的命名に由来し、実際には `TaskDispatch` を保持する `BaseTaskNode` ノードインスタンス（`TaskExecutor` / `TaskSplitter` / `TaskRouter`）を指します。呼び出しごとに既存の例外型に累積追加されます。
 
 ```python
 def get_retry_error_type_names(self) -> set[str]:
@@ -238,4 +238,3 @@ parent_metrics.add_task_count(5)  # 自身に 5 追加
 
 print(f"総タスク数 (5 + 10) : {parent_metrics.get_task_count()}")  # 15
 ```
-

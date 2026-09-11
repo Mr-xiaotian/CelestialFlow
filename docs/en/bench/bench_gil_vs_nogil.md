@@ -1,6 +1,6 @@
 # bench_gil_vs_nogil.py Benchmark Guide
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
 ## Objective
 
@@ -28,7 +28,7 @@ Script file: `bench/bench_gil_vs_nogil.py`
 - **CPU tasks**: Execute pure Python integer loops and hash-based mixed operations, aiming to stress Python bytecode execution overhead
 - **I/O tasks**: `time.sleep()` to simulate blocking waits
 - **Graph structure**: Fixed as a simple 3-stage series pipeline to avoid topology differences confounding results
-- **Persistence / duplicate check disabled**: `TaskExecutor` / `TaskStage` are explicitly constructed with `enable_duplicate_check=False`, so the benchmark does not trigger duplicate-check logic
+- **Persistence / duplicate check disabled**: `TaskExecutor` is explicitly constructed with `enable_duplicate_check=False`, so the benchmark does not trigger duplicate-check logic
 - **Repetitions**: Each workload runs 3 times by default, with average / min / max statistics
 
 ## Key Configuration

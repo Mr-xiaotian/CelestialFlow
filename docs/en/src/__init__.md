@@ -1,6 +1,6 @@
 # CelestialFlow Package Entry
 
-> 📅 Last Updated: 2026/08/19
+> 📅 Last Updated: 2026/09/09
 
 ## Introduction
 
@@ -39,16 +39,17 @@ Provides various topology structure definitions, supporting DAG construction, de
 
 ---
 
-### stage — Task Execution Layer
+### node — Task Execution Layer
 
-Provides task executors, routing dispatch, and task splitting capabilities.
+Provides task executors, route dispatch, and task splitting capabilities for the execution layer.
 
 | Exported Symbol | Description |
 |-----------------|-------------|
-| `TaskExecutor` | General task executor, supports serial / thread / async execution modes |
-| `TaskStage` | A task node in the graph, wrapping execution function and configuration |
+| `TaskExecutor` | General task executor, supports serial / thread / async execution modes; can be directly connected to `TaskGraph` as a graph node |
 | `TaskSplitter` | Task splitter, splits a single input into multiple sub-tasks |
 | `TaskRouter` | Route dispatcher, distributes tasks to different downstream based on rules |
+
+> Note: Internal abstract classes such as `BaseTaskNode` and `TaskDispatch` are no longer exported as public APIs; external code should only depend on `TaskExecutor` / `TaskSplitter` / `TaskRouter` listed in the table above.
 
 ---
 
@@ -99,7 +100,7 @@ Provides runtime helper types and utility functions.
 
 ## `__all__` List
 
-Complete public API list (22 symbols total):
+Complete public API list (21 symbols total):
 
 ```python
 __all__ = [
@@ -116,7 +117,6 @@ __all__ = [
     "TaskReporter",
     "TaskRouter",
     "TaskSplitter",
-    "TaskStage",
     "TaskWheel",
     "TerminationSignal",
     "benchmark_executor",
@@ -133,7 +133,7 @@ __all__ = [
 The following examples demonstrate how to import from the package entry and use CelestialFlow's core functionality to build and execute task graphs.
 
 ```python
-from celestialflow import TaskGraph, TaskStage, TaskExecutor
+from celestialflow import TaskGraph, TaskExecutor
 
 
 # 1. Define task processing functions
@@ -145,13 +145,13 @@ def add_one(x: int) -> int:
     return x + 1
 
 
-# 2. Create TaskStage nodes
-stage_a = TaskStage("StageA", func=double, execution_mode="serial")
-stage_b = TaskStage("StageB", func=add_one, execution_mode="serial")
+# 2. Create TaskExecutor nodes
+stage_a = TaskExecutor("StageA", func=double, execution_mode="serial")
+stage_b = TaskExecutor("StageB", func=add_one, execution_mode="serial")
 
 # 3. Build the DAG graph
 graph = TaskGraph(name="DemoGraph")
-graph.set_stages([stage_a, stage_b])
+graph.set_nodes([stage_a, stage_b])
 graph.connect([stage_a], [stage_b])
 
 # 4. Execute the graph
@@ -187,16 +187,16 @@ print("Counts:", counts)
 ### Using Predefined Graph Structures
 
 ```python
-from celestialflow import TaskChain, TaskStage
+from celestialflow import TaskChain, TaskExecutor
 
-stages = [
-    TaskStage("S1", func=lambda x: x * 2),
-    TaskStage("S2", func=lambda x: x + 1),
-    TaskStage("S3", func=lambda x: x**2),
+nodes = [
+    TaskExecutor("S1", func=lambda x: x * 2),
+    TaskExecutor("S2", func=lambda x: x + 1),
+    TaskExecutor("S3", func=lambda x: x**2),
 ]
 
-chain = TaskChain(name="DemoChain", stages=stages)
-chain.run({stages[0].get_name(): [1, 2, 3]})
+chain = TaskChain(name="DemoChain", nodes=nodes)
+chain.run({nodes[0].get_name(): [1, 2, 3]})
 snapshot = chain.get_status_snapshot()
 print("Chain status:", snapshot["status"])
 ```
@@ -217,8 +217,8 @@ graph TD
         G["TaskGraph<br/>TaskChain<br/>TaskLoop<br/>TaskCross<br/>TaskComplete<br/>TaskWheel<br/>TaskGrid"]
     end
 
-    subgraph stage
-        S["TaskExecutor<br/>TaskStage<br/>TaskSplitter<br/>TaskRouter"]
+    subgraph node
+        S["TaskExecutor<br/>TaskSplitter<br/>TaskRouter"]
     end
 
     subgraph observability

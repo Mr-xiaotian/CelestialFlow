@@ -1,8 +1,8 @@
 # TaskEnvelope
 
-> 📅 Last Updated: 2026/08/12
+> 📅 Last Updated: 2026/09/09
 
-A wrapper class for task data that is passed between Stages. It encapsulates the original task data, task hash, and task ID.
+A wrapper class for task data that is passed between task graph nodes. It encapsulates the original task data, task hash, and task ID.
 
 
 ## Attributes

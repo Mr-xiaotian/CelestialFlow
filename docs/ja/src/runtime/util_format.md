@@ -1,8 +1,8 @@
 # RuntimeFormat
 
-> 📅 最終更新日: 2026/08/12
+> 📅 最終更新日: 2026/09/09
 
-`runtime/util_format.py` は汎用フォーマットユーティリティ関数を提供し、文字列の切り詰め、テーブルレンダリング、時間フォーマットなどの機能を含みます。
+`runtime/util_format.py` は汎用フォーマットユーティリティ関数を提供し、文字列の切り詰め、テーブルレンダリング、値クラスタリングなどの機能を含みます。
 
 > 注意: 現在のファイルパスは `src/celestialflow/runtime/util_format.py` です。旧パス `src/celestialflow/utils/util_format.py` は廃止されました。
 
@@ -12,8 +12,6 @@
 |------|------|
 | `format_repr(obj, max_length)` | オブジェクトの文字列を安全に切り詰め、改行とバックスラッシュを自動的にエスケープ |
 | `format_table(data, ...)` | 二次元データをテキストテーブルにレンダリング。`left` / `right` / `center` の配置をサポート |
-| `format_duration(seconds)` | 秒数を可読な時間形式（`MM:SS` または `HH:MM:SS`）に変換 |
-| `format_timestamp(timestamp)` | タイムスタンプを `YYYY-MM-DD HH:MM:SS` 形式の文字列に変換 |
 | `cluster_by_value_sorted(input_dict)` | 値ごとにクラスタリングし、value の昇順でソート |
 
 ## format_repr
@@ -39,22 +37,6 @@ def format_table(
 
 二次元データをボーダー付きテキストテーブルにフォーマットします。Excel 形式の列名（A, B, ..., Z, AA, AB...）の自動生成に対応します。
 
-## format_duration
-
-```python
-def format_duration(seconds: int) -> str: ...
-```
-
-秒数を `HH:MM:SS` または `MM:SS` 形式にフォーマットします。時が 0 の場合は先頭のゼロを自動的に省略します。
-
-## format_timestamp
-
-```python
-def format_timestamp(timestamp: float) -> str: ...
-```
-
-タイムスタンプ（秒）を `YYYY-MM-DD HH:MM:SS` 形式にフォーマットします。
-
 ## cluster_by_value_sorted
 
 ```python
@@ -69,20 +51,11 @@ def cluster_by_value_sorted(input_dict: dict[str, int]) -> dict[int, list[str]]:
 from celestialflow.runtime.util_format import (
     format_repr,
     format_table,
-    format_duration,
-    format_timestamp,
 )
 
 # format_repr: 安全な切り詰め
 print(format_repr("hello world", 50))  # hello world
 print(format_repr("A" * 100, 30))  # AAAAAAAAAAAAAAAAAAAA...CCCCCCCCCC
-
-# format_duration: 時間フォーマット
-print(format_duration(59))  # 00:59
-print(format_duration(3661))  # 01:01:01
-
-# format_timestamp: タイムスタンプフォーマット
-print(format_timestamp(0))  # 1970-01-01 08:00:00
 
 # format_table: テーブルレンダリング
 data = [

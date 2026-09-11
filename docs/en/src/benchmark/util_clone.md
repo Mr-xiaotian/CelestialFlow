@@ -1,14 +1,16 @@
-# Clone
+# benchmark/util_clone.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/09
 
-`benchmark/util_clone.py` provides functionality for cloning executors, nodes, and task graphs, used for performance testing and configuration reuse.
+`benchmark/util_clone.py` provides functionality for cloning executors and task graphs, used for performance testing and configuration reuse.
+
+> ⚠️ This file defines internal benchmark utility functions, **not public API**. `clone_executor` / `clone_graph` are not exported from the top-level `celestialflow` package entry point; if needed, access them directly via `from celestialflow.benchmark.util_clone import ...`.
 
 ## Design Purpose
 
 In performance testing, the same task graph configuration needs to be run multiple times, but each run modifies internal state. The cloning functionality creates completely independent copies, avoiding state contamination.
 
-## Key Functions
+## Main Functions
 
 ### clone_executor
 
@@ -36,33 +38,6 @@ Copied attributes:
 - `enable_duplicate_check`: Duplicate check toggle
 - `retry_exceptions`: List of retryable exceptions (set via `set_retry_exceptions()`)
 
-### clone_stage
-
-Clones a `TaskStage` node.
-
-```python
-def clone_stage[T, R](
-    stage: TaskStage[T, R],
-) -> TaskStage[T, R]:
-    """
-    Clone a node.
-
-    :param stage: The node to clone
-    :return: The cloned node
-    """
-```
-
-Cloning steps:
-1. Reuse the executor-style parameter set (`name` / `func` / `execution_mode` / `max_workers` / `max_retries` / `max_info` / `enable_duplicate_check`)
-2. Inspect the node class `__init__` parameter set via `inspect.signature`, keeping only the intersection with the executor-style set to avoid passing parameters the node class does not accept
-3. Construct a new instance of the **same type** as the original node using the filtered parameters
-4. Copy `retry_exceptions`
-
-Impact of parameter filtering:
-- A regular `TaskStage`'s `__init__` is `(name, func, **kwargs)`, so after filtering only `name` and `func` are retained; runtime configurations such as `execution_mode` are not copied (the cloned result uses default configuration).
-- `TaskSplitter`'s `__init__` only accepts `name` / `split_item`; during cloning only `name` is passed, and split logic is provided by the class's own default implementation.
-- `TaskRouter`'s `__init__` requires the mandatory `router` argument, which is not in the filterable set, so cloning a `TaskRouter` directly will raise `TypeError`.
-
 ### clone_graph
 
 Clones a `TaskGraph` instance.
@@ -72,17 +47,25 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     """
     Clone a task graph.
 
+    This tool is intended only for benchmark scenarios, so it only supports task
+    graphs composed of ``TaskExecutor``, and directly reuses
+    :func:`clone_executor` to clone all nodes.
+
     :param graph: The task graph to clone
-    :return: A new task graph instance
+    :return: The cloned task graph
+    :raises ConfigurationError: Raised when the graph contains non-``TaskExecutor`` nodes
     """
 ```
 
 Cloning flow:
 1. Starting from the source node, traverse the original graph via BFS (breadth-first) in the out-edge order of `graph.order_graph.out_edges` to collect all nodes
-2. Clone each node and build a mapping from the original node name to the cloned node
-3. Register all cloned nodes via `set_stages()` and rebuild the connection relationships between nodes with `connect()`
-4. Copy graph configuration (`name`, `graph_mode`)
-5. Copy the CelestialTree (`clone_event_client`) and Reporter configuration (`NullTaskReporter` / `TaskReporter` can be cloned; other types raise `ConfigurationError`)
+2. Assert that every node is a `TaskExecutor`; if specialized nodes such as `TaskSplitter` / `TaskRouter` are encountered, immediately raise `ConfigurationError`
+3. Clone each node and build a mapping from the original node name to the cloned node
+4. Register all cloned nodes via `set_nodes()` and rebuild the connection relationships between nodes with `connect()`
+5. Copy graph configuration (`name`, `graph_mode`)
+6. Copy the CelestialTree (`clone_event_client`) and Reporter configuration (`NullTaskReporter` / `TaskReporter` can be cloned; other types raise `ConfigurationError`)
+
+> ⚠️ **`clone_graph` does not guarantee preservation of all node types**: only `TaskExecutor` nodes will be cloned as the same type; specialized nodes such as `TaskSplitter` / `TaskRouter` will neither be cloned as the same subclass, nor will their split / route behavior be preserved. This tool is an internal benchmark utility, and only applies to task graphs that "consist entirely of `TaskExecutor` and are used for benchmarking".
 
 ## Usage Examples
 
@@ -114,37 +97,10 @@ executor.run(range(100))
 cloned.run(range(100))
 ```
 
-### Cloning a Node (TaskStage)
-
-```python
-from celestialflow import TaskStage
-from celestialflow.benchmark.util_clone import clone_stage
-
-
-def process_func(x: int) -> int:
-    return x + 1
-
-
-# Create the original node
-stage = TaskStage(
-    "Processor",
-    process_func,
-    execution_mode="thread",
-    max_workers=4,
-)
-
-# Clone the node
-cloned_stage = clone_stage(stage)
-
-# Original and cloned nodes run independently, unaffected by each other
-stage.run(range(10))
-cloned_stage.run(range(10, 20))
-```
-
 ### Cloning a Task Graph
 
 ```python
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 from celestialflow.benchmark.util_clone import clone_graph
 
 
@@ -158,27 +114,27 @@ def process_b(x: int) -> int:
 
 # Create the original graph
 graph = TaskGraph(name="CloneDemo", graph_mode="thread")
-stage_a = TaskStage("A", process_a)
-stage_b = TaskStage("B", process_b)
-graph.set_stages(stages=[stage_a, stage_b])
-graph.connect([stage_a], [stage_b])
+node_a = TaskExecutor("A", process_a)
+node_b = TaskExecutor("B", process_b)
+graph.set_nodes(nodes=[node_a, node_b])
+graph.connect([node_a], [node_b])
 
 # Clone the graph for testing
 cloned_graph = clone_graph(graph)
 
 # Run the cloned graph
-init_tasks = {stage_a.get_name(): [1, 2, 3]}
+init_tasks = {node_a.get_name(): [1, 2, 3]}
 cloned_graph.run(init_tasks)
 ```
 
 ## Comprehensive Example
 
-The following example demonstrates a complete scenario using `clone_executor`, `clone_stage`, and `clone_graph` together:
+The following example demonstrates a complete scenario using `clone_executor` and `clone_graph` together:
 
 ```python
 import asyncio
-from celestialflow import TaskExecutor, TaskStage, TaskGraph
-from celestialflow.benchmark.util_clone import clone_executor, clone_stage, clone_graph
+from celestialflow import TaskExecutor, TaskGraph
+from celestialflow.benchmark.util_clone import clone_executor, clone_graph
 
 
 def square(x: int) -> int:
@@ -195,18 +151,11 @@ async def main():
     cloned_exe = clone_executor(executor)
     print(f"clone_executor: mode={cloned_exe.execution_mode}")
 
-    # 2. clone_stage ----
-    stage = TaskStage("AddOne", add_one, execution_mode="serial")
-    cloned_stg = clone_stage(stage)
-    print(
-        f"clone_stage: name={cloned_stg.get_name()}, mode={cloned_stg.execution_mode}"
-    )
-
-    # 3. clone_graph ----
+    # 2. clone_graph ----
     graph = TaskGraph(name="CloneDemo", graph_mode="thread")
-    a = TaskStage("A", square, execution_mode="thread")
-    b = TaskStage("B", add_one, execution_mode="thread")
-    graph.set_stages([a, b])
+    a = TaskExecutor("A", square, execution_mode="thread")
+    b = TaskExecutor("B", add_one, execution_mode="thread")
+    graph.set_nodes([a, b])
     graph.connect([a], [b])
 
     cloned_grp = clone_graph(graph)
@@ -217,7 +166,7 @@ async def main():
 
     # Run original and cloned graphs separately; states are completely independent
     graph.run({a.get_name(): [1, 2, 3]})
-    cloned_grp.run({list(cloned_grp.stage_dict.keys())[0]: [10, 20]})
+    cloned_grp.run({list(cloned_grp.node_dict.keys())[0]: [10, 20]})
 
 
 asyncio.run(main())
@@ -227,7 +176,7 @@ asyncio.run(main())
 
 ```python
 import asyncio
-from celestialflow import TaskGraph, TaskStage
+from celestialflow import TaskGraph, TaskExecutor
 from celestialflow.benchmark.util_benchmark import benchmark_graph
 
 
@@ -240,21 +189,21 @@ async def async_task(x: int) -> int:
 
 
 async def main():
-    stage_a = TaskStage("A", task)
-    stage_b = TaskStage("B", task)
-    async_stage_a = TaskStage("A", async_task)
-    async_stage_b = TaskStage("B", async_task)
+    node_a = TaskExecutor("A", task)
+    node_b = TaskExecutor("B", task)
+    async_node_a = TaskExecutor("A", async_task)
+    async_node_b = TaskExecutor("B", async_task)
 
     sync_graph = TaskGraph(name="BenchSync")
-    sync_graph.set_stages(stages=[stage_a, stage_b])
+    sync_graph.set_nodes(nodes=[node_a, node_b])
     async_graph = TaskGraph(name="BenchAsync")
-    async_graph.set_stages(stages=[async_stage_a, async_stage_b])
+    async_graph.set_nodes(nodes=[async_node_a, async_node_b])
 
     # benchmark_graph internally uses clone_graph and returns a result dictionary
     results = await benchmark_graph(
         sync_graph=sync_graph,
         async_graph=async_graph,
-        init_tasks_dict={stage_a.get_name(): range(100)},
+        init_tasks_dict={node_a.get_name(): range(100)},
         graph_modes=["serial", "thread", "async"],
         execution_modes=["serial", "thread", "async"],
     )
@@ -270,4 +219,5 @@ asyncio.run(main())
 2. **Connection reconstruction**: When cloning a graph, connection relationships between nodes are rebuilt
 3. **Function references**: Cloning only copies function references, not the functions themselves
 4. **Performance overhead**: Cloning large graphs has some overhead, but is faster than rebuilding from scratch
-5. **Configuration fallback**: `clone_stage` only copies parameters accepted by the node class's `__init__`. For a regular `TaskStage`, runtime configurations such as the execution mode will fall back to default values; `TaskRouter` cannot be cloned because of the missing mandatory `router` argument
+5. **Internal tool**: `clone_executor` / `clone_graph` are internal benchmark utilities, not in the top-level package entry's `__all__`; their signatures / semantics may change as the internal benchmark implementation evolves
+6. **Node type limitation**: `clone_graph` only supports `TaskExecutor` nodes; encountering specialized nodes such as `TaskSplitter` / `TaskRouter` will raise `ConfigurationError`, and **does not** preserve the type or behavior of those subclasses

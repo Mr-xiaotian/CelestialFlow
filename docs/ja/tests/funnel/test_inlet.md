@@ -1,6 +1,6 @@
 # Inlet 基本テスト (test_inlet.py)
 
-> 📅 最終更新日: 2026/08/19
+> 📅 最終更新日: 2026/09/09
 
 ## 役割
 `celestialflow.funnel.core_inlet.BaseInlet` の最小責務（呼び出し元から渡されたデータを `_funnel()` 経由でターゲットキューに入れ、実行中の `BaseSpout` サブクラスによって消費されること）を検証します。

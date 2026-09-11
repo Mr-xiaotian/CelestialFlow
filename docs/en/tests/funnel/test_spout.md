@@ -1,13 +1,15 @@
 # Spout Basic Tests (test_spout.py)
 
-> 📅 Last Updated: 2026/08/19
+> 📅 Last Updated: 2026/09/09
 
 ## Purpose
 Verifies the lifecycle hooks, termination signal handling, and abstract method constraints of `celestialflow.funnel.core_spout.BaseSpout`, ensuring the listener thread can start, stop, and consume records before stopping as expected.
 
 ## Coverage Points
 - `start()` calls `_before_start()`.
-- `stop()` triggers `_after_stop()` and does not continue consuming new records after stopping.
+- `stop()` triggers `_after_stop()`, and no further records are consumed after stopping.
+- After `stop()`, `start()` can be called again; the restarted spout continues to consume new records.
+- `stop()` supports repeated calls; repeated calls do not raise an exception.
 - The base class raises `CelestialFlowError` when `_handle_record()` is not implemented.
 
 ## Test Coverage Matrix

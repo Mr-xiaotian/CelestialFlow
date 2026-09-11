@@ -1,10 +1,10 @@
 # demo_funnel.py Demo Guide
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 ## Objective
 
-Demonstrate that the `funnel` module can be used independently of `TaskGraph`, `TaskStage`, and `TaskExecutor`. This example directly assembles a minimal "event collection -> background consumption -> JSONL landing" pipeline using `BaseInlet` and `BaseSpout`.
+Demonstrate that the `funnel` module can be used independently of `TaskGraph` and `TaskExecutor`. This example directly assembles a minimal "event collection -> background consumption -> JSONL landing" pipeline using `BaseInlet` and `BaseSpout`.
 
 ## Demo Content
 

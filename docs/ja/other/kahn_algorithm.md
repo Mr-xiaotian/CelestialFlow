@@ -1,4 +1,4 @@
-# **Kahn アルゴリズム**（カーン算法）
+# **Kahn アルゴリズム**（カーンアルゴリズム）
 
 核心的な考え方は：
 
@@ -20,20 +20,20 @@
 
 ```python
 def is_dag(graph: OrderGraph) -> bool:
-    deg = in_degree(graph)  # ① 计算所有节点入度
-    stack = [n for n, d in deg.items() if d == 0]  # ② 收集所有入度为0的节点
-    visited = 0  # ③ 计数：已被剥离的节点数
+    deg = in_degree(graph)  # ① 全ノードの入度を計算
+    stack = [n for n, d in deg.items() if d == 0]  # ② 入度 0 のノードをすべて収集
+    visited = 0  # ③ カウンタ：すでに剥がされたノード数
 
-    while stack:  # ④ 不断处理入度为0的节点
-        u = stack.pop()  # ⑤ 取出一个节点
-        visited += 1  # ⑥ 计数+1
+    while stack:  # ④ 入度 0 のノードを次々と処理
+        u = stack.pop()  # ⑤ ノードを 1 つ取り出す
+        visited += 1  # ⑥ カウンタ +1
 
-        for v in graph._out.get(u, []):  # ⑦ 遍历它的所有出边 u→v
-            deg[v] -= 1  # ⑧ 删除这条边：v的入度-1
-            if deg[v] == 0:  # ⑨ 如果v的入度恰好变为0
-                stack.append(v)  # ⑩ 说明v现在"安全"了，加入处理队列
+        for v in graph._out.get(u, []):  # ⑦ そのすべての出辺 u→v を走査
+            deg[v] -= 1  # ⑧ この辺を削除：v の入度 -1
+            if deg[v] == 0:  # ⑨ v の入度がちょうど 0 になった場合
+                stack.append(v)  # ⑩ v は今や「安全」、処理キューに追加
 
-    return visited == len(graph._nodes)  # ⑪ 全部剥离完？是则DAG
+    return visited == len(graph._nodes)  # ⑪ すべて剥がせたか？そうなら DAG
 ```
 
 ### 行ごとの解釈
@@ -41,7 +41,7 @@ def is_dag(graph: OrderGraph) -> bool:
 | ステップ | 動作 | 意味 |
 |----------|------|------|
 | **①** | `deg = in_degree(graph)` | 各ノードが何本の辺で指されているかを先に計算する。例えば `a←b` なら `a` の入度が +1 される。 |
-| **②** | `stack = [入度为0的节点]` | これらのノードは現在のグラフの「起点」であり、サイクルの一部になり得ない。 |
+| **②** | `stack = [入度が0のノード]` | これらのノードは現在のグラフの「起点」であり、サイクルの一部になり得ない。 |
 | **③** | `visited = 0` | すでに「剥がした」ノード数を記録する。 |
 | **④~⑥** | `while stack: pop → visited += 1` | 毎回、stack から安全なノードを 1 つ取り出し、削除済みとしてカウントする。 |
 | **⑦~⑧** | `for v in out[u]: deg[v] -= 1` | **要点**：ノード `u` が削除されると、そこから出るすべての辺も消える。辺が消えることで下流ノード `v` は 1 本の入辺を失うため、`v` の入度を 1 減らす。 |
@@ -62,7 +62,7 @@ a → b → c
 
 **初期入度：**
 
-| ノード | 入度 | 来源 |
+| ノード | 入度 | ソース |
 |--------|------|------|
 | a      | 1    | ← c |
 | b      | 1    | ← a |

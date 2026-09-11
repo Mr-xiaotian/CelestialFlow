@@ -1,10 +1,10 @@
 # Funnel Module
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/09
 
 The Funnel module provides CelestialFlow's queue communication infrastructure, serving as the underlying base class for `LogSpout`/`LogInlet` and `LifecycleSpout`/`LifecycleInlet` in the Persistence module.
 
-It is not only usable as low-level infrastructure, but can also be used independently of `TaskGraph` / `TaskStage` to build lightweight producer-consumer pipelines.
+It is not only usable as low-level infrastructure, but can also be used independently of `TaskGraph` / `BaseTaskNode` to build lightweight producer-consumer pipelines.
 
 ## Exported Symbols
 
