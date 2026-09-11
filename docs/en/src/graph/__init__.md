@@ -152,8 +152,14 @@ print(f"Node 0 snapshot: {snapshot[nodes[0].get_name()]}")
 from celestialflow import TaskCross, TaskExecutor
 
 # Define two layers
-layer1 = [TaskExecutor("F1", func=lambda x: x * 2), TaskExecutor("F2", func=lambda x: x + 3)]
-layer2 = [TaskExecutor("G1", func=lambda x: x**2), TaskExecutor("G2", func=lambda x: -x)]
+layer1 = [
+    TaskExecutor("F1", func=lambda x: x * 2),
+    TaskExecutor("F2", func=lambda x: x + 3),
+]
+layer2 = [
+    TaskExecutor("G1", func=lambda x: x**2),
+    TaskExecutor("G2", func=lambda x: -x),
+]
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})

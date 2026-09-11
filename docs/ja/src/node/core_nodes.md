@@ -62,8 +62,7 @@ def __init__(
     max_queue_size: int = 0,
     max_info: int = 50,
     enable_duplicate_check: bool = False,
-):
-    ...
+): ...
 ```
 
 `TaskExecutor` はすべての引数を `BaseTaskNode.__init__` にそのまま転送するため、`execution_mode / max_workers / max_retries / max_queue_size / max_info / enable_duplicate_check` は構築時にキーワード引数でデフォルト値を上書きできます。
@@ -112,9 +111,9 @@ def __init__(
 ):
     super().__init__(
         name=name,
-        func=self._split,         # 内蔵分割関数
+        func=self._split,  # 内蔵分割関数
         execution_mode="serial",  # ハードコード
-        max_retries=0,            # ハードコード：分割器はリトライしない
+        max_retries=0,  # ハードコード：分割器はリトライしない
     )
     self.split_item = split_item or self._identity_split_item
     self.split_counter = ValueWrapper(0, self.metrics.lock)
@@ -167,6 +166,7 @@ from celestialflow import TaskGraph, TaskExecutor
 # 分割器：文字列を単一文字に分割
 splitter = TaskSplitter("CharSplitter")
 
+
 # 下流：すべての文字を印刷
 class CharSink(BaseTaskNode[str, str]):  # 概念的な例
     ...
@@ -198,9 +198,9 @@ graph.run({splitter.get_name(): [["a", "b", "c"]]})
 def __init__(self, name: str, router: Callable[[T], str]):
     super().__init__(
         name=name,
-        func=self._route,           # 内蔵ルーティング関数
-        execution_mode="serial",    # ハードコード
-        max_retries=0,              # ハードコード：ルーターはリトライしない
+        func=self._route,  # 内蔵ルーティング関数
+        execution_mode="serial",  # ハードコード
+        max_retries=0,  # ハードコード：ルーターはリトライしない
     )
     self.router = router
     self.route_counters = {}
@@ -225,9 +225,7 @@ def __init__(self, name: str, router: Callable[[T], str]):
 def _route(self, task: T) -> tuple[str, T]:
     target = self.router(task)
     if target not in self.route_counters:
-        raise InvalidOptionError(
-            "Unknown target", target, self.route_counters.keys()
-        )
+        raise InvalidOptionError("Unknown target", target, self.route_counters.keys())
     return target, task
 ```
 

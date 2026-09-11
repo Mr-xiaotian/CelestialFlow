@@ -14,7 +14,7 @@ The `celestialflow.node` package exposes the full public API of the node layer. 
 from celestialflow.node import (
     TaskExecutor,  # General task executor
     TaskSplitter,  # 1→N task splitter
-    TaskRouter,    # Conditional router
+    TaskRouter,  # Conditional router
 )
 ```
 

@@ -109,7 +109,7 @@ Internal state after initialization:
 
 ```python
 reporter.start()  # Clear the stop flag, create a daemon thread executing _loop()
-reporter.stop()   # Set the stop flag, join the thread (timeout=2), then perform a final refresh
+reporter.stop()  # Set the stop flag, join the thread (timeout=2), then perform a final refresh
 ```
 
 `start()` simply does `_stop_flag.clear()` + `Thread(target=self._loop, daemon=True).start()`.
@@ -130,6 +130,7 @@ reporter.stop()   # Set the stop flag, join the thread (timeout=2), then perform
 def _pull_timeout(self) -> float:
     return max(1.0, min(self.interval * 0.2, 5.0))
 
+
 def _push_timeout(self) -> float:
     return max(1.0, min(self.interval * 0.2, 3.0))
 ```
@@ -144,15 +145,15 @@ def _refresh_all(self) -> None:
     try:
         # 1. Pull
         self._pull_server_state()  # GET /api/pull_server_state
-        self._pull_injection()     # GET /api/pull_injection
+        self._pull_injection()  # GET /api/pull_injection
 
         # 2. Push (on demand)
         if (not self._server_has_current_graph) or (not self._server_has_structure):
             self._push_structure()  # POST /api/push_structure
         if (not self._server_has_current_graph) or (not self._server_has_analysis):
-            self._push_analysis()   # POST /api/push_analysis
-        self._push_status()         # POST /api/push_status
-        self._push_errors()         # POST /api/push_errors
+            self._push_analysis()  # POST /api/push_analysis
+        self._push_status()  # POST /api/push_status
+        self._push_errors()  # POST /api/push_errors
     except Exception as e:
         self.log_inlet.loop_failed(e)
 ```
@@ -200,7 +201,7 @@ Failures are recorded via `log_inlet.pull_interval_failed(e)`, without affecting
 ## `_pull_injection` (Split Protocol)
 
 ```python
-GET /api/pull_injection
+GET / api / pull_injection
 ```
 
 The returned payload has the following structure:
@@ -227,7 +228,7 @@ for target_node, task_datas in injection_payload.get("tasks", {}).items():
     try:
         node = self.task_graph.node_dict[target_node]
         for task in task_datas:
-            node.put_task(task)                  # enqueue one at a time
+            node.put_task(task)  # enqueue one at a time
         self.log_inlet.inject_tasks_success(target_node, task_datas)
     except Exception as e:
         self.log_inlet.inject_tasks_failed(target_node, task_datas, e)

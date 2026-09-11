@@ -1,4 +1,4 @@
-﻿# benchmark/util_benchmark.py
+# benchmark/util_benchmark.py
 from __future__ import annotations
 
 import asyncio

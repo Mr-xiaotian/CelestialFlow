@@ -95,7 +95,9 @@ class StatsObserver(BaseObserver):
         self.fail_count += count
 
     def on_finish(self):
-        print(f"Execution finished: success {self.success_count}, fail {self.fail_count}")
+        print(
+            f"Execution finished: success {self.success_count}, fail {self.fail_count}"
+        )
 
 
 # 2. Define task processing function

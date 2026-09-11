@@ -73,8 +73,7 @@ def __init__(
     max_queue_size: int = 0,
     max_info: int = 50,
     enable_duplicate_check: bool = False,
-):
-    ...
+): ...
 ```
 
 `__init__` の主要動作:

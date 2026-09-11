@@ -553,10 +553,16 @@ graph LR
 from celestialflow import TaskExecutor, TaskRouter, TaskGraph
 
 discover = TaskExecutor("discover_urls", discover_urls, execution_mode="serial")
-download = TaskExecutor("download_page", download_page, execution_mode="thread", max_workers=20)
+download = TaskExecutor(
+    "download_page", download_page, execution_mode="thread", max_workers=20
+)
 router = TaskRouter("classify", classify_content)
-extract_article = TaskExecutor("extract_article", extract_article, execution_mode="thread", max_workers=10)
-extract_image = TaskExecutor("extract_image", extract_image, execution_mode="thread", max_workers=10)
+extract_article = TaskExecutor(
+    "extract_article", extract_article, execution_mode="thread", max_workers=10
+)
+extract_image = TaskExecutor(
+    "extract_image", extract_image, execution_mode="thread", max_workers=10
+)
 store = TaskExecutor("save_to_db", save_to_db, execution_mode="serial")
 
 graph = TaskGraph(graph_mode="eager")

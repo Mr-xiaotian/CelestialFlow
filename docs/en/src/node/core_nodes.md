@@ -62,8 +62,7 @@ def __init__(
     max_queue_size: int = 0,
     max_info: int = 50,
     enable_duplicate_check: bool = False,
-):
-    ...
+): ...
 ```
 
 `TaskExecutor` passes all arguments straight through to `BaseTaskNode.__init__`, so `execution_mode / max_workers / max_retries / max_queue_size / max_info / enable_duplicate_check` can all be overridden via keyword arguments at construction time.
@@ -112,9 +111,9 @@ def __init__(
 ):
     super().__init__(
         name=name,
-        func=self._split,         # internal split function
+        func=self._split,  # internal split function
         execution_mode="serial",  # hard-coded
-        max_retries=0,            # hard-coded: splitter does not retry
+        max_retries=0,  # hard-coded: splitter does not retry
     )
     self.split_item = split_item or self._identity_split_item
     self.split_counter = ValueWrapper(0, self.metrics.lock)
@@ -167,6 +166,7 @@ from celestialflow import TaskGraph, TaskExecutor
 # Splitter: split a string into individual characters
 splitter = TaskSplitter("CharSplitter")
 
+
 # Downstream: print every character
 class CharSink(BaseTaskNode[str, str]):  # for illustration only
     ...
@@ -198,9 +198,9 @@ Dispatches a task to a specified downstream based on the `router` callback.
 def __init__(self, name: str, router: Callable[[T], str]):
     super().__init__(
         name=name,
-        func=self._route,           # internal route function
-        execution_mode="serial",    # hard-coded
-        max_retries=0,              # hard-coded: router does not retry
+        func=self._route,  # internal route function
+        execution_mode="serial",  # hard-coded
+        max_retries=0,  # hard-coded: router does not retry
     )
     self.router = router
     self.route_counters = {}
@@ -225,9 +225,7 @@ def __init__(self, name: str, router: Callable[[T], str]):
 def _route(self, task: T) -> tuple[str, T]:
     target = self.router(task)
     if target not in self.route_counters:
-        raise InvalidOptionError(
-            "Unknown target", target, self.route_counters.keys()
-        )
+        raise InvalidOptionError("Unknown target", target, self.route_counters.keys())
     return target, task
 ```
 

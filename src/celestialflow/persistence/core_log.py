@@ -204,8 +204,8 @@ class LogInlet(BaseInlet):
         )
 
     def task_success(
-            self,
-            node_name: str,
+        self,
+        node_name: str,
         task_repr: str,
         execution_mode: str,
         result_repr: str,
@@ -230,8 +230,8 @@ class LogInlet(BaseInlet):
         )
 
     def task_fail(
-            self,
-            node_name: str,
+        self,
+        node_name: str,
         task_repr: str,
         exception: Exception,
         parent_id: int,
@@ -254,8 +254,8 @@ class LogInlet(BaseInlet):
         )
 
     def task_retry(
-            self,
-            node_name: str,
+        self,
+        node_name: str,
         task_repr: str,
         fail_times: int,
         exception: Exception,
@@ -293,8 +293,8 @@ class LogInlet(BaseInlet):
 
     # ==== 拆分器 ====
     def split_trace(
-            self,
-            node_name: str,
+        self,
+        node_name: str,
         part_index: int,
         part_total: int,
         parent_id: int,
@@ -332,8 +332,8 @@ class LogInlet(BaseInlet):
 
     # ==== 路由器 ====
     def route_success(
-            self,
-            node_name: str,
+        self,
+        node_name: str,
         task_repr: str,
         target_node: str,
         use_time: float,

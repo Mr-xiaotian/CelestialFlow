@@ -1,4 +1,4 @@
-﻿# benchmark/util_clone.py
+# benchmark/util_clone.py
 from __future__ import annotations
 
 from collections import deque

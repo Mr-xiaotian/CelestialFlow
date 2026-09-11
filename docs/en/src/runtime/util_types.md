@@ -213,7 +213,9 @@ print(f"Task success event: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
 print(f"Task failure event: {CTreeEvent.TASK_ERROR}")  # "task.error"
 print(f"Retry prefix: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
 print(f"Duplicate task event: {CTreeEvent.TASK_DUPLICATE}")  # "task.duplicate"
-print(f"Termination injection event: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
+print(
+    f"Termination injection event: {CTreeEvent.TERMINATION_INPUT}"
+)  # "termination.input"
 print(f"Termination merge event: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
 ```
 

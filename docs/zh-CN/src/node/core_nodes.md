@@ -62,8 +62,7 @@ def __init__(
     max_queue_size: int = 0,
     max_info: int = 50,
     enable_duplicate_check: bool = False,
-):
-    ...
+): ...
 ```
 
 `TaskExecutor` 直接透传所有参数给 `BaseTaskNode.__init__`，因此 `execution_mode / max_workers / max_retries / max_queue_size / max_info / enable_duplicate_check` 都可以在构造时通过关键字参数覆盖默认值。
@@ -112,9 +111,9 @@ def __init__(
 ):
     super().__init__(
         name=name,
-        func=self._split,         # 内置拆分函数
+        func=self._split,  # 内置拆分函数
         execution_mode="serial",  # 硬编码
-        max_retries=0,            # 硬编码：拆分器不重试
+        max_retries=0,  # 硬编码：拆分器不重试
     )
     self.split_item = split_item or self._identity_split_item
     self.split_counter = ValueWrapper(0, self.metrics.lock)
@@ -167,6 +166,7 @@ from celestialflow import TaskGraph, TaskExecutor
 # 拆分器：把字符串切分成单字符
 splitter = TaskSplitter("CharSplitter")
 
+
 # 下游：把所有字符打印
 class CharSink(BaseTaskNode[str, str]):  # 仅示意
     ...
@@ -198,9 +198,9 @@ graph.run({splitter.get_name(): [["a", "b", "c"]]})
 def __init__(self, name: str, router: Callable[[T], str]):
     super().__init__(
         name=name,
-        func=self._route,           # 内置路由函数
-        execution_mode="serial",    # 硬编码
-        max_retries=0,              # 硬编码：路由器不重试
+        func=self._route,  # 内置路由函数
+        execution_mode="serial",  # 硬编码
+        max_retries=0,  # 硬编码：路由器不重试
     )
     self.router = router
     self.route_counters = {}
@@ -225,9 +225,7 @@ def __init__(self, name: str, router: Callable[[T], str]):
 def _route(self, task: T) -> tuple[str, T]:
     target = self.router(task)
     if target not in self.route_counters:
-        raise InvalidOptionError(
-            "Unknown target", target, self.route_counters.keys()
-        )
+        raise InvalidOptionError("Unknown target", target, self.route_counters.keys())
     return target, task
 ```
 

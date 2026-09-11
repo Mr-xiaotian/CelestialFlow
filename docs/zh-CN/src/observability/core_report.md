@@ -109,7 +109,7 @@ def __init__(
 
 ```python
 reporter.start()  # 清除停止标志，创建守护线程执行 _loop()
-reporter.stop()   # 设置停止标志，join 线程（timeout=2），最后刷新一次
+reporter.stop()  # 设置停止标志，join 线程（timeout=2），最后刷新一次
 ```
 
 `start()` 仅做 `_stop_flag.clear()` + `Thread(target=self._loop, daemon=True).start()`。
@@ -130,6 +130,7 @@ reporter.stop()   # 设置停止标志，join 线程（timeout=2），最后刷�
 def _pull_timeout(self) -> float:
     return max(1.0, min(self.interval * 0.2, 5.0))
 
+
 def _push_timeout(self) -> float:
     return max(1.0, min(self.interval * 0.2, 3.0))
 ```
@@ -144,15 +145,15 @@ def _refresh_all(self) -> None:
     try:
         # 1. 拉取
         self._pull_server_state()  # GET /api/pull_server_state
-        self._pull_injection()     # GET /api/pull_injection
+        self._pull_injection()  # GET /api/pull_injection
 
         # 2. 推送（按需）
         if (not self._server_has_current_graph) or (not self._server_has_structure):
             self._push_structure()  # POST /api/push_structure
         if (not self._server_has_current_graph) or (not self._server_has_analysis):
-            self._push_analysis()   # POST /api/push_analysis
-        self._push_status()         # POST /api/push_status
-        self._push_errors()         # POST /api/push_errors
+            self._push_analysis()  # POST /api/push_analysis
+        self._push_status()  # POST /api/push_status
+        self._push_errors()  # POST /api/push_errors
     except Exception as e:
         self.log_inlet.loop_failed(e)
 ```
@@ -200,7 +201,7 @@ GET /api/pull_server_state?graph_id={graph_id}
 ## `_pull_injection`（拆分协议）
 
 ```python
-GET /api/pull_injection
+GET / api / pull_injection
 ```
 
 返回的载荷结构为：
@@ -227,7 +228,7 @@ for target_node, task_datas in injection_payload.get("tasks", {}).items():
     try:
         node = self.task_graph.node_dict[target_node]
         for task in task_datas:
-            node.put_task(task)                  # 逐条入队
+            node.put_task(task)  # 逐条入队
         self.log_inlet.inject_tasks_success(target_node, task_datas)
     except Exception as e:
         self.log_inlet.inject_tasks_failed(target_node, task_datas, e)

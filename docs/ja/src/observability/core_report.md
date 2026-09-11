@@ -109,7 +109,7 @@ def __init__(
 
 ```python
 reporter.start()  # 停止フラグをクリアし、_loop() を実行するデーモンスレッドを作成
-reporter.stop()   # 停止フラグを設定し、join してスレッドを待機（timeout=2）、最後に1度リフレッシュ
+reporter.stop()  # 停止フラグを設定し、join してスレッドを待機（timeout=2）、最後に1度リフレッシュ
 ```
 
 `start()` は `_stop_flag.clear()` と `Thread(target=self._loop, daemon=True).start()` のみを行います。
@@ -130,6 +130,7 @@ reporter.stop()   # 停止フラグを設定し、join してスレッドを待�
 def _pull_timeout(self) -> float:
     return max(1.0, min(self.interval * 0.2, 5.0))
 
+
 def _push_timeout(self) -> float:
     return max(1.0, min(self.interval * 0.2, 3.0))
 ```
@@ -144,15 +145,15 @@ def _refresh_all(self) -> None:
     try:
         # 1. プル
         self._pull_server_state()  # GET /api/pull_server_state
-        self._pull_injection()     # GET /api/pull_injection
+        self._pull_injection()  # GET /api/pull_injection
 
         # 2. プッシュ（必要に応じて）
         if (not self._server_has_current_graph) or (not self._server_has_structure):
             self._push_structure()  # POST /api/push_structure
         if (not self._server_has_current_graph) or (not self._server_has_analysis):
-            self._push_analysis()   # POST /api/push_analysis
-        self._push_status()         # POST /api/push_status
-        self._push_errors()         # POST /api/push_errors
+            self._push_analysis()  # POST /api/push_analysis
+        self._push_status()  # POST /api/push_status
+        self._push_errors()  # POST /api/push_errors
     except Exception as e:
         self.log_inlet.loop_failed(e)
 ```
@@ -200,7 +201,7 @@ GET /api/pull_server_state?graph_id={graph_id}
 ## `_pull_injection`（分離プロトコル）
 
 ```python
-GET /api/pull_injection
+GET / api / pull_injection
 ```
 
 返されるペイロードの構造:
@@ -227,7 +228,7 @@ for target_node, task_datas in injection_payload.get("tasks", {}).items():
     try:
         node = self.task_graph.node_dict[target_node]
         for task in task_datas:
-            node.put_task(task)                  # 1 件ずつエンキュー
+            node.put_task(task)  # 1 件ずつエンキュー
         self.log_inlet.inject_tasks_success(target_node, task_datas)
     except Exception as e:
         self.log_inlet.inject_tasks_failed(target_node, task_datas, e)

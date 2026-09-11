@@ -14,7 +14,7 @@
 from celestialflow.node import (
     TaskExecutor,  # 通用任务执行器
     TaskSplitter,  # 1→N 任务拆分器
-    TaskRouter,    # 条件路由器
+    TaskRouter,  # 条件路由器
 )
 ```
 

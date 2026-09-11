@@ -21,7 +21,9 @@ Take this code as an example:
 ```python
 def is_dag(graph: OrderGraph) -> bool:
     deg = in_degree(graph)  # ① compute in-degree of all nodes
-    stack = [n for n, d in deg.items() if d == 0]  # ② collect all nodes with in-degree 0
+    stack = [
+        n for n, d in deg.items() if d == 0
+    ]  # ② collect all nodes with in-degree 0
     visited = 0  # ③ counter: number of nodes already peeled off
 
     while stack:  # ④ keep processing nodes with in-degree 0

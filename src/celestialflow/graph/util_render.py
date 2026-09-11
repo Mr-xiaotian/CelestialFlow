@@ -77,9 +77,7 @@ def render_structure_list(
         child_prefix = "" if is_root else prefix + ("    " if is_last else "│   ")
         next_nodes = edges.get(node_name, [])
         for i in range(len(next_nodes) - 1, -1, -1):
-            stack.append(
-                (next_nodes[i], child_prefix, i == len(next_nodes) - 1, False)
-            )
+            stack.append((next_nodes[i], child_prefix, i == len(next_nodes) - 1, False))
 
     rendered_roots: list[str] = []
     for root_name in source_nodes:

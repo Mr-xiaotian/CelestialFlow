@@ -138,9 +138,7 @@ class TaskDispatch[T, R]:
                         self.task_node.handle_task_fail(task_envelope, exception)
                         return
                     # 重试
-                    self.task_node.log_task_retry(
-                        task_envelope, exception, fail_times
-                    )
+                    self.task_node.log_task_retry(task_envelope, exception, fail_times)
 
         except Exception as e:
             get_log_inlet().worker_crash(e)
@@ -170,9 +168,7 @@ class TaskDispatch[T, R]:
                         self.task_node.handle_task_fail(task_envelope, exception)
                         return
                     # 重试
-                    self.task_node.log_task_retry(
-                        task_envelope, exception, fail_times
-                    )
+                    self.task_node.log_task_retry(task_envelope, exception, fail_times)
 
         except Exception as e:
             get_log_inlet().worker_crash(e)

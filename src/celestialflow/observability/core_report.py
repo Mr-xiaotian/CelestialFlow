@@ -175,9 +175,7 @@ class TaskReporter:
                 node.put_signal()
                 self.log_inlet.inject_tasks_success(target_node, [TERMINATION_SIGNAL])
             except Exception as e:
-                self.log_inlet.inject_tasks_failed(
-                    target_node, [TERMINATION_SIGNAL], e
-                )
+                self.log_inlet.inject_tasks_failed(target_node, [TERMINATION_SIGNAL], e)
 
     # ==== 推送 ====
     def _push_errors(self) -> None:
@@ -235,7 +233,7 @@ class TaskReporter:
             )
             if not res.ok:
                 raise ReporterError(f"Failed to push status: {res.status_code}")
-            
+
         except Exception as e:
             self.log_inlet.push_status_failed(e)
 
@@ -255,7 +253,7 @@ class TaskReporter:
             )
             if not res.ok:
                 raise ReporterError(f"Failed to push structure: {res.status_code}")
-            
+
         except Exception as e:
             self.log_inlet.push_structure_failed(e)
 
@@ -274,7 +272,7 @@ class TaskReporter:
             )
             if not res.ok:
                 raise ReporterError(f"Failed to push analysis: {res.status_code}")
-            
+
         except Exception as e:
             self.log_inlet.push_analysis_failed(e)
 
