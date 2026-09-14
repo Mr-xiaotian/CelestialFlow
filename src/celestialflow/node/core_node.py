@@ -44,7 +44,7 @@ from .core_dispatch import TaskDispatch
 from .util_callable import validate_executor_func_signature
 
 
-class BaseTaskNode[T, R]:
+class BaseTaskNode[T, R, Y]:
     """任务节点基类，支持串行、线程和异步三种执行模式。
 
     注意：
@@ -63,13 +63,13 @@ class BaseTaskNode[T, R]:
     _last_elapsed: float
     _last_pending: int
     task_queue: TaskInQueue[T]
-    result_queue: TaskOutQueue[R]
+    yield_queue: TaskOutQueue[Y]
     max_workers: int
     max_retries: int
     max_info: int
     enable_duplicate_check: bool
     metrics: TaskMetrics
-    dispatch: TaskDispatch[T, R]
+    dispatch: TaskDispatch[T, R, Y]
     execution_mode: str
     func: Callable[[T], R] | Callable[[T], Awaitable[R]]
     ctree_client: EventClient
@@ -117,15 +117,15 @@ class BaseTaskNode[T, R]:
         self.set_ctree(LocalEventClient())
 
         # IDE 类型检查器会把这里的 ``self`` 视为更宽的 ``Self``，
-        # 显式收窄为 ``BaseTaskNode[T, R]`` 可避免初始化阶段的误报。
+        # 显式收窄为 ``BaseTaskNode[T, R, Y]`` 可避免初始化阶段的误报。
         self.dispatch = TaskDispatch(
-            cast(BaseTaskNode[T, R], self), self.func, self.max_workers
+            cast(BaseTaskNode[T, R, Y], self), self.func, self.max_workers
         )
         self.task_queue = TaskInQueue(
             out_name=self.get_name(),
             maxsize=self.max_queue_size,
         )
-        self.result_queue = TaskOutQueue(
+        self.yield_queue = TaskOutQueue(
             in_name=self.get_name(),
         )
         self.metrics = TaskMetrics(
@@ -303,7 +303,7 @@ class BaseTaskNode[T, R]:
 
     # ==== 绑定 ====
 
-    def connect_to(self, next_node: BaseTaskNode[Any, Any]) -> None:
+    def connect_to(self, next_node: BaseTaskNode[Any, Any, Any]) -> None:
         """
         绑定前置节点，将每个前驱节点的计数器注册到当前节点的 task_counter 中。
 
@@ -313,7 +313,7 @@ class BaseTaskNode[T, R]:
         self.metrics.set_downstream_counter(next_node.get_name(), counter)
         next_node.metrics.set_upstream_counter(self.get_name(), counter)
 
-        self.result_queue.add_queue(next_node.get_name(), next_node.task_queue)
+        self.yield_queue.add_queue(next_node.get_name(), next_node.task_queue)
         next_node.task_queue.add_source_name(self.get_name())
 
     # ==== 任务队列 ====

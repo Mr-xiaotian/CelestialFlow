@@ -201,8 +201,8 @@ class TaskOutQueue[T]:
         """
         添加一个输出队列到队列列表中
 
-        :param queue: 要添加的输出队列
         :param name: 队列的目标节点名称，用于标识该队列
+        :param queue: 要添加的输出队列
         :raises DuplicateNodeError: 如果名称已存在于队列列表中
         """
         if name in self._queues:
@@ -216,14 +216,14 @@ class TaskOutQueue[T]:
         :param item: 要入队的任务或终止信号
         """
         for name in self._queues:
-            self.put_target(item, name)
+            self.put_target(name, item)
 
-    def put_target(self, item: TaskEnvelope[T] | TerminationSignal, name: str) -> None:
+    def put_target(self, name: str, item: TaskEnvelope[T] | TerminationSignal) -> None:
         """
         入队任务或终止信号到指定的输出队列
 
-        :param item: 要入队的任务或终止信号
         :param name: 输出队列目标节点名称，用于标识该队列通道
+        :param item: 要入队的任务或终止信号
         """
         self._queues[name].put(item)
 

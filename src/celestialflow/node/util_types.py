@@ -3,4 +3,4 @@ from typing import Any
 
 from .core_node import BaseTaskNode
 
-type AnyTaskNode = BaseTaskNode[Any, Any]
+type AnyTaskNode = BaseTaskNode[Any, Any, Any]

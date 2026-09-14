@@ -22,13 +22,13 @@ if TYPE_CHECKING:
     from .core_node import BaseTaskNode
 
 
-class TaskDispatch[T, R]:
+class TaskDispatch[T, R, Y]:
     """任务调度器，负责以串行、线程或异步方式执行单个任务。"""
 
     # ==== 初始化 ====
     def __init__(
         self,
-        task_node: BaseTaskNode[T, R],
+        task_node: BaseTaskNode[T, R, Y],
         func: Callable[[T], R] | Callable[[T], Awaitable[R]],
         max_workers: int,
     ):
@@ -179,7 +179,7 @@ class TaskDispatch[T, R]:
         串行地执行任务
         """
         task_queue = self.task_node.task_queue
-        result_queue = self.task_node.result_queue
+        yield_queue = self.task_node.yield_queue
 
         while True:
             envelope = task_queue.get()
@@ -194,7 +194,7 @@ class TaskDispatch[T, R]:
 
             self._worker(envelope)
 
-        result_queue.put(termination_signal)
+        yield_queue.put(termination_signal)
 
     def dispatch_thread(self) -> None:
         """
@@ -203,7 +203,7 @@ class TaskDispatch[T, R]:
         self._init_pool(execution_mode="thread")
         try:
             task_queue = self.task_node.task_queue
-            result_queue = self.task_node.result_queue
+            yield_queue = self.task_node.yield_queue
 
             pending: set[Future[None]] = set()  # 用于存储等待执行的任务
 
@@ -229,7 +229,7 @@ class TaskDispatch[T, R]:
 
             # 等待当前批次的所有任务完成
             _done, pending = wait(pending)
-            result_queue.put(termination_signal)
+            yield_queue.put(termination_signal)
 
         finally:
             # 避免pool未完全释放
@@ -241,7 +241,7 @@ class TaskDispatch[T, R]:
         支持流式到达的任务，边收边跑。
         """
         task_queue = self.task_node.task_queue
-        result_queue = self.task_node.result_queue
+        yield_queue = self.task_node.yield_queue
 
         semaphore = asyncio.Semaphore(self.max_workers)
         pending: set[asyncio.Task[None]] = set()
@@ -266,7 +266,7 @@ class TaskDispatch[T, R]:
             task.add_done_callback(pending.discard)
 
         _ = await asyncio.gather(*pending, return_exceptions=True)
-        result_queue.put(termination_signal)
+        yield_queue.put(termination_signal)
 
     # ==== 清理 ====
     def _release_pool(self) -> None:
