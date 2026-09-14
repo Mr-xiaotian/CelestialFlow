@@ -3,6 +3,8 @@ import time
 from collections.abc import Callable, Iterable
 from typing import cast
 
+from celestialflow.runtime.util_format import format_repr
+
 from ..persistence import get_lifecycle_inlet, get_log_inlet
 from ..runtime import TaskEnvelope, TaskOutQueue
 from ..runtime.util_errors import InvalidOptionError
@@ -55,7 +57,6 @@ class TaskExecutor[T, R](BaseTaskNode[T, R]):
 
         self.metrics.add_success_count()
         get_lifecycle_inlet().task_success(task_id, result)
-
         get_log_inlet().task_success(
             self.get_name(),
             self._get_repr(task),
@@ -138,28 +139,45 @@ class TaskSplitter[TItem, RItem](BaseTaskNode[Iterable[TItem], Iterable[RItem]])
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
         result_list = list(result)
+        result_id = self.ctree_client.emit(
+            CTreeEvent.TASK_SUCCESS,
+            parents=[task_id],
+        )
+        result_queue = cast(TaskOutQueue[RItem], self.result_queue)
+        split_count = len(result_list)
 
-        split_count = self._put_split_result(result_list, task_id)
         self.metrics.add_success_count()
         get_lifecycle_inlet().task_success(task_id, result_list)
-        self._update_split_counter(split_count)
-
-        get_log_inlet().split_success(
+        get_log_inlet().task_success(
             self.get_name(),
             self._get_repr(task),
-            split_count,
+            self.execution_mode,
+            self._get_repr(result_list),
             time.perf_counter() - start_time,
+            task_id,
+            result_id,
         )
+        self.split_counter.add(split_count)
+
+        for item in result_list:
+            for target_name in result_queue.get_target_names():
+                downstream_input_id = self.ctree_client.emit(
+                    CTreeEvent.TASK_INPUT,
+                    parents=[result_id],
+                )
+                get_lifecycle_inlet().task_input(target_name, downstream_input_id, item)
+                get_log_inlet().task_input(
+                    target_name,
+                    f"({format_repr(item, self.max_info)})",
+                    downstream_input_id,
+                )
+                downstream_envelope: TaskEnvelope[RItem] = TaskEnvelope(
+                    item,
+                    downstream_input_id,
+                )
+                result_queue.put_target(downstream_envelope, target_name)
 
     # === 私有方法 ===
-
-    def _update_split_counter(self, add_value: int) -> None:
-        """
-        更新 split 计数器
-
-        :param add_value: 增加的子任务数量
-        """
-        self.split_counter.add(add_value)
 
     @staticmethod
     def _identity_split_item(task: TItem) -> RItem:
@@ -179,50 +197,6 @@ class TaskSplitter[TItem, RItem](BaseTaskNode[Iterable[TItem], Iterable[RItem]])
         :return: 子任务元组
         """
         return (self.split_item(item) for item in task)
-
-    def _put_split_result(
-        self,
-        result: Iterable[RItem],
-        task_id: int,
-    ) -> int:
-        """
-        将 split 结果放入队列，并发出对应事件
-
-        :param result: split 的结果，必须是一个可迭代对象
-        :param task_id: 原始任务 ID，用于事件关联
-        :return: split 的子任务数量
-        """
-        result_queue = cast(TaskOutQueue[RItem], self.result_queue)
-        result_list = list(result)
-        split_count = len(result_list)
-
-        for idx, item in enumerate(result_list):
-            split_id = self.ctree_client.emit(
-                "task.split",
-                parents=[task_id],
-            )
-            for target_name in result_queue.get_target_names():
-                downstream_input_id = self.ctree_client.emit(
-                    "task.input",
-                    parents=[split_id],
-                )
-                get_lifecycle_inlet().task_input(target_name, downstream_input_id, item)
-                downstream_envelope: TaskEnvelope[RItem] = TaskEnvelope(
-                    item,
-                    downstream_input_id,
-                )
-                result_queue.put_target(downstream_envelope, target_name)
-
-            get_log_inlet().split_trace(
-                self.get_name(),
-                idx + 1,
-                split_count,
-                task_id,
-                split_id,
-            )
-
-        return split_count
-
 
 # ==== 任务路由器 ====
 class TaskRouter[T](BaseTaskNode[T, tuple[str, T]]):

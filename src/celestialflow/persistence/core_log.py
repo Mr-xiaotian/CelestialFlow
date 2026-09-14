@@ -291,45 +291,6 @@ class LogInlet(BaseInlet):
             f"In '{node_name}', Task {task_repr} has been duplicated. [{parent_id}->{duplicate_id}*]",
         )
 
-    # ==== 拆分器 ====
-    def split_trace(
-        self,
-        node_name: str,
-        part_index: int,
-        part_total: int,
-        parent_id: int,
-        split_id: int,
-    ) -> None:
-        """
-        记录 split 子任务分发
-
-        :param node_name: 任务节点名称
-        :param part_index: 分片索引
-        :param part_total: 分片总数
-        :param parent_id: 父记录 ID
-        :param split_id: 分片记录 ID
-        """
-        self._log(
-            "TRACE",
-            f"In '{node_name}', Task split part {part_index}/{part_total}. [{parent_id}->{split_id}*]",
-        )
-
-    def split_success(
-        self, node_name: str, task_repr: str, split_count: int, use_time: float
-    ) -> None:
-        """
-        记录 split 成功
-
-        :param node_name: 任务节点名称
-        :param task_repr: 任务表示
-        :param split_count: 拆分数量
-        :param use_time: 拆分耗时（秒）
-        """
-        self._log(
-            "SUCCESS",
-            f"In '{node_name}', Task {task_repr} has split into {split_count} parts. Used {use_time:.2f}s.",
-        )
-
     # ==== 路由器 ====
     def route_success(
         self,
