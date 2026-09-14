@@ -1,4 +1,7 @@
+import pytest
+
 from celestialflow.runtime.core_metrics import TaskMetrics
+from celestialflow.runtime.util_types import ValueWrapper
 
 
 class TestTaskMetricsBasic:
@@ -76,6 +79,52 @@ class TestTaskMetricsBasic:
         metrics.reset_counter()
         assert metrics.get_task_count() == 0
         assert metrics.get_success_count() == 0
+
+class TestTaskMetricsBinding:
+    """覆盖上游/下游绑定计数器（``connect_to`` 建立的计数关联）。"""
+
+    def test_upstream_counter_adds_to_task_count(self):
+        """上游计数器的值应计入任务总数。"""
+        metrics = TaskMetrics()
+        upstream = ValueWrapper(0)
+        metrics.set_upstream_counter("prev", upstream)
+
+        upstream.add(3)
+
+        assert metrics.get_task_count() == 3
+
+    def test_shared_binding_counter(self):
+        """``connect_to`` 双方应共享同一个计数器对象。"""
+        prev_metrics = TaskMetrics()
+        curr_metrics = TaskMetrics()
+        counter = ValueWrapper(value=0)
+        prev_metrics.set_downstream_counter("current", counter)
+        curr_metrics.set_upstream_counter("prev", counter)
+
+        prev_metrics.add_downstream_count("current", 2)
+
+        assert curr_metrics.get_task_count() == 2
+
+    def test_add_downstream_count_missing_target_raises(self):
+        """未注册的下游名称应抛出 ``KeyError``。"""
+        metrics = TaskMetrics()
+        with pytest.raises(KeyError):
+            metrics.add_downstream_count("ghost")
+
+    def test_reset_counter_clears_binding_counters(self):
+        """``reset_counter`` 应重置上游/下游绑定计数器。"""
+        prev_metrics = TaskMetrics()
+        curr_metrics = TaskMetrics()
+        counter = ValueWrapper(value=0)
+        prev_metrics.set_downstream_counter("current", counter)
+        curr_metrics.set_upstream_counter("prev", counter)
+
+        prev_metrics.add_downstream_count("current", 5)
+        curr_metrics.reset_counter()
+
+        assert curr_metrics.get_task_count() == 0
+        assert counter.get() == 0
+
 
 class TestTaskMetricsDuplicate:
     def test_duplicate_check_disabled_always_false(self):

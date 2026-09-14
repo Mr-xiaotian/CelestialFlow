@@ -19,7 +19,7 @@ import pytest
 from celestialflow.observability import BaseObserver
 from celestialflow.persistence import LogInlet, get_lifecycle_spout, get_log_spout
 from celestialflow.runtime import TaskEnvelope
-from celestialflow.runtime.util_types import TerminationSignal
+from celestialflow.runtime.util_types import TerminationSignal, ValueWrapper
 from celestialflow.node import TaskExecutor
 from celestialflow.node.core_dispatch import TaskDispatch
 from conftest import wait_until
@@ -134,9 +134,11 @@ def _make_executor(
     get_lifecycle_spout().start()
     get_log_spout().start()
     e.ctree_client = _CtreeStub()
-    # 通过公开 API 为测试注册结果收集队列，避免向 executor 注入测试专用属性
+    # 通过公开 API 为测试注册结果收集队列，避免向 executor 注入测试专用属性。
+    # 与 ``connect_to`` 的注册行为保持一致：队列与 metrics 计数器成对绑定。
     collector: Queue[Any] = Queue()
-    e.result_queue.add_queue(collector, name="test_collector")
+    e.metrics.set_downstream_counter("test_collector", ValueWrapper(value=0))
+    e.yield_queue.add_queue("test_collector", collector)
     _RESULT_COLLECTORS[e] = collector
     return e
 
@@ -259,8 +261,11 @@ class TestDispatchSerial:
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
         collector_a: Queue[Any] = Queue()
         collector_b: Queue[Any] = Queue()
-        executor.result_queue.add_queue(collector_a, name="downstream_a")
-        executor.result_queue.add_queue(collector_b, name="downstream_b")
+        # 模拟 ``connect_to`` 的绑定行为：metrics 计数器与队列成对注册
+        executor.metrics.set_downstream_counter("downstream_a", ValueWrapper(value=0))
+        executor.metrics.set_downstream_counter("downstream_b", ValueWrapper(value=0))
+        executor.yield_queue.add_queue("downstream_a", collector_a)
+        executor.yield_queue.add_queue("downstream_b", collector_b)
 
         from celestialflow.persistence import get_lifecycle_inlet
 

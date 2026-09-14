@@ -1,5 +1,6 @@
 """Tests for :mod:`celestialflow.node.core_nodes`."""
 
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +10,6 @@ from celestialflow import TaskExecutor, TaskGraph, TaskRouter, TaskSplitter
 from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_errors import (
     ConfigurationError,
-    InvalidOptionError,
     PersistedError,
 )
 
@@ -47,6 +47,11 @@ async def async_add_one(x: int) -> int:
 async def async_double(x: int) -> int:
     """测试用异步乘二函数。"""
     return x * 2
+
+
+def split_identity(task: Iterable[int]) -> Iterable[int]:
+    """测试用恒等拆分函数：原样返回输入的可迭代对象。"""
+    return task
 
 
 class TestTaskExecutor:
@@ -400,11 +405,10 @@ class TestTaskSplitter:
     """覆盖 ``TaskSplitter`` 的拆分行为。"""
 
     def test_splitter_init(self) -> None:
-        """TaskSplitter 默认应为串行且不重试。"""
-        splitter = TaskSplitter("Splitter")
+        """TaskSplitter 默认应为串行执行模式，且尚未绑定下游。"""
+        splitter = TaskSplitter("Splitter", split_identity)
         assert splitter.execution_mode == "serial"
-        assert splitter.max_retries == 0
-        assert splitter.split_counter.get() == 0
+        assert splitter.metrics.downstream_counter == {}
 
     def test_splitter_process_success(self) -> None:
         """拆分成功后，下游应收到独立子任务。"""
@@ -412,7 +416,7 @@ class TestTaskSplitter:
         def noop(x: int) -> int:
             return x
 
-        splitter = TaskSplitter("S")
+        splitter = TaskSplitter("S", split_identity)
         worker = TaskExecutor("A", noop)
 
         graph = TaskGraph("test_splitter_process_success")
@@ -420,7 +424,8 @@ class TestTaskSplitter:
         graph.connect([splitter], [worker])
         graph.run({"S": [[1, 2, 3]]})
 
-        assert splitter.split_counter.get() == 3
+        # 每个子任务应作为独立任务到达下游
+        assert splitter.metrics.downstream_counter["A"].get() == 1
         assert worker.get_counts()["tasks_succeeded"] == 3
 
     def test_splitter_allows_empty_iterable(self) -> None:
@@ -429,7 +434,7 @@ class TestTaskSplitter:
         def noop(x: int) -> int:
             return x
 
-        splitter = TaskSplitter("S")
+        splitter = TaskSplitter("S", split_identity)
         worker = TaskExecutor("A", noop)
 
         graph = TaskGraph("test_splitter_allows_empty_iterable")
@@ -437,7 +442,7 @@ class TestTaskSplitter:
         graph.connect([splitter], [worker])
         graph.run({"S": [[]]})
 
-        assert splitter.split_counter.get() == 0
+        assert splitter.metrics.downstream_counter["A"].get() == 1
         assert worker.get_counts()["tasks_succeeded"] == 0
 
     def test_splitter_supports_generator_input(self) -> None:
@@ -446,7 +451,7 @@ class TestTaskSplitter:
         def noop(x: int) -> int:
             return x
 
-        splitter = TaskSplitter("S")
+        splitter = TaskSplitter("S", split_identity)
         worker = TaskExecutor("A", noop)
 
         graph = TaskGraph("test_splitter_supports_generator_input")
@@ -454,37 +459,46 @@ class TestTaskSplitter:
         graph.connect([splitter], [worker])
         graph.run({"S": [(i for i in [1, 2, 3])]})
 
-        assert splitter.split_counter.get() == 3
+        assert splitter.metrics.downstream_counter["A"].get() == 1
         assert worker.get_counts()["tasks_succeeded"] == 3
 
-    def test_splitter_allows_constructor_split_item(self) -> None:
-        """构造参数 ``split_item`` 应能自定义子任务处理逻辑。"""
-        splitter = TaskSplitter[str, str]("S", split_item=lambda item: item.strip())
-        assert tuple(splitter._split([" a ", " b ", " c "])) == ("a", "b", "c")
+    def test_splitter_custom_func_transforms_items(self) -> None:
+        """自定义拆分函数应能对子任务做变换后再分发。"""
+
+        def noop(x: str) -> str:
+            return x
+
+        splitter = TaskSplitter(
+            "S",
+            lambda task: (item.strip() for item in task),
+        )
+        worker = TaskExecutor("A", noop)
+
+        graph = TaskGraph("test_splitter_custom_func_transforms_items")
+        graph.set_nodes([splitter, worker])
+        graph.connect([splitter], [worker])
+        graph.run({"S": [[" a ", " b ", " c "]]})
+
+        assert splitter.metrics.downstream_counter["A"].get() == 1
+        assert sorted(task for task, _ in worker.get_success_pairs()) == ["a", "b", "c"]
 
 
 class TestTaskRouter:
     """覆盖 ``TaskRouter`` 的路由行为。"""
 
     def test_router_init(self) -> None:
-        """TaskRouter 默认应为串行且不重试。"""
-        router = TaskRouter("Router", lambda task: str(task))
+        """TaskRouter 默认应为串行执行模式，且尚未绑定下游。"""
+        router = TaskRouter("Router", lambda task: (str(task), task))
         assert router.execution_mode == "serial"
-        assert router.max_retries == 0
-        assert router.route_counters == {}
+        assert router.metrics.downstream_counter == {}
 
-    def test_router_route_logic(self) -> None:
-        """路由函数应返回目标名称，并拒绝未知目标。"""
+    def test_router_func_returns_target_and_task(self) -> None:
+        """路由函数应返回 ``(target, task)`` 二元组。"""
         router = TaskRouter(
             "Router",
-            lambda task: "target1" if task == "data" else "unknown",
+            lambda task: ("target1", task) if task == "data" else ("unknown", task),
         )
-        router.get_binding_counter("target1")
-
-        assert router._route("data") == ("target1", "data")
-
-        with pytest.raises(InvalidOptionError):
-            router._route("other")
+        assert router.func("data") == ("target1", "data")
 
     def test_router_process_success(self) -> None:
         """路由成功后，任务应被发送到指定目标节点。"""
@@ -494,7 +508,7 @@ class TestTaskRouter:
 
         router = TaskRouter(
             "R",
-            lambda task: "target1" if task == "msg1" else "target2",
+            lambda task: ("target1", task) if task == "msg1" else ("target2", task),
         )
         target1 = TaskExecutor("target1", noop)
         target2 = TaskExecutor("target2", noop)
@@ -504,20 +518,21 @@ class TestTaskRouter:
         graph.connect([router], [target1, target2])
         graph.run({"R": ["msg1", "msg2"]})
 
-        assert router.route_counters["target1"].value == 1
-        assert router.route_counters["target2"].value == 1
+        # 每个目标节点应收到一次向下游的发送计数
+        assert router.metrics.downstream_counter["target1"].get() == 1
+        assert router.metrics.downstream_counter["target2"].get() == 1
         assert target1.get_counts()["tasks_succeeded"] == 1
         assert target2.get_counts()["tasks_succeeded"] == 1
 
-    def test_router_binding_counter_uses_stable_metrics_lock(self) -> None:
-        """路由计数器从创建开始就应绑定稳定的 metrics 锁。"""
-        router = TaskRouter("Router", lambda task: str(task))
+    def test_router_binding_counter_stable_across_mode_switch(self) -> None:
+        """绑定计数器应跨执行模式切换保持稳定。"""
+        router = TaskRouter("Router", lambda task: ("target1", task))
+        target = TaskExecutor("target1", lambda task: task)
 
-        counter = router.get_binding_counter("target1")
-        lock = router.metrics.lock
-
-        assert counter.get_lock() is lock
+        router.connect_to(target)
+        counter = router.metrics.downstream_counter["target1"]
+        assert target.metrics.upstream_counter["Router"] is counter
 
         router.set_execution_mode("thread")
 
-        assert counter.get_lock() is lock
+        assert target.metrics.upstream_counter["Router"] is counter

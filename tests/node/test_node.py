@@ -66,19 +66,23 @@ class TestBaseTaskNodeConfig:
 
         assert snapshot["execution_mode"] == "thread"
 
-    def test_prev_binding_survives_execution_mode_switch(self) -> None:
-        """切换执行模式不应破坏已建立的前驱绑定。"""
+    def test_connect_to_binding_survives_execution_mode_switch(self) -> None:
+        """切换执行模式不应破坏 ``connect_to`` 已建立的下游绑定。"""
         prev_node = TaskExecutor("PrevNode", add_one)
         current_node = TaskExecutor("CurrentNode", add_one)
 
-        current_node.prev_binding(prev_node)
-        prev_node.metrics.add_success_count(2)
+        prev_node.connect_to(current_node)
+        binding_counter = prev_node.metrics.downstream_counter["CurrentNode"]
+        # 下游发送计数与上游接收计数应共享同一个计数器对象
+        assert current_node.metrics.upstream_counter["PrevNode"] is binding_counter
+
+        prev_node.metrics.add_downstream_count("CurrentNode", 2)
         assert current_node.metrics.get_task_count() == 2
 
         current_node.set_execution_mode("thread")
         assert current_node.metrics.get_task_count() == 2
 
-        prev_node.metrics.add_success_count(1)
+        prev_node.metrics.add_downstream_count("CurrentNode", 1)
         assert current_node.metrics.get_task_count() == 3
 
 

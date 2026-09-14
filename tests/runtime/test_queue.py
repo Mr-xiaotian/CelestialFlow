@@ -79,8 +79,8 @@ class TestTaskOutQueue:
         q1 = queue.Queue()
         q2 = queue.Queue()
         out_queue = TaskOutQueue(in_name="src")
-        out_queue.add_queue(q1, "a")
-        out_queue.add_queue(q2, "b")
+        out_queue.add_queue("a", q1)
+        out_queue.add_queue("b", q2)
 
         envelope = TaskEnvelope("data", id=1)
         out_queue.put(envelope)
@@ -93,11 +93,11 @@ class TestTaskOutQueue:
         q1 = queue.Queue()
         q2 = queue.Queue()
         out_queue = TaskOutQueue(in_name="src")
-        out_queue.add_queue(q1, "a")
-        out_queue.add_queue(q2, "b")
+        out_queue.add_queue("a", q1)
+        out_queue.add_queue("b", q2)
 
         envelope = TaskEnvelope("data", id=1)
-        out_queue.put_target(envelope, name="b")
+        out_queue.put_target("b", envelope)
 
         assert q1.empty()
         assert q2.get().get_task() == "data"
@@ -106,10 +106,10 @@ class TestTaskOutQueue:
         """动态添加输出队列"""
         q1 = queue.Queue()
         out_queue = TaskOutQueue(in_name="src")
-        out_queue.add_queue(q1, "a")
+        out_queue.add_queue("a", q1)
 
         q2 = queue.Queue()
-        out_queue.add_queue(q2, name="b")
+        out_queue.add_queue("b", q2)
 
         envelope = TaskEnvelope("x", id=1)
         out_queue.put(envelope)
@@ -121,6 +121,6 @@ class TestTaskOutQueue:
         """重复目标名称应报错"""
         q1 = queue.Queue()
         out_queue = TaskOutQueue(in_name="src")
-        out_queue.add_queue(q1, "a")
+        out_queue.add_queue("a", q1)
         with pytest.raises(DuplicateNodeError, match="duplicate queue target name"):
-            out_queue.add_queue(queue.Queue(), name="a")
+            out_queue.add_queue("a", queue.Queue())

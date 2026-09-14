@@ -7,7 +7,6 @@ from celestialflow.runtime.util_types import (
     CTreeEvent,
     NoOpContext,
     StageStatus,
-    SumCounter,
     TerminationIdPool,
     TerminationSignal,
     ValueWrapper,
@@ -124,65 +123,6 @@ class TestUtilTypes:
         v = ValueWrapper(-100)
         assert v.value == -100
 
-    # ---- SumCounter ----
-
-    def test_sum_counter_single_append(self):
-        """单个计数器累加"""
-        sc = SumCounter()
-        sc.append_counter(ValueWrapper(10))
-        sc.append_counter(ValueWrapper(20))
-        assert sc.value == 30
-
-    def test_sum_counter_init_value(self):
-        """init_value 影响总和"""
-        sc = SumCounter()
-        sc.add(5)
-        assert sc.value == 5
-        sc.add(3)
-        assert sc.value == 8
-
-    def test_sum_counter_init_and_counters(self):
-        """init_value 和 counters 同时累加"""
-        sc = SumCounter()
-        sc.add(100)
-        sc.append_counter(ValueWrapper(50))
-        sc.append_counter(ValueWrapper(30))
-        assert sc.value == 180
-
-    def test_sum_counter_reset(self):
-        """reset 清零所有计数器"""
-        sc = SumCounter()
-        sc.add(10)
-        sc.append_counter(ValueWrapper(20))
-        sc.append_counter(ValueWrapper(30))
-        assert sc.value == 60
-
-        sc.reset()
-        assert sc.value == 0
-        assert sc.init_value.value == 0
-
-    def test_sum_counter_reset_partial(self):
-        """部分计数器有值，reset 后全部归零"""
-        sc = SumCounter()
-        sc.append_counter(ValueWrapper(7))
-        sc.append_counter(ValueWrapper(0))
-        assert sc.value == 7
-        sc.reset()
-        assert sc.value == 0
-
-    def test_sum_counter_empty(self):
-        """无计数器时 value 为 init_value 默认值 0"""
-        sc = SumCounter()
-        assert sc.value == 0
-
-    def test_sum_counter_multiple_add_init(self):
-        """多次 add"""
-        sc = SumCounter()
-        sc.add(0)
-        sc.add(10)
-        sc.add(20)
-        assert sc.value == 30
-
     # ---- StageStatus ----
 
     def test_stage_status_values(self):
@@ -223,4 +163,4 @@ class TestUtilTypes:
 
 
 # 运行方式：
-#   python -m pytest tests/utils/test_utils_types.py -v
+#   python -m pytest tests/runtime/test_types.py -v
