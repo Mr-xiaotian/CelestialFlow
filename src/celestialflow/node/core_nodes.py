@@ -71,6 +71,11 @@ class TaskExecutor[T, R](BaseTaskNode[T, R]):
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
             )
+            get_log_inlet().task_input(
+                target_name,
+                self._get_repr(result),
+                downstream_input_id,
+            )
             get_lifecycle_inlet().task_input(target_name, downstream_input_id, result)
             downstream_envelope: TaskEnvelope[R] = TaskEnvelope(
                 task=result,
@@ -250,27 +255,31 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T]]):
         result_queue = cast(TaskOutQueue[T], self.result_queue)
 
         route_id = self.ctree_client.emit(
-            "task.route",
+            CTreeEvent.TASK_SUCCESS,
             parents=[task_id],
         )
         self.metrics.add_success_count()
+        self.route_counters[target].add(1)
         get_lifecycle_inlet().task_success(task_id, task)
-        self._update_route_counter(target)
-
-        get_log_inlet().route_success(
+        get_log_inlet().task_success(
             self.get_name(),
             self._get_repr(task),
-            target,
+            self._get_repr(result),
             time.perf_counter() - start_time,
             task_id,
             route_id,
         )
 
         downstream_input_id = self.ctree_client.emit(
-            "task.input",
+            CTreeEvent.TASK_INPUT,
             parents=[route_id],
         )
         get_lifecycle_inlet().task_input(target, downstream_input_id, task)
+        get_log_inlet().task_input(
+            target,
+            self._get_repr(task),
+            downstream_input_id,
+        )
         downstream_envelope: TaskEnvelope[T] = TaskEnvelope(
             task,
             downstream_input_id,
@@ -294,11 +303,3 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T]]):
                 "Unknown target", target, self.route_counters.keys()
             )
         return target, task
-
-    def _update_route_counter(self, target: str) -> None:
-        """
-        更新指定目标的路由计数器
-
-        :param target: 目标节点的唯一名称
-        """
-        self.route_counters[target].add(1)

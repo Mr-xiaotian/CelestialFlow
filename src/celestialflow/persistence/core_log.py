@@ -94,6 +94,7 @@ class LogInlet(BaseInlet):
         )
 
     # ==== 任务图 ====
+
     def graph_start(
         self, graph_name: str, graph_mode: str, structure_list: list[str]
     ) -> None:
@@ -120,6 +121,7 @@ class LogInlet(BaseInlet):
         self._log("INFO", f"Graph '{graph_name}' end. Use {use_time:.2f}s.")
 
     # ==== 节点 ====
+
     def node_start(
         self, node_name: str, task_num: int, execution_mode_desc: str
     ) -> None:
@@ -176,6 +178,7 @@ class LogInlet(BaseInlet):
         )
 
     # ==== 工作线程 ====
+
     def worker_crash(self, exception: Exception) -> None:
         """
         记录工作器崩溃
@@ -190,6 +193,7 @@ class LogInlet(BaseInlet):
         )
 
     # ==== 任务 ====
+
     def task_input(self, node_name: str, task_repr: str, input_id: int) -> None:
         """
         记录任务输入
@@ -217,7 +221,6 @@ class LogInlet(BaseInlet):
 
         :param node_name: 任务节点名称
         :param task_repr: 任务表示
-        :param execution_mode: 执行模式
         :param result_repr: 结果表示
         :param use_time: 任务耗时（秒）
         :param parent_id: 父记录 ID
@@ -290,32 +293,8 @@ class LogInlet(BaseInlet):
             f"In '{node_name}', Task {task_repr} has been duplicated. [{parent_id}->{duplicate_id}*]",
         )
 
-    # ==== 路由器 ====
-    def route_success(
-        self,
-        node_name: str,
-        task_repr: str,
-        target_node: str,
-        use_time: float,
-        parent_id: int,
-        route_id: int,
-    ) -> None:
-        """
-        记录路由成功
-
-        :param node_name: 任务节点名称
-        :param task_repr: 任务表示
-        :param target_node: 路由目标节点
-        :param use_time: 路由耗时（秒）
-        :param parent_id: 父记录 ID
-        :param route_id: 路由记录 ID
-        """
-        self._log(
-            "SUCCESS",
-            f"In '{node_name}', Task {task_repr} has routed to {target_node}. Used {use_time:.2f}s. [{parent_id}->{route_id}*]",
-        )
-
     # ==== 终止信号 ====
+
     def termination_input(self, node_name: str, termination_id: int) -> None:
         """
         记录终止信号输入
@@ -344,6 +323,7 @@ class LogInlet(BaseInlet):
         )
 
     # ==== 上报器 ====
+
     def stop_reporter(self) -> None:
         """记录上报器停止"""
         self._log("DEBUG", "[Reporter] Stopped.")
