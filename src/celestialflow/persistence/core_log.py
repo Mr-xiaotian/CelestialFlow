@@ -207,7 +207,6 @@ class LogInlet(BaseInlet):
         self,
         node_name: str,
         task_repr: str,
-        execution_mode: str,
         result_repr: str,
         use_time: float,
         parent_id: int,
@@ -226,7 +225,7 @@ class LogInlet(BaseInlet):
         """
         self._log(
             "SUCCESS",
-            f"In '{node_name}', Task {task_repr} succeeded by {execution_mode}. Result is {result_repr}. Used {use_time:.2f}s. [{parent_id}->{success_id}*]",
+            f"In '{node_name}', Task {task_repr} succeeded. Result is {result_repr}. Used {use_time:.2f}s. [{parent_id}->{success_id}*]",
         )
 
     def task_fail(

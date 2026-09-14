@@ -60,7 +60,6 @@ class TaskExecutor[T, R](BaseTaskNode[T, R]):
         get_log_inlet().task_success(
             self.get_name(),
             self._get_repr(task),
-            self.execution_mode,
             self._get_repr(result),
             time.perf_counter() - start_time,
             task_id,
@@ -151,7 +150,6 @@ class TaskSplitter[TItem, RItem](BaseTaskNode[Iterable[TItem], Iterable[RItem]])
         get_log_inlet().task_success(
             self.get_name(),
             self._get_repr(task),
-            self.execution_mode,
             self._get_repr(result_list),
             time.perf_counter() - start_time,
             task_id,
