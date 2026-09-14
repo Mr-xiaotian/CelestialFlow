@@ -1,10 +1,10 @@
 # bench/ 基准测试总览
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/14
 
 ## 说明
 
-本目录收集 `CelestialFlow` 项目中的各类 benchmark 文档，覆盖执行模式、图调度、持久化、队列、哈希、锁开销、网络请求以及 Python 3.14 GIL / No-GIL 对比等主题。
+本目录收集 `CelestialFlow` 项目中的各类 benchmark 文档，覆盖执行模式、图调度、持久化、队列、哈希、锁开销、漏斗与锁的同步机制对比、网络请求以及 Python 3.14 GIL / No-GIL 对比等主题。
 
 这些 benchmark 的用途主要有三类：
 
@@ -51,6 +51,7 @@
 | 文档 | 说明 |
 |------|------|
 | `bench_lock_overhead.md` | 锁竞争与同步开销 |
+| `bench_funnel_vs_lock.md` | 漏斗（队列 + 单消费者）与加锁（`ValueWrapper`）的同步机制对比 |
 | `bench_datastructures.md` | 常见数据结构与跨进程结构性能基线 |
 | `bench_hash.md` | 对象稳定哈希策略对比（`normalize_for_hash` + 多种序列化/哈希组合） |
 | `bench_hash_container.md` | 容器类对象哈希性能对比 |
