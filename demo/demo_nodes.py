@@ -14,11 +14,11 @@ from dotenv import load_dotenv
 
 from celestialflow import (
     TaskChain,
+    TaskExecutor,
     TaskGraph,
     TaskReporter,
     TaskRouter,
     TaskSplitter,
-    TaskExecutor,
 )
 
 load_dotenv()
@@ -102,9 +102,9 @@ def demo_splitter_1() -> None:
 
 
 def demo_router_0() -> None:
-    # 节点定义：Origin 只生成任务本身，Router 负责按规则选择下游并分发。
-    a_name = "NodeA"
-    b_name = "NodeB"
+    # 节点定义：Origin 只生成任务本身，Router 返回 {目标节点: 下游载荷} 并据此分发。
+    a_name = "StageA"
+    b_name = "StageB"
 
     source_node = TaskExecutor(
         "Origin",
@@ -129,7 +129,7 @@ def demo_router_0() -> None:
         max_workers=2,
     )
 
-    # 图组装：Origin -> Router -> {NodeA, NodeB}，演示基于奇偶的条件路由。
+    # 图组装：Origin -> Router -> {StageA, StageB}，演示基于奇偶的条件路由。
     graph = TaskGraph("demo_router_0", graph_mode="thread")
     graph.set_nodes(
         nodes=[source_node, router, node_a, node_b],

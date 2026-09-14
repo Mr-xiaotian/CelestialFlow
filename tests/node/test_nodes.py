@@ -489,17 +489,17 @@ class TestTaskRouter:
 
     def test_router_init(self) -> None:
         """TaskRouter 默认应为串行执行模式，且尚未绑定下游。"""
-        router = TaskRouter("Router", lambda task: (str(task), task))
+        router = TaskRouter("Router", lambda task: {str(task): task})
         assert router.execution_mode == "serial"
         assert router.metrics.downstream_counter == {}
 
-    def test_router_func_returns_target_and_task(self) -> None:
-        """路由函数应返回 ``(target, task)`` 二元组。"""
+    def test_router_func_returns_target_payload_map(self) -> None:
+        """路由函数应返回 ``{target: payload}`` 映射。"""
         router = TaskRouter(
             "Router",
-            lambda task: ("target1", task) if task == "data" else ("unknown", task),
+            lambda task: {"target1": task} if task == "data" else {"unknown": task},
         )
-        assert router.func("data") == ("target1", "data")
+        assert router.func("data") == {"target1": "data"}
 
     def test_router_process_success(self) -> None:
         """路由成功后，任务应被发送到指定目标节点。"""
@@ -509,7 +509,7 @@ class TestTaskRouter:
 
         router = TaskRouter(
             "R",
-            lambda task: ("target1", task) if task == "msg1" else ("target2", task),
+            lambda task: {"target1": task} if task == "msg1" else {"target2": task},
         )
         target1 = TaskExecutor("target1", noop)
         target2 = TaskExecutor("target2", noop)
@@ -533,7 +533,7 @@ class TestTaskRouter:
 
         router = TaskRouter(
             "R",
-            lambda task: ("connected", task) if task == "msg1" else ("ghost", task),
+            lambda task: {"connected": task} if task == "msg1" else {"ghost": task},
         )
         target = TaskExecutor("connected", noop)
 
@@ -558,9 +558,33 @@ class TestTaskRouter:
         assert "Unknown target: ghost" in message
         assert "connected" in message
 
+    def test_router_dispatch_targets_receive_own_payload(self) -> None:
+        """一次路由返回多个目标时，各下游应收到各自的载荷。"""
+
+        def noop(x: str) -> str:
+            return x
+
+        router = TaskRouter(
+            "R",
+            lambda task: {f"{task}_a": f"{task}-a", f"{task}_b": f"{task}-b"},
+        )
+        target_a = TaskExecutor("msg1_a", noop)
+        target_b = TaskExecutor("msg1_b", noop)
+
+        graph = TaskGraph("test_router_dispatch_targets_receive_own_payload")
+        graph.set_nodes([router, target_a, target_b])
+        graph.connect([router], [target_a, target_b])
+        graph.run({"R": ["msg1"]})
+
+        # 下游记录的输入应为路由器给出的载荷，而不是路由器自身的输入任务
+        assert [task for task, _ in target_a.get_success_pairs()] == ["msg1-a"]
+        assert [task for task, _ in target_b.get_success_pairs()] == ["msg1-b"]
+        assert router.metrics.downstream_counter["msg1_a"].get() == 1
+        assert router.metrics.downstream_counter["msg1_b"].get() == 1
+
     def test_router_binding_counter_stable_across_mode_switch(self) -> None:
         """绑定计数器应跨执行模式切换保持稳定。"""
-        router = TaskRouter("Router", lambda task: ("target1", task))
+        router = TaskRouter("Router", lambda task: {"target1": task})
         target = TaskExecutor("target1", lambda task: task)
 
         router.connect_to(target)

@@ -136,7 +136,7 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
 
 
 # ==== 任务路由器 ====
-class TaskRouter[T](BaseTaskNode[T, tuple[str, T], T]):
+class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
     """TaskRouter: 根据路由信息将任务分发到不同的下游节点。"""
 
     # === 覆写方法 ===
@@ -144,7 +144,7 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T], T]):
     def process_task_success(
         self,
         task_envelope: TaskEnvelope[T],
-        result: tuple[str, T],
+        result: dict[str, Y],
         start_time: float,
     ) -> None:
         """
@@ -155,24 +155,20 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T], T]):
         :param start_time: 任务开始时间
         :raises InvalidOptionError: 若路由目标未通过 ``connect_to`` 绑定
         """
-        target, task = result
-        task_id = task_envelope.get_id()
-
-        # 路由目标必须已通过 ``connect_to`` 注册，否则下游计数与队列均不存在；
-        # 显式校验并给出可诊断的选项列表，避免落入内部 KeyError。
-        if target not in self.metrics.downstream_counter:
+        unknown = [t for t in result if t not in self.metrics.downstream_counter]
+        if unknown:
             raise InvalidOptionError(
-                "Unknown target", target, self.metrics.downstream_counter.keys()
+                "Unknown target", unknown[0], self.metrics.downstream_counter.keys()
             )
 
-        self.metrics.add_success_count()
-        self.metrics.add_downstream_count(target)
-
-
-        route_id = self.ctree_client.emit(
+        task = task_envelope.get_task()
+        task_id = task_envelope.get_id()
+        result_id = self.ctree_client.emit(
             CTreeEvent.TASK_SUCCESS,
             parents=[task_id],
         )
+
+        self.metrics.add_success_count()
         get_lifecycle_inlet().task_success(task_id, task)
         get_log_inlet().task_success(
             self.get_name(),
@@ -180,21 +176,24 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T], T]):
             self._get_repr(result),
             time.perf_counter() - start_time,
             task_id,
-            route_id,
+            result_id,
         )
 
-        downstream_input_id = self.ctree_client.emit(
-            CTreeEvent.TASK_INPUT,
-            parents=[route_id],
-        )
-        get_lifecycle_inlet().task_input(target, downstream_input_id, task)
-        get_log_inlet().task_input(
-            target,
-            self._get_repr(task),
-            downstream_input_id,
-        )
-        downstream_envelope: TaskEnvelope[T] = TaskEnvelope(
-            task,
-            downstream_input_id,
-        )
-        self.yield_queue.put_target(target, downstream_envelope)
+        for target, yie in result.items():
+            self.metrics.add_downstream_count(target)
+
+            downstream_input_id = self.ctree_client.emit(
+                CTreeEvent.TASK_INPUT,
+                parents=[result_id],
+            )
+            get_lifecycle_inlet().task_input(target, downstream_input_id, yie)
+            get_log_inlet().task_input(
+                target,
+                self._get_repr(yie),
+                downstream_input_id,
+            )
+            downstream_envelope: TaskEnvelope[Y] = TaskEnvelope(
+                yie,
+                downstream_input_id,
+            )
+            self.yield_queue.put_target(target, downstream_envelope)

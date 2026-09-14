@@ -266,5 +266,6 @@ async def async_to_str(n: Any) -> str:
     return f"result={n}"
 
 
-def router_even(n: int) -> str:
-        return "StageA" if (n % 2 == 0) else "StageB"
+def router_even(n: int) -> dict[str, int]:
+    """偶数路由到 StageA、奇数路由到 StageB，并将原任务作为载荷下发。"""
+    return {"StageA": n} if (n % 2 == 0) else {"StageB": n}
