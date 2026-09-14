@@ -360,7 +360,7 @@ class BaseTaskNode[T, R, Y]:
         for source in remaining_sources:
             self.handle_task_fail(source, UnconsumedError())
 
-    def _get_repr(self, task: T | R) -> str:
+    def _get_repr(self, task: T | R | Y) -> str:
         """
         获取任务/结果对象的可读字符串表示
 

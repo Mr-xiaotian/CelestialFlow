@@ -2,10 +2,9 @@
 import time
 from collections.abc import Iterable
 
-from celestialflow.runtime.util_format import format_repr
-
 from ..persistence import get_lifecycle_inlet, get_log_inlet
 from ..runtime import TaskEnvelope
+from ..runtime.util_errors import InvalidOptionError
 from ..runtime.util_types import CTreeEvent
 from .core_node import BaseTaskNode
 
@@ -79,7 +78,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
 class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
     """TaskSplitter: 将单个任务拆分为多个子任务，注入下游队列。
 
-    可通过 `split_item` 参数自定义对子任务的处理逻辑。
+    ``func`` 接收单个任务并返回可迭代的子任务序列，子任务将逐个注入下游队列。
     """
 
     # === 覆写方法 ===
@@ -117,7 +116,7 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
         )
 
         for target_name in self.yield_queue.get_target_names():
-            self.metrics.add_downstream_count(target_name)
+            self.metrics.add_downstream_count(target_name, len(result_list))
             for item in result_list:
                 downstream_input_id = self.ctree_client.emit(
                     CTreeEvent.TASK_INPUT,
@@ -126,7 +125,7 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
                 get_lifecycle_inlet().task_input(target_name, downstream_input_id, item)
                 get_log_inlet().task_input(
                     target_name,
-                    f"({format_repr(item, self.max_info)})",
+                    self._get_repr(item),
                     downstream_input_id,
                 )
                 downstream_envelope: TaskEnvelope[RItem] = TaskEnvelope(
@@ -154,9 +153,17 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T], T]):
         :param task_envelope: 完成的任务
         :param result: 任务的结果
         :param start_time: 任务开始时间
+        :raises InvalidOptionError: 若路由目标未通过 ``connect_to`` 绑定
         """
         target, task = result
         task_id = task_envelope.get_id()
+
+        # 路由目标必须已通过 ``connect_to`` 注册，否则下游计数与队列均不存在；
+        # 显式校验并给出可诊断的选项列表，避免落入内部 KeyError。
+        if target not in self.metrics.downstream_counter:
+            raise InvalidOptionError(
+                "Unknown target", target, self.metrics.downstream_counter.keys()
+            )
 
         self.metrics.add_success_count()
         self.metrics.add_downstream_count(target)
@@ -191,4 +198,3 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T], T]):
             downstream_input_id,
         )
         self.yield_queue.put_target(target, downstream_envelope)
-

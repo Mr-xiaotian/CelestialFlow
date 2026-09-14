@@ -424,8 +424,8 @@ class TestTaskSplitter:
         graph.connect([splitter], [worker])
         graph.run({"S": [[1, 2, 3]]})
 
-        # 每个子任务应作为独立任务到达下游
-        assert splitter.metrics.downstream_counter["A"].get() == 1
+        # 每个子任务应作为独立任务到达下游，并各自计一次发送
+        assert splitter.metrics.downstream_counter["A"].get() == 3
         assert worker.get_counts()["tasks_succeeded"] == 3
 
     def test_splitter_allows_empty_iterable(self) -> None:
@@ -442,7 +442,8 @@ class TestTaskSplitter:
         graph.connect([splitter], [worker])
         graph.run({"S": [[]]})
 
-        assert splitter.metrics.downstream_counter["A"].get() == 1
+        # 空结果不产生任何子任务，发送计数应为 0
+        assert splitter.metrics.downstream_counter["A"].get() == 0
         assert worker.get_counts()["tasks_succeeded"] == 0
 
     def test_splitter_supports_generator_input(self) -> None:
@@ -459,7 +460,7 @@ class TestTaskSplitter:
         graph.connect([splitter], [worker])
         graph.run({"S": [(i for i in [1, 2, 3])]})
 
-        assert splitter.metrics.downstream_counter["A"].get() == 1
+        assert splitter.metrics.downstream_counter["A"].get() == 3
         assert worker.get_counts()["tasks_succeeded"] == 3
 
     def test_splitter_custom_func_transforms_items(self) -> None:
@@ -479,7 +480,7 @@ class TestTaskSplitter:
         graph.connect([splitter], [worker])
         graph.run({"S": [[" a ", " b ", " c "]]})
 
-        assert splitter.metrics.downstream_counter["A"].get() == 1
+        assert splitter.metrics.downstream_counter["A"].get() == 3
         assert sorted(task for task, _ in worker.get_success_pairs()) == ["a", "b", "c"]
 
 
@@ -523,6 +524,39 @@ class TestTaskRouter:
         assert router.metrics.downstream_counter["target2"].get() == 1
         assert target1.get_counts()["tasks_succeeded"] == 1
         assert target2.get_counts()["tasks_succeeded"] == 1
+
+    def test_router_unknown_target_fails_with_hint(self) -> None:
+        """路由到未连接的目标应失败，并给出可诊断的错误信息。"""
+
+        def noop(x: str) -> str:
+            return x
+
+        router = TaskRouter(
+            "R",
+            lambda task: ("connected", task) if task == "msg1" else ("ghost", task),
+        )
+        target = TaskExecutor("connected", noop)
+
+        graph = TaskGraph("test_router_unknown_target_fails_with_hint")
+        graph.set_nodes([router, target])
+        graph.connect([router], [target])
+        graph.run({"R": ["msg1", "msg2"]})
+
+        # 已连接目标正常送达
+        assert target.get_counts()["tasks_succeeded"] == 1
+        # 未连接目标应计入失败，且错误信息包含允许的目标列表
+        counts = router.get_counts()
+        assert counts["tasks_succeeded"] == 1
+        assert counts["tasks_failed"] == 1
+        assert counts["tasks_processed"] == 2
+
+        error_pairs = router.get_error_pairs()
+        assert len(error_pairs) == 1
+        task, error = error_pairs[0]
+        assert task == "msg2"
+        message = str(error)
+        assert "Unknown target: ghost" in message
+        assert "connected" in message
 
     def test_router_binding_counter_stable_across_mode_switch(self) -> None:
         """绑定计数器应跨执行模式切换保持稳定。"""
