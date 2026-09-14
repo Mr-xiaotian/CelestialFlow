@@ -134,21 +134,15 @@ class TaskGraph:
         """
         for from_node in from_nodes:
             from_name = from_node.get_name()
-            from_out_queue = from_node.result_queue
-
             if from_name not in self.node_dict:
                 raise NodeNotFoundError(f"from node not found: {from_name}")
 
             for to_node in to_nodes:
                 to_name = to_node.get_name()
-                to_in_queue = to_node.task_queue
-
                 if to_name not in self.node_dict:
                     raise NodeNotFoundError(f"to node not found: {to_name}")
 
-                to_node.prev_binding(from_node)
-                from_out_queue.add_queue(to_in_queue, to_name)
-                to_in_queue.add_source_name(from_name)
+                from_node.connect_to(to_node)
                 self.order_graph.add_edge(from_name, to_name)
 
         self._analysis_dirty = True

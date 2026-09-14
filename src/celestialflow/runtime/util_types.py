@@ -100,67 +100,6 @@ class ValueWrapper:
             self.value = 0
 
 
-class SumCounter:
-    """累加多个 counter（ValueWrapper）"""
-
-    lock: Lock | NoOpContext
-    init_value: ValueWrapper
-    counters: list[ValueWrapper]
-
-    def __init__(self, lock: Lock | NoOpContext | None = None):
-        """
-        初始化累加计数器。
-
-        :param lock: 可选的线程锁，默认 None
-        """
-        self.lock = lock or NoOpContext()
-        self.init_value = ValueWrapper(value=0, lock=self.lock)
-        self.counters = []
-
-    def append_counter(self, counter: ValueWrapper) -> None:
-        """
-        追加一个外部计数器
-
-        :param counter: 计数器实例（ValueWrapper 或 MPValue）
-        """
-        self.counters.append(counter)
-
-    def add(self, value: int) -> None:
-        """
-        增加初始计数值
-
-        :param value: 增加的值
-        """
-        with self.lock:
-            self.init_value.value += value
-
-    def get(self) -> int:
-        """获取所有计数器的累加值"""
-        with self.lock:
-            return self.value
-
-    def reset(self) -> None:
-        """重置所有计数器为 0"""
-        with self.lock:
-            self.init_value.value = 0
-
-        for c in self.counters:
-            with c.get_lock():
-                c.value = 0
-
-    @property
-    def value(self) -> int:
-        """计算所有计数器的累加值"""
-        # 读不用加锁, 外层已经有锁
-        base = int(self.init_value.value)
-
-        total = base
-        for c in self.counters:
-            with c.get_lock():
-                total += int(c.value)
-        return total
-
-
 class StageStatus(IntEnum):
     """Stage 生命周期状态枚举。"""
 

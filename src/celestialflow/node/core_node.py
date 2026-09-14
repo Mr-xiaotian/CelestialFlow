@@ -58,6 +58,7 @@ class BaseTaskNode[T, R]:
     """
 
     # ==== 类级类型注解 ====
+
     _name: str
     _last_elapsed: float
     _last_pending: int
@@ -74,6 +75,7 @@ class BaseTaskNode[T, R]:
     ctree_client: EventClient
 
     # ==== 初始化 ====
+
     def __init__(
         self,
         name: str,
@@ -215,6 +217,7 @@ class BaseTaskNode[T, R]:
         self.metrics.set_retry_exceptions(*exceptions)
 
     # ==== 查询 ====
+
     def get_name(self) -> str:
         """
         获取当前节点/管理器名称
@@ -299,25 +302,22 @@ class BaseTaskNode[T, R]:
         }
 
     # ==== 绑定 ====
-    def get_binding_counter(self, _downstream_name: str) -> ValueWrapper:
-        """
-        返回下游节点应绑定的计数器，子类可覆写。
 
-        :param _downstream_name: 下游节点的唯一名称
-        :return: 计数器实例
-        """
-        raise NotImplementedError
-
-    def prev_binding(self, pending_prev_binding: BaseTaskNode[Any, Any]) -> None:
+    def connect_to(self, next_node: BaseTaskNode[Any, Any]) -> None:
         """
         绑定前置节点，将每个前驱节点的计数器注册到当前节点的 task_counter 中。
 
-        :param pending_prev_binding: 前置节点
+        :param next_node: 下游节点
         """
-        counter = pending_prev_binding.get_binding_counter(self.get_name())
-        self.metrics.append_task_counter(counter)
+        counter = ValueWrapper(value=0)
+        self.metrics.set_downstream_counter(next_node.get_name(), counter)
+        next_node.metrics.set_upstream_counter(self.get_name(), counter)
+
+        self.result_queue.add_queue(next_node.get_name(), next_node.task_queue)
+        next_node.task_queue.add_source_name(self.get_name())
 
     # ==== 任务队列 ====
+
     def put_task(self, task: T) -> None:
         """
         将单个任务封装为 TaskEnvelope 并放入队列。

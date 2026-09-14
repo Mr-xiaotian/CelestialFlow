@@ -197,7 +197,7 @@ class TaskOutQueue[T]:
 
     # ==== 入队 ====
 
-    def add_queue(self, queue: Any, name: str) -> None:
+    def add_queue(self, name: str, queue: Any) -> None:
         """
         添加一个输出队列到队列列表中
 

@@ -5,7 +5,7 @@ from threading import Lock
 from typing import TYPE_CHECKING
 
 from ..runtime.util_types import StageStatus
-from .util_types import SumCounter, ValueWrapper
+from .util_types import ValueWrapper
 
 if TYPE_CHECKING:
     from ..observability import BaseObserver
@@ -22,13 +22,16 @@ class TaskMetrics:
     lock: Lock
     enable_duplicate_check: bool
     retry_exceptions: tuple[type[Exception], ...]
-    task_counter: SumCounter
+    task_counter: ValueWrapper
     success_counter: ValueWrapper
     fail_counter: ValueWrapper
     duplicate_counter: ValueWrapper
+    upstream_counter: dict[str, ValueWrapper]
+    downstream_counter: dict[str, ValueWrapper]
     processed_set: set[bytes]
 
     # ==== 初始化 ====
+    
     def __init__(
         self,
         enable_duplicate_check: bool = False,
@@ -53,20 +56,29 @@ class TaskMetrics:
         """
 
         # 统一使用同一把线程锁，保证 execution_mode 切换时 counter 对象保持稳定。
-        self.task_counter = SumCounter(lock=self.lock)
+        self.task_counter = ValueWrapper(value=0, lock=self.lock)
         self.success_counter = ValueWrapper(value=0, lock=self.lock)
         self.fail_counter = ValueWrapper(value=0, lock=self.lock)
         self.duplicate_counter = ValueWrapper(value=0, lock=self.lock)
 
+        self.upstream_counter = {}
+        self.downstream_counter = {}
+
     # ==== 重置 ====
+
     def reset_counter(self) -> None:
         """
         重置计数器
         """
+        # 重置所有计数器
         self.task_counter.reset()
         self.success_counter.reset()
         self.fail_counter.reset()
         self.duplicate_counter.reset()
+        for counter in self.upstream_counter.values():
+            counter.reset()
+        for counter in self.downstream_counter.values():
+            counter.reset()
 
     def reset_state(self) -> None:
         """
@@ -78,6 +90,7 @@ class TaskMetrics:
         self.processed_set = set()  # 已处理任务哈希集合
 
     # ==== 观察者 ====
+
     def add_observer(self, observer: BaseObserver) -> None:
         """
         注册观察者。
@@ -95,6 +108,7 @@ class TaskMetrics:
         self._observers.remove(observer)
 
     # ==== 去重 ====
+
     def is_duplicate(self, task_hash: bytes) -> bool:
         """
         检查任务是否重复。
@@ -125,6 +139,7 @@ class TaskMetrics:
             self.processed_set.add(task_hash)
 
     # ==== 重试 ====
+
     def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
         """
         添加需要重试的异常类型
@@ -133,14 +148,29 @@ class TaskMetrics:
         """
         self.retry_exceptions = self.retry_exceptions + tuple(exceptions)
 
-    # ==== 计数器 ====
-    def append_task_counter(self, counter: ValueWrapper) -> None:
-        """
-        添加任务总数计数器
+    # ==== 设定 ====
 
+    def set_upstream_counter(self, name: str, counter: ValueWrapper) -> None:
+        """
+        添加上游任务计数器
+        用于统计从上游节点接收的任务数量。
+
+        :param name: 上游节点的唯一名称
         :param counter: 任务总数计数器实例
         """
-        self.task_counter.append_counter(counter)
+        self.upstream_counter[name] = counter
+
+    def set_downstream_counter(self, name: str, counter: ValueWrapper) -> None:
+        """
+        添加下游任务计数器
+        用于统计向下游节点发送的任务数量。
+
+        :param name: 下游节点的唯一名称
+        :param counter: 任务总数计数器实例
+        """
+        self.downstream_counter[name] = counter
+
+    # ==== 任务计数器 ====
 
     def add_task_count(self, add_count: int = 1) -> None:
         """
@@ -190,7 +220,19 @@ class TaskMetrics:
         for observer in self._observers:
             observer.on_task_duplicate(count)
 
+    def add_downstream_count(self, name: str, count: int = 1) -> None:
+        """
+        更新下游任务计数器
+
+        线程安全地增加下游任务的数量。
+
+        :param name: 下游节点的唯一名称
+        :param count: 增加的下游任务数量，默认值为 1。
+        """
+        self.downstream_counter[name].add(count)
+
     # ==== 启动与结束 ====
+
     def on_start(self, _name: str, _total: int) -> None:
         """
         广播执行器启动事件。
@@ -214,6 +256,7 @@ class TaskMetrics:
             observer.on_finish()
 
     # ==== 查询 ====
+
     def is_tasks_finished(self) -> bool:
         """
         检查所有任务是否已完成
@@ -222,7 +265,7 @@ class TaskMetrics:
 
         :return: 如果所有任务都已处理完毕，返回 True；否则返回 False。
         """
-        total = self.task_counter.value
+        total = self.get_task_count()
 
         with self.lock:
             processed = (
@@ -238,7 +281,11 @@ class TaskMetrics:
 
         :return: 当前的任务总数
         """
-        return self.task_counter.get()
+        task_count = self.task_counter.get()
+        for counter in self.upstream_counter.values():
+            task_count += counter.get()
+
+        return task_count
 
     def get_success_count(self) -> int:
         """
@@ -276,7 +323,7 @@ class TaskMetrics:
                 - tasks_processed: 已处理任务总数
                 - tasks_pending: 等待处理任务数
         """
-        input_count = self.task_counter.value
+        input_count = self.get_task_count()
 
         with self.lock:
             succeeded = self.success_counter.value

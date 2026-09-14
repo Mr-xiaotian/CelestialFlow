@@ -1,14 +1,13 @@
 # node/core_nodes.py
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from typing import cast
 
 from celestialflow.runtime.util_format import format_repr
 
 from ..persistence import get_lifecycle_inlet, get_log_inlet
 from ..runtime import TaskEnvelope, TaskOutQueue
-from ..runtime.util_errors import InvalidOptionError
-from ..runtime.util_types import CTreeEvent, ValueWrapper
+from ..runtime.util_types import CTreeEvent
 from .core_node import BaseTaskNode
 
 
@@ -27,15 +26,6 @@ class TaskExecutor[T, R](BaseTaskNode[T, R]):
     """
 
     # ==== 覆写方法 ====
-
-    def get_binding_counter(self, _downstream_name: str) -> ValueWrapper:
-        """
-        返回下游节点应绑定的计数器，子类可覆写。
-
-        :param _downstream_name: 下游节点的唯一名称
-        :return: 计数器实例
-        """
-        return self.metrics.success_counter
 
     def process_task_success(
         self, task_envelope: TaskEnvelope[T], result: R, start_time: float
@@ -56,6 +46,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R]):
         )
 
         self.metrics.add_success_count()
+
         get_lifecycle_inlet().task_success(task_id, result)
         get_log_inlet().task_success(
             self.get_name(),
@@ -67,6 +58,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R]):
         )
 
         for target_name in self.result_queue.get_target_names():
+            self.metrics.add_downstream_count(target_name)
             downstream_input_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
@@ -91,41 +83,7 @@ class TaskSplitter[TItem, RItem](BaseTaskNode[Iterable[TItem], Iterable[RItem]])
     可通过 `split_item` 参数自定义对子任务的处理逻辑。
     """
 
-    split_counter: ValueWrapper
-    execution_mode: str
-    split_item: Callable[[TItem], RItem]
-
-    def __init__(
-        self,
-        name: str,
-        split_item: Callable[[TItem], RItem] | None = None,
-    ):
-        """
-        初始化 TaskSplitter
-
-        :param name: 节点名称
-        :param split_item: 自定义单个子任务处理函数，默认使用恒等映射
-        """
-        super().__init__(
-            name=name,
-            func=self._split,
-            execution_mode="serial",
-            max_retries=0,
-        )
-
-        self.split_item = split_item or self._identity_split_item
-        self.split_counter = ValueWrapper(0, self.metrics.lock)
-
     # === 覆写方法 ===
-
-    def get_binding_counter(self, _downstream_name: str) -> ValueWrapper:
-        """
-        返回下游节点应绑定的计数器。
-
-        :param _downstream_name: 下游节点的唯一名称
-        :return: split 计数器实例
-        """
-        return self.split_counter
 
     def process_task_success(
         self,
@@ -148,7 +106,6 @@ class TaskSplitter[TItem, RItem](BaseTaskNode[Iterable[TItem], Iterable[RItem]])
             parents=[task_id],
         )
         result_queue = cast(TaskOutQueue[RItem], self.result_queue)
-        split_count = len(result_list)
 
         self.metrics.add_success_count()
         get_lifecycle_inlet().task_success(task_id, result_list)
@@ -160,10 +117,10 @@ class TaskSplitter[TItem, RItem](BaseTaskNode[Iterable[TItem], Iterable[RItem]])
             task_id,
             result_id,
         )
-        self.split_counter.add(split_count)
 
-        for item in result_list:
-            for target_name in result_queue.get_target_names():
+        for target_name in result_queue.get_target_names():
+            self.metrics.add_downstream_count(target_name)
+            for item in result_list:
                 downstream_input_id = self.ctree_client.emit(
                     CTreeEvent.TASK_INPUT,
                     parents=[result_id],
@@ -180,62 +137,12 @@ class TaskSplitter[TItem, RItem](BaseTaskNode[Iterable[TItem], Iterable[RItem]])
                 )
                 result_queue.put_target(downstream_envelope, target_name)
 
-    # === 私有方法 ===
-
-    @staticmethod
-    def _identity_split_item(task: TItem) -> RItem:
-        """
-        默认的单个子任务处理逻辑。
-
-        :param task: 拆分出的单个子任务
-        :return: 处理后的单个子任务
-        """
-        return cast(RItem, task)
-
-    def _split(self, task: Iterable[TItem]) -> Iterable[RItem]:
-        """
-        将可迭代任务拆分并物化为稳定元组，避免一次性迭代器被重复消费。
-
-        :param task: 任务对象
-        :return: 子任务元组
-        """
-        return (self.split_item(item) for item in task)
 
 # ==== 任务路由器 ====
 class TaskRouter[T](BaseTaskNode[T, tuple[str, T]]):
     """TaskRouter: 根据路由信息将任务分发到不同的下游节点。"""
 
-    route_counters: dict[str, ValueWrapper]
-
-    def __init__(self, name: str, router: Callable[[T], str]):
-        """
-        初始化 TaskRouter
-
-        :param name: 节点名称
-        :param router: 路由函数，根据任务数据返回目标节点的唯一名称
-        """
-        super().__init__(
-            name=name,
-            func=self._route,
-            execution_mode="serial",
-            max_retries=0,
-        )
-        self.router = router
-        self.route_counters = {}
-
     # === 覆写方法 ===
-
-    def get_binding_counter(self, downstream_name: str) -> ValueWrapper:
-        """
-        返回下游节点应绑定的计数器，按唯一名称查找或创建。
-
-        :param downstream_name: 下游节点的唯一名称
-        :return: 对应下游的路由计数器实例
-        """
-        self.route_counters.setdefault(
-            downstream_name, ValueWrapper(0, self.metrics.lock)
-        )
-        return self.route_counters[downstream_name]
 
     def process_task_success(
         self,
@@ -254,12 +161,14 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T]]):
         task_id = task_envelope.get_id()
         result_queue = cast(TaskOutQueue[T], self.result_queue)
 
+        self.metrics.add_success_count()
+        self.metrics.add_downstream_count(target)
+
+
         route_id = self.ctree_client.emit(
             CTreeEvent.TASK_SUCCESS,
             parents=[task_id],
         )
-        self.metrics.add_success_count()
-        self.route_counters[target].add(1)
         get_lifecycle_inlet().task_success(task_id, task)
         get_log_inlet().task_success(
             self.get_name(),
@@ -286,20 +195,3 @@ class TaskRouter[T](BaseTaskNode[T, tuple[str, T]]):
         )
         result_queue.put_target(downstream_envelope, target)
 
-    # === 私有方法 ===
-
-    def _route(self, task: T) -> tuple[str, T]:
-        """
-        校验路由输入格式并提取目标任务
-
-        :param task: 任务数据
-        :return: 提取出的任务数据
-        :raises InvalidOptionError: target 不在已注册的路由列表中
-        """
-        target = self.router(task)
-
-        if target not in self.route_counters:
-            raise InvalidOptionError(
-                "Unknown target", target, self.route_counters.keys()
-            )
-        return target, task
