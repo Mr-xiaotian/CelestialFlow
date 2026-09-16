@@ -8,63 +8,40 @@ def calc_global_pending(
     graph: OrderGraph,
     processed_map: dict[str, int],
     pending_map: dict[str, int],
+    downstream_map: dict[str, dict[str, int]],
 ) -> dict[str, int]:
     """
-    基于任务图（DAG）估算全局待处理任务数量（偏保守 / 拥塞放大型）。
+    基于任务图（DAG）估算各节点全局待处理任务数量（偏保守 / 拥塞放大型）。
 
-    本函数仅依赖每个节点的两类观测数据：
-    - processed_map: 已完成任务数
-    - pending_map:   当前尚未完成的任务数
+    对每个上游-下游组合维护独立放大系数 ``scale[u][w]``，表示上游 u 对
+    下游 w 的预计输出量：
 
-    核心思想：
-    1. 将每个节点当前"已见任务量"定义为：
-         seen = processed + pending
-    2. 假设下游节点当前已见任务，平均来自其所有上游节点（多上游等贡献假设）。
-    3. 使用拓扑序在 DAG 上递推估算每个节点的"预计总输入任务量 total"，
-       并据此计算一个放大系数 scale，用于将上游的潜在负载继续传播给下游。
-    4. 通过节点的历史平均处理速度（elapsed / processed），
-       将"预计剩余任务量"转换为"预计剩余时间"。
+        scale[u][w] = total_u * output_u->w / max(1, proc_u)
 
-    具体计算过程（对每个节点 v）：
-    - seen_v = processed_v + pending_v
-    - 若 v 无上游节点：
-        total_v = seen_v
-      否则：
-        设 v 有 k 个上游节点，认为 seen_v 平均来自每个上游，
-        并按上游的 scale 进行放大：
-        total_v = sum( (seen_v / k) * scale[u] )  for u in preds(v)
+    其中 ``output_u->w / proc_u`` 为 u 对 w 的产出比，取自 u 自身的单次
+    快照（与 ``proc_u`` 同源一致），避免跨节点快照时间差的影响。据此递推
+    每个节点的预计总输入量：
 
-    - 定义节点的放大系数：
-        scale[v] = total_v / max(1, processed_v)
+        total_v = external_v + sum(scale[u][v] for u in preds(v))
 
-      该定义刻意使用"已完成任务数"作为分母，
-      当 processed 很小但 total 很大时，会产生较大的 scale，
-      用于显式放大潜在的拥塞与瓶颈风险。
+    其中 ``external_v = max(0, seen_v - sum(output_u->v))`` 为外部注入任务数，
+    不参与上游放大；``seen_v = processed_v + pending_v``。预计剩余任务数为
+    ``max(pending_v, total_v - processed_v)``。
 
-    - 预计剩余任务数：
-        expect_pend_v = max(pend_v, total_v - proc_v)
-        即至少保留当前观测到的 pending，同时按上游放大后的总量外推。
+    该估算偏保守：上游堆积时对下游显式放大，适合监控、告警与瓶颈识别。
 
-    本实现仅输出各节点预计剩余任务数（任务量），不进行时间维度的外推。
-
-    算法特性与设计取向：
-    - 假设任务图为有向无环图（DAG），调用方需保证这一前提。
-    - 多上游场景下采用"等贡献"假设，不区分不同上游的真实产出比例。
-    - 使用 processed 作为放大基准会在系统早期或严重堆积时产生较大的估计值，
-      这是有意的设计选择，用于提前暴露潜在的拥塞与失速风险，
-      而非提供平滑或乐观的 ETA。
-    - 该估算结果偏保守，适合作为监控、告警或瓶颈识别指标。
-
-    :param graph         : 任务依赖图，节点需与 map 的 key 对应
-    :param processed_map : 每个节点已完成的任务数量
-    :param pending_map   : 每个节点当前剩余的任务数量
+    :param graph          : 任务依赖图，节点需与 map 的 key 对应
+    :param processed_map  : 每个节点已完成的任务数量
+    :param pending_map    : 每个节点当前剩余的任务数量
+    :param downstream_map : 每个节点实际发送给各下游的任务数量，形如
+        ``{node: {downstream_name: count}}``，缺失节点或下游按 0 处理
 
     :return: expected_pending_map : 估算得到的全局待处理任务数量
     """
     expected_pending_map: dict[str, int] = {}
 
-    # 每个节点的放大系数（用于传播上游负载）
-    scale: dict[str, float] = {}
+    # 每个节点对各下游的预计输出量：scale[u][w] = total_u * output_u->w / proc_u
+    scale: dict[str, dict[str, float]] = {}
     topo_order = topo_sort(graph)
     if topo_order is None:
         raise ValueError("calc_global_pending() requires a DAG OrderGraph")
@@ -79,13 +56,20 @@ def calc_global_pending(
             # 没有上游时，总量就等于当前观测到的任务量
             total_v = seen_v
         else:
-            k = float(len(preds))
-            obs_each = seen_v / k
-            total_v = 0
-            for u in preds:
-                total_v += obs_each * scale.get(u, 1.0)
+            # 上游已发送量即为本节点已接收量（共享计数），据此拆分外部注入
+            received_sum = sum(
+                downstream_map.get(u, {}).get(v_str, 0) for u in preds
+            )
+            external_v = max(0, seen_v - received_sum)
+            # 外部注入不参与上游放大，上游部分累加各上游的预计输出量
+            total_v = float(external_v) + sum(scale[u][v_str] for u in preds)
 
-        scale[v_str] = total_v / max(1, proc_v)  # 当前节点的放大系数
+        # v 对各下游 w 的预计输出量：产出比取自 v 自身快照，proc 与 output 同源
+        scale[v_str] = {
+            w: total_v * downstream_map.get(v_str, {}).get(w, 0) / max(1, proc_v)
+            for w in graph.successors(v_str)
+        }
+
         expect_pend_v = max(pend_v, total_v - proc_v)  # 理论上预计值不会小于当前值
 
         # 这里只输出预计待处理任务量，不做时间维度估算

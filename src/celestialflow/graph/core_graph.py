@@ -522,6 +522,7 @@ class TaskGraph:
         # 为全局预计待处理任务数收集数据
         running_processed_map: dict[str, int] = {}
         running_pending_map: dict[str, int] = {}
+        running_downstream_map: dict[str, dict[str, int]] = {}
 
         for node_name, node in self.node_dict.items():
             snapshot = node.snapshot(interval)
@@ -529,6 +530,7 @@ class TaskGraph:
 
             running_processed_map[node_name] = int(snapshot["tasks_processed"] or 0)
             running_pending_map[node_name] = int(snapshot["tasks_pending"] or 0)
+            running_downstream_map[node_name] = dict(snapshot["downstream_counts"])
 
         if not self.is_dag:
             total_pending_map = running_pending_map
@@ -537,6 +539,7 @@ class TaskGraph:
                 self.order_graph,
                 running_processed_map,
                 running_pending_map,
+                running_downstream_map,
             )
 
         for node_name, node_status in status_dict.items():
