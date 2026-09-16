@@ -31,7 +31,7 @@ class TaskMetrics:
     processed_set: set[bytes]
 
     # ==== 初始化 ====
-    
+
     def __init__(
         self,
         enable_duplicate_check: bool = False,
@@ -341,6 +341,28 @@ class TaskMetrics:
             "tasks_processed": processed,
             "tasks_pending": pending,
         }
+
+    def get_upstream_counts(self) -> dict[str, int]:
+        """
+        获取各上游节点传输给当前节点的任务数量。
+
+        :return: 上游名称到任务数量的映射；无上游时返回空字典
+        """
+        upstream_counts: dict[str, int] = {}
+        for name, count in self.upstream_counter.items():
+            upstream_counts[name] = count.get()
+        return upstream_counts
+
+    def get_downstream_counts(self) -> dict[str, int]:
+        """
+        获取当前节点传输给各下游节点的任务数量。
+
+        :return: 下游名称到任务数量的映射；无下游时返回空字典
+        """
+        downstream_counts: dict[str, int] = {}
+        for name, count in self.downstream_counter.items():
+            downstream_counts[name] = count.get()
+        return downstream_counts
 
     def get_retry_error_type_names(self) -> set[str]:
         """

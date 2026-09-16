@@ -15,6 +15,8 @@ class TestTaskMetricsBasic:
         assert counts["tasks_duplicated"] == 0
         assert counts["tasks_processed"] == 0
         assert counts["tasks_pending"] == 0
+        assert metrics.get_upstream_counts() == {}
+        assert metrics.get_downstream_counts() == {}
 
     def test_add_task_count(self):
         """测试任务总数的累加逻辑"""
@@ -124,6 +126,32 @@ class TestTaskMetricsBinding:
 
         assert curr_metrics.get_task_count() == 0
         assert counter.get() == 0
+
+    def test_get_upstream_counts(self):
+        """``get_upstream_counts`` 应返回各上游到当前节点的数量映射。"""
+        metrics = TaskMetrics()
+        counter_a = ValueWrapper(value=0)
+        counter_b = ValueWrapper(value=0)
+        metrics.set_upstream_counter("src_a", counter_a)
+        metrics.set_upstream_counter("src_b", counter_b)
+
+        counter_a.add(3)
+        counter_b.add(5)
+
+        assert metrics.get_upstream_counts() == {"src_a": 3, "src_b": 5}
+
+    def test_get_downstream_counts(self):
+        """``get_downstream_counts`` 应返回当前节点到各下游的数量映射。"""
+        metrics = TaskMetrics()
+        counter_a = ValueWrapper(value=0)
+        counter_b = ValueWrapper(value=0)
+        metrics.set_downstream_counter("sink_a", counter_a)
+        metrics.set_downstream_counter("sink_b", counter_b)
+
+        metrics.add_downstream_count("sink_a", 2)
+        metrics.add_downstream_count("sink_b", 4)
+
+        assert metrics.get_downstream_counts() == {"sink_a": 2, "sink_b": 4}
 
 
 class TestTaskMetricsDuplicate:

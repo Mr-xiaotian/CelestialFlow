@@ -62,7 +62,7 @@ class TestTaskExecutor:
         executor = TaskExecutor("AddOneSerial", add_one, execution_mode="serial")
         executor.run([1, 2, 3, 4, 5])
 
-        counts = executor.get_counts()
+        counts = executor.metrics.get_counts()
         assert counts["tasks_succeeded"] == 5
         assert counts["tasks_failed"] == 0
         assert counts["tasks_pending"] == 0
@@ -80,7 +80,7 @@ class TestTaskExecutor:
         assert "negative value: -1" in result_dict[-1]
         assert "negative value: -2" in result_dict[-2]
 
-        counts = executor.get_counts()
+        counts = executor.metrics.get_counts()
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 2
 
@@ -110,7 +110,7 @@ class TestTaskExecutor:
         executor.set_retry_exceptions(RuntimeError)
         executor.run([1])
 
-        counts = executor.get_counts()
+        counts = executor.metrics.get_counts()
         assert counts["tasks_succeeded"] == 1
         assert counts["tasks_failed"] == 0
         assert call_count == 3
@@ -126,7 +126,7 @@ class TestTaskExecutor:
         executor.set_retry_exceptions(RuntimeError)
         executor.run([-1])
 
-        counts = executor.get_counts()
+        counts = executor.metrics.get_counts()
         assert counts["tasks_succeeded"] == 0
         assert counts["tasks_failed"] == 1
 
@@ -140,7 +140,7 @@ class TestTaskExecutor:
         )
         executor.run([1, 2, 3, 4, 5])
 
-        counts = executor.get_counts()
+        counts = executor.metrics.get_counts()
         assert counts["tasks_succeeded"] == 5
         assert counts["tasks_failed"] == 0
 
@@ -155,7 +155,7 @@ class TestTaskExecutor:
         )
         await executor.run_async([10, 20, 30])
 
-        assert executor.get_counts()["tasks_succeeded"] == 3
+        assert executor.metrics.get_counts()["tasks_succeeded"] == 3
 
     @pytest.mark.asyncio
     async def test_async_double(self) -> None:
@@ -168,7 +168,7 @@ class TestTaskExecutor:
         )
         await executor.run_async(list(range(20)))
 
-        assert executor.get_counts()["tasks_succeeded"] == 20
+        assert executor.metrics.get_counts()["tasks_succeeded"] == 20
 
     def test_duplicate_check_disabled_by_default(self) -> None:
         """默认配置下不应启用重复检查。"""
@@ -179,7 +179,7 @@ class TestTaskExecutor:
         )
         executor.run([1, 1, 2, 2, 2, 3])
 
-        counts = executor.get_counts()
+        counts = executor.metrics.get_counts()
         assert counts["tasks_succeeded"] == 6
         assert counts["tasks_duplicated"] == 0
 
@@ -193,7 +193,7 @@ class TestTaskExecutor:
         )
         executor.run([1, 1, 2, 2, 2, 3])
 
-        counts = executor.get_counts()
+        counts = executor.metrics.get_counts()
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_duplicated"] == 3
         assert counts["tasks_failed"] == 0
@@ -208,7 +208,7 @@ class TestTaskExecutor:
         )
         executor.run([1, 1, 2, 2, 2, 3])
 
-        counts = executor.get_counts()
+        counts = executor.metrics.get_counts()
         assert counts["tasks_succeeded"] == 6
         assert counts["tasks_duplicated"] == 0
 
@@ -261,7 +261,7 @@ class TestTaskExecutor:
         executor = TaskExecutor("s1", add_one, execution_mode="serial")
         executor.restore_db(sqlite_path)
 
-        counts = executor.get_counts()
+        counts = executor.metrics.get_counts()
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 0
 
@@ -312,7 +312,7 @@ class TestTaskExecutor:
             filter_by_error_type=True,
         )
 
-        counts = executor.get_counts()
+        counts = executor.metrics.get_counts()
         assert counts["tasks_succeeded"] == 2
         assert counts["tasks_failed"] == 0
 
@@ -357,7 +357,7 @@ class TestTaskExecutor:
         executor.set_retry_exceptions(RuntimeError)
         executor.restore_db(sqlite_path, filter_by_error_type=True)
 
-        counts = executor.get_counts()
+        counts = executor.metrics.get_counts()
         assert counts["tasks_succeeded"] == 2
         assert counts["tasks_failed"] == 0
 
@@ -426,7 +426,7 @@ class TestTaskSplitter:
 
         # 每个子任务应作为独立任务到达下游，并各自计一次发送
         assert splitter.metrics.downstream_counter["A"].get() == 3
-        assert worker.get_counts()["tasks_succeeded"] == 3
+        assert worker.metrics.get_counts()["tasks_succeeded"] == 3
 
     def test_splitter_allows_empty_iterable(self) -> None:
         """空可迭代对象应产生 0 个子任务，而不是抛异常。"""
@@ -444,7 +444,7 @@ class TestTaskSplitter:
 
         # 空结果不产生任何子任务，发送计数应为 0
         assert splitter.metrics.downstream_counter["A"].get() == 0
-        assert worker.get_counts()["tasks_succeeded"] == 0
+        assert worker.metrics.get_counts()["tasks_succeeded"] == 0
 
     def test_splitter_supports_generator_input(self) -> None:
         """一次性迭代器也应能被完整拆分并继续分发。"""
@@ -461,7 +461,7 @@ class TestTaskSplitter:
         graph.run({"S": [(i for i in [1, 2, 3])]})
 
         assert splitter.metrics.downstream_counter["A"].get() == 3
-        assert worker.get_counts()["tasks_succeeded"] == 3
+        assert worker.metrics.get_counts()["tasks_succeeded"] == 3
 
     def test_splitter_custom_func_transforms_items(self) -> None:
         """自定义拆分函数应能对子任务做变换后再分发。"""
@@ -522,8 +522,8 @@ class TestTaskRouter:
         # 每个目标节点应收到一次向下游的发送计数
         assert router.metrics.downstream_counter["target1"].get() == 1
         assert router.metrics.downstream_counter["target2"].get() == 1
-        assert target1.get_counts()["tasks_succeeded"] == 1
-        assert target2.get_counts()["tasks_succeeded"] == 1
+        assert target1.metrics.get_counts()["tasks_succeeded"] == 1
+        assert target2.metrics.get_counts()["tasks_succeeded"] == 1
 
     def test_router_unknown_target_fails_with_hint(self) -> None:
         """路由到未连接的目标应失败，并给出可诊断的错误信息。"""
@@ -543,9 +543,9 @@ class TestTaskRouter:
         graph.run({"R": ["msg1", "msg2"]})
 
         # 已连接目标正常送达
-        assert target.get_counts()["tasks_succeeded"] == 1
+        assert target.metrics.get_counts()["tasks_succeeded"] == 1
         # 未连接目标应计入失败，且错误信息包含允许的目标列表
-        counts = router.get_counts()
+        counts = router.metrics.get_counts()
         assert counts["tasks_succeeded"] == 1
         assert counts["tasks_failed"] == 1
         assert counts["tasks_processed"] == 2

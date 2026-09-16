@@ -246,15 +246,6 @@ class BaseTaskNode[T, R, Y]:
             else f"{self.execution_mode}-{self.max_workers}"
         )
 
-    def get_counts(self) -> dict[str, Any]:
-        """
-        获取当前节点的计数器
-
-        :return: 当前节点计数器
-        包括 tasks_input, tasks_succeeded, tasks_failed, tasks_duplicated, tasks_processed, tasks_pending
-        """
-        return self.metrics.get_counts()
-
     def get_lifecycle_path(self) -> Path:
         """
         获取任务生命周期持久化路径。
@@ -274,19 +265,21 @@ class BaseTaskNode[T, R, Y]:
         :return: 包含状态、计数、耗时估算等信息的快照字典
         """
         status = self.metrics.get_status()
-        node_counts = self.get_counts()
+        counts = self.metrics.get_counts()
+        upstream_counts = self.metrics.get_upstream_counts()
+        downstream_counts = self.metrics.get_downstream_counts()
 
         elapsed = calc_elapsed(status, self._last_elapsed, self._last_pending, interval)
         remaining = calc_remaining(
-            node_counts["tasks_processed"],
-            node_counts["tasks_pending"],
+            counts["tasks_processed"],
+            counts["tasks_pending"],
             elapsed,
         )
-        avg_time_str = format_avg_time(elapsed, node_counts["tasks_processed"])
+        avg_time_str = format_avg_time(elapsed, counts["tasks_processed"])
 
         # 更新缓存供下次快照使用
         self._last_elapsed = elapsed
-        self._last_pending = int(node_counts["tasks_pending"] or 0)
+        self._last_pending = int(counts["tasks_pending"] or 0)
 
         return {
             "name": self.get_name(),
@@ -298,7 +291,9 @@ class BaseTaskNode[T, R, Y]:
             "elapsed_time": elapsed,
             "remaining_time": remaining,
             "task_avg_time": avg_time_str,
-            **node_counts,
+            **counts,
+            "upstream_counts": upstream_counts,
+            "downstream_counts": downstream_counts,
         }
 
     # ==== 绑定 ====

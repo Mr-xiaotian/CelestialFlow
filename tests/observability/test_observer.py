@@ -95,7 +95,7 @@ class TestExecutorObserver:
         """没有 observer 时正常运行"""
         executor = TaskExecutor("NoObserver", add_one, execution_mode="serial")
         executor.run([1, 2, 3])
-        assert executor.get_counts()["tasks_succeeded"] == 3
+        assert executor.metrics.get_counts()["tasks_succeeded"] == 3
 
     def test_multiple_observers(self):
         """多个 observer 同时收到回调"""
