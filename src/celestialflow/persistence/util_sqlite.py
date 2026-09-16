@@ -52,10 +52,20 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
             error_type TEXT NOT NULL DEFAULT '',
             error_message TEXT NOT NULL DEFAULT '',
             task_json TEXT NOT NULL,
-            result_json TEXT NOT NULL DEFAULT 'null'
+            result_json TEXT NOT NULL DEFAULT 'null',
+            retry_times INTEGER NOT NULL DEFAULT 0
         )
         """
     )
+    # 兼容旧库：为缺少 retry_times 列的历史表补充默认列。
+    columns = {
+        str(row["name"])
+        for row in conn.execute("PRAGMA table_info(records)").fetchall()
+    }
+    if "retry_times" not in columns:
+        _ = conn.execute(
+            "ALTER TABLE records ADD COLUMN retry_times INTEGER NOT NULL DEFAULT 0"
+        )
     # 为常用查询条件建立索引，减少筛选和排序开销。
     _ = conn.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_records_event_id ON records(event_id)"
@@ -93,6 +103,7 @@ def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
         "ts": float(record.get("ts", 0.0) or 0.0),
         "task_json": json.dumps(record["task_json"], ensure_ascii=False),
         "result_json": json.dumps(record.get("result_json"), ensure_ascii=False),
+        "retry_times": int(record.get("retry_times", 0) or 0),
     }
 
 
@@ -114,6 +125,7 @@ def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
         "error_message": str(row["error_message"]),
         "task_json": json.loads(str(row["task_json"])),
         "result_json": json.loads(str(row["result_json"])),
+        "retry_times": int(row["retry_times"]),
     }
 
 
@@ -140,9 +152,11 @@ def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
         """
         INSERT INTO records (
             event_id, ts, stage, status, error_type, error_message, task_json, result_json
+            , retry_times
         )
         VALUES (
             :event_id, :ts, :stage, :status, :error_type, :error_message, :task_json, :result_json
+            , :retry_times
         )
         """,
         normalized,
@@ -202,10 +216,44 @@ def promote_record_to_success_by_event_id(
     cursor = conn.execute(
         """
         UPDATE records
-        SET status = 'success', ts = ?, result_json = ?
+        SET status = 'success', ts = ?, result_json = ?, error_type = '', error_message = ''
         WHERE event_id = ?
         """,
         [ts, json.dumps(result, ensure_ascii=False), int(event_id)],
+    )
+    return cursor.rowcount > 0
+
+
+def update_retry_by_event_id(
+    conn: sqlite3.Connection,
+    event_id: int,
+    *,
+    ts: float,
+    retry_times: int,
+    error_type: str = "",
+    error_message: str = "",
+) -> bool:
+    """
+    在给定连接上按 ``event_id`` 更新 pending 记录的重试信息。
+
+    记录保持 pending 状态不变，仅更新重试次数与最近一次失败的错误信息。
+
+    :param conn: 已建立的 sqlite 连接
+    :param event_id: 当前事件 ID
+    :param ts: 生命周期更新时间戳
+    :param retry_times: 已重试次数
+    :param error_type: 最近一次失败的错误类型，默认空字符串
+    :param error_message: 最近一次失败的错误消息，默认空字符串
+    :return: 是否更新到记录
+    :rtype: bool
+    """
+    cursor = conn.execute(
+        """
+        UPDATE records
+        SET retry_times = ?, ts = ?, error_type = ?, error_message = ?
+        WHERE event_id = ?
+        """,
+        [int(retry_times), ts, error_type, error_message, int(event_id)],
     )
     return cursor.rowcount > 0
 
@@ -316,7 +364,7 @@ def load_records(
         rows = conn.execute(
             """
             SELECT id, event_id, ts, stage, status, error_type, error_message, task_json
-                 , result_json
+                 , result_json, retry_times
             FROM records
             WHERE status = ?
             ORDER BY id ASC
@@ -393,7 +441,7 @@ def load_records_after_event_id_in_fail(
         rows = conn.execute(
             """
             SELECT id, event_id, ts, stage, status, error_type, error_message, task_json
-                    , result_json
+                    , result_json, retry_times
             FROM records
             WHERE status = 'failed' AND event_id > ?
             ORDER BY event_id ASC
@@ -527,7 +575,7 @@ def query_records(
         rows = conn.execute(
             f"""
             SELECT id, event_id, ts, stage, status, error_type, error_message, task_json
-                 , result_json
+                 , result_json, retry_times
             FROM records
             {where_sql}
             ORDER BY ts {sort_sql}, id {sort_sql}

@@ -237,6 +237,7 @@ def test_reporter_pushes_errors_via_push_errors_endpoint_only(
             "ts": 1.0,
             "task_json": {"value": 1},
             "result_json": None,
+            "retry_times": 0,
         }
     ]
 

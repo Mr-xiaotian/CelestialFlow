@@ -17,6 +17,7 @@ from .util_sqlite import (
     load_task_result_records,
     promote_record_to_failed_by_event_id,
     promote_record_to_success_by_event_id,
+    update_retry_by_event_id,
 )
 
 
@@ -74,6 +75,16 @@ class LifecycleSpout(BaseSpout):
                 int(record["event_id"]),
                 int(record["error_id"]),
                 ts=float(record["ts"]),
+                error_type=str(record["error_type"]),
+                error_message=str(record["error_message"]),
+            )
+        elif op == "update_retry":
+            # 任务重试时，更新 pending 记录的重试次数与最近一次错误信息。
+            changed = update_retry_by_event_id(
+                self._conn,
+                int(record["event_id"]),
+                ts=float(record["ts"]),
+                retry_times=int(record["retry_times"]),
                 error_type=str(record["error_type"]),
                 error_message=str(record["error_message"]),
             )
@@ -188,6 +199,30 @@ class LifecycleInlet(BaseInlet):
             "ts": now.timestamp(),
         }
         self._funnel(fail_item)
+
+    def task_retry(self, event_id: int, retry_times: int, error: Exception) -> None:
+        """
+        更新 pending 记录的重试次数与最近一次失败的错误信息。
+
+        记录保持 pending 状态，最终由 ``task_success`` 或 ``task_fail`` 晋升。
+
+        :param event_id: 当前任务事件 ID
+        :param retry_times: 已重试次数
+        :param error: 导致重试的异常
+        """
+        now = datetime.now()
+        error_type = type(error).__name__
+        error_message = str(error)
+        self._funnel(
+            {
+                "__op__": "update_retry",
+                "event_id": event_id,
+                "retry_times": retry_times,
+                "error_type": error_type,
+                "error_message": error_message,
+                "ts": now.timestamp(),
+            }
+        )
 
 
 # ==== 全局单例 ====

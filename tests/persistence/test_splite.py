@@ -18,6 +18,7 @@ from celestialflow.persistence.util_sqlite import (
     query_records,
     promote_record_to_failed_by_event_id,
     promote_record_to_success_by_event_id,
+    update_retry_by_event_id,
 )
 
 
@@ -98,6 +99,7 @@ class TestSpliteUtils:
             "error_message",
             "task_json",
             "result_json",
+            "retry_times",
         ]
         assert any(row[1] == "result_json" for row in result_info)
 
@@ -114,6 +116,7 @@ class TestSpliteUtils:
         assert normalized["error_type"] == "ValueError"
         assert normalized["error_message"] == "bad value"
         assert normalized["ts"] == 1.0
+        assert normalized["retry_times"] == 0
         assert json.loads(normalized["task_json"]) == {"id": 1, "label": "TaskOne"}
 
     def test_normalize_record_requires_stage_and_status(self):
@@ -425,6 +428,58 @@ class TestSpliteUtils:
         assert success_records[0]["ts"] == 8.5
         assert success_records[0]["result_json"] == {"ok": True, "value": [1, 2, 3]}
         assert success_records[0]["task_json"] == {"value": 8}
+
+    def test_update_retry_by_event_id(self, sqlite_path):
+        """测试按 event_id 更新 pending 记录的重试信息，状态保持不变。"""
+        pending_record = {
+            "event_id": 7,
+            "stage": "s7",
+            "status": "pending",
+            "task_json": {"value": 7},
+        }
+        appended = append_records(sqlite_path, [pending_record])
+        assert appended == 1
+
+        conn = connect_db(sqlite_path)
+        try:
+            updated = update_retry_by_event_id(
+                conn,
+                7,
+                ts=7.5,
+                retry_times=2,
+                error_type="ValueError",
+                error_message="try failed",
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        assert updated is True
+        pending_records = load_records(sqlite_path, "pending")
+        assert len(pending_records) == 1
+        assert pending_records[0]["status"] == "pending"
+        assert pending_records[0]["retry_times"] == 2
+        assert pending_records[0]["error_type"] == "ValueError"
+        assert pending_records[0]["error_message"] == "try failed"
+        assert pending_records[0]["ts"] == 7.5
+
+    def test_update_retry_by_event_id_missing_record(self, sqlite_path):
+        """测试更新不存在的 event_id 时应返回 False。"""
+        conn = connect_db(sqlite_path)
+        try:
+            updated = update_retry_by_event_id(
+                conn,
+                999,
+                ts=1.0,
+                retry_times=1,
+                error_type="ValueError",
+                error_message="boom",
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        assert updated is False
 
     def test_delete_record_by_event_id(self, sqlite_path, sample_errors):
         """测试按 event_id 删除记录。"""

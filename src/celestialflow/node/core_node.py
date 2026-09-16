@@ -429,6 +429,7 @@ class BaseTaskNode[T, R, Y]:
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
 
+        get_lifecycle_inlet().task_retry(task_id, fail_times, exception)
         get_log_inlet().task_retry(
             self.get_name(),
             self._get_repr(task),
