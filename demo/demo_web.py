@@ -1,19 +1,3 @@
-"""
-复杂拓扑 Web 仪表盘展示 demo.
-
-构建一个 6 层、含扇出/扇入、TaskSplitter 与 TaskRouter 的复杂任务图,
-通过 TaskReporter 周期性向 celestialflow-web 推送状态、结构、错误与
-生命周期数据, 用于观察 web 仪表盘在复杂拓扑下的显示效果:
-
-- 结构图: 九节点多层拓扑, Splitter 显示为 subgraph、Router 显示为菱形,
-  启用"边标签"配置后可观察每条边累计/增量传输量
-- 节点状态卡: 不同执行模式 (serial / thread) 与并行度展示
-- 错误日志: ValueError (重试后失败, retry=2) 与 RuntimeError (不可重试) 两类错误
-- 进度条: 成功 / 失败 / 重复四段比例
-- 生命周期: 重试次数 (retry_times) 随失败记录持久化
-
-若未设置 REPORT_HOST / REPORT_PORT 环境变量, demo 仍可独立运行 (跳过上报)。
-"""
 from __future__ import annotations
 
 import os
@@ -216,7 +200,22 @@ def demo_forest() -> None:
 
 
 def demo_topology_topology() -> None:
-    """运行复杂拓扑 demo。"""
+    """
+    复杂拓扑 Web 仪表盘展示 demo.
+
+    构建一个 6 层、含扇出/扇入、TaskSplitter 与 TaskRouter 的复杂任务图,
+    通过 TaskReporter 周期性向 celestialflow-web 推送状态、结构、错误与
+    生命周期数据, 用于观察 web 仪表盘在复杂拓扑下的显示效果:
+
+    - 结构图: 九节点多层拓扑, Splitter 显示为 subgraph、Router 显示为菱形,
+      启用"边标签"配置后可观察每条边累计/增量传输量
+    - 节点状态卡: 不同执行模式 (serial / thread) 与并行度展示
+    - 错误日志: ValueError (重试后失败, retry=2) 与 RuntimeError (不可重试) 两类错误
+    - 进度条: 成功 / 失败 / 重复四段比例
+    - 生命周期: 重试次数 (retry_times) 随失败记录持久化
+
+    若未设置 REPORT_HOST / REPORT_PORT 环境变量, demo 仍可独立运行 (跳过上报)。
+    """
     # 节点定义：混合 serial / thread 执行模式，Ingest 启用重复检测。
     ingest = TaskExecutor(
         "Ingest",

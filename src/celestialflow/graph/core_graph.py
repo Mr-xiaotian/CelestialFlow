@@ -506,28 +506,6 @@ class TaskGraph:
 
     # ==== 运行时监控 ====
 
-    def _calc_graph_pending(
-        self,
-        running_processed_map: dict[str, int],
-        running_pending_map: dict[str, int],
-    ) -> dict[str, int]:
-        """
-        根据 DAG/非 DAG 策略计算全局预计待处理任务数量。
-
-        :param running_processed_map: 各节点已处理任务数
-        :param running_pending_map: 各节点待处理任务数
-        :return: 全局预计待处理任务数量
-        """
-        if not self.is_dag:
-            return running_pending_map
-
-        total_pending_map = calc_global_pending(
-            self.order_graph,
-            running_processed_map,
-            running_pending_map,
-        )
-        return total_pending_map
-
     def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
         """
         采集一次运行时快照并返回。
@@ -552,10 +530,15 @@ class TaskGraph:
             running_processed_map[node_name] = int(snapshot["tasks_processed"] or 0)
             running_pending_map[node_name] = int(snapshot["tasks_pending"] or 0)
 
-        total_pending_map = self._calc_graph_pending(
-            running_processed_map,
-            running_pending_map,
-        )
+        if not self.is_dag:
+            total_pending_map = running_pending_map
+        else:
+            total_pending_map = calc_global_pending(
+                self.order_graph,
+                running_processed_map,
+                running_pending_map,
+            )
+
         for node_name, node_status in status_dict.items():
             node_status["total_tasks_pending"] = total_pending_map[node_name]
             node_status["total_remaining_time"] = calc_remaining(
