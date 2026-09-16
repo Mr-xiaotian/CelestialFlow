@@ -334,17 +334,13 @@ class TaskMetrics:
 
         :return: 包含以下字段的字典：
                 - tasks_input: 输入任务总数（外部注入与上游提供之和）
-                - tasks_input_external: 外部注入任务数
-                - tasks_input_upstream: 上游提供的任务数
                 - tasks_succeeded: 成功任务数
                 - tasks_failed: 失败任务数
                 - tasks_duplicated: 重复任务数
                 - tasks_processed: 已处理任务总数
                 - tasks_pending: 等待处理任务数
         """
-        external_input_count = self.get_external_input_count()
-        upstream_input_count = self.get_upstream_input_count()
-        input_count = external_input_count + upstream_input_count
+        input_count = self.get_input_count()
 
         with self.lock:
             succeeded = self.success_counter.value
@@ -356,8 +352,6 @@ class TaskMetrics:
 
         return {
             "tasks_input": input_count,
-            "tasks_input_external": external_input_count,
-            "tasks_input_upstream": upstream_input_count,
             "tasks_succeeded": succeeded,
             "tasks_failed": failed,
             "tasks_duplicated": duplicated,

@@ -10,8 +10,6 @@ class TestTaskMetricsBasic:
         metrics = TaskMetrics()
         counts = metrics.get_counts()
         assert counts["tasks_input"] == 0
-        assert counts["tasks_input_external"] == 0
-        assert counts["tasks_input_upstream"] == 0
         assert counts["tasks_succeeded"] == 0
         assert counts["tasks_failed"] == 0
         assert counts["tasks_duplicated"] == 0
@@ -30,8 +28,6 @@ class TestTaskMetricsBasic:
         assert metrics.get_upstream_input_count() == 0
         assert metrics.get_input_count() == 5
         counts = metrics.get_counts()
-        assert counts["tasks_input_external"] == 5
-        assert counts["tasks_input_upstream"] == 0
         assert counts["tasks_input"] == 5
 
     def test_input_count_split_external_and_upstream(self):
@@ -51,8 +47,6 @@ class TestTaskMetricsBasic:
         assert metrics.get_input_count() == 9
 
         counts = metrics.get_counts()
-        assert counts["tasks_input_external"] == 3
-        assert counts["tasks_input_upstream"] == 6
         assert counts["tasks_input"] == 9
 
     def test_add_success_count(self):
