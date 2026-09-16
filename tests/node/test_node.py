@@ -77,13 +77,13 @@ class TestBaseTaskNodeConfig:
         assert current_node.metrics.upstream_counter["PrevNode"] is binding_counter
 
         prev_node.metrics.add_downstream_count("CurrentNode", 2)
-        assert current_node.metrics.get_task_count() == 2
+        assert current_node.metrics.get_input_count() == 2
 
         current_node.set_execution_mode("thread")
-        assert current_node.metrics.get_task_count() == 2
+        assert current_node.metrics.get_input_count() == 2
 
         prev_node.metrics.add_downstream_count("CurrentNode", 1)
-        assert current_node.metrics.get_task_count() == 3
+        assert current_node.metrics.get_input_count() == 3
 
 
 class TestBaseTaskNodeStartErrors:

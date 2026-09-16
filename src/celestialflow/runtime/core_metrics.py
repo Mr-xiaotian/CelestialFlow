@@ -22,7 +22,7 @@ class TaskMetrics:
     lock: Lock
     enable_duplicate_check: bool
     retry_exceptions: tuple[type[Exception], ...]
-    task_counter: ValueWrapper
+    external_input_counter: ValueWrapper
     success_counter: ValueWrapper
     fail_counter: ValueWrapper
     duplicate_counter: ValueWrapper
@@ -56,7 +56,7 @@ class TaskMetrics:
         """
 
         # 统一使用同一把线程锁，保证 execution_mode 切换时 counter 对象保持稳定。
-        self.task_counter = ValueWrapper(value=0, lock=self.lock)
+        self.external_input_counter = ValueWrapper(value=0, lock=self.lock)
         self.success_counter = ValueWrapper(value=0, lock=self.lock)
         self.fail_counter = ValueWrapper(value=0, lock=self.lock)
         self.duplicate_counter = ValueWrapper(value=0, lock=self.lock)
@@ -71,7 +71,7 @@ class TaskMetrics:
         重置计数器
         """
         # 重置所有计数器
-        self.task_counter.reset()
+        self.external_input_counter.reset()
         self.success_counter.reset()
         self.fail_counter.reset()
         self.duplicate_counter.reset()
@@ -156,7 +156,7 @@ class TaskMetrics:
         用于统计从上游节点接收的任务数量。
 
         :param name: 上游节点的唯一名称
-        :param counter: 任务总数计数器实例
+        :param counter: 上游传输任务计数器实例
         """
         self.upstream_counter[name] = counter
 
@@ -172,15 +172,15 @@ class TaskMetrics:
 
     # ==== 任务计数器 ====
 
-    def add_task_count(self, add_count: int = 1) -> None:
+    def add_external_input_count(self, add_count: int = 1) -> None:
         """
-        更新任务总数计数器
+        更新外部注入任务计数器
 
-        增加已接收到的任务总数。
+        增加由外部直接注入的任务数量（经由 ``put_task`` 进入节点的任务）。
 
-        :param add_count: 增加的任务数
+        :param add_count: 增加的外部注入任务数
         """
-        self.task_counter.add(add_count)
+        self.external_input_counter.add(add_count)
         for observer in self._observers:
             observer.on_tasks_added(add_count)
 
@@ -257,35 +257,34 @@ class TaskMetrics:
 
     # ==== 查询 ====
 
-    def is_tasks_finished(self) -> bool:
+    def get_external_input_count(self) -> int:
         """
-        检查所有任务是否已完成
+        获取外部注入的任务数量
 
-        通过比较总输入任务数与已处理（成功+失败+重复）的任务数来判断。
-
-        :return: 如果所有任务都已处理完毕，返回 True；否则返回 False。
+        :return: 当前由外部直接注入的任务总数
         """
-        total = self.get_task_count()
+        return self.external_input_counter.get()
 
-        with self.lock:
-            processed = (
-                self.success_counter.value
-                + self.fail_counter.value
-                + self.duplicate_counter.value
-            )
-        return total == processed
+    def get_upstream_input_count(self) -> int:
+        """
+        获取上游提供的任务数量
 
-    def get_task_count(self) -> int:
+        :return: 当前从各上游节点接收的任务总数
+        """
+        input_count = 0
+        for counter in self.upstream_counter.values():
+            input_count += counter.get()
+        return input_count
+
+    def get_input_count(self) -> int:
         """
         获取当前的任务总数
 
+        外部注入任务数与上游提供任务数之和。
+
         :return: 当前的任务总数
         """
-        task_count = self.task_counter.get()
-        for counter in self.upstream_counter.values():
-            task_count += counter.get()
-
-        return task_count
+        return self.get_external_input_count() + self.get_upstream_input_count()
 
     def get_success_count(self) -> int:
         """
@@ -311,19 +310,41 @@ class TaskMetrics:
         """
         return self.duplicate_counter.get()
 
+    def is_tasks_finished(self) -> bool:
+        """
+        检查所有任务是否已完成
+
+        通过比较总输入任务数与已处理（成功+失败+重复）的任务数来判断。
+
+        :return: 如果所有任务都已处理完毕，返回 True；否则返回 False。
+        """
+        total = self.get_input_count()
+
+        with self.lock:
+            processed = (
+                self.success_counter.value
+                + self.fail_counter.value
+                + self.duplicate_counter.value
+            )
+        return total == processed
+
     def get_counts(self) -> dict[str, int]:
         """
         获取当前的统计数据字典
 
         :return: 包含以下字段的字典：
-                - tasks_input: 输入任务总数
+                - tasks_input: 输入任务总数（外部注入与上游提供之和）
+                - tasks_input_external: 外部注入任务数
+                - tasks_input_upstream: 上游提供的任务数
                 - tasks_succeeded: 成功任务数
                 - tasks_failed: 失败任务数
                 - tasks_duplicated: 重复任务数
                 - tasks_processed: 已处理任务总数
                 - tasks_pending: 等待处理任务数
         """
-        input_count = self.get_task_count()
+        external_input_count = self.get_external_input_count()
+        upstream_input_count = self.get_upstream_input_count()
+        input_count = external_input_count + upstream_input_count
 
         with self.lock:
             succeeded = self.success_counter.value
@@ -335,6 +356,8 @@ class TaskMetrics:
 
         return {
             "tasks_input": input_count,
+            "tasks_input_external": external_input_count,
+            "tasks_input_upstream": upstream_input_count,
             "tasks_succeeded": succeeded,
             "tasks_failed": failed,
             "tasks_duplicated": duplicated,

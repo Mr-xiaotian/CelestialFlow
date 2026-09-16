@@ -300,7 +300,10 @@ class BaseTaskNode[T, R, Y]:
 
     def connect_to(self, next_node: BaseTaskNode[Any, Any, Any]) -> None:
         """
-        绑定前置节点，将每个前驱节点的计数器注册到当前节点的 task_counter 中。
+        绑定下游节点，将当前节点注册为其前置节点。
+
+        双方共享同一个传输计数计数器：当前节点向下游每发送一个任务，计数器递增，
+        下游节点的上游提供任务数随之增加。
 
         :param next_node: 下游节点
         """
@@ -324,7 +327,7 @@ class BaseTaskNode[T, R, Y]:
         )
         envelope: TaskEnvelope[T] = TaskEnvelope(task, input_id)
         self.task_queue.put(envelope)
-        self.metrics.add_task_count()
+        self.metrics.add_external_input_count()
 
         get_lifecycle_inlet().task_input(self.get_name(), input_id, task)
         get_log_inlet().task_input(
@@ -544,7 +547,7 @@ class BaseTaskNode[T, R, Y]:
 
         get_log_inlet().node_start(
             self.get_name(),
-            self.metrics.get_task_count(),
+            self.metrics.get_input_count(),
             self._get_execution_mode_desc(),
         )
 

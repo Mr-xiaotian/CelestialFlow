@@ -10,20 +10,50 @@ class TestTaskMetricsBasic:
         metrics = TaskMetrics()
         counts = metrics.get_counts()
         assert counts["tasks_input"] == 0
+        assert counts["tasks_input_external"] == 0
+        assert counts["tasks_input_upstream"] == 0
         assert counts["tasks_succeeded"] == 0
         assert counts["tasks_failed"] == 0
         assert counts["tasks_duplicated"] == 0
         assert counts["tasks_processed"] == 0
         assert counts["tasks_pending"] == 0
+        assert metrics.get_external_input_count() == 0
+        assert metrics.get_upstream_input_count() == 0
         assert metrics.get_upstream_counts() == {}
         assert metrics.get_downstream_counts() == {}
 
-    def test_add_task_count(self):
-        """测试任务总数的累加逻辑"""
+    def test_add_external_input_count(self):
+        """测试外部注入任务计数的累加逻辑"""
         metrics = TaskMetrics()
-        metrics.add_task_count(5)
-        assert metrics.get_task_count() == 5
-        assert metrics.get_counts()["tasks_input"] == 5
+        metrics.add_external_input_count(5)
+        assert metrics.get_external_input_count() == 5
+        assert metrics.get_upstream_input_count() == 0
+        assert metrics.get_input_count() == 5
+        counts = metrics.get_counts()
+        assert counts["tasks_input_external"] == 5
+        assert counts["tasks_input_upstream"] == 0
+        assert counts["tasks_input"] == 5
+
+    def test_input_count_split_external_and_upstream(self):
+        """外部注入与上游提供的任务应分别计数且合计正确"""
+        metrics = TaskMetrics()
+        upstream_a = ValueWrapper(value=0)
+        upstream_b = ValueWrapper(value=0)
+        metrics.set_upstream_counter("src_a", upstream_a)
+        metrics.set_upstream_counter("src_b", upstream_b)
+
+        metrics.add_external_input_count(3)
+        upstream_a.add(2)
+        upstream_b.add(4)
+
+        assert metrics.get_external_input_count() == 3
+        assert metrics.get_upstream_input_count() == 6
+        assert metrics.get_input_count() == 9
+
+        counts = metrics.get_counts()
+        assert counts["tasks_input_external"] == 3
+        assert counts["tasks_input_upstream"] == 6
+        assert counts["tasks_input"] == 9
 
     def test_add_success_count(self):
         """测试任务成功计数的累加逻辑"""
@@ -49,7 +79,7 @@ class TestTaskMetricsBasic:
     def test_processed_equals_sum(self):
         """测试已处理任务数的计算公式：Processed = Success + Failed + Duplicate"""
         metrics = TaskMetrics()
-        metrics.add_task_count(10)
+        metrics.add_external_input_count(10)
         metrics.add_success_count(5)
         metrics.add_fail_count(2)
         metrics.add_duplicate_count(1)
@@ -61,7 +91,7 @@ class TestTaskMetricsBasic:
     def test_is_tasks_finished_true(self):
         """测试任务完成状态判定：当已处理数等于总数时应返回 True"""
         metrics = TaskMetrics()
-        metrics.add_task_count(3)
+        metrics.add_external_input_count(3)
         metrics.add_success_count(2)
         metrics.add_fail_count(1)
         assert metrics.is_tasks_finished() is True
@@ -69,17 +99,17 @@ class TestTaskMetricsBasic:
     def test_is_tasks_finished_false(self):
         """测试任务完成状态判定：仍有未处理任务（Pending > 0）时应返回 False"""
         metrics = TaskMetrics()
-        metrics.add_task_count(5)
+        metrics.add_external_input_count(5)
         metrics.add_success_count(2)
         assert metrics.is_tasks_finished() is False
 
     def test_reset_counter(self):
         """测试计数器重置功能：所有累加指标应归零"""
         metrics = TaskMetrics()
-        metrics.add_task_count(10)
+        metrics.add_external_input_count(10)
         metrics.add_success_count(5)
         metrics.reset_counter()
-        assert metrics.get_task_count() == 0
+        assert metrics.get_input_count() == 0
         assert metrics.get_success_count() == 0
 
 class TestTaskMetricsBinding:
@@ -93,7 +123,9 @@ class TestTaskMetricsBinding:
 
         upstream.add(3)
 
-        assert metrics.get_task_count() == 3
+        assert metrics.get_input_count() == 3
+        assert metrics.get_upstream_input_count() == 3
+        assert metrics.get_external_input_count() == 0
 
     def test_shared_binding_counter(self):
         """``connect_to`` 双方应共享同一个计数器对象。"""
@@ -105,7 +137,7 @@ class TestTaskMetricsBinding:
 
         prev_metrics.add_downstream_count("current", 2)
 
-        assert curr_metrics.get_task_count() == 2
+        assert curr_metrics.get_input_count() == 2
 
     def test_add_downstream_count_missing_target_raises(self):
         """未注册的下游名称应抛出 ``KeyError``。"""
@@ -124,7 +156,7 @@ class TestTaskMetricsBinding:
         prev_metrics.add_downstream_count("current", 5)
         curr_metrics.reset_counter()
 
-        assert curr_metrics.get_task_count() == 0
+        assert curr_metrics.get_input_count() == 0
         assert counter.get() == 0
 
     def test_get_upstream_counts(self):
