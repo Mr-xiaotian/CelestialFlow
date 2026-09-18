@@ -18,10 +18,8 @@ from ..runtime.util_errors import (
     InvalidOptionError,
     NodeNotFoundError,
 )
-from ..runtime.util_estimators import calc_remaining
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import cluster_by_value_sorted
-from .util_estimators import calc_global_pending
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
 from .util_render import render_structure_list
 
@@ -503,54 +501,6 @@ class TaskGraph:
             await node.start_async()
         else:
             await asyncio.to_thread(node.start)
-
-    # ==== 运行时监控 ====
-
-    def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
-        """
-        采集一次运行时快照并返回。
-
-        遍历所有节点采集运行时快照，然后计算 DAG 感知的全局 pending 估算值，
-        并补充到每个节点的快照（``total_tasks_pending`` / ``total_remaining_time``）中。
-
-        :return: ``(status_dict, status_timestamp)`` —— 各节点快照字典与统一采集时间戳
-        """
-        status_dict: dict[str, dict[str, Any]] = {}
-        now = time.time()
-        interval = self.reporter.interval
-
-        # 为全局预计待处理任务数收集数据
-        running_processed_map: dict[str, int] = {}
-        running_pending_map: dict[str, int] = {}
-        running_downstream_map: dict[str, dict[str, int]] = {}
-
-        for node_name, node in self.node_dict.items():
-            snapshot = node.snapshot(interval)
-            status_dict[node_name] = snapshot
-
-            running_processed_map[node_name] = int(snapshot["tasks_processed"] or 0)
-            running_pending_map[node_name] = int(snapshot["tasks_pending"] or 0)
-            running_downstream_map[node_name] = dict(snapshot["downstream_counts"])
-
-        if not self.is_dag:
-            total_pending_map = running_pending_map
-        else:
-            total_pending_map = calc_global_pending(
-                self.order_graph,
-                running_processed_map,
-                running_pending_map,
-                running_downstream_map,
-            )
-
-        for node_name, node_status in status_dict.items():
-            node_status["total_tasks_pending"] = total_pending_map[node_name]
-            node_status["total_remaining_time"] = calc_remaining(
-                node_status["tasks_processed"],
-                node_status["total_tasks_pending"],
-                node_status["elapsed_time"],
-            )
-
-        return status_dict, now
 
     # ==== 查询接口 ====
 

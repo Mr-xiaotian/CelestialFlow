@@ -1,4 +1,5 @@
 # observability/core_report.py
+import time
 from threading import Event, Thread
 from typing import Any, Protocol
 
@@ -219,12 +220,14 @@ class TaskReporter:
         """推送状态信息"""
         try:
             # 收集最新的任务图状态快照，确保推送的数据是最新的
-            status_dict, now = self.task_graph.collect_runtime_snapshot()
+            status_dict: dict[str, dict[str, Any]] = {}
+            for node_name, node in self.task_graph.node_dict.items():
+                status_dict[node_name] = node.snapshot(self.interval)
 
             payload: dict[str, Any] = {
                 "graph_id": self.task_graph.get_graph_id(),
                 "status": status_dict,
-                "timestamp": now,
+                "timestamp": time.time(),
             }
             res = self._session.post(
                 f"{self.base_url}/api/push_status",

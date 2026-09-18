@@ -292,10 +292,10 @@ def demo_multi_cycle() -> None:
 
 if __name__ == "__main__":
     demo_chain()
-    # demo_forest()
-    # demo_cross()
-    # demo_grid()
-    # demo_loop()
-    # demo_complete()
-    # demo_multi_cycle()
+    demo_forest()
+    demo_cross()
+    demo_grid()
+    demo_loop()
+    demo_complete()
+    demo_multi_cycle()
     pass
