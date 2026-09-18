@@ -4,20 +4,6 @@ from __future__ import annotations
 from .util_types import StageStatus
 
 
-def calc_remaining(processed: float, pending: float, elapsed: float) -> float:
-    """
-    基于已处理任务,剩余任务以及已消耗时间来计算剩余时间.
-
-    :param processed: 已处理任务数
-    :param pending: 待处理任务数
-    :param elapsed: 已消耗时间（秒）
-    :return: 预计剩余时间（秒）
-    """
-    if processed and pending:
-        return pending / processed * elapsed
-    return 0
-
-
 def calc_elapsed(
     status: StageStatus,
     last_elapsed: float,
@@ -42,26 +28,3 @@ def calc_elapsed(
         elapsed = 0
 
     return elapsed
-
-
-def format_avg_time(elapsed: float, processed: int) -> str:
-    """
-    格式化平均时间（秒/任务或任务/秒）。
-
-    :param elapsed: 总耗时（秒）
-    :param processed: 已处理任务数
-    :return: 格式化后的平均时间字符串
-    """
-    if elapsed and processed:
-        avg_time = elapsed / processed
-        if avg_time >= 1.0:
-            # 显示 "X.XX s/it"
-            avg_time_str = f"{avg_time:.2f}s/it"
-        else:
-            # 显示 "X.XX it/s"（取倒数）
-            its_per_sec = processed / elapsed if elapsed else 0
-            avg_time_str = f"{its_per_sec:.2f}it/s"
-    else:
-        avg_time_str = "N/A"
-
-    return avg_time_str

@@ -66,6 +66,16 @@ class TestBaseTaskNodeConfig:
 
         assert snapshot["execution_mode"] == "thread"
 
+    def test_snapshot_tolerates_not_started_node(self) -> None:
+        """Reporter 在节点尚未启动时采集快照也不应因缺少 start_time 崩溃。"""
+        node = TaskExecutor("IdleNode", add_one)
+
+        snapshot = node.snapshot(interval=0.1)
+
+        assert snapshot["status"].value == 0
+        assert snapshot["start_time"] == 0.0
+        assert snapshot["elapsed_time"] == 0
+
     def test_connect_to_binding_survives_execution_mode_switch(self) -> None:
         """切换执行模式不应破坏 ``connect_to`` 已建立的下游绑定。"""
         prev_node = TaskExecutor("PrevNode", add_one)

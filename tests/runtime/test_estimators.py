@@ -1,48 +1,7 @@
 from __future__ import annotations
 
-import pytest
-
-from celestialflow.runtime.util_estimators import calc_elapsed, calc_remaining
+from celestialflow.runtime.util_estimators import calc_elapsed
 from celestialflow.runtime.util_types import StageStatus
-
-
-class TestCalcRemaining:
-    """calc_remaining — 基于已处理/待处理/已耗时估算剩余时间。"""
-
-    def test_normal_case(self):
-        """正常计算：processed=100, pending=50, elapsed=10 -> 5.0。"""
-        result = calc_remaining(100, 50, 10)
-        assert result == 5.0
-
-    def test_pending_zero_returns_zero(self):
-        """pending=0 时剩余时间为 0。"""
-        result = calc_remaining(100, 0, 10)
-        assert result == 0
-
-    def test_processed_zero_returns_zero(self):
-        """processed=0 时无法计算速度，返回 0。"""
-        result = calc_remaining(0, 100, 10)
-        assert result == 0
-
-    def test_all_zero_returns_zero(self):
-        """全部为 0 时返回 0。"""
-        result = calc_remaining(0, 0, 0)
-        assert result == 0
-
-    def test_float_inputs(self):
-        """浮点数输入应保持同样的比例关系。"""
-        result = calc_remaining(50.0, 10.0, 3.5)
-        assert result == pytest.approx(0.7)
-
-    def test_processed_zero_float(self):
-        """processed 为 0.0 时同样返回 0。"""
-        result = calc_remaining(0.0, 50.0, 10.0)
-        assert result == 0
-
-    def test_pending_zero_float(self):
-        """pending 为 0.0 时同样返回 0。"""
-        result = calc_remaining(50.0, 0.0, 10.0)
-        assert result == 0
 
 
 class TestCalcElapsed:

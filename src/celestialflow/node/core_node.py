@@ -28,11 +28,7 @@ from ..runtime.util_errors import (
     PersistedError,
     UnconsumedError,
 )
-from ..runtime.util_estimators import (
-    calc_elapsed,
-    calc_remaining,
-    format_avg_time,
-)
+from ..runtime.util_estimators import calc_elapsed
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import format_repr
 from ..runtime.util_types import (
@@ -270,12 +266,6 @@ class BaseTaskNode[T, R, Y]:
         downstream_counts = self.metrics.get_downstream_counts()
 
         elapsed = calc_elapsed(status, self._last_elapsed, self._last_pending, interval)
-        remaining = calc_remaining(
-            counts["tasks_processed"],
-            counts["tasks_pending"],
-            elapsed,
-        )
-        avg_time_str = format_avg_time(elapsed, counts["tasks_processed"])
 
         # 更新缓存供下次快照使用
         self._last_elapsed = elapsed
@@ -289,8 +279,6 @@ class BaseTaskNode[T, R, Y]:
             "status": status,
             "start_time": self.start_time,
             "elapsed_time": elapsed,
-            "remaining_time": remaining,
-            "task_avg_time": avg_time_str,
             **counts,
             "upstream_counts": upstream_counts,
             "downstream_counts": downstream_counts,

@@ -643,22 +643,6 @@ class TestTaskGraphAnalysis:
         assert s3.get_name() in layers[2]
 
 
-class TestTaskGraphRuntimeSnapshot:
-    def test_collect_runtime_snapshot_tolerates_not_started_node(self):
-        """Reporter 在节点尚未启动时采集快照也不应因缺少 start_time 崩溃。"""
-        graph = TaskGraph("test_collect_runtime_snapshot_tolerates_not_started_node")
-        node = TaskExecutor("idle-node", add_one)
-        graph.node_dict = {node.get_name(): node}
-        graph.is_dag = False
-
-        status_dict, _ = graph.collect_runtime_snapshot()
-
-        snapshot = status_dict[node.get_name()]
-        assert snapshot["status"].value == 0
-        assert snapshot["start_time"] == 0.0
-        assert snapshot["elapsed_time"] == 0
-
-
 # =========================
 # graph_mode × execution_mode 矩阵测试
 # =========================
