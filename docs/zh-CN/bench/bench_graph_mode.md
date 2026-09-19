@@ -1,6 +1,6 @@
 # bench_graph_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/19
 
 ## 目标
 
@@ -22,9 +22,9 @@
 - **Reporter**：默认关闭（代码中已注释，可通过取消注释启用）
 
 ### `bench_graph_2`
-- **结构**：4 节点 DAG（Splitter → A → [B, C]），使用 `TaskSplitter` 展开输入
+- **结构**：3 节点 DAG（NodeA → [NodeB, NodeC]），节点直接使用 `TaskExecutor`，不再包 `TaskSplitter`（早期版本含 Splitter，已移除）
 - **任务**：纯计算（加一、乘二），测试框架调度吞吐上限
-- **输入**：`range(10_000)`（经 Splitter 展开为 10,000 个独立任务）
+- **输入**：`range(10_000)` 直接注入 `NodeA`（不经 Splitter 展开）
 
 ## 关键配置
 
@@ -280,6 +280,59 @@ python bench/bench_graph_mode.py
 - 纯计算（bench_graph_2）：`async` 依旧最慢，但 `serial+serial` 与 `thread+serial` 的排序在本轮出现反转，单轮波动大，结论以多轮为准
 
 > 本轮运行环境（Windows）与 2026/08/17 的 macOS 数据不可直接逐列比较。
+
+### 2026/09/19 — node 重构 + bench_graph_2 去 Splitter 后重跑（Windows）
+
+> 环境：Windows，Python 3.14.3，Reporter **未启用**
+> 源码变更：`stage` → `node` 重命名；busy time 改为实测（`metrics.begin_task/end_task`）代替估算；`node.snapshot` → `node.get_snapshot`；reporter 合并 structure+analysis 为 `graph_meta`
+> 脚本变更：`bench_graph_2` 移除 `TaskSplitter`，改为 3 节点 DAG 直接将 `range(10_000)` 注入 `NodeA`
+
+#### `bench_graph_0` — 4 节点 DAG，CPU+I/O 混合，7 个任务
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 7.35s | 2.34s | 2.38s |
+| **thread** | 7.09s | 2.34s | 2.11s |
+| **async**  | 7.08s | 2.24s | 2.11s |
+
+- `serial` 列与上轮持平（~7.1–7.4s），仍由 fibonacci 的 GIL 限制主导
+- `thread` / `async` 列由上轮的 ~1.37–1.41s 上升到 ~2.11–2.38s
+- **关键观察**：该场景中 `sleep_1` 节点有 7 个任务、`max_workers=4`，理论下界为 `ceil(7/4) × 1s ≈ 2s`。本轮数据（~2.1–2.4s）首次与理论下界吻合，上轮的 1.37s 低于该下界——**推断旧版并发路径未能完整处理全部任务（或计时口径有误），本轮数据更可信**
+- `graph_mode` 三行依旧几乎无差异
+
+#### `bench_graph_1` — 6 节点 DAG，I/O 密集（随机 sleep），10 个任务
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 80.05s | 16.03s | 20.13s |
+| **thread** | 30.03s | 8.02s  | 7.04s  |
+| **async**  | 25.02s | 7.02s  | 7.04s  |
+
+- 最优组合仍为 `thread/async` 图模式搭配 `thread/async` 执行模式，聚集在 ~7.0s
+- 相比上轮，多个单元格变慢：`serial+thread` 12→16s、`serial+async` 12→20s、`thread+serial` 20→30s、`async+serial` 21→25s；与 `bench_graph_0` 的“并发路径现在处理更完整”现象一致
+- 随机 sleep（0–2s）导致单轮方差大，趋势（图级/节点级并发均有收益）比绝对值更可靠
+
+#### `bench_graph_2` — 3 节点 DAG（NodeA → [NodeB, NodeC]），纯计算，10,000 个任务
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 2.79s | 3.29s | 5.19s |
+| **thread** | 2.61s | 3.13s | 5.80s |
+| **async**  | 2.58s | 3.17s | 4.74s |
+
+- 去掉 `TaskSplitter` 后全面提速：`serial` 列由上轮的 4.59/2.96/3.05s 降至 2.79/2.61/2.58s
+- 规律回归清晰：`serial` 执行（~2.6–2.8s）< `thread`（~3.1–3.3s）< `async`（~4.7–5.8s）
+- 移除 Splitter 同时消除了两件事：10,000 次展开入队的开销，以及 `TaskSplitter only accepts execution_mode='serial'` 的重复警告
+- 上轮“`thread+serial` 反超 `serial+serial`”的异常已消失，佐证其更可能是环境噪声
+- `graph_mode` 影响仍很小，瓶颈在节点内部任务调度
+
+#### 本轮总结
+
+- `bench_graph_0` 的并发列现在与理论下界吻合（~2s），提示上轮的并发计时/任务处理可能不完整，后续以本轮为基线
+- I/O 密集仍遵循“图级 + 节点级双并发最优”，纯计算仍遵循“`serial` 执行最低开销”
+- 去 Splitter 后 `bench_graph_2` 的矩阵规律更干净，适合作为调度吞吐的回归基线
+
+> 本轮环境（Windows）与 2026/08/17（macOS）数据不可直接逐列比较；与 2026/08/31（Windows）的差异主要来自源码重构与脚本去 Splitter。
 
 ## 依赖
 

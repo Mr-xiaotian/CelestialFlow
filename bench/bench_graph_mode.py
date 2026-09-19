@@ -184,7 +184,7 @@ async def bench_graph_0() -> None:
         async_node1.get_name(): range(25, 32),
     }
 
-    print("bench_graph_0")
+    print("==== bench_graph_0 ====")
     await benchmark_graph(graph, async_graph, input_tasks)
 
 
@@ -227,37 +227,32 @@ async def bench_graph_1() -> None:
         aA.get_name(): range(10),
     }
 
-    print("bench_graph_1")
+    print("==== bench_graph_1 ====")
     await benchmark_graph(graph, async_graph, input_tasks)
 
 
 async def bench_graph_2() -> None:
-    S = TaskSplitter("Splitter")
     A = TaskExecutor("NodeA", add_one, max_workers=20)
     B = TaskExecutor("NodeB", multiply_two, max_workers=20)
     C = TaskExecutor("NodeC", multiply_two, max_workers=20)
 
     graph = TaskGraph("bench_graph_2")
-    graph.set_nodes(nodes=[S, A, B, C])
-    graph.connect([S], [A])
+    graph.set_nodes(nodes=[A, B, C])
     graph.connect([A], [B, C])
 
-    aS = TaskSplitter("Splitter")
     aA = TaskExecutor("NodeA", async_add_one, max_workers=20)
     aB = TaskExecutor("NodeB", async_multiply_two, max_workers=20)
     aC = TaskExecutor("NodeC", async_multiply_two, max_workers=20)
 
     async_graph = TaskGraph("bench_graph_2_async")
-    async_graph.set_nodes(nodes=[aS, aA, aB, aC])
-    async_graph.connect([aS], [aA])
+    async_graph.set_nodes(nodes=[aA, aB, aC])
     async_graph.connect([aA], [aB, aC])
 
     input_tasks = {
-        S.get_name(): [range(10_000)],
-        aS.get_name(): [range(10_000)],
+        "NodeA": range(10_000),
     }
 
-    print("bench_graph_2")
+    print("==== bench_graph_2 ====")
     await benchmark_graph(graph, async_graph, input_tasks)
 
 
