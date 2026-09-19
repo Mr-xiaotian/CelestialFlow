@@ -375,10 +375,10 @@ class TestTaskGraphSnapshotCounts:
 
         graph.run({"src_a": [1, 2], "src_b": [10, 20]})
 
-        merge_snapshot = merge.snapshot()
+        merge_snapshot = merge.get_snapshot()
         assert merge_snapshot["upstream_counts"] == {"src_a": 2, "src_b": 2}
-        assert src_a.snapshot()["downstream_counts"] == {"merge": 2}
-        assert src_b.snapshot()["downstream_counts"] == {"merge": 2}
+        assert src_a.get_snapshot()["downstream_counts"] == {"merge": 2}
+        assert src_b.get_snapshot()["downstream_counts"] == {"merge": 2}
 
     def test_fan_out_downstream_counts(self):
         """fan-out 节点的 downstream_counts 应记录发往每个下游的数量。"""
@@ -392,10 +392,10 @@ class TestTaskGraphSnapshotCounts:
 
         graph.run({"src": [1, 2]})
 
-        src_snapshot = src.snapshot()
+        src_snapshot = src.get_snapshot()
         assert src_snapshot["downstream_counts"] == {"sink_a": 2, "sink_b": 2}
-        assert sink_a.snapshot()["upstream_counts"] == {"src": 2}
-        assert sink_b.snapshot()["upstream_counts"] == {"src": 2}
+        assert sink_a.get_snapshot()["upstream_counts"] == {"src": 2}
+        assert sink_b.get_snapshot()["upstream_counts"] == {"src": 2}
 
     def test_snapshot_restores_processed_and_pending(self):
         """snapshot 应在快照层推导 tasks_processed / tasks_pending。"""
@@ -408,7 +408,7 @@ class TestTaskGraphSnapshotCounts:
 
         graph.run({"src": [1, 2, 3]})
 
-        src_snapshot = src.snapshot()
+        src_snapshot = src.get_snapshot()
         assert src_snapshot["tasks_processed"] == 3
         assert src_snapshot["tasks_pending"] == 0
         assert src_snapshot["tasks_succeeded"] == 3

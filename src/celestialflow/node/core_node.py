@@ -253,7 +253,7 @@ class BaseTaskNode[T, R, Y]:
         获取节点的构建期元信息。
 
         这些字段在 reporter 启动前已冻结，随图结构一次性上报；与每轮采集的
-        :meth:`snapshot` 区分开，避免在状态推送里重复传输。
+        :meth:`get_snapshot` 区分开，避免在状态推送里重复传输。
 
         :return: 包含 ``class_name``、``execution_mode`` 与 ``max_workers`` 的字典
         """
@@ -263,7 +263,7 @@ class BaseTaskNode[T, R, Y]:
             "max_workers": self.max_workers,
         }
 
-    def snapshot(self) -> dict[str, Any]:
+    def get_snapshot(self) -> dict[str, Any]:
         """
         采集当前节点的运行时快照。
 
