@@ -220,7 +220,7 @@ class TaskReporter:
             # 收集最新的任务图状态快照，确保推送的数据是最新的
             status_dict: dict[str, dict[str, Any]] = {}
             for node_name, node in self.task_graph.node_dict.items():
-                status_dict[node_name] = node.snapshot(self.interval)
+                status_dict[node_name] = node.snapshot()
 
             payload: dict[str, Any] = {
                 "graph_id": self.task_graph.get_graph_id(),

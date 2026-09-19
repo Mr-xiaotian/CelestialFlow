@@ -26,7 +26,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
     # ==== 覆写方法 ====
 
     def process_task_success(
-        self, task_envelope: TaskEnvelope[T], result: R, start_time: float
+        self, task_envelope: TaskEnvelope[T], result: R, start_perf: float
     ) -> None:
         """
         统一处理成功任务
@@ -50,7 +50,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
             self.get_name(),
             self._get_repr(task),
             self._get_repr(result),
-            time.perf_counter() - start_time,
+            time.perf_counter() - start_perf,
             task_id,
             result_id,
         )
@@ -87,14 +87,14 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
         self,
         task_envelope: TaskEnvelope[T],
         result: Iterable[RItem],
-        start_time: float,
+        start_perf: float,
     ) -> None:
         """
         统一处理成功任务
 
         :param task_envelope: 完成的任务
         :param result: 任务的结果
-        :param start_time: 任务开始时间
+        :param start_perf: 任务开始时间
         """
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
@@ -110,7 +110,7 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
             self.get_name(),
             self._get_repr(task),
             self._get_repr(result_list),
-            time.perf_counter() - start_time,
+            time.perf_counter() - start_perf,
             task_id,
             result_id,
         )
@@ -145,14 +145,14 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
         self,
         task_envelope: TaskEnvelope[T],
         result: dict[str, Y],
-        start_time: float,
+        start_perf: float,
     ) -> None:
         """
         统一处理成功任务
 
         :param task_envelope: 完成的任务
         :param result: 任务的结果
-        :param start_time: 任务开始时间
+        :param start_perf: 任务开始时间
         :raises InvalidOptionError: 若路由目标未通过 ``connect_to`` 绑定
         """
         unknown = [t for t in result if t not in self.metrics.downstream_counter]
@@ -174,7 +174,7 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
             self.get_name(),
             self._get_repr(task),
             self._get_repr(result),
-            time.perf_counter() - start_time,
+            time.perf_counter() - start_perf,
             task_id,
             result_id,
         )

@@ -28,7 +28,6 @@ from ..runtime.util_errors import (
     PersistedError,
     UnconsumedError,
 )
-from ..runtime.util_estimators import calc_elapsed
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import format_repr
 from ..runtime.util_types import (
@@ -56,8 +55,6 @@ class BaseTaskNode[T, R, Y]:
     # ==== 类级类型注解 ====
 
     _name: str
-    _last_elapsed: float
-    _last_pending: int
     task_queue: TaskInQueue[T]
     yield_queue: TaskOutQueue[Y]
     max_workers: int
@@ -130,8 +127,6 @@ class BaseTaskNode[T, R, Y]:
 
         # 上报器可能会在节点真正启动前先采集一次快照。
         self.start_time = 0.0
-        self._last_elapsed = 0.0
-        self._last_pending = 0
 
     # ==== 观察者 ====
     def add_observer(self, observer: BaseObserver) -> None:
@@ -268,31 +263,22 @@ class BaseTaskNode[T, R, Y]:
             "max_workers": self.max_workers,
         }
 
-    def snapshot(self, interval: float) -> dict[str, Any]:
+    def snapshot(self) -> dict[str, Any]:
         """
         采集当前节点的运行时快照。
 
-        :param interval: 快照采集间隔（秒）
+        忙碌耗时由 :class:`TaskMetrics` 在任务实际执行期间自行累计，
+        因此无需调用方传入快照间隔。
+
         :return: 包含状态、计数、耗时估算等信息的快照字典
         """
-        status = self.metrics.get_status()
-        counts = self.metrics.get_counts()
-        upstream_counts = self.metrics.get_upstream_counts()
-        downstream_counts = self.metrics.get_downstream_counts()
-
-        elapsed = calc_elapsed(status, self._last_elapsed, self._last_pending, interval)
-
-        # 更新缓存供下次快照使用
-        self._last_elapsed = elapsed
-        self._last_pending = int(counts["tasks_pending"] or 0)
-
         return {
             "start_time": self.start_time,
-            "status": status,
-            "elapsed_time": elapsed,
-            **counts,
-            "upstream_counts": upstream_counts,
-            "downstream_counts": downstream_counts,
+            "status": self.metrics.get_status(),
+            "elapsed_time": self.metrics.get_elapsed(),
+            **self.metrics.get_counts(),
+            "upstream_counts": self.metrics.get_upstream_counts(),
+            "downstream_counts": self.metrics.get_downstream_counts(),
         }
 
     # ==== 绑定 ====
@@ -369,14 +355,14 @@ class BaseTaskNode[T, R, Y]:
     # ==== 结果处理 ====
 
     def process_task_success(
-        self, task_envelope: TaskEnvelope[T], result: R, start_time: float
+        self, task_envelope: TaskEnvelope[T], result: R, start_perf: float
     ) -> None:
         """
         统一处理成功任务
 
         :param task_envelope: 完成的任务
         :param result: 任务的结果
-        :param start_time: 任务开始时间
+        :param start_perf: 任务开始时间
         """
         raise NotImplementedError
 

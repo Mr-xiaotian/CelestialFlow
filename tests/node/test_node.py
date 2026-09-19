@@ -62,7 +62,7 @@ class TestBaseTaskNodeConfig:
             execution_mode="thread",
         )
 
-        snapshot = node.snapshot(interval=0.1)
+        snapshot = node.snapshot()
 
         for field in ("name", "class_name", "execution_mode", "max_workers"):
             assert field not in snapshot
@@ -81,7 +81,7 @@ class TestBaseTaskNodeConfig:
         """Reporter 在节点尚未启动时采集快照也不应因缺少 start_time 崩溃。"""
         node = TaskExecutor("IdleNode", add_one)
 
-        snapshot = node.snapshot(interval=0.1)
+        snapshot = node.snapshot()
 
         assert snapshot["status"].value == 0
         assert snapshot["start_time"] == 0.0

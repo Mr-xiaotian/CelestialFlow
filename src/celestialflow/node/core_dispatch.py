@@ -118,16 +118,17 @@ class TaskDispatch[T, R, Y]:
 
         :param task_envelope: 包含任务信息的信封
         """
+        self.task_node.metrics.begin_task()
         try:
             task: T = task_envelope.get_task()
             max_retries: int = self.task_node.max_retries
 
             for fail_times in range(1, max_retries + 2):
                 try:
-                    start_time = time.perf_counter()
+                    start_perf = time.perf_counter()
                     result: R = self._call_sync(task)
                     self.task_node.process_task_success(
-                        task_envelope, result, start_time
+                        task_envelope, result, start_perf
                     )
                     return
                 except Exception as exception:
@@ -143,22 +144,26 @@ class TaskDispatch[T, R, Y]:
         except Exception as e:
             get_log_inlet().worker_crash(e)
 
+        finally:
+            self.task_node.metrics.end_task()
+
     async def _async_worker(self, task_envelope: TaskEnvelope[T]) -> None:
         """
         异步执行单个任务（计时、成功/失败处理）
 
         :param task_envelope: 包含任务信息的信封
         """
+        self.task_node.metrics.begin_task()
         try:
             task: T = task_envelope.get_task()
             max_retries: int = self.task_node.max_retries
 
             for fail_times in range(1, max_retries + 2):
                 try:
-                    start_time = time.perf_counter()
+                    start_perf = time.perf_counter()
                     result: R = await self._call_async(task)
                     self.task_node.process_task_success(
-                        task_envelope, result, start_time
+                        task_envelope, result, start_perf
                     )
                     return
                 except Exception as exception:
@@ -172,6 +177,9 @@ class TaskDispatch[T, R, Y]:
 
         except Exception as e:
             get_log_inlet().worker_crash(e)
+
+        finally:
+            self.task_node.metrics.end_task()
 
     # ==== 调度 ====
     def dispatch_serial(self) -> None:

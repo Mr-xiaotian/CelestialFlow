@@ -1,6 +1,7 @@
 # runtime/core_metrics.py
 from __future__ import annotations
 
+import time
 from threading import Lock
 from typing import TYPE_CHECKING
 
@@ -29,6 +30,9 @@ class TaskMetrics:
     upstream_counter: dict[str, ValueWrapper]
     downstream_counter: dict[str, ValueWrapper]
     processed_set: set[bytes]
+    busy_seconds: float        # 已闭合的忙碌时间片之和
+    _in_flight: int            # 正在执行的任务数
+    _busy_since: float | None  # 当前时间片起点
 
     # ==== 初始化 ====
 
@@ -45,6 +49,9 @@ class TaskMetrics:
         self.retry_exceptions = ()
         self._observers: list[BaseObserver] = []
         self._status = int(StageStatus.NOT_STARTED)
+        self.busy_seconds = 0.0
+        self._in_flight = 0
+        self._busy_since = None
 
         self.lock = Lock()
         self._init_counter()
@@ -393,3 +400,27 @@ class TaskMetrics:
     def get_status(self) -> StageStatus:
         """读取当前状态（返回 StageStatus 枚举）。"""
         return StageStatus(self._status)
+
+    # ==== 消耗时间 ====
+
+    def begin_task(self) -> None:
+        """一个任务开始实际执行。"""
+        with self.lock:
+            self._in_flight += 1
+            if self._in_flight == 1:  # 0 → 1：节点从闲变忙
+                self._busy_since = time.perf_counter()
+
+    def end_task(self) -> None:
+        """一个任务执行结束（含重试全部结束）。"""
+        with self.lock:
+            self._in_flight -= 1
+            if self._in_flight == 0 and self._busy_since is not None:  # 1 → 0：节点从忙变闲
+                self.busy_seconds += time.perf_counter() - self._busy_since
+                self._busy_since = None
+
+    def get_elapsed(self) -> float:
+        """累计忙碌墙钟时间（秒），含当前尚未闭合的时间片。"""
+        with self.lock:
+            if self._busy_since is None:
+                return self.busy_seconds
+            return self.busy_seconds + time.perf_counter() - self._busy_since
