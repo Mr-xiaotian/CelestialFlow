@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 
+from celestialflow import TaskExecutor, TaskGraph
 from celestialflow.observability import TaskReporter
 from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_types import TERMINATION_SIGNAL
@@ -300,3 +301,51 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(
     assert url.endswith("/api/push_errors")
     assert payload["graph_id"] == "demo@1000"
     assert [item["event_id"] for item in payload["errors"]] == [5, 7]
+
+
+def test_reporter_splits_build_time_meta_from_status_pushes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """构建期元信息随结构一次性推送，状态推送只含运行期字段，两者互不相交。"""
+
+    def identity(value: int) -> int:
+        """测试用恒等函数。"""
+        return value
+
+    source = TaskExecutor("StageA", identity, execution_mode="thread", max_workers=3)
+    sink = TaskExecutor("StageB", identity)
+
+    graph = TaskGraph("split_build_time_meta")
+    graph.set_nodes(nodes=[source, sink])
+    graph.connect([source], [sink])
+
+    log_inlet = FakeLogInlet()
+    monkeypatch.setattr(
+        "celestialflow.observability.core_report.get_log_inlet",
+        lambda: log_inlet,
+    )
+    reporter = TaskReporter("127.0.0.1", 8000, graph)
+    reporter._session = FakePushSession()
+
+    reporter._push_structure()
+    reporter._push_status()
+
+    assert len(reporter._session.posts) == 2
+    structure_url, structure_payload, _timeout = reporter._session.posts[0]
+    status_url, status_payload, _timeout = reporter._session.posts[1]
+    assert structure_url.endswith("/api/push_structure")
+    assert status_url.endswith("/api/push_status")
+
+    meta = structure_payload["node_meta"]
+    assert set(meta) == {"StageA", "StageB"}
+    assert meta["StageA"] == {
+        "class_name": "TaskExecutor",
+        "execution_mode": "thread",
+        "max_workers": 3,
+    }
+    assert meta["StageB"]["class_name"] == "TaskExecutor"
+    assert meta["StageB"]["execution_mode"] == "serial"
+
+    # 两份 payload 必须职责互斥：状态里不得重复任何构建期字段。
+    for node_name, node_status in status_payload["status"].items():
+        assert set(node_status).isdisjoint(meta[node_name])

@@ -565,6 +565,22 @@ class TestTaskGraphStructure:
         assert grid[1][1].metrics.get_counts()["tasks_succeeded"] == 4
 
 class TestTaskGraphAnalysis:
+    def test_get_node_meta_covers_all_nodes(self):
+        """get_node_meta 应为每个节点给出构建期元信息。"""
+        s1 = TaskExecutor("s1", add_one, execution_mode="thread")
+        s2 = TaskExecutor("s2", double)
+
+        graph = TaskGraph("test_get_node_meta_covers_all_nodes")
+        graph.set_nodes(nodes=[s1, s2])
+        graph.connect([s1], [s2])
+
+        meta = graph.get_node_meta()
+
+        assert set(meta) == {"s1", "s2"}
+        assert meta["s1"]["execution_mode"] == "thread"
+        assert meta["s2"]["execution_mode"] == "serial"
+        assert all(entry["class_name"] == "TaskExecutor" for entry in meta.values())
+
     def test_getters_build_analysis_on_demand(self):
         """分析与结构 getter 在未显式 build 时也应可直接使用。"""
         s1 = TaskExecutor("s1", add_one)

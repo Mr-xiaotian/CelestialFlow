@@ -54,8 +54,8 @@ class TestBaseTaskNodeConfig:
         with pytest.raises(InvalidOptionError):
             TaskExecutor("AddOneInvalidExecMode", add_one, execution_mode="invalid")
 
-    def test_snapshot_contains_execution_mode(self) -> None:
-        """快照应暴露当前执行模式。"""
+    def test_snapshot_excludes_build_time_fields(self) -> None:
+        """构建期不变量应只随 ``get_meta`` 上报，不再进每轮快照。"""
         node = TaskExecutor(
             "AddOneThreadExec",
             add_one,
@@ -64,7 +64,18 @@ class TestBaseTaskNodeConfig:
 
         snapshot = node.snapshot(interval=0.1)
 
-        assert snapshot["execution_mode"] == "thread"
+        for field in ("name", "class_name", "execution_mode", "max_workers"):
+            assert field not in snapshot
+
+    def test_get_meta_reports_build_time_fields(self) -> None:
+        """get_meta 应只含构建期元信息。"""
+        node = TaskExecutor("MetaNode", add_one, execution_mode="thread", max_workers=7)
+
+        assert node.get_meta() == {
+            "class_name": "TaskExecutor",
+            "execution_mode": "thread",
+            "max_workers": 7,
+        }
 
     def test_snapshot_tolerates_not_started_node(self) -> None:
         """Reporter 在节点尚未启动时采集快照也不应因缺少 start_time 崩溃。"""

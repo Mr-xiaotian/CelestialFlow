@@ -248,6 +248,7 @@ class TaskReporter:
                 "nodes": self.task_graph.get_nodes(),
                 "edges": self.task_graph.get_edges(),
                 "source_nodes": self.task_graph.get_source_nodes(),
+                "node_meta": self.task_graph.get_node_meta(),
             }
             res = self._session.post(
                 f"{self.base_url}/api/push_structure",
@@ -263,10 +264,9 @@ class TaskReporter:
     def _push_analysis(self) -> None:
         """推送分析信息"""
         try:
-            analysis: dict[str, Any] = self.task_graph.get_graph_analysis()
             payload: dict[str, Any] = {
                 "graph_id": self.task_graph.get_graph_id(),
-                "analysis": analysis,
+                "analysis": self.task_graph.get_graph_analysis(),
             }
             res = self._session.post(
                 f"{self.base_url}/api/push_analysis",

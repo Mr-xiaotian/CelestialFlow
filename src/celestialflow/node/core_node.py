@@ -253,6 +253,21 @@ class BaseTaskNode[T, R, Y]:
             return Path()
         return Path(db_path).resolve()
 
+    def get_meta(self) -> dict[str, Any]:
+        """
+        获取节点的构建期元信息。
+
+        这些字段在 reporter 启动前已冻结，随图结构一次性上报；与每轮采集的
+        :meth:`snapshot` 区分开，避免在状态推送里重复传输。
+
+        :return: 包含 ``class_name``、``execution_mode`` 与 ``max_workers`` 的字典
+        """
+        return {
+            "class_name": self._get_class_name(),
+            "execution_mode": self.execution_mode,
+            "max_workers": self.max_workers,
+        }
+
     def snapshot(self, interval: float) -> dict[str, Any]:
         """
         采集当前节点的运行时快照。
@@ -272,12 +287,8 @@ class BaseTaskNode[T, R, Y]:
         self._last_pending = int(counts["tasks_pending"] or 0)
 
         return {
-            "name": self.get_name(),
-            "class_name": self._get_class_name(),
-            "execution_mode": self.execution_mode,
-            "max_workers": self.max_workers,
-            "status": status,
             "start_time": self.start_time,
+            "status": status,
             "elapsed_time": elapsed,
             **counts,
             "upstream_counts": upstream_counts,

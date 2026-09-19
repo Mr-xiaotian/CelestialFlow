@@ -529,6 +529,18 @@ class TaskGraph:
         """
         return self.order_graph.out_edges
 
+    def get_node_meta(self) -> dict[str, dict[str, Any]]:
+        """
+        获取各节点的构建期元信息。
+
+        这些字段在 reporter 启动前已冻结，因此随图结构一次性上报，不进每轮状态推送。
+
+        :return: ``{node_name: {"class_name": ..., "execution_mode": ..., "max_workers": ...}}``
+        """
+        return {
+            node_name: node.get_meta() for node_name, node in self.node_dict.items()
+        }
+
     def get_source_nodes(self) -> list[str]:
         """
         获取源节点列表
