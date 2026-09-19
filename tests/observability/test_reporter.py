@@ -303,10 +303,10 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(
     assert [item["event_id"] for item in payload["errors"]] == [5, 7]
 
 
-def test_reporter_splits_build_time_meta_from_status_pushes(
+def test_reporter_pushes_graph_meta_in_one_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """构建期元信息随结构一次性推送，状态推送只含运行期字段，两者互不相交。"""
+    """图结构、节点元信息与分析结果随单次 push_graph_meta 推送，状态推送与它们互不相交。"""
 
     def identity(value: int) -> int:
         """测试用恒等函数。"""
@@ -315,7 +315,7 @@ def test_reporter_splits_build_time_meta_from_status_pushes(
     source = TaskExecutor("StageA", identity, execution_mode="thread", max_workers=3)
     sink = TaskExecutor("StageB", identity)
 
-    graph = TaskGraph("split_build_time_meta")
+    graph = TaskGraph("push_graph_meta")
     graph.set_nodes(nodes=[source, sink])
     graph.connect([source], [sink])
 
@@ -327,16 +327,21 @@ def test_reporter_splits_build_time_meta_from_status_pushes(
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
 
-    reporter._push_structure()
+    reporter._push_graph_meta()
     reporter._push_status()
 
     assert len(reporter._session.posts) == 2
-    structure_url, structure_payload, _timeout = reporter._session.posts[0]
+    meta_url, meta_payload, _timeout = reporter._session.posts[0]
     status_url, status_payload, _timeout = reporter._session.posts[1]
-    assert structure_url.endswith("/api/push_structure")
+    assert meta_url.endswith("/api/push_graph_meta")
     assert status_url.endswith("/api/push_status")
 
-    meta = structure_payload["node_meta"]
+    # 图级与节点级元信息在同一次请求中一并到达，不存在半初始化窗口。
+    assert meta_payload["nodes"] == ["StageA", "StageB"]
+    assert meta_payload["analysis"]["graphId"] == graph.get_graph_id()
+    assert meta_payload["analysis"]["layersDict"]
+
+    meta = meta_payload["node_meta"]
     assert set(meta) == {"StageA", "StageB"}
     assert meta["StageA"] == {
         "class_name": "TaskExecutor",

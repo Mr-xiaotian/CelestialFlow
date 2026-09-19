@@ -59,8 +59,7 @@ class TaskReporter:
         self._thread: Thread | None = None
         self._session: requests.Session = requests.Session()
         self._server_has_current_graph: bool = False
-        self._server_has_structure: bool = False
-        self._server_has_analysis: bool = False
+        self._server_has_graph_meta: bool = False
         self._server_max_event_id_in_fail: int | None = None
 
         self.interval: int = 5
@@ -112,10 +111,10 @@ class TaskReporter:
             self._pull_injection()
 
             # 推送逻辑
-            if (not self._server_has_current_graph) or (not self._server_has_structure):
-                self._push_structure()
-            if (not self._server_has_current_graph) or (not self._server_has_analysis):
-                self._push_analysis()
+            if (not self._server_has_current_graph) or (
+                not self._server_has_graph_meta
+            ):
+                self._push_graph_meta()
             self._push_status()
             self._push_errors()
         except Exception as e:
@@ -139,8 +138,7 @@ class TaskReporter:
             self._server_has_current_graph = bool(
                 payload.get("is_current_graph", False)
             )
-            self._server_has_structure = bool(payload.get("has_structure", False))
-            self._server_has_analysis = bool(payload.get("has_analysis", False))
+            self._server_has_graph_meta = bool(payload.get("has_graph_meta", False))
             max_event_id = payload.get("max_event_id_in_fail")
             self._server_max_event_id_in_fail = (
                 None if max_event_id is None else int(max_event_id)
@@ -240,8 +238,8 @@ class TaskReporter:
         except Exception as e:
             self.log_inlet.push_status_failed(e)
 
-    def _push_structure(self) -> None:
-        """推送结构信息"""
+    def _push_graph_meta(self) -> None:
+        """推送图结构、节点元信息与图分析结果"""
         try:
             payload: dict[str, Any] = {
                 "graph_id": self.task_graph.get_graph_id(),
@@ -249,35 +247,18 @@ class TaskReporter:
                 "edges": self.task_graph.get_edges(),
                 "source_nodes": self.task_graph.get_source_nodes(),
                 "node_meta": self.task_graph.get_node_meta(),
-            }
-            res = self._session.post(
-                f"{self.base_url}/api/push_structure",
-                json=payload,
-                timeout=self._push_timeout(),
-            )
-            if not res.ok:
-                raise ReporterError(f"Failed to push structure: {res.status_code}")
-
-        except Exception as e:
-            self.log_inlet.push_structure_failed(e)
-
-    def _push_analysis(self) -> None:
-        """推送分析信息"""
-        try:
-            payload: dict[str, Any] = {
-                "graph_id": self.task_graph.get_graph_id(),
                 "analysis": self.task_graph.get_graph_analysis(),
             }
             res = self._session.post(
-                f"{self.base_url}/api/push_analysis",
+                f"{self.base_url}/api/push_graph_meta",
                 json=payload,
                 timeout=self._push_timeout(),
             )
             if not res.ok:
-                raise ReporterError(f"Failed to push analysis: {res.status_code}")
+                raise ReporterError(f"Failed to push graph meta: {res.status_code}")
 
         except Exception as e:
-            self.log_inlet.push_analysis_failed(e)
+            self.log_inlet.push_graph_meta_failed(e)
 
 
 class NullTaskReporter:

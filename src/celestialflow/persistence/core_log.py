@@ -411,26 +411,15 @@ class LogInlet(BaseInlet):
             f"[Reporter] Push 'status' failed: {type(exception).__name__}({exception}).",
         )
 
-    def push_structure_failed(self, exception: Exception) -> None:
+    def push_graph_meta_failed(self, exception: Exception) -> None:
         """
-        记录推送结构信息失败
+        记录推送图元信息失败
 
         :param exception: 推送时发生的异常
         """
         self._log(
             "WARNING",
-            f"[Reporter] Push 'structure' failed: {type(exception).__name__}({exception}).",
-        )
-
-    def push_analysis_failed(self, exception: Exception) -> None:
-        """
-        记录推送分析信息失败
-
-        :param exception: 推送时发生的异常
-        """
-        self._log(
-            "WARNING",
-            f"[Reporter] Push 'analysis' failed: {type(exception).__name__}({exception}).",
+            f"[Reporter] Push 'graph_meta' failed: {type(exception).__name__}({exception}).",
         )
 
 
