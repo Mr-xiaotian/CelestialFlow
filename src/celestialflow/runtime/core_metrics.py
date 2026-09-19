@@ -73,20 +73,6 @@ class TaskMetrics:
 
     # ==== 重置 ====
 
-    def reset_counter(self) -> None:
-        """
-        重置计数器
-        """
-        # 重置所有计数器
-        self.external_input_counter.reset()
-        self.success_counter.reset()
-        self.fail_counter.reset()
-        self.duplicate_counter.reset()
-        for counter in self.upstream_counter.values():
-            counter.reset()
-        for counter in self.downstream_counter.values():
-            counter.reset()
-
     def reset_state(self) -> None:
         """
         重置统计状态

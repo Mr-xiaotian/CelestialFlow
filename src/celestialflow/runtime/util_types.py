@@ -94,11 +94,6 @@ class ValueWrapper:
         with self.get_lock():
             return self.value
 
-    def reset(self) -> None:
-        """重置值为 0"""
-        with self.get_lock():
-            self.value = 0
-
 
 class StageStatus(IntEnum):
     """Stage 生命周期状态枚举。"""

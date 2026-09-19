@@ -97,14 +97,6 @@ class TestTaskMetricsBasic:
         metrics.add_success_count(2)
         assert metrics.is_tasks_finished() is False
 
-    def test_reset_counter(self):
-        """测试计数器重置功能：所有累加指标应归零"""
-        metrics = TaskMetrics()
-        metrics.add_external_input_count(10)
-        metrics.add_success_count(5)
-        metrics.reset_counter()
-        assert metrics.get_input_count() == 0
-        assert metrics.get_success_count() == 0
 
 class TestTaskMetricsBinding:
     """覆盖上游/下游绑定计数器（``connect_to`` 建立的计数关联）。"""
@@ -138,20 +130,6 @@ class TestTaskMetricsBinding:
         metrics = TaskMetrics()
         with pytest.raises(KeyError):
             metrics.add_downstream_count("ghost")
-
-    def test_reset_counter_clears_binding_counters(self):
-        """``reset_counter`` 应重置上游/下游绑定计数器。"""
-        prev_metrics = TaskMetrics()
-        curr_metrics = TaskMetrics()
-        counter = ValueWrapper(value=0)
-        prev_metrics.set_downstream_counter("current", counter)
-        curr_metrics.set_upstream_counter("prev", counter)
-
-        prev_metrics.add_downstream_count("current", 5)
-        curr_metrics.reset_counter()
-
-        assert curr_metrics.get_input_count() == 0
-        assert counter.get() == 0
 
     def test_get_upstream_counts(self):
         """``get_upstream_counts`` 应返回各上游到当前节点的数量映射。"""
