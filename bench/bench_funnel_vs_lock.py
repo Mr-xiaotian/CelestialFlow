@@ -63,7 +63,7 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from celestialflow.funnel import BaseInlet, BaseSpout
-from celestialflow.runtime.util_types import ValueWrapper
+from celestialflow.runtime.util_types import NoOpContext, ValueWrapper
 
 PENDING_SAMPLE_INTERVAL = 0.0005
 """采样队列积压的间隔（秒）。受平台定时器精度限制，peak_pending 是真实峰值下界。"""
@@ -209,7 +209,9 @@ def run_value_wrapper_scenario(
     :return: 本次运行结果
     :rtype: ScenarioResult
     """
-    counter = ValueWrapper(value=0, lock=threading.Lock() if use_lock else None)
+    counter = ValueWrapper(
+        value=0, lock=threading.Lock() if use_lock else NoOpContext()
+    )
     chunks = split_evenly(items, producers)
     stop_readers = threading.Event()
     reader_ops = [0] * readers
@@ -281,7 +283,7 @@ def run_sharded_scenario(
     :rtype: ScenarioResult
     """
     chunks = split_evenly(items, producers)
-    counters = [ValueWrapper(value=0) for _ in range(producers)]
+    counters = [ValueWrapper(value=0, lock=NoOpContext()) for _ in range(producers)]
 
     def produce(index: int, count: int) -> None:
         counter = counters[index]

@@ -112,11 +112,22 @@ class TestUtilTypes:
         v = ValueWrapper(0, lock=lock)
         assert v.get_lock() is lock
 
-    def test_value_wrapper_get_lock_returns_noop(self):
-        """不传 Lock 时 get_lock 返回 NoOpContext"""
+    def test_value_wrapper_defaults_to_real_lock(self):
+        """不传 Lock 时 get_lock 返回自建的真实锁"""
         v = ValueWrapper(0)
-        lock = v.get_lock()
-        assert isinstance(lock, NoOpContext)
+        assert isinstance(v.get_lock(), threading.Lock)
+
+    def test_value_wrapper_default_locks_are_independent(self):
+        """每个 ValueWrapper 自建的锁互相独立，不跨实例共享"""
+        assert ValueWrapper(0).get_lock() is not ValueWrapper(0).get_lock()
+
+    def test_value_wrapper_accepts_noop_context_to_disable_locking(self):
+        """显式传入 NoOpContext 时 get_lock 返回该实例，读写不加锁"""
+        noop = NoOpContext()
+        v = ValueWrapper(0, lock=noop)
+        assert v.get_lock() is noop
+        v.add(3)
+        assert v.get() == 3
 
     def test_value_wrapper_negative_value(self):
         """负数值边界"""

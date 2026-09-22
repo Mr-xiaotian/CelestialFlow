@@ -64,7 +64,7 @@ class NoOpContext:
 
 
 class ValueWrapper:
-    """线程内/单进程的计数器包装，可选线程锁。"""
+    """线程内/单进程的计数器包装，默认自建线程锁，可显式关闭加锁。"""
 
     value: int
     _lock: Lock | NoOpContext
@@ -74,14 +74,15 @@ class ValueWrapper:
         初始化值包装器。
 
         :param value: 初始值
-        :param lock: 可选的线程锁，默认 None
-        :note: 如果 lock 为 None，则使用 NoOpContext 作为默认锁
+        :param lock: 可选的线程锁，默认 None 表示自建一把锁；
+            传入已存在的 Lock 可让多个计数器共用同一把锁；
+            显式传入 NoOpContext 则关闭加锁（仅适用于单线程访问）
         """
         self.value = value
-        self._lock = lock or NoOpContext()
+        self._lock = lock if lock is not None else Lock()
 
     def get_lock(self) -> Lock | NoOpContext:
-        """获取锁对象，无锁时返回空上下文"""
+        """获取锁对象，关闭加锁时返回 NoOpContext"""
         return self._lock
 
     def add(self, value: int) -> None:
