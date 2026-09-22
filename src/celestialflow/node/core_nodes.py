@@ -105,6 +105,7 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
         )
 
         self.metrics.add_success_count()
+
         get_lifecycle_inlet().task_success(task_id, result_list)
         get_log_inlet().task_success(
             self.get_name(),
@@ -169,6 +170,7 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
         )
 
         self.metrics.add_success_count()
+
         get_lifecycle_inlet().task_success(task_id, task)
         get_log_inlet().task_success(
             self.get_name(),

@@ -63,7 +63,6 @@ class TaskReporter:
         self._server_max_event_id_in_fail: int | None = None
 
         self.interval: int = 5
-        self.history_limit: int = 20
 
     def start(self) -> None:
         """启动上报器线程"""
@@ -265,7 +264,6 @@ class NullTaskReporter:
     """空实现的任务上报器，用于关闭上报功能时的占位对象。"""
 
     interval: int = 1
-    history_limit: int = 20
 
     def start(self) -> None:
         """启动上报器线程"""

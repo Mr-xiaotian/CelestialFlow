@@ -473,13 +473,14 @@ class BaseTaskNode[T, R, Y]:
         """
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
-
-        self.metrics.add_duplicate_count()
-        get_lifecycle_inlet().task_duplicate(task_id)
         duplicate_id = self.ctree_client.emit(
             CTreeEvent.TASK_DUPLICATE,
             parents=[task_id],
         )
+
+        self.metrics.add_duplicate_count()
+
+        get_lifecycle_inlet().task_duplicate(task_id)
         get_log_inlet().task_duplicate(
             self.get_name(),
             self._get_repr(task),
