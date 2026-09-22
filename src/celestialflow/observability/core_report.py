@@ -33,6 +33,7 @@ class TaskReporter:
 
     - 定时从服务器拉取配置（如上报间隔、任务注入信息）
     - 将任务图中的状态、错误、结构、拓扑等信息推送到后端接口
+    - 状态推送带变化门控：仅当节点快照较上次成功推送发生变化时才发送
     - 以后台线程方式运行，通常由任务图生命周期统一管理启停
     - 主要用于可视化监控、任务远程控制与外部服务同步
     """
@@ -61,6 +62,7 @@ class TaskReporter:
         self._server_has_current_graph: bool = False
         self._server_has_graph_meta: bool = False
         self._server_max_event_id_in_fail: int | None = None
+        self._last_status_dict: dict[str, dict[str, Any]] | None = None
 
         self.interval: int = 5
 
@@ -214,12 +216,22 @@ class TaskReporter:
             self.log_inlet.push_errors_failed(e)
 
     def _push_status(self) -> None:
-        """推送状态信息"""
+        """
+        推送状态信息。
+
+        门控：仅当节点快照较上次成功推送发生变化时才发送请求。
+
+        时间戳不参与比较（每轮必然不同），比较对象是逐节点采集的快照本身；
+        服务端刚切换上下文时其状态缓存已被清空，此时无论快照是否相同都强制推送一次。
+        """
         try:
             # 收集最新的任务图状态快照，确保推送的数据是最新的
             status_dict: dict[str, dict[str, Any]] = {}
             for node_name, node in self.task_graph.node_dict.items():
                 status_dict[node_name] = node.get_snapshot()
+
+            if self._server_has_current_graph and status_dict == self._last_status_dict:
+                return
 
             payload: dict[str, Any] = {
                 "graph_id": self.task_graph.get_graph_id(),
@@ -233,6 +245,8 @@ class TaskReporter:
             )
             if not res.ok:
                 raise ReporterError(f"Failed to push status: {res.status_code}")
+
+            self._last_status_dict = status_dict
 
         except Exception as e:
             self.log_inlet.push_status_failed(e)

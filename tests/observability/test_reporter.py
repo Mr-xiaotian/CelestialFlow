@@ -107,6 +107,7 @@ class FakeLogInlet:
         self.failures: list[tuple[str, list[Any], Exception]] = []
         self.pull_failures: list[Exception] = []
         self.push_error_failures: list[Exception] = []
+        self.push_status_failures: list[Exception] = []
 
     def inject_tasks_success(self, target_node: str, task_datas: list[Any]) -> None:
         """记录节点注入成功。"""
@@ -125,6 +126,35 @@ class FakeLogInlet:
     def push_errors_failed(self, error: Exception) -> None:
         """记录错误推送失败。"""
         self.push_error_failures.append(error)
+
+    def push_status_failed(self, error: Exception) -> None:
+        """记录状态推送失败。"""
+        self.push_status_failures.append(error)
+
+
+class FakeStatusNode:
+    """提供可手动变更快照的节点。"""
+
+    def __init__(self, snapshot: dict[str, Any]) -> None:
+        self.snapshot = snapshot
+
+    def get_snapshot(self) -> dict[str, Any]:
+        """返回当前快照的浅拷贝。"""
+        return dict(self.snapshot)
+
+
+class FakeStatusGraph:
+    """提供 reporter 推送状态所需的最小图接口。"""
+
+    def __init__(self, snapshot: dict[str, Any] | None = None) -> None:
+        self.node_dict: dict[str, FakeStatusNode] = {
+            "StageA": FakeStatusNode(snapshot or {"status": 0, "tasks_processed": 0})
+        }
+        self._graph_id = "demo@status"
+
+    def get_graph_id(self) -> str:
+        """返回当前 graph_id。"""
+        return self._graph_id
 
 
 def test_reporter_accepts_split_task_and_termination_payload(
@@ -354,3 +384,61 @@ def test_reporter_pushes_graph_meta_in_one_request(
     # 两份 payload 必须职责互斥：状态里不得重复任何构建期字段。
     for node_name, node_status in status_payload["status"].items():
         assert set(node_status).isdisjoint(meta[node_name])
+
+
+def test_reporter_pushes_status_only_when_snapshot_changes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """状态快照未变时不应重复推送，变化后才推送新快照。"""
+    graph = FakeStatusGraph()
+    log_inlet = FakeLogInlet()
+    monkeypatch.setattr(
+        "celestialflow.observability.core_report.get_log_inlet",
+        lambda: log_inlet,
+    )
+    reporter = TaskReporter("127.0.0.1", 8000, graph)
+    reporter._session = FakePushSession()
+    reporter._server_has_current_graph = True
+
+    reporter._push_status()
+    reporter._push_status()
+
+    assert log_inlet.push_status_failures == []
+    assert len(reporter._session.posts) == 1
+
+    graph.node_dict["StageA"].snapshot = {"status": 1, "tasks_processed": 3}
+    reporter._push_status()
+
+    assert len(reporter._session.posts) == 2
+    url, payload, _timeout = reporter._session.posts[1]
+    assert url.endswith("/api/push_status")
+    assert payload["status"]["StageA"] == {"status": 1, "tasks_processed": 3}
+
+    # 变化推送后再次采集相同快照，应重新回到静默。
+    reporter._push_status()
+    assert len(reporter._session.posts) == 2
+
+
+def test_reporter_forces_status_push_on_context_switch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """服务端刚切换图上下文时，即使快照未变也必须强制推送一次。"""
+    graph = FakeStatusGraph()
+    log_inlet = FakeLogInlet()
+    monkeypatch.setattr(
+        "celestialflow.observability.core_report.get_log_inlet",
+        lambda: log_inlet,
+    )
+    reporter = TaskReporter("127.0.0.1", 8000, graph)
+    reporter._session = FakePushSession()
+    reporter._server_has_current_graph = True
+
+    reporter._push_status()
+    assert len(reporter._session.posts) == 1
+
+    # 服务端刚切换到本图（缓存被清空），此时 is_current_graph 返回 False。
+    reporter._server_has_current_graph = False
+    reporter._push_status()
+
+    assert log_inlet.push_status_failures == []
+    assert len(reporter._session.posts) == 2
