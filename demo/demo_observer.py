@@ -3,22 +3,23 @@ from typing import Any
 from demo_utils import fibonacci
 from tqdm import tqdm
 
-from celestialflow import BaseObserver, TaskExecutor
+from celestialflow import BaseObserver, PrintObserver, TaskExecutor
 
 
 class TaskProgress(BaseObserver):
     """基于 tqdm 的进度条观察者"""
 
-    _bar: tqdm[Any]
+    _bar: tqdm[Any] | None
+    _total: int
 
-    def on_start(self, name: str, total: int) -> None:
-        """
-        初始化进度条
+    def __init__(self) -> None:
+        """初始化进度条观察者，进度条延迟到 on_start 时创建"""
+        self._bar = None
+        self._total = 0
 
-        :param name: 进度条标题
-        :param total: 任务总数
-        """
-        self._bar = tqdm(total=total, desc=name)
+    def on_start(self) -> None:
+        """创建进度条，总量取启动前已注入的任务数"""
+        self._bar = tqdm(total=self._total)
 
     def on_task_success(self, count: int = 1) -> None:
         """
@@ -26,7 +27,7 @@ class TaskProgress(BaseObserver):
 
         :param count: 成功任务数量，默认 1
         """
-        _ = self._bar.update(count)
+        self._advance(count)
 
     def on_task_fail(self, count: int = 1) -> None:
         """
@@ -34,7 +35,7 @@ class TaskProgress(BaseObserver):
 
         :param count: 失败任务数量，默认 1
         """
-        _ = self._bar.update(count)
+        self._advance(count)
 
     def on_task_duplicate(self, count: int = 1) -> None:
         """
@@ -42,88 +43,34 @@ class TaskProgress(BaseObserver):
 
         :param count: 重复任务数量，默认 1
         """
-        _ = self._bar.update(count)
+        self._advance(count)
 
-    def on_tasks_added(self, count: int) -> None:
+    def on_task_added(self, count: int) -> None:
         """
         扩增进度条总量
 
+        该回调可能先于 ``on_start`` 到达，此时仅累加总量，待进度条创建后一并应用。
+
         :param count: 新增任务数量
         """
-        if count:
+        self._total += count
+        if self._bar is not None:
             self._bar.total += count
             self._bar.refresh()
 
     def on_finish(self) -> None:
         """关闭进度条"""
-        self._bar.close()
+        if self._bar is not None:
+            self._bar.close()
 
-
-class PrintObserver(BaseObserver):
-    """基于日志输出的观察者，将任务执行进度通过 print 输出到控制台"""
-
-    def __init__(self) -> None:
-        """初始化日志观察者，将所有计数器置零"""
-        self.name = ""
-        self.total = 0
-        self.succeeded = 0
-        self.failed = 0
-        self.duplicated = 0
-
-    def on_start(self, name: str, total: int) -> None:
+    def _advance(self, count: int) -> None:
         """
-        任务执行器启动时的回调
+        推进进度条
 
-        :param name: 执行器名称
-        :param total: 任务总数
+        :param count: 本次推进的数量
         """
-        self.name = name
-        self.total = total
-        print(f"[observer] start executor={name}, total={total}")
-
-    def on_task_success(self, count: int = 1) -> None:
-        """
-        任务成功执行时的回调
-
-        :param count: 本次成功执行的任务数量，默认 1
-        """
-        self.succeeded += count
-        print(f"[observer] success +{count}, succeeded={self.succeeded}")
-
-    def on_task_fail(self, count: int = 1) -> None:
-        """
-        任务执行失败时的回调
-
-        :param count: 本次失败的任务数量，默认 1
-        """
-        self.failed += count
-        print(f"[observer] fail +{count}, failed={self.failed}")
-
-    def on_task_duplicate(self, count: int = 1) -> None:
-        """
-        检测到重复任务时的回调
-
-        :param count: 本次去重的任务数量，默认 1
-        """
-        self.duplicated += count
-        print(f"[observer] duplicate +{count}, duplicated={self.duplicated}")
-
-    def on_tasks_added(self, count: int) -> None:
-        """
-        动态添加新任务时的回调
-
-        :param count: 新增的任务数量
-        """
-        self.total += count
-        print(f"[observer] tasks added +{count}, total={self.total}")
-
-    def on_finish(self) -> None:
-        """任务执行器完成后的回调，打印最终统计结果"""
-        print(
-            "[observer] finish "
-            f"executor={self.name}, total={self.total}, "
-            f"succeeded={self.succeeded}, failed={self.failed}, duplicated={self.duplicated}"
-        )
+        if self._bar is not None:
+            _ = self._bar.update(count)
 
 
 def demo_progress_observer() -> None:

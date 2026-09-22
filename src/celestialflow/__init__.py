@@ -20,7 +20,7 @@ from .node import (
     TaskRouter,
     TaskSplitter,
 )
-from .observability import BaseObserver, TaskReporter
+from .observability import BaseObserver, PrintObserver, TaskReporter
 from .persistence.util_sqlite import (
     load_records,
     load_tasks_grouped_by_stage,
@@ -33,6 +33,7 @@ __all__ = [
     "BaseInlet",
     "BaseObserver",
     "BaseSpout",
+    "PrintObserver",
     "TaskChain",
     "TaskComplete",
     "TaskCross",

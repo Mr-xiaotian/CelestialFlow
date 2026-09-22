@@ -126,7 +126,7 @@ class TaskMetrics:
         """
         self.external_input_counter.add(add_count)
         for observer in self._observers:
-            observer.on_tasks_added(add_count)
+            observer.on_task_added(add_count)
 
     def add_success_count(self, count: int = 1) -> None:
         """
@@ -177,17 +177,15 @@ class TaskMetrics:
 
     # ==== 启动与结束 ====
 
-    def on_start(self, _name: str, _total: int) -> None:
+    def on_start(self) -> None:
         """
         广播执行器启动事件。
 
-        :param _name: 执行器全名
-        :param _total: 任务总数
         :return: ``None``
         """
         self._status = int(StageStatus.RUNNING)
         for observer in self._observers:
-            observer.on_start(_name, _total)
+            observer.on_start()
 
     def on_finish(self) -> None:
         """

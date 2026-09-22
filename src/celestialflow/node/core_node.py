@@ -570,9 +570,7 @@ class BaseTaskNode[T, R, Y]:
 
         :return: ``None``
         """
-        self.metrics.on_start(
-            f"{self.get_name()}({self._get_execution_mode_desc()})", 0
-        )
+        self.metrics.on_start()
 
         get_log_inlet().node_start(
             self.get_name(),

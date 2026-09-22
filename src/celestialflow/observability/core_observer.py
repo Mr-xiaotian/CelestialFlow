@@ -10,7 +10,7 @@ _OBSERVER_METHODS = frozenset(
         "on_task_success",
         "on_task_fail",
         "on_task_duplicate",
-        "on_tasks_added",
+        "on_task_added",
         "on_finish",
     }
 )
@@ -19,12 +19,9 @@ _OBSERVER_METHODS = frozenset(
 class BaseObserver:
     """执行器生命周期观察者基类，子类按需覆写。"""
 
-    def on_start(self, _name: str, _total: int) -> None:
+    def on_start(self) -> None:
         """
         执行器启动回调
-
-        :param _name: 执行器全名
-        :param _total: 任务总数
         """
         ...
 
@@ -52,7 +49,7 @@ class BaseObserver:
         """
         ...
 
-    def on_tasks_added(self, _count: int) -> None:
+    def on_task_added(self, _count: int) -> None:
         """
         新增任务通知
 

@@ -5,11 +5,13 @@
 """
 
 from .core_observer import BaseObserver
+from .core_observer_print import PrintObserver
 from .core_report import NullTaskReporter, ReporterProtocol, TaskReporter
 
 __all__ = [
     "BaseObserver",
     "NullTaskReporter",
+    "PrintObserver",
     "ReporterProtocol",
     "TaskReporter",
 ]

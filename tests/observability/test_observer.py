@@ -1,4 +1,7 @@
-from celestialflow import BaseObserver, TaskExecutor
+import io
+from contextlib import redirect_stdout
+
+from celestialflow import BaseObserver, PrintObserver, TaskExecutor
 
 
 # =========================
@@ -30,9 +33,9 @@ class TestExecutorObserver:
                 """初始化事件记录列表。"""
                 self.events = []
 
-            def on_start(self, name, total):
+            def on_start(self):
                 """记录执行器启动事件。"""
-                self.events.append(("start", name, total))
+                self.events.append(("start",))
 
             def on_task_success(self, count=1):
                 """记录任务成功事件。"""
@@ -46,7 +49,7 @@ class TestExecutorObserver:
                 """记录重复任务事件。"""
                 self.events.append(("duplicate", count))
 
-            def on_tasks_added(self, count):
+            def on_task_added(self, count):
                 """记录新增任务事件。"""
                 self.events.append(("added", count))
 
@@ -63,6 +66,26 @@ class TestExecutorObserver:
         assert "start" in event_types
         assert event_types.count("success") == 3
         assert event_types[-1] == "finish"
+        assert sum(e[1] for e in observer.events if e[0] == "added") == 3
+
+    def test_print_observer(self):
+        """内置 PrintObserver 输出生命周期日志，且任务总数不重复累加"""
+        observer = PrintObserver()
+        executor = TaskExecutor(
+            "PrintObserverTest", raise_on_negative, execution_mode="serial"
+        )
+        executor.add_observer(observer)
+
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            executor.run([1, -1, 2])
+
+        output = buffer.getvalue()
+        assert "[observer] start" in output
+        assert "[observer] finish" in output
+        assert observer.total.get() == 3
+        assert observer.succeeded.get() == 2
+        assert observer.failed.get() == 1
 
     def test_observer_with_errors(self):
         """observer 收到失败回调"""

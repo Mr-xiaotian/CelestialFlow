@@ -4,7 +4,7 @@ bench_observer — 对比三种观察者模式的开销
 测试同一批任务在以下三种场景下的耗时：
 1. 无观察者（基准）
 2. print 日志（PrintObserver）
-3. tqdm 进度条（TaskProgress）
+3. tqdm 进度条（TqdmObserver）
 """
 
 import time
@@ -12,7 +12,7 @@ from typing import Any
 
 from tqdm import tqdm
 
-from celestialflow import BaseObserver, TaskExecutor
+from celestialflow import BaseObserver, PrintObserver, TaskExecutor
 
 # ── 工作函数 ──────────────────────────────────────────────────────────
 
@@ -39,85 +39,23 @@ def cpu_intensive(x: int) -> int:
     return total
 
 
-# ── PrintObserver（无 tqdm，纯 print）───────────────────────────────
-
-
-class PrintObserver(BaseObserver):
-    """基于 print 的日志观察者"""
-
-    def __init__(self) -> None:
-        """初始化"""
-        self.name = ""
-        self.total = 0
-
-    def on_start(self, name: str, total: int) -> None:
-        """
-        启动回调
-
-        :param name: 执行器名称
-        :param total: 任务总数
-        """
-        self.name = name
-        self.total = total
-        print(f"[observer] start executor={name}, total={total}")
-
-    def on_task_success(self, count: int = 1) -> None:
-        """
-        成功回调
-
-        :param count: 成功数量
-        """
-        print(f"[observer] success +{count}")
-
-    def on_task_fail(self, count: int = 1) -> None:
-        """
-        失败回调
-
-        :param count: 失败数量
-        """
-        print(f"[observer] fail +{count}")
-
-    def on_task_duplicate(self, count: int = 1) -> None:
-        """
-        重复回调
-
-        :param count: 重复数量
-        """
-        print(f"[observer] duplicate +{count}")
-
-    def on_tasks_added(self, count: int) -> None:
-        """
-        添加任务回调
-
-        :param count: 新增数量
-        """
-        self.total += count
-        print(f"[observer] tasks added +{count}, total={self.total}")
-
-    def on_finish(self) -> None:
-        """结束回调"""
-        print(
-            f"[observer] finish executor={self.name}, "
-            f"succeeded/ total={self.total}"
-        )
-
-
-# ── TaskProgress（基于 tqdm）─────────────────────────────────────────
+# ── TqdmObserver（基于 tqdm）───────────────────────────────────────
 
 
 class TqdmObserver(BaseObserver):
     """基于 tqdm 的进度条观察者"""
 
-    _bar: tqdm[Any]
+    _bar: tqdm[Any] | None
+    _total: int
 
-    def on_start(self, _name: str, total: int) -> None:
-        """
-        启动回调
+    def __init__(self) -> None:
+        """初始化进度条观察者，进度条延迟到 on_start 时创建"""
+        self._bar = None
+        self._total = 0
 
-        :param _name: 执行器名称
-        :param total: 任务总数
-        """
-        self._bar = tqdm(total=total, desc=_name)
+    def on_start(self) -> None:
+        """启动回调，总量取启动前已注入的任务数"""
+        self._bar = tqdm(total=self._total)
 
     def on_task_success(self, count: int = 1) -> None:
         """
@@ -125,7 +63,7 @@ class TqdmObserver(BaseObserver):
 
         :param count: 成功数量
         """
-        self._bar.update(count)
+        self._advance(count)
 
     def on_task_fail(self, count: int = 1) -> None:
         """
@@ -133,7 +71,7 @@ class TqdmObserver(BaseObserver):
 
         :param count: 失败数量
         """
-        self._bar.update(count)
+        self._advance(count)
 
     def on_task_duplicate(self, count: int = 1) -> None:
         """
@@ -141,21 +79,34 @@ class TqdmObserver(BaseObserver):
 
         :param count: 重复数量
         """
-        self._bar.update(count)
+        self._advance(count)
 
-    def on_tasks_added(self, count: int) -> None:
+    def on_task_added(self, count: int) -> None:
         """
         添加任务回调
 
+        该回调可能先于 ``on_start`` 到达，此时仅累加总量。
+
         :param count: 新增数量
         """
-        if count:
+        self._total += count
+        if self._bar is not None:
             self._bar.total += count
             self._bar.refresh()
 
     def on_finish(self) -> None:
         """结束回调"""
-        self._bar.close()
+        if self._bar is not None:
+            self._bar.close()
+
+    def _advance(self, count: int) -> None:
+        """
+        推进进度条
+
+        :param count: 推进数量
+        """
+        if self._bar is not None:
+            self._bar.update(count)
 
 
 # ── 基准函数 ──────────────────────────────────────────────────────────
