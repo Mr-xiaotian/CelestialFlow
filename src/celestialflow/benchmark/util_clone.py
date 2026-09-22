@@ -30,6 +30,7 @@ def _get_clone_init_kwargs[T, R](
         "max_retries": executor.max_retries,
         "max_info": executor.max_info,
         "enable_duplicate_check": executor.enable_duplicate_check,
+        "max_duplicate_size": executor.max_duplicate_size,
     }
 
 

@@ -158,31 +158,6 @@ class TestTaskMetricsBinding:
         assert metrics.get_downstream_counts() == {"sink_a": 2, "sink_b": 4}
 
 
-class TestTaskMetricsDuplicate:
-    def test_duplicate_check_disabled_always_false(self):
-        """测试去重功能禁用时的行为：相同 Hash 不应被判定为重复"""
-        metrics = TaskMetrics(enable_duplicate_check=False)
-        assert metrics.is_duplicate(b"hash_1") is False
-        assert metrics.is_duplicate(b"hash_1") is False
-        assert metrics.is_duplicate(b"hash_2") is False
-
-    def test_duplicate_check_enabled_detects_repeat(self):
-        """测试去重功能启用时的行为：相同 Hash 的后续请求应被判定为重复"""
-        metrics = TaskMetrics(enable_duplicate_check=True)
-        assert metrics.is_duplicate(b"hash_1") is False
-        assert metrics.is_duplicate(b"hash_1") is True
-        assert metrics.is_duplicate(b"hash_2") is False
-
-    def test_duplicate_check_resets_with_reset_state(self):
-        """测试状态重置对去重集合的影响：reset_state 后历史 Hash 应失效"""
-        metrics = TaskMetrics(enable_duplicate_check=True)
-        metrics.is_duplicate(b"hash_1")
-        assert metrics.is_duplicate(b"hash_1") is True
-
-        metrics.reset_state()
-        assert metrics.is_duplicate(b"hash_1") is False
-
-
 class TestTaskMetricsRetryExceptions:
     def test_default_retry_exceptions_empty(self):
         """测试默认可重试异常配置：默认为空"""

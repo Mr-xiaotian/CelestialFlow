@@ -14,7 +14,7 @@ from concurrent.futures import (
 from typing import TYPE_CHECKING
 
 from ..persistence import get_log_inlet
-from ..runtime.core_envelope import TaskEnvelope
+from ..runtime import TaskEnvelope
 from ..runtime.util_errors import ConfigurationError, InitializationError
 from ..runtime.util_types import CTreeEvent, TerminationIdPool, TerminationSignal
 
@@ -130,6 +130,7 @@ class TaskDispatch[T, R, Y]:
                     self.task_node.process_task_success(
                         task_envelope, result, start_perf
                     )
+                    self.task_node.mark_processed(task_envelope)
                     return
                 except Exception as exception:
                     if fail_times > max_retries or not isinstance(
@@ -165,6 +166,7 @@ class TaskDispatch[T, R, Y]:
                     self.task_node.process_task_success(
                         task_envelope, result, start_perf
                     )
+                    self.task_node.mark_processed(task_envelope)
                     return
                 except Exception as exception:
                     if fail_times > max_retries or not isinstance(
@@ -195,8 +197,7 @@ class TaskDispatch[T, R, Y]:
                 termination_signal = self._process_termination_signal(envelope)
                 break
 
-            task_hash = envelope.get_hash()
-            if self.task_node.metrics.is_duplicate(task_hash):
+            if self.task_node.is_duplicate(envelope):
                 self.task_node.deal_duplicate(envelope)
                 continue
 
@@ -221,8 +222,7 @@ class TaskDispatch[T, R, Y]:
                     termination_signal = self._process_termination_signal(envelope)
                     break
 
-                task_hash = envelope.get_hash()
-                if self.task_node.metrics.is_duplicate(task_hash):
+                if self.task_node.is_duplicate(envelope):
                     self.task_node.deal_duplicate(envelope)
                     continue
 
@@ -264,8 +264,7 @@ class TaskDispatch[T, R, Y]:
                 termination_signal = self._process_termination_signal(envelope)
                 break
 
-            task_hash = envelope.get_hash()
-            if self.task_node.metrics.is_duplicate(task_hash):
+            if self.task_node.is_duplicate(envelope):
                 self.task_node.deal_duplicate(envelope)
                 continue
 

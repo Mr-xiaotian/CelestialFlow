@@ -17,11 +17,10 @@ class TaskMetrics:
     任务指标统计类
 
     负责管理任务执行过程中的各项指标统计，包括成功、失败、重复任务的计数，
-    以及可重试异常类型和去重逻辑。
+    以及可重试异常类型。
     """
 
     lock: Lock
-    enable_duplicate_check: bool
     retry_exceptions: tuple[type[Exception], ...]
     external_input_counter: ValueWrapper
     success_counter: ValueWrapper
@@ -29,7 +28,6 @@ class TaskMetrics:
     duplicate_counter: ValueWrapper
     upstream_counter: dict[str, ValueWrapper]
     downstream_counter: dict[str, ValueWrapper]
-    processed_set: set[bytes]
     busy_seconds: float        # 已闭合的忙碌时间片之和
     _in_flight: int            # 正在执行的任务数
     _busy_since: float | None  # 当前时间片起点
@@ -38,14 +36,10 @@ class TaskMetrics:
 
     def __init__(
         self,
-        enable_duplicate_check: bool = False,
     ):
         """
         初始化 TaskMetrics
-
-        :param enable_duplicate_check: 是否启用重复任务检查，默认值为 False
         """
-        self.enable_duplicate_check = enable_duplicate_check
         self.retry_exceptions = ()
         self._observers: list[BaseObserver] = []
         self._status = int(StageStatus.NOT_STARTED)
@@ -55,7 +49,6 @@ class TaskMetrics:
 
         self.lock = Lock()
         self._init_counter()
-        self.reset_state()
 
     def _init_counter(self) -> None:
         """
@@ -70,17 +63,6 @@ class TaskMetrics:
 
         self.upstream_counter = {}
         self.downstream_counter = {}
-
-    # ==== 重置 ====
-
-    def reset_state(self) -> None:
-        """
-        重置统计状态
-        清空已处理任务集合。
-
-        - processed_set：用于重复检测
-        """
-        self.processed_set = set()  # 已处理任务哈希集合
 
     # ==== 观察者 ====
 
@@ -99,37 +81,6 @@ class TaskMetrics:
         :param observer: 要移除的观察者实例
         """
         self._observers.remove(observer)
-
-    # ==== 去重 ====
-
-    def is_duplicate(self, task_hash: bytes) -> bool:
-        """
-        检查任务是否重复。
-
-        该方法仅在节点工作线程中被串行调用，因此检查与记录之间无需额外加锁。
-
-        :param task_hash: 任务的哈希值
-        :return: 如果启用了去重检查且任务哈希存在于已处理集合中，返回 True；否则返回 False。
-        """
-        if not self.enable_duplicate_check:
-            return False
-        if task_hash not in self.processed_set:
-            self.add_processed_set(task_hash)
-            return False
-
-        return True
-
-    def add_processed_set(self, task_hash: bytes) -> None:
-        """
-        将任务添加到已处理集合
-        用于后续的去重检查。
-
-        :param task_hash: 任务的哈希值
-        """
-        if not self.enable_duplicate_check:
-            return
-        with self.lock:
-            self.processed_set.add(task_hash)
 
     # ==== 重试 ====
 

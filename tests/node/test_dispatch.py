@@ -130,7 +130,6 @@ def _make_executor(
         enable_duplicate_check=enable_duplicate_check,
     )
     e.set_retry_exceptions(ValueError)
-    e.metrics.reset_state()
     get_lifecycle_spout().start()
     get_log_spout().start()
     e.ctree_client = _CtreeStub()
@@ -197,6 +196,18 @@ class TestDispatchSerial:
         results = _collect_results(executor)
         assert isinstance(results[-1], TerminationSignal)
         assert len(results) == 6
+
+    def test_duplicate_serial(self) -> None:
+        """验证任务成功后被标记，相同任务再次到达时被判定为重复。"""
+        executor = _make_executor(_square, enable_duplicate_check=True)
+        dispatch = TaskDispatch(executor, executor.func, max_workers=1)
+        _put(executor, 7, 7, 3)
+        _put_termination(executor)
+        dispatch.dispatch_serial()
+        results = _collect_results(executor)
+        task_results = [r for r in results if not isinstance(r, TerminationSignal)]
+        assert len(task_results) == 2
+        assert executor.metrics.get_duplicate_count() == 1
 
     def test_retry_then_succeed(self) -> None:
         """验证串行模式下任务重试后最终成功。"""
@@ -303,20 +314,6 @@ class TestDispatchThread:
         results = _collect_results(executor)
         task_results = [r for r in results if not isinstance(r, TerminationSignal)]
         assert len(task_results) == 10
-
-    def test_thread_duplicate(self) -> None:
-        """验证线程模式会统计重复任务。"""
-        executor = _make_executor(_square, enable_duplicate_check=True)
-        dispatch = TaskDispatch(executor, executor.func, max_workers=2)
-        executor.task_queue.put(TaskEnvelope(task=7, id=1))
-        executor.task_queue.put(TaskEnvelope(task=7, id=2))
-        executor.task_queue.put(TaskEnvelope(task=3, id=3))
-        _put_termination(executor)
-        dispatch.dispatch_thread()
-        results = _collect_results(executor)
-        task_results = [r for r in results if not isinstance(r, TerminationSignal)]
-        assert len(task_results) >= 1
-        assert executor.metrics.get_duplicate_count() == 1
 
 
 # ── async ──────────────────────────────────────────────
