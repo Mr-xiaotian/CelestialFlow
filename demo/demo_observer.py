@@ -98,7 +98,7 @@ def demo_print_observer() -> None:
         max_workers=6,
         max_retries=1,
     )
-    executor.add_observer(PrintObserver())
+    executor.add_observer(PrintObserver(executor.get_name()))
 
     executor.run(test_task)
 

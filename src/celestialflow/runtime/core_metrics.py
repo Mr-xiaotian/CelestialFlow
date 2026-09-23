@@ -34,9 +34,7 @@ class TaskMetrics:
 
     # ==== 初始化 ====
 
-    def __init__(
-        self,
-    ):
+    def __init__(self) -> None:
         """
         初始化 TaskMetrics
         """

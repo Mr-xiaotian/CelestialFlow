@@ -70,7 +70,7 @@ class TestExecutorObserver:
 
     def test_print_observer(self):
         """内置 PrintObserver 输出生命周期日志，且任务总数不重复累加"""
-        observer = PrintObserver()
+        observer = PrintObserver("PrintObserverTest")
         executor = TaskExecutor(
             "PrintObserverTest", raise_on_negative, execution_mode="serial"
         )
@@ -81,8 +81,8 @@ class TestExecutorObserver:
             executor.run([1, -1, 2])
 
         output = buffer.getvalue()
-        assert "[observer] start" in output
-        assert "[observer] finish" in output
+        assert "[PrintObserverTest] start" in output
+        assert "[PrintObserverTest] finish" in output
         assert observer.total.get() == 3
         assert observer.succeeded.get() == 2
         assert observer.failed.get() == 1

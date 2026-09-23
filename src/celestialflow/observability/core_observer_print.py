@@ -6,10 +6,20 @@ from .core_observer import BaseObserver
 
 
 class PrintObserver(BaseObserver):
-    """基于日志输出的观察者，将任务执行进度通过 print 输出到控制台"""
+    """基于日志输出的观察者，将任务执行进度通过 print 输出到控制台。
 
-    def __init__(self) -> None:
-        """初始化日志观察者，将所有计数器置零"""
+    所有计数器均为线程安全的 ``ValueWrapper``，在 thread / async 执行模式下可安全调用。
+
+    注意：``total`` 仅统计经由 ``put_task`` / ``run`` 注入的任务。图模式下由上游节点
+    下发的任务不会触发 ``on_task_added``，因此非源节点的 ``total`` 会小于其实际处理量。
+    """
+
+    def __init__(self, name: str) -> None:
+        """
+        初始化日志观察者，将所有计数器置零
+
+        :param name: 输出前缀，用于区分不同节点的观察者
+        """
         lock = Lock()
 
         self.total: ValueWrapper = ValueWrapper(0, lock)
@@ -17,18 +27,16 @@ class PrintObserver(BaseObserver):
         self.failed: ValueWrapper = ValueWrapper(0, lock)
         self.duplicated: ValueWrapper = ValueWrapper(0, lock)
 
-    def on_start(self) -> None:
-        """
-        任务执行器启动时的回调
+        self.name: str = name
 
-        :param total: 任务总数
-        """
-        print(f"[observer] start total={self.total.get()}")
+    def on_start(self) -> None:
+        """任务执行器启动时的回调，此时 total 已包含启动前注入的任务数"""
+        print(f"[{self.name}] start total={self.total.get()}")
 
     def on_finish(self) -> None:
         """任务执行器完成后的回调，打印最终统计结果"""
         print(
-            "[observer] finish "
+            f"[{self.name}] finish "
             f"total={self.total.get()}, "
             f"succeeded={self.succeeded.get()}, failed={self.failed.get()}, duplicated={self.duplicated.get()}"
         )
@@ -37,10 +45,12 @@ class PrintObserver(BaseObserver):
         """
         动态添加新任务时的回调
 
+        该回调可能先于 ``on_start`` 到达（``run`` 会先注入全部任务再启动执行）。
+
         :param count: 新增的任务数量
         """
         self.total.add(count)
-        print(f"[observer] total={self.total.get()}(+{count})")
+        print(f"[{self.name}] total={self.total.get()}(+{count})")
 
     def on_task_success(self, count: int = 1) -> None:
         """
@@ -49,7 +59,9 @@ class PrintObserver(BaseObserver):
         :param count: 本次成功执行的任务数量，默认 1
         """
         self.succeeded.add(count)
-        print(f"[observer] succeeded={self.succeeded.get()}(+{count}), total={self.total.get()}")
+        print(
+            f"[{self.name}] succeeded={self.succeeded.get()}(+{count}), total={self.total.get()}"
+        )
 
     def on_task_fail(self, count: int = 1) -> None:
         """
@@ -58,7 +70,9 @@ class PrintObserver(BaseObserver):
         :param count: 本次失败的任务数量，默认 1
         """
         self.failed.add(count)
-        print(f"[observer] failed={self.failed.get()}(+{count}), total={self.total.get()}")
+        print(
+            f"[{self.name}] failed={self.failed.get()}(+{count}), total={self.total.get()}"
+        )
 
     def on_task_duplicate(self, count: int = 1) -> None:
         """
@@ -67,4 +81,6 @@ class PrintObserver(BaseObserver):
         :param count: 本次去重的任务数量，默认 1
         """
         self.duplicated.add(count)
-        print(f"[observer] duplicated={self.duplicated.get()}(+{count}), total={self.total.get()}")
+        print(
+            f"[{self.name}] duplicated={self.duplicated.get()}(+{count}), total={self.total.get()}"
+        )

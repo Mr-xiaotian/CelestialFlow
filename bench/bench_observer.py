@@ -169,7 +169,7 @@ def bench_observer_overhead() -> None:
         print(f"  no observer : {t_no:.4f}s")
 
         # 2. print 观察者
-        print_obs = PrintObserver()
+        print_obs = PrintObserver(f"PrintObserver-{label}")
         t_print = run_benchmark(
             f"PrintObserver-{label}", tasks, work_func, observer=print_obs
         )
@@ -204,7 +204,7 @@ def bench_observer_multirun() -> None:
         )
         t_print = run_benchmark(
             f"MultiRun-print-{run}", tasks, fibonacci,
-            observer=PrintObserver(),
+            observer=PrintObserver(f"MultiRun-print-{run}"),
         )
         t_tqdm = run_benchmark(
             f"MultiRun-tqdm-{run}", tasks, fibonacci,
