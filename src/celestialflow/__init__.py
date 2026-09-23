@@ -26,7 +26,6 @@ from .persistence.util_sqlite import (
     load_tasks_grouped_by_stage,
 )
 from .runtime.util_format import format_table
-from .runtime.util_hash import make_hashable
 from .runtime.util_types import TerminationSignal
 
 __all__ = [
@@ -51,5 +50,4 @@ __all__ = [
     "format_table",
     "load_records",
     "load_tasks_grouped_by_stage",
-    "make_hashable",
 ]

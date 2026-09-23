@@ -63,7 +63,6 @@ def build_executor(name: str, func: Any, execution_mode: str, max_workers: int):
         func,
         execution_mode=execution_mode,
         max_workers=max_workers,
-        enable_duplicate_check=False,
     )
 
 
@@ -81,21 +80,18 @@ def build_chain_graph(
         funcs[0],
         execution_mode=execution_mode,
         max_workers=max_workers,
-        enable_duplicate_check=False,
     )
     node2 = TaskExecutor(
         f"{name}_node_2",
         funcs[1],
         execution_mode=execution_mode,
         max_workers=max_workers,
-        enable_duplicate_check=False,
     )
     node3 = TaskExecutor(
         f"{name}_node_3",
         funcs[2],
         execution_mode=execution_mode,
         max_workers=max_workers,
-        enable_duplicate_check=False,
     )
 
     graph = TaskGraph(name, graph_mode=graph_mode)

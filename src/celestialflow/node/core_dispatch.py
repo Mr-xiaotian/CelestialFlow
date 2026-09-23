@@ -130,7 +130,6 @@ class TaskDispatch[T, R, Y]:
                     self.task_node.process_task_success(
                         task_envelope, result, start_perf
                     )
-                    self.task_node.mark_processed(task_envelope)
                     return
                 except Exception as exception:
                     if fail_times > max_retries or not isinstance(
@@ -166,7 +165,6 @@ class TaskDispatch[T, R, Y]:
                     self.task_node.process_task_success(
                         task_envelope, result, start_perf
                     )
-                    self.task_node.mark_processed(task_envelope)
                     return
                 except Exception as exception:
                     if fail_times > max_retries or not isinstance(
@@ -197,10 +195,6 @@ class TaskDispatch[T, R, Y]:
                 termination_signal = self._process_termination_signal(envelope)
                 break
 
-            if self.task_node.is_duplicate(envelope):
-                self.task_node.deal_duplicate(envelope)
-                continue
-
             self._worker(envelope)
 
         yield_queue.put(termination_signal)
@@ -221,10 +215,6 @@ class TaskDispatch[T, R, Y]:
                 if isinstance(envelope, TerminationIdPool):
                     termination_signal = self._process_termination_signal(envelope)
                     break
-
-                if self.task_node.is_duplicate(envelope):
-                    self.task_node.deal_duplicate(envelope)
-                    continue
 
                 if self._pool is None:
                     raise InitializationError("execution pool has not been initialized")
@@ -263,10 +253,6 @@ class TaskDispatch[T, R, Y]:
             if isinstance(envelope, TerminationIdPool):
                 termination_signal = self._process_termination_signal(envelope)
                 break
-
-            if self.task_node.is_duplicate(envelope):
-                self.task_node.deal_duplicate(envelope)
-                continue
 
             task = asyncio.create_task(sem_worker(envelope))
             pending.add(task)

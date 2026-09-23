@@ -161,7 +161,6 @@ class TestUtilTypes:
         assert CTreeEvent.TASK_SUCCESS == "task.success"
         assert CTreeEvent.TASK_ERROR == "task.error"
         assert CTreeEvent.TASK_RETRY_PREFIX == "task.retry."
-        assert CTreeEvent.TASK_DUPLICATE == "task.duplicate"
 
     def test_ctree_event_termination_values(self):
         """终止相关常量"""

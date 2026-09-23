@@ -18,9 +18,6 @@ class TestLifecyclePersistence:
 
             inlet.task_input("s2", event_id=2, task="data2")
             inlet.task_success(event_id=2, result="ok2")
-
-            inlet.task_input("s3", event_id=3, task="data3")
-            inlet.task_duplicate(event_id=3)
         finally:
             spout.stop()
 

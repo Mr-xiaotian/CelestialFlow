@@ -165,7 +165,6 @@ def demo_redis_ack_0() -> None:
         "RedisAck",
         redis_wait,
         execution_mode="serial",
-        enable_duplicate_check=False,
     )
     fibonacci_stage = TaskExecutor(
         "Fibonacci",
@@ -202,7 +201,6 @@ def demo_redis_ack_1() -> None:
         "RedisAck",
         redis_wait,
         execution_mode="serial",
-        enable_duplicate_check=False,
     )
     sum_stage = TaskExecutor(
         "Sum",
@@ -242,7 +240,6 @@ def demo_redis_ack_2() -> None:
         "RedisAck",
         redis_wait,
         execution_mode="serial",
-        enable_duplicate_check=False,
     )
     download_stage = TaskExecutor(
         "Download",
@@ -288,7 +285,6 @@ def demo_redis_source_0() -> None:
         "RedisSource",
         redis_pop,
         execution_mode="serial",
-        enable_duplicate_check=False,
     )
     sleep_stage_1 = TaskExecutor(
         "Sleep1",

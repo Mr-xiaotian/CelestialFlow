@@ -277,22 +277,6 @@ class LogInlet(BaseInlet):
             f"In '{node_name}', Task {task_repr} failed {fail_times} times and will retry: ({type(exception).__name__}). [{task_id}*]",
         )
 
-    def task_duplicate(
-        self, node_name: str, task_repr: str, parent_id: int, duplicate_id: int
-    ) -> None:
-        """
-        记录重复任务
-
-        :param node_name: 任务节点名称
-        :param task_repr: 任务表示
-        :param parent_id: 父记录 ID
-        :param duplicate_id: 重复记录 ID
-        """
-        self._log(
-            "WARNING",
-            f"In '{node_name}', Task {task_repr} has been duplicated. [{parent_id}->{duplicate_id}*]",
-        )
-
     # ==== 终止信号 ====
 
     def termination_input(self, node_name: str, termination_id: int) -> None:

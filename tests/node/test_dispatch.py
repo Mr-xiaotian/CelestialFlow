@@ -120,14 +120,12 @@ def _make_executor(
     func: Any,
     max_retries: int = 1,
     name: str = "test",
-    enable_duplicate_check: bool = False,
 ) -> TaskExecutor:
     """构造最小可运行的测试执行器。"""
     e = TaskExecutor(
         name,
         func,
         max_retries=max_retries,
-        enable_duplicate_check=enable_duplicate_check,
     )
     e.set_retry_exceptions(ValueError)
     get_lifecycle_spout().start()
@@ -196,18 +194,6 @@ class TestDispatchSerial:
         results = _collect_results(executor)
         assert isinstance(results[-1], TerminationSignal)
         assert len(results) == 6
-
-    def test_duplicate_serial(self) -> None:
-        """验证任务成功后被标记，相同任务再次到达时被判定为重复。"""
-        executor = _make_executor(_square, enable_duplicate_check=True)
-        dispatch = TaskDispatch(executor, executor.func, max_workers=1)
-        _put(executor, 7, 7, 3)
-        _put_termination(executor)
-        dispatch.dispatch_serial()
-        results = _collect_results(executor)
-        task_results = [r for r in results if not isinstance(r, TerminationSignal)]
-        assert len(task_results) == 2
-        assert executor.metrics.get_duplicate_count() == 1
 
     def test_retry_then_succeed(self) -> None:
         """验证串行模式下任务重试后最终成功。"""

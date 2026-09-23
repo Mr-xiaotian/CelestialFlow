@@ -11,7 +11,6 @@ from ..runtime.util_errors import InitializationError
 from .util_payload import to_persisted_payload
 from .util_sqlite import (
     connect_db,
-    delete_record_by_event_id,
     insert_record,
     load_task_error_records,
     load_task_result_records,
@@ -57,9 +56,6 @@ class LifecycleSpout(BaseSpout):
         if op == "insert":
             # 新任务进入某个 stage，写入一条 pending 记录。
             changed = insert_record(self._conn, cast(dict[str, Any], record["record"]))
-        elif op == "delete":
-            # 任务重复时，删除对应的 pending 记录。
-            changed = delete_record_by_event_id(self._conn, int(record["event_id"]))
         elif op == "promote_success":
             # 任务成功时，将 pending 记录晋升为 success 并写入结果。
             changed = promote_record_to_success_by_event_id(
@@ -165,14 +161,6 @@ class LifecycleInlet(BaseInlet):
                 "result_json": to_persisted_payload(result),
             }
         )
-
-    def task_duplicate(self, event_id: int) -> None:
-        """
-        删除已判重任务对应的 pending 记录。
-
-        :param event_id: 当前任务事件 ID
-        """
-        self._funnel({"__op__": "delete", "event_id": event_id})
 
     def task_fail(
         self,

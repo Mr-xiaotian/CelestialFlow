@@ -216,13 +216,12 @@ def demo_topology_topology() -> None:
 
     若未设置 REPORT_HOST / REPORT_PORT 环境变量, demo 仍可独立运行 (跳过上报)。
     """
-    # 节点定义：混合 serial / thread 执行模式，Ingest 启用重复检测。
+    # 节点定义：混合 serial / thread 执行模式。
     ingest = TaskExecutor(
         "Ingest",
         ingest_task,
         execution_mode="thread",
         max_workers=4,
-        enable_duplicate_check=True,
     )
     normalize = TaskExecutor(
         "Normalize",

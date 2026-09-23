@@ -170,64 +170,6 @@ class TestTaskExecutor:
 
         assert executor.metrics.get_counts()["tasks_succeeded"] == 20
 
-    def test_duplicate_check_disabled_by_default(self) -> None:
-        """默认配置下不应启用重复检查。"""
-        executor = TaskExecutor(
-            "AddOneDedupDefaultDisabled",
-            add_one,
-            execution_mode="serial",
-        )
-        executor.run([1, 1, 2, 2, 2, 3])
-
-        counts = executor.metrics.get_counts()
-        assert counts["tasks_succeeded"] == 6
-        assert counts["tasks_duplicated"] == 0
-
-    def test_duplicate_check_enabled(self) -> None:
-        """启用重复检查时，相同任务不应重复执行。"""
-        executor = TaskExecutor(
-            "AddOneDedupEnabled",
-            add_one,
-            execution_mode="serial",
-            enable_duplicate_check=True,
-        )
-        executor.run([1, 1, 2, 2, 2, 3])
-
-        counts = executor.metrics.get_counts()
-        assert counts["tasks_succeeded"] == 3
-        assert counts["tasks_duplicated"] == 3
-        assert counts["tasks_failed"] == 0
-
-    def test_duplicate_check_disabled(self) -> None:
-        """显式关闭重复检查时，相同任务应重复执行。"""
-        executor = TaskExecutor(
-            "AddOneDedupDisabled",
-            add_one,
-            execution_mode="serial",
-            enable_duplicate_check=False,
-        )
-        executor.run([1, 1, 2, 2, 2, 3])
-
-        counts = executor.metrics.get_counts()
-        assert counts["tasks_succeeded"] == 6
-        assert counts["tasks_duplicated"] == 0
-
-    def test_duplicate_check_evicts_old_hash(self) -> None:
-        """去重集合超出容量后淘汰最旧哈希，使任务可再次执行。"""
-        executor = TaskExecutor(
-            "AddOneDedupBounded",
-            add_one,
-            execution_mode="serial",
-            enable_duplicate_check=True,
-            max_duplicate_size=2,
-        )
-        # 1 会被后续 2、3 挤出集合，因此末尾的 1 不再被判重。
-        executor.run([1, 2, 3, 1])
-
-        counts = executor.metrics.get_counts()
-        assert counts["tasks_succeeded"] == 4
-        assert counts["tasks_duplicated"] == 0
-
     def test_restore_db(self, tmp_path: Path) -> None:
         """默认应读取属于自己名称的 failed 与 pending 任务。"""
         sqlite_path = tmp_path / "lifecycle.sqlite3"
@@ -383,7 +325,6 @@ class TestTaskExecutor:
             "AddOneSuccessCache",
             add_one,
             execution_mode="serial",
-            enable_duplicate_check=True,
         )
         executor.run([1, 2, 3])
 

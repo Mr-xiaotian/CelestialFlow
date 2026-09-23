@@ -30,7 +30,6 @@ from ..runtime.util_errors import (
 )
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import format_repr
-from ..runtime.util_lru import LruHashSet
 from ..runtime.util_types import (
     CTreeEvent,
     TerminationSignal,
@@ -61,9 +60,6 @@ class BaseTaskNode[T, R, Y]:
     max_workers: int
     max_retries: int
     max_info: int
-    enable_duplicate_check: bool
-    max_duplicate_size: int
-    dedup_set: LruHashSet
     metrics: TaskMetrics
     dispatch: TaskDispatch[T, R, Y]
     execution_mode: str
@@ -82,8 +78,6 @@ class BaseTaskNode[T, R, Y]:
         max_retries: int = 1,
         max_queue_size: int = 0,
         max_info: int = 50,
-        enable_duplicate_check: bool = False,
-        max_duplicate_size: int = 10_000,
     ):
         """
         初始化 BaseTaskNode
@@ -95,9 +89,6 @@ class BaseTaskNode[T, R, Y]:
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_queue_size: 任务输入队列的最大容量，默认为 0，表示无限制
         :param max_info: 日志中每条信息的最大长度，默认 50
-        :param enable_duplicate_check: 是否启用重复检查，默认 False
-        :param max_duplicate_size: 去重集合的最大容量（正整数），超出后按 LRU
-            淘汰最久未访问的哈希，默认 10000
         :note:
             ``start()`` / ``start_async()`` 为一次性调用；启动前的 setter 与 observer
             注册允许重复调用。
@@ -111,8 +102,6 @@ class BaseTaskNode[T, R, Y]:
         self.max_retries = max_retries
         self.max_queue_size = max_queue_size
         self.max_info = max_info
-        self.enable_duplicate_check = enable_duplicate_check
-        self.max_duplicate_size = max_duplicate_size
 
         self.set_ctree(LocalEventClient())
 
@@ -132,7 +121,6 @@ class BaseTaskNode[T, R, Y]:
 
         # 上报器可能会在节点真正启动前先采集一次快照。
         self.start_time = 0.0
-        self.dedup_set = LruHashSet(self.max_duplicate_size)  # 已成功任务哈希集合
 
     # ==== 观察者 ====
     def add_observer(self, observer: BaseObserver) -> None:
@@ -358,44 +346,6 @@ class BaseTaskNode[T, R, Y]:
         """
         return f"({format_repr(task, self.max_info)})"
 
-    # ==== 去重 ====
-
-    def is_duplicate(self, task_envelope: TaskEnvelope[T]) -> bool:
-        """
-        检查任务是否重复。
-
-        仅当启用去重、且任务哈希可计算、且哈希已由某个成功任务写入集合时返回
-        ``True``。命中时会刷新该哈希的 LRU 位置。此方法仅在节点调度循环中被
-        串行调用。
-
-        :param task_envelope: 待检查的任务信封
-        :return: 任务是否被判定为重复
-        """
-        if not self.enable_duplicate_check:
-            return False
-
-        task_hash = task_envelope.get_hash()
-        if task_hash is None:
-            return False
-        return self.dedup_set.check(task_hash)
-
-    def mark_processed(self, task_envelope: TaskEnvelope[T]) -> None:
-        """
-        将成功任务的哈希写入去重集合。
-
-        仅在启用去重且任务哈希可计算时写入；集合超出 ``max_duplicate_size``
-        时按 LRU 淘汰最久未访问的哈希。此方法在任务成功后被调用。
-
-        :param task_envelope: 已成功完成的任务信封
-        """
-        if not self.enable_duplicate_check:
-            return
-
-        task_hash = task_envelope.get_hash()
-        if task_hash is None:
-            return
-        self.dedup_set.add_if_absent(task_hash)
-
     # ==== 结果处理 ====
 
     def process_task_success(
@@ -463,29 +413,6 @@ class BaseTaskNode[T, R, Y]:
             fail_times,
             exception,
             task_id,
-        )
-
-    def deal_duplicate(self, task_envelope: TaskEnvelope[T]) -> None:
-        """
-        处理重复任务
-
-        :param task_envelope: 重复的任务
-        """
-        task = task_envelope.get_task()
-        task_id = task_envelope.get_id()
-        duplicate_id = self.ctree_client.emit(
-            CTreeEvent.TASK_DUPLICATE,
-            parents=[task_id],
-        )
-
-        self.metrics.add_duplicate_count()
-
-        get_lifecycle_inlet().task_duplicate(task_id)
-        get_log_inlet().task_duplicate(
-            self.get_name(),
-            self._get_repr(task),
-            task_id,
-            duplicate_id,
         )
 
     # ==== 执行 ====
