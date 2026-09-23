@@ -1,6 +1,6 @@
 # bench_execution_mode.py 基准测试说明
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/23
 
 ## 目标
 
@@ -174,6 +174,33 @@ bench_task_1: list[Any] = list(range(20, 35))
 - CPU 场景下，当前输入规模非常小，`serial` 反而是最快的；`thread` 与 `async` 的额外调度开销已经超过了并发收益
 - I/O 场景下，`thread` 与 `async` 依旧接近理论并行上限，均把总耗时压到约 1 秒，其中 `async` 略快但差距可以忽略
 - 这轮结果比 2026/06/16 的 CPU 数据低很多，主要是因为运行环境从 Windows 切换到了 macOS（CPU 单核性能、Python 实现细节等差异）；两轮 CPU benchmark 不应直接比较绝对值
+
+### 2026/09/23 - 本地复测（Windows / Python 3.14.3）
+
+> 环境：Windows，Python 3.14.3，命令 `uv run .\bench\bench_execution_mode.py`
+
+#### 场景一：斐波那契（CPU 密集型）
+
+| 模式 | 耗时 | 相对 serial |
+|------|------|------|
+| serial | 0.0430s | 1.00x |
+| thread | 0.0149s | **2.89x** |
+| async | 0.0131s | **3.28x** |
+
+#### 场景二：sleep_1（I/O 密集型）
+
+| 模式 | 耗时 | 相对 serial |
+|------|------|------|
+| serial | 6.0180s | 1.00x |
+| thread | **1.0126s** | 5.94x |
+| async | 1.0194s | 5.90x |
+
+**本轮补充结论**：
+- **CPU 场景**：`thread` 和 `async` 分别比 `serial` 快约 2.9x 和 3.3x。这里加速来源并非 CPU 并行，而是**单任务框架开销**：`bench_task_1` 中最大的 `n` 也只有 31，迭代算法仅需约 30 次循环，纯计算耗时在微秒级，因此测得时间主要由每个任务的 metrics、日志/生命周期写入（funnel inlet）以及 4 个异常任务的重试处理构成。这些开销偏向 I/O 性质，`thread`/`async` 可跨 worker 重叠执行，而 `serial` 只能顺序承担。
+- 另外，`serial` 是 `benchmark_executor` 中第一个运行的模式，可能额外承担了一次性的全局 spout/lifecycle 初始化开销，这会进一步放大它与后续两种模式的差距。因此本轮 CPU 数据**不能**读作“多线程加速了 CPU 计算”。
+- **I/O 场景**：`thread` 与 `async` 都接近理论最优的 6x（分别 5.94x / 5.90x），与 6 个 `max_workers` 的并行上限基本吻合。
+- 本轮 `thread` 略快于 `async`（约 0.7%），与 2026/08/18 的 macOS 复测（`async` 略快）相反，属于**噪声级差异**，两者在该场景下可视为等价。
+- 与 2026/08/18 的 macOS 数据对比时要注意：环境从 macOS 切回 Windows，且 CPU 场景的绝对值受框架启动开销影响很大，两轮结果不应直接比较。
 
 ## 依赖
 
