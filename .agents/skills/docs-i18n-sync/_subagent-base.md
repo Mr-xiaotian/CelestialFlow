@@ -29,7 +29,19 @@
 
 ### 顶层特殊文件
 
-本项目当前**没有**项目根的 `README.md`，因此 `README.md` 不在本次同步范围内。如果未来出现根级 `README.md`，按 `scan_i18n_diff.py --root-file README.md` 的方式映射到 `docs/{en,ja}/README.md`。
+本项目根存在 `README.md`（中文为主），**必须**翻译到 `docs/en/README.md` 与 `docs/ja/README.md`：
+按 `scan_i18n_diff.py --root-file README.md` 的方式映射（源在项目根，不在 `docs/zh-CN/`）。
+`docs/zh-CN/` 下**不放** `README.md` 镜像，故 `docs/{en,ja}/README.md` 不应被误判为 DELETE。
+
+### H1 标题镜像（本项目强制）
+
+`docs-zh-sync` 会把 `docs/zh-CN/` 的 H1 全量改为源码相对路径（如 `# src/celestialflow/node/core_node.py`），
+且明确排除 en/ja。因此 en/ja 必须**逐字镜像**这类路径型 H1；总览类 README、`other/`、顶层文档的 H1 照常翻译。
+
+### 代码块注释语言（本项目约定：本地化）
+
+本项目 en/ja 既有语料约定：代码块中的**中文注释、docstring、示例输出文本一律本地化**（英/日），
+仅保留标识符、结构、路径、URL。请与既有译文保持一致，**不要**在同一次同步中混用"保留中文"与"本地化"两种策略。
 
 ---
 

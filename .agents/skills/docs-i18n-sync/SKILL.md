@@ -18,10 +18,11 @@ description: "Syncs translations from docs/zh-CN (source of truth) to docs/en/ a
 
 本技能基于通用框架 `~/.agents/skills/docs-i18n-sync/SKILL.md`，该框架定义了：
 
-- 3 阶段执行流程（扫描与差异检测 → 委派子代理 → 汇总与交付）
+- 4 阶段执行流程（扫描与差异检测 → 委派子代理 → 汇总与交付 → 校验）
 - 通用翻译规则（`_subagent-base.md`）
 - 通用输出格式与降级策略
-- 跨平台扫描脚本 `scan_i18n_diff.py`（含重命名候选检测）
+- 跨平台扫描脚本 `scan_i18n_diff.py`（含重命名候选检测、`--batch-size` 分批建议）
+- 结构校验脚本 `validate_i18n_sync.py`（镜像完整性 / H1 镜像 / 围栏配对 / CJK 残留）
 
 主 agent 在执行时，应优先遵循通用框架的流程，并结合本文件的以下项目特化配置。
 
@@ -41,10 +42,12 @@ description: "Syncs translations from docs/zh-CN (source of truth) to docs/en/ a
 
 ```bash
 # 单行调用。$HOME 在 Bash 与 PowerShell 下均会自动展开为主目录（Windows 下为 %USERPROFILE%）。
-uv run python $HOME/.agents/skills/docs-i18n-sync/scan_i18n_diff.py --project-root . --source docs/zh-CN --targets en:docs/en ja:docs/ja
+uv run python $HOME/.agents/skills/docs-i18n-sync/scan_i18n_diff.py --project-root . --source docs/zh-CN --targets en:docs/en ja:docs/ja --root-file README.md --batch-size 20 --output temp/i18n_manifest.md
 ```
 
-> 注：脚本的 `--rename-threshold` 默认 0.5，可按需调整。
+> 注：`--rename-threshold` 默认 0.5，可按需调整。
+> `--batch-size 20` 生成每批 ≤ 20 个文件的确定性分批建议；`--output` 强制 UTF-8 落盘
+> （避免 PowerShell `>` 重定向写成 UTF-16/BOM）。
 
 ## 项目特化：子任务划分
 
@@ -63,6 +66,7 @@ EN 与 JA **天然并行**，可一次性并行委派 2 个子代理（每语言
 | 21–60 | 按 3 批拆分：① `bench/` + `demo/` + `other/` + 顶层文件 ② `src/`（全部子目录） ③ `tests/`（全部子目录） |
 | > 60 | 在上述基础上，将 `src/` 和 `tests/` 按子目录进一步拆分，确保每批 ≤ 25 个文件 |
 
+> **推荐**：扫描时加 `--batch-size 20`，直接采用脚本给出的确定性分批方案（会列出每批文件清单），无需临场判断。
 > 如果某批只有 SKIP 文件（无实际操作），可以省略该批。
 
 ## 委派子代理
@@ -82,12 +86,13 @@ EN 与 JA **天然并行**，可一次性并行委派 2 个子代理（每语言
 
 ### Manifest 使用约定
 
-主 agent 从脚本输出中读取每个语言区域的 5 类动作：
+主 agent 从脚本输出中读取每个语言区域的 6 类动作：
 
 - `NEW` / `UPDATE` / `MOVE` / `DELETE` → 传给对应子代理处理
+- `REVIEW` → 主 agent 自己人工核对（源无日期行，如根 `README.md`、算法说明），不进入子代理 prompt
 - `SKIP` → 主 agent 自己消费，不进入子代理 prompt
 
-子代理无需理解"为什么是 SKIP"，只需要按 NEW/UPDATE/MOVE/DELETE 翻译即可。
+子代理无需理解"为什么是 SKIP/REVIEW"，只需要按 NEW/UPDATE/MOVE/DELETE 翻译即可。
 
 ## 顶层文件处理
 
@@ -113,6 +118,18 @@ CelestialFlow 当前在 `docs/zh-CN/` 顶层有以下文件：
 ```bash
 uv run python $HOME/.agents/skills/docs-i18n-sync/scan_i18n_diff.py --project-root . --source docs/zh-CN --targets en:docs/en ja:docs/ja --root-file README.md
 ```
+
+## 项目特化：H1 与校验
+
+- `docs-zh-sync` 已把 `docs/zh-CN/` 的 H1 全量改为**源码相对路径**（如 `# src/celestialflow/node/core_node.py`），
+  并明确排除 `docs/en`、`docs/ja`。因此 en/ja 必须**逐字镜像**这类路径型 H1（总览类 README、`other/`、顶层文档除外）。
+- 阶段 4 校验命令：
+
+```bash
+uv run python $HOME/.agents/skills/docs-i18n-sync/validate_i18n_sync.py --project-root . --source docs/zh-CN --targets en:docs/en ja:docs/ja --root-file README.md
+```
+
+  期望退出码为 0（无缺失/多余、H1 一致、围栏配对、非代码区无 CJK 残留）。
 
 ## 排除项
 

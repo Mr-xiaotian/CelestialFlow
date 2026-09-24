@@ -69,7 +69,6 @@ Termination signal merging logic:
 - Receive termination signals from all `source_names` → merge and return
 - Only partial upstream signals received → continue waiting (`_process_item` returns `None`, and the outer loop continues)
 - Receive the `TerminationIdPool` itself (a pool already merged upstream) → return directly, without going through the upstream merge logic again
-```
 
 #### drain
 
